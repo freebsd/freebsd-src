@@ -97,6 +97,8 @@ exec_osf1_imgact(struct image_params *imgp)
 	struct nameidata *ndp;
 	Osf_Auxargs *osf_auxargs;
 
+	GIANT_REQUIRED;
+
 	execp = (const struct ecoff_exechdr*)imgp->image_header;
 	eap = &execp->a;
 	ndp = NULL;
@@ -175,14 +177,12 @@ exec_osf1_imgact(struct image_params *imgp)
 	/*
 	 * Destroy old process VM and create a new one (with a new stack).
 	 */
-	mtx_lock(&vm_mtx);
 	exec_new_vmspace(imgp);
 
 	/*
 	 * The vm space can now be changed.
 	 */
 	vmspace = imgp->proc->p_vmspace;
-	mtx_unlock(&vm_mtx);
 
 	imgp->interpreted = 0;
 	imgp->proc->p_sysent = &osf1_sysvec;
@@ -214,17 +214,14 @@ exec_osf1_imgact(struct image_params *imgp)
 	/* .. bss .. */
 	if (round_page(bsize)) {
 		baddr = bss_start;
-		mtx_lock(&vm_mtx);
 		if ((error = vm_map_find(&vmspace->vm_map, NULL,
 		    (vm_offset_t) 0, &baddr, round_page(bsize), FALSE,
 		    VM_PROT_ALL, VM_PROT_ALL, FALSE))) {
-			mtx_unlock(&vm_mtx);
 			DPRINTF(("%s(%d): error = %d\n", __FILE__, __LINE__,
 			    error));
 			goto bail;
 
 		}
-		mtx_unlock(&vm_mtx);
 	}
 	
 

@@ -226,7 +226,8 @@ vm_pageout_clean(m)
 	int ib, is, page_base;
 	vm_pindex_t pindex = m->pindex;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
+
 	object = m->object;
 
 	/*
@@ -366,7 +367,7 @@ vm_pageout_flush(mc, count, flags)
 	int numpagedout = 0;
 	int i;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
 	/*
 	 * Initiate I/O.  Bump the vm_page_t->busy counter and
 	 * mark the pages read-only.
@@ -449,8 +450,6 @@ vm_pageout_flush(mc, count, flags)
  *	backing_objects.
  *
  *	The object and map must be locked.
- *
- *	Requires the vm_mtx
  */
 static void
 vm_pageout_object_deactivate_pages(map, object, desired, map_remove_only)
@@ -464,7 +463,7 @@ vm_pageout_object_deactivate_pages(map, object, desired, map_remove_only)
 	int remove_mode;
 	int s;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
 	if (object->type == OBJT_DEVICE || object->type == OBJT_PHYS)
 		return;
 
@@ -553,7 +552,7 @@ vm_pageout_map_deactivate_pages(map, desired)
 	vm_map_entry_t tmpe;
 	vm_object_t obj, bigobj;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
 	if (lockmgr(&map->lock, LK_EXCLUSIVE | LK_NOWAIT, (void *)0, curproc)) {
 		return;
 	}
@@ -619,7 +618,7 @@ vm_pageout_page_free(vm_page_t m) {
 	vm_object_t object = m->object;
 	int type = object->type;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
 	if (type == OBJT_SWAP || type == OBJT_DEFAULT)
 		vm_object_reference(object);
 	vm_page_busy(m);
@@ -649,8 +648,7 @@ vm_pageout_scan(int pass)
 	int maxlaunder;
 	int s;
 
-	mtx_assert(&Giant, MA_OWNED);
-	mtx_assert(&vm_mtx, MA_OWNED);
+	GIANT_REQUIRED;
 	/*
 	 * Do whatever cleanup that the pmap code can.
 	 */
@@ -878,17 +876,14 @@ rescan0:
 				vp = object->handle;
 
 				mp = NULL;
-				mtx_unlock(&vm_mtx);
 				if (vp->v_type == VREG)
 					vn_start_write(vp, &mp, V_NOWAIT);
 				if (vget(vp, LK_EXCLUSIVE|LK_NOOBJ, curproc)) {
 					vn_finished_write(mp);
-					mtx_lock(&vm_mtx);
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						vnodes_skipped++;
 					continue;
 				}
-				mtx_lock(&vm_mtx);
 
 				/*
 				 * The page might have been moved to another
@@ -902,10 +897,8 @@ rescan0:
 				    object->handle != vp) {
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						vnodes_skipped++;
-					mtx_unlock(&vm_mtx);
 					vput(vp);
 					vn_finished_write(mp);
-					mtx_lock(&vm_mtx);
 					continue;
 				}
 	
@@ -916,10 +909,8 @@ rescan0:
 				 * statistics are more correct if we don't.
 				 */
 				if (m->busy || (m->flags & PG_BUSY)) {
-					mtx_unlock(&vm_mtx);
 					vput(vp);
 					vn_finished_write(mp);
-					mtx_lock(&vm_mtx);
 					continue;
 				}
 
@@ -933,10 +924,8 @@ rescan0:
 					splx(s);
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						vnodes_skipped++;
-					mtx_unlock(&vm_mtx);
 					vput(vp);
 					vn_finished_write(mp);
-					mtx_lock(&vm_mtx);
 					continue;
 				}
 			}
@@ -967,10 +956,8 @@ rescan0:
 			TAILQ_REMOVE(&vm_page_queues[PQ_INACTIVE].pl, &marker, pageq);
 			splx(s);
 			if (vp) {
-				mtx_unlock(&vm_mtx);
 				vput(vp);
 				vn_finished_write(mp);
-				mtx_lock(&vm_mtx);
 			}
 		}
 	}
@@ -1154,11 +1141,9 @@ rescan0:
 #if 0
 	if ((vm_swap_size < 64 || swap_pager_full) && vm_page_count_min()) {
 #endif
-		mtx_unlock(&vm_mtx);
 		bigproc = NULL;
 		bigsize = 0;
 		sx_slock(&allproc_lock);
-		mtx_lock(&vm_mtx);
 		LIST_FOREACH(p, &allproc, p_list) {
 			/*
 			 * If this process is already locked, skip it.
@@ -1350,7 +1335,6 @@ vm_pageout()
 	int pass;
 
 	mtx_lock(&Giant);
-	mtx_lock(&vm_mtx);
 
 	/*
 	 * Initialize some paging parameters.
@@ -1410,7 +1394,6 @@ vm_pageout()
 	 */
 	if (vm_pageout_stats_free_max == 0)
 		vm_pageout_stats_free_max = 5;
-	mtx_unlock(&vm_mtx);
 
 	PROC_LOCK(curproc);
 	curproc->p_flag |= P_BUFEXHAUST;
@@ -1420,7 +1403,6 @@ vm_pageout()
 	/*
 	 * The pageout daemon is never done, so loop forever.
 	 */
-	mtx_lock(&vm_mtx);
 	while (TRUE) {
 		int error;
 		int s = splvm();
@@ -1444,7 +1426,7 @@ vm_pageout()
 			 */
 			++pass;
 			if (pass > 1)
-				msleep(&vm_pages_needed, &vm_mtx, PVM,
+				tsleep(&vm_pages_needed, PVM,
 				       "psleep", hz/2);
 		} else {
 			/*
@@ -1455,8 +1437,8 @@ vm_pageout()
 				pass = 1;
 			else
 				pass = 0;
-			error = msleep(&vm_pages_needed, &vm_mtx,
-				PVM, "psleep", vm_pageout_stats_interval * hz);
+			error = tsleep(&vm_pages_needed, PVM,
+				    "psleep", vm_pageout_stats_interval * hz);
 			if (error && !vm_pages_needed) {
 				splx(s);
 				pass = 0;
@@ -1501,14 +1483,11 @@ vm_daemon()
 
 	mtx_lock(&Giant);
 	while (TRUE) {
-		mtx_lock(&vm_mtx);
-		msleep(&vm_daemon_needed, &vm_mtx, PPAUSE, "psleep", 0);
+		tsleep(&vm_daemon_needed, PPAUSE, "psleep", 0);
 		if (vm_pageout_req_swapout) {
 			swapout_procs(vm_pageout_req_swapout);
-			mtx_assert(&vm_mtx, MA_OWNED);
 			vm_pageout_req_swapout = 0;
 		}
-		mtx_unlock(&vm_mtx);
 		/*
 		 * scan the processes for exceeding their rlimits or if
 		 * process is swapped out -- deactivate pages
@@ -1525,7 +1504,6 @@ vm_daemon()
 			if (p->p_flag & (P_SYSTEM | P_WEXIT)) {
 				continue;
 			}
-			mtx_lock(&vm_mtx);
 			/*
 			 * if the process is in a non-running type state,
 			 * don't touch it.
@@ -1533,7 +1511,6 @@ vm_daemon()
 			mtx_lock_spin(&sched_lock);
 			if (p->p_stat != SRUN && p->p_stat != SSLEEP) {
 				mtx_unlock_spin(&sched_lock);
-				mtx_unlock(&vm_mtx);
 				continue;
 			}
 			/*
@@ -1557,7 +1534,6 @@ vm_daemon()
 				vm_pageout_map_deactivate_pages(
 				    &p->p_vmspace->vm_map, limit);
 			}
-			mtx_unlock(&vm_mtx);
 		}
 		sx_sunlock(&allproc_lock);
 	}

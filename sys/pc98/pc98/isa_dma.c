@@ -249,6 +249,8 @@ isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 	int waport;
 	caddr_t newaddr;
 
+	GIANT_REQUIRED;
+
 #ifdef DIAGNOSTIC
 	if (chan & ~VALID_DMA_MASK)
 		panic("isa_dmastart: channel out of range");
@@ -287,12 +289,7 @@ isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 	}
 
 	/* translate to physical */
-	mtx_lock(&vm_mtx);	/*
-				 * XXX: need to hold for longer period to
-				 * ensure that mappings don't change
-				 */
 	phys = pmap_extract(pmap_kernel(), (vm_offset_t)addr);
-	mtx_unlock(&vm_mtx);
 
 	if (flags & ISADMA_RAW) {
 	    dma_auto_mode |= (1 << chan);
@@ -438,11 +435,11 @@ isa_dmarangecheck(caddr_t va, u_int length, int chan)
 	vm_offset_t phys, priorpage = 0, endva;
 	u_int dma_pgmsk = (chan & 4) ?  ~(128*1024-1) : ~(64*1024-1);
 
+	GIANT_REQUIRED;
+
 	endva = (vm_offset_t)round_page((vm_offset_t)va + length);
 	for (; va < (caddr_t) endva ; va += PAGE_SIZE) {
-		mtx_lock(&vm_mtx);
 		phys = trunc_page(pmap_extract(pmap_kernel(), (vm_offset_t)va));
-		mtx_unlock(&vm_mtx);
 #ifdef EPSON_BOUNCEDMA
 #define ISARAM_END	0xf00000
 #else

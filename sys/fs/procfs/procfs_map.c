@@ -81,14 +81,14 @@ procfs_domap(curp, p, pfs, uio)
 	vm_map_entry_t entry;
 	char mebuffer[MEBUFFERSIZE];
 
+	GIANT_REQUIRED;
+
 	if (uio->uio_rw != UIO_READ)
 		return (EOPNOTSUPP);
 
 	if (uio->uio_offset != 0)
 		return (0);
 	
-	mtx_lock(&vm_mtx);
-
 	error = 0;
 	if (map != &curproc->p_vmspace->vm_map)
 		vm_map_lock_read(map);
@@ -171,17 +171,13 @@ case OBJT_DEVICE:
 			error = EFBIG;
 			break;
 		}
-		mtx_unlock(&vm_mtx);
 		error = uiomove(mebuffer, len, uio);
-		mtx_lock(&vm_mtx);
 		if (error)
 			break;
 	}
 	if (map != &curproc->p_vmspace->vm_map)
 		vm_map_unlock_read(map);
 	
-	mtx_unlock(&vm_mtx);
-
 	return error;
 }
 

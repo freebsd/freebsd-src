@@ -113,8 +113,9 @@ sbrk(p, uap)
 	struct proc *p;
 	struct sbrk_args *uap;
 {
-
 	/* Not yet implemented */
+	/* mtx_lock(&Giant); */
+	/* mtx_unlock(&Giant); */
 	return (EOPNOTSUPP);
 }
 
@@ -130,8 +131,9 @@ sstk(p, uap)
 	struct proc *p;
 	struct sstk_args *uap;
 {
-
 	/* Not yet implemented */
+	/* mtx_lock(&Giant); */
+	/* mtx_unlock(&Giant); */
 	return (EOPNOTSUPP);
 }
 
@@ -148,7 +150,7 @@ ogetpagesize(p, uap)
 	struct proc *p;
 	struct getpagesize_args *uap;
 {
-
+	/* MP SAFE */
 	p->p_retval[0] = PAGE_SIZE;
 	return (0);
 }
@@ -268,7 +270,7 @@ mmap(p, uap)
 	     addr < round_page((vm_offset_t)vms->vm_daddr + MAXDSIZ)))
 		addr = round_page((vm_offset_t)vms->vm_daddr + MAXDSIZ);
 
-	mtx_lock(&Giant);
+	mtx_lock(&Giant);	/* syscall marked mp-safe but isn't */
 	if (flags & MAP_ANON) {
 		/*
 		 * Mapping blank space is trivial.
@@ -315,8 +317,10 @@ mmap(p, uap)
 			/*
 			 * Get the proper underlying object
 			 */
-			if (VOP_GETVOBJECT(vp, &obj) != 0)
-				return (EINVAL);
+			if (VOP_GETVOBJECT(vp, &obj) != 0) {
+				error = EINVAL;
+				goto done;
+			}
 			vp = (struct vnode*)obj->handle;
 		}
 		/*
@@ -518,6 +522,8 @@ msync(p, uap)
 	if ((flags & (MS_ASYNC|MS_INVALIDATE)) == (MS_ASYNC|MS_INVALIDATE))
 		return (EINVAL);
 
+	mtx_lock(&Giant);
+
 	map = &p->p_vmspace->vm_map;
 
 	/*
@@ -527,10 +533,6 @@ msync(p, uap)
 	 * the range of the map entry containing addr. This can be incorrect
 	 * if the region splits or is coalesced with a neighbor.
 	 */
-#ifndef BLEED
-	mtx_lock(&Giant);
-#endif
-	mtx_lock(&vm_mtx);
 	if (size == 0) {
 		vm_map_entry_t entry;
 
@@ -538,10 +540,7 @@ msync(p, uap)
 		rv = vm_map_lookup_entry(map, addr, &entry);
 		vm_map_unlock_read(map);
 		if (rv == FALSE) {
-			mtx_unlock(&vm_mtx);
-#ifndef BLEED
 			mtx_unlock(&Giant);
-#endif
 			return (EINVAL);
 		}
 		addr = entry->start;
@@ -554,10 +553,8 @@ msync(p, uap)
 	rv = vm_map_clean(map, addr, addr + size, (flags & MS_ASYNC) == 0,
 	    (flags & MS_INVALIDATE) != 0);
 
-	mtx_unlock(&vm_mtx);
-#ifndef BLEED
 	mtx_unlock(&Giant);
-#endif
+
 	switch (rv) {
 	case KERN_SUCCESS:
 		break;
@@ -610,20 +607,17 @@ munmap(p, uap)
 	if (VM_MIN_ADDRESS > 0 && addr < VM_MIN_ADDRESS)
 		return (EINVAL);
 #endif
+	mtx_lock(&Giant);
 	map = &p->p_vmspace->vm_map;
 	/*
 	 * Make sure entire range is allocated.
 	 */
-	mtx_lock(&Giant);
-	mtx_lock(&vm_mtx);
 	if (!vm_map_check_protection(map, addr, addr + size, VM_PROT_NONE)) {
-		mtx_unlock(&vm_mtx);
 		mtx_unlock(&Giant);
 		return (EINVAL);
 	}
 	/* returns nothing but KERN_SUCCESS anyway */
 	(void) vm_map_remove(map, addr, addr + size);
-	mtx_unlock(&vm_mtx);
 	mtx_unlock(&Giant);
 	return (0);
 }
@@ -674,10 +668,8 @@ mprotect(p, uap)
 		return(EINVAL);
 
 	mtx_lock(&Giant);
-	mtx_lock(&vm_mtx);
 	ret = vm_map_protect(&p->p_vmspace->vm_map, addr,
 		     addr + size, prot, FALSE);
-	mtx_unlock(&vm_mtx);
 	mtx_unlock(&Giant);
 	switch (ret) {
 	case KERN_SUCCESS:
@@ -716,16 +708,10 @@ minherit(p, uap)
 	if (addr + size < addr)
 		return(EINVAL);
 
-#ifndef BLEED
 	mtx_lock(&Giant);
-#endif
-	mtx_lock(&vm_mtx);
 	ret = vm_map_inherit(&p->p_vmspace->vm_map, addr, addr+size,
 		    inherit);
-	mtx_unlock(&vm_mtx);
-#ifndef BLEED
 	mtx_unlock(&Giant);
-#endif
 
 	switch (ret) {
 	case KERN_SUCCESS:
@@ -779,15 +765,9 @@ madvise(p, uap)
 	start = trunc_page((vm_offset_t) uap->addr);
 	end = round_page((vm_offset_t) uap->addr + uap->len);
 	
-#ifndef BLEED
 	mtx_lock(&Giant);
-#endif
-	mtx_lock(&vm_mtx);
 	ret = vm_map_madvise(&p->p_vmspace->vm_map, start, end, uap->behav);
-	mtx_unlock(&vm_mtx);
-#ifndef BLEED
 	mtx_unlock(&Giant);
-#endif
 	return (ret ? EINVAL : 0);
 }
 
@@ -833,11 +813,8 @@ mincore(p, uap)
 	 */
 	vec = uap->vec;
 
-	map = &p->p_vmspace->vm_map;
-#ifndef BLEED
 	mtx_lock(&Giant);
-#endif
-	mtx_lock(&vm_mtx);
+	map = &p->p_vmspace->vm_map;
 	pmap = vmspace_pmap(p->p_vmspace);
 
 	vm_map_lock_read(map);
@@ -917,7 +894,6 @@ RestartScan:
 			 * the map, we release the lock.
 			 */
 			vm_map_unlock_read(map);
-			mtx_unlock(&vm_mtx);
 
 			/*
 			 * calculate index into user supplied byte vector
@@ -931,9 +907,7 @@ RestartScan:
 			while((lastvecindex + 1) < vecindex) {
 				error = subyte( vec + lastvecindex, 0);
 				if (error) {
-#ifndef BLEED
 					mtx_unlock(&Giant);
-#endif
 					return (EFAULT);
 				}
 				++lastvecindex;
@@ -944,9 +918,7 @@ RestartScan:
 			 */
 			error = subyte( vec + vecindex, mincoreinfo);
 			if (error) {
-#ifndef BLEED
 				mtx_unlock(&Giant);
-#endif
 				return (EFAULT);
 			}
 
@@ -954,7 +926,6 @@ RestartScan:
 			 * If the map has changed, due to the subyte, the previous
 			 * output may be invalid.
 			 */
-			mtx_lock(&vm_mtx);
 			vm_map_lock_read(map);
 			if (timestamp != map->timestamp)
 				goto RestartScan;
@@ -969,7 +940,6 @@ RestartScan:
 	 * the map, we release the lock.
 	 */
 	vm_map_unlock_read(map);
-	mtx_unlock(&vm_mtx);
 
 	/*
 	 * Zero the last entries in the byte vector.
@@ -978,9 +948,7 @@ RestartScan:
 	while((lastvecindex + 1) < vecindex) {
 		error = subyte( vec + lastvecindex, 0);
 		if (error) {
-#ifndef BLEED
 			mtx_unlock(&Giant);
-#endif
 			return (EFAULT);
 		}
 		++lastvecindex;
@@ -990,15 +958,11 @@ RestartScan:
 	 * If the map has changed, due to the subyte, the previous
 	 * output may be invalid.
 	 */
-	mtx_lock(&vm_mtx);
 	vm_map_lock_read(map);
 	if (timestamp != map->timestamp)
 		goto RestartScan;
 	vm_map_unlock_read(map);
-	mtx_unlock(&vm_mtx);
-#ifndef BLEED
 	mtx_unlock(&Giant);
-#endif
 
 	return (0);
 }
@@ -1043,16 +1007,10 @@ mlock(p, uap)
 		return (error);
 #endif
 
-#ifndef BLEED
 	mtx_lock(&Giant);
-#endif
-	mtx_lock(&vm_mtx);
 	error = vm_map_user_pageable(&p->p_vmspace->vm_map, addr,
 		     addr + size, FALSE);
-	mtx_unlock(&vm_mtx);
-#ifndef BLEED
 	mtx_unlock(&Giant);
-#endif
 	return (error == KERN_SUCCESS ? 0 : ENOMEM);
 }
 
@@ -1067,6 +1025,8 @@ mlockall(p, uap)
 	struct proc *p;
 	struct mlockall_args *uap;
 {
+	/* mtx_lock(&Giant); */
+	/* mtx_unlock(&Giant); */
 	return 0;
 }
 
@@ -1081,6 +1041,8 @@ munlockall(p, uap)
 	struct proc *p;
 	struct munlockall_args *uap;
 {
+	/* mtx_lock(&Giant); */
+	/* mtx_unlock(&Giant); */
 	return 0;
 }
 
@@ -1117,16 +1079,10 @@ munlock(p, uap)
 		return (error);
 #endif
 
-#ifndef BLEED
 	mtx_lock(&Giant);
-#endif
-	mtx_lock(&vm_mtx);
 	error = vm_map_user_pageable(&p->p_vmspace->vm_map, addr,
 		     addr + size, TRUE);
-	mtx_unlock(&vm_mtx);
-#ifndef BLEED
 	mtx_unlock(&Giant);
-#endif
 	return (error == KERN_SUCCESS ? 0 : ENOMEM);
 }
 
@@ -1175,9 +1131,7 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 			return (EINVAL);
 		fitit = FALSE;
 		mtx_lock(&Giant);
-		mtx_lock(&vm_mtx);
 		(void) vm_map_remove(map, *addr, *addr + size);
-		mtx_unlock(&vm_mtx);
 	}
 
 	/*
@@ -1252,7 +1206,6 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		maxprot |= VM_PROT_EXECUTE;
 #endif
 
-	mtx_lock(&vm_mtx);
 	if (fitit)
 		*addr = pmap_addr_hint(object, *addr, size);
 
@@ -1279,7 +1232,6 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		if (rv != KERN_SUCCESS)
 			(void) vm_map_remove(map, *addr, *addr + size);
 	}
-	mtx_unlock(&vm_mtx);
 	mtx_unlock(&Giant);
 	switch (rv) {
 	case KERN_SUCCESS:
