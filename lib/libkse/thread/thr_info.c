@@ -117,6 +117,10 @@ _thread_dump_info(void)
 				sprintf(s, "owner %pr/%pw\n", _thread_fd_table[pthread->data.fd.fd]->r_owner, _thread_fd_table[pthread->data.fd.fd]->w_owner);
 				_thread_sys_write(fd, s, strlen(s));
 				break;
+			case PS_SIGWAIT:
+				sprintf(s, "sigmask 0x%08lx\n", pthread->sigmask);
+				_thread_sys_write(fd, s, strlen(s));
+				break;
 
 			/*
 			 * Trap other states that are not explicitly
