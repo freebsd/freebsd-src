@@ -307,7 +307,7 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	frame.sf_siginfo = &fp->sf_si;
 	frame.sf_ucontext = &fp->sf_sc;
 
-	/* Fill siginfo structure. */
+	/* Fill in POSIX parts */
 	frame.sf_si.lsi_signo = sig;
 	frame.sf_si.lsi_code = code;
 	frame.sf_si.lsi_addr = (void *)regs->tf_err;
