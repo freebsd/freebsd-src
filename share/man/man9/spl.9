@@ -24,7 +24,7 @@
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.\" "
+.\"
 .Dd July 21, 1996
 .Os
 .Dt SPL 9
@@ -68,6 +68,12 @@
 .Ft void
 .Fn splx "intrmask_t ipl"
 .Sh DESCRIPTION
+.Sy This API is deprecated.
+.Sy Use mutexes to protect data structures instead.
+.Sy See
+.Xr mutex 9
+.Sy for more information.
+.Pp
 The
 .Fn spl
 function family sets the interrupt priority
