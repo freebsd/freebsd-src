@@ -11,5 +11,5 @@ kern
 misc
 ports
 powerpc
-sparc
+sparc64
 standards
