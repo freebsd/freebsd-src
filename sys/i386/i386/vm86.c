@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: vm86.c,v 1.1 1997/08/09 01:38:03 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -52,9 +52,6 @@
 #include <machine/psl.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
-
-extern int emulate_vm86 __P((struct vm86frame *));
-extern int i386_vm86	__P((struct proc *p, char *args, int *retval));
 
 extern int i386_extend_pcb	__P((struct proc *));
 
@@ -121,7 +118,7 @@ POPL(struct vm86frame *vmf)
 }
 
 int
-emulate_vm86(vmf)
+vm86_emulate(vmf)
 	struct vm86frame *vmf;
 {
 	struct vm86_kernel *vm86;
@@ -334,7 +331,7 @@ emulate_vm86(vmf)
 }
 
 int
-i386_vm86(p, args, retval)
+vm86_sysarch(p, args, retval)
 	struct proc *p;
 	char *args;
 	int *retval;
@@ -397,38 +394,3 @@ i386_vm86(p, args, retval)
 	}
 	return (error);
 }
-
-#ifdef VM86_MODULE
-
-#include <sys/exec.h>
-#include <sys/sysent.h>
-#include <sys/lkm.h>
-
-MOD_MISC(vm86);
-
-static int
-vm86_load(struct lkm_table *lkmtp, int cmd)
-{
-	vm86_emulate = emulate_vm86;
-	vm86_sysarch = i386_vm86;
-	uprintf("vm86 emulator installed\n");
-	return 0;
-}
-
-static int
-vm86_unload(struct lkm_table *lkmtp, int cmd)
-{
-	vm86_emulate = 0;
-	vm86_sysarch = 0;
-	uprintf("vm86 emulator removed\n");
-	return 0;
-}
-
-int
-vm86_mod(struct lkm_table *lkmtp, int cmd, int ver)
-{
-	MOD_DISPATCH(vm86, lkmtp, cmd, ver,
-	    vm86_load, vm86_unload, lkm_nullcmd);
-}
-
-#endif /* VM86_MODULE */
