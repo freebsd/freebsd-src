@@ -169,7 +169,7 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-    <para arch="i386">The &man.ctau.4; driver has been added for Cronyx-Tau
+    <para arch="i386">The &man.ctau.4; driver has been added for Cronyx Tau
       synchronous serial adapters. This driver was known for a long time as "ct"
       in its previous life outside FreeBSD source tree. Note: only driver name
       has changed. Network interface still has "ct" name.</para>
