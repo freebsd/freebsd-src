@@ -46,6 +46,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/serial.h>
 #include <sys/tty.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -124,13 +125,14 @@ struct rc_softc {
 };
 
 /* Static prototypes */
+static int  rc_break(struct tty *, int);
 static void rc_release_resources(device_t dev);
 static void rc_intr(void *);
 static void rc_hwreset(struct rc_softc *, unsigned int);
 static int  rc_test(struct rc_softc *);
 static void rc_discard_output(struct rc_chans *);
 static void rc_hardclose(struct rc_chans *);
-static int  rc_modctl(struct rc_chans *, int, int);
+static int  rc_modem(struct tty *, int, int);
 static void rc_start(struct tty *);
 static void rc_stop(struct tty *, int rw);
 static int  rc_param(struct tty *, struct termios *);
@@ -905,6 +907,8 @@ again:
 	} else {
 		tp->t_oproc   = rc_start;
 		tp->t_param   = rc_param;
+		tp->t_modem   = rc_modem;
+		tp->t_break   = rc_break;
 		tp->t_stop    = rc_stop;
 		tp->t_dev     = dev;
 
@@ -916,7 +920,7 @@ again:
 		error = rc_param(tp, &tp->t_termios);
 		if (error)
 			goto out;
-		(void) rc_modctl(rc, TIOCM_RTS|TIOCM_DTR, DMSET);
+		(void) rc_modem(tp, SER_DTR | SER_RTS, 0);
 
 		if ((rc->rc_msvr & MSVR_CD) || CALLOUT(dev))
 			ttyld_modem(tp, 1);
@@ -991,7 +995,7 @@ rc_hardclose(struct rc_chans *rc)
 	   ) {
 		CCRCMD(sc, rc->rc_chan, CCR_ResetChan);
 		WAITFORCCR(sc, rc->rc_chan);
-		(void) rc_modctl(rc, TIOCM_RTS, DMSET);
+		(void) rc_modem(tp, SER_RTS, 0);
 		if (rc->rc_dtrwait) {
 			callout_reset(&rc->rc_dtrcallout, rc->rc_dtrwait,
 			    rc_dtrwakeup, rc);
@@ -1057,7 +1061,7 @@ rc_param(struct tty *tp, struct termios *ts)
 	if (ts->c_ospeed == 0) {
 		CCRCMD(sc, rc->rc_chan, CCR_ResetChan);
 		WAITFORCCR(sc, rc->rc_chan);
-		(void) rc_modctl(rc, TIOCM_DTR, DMBIC);
+		(void) rc_modem(tp, 0, SER_DTR);
 	}
 
 	tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
@@ -1176,7 +1180,7 @@ rc_param(struct tty *tp, struct termios *ts)
 	if (tp->t_state & TS_BUSY)
 		rc->rc_ier |= IER_TxRdy;
 	if (ts->c_ospeed != 0)
-		rc_modctl(rc, TIOCM_DTR, DMBIS);
+		rc_modem(tp, SER_DTR, 0);
 	if ((cflag & CCTS_OFLOW) && (rc->rc_msvr & MSVR_CTS))
 		rc->rc_flags |= RC_SEND_RDY;
 	rcout(sc, CD180_IER, rc->rc_ier);
@@ -1213,38 +1217,6 @@ rcioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, d_thread_t *td)
 	s = spltty();
 
 	switch (cmd) {
-	    case TIOCSBRK:
-		rc->rc_pendcmd = CD180_C_SBRK;
-		break;
-
-	    case TIOCCBRK:
-		rc->rc_pendcmd = CD180_C_EBRK;
-		break;
-
-	    case TIOCSDTR:
-		(void) rc_modctl(rc, TIOCM_DTR, DMBIS);
-		break;
-
-	    case TIOCCDTR:
-		(void) rc_modctl(rc, TIOCM_DTR, DMBIC);
-		break;
-
-	    case TIOCMGET:
-		*(int *) data = rc_modctl(rc, 0, DMGET);
-		break;
-
-	    case TIOCMSET:
-		(void) rc_modctl(rc, *(int *) data, DMSET);
-		break;
-
-	    case TIOCMBIC:
-		(void) rc_modctl(rc, *(int *) data, DMBIC);
-		break;
-
-	    case TIOCMBIS:
-		(void) rc_modctl(rc, *(int *) data, DMBIS);
-		break;
-
 	    case TIOCMSDTRWAIT:
 		error = suser(td);
 		if (error != 0) {
@@ -1270,75 +1242,64 @@ rcioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, d_thread_t *td)
 /* Modem control routines */
 
 static int
-rc_modctl(struct rc_chans *rc, int bits, int cmd)
+rc_modem(struct tty *tp, int biton, int bitoff)
 {
+	struct rc_chans *rc;
 	struct rc_softc *sc;
 	u_char *dtr;
 	u_char msvr;
 
+	rc = DEV_TO_RC(tp->t_dev);
 	sc = rc->rc_rcb;
 	dtr = &sc->sc_dtr;
 	rcout(sc, CD180_CAR, rc->rc_chan);
 
-	switch (cmd) {
-	    case DMSET:
-		rcout(sc, RC_DTREG, (bits & TIOCM_DTR) ?
-				~(*dtr |= 1 << rc->rc_chan) :
-				~(*dtr &= ~(1 << rc->rc_chan)));
-		msvr = rcin(sc, CD180_MSVR);
-		if (bits & TIOCM_RTS)
-			msvr |= MSVR_RTS;
-		else
-			msvr &= ~MSVR_RTS;
-		if (bits & TIOCM_DTR)
-			msvr |= MSVR_DTR;
-		else
-			msvr &= ~MSVR_DTR;
-		rcout(sc, CD180_MSVR, msvr);
-		break;
-
-	    case DMBIS:
-		if (bits & TIOCM_DTR)
-			rcout(sc, RC_DTREG, ~(*dtr |= 1 << rc->rc_chan));
-		msvr = rcin(sc, CD180_MSVR);
-		if (bits & TIOCM_RTS)
-			msvr |= MSVR_RTS;
-		if (bits & TIOCM_DTR)
-			msvr |= MSVR_DTR;
-		rcout(sc, CD180_MSVR, msvr);
-		break;
-
-	    case DMGET:
-		bits = TIOCM_LE;
+	if (biton == 0 && bitoff == 0) {
 		msvr = rc->rc_msvr = rcin(sc, CD180_MSVR);
 
 		if (msvr & MSVR_RTS)
-			bits |= TIOCM_RTS;
+			biton |= SER_RTS;
 		if (msvr & MSVR_CTS)
-			bits |= TIOCM_CTS;
+			biton |= SER_CTS;
 		if (msvr & MSVR_DSR)
-			bits |= TIOCM_DSR;
+			biton |= SER_DSR;
 		if (msvr & MSVR_DTR)
-			bits |= TIOCM_DTR;
+			biton |= SER_DTR;
 		if (msvr & MSVR_CD)
-			bits |= TIOCM_CD;
+			biton |= SER_DCD;
 		if (~rcin(sc, RC_RIREG) & (1 << rc->rc_chan))
-			bits |= TIOCM_RI;
-		return bits;
-
-	    case DMBIC:
-		if (bits & TIOCM_DTR)
-			rcout(sc, RC_DTREG, ~(*dtr &= ~(1 << rc->rc_chan)));
-		msvr = rcin(sc, CD180_MSVR);
-		if (bits & TIOCM_RTS)
-			msvr &= ~MSVR_RTS;
-		if (bits & TIOCM_DTR)
-			msvr &= ~MSVR_DTR;
-		rcout(sc, CD180_MSVR, msvr);
-		break;
+			biton |= SER_RI;
+		return biton;
 	}
-	rc->rc_msvr = rcin(sc, CD180_MSVR);
+	if (biton & SER_DTR)
+		rcout(sc, RC_DTREG, ~(*dtr |= 1 << rc->rc_chan));
+	if (bitoff & SER_DTR)
+		rcout(sc, RC_DTREG, ~(*dtr &= ~(1 << rc->rc_chan)));
+	msvr = rcin(sc, CD180_MSVR);
+	if (biton & SER_DTR)
+		msvr |= MSVR_DTR;
+	if (bitoff & SER_DTR)
+		msvr &= ~MSVR_DTR;
+	if (biton & SER_RTS)
+		msvr |= MSVR_RTS;
+	if (bitoff & SER_RTS)
+		msvr &= ~MSVR_RTS;
+	rcout(sc, CD180_MSVR, msvr);
 	return 0;
+}
+
+static int
+rc_break(struct tty *tp, int brk)
+{
+	struct rc_chans *rc;
+
+	rc = DEV_TO_RC(tp->t_dev);
+
+	if (brk)
+		rc->rc_pendcmd = CD180_C_SBRK;
+	else
+		rc->rc_pendcmd = CD180_C_EBRK;
+	return (0);
 }
 
 #define ERR(s) do {							\
