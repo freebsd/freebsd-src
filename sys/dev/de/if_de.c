@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.16 1995/02/10 06:06:42 davidg Exp $
+ * $Id: if_de.c,v 1.17 1995/03/16 17:41:20 se Exp $
  *
  */
 
@@ -49,6 +49,7 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>	/* only for declaration of wakeup() used by vm.h */
+#include <sys/devconf.h>
 #include <machine/clock.h>
 
 #include <net/if.h>
@@ -1049,12 +1050,14 @@ tulip_initring(
 static char* tulip_pci_probe (pcici_t config_id, pcidi_t device_id);
 static void  tulip_pci_attach(pcici_t config_id, int unit);
 static u_long tulip_count;
+static int tulip_pci_shutdown(struct kern_devconf *, int);
 
 struct pci_device dedevice = {
     "de",
     tulip_pci_probe,
     tulip_pci_attach,
    &tulip_count,
+    tulip_pci_shutdown,
 };
 
 DATA_SET (pcidevice_set, dedevice);
@@ -1163,5 +1166,21 @@ tulip_pci_attach(
 	pci_map_int (config_id, tulip_intr, (void*) sc, &net_imask);
     }
 }
+
+static int
+tulip_pci_shutdown(kdc, force)
+	struct kern_devconf *kdc;
+	int force;
+{
+	tulip_softc_t *sc = tulips[kdc->kdc_unit];
+
+	*sc->tulip_csrs.csr_busmode = TULIP_BUSMODE_SWRESET;
+	DELAY(10);	/* Wait 10 microsends (actually 50 PCI cycles but at 
+			   33MHz that comes to two microseconds but wait a
+			   bit longer anyways) */
+	(void) dev_detach(kdc);
+	return 0;
+}
+
 #endif /* NPCI > 0 */
 #endif /* NDE > 0 */
