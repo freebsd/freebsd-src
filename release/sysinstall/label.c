@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.32.2.6 1995/09/29 05:16:59 jkh Exp $
+ * $Id: label.c,v 1.32.2.7 1995/10/04 12:08:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -426,7 +426,7 @@ diskLabelEditor(char *str)
 
     if (!variable_get(DISK_PARTITIONED)) {
 	msgConfirm("You need to partition your disk(s) before you can assign disk labels.");
-	return 0;
+	return RET_FAIL;
     }
     dialog_clear(); clear();
     while (labeling) {
@@ -782,7 +782,7 @@ msgConfirm("This region cannot be used for your root partition as the\nFreeBSD b
     }
     variable_set2(DISK_LABELLED, "yes");
     dialog_clear();
-    return 0;
+    return RET_SUCCESS;
 }
 
 int
@@ -794,5 +794,7 @@ diskLabelCommit(char *str)
 	msgConfirm("You must assign disk labels before this option can be used.");
     else if (!installFilesystems())
 	msgConfirm("Failed to make/mount all filesystems.  Please correct\nwhatever went wrong and try again.");
-    return 0;
+    else
+	return RET_SUCCESS;
+    return RET_FAIL;
 }

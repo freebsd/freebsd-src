@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.36.2.4 1995/10/03 23:36:41 jkh Exp $
+ * $Id: dist.c,v 1.36.2.5 1995/10/04 10:33:53 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -171,7 +171,7 @@ distReset(char *str)
     XF86Dists = 0;
     XF86ServerDists = 0;
     XF86FontDists = 0;
-    return 0;
+    return RET_SUCCESS;
 }
 
 int
@@ -180,7 +180,7 @@ distSetDeveloper(char *str)
     distReset(NULL);
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_ALL;
-    return 0;
+    return RET_SUCCESS;
 }
 
 int
@@ -193,7 +193,7 @@ distSetXDeveloper(char *str)
     XF86ServerDists = DIST_XF86_SERVER_SVGA;
     XF86FontDists = DIST_XF86_FONTS_MISC;
     distSetXF86(NULL);
-    return 0;
+    return RET_SUCCESS;
 }
 
 int
@@ -202,7 +202,7 @@ distSetKernDeveloper(char *str)
     distReset(NULL);
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_SYS;
-    return 0;
+    return RET_SUCCESS;
 }
 
 int
@@ -210,7 +210,7 @@ distSetUser(char *str)
 {
     distReset(NULL);
     Dists = _DIST_USER;
-    return 0;
+    return RET_SUCCESS;
 }
 
 int
@@ -222,7 +222,7 @@ distSetXUser(char *str)
     XF86ServerDists = DIST_XF86_SERVER_SVGA;
     XF86FontDists = DIST_XF86_FONTS_MISC;
     distSetXF86(NULL);
-    return 0;
+    return RET_SUCCESS;
 }
 
 int
@@ -230,7 +230,7 @@ distSetMinimum(char *str)
 {
     distReset(NULL);
     Dists = DIST_BIN;
-    return 0;
+    return RET_SUCCESS;
 }
 
 int
@@ -241,7 +241,7 @@ distSetEverything(char *str)
     XF86Dists = DIST_XF86_ALL;
     XF86ServerDists = DIST_XF86_SERVER_ALL;
     XF86FontDists = DIST_XF86_FONTS_ALL;
-    return 0;
+    return RET_SUCCESS;
 }
 
 int
@@ -250,7 +250,7 @@ distSetDES(char *str)
     dmenuOpenSimple(&MenuDESDistributions);
     if (DESDists)
 	Dists |= DIST_DES;
-    return 0;
+    return RET_SUCCESS;
 }
 
 int
@@ -259,7 +259,7 @@ distSetSrc(char *str)
     dmenuOpenSimple(&MenuSrcDistributions);
     if (SrcDists)
 	Dists |= DIST_SRC;
-    return 0;
+    return RET_SUCCESS;
 }
 
 int
@@ -275,7 +275,7 @@ distSetXF86(char *str)
     if (isDebug())
 	msgDebug("SetXF86 Masks: Server: %0x, Fonts: %0x, XDists: %0x, Dists: %0x\n",
 		 XF86ServerDists, XF86FontDists, XF86Dists, Dists);
-    return 0;
+    return RET_SUCCESS;
 }
 
 static Boolean
@@ -318,12 +318,12 @@ distExtract(char *parent, Distribution *me)
 	    msgDebug("Trying to get large piece: %s\n", buf);
 	/* Set it as an "exploratory get" so that we don't loop unnecessarily on it */
 	mediaDevice->flags |= OPT_EXPLORATORY_GET;
-	fd = (*mediaDevice->get)(mediaDevice, buf, NULL);
+	fd = mediaDevice->get(mediaDevice, buf, NULL);
 	mediaDevice->flags &= ~OPT_EXPLORATORY_GET;
 	if (fd >= 0) {
 	    msgNotify("Extracting %s into %s directory...", me[i].my_name, me[i].my_dir);
 	    status = mediaExtractDist(me[i].my_dir, fd);
-	    (*mediaDevice->close)(mediaDevice, fd);
+	    mediaDevice->close(mediaDevice, fd);
 	    goto done;
 	}
 	else if (fd == -2)	/* Hard error, can't continue */
@@ -369,7 +369,7 @@ distExtract(char *parent, Distribution *me)
 	    snprintf(buf, 512, "%s/%s.%c%c", path, dist, (chunk / 26) + 'a', (chunk % 26) + 'a');
 	    if (isDebug())
 		msgDebug("trying for piece %d of %d: %s\n", chunk, numchunks, buf);
-	    fd = (*mediaDevice->get)(mediaDevice, buf, dist_attr);
+	    fd = mediaDevice->get(mediaDevice, buf, dist_attr);
 	    if (fd < 0) {
 		dialog_clear();
 		msgConfirm("failed to retreive piece file %s!\nAborting the transfer", buf);
@@ -380,15 +380,12 @@ distExtract(char *parent, Distribution *me)
 	    while ((n = read(fd, buf, sizeof buf)) > 0) {
 		retval = write(fd2, buf, n);
 		if (retval != n) {
-		    if (mediaDevice->close)
-			(*mediaDevice->close)(mediaDevice, fd);
-		    else
-			close(fd);
+		    mediaDevice->close(mediaDevice, fd);
 		    msgConfirm("Write failure on transfer! (wrote %d bytes of %d bytes)", retval, n);
 		    goto punt;
 		}
 	    }
-	    (*mediaDevice->close)(mediaDevice, fd);
+	    mediaDevice->close(mediaDevice, fd);
 	}
 	close(fd2);
 	status = mediaExtractDistEnd(zpid, cpid);
@@ -425,18 +422,18 @@ distExtractAll(char *ptr)
     int retries = 0;
 
     /* First try to initialize the state of things */
-    if (!(*mediaDevice->init)(mediaDevice))
-	return 0;
+    if (!mediaDevice->init(mediaDevice))
+	return RET_FAIL;
     if (!Dists && ptr) {
 	msgConfirm("You haven't selected any distributions to extract.");
-	return 0;
+	return RET_FAIL;
     }
     /* Try for 3 times around the loop, then give up. */
     while (Dists && ++retries < 3)
 	distExtract(NULL, DistTable);
 
-    /* Anything left? */
+    /* Anything left? XXX lose the funky residue and convert back to distribution names soon! XXX */
     if (Dists)
 	msgConfirm("Couldn't extract all of the distributions.  This may\nbe because the specified distributions are not available from the\ninstallation media you've chosen (residue: %0x)", Dists);
-    return 0;
+    return RET_SUCCESS;
 }

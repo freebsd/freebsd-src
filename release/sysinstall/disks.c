@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31.2.7 1995/10/03 23:36:39 jkh Exp $
+ * $Id: disks.c,v 1.31.2.8 1995/10/06 08:51:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -354,7 +354,7 @@ diskPartitionEditor(char *str)
 {
     DMenu *menu;
     Device **devs;
-    int cnt;
+    int i, cnt;
 
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     cnt = deviceCount(devs);
@@ -362,26 +362,32 @@ diskPartitionEditor(char *str)
 	msgConfirm("No disks found!  Please verify that your disk controller is being\n"
 		   "properly probed at boot time.  See the Hardware Guide on the\n"
 		   "Documentation menu for clues on diagnosing this type of problem.");
-	return 0;
+	i = RET_FAIL;
     }
     else if (cnt == 1) {
 	devs[0]->private = diskPartition((Disk *)devs[0]->private);
 	devs[0]->enabled = TRUE;
+	i = RET_SUCCESS;
     }
     else {
 	menu = deviceCreateMenu(&MenuDiskDevices, DEVICE_TYPE_DISK, partitionHook);
-	if (!menu)
+	if (!menu) {
 	    msgConfirm("No devices suitable for installation found!\n\n"
 		       "Please verify that your disk controller (and attached drives)\n"
 		       "were detected properly.  This can be done by selecting the\n"
 		       "``Bootmsg'' option on the main menu and reviewing the boot\n"
 		       "messages carefully.");
+	   i = RET_FAIL;
+	}
 	else {
-	    dmenuOpenSimple(menu);
+	    if (!dmenuOpenSimple(menu))
+		i = RET_FAIL;
+	    else 
+		i = RET_SUCCESS;
 	    free(menu);
 	}
     }
-    return 0;
+    return i;
 }
 
 static u_char *
@@ -418,7 +424,7 @@ diskPartitionWrite(char *str)
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     if (!devs) {
 	msgConfirm("Unable to find any disks to write to??");
-	return 0;
+	return RET_FAIL;
     }
 
     for (i = 0; devs[i]; i++) {
@@ -428,11 +434,9 @@ diskPartitionWrite(char *str)
 	if (!devs[i]->enabled)
 	    continue;
 
- 	/* Don't trash the MBR if the first (and therefore only) chunk
- 	   is marked for a truly dedicated disk (i.e., the disklabel
- 	   starts at sector 0), even in cases where the user has
- 	   requested booteasy or a "standard" MBR -- both would be
- 	   fatal in this case. */
+ 	/* Don't trash the MBR if the first (and therefore only) chunk is marked for a truly dedicated
+ 	   disk (i.e., the disklabel starts at sector 0), even in cases where the user has requested
+ 	   booteasy or a "standard" MBR -- both would be fatal in this case. */
  	if (mbrContents && (d->chunks->part->flags & CHUNK_FORCE_ALL) != CHUNK_FORCE_ALL) {
 	    Set_Boot_Mgr(d, mbrContents);
 	    mbrContents = NULL;
@@ -457,5 +461,5 @@ diskPartitionWrite(char *str)
 	    }
 	}
     }
-    return 0;
+    return RET_SUCCESS;
 }

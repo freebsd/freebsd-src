@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.7.2.4 1995/10/04 10:33:51 jkh Exp $
+ * $Id: cdrom.c,v 1.7.2.5 1995/10/04 12:08:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -127,7 +127,7 @@ mediaShutdownCDROM(Device *dev)
 	return;
     msgDebug("Unmounting /cdrom\n");
     if (unmount("/cdrom", MNT_FORCE) != 0)
-	msgConfirm("Could not unmount the CDROM: %s\n", strerror(errno));
+	msgConfirm("Could not unmount the CDROM from /cdrom: %s\n", strerror(errno));
     msgDebug("Unmount returned\n");
     cdromMounted = FALSE;
     return;

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.19 1995/10/05 09:11:02 jkh Exp $
+ * $Id: install.c,v 1.71.2.20 1995/10/05 09:15:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -214,7 +214,7 @@ installFixit(char *str)
 	if (mount(MOUNT_UFS, "/mnt2", 0, (caddr_t)&args) != -1)
 	    break;
 	if (msgYesNo("Unable to mount the fixit floppy - do you want to try again?"))
-	    return FALSE;
+	    return RET_FAIL;
     }
     dialog_clear();
     dialog_update();
@@ -244,7 +244,7 @@ installFixit(char *str)
     dialog_update();
     unmount("/mnt2", MNT_FORCE);
     msgConfirm("Please remove the fixit floppy and press return");
-    return FALSE;
+    return RET_SUCCESS;
 }
 
 int
@@ -271,7 +271,7 @@ installUpgrade(char *str)
 
        Spawn a shell and invite user to look around before exiting.
        */
-    return 0;
+    return RET_SUCCESS;
 }
   
 int
@@ -283,13 +283,15 @@ installExpress(char *str)
 	       "whole disk and then `Q' to quit.  If you wish to share\n"
 	       "a disk with multiple operating systems, do NOT use the\n"
 	       "`A' command.");
-    diskPartitionEditor("express");
+    if (diskPartitionEditor("express") == RET_FAIL)
+	return RET_FAIL;
     
     msgConfirm("Next, you need to lay out BSD partitions inside of the\n"
 	       "fdisk partition just created.  If you don't want to\n"
 	       "do anything special, just type `A' to use the default\n"
 	       "partitioning scheme and then `Q' to quit.");
-    diskLabelEditor("express");
+    if (diskLabelEditor("express") == RET_FAIL)
+	return RET_FAIL;
     
     msgConfirm("Now it is time to select an installation subset.  There\n"
 	       "are many different configurations, ranging from minimal\n"
@@ -298,17 +300,38 @@ installExpress(char *str)
 	       "default configurations are suitable.");
     
     while (1) {
-	dmenuOpenSimple(&MenuInstallType);
+	if (!dmenuOpenSimple(&MenuInstallType))
+	    return RET_FAIL;
+
 	if (Dists || !msgYesNo("No distributions selected.  Are you sure you wish to continue?"))
 	    break;
     }
 
     msgConfirm("Finally, you must specify an installation medium.");
-    dmenuOpenSimple(&MenuMedia);
+    if (!dmenuOpenSimple(&MenuMedia))
+	return RET_FAIL;
     
-    installCommit("express");
-    
-    dmenuOpenSimple(&MenuConfigure);
+    if (installCommit("express") == RET_FAIL)
+	return RET_FAIL;
+
+    if (msgYesNo("Since you're running the express installation, a few\n"
+		 "post-configuration questions will be asked at this point.\n\n"
+		 "Our packages collection contains many useful things, from\n"
+		 "text editors to WEB servers, and is definitely worth browsing\n"
+		 "through, even if you don't install any of it for now.\n\n"
+		 "Would you like to browse a selection of additional packaged\n"
+		 "software at this time?"))
+	configPackages(NULL);
+
+    if (msgYesNo("Would you like to configure any additional network services?"))
+	dmenuOpenSimple(&MenuNetworking);
+
+    /* Put whatever other nice configuration questions you'd like to ask the user here */
+
+    /* Final menu of last resort */
+    if (msgYesNo("Would you like to go to the general configuration menu for\n"
+		 "any last additional configuration options?"))
+	dmenuOpenSimple(&MenuConfigure);
     return 0;
 }
 
@@ -324,22 +347,24 @@ int
 installCommit(char *str)
 {
     if (!mediaVerify())
-	return 0;
+	return RET_FAIL;
 
     if (RunningAsInit) {
-	if (!installInitial())
-	    return 0;
-	configFstab();
+	if (installInitial() == RET_FAIL)
+	    return RET_FAIL;
+	if (configFstab() == RET_FAIL)
+	    return RET_FAIL;
     }
     if (RunningAsInit && !root_extract()) {
 	msgConfirm("Failed to load the ROOT distribution.  Please correct\nthis problem and try again.");
-	return 0;
+	return RET_FAIL;
     }
 
-    (void)distExtractAll(NULL);
+    if (distExtractAll(NULL) == RET_FAIL)
+	return RET_FAIL;
 
     if (!installFixup())
-	return 0;
+	return RET_FAIL;
 
     dialog_clear();
     /* We get a NULL value for str if run from installExpress(), in which case we don't want to print the following */
@@ -349,7 +374,7 @@ installCommit(char *str)
 	else
 	    msgConfirm("Installation completed successfully, now  press [ENTER] to return\nto the main menu. If you have any network devices you have not yet\nconfigured, see the Interface configuration item on the\nConfiguration menu.");
     }
-    return 0;
+    return RET_SUCCESS;
 }
 
 Boolean
@@ -358,18 +383,48 @@ installFixup(void)
     Device **devs;
     int i;
 
-    /* XXX At some point maybe we want to make the selection of kernel configurable here XXX */
-    if (!file_readable("/kernel") && file_readable("/kernel.GENERIC")) {
-	if (vsystem("ln -f /kernel.GENERIC /kernel")) {
-	    msgConfirm("Unable to link /kernel into place!");
+    if (!file_readable("/kernel")) {
+	if (file_readable("/kernel.GENERIC")) {
+	    if (file_readable("/kernel.ATAPI")) {
+		if (msgYesNo("There are two kernels available - one for ATAPI (IDE CDROM)\n"
+			     "systems and a GENERIC kernel for all other systems.  The",
+			     "IDE CDROM driver was still in BETA test at the time of this"
+			     "release and therefore got a copy of the generic kernel image"
+			     "all for itself).\n\n"
+			     "Would you like to install the GENERIC kernel image?  Otherwise\n"
+			     "the ATAPI image will be used.")) {
+		    if (vsystem("ln -f /kernel.GENERIC /kernel")) {
+			msgConfirm("Unable to link /kernel into place!");
+			return RET_FAIL;
+		    }
+		}
+		else
+		    if (vsystem("ln -f /kernel.ATAPI /kernel")) {
+			msgConfirm("Unable to link /kernel into place!");
+			return RET_FAIL;
+		    }
+	    }
+	    else
+		if (vsystem("ln -f /kernel.GENERIC /kernel")) {
+		    msgConfirm("Unable to link /kernel into place!");
+		    return RET_FAIL;
+		}
+	}
+	else {
+	    msgConfirm("Can't find a kernel image to link to on the root filesystem!\n"
+		       "You're going to have a hard time getting this system to\n"
+		       "boot from the hard disk, I'm afraid!");
+	    return RET_FAIL;
 	}
     }
 
     /* Resurrect /dev after bin distribution screws it up */
     if (RunningAsInit) {
 	msgNotify("Remaking all devices.. Please wait!");
-	if (vsystem("cd /dev; sh MAKEDEV all"))
+	if (vsystem("cd /dev; sh MAKEDEV all")) {
 	    msgConfirm("MAKEDEV returned non-zero status");
+	    return RET_FAIL;
+	}
 	
 	msgNotify("Resurrecting /dev entries for slices..");
 	devs = deviceFind(NULL, DEVICE_TYPE_DISK);
@@ -389,7 +444,7 @@ installFixup(void)
 		    msgNotify("Making slice entries for %s", c1->name);
 		    if (vsystem("cd /dev; sh MAKEDEV %sh", c1->name)) {
 			msgConfirm("Unable to make slice entries for %s!", c1->name);
-			return 0;
+			return RET_FAIL;
 		    }
 		}
 	    }
@@ -403,7 +458,7 @@ installFixup(void)
 
     /* BOGON #2: We leave /etc in a bad state */
     chmod("/etc", 0755);
-    return 1;
+    return RET_SUCCESS;
 }
 
 /* Go newfs and/or mount all the filesystems we've been asked to */
@@ -561,18 +616,18 @@ root_extract(void)
 	    break;
 
 	default:
-	    if (!(*mediaDevice->init)(mediaDevice))
+	    if (!mediaDevice->init(mediaDevice))
 		break;
-	    fd = (*mediaDevice->get)(mediaDevice, "floppies/root.flp", NULL);
+	    fd = mediaDevice->get(mediaDevice, "floppies/root.flp", NULL);
 	    if (fd < 0) {
 		msgConfirm("Couldn't get root image from %s!\nWill try to get it from floppy.", mediaDevice->name);
-		(*mediaDevice->shutdown)(mediaDevice);
+		mediaDevice->shutdown(mediaDevice);
 	        alreadyExtracted = loop_on_root_floppy();
 	    }
 	    else {
 		msgNotify("Loading root image from:\n%s", mediaDevice->name);
 		alreadyExtracted = mediaExtractDist("/", fd);
-		(*mediaDevice->close)(mediaDevice, fd);
+		mediaDevice->close(mediaDevice, fd);
 	    }
 	    break;
 	}
@@ -631,11 +686,16 @@ int
 installSelectRelease(char *str)
 {
     char *cp;
+    int i;
 
     dialog_clear();
-    if ((cp = msgGetInput(variable_get(RELNAME), "Please specify the release you wish to load")) != NULL)
+    if ((cp = msgGetInput(variable_get(RELNAME), "Please specify the release you wish to load")) != NULL) {
 	variable_set2(RELNAME, cp);
+	i = RET_SUCCESS;
+    }
+    else
+	i = RET_FAIL;
     dialog_clear();
-    return 0;
+    return i;
 }
 

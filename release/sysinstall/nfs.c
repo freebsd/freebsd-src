@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: nfs.c,v 1.5.2.3 1995/10/04 10:34:02 jkh Exp $
+ * $Id: nfs.c,v 1.5.2.4 1995/10/04 12:08:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -58,13 +58,13 @@ mediaInitNFS(Device *dev)
     if (NFSMounted)
 	return TRUE;
 
-    if (!(*netDevice->init)(netDevice))
+    if (!netDevice->init(netDevice))
 	return FALSE;
 
-    if (Mkdir("/nfs", NULL))
+    if (Mkdir("/dist", NULL))
 	return FALSE;
 
-    if (vsystem("mount_nfs %s %s %s /nfs",
+    if (vsystem("mount_nfs %s %s %s /dist",
 		optionIsSet(OPT_SLOW_ETHER) ? "-r 1024 -w 1024" : "",
 		optionIsSet(OPT_NFS_SECURE) ? "-P" : "", dev->name)) {
 	msgConfirm("Error mounting %s on /nfs: %s (%u)\n", dev->name, strerror(errno), errno);
@@ -79,16 +79,16 @@ mediaGetNFS(Device *dev, char *file, Attribs *dist_attrs)
 {
     char	buf[PATH_MAX];
 
-    snprintf(buf, PATH_MAX, "/nfs/%s", file);
+    snprintf(buf, PATH_MAX, "/dist/%s", file);
     if (file_readable(buf))
 	return open(buf, O_RDONLY);
-    snprintf(buf, PATH_MAX, "/nfs/dists/%s", file);
+    snprintf(buf, PATH_MAX, "/dist/dists/%s", file);
     if (file_readable(buf))
 	return open(buf, O_RDONLY);
-    snprintf(buf, PATH_MAX, "/nfs/%s/%s", variable_get(RELNAME), file);
+    snprintf(buf, PATH_MAX, "/dist/%s/%s", variable_get(RELNAME), file);
     if (file_readable(buf))
 	return open(buf, O_RDONLY);
-    snprintf(buf, PATH_MAX, "/nfs/%s/dists/%s", variable_get(RELNAME), file);
+    snprintf(buf, PATH_MAX, "/dist/%s/dists/%s", variable_get(RELNAME), file);
     return open(buf, O_RDONLY);
 }
 
@@ -99,8 +99,8 @@ mediaShutdownNFS(Device *dev)
 
     if (!NFSMounted)
 	return;
-    msgDebug("Unmounting /nfs\n");
-    if (unmount("/nfs", MNT_FORCE) != 0)
+    msgDebug("Unmounting /dist\n");
+    if (unmount("/dist", MNT_FORCE) != 0)
 	msgConfirm("Could not unmount the NFS partition: %s\n", strerror(errno));
     if (isDebug())
 	msgDebug("Unmount returned\n");

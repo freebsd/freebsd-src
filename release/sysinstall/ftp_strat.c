@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.4 1995/10/04 12:08:09 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.5 1995/10/05 08:14:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -90,7 +90,7 @@ mediaInitFTP(Device *dev)
     if (ftpInitted)
 	return TRUE;
 
-    if (!(*netDevice->init)(netDevice))
+    if (netDevice && !netDevice->init(netDevice))
 	return FALSE;
 
     if ((ftp = FtpInit()) == NULL) {
@@ -168,8 +168,8 @@ retry:
     }
 
     if (FtpChdir(ftp, variable_get(RELNAME))) {
-	msgConfirm("Unable to CD to release %s directory.\n"
-		   "Perhaps a different FTP site for this release?",
+	msgConfirm("Unable to CD to release directory: %s.\n"
+		   "Perhaps a different FTP site is needed for this release?",
 		   variable_get(RELNAME));
 	goto punt;
     }

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.12 1995/06/11 19:29:52 rgrimes Exp $
+ * $Id: dmenu.c,v 1.12.2.1 1995/10/04 12:08:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -160,7 +160,7 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 		if ((tmp = decode(menu, result)) == NULL)
 		    return FALSE;
 	    }
-	    if (dispatch(tmp, result) || (menu->options & DMENU_SELECTION_RETURNS)) {
+	    if (dispatch(tmp, result) == RET_DONE || (menu->options & DMENU_SELECTION_RETURNS)) {
 		items_free(nitems, curr, max);
 		return TRUE;
 	    }

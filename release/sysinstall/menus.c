@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.14 1995/10/04 10:33:59 jkh Exp $
+ * $Id: menus.c,v 1.42.2.15 1995/10/04 12:08:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -640,8 +640,6 @@ software not provided in the base distributions.",
 	DMENU_SYSTEM_COMMAND,	"adduser -silent", 0, 0			},
       { "Console",		"Customize system console behavior",
 	DMENU_SUBMENU,		&MenuSyscons, 0, 0			},
-      { "Networking",		"Configure additional network services",
-	DMENU_SUBMENU, 		&MenuNetworking, 0, 0			},
       { "Time Zone",		"Set which time zone you're in",
 	DMENU_SYSTEM_COMMAND,	"rm -f /etc/wall_cmos_clock /etc/localtime; tzsetup", 0, 0 },
       { "Packages",		"Install extra FreeBSD packaged software",
@@ -652,6 +650,8 @@ software not provided in the base distributions.",
 	DMENU_SYSTEM_COMMAND,	"passwd root", 0, 0			},
       { "XFree86",		"Configure XFree86 (if installed)",
 	DMENU_SYSTEM_COMMAND,	"/usr/X11R6/bin/xf86config", 0, 0	},
+      { "Networking",		"Configure additional network services",
+	DMENU_SUBMENU, 		&MenuNetworking, 0, 0			},
       { "Exit",			"Exit this menu (returning to previous)",
 	DMENU_CANCEL, NULL, 0, 0					},
       { NULL } },

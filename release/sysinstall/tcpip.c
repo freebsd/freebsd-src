@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.30.2.3 1995/10/04 07:55:03 jkh Exp $
+ * $Id: tcpip.c,v 1.30.2.4 1995/10/04 12:08:25 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -430,9 +430,9 @@ tcpOpenDialog(Device *devp)
 	}
 	if (ipaddr[0])
 	    variable_set2(VAR_IPADDR, ipaddr);
-	return 0;
+	return RET_SUCCESS;
     }
-    return 1;
+    return RET_FAIL;
 }
 
 static int
@@ -444,13 +444,13 @@ netHook(char *str)
     string_prune(str);
     str = string_skipwhite(str);
     if (!*str)
-	return 0;
+	return RET_FAIL;
     devs = deviceFind(str, DEVICE_TYPE_NETWORK);
     if (devs) {
 	tcpOpenDialog(devs[0]);
 	mediaDevice = devs[0];
     }
-    return devs ? 1 : 0;
+    return devs ? RET_DONE : RET_FAIL;
 }
 
 /* Get a network device */
@@ -490,5 +490,5 @@ tcpMenuSelect(char *str)
 {
     (void)tcpDeviceSelect();
     configResolv();
-    return 0;
+    return RET_SUCCESS;
 }

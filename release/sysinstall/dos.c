@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: dos.c,v 1.6.2.1 1995/07/21 10:53:52 rgrimes Exp $
+ * $Id: dos.c,v 1.6.2.2 1995/10/04 10:33:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -66,7 +66,7 @@ mediaInitDOS(Device *dev)
     if (!RunningAsInit || DOSMounted)
 	return TRUE;
 
-    if (Mkdir("/dos", NULL))
+    if (Mkdir("/dist", NULL))
 	return FALSE;
 
     memset(&args, 0, sizeof(args));
@@ -74,8 +74,8 @@ mediaInitDOS(Device *dev)
     args.uid = args.gid = 0;
     args.mask = 0777;
 
-    if (mount(MOUNT_MSDOS, "/dos", MNT_RDONLY, (caddr_t)&args) == -1) {
-	msgConfirm("Error mounting %s on /dos: %s (%u)\n", args.fspec, strerror(errno), errno);
+    if (mount(MOUNT_MSDOS, "/dist", MNT_RDONLY, (caddr_t)&args) == -1) {
+	msgConfirm("Error mounting %s on /dist: %s (%u)\n", args.fspec, strerror(errno), errno);
 	return FALSE;
     }
     DOSMounted = TRUE;
@@ -87,13 +87,16 @@ mediaGetDOS(Device *dev, char *file, Attribs *dist_attrs)
 {
     char		buf[PATH_MAX];
 
-    snprintf(buf, PATH_MAX, "/dos/freebsd/%s", file);
+    snprintf(buf, PATH_MAX, "/dist/freebsd/%s", file);
     if (file_readable(buf))
 	return open(buf, O_RDONLY);
-    snprintf(buf, PATH_MAX, "/dos/freebsd/dists/%s", file);
+    snprintf(buf, PATH_MAX, "/dist/freebsd/dists/%s", file);
     if (file_readable(buf))
 	return open(buf, O_RDONLY);
-    snprintf(buf, PATH_MAX, "/dos/%s", file);
+    snprintf(buf, PATH_MAX, "/dist/%s", file);
+    if (file_readable(buf))
+	return open(buf, O_RDONLY);
+    snprintf(buf, PATH_MAX, "/dist/dists/%s", file);
     return open(buf, O_RDONLY);
 }
 
@@ -102,8 +105,8 @@ mediaShutdownDOS(Device *dev)
 {
     if (!RunningAsInit || !DOSMounted)
 	return;
-    msgDebug("Unmounting /dos\n");
-    if (unmount("/dos", MNT_FORCE) != 0)
+    msgDebug("Unmounting /dist\n");
+    if (unmount("/dist", MNT_FORCE) != 0)
 	msgConfirm("Could not unmount the DOS partition: %s\n", strerror(errno));
     if (isDebug())
 	msgDebug("Unmount returned\n");
