@@ -1,0 +1,812 @@
+Thu Mar  7 15:08:23 1996  Doug Evans  <dje@charmed.cygnus.com>
+
+	* sparc.h (O): Mark operand letter as in use.
+
+Tue Feb 20 20:46:21 1996  Doug Evans  <dje@charmed.cygnus.com>
+
+	* sparc.h (sparc_{encode,decode}_sparclet_cpreg): Declare.
+	Mark operand letters uU as in use.
+
+Mon Feb 19 01:59:08 1996  Doug Evans  <dje@charmed.cygnus.com>
+
+	* sparc.h (sparc_opcode_arch_val): Add SPARC_OPCODE_ARCH_SPARCLET.
+	(sparc_opcode_arch): Delete member `conflicts'.  Add `supported'.
+	(SPARC_OPCODE_SUPPORTED): New macro.
+	(SPARC_OPCODE_CONFLICT_P): Rewrite.
+	(F_NOTV9): Delete.
+
+Fri Feb 16 12:23:34 1996  Jeffrey A Law  (law@cygnus.com)
+
+	* sparc.h (sparc_opcode_lookup_arch) Make return type in
+	declaration consistent with return type in definition.
+
+Wed Feb 14 18:14:11 1996  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* i386.h (i386_optab): Remove Data32 from pushf and popf.
+
+Thu Feb  8 14:27:21 1996  James Carlson <carlson@xylogics.com>
+
+	* i386.h (i386_regtab): Add 80486 test registers.
+
+Mon Feb  5 18:35:46 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* i960.h (I_HX): Define.
+	(i960_opcodes): Add HX instruction.
+
+Mon Jan 29 12:43:39 1996  Ken Raeburn  <raeburn@cygnus.com>
+
+	* i386.h: Fix waiting forms of finit, fstenv, fsave, fstsw, fstcw,
+	and fclex.
+
+Wed Jan 24 22:36:59 1996  Doug Evans  <dje@charmed.cygnus.com>
+
+	* sparc.h (enum sparc_opcode_arch_val): Replaces sparc_architecture.
+	(SPARC_OPCODE_CONFLICT_P): Renamed from ARCHITECTURES_CONFLICT_P.
+	(bfd_* defines): Delete.
+	(sparc_opcode_archs): Replaces architecture_pname.
+	(sparc_opcode_lookup_arch): Declare.
+	(NUMOPCODES): Delete.
+
+Mon Jan 22 08:24:32 1996  Doug Evans  <dje@charmed.cygnus.com>
+
+	* sparc.h (enum sparc_architecture): Add v9a.
+	(ARCHITECTURES_CONFLICT_P): Update.
+
+Thu Dec 28 13:27:53 1995  John Hassey  <hassey@rtp.dg.com>
+
+	* i386.h: Added Pentium Pro instructions.
+
+Thu Nov  2 22:59:22 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* m68k.h: Document new 'W' operand place.
+
+Tue Oct 24 10:49:10 1995  Jeffrey A Law  (law@cygnus.com)
+
+	* hppa.h: Add lci and syncdma instructions.
+
+Mon Oct 23 11:09:16 1995  James G. Smith  <jsmith@pasanda.cygnus.co.uk>
+
+	* mips.h: Added INSN_4100 flag to mark NEC VR4100 specific
+ 	instructions.
+
+Mon Oct 16 10:28:15 1995  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* ppc.h (PPC_OPCODE_{COMMON,ANY}): New opcode flags for
+	assembler's -mcom and -many switches.
+
+Wed Oct 11 16:56:33 1995  Ken Raeburn  <raeburn@cygnus.com>
+
+	* i386.h: Fix cmpxchg8b extension opcode description.
+
+Thu Oct  5 18:03:36 1995  Ken Raeburn  <raeburn@cygnus.com>
+
+	* i386.h: Add Pentium instructions wrmsr, rdtsc, rdmsr, cmpxchg8b,
+	and register cr4.
+
+Tue Sep 19 15:26:43 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* m68k.h: Change comment: split type P into types 0, 1 and 2.
+
+Wed Aug 30 13:50:55 1995  Doug Evans  <dje@canuck.cygnus.com>
+
+	* sparc.h (sparc_{encode,decode}_prefetch): Declare.
+
+Tue Aug 29 15:34:58 1995  Doug Evans  <dje@canuck.cygnus.com>
+
+	* sparc.h (sparc_{encode,decode}_{asi,membar}): Declare.
+
+Wed Aug  2 18:32:19 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* m68kmri.h: Remove.
+
+	* m68k.h: Move tables into opcodes/m68k-opc.c, leaving just the
+	declarations.  Remove F_ALIAS and flag field of struct
+	m68k_opcode.  Change arch field of struct m68k_opcode to unsigned
+	int.  Make name and args fields of struct m68k_opcode const.
+
+Wed Aug  2 08:16:46 1995  Doug Evans  <dje@canuck.cygnus.com>
+
+	* sparc.h (F_NOTV9): Define.
+
+Tue Jul 11 14:20:42 1995  Jeff Spiegel  <jeffs@lsil.com>
+
+	* mips.h (INSN_4010): Define.
+
+Wed Jun 21 18:49:51 1995  Ken Raeburn  <raeburn@cujo.cygnus.com>
+
+	* m68k.h (TBL1): Reverse sense of "round" argument in result.
+
+	Changes from Andreas Schwab <schwab@issan.informatik.uni-dortmund.de>:
+	* m68k.h: Fix argument descriptions of coprocessor
+	instructions to allow only alterable operands where appropriate.
+	[!NO_DEFAULT_SIZES]: An omitted size defaults to `w'.
+	(m68k_opcode_aliases): Add more aliases.
+
+
+Fri Apr 14 22:15:34 1995  Ken Raeburn  <raeburn@cujo.cygnus.com>
+
+	* m68k.h: Added explcitly short-sized conditional branches, and a
+	bunch of aliases (fmov*, ftest*, tdivul) to support gcc's
+	svr4-based configurations.
+
+
+Mon Mar 13 21:30:01 1995  Ken Raeburn  <raeburn@cujo.cygnus.com>
+
+	Mon Feb 27 08:36:39 1995  Bryan Ford  <baford@cs.utah.edu>
+	* i386.h: added missing Data16/Data32 flags to a few instructions.
+
+Wed Mar  8 15:19:53 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* mips.h (OP_MASK_FR, OP_SH_FR): Define.
+	(OP_MASK_BCC, OP_SH_BCC): Define.
+	(OP_MASK_PREFX, OP_SH_PREFX): Define.
+	(OP_MASK_CCC, OP_SH_CCC): Define.
+	(INSN_READ_FPR_R): Define.
+	(INSN_RFE): Delete.
+
+Wed Mar  8 03:13:23 1995  Ken Raeburn  <raeburn@cujo.cygnus.com>
+
+	* m68k.h (enum m68k_architecture): Deleted.
+	(struct m68k_opcode_alias): New type.
+	(m68k_opcodes): Now const.  Deleted opcode aliases with exactly
+	matching constraints, values and flags.  As a side effect of this,
+	the MOTOROLA_SYNTAX_ONLY and MIT_SYNTAX_ONLY macros, which so far
+	as I know were never used, now may need re-examining.
+	(numopcodes): Now const.
+	(m68k_opcode_aliases, numaliases): New variables.
+	(endop): Deleted.
+	[DONT_DEFINE_TABLE]: Declare numopcodes, numaliases, and
+	m68k_opcode_aliases; update declaration of m68k_opcodes.
+
+
+Mon Mar  6 10:02:00 1995  Jeff Law  (law@snake.cs.utah.edu)
+
+	* hppa.h (delay_type): Delete unused enumeration.
+	(pa_opcode): Replace unused delayed field with an architecture
+	field.
+	(pa_opcodes): Mark each instruction as either PA1.0 or PA1.1.
+
+Fri Mar  3 16:10:24 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* mips.h (INSN_ISA4): Define.
+
+Fri Feb 24 19:13:37 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* mips.h (M_DLA_AB, M_DLI): Define.
+
+Thu Feb 23 17:33:09 1995  Jeff Law  (law@snake.cs.utah.edu)
+
+	* hppa.h (fstwx): Fix single-bit error.
+
+Wed Feb 15 12:19:52 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* mips.h (M_ULD, M_ULD_A, M_USD, M_USD_A): Define.
+
+
+Mon Feb  6 10:35:23 1995  J.T. Conklin  <jtc@rtl.cygnus.com>
+
+	* i386.h: added cpuid instruction , and dr[0-7] aliases for the
+	  debug registers.  From Charles Hannum (mycroft@netbsd.org).
+
+Mon Feb  6 03:31:54 1995  Ken Raeburn  <raeburn@cujo.cygnus.com>
+
+	Changes from Bryan Ford <baford@schirf.cs.utah.edu> for 16-bit
+	i386 support:
+	* i386.h (MOV_AX_DISP32): New macro.
+	(i386_optab): Added Data16 and Data32 as needed.  Added "w" forms
+	of several call/return instructions.
+	(ADDR_PREFIX_OPCODE): New macro.
+
+Mon Jan 23 16:45:43 1995  Ken Raeburn  <raeburn@cujo.cygnus.com>
+
+	Sat Jan 21 17:50:38 1995  Pat Rankin  (rankin@eql.caltech.edu)
+
+	* ../include/opcode/vax.h (struct vot_wot, field `args'):  make
+	it pointer to const char;
+	(struct vot, field `name'):  ditto.
+
+Thu Jan 19 14:47:53 1995  Ken Raeburn  <raeburn@cujo.cygnus.com>
+
+	* vax.h: Supply and properly group all values in end sentinel.
+
+Tue Jan 17 10:55:30 1995  Ian Lance Taylor  <ian@sanguine.cygnus.com>
+
+	* mips.h (INSN_ISA, INSN_4650): Define.
+
+
+
+Wed Oct 19 13:34:17 1994  Ian Lance Taylor  <ian@sanguine.cygnus.com>
+
+	* a29k.h: Add operand type 'I' for `inv' and `iretinv'.  On
+	systems with a separate instruction and data cache, such as the
+	29040, these instructions take an optional argument.
+
+Wed Sep 14 17:44:20 1994  Ian Lance Taylor  (ian@sanguine.cygnus.com)
+
+	* mips.h (INSN_STORE_MEMORY): Correct value to not conflict with
+	INSN_TRAP.
+
+Tue Sep  6 11:39:08 1994  Ian Lance Taylor  (ian@sanguine.cygnus.com)
+
+	* mips.h (INSN_STORE_MEMORY): Define.
+
+Thu Jul 28 19:28:07 1994  Ken Raeburn  (raeburn@cujo.cygnus.com)
+
+	* sparc.h: Document new operand type 'x'.
+
+Tue Jul 26 17:48:05 1994  Ken Raeburn  (raeburn@cujo.cygnus.com)
+
+	* i960.h (I_CX2): New instruction category.  It includes
+	instructions available on Cx and Jx processors.
+	(I_JX): New instruction category, for JX-only instructions.
+	(i960_opcodes): Put eshro and sysctl in I_CX2 category.  Added
+	Jx-only instructions, in I_JX category.
+
+Wed Jul 13 18:43:47 1994  Ken Raeburn  (raeburn@cujo.cygnus.com)
+
+	* ns32k.h (endop): Made pointer const too.
+
+Sun Jul 10 11:01:09 1994  Ian Dall  (dall@hfrd.dsto.gov.au)
+
+	* ns32k.h: Drop Q operand type as there is no correct use
+	for it. Add I and Z operand types which allow better checking.
+
+Thu Jul  7 12:34:48 1994  Steve Chamberlain  (sac@jonny.cygnus.com)
+
+	* h8300.h (xor.l) :fix bit pattern. 
+	(L_2): New size of operand.
+	(trapa): Use it.
+
+Fri Jun 10 16:38:11 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* m68k.h: Move "trap" before "tpcc" to change disassembly.
+
+Fri Jun  3 15:57:36 1994  Ken Raeburn  (raeburn@cujo.cygnus.com)
+
+	* sparc.h: Include v9 definitions.
+
+Thu Jun  2 12:23:17 1994  Ken Raeburn  (raeburn@cujo.cygnus.com)
+
+	* m68k.h (m68060): Defined.
+	(m68040up, mfloat, mmmu): Include it.
+	(struct m68k_opcode): Widen `arch' field.
+	(m68k_opcodes): Updated for M68060.  Removed comments that were
+	instructions commented out by "JF" years ago.
+
+Thu Apr 28 18:31:14 1994  Ken Raeburn  (raeburn@cujo.cygnus.com)
+
+	* m68k.h (struct m68k_opcode): Shorten `arch' field to 8 bits, and
+	add a one-bit `flags' field.
+	(F_ALIAS): New macro.
+
+Wed Apr 27 11:29:52 1994  Steve Chamberlain  (sac@cygnus.com)
+
+	* h8300.h (dec, inc): Get encoding right.
+
+Mon Apr  4 13:12:43 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* ppc.h (struct powerpc_operand): Removed signedp field; just use
+	a flag instead.
+	(PPC_OPERAND_SIGNED): Define.
+	(PPC_OPERAND_SIGNOPT): Define.
+
+Thu Mar 31 19:34:08 1994  Ken Raeburn  (raeburn@cujo.cygnus.com)
+
+	* i386.h (IS_JUMP_ON_ECX_ZERO, "jcxz" pattern): Operand size
+	prefix is 0x66, not 0x67.  Patch from H.J. Lu (hlu@nynexst.com).
+
+Thu Mar  3 15:51:05 1994  Ken Raeburn  (raeburn@cujo.cygnus.com)
+
+	* i386.h: Reverse last change.  It'll be handled in gas instead.
+
+Thu Feb 24 15:29:05 1994  Ken Raeburn  (raeburn@cujo.cygnus.com)
+
+	* i386.h (sar): Disabled the two-operand Imm1 form, since it was
+	slower on the 486 and used the implicit shift count despite the
+	explicit operand.  The one-operand form is still available to get
+	the shorter form with the implicit shift count.
+
+Thu Feb 17 12:27:52 1994  Torbjorn Granlund  (tege@mexican.cygnus.com)
+
+	* hppa.h: Fix typo in fstws arg string.
+
+Wed Feb  9 21:23:52 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* ppc.h (struct powerpc_opcode): Make operands field unsigned.
+
+Mon Feb  7 19:14:58 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* ppc.h (PPC_OPCODE_601): Define.
+
+Fri Feb  4 23:43:50 1994  Jeffrey A. Law  (law@snake.cs.utah.edu)
+
+	* hppa.h (addb): Use '@' for addb and addib pseudo ops.
+	(so we can determine valid completers for both addb and addb[tf].)
+
+	* hppa.h (xmpyu): No floating point format specifier for the
+	xmpyu instruction.
+
+Fri Feb  4 23:36:52 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* ppc.h (PPC_OPERAND_NEXT): Define.
+	(PPC_OPERAND_NEGATIVE): Change value to make room for above.
+	(struct powerpc_macro): Define.
+	(powerpc_macros, powerpc_num_macros): Declare.
+
+Fri Jan 21 19:13:50 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* ppc.h: New file.  Header file for PowerPC opcode table.
+
+Mon Jan 17 00:14:23 1994  Jeffrey A. Law  (law@snake.cs.utah.edu)
+
+	* hppa.h: More minor template fixes for sfu and copr (to allow
+	for easier disassembly).
+
+	* hppa.h: Fix templates for all the sfu and copr instructions.
+
+Wed Dec 15 15:12:42 1993  Ken Raeburn  (raeburn@cujo.cygnus.com)
+
+	* i386.h (push): Permit Imm16 operand too.
+
+Sat Dec 11 16:14:06 1993  Steve Chamberlain  (sac@thepub.cygnus.com)
+
+	*  h8300.h (andc): Exists in base arch.
+
+Wed Dec  1 12:15:32 1993  Jeffrey A. Law  (law@snake.cs.utah.edu)
+
+	* From Hisashi MINAMINO <minamino@sramhc.sra.co.jp>     
+	* hppa.h: #undef NONE to avoid conflict with hiux include files.
+
+Sun Nov 21 22:06:57 1993  Jeffrey A. Law  (law@snake.cs.utah.edu)
+
+	* hppa.h: Add FP quadword store instructions.
+
+Wed Nov 17 17:13:16 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* mips.h: (M_J_A): Added.
+	(M_LA): Removed.
+
+Mon Nov  8 12:12:47 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* mips.h (OP_MASK_CACHE, OP_SH_CACHE): Define.  From Ted Lemon
+	<mellon@pepper.ncd.com>.
+
+Sun Nov  7 00:30:11 1993  Jeffrey A. Law  (law@snake.cs.utah.edu)
+
+	* hppa.h: Immediate field in probei instructions is unsigned,
+	not low-sign extended.
+
+Wed Nov  3 10:30:00 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* m88k.h (RRI10MASK): Change from 0xfc00ffe0 to 0xfc00fc00.
+
+Tue Nov  2 12:41:30 1993  Ken Raeburn  (raeburn@rover.cygnus.com)
+
+	* i386.h: Add "fxch" without operand.
+
+Mon Nov  1 18:13:03 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* mips.h (M_JAL_1, M_JAL_2, M_JAL_A): Added.
+
+Sat Oct  2 22:26:11 1993  Jeffrey A Law  (law@snake.cs.utah.edu)
+
+	* hppa.h: Add gfw and gfr to the opcode table.
+
+Wed Sep 29 16:23:00 1993  K. Richard Pixley  (rich@sendai.cygnus.com)
+
+	* m88k.h: extended to handle m88110.
+
+Tue Sep 28 19:19:08 1993  Jeffrey A Law  (law@snake.cs.utah.edu)
+
+	* hppa.h (be, ble): Use operand type 'z' to denote absolute branch
+	addresses.
+
+Tue Sep 14 14:04:35 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* i960.h (i960_opcodes): Properly bracket initializers.
+
+Mon Sep 13 12:50:52 1993  K. Richard Pixley  (rich@sendai.cygnus.com)
+
+	* m88k.h (BOFLAG): rewrite to avoid nested comment.
+
+Mon Sep 13 15:46:06 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* m68k.h (two): Protect second argument with parentheses.
+
+Fri Sep 10 16:29:47 1993  Ken Raeburn  (raeburn@cambridge.cygnus.com)
+
+	* i386.h (i386_optab): Added new instruction "rsm" (for i386sl).
+	Deleted old in/out instructions in "#if 0" section.
+
+Thu Sep  9 17:42:19 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* i386.h (i386_optab): Properly bracket initializers.
+
+Wed Aug 25 13:50:56 1993  Ken Raeburn  (raeburn@cambridge.cygnus.com)
+
+	* hppa.h (pa_opcode): Use '|' for movb and movib insns.  (From
+	Jeff Law, law@cs.utah.edu).
+
+Mon Aug 23 16:55:03 1993  Ken Raeburn  (raeburn@cambridge.cygnus.com)
+
+	* i386.h (lcall): Accept Imm32 operand also.
+
+Mon Aug 23 12:43:11 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* mips.h (M_ABSU): Removed (absolute value of unsigned number??).
+	(M_DABS): Added.
+
+Thu Aug 19 15:08:37 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* mips.h (INSN_*): Changed values.  Removed unused definitions.
+	Added INSN_COND_BRANCH_LIKELY, INSN_ISA2 and INSN_ISA3.  Split
+	INSN_LOAD_DELAY into INSN_LOAD_MEMORY_DELAY and
+	INSN_LOAD_COPROC_DELAY.  Split INSN_COPROC_DELAY into
+	INSN_COPROC_MOVE_DELAY and INSN_COPROC_MEMORY_DELAY.
+	(M_*): Added new values for r6000 and r4000 macros.
+	(ANY_DELAY): Removed.
+
+Wed Aug 18 15:37:48 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* mips.h: Added M_LI_S and M_LI_SS.
+
+Tue Aug 17 07:08:08 1993  Steve Chamberlain  (sac@phydeaux.cygnus.com)
+
+	* h8300.h: Get some rare mov.bs correct.
+
+Thu Aug  5 09:15:17 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* sparc.h: Don't define const ourself; rely on ansidecl.h having
+	been included.
+
+Fri Jul 30 18:41:11 1993  John Gilmore  (gnu@cygnus.com)
+
+	* sparc.h (F_JSR, F_UNBR, F_CONDBR):  Add new flags to mark
+	jump instructions, for use in disassemblers.
+
+Thu Jul 22 07:25:27 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* m88k.h: Make bitfields just unsigned, not unsigned long or
+	unsigned short.
+
+Wed Jul 21 11:55:31 1993  Jim Kingdon  (kingdon@deneb.cygnus.com)
+
+	* hppa.h: New argument type 'y'.  Use in various float instructions.
+
+Mon Jul 19 17:17:03 1993  Jim Kingdon  (kingdon@deneb.cygnus.com)
+
+	* hppa.h (break): First immediate field is unsigned.
+
+	* hppa.h: Add rfir instruction.
+
+Sun Jul 18 16:28:08 1993  Jim Kingdon  (kingdon@rtl.cygnus.com)
+
+	* mips.h: Split the actual table out into ../../opcodes/mips-opc.c.
+
+Fri Jul 16 09:59:29 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* mips.h: Reworked the hazard information somewhat, and fixed some
+	bugs in the instruction hazard descriptions.
+
+Thu Jul 15 12:42:01 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* m88k.h: Corrected a couple of opcodes.
+
+Tue Jul  6 15:17:35 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* mips.h: Replaced with version from Ralph Campbell and OSF.  The
+	new version includes instruction hazard information, but is
+	otherwise reasonably similar.
+
+Thu Jul  1 20:36:17 1993  Doug Evans  (dje@canuck.cygnus.com)
+
+	* h8300.h: Fix typo in UNOP3 (affected sh[al][lr].l).
+
+Fri Jun 11 18:38:44 1993  Ken Raeburn  (raeburn@cygnus.com)
+
+	Patches from Jeff Law, law@cs.utah.edu:
+	* hppa.h: Clean up some of the OLD_TABLE, non-OLD_TABLE braindamage.
+	Make the tables be the same for the following instructions:
+	"bb", "addb[tf]", "addib[tf]", "add", "add[loc]", "addco", 
+	"sh[123]add", "sh[123]add[lo]", "sub", "sub[obt]", "sub[bt]o",
+	"ds", "comclr", "addi", "addi[ot]", "addito", "subi", "subio", 
+	"comiclr", "fadd", "fsub", "fmpy", "fdiv", "fsqrt", "fabs", 
+	"frnd", "fcpy", "fcnvff", "fcnvxf", "fcnvfx", "fcnvfxt", 
+	"fcmp", and "ftest".
+
+	* hppa.h: Make new and old tables the same for "break", "mtctl",
+	"mfctl", "bb", "ssm", "rsm", "xmpyu", "fmpyadd", "fmpysub".
+	Fix typo in last patch.  Collapse several #ifdefs into a
+	single #ifdef.
+
+	* hppa.h: Delete remaining OLD_TABLE code.  Bring some
+	of the comments up-to-date.
+
+	* hppa.h: Update "free list" of letters and update
+	comments describing each letter's function.
+
+Fri Jun  4 15:41:37 1993  Steve Chamberlain  (sac@phydeaux.cygnus.com)
+
+	* h8300.h: checkpoint, includes H8/300-H opcodes.
+
+Thu Jun  3 15:42:59 1993  Stu Grossman  (grossman@cygnus.com)
+
+	* Patches from Jeffrey Law <law@cs.utah.edu>.
+	* hppa.h: Rework single precision FP 
+	instructions so that they correctly disassemble code
+	PA1.1 code.
+
+Thu May 27 19:21:22 1993  Bruce Bauman  (boot@osf.org)
+
+	* i386.h (i386_optab, mov pattern): Remove Mem16 restriction from
+	mov to allow instructions like mov ss,xyz(ecx) to assemble.
+
+Tue May 25 00:39:40 1993  Ken Raeburn  (raeburn@cygnus.com)
+
+	* hppa.h: Use new version from Utah if OLD_TABLE isn't defined;
+	gdb will define it for now.
+
+Mon May 24 15:20:06 1993  Ken Raeburn  (raeburn@cambridge.cygnus.com)
+
+	* sparc.h: Don't end enumerator list with comma.
+
+Fri May 14 15:15:50 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* Based on patches from davidj@ICSI.Berkeley.EDU (David Johnson):
+	* mips.h (OP_MASK_COPZ, OP_SH_COPZ): Define.
+	("bc2t"): Correct typo.
+	("[ls]wc[023]"): Use T rather than t.
+	("c[0123]"): Define general coprocessor instructions.
+
+Mon May 10 06:02:25 1993  Ken Raeburn  (raeburn@kr-pc.cygnus.com)
+
+	* m68k.h: Move split point for gcc compilation more towards
+	middle.
+
+Fri Apr  9 13:26:16 1993  Jim Kingdon  (kingdon@cygnus.com)
+
+	* rs6k.h: Clean up instructions for primary opcode 19 (many were
+	simply wrong, ics, rfi, & rfsvc were missing).
+	Add "a" to opr_ext for "bb".  Doc fix.
+
+Thu Mar 18 13:45:31 1993  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* i386.h:  486 extensions from John Hassey (hassey@dg-rtp.dg.com).
+	* mips.h:  Add casts, to suppress warnings about shifting too much.
+	* m68k.h:  Document the placement code '9'.
+
+Thu Feb 18 02:03:14 1993  John Gilmore  (gnu@cygnus.com)
+
+	* m68k.h (BREAK_UP_BIG_DECL, AND_OTHER_PART):  Add kludge which
+	allows callers to break up the large initialized struct full of
+	opcodes into two half-sized ones.  This permits GCC to compile 
+	this module, since it takes exponential space for initializers.
+	(numopcodes, endop):  Revise to use AND_OTHER_PART in size calcs.
+
+Thu Feb  4 02:06:56 1993  John Gilmore  (gnu@cygnus.com)
+
+	* a29k.h:  Remove RCS crud, update GPL to v2, update copyrights.
+	* convex.h:  Added, from GDB's convx-opcode.h.  Added CONST to all
+	initialized structs in it.
+
+Thu Jan 28 21:32:22 1993  John Gilmore  (gnu@cygnus.com)
+
+	Delta 88 changes inspired by Carl Greco, <cgreco@Creighton.Edu>:
+	* m88k.h (PMEM):  Avoid previous definition from <sys/param.h>.
+	(AND):  Change to AND_ to avoid ansidecl.h `AND' conflict.
+
+Sat Jan 23 18:10:49 PST 1993  Ralph Campbell  (ralphc@pyramid.com)
+
+	* mips.h: document "i" and "j" operands correctly.
+
+Thu Jan  7 15:58:13 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* mips.h: Removed endianness dependency.
+
+Sun Jan  3 14:13:35 1993  Steve Chamberlain  (sac@thepub.cygnus.com)
+
+	* h8300.h: include info on number of cycles per instruction.
+
+Mon Dec 21 21:29:08 1992  Stu Grossman  (grossman at cygnus.com)
+
+	* hppa.h:  Move handy aliases to the front.  Fix masks for extract
+	and deposit instructions.
+
+Sat Dec 12 16:09:48 1992  Ian Lance Taylor  (ian@cygnus.com)
+
+	* i386.h: accept shld and shrd both with and without the shift
+	count argument, which is always %cl.
+
+Fri Nov 27 17:13:18 1992  Ken Raeburn  (raeburn at cygnus.com)
+
+	* i386.h (i386_optab_end, i386_regtab_end): Now const.
+	(one_byte_segment_defaults, two_byte_segment_defaults,
+	i386_prefixtab_end): Ditto.
+
+Mon Nov 23 10:47:25 1992  Ken Raeburn  (raeburn@cygnus.com)
+
+	* vax.h (bb*): Use "v" (bitfield type), not "a" (address operand)
+	for operand 2; from John Carr, jfc@dsg.dec.com.
+
+Wed Nov  4 07:36:49 1992  Ken Raeburn  (raeburn@cygnus.com)
+
+	* m68k.h: Define FIXED_SIZE_BRANCH, so bsr and bra instructions
+	always use 16-bit offsets.  Makes calculated-size jump tables
+	feasible.
+
+Fri Oct 16 22:52:43 1992  Ken Raeburn  (raeburn@cygnus.com)
+
+	* i386.h: Fix one-operand forms of in* and out* patterns.
+
+Tue Sep 22 14:08:14 1992  Ken Raeburn  (raeburn@cambridge.cygnus.com)
+
+	* m68k.h: Added CPU32 support.
+
+Tue Sep 22 00:38:41 1992  John Gilmore  (gnu@cygnus.com)
+
+	* mips.h (break):  Disassemble the argument.  Patch from
+	jonathan@cs.stanford.edu (Jonathan Stone).
+
+Wed Sep  9 11:25:28 1992  Ian Lance Taylor  (ian@cygnus.com)
+
+	* m68k.h: merged Motorola and MIT syntax.
+
+Thu Sep  3 09:33:22 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
+
+	* m68k.h (pmove): make the tests less strict, the 68k book is
+	wrong.
+
+Tue Aug 25 23:25:19 1992  Ken Raeburn  (raeburn@cambridge.cygnus.com)
+
+	* m68k.h (m68ec030): Defined as alias for 68030.
+	(m68k_opcodes): New type characters "3" for 68030 MMU regs and "t"
+	for immediate 0-7 added.  Set up some opcodes (ptest, bkpt) to use
+	them.  Tightened description of "fmovex" to distinguish it from
+	some "pmove" encodings.  Added "pmove" for 68030 MMU regs, cleaned
+	up descriptions that claimed versions were available for chips not
+	supporting them.  Added "pmovefd".
+
+Mon Aug 24 12:04:51 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
+
+	* m68k.h: fix where the . goes in divull
+
+Wed Aug 19 11:22:24 1992  Ian Lance Taylor  (ian@cygnus.com)
+
+	* m68k.h: the cas2 instruction is supposed to be written with
+	indirection on the last two operands, which can be either data or
+	address registers.  Added a new operand type 'r' which accepts
+	either register type.  Added new cases for cas2l and cas2w which
+	use them.  Corrected masks for cas2 which failed to recognize use
+	of address register.
+
+Fri Aug 14 14:20:38 1992  Per Bothner  (bothner@cygnus.com)
+
+	* m68k.h:  Merged in patches (mostly m68040-specific) from
+	Colin Smith <colin@wrs.com>.
+
+	* m68k.h:  Merged m68kmri.h and m68k.h (using the former as a
+	base).  Also cleaned up duplicates, re-ordered instructions for
+	the sake of dis-assembling (so aliases come after standard names).
+	* m68kmri.h: Now just defines some macros, and #includes m68k.h.
+
+Wed Aug 12 16:38:15 1992  Steve Chamberlain  (sac@thepub.cygnus.com)
+
+	* m68kmri.h: added various opcodes. Moved jbxx to bxxes. Filled in
+	all missing .s
+
+Mon Aug 10 23:22:33 1992  Ken Raeburn  (raeburn@cygnus.com)
+
+	* sparc.h: Moved tables to BFD library.
+
+	* i386.h (i386_optab): Add fildq, fistpq aliases used by gcc.
+
+Sun Jun 28 13:29:03 1992  Fred Fish  (fnf@cygnus.com)
+
+	* h8300.h:  Finish filling in all the holes in the opcode table,
+	so that the Lucid C compiler can digest this as well...
+
+Fri Jun 26 21:27:17 1992  John Gilmore  (gnu at cygnus.com)
+
+	* i386.h:  Add setc, setnc, addr16, data16, repz, repnz aliases.
+	Fix opcodes on various sizes of fild/fist instructions
+	(16bit=no suffix, 32bit="l" suffix, 64bit="ll" suffix).
+	Use tabs to indent for comments.  Fixes suggested by Minh Tran-Le.
+
+Thu Jun 25 16:13:26 1992  Stu Grossman  (grossman at cygnus.com)
+
+	* h8300.h:  Fill in all the holes in the opcode table so that the
+	losing HPUX C compiler can digest this...
+
+Thu Jun 11 12:15:25 1992  John Gilmore  (gnu at cygnus.com)
+
+	* mips.h:  Fix decoding of coprocessor instructions, somewhat.
+	(Fix by Eric Anderson, 3jean@maas-neotek.arc.nasa.gov.)
+
+Thu May 28 11:17:44 1992  Jim Wilson  (wilson@sphagnum.cygnus.com)
+
+	* sparc.h: Add new architecture variant sparclite; add its scan
+	and divscc opcodes.  Define ARCHITECTURES_CONFLICT_P macro.
+
+Tue May  5 14:23:27 1992  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* mips.h:  Add some more opcode synonyms (from Frank Yellin,
+	fy@lucid.com).
+
+Thu Apr 16 18:25:26 1992  Per Bothner  (bothner@cygnus.com)
+
+	* rs6k.h:  New version from IBM (Metin).
+
+Thu Apr  9 00:31:19 1992  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* rs6k.h: Fix incorrect extended opcode for instructions `fm'
+        and `fd'.  (From metin@ibmpa.awdpa.ibm.com (Metin G. Ozisik).)
+
+Tue Apr  7 13:38:47 1992  Stu Grossman  (grossman at cygnus.com)
+
+	* rs6k.h:  Move from ../../gdb/rs6k-opcode.h.
+
+Fri Apr  3 11:30:20 1992  Fred Fish  (fnf@cygnus.com)
+
+	* m68k.h (one, two):  Cast macro args to unsigned to suppress
+	complaints from compiler and lint about integer overflow during
+	shift.
+
+Sun Mar 29 12:22:08 1992  John Gilmore  (gnu at cygnus.com)
+
+	* sparc.h (OP):  Avoid signed overflow when shifting to high order bit.
+
+Fri Mar  6 00:22:38 1992  John Gilmore  (gnu at cygnus.com)
+
+	* mips.h:  Make bitfield layout depend on the HOST compiler,
+	not on the TARGET system.
+
+Fri Feb 21 01:29:51 1992  K. Richard Pixley  (rich@cygnus.com)
+
+	* i386.h: added inb, inw, outb, outw opcodes, added att syntax for
+	  scmp, slod, smov, ssca, ssto.  Curtesy Minh Tran-Le
+	  <TRANLE@INTELLICORP.COM>.
+
+Thu Jan 30 07:31:44 1992  Steve Chamberlain  (sac at rtl.cygnus.com)
+
+	* h8300.h: turned op_type enum into #define list
+
+Thu Jan 30 01:07:24 1992  John Gilmore  (gnu at cygnus.com)
+
+	* sparc.h:  Remove "cypress" architecture.  Remove "fitox" and
+	similar instructions -- they've been renamed to "fitoq", etc.
+	REALLY fix tsubcctv.  Fix "fcmpeq" and "fcmpq" which had wrong
+	number of arguments.
+	* h8300.h:  Remove extra ; which produces compiler warning.
+
+Tue Jan 28 22:59:22 1992  Stu Grossman  (grossman at cygnus.com)
+
+	* sparc.h:  fix opcode for tsubcctv.
+
+Tue Jan  7 17:19:39 1992  K. Richard Pixley  (rich at cygnus.com)
+
+	* sparc.h: fba and cba are now aliases for fb and cb respectively.
+
+Fri Dec 27 10:55:50 1991  Per Bothner  (bothner at cygnus.com)
+
+	* sparc.h (nop):  Made the 'lose' field be even tighter,
+	so only a standard 'nop' is disassembled as a nop.
+
+Sun Dec 22 12:18:18 1991  Michael Tiemann  (tiemann at cygnus.com)
+
+	* sparc.h (nop): Add RD_GO to `lose' so that only %g0 in dest is
+	disassembled as a nop.
+
+Tue Dec 10 00:22:20 1991  K. Richard Pixley  (rich at rtl.cygnus.com)
+
+	* sparc.h: fix a typo.
+
+Sat Nov 30 20:40:51 1991  Steve Chamberlain  (sac at rtl.cygnus.com)
+
+	* a29k.h, arm.h, h8300.h,  i386.h,  i860.h, i960.h , m68k.h, 
+	m88k.h, mips.h , np1.h, ns32k.h, pn.h, pyr.h, sparc.h, tahoe.h,
+	vax.h, ChangeLog: renamed from ../<foo>-opcode.h
+
+
+Local Variables:
+version-control: never
+End:

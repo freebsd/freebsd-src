@@ -1,0 +1,8 @@
+srcname="READLINE doc"
+srctrigger=rlman.texinfo
+# per-host:
+
+# per-target:
+
+files=""
+links=""

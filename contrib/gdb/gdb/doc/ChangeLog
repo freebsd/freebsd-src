@@ -1,0 +1,1206 @@
+Sat Mar 16 15:10:20 1996  Fred Fish  <fnf@cygnus.com>
+
+	From Peter Schauer <Peter.Schauer@Regent.E-Technik.TU-Muenchen.DE>
+	* gdb.texinfo (Expressions): Fix erroneous array constant example.
+
+Sat Mar 16 13:28:45 1996  Fred Fish  <fnf@cygnus.com>
+
+	* gdb.texinfo: Add missing "@bullet" to some "@itemize" commands.
+
+Sat Feb 10 03:28:36 1996  Peter Schauer  (pes@regent.e-technik.tu-muenchen.de)
+
+	* gdb.texinfo (Print settings):  Document
+	`set/show print static-members' commands.
+
+Wed Jan 10 14:16:37 1996  Fred Fish  <fnf@cygnus.com>
+
+	* gdbint.texinfo (Native): Document name change, coredep.c to
+	core-aout.c.
+
+Wed Dec 13 12:35:28 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* stabs.texinfo (Include Files): Document the values the SunOS4
+	linker creates for N_BINCL/N_EINCL/N_EXCL stabs.
+
+Fri Dec  8 21:08:44 1995  Fred Fish  <fnf@cygnus.com>
+
+	* gdbint.texinfo (Releases): Change gdb.tar.Z to gdb.tar.gz.
+	Fix typo.
+
+Wed Sep 20 13:14:10 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.in (maintainer-clean): New target, synonym for
+	realclean.
+
+Thu Aug  3 10:45:37 1995  Fred Fish  <fnf@cygnus.com>
+
+	* Update all FSF addresses except those in COPYING* files.
+
+Wed Jul 19 18:43:03 1995  Stan Shebs  <shebs@andros.cygnus.com>
+
+	From Richard Earnshaw (rearnsha@armltd.co.uk):
+	* gdb.texinfo (convenience variables): Document $_exitcode.
+	(quit): Document optional expression to use as exit code.
+
+Thu Jun 22 21:27:33 1995  Victoria Mixon  <victoria@cygnus.com>
+
+	* gdb.texinfo, remote.texi: Brought up to date with various
+	GDB changes.
+
+Tue Jun 20 14:35:38 1995  Stan Shebs  <shebs@andros.cygnus.com>
+
+	* gdb.texinfo: Update dates and versions, fix comments about
+	hardware watchpoints in future releases and about the
+	sharedlibrary command.
+
+Mon May  8 09:30:36 1995  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo: Remove node `XCOFF differences'.  Describe value of
+	C_FUN stab.  Other cleanups.
+
+Wed Apr 19 07:02:19 1995  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* remote.texi (Bootstrapping): Clarify that flush_i_cache is only
+	for the sparc stub.
+
+Tue Apr 11 11:41:49 1995  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* annotate.texi: Clarify which addresses have differing formats
+	depending on the language and which do not.
+
+Tue Mar 28 16:56:22 1995  J.T. Conklin  <jtc@rtl.cygnus.com>
+
+	* remote.texi (NetWare): Changed example to use BOARD= instead of
+	  NODE= argument to reflect correspoding change to gdbserve.nlm.
+
+Fri Mar 17 06:47:02 1995  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Negative Type Numbers): Mention the fact that
+	GDB, as well as AIX dbx, supports the size type attribute.
+
+Thu Mar 16 12:11:32 1995  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Negative Type Numbers): Document types -31 to -34.
+
+Mon Mar 13 16:49:13 1995  Per Bothner  <bothner@kalessin.cygnus.com>
+
+	* gdb.texinfo (Define):  Document $arg0... arguments to commands,
+	and new 'if' and 'while' commands.
+
+Fri Feb 17 15:24:35 1995  Per Bothner  <bothner@kalessin.cygnus.com>
+
+	* gdb.texinfo (Artificial arrays):  Note use of coerce-to-array-type.
+
+Wed Feb 15 11:59:18 1995  J.T. Conklin  <jtc@rtl.cygnus.com>
+
+	* all-cfg.texi: New flag, GDBSERVE, for NetWare's gdbserve.nlm.
+	* remote.texi (NetWare): New node, how to use gdbserve.nlm on
+	  NetWare targets.  Mostly stolen from the Server node.
+
+Fri Feb 10 20:20:08 1995  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* gdb.texinfo (Setting): Talk about the language of a source file
+	versus the working language.  The old documentation did not match
+	what GDB did.
+
+Wed Feb  1 20:26:36 1995  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Source Files): Document N_SO used to mark the end
+	of a source file.
+
+Mon Jan 23 14:23:37 1995  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* gdb.texinfo (Processes): New node.
+
+Tue Jan 17 14:09:03 1995  Ian Lance Taylor  <ian@sanguine.cygnus.com>
+
+	* remote.texi: Update documentation of set/show mipsfpu.
+
+
+Sun Sep  4 16:47:21 1994  Stan Shebs  (shebs@andros.cygnus.com)
+
+	* gdbint.texinfo: Removed mentions of some incorrectly placed and
+	obsolete conditionals, described some others.
+
+Mon Aug  1 15:42:39 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* gdbint.texinfo: Remove references to BROKEN_LARGE_ALLOCA and
+	SET_STACK_LIMIT_HUGE; they were removed from GDB 14 May 1994.
+
+Mon Aug  1 15:12:02 1994  Stan Shebs  (shebs@andros.cygnus.com)
+
+	* gdbint.texinfo: Put regex conditionals in their own table.
+
+Tue Jul 26 18:32:52 1994  Stan Shebs  (shebs@andros.cygnus.com)
+
+	* gdbint.texinfo: Removed mentions of many obsolete conditionals,
+	described or fixed the descriptions of many others.
+
+Sun Jul 17 14:14:03 1994  Stan Shebs  (shebs@andros.cygnus.com)
+
+	* gdb.texinfo: Add some more credits.
+	* gdbint.texinfo: Capitalize GDB consistently, describe some
+	macros and remove some.
+
+Thu Jul 14 18:43:17 1994  Stan Shebs  (shebs@andros.cygnus.com)
+
+	* gdbint.texinfo: Removed mentions of many incorrectly placed and
+	obsolete conditionals, described some others.
+
+Tue Jul 12 12:23:15 1994  Peter Schauer  (pes@regent.e-technik.tu-muenchen.de)
+
+	* gdb.texinfo (help targets):  Changed to `help target', which
+	is the correct gdb command.
+
+Wed Jun 22 18:00:51 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* annotate.texi (TODO): New node, for keeping track of annotations
+	suggested but not yet implemented.
+
+Wed Jun  1 16:10:45 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Statics): Value of xcoff C_BSTAT points to
+	another symbol, it is not the address itself.
+
+Thu May  5 20:23:36 1994  Stan Shebs  (shebs@andros.cygnus.com)
+
+	* stabs.texinfo (Stab Section Basics): Add comment about alignment
+	of stabs-in-coff sections.
+
+Wed May  4 06:26:11 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* annotate.texi: Change edition to 0.5 and date to May 1994.
+	Add index.
+	(Frames): New node, for frame annotation.
+	(Displays): New node, for display annotation.
+
+	* remote.texi (MIPS Remote): Say that set timeout doesn't apply
+	when waiting for your program to stop.
+
+Fri Apr 29 18:24:46 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* annotate.texi (Breakpoint Info): Document annotation of header
+	fields and record annotation.
+
+Thu Apr 28 07:44:28 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* annotate.texi: New file, to document annotations.
+
+Thu Apr 21 14:20:51 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* Makefile.in (clean): Don't remove GDBvn.texi (apparently on Jan
+	16 I meant to make this change but did not).  Do remove gdb-cfg.texi.
+
+Wed Apr 20 11:22:48 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Stab Section Basics): Say what is in .stab
+	section, and say n_strx field is compilation unit relative.
+	* stabs.texinfo: Don't use @code for a.out when it is the name of
+	an object file format.
+
+Wed Apr 13 20:29:54 1994  Jim Kingdon  (kingdon@deneb.cygnus.com)
+
+	* gdb.texinfo: Refer to file names, not path names, per rms
+	convention.
+	(Arguments): Fix typo.
+
+Thu Mar 24 08:09:12 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Global Variables): Talk about stabs in files
+	where variables are referenced, but not defined.
+
+Wed Mar 23 07:16:36 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo: Move stuff on @ and # type descriptors from node
+	Cplusplus to new nodes Member Type Descriptor and Method Type
+	Descriptor.  Re-write stuff for #.
+
+Wed Mar 16 08:20:19 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* gdb.texinfo (Print Settings): Don't document "set print
+	fast-symbolic-addr off".  The bug which it worked around was fixed
+	on 25 Feb 94 in coffread.c, so I'm nuking the command.
+
+	* stabs.texinfo (Alternate Entry Points): New node, rewritten from
+	N_ENTRY node.
+
+	* stabs.texinfo (Type Descriptors): Add 'Y' type descriptor.
+
+Tue Mar 15 08:43:02 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* gdbint.texinfo (Host Conditionals, Target Conditionals): Remove
+	references to ieee-float.c.
+
+Fri Mar 11 08:09:40 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* gdb.texinfo (Set Breaks): Update documentation for tbreak to
+	match what the code actually does.
+
+Wed Mar  9 19:43:05 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Symbol Descriptors): Add OS9000 symbol descriptor s.
+
+Tue Mar  1 17:04:43 1994  Jim Kingdon  (kingdon@deneb.cygnus.com)
+
+	* stabs.texinfo (Type Descriptors): Add OS9000 type descriptors c,
+	i, and b.
+
+Wed Feb 23 10:44:18 1994  Jim Kingdon  (kingdon@rtl.cygnus.com)
+
+	* stabs.texinfo: Document N_RBRAC as function relative for COFF as
+	well as for ELF and SOM.  Unify the descriptions of ELF and SOM
+	as "stabs in sections" rather than just saying "ELF and SOM".
+	Also make that stuff apply to COFF.
+
+Fri Feb 18 08:25:58 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* gdb.texinfo (Formatting Documentation): Change GhostScript to
+	Ghostscript.
+
+Fri Feb  4 06:31:31 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* gdb.texinfo (Continuing and Stepping): When talking about "step"
+	versus functions without line numbers, also mention stepping into
+	them as well as "step" when you are in them.  Tell the user how to
+	deal with the situation.  Add comment about "debugging information".
+
+Thu Feb  3 11:39:59 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Enumerations): Document restriction on where
+	enumeration types can appear and still win with GDB.
+
+Wed Feb  2 11:29:17 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Negative Type Numbers): Document format for type
+	-16.
+
+Thu Jan 27 16:53:56 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* gdb.texinfo (Selection, Frame Info): Update information about
+	arbitrary frame specficiations.
+
+Wed Jan 26 15:31:57 1994  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* gdb.texinfo, remote.texi: general editing pass prior to Net release
+
+Tue Jan 25 12:12:04 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (String Field): Discuss continuing stabs with ?.
+
+Wed Jan 19 06:39:24 1994  David J. Mackenzie  (djm@thepub.cygnus.com)
+
+	* stabs.texinfo (Non-Stab Symbol Types): Mention N_SET* | N_EXT.
+
+Sun Jan 16 12:43:32 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo: Re-do stuff about C_BSTAT and move from XCOFF
+	Differences node to Statics node.
+	(Statics): Discuss XCOFF use of V symbol descriptor.
+
+	* Makefile.in: Remove refcard.dvi and GDBvn.texi in realclean,
+	not clean.
+
+Wed Jan 12 21:29:54 1994  John Gilmore  (gnu@cygnus.com)
+
+	* gdb.texinfo (Print Settings): Document `set print
+	fast-symbolic-addr' and improve the doc for some other
+	`set print's.
+
+Mon Jan  3 17:23:07 1994  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (String Field): Talk about defining several type
+	numbers at once.
+	Fix lint regarding changing node ELF Transformations to
+	ELF and SOM Transformations.
+
+Fri Dec 31 00:42:43 1993  John Gilmore  (gnu@cygnus.com)
+
+	* stabs.texinfo:  Insert Peter Kessler's name as inventor (I think).
+
+Tue Dec 28 09:30:40 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Cross-References): `::' is for nested types only
+	within <>.
+	(Structures): Document static members.
+
+Mon Dec 27 13:55:04 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo: Document S type attribute.
+
+Sun Dec 26 20:46:36 1993  Jeffrey A. Law  (law@snake.cs.utah.edu)
+
+	* stabs.texinfo: Add notes about stabs-in-som where appropriate.
+
+Fri Dec  3 19:13:19 1993  John Gilmore  (gnu@cygnus.com)
+
+	* gdbint.texinfo:  Fix a few typos.
+
+Sun Nov 28 18:06:25 1993  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* gdb.texinfo, remote.texi: formatting improvements
+
+	* gdb.texinfo (New Features): mention threads.
+	(Summary, C): fix xrefs in newly contributed text.
+	(Threads): index entries, clarifications, example
+	(passim): minor typos fixed, phrasing improvements
+
+	* remote.texi (Bootstrapping): rephrase text on ^C and add index
+	entries; (Server): explain use of gdbserver w/real-time systems,
+	add example of conflicting TCP port; (MIPS Remote) break up
+	running text into table, highlighting commands, and add example.
+	
+Wed Nov 24 14:15:56 1993  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* refcard.tex: avoid bad linebreaks even when REFEDITS=psrc.sed
+
+Fri Nov 12 16:10:58 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Nested Symbols): New node.
+	(String Field, Symbol Descriptors, Cross-References): Refer to it.
+
+Thu Nov 11 13:26:45 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Stabs in ELF): Clarify how Bbss.bss work with respect
+	to picking which Bbss.bss symbol to use, and (because there seems to
+	be no good way of doing it) re-write some of the text to make it
+	sound like Bbss.bss isn't such a great idea after all (as currently
+	designed).
+
+	* gdb.texinfo (C): In addition to saying people have to use g++ for
+	good results, say they have to use stabs.  Specifically say cfront
+	doesn't work well.
+	(Summary): Merge in information on Modula-2, Pascal, and Chill from
+	the gdb README.  Add xrefs to places where the support for the various
+	languages is described in detail.
+
+Mon Nov  8 11:47:34 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo: Clean up stuff about visibility and virtual
+	characters.
+
+	* stabs.texinfo (N_M2C): Cite Sun doc.
+
+Fri Nov  5 16:27:27 1993  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* gdb.texinfo: updates re threads.
+	* remote.texinfo: avoid index entries starting with digits.
+
+Tue Nov  2 09:08:37 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Enumerations): Talk about large, negative and
+	octal values.  Clean up cross reference to type attributes.
+	(String Field): Say that GDB 4.11 supports size attribute.
+
+Sun Oct 31 13:31:10 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* remote.texi (VxWorks Remote): Clarify that rebuilding VxWorks kernel
+	is a mandatory step.  Make the stuff about that more concise.
+
+Wed Oct 27 00:25:46 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Class Names): New node.
+
+	* gdb.texinfo (Command Files): Explain order of init file reading.
+
+	* remote.texi (Bootstrapping): Talk about getting the serial driver
+	to deal with ^C sent by gdb to stop the remote system.
+
+Mon Oct 25 03:25:41 1993  Tom Lord  (lord@cygnus.com)
+
+	* libgdb.texinfo (I/O): incorporated better phrasing from rich.
+
+	* libgdb.texinfo (Defining Commands): made the DOC arg
+	to gdb_define_app_command a char * instead of char **
+	per a suggestion from kingdon.
+
+	* libgdb.texinfo: total rewrite from a different starting
+	premise.
+
+Wed Oct 20 18:07:44 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Local Variable Parameters): Re-write paragraph on
+	floats passed as doubles (to improve clarity).
+
+Tue Oct 19 14:21:18 1993  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* gdb.texinfo (Source Path): index entries for $cwd, $pdir
+
+	* a4rc.sed: update to work with Andreas Vogel papersize params
+
+	* refcard.tex: use Andreas Vogel simplifications of papersize
+	params; remove useless version info; update copyright date.
+
+Tue Oct 19 10:46:22 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* gdb.texinfo (Symbols): Add class NAME to doc for ptype.
+
+Tue Oct 12 09:11:45 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* gdb.texinfo (Files): Say what address the load command loads it at.
+
+	* stabs.texinfo (Common Blocks): Minor cleanups.
+
+	* stabs.texinfo: Update ld stabs in elf relocation to reflect the fact
+	that Sun has backed away from the linker kludge and thus the relevant
+	issue is changes to the SunPRO tools, not the Solaris linker.
+
+	* stabs.texinfo (Traditional Integer Types): Clean up description
+	of octal bounds a little bit.  Document extra leading zeroes.
+
+Thu Oct  7 16:15:37 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* gdb.texinfo (Signaling): Update for symbolic symbol names
+	and add a section explaining the difference between the GDB
+	signal command and the shell kill utility.
+
+Wed Oct  6 13:23:01 1993  Tom Lord  (lord@rtl.cygnus.com)
+
+	* libgdb.texinfo: added `@' to braces that were unescaped.
+
+Mon Oct  4 10:42:18 1993  Tom Lord  (lord@rtl.cygnus.com)
+
+	* libgdb.texinfo: new file.  Spec for the gdb library.
+
+Sun Oct  3 15:26:56 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Include Files): Fix typo (start -> end).
+
+Thu Sep 30 18:24:56 1993  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* gdb.texinfo, remote.texi: assorted small improvements, mostly
+	from Melissa at FSF's editing pass.
+
+Thu Sep 30 11:54:38 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* gdb.texinfo: Remove stuff about ar and 14 character filenames.
+	I believe this was fixed by the 13 Sep 89 change to print_frame_info.
+	Also, modern versions of ar like BSD 4.4 or SVR4 don't have this bug.
+
+Wed Sep 22 21:22:11 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* remote.texi (Bootstrapping): Discuss 386 call gates.
+
+Sat Sep 18 17:10:44 1993  Jim Kingdon  (kingdon@poseidon.cygnus.com)
+
+	* stabs.texinfo (Based Variables): New node.
+
+Thu Sep 16 17:48:55 1993  Jim Kingdon  (kingdon@cirdan.cygnus.com)
+
+	* stabs.texinfo (Negative Type Numbers): Re-write discussions of
+	names, sizes, and formats to suggest how not to lose.
+
+Sat Sep 11 09:35:11 1993  Jim Kingdon  (kingdon@poseidon.cygnus.com)
+
+	* stabs.texinfo (Methods): Fix typo.
+
+Fri Sep 10 06:34:20 1993  David J. Mackenzie  (djm@thepub.cygnus.com)
+
+	* gdb.texinfo: Fix a few typos.
+
+Wed Sep  8 09:11:52 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* gdb.texinfo: Clarify how well it works with Fortran.
+
+	* stabs.texinfo (Stabs In ELF, Statics, ELF Transformations):
+	More on relocating stabs in ELF files.
+
+Tue Sep  7 13:45:02 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Stabs In ELF): Talk about N_FUN value.
+
+Mon Sep  6 19:23:18 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Local Variable Parameters): Talk about nameless
+	parameters on VAX.
+
+Fri Sep  3 17:06:08 1993  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* gdb.texinfo: @up/@down -> @raisesections/@lowersections
+
+Fri Sep  3 12:04:15 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo: Make info author notice match the TeX author notice.
+
+Tue Aug 31 13:21:06 1993  David J. Mackenzie  (djm@thepub.cygnus.com)
+
+	* stabs.texinfo: Initial-caps all words in node names and
+	non-trivial words in section names.
+
+Mon Aug 30 11:13:16 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo: Many minor cleanups.
+
+	* stabs.texinfo: Remove @deffn except from Expanded Reference node.
+
+Sat Aug 28 12:08:09 1993  David J. MacKenzie  (djm@edison.eng.umd.edu)
+
+	* stabs.texinfo: Remove full description of big example.
+	It's not really helpful; just use pieces of it where appropriate.
+	Add more Texinfo formatting directives (@samp, etc.).
+	Use @deffn to define stab types.
+	Eliminate some wordiness.  Break up some nodes.
+	Add an (alphabetized) index of symbol types.
+	Use consistent capitalization style in node and section names.
+
+Thu Aug 26 06:36:31 1993  Fred Fish  (fnf@deneb.cygnus.com)
+
+	* gdb.texinfo:  Change typo "Two two" to "The two".
+
+Sun Aug 22 12:15:18 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (XCOFF-differences): Remove references to
+	non-existent types N_DECL and N_RPSYM.
+
+	* stabs.texinfo (String Field): Say that type attributes bug is
+	fixed in GDB 4.10, since it is.
+
+	* stabs.texinfo: Clean up djm cleanups, and more cleanups of my own.
+
+Sat Aug 21 04:32:28 1993  David MacKenzie  (djm@cygnus.com)
+
+	* stabs.texinfo: Formatting cleanups.
+
+Fri Aug 20 20:49:53 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo: When explaining the n_type of a stab, standardize
+	how we do it ('#' as a comment indicator, "36 is N_FUN" as text,
+	no tabs, use @r).
+	(Global Variables): Clean up.
+
+Tue Aug 17 15:57:27 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Stack Variables): Re-write.
+
+Mon Aug 16 21:20:08 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Stabs-in-elf): Talk about getting the start
+	addresses of a source file.  Also revise formatting.
+	Change "object module" or "object file" to "source file".
+	Various: Miscellaneous cleanups.
+
+Thu Aug 12 15:11:51 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo: Point to mangling info in gcc's gpcompare.texi.
+
+Tue Aug 10 16:57:49 1993  Stan Shebs  (shebs@rtl.cygnus.com)
+
+	* gdbint.texinfo: Removed many nonsensical machine-collected
+	host and target conditionals, described some of the remainder.
+
+Tue Aug 10 13:28:30 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* gdbint.texinfo (Getting Started): Use @itemize, not @table.
+
+	* gdbint.texinfo (Top): Add name to @top line, and re-write the
+	paragraph which follows.
+
+	* gdbint.texinfo (Host): Use @code not @samp for Makefile
+	variables.  Looks better and avoids overful hbox.
+
+Fri Jul 30 18:26:21 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Procedures): Improve stuff on nested functions.
+
+Thu Jul 29 15:10:58 1993  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* remote.texi: (MIPS Remote) clearer doc for set/show timeout,
+	retransmit-timeout
+
+Thu Jul 29 13:16:09 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* gdbint.texinfo: Update statement about `some ancient Unix
+	systems, like Ultrix 4.0' to Ultrix 4.2.
+
+Wed Jul 28 15:26:53 1993  Roland H. Pesch  (pesch@el_bosque.cygnus.com)
+
+	* h8-cfg.texi, all-cfg.texi: new flag GDBSERVER
+
+	* Makefile.in: depend on remote.texi rather than gdbinv-s.texi
+
+	* remote.texi: (Server) New node on gdbserver.  (Remote Serial,
+	ST2000 Remote, MIPS Remote): mention `host:port' syntax for TCP.
+
+	* remote.texi: new name for former gdbinv-s.texi
+
+	* gdb.texinfo: use remote.texi rather than gdbinv-s.texi
+
+Wed Jul 28 08:26:24 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* gdbinv-s.texi: Documented timeout and retransmit-timeout
+	variables for MIPS remote debugging protocol.
+
+Mon Jul 26 13:00:09 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Negative Type Numbers): FORTRAN LOGICAL fix.
+
+Tue Jul 20 16:30:41 1993  Jim Kingdon  (kingdon@deneb.cygnus.com)
+
+	* Makefile.in (refcard.dvi): Use srcdir where necessary.
+
+Mon Jul 19 12:02:50 1993  Roland H. Pesch  (pesch@cygnus.com)
+
+	* gdb.texinfo: repair conditional bugs in text markup
+
+Fri Jul 16 18:57:50 1993  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* gdb.texinfo, all-cfg.texi, h8-cfg.texi: introduce MOD2 switch
+	to select Modula-2 material.
+
+Thu Jul 15 13:15:01 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo: Cleanups regarding statics.
+
+	* gdbinv-s.texi (Bootstrapping): Document exceptionHandler.
+	(Debug Session): Mention exceptionHandler.  Add xref to Bootstrapping.
+
+Mon Jul 12 13:37:02 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo: N_MAIN is sometimes used for C.
+
+Fri Jul  9 09:47:02 1993  Peter Schauer  (pes@regent.e-technik.tu-muenchen.de)
+
+	* gdbint.texinfo (Host, Target Conditionals): Remove TM_FILE_OVERRIDE.
+
+Tue Jul  6 12:41:28 1993  John Gilmore  (gnu@cygnus.com)
+
+	* gdbint.texinfo (Target Conditionals): Remove NO_TYPEDEFS,
+	removed from the code by Kingdon. 
+
+Tue Jul  6 12:24:34 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* gdb.texinfo (Break Commands): Remove stuff about flushing terminal
+	input when evaluating breakpoint conditions; the bug has been fixed.
+
+	* gdb.texinfo (Continuing and Stepping): Argument to "continue"
+	sets the ignore count to N-1, not to N.
+
+Thu Jul  1 14:57:42 1993  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* refcard.tex (\hoffset): correct longstanding error to match
+	  intended offset; avoids cutting off edge on some printers
+
+Wed Jun 30 18:23:06 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Parameters): Say that order of stabs is significant.
+
+Fri Jun 25 21:34:52 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Common Blocks): Say what Sun FORTRAN does.
+
+Fri Jun 25 16:15:10 1993  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* Makefile.in: (REFEDITS) new var to control whether PS or CM
+	fonts and whether US or A4 paper for GDB refcard; (refcard.dvi)
+	collect sed edits if any, apply to refcard before formatting;
+	(refcard.ps) stop implying PS fonts if PS output requested;
+	(lrefcard.ps) delete extra target for variant PS fonts
+
+	* refcard.tex: parametrize papersize dependent info, collect
+	  in easily replaced spot
+
+	* a4rc.sed: new file, edits to refcard for A4 paper
+
+Fri Jun 25 14:21:46 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Negative Type Numbers): Type -16 is 4 bytes.
+
+Wed Jun 23 15:02:50 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Negative Type Numbers): Minor character cleanups.
+
+Tue Jun 22 16:31:52 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo: Express disapproval of 'D' symbol descriptor
+	politely rather than rudely.
+
+Fri Jun 18 19:42:09 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo: Document common blocks.
+
+Fri Jun 18 12:12:57 1993  Fred Fish  (fnf@cygnus.com)
+
+	* stabs.texinfo:  Add some basic info about stabs-in-elf.
+
+Fri Jun 18 13:57:09 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Top): Minor cleanup.
+
+Mon Jun 14 16:16:51 1993  david d `zoo' zuhn  (zoo at rtl.cygnus.com)
+
+	* Makefile.in (install-info): remove parentdir support
+
+Tue Jun 15 18:11:39 1993  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* gdb.texinfo (Copying): delete this node and references to it;
+	RMS says this manual need not carry GPL. (passim): Improvements
+	from last round at FSF, largely due to Ian Taylor review, and
+	minor formatting improvements.
+
+	* gdbinv-s.texi (passim): Improvements from last round at FSF,
+	largely due to Ian Taylor review. (Debug Session): minor edits to
+	new text.
+
+Sun Jun 13 12:52:39 1993  Jim Kingdon  (kingdon@cygnus.com)
+
+	* Makefile.in (realclean): Remove info and dvi files too.
+
+Sat Jun 12 16:09:22 1993  Jim Kingdon  (kingdon@cygnus.com)
+
+	* {all,h8}-config.texi: Rename to *-cfg.texi for 14 char filenames.
+	* Makefile.in: Change accordingly.  gdb-config.texi -> gdb-cfg.texi.
+	* gdb.texinfo: Change accordingly.
+
+	* stabs.texinfo: Clean up N_{L,R}BRAC.  Discuss what addresses of
+	N_{L,R}BRAC,N_SLINE are relative to.
+
+Fri Jun 11 15:15:55 1993  Jim Kingdon  (kingdon@cygnus.com)
+
+	* Makefile.in (GDBvn.texi): Update atomically.
+
+Wed Jun  9 10:58:16 1993  Jim Kingdon  (kingdon@cygnus.com)
+
+	* gdbinv-s.texi (Debug Session): Document exceptionHook.
+
+Tue Jun  8 13:42:04 1993  Jim Kingdon  (kingdon@cygnus.com)
+
+	* gdb.texinfo (Print Settings): Move all stuff relating to symbolic
+	addresses together.  Also motivate the set print symbol-filename
+	command and suggest other solutions.
+
+Tue Jun  1 22:46:43 1993  Fred Fish  (fnf@cygnus.com)
+
+	* gdb.texinfo (set print elements):  Note that the number of
+	elements is set to unlimited by "set print elements 0".
+
+Mon May 31 08:06:55 1993  Jim Kingdon  (kingdon@cygnus.com)
+
+	* stabs.texinfo (Builtin Type Descriptors): Try to clarify what
+	NF_LDOUBLE means.
+	(Stab Types): Include Solaris stab types.
+	(Procedures): Document Solaris extensions.
+
+Thu May 27 06:20:42 1993  Peter Schauer  (pes@regent.e-technik.tu-muenchen.de)
+
+	* gdb.texinfo:  Add `set print symbol-filename' doc.
+
+Wed May 26 00:26:42 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Arrays): Talk about type definition vs. type
+	information.
+
+	* stabs.texinfo (Builtin Type Descriptors): Talk about omitting
+	the trailing semicolon.
+
+Tue May 25 14:49:42 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Line Numbers, Source Files): Re-write these two nodes
+	and merge in other parts of the document addressing these subjects.
+	gdbint.texinfo (XCOFF): Remove info which is now in stabs.texinfo.
+
+	* stabs.texinfo (Subranges, Arrays): Try to explain about the semicolon
+	at the end of a range type.
+
+	* stabs.texinfo (Subranges): "A offset" and "T offset" are not
+	AIX extensions.
+
+Mon May 24 09:00:33 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Stabs Format):  Misc fixes.
+
+Sat May 22 10:40:56 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Constants):  Allow an `e' constant to be non-enum.
+	(Traditional builtin types): Document convex convention for long long.
+	(Negative builtin types): Discuss type names, and misc fixes.
+
+Fri May 21 11:20:31 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Builtin Type Descriptors): Document the floating
+	point types used with @samp{R} type descriptor.
+	(Symbol Descriptors): Describe how to handle conflict between
+	different meanings of @samp{P} symbol descriptor.
+
+Thu May 20 13:35:10 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo: Remove node Quick Reference and put its children
+	directly under the main menu.
+
+	* stabs.texinfo: Many more changes to bring it into line with
+	AIX documentation and reality.  I think it now has all the
+	information from the AIX documentation, except that I burned
+	out when I got to variant records (Pascal and Modula-2) and
+	all the COBOL types.  Oh well, we can add them later when we're
+	worrying more about those languages.
+
+	* stabs.texinfo (Automatic variables): Talk about what it means
+	to omit the symbol descriptor.
+
+Tue May 18 17:59:18 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* stabs.texinfo (Parameters): Add "(sometimes)" when describing
+	gcc2 behavior with promoted args.
+
+Fri May 14 21:35:29 1993  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* gdb.texinfo: include readline appendices in info version of manual
+
+Fri May  7 11:56:18 1993  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* gdbinv-s.texi (Remote Serial): describe new ^C behavior in
+	target remote.
+
+	* gdb.texinfo (Machine Code): more index entries for disassemble
+
+Fri May  7 10:12:30 1993  Fred Fish  (fnf@cygnus.com)
+
+	* Clarify the intended use of the gdb-testers and gdb-patches
+	mailing lists, and shrink gzip comment.
+
+Thu May  6 16:39:50 1993  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* gdb.texinfo (Shell Commands): do not mention SHELL env var in
+	DOSHOST configuration of manual.
+
+	* gdb.texinfo (MIPS Stack): new node.
+
+	* all-config.texi (MIPS) new switch.
+
+	* gdbinv-s.texi (Nindy Options) Remove two instances of future
+	tense; (MIPS Remote) new node.
+
+	* gdb.texinfo (passim) rephrases to work around makeinfo @value
+	bug; (Environment) less passive, other small cleanups in text about
+	.cshrc/.bashrc; (Invoking GDB) new MIPS Remote menu entry;
+	(Remote) new MIPS Remote menu entry.
+
+Thu Apr 29 09:36:25 1993  Jim Kingdon  (kingdon@cygnus.com)
+
+	* stabs.texinfo: Many changes to include information from the
+	AIX documentation.
+
+	* gdb.texinfo (Environment): Mention pitfall with .cshrc.
+
+Tue Apr 27 14:02:57 1993  Jim Kingdon  (kingdon@cygnus.com)
+
+	* gdbint.texinfo (new node Debugging GDB, elsewhere):
+	Move a bunch of information from ../README.
+	(Getting Started): New node.
+
+Fri Apr 23 17:21:13 1993  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* gdbinv-s.texi, gdb.texinfo: include Hitachi SH target
+
+	* gdb.texinfo: advance manual revision dates to present
+
+	* gdbinv-s.texi, gdb.texinfo, all-config.texi, h8-config.texi:
+	stop using silly Roman numerals in @set variable names
+
+Fri Apr 23 07:30:01 1993  Jim Kingdon  (kingdon@cygnus.com)
+
+	* stabs.texinfo (Parameters): Keep trying to get this right.
+
+Wed Apr 21 15:18:47 1993  Jim Kingdon  (kingdon@cygnus.com)
+
+	* stabs.texinfo (Parameters): More on "local parameters".
+
+Mon Apr 19 08:00:51 1993  Jim Kingdon  (kingdon@cygnus.com)
+
+	* stabs.texinfo (Parameters): Re-do "local parameters" section.
+
+Sun Apr 18 09:47:45 1993  Jim Kingdon  (kingdon@cygnus.com)
+
+	* stabs.texinfo (Symbol descriptors): Re-do using @table and @xref.
+	(Parameters): Rewrite.
+	(xcoff-differences, Sun-differences): Minor changes.
+
+Thu Apr 15 02:35:24 1993  John Gilmore  (gnu@cacophony.cygnus.com)
+
+	* stabs.texinfo:  Minor cleanup.
+
+Wed Apr 14 17:31:00 1993  Jim Kingdon  (kingdon@cygnus.com)
+
+	* gdbint.texinfo: Minor xcoff stuff.
+
+Wed Apr  7 14:11:07 1993  Fred Fish  (fnf@cygnus.com)
+
+	* gdbint.texinfo:  Update for new config directory structure.
+	Add info about internal type data structures.
+
+Mon Apr  5 09:06:30 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* Makefile.in (SFILES_INCLUDED): gdb-config.texi is no longer in
+	$(srcdir).
+	(gdb-config.texi): Depend on file in $(srcdir).
+
+Fri Apr  2 16:55:13 1993  Jim Kingdon  (kingdon@cygnus.com)
+
+	* stabs.texinfo: Fixes about N_SO.
+
+Fri Mar 26 18:00:35 1993  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* gdb.texinfo: include list of nonstandard init file names
+
+	* *-config.texi: new switch GENERIC for text that applies *only*
+	to (usual) multiple-target version of manual
+
+	* gdb.texinfo, gdbinv-s.texi: Update conditional markup to correct
+	h8 config
+
+	* gdb.texinfo: depend on latest fixed makeinfo, use conditionals
+	in menus (rather than conditionally selected multiple alternative
+	menus).
+
+	* Makefile.in: define and use DOC_CONFIG var to select
+	configuration for GDB user manual.
+
+	* gdb-config.texi: delete from repository, generate from Makefile.
+
+	* all-config.texi: normal `generic' configuration file, formerly
+	stored as gdb-config.texi
+
+Wed Mar 24 14:03:19 1993  david d `zoo' zuhn  (zoo at poseidon.cygnus.com)
+
+	* Makefile.in: add dvi target to build all .dvi files
+
+Tue Mar 23 16:03:24 1993  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* gdb.texinfo, gdvinv-s.texinfo: formatting improvements.
+
+Fri Mar 19 21:46:50 1993  John Gilmore  (gnu@cygnus.com)
+
+	* gdbint.texinfo:  Doc NO_MMALLOC and NO_MMALLOC_CHECK as
+	host conditionals.
+	* stabs.texinfo:  More array fixes inspired by Jim's.
+
+Fri Mar 19 10:23:34 1993  Jim Kingdon  (kingdon@cygnus.com)
+
+	* stabs.texinfo: Fixes re arrays and continuations.
+
+	* gdbint.texinfo: Add XCOFF node.
+
+Mon Mar  8 15:52:18 1993  John Gilmore  (gnu@cygnus.com)
+
+	* gdb.texinfo:  Add `set print max-symbolic-offset' doc.
+
+Sun Feb 21 17:09:38 1993  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* stabs.texinfo:  Fix for array types to mention lower bounds.
+
+Thu Feb 18 01:19:49 1993  John Gilmore  (gnu@cygnus.com)
+
+	* gdbint.texinfo:  Update PTRACE_ARG3_TYPE doc, pull PT_*.
+
+Wed Feb 17 08:15:24 1993  John Gilmore  (gnu@cygnus.com)
+
+	* gdbint.texinfo:  Remove SET_STACK_LIMIT_HUGE from target defines.
+
+Thu Feb 11 10:38:40 1993  John Gilmore  (gnu@cygnus.com)
+
+	* gdbint.texinfo:  Fix thinko (NM_FILE => NAT_FILE).  Found
+	by Michael Ben-Gershon <mybg@CS.HUJI.AC.IL>.
+
+Wed Feb 10 23:59:19 1993  John Gilmore  (gnu@cygnus.com)
+
+	* gdbint.texinfo:  Eliminate IBM6000_HOST, document IBM6000_TARGET.
+
+Tue Feb  9 18:26:21 1993  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* gdb.texinfo, gdbinv-s.texi: misc updates
+
+Sat Feb  6 10:25:47 1993  John Gilmore  (gnu@cygnus.com)
+
+	* gdbint.texinfo:  Brief documentation for longjmp support,
+	from an email msg by Stu.
+
+Fri Feb  5 14:10:15 1993  John Gilmore  (gnu@cygnus.com)
+
+	* stabs.texinfo:  Fix description of floating point "range"
+	types (which really define basic types).  Reported by Jim Meehan,
+	<meehan@src.dec.com>.
+
+	* gdbint.texinfo:  Remove COFF_NO_LONG_FILE_NAMES define, now gone.
+
+Thu Feb  4 13:56:46 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* gdbint.texinfo: Slightly expand section on supporting a new
+	object file format.
+
+Thu Feb  4 01:49:04 1993  John Gilmore  (gnu@cygnus.com)
+
+	* Makefile.in (refcard.ps, lrefcard.ps):  Remove psref.tex
+	intermediate file.
+
+Tue Feb  2 12:18:06 1993  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* gdb.texinfo, gdbinv-s.texi: miscellaneous stylistic cleanups
+
+Mon Feb  1 15:35:47 1993  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* gdbinv-s.texi: z8000 simulator target name is just "sim"
+
+	* gdbinv-s.texi:  Mention that Z8000 simulator can simulate Z8001
+	as well as Z8002.
+
+Sat Nov 28 06:51:35 1992  John Gilmore  (gnu@cygnus.com)
+
+	* gdbint.texinfo:  Add sections on clean design and on how to send
+	in changes.
+
+Mon Nov  9 23:57:02 1992  John Gilmore  (gnu@cygnus.com)
+
+	* gdbint.texinfo:  Add how to declare the result of make_cleanup.
+
+Mon Oct 26 11:09:47 1992  John Gilmore  (gnu@cygnus.com)
+
+	* gdb.texinfo:  Fix typo, reported by Karl Berry.
+
+Fri Oct 23 00:41:21 1992  John Gilmore  (gnu@cygnus.com)
+
+	* gdb.texinfo:  Add opcodes dir to GDB distribution description.
+
+Sat Oct 10 18:04:58 1992  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* gdbint.texinfo: fixed a stray email address (needs @@),
+	added @table @code to node "Native Conditionals"
+
+Tue Sep 22 00:34:15 1992  John Gilmore  (gnu@cygnus.com)
+
+	* gdbint.texinfo:  Describe coding style of GDB.
+
+Mon Sep 21 19:32:16 1992  John Gilmore  (gnu@cygnus.com)
+
+	* stabs.texinfo:  Minor wording changes.
+
+Tue Sep 15 02:57:09 1992  John Gilmore  (gnu@cygnus.com)
+
+	* gdbint.texinfo:  Improve release doc slightly.
+
+Fri Sep 11 01:34:25 1992  John Gilmore  (gnu@sphagnum.cygnus.com)
+
+	* gdbint.texinfo:  Improve doc of GDB config macros.
+
+Wed Sep  9 16:52:06 1992  John Gilmore  (gnu@cygnus.com)
+
+	* stabs.texinfo:  Remove Bothner's changes for C++ nested types.
+	These will be reinserted when examined.
+
+Mon Aug 24 01:17:55 1992  John Gilmore  (gnu@cygnus.com)
+
+	* gdbint.texinfo:  Make a start at documenting all the #if macros
+	in GDB.  At least list them all, and start separating them into
+	host-specific and target-specific.
+
+Tue Aug 18 15:59:13 1992  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* gdbinv-s.m4.in: refrain from using @cartouche for just a few
+	examples (not consistent w others).  
+	gdb.texinfo: issue disclaimer paragraph on cmdline options only
+	for generic vn of doc
+
+Tue Aug 18 14:53:27 1992  Ian Lance Taylor  (ian@cygnus.com)
+
+	* Makefile.in: always create installation directories.
+
+Tue Aug 18 14:11:50 1992  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* gdb.texinfo: in h8 config, do not describe searching commands.
+
+Mon Aug 17 18:07:59 1992  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* gdb.texinfo, none.m4, h8.m4, gdbinv-s.m4.in: improve H8/300
+	  conditionals; introduce a few generic switches that may be
+	  useful for other cross-dev or dos-hosted configs.
+
+	* gdb.texinfo: fix typo in "info reg" description
+
+Sun Aug 16 01:16:18 1992  John Gilmore  (gnu@cygnus.com)
+
+	* stabs.texinfo:  Minor updates from running TeX over it.
+	* Makefile.in (stabs.dvi, stabs.ps):  Add.
+
+Sat Aug 15 20:52:24 1992  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* stabs.texinfo:  Stabs documentation, written by Julia Menapace.
+	First pass at converting it to texinfo.
+
+Sat Aug 15 03:14:59 1992  John Gilmore  (gnu@cygnus.com)
+
+	* gdb.texinfo, refcard.tex:  Document mult args on `info reg'.
+	* Makefile.in (refcard.ps, lrefcard.ps):  Add missing $(srdir).
+
+Fri Aug 14 21:08:47 1992  John Gilmore  (gnu@cygnus.com)
+
+	* gdbint.texinfo:  Add section on partial symbol tables.
+
+Sat Jun 20 16:31:10 1992  John Gilmore  (gnu at cygnus.com)
+
+	* gdb.texinfo:  document `set remotedebug' and `set
+	rstack_high_address'.
+
+Thu May 14 17:09:48 1992  Roland H. Pesch  (pesch@fowanton.cygnus.com)
+
+	* gdb.texinfo: slight expansion of new text on reading info files
+	* gdbinv-s.m4.in: correct and expand info on cross-debugging
+	H8/300 from DOS.
+
+Tue May 12 12:22:47 1992  John Gilmore  (gnu at cygnus.com)
+
+	* gdb.texinfo:  `info user' => `show user'.  Noticed by David Taylor.
+
+Mon May 11 19:06:27 1992  John Gilmore  (gnu at cygnus.com)
+
+	* gdb.texinfo:  Say how to read the `info' files.
+
+Tue May  5 12:11:38 1992  K. Richard Pixley  (rich@cygnus.com)
+
+	* Makefile.in: gm4 -> m4.
+
+Fri Apr 10 17:50:43 1992  John Gilmore  (gnu at rtl.cygnus.com)
+
+	* gdb.texinfo:  Update for GDB-4.5.  Move `Formatting
+	Documentation' ahead of `Installing GDB' to match README.
+	Update shared library doc, -readnow and -mapped, and directory
+	structure (add glob and mmalloc).  Update configure doc.	
+
+Tue Mar 24 23:28:38 1992  K. Richard Pixley  (rich@cygnus.com)
+
+	* Makefile.in: remove $(srcdir) from gdb.info rule.
+
+Sat Mar  7 18:44:50 1992  K. Richard Pixley  (rich@rtl.cygnus.com)
+
+	* Makefile.in: commented out gdb-all.texinfo rule.  This is
+	  temporary.
+
+Wed Feb 26 18:04:40 1992  K. Richard Pixley  (rich@cygnus.com)
+
+	* Makefile.in, configure.in: removed traces of namesubdir,
+	  -subdirs, $(subdir), $(unsubdir), some rcs triggers.  Forced
+	  copyrights to '92, changed some from Cygnus to FSF.
+
+Fri Dec 13 09:47:31 1991  John Gilmore  (gnu at cygnus.com)
+
+	* gdb.texinfo:  Improve how we ask for bug reports.
+
+Tue Dec 10 04:07:21 1991  K. Richard Pixley  (rich at rtl.cygnus.com)
+
+	* Makefile.in: infodir belongs in datadir.
+
+Fri Dec  6 23:57:34 1991  K. Richard Pixley  (rich at rtl.cygnus.com)
+
+	* Makefile.in: remove spaces following hyphens, bsd make can't
+	  cope.  install using INSTALL_DATA.  added clean-info.  added
+	  standards.text support. 
+
+Thu Dec  5 22:46:12 1991  K. Richard Pixley  (rich at rtl.cygnus.com)
+
+	* Makefile.in: idestdir and ddestdir go away.  Added copyrights
+	  and shift gpl to v2.  Added ChangeLog if it didn't exist. docdir
+	  and mandir now keyed off datadir by default.
+
+
+Local Variables:
+mode: indented-text
+left-margin: 8
+fill-column: 74
+version-control: never
+End:
