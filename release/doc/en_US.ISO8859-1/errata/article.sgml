@@ -150,6 +150,11 @@
     <para>&man.lpd.8; contained a remotely-exploitable buffer
     overflow.  For more details, and a fix for this problem, see
     security advisory FreeBSD-SA-01:58.</para>
+
+    <para>&man.rmuser.8; had a race condition that briefly exposed a
+    world-readable <filename>/etc/master.passwd</filename>.  For more
+    details, as well as workarounds and solutions, see security
+    advisory FreeBSD-SA-01:59.</para>
   </sect1>
 
   <sect1>
