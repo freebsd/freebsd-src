@@ -706,13 +706,13 @@ unp_attach(so)
 	bzero(unp, sizeof *unp);
 	LIST_INIT(&unp->unp_refs);
 	unp->unp_socket = so;
+	so->so_pcb = unp;
 
 	UNP_LOCK();
 	unp->unp_gencnt = ++unp_gencnt;
 	unp_count++;
 	LIST_INSERT_HEAD(so->so_type == SOCK_DGRAM ? &unp_dhead
 			 : &unp_shead, unp, unp_link);
-	so->so_pcb = unp;
 	UNP_UNLOCK();
 
 	return (0);
