@@ -26,7 +26,7 @@
 #	std	standard devices
 #	local	configuration specific devices
 #	mach-4	mach4&lites+devices for Mach's XFree86 distribution
-#	(see http://www.cs.hut.fi/lites.html for more info on LITES)
+#	(see http://www.cs.hut.fi/~jvh/lites.html for more info on LITES)
 #
 # Tapes:
 #	wt*	QIC-interfaced (e.g. not SCSI) 3M cartridge tape
@@ -85,7 +85,7 @@
 #	isdn*	ISDN devices
 #   labpc*  National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.90 1995/05/03 18:15:35 dufault Exp $
+#	$Id: MAKEDEV,v 1.91 1995/05/07 23:04:03 ache Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
