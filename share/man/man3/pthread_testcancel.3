@@ -156,7 +156,7 @@ always be restored to its value on entry to the object.
 .Pp
 This follows from a modularity argument: if the client of an object (or the
 client of an object that uses that object) has disabled cancelability, it is
-because the client doesn't want to have to worry about how to clean up if the
+because the client does not want to have to worry about how to clean up if the
 thread is canceled while executing some sequence of actions.
 If an object
 is called in such a state and it enables cancelability and a cancellation

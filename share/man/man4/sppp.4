@@ -78,7 +78,7 @@ signals an
 event (rise of
 .Dq carrier ) .
 This can be used by lower layers to support
-a dialin connection where the physical layer isn't available
+a dialin connection where the physical layer is not available
 immediately at startup, but only after some external event arrives.
 Receipt of a
 .Em Down
@@ -134,7 +134,7 @@ wrong assumptions.
 In a similar spirit the remote address can be set to the magical
 value
 .Li 0.0.0. Ns Em *
-which means that we don't care what address the remote
+which means that we do not care what address the remote
 side will use, as long as it is not 0.0.0.0.
 This is useful if your ISP has several dial-in
 servers.
@@ -227,7 +227,7 @@ for authentication and link quality reporting.
 .Pp
 Negotiation loop avoidance is not fully implemented.
 If the negotiation
-doesn't converge, this can cause an endless loop.
+does not converge, this can cause an endless loop.
 .Pp
 The various parameters that should be adjustable per RFC 1661 are
 currently hard-coded into the kernel, and should be made accessible

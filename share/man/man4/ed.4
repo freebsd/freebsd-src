@@ -87,7 +87,7 @@ lossage).
 Some
 .No ( non- Ns Fx
 :-)) machines have terrible Ethernet performance
-and simply can't cope with 1100K+ data rates.
+and simply cannot cope with 1100K+ data rates.
 Use of this flag also provides
 one more packet worth of receiver buffering, and on 8bit cards, this may help
 reduce receiver lossage.
@@ -262,7 +262,7 @@ This is most commonly
 caused by a BIOS extension ROM being configured in the same address space as the
 Ethernet card's shared memory.
 Either find the offending card and change its BIOS
-ROM to be at an address that doesn't conflict, or change the
+ROM to be at an address that does not conflict, or change the
 .Cd iomem
 option in the kernel config file so that the card's shared memory is mapped at a
 non-conflicting address.
@@ -279,7 +279,7 @@ the card is defective.
 Indicates a logic problem in the driver.
 Should never happen.
 .It "ed%d: device timeout"
-Indicates that an expected transmitter interrupt didn't occur.
+Indicates that an expected transmitter interrupt did not occur.
 Usually caused by an
 interrupt conflict with another card on the ISA bus.
 This condition could also be caused if the kernel is configured for a

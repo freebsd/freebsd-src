@@ -210,7 +210,7 @@ and
 Historically, many of the databases had enumeration functions, often of
 the form
 .Fn getXXXent .
-These made sense when the databases were in local files, but don't make
+These made sense when the databases were in local files, but do not make
 sense or have lesser relevance when there are possibly multiple sources,
 each of an unknown size.
 The interfaces are still provided for compatibility, but the source
@@ -224,7 +224,7 @@ source must appear alone for a given database.
 .Ss Default source lists
 If, for any reason,
 .Nm
-doesn't exist, or it has missing or corrupt entries,
+does not exist, or it has missing or corrupt entries,
 .Xr nsdispatch 3
 will default to an entry of
 .Dq files
@@ -271,7 +271,7 @@ nis [notfound=return] files
 .Pp
 The criteria
 .Dq [notfound=return]
-sets a policy of "if the user is notfound in nis, don't try files."
+sets a policy of "if the user is notfound in nis, do not try files."
 This treats nis as the authoritative source of information, except
 when the server is down.
 .Sh SEE ALSO

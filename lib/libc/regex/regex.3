@@ -436,7 +436,7 @@ places the NUL-terminated message into the buffer pointed to by
 limiting the length (including the NUL) to at most
 .Fa errbuf_size
 bytes.
-If the whole message won't fit,
+If the whole message will not fit,
 as much of it as will fit before the terminating NUL is supplied.
 In any case,
 the returned value is the size of buffer needed to hold the whole
@@ -641,7 +641,7 @@ operand invalid
 .It Dv REG_EMPTY
 empty (sub)expression
 .It Dv REG_ASSERT
-can't happen - you found a bug
+cannot happen - you found a bug
 .It Dv REG_INVARG
 invalid argument, e.g.\& negative-length string
 .It Dv REG_ILLSEQ
@@ -715,7 +715,7 @@ are legal REs because
 is
 a special character only in the presence of a previous unmatched
 .Ql (\& .
-This can't be fixed until the spec is fixed.
+This cannot be fixed until the spec is fixed.
 .Pp
 The standard's definition of back references is vague.
 For example, does

@@ -131,7 +131,7 @@ A device must match all specified fields in order to be returned.
 The match flags are enumerated in the
 .Va pci_getconf_flags
 structure.
-Hopefully the flag values are obvious enough that they don't need to
+Hopefully the flag values are obvious enough that they do not need to
 described in detail.
 .El
 .It match_buf_len
@@ -315,11 +315,11 @@ Kenneth Merry, and first appeared in
 .Sh AUTHORS
 .An Kenneth Merry Aq ken@FreeBSD.org
 .Sh BUGS
-It isn't possible for users to specify an accurate offset into the device
+It is not possible for users to specify an accurate offset into the device
 list without calling the
 .Dv PCIOCGETCONF
 at least once, since they have no way of knowing the current generation
 number otherwise.
-This probably isn't a serious problem, though, since
+This probably is not a serious problem, though, since
 users can easily narrow their search by specifying a pattern or patterns
 for the kernel to match against.

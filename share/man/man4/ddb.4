@@ -99,7 +99,7 @@ a hexadecimal format at a prompt.
 Examine and write commands update `dot' to the address of the last line
 examined or the last location modified, and set `next' to the address of
 the next location to be examined or changed.
-Other commands don't change `dot', and set `next' to be the same as `dot'.
+Other commands do not change `dot', and set `next' to be the same as `dot'.
 .Pp
 The general command syntax is:
 .Cm command Ns Op Li \&/ Ns Ar modifier
@@ -394,8 +394,8 @@ only if the machine dependent code supports it.
 Search memory for
 .Ar value .
 This command might fail in interesting
-ways if it doesn't find the searched-for value.
-This is because ddb doesn't always recover from touching bad memory.
+ways if it does not find the searched-for value.
+This is because ddb does not always recover from touching bad memory.
 The optional
 .Ar count
 argument limits the search.

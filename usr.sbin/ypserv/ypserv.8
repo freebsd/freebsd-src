@@ -106,7 +106,7 @@ the maps are always readable and writable only by root for security
 reasons.
 Technically this is only necessary for the password
 maps, but since the data in the other maps can be found in
-other world-readable files anyway, it doesn't hurt and it's considered
+other world-readable files anyway, it does not hurt and it's considered
 good general practice.
 .Pp
 The
@@ -318,7 +318,7 @@ be used as a master or slave in conjunction with older
 .Tn NIS
 servers that
 only support the v1 protocol.
-Fortunately, there probably aren't any
+Fortunately, there probably are not any
 such servers still in use today.
 .Ss NIS servers that are also NIS clients
 Care must be taken when running
@@ -354,7 +354,7 @@ and
 maps.
 By default, if
 .Nm
-can't find an entry for a given host in its hosts maps, it will
+cannot find an entry for a given host in its hosts maps, it will
 return an error and perform no further processing.
 With the
 .Fl n

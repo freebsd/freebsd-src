@@ -230,7 +230,7 @@ While listing, if the
 .Fl d
 option was specified, also show expired dynamic rules.
 .It Fl f
-Don't ask for confirmation for commands that can cause problems
+Do not ask for confirmation for commands that can cause problems
 if misused,
 .No i.e. Cm flush .
 If there is no tty associated with the process, this is implied.
@@ -303,7 +303,7 @@ and
 .Xr m4 1 .
 If
 .Ar preproc
-doesn't start with a slash
+does not start with a slash
 .Pq Ql /
 as its first character, the usual
 .Ev PATH
@@ -1771,7 +1771,7 @@ If you cannot be near the console,
 use an auto-recovery script such as the one in
 .Pa /usr/share/examples/ipfw/change_rules.sh .
 .It
-Don't forget the loopback interface.
+Do not forget the loopback interface.
 .El
 .Sh FINE POINTS
 .Bl -bullet
@@ -1827,7 +1827,7 @@ A
 socket bound to the specified port will receive all packets
 diverted to that port.
 If no socket is bound to the destination port, or if the divert module is
-not loaded, or if the kernel wasn't compiled with divert socket support,
+not loaded, or if the kernel was not compiled with divert socket support,
 the packets are dropped.
 .Sh SYSCTL VARIABLES
 A set of

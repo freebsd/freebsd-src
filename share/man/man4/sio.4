@@ -229,7 +229,7 @@ port.
 The driver supports controller based PCI modems.
 The 3Com FaxModem PCI and the Advantec 56k Voice Messaging PCI
 FaxModem are the only cards supported.
-WinModems, softmodems, hfc modems and any other modems that aren't
+WinModems, softmodems, hfc modems and any other modems that are not
 controller based are not supported.
 .Pp
 The
@@ -330,10 +330,10 @@ In particular, the initial states for non (POSIX) standard flags
 should be set to suit the devices attached and may need to be
 locked to prevent buggy programs from changing them.
 E.g., CRTSCTS should be locked on for devices that support
-RTS/CTS handshaking at all times and off for devices that don't
+RTS/CTS handshaking at all times and off for devices that do not
 support it at all.
-CLOCAL should be locked on for devices that don't support carrier.
-HUPCL may be locked off if you don't
+CLOCAL should be locked on for devices that do not support carrier.
+HUPCL may be locked off if you do not
 want to hang up for some reason.
 In general, very bad things happen
 if something is locked to the wrong state, and things should not
