@@ -475,7 +475,7 @@ udp_append(last, ip, n, off)
 	}
 #endif
 	if (last->inp_flags & INP_CONTROLOPTS ||
-	    last->inp_socket->so_options & SO_TIMESTAMP) {
+	    last->inp_socket->so_options & (SO_TIMESTAMP | SO_BINTIME)) {
 #ifdef INET6
 		if (last->inp_vflag & INP_IPV6) {
 			int savedflags;

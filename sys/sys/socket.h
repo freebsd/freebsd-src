@@ -120,6 +120,7 @@ typedef	__uid_t		uid_t;
 #define	SO_TIMESTAMP	0x0400		/* timestamp received dgram traffic */
 #define	SO_NOSIGPIPE	0x0800		/* no SIGPIPE from EPIPE */
 #define	SO_ACCEPTFILTER	0x1000		/* there is an accept filter */
+#define	SO_BINTIME	0x2000		/* timestamp received dgram traffic */
 #endif
 
 /*
@@ -462,6 +463,7 @@ struct cmsgcred {
 #if __BSD_VISIBLE
 #define	SCM_TIMESTAMP	0x02		/* timestamp (struct timeval) */
 #define	SCM_CREDS	0x03		/* process creds (struct cmsgcred) */
+#define	SCM_BINTIME	0x04		/* timestamp (struct bintime) */
 #endif
 
 #if __BSD_VISIBLE

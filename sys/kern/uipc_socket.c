@@ -1357,6 +1357,7 @@ sosetopt(so, sopt)
 		case SO_REUSEPORT:
 		case SO_OOBINLINE:
 		case SO_TIMESTAMP:
+		case SO_BINTIME:
 		case SO_NOSIGPIPE:
 			error = sooptcopyin(sopt, &optval, sizeof optval,
 					    sizeof optval);
@@ -1555,6 +1556,7 @@ sogetopt(so, sopt)
 		case SO_BROADCAST:
 		case SO_OOBINLINE:
 		case SO_TIMESTAMP:
+		case SO_BINTIME:
 		case SO_NOSIGPIPE:
 			optval = so->so_options & sopt->sopt_name;
 integer:
