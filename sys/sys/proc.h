@@ -646,6 +646,7 @@ struct proc {
 #define	PS_SWAPPING	0x00200	/* Process is being swapped. */
 #define	PS_NEEDSIGCHK	0x02000	/* Process may need signal delivery. */
 #define	PS_SWAPPINGIN	0x04000	/* Swapin in progress. */
+#define	PS_MACPEND	0x08000	/* Ast()-based MAC event pending. */
 
 /* used only in legacy conversion code */
 #define	SIDL	1		/* Process being created by fork. */
