@@ -155,8 +155,8 @@ section above.
 .\".Sh DRIVER CONFIGURATION
 .Sh FILES
 .Bl -tag -width /modules/splash_xxxx.ko -compact
-.It /boot/loader.rc
-boot loader script
+.It /boot/defaults/loader.conf
+boot loader configuration defaults
 .It /etc/rc.conf
 system configuration information
 .It /modules/splash_*.ko
@@ -172,37 +172,27 @@ have the following line in the kernel configuration file.
 .Pp
 .Dl pseudo-device splash
 .Pp
-The following examples show how to load the splash screen image from
-the boot loader prompt.
-They may be typed by hand at the loader prompt or may be written in
-the boot loader script 
-.Pa /boot/loader.rc 
-.Pq see Xr loader.rc 5 .
+Next, edit
+.Pa /boot/loader.conf
+.Pq see Xr loader.conf 5
+and include the following lines:
 .Bd -literal -offset indent
-load kernel
-load -t splash_image_data chuck.bmp
-load splash_bmp
+splash_bmp_load="YES"
+bitmap_load="YES"
+bitmap_name="chuck.bmp"
 .Ed
 .Pp
-The second line loads a bitmap image file to be used in the splash screen.
 In the above example, the file 
 .Pa chuck.bmp
 is loaded.
-It is extremely important to include the option 
-.Fl t Ar splash_image_data
-in this line, as the splash image decoder module will search for
-this tag name when looking up the preloaded bitmap data.
-The third line loads the splash image decoder module 
-.Pa splash_bmp .
-.Pp
 In the following example, the VESA module
 is loaded so that a bitmap file which cannot be displayed in standard
 VGA modes may be shown using one of the VESA video modes.
 .Bd -literal -offset indent
-load kernel
-load vesa
-load -t splash_image_data chuck.pcx
-load splash_pcx
+splash_pcx_load="YES"
+vesa_load="YES"
+bitmap_load="YES"
+bitmap_name="chuck.pcx"
 .Ed
 .Pp
 If the VESA support is statically linked to the kernel, it is not
@@ -223,6 +213,7 @@ and will remain in memory, wasting kernel memory space.
 .Xr vidcontrol 1 ,
 .Xr syscons 4 ,
 .Xr vga 4 ,
+.Xr loader.conf 5 ,
 .Xr rc.conf 5 ,
 .Xr kldload 8 ,
 .Xr kldunload 8 .
