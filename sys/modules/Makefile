@@ -151,7 +151,6 @@ SUBDIR=	${_3dfx} \
 	${_nsp} \
 	ntfs \
 	ntfs_iconv \
-	null \
 	nullfs \
 	${_nwfs} \
 	${_oltr} \
