@@ -55,6 +55,7 @@
 
 SYSCTL_NODE(_machdep, OID_AUTO, pccard, CTLFLAG_RW, 0, "pccard");
 
+/* The following might now be obsolete */
 static int pcic_resume_reset = 1;
 
 SYSCTL_INT(_machdep_pccard, OID_AUTO, pcic_resume_reset, CTLFLAG_RW,
@@ -165,9 +166,13 @@ disable_slot(struct slot *slt)
 static void
 disable_slot_to(struct slot *slt)
 {
-	slt->state = empty;
+	int wasinactive;
+
 	disable_slot(slt);
-	printf("pccard: card removed, slot %d\n", slt->slotnum);
+	if (slt->state == empty)
+		printf("pccard: card removed, slot %d\n", slt->slotnum);
+	else
+		printf("pccard: card deactivated, slot %d\n", slt->slotnum);
 	pccard_remove_beep();
 	selwakeup(&slt->selp);
 }
@@ -300,12 +305,12 @@ pccard_event(struct slot *slt, enum card_event event)
 
 	switch(event) {
 	case card_removed:
-		/*
-		 *	The slot and devices are disabled, but the
-		 *	data structures are not unlinked.
-		 */
+	case card_deactivated:
 		if (slt->state == filled || slt->state == inactive) {
-			slt->state = empty;
+			if (event == card_removed)
+				slt->state = empty;
+			else
+				slt->state = inactive;
 			disable_slot_to(slt);
 		}
 		break;
@@ -616,8 +621,7 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 		if (!pwval) {
 			if (slt->state != filled)
 				return (EINVAL);
-			pccard_event(slt, card_removed);
-			slt->state = inactive;
+			pccard_event(slt, card_deactivated);
 		} else {
 			if (slt->state != empty && slt->state != inactive)
 				return (EINVAL);
@@ -678,10 +682,10 @@ pccard_suspend(device_t dev)
 
 	/* This code stolen from pccard_event:card_removed */
 	if (slt->state == filled) {
-		int s = splhigh();
+		int s = splhigh();		/* nop on current */
 		disable_slot(slt);
-		slt->laststate = filled;
-		slt->state = suspend;
+		slt->laststate = suspend;	/* for pccardd */
+		slt->state = empty;
 		splx(s);
 		printf("pccard: card disabled, slot %d\n", slt->slotnum);
 	}
@@ -699,16 +703,5 @@ pccard_resume(device_t dev)
 {
 	struct slot *slt = PCCARD_DEVICE2SOFTC(dev);
 
-	if (pcic_resume_reset)
-		slt->ctrl->resume(slt);
-	/* This code stolen from pccard_event:card_inserted */
-	if (slt->state == suspend) {
-		slt->laststate = suspend;
-		slt->state = empty;
-		slt->insert_seq = 1;
-		untimeout(inserted, (void *)slt, slt->insert_ch);
-		inserted((void *) slt);
-		selwakeup(&slt->selp);
-	}
-	return (0);
+	slt->ctrl->resume(slt);
 }

@@ -396,13 +396,8 @@ pcicintr1(void *arg)
 				splx(s);
 				return (EIO);
 			}
-			if (chg & PCIC_CDTCH) {
-				if ((sp->getb(sp, PCIC_STATUS) & PCIC_CD) ==
-				    PCIC_CD)
-					pccard_event(sp->slt, card_inserted);
-				else
-					pccard_event(sp->slt, card_removed);
-			}
+			if (chg & PCIC_CDTCH)
+				pcic_do_stat_delta(sp);
 		}
 	}
 	splx(s);
