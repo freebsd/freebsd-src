@@ -870,7 +870,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 				    (bp->b_flags & (B_VMIO | B_NEEDCOMMIT))) ||
 				    (tbp->b_flags & B_LOCKED) ||
 				    tbp->b_wcred != bp->b_wcred) {
-					BUF_UNLOCK(bp);
+					BUF_UNLOCK(tbp);
 					splx(s);
 					break;
 				}
