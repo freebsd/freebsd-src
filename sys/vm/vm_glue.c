@@ -688,7 +688,8 @@ retry:
 
 		PROC_LOCK(p);
 		if (p->p_lock != 0 ||
-		    (p->p_flag & (P_STOPPED_SNGL|P_TRACED|P_SYSTEM|P_WEXIT)) != 0) {
+		    (p->p_flag & (P_STOPPED_SINGLE|P_TRACED|P_SYSTEM|P_WEXIT)
+		    ) != 0) {
 			goto nextproc2;
 		}
 		/*

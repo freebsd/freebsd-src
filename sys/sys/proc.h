@@ -562,13 +562,15 @@ struct proc {
 #define	P_CONTINUED	0x10000	/* Proc has continued from a stopped state. */
 
 /* flags that control how threads may be suspended for some reason */
-#define	P_STOPPED_SGNL	0x20000	/* Stopped due to SIGSTOP/SIGTSTP */
-#define	P_STOPPED_TRACE	0x40000	/* Stopped because of tracing */
-#define	P_STOPPED_SNGL	0x80000	/* Only one thread can continue (not to user) */
-#define	P_SINGLE_EXIT	0x00400	/* Threads suspending should exit, not wait */
-#define	P_TRACED	0x00800	/* Debugged process being traced. */
-#define	P_STOPPED	(P_STOPPED_SGNL|P_STOPPED_SNGL|P_STOPPED_TRACE)
-#define	P_SHOULDSTOP(p) ((p)->p_flag & P_STOPPED)
+#define	P_STOPPED_SIG		0x20000	/* Stopped due to SIGSTOP/SIGTSTP */
+#define	P_STOPPED_TRACE		0x40000	/* Stopped because of tracing */
+#define	P_STOPPED_SINGLE	0x80000	/* Only one thread can continue */
+					/* (not to user) */
+#define	P_SINGLE_EXIT		0x00400	/* Threads suspending should exit, */
+					/* not wait */
+#define	P_TRACED		0x00800	/* Debugged process being traced. */
+#define	P_STOPPED		(P_STOPPED_SIG|P_STOPPED_SINGLE|P_STOPPED_TRACE)
+#define	P_SHOULDSTOP(p)		((p)->p_flag & P_STOPPED)
 
 /* Should be moved to machine-dependent areas. */
 #define	P_UNUSED100000	0x100000
@@ -862,8 +864,8 @@ void	thread_link(struct thread *td, struct ksegrp *kg);
 void	thread_reap(void);
 struct thread *thread_schedule_upcall(struct thread *td, struct kse *ke);
 int	thread_single(int how);
-#define	SNGLE_NO_EXIT 0			/* values for 'how' */
-#define	SNGLE_EXIT 1
+#define	SINGLE_NO_EXIT 0			/* values for 'how' */
+#define	SINGLE_EXIT 1
 void	thread_single_end(void);
 void	thread_stash(struct thread *td);
 int	thread_suspend_check(int how);
