@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.506 1998/12/03 20:06:00 dillon Exp $
+#	$Id: LINT,v 1.507 1998/12/04 18:01:23 wpaul Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1017,6 +1017,12 @@ controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2
 # gotta turn it actually on by setting the variable fd_debug with DDB,
 # however.
 options		FDC_DEBUG
+# FDC_YE enables support for the floppies used on the Libretto.  This is a
+# pcmcia floppy.  You will also need to add
+#card "Y-E DATA" "External FDD"
+#        config 0x4 "fdc0" 10
+# to your pccard.conf file.
+options		FDC_YE
 # This option is undocumented on purpose.
 options		FDC_PRINT_BOGUS_CHIPTYPE
 #
