@@ -96,6 +96,7 @@ vwalk()
 		}
 		switch(p->fts_info) {
 		case FTS_D:
+		case FTS_SL:
 			break;
 		case FTS_DP:
 			if (specdepth > p->fts_level) {
