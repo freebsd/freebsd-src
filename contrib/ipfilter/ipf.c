@@ -12,6 +12,9 @@
 #  endif
 # endif
 #endif
+#ifdef __sgi
+# include <sys/ptimers.h>
+#endif
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
@@ -47,7 +50,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipf.c	1.23 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipf.c,v 2.10.2.10 2001/07/18 11:34:19 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipf.c,v 2.10.2.13 2002/02/22 15:32:53 darrenr Exp $";
 #endif
 
 #if	SOLARIS
@@ -64,9 +67,7 @@ void	zerostats __P((void));
 int	main __P((int, char *[]));
 
 int	opts = 0;
-#ifdef	USE_INET6
 int	use_inet6 = 0;
-#endif
 
 static	int	fd = -1;
 
@@ -105,11 +106,9 @@ char *argv[];
 	while ((c = getopt(argc, argv, OPTS)) != -1) {
 		switch (c)
 		{
-#ifdef	USE_INET6
 		case '6' :
 			use_inet6 = 1;
 			break;
-#endif
 		case 'A' :
 			opts &= ~OPT_INACTIVE;
 			break;

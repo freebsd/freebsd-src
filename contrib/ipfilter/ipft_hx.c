@@ -3,6 +3,9 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
+#ifdef __sgi
+# include <sys/ptimers.h>
+#endif
 #include <stdio.h>
 #include <ctype.h>
 #include <assert.h>
@@ -40,7 +43,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipft_hx.c	1.1 3/9/96 (C) 1996 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipft_hx.c,v 2.2.2.1 2001/06/26 10:43:18 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipft_hx.c,v 2.2.2.5 2002/02/22 15:32:54 darrenr Exp $";
 #endif
 
 extern	int	opts;
@@ -91,6 +94,14 @@ int	cnt, *dir;
 	char	line[513];
 	ip_t	*ip;
 
+	/*
+	 * interpret start of line as possibly "[ifname]" or
+	 * "[in/out,ifname]".
+	 */
+	if (ifn)
+		*ifn = NULL;
+	if (dir)
+		*dir = 0;
  	ip = (ip_t *)buf;
 	while (fgets(line, sizeof(line)-1, tfp)) {
 		if ((s = index(line, '\n'))) {
@@ -107,21 +118,14 @@ int	cnt, *dir;
 			fflush(stdout);
 		}
 
-		/*
-		 * interpret start of line as possibly "[ifname]" or
-		 * "[in/out,ifname]".
-		 */
-		if (ifn)
-			*ifn = NULL;
-		if (dir)
-			*dir = 0;
-		if ((*buf == '[') && (s = index(line, ']'))) {
-			t = buf + 1;
-			if (t - s > 0) {
+		if ((*line == '[') && (s = index(line, ']'))) {
+			t = line + 1;
+			if (s - t > 0) {
+				*s++ = '\0';
 				if ((u = index(t, ',')) && (u < s)) {
 					u++;
 					if (ifn)
-						*ifn = u;
+						*ifn = strdup(u);
 					if (dir) {
 						if (*t == 'i')
 							*dir = 0;
@@ -130,7 +134,6 @@ int	cnt, *dir;
 					}
 				} else if (ifn)
 					*ifn = t;
-				*s++ = '\0';
 			}
 		} else
 			s = line;

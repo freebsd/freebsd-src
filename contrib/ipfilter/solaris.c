@@ -1,10 +1,10 @@
 /*
- * Copyright (C) 1993-2001 by Darren Reed.
+ * Copyright (C) 1993-2002 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
 /* #pragma ident   "@(#)solaris.c	1.12 6/5/96 (C) 1995 Darren Reed"*/
-#pragma ident "@(#)$Id: solaris.c,v 2.15.2.20 2001/07/18 14:58:28 darrenr Exp $"
+#pragma ident "@(#)$Id: solaris.c,v 2.15.2.29 2002/01/15 14:36:54 darrenr Exp $"
 
 #include <sys/systm.h>
 #include <sys/types.h>
@@ -93,10 +93,16 @@ extern	void	ipfr_slowtimer __P((void));
 int	ipfr_timer_id;
 static	int	synctimeoutid = 0;
 #endif
+int	ipf_debug = 0;
+int	ipf_debug_verbose = 0;
 
+/* #undef	IPFDEBUG	1 */
+/* #undef	IPFDEBUG_VERBOSE	1 */
 #ifdef	IPFDEBUG
 void	printire __P((ire_t *));
 #endif
+#define	isdigit(x)	((x) >= '0' && (x) <= '9')
+
 static int	fr_precheck __P((mblk_t **, queue_t *, qif_t *, int));
 
 
@@ -150,7 +156,7 @@ static	size_t	hdrsizes[57][2] = {
 	{ IFT_X25DDN, 0 },
 	{ IFT_X25, 0 },
 	{ IFT_ETHER, 14 },
-	{ IFT_ISO88023, 0 },
+	{ IFT_ISO88023, 14 },
 	{ IFT_ISO88024, 0 },
 	{ IFT_ISO88025, 0 },
 	{ IFT_ISO88026, 0 },
@@ -210,7 +216,8 @@ int _init()
 
 	ipfinst = mod_install(&modlink1);
 #ifdef	IPFDEBUG
-	cmn_err(CE_NOTE, "IP Filter: _init() = %d", ipfinst);
+	if (ipf_debug)
+		cmn_err(CE_NOTE, "IP Filter: _init() = %d", ipfinst);
 #endif
 	return ipfinst;
 }
@@ -222,7 +229,8 @@ int _fini(void)
 
 	ipfinst = mod_remove(&modlink1);
 #ifdef	IPFDEBUG
-	cmn_err(CE_NOTE, "IP Filter: _fini() = %d", ipfinst);
+	if (ipf_debug)
+		cmn_err(CE_NOTE, "IP Filter: _fini() = %d", ipfinst);
 #endif
 	return ipfinst;
 }
@@ -235,7 +243,9 @@ struct modinfo *modinfop;
 
 	ipfinst = mod_info(&modlink1, modinfop);
 #ifdef	IPFDEBUG
-	cmn_err(CE_NOTE, "IP Filter: _info(%x) = %x", modinfop, ipfinst);
+	if (ipf_debug)
+		cmn_err(CE_NOTE, "IP Filter: _info(%x) = %x",
+			modinfop, ipfinst);
 #endif
 	if (fr_running > 0)
 		ipfsync();
@@ -249,7 +259,8 @@ dev_info_t *dip;
 	if (fr_running < 0)
 		return DDI_PROBE_FAILURE;
 #ifdef	IPFDEBUG
-	cmn_err(CE_NOTE, "IP Filter: ipf_probe(%x)", dip);
+	if (ipf_debug)
+		cmn_err(CE_NOTE, "IP Filter: ipf_probe(%x)", dip);
 #endif
 	return DDI_PROBE_SUCCESS;
 }
@@ -259,7 +270,8 @@ static int ipf_identify(dip)
 dev_info_t *dip;
 {
 #ifdef	IPFDEBUG
-	cmn_err(CE_NOTE, "IP Filter: ipf_identify(%x)", dip);
+	if (ipf_debug)
+		cmn_err(CE_NOTE, "IP Filter: ipf_identify(%x)", dip);
 #endif
 	if (strcmp(ddi_get_name(dip), "ipf") == 0)
 		return (DDI_IDENTIFIED);
@@ -299,7 +311,8 @@ ddi_attach_cmd_t cmd;
 #ifdef	IPFDEBUG
 	int instance;
 
-	cmn_err(CE_NOTE, "IP Filter: ipf_attach(%x,%x)", dip, cmd);
+	if (ipf_debug)
+		cmn_err(CE_NOTE, "IP Filter: ipf_attach(%x,%x)", dip, cmd);
 #endif
 	switch (cmd) {
 	case DDI_ATTACH:
@@ -308,6 +321,7 @@ ddi_attach_cmd_t cmd;
 #ifdef	IPFDEBUG
 		instance = ddi_get_instance(dip);
 
+	if (ipf_debug)
 		cmn_err(CE_NOTE, "IP Filter: attach ipf instance %d", instance);
 #endif
 		if (ddi_create_minor_node(dip, "ipf", S_IFCHR, IPL_LOGIPF,
@@ -344,7 +358,8 @@ ddi_attach_cmd_t cmd;
 		solattach();
 		solipdrvattach();
 		RWLOCK_EXIT(&ipf_solaris);
-		cmn_err(CE_CONT, "%s, attaching complete.\n", ipfilter_version);
+		cmn_err(CE_CONT, "%s, attaching complete.\n",
+			ipfilter_version);
 		sync();
 		if (fr_running == 0)
 			fr_running = 1;
@@ -383,7 +398,8 @@ ddi_detach_cmd_t cmd;
 	int i;
 
 #ifdef	IPFDEBUG
-	cmn_err(CE_NOTE, "IP Filter: ipf_detach(%x,%x)", dip, cmd);
+	if (ipf_debug)
+		cmn_err(CE_NOTE, "IP Filter: ipf_detach(%x,%x)", dip, cmd);
 #endif
 	switch (cmd) {
 	case DDI_DETACH:
@@ -459,7 +475,9 @@ void *arg, **result;
 		return DDI_FAILURE;
 	error = DDI_FAILURE;
 #ifdef	IPFDEBUG
-	cmn_err(CE_NOTE, "IP Filter: ipf_getinfo(%x,%x,%x)", dip, infocmd, arg);
+	if (ipf_debug)
+		cmn_err(CE_NOTE, "IP Filter: ipf_getinfo(%x,%x,%x)",
+			dip, infocmd, arg);
 #endif
 	switch (infocmd) {
 	case DDI_INFO_DEVT2DEVINFO:
@@ -784,15 +802,7 @@ fixalign:
 #endif
 	) {
 		m->b_rptr -= off;
-		if (!synced) {
-			synced = 1;
-			RWLOCK_EXIT(&ipfs_mutex);
-			ipfsync();
-			READ_ENTER(&ipfs_mutex);
-			goto tryagain;
-		}
-		frstats[out].fr_notip++;
-		return (fr_flags & FF_BLOCKNONIP) ? -1 : 0;
+		return -2;
 	}
 
 #ifndef	sparc
@@ -969,27 +979,40 @@ mblk_t *mb;
 	int (*pnext) __P((queue_t *, mblk_t *)), type, synced = 0, err = 0;
 	qif_t qf, *qif;
 
+#ifdef	IPFDEBUG_VERBOSE
+	if (ipf_debug_verbose)
+		cmn_err(CE_CONT,
+			"fr_qin(%lx,%lx) ptr %lx type 0x%x ref %d len %d\n",
+			q, q->q_ptr, mb, MTYPE(mb), mb->b_datap->db_ref,
+			msgdsize(mb));
+#endif
+
+	/*
+	 * IPFilter is still in the packet path but not enabled.  Drop whatever
+	 * it is that has come through.
+	 */
 	if (fr_running <= 0) {
 		mb->b_prev = NULL;
-		mb->b_next = NULL;
 		freemsg(mb);
 		return 0;
 	}
 
+	type = MTYPE(mb);
+
+	/*
+	 * If a mblk has more than one reference, make a copy, filter that and
+	 * free a reference to the original.
+	 */
 	if (mb->b_datap->db_ref > 1) {
 		mblk_t *m1;
 
 		m1 = copymsg(mb);
 		if (!m1) {
 			frstats[0].fr_drop++;
-			mb->b_next = NULL;
 			mb->b_prev = NULL;
 			freemsg(mb);
 			return 0;
 		}
-		m1->b_next = mb->b_next;
-		mb->b_next = NULL;
-		m1->b_prev = mb->b_prev;
 		mb->b_prev = NULL;
 		freemsg(mb);
 		mb = m1;
@@ -999,10 +1022,9 @@ mblk_t *mb;
 	READ_ENTER(&ipf_solaris);
 again:
 	if (fr_running <= 0) {
-		RWLOCK_EXIT(&ipf_solaris);
 		mb->b_prev = NULL;
-		mb->b_next = NULL;
 		freemsg(mb);
+		RWLOCK_EXIT(&ipf_solaris);
 		return 0;
 	}
 	READ_ENTER(&ipfs_mutex);
@@ -1030,7 +1052,7 @@ again:
 		}
 		cmn_err(CE_WARN,
 			"!IP Filter: dropped: fr_qin(%x,%x): type %x qif %x",
-			q, mb, MTYPE(mb), qif);
+			q, mb, type, qif);
 		cmn_err(CE_CONT,
 			"!IP Filter: info %x next %x ptr %x fsrv %x bsrv %x\n",
 			q->q_qinfo, q->q_next, q->q_ptr, q->q_nfsrv,
@@ -1044,40 +1066,52 @@ again:
 #endif
 			);
 		frstats[0].fr_drop++;
-		RWLOCK_EXIT(&ipf_solaris);
 		mb->b_prev = NULL;
-		mb->b_next = NULL;
 		freemsg(mb);
+		RWLOCK_EXIT(&ipf_solaris);
 		return 0;
 	}
 
+	qif->qf_incnt++;
 	pnext = qif->qf_rqinfo->qi_putp;
-	type = MTYPE(mb);
 	if (type == M_IOCACK)
 		fr_qif_update(qif, mb);
-	else {
-		bcopy((char *)qif, (char *)&qf, sizeof(qf));
-
-		if (datamsg(type) || (type == M_BREAK))
-			err = fr_precheck(&mb, q, &qf, 0);
-	}
+	bcopy((char *)qif, (char *)&qf, sizeof(qf));
+	if (datamsg(type) || (type == M_BREAK))
+		err = fr_precheck(&mb, q, &qf, 0);
 
 	RWLOCK_EXIT(&ipfs_mutex);
-	RWLOCK_EXIT(&ipf_solaris);
 
 	if ((err == 0) && (mb != NULL)) {
-		if (pnext)
+		if (pnext) {
+			RWLOCK_EXIT(&ipf_solaris);
 			return (*pnext)(q, mb);
+		}
 
 		cmn_err(CE_WARN,
 			"!IP Filter: inp NULL: qif %x %s q %x info %x",
-			&qf, qf.qf_name, q, q->q_qinfo);
+			qif, qf.qf_name, q, q->q_qinfo);
 	}
+
+	if (err == -2) {
+		if (synced == 0) {
+			ipfsync();
+			synced = 1;
+			goto again;
+		}
+		frstats[0].fr_notip++;
+		if (!(fr_flags & FF_BLOCKNONIP) && (pnext != NULL)) {
+			RWLOCK_EXIT(&ipf_solaris);
+			return (*pnext)(q, mb);
+		}
+	}
+	
+
 	if (mb) {
 		mb->b_prev = NULL;
-		mb->b_next = NULL;
 		freemsg(mb);
 	}
+	RWLOCK_EXIT(&ipf_solaris);
 	return 0;
 }
 
@@ -1089,12 +1123,21 @@ mblk_t *mb;
 	int (*pnext) __P((queue_t *, mblk_t *)), type, synced = 0, err = 0;
 	qif_t qf, *qif;
 
+#ifdef	IPFDEBUG_VERBOSE
+	if (ipf_debug_verbose)
+		cmn_err(CE_CONT,
+			"fr_qout(%lx,%lx) ptr %lx type 0x%x ref %d len %d\n",
+			q, q->q_ptr, mb, MTYPE(mb), mb->b_datap->db_ref,
+			msgdsize(mb));
+#endif
+
 	if (fr_running <= 0) {
 		mb->b_prev = NULL;
-		mb->b_next = NULL;
 		freemsg(mb);
 		return 0;
 	}
+
+	type = MTYPE(mb);
 
 #if SOLARIS2 >= 6
 	if ((!dohwcksum || mb->b_ick_flag != ICK_VALID) &&
@@ -1108,14 +1151,10 @@ mblk_t *mb;
 		m1 = copymsg(mb);
 		if (!m1) {
 			frstats[1].fr_drop++;
-			mb->b_next = NULL;
 			mb->b_prev = NULL;
 			freemsg(mb);
 			return 0;
 		}
-		m1->b_next = mb->b_next;
-		mb->b_next = NULL;
-		m1->b_prev = mb->b_prev;
 		mb->b_prev = NULL;
 		freemsg(mb);
 		mb = m1;
@@ -1125,10 +1164,9 @@ mblk_t *mb;
 	READ_ENTER(&ipf_solaris);
 again:
 	if (fr_running <= 0) {
-		RWLOCK_EXIT(&ipf_solaris);
 		mb->b_prev = NULL;
-		mb->b_next = NULL;
 		freemsg(mb);
+		RWLOCK_EXIT(&ipf_solaris);
 		return 0;
 	}
 	READ_ENTER(&ipfs_mutex);
@@ -1156,7 +1194,7 @@ again:
 		}
 		cmn_err(CE_WARN,
 			"!IP Filter: dropped: fr_qout(%x,%x): type %x: qif %x",
-			q, mb, MTYPE(mb), qif);
+			q, mb, type, qif);
 		cmn_err(CE_CONT,
 			"!IP Filter: info %x next %x ptr %x fsrv %x bsrv %x\n",
 			q->q_qinfo, q->q_next, q->q_ptr, q->q_nfsrv,
@@ -1180,40 +1218,51 @@ again:
 				q->q_nbsrv->q_qinfo, q->q_nbsrv->q_next,
 				q->q_nbsrv->q_ptr);
 		frstats[1].fr_drop++;
-		RWLOCK_EXIT(&ipf_solaris);
 		mb->b_prev = NULL;
-		mb->b_next = NULL;
 		freemsg(mb);
+		RWLOCK_EXIT(&ipf_solaris);
 		return 0;
 	}
 
+	qif->qf_outcnt++;
 	pnext = qif->qf_wqinfo->qi_putp;
-	type = MTYPE(mb);
 	if (type == M_IOCACK)
 		fr_qif_update(qif, mb);
-	else {
-		bcopy((char *)qif, (char *)&qf, sizeof(qf));
-
-		if (datamsg(type) || (type == M_BREAK))
-			err = fr_precheck(&mb, q, &qf, 1);
-	}
+	bcopy((char *)qif, (char *)&qf, sizeof(qf));
+	if (datamsg(type) || (type == M_BREAK))
+		err = fr_precheck(&mb, q, &qf, 1);
 
 	RWLOCK_EXIT(&ipfs_mutex);
-	RWLOCK_EXIT(&ipf_solaris);
 
 	if ((err == 0) && (mb != NULL)) {
-		if (pnext)
+		if (pnext) {
+			RWLOCK_EXIT(&ipf_solaris);
 			return (*pnext)(q, mb);
+		}
 
 		cmn_err(CE_WARN,
 			"!IP Filter: outp NULL: qif %x %s q %x info %x",
-			&qf, qf.qf_name, q, q->q_qinfo);
+			qif, qf.qf_name, q, q->q_qinfo);
 	}
+
+	if (err == -2) {
+		if (synced == 0) {
+			ipfsync();
+			synced = 1;
+			goto again;
+		}
+		frstats[1].fr_notip++;
+		if (!(fr_flags & FF_BLOCKNONIP) && (pnext != NULL)) {
+			RWLOCK_EXIT(&ipf_solaris);
+			return (*pnext)(q, mb);
+		}
+	}
+
 	if (mb) {
 		mb->b_prev = NULL;
-		mb->b_next = NULL;
 		freemsg(mb);
 	}
+	RWLOCK_EXIT(&ipf_solaris);
 	return 0;
 }
 
@@ -1241,7 +1290,6 @@ mblk_t *mb;
 
 	if (fr_running <= 0) {
 		mb->b_prev = NULL;
-		mb->b_next = NULL;
 		freemsg(mb);
 		return 0;
 	}
@@ -1253,7 +1301,6 @@ mblk_t *mb;
 	if (fr_running <= 0) {
 		RWLOCK_EXIT(&ipf_solaris);
 		mb->b_prev = NULL;
-		mb->b_next = NULL;
 		freemsg(mb);
 		return 0;
 	}
@@ -1269,8 +1316,10 @@ mblk_t *mb;
 	case SIOCSIFADDR:
 	case SIOCSIFFLAGS:
 #ifdef	IPFDEBUG
-		cmn_err(CE_NOTE, "IP Filter: ipf_ip_qin() M_IOCTL type=0x%x",
-			ioc->ioc_cmd);
+		if (ipf_debug)
+			cmn_err(CE_NOTE,
+				"IP Filter: ipf_ip_qin() M_IOCTL type=0x%x",
+				ioc->ioc_cmd);
 #endif
 		WRITE_ENTER(&ipfs_mutex);
 		if (synctimeoutid == 0) {
@@ -1294,8 +1343,9 @@ extern struct streamtab ipinfo;
 void solipdrvattach()
 {
 #ifdef	IPFDEBUG
-	cmn_err(CE_NOTE, "IP Filter: solipdrvattach() %d ipinfo=0x%lx",
-		ipdrvattcnt, &ipinfo);
+	if (ipf_debug)
+		cmn_err(CE_NOTE, "IP Filter: solipdrvattach() %d ipinfo=0x%lx",
+			ipdrvattcnt, &ipinfo);
 #endif
 
 	if (++ipdrvattcnt == 1) {
@@ -1309,8 +1359,9 @@ void solipdrvattach()
 int solipdrvdetach()
 {
 #ifdef	IPFDEBUG
-	cmn_err(CE_NOTE, "IP Filter: solipdrvdetach() %d ipinfo=0x%lx",
-		ipdrvattcnt, &ipinfo);
+	if (ipf_debug)
+		cmn_err(CE_NOTE, "IP Filter: solipdrvdetach() %d ipinfo=0x%lx",
+			ipdrvattcnt, &ipinfo);
 #endif
 
 	WRITE_ENTER(&ipfs_mutex);
@@ -1362,7 +1413,8 @@ void solattach()
 			RWLOCK_EXIT(&ipfs_mutex);
 			continue;
 		}
-#ifdef	IPFDEBUG
+#ifdef	IPFDEBUGX
+		if (ipf_debug)
 		cmn_err(CE_NOTE,
 			"IP Filter: il %x ipt %x opt %x ipu %x opu %x i %x/%x",
 			il, in->q_ptr,  out->q_ptr, in->q_qinfo->qi_putp,
@@ -1384,7 +1436,8 @@ void solattach()
 					break;
 				}
 			if (!qf2) {
-#ifdef	IPFDEBUG
+#ifdef	IPFDEBUGX
+				if (ipf_debug)
 				cmn_err(CE_WARN,
 					"IP Filter: rq:%s put %x qi %x",
 					il->ill_name, in->q_qinfo->qi_putp,
@@ -1404,7 +1457,8 @@ void solattach()
 					break;
 				}
 			if (!qf2) {
-#ifdef	IPFDEBUG
+#ifdef	IPFDEBUGX
+				if (ipf_debug)
 				cmn_err(CE_WARN,
 					"IP Filter: wq:%s put %x qi %x",
 					il->ill_name, out->q_qinfo->qi_putp,
@@ -1446,6 +1500,15 @@ void solattach()
 		    (il->ill_type < 0x37) &&
 		    (hdrsizes[il->ill_type][0] == il->ill_type))
 			qif->qf_hl = hdrsizes[il->ill_type][1];
+
+		/* DREADFUL VLAN HACK - JUST HERE TO CHECK IT WORKS */
+		if (il->ill_type == IFT_ETHER &&
+		    il->ill_name[0] == 'c' && il->ill_name[1] == 'e' &&
+		    isdigit(il->ill_name[2]) && il->ill_name_length >= 6) {
+			cmn_err(CE_NOTE, "VLAN HACK ENABLED");
+			qif->qf_hl += 4;
+		}
+		/* DREADFUL VLAN HACK - JUST HERE TO CHECK IT WORKS */
 
 		if (qif->qf_hl == 0 && il->ill_type != IFT_OTHER)
 			cmn_err(CE_WARN,
@@ -1524,10 +1587,10 @@ void solattach()
 		      sizeof(struct qinit));
 		qif->qf_rqinit.qi_putp = fr_qin;
 #ifdef	IPFDEBUG
-		cmn_err(CE_NOTE,
-			"IP Filter: solattach: in queue(%lx)->q_qinfo FROM %lx TO %lx",
-			in, in->q_qinfo, &qif->qf_rqinit
-			);
+		if (ipf_debug)
+			cmn_err(CE_NOTE,
+				"IP Filter: solattach: in queue(%lx)->q_qinfo FROM %lx TO %lx",
+				in, in->q_qinfo, &qif->qf_rqinit);
 #endif
 		in->q_qinfo = &qif->qf_rqinit;
 
@@ -1535,10 +1598,10 @@ void solattach()
 		      sizeof(struct qinit));
 		qif->qf_wqinit.qi_putp = fr_qout;
 #ifdef	IPFDEBUG
-		cmn_err(CE_NOTE,
-			"IP Filter: solattach: out queue(%lx)->q_qinfo FROM %lx TO %lx",
-			out, out->q_qinfo, &qif->qf_wqinit
-			);
+		if (ipf_debug)
+			cmn_err(CE_NOTE,
+				"IP Filter: solattach: out queue(%lx)->q_qinfo FROM %lx TO %lx",
+				out, out->q_qinfo, &qif->qf_wqinit);
 #endif
 		out->q_qinfo = &qif->qf_wqinit;
 
@@ -1638,19 +1701,19 @@ int ipfsync()
 		in = qif->qf_in;
 		if (in) {
 # ifdef	IPFDEBUG
-			cmn_err(CE_NOTE,
-				"IP Filter: ipfsync: in queue(%lx)->q_qinfo FROM %lx TO %lx",
-				in, in->q_qinfo, qif->qf_rqinfo
-				);
+			if (ipf_debug)
+				cmn_err(CE_NOTE,
+					"IP Filter: ipfsync: in queue(%lx)->q_qinfo FROM %lx TO %lx",
+					in, in->q_qinfo, qif->qf_rqinfo);
 # endif
 			in->q_qinfo = qif->qf_rqinfo;
 		}
 		if (out) {
 # ifdef	IPFDEBUG
-			cmn_err(CE_NOTE,
-				"IP Filter: ipfsync: out queue(%lx)->q_qinfo FROM %lx TO %lx",
-				out, out->q_qinfo, qif->qf_wqinfo
-				);
+			if (ipf_debug)
+				cmn_err(CE_NOTE,
+					"IP Filter: ipfsync: out queue(%lx)->q_qinfo FROM %lx TO %lx",
+					out, out->q_qinfo, qif->qf_wqinfo);
 # endif
 			out->q_qinfo = qif->qf_wqinfo;
 		}
@@ -1719,9 +1782,10 @@ int soldetach()
 			);
 
 #ifdef	IPFDEBUG
-			cmn_err(CE_NOTE,
-				"IP Filter: soldetach: in queue(%lx)->q_qinfo FROM %lx TO %lx",
-				in, in->q_qinfo, qif->qf_rqinfo);
+			if (ipf_debug)
+				cmn_err(CE_NOTE,
+					"IP Filter: soldetach: in queue(%lx)->q_qinfo FROM %lx TO %lx",
+					in, in->q_qinfo, qif->qf_rqinfo);
 #endif
 			in->q_qinfo = qif->qf_rqinfo;
 
@@ -1729,9 +1793,10 @@ int soldetach()
 			 * and the write queue...
 			 */
 #ifdef	IPFDEBUG
-			cmn_err(CE_NOTE,
-				"IP Filter: soldetach: out queue(%lx)->q_qinfo FROM %lx TO %lx",
-				out, out->q_qinfo, qif->qf_wqinfo);
+			if (ipf_debug)
+				cmn_err(CE_NOTE,
+					"IP Filter: soldetach: out queue(%lx)->q_qinfo FROM %lx TO %lx",
+					out, out->q_qinfo, qif->qf_wqinfo);
 #endif
 			out->q_qinfo = qif->qf_wqinfo;
 		}
@@ -1746,6 +1811,8 @@ int soldetach()
 void printire(ire)
 ire_t *ire;
 {
+	if (!ipf_debug)
+		return;
 	printf("ire: ll_hdr_mp %p rfq %p stq %p src_addr %x max_frag %d\n",
 # if SOLARIS2 >= 8
 		NULL,
@@ -1812,7 +1879,6 @@ frdest_t *fdp;
 		mp = (*mpp)->b_cont;
 		(*mpp)->b_cont = NULL;
 		(*mpp)->b_prev = NULL;
-		(*mpp)->b_next = NULL;
 		freemsg(*mpp);
 		*mpp = mp;
 	}
@@ -1951,7 +2017,6 @@ frdest_t *fdp;
 			q = WR(ir->ire_rfq);
 		if (q) {
 			mb->b_prev = NULL;
-			mb->b_next = NULL;
 			mb->b_queue = q;
 			RWLOCK_EXIT(&ipfs_mutex);
 			RWLOCK_EXIT(&ipf_solaris);
@@ -1979,7 +2044,6 @@ frdest_t *fdp;
 	}
 bad_fastroute:
 	mb->b_prev = NULL;
-	mb->b_next = NULL;
 	freemsg(mb);
 	ipl_frouteok[1]++;
 	*mpp = NULL;

@@ -10,10 +10,11 @@ ipmap :: = mapblock | redir | map .
 map ::= mapit ifname ipmask "->" ipmask [ mapport ] .
 map ::= mapit ifname fromto "->" ipmask [ mapport ] .
 mapblock ::= "map-block" ifname ipmask "->" ipmask [ ports ] .
-redir ::= "rdr" ifname ipmask dport "->" ip [ "," ip ] [ ports ] options .
+redir ::= "rdr" ifname ipmask dport "->" ip [ "," ip ] rdrport options .
 
 dport ::= "port" portnum [ "-" portnum ] .
 ports ::= "ports" numports | "auto" .
+rdrport ::= "port" portnum .
 mapit ::= "map" | "bimap" .
 fromto ::= "from" object "to" object .
 ipmask ::= ip "/" bits | ip "/" mask | ip "netmask" mask .
@@ -199,6 +200,7 @@ own.  As opposed to the above use of \fBmap\fP, if for some reason the user
 of (say) 172.192.0.2 wanted 260 simultaneous connections going out, they would
 be limited to 252 with \fBmap-block\fP but would just \fImove on\fP to the next
 IP address with the \fBmap\fP command.
+.SH FILES
 /dev/ipnat
 .br
 /etc/services
