@@ -40,17 +40,12 @@
 #include <machine/asm.h>
 
 #if defined(LIBC_SCCS) && !defined(lint)
-#if 0
 	.asciz "@(#)fixunsdfsi.s	8.1 (Berkeley) 6/4/93"
-#else
+#if 0
 	RCSID("$NetBSD: fixunsdfsi.S,v 1.3 2000/07/25 04:26:12 mycroft Exp $")
 #endif
 #endif /* LIBC_SCCS and not lint */
-
-#if defined(SYSLIBC_RCS) && !defined(lint)
-	.text
-	.asciz "$FreeBSD$"
-#endif /* SYSLIBC_RCS and not lint */
+__FBSDID("$FreeBSD$");
 
 /*
  * Convert double to unsigned integer (for gcc).
