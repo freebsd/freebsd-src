@@ -821,8 +821,6 @@ static int ti_newbuf_mini(sc, i, m)
 	if (m == NULL) {
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 		if (m_new == NULL) {
-			printf("ti%d: mbuf allocation failed "
-			    "-- packet dropped!\n", sc->ti_unit);
 			return(ENOBUFS);
 		}
 		m_new->m_len = m_new->m_pkthdr.len = MHLEN;
@@ -864,8 +862,6 @@ static int ti_newbuf_jumbo(sc, i, m)
 		/* Allocate the mbuf. */
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 		if (m_new == NULL) {
-			printf("ti%d: mbuf allocation failed "
-			    "-- packet dropped!\n", sc->ti_unit);
 			return(ENOBUFS);
 		}
 
