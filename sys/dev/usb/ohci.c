@@ -1475,7 +1475,7 @@ ohci_softintr(void *v)
 			printf("ohci_softintr: sitd=%p is done\n", sitd);
 		sitd->isdone = 1;
 #endif
-		struct ohci_pipe *opipe = (struct ohci_pipe *)xfer->pipe;
+		opipe = (struct ohci_pipe *)xfer->pipe;
 		if (opipe->aborting)
 			continue;
  
