@@ -1,33 +1,33 @@
 #
-#	$Id: ttys,v 1.3 1999/02/09 23:55:13 wes Exp $
+#	$Id: ttys,v 1.4 1999/07/04 15:06:21 des Exp $
 #	@(#)ttys	5.1 (Berkeley) 4/17/89
 #
 # This file specifies various information about terminals on the system.
 # It is used by several different programs.  Common entries for the
-# various columns includes:
+# various columns include:
 #
 # name  The name of the terminal device.
 #
 # getty The program to start running on the terminal.  Typically a
 #       getty program, as the name implies.  Other common entries
-#       include none, when no getty is needed, and xdm to start the
+#       include none, when no getty is needed, and xdm, to start the
 #       X Window System.
 #
 # type The initial terminal type for this port.  For hardwired
-#       terminal lines, this will contain the type of terminal used.
-#       For virtual consoles, the correct type is cons25.  Other
-#       common values include network for network connections on
-#       pseudo-terminals, dialup for incoming modem ports, and unknown
-#       when the terminal type cannot be predetermined.
+#      terminal lines, this will contain the type of terminal used.
+#      For virtual consoles, the correct type is cons25.  Other
+#      common values include network for network connections on
+#      pseudo-terminals, dialup for incoming modem ports, and unknown
+#      when the terminal type cannot be predetermined.
 #
 # status Must be on or off.  If on, init will run the getty program on
-#       the specified port.  If the word "secure" appears, this tty
-#       allows root login.
+#        the specified port.  If the word "secure" appears, this tty
+#        allows root login.
 #
 # name	getty				type	status		comments
 #
-# This entry needed for asking password when init goes to single-user mode
-# If you want to be asked for password, change "secure" to "insecure" here
+# If console is marked "insecure", then init will ask for the root password
+# when going to single-user mode.
 console	none				unknown	off secure
 #
 ttyv0	"/usr/libexec/getty Pc"		cons25	on  secure
