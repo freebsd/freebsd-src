@@ -42,7 +42,7 @@
  *	0xff (255)  +-------------+
  *                  |             | 15 (Spurious / IPIs / Local Interrupts)
  *	0xf0 (240)  +-------------+
- *                  |             | 14 (I/O Interrupts)
+ *                  |             | 14 (I/O Interrupts / Timer)
  *	0xe0 (224)  +-------------+
  *                  |             | 13 (I/O Interrupts)
  *	0xd0 (208)  +-------------+
@@ -78,8 +78,13 @@
  */
 
 #define	APIC_ID_ALL	0xff
+
+/* I/O Interrupts are used for external devices such as ISA, PCI, etc. */
 #define	APIC_IO_INTS	(IDT_IO_INTS + 16)
-#define	APIC_NUM_IOINTS	192
+#define	APIC_NUM_IOINTS	191
+
+/* The timer interrupt is used for clock handling and drives hardclock, etc. */
+#define	APIC_TIMER_INT	(APIC_IO_INTS + APIC_NUM_IOINTS)
 
 /*  
  ********************* !!! WARNING !!! ******************************
@@ -101,15 +106,12 @@
  * other deadlocks caused by IPI_STOP.
  */ 
 
+/* Interrupts for local APIC LVT entries other than the timer. */
 #define	APIC_LOCAL_INTS	240
+#define	APIC_ERROR_INT	APIC_LOCAL_INTS
+#define	APIC_THERMAL_INT (APIC_LOCAL_INTS + 1)
 
-#if 0
-#define	APIC_TIMER_INT	(APIC_LOCAL_INTS  +  X)
-#define	APIC_ERROR_INT	(APIC_LOCAL_INTS  +  X)
-#define	APIC_THERMAL_INT (APIC_LOCAL_INTS +  X)
-#endif
-
-#define	APIC_IPI_INTS	(APIC_LOCAL_INTS + 0)
+#define	APIC_IPI_INTS	(APIC_LOCAL_INTS + 2)
 #define	IPI_RENDEZVOUS	(APIC_IPI_INTS)		/* Inter-CPU rendezvous. */
 #define	IPI_INVLTLB	(APIC_IPI_INTS + 1)	/* TLB Shootdown IPIs */
 #define	IPI_INVLPG	(APIC_IPI_INTS + 2)
@@ -127,7 +129,8 @@
 
 #define	IPI_STOP	(APIC_IPI_INTS + 6)	/* Stop CPU until restarted. */
 
-/* The spurious interrupt can share the priority class with the IPIs since
+/*
+ * The spurious interrupt can share the priority class with the IPIs since
  * it is not a normal interrupt. (Does not use the APIC's interrupt fifo)
  */
 #define	APIC_SPURIOUS_INT 255
@@ -206,6 +209,7 @@ int	lapic_set_lvt_polarity(u_int apic_id, u_int lvt,
 	    enum intr_polarity pol);
 int	lapic_set_lvt_triggermode(u_int apic_id, u_int lvt,
 	    enum intr_trigger trigger);
+void	lapic_set_tpr(u_int vector);
 void	lapic_setup(void);
 
 #endif /* !LOCORE */

@@ -60,7 +60,9 @@ __FBSDID("$FreeBSD$");
 #define	MAX_APICID	16
 
 /* Sanity checks on IDT vectors. */
-CTASSERT(APIC_IO_INTS + APIC_NUM_IOINTS <= APIC_LOCAL_INTS);
+CTASSERT(APIC_IO_INTS + APIC_NUM_IOINTS == APIC_TIMER_INT);
+CTASSERT(APIC_TIMER_INT < APIC_LOCAL_INTS);
+CTASSERT(APIC_LOCAL_INTS == 240);
 CTASSERT(IPI_STOP < APIC_SPURIOUS_INT);
 
 /*
@@ -264,10 +266,8 @@ lapic_setup(void)
 
 	/* XXX: more LVT entries */
 
-	/* Clear the TPR. */
-	value = lapic->tpr;
-	value &= ~APIC_TPR_PRIO;
-	lapic->tpr = value;
+	/* Initialize the TPR to allow all interrupts. */
+	lapic_set_tpr(0);
 
 	/* Use the cluster model for logical IDs. */
 	value = lapic->dfr;
@@ -472,6 +472,24 @@ lapic_set_lvt_triggermode(u_int apic_id, u_int pin, enum intr_trigger trigger)
 	return (0);
 }
 
+/*
+ * Adjust the TPR of the current CPU so that it blocks all interrupts below
+ * the passed in vector.
+ */
+void
+lapic_set_tpr(u_int vector)
+{
+#ifdef CHEAP_TPR
+	lapic->tpr = vector;
+#else
+	u_int32_t tpr;
+
+	tpr = lapic->tpr & ~APIC_TPR_PRIO;
+	tpr |= vector;
+	lapic->tpr = tpr;
+#endif
+}
+
 void
 lapic_eoi(void)
 {
@@ -637,10 +655,9 @@ SYSINIT(apic_setup_io, SI_SUB_INTR, SI_ORDER_SECOND, apic_setup_io, NULL)
 #ifdef SMP
 /*
  * Inter Processor Interrupt functions.  The lapic_ipi_*() functions are
- * private the sys/i386 code.  The public interface for the rest of the
+ * private to the sys/i386 code.  The public interface for the rest of the
  * kernel is defined in mp_machdep.c.
  */
-
 int
 lapic_ipi_wait(int delay)
 {
@@ -745,7 +762,7 @@ lapic_ipi_vectored(u_int vector, int dest)
 		 * the failure with the check above when the next IPI is
 		 * sent.
 		 *
-		 * We could skiip this wait entirely, EXCEPT it probably
+		 * We could skip this wait entirely, EXCEPT it probably
 		 * protects us from other routines that assume that the
 		 * message was delivered and acted upon when this function
 		 * returns.
