@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	@(#)ipx_if.h
+ *	@(#)$Id$
  */
 
 #ifndef _NETIPX_IPX_IF_H_
@@ -69,7 +69,13 @@ struct	ipx_aliasreq {
 #define	IA_SIPX(ia) (&(((struct ipx_ifaddr *)(ia))->ia_addr))
 
 /* This is not the right place for this but where is? */
-#define	ETHERTYPE_IPX	0x8137
+
+#define ETHERTYPE_IPX_8022	0x00e0	/* Ethernet_802.2 */
+#define ETHERTYPE_IPX_8023	0x0000	/* Ethernet_802.3 */
+#define ETHERTYPE_IPX_II	0x8137	/* Ethernet_II */
+#define ETHERTYPE_IPX_SNAP	0x8137	/* Ethernet_SNAP */
+
+#define	ETHERTYPE_IPX		0x8137	/* Only  Ethernet_II Available */
 
 #ifdef	IPXIP
 struct ipxip_req {

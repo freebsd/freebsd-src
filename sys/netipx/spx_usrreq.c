@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)spx_usrreq.h
+ *	@(#)$Id$
  */
 
 #include <sys/param.h>
@@ -620,7 +620,7 @@ spx_ctlinput(cmd, arg)
 	switch (type) {
 
 	case IPX_ERR_UNREACH_HOST:
-		ipx_pcbnotify(na, (int)ipxctlerrmap[cmd], spx_abort, (long) 0);
+		ipx_pcbnotify(na, (int)ipxctlerrmap[cmd], spx_abort, NULL);
 		break;
 
 	case IPX_ERR_TOO_BIG:
@@ -637,7 +637,7 @@ spx_ctlinput(cmd, arg)
 		break;
 
 	case IPX_ERR_FULLUP:
-		ipx_pcbnotify(na, 0, spx_quench, (long) 0);
+		ipx_pcbnotify(na, 0, spx_quench, NULL);
 		break;
 	}
 }

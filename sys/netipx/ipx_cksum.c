@@ -31,11 +31,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ipx_cksum.c
+ *	@(#)$Id$
  */
 
 #include <sys/param.h>
 #include <sys/mbuf.h>
+
+#include <netipx/ipx.h>
 
 /*
  * Checksum routine for Network Systems Protocol Packets (Big-Endian).
@@ -49,8 +51,8 @@
 
 u_short
 ipx_cksum(m, len)
-	register struct mbuf *m;
-	register int len;
+	struct mbuf *m;
+	int len;
 {
 	register u_short *w;
 	register int sum = 0;
