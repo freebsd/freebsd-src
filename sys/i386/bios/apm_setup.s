@@ -11,7 +11,7 @@
  *
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm_setup.s,v 1.10 1997/02/22 09:29:50 peter Exp $
+ *	$Id: apm_setup.s,v 1.11 1997/03/29 11:06:40 phk Exp $
  */
 
 #include "apm.h"
@@ -87,7 +87,7 @@ _apm_setup:
 	 *
 	 * APM BIOS initialization should be done from real mode or V86 mode.
 	 *
-	 * (by HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>)
+	 * (by HOSOKAWA, Tatsumi <hosokawa@jp.FreeBSD.org>)
 	 */
 
 	/*
