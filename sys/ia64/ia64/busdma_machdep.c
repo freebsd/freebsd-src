@@ -104,12 +104,21 @@ static struct bus_dmamap nobounce_dmamap;
 
 static void init_bounce_pages(void *dummy);
 static int alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages);
-static int reserve_bounce_pages(bus_dma_tag_t dmat, bus_dmamap_t map);
-static vm_offset_t add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map,
+static int reserve_bounce_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
+				int commit);
+static bus_addr_t add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map,
 				   vm_offset_t vaddr, bus_size_t size);
 static void free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage);
 static __inline int run_filter(bus_dma_tag_t dmat, bus_addr_t paddr);
 
+/*
+ * Return true if a match is made.
+ *
+ * To find a match walk the chain of bus_dma_tag_t's looking for 'paddr'.
+ *
+ * If paddr is within the bounds of the dma tag then call the filter callback
+ * to check for a match, if there is no filter callback then assume a match.
+ */
 static __inline int
 run_filter(bus_dma_tag_t dmat, bus_addr_t paddr)
 {
@@ -280,8 +289,14 @@ bus_dma_tag_destroy(bus_dma_tag_t dmat)
 			atomic_subtract_int(&dmat->ref_count, 1);
 			if (dmat->ref_count == 0) {
 				free(dmat, M_DEVBUF);
-			}
-			dmat = parent;
+				/*
+				 * Last reference count, so
+				 * release our reference
+				 * count on our parent.
+				 */
+				dmat = parent;
+			} else
+				dmat = NULL;
 		}
 	}
 	return (0);
@@ -423,7 +438,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 
 /*
  * Free a piece of memory and it's allociated dmamap, that was allocated
- * via bus_dmamem_alloc.
+ * via bus_dmamem_alloc.  Make the same choice for free/contigfree.
  */
 void
 bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
@@ -523,7 +538,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 				mtx_unlock(&bounce_lock);
 				return (ENOMEM);
 			}
-		} else { 
+		} else {
 			if (reserve_bounce_pages(dmat, map, 1) != 0) {
 				/* Queue us for resources */
 				map->dmat = dmat;
@@ -618,7 +633,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 		pmap = NULL;
 
 	lastaddr = *lastaddrp;
-	bmask  = ~(dmat->boundary - 1);
+	bmask = ~(dmat->boundary - 1);
 
 	for (seg = *segp; buflen > 0 ; ) {
 		/*
@@ -705,7 +720,7 @@ bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map,
 	error = 0;
 	if (m0->m_pkthdr.len <= dmat->maxsize) {
 		int first = 1;
-		vm_offset_t lastaddr = 0;
+		bus_addr_t lastaddr = 0;
 		struct mbuf *m;
 
 		for (m = m0; m != NULL && error == 0; m = m->m_next) {
@@ -741,7 +756,7 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
 		    bus_dmamap_callback2_t *callback, void *callback_arg,
 		    int flags)
 {
-	vm_offset_t lastaddr;
+	bus_addr_t lastaddr;
 #ifdef __GNUC__
 	bus_dma_segment_t dm_segments[dmat->nsegments];
 #else
@@ -826,7 +841,6 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 	struct bounce_page *bpage;
 
 	if ((bpage = STAILQ_FIRST(&map->bpages)) != NULL) {
-		
 		/*
 		 * Handle data bouncing.  We might also
 		 * want to add support for invalidating
@@ -888,7 +902,7 @@ alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
 							 PAGE_SIZE,
 							 dmat->boundary);
 		mtx_unlock(&Giant);
-		if (bpage->vaddr == NULL) {
+		if (bpage->vaddr == 0) {
 			free(bpage, M_DEVBUF);
 			break;
 		}
@@ -921,7 +935,7 @@ reserve_bounce_pages(bus_dma_tag_t dmat, bus_dmamap_t map, int commit)
 	return (pages);
 }
 
-static vm_offset_t
+static bus_addr_t
 add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map, vm_offset_t vaddr,
 		bus_size_t size)
 {
