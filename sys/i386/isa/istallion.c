@@ -1122,8 +1122,6 @@ STATIC int stlistop(struct tty *tp, int rw)
 
 STATIC int stliwrite(dev_t dev, struct uio *uiop, int flag)
 {
-	stliport_t	*portp;
-
 #if DEBUG
 	printf("stliwrite(dev=%s,uiop=%p,flag=%x)\n", devtoname(dev),
 		(void *) uiop, flag);
