@@ -38,6 +38,7 @@ void	gv_save_config(struct g_consumer *, struct gv_drive *,
 	    struct gv_softc *);
 
 /* geom_vinum_init.c */
+void	gv_parityop(struct g_geom *, struct gctl_req *);
 void	gv_start_obj(struct g_geom *, struct gctl_req *);
 
 /* geom_vinum_list.c */
