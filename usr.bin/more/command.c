@@ -85,7 +85,7 @@ cmd_erase()
 		return(1);
 
 	/* erase an extra character, for the carat. */
-	c = *--cp & 0xff;
+	c = *--cp;
 	if (CONTROL_CHAR(c)) {
 		backspace();
 		--cmd_col;
@@ -121,9 +121,9 @@ cmd_char(c)
 	/* in this order, in case werase == erase_char */
 	if (c == werase_char) {
 		if (cp > cmdbuf) {
-			while (isspace(cp[-1] & 0xff) && !cmd_erase());
-			while (!isspace(cp[-1] & 0xff) && !cmd_erase());
-			while (isspace(cp[-1] & 0xff) && !cmd_erase());
+			while (isspace(cp[-1]) && !cmd_erase());
+			while (!isspace(cp[-1]) && !cmd_erase());
+			while (isspace(cp[-1]) && !cmd_erase());
 		}
 		return(cp == cmdbuf);
 	}
@@ -276,11 +276,11 @@ exec_mca()
 		(void)search(0, cmdbuf, number, wsearch);
 		break;
 	case A_EXAMINE:
-		for (p = cmdbuf; isspace(*p & 0xff); ++p);
+		for (p = cmdbuf; isspace(*p); ++p);
 		(void)edit(glob(p));
 		break;
 	case A_TAGFILE:
-		for (p = cmdbuf; isspace(*p & 0xff); ++p);
+		for (p = cmdbuf; isspace(*p); ++p);
 		findtag(p);
 		if (tagfile == NULL)
 			break;
