@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id$
+ * $Id: kern_synch.c,v 1.29 1997/02/22 09:39:12 peter Exp $
  */
 
 #include "opt_ktrace.h"
@@ -527,12 +527,31 @@ mi_switch()
 	register struct proc *p = curproc;	/* XXX */
 	register struct rlimit *rlim;
 	register long s, u;
+	int x;
 	struct timeval tv;
 
+	/*
+	 * XXX this spl is almost unnecessary.  It is partly to allow for
+	 * sloppy callers that don't do it (issignal() via CURSIG() is the
+	 * main offender).  It is partly to work around a bug in the i386
+	 * cpu_switch() (the ipl is not preserved).  We ran for years
+	 * without it.  I think there was only a interrupt latency problem.
+	 * The main caller, tsleep(), does an splx() a couple of instructions
+	 * after calling here.  The buggy caller, issignal(), usually calls
+	 * here at spl0() and sometimes returns at splhigh().  The process
+	 * then runs for a little too long at splhigh().  The ipl gets fixed
+	 * when the process returns to user mode (or earlier).
+	 *
+	 * It would probably be better to always call here at spl0(). Callers
+	 * are prepared to give up control to another process, so they must
+	 * be prepared to be interrupted.  The clock stuff here may not
+	 * actually need splstatclock().
+	 */
+	x = splstatclock();
+
 #ifdef SIMPLELOCK_DEBUG
-	if (p->p_simple_locks) {
+	if (p->p_simple_locks)
 		printf("sleep: holding simple lock");
-	}
 #endif
 	/*
 	 * Compute the amount of time during which the current
@@ -574,6 +593,7 @@ mi_switch()
 	cnt.v_swtch++;
 	cpu_switch(p);
 	microtime(&runtime);
+	splx(x);
 }
 
 /*
