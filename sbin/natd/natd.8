@@ -29,6 +29,7 @@
 .Op Fl config | f Ar configfile
 .Op Fl log_denied
 .Op Fl log_facility Ar facility_name
+.Op Fl punch_fw Ar firewall_range
 .Sh DESCRIPTION
 This program provides a Network Address Translation facility for use
 with
@@ -412,6 +413,25 @@ Use
 to put this information into the IP option field or
 .Ar encode_tcp_stream
 to inject the data into the beginning of the TCP stream.
+.It Fl punch_fw Xo
+.Ar basenumber Ns : Ns Ar count
+.Xc
+This option makes
+.Nm
+.Ql punch holes
+in an
+.Xr ipfirewall 4
+based firewall for FTP/IRC DCC connections.
+The holes punched are bound by from/to IP address and port; it
+will not be possible to use a hole for another connection.
+A hole is removed when the connection that uses it dies.
+.Pp
+Arguments
+.Ar basenumber
+and
+.Ar count
+set the firewall range allocated for punching firewall holes.
+The range will be cleared for all rules on startup.
 .El
 .Sh RUNNING NATD
 The following steps are necessary before attempting to run
