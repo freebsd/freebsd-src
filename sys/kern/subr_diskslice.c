@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.40 1997/12/06 14:27:30 bde Exp $
+ *	$Id: subr_diskslice.c,v 1.41 1998/01/24 02:54:34 eivind Exp $
  */
 
 #include "opt_devfs.h"
@@ -366,9 +366,19 @@ dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
 			bzero(lp, sizeof *lp);
 		else
 			bcopy(sp->ds_label, lp, sizeof *lp);
+		if (sp->ds_label == NULL)
+			openmask = 0;
+		else {
+			openmask = sp->ds_openmask;
+			if (slice == COMPATIBILITY_SLICE)
+				openmask |= ssp->dss_slices[
+				    ssp->dss_first_bsd_slice].ds_openmask;
+			else if (slice == ssp->dss_first_bsd_slice)
+				openmask |= ssp->dss_slices[
+				    COMPATIBILITY_SLICE].ds_openmask;
+		}
 		error = setdisklabel(lp, (struct disklabel *)data,
-				     sp->ds_label != NULL
-				     ? sp->ds_openmask : (u_long)0);
+				     (u_long)openmask);
 		/* XXX why doesn't setdisklabel() check this? */
 		if (error == 0 && lp->d_partitions[RAW_PART].p_offset != 0)
 			error = EINVAL;
