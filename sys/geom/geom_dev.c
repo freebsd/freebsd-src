@@ -195,7 +195,7 @@ g_dev_open(dev_t dev, int flags, int fmt, struct thread *td)
 		return(ENXIO);
 	g_trace(G_T_ACCESS, "g_dev_open(%s, %d, %d, %p)",
 	    gp->name, flags, fmt, td);
-	mtx_unlock(&Giant);
+	DROP_GIANT();
 	g_topology_lock();
 	g_silence();
 	r = flags & FREAD ? 1 : 0;
@@ -203,7 +203,7 @@ g_dev_open(dev_t dev, int flags, int fmt, struct thread *td)
 	e = flags & O_EXCL ? 1 : 0;
 	error = g_access_rel(cp, r, w, e);
 	g_topology_unlock();
-	mtx_lock(&Giant);
+	PICKUP_GIANT();
 	g_rattle();
 	return(error);
 }
@@ -221,7 +221,7 @@ g_dev_close(dev_t dev, int flags, int fmt, struct thread *td)
 		return(ENXIO);
 	g_trace(G_T_ACCESS, "g_dev_close(%s, %d, %d, %p)",
 	    gp->name, flags, fmt, td);
-	mtx_unlock(&Giant);
+	DROP_GIANT();
 	g_topology_lock();
 	g_silence();
 	r = flags & FREAD ? -1 : 0;
@@ -229,7 +229,7 @@ g_dev_close(dev_t dev, int flags, int fmt, struct thread *td)
 	e = flags & O_EXCL ? -1 : 0;
 	error = g_access_rel(cp, r, w, e);
 	g_topology_unlock();
-	mtx_lock(&Giant);
+	PICKUP_GIANT();
 	g_rattle();
 	return (error);
 }
@@ -246,7 +246,7 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 	cp = dev->si_drv2;
 
 	error = 0;
-	mtx_unlock(&Giant);
+	DROP_GIANT();
 
 	gio = g_malloc(sizeof *gio, M_WAITOK);
 	gio->cmd = cmd;
@@ -265,7 +265,7 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 		gp = g_create_geomf("BSD-method", cp->provider, NULL);
 		g_topology_unlock();
 	}
-	mtx_lock(&Giant);
+	PICKUP_GIANT();
 	g_rattle();
 	if (error == ENOIOCTL) {
 		i = IOCGROUP(cmd);
@@ -331,7 +331,6 @@ g_dev_strategy(struct bio *bp)
 	struct bio *bp2;
 	dev_t dev;
 
-	mtx_unlock(&Giant);
 	dev = bp->bio_dev;
 	gp = dev->si_drv1;
 	cp = dev->si_drv2;
@@ -344,7 +343,6 @@ g_dev_strategy(struct bio *bp)
 	    bp, bp2, bp->bio_offset, bp2->bio_length, bp2->bio_data,
 	    bp2->bio_cmd);
 	g_io_request(bp2, cp);
-	mtx_lock(&Giant);
 }
 
 
