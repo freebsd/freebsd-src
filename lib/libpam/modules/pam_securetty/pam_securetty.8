@@ -69,12 +69,17 @@ has the
 flag set.
 .Pp
 The following options may be passed to the authentication module:
-.Bl -tag -width ".Cm debug"
+.Bl -tag -width ".Cm no_warn"
 .It Cm debug
 .Xr syslog 3
 debugging information at
 .Dv LOG_DEBUG
 level.
+.It Cm no_warn
+suppress warning messages to the user.
+These messages include
+reasons why the user's
+authentication attempt was declined.
 .El
 .Sh SEE ALSO
 .Xr getttynam 3 ,

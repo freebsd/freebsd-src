@@ -69,12 +69,17 @@ This module is intended for the
 service.
 .Pp
 The following options may be passed to the authentication module:
-.Bl -tag -width ".Cm no_anon"
+.Bl -tag -width ".Cm no_warn"
 .It Cm debug
 .Xr syslog 3
 debugging information at
 .Dv LOG_DEBUG
 level.
+.It Cm no_warn
+suppress warning messages to the user.
+These messages include
+reasons why the user's
+authentication attempt was declined.
 .It Cm no_anon
 Disallow anonymous access.
 .It Cm ignore
