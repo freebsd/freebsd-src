@@ -5,6 +5,7 @@
 
 PROG=	telnetd
 MAN8=	telnetd.8
+DISTRIBUTION= krb
 
 SRCS=	authenc.c global.c slc.c state.c sys_term.c telnetd.c \
 	termstat.c utility.c

@@ -1,6 +1,6 @@
-#	$Id: Makefile.inc,v 1.6 1995/05/11 22:07:49 jkh Exp $
+#	$Id: Makefile.inc,v 1.6.4.1 1995/09/16 03:13:19 gibbs Exp $
 
-DISTRIBUTION=des
+DISTRIBUTION?=des
 
 .if exists(${.CURDIR}/../../lib/libtelnet/obj)
 TELNETOBJDIR=	${.CURDIR}/../../lib/libtelnet/obj
