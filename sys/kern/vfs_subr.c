@@ -1181,10 +1181,10 @@ vinvalbuf(vp, flags, cred, td, slpflag, slptimeo)
 	 * Destroy the copy in the VM cache, too.
 	 */
 	if (VOP_GETVOBJECT(vp, &object) == 0) {
-		vm_object_lock(object);
+		VM_OBJECT_LOCK(object);
 		vm_object_page_remove(object, 0, 0,
 			(flags & V_SAVE) ? TRUE : FALSE);
-		vm_object_unlock(object);
+		VM_OBJECT_UNLOCK(object);
 	}
 
 #ifdef INVARIANTS
