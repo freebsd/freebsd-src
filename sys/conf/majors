@@ -10,7 +10,7 @@ hackers@freebsd.org mailing list to see about having a number
 reserved for you.
 
 The most "complete" version of this will be the one in FreeBSD-current.
-(see http://www.freebsd.org/ or from ftp://ftp.freesoftware.com/pub/FreeBSD/)
+(see http://www.freebsd.org/)
 
 NOTICE: FreeBSD does not use block major numbers anymore, you neither
 need to assign nor use a block major number for any device driver any
