@@ -168,7 +168,7 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	g_topology_unlock();
 	gp->dumpconf = g_sunlabel_dumpconf;
 	npart = 0;
-	do {	/* a trick to allow us to use break */
+	do {
 		if (gp->rank != 2 && flags == G_TF_NORMAL)
 			break;
 		ms->sectorsize = cp->provider->sectorsize;
