@@ -969,15 +969,6 @@ diskLabel(Device *dev)
 		    clear_wins();
 		    break;
 		}
-		if ((flags & CHUNK_IS_ROOT) && (tmp->flags & CHUNK_PAST_1024)) {
-		    msgConfirm("This region cannot be used for your root partition as it starts\n"
-			       "or extends past the 1024'th cylinder mark and is thus a\n"
-			       "poor location to boot from.  Please choose another\n"
-			       "location (or smaller size) for your root partition and try again!");
-		    Delete_Chunk(label_chunk_info[here].c->disk, tmp);
-		    clear_wins();
-		    break;
-		}
 		if (type != PART_SWAP) {
 		    /* This is needed to tell the newfs -u about the size */
 		    tmp->private_data = new_part(p->mountpoint, p->newfs, tmp->size);

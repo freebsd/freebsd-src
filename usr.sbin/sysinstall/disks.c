@@ -164,11 +164,12 @@ print_command_summary()
 }
 
 #ifndef PC98
-static u_char *
-getBootMgr(char *dname)
+static void
+getBootMgr(char *dname, u_char **bootCode, size_t *bootCodeSize)
 {
 #ifndef __alpha__	/* only meaningful on x86 */
     extern u_char mbr[], boot0[];
+    extern size_t mbr_size, boot0_size;
     char str[80];
     char *cp;
     int i = 0;
@@ -191,18 +192,21 @@ getBootMgr(char *dname)
     if (cp || i) {
 	switch (BootMgr) {
 	case 0:
-	    return boot0;
-
+	    *bootCode = boot0;
+	    *bootCodeSize = boot0_size;
+	    return;
 	case 1:
-	    return mbr;
-
+	    *bootCode = mbr;
+	    *bootCodeSize = mbr_size;
+	    return;
 	case 2:
 	default:
 	    break;
 	}
     }
 #endif
-    return NULL;
+    *bootCode = NULL;
+    *bootCodeSize = 0;
 }
 #endif
 
@@ -234,6 +238,7 @@ diskPartition(Device *dev)
     char *msg = NULL;
 #ifndef PC98
     u_char *mbrContents;
+    size_t mbrSize;
 #endif
     WINDOW *w = savescr();
     Disk *d = (Disk *)dev->private;
@@ -511,10 +516,12 @@ diskPartition(Device *dev)
 		 * a FreeBSD "all disk" partition, or the disk is entirely FreeBSD.
 		 */
 		if (((d->chunks->part->type != freebsd) || (d->chunks->part->offset > 1)))
-		    mbrContents = getBootMgr(d->name);
-		else
+		    getBootMgr(d->name, &mbrContents, &mbrSize);
+		else {
 		    mbrContents = NULL;
-		Set_Boot_Mgr(d, mbrContents);
+		    mbrSize = 0;
+		}
+		Set_Boot_Mgr(d, mbrContents, mbrSize);
 #endif /* !PC98 */
 
 		if (DITEM_STATUS(diskPartitionWrite(NULL)) != DITEM_SUCCESS)
@@ -548,17 +555,22 @@ diskPartition(Device *dev)
 	     * booteasy or a "standard" MBR -- both would be fatal in this case.
 	     */
 #if 0
-	    if ((d->chunks->part->flags & CHUNK_FORCE_ALL) != CHUNK_FORCE_ALL
-		&& (mbrContents = getBootMgr(d->name)) != NULL)
-		Set_Boot_Mgr(d, mbrContents);
+	    if ((d->chunks->part->flags & CHUNK_FORCE_ALL) != CHUNK_FORCE_ALL) {
+		getBootMgr(d->name, &mbrContents, &mbrSize);
+		if (mbrContents != NULL)
+		    Set_Boot_Mgr(d, mbrContents, mbrSize);
+	    }
 #else
 	    /*
 	     * Don't offer to update the MBR on this disk if the first "real" chunk looks like
 	     * a FreeBSD "all disk" partition, or the disk is entirely FreeBSD. 
 	     */
-	    if (((d->chunks->part->type != freebsd) || (d->chunks->part->offset > 1)) &&
-		(mbrContents = getBootMgr(d->name)) != NULL)
-		Set_Boot_Mgr(d, mbrContents);
+	    if ((d->chunks->part->type != freebsd) ||
+		(d->chunks->part->offset > 1)) {
+		getBootMgr(d->name, &mbrContents, &mbrSize);
+		if (mbrContents != NULL)
+		    Set_Boot_Mgr(d, mbrContents, mbrSize);
+	    }
 #endif
 #endif /* !PC98 */
 	    break;
@@ -764,6 +776,7 @@ diskPartitionNonInteractive(Device *dev)
     int i, sz, all_disk = 0;
 #ifndef PC98
     u_char *mbrContents;
+    size_t mbrSize;
 #endif
     Disk *d = (Disk *)dev->private;
 
@@ -857,8 +870,8 @@ diskPartitionNonInteractive(Device *dev)
 	}
 #ifndef PC98
 	if (!all_disk) {
-	    mbrContents = getBootMgr(d->name);
-	    Set_Boot_Mgr(d, mbrContents);
+	    getBootMgr(d->name, &mbrContents, &mbrSize);
+	    Set_Boot_Mgr(d, mbrContents, mbrSize);
 	}
 #endif
 	variable_set2(DISK_PARTITIONED, "yes", 0);
