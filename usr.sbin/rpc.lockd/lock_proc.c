@@ -695,7 +695,10 @@ nlm_granted_msg_1_svc(arg, rqstp)
 		log_from_addr("nlm_granted_msg", rqstp);
 
 	res.cookie = arg->cookie;
-	res.stat.stat = nlm_granted;
+	res.stat.stat = lock_answer(arg->alock.svid, &arg->cookie,
+		nlm_granted, NULL, NLM_VERS) == 0 ?
+		nlm_granted : nlm_denied;
+
 	transmit_result(NLM_GRANTED_RES, &res,
 	    (struct sockaddr *)svc_getcaller(rqstp->rq_xprt));
 	return (NULL);
@@ -1184,7 +1187,9 @@ nlm4_granted_msg_4_svc(arg, rqstp)
 		log_from_addr("nlm4_granted_msg", rqstp);
 
 	res.cookie = arg->cookie;
-	res.stat.stat = nlm4_granted;
+	res.stat.stat = lock_answer(arg->alock.svid, &arg->cookie,
+		nlm4_granted, NULL, NLM_VERS4) == 0 ?
+		nlm4_granted : nlm4_denied;
 	transmit4_result(NLM4_GRANTED_RES, &res,
 	    (struct sockaddr *)svc_getrpccaller(rqstp->rq_xprt)->buf);
 	return (NULL);
