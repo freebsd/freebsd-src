@@ -53,7 +53,7 @@ jumbo_phys_to_kva(vm_offset_t pa)
 }
 
 int		jumbo_vm_init(void);
-void		jumbo_freem(caddr_t addr, void *args);
+void		jumbo_freem(void *addr, void *args);
 vm_page_t	jumbo_pg_alloc(void);
 void		jumbo_pg_free(vm_offset_t addr);
 void 		jumbo_pg_steal(vm_page_t pg);
