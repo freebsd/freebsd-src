@@ -58,6 +58,7 @@
 #define	CPU_CY486DX	13	/* Cyrix 486S/DX/DX2/DX4 */
 #define CPU_PII		14	/* Intel Pentium II */
 #define CPU_PIII	15	/* Intel Pentium III */
+#define	CPU_4		16	/* Intel Pentium 4 */
 
 #ifndef LOCORE
 struct cpu_nameclass {
