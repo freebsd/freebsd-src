@@ -1017,7 +1017,7 @@ mac_biba_create_socket(struct ucred *cred, struct socket *socket,
 }
 
 static void
-mac_biba_create_pipe(struct ucred *cred, struct pipe *pipe,
+mac_biba_create_pipe(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel)
 {
 	struct mac_biba *source, *dest;
@@ -1054,7 +1054,7 @@ mac_biba_relabel_socket(struct ucred *cred, struct socket *socket,
 }
 
 static void
-mac_biba_relabel_pipe(struct ucred *cred, struct pipe *pipe,
+mac_biba_relabel_pipe(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel, struct label *newlabel)
 {
 	struct mac_biba *source, *dest;
@@ -1588,7 +1588,7 @@ mac_biba_check_mount_stat(struct ucred *cred, struct mount *mp,
 }
 
 static int
-mac_biba_check_pipe_ioctl(struct ucred *cred, struct pipe *pipe,
+mac_biba_check_pipe_ioctl(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel, unsigned long cmd, void /* caddr_t */ *data)
 {
 
@@ -1601,7 +1601,7 @@ mac_biba_check_pipe_ioctl(struct ucred *cred, struct pipe *pipe,
 }
 
 static int
-mac_biba_check_pipe_poll(struct ucred *cred, struct pipe *pipe,
+mac_biba_check_pipe_poll(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel)
 {
 	struct mac_biba *subj, *obj;
@@ -1619,7 +1619,7 @@ mac_biba_check_pipe_poll(struct ucred *cred, struct pipe *pipe,
 }
 
 static int
-mac_biba_check_pipe_read(struct ucred *cred, struct pipe *pipe,
+mac_biba_check_pipe_read(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel)
 {
 	struct mac_biba *subj, *obj;
@@ -1637,7 +1637,7 @@ mac_biba_check_pipe_read(struct ucred *cred, struct pipe *pipe,
 }
 
 static int
-mac_biba_check_pipe_relabel(struct ucred *cred, struct pipe *pipe,
+mac_biba_check_pipe_relabel(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel, struct label *newlabel)
 {
 	struct mac_biba *subj, *obj, *new;
@@ -1688,7 +1688,7 @@ mac_biba_check_pipe_relabel(struct ucred *cred, struct pipe *pipe,
 }
 
 static int
-mac_biba_check_pipe_stat(struct ucred *cred, struct pipe *pipe,
+mac_biba_check_pipe_stat(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel)
 {
 	struct mac_biba *subj, *obj;
@@ -1706,7 +1706,7 @@ mac_biba_check_pipe_stat(struct ucred *cred, struct pipe *pipe,
 }
 
 static int
-mac_biba_check_pipe_write(struct ucred *cred, struct pipe *pipe,
+mac_biba_check_pipe_write(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel)
 {
 	struct mac_biba *subj, *obj;

@@ -987,7 +987,7 @@ mac_mls_create_socket(struct ucred *cred, struct socket *socket,
 }
 
 static void
-mac_mls_create_pipe(struct ucred *cred, struct pipe *pipe,
+mac_mls_create_pipe(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel)
 {
 	struct mac_mls *source, *dest;
@@ -1024,7 +1024,7 @@ mac_mls_relabel_socket(struct ucred *cred, struct socket *socket,
 }
 
 static void
-mac_mls_relabel_pipe(struct ucred *cred, struct pipe *pipe,
+mac_mls_relabel_pipe(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel, struct label *newlabel)
 {
 	struct mac_mls *source, *dest;
@@ -1479,7 +1479,7 @@ mac_mls_check_mount_stat(struct ucred *cred, struct mount *mp,
 }
 
 static int
-mac_mls_check_pipe_ioctl(struct ucred *cred, struct pipe *pipe,
+mac_mls_check_pipe_ioctl(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel, unsigned long cmd, void /* caddr_t */ *data)
 {
 
@@ -1492,7 +1492,7 @@ mac_mls_check_pipe_ioctl(struct ucred *cred, struct pipe *pipe,
 }
 
 static int
-mac_mls_check_pipe_poll(struct ucred *cred, struct pipe *pipe,
+mac_mls_check_pipe_poll(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel)
 {
 	struct mac_mls *subj, *obj;
@@ -1510,7 +1510,7 @@ mac_mls_check_pipe_poll(struct ucred *cred, struct pipe *pipe,
 }
 
 static int
-mac_mls_check_pipe_read(struct ucred *cred, struct pipe *pipe,
+mac_mls_check_pipe_read(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel)
 {
 	struct mac_mls *subj, *obj;
@@ -1528,7 +1528,7 @@ mac_mls_check_pipe_read(struct ucred *cred, struct pipe *pipe,
 }
 
 static int
-mac_mls_check_pipe_relabel(struct ucred *cred, struct pipe *pipe,
+mac_mls_check_pipe_relabel(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel, struct label *newlabel)
 {
 	struct mac_mls *subj, *obj, *new;
@@ -1579,7 +1579,7 @@ mac_mls_check_pipe_relabel(struct ucred *cred, struct pipe *pipe,
 }
 
 static int
-mac_mls_check_pipe_stat(struct ucred *cred, struct pipe *pipe,
+mac_mls_check_pipe_stat(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel)
 {
 	struct mac_mls *subj, *obj;
@@ -1597,7 +1597,7 @@ mac_mls_check_pipe_stat(struct ucred *cred, struct pipe *pipe,
 }
 
 static int
-mac_mls_check_pipe_write(struct ucred *cred, struct pipe *pipe,
+mac_mls_check_pipe_write(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel)
 {
 	struct mac_mls *subj, *obj;

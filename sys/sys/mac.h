@@ -120,7 +120,7 @@ struct mount;
 struct proc;
 struct sockaddr;
 struct socket;
-struct pipe;
+struct pipepair;
 struct thread;
 struct timespec;
 struct ucred;
@@ -142,7 +142,7 @@ void	mac_init_ifnet(struct ifnet *);
 int	mac_init_inpcb(struct inpcb *, int flag);
 int	mac_init_ipq(struct ipq *, int flag);
 int	mac_init_socket(struct socket *, int flag);
-void	mac_init_pipe(struct pipe *);
+void	mac_init_pipe(struct pipepair *);
 int	mac_init_mbuf(struct mbuf *mbuf, int flag);
 int	mac_init_mbuf_tag(struct m_tag *, int flag);
 void	mac_init_mount(struct mount *);
@@ -157,7 +157,7 @@ void	mac_destroy_ifnet(struct ifnet *);
 void	mac_destroy_inpcb(struct inpcb *);
 void	mac_destroy_ipq(struct ipq *);
 void	mac_destroy_socket(struct socket *);
-void	mac_destroy_pipe(struct pipe *);
+void	mac_destroy_pipe(struct pipepair *);
 void	mac_destroy_proc(struct proc *);
 void	mac_destroy_mbuf_tag(struct m_tag *);
 void	mac_destroy_mount(struct mount *);
@@ -202,7 +202,7 @@ void	mac_set_socket_peer_from_mbuf(struct mbuf *mbuf,
 	    struct socket *socket);
 void	mac_set_socket_peer_from_socket(struct socket *oldsocket,
 	    struct socket *newsocket);
-void	mac_create_pipe(struct ucred *cred, struct pipe *pipe);
+void	mac_create_pipe(struct ucred *cred, struct pipepair *pp);
 
 /*
  * Labeling event operations: network objects.
@@ -255,12 +255,12 @@ int	mac_check_kld_load(struct ucred *cred, struct vnode *vp);
 int	mac_check_kld_stat(struct ucred *cred);
 int	mac_check_kld_unload(struct ucred *cred);
 int	mac_check_mount_stat(struct ucred *cred, struct mount *mp);
-int	mac_check_pipe_ioctl(struct ucred *cred, struct pipe *pipe,
+int	mac_check_pipe_ioctl(struct ucred *cred, struct pipepair *pp,
 	    unsigned long cmd, void *data);
-int	mac_check_pipe_poll(struct ucred *cred, struct pipe *pipe);
-int	mac_check_pipe_read(struct ucred *cred, struct pipe *pipe);
-int	mac_check_pipe_stat(struct ucred *cred, struct pipe *pipe);
-int	mac_check_pipe_write(struct ucred *cred, struct pipe *pipe);
+int	mac_check_pipe_poll(struct ucred *cred, struct pipepair *pp);
+int	mac_check_pipe_read(struct ucred *cred, struct pipepair *pp);
+int	mac_check_pipe_stat(struct ucred *cred, struct pipepair *pp);
+int	mac_check_pipe_write(struct ucred *cred, struct pipepair *pp);
 int	mac_check_proc_debug(struct ucred *cred, struct proc *proc);
 int	mac_check_proc_sched(struct ucred *cred, struct proc *proc);
 int	mac_check_proc_signal(struct ucred *cred, struct proc *proc,
@@ -351,7 +351,7 @@ int	mac_ioctl_ifnet_set(struct ucred *cred, struct ifreq *ifr,
 	    struct ifnet *ifnet);
 int	mac_setsockopt_label(struct ucred *cred, struct socket *so,
 	    struct mac *extmac);
-int	mac_pipe_label_set(struct ucred *cred, struct pipe *pipe,
+int	mac_pipe_label_set(struct ucred *cred, struct pipepair *pp,
 	    struct label *label);
 void	mac_cred_mmapped_drop_perms(struct thread *td, struct ucred *cred);
 

@@ -60,7 +60,7 @@ struct label;
 struct mac_policy_conf;
 struct mbuf;
 struct mount;
-struct pipe;
+struct pipepair;
 struct sbuf;
 struct socket;
 struct ucred;
@@ -199,7 +199,7 @@ struct mac_policy_ops {
 		    struct label *newsocketlabel);
 	void	(*mpo_relabel_socket)(struct ucred *cred, struct socket *so,
 		    struct label *oldlabel, struct label *newlabel);
-	void	(*mpo_relabel_pipe)(struct ucred *cred, struct pipe *pipe,
+	void	(*mpo_relabel_pipe)(struct ucred *cred, struct pipepair *pp,
 		    struct label *oldlabel, struct label *newlabel);
 	void	(*mpo_set_socket_peer_from_mbuf)(struct mbuf *mbuf,
 		    struct label *mbuflabel, struct socket *so,
@@ -207,7 +207,7 @@ struct mac_policy_ops {
 	void	(*mpo_set_socket_peer_from_socket)(struct socket *oldsocket,
 		    struct label *oldsocketlabel, struct socket *newsocket,
 		    struct label *newsocketpeerlabel);
-	void	(*mpo_create_pipe)(struct ucred *cred, struct pipe *pipe,
+	void	(*mpo_create_pipe)(struct ucred *cred, struct pipepair *pp,
 		    struct label *pipelabel);
 
 	/*
@@ -312,19 +312,20 @@ struct mac_policy_ops {
 	int	(*mpo_check_kld_unload)(struct ucred *cred);
 	int	(*mpo_check_mount_stat)(struct ucred *cred, struct mount *mp,
 		    struct label *mntlabel);
-	int	(*mpo_check_pipe_ioctl)(struct ucred *cred, struct pipe *pipe,
-		    struct label *pipelabel, unsigned long cmd, void *data); 
-	int	(*mpo_check_pipe_poll)(struct ucred *cred, struct pipe *pipe,
-		    struct label *pipelabel);
-	int	(*mpo_check_pipe_read)(struct ucred *cred, struct pipe *pipe,
-		    struct label *pipelabel);
+	int	(*mpo_check_pipe_ioctl)(struct ucred *cred,
+		    struct pipepair *pp, struct label *pipelabel,
+		    unsigned long cmd, void *data); 
+	int	(*mpo_check_pipe_poll)(struct ucred *cred,
+		    struct pipepair *pp, struct label *pipelabel);
+	int	(*mpo_check_pipe_read)(struct ucred *cred,
+		    struct pipepair *pp, struct label *pipelabel);
 	int	(*mpo_check_pipe_relabel)(struct ucred *cred,
-		    struct pipe *pipe, struct label *pipelabel,
+		    struct pipepair *pp, struct label *pipelabel,
 		    struct label *newlabel);
-	int	(*mpo_check_pipe_stat)(struct ucred *cred, struct pipe *pipe,
-		    struct label *pipelabel);
-	int	(*mpo_check_pipe_write)(struct ucred *cred, struct pipe *pipe,
-		    struct label *pipelabel);
+	int	(*mpo_check_pipe_stat)(struct ucred *cred,
+		    struct pipepair *pp, struct label *pipelabel);
+	int	(*mpo_check_pipe_write)(struct ucred *cred,
+		    struct pipepair *pp, struct label *pipelabel);
 	int	(*mpo_check_proc_debug)(struct ucred *cred,
 		    struct proc *proc);
 	int	(*mpo_check_proc_sched)(struct ucred *cred,
