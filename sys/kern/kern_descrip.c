@@ -1496,7 +1496,7 @@ _fget(struct thread *td, int fd, struct file **fpp, int flags, int hold)
 	    (fp = fdp->fd_ofiles[fd]) == NULL ||
 	    fp->f_ops == &badfileops) {
 		FILEDESC_UNLOCK(fdp);
-		return(EBADF);
+		return(fd < 0 ? EINVAL : EBADF);
 	}
 
 	/*
