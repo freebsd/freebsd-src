@@ -1,4 +1,4 @@
-SCRMAPS = koi8-r2cp866.scm
+SCRMAPS = koi8-r2cp866.scm iso-8859-1_to_cp437.scm
 
 SCRMAPS_MK = ${SCRMAPS:R:S/$/.mk/g}
 SCRDIR = /usr/share/syscons/scrnmaps
@@ -9,7 +9,7 @@ NOMAN = noman
 all: ${SCRMAPS}
 
 install:
-	install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${SCRMAPS} \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${SCRMAPS} \
 		${DESTDIR}${SCRDIR}
 
 ${SCRMAPS}: ${.TARGET:R}.mk
