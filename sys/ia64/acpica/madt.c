@@ -30,6 +30,8 @@
 
 #include <machine/cpu.h>
 
+extern u_int64_t ia64_lapic_address;
+
 struct sapic *sapic_create(int, int, u_int64_t);
 
 #pragma pack(1)
@@ -70,6 +72,13 @@ typedef struct  /* LOCAL SAPIC */
 	UINT32		ProcessorEnabled: 1;
 	UINT32		FlagsReserved: 31;
 } LOCAL_SAPIC;
+
+typedef struct	/* LOCAL APIC OVERRIDE */
+{
+	APIC_HEADER	Header;
+	UINT16		Reserved;
+	UINT64		LocalApicAddress;
+} LAPIC_OVERRIDE;
 
 typedef struct  /* PLATFORM INTERRUPT SOURCE */
 {
@@ -123,6 +132,15 @@ parse_local_sapic(LOCAL_SAPIC *sapic)
 }
 
 static void
+parse_lapic_override(LAPIC_OVERRIDE *lapic)
+{
+	if (bootverbose)
+		printf("\t\tLocal APIC address=0x%lx\n",
+		    lapic->LocalApicAddress);
+	ia64_lapic_address = lapic->LocalApicAddress;
+}
+
+static void
 parse_platform_interrupt(PLATFORM_INTERRUPT_SOURCE *source)
 {
 	if (bootverbose)
@@ -163,6 +181,12 @@ parse_madt(APIC_TABLE *madt, int countcpus)
 		return (cpus);
 	}
 
+	/* Save the address of the processor interrupt block. */
+	if (bootverbose)
+		printf("\tLocal APIC address=0x%x\n",
+		    madt->LocalApicAddress);
+	ia64_lapic_address = madt->LocalApicAddress;
+
 	for (p = (char *)(madt + 1); p < end; ) {
 		APIC_HEADER *head = (APIC_HEADER *)p;
 
@@ -201,6 +225,7 @@ parse_madt(APIC_TABLE *madt, int countcpus)
 		case APIC_LOCAL_APIC_OVERRIDE:
 			if (bootverbose)
 				printf("Local APIC override entry\n");
+			parse_lapic_override((LAPIC_OVERRIDE*)head);
 			break;
 
 		case APIC_IO_SAPIC:

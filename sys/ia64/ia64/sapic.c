@@ -36,8 +36,11 @@
 #include <machine/sapicreg.h>
 #include <sys/bus.h>
 #include <machine/intr.h>
+#include <machine/pal.h>
 
 static MALLOC_DEFINE(M_SAPIC, "sapic", "I/O SAPIC devices");
+
+u_int64_t ia64_lapic_address = PAL_PIB_DEFAULT_ADDR;
 
 struct sapic_rte {
 	u_int64_t	rte_vector		:8;
