@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: utils.c,v 1.16 1994/11/02 06:19:53 jkh Exp $
+ * $Id: utils.c,v 1.17 1994/11/02 07:34:01 ache Exp $
  *
  */
 
@@ -215,13 +215,35 @@ MountUfs(char *device, char *mountpoint, int do_mkdir, int flags)
 }
 
 void
-Mkdir(char *path)
+Mkdir(char *ipath)
 {
-	TellEm("mkdir %s",path);
-	if (mkdir(path, S_IRWXU) == -1) {
-		Fatal("Couldn't create directory %s: %s\n",
-			path,strerror(errno));
+	struct stat sb;
+	int final=0;
+	char *p,path=StrAlloc(ipath);
+
+	Debug("mkdir(%s)",path);
+	p = path;
+	if (p[0] == '/')		/* Skip leading '/'. */
+		++p;
+	for (;!final; ++p) {
+		if (p[0] == '\0' || (p[0] == '/' && p[1] == '\0'))
+			final++;
+		else if (p[0] != '/')
+			continue;
+		*p = '\0';
+		if (stat(path, &sb)) {
+			if (errno != ENOENT)
+				Fatal("Couldn't stat directory %s: %s\n",
+					path,strerror(errno));
+			Debug("mkdir(%s..)",path);
+		        if (mkdir(path, S_IRWXU | S_IRWXG | S_IRWXO) < 0) 
+				Fatal("Couldn't create directory %s: %s\n",
+					path,strerror(errno));
+		}
+		*p = '/';
 	}
+	free(path);
+	return;
 }
 
 void
