@@ -31,22 +31,35 @@
 #
 # [whew!]
 #
-# $Id: which.sh,v 1.1.1.1 1995/01/25 19:18:33 jkh Exp $
+# $Id: which.pl,v 1.1 1995/01/26 21:49:54 jkh Exp $
 
 $all = 0;
+$silent = 0;
+$found = 0;
 @path = split(/:/, $ENV{'PATH'});
 
 if ($ARGV[0] eq "-a") {
     $all = 1; shift @ARGV;
+} elsif ($ARGV[0] eq "-s") {
+    $silent = 1; shift @ARGV;
 } elsif ($ARGV[0] =~ /^-(h|help|\?)$/) {
-    die "usage:\n\twhich [-a] program ...\n";
+    die "usage:\n\twhich [-a] [-s] program ...\n";
 }
 
 foreach $prog (@ARGV) {
     foreach $e (@path) {
         if (-x "$e/$prog") {
-            print "$e/$prog\n";
-            last unless $all;
+	    if (! $silent) {
+		print "$e/$prog\n";
+	    }
+	    $found = 1;
+	    last unless $all;
         }
     }
+}
+
+if ($found) {
+    exit 0;
+} else {
+    exit 1;
 }
