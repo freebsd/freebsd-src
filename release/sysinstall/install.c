@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70.2.15 1995/06/02 15:31:22 jkh Exp $
+ * $Id: install.c,v 1.70.2.16 1995/06/03 02:14:35 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -408,6 +408,7 @@ root_extract(void)
 	if (fd != -1) {
 	    msgNotify("Extracting root image from CDROM..");
 	    alreadyExtracted = mediaExtractDist("/", fd);
+	    close(fd);
 	    return;
 	}
 	else /* Must not be a FreeBSD CDROM */
@@ -460,6 +461,7 @@ loop_on_root_floppy(void)
 	if (fd != -1) {
 	    msgNotify("Extracting root floppy..");
 	    status = mediaExtractDist("/", fd);
+	    close(fd);
 	    break;
 	}
     }
