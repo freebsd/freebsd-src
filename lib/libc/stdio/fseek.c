@@ -131,8 +131,12 @@ _fseeko(fp, offset, whence, ltest)
 		 */
 		if (_ftello(fp, &curoff))
 			return (-1);
-		if ((offset > 0 && curoff > OFF_MAX - offset) ||
-		    (offset < 0 && curoff < OFF_MIN - offset)) {
+		if (curoff < 0) {
+			/* Unspecified position because of ungetc() at 0 */
+			errno = ESPIPE;
+			return (-1);
+		}
+		if (offset > 0 && curoff > OFF_MAX - offset) {
 			errno = EOVERFLOW;
 			return (-1);
 		}
