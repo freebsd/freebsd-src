@@ -1261,11 +1261,11 @@ nfs_vinvalbuf(struct vnode *vp, int flags, struct ucred *cred,
 	/*
 	 * Now, flush as required.
 	 */
-	error = vinvalbuf(vp, flags, cred, td, slpflag, 0);
+	error = vinvalbuf(vp, flags, td, slpflag, 0);
 	while (error) {
 		if (intrflg && (error = nfs_sigintr(nmp, NULL, td)))
 			goto out;
-		error = vinvalbuf(vp, flags, cred, td, 0, slptimeo);
+		error = vinvalbuf(vp, flags, td, 0, slptimeo);
 	}
 	np->n_flag &= ~NMODIFIED;
 out:

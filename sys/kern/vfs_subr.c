@@ -910,10 +910,9 @@ insmntque(struct vnode *vp, struct mount *mp)
  * Called with the underlying object locked.
  */
 int
-vinvalbuf(vp, flags, cred, td, slpflag, slptimeo)
+vinvalbuf(vp, flags, td, slpflag, slptimeo)
 	struct vnode *vp;
 	int flags;
-	struct ucred *cred;
 	struct thread *td;
 	int slpflag, slptimeo;
 {
@@ -2235,8 +2234,8 @@ vclean(vp, flags, td)
 		bp = TAILQ_FIRST(&vp->v_bufobj.bo_dirty.bv_hd);
 		if (bp != NULL)
 			(void) vn_write_suspend_wait(vp, NULL, V_WAIT);
-		if (vinvalbuf(vp, V_SAVE, NOCRED, td, 0, 0) != 0)
-			vinvalbuf(vp, 0, NOCRED, td, 0, 0);
+		if (vinvalbuf(vp, V_SAVE, td, 0, 0) != 0)
+			vinvalbuf(vp, 0, td, 0, 0);
 	}
 
 	VOP_DESTROYVOBJECT(vp);

@@ -408,7 +408,7 @@ ffs_reload(struct mount *mp, struct thread *td)
 	 */
 	devvp = VFSTOUFS(mp)->um_devvp;
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
-	if (vinvalbuf(devvp, 0, td->td_ucred, td, 0, 0) != 0)
+	if (vinvalbuf(devvp, 0, td, 0, 0) != 0)
 		panic("ffs_reload: dirty1");
 	VOP_CREATEVOBJECT(devvp, td->td_ucred, td);
 	VOP_UNLOCK(devvp, 0, td);
@@ -500,7 +500,7 @@ loop:
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td)) {
 			goto loop;
 		}
-		if (vinvalbuf(vp, 0, td->td_ucred, td, 0, 0))
+		if (vinvalbuf(vp, 0, td, 0, 0))
 			panic("ffs_reload: dirty2");
 		/*
 		 * Step 6: re-read inode data for all active vnodes.
@@ -778,7 +778,7 @@ ffs_mountfs(devvp, mp, td)
 out:
 	if (bp)
 		brelse(bp);
-	vinvalbuf(devvp, V_SAVE, NOCRED, td, 0, 0);
+	vinvalbuf(devvp, V_SAVE, td, 0, 0);
 	if (cp != NULL) {
 		DROP_GIANT();
 		g_topology_lock();
@@ -937,7 +937,7 @@ ffs_unmount(mp, mntflags, td)
 			return (error);
 		}
 	}
-	vinvalbuf(ump->um_devvp, V_SAVE, NOCRED, td, 0, 0);
+	vinvalbuf(ump->um_devvp, V_SAVE, td, 0, 0);
 	DROP_GIANT();
 	g_topology_lock();
 	g_wither_geom_close(ump->um_cp->geom, ENXIO);

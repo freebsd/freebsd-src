@@ -605,7 +605,7 @@ void	vgone(struct vnode *vp);
 void	vgonel(struct vnode *vp, struct thread *td);
 void	vhold(struct vnode *);
 void	vholdl(struct vnode *);
-int	vinvalbuf(struct vnode *vp, int save, struct ucred *cred,
+int	vinvalbuf(struct vnode *vp, int save,
 	    struct thread *td, int slpflag, int slptimeo);
 int	vtruncbuf(struct vnode *vp, struct ucred *cred, struct thread *td,
 	    off_t length, int blksize);
