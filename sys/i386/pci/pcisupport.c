@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.3 1994/10/15 23:27:39 se Exp $
+**  $Id: pcisupport.c,v 1.4 1994/10/17 21:11:31 phk Exp $
 **
 **  Device driver for INTEL PCI chipsets.
 **
@@ -168,11 +168,11 @@ struct condmsg conf82424zx[] =
 struct condmsg conf82434lx[] =
 {
     { 0x00, 0x00, 0x00, TRUE, "\tCPU: " },
-    { 0x50, 0xe0, 0x80, M_EQ, "Pentium" },
-    { 0x50, 0xe0, 0x80, M_NE, "???" },
-    { 0x50, 0x02, 0x00, M_EQ, ", ???MHz" },
-    { 0x50, 0x03, 0x02, M_EQ, ", 60MHz" },
-    { 0x50, 0x03, 0x03, M_EQ, ", 66MHz" },
+    { 0x50, 0xe3, 0x82, M_EQ, "Pentium, 60MHz" },
+    { 0x50, 0xe3, 0x83, M_EQ, "Pentium, 66MHz" },
+    { 0x50, 0xe3, 0xa2, M_EQ, "Pentium, 90MHz" },
+    { 0x50, 0xe3, 0xa3, M_EQ, "Pentium, 100MHz" },
+    { 0x50, 0xc2, 0x82, M_NE, "(unknown)" },
     { 0x50, 0x04, 0x00, M_EQ, " (primary cache OFF)" },
 
     { 0x53, 0x01, 0x01, TRUE, ", CPU->Memory posting "},
