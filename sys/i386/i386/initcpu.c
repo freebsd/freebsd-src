@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *		$Id: initcpu.c,v 1.5 1997/05/31 08:45:24 kato Exp $
+ *		$Id: initcpu.c,v 1.6 1997/06/27 13:46:19 kato Exp $
  */
 
 #include "opt_cpu.h"
@@ -52,7 +52,7 @@ static void init_i486_on_386(void);
 static void init_6x86(void);
 #endif /* I486_CPU */
 
-#ifdef I586_CPU
+#ifdef I686_CPU
 static void	init_6x86MX(void);
 #endif
 
@@ -352,7 +352,7 @@ init_6x86(void)
 }
 #endif /* I486_CPU */
 
-#ifdef I586_CPU
+#ifdef I686_CPU
 /*
  * Cyrix 6x86MX (code-named M2)
  *
@@ -405,7 +405,7 @@ init_6x86MX(void)
 
 	write_eflags(eflags);
 }
-#endif /* I586_CPU */
+#endif /* I686_CPU */
 
 void
 initializecpu(void)
@@ -434,7 +434,7 @@ initializecpu(void)
 		init_6x86();
 		break;
 #endif /* I486_CPU */
-#ifdef I586_CPU
+#ifdef I686_CPU
 	case CPU_M2:
 		init_6x86MX();
 		break;
