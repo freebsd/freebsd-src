@@ -169,8 +169,15 @@ main(argc, argv)
 	argv += optind;
 
 	/* some options make no sense when creating directories */
-	if (dostrip && dodir)
+	if ((safecopy || dostrip) && dodir)
 		usage();
+
+	/*
+	 * Older versions allowed -d -C combo.  Issue a warning
+	 * for now, but turn this into an error before 4.5-RELEASE.
+	 */
+	if (docompare && dodir)
+		warnx("the -d and -C options may not be specified together");
 
 	/* must have at least two arguments, except when creating directories */
 	if (argc < 2 && !dodir)
