@@ -60,8 +60,14 @@ links: ${DEPEND_H}
 	@ln -sf ${PERL5SRC}/writemain.SH writemain.sh
 	@ln -sf ${PERL5SRC}/regcomp.c regcomp.c
 	@ln -sf ${PERL5SRC}/regexec.c regexec.c
+.if defined(BOOTSTRAPPING)
+	@sed '/^d_eaccess=/s;define;undef;' \
+		${PERL5LIBSRC}/config.SH-${OBJFORMAT}.${MACHINE_ARCH} \
+		> config.sh
+.else
 	@ln -sf ${PERL5LIBSRC}/config.SH-${OBJFORMAT}.${MACHINE_ARCH} \
 		config.sh
+.endif
 	@touch ${.TARGET}
 
 scripts: links
