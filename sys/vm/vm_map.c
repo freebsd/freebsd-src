@@ -1782,8 +1782,8 @@ done:
 			 */
 			entry->wired_count = 0;
 		} else {
-			if (!user_wire || (entry->wired_count == 1 &&
-			    (entry->eflags & MAP_ENTRY_USER_WIRED) == 0))
+			if (!user_wire ||
+			    (entry->eflags & MAP_ENTRY_USER_WIRED) == 0)
 				entry->wired_count--;
 			if (entry->wired_count == 0) {
 				/*
