@@ -80,6 +80,7 @@ vop_t **default_vnodeop_p;
 static struct vnodeopv_entry_desc default_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_eopnotsupp },
 	{ &vop_advlock_desc,		(vop_t *) vop_einval },
+	{ &vop_bmap_desc,		(vop_t *) vop_stdbmap },
 	{ &vop_close_desc,		(vop_t *) vop_null },
 	{ &vop_createvobject_desc,	(vop_t *) vop_stdcreatevobject },
 	{ &vop_destroyvobject_desc,	(vop_t *) vop_stddestroyvobject },
@@ -608,6 +609,30 @@ vop_stdgetvobject(ap)
 		*objpp = vp->v_object;
 	return (vp->v_object ? 0 : EINVAL);
 }
+
+int
+vop_stdbmap(ap)
+	struct vop_bmap_args /* {  
+		struct vnode *a_vp;
+		daddr_t  a_bn;
+		struct vnode **a_vpp;
+		daddr_t *a_bnp;
+		int *a_runp;
+		int *a_runb;
+	} */ *ap;
+{
+
+	if (ap->a_vpp != NULL)
+		*ap->a_vpp = ap->a_vp;
+	if (ap->a_bnp != NULL)
+		*ap->a_bnp = ap->a_bn * btodb(ap->a_vp->v_mount->mnt_stat.f_iosize);
+	if (ap->a_runp != NULL)
+		*ap->a_runp = 0;
+	if (ap->a_runb != NULL)
+		*ap->a_runb = 0;
+	return (0);
+}
+
 
 /* 
  * vfs default ops

@@ -557,7 +557,6 @@ fdesc_badop()
 static struct vnodeopv_entry_desc fdesc_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_defaultop },
 	{ &vop_access_desc,		(vop_t *) vop_null },
-	{ &vop_bmap_desc,		(vop_t *) fdesc_badop },
 	{ &vop_getattr_desc,		(vop_t *) fdesc_getattr },
 	{ &vop_inactive_desc,		(vop_t *) fdesc_inactive },
 	{ &vop_lookup_desc,		(vop_t *) fdesc_lookup },

@@ -69,7 +69,6 @@ SYSCTL_INT(_vfs, OID_AUTO, uniondebug, CTLFLAG_RD, &uniondebug, 0, "");
 
 static int	union_access __P((struct vop_access_args *ap));
 static int	union_advlock __P((struct vop_advlock_args *ap));
-static int	union_bmap __P((struct vop_bmap_args *ap));
 static int	union_close __P((struct vop_close_args *ap));
 static int	union_create __P((struct vop_create_args *ap));
 static int	union_fsync __P((struct vop_fsync_args *ap));
@@ -1823,31 +1822,6 @@ union_unlock(ap)
 	return(error);
 }
 
-/*
- *	union_bmap:
- *
- *	There isn't much we can do.  We cannot push through to the real vnode
- *	to get to the underlying device because this will bypass data
- *	cached by the real vnode.
- *
- *	For some reason we cannot return the 'real' vnode either, it seems
- *	to blow up memory maps.
- */
-
-static int
-union_bmap(ap)
-	struct vop_bmap_args /* {
-		struct vnode *a_vp;
-		daddr_t  a_bn;
-		struct vnode **a_vpp;
-		daddr_t *a_bnp;
-		int *a_runp;
-		int *a_runb;
-	} */ *ap;
-{
-	return(EOPNOTSUPP);
-}
-
 static int
 union_print(ap)
 	struct vop_print_args /* {
@@ -1941,7 +1915,7 @@ static struct vnodeopv_entry_desc union_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_defaultop },
 	{ &vop_access_desc,		(vop_t *) union_access },
 	{ &vop_advlock_desc,		(vop_t *) union_advlock },
-	{ &vop_bmap_desc,		(vop_t *) union_bmap },
+	{ &vop_bmap_desc,		(vop_t *) vop_eopnotsupp },
 	{ &vop_close_desc,		(vop_t *) union_close },
 	{ &vop_create_desc,		(vop_t *) union_create },
 	{ &vop_fsync_desc,		(vop_t *) union_fsync },

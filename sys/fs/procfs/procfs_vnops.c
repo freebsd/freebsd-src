@@ -318,36 +318,6 @@ procfs_ioctl(ap)
 }
 
 /*
- * do block mapping for pfsnode (vp).
- * since we don't use the buffer cache
- * for procfs this function should never
- * be called.  in any case, it's not clear
- * what part of the kernel ever makes use
- * of this function.  for sanity, this is the
- * usual no-op bmap, although returning
- * (EIO) would be a reasonable alternative.
- */
-static int
-procfs_bmap(ap)
-	struct vop_bmap_args /* {
-		struct vnode *a_vp;
-		daddr_t  a_bn;
-		struct vnode **a_vpp;
-		daddr_t *a_bnp;
-		int *a_runp;
-	} */ *ap;
-{
-
-	if (ap->a_vpp != NULL)
-		*ap->a_vpp = ap->a_vp;
-	if (ap->a_bnp != NULL)
-		*ap->a_bnp = ap->a_bn;
-	if (ap->a_runp != NULL)
-		*ap->a_runp = 0;
-	return (0);
-}
-
-/*
  * _reclaim is called when getnewvnode()
  * wants to make use of an entry on the vnode
  * free list.  at this time the filesystem needs
@@ -1019,7 +989,6 @@ static struct vnodeopv_entry_desc procfs_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_defaultop },
 	{ &vop_access_desc,		(vop_t *) procfs_access },
 	{ &vop_advlock_desc,		(vop_t *) procfs_badop },
-	{ &vop_bmap_desc,		(vop_t *) procfs_bmap },
 	{ &vop_close_desc,		(vop_t *) procfs_close },
 	{ &vop_create_desc,		(vop_t *) procfs_badop },
 	{ &vop_getattr_desc,		(vop_t *) procfs_getattr },

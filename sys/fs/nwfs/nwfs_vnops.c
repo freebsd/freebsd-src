@@ -78,7 +78,6 @@ static int nwfs_mkdir(struct vop_mkdir_args *);
 static int nwfs_rmdir(struct vop_rmdir_args *);
 static int nwfs_symlink(struct vop_symlink_args *);
 static int nwfs_readdir(struct vop_readdir_args *);
-static int nwfs_bmap(struct vop_bmap_args *);
 static int nwfs_strategy(struct vop_strategy_args *);
 static int nwfs_print(struct vop_print_args *);
 static int nwfs_pathconf(struct vop_pathconf_args *ap);
@@ -88,7 +87,6 @@ vop_t **nwfs_vnodeop_p;
 static struct vnodeopv_entry_desc nwfs_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_defaultop },
 	{ &vop_access_desc,		(vop_t *) nwfs_access },
-	{ &vop_bmap_desc,		(vop_t *) nwfs_bmap },
 	{ &vop_open_desc,		(vop_t *) nwfs_open },
 	{ &vop_close_desc,		(vop_t *) nwfs_close },
 	{ &vop_create_desc,		(vop_t *) nwfs_create },
@@ -826,29 +824,6 @@ static int nwfs_strategy (ap)
 	return (error);
 }
 
-static int
-nwfs_bmap(ap)
-	struct vop_bmap_args /* {
-		struct vnode *a_vp;
-		daddr_t  a_bn;
-		struct vnode **a_vpp;
-		daddr_t *a_bnp;
-		int *a_runp;
-		int *a_runb;
-	} */ *ap;
-{
-	struct vnode *vp = ap->a_vp;
-
-	if (ap->a_vpp != NULL)
-		*ap->a_vpp = vp;
-	if (ap->a_bnp != NULL)
-		*ap->a_bnp = ap->a_bn * btodb(vp->v_mount->mnt_stat.f_iosize);
-	if (ap->a_runp != NULL)
-		*ap->a_runp = 0;
-	if (ap->a_runb != NULL)
-		*ap->a_runb = 0;
-	return (0);
-}
 
 /*
  * How to keep the brain busy ...
