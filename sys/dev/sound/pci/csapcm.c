@@ -96,17 +96,25 @@ static int csachan_trigger(void *data, int go);
 static int csachan_getptr(void *data);
 static pcmchan_caps *csachan_getcaps(void *data);
 
-static pcmchan_caps csa_playcaps = {
-	8000, 48000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S8 | AFMT_S16_LE | AFMT_S16_BE,
-	AFMT_STEREO | AFMT_S16_LE
-};
-
-static pcmchan_caps csa_reccaps = {
-	11025, 48000,
+static u_int32_t csa_playfmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	AFMT_S8,
+	AFMT_STEREO | AFMT_S8,
+	AFMT_S16_LE,
 	AFMT_STEREO | AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+	AFMT_S16_BE,
+	AFMT_STEREO | AFMT_S16_BE,
+	0
 };
+static pcmchan_caps csa_playcaps = {8000, 48000, csa_playfmt, 0};
+
+static u_int32_t csa_recfmt[] = {
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	0
+};
+static pcmchan_caps csa_reccaps = {11025, 48000, csa_recfmt, 0};
 
 static pcm_channel csa_chantemplate = {
 	csachan_init,

@@ -49,47 +49,54 @@ static int sbchan_trigger(void *data, int go);
 static int sbchan_getptr(void *data);
 static pcmchan_caps *sbchan_getcaps(void *data);
 
-static pcmchan_caps sb_playcaps = {
-	4000, 22050,
+static u_int32_t sb_playfmt[] = {
 	AFMT_U8,
-	AFMT_U8
+	0
 };
+static pcmchan_caps sb_playcaps = {4000, 22050, sb_playfmt, 0};
 
-static pcmchan_caps sb_reccaps = {
-	4000, 13000,
+static u_int32_t sb_recfmt[] = {
 	AFMT_U8,
-	AFMT_U8
+	0
 };
+static pcmchan_caps sb_reccaps = {4000, 13000, sb_recfmt, 0};
 
-static pcmchan_caps sbpro_playcaps = {
-	4000, 45000,
+static u_int32_t sbpro_playfmt[] = {
+	AFMT_U8,
 	AFMT_STEREO | AFMT_U8,
-	AFMT_STEREO | AFMT_U8
+	0
 };
+static pcmchan_caps sbpro_playcaps = {4000, 45000, sbpro_playfmt, 0};
 
-static pcmchan_caps sbpro_reccaps = {
-	4000, 15000,
+static u_int32_t sbpro_recfmt[] = {
+	AFMT_U8,
 	AFMT_STEREO | AFMT_U8,
-	AFMT_STEREO | AFMT_U8
+	0
 };
+static pcmchan_caps sbpro_reccaps = {4000, 15000, sbpro_recfmt, 0};
 
-static pcmchan_caps sb16_hcaps = {
-	5000, 45000,
+static u_int32_t sb16_hfmt[] = {
+	AFMT_S16_LE,
 	AFMT_STEREO | AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+	0
 };
+static pcmchan_caps sb16_hcaps = {5000, 45000, sb16_hfmt, 0};
 
-static pcmchan_caps sb16_lcaps = {
-	5000, 45000,
+static u_int32_t sb16_lfmt[] = {
+	AFMT_U8,
 	AFMT_STEREO | AFMT_U8,
-	AFMT_STEREO | AFMT_U8
+	0
 };
+static pcmchan_caps sb16_lcaps = {5000, 45000, sb16_lfmt, 0};
 
-static pcmchan_caps sb16x_caps = {
-	5000, 49000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+static u_int32_t sb16x_fmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	0
 };
+static pcmchan_caps sb16x_caps = {5000, 49000, sb16x_fmt, 0};
 
 static pcm_channel sb_chantemplate = {
 	sbchan_init,

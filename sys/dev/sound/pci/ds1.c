@@ -184,17 +184,27 @@ static void 	 ds_wr(struct sc_info *, int, u_int32_t, int);
 
 /* -------------------------------------------------------------------- */
 
-static pcmchan_caps ds_reccaps = {
-	4000, 48000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S8 | AFMT_S16_LE | AFMT_U16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+static u_int32_t ds_recfmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	AFMT_S8,
+	AFMT_STEREO | AFMT_S8,
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	AFMT_U16_LE,
+	AFMT_STEREO | AFMT_U16_LE,
+	0
 };
+static pcmchan_caps ds_reccaps = {4000, 48000, ds_recfmt, 0};
 
-static pcmchan_caps ds_playcaps = {
-	4000, 96000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+static u_int32_t ds_playfmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	0
 };
+static pcmchan_caps ds_playcaps = {4000, 96000, ds_playfmt, 0};
 
 static pcm_channel ds_pchantemplate = {
 	ds1pchan_init,

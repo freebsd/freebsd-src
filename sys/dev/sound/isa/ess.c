@@ -55,17 +55,33 @@ static int esschan_trigger(void *data, int go);
 static int esschan_getptr(void *data);
 static pcmchan_caps *esschan_getcaps(void *data);
 
-static pcmchan_caps ess_playcaps = {
-	5000, 49000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S8 | AFMT_U16_LE | AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+static u_int32_t ess_pfmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	AFMT_S8,
+	AFMT_STEREO | AFMT_S8,
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	AFMT_U16_LE,
+	AFMT_STEREO | AFMT_U16_LE,
+	0
 };
 
-static pcmchan_caps ess_reccaps = {
-	5000, 49000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S8 | AFMT_U16_LE | AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+static pcmchan_caps ess_playcaps = {5000, 49000, ess_pfmt, 0};
+
+static u_int32_t ess_rfmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	AFMT_S8,
+	AFMT_STEREO | AFMT_S8,
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	AFMT_U16_LE,
+	AFMT_STEREO | AFMT_U16_LE,
+	0
 };
+
+static pcmchan_caps ess_reccaps = {5000, 49000, ess_rfmt, 0};
 
 static pcm_channel ess_chantemplate = {
 	esschan_init,

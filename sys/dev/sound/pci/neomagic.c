@@ -125,11 +125,14 @@ static int samplerates[9] = {
 
 /* -------------------------------------------------------------------- */
 
-static pcmchan_caps nm_caps = {
-	4000, 48000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+static u_int32_t nm_fmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	0
 };
+static pcmchan_caps nm_caps = {4000, 48000, nm_fmt, 0};
 
 static pcm_channel nm_chantemplate = {
 	nmchan_init,

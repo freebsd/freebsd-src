@@ -81,6 +81,7 @@ struct isa_device { int dummy; };
 
 #include <dev/sound/pcm/datatypes.h>
 #include <dev/sound/pcm/channel.h>
+#include <dev/sound/pcm/feeder.h>
 #include <dev/sound/pcm/mixer.h>
 #include <dev/sound/pcm/dsp.h>
 

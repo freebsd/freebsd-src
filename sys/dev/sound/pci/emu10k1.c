@@ -154,17 +154,37 @@ static void emu_wr(struct sc_info *, int, u_int32_t, int);
 
 /* -------------------------------------------------------------------- */
 
-static pcmchan_caps emu_reccaps[3] = {
-	{8000, 48000, AFMT_STEREO | AFMT_S16_LE, AFMT_STEREO | AFMT_S16_LE},
-	{8000, 8000, AFMT_U8, AFMT_U8},
-	{48000, 48000, AFMT_STEREO | AFMT_S16_LE, AFMT_STEREO | AFMT_S16_LE},
+static u_int32_t emu_rfmt_ac97[] = {
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	0
 };
 
-static pcmchan_caps emu_playcaps = {
-	4000, 48000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+static u_int32_t emu_rfmt_mic[] = {
+	AFMT_U8,
+	0
 };
+
+static u_int32_t emu_rfmt_efx[] = {
+	AFMT_STEREO | AFMT_S16_LE,
+	0
+};
+
+static pcmchan_caps emu_reccaps[3] = {
+	{8000, 48000, emu_rfmt_ac97, 0},
+	{8000, 8000, emu_rfmt_mic, 0},
+	{48000, 48000, emu_rfmt_efx, 0},
+};
+
+static u_int32_t emu_pfmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	0
+};
+
+static pcmchan_caps emu_playcaps = {4000, 48000, emu_pfmt, 0};
 
 static pcm_channel emu_chantemplate = {
 	emupchan_init,
