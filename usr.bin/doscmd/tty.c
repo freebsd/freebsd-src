@@ -46,7 +46,12 @@
 #include <termios.h>
 #include <unistd.h>
 #ifdef __FreeBSD__
-# include <sys/kbio.h>
+# include <osreldate.h>
+# if __FreeBSD_version >= 500014
+#   include <sys/kbio.h>
+# else
+#   include <machine/console.h>
+# endif
 #else
 # ifdef __NetBSD__
 #  include "machine/pccons.h"
@@ -2109,8 +2114,10 @@ init_window()
 
     prepare_lut();
 
+#if 0
     /* While we are developing the graphics code ... */
     call_on_quit(write_vram, NULL);
+#endif
 #endif
 }
 
