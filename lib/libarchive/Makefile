@@ -4,7 +4,7 @@ LIB=	archive
 SHLIB_MAJOR=	1
 
 .if ${MACHINE_ARCH} == "arm"
-WARNS?= 3 
+WARNS?= 3
 .else
 WARNS?=	6
 .endif
@@ -92,8 +92,9 @@ MLINKS+=	archive_entry.3 archive_entry_symlink_w.3
 MLINKS+=	archive_entry.3 archive_entry_uname.3
 MLINKS+=	archive_entry.3 archive_entry_uname_w.3
 MLINKS+=	archive_read.3 archive_read_data.3
+MLINKS+=	archive_read.3 archive_read_data_block.3
 MLINKS+=	archive_read.3 archive_read_data_into_buffer.3
-MLINKS+=	archive_read.3 archive_read_data_into_file.3
+MLINKS+=	archive_read.3 archive_read_data_into_fd.3
 MLINKS+=	archive_read.3 archive_read_data_skip.3
 MLINKS+=	archive_read.3 archive_read_extract.3
 MLINKS+=	archive_read.3 archive_read_extract_set_progress_callback.3
