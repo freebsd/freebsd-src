@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.142 1999/01/19 22:16:02 brian Exp $
+.\" $Id: ppp.8,v 1.143 1999/01/28 01:56:33 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -377,10 +377,6 @@ file:
 !ppp
 *.*<TAB>/var/log/ppp.log
 .Ed
-.Pp
-Make sure you use actual TABs here.  If you use spaces, the line will be
-silently ignored by
-.Xr syslogd 8 .
 .Pp
 It is possible to have more than one
 .Em PPP
