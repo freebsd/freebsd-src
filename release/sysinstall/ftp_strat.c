@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.6.2.3 1995/06/02 01:07:24 jkh Exp $
+ * $Id: ftp_strat.c,v 1.6.2.4 1995/06/02 15:31:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -72,10 +72,22 @@ mediaSetFtpUserPass(char *str)
     return 0;
 }
 
+static Boolean
+get_new_host(void)
+{
+    int i;
+    char *oldTitle = MenuMediaFTP.title;
+
+    MenuMediaFTP.title = "Open timed out - please select another ftp site";
+    i = dmenuOpenSimple(&MenuMediaFTP);
+    MenuMediaFTP.title = oldTitle;
+    return i;
+}
+
 Boolean
 mediaInitFTP(Device *dev)
 {
-    int i;
+    int i, retries;
     char *cp, *hostname, *dir;
     char *login_name, password[80], url[BUFSIZ];
     Device *netDevice = (Device *)dev->private;
@@ -130,10 +142,21 @@ mediaInitFTP(Device *dev)
 	login_name = getenv(FTP_USER);
 	strcpy(password, getenv(FTP_PASS) ? getenv(FTP_PASS) : login_name);
     }
+    retries = 0;
+retry:
     msgNotify("Logging in as %s..", login_name);
     if ((i = FtpOpen(ftp, hostname, login_name, password)) != 0) {
-	msgConfirm("Couldn't open FTP connection to %s: %s (%u)\n", hostname, strerror(i), i);
-	return FALSE;
+	if (OptFlags & OPT_NO_CONFIRM)
+	    msgNotify("Couldn't open FTP connection to %s: %s (%u)\n", hostname, strerror(i), i);
+	else
+	    msgConfirm("Couldn't open FTP connection to %s: %s (%u)\n", hostname, strerror(i), i);
+	if ((OptFlags & OPT_FTP_RESELECT) || ++retries > MAX_FTP_RETRIES) {
+	     if (!get_new_host())
+		return FALSE;
+return FALSE;
+	     retries = 0;
+	}
+	goto retry;
     }
 
     if (OptFlags & OPT_FTP_PASSIVE)
@@ -141,7 +164,8 @@ mediaInitFTP(Device *dev)
     FtpBinary(ftp, 1);
     if (dir && *dir != '\0') {
 	msgNotify("CD to distribution in ~ftp/%s", dir);
-	FtpChdir(ftp, dir);
+	if (FtpChdir(ftp, dir) == -2)
+	    goto retry;
     }
     if (isDebug())
 	msgDebug("leaving mediaInitFTP!\n");
@@ -152,7 +176,28 @@ mediaInitFTP(Device *dev)
 int
 mediaGetFTP(char *file)
 {
-    return(FtpGet(ftp, file));
+    int fd;
+    int nretries = 0;
+
+evil_goto:
+    fd = FtpGet(ftp, file);
+    if (fd < 0) {
+	/* If a hard fail, try to "bounce" the ftp server to clear it */
+	if (fd == -2) {
+	    if (mediaDevice->shutdown)
+		(*mediaDevice->shutdown)(mediaDevice);
+	    if (mediaDevice->init)
+		if (!(*mediaDevice->init)(mediaDevice))
+		    return -1;
+	}
+	if ((OptFlags & OPT_FTP_RESELECT) || ++nretries > MAX_FTP_RETRIES) {
+	    if (!get_new_host())
+		return -1;
+	    nretries = 0;
+	}
+	goto evil_goto;
+    }
+    return fd;
 }
 
 Boolean
