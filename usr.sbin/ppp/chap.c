@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.10 1997/02/22 16:10:05 peter Exp $
+ * $Id: chap.c,v 1.11 1997/03/10 08:04:13 ache Exp $
  *
  *	TODO:
  */
@@ -80,7 +80,7 @@ int chapid;
   char *cp;
 
   if (!randinit) {
-    srandom((unsigned)(time(NULL) ^ getpid()));
+    srandom((unsigned long)(time(NULL) ^ getpid()));
     randinit = 1;
   }
 
