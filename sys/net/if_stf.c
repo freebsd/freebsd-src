@@ -765,7 +765,7 @@ in_stf_input(m, off)
 		
 		BPF_MTAP(ifp, &m0);
 #else
-		bpf_mtap2(ifp->if_bpf, &af, sizeof(ah), m);
+		bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m);
 #endif
 	}
 
