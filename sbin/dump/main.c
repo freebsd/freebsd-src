@@ -59,10 +59,12 @@ static const char rcsid[] =
 #include <err.h>
 #include <fcntl.h>
 #include <fstab.h>
+#include <inttypes.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <timeconv.h>
 #include <unistd.h>
 
 #include "dump.h"
@@ -102,7 +104,6 @@ main(int argc, char *argv[])
 	int just_estimate = 0;
 	ino_t maxino;
 	char *tmsg;
-	time_t t;
 
 	spcl.c_date = _time_to_time64(time(NULL));
 
@@ -359,7 +360,7 @@ main(int argc, char *argv[])
 	dev_bsize = sblock->fs_fsize / fsbtodb(sblock, 1);
 	dev_bshift = ffs(dev_bsize) - 1;
 	if (dev_bsize != (1 << dev_bshift))
-		quit("dev_bsize (%d) is not a power of 2", dev_bsize);
+		quit("dev_bsize (%ld) is not a power of 2", dev_bsize);
 	tp_bshift = ffs(TP_BSIZE) - 1;
 	if (TP_BSIZE != (1 << tp_bshift))
 		quit("TP_BSIZE (%d) is not a power of 2", TP_BSIZE);
@@ -492,19 +493,19 @@ main(int argc, char *argv[])
 	for (i = 0; i < ntrec; i++)
 		writeheader(maxino - 1);
 	if (pipeout)
-		msg("DUMP: %qd tape blocks\n", spcl.c_tapea);
+		msg("DUMP: %jd tape blocks\n", (intmax_t)spcl.c_tapea);
 	else
-		msg("DUMP: %qd tape blocks on %d volume%s\n",
-		    spcl.c_tapea, spcl.c_volume,
+		msg("DUMP: %jd tape blocks on %d volume%s\n",
+		    (intmax_t)spcl.c_tapea, spcl.c_volume,
 		    (spcl.c_volume == 1) ? "" : "s");
 
 	/* report dump performance, avoid division through zero */
 	if (tend_writing - tstart_writing == 0)
 		msg("finished in less than a second\n");
 	else
-		msg("finished in %d seconds, throughput %qd KBytes/sec\n",
-		    tend_writing - tstart_writing,
-		    spcl.c_tapea / (tend_writing - tstart_writing));
+		msg("finished in %d seconds, throughput %jd KBytes/sec\n",
+		    tend_writing - tstart_writing, (intmax_t)(spcl.c_tapea /
+		    (tend_writing - tstart_writing)));
 
 	putdumptime();
 	trewind();
