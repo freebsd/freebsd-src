@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.20 1994/12/18 13:56:50 guido Exp $
+ * $Id: kern_sysctl.c,v 1.21 1994/12/28 06:15:08 davidg Exp $
  */
 
 /*
@@ -217,8 +217,12 @@ kern_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 		return(sysctl_int(oldp, oldlenp, newp, newlen, &desiredvnodes));
 	case KERN_MAXPROC:
 		return (sysctl_int(oldp, oldlenp, newp, newlen, &maxproc));
+	case KERN_MAXPROCPERUID:
+		return (sysctl_int(oldp, oldlenp, newp, newlen, &maxprocperuid));
 	case KERN_MAXFILES:
 		return (sysctl_int(oldp, oldlenp, newp, newlen, &maxfiles));
+	case KERN_MAXFILESPERPROC:
+		return (sysctl_int(oldp, oldlenp, newp, newlen, &maxfilesperproc));
 	case KERN_UPDATEINTERVAL:
 		/*
 		 * NB: this simple-minded approach only works because
