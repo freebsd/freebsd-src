@@ -24,20 +24,20 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: uha.4,v 1.8 1997/02/22 13:25:45 peter Exp $
 .Dd August 31, 1994
 .Dt UHA 4 i386
 .Os FreeBSD
 .Sh NAME
 .Nm uha
 .Nd
-Ultrastore SCSI host adapter driver
+UltraStor SCSI host adapter driver
 .Sh SYNOPSIS
-For Ultrastore 24f controllers in EISA mode:
+For ULTRA 24F controllers in EISA mode:
 .Cd "controller uha0 at isa? bio irq ? vector uhaintr
 .Cd "controller scbus0
 .Pp
-For Ultrastore 14f and 34f controllers:
+For ULTRA 14F and 34F controllers:
 .Cd "controller uha0 at isa? port" \&"IO_UHA0\&" bio irq ? drq 5 vector uhaintr
 .Cd "controller scbus0
 .Pp
@@ -50,19 +50,19 @@ For each tape device:
 For one or more cdroms:
 .Cd "device cd0
 .Sh DESCRIPTION
-This driver provides access to SCSI devices connected to an Ultrastore
-Ultrastore 14f, Ultrastore 24f or Ultrastore 34f hostadapter.
+This driver provides access to SCSI devices connected to an UltraStor
+ULTRA 14F, ULTRA 24F or ULTRA 34F host adapter.
 .Pp
-Note that for an Ultrastore 24f in EISA mode no I/O addresses or DMA channels 
+Note that for an ULTRA 24F in EISA mode no I/O addresses or DMA channels 
 are required in the kernel config file. If they are present, the driver
-will correctly find the Ultrastore 24f, but you tie up precious DMA channels
+will correctly find the ULTRA 24F, but you tie up precious DMA channels
 and I/O ranges which are not used by the card.
-The Ultrastore 24f uses EISA slot specific I/O which is configured 
+The ULTRA 24F uses EISA slot specific I/O which is configured 
 automatically.
 .Sh FILES
 .Bl -tag -width Pa -compact
 .It Pa /sys/i386/conf/GENERIC
-sample generic kernel config file for Bustek and Ultrastore based systems
+sample generic kernel config file for Bustek and UltraStor based systems
 .It Pa /sys/i386/isa/ultra14f.c
 driver source
 .El
