@@ -1,7 +1,7 @@
 /*
  * procfs ioctl definitions.
  *
- * $Id: pioctl.h,v 1.1 1997/12/06 04:11:14 sef Exp $
+ * $Id: pioctl.h,v 1.2 1997/12/07 03:59:26 sef Exp $
  */
 
 #ifndef _SYS_PIOCTL_H
@@ -19,7 +19,7 @@ struct procfs_status {
 
 # define	PIOCBIS	_IOW('p', 1, unsigned int)	/* Set event flag */
 # define	PIOCBIC	_IOW('p', 2, unsigned int)	/* Clear event flag */
-# define	PIOCSFL	_IOR('p', 3, unsigned int)	/* Set flags */
+# define	PIOCSFL	_IOW('p', 3, unsigned int)	/* Set flags */
 			/* wait for proc to stop */
 # define	PIOCWAIT	_IOR('p', 4, struct procfs_status)
 # define	PIOCCONT	_IOW('p', 5, int)	/* Continue a process */
