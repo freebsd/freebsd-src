@@ -1,9 +1,6 @@
 # $FreeBSD$
 
-NOMAN=YES
-CLEANFILES+= ${LOCALES:S/$/.out/g}
-
-LOCALES=        af_ZA.ISO8859-1 \
+LOCALES=	af_ZA.ISO8859-1 \
 		am_ET.UTF-8 \
 		be_BY.CP1131 \
 		be_BY.CP1251 \
@@ -77,94 +74,56 @@ LOCALES=        af_ZA.ISO8859-1 \
 		zh_HK.UTF-8 \
 		zh_TW.Big5
 
-LOCALEDIR=      ${DESTDIR}/usr/share/locale
-
-ASCIILINKS=	en_AU en_CA en_GB en_NZ en_US
-LATIN15LINKS=   af_ZA ca_ES da_DK de_AT de_CH de_DE en_AU en_CA en_GB en_NZ \
-		en_US es_ES fi_FI fr_BE fr_CA fr_CH fr_FR is_IS is_IS it_IT \
-		it_CH nl_BE nl_NL no_NO pt_PT sv_SE
-
-UTF8_LATIN1LINKS=	af_ZA ca_ES da_DK de_AT de_CH de_DE en_AU en_CA en_NZ \
-			en_US es_ES fi_FI fr_BE fr_CA fr_FR is_IS it_IT nl_BE \
-			nl_NL no_NO pt_BR pt_PT sv_SE
-UTF8_LATIN2LINKS=	hr_HR hu_HU ro_RO sk_SK sl_SI sr_YU
-UTF8_LATIN7LINKS=	el_GR
-UTF8_LATIN9LINKS=	tr_TR
-UTF8_LATIN13LINKS=	lt_LT
-UTF8_LATIN15LINKS=	et_EE
-
-CH_SRC=		de_CH
-CH_LINKS=	fr_CH it_CH
+LOCALEDIR=	/usr/share/locale
 
 .SUFFIXES: .src .out
 
 .src.out:
 	grep -v '^#' < ${.IMPSRC} > ${.TARGET}
 
-all: ${LOCALES:S/$/.out/g}
+FILES=		${LOCALES:S/$/.out/}
+FILESNAME=	LC_MONETARY
 
-afterinstall:
 .for lang in ${LOCALES}
-	${INSTALL} -m 644 -o ${BINOWN} -g ${BINGRP} ${lang}.out \
-		${LOCALEDIR}/${lang}/LC_MONETARY
+FILESDIR_${lang}.out= ${LOCALEDIR}/${lang}
 .endfor
-.for link in ${LATIN15LINKS}
-	ln -sf ../${link}.ISO8859-1/LC_MONETARY \
-	       ${LOCALEDIR}/${link}.ISO8859-15/LC_MONETARY
+
+CLEANFILES=	${FILES}
+
+ENCODINGS=	Big5 Big5HKSCS CP949 eucJP eucKR GB2312 GBK \
+		ISO8859-1 ISO8859-2 ISO8859-4 ISO8859-7 ISO8859-9 \
+		ISO8859-13 ISO8859-15 SJIS US-ASCII UTF-8
+
+Big5_UTF-8=	zh_TW
+eucJP_SJIS=	ja_JP
+eucKR_CP949=	ko_KR
+GB2312_GBK=	zh_CN
+ISO8859-1_ISO8859-1= es_ES:eu_ES de_CH:fr_CH de_CH:it_CH
+ISO8859-1_ISO8859-15= af_ZA ca_ES da_DK de_AT de_CH de_DE en_AU en_CA \
+		en_GB en_NZ en_US es_ES fi_FI fr_BE fr_CA fr_CH fr_FR \
+		is_IS it_IT it_CH nl_BE nl_NL no_NO pt_PT sv_SE
+ISO8859-1_US-ASCII= en_AU en_CA en_GB en_NZ en_US
+ISO8859-1_UTF-8= af_ZA ca_ES da_DK de_AT de_CH de_DE en_AU en_CA en_NZ \
+		en_US es_ES fi_FI fr_BE fr_CA fr_FR is_IS it_IT nl_BE \
+		nl_NL no_NO pt_BR pt_PT sv_SE
+ISO8859-2_UTF-8= hr_HR hu_HU ro_RO sk_SK sl_SI sr_YU
+ISO8859-7_UTF-8= el_GR
+ISO8859-9_UTF-8= tr_TR
+ISO8859-13_ISO8859-4= lt_LT
+ISO8859-13_UTF-8= lt_LT
+ISO8859-15_ISO8859-15= es_ES:eu_ES
+ISO8859-15_UTF-8= et_EE
+UTF-8_Big5HKSCS= zh_HK
+UTF-8_UTF-8=	es_ES:eu_ES de_CH:fr_CH de_CH:it_CH
+
+SYMLINKS=
+.for enc1 in ${ENCODINGS}
+.for enc2 in ${ENCODINGS}
+.for lang_terr in ${${enc1}_${enc2}}
+SYMLINKS+=	../${lang_terr:C/:.*$//}.${enc1}/${FILESNAME} \
+		${LOCALEDIR}/${lang_terr:C/^.*://}.${enc2}
 .endfor
-.for link in ${ASCIILINKS}
-	ln -sf ../${link}.ISO8859-1/LC_MONETARY \
-		${LOCALEDIR}/${link}.US-ASCII/LC_MONETARY
 .endfor
-.for link in ${CH_LINKS}
-	ln -sf ../${CH_SRC}.ISO8859-1/LC_MONETARY \
-		${LOCALEDIR}/${link}.ISO8859-1/LC_MONETARY
 .endfor
-	ln -sf ../ja_JP.eucJP/LC_MONETARY \
-		${LOCALEDIR}/ja_JP.SJIS/LC_MONETARY
-	ln -sf ../ko_KR.eucKR/LC_MONETARY \
-		${LOCALEDIR}/ko_KR.CP949/LC_MONETARY
-	ln -sf ../zh_CN.GB2312/LC_MONETARY \
-		${LOCALEDIR}/zh_CN.GBK/LC_MONETARY
-.for link in ${UTF8_LATIN1LINKS}
-	ln -sf ../${link}.ISO8859-1/LC_MONETARY \
-		${LOCALEDIR}/${link}.UTF-8/LC_MONETARY
-.endfor
-.for link in ${UTF8_LATIN2LINKS}
-	ln -sf ../${link}.ISO8859-2/LC_MONETARY \
-		${LOCALEDIR}/${link}.UTF-8/LC_MONETARY
-.endfor
-.for link in ${UTF8_LATIN7LINKS}
-	ln -sf ../${link}.ISO8859-7/LC_MONETARY \
-		${LOCALEDIR}/${link}.UTF-8/LC_MONETARY
-.endfor
-.for link in ${UTF8_LATIN9LINKS}
-	ln -sf ../${link}.ISO8859-9/LC_MONETARY \
-		${LOCALEDIR}/${link}.UTF-8/LC_MONETARY
-.endfor
-.for link in ${UTF8_LATIN13LINKS}
-	ln -sf ../${link}.ISO8859-13/LC_MONETARY \
-		${LOCALEDIR}/${link}.UTF-8/LC_MONETARY
-.endfor
-.for link in ${UTF8_LATIN15LINKS}
-	ln -sf ../${link}.ISO8859-15/LC_MONETARY \
-		${LOCALEDIR}/${link}.UTF-8/LC_MONETARY
-.endfor
-.for link in ${CH_LINKS}
-	ln -sf ../${CH_SRC}.UTF-8/LC_MONETARY \
-		${LOCALEDIR}/${link}.UTF-8/LC_MONETARY
-.endfor
-	ln -sf ../zh_TW.Big5/LC_MONETARY \
-		${LOCALEDIR}/zh_TW.UTF-8/LC_MONETARY
-	ln -sf ../zh_HK.UTF-8/LC_MONETARY \
-		${LOCALEDIR}/zh_HK.Big5HKSCS/LC_MONETARY
-	ln -sf ../es_ES.ISO8859-1/LC_MONETARY \
-		${LOCALEDIR}/eu_ES.ISO8859-1/LC_MONETARY
-	ln -sf ../es_ES.ISO8859-15/LC_MONETARY \
-		${LOCALEDIR}/eu_ES.ISO8859-15/LC_MONETARY
-	ln -sf ../es_ES.UTF-8/LC_MONETARY \
-		${LOCALEDIR}/eu_ES.UTF-8/LC_MONETARY
-	ln -sf ../lt_LT.ISO8859-13/LC_MONETARY \
-		${LOCALEDIR}/lt_LT.ISO8859-4/LC_MONETARY
 
 .include <bsd.prog.mk>
