@@ -1,4 +1,5 @@
 .\" @(#)tmac.srefs	1.14 11/2/88
+.\" $FreeBSD$
 .\" REFER macros .... citations
 .de []
 .][ \\$1
@@ -136,22 +137,13 @@ in \\f2\\*([B\\f1\c
 .de [<
 .RT
 .ne 62p
-.ie \\n(rS \{\
-.	rs
-.	sp 4p
-.\}
-.el .sp 27p
-.Li 2 30.5P
 .NH
 References
 .br
-.if \\n(Ns<2 \{\
-.	nr Ns 1
-.	ds ST References
-.\}
 .\"nr Tt 7
 .sp 8p
-.rm FS FE
+.ds FS
+.ds FE
 .\"sy echo '.T3 "\\\\t\\\\tReferences" \\n%' >>Toc
 .ns
 ..
@@ -165,9 +157,19 @@ References
 .[-
 ..
 .de [-
-.rm [V [P [A [T
-.rm [N [C [B [O
-.rm [R [I [E [D
+.ds [V
+.ds [P
+.ds [A
+.ds [T
+.ds [N
+.ds [C
+.ds [B
+.ds [O
+.ds [R
+.ds [I
+.ds [E
+.ds [D
+.ds [G
 ..
 .de ]]
 this is never
