@@ -150,7 +150,11 @@ int yydebug;			/*  nonzero means print parse trace	*/
 
 /* Prevent warning if -Wstrict-prototypes.  */
 #ifdef __GNUC__
+#ifdef YYPARSE_PARAM
+int yyparse (void *);
+#else
 int yyparse (void);
+#endif
 #endif
 
 #if __GNUC__ > 1		/* GNU C and GNU C++ define this.  */
