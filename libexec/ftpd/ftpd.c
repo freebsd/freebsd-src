@@ -278,7 +278,6 @@ main(int argc, char *argv[], char **envp)
 	int addrlen, ch, on = 1, tos;
 	char *cp, line[LINE_MAX];
 	FILE *fd;
-	int error;
 	char	*bindname = NULL;
 	const char *bindport = "ftp";
 	int	family = AF_UNSPEC;
