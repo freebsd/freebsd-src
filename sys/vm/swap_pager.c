@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.28 1995/02/25 17:02:48 davidg Exp $
+ * $Id: swap_pager.c,v 1.29 1995/03/01 23:29:53 davidg Exp $
  */
 
 /*
@@ -282,6 +282,7 @@ swap_pager_alloc(handle, size, prot, offset)
 		 * might be the pageout daemon calling.
 		 */
 		object = vm_object_allocate(size);
+		object->flags &= ~OBJ_INTERNAL;
 		vm_object_enter(object, pager);
 		object->pager = pager;
 	} else {
