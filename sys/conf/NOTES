@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.253 1996/05/01 05:04:38 bde Exp $
+#	$Id: LINT,v 1.254 1996/05/02 10:41:18 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -376,6 +376,7 @@ pseudo-device	log		#Kernel syslog interface (/dev/klog)
 pseudo-device	gzip		#Exec gzipped a.out's
 pseudo-device	vn		#Vnode driver (turns a file into a device)
 pseudo-device	snp	3	#Snoop device - to look at pty/vty/etc..
+pseudo-device	ccd	4	#Concatenated disk driver
 
 # These are non-optional for ISDN
 pseudo-device   isdn
