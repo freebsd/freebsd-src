@@ -299,7 +299,7 @@ bf_run(char *line)
     
     if (result == VM_USEREXIT)
 	panic("interpreter exit");
-    setenv("interpret", bf_vm->state ? "" : "ok", 1);
+    setenv("interpret", bf_vm->state ? "" : "OK", 1);
 
     return result;
 }

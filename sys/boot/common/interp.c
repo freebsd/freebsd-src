@@ -118,7 +118,7 @@ interact(void)
     if (getenv("prompt") == NULL)
 	setenv("prompt", "${interpret}", 1);
     if (getenv("interpret") == NULL)
-        setenv("interpret", "ok", 1);
+        setenv("interpret", "OK", 1);
     
 
     for (;;) {
