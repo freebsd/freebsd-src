@@ -10,7 +10,7 @@
  *
  * See LEGAL.NOTICE
  *
- * $FreeBSD$
+ * $Id$
  */
 
 /* these types are used to index the table 'types': keep em in sync! */
