@@ -276,7 +276,7 @@ setup()
  * Prompt user to load a new dump volume.
  * "Nextvol" is the next suggested volume to use.
  * This suggested volume is enforced when doing full
- * or incremental restores, but can be overrridden by
+ * or incremental restores, but can be overridden by
  * the user when only extracting a subset of the files.
  */
 void

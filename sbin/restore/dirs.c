@@ -306,7 +306,7 @@ pathsearch(pathname)
 	while (*path == '/')
 		path++;
 	dp = NULL;
-	while ((name = strsep(&path, "/")) != NULL && *name != NULL) {
+	while ((name = strsep(&path, "/")) != NULL && *name != '\0') {
 		if ((dp = searchdir(ino, name)) == NULL)
 			return (NULL);
 		ino = dp->d_ino;
