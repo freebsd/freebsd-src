@@ -24,17 +24,17 @@ CFLAGS+=-I${KRB5DIR}/lib/roken		\
 	-I${KRB5DIR}/lib/sl		\
 	${LDAPCFLAGS}
 
-LDADD=	-lkadm5clnt -lkadm5srv -lkrb5 -lroken	\
-	${LIBVERS} -lhdb -lasn1			\
+LDADD=	-lkadm5clnt -lkadm5srv -lhdb -lkrb5	\
+	${LIBSL} -lroken ${LIBVERS} -lasn1	\
 	-lcrypto -lcrypt -lcom_err		\
-	${LIBSL} -lreadline -lncurses ${LDAPLDADD}
+	-lreadline -lncurses ${LDAPLDADD}
 
 LDFLAGS=${LDAPLDFLAGS}
 
-DPADD=	${LIBKADM5CLNT} ${LIBKADM5SRV} ${LIBKRB5} ${LIBROKEN}	\
-	${LIBVERS} ${LIBHDB} ${LIBASN1}				\
+DPADD=	${LIBKADM5CLNT} ${LIBKADM5SRV} ${LIBHDB} ${LIBKRB5}	\
+	${LIBSL} ${LIBROKEN} ${LIBVERS} ${LIBASN1}		\
 	${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR}			\
-	${LIBSL} ${LIBREADLINE} ${LIBNCURSES} ${LDAPDPADD}
+	${LIBREADLINE} ${LIBNCURSES} ${LDAPDPADD}
 
 MAN=	kadmin.8
 
