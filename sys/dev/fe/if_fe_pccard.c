@@ -60,8 +60,6 @@ static int fe_pccard_probe(device_t);
 static int fe_pccard_attach(device_t);
 static int fe_pccard_detach(device_t);
 static int fe_pccard_match(device_t);
-static int fe_pccard_mem_ether(device_t dev, bus_addr_t cardoff,
-	       u_char *enaddr);
 
 static const struct fe_pccard_product {
         struct pccard_product mpp_product;
