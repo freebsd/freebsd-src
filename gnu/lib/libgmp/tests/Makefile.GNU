@@ -18,13 +18,11 @@
 # along with the GNU MP Library; see the file COPYING.  If not, write to
 # the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
-.PATH: ${.CURDIR}/.. ${.CURDIR}/../obj ${.CURDIR}/../libgmp/obj
-
 CC = gcc
 
-TEST_LIBS = -lgmp
+TEST_LIBS = ../libgmp.a
 OPT = -O -g
-CFLAGS = -I${.CURDIR} -I${.CURDIR}/.. -I${.CURDIR}/../obj -I${.CURDIR}/../libgmp/obj $(OPT)
+CFLAGS = -I. -I.. $(OPT)
 
 TEST_SRCS = tst-mul.c tst-dm.c tst-dm_ui.c tst-mdm.c tst-mdm_ui.c tst-gcd.c \
  tst-sqrtrem.c tst-convert.c
