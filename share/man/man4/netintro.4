@@ -188,7 +188,7 @@ structure as its parameter.  This structure has the form
 .Bd -literal
 struct	ifreq {
 #define    IFNAMSIZ    16
-    char    ifr_name[IFNAMSIZE];        /* if name, e.g. "en0" */
+    char    ifr_name[IFNAMSIZ];        /* if name, e.g. "en0" */
     union {
         struct    sockaddr ifru_addr;
         struct    sockaddr ifru_dstaddr;
