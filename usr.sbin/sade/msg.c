@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.2 1995/05/01 21:56:29 jkh Exp $
+ * $Id: msg.c,v 1.3 1995/05/04 03:51:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -191,7 +191,7 @@ msgYesNo(char *fmt, ...)
     va_end(args);
     use_helpline(NULL);
     use_helpfile(NULL);
-    ret = dialog_yesno("User Confirmation Request", errstr, -1, -1);
+    ret = dialog_yesno("Decision Required", errstr, -1, -1);
     free(errstr);
     return ret;
 }
@@ -202,8 +202,7 @@ msgGetInput(char *buf, char *fmt, ...)
 {
     va_list args;
     char *errstr;
-    char *ret;
-    static input_buffer[256];
+    static char input_buffer[256];
     int rval;
 
     errstr = (char *)malloc(FILENAME_MAX);
