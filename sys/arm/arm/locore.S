@@ -162,10 +162,6 @@ mmu_done:
 
 	/* init arm will return the new stack pointer. */
 	mov	sp, r0
-	mov	fp, #0x00000000		/* trace back starts here */
-	mov	ip, sp
-	stmfd	sp!, {fp, ip, lr, pc}
-	sub	fp, ip, #4
 
 	bl	_C_LABEL(mi_startup)		/* call mi_startup()! */
 
