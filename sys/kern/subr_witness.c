@@ -89,6 +89,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
@@ -206,23 +207,23 @@ TUNABLE_INT("debug.witness_watch", &witness_watch);
 SYSCTL_PROC(_debug, OID_AUTO, witness_watch, CTLFLAG_RW | CTLTYPE_INT, NULL, 0,
     sysctl_debug_witness_watch, "I", "witness is watching lock operations");
 
-#ifdef DDB
+#ifdef KDB
 /*
- * When DDB is enabled and witness_ddb is set to 1, it will cause the system to
- * drop into kdebug() when:
+ * When KDB is enabled and witness_kdb is set to 1, it will cause the system
+ * to drop into kdebug() when:
  *	- a lock heirarchy violation occurs
  *	- locks are held when going to sleep.
  */
-#ifdef WITNESS_DDB
-int	witness_ddb = 1;
+#ifdef WITNESS_KDB
+int	witness_kdb = 1;
 #else
-int	witness_ddb = 0;
+int	witness_kdb = 0;
 #endif
-TUNABLE_INT("debug.witness_ddb", &witness_ddb);
-SYSCTL_INT(_debug, OID_AUTO, witness_ddb, CTLFLAG_RW, &witness_ddb, 0, "");
+TUNABLE_INT("debug.witness_kdb", &witness_kdb);
+SYSCTL_INT(_debug, OID_AUTO, witness_kdb, CTLFLAG_RW, &witness_kdb, 0, "");
 
 /*
- * When DDB is enabled and witness_trace is set to 1, it will cause the system
+ * When KDB is enabled and witness_trace is set to 1, it will cause the system
  * to print a stack trace:
  *	- a lock heirarchy violation occurs
  *	- locks are held when going to sleep.
@@ -230,7 +231,7 @@ SYSCTL_INT(_debug, OID_AUTO, witness_ddb, CTLFLAG_RW, &witness_ddb, 0, "");
 int	witness_trace = 1;
 TUNABLE_INT("debug.witness_trace", &witness_trace);
 SYSCTL_INT(_debug, OID_AUTO, witness_trace, CTLFLAG_RW, &witness_trace, 0, "");
-#endif /* DDB */
+#endif /* KDB */
 
 #ifdef WITNESS_SKIPSPIN
 int	witness_skipspin = 1;
@@ -769,7 +770,7 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 		printf(" 1st %s @ %s:%d\n", lock1->li_lock->lo_name,
 		    lock1->li_file, lock1->li_line);
 		printf(" 2nd %s @ %s:%d\n", lock->lo_name, file, line);
-#ifdef DDB
+#ifdef KDB
 		goto debugger;
 #else
 		return;
@@ -900,7 +901,7 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 				printf(" 3rd %p %s (%s) @ %s:%d\n", lock,
 				    lock->lo_name, lock->lo_type, file, line);
 			}
-#ifdef DDB
+#ifdef KDB
 			goto debugger;
 #else
 			return;
@@ -926,12 +927,12 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 	mtx_unlock_spin(&w_mtx);
 	return;
 
-#ifdef DDB
+#ifdef KDB
 debugger:
 	if (witness_trace)
-		backtrace();
-	if (witness_ddb)
-		Debugger(__func__);
+		kdb_backtrace();
+	if (witness_kdb)
+		kdb_enter(__func__);
 #endif
 }
 
@@ -1202,11 +1203,11 @@ witness_warn(int flags, struct lock_object *lock, const char *fmt, ...)
 	}
 	if (flags & WARN_PANIC && n)
 		panic("witness_warn");
-#ifdef DDB
-	else if (witness_ddb && n)
-		Debugger(__func__);
+#ifdef KDB
+	else if (witness_kdb && n)
+		kdb_enter(__func__);
 	else if (witness_trace && n)
-		backtrace();
+		kdb_backtrace();
 #endif
 	return (n);
 }
@@ -1851,7 +1852,7 @@ witness_list(struct thread *td)
 {
 
 	KASSERT(!witness_cold, ("%s: witness_cold", __func__));
-	KASSERT(db_active, ("%s: not in the debugger", __func__));
+	KASSERT(kdb_active, ("%s: not in the debugger", __func__));
 
 	if (witness_watch == 0)
 		return;
