@@ -201,7 +201,8 @@ setinput(mp)
 {
 
 	(void)fflush(otf);
-	if (fseek(itf, (long)positionof(mp->m_block, mp->m_offset), 0) < 0)
+	if (fseeko(itf,
+		   positionof(mp->m_block, mp->m_offset), SEEK_SET) < 0)
 		err(1, "fseek");
 	return (itf);
 }
