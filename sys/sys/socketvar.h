@@ -84,7 +84,7 @@ struct socket {
 	short	so_incqlen;		/* (e) number of unaccepted incomplete
 					   connections */
 	short	so_qlimit;		/* (e) max number queued connections */
-	short	so_timeo;		/* connection timeout */
+	short	so_timeo;		/* (g) connection timeout */
 	u_short	so_error;		/* error affecting connection */
 	struct	sigio *so_sigio;	/* [sg] information for async I/O or
 					   out of band data (SIGURG) */
@@ -97,18 +97,18 @@ struct socket {
 		struct	selinfo sb_sel;	/* process selecting read/write */
 		struct	mtx sb_mtx;	/* sockbuf lock */
 #define	sb_startzero	sb_mb
-		struct	mbuf *sb_mb;	/* the mbuf chain */
-		struct	mbuf *sb_mbtail; /* the last mbuf in the chain */
-		struct	mbuf *sb_lastrecord;	/* first mbuf of last record in
-						 * socket buffer */
-		u_int	sb_cc;		/* actual chars in buffer */
-		u_int	sb_hiwat;	/* max actual char count */
-		u_int	sb_mbcnt;	/* chars of mbufs used */
-		u_int	sb_mbmax;	/* max chars of mbufs to use */
-		u_int	sb_ctl;		/* non-data chars in buffer */
-		int	sb_lowat;	/* low water mark */
-		int	sb_timeo;	/* timeout for read/write */
-		short	sb_flags;	/* flags, see below */
+		struct	mbuf *sb_mb;	/* (c/d) the mbuf chain */
+		struct	mbuf *sb_mbtail; /* (c/d) the last mbuf in the chain */
+		struct	mbuf *sb_lastrecord;	/* (c/d) first mbuf of last
+						 * record in socket buffer */
+		u_int	sb_cc;		/* (c/d) actual chars in buffer */
+		u_int	sb_hiwat;	/* (c/d) max actual char count */
+		u_int	sb_mbcnt;	/* (c/d) chars of mbufs used */
+		u_int	sb_mbmax;	/* (c/d) max chars of mbufs to use */
+		u_int	sb_ctl;		/* (c/d) non-data chars in buffer */
+		int	sb_lowat;	/* (c/d) low water mark */
+		int	sb_timeo;	/* (c/d) timeout for read/write */
+		short	sb_flags;	/* (c/d) flags, see below */
 		short	sb_state;	/* (c/d) socket state on sockbuf */
 	} so_rcv, so_snd;
 #define	SB_MAX		(256*1024)	/* default for max chars in sockbuf */
@@ -124,7 +124,7 @@ struct socket {
 
 	void	(*so_upcall)(struct socket *, void *, int);
 	void	*so_upcallarg;
-	struct	ucred *so_cred;		/* user credentials */
+	struct	ucred *so_cred;		/* (a) user credentials */
 	struct	label *so_label;	/* (b) MAC label for socket */
 	struct	label *so_peerlabel;	/* (b) cached MAC label for peer */
 	/* NB: generation count must not be first; easiest to make it last. */
