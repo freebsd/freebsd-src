@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.38 1998/02/04 22:32:33 eivind Exp $
+ * $Id: kern_sig.c,v 1.39 1998/02/06 12:13:24 eivind Exp $
  */
 
 #include "opt_compat.h"
@@ -61,6 +61,9 @@
 #include <sys/sysent.h>
 
 #include <machine/cpu.h>
+#ifdef SMP
+#include <machine/smp.h>
+#endif
 
 /* All these for coredump() only. */
 #include <vm/vm.h>
@@ -919,6 +922,10 @@ psignal(p, signum)
 		 */
 		if (p == curproc)
 			signotify(p);
+#ifdef SMP
+		else if (p->p_stat == SRUN)
+			forward_signal(p);
+#endif
 		goto out;
 	}
 	/*NOTREACHED*/
