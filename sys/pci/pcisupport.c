@@ -1722,6 +1722,12 @@ const char* pci_vga_match(device_t dev)
 			chip = "Riva Ultra Vanta TNT2"; break;
 		case 0x00a0:
 			chip = "Riva Integrated TNT2"; break;
+		case 0x0100:
+			chip = "GeForce 256"; break;
+		case 0x0101:
+			chip = "GeForce DDR"; break;
+		case 0x0103:
+			chip = "Quadro"; break;
 		}
 		break;
 	case 0x12d2:
