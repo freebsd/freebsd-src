@@ -2356,6 +2356,9 @@ static char
 #if	defined(unix)
 	zhelp[] =	"suspend telnet",
 #endif	/* defined(unix) */
+#if	defined(SKEY)
+	skeyhelp[] =    "compute response to s/key challenge",
+#endif
 	shellhelp[] =	"invoke a subshell",
 	envhelp[] =	"change environment variables ('environ ?' for more)",
 	modestring[] = "try to enter line or character mode ('mode ?' for more)";
@@ -2393,7 +2396,7 @@ static Command cmdtab[] = {
 	{ "environ",	envhelp,	env_cmd,	0 },
 	{ "?",		helphelp,	help,		0 },
 #if	defined(SKEY)
-	{ "skey",	NULL,		skey_calc,	0 },
+	{ "skey",       skeyhelp,       skey_calc,      0 },
 #endif		
 	0
 };
