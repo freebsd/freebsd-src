@@ -15,24 +15,28 @@
  */
 
 #ifndef _MATH_PRIVATE_H_
-#define _MATH_PRIVATE_H_
+#define	_MATH_PRIVATE_H_
 
 #include <sys/types.h>
 #include <machine/endian.h>
 
-/* The original fdlibm code used statements like:
-	n0 = ((*(int*)&one)>>29)^1;		* index of high word *
-	ix0 = *(n0+(int*)&x);			* high word of x *
-	ix1 = *((1-n0)+(int*)&x);		* low word of x *
-   to dig two 32 bit words out of the 64 bit IEEE floating point
-   value.  That is non-ANSI, and, moreover, the gcc instruction
-   scheduler gets it wrong.  We instead use the following macros.
-   Unlike the original code, we determine the endianness at compile
-   time, not at run time; I don't see much benefit to selecting
-   endianness at run time.  */
+/*
+ * The original fdlibm code used statements like:
+ *	n0 = ((*(int*)&one)>>29)^1;		* index of high word *
+ *	ix0 = *(n0+(int*)&x);			* high word of x *
+ *	ix1 = *((1-n0)+(int*)&x);		* low word of x *
+ * to dig two 32 bit words out of the 64 bit IEEE floating point
+ * value.  That is non-ANSI, and, moreover, the gcc instruction
+ * scheduler gets it wrong.  We instead use the following macros.
+ * Unlike the original code, we determine the endianness at compile
+ * time, not at run time; I don't see much benefit to selecting
+ * endianness at run time.
+ */
 
-/* A union which permits us to convert between a double and two 32 bit
-   ints.  */
+/*
+ * A union which permits us to convert between a double and two 32 bit
+ * ints.
+ */
 
 #if BYTE_ORDER == BIG_ENDIAN
 
@@ -120,8 +124,10 @@ do {								\
   (d) = sl_u.value;						\
 } while (0)
 
-/* A union which permits us to convert between a float and a 32 bit
-   int.  */
+/*
+ * A union which permits us to convert between a float and a 32 bit
+ * int.
+ */
 
 typedef union
 {
@@ -149,76 +155,75 @@ do {								\
 } while (0)
 
 /* ieee style elementary functions */
-extern double __ieee754_sqrt __P((double));
-extern double __ieee754_acos __P((double));
-extern double __ieee754_acosh __P((double));
-extern double __ieee754_log __P((double));
-extern double __ieee754_atanh __P((double));
-extern double __ieee754_asin __P((double));
-extern double __ieee754_atan2 __P((double,double));
-extern double __ieee754_exp __P((double));
-extern double __ieee754_cosh __P((double));
-extern double __ieee754_fmod __P((double,double));
-extern double __ieee754_pow __P((double,double));
-extern double __ieee754_lgamma_r __P((double,int *));
-extern double __ieee754_gamma_r __P((double,int *));
-extern double __ieee754_lgamma __P((double));
-extern double __ieee754_gamma __P((double));
-extern double __ieee754_log10 __P((double));
-extern double __ieee754_sinh __P((double));
-extern double __ieee754_hypot __P((double,double));
-extern double __ieee754_j0 __P((double));
-extern double __ieee754_j1 __P((double));
-extern double __ieee754_y0 __P((double));
-extern double __ieee754_y1 __P((double));
-extern double __ieee754_jn __P((int,double));
-extern double __ieee754_yn __P((int,double));
-extern double __ieee754_remainder __P((double,double));
-extern int    __ieee754_rem_pio2 __P((double,double*));
-extern double __ieee754_scalb __P((double,double));
+double	__ieee754_sqrt __P((double));
+double	__ieee754_acos __P((double));
+double	__ieee754_acosh __P((double));
+double	__ieee754_log __P((double));
+double	__ieee754_atanh __P((double));
+double	__ieee754_asin __P((double));
+double	__ieee754_atan2 __P((double,double));
+double	__ieee754_exp __P((double));
+double	__ieee754_cosh __P((double));
+double	__ieee754_fmod __P((double,double));
+double	__ieee754_pow __P((double,double));
+double	__ieee754_lgamma_r __P((double,int *));
+double	__ieee754_gamma_r __P((double,int *));
+double	__ieee754_lgamma __P((double));
+double	__ieee754_gamma __P((double));
+double	__ieee754_log10 __P((double));
+double	__ieee754_sinh __P((double));
+double	__ieee754_hypot __P((double,double));
+double	__ieee754_j0 __P((double));
+double	__ieee754_j1 __P((double));
+double	__ieee754_y0 __P((double));
+double	__ieee754_y1 __P((double));
+double	__ieee754_jn __P((int,double));
+double	__ieee754_yn __P((int,double));
+double	__ieee754_remainder __P((double,double));
+int	__ieee754_rem_pio2 __P((double,double*));
+double	__ieee754_scalb __P((double,double));
 
 /* fdlibm kernel function */
-extern double __kernel_standard __P((double,double,int));
-extern double __kernel_sin __P((double,double,int));
-extern double __kernel_cos __P((double,double));
-extern double __kernel_tan __P((double,double,int));
-extern int    __kernel_rem_pio2 __P((double*,double*,int,int,int,const int*));
-
+double	__kernel_standard __P((double,double,int));
+double	__kernel_sin __P((double,double,int));
+double	__kernel_cos __P((double,double));
+double	__kernel_tan __P((double,double,int));
+int	__kernel_rem_pio2 __P((double*,double*,int,int,int,const int*));
 
 /* ieee style elementary float functions */
-extern float __ieee754_sqrtf __P((float));
-extern float __ieee754_acosf __P((float));
-extern float __ieee754_acoshf __P((float));
-extern float __ieee754_logf __P((float));
-extern float __ieee754_atanhf __P((float));
-extern float __ieee754_asinf __P((float));
-extern float __ieee754_atan2f __P((float,float));
-extern float __ieee754_expf __P((float));
-extern float __ieee754_coshf __P((float));
-extern float __ieee754_fmodf __P((float,float));
-extern float __ieee754_powf __P((float,float));
-extern float __ieee754_lgammaf_r __P((float,int *));
-extern float __ieee754_gammaf_r __P((float,int *));
-extern float __ieee754_lgammaf __P((float));
-extern float __ieee754_gammaf __P((float));
-extern float __ieee754_log10f __P((float));
-extern float __ieee754_sinhf __P((float));
-extern float __ieee754_hypotf __P((float,float));
-extern float __ieee754_j0f __P((float));
-extern float __ieee754_j1f __P((float));
-extern float __ieee754_y0f __P((float));
-extern float __ieee754_y1f __P((float));
-extern float __ieee754_jnf __P((int,float));
-extern float __ieee754_ynf __P((int,float));
-extern float __ieee754_remainderf __P((float,float));
-extern int   __ieee754_rem_pio2f __P((float,float*));
-extern float __ieee754_scalbf __P((float,float));
+float	__ieee754_sqrtf __P((float));
+float	__ieee754_acosf __P((float));
+float	__ieee754_acoshf __P((float));
+float	__ieee754_logf __P((float));
+float	__ieee754_atanhf __P((float));
+float	__ieee754_asinf __P((float));
+float	__ieee754_atan2f __P((float,float));
+float	__ieee754_expf __P((float));
+float	__ieee754_coshf __P((float));
+float	__ieee754_fmodf __P((float,float));
+float	__ieee754_powf __P((float,float));
+float	__ieee754_lgammaf_r __P((float,int *));
+float	__ieee754_gammaf_r __P((float,int *));
+float	__ieee754_lgammaf __P((float));
+float	__ieee754_gammaf __P((float));
+float	__ieee754_log10f __P((float));
+float	__ieee754_sinhf __P((float));
+float	__ieee754_hypotf __P((float,float));
+float	__ieee754_j0f __P((float));
+float	__ieee754_j1f __P((float));
+float	__ieee754_y0f __P((float));
+float	__ieee754_y1f __P((float));
+float	__ieee754_jnf __P((int,float));
+float	__ieee754_ynf __P((int,float));
+float	__ieee754_remainderf __P((float,float));
+int	__ieee754_rem_pio2f __P((float,float*));
+float	__ieee754_scalbf __P((float,float));
 
 /* float versions of fdlibm kernel functions */
-extern float __kernel_sinf __P((float,float,int));
-extern float __kernel_cosf __P((float,float));
-extern float __kernel_tanf __P((float,float,int));
-extern int   __kernel_rem_pio2f __P((float*,float*,int,int,int,const int*));
+float	__kernel_sinf __P((float,float,int));
+float	__kernel_cosf __P((float,float));
+float	__kernel_tanf __P((float,float,int));
+int	__kernel_rem_pio2f __P((float*,float*,int,int,int,const int*));
 
 #if defined(__alpha__) || defined(__ia64__)
 #define __generic___ieee754_acos	__ieee754_acos
@@ -247,4 +252,4 @@ extern int   __kernel_rem_pio2f __P((float*,float*,int,int,int,const int*));
 #define	__generic_tan			tan
 #endif
 
-#endif /* _MATH_PRIVATE_H_ */
+#endif /* !_MATH_PRIVATE_H_ */
