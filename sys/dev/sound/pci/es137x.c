@@ -487,8 +487,9 @@ es1371_init(struct es_info *es, device_t dev)
 	es->sctrl = 0;
 	/* initialize the chips */
 	if (revid == 7 || revid >= 9 || (devid == ES1371_PCI_ID3 && revid == 2)) {
-#define ES1371_BINTSUMM_OFF 0x07
-		bus_space_write_4(es->st, es->sh, ES1371_BINTSUMM_OFF, 0x20);
+#define ES1371_BINTSUMM_OFF 0x04
+		bus_space_write_4(es->st, es->sh, ES1371_BINTSUMM_OFF, 0x20000000);
+		DELAY(20000);
 		if (debug > 0) printf("es_init rev == 7 || rev >= 9\n");
 	} else { /* pre ac97 2.1 card */
 		bus_space_write_4(es->st, es->sh, ES1370_REG_CONTROL, es->ctrl);
