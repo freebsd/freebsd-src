@@ -61,7 +61,9 @@ void (*) (void *, int, void *, int, char *), void *));
 
 int scsireq_encode __P((scsireq_t *, char *, ...));
 int scsireq_encode_visit __P((scsireq_t *, char *,
-int (*)(void *, char *), void *));
+	int (*)(void *, char *), void *));
+int scsireq_buff_encode_visit __P((u_char *, size_t, char *,
+	int (*)(void *, char *), void *));
 
 scsireq_t *scsireq_build __P((scsireq_t *,
 	u_long, caddr_t, u_long,
