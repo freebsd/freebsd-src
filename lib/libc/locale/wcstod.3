@@ -31,14 +31,17 @@
 .Nm wcstof ,
 .Nm wcstod ,
 .Nm wcstold
-.Nd "convert string to float, double or long double"
+.Nd convert string to
+.Vt float , double
+or
+.Vt "long double"
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .In wchar.h
 .Ft float
 .Fn wcstof "const wchar_t * restrict nptr" "wchar_t ** restrict endptr"
-.Ft long double
+.Ft "long double"
 .Fn wcstold "const wchar_t * restrict nptr" "wchar_t ** restrict endptr"
 .Ft double
 .Fn wcstod "const wchar_t * restrict nptr" "wchar_t ** restrict endptr"
@@ -53,13 +56,13 @@ functions are the wide-character versions of the
 .Fn strtod
 and
 .Fn strtold
-functios.
+functions.
 Refer to
 .Xr strtod 3
 for details.
 .Sh SEE ALSO
 .Xr strtod 3 ,
-.Xr wcstol 3 ,
+.Xr wcstol 3
 .Sh STANDARDS
 The
 .Fn wcstof ,

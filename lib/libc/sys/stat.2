@@ -90,8 +90,8 @@ and into which information is placed concerning the file.
 The time-related fields of
 .Fa struct stat
 are as follows:
-.Bl -tag -width XXXst_mtime
-.It st_atime
+.Bl -tag -width ".Va st_birthtime"
+.It Va st_atime
 Time when file data last accessed.
 Changed by the
 .Xr mknod 2 ,
@@ -99,7 +99,7 @@ Changed by the
 and
 .Xr read 2
 system calls.
-.It st_mtime
+.It Va st_mtime
 Time when file data last modified.
 Changed by the
 .Xr mknod 2 ,
@@ -107,7 +107,7 @@ Changed by the
 and
 .Xr write 2
 system calls.
-.It st_ctime
+.It Va st_ctime
 Time when file status was last changed (inode data modification).
 Changed by the
 .Xr chmod 2 ,
@@ -120,7 +120,7 @@ Changed by the
 and
 .Xr write 2
 system calls.
-.It st_birthtime
+.It Va st_birthtime
 Time when the inode was created.
 .El
 .Pp
