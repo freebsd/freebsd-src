@@ -1994,7 +1994,7 @@ sbp_execute_ocb(void *arg,  bus_dma_segment_t *segments, int seg, int error)
 SBP_DEBUG(1)
 		printf("sbp_execute_ocb: seg %d", seg);
 		for (i = 0; i < seg; i++)
-			printf(", %x:%d", segments[i].ds_addr,
+			printf(", %tx:%zd", segments[i].ds_addr,
 						segments[i].ds_len);
 		printf("\n");
 END_DEBUG
@@ -2003,7 +2003,7 @@ END_DEBUG
 #if 1			/* XXX LSI Logic "< 16 byte" bug might be hit */
 			if (s->ds_len < 16)
 				printf("sbp_execute_ocb: warning, "
-					"segment length(%d) is less than 16."
+					"segment length(%zd) is less than 16."
 					"(seg=%d/%d)\n", s->ds_len, i+1, seg);
 #endif
 			ocb->ind_ptr[i].hi = htonl(s->ds_len << 16);
@@ -2038,7 +2038,7 @@ sbp_dequeue_ocb(struct sbp_dev *sdev, u_int32_t orb_lo)
 		next = STAILQ_NEXT(ocb, ocb);
 		flags = ocb->flags;
 SBP_DEBUG(1)
-		printf("orb: 0x%x next: 0x%x, flags %x\n",
+		printf("orb: 0x%tx next: 0x%x, flags %x\n",
 			vtophys(&ocb->orb[0]), ntohl(ocb->orb[1]), flags);
 END_DEBUG
 		if (vtophys(&ocb->orb[0]) == orb_lo) {
@@ -2084,7 +2084,7 @@ sbp_enqueue_ocb(struct sbp_dev *sdev, struct sbp_ocb *ocb)
 
 SBP_DEBUG(2)
 	sbp_show_sdev_info(sdev, 2);
-	printf("sbp_enqueue_ocb orb=0x%x in physical memory\n", vtophys(&ocb->orb[0]));
+	printf("sbp_enqueue_ocb orb=0x%tx in physical memory\n", vtophys(&ocb->orb[0]));
 END_DEBUG
 	prev = STAILQ_LAST(&sdev->ocbs, sbp_ocb, ocb);
 	STAILQ_INSERT_TAIL(&sdev->ocbs, ocb, ocb);
@@ -2097,7 +2097,7 @@ END_DEBUG
 		&& ((prev->flags & OCB_ACT_MASK) == OCB_ACT_CMD)
 		&& ((ocb->flags & OCB_ACT_MASK) == OCB_ACT_CMD)) {
 SBP_DEBUG(1)
-	printf("linking chain 0x%x -> 0x%x\n", vtophys(&prev->orb[0]),
+	printf("linking chain 0x%tx -> 0x%tx\n", vtophys(&prev->orb[0]),
 			vtophys(&ocb->orb[0]));
 END_DEBUG
 		prev->flags |= OCB_RESERVED;
