@@ -135,7 +135,8 @@ doit(f, fromp)
 	struct sockaddr_in *fromp;
 {
 	FILE *fp;
-	char cmdbuf[NCARGS+1], *cp, *namep;
+	char cmdbuf[NCARGS+1], *cp;
+	const char *namep;
 #ifdef SKEY
 	char user[16], pass[100];
 #else /* SKEY */
