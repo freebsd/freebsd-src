@@ -106,8 +106,8 @@ the Alteon AceNIC, 3Com 3c985 and Netgear GA620. [MERGED]
 
 Driver support has been added for IEEE 802.11 PCMCIA wireless network
 adapters based on the Lucent Hermes chipset, including the Lucent
-WaveLAN/IEEE 802.11 and the Cabletron RoamAbout.  Both 2Mbps and
-6Mbps Turbo adapters are supported. [MERGED]
+WaveLAN/IEEE 802.11, the Cabletron RoamAbout and Melco Aireconnect.  
+Both 2Mbps and 6Mbps Turbo adapters are supported. [MERGED]
 
 Driver support has been added for PCI fast ethernet cards based
 on the ADMtek Inc. AL981 Comet chipset. [MERGED]
@@ -128,6 +128,8 @@ the Sundance Technologies ST201 controller, including the D-Link DFE-550TX.
 [MERGED]
 
 Driver support has been added for the 3Com 3c905C-TX. [MERGED]
+
+Driver support has been added for SMC SMC9xxx-based Ethernet adapters.
 
 Several IPFW improvements including stateful inspection, user- and
 group-based firewalling, dynamic logging with arbitrary logging
@@ -284,6 +286,9 @@ The following applications have been updated to support IPv6:
 
 Many ports have been updated to support IPv6. See the 'ipv6' virtual ports
 category for a list.
+
+Sysinstall enables PC-card controllers and pccardd(8) for PC-card 
+installation media.
 
 
 2. Supported Configurations
@@ -549,7 +554,8 @@ Winbond W89C940, Surecom NE-34, VIA VT86C926.
 
 3Com 3C507 Etherlink 16/TP
 
-3Com 3C509, 3C529 (MCA) 3C579, 3C589 (PCMCIA),
+3Com 3C509, 3C529 (MCA), 3C579, 
+3C589/589B/589C/589D/589E/XE589ET/574TX/574B (PC-card/PCMCIA),
 3C590/592/595/900/905/905B/905C PCI
 and EISA (Fast) Etherlink III / (Fast) Etherlink XL
 
@@ -562,9 +568,33 @@ Toshiba ethernet cards
 Crystal Semiconductor CS89x0-based NICs, including:
   IBM Etherjet ISA
 
-PCMCIA ethernet cards from IBM and National Semiconductor are also
-supported.
+NE2000 compatible PC-Card (PCMCIA) Ethernet/FastEthernet cards,
+including the following:
+  AR-P500 Ethernet card
+  Accton EN2212/EN2216/UE2216(OEM)
+  Allied Telesis CentreCOM LA100-PCM_V2
+  AmbiCom 10BaseT card
+  BayNetworks NETGEAR FA410TXC Fast Ethernet
+  CNet BC40 adapter
+  COREGA Ether PCC-T/EtherII PCC-T
+  Compex Net-A adapter
+  CyQ've ELA-010
+  D-Link DE-650/660
+  Danpex EN-6200P2
+  IO DATA PCLATE
+  IBM Creditcard Ethernet I/II
+  IC-CARD Ethernet/IC-CARD+ Ethernet
+  Linksys EC2T/PCMPC100
+  Melco LPC-T
+  NDC Ethernet Instant-Link
+  National Semiconductor InfoMover NE4100
+  Network Everywhere Ethernet 10BaseT PC Card
+  Planex FNW-3600-T
+  Socket LP-E
+  Surecom EtherPerfect EP-427
+  Telecom Device SuperSocket RE450T
 
+Megahertz X-Jack Ethernet PC-Card CC-10BT
 
 2.3 ATM
 -------
@@ -654,10 +684,10 @@ Support for Dave Mills experimental Loran-C receiver.
 
 Lucent Technologies WaveLAN/IEEE 802.11 PCMCIA and ISA standard speed
 (2Mbps) and turbo speed (6Mbps) wireless network adapters and workalikes
-(NCR WaveLAN/IEEE 802.11, Cabletron RoamAbout 802.11 DS). Note: the
-ISA versions of these adapters are actually PCMCIA cards combined with
-an ISA to PCMCIA bridge card, so both kinds of devices work with
-the same driver.
+(NCR WaveLAN/IEEE 802.11, Cabletron RoamAbout 802.11 DS, and Melco 
+Airconnect). Note: the ISA versions of these adapters are actually PCMCIA 
+cards combined with an ISA to PCMCIA bridge card, so both kinds of 
+devices work with the same driver.
 
 Aironet 4500/4800 series 802.11 wireless adapters. The PCMCIA,
 PCI and ISA adapters are all supported.
