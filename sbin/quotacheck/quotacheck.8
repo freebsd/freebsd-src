@@ -114,10 +114,10 @@ and
 which are located at the root of the associated file system.
 These defaults may be overridden in
 .Pa /etc/fstab .
-If a file is not present, 
+If a file is not present,
 .Nm
 will create it.
-These files should be edited with the 
+These files should be edited with the
 .Xr edquota 8
 utility.
 .Pp
@@ -125,16 +125,16 @@ utility.
 is normally run at boot time from the
 .Pa /etc/rc
 file.
-The rc startup procedure is controlled by the 
+The rc startup procedure is controlled by the
 .Pa /etc/rc.conf
-variable 
+variable
 .Ar check_quotas .
-Note that to enable this functionality in 
+Note that to enable this functionality in
 .Pa /etc/rc
 you also need to enable startup quota procedures
 with the variable
-.Ar enable_quotas 
-in 
+.Ar enable_quotas
+in
 .Pa /etc/rc.conf .
 .Pp
 .Nm Quotacheck
