@@ -178,7 +178,7 @@ exec_aout_imgact(imgp)
 	/*
 	 * Destroy old process VM and create a new one (with a new stack)
 	 */
-	exec_new_vmspace(imgp);
+	exec_new_vmspace(imgp, VM_MIN_ADDRESS, VM_MAXUSER_ADDRESS, USRSTACK);
 
 	/*
 	 * The vm space can be changed by exec_new_vmspace

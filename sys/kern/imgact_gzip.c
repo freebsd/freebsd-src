@@ -229,7 +229,7 @@ do_aout_hdr(struct imgact_gzip * gz)
 	/*
 	 * Destroy old process VM and create a new one (with a new stack)
 	 */
-	exec_new_vmspace(gz->ip);
+	exec_new_vmspace(gz->ip, VM_MIN_ADDRESS, VM_MAXUSER_ADDRESS, USRSTACK);
 
 	vmspace = gz->ip->proc->p_vmspace;
 

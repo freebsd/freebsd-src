@@ -284,7 +284,10 @@ interpret:
 	/*
 	 * Copy out strings (args and env) and initialize stack base
 	 */
-	stack_base = exec_copyout_strings(imgp);
+	if (p->p_sysent->sv_copyout_strings)
+		stack_base = (*p->p_sysent->sv_copyout_strings)(imgp);
+	else
+		stack_base = exec_copyout_strings(imgp);
 
 	/*
 	 * If custom stack fixup routine present for this process
@@ -471,8 +474,12 @@ interpret:
 	p->p_args = NULL;
 
 	/* Set values passed into the program in registers. */
-	setregs(td, imgp->entry_addr, (u_long)(uintptr_t)stack_base,
-	    imgp->ps_strings);
+	if (p->p_sysent->sv_setregs)
+		(*p->p_sysent->sv_setregs)(td, imgp->entry_addr,
+		    (u_long)(uintptr_t)stack_base, imgp->ps_strings);
+	else
+		setregs(td, imgp->entry_addr, (u_long)(uintptr_t)stack_base,
+		    imgp->ps_strings);
 
 	/* Cache arguments if they fit inside our allowance */
 	if (ps_arg_cache_limit >= i + sizeof(struct pargs)) {
@@ -628,16 +635,18 @@ exec_unmap_first_page(imgp)
  *	automatically in trap.c.
  */
 int
-exec_new_vmspace(imgp)
+exec_new_vmspace(imgp, minuser, maxuser, stack_addr)
 	struct image_params *imgp;
+	vm_offset_t minuser, maxuser, stack_addr;
 {
 	int error;
 	struct execlist *ep;
 	struct proc *p = imgp->proc;
 	struct vmspace *vmspace = p->p_vmspace;
-	vm_offset_t stack_addr = USRSTACK - maxssiz;
 
 	GIANT_REQUIRED;
+
+	stack_addr = stack_addr - maxssiz;
 
 	imgp->vmspace_destroyed = 1;
 
@@ -652,13 +661,15 @@ exec_new_vmspace(imgp)
 	 * otherwise, create a new VM space so that other threads are
 	 * not disrupted
 	 */
-	if (vmspace->vm_refcnt == 1) {
+	if (vmspace->vm_refcnt == 1
+	    && vm_map_min(&vmspace->vm_map) == minuser
+	    && vm_map_max(&vmspace->vm_map) == maxuser) {
 		if (vmspace->vm_shm)
 			shmexit(p);
-		pmap_remove_pages(vmspace_pmap(vmspace), 0, VM_MAXUSER_ADDRESS);
-		vm_map_remove(&vmspace->vm_map, 0, VM_MAXUSER_ADDRESS);
+		pmap_remove_pages(vmspace_pmap(vmspace), minuser, maxuser);
+		vm_map_remove(&vmspace->vm_map, minuser, maxuser);
 	} else {
-		vmspace_exec(p);
+		vmspace_exec(p, minuser, maxuser);
 		vmspace = p->p_vmspace;
 	}
 

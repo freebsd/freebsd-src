@@ -252,6 +252,9 @@ set_boot_verbose(void *data __unused)
 }
 SYSINIT(boot_verbose, SI_SUB_TUNABLES, SI_ORDER_ANY, set_boot_verbose, NULL)
 
+static struct sysentvec null_sysvec;
+
+
 /*
  ***************************************************************************
  ****
@@ -317,11 +320,7 @@ proc0_init(void *dummy __unused)
 	session0.s_count = 1;
 	session0.s_leader = p;
 
-#ifdef __ELF__
-	p->p_sysent = &elf_freebsd_sysvec;
-#else
-	p->p_sysent = &aout_sysvec;
-#endif
+	p->p_sysent = &null_sysvec;
 
 	/*
 	 * proc_linkup was already done in init_i386() or alphainit() etc.

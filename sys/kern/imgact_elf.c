@@ -70,59 +70,30 @@
 __ElfType(Brandinfo);
 __ElfType(Auxargs);
 
-static int elf_check_header(const Elf_Ehdr *hdr);
-static int elf_freebsd_fixup(register_t **stack_base,
-    struct image_params *imgp);
-static int elf_load_file(struct proc *p, const char *file, u_long *addr,
-    u_long *entry);
-static int elf_load_section(struct proc *p,
+static int __elfN(check_header)(const Elf_Ehdr *hdr);
+static int __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
+    u_long *entry, size_t pagesize);
+static int __elfN(load_section)(struct proc *p,
     struct vmspace *vmspace, struct vnode *vp, vm_object_t object,
     vm_offset_t offset, caddr_t vmaddr, size_t memsz, size_t filsz,
-    vm_prot_t prot);
-static int exec_elf_imgact(struct image_params *imgp);
+    vm_prot_t prot, size_t pagesize);
+static int __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp);
 
 static int elf_trace = 0;
-SYSCTL_INT(_debug, OID_AUTO, elf_trace, CTLFLAG_RW, &elf_trace, 0, "");
+#if __ELF_WORD_SIZE == 32
+SYSCTL_INT(_debug, OID_AUTO, elf32_trace, CTLFLAG_RW, &elf_trace, 0, "");
+#else
+SYSCTL_INT(_debug, OID_AUTO, elf64_trace, CTLFLAG_RW, &elf_trace, 0, "");
+#endif
 
-struct sysentvec elf_freebsd_sysvec = {
-        SYS_MAXSYSCALL,
-        sysent,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        elf_freebsd_fixup,
-        sendsig,
-        sigcode,
-        &szsigcode,
-        0,
-	"FreeBSD ELF",
-	elf_coredump,
-	NULL,
-	MINSIGSTKSZ
-};
-
-static Elf_Brandinfo freebsd_brand_info = {
-						ELFOSABI_FREEBSD,
-						"FreeBSD",
-						"",
-						"/usr/libexec/ld-elf.so.1",
-						&elf_freebsd_sysvec
-					  };
-static Elf_Brandinfo *elf_brand_list[MAX_BRANDS] = {
-							&freebsd_brand_info,
-							NULL, NULL, NULL,
-							NULL, NULL, NULL, NULL
-						    };
+static Elf_Brandinfo *elf_brand_list[MAX_BRANDS];
 
 int
-elf_insert_brand_entry(Elf_Brandinfo *entry)
+__elfN(insert_brand_entry)(Elf_Brandinfo *entry)
 {
 	int i;
 
-	for (i=1; i<MAX_BRANDS; i++) {
+	for (i=0; i<MAX_BRANDS; i++) {
 		if (elf_brand_list[i] == NULL) {
 			elf_brand_list[i] = entry;
 			break;
@@ -134,11 +105,11 @@ elf_insert_brand_entry(Elf_Brandinfo *entry)
 }
 
 int
-elf_remove_brand_entry(Elf_Brandinfo *entry)
+__elfN(remove_brand_entry)(Elf_Brandinfo *entry)
 {
 	int i;
 
-	for (i=1; i<MAX_BRANDS; i++) {
+	for (i=0; i<MAX_BRANDS; i++) {
 		if (elf_brand_list[i] == entry) {
 			elf_brand_list[i] = NULL;
 			break;
@@ -150,7 +121,7 @@ elf_remove_brand_entry(Elf_Brandinfo *entry)
 }
 
 int
-elf_brand_inuse(Elf_Brandinfo *entry)
+__elfN(brand_inuse)(Elf_Brandinfo *entry)
 {
 	struct proc *p;
 	int rval = FALSE;
@@ -168,25 +139,165 @@ elf_brand_inuse(Elf_Brandinfo *entry)
 }
 
 static int
-elf_check_header(const Elf_Ehdr *hdr)
+__elfN(check_header)(const Elf_Ehdr *hdr)
 {
+	int i;
+
 	if (!IS_ELF(*hdr) ||
 	    hdr->e_ident[EI_CLASS] != ELF_TARG_CLASS ||
 	    hdr->e_ident[EI_DATA] != ELF_TARG_DATA ||
 	    hdr->e_ident[EI_VERSION] != EV_CURRENT)
 		return ENOEXEC;
 
-	if (!ELF_MACHINE_OK(hdr->e_machine))
+	/*
+	 * Make sure we have at least one brand for this machine.
+	 */
+
+	for (i=0; i<MAX_BRANDS; i++) {
+		if (elf_brand_list[i]->machine == hdr->e_machine)
+			break;
+	}
+	if (i == MAX_BRANDS)
 		return ENOEXEC;
 
 	if (hdr->e_version != ELF_TARG_VER)
 		return ENOEXEC;
-	
+
 	return 0;
 }
 
 static int
-elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_object_t object, vm_offset_t offset, caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot)
+__elfN(map_partial)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
+	vm_offset_t start, vm_offset_t end, vm_prot_t prot,
+	vm_prot_t max)
+{
+	int error, rv;
+	vm_offset_t off;
+	vm_offset_t data_buf = 0;
+
+	/*
+	 * Create the page if it doesn't exist yet. Ignore errors.
+	 */
+	vm_map_lock(map);
+	vm_map_insert(map, NULL, 0, trunc_page(start), round_page(end),
+		      max, max, 0);
+	vm_map_unlock(map);
+
+	/*
+	 * Find the page from the underlying object.
+	 */
+	if (object) {
+		vm_object_reference(object);
+		rv = vm_map_find(exec_map,
+				 object,
+				 trunc_page(offset),
+				 &data_buf,
+				 PAGE_SIZE,
+				 TRUE,
+				 VM_PROT_READ,
+				 VM_PROT_ALL,
+				 MAP_COPY_ON_WRITE | MAP_PREFAULT_PARTIAL);
+		if (rv != KERN_SUCCESS) {
+			vm_object_deallocate(object);
+			return rv;
+		}
+
+		off = offset - trunc_page(offset);
+		error = copyout((caddr_t)data_buf+off, (caddr_t)start, end - start);
+		vm_map_remove(exec_map, data_buf, data_buf + PAGE_SIZE);
+		if (error) {
+			return KERN_FAILURE;
+		}
+	}
+
+	return KERN_SUCCESS;
+}
+
+static int
+__elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
+	vm_offset_t start, vm_offset_t end, vm_prot_t prot,
+	vm_prot_t max, int cow)
+{
+	int rv;
+
+	if (start != trunc_page(start)) {
+		rv = __elfN(map_partial)(map, object, offset,
+				       start, round_page(start), prot, max);
+		if (rv)
+			return rv;
+		offset += round_page(start) - start;
+		start = round_page(start);
+	}
+	if (end != round_page(end)) {
+		rv = __elfN(map_partial)(map, object,
+				       offset + trunc_page(end) - start,
+				       trunc_page(end), end, prot, max);
+		if (rv)
+			return rv;
+		end = trunc_page(end);
+	}
+	if (end > start) {
+		if (offset & PAGE_MASK) {
+			vm_offset_t data_buf, off;
+			vm_size_t sz;
+			int error;
+
+			/*
+			 * The mapping is not page aligned. This means we have
+			 * to copy the data. Sigh.
+			 */
+			rv = vm_map_find(map, 0, 0,
+					 &start, end - start,
+					 FALSE, prot, max, 0);
+			if (rv)
+				return rv;
+			while (start < end) {
+				vm_object_reference(object);
+				rv = vm_map_find(exec_map,
+						 object,
+						 trunc_page(offset),
+						 &data_buf,
+						 2*PAGE_SIZE,
+						 TRUE,
+						 VM_PROT_READ,
+						 VM_PROT_ALL,
+						 (MAP_COPY_ON_WRITE
+						  | MAP_PREFAULT_PARTIAL));
+				if (rv != KERN_SUCCESS) {
+					vm_object_deallocate(object);
+					return rv;
+				}
+				off = offset - trunc_page(offset);
+				sz = end - start;
+				if (sz > PAGE_SIZE)
+					sz = PAGE_SIZE;
+				error = copyout((caddr_t)data_buf+off,
+						(caddr_t)start, sz);
+				vm_map_remove(exec_map, data_buf,
+					      data_buf + 2*PAGE_SIZE);
+				if (error) {
+					return KERN_FAILURE;
+				}
+				start += sz;
+			}
+			rv = KERN_SUCCESS;
+		} else {
+			vm_map_lock(map);
+			rv =  vm_map_insert(map, object, offset, start, end,
+					    prot, max, cow);
+			vm_map_unlock(map);
+		}
+		return rv;
+	} else {
+		return KERN_SUCCESS;
+	}
+}
+
+static int
+__elfN(load_section)(struct proc *p, struct vmspace *vmspace,
+	struct vnode *vp, vm_object_t object, vm_offset_t offset,
+	caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot,
+	size_t pagesize)
 {
 	size_t map_len;
 	vm_offset_t map_addr;
@@ -214,8 +325,11 @@ elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_o
 		return (ENOEXEC);
 	}
 
-	map_addr = trunc_page((vm_offset_t)vmaddr);
-	file_addr = trunc_page(offset);
+#define trunc_page_ps(va, ps)	((va) & ~(ps - 1))
+#define round_page_ps(va, ps)	(((va) + (ps - 1)) & ~(ps - 1))
+
+	map_addr = trunc_page_ps((vm_offset_t)vmaddr, pagesize);
+	file_addr = trunc_page_ps(offset, pagesize);
 
 	/*
 	 * We have two choices.  We can either clear the data in the last page
@@ -224,14 +338,13 @@ elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_o
 	 * choose the second..
 	 */
 	if (memsz > filsz)
-		map_len = trunc_page(offset+filsz) - file_addr;
+		map_len = trunc_page_ps(offset+filsz, pagesize) - file_addr;
 	else
-		map_len = round_page(offset+filsz) - file_addr;
+		map_len = round_page_ps(offset+filsz, pagesize) - file_addr;
 
 	if (map_len != 0) {
 		vm_object_reference(object);
-		vm_map_lock(&vmspace->vm_map);
-		rv = vm_map_insert(&vmspace->vm_map,
+		rv = __elfN(map_insert)(&vmspace->vm_map,
 				      object,
 				      file_addr,	/* file offset */
 				      map_addr,		/* virtual start */
@@ -239,7 +352,6 @@ elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_o
 				      prot,
 				      VM_PROT_ALL,
 				      MAP_COPY_ON_WRITE | MAP_PREFAULT);
-		vm_map_unlock(&vmspace->vm_map);
 		if (rv != KERN_SUCCESS) {
 			vm_object_deallocate(object);
 			return EINVAL;
@@ -258,26 +370,25 @@ elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_o
 	 * segment in the file is extended to provide bss.  It's a neat idea
 	 * to try and save a page, but it's a pain in the behind to implement.
 	 */
-	copy_len = (offset + filsz) - trunc_page(offset + filsz);
-	map_addr = trunc_page((vm_offset_t)vmaddr + filsz);
-	map_len = round_page((vm_offset_t)vmaddr + memsz) - map_addr;
+	copy_len = (offset + filsz) - trunc_page_ps(offset + filsz, pagesize);
+	map_addr = trunc_page_ps((vm_offset_t)vmaddr + filsz, pagesize);
+	map_len = round_page_ps((vm_offset_t)vmaddr + memsz, pagesize) - map_addr;
 
 	/* This had damn well better be true! */
-        if (map_len != 0) {
-		vm_map_lock(&vmspace->vm_map);
-		rv = vm_map_insert(&vmspace->vm_map, NULL, 0,
-					map_addr, map_addr + map_len,
-					VM_PROT_ALL, VM_PROT_ALL, 0);
-		vm_map_unlock(&vmspace->vm_map);
+	if (map_len != 0) {
+		rv = __elfN(map_insert)(&vmspace->vm_map, NULL, 0,
+			map_addr, map_addr + map_len,
+			VM_PROT_ALL, VM_PROT_ALL, 0);
 		if (rv != KERN_SUCCESS) {
-			return EINVAL; 
+			return EINVAL;
 		}
 	}
 
 	if (copy_len != 0) {
+		vm_offset_t off;
 		vm_object_reference(object);
 		rv = vm_map_find(exec_map,
-				 object, 
+				 object,
 				 trunc_page(offset + filsz),
 				 &data_buf,
 				 PAGE_SIZE,
@@ -291,7 +402,10 @@ elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_o
 		}
 
 		/* send the page fragment to user space */
-		error = copyout((caddr_t)data_buf, (caddr_t)map_addr, copy_len);
+		off = trunc_page_ps(offset + filsz, pagesize)
+			- trunc_page(offset + filsz);
+		error = copyout((caddr_t)data_buf+off, (caddr_t)map_addr,
+			copy_len);
 		vm_map_remove(exec_map, data_buf, data_buf + PAGE_SIZE);
 		if (error) {
 			return (error);
@@ -299,10 +413,11 @@ elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_o
 	}
 
 	/*
-	 * set it to the specified protection
+	 * set it to the specified protection.
+	 * XXX had better undo the damage from pasting over the cracks here!
 	 */
-	vm_map_protect(&vmspace->vm_map, map_addr, map_addr + map_len,  prot,
-		       FALSE);
+	vm_map_protect(&vmspace->vm_map, trunc_page(map_addr),
+	    round_page(map_addr + map_len),  prot, FALSE);
 
 	return error;
 }
@@ -320,7 +435,8 @@ elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_o
  * the entry point for the loaded file.
  */
 static int
-elf_load_file(struct proc *p, const char *file, u_long *addr, u_long *entry)
+__elfN(load_file)(struct proc *p, const char *file, u_long *addr,
+	u_long *entry, size_t pagesize)
 {
 	struct {
 		struct nameidata nd;
@@ -363,8 +479,8 @@ elf_load_file(struct proc *p, const char *file, u_long *addr, u_long *entry)
 	}
 
 	/* XXXKSE */
-        NDINIT(nd, LOOKUP, LOCKLEAF|FOLLOW, UIO_SYSSPACE, file, curthread);   
-			 
+	NDINIT(nd, LOOKUP, LOCKLEAF|FOLLOW, UIO_SYSSPACE, file, curthread);
+
 	if ((error = namei(nd)) != 0) {
 		nd->ni_vp = NULL;
 		goto fail;
@@ -393,10 +509,10 @@ elf_load_file(struct proc *p, const char *file, u_long *addr, u_long *entry)
 
 	VOP_UNLOCK(nd->ni_vp, 0, curthread); /* XXXKSE */
 	if (error)
-                goto fail;
+		goto fail;
 
 	hdr = (const Elf_Ehdr *)imgp->image_header;
-	if ((error = elf_check_header(hdr)) != 0)
+	if ((error = __elfN(check_header)(hdr)) != 0)
 		goto fail;
 	if (hdr->e_type == ET_DYN)
 		rbase = *addr;
@@ -426,13 +542,14 @@ elf_load_file(struct proc *p, const char *file, u_long *addr, u_long *entry)
 			if (phdr[i].p_flags & PF_R)
   				prot |= VM_PROT_READ;
 
-			if ((error = elf_load_section(p, vmspace, nd->ni_vp,
-						     imgp->object,
-  						     phdr[i].p_offset,
-  						     (caddr_t)phdr[i].p_vaddr +
-							rbase,
-  						     phdr[i].p_memsz,
-  						     phdr[i].p_filesz, prot)) != 0)
+			if ((error = __elfN(load_section)
+			     (p, vmspace, nd->ni_vp,
+			      imgp->object,
+			      phdr[i].p_offset,
+			      (caddr_t)(uintptr_t)phdr[i].p_vaddr +
+			      rbase,
+			      phdr[i].p_memsz,
+			      phdr[i].p_filesz, prot, pagesize)) != 0)
 				goto fail;
 			/*
 			 * Establish the base address if this is the
@@ -463,20 +580,10 @@ fail:
 	return error;
 }
 
-/*
- * non static, as it can be overridden by start_init()
- */
-#ifdef __ia64__
-int fallback_elf_brand = ELFOSABI_FREEBSD;
-#else
-int fallback_elf_brand = -1;
-#endif
-SYSCTL_INT(_kern, OID_AUTO, fallback_elf_brand, CTLFLAG_RW,
-		&fallback_elf_brand, -1,
-		"ELF brand of last resort");
+extern int fallback_elf_brand;
 
 static int
-exec_elf_imgact(struct image_params *imgp)
+__CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 {
 	const Elf_Ehdr *hdr = (const Elf_Ehdr *) imgp->image_header;
 	const Elf_Phdr *phdr;
@@ -486,6 +593,7 @@ exec_elf_imgact(struct image_params *imgp)
 	u_long text_size = 0, data_size = 0;
 	u_long text_addr = 0, data_addr = 0;
 	u_long addr, entry = 0, proghdr = 0;
+	vm_offset_t maxuser, usrstack, pagesize;
 	int error, i;
 	const char *interp = NULL;
 	Elf_Brandinfo *brand_info;
@@ -496,7 +604,7 @@ exec_elf_imgact(struct image_params *imgp)
 	/*
 	 * Do we have a valid ELF header ?
 	 */
-	if (elf_check_header(hdr) != 0 || hdr->e_type != ET_EXEC)
+	if (__elfN(check_header)(hdr) != 0 || hdr->e_type != ET_EXEC)
 		return -1;
 
 	/*
@@ -510,7 +618,7 @@ exec_elf_imgact(struct image_params *imgp)
 		return ENOEXEC;
 	}
 	phdr = (const Elf_Phdr*)(imgp->image_header + hdr->e_phoff);
-	
+
 	/*
 	 * From this point on, we may have resources that need to be freed.
 	 */
@@ -528,7 +636,38 @@ exec_elf_imgact(struct image_params *imgp)
 	if ((error = exec_extract_strings(imgp)) != 0)
 		goto fail;
 
-	exec_new_vmspace(imgp);
+	/*
+	 * Tentatively identify the brand based on the machine so that
+	 * we can figure out VM ranges and page sizes.
+	 */
+	brand_info = NULL;
+	for (i = 0;  i < MAX_BRANDS;  i++) {
+		Elf_Brandinfo *bi = elf_brand_list[i];
+
+		if (bi != NULL &&
+		    hdr->e_machine == bi->machine &&
+		    (hdr->e_ident[EI_OSABI] == bi->brand
+		     || 0 ==
+		     strncmp((const char *)&hdr->e_ident[OLD_EI_BRAND],
+		     bi->compat_3_brand, strlen(bi->compat_3_brand)))) {
+			brand_info = bi;
+			break;
+		}
+	}
+
+	pagesize = PAGE_SIZE;
+	maxuser = VM_MAXUSER_ADDRESS;
+	usrstack = USRSTACK;
+	if (brand_info) {
+		if (brand_info->sysvec->sv_pagesize)
+			pagesize = brand_info->sysvec->sv_pagesize;
+		if (brand_info->sysvec->sv_maxuser)
+			maxuser = brand_info->sysvec->sv_maxuser;
+		if (brand_info->sysvec->sv_usrstack)
+			usrstack = brand_info->sysvec->sv_usrstack;
+	}
+
+	exec_new_vmspace(imgp, VM_MIN_ADDRESS, maxuser, usrstack);
 
 	vmspace = imgp->proc->p_vmspace;
 
@@ -544,13 +683,23 @@ exec_elf_imgact(struct image_params *imgp)
 			if (phdr[i].p_flags & PF_R)
   				prot |= VM_PROT_READ;
 
-			if ((error = elf_load_section(imgp->proc,
-						     vmspace, imgp->vp,
-						     imgp->object,
-  						     phdr[i].p_offset,
-  						     (caddr_t)phdr[i].p_vaddr,
-  						     phdr[i].p_memsz,
-  						     phdr[i].p_filesz, prot)) != 0)
+#if defined(__ia64__) && __ELF_WORD_SIZE == 32 && defined(IA32_ME_HARDER)
+			/*
+			 * Some x86 binaries assume read == executable,
+			 * notably the M3 runtime and therefore cvsup
+			 */
+			if (prot & VM_PROT_READ)
+				prot |= VM_PROT_EXECUTE;
+#endif
+
+			if ((error = __elfN(load_section)
+			     (imgp->proc,
+			      vmspace, imgp->vp,
+			      imgp->object,
+			      phdr[i].p_offset,
+			      (caddr_t)(uintptr_t)phdr[i].p_vaddr,
+			      phdr[i].p_memsz,
+			      phdr[i].p_filesz, prot, pagesize)) != 0)
   				goto fail;
 
 			/*
@@ -611,10 +760,11 @@ exec_elf_imgact(struct image_params *imgp)
 		for (i = 0;  i < MAX_BRANDS;  i++) {
 			Elf_Brandinfo *bi = elf_brand_list[i];
 
-			if (bi != NULL && 
+			if (bi != NULL &&
+			    hdr->e_machine == bi->machine &&
 			    (hdr->e_ident[EI_OSABI] == bi->brand
-			    || 0 == 
-			    strncmp((const char *)&hdr->e_ident[OLD_EI_BRAND], 
+			    || 0 ==
+			    strncmp((const char *)&hdr->e_ident[OLD_EI_BRAND],
 			    bi->compat_3_brand, strlen(bi->compat_3_brand)))) {
 				brand_info = bi;
 				break;
@@ -628,6 +778,7 @@ exec_elf_imgact(struct image_params *imgp)
 			Elf_Brandinfo *bi = elf_brand_list[i];
 
 			if (bi != NULL &&
+			    hdr->e_machine == bi->machine &&
 			    strcmp(interp, bi->interp_path) == 0) {
 				brand_info = bi;
 				break;
@@ -640,7 +791,9 @@ exec_elf_imgact(struct image_params *imgp)
 		for (i = 0; i < MAX_BRANDS; i++) {
 			Elf_Brandinfo *bi = elf_brand_list[i];
 
-			if (bi != NULL && fallback_elf_brand == bi->brand) {
+			if (bi != NULL &&
+			    hdr->e_machine == bi->machine &&
+			    fallback_elf_brand == bi->brand) {
 				brand_info = bi;
 				break;
 			}
@@ -657,17 +810,19 @@ exec_elf_imgact(struct image_params *imgp)
 	imgp->proc->p_sysent = brand_info->sysvec;
 	if (interp != NULL) {
 		path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-	        snprintf(path, MAXPATHLEN, "%s%s",
+		snprintf(path, MAXPATHLEN, "%s%s",
 			 brand_info->emul_path, interp);
-		if ((error = elf_load_file(imgp->proc, path, &addr,
-					   &imgp->entry_addr)) != 0) {
-		        if ((error = elf_load_file(imgp->proc, interp, &addr,
-						   &imgp->entry_addr)) != 0) {
-			        uprintf("ELF interpreter %s not found\n", path);
+		if ((error = __elfN(load_file)(imgp->proc, path, &addr,
+					       &imgp->entry_addr,
+					       pagesize)) != 0) {
+			if ((error = __elfN(load_file)
+			     (imgp->proc, interp, &addr,
+			      &imgp->entry_addr, pagesize)) != 0) {
+				uprintf("ELF interpreter %s not found\n", path);
 				free(path, M_TEMP);
 				goto fail;
 			}
-                }
+		}
 		free(path, M_TEMP);
 	}
 
@@ -692,13 +847,23 @@ fail:
 	return error;
 }
 
-static int
-elf_freebsd_fixup(register_t **stack_base, struct image_params *imgp)
+#if __ELF_WORD_SIZE == 32
+#define suword	suword32
+#define stacktype u_int32_t
+#else
+#define suword	suword64
+#define stacktype u_int64_t
+#endif
+
+int
+__elfN(freebsd_fixup)(register_t **stack_base, struct image_params *imgp)
 {
 	Elf_Auxargs *args = (Elf_Auxargs *)imgp->auxargs;
-	register_t *pos;
+	stacktype *base;
+	stacktype *pos;
 
-	pos = *stack_base + (imgp->argc + imgp->envc + 2);
+	base = (stacktype *)*stack_base;
+	pos = base + (imgp->argc + imgp->envc + 2);
 
 	if (args->trace) {
 		AUXARGS_ENTRY(pos, AT_DEBUG, 1);
@@ -718,10 +883,11 @@ elf_freebsd_fixup(register_t **stack_base, struct image_params *imgp)
 	free(imgp->auxargs, M_TEMP);
 	imgp->auxargs = NULL;
 
-	(*stack_base)--;
-	suword(*stack_base, (long) imgp->argc);
+	base--;
+	suword(base, (long) imgp->argc);
+	*stack_base = (register_t *)base;
 	return 0;
-} 
+}
 
 /*
  * Code for generating ELF core dumps.
@@ -744,17 +910,17 @@ struct sseg_closure {
 static void cb_put_phdr(vm_map_entry_t, void *);
 static void cb_size_segment(vm_map_entry_t, void *);
 static void each_writable_segment(struct proc *, segment_callback, void *);
-static int elf_corehdr(struct thread *, struct vnode *, struct ucred *,
+static int __elfN(corehdr)(struct thread *, struct vnode *, struct ucred *,
     int, void *, size_t);
-static void elf_puthdr(struct proc *, void *, size_t *,
+static void __elfN(puthdr)(struct proc *, void *, size_t *,
     const prstatus_t *, const prfpregset_t *, const prpsinfo_t *, int);
-static void elf_putnote(void *, size_t *, const char *, int,
+static void __elfN(putnote)(void *, size_t *, const char *, int,
     const void *, size_t);
 
 extern int osreldate;
 
 int
-elf_coredump(td, vp, limit)
+__elfN(coredump)(td, vp, limit)
 	struct thread *td;
 	register struct vnode *vp;
 	off_t limit;
@@ -777,7 +943,7 @@ elf_coredump(td, vp, limit)
 	 * size is calculated.
 	 */
 	hdrsize = 0;
-	elf_puthdr((struct proc *)NULL, (void *)NULL, &hdrsize,
+	__elfN(puthdr)((struct proc *)NULL, (void *)NULL, &hdrsize,
 	    (const prstatus_t *)NULL, (const prfpregset_t *)NULL,
 	    (const prpsinfo_t *)NULL, seginfo.count);
 
@@ -792,7 +958,7 @@ elf_coredump(td, vp, limit)
 	if (hdr == NULL) {
 		return EINVAL;
 	}
-	error = elf_corehdr(td, vp, cred, seginfo.count, hdr, hdrsize);
+	error = __elfN(corehdr)(td, vp, cred, seginfo.count, hdr, hdrsize);
 
 	/* Write the contents of all of the writable segments. */
 	if (error == 0) {
@@ -803,8 +969,8 @@ elf_coredump(td, vp, limit)
 		php = (Elf_Phdr *)((char *)hdr + sizeof(Elf_Ehdr)) + 1;
 		offset = hdrsize;
 		for (i = 0;  i < seginfo.count;  i++) {
-			error = vn_rdwr_inchunks(UIO_WRITE, vp, 
-			    (caddr_t)php->p_vaddr,
+			error = vn_rdwr_inchunks(UIO_WRITE, vp,
+			    (caddr_t)(uintptr_t)php->p_vaddr,
 			    php->p_filesz, offset, UIO_USERSPACE,
 			    IO_UNIT | IO_DIRECT, cred, (int *)NULL, curthread); /* XXXKSE */
 			if (error != 0)
@@ -814,7 +980,7 @@ elf_coredump(td, vp, limit)
 		}
 	}
 	free(hdr, M_TEMP);
-	
+
 	return error;
 }
 
@@ -918,7 +1084,7 @@ each_writable_segment(p, func, closure)
  * the page boundary.
  */
 static int
-elf_corehdr(td, vp, cred, numsegs, hdr, hdrsize)
+__elfN(corehdr)(td, vp, cred, numsegs, hdr, hdrsize)
 	struct thread *td;
 	struct vnode *vp;
 	struct ucred *cred;
@@ -964,7 +1130,7 @@ elf_corehdr(td, vp, cred, numsegs, hdr, hdrsize)
 	/* Fill in the header. */
 	bzero(hdr, hdrsize);
 	off = 0;
-	elf_puthdr(p, hdr, &off, status, fpregset, psinfo, numsegs);
+	__elfN(puthdr)(p, hdr, &off, status, fpregset, psinfo, numsegs);
 
 	free(tempdata, M_TEMP);
 
@@ -974,7 +1140,7 @@ elf_corehdr(td, vp, cred, numsegs, hdr, hdrsize)
 }
 
 static void
-elf_puthdr(struct proc *p, void *dst, size_t *off, const prstatus_t *status,
+__elfN(puthdr)(struct proc *p, void *dst, size_t *off, const prstatus_t *status,
     const prfpregset_t *fpregset, const prpsinfo_t *psinfo, int numsegs)
 {
 	size_t ehoff;
@@ -989,11 +1155,11 @@ elf_puthdr(struct proc *p, void *dst, size_t *off, const prstatus_t *status,
 	*off += (numsegs + 1) * sizeof(Elf_Phdr);
 
 	noteoff = *off;
-	elf_putnote(dst, off, "FreeBSD", NT_PRSTATUS, status,
+	__elfN(putnote)(dst, off, "FreeBSD", NT_PRSTATUS, status,
 	    sizeof *status);
-	elf_putnote(dst, off, "FreeBSD", NT_FPREGSET, fpregset,
+	__elfN(putnote)(dst, off, "FreeBSD", NT_FPREGSET, fpregset,
 	    sizeof *fpregset);
-	elf_putnote(dst, off, "FreeBSD", NT_PRPSINFO, psinfo,
+	__elfN(putnote)(dst, off, "FreeBSD", NT_PRPSINFO, psinfo,
 	    sizeof *psinfo);
 	notesz = *off - noteoff;
 
@@ -1056,7 +1222,7 @@ elf_puthdr(struct proc *p, void *dst, size_t *off, const prstatus_t *status,
 }
 
 static void
-elf_putnote(void *dst, size_t *off, const char *name, int type,
+__elfN(putnote)(void *dst, size_t *off, const char *name, int type,
     const void *desc, size_t descsz)
 {
 	Elf_Note note;
@@ -1078,5 +1244,10 @@ elf_putnote(void *dst, size_t *off, const char *name, int type,
 /*
  * Tell kern_execve.c about it, with a little help from the linker.
  */
-static struct execsw elf_execsw = {exec_elf_imgact, "ELF"};
-EXEC_SET(elf, elf_execsw);
+#if __ELF_WORD_SIZE == 32
+static struct execsw elf_execsw = {exec_elf32_imgact, "ELF32"};
+EXEC_SET(elf32, elf_execsw);
+#else
+static struct execsw elf_execsw = {exec_elf64_imgact, "ELF64"};
+EXEC_SET(elf64, elf_execsw);
+#endif
