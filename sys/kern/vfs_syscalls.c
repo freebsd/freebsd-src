@@ -1328,8 +1328,10 @@ lseek(td, uap)
 	case L_INCR:
 		if (noneg &&
 		    (fp->f_offset < 0 ||
-		     (offset > 0 && fp->f_offset > OFF_MAX - offset)))
-			return (EOVERFLOW);
+		    (offset > 0 && fp->f_offset > OFF_MAX - offset))) {
+			error = EOVERFLOW;
+			break;
+		}
 		offset += fp->f_offset;
 		break;
 	case L_XTND:
@@ -1337,21 +1339,26 @@ lseek(td, uap)
 		error = VOP_GETATTR(vp, &vattr, cred, td);
 		VOP_UNLOCK(vp, 0, td);
 		if (error)
-			return (error);
+			break;
 		if (noneg &&
 		    (vattr.va_size > OFF_MAX ||
-		     (offset > 0 && vattr.va_size > OFF_MAX - offset)))
-			return (EOVERFLOW);
+		    (offset > 0 && vattr.va_size > OFF_MAX - offset))) {
+			error = EOVERFLOW;
+			break;
+		}
 		offset += vattr.va_size;
 		break;
 	case L_SET:
 		break;
 	default:
-		fdrop(fp, td);
-		return (EINVAL);
+		error = EINVAL;
 	}
-	if (noneg && offset < 0)
-		return (EINVAL);
+	if (error == 0 && noneg && offset < 0)
+		error = EINVAL;
+	if (error != 0) {
+		fdrop(fp, td);
+		return (error);
+	}
 	fp->f_offset = offset;
 	*(off_t *)(td->td_retval) = fp->f_offset;
 	fdrop(fp, td);
