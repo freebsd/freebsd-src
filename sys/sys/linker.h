@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: linker.h,v 1.12 1999/01/25 08:42:24 dfr Exp $
+ *	$Id: linker.h,v 1.13 1999/01/27 21:50:00 dillon Exp $
  */
 
 #ifndef _SYS_LINKER_H_
@@ -64,13 +64,13 @@ struct linker_file_ops {
      * set *address the value of the symbol.
      */
     int			(*lookup_symbol)(linker_file_t, const char* name,
-					 linker_sym_t* sym);
+					 c_linker_sym_t* sym);
 
-    int			(*symbol_values)(linker_file_t, linker_sym_t,
+    int			(*symbol_values)(linker_file_t, c_linker_sym_t,
 					 linker_symval_t*);
 
     int			(*search_symbol)(linker_file_t, caddr_t value,
-					 linker_sym_t* sym, long* diffp);
+					 c_linker_sym_t* sym, long* diffp);
 
     /*
      * Unload a file, releasing dependancies and freeing storage.
@@ -193,9 +193,9 @@ char *linker_search_path(const char *filename);
 /*
  * DDB Helpers, tuned specifically for ddb/db_kld.c
  */
-int linker_ddb_lookup(char *symstr, linker_sym_t *sym);
-int linker_ddb_search_symbol(caddr_t value, linker_sym_t *sym, long *diffp);
-int linker_ddb_symbol_values(linker_sym_t sym, linker_symval_t *symval);
+int linker_ddb_lookup(const char *symstr, c_linker_sym_t *sym);
+int linker_ddb_search_symbol(caddr_t value, c_linker_sym_t *sym, long *diffp);
+int linker_ddb_symbol_values(c_linker_sym_t sym, linker_symval_t *symval);
 
 
 #endif	/* KERNEL */

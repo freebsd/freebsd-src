@@ -1,4 +1,4 @@
-/* $Id: db_elf.c,v 1.4 1998/10/09 23:32:03 peter Exp $ */
+/* $Id: db_elf.c,v 1.5 1999/01/27 19:00:49 dillon Exp $ */
 /*	$NetBSD: db_elf.c,v 1.4 1998/05/03 18:49:54 thorpej Exp $	*/
 
 /*-
@@ -354,7 +354,7 @@ X_db_line_at_pc(symtab, cursym, filename, linenum, off)
 boolean_t
 X_db_sym_numargs(symtab, cursym, nargp, argnamep)
 	db_symtab_t *symtab;
-	db_sym_t cursym;
+	c_db_sym_t cursym;
 	int *nargp;
 	char **argnamep;
 {
