@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)vmstat.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: vmstat.c,v 1.24 1998/07/06 21:01:54 bde Exp $";
+	"$Id: vmstat.c,v 1.25 1998/09/15 08:16:43 gibbs Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -154,6 +154,7 @@ devstat_select_mode select_mode;
 struct	vmmeter sum, osum;
 
 int	winlines = 20;
+int	nflag = 0;
 
 kvm_t *kd;
 
@@ -212,6 +213,7 @@ main(argc, argv)
 			nlistf = optarg;
 			break;
 		case 'n':
+			nflag = 1;
 			maxshowdevs = atoi(optarg);
 			if (maxshowdevs < 0)
 				errx(1, "number of devices %d is < 0",
@@ -348,6 +350,9 @@ getdrivedata(argv)
 		specified_devices[num_devices_specified - 1] = *argv;
 	}
 	dev_select = NULL;
+
+	if (nflag == 0 && maxshowdevs < num_devices_specified)
+			maxshowdevs = num_devices_specified;
 
 	/*
 	 * People are generally only interested in disk statistics when
