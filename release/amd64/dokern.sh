@@ -3,50 +3,51 @@
 # $FreeBSD$
 #
 
-sed	-e '/	pty	/d' \
-	-e '/	pass	/d' \
-	-e '/	apm$/d' \
-	-e '/	pmtimer$/d' \
-	-e '/	ppp	/d' \
-	-e '/	gif	/d' \
-	-e '/	faith	/d' \
-	-e '/	random	/d' \
-	-e '/	splash$/d' \
-	-e '/PROCFS/d' \
-	-e '/PSEUDOFS/d' \
-	-e '/KTRACE/d' \
-	-e '/SYSV/d' \
-	-e '/SOFTUPDATES/d' \
-	-e '/UFS_ACL/d' \
-	-e '/UFS_DIRHASH/d' \
-	-e '/MFS/d' \
-	-e '/NFSSERVER/d' \
-	-e '/NFS_ROOT/d' \
- 	-e '/DEBUG/d' \
- 	-e '/DDB/d' \
- 	-e '/INVARIANTS/d' \
- 	-e '/INVARIANT_SUPPORT/d' \
- 	-e '/WITNESS/d' \
+sed	\
 	-e '/AHC_REG_PRETTY_PRINT/d' \
 	-e '/AHD_REG_PRETTY_PRINT/d' \
 	-e '/COMPAT_FREEBSD4/d' \
-	-e '/	ncr	/d' \
-	-e '/	pcm/d' \
+	-e '/DDB/d' \
+	-e '/DEBUG/d' \
+	-e '/INVARIANTS/d' \
+	-e '/INVARIANT_SUPPORT/d' \
+	-e '/KTRACE/d' \
+	-e '/MFS/d' \
+	-e '/NFSSERVER/d' \
+	-e '/NFS_ROOT/d' \
+	-e '/PROCFS/d' \
+	-e '/PSEUDOFS/d' \
+	-e '/SOFTUPDATES/d' \
+	-e '/SYSV/d' \
+	-e '/UFS_ACL/d' \
+	-e '/UFS_DIRHASH/d' \
+	-e '/WITNESS/d' \
 	-e '/	agp	/d' \
+	-e '/	apm$/d' \
 	-e '/	atapist	/d' \
+	-e '/	faith	/d' \
+	-e '/	gif	/d' \
 	-e '/	lpt	/d' \
+	-e '/	ncr	/d' \
+	-e '/	pass	/d' \
+	-e '/	pcm/d' \
+	-e '/	pmtimer$/d' \
 	-e '/	ppi	/d' \
-	-e '/	txp	/d' \
+	-e '/	ppp	/d' \
+	-e '/	pty	/d' \
+	-e '/	random	/d' \
+	-e '/	ses	/d' \
 	-e '/	sf	/d' \
+	-e '/	splash	/d' \
+	-e '/	splash$/d' \
 	-e '/	ste	/d' \
+	-e '/	tun	/d' \
+	-e '/	txp	/d' \
 	-e '/	ugen	/d' \
 	-e '/	uhid	/d' \
 	-e '/	ulpt	/d' \
 	-e '/	urio	/d' \
 	-e '/	uscanner	/d' \
-	-e '/	ses	/d' \
-	-e '/	splash	/d' \
-	-e '/	tun	/d' \
 	-e '/maxusers/d' \
 	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
 
