@@ -237,8 +237,9 @@ rcattach(dvp)
 	rcb->rcb_addr   = nec;
 	rcb->rcb_dtr    = 0;
 	rcb->rcb_baserc = rc;
+	rcb->rcb_unit	= dvp->id_unit;
 	/*rcb->rcb_chipid = 0x10 + dvp->id_unit;*/
-	printf("rc%d: %d chans, firmware rev. %c\n", dvp->id_unit,
+	printf("rc%d: %d chans, firmware rev. %c\n", rcb->rcb_unit,
 		CD180_NCHAN, (rcin(CD180_GFRCR) & 0xF) + 'A');
 
 	for (chan = 0; chan < CD180_NCHAN; chan++, rc++) {
@@ -253,7 +254,7 @@ rcattach(dvp)
 		rc->rc_dtrwait = 3 * hz;
 		rc->rc_dcdwaits= 0;
 		rc->rc_hotchar = 0;
-		tp = rc->rc_tp = &rc_tty[chan];
+		tp = rc->rc_tp = &rc_tty[chan + (dvp->id_unit * CD180_NCHAN)];
 		ttychars(tp);
 		tp->t_lflag = tp->t_iflag = tp->t_oflag = 0;
 		tp->t_cflag = TTYDEF_CFLAG;
