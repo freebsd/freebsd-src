@@ -29,8 +29,23 @@
 void feeder_register(void *p);
 pcm_feeder *feeder_get(struct pcm_feederdesc *desc);
 pcm_feeder *feeder_getroot(void);
+int feeder_set(pcm_feeder *feeder, int what, int value);
 
-u_int32_t chn_feedchain(pcm_channel *c, u_int32_t *to);
+u_int32_t chn_fmtchain(pcm_channel *c, u_int32_t *to);
+int chn_addfeeder(pcm_channel *c, pcm_feeder *f);
 int chn_removefeeder(pcm_channel *c);
+pcm_feeder *chn_findfeeder(pcm_channel *c, u_int32_t type);
+
+#define FEEDER_DECLARE(feeder) SYSINIT(feeder, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, feeder_register, &feeder)
+
+#define FEEDER_ROOT	1
+#define FEEDER_FMT 	2
+#define FEEDER_RATE 	3
+#define FEEDER_FILTER 	4
+#define FEEDER_VOLUME 	5
+#define FEEDER_LAST	FEEDER_VOLUME
+
+#define FEEDRATE_SRC	1
+#define FEEDRATE_DST	2
 
 
