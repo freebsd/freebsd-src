@@ -50,7 +50,8 @@ The
 system call
 can be used to create new processes without fully copying the address
 space of the old process, which is horrendously inefficient in a paged
-environment.  It is useful when the purpose of
+environment.
+It is useful when the purpose of
 .Xr fork 2
 would have been to create a new system context for an
 .Xr execve 2 .

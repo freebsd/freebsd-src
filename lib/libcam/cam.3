@@ -121,8 +121,10 @@
 .Fc
 .Sh DESCRIPTION
 The CAM library consists of a number of functions designed to aid in
-programming with the CAM subsystem.  This man page covers the basic set of
-library functions.  More functions are documented in the man pages listed
+programming with the CAM subsystem.
+This man page covers the basic set of
+library functions.
+More functions are documented in the man pages listed
 below.
 .Pp
 Many of the CAM library functions use the
@@ -181,29 +183,35 @@ takes as arguments a string describing the device it is to open, and
 suitable for passing to
 .Xr open 2 .
 The "path" passed in may actually be most any type of string that contains
-a device name and unit number to be opened.  The string will be parsed by
+a device name and unit number to be opened.
+The string will be parsed by
 .Fn cam_get_device
-into a device name and unit number.  Once the device name and unit number
+into a device name and unit number.
+Once the device name and unit number
 are determined, a lookup is performed to determine the passthrough device
 that corresponds to the given device.
 .Fn cam_open_device
 is rather simple to use, but it isn't really suitable for general use
-because its behavior isn't necessarily deterministic.  Programmers writing
+because its behavior isn't necessarily deterministic.
+Programmers writing
 new applications should make the extra effort to use one of the other open
 routines documented below.
 .Pp
 .Fn cam_open_spec_device
 opens the
 .Xr pass 4
-device that corresponds to the device name and unit number passed in.  The
+device that corresponds to the device name and unit number passed in.
+The
 .Ar flags
 should be flags suitable for passing to
 .Xr open 2 .
 The
 .Ar device
-argument is optional.  The user may supply pre-allocated space for the
+argument is optional.
+The user may supply pre-allocated space for the
 .Va cam_device
-structure.  If the
+structure.
+If the
 .Ar device
 argument is
 .Va NULL ,
@@ -219,11 +227,14 @@ is similar to
 except that it takes a
 .Tn SCSI
 bus, target and logical unit instead of a device name and unit number as
-arguments.  The
+arguments.
+The
 .Va path_id
 argument is the CAM equivalent of a
 .Tn SCSI
-bus number.  It represents the logical bus number in the system.  The
+bus number.
+It represents the logical bus number in the system.
+The
 .Ar flags
 should be flags suitable for passing to
 .Xr open 2 .
@@ -238,10 +249,12 @@ takes as an argument the
 .Fa path
 of a
 .Xr pass 4
-device to open.  No translation or lookup is performed, so the path passed
+device to open.
+No translation or lookup is performed, so the path passed
 in must be that of a CAM
 .Xr pass 4
-device.  The
+device.
+The
 .Fa flags
 should be flags suitable for passing to
 .Xr open 2 .
@@ -258,15 +271,18 @@ structure.
 frees the
 .Va cam_device
 structure allocated by one of the above open() calls, and closes the file
-descriptor to the passthrough device.  This routine should not be called if
+descriptor to the passthrough device.
+This routine should not be called if
 the user allocated space for the
 .Va cam_device
-structure.  Instead, the user should call
+structure.
+Instead, the user should call
 .Fn cam_close_spec_device .
 .Pp
 .Fn cam_close_spec_device
 merely closes the file descriptor opened in one of the open() routines
-described above.  This function should be called when the
+described above.
+This function should be called when the
 .Va cam_device
 structure was allocated by the caller, rather than the CAM library.
 .Pp
@@ -297,7 +313,8 @@ takes as arguments a
 structure, and a string with length
 .Fa len .
 It creates a colon-terminated printing prefix string similar to the ones
-used by the kernel.  e.g.:  "(cd0:ahc1:0:4:0): ".
+used by the kernel.
+e.g.:  "(cd0:ahc1:0:4:0): ".
 .Fn cam_path_string
 will place at most
 .Fa len Ns \-1
@@ -370,7 +387,8 @@ returns a value of -1 if an error occured, and
 is set to indicate the error.
 .Pp
 .Fn cam_path_string
-returns a filled printing prefix string as a convenience.  This is the same
+returns a filled printing prefix string as a convenience.
+This is the same
 .Fa str
 that is passed into
 .Fn cam_path_string .
@@ -403,11 +421,13 @@ The CAM library first appeared in
 .Fn cam_open_device
 doesn't check to see if the
 .Fa path
-passed in is a symlink to something.  It also doesn't check to see if the
+passed in is a symlink to something.
+It also doesn't check to see if the
 .Fa path
 passed in is an actual
 .Xr pass 4
-device.  The former would be rather easy to implement, but the latter would
+device.
+The former would be rather easy to implement, but the latter would
 require a definitive way to identify a device node as a
 .Xr pass 4
 device.

@@ -78,7 +78,8 @@ will return a value of
 .Vt ( void * ) Ns Dv NULL
 and the function will fail.
 .Pp
-This function may cause memory to be allocated.  The caller should
+This function may cause memory to be allocated.
+The caller should
 free any releasable memory, when the new qualifier is no longer
 required, by calling
 .Fn acl_free
@@ -102,7 +103,8 @@ fails if:
 .It Bq Er EINVAL
 Argument
 .Fa entry_d
-does not point to a valid descriptor for an ACL entry.  The
+does not point to a valid descriptor for an ACL entry.
+The
 value of the tag type in the ACL entry referenced by argument
 .Fa entry_d
 is not

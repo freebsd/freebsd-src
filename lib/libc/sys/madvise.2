@@ -70,23 +70,28 @@ pages immediately preceding a given page when it is faulted in.
 .It Dv MADV_WILLNEED
 Causes pages that are in a given virtual address range
 to temporarily have higher priority, and if they are in
-memory, decrease the likelihood of them being freed.  Additionally,
+memory, decrease the likelihood of them being freed.
+Additionally,
 the pages that are already in memory will be immediately mapped into
 the process, thereby eliminating unnecessary overhead of going through
-the entire process of faulting the pages in.  This WILL NOT fault
+the entire process of faulting the pages in.
+This WILL NOT fault
 pages in from backing store, but quickly map the pages already in memory
 into the calling process.
 .It Dv MADV_DONTNEED
 Allows the VM system to decrease the in-memory priority
-of pages in the specified range.  Additionally future references to
+of pages in the specified range.
+Additionally future references to
 this address range will incur a page fault.
 .It Dv MADV_FREE
 Gives the VM system the freedom to free pages,
 and tells the system that information in the specified page range
-is no longer important.  This is an efficient way of allowing
+is no longer important.
+This is an efficient way of allowing
 .Xr malloc 3
 to free pages anywhere in the address space, while keeping the address space
-valid.  The next time that the page is referenced, the page might be demand
+valid.
+The next time that the page is referenced, the page might be demand
 zeroed, or might contain the data that was there before the
 .Dv MADV_FREE
 call.
@@ -95,9 +100,11 @@ page the information back in from backing store until the page is
 modified again.
 .It Dv MADV_NOSYNC
 Request that the system not flush the data associated with this map to
-physical backing store unless it needs to.  Typically this prevents the
+physical backing store unless it needs to.
+Typically this prevents the
 file system update daemon from gratuitously writing pages dirtied
-by the VM system to physical disk.  Note that VM/file system coherency is
+by the VM system to physical disk.
+Note that VM/file system coherency is
 always maintained, this feature simply ensures that the mapped data is
 only flush when it needs to be, usually by the system pager.
 .Pp
@@ -106,14 +113,17 @@ memory area to communicate between processes (IPC) and do not particularly
 need the data being stored in that area to be physically written to disk.
 With this feature you get the equivalent performance with mmap that you
 would expect to get with SysV shared memory calls, but in a more controllable
-and less restrictive manner.  However, note that this feature is not portable
+and less restrictive manner.
+However, note that this feature is not portable
 across UNIX platforms (though some may do the right thing by default).
 For more information see the MAP_NOSYNC section of
 .Xr mmap 2
 .It Dv MADV_AUTOSYNC
 Undoes the effects of MADV_NOSYNC for any future pages dirtied within the
-address range.  The effect on pages already dirtied is indeterminate - they
-may or may not be reverted.  You can guarantee reversion by using the
+address range.
+The effect on pages already dirtied is indeterminate - they
+may or may not be reverted.
+You can guarantee reversion by using the
 .Xr msync 2
 or
 .Xr fsync 2

@@ -87,7 +87,7 @@ The flag value is specified by
 any of the following values:
 .Bl -tag -width indent
 .It Dv R_DUP
-Permit duplicate keys in the tree, i.e. permit insertion if the key to be
+Permit duplicate keys in the tree, i.e., permit insertion if the key to be
 inserted already exists in the tree.
 The default behavior, as described in
 .Xr dbopen 3 ,
@@ -145,7 +145,7 @@ Not currently implemented.
 .It Va minkeypage
 The minimum number of keys which will be stored on any single page.
 This value is used to determine which keys will be stored on overflow
-pages, i.e. if a key or data item is longer than the pagesize divided
+pages, i.e., if a key or data item is longer than the pagesize divided
 by the minkeypage value, it will be stored on overflow pages instead
 of in the page itself.
 If

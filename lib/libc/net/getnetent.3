@@ -72,7 +72,8 @@ broken-out fields of a line in the network data base
 .Pa /etc/networks ,
 or entries supplied by the
 .Xr yp 8
-system.  The order of the lookups is controlled by the
+system.
+The order of the lookups is controlled by the
 `networks' entry in
 .Xr nsswitch.conf 5 .
 .Pp
@@ -94,7 +95,8 @@ A zero terminated list of alternate names for the network.
 .It Fa n_addrtype
 The type of the network number returned; currently only AF_INET.
 .It Fa n_net
-The network number.  Network numbers are returned in machine byte
+The network number.
+Network numbers are returned in machine byte
 order.
 .El
 .Pp
@@ -106,7 +108,8 @@ reads the next line of the file, opening the file if necessary.
 The
 .Fn setnetent
 function
-opens and rewinds the file.  If the
+opens and rewinds the file.
+If the
 .Fa stayopen
 flag is non-zero,
 the net data base will not be closed after each call to

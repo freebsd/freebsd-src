@@ -67,7 +67,8 @@ The
 .Fn property_find
 function returns the associated value string for the property named
 .Fa name
-if found, otherwise NULL.  The value returned may be up to
+if found, otherwise NULL.
+The value returned may be up to
 .Dv PROPERTY_MAX_VALUE
 bytes in length.
 .Pp
@@ -84,9 +85,11 @@ where
 is an alphanumeric string (and any punctuation not including the `=' character)
 and
 .Fa value
-is an arbitary string of text terminated by a newline character.  If newlines
+is an arbitary string of text terminated by a newline character.
+If newlines
 are desired, the entire value should be enclosed in { } (curly-bracket)
-characters.  Any line beginning with a # or ; character is assumed to
+characters.
+Any line beginning with a # or ; character is assumed to
 be a comment and will be ignored.
 .Sh SEE ALSO
 .Xr auth_getval 3

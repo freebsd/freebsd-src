@@ -102,7 +102,8 @@ system clock are rounded up to this resolution
 .Pp
 The
 .Dv ITIMER_REAL
-timer decrements in real time.  A
+timer decrements in real time.
+A
 .Dv SIGALRM
 signal is
 delivered when this timer expires.
@@ -110,7 +111,8 @@ delivered when this timer expires.
 The
 .Dv ITIMER_VIRTUAL
 timer decrements in process virtual time.
-It runs only when the process is executing.  A
+It runs only when the process is executing.
+A
 .Dv SIGVTALRM
 signal
 is delivered when it expires.
@@ -118,7 +120,8 @@ is delivered when it expires.
 The
 .Dv ITIMER_PROF
 timer decrements both in process virtual time and
-when the system is running on behalf of the process.  It is designed
+when the system is running on behalf of the process.
+It is designed
 to be used by interpreters in statistically profiling the execution
 of interpreted programs.
 Each time the
@@ -126,7 +129,8 @@ Each time the
 timer expires, the
 .Dv SIGPROF
 signal is
-delivered.  Because this signal may interrupt in-progress
+delivered.
+Because this signal may interrupt in-progress
 system calls, programs using this timer must be prepared to
 restart interrupted system calls.
 .Pp

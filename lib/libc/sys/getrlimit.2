@@ -103,11 +103,13 @@ this defines how far a program's stack segment may be extended.
 Stack extension is performed automatically by the system.
 .El
 .Pp
-A resource limit is specified as a soft limit and a hard limit.  When a
+A resource limit is specified as a soft limit and a hard limit.
+When a
 soft limit is exceeded a process may receive a signal (for example, if
 the cpu time or file size is exceeded), but it will be allowed to
 continue execution until it reaches the hard limit (or modifies
-its resource limit).  The
+its resource limit).
+The
 .Vt rlimit
 structure is used to specify the hard and soft limits on a resource,
 .Bd -literal -offset indent
@@ -117,7 +119,8 @@ struct rlimit {
 };
 .Ed
 .Pp
-Only the super-user may raise the maximum limits.  Other users
+Only the super-user may raise the maximum limits.
+Other users
 may only alter
 .Fa rlim_cur
 within the range from 0 to
@@ -152,7 +155,8 @@ A file I/O operation that would create a file larger that the process'
 soft limit will cause the write to fail and a signal
 .Dv SIGXFSZ
 to be
-generated; this normally terminates the process, but may be caught.  When
+generated; this normally terminates the process, but may be caught.
+When
 the soft cpu time limit is exceeded, a signal
 .Dv SIGXCPU
 is sent to the

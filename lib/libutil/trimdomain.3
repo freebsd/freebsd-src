@@ -44,10 +44,12 @@ removes the current domain name from the passed
 .Ar fullhost
 name by writing a
 .Dv NUL
-character over the first period of the passed name.  The current domain
+character over the first period of the passed name.
+The current domain
 name is determined by calling
 .Xr gethostname 3
-and removing everything up to the first period.  The name is determined
+and removing everything up to the first period.
+The name is determined
 the first time this function is called and is cached for future use.
 .Pp
 The

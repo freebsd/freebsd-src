@@ -217,15 +217,19 @@ flag then the caller wants all addresses: IPv6 and IPv4-mapped IPv6.
 A query is first made for
 .Li AAAA
 records and if successful, the
-IPv6 addresses are returned.  Another query is then made for
+IPv6 addresses are returned.
+Another query is then made for
 .Li A
 records and any found are returned as IPv4-mapped IPv6 addresses.
 .Li h_length
-will be 16.  Only if both queries fail does the function
+will be 16.
+Only if both queries fail does the function
 return a
 .Dv NULL
-pointer.  This flag is ignored unless af equals
-AF_INET6.  If both
+pointer.
+This flag is ignored unless af equals
+AF_INET6.
+If both
 .Dv AI_ALL
 and
 .Dv AI_V4MAPPED

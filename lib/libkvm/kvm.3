@@ -64,7 +64,8 @@ The
 .Fn kvm_open
 function is first called to obtain a descriptor for all subsequent calls.
 .Sh COMPATIBILITY
-The kvm interface was first introduced in SunOS.  A considerable
+The kvm interface was first introduced in SunOS.
+A considerable
 number of programs have been developed that use this interface,
 making backward compatibility highly desirable.
 In most respects, the Sun kvm interface is consistent and clean.
@@ -77,11 +78,13 @@ and
 .Fn kvm_nlist )
 has been incorporated into the
 .Bx
-interface.  Indeed, many kvm
+interface.
+Indeed, many kvm
 applications (i.e., debuggers and statistical monitors) use only
 this subset of the interface.
 .Pp
-The process interface was not kept.  This is not a portability
+The process interface was not kept.
+This is not a portability
 issue since any code that manipulates processes is inherently
 machine dependent.
 .Pp

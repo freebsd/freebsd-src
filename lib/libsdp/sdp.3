@@ -101,7 +101,8 @@ and
 macros are used to get byte, short, long, long long and 128-bit integer
 from the buffer pointed by
 .Vt cp
-pointer. The pointer is automatically advanced.
+pointer.
+The pointer is automatically advanced.
 .Pp
 The
 .Fn SDP_PUT8 ,
@@ -113,7 +114,8 @@ and
 macros are used to put byte, short, long, long long and 128-bit integer
 into the buffer pointed by
 .Vt cp
-pointer. The pointer is automatically advanced.
+pointer.
+The pointer is automatically advanced.
 .Pp
 .Fn sdp_open
 and
@@ -192,7 +194,8 @@ parameter is the length of the Service Search pattern.
 The
 .Vt ap
 parameter is a Attribute ID Range List - an array of one or more SDP Attribute
-ID Range. Each attribute ID Range is encoded as a 32-bit unsigned integer data
+ID Range.
+Each attribute ID Range is encoded as a 32-bit unsigned integer data
 element, where the high order 16 bits are interpreted as the beginning
 attribute ID of the range and the low order 16 bits are interpreted as the
 ending attribute ID of the range.
@@ -241,7 +244,7 @@ The
 .Fn sdp_search
 function will fill each
 .Vt sdp_attr_t
-structure with attribute and value, i.e. it will set
+structure with attribute and value, i.e., it will set
 .Vt flags ,
 .Vt attr
 and

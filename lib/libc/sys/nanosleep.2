@@ -51,7 +51,8 @@
 The
 .Fn nanosleep
 system call
-causes the process to sleep for the specified time.  An unmasked signal will
+causes the process to sleep for the specified time.
+An unmasked signal will
 cause it to terminate the sleep early, regardless of the
 .Dv SA_RESTART
 value on the interrupting signal.

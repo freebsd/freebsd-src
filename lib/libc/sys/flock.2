@@ -93,7 +93,8 @@ after other processes have gained and released the lock).
 .Pp
 Requesting a lock on an object that is already locked
 normally causes the caller to be blocked until the lock may be
-acquired.  If
+acquired.
+If
 .Dv LOCK_NB
 is included in
 .Fa operation ,
@@ -102,13 +103,15 @@ the error
 .Er EWOULDBLOCK
 will be returned.
 .Sh NOTES
-Locks are on files, not file descriptors.  That is, file descriptors
+Locks are on files, not file descriptors.
+That is, file descriptors
 duplicated through
 .Xr dup 2
 or
 .Xr fork 2
 do not result in multiple instances of a lock, but rather multiple
-references to a single lock.  If a process holding a lock on a file
+references to a single lock.
+If a process holding a lock on a file
 forks and the child explicitly unlocks the file, the parent will
 lose its lock.
 .Pp

@@ -144,11 +144,13 @@ takes an Internet address and returns an
 .Tn ASCII
 string representing the address in
 .Ql .\&
-notation.  The routine
+notation.
+The routine
 .Fn inet_makeaddr
 takes an Internet network number and a local
 network address and constructs an Internet address
-from it.  The routines
+from it.
+The routines
 .Fn inet_netof
 and
 .Fn inet_lnaof
@@ -174,7 +176,8 @@ a
 .Pp
 When four parts are specified, each is interpreted
 as a byte of data and assigned, from left to right,
-to the four bytes of an Internet address.  Note
+to the four bytes of an Internet address.
+Note
 that when an Internet address is viewed as a 32-bit
 integer quantity on the
 .Tn VAX
@@ -220,7 +223,8 @@ and
 .Fn inet_ntoa
 functions are semi-deprecated in favor of the
 .Xr addr2ascii 3
-family.  However, since those functions are not yet widely implemented,
+family.
+However, since those functions are not yet widely implemented,
 portable programs cannot rely on their presence and will continue
 to use the
 .Xr inet 3

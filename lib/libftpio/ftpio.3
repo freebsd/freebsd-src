@@ -93,7 +93,8 @@ function attempts to log in using the supplied
 .Fa ftp_port
 defaults to the standard ftp port of 21) and
 .Fa verbose
-fields.  If it is successful, a
+fields.
+If it is successful, a
 standard stream descriptor is returned which should be passed to
 subsequent FTP operations.
 On failure, NULL is returned and
@@ -104,7 +105,8 @@ The
 .Fn ftpChdir
 function attempts to issue a server CD command to the directory named in
 .Fa dir .
-On success, zero is returned.  On failure, the error code from the server.
+On success, zero is returned.
+On failure, the error code from the server.
 .Pp
 The
 .Fn ftpErrno
@@ -121,14 +123,16 @@ function attempts to retrieve the file named by the
 argument (which is assumed to be relative to the FTP server's current directory,
 see
 .Fn ftpChdir )
-and returns a new FILE* pointer for the file or NULL on failure.  If
+and returns a new FILE* pointer for the file or NULL on failure.
+If
 .Fa seekto
 is non-NULL, the contents of the integer it points to will be used
 as a restart point for the file, that is to say that the stream
 returned will point
 .Fa *seekto
 bytes into the file gotten (this is handy for restarting failed
-transfers efficiently).  If the seek operation fails, the value
+transfers efficiently).
+If the seek operation fails, the value
 of
 .Fa *seekto
 will be zero'd.
@@ -137,13 +141,15 @@ The
 .Fn ftpGetModtime
 function returns the last modification time of the file named by the
 .Fa file
-argument.  If the file could not be opened or stat'd, 0 is returned.
+argument.
+If the file could not be opened or stat'd, 0 is returned.
 .Pp
 The
 .Fn ftpGetSize
 function returns the size in bytes of the file named by the
 .Fa file
-argument.  If the file could not be opened or stat'd, -1 is returned.
+argument.
+If the file could not be opened or stat'd, -1 is returned.
 .Pp
 The
 .Fn ftpPut
@@ -195,7 +201,8 @@ and
 operations except that no server
 .Fa stream
 is ever returned - the connection to the server closes when
-the file has been completely read.  Use the lower-level routines
+the file has been completely read.
+Use the lower-level routines
 if multiple gets are required as it will be far more efficient.
 .Pp
 The
@@ -208,7 +215,8 @@ and can be considered equivalent to the combined
 and
 .Fn ftpPut
 operations except that no server stream is ever returned - the connection
-to the server closes when the file has been completely written.  Use the
+to the server closes when the file has been completely written.
+Use the
 lower-level routines if multiple puts are required as it will be far more
 efficient.
 .Pp
@@ -242,7 +250,8 @@ all my tests.
 .Sh HISTORY
 Started life as Poul-Henning Kamp's ftp driver for the system installation
 utility, later significantly mutated into a more general form as an
-extension of stdio by Jordan Hubbard.  Also incorporates some ideas and
+extension of stdio by Jordan Hubbard.
+Also incorporates some ideas and
 extensions from Jean-Marc Zucconi.
 .Sh AUTHORS
 .An Jordan Hubbard ,

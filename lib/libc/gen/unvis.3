@@ -60,7 +60,8 @@ are used to decode a visual representation of characters, as produced
 by the
 .Xr vis 3
 function, back into
-the original form.  Unvis is called with successive characters in
+the original form.
+Unvis is called with successive characters in
 .Fa c
 until a valid
 sequence is recognized, at which time the decoded character is
@@ -83,7 +84,8 @@ decoding any escape sequences along the way,
 and returns the number of characters placed into
 .Fa dst ,
 or \-1 if an
-invalid escape sequence was detected.  The size of
+invalid escape sequence was detected.
+The size of
 .Fa dst
 should be
 equal to the size of
@@ -106,20 +108,24 @@ The
 .Fn unvis
 function
 implements a state machine that can be used to decode an arbitrary
-stream of bytes.  All state associated with the bytes being decoded
+stream of bytes.
+All state associated with the bytes being decoded
 is stored outside the
 .Fn unvis
 function (that is, a pointer to the state is passed in), so
-calls decoding different streams can be freely intermixed.  To
+calls decoding different streams can be freely intermixed.
+To
 start decoding a stream of bytes, first initialize an integer
-to zero.  Call
+to zero.
+Call
 .Fn unvis
 with each successive byte, along with a pointer
 to this integer, and a pointer to a destination character.
 The
 .Fn unvis
 function
-has several return codes that must be handled properly.  They are:
+has several return codes that must be handled properly.
+They are:
 .Bl -tag -width UNVIS_VALIDPUSH
 .It Li \&0 (zero)
 Another character is necessary; nothing has been recognized yet.
@@ -131,11 +137,13 @@ A valid character has been recognized and is available at the location
 pointed to by cp; however, the character currently passed in should
 be passed in again.
 .It Dv  UNVIS_NOCHAR
-A valid sequence was detected, but no character was produced.  This
+A valid sequence was detected, but no character was produced.
+This
 return code is necessary to indicate a logical break between characters.
 .It Dv  UNVIS_SYNBAD
 An invalid escape sequence was detected, or the decoder is in an
-unknown state.  The decoder is placed into the starting state.
+unknown state.
+The decoder is placed into the starting state.
 .El
 .Pp
 When all bytes in the stream have been processed, call

@@ -85,12 +85,14 @@ argument is set higher than that of the lowest priority running process
 and if the specified process is ready to run, the process specified by
 the
 .Fa pid
-argument will preempt a lowest priority running process.  Similarly, if
+argument will preempt a lowest priority running process.
+Similarly, if
 the process calling
 .Fn sched_setparam
 sets its own priority lower than that of one or more other nonempty
 process lists, then the process that is the head of the highest priority
-list will also preempt the calling process.  Thus, in either case, the
+list will also preempt the calling process.
+Thus, in either case, the
 originating process might not receive notification of the completion of
 the requested priority change until the higher priority process has
 executed.
@@ -128,7 +130,8 @@ as a read-style operation.
 If
 .Fa pid
 is zero, the scheduling parameters for the calling process will be
-returned.  In this implementation, the
+returned.
+In this implementation, the
 .Fa sched_getparam
 system call will fail if
 .Fa pid

@@ -35,10 +35,12 @@
 .Sh DESCRIPTION
 .Nm
 contains the information necessary to configure the RADIUS client
-library.  It is parsed by
+library.
+It is parsed by
 .Xr rad_config 3 .
 The file contains one or more lines of text, each describing a
-single RADIUS server which will be used by the library.  Leading
+single RADIUS server which will be used by the library.
+Leading
 white space is ignored, as are empty lines and lines containing
 only comments.
 .Pp
@@ -57,13 +59,16 @@ Timeout
 Retries
 .El
 .Pp
-The fields are separated by white space.  The
+The fields are separated by white space.
+The
 .Ql #
 character at the beginning of a field begins a comment, which extends
-to the end of the line.  A field may be enclosed in double quotes,
+to the end of the line.
+A field may be enclosed in double quotes,
 in which case it may contain white space and/or begin with the
 .Ql #
-character.  Within a quoted string, the double quote character can
+character.
+Within a quoted string, the double quote character can
 be represented by
 .Ql \e\&" ,
 and the backslash can be represented by
@@ -75,9 +80,12 @@ The first field gives the service type, either
 .Ql auth
 for RADIUS authentication or
 .Ql acct
-for RADIUS accounting.  If a single server provides both services, two
-lines are required in the file.  Earlier versions of this file did
-not include a service type.  For backward compatibility, if the first
+for RADIUS accounting.
+If a single server provides both services, two
+lines are required in the file.
+Earlier versions of this file did
+not include a service type.
+For backward compatibility, if the first
 field is not
 .Ql auth
 or
@@ -89,9 +97,11 @@ were fields two through five.
 .Pp
 The second field specifies
 the server host, either as a fully qualified domain name or as a
-dotted-quad IP address.  The host may optionally be followed by a
+dotted-quad IP address.
+The host may optionally be followed by a
 .Ql \&:
-and a numeric port number, without intervening white space.  If the
+and a numeric port number, without intervening white space.
+If the
 port specification is omitted, it defaults to the
 .Ql radius
 or
@@ -107,21 +117,27 @@ If no such entry is present, the standard ports 1812 and 1813 are
 used.
 .Pp
 The third field contains the shared secret, which should be known
-only to the client and server hosts.  It is an arbitrary string of
+only to the client and server hosts.
+It is an arbitrary string of
 characters, though it must be enclosed in double quotes if it
-contains white space.  The shared secret may be
+contains white space.
+The shared secret may be
 any length, but the RADIUS protocol uses only the first 128
-characters.  N.B., some popular RADIUS servers have bugs which
+characters.
+N.B., some popular RADIUS servers have bugs which
 prevent them from working properly with secrets longer than 16
 characters.
 .Pp
 The fourth field contains a decimal integer specifying the timeout in
-seconds for receiving a valid reply from the server.  If this field
+seconds for receiving a valid reply from the server.
+If this field
 is omitted, it defaults to 3 seconds.
 .Pp
 The fifth field contains a decimal integer specifying the maximum
 number of attempts that will be made to authenticate with the server
-before giving up.  If omitted, it defaults to 3 attempts.  Note,
+before giving up.
+If omitted, it defaults to 3 attempts.
+Note,
 this is the total number of attempts and not the number of retries.
 .Pp
 Up to 10 RADIUS servers may be specified for each service type.

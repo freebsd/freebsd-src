@@ -49,7 +49,8 @@ entry being passed into the appropriate slot of the
 file,
 and appends it to the
 .Xr wtmp 5
-file.  The calling process must have permission to write to both files.
+file.
+The calling process must have permission to write to both files.
 .Sh RETURN VALUES
 None.
 .Sh SEE ALSO
@@ -60,6 +61,7 @@ None.
 .Sh BUGS
 The interface provided by
 .Fn login
-is rather crude.  The caller must know about the details of a
+is rather crude.
+The caller must know about the details of a
 .Va struct utmp .
 Some better abstraction needs to be worked out.

@@ -196,7 +196,7 @@ mode bit is set.
 This bit should be set when the packet aliasing host originates network
 traffic as well as forwards it.
 When the packet aliasing host is waiting for a connection from an unknown
-host address or unknown port number (e.g. an FTP data connection), this
+host address or unknown port number (e.g.\& an FTP data connection), this
 mode bit specifies that a socket be allocated as a place holder to prevent
 port conflicts.
 Once a connection is established, usually within a minute or so, the socket
@@ -237,7 +237,7 @@ possible to use a hole for another connection.
 A hole is removed when the connection that uses it dies.
 To cater to unexpected death of a program using
 .Nm
-(e.g. kill -9),
+(e.g.\& kill -9),
 changing the state of the flag will clear the entire firewall range
 allocated for holes.
 This will also happen on the initial call to
@@ -560,7 +560,7 @@ For links created with
 .Fn LibAliasRedirectAddr ,
 the
 .Fa port
-argument is ignored and could have any value, e.g. htons(~0).
+argument is ignored and could have any value, e.g.\& htons(~0).
 .Pp
 This function returns 0 on success, \-1 otherwise.
 .Ed
@@ -571,15 +571,15 @@ This function returns 0 on success, \-1 otherwise.
 This function marks the specified static redirect rule entered by
 .Fn LibAliasRedirectPort
 as dynamic.
-This can be used to e.g. dynamically redirect a single TCP connection,
+This can be used to e.g.\& dynamically redirect a single TCP connection,
 after which the rule is removed.
 Only fully specified links can be made dynamic.
 (See the
 .Sx STATIC AND DYNAMIC LINKS
 and
 .Sx PARTIALLY SPECIFIED ALIASING LINKS
-sections below for a definition of static vs. dynamic,
-and partially vs. fully specified links.)
+sections below for a definition of static vs.\& dynamic,
+and partially vs.\& fully specified links.)
 .Pp
 This function returns 0 on success, \-1 otherwise.
 .Ed
@@ -878,7 +878,7 @@ and
 .Fa maxpacketsize
 is provided for error checking purposes.
 This function can be used if an already-aliased packet needs to have its
-original IP header restored for further processing (eg. logging).
+original IP header restored for further processing (e.g.\& logging).
 .Ed
 .Sh BUGS
 PPTP aliasing does not work when more than one internal client
