@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: link.h,v 1.12 1997/05/07 02:26:34 eivind Exp $
+ *	$Id: link.h,v 1.13 1997/05/07 20:00:00 eivind Exp $
  */
 
 /*
@@ -167,6 +167,7 @@ struct so_debug {
  */
 #define LDSO_VERSION_NONE	0	/* FreeBSD2.0, 2.0.5 */
 #define LDSO_VERSION_HAS_DLEXIT	1	/* includes dlexit in ld_entry */
+#define LDSO_VERSION_HAS_DLSYM3	2	/* includes 3-argument dlsym */
 
 /*
  * Entry points into ld.so - user interface to the run-time linker.
@@ -179,6 +180,7 @@ struct ld_entry {
 	void	*(*dlsym) __P((void *, char *));	/* NONE */
 	char	*(*dlerror) __P((void));		/* NONE */
 	void	(*dlexit) __P((void));			/* HAS_DLEXIT */
+	void	*(*dlsym3) __P((void *, char *, void *));  /* HAS_DLSYM3 */
 };
 
 /*

@@ -152,6 +152,28 @@ returns a null pointer if the symbol cannot be found, and sets an error
 condition which may be queried with
 .Fn dlerror .
 .Pp
+If
+.Fn dlsym
+is called with the special
+.Fa handle
+.Dv RTLD_NEXT ,
+then the search for the symbol is limited to the shared objects
+which were loaded after the one issuing the call to
+.Fn dlsym .
+Thus, if the function is called from the main program, all
+the shared libraries are searched.
+If it is called from a shared library, all subsequent shared
+libraries are searched.
+.Dv RTLD_NEXT
+is useful for implementing wrappers around library functions.
+For example, a wrapper function
+.Fn getpid
+could access the
+.Dq real
+.Fn getpid
+with
+.Li dlsym(RTLD_NEXT, \&"_getpid\&") .
+.Pp
 .Fn dlerror
 returns a null-terminated character string describing the last error that
 occurred during a call to
