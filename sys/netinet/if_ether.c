@@ -519,6 +519,12 @@ in_arpinput(m)
 	struct in_addr isaddr, itaddr, myaddr;
 	int op, rif_len;
 
+	if (m->m_len < sizeof(struct ether_arp) &&
+	    (m = m_pullup(m, sizeof(struct ether_arp))) == NULL) {
+		log(LOG_ERR, "in_arp: runt packet -- m_pullup failed\n");
+		return;
+	}
+
 	ea = mtod(m, struct ether_arp *);
 	op = ntohs(ea->arp_op);
 	(void)memcpy(&isaddr, ea->arp_spa, sizeof (isaddr));
