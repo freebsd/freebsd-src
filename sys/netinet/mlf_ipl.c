@@ -18,7 +18,7 @@
 #  include <osreldate.h>
 #  define	ACTUALLY_LKM_NOT_KERNEL
 # else
-#  include <sys/osreldate.h>
+#  define __FreeBSD_version 300000	/* this will do as a hack */
 # endif
 #endif
 #include <sys/systm.h>
@@ -154,7 +154,7 @@ int	ipl_major = CDEV_MAJOR;
 static struct cdevsw ipl_cdevsw = {
 	iplopen,	iplclose,	iplread,	nowrite, /* 79 */
 	iplioctl,	nostop,		noreset,	nodevtotty,
-	noselect,	nommap,		nostrategy,	"ipl",
+	seltrue,	nommap,		nostrategy,	"ipl",
 	NULL,	-1
 };
 #endif
@@ -237,7 +237,7 @@ static int if_ipl_remove __P((void))
 		if ((error = namei(&nd)))
 			return (error);
 		VOP_LEASE(nd.ni_vp, curproc, curproc->p_ucred, LEASE_WRITE);
-		VOP_LOCK(nd.ni_vp);
+		vn_lock(nd.ni_vp, LK_EXCLUSIVE | LK_RETRY, curproc);
 		VOP_LEASE(nd.ni_dvp, curproc, curproc->p_ucred, LEASE_WRITE);
 		(void) VOP_REMOVE(nd.ni_dvp, nd.ni_vp, &nd.ni_cnd);
 	}

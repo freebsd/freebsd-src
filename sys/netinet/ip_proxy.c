@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  */
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_proxy.c,v 2.0.2.11.2.6 1997/11/28 00:41:25 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_proxy.c,v 1.1.1.3 1998/03/21 10:11:30 peter Exp $";
 #endif
 
 #if defined(__FreeBSD__) && defined(KERNEL) && !defined(_KERNEL)
@@ -23,7 +23,9 @@ static const char rcsid[] = "@(#)$Id: ip_proxy.c,v 2.0.2.11.2.6 1997/11/28 00:41
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/file.h>
-#include <sys/ioctl.h>
+#if !defined(__FreeBSD__)
+# include <sys/ioctl.h>
+#endif
 #include <sys/fcntl.h>
 #include <sys/uio.h>
 #ifndef	linux
@@ -49,6 +51,7 @@ static const char rcsid[] = "@(#)$Id: ip_proxy.c,v 2.0.2.11.2.6 1997/11/28 00:41
 #endif
 #if __FreeBSD__ > 2
 # include <sys/queue.h>
+# include <sys/malloc.h>
 #endif
 #include <net/if.h>
 #ifdef sun

@@ -9,8 +9,11 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_nat.c	1.11 6/5/96 (C) 1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_nat.c,v 2.0.2.44.2.7 1997/12/02 13:54:27 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_nat.c,v 1.1.1.6 1998/03/21 10:11:15 peter Exp $";
 #endif
+
+#include "opt_ipfilter.h"
+#define __FreeBSD_version 300000	/* it's a hack, but close enough */
 
 #if defined(__FreeBSD__) && defined(KERNEL) && !defined(_KERNEL)
 #define _KERNEL
@@ -54,6 +57,7 @@ static const char rcsid[] = "@(#)$Id: ip_nat.c,v 2.0.2.44.2.7 1997/12/02 13:54:2
 #endif
 #if __FreeBSD_version >= 300000
 # include <sys/queue.h>
+# include <sys/malloc.h>
 #endif
 #include <net/if.h>
 #if __FreeBSD_version >= 300000
