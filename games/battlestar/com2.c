@@ -51,13 +51,12 @@ wearit()		/* synonyms = {sheathe, sheath} */
 	while(wordtype[++wordnumber] == ADJS);
 	while(wordnumber <= wordcount){
 		value = wordvalue[wordnumber];
+		if (value == -1) {
+			puts("Wear what?");
+			return (firstnumber);
+		}
 		for (n=0; objsht[value][n]; n++);
 		switch(value){
-
-			case -1:
-				puts("Wear what?");
-				return(firstnumber);
-
 			default:
 				printf("You can't wear%s%s!\n",(objsht[value][n-1] == 's' ? " " : " a "),objsht[value]);
 				return(firstnumber);
