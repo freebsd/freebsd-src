@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.22 1994/05/25 08:55:23 rgrimes Exp $
+ *	$Id: vm_machdep.c,v 1.23 1994/08/06 09:20:56 davidg Exp $
  */
 
 #include "npx.h"
@@ -803,7 +803,7 @@ vunmapbuf(bp)
 			vm_page_unhold(PHYS_TO_VM_PAGE(pa));
 			lastv = v;
 		}
-		pmap_kremove( addr);
+		pmap_kremove((vm_offset_t)addr);
 	}
 }
 
