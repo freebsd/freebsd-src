@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001 M. Warner Losh.  All rights reserved.
+ * Copyright (c) 2001 Yoshihiro TAKAHASHI.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,83 +36,60 @@
 #include <sys/tty.h>
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
-#include <machine/resource.h>
 #include <sys/timepps.h>
-
-#include <dev/pccard/pccardreg.h>
-#include <dev/pccard/pccardvar.h>
-#include <dev/pccard/pccarddevs.h>
 
 #include <dev/sio/siovar.h>
 
-static	int	sio_pccard_attach __P((device_t dev));
-static	int	sio_pccard_detach __P((device_t dev));
-static	int	sio_pccard_match __P((device_t self));
-static	int	sio_pccard_probe __P((device_t dev));
+#include <isa/isavar.h>
 
-static device_method_t sio_pccard_methods[] = {
+static	int	sio_isa_attach	__P((device_t dev));
+static	int	sio_isa_probe	__P((device_t dev));
+
+static device_method_t sio_isa_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		pccard_compat_probe),
-	DEVMETHOD(device_attach,	pccard_compat_attach),
-	DEVMETHOD(device_detach,	sio_pccard_detach),
-
-	/* Card interface */
-	DEVMETHOD(card_compat_match,	sio_pccard_match),
-	DEVMETHOD(card_compat_probe,	sio_pccard_probe),
-	DEVMETHOD(card_compat_attach,	sio_pccard_attach),
+	DEVMETHOD(device_probe,		sio_isa_probe),
+	DEVMETHOD(device_attach,	sio_isa_attach),
 
 	{ 0, 0 }
 };
 
-static driver_t sio_pccard_driver = {
+static driver_t sio_isa_driver = {
 	sio_driver_name,
-	sio_pccard_methods,
+	sio_isa_methods,
 	0,
 };
 
-static int
-sio_pccard_match(device_t dev)
-{
-	int		error = 0;
-	u_int32_t	fcn = PCCARD_FUNCTION_UNSPEC;
-
-	error = pccard_get_function(dev, &fcn);
-	if (error != 0)
-		return (error);
-	/*
-	 * If a serial card, we are likely the right driver.
-	 */
-	if (fcn == PCCARD_FUNCTION_SERIAL)
-		return (0);
-
-	return(ENXIO);
-}
+static struct isa_pnp_id sio_ids[] = {
+	{0x0100e4a5, "RSA-98III"},
+	{0}
+};
 
 static int
-sio_pccard_probe(dev)
+sio_isa_probe(dev)
 	device_t	dev;
 {
-
 #ifdef PC98
-	SET_FLAG(dev, SET_IFTYPE(COM_IF_MODEM_CARD));
+	int	logical_id;
 #endif
-	/* Do not probe IRQ - pccard doesn't turn on the interrupt line */
-	/* until bus_setup_intr */
-	return (sioprobe(dev, 0, 1));
+	/* Check isapnp ids */
+	if (ISA_PNP_PROBE(device_get_parent(dev), dev, sio_ids) == ENXIO)
+		return (ENXIO);
+#ifdef PC98
+	logical_id = isa_get_logicalid(dev);
+	switch (logical_id) {
+	case 0x0100e4a5:	/* RSA-98III */
+		SET_FLAG(dev, SET_IFTYPE(COM_IF_RSA98III));
+		break;
+	}
+#endif
+	return (sioprobe(dev, 0, 0));
 }
 
 static int
-sio_pccard_attach(dev)
+sio_isa_attach(dev)
 	device_t	dev;
 {
 	return (sioattach(dev, 0));
 }
 
-static int
-sio_pccard_detach(dev)
-	device_t	dev;
-{
-	return (siodetach(dev));
-}
-
-DRIVER_MODULE(sio, pccard, sio_pccard_driver, sio_devclass, 0, 0);
+DRIVER_MODULE(sio, isa, sio_isa_driver, sio_devclass, 0, 0);
