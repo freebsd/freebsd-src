@@ -45,7 +45,7 @@
 #include "ipf.h"
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ipfs.c,v 2.6.2.7 2001/06/26 10:43:18 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipfs.c,v 2.6.2.8 2001/09/14 18:52:21 darrenr Exp $";
 #endif
 
 #ifndef	IPF_SAVEDIR
@@ -237,13 +237,13 @@ char *argv[];
 			opts |= OPT_DONOTHING;
 			break;
 		case 'N' :
-			if ((ns > 0) || dirname || (rw != -1) || set)
+			if ((ns >= 0) || dirname || (rw != -1) || set)
 				usage();
 			ns = 0;
 			set = 1;
 			break;
 		case 'r' :
-			if ((ns > 0) || dirname || (rw != -1))
+			if ((ns >= 0) || dirname || (rw != -1))
 				usage();
 			rw = 0;
 			set = 1;
@@ -253,7 +253,7 @@ char *argv[];
 			set = 1;
 			break;
 		case 'S' :
-			if ((ns > 0) || dirname || (rw != -1) || set)
+			if ((ns >= 0) || dirname || (rw != -1) || set)
 				usage();
 			ns = 1;
 			set = 1;
@@ -268,7 +268,7 @@ char *argv[];
 			opts |= OPT_VERBOSE;
 			break;
 		case 'w' :
-			if ((ns > 0) || dirname || (rw != -1) || (ns == -1))
+			if (dirname || (rw != -1) || (ns == -1))
 				usage();
 			rw = 1;
 			set = 1;
@@ -283,7 +283,7 @@ char *argv[];
 		}
 
 	if (ifs) {
-		if (!filename || ns<0)
+		if (!filename || ns < 0)
 			usage();
 		if (ns == 0)
 			return changenatif(ifs, filename);
