@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_timer.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_timer.c,v 1.14 1996/03/11 15:13:35 davidg Exp $
+ *	$Id: tcp_timer.c,v 1.15 1996/04/04 11:17:04 phk Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -320,7 +320,7 @@ tcp_timers(tp, timer)
 			goto dropit;
 		if ((always_keepalive ||
 		    tp->t_inpcb->inp_socket->so_options & SO_KEEPALIVE) &&
-		    tp->t_state <= TCPS_CLOSE_WAIT) {
+		    tp->t_state <= TCPS_CLOSING) {
 		    	if (tp->t_idle >= tcp_keepidle + tcp_maxidle)
 				goto dropit;
 			/*
