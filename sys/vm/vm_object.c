@@ -641,7 +641,9 @@ rescan:
 			goto rescan;
 	}
 
+#if 0
 	VOP_FSYNC(vp, NULL, (pagerflags & VM_PAGER_PUT_SYNC)?MNT_WAIT:0, curproc);
+#endif
 
 	vm_object_clear_flag(object, OBJ_CLEANING);
 	return;
@@ -826,7 +828,7 @@ shadowlookup:
 		if (advise == MADV_WILLNEED) {
 			vm_page_activate(m);
 		} else if (advise == MADV_DONTNEED) {
-			vm_page_deactivate(m);
+			vm_page_dontneed(m);
 		} else if (advise == MADV_FREE) {
 			/*
 			 * Mark the page clean.  This will allow the page
@@ -846,7 +848,7 @@ shadowlookup:
 			pmap_clear_modify(VM_PAGE_TO_PHYS(m));
 			m->dirty = 0;
 			m->act_count = 0;
-			vm_page_deactivate(m);
+			vm_page_dontneed(m);
 			if (tobject->type == OBJT_SWAP)
 				swap_pager_freespace(tobject, tpindex, 1);
 		}
