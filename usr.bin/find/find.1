@@ -245,6 +245,12 @@ will be displayed instead of the size in bytes.
 If the file is a symbolic link, the pathname of the linked\-to file will be
 displayed preceded by ``\->''.
 The format is identical to that produced by ``ls \-dgils''.
+.It Ic -maxdepth Ar n
+True if the depth of the current file into the tree is less than or equal to
+.Ar n .
+.It Ic -mindepth Ar n
+True if the depth of the current file into the tree is greater than or equal to
+.Ar n .
 .It Ic -mmin Ar n 
 True if the difference between the file last modification time and the time
 .Nm find
