@@ -750,7 +750,7 @@ sk_gmchash(addr)
 	const uint8_t *addr;
 {
 	u_int32_t crc;
-	uint idx, bit;
+	u_int idx, bit;
 	uint8_t tmpData, data;
 
 	/* Compute CRC for the address value. */
