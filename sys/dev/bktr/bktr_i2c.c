@@ -43,10 +43,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/uio.h>
 
-#if __FreeBSD_version >= 500014
-#include <sys/selinfo.h>
-#else
+#if __FreeBSD_version < 500014
 #include <sys/select.h>
+#else
+#include <sys/selinfo.h>
 #endif
 
 #if (__FreeBSD_version < 500000)
@@ -58,15 +58,14 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #endif
 
-#if (__FreeBSD_version >=300000)
+#if (__FreeBSD_version >= 300000)
 #include <machine/bus_memio.h>          /* for bus space */
 #include <machine/bus.h>
 #include <sys/bus.h>
 #endif
 
-#include <machine/ioctl_meteor.h>
-#include <machine/ioctl_bt848.h>	/* extensions to ioctl_meteor.h */
-
+#include <dev/bktr/ioctl_meteor.h>
+#include <dev/bktr/ioctl_bt848.h>	/* extensions to ioctl_meteor.h */
 #include <dev/bktr/bktr_reg.h>
 #include <dev/bktr/bktr_i2c.h>
 
