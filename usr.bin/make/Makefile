@@ -1,8 +1,8 @@
 #	@(#)Makefile	5.2 (Berkeley) 12/28/90
-#	$Id$
+#	$Id: Makefile,v 1.10 1997/02/22 19:27:05 peter Exp $
 
 PROG=	make
-CFLAGS+= -I${.CURDIR}
+CFLAGS+= -I${.CURDIR} ${CROSS_MAKE_FLAGS}
 SRCS=	arch.c buf.c compat.c cond.c dir.c for.c hash.c job.c main.c \
 	make.c parse.c str.c suff.c targ.c var.c util.c
 SRCS+=	lstAppend.c lstAtEnd.c lstAtFront.c lstClose.c lstConcat.c \
