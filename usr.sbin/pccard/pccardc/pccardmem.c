@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: pccardmem.c,v 1.8 1997/10/06 11:35:54 charnier Exp $";
+	"$Id: pccardmem.c,v 1.9 1997/11/18 21:08:06 nate Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -56,7 +56,7 @@ pccardmem_main(argc, argv)
 	if (argc > 2)
 		usage();
 	sprintf(name, CARD_DEVICE, 0);
-	fd = open(name, 0);
+	fd = open(name, O_RDONLY);
 	if (fd < 0)
 		err(1, "%s", name);
 	if (argc == 2) {

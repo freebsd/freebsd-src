@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: enabler.c,v 1.9 1997/10/26 04:36:23 nate Exp $";
+	"$Id: enabler.c,v 1.10 1997/11/18 21:08:06 nate Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -103,7 +103,7 @@ enabler_main(argc, argv)
 		drv.name, drv.unit, drv.mem, drv.memsize, drv.iobase,
 		drv.irqmask, drv.flags);
 	sprintf(name, CARD_DEVICE, slot);
-	fd = open(name, 2);
+	fd = open(name, O_RDWR);
 	if (fd < 0)
 		err(1, "%s", name);
 
