@@ -1,4 +1,4 @@
-/*lint -save -library Flexelint comment for external headers */
+/* lint -save -library Flexelint comment for external headers */
 
 /*-
  * Copyright (c) 2001 Charles Mott <cmott@scientech.com>
@@ -28,17 +28,16 @@
  * $FreeBSD$
  */
 
-/*
-    Alias.h defines the outside world interfaces for the packet
-    aliasing software.
-
-    This software is placed into the public domain with no restrictions
-    on its distribution.
-*/
-
+/*-
+ * Alias.h defines the outside world interfaces for the packet aliasing
+ * software.
+ * 
+ * This software is placed into the public domain with no restrictions on its
+ * distribution.
+ */
 
 #ifndef _ALIAS_H_
-#define _ALIAS_H_
+#define	_ALIAS_H_
 
 /* Alias link representative (incomplete struct) */
 struct alias_link;
@@ -194,4 +193,4 @@ struct alias_link;
 #define PKT_ALIAS_FOUND_HEADER_FRAGMENT 4
 
 #endif
-/*lint -restore */
+/* lint -restore */
