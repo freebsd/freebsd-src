@@ -45,151 +45,176 @@
 #include <machine/reg.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/pmap.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_map.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_object.h>
 #include <vm/vm_page.h>
 
-#include <fs/procfs/procfs.h>
-
-/* use the equivalent procfs code */
-#if 0
-static int
-pread(struct proc *procp, unsigned int addr, unsigned int *retval)
+int
+proc_rwmem(struct proc *p, struct uio *uio)
 {
-	int		rv;
-	vm_map_t	map, tmap;
-	vm_object_t	object;
-	vm_offset_t	kva = 0;
-	int		page_offset;	/* offset into page */
-	vm_offset_t	pageno;		/* page number */
-	vm_map_entry_t	out_entry;
-	vm_prot_t	out_prot;
-	boolean_t	wired;
-	vm_pindex_t	pindex;
+	struct vmspace *vm;
+	vm_map_t map;
+	vm_object_t object = NULL;
+	vm_offset_t pageno = 0;		/* page number */
+	vm_prot_t reqprot;
+	vm_offset_t kva;
+	int error;
+	int writing;
 
-	/* Map page into kernel space */
-
-	map = &procp->p_vmspace->vm_map;
-
-	page_offset = addr - trunc_page(addr);
-	pageno = trunc_page(addr);
-
-	tmap = map;
-	rv = vm_map_lookup(&tmap, pageno, VM_PROT_READ, &out_entry,
-	    &object, &pindex, &out_prot, &wired);
-
-	if (rv != KERN_SUCCESS)
-		return (EINVAL);
-
-	vm_map_lookup_done(tmap, out_entry);
-
-	/* Find space in kernel_map for the page we're interested in */
-	rv = vm_map_find(kernel_map, object, IDX_TO_OFF(pindex),
-	    &kva, PAGE_SIZE, 0, VM_PROT_ALL, VM_PROT_ALL, 0);
-
-	if (!rv) {
-		vm_object_reference(object);
-
-		rv = vm_map_pageable(kernel_map, kva, kva + PAGE_SIZE, 0);
-		if (!rv) {
-			*retval = 0;
-			bcopy((caddr_t)kva + page_offset,
-			    retval, sizeof *retval);
-		}
-		vm_map_remove(kernel_map, kva, kva + PAGE_SIZE);
-	}
-
-	return (rv);
-}
-
-static int
-pwrite(struct proc *procp, unsigned int addr, unsigned int datum)
-{
-	int		rv;
-	vm_map_t	map, tmap;
-	vm_object_t	object;
-	vm_offset_t	kva = 0;
-	int		page_offset;	/* offset into page */
-	vm_offset_t	pageno;		/* page number */
-	vm_map_entry_t	out_entry;
-	vm_prot_t	out_prot;
-	boolean_t	wired;
-	vm_pindex_t	pindex;
-	boolean_t	fix_prot = 0;
-
-	/* Map page into kernel space */
-
-	map = &procp->p_vmspace->vm_map;
-
-	page_offset = addr - trunc_page(addr);
-	pageno = trunc_page(addr);
+	GIANT_REQUIRED;
 
 	/*
-	 * Check the permissions for the area we're interested in.
+	 * if the vmspace is in the midst of being deallocated or the
+	 * process is exiting, don't try to grab anything.  The page table
+	 * usage in that process can be messed up.
 	 */
-
-	if (vm_map_check_protection(map, pageno, pageno + PAGE_SIZE,
-	    VM_PROT_WRITE) == FALSE) {
-		/*
-		 * If the page was not writable, we make it so.
-		 * XXX It is possible a page may *not* be read/executable,
-		 * if a process changes that!
-		 */
-		fix_prot = 1;
-		/* The page isn't writable, so let's try making it so... */
-		if ((rv = vm_map_protect(map, pageno, pageno + PAGE_SIZE,
-		    VM_PROT_ALL, 0)) != KERN_SUCCESS)
-			return (EFAULT);	/* I guess... */
-	}
-
-	/*
-	 * Now we need to get the page.  out_entry, out_prot, wired, and
-	 * single_use aren't used.  One would think the vm code would be
-	 * a *bit* nicer...  We use tmap because vm_map_lookup() can
-	 * change the map argument.
-	 */
-
-	tmap = map;
-	rv = vm_map_lookup(&tmap, pageno, VM_PROT_WRITE, &out_entry,
-	    &object, &pindex, &out_prot, &wired);
-	if (rv != KERN_SUCCESS) {
-		return (EINVAL);
-	}
-
-	/*
-	 * Okay, we've got the page.  Let's release tmap.
-	 */
-
-	vm_map_lookup_done(tmap, out_entry);
-
-	/*
-	 * Fault the page in...
-	 */
-
-	rv = vm_fault(map, pageno, VM_PROT_WRITE|VM_PROT_READ, FALSE);
-	if (rv != KERN_SUCCESS)
+	vm = p->p_vmspace;
+	if ((p->p_flag & P_WEXIT))
 		return (EFAULT);
+	if (vm->vm_refcnt < 1)
+		return (EFAULT);
+	++vm->vm_refcnt;
+	/*
+	 * The map we want...
+	 */
+	map = &vm->vm_map;
 
-	/* Find space in kernel_map for the page we're interested in */
-	rv = vm_map_find(kernel_map, object, IDX_TO_OFF(pindex),
-	    &kva, PAGE_SIZE, 0,
-	    VM_PROT_ALL, VM_PROT_ALL, 0);
-	if (!rv) {
-		vm_object_reference(object);
+	writing = uio->uio_rw == UIO_WRITE;
+	reqprot = writing ? (VM_PROT_WRITE | VM_PROT_OVERRIDE_WRITE) :
+	    VM_PROT_READ;
 
-		rv = vm_map_pageable(kernel_map, kva, kva + PAGE_SIZE, 0);
-		if (!rv) {
-			bcopy(&datum, (caddr_t)kva + page_offset, sizeof datum);
+	kva = kmem_alloc_pageable(kernel_map, PAGE_SIZE);
+
+	/*
+	 * Only map in one page at a time.  We don't have to, but it
+	 * makes things easier.  This way is trivial - right?
+	 */
+	do {
+		vm_map_t tmap;
+		vm_offset_t uva;
+		int page_offset;		/* offset into page */
+		vm_map_entry_t out_entry;
+		vm_prot_t out_prot;
+		boolean_t wired;
+		vm_pindex_t pindex;
+		u_int len;
+		vm_page_t m;
+
+		object = NULL;
+
+		uva = (vm_offset_t)uio->uio_offset;
+
+		/*
+		 * Get the page number of this segment.
+		 */
+		pageno = trunc_page(uva);
+		page_offset = uva - pageno;
+
+		/*
+		 * How many bytes to copy
+		 */
+		len = min(PAGE_SIZE - page_offset, uio->uio_resid);
+
+		/*
+		 * Fault the page on behalf of the process
+		 */
+		error = vm_fault(map, pageno, reqprot, VM_FAULT_NORMAL);
+		if (error) {
+			error = EFAULT;
+			break;
 		}
-		vm_map_remove(kernel_map, kva, kva + PAGE_SIZE);
-	}
 
-	if (fix_prot)
-		vm_map_protect(map, pageno, pageno + PAGE_SIZE,
-		    VM_PROT_READ|VM_PROT_EXECUTE, 0);
-	return (rv);
+		/*
+		 * Now we need to get the page.  out_entry, out_prot, wired,
+		 * and single_use aren't used.  One would think the vm code
+		 * would be a *bit* nicer...  We use tmap because
+		 * vm_map_lookup() can change the map argument.
+		 */
+		tmap = map;
+		error = vm_map_lookup(&tmap, pageno, reqprot, &out_entry,
+		    &object, &pindex, &out_prot, &wired);
+
+		if (error) {
+			error = EFAULT;
+
+			/*
+			 * Make sure that there is no residue in 'object' from
+			 * an error return on vm_map_lookup.
+			 */
+			object = NULL;
+
+			break;
+		}
+
+		m = vm_page_lookup(object, pindex);
+
+		/* Allow fallback to backing objects if we are reading */
+
+		while (m == NULL && !writing && object->backing_object) {
+
+			pindex += OFF_TO_IDX(object->backing_object_offset);
+			object = object->backing_object;
+			
+			m = vm_page_lookup(object, pindex);
+		}
+
+		if (m == NULL) {
+			error = EFAULT;
+
+			/*
+			 * Make sure that there is no residue in 'object' from
+			 * an error return on vm_map_lookup.
+			 */
+			object = NULL;
+
+			vm_map_lookup_done(tmap, out_entry);
+
+			break;
+		}
+
+		/*
+		 * Wire the page into memory
+		 */
+		vm_page_wire(m);
+
+		/*
+		 * We're done with tmap now.
+		 * But reference the object first, so that we won't loose
+		 * it.
+		 */
+		vm_object_reference(object);
+		vm_map_lookup_done(tmap, out_entry);
+
+		pmap_kenter(kva, VM_PAGE_TO_PHYS(m));
+
+		/*
+		 * Now do the i/o move.
+		 */
+		error = uiomove((caddr_t)(kva + page_offset), len, uio);
+
+		pmap_kremove(kva);
+
+		/*
+		 * release the page and the object
+		 */
+		vm_page_unwire(m, 1);
+		vm_object_deallocate(object);
+
+		object = NULL;
+
+	} while (error == 0 && uio->uio_resid > 0);
+
+	if (object)
+		vm_object_deallocate(object);
+
+	kmem_free(kernel_map, kva, PAGE_SIZE);
+	vmspace_free(vm);
+	return (error);
 }
-#endif
 
 /*
  * Process debugging system call.
@@ -204,14 +229,17 @@ struct ptrace_args {
 #endif
 
 int
-ptrace(td, uap)
-	struct thread *td;
-	struct ptrace_args *uap;
+ptrace(struct thread *td, struct ptrace_args *uap)
 {
 	struct proc *curp = td->td_proc;
 	struct proc *p;
 	struct iovec iov;
 	struct uio uio;
+	union {
+		struct reg	reg;
+		struct dbreg	dbreg;
+		struct fpreg	fpreg;
+	} r;
 	int error = 0;
 	int write;
 
@@ -228,6 +256,19 @@ ptrace(td, uap)
 		return (ESRCH);
 	}
 
+	if ((error = p_candebug(curp, p)) != 0) {
+		PROC_UNLOCK(p);
+		return (error);
+	}
+
+	/*
+	 * Don't debug system processes!
+	 */
+	if ((p->p_flag & P_SYSTEM) != 0) {
+		PROC_UNLOCK(p);
+		return (EINVAL);
+	}
+	
 	/*
 	 * Permissions check
 	 */
@@ -247,11 +288,6 @@ ptrace(td, uap)
 		if (p->p_flag & P_TRACED) {
 			PROC_UNLOCK(p);
 			return (EBUSY);
-		}
-
-		if ((error = p_candebug(curp, p))) {
-			PROC_UNLOCK(p);
-			return (error);
 		}
 
 		/* OK */
@@ -434,14 +470,14 @@ ptrace(td, uap)
 		uio.uio_segflg = UIO_SYSSPACE;	/* ie: the uap */
 		uio.uio_rw = write ? UIO_WRITE : UIO_READ;
 		uio.uio_td = td;
-		error = procfs_domem(curp, p, NULL, &uio);
+		error = proc_rwmem(p, &uio);
 		if (uio.uio_resid != 0) {
 			/*
-			 * XXX procfs_domem() doesn't currently return ENOSPC,
+			 * XXX proc_rwmem() doesn't currently return ENOSPC,
 			 * so I think write() can bogusly return 0.
 			 * XXX what happens for short writes?  We don't want
 			 * to write partial data.
-			 * XXX procfs_domem() returns EPERM for other invalid
+			 * XXX proc_rwmem() returns EPERM for other invalid
 			 * addresses.  Convert this to EINVAL.  Does this
 			 * clobber returns of EPERM for other reasons?
 			 */
@@ -456,99 +492,85 @@ ptrace(td, uap)
 
 #ifdef PT_SETREGS
 	case PT_SETREGS:
-		write = 1;
-		/* fallthrough */
+		error = copyin(uap->addr, &r.reg, sizeof r.reg);
+		if (error == 0) {
+			PHOLD(p);
+			error = procfs_write_regs(&p->p_thread, &r.reg);
+			PRELE(p);
+		}
+		return (error);
 #endif /* PT_SETREGS */
+
 #ifdef PT_GETREGS
 	case PT_GETREGS:
-		/* write = 0 above */
+		PHOLD(p);
+		error = procfs_read_regs(&p->p_thread, &r.reg);
+		PRELE(p);
+		if (error == 0)
+			error = copyout(&r.reg, uap->addr, sizeof r.reg);
+		return (error);
 #endif /* PT_SETREGS */
-#if defined(PT_SETREGS) || defined(PT_GETREGS)
-		if (!procfs_validregs(td))	/* no P_SYSTEM procs please */
-			return (EINVAL);
-		else {
-			iov.iov_base = uap->addr;
-			iov.iov_len = sizeof(struct reg);
-			uio.uio_iov = &iov;
-			uio.uio_iovcnt = 1;
-			uio.uio_offset = 0;
-			uio.uio_resid = sizeof(struct reg);
-			uio.uio_segflg = UIO_USERSPACE;
-			uio.uio_rw = write ? UIO_WRITE : UIO_READ;
-			uio.uio_td = td;
-			return (procfs_doregs(curp, p, NULL, &uio));
-		}
-#endif /* defined(PT_SETREGS) || defined(PT_GETREGS) */
 
 #ifdef PT_SETFPREGS
 	case PT_SETFPREGS:
-		write = 1;
-		/* fallthrough */
+		error = copyin(uap->addr, &r.fpreg, sizeof r.fpreg);
+		if (error == 0) {
+			PHOLD(p);
+			error = procfs_write_fpregs(&p->p_thread, &r.fpreg);
+			PRELE(p);
+		}
+		return (error);
 #endif /* PT_SETFPREGS */
+
 #ifdef PT_GETFPREGS
 	case PT_GETFPREGS:
-		/* write = 0 above */
+		PHOLD(p);
+		error = procfs_read_fpregs(&p->p_thread, &r.fpreg);
+		PRELE(p);
+		if (error == 0)
+			error = copyout(&r.fpreg, uap->addr, sizeof r.fpreg);
+		return (error);
 #endif /* PT_SETFPREGS */
-#if defined(PT_SETFPREGS) || defined(PT_GETFPREGS)
-		if (!procfs_validfpregs(td))	/* no P_SYSTEM procs please */
-			return (EINVAL);
-		else {
-			iov.iov_base = uap->addr;
-			iov.iov_len = sizeof(struct fpreg);
-			uio.uio_iov = &iov;
-			uio.uio_iovcnt = 1;
-			uio.uio_offset = 0;
-			uio.uio_resid = sizeof(struct fpreg);
-			uio.uio_segflg = UIO_USERSPACE;
-			uio.uio_rw = write ? UIO_WRITE : UIO_READ;
-			uio.uio_td = td;
-			return (procfs_dofpregs(curp, p, NULL, &uio));
-		}
-#endif /* defined(PT_SETFPREGS) || defined(PT_GETFPREGS) */
 
 #ifdef PT_SETDBREGS
 	case PT_SETDBREGS:
-		write = 1;
-		/* fallthrough */
+		error = copyin(uap->addr, &r.dbreg, sizeof r.dbreg);
+		if (error == 0) {
+			PHOLD(p);
+			error = procfs_write_dbregs(&p->p_thread, &r.dbreg);
+			PRELE(p);
+		}
+		return (error);
 #endif /* PT_SETDBREGS */
+		
 #ifdef PT_GETDBREGS
 	case PT_GETDBREGS:
-		/* write = 0 above */
+		PHOLD(p);
+		error = procfs_read_dbregs(&p->p_thread, &r.dbreg);
+		PRELE(p);
+		if (error == 0)
+			error = copyout(&r.dbreg, uap->addr, sizeof r.dbreg);
+		return (error);
 #endif /* PT_SETDBREGS */
-#if defined(PT_SETDBREGS) || defined(PT_GETDBREGS)
-		if (!procfs_validdbregs(td))	/* no P_SYSTEM procs please */
-			return (EINVAL);
-		else {
-			iov.iov_base = uap->addr;
-			iov.iov_len = sizeof(struct dbreg);
-			uio.uio_iov = &iov;
-			uio.uio_iovcnt = 1;
-			uio.uio_offset = 0;
-			uio.uio_resid = sizeof(struct dbreg);
-			uio.uio_segflg = UIO_USERSPACE;
-			uio.uio_rw = write ? UIO_WRITE : UIO_READ;
-			uio.uio_td = td;
-			return (procfs_dodbregs(curp, p, NULL, &uio));
-		}
-#endif /* defined(PT_SETDBREGS) || defined(PT_GETDBREGS) */
 
 	default:
+		KASSERT(0, ("unreachable code\n"));
 		break;
 	}
 
+	KASSERT(0, ("unreachable code\n"));
 	return (0);
 }
 
 int
-trace_req(p)
-	struct proc *p;
+trace_req(struct proc *p)
 {
 	return (1);
 }
 
 /*
  * stopevent()
- * Stop a process because of a procfs event;
+ * Stop a process because of a debugging event;
  * stay stopped until p->p_step is cleared
  * (cleared by PIOCCONT in procfs).
  *
@@ -556,10 +578,7 @@ trace_req(p)
  */
 
 void
-stopevent(p, event, val)
-	struct proc *p;
-	unsigned int event;
-	unsigned int val;
+stopevent(struct proc *p, unsigned int event, unsigned int val)
 {
 
 	PROC_LOCK_ASSERT(p, MA_OWNED | MA_NOTRECURSED);

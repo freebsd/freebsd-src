@@ -48,6 +48,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/ptrace.h>
 #include <sys/vnode.h>
 
 #include <machine/reg.h>
