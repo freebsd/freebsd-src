@@ -15,12 +15,13 @@
  * written by julian elischer (julian@tfs.com)
  *
  *	@(#)readMBR.c	8.5 (tfs) 1/21/94
- * $Id: readMBR.c,v 1.5 1994/10/17 02:31:33 phk Exp $
+ * $Id: readMBR.c,v 1.1 1994/10/27 20:44:50 jkh Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
+#include <sys/dkbad.h>
 #include <sys/disklabel.h>
 
 #define	b_cylinder	b_resid
