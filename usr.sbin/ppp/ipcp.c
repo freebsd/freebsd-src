@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.17 1997/05/19 02:00:02 brian Exp $
+ * $Id: ipcp.c,v 1.18 1997/05/23 04:54:02 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -244,8 +244,8 @@ IpcpLayerFinish(fp)
 struct fsm *fp;
 {
   LogPrintf(LOG_LCP_BIT, "%s: LayerFinish.\n", fp->name);
+  reconnect(RECON_FALSE);
   LcpClose();
-  reconnectCount = 0;
   NewPhase(PHASE_TERMINATE);
 }
 
