@@ -65,8 +65,8 @@ int ftsoptions;			/* options for the ftsopen(3) call */
 int isdeprecated;		/* using deprecated syntax */
 int isdepth;			/* do directories on post-order visit */
 int isoutput;			/* user specified output operator */
+int issort;         		/* do directories in lexicographical order */
 int isxargs;			/* don't permit xargs delimiting chars */
-int issort;         /* travel the file hierarchy lexicographical order */
 
 static void usage __P((void));
 
@@ -155,6 +155,6 @@ static void
 usage()
 {
 	(void)fprintf(stderr,
-"usage: find [-H | -L | -P] [-Xdx] [-f file] [file ...] [expression]\n");
+"usage: find [-H | -L | -P] [-Xdsx] [-f file] [file ...] [expression]\n");
 	exit(1);
 }
