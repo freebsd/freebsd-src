@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: wst.c,v 1.3 1998/04/08 20:00:03 sos Exp $
+ *	$Id: wst.c,v 1.4 1998/04/20 18:51:33 sos Exp $
  */
 
 #include "wdc.h"
@@ -578,7 +578,7 @@ wst_error(struct wst *t, struct atapires result)
 }
 
 int 
-wstioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
+wstioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 {
     int lun = UNIT(dev);
     int error = 0;
