@@ -45,7 +45,7 @@ char copyright[] =
 static char sccsid[] = "@(#)mount_null.c	8.6 (Berkeley) 4/26/95";
 */
 static const char rcsid[] =
-	"$Id: mount_null.c,v 1.7 1997/02/22 14:32:51 peter Exp $";
+	"$Id: mount_null.c,v 1.8 1997/03/11 12:33:36 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -81,7 +81,7 @@ main(argc, argv)
 	int error;
 
 	mntflags = 0;
-	while ((ch = getopt(argc, argv, "o:")) != EOF)
+	while ((ch = getopt(argc, argv, "o:")) != -1)
 		switch(ch) {
 		case 'o':
 			getmntopts(optarg, mopts, &mntflags, 0);

@@ -42,7 +42,7 @@ static char copyright[] =
 
 #ifndef lint
 /*static char sccsid[] = "from: @(#)slattach.c	4.6 (Berkeley) 6/1/90";*/
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: slattach.c,v 1.25 1997/02/22 14:33:19 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -132,7 +132,7 @@ int main(int argc, char **argv)
 	extern char *optarg;
 	extern int optind;
 
-	while ((option = getopt(argc, argv, "ace:fhlnr:s:u:zLK:O:S:")) != EOF) {
+	while ((option = getopt(argc, argv, "ace:fhlnr:s:u:zLK:O:S:")) != -1) {
 		switch (option) {
 		case 'a':
 			slflags |= IFF_LINK2;

@@ -111,7 +111,7 @@ main(argc, argv)
 #endif
 	nosync = NULL;
 	readstdin = 0;
-	while ((ch = getopt(argc, argv, "-hknr")) != EOF)
+	while ((ch = getopt(argc, argv, "-hknr")) != -1)
 		switch (ch) {
 		case '-':
 			readstdin = 1;

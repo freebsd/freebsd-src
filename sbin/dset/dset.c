@@ -114,7 +114,7 @@ main(ac, av)
 	int             testonly = FALSE;
 	int             verbose = FALSE;
 
-	while ((ch = getopt(ac, av, "qtv")) != EOF)
+	while ((ch = getopt(ac, av, "qtv")) != -1)
 		switch (ch) {
 		case 'q':
 			quiet = TRUE;

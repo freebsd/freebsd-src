@@ -45,7 +45,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)mount_nfs.c	8.11 (Berkeley) 5/4/95";
 */
 static const char rcsid[] =
-	"$Id: mount_nfs.c,v 1.16 1997/02/22 14:32:48 peter Exp $";
+	"$Id: mount_nfs.c,v 1.17 1997/03/11 12:31:56 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -223,7 +223,7 @@ main(argc, argv)
 	nfsargs = nfsdefargs;
 	nfsargsp = &nfsargs;
 	while ((c = getopt(argc, argv,
-	    "3a:bcdD:g:I:iKL:lm:o:PpqR:r:sTt:w:x:U")) != EOF)
+	    "3a:bcdD:g:I:iKL:lm:o:PpqR:r:sTt:w:x:U")) != -1)
 		switch (c) {
 		case '3':
 			nfsargsp->flags |= NFSMNT_NFSV3;

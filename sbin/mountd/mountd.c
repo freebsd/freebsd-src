@@ -43,7 +43,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "@(#)mountd.c	8.15 (Berkeley) 5/1/95"; */
 static const char rcsid[] =
-	"$Id: mountd.c,v 1.14 1997/03/11 12:43:45 peter Exp $";
+	"$Id: mountd.c,v 1.15 1997/03/27 20:00:48 guido Exp $";
 #endif /*not lint*/
 
 #include <sys/param.h>
@@ -270,7 +270,7 @@ main(argc, argv)
 		errx(1, "NFS support is not available in the running kernel");
 #endif	/* __FreeBSD__ */
 
-	while ((c = getopt(argc, argv, "dnr")) != EOF)
+	while ((c = getopt(argc, argv, "dnr")) != -1)
 		switch (c) {
 		case 'n':
 			resvport_only = 0;

@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: scsi.c,v 1.14 1997/02/22 14:33:16 peter Exp $
  */
 
 #include <stdio.h>
@@ -108,7 +108,7 @@ void procargs(int *argc_p, char ***argv_p)
 	fflag = 0;
 	commandflag = 0;
 	debugflag = 0;
-	while ((ch = getopt(argc, argv, "ceprvf:d:b:t:l:z:m:P:s:")) != EOF) {
+	while ((ch = getopt(argc, argv, "ceprvf:d:b:t:l:z:m:P:s:")) != -1) {
 		switch (ch) {
 		case 'p':
 			probe_all = 1;

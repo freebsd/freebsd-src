@@ -43,7 +43,7 @@ char copyright[] =
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: mount_std.c,v 1.5 1997/02/22 14:32:59 peter Exp $";
+	"$Id: mount_std.c,v 1.6 1997/03/11 12:38:16 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -92,7 +92,7 @@ main(argc, argv)
 	}
 
 	mntflags = 0;
-	while ((ch = getopt(argc, argv, "o:")) != EOF)
+	while ((ch = getopt(argc, argv, "o:")) != -1)
 		switch (ch) {
 		case 'o':
 			getmntopts(optarg, mopts, &mntflags, 0);

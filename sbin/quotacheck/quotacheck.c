@@ -136,7 +136,7 @@ main(argc, argv)
 	char ch, *name;
 
 	errs = maxrun = 0;
-	while ((ch = getopt(argc, argv, "aguvl:")) != EOF) {
+	while ((ch = getopt(argc, argv, "aguvl:")) != -1) {
 		switch(ch) {
 		case 'a':
 			aflag++;
