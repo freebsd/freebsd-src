@@ -17,6 +17,7 @@
 #include <arpa/inet.h>
 
 #include <err.h>
+#include <errno.h>
 #include <grp.h>
 #include <login_cap.h>
 #include <pwd.h>
@@ -27,6 +28,22 @@
 
 static void	usage(void);
 
+#define GET_USER_INFO do {						\
+	pwd = getpwnam(username);					\
+	if (pwd == NULL) {						\
+		if (errno)						\
+			err(1, "getpwnam: %s", username);		\
+		else							\
+			errx(1, "%s: no such user", username);		\
+	}								\
+	lcap = login_getpwclass(pwd);					\
+	if (lcap == NULL)						\
+		err(1, "getpwclass: %s", username);			\
+	ngroups = NGROUPS;						\
+	if (getgrouplist(username, pwd->pw_gid, groups, &ngroups) != 0)	\
+		err(1, "getgrouplist: %s", username);			\
+} while (0)
+
 int
 main(int argc, char **argv)
 {
@@ -34,36 +51,35 @@ main(int argc, char **argv)
 	struct jail j;
 	struct passwd *pwd;
 	struct in_addr in;
-	int ch, groups[NGROUPS], ngroups;
+	int ch, groups[NGROUPS], ngroups, uflag, Uflag;
 	char *username;
 
+	uflag = Uflag = 0;
 	username = NULL;
 
-	while ((ch = getopt(argc, argv, "u:")) != -1)
+	while ((ch = getopt(argc, argv, "u:U:")) != -1) {
 		switch (ch) {
 		case 'u':
 			username = optarg;
+			uflag = 1;
+			break;
+		case 'U':
+			username = optarg;
+			Uflag = 1;
 			break;
 		default:
 			usage();
 			break;
 		}
+	}
 	argc -= optind;
 	argv += optind;
 	if (argc < 4)
 		usage();
-
-	if (username != NULL) {
-		pwd = getpwnam(username);
-		if (pwd == NULL)
-			err(1, "getpwnam: %s", username);
-		lcap = login_getpwclass(pwd);
-		if (lcap == NULL)
-			err(1, "getpwclass: %s", username);
-		ngroups = NGROUPS;
-		if (getgrouplist(username, pwd->pw_gid, groups, &ngroups) != 0)
-			err(1, "getgrouplist: %s", username);
-	}
+	if (uflag && Uflag)
+		usage();
+	if (uflag)
+		GET_USER_INFO;
 	if (chdir(argv[0]) != 0)
 		err(1, "chdir: %s", argv[0]);
 	memset(&j, 0, sizeof(j));
@@ -76,6 +92,8 @@ main(int argc, char **argv)
 	if (jail(&j) != 0)
 		err(1, "jail");
 	if (username != NULL) {
+		if (Uflag)
+			GET_USER_INFO;
 		if (setgroups(ngroups, groups) != 0)
 			err(1, "setgroups");
 		if (setgid(pwd->pw_gid) != 0)
@@ -94,7 +112,8 @@ static void
 usage(void)
 {
 
-	(void)fprintf(stderr, "%s\n",
-	    "Usage: jail [-u username] path hostname ip-number command ...");
+	(void)fprintf(stderr, "%s%s\n",
+	     "usage: jail [-u username | -U username]",
+	     " path hostname ip-number command ...");
 	exit(1);
 }

@@ -41,7 +41,7 @@
 .Nd "imprison process and its descendants"
 .Sh SYNOPSIS
 .Nm
-.Op Fl u Ar username
+.Op Fl u Ar username | Fl U Ar username
 .Ar path hostname ip-number command ...
 .Sh DESCRIPTION
 The
@@ -51,7 +51,11 @@ command imprisons a process and all future descendants.
 The options are as follows:
 .Bl -tag -width ".Fl u Ar username"
 .It Fl u Ar username
-The user name as whom the
+The user name from host environment as whom the
+.Ar command
+should run.
+.It Fl U Ar username
+The user name from jailed environment as whom the
 .Ar command
 should run.
 .It Ar path
