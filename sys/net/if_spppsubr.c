@@ -2139,6 +2139,10 @@ sppp_lcp_up(struct sppp *sp)
 			lcp.Open(sp);
 		} else if (debug)
 			log(-1, "\n");
+	} else if ((ifp->if_flags & (IFF_AUTO | IFF_PASSIVE)) == 0 &&
+		   (sp->state[IDX_LCP] == STATE_INITIAL)) {
+		ifp->if_flags |= IFF_RUNNING;
+		lcp.Open(sp);
 	}
 
 	sppp_up_event(&lcp, sp);
