@@ -586,7 +586,7 @@ aio_process(struct aiocblist *aiocbe)
 		return;
 	}
 
-	aiov.iov_base = (void *)cb->aio_buf;
+	aiov.iov_base = (void *)(uintptr_t)cb->aio_buf;
 	aiov.iov_len = cb->aio_nbytes;
 
 	auio.uio_iov = &aiov;
@@ -1029,7 +1029,7 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	bp->b_flags = B_PHYS | B_CALL;
 	bp->b_iodone = aio_physwakeup;
 	bp->b_saveaddr = bp->b_data;
-	bp->b_data = (void *)cb->aio_buf;
+	bp->b_data = (void *)(uintptr_t)cb->aio_buf;
 	bp->b_blkno = btodb(cb->aio_offset);
 
 	if (cb->aio_lio_opcode == LIO_WRITE) {
@@ -1331,7 +1331,7 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 		 */
 		struct kevent *kevp;
 
-		kevp = (struct kevent *)job->aio_lio_opcode;
+		kevp = (struct kevent *)(uintptr_t)job->aio_lio_opcode;
 		if (kevp == NULL)
 			goto no_kqueue;
 
@@ -2205,7 +2205,7 @@ aio_waitcomplete(struct proc *p, struct aio_waitcomplete_args *uap)
 
 	for (;;) {
 		if ((cb = TAILQ_FIRST(&ki->kaio_jobdone)) != 0) {
-			suword(uap->aiocbp, (int)cb->uuaiocb);
+			suword(uap->aiocbp, (uintptr_t)cb->uuaiocb);
 			p->p_retval[0] = cb->uaiocb._aiocb_private.status;
 			if (cb->uaiocb.aio_lio_opcode == LIO_WRITE) {
 				curproc->p_stats->p_ru.ru_oublock +=
@@ -2223,7 +2223,7 @@ aio_waitcomplete(struct proc *p, struct aio_waitcomplete_args *uap)
 		s = splbio();
  		if ((cb = TAILQ_FIRST(&ki->kaio_bufdone)) != 0 ) {
 			splx(s);
-			suword(uap->aiocbp, (int)cb->uuaiocb);
+			suword(uap->aiocbp, (uintptr_t)cb->uuaiocb);
 			p->p_retval[0] = cb->uaiocb._aiocb_private.status;
 			aio_free_entry(cb);
 			return cb->uaiocb._aiocb_private.error;
@@ -2281,10 +2281,8 @@ static void
 filt_aiodetach(struct knote *kn)
 {
 	struct aiocblist *aiocbe = (struct aiocblist *)kn->kn_id;
-	int s = splhigh();	 /* XXX no clue, so overkill */
 
 	SLIST_REMOVE(&aiocbe->klist, kn, knote, kn_selnext);
-	splx(s);
 }
 
 /*ARGSUSED*/
@@ -2293,7 +2291,7 @@ filt_aio(struct knote *kn, long hint)
 {
 	struct aiocblist *aiocbe = (struct aiocblist *)kn->kn_id;
 
-	kn->kn_data = 0;		/* XXX data returned? */
+	kn->kn_data = aiocbe->uaiocb._aiocb_private.error;
 	if (aiocbe->jobstate != JOBST_JOBFINISHED &&
 	    aiocbe->jobstate != JOBST_JOBBFINISHED)
 		return (0);
