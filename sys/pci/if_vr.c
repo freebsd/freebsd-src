@@ -104,6 +104,8 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
+#undef VR_USESWSHIFT
+
 /*
  * Various supported device vendors/types and their names.
  */
@@ -146,8 +148,10 @@ static void vr_shutdown		(device_t);
 static int vr_ifmedia_upd	(struct ifnet *);
 static void vr_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
 
+#ifdef VR_USESWSHIFT
 static void vr_mii_sync		(struct vr_softc *);
 static void vr_mii_send		(struct vr_softc *, u_int32_t, int);
+#endif
 static int vr_mii_readreg	(struct vr_softc *, struct vr_mii_frame *);
 static int vr_mii_writereg	(struct vr_softc *, struct vr_mii_frame *);
 static int vr_miibus_readreg	(device_t, int, int);
@@ -231,6 +235,7 @@ DRIVER_MODULE(miibus, vr, miibus_driver, miibus_devclass, 0, 0);
 	CSR_WRITE_1(sc, VR_MIICMD,			\
 		CSR_READ_1(sc, VR_MIICMD) & ~(x))
 
+#ifdef VR_USESWSHIFT
 /*
  * Sync the PHYs by setting data bit and strobing the clock 32 times.
  */
@@ -277,6 +282,7 @@ vr_mii_send(sc, bits, cnt)
 		SIO_SET(VR_MIICMD_CLK);
 	}
 }
+#endif
 
 /*
  * Read an PHY register through the MII.
@@ -286,6 +292,7 @@ vr_mii_readreg(sc, frame)
 	struct vr_softc		*sc;
 	struct vr_mii_frame	*frame;
 	
+#ifdef VR_USESWSHIFT	
 {
 	int			i, ack;
 
@@ -372,6 +379,34 @@ fail:
 		return(1);
 	return(0);
 }
+#else
+{
+	int			s, i;
+
+	s = splimp();
+
+  	/* Set the PHY-adress */
+	CSR_WRITE_1(sc, VR_PHYADDR, (CSR_READ_1(sc, VR_PHYADDR)& 0xe0)|
+	    frame->mii_phyaddr);
+
+  	/* Set the register-adress */
+	CSR_WRITE_1(sc, VR_MIIADDR, frame->mii_regaddr);
+	VR_SETBIT(sc, VR_MIICMD, VR_MIICMD_READ_ENB);
+	
+	for (i = 0; i < 10000; i++) {
+		if ((CSR_READ_1(sc, VR_MIICMD) & VR_MIICMD_READ_ENB) == 0)
+			break;
+		DELAY(1);
+	}
+
+	frame->mii_data = CSR_READ_2(sc, VR_MIIDATA);
+
+	(void)splx(s);
+
+	return(0);
+}
+#endif
+
 
 /*
  * Write to a PHY register through the MII.
@@ -381,6 +416,7 @@ vr_mii_writereg(sc, frame)
 	struct vr_softc		*sc;
 	struct vr_mii_frame	*frame;
 	
+#ifdef VR_USESWSHIFT	
 {
 	VR_LOCK(sc);
 
@@ -424,6 +460,33 @@ vr_mii_writereg(sc, frame)
 
 	return(0);
 }
+#else
+{
+	int			s, i;
+
+	s = splimp();
+
+  	/* Set the PHY-adress */
+	CSR_WRITE_1(sc, VR_PHYADDR, (CSR_READ_1(sc, VR_PHYADDR)& 0xe0)|
+		    frame->mii_phyaddr);
+
+  	/* Set the register-adress and data to write */
+	CSR_WRITE_1(sc, VR_MIIADDR, frame->mii_regaddr);
+	CSR_WRITE_2(sc, VR_MIIDATA, frame->mii_data);
+
+	VR_SETBIT(sc, VR_MIICMD, VR_MIICMD_WRITE_ENB);
+
+	for (i = 0; i < 10000; i++) {
+		if ((CSR_READ_1(sc, VR_MIICMD) & VR_MIICMD_WRITE_ENB) == 0)
+			break;
+		DELAY(1);
+	}
+
+	(void)splx(s);
+
+	return(0);
+}
+#endif
 
 static int
 vr_miibus_readreg(dev, phy, reg)
@@ -434,6 +497,15 @@ vr_miibus_readreg(dev, phy, reg)
 	struct vr_mii_frame	frame;
 
 	sc = device_get_softc(dev);
+
+	switch (sc->vr_revid) {
+		case REV_ID_VT6102_APOLLO:
+			if (phy != 1)
+				return 0;
+		default:
+			break;
+		}
+
 	bzero((char *)&frame, sizeof(frame));
 
 	frame.mii_phyaddr = phy;
@@ -452,6 +524,15 @@ vr_miibus_writereg(dev, phy, reg, data)
 	struct vr_mii_frame	frame;
 
 	sc = device_get_softc(dev);
+
+	switch (sc->vr_revid) {
+		case REV_ID_VT6102_APOLLO:
+			if (phy != 1)
+				return 0;
+		default:
+			break;
+		}
+
 	bzero((char *)&frame, sizeof(frame));
 
 	frame.mii_phyaddr = phy;
@@ -754,6 +835,14 @@ vr_attach(dev)
 
 	/* Reset the adapter. */
 	vr_reset(sc);
+
+        /*
+	 * Turn on bit2 (MIION) in PCI configuration register 0x53 during
+	 * initialization and disable AUTOPOLL.
+	 */
+        pci_write_config(dev, VR_PCI_MODE,
+	    pci_read_config(dev, VR_PCI_MODE, 4) | (VR_MODE3_MIION << 24), 4);
+	VR_CLRBIT(sc, VR_MIICMD, VR_MIICMD_AUTOPOLL);
 
 	/*
 	 * Get station address. The way the Rhine chips work,
