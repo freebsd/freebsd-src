@@ -321,6 +321,7 @@ void dialog_clear(void)
 {
     attr_clear(stdscr, LINES, COLS, screen_attr);
     touchwin(stdscr);
+    refresh();
 }
 
 void dialog_update(void)
