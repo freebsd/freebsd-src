@@ -3027,8 +3027,8 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha"><quote>PC standard</quote>parallel ports (&man.ppc.4; driver)</para>
-    <para arch="pc98"><quote>PC-9821 standard</quote>parallel ports (&man.ppc.4; driver)</para>
+    <para arch="i386,alpha"><quote>PC standard</quote> parallel ports (&man.ppc.4; driver)</para>
+    <para arch="pc98"><quote>PC-9821 standard</quote> parallel ports (&man.ppc.4; driver)</para>
 
     <para arch="i386">PC-compatible joysticks (&man.joy.4; driver)</para>
 
