@@ -55,7 +55,6 @@ static char sccsid[] = "@(#)script.c	8.1 (Berkeley) 6/6/93";
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
-#include <tzfile.h>
 #include <unistd.h>
 
 FILE	*fscript;
@@ -171,7 +170,7 @@ dooutput()
 	(void)fprintf(fscript, "Script started on %s", ctime(&tvec));
 
 	(void)signal(SIGALRM, scriptflush);
-	value.it_interval.tv_sec = SECSPERMIN / 2;
+	value.it_interval.tv_sec = 60 / 2;
 	value.it_interval.tv_usec = 0;
 	value.it_value = value.it_interval;
 	(void)setitimer(ITIMER_REAL, &value, NULL);
