@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.i386,v 1.12 1995/11/13 21:33:04 markm Exp $
+#	$Id: rc.i386,v 1.13 1995/11/14 06:24:00 markm Exp $
 #	Do i386 specific processing
 #
 
@@ -9,16 +9,20 @@ echo -n 'enabling FreeBSD/i386 options:'
 # Start the SCO binary emulation if requested.
 if [ "X${ibcs2}" = X"YES" ]; then
 	echo -n ' ';		ibcs2
+	# XXX BOUGS - ibcs2 script shouldn't make any output on success
 fi
 
 # Start the Linux binary emulation if requested.
 if [ "X${linux}" = X"YES" ]; then
 	echo -n ' ';		linux
+	# XXX BOGUS - linux script shouldn't make any output on success
 fi
 
 if [ "X${xtend}" != X"NO" -a -x /usr/libexec/xtend ]; then
  	echo -n ' xtend';	/usr/libexec/xtend
 fi
+
+echo '.'
 
 ##########################################################################
 ####### Syscons section						  ########
@@ -28,20 +32,7 @@ fi
 kbddev=/dev/ttyv0
 viddev=/dev/ttyv0
 
-# don't change these, they're modified below
-kbdadjust=NO
-vidadjust=NO
-
-[ "X${keymap}" != X"NO" -o "X${keyrate}" != X"NO" \
-	-o "X${keychange}" != X"NO" ] && kbdadjust=YES
-[ "X${scrnmap}" != X"NO" -o "X${font8x16}" != X"NO" -o \
-	"X${font8x14}" != X"NO" -o "X${font8x8}" != X"NO" -o \
-	"X${blanktime}" != X"NO" -o "X${cursor}" != X"NO" ] && vidadjust=YES
-
-[ "X${kbdadjust}" != X"NO" -o "X${vidadjust}" != X"NO" -o \
-	"X${saver}" != X"NO" ] && { echo; echo "configuring syscons:"; }
-
-[ "X${kbdadjust}" != X"NO" ] && echo -n ' [kbdcontrol:'
+echo -n "configuring syscons:"
 
 # keymap
 if [ "X${keymap}" != X"NO" ]; then
@@ -63,11 +54,6 @@ if [ "X${keychange}" != X"NO" ]; then
 		shift; shift
 	done
 fi
-
-[ "X${kbdadjust}" != X"NO" ] && echo ']'
-
-
-[ "X${vidadjust}" != X"NO" ] && echo -n ' [vidcontrol:'
 
 # cursor type
 if [ "X${cursor}" != X"NO" ]; then
@@ -99,19 +85,20 @@ if [ "X${blanktime}" != X"NO" ]; then
 	echo -n ' blank_time';	vidcontrol <${viddev} -t ${blanktime}
 fi
 
-[ "X${vidadjust}" != X"NO" ] && echo ']'
-
 # screen saver
 if [ "X${saver}" != X"NO" ] ; then
-	echo -n ' screensaver: '
-	modstat | grep _saver || modload -u -o /tmp/saver_mod -e \
-				 ${saver}_saver_mod -q /lkm/${saver}_saver_mod.o
-fi
-
-# interrupts for /dev/random device
-if [ "X${rand_irqs}" != X"NO" ] ; then
-	echo -n ' entropy source: '
-	rndcontrol ${rand_irqs}
+	echo -n ' screensaver'
+	modstat | grep _saver || \
+		modload -u -o /tmp/saver_mod -q /lkm/${saver}_saver_mod.o
 fi
 
 echo '.'
+
+# interrupts for /dev/random device
+if [ "X${rand_irqs}" != X"NO" ] ; then
+	echo -n 'entropy source: '
+	rndcontrol ${rand_irqs}
+fi
+
+echo '.' # probably bogus
+
