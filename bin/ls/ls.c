@@ -53,9 +53,6 @@ static const char rcsid[] =
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 
-#ifdef COLORLS
-#include <curses.h>
-#endif
 #include <dirent.h>
 #include <err.h>
 #include <errno.h>
@@ -65,10 +62,11 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef COLORLS
-#include <term.h>
-#endif
 #include <unistd.h>
+#ifdef COLORLS
+#include <termcap.h>
+#include <signal.h>
+#endif
 
 #include "ls.h"
 #include "extern.h"
@@ -123,6 +121,7 @@ int f_color;			/* add type in color for non-regular files */
 char *ansi_bgcol;		/* ANSI sequence to set background colour */
 char *ansi_fgcol;		/* ANSI sequence to set foreground colour */
 char *ansi_coloff;		/* ANSI sequence to reset colours */
+extern void colorquit __P((int));
 #endif
 
 int rval;
@@ -299,8 +298,10 @@ main(argc, argv)
 	argv += optind;
 
 #ifdef COLORLS
-	if (f_color)
+	if (f_color) {
+		(void) signal(SIGINT, colorquit);
 		parsecolors(getenv("LSCOLORS"));
+	}
 #endif
 
 	/*
