@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.8 1995/01/05 00:01:06 ache Exp $
+ * $Id: tty.h,v 1.9 1995/02/09 11:14:19 jkh Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -141,6 +141,12 @@ struct tty {
 #define	TS_LNCH		0x04000		/* Next character is literal. */
 #define	TS_TYPEN	0x08000		/* Retyping suspended input (PENDIN). */
 #define	TS_LOCAL	(TS_BKSL | TS_CNTTB | TS_ERASE | TS_LNCH | TS_TYPEN)
+/*
+ * Snoop state,we need this as we have no other indication of
+ * begin snoopped.
+ */
+#define TS_SNOOP	0x10000		/* There is snoop on device */
+
 
 /* Character type information. */
 #define	ORDINARY	0
