@@ -32,7 +32,7 @@
 .\"     @(#)colrm.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd July 29, 2004
+.Dd August 4, 2004
 .Dt COLRM 1
 .Os
 .Sh NAME
@@ -68,6 +68,17 @@ Column numbering starts with one, not zero.
 .Pp
 Tab characters increment the column count to the next multiple of eight.
 Backspace characters decrement the column count by one.
+.Sh ENVIRONMENT
+The
+.Ev LANG , LC_ALL
+and
+.Ev LC_CTYPE
+environment variables affect the execution of
+.Nm
+as described in
+.Xr environ 7 .
+.Sh DIAGNOSTICS
+.Ex -std
 .Sh SEE ALSO
 .Xr awk 1 ,
 .Xr column 1 ,
