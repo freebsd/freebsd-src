@@ -1008,7 +1008,8 @@ static void xl_reset(sc)
 
 	XL_SEL_WIN(0);
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RESET | 
-		    ((sc->xl_flags & XL_FLAG_WEIRDRESET)?0xFF:0));
+		    ((sc->xl_flags & XL_FLAG_WEIRDRESET) ?
+		     XL_RESETOPT_DISADVFD:0));
 
 	for (i = 0; i < XL_TIMEOUT; i++) {
 		DELAY(10);
