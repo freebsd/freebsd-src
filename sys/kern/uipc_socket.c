@@ -1231,6 +1231,8 @@ sosetopt(so, sopt)
 				error = EDOM;
 				goto bad;
 			}
+			if (val == 0 && tv.tv_usec != 0)
+				val = 1;
 
 			switch (sopt->sopt_name) {
 			case SO_SNDTIMEO:
