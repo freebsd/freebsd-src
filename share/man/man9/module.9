@@ -64,8 +64,10 @@ contains the value of
 .Bd -literal
 #include <sys/param.h>
 #include <sys/module.h>
+#include <sys/kernel.h>
 
-modeventhand_t	foo_handler;
+static int foo_handler(module_t mod, int /*modeventtype_t*/ what,
+                       void *arg);
 
 static moduledata_t mod_data= {
         "foo",
