@@ -65,13 +65,14 @@ add(int fd)
 
 	gpt = map_find(MAP_TYPE_PRI_GPT_HDR);
 	if (gpt == NULL) {
-		warnx("%s: error: device does not contain a GPT", device_name);
+		warnx("%s: error: no primary GPT header; run create or recover",
+		    device_name);
 		return;
 	}
 
 	tpg = map_find(MAP_TYPE_SEC_GPT_HDR);
 	if (tpg == NULL) {
-		warnx("%s: error: no secundary table; run recover",
+		warnx("%s: error: no secondary GPT header; run recover",
 		    device_name);
 		return;
 	}
