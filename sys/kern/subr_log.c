@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_log.c	8.1 (Berkeley) 6/10/93
- * $Id: subr_log.c,v 1.3 1994/08/02 07:42:29 davidg Exp $
+ * $Id: subr_log.c,v 1.4 1994/09/25 19:33:47 phk Exp $
  */
 
 /*
@@ -45,6 +45,7 @@
 #include <sys/ioctl.h>
 #include <sys/msgbuf.h>
 #include <sys/file.h>
+#include <sys/signalvar.h>
 
 #define LOG_RDPRI	(PZERO + 1)
 

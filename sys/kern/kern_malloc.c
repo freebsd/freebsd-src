@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id$
+ * $Id: kern_malloc.c,v 1.3 1994/08/02 07:42:04 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -196,7 +196,7 @@ malloc(size, type, flags)
 		memname[freep->type] : "???";
 	if (kbp->kb_next &&
 	    !kernacc(kbp->kb_next, sizeof(struct freelist), 0)) {
-		printf("%s of object 0x%x size %d %s %s (invalid addr 0x%x)\n",
+		printf("%s of object %p size %ld %s %s (invalid addr %p)\n",
 			"Data modified on freelist: word 2.5", va, size,
 			"previous type", savedtype, kbp->kb_next);
 		kbp->kb_next = NULL;
@@ -215,7 +215,7 @@ malloc(size, type, flags)
 	for (lp = (long *)va; lp < end; lp++) {
 		if (*lp == WEIRD_ADDR)
 			continue;
-		printf("%s %d of object 0x%x size %d %s %s (0x%x != 0x%x)\n",
+		printf("%s %d of object %p size %ld %s %s (0x%lx != 0x%x)\n",
 			"Data modified on freelist: word", lp - (long *)va,
 			va, size, "previous type", savedtype, *lp, WEIRD_ADDR);
 		break;
@@ -308,7 +308,7 @@ free(addr, type)
 		for (cp = kbp->kb_next; cp; cp = *(caddr_t *)cp) {
 			if (addr != cp)
 				continue;
-			printf("multiply freed item 0x%x\n", addr);
+			printf("multiply freed item %p\n", addr);
 			panic("free: duplicated free");
 		}
 	}

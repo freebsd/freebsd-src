@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cache.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: vfs_cache.c,v 1.3 1994/08/02 07:43:15 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -161,20 +161,23 @@ cache_lookup(dvp, vpp, cnp)
 	 * want cache entry to exist.
 	 */
 	/* remove from LRU chain */
-	if (ncq = ncp->nc_nxt)
+	ncq = ncp->nc_nxt;
+	if (ncq)
 		ncq->nc_prev = ncp->nc_prev;
 	else
 		nchtail = ncp->nc_prev;
 	*ncp->nc_prev = ncq;
 	/* remove from hash chain */
-	if (ncq = ncp->nc_forw)
+	ncq = ncp->nc_forw;
+	if (ncq)
 		ncq->nc_back = ncp->nc_back;
 	*ncp->nc_back = ncq;
 	/* and make a dummy hash chain */
 	ncp->nc_forw = NULL;
 	ncp->nc_back = NULL;
 	/* insert at head of LRU list (first to grab) */
-	if (ncq = nchhead)
+	ncq = nchhead;
+	if (ncq)
 		ncq->nc_prev = &ncp->nc_nxt;
 	else
 		nchtail = &ncp->nc_nxt;
@@ -209,23 +212,27 @@ cache_enter(dvp, vp, cnp)
 			malloc((u_long)sizeof *ncp, M_CACHE, M_WAITOK);
 		bzero((char *)ncp, sizeof *ncp);
 		numcache++;
-	} else if (ncp = nchhead) {
+	} else if (!nchhead) {
+		return;
+	} else {
+		ncp = nchhead;
 		/* remove from lru chain */
-		if (ncq = ncp->nc_nxt)
+		ncq = ncp->nc_nxt;
+		if (ncq)
 			ncq->nc_prev = ncp->nc_prev;
 		else
 			nchtail = ncp->nc_prev;
 		*ncp->nc_prev = ncq;
 		/* remove from old hash chain, if on one */
 		if (ncp->nc_back) {
-			if (ncq = ncp->nc_forw)
+			ncq = ncp->nc_forw;
+			if (ncq)
 				ncq->nc_back = ncp->nc_back;
 			*ncp->nc_back = ncq;
 			ncp->nc_forw = NULL;
 			ncp->nc_back = NULL;
 		}
-	} else
-		return;
+	}
 	/* grab the vnode we just found */
 	ncp->nc_vp = vp;
 	if (vp)
@@ -244,7 +251,8 @@ cache_enter(dvp, vp, cnp)
 	nchtail = &ncp->nc_nxt;
 	/* and insert on hash chain */
 	ncpp = &nchashtbl[cnp->cn_hash & nchash];
-	if (ncq = *ncpp)
+	ncq = *ncpp;
+	if (ncq)
 		ncq->nc_back = &ncp->nc_forw;
 	ncp->nc_forw = ncq;
 	ncp->nc_back = ncpp;
@@ -308,21 +316,24 @@ cache_purgevfs(mp)
 		ncp->nc_dvp = NULL;
 		/* remove from old hash chain, if on one */
 		if (ncp->nc_back) {
-			if (nxtcp = ncp->nc_forw)
+			nxtcp = ncp->nc_forw;
+			if (nxtcp)
 				nxtcp->nc_back = ncp->nc_back;
 			*ncp->nc_back = nxtcp;
 			ncp->nc_forw = NULL;
 			ncp->nc_back = NULL;
 		}
 		/* delete this entry from LRU chain */
-		if (nxtcp = ncp->nc_nxt)
+		nxtcp = ncp->nc_nxt;
+		if (nxtcp)
 			nxtcp->nc_prev = ncp->nc_prev;
 		else
 			nchtail = ncp->nc_prev;
 		*ncp->nc_prev = nxtcp;
 		/* cause rescan of list, it may have altered */
 		/* also put the now-free entry at head of LRU */
-		if (nxtcp = nchhead)
+		nxtcp = nchhead;
+		if (nxtcp)
 			nxtcp->nc_prev = &ncp->nc_nxt;
 		else
 			nchtail = &ncp->nc_nxt;

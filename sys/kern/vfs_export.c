@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.8 1994/08/29 06:08:51 davidg Exp $
+ * $Id: vfs_subr.c,v 1.9 1994/09/25 19:33:52 phk Exp $
  */
 
 /*
@@ -347,12 +347,15 @@ getnewvnode(tag, mp, vops, vpp)
 		if (vp->v_type != VBAD)
 			vgone(vp);
 #ifdef DIAGNOSTIC
+		{
+		int s;
 		if (vp->v_data)
 			panic("cleaned vnode isn't");
 		s = splbio();
 		if (vp->v_numoutput)
 			panic("Clean vnode has pending I/O's");
 		splx(s);
+		}
 #endif
 		vp->v_flag = 0;
 		vp->v_lastr = 0;

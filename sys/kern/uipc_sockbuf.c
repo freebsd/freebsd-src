@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: uipc_socket2.c,v 1.3 1994/08/02 07:43:08 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -42,16 +42,10 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
+#include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-
-void	soqinsque	__P((struct socket *, struct socket *, int));
-void	sowakeup	__P((struct socket *, struct sockbuf *));
-void	sbrelease	__P((struct sockbuf *));
-void	sbappendrecord	__P((struct sockbuf *, struct mbuf *));
-void	sbcompress	__P((struct sockbuf *, struct mbuf *, struct mbuf *));
-void	sbflush		__P((struct sockbuf *));
-void	sbdrop		__P((struct sockbuf *, int));
+#include <sys/signalvar.h>
 
 /*
  * Primitive routines for operating on sockets and socket buffers
@@ -299,9 +293,10 @@ sb_lock(sb)
 
 	while (sb->sb_flags & SB_LOCK) {
 		sb->sb_flags |= SB_WANT;
-		if (error = tsleep((caddr_t)&sb->sb_flags, 
+		error = tsleep((caddr_t)&sb->sb_flags, 
 		    (sb->sb_flags & SB_NOINTR) ? PSOCK : PSOCK|PCATCH,
-		    netio, 0))
+		    netio, 0);
+		if (error)
 			return (error);
 	}
 	sb->sb_flags |= SB_LOCK;
@@ -461,7 +456,8 @@ sbappend(sb, m)
 
 	if (m == 0)
 		return;
-	if (n = sb->sb_mb) {
+	n = sb->sb_mb;
+	if (n) {
 		while (n->m_nextpkt)
 			n = n->m_nextpkt;
 		do {
@@ -511,7 +507,8 @@ sbappendrecord(sb, m0)
 
 	if (m0 == 0)
 		return;
-	if (m = sb->sb_mb)
+	m = sb->sb_mb;
+	if (m)
 		while (m->m_nextpkt)
 			m = m->m_nextpkt;
 	/*
@@ -547,7 +544,8 @@ sbinsertoob(sb, m0)
 
 	if (m0 == 0)
 		return;
-	for (mp = &sb->sb_mb; m = *mp; mp = &((*mp)->m_nextpkt)) {
+	for (mp = &sb->sb_mb; *mp ; mp = &((*mp)->m_nextpkt)) {
+	    m = *mp;
 	    again:
 		switch (m->m_type) {
 
@@ -555,7 +553,8 @@ sbinsertoob(sb, m0)
 			continue;		/* WANT next train */
 
 		case MT_CONTROL:
-			if (m = m->m_next)
+			m = m->m_next;
+			if (m)
 				goto again;	/* inspect THIS train further */
 		}
 		break;
@@ -616,7 +615,8 @@ panic("sbappendaddr");
 	m->m_next = control;
 	for (n = m; n; n = n->m_next)
 		sballoc(sb, n);
-	if (n = sb->sb_mb) {
+	n = sb->sb_mb;
+	if (n) {
 		while (n->m_nextpkt)
 			n = n->m_nextpkt;
 		n->m_nextpkt = m;
@@ -648,7 +648,8 @@ sbappendcontrol(sb, m0, control)
 	n->m_next = m0;			/* concatenate data to control */
 	for (m = control; m; m = m->m_next)
 		sballoc(sb, m);
-	if (n = sb->sb_mb) {
+	n = sb->sb_mb;
+	if (n) {
 		while (n->m_nextpkt)
 			n = n->m_nextpkt;
 		n->m_nextpkt = control;
@@ -783,6 +784,7 @@ sbdroprecord(sb)
 		do {
 			sbfree(sb, m);
 			MFREE(m, mn);
-		} while (m = mn);
+			m = mn;
+		} while (m);
 	}
 }

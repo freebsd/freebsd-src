@@ -1,4 +1,4 @@
-/*	$Id: sysv_sem.c,v 1.1 1994/09/13 14:47:00 dfr Exp $ */
+/*	$Id: sysv_sem.c,v 1.2 1994/09/17 13:24:17 davidg Exp $ */
 
 /*
  * Implementation of SVID semaphores
@@ -25,7 +25,6 @@ void
 seminit()
 {
 	register int i;
-	vm_offset_t whocares1, whocares2;
 
 	if (sema == NULL)
 		panic("sema is NULL");
@@ -582,7 +581,7 @@ semop(p, uap, retval)
 	struct sem_undo *suptr = NULL;
 	struct ucred *cred = p->p_ucred;
 	int i, j, eval;
-	int all_ok, do_wakeup, do_undos;
+	int do_wakeup, do_undos;
 
 #ifdef SEM_DEBUG
 	printf("call to semop(%d, 0x%x, %d)\n", semid, sops, nsops);

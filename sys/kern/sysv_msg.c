@@ -1,4 +1,4 @@
-/*	$Id: sysv_msg.c,v 1.1 1994/09/13 14:46:57 dfr Exp $ */
+/*	$Id: sysv_msg.c,v 1.2 1994/09/17 13:24:16 davidg Exp $ */
 
 /*
  * Implementation of SVID messages
@@ -41,7 +41,6 @@ void
 msginit()
 {
 	register int i;
-	vm_offset_t whocares1, whocares2;
 
 	/*
 	 * msginfo.msgssz should be a power of two for efficiency reasons.
@@ -154,7 +153,7 @@ msgctl(p, uap, retval)
 	int cmd = uap->cmd;
 	struct msqid_ds *user_msqptr = uap->user_msqptr;
 	struct ucred *cred = p->p_ucred;
-	int i, rval, eval;
+	int rval, eval;
 	struct msqid_ds msqbuf;
 	register struct msqid_ds *msqptr;
 

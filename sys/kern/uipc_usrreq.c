@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- * $Id: uipc_usrreq.c,v 1.3 1994/08/02 07:43:12 davidg Exp $
+ * $Id: uipc_usrreq.c,v 1.4 1994/09/28 19:55:10 phk Exp $
  */
 
 #include <sys/param.h>
@@ -40,6 +40,7 @@
 #include <sys/filedesc.h>
 #include <sys/domain.h>
 #include <sys/protosw.h>
+#include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/unpcb.h>
@@ -49,15 +50,6 @@
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/mbuf.h>
-
-void	unp_detach	__P((struct unpcb *));
-void	unp_disconnect	__P((struct unpcb *));
-void	unp_shutdown	__P((struct unpcb *));
-void	unp_drop	__P((struct unpcb *, int));
-void	unp_gc		__P((void));
-void	unp_scan	__P((struct mbuf *, void (*)(struct file *)));
-void	unp_mark	__P((struct file *));
-void	unp_discard	__P((struct file *));
 
 /*
  * Unix communications domain.
@@ -411,7 +403,8 @@ unp_bind(unp, nam, p)
 	} else
 		*(mtod(nam, caddr_t) + nam->m_len) = 0;
 /* SHOULD BE ABLE TO ADOPT EXISTING AND wakeup() ALA FIFO's */
-	if (error = namei(&nd))
+	error = namei(&nd);
+	if (error)
 		return (error);
 	vp = nd.ni_vp;
 	if (vp != NULL) {
@@ -427,7 +420,8 @@ unp_bind(unp, nam, p)
 	vattr.va_type = VSOCK;
 	vattr.va_mode = ACCESSPERMS;
 	LEASE_CHECK(nd.ni_dvp, p, p->p_ucred, LEASE_WRITE);
-	if (error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr))
+	error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
+	if (error)
 		return (error);
 	vp = nd.ni_vp;
 	vp->v_socket = unp->unp_socket;
@@ -456,14 +450,16 @@ unp_connect(so, nam, p)
 			return (EMSGSIZE);
 	} else
 		*(mtod(nam, caddr_t) + nam->m_len) = 0;
-	if (error = namei(&nd))
+	error = namei(&nd);
+	if (error)
 		return (error);
 	vp = nd.ni_vp;
 	if (vp->v_type != VSOCK) {
 		error = ENOTSOCK;
 		goto bad;
 	}
-	if (error = VOP_ACCESS(vp, VWRITE, p->p_ucred, p))
+	error = VOP_ACCESS(vp, VWRITE, p->p_ucred, p);
+	if (error)
 		goto bad;
 	so2 = vp->v_socket;
 	if (so2 == 0) {

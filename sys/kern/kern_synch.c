@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_synch.c,v 1.5 1994/09/25 19:33:44 phk Exp $
+ * $Id: kern_synch.c,v 1.6 1994/10/02 04:45:50 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -46,7 +46,8 @@
 #include <sys/buf.h>
 #include <sys/signalvar.h>
 #include <sys/resourcevar.h>
-#include <sys/vmmeter.h>
+#include <sys/signalvar.h>
+#include <vm/vm.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
@@ -420,7 +421,7 @@ sleep(ident, priority)
 
 #ifdef DIAGNOSTIC
 	if (priority > PZERO) {
-		printf("sleep called with priority %d > PZERO, wchan: %x\n",
+		printf("sleep called with priority %d > PZERO, wchan: %p\n",
 		    priority, ident);
 		panic("old sleep");
 	}
@@ -504,9 +505,10 @@ wakeup(ident)
 	s = splhigh();
 	qp = &slpque[LOOKUP(ident)];
 restart:
-	for (q = &qp->sq_head; p = *q; ) {
+	for (q = &qp->sq_head; *q; ) {
+		p = *q;
 #ifdef DIAGNOSTIC
-		if (p->p_back || p->p_stat != SSLEEP && p->p_stat != SSTOP)
+		if (p->p_back || (p->p_stat != SSLEEP && p->p_stat != SSTOP))
 			panic("wakeup");
 #endif
 		if (p->p_wchan == ident) {

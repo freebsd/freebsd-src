@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_ktrace.c	8.2 (Berkeley) 9/23/93
- * $Id: kern_ktrace.c,v 1.3 1994/08/02 07:42:02 davidg Exp $
+ * $Id: kern_ktrace.c,v 1.4 1994/08/18 22:35:01 wollman Exp $
  */
 
 #ifdef KTRACE
@@ -45,8 +45,6 @@
 #include <sys/ktrace.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
-
-void ktrwrite	__P((struct vnode *, struct ktr_header *));
 
 struct ktr_header *
 ktrgetheader(type)
@@ -254,7 +252,8 @@ ktrace(curp, uap, retval)
 		 * an operation which requires a file argument.
 		 */
 		NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->fname, curp);
-		if (error = vn_open(&nd, FREAD|FWRITE, 0)) {
+		error = vn_open(&nd, FREAD|FWRITE, 0);
+		if (error) {
 			curp->p_traceflag &= ~KTRFAC_ACTIVE;
 			return (error);
 		}

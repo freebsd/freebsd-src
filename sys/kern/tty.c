@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.5 1994/08/02 07:42:46 davidg Exp $
+ * $Id: tty.c,v 1.6 1994/08/18 09:16:21 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -53,6 +53,8 @@
 #include <sys/kernel.h>
 #include <sys/vnode.h>
 #include <sys/syslog.h>
+#include <sys/signalvar.h>
+#include <sys/resourcevar.h>
 
 #include <vm/vm.h>
 
@@ -214,8 +216,8 @@ ttyclose(tp)
 
 /* Is 'c' a line delimiter ("break" character)? */
 #define	TTBREAKC(c)							\
-	((c) == '\n' || ((c) == cc[VEOF] ||				\
-	(c) == cc[VEOL] || (c) == cc[VEOL2]) && (c) != _POSIX_VDISABLE)
+	((c) == '\n' || (((c) == cc[VEOF] ||				\
+	(c) == cc[VEOL] || (c) == cc[VEOL2]) && (c) != _POSIX_VDISABLE))
 
 
 /*
@@ -251,7 +253,8 @@ ttyinput(c, tp)
 	/* Handle exceptional conditions (break, parity, framing). */
 	cc = tp->t_cc;
 	iflag = tp->t_iflag;
-	if (err = (ISSET(c, TTY_ERRORMASK))) {
+	err = (ISSET(c, TTY_ERRORMASK));
+	if (err) {
 		CLR(c, TTY_ERRORMASK);
 		if (ISSET(err, TTY_FE) && !c) {	/* Break. */
 			if (ISSET(iflag, IGNBRK))
@@ -262,8 +265,8 @@ ttyinput(c, tp)
 				c = cc[VINTR];
 			else if (ISSET(iflag, PARMRK))
 				goto parmrk;
-		} else if (ISSET(err, TTY_PE) &&
-		    ISSET(iflag, INPCK) || ISSET(err, TTY_FE)) {
+		} else if ((ISSET(err, TTY_PE) && ISSET(iflag, INPCK))
+			|| ISSET(err, TTY_FE)) {
 			if (ISSET(iflag, IGNPAR))
 				goto endcase;
 			else if (ISSET(iflag, PARMRK)) {
@@ -667,8 +670,8 @@ ttioctl(tp, cmd, data, flag)
 		    (p->p_sigignore & sigmask(SIGTTOU)) == 0 &&
 		    (p->p_sigmask & sigmask(SIGTTOU)) == 0) {
 			pgsignal(p->p_pgrp, SIGTTOU, 1);
-			if (error = ttysleep(tp,
-			    &lbolt, TTOPRI | PCATCH, ttybg, 0))
+			error = ttysleep(tp, &lbolt, TTOPRI | PCATCH, ttybg, 0);
+			if (error)
 				return (error);
 		}
 		break;
@@ -718,7 +721,8 @@ ttioctl(tp, cmd, data, flag)
 			constty = NULL;
 		break;
 	case TIOCDRAIN:			/* wait till output drained */
-		if (error = ttywait(tp))
+		error = ttywait(tp);
+		if (error)
 			return (error);
 		break;
 	case TIOCGETA: {		/* get termios struct */
@@ -760,7 +764,8 @@ ttioctl(tp, cmd, data, flag)
 
 		s = spltty();
 		if (cmd == TIOCSETAW || cmd == TIOCSETAF) {
-			if (error = ttywait(tp)) {
+			error = ttywait(tp);
+			if (error) {
 				splx(s);
 				return (error);
 			}
@@ -870,8 +875,8 @@ ttioctl(tp, cmd, data, flag)
 	case TIOCSCTTY:			/* become controlling tty */
 		/* Session ctty vnode pointer set in vnode layer. */
 		if (!SESS_LEADER(p) ||
-		    (p->p_session->s_ttyvp || tp->t_session) &&
-		    (tp->t_session != p->p_session))
+		    ((p->p_session->s_ttyvp || tp->t_session) &&
+		    (tp->t_session != p->p_session)))
 			return (EPERM);
 		tp->t_session = p->p_session;
 		tp->t_pgrp = p->p_pgrp;
@@ -923,8 +928,8 @@ ttselect(device, rw, p)
 	switch (rw) {
 	case FREAD:
 		nread = ttnread(tp);
-		if (nread > 0 || !ISSET(tp->t_cflag, CLOCAL) &&
-		    !ISSET(tp->t_state, TS_CARR_ON))
+		if (nread > 0 || (!ISSET(tp->t_cflag, CLOCAL) &&
+		    !ISSET(tp->t_state, TS_CARR_ON)))
 			goto win;
 		selrecord(p, &tp->t_rsel);
 		break;
@@ -970,8 +975,8 @@ ttywait(tp)
 	    && tp->t_oproc) {
 		(*tp->t_oproc)(tp);
 		SET(tp->t_state, TS_ASLEEP);
-		if (error = ttysleep(tp,
-		    &tp->t_outq, TTOPRI | PCATCH, ttyout, 0))
+		error = ttysleep(tp, &tp->t_outq, TTOPRI | PCATCH, ttyout, 0);
+		if (error)
 			break;
 	}
 	splx(s);
@@ -1054,10 +1059,10 @@ ttyblock(tp)
 	 * Block further input iff: current input > threshold
 	 * AND input is available to user program.
 	 */
-	if (total >= TTYHOG / 2 &&
+	if ((total >= TTYHOG / 2 &&
 	    !ISSET(tp->t_state, TS_TBLOCK) &&
-	    !ISSET(tp->t_lflag, ICANON) || tp->t_canq.c_cc > 0 &&
-	    tp->t_cc[VSTOP] != _POSIX_VDISABLE) {
+	    !ISSET(tp->t_lflag, ICANON)) || (tp->t_canq.c_cc > 0 &&
+	    tp->t_cc[VSTOP] != _POSIX_VDISABLE)) {
 		if (putc(tp->t_cc[VSTOP], &tp->t_outq) == 0) {
 			SET(tp->t_state, TS_TBLOCK);
 			ttstart(tp);
@@ -1237,7 +1242,8 @@ loop:	lflag = tp->t_lflag;
 		    p->p_flag & P_PPWAIT || p->p_pgrp->pg_jobc == 0)
 			return (EIO);
 		pgsignal(p->p_pgrp, SIGTTIN, 1);
-		if (error = ttysleep(tp, &lbolt, TTIPRI | PCATCH, ttybg, 0))
+		error = ttysleep(tp, &lbolt, TTIPRI | PCATCH, ttybg, 0);
+		if (error)
 			return (error);
 		goto loop;
 	}
@@ -1289,8 +1295,9 @@ loop:	lflag = tp->t_lflag;
 		if (CCEQ(cc[VDSUSP], c) && ISSET(lflag, ISIG)) {
 			pgsignal(tp->t_pgrp, SIGTSTP, 1);
 			if (first) {
-				if (error = ttysleep(tp,
-				    &lbolt, TTIPRI | PCATCH, ttybg, 0))
+				error = ttysleep(tp,
+				    &lbolt, TTIPRI | PCATCH, ttybg, 0);
+				if (error)
 					break;
 				goto loop;
 			}
@@ -1417,7 +1424,8 @@ loop:
 	    (p->p_sigmask & sigmask(SIGTTOU)) == 0 &&
 	     p->p_pgrp->pg_jobc) {
 		pgsignal(p->p_pgrp, SIGTTOU, 1);
-		if (error = ttysleep(tp, &lbolt, TTIPRI | PCATCH, ttybg, 0))
+		error = ttysleep(tp, &lbolt, TTIPRI | PCATCH, ttybg, 0);
+		if (error)
 			goto out;
 		goto loop;
 	}
@@ -1470,8 +1478,9 @@ loop:
 					if (ttyoutput(*cp, tp) >= 0) {
 						/* No Clists, wait a bit. */
 						ttstart(tp);
-						if (error = ttysleep(tp, &lbolt,
-						    TTOPRI | PCATCH, ttybuf, 0))
+						error = ttysleep(tp, &lbolt,
+						    TTOPRI | PCATCH, ttybuf, 0);
+						if (error)
 							break;
 						goto loop;
 					}
@@ -1500,8 +1509,9 @@ loop:
 			if (i > 0) {
 				/* No Clists, wait a bit. */
 				ttstart(tp);
-				if (error = ttysleep(tp,
-				    &lbolt, TTOPRI | PCATCH, ttybuf, 0))
+				error = ttysleep(tp,
+				    &lbolt, TTOPRI | PCATCH, ttybuf, 0);
+				if (error)
 					break;
 				goto loop;
 			}
@@ -1701,7 +1711,7 @@ ttyecho(c, tp)
 	    ISSET(tp->t_lflag, EXTPROC))
 		return;
 	if (ISSET(tp->t_lflag, ECHOCTL) &&
-	    (ISSET(c, TTY_CHARMASK) <= 037 && c != '\t' && c != '\n' ||
+	    ((ISSET(c, TTY_CHARMASK) <= 037 && c != '\t' && c != '\n') ||
 	    ISSET(c, TTY_CHARMASK) == 0177)) {
 		(void)ttyoutput('^', tp);
 		CLR(c, ~TTY_CHARMASK);
@@ -1812,7 +1822,7 @@ ttyinfo(tp)
 
 #define	pgtok(a)	(((a) * NBPG) / 1024)
 		/* Print percentage cpu, resident set size. */
-		tmp = pick->p_pctcpu * 10000 + FSCALE / 2 >> FSHIFT;
+		tmp = (pick->p_pctcpu * 10000 + FSCALE / 2) >> FSHIFT;
 		ttyprintf(tp, "%d%% %dk\n",
 		    tmp / 100,
 		    pick->p_stat == SIDL || pick->p_stat == SZOMB ? 0 :
@@ -1939,7 +1949,8 @@ ttysleep(tp, chan, pri, wmesg, timo)
 	short gen;
 
 	gen = tp->t_gen;
-	if (error = tsleep(chan, pri, wmesg, timo))
+	error = tsleep(chan, pri, wmesg, timo);
+	if (error)
 		return (error);
 	return (tp->t_gen == gen ? 0 : ERESTART);
 }

@@ -105,7 +105,8 @@ lkmcopen(dev, flag, devtype, p)
 		 * Sleep pending unlock; we use tsleep() to allow
 		 * an alarm out of the open.
 		 */
-		if (error = tsleep((caddr_t)&lkm_v, TTIPRI|PCATCH, "lkmopn", 0))
+		error = tsleep((caddr_t)&lkm_v, TTIPRI|PCATCH, "lkmopn", 0);
+		if (error)
 			return(error);	/* leave LKM_WANT set -- no problem */
 	}
 	lkm_v |= LKM_ALLOC;
@@ -181,7 +182,6 @@ lkmcioctl(dev, cmd, data, flag)
 	struct lmc_loadbuf *loadbufp;
 	struct lmc_unload *unloadp;
 	struct lmc_stat	 *statp;
-	int (*funcp)();
 	char istr[MAXLKMNAME];
 
 	switch(cmd) {
@@ -240,7 +240,9 @@ lkmcioctl(dev, cmd, data, flag)
 		}
 
 		/* copy in buffer full of data */
-		if (err = copyin((caddr_t)loadbufp->data, (caddr_t)curp->area + curp->offset, i))
+		err = copyin((caddr_t)loadbufp->data,
+		    (caddr_t)curp->area + curp->offset, i);
+		if (err)
 			break;
 
 		if ((curp->offset + i) < curp->size) {
@@ -291,7 +293,8 @@ lkmcioctl(dev, cmd, data, flag)
 		curp->entry = (int (*)()) (*((int *) (data)));
 
 		/* call entry(load)... (assigns "private" portion) */
-		if (err = (*(curp->entry))(curp, LKM_E_LOAD, LKM_VERSION)) {
+		err = (*(curp->entry))(curp, LKM_E_LOAD, LKM_VERSION);
+		if (err) {
 			/*
 			 * Module may refuse loading or may have a
 			 * version mismatch...
@@ -320,7 +323,8 @@ lkmcioctl(dev, cmd, data, flag)
 			 * Copy name and lookup id from all loaded
 			 * modules.  May fail.
 			 */
-		 	if (err = copyinstr(unloadp->name, istr, MAXLKMNAME-1, NULL))
+		 	err =copyinstr(unloadp->name, istr, MAXLKMNAME-1, NULL);
+		 	if (err)
 				break;
 
 			/*

@@ -45,7 +45,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_rlist.c,v 1.5 1993/12/22 12:51:39 davidg Exp $
+ *	$Id: subr_rlist.c,v 1.6 1994/08/13 03:50:24 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -53,6 +53,7 @@
 #include <sys/cdefs.h>
 #include <sys/malloc.h>
 #include <sys/rlist.h>
+#include <sys/proc.h>
 #include <vm/vm.h>
 #include <vm/vm_map.h>
 

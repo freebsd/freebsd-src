@@ -31,21 +31,18 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.3 1994/08/02 07:42:21 davidg Exp $
+ * $Id: kern_time.c,v 1.4 1994/09/25 19:33:45 phk Exp $
  */
 
 #include <sys/param.h>
 #include <sys/resourcevar.h>
+#include <sys/signalvar.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
 
 #include <machine/cpu.h>
-
-void timevaladd		__P((struct timeval *, struct timeval *));
-void timevalsub		__P((struct timeval *, struct timeval *));
-void timevalfix		__P((struct timeval *));
 
 /* 
  * Time of day and interval timer support.
