@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.150 1996/11/08 23:57:04 obrien Exp $ -->
+<!-- $Id: contrib.sgml,v 1.151 1996/11/15 06:26:30 nate Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -178,6 +178,7 @@
 	  <item>Andrew Gordon &lt;andrew.gordon@net-tel.co.uk&gt;
 	  <item>Andrew Herbert &lt;andrew@werple.apana.org.au&gt;
 	  <item>Andreas Kohout &lt;shanee@rabbit.augusta.de&gt;
+	  <item>Andreas Lohr &lt;andreas@marvin.RoBIN.de&gt;
 	  <item>Andrew McRae &lt;amcrae@cisco.com&gt;
 	  <item>Andrew Moore &lt;alm@FreeBSD.org&gt;
 	  <item>Andrew V. Stesin &lt;stesin@elvisti.kiev.ua&gt;
