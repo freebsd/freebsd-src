@@ -414,11 +414,10 @@ amr_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 
 	/* handle SCSI passthrough command */
 	if (au->au_cmd[0] == AMR_CMD_PASS) {
-	    if ((ap = malloc(sizeof(*ap), M_DEVBUF, M_WAITOK)) == NULL) {
+	    if ((ap = malloc(sizeof(*ap), M_DEVBUF, M_WAITOK | M_ZERO)) == NULL) {
 		error = ENOMEM;
 		break;
 	    }
-	    bzero(ap, sizeof(*ap));
 
 	    /* copy cdb */
 	    ap->ap_cdb_length = au->au_cmd[2];

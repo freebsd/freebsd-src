@@ -920,10 +920,9 @@ aac_alloc_command_cluster(struct aac_softc *sc)
  
     debug_called(1);
 
-    cmc = malloc(sizeof(struct aac_command_cluster), M_DEVBUF, M_NOWAIT);
+    cmc = malloc(sizeof(struct aac_command_cluster), M_DEVBUF,
+	M_NOWAIT | M_ZERO);
     if (cmc != NULL) {
-	bzero(cmc, sizeof(*cmc));
-
 	/* allocate the FIB cluster in DMAable memory and load it */
 	if (bus_dmamem_alloc(sc->aac_fib_dmat, (void **)&cmc->cmc_fibs, BUS_DMA_NOWAIT, &cmc->cmc_fibmap)) {
 	    free(cmc, M_DEVBUF);

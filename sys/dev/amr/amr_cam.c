@@ -319,11 +319,10 @@ amr_cam_command(struct amr_softc *sc, struct amr_command **acp)
      */
 
     /* construct passthrough */
-    if ((ap = malloc(sizeof(*ap), M_DEVBUF, M_NOWAIT)) == NULL) {
+    if ((ap = malloc(sizeof(*ap), M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
 	error = ENOMEM;
 	goto out;
     }
-    bzero(ap, sizeof(*ap));
     ap->ap_timeout = 0;
     ap->ap_ars = 1;
     ap->ap_request_sense_length = 14;
