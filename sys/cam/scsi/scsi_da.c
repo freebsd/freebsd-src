@@ -617,11 +617,9 @@ dadump(dev_t dev)
 	while (num > 0) {
 
 		if (is_physical_memory(addr)) {
-			pmap_enter(kernel_pmap, (vm_offset_t)CADDR1,
-				   trunc_page(addr), VM_PROT_READ, TRUE);
+			pmap_kenter((vm_offset_t)CADDR1, trunc_page(addr));
 		} else {
-			pmap_enter(kernel_pmap, (vm_offset_t)CADDR1,
-				   trunc_page(0), VM_PROT_READ, TRUE);
+			pmap_kenter((vm_offset_t)CADDR1, trunc_page(0));
 		}
 
 		xpt_setup_ccb(&csio.ccb_h, periph->path, /*priority*/1);

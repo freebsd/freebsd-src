@@ -119,7 +119,7 @@ vm_page_queue_init(void) {
 }
 
 vm_page_t vm_page_array = 0;
-static int vm_page_array_size = 0;
+int vm_page_array_size = 0;
 long first_page = 0;
 int vm_page_zero_count = 0;
 
@@ -143,6 +143,30 @@ vm_set_page_size()
 }
 
 /*
+ *	vm_add_new_page:
+ *
+ *	Add a new page to the freelist for use by the system.
+ *	Must be called at splhigh().
+ */
+vm_page_t
+vm_add_new_page(pa)
+	vm_offset_t pa;
+{
+	vm_page_t m;
+
+	++cnt.v_page_count;
+	++cnt.v_free_count;
+	m = PHYS_TO_VM_PAGE(pa);
+	m->phys_addr = pa;
+	m->flags = 0;
+	m->pc = (pa >> PAGE_SHIFT) & PQ_L2_MASK;
+	m->queue = m->pc + PQ_FREE;
+	TAILQ_INSERT_HEAD(&vm_page_queues[m->queue].pl, m, pageq);
+	vm_page_queues[m->queue].lcnt++;
+	return (m);
+}
+
+/*
  *	vm_page_startup:
  *
  *	Initializes the resident memory module.
@@ -159,7 +183,6 @@ vm_page_startup(starta, enda, vaddr)
 	register vm_offset_t vaddr;
 {
 	register vm_offset_t mapped;
-	register vm_page_t m;
 	register struct vm_page **bucket;
 	vm_size_t npages, page_range;
 	register vm_offset_t new_start;
@@ -296,15 +319,7 @@ vm_page_startup(starta, enda, vaddr)
 		else
 			pa = phys_avail[i];
 		while (pa < phys_avail[i + 1] && npages-- > 0) {
-			++cnt.v_page_count;
-			++cnt.v_free_count;
-			m = PHYS_TO_VM_PAGE(pa);
-			m->phys_addr = pa;
-			m->flags = 0;
-			m->pc = (pa >> PAGE_SHIFT) & PQ_L2_MASK;
-			m->queue = m->pc + PQ_FREE;
-			TAILQ_INSERT_HEAD(&vm_page_queues[m->queue].pl, m, pageq);
-			vm_page_queues[m->queue].lcnt++;
+			vm_add_new_page(pa);
 			pa += PAGE_SIZE;
 		}
 	}
@@ -1518,7 +1533,7 @@ vm_page_set_validclean(m, base, size)
 	m->valid |= pagebits;
 	m->dirty &= ~pagebits;
 	if (base == 0 && size == PAGE_SIZE) {
-		pmap_clear_modify(VM_PAGE_TO_PHYS(m));
+		pmap_clear_modify(m);
 		vm_page_flag_clear(m, PG_NOSYNC);
 	}
 }
@@ -1649,8 +1664,7 @@ void
 vm_page_test_dirty(m)
 	vm_page_t m;
 {
-	if ((m->dirty != VM_PAGE_BITS_ALL) &&
-	    pmap_is_modified(VM_PAGE_TO_PHYS(m))) {
+	if ((m->dirty != VM_PAGE_BITS_ALL) && pmap_is_modified(m)) {
 		vm_page_dirty(m);
 	}
 }

@@ -176,16 +176,13 @@ mmrw(dev, uio, flags)
 /* minor device 0 is physical memory */
 		case 0:
 			v = uio->uio_offset;
-			pmap_enter(kernel_pmap, (vm_offset_t)ptvmmap, v,
-				uio->uio_rw == UIO_READ ? VM_PROT_READ : VM_PROT_WRITE,
-				TRUE);
+			pmap_kenter((vm_offset_t)ptvmmap, v);
 			o = (int)uio->uio_offset & PAGE_MASK;
 			c = (u_int)(PAGE_SIZE - ((int)iov->iov_base & PAGE_MASK));
 			c = min(c, (u_int)(PAGE_SIZE - o));
 			c = min(c, (u_int)iov->iov_len);
 			error = uiomove((caddr_t)&ptvmmap[o], (int)c, uio);
-			pmap_remove(kernel_pmap, (vm_offset_t)ptvmmap,
-				    (vm_offset_t)&ptvmmap[PAGE_SIZE]);
+			pmap_kremove((vm_offset_t)ptvmmap);
 			continue;
 
 /* minor device 1 is kernel memory */

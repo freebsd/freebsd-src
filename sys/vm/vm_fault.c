@@ -826,7 +826,7 @@ readrest:
 		printf("Warning: page %p partially invalid on fault\n", fs.m);
 	}
 
-	pmap_enter(fs.map->pmap, vaddr, VM_PAGE_TO_PHYS(fs.m), prot, wired);
+	pmap_enter(fs.map->pmap, vaddr, fs.m, prot, wired);
 
 	if (((fault_flags & VM_FAULT_WIRE_MASK) == 0) && (wired == 0)) {
 		pmap_prefault(fs.map->pmap, vaddr, fs.entry);
@@ -1075,8 +1075,7 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 		 */
 
 		vm_page_flag_clear(dst_m, PG_ZERO);
-		pmap_enter(dst_map->pmap, vaddr, VM_PAGE_TO_PHYS(dst_m),
-		    prot, FALSE);
+		pmap_enter(dst_map->pmap, vaddr, dst_m, prot, FALSE);
 		vm_page_flag_set(dst_m, PG_WRITEABLE|PG_MAPPED);
 
 		/*

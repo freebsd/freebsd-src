@@ -452,7 +452,7 @@ vnode_pager_input_smlfs(object, m)
 		}
 	}
 	vm_pager_unmap_page(kva);
-	pmap_clear_modify(VM_PAGE_TO_PHYS(m));
+	pmap_clear_modify(m);
 	vm_page_flag_clear(m, PG_ZERO);
 	if (error) {
 		return VM_PAGER_ERROR;
@@ -515,7 +515,7 @@ vnode_pager_input_old(object, m)
 		}
 		vm_pager_unmap_page(kva);
 	}
-	pmap_clear_modify(VM_PAGE_TO_PHYS(m));
+	pmap_clear_modify(m);
 	vm_page_undirty(m);
 	vm_page_flag_clear(m, PG_ZERO);
 	if (!error)
@@ -782,7 +782,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 			 */
 			mt->valid = VM_PAGE_BITS_ALL;
 			vm_page_undirty(mt);	/* should be an assert? XXX */
-			pmap_clear_modify(VM_PAGE_TO_PHYS(mt));
+			pmap_clear_modify(mt);
 		} else {
 			/*
 			 * Read did not fill up entire page.  Since this

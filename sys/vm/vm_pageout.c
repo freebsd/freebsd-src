@@ -395,7 +395,7 @@ vm_pageout_flush(mc, count, flags)
 			 * essentially lose the changes by pretending it
 			 * worked.
 			 */
-			pmap_clear_modify(VM_PAGE_TO_PHYS(mt));
+			pmap_clear_modify(mt);
 			vm_page_undirty(mt);
 			break;
 		case VM_PAGER_ERROR:
@@ -475,12 +475,12 @@ vm_pageout_object_deactivate_pages(map, object, desired, map_remove_only)
 			    p->hold_count != 0 ||
 			    p->busy != 0 ||
 			    (p->flags & PG_BUSY) ||
-			    !pmap_page_exists(vm_map_pmap(map), VM_PAGE_TO_PHYS(p))) {
+			    !pmap_page_exists(vm_map_pmap(map), p)) {
 				p = next;
 				continue;
 			}
 
-			actcount = pmap_ts_referenced(VM_PAGE_TO_PHYS(p));
+			actcount = pmap_ts_referenced(p);
 			if (actcount) {
 				vm_page_flag_set(p, PG_REFERENCED);
 			} else if (p->flags & PG_REFERENCED) {
@@ -709,7 +709,7 @@ rescan0:
 		 */
 		if (m->object->ref_count == 0) {
 			vm_page_flag_clear(m, PG_REFERENCED);
-			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
+			pmap_clear_reference(m);
 
 		/*
 		 * Otherwise, if the page has been referenced while in the 
@@ -721,7 +721,7 @@ rescan0:
 		 * references.
 		 */
 		} else if (((m->flags & PG_REFERENCED) == 0) &&
-			(actcount = pmap_ts_referenced(VM_PAGE_TO_PHYS(m)))) {
+			(actcount = pmap_ts_referenced(m))) {
 			vm_page_activate(m);
 			m->act_count += (actcount + ACT_ADVANCE);
 			continue;
@@ -735,7 +735,7 @@ rescan0:
 		 */
 		if ((m->flags & PG_REFERENCED) != 0) {
 			vm_page_flag_clear(m, PG_REFERENCED);
-			actcount = pmap_ts_referenced(VM_PAGE_TO_PHYS(m));
+			actcount = pmap_ts_referenced(m);
 			vm_page_activate(m);
 			m->act_count += (actcount + ACT_ADVANCE + 1);
 			continue;
@@ -987,7 +987,7 @@ rescan0:
 			if (m->flags & PG_REFERENCED) {
 				actcount += 1;
 			}
-			actcount += pmap_ts_referenced(VM_PAGE_TO_PHYS(m));
+			actcount += pmap_ts_referenced(m);
 			if (actcount) {
 				m->act_count += ACT_ADVANCE + actcount;
 				if (m->act_count > ACT_MAX)
@@ -1199,7 +1199,7 @@ vm_pageout_page_stats()
 			actcount += 1;
 		}
 
-		actcount += pmap_ts_referenced(VM_PAGE_TO_PHYS(m));
+		actcount += pmap_ts_referenced(m);
 		if (actcount) {
 			m->act_count += ACT_ADVANCE + actcount;
 			if (m->act_count > ACT_MAX)
