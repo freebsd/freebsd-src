@@ -452,3 +452,19 @@ A: This is usually a configuration error.
 Q: I don't get RRSIG's returned when I use "dig +dnssec".
 
 A: You need to ensure DNSSEC is enabled (dnssec-enable yes;).
+
+
+Q: I get "Error 1067" when starting named under Windows.
+
+A: This is the service manager saying that named exited.   You need to
+   examine the Application log in the EventViewer to find out why.
+
+   Common causes are that you failed to create "named.conf" (usually 
+   "C:\windows\dns\etc\named.conf") or failed to specify the directory
+   in named.conf.
+
+        options {
+                Directory "C:\windows\dns\etc";
+        };
+
+

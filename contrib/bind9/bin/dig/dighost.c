@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dighost.c,v 1.221.2.19.2.14 2004/06/30 23:57:52 marka Exp $ */
+/* $Id: dighost.c,v 1.221.2.19.2.20 2004/11/22 23:30:31 marka Exp $ */
 
 /*
  * Notice to programmers:  Do not use this code as an example of how to
@@ -290,6 +290,8 @@ struct_tk_list  tk_list = { {NULL, NULL, NULL, NULL, NULL}, 0};
 
 #endif
 
+#define DIG_MAX_ADDRESSES 20
+
 /*
  * Apply and clear locks at the event level in global task.
  * Can I get rid of these using shutdown events?  XXX
@@ -493,7 +495,7 @@ check_result(isc_result_t result, const char *msg) {
  * of finding the answer the user is looking for
  */
 dig_server_t *
-make_server(const char *servname) {
+make_server(const char *servname, const char *userarg) {
 	dig_server_t *srv;
 
 	REQUIRE(servname != NULL);
@@ -504,10 +506,13 @@ make_server(const char *servname) {
 		fatal("memory allocation failure in %s:%d",
 		      __FILE__, __LINE__);
 	strncpy(srv->servername, servname, MXNAME);
+	strncpy(srv->userarg, userarg, MXNAME);
 	srv->servername[MXNAME-1] = 0;
+	srv->userarg[MXNAME-1] = 0;
 	ISC_LINK_INIT(srv, link);
 	return (srv);
 }
+
 static int
 addr2af(int lwresaddrtype)
 {
@@ -525,6 +530,7 @@ addr2af(int lwresaddrtype)
 
 	return (af);
 }
+
 /*
  * Create a copy of the server list from the lwres configuration structure.
  * The dest list must have already had ISC_LIST_INIT applied.
@@ -542,11 +548,12 @@ copy_server_list(lwres_conf_t *confdata, dig_serverlist_t *dest) {
 
 		lwres_net_ntop(af, confdata->nameservers[i].address,
 				   tmp, sizeof(tmp));
-		newsrv = make_server(tmp);
+		newsrv = make_server(tmp, tmp);
 		ISC_LINK_INIT(newsrv, link);
 		ISC_LIST_ENQUEUE(*dest, newsrv, link);
 	}
 }
+
 void
 flush_server_list(void) {
 	dig_server_t *s, *ps;
@@ -560,18 +567,35 @@ flush_server_list(void) {
 		isc_mem_free(mctx, ps);
 	}
 }
+
 void
 set_nameserver(char *opt) {
+	isc_result_t result;
+	isc_sockaddr_t sockaddrs[DIG_MAX_ADDRESSES];
+	isc_netaddr_t netaddr;
+	int count, i;
 	dig_server_t *srv;
+	char tmp[ISC_NETADDR_FORMATSIZE];
 
 	if (opt == NULL)
 		return;
 
+	result = bind9_getaddresses(opt, 0, sockaddrs,
+				    DIG_MAX_ADDRESSES, &count); 
+	if (result != ISC_R_SUCCESS)
+		fatal("couldn't get address for '%s': %s",
+		      opt, isc_result_totext(result));
+
 	flush_server_list();
-	srv = make_server(opt);
-	if (srv == NULL)
-		fatal("memory allocation failure");
-	ISC_LIST_INITANDAPPEND(server_list, srv, link);
+	
+	for (i = 0; i < count; i++) {
+		isc_netaddr_fromsockaddr(&netaddr, &sockaddrs[i]);
+		isc_netaddr_format(&netaddr, tmp, sizeof(tmp));
+		srv = make_server(tmp, opt);
+		if (srv == NULL)
+			fatal("memory allocation failure");
+		ISC_LIST_APPEND(server_list, srv, link);
+	}
 }
 
 static isc_result_t
@@ -613,7 +637,7 @@ clone_server_list(dig_serverlist_t src, dig_serverlist_t *dest) {
 	debug("clone_server_list()");
 	srv = ISC_LIST_HEAD(src);
 	while (srv != NULL) {
-		newsrv = make_server(srv->servername);
+		newsrv = make_server(srv->servername, srv->userarg);
 		ISC_LINK_INIT(newsrv, link);
 		ISC_LIST_ENQUEUE(*dest, newsrv, link);
 		srv = ISC_LIST_NEXT(srv, link);
@@ -1392,6 +1416,13 @@ followup_lookup(dns_message_t *msg, dig_query_t *query, dns_section_t section)
 		name = NULL;
 		dns_message_currentname(msg, section, &name);
 
+		if (section == DNS_SECTION_AUTHORITY) {
+			rdataset = NULL;
+			result = dns_message_findtype(name, dns_rdatatype_soa,
+						      0, &rdataset);
+			if (result == ISC_R_SUCCESS)
+				return (0);
+		}
 		rdataset = NULL;
 		result = dns_message_findtype(name, dns_rdatatype_ns, 0,
 					      &rdataset);
@@ -1436,7 +1467,7 @@ followup_lookup(dns_message_t *msg, dig_query_t *query, dns_section_t section)
 					query->lookup->ns_search_only;
 				lookup->trace_root = ISC_FALSE;
 			}
-			srv = make_server(namestr);
+			srv = make_server(namestr, namestr);
 			debug("adding server %s", srv->servername);
 			ISC_LIST_APPEND(lookup->my_server_list, srv, link);
 			dns_rdata_reset(&rdata);
@@ -1800,6 +1831,7 @@ setup_lookup(dig_lookup_t *lookup) {
 		query->first_rr_serial = 0;
 		query->second_rr_serial = 0;
 		query->servname = serv->servername;
+		query->userarg = serv->userarg;
 		query->rr_count = 0;
 		query->msg_count = 0;
 		ISC_LINK_INIT(query, link);
@@ -2581,11 +2613,26 @@ recv_done(isc_task_t *task, isc_event_t *event) {
 		else
 			isc_sockaddr_any6(&any);
 
+#ifdef ISC_PLATFORM_HAVESCOPEID
 		/*
-		* We don't expect a match when the packet is 
-		* sent to 0.0.0.0, :: or to a multicast addresses.
-		* XXXMPA broadcast needs to be handled here as well.
-		*/
+		 * Accept answers from any scope if we havn't specified the
+		 * scope as long as the address and port match.
+		 */
+		if (isc_sockaddr_pf(&query->sockaddr) == AF_INET6 &&
+		    query->sockaddr.type.sin6.sin6_scope_id == 0 &&
+		    memcmp(&sevent->address.type.sin6.sin6_addr,
+			   &query->sockaddr.type.sin6.sin6_addr,
+			   sizeof(query->sockaddr.type.sin6.sin6_addr)) == 0 &&
+		    isc_sockaddr_getport(&sevent->address) ==
+		    isc_sockaddr_getport(&query->sockaddr))
+			/* empty */;
+		else
+#endif
+		/*
+		 * We don't expect a match above when the packet is 
+		 * sent to 0.0.0.0, :: or to a multicast addresses.
+		 * XXXMPA broadcast needs to be handled here as well.
+		 */
 		if ((!isc_sockaddr_eqaddr(&query->sockaddr, &any) &&
 		     !isc_sockaddr_ismulticast(&query->sockaddr)) ||
 		    isc_sockaddr_getport(&query->sockaddr) !=
@@ -3564,8 +3611,8 @@ get_trusted_key(isc_mem_t *mctx)
 			return ISC_R_FAILURE;
 		}
 		fclose(fptemp);
-		result = dst_key_fromnamedfile(filetemp, DST_TYPE_PUBLIC |
-					       DST_TYPE_KEY, mctx, &key);
+		result = dst_key_fromnamedfile(filetemp, DST_TYPE_PUBLIC,
+					       mctx, &key);
 		removetmpkey(mctx, filetemp);
 		isc_mem_free(mctx, filetemp);
 		if (result !=  ISC_R_SUCCESS ) {
@@ -3688,7 +3735,7 @@ prepare_lookup(dns_name_t *name)
 				dns_rdata_reset(&aaaa);
 
 
-				srv = make_server(namestr);
+				srv = make_server(namestr, namestr);
 	     
 				ISC_LIST_APPEND(lookup->my_server_list,
 						srv, link);
@@ -3718,7 +3765,7 @@ prepare_lookup(dns_name_t *name)
 				printf("ns name: %s\n", namestr);
       
 
-				srv = make_server(namestr);
+				srv = make_server(namestr, namestr);
 	     
 				ISC_LIST_APPEND(lookup->my_server_list,
 						srv, link);
@@ -3730,7 +3777,7 @@ prepare_lookup(dns_name_t *name)
 		printf("ns name: ");
 		dns_name_print(&ns.name, stdout);
 		printf("\n");
-		srv = make_server(namestr);
+		srv = make_server(namestr, namestr);
 	     
 		ISC_LIST_APPEND(lookup->my_server_list, srv, link);
 
@@ -4905,7 +4952,7 @@ prove_nx_domain(dns_message_t *msg,
 	dns_rdataset_t  * nsecset = NULL;
 	dns_rdataset_t  * signsecset = NULL ;
 	dns_rdata_t       nsec = DNS_RDATA_INIT;
-	dns_name_t      * nsecname = NULL;
+	dns_name_t      * nsecname;
 	dns_rdata_nsec_t  nsecstruct;
   
 	if ((result = dns_message_firstname(msg, DNS_SECTION_AUTHORITY))
@@ -4916,6 +4963,7 @@ prove_nx_domain(dns_message_t *msg,
 	}
  
 	do {
+		nsecname = NULL;
 		dns_message_currentname(msg, DNS_SECTION_AUTHORITY, &nsecname);
 		nsecset = search_type(nsecname, dns_rdatatype_nsec,
 				      dns_rdatatype_any);
@@ -4961,7 +5009,6 @@ prove_nx_domain(dns_message_t *msg,
 
 			dns_rdata_freestruct(&nsecstruct);
 		}
-		nsecname = NULL;
 	} while (dns_message_nextname(msg, DNS_SECTION_AUTHORITY)
 		 == ISC_R_SUCCESS);
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: task.c,v 1.85.2.3.8.4 2004/03/08 21:06:29 marka Exp $ */
+/* $Id: task.c,v 1.85.2.3.8.5 2004/10/15 00:45:45 marka Exp $ */
 
 /*
  * Principal Author: Bob Halley
@@ -105,8 +105,8 @@ struct isc_taskmgr {
 	unsigned int			magic;
 	isc_mem_t *			mctx;
 	isc_mutex_t			lock;
-	unsigned int			workers;
 #ifdef ISC_PLATFORM_USETHREADS
+	unsigned int			workers;
 	isc_thread_t *			threads;
 #endif /* ISC_PLATFORM_USETHREADS */
 	/* Locked by task manager lock. */
@@ -1025,8 +1025,7 @@ manager_free(isc_taskmgr_t *manager) {
 #ifdef ISC_PLATFORM_USETHREADS
 	(void)isc_condition_destroy(&manager->exclusive_granted);	
 	(void)isc_condition_destroy(&manager->work_available);
-	isc_mem_put(manager->mctx, manager->threads,
-		    manager->workers * sizeof(isc_thread_t));
+	isc_mem_free(manager->mctx, manager->threads);
 #endif /* ISC_PLATFORM_USETHREADS */
 	DESTROYLOCK(&manager->lock);
 	manager->magic = 0;
@@ -1067,7 +1066,6 @@ isc_taskmgr_create(isc_mem_t *mctx, unsigned int workers,
 		return (ISC_R_NOMEMORY);
 	manager->magic = TASK_MANAGER_MAGIC;
 	manager->mctx = NULL;
-	manager->workers = 0;
 	if (isc_mutex_init(&manager->lock) != ISC_R_SUCCESS) {
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
 				 "isc_mutex_init() %s",
@@ -1077,7 +1075,9 @@ isc_taskmgr_create(isc_mem_t *mctx, unsigned int workers,
 		goto cleanup_mgr;
 	}
 #ifdef ISC_PLATFORM_USETHREADS
-	manager->threads = isc_mem_get(mctx, workers * sizeof(isc_thread_t));
+	manager->workers = 0;
+	manager->threads = isc_mem_allocate(mctx,
+					    workers * sizeof(isc_thread_t));
 	if (manager->threads == NULL) {
 		result = ISC_R_NOMEMORY;
 		goto cleanup_lock;
@@ -1107,7 +1107,6 @@ isc_taskmgr_create(isc_mem_t *mctx, unsigned int workers,
 	manager->tasks_running = 0;
 	manager->exclusive_requested = ISC_FALSE;
 	manager->exiting = ISC_FALSE;
-	manager->workers = 0;
 
 	isc_mem_attach(mctx, &manager->mctx);
 
@@ -1144,7 +1143,7 @@ isc_taskmgr_create(isc_mem_t *mctx, unsigned int workers,
  cleanup_workavailable:
 	(void)isc_condition_destroy(&manager->work_available);
  cleanup_threads:
-	isc_mem_put(mctx, manager->threads, workers * sizeof(isc_thread_t));
+	isc_mem_free(mctx, manager->threads);
  cleanup_lock:
 	DESTROYLOCK(&manager->lock);
 #endif
