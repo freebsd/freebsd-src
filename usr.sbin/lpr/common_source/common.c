@@ -118,8 +118,10 @@ getq(pp, namelist)
 	int arraysz;
 
 	seteuid(euid);
-	if ((dirp = opendir(pp->spool_dir)) == NULL)
+	if ((dirp = opendir(pp->spool_dir)) == NULL) {
+		seteuid(uid);
 		return (-1);
+	}
 	if (fstat(dirp->dd_fd, &stbuf) < 0)
 		goto errdone;
 	seteuid(uid);
@@ -168,6 +170,7 @@ getq(pp, namelist)
 
 errdone:
 	closedir(dirp);
+	seteuid(uid);
 	return (-1);
 }
 
