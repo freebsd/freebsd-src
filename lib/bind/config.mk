@@ -65,7 +65,7 @@ CFLAGS+=	-I${LIB_BIND_DIR}
 LIBBIND9=	${LIB_BIND_REL}/bind9/libbind9.a
 CFLAGS+=	-I${BIND_DIR}/lib/bind9/include
 LIBDNS=		${LIB_BIND_REL}/dns/libdns.a
-CFLAGS+=	-I${BIND_DIR}/lib/dns/sec/dst/include \
+CFLAGS+=	-I${BIND_DIR}/lib/dns/include/dst \
 		-I${BIND_DIR}/lib/dns/include \
 		-I${LIB_BIND_DIR}/dns
 LIBISCCC=	${LIB_BIND_REL}/isccc/libisccc.a
