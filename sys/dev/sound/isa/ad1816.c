@@ -102,7 +102,6 @@ static pcm_channel ad1816_chantemplate = {
 	ad1816chan_getcaps,
 };
 
-#define FULL_DUPLEX(x) (pcm_getflags(x) & SD_F_SIMPLEX)
 #define AD1816_MUTE 31		/* value for mute */
 
 static int
@@ -495,12 +494,11 @@ ad1816_alloc_resources(struct ad1816_info *ad1816, device_t dev)
 	if (!ad1816->drq1)
     		ad1816->drq1 = bus_alloc_resource(dev, SYS_RES_DRQ, &ad1816->drq1_rid,
 					       0, ~0, 1, RF_ACTIVE);
-    	if (ad1816->drq2_rid >= 0 && !ad1816->drq2)
+    	if (!ad1816->drq2)
         	ad1816->drq2 = bus_alloc_resource(dev, SYS_RES_DRQ, &ad1816->drq2_rid,
 					       0, ~0, 1, RF_ACTIVE);
 
     	if (!ad1816->io_base || !ad1816->drq1 || !ad1816->irq) ok = 0;
-    	if (ad1816->drq2_rid >= 0 && !ad1816->drq2) ok = 0;
 
 	if (ok) {
 		pdma = rman_get_start(ad1816->drq1);
@@ -541,7 +539,7 @@ ad1816_probe(device_t dev)
 
     	switch (logical_id) {
     	case 0x80719304: /* ADS7180 */
- 		s = "Terratec Soundsystem BASE 1";
+ 		s = "AD1816";
  		break;
     	}
 
@@ -587,9 +585,9 @@ ad1816_attach(device_t dev)
     	     	rman_get_start(ad1816->io_base),
 		rman_get_start(ad1816->irq),
 		rman_get_start(ad1816->drq1));
-    	if (FULL_DUPLEX(dev)) snprintf(status + strlen(status),
+    	if (ad1816->drq2) snprintf(status + strlen(status),
         	SND_STATUSLEN - strlen(status), ":%ld",
-		rman_get_start(ad1816->drq1));
+		rman_get_start(ad1816->drq2));
 
     	if (pcm_register(dev, ad1816, 1, 1)) goto no;
     	pcm_addchan(dev, PCMDIR_REC, &ad1816_chantemplate, ad1816);
