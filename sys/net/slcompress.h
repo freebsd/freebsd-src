@@ -1,5 +1,5 @@
-/*	$NetBSD: slcompress.h,v 1.9 1995/07/04 06:28:29 paulus Exp $	*/
-/*	Id: slcompress.h,v 1.1 1995/12/11 05:17:12 paulus Exp 	*/
+/*	$NetBSD: slcompress.h,v 1.11 1997/05/17 21:12:11 christos Exp $	*/
+/*	Id: slcompress.h,v 1.4 1994/09/21 06:50:08 paulus Exp 	*/
 
 /*
  * Copyright (c) 1989, 1993
@@ -42,6 +42,9 @@
  * Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
  */
+
+#ifndef _SLCOMPRESS_H_
+#define _SLCOMPRESS_H_
 
 #define MAX_STATES 16		/* must be > 2 and < 256 */
 #define MAX_HDR MLEN		/* XXX 4bsd-ism: should really be 128 */
@@ -155,9 +158,12 @@ struct slcompress {
 /* flag values */
 #define SLF_TOSS 1		/* tossing rcvd frames because of input err */
 
-void	 sl_compress_init __P((struct slcompress *, int));
-u_int	 sl_compress_tcp __P((struct mbuf *,
-	    struct ip *, struct slcompress *, int));
-int	 sl_uncompress_tcp __P((u_char **, int, u_int, struct slcompress *));
-int	 sl_uncompress_tcp_core __P((u_char *, int, int, u_int,
-	    struct slcompress *, u_char **, u_int *));
+void	sl_compress_init __P((struct slcompress *));
+void	sl_compress_setup __P((struct slcompress *, int));
+u_int	sl_compress_tcp __P((struct mbuf *,
+  	    struct ip *, struct slcompress *, int));
+int	sl_uncompress_tcp __P((u_char **, int, u_int, struct slcompress *));
+int	sl_uncompress_tcp_core __P((u_char *, int, int, u_int,
+  	    struct slcompress *, u_char **, u_int *));
+
+#endif /* _SLCOMPRESS_H_ */
