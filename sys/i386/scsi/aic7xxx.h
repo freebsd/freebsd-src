@@ -20,7 +20,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7xxx.h,v 1.20 1996/01/29 03:17:39 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.21 1996/01/30 22:56:41 mpp Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -124,6 +124,8 @@ struct scb {
 #define	SCB_DEVICE_RESET	0x04
 #define	SCB_IMMED		0x08
 #define	SCB_SENSE		0x10
+#define	SCB_TIMEDOUT		0x20
+#define	SCB_QUEUED_FOR_DONE	0x40
 	int	position;	/* Position in scbarray */
 	struct ahc_dma_seg ahc_dma[AHC_NSEG] __attribute__ ((packed));
 	struct scsi_sense sense_cmd;	/* SCSI command block */
@@ -155,6 +157,7 @@ struct ahc_data {
 	u_char	maxscbs;
 	u_char	unpause;
 	u_char	pause;
+	u_char	in_timeout;
 };
 
 /* Different debugging levels used when AHC_DEBUG is defined */
