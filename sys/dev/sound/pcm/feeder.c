@@ -66,7 +66,6 @@ feeder_register(void *p)
 		feedercnt++;
 		return;
 	}
-	/* printf("installing feeder: %s\n", f->name); */
 
 	i = 0;
 	while ((feedercnt < MAXFEEDERS) && (fc->desc[i].type > 0)) {
@@ -81,6 +80,19 @@ feeder_register(void *p)
 	feedercnt++;
 	if (feedercnt >= MAXFEEDERS)
 		printf("MAXFEEDERS exceeded\n");
+}
+
+static void
+feeder_unregisterall(void *p)
+{
+	struct feedertab_entry *fte, *next;
+
+	next = SLIST_FIRST(&feedertab);
+	while (next != NULL) {
+		fte = next;
+		next = SLIST_NEXT(fte, link);
+		free(fte, M_FEEDER);
+	}
 }
 
 static int
@@ -326,6 +338,7 @@ static struct feeder_class feeder_root_class = {
 	data:		NULL,
 };
 SYSINIT(feeder_root, SI_SUB_DRIVERS, SI_ORDER_FIRST, feeder_register, &feeder_root_class);
+SYSUNINIT(feeder_root, SI_SUB_DRIVERS, SI_ORDER_FIRST, feeder_unregisterall, NULL);
 
 
 
