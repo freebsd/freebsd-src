@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.34 1997/08/13 19:29:33 julian Exp $
+ * $Id: kern_synch.c,v 1.35 1997/08/16 19:07:20 wollman Exp $
  */
 
 #include "opt_ktrace.h"
@@ -84,8 +84,12 @@ sysctl_kern_quantum SYSCTL_HANDLER_ARGS
 
 	new_val = quantum;
 	error = sysctl_handle_int(oidp, &new_val, 0, req);
-	if ((error == 0) && (new_val > 0) && (new_val < MAXIMUM_SCHEDULE_QUANTUM)) {
-		quantum = new_val;
+	if (error == 0) {
+		if ((new_val > 0) && (new_val < MAXIMUM_SCHEDULE_QUANTUM)) {
+			quantum = new_val;
+		} else {
+			error = EINVAL;
+		}
 	}
 	return (error);
 }
@@ -201,7 +205,7 @@ schedcpu(arg)
 {
 	register fixpt_t loadfac = loadfactor(averunnable.ldavg[0]);
 	register struct proc *p;
-	register int s, i, j;
+	register int s;
 	register unsigned int newcpu;
 
 	wakeup((caddr_t)&lbolt);
@@ -254,7 +258,6 @@ schedcpu(arg)
 				p->p_priority = p->p_usrpri;
 		}
 		splx(s);
-	not_mine:
 	}
 	vmmeter();
 	timeout(schedcpu, (void *)0, hz);
@@ -354,12 +357,8 @@ tsleep(ident, priority, wmesg, timo)
 	if (ident == NULL || p->p_stat != SRUN)
 		panic("tsleep");
 	/* XXX This is not exhaustive, just the most common case */
-	if ((p->p_procq.tqe_next != NULL)
-#if 0 /* XXX this is impossible... the types don't even match */
-	    && (p->p_procq.tqe_next == p->p_procq.tqe_prev)
-#endif
-	    && (*p->p_procq.tqe_prev == p))
-		panic("sleeping process on run queue");
+	if ((p->p_procq.tqe_prev != NULL) && (*p->p_procq.tqe_prev == p))
+		panic("sleeping process already on another queue");
 #endif
 	p->p_wchan = ident;
 	p->p_wmesg = wmesg;
