@@ -2182,8 +2182,9 @@ sis_watchdog(struct ifnet *ifp)
 static void
 sis_stop(struct sis_softc *sc)
 {
-	int		i;
-	struct ifnet		*ifp;
+	int i;
+	struct ifnet *ifp;
+	struct sis_desc *dp;
 
 	if (sc->sis_stopped)
 		return;
@@ -2210,35 +2211,31 @@ sis_stop(struct sis_softc *sc)
 	/*
 	 * Free data in the RX lists.
 	 */
-	for (i = 0; i < SIS_RX_LIST_CNT; i++) {
-		if (sc->sis_rx_list[i].sis_mbuf != NULL) {
-			bus_dmamap_unload(sc->sis_tag,
-			    sc->sis_rx_list[i].sis_map);
-			bus_dmamap_destroy(sc->sis_tag,
-			    sc->sis_rx_list[i].sis_map);
-			m_freem(sc->sis_rx_list[i].sis_mbuf);
-			sc->sis_rx_list[i].sis_mbuf = NULL;
-		}
+	dp = &sc->sis_rx_list[0];
+	for (i = 0; i < SIS_RX_LIST_CNT; i++, dp++) {
+		if (dp->sis_mbuf == NULL)
+			continue;
+		bus_dmamap_unload(sc->sis_tag, dp->sis_map);
+		bus_dmamap_destroy(sc->sis_tag, dp->sis_map);
+		m_freem(dp->sis_mbuf);
+		dp->sis_mbuf = NULL;
 	}
-	bzero(sc->sis_rx_list,
-		sizeof(sc->sis_rx_list));
+	bzero(sc->sis_rx_list, SIS_RX_LIST_SZ);
 
 	/*
 	 * Free the TX list buffers.
 	 */
-	for (i = 0; i < SIS_TX_LIST_CNT; i++) {
-		if (sc->sis_tx_list[i].sis_mbuf != NULL) {
-			bus_dmamap_unload(sc->sis_tag,
-			    sc->sis_tx_list[i].sis_map);
-			bus_dmamap_destroy(sc->sis_tag,
-			    sc->sis_tx_list[i].sis_map);
-			m_freem(sc->sis_tx_list[i].sis_mbuf);
-			sc->sis_tx_list[i].sis_mbuf = NULL;
-		}
+	dp = &sc->sis_tx_list[0];
+	for (i = 0; i < SIS_TX_LIST_CNT; i++, dp++) {
+		if (dp->sis_mbuf == NULL)
+			continue;
+		bus_dmamap_unload(sc->sis_tag, dp->sis_map);
+		bus_dmamap_destroy(sc->sis_tag, dp->sis_map);
+		m_freem(dp->sis_mbuf);
+		dp->sis_mbuf = NULL;
 	}
 
-	bzero(sc->sis_tx_list,
-		sizeof(sc->sis_tx_list));
+	bzero(sc->sis_tx_list, SIS_TX_LIST_SZ);
 
 	sc->sis_stopped = 1;
 }
