@@ -68,11 +68,11 @@ free_request(struct request *rp)
 		free(rp->prettyname);
 	if (rp->authinfo)
 		free(rp->authinfo);
-	while ((ru = rp->users.tqh_first) != 0) {
+	while ((ru = TAILQ_FIRST(&rp->users)) != 0) {
 		TAILQ_REMOVE(&rp->users, ru, ru_link);
 		free(ru);
 	}
-	while ((rj = rp->jobids.tqh_first) != 0) {
+	while ((rj = TAILQ_FIRST(&rp->jobids)) != 0) {
 		TAILQ_REMOVE(&rp->jobids, rj, rj_link);
 		free(rj);
 	}
