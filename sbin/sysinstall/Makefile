@@ -1,6 +1,7 @@
 PROG = sysinstall
 MANEXT = 1
 NOMAN= yet
+CLEANFILES=	makedevs.c rtermcap
 
 .PATH: ${.CURDIR}/../disklabel
 
@@ -18,7 +19,7 @@ BOOTS=${.CURDIR}/../../sys/i386/boot/biosboot/obj
 BOOTS=${.CURDIR}/../../sys/i386/boot/biosboot
 .endif
 
-makedevs.c:	dev2c.sh Makefile
+makedevs.c:	dev2c.sh Makefile rtermcap
 	mkdir -p dev
 	cp ${.CURDIR}/../../etc/etc.i386/MAKEDEV dev
 	( cd dev; sh ./MAKEDEV all )
@@ -32,16 +33,19 @@ makedevs.c:	dev2c.sh Makefile
 		< ${BOOTS}/boot1 >> makedevs.tmp
 	file2c 'const unsigned char boot2[] = {' '};' \
 		< ${BOOTS}/boot2 >> makedevs.tmp
-	tset -Q -S cons25 | sed 's/^.* //' | \
+	./rtermcap cons25 | \
 		file2c 'const char termcap_cons25[] = {' ',0};' \
 		>> makedevs.tmp
-	tset -Q -S cons25-m | sed 's/^.* //' | \
+	./rtermcap cons25-m | \
 		file2c 'const char termcap_cons25_m[] = {' ',0};' \
 		>> makedevs.tmp
-	tset -Q -S vt100 | sed 's/^.* //' | \
+	./rtermcap vt100 | \
 		file2c 'const char termcap_vt100[] = {' ',0};' \
 		>> makedevs.tmp
 	mv makedevs.tmp makedevs.c
+
+rtermcap:	${.CURDIR}/rtermcap.c
+	${CC} -o rtermcap ${.CURDIR}/rtermcap.c -ltermcap
 
 .include <bsd.prog.mk>
 
