@@ -68,6 +68,7 @@
 static struct device execdevice = {
   EXEC_DEVICE,
   "exec",
+  0,
   { CD_NOTREQUIRED, 0 },
   NULL,
   NULL,
