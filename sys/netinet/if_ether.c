@@ -432,6 +432,21 @@ arpresolve(ifp, rt, m, dst, desten, rt0)
 	 */
 	if ((rt->rt_expire == 0 || rt->rt_expire > time_second) &&
 	    sdl->sdl_family == AF_LINK && sdl->sdl_alen != 0) {
+		/*
+		 * If entry has an expiry time and it is approaching,
+		 * see if we need to send an ARP request within this
+		 * arpt_down interval.
+		 */
+		if ((rt->rt_expire != 0) &&
+		    (time_second + (arp_maxtries - la->la_asked) * arpt_down >
+		     rt->rt_expire)) {
+			arprequest(ifp,
+				   &SIN(rt->rt_ifa->ifa_addr)->sin_addr,
+				   &SIN(dst)->sin_addr,
+				   IF_LLADDR(ifp));
+			la->la_asked++;
+		} 
+
 		bcopy(LLADDR(sdl), desten, sdl->sdl_alen);
 		return 1;
 	}
