@@ -129,6 +129,18 @@ This is useful when you want to finish the filesystem checks during an
 automatic reboot,
 but do not want the machine to come up multiuser after the checks complete.
 .Pp
+If
+.Nm
+receives a
+.Dv SIGINFO
+(see the
+.Dq status
+argument for
+.Xr stty 1 )
+signal, a line will be written to the standard output indicating
+the name of the device currently being checked, the current phase
+number and phase-specific progress information.
+.Pp
 Without the
 .Fl p
 option,
