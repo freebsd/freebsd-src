@@ -83,10 +83,17 @@ Even the super-user may not write on it.
 Do not allow files to be executed from the filesystem.
 .It Dv MNT_NOSUID
 Do not honor setuid or setgid bits on files when executing them.
+.It Dv MNT_NOATIME
+Disable update of file access times.
 .It Dv MNT_NODEV
 Do not interpret special files on the filesystem.
 .It Dv MNT_SYNCHRONOUS
 All I/O to the filesystem should be done synchronously.
+.It Dv MNT_ASYNC
+All I/O to the filesystem should be done asynchronously.
+.It Dv MNT_WANTRDWR
+Upgrade a mounted read-only filesystem to read-write if MNT_UPDATE
+is also specified.
 .El
 .Pp
 The flag
@@ -97,7 +104,12 @@ This allows the mount flags to be changed without requiring
 that the filesystem be unmounted and remounted.
 Some filesystems may not allow all flags to be changed.
 For example,
-most filesystems will not allow a change from read-write to read-only.
+many filesystems will not allow a change from read-write to read-only.
+.Pp
+The flag
+.Dv MNT_RELOAD
+causes the vfs subsystem to update its data structures pertaining to
+the specified already mounted filesystem.
 .Pp
 The
 .Fa type
@@ -142,6 +154,14 @@ struct mfs_args {
 };
 .Ed
 .Pp
+.Dv MOUNT_UNION
+.Bd -literal -offset indent -compact
+struct union_args {
+      char	*target;	/* Target of loopback  */
+      int	mntflags;	/* Options on the mount */
+};
+.Ed
+.Pp
 The
 .Fn umount
 function call disassociates the filesystem from the specified
@@ -152,8 +172,9 @@ The
 .Fa flags
 argument may specify
 .Dv MNT_FORCE
-to specify that the filesystem should be forcibly unmounted even if files are
-still active.
+to specify that the filesystem should be forcibly unmounted or made read-only
+(if MNT_UPDATE and MNT_RDONLY are also specified)
+even if files are still active.
 Active special devices continue to work,
 but any further accesses to any other active files result in errors
 even if the filesystem is later remounted.
