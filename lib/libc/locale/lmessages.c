@@ -29,7 +29,9 @@
 #include "lmessages.h"
 #include "ldpart.h"
 
-#define LCMESSAGES_SIZE (sizeof(struct lc_messages_T) / sizeof(char *))
+#define LCMESSAGES_SIZE_FULL (sizeof(struct lc_messages_T) / sizeof(char *))
+#define LCMESSAGES_SIZE_MIN \
+		(offsetof(struct lc_messages_T, yesstr) / sizeof(char *))
 
 char empty[] = "";
 
@@ -49,16 +51,16 @@ __messages_load_locale(const char *name) {
 
 	int ret;
 	ret = __part_load_locale(name, &_messages_using_locale,
-		messages_locale_buf, "LC_MESSAGES", LCMESSAGES_SIZE,
+		messages_locale_buf, "LC_MESSAGES", LCMESSAGES_SIZE_FULL,
 		(const char **)&_messages_locale);
-	if (ret == -1) {
+	if (!ret) {
 		/* Assume that we have incomplete locale file (without
 		 * "yesstr" and "nostr" declared. Try it also.
 		 */
 		ret = __part_load_locale(name, &_messages_using_locale,
-			messages_locale_buf, "LC_MESSAGES", LCMESSAGES_SIZE/2,
+			messages_locale_buf, "LC_MESSAGES", LCMESSAGES_SIZE_MIN,
 			(const char **)&_messages_locale);
-		if (ret != -1) {
+		if (!ret) {
 			_messages_locale.yesstr = empty;
 			_messages_locale.nostr = empty;
 		}
