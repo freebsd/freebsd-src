@@ -64,8 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <compat/ndis/ntoskrnl_var.h>
 #include <compat/ndis/ndis_var.h>
 
-#include "opt_ddb.h"
-
 #define __regparm __attribute__((regparm(3)))
 
 #define FUNC void(*)(void)
@@ -92,6 +90,15 @@ __stdcall static void ntoskrnl_clear_event(nt_kevent *);
 __stdcall static uint32_t ntoskrnl_read_event(nt_kevent *);
 __stdcall static uint32_t ntoskrnl_set_event(nt_kevent *, uint32_t, uint8_t);
 __stdcall static uint32_t ntoskrnl_reset_event(nt_kevent *);
+static void ntoskrnl_timercall(void *);
+__stdcall static void ntoskrnl_init_dpc(kdpc *, void *, void *);
+__stdcall static void ntoskrnl_init_timer(ktimer *);
+__stdcall static void ntoskrnl_init_timer_ex(ktimer *, uint32_t);
+__stdcall static uint8_t ntoskrnl_set_timer(ktimer *, int64_t, kdpc *);
+__stdcall static uint8_t ntoskrnl_set_timer_ex(ktimer *, int64_t,
+	uint32_t, kdpc *);
+__stdcall static uint8_t ntoskrnl_cancel_timer(ktimer *);
+__stdcall static uint8_t ntoskrnl_read_timer(ktimer *);
 __stdcall static void ntoskrnl_writereg_ushort(uint16_t *, uint16_t);
 __stdcall static uint16_t ntoskrnl_readreg_ushort(uint16_t *);
 __stdcall static void ntoskrnl_writereg_ulong(uint32_t *, uint32_t);
@@ -1636,12 +1643,175 @@ ntoskrnl_dbgprint(char *fmt, ...)
 __stdcall static void
 ntoskrnl_debugger(void)
 {
-#ifdef DDB
-	Debugger("debug from winkernel module");
-#else
-	printf("ntoskrnl_debugger(): DDB not present\n");
-#endif
+	Debugger("ntoskrnl_debugger(): breakpoint");
 	return;
+}
+
+static void
+ntoskrnl_timercall(arg)
+	void		*arg;
+{
+	ktimer			*timer;
+	__stdcall kdpc_func	timerfunc;
+	kdpc			*dpc;
+	struct timeval		tv;
+
+        timer = arg;
+	dpc = timer->k_dpc;
+        timerfunc = (kdpc_func)dpc->k_deferedfunc;
+        timerfunc(dpc, dpc->k_deferredctx, dpc->k_sysarg1, dpc->k_sysarg2);
+
+	ntoskrnl_wakeup(&timer->k_header);
+
+	/*
+	 * If this is a periodic timer, re-arm it
+	 * so it will fire again.
+	 */
+
+	if (timer->k_period) {
+		tv.tv_sec = 0;
+		tv.tv_usec = timer->k_period * 1000;
+		timer->k_handle =
+		    timeout(ntoskrnl_timercall, timer, tvtohz(&tv));
+	}
+
+	return;
+}
+
+__stdcall static void
+ntoskrnl_init_timer(timer)
+	ktimer			*timer;
+{
+	if (timer == NULL)
+		return;
+
+	INIT_LIST_HEAD((&timer->k_header.dh_waitlisthead));
+	timer->k_header.dh_sigstate = FALSE;
+	timer->k_header.dh_type = EVENT_TYPE_NOTIFY;
+	timer->k_header.dh_size = OTYPE_TIMER;
+	callout_handle_init(&timer->k_handle);
+
+	return;
+}
+
+__stdcall static void
+ntoskrnl_init_timer_ex(timer, type)
+	ktimer			*timer;
+	uint32_t		type;
+{
+	if (timer == NULL)
+		return;
+
+	INIT_LIST_HEAD((&timer->k_header.dh_waitlisthead));
+	timer->k_header.dh_sigstate = FALSE;
+	timer->k_header.dh_type = type;
+	timer->k_header.dh_size = OTYPE_TIMER;
+	callout_handle_init(&timer->k_handle);
+
+	return;
+}
+
+__stdcall static void
+ntoskrnl_init_dpc(dpc, dpcfunc, dpcctx)
+	kdpc			*dpc;
+	void			*dpcfunc;
+	void			*dpcctx;
+{
+	if (dpc == NULL)
+		return;
+
+	dpc->k_deferedfunc = dpcfunc;
+	dpc->k_deferredctx = dpcctx;
+
+	return;
+}
+
+__stdcall static uint8_t
+ntoskrnl_set_timer_ex(timer, duetime, period, dpc)
+	ktimer			*timer;
+	int64_t			duetime;
+	uint32_t		period;
+	kdpc			*dpc;
+{
+	struct timeval		tv;
+	uint64_t		curtime;
+	uint8_t			pending;
+
+	if (timer == NULL)
+		return(FALSE);
+
+	if (timer->k_handle.callout != NULL &&
+	    callout_pending(timer->k_handle.callout))
+		pending = TRUE;
+	else
+		pending = FALSE;
+
+	timer->k_duetime = duetime;
+	timer->k_period = period;
+	timer->k_header.dh_sigstate = FALSE;
+	timer->k_dpc = dpc;
+
+	if (duetime < 0) {
+		tv.tv_sec = - (duetime) / 10000000 ;
+		tv.tv_usec = (- (duetime) / 10) -
+		    (tv.tv_sec * 1000000);
+	} else {
+		ntoskrnl_time(&curtime);
+		tv.tv_sec = ((duetime) - curtime) / 10000000 ;
+		tv.tv_usec = ((duetime) - curtime) / 10 -
+		    (tv.tv_sec * 1000000);
+	}
+
+	timer->k_handle = timeout(ntoskrnl_timercall, timer, tvtohz(&tv));
+
+	return(pending);
+}
+
+__stdcall static uint8_t
+ntoskrnl_set_timer(timer, duetime, dpc)
+	ktimer			*timer;
+	int64_t			duetime;
+	kdpc			*dpc;
+{
+	return (ntoskrnl_set_timer_ex(timer, duetime, 0, dpc));
+}
+
+__stdcall static uint8_t
+ntoskrnl_cancel_timer(timer)
+	ktimer			*timer;
+{
+	uint8_t			pending;
+
+	if (timer == NULL)
+		return(FALSE);
+
+	if (timer->k_handle.callout != NULL &&
+	    callout_pending(timer->k_handle.callout))
+		pending = TRUE;
+	else
+		pending = FALSE;
+
+	untimeout(ntoskrnl_timercall, timer, timer->k_handle);
+
+	return(pending);
+}
+
+__stdcall static uint8_t
+ntoskrnl_read_timer(timer)
+	ktimer			*timer;
+{
+	uint8_t			pending;
+
+	if (timer == NULL)
+		return(FALSE);
+
+	if (timer->k_handle.callout != NULL &&
+	    callout_pending(timer->k_handle.callout))
+		pending = TRUE;
+	else
+		pending = FALSE;
+
+	return(pending);
 }
 
 __stdcall static void
@@ -1730,15 +1900,13 @@ image_patch_table ntoskrnl_functbl[] = {
 	{ "KeResetEvent",		(FUNC)ntoskrnl_reset_event },
 	{ "KeClearEvent",		(FUNC)ntoskrnl_clear_event },
 	{ "KeReadStateEvent",		(FUNC)ntoskrnl_read_event },
-#ifdef notyet
-	{ "KeInitializeTimer",
-	{ "KeInitializeTimerEx",
-	{ "KeCancelTimer",
-	{ "KeSetTimer",
-	{ "KeSetTimerEx",
-	{ "KeReadStateTimer",
-	{ "KeInitializeDpc",
-#endif
+	{ "KeInitializeTimer",		(FUNC)ntoskrnl_init_timer },
+	{ "KeInitializeTimerEx",	(FUNC)ntoskrnl_init_timer_ex },
+	{ "KeInitializeDpc",		(FUNC)ntoskrnl_init_dpc },
+	{ "KeSetTimer",			(FUNC)ntoskrnl_set_timer },
+	{ "KeSetTimerEx",		(FUNC)ntoskrnl_set_timer_ex },
+	{ "KeCancelTimer",		(FUNC)ntoskrnl_cancel_timer },
+	{ "KeReadStateTimer",		(FUNC)ntoskrnl_read_timer },
 	{ "ObReferenceObjectByHandle",	(FUNC)ntoskrnl_objref },
 	{ "ObfDereferenceObject",	(FUNC)ntoskrnl_objderef },
 	{ "ZwClose",			(FUNC)ntoskrnl_zwclose },
