@@ -18,7 +18,7 @@ BIN2=	motd
 # -rwxr-xr-x root.wheel, for the new f***ing cron root.wheel
 BIN3=	daily weekly monthly
 
-MTREE=	BSD.root.dist BSD.usr.dist BSD.var.dist
+MTREE=	BSD.local.dist BSD.root.dist BSD.usr.dist BSD.var.dist
 NAMEDB=	localhost.rev named.boot root.cache
 PCS=	pcs750.bin
 WCS1=	wcs fppwcs poc poc1 poc2 fppoc
