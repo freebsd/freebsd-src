@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996 by Internet Software Consortium.
+ * Copyright (c) 1996,1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: irs.h,v 8.1 1997/12/04 04:55:19 halley Exp $
+ * $Id: irs.h,v 8.4 1999/01/18 07:46:46 vixie Exp $
  */
 
 #ifndef _IRS_H_INCLUDED
@@ -24,8 +24,11 @@
 
 #include <sys/types.h>
 
-#include <netdb.h>
+#include <arpa/nameser.h>
+
 #include <grp.h>
+#include <netdb.h>
+#include <resolv.h>
 #include <pwd.h>
 
 /*
@@ -41,6 +44,9 @@ struct irs_gr {
 				     gid_t, gid_t *, int *));
 	void		(*rewind) __P((struct irs_gr *));
 	void		(*minimize) __P((struct irs_gr *));
+	struct __res_state * (*res_get) __P((struct irs_gr *));
+	void		(*res_set) __P((struct irs_gr *, res_state,
+					void (*)(void *)));
 };
 
 /*
@@ -54,6 +60,9 @@ struct irs_pw {
 	struct passwd *	(*byuid) __P((struct irs_pw *, uid_t));
 	void		(*rewind) __P((struct irs_pw *));
 	void		(*minimize) __P((struct irs_pw *));
+	struct __res_state * (*res_get) __P((struct irs_pw *));
+	void		(*res_set) __P((struct irs_pw *, res_state,
+					void (*)(void *)));
 };
 
 /*
@@ -68,6 +77,9 @@ struct irs_sv {
 	struct servent *(*next) __P((struct irs_sv *));
 	void		(*rewind) __P((struct irs_sv *));
 	void		(*minimize) __P((struct irs_sv *));
+	struct __res_state * (*res_get) __P((struct irs_sv *));
+	void		(*res_set) __P((struct irs_sv *, res_state,
+					void (*)(void *)));
 };
 
 /*
@@ -81,6 +93,9 @@ struct irs_pr {
 	struct protoent	*(*next) __P((struct irs_pr *));
 	void		(*rewind) __P((struct irs_pr *));
 	void		(*minimize) __P((struct irs_pr *));
+	struct __res_state * (*res_get) __P((struct irs_pr *));
+	void		(*res_set) __P((struct irs_pr *, res_state,
+					void (*)(void *)));
 };
 
 /*
@@ -96,6 +111,9 @@ struct irs_ho {
 	struct hostent *(*next) __P((struct irs_ho *));
 	void		(*rewind) __P((struct irs_ho *));
 	void		(*minimize) __P((struct irs_ho *));
+	struct __res_state * (*res_get) __P((struct irs_ho *));
+	void		(*res_set) __P((struct irs_ho *, res_state,
+					void (*)(void *)));
 };
 
 /*
@@ -109,6 +127,9 @@ struct irs_nw {
 	struct nwent *	(*next) __P((struct irs_nw *));
 	void		(*rewind) __P((struct irs_nw *));
 	void		(*minimize) __P((struct irs_nw *));
+	struct __res_state * (*res_get) __P((struct irs_nw *));
+	void		(*res_set) __P((struct irs_nw *, res_state,
+					void (*)(void *)));
 };
 
 /*
@@ -148,6 +169,9 @@ struct irs_acc {
 	struct irs_ho *	(*ho_map) __P((struct irs_acc *));
 	struct irs_nw *	(*nw_map) __P((struct irs_acc *));
 	struct irs_ng *	(*ng_map) __P((struct irs_acc *));
+	struct __res_state * (*res_get) __P((struct irs_acc *));
+	void		(*res_set) __P((struct irs_acc *, res_state,
+					void (*)(void *)));
 };
 
 /*
@@ -171,13 +195,125 @@ struct nwent {
 #define	irs_lcl_acc	__irs_lcl_acc
 #define	irs_dns_acc	__irs_dns_acc
 #define	irs_nis_acc	__irs_nis_acc
+#define	irs_irp_acc	__irs_irp_acc
 
 /*
  * Externs.
  */
-extern struct irs_acc *	irs_gen_acc __P((const char *options));
+extern struct irs_acc *	irs_gen_acc __P((const char *options, 
+					 const char *conf_file));
 extern struct irs_acc *	irs_lcl_acc __P((const char *options));
 extern struct irs_acc *	irs_dns_acc __P((const char *options));
 extern struct irs_acc *	irs_nis_acc __P((const char *options));
+extern struct irs_acc *	irs_irp_acc __P((const char *options));
+
+/*
+ * These forward declarations are for the semi-private functions in
+ * the get*.c files. Each of these funcs implements the real get*
+ * functionality and the standard versions are just wrappers that
+ * call these. Apart from the wrappers, only irpd is expected to
+ * call these directly, hence these decls are put here and not in
+ * the /usr/include replacements.
+ */
+
+struct net_data;			/* forward */
+
+/*
+ * net_data_create gets a singleton net_data object.  net_data_init
+ * creates as many net_data objects as times it is called.  Clients using
+ * the default interface will use net_data_create by default.  Servers will
+ * probably want net_data_init (one call per client)
+ */
+struct net_data *net_data_create(const char *conf_file);
+struct net_data *net_data_init(const char *conf_file);
+void		net_data_destroy(void *p);
+	
+extern struct group    *getgrent_p __P((struct net_data *net_data));
+extern struct group    *getgrnam_p __P((const char *name,
+					struct net_data *net_data));
+extern struct group    *getgrgid_p __P((gid_t gid,
+					struct net_data *net_data));
+extern int 		setgroupent_p __P((int stayopen,
+					   struct net_data *net_data));
+extern void 		endgrent_p __P((struct net_data *net_data));
+extern int		getgrouplist_p __P((const char *name,
+					    gid_t basegid,
+					    gid_t *groups,
+					    int *ngroups,
+					    struct net_data *net_data));
+
+#ifdef SETGRENT_VOID
+extern void 		setgrent_p __P((struct net_data *net_data));
+#else
+extern int 		setgrent_p __P((struct net_data *net_data));
+#endif
+
+extern struct hostent 	*gethostbyname_p __P((const char *name,
+					      struct net_data *net_data));
+extern struct hostent 	*gethostbyname2_p __P((const char *name, int af,
+					       struct net_data *net_data));
+extern struct hostent 	*gethostbyaddr_p __P((const char *addr, int len,
+					      int af,
+					      struct net_data *net_data));
+extern struct hostent 	*gethostent_p __P((struct net_data *net_data));
+extern void 		sethostent_p __P((int stayopen,
+					  struct net_data *net_data));
+extern void 		endhostent_p __P((struct net_data *net_data));
+
+extern struct netent 	*getnetent_p __P((struct net_data *net_data));
+extern struct netent 	*getnetbyname_p __P((const char *name,
+					     struct net_data *net_data));
+extern struct netent 	*getnetbyaddr_p __P((unsigned long net, int type,
+					     struct net_data *net_data));
+extern void		setnetent_p __P((int stayopen,
+					 struct net_data *net_data));
+extern void		endnetent_p __P((struct net_data *net_data));
+
+extern void		setnetgrent_p __P((const char *netgroup,
+					   struct net_data *net_data));
+extern void		endnetgrent_p __P((struct net_data *net_data));
+extern int		innetgr_p __P((const char *netgroup,
+				       const char *host,
+				       const char *user,
+				       const char *domain,
+				       struct net_data *net_data));
+extern int		getnetgrent_p __P((char **host, char **user,
+					   char **domain,
+					   struct net_data *net_data));
+
+extern struct protoent  *getprotoent_p __P((struct net_data *net_data));
+extern struct protoent  *getprotobyname_p __P((const char *name,
+					       struct net_data *net_data));
+extern struct protoent	*getprotobynumber_p __P((int proto,
+						 struct net_data *net_data));
+extern void		setprotoent_p __P((int stayopen,
+					   struct net_data *net_data));
+extern void		endprotoent_p __P((struct net_data *net_data));
+
+
+extern struct passwd 	*getpwent_p __P((struct net_data *net_data));
+extern struct passwd 	*getpwnam_p __P((const char *name,
+					 struct net_data *net_data));
+extern struct passwd 	*getpwuid_p __P((uid_t uid,
+					 struct net_data *net_data));
+extern int		setpassent_p __P((int stayopen,
+					  struct net_data *net_data));
+extern void		endpwent_p __P((struct net_data *net_data));
+
+#ifdef SETPWENT_VOID
+extern void		setpwent_p __P((struct net_data *net_data));
+#else
+extern int		setpwent_p __P((struct net_data *net_data));
+#endif
+
+extern struct servent 	*getservent_p __P((struct net_data *net_data));
+extern struct servent 	*getservbyname_p __P((const char *name,
+					      const char *proto,
+					      struct net_data *net_data));
+extern struct servent 	*getservbyport_p __P((int port, const char *proto,
+					      struct net_data *net_data));
+extern void		setservent_p __P((int stayopen,
+					  struct net_data *net_data));
+extern void		endservent_p __P((struct net_data *net_data));
 
 #endif /*_IRS_H_INCLUDED*/

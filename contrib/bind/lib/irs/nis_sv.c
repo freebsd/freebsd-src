@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996 by Internet Software Consortium.
+ * Copyright (c) 1996,1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: nis_sv.c,v 1.10 1997/12/04 04:58:01 halley Exp $";
+static const char rcsid[] = "$Id: nis_sv.c,v 1.14 1999/01/18 07:46:59 vixie Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Imports */
@@ -28,6 +28,9 @@ static int __bind_irs_nis_unneeded;
 #else
 
 #include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/nameser.h>
+#include <resolv.h>
 #include <sys/socket.h>
 #include <rpc/rpc.h>
 #include <rpc/xdr.h>
@@ -40,6 +43,7 @@ static int __bind_irs_nis_unneeded;
 #include <stdlib.h>
 #include <string.h>
 
+#include <isc/memcluster.h>
 #include <irs.h>
 
 #include "port_after.h"
@@ -85,13 +89,13 @@ irs_nis_sv(struct irs_acc *this) {
 	struct irs_sv *sv;
 	struct pvt *pvt;
 	
-	if (!(sv = (struct irs_sv *)malloc(sizeof *sv))) {
+	if (!(sv = memget(sizeof *sv))) {
 		errno = ENOMEM;
 		return (NULL);
 	}
 	memset(sv, 0x5e, sizeof *sv);
-	if (!(pvt = (struct pvt *)malloc(sizeof *pvt))) {
-		free(sv);
+	if (!(pvt = memget(sizeof *pvt))) {
+		memput(sv, sizeof *sv);
 		errno = ENOMEM;
 		return (NULL);
 	}
@@ -105,6 +109,8 @@ irs_nis_sv(struct irs_acc *this) {
 	sv->byport = sv_byport;
 	sv->rewind = sv_rewind;
 	sv->minimize = sv_minimize;
+	sv->res_get = NULL;
+	sv->res_set = NULL;
 	return (sv);
 }
 
@@ -119,8 +125,8 @@ sv_close(struct irs_sv *this) {
 		free(pvt->serv.s_aliases);
 	if (pvt->svbuf)
 		free(pvt->svbuf);
-	free(pvt);
-	free(this);
+	memput(pvt, sizeof *pvt);
+	memput(this, sizeof *this);
 }
 
 static struct servent *
@@ -221,7 +227,7 @@ makeservent(struct irs_sv *this) {
 		pvt->serv.s_aliases = NULL;
 	}
 
-	if ((p = strchr(pvt->svbuf, '#')))
+	if ((p = strpbrk(pvt->svbuf, "#\n")))
 		*p = '\0';
 
 	p = pvt->svbuf;

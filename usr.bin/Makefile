@@ -32,9 +32,7 @@ SUBDIR=	apply \
 	cpp \
 	ctags \
 	cut \
-	dig \
 	dirname \
-	dnsquery \
 	du \
 	ee \
 	enigma \
@@ -61,7 +59,6 @@ SUBDIR=	apply \
 	global \
 	head \
 	hexdump \
-	host \
 	id \
 	indent \
 	ipcrm \
@@ -199,6 +196,13 @@ SUBDIR=	apply \
 	ypcat \
 	ypmatch \
 	ypwhich
+
+.if !defined(NO_BIND)
+SUBDIR+=dig \
+	dnskeygen \
+	dnsquery \
+	host
+.endif
 
 .if defined(RELEASEDIR) || !exists(${.CURDIR}/../kerberosIV) || \
     defined(NOCRYPT) || !defined(MAKE_KERBEROS4)

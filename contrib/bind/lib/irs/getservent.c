@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996 by Internet Software Consortium.
+ * Copyright (c) 1996,1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,16 +16,22 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static char rcsid[] = "$Id: getservent.c,v 1.10 1997/12/04 04:57:54 halley Exp $";
+static const char rcsid[] = "$Id: getservent.c,v 1.16 1999/10/13 16:39:31 vixie Exp $";
 #endif
 
 /* Imports */
 
 #include "port_before.h"
 
+#if !defined(__BIND_NOSTATIC)
+
 #include <sys/types.h>
 
+#include <netinet/in.h>
+#include <arpa/nameser.h>
+
 #include <errno.h>
+#include <resolv.h>
 #include <stdio.h>
 
 #include <irs.h>
@@ -36,87 +42,135 @@ static char rcsid[] = "$Id: getservent.c,v 1.10 1997/12/04 04:57:54 halley Exp $
 
 /* Forward */
 
-static struct irs_sv *	init(void);
+static struct net_data *init(void);
 
 /* Public */
 
 struct servent *
 getservent(void) {
-	struct irs_sv *sv = init();
-	
-	if (!sv)
-		return (NULL);
-	net_data.sv_last = (*sv->next)(sv);
-	return (net_data.sv_last);
+	struct net_data *net_data = init();
+
+	return (getservent_p(net_data));
 }
 
 struct servent *
 getservbyname(const char *name, const char *proto) {
-	struct irs_sv *sv = init();
-	char **sap;
-	
-	if (!sv)
-		return (NULL);
-	if (net_data.sv_stayopen && net_data.sv_last)
-		if (!proto || !strcmp(net_data.sv_last->s_proto,proto)) {
-			if (!strcmp(net_data.sv_last->s_name, name))
-				return (net_data.sv_last);
-			for (sap = net_data.sv_last->s_aliases;
-			     sap && *sap; sap++) 
-				if (!strcmp(name, *sap))
-					return (net_data.sv_last);
-		}
-	net_data.sv_last = (*sv->byname)(sv, name, proto);
-	if (!net_data.sv_stayopen)
-		endservent();
-	return (net_data.sv_last);
+	struct net_data *net_data = init();
+
+	return (getservbyname_p(name, proto, net_data));
 }
 
 struct servent *
 getservbyport(int port, const char *proto) {
-	struct irs_sv *sv = init();
-	
-	if (!sv)
-		return (NULL);
-	if (net_data.sv_stayopen && net_data.sv_last)
-		if (port == net_data.sv_last->s_port && 
-		    ( !proto || 
-		     !strcmp(net_data.sv_last->s_proto, proto)))
-			return (net_data.sv_last);
-	net_data.sv_last = (*sv->byport)(sv, port,proto);
-	return (net_data.sv_last);
+	struct net_data *net_data = init();
+
+	return (getservbyport_p(port, proto, net_data));
 }
 
 void
 setservent(int stayopen) {
-	struct irs_sv *sv = init();
+	struct net_data *net_data = init();
 
-	if (!sv)
-		return;
-	(*sv->rewind)(sv);
-	net_data.sv_stayopen = (stayopen != 0);
+	setservent_p(stayopen, net_data);
 }
 
 void
 endservent() {
-	struct irs_sv *sv = init();
+	struct net_data *net_data = init();
 
-	if (sv != NULL)
+	endservent_p(net_data);
+}
+
+/* Shared private. */
+
+struct servent *
+getservent_p(struct net_data *net_data) {
+	struct irs_sv *sv;
+
+	if (!net_data || !(sv = net_data->sv))
+		return (NULL);
+	net_data->sv_last = (*sv->next)(sv);
+	return (net_data->sv_last);
+}
+
+struct servent *
+getservbyname_p(const char *name, const char *proto,
+		struct net_data *net_data) {
+	struct irs_sv *sv;
+	char **sap;
+
+	if (!net_data || !(sv = net_data->sv))
+		return (NULL);
+	if (net_data->sv_stayopen && net_data->sv_last)
+		if (!proto || !strcmp(net_data->sv_last->s_proto, proto)) {
+			if (!strcmp(net_data->sv_last->s_name, name))
+				return (net_data->sv_last);
+			for (sap = net_data->sv_last->s_aliases;
+			     sap && *sap; sap++)
+				if (!strcmp(name, *sap))
+					return (net_data->sv_last);
+		}
+	net_data->sv_last = (*sv->byname)(sv, name, proto);
+	if (!net_data->sv_stayopen)
+		endservent();
+	return (net_data->sv_last);
+}
+
+struct servent *
+getservbyport_p(int port, const char *proto, struct net_data *net_data) {
+	struct irs_sv *sv;
+
+	if (!net_data || !(sv = net_data->sv))
+		return (NULL);
+	if (net_data->sv_stayopen && net_data->sv_last)
+		if (port == net_data->sv_last->s_port &&
+		    ( !proto ||
+		     !strcmp(net_data->sv_last->s_proto, proto)))
+			return (net_data->sv_last);
+	net_data->sv_last = (*sv->byport)(sv, port, proto);
+	return (net_data->sv_last);
+}
+
+void
+setservent_p(int stayopen, struct net_data *net_data) {
+	struct irs_sv *sv;
+
+	if (!net_data || !(sv = net_data->sv))
+		return;
+	(*sv->rewind)(sv);
+	net_data->sv_stayopen = (stayopen != 0);
+	if (stayopen == 0)
+		net_data_minimize(net_data);
+}
+
+void
+endservent_p(struct net_data *net_data) {
+	struct irs_sv *sv;
+
+	if ((net_data != NULL) && ((sv = net_data->sv) != NULL))
 		(*sv->minimize)(sv);
 }
 
 /* Private */
 
-static struct irs_sv *
+static struct net_data *
 init() {
-	if (!net_data_init())
+	struct net_data *net_data;
+
+	if (!(net_data = net_data_init(NULL)))
 		goto error;
-	if (!net_data.sv)
-		net_data.sv = (*net_data.irs->sv_map)(net_data.irs);
-	if (!net_data.sv) {
+	if (!net_data->sv) {
+		net_data->sv = (*net_data->irs->sv_map)(net_data->irs);
+
+		if (!net_data->sv || !net_data->res) {
  error:		
-		errno = EIO;
-		return (NULL);
+			errno = EIO;
+			return (NULL);
+		}
+		(*net_data->sv->res_set)(net_data->sv, net_data->res, NULL);
 	}
-	return (net_data.sv);
+	
+	return (net_data);
 }
+
+#endif /*__BIND_NOSTATIC*/

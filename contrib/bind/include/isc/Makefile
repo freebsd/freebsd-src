@@ -1,4 +1,4 @@
-# Copyright (c) 1996 by Internet Software Consortium
+# Copyright (c) 1996,1999 by Internet Software Consortium
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
 # SOFTWARE.
 
 HFILES = eventlib.h misc.h tree.h logging.h heap.h memcluster.h \
-	assertions.h list.h
+	assertions.h list.h dst.h irpmarshall.h
 
 DESTDIR =
 DESTINC = /usr/local/bind/include
@@ -28,7 +28,7 @@ clean: FRC
 
 install: ${DESTDIR}${DESTINC}/isc
 	set -x; for x in ${HFILES}; do \
-		${INSTALL} -c -m 444 $$x ${DESTDIR}${DESTINC}/isc/$$x; \
+		${INSTALL} -c ${INSTALL_INC} -m 444 $$x ${DESTDIR}${DESTINC}/isc/$$x; \
 	done
 
 ${DESTDIR}${DESTINC}/isc:

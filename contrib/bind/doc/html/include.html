@@ -11,7 +11,9 @@
 
 <A NAME="Syntax"><H3>Syntax</H3></A>
 
-<P><CODE>include <VAR><A HREF="docdef.html">path_name</A></VAR>;</CODE></P>
+<PRE>
+include <VAR><A HREF="docdef.html">path_name</A></VAR>;
+</PRE>
 
 <HR>
 
@@ -20,16 +22,18 @@
 <P>The <CODE>include</CODE> statement inserts the specified file at
 the point that the <CODE>include</CODE> statement is encountered.  It
 cannot be used within another statement, though, so a line such as
-<CODE>acl internal_hosts { "include internal_hosts.acl" }</CODE> is
-not allowed.</P>
+<PRE>
+acl internal_hosts { include &quot;internal_hosts.acl&quot;; };
+</PRE>
+is not allowed.</P>
 
 <P>Use <CODE>include</CODE> to break the configuration up into
-easily-managed chunks.  For example:</P> 
+easily-managed chunks.  For example:
 
-<UL COMPACT>
-<LI><CODE>include &quot;/etc/security/keys.bind&quot;;</CODE></LI>
-<LI><CODE>include &quot;/etc/acls.bind&quot;;</CODE></LI>
-</UL>
+<PRE>
+include &quot;/etc/security/keys.bind&quot;;
+include &quot;/etc/acls.bind&quot;;
+</PRE>
 
 <P>could be used at the top of a BIND configuration file in order to
 include any ACL or key information.</P>
@@ -42,12 +46,12 @@ comment.</P>
 <HR>
 
 <CENTER><P>[ <A HREF="config.html">BIND Config. File</A>
-| <A HREF="http://www.vix.com/isc/bind.html">BIND Home</A>
-| <A HREF="http://www.isc.org">ISC</A> ]</P></CENTER>
+| <A HREF="http://www.isc.org/products/BIND/">BIND Home</A>
+| <A HREF="http://www.isc.org/">ISC</A> ]</P></CENTER>
 
 <HR>
 <ADDRESS>
-Last Updated: $Id: include.html,v 1.5 1998/03/21 01:03:12 halley Exp $
+Last Updated: $Id: include.html,v 1.7 1999/09/15 20:28:01 cyarnell Exp $
 </ADDRESS>
 </BODY>
 </HTML>

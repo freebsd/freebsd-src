@@ -1,5 +1,5 @@
 %{
-
+/* $FreeBSD$ */
 /*
  * Copyright (c) 1985
  *    The Regents of the University of California.  All rights reserved.
@@ -95,15 +95,70 @@ static char sccsid[] = "@(#)commands.l	5.13 (Berkeley) 7/24/90";
 
 #include "port_before.h"
 #include <sys/types.h>
+#include <histedit.h>
 #include "port_after.h"
 #include "res.h"
 
 extern char rootServerName[];
 extern void PrintHelp();
+extern void ViewList(char *);
+
+#define YY_INPUT(buf, result, max_size) \
+	{ \
+	nslookup_yy_input((char *)buf, &result, \
+			  max_size, yy_current_buffer->yy_is_interactive); \
+	}
+
+const char *
+nslookup_prompt()
+{
+	return ("> ");
+}
+
+int
+nslookup_yy_input(buf, result, max_size, intr)
+	char *	buf;
+	int *	result;
+	int	max_size;
+	int	intr;
+{
+	static EditLine *el = NULL;
+	static History *hist = NULL;
+	int num = 0;
+	const char *bp = NULL;
+
+	if (intr) {
+		if (!el) {
+			el = el_init("nslookup", yyin, yyout);
+			hist = history_init();
+			history(hist, H_EVENT, 100);
+			el_set(el, EL_HIST, history, hist);
+			el_set(el, EL_EDITOR, "emacs");
+			el_set(el, EL_PROMPT, nslookup_prompt);
+			el_set(el, EL_SIGNAL, 1);
+			el_source(el, NULL);
+		}
+	
+		if ((bp = el_gets(el, &num)) == NULL || num == 0) {
+			*result = 0;
+			return;
+		}
+	
+		*result = (num > max_size) ? max_size : num;
+		strncpy(buf, bp, *result);
+		history(hist, H_ENTER, bp);
+	} else {
+		if ( ((*result = fread( buf, 1, max_size, yyin )) == 0)
+			&& ferror( yyin ) )
+                	yy_fatal_error( "input in flex scanner failed" );
+	}
+
+	return;
+}
 
 %}
 WS	[ \t]
-FLET	[A-Za-z0-9.*\\]
+FLET	[A-Za-z0-9.*\\_]
 LET	[A-Za-z0-9.*]
 NAME	[A-Za-z0-9.*=_/-]
 %%
@@ -142,7 +197,7 @@ NAME	[A-Za-z0-9.*=_/-]
 					    return(1);
 					}
 ^{WS}*view{WS}+{NAME}+{WS}*$	{
-					    ViewList(yytext);
+					    ViewList((char *)yytext);
 					    return(1);
 					}
 ^{WS}*ls{WS}+(("-a"|"-d"|"-h"|"-m"|"-s"){WS}+)?{LET}{NAME}*{WS}+>>?{WS}+{NAME}+{WS}*$	{

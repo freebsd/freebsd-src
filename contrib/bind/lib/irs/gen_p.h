@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996 by Internet Software Consortium.
+ * Copyright (c) 1996,1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: gen_p.h,v 1.7 1996/11/21 10:28:15 vixie Exp $
+ * $Id: gen_p.h,v 1.10 1999/01/18 07:46:50 vixie Exp $
  */
 
 /* Notes:
@@ -43,6 +43,7 @@ enum irs_acc_id {
 	irs_lcl,	/* Local. */
 	irs_dns,	/* DNS or Hesiod. */
 	irs_nis,	/* Sun NIS ("YP"). */
+	irs_irp,	/* IR protocol.  */
 	irs_nacc
 };
 
@@ -92,13 +93,15 @@ struct gen_p {
 	const char *		options;
 	struct irs_rule *	map_rules[(int)irs_nmap];
 	struct irs_inst		accessors[(int)irs_nacc];
+	struct __res_state *	res;
+	void			(*free_res) __P((void *));
 };
 
 /*
  * Externs.
  */
 
-extern struct irs_acc *	irs_gen_acc __P((const char *));
+extern struct irs_acc *	irs_gen_acc __P((const char *, const char *conf_file));
 extern struct irs_gr *	irs_gen_gr __P((struct irs_acc *));
 extern struct irs_pw *	irs_gen_pw __P((struct irs_acc *));
 extern struct irs_sv *	irs_gen_sv __P((struct irs_acc *));

@@ -49,6 +49,24 @@
 .\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 .\" SOFTWARE.
 .\" -
+.\" Portions Copyright (c) 1999 by Check Point Software Technologies, Inc.
+.\" 
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies, and that
+.\" the name of Check Point Software Technologies Incorporated not be used 
+.\" in advertising or publicity pertaining to distribution of the document 
+.\" or software without specific, written prior permission.
+.\" 
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND CHECK POINT SOFTWARE TECHNOLOGIES 
+.\" INCORPORATED DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, 
+.\" INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS.   
+.\" IN NO EVENT SHALL CHECK POINT SOFTWARE TECHNOLOGIES INCORPRATED
+.\" BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR 
+.\" ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER
+.\" IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT 
+.\" OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\" 
 .\" --Copyright--
 .\"
 .\"	from named.8	6.6 (Berkeley) 2/14/89
@@ -66,10 +84,14 @@
 .Fl s Ar serial_no
 .Op Fl d Ar debuglevel
 .Op Fl l Ar debug_log_file
+.Op Fl i Ar ixfr_file
 .Op Fl t Ar trace_file
 .Op Fl p Ar port#
 .Op Fl S 
-.Ar nameserver ...
+.Ar nameserver 
+.Op Ar [ Sy axfr 
+| 
+.Op Sy ixfr ]
 .Sh DESCRIPTION
 .Ic Named-xfer
 is an ancillary program executed by
@@ -107,6 +129,11 @@ or
 Note that this only applies if
 .Dq Fl d
 is also specified.
+.It Fl i Ar ixfr_file
+Specifies the name of the 
+.Ar ixfr_file 
+into which the zone changes from Incremental Zone Transfer (IXFR)
+should be dumped when it is received from the primary server.
 .It Fl t Ar trace_file
 Specifies a 
 .Ar trace_file 
@@ -138,10 +165,21 @@ syntax
 no host name are allowed here.  At least one address must be specified.  
 Any additional addresses will be tried, in order, if the first one fails 
 to transfer to us successfully.
+The 
+.Sy axfr 
+or 
+.Sy ixfr 
+after name server address designates the type of zone transfer to perform.
+Use 
+.Sy axfr  
+for a full zone transfer or
+.Sy ixfr 
+for an incremental zone transfer.
 .Sh SEE ALSO
 .Xr hostname @DESC_EXT@ ,
 .Xr @INDOT@named @SYS_OPS_EXT@ ,
 .Xr resolver @LIB_NETWORK_EXT@ ,
 .Xr resolver @FORMAT_EXT@ ,
-RFC 882, RFC 883, RFC 973, RFC 974, RFC 1033, RFC 1034, RFC 1035, RFC 1123,
+RFC 882, RFC 883, RFC 973, RFC 974, RFC 1033, RFC 1034, RFC 1035, 
+RFC 1123, RFC 1995
 .Dq Name Server Operations Guide for Sy BIND .

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
-static char sccsid[] = "@(#)ns_forw.c	4.32 (Berkeley) 3/3/91";
-static char rcsid[] = "$Id: ns_forw.c,v 8.34 1998/02/24 01:02:40 halley Exp $";
+static const char sccsid[] = "@(#)ns_forw.c	4.32 (Berkeley) 3/3/91";
+static const char rcsid[] = "$Id: ns_forw.c,v 8.68 1999/10/13 16:39:07 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -57,7 +57,7 @@ static char rcsid[] = "$Id: ns_forw.c,v 8.34 1998/02/24 01:02:40 halley Exp $";
  */
 
 /*
- * Portions Copyright (c) 1996, 1997 by Internet Software Consortium.
+ * Portions Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -78,6 +78,7 @@ static char rcsid[] = "$Id: ns_forw.c,v 8.34 1998/02/24 01:02:40 halley Exp $";
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -94,6 +95,8 @@ static char rcsid[] = "$Id: ns_forw.c,v 8.34 1998/02/24 01:02:40 halley Exp $";
 #include <isc/eventlib.h>
 #include <isc/logging.h>
 #include <isc/memcluster.h>
+
+#include <isc/dst.h>
 
 #include "port_after.h"
 
@@ -122,14 +125,20 @@ int
 ns_forw(struct databuf *nsp[], u_char *msg, int msglen,
 	struct sockaddr_in from, struct qstream *qsp, int dfd,
 	struct qinfo **qpp, const char *dname, int class, int type,
-	struct namebuf *np, int use_tcp)
+	struct namebuf *np, int use_tcp, struct tsig_record *in_tsig)
 {
 	struct qinfo *qp;
 	char tmpdomain[MAXDNAME];
 	struct sockaddr_in *nsa;
 	HEADER *hp;
 	u_int16_t id;
-	int n;
+	int sendto_errno = 0;
+	int n, has_tsig, oldqlen;
+	u_char *oldqbuf;
+	u_char *smsg;
+	int smsglen, smsgsize, siglen;
+	u_char sig[TSIG_SIG_SIZE];
+	DST_KEY *key;
 
 	ns_debug(ns_log_default, 3, "ns_forw()");
 
@@ -155,23 +164,32 @@ ns_forw(struct databuf *nsp[], u_char *msg, int msglen,
 	getname(np, tmpdomain, sizeof tmpdomain);
 	qp->q_domain = savestr(tmpdomain, 1);
 	qp->q_from = from;	/* nslookup wants to know this */
-	n = nslookup(nsp, qp, dname, "ns_forw");
+	if (NS_ZFWDTAB(qp->q_fzone))
+		nsfwdadd(qp, NS_ZFWDTAB(qp->q_fzone));
+	if (NS_ZOPTION_P(qp->q_fzone, OPTION_FORWARD_ONLY))
+		n = 0;
+	else
+		n = nslookup(nsp, qp, dname, "ns_forw");
 	if (n < 0) {
-		ns_debug(ns_log_default, 2, "forw: nslookup reports danger");
+		if (n == -1)
+			ns_debug(ns_log_default, 2,
+				 "forw: nslookup reports danger");
 		ns_freeqry(qp);
 		return (FW_SERVFAIL);
 	}
-	if (n == 0 && !server_options->fwdtab) {
+	if (n == 0 && !NS_ZFWDTAB(qp->q_fzone)) {
 		ns_debug(ns_log_default, 2, "forw: no nameservers found");
 		ns_freeqry(qp);
 		return (FW_NOSERVER);
 	}
 	qp->q_stream = qsp;
 	qp->q_curaddr = 0;
-	qp->q_fwd = server_options->fwdtab;
 	qp->q_dfd = dfd;
 	qp->q_id = id;
 	qp->q_expire = tt.tv_sec + RETRY_TIMEOUT*2;
+	if (in_tsig != NULL)
+		qp->q_tsig = new_tsig(in_tsig->key, in_tsig->sig,
+				      in_tsig->siglen);
 	if (use_tcp)
 		qp->q_flags |= Q_USEVC;
 	hp->id = qp->q_nsid = htons(nsid_next());
@@ -186,17 +204,16 @@ ns_forw(struct databuf *nsp[], u_char *msg, int msglen,
 	}
 	qp->q_msgsize = msglen;
 	memcpy(qp->q_msg, msg, qp->q_msglen = msglen);
-	if (!qp->q_fwd) {
-		hp->rd = 0;
-		qp->q_addr[0].stime = tt;
-	}
+	hp = (HEADER *) qp->q_msg;
+	hp->rd = (qp->q_addr[0].forwarder ? 1 : 0);
+	qp->q_addr[0].stime = tt;
 
 #ifdef SLAVE_FORWARD
-	if (NS_OPTION_P(OPTION_FORWARD_ONLY))
+	if (NS_ZOPTION_P(qp->q_fzone, OPTION_FORWARD_ONLY))
 		schedretry(qp, (time_t)slave_retry);
 	else
 #endif /* SLAVE_FORWARD */
-	schedretry(qp, qp->q_fwd ?(2*RETRYBASE) :retrytime(qp));
+	schedretry(qp, retrytime(qp));
 
 	nsa = Q_NEXTADDR(qp, 0);
 	ns_debug(ns_log_default, 1,
@@ -208,10 +225,44 @@ ns_forw(struct databuf *nsp[], u_char *msg, int msglen,
 			? qp->q_addr[0].nsdata->d_nstime
 			: -1,
 		(int)(qp->q_time - tt.tv_sec));
+
 #ifdef DEBUG
 	if (debug >= 10)
-		fp_nquery(msg, msglen, log_get_stream(packet_channel));
+		res_pquery(&res, msg, msglen, log_get_stream(packet_channel));
 #endif
+	key = tsig_key_from_addr(nsa->sin_addr);
+	if (key != NULL) {
+		smsgsize = qp->q_msglen + TSIG_BUF_SIZE;
+		smsg = memget(smsgsize);
+		if (smsg == NULL)
+			ns_panic(ns_log_default, 1, "ns_forw: memget failed");
+		smsglen = qp->q_msglen;
+		siglen = sizeof(sig);
+		memcpy(smsg, qp->q_msg, qp->q_msglen);
+		n = ns_sign(smsg, &smsglen, smsgsize, NOERROR, key, NULL, 0,
+			    sig, &siglen, 0);
+		if (n == 0) {
+			oldqbuf = qp->q_msg;
+			oldqlen = qp->q_msglen;
+			qp->q_msglen = smsglen;
+			qp->q_msg = smsg;
+			hp = (HEADER *) qp->q_msg;
+			has_tsig = 1;
+			qp->q_nstsig = new_tsig(key, sig, siglen);
+		}
+		else {
+			has_tsig = 0;
+			free_tsig(qp->q_nstsig);
+			qp->q_nstsig = NULL;
+			INSIST(0);
+		}
+	}
+	else {
+		has_tsig = 0;
+		free_tsig(qp->q_nstsig);
+		qp->q_nstsig = NULL;
+	}
+
 	if (qp->q_flags & Q_USEVC) {
 		if (tcp_send(qp) != NOERROR) {
 			if (!haveComplained(ina_ulong(nsa->sin_addr),
@@ -220,20 +271,37 @@ ns_forw(struct databuf *nsp[], u_char *msg, int msglen,
 					"ns_forw: tcp_send(%s) failed: %s",
 					sin_ntoa(*nsa), strerror(errno));
 		}
-	} else if (sendto(ds, (char *)msg, msglen, 0, (struct sockaddr *)nsa,
+	} else if (sendto(ds, (char *)qp->q_msg, qp->q_msglen, 0,
+		   (struct sockaddr *)nsa,
 		   sizeof(struct sockaddr_in)) < 0) {
+		sendto_errno  = errno;
 		if (!haveComplained(ina_ulong(nsa->sin_addr),
 				    (u_long)sendtoStr))
 			ns_info(ns_log_default, "ns_forw: sendto(%s): %s",
 				sin_ntoa(*nsa), strerror(errno));
 		nameserIncr(nsa->sin_addr, nssSendtoErr);
 	}
+	if (has_tsig == 1) {
+		memput(qp->q_msg, smsgsize);
+		qp->q_msg = oldqbuf;
+		qp->q_msglen = oldqlen;
+		hp = (HEADER *) qp->q_msg;
+	}
+
 	if (NS_OPTION_P(OPTION_HOSTSTATS))
 		nameserIncr(from.sin_addr, nssRcvdFwdQ);
 	nameserIncr(nsa->sin_addr, nssSentFwdQ);
 	if (qpp)
 		*qpp = qp;
 	hp->rd = 1;
+	switch (sendto_errno)  {
+	case ENETDOWN:
+	case ENETUNREACH:
+	case EHOSTDOWN:
+	case EHOSTUNREACH:
+		unsched(qp);
+		schedretry(qp, (time_t) 0);
+	}
 	return (0);
 }
 
@@ -313,8 +381,6 @@ nslookupComplain(const char *sysloginfo, const char *queryname,
 	ns_debug(ns_log_default, 2, "NS '%s' %s", dname, complaint);
 	if (sysloginfo && queryname && !haveComplained((u_long)queryname,
 						       (u_long)complaint)) {
-		char buf[999];
-
 		a = ns = (char *)NULL;
 		print_a = (a_rr->d_type == T_A);
 		a_type = p_type(a_rr->d_type);
@@ -395,13 +461,13 @@ nslookup(struct databuf *nsp[], struct qinfo *qp,
 	struct hashbuf *tmphtp;
 	char *dname;
 	const char *fname;
-	int oldn, naddr, class, found_arr, potential_ns;
+	int oldn, naddr, class, found_arr, potential_ns, lame_ns;
 	time_t curtime;
 
 	ns_debug(ns_log_default, 3, "nslookup(nsp=%#x, qp=%#x, \"%s\")",
 		nsp, qp, syslogdname);
 
-	potential_ns = 0;
+	lame_ns = potential_ns = 0;
 	naddr = n = qp->q_naddr;
 	curtime = (u_long) tt.tv_sec;
 	while ((nsdp = *nsp++) != NULL) {
@@ -421,8 +487,20 @@ nslookup(struct databuf *nsp[], struct qinfo *qp,
 			}
 		}
 
+		/* skip lame servers */
+		if ((nsdp->d_flags & DB_F_LAME) != 0) {
+			time_t when;
+			when = db_lame_find(qp->q_domain, nsdp);
+			if (when != 0 && when > tt.tv_sec) {
+				ns_debug(ns_log_default, 3,
+					 "skipping lame NS");
+				lame_ns++;
+				goto skipserver;
+			}
+		}
+
 		tmphtp = ((nsdp->d_flags & DB_F_HINT) ?fcachetab :hashtab);
-		np = nlookup(dname, &tmphtp, &fname, 1);
+		np = nlookup(dname, &tmphtp, &fname, 0);
 		if (np == NULL) {
 			ns_debug(ns_log_default, 3, "%s: not found %s %#x",
 				 dname, fname, np);
@@ -430,45 +508,14 @@ nslookup(struct databuf *nsp[], struct qinfo *qp,
 			goto need_sysquery;
 		}
 		if (fname != dname) {
-			if (findMyZone(np, class) == DB_Z_CACHE) {
-				/*
-				 * lifted from findMyZone()
-                                 * We really need to know if the NS
-				 * is the bottom of one of our zones
-				 * to see if we've got missing glue
-				 */
-				for (; np; np = np_parent(np))
-				    for (dp = np->n_data; dp; dp = dp->d_next)
-					if (match(dp, class, T_NS)) {
-					    if (dp->d_rcode)
-						break;
-					    if (dp->d_zone) {
-						static char *complaint =
-						    "Glue A RR missing";
-						nslookupComplain(sysloginfo,
-						                 syslogdname,
-								 complaint,
-								 dname, dp,
-								 nsdp);
-						goto skipserver;
-					    } else {
-						found_arr = 0;
-						goto need_sysquery;
-					    }
-					}
-				/* shouldn't happen, but ... */
-				found_arr = 0;
-				goto need_sysquery;
-			} else {
-			        /* Authoritative A RR missing. */
-				continue;
-			}
+			found_arr = 0;
+			goto need_sysquery;
 		}
 		found_arr = 0;
 		oldn = n;
 
 		/* look for name server addresses */
-		delete_stale(np);
+		(void)delete_stale(np);
 		for (dp = np->n_data; dp != NULL; dp = dp->d_next) {
 			struct in_addr nsa;
 
@@ -484,10 +531,7 @@ nslookup(struct databuf *nsp[], struct qinfo *qp,
 			if (dp->d_type != T_A || dp->d_class != class)
 				continue;
 			if (dp->d_rcode) {
-				static const char *complaint =
-					"A RR negative cache entry";
-				nslookupComplain(sysloginfo, syslogdname,
-						 complaint, dname, dp, nsdp);
+				/* Negative caching element. */
 				goto skipserver;
 			}
 			if (ina_hlong(ina_get(dp->d_data)) == INADDR_ANY) {
@@ -553,6 +597,7 @@ nslookup(struct databuf *nsp[], struct qinfo *qp,
 			qs->ns_addr.sin_addr = nsa;
 			qs->ns = nsdp;
 			qs->nsdata = dp;
+			qs->forwarder = 0;
 			qs->nretry = 0;
 			/*
 			 * If this A RR has no RTT, initialize its RTT to a
@@ -616,6 +661,10 @@ nslookup(struct databuf *nsp[], struct qinfo *qp,
 			if (ip_match_address(bogus_nameservers, nsa) > 0)
 				goto skipserver;
 #endif
+			if (server_options->blackhole_acl != NULL && 
+			    ip_match_address(server_options->blackhole_acl,
+					     nsa) == 1)
+				continue;
 
 			n++;
 			if (n >= NSMAX)
@@ -629,7 +678,7 @@ nslookup(struct databuf *nsp[], struct qinfo *qp,
 			potential_ns++;
 			if (!(qp->q_flags & Q_SYSTEM))
 				(void) sysquery(dname, class, T_A, NULL, 0,
-						QUERY);
+						ns_port, QUERY);
 		}
  skipserver:
 		(void)NULL;
@@ -637,15 +686,17 @@ nslookup(struct databuf *nsp[], struct qinfo *qp,
  out:
 	ns_debug(ns_log_default, 3, "nslookup: %d ns addrs total", n);
 	qp->q_naddr = n;
-	if (n == 0 && potential_ns == 0 && !server_options->fwdtab) {
+	if (n == 0 && potential_ns == 0 && !NS_ZFWDTAB(qp->q_fzone)) {
 		static char *complaint = "No possible A RRs";
+		if (lame_ns != 0)
+			complaint = "All possible A RR's lame";
 		if (sysloginfo && syslogdname &&
 		    !haveComplained((u_long)syslogdname, (u_long)complaint))
 		{
 			ns_info(ns_log_default, "%s: query(%s) %s",
 				sysloginfo, syslogdname, complaint);
 		}
-		return(-1);
+		return ((lame_ns == 0) ? -1 : -2);
 	}
 	/* Update the refcounts before the sort. */
 	for (i = naddr; i < (u_int)n; i++) {
@@ -846,14 +897,20 @@ retrytimer(evContext ctx, void *uap, struct timespec due,
  */
 void
 retry(struct qinfo *qp) {
-	int n;
+	int n, has_tsig, oldqlen;
 	HEADER *hp;
 	struct sockaddr_in *nsa;
+	int sendto_errno = 0;
+	u_char *oldqbuf;
+	u_char *smsg;
+	int smsglen, smsgsize, siglen;
+	u_char sig[TSIG_SIG_SIZE];
+	DST_KEY *key;
 
 	ns_debug(ns_log_default, 3, "retry(%#lx) id=%d", (u_long)qp,
 		 ntohs(qp->q_id));
 
-	if (qp->q_msg == NULL) {		/* XXX - why? */
+	if (qp->q_msg == NULL) {
 		qremove(qp);
 		return;
 	}
@@ -864,29 +921,25 @@ retry(struct qinfo *qp) {
 			 (u_long)qp, (u_long)qp->q_expire,
 			 (int)(tt.tv_sec - qp->q_expire),
 			 (u_long)tt.tv_sec);
-		if (qp->q_stream || (qp->q_flags & Q_PRIMING))
-			goto fail;
-		qremove(qp);
-		return;
+		goto fail;
 	}
 
-	/* try next address */
+	/* Try next address. */
 	n = qp->q_curaddr;
-	if (qp->q_fwd != NULL) {
-		qp->q_fwd = qp->q_fwd->next;
-		if (qp->q_fwd != NULL)
-			goto found;
-		/* Out of forwarders, try direct queries. */
-	}
 	if (qp->q_naddr > 0) {
 		++qp->q_addr[n].nretry;
-		if (!NS_OPTION_P(OPTION_FORWARD_ONLY)) {
-			do {
-				if (++n >= (int)qp->q_naddr)
-					n = 0;
-				if (qp->q_addr[n].nretry < MAXRETRY)
-					goto found;
-			} while (n != qp->q_curaddr);
+		do {
+			if (++n >= (int)qp->q_naddr)
+				n = 0;
+			if ((qp->q_flags & Q_ZSERIAL) != 0 &&
+			    qp->q_addr[n].serial != 0)
+				continue;
+			if (qp->q_addr[n].nretry < MAXRETRY)
+				goto found;
+		} while (n != qp->q_curaddr);
+		if ((qp->q_flags & Q_ZSERIAL) != 0) {
+			qremove(qp);
+			return;
 		}
 	}
  fail:
@@ -894,7 +947,7 @@ retry(struct qinfo *qp) {
 	 * Give up. Can't reach destination.
 	 */
 	hp = (HEADER *)(qp->q_cmsg ? qp->q_cmsg : qp->q_msg);
-	if (qp->q_flags & Q_PRIMING) {
+	if ((qp->q_flags & Q_PRIMING) != 0) {
 		/* Can't give up priming */
 		if (qp->q_expire < tt.tv_sec) {
 			/*
@@ -903,7 +956,6 @@ retry(struct qinfo *qp) {
 			 */
 			hp->rcode = NOERROR;
 			hp->qr = hp->aa = 0;
-			qp->q_fwd = server_options->fwdtab;
 			for (n = 0; n < (int)qp->q_naddr; n++)
 				qp->q_addr[n].nretry = 0;
 			n = 0;
@@ -920,36 +972,40 @@ retry(struct qinfo *qp) {
 		return;
 	}
 	ns_debug(ns_log_default, 5, "give up");
-	n = ((HEADER *)qp->q_cmsg ? qp->q_cmsglen : qp->q_msglen);
-	hp->id = qp->q_id;
-	hp->qr = 1;
-	hp->ra = (NS_OPTION_P(OPTION_NORECURSE) == 0);
-	hp->rd = 1;
-	hp->rcode = SERVFAIL;
+	if ((qp->q_flags & Q_SYSTEM) == 0) {
+		n = ((HEADER *)qp->q_cmsg ? qp->q_cmsglen : qp->q_msglen);
+		hp->id = qp->q_id;
+		hp->qr = 1;
+		hp->ra = (NS_OPTION_P(OPTION_NORECURSE) == 0);
+		hp->rd = 1;
+		hp->rcode = SERVFAIL;
 #ifdef DEBUG
-	if (debug >= 10)
-		fp_nquery(qp->q_msg, n, log_get_stream(packet_channel));
+		if (debug >= 10)
+			res_pquery(&res, qp->q_msg, n,
+				   log_get_stream(packet_channel));
 #endif
-	if (send_msg((u_char *)hp, n, qp)) {
-		ns_debug(ns_log_default, 1,
-			 "gave up retry(%#lx) nsid=%d id=%d",
-			 (u_long)qp, ntohs(qp->q_nsid), ntohs(qp->q_id));
+		if (send_msg((u_char *)hp, n, qp)) {
+			ns_debug(ns_log_default, 1,
+				 "gave up retry(%#lx) nsid=%d id=%d",
+				 (u_long)qp,
+				 ntohs(qp->q_nsid), ntohs(qp->q_id));
+		}
+		if (NS_OPTION_P(OPTION_HOSTSTATS))
+			nameserIncr(qp->q_from.sin_addr, nssSentFail);
 	}
-	if (NS_OPTION_P(OPTION_HOSTSTATS))
-		nameserIncr(qp->q_from.sin_addr, nssSentFail);
 	qremove(qp);
 	return;
 
  found:
-	if (qp->q_fwd == 0 && qp->q_addr[n].nretry == 0)
+	if (qp->q_addr[n].nretry == 0)
 		qp->q_addr[n].stime = tt;
 	qp->q_curaddr = n;
 	hp = (HEADER *)qp->q_msg;
-	hp->rd = (qp->q_fwd ? 1 : 0);
+	hp->rd = (qp->q_addr[n].forwarder ? 1 : 0);
 	nsa = Q_NEXTADDR(qp, n);
 	ns_debug(ns_log_default, 1,
 		 "%s(addr=%d n=%d) -> [%s].%d ds=%d nsid=%d id=%d %dms",
-		 (qp->q_fwd ? "reforw" : "resend"),
+		 (qp->q_addr[n].forwarder ? "reforw" : "resend"),
 		 n, qp->q_addr[n].nretry,
 		 inet_ntoa(nsa->sin_addr),
 		 ntohs(nsa->sin_port), ds,
@@ -959,9 +1015,38 @@ retry(struct qinfo *qp) {
 		 : (-1));
 #ifdef DEBUG
 	if (debug >= 10)
-		fp_nquery(qp->q_msg, qp->q_msglen,
+		res_pquery(&res, qp->q_msg, qp->q_msglen,
 			  log_get_stream(packet_channel));
 #endif
+	key = tsig_key_from_addr(nsa->sin_addr);
+	if (key != NULL) {
+		smsgsize = qp->q_msglen + TSIG_BUF_SIZE;
+		smsg = memget(smsgsize);
+		smsglen = qp->q_msglen;
+		siglen = sizeof(sig);
+		memcpy(smsg, qp->q_msg, qp->q_msglen);
+		n = ns_sign(smsg, &smsglen, smsgsize, NOERROR, key, NULL, 0,
+			    sig, &siglen, 0);
+		if (n == 0) {
+			oldqbuf = qp->q_msg;
+			oldqlen = qp->q_msglen;
+			qp->q_msglen = smsglen;
+			qp->q_msg = smsg;
+			has_tsig = 1;
+			qp->q_nstsig = new_tsig(key, sig, siglen);
+		}
+		else {
+			has_tsig = 0;
+			free_tsig(qp->q_nstsig);
+			qp->q_nstsig = NULL;
+			INSIST(0);
+		}
+	} else {
+		has_tsig = 0;
+		free_tsig(qp->q_nstsig);
+		qp->q_nstsig = NULL;
+	}
+
 	if (qp->q_flags & Q_USEVC) {
 		if (tcp_send(qp) != NOERROR)
 			ns_debug(ns_log_default, 3,
@@ -971,18 +1056,32 @@ retry(struct qinfo *qp) {
 		   (struct sockaddr *)nsa,
 		   sizeof(struct sockaddr_in)) < 0)
 	{
+		sendto_errno = errno;
 		ns_debug(ns_log_default, 3, "error resending msg: %s",
 			 strerror(errno));
+	}
+	if (has_tsig == 1) {
+		memput(qp->q_msg, smsgsize);
+		qp->q_msg = oldqbuf;
+		qp->q_msglen = oldqlen;
 	}
 	hp->rd = 1;	/* leave set to 1 for dup detection */
 	nameserIncr(nsa->sin_addr, nssSentDupQ);
 	unsched(qp);
+	switch (sendto_errno) {
+	case ENETDOWN:
+	case ENETUNREACH:
+	case EHOSTDOWN:
+	case EHOSTUNREACH:
+		schedretry(qp, (time_t) 0);
+		return;
+	}
 #ifdef SLAVE_FORWARD
-	if (NS_OPTION_P(OPTION_FORWARD_ONLY))
+	if (NS_ZOPTION_P(qp->q_fzone, OPTION_FORWARD_ONLY))
 		schedretry(qp, (time_t)slave_retry);
 	else
 #endif /* SLAVE_FORWARD */
-	schedretry(qp, qp->q_fwd ? (2*RETRYBASE) : retrytime(qp));
+	schedretry(qp, retrytime(qp));
 }
 
 /*
@@ -1020,16 +1119,10 @@ qflush() {
 
 void
 qremove(struct qinfo *qp) {
-	struct sockaddr_in empty_from;
-
-	empty_from.sin_family = AF_INET;
-	empty_from.sin_addr.s_addr = htonl(INADDR_ANY);
-	empty_from.sin_port = htons(0);
-
 	ns_debug(ns_log_default, 3, "qremove(%#lx)", (u_long)qp);
 	
-	if (qp->q_flags & Q_ZSERIAL)
-		qserial_answer(qp, 0, empty_from);
+	if ((qp->q_flags & Q_ZSERIAL) != 0)
+		qserial_answer(qp);
 	unsched(qp);
 	ns_freeqry(qp);
 }
@@ -1049,10 +1142,12 @@ qfindid(u_int16_t id) {
 struct qinfo *
 qnew(const char *name, int class, int type) {
 	struct qinfo *qp;
+	const char *s;
+	int escape = 0;
 
 	qp = (struct qinfo *)memget(sizeof *qp);
 	if (qp == NULL)
-		panic("qnew: memget failed", NULL);
+		ns_panic(ns_log_default, 1, "qnew: memget failed");
 	memset(qp, 0, sizeof *qp);
 	ns_debug(ns_log_default, 5, "qnew(%#lx)", (u_long)qp);
 #ifdef BIND_NOTIFY
@@ -1064,6 +1159,21 @@ qnew(const char *name, int class, int type) {
 	qp->q_class = (u_int16_t)class;
 	qp->q_type = (u_int16_t)type;
 	qp->q_flags = 0;
+	s = name;
+	for (;;) {		/* find forwarding zone, if any */
+		if ((qp->q_fzone = find_zone(s, class)) != NULL &&
+		    (qp->q_fzone->z_flags & Z_FORWARD_SET) != 0)
+			break;
+		qp->q_fzone = NULL;
+		if (*s == '\0')
+			break;
+		while (*s != '\0' && (escape || *s != '.')) {
+			escape = escape ? 0 : (*s == '\\');
+			s++;
+		}
+		if (*s != '\0')
+			s++;
+	}
 	return (qp);
 }
 
@@ -1101,7 +1211,6 @@ ns_freeqns(struct qinfo *qp, char *where) {
 void
 ns_freeqry(struct qinfo *qp) {
 	struct qinfo *np;
-	struct databuf *dp;
 
 	ns_debug(ns_log_default, 3, "ns_freeqry(%#lx)", (u_long)qp);
 	if (qp->q_next)
@@ -1115,6 +1224,10 @@ ns_freeqry(struct qinfo *qp) {
 		freestr(qp->q_domain);
 	if (qp->q_name != NULL)
 		freestr(qp->q_name);
+	if (qp->q_tsig != NULL)
+		memput(qp->q_tsig, sizeof(struct tsig_record));
+	if (qp->q_nstsig != NULL)
+		memput(qp->q_nstsig, sizeof(struct tsig_record));
 	ns_freeqns(qp, "ns_freeqry");
 	if (nsqhead == qp)
 		nsqhead = qp->q_link;
@@ -1129,4 +1242,28 @@ ns_freeqry(struct qinfo *qp) {
 		}
 	}
 	memput(qp, sizeof *qp);
+}
+
+void
+nsfwdadd(struct qinfo *qp, struct fwdinfo *fwd) {
+	int i, n;
+	struct qserv *qs;
+
+	n = qp->q_naddr;
+	while (fwd != NULL && n < MAXNS) {
+		qs = qp->q_addr;
+		for (i = 0; i < (u_int)n; i++, qs++)
+			if (ina_equal(qs->ns_addr.sin_addr,
+				      fwd->fwdaddr.sin_addr))
+				goto nextfwd;
+		qs->ns_addr = fwd->fwdaddr;
+		qs->ns = NULL;
+		qs->nsdata = NULL;
+		qs->forwarder = 1;
+		qs->nretry = 0;
+		n++;
+ nextfwd:
+		fwd = fwd->next;
+	}
+	qp->q_naddr = n;
 }

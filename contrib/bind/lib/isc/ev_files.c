@@ -1,4 +1,5 @@
-/* Copyright (c) 1995, 1996, 1997, 1998 by Internet Software Consortium
+/*
+ * Copyright (c) 1995-1999 by Internet Software Consortium
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -19,7 +20,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: ev_files.c,v 1.15 1998/02/06 01:53:52 halley Exp $";
+static const char rcsid[] = "$Id: ev_files.c,v 1.19 1999/10/07 20:44:04 vixie Exp $";
 #endif
 
 #include "port_before.h"
@@ -56,7 +57,7 @@ evSelectFD(evContext opaqueCtx,
 		 ctx, fd, eventmask, func, uap);
 	if (eventmask == 0 || (eventmask & ~EV_MASK_ALL) != 0)
 		ERR(EINVAL);
-	if (fd >= FD_SETSIZE)
+	if (fd > ctx->highestFD)
 		ERR(EINVAL);
 	OK(mode = fcntl(fd, F_GETFL, NULL));	/* side effect: validate fd. */
 
@@ -68,10 +69,10 @@ evSelectFD(evContext opaqueCtx,
 	 */
 	id = FindFD(ctx, fd, EV_MASK_ALL);
 	if (id == NULL) {
-		if (mode & O_NONBLOCK)
+		if (mode & PORT_NONBLOCK)
 			FD_SET(fd, &ctx->nonblockBefore);
 		else {
-			OK(fcntl(fd, F_SETFL, mode | O_NONBLOCK));
+			OK(fcntl(fd, F_SETFL, mode | PORT_NONBLOCK));
 			FD_CLR(fd, &ctx->nonblockBefore);
 		}
 	}
@@ -150,7 +151,7 @@ int
 evDeselectFD(evContext opaqueCtx, evFileID opaqueID) {
 	evContext_p *ctx = opaqueCtx.opaque;
 	evFile *del = opaqueID.opaque;
-	evFile *old, *cur;
+	evFile *cur;
 	int mode, eventmask;
 
 	if (!del) {
@@ -196,7 +197,7 @@ evDeselectFD(evContext opaqueCtx, evFileID opaqueID) {
 		 * this fcntl() fails since (a) we've already done the work
 		 * and (b) the caller didn't ask us anything about O_NONBLOCK.
 		 */
-		(void) fcntl(del->fd, F_SETFL, mode & ~O_NONBLOCK);
+		(void) fcntl(del->fd, F_SETFL, mode & ~PORT_NONBLOCK);
 	}
 
 	/*

@@ -1,4 +1,4 @@
-## Copyright (c) 1996 by Internet Software Consortium
+## Copyright (c) 1996,1999 by Internet Software Consortium
 ##
 ## Permission to use, copy, modify, and distribute this software for any
 ## purpose with or without fee is hereby granted, provided that the above
@@ -13,7 +13,7 @@
 ## ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 ## SOFTWARE.
 
-# $Id: Makefile,v 1.6 1997/06/19 03:22:10 halley Exp $
+# $Id: Makefile,v 1.15 1999/08/08 17:51:02 vixie Exp $
 
 DESTDIR=
 CC= cc
@@ -31,55 +31,63 @@ A=a
 O=o
 LEX = lex -I
 SYSLIBS = -ll -lutil
-PIDDIR = /var/run
 DESTBIN = /usr/local/bin
 DESTSBIN = /usr/local/sbin
 DESTEXEC = /usr/local/libexec
 DESTMAN = /usr/share/man
 DESTHELP= /usr/share/misc
-AR= ar cruv
+AR= ar cru
 INSTALL= install
 STRIP=-s
+INSTALL_EXEC=
+INSTALL_LIB=-o bin -g bin
 PS=ps
 
 LDFLAGS=
 CFLAGS=	${CDEBUG} -I${PORTINCL} -I${INCL} ${DEFS}
 
 PROG= ndc
-SRCS=
-OBJS=
+SRCS= ${PROG}.c
+OBJS= ${PROG}.${O}
+HDRS= pathnames.h
 
-all: ${PROG}
+all: ${PROG}${EXE}
 
-${PROG}: ${PROG}.sh ../named/pathnames ../named/pathnames.h Makefile
-	sed -e "s|%PIDFILE%|"`../named/pathnames _path_pidfile`"|" \
-	    -e "s|%NAMED%|"`../named/pathnames _path_named`"|" \
-	    -e "s|%PS%|${PS}|" \
-	    < ndc.sh > ndc
-	chmod +x ndc
+${PROG}${EXE}: ${HDRS} ${OBJS} ${LIBBIND} Makefile
+	${CC} ${CDEBUG} ${LDFLAGS} ${BOUNDS} -o ${PROG}${EXE} ${OBJS} ${LIBBIND} ${SYSLIBS}
+
+.c.${O}:
+	${CC} ${CPPFLAGS} ${CFLAGS} ${BOUNDS} -c $*.c
+
+pathnames.h: ${TOP}/.settings Makefile ../named/pathtemplate.h
+	rm -f pathnames.h
+	sed -e "s|%DESTSBIN%|${DESTSBIN}|" \
+	    -e "s|%DESTEXEC%|${DESTEXEC}|" \
+	    -e "s|%DESTETC%|${DESTETC}|" \
+	    -e "s|%DESTRUN%|${DESTRUN}|" \
+	    < ../named/pathtemplate.h > pathnames.h
 
 distclean: clean
 
 clean: FRC
-	rm -f ${PROG} ${OBJS} core .depend
+	rm -f ${PROG}${EXE} ${OBJS} core .depend
 	rm -f *.BAK *.CKP *~ *.orig
+	rm -f pathnames.h
 
-depend:
+depend: ${SRCS} pathnames.h
+	mkdep ${CPPFLAGS} -I${INCL} -I${PORTINCL} ${SRCS}
 
 ${DESTDIR}${DESTSBIN}:
 	mkdir -p ${DESTDIR}${DESTSBIN}
 
-install: ${DESTDIR}${DESTSBIN} ${PROG}
-	${INSTALL} -c -m 755 ${PROG} ${DESTDIR}${DESTSBIN}/${PROG}
+install: ${DESTDIR}${DESTSBIN} ${PROG}${EXE}
+	${INSTALL}  ${INSTALL_EXEC} ${STRIP} -c -m 755 ${PROG}${EXE} ${DESTDIR}${DESTSBIN}/${PROG}${EXE}
 
 links: FRC
-	@set -e; ln -s SRC/*.sh .
+	@set -e; ln -s SRC/*.[ch] .
 
 tags: FRC
 	ctags ${SRCS} *.h
-
-commands.c: commands.l
-	${LEX} -t $< > $@ || rm $@
 
 FRC:
 

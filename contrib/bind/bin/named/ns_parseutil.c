@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 1997 by Internet Software Consortium.
+ * Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -21,6 +21,8 @@
 #include "port_before.h"
 
 #include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 
 #include <netinet/in.h>
 #include <arpa/nameser.h>
@@ -178,7 +180,7 @@ define_symbol(symbol_table st, char *key, int type, symbol_value value,
 void
 undefine_symbol(symbol_table st, char *key, int type) {
 	int hash;
-	symbol_entry prev_ste, ste, next_ste;
+	symbol_entry prev_ste, ste;
 
 	hash = symbol_hash(key, st->size);
 	for (prev_ste = NULL, ste = st->table[hash];

@@ -1,9 +1,9 @@
 #if !defined(lint) && !defined(SABER)
-static char rcsid[] = "$Id: res_update.c,v 1.14 1998/03/10 22:04:48 halley Exp $";
+static const char rcsid[] = "$Id: res_update.c,v 1.24 1999/10/15 19:49:12 vixie Exp $";
 #endif /* not lint */
 
 /*
- * Copyright (c) 1996 by Internet Software Consortium.
+ * Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -25,19 +25,27 @@ static char rcsid[] = "$Id: res_update.c,v 1.14 1998/03/10 22:04:48 halley Exp $
  */
 
 #include "port_before.h"
+
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
+
 #include <errno.h>
 #include <limits.h>
 #include <netdb.h>
 #include <resolv.h>
+#include <res_update.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <isc/list.h>
+
 #include "port_after.h"
 
 /*
@@ -54,465 +62,166 @@ static char rcsid[] = "$Id: res_update.c,v 1.14 1998/03/10 22:04:48 halley Exp $
  * was encountered while updating the reverse zone.
  */
 
-#define NSMAX 16
-
-struct ns1 {
-	char nsname[MAXDNAME];
-	struct in_addr nsaddr1;
-};
-
 struct zonegrp {
-	char 		z_origin[MAXDNAME];
-	int16_t		z_class;
-	char		z_soardata[MAXDNAME + 5 * INT32SZ];
-	struct ns1 	z_ns[NSMAX];
-	int		z_nscount;
-	ns_updrec *	z_rr;
-	struct zonegrp *z_next;
+	char			z_origin[MAXDNAME];
+	ns_class		z_class;
+	struct in_addr		z_nsaddrs[MAXNS];
+	int			z_nscount;
+	int			z_flags;
+	LIST(ns_updrec)		z_rrlist;
+	LINK(struct zonegrp)	z_link;
 };
 
+#define ZG_F_ZONESECTADDED	0x0001
+
+/* Forward. */
+
+static int	nscopy(struct sockaddr_in *, const struct sockaddr_in *, int);
+static int	nsprom(struct sockaddr_in *, const struct in_addr *, int);
+static void	dprintf(const char *, ...);
+
+/* Macros. */
+
+#define DPRINTF(x) do {\
+		int save_errno = errno; \
+		if ((statp->options & RES_DEBUG) != 0) dprintf x; \
+		errno = save_errno; \
+	} while (0)
+
+/* Public. */
 
 int
-res_update(ns_updrec *rrecp_in) {
-	ns_updrec *rrecp, *tmprrecp;
-	u_char buf[PACKETSZ], answer[PACKETSZ], packet[2*PACKETSZ];
-	char name[MAXDNAME], zname[MAXDNAME], primary[MAXDNAME],
-	     mailaddr[MAXDNAME];
-	u_char soardata[2*MAXCDNAME+5*INT32SZ];
-	char *dname, *svdname, *cp1, *target;
-	u_char *cp, *eom;
-	HEADER *hp = (HEADER *) answer;
-	struct zonegrp *zptr = NULL, *tmpzptr, *prevzptr, *zgrp_start = NULL;
-	int i, j, k = 0, n, ancount, nscount, arcount, rcode, rdatasize,
-	    newgroup, done, myzone, seen_before, numzones = 0;
-	u_int16_t dlen, class, qclass, type, qtype;
-	u_int32_t ttl;
+res_nupdate(res_state statp, ns_updrec *rrecp_in, ns_tsig_key *key) {
+	ns_updrec *rrecp;
+	u_char answer[PACKETSZ], packet[2*PACKETSZ];
+	struct zonegrp *zptr, tgrp;
+	LIST(struct zonegrp) zgrps;
+	int nzones = 0, nscount = 0, n;
+	struct sockaddr_in nsaddrs[MAXNS];
 
-	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
-		h_errno = NETDB_INTERNAL;
-		return (-1);
+	/* Thread all of the updates onto a list of groups. */
+	INIT_LIST(zgrps);
+	for (rrecp = rrecp_in; rrecp; rrecp = NEXT(rrecp, r_link)) {
+		/* Find the origin for it if there is one. */
+		tgrp.z_class = rrecp->r_class;
+		tgrp.z_nscount =
+			res_findzonecut(statp, rrecp->r_dname, tgrp.z_class,
+					RES_EXHAUSTIVE,
+					tgrp.z_origin,
+					sizeof tgrp.z_origin,
+					tgrp.z_nsaddrs, MAXNS);
+		if (tgrp.z_nscount <= 0) {
+			DPRINTF(("res_findzonecut failed (%d)",
+				 tgrp.z_nscount));
+			goto done;
+		}
+		/* Find the group for it if there is one. */
+		for (zptr = HEAD(zgrps); zptr != NULL; zptr = NEXT(zptr, z_link))
+			if (ns_samename(tgrp.z_origin, zptr->z_origin) == 1 &&
+			    tgrp.z_class == zptr->z_class)
+				break;
+		/* Make a group for it if there isn't one. */
+		if (zptr == NULL) {
+			zptr = malloc(sizeof *zptr);
+			if (zptr == NULL) {
+				DPRINTF(("malloc failed"));
+				goto done;
+			}
+			*zptr = tgrp;
+			zptr->z_flags = 0;
+			INIT_LIST(zptr->z_rrlist);
+			APPEND(zgrps, zptr, z_link);
+		}
+		/* Thread this rrecp onto the right group. */
+		APPEND(zptr->z_rrlist, rrecp, r_glink);
 	}
 
-	for (rrecp = rrecp_in; rrecp; rrecp = rrecp->r_next) {
-		dname = rrecp->r_dname;
-		n = strlen(dname);
-		if (dname[n-1] == '.')
-			dname[n-1] = '\0';
-		qtype = T_SOA;
-		qclass = rrecp->r_class;
-		done = 0;
-		seen_before = 0;
-
-		while (!done && dname) {
-		    if (qtype == T_SOA) {
-			for (tmpzptr = zgrp_start;
-			     tmpzptr && !seen_before;
-			     tmpzptr = tmpzptr->z_next) {
-				if (strcasecmp(dname,
-					       tmpzptr->z_origin) == 0 &&
-				    tmpzptr->z_class == qclass)
-					seen_before++;
-				for (tmprrecp = tmpzptr->z_rr;
-				     tmprrecp && !seen_before;
-				     tmprrecp = tmprrecp->r_grpnext)
-				if (strcasecmp(dname, tmprrecp->r_dname) == 0
-				    && tmprrecp->r_class == qclass) {
-					seen_before++;
-					break;
-				}
-				if (seen_before) {
-					/*
-					 * Append to the end of
-					 * current group.
-					 */
-					for (tmprrecp = tmpzptr->z_rr;
-					     tmprrecp->r_grpnext;
-					     tmprrecp = tmprrecp->r_grpnext)
-						(void)NULL;
-					tmprrecp->r_grpnext = rrecp;
-					rrecp->r_grpnext = NULL;
-					done = 1;
-					break;
-				}
-			}
-		} else if (qtype == T_A) {
-		    for (tmpzptr = zgrp_start;
-			 tmpzptr && !done;
-			 tmpzptr = tmpzptr->z_next)
-			    for (i = 0; i < tmpzptr->z_nscount; i++)
-				if (tmpzptr->z_class == qclass &&
-				    strcasecmp(tmpzptr->z_ns[i].nsname,
-					       dname) == 0 &&
-				    tmpzptr->z_ns[i].nsaddr1.s_addr != 0) {
-					zptr->z_ns[k].nsaddr1.s_addr =
-					 tmpzptr->z_ns[i].nsaddr1.s_addr;
-					done = 1;
-					break;
-				}
-		}
-		if (done)
-		    break;
-		n = res_mkquery(QUERY, dname, qclass, qtype, NULL,
-				0, NULL, buf, sizeof buf);
-		if (n <= 0) {
-		    fprintf(stderr, "res_update: mkquery failed\n");
-		    return (n);
-		}
-		n = res_send(buf, n, answer, sizeof answer);
-		if (n < 0) {
-		    fprintf(stderr, "res_update: send error for %s\n",
-			    rrecp->r_dname);
-		    return (n);
-		}
-		if (n < HFIXEDSZ)
-			return (-1);
-		ancount = ntohs(hp->ancount);
-		nscount = ntohs(hp->nscount);
-		arcount = ntohs(hp->arcount);
-		rcode = hp->rcode;
-		cp = answer + HFIXEDSZ;
-		eom = answer + n;
-		/* skip the question section */
-		n = dn_skipname(cp, eom);
-		if (n < 0 || cp + n + 2 * INT16SZ > eom)
-			return (-1);
-		cp += n + 2 * INT16SZ;
-
-		if (qtype == T_SOA) {
-		    if (ancount == 0 && nscount == 0 && arcount == 0) {
-			/*
-			 * if (rcode == NOERROR) then the dname exists but
-			 * has no soa record associated with it.
-			 * if (rcode == NXDOMAIN) then the dname does not
-			 * exist and the server is replying out of NCACHE.
-			 * in either case, proceed with the next try
-			 */
-			dname = strchr(dname, '.');
-			if (dname != NULL)
-				dname++;
-			continue;
-		    } else if ((rcode == NOERROR || rcode == NXDOMAIN) &&
-			       ancount == 0 &&
-			       nscount == 1 && arcount == 0) {
-			/*
-			 * name/data does not exist, soa record supplied in the
-			 * authority section
-			 */
-			/* authority section must contain the soa record */
-			if ((n = dn_expand(answer, eom, cp, zname,
-					sizeof zname)) < 0)
-			    return (n);
-			cp += n;
-			if (cp + 2 * INT16SZ > eom)
-				return (-1);
-			GETSHORT(type, cp);
-			GETSHORT(class, cp);
-			if (type != T_SOA || class != qclass) {
-			    fprintf(stderr, "unknown answer\n");
-			    return (-1);
-			}
-			myzone = 0;
-			svdname = dname;
-			while (dname)
-			    if (strcasecmp(dname, zname) == 0) {
-				myzone = 1;
-				break;
-			    } else if ((dname = strchr(dname, '.')) != NULL)
-				dname++;
-			if (!myzone) {
-			    dname = strchr(svdname, '.');
-			    if (dname != NULL)
-				dname++;
-			    continue;
-			}
-			nscount = 0;
-			/* fallthrough */
-		    } else if (rcode == NOERROR && ancount == 1) {
-			/*
-			 * found the zone name
-			 * new servers will supply NS records for the zone
-			 * in authority section and A records for those 
-			 * nameservers in the additional section
-			 * older servers have to be explicitly queried for
-			 * NS records for the zone
-			 */
-			/* answer section must contain the soa record */
-			if ((n = dn_expand(answer, eom, cp, zname,
-			 	       	   sizeof zname)) < 0)
-				return (n);
-			else
-				cp += n;
-			if (cp + 2 * INT16SZ > eom)
-				return (-1);
-			GETSHORT(type, cp);
-			GETSHORT(class, cp);
-			if (type == T_CNAME) {
-				dname = strchr(dname, '.');
-				if (dname != NULL)
-					dname++;
-				continue;
-			}
-			if (strcasecmp(dname, zname) != 0 ||
-			    type != T_SOA ||
-			    class != rrecp->r_class) {
-				fprintf(stderr, "unknown answer\n");
-				return (-1);
-			}
-			/* FALLTHROUGH */
-		    } else {
-			fprintf(stderr,
-		"unknown response: ans=%d, auth=%d, add=%d, rcode=%d\n",
-				ancount, nscount, arcount, hp->rcode);
-			return (-1);
-		    }
-		    if (cp + INT32SZ + INT16SZ > eom)
-			    return (-1);
-		    /* continue processing the soa record */
-		    GETLONG(ttl, cp);
-		    GETSHORT(dlen, cp);
-		    if (cp + dlen > eom)
-			    return (-1);
-		    newgroup = 1;
-		    zptr = zgrp_start;
-		    prevzptr = NULL;
-		    while (zptr) {
-			if (strcasecmp(zname, zptr->z_origin) == 0 &&
-			    type == T_SOA && class == qclass) {
-				newgroup = 0;
-				break;
-			}
-			prevzptr = zptr;
-			zptr = zptr->z_next;
-		    }
-		    if (!newgroup) {
-			for (tmprrecp = zptr->z_rr;
-			     tmprrecp->r_grpnext;
-			     tmprrecp = tmprrecp->r_grpnext)
-				    ;
-			tmprrecp->r_grpnext = rrecp;
-			rrecp->r_grpnext = NULL;
-			done = 1;
-			cp += dlen;
-			break;
-		    } else {
-			if ((n = dn_expand(answer, eom, cp, primary,
-				       	   sizeof primary)) < 0)
-			    return (n);
-			cp += n;
-			/* 
-			 * We don't have to bounds check here because the
-			 * next use of 'cp' is in dn_expand().
-			 */
-			cp1 = (char *)soardata;
-			strcpy(cp1, primary);
-			cp1 += strlen(cp1) + 1;
-			if ((n = dn_expand(answer, eom, cp, mailaddr,
-				       	   sizeof mailaddr)) < 0)
-			    return (n);
-			cp += n;
-			strcpy(cp1, mailaddr);
-			cp1 += strlen(cp1) + 1;
-			if (cp + 5*INT32SZ > eom)
-				return (-1);
-			memcpy(cp1, cp, 5*INT32SZ);
-			cp += 5*INT32SZ;
-			cp1 += 5*INT32SZ;
-			rdatasize = (u_char *)cp1 - soardata;
-			zptr = calloc(1, sizeof(struct zonegrp));
-			if (zptr == NULL)
-                	    return (-1);
-			if (zgrp_start == NULL)
-			    zgrp_start = zptr;
-			else
-			    prevzptr->z_next = zptr;
-			zptr->z_rr = rrecp;
-			rrecp->r_grpnext = NULL;
-			strcpy(zptr->z_origin, zname);
-			zptr->z_class = class;
-			memcpy(zptr->z_soardata, soardata, rdatasize);
-			/* fallthrough to process NS and A records */
-		    }
-		} else if (qtype == T_NS) {
-		    if (rcode == NOERROR && ancount > 0) {
-			strcpy(zname, dname);
-			for (zptr = zgrp_start; zptr; zptr = zptr->z_next) {
-			    if (strcasecmp(zname, zptr->z_origin) == 0)
-				break;
-			}
-			if (zptr == NULL)
-			    /* should not happen */
-			    return (-1);
-			if (nscount > 0) {
-			    /*
-			     * answer and authority sections contain
-			     * the same information, skip answer section
-			     */
-			    for (j = 0; j < ancount; j++) {
-				n = dn_skipname(cp, eom);
-				if (n < 0)
-					return (-1);
-				n += 2*INT16SZ + INT32SZ;
-				if (cp + n + INT16SZ > eom)
-					return (-1);
-				cp += n;
-				GETSHORT(dlen, cp);
-				cp += dlen;
-			    }
-			} else
-			    nscount = ancount;
-			/* fallthrough to process NS and A records */
-		    } else {
-			fprintf(stderr, "cannot determine nameservers for %s:\
-ans=%d, auth=%d, add=%d, rcode=%d\n",
-				dname, ancount, nscount, arcount, hp->rcode);
-			return (-1);
-		    }
-		} else if (qtype == T_A) {
-		    if (rcode == NOERROR && ancount > 0) {
-			arcount = ancount;
-			ancount = nscount = 0;
-			/* fallthrough to process A records */
-		    } else {
-			fprintf(stderr, "cannot determine address for %s:\
-ans=%d, auth=%d, add=%d, rcode=%d\n",
-				dname, ancount, nscount, arcount, hp->rcode);
-			return (-1);
-		    }
-		}
-		/* process NS records for the zone */
-		j = 0;
-		for (i = 0; i < nscount; i++) {
-		    if ((n = dn_expand(answer, eom, cp, name,
-					sizeof name)) < 0)
-			return (n);
-		    cp += n;
-		    if (cp + 3 * INT16SZ + INT32SZ > eom)
-			    return (-1);
-		    GETSHORT(type, cp);
-		    GETSHORT(class, cp);
-		    GETLONG(ttl, cp);
-		    GETSHORT(dlen, cp);
-		    if (cp + dlen > eom)
-			return (-1);
-		    if (strcasecmp(name, zname) == 0 &&
-			type == T_NS && class == qclass) {
-				if ((n = dn_expand(answer, eom, cp,
-						   name, sizeof name)) < 0)
-					return (n);
-			    target = zptr->z_ns[j++].nsname;
-			    strcpy(target, name);
-		    }
-		    cp += dlen;
-		}
-		if (zptr->z_nscount == 0)
-		    zptr->z_nscount = j;
-		/* get addresses for the nameservers */
-		for (i = 0; i < arcount; i++) {
-		    if ((n = dn_expand(answer, eom, cp, name,
-					sizeof name)) < 0)
-			return (n);
-		    cp += n;
-		    if (cp + 3 * INT16SZ + INT32SZ > eom)
-			return (-1);
-		    GETSHORT(type, cp);
-		    GETSHORT(class, cp);
-		    GETLONG(ttl, cp);
-		    GETSHORT(dlen, cp);
-		    if (cp + dlen > eom)
-			    return (-1);
-		    if (type == T_A && dlen == INT32SZ && class == qclass) {
-			for (j = 0; j < zptr->z_nscount; j++)
-			    if (strcasecmp(name, zptr->z_ns[j].nsname) == 0) {
-				memcpy(&zptr->z_ns[j].nsaddr1.s_addr, cp,
-				       INT32SZ);
-				break;
-			    }
-		    }
-		    cp += dlen;
-		}
-		if (zptr->z_nscount == 0) {
-		    dname = zname;
-		    qtype = T_NS;
-		    continue;
-		}
-		done = 1;
-		for (k = 0; k < zptr->z_nscount; k++)
-		    if (zptr->z_ns[k].nsaddr1.s_addr == 0) {
-			done = 0;
-			dname = zptr->z_ns[k].nsname;
-			qtype = T_A;
-		    }
-
- 	    } /* while */
-	}
-
-	_res.options |= RES_DEBUG;
-	for (zptr = zgrp_start; zptr; zptr = zptr->z_next) {
-
-		/* append zone section */
+	for (zptr = HEAD(zgrps); zptr != NULL; zptr = NEXT(zptr, z_link)) {
+		/* Construct zone section and prepend it. */
 		rrecp = res_mkupdrec(ns_s_zn, zptr->z_origin,
 				     zptr->z_class, ns_t_soa, 0);
 		if (rrecp == NULL) {
-			fprintf(stderr, "saverrec error\n");
-			fflush(stderr);
-			return (-1);
+			DPRINTF(("res_mkupdrec failed"));
+			goto done;
 		}
-		rrecp->r_grpnext = zptr->z_rr;
-		zptr->z_rr = rrecp;
+		PREPEND(zptr->z_rrlist, rrecp, r_glink);
+		zptr->z_flags |= ZG_F_ZONESECTADDED;
 
-		n = res_mkupdate(zptr->z_rr, packet, sizeof packet);
+		/* Marshall the update message. */
+		n = res_nmkupdate(statp, HEAD(zptr->z_rrlist),
+				  packet, sizeof packet);
+		DPRINTF(("res_mkupdate -> %d", n));
+		if (n < 0)
+			goto done;
+
+		/* Temporarily replace the resolver's nameserver set. */
+		nscount = nscopy(nsaddrs, statp->nsaddr_list, statp->nscount);
+		statp->nscount = nsprom(statp->nsaddr_list,
+					zptr->z_nsaddrs, zptr->z_nscount);
+
+		/* Send the update and remember the result. */
+		if (key != NULL)
+			n = res_nsendsigned(statp, packet, n, key,
+					    answer, sizeof answer);
+		else
+			n = res_nsend(statp, packet, n, answer, sizeof answer);
 		if (n < 0) {
-			fprintf(stderr, "res_mkupdate error\n");
-			fflush(stderr);
-			return (-1);
-		} else
-			fprintf(stdout, "res_mkupdate: packet size = %d\n", n);
-
-		/*
-		 * Override the list of NS records from res_init() with
-		 * the authoritative nameservers for the zone being updated.
-		 * Sort primary to be the first in the list of nameservers.
-		 */
-		for (i = 0; i < zptr->z_nscount; i++) {
-			if (strcasecmp(zptr->z_ns[i].nsname,
-				       zptr->z_soardata) == 0) {
-				struct in_addr tmpaddr;
-
-				if (i != 0) {
-					strcpy(zptr->z_ns[i].nsname,
-					       zptr->z_ns[0].nsname);
-					strcpy(zptr->z_ns[0].nsname,
-					       zptr->z_soardata);
-					tmpaddr = zptr->z_ns[i].nsaddr1;
-					zptr->z_ns[i].nsaddr1 =
-						zptr->z_ns[0].nsaddr1;
-					zptr->z_ns[0].nsaddr1 = tmpaddr;
-				}
-				break;
-			}
+			DPRINTF(("res_nsend: send error, n=%d (%s)\n",
+				 n, strerror(errno)));
+			goto done;
 		}
-		for (i = 0; i < MAXNS; i++) {
-			_res.nsaddr_list[i].sin_addr = zptr->z_ns[i].nsaddr1;
-			_res.nsaddr_list[i].sin_family = AF_INET;
-			_res.nsaddr_list[i].sin_port = htons(NAMESERVER_PORT);
-		}
-		_res.nscount = (zptr->z_nscount < MAXNS) ? 
-					zptr->z_nscount : MAXNS;
-		n = res_send(packet, n, answer, sizeof(answer));
-		if (n < 0) {
-			fprintf(stderr, "res_send: send error, n=%d\n", n);
-			break;
-		} else
-			numzones++;
-	}
+		if (((HEADER *)answer)->rcode == NOERROR)
+			nzones++;
 
-	/* free malloc'ed memory */
-	while(zgrp_start) {
-		zptr = zgrp_start;
-		zgrp_start = zgrp_start->z_next;
-		res_freeupdrec(zptr->z_rr);  /* Zone section we allocated. */
-		free((char *)zptr);
+		/* Restore resolver's nameserver set. */
+		statp->nscount = nscopy(statp->nsaddr_list, nsaddrs, nscount);
+		nscount = 0;
 	}
+ done:
+	while (!EMPTY(zgrps)) {
+		zptr = HEAD(zgrps);
+		if ((zptr->z_flags & ZG_F_ZONESECTADDED) != 0)
+			res_freeupdrec(HEAD(zptr->z_rrlist));
+		UNLINK(zgrps, zptr, z_link);
+		free(zptr);
+	}
+	if (nscount != 0)
+		statp->nscount = nscopy(statp->nsaddr_list, nsaddrs, nscount);
 
-	return (numzones);
+	return (nzones);
+}
+
+/* Private. */
+
+static int
+nscopy(struct sockaddr_in *dst, const struct sockaddr_in *src, int n) {
+	int i;
+
+	for (i = 0; i < n; i++)
+		dst[i] = src[i];
+	return (n);
+}
+
+static int
+nsprom(struct sockaddr_in *dst, const struct in_addr *src, int n) {
+	int i;
+
+	for (i = 0; i < n; i++) {
+		memset(&dst[i], 0, sizeof dst[i]);
+		dst[i].sin_family = AF_INET;
+		dst[i].sin_port = htons(NS_DEFAULTPORT);
+		dst[i].sin_addr = src[i];
+	}
+	return (n);
+}
+
+static void
+dprintf(const char *fmt, ...) {
+	va_list ap;
+
+	va_start(ap, fmt);
+	fputs(";; res_nupdate: ", stderr);
+	vfprintf(stderr, fmt, ap);
+	fputc('\n', stderr);
+	va_end(ap);
 }

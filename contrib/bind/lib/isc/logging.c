@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 1997, 1998 by Internet Software Consortium.
+ * Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static char rcsid[] = "$Id: logging.c,v 8.18 1998/03/27 00:17:47 halley Exp $";
+static const char rcsid[] = "$Id: logging.c,v 8.24 1999/10/13 16:39:34 vixie Exp $";
 #endif /* not lint */
 
 #include "port_before.h"
@@ -115,9 +115,7 @@ log_open_stream(log_channel chan) {
 		regular = (sb.st_mode & S_IFREG);
 
 	if (chan->out.file.versions) {
-		if (regular)
-			version_rename(chan);
-		else {
+		if (!regular) {
 			syslog(LOG_ERR,
        "log_open_stream: want versions but %s isn't a regular file",
 			       chan->out.file.name);
@@ -265,7 +263,6 @@ log_vwrite(log_context lc, int category, int level, const char *format,
 	int pri, debugging, did_vsprintf = 0;
 	int original_category;
 	FILE *stream;
-	int chan_level;
 	log_channel chan;
 	struct timeval tv;
 	struct tm *local_tm;
@@ -300,7 +297,11 @@ log_vwrite(log_context lc, int category, int level, const char *format,
 	if (gettimeofday(&tv, NULL) < 0) {
 		syslog(LOG_INFO, "gettimeofday failed in log_vwrite()");
 	} else {
+#ifdef HAVE_TIME_R
+		localtime_r((time_t *)&tv.tv_sec, &local_tm);
+#else
 		local_tm = localtime((time_t *)&tv.tv_sec);
+#endif
 		if (local_tm != NULL) {
 			sprintf(time_buf, "%02d-%s-%4d %02d:%02d:%02d.%03ld ",
 				local_tm->tm_mday, months[local_tm->tm_mon],
@@ -378,8 +379,19 @@ log_vwrite(log_context lc, int category, int level, const char *format,
 				pos = ftell(stream);
 				if (pos >= 0 &&
 				    (unsigned long)pos >
-				    chan->out.file.max_size)
-					break;
+				    chan->out.file.max_size) {
+					/*
+					 * try to roll over the log files,
+					 * ignoring all all return codes
+					 * except the open (we don't want
+					 * to write any more anyway)
+					 */
+					log_close_stream(chan);
+					version_rename(chan);
+					stream = log_open_stream(chan);
+					if (stream == NULL)
+						break;
+				}
 			}
 			fprintf(stream, "%s%s%s%s\n", 
 				(chan->flags & LOG_TIMESTAMP) ?	time_buf : "",

@@ -60,6 +60,15 @@ the logging configuration will be:</P>
     };
 </PRE>
 
+The logging configuration is established as soon as the
+<CODE>logging</CODE> statement is parsed.  If you want to redirect
+messages about processing of the entire configuration file, the
+<CODE>logging</CODE>statement must appear first.  Even if you do not
+redirect configuration file parsing messages, we recommend
+always putting the <CODE>logging</CODE> statement first so that this
+rule need not be consciously recalled if you ever do need want the
+parser's messages relocated.
+
 <H4>The <CODE>channel</CODE> phrase</H4>
 
 <P>All log output goes to one or more "channels"; you can make as many
@@ -82,26 +91,37 @@ large the file is allowed to become, and how many versions of the file
 will be saved each time the file is opened.  
 
 <P>The <CODE>size</CODE> option for files is simply a hard ceiling on
-log growth.  If the file ever exceeds the size, then
+log growth.  If the file ever exceeds the size, 
 <CODE>named</CODE> will just not write anything more to it until the
 file is reopened; exceeding the size does not automatically trigger a
 reopen.  The default behavior is to not limit the size of the file.</P>
 
-<P>If you use the <CODE>version</CODE> logfile option, then
+<P>If you use the <CODE>version</CODE> logfile option,
 <CODE>named</CODE> will retain that many backup versions of the file
 by renaming them when opening.  For example, if you choose to keep 3
 old versions of the file "lamers.log" then just before it is opened
 lamers.log.1 is renamed to lames.log.2, lamers.log.0 is renamed to
 lamers.log.1, and lamers.log is renamed to lamers.log.0.  No rolled
-versions are kept by default.  The <CODE>unlimited</CODE> keyword is
-synonymous with <CODE>99</CODE> in current BIND releases.</P>
+versions are kept by default; any existing log file is simply
+appended.  The <CODE>unlimited</CODE> keyword is synonymous with
+<CODE>99</CODE> in current BIND releases.</P>
+
+<P>Example usage of the size and versions options:
+
+<PRE>
+    channel an_example_level {
+        file "lamers.log" versions 3 size 20m;
+        print-time yes;
+        print-category yes;
+    };
+</PRE>
 
 <P>The argument for the <CODE>syslog</CODE> clause is a syslog
 facility as described in the <CODE>syslog</CODE> manual page.  How
 <CODE>syslogd</CODE> will handle messages sent to this facility is
 described in the <CODE>syslog.conf</CODE> manual page.  If you have a
 system which uses a very old version of <CODE>syslog</CODE> that only
-uses two arguments to the <CODE>openlog()</CODE> function, then this
+uses two arguments to the <CODE>openlog()</CODE> function, this
 clause is silently ignored.</P>
 
 <P>The <CODE>severity</CODE> clause works like <CODE>syslog</CODE>'s
@@ -111,7 +131,7 @@ which are not at least of the severity level given will not be
 selected for the channel; messages of higher severity levels will be
 accepted.</P>
 
-<P>If you are using <CODE>syslog</CODE>, then the
+<P>If you are using <CODE>syslog</CODE>, the
 <CODE>syslog.conf</CODE> priorities will also determine what
 eventually passes through.  For example, defining a channel facility
 and severity as <CODE>daemon</CODE> and <CODE>debug</CODE> but only
@@ -119,18 +139,19 @@ logging <CODE>daemon.warning</CODE> via <CODE>syslog.conf</CODE> will
 cause messages of severity <CODE>info</CODE> and <CODE>notice</CODE>
 to be dropped.  If the situation were reversed, with
 <CODE>named</CODE> writing messages of only <CODE>warning</CODE> or
-higher, then <CODE>syslogd</CODE> would print all messages it received
+higher, <CODE>syslogd</CODE> would print all messages it received
 from the channel.</P>
 
 <P>The server can supply extensive debugging information when it is in
 debugging mode.  If the server's global debug level is greater than
-zero, then debugging mode will be active.  The global debug level is
-set either by starting the server with the "-d" flag followed by a
-positive integer, or by sending the server the SIGUSR1 signal (for
-example, by using "ndc trace").  The global debug level can be set to
-zero, and debugging mode turned off, by sending the server the SIGUSR2
-signal ("ndc notrace".  All debugging messages in the server have a
-debug level, and higher debug levels give more more detailed output.
+zero, debugging mode will be active.  The global debug level is
+set either by starting the <CODE>named</CODE> server with the "-d"
+flag followed by a positive integer, or by sending the running server the
+SIGUSR1 signal (for example, by using "ndc trace").  The global debug
+level can be set to zero, and debugging mode turned off, by sending
+the server the SIGUSR2 signal ("ndc notrace").  All debugging messages
+in the server have a debug level, and higher debug levels give more
+more detailed output.
 Channels that specify a specific debug severity, e.g.
 
 <PRE>
@@ -145,12 +166,12 @@ server is in debugging mode, regardless of the global debugging level.
 Channels with <code>dynamic</code> severity use the server's global
 level to determine what messages to print.
 
-<P>If <CODE>print-time</CODE> has been turned on, then the date and
+<P>If <CODE>print-time</CODE> has been turned on, the date and
 time will be logged.  <CODE>print-time</CODE> may be specified for a
 syslog channel, but is usually pointless since syslog also prints the
 date and time.  If <CODE>print-category</CODE> is requested,
 then the category of the message will be logged as well.  Finally, if
-<CODE>print-severity</CODE> is on, then the severity level of the
+<CODE>print-severity</CODE> is on, the severity level of the
 message will be logged.  The <CODE>print-</CODE> options may be used
 in any combination, and will always be printed in the following order:
 time, category, severity.  Here is an example where all three
@@ -197,7 +218,7 @@ logging by pointing categories at channels you have defined.</P>
 
 <P>There are many categories, so you can send the logs you want to see
 wherever you want, without seeing logs you don't want.  If you don't specify
-a list of channels for a category, then log messages in that category will
+a list of channels for a category, log messages in that category will
 be sent to the <CODE>default</CODE> category instead.  If you don't specify
 a default category, the following "default default" is used:
 
@@ -337,12 +358,12 @@ Messages arising from response checking, such as
 <HR>
 
 <CENTER><P>[ <A HREF="config.html">BIND Config. File</A>
-| <A HREF="http://www.vix.com/isc/bind.html">BIND Home</A>
-| <A HREF="http://www.isc.org">ISC</A> ]</P></CENTER>
+| <A HREF="http://www.isc.org/products/BIND/">BIND Home</A>
+| <A HREF="http://www.isc.org/">ISC</A> ]</P></CENTER>
 
 <HR>
 <ADDRESS>
-Last Updated: $Id: logging.html,v 1.7 1998/04/23 19:58:35 halley Exp $
+Last Updated: $Id: logging.html,v 1.12 1999/09/30 17:58:35 cyarnell Exp $
 </ADDRESS>
 </BODY>
 </HTML>

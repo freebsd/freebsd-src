@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 1997, 1998 by Internet Software Consortium
+ * Copyright (c) 1996-1999 by Internet Software Consortium
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -20,7 +20,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: ev_waits.c,v 8.6 1998/03/20 23:26:23 halley Exp $";
+static const char rcsid[] = "$Id: ev_waits.c,v 8.9 1999/10/13 17:11:20 vixie Exp $";
 #endif
 
 #include "port_before.h"
@@ -117,7 +117,7 @@ evUnwait(evContext opaqueCtx, evWaitID id) {
 		for (prev = NULL, this = wl->first;
 		     this != NULL;
 		     prev = this, this = this->next)
-			if (this == id.opaque) {
+			if (this == (evWait *)id.opaque) {
 				found = 1;
 				if (prev != NULL)
 					prev->next = this->next;
@@ -136,7 +136,7 @@ evUnwait(evContext opaqueCtx, evWaitID id) {
 		for (prev = NULL, this = ctx->waitDone.first;
 		     this != NULL;
 		     prev = this, this = this->next)
-			if (this == id.opaque) {
+			if (this == (evWait *)id.opaque) {
 				found = 1;
 				if (prev != NULL)
 					prev->next = this->next;
@@ -218,7 +218,6 @@ evNewWaitList(evContext_p *ctx) {
 
 static void
 evFreeWaitList(evContext_p *ctx, evWaitList *this) {
-	evWaitList *prev;
 
 	INSIST(this != NULL);
 

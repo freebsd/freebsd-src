@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996 by Internet Software Consortium.
+ * Copyright (c) 1996,1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +16,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: ns_name.c,v 8.3 1997/04/24 22:10:54 vixie Exp $";
+static const char rcsid[] = "$Id: ns_name.c,v 8.12 1999/10/13 17:11:23 vixie Exp $";
 #endif
 
 #include "port_before.h"
@@ -29,12 +29,13 @@ static char rcsid[] = "$Id: ns_name.c,v 8.3 1997/04/24 22:10:54 vixie Exp $";
 #include <errno.h>
 #include <resolv.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "port_after.h"
 
 /* Data. */
 
-static char		digits[] = "0123456789";
+static const char	digits[] = "0123456789";
 
 /* Forward. */
 
@@ -199,7 +200,7 @@ ns_name_pton(const char *src, u_char *dst, size_t dstsiz) {
 				}
 				return (1);
 			}
-			if (c == 0) {
+			if (c == 0 || *src == '.') {
 				errno = EMSGSIZE;
 				return (-1);
 			}
@@ -237,6 +238,49 @@ ns_name_pton(const char *src, u_char *dst, size_t dstsiz) {
 }
 
 /*
+ * ns_name_ntol(src, dst, dstsiz)
+ *	Convert a network strings labels into all lowercase.
+ * return:
+ *	Number of bytes written to buffer, or -1 (with errno set)
+ * notes:
+ *	Enforces label and domain length limits.
+ */
+
+int
+ns_name_ntol(const u_char *src, u_char *dst, size_t dstsiz) {
+	const u_char *cp;
+	u_char *dn, *eom;
+	u_char c;
+	u_int n;
+
+	cp = src;
+	dn = dst;
+	eom = dst + dstsiz;
+
+	while ((n = *cp++) != 0) {
+		if ((n & NS_CMPRSFLGS) != 0) {
+			/* Some kind of compression pointer. */
+			errno = EMSGSIZE;
+			return (-1);
+		}
+		*dn++ = n;
+		if (dn + n >= eom) {
+			errno = EMSGSIZE;
+			return (-1);
+		}
+		for ((void)NULL; n > 0; n--) {
+			c = *cp++;
+			if (isupper(c))
+				*dn++ = tolower(c);
+			else
+				*dn++ = c;
+		}
+	}
+	*dn++ = '\0';
+	return (dn - dst);
+}
+
+/*
  * ns_name_unpack(msg, eom, src, dst, dstsiz)
  *	Unpack a domain name from a message, source may be compressed.
  * return:
@@ -248,7 +292,7 @@ ns_name_unpack(const u_char *msg, const u_char *eom, const u_char *src,
 {
 	const u_char *srcp, *dstlim;
 	u_char *dstp;
-	int n, c, len, checked;
+	int n, len, checked;
 
 	len = -1;
 	checked = 0;
@@ -366,6 +410,7 @@ ns_name_pack(const u_char *src, u_char *dst, int dstsiz,
 		srcp += n + 1;
 	} while (n != 0);
 
+	/* from here on we need to reset compression pointer array on error */
 	srcp = src;
 	do {
 		/* Look to see if we can use pointers. */
@@ -375,8 +420,7 @@ ns_name_pack(const u_char *src, u_char *dst, int dstsiz,
 				    (const u_char * const *)lpp);
 			if (l >= 0) {
 				if (dstp + 1 >= eob) {
-					errno = EMSGSIZE;
-					return (-1);
+					goto cleanup;
 				}
 				*dstp++ = (l >> 8) | NS_CMPRSFLGS;
 				*dstp++ = l % 256;
@@ -391,12 +435,10 @@ ns_name_pack(const u_char *src, u_char *dst, int dstsiz,
 		}
 		/* copy label to buffer */
 		if (n & NS_CMPRSFLGS) {		/* Should not happen. */
-			errno = EMSGSIZE;
-			return (-1);
+			goto cleanup;
 		}
 		if (dstp + 1 + n >= eob) {
-			errno = EMSGSIZE;
-			return (-1);
+			goto cleanup;
 		}
 		memcpy(dstp, srcp, n + 1);
 		srcp += n + 1;
@@ -404,6 +446,7 @@ ns_name_pack(const u_char *src, u_char *dst, int dstsiz,
 	} while (n != 0);
 
 	if (dstp > eob) {
+cleanup:
 		if (msg != NULL)
 			*lpp = NULL;
 		errno = EMSGSIZE;

@@ -14,7 +14,7 @@
 .\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
 .\"	@(#)resolver.5	5.9 (Berkeley) 12/14/89
-.\"	$Id: resolver.5,v 8.4 1997/03/14 02:29:49 vixie Exp $
+.\"	$Id: resolver.5,v 8.6 1999/05/21 00:01:02 vixie Exp $
 .\"
 .Dd November 11, 1993
 .Dt RESOLVER @FORMAT_EXT_U@ 
@@ -46,14 +46,16 @@ The only name server to be queried will be on the local machine,
 the domain name is determined from the host name,
 and the domain search path is constructed from the domain name.
 .Pp
-The different configuration options are:
+The different configuration directives are:
 .Bl -tag -width "nameser"
 .It Li nameserver
 Internet address (in dot notation) of a name server that the 
 .Nm resolver 
 should query.  Up to 
 .Dv MAXNS 
-(currently 3) name servers may be listed, one per keyword.
+(see
+.Pa <resolv.h> )
+name servers may be listed, one per keyword.
 If there are multiple servers, the 
 .Nm resolver 
 library queries them in the order listed.
@@ -138,6 +140,44 @@ meaning that if there are
 dots in a name, the name will be tried first as an absolute name before any 
 .Em search list
 elements are appended to it.
+.It Li timeout: Ns Ar n
+sets the amount of time the resolver will wait for a response from a remote
+name server before retrying the query via a different name server.  Measured in
+seconds, the default is
+.Dv RES_TIMEOUT
+(see
+.Pa <resolv.h> ).
+.It Li attempts: Ns Ar n
+sets the number of times the resolver will send a query to its name servers
+before giving up and returning an error to the calling application.  The
+default is
+.Dv RES_DFLRETRY
+(see
+.Pa <resolv.h> ).
+.It Li rotate
+sets
+.Dv RES_ROTATE
+in
+.Ft _res.options ,
+which causes round robin selection of nameservers from among those listed.
+This has the effect of spreading the query load among all listed servers,
+rather than having all clients try the first listed server first every time.
+.It Li no-check-names
+sets
+.Dv RES_NOCHECKNAME
+in
+.Ft _res.options ,
+which disables the modern BIND checking of incoming host names and mail names
+for invalid characters such as underscore (_), non-ASCII, or control characters.
+.It Li inet6
+sets 
+.Dv RES_USE_INET6
+in 
+.Ft _res.options .
+This has the effect of trying a AAAA query before an A query inside the
+.Ft gethostbyname
+function, and of mapping IPv4 responses in IPv6 ``tunnelled form'' if no
+AAAA records are found but an A record set exists.
 .El
 .El
 .Pp
@@ -174,6 +214,7 @@ The keyword and value must appear on a single line, and the keyword
 must start the line.  The value follows the keyword, separated by white space.
 .Sh FILES
 .Pa /etc/resolv.conf
+.Pa <resolv.h>
 .Sh SEE ALSO
 .Xr gethostbyname @LIB_NETWORK_EXT@ , 
 .Xr hostname @DESC_EXT@ , 

@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+USE_LIBBIND=	yes
 .include "${.CURDIR}/../named/Makefile.inc"
 
 .PATH:	${BIND_DIR}/bin/nslookup
@@ -10,8 +11,8 @@ SRCS=	main.c getinfo.c debug.c send.c skip.c list.c subr.c commands.l
 MAN8=	nslookup.8
 
 CFLAGS+=-D_PATH_HELPFILE=\"${DESTHELP}/nslookup.help\"
-LDADD+=	-ll
-DPADD+=	${LIBL}
+LDADD+=	-ll -ledit -ltermcap
+DPADD+=	${LIBL} ${LIBEDIT} ${LIBTERMCAP}
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \

@@ -1,4 +1,4 @@
-# Copyright (c) 1996 by Internet Software Consortium
+# Copyright (c) 1996,1999 by Internet Software Consortium
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -13,7 +13,7 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
 
-# $Id: Makefile,v 8.15 1997/12/03 22:36:08 halley Exp $
+# $Id: Makefile,v 8.22 1999/02/22 02:47:58 vixie Exp $
 
 # these are only appropriate for BSD 4.4 or derivatives, and are used in
 # development.  normal builds will be done in the top level directory and
@@ -31,37 +31,55 @@ TOP= ../..
 INCL = ${TOP}/include
 PORTINCL = ${TOP}/port/${SYSTYPE}/include
 LIBBIND = ${TOP}/lib/libbind.${A}
+LIBBINDR = ../${TOP}/lib/libbind_r.${A}
 CFLAGS=	${CDEBUG} -I${PORTINCL} -I${INCL}
+# -Wimplicit
 LD_LIBFLAGS= -x -r
-AR= ar cruv
+AR= ar cru
 RANLIB= ranlib
 INSTALL= install
+INSTALL_EXEC=
+INSTALL_LIB=-o bin -g bin
+THREADED= threaded
 
 SRCS=	tree.c base64.c bitncmp.c assertions.c \
 	memcluster.c logging.c heap.c \
+	ctl_p.c ctl_srvr.c ctl_clnt.c \
 	eventlib.c ev_connects.c ev_files.c \
 	ev_timers.c ev_streams.c ev_waits.c
 
 OBJS=	tree.${O} base64.${O} bitncmp.${O} assertions.${O} \
 	memcluster.${O} logging.${O} heap.${O} \
+	ctl_p.${O} ctl_srvr.${O} ctl_clnt.${O} \
 	eventlib.${O} ev_connects.${O} ev_files.${O} \
 	ev_timers.${O} ev_streams.${O} ev_waits.${O}
 
 all: ${LIBBIND}
 
 ${LIBBIND}: ${OBJS}
+	( cd ${THREADED} ; \
+	${AR} ${LIBBINDR} ${ARPREF} ${OBJS} ${ARSUFF} ; \
+	${RANLIB} ${LIBBINDR} )
 	${AR} ${LIBBIND} ${ARPREF} ${OBJS} ${ARSUFF}
 	${RANLIB} ${LIBBIND}
 
 .c.${O}:
-	${CC} ${CPPFLAGS} ${CFLAGS} -c $*.c
-	-${LDS} ${LD} ${LD_LIBFLAGS} $*.${O} && ${LDS} mv a.out $*.${O}
+	if test ! -d ${THREADED} ; then mkdir ${THREADED} ; fi
+	${CC} ${CPPFLAGS} ${CFLAGS} ${BOUNDS} ${REENTRANT} -c $*.c \
+	 -o ${THREADED}/$*.${O}
+	-${LDS} ${LD} ${LD_LIBFLAGS} ${THREADED}/$*.${O} -o a.out && \
+	 ${LDS} mv a.out ${THREADED}/$*.${O}
+	${CC} ${CPPFLAGS} ${CFLAGS} ${BOUNDS} -c $*.c
+	-${LDS} ${LD} ${LD_LIBFLAGS} $*.${O} -o a.out && \
+	 ${LDS} mv a.out $*.${O}
 
 distclean: clean
 
 clean: FRC
 	rm -f .depend a.out core ${LIB} tags
 	rm -f *.${O} *.BAK *.CKP *~
+	rm -f ${THREADED}/*.${O}
+	-rmdir ${THREADED}
 
 depend: FRC
 	mkdep -I${INCL} -I${PORTINCL} ${CPPFLAGS} ${SRCS}
