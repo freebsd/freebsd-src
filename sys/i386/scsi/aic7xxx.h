@@ -20,7 +20,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7xxx.h,v 1.12 1995/08/05 17:32:55 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.13 1995/09/05 23:52:03 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -51,16 +51,20 @@ struct ahc_dma_seg {
 
 typedef enum {
 	AHC_NONE	= 0x000,
+	AHC_ULTRA	= 0x001,	/* Supports 20MHz Transfers */
 	AHC_WIDE  	= 0x002,	/* Wide Channel */
 	AHC_TWIN	= 0x008,	/* Twin Channel */
 	AHC_AIC7770	= 0x010,
 	AHC_AIC7850	= 0x020,
 	AHC_AIC7870	= 0x040,
+	AHC_AIC7880	= 0x041,
 	AHC_AIC78X0	= 0x060,	/* PCI Based Controller */
 	AHC_274		= 0x110,	/* EISA Based Controller */
 	AHC_284		= 0x210,	/* VL/ISA Based Controller */
 	AHC_294		= 0x440,	/* PCI Based Controller */
-	AHC_394		= 0x840		/* Twin Channel PCI Controller */
+	AHC_294U	= 0x441,	/* ULTRA PCI Based Controller */
+	AHC_394		= 0x840,	/* Twin Channel PCI Controller */
+	AHC_394U	= 0x841,	/* Twin, ULTRA Channel PCI Controller */
 }ahc_type;
 
 typedef enum {
@@ -147,8 +151,6 @@ struct ahc_data {
 	u_long	baseport;
 	struct	scb *scbarray[AHC_SCB_MAX]; /* Mirror boards scbarray */
 	struct	scb *free_scb;
-	struct	scb *timedout_scb;
-	int	in_timeout;
 	int	our_id;			/* our scsi id */
 	int	our_id_b;		/* B channel scsi id */
 	int	vect;
