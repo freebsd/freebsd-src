@@ -24,7 +24,6 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: sshconnect2.c,v 1.114 2003/04/01 10:22:21 markus Exp $");
-RCSID("$FreeBSD$");
 
 #include "ssh.h"
 #include "ssh2.h"

@@ -24,7 +24,6 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: auth-krb4.c,v 1.29 2003/02/21 10:34:48 mpech Exp $");
-RCSID("$FreeBSD$");
 
 #include "ssh.h"
 #include "ssh1.h"

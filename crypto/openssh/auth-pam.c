@@ -39,7 +39,6 @@ extern char *__progname;
 extern int use_privsep;
 
 RCSID("$Id: auth-pam.c,v 1.55 2003/01/22 04:42:26 djm Exp $");
-RCSID("$FreeBSD$");
 
 #define NEW_AUTHTOK_MSG \
 	"Warning: Your password has expired, please change it now."
