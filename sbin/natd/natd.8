@@ -81,10 +81,8 @@ below, and the entry will be made in the internal translation table.
 .It Fl log_denied
 Log denied incoming packets via
 .Xr syslog 3
-.Po
-see also
-.Fl log_facility
-.Pc .
+(see also
+.Fl log_facility ) .
 .It Fl log_facility Ar facility_name
 Use specified log facility when logging information via
 .Xr syslog 3 .
@@ -177,8 +175,8 @@ The mapping is 1:1 meaning port 3300 maps to 2300, 3301 maps to 2301, etc.
 .Oc
 Redirect incoming IP packets of protocol
 .Ar proto
-.Po see Xr protocols 5
-.Pc
+(see
+.Xr protocols 5 )
 destined for
 .Ar publicIP
 address to a

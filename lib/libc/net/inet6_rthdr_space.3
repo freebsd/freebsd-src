@@ -106,7 +106,7 @@ header of the specified
 .Fa type
 containing the specified number of
 .Fa segments
-.Pq addresses .
+(addresses).
 For an IPv6 Type 0 Routing header, the number
 of segments must be between 1 and 23, inclusive.  The return value
 includes the size of the cmsghdr structure that precedes the Routing
@@ -218,14 +218,14 @@ and writes a new Routing
 header that sends datagrams along the reverse of that route.
 Both
 arguments are allowed to point to the same buffer
-.Pq that is, the reversal can occur in place .
+(that is, the reversal can occur in place).
 .Pp
 The return value of the function is 0 on success, or -1 upon an
 error.
 .\"
 .Ss inet6_rthdr_segments
 This function returns the number of segments
-.Pq addresses
+(addresses)
 contained in
 the Routing header described by
 .Fa cmsg .
@@ -314,7 +314,7 @@ The implementation first appeared in KAME advanced networking kit.
 The functions
 are documented in
 .Dq Advanced Sockets API for IPv6
-.Pq RFC2292 .
+(RFC2292).
 .\"
 .Sh BUGS
 The text was shamelessly copied from RFC2292.

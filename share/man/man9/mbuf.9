@@ -114,7 +114,7 @@
 An mbuf is a basic unit of memory management in the kernel IPC subsystem.
 Network packets and socket buffers are stored in mbufs.
 A network packet may span multiple mbufs arranged into a chain
-.Pq linked list ,
+(linked list),
 which allows adding or trimming
 network headers with little overhead.
 .Pp
@@ -279,10 +279,8 @@ is set to
 a failed allocation will result in the caller being put
 to sleep for a designated
 kern.ipc.mbuf_wait
-.Po
-.Xr sysctl 8
-tunable
-.Pc
+.Xr ( sysctl 8
+tunable)
 number of ticks.
 A number of other mbuf-related
 functions and macros have the same argument because they may
@@ -303,7 +301,7 @@ This macro operates on an mbuf chain.
 It is an optimized wrapper for
 .Fn m_prepend
 that can make use of possible empty space before data
-.Pq "e.g. left after trimming of a link-layer header" .
+(e.g. left after trimming of a link-layer header).
 The new chain pointer or
 .Dv NULL
 is in
@@ -404,7 +402,7 @@ so they are accessible with
 Return the new chain on success,
 .Dv NULL
 on failure
-.Pq the chain is freed in this case .
+(the chain is freed in this case).
 .Sy Note :
 It doesn't allocate any clusters, so
 .Fa len

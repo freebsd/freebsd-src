@@ -61,12 +61,10 @@ stream (in reverse order).
 A successful intervening call,
 using the same stream,
 to one of the file positioning functions
-.Po
-.Xr fseek 3 ,
+.Xr ( fseek 3 ,
 .Xr fsetpos 3 ,
 or
-.Xr rewind 3
-.Pc
+.Xr rewind 3 )
 will discard the pushed back characters.
 .Pp
 One character of push-back is guaranteed,
