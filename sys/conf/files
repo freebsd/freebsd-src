@@ -935,6 +935,7 @@ dev/usb/ulpt.c		optional ulpt
 dev/usb/ukbd.c		optional ukbd
 dev/usb/umass.c		optional umass
 dev/usb/uhub.c		optional usb
+dev/usb/urio.c		optional urio
 dev/usb/if_aue.c	optional aue
 dev/usb/if_cue.c	optional cue
 dev/usb/if_kue.c	optional kue
