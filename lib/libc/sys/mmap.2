@@ -44,7 +44,7 @@
 .Fd #include <sys/types.h>
 .Fd #include <sys/mman.h>
 .Ft void *
-.Fn mmap "void * addr" "size_t len" "int prot" "int flags" "int fd" "off_t offset"
+.Fn mmap "void *addr" "size_t len" "int prot" "int flags" "int fd" "off_t offset"
 .Sh DESCRIPTION
 The
 .Fn mmap
@@ -81,15 +81,15 @@ argument by
 .Em or Ns 'ing
 the following values:
 .Pp
-.Bl -tag -width MAP_FIXEDX
-.It Dv PROT_EXEC
-Pages may be executed.
+.Bl -tag -width PROT_WRITE -compact
+.It Dv PROT_NONE
+Pages may not be accessed.
 .It Dv PROT_READ
 Pages may be read.
 .It Dv PROT_WRITE
 Pages may be written.
-.It Dv PROT_NONE
-Pages may not be accessed.
+.It Dv PROT_EXEC
+Pages may be executed.
 .El
 .Pp
 The
@@ -102,8 +102,7 @@ Sharing, mapping type and options are specified in the
 argument by
 .Em or Ns 'ing
 the following values:
-.Pp
-.Bl -tag -width MAP_FIXEDX
+.Bl -tag -width MAP_HASSEMAPHORE
 .It Dv MAP_ANON
 Map anonymous memory not associated with any specific file.
 The file descriptor used for creating
@@ -120,7 +119,9 @@ specified.
 If the specified address cannot be used,
 .Fn mmap
 will fail.
-If MAP_FIXED is specified,
+If
+.Dv MAP_FIXED
+is specified,
 .Fa addr
 must be a multiple of the pagesize.
 Use of this option is discouraged.
@@ -131,32 +132,8 @@ handling may be necessary.
 Permit regions to be inherited across
 .Xr execve 2
 system calls.
-.It Dv MAP_PRIVATE
-Modifications are private.
-.It Dv MAP_SHARED
-Modifications are shared.
-.It Dv MAP_STACK
-This option is only available if your system has been compiled with
-VM_STACK defined when compiling the kernel.
-This is the default for
-i386 only.
-Consider adding -DVM_STACK to COPTFLAGS in your /etc/make.conf
-to enable this option for other architechures.
-MAP_STACK implies
-MAP_ANON, and
-.Fa offset 
-of 0.   
-.Fa fd 
-must be -1 and 
-.Fa prot 
-must include at least PROT_READ and PROT_WRITE.  This option creates
-a memory region that grows to at most 
-.Fa len 
-bytes in size, starting from the stack top and growing down.  The
-stack top is the starting address returned by the call, plus 
-.Fa len 
-bytes.  The bottom of the stack at maximum growth is the starting
-address returned by the call.
+.It Dv MAP_NOCORE
+Region is not included in a core file.
 .It Dv MAP_NOSYNC
 Causes data dirtied via this VM map to be flushed to physical media
 only when necessary (usually by the pager) rather then gratuitously.
@@ -167,11 +144,15 @@ this option any VM pages you dirty may be flushed to disk every so often
 (every 30-60 seconds usually) which can create performance problems if you
 do not need that to occur (such as when you are using shared file-backed
 mmap regions for IPC purposes).  Note that VM/filesystem coherency is
-maintained whether you use MAP_NOSYNC or not.  This option is not portable
-across UNIX platforms (yet), though some may implement the same behavior
+maintained whether you use
+.Dv MAP_NOSYNC
+or not.  This option is not portable
+across
+.Ux
+platforms (yet), though some may implement the same behavior
 by default.
 .Pp
-WARNING!
+.Em WARNING !
 Extending a file with
 .Xr ftruncate 2 ,
 thus creating a big hole, and then filling the hole by modifying a shared
@@ -215,8 +196,44 @@ system call is obsolete since
 implements a coherent filesystem buffer cache.  However, it may be 
 used to associate dirty VM pages with filesystem buffers and thus cause
 them to be flushed to physical media sooner rather then later.
-.It Dv MAP_NOCORE
-Region is not included in a core file.
+.It Dv MAP_PRIVATE
+Modifications are private.
+.It Dv MAP_SHARED
+Modifications are shared.
+.It Dv MAP_STACK
+This option is only available if your system has been compiled with
+.Dv VM_STACK
+defined when compiling the kernel.
+This is the default for
+i386 only.
+Consider adding
+.Li -DVM_STACK
+to
+.Va COPTFLAGS
+in your
+.Pa /etc/make.conf
+to enable this option for other architechures.
+.Dv MAP_STACK
+implies
+.Dv MAP_ANON ,
+and
+.Fa offset 
+of 0.   
+.Fa fd 
+must be -1 and 
+.Fa prot 
+must include at least
+.Dv PROT_READ
+and
+.Dv PROT_WRITE .
+This option creates
+a memory region that grows to at most 
+.Fa len 
+bytes in size, starting from the stack top and growing down.  The
+stack top is the starting address returned by the call, plus 
+.Fa len 
+bytes.  The bottom of the stack at maximum growth is the starting
+address returned by the call.
 .El
 .Pp
 The 
@@ -236,7 +253,9 @@ should be done.
 Upon successful completion,
 .Fn mmap
 returns a pointer to the mapped region.
-Otherwise, a value of MAP_FAILED is returned and
+Otherwise, a value of
+.Dv MAP_FAILED
+is returned and
 .Va errno
 is set to indicate the error.
 .Sh ERRORS
@@ -286,17 +305,22 @@ has not been specified and
 did not reference a regular or character special file.
 .It Bq Er EINVAL
 .Fa Offset
-was not page-aligned.  (See BUGS below.)
+was not page-aligned.
+(See
+.Sx BUGS
+below.)
 .It Bq Er ENOMEM
 .Dv MAP_FIXED
 was specified and the
 .Fa addr
 parameter wasn't available, or the system has reached the per-process mmap
-limit specified in the vm.max_proc_mmap sysctl.
+limit specified in the
+.Va vm.max_proc_mmap
+sysctl.
 .Dv MAP_ANON
 was specified and insufficient memory was available.
 .El
-.Sh "SEE ALSO"
+.Sh SEE ALSO
 .Xr madvise 2 ,
 .Xr mincore 2 ,
 .Xr mlock 2 ,
