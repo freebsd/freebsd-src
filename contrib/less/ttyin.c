@@ -14,6 +14,10 @@
  */
 
 #include "less.h"
+#if OS2
+#include "cmd.h"
+#include "pckeys.h"
+#endif
 #if MSDOS_COMPILER==WIN32C
 #include "windows.h"
 extern char WIN32getch();
@@ -42,7 +46,7 @@ open_getchr()
 	/* Make sure we get Ctrl+C events. */
 	SetConsoleMode((HANDLE)tty, ENABLE_PROCESSED_INPUT);
 #else
-#if MSDOS_COMPILER || OS2
+#if MSDOS_COMPILER
 	extern int fd0;
 	/*
 	 * Open a new handle to CON: in binary mode 
@@ -65,7 +69,12 @@ open_getchr()
 	 * which in Unix is usually attached to the screen,
 	 * but also usually lets you read from the keyboard.
 	 */
+#if OS2
+	/* The __open() system call translates "/dev/tty" to "con". */
+	tty = __open("/dev/tty", OPEN_READ);
+#else
 	tty = open("/dev/tty", OPEN_READ);
+#endif
 	if (tty < 0)
 		tty = 2;
 #endif
@@ -111,30 +120,6 @@ getchr()
 		if (c == '\003')
 			return (READ_INTR);
 #else
-#if OS2
-	{
-		static int scan = -1;
-		flush();
-		if (scan >= 0)
-		{
-			c = scan;
-			scan = -1;
-		} else
-		{
-			if ((c = _read_kbd(0, 1, 0)) == -1)
-				return (READ_INTR);
-			if (c == '\0')
-			{
-				/*
-				 * Zero is usually followed by another byte,
-				 * since certain keys send two bytes.
-				 */
-				scan = _read_kbd(0, 0, 0);
-			}
-		}
-		result = 1;
-	}
-#else
 		result = iread(tty, &c, sizeof(char));
 		if (result == READ_INTR)
 			return (READ_INTR);
@@ -146,7 +131,6 @@ getchr()
 			 */
 			quit(QUIT_ERROR);
 		}
-#endif
 #endif
 		/*
 		 * Various parts of the program cannot handle

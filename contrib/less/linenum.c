@@ -297,7 +297,6 @@ find_linenum(pos)
 	 * The decision is based on which way involves 
 	 * traversing fewer bytes in the file.
 	 */
-	flush();
 #if HAVE_TIME
 	startime = get_time();
 #endif
@@ -386,7 +385,6 @@ find_pos(lno)
 		/* Found it exactly. */
 		return (p->pos);
 
-	flush();
 	if (p == &anchor || lno - p->prev->line < p->line - lno)
 	{
 		/*

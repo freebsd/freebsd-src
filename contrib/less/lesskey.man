@@ -61,7 +61,7 @@ CCOOMMMMAANNDD SSEECCTTIIOONN
 
 
 
-                     Version 358: 08 Jul 2000                   1
+                     Version 371: 26 Dec 2001                   1
 
 
 
@@ -84,7 +84,7 @@ LESSKEY(1)                                             LESSKEY(1)
        _s_t_r_i_n_g may appear literally, or be prefixed by a caret  to
        indicate  a  control  key.  A backslash followed by one to
        three octal digits may be used to specify a  character  by
-       its  octal value.  A backslash followed by certain charac-
+       its  octal value.  A backslash followed by certain charac­
        ters specifies input characters as follows:
 
        \b     BACKSPACE
@@ -127,7 +127,7 @@ LESSKEY(1)                                             LESSKEY(1)
 
 
 
-                     Version 358: 08 Jul 2000                   2
+                     Version 371: 26 Dec 2001                   2
 
 
 
@@ -144,7 +144,7 @@ LESSKEY(1)                                             LESSKEY(1)
 
 
 EEXXAAMMPPLLEE
-       The following input file describes the set of default com-
+       The following input file describes the set of default com­
        mand keys used by less:
 
             #command
@@ -186,14 +186,14 @@ EEXXAAMMPPLLEE
             ^L        repaint
             \eu       undo-hilite
             g         goto-line
+            \kh  goto-line
             <         goto-line
             \e<       goto-line
             p         percent
-            %         percent
 
 
 
-                     Version 358: 08 Jul 2000                   3
+                     Version 371: 26 Dec 2001                   3
 
 
 
@@ -202,6 +202,7 @@ EEXXAAMMPPLLEE
 LESSKEY(1)                                             LESSKEY(1)
 
 
+            %         percent
             \e[       left-scroll
             \e]       right-scroll
             \e(       left-scroll
@@ -217,6 +218,7 @@ LESSKEY(1)                                             LESSKEY(1)
             G         goto-end
             \e>       goto-end
             >         goto-end
+            \ke  goto-end
             =         status
             ^G        status
             :f        status
@@ -236,7 +238,10 @@ LESSKEY(1)                                             LESSKEY(1)
             ^X^V      examine
             :n        next-file
             :p        prev-file
+            t         next-tag
+            T         prev-tag
             :x        index-file
+            :d        remove-file
             -         toggle-option
             :t        toggle-option t
             s         toggle-option o
@@ -251,15 +256,10 @@ LESSKEY(1)                                             LESSKEY(1)
             0         digit
             1         digit
             2         digit
-            3         digit
-            4         digit
-            5         digit
-            6         digit
-            7         digit
 
 
 
-                     Version 358: 08 Jul 2000                   4
+                     Version 371: 26 Dec 2001                   4
 
 
 
@@ -268,6 +268,11 @@ LESSKEY(1)                                             LESSKEY(1)
 LESSKEY(1)                                             LESSKEY(1)
 
 
+            3         digit
+            4         digit
+            5         digit
+            6         digit
+            7         digit
             8         digit
             9         digit
             q         quit
@@ -295,7 +300,7 @@ PPRREECCEEDDEENNCCEE
        file.
 
        Be aware that #stop can be dangerous.  Since  all  default
-       commands  are  disabled,  you must provide sufficient com-
+       commands  are  disabled,  you must provide sufficient com­
        mands before  the  #stop  line  to  enable  all  necessary
        actions.  For example, failure to provide a "quit" command
        can lead to frustration.
@@ -306,9 +311,9 @@ LLIINNEE EEDDIITTIINNGG SSEECCTTIIOONN
 
        #line-edit
 
-       This section specifies new key bindings for the line edit-
+       This section specifies new key bindings for the line edit­
        ing  commands, in a manner similar to the way key bindings
-       for ordinary commands are specified in the  #command  sec-
+       for ordinary commands are specified in the  #command  sec­
        tion.  The line-editing section consists of a list of keys
        and actions, one per line as in the example below.
 
@@ -317,15 +322,10 @@ EEXXAAMMPPLLEE
        The following input file  describes  the  set  of  default
        line-editing keys used by less:
 
-            #line-edit
-            \t        forw-complete
-            \17       back-complete
-            \e\t      back-complete
-            ^L        expand
 
 
 
-                     Version 358: 08 Jul 2000                   5
+                     Version 371: 26 Dec 2001                   5
 
 
 
@@ -334,6 +334,11 @@ EEXXAAMMPPLLEE
 LESSKEY(1)                                             LESSKEY(1)
 
 
+            #line-edit
+            \t        forw-complete
+            \17       back-complete
+            \e\t      back-complete
+            ^L        expand
             ^V        literal
             ^A        literal
             \el       right
@@ -366,7 +371,7 @@ LLEESSSS EENNVVIIRROONNMMEENNTT VVAARRIIAABBLLEESS
        #env
 
        Following  this  line  is  a  list of environment variable
-       assignments.  Each line consists of an  environment  vari-
+       assignments.  Each line consists of an  environment  vari­
        able name, an equals sign (=) and the value to be assigned
        to the environment variable.  White space before and after
        the  equals  sign  is ignored.  Variables assigned in this
@@ -383,15 +388,10 @@ EEXXAAMMPPLLEE
        The following input file sets the -i option whenever  _l_e_s_s
        is run, and specifies the character set to be "latin1":
 
-            #env
-            LESS = -i
-            LESSCHARSET = latin1
 
 
 
-
-
-                     Version 358: 08 Jul 2000                   6
+                     Version 371: 26 Dec 2001                   6
 
 
 
@@ -400,12 +400,18 @@ EEXXAAMMPPLLEE
 LESSKEY(1)                                             LESSKEY(1)
 
 
+            #env
+            LESS = -i
+            LESSCHARSET = latin1
+
+
+
 SSEEEE AALLSSOO
        less(1)
 
 
 WWAARRNNIINNGGSS
-       It  is not possible to specify special keys, such as upar-
+       It  is not possible to specify special keys, such as upar­
        row, in a keyboard-independent manner.  The  only  way  to
        specify  such keys is to specify the escape sequence which
        a particular keyboard sends when such a keys is pressed.
@@ -426,8 +432,8 @@ CCOOPPYYRRIIGGHHTT
        any later version.
 
        lesskey is distributed in the hope that it will be useful,
-       but WITHOUT ANY WARRANTY; without even  the  implied  war-
-       ranty  of MERCHANTABILITY or FITNESS FOR A PARTICULAR PUR-
+       but WITHOUT ANY WARRANTY; without even  the  implied  war­
+       ranty  of MERCHANTABILITY or FITNESS FOR A PARTICULAR PUR­
        POSE.   See  the  GNU  General  Public  License  for  more
        details.
 
@@ -438,7 +444,7 @@ CCOOPPYYRRIIGGHHTT
 
 
 AAUUTTHHOORR
-       Mark Nudelman <marknu@flash.net>
+       Mark Nudelman <markn@greenwoodsoftware.com>
        Send bug reports or comments to the above  address  or  to
        bug-less@gnu.org.
 
@@ -451,12 +457,6 @@ AAUUTTHHOORR
 
 
 
-
-
-
-
-
-
-                     Version 358: 08 Jul 2000                   7
+                     Version 371: 26 Dec 2001                   7
 
 

@@ -8,6 +8,11 @@ AC_ISC_POSIX
 AC_PROG_GCC_TRADITIONAL
 AC_PROG_INSTALL
 
+dnl Check for compilation model.
+dnl AC_SYS_LARGEFILE is not supported in all versions of autoconf.
+dnl Remove the dnl comment on the next line to use large (64 bit) files.
+dnl AC_SYS_LARGEFILE
+
 dnl Checks for libraries.
 AC_CHECK_LIB(xcurses, initscr, [have_xcurses=yes], [have_xcurses=no])
 AC_CHECK_LIB(ncurses, initscr, [have_ncurses=yes], [have_ncurses=no])
@@ -28,6 +33,9 @@ dnl Check for systems where curses is broken.
 curses_broken=0
 if test x`uname -s` = "xHP-UX" >/dev/null 2>&1; then
 if test x`uname -r` = "xB.11.00" >/dev/null 2>&1; then
+   curses_broken=1
+fi
+if test x`uname -r` = "xB.11.11" >/dev/null 2>&1; then
    curses_broken=1
 fi
 fi
@@ -139,7 +147,7 @@ AC_TRY_COMPILE([#include <time.h>], [time_t t = 0;],
 
 dnl Checks for functions and external variables.
 AC_TYPE_SIGNAL
-AC_CHECK_FUNCS(memcpy popen _setjmp sigprocmask sigsetmask stat strchr strstr system)
+AC_CHECK_FUNCS(fsync memcpy popen _setjmp sigprocmask sigsetmask stat strchr strstr system)
 
 dnl Some systems have termios.h but not the corresponding functions.
 AC_CHECK_FUNC(tcgetattr, AC_DEFINE(HAVE_TERMIOS_FUNCS))
