@@ -240,7 +240,7 @@ static int	aio_newproc(void);
 static int	aio_aqueue(struct thread *td, struct aiocb *job, int type);
 static void	aio_physwakeup(struct buf *bp);
 static void	aio_proc_rundown(struct proc *p);
-static int	aio_fphysio(struct proc *p, struct aiocblist *aiocbe);
+static int	aio_fphysio(struct aiocblist *aiocbe);
 static int	aio_qphysio(struct proc *p, struct aiocblist *iocb);
 static void	aio_daemon(void *uproc);
 static void	aio_swake_cb(struct socket *, struct sockbuf *);
@@ -448,7 +448,7 @@ aio_free_entry(struct aiocblist *aiocbe)
 	}
 
 	if (aiocbe->jobstate == JOBST_JOBQBUF) {
-		if ((error = aio_fphysio(p, aiocbe)) != 0)
+		if ((error = aio_fphysio(aiocbe)) != 0)
 			return error;
 		if (aiocbe->jobstate != JOBST_JOBBFINISHED)
 			panic("aio_free_entry: invalid physio finish-up state");
@@ -1211,7 +1211,7 @@ doerror:
  * This waits/tests physio completion.
  */
 static int
-aio_fphysio(struct proc *p, struct aiocblist *iocb)
+aio_fphysio(struct aiocblist *iocb)
 {
 	int s;
 	struct buf *bp;
