@@ -177,6 +177,17 @@ r_sort_a(a, n, i, tr, endch)
 		}
 
 		/*
+		 * Special case: if all strings have the same
+		 * character at position i, move on to the next
+		 * character.
+		 */
+		if (nc == 1 && count[bmin] == n) {
+			push(a, n, i+1);
+			nc = count[bmin] = 0;
+			continue;
+		}
+
+		/*
 		 * Set top[]; push incompletely sorted bins onto stack.
 		 * top[] = pointers to last out-of-place element in bins.
 		 * count[] = counts of elements in bins.
