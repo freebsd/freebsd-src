@@ -17,6 +17,10 @@ stop_cmd=":"
 
 securelevel_start()
 {
+	# Last chance to set sysctl variables that failed the first time.
+	#
+	/etc/rc.d/sysctl lastload
+
 	case ${OSTYPE} in
 	FreeBSD)
 		case ${kern_securelevel_enable} in
