@@ -210,8 +210,7 @@ char *ordernames[] = {
 #endif
 
 int
-machine_init(statics)
-    struct statics *statics;
+machine_init(struct statics *statics)
 {
     int pagesize;
     size_t modelen;
@@ -272,9 +271,7 @@ machine_init(statics)
 }
 
 char *
-format_header(uname_field)
-    char *uname_field;
-
+format_header(char *uname_field)
 {
     static char Header[128];
     const char *prehead;
@@ -301,8 +298,7 @@ static int swappgsout = -1;
 extern struct timeval timeout;
 
 void
-get_system_info(si)
-    struct system_info *si;
+get_system_info(struct system_info *si)
 {
     long total;
     struct loadavg sysload;
@@ -429,9 +425,7 @@ get_old_proc(struct kinfo_proc *pp)
 }
 
 long
-get_io_stats(pp, inp, oup, flp)
-	struct kinfo_proc *pp;
-	long *inp, *oup, *flp;
+get_io_stats(struct kinfo_proc *pp, long *inp, long *oup, long *flp)
 {
 	const struct kinfo_proc *oldp;
 	static struct kinfo_proc dummy;
@@ -464,10 +458,8 @@ get_io_total(struct kinfo_proc *pp)
 static struct handle handle;
 
 caddr_t
-get_process_info(si, sel, compare)
-    struct system_info *si;
-    struct process_select *sel;
-    int (*compare)();
+get_process_info(struct system_info *si, struct process_select *sel,
+    int (*compare)())
 {
     int i;
     int total_procs;
@@ -748,10 +740,7 @@ format_next_process(handle, get_userid)
 }
 
 static void
-getsysctl(name, ptr, len)
-    char *name;
-    void *ptr;
-    size_t len;
+getsysctl(char *name, void *ptr, size_t len)
 {
     size_t nlen = len;
 
@@ -770,8 +759,7 @@ getsysctl(name, ptr, len)
 /* comparison routines for qsort */
 
 int
-compare_pid(p1, p2)
-    const void *p1, *p2;
+compare_pid(const void *p1, const void *p2)
 {
     const struct kinfo_proc * const *pp1 = p1;
     const struct kinfo_proc * const *pp2 = p2;
@@ -830,12 +818,10 @@ static unsigned char sorted_state[] =
 
 int
 #ifdef ORDER
-compare_cpu(pp1, pp2)
+compare_cpu(struct proc **pp1, struct proc **pp2)
 #else
-proc_compare(pp1, pp2)
+proc_compare(struct proc **pp1, struct proc **pp2)
 #endif
-    struct proc **pp1;
-    struct proc **pp2;
 {
     struct kinfo_proc *p1;
     struct kinfo_proc *p2;
@@ -873,9 +859,7 @@ int (*proc_compares[])() = {
 /* compare_size - the comparison function for sorting by total memory usage */
 
 int
-compare_size(pp1, pp2)
-    struct proc **pp1;
-    struct proc **pp2;
+compare_size(struct proc **pp1, struct proc **pp2)
 {
     struct kinfo_proc *p1;
     struct kinfo_proc *p2;
@@ -900,9 +884,7 @@ compare_size(pp1, pp2)
 /* compare_res - the comparison function for sorting by resident set size */
 
 int
-compare_res(pp1, pp2)
-    struct proc **pp1;
-    struct proc **pp2;
+compare_res(struct proc **pp1, struct proc **pp2)
 {
     struct kinfo_proc *p1;
     struct kinfo_proc *p2;
@@ -927,9 +909,7 @@ compare_res(pp1, pp2)
 /* compare_time - the comparison function for sorting by total cpu time */
 
 int
-compare_time(pp1, pp2)
-    struct proc **pp1;
-    struct proc **pp2;
+compare_time(struct proc **pp1, struct proc **pp2)
 {
     struct kinfo_proc *p1;
     struct kinfo_proc *p2;
@@ -954,9 +934,7 @@ compare_time(pp1, pp2)
 /* compare_prio - the comparison function for sorting by cpu percentage */
 
 int
-compare_prio(pp1, pp2)
-    struct proc **pp1;
-    struct proc **pp2;
+compare_prio(struct proc **pp1, struct proc **pp2)
 {
     struct kinfo_proc *p1;
     struct kinfo_proc *p2;
@@ -980,13 +958,12 @@ compare_prio(pp1, pp2)
 #endif
 
 int
-io_compare(pp1, pp2)
-	struct kinfo_proc **pp1, **pp2;
+io_compare(struct proc **pp1, struct proc **pp2)
 {
 	long t1, t2;
 
-	t1 = get_io_total(*pp1);
-	t2 = get_io_total(*pp2);
+	t1 = get_io_total((struct kinfo_proc *)*pp1);
+	t2 = get_io_total((struct kinfo_proc *)*pp2);
 	return (t2 - t1);
 }
 /*
@@ -1000,8 +977,7 @@ io_compare(pp1, pp2)
  */
 
 int
-proc_owner(pid)
-    int pid;
+proc_owner(int pid)
 {
     int cnt;
     struct kinfo_proc **prefp;
@@ -1021,9 +997,7 @@ proc_owner(pid)
 }
 
 int
-swapmode(retavail, retfree)
-	int *retavail;
-	int *retfree;
+swapmode(int *retavail, int *retfree)
 {
 	int n;
 	int pagesize = getpagesize();
