@@ -389,11 +389,13 @@ int
 nwfs_init(struct vfsconf *vfsp)
 {
 #ifndef SMP
+	size_t olen, plen;
 	int name[2];
-	int olen, ncpu, plen, error;
+	int ncpu, error;
 
 	name[0] = CTL_HW;
 	name[1] = HW_NCPU;
+	olen = sizeof(ncpu);
 	error = kernel_sysctl(curproc, name, 2, &ncpu, &olen, NULL, 0, &plen);
 	if (error == 0 && ncpu > 1)
 		printf("warning: nwfs module compiled without SMP support.");

@@ -370,11 +370,13 @@ smb_put_asunistring(struct smb_rq *rqp, const char *src)
 int
 smb_checksmp(void)
 {
+	size_t olen, plen;
 	int name[2];
-	int olen, ncpu, plen, error;
+	int ncpu, error;
 
 	name[0] = CTL_HW;
 	name[1] = HW_NCPU;
+	olen = sizeof(ncpu);
 	error = kernel_sysctl(curproc, name, 2, &ncpu, &olen, NULL, 0, &plen);
 	if (error)
 		return error;
