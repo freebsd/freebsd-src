@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.37 1996/05/09 18:58:06 gpalmer Exp $
+ * $Id: kern_shutdown.c,v 1.1 1996/08/19 02:19:21 julian Exp $
  */
 
 #include "opt_ddb.h"
@@ -276,6 +276,7 @@ boot(howto)
 die:
 	printf("Rebooting...\n");
 	DELAY(1000000);	/* wait 1 sec for printf's to complete and be read */
+	/* cpu_boot(howto); */ /* doesn't do anything at the moment */
 	cpu_reset();
 	for(;;) ;
 	/* NOTREACHED */
