@@ -25,6 +25,16 @@
 #include "dir.h"
 #include "dialog.priv.h"
 
+/*
+ * Local prototypes
+ */
+
+char *dialog_dfselect(char *dir, char *fmask, int is_fselect);
+
+/* 
+ * Functions
+ */
+
 void
 get_directories(DirList *d, int n, char ***names, int *nd)
 /*
@@ -90,7 +100,7 @@ FreeNames(char **names, int n)
 } /* FreeNames() */
 
 int
-dialog_dselect(void)
+dialog_dselect_old(void)
 /*
  * Desc: starting from the current directory, 
  *	 choose a new current directory 
@@ -133,12 +143,12 @@ dialog_dselect(void)
 
     /* the Ok-button */
     okbutton = FALSE;
-    okbut = NewButtonObj(ds_win, "Ok", &okbutton, 7, COLS-42);
+    okbut = NewButtonObj(ds_win, "Continue", &okbutton, 7, COLS-45);
     AddObj(&obj, BUTTONOBJ, (void *) okbut);
     
     /* the Cancel-button */
     cancelbutton = FALSE;
-    cancelbut = NewButtonObj(ds_win, "Cancel", &cancelbutton, 11, COLS-44);
+    cancelbut = NewButtonObj(ds_win, "Return", &cancelbutton, 11, COLS-44);
     AddObj(&obj, BUTTONOBJ, (void *) cancelbut);
 
     quit = FALSE;
@@ -193,8 +203,30 @@ dialog_dselect(void)
 
 } /* dialog_dselect() */
 
+int
+dialog_dselect(char *dir, char *fmask)
+/*
+ * Desc: Choose a directory
+ */
+{
+    if (dialog_dfselect(dir, fmask, FALSE)) {
+	return(FALSE);	/* esc or cancel was pressed */
+    } else {
+	return(TRUE);   /* directory was selected */
+    }
+} /* dialog_dselect() */
+
 char *
 dialog_fselect(char *dir, char *fmask)
+/*
+ * Desc: Choose a file from a directory
+ */
+{
+    return(dialog_dfselect(dir, fmask, TRUE));
+} /* dialog_fselect() */
+
+char *
+dialog_dfselect(char *dir, char *fmask, int is_fselect)
 /*
  * Desc: choose a file from the directory <dir>, which
  *	 initially display files with the mask <filemask> 
@@ -236,8 +268,13 @@ dialog_fselect(char *dir, char *fmask)
     }
     draw_box(fs_win, 0, 0, LINES-2, COLS-20, dialog_attr, border_attr);
     wattrset(fs_win, dialog_attr);
-    mvwaddstr(fs_win, 0, (COLS-20)/2 - 7, " File Select ");
+    if (is_fselect) {
+	mvwaddstr(fs_win, 0, (COLS-20)/2 - 7, " File Select ");
+    } else {
+	mvwaddstr(fs_win, 0, (COLS-20)/2 - 9, " Directory Select ");
+    }
     draw_shadow(stdscr, 1, 10, LINES-2, COLS-20);
+    display_helpline(fs_win, LINES-3, COLS-20);
 
     /* Filemask entry */
     strcpy(o_fm, fmask);
@@ -251,20 +288,32 @@ dialog_fselect(char *dir, char *fmask)
     /* Directory list */
     get_dir(".", fmask, &d, &n);	/* read the entire directory */
     get_directories(d, n, &dnames, &nd); /* extract the dir-entries */
-    dirs_obj = NewListObj(fs_win, "Directories:", dnames, o_dir, 5, 2, 
-			  LINES-16, (COLS-20)/2-2, nd);
+    if (is_fselect) {
+	dirs_obj = NewListObj(fs_win, "Directories:", dnames, o_dir, 5, 2, 
+			      LINES-16, (COLS-20)/2-2, nd);
+    } else {
+	dirs_obj = NewListObj(fs_win, "Directories:", dnames, o_dir, 5, 2,
+			      LINES-12, (COLS-20)/2-2, nd);
+    }
     AddObj(&obj, LISTOBJ, (void *) dirs_obj);
 
     /* Filenames list */
     get_filenames(d, n, &fnames, &nf);		/* extract the filenames */
-    files_obj = NewListObj(fs_win, "Files:", fnames, o_sel, 5, (COLS-20)/2+1,
-			   LINES-16, (COLS-20)/2-3, nf);
+    if (is_fselect) {
+	files_obj = NewListObj(fs_win, "Files:", fnames, o_sel, 5, (COLS-20)/2+1,
+			       LINES-16, (COLS-20)/2-3, nf);
+    } else {
+	files_obj = NewListObj(fs_win, "Files:", fnames, o_sel, 5, (COLS-20)/2+1,
+			       LINES-12, (COLS-20)/2-3, nf);
+    }
     AddObj(&obj, LISTOBJ, (void *) files_obj);
 
-    /* Selection entry */
-    o_sel[0] = '\0';
-    sel_obj = NewStringObj(fs_win, "Selection:", o_sel, LINES-10, 2, COLS-24, 255);
-    AddObj(&obj, STRINGOBJ, (void *) sel_obj);
+    if (is_fselect) {
+	/* Selection entry */
+	o_sel[0] = '\0';
+	sel_obj = NewStringObj(fs_win, "Selection:", o_sel, LINES-10, 2, COLS-24, 255);
+	AddObj(&obj, STRINGOBJ, (void *) sel_obj);
+    }
 
     /* Ok button */
     ok_button = FALSE;
