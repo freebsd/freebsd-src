@@ -472,7 +472,7 @@ pccard_function_init(struct pccard_function *pf)
 			DEVPRINTF((bus, "Memory space not yet implemented.\n"));
 		}
 		if (spaces == 0) {
-			DEVPRINTF((bus, "Neither memory nor I/O mampped\n"));
+			DEVPRINTF((bus, "Neither memory nor I/O mapped\n"));
 			goto not_this_one;
 		}
 		if (cfe->irqmask) {
