@@ -128,7 +128,7 @@ union sockunion {
 
 void	 doit(union sockunion *);
 static void	 rshd_errx(int, const char *, ...) __printf0like(2, 3);
-void	 getstr(char *, int, char *);
+void	 getstr(char *, int, const char *);
 int	 local_domain(char *);
 char	*topdomain(char *);
 void	 usage(void);
@@ -238,12 +238,12 @@ doit(union sockunion *fromp)
 	fd_set ready, readfrom;
 	int cc, nfd, pv[2], pid, s;
 	int one = 1;
-	char *errorstr;
+	const char *errorstr;
 	char *cp, sig, buf[BUFSIZ];
 	char cmdbuf[NCARGS+1], locuser[16], remuser[16];
 	char fromhost[2 * MAXHOSTNAMELEN + 1];
 	char numericname[INET6_ADDRSTRLEN];
-	int af = fromp->su_family, err;
+	int af = fromp->su_family, error;
 #ifdef	CRYPT
 	int rc;
 	int pv1[2], pv2[2];
@@ -266,10 +266,10 @@ doit(union sockunion *fromp)
 		syslog(LOG_ERR, "malformed \"from\" address (af %d)", af);
 		exit(1);
 	}
-	err = getnameinfo((struct sockaddr *)fromp, fromp->su_len, numericname,
-			  sizeof(numericname), NULL, 0,
-			  NI_NUMERICHOST|NI_WITHSCOPEID);
-	/* XXX: do 'err' check */
+	error = getnameinfo((struct sockaddr *)fromp, fromp->su_len,
+	  numericname, sizeof(numericname), NULL, 0,
+	  NI_NUMERICHOST|NI_WITHSCOPEID);
+	/* XXX: do 'error' check */
 #ifdef IP_OPTIONS
       if (af == AF_INET) {
 	u_char optbuf[BUFSIZ/3];
@@ -731,7 +731,7 @@ rshd_errx(int errcode, const char *fmt, ...)
 }
 
 void
-getstr(char *buf, int cnt, char *err)
+getstr(char *buf, int cnt, const char *error)
 {
 	char c;
 
@@ -740,7 +740,7 @@ getstr(char *buf, int cnt, char *err)
 			exit(1);
 		*buf++ = c;
 		if (--cnt == 0)
-			rshd_errx(1, "%s too long", err);
+			rshd_errx(1, "%s too long", error);
 	} while (c != 0);
 }
 
