@@ -54,7 +54,7 @@ FR_LINKS=	fr_CA fr_CH
 DE_LINKS=	de_AT de_CH
 IT_LINKS=	it_CH
 BE_LINKS=	nl_BE
-RU_LINKS        ru_RU.CP1251 ru_RU.CP866 ru_RU.ISO8859-5
+RU_LINKS=       ru_RU.CP1251 ru_RU.CP866 ru_RU.ISO8859-5
 
 .SUFFIXES: .src .out
 
