@@ -929,10 +929,10 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 	 * will remove our reference.
 	 */
 	IEEE80211_DPRINTF(ic, IEEE80211_MSG_NODE,
-		"ieee80211_ref_node (%s:%u) %s refcnt %d\n",
+		"ieee80211_ref_node (%s:%u) %p<%s> refcnt %d\n",
 		__func__, __LINE__,
-		 ether_sprintf(ni->ni_macaddr),
-		 ieee80211_node_refcnt(ni)+1);
+		ni, ether_sprintf(ni->ni_macaddr),
+		ieee80211_node_refcnt(ni)+1);
 	ieee80211_ref_node(ni);
 
 	timer = 0;
