@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vfsops.c	8.6 (Berkeley) 1/21/94
  *
- * $Id: portal_vfsops.c,v 1.2 1994/09/21 03:47:04 wollman Exp $
+ * $Id: portal_vfsops.c,v 1.3 1994/09/22 19:38:17 wollman Exp $
  */
 
 /*
@@ -44,7 +44,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <kernel.h>
+#include <sys/kernel.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/proc.h>
