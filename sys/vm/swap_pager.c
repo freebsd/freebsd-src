@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.35 1995/04/19 10:32:11 davidg Exp $
+ * $Id: swap_pager.c,v 1.36 1995/05/07 03:48:54 dyson Exp $
  */
 
 /*
@@ -1269,9 +1269,9 @@ swap_pager_output(swp, m, count, flags, rtvals)
 			 * intent of this code is to allocate small chunks for
 			 * small objects)
 			 */
-			if ((i != 1) &&
-				(foff + ntoget * PAGE_SIZE) > object->size) {
-				ntoget = ((object->size + (PAGE_SIZE - 1)) - foff) / PAGE_SIZE;
+			if ((foff == 0) &&
+				((ntoget * PAGE_SIZE) > object->size)) {
+				ntoget = (object->size + (PAGE_SIZE - 1)) / PAGE_SIZE;
 			}
 	retrygetspace:
 			if (!swap_pager_full && ntoget > 1 &&
