@@ -139,8 +139,6 @@ useracc(addr, len, rw)
 {
 	boolean_t rv;
 	vm_prot_t prot;
-	vm_map_t map;
-	vm_map_entry_t save_hint;
 
 	GIANT_REQUIRED;
 
@@ -160,17 +158,9 @@ useracc(addr, len, rw)
 	    || (vm_offset_t) addr + len < (vm_offset_t) addr) {
 		return (FALSE);
 	}
-	map = &curproc->p_vmspace->vm_map;
-
-	/*
-	 * We save the map hint, and restore it.  Useracc appears to distort
-	 * the map hint unnecessarily.
-	 */
-	save_hint = map->hint;
-	rv = vm_map_check_protection(map,
-	    trunc_page((vm_offset_t)addr), round_page((vm_offset_t)addr + len), prot);
-	map->hint = save_hint;
-	
+	rv = vm_map_check_protection(&curproc->p_vmspace->vm_map,
+	    trunc_page((vm_offset_t)addr), round_page((vm_offset_t)addr + len),
+	    prot);
 	return (rv == TRUE);
 }
 
