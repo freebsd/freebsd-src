@@ -954,8 +954,7 @@ iommu_dvmamap_load_buffer(bus_dma_tag_t dt, struct iommu_state *is,
 		}
 		while (sgsize > 0) {
 			sgcnt++;
-			if (sgcnt >= dt->dt_nsegments ||
-			    sgcnt >= BUS_DMAMAP_NSEGS)
+			if (sgcnt >= dt->dt_nsegments)
 				return (EFBIG);
 			/*
 			 * No extra alignment here - the common practice in the
