@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_loop.c	8.1 (Berkeley) 6/10/93
- * $Id: if_loop.c,v 1.36 1998/06/14 23:53:43 julian Exp $
+ * $Id: if_loop.c,v 1.37 1998/07/12 16:46:52 dfr Exp $
  */
 
 /*
@@ -120,6 +120,7 @@ loopattach(dummy)
 	    ifp->if_ioctl = loioctl;
 	    ifp->if_output = looutput;
 	    ifp->if_type = IFT_LOOP;
+	    ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	    if_attach(ifp);
 #if NBPFILTER > 0
 	    bpfattach(ifp, DLT_NULL, sizeof(u_int));
