@@ -161,9 +161,7 @@ r_debug_state(struct r_debug *dummy_one __unused,
 /*
  * The kernel symbol table starts here.
  */
-#ifndef __ia64__
 extern struct _dynamic _DYNAMIC;
-#endif
 
 static void
 link_elf_init(void* arg)
@@ -186,7 +184,7 @@ link_elf_init(void* arg)
 #else
     dp = 0;
 #endif
-    if (dp) {
+    if (1) {
 	modname = NULL;
 	modptr = preload_search_by_type("elf kernel");
 	if (modptr)
@@ -205,7 +203,8 @@ link_elf_init(void* arg)
 #endif
 	ef->dynamic = dp;
 
-	parse_dynamic(ef);
+	if (dp)
+	    parse_dynamic(ef);
 	linker_kernel_file->address = (caddr_t) KERNBASE;
 	linker_kernel_file->size = -(intptr_t)linker_kernel_file->address;
 
