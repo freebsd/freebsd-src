@@ -21,8 +21,7 @@
 #include <sys/conf.h>	/* XXX: temporary to avoid breakage */
 #endif
 
-#include <geom/geom_disk.h>
-
+struct disk;
 struct disk *disk_enumerate(struct disk *disk);
 void disk_err(struct bio *bp, const char *what, int blkdone, int nl);
 
