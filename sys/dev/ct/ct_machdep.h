@@ -208,7 +208,7 @@ ct_cmdp_write_1(chp, val)
 	CT_BUS_WEIGHT(chp)
 }
 
-#if	defined(__i386__)
+#if	defined(__i386__) && 0
 #define	SOFT_INTR_REQUIRED(slp)	(softintr((slp)->sl_irq))
 #else	/* !__i386__ */
 #define	SOFT_INTR_REQUIRED(slp)
