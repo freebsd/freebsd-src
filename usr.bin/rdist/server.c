@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)server.c	8.1 (Berkeley) 6/9/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: server.c,v 1.7 1998/04/06 06:18:32 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/wait.h>
@@ -48,6 +48,7 @@ static const char rcsid[] =
 struct	linkbuf *ihead = NULL;	/* list of files with more than one link */
 char	buf[BUFSIZ];		/* general purpose buffer */
 char	target[BUFSIZ];		/* target/source directory name */
+char	source[BUFSIZ];		/* source directory name */
 char	*tp;			/* pointer to end of target name */
 char	*Tdest;			/* pointer to last T dest*/
 int	catname;		/* cat name to target name */
@@ -237,6 +238,11 @@ install(src, dest, destdir, opts)
 	char *rname;
 	char destcopy[BUFSIZ];
 
+	if (opts & WHOLE)
+		source[0] = '\0';
+	else
+		strcpy(source, src);
+
 	if (dest == NULL) {
 		opts &= ~WHOLE; /* WHOLE mode only useful if renaming */
 		dest = src;
@@ -286,12 +292,60 @@ install(src, dest, destdir, opts)
 	if (response() < 0)
 		return;
 
-	if (destdir) {
+	/*                            
+	 * Save the name of the remote target destination if we are     
+	 * in WHOLE mode (destdir > 0) or if the source and destination 
+	 * are not the same.  This info will be used later for maintaining
+	 * hardlink info.
+	 */
+	if (destdir || (src && dest && strcmp(src, dest))) {
 		strcpy(destcopy, dest);
 		Tdest = destcopy;
 	}
 	sendf(rname, opts);
 	Tdest = 0;
+}
+
+static char *
+remotename(pathname, src)
+	char *pathname;
+	char *src;
+{
+	char *cp;
+	int len;
+
+	cp = pathname;
+	len = strlen(src);
+	if (0 == strncmp(pathname, src, len))
+		cp += len;
+	if (*cp == '/')
+		cp ++;
+	return(cp);
+}
+
+void
+installlink(lp, rname, opts)
+	struct linkbuf *lp;
+	char *rname;
+	int opts;
+{
+	if (*lp->target == 0)
+		(void) snprintf(buf, sizeof(buf), "k%o %s %s\n",
+			opts, lp->pathname, rname);
+	else
+		(void) snprintf(buf, sizeof(buf), "k%o %s/%s %s\n",
+			opts, lp->target,
+			remotename(lp->pathname, lp->src), rname);
+
+	if (debug) {
+		printf("lp->src      = %s\n", lp->src);
+		printf("lp->target   = %s\n", lp->target);
+		printf("lp->pathname = %s\n", lp->pathname);
+		printf("rname        = %s\n", rname);
+		printf("buf          = %s",   buf);
+	}
+	(void) write(rem, buf, strlen(buf));
+	(void) response();
 }
 
 #define protoname() (pw ? pw->pw_name : user)
@@ -406,18 +460,7 @@ sendf(rname, opts)
 			struct linkbuf *lp;
 
 			if ((lp = savelink(&stb)) != NULL) {
-				/* install link */
-				if (*lp->target == 0)
-				(void) snprintf(buf, sizeof(buf), "k%o %s %s\n",
-				    opts, lp->pathname, rname);
-				else
-				(void) snprintf(buf, sizeof(buf),
-				    "k%o %s/%s %s\n", opts, lp->target,
-				    lp->pathname, rname);
-				if (debug)
-					printf("buf = %s", buf);
-				(void) write(rem, buf, strlen(buf));
-				(void) response();
+				installlink(lp, rname, opts);
 				return;
 			}
 		}
@@ -456,17 +499,7 @@ sendf(rname, opts)
 		struct linkbuf *lp;
 
 		if ((lp = savelink(&stb)) != NULL) {
-			/* install link */
-			if (*lp->target == 0)
-			(void) snprintf(buf, sizeof(buf), "k%o %s %s\n", opts,
-				lp->pathname, rname);
-			else
-			(void) snprintf(buf, sizeof(buf), "k%o %s/%s %s\n",
-			    opts, lp->target, lp->pathname, rname);
-			if (debug)
-				printf("buf = %s", buf);
-			(void) write(rem, buf, strlen(buf));
-			(void) response();
+			installlink(lp, rname, opts);
 			return;
 		}
 	}
@@ -544,6 +577,7 @@ savelink(stp)
 		lp->devnum = stp->st_dev;
 		lp->count = stp->st_nlink - 1;
 		strcpy(lp->pathname, target);
+		strcpy(lp->src, source);
 		if (Tdest)
 			strcpy(lp->target, Tdest);
 		else
