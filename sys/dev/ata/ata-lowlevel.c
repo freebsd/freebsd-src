@@ -635,17 +635,17 @@ ata_generic_reset(struct ata_channel *ch)
 	    }
 	}
 	if (mask == 0x01)	/* wait for master only */
-	    if (!(stat0 & ATA_S_BUSY) || (stat0 == 0xff && timeout > 20))
+	    if (!(stat0 & ATA_S_BUSY) || (stat0 == 0xff && timeout > 5))
 		break;
 	if (mask == 0x02)	/* wait for slave only */
-	    if (!(stat1 & ATA_S_BUSY) || (stat1 == 0xff && timeout > 20))
+	    if (!(stat1 & ATA_S_BUSY) || (stat1 == 0xff && timeout > 5))
 		break;
 	if (mask == 0x03) {	/* wait for both master & slave */
 	    if (!(stat0 & ATA_S_BUSY) && !(stat1 & ATA_S_BUSY))
 		break;
-	    if (stat0 == 0xff && timeout > 20)
+	    if (stat0 == 0xff && timeout > 5)
 		mask &= ~0x01;
-	    if (stat1 == 0xff && timeout > 20)
+	    if (stat1 == 0xff && timeout > 5)
 		mask &= ~0x02;
 	}
 	DELAY(100000);
