@@ -148,7 +148,7 @@ linkit(target, source, isdir)
 	 * If the file exists, and -f was specified, unlink it.
 	 * Attempt the link.
 	 */
-	if (fflag && exists && (unlink(source) || (*linkf)(target, source))) {
+	if ((fflag && exists && unlink(source)) || (*linkf)(target, source)) {
 		warn("%s", source);
 		return (1);
 	}
