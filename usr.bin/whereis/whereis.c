@@ -88,8 +88,9 @@ void	 usage(void);
 void
 usage(void)
 {
-	errx(EX_USAGE,
-	     "usage: whereis [-abmqsux] [-BMS dir... -f] name ...");
+	(void)fprintf(stderr,
+	     "usage: whereis [-abmqsux] [-BMS dir ... -f] program ...\n");
+	exit(EX_USAGE);
 }
 
 /*
