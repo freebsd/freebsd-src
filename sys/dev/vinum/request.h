@@ -33,18 +33,10 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: request.h,v 1.4 1998/12/28 04:56:23 peter Exp $
+ * $Id: request.h,v 1.13 1999/01/14 05:46:22 grog Exp grog $
  */
 
 /* Information needed to set up a transfer */
-
-/* struct buf is surprisingly big (about 300
- * bytes), and it's part of the request, so this
- * value is really important.  Most requests
- * don't need more than 2 subrequests per
- * plex. The table is automatically extended if
- * this value is too small. */
-#define RQELTS 2					    /* default of 2 requests per transfer */
 
 enum xferinfo {
     XFR_NORMAL_READ = 1,
@@ -124,16 +116,17 @@ struct rqgroup {
  * work we have to do to satisfy it */
 struct request {
     struct buf *bp;					    /* pointer to the high-level request */
-    int flags;
+    enum xferinfo flags;
     union {
 	int volno;					    /* volume index */
 	int plexno;					    /* or plex index */
     } volplex;
     int error;						    /* current error indication */
+    int sdno;						    /* reviving subdisk (XFR_REVIVECONFLICT) */
     short isplex;					    /* set if this is a plex request */
     short active;					    /* number of subrequests still active */
     struct rqgroup *rqg;				    /* pointer to the first group of requests */
-    struct rqgroup *lrqg;				    /* and to the first group of requests */
+    struct rqgroup *lrqg;				    /* and to the last group of requests */
     struct request *next;				    /* link of waiting requests */
 };
 
@@ -185,7 +178,43 @@ struct rqinfo {
     } info;
 };
 
-#define RQINFO_SIZE 64					    /* number of info slots in buffer */
+#define RQINFO_SIZE 128					    /* number of info slots in buffer */
 
 void logrq(enum rqinfo_type type, union rqinfou info, struct buf *ubp);
 #endif
+
+/* Structures for the daemon */
+
+/* types of request to the daemon */
+enum daemonrq {
+    daemonrq_none,					    /* dummy to catch bugs */
+    daemonrq_ioerror,					    /* error occurred on I/O */
+    daemonrq_saveconfig,				    /* save configuration */
+    daemonrq_return,					    /* return to userland */
+    daemonrq_ping,					    /* show sign of life */
+    daemonrq_init,					    /* initialize a plex */
+    daemonrq_revive,					    /* revive a subdisk */
+};
+
+/* info field for daemon requests */
+union daemoninfo {					    /* and the request information */
+    struct request *rq;					    /* for daemonrq_ioerror */
+    struct sd *sd;					    /* for daemonrq_revive */
+    struct plex *plex;					    /* for daemonrq_init */
+};
+
+struct daemonq {
+    struct daemonq *next;				    /* pointer to next element in queue */
+    enum daemonrq type;					    /* type of request */
+    union daemoninfo info;				    /* and the request information */
+};
+
+void queue_daemon_request(enum daemonrq type, union daemoninfo info);
+
+extern int daemon_options;
+
+enum daemon_option {
+    daemon_verbose = 1,					    /* talk about what we're doing */
+    daemon_stopped = 2,
+    daemon_noupdate = 4,				    /* don't update the disk config, for recovery */
+};
