@@ -236,7 +236,7 @@ in_cksum(m, len)
 	}
 
 	if (len)
-		printf("cksum: out of data\n");
+		printf("%s: out of data by %d\n", __func__, len);
 	if (mlen == -1) {
 		/* The last mbuf has odd # of bytes. Follow the
 		   standard (the odd byte is shifted left by 8 bits) */
@@ -424,7 +424,7 @@ skip_start:
 	}
 
 	if (len)
-		printf("cksum: out of data\n");
+		printf("%s: out of data by %d\n", __func__, len);
 	if (mlen == -1) {
 		/* The last mbuf has odd # of bytes. Follow the
 		   standard (the odd byte is shifted left by 8 bits) */
