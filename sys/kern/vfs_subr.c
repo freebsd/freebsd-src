@@ -3370,18 +3370,15 @@ vop_lookup_post(void *ap, int rc)
 
 	ASSERT_VI_UNLOCKED(dvp, "VOP_LOOKUP");
 
-	/*
-	 * If this is the last path component for this lookup and LOCKPARENT
-	 * is set, OR if there is an error the directory has to be locked.
-	 */
-	if ((flags & LOCKPARENT) && (flags & ISLASTCN))
-		ASSERT_VOP_LOCKED(dvp, "VOP_LOOKUP (LOCKPARENT)");
-	else if (rc != 0)
+	if (rc)
 		ASSERT_VOP_LOCKED(dvp, "VOP_LOOKUP (error)");
-	else if (dvp != vp)
-		ASSERT_VOP_UNLOCKED(dvp, "VOP_LOOKUP (dvp)");
-	if (flags & PDIRUNLOCK)
-		ASSERT_VOP_UNLOCKED(dvp, "VOP_LOOKUP (PDIRUNLOCK)");
+	else if (flags & ISDOTDOT)
+		ASSERT_VOP_UNLOCKED(dvp, "VOP_LOOKUP (ISDOTDOT)");
+	else
+		ASSERT_VOP_LOCKED(dvp, "VOP_LOOKUP");
+
+	if (!rc)
+		ASSERT_VOP_LOCKED(vp, "VOP_LOOKUP (child)");
 }
 
 void
