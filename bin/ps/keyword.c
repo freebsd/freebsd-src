@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)keyword.c	8.5 (Berkeley) 4/2/94";
 #else
 static const char rcsid[] =
-	"$Id: keyword.c,v 1.16 1997/08/11 02:29:50 steve Exp $";
+	"$Id: keyword.c,v 1.17 1997/08/11 02:35:16 steve Exp $";
 #endif
 #endif /* not lint */
 
@@ -44,6 +44,9 @@ static const char rcsid[] =
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/proc.h>
+#include <sys/sysctl.h>
+#include <sys/ucred.h>
+#include <sys/user.h>
 
 #include <err.h>
 #include <errno.h>
