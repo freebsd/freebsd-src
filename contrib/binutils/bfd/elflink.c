@@ -33,6 +33,7 @@ _bfd_elf_create_got_section (abfd, info)
   flagword flags;
   register asection *s;
   struct elf_link_hash_entry *h;
+  struct bfd_link_hash_entry *bh;
   struct elf_backend_data *bed = get_elf_backend_data (abfd);
   int ptralign;
 
@@ -79,12 +80,13 @@ _bfd_elf_create_got_section (abfd, info)
 	 (or .got.plt) section.  We don't do this in the linker script
 	 because we don't want to define the symbol if we are not creating
 	 a global offset table.  */
-      h = NULL;
+      bh = NULL;
       if (!(_bfd_generic_link_add_one_symbol
 	    (info, abfd, "_GLOBAL_OFFSET_TABLE_", BSF_GLOBAL, s,
 	     bed->got_symbol_offset, (const char *) NULL, false,
-	     bed->collect, (struct bfd_link_hash_entry **) &h)))
+	     bed->collect, &bh)))
 	return false;
+      h = (struct elf_link_hash_entry *) bh;
       h->elf_link_hash_flags |= ELF_LINK_HASH_DEF_REGULAR;
       h->type = STT_OBJECT;
 
@@ -151,13 +153,15 @@ _bfd_elf_create_dynamic_sections (abfd, info)
     {
       /* Define the symbol _PROCEDURE_LINKAGE_TABLE_ at the start of the
 	 .plt section.  */
-      struct elf_link_hash_entry *h = NULL;
+      struct elf_link_hash_entry *h;
+      struct bfd_link_hash_entry *bh = NULL;
+
       if (! (_bfd_generic_link_add_one_symbol
 	     (info, abfd, "_PROCEDURE_LINKAGE_TABLE_", BSF_GLOBAL, s,
 	      (bfd_vma) 0, (const char *) NULL, false,
-	      get_elf_backend_data (abfd)->collect,
-	      (struct bfd_link_hash_entry **) &h)))
+	      get_elf_backend_data (abfd)->collect, &bh)))
 	return false;
+      h = (struct elf_link_hash_entry *) bh;
       h->elf_link_hash_flags |= ELF_LINK_HASH_DEF_REGULAR;
       h->type = STT_OBJECT;
 
@@ -546,29 +550,27 @@ _bfd_elf_create_linker_section (abfd, info, which, defaults)
 
       if (lsect->sym_name)
 	{
-	  struct elf_link_hash_entry *h = NULL;
+	  struct elf_link_hash_entry *h;
+	  struct bfd_link_hash_entry *bh;
+
 #ifdef DEBUG
 	  fprintf (stderr, "Adding %s to section %s\n",
 		   lsect->sym_name,
 		   lsect->name);
 #endif
-	  h = (struct elf_link_hash_entry *)
-	    bfd_link_hash_lookup (info->hash, lsect->sym_name, false, false, false);
+	  bh = bfd_link_hash_lookup (info->hash, lsect->sym_name,
+				     false, false, false);
 
-	  if ((h == NULL || h->root.type == bfd_link_hash_undefined)
-	      && !(_bfd_generic_link_add_one_symbol (info,
-						     abfd,
-						     lsect->sym_name,
-						     BSF_GLOBAL,
-						     s,
-						     ((lsect->hole_size)
-						      ? s->_raw_size - lsect->hole_size + lsect->sym_offset
-						      : lsect->sym_offset),
-						     (const char *) NULL,
-						     false,
-						     get_elf_backend_data (abfd)->collect,
-						     (struct bfd_link_hash_entry **) &h)))
-	    return (elf_linker_section_t *)0;
+	  if ((bh == NULL || bh->type == bfd_link_hash_undefined)
+	      && !(_bfd_generic_link_add_one_symbol
+		   (info, abfd, lsect->sym_name, BSF_GLOBAL, s,
+		    (lsect->hole_size
+		     ? s->_raw_size - lsect->hole_size + lsect->sym_offset
+		     : lsect->sym_offset),
+		    (const char *) NULL, false,
+		    get_elf_backend_data (abfd)->collect, &bh)))
+	    return (elf_linker_section_t *) 0;
+	  h = (struct elf_link_hash_entry *) bh;
 
 	  if ((defaults->which != LINKER_SECTION_SDATA)
 	      && (defaults->which != LINKER_SECTION_SDATA2))
@@ -579,7 +581,7 @@ _bfd_elf_create_linker_section (abfd, info, which, defaults)
 
 	  if (info->shared
 	      && ! _bfd_elf_link_record_dynamic_symbol (info, h))
-	    return (elf_linker_section_t *)0;
+	    return (elf_linker_section_t *) 0;
 	}
     }
 

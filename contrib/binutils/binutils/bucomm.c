@@ -128,16 +128,18 @@ list_supported_targets (name, f)
      const char *name;
      FILE *f;
 {
-  extern const bfd_target *const *bfd_target_vector;
   int t;
+  const char **targ_names = bfd_target_list ();
 
   if (name == NULL)
     fprintf (f, _("Supported targets:"));
   else
     fprintf (f, _("%s: supported targets:"), name);
-  for (t = 0; bfd_target_vector[t] != NULL; t++)
-    fprintf (f, " %s", bfd_target_vector[t]->name);
+
+  for (t = 0; targ_names[t] != NULL; t++)
+    fprintf (f, " %s", targ_names[t]);
   fprintf (f, "\n");
+  free (targ_names);
 }
 
 /* List the supported architectures.  */

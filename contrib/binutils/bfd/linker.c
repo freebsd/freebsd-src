@@ -449,7 +449,8 @@ _bfd_link_hash_newfunc (entry, table, string)
      subclass.  */
   if (entry == NULL)
     {
-      entry = bfd_hash_allocate (table, sizeof (struct bfd_link_hash_entry));
+      entry = (struct bfd_hash_entry *)
+	bfd_hash_allocate (table, sizeof (struct bfd_link_hash_entry));
       if (entry == NULL)
 	return entry;
     }
@@ -645,8 +646,8 @@ _bfd_generic_link_hash_newfunc (entry, table, string)
      subclass.  */
   if (entry == NULL)
     {
-      entry = bfd_hash_allocate (table,
-				 sizeof (struct generic_link_hash_entry));
+      entry = (struct bfd_hash_entry *)
+	bfd_hash_allocate (table, sizeof (struct generic_link_hash_entry));
       if (entry == NULL)
 	return entry;
     }
@@ -1305,6 +1306,7 @@ generic_link_add_symbol_list (abfd, info, symbol_count, symbols, collect)
 	  const char *name;
 	  const char *string;
 	  struct generic_link_hash_entry *h;
+	  struct bfd_link_hash_entry *bh;
 
 	  name = bfd_asymbol_name (p);
 	  if (((p->flags & BSF_INDIRECT) != 0
@@ -1326,12 +1328,12 @@ generic_link_add_symbol_list (abfd, info, symbol_count, symbols, collect)
 	  else
 	    string = NULL;
 
-	  h = NULL;
+	  bh = NULL;
 	  if (! (_bfd_generic_link_add_one_symbol
 		 (info, abfd, name, p->flags, bfd_get_section (p),
-		  p->value, string, false, collect,
-		  (struct bfd_link_hash_entry **) &h)))
+		  p->value, string, false, collect, &bh)))
 	    return false;
+	  h = (struct generic_link_hash_entry *) bh;
 
 	  /* If this is a constructor symbol, and the linker didn't do
              anything with it, then we want to just pass the symbol
@@ -2018,7 +2020,7 @@ _bfd_generic_final_link (abfd, info)
   for (o = abfd->sections; o != NULL; o = o->next)
     for (p = o->link_order_head; p != NULL; p = p->next)
       if (p->type == bfd_indirect_link_order)
-	p->u.indirect.section->linker_mark = true;
+	p->u.indirect.section->linker_mark = (unsigned int) true;
 
   /* Build the output symbol table.  */
   for (sub = info->input_bfds; sub != (bfd *) NULL; sub = sub->link_next)

@@ -423,6 +423,7 @@ record_arm_to_thumb_glue (link_info, h)
   asection * s;
   char * tmp_name;
   struct elf_link_hash_entry * myh;
+  struct bfd_link_hash_entry * bh;
   struct elf32_arm_link_hash_table * globals;
   bfd_vma val;
 
@@ -456,11 +457,11 @@ record_arm_to_thumb_glue (link_info, h)
   /* The only trick here is using hash_table->arm_glue_size as the value. Even
      though the section isn't allocated yet, this is where we will be putting
      it.  */
+  bh = NULL;
   val = globals->arm_glue_size + 1;
   _bfd_generic_link_add_one_symbol (link_info, globals->bfd_of_glue_owner,
 				    tmp_name, BSF_GLOBAL, s, val,
-				    NULL, true, false,
-				    (struct bfd_link_hash_entry **) &myh);
+				    NULL, true, false, &bh);
 
   free (tmp_name);
 
@@ -478,6 +479,7 @@ record_thumb_to_arm_glue (link_info, h)
   asection *s;
   char *tmp_name;
   struct elf_link_hash_entry *myh;
+  struct bfd_link_hash_entry *bh;
   struct elf32_arm_link_hash_table *hash_table;
   char bind;
   bfd_vma val;
@@ -509,13 +511,14 @@ record_thumb_to_arm_glue (link_info, h)
       return;
     }
 
+  bh = NULL;
   val = hash_table->thumb_glue_size + 1;
   _bfd_generic_link_add_one_symbol (link_info, hash_table->bfd_of_glue_owner,
 				    tmp_name, BSF_GLOBAL, s, val,
-				    NULL, true, false,
-				    (struct bfd_link_hash_entry **) &myh);
+				    NULL, true, false, &bh);
 
   /* If we mark it 'Thumb', the disassembler will do a better job.  */
+  myh = (struct elf_link_hash_entry *) bh;
   bind = ELF_ST_BIND (myh->type);
   myh->type = ELF_ST_INFO (bind, STT_ARM_TFUNC);
 
@@ -532,13 +535,11 @@ record_thumb_to_arm_glue (link_info, h)
 
   sprintf (tmp_name, CHANGE_TO_ARM, name);
 
-  myh = NULL;
-
+  bh = NULL;
   val = hash_table->thumb_glue_size + 4,
   _bfd_generic_link_add_one_symbol (link_info, hash_table->bfd_of_glue_owner,
 				    tmp_name, BSF_LOCAL, s, val,
-				    NULL, true, false,
-				    (struct bfd_link_hash_entry **) &myh);
+				    NULL, true, false, &bh);
 
   free (tmp_name);
 

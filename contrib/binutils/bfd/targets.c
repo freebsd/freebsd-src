@@ -521,7 +521,6 @@ extern const bfd_target bfd_elf32_hppa_vec;
 extern const bfd_target bfd_elf32_i370_vec;
 extern const bfd_target bfd_elf32_i386_freebsd_vec;
 extern const bfd_target bfd_elf32_i386_vec;
-extern const bfd_target bfd_elf32_i386qnx_vec;
 extern const bfd_target bfd_elf32_i860_little_vec;
 extern const bfd_target bfd_elf32_i860_vec;
 extern const bfd_target bfd_elf32_i960_vec;
@@ -785,7 +784,6 @@ static const bfd_target * const _bfd_target_vector[] = {
 	&bfd_elf32_i370_vec,
 	&bfd_elf32_i386_freebsd_vec,
 	&bfd_elf32_i386_vec,
-	&bfd_elf32_i386qnx_vec,
 	&bfd_elf32_i860_little_vec,
 	&bfd_elf32_i860_vec,
 	&bfd_elf32_i960_vec,
@@ -1249,7 +1247,9 @@ bfd_target_list ()
     return NULL;
 
   for (target = &bfd_target_vector[0]; *target != NULL; target++)
-    *(name_ptr++) = (*target)->name;
+    if (target == &bfd_target_vector[0]
+	|| *target != bfd_target_vector[0])
+      *name_ptr++ = (*target)->name;
 
   return name_list;
 }

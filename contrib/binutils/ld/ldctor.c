@@ -29,7 +29,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "ldexp.h"
 #include "ldlang.h"
 #include "ldmisc.h"
-#include "ldgram.h"
+#include <ldgram.h>
 #include "ldmain.h"
 #include "ldctor.h"
 

@@ -104,6 +104,9 @@ struct _bfd
   /* Symbol table for output BFD (with symcount entries).  */
   struct symbol_cache_entry  **outsymbols;
 
+  /* Used for slurped dynamic symbol tables.  */
+  unsigned int dynsymcount;
+
   /* Pointer to structure which contains architecture information.  */
   const struct bfd_arch_info *arch_info;
 
@@ -661,12 +664,12 @@ extern bfd_byte *bfd_get_relocated_section_contents
 @subsubsection @code{bfd_alt_mach_code}
 @strong{Synopsis}
 @example
-boolean bfd_alt_mach_code(bfd *abfd, int index);
+boolean bfd_alt_mach_code(bfd *abfd, int alternative);
 @end example
 @strong{Description}@*
 When more than one machine code number is available for the
 same machine type, this function can be used to switch between
-the preferred one (index == 0) and any others.  Currently,
+the preferred one (alternative == 0) and any others.  Currently,
 only ELF supports this feature, with up to two alternate
 machine codes.
 

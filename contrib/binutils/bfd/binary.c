@@ -185,7 +185,7 @@ binary_get_symtab (abfd, alocation)
 
   syms = (asymbol *) bfd_alloc (abfd, amt);
   if (syms == NULL)
-    return false;
+    return (long) false;
 
   /* Start symbol.  */
   syms[0].the_bfd = abfd;

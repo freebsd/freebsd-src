@@ -2259,8 +2259,8 @@ NAME(aout,swap_ext_reloc_in) (abfd, bytes, cache_ptr, symbols, symcount)
   /* now the fun stuff */
   if (bfd_header_big_endian (abfd))
     {
-      r_index = ((bytes->r_index[0] << 16)
-		 | (bytes->r_index[1] << 8)
+      r_index = (((unsigned int) bytes->r_index[0] << 16)
+		 | ((unsigned int) bytes->r_index[1] << 8)
 		 | bytes->r_index[2]);
       r_extern = (0 != (bytes->r_type[0] & RELOC_EXT_BITS_EXTERN_BIG));
       r_type = ((bytes->r_type[0] & RELOC_EXT_BITS_TYPE_BIG)
@@ -2268,8 +2268,8 @@ NAME(aout,swap_ext_reloc_in) (abfd, bytes, cache_ptr, symbols, symcount)
     }
   else
     {
-      r_index =  ((bytes->r_index[2] << 16)
-		  | (bytes->r_index[1] << 8)
+      r_index =  (((unsigned int) bytes->r_index[2] << 16)
+		  | ((unsigned int) bytes->r_index[1] << 8)
 		  | bytes->r_index[0]);
       r_extern = (0 != (bytes->r_type[0] & RELOC_EXT_BITS_EXTERN_LITTLE));
       r_type = ((bytes->r_type[0] & RELOC_EXT_BITS_TYPE_LITTLE)
@@ -2281,9 +2281,9 @@ NAME(aout,swap_ext_reloc_in) (abfd, bytes, cache_ptr, symbols, symcount)
   /* Base relative relocs are always against the symbol table,
      regardless of the setting of r_extern.  r_extern just reflects
      whether the symbol the reloc is against is local or global.  */
-  if (r_type == RELOC_BASE10
-      || r_type == RELOC_BASE13
-      || r_type == RELOC_BASE22)
+  if (r_type == (unsigned int) RELOC_BASE10
+      || r_type == (unsigned int) RELOC_BASE13
+      || r_type == (unsigned int) RELOC_BASE22)
     r_extern = 1;
 
   if (r_extern && r_index > symcount)
@@ -2318,8 +2318,8 @@ NAME(aout,swap_std_reloc_in) (abfd, bytes, cache_ptr, symbols, symcount)
   /* now the fun stuff */
   if (bfd_header_big_endian (abfd))
     {
-      r_index = ((bytes->r_index[0] << 16)
-		 | (bytes->r_index[1] << 8)
+      r_index = (((unsigned int) bytes->r_index[0] << 16)
+		 | ((unsigned int) bytes->r_index[1] << 8)
 		 | bytes->r_index[2]);
       r_extern  = (0 != (bytes->r_type[0] & RELOC_STD_BITS_EXTERN_BIG));
       r_pcrel   = (0 != (bytes->r_type[0] & RELOC_STD_BITS_PCREL_BIG));
@@ -2331,8 +2331,8 @@ NAME(aout,swap_std_reloc_in) (abfd, bytes, cache_ptr, symbols, symcount)
     }
   else
     {
-      r_index = ((bytes->r_index[2] << 16)
-		 | (bytes->r_index[1] << 8)
+      r_index = (((unsigned int) bytes->r_index[2] << 16)
+		 | ((unsigned int) bytes->r_index[1] << 8)
 		 | bytes->r_index[0]);
       r_extern  = (0 != (bytes->r_type[0] & RELOC_STD_BITS_EXTERN_LITTLE));
       r_pcrel   = (0 != (bytes->r_type[0] & RELOC_STD_BITS_PCREL_LITTLE));
@@ -3863,7 +3863,7 @@ NAME(aout,final_link) (abfd, info, callback)
       for (p = o->link_order_head; p != NULL; p = p->next)
 	{
 	  if (p->type == bfd_indirect_link_order)
-	    p->u.indirect.section->linker_mark = true;
+	    p->u.indirect.section->linker_mark = (unsigned int) true;
 	}
     }
 
@@ -4412,7 +4412,7 @@ aout_link_write_symbols (finfo, input_bfd)
 	     characters in the symbol names, not including the file
 	     numbers in types (the first number after an open
 	     parenthesis).  */
-	  if (type == N_BINCL)
+	  if (type == (int) N_BINCL)
 	    {
 	      struct external_nlist *incl_sym;
 	      int nest;
@@ -4426,13 +4426,13 @@ aout_link_write_symbols (finfo, input_bfd)
 		  int incl_type;
 
 		  incl_type = H_GET_8 (input_bfd, incl_sym->e_type);
-		  if (incl_type == N_EINCL)
+		  if (incl_type == (int) N_EINCL)
 		    {
 		      if (nest == 0)
 			break;
 		      --nest;
 		    }
-		  else if (incl_type == N_BINCL)
+		  else if (incl_type == (int) N_BINCL)
 		    ++nest;
 		  else if (nest == 0)
 		    {
@@ -4457,7 +4457,7 @@ aout_link_write_symbols (finfo, input_bfd)
 	      /* If we have already included a header file with the
                  same value, then replace this one with an N_EXCL
                  symbol.  */
-	      copy = ! finfo->info->keep_memory;
+	      copy = (boolean) (! finfo->info->keep_memory);
 	      incl_entry = aout_link_includes_lookup (&finfo->includes,
 						      name, true, copy);
 	      if (incl_entry == NULL)
@@ -4485,7 +4485,7 @@ aout_link_write_symbols (finfo, input_bfd)
 		  /* This is a duplicate header file.  We must change
                      it to be an N_EXCL entry, and mark all the
                      included symbols to prevent outputting them.  */
-		  type = N_EXCL;
+		  type = (int) N_EXCL;
 
 		  nest = 0;
 		  for (incl_sym = sym + 1, incl_map = symbol_map + 1;
@@ -4495,7 +4495,7 @@ aout_link_write_symbols (finfo, input_bfd)
 		      int incl_type;
 
 		      incl_type = H_GET_8 (input_bfd, incl_sym->e_type);
-		      if (incl_type == N_EINCL)
+		      if (incl_type == (int) N_EINCL)
 			{
 			  if (nest == 0)
 			    {
@@ -4504,7 +4504,7 @@ aout_link_write_symbols (finfo, input_bfd)
 			    }
 			  --nest;
 			}
-		      else if (incl_type == N_BINCL)
+		      else if (incl_type == (int) N_BINCL)
 			++nest;
 		      else if (nest == 0)
 			*incl_map = -1;
@@ -4859,8 +4859,8 @@ aout_link_input_section_std (finfo, input_bfd, input_section, relocs,
 
 	if (bfd_header_big_endian (input_bfd))
 	  {
-	    r_index   =  ((rel->r_index[0] << 16)
-			  | (rel->r_index[1] << 8)
+	    r_index   =  (((unsigned int) rel->r_index[0] << 16)
+			  | ((unsigned int) rel->r_index[1] << 8)
 			  | rel->r_index[2]);
 	    r_extern  = (0 != (rel->r_type[0] & RELOC_STD_BITS_EXTERN_BIG));
 	    r_pcrel   = (0 != (rel->r_type[0] & RELOC_STD_BITS_PCREL_BIG));
@@ -4872,8 +4872,8 @@ aout_link_input_section_std (finfo, input_bfd, input_section, relocs,
 	  }
 	else
 	  {
-	    r_index   = ((rel->r_index[2] << 16)
-			 | (rel->r_index[1] << 8)
+	    r_index   = (((unsigned int) rel->r_index[2] << 16)
+			 | ((unsigned int) rel->r_index[1] << 8)
 			 | rel->r_index[0]);
 	    r_extern  = (0 != (rel->r_type[0] & RELOC_STD_BITS_EXTERN_LITTLE));
 	    r_pcrel   = (0 != (rel->r_type[0] & RELOC_STD_BITS_PCREL_LITTLE));
@@ -5195,8 +5195,8 @@ aout_link_input_section_ext (finfo, input_bfd, input_section, relocs,
 
       if (bfd_header_big_endian (input_bfd))
 	{
-	  r_index  = ((rel->r_index[0] << 16)
-		      | (rel->r_index[1] << 8)
+	  r_index  = (((unsigned int) rel->r_index[0] << 16)
+		      | ((unsigned int) rel->r_index[1] << 8)
 		      | rel->r_index[2]);
 	  r_extern = (0 != (rel->r_type[0] & RELOC_EXT_BITS_EXTERN_BIG));
 	  r_type   = ((rel->r_type[0] & RELOC_EXT_BITS_TYPE_BIG)
@@ -5204,8 +5204,8 @@ aout_link_input_section_ext (finfo, input_bfd, input_section, relocs,
 	}
       else
 	{
-	  r_index  = ((rel->r_index[2] << 16)
-		      | (rel->r_index[1] << 8)
+	  r_index  = (((unsigned int) rel->r_index[2] << 16)
+		      | ((unsigned int) rel->r_index[1] << 8)
 		      | rel->r_index[0]);
 	  r_extern = (0 != (rel->r_type[0] & RELOC_EXT_BITS_EXTERN_LITTLE));
 	  r_type   = ((rel->r_type[0] & RELOC_EXT_BITS_TYPE_LITTLE)
@@ -5221,16 +5221,16 @@ aout_link_input_section_ext (finfo, input_bfd, input_section, relocs,
 	  /* We are generating a relocateable output file, and must
 	     modify the reloc accordingly.  */
 	  if (r_extern
-	      || r_type == RELOC_BASE10
-	      || r_type == RELOC_BASE13
-	      || r_type == RELOC_BASE22)
+	      || r_type == (unsigned int) RELOC_BASE10
+	      || r_type == (unsigned int) RELOC_BASE13
+	      || r_type == (unsigned int) RELOC_BASE22)
 	    {
 	      /* If we know the symbol this relocation is against,
 		 convert it into a relocation against a section.  This
 		 is what the native linker does.  */
-	      if (r_type == RELOC_BASE10
-		  || r_type == RELOC_BASE13
-		  || r_type == RELOC_BASE22)
+	      if (r_type == (unsigned int) RELOC_BASE10
+		  || r_type == (unsigned int) RELOC_BASE13
+		  || r_type == (unsigned int) RELOC_BASE22)
 		h = NULL;
 	      else
 		h = sym_hashes[r_index];
@@ -5398,9 +5398,9 @@ aout_link_input_section_ext (finfo, input_bfd, input_section, relocs,
 		  relocation = 0;
 		}
 	    }
-	  else if (r_type == RELOC_BASE10
-		   || r_type == RELOC_BASE13
-		   || r_type == RELOC_BASE22)
+	  else if (r_type == (unsigned int) RELOC_BASE10
+		   || r_type == (unsigned int) RELOC_BASE13
+		   || r_type == (unsigned int) RELOC_BASE22)
 	    {
 	      struct external_nlist *sym;
 	      int type;
@@ -5482,9 +5482,9 @@ aout_link_input_section_ext (finfo, input_bfd, input_section, relocs,
              to skip this reloc.  */
 	  if (hundef
 	      && ! finfo->info->shared
-	      && r_type != RELOC_BASE10
-	      && r_type != RELOC_BASE13
-	      && r_type != RELOC_BASE22)
+	      && r_type != (unsigned int) RELOC_BASE10
+	      && r_type != (unsigned int) RELOC_BASE13
+	      && r_type != (unsigned int) RELOC_BASE22)
 	    {
 	      const char *name;
 
@@ -5498,7 +5498,7 @@ aout_link_input_section_ext (finfo, input_bfd, input_section, relocs,
 		return false;
 	    }
 
-	  if (r_type != RELOC_SPARC_REV32)
+	  if (r_type != (unsigned int) RELOC_SPARC_REV32)
 	    r = MY_final_link_relocate (howto_table_ext + r_type,
 					input_bfd, input_section,
 					contents, r_addr, relocation,
@@ -5527,9 +5527,9 @@ aout_link_input_section_ext (finfo, input_bfd, input_section, relocs,
 		    if (h != NULL)
 		      name = h->root.root.string;
 		    else if (r_extern
-			     || r_type == RELOC_BASE10
-			     || r_type == RELOC_BASE13
-			     || r_type == RELOC_BASE22)
+			     || r_type == (unsigned int) RELOC_BASE10
+			     || r_type == (unsigned int) RELOC_BASE13
+			     || r_type == (unsigned int) RELOC_BASE22)
 		      name = strings + GET_WORD (input_bfd,
 						 syms[r_index].e_strx);
 		    else
@@ -5645,7 +5645,7 @@ aout_link_reloc_link_order (finfo, o, p)
 	int r_relative;
 	int r_length;
 
-	r_pcrel = howto->pc_relative;
+	r_pcrel = (int) howto->pc_relative;
 	r_baserel = (howto->type & 8) != 0;
 	r_jmptable = (howto->type & 16) != 0;
 	r_relative = (howto->type & 32) != 0;

@@ -436,12 +436,12 @@ _bfd_generic_read_ar_hdr_mag (abfd, mag)
 	 spaces, so only look for ' ' if we don't find '/'.  */
 
       char *e;
-      e = memchr (hdr.ar_name, '\0', ar_maxnamelen (abfd));
+      e = (char *) memchr (hdr.ar_name, '\0', ar_maxnamelen (abfd));
       if (e == NULL)
 	{
-	  e = memchr (hdr.ar_name, '/', ar_maxnamelen (abfd));
+	  e = (char *) memchr (hdr.ar_name, '/', ar_maxnamelen (abfd));
 	  if (e == NULL)
-	    e = memchr (hdr.ar_name, ' ', ar_maxnamelen (abfd));
+	    e = (char *) memchr (hdr.ar_name, ' ', ar_maxnamelen (abfd));
 	}
 
       if (e != NULL)

@@ -1086,7 +1086,7 @@ parse_register_list (insn, operand)
   return NULL;
 }
 
-CONST char *md_shortopts = "m:";
+const char *md_shortopts = "m:";
 
 struct option md_longopts[] = {
   {NULL, no_argument, NULL, 0}
@@ -1461,7 +1461,7 @@ v850_reloc_prefix (operand)
     }
 
 #define CHECK_(name, reloc) 						\
-  if (strncmp (input_line_pointer, name##"(", strlen (name) + 1) == 0)	\
+  if (strncmp (input_line_pointer, name "(", strlen (name) + 1) == 0)	\
     {									\
       input_line_pointer += strlen (name);				\
       return reloc;							\
@@ -1961,7 +1961,7 @@ md_assemble (str)
 		  if (((insn & 0x07e0) == 0x0200)
 		      && ex.X_op == O_constant
 		      && (ex.X_add_number < (-(1 << (operand->bits - 1)))
-			  || ex.X_add_number > ((1 << operand->bits) - 1)))
+			  || ex.X_add_number > ((1 << (operand->bits - 1)) - 1)))
 		    errmsg = _("immediate operand is too large");
 		}
 

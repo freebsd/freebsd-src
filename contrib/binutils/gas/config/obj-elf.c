@@ -547,7 +547,8 @@ obj_elf_visibility (visibility)
 
       assert (elfsym);
 
-      elfsym->internal_elf_sym.st_other = visibility;
+      elfsym->internal_elf_sym.st_other &= ~3;
+      elfsym->internal_elf_sym.st_other |= visibility;
 
       if (c == ',')
 	{

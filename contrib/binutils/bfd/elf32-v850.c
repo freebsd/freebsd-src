@@ -1,5 +1,5 @@
 /* V850-specific support for 32-bit ELF
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -79,12 +79,12 @@ static boolean v850_elf_link_output_symbol_hook
   PARAMS ((bfd *, struct bfd_link_info *, const char *,
 	   Elf_Internal_Sym *, asection *));
 static boolean v850_elf_section_from_shdr
-  PARAMS ((bfd *, Elf_Internal_Shdr *, char *));
+  PARAMS ((bfd *, Elf_Internal_Shdr *, const char *));
 static boolean v850_elf_gc_sweep_hook
   PARAMS ((bfd *, struct bfd_link_info *, asection *,
 	   const Elf_Internal_Rela *));
 static asection * v850_elf_gc_mark_hook
-  PARAMS ((bfd *, struct bfd_link_info *,
+  PARAMS ((asection *, struct bfd_link_info *,
 	   Elf_Internal_Rela *, struct elf_link_hash_entry *,
 	   Elf_Internal_Sym *));
 
@@ -1322,7 +1322,7 @@ v850_elf_reloc (abfd, reloc, symbol, data, isection, obfd, err)
 		nop
 	foo:
         	nop      */
-  if (reloc->howto->pc_relative == true)
+  if (reloc->howto->pc_relative)
     {
       /* Here the variable relocation holds the final address of the
 	 symbol we are relocating against, plus any addend.  */
@@ -1740,8 +1740,8 @@ v850_elf_gc_sweep_hook (abfd, info, sec, relocs)
 }
 
 static asection *
-v850_elf_gc_mark_hook (abfd, info, rel, h, sym)
-       bfd *abfd;
+v850_elf_gc_mark_hook (sec, info, rel, h, sym)
+       asection *sec;
        struct bfd_link_info *info ATTRIBUTE_UNUSED;
        Elf_Internal_Rela *rel;
        struct elf_link_hash_entry *h;
@@ -1771,9 +1771,7 @@ v850_elf_gc_mark_hook (abfd, info, rel, h, sym)
        }
      }
    else
-     {
-       return bfd_section_from_elf_index (abfd, sym->st_shndx);
-     }
+     return bfd_section_from_elf_index (sec->owner, sym->st_shndx);
 
   return NULL;
 }
@@ -2135,7 +2133,7 @@ static boolean
 v850_elf_section_from_shdr (abfd, hdr, name)
      bfd *               abfd;
      Elf_Internal_Shdr * hdr;
-     char *              name;
+     const char *        name;
 {
   /* There ought to be a place to keep ELF backend specific flags, but
      at the moment there isn't one.  We just keep track of the
