@@ -158,7 +158,9 @@ atapi_detach(struct ata_device *atadev)
 	free(request, M_ATAPI);
     }
     free(atadev->result, M_ATAPI);
-    atadev->driver = NULL;	/* XXX SOS safetybelt */
+    atadev->driver = NULL;
+    atadev->flags = 0;
+
 }
 
 int	  
