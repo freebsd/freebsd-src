@@ -82,17 +82,17 @@
 #define PCI_OHCI_VENDORID_SIS		0x1039
 
 #define PCI_OHCI_DEVICEID_ALADDIN_V	0x523710b9
-static const char *ohci_device_aladdin_v = "AcerLabs M5237 (Aladdin-V) USB Host Controller";
+static const char *ohci_device_aladdin_v = "AcerLabs M5237 (Aladdin-V) USB controller";
 #define PCI_OHCI_DEVICEID_FIRELINK	0xc8611045
-static const char *ohci_device_firelink  = "OPTi 82C861 (FireLink) USB Host Controller";
+static const char *ohci_device_firelink  = "OPTi 82C861 (FireLink) USB controller";
 #define PCI_OHCI_DEVICEID_NEC		0x00351033
-static const char *ohci_device_nec	 = "NEC uPD 9210 USB Host Controller";
+static const char *ohci_device_nec	 = "NEC uPD 9210 USB controller";
 #define PCI_OHCI_DEVICEID_USB0670	0x06701095
-static const char *ohci_device_usb0670	 = "CMD Tech 670 (USB0670) USB Host Controller";
+static const char *ohci_device_usb0670	 = "CMD Tech 670 (USB0670) USB controller";
 #define PCI_OHCI_DEVICEID_USB0673	0x06731095
-static const char *ohci_device_usb0673	 = "CMD Tech 673 (USB0673) USB Host Controller";
+static const char *ohci_device_usb0673	 = "CMD Tech 673 (USB0673) USB controller";
 
-static const char *ohci_device_generic   = "OHCI (generic) USB Host Controller";
+static const char *ohci_device_generic   = "OHCI (generic) USB controller";
 
 #define PCI_OHCI_BASE_REG	0x10
 
