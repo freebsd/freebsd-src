@@ -429,11 +429,13 @@ _vm_map_clear_recursive(vm_map_t map, const char *file, int line)
 static __inline int
 vm_map_unlock_and_wait(vm_map_t map, boolean_t user_wait)
 {
+	int retval;
 
-	GIANT_REQUIRED;
+	mtx_lock(&Giant);
 	vm_map_unlock(map);
-
-	return (tsleep(&map->root, PVM, "vmmapw", 0));
+	retval = tsleep(&map->root, PVM, "vmmapw", 0);
+	mtx_unlock(&Giant);
+	return (retval);
 }
 
 /*
