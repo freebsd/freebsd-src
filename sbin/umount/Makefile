@@ -8,6 +8,4 @@ MOUNT=	${.CURDIR}/../mount
 CFLAGS+= -I${MOUNT}
 .PATH:	${MOUNT}
 
-CFLAGS+= -D_NEW_VFSCONF
-
 .include <bsd.prog.mk>
