@@ -32,14 +32,16 @@
 .\"     from: @(#)ieee.3	6.4 (Berkeley) 5/6/91
 .\" $FreeBSD$
 .\"
-.Dd January 26, 2005
+.Dd March 4, 2005
 .Dt SCALBN 3
 .Os
 .Sh NAME
 .Nm scalbln ,
 .Nm scalblnf ,
+.Nm scalblnl ,
 .Nm scalbn ,
-.Nm scalbnf
+.Nm scalbnf ,
+.Nm scalbnl
 .Nd adjust exponent
 .Sh LIBRARY
 .Lb libm
@@ -49,17 +51,16 @@
 .Fn scalbln "double x" "long n"
 .Ft float
 .Fn scalblnf "float x" "long n"
+.Ft long double
+.Fn scalblnl "long double x" "long n"
 .Ft double
 .Fn scalbn "double x" "int n"
 .Ft float
 .Fn scalbnf "float x" "int n"
+.Ft long double
+.Fn scalbnl "long double x" "int n"
 .Sh DESCRIPTION
-.Fn scalbln ,
-.Fn scalblnf ,
-.Fn scalbn ,
-and
-.Fn scalbnf
-return
+These routines return
 .Fa x Ns \(**(2** Ns Fa n )
 computed by exponent manipulation.
 .Sh SEE ALSO
@@ -85,4 +86,10 @@ The
 and
 .Fn scalblnf
 functions first appeared in
-.Fx 5.3 .
+.Fx 5.3 ,
+and
+.Fn scalblnl
+and
+.Fn scalbln
+in
+.Fx 5.5 .
