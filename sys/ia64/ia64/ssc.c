@@ -97,6 +97,19 @@ ssc(u_int64_t in0, u_int64_t in1, u_int64_t in2, u_int64_t in3, int which)
 }
 
 static void
+ssccnprobe(struct consdev *cp)
+{
+	cp->cn_dev = makedev(CDEV_MAJOR, 0);
+	cp->cn_pri = CN_NORMAL;
+}
+
+static void
+ssccninit(struct consdev *cp)
+{
+	make_dev(&ssc_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "ssccons");
+}
+
+static void
 ssccnputc(dev_t dev, int c)
 {
 	ssc(c, 0, 0, 0, SSC_PUTCHAR);
@@ -258,13 +271,4 @@ ssctimeout(void *v)
 	ssctimeouthandle = timeout(ssctimeout, tp, polltime);
 }
 
-CONS_DRIVER(ssc, NULL, NULL, NULL, ssccngetc, ssccncheckc, ssccnputc, NULL);
-
-void
-ssccnattach(void)
-{
-	cn_tab = &ssc_consdev;
-	ssc_consdev.cn_pri = CN_NORMAL;
-	ssc_consdev.cn_dev = makedev(CDEV_MAJOR, 0);
-	make_dev(&ssc_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "ssccons");
-}
+CONS_DRIVER(ssc, ssccnprobe, ssccninit, NULL, ssccngetc, ssccncheckc, ssccnputc, NULL);
