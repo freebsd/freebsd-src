@@ -68,15 +68,8 @@ __FBSDID("$FreeBSD$");
 #define	STATUS_BADUSAGE	2
 #define	STATUS_ERROR	3
 
-#ifdef __FreeBSD__
-#if __FreeBSD_version > 502000
+/* Check for system-processes which should always be ignored. */
 #define	IS_KERNPROC(kp)	((kp)->ki_flag & P_KTHREAD)
-#endif
-#endif
-
-#ifndef IS_KERNPROC
-#define	IS_KERNPROC(kp)	((kp)->ki_flag & P_SYSTEM)
-#endif
 
 enum listtype {
 	LT_GENERIC,
