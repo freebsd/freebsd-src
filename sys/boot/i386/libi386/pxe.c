@@ -413,6 +413,22 @@ struct nfs_iodesc {
 	/* structure truncated here */
 };
 extern struct	nfs_iodesc nfs_root_node;
+extern int      rpc_port;
+
+static void
+pxe_rpcmountcall()
+{
+	struct	iodesc *d;
+	int     error;
+
+	if (!(d = socktodesc(pxe_sock)))
+		return;
+        d->myport = htons(--rpc_port);
+        d->destip = rootip;
+	if ((error = nfs_getrootfh(d, rootpath, nfs_root_node.fh)) != 0) 
+		printf("NFS MOUNT RPC error: %d\n", error);
+	nfs_root_node.iodesc = d;
+}
 
 static void
 pxe_setnfshandle(char *rootpath)
@@ -420,6 +436,14 @@ pxe_setnfshandle(char *rootpath)
 	int	i;
 	u_char	*fh;
 	char	buf[2 * NFS_FHSIZE + 3], *cp;
+
+	/*
+	 * If NFS files were never opened, we need to do mount call
+	 * ourselves. Use nfs_root_node.iodesc as flag indicating
+	 * previous NFS usage.
+	 */
+	if (nfs_root_node.iodesc == NULL)
+		pxe_rpcmountcall();
 
 	fh = &nfs_root_node.fh[0];
 	buf[0] = 'X';
