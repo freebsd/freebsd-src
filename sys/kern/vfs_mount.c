@@ -1714,6 +1714,9 @@ vfs_getopt(opts, name, buf, len)
 {
 	struct vfsopt *opt;
 
+	KASSERT(opts != NULL,
+	    ("vfs_getopt: caller passed 'opts' as NULL\n"));
+
 	TAILQ_FOREACH(opt, opts, link) {
 		if (strcmp(name, opt->name) == 0) {
 			if (len != NULL)
@@ -1742,6 +1745,9 @@ vfs_copyopt(opts, name, dest, len)
 	int len;
 {
 	struct vfsopt *opt;
+
+	KASSERT(opts != NULL,
+	    ("vfs_copyopt: caller passed 'opts' as NULL\n"));
 
 	TAILQ_FOREACH(opt, opts, link) {
 		if (strcmp(name, opt->name) == 0) {
