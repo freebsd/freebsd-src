@@ -4000,6 +4000,7 @@ nfsrv_noop(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	else
 		error = EPROCUNAVAIL;
 	nfsm_reply(0);
+	error = 0;
 nfsmout:
 	return (error);
 }
