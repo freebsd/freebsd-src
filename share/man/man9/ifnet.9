@@ -738,15 +738,17 @@ Mark the interface
 as down (i.e.,
 .Dv IFF_UP
 is not set),
-flush its output queue, and call the interface's
-.Fn if_ioctl
-routine to notify the driver of the shutdown request.
+flush its output queue, notify protocols of the transition,
+and generate a message from the
+.Xr route 4
+routing socket.
 .It Fn if_up
 Mark the interface
 .Ar ifp
-as up, and call the interface's
-.Fn if_ioctl
-routine to (re-)initialize the driver.
+as up, notify protocols of the transition,
+and generate a message from the
+.Xr route 4
+routing socket.
 .It Fn ifpromisc
 Add or remove a promiscuous reference to
 .Ar ifp .
