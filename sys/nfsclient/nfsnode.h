@@ -178,9 +178,9 @@ nfs_rsunlock(struct nfsnode *np, struct thread *td)
 	(void)lockmgr(&np->n_rslock, LK_RELEASE, NULL, td);
 }
 
-extern	vop_t	**fifo_nfsv2nodeop_p;
-extern	vop_t	**nfsv2_vnodeop_p;
-extern	vop_t	**spec_nfsv2nodeop_p;
+extern	vop_t	**fifo_nfsnodeop_p;
+extern	vop_t	**nfs_vnodeop_p;
+extern	vop_t	**spec_nfsnodeop_p;
 
 /*
  * Prototypes for NFS vnode operations

@@ -135,8 +135,8 @@ static int	nfs_advlock(struct vop_advlock_args *);
 /*
  * Global vfs data structures for nfs
  */
-vop_t **nfsv2_vnodeop_p;
-static struct vnodeopv_entry_desc nfsv2_vnodeop_entries[] = {
+vop_t **nfs_vnodeop_p;
+static struct vnodeopv_entry_desc nfs_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_defaultop },
 	{ &vop_access_desc,		(vop_t *) nfs_access },
 	{ &vop_advlock_desc,		(vop_t *) nfs_advlock },
@@ -168,15 +168,15 @@ static struct vnodeopv_entry_desc nfsv2_vnodeop_entries[] = {
 	{ &vop_write_desc,		(vop_t *) nfs_write },
 	{ NULL, NULL }
 };
-static struct vnodeopv_desc nfsv2_vnodeop_opv_desc =
-	{ &nfsv2_vnodeop_p, nfsv2_vnodeop_entries };
-VNODEOP_SET(nfsv2_vnodeop_opv_desc);
+static struct vnodeopv_desc nfs_vnodeop_opv_desc =
+	{ &nfs_vnodeop_p, nfs_vnodeop_entries };
+VNODEOP_SET(nfs_vnodeop_opv_desc);
 
 /*
  * Special device vnode ops
  */
-vop_t **spec_nfsv2nodeop_p;
-static struct vnodeopv_entry_desc nfsv2_specop_entries[] = {
+vop_t **spec_nfsnodeop_p;
+static struct vnodeopv_entry_desc nfs_specop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) spec_vnoperate },
 	{ &vop_access_desc,		(vop_t *) nfsspec_access },
 	{ &vop_close_desc,		(vop_t *) nfsspec_close },
@@ -191,12 +191,12 @@ static struct vnodeopv_entry_desc nfsv2_specop_entries[] = {
 	{ &vop_write_desc,		(vop_t *) nfsspec_write },
 	{ NULL, NULL }
 };
-static struct vnodeopv_desc spec_nfsv2nodeop_opv_desc =
-	{ &spec_nfsv2nodeop_p, nfsv2_specop_entries };
-VNODEOP_SET(spec_nfsv2nodeop_opv_desc);
+static struct vnodeopv_desc spec_nfsnodeop_opv_desc =
+	{ &spec_nfsnodeop_p, nfs_specop_entries };
+VNODEOP_SET(spec_nfsnodeop_opv_desc);
 
-vop_t **fifo_nfsv2nodeop_p;
-static struct vnodeopv_entry_desc nfsv2_fifoop_entries[] = {
+vop_t **fifo_nfsnodeop_p;
+static struct vnodeopv_entry_desc nfs_fifoop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) fifo_vnoperate },
 	{ &vop_access_desc,		(vop_t *) nfsspec_access },
 	{ &vop_close_desc,		(vop_t *) nfsfifo_close },
@@ -211,9 +211,9 @@ static struct vnodeopv_entry_desc nfsv2_fifoop_entries[] = {
 	{ &vop_write_desc,		(vop_t *) nfsfifo_write },
 	{ NULL, NULL }
 };
-static struct vnodeopv_desc fifo_nfsv2nodeop_opv_desc =
-	{ &fifo_nfsv2nodeop_p, nfsv2_fifoop_entries };
-VNODEOP_SET(fifo_nfsv2nodeop_opv_desc);
+static struct vnodeopv_desc fifo_nfsnodeop_opv_desc =
+	{ &fifo_nfsnodeop_p, nfs_fifoop_entries };
+VNODEOP_SET(fifo_nfsnodeop_opv_desc);
 
 static int	nfs_mknodrpc(struct vnode *dvp, struct vnode **vpp,
 			     struct componentname *cnp, struct vattr *vap);
