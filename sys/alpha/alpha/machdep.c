@@ -1370,6 +1370,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		/* Fill in POSIX parts */
 		sf.sf_si.si_signo = sig;
 		sf.sf_si.si_code = code;
+		sf.sf_si.si_addr = (void*)frame->tf_regs[FRAME_TRAPARG_A0];
 	}
 	else
 		frame->tf_regs[FRAME_A1] = code;
