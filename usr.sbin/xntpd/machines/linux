@@ -1,8 +1,0 @@
-SHELL=	    /bin/sh
-RANLIB=	    ranlib
-DEFS=       -DSYS_LINUX -DHAVE_TERMIOS
-AUTHDEFS=   -DDES -DMD5
-INCL=	    -I../include -I/usr/include/bsd
-CLOCKDEFS=
-DAEMONLIBS=
-COMPAT=

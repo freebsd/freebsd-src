@@ -1,7 +1,0 @@
-This is a greatly pared down libiberty directory. Only what's required to build
-gdb-4.12 on FreeBSD was kept.
-
-This is temporary. In FreeBSD 2.0 a fully ported libiberty will likely appear
-as a system library for use by all the build tools.
-
-paul@freefall.cdrom.com

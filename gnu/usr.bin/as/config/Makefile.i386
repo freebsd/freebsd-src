@@ -1,5 +1,0 @@
-#	from: @(#)Makefile.i386	6.1 (Berkeley) 3/3/91
-#	$Id: Makefile.i386,v 1.3 1993/10/02 20:58:21 pk Exp $
-
-CFLAGS+=	-DNON_BROKEN_WORDS
-SRCS+=		tc-i386.c atof-ieee.c
