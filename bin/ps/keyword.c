@@ -156,6 +156,8 @@ static VAR var[] = {
 		0},
 	{"rgid", "RGID", NULL, 0, kvar, NULL, UIDLEN, KOFF(ki_rgid),
 		UINT, UIDFMT, 0},
+	{"rgroup", "RGROUP", NULL, LJUST|DSIZ, rgroupname, s_rgroupname,
+		USERLEN, 0, CHAR, NULL, 0},
 	{"rss", "RSS", NULL, 0, kvar, NULL, 4, KOFF(ki_rssize), UINT, "d",
 		0},
 	{"rtprio", "RTPRIO", NULL, 0, priorityr, NULL, 7, KOFF(ki_pri), CHAR,

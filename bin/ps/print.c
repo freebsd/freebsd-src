@@ -280,8 +280,7 @@ uname(KINFO *k, VARENT *ve)
 	VAR *v;
 
 	v = ve->var;
-	(void)printf("%-*s",
-	    (int)v->width, user_from_uid(k->ki_p->ki_uid, 0));
+	(void)printf("%-*s", v->width, user_from_uid(k->ki_p->ki_uid, 0));
 }
 
 int
@@ -291,13 +290,27 @@ s_uname(KINFO *k)
 }
 
 void
+rgroupname(KINFO *k, VARENT *ve)
+{
+	VAR *v;
+
+	v = ve->var;
+	(void)printf("%-*s", v->width, group_from_gid(k->ki_p->ki_rgid, 0));
+}
+
+int
+s_rgroupname(KINFO *k)
+{
+	return (strlen(group_from_gid(k->ki_p->ki_rgid, 0)));
+}
+
+void
 runame(KINFO *k, VARENT *ve)
 {
 	VAR *v;
 
 	v = ve->var;
-	(void)printf("%-*s",
-	    (int)v->width, user_from_uid(k->ki_p->ki_ruid, 0));
+	(void)printf("%-*s", v->width, user_from_uid(k->ki_p->ki_ruid, 0));
 }
 
 int
@@ -718,5 +731,5 @@ lattr(KINFO *k, VARENT *ve)
 	VAR *v;
 
 	v = ve->var;
-	(void)printf("%-*d", (int)v->width, get_lattr(k->ki_p->ki_pid));
+	(void)printf("%-*d", v->width, get_lattr(k->ki_p->ki_pid));
 }
