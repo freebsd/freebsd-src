@@ -1,0 +1,43 @@
+##############################################################################
+Here are generic CVS server instructions:
+
+(1) Login to the cvs server.  Not needed more than once b/c the cvs login
+    will record your cvs password in $HOME/.cvspass.  Change "ezk" for your
+    CVS user id.
+
+$ cvs -d :pserver:ezk@shekel.mcl.cs.columbia.edu:/proj/bank/cvsroot login
+CVS password:
+
+Type in your password, crypt(3)'ed in /proj/bank/cvsroot/CVSROOT/passwd.
+
+(2) Then, check out a fresh copy of 6.1 (experimental)
+
+$ cvs -d :pserver:ezk@shekel.mcl.cs.columbia.edu:/proj/bank/cvsroot checkout am-utils
+
+Or, to checkout the stable branch:
+
+$ cvs -d :pserver:ezk@shekel.mcl.cs.columbia.edu:/proj/bank/cvsroot checkout -r amd-6-0-stable am-utils
+
+(3) Then you can do normal edit, commit, update, etc. w/o having to worry
+    about your $CVSROOT or the -d option.
+
+##############################################################################
+To merge changes from the stable branch into the main (experimental) branch:
+
+$ cvs update -j amd-6-0-stable -kk
+
+- don't worry about all the files that change; it's probably because of cvs
+  keywords in the sources
+- after the merge, do a 'cvs update -d' and resolve any conflicts
+
+##############################################################################
+
+There are two new mailing lists:
+
+amd-maintainers@shekel.mcl.cs.columbia.edu: for Amd maintainers to
+	communicate internally w/o exposure to the greater user community.
+
+amd-cvslog@shekel.mcl.cs.columbia.edu: to get cvs log messages.  I've used a
+	better (I hope) script for loginfo.  It provides different output
+	and can be tweaked as well.
+##############################################################################

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -35,7 +35,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: fsi_util.c,v 1.3.2.2 2001/01/10 03:23:33 ezk Exp $
+ * $Id: fsi_util.c,v 1.3.2.5 2003/07/18 04:50:19 ezk Exp $
  *
  */
 
@@ -170,7 +170,7 @@ fatal(char *fmt, ...)
  * Debug log
  */
 void
-log(char *fmt, ...)
+fsi_log(char *fmt, ...)
 {
   va_list ap;
 
@@ -277,7 +277,7 @@ pref_open(char *pref, char *hn, void (*hdr) (FILE *, char *), char *arg)
   FILE *ef;
 
   sprintf(p, "%s%s", pref, hn);
-  log("Writing %s info for %s to %s", pref, hn, p);
+  fsi_log("Writing %s info for %s to %s", pref, hn, p);
   ef = fopen(p, "w");
   if (ef) {
     (*hdr) (ef, arg);

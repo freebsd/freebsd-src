@@ -64,7 +64,7 @@
 #  define MSDOSFS
 # endif /* not MSDOSFS */
 # ifndef MFS
-#  define MFS
+#  define MFS 1
 # endif /* not MFS */
 # ifndef CD9660
 #  define CD9660

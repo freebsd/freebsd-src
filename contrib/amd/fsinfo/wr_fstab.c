@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: wr_fstab.c,v 1.3.2.1 2001/01/10 03:23:35 ezk Exp $
+ * $Id: wr_fstab.c,v 1.3.2.4 2003/07/18 04:50:20 ezk Exp $
  *
  */
 
@@ -326,7 +326,7 @@ write_fstab(qelem *q)
 	  if (hp->h_disk_fs)
 	    errors += write_dkfstab(ef, hp->h_disk_fs, op->op_fstab);
 	  else
-	    log("No local disk mounts on %s", hp->h_hostname);
+	    fsi_log("No local disk mounts on %s", hp->h_hostname);
 
 	  if (hp->h_mount)
 	    errors += write_dkrmount(ef, hp->h_mount, hp->h_hostname, op->op_mount);
