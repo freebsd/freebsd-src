@@ -311,11 +311,9 @@ main(argc, argv)
 		if (!is_comment && 
 		    (pwd.pw_name[0] == '+' || pwd.pw_name[0] == '-'))
 			yp_enabled = 1;
+		if (is_comment)
+			--cnt;
 #define	COMPACT(e)	t = e; while ((*p++ = *t++));
-#ifdef PASSWD_IGNORE_COMMENTS
-           if(is_comment)
-                --cnt;
-#endif
 		if (!is_comment && 
 		    (!username || (strcmp(username, pwd.pw_name) == 0))) {
 			/* Create insecure data. */
@@ -510,7 +508,6 @@ scan(fp, pw)
 	}
 	*p = '\0';
 
-#ifdef PASSWD_IGNORE_COMMENTS
 	/* 
 	 * Ignore comments: ^[ \t]*#
 	 */
@@ -522,7 +519,6 @@ scan(fp, pw)
 		return(1);
 	} else
 		is_comment = 0;
-#endif 
 
 	if (!pw_scan(line, pw)) {
 		warnx("at line #%d", lcnt);
