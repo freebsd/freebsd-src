@@ -410,7 +410,7 @@
       <para>The &man.gre.4; tunnel driver now supports WCCP version
 	2.</para>
 
-      <para>Some bugs in the IPsec implementation from the KAME
+      <para>Some bugs in the IPSec implementation from the KAME
 	Project have been fixed.  These bugs were related to freeing
 	memory objects before all references to them were removed, and
 	could cause erratic behavior or kernel panics after flushing
@@ -579,7 +579,7 @@
 
     <para>&man.killall.1; now supports a <option>-e</option> flag to
       make the <option>-u</option> operate on effective, rather than
-      real, user ids. &merged;</para>
+      real, user IDs. &merged;</para>
 
     <para>&man.libalias.3; now has support (and a new API) for
       multiple aliasing instances in a single process.  The existing
@@ -852,7 +852,7 @@
       has been added and enabled by default.
       <varname>DISABLE_SIZE</varname> is a user control knob
       to disable the distfile size checking.  This is especially
-      useful on old &os; versions which didn't have &man.fetch.1;
+      useful on old &os; versions which did not have &man.fetch.1;
       support for this, and for some FTP proxies which always
       report incorrect or bogus sizes.</para>
 
