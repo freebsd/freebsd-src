@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.93 1998/04/15 17:47:35 bde Exp $
+ * $Id: swap_pager.c,v 1.94 1998/04/29 04:27:59 dyson Exp $
  */
 
 /*
@@ -631,7 +631,8 @@ rfinished:
  */
 
 void
-swap_pager_copy(srcobject, srcoffset, dstobject, dstoffset, offset, destroysource)
+swap_pager_copy(srcobject, srcoffset, dstobject, dstoffset,
+	offset, destroysource)
 	vm_object_t srcobject;
 	vm_pindex_t srcoffset;
 	vm_object_t dstobject;
@@ -651,10 +652,12 @@ swap_pager_copy(srcobject, srcoffset, dstobject, dstoffset, offset, destroysourc
 	/*
 	 * remove the source object from the swap_pager internal queue
 	 */
-	if (srcobject->handle == NULL) {
-		TAILQ_REMOVE(&swap_pager_un_object_list, srcobject, pager_object_list);
-	} else {
-		TAILQ_REMOVE(&swap_pager_object_list, srcobject, pager_object_list);
+	if (destroysource) {
+		if (srcobject->handle == NULL) {
+			TAILQ_REMOVE(&swap_pager_un_object_list, srcobject, pager_object_list);
+		} else {
+			TAILQ_REMOVE(&swap_pager_object_list, srcobject, pager_object_list);
+		}
 	}
 
 	s = splvm();
@@ -673,8 +676,8 @@ swap_pager_copy(srcobject, srcoffset, dstobject, dstoffset, offset, destroysourc
 	 */
 	for (i = 0; i < dstobject->size; i += 1) {
 		int srcvalid, dstvalid;
-		daddr_t *srcaddrp = swap_pager_diskaddr(srcobject, i + offset + srcoffset,
-						    &srcvalid);
+		daddr_t *srcaddrp = swap_pager_diskaddr(srcobject,
+				i + offset + srcoffset, &srcvalid);
 		daddr_t *dstaddrp;
 
 		/*

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.122 1998/05/01 02:25:29 dyson Exp $
+ * $Id: vm_map.c,v 1.123 1998/05/02 06:36:16 dyson Exp $
  */
 
 /*
@@ -541,6 +541,13 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	new_entry->eflags = protoeflags;
 	new_entry->object.vm_object = object;
 	new_entry->offset = offset;
+	if (object) {
+		if ((object->ref_count > 1) || (object->shadow_count != 0)) {
+			object->flags &= ~OBJ_ONEMAPPING;
+		} else {
+			object->flags |= OBJ_ONEMAPPING;
+		}
+	}
 
 	if (map->is_main_map) {
 		new_entry->inheritance = VM_INHERIT_DEFAULT;
@@ -1751,6 +1758,7 @@ vm_map_delete(map, start, end)
 	vm_offset_t start;
 	vm_offset_t end;
 {
+	vm_object_t object;
 	vm_map_entry_t entry;
 	vm_map_entry_t first_entry;
 
@@ -1760,9 +1768,9 @@ vm_map_delete(map, start, end)
 
 	if (!vm_map_lookup_entry(map, start, &first_entry)) {
 		entry = first_entry->next;
-		if (entry->object.vm_object &&
-			(entry->object.vm_object->ref_count == 1))
-				entry->object.vm_object->flags |= OBJ_ONEMAPPING;
+		object = entry->object.vm_object;
+		if (object && (object->ref_count == 1) && (object->shadow_count == 0))
+				object->flags |= OBJ_ONEMAPPING;
 	} else {
 		entry = first_entry;
 		vm_map_clip_start(map, entry, start);
@@ -1790,20 +1798,17 @@ vm_map_delete(map, start, end)
 	while ((entry != &map->header) && (entry->start < end)) {
 		vm_map_entry_t next;
 		vm_offset_t s, e;
-		vm_object_t object;
-		vm_pindex_t offidxstart, offidxend;
-		vm_ooffset_t offset;
+		vm_pindex_t offidxstart, offidxend, count;
 
 		vm_map_clip_end(map, entry, end);
 
-		offset = entry->offset;
 		s = entry->start;
 		e = entry->end;
 		next = entry->next;
-		object = entry->object.vm_object;
 
-		offidxstart = OFF_TO_IDX(offset);
-		offidxend = offidxstart + OFF_TO_IDX(e - s);
+		offidxstart = OFF_TO_IDX(entry->offset);
+		count = OFF_TO_IDX(e - s);
+		object = entry->object.vm_object;
 
 		/*
 		 * Unwire before removing addresses from the pmap; otherwise,
@@ -1813,6 +1818,7 @@ vm_map_delete(map, start, end)
 			vm_map_entry_unwire(map, entry);
 		}
 
+		offidxend = offidxstart + count;
 		/*
 		 * If this is a sharing map, we must remove *all* references
 		 * to this data, since we can't find all of the physical maps
@@ -1831,10 +1837,12 @@ vm_map_delete(map, start, end)
 				vm_object_collapse(object);
 				vm_object_page_remove(object, offidxstart, offidxend, FALSE);
 				if (object->type == OBJT_SWAP) {
-					swap_pager_freespace(object, offidxstart, offidxend);
+					swap_pager_freespace(object, offidxstart, count);
 				}
-				if (object->size <= offidxend) {
-					object->size = offidxstart;
+
+				if ((offidxend >= object->size) &&
+					(offidxstart < object->size)) {
+						object->size = offidxstart;
 				}
 			}
 		}
@@ -2045,6 +2053,7 @@ vm_map_copy_entry(src_map, dst_map, src_entry, dst_entry)
 				vm_object_collapse(src_object);
 				if (src_object->flags & OBJ_ONEMAPPING) {
 					vm_map_split(src_entry);
+					src_map->timestamp++;
 					src_object = src_entry->object.vm_object;
 				}
 			}
@@ -2120,7 +2129,6 @@ vmspace_fork(vm1)
 			if (object == NULL) {
 				object = vm_object_allocate(OBJT_DEFAULT,
 					atop(old_entry->end - old_entry->start));
-				object->flags &= ~OBJ_ONEMAPPING;
 				old_entry->object.vm_object = object;
 				old_entry->offset = (vm_offset_t) 0;
 			} else if (old_entry->eflags & MAP_ENTRY_NEEDS_COPY) {
@@ -2130,6 +2138,7 @@ vmspace_fork(vm1)
 				old_entry->eflags &= ~MAP_ENTRY_NEEDS_COPY;
 				object = old_entry->object.vm_object;
 			}
+			object->flags &= ~OBJ_ONEMAPPING;
 
 			/*
 			 * Clone the entry, referencing the sharing map.
@@ -2177,6 +2186,7 @@ vmspace_fork(vm1)
 
 	new_map->size = old_map->size;
 	vm_map_unlock(old_map);
+	old_map->timestamp++;
 
 	return (vm2);
 }
