@@ -640,7 +640,7 @@ softdep_move_dependencies(oldbp, newbp)
 		panic("softdep_move_dependencies: need merge code");
 	wktail = 0;
 	ACQUIRE_LOCK(&lk);
-	while (wk = LIST_FIRST(&oldbp->b_dep)) {
+	while ((wk = LIST_FIRST(&oldbp->b_dep)) != NULL) {
 		LIST_REMOVE(wk, wk_list);
 		if (wktail == 0)
 			LIST_INSERT_HEAD(&newbp->b_dep, wk, wk_list);
