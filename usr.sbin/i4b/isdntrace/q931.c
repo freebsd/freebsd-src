@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	q931.c - print Q.931 traces
  *	---------------------------
  *
- *	$Id: q931.c,v 1.10 2000/02/14 16:25:22 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Feb 14 14:51:13 2000]
+ *      last edit-date: [Mon Dec 10 10:32:33 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -624,6 +622,16 @@ decode_q931(char *pbuf, int n, int off, unsigned char *buf, int raw)
 						break;
 					case 0x2c:
 						sprintf((pbuf+strlen(pbuf)), "[keypad: ");
+						i++;
+						len = buf[i];
+						i++;
+						for(j = 0; j < len; j++)
+						{
+							sprintf((pbuf+strlen(pbuf)),"%c", buf[j+i]);
+						}
+						sprintf((pbuf+strlen(pbuf)),"]");
+						i += j;
+						goto next;
 						break;
 					case 0x30:
 						sprintf((pbuf+strlen(pbuf)), "[keypad echo: ");
