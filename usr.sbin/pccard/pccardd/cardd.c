@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: cardd.c,v 1.28 1998/03/02 19:00:01 guido Exp $";
+	"$Id: cardd.c,v 1.29 1998/03/02 20:51:06 guido Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -38,12 +38,12 @@ static const char rcsid[] =
 #include "cardd.h"
 
 static struct card_config *assign_driver(struct card *);
-static int     assign_io(struct slot *);
-static int     setup_slot(struct slot *);
-static void    card_inserted(struct slot *);
-static void    card_removed(struct slot *);
-static void    pr_cmd(struct cmd *);
-static void    read_ether(struct slot *);
+static int		 assign_io(struct slot *);
+static int		 setup_slot(struct slot *);
+static void		 card_inserted(struct slot *);
+static void		 card_removed(struct slot *);
+static void		 pr_cmd(struct cmd *);
+static void		 read_ether(struct slot *);
 
 /*
  *	Dump configuration file data.
@@ -84,13 +84,14 @@ pr_cmd(struct cmd *cp)
  *	readslots - read all the PCMCIA slots, and build
  *	a list of the slots.
  */
-void
+struct slot *
 readslots(void)
 {
 	char    name[128];
 	int     i, fd;
-	struct slot *sp;
+	struct slot *slots, *sp;
 
+	slots = NULL;
 	for (i = 0; i < MAXSLOT; i++) {
 		sprintf(name, CARD_DEVICE, i);
 		fd = open(name, 2);
@@ -126,6 +127,7 @@ readslots(void)
 		slots = sp;
 		slot_change(sp);
 	}
+	return (slots);
 }
 
 /*
@@ -137,7 +139,6 @@ slot_change(struct slot *sp)
 {
 	struct slotstate state;
 
-	current_slot = sp;
 	if (ioctl(sp->fd, PIOCGSTATE, &state)) {
 		logerr("ioctl (PIOCGSTATE)");
 		return;
@@ -192,7 +193,7 @@ card_removed(struct slot *sp)
 		sp->config->driver->inuse = 0;
 	}
 	if ((cp = sp->card) != 0)
-		execute(cp->remove);
+		execute(cp->remove, sp);
 	sp->cis = 0;
 	sp->config = 0;
 	/* release io */
@@ -240,11 +241,8 @@ card_inserted(struct slot *sp)
 	}
 	if (cp->ether)
 		read_ether(sp);
-	sp->config = assign_driver(cp);
-	if (sp->config == 0) {
-		execute(cp->insert);
+	if ((sp->config = assign_driver(cp)) == NULL) 
 		return;
-	}
 	if (assign_io(sp)) {
 		logmsg("Resource allocation failure for %s", sp->cis->manuf);
 		return;
@@ -256,7 +254,7 @@ card_inserted(struct slot *sp)
 	 * windows, and then attach the driver.
 	 */
 	if (setup_slot(sp))
-		execute(cp->insert);
+		execute(cp->insert, sp);
 #if 0
 	else
 		reset_slot(sp);
@@ -316,7 +314,7 @@ assign_driver(struct card *cp)
 			break;
 	if (conf == 0) {
 		logmsg("No free configuration for card %s", cp->manuf);
-		return (0);
+		return (NULL);
 	}
 	/*
 	 * Now we have a free driver and a matching configuration.
@@ -328,7 +326,7 @@ assign_driver(struct card *cp)
 	/* If none available, then we can't use this card. */
 	if (drvp->inuse) {
 		logmsg("Driver already being used for %s", cp->manuf);
-		return (0);
+		return (NULL);
 	}
 	/* Allocate a free IRQ if none has been specified */
 	if (conf->irq == 0) {
@@ -341,7 +339,7 @@ assign_driver(struct card *cp)
 			}
 		if (conf->irq == 0) {
 			logmsg("Failed to allocate IRQ for %s\n", cp->manuf);
-			return (0);
+			return (NULL);
 		}
 	}
 	drvp->card = cp;

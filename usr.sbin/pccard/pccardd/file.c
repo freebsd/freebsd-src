@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: file.c,v 1.12 1997/10/06 11:36:06 charnier Exp $";
+	"$Id: file.c,v 1.13 1997/11/19 02:31:40 nate Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -272,8 +272,7 @@ new_driver(char *name)
 			break;
 		}
 #ifdef	DEBUG
-	if (verbose)
-		printf("Drv %s%d created\n", drvp->kernel, drvp->unit);
+	printf("Drv %s%d created\n", drvp->kernel, drvp->unit);
 #endif
 	return (drvp);
 }

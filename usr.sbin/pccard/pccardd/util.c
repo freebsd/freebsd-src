@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: util.c,v 1.10 1997/10/06 11:36:08 charnier Exp $";
+	"$Id: util.c,v 1.11 1997/11/19 02:31:41 nate Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -222,7 +222,7 @@ reset_slot(struct slot *sp)
  *	substitutions.
  */
 void
-execute(struct cmd *cmdp)
+execute(struct cmd *cmdp, struct slot *sp)
 {
 	char    cmd[1024];
 	char   *p, *cp, *lp;
@@ -239,12 +239,12 @@ execute(struct cmd *cmdp)
 			/* stringify ethernet address and place here. */
 			if (strncmp(p, "$ether", 6) == 0) {
 				sprintf(cp, "%x:%x:%x:%x:%x:%x",
-				    current_slot->eaddr[0],
-				    current_slot->eaddr[1],
-				    current_slot->eaddr[2],
-				    current_slot->eaddr[3],
-				    current_slot->eaddr[4],
-				    current_slot->eaddr[5]);
+				    sp->eaddr[0],
+				    sp->eaddr[1],
+				    sp->eaddr[2],
+				    sp->eaddr[3],
+				    sp->eaddr[4],
+				    sp->eaddr[5]);
 				while (*++cp)
 					continue;
 				lp += 6;
@@ -252,8 +252,8 @@ execute(struct cmd *cmdp)
 				/* replace device name */
 				if (strncmp(p, "$device", 7) == 0) {
 					sprintf(cp, "%s%d",
-					    current_slot->config->driver->kernel,
-					    current_slot->config->driver->unit);
+					    sp->config->driver->kernel,
+					    sp->config->driver->unit);
 					while (*cp)
 						cp++;
 					lp += 7;
