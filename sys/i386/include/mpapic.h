@@ -34,7 +34,7 @@
 
 /* number of busses */
 #if !defined(NBUS)
-# define NBUS		4
+# define NBUS		8
 #endif /* NBUS */
 
 /* total number of APIC INTs, including SHARED INTs */
