@@ -191,3 +191,7 @@ int pcic_suspend(device_t dev);
 int pcic_resume(device_t dev);
 int pcic_enable_socket(device_t dev, device_t child);
 int pcic_disable_socket(device_t dev, device_t child);
+int pcic_set_res_flags(device_t dev, device_t child, int type, int rid, 
+    u_int32_t flags);
+int pcic_set_memory_offset(device_t dev, device_t child, int rid,
+    u_int32_t offset);
