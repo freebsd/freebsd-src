@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp.c	8.1 (Berkeley) 7/19/93
- * $Id: igmp.c,v 1.10 1995/05/16 01:28:29 davidg Exp $
+ * $Id: igmp.c,v 1.12 1995/06/13 17:51:05 wollman Exp $
  */
 
 /*
@@ -53,8 +53,7 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/protosw.h>
-#include <sys/proc.h>		/* XXX needed for sysctl.h */
-#include <vm/vm.h>		/* XXX needed for sysctl.h */
+#include <sys/kernel.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>
@@ -69,6 +68,9 @@
 #include <netinet/igmp_var.h>
 
 struct igmpstat igmpstat;
+
+SYSCTL_STRUCT(_net_inet_igmp, IGMPCTL_STATS, stats, CTLFLAG_RD,
+	&igmpstat, igmpstat, "");
 
 static int igmp_timers_are_running;
 static u_long igmp_all_hosts_group;
@@ -607,21 +609,4 @@ igmp_sendleave(inm)
 	struct in_multi *inm;
 {
 	igmp_sendpkt(inm, IGMP_HOST_LEAVE_MESSAGE);
-}
-
-int
-igmp_sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp,
-	    void *newp, size_t newlen)
-{
-	/* All sysctl names at this level are terminal. */
-	if (namelen != 1)
-		return ENOTDIR;	/* XXX overloaded */
-
-	switch(name[0]) {
-	case IGMPCTL_STATS:
-		return sysctl_rdstruct(oldp, oldlenp, newp, &igmpstat, 
-				       sizeof igmpstat);
-	default:
-		return ENOPROTOOPT;
-	}
 }

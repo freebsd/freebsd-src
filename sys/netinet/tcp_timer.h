@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_timer.h	8.1 (Berkeley) 6/10/93
- * $Id: tcp_timer.h,v 1.5 1995/02/08 20:18:47 wollman Exp $
+ * $Id: tcp_timer.h,v 1.6 1995/02/14 02:35:18 wollman Exp $
  */
 
 #ifndef _NETINET_TCP_TIMER_H_
@@ -110,7 +110,7 @@
 #define	TCP_MAXRXTSHIFT	12			/* maximum retransmits */
 
 #ifdef	TCPTIMERS
-char *tcptimers[] =
+static char *tcptimers[] =
     { "REXMT", "PERSIST", "KEEP", "2MSL" };
 #endif
 

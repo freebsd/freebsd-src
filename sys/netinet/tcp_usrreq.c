@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- *	$Id: tcp_usrreq.c,v 1.18 1995/11/03 22:08:11 olah Exp $
+ *	$Id: tcp_usrreq.c,v 1.19 1995/11/09 20:23:09 phk Exp $
  */
 
 #include <sys/param.h>
@@ -71,6 +71,12 @@
  */
 extern	char *tcpstates[];
 
+static int	tcp_attach __P((struct socket *));
+static int	tcp_connect __P((struct tcpcb *, struct mbuf *));
+static struct tcpcb *
+		tcp_disconnect __P((struct tcpcb *));
+static struct tcpcb *
+		tcp_usrclosed __P((struct tcpcb *));
 /*
  * Process a TCP user request for TCP tb.  If this is a send request
  * then m is the mbuf chain of send data.  If this is a timer expiration
@@ -396,7 +402,7 @@ tcp_usrreq(so, req, m, nam, control)
  * truncate the previous TIME-WAIT state and proceed.
  * Initialize connection parameters and enter SYN-SENT state.
  */
-int
+static int
 tcp_connect(tp, nam)
 	register struct tcpcb *tp;
 	struct mbuf *nam;
@@ -603,7 +609,7 @@ SYSCTL_INT(_net_inet_tcp, TCPCTL_RECVSPACE, recvspace,
  * internet protocol control block, tcp control block,
  * bufer space, and entering LISTEN state if to accept connections.
  */
-int
+static int
 tcp_attach(so)
 	struct socket *so;
 {
@@ -641,7 +647,7 @@ tcp_attach(so)
  * current input data; switch states based on user close, and
  * send segment to peer (with FIN).
  */
-struct tcpcb *
+static struct tcpcb *
 tcp_disconnect(tp)
 	register struct tcpcb *tp;
 {
@@ -671,7 +677,7 @@ tcp_disconnect(tp)
  * for peer to send FIN or not respond to keep-alives, etc.
  * We can let the user exit from the close as soon as the FIN is acked.
  */
-struct tcpcb *
+static struct tcpcb *
 tcp_usrclosed(tp)
 	register struct tcpcb *tp;
 {
@@ -706,51 +712,3 @@ tcp_usrclosed(tp)
 	return (tp);
 }
 
-/*
- * Sysctl for tcp variables.
- */
-int
-tcp_sysctl(name, namelen, oldp, oldlenp, newp, newlen)
-	int *name;
-	u_int namelen;
-	void *oldp;
-	size_t *oldlenp;
-	void *newp;
-	size_t newlen;
-{
-	/* All sysctl names at this level are terminal. */
-	if (namelen != 1)
-		return (ENOTDIR);
-
-	switch (name[0]) {
-	case TCPCTL_DO_RFC1323:
-		return (sysctl_int(oldp, oldlenp, newp, newlen,
-		    &tcp_do_rfc1323));
-	case TCPCTL_DO_RFC1644:
-		return (sysctl_int(oldp, oldlenp, newp, newlen,
-		    &tcp_do_rfc1644));
-	case TCPCTL_MSSDFLT:
-		return (sysctl_int(oldp, oldlenp, newp, newlen,
-		    &tcp_mssdflt));
-	case TCPCTL_STATS:
-		return (sysctl_rdstruct(oldp, oldlenp, newp, &tcpstat,
-					sizeof tcpstat));
-	case TCPCTL_RTTDFLT:
-		return (sysctl_int(oldp, oldlenp, newp, newlen, &tcp_rttdflt));
-	case TCPCTL_KEEPIDLE:
-		return (sysctl_int(oldp, oldlenp, newp, newlen,
-				   &tcp_keepidle));
-	case TCPCTL_KEEPINTVL:
-		return (sysctl_int(oldp, oldlenp, newp, newlen,
-				   &tcp_keepintvl));
-	case TCPCTL_SENDSPACE:
-		return (sysctl_int(oldp, oldlenp, newp, newlen,
-				   (int *)&tcp_sendspace)); /* XXX */
-	case TCPCTL_RECVSPACE:
-		return (sysctl_int(oldp, oldlenp, newp, newlen,
-				   (int *)&tcp_recvspace)); /* XXX */
-	default:
-		return (ENOPROTOOPT);
-	}
-	/* NOTREACHED */
-}

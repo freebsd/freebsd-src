@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id: in_pcb.c,v 1.13 1995/09/21 17:55:49 wollman Exp $
+ *	$Id: in_pcb.c,v 1.14 1995/10/29 15:32:25 phk Exp $
  */
 
 #include <sys/param.h>
@@ -58,6 +58,9 @@
 #include <netinet/ip_var.h>
 
 struct	in_addr zeroin_addr;
+
+static void	 in_pcbinshash __P((struct inpcb *));
+static void	 in_rtchange __P((struct inpcb *, int));
 
 int
 in_pcballoc(so, pcbinfo)
@@ -484,7 +487,7 @@ in_losing(inp)
  * After a routing change, flush old routing
  * and allocate a (hopefully) better one.
  */
-void
+static void
 in_rtchange(inp, errno)
 	register struct inpcb *inp;
 	int errno;
@@ -593,7 +596,7 @@ in_pcblookuphash(pcbinfo, faddr, fport_arg, laddr, lport_arg)
 /*
  * Insert PCB into hash chain. Must be called at splnet.
  */
-void
+static void
 in_pcbinshash(inp)
 	struct inpcb *inp;
 {

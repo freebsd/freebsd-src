@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.4 (Berkeley) 1/9/95
- *	$Id: in.c,v 1.16 1995/09/21 17:50:43 wollman Exp $
+ *	$Id: in.c,v 1.17 1995/10/29 15:32:21 phk Exp $
  */
 
 #include <sys/param.h>
@@ -65,10 +65,15 @@ struct multi_kludge {
 	struct in_multihead mk_head;
 };
 
+static u_long	in_netof __P((struct in_addr));
+static void	in_socktrim __P((struct sockaddr_in *));
+static int	in_ifinit __P((struct ifnet *,
+	    struct in_ifaddr *, struct sockaddr_in *, int));
+static void	in_ifscrub __P((struct ifnet *, struct in_ifaddr *));
 /*
  * Return the network number from an internet address.
  */
-u_long
+static u_long
 in_netof(in)
 	struct in_addr in;
 {
@@ -151,7 +156,7 @@ in_canforward(in)
 /*
  * Trim a mask in a sockaddr
  */
-void
+static void
 in_socktrim(ap)
 struct sockaddr_in *ap;
 {
@@ -452,7 +457,7 @@ in_control(so, cmd, data, ifp)
 /*
  * Delete any existing route for an interface.
  */
-void
+static void
 in_ifscrub(ifp, ia)
 	register struct ifnet *ifp;
 	register struct in_ifaddr *ia;
@@ -471,7 +476,7 @@ in_ifscrub(ifp, ia)
  * Initialize an interface's internet address
  * and routing table entry.
  */
-int
+static int
 in_ifinit(ifp, ia, sin, scrub)
 	register struct ifnet *ifp;
 	register struct in_ifaddr *ia;

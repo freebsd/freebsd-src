@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.22 1995/09/21 19:59:43 wollman Exp $
+ *	$Id: raw_ip.c,v 1.23 1995/10/21 02:12:20 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -292,8 +292,8 @@ rip_ctloutput(op, so, level, optname, m)
 	return (ip_ctloutput(op, so, level, optname, m));
 }
 
-u_long	rip_sendspace = RIPSNDQ;
-u_long	rip_recvspace = RIPRCVQ;
+static u_long	rip_sendspace = RIPSNDQ; /* XXX sysctl ? */
+static u_long	rip_recvspace = RIPRCVQ; /* XXX sysctl ? */
 
 /*ARGSUSED*/
 int
