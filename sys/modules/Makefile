@@ -101,6 +101,7 @@ SUBDIR=	3dfx \
 # XXX some of these can move to the general case when de-i386'ed
 .if ${MACHINE_ARCH} == "i386"
 SUBDIR+=aac \
+	acpi \
 	aic \
 	ar \
 	asr \
