@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exsystem - Interface to OS services
- *              $Revision: 62 $
+ *              $Revision: 64 $
  *
  *****************************************************************************/
 
@@ -167,7 +167,7 @@ AcpiExSystemWaitSemaphore (
         Status = AcpiOsWaitSemaphore (Semaphore, 1, Timeout);
 
         DEBUG_PRINT (TRACE_EXEC, ("*** Thread awake after blocking, %s\n",
-            AcpiUtFormatException (Status)));
+            AcpiFormatException (Status)));
 
         /* Reacquire the interpreter */
 
@@ -207,7 +207,7 @@ AcpiExSystemDoStall (
 
         AcpiExExitInterpreter ();
 
-        AcpiOsSleepUsec (HowLong);
+        AcpiOsStall (HowLong);
 
         /* And now we must get the interpreter again */
 
@@ -216,7 +216,7 @@ AcpiExSystemDoStall (
 
     else
     {
-        AcpiOsSleepUsec (HowLong);
+        AcpiOsSleep (0, (HowLong / 1000) + 1);
     }
 }
 

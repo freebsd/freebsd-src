@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsutils - Utilities for the resource manager
- *              $Revision: 19 $
+ *              $Revision: 20 $
  *
  ******************************************************************************/
 
@@ -447,7 +447,7 @@ AcpiRsSetSrsMethodData (
     /*
      * Allocate the buffer needed
      */
-    ByteStream = AcpiUtCallocate(BufferSizeNeeded);
+    ByteStream = ACPI_MEM_CALLOCATE (BufferSizeNeeded);
     if (NULL == ByteStream)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
@@ -491,7 +491,7 @@ AcpiRsSetSrsMethodData (
      */
 Cleanup:
 
-    AcpiUtFree (ByteStream);
+    ACPI_MEM_FREE (ByteStream);
     return_ACPI_STATUS (Status);
 }
 

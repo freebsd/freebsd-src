@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: uteval - Object evaluation
- *              $Revision: 27 $
+ *              $Revision: 28 $
  *
  *****************************************************************************/
 
@@ -169,7 +169,7 @@ AcpiUtEvaluateNumericObject (
         {
             DEBUG_PRINTP (ACPI_ERROR, ("%s on %4.4s failed with status %s\n", 
                 ObjectName, &DeviceNode->Name,
-                AcpiUtFormatException (Status)));
+                AcpiFormatException (Status)));
         }
 
         return_ACPI_STATUS (Status);
@@ -254,7 +254,7 @@ AcpiUtExecute_HID (
         else
         {
             DEBUG_PRINTP (ACPI_ERROR, ("_HID on %4.4s failed %s\n",
-                &DeviceNode->Name, AcpiUtFormatException (Status)));
+                &DeviceNode->Name, AcpiFormatException (Status)));
         }
 
         return_ACPI_STATUS (Status);
@@ -351,7 +351,7 @@ AcpiUtExecute_UID (
         {
             DEBUG_PRINTP (ACPI_ERROR,
                 ("_UID on %4.4s failed %s\n",
-                &DeviceNode->Name, AcpiUtFormatException (Status)));
+                &DeviceNode->Name, AcpiFormatException (Status)));
         }
 
         return (Status);
@@ -450,7 +450,7 @@ AcpiUtExecute_STA (
     {
         DEBUG_PRINTP (ACPI_ERROR, ("_STA on %4.4s failed %s\n",
             &DeviceNode->Name,
-            AcpiUtFormatException (Status)));
+            AcpiFormatException (Status)));
     }
 
     else /* success */

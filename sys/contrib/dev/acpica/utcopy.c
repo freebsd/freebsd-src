@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utcopy - Internal to external object translation utilities
- *              $Revision: 74 $
+ *              $Revision: 76 $
  *
  *****************************************************************************/
 
@@ -527,6 +527,9 @@ AcpiUtCopyEsimpleToIsimple (
 
     InternalObject->Common.Type = (UINT8) ExternalObject->Type;
 
+    /*
+     * Simple types supported are: String, Buffer, Integer
+     */
     switch (ExternalObject->Type)
     {
 
@@ -545,15 +548,15 @@ AcpiUtCopyEsimpleToIsimple (
 
 
     case ACPI_TYPE_INTEGER:
-        /*
-         * Number is included in the object itself
-         */
+
         InternalObject->Integer.Value   = ExternalObject->Integer.Value;
         break;
 
-
     default:
-        return_ACPI_STATUS (AE_CTRL_RETURN_VALUE);
+        /*
+         * Whatever other type -- it is not supported
+         */
+        return_ACPI_STATUS (AE_SUPPORT);
         break;
     }
 
@@ -815,7 +818,7 @@ AcpiUtCopyIpackageToIpackage (
      * Create the object array and walk the source package tree
      */
 
-    DestObj->Package.Elements = AcpiUtCallocate ((SourceObj->Package.Count + 1) *
+    DestObj->Package.Elements = ACPI_MEM_CALLOCATE ((SourceObj->Package.Count + 1) *
                                                     sizeof (void *));
     DestObj->Package.NextElement = DestObj->Package.Elements;
 

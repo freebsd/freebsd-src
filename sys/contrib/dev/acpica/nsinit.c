@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsinit - namespace initialization
- *              $Revision: 25 $
+ *              $Revision: 28 $
  *
  *****************************************************************************/
 
@@ -120,6 +120,7 @@
 #include "acpi.h"
 #include "acnamesp.h"
 #include "acdispat.h"
+#include "acinterp.h"
 
 #define _COMPONENT          ACPI_NAMESPACE
         MODULE_NAME         ("nsinit")
@@ -281,6 +282,22 @@ AcpiNsInitOneObject (
         return (AE_OK);
     }
 
+    if ((Type != ACPI_TYPE_REGION) &&
+        (Type != ACPI_TYPE_BUFFER_FIELD))
+    {
+        return (AE_OK);
+    }
+
+
+    /*
+     * Must lock the interpreter before executing AML code
+     */
+    Status = AcpiExEnterInterpreter ();
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
     switch (Type)
     {
 
@@ -299,7 +316,7 @@ AcpiNsInitOneObject (
             DEBUG_PRINT_RAW (ACPI_ERROR, ("\n"));
             DEBUG_PRINT (ACPI_ERROR,
                     ("%s while getting region arguments [%4.4s]\n",
-                    AcpiUtFormatException (Status), &Node->Name));
+                    AcpiFormatException (Status), &Node->Name));
         }
 
         if (!(AcpiDbgLevel & TRACE_INIT))
@@ -325,7 +342,7 @@ AcpiNsInitOneObject (
             DEBUG_PRINT_RAW (ACPI_ERROR, ("\n"));
             DEBUG_PRINT (ACPI_ERROR,
                     ("%s while getting buffer field arguments [%4.4s]\n",
-                    AcpiUtFormatException (Status), &Node->Name));
+                    AcpiFormatException (Status), &Node->Name));
         }
         if (!(AcpiDbgLevel & TRACE_INIT))
         {
@@ -339,10 +356,12 @@ AcpiNsInitOneObject (
         break;
     }
 
+
     /*
      * We ignore errors from above, and always return OK, since
      * we don't want to abort the walk on a single error.
      */
+    AcpiExExitInterpreter ();
     return (AE_OK);
 }
 
@@ -438,9 +457,9 @@ AcpiNsInitOneDevice (
         NATIVE_CHAR *ScopeName = AcpiNsGetTablePathname (ObjHandle);
 
         DEBUG_PRINTP (ACPI_WARN, ("%s._INI failed: %s\n",
-                ScopeName, AcpiUtFormatException (Status)));
+                ScopeName, AcpiFormatException (Status)));
 
-        AcpiUtFree (ScopeName);
+        ACPI_MEM_FREE (ScopeName);
 #endif
     }
 

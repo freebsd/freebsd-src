@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exstorob - AML Interpreter object store support, store to object
- *              $Revision: 32 $
+ *              $Revision: 33 $
  *
  *****************************************************************************/
 
@@ -164,7 +164,7 @@ AcpiExCopyBufferToBuffer (
      */
     if (TargetDesc->Buffer.Length == 0)
     {
-        TargetDesc->Buffer.Pointer = AcpiUtAllocate (Length);
+        TargetDesc->Buffer.Pointer = ACPI_MEM_ALLOCATE (Length);
         if (!TargetDesc->Buffer.Pointer)
         {
             return (AE_NO_MEMORY);
@@ -181,8 +181,8 @@ AcpiExCopyBufferToBuffer (
     {
         /* Clear existing buffer and copy in the new one */
 
-        MEMSET(TargetDesc->Buffer.Pointer, 0, TargetDesc->Buffer.Length);
-        MEMCPY(TargetDesc->Buffer.Pointer, Buffer, Length);
+        MEMSET (TargetDesc->Buffer.Pointer, 0, TargetDesc->Buffer.Length);
+        MEMCPY (TargetDesc->Buffer.Pointer, Buffer, Length);
     }
 
     else
@@ -190,7 +190,7 @@ AcpiExCopyBufferToBuffer (
         /*
          * Truncate the source, copy only what will fit
          */
-        MEMCPY(TargetDesc->Buffer.Pointer, Buffer, TargetDesc->Buffer.Length);
+        MEMCPY (TargetDesc->Buffer.Pointer, Buffer, TargetDesc->Buffer.Length);
 
         DEBUG_PRINT (ACPI_INFO,
             ("ExCopyBufferToBuffer: Truncating src buffer from %X to %X\n",
@@ -236,8 +236,8 @@ AcpiExCopyStringToString (
     {
         /* Clear old string and copy in the new one */
 
-        MEMSET(TargetDesc->String.Pointer, 0, TargetDesc->String.Length);
-        MEMCPY(TargetDesc->String.Pointer, Buffer, Length);
+        MEMSET (TargetDesc->String.Pointer, 0, TargetDesc->String.Length);
+        MEMCPY (TargetDesc->String.Pointer, Buffer, Length);
     }
 
     else
@@ -252,10 +252,10 @@ AcpiExCopyStringToString (
             /*
              * Only free if not a pointer into the DSDT
              */
-            AcpiUtFree(TargetDesc->String.Pointer);
+            ACPI_MEM_FREE (TargetDesc->String.Pointer);
         }
 
-        TargetDesc->String.Pointer = AcpiUtAllocate (Length + 1);
+        TargetDesc->String.Pointer = ACPI_MEM_ALLOCATE (Length + 1);
         if (!TargetDesc->String.Pointer)
         {
             return (AE_NO_MEMORY);
@@ -263,7 +263,7 @@ AcpiExCopyStringToString (
         TargetDesc->String.Length = Length;
 
 
-        MEMCPY(TargetDesc->String.Pointer, Buffer, Length);
+        MEMCPY (TargetDesc->String.Pointer, Buffer, Length);
     }
 
     return (AE_OK);

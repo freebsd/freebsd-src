@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rscreate - Create resource lists/tables
- *              $Revision: 33 $
+ *              $Revision: 34 $
  *
  ******************************************************************************/
 
@@ -516,7 +516,7 @@ AcpiRsCreateByteStream (
                 &ByteStreamSizeNeeded);
 
     DEBUG_PRINTP (VERBOSE_INFO, ("ByteStreamSizeNeeded=%X, %s\n",
-        ByteStreamSizeNeeded, AcpiUtFormatException (Status)));
+        ByteStreamSizeNeeded, AcpiFormatException (Status)));
 
     /*
      * Exit with the error passed back
