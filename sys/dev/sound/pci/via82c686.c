@@ -41,7 +41,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define SEGS_PER_CHAN	(NSEGS/2)
 
 #define TIMEOUT	50
-#define	VIA_BUFFSIZE	0x1000
+#define	VIA_DEFAULT_BUFSZ	0x1000
 
 #undef DEB
 #define DEB(x)
@@ -78,6 +78,8 @@ struct via_info {
 	int regid, irqid;
 	void *ih;
 	struct ac97_info *codec;
+
+	unsigned int bufsz;
 
 	struct via_chinfo pch, rch;
 	struct via_dma_op *sgd_table;
@@ -257,7 +259,7 @@ viachan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 		ch->mode = VIA_RECORD_MODE;
 	}
 
-	if (sndbuf_alloc(ch->buffer, via->parent_dmat, VIA_BUFFSIZE) == -1)
+	if (sndbuf_alloc(ch->buffer, via->parent_dmat, via->bufsz) == -1)
 		return NULL;
 	return ch;
 }
@@ -473,6 +475,8 @@ via_attach(device_t dev)
 	via->st = rman_get_bustag(via->reg);
 	via->sh = rman_get_bushandle(via->reg);
 
+	via->bufsz = pcm_getbuffersize(dev, 4096, VIA_DEFAULT_BUFSZ, 65536);
+
 	via->irqid = 0;
 	via->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &via->irqid, 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
 	if (!via->irq || snd_setup_intr(dev, via->irq, 0, via_intr, via, &via->ih)) {
@@ -498,7 +502,7 @@ via_attach(device_t dev)
 		/*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
 		/*highaddr*/BUS_SPACE_MAXADDR,
 		/*filter*/NULL, /*filterarg*/NULL,
-		/*maxsize*/VIA_BUFFSIZE, /*nsegments*/1, /*maxsegz*/0x3ffff,
+		/*maxsize*/via->bufsz, /*nsegments*/1, /*maxsegz*/0x3ffff,
 		/*flags*/0, &via->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto bad;

@@ -84,7 +84,7 @@ SYSCTL_INT(_debug, OID_AUTO, es_debug, CTLFLAG_RW, &debug, 0, "");
 #define CT5880REV_CT5880_C  0x02
 #define CT5880REV_CT5880_D  0x03
 
-#define ES_BUFFSIZE 4096
+#define ES_DEFAULT_BUFSZ 4096
 
 /* device private data */
 struct es_info;
@@ -108,6 +108,8 @@ struct es_info {
 
 	device_t dev;
 	int num;
+	unsigned int bufsz;
+
 	/* Contents of board's registers */
 	u_long		ctrl;
 	u_long		sctrl;
@@ -265,7 +267,7 @@ eschan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c
 	ch->parent = es;
 	ch->channel = c;
 	ch->buffer = b;
-	ch->bufsz = ES_BUFFSIZE;
+	ch->bufsz = es->bufsz;
 	ch->blksz = ch->bufsz / 2;
 	ch->num = ch->parent->num++;
 	if (sndbuf_alloc(ch->buffer, es->parent_dmat, ch->bufsz) == -1) return NULL;
@@ -856,6 +858,8 @@ es_pci_attach(device_t dev)
 		goto bad;
 	}
 
+	es->bufsz = pcm_getbuffersize(dev, 4096, ES_DEFAULT_BUFSZ, 65536);
+
 	if (pci_get_devid(dev) == ES1371_PCI_ID ||
 	    pci_get_devid(dev) == ES1371_PCI_ID2 ||
 	    pci_get_devid(dev) == CT5880_PCI_ID) {
@@ -891,7 +895,7 @@ es_pci_attach(device_t dev)
 		/*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
 		/*highaddr*/BUS_SPACE_MAXADDR,
 		/*filter*/NULL, /*filterarg*/NULL,
-		/*maxsize*/ES_BUFFSIZE, /*nsegments*/1, /*maxsegz*/0x3ffff,
+		/*maxsize*/es->bufsz, /*nsegments*/1, /*maxsegz*/0x3ffff,
 		/*flags*/0, &es->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto bad;
