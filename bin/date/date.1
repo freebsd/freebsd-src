@@ -118,11 +118,10 @@ Print the date and time represented by
 where
 .Ar seconds
 is the number of seconds since the Epoch
-.Po
-00:00:00 UTC, January 1, 1970;
+(00:00:00 UTC, January 1, 1970;
 see
-.Xr time 3
-.Pc .
+.Xr time 3 ) ,
+and can be specified in decimal, octal, or hex.
 .It Fl t Ar minutes_west
 Set the system's value for minutes west of
 .Tn GMT .
@@ -195,7 +194,9 @@ the clock goes back at 02:00 to 01:00, using
 will be necessary to reach October 29, 2:30.
 .Pp
 When the date is adjusted to a specific value that doesn't actually exist
-.Pq for example March 26, 1:30 BST 2000 in the Europe/London timezone ,
+.Po
+for example March 26, 1:30 BST 2000 in the Europe/London timezone
+.Pc ,
 the date will be silently adjusted forwards in units of one hour until it
 reaches a valid time.
 When the date is adjusted to a specific value that occurs twice
