@@ -558,33 +558,12 @@ as in the
 .Qq mutlicastclient
 configuration option with default address.
 The default for this flag is disable.
-.It pll
-Enables
-the server to adjust its local clock by means of NTP.
-If disabled,
-the local clock free-runs at its intrinsic time and frequency
-offset.
-This flag is useful in case the local clock is controlled by
-some other device or protocol and
-NTP is used only to provide
-synchronization to other clients.
-In this case, the local clock driver is used.
-See the
-.Qo
-Reference Clock Drivers
-.Qc
-page
-(available as part of the HTML documentation
-provided in
-.Pa /usr/share/doc/ntp )
-for further information.
-The default for this flag is enable.
 .It monitor
 Enables the monitoring facility for the
 .Ic monlist
 command.
 The default for this flag is enable.
-.Ic pll
+.It pll
 Enables the server to adjust its local clock by means of NTP.
 If disabled,
 the local clock free-runs at its intrinsic time and frequency offset.
@@ -597,9 +576,13 @@ See the
 .Qo
 Reference Clock Drivers
 .Qc
-page for further information.
+page
+(available as part of the HTML documentation
+provided in
+.Pa /usr/share/doc/ntp )
+for further information.
 The default for this flag is enable.
-.Ic pps
+.It pps
 Enables the pulse-per-second (PPS) signal
 when frequency and time is disciplined
 by the precision time kernel modifications.
@@ -610,7 +593,7 @@ A Kernel Model for Precision Timekeeping
 page
 for further information.
 The default for this flag is disable.
-.Ic stats
+.It stats
 Enables the statistics facility.
 See the
 .Qq Monitoring Support
@@ -619,11 +602,11 @@ section of the
 page
 for further information.
 The default for this flag is enable.
-.Ic pll_kernel
+.It pll_kernel
 When the precision time kernel modifications are installed,
 this indicates the kernel controls the clock discipline;
 otherwise, the daemon controls the clock discipline.
-.Ic pps_kernel
+.It pps_kernel
 When the precision time kernel modifications are installed
 and a pulse-per-second (PPS) signal is available,
 this indicates the PPS signal controls the clock discipline;
