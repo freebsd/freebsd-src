@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.52 1999/06/27 18:05:34 sheldonh Exp $";
+	"$Id: inetd.c,v 1.53 1999/06/28 09:28:17 sheldonh Exp $";
 #endif /* not lint */
 
 /*
@@ -404,7 +404,8 @@ main(argc, argv, envp)
 		case '?':
 		default:
 			syslog(LOG_ERR,
-				"usage: inetd [-dlw] [-a address] [-R rate]"
+				"usage: inetd [-dl] [-w [-w]] [-a address]"
+				" [-R rate]"
 				" [-c maximum] [-C rate]"
 				" [-p pidfile] [conf-file]");
 			exit(EX_USAGE);
