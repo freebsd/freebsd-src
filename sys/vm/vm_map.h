@@ -128,7 +128,14 @@ struct vm_map_entry {
 
 #define MAP_ENTRY_BEHAV_MASK		0x00C0
 
+#define MAP_ENTRY_IN_TRANSITION		0x0100	/* entry being changed */
+#define MAP_ENTRY_NEEDS_WAKEUP		0x0200	/* waiter's in transition */
 #define MAP_ENTRY_NOCOREDUMP		0x0400	/* don't include in a core */
+
+/*
+ * flags for vm_map_[un]clip_range()
+ */
+#define MAP_CLIP_NO_HOLES		0x0001
 
 static __inline u_char   
 vm_map_entry_behavior(struct vm_map_entry *entry)

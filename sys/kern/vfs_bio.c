@@ -442,11 +442,13 @@ bfreekva(struct buf * bp)
 {
 	if (bp->b_kvasize) {
 		++buffreekvacnt;
+		vm_map_lock(buffer_map);
 		bufspace -= bp->b_kvasize;
 		vm_map_delete(buffer_map,
 		    (vm_offset_t) bp->b_kvabase,
 		    (vm_offset_t) bp->b_kvabase + bp->b_kvasize
 		);
+		vm_map_unlock(buffer_map);
 		bp->b_kvasize = 0;
 		bufspacewakeup();
 	}
@@ -1740,12 +1742,15 @@ restart:
 
 			bfreekva(bp);
 
+			vm_map_lock(buffer_map);
+
 			if (vm_map_findspace(buffer_map,
 				vm_map_min(buffer_map), maxsize, &addr)) {
 				/*
 				 * Uh oh.  Buffer map is to fragmented.  We
 				 * must defragment the map.
 				 */
+				vm_map_unlock(buffer_map);
 				++bufdefragcnt;
 				defrag = 1;
 				bp->b_flags |= B_INVAL;
@@ -1762,6 +1767,7 @@ restart:
 				bufspace += bp->b_kvasize;
 				++bufreusecnt;
 			}
+			vm_map_unlock(buffer_map);
 		}
 		bp->b_data = bp->b_kvabase;
 	}
