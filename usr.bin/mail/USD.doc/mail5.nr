@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)mail5.nr	8.1 (Berkeley) 6/8/93
+.\" $FreeBSD$
 .\"
 .bp
 .sh 1 "Additional features"
@@ -465,32 +466,32 @@ List the valid
 .i Mail
 commands.
 \fBList\fP can be abbreviated to \fBl\fP.
-.. .ip \fBlocal\fP
-.. Define a list of local names for this host. This command is useful
-.. when the host is known by more than one name. Names in the list
-.. may be qualified be the domain of the host. The first name on the local
-.. list is the
-.. .i distinguished
-.. name of the host.
-.. The names on the local list are used by
-.. .i Mail
-.. to decide which addresses are local to the host.
-.. For example:
-.. .(l
-.. local ucbarpa.BERKELEY.ARPA arpa.BERKELEY.ARPA \\
-.. 	arpavax.BERKELEY.ARPA r.BERKELEY.ARPA \\
-.. 	ucb-arpa.ARPA
-.. .)l
-.. From this list we see that
-.. .i "fred@ucbarpa.BERKELEY.ARPA",
-.. .i "harold@arpa.BERKELEY",
-.. and
-.. .i "larry@r"
-.. are all addresses of users on the local host.
-.. The
-.. .b local
-.. command is usually not used be general users since it is designed for
-.. local configuration; it is usually found in the file /etc/mail.rc.
+.\".ip \fBlocal\fP
+.\"Define a list of local names for this host. This command is useful
+.\"when the host is known by more than one name. Names in the list
+.\"may be qualified be the domain of the host. The first name on the local
+.\"list is the
+.\".i distinguished
+.\"name of the host.
+.\"The names on the local list are used by
+.\".i Mail
+.\"to decide which addresses are local to the host.
+.\"For example:
+.\".(l
+.\"local ucbarpa.BERKELEY.ARPA arpa.BERKELEY.ARPA \\
+.\"	arpavax.BERKELEY.ARPA r.BERKELEY.ARPA \\
+.\"	ucb-arpa.ARPA
+.\".)l
+.\"From this list we see that
+.\".i "fred@ucbarpa.BERKELEY.ARPA",
+.\".i "harold@arpa.BERKELEY",
+.\"and
+.\".i "larry@r"
+.\"are all addresses of users on the local host.
+.\"The
+.\".b local
+.\"command is usually not used be general users since it is designed for
+.\"local configuration; it is usually found in the file /etc/mail.rc.
 .ip "\fBmail\fP\ \ "
 Send mail to one or more people.  If you have the
 .i ask
@@ -867,7 +868,7 @@ automatically.  This is useful when quickly scanning and deleting
 messages in your mailbox.
 .ip "\fBcrt\fP \ \ "
 The valued option
-.I crt
+.q crt
 is used as a threshold to determine how long a message must
 be before
 .b PAGER
