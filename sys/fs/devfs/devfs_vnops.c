@@ -211,7 +211,7 @@ devfs_lookupx(ap)
 	struct proc *p;
 	struct devfs_dirent *de, *dd;
 	struct devfs_mount *dmp;
-	dev_t cdev;
+	dev_t cdev, *cpdev;
 	int error, cloned, i, flags, nameiop;
 	char specname[SPECNAMELEN + 1], *pname;
 
@@ -308,28 +308,20 @@ devfs_lookupx(ap)
 		de = de->de_dir;
 	}
 
-#if 0
-	printf("Finished specname: %d \"%s\"\n", i, specname + i);
-#endif
 	cdev = NODEV;
 	EVENTHANDLER_INVOKE(dev_clone, specname + i,
 	    strlen(specname + i), &cdev);
-#if 0
-	printf("cloned %s -> %p %s\n", specname + i, cdev,
-	    cdev == NODEV ? "NODEV" : cdev->si_name);
-#endif
 	if (cdev == NODEV)
 		goto notfound;
 
 	devfs_populate(dmp);
 	dd = dvp->v_data;
+
 	TAILQ_FOREACH(de, &dd->de_dlist, de_list) {
-		if (cnp->cn_namelen != de->de_dirent->d_namlen)
-			continue;
-		if (bcmp(cnp->cn_nameptr, de->de_dirent->d_name,
-		    de->de_dirent->d_namlen) != 0)
-			continue;
-		goto found;
+		cpdev = devfs_itod(de->de_inode);
+		if (cpdev != NULL && cdev == *cpdev)
+			goto found;
+		continue;
 	}
 
 notfound:
