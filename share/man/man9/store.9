@@ -46,13 +46,13 @@
 .Fd #include <sys/types.h>
 .Fd #include <sys/systm.h>
 .Ft int
-.Fn subyte "void *base"
+.Fn subyte "void *base" "int byte"
 .Ft int
-.Fn susword "void *base"
+.Fn susword "void *base" "int word"
 .Ft int
-.Fn suswintr "void *base"
+.Fn suswintr "void *base" "int word"
 .Ft int
-.Fn suword "void *base"
+.Fn suword "void *base" "int word"
 .Sh DESCRIPTION
 The
 .Nm
