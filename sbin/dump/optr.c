@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)optr.c	8.2 (Berkeley) 1/6/94";
 #endif
 static const char rcsid[] =
-	"$Id: optr.c,v 1.5 1998/06/15 06:58:11 charnier Exp $";
+	"$Id: optr.c,v 1.6 1999/03/21 23:47:38 jkh Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -484,7 +484,8 @@ lastdump(arg)
 	register struct dumpdates *dtwalk;
 	char *lastname, *date;
 	int dumpme;
-	time_t tnow, then;
+	time_t tnow;
+	struct tm *tlast;
 
 	(void) time(&tnow);
 	getfstab();		/* /etc/fstab input */
@@ -500,13 +501,17 @@ lastdump(arg)
 		if (strncmp(lastname, dtwalk->dd_name,
 		    sizeof(dtwalk->dd_name)) == 0)
 			continue;
-		then = 86400 * (dtwalk->dd_ddate / 86400); 
-		date = (char *)ctime(&then);
+		date = (char *)ctime(&dtwalk->dd_ddate);
 		date[16] = '\0';	/* blast away seconds and year */
 		lastname = dtwalk->dd_name;
 		dt = fstabsearch(dtwalk->dd_name);
-		dumpme = (dt != NULL &&
-		    dt->fs_freq != 0 && then < tnow - (dt->fs_freq * 86400));
+		dumpme = (dt != NULL && dt->fs_freq != 0);
+		if (dumpme) {
+		    tlast = localtime(&dtwalk->dd_ddate);
+		    dumpme = tnow > (dtwalk->dd_ddate - (tlast->tm_hour * 3600)
+				     - (tlast->tm_min * 60) - tlast->tm_sec
+				     + (dt->fs_freq * 86400));
+		};
 		if (arg != 'w' || dumpme)
 			(void) printf(
 			    "%c %8s\t(%6s) Last dump: Level %c, Date %s\n",
