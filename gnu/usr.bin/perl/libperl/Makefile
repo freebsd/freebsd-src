@@ -13,11 +13,16 @@ SRCS=	perl.c gv.c toke.c perly.c op.c regcomp.c dump.c util.c mg.c \
 DPADD=	${LIBM}
 LDADD=	-lm
 
+NO_PERL_SCRIPT_MAKE=	true
+
 # NOPIC=	true
 
 .include <bsd.lib.mk>
 
 build-tools:	lib${LIB}.a
+
+config.h:	links
+	@sh config_h.sh
 
 .SUFFIXES:
 
