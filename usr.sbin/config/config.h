@@ -75,7 +75,7 @@ struct file_list {
 #define ISDUP		32
 
 struct device {
-	int	d_type;			/* DEVICE, bus adaptor */
+	int	d_done;			/* processed */
 	char	*d_name;		/* name of device (e.g. rk11) */
 	int	d_count;		/* device count */
 #define QUES	-1	/* -1 means '?' */
