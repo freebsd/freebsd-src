@@ -2317,9 +2317,7 @@ elf64_alpha_relax_section (abfd, sec, link_info, again)
 
 #define MAX_GOT_SIZE		(64*1024)
 
-#ifndef ELF_DYNAMIC_INTERPRETER
 #define ELF_DYNAMIC_INTERPRETER "/usr/lib/ld.so"
-#endif
 
 /* Handle an Alpha specific section when reading an object file.  This
    is called when elfcode.h finds a section with an unknown type.
@@ -2484,6 +2482,7 @@ elf64_alpha_create_dynamic_sections (abfd, info)
 {
   asection *s;
   struct elf_link_hash_entry *h;
+  struct bfd_link_hash_entry *bh;
 
   /* We need to create .plt, .rela.plt, .got, and .rela.got sections.  */
 
@@ -2499,13 +2498,13 @@ elf64_alpha_create_dynamic_sections (abfd, info)
 
   /* Define the symbol _PROCEDURE_LINKAGE_TABLE_ at the start of the
      .plt section.  */
-  h = NULL;
+  bh = NULL;
   if (! (_bfd_generic_link_add_one_symbol
 	 (info, abfd, "_PROCEDURE_LINKAGE_TABLE_", BSF_GLOBAL, s,
 	  (bfd_vma) 0, (const char *) NULL, false,
-	  get_elf_backend_data (abfd)->collect,
-	  (struct bfd_link_hash_entry **) &h)))
+	  get_elf_backend_data (abfd)->collect, &bh)))
     return false;
+  h = (struct elf_link_hash_entry *) bh;
   h->elf_link_hash_flags |= ELF_LINK_HASH_DEF_REGULAR;
   h->type = STT_OBJECT;
 
@@ -2543,13 +2542,13 @@ elf64_alpha_create_dynamic_sections (abfd, info)
      dynobj's .got section.  We don't do this in the linker script
      because we don't want to define the symbol if we are not creating
      a global offset table.  */
-  h = NULL;
+  bh = NULL;
   if (!(_bfd_generic_link_add_one_symbol
 	(info, abfd, "_GLOBAL_OFFSET_TABLE_", BSF_GLOBAL,
 	 alpha_elf_tdata(abfd)->got, (bfd_vma) 0, (const char *) NULL,
-	 false, get_elf_backend_data (abfd)->collect,
-	 (struct bfd_link_hash_entry **) &h)))
+	 false, get_elf_backend_data (abfd)->collect, &bh)))
     return false;
+  h = (struct elf_link_hash_entry *) bh;
   h->elf_link_hash_flags |= ELF_LINK_HASH_DEF_REGULAR;
   h->type = STT_OBJECT;
 
@@ -3103,7 +3102,7 @@ elf64_alpha_check_relocs (abfd, info, sec, relocs)
 
 	case R_ALPHA_REFLONG:
 	case R_ALPHA_REFQUAD:
-	  if (info->shared || maybe_dynamic)
+	  if ((info->shared && (sec->flags & SEC_ALLOC)) || maybe_dynamic)
 	    need = NEED_DYNREL;
 	  break;
 
@@ -4580,7 +4579,7 @@ elf64_alpha_relocate_section (output_bfd, info, input_bfd, input_section,
 	      case STO_ALPHA_NOPV:
 	        break;
 	      case STO_ALPHA_STD_GPLOAD:
-		addend += 8;
+		value += 8;
 		break;
 	      default:
 		if (h != NULL)
