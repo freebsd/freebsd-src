@@ -1624,7 +1624,7 @@ vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	VM_MAP_RANGE_CHECK(map, start, end);
 	if (!vm_map_lookup_entry(map, start, &first_entry)) {
 		if (flags & VM_MAP_WIRE_HOLESOK)
-			first_entry = map->header.next;
+			first_entry = first_entry->next;
 		else {
 			vm_map_unlock(map);
 			return (KERN_INVALID_ADDRESS);
@@ -1655,16 +1655,20 @@ vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 				 */
 				if (!vm_map_lookup_entry(map, saved_start,
 				    &tmp_entry)) {
-					if (saved_start == start) {
-						/*
-						 * First_entry has been deleted.
-						 */
-						vm_map_unlock(map);
-						return (KERN_INVALID_ADDRESS);
+					if (flags & VM_MAP_WIRE_HOLESOK)
+						tmp_entry = tmp_entry->next;
+					else {
+						if (saved_start == start) {
+							/*
+							 * First_entry has been deleted.
+							 */
+							vm_map_unlock(map);
+							return (KERN_INVALID_ADDRESS);
+						}
+						end = saved_start;
+						rv = KERN_INVALID_ADDRESS;
+						goto done;
 					}
-					end = saved_start;
-					rv = KERN_INVALID_ADDRESS;
-					goto done;
 				}
 				if (entry == first_entry)
 					first_entry = tmp_entry;
@@ -1709,7 +1713,10 @@ done:
 	need_wakeup = FALSE;
 	if (first_entry == NULL) {
 		result = vm_map_lookup_entry(map, start, &first_entry);
-		KASSERT(result, ("vm_map_unwire: lookup failed"));
+		if (!result && (flags & VM_MAP_WIRE_HOLESOK))
+			first_entry = first_entry->next;
+		else
+			KASSERT(result, ("vm_map_unwire: lookup failed"));
 	}
 	entry = first_entry;
 	while (entry != &map->header && entry->start < end) {
@@ -1760,7 +1767,7 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	VM_MAP_RANGE_CHECK(map, start, end);
 	if (!vm_map_lookup_entry(map, start, &first_entry)) {
 		if (flags & VM_MAP_WIRE_HOLESOK)
-			first_entry = map->header.next;
+			first_entry = first_entry->next;
 		else {
 			vm_map_unlock(map);
 			return (KERN_INVALID_ADDRESS);
@@ -1791,16 +1798,20 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 				 */
 				if (!vm_map_lookup_entry(map, saved_start,
 				    &tmp_entry)) {
-					if (saved_start == start) {
-						/*
-						 * first_entry has been deleted.
-						 */
-						vm_map_unlock(map);
-						return (KERN_INVALID_ADDRESS);
+					if (flags & VM_MAP_WIRE_HOLESOK)
+						tmp_entry = tmp_entry->next;
+					else {
+						if (saved_start == start) {
+							/*
+							 * first_entry has been deleted.
+							 */
+							vm_map_unlock(map);
+							return (KERN_INVALID_ADDRESS);
+						}
+						end = saved_start;
+						rv = KERN_INVALID_ADDRESS;
+						goto done;
 					}
-					end = saved_start;
-					rv = KERN_INVALID_ADDRESS;
-					goto done;
 				}
 				if (entry == first_entry)
 					first_entry = tmp_entry;
@@ -1891,7 +1902,10 @@ done:
 	need_wakeup = FALSE;
 	if (first_entry == NULL) {
 		result = vm_map_lookup_entry(map, start, &first_entry);
-		KASSERT(result, ("vm_map_wire: lookup failed"));
+		if (!result && (flags & VM_MAP_WIRE_HOLESOK))
+			first_entry = first_entry->next;
+		else
+			KASSERT(result, ("vm_map_wire: lookup failed"));
 	}
 	entry = first_entry;
 	while (entry != &map->header && entry->start < end) {
