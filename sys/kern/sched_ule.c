@@ -1716,7 +1716,7 @@ sched_bind(struct thread *td, int cpu)
 	kseq_load_rem(KSEQ_CPU(ke->ke_cpu), ke);
 	kseq_notify(ke, cpu);
 	/* When we return from mi_switch we'll be on the correct cpu. */
-	mi_switch(SW_VOL);
+	mi_switch(SW_VOL, NULL);
 #endif
 }
 
