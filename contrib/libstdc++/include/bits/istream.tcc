@@ -811,8 +811,9 @@ namespace std
 	{
 	  try 
 	    {
+	      // Cannot compare int_type with streamsize generically.
 	      streamsize __num = this->rdbuf()->in_avail();
-	      if (__num > 0)
+	      if (__num >= 0)
 		{
 		  __num = min(__num, __n);
 		  if (__num)
@@ -935,23 +936,8 @@ namespace std
     tellg(void)
     {
       pos_type __ret = pos_type(-1);
-      _M_gcount = 0;
-      sentry __cerb(*this, true);
-      if (__cerb) 
-	{
-	  try 
-	    {
-	     __ret = this->rdbuf()->pubseekoff(0, ios_base::cur, ios_base::in);
-	    }
-	  catch(exception& __fail)
-	    {
-	      // 27.6.1.3 paragraph 1
-	      // Turn this on without causing an ios::failure to be thrown.
-	      this->setstate(ios_base::badbit);
-	      if ((this->exceptions() & ios_base::badbit) != 0)
-		__throw_exception_again;
-	    }
-	}
+      if (!this->fail())
+	__ret = this->rdbuf()->pubseekoff(0, ios_base::cur, ios_base::in);
       return __ret;
     }
 
@@ -962,28 +948,16 @@ namespace std
     seekg(pos_type __pos)
     {
       _M_gcount = 0;
-      sentry __cerb(*this, true);
-      if (__cerb) 
+      if (!this->fail())
 	{
-	  try 
-	    {
 #ifdef _GLIBCPP_RESOLVE_LIB_DEFECTS
 // 136.  seekp, seekg setting wrong streams?
-	      pos_type __err = this->rdbuf()->pubseekpos(__pos, ios_base::in);
+	  pos_type __err = this->rdbuf()->pubseekpos(__pos, ios_base::in);
 
 // 129. Need error indication from seekp() and seekg()
-	      if (__err == pos_type(off_type(-1)))
-		this->setstate(ios_base::failbit);
+	  if (__err == pos_type(off_type(-1)))
+	    this->setstate(ios_base::failbit);
 #endif
-	    }
-	  catch(exception& __fail)
-	    {
-	      // 27.6.1.3 paragraph 1
-	      // Turn this on without causing an ios::failure to be thrown.
-	      this->setstate(ios_base::badbit);
-	      if ((this->exceptions() & ios_base::badbit) != 0)
-		__throw_exception_again;
-	    }
 	}
       return *this;
     }
@@ -994,29 +968,17 @@ namespace std
     seekg(off_type __off, ios_base::seekdir __dir)
     {
       _M_gcount = 0;
-      sentry __cerb(*this, true);
-      if (__cerb) 
+      if (!this->fail())
 	{
-	  try 
-	    {
 #ifdef _GLIBCPP_RESOLVE_LIB_DEFECTS
 // 136.  seekp, seekg setting wrong streams?
-	      pos_type __err = this->rdbuf()->pubseekoff(__off, __dir, 
-							 ios_base::in);
+	  pos_type __err = this->rdbuf()->pubseekoff(__off, __dir, 
+						     ios_base::in);
 
 // 129. Need error indication from seekp() and seekg()
-	      if (__err == pos_type(off_type(-1)))
-		this->setstate(ios_base::failbit);
+	  if (__err == pos_type(off_type(-1)))
+	    this->setstate(ios_base::failbit);
 #endif
-	    }
-	  catch(exception& __fail)
-	    {
-	      // 27.6.1.3 paragraph 1
-	      // Turn this on without causing an ios::failure to be thrown.
-	      this->setstate(ios_base::badbit);
-	      if ((this->exceptions() & ios_base::badbit) != 0)
-		__throw_exception_again;
-	    }
 	}
       return *this;
     }
@@ -1073,13 +1035,14 @@ namespace std
 	      int_type __c = __sb->sgetc();
 	      
 	      while (__extracted < __num - 1 
-		     && __c != __eof && !__ctype.is(ctype_base::space, __c))
+		     && !_Traits::eq_int_type(__c, __eof)
+		     && !__ctype.is(ctype_base::space, __c))
 		{
 		  *__s++ = __c;
 		  ++__extracted;
 		  __c = __sb->snextc();
 		}
-	      if (__c == __eof)
+	      if (_Traits::eq_int_type(__c, __eof))
 		__in.setstate(ios_base::eofbit);
 
 #ifdef _GLIBCPP_RESOLVE_LIB_DEFECTS
@@ -1117,9 +1080,11 @@ namespace std
       __streambuf_type* __sb = __in.rdbuf();
       __int_type __c = __sb->sgetc();
 
-      while (__c != __eof && __ctype.is(ctype_base::space, __c))
+      while (!_Traits::eq_int_type(__c, __eof) 
+	     && __ctype.is(ctype_base::space, __c))
 	__c = __sb->snextc();
-      if (__c == __eof)
+
+       if (_Traits::eq_int_type(__c, __eof))
 	__in.setstate(ios_base::eofbit);
 
       return __in;
@@ -1153,13 +1118,14 @@ namespace std
 	  __int_type __c = __sb->sgetc();
 	  
 	  while (__extracted < __n 
-		 && __c != __eof && !__ctype.is(ctype_base::space, __c))
+		 && !_Traits::eq_int_type(__c, __eof)
+		 && !__ctype.is(ctype_base::space, __c))
 	    {
 	      __str += _Traits::to_char_type(__c);
 	      ++__extracted;
 	      __c = __sb->snextc();
 	    }
-	  if (__c == __eof)
+	  if (_Traits::eq_int_type(__c, __eof))
 	    __in.setstate(ios_base::eofbit);
 	  __in.width(0);
 	}
