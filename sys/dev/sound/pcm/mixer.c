@@ -282,14 +282,16 @@ sysctl_hw_snd_hwvol_mixer(SYSCTL_HANDLER_ARGS)
 		dev = mixer_lookup(devname);
 		if (dev == -1)
 			return EINVAL;
-		else
+		else if (dev != m->hwvol_mixer) {
 			m->hwvol_mixer = dev;
+			m->hwvol_muted = 0;
+		}
 	}
 	return error;
 }
 
 int
-mixer_hwinit(device_t dev)
+mixer_hwvol_init(device_t dev)
 {
     	snddev_info *d;
 	snd_mixer *m;
@@ -307,25 +309,25 @@ mixer_hwinit(device_t dev)
 }
 
 void
-mixer_hwmute(device_t dev)
+mixer_hwvol_mute(device_t dev)
 {
     	snddev_info *d;
 	snd_mixer *m;
 
 	d = device_get_softc(dev);
 	m = d->mixer;
-	if (m->muted) {
-		m->muted = 0;
-		mixer_set(m, m->hwvol_mixer, m->mute_level);
+	if (m->hwvol_muted) {
+		m->hwvol_muted = 0;
+		mixer_set(m, m->hwvol_mixer, m->hwvol_mute_level);
 	} else {
-		m->muted++;
-		m->mute_level = mixer_get(m, m->hwvol_mixer);
+		m->hwvol_muted++;
+		m->hwvol_mute_level = mixer_get(m, m->hwvol_mixer);
 		mixer_set(m, m->hwvol_mixer, 0);
 	}
 }
 
 void
-mixer_hwstep(device_t dev, int left_step, int right_step)
+mixer_hwvol_step(device_t dev, int left_step, int right_step)
 {
     	snddev_info *d;
 	snd_mixer *m;
@@ -333,7 +335,11 @@ mixer_hwstep(device_t dev, int left_step, int right_step)
 
 	d = device_get_softc(dev);
 	m = d->mixer;
-	level = mixer_get(m, m->hwvol_mixer);
+	if (m->hwvol_muted) {
+		m->hwvol_muted = 0;
+		level = m->hwvol_mute_level;
+	} else
+		level = mixer_get(m, m->hwvol_mixer);
 	if (level != -1) {
 		left = level & 0xff;
 		right = level >> 8;
