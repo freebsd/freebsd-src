@@ -353,6 +353,7 @@ cnwrite(dev, uio, flag)
 		dev = constty->t_dev;
 	else
 		dev = cn_tab->cn_dev;
+	log_console(uio);
 	return ((*devsw(dev)->d_write)(dev, uio, flag));
 }
 
