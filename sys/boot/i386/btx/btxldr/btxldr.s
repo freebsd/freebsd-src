@@ -90,7 +90,9 @@ start.1:	movl (%ebx),%eax		# Get argument and
 		call dputstr			# End message
 		movl $0x48,%ecx 		# Allocate space
 		subl %ecx,%ebp			#  for bootinfo
-		movl 0x18(%esp,1),%esi		# Source
+		movl 0x18(%esp,1),%esi		# Source: bootinfo
+		cmpl $0x0, %esi			# If the bootinfo pointer
+		je start_null_bi		#  is null, don't copy it
 		movl %ebp,%edi			# Destination
 		rep				# Copy
 		movsb				#  it
@@ -99,7 +101,7 @@ start.1:	movl (%ebx),%eax		# Get argument and
 		movl %ebp,%eax			#  bootinfo
 		call dhexout			#  relocation
 		call dputstr			#  message
-		movl $0x18,%ecx 		# Allocate space
+start_null_bi:	movl $0x18,%ecx 		# Allocate space
 		subl %ecx,%ebp			#  for arguments
 		leal 0x4(%esp,1),%esi		# Source
 		movl %ebp,%edi			# Destination

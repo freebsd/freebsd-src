@@ -40,12 +40,14 @@
 #include "libi386/libi386.h"
 #include "btxv86.h"
 
+#define	KARGS_FLAGS_CD		0x1
+
 /* Arguments passed in from the boot1/boot2 loader */
 static struct 
 {
     u_int32_t	howto;
     u_int32_t	bootdev;
-    u_int32_t	res0;
+    u_int32_t	bootflags;
     u_int32_t	res1;
     u_int32_t	res2;
     u_int32_t	bootinfo;
@@ -143,7 +145,12 @@ extract_currdev(void)
     currdev.d_dev = devsw[0];				/* XXX presumes that biosdisk is first in devsw */
     currdev.d_type = currdev.d_dev->dv_type;
 
-    if ((initial_bootdev & B_MAGICMASK) != B_DEVMAGIC) {
+    if ((kargs->bootinfo == NULL) && ((kargs->bootflags & KARGS_FLAGS_CD) != 0)) {
+	/* we are booting from a CD with cdldr */
+	currdev.d_kind.biosdisk.slice = -1;
+	currdev.d_kind.biosdisk.partition = 0;
+	biosdev = initial_bootdev;
+    } else if ((initial_bootdev & B_MAGICMASK) != B_DEVMAGIC) {
 	/* The passed-in boot device is bad */
 	currdev.d_kind.biosdisk.slice = -1;
 	currdev.d_kind.biosdisk.partition = 0;
