@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.52 1999/07/20 21:29:13 green Exp $
+ * $Id: kern_conf.c,v 1.53 1999/07/20 21:51:12 green Exp $
  */
 
 #include <sys/param.h>
@@ -145,7 +145,7 @@ cdevsw_remove(struct cdevsw *oldentry)
 	cdevsw[oldentry->d_maj] = NULL;
 
 	if (oldentry->d_bmaj >= 0 && oldentry->d_bmaj < NUMCDEVSW) 
-		bmaj2cmaj[oldentry->d_bmaj] = NULL;
+		bmaj2cmaj[oldentry->d_bmaj] = 254;
 
 	return 0;
 } 
