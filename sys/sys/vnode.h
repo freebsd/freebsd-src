@@ -693,8 +693,10 @@ extern struct vop_vector default_vnodeops;
 #define VOP_EOPNOTSUPP	((void*)(uintptr_t)vop_eopnotsupp)
 
 /* vfs_hash.c */
-int vfs_hash_get(struct mount *mp, u_int hash, int flags, struct thread *td, struct vnode **vpp);
-int vfs_hash_insert(struct vnode *vp, u_int hash, int flags, struct thread *td, struct vnode **vpp);
+typedef int vfs_hash_cmp_t(struct vnode *vp, void *arg);
+
+int vfs_hash_get(struct mount *mp, u_int hash, int flags, struct thread *td, struct vnode **vpp, vfs_hash_cmp_t *fn, void *arg);
+int vfs_hash_insert(struct vnode *vp, u_int hash, int flags, struct thread *td, struct vnode **vpp, vfs_hash_cmp_t *fn, void *arg);
 void vfs_hash_rehash(struct vnode *vp, u_int hash);
 void vfs_hash_remove(struct vnode *vp);
 

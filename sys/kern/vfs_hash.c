@@ -62,7 +62,7 @@ vfs_hash_index(struct mount *mp, u_int hash)
 }
 
 int
-vfs_hash_get(struct mount *mp, u_int hash, int flags, struct thread *td, struct vnode **vpp)
+vfs_hash_get(struct mount *mp, u_int hash, int flags, struct thread *td, struct vnode **vpp, vfs_hash_cmp_t *fn, void *arg)
 {
 	struct vnode *vp;
 	int error;
@@ -73,6 +73,8 @@ vfs_hash_get(struct mount *mp, u_int hash, int flags, struct thread *td, struct 
 			if (vp->v_hash != hash)
 				continue;
 			if (vp->v_mount != mp)
+				continue;
+			if (fn != NULL && fn(vp, arg))
 				continue;
 			VI_LOCK(vp);
 			mtx_unlock(&vfs_hash_mtx);
@@ -102,7 +104,7 @@ vfs_hash_remove(struct vnode *vp)
 }
 
 int
-vfs_hash_insert(struct vnode *vp, u_int hash, int flags, struct thread *td, struct vnode **vpp)
+vfs_hash_insert(struct vnode *vp, u_int hash, int flags, struct thread *td, struct vnode **vpp, vfs_hash_cmp_t *fn, void *arg)
 {
 	struct vnode *vp2;
 	int error;
@@ -116,6 +118,8 @@ vfs_hash_insert(struct vnode *vp, u_int hash, int flags, struct thread *td, stru
 			if (vp2->v_hash != hash)
 				continue;
 			if (vp2->v_mount != vp->v_mount)
+				continue;
+			if (fn != NULL && fn(vp, arg))
 				continue;
 			VI_LOCK(vp2);
 			mtx_unlock(&vfs_hash_mtx);

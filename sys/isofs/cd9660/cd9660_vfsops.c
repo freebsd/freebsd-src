@@ -661,7 +661,7 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 	struct cdev *dev;
 	int error;
 
-	error = vfs_hash_get(mp, ino, flags, curthread, vpp);
+	error = vfs_hash_get(mp, ino, flags, curthread, vpp, NULL, NULL);
 	if (error || *vpp != NULL)
 		return (error);
 
@@ -679,7 +679,7 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 	ip->i_vnode = vp;
 	ip->i_number = ino;
 
-	error = vfs_hash_insert(vp, ino, flags, curthread, vpp);
+	error = vfs_hash_insert(vp, ino, flags, curthread, vpp, NULL, NULL);
 	if (error || *vpp != NULL)
 		return (error);
 
