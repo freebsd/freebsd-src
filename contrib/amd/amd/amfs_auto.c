@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amfs_auto.c,v 1.9.2.7 2001/04/14 21:08:19 ezk Exp $
+ * $Id: amfs_auto.c,v 1.9.2.11 2003/07/18 04:50:18 ezk Exp $
  *
  */
 
@@ -188,7 +188,7 @@ amfs_auto_mount(am_node *mp)
   if (mf->mf_fo->opt_pref) {
     /* allow pref:=null to set a real null prefix */
     if (STREQ(mf->mf_fo->opt_pref, "null")) {
-      mp->am_pref = "";
+      mp->am_pref = strdup("");
     } else {
       /*
        * the prefix specified as an option
@@ -434,7 +434,7 @@ try_mount(voidp mvp)
 #ifdef DEBUG
   if (error > 0) {
     errno = error;
-    dlog("amfs_auto call to mount_node failed: %m");
+    dlog("amfs_auto: call to mount_node(%s) failed: %m", mp->am_path);
   }
 #endif /* DEBUG */
 

@@ -1,3 +1,660 @@
+2003-08-27  Ion Badulescu  <ionut@buggy.badula.org>
+
+	* conf/nfs_prot/nfs_prot_freebsd3.h (na_uid): freebsd4.5 uses nfs
+	atttributes field named "uid".  So #define na_uid to it. [backport
+	of Erez's 6.1 change from 2002-02-26]
+
+2003-08-22  Nick Williams <Nick.Williams@morganstanley.com>
+
+	* amd/info_ldap.c (amu_ldap_init): don't try to pass a null
+	pointer as a string to plog, Solaris (and other OS's) don't like
+	it and will dump core.
+
+2003-07-17  Erez Zadok  <ezk@filer.fsl.cs.sunysb.edu>
+
+	* fsinfo/*.[hc]: rename fsinfo function log() to fsi_log(), to
+	avoid conflict with builtin function in gcc-3.3.
+
+2003-07-17  Philippe Troin  <phil@fifi.org>
+
+	* amd/amfs_auto.c (amfs_auto_mount): When pref:=NULL set am_pref
+	to strdup("") instead of NULL since this value will be
+	freed. Contributed by Matt Chapman <matthewc@cse.unsw.edu.au>.
+
+2003-06-09  Erez Zadok  <ezk@agora.fsl.cs.sunysb.edu>
+
+	* mk-amd-map/mk-amd-map.c (main): open temp db file using O_EXCL,
+	next best thing to using mkstemp().  Patch from Hendrik Scholz
+	<hscholz@raisdorf.net>.
+
+2003-05-08  Ion Badulescu  <ion@guppy.limebrokerage.com>
+
+	* libamu/mount_fs.c (compute_automounter_mount_flags): use
+	MNT2_GEN_OPT_AUTOMNTFS if available; minor cleanup, removed
+	redundant code for MNT2_GEN_OPT_OVERLAY
+
+	* m4/macros/header_templates.m4: added template for
+	MNT2_GEN_OPT_AUTOMOUNTED
+
+2003-04-23  Erez Zadok  <ezk@agora.fsl.cs.sunysb.edu>
+
+	* conf/transp/transp_sockets.c (create_amq_service): minor cpp
+	directive indentation and commenting.
+
+2003-04-22  Ion Badulescu  <ionut@moisil.badula.org>
+
+	* conf/transp/transp_sockets.c (create_amq_service): Ugly *BSD fix for
+	an RPC library DoS issue (original patch from Martin Blapp,
+	massaged into something more digestable by me)
+
+2003-04-13  Erez Zadok  <ezk@agora.fsl.cs.sunysb.edu>
+
+	* doc/Makefile.am (DVIPS): use proper options for dvips.
+
+	* doc/am-utils.texi (opts Option): document new 'unmount' option,
+	and better explain the 'nounmount' option.  Also some misc options
+	for better generation of html manual.
+
+	* doc/Makefile.am (install-html): support newer text2html 4.0
+	options, as older options were renamed or changed behavior.
+
+	* amd/autil.c (am_mounted): support new 'unmount' option, to allow
+	all file system mounts to timeout and thus expire.  This option is
+	useful for removable local media such as CD-ROMs, USB drives,
+	etc. so they can expire when not in use, and get unmounted (such
+	drives can get work out when they keep spinning).  Patch from
+	Christos Zoulas <christos@zoulas.com> (originally from Koji
+	Imada).
+
+2003-04-10  Erez Zadok  <ezk@agora.fsl.cs.sunysb.edu>
+
+	* configure.in: use AM_MAINTAINER_MODE, so maintainer-only rules
+	do not get added to Makefiles by default (they are confusing to
+	users who don't have autotools installed).
+
+2003-04-04  Erez Zadok  <ezk@agora.fsl.cs.sunysb.edu>
+
+	* libamu/xutil.c (switch_to_logfile): don't try to print logfile
+	if it is null (strlen core dump on solaris).  Bug report from John
+	P. Rouillard <rouilj@ieee.org>.
+
+2003-03-31  Erez Zadok  <ezk@agora.fsl.cs.sunysb.edu>
+
+	* fsinfo/fsinfo.8: typo co-ordinate -> coordinate.  Typo report
+	from Perry E. Metzger" <perry@piermont.com>.
+
+2003-03-20  Erez Zadok  <ezk@suse73.fsl.cs.sunysb.edu>
+
+	* minor new port: sparc64-unknown-linux-suse7.3.
+
+2003-03-20  Erez Zadok  <ezk@a-freebsd5.fsl.cs.sunysb.edu>
+
+	* minor new port: i386-unknown-freebsd5.0.
+
+	* configure.in: detect nfsclient/nfsargs.h.
+
+	* conf/nfs_prot/nfs_prot_freebsd3.h: include
+	<nfsclient/nfsargs.h>, needed in FreeBSD 5.0.
+
+2003-03-15  Erez Zadok  <ezk@agora.fsl.cs.sunysb.edu>
+
+	* amd/amd.8, amd/amd.8, fixmount/fixmount.8, hlfsd/hlfsd.8,
+	scripts/amd.conf.5, scripts/expn.1: minor spell checking and
+	extraneous space elimination.
+
+2003-01-25  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* BUGS (Note): document AIX-5.1 NFS-client side bug (hangs in
+	vmount).
+
+2003-01-25  Ion Badulescu  <ionut@moisil.badula.org>
+
+	*******************************************************************
+	*** Released am-utils-6.0.9					***
+	*******************************************************************
+
+2003-01-23  Ion Badulescu  <ion@guppy.limebrokerage.com>
+
+	* NEWS: updated for Darwin changes
+
+	* .cvsignore: added A.i386-apple-darwin6.0 and
+	A.sparc-sun-solaris2.9
+
+	* m4/macros/check_nfs_fh_dref.m4: darwin/rhapsody is another
+	freebsd22 derivative
+
+2002-12-28  Ion Badulescu  <ionut@moisil.badula.org>
+
+	* amd/srvr_nfs.c (start_nfs_pings): don't set FSF_PINGING if
+	pings are disabled
+
+	* libamu/misc_rpc.c (make_rpc_packet): fix make_rpc_packet() on
+	64-bit big-endian platforms, bug report from Bill Fenner
+	<fenner@research.att.com>
+
+	* configure.in: increase library patchlevel
+
+	* libamu/xutil.c (amu_release_controlling_tty): close and reopen
+	file descriptors 0,1,2 before calling setsid()
+
+2002-12-27  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* updated copyright year to 2003 on all files
+
+2002-12-11  Ion Badulescu  <ionut@moisil.badula.org>
+
+	Solaris9 build fixes:
+
+	* amd/info_ldap.c (amu_ldap_rebind): call ldap_enable_cache() only
+	if configure detected it
+
+	* configure.in: check for ldap_enable_cache()
+
+2002-12-10  Erez Zadok  <ezk@localhost.localdomain>
+
+	* rename "aux/" subdir into "m4/" so as to avoid problems with
+	MS-DOS systems (where "AUX" is a reserved name).  This required
+	fixing numerous files.
+
+2002-11-21  Erez Zadok  <ezk@cs.sunysb.edu>
+
+	* config.guess.long: updated script so it will properly find the
+	version number of the new Itanium 2 machines running "Red Hat
+	Linux Advanced Workstation release 2.1AW (Derry)".  The script now
+	will report ia64-unknown-linux-rh2.1AW.
+
+2002-11-11  Ion Badulescu  <ion@guppy.limebrokerage.com>
+
+	* doc/am-utils.texi (Keep-alives): removed outdated info about not
+	maintaining the state of TCP NFS servers
+
+2002-10-01  Ion Badulescu  <ion@guppy.limebrokerage.com>
+
+	* hlfsd/hlfsd.h: removed sys_nerr declaration
+
+	* amq/amq.c, hlfsd/hlfsd.c, libamu/xutil.c: always use strerror()
+
+	* libamu/strerror.c: new file, strerror() implementation for
+	systems that don't have it
+
+	* libamu/Makefile.am: added strerror.c
+
+	* include/am_utils.h: debug code improvements ported from 6.1
+
+	* conf/mount/mount_aix.c: compile fix for --disable-debug
+
+2002-09-09  Ion Badulescu  <ion@guppy.limebrokerage.com>
+
+	*******************************************************************
+	*** Released am-utils-6.0.8					***
+	*******************************************************************
+
+2002-09-09  Ion Badulescu  <ion@guppy.limebrokerage.com>
+
+	* amd/srvr_nfs.c (nfs_timed_out): add #ifdef DEBUG around dlog
+
+2002-09-04  Ion Badulescu  <ion@guppy.limebrokerage.com>
+
+	* amd/mntfs.c (free_mntfs): sanity check for mf_refc [patch from
+	George Ross ported from 6.1]
+
+	* amd/srvr_nfs.c (nfs_timed_out): allocate a new XID on server
+	timeout to avoid problems with late ping replies [patch from
+	George Ross ported from 6.1]
+
+2002-07-11  Erez Zadok  <ezk@agora.fsl.cs.sunysb.edu>
+
+	* scripts/expn.{1,in}: fixed typos as reported by Thomas Klausner
+	<wiz@danbala.ifoer.tuwien.ac.at>.
+
+2002-06-26    <ezk@agora.fsl.cs.sunysb.edu>
+
+	* doc/Makefile.am (install-html): don't use locally hacked
+	texi2html features.
+
+	* doc/am-utils.texi: don't use ':' in @cindex entries.
+
+2002-06-24  Ion Badulescu  <ionut@moisil.badula.org>
+
+	* doc/am-utils.texi (automount2amd): minor rewording
+
+	* aux/macros/struct_nfs_args.m4: added test for aix51_nfs_args
+
+	* conf/nfs_prot/nfs_prot_aix5_1.h: rename aix42_nfs_args to
+	aix51_nfs_args, rename unknown fields to u<number>
+
+2002-06-24  Ion Badulescu  <ion@guppy.limebrokerage.com>
+
+	* buildall: use ksh for configure on aix5.1; pass the extra
+	arguments after "--" to configure, not to make; fix 'buildall -b'
+	on hpux9 and aix5.1
+
+2002-06-22  Ion Badulescu  <lionut@gonzales.badula.org>
+
+	* hlfsd/homedir.c (homedir): use setgid() instead of setegid()
+
+	* buildall: use ksh for configure on aix5.1
+
+2002-06-21  Ion Badulescu  <ion@guppy.limebrokerage.com>
+
+	* Makefile.am: added nfs_prot_aix4_3.h to EXTRA_DIST_CONF
+
+	* conf/mount/mount_aix.c (mount_aix3): if the NFSv3 mount fails
+	with EINVAL and we have MOUNT_TYPE_NFS3_BIS defined, retry the
+	mount with the alternative nfs3_args structure
+
+	* conf/nfs_prot/nfs_prot_aix4_3.h: added alternative nfs3_args
+	structure, similar to that in aix5.1, for a hack that tries to
+	compensate for IBM's brain fart
+
+	* conf/nfs_prot/nfs_prot_aix5_1.h: new nfs_prot header for aix5.1+
+
+	* aux/macros/check_nfs_prot_headers.m4: added new header for aix5.1+
+
+	* BUGS: update for direct mounts on Linux; document the brokenness
+	of /bin/sh on AIX 5.1 and HP-UX 9
+
+2002-06-21  Erez Zadok  <ezk@agora.fsl.cs.sunysb.edu>
+
+	* ALL source/header files: change use of HAVE_FIELD_* macros to
+	HAVE_*, since aux/macros/check_field.m4 changed as well.
+
+	* configure.in, Makefile.am, bootstrap, aux/amdgrep,
+	aux/macros/*.m4: MAJOR port of autotool files from 6.1 branch, to
+	work with newer autotools.
+
+2002-06-21  Erez Zadok  <ezk@agora.fsl.cs.sunysb.edu>
+
+	* aux/macros/with_addon.m4: correct M4 quoting.
+
+	* aux/macros/cache_check_dynamic.m4: correct M4 quoting.
+
+	* bootstrap: show version of autotools being used.  Helps
+	maintainer debugging.
+
+	* configure.in: new proper syntax for libtool and
+	ansi2knr-filtering rules, required by autoconf 1.53 and higher.
+
+2002-06-21  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* aux/GNUmakefile: new search paths for "update" target.
+
+	* config.guess, config.sub, doc/texinfo.tex, ltmain: updates from
+	the latest GNU distributions.
+
+2002-05-30  Erez Zadok  <ezk@agora.fsl.cs.sunysb.edu>
+
+	* config.guess.long: support SuSE version names in long
+	config.guess format.
+
+2002-05-03  Ion Badulescu  <ion@guppy.limebrokerage.com>
+
+	* hlfsd/homedir.c (homedir): last chance checking for zombies; 
+	(interlock): anal-retentive checking for all sorts of error
+	conditions during child recovery
+
+	* hlfsd/hlfsd.c (main): use SA_RESTART in sigaction
+	(cleanup): indentation
+
+2002-05-01  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* scripts/lostaltmail.in (vrfy_user): unlink temp files if too
+	small.
+
+2002-03-29  Ion Badulescu  <ionut@moisil.badula.org>
+
+	* amd/nfs_start.c: use plog() instead of perror()
+
+2002-03-28  Erez Zadok  <ezk@agora.fsl.cs.sunysb.edu>
+
+	* amd/info_ldap.c: patch from "Sebastien Bahloul"
+	<sebastien.bahloul@medasys.org> to fix a simple initialization bug
+	and change "HE" to HE_ENT so as to compile on HPUX.
+
+2002-02-12  Erez Zadok  <ezk@agora.fsl.cs.sunysb.edu>
+
+	* scripts/lostaltmail.in: don't verify user if -noverify option
+	was turned on.  fix comment typo.
+
+2002-02-11  Ion Badulescu  <ion@guppy.limebrokerage.com>
+
+	* Ripped out all traces of autofs support
+
+2002-02-11  Ion Badulescu  <ion@guppy.limebrokerage.com>
+
+	* README: require newer auto-tools, update mailing list address
+
+	* README.autofs: point to the 6.1 branch for autofs support
+
+2002-01-20  Erez Zadok  <ezk@localhost.localdomain>
+
+	* updated copyright year to 2002 on all files
+
+	* hlfsd/hlfsd.h (HLFSD_VERSION): up version of hlfsd to 1.2,
+	because we made some important changes.
+
+2002-01-20  Ion Badulescu  <lionut@gonzales.badula.org>
+
+	* NEWS: document latest changes
+
+	* amd/map.c (unmount_mp): same fix as for hlfsd, update the
+	seconds field in mtime because Linux ignores the useconds field
+
+	* hlfsd/homedir.c: made some global vars static
+	(plt_init): remove all trailing '/' chars from root's home;
+	use root's home, not the username (silly bugfix)
+
+2002-01-20  Ion Badulescu  <lionut@gonzales.badula.org>
+
+	* hlfsd/homedir.c (homedir): don't special case uid 0 as having /
+	as home; instead use the root accounts home
+	(plt_init): properly initialize root_home from the root account's
+	home directory, or as "" if root doesn't exist
+	(plt_reset): free root_home
+
+2002-01-20  Ion Badulescu  <lionut@gonzales.badula.org>
+
+	* hlfsd/hlfsd.h: update prototype for homedir()
+
+	* hlfsd/stubs.c (nfsproc_lookup_2_svc): get the credentials at the
+	begining of the function and assign the uid to the symlink
+	attributes; increment the mtime's seconds field each time the uid
+	changes
+	(nfsproc_lookup_2_svc): ditto
+	(nfsproc_readlink_2_svc): pass the groupid to homedir();
+
+	* hlfsd/homedir.c (homedir): take a second argument, the user's
+	primary gid, and switch to it when doing filesystem operations;
+	save the old uid and gid and revert to them instead of the
+	hardcoded uid 0
+
+2002-01-10  Ion Badulescu  <ion@guppy.limebrokerage.com>
+
+	* conf/mount/mount_linux.c (mount_linux): tcp _must_ have a timeo
+	parameter 2 orders of magnitude larger than udp (patch from Trond
+	Myklebust)
+
+2001-12-13  Erez Zadok  <ezk@agora.fsl.cs.sunysb.edu>
+
+	* scripts/amd.conf.5: correct title to section 5, not 8.  Correct
+	reversed meaning of nfs_proto and nfs_vers parameters.  Typos
+	reported by Peter Breitenlohner <peb@mppmu.mpg.de>.
+
+2001-12-02  Erez Zadok  <ezk@agora.fsl.cs.sunysb.edu>
+
+	* scripts/ctl-amd.in: run "test" or "[" in front of -x/-f
+
+	* scripts/ctl-hlfsd.in: run "test" or "[" in front of -x/-f
+
+2001-11-29  Ion Badulescu  <ion@guppy.limebrokerage.com>
+
+	* tasks: updated
+
+	* amq/amq.8: better document the -f option
+
+2001-11-29  Erez Zadok  <ezk@agora.fsl.cs.sunysb.edu>
+
+	* libamu/mount_fs.c (mnt_flags): same as for nolock option
+	handling, do for maxgrps.
+
+2001-11-28  Philippe Troin  <phil@fifi.org>
+
+	* libamu/mount_fs.c (mnt_flags): Drop nolock from generic mount
+	opts.
+	(compute_nfs_args): Added nolock handling.
+	Adapted from an original patch from Avery Pennarun <apenwarr@nit.ca>.
+
+2001-11-27  Erez Zadok  <ezk@a-hpux11i.fsl.cs.sunysb.edu>
+
+	* ported to ia64-hp-hpux11.20 using HP's ANSI/C compiler.
+	Couldn't use bison/flex because of 32-bit vs. 64-bit binaries
+	issues.  Had to use HP's own yacc/lex.  This was discovered by
+	using HP's non-GNU make program.
+
+2001-11-26  Erez Zadok  <ezk@a-hpux11i.fsl.cs.sunysb.edu>
+
+	* */Makefile.am: don't use $(OBJECTS) directly because it is no
+	longer automatically defined now that Automake has automatic
+	dependency tracking (which I turn off).  Instead, hard-code
+	minimal dependencies on am-utils' header files to depend on
+	PROG_OBJECTS (where PROG is the program name being built)
+
+	* amd/nfs_start.c (checkup): cast getpagesize() return val to
+	long, to avoid conflicts in division of a long by an int (on
+	hpux11i, with their ANSI/C compiler).
+
+ 	* INSTALL, doc/am-utils.texi: port updates
+
+	* minor new ports: ia64-hp-hpux11.20, i386-unknown-freebsd5.0,
+	i386-unknown-freebsd4.4, i386-pc-linux-rh7.2,
+	ia64-unknown-linux-rh7.1.
+
+	* include/am_defs.h: actually declare extern definition for
+	xdr_callmsg() if it doesn't already exist.
+
+	* aux/macros/header_templates.m4: declare template for
+	HAVE_EXTERN_XDR_CALLMSG.
+
+	* configure.in: check for extern definition for xdr_callmsg()
+	because hpux11 has that function but a bad <rpc/xdr.h> header file
+	that doesn't define it in the right place.
+
+	* libamu/mount_fs.c (print_nfs_args): cast ->rdev to u_long b/c
+	on hpux11 its type is dev_t.
+
+	* conf/nfs_prot/nfs_prot_hpux11.h: don't support autofs on hpux11
+	yet.
+
+2001-11-16  Erez Zadok  <ezk@fsl-gw.fsl.cs.sunysb.edu>
+
+	* buildall (Usage): separate $cnf_flags and $extra_cnf_flags due
+	to /bin/sh limitations.
+
+	* bootstrap (cmd): turn back on --ignore-deps (this Automake may
+	have problems)
+
+	* libamu/xutil.c: remove __attribute__ format_arg statement for 
+	expand_error() because this function, although taking a
+	printf-like string, does not use it in a printf function; it only
+	expands a non-printf amd-special syntax %m.
+
+2001-11-14  Erez Zadok  <ezk@fsl-gw.fsl.cs.sunysb.edu>
+
+	* conf/nfs_prot/nfs_prot_linux.h: define KERNEL_VERSION macro
+	before using it because older Linux systems don't define this
+	(e.g., Red Hat 4.2)
+
+2001-11-13  Erez Zadok  <ezk@agora.fsl.cs.sunysb.edu>
+
+	* configure.in: convert to using autoconfig 2.52.  Use new macros.
+	AC_MSG_NOTICE for messages; AH_TOP and AH_BOTTOM to top and bottom
+	parts of autogenerated config.h.in; increase autoconf
+	pre-requisite to version 2.50; use AC_DISABLE_SHARED not
+	AM_DISABLE_SHARED.
+
+	* aux/macros/cache_check_dynamic.m4: finally I can use the new
+	$ECHO_N syntax in macros instead of $ac_n, since I'm using a new
+	autoconf.  Isn't it nice to be such forward looking and having
+	placed a comment "XXX: use the next line for autoconf-2.14 and
+	newer"... :-)
+
+	* aux/macros/save_state.m4: highlight message with ***'s
+
+	* aux/macros/host_macros.m4: use proper M4 quoting ([], not "")
+
+	* config.{guess,sub}: upated from latest prep ftp distributions
+	
+	* depcomp, missing, mkinstalldirs: upated from latest Automake 1.5
+
+	* ltmain.sh: updated from latest Libtool 1.4.2
+	
+	* bootstrap: finally, new autoconf doesn't print silly "AC_TRY_RUN
+	called without default to allow cross compiling" warnings.  And,
+	it only took like 3+ years to fix this.  But, now it has anoter,
+	albeit less annoying warning (which the manual says to ignore):
+	"AC_PROG_LEX invoked multiple times".
+	When autoheader is run, don't treat the "all clear" message
+	"config.h.in is update" as an error.
+
+	* ltconfig: removed. not needed with latest version of libtool
+
+	* aux/macros/header_templates.m4: replaces acconfig.h and defines
+	all CPP macros we use in this package, including their
+	accompanying C /* comments */.
+
+	* acconfig.h: removed. replaced by new autoconf system to generate
+	header templates using AH_TEMPLATE macros and such.
+
+	* aux/macros/msg.m4: removed.  Replaced with new macro
+	AC_MSG_NOTICE 
+
+	* Makefile.am (EXTRA_DIST_AUX): remove aux/macros/msg.m4.  Add
+	aux/macros/header_templates.m4
+
+	* configure.in: early, in host_macros.m4, I'm renaming silly linux
+	$host_os names such as linux-gnu and lignux to plain "linux".
+	Alas, RMS finally had his way and libtool will NOT recognize
+	"linux" as a valid system, only "linux-gnu".  Sigh.  Rich, I know
+	you're responsible to Linux's fame.  Kudos to you and your
+	cohorts.  But please don't force the rest of us to use those ugly
+	or long names.  Solution: temporarily name $host_os to "linux-gnu"
+	before calling the AC_PROG_LIBTOOL macro, then name it back to
+	"linux".  (That way I don't have to maintain my own version of
+	ltmain.sh.
+
+	* buildall: force running configure -C (to create and use a local
+	config.cache file).  New default behavior for autoconf is NOT to
+	use cache files.  Yeah, that's gonna fly real well with am-utils,
+	with its 700+ automatic tests.
+
+	* conf/mtab/mtab_mach3.c (rewrite_mtab): use mkstemp instead of
+	mktemp, if the former is available.
+
+	* conf/mtab/mtab_file.c (rewrite_mtab): use mkstemp instead of
+	mktemp, if the former is available.
+
+	* mk-amd-map/mk-amd-map.c (main): use mkstemp instead of mktemp,
+	if the former is available.
+
+	* aux/macros/check_nfs_socket_connection.m4: AC_DEFINE calls must
+	be on a separate line, as per new Autoconf manual, to avoid some
+	Bourne Shell syntactical bizarreness.
+
+2001-11-12  Ion Badulescu  <ionut@buggy.badula.org>
+
+	* libamu/mtab.c (hasmntval): strtol can return a non-NULL pointer
+	pointing to '\0' on success, so we need to allow for it. This
+	fixes the problem with rejecting numerical mount options if they
+	are the last option in the string.
+
+	* configure.in: increased library patchlevel
+
+	* NEWS: document the parsing bug; document other previous changes
+
+2001-10-18  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	* aux/macros/os_cflags.m4 (irix6*): Enforce N32 ABI/mips3 ISA with cc. 
+	* BUGS: Explain this.
+
+2001-10-02  Erez Zadok  <ezk@agora.fsl.cs.sunysb.edu>
+
+	* doc/am-utils.texi (redhat-ctl-amd): document new script.
+
+	* scripts/Makefile.am: build redhat-ctl-amd but do not install it.
+
+	* scripts/redhat-ctl-amd.in: new script, useful to correctly
+	control Amd on Red Hat Linux systems.  Script adapted from ctl-amd
+	and Red Hat's own rc.d script.
+	
+2001-10-02  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	* conf/nfs_prot/nfs_prot_osf5.h: Renamed from nfs_prot_osf5_1.h.
+	(MNT2_NFS_OPT_AUTO): Disable.
+	* Makefile.am (EXTRA_DIST_CONF): Reflect new name.
+	* aux/macros/check_nfs_prot_headers.m4: Use this file for all
+	Tru64 UNIX V5 and up releases.
+
+2001-09-24  Ion Badulescu  <ionut@moisil.badula.org>
+
+	* include/mount_headers1.h (MFS): define as 1 instead of nothing,
+	to fix compile problems on OS X (patch from Ahmon Dancy)
+
+	* aux/macros/try_compile_anyfs.m4 (MFS): ditto
+
+2001-08-13  Erez Zadok  <ezk@fsl-gw.fsl.cs.sunysb.edu>
+
+	* doc/am-utils.texi (in_network Selector Variable): document
+	expanded syntax
+
+	* libamu/wire.c (is_network_member): support for network/netmask
+	as well as network/bits syntax in in_network()
+
+2001-07-19  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* amd/get_args.c (get_args): a better way to handle GNU and
+	non-GNU getopts without strdup-ing the getopt string.
+
+2001-07-04  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* amd/info_ldap.c (amu_ldap_rebind): The first time you called
+	amu_ldap_init, aldh->ldap is not set.  So when amu_ldap_rebind is
+	called, this function is absolutely sure to return 0.  Then
+	amu_ldap_init return 0 without having opened any LDAP connection.
+	This is not the correct behaviour.
+	(get_ldap_timestamp, amu_ldap_search): error to free an object
+	("entry") that is automatically freed by the library.  Patch from
+	Sebastien Bahloul <sebastien.bahloul@mangoosta.fr>.
+
+2001-07-19  Ion Badulescu  <ionut@moisil.badula.org>
+
+	* AUTHORS (variables): added Philippe Troin
+
+	* Makefile.am (EXTRA_DIST): added bootstrap
+
+	* amd/map.c (unmount_node_wrap): fix a couple of comments (already
+	fixed in 6.1)
+
+	* amd/amfs_auto.c (try_mount): print the path for the request that
+	failed (already in 6.1)
+
+	* include/am_compat.h (xfs_args_t): define as u_int if the
+	filesystem is supported but we can't autodetect the type for
+	xfs_args_t. This allows Linux to mount xfs filesystems.
+
+2001-07-12  Philippe Troin  <phil@fifi.org>
+
+	* aux/macros/with_addon.m4: Created. Wrapper around AC_ARG_WITH
+	with only the `yes' and `no' as possible answers.
+
+	* configure.in: Added support for disabling LDAP and HESIOD even
+	if the supporting libraries are found.
+
+	* Makefile.am (EXTRA_DIST_AUX): Added with_addon.m4 macro file.
+
+2001-07-12  Philippe Troin  <phil@fifi.org>
+
+	* include/am_compat.h: Removed forced definition of MNTTAB_OPT_DEV
+	if MNT2_GEN_OPT_NODEV was found. Actually, the dev= (SVR4) options
+	and the linux nodev options are different beasts.
+
+	* conf/mount/mount_linux.c (opt_map): Removed the MNTTAB_OPT_DEV
+	entry (not really necessary on linux).
+
+2001-07-12  Philippe Troin  <phil@fifi.org>
+
+	* amd/get_args.c (get_args): Prepend "+" to the getopt string if
+	HAVE_GNU_GETOPT to avoid getting all options (even the ones after
+	the first non-option argument) slurped in by GNU getopt.
+
+	* aux/macros/check_gnu_getopt.m4: Created. Defines HAVE_GNU_GETOPT
+	if GNU/glibc getopt implementation is detected.
+
+	* configure.in: Added call to AC_CHECK_GNU_GETOPT.
+
+	* acconfig.h: Document HAVE_GNU_GETOPT.
+
+	* Makefile.am (EXTRA_DIST_AUX): Added check_gnu_getopt.m4 macro file.
+
 2001-06-27  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
 
 	*******************************************************************
@@ -1115,7 +1772,7 @@ Fri Dec 10 01:31:53 1999  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
 	* Makefile.am (EXTRA_DIST_CONF): include nfs_prot_sunos5_8.h in
 	distribution.
 
-	* applied fixes from Reiner Orth for Solaris 8.
+	* applied fixes from Rainer Orth for Solaris 8.
 
 	* libamu/wire.c (getwire): increment the cp pointer in the loop
 	body, because the ioctl() inside the "for" loop will overwrite the

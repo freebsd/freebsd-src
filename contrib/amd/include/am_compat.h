@@ -155,10 +155,6 @@
  */
 #if defined(MNT2_GEN_OPT_NODEV) && !defined(MNTTAB_OPT_NODEV)
 # define MNTTAB_OPT_NODEV "nodev"
-/* this is missing under some versions of Linux */
-# ifndef MNTTAB_OPT_DEV
-#  define MNTTAB_OPT_DEV "dev"
-# endif /* not MNTTAB_OPT_DEV */
 #endif /* defined(MNT2_GEN_OPT_NODEV) && !defined(MNTTAB_OPT_NODEV) */
 
 #if defined(MNT2_GEN_OPT_NOEXEC) && !defined(MNTTAB_OPT_NOEXEC)
@@ -241,7 +237,7 @@ struct hsfs_args {
         int norrip;
 };
 # define cdfs_args_t struct hsfs_args
-# define HAVE_FIELD_CDFS_ARGS_T_NORRIP
+# define HAVE_CDFS_ARGS_T_NORRIP
 #endif /* not cdfs_args_t */
 
 /*
@@ -265,9 +261,12 @@ struct hsfs_args {
 # define efs_args_t u_int
 #endif /* defined(HAVE_FS_EFS) && !defined(efs_args_t) */
 
-#if defined(HAVE_FS_AUTOFS) && defined(MOUNT_TYPE_AUTOFS) && !defined(MNTTYPE_AUTOFS)
-# define MNTTYPE_AUTOFS "autofs"
-#endif /* defined(HAVE_FS_AUTOFS) && defined(MOUNT_TYPE_AUTOFS) && !defined(MNTTYPE_AUTOFS) */
+/*
+ * if does not define struct xfs_args, assume integer bit-field (linux)
+ */
+#if defined(HAVE_FS_XFS) && !defined(xfs_args_t)
+# define xfs_args_t u_int
+#endif /* defined(HAVE_FS_XFS) && !defined(xfs_args_t) */
 
 /*
  * If NFS3, then make sure that "proto" and "vers" mnttab options

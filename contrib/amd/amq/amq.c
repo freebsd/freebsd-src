@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amq.c,v 1.7.2.5 2001/01/12 22:43:43 ro Exp $
+ * $Id: amq.c,v 1.7.2.8 2002/12/27 22:44:45 ezk Exp $
  *
  */
 
@@ -48,13 +48,13 @@
 
 #ifndef lint
 char copyright[] = "\
-@(#)Copyright (c) 1997-2001 Erez Zadok\n\
+@(#)Copyright (c) 1997-2003 Erez Zadok\n\
 @(#)Copyright (c) 1990 Jan-Simon Pendry\n\
 @(#)Copyright (c) 1990 Imperial College of Science, Technology & Medicine\n\
 @(#)Copyright (c) 1990 The Regents of the University of California.\n\
 @(#)All rights reserved.\n";
 #if __GNUC__ < 2
-static char rcsid[] = "$Id: amq.c,v 1.7.2.5 2001/01/12 22:43:43 ro Exp $";
+static char rcsid[] = "$Id: amq.c,v 1.7.2.8 2002/12/27 22:44:45 ezk Exp $";
 static char sccsid[] = "%W% (Berkeley) %G%";
 #endif /* __GNUC__ < 2 */
 #endif /* not lint */
@@ -251,15 +251,7 @@ show_mi(amq_mount_info_list *ml, enum show_opt e, int *mwid, int *dwid, int *twi
 	       mi->mi_up > 0 ? "up" :
 	       mi->mi_up < 0 ? "starting" : "down");
 	if (mi->mi_error > 0) {
-	  extern int sys_nerr;
-	  if (mi->mi_error < sys_nerr)
-#ifdef HAVE_STRERROR
-	    printf(" (%s)", strerror(mi->mi_error));
-#else /* not HAVE_STRERROR */
-	    printf(" (%s)", sys_errlist[mi->mi_error]);
-#endif /* not HAVE_STRERROR */
-	  else
-	    printf(" (Error %d)", mi->mi_error);
+	  printf(" (%s)", strerror(mi->mi_error));
 	} else if (mi->mi_error < 0) {
 	  fputs(" (in progress)", stdout);
 	}

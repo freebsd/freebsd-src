@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: ops_ufs.c,v 1.3.2.1 2001/01/10 03:23:11 ezk Exp $
+ * $Id: ops_ufs.c,v 1.3.2.4 2002/12/27 22:44:42 ezk Exp $
  *
  */
 
@@ -127,21 +127,21 @@ mount_ufs(char *dir, char *fs_name, char *opts)
 
   genflags = compute_mount_flags(&mnt);
 
-#ifdef HAVE_FIELD_UFS_ARGS_T_FLAGS
+#ifdef HAVE_UFS_ARGS_T_FLAGS
   ufs_args.flags = genflags;	/* XXX: is this correct? */
-#endif /* HAVE_FIELD_UFS_ARGS_T_FLAGS */
+#endif /* HAVE_UFS_ARGS_T_FLAGS */
 
-#ifdef HAVE_FIELD_UFS_ARGS_T_UFS_FLAGS
+#ifdef HAVE_UFS_ARGS_T_UFS_FLAGS
   ufs_args.ufs_flags = genflags;
-#endif /* HAVE_FIELD_UFS_ARGS_T_UFS_FLAGS */
+#endif /* HAVE_UFS_ARGS_T_UFS_FLAGS */
 
-#ifdef HAVE_FIELD_UFS_ARGS_T_FSPEC
+#ifdef HAVE_UFS_ARGS_T_FSPEC
   ufs_args.fspec = fs_name;
-#endif /* HAVE_FIELD_UFS_ARGS_T_FSPEC */
+#endif /* HAVE_UFS_ARGS_T_FSPEC */
 
-#ifdef HAVE_FIELD_UFS_ARGS_T_UFS_PGTHRESH
+#ifdef HAVE_UFS_ARGS_T_UFS_PGTHRESH
   ufs_args.ufs_pgthresh = hasmntval(&mnt, MNTTAB_OPT_PGTHRESH);
-#endif /* HAVE_FIELD_UFS_ARGS_T_UFS_PGTHRESH */
+#endif /* HAVE_UFS_ARGS_T_UFS_PGTHRESH */
 
   /*
    * Call generic mount routine

@@ -16,7 +16,7 @@ $sockaddr = 'S n a4 x8';
 # system requirements:
 # 	must have 'nslookup' and 'hostname' programs.
 
-# $Header: /proj/bank/cvsroot/am-utils/scripts/expn.1,v 1.1.1.1 1998/11/05 02:04:58 ezk Exp $
+# $Header: /proj/bank/cvsroot/am-utils/scripts/expn.1,v 1.1.1.1.2.2 2003/03/16 01:47:01 ezk Exp $
 
 # TODO:
 #	less magic should apply to command-line addresses
@@ -43,7 +43,7 @@ $sockaddr = 'S n a4 x8';
 #     notice, this list of conditions and the following disclaimer in the
 #     documentation and/or other materials provided with the distribution.
 #  3. All advertising materials mentioning features or use of this software
-#     must display the following acknowledgement:
+#     must display the following acknowledgment:
 #       This product includes software developed by the David Muir Sharnoff.
 #  4. The name of David Sharnoff may not be used to endorse or promote products
 #     derived from this software without specific prior written permission.
@@ -60,7 +60,7 @@ $sockaddr = 'S n a4 x8';
 #  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 #  SUCH DAMAGE.
 #
-# This copyright notice derrived from material copyrighted by the Regents
+# This copyright notice derived from material copyrighted by the Regents
 # of the University of California.
 #
 # Contributions accepted.
@@ -88,7 +88,7 @@ $sockaddr = 'S n a4 x8';
 # $names{"$users[0] *** $server"} : the 'name' associated with the address
 # $mxbacktrace{"$users[0] *** $server"} : record of mx expansion
 # $mx_secondary{$server} : other mx relays at the same priority
-# $domainify_fallback{"$users[0] *** $server"} : alternative names to try 
+# $domainify_fallback{"$users[0] *** $server"} : alternative names to try
 #	instead of $server if $server doesn't work
 # $temporary_redirect{"$users[0] *** $server"} : when trying alternates,
 #	temporarily channel all tries along current path
@@ -177,14 +177,14 @@ while (@hosts) {
 		&mxlookup(1,$server,"$server: could not resolve name",*users);
 		next HOST;
 	}
-				
+
 	# get a connection, or look for an mx
 	$0 = "$av0 - socket to $server";
 	$that = pack($sockaddr, &AF_INET, $port, $thataddr);
 	socket(S, &AF_INET, &SOCK_STREAM, $proto)
 		|| die "socket: $!";
 	$0 = "$av0 - bind to $server";
-	bind(S, $this) 
+	bind(S, $this)
 		|| die "bind $hostname,0: $!";
 	$0 = "$av0 - connect to $server";
 	print "debug = $debug server = $server\n" if $debug > 8;
@@ -231,7 +231,7 @@ while (@hosts) {
 		&alarm("greeting with $server",'');
 	}
 	alarm(0);
-	
+
 	# if this causes problems, remove it
 	$0 = "$av0 - sending helo to $server";
 	&alarm("sending helo to $server","");
@@ -254,11 +254,11 @@ while (@hosts) {
 		print &compact($u,$server)." ->\n" if ($verbose && ! $valid);
 		if ($valid) {
 			#
-			# when running with -a, we delay taking any action 
+			# when running with -a, we delay taking any action
 			# on the results of our query until we have looked
 			# at the complete output.  @toFinal stores expansions
 			# that will be final if we take them.  @toExpn stores
-			# expnansions that are not final.  @isValid keeps
+			# expansions that are not final.  @isValid keeps
 			# track of our ability to send mail to each of the
 			# expansions.
 			#
@@ -304,11 +304,11 @@ while (@hosts) {
 					}
 				} else {
 					$newmxhost = &mx($newhost,$newaddr);
-					print "$newmxhost = &mx($newhost)\n" 
+					print "$newmxhost = &mx($newhost)\n"
 						if ($debug && $newhost ne $newmxhost);
 					$0 = "$av0 - parsing $newaddr [@$newmxhost]";
 					print "levels = $levels, level{$u *** $server} = ".$level{"$u *** $server"}."\n" if ($debug > 1);
-					# If the new server is the current one, 
+					# If the new server is the current one,
 					# it would have expanded things for us
 					# if it could have.  Mx records must be
 					# followed to compare server names.
@@ -337,7 +337,7 @@ while (@hosts) {
 			# 550 is a known code...  Should the be
 			# included in -a output?  Might be a bug
 			# here.  Does it matter?  Can assume that
-			# there won't be UNKNOWN USER responses 
+			# there won't be UNKNOWN USER responses
 			# mixed with valid users?
 			if ($s =~ /^(550)([- ])/) {
 				if ($valid) {
@@ -347,8 +347,8 @@ while (@hosts) {
 				}
 				last if ($2 eq " ");
 				next;
-			} 
-			# 553 is a known code...  
+			}
+			# 553 is a known code...
 			if ($s =~ /^(553)([- ])/) {
 				if ($valid) {
 					print STDERR "\@$server:$u ($oldname) USER AMBIGUOUS\n";
@@ -357,8 +357,8 @@ while (@hosts) {
 				}
 				last if ($2 eq " ");
 				next;
-			} 
-			# 252 is a known code...  
+			}
+			# 252 is a known code...
 			if ($s =~ /^(252)([- ])/) {
 				if ($valid) {
 					print STDERR "\@$server:$u ($oldname) REFUSED TO VRFY\n";
@@ -367,7 +367,7 @@ while (@hosts) {
 				}
 				last if ($2 eq " ");
 				next;
-			} 
+			}
 			&giveup('',"$server: did not grok '$s'",$u);
 			last USER;
 		}
@@ -467,7 +467,7 @@ sub giveup
 #
 # This routine is used only within &giveup.  It checks to
 # see if we really have to giveup or if there is a second
-# chance because we did something before that can be 
+# chance because we did something before that can be
 # backtracked.
 #
 # %fallback{"$user *** $host"} tracks what is able to fallback
@@ -491,7 +491,7 @@ sub try_fallback
 		}
 		print "U: $user H: $host\n";
 	}
-	
+
 	$us = "$user *** $host";
 	if (defined $fellback{$us}) {
 		#
@@ -539,7 +539,7 @@ sub try_fallback
 			delete $fall_table{$ft};
 		}
 		if (defined $create_host_backtrack{$us}) {
-			$create_host_backtrack{"$user *** $newhost"} 
+			$create_host_backtrack{"$user *** $newhost"}
 				= $create_host_backtrack{$us};
 		}
 		$fellback{"$user *** $newhost"} = $oldhost;
@@ -619,7 +619,7 @@ sub expn_vrfy
 				@ret = ("",$s);
 				push(@ret,&read_response($2,$debug));
 				return (@ret);
-			} 
+			}
 			if ($1 == 551 || $1 == 251) {
 				$code = $1;
 				@ret = ("",$s);
@@ -645,7 +645,7 @@ sub expn_vrfy
 	return @ret;
 }
 # sometimes the old parse routine (now parse2) didn't
-# reject funky addresses. 
+# reject funky addresses.
 sub parse
 {
 	local($oldaddr,$server,$oldname,$one_to_one) = @_;
@@ -658,9 +658,9 @@ sub parse
 }
 
 # returns ($new_smtp_server,$new_address,$new_name)
-# given a response from a SMTP server ($newaddr), the 
+# given a response from a SMTP server ($newaddr), the
 # current host ($server), the old "name" and a flag that
-# indicates if it is being called during the initial 
+# indicates if it is being called during the initial
 # command line parsing ($parsing_args)
 sub parse2
 {
@@ -763,7 +763,7 @@ sub trim
 	return(@r);
 }
 # using the host part of an address, and the server name, add the
-# servers' domain to the address if it doesn't already have a 
+# servers' domain to the address if it doesn't already have a
 # domain.  Since this sometimes fails, save a back reference so
 # it can be unrolled.
 sub domainify
@@ -771,7 +771,7 @@ sub domainify
 	local($host,$domain_host,$u) = @_;
 	local($domain,$newhost);
 
-	# cut of trailing dots 
+	# cut of trailing dots
 	$host =~ s/\.$//;
 	$domain_host =~ s/\.$//;
 
@@ -783,23 +783,23 @@ sub domainify
 		return $host;
 	}
 
-	# 
-	# There are several weird situtations that need to be 
+	#
+	# There are several weird situations that need to be
 	# accounted for.  They have to do with domain relay hosts.
 	#
-	# Examples: 
+	# Examples:
 	#	host		server		"right answer"
-	#	
+	#
 	#	shiva.cs	cs.berkeley.edu	shiva.cs.berkeley.edu
 	#	shiva		cs.berkeley.edu	shiva.cs.berekley.edu
 	#	cumulus		reed.edu	@reed.edu:cumulus.uucp
 	# 	tiberius	tc.cornell.edu	tiberius.tc.cornell.edu
 	#
-	# The first try must always be to cut the domain part out of 
+	# The first try must always be to cut the domain part out of
 	# the server and tack it onto the host.
 	#
 	# A reasonable second try is to tack the whole server part onto
-	# the host and for each possible repeated element, eliminate 
+	# the host and for each possible repeated element, eliminate
 	# just that part.
 	#
 	# These extra "guesses" get put into the %domainify_fallback
@@ -809,7 +809,7 @@ sub domainify
 
 	local(%fallback);
 
-	local($long); 
+	local($long);
 	$long = "$host $domain_host";
 	$long =~ tr/A-Z/a-z/;
 	print "long = $long\n" if $debug;
@@ -854,7 +854,7 @@ sub domainify
 	$domainify_fallback{"$u *** $newhost"} = join(' ',sort {$fallback{$b} <=> $fallback{$a};} keys %fallback) if %fallback;
 	if ($debug) {
 		print "fallback = ";
-		print $domainify_fallback{"$u *** $newhost"} 
+		print $domainify_fallback{"$u *** $newhost"}
 			if defined($domainify_fallback{"$u *** $newhost"});
 		print "\n";
 	}
@@ -911,7 +911,7 @@ sub ps
 	print S "$p\n";
 }
 # return case-adjusted name for a host (for comparison purposes)
-sub trhost 
+sub trhost
 {
 	# treat foo.bar as an alias for Foo.BAR
 	local($host) = @_;
@@ -955,7 +955,7 @@ sub mxredirect
 	return undef;
 }
 # follow mx records, return a hostname
-# also follow temporary redirections comming from &domainify and
+# also follow temporary redirections coming from &domainify and
 # &mxlookup
 sub mx
 {
@@ -990,7 +990,7 @@ sub mx
 # look up mx records with the name server.
 # re-queue expansion requests if possible
 # optionally give up on this host.
-sub mxlookup 
+sub mxlookup
 {
 	local($lastchance,$server,$giveup,*users) = @_;
 	local(*T);
@@ -1033,18 +1033,18 @@ sub mxlookup
 		}
 		if (/Non-existent domain/) {
 			#
-			# These addresss are hosed.  Kaput!  Dead! 
+			# These addresses are hosed.  Kaput!  Dead!
 			# However, if we created the address in the
-			# first place then there is a chance of 
+			# first place then there is a chance of
 			# salvation.
 			#
-			1 while(<NSLOOKUP>);	
+			1 while(<NSLOOKUP>);
 			close(NSLOOKUP);
 			return 0 unless $lastchance;
 			&giveup('domainify',"$server: Non-existent domain",undef,1);
-			return 0;	
+			return 0;
 		}
-				
+
 	}
 	close(NSLOOKUP);
 	unlink("/tmp/expn$$");
@@ -1082,7 +1082,7 @@ sub mxlookup
 	return 1;
 }
 # if mx expansion did not help to resolve an address
-# (ie: foo@bar became @baz:foo@bar, then undo the 
+# (ie: foo@bar became @baz:foo@bar, then undo the
 # expansion).
 # this is only used by &final
 sub mxunroll
@@ -1092,10 +1092,10 @@ sub mxunroll
 	print "looking for mxbacktrace{$addr *** $host}\n"
 		if ($debug > 1);
 	while (defined $mxbacktrace{"$addr *** $host"}) {
-		print "Unrolling MX expnasion: \@$host:$addr -> " 
+		print "Unrolling MX expansion: \@$host:$addr -> "
 			if ($debug || $verbose);
 		$host = $mxbacktrace{"$addr *** $host"};
-		print "\@$host:$addr\n" 
+		print "\@$host:$addr\n"
 			if ($debug || $verbose);
 		$r = 1;
 	}
@@ -1104,7 +1104,7 @@ sub mxunroll
 		if ($host =~ /\./);
 	return 0;
 }
-# register a completed expnasion.  Make the final address as 
+# register a completed expansion.  Make the final address as
 # simple as possible.
 sub final
 {
@@ -1114,7 +1114,7 @@ sub final
 	local($au,$ah);
 
 	if ($error =~ /Non-existent domain/) {
-		# 
+		#
 		# If we created the domain, then let's undo the
 		# damage...
 		#
@@ -1126,7 +1126,7 @@ sub final
 			}
 			$error = "$host: could not locate";
 		} else {
-			# 
+			#
 			# If we only want valid addresses, toss out
 			# bad host names.
 			#
@@ -1161,17 +1161,17 @@ sub final
 					# host part has a . in it - foo.bar
 					($hb, $hr) = ($1, $2);
 					if ($addr =~ /\@([^\.\@]+)$/ && ($1 eq $hb)) {
-						# addr part has not . 
+						# addr part has not .
 						# and matches beginning of
-						# host part -- tack on a 
+						# host part -- tack on a
 						# domain name.
 						$addr .= $hr;
 					} else {
-						&mxunroll(*host,*addr) 
+						&mxunroll(*host,*addr)
 							&& redo MXUNWIND;
 					}
 				} else {
-					&mxunroll(*host,*addr) 
+					&mxunroll(*host,*addr)
 						&& redo MXUNWIND;
 				}
 			} else {
@@ -1231,13 +1231,13 @@ $flag_1;
 %already_domainify_fellback;
 %already_mx_fellback;
 &handle_alarm;
-################### BEGIN PERL/TROFF TRANSITION 
-.00 ;	
+################### BEGIN PERL/TROFF TRANSITION
+.00 ;
 
 'di
 .nr nl 0-1
 .nr % 0
-.\\"'; __END__ 
+.\\"'; __END__
 .\" ############## END PERL/TROFF TRANSITION
 .TH EXPN 1 "March 11, 1993"
 .AT 3
@@ -1256,25 +1256,25 @@ expn \- recursively expand mail aliases
 .B expn
 will use the SMTP
 .B expn
-and 
+and
 .B vrfy
-commands to expand mail aliases.  
+commands to expand mail aliases.
 It will first look up the addresses you provide on the command line.
-If those expand into addresses on other systems, it will 
-connect to the other systems and expand again.  It will keep 
+If those expand into addresses on other systems, it will
+connect to the other systems and expand again.  It will keep
 doing this until no further expansion is possible.
 .SH OPTIONS
-The default output of 
+The default output of
 .B expn
 can contain many lines which are not valid
-email addresses.  With the 
+email addresses.  With the
 .I -aa
 flag, only expansions that result in legal addresses
 are used.  Since many mailing lists have an illegal
 address or two, the single
 .IR -a ,
 address, flag specifies that a few illegal addresses can
-be mixed into the results.   More 
+be mixed into the results.   More
 .I -a
 flags vary the ratio.  Read the source to track down
 the formula.  With the
@@ -1282,13 +1282,13 @@ the formula.  With the
 option, you should be able to construct a new mailing
 list out of an existing one.
 .LP
-If you wish to limit the number of levels deep that 
+If you wish to limit the number of levels deep that
 .B expn
 will recurse as it traces addresses, use the
 .I -1
-option.  For each 
+option.  For each
 .I -1
-another level will be traversed.  So, 
+another level will be traversed.  So,
 .I -111
 will traverse no more than three levels deep.
 .LP
@@ -1297,38 +1297,38 @@ The normal mode of operation for
 is to do all of its work silently.
 The following options make it more verbose.
 It is not necessary to make it verbose to see what it is
-doing because as it works, it changes its 
+doing because as it works, it changes its
 .BR argv [0]
 variable to reflect its current activity.
-To see how it is expanding things, the 
+To see how it is expanding things, the
 .IR -v ,
-verbose, flag will cause 
-.B expn 
+verbose, flag will cause
+.B expn
 to show each address before
 and after translation as it works.
-The 
+The
 .IR -w ,
 watch, flag will cause
 .B expn
 to show you its conversations with the mail daemons.
-Finally, the 
+Finally, the
 .IR -d ,
 debug, flag will expose many of the inner workings so that
 it is possible to eliminate bugs.
 .SH ENVIRONMENT
-No enviroment variables are used.
+No environment variables are used.
 .SH FILES
 .PD 0
 .B /tmp/expn$$
-.B temporary file used as input to 
+.B temporary file used as input to
 .BR nslookup .
 .SH SEE ALSO
-.BR aliases (5), 
+.BR aliases (5),
 .BR sendmail (8),
 .BR nslookup (8),
 RFC 823, and RFC 1123.
 .SH BUGS
-Not all mail daemons will implement 
+Not all mail daemons will implement
 .B expn
 or
 .BR vrfy .
@@ -1340,19 +1340,19 @@ When attempting to connect to a system to verify an address,
 only tries one IP address.  Most mail daemons
 will try harder.
 .LP
-It is assumed that you are running domain names and that 
-the 
-.BR nslookup (8) 
-program is available.  If not, 
+It is assumed that you are running domain names and that
+the
+.BR nslookup (8)
+program is available.  If not,
 .B expn
 will not be able to verify many addresses.  It will also pause
 for a long time unless you change the code where it says
 .I $have_nslookup = 1
 to read
-.I $have_nslookup = 
+.I $have_nslookup =
 .IR 0 .
 .LP
-Lastly, 
+Lastly,
 .B expn
 does not handle every valid address.  If you have an example,
 please submit a bug report.
@@ -1362,7 +1362,7 @@ that did about the same thing.  It has since suffered bit rot
 and Jon Broome has dropped off the face of the earth!
 (Jon, if you are out there, drop me a line)
 .SH AVAILABILITY
-The latest version of 
+The latest version of
 .B expn
 is available through anonymous ftp at
 .IR ftp://ftp.idiom.com/pub/muir-programs/expn .

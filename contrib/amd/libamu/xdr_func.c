@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: xdr_func.c,v 1.4.2.4 2001/02/02 18:28:27 ezk Exp $
+ * $Id: xdr_func.c,v 1.4.2.7 2002/12/27 22:45:14 ezk Exp $
  *
  */
 
@@ -55,17 +55,6 @@
 /*
  * MACROS:
  */
-#ifdef HAVE_FS_AUTOFS
-# ifndef A_MAXNAME
-#  define A_MAXNAME 255
-# endif /* not A_MAXNAME */
-# ifndef A_MAXOPTS
-#  define A_MAXOPTS 255
-# endif /* not A_MAXOPTS */
-# ifndef A_MAXPATH
-#  define A_MAXPATH 1024
-# endif /* not A_MAXPATH */
-#endif /* HAVE_FS_AUTOFS */
 
 /* forward definitions, are they needed? */
 extern bool_t xdr_exportnode(XDR *xdrs, exportnode *objp);
@@ -1053,96 +1042,3 @@ xdr_writeargs(XDR *xdrs, nfswriteargs *objp)
   return (TRUE);
 }
 #endif /* not HAVE_XDR_WRITEARGS */
-
-
-/*
- * AUTOFS XDR FUNCTIONS:
- */
-#ifdef HAVE_FS_AUTOFS
-# ifndef HAVE_XDR_MNTREQUEST
-bool_t
-xdr_mntrequest(XDR *xdrs, mntrequest *objp)
-{
-#ifdef DEBUG
-  amuDebug(D_XDRTRACE)
-    plog(XLOG_DEBUG, "xdr_mntrequest:");
-#endif /* DEBUG */
-
-  if (!xdr_string(xdrs, &objp->name, A_MAXNAME))
-    return (FALSE);
-
-  if (!xdr_string(xdrs, &objp->map, A_MAXNAME))
-    return (FALSE);
-
-  if (!xdr_string(xdrs, &objp->opts, A_MAXOPTS))
-    return (FALSE);
-
-  if (!xdr_string(xdrs, &objp->path, A_MAXPATH))
-    return (FALSE);
-
-  return (TRUE);
-}
-# endif /* not HAVE_XDR_MNTREQUEST */
-
-
-# ifndef HAVE_XDR_MNTRES
-bool_t
-xdr_mntres(XDR *xdrs, mntres *objp)
-{
-#ifdef DEBUG
-  amuDebug(D_XDRTRACE)
-    plog(XLOG_DEBUG, "xdr_mntres:");
-#endif /* DEBUG */
-
-  if (!xdr_int(xdrs, &objp->status))
-    return (FALSE);
-
-  return (TRUE);
-}
-# endif /* not HAVE_XDR_MNTRES */
-
-
-# ifndef HAVE_XDR_UMNTREQUEST
-bool_t
-xdr_umntrequest(XDR *xdrs, umntrequest *objp)
-{
-#ifdef DEBUG
-  amuDebug(D_XDRTRACE)
-    plog(XLOG_DEBUG, "xdr_umntrequest:");
-#endif /* DEBUG */
-
-  if (!xdr_int(xdrs, &objp->isdirect))
-    return (FALSE);
-
-  if (!xdr_u_int(xdrs, (u_int *) &objp->devid))
-    return (FALSE);
-
-#ifdef HAVE_FIELD_UMNTREQUEST_RDEVID
-  if (!xdr_u_long(xdrs, &objp->rdevid))
-    return (FALSE);
-#endif /* HAVE_FIELD_UMNTREQUEST_RDEVID */
-
-  if (!xdr_pointer(xdrs, (char **) &objp->next, sizeof(umntrequest), (XDRPROC_T_TYPE) xdr_umntrequest))
-    return (FALSE);
-
-  return (TRUE);
-}
-# endif /* not HAVE_XDR_UMNTREQUEST */
-
-
-# ifndef HAVE_XDR_UMNTRES
-bool_t
-xdr_umntres(XDR *xdrs, umntres *objp)
-{
-#ifdef DEBUG
-  amuDebug(D_XDRTRACE)
-    plog(XLOG_DEBUG, "xdr_mntres:");
-#endif /* DEBUG */
-
-  if (!xdr_int(xdrs, &objp->status))
-    return (FALSE);
-
-  return (TRUE);
-}
-# endif /* not HAVE_XDR_UMNTRES */
-#endif /* HAVE_FS_AUTOFS */

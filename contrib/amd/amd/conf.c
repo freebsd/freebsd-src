@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: conf.c,v 1.7.2.3 2001/04/14 21:08:21 ezk Exp $
+ * $Id: conf.c,v 1.7.2.6 2002/12/27 22:44:34 ezk Exp $
  *
  */
 
@@ -565,14 +565,9 @@ static int
 gopt_mount_type(const char *val)
 {
   if (STREQ(val, "autofs")) {
-#ifdef HAVE_FS_AUTOFS
-    gopt.flags |= CFM_MOUNT_TYPE_AUTOFS;
-    amd_use_autofs++;
+    fprintf(stderr, "conf: no autofs support available, turning it off\n");
+    gopt.flags &= ~CFM_MOUNT_TYPE_AUTOFS;
     return 0;
-#else /* not HAVE_FS_AUTOFS */
-    fprintf(stderr, "conf: no autofs support available\n");
-    return 1;
-#endif /* not HAVE_FS_AUTOFS */
   } else if (STREQ(val, "nfs")) {
     gopt.flags &= ~CFM_MOUNT_TYPE_AUTOFS;
     return 0;
@@ -917,14 +912,9 @@ static int
 ropt_mount_type(const char *val, cf_map_t *cfm)
 {
   if (STREQ(val, "autofs")) {
-#ifdef HAVE_FS_AUTOFS
-    cfm->cfm_flags |= CFM_MOUNT_TYPE_AUTOFS;
-    amd_use_autofs++;
+    fprintf(stderr, "conf: no autofs support available, turning it off\n");
+    cfm->cfm_flags &= ~CFM_MOUNT_TYPE_AUTOFS;
     return 0;
-#else /* not HAVE_FS_AUTOFS */
-    fprintf(stderr, "conf: no autofs support available\n");
-    return 1;
-#endif /* not HAVE_FS_AUTOFS */
   } else if (STREQ(val, "nfs")) {
     cfm->cfm_flags &= ~CFM_MOUNT_TYPE_AUTOFS;
     return 0;

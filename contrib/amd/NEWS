@@ -1,4 +1,69 @@
-# -*- text -*-
+*** Notes specific to am-utils version 6.0.10-pre:
+
+- minor new ports:
+	ia64-unknown-linux-rh2.1AS (Red Hat Itanium Advanced Server)
+	i386-unknown-freebsd5.0 (5.0-RELEASE)
+	sparc64-unknown-linux-suse7.3
+
+- bug fixes:
+	rename log() in fsinfo to avoid glibc/gcc-3.3 conflict
+	am_pref free NULL pointer
+
+*** Notes specific to am-utils version 6.0.9:
+
+- Minor new ports:
+	i386-apple-darwin6.0
+	sparc-sun-solaris2.9
+
+- bugs fixed:
+
+	* handle std{in,out,err} correctly when releasing controlling tty
+	  (for real this time)
+	* don't cast pointers between enum_t and u_long, it doesn't work on
+	  64-bit big-endian platforms
+
+*** Notes specific to am-utils version 6.0.8:
+
+- Minor new ports:
+	i386-pc-linux-rh7.2
+	i386-pc-linux-rh7.3
+	i386-unknown-freebsd4.4
+	i386-unknown-freebsd5.0
+	ia64-hp-hpux11.20
+	ia64-unknown-linux-rh7.1
+	powerpc-ibm-aix5.1.0.0
+
+- Work around IBM's NFSv3 ABI change in aix4.3
+
+- Support network/netmask and network/masklen syntax in in_network()
+
+- Support disabling LDAP and Hesiod support using configure
+
+- Support xfs on Linux
+
+- Red Hat specific Amd startup script included
+
+- Remove (non-functional) autofs code and detection support.  If you want
+  autofs support, use am-utils-6.1.
+
+- bugs fixed:
+
+	* hlfsd takes uid 0's home from root's passwd entry instead of
+	  defaulting to '/'
+	* (not really our bug) Linux ignores the microseconds field in
+	  mtime, so hlfsd and amd need to increment the seconds field all
+	  the time to prevent symlink caching
+	* generic map parsing bug which was rejecting a numerical mount option
+	  if it was the last option in the string
+	* MacOS X compile bug
+	* minor fix for GNU getopt
+	* Linux has no "dev" mtab option
+	* "nolock" is an NFS mount option, not a generic one
+	* Irix N32 ABI fixes with cc
+	* security: use mkstemp instead of mktemp
+	* correct timeo values for Linux tcp/udp NFS mounts
+	* hlfsd use of setuid() not seteuid()
+	* AIX ABI changes to nfs_args fixes
 
 *** Notes specific to am-utils version 6.0.7:
 
@@ -11,7 +76,7 @@
 *** Notes specific to am-utils version 6.0.6:
 
 - new ports:
-	Apple OS X support (Darwin, Rhapsody)
+	Mac OS X support (Darwin, Rhapsody)
 
 - reworked autoconf scripts so that newer versions of known OSs will default
   their configuration to the last known version (better chance that it will

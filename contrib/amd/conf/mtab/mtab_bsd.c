@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: mtab_bsd.c,v 1.3.2.1 2001/01/10 03:23:18 ezk Exp $
+ * $Id: mtab_bsd.c,v 1.3.2.4 2002/12/27 22:44:50 ezk Exp $
  *
  */
 
@@ -64,9 +64,9 @@ mnt_dup(struct statfs *mp)
   new_mp->mnt_fsname = strdup(mp->f_mntfromname);
   new_mp->mnt_dir = strdup(mp->f_mntonname);
 
-#ifdef HAVE_FIELD_STRUCT_STATFS_F_FSTYPENAME
+#ifdef HAVE_STRUCT_STATFS_F_FSTYPENAME
   ty = mp->f_fstypename;
-#else /* not HAVE_FIELD_STRUCT_STATFS_F_FSTYPENAME */
+#else /* not HAVE_STRUCT_STATFS_F_FSTYPENAME */
   switch (mp->f_type) {
 
 # if defined(MOUNT_UFS) && defined(MNTTAB_TYPE_UFS)
@@ -92,7 +92,7 @@ mnt_dup(struct statfs *mp)
 
     break;
   }
-#endif /* not HAVE_FIELD_STRUCT_STATFS_F_FSTYPENAME */
+#endif /* not HAVE_STRUCT_STATFS_F_FSTYPENAME */
 
   new_mp->mnt_type = strdup(ty);
   new_mp->mnt_opts = strdup("unset");

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: info_ldap.c,v 1.9.2.2 2001/01/12 23:28:56 ro Exp $
+ * $Id: info_ldap.c,v 1.9.2.8 2003/08/22 04:47:21 ib42 Exp $
  *
  */
 
@@ -81,14 +81,14 @@
  */
 typedef struct ald_ent ALD;
 typedef struct cr_ent CR;
-typedef struct he_ent HE;
+typedef struct he_ent HE_ENT;
 
 /*
  * STRUCTURES:
  */
 struct ald_ent {
   LDAP *ldap;
-  HE *hostent;
+  HE_ENT *hostent;
   CR *credentials;
   time_t timestamp;
 };
@@ -117,7 +117,7 @@ static int get_ldap_timestamp(LDAP *ld, char *map, time_t *ts);
  */
 
 static void
-he_free(HE *h)
+he_free(HE_ENT *h)
 {
   XFREE(h->host);
   if (h->next != NULL)
@@ -126,22 +126,22 @@ he_free(HE *h)
 }
 
 
-static HE *
+static HE_ENT *
 string2he(char *s_orig)
 {
   char *c, *p;
   char *s;
-  HE *new, *old = NULL;
+  HE_ENT *new, *old = NULL;
 
   if (NULL == s_orig || NULL == (s = strdup(s_orig)))
     return NULL;
   for (p = s; p; p = strchr(p, ',')) {
     if (old != NULL) {
-      new = ALLOC(HE);
+      new = ALLOC(HE_ENT);
       old->next = new;
       old = new;
     } else {
-      old = ALLOC(HE);
+      old = ALLOC(HE_ENT);
       old->next = NULL;
     }
     c = strchr(p, ':');
@@ -200,11 +200,11 @@ amu_ldap_init(mnt_map *m, char *map, time_t *ts)
 
   aldh = ALLOC(ALD);
   creds = ALLOC(CR);
-
+  aldh->ldap = NULL ;
   aldh->hostent = string2he(gopt.ldap_hostports);
   if (aldh->hostent == NULL) {
     plog(XLOG_USER, "Unable to parse hostport %s for ldap map %s",
-	 gopt.ldap_hostports, map);
+	 gopt.ldap_hostports ? gopt.ldap_hostports : "(null)", map);
     return (ENOENT);
   }
   creds->who = "";
@@ -237,7 +237,7 @@ static int
 amu_ldap_rebind(ALD *a)
 {
   LDAP *ld;
-  HE *h;
+  HE_ENT *h;
   CR *c = a->credentials;
   time_t now = clocktime();
   int try;
@@ -249,8 +249,7 @@ amu_ldap_rebind(ALD *a)
 #endif /* DEBUG */
       ldap_unbind(a->ldap);
       a->timestamp = now;
-    } else
-      return (0);
+    }
   }
 
   for (try=0; try<10; try++) {	/* XXX: try up to 10 times (makes sense?) */
@@ -265,7 +264,11 @@ amu_ldap_rebind(ALD *a)
 	break;
       }
       if (gopt.ldap_cache_seconds > 0) {
+#ifdef HAVE_LDAP_ENABLE_CACHE
 	ldap_enable_cache(ld, gopt.ldap_cache_seconds, gopt.ldap_cache_maxmem);
+#else /* HAVE_LDAP_ENABLE_CACHE */
+	plog(XLOG_WARNING, "ldap_enable_cache(%ld) does not exist on this system!\n", gopt.ldap_cache_seconds);
+#endif /* HAVE_LDAP_ENABLE_CACHE */
 	a->ldap = ld;
 	a->timestamp = now;
 	return (0);
@@ -334,7 +337,6 @@ get_ldap_timestamp(LDAP *ld, char *map, time_t *ts)
     *ts = 0;
     ldap_value_free(vals);
     ldap_msgfree(res);
-    ldap_msgfree(entry);
     return (ENOENT);
   }
 #ifdef DEBUG
@@ -361,7 +363,6 @@ get_ldap_timestamp(LDAP *ld, char *map, time_t *ts)
 
   ldap_value_free(vals);
   ldap_msgfree(res);
-  ldap_msgfree(entry);
 #ifdef DEBUG
   dlog("The timestamp for %s is %ld (err=%d)\n", map, *ts, err);
 #endif /* DEBUG */
@@ -435,7 +436,6 @@ amu_ldap_search(mnt_map *m, char *map, char *key, char **pval, time_t *ts)
     plog(XLOG_USER, "Missing value for %s in map %s\n", key, map);
     ldap_value_free(vals);
     ldap_msgfree(res);
-    ldap_msgfree(entry);
     return (EIO);
   }
 #ifdef DEBUG
@@ -449,7 +449,6 @@ amu_ldap_search(mnt_map *m, char *map, char *key, char **pval, time_t *ts)
     err = ENOENT;
   }
   ldap_msgfree(res);
-  ldap_msgfree(entry);
   ldap_value_free(vals);
 
   return (err);
