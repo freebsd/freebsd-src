@@ -1255,8 +1255,15 @@ unmount(td, uap)
 		mtx_unlock(&mountlist_mtx);
 	}
 	free(pathbuf, M_TEMP);
-	if (mp == NULL)
-		return (ENOENT);
+	if (mp == NULL) {
+		/*
+		 * Previously we returned ENOENT for a nonexistent path and
+		 * EINVAL for a non-mountpoint.  We cannot tell these apart
+		 * now, so in the !MNT_BYFSID case return the more likely
+		 * EINVAL for compatibility.
+		 */
+		return ((uap->flags & MNT_BYFSID) ? ENOENT : EINVAL);
+	}
 
 	/*
 	 * Only root, or the user that did the original mount is
