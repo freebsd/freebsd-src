@@ -257,8 +257,6 @@ is_physical_memory(addr)
 void
 cpu_thread_exit(struct thread *td)     
 {
-
-	return;
 }
 
 void
@@ -269,20 +267,24 @@ cpu_thread_clean(struct thread *td)
 void
 cpu_thread_setup(struct thread *td)
 {
+}
 
-	return;
+void
+cpu_thread_swapin(struct thread *td)
+{
+}
+
+void
+cpu_thread_swapout(struct thread *td)
+{
 }
 
 void
 cpu_set_upcall(struct thread *td, struct thread *td0)
 {
-
-	return;
 }
 
 void
 cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
 {
-
-	return;
 }

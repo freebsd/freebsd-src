@@ -889,6 +889,8 @@ void	cpu_thread_clean(struct thread *);
 void	cpu_thread_exit(struct thread *);
 void	cpu_thread_setup(struct thread *td);
 void	cpu_thread_siginfo(int sig, u_long code, siginfo_t *si);
+void	cpu_thread_swapin(struct thread *);
+void	cpu_thread_swapout(struct thread *);
 void	kse_reassign(struct kse *ke);
 void	kse_link(struct kse *ke, struct ksegrp *kg);
 void	kse_unlink(struct kse *ke);

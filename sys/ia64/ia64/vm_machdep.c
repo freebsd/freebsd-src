@@ -122,6 +122,16 @@ cpu_thread_setup(struct thread *td)
 }
 
 void
+cpu_thread_swapin(struct thread *td)
+{
+}
+
+void
+cpu_thread_swapout(struct thread *td)
+{
+}
+
+void
 cpu_set_upcall(struct thread *td, struct thread *td0)
 {
 	struct pcb *pcb;
