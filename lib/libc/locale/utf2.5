@@ -40,7 +40,7 @@
 .Os
 .Sh NAME
 .Nm utf2
-.Nd "Universal character set Transformation Format encoding of runes
+.Nd "Universal character set Transformation Format encoding of wide characters
 .Sh SYNOPSIS
 .Nm ENCODING
 .Qq UTF2
@@ -61,7 +61,8 @@ Unicode Standard.
 .Pp
 .Nm UTF2
 representation is backwards compatible with ASCII, so 0x00-0x7f refer to the
-ASCII character set.  The multibyte encoding of runes between 0x0080 and 0xffff
+ASCII character set.  The multibyte encodings of wide characters between
+0x0080 and 0xffff
 consist entirely of bytes whose high order bit is set.  The actual
 encoding is represented by the following table:
 .Bd -literal
