@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.24 1998/02/09 06:09:17 eivind Exp $
+ *  $Id: linux_sysvec.c,v 1.25 1998/02/11 01:46:50 eivind Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -68,7 +68,7 @@ static void     linux_sendsig __P((sig_t catcher, int sig, int mask,
 /*
  * Linux syscalls return negative errno's, we do positive and map them
  */
-int bsd_to_linux_errno[ELAST] = {
+static int bsd_to_linux_errno[ELAST] = {
   	-0,  -1,  -2,  -3,  -4,  -5,  -6,  -7,  -8,  -9,
  	-10, -35, -12, -13, -14, -15, -16, -17, -18, -19,
  	-20, -21, -22, -23, -24, -25, -26, -27, -28, -29,
