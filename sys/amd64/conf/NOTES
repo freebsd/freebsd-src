@@ -293,7 +293,6 @@ options		SAFE_RNDTEST	# enable rndtest support
 #
 # Miscellaneous hardware:
 #
-# cy: Cyclades serial driver
 # digi: Digiboard driver
 # stl: Stallion EasyIO and EasyConnection 8/32 (cd1400 based)
 
@@ -315,7 +314,8 @@ device		digi_EPCX_PCI
 device		digi_Xe
 device		digi_Xem
 device		digi_Xr
-#XXX#	PCI versions exist, but driver needs to be moved and split up.
+#XXX#	PCI versions exist, but driver needs to be moved and split up,
+#XXX#	Warner Losh working on it.
 #XXX#device		stl
 # HOT1 Xilinx 6200 card (http://www.vcc.com/)
 device		xrpu
