@@ -48,7 +48,9 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 
-/*
+/******************************************************************************
+ * mb_alloc mbuf and cluster allocator.
+ *
  * Maximum number of PCPU containers. If you know what you're doing you could
  * explicitly define MBALLOC_NCPU to be exactly the number of CPUs on your
  * system during compilation, and thus prevent kernel structure bloat.
@@ -180,7 +182,8 @@ SYSINIT(tunable_mbinit, SI_SUB_TUNABLES, SI_ORDER_ANY, tunable_mbinit, NULL);
  * We set up in such a way that all the objects (mbufs, clusters)
  * share the same mutex lock.  It has been established that we do not benefit
  * from different locks for different objects, so we use the same lock,
- * regardless of object type.
+ * regardless of object type.  This also allows us to do optimised
+ * multi-object allocations without dropping the lock in between.
  */
 struct mb_lstmngr {
 	struct mb_gen_list *ml_genlist;
@@ -304,6 +307,13 @@ static void		 mbuf_init(void *);
  */
 #define	NMB_MBUF_INIT	4
 #define	NMB_CLUST_INIT	16
+
+/*
+ * Internal flags that allow for cache locks to remain "persistent" across
+ * allocation and free calls.  They may be used in combination.
+ */
+#define	MBP_PERSIST	0x1	/* Return with lock still held. */
+#define	MBP_PERSISTENT	0x2	/* Cache lock is already held coming in. */
 
 /*
  * Initialize the mbuf subsystem.
@@ -542,7 +552,8 @@ mb_pop_cont(struct mb_lstmngr *mb_list, int how, struct mb_pcpu_list *cnt_lst)
  */
 static __inline
 void *
-mb_alloc(struct mb_lstmngr *mb_list, int how, short type)
+mb_alloc(struct mb_lstmngr *mb_list, int how, short type, short persist, 
+	 int *pers_list)
 {
 	static int last_report;
 	struct mb_pcpu_list *cnt_lst;
@@ -550,8 +561,17 @@ mb_alloc(struct mb_lstmngr *mb_list, int how, short type)
 	void *m;
 
 	m = NULL;
-	cnt_lst = MB_GET_PCPU_LIST(mb_list);
-	MB_LOCK_CONT(cnt_lst);
+	if ((persist & MBP_PERSISTENT) != 0) {
+		/*
+		 * If we're a "persistent" call, then the per-CPU #(pers_list)
+		 * cache lock is already held, and we just need to refer to
+		 * the correct cache descriptor.
+		 */
+		cnt_lst = MB_GET_PCPU_LIST_NUM(mb_list, *pers_list);
+	} else {
+		cnt_lst = MB_GET_PCPU_LIST(mb_list);
+		MB_LOCK_CONT(cnt_lst);
+	}
 
 	if ((bucket = SLIST_FIRST(&(cnt_lst->mb_cont.mc_bhead))) != NULL) {
 		/*
@@ -561,8 +581,13 @@ mb_alloc(struct mb_lstmngr *mb_list, int how, short type)
 		 * from the container.
 		 */
 		MB_GET_OBJECT(m, bucket, cnt_lst);
-		MB_MBTYPES_INC(cnt_lst, type, 1); 
-		MB_UNLOCK_CONT(cnt_lst);
+		MB_MBTYPES_INC(cnt_lst, type, 1);
+
+		/* If asked to persist, do not drop the lock. */
+		if ((persist & MBP_PERSIST) == 0)
+			MB_UNLOCK_CONT(cnt_lst);
+		else
+			*pers_list = cnt_lst->mb_cont.mc_numowner;
 	} else {
 		struct mb_gen_list *gen_list;
 
@@ -605,7 +630,12 @@ mb_alloc(struct mb_lstmngr *mb_list, int how, short type)
 			}
 			MB_UNLOCK_CONT(gen_list);
 			MB_MBTYPES_INC(cnt_lst, type, 1);
-			MB_UNLOCK_CONT(cnt_lst);
+
+			/* If asked to persist, do not drop the lock. */
+			if ((persist & MBP_PERSIST) == 0)
+				MB_UNLOCK_CONT(cnt_lst);
+			else
+				*pers_list = cnt_lst->mb_cont.mc_numowner;
 		} else {
 			/*
 			 * We'll have to allocate a new page.
@@ -615,7 +645,12 @@ mb_alloc(struct mb_lstmngr *mb_list, int how, short type)
 			if (bucket != NULL) {
 				MB_GET_OBJECT(m, bucket, cnt_lst);
 				MB_MBTYPES_INC(cnt_lst, type, 1);
-				MB_UNLOCK_CONT(cnt_lst);
+
+				/* If asked to persist, do not drop the lock. */
+				if ((persist & MBP_PERSIST) == 0)
+					MB_UNLOCK_CONT(cnt_lst);
+				else
+					*pers_list=cnt_lst->mb_cont.mc_numowner;
 			} else {
 				if (how == M_TRYWAIT) {
 					/*
@@ -633,10 +668,14 @@ mb_alloc(struct mb_lstmngr *mb_list, int how, short type)
 					   (ticks - last_report) >= hz) {
 						last_report = ticks;
 						printf(
-"All mbufs exhausted, please see tuning(7).\n");
-/* XXX: Actually could be clusters, but it gets the point across. */
+"All mbufs or mbuf clusters exhausted, please see tuning(7).\n");
 					}
 
+				}
+				if (m != NULL && (persist & MBP_PERSIST) != 0) {
+					cnt_lst = MB_GET_PCPU_LIST(mb_list);
+					MB_LOCK_CONT(cnt_lst);
+					*pers_list=cnt_lst->mb_cont.mc_numowner;
 				}
 			}
 		}
@@ -927,47 +966,36 @@ mb_reclaim(void)
 				(*pr->pr_drain)();
 }
 
-/*
- * Local mbuf & cluster alloc macros and routines.
- * Local macro and function names begin with an underscore ("_").
+/******************************************************************************
+ * Internal setup macros.
  */
-static void	_mclfree(struct mbuf *);
 
-#define	_m_get(m, how, type) do {					\
-	(m) = (struct mbuf *)mb_alloc(&mb_list_mbuf, (how), (type));	\
-	if ((m) != NULL) {						\
-		(m)->m_type = (type);					\
-		(m)->m_next = NULL;					\
-		(m)->m_nextpkt = NULL;					\
-		(m)->m_data = (m)->m_dat;				\
-		(m)->m_flags = 0;					\
-	}								\
+#define	_mb_setup(m, type) do {						\
+	(m)->m_type = (type);						\
+	(m)->m_next = NULL;						\
+	(m)->m_nextpkt = NULL;						\
+	(m)->m_data = (m)->m_dat;					\
+	(m)->m_flags = 0;						\
 } while (0)
 
-#define	_m_gethdr(m, how, type) do {					\
-	(m) = (struct mbuf *)mb_alloc(&mb_list_mbuf, (how), (type));	\
-	if ((m) != NULL) {						\
-		(m)->m_type = (type);					\
-		(m)->m_next = NULL;					\
-		(m)->m_nextpkt = NULL;					\
-		(m)->m_data = (m)->m_pktdat;				\
-		(m)->m_flags = M_PKTHDR;				\
-		(m)->m_pkthdr.rcvif = NULL;				\
-		(m)->m_pkthdr.csum_flags = 0;				\
-		(m)->m_pkthdr.aux = NULL;				\
-	}								\
+#define	_mbhdr_setup(m, type) do {					\
+	(m)->m_type = (type);						\
+	(m)->m_next = NULL;						\
+	(m)->m_nextpkt = NULL;						\
+	(m)->m_data = (m)->m_pktdat;					\
+	(m)->m_flags = M_PKTHDR;					\
+	(m)->m_pkthdr.rcvif = NULL;					\
+	(m)->m_pkthdr.csum_flags = 0;					\
+	(m)->m_pkthdr.aux = NULL;					\
 } while (0)
 
-/* XXX: Check for M_PKTHDR && m_pkthdr.aux is bogus... please fix (see KAME). */
-#define	_m_free(m, n) do {						\
-	(n) = (m)->m_next;						\
-	if ((m)->m_flags & M_EXT)					\
-		MEXTFREE((m));						\
-	if (((m)->m_flags & M_PKTHDR) != 0 && (m)->m_pkthdr.aux) {	\
-		m_freem((m)->m_pkthdr.aux);				\
-		(m)->m_pkthdr.aux = NULL;				\
-	}								\
-	mb_free(&mb_list_mbuf, (m), (m)->m_type);			\
+#define _mcl_setup(m) do {						\
+	(m)->m_data = (m)->m_ext.ext_buf;				\
+	(m)->m_flags |= M_EXT;						\
+	(m)->m_ext.ext_free = NULL;					\
+	(m)->m_ext.ext_args = NULL;					\
+	(m)->m_ext.ext_size = MCLBYTES;					\
+	(m)->m_ext.ext_type = EXT_CLUSTER;				\
 } while (0)
 
 #define	_mext_init_ref(m) do {						\
@@ -981,6 +1009,29 @@ static void	_mclfree(struct mbuf *);
 #define	_mext_dealloc_ref(m)						\
 	free((m)->m_ext.ref_cnt, M_MBUF)
 
+/******************************************************************************
+ * Internal routines.
+ * 
+ * Because mb_alloc() and mb_free() are inlines (to keep the common
+ * cases down to a maximum of one function call), below are a few
+ * routines used only internally for the sole purpose of making certain
+ * functions smaller.
+ *
+ * - _mext_free(): frees associated storage when the ref. count is
+ *   exactly one and we're freeing.
+ *
+ * - _mclfree(): wraps an mb_free() of a cluster to avoid inlining the
+ *   mb_free() in some exported routines.
+ *
+ * - _mgetm_internal(): common "persistent-lock" routine that allocates
+ *   an mbuf and a cluster in one shot, but where the lock is already
+ *   held coming in (which is what makes it different from the exported
+ *   m_getcl()).  The lock is dropped when done.  This is used by m_getm()
+ *   and, therefore, is very m_getm()-specific.
+ */
+static void _mclfree(struct mbuf *);
+static struct mbuf *_mgetm_internal(int, short, int, int);
+
 void
 _mext_free(struct mbuf *mb)
 {
@@ -992,10 +1043,6 @@ _mext_free(struct mbuf *mb)
 	_mext_dealloc_ref(mb);
 }
 
-/*
- * We only include this here to avoid making m_clget() excessively large
- * due to too much inlined code.
- */
 static void
 _mclfree(struct mbuf *mb)
 {
@@ -1004,78 +1051,347 @@ _mclfree(struct mbuf *mb)
 	mb->m_ext.ext_buf = NULL;
 }
 
+static struct mbuf *
+_mgetm_internal(int how, short type, int persist, int cchnum)
+{
+	struct mbuf *mb;
+
+	mb = (struct mbuf *)mb_alloc(&mb_list_mbuf, how, type, persist,&cchnum);
+	if (mb == NULL)
+		return NULL;
+	_mb_setup(mb, type);
+
+	if ((persist & MBP_PERSIST) != 0) {
+		mb->m_ext.ext_buf = (caddr_t)mb_alloc(&mb_list_clust,
+		    how, MT_NOTMBUF, MBP_PERSISTENT, &cchnum);
+		if (mb->m_ext.ext_buf == NULL) {
+			(void)m_free(mb);
+			mb = NULL;
+		}
+		_mext_init_ref(mb);
+		if (mb->m_ext.ref_cnt == NULL) {
+			_mclfree(mb);
+			(void)m_free(mb);
+			return NULL;
+		} else
+			_mcl_setup(mb);
+	}
+	return (mb);
+}
+
+/******************************************************************************
+ * Exported buffer allocation and de-allocation routines.
+ */
+
 /*
- * Exported space allocation and de-allocation routines.
+ * Allocate and return a single (normal) mbuf.  NULL is returned on failure.
+ *
+ * Arguments:
+ *  - how: M_TRYWAIT to try to block for kern.ipc.mbuf_wait number of ticks
+ *    if really starved for memory.  M_DONTWAIT to never block.
+ *  - type: the type of the mbuf being allocated.
  */
 struct mbuf *
-m_get(int how, int type)
+m_get(int how, short type)
 {
 	struct mbuf *mb;
 
-	_m_get(mb, how, type);
-	return (mb);
-}
-
-struct mbuf *
-m_gethdr(int how, int type)
-{
-	struct mbuf *mb;
-
-	_m_gethdr(mb, how, type);
-	return (mb);
-}
-
-struct mbuf *
-m_get_clrd(int how, int type)
-{
-	struct mbuf *mb;
-
-	_m_get(mb, how, type);
+	mb = (struct mbuf *)mb_alloc(&mb_list_mbuf, how, type, 0, NULL);
 	if (mb != NULL)
+		_mb_setup(mb, type);
+	return (mb);
+}
+
+/*
+ * Allocate a given length worth of mbufs and/or clusters (whatever fits
+ * best) and return a pointer to the top of the allocated chain.  If an
+ * existing mbuf chain is provided, then we will append the new chain
+ * to the existing one and return the top of the provided (existing)
+ * chain.  NULL is returned on failure, in which case the [optional]
+ * provided chain is left untouched, and any memory already allocated
+ * is freed.
+ *
+ * Arguments:
+ *  - m: existing chain to which to append new chain (optional).
+ *  - len: total length of data to append, either in mbufs or clusters
+ *    (we allocate whatever combination yields the best fit).
+ *  - how: M_TRYWAIT to try to block for kern.ipc.mbuf_wait number of ticks
+ *    if really starved for memory.  M_DONTWAIT to never block.
+ *  - type: the type of the mbuf being allocated.
+ */
+struct mbuf *
+m_getm(struct mbuf *m, int len, int how, short type)
+{
+	struct mbuf *mb, *top, *cur, *mtail;
+	int num, rem;
+	int cchnum, persist;
+	int i;
+
+	KASSERT(len >= 0, ("m_getm(): len is < 0"));
+
+	/* If m != NULL, we will append to the end of that chain. */
+	if (m != NULL)
+		for (mtail = m; mtail->m_next != NULL; mtail = mtail->m_next);
+	else
+		mtail = NULL;
+
+	/*
+	 * In the best-case scenario (which should be the common case
+	 * unless we're in a starvation situation), we will be able to
+	 * go through the allocation of all the desired mbufs and clusters
+	 * here without dropping our per-CPU cache lock in between.
+	 */
+	num = len / MCLBYTES;
+	rem = len % MCLBYTES;
+	persist = 0;
+	cchnum = -1;
+	top = cur = NULL;
+	for (i = 0; i < num; i++) {
+		mb = (struct mbuf *)mb_alloc(&mb_list_mbuf, how, type,
+		    MBP_PERSIST | persist, &cchnum);
+		if (mb == NULL)
+			goto failed;
+		_mb_setup(mb, type);
+
+		persist = (i != (num - 1) || rem > 0) ? MBP_PERSIST : 0;
+		mb->m_ext.ext_buf = (caddr_t)mb_alloc(&mb_list_clust,
+		    how, MT_NOTMBUF, persist | MBP_PERSISTENT, &cchnum);
+		if (mb->m_ext.ext_buf == NULL) {
+			(void)m_free(mb);
+			goto failed;
+		}
+		_mext_init_ref(mb);
+		if (mb->m_ext.ref_cnt == NULL) {
+			/* XXX: PROBLEM! lock may be held here! */
+			panic("m_getm(): FATAL ERROR! Sorry!");
+			_mclfree(mb);
+			(void)m_free(mb);
+			goto failed;
+		}
+		_mcl_setup(mb);
+		persist = MBP_PERSISTENT;
+
+		if (cur == NULL)
+			top = cur = mb;
+		else
+			cur->m_next = mb;
+	}
+	if (rem > 0) {
+		if (cchnum >= 0) {
+			persist = MBP_PERSISTENT;
+			persist |= (rem > MINCLSIZE) ? MBP_PERSIST : 0;
+			mb = _mgetm_internal(how, type, persist, cchnum);
+			if (mb == NULL)
+				goto failed;
+		} else if (rem > MINCLSIZE) {
+			mb = m_getcl(how, type, 0);
+		} else {
+			mb = m_get(how, type);
+		}
+		if (mb != NULL) {
+			if (cur == NULL)
+				top = mb;
+			else
+				cur->m_next = mb;
+		} else
+			goto failed;
+	}
+
+	if (mtail != NULL)
+		mtail->m_next = top;
+	else
+		mtail = top;
+	return mtail;
+failed:
+	if (top != NULL)
+		m_freem(top);
+	return NULL;
+}
+
+/*
+ * Allocate and return a single M_PKTHDR mbuf.  NULL is returned on failure.
+ *
+ * Arguments:
+ *  - how: M_TRYWAIT to try to block for kern.ipc.mbuf_wait number of ticks
+ *    if really starved for memory.  M_DONTWAIT to never block.
+ *  - type: the type of the mbuf being allocated.
+ */
+struct mbuf *
+m_gethdr(int how, short type)
+{
+	struct mbuf *mb;
+
+	mb = (struct mbuf *)mb_alloc(&mb_list_mbuf, how, type, 0, NULL);
+	if (mb != NULL)
+		_mbhdr_setup(mb, type);
+	return (mb);
+}
+
+/*
+ * Allocate and return a single (normal) pre-zero'd mbuf.  NULL is
+ * returned on failure.
+ *
+ * Arguments:
+ *  - how: M_TRYWAIT to try to block for kern.ipc.mbuf_wait number of ticks
+ *    if really starved for memory.  M_DONTWAIT to never block.
+ *  - type: the type of the mbuf being allocated.
+ */
+struct mbuf *
+m_get_clrd(int how, short type)
+{
+	struct mbuf *mb;
+
+	mb = (struct mbuf *)mb_alloc(&mb_list_mbuf, how, type, 0, NULL);
+	if (mb != NULL) {
+		_mb_setup(mb, type);
 		bzero(mtod(mb, caddr_t), MLEN);
+	}
 	return (mb);
 }
 
+/*
+ * Allocate and return a single M_PKTHDR pre-zero'd mbuf.  NULL is
+ * returned on failure.
+ *
+ * Arguments:
+ *  - how: M_TRYWAIT to try to block for kern.ipc.mbuf_wait number of ticks
+ *    if really starved for memory.  M_DONTWAIT to never block.
+ *  - type: the type of the mbuf being allocated.
+ */
 struct mbuf *
-m_gethdr_clrd(int how, int type)
+m_gethdr_clrd(int how, short type)
 {
 	struct mbuf *mb;
 
-	_m_gethdr(mb, how, type);
-	if (mb != NULL)
+	mb = (struct mbuf *)mb_alloc(&mb_list_mbuf, how, type, 0, NULL);
+	if (mb != NULL) {
+		_mbhdr_setup(mb, type);
 		bzero(mtod(mb, caddr_t), MHLEN);
+	}
 	return (mb);
 }
 
+/*
+ * Free a single mbuf and any associated storage that it may have attached
+ * to it.  The associated storage may not be immediately freed if its
+ * reference count is above 1.  Returns the next mbuf in the chain following
+ * the mbuf being freed.
+ *
+ * Arguments:
+ *  - mb: the mbuf to free.
+ */
 struct mbuf *
 m_free(struct mbuf *mb)
 {
 	struct mbuf *nb;
 
-	_m_free(mb, nb);
+	/* XXX: This check is bogus... please fix (see KAME). */
+	if ((mb->m_flags & M_PKTHDR) != 0 && mb->m_pkthdr.aux) {
+		m_freem(mb->m_pkthdr.aux);
+		mb->m_pkthdr.aux = NULL;
+	}
+
+	nb = mb->m_next;
+	if ((mb->m_flags & M_EXT) != 0)
+		MEXTFREE(mb);
+	mb_free(&mb_list_mbuf, mb, mb->m_type);
 	return (nb);
 }
 
+/*
+ * Fetch an mbuf with a cluster attached to it.  If one of the
+ * allocations fails, the entire allocation fails.  This routine is
+ * the preferred way of fetching both the mbuf and cluster together,
+ * as it avoids having to unlock/relock between allocations.  Returns
+ * NULL on failure. 
+ *
+ * Arguments:
+ *  - how: M_TRYWAIT to try to block for kern.ipc.mbuf_wait number of ticks
+ *    if really starved for memory.  M_DONTWAIT to never block.
+ *  - type: the type of the mbuf being allocated.
+ *  - flags: any flags to pass to the mbuf being allocated; if this includes
+ *    the M_PKTHDR bit, then the mbuf is configured as a M_PKTHDR mbuf.
+ */
+struct mbuf *
+m_getcl(int how, short type, int flags)
+{
+	struct mbuf *mb;
+	int cchnum;
+
+	mb = (struct mbuf *)mb_alloc(&mb_list_mbuf, how, type,
+	    MBP_PERSIST, &cchnum);
+	if (mb == NULL)
+		return NULL;
+	mb->m_type = type;
+	mb->m_next = NULL;
+	mb->m_flags = flags;
+	if ((flags & M_PKTHDR) != 0) {
+		mb->m_nextpkt = NULL;
+		mb->m_pkthdr.rcvif = NULL;
+		mb->m_pkthdr.csum_flags = 0;
+		mb->m_pkthdr.aux = NULL;
+	}
+
+	mb->m_ext.ext_buf = (caddr_t)mb_alloc(&mb_list_clust, how,
+	    MT_NOTMBUF, MBP_PERSISTENT, &cchnum);
+	if (mb->m_ext.ext_buf == NULL) {
+		(void)m_free(mb);
+		mb = NULL;
+	} else {
+		_mext_init_ref(mb);
+		if (mb->m_ext.ref_cnt == NULL) {
+			_mclfree(mb);
+			(void)m_free(mb);
+			mb = NULL;
+		} else
+			_mcl_setup(mb);
+	}
+	return (mb);
+}
+
+/*
+ * Fetch a single mbuf cluster and attach it to an existing mbuf.  If
+ * successfull, configures the provided mbuf to have mbuf->m_ext.ext_buf
+ * pointing to the cluster, and sets the M_EXT bit in the mbuf's flags.
+ * The M_EXT bit is not set on failure.
+ *
+ * Arguments:
+ *  - mb: the existing mbuf to which to attach the allocated cluster.
+ *  - how: M_TRYWAIT to try to block for kern.ipc.mbuf_wait number of ticks
+ *    if really starved for memory.  M_DONTWAIT to never block.
+ */
 void
 m_clget(struct mbuf *mb, int how)
 {
 
-	mb->m_ext.ext_buf = (caddr_t)mb_alloc(&mb_list_clust, how, MT_NOTMBUF);
+	mb->m_ext.ext_buf= (caddr_t)mb_alloc(&mb_list_clust,how,MT_NOTMBUF,
+	    0, NULL);
 	if (mb->m_ext.ext_buf != NULL) {
 		_mext_init_ref(mb);
 		if (mb->m_ext.ref_cnt == NULL)
 			_mclfree(mb);
-		else {
-			mb->m_data = mb->m_ext.ext_buf;
-			mb->m_flags |= M_EXT;
-			mb->m_ext.ext_free = NULL;
-			mb->m_ext.ext_args = NULL;
-			mb->m_ext.ext_size = MCLBYTES;
-			mb->m_ext.ext_type = EXT_CLUSTER;
-		}
+		else
+			_mcl_setup(mb);
 	}
 }
 
+/*
+ * Configure a provided mbuf to refer to the provided external storage
+ * buffer and setup a reference count for said buffer.  If the setting
+ * up of the reference count fails, the M_EXT bit will not be set.  If
+ * successfull, the M_EXT bit is set in the mbuf's flags.
+ *
+ * Arguments:
+ *  - mb: the existing mbuf to which to attach the provided buffer.
+ *  - buf: the address of the provided external storage buffer.
+ *  - size: the size of the provided buffer.
+ *  - freef: a pointer to a routine that is responsible for freeing the
+ *    provided external storage buffer.
+ *  - args: a pointer to an argument structure (of any type) to be passed
+ *    to the provided freef routine (may be NULL).
+ *  - flags: any other flags to be passed to the provided mbuf.
+ *  - type: the type that the external storage buffer should be labeled with.
+ */
 void
 m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
     void (*freef)(void *, void *), void *args, short flags, int type)
@@ -1094,8 +1410,13 @@ m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
 }
 
 /*
- * Change type for mbuf `mb'; this is a relatively expensive operation and
- * should be avoided.
+ * Change type of provided mbuf.  This is a relatively expensive operation
+ * (due to the cost of statistics manipulations) and should be avoided, where
+ * possible.
+ *
+ * Arguments:
+ *  - mb: the provided mbuf for which the type needs to be changed.
+ *  - new_type: the new type to change the mbuf to.
  */
 void
 m_chtype(struct mbuf *mb, short new_type)
