@@ -6,18 +6,28 @@ NOPROFILE=	true
 INTERNALLIB=	true
 INTERNALSTATICLIB=	true
 
-SRCS=	devicename.c main.c ofw_copy.c ofw_module.c ofw_disk.c ofw_console.c \
-	ofw_time.c ofw_devsearch.c ofw_reboot.c openfirm.c
+SRCS=	devicename.c ofw_copy.c ofw_module.c ofw_disk.c ofw_net.c \
+	ofw_console.c ofw_time.c ofw_devsearch.c ofw_reboot.c openfirm.c
 
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
 # Pick up the bootstrap header for some interface items
-CFLAGS+=	-I${.CURDIR}/../../common -msoft-float \
-		-I${.CURDIR}/../../.. -I.
+CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../../.. -I.
 
-.ifdef(BOOT_BIOSDISK_DEBUG)
+.if ${MACHINE_ARCH} == "powerpc"
+CFLAGS+=	-msoft-float
+.endif
+
+.ifdef(BOOT_DISK_DEBUG)
 # Make the disk code more talkative
 CFLAGS+= -DDISK_DEBUG
 .endif
 
+machine:
+	ln -sf ${.CURDIR}/../../../${MACHINE_ARCH}/include machine
+
+CLEANFILES+=	machine
+
 .include <bsd.lib.mk>
+
+beforedepend ${OBJS}: machine

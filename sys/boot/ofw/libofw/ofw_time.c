@@ -39,3 +39,23 @@ time(time_t *tloc)
 		*tloc = secs;
 	return secs;
 }
+
+int
+getsecs()
+{
+	time_t	n = 0;
+	time(&n);
+	return n;
+}
+
+void
+delay(int usecs)
+{
+	int	msecs, start;
+
+	msecs = usecs / 1000;
+	start = OF_milliseconds();
+
+	while (OF_milliseconds() - start < msecs);
+}
+	

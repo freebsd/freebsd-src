@@ -1,4 +1,4 @@
-f/*
+/*
  * Copyright (C) 2000 Benno Rice.
  * All rights reserved.
  *
@@ -31,7 +31,6 @@ f/*
 
 #include <sys/param.h>
 #include <sys/disklabel.h>
-#include <sys/disklabel_mbr.h>
 
 #include <netinet/in.h>
 
@@ -81,7 +80,7 @@ ofwd_init(void)
 		if (instance != -1) {
 			ofwdinfo[nofwdinfo].ofwd_unit = nofwdinfo;
 			strncpy(ofwdinfo[nofwdinfo].ofwd_path, devpath, 255);
-			printf("disk%d is %s\n", nofwdinfo, devpath);
+			printf("disk%d is %s\n", nofwdinfo, ofwdinfo[nofwdinfo].ofwd_path);
 			nofwdinfo++;
 			OF_close(instance);
 		}
@@ -117,6 +116,26 @@ ofwd_close(struct open_file *f)
 static void
 ofwd_print(int verbose)
 {
-	printf("ofwd_print called.\n");
+	int	i;
+	char	line[80];
+
+	for (i = 0; i < nofwdinfo; i++) {
+		sprintf(line, "    disk%d:   %s", i, ofwdinfo[i].ofwd_path);
+		pager_output(line);
+		pager_output("\n");
+	}
 	return;
+}
+
+int
+ofwd_getunit(const char *path)
+{
+	int i;
+
+	for (i = 0; i < nofwdinfo; i++) {
+		if (strcmp(path, ofwdinfo[i].ofwd_path) == 0)
+			return i;
+	}
+
+	return -1;
 }
