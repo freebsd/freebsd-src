@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)lpq.1	8.1 (Berkeley) 6/6/93
+.\"     @(#)lpq.1	8.2 (Berkeley) 4/28/95
 .\"
-.Dd June 6, 1993
+.Dd April 28, 1995
 .Dt LPQ 1
 .Os BSD 4.2
 .Sh NAME
@@ -39,6 +39,7 @@
 .Nd spool queue examination program
 .Sh SYNOPSIS
 .Nm lpq
+.OP Fl a
 .Op Fl l
 .Op Fl P Ns Ar printer
 .Op  job # ...
@@ -67,6 +68,9 @@ names or job numbers to filter out only those jobs of interest.
 Information about each of the files comprising the job entry
 is printed.
 Normally, only as much information as will fit on one line is displayed.
+.It Fl a
+Report on the local queues for all printers,
+rather than just the specified printer.
 .El
 .Pp
 For each job submitted (i.e. invocation of
@@ -102,7 +106,7 @@ If the following environment variable exists, it is used by
 Specifies an alternate default printer.
 .El
 .Sh FILES
-.Bl -tag -width /usr/share/misc/termcap -compact
+.Bl -tag -width "/var/spool/*/lock" -compact
 .It Pa /etc/printcap
 To determine printer characteristics.
 .It Pa /var/spool/*
@@ -111,8 +115,6 @@ The spooling directory, as determined from printcap.
 Control files specifying jobs.
 .It Pa /var/spool/*/lock
 The lock file to obtain the currently active job.
-.It Pa /usr/share/misc/termcap
-For manipulating the screen for repeated display.
 .El
 .Sh SEE ALSO
 .Xr lpr 1 ,
