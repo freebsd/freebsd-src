@@ -545,7 +545,7 @@ main(int argc, char *argv[])
 	while ((ch = getopt(argc, argv, "c:sdf"
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
-			    "P"
+			    "P:"
 #else /* IPSEC_POLICY_IPSEC */
 			    "AE"
 #endif /* IPSEC_POLICY_IPSEC */
