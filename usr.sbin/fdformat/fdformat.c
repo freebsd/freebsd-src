@@ -49,7 +49,7 @@
 #include <strings.h>
 #include <unistd.h>
 
-#include <machine/ioctl_fd.h>
+#include <sys/fdcio.h>
 
 static void
 format_track(int fd, int cyl, int secs, int head, int rate,
