@@ -165,6 +165,7 @@ struct ieee80211com {
 	u_int16_t		ic_rtsthreshold;
 	u_int16_t		ic_fragthreshold;
 	struct mtx		ic_nodelock;	/* on node table */
+	u_int			ic_scangen;	/* gen# for timeout scan */
 	struct ieee80211_node	*(*ic_node_alloc)(struct ieee80211com *);
 	void			(*ic_node_free)(struct ieee80211com *,
 					struct ieee80211_node *);
