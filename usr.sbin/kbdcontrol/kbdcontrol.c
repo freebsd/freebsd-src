@@ -6,7 +6,8 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    notice, this list of conditions and the following disclaimer,
+ *    in this position and unchanged.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -24,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: kbdcontrol.c,v 1.2 1994/10/25 20:50:41 swallace Exp $
+ *	$Id: kbdcontrol.c,v 1.3 1995/01/12 11:44:42 sos Exp $
  */
 
 #include <ctype.h>
@@ -41,22 +42,31 @@ char ctrl_names[32][4] = {
 	"can", "em ", "sub", "esc", "fs ", "gs ", "rs ", "ns "
 	};
 
-char fkey_table[60][MAXFK] = {
-/* 00-03 */	"\033[M", "\033[N", "\033[O", "\033[P",
-/* 04-07 */	"\033[Q", "\033[R", "\033[S", "\033[T",
-/* 08-0B */	"\033[U", "\033[V", "\033[W", "\033[X",
-/* 0C-0F */	"\033[W", "\033[X", "\033[Y", "\033[Z",
-/* 10-13 */	"\033[a", "\033[b", "\033[c", "\033[d",
-/* 14-17 */	"\033[e", "\033[f", "\033[g", "\033[h",
-/* 18-1B */	"\033[g", "\033[h", "\033[i", "\033[j",
-/* 1C-1F */	"\033[k", "\033[l", "\033[m", "\033[n",
-/* 20-23 */	"\033[o", "\033[p", "\033[q", "\033[r",
-/* 24-27 */	"\033[g", "\033[h", "\033[i", "\033[j",
-/* 28-2B */	"\033[k", "\033[l", "\033[m", "\033[n",
-/* 2C-2F */	"\033[o", "\033[p", "\033[q", "\033[r",
-/* 30-33 */	"\033[H", "\033[A", "\033[I", "-"     ,
-/* 34-37 */	"\033[D", "\177"  , "\033[C", "+"     ,
-/* 38-3B */	"\033[F", "\033[B", "\033[G", "\033[L"
+char fkey_table[96][MAXFK] = {
+/* 01-04 */	"\033[M", "\033[N", "\033[O", "\033[P",
+/* 05-08 */	"\033[Q", "\033[R", "\033[S", "\033[T",
+/* 09-12 */	"\033[U", "\033[V", "\033[W", "\033[X",
+/* 13-16 */	"\033[Y", "\033[Z", "\033[a", "\033[b",
+/* 17-20 */	"\033[c", "\033[d", "\033[e", "\033[f",
+/* 21-24 */	"\033[g", "\033[h", "\033[i", "\033[j",
+/* 25-28 */	"\033[k", "\033[l", "\033[m", "\033[n",
+/* 29-32 */	"\033[o", "\033[p", "\033[q", "\033[r",
+/* 33-36 */	"\033[s", "\033[t", "\033[u", "\033[v",
+/* 37-40 */	"\033[w", "\033[x", "\033[y", "\033[z",
+/* 41-44 */	"\033[@", "\033[[", "\033[\\","\033[]",
+/* 45-48 */     "\033[^", "\033[_", "\033[`", "\033[",
+/* 49-52 */	"\033[H", "\033[A", "\033[I", "-"     ,
+/* 53-56 */	"\033[D", "\033[E", "\033[C", "+"     ,
+/* 57-60 */	"\033[F", "\033[B", "\033[G", "\033[L",
+/* 61-64 */	"\033[J", "\033[K", "\033[}", ""      ,
+/* 65-68 */	""      , ""      , ""      , ""      ,
+/* 69-72 */	""      , ""      , ""      , ""      ,
+/* 73-76 */	""      , ""      , ""      , ""      ,
+/* 77-80 */	""      , ""      , ""      , ""      ,
+/* 81-84 */	""      , ""      , ""      , ""      ,
+/* 85-88 */	""      , ""      , ""      , ""      ,
+/* 89-92 */	""      , ""      , ""      , ""      ,
+/* 93-96 */	""      , ""      , ""      , ""      ,
 	};
 
 const int	delays[]  = {250, 500, 750, 1000};
@@ -147,6 +157,8 @@ get_entry()
 		return RBT | 0x100;
 	case TDBG:
 		return DBG | 0x100;
+	case TSUSP:
+		return SUSP | 0x100;
 	case TFUNC:
 		if (F(number) > L_FN)
 			return -1;
