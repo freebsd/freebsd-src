@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: spl.h,v 1.19 1997/04/26 20:04:18 peter Exp $
+ *	$Id: spl.h,v 1.20 1997/04/29 20:00:41 peter Exp $
  */
 
 #ifndef _MACHINE_IPL_H_
@@ -46,14 +46,8 @@
  * determines which swi will be dispatched next; a higher priority swi
  * may be dispatched when a nested h/w interrupt handler returns.
  */
-#if defined(APIC_IO)
 #define	SWI_TTY		28
 #define	SWI_NET		29
-#else
-#define	SWI_TTY		(NHWI + 0)
-#define	SWI_NET		(NHWI + 1)
-#endif /* APIC_IO */
-
 #define	SWI_CLOCK	30
 #define	SWI_AST		31
 

@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: vector.s,v 1.27 1997/04/27 21:18:59 fsmp Exp $
+ *	$Id: vector.s,v 1.28 1997/04/28 01:47:55 fsmp Exp $
  */
 
 /*
@@ -413,22 +413,19 @@ ihandlers:			/* addresses of interrupt handlers */
 #if defined(APIC_IO)
 	.long	Xresume16, Xresume17, Xresume18, Xresume19
 	.long	Xresume20, Xresume21, Xresume22, Xresume23
-	.long	0, 0, 0, 0, swi_tty, swi_net, _softclock, swi_ast
 #else
-	.long	swi_tty, swi_net, 0, 0, 0, 0, 0, 0
-	.long	0, 0, 0, 0, 0, 0, _softclock, swi_ast
+	.long	0, 0, 0, 0, 0, 0, 0, 0
 #endif /* APIC_IO */
+	.long	0, 0, 0, 0, swi_tty, swi_net, _softclock, swi_ast
 
 imasks:				/* masks for interrupt handlers */
 	.space	NHWI*4		/* padding; HWI masks are elsewhere */
 
-#if defined(APIC_IO)
-	.long	0, 0, 0, 0	/* padding */
-	.long	SWI_TTY_MASK, SWI_NET_MASK, SWI_CLOCK_MASK, SWI_AST_MASK
-#else
-	.long	SWI_TTY_MASK, SWI_NET_MASK, 0, 0, 0, 0, 0, 0
-	.long	0, 0, 0, 0, 0, 0, SWI_CLOCK_MASK, SWI_AST_MASK
+#if !defined(APIC_IO)	/* Less padding for APIC_IO, NHWI is higher */
+	.long	0, 0, 0, 0, 0, 0, 0, 0
 #endif /* APIC_IO */
+	.long	0, 0, 0, 0
+	.long	SWI_TTY_MASK, SWI_NET_MASK, SWI_CLOCK_MASK, SWI_AST_MASK
 
 	.globl	_intr_nesting_level
 _intr_nesting_level:
