@@ -41,9 +41,10 @@
 .Nm apply
 .Op Fl a Ns Ar c
 .Op Fl Ns Ar #
-.Ar command argument ...
+.Ar command argument
+.Op Ar ...
 .Sh DESCRIPTION
-.Nm Apply
+.Nm apply
 runs the named
 .Ar command
 on each
@@ -56,7 +57,7 @@ Character sequences of the form
 in
 .Ar command ,
 where
-.Dq Li d
+.Sq Li d
 is a digit from 1 to 9, are replaced by the
 .Li d Ns \'th
 following unused
@@ -79,12 +80,14 @@ is run, without arguments, once for each
 .Pp
 If any sequences of
 .Dq Li \&%d
-occur in command, the
+occur in
+.Ar command ,
+the
 .Fl #
 option is ignored.
 .It Fl a Ns Ar c
 The use of the character
-.Dq Li %
+.Sq Li %
 as a magic character may be changed with the
 .Fl a
 option.
@@ -100,19 +103,22 @@ If this variable is not defined, the Bourne shell is used.
 .Sh EXAMPLES
 .Bl -tag -width apply -compact
 .It Li "apply echo a*"
-is similar to ls(1);
+is similar to
+.Xr ls 1 ;
 .It Li "apply \-2 cmp a1 b1 a2 b2 a3 b3"
 compares the `a' files to the `b' files;
 .It Li "apply \-0 who 1 2 3 4 5"
-runs who(1) 5 times; and
+runs
+.Xr who 1
+5 times; and
 .It Li "apply \'ln %1 /usr/joe\'" *
 links all files in the current directory to the directory
 .Pa /usr/joe .
 .El
-.Sh Files
+.Sh FILES
 .Bl -tag -width /bin/sh -compact
 .It Pa /bin/sh
-Default shell
+default shell
 .El
 .Sh AUTHORS
 .An Rob Pike
@@ -121,7 +127,7 @@ Shell metacharacters in
 .Ar command
 may have bizarre effects; it is best to enclose complicated
 commands in single quotes
-.Pq Sq .
+.Pq '' .
 .Sh HISTORY
 The
 .Nm

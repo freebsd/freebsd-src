@@ -190,9 +190,8 @@ system(command)
 	const char *command;
 {
 	static char *name, *shell;
-	union wait pstat;
 	pid_t pid;
-	int omask;
+	int omask, pstat;
 	sig_t intsave, quitsave;
 
 	if (shell == NULL) {
@@ -217,11 +216,11 @@ system(command)
 	}
 	intsave = signal(SIGINT, SIG_IGN);
 	quitsave = signal(SIGQUIT, SIG_IGN);
-	pid = waitpid(pid, (int *)&pstat, 0);
+	pid = waitpid(pid, &pstat, 0);
 	(void)sigsetmask(omask);
 	(void)signal(SIGINT, intsave);
 	(void)signal(SIGQUIT, quitsave);
-	return(pid == -1 ? -1 : pstat.w_status);
+	return(pid == -1 ? -1 : pstat);
 }
 
 void
