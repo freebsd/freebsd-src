@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)reboot.h	8.3 (Berkeley) 12/13/94
- * $Id: reboot.h,v 1.12 1996/08/22 03:50:32 julian Exp $
+ * $Id: reboot.h,v 1.13 1996/08/27 19:45:58 pst Exp $
  */
 
 #ifndef _SYS_REBOOT_H_
@@ -59,6 +59,8 @@
 #define	RB_CDROM	0x2000	/* use cdrom as root */
 #define	RB_POWEROFF	0x4000	/* if you can, turn the power off */
 #define	RB_GDB		0x8000	/* use GDB remote debugger instead of DDB */
+#define	RB_MUTE		0x10000	/* Come up with the console muted */
+#define	RB_SELFTEST	0x20000	/* don't boot to normal operation, do selftest */
 
 #define	RB_BOOTINFO	0x80000000	/* have `struct bootinfo *' arg */
 
