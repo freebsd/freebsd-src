@@ -465,7 +465,7 @@ writev(p, uap)
 #endif
 	p->p_retval[0] = cnt;
 done:
-	fdrop(fp);
+	fdrop(fp, p);
 	if (needfree)
 		FREE(needfree, M_IOV);
 	return (error);
