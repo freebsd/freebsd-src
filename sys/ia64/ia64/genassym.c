@@ -52,12 +52,12 @@
 #include <machine/mutex.h>
 #include <machine/elf.h>
 #include <machine/pal.h>
+#include <machine/pcb.h>
 #include <sys/vmmeter.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#include <sys/user.h>
 #include <net/if.h>
 #include <netinet/in.h>
 
