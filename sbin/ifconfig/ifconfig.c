@@ -123,8 +123,6 @@ struct	netrange	at_nr;		/* AppleTalk net range */
 
 char	name[32];
 int	flags;
-int	metric;
-int	mtu;
 int	setaddr;
 int	setipdst;
 int	setmask;
@@ -1136,28 +1134,12 @@ status(afp, addrcount, sdl, ifm, ifam)
 	if ((s = socket(ifr.ifr_addr.sa_family, SOCK_DGRAM, 0)) < 0)
 		err(1, "socket");
 
-	/*
-	 * XXX is it we are doing a SIOCGIFMETRIC etc for one family.
-	 * is it possible that the metric and mtu can be different for
-	 * each family?  If so, we have a format problem, because the
-	 * metric and mtu is printed on the global the flags line.
-	 */
-	if (ioctl(s, SIOCGIFMETRIC, (caddr_t)&ifr) < 0)
-		warn("ioctl (SIOCGIFMETRIC)");
-	else
-		metric = ifr.ifr_metric;
-
-	if (ioctl(s, SIOCGIFMTU, (caddr_t)&ifr) < 0)
-		warn("ioctl (SIOCGIFMTU)");
-	else
-		mtu = ifr.ifr_mtu;
-
 	printf("%s: ", name);
 	printb("flags", flags, IFFBITS);
-	if (metric)
-		printf(" metric %d", metric);
-	if (mtu)
-		printf(" mtu %d", mtu);
+	if (ifm->ifm_data.ifi_metric)
+		printf(" metric %ld", ifm->ifm_data.ifi_metric);
+	if (ifm->ifm_data.ifi_mtu)
+		printf(" mtu %ld", ifm->ifm_data.ifi_mtu);
 	putchar('\n');
 
 	if (ioctl(s, SIOCGIFCAP, (caddr_t)&ifr) == 0) {
