@@ -64,7 +64,6 @@ static const char rcsid[] =
 #include <sys/vnioctl.h>
 #include <ufs/ufs/ufsmount.h>
 
-#define MAXVNDISK	16
 #define LINESIZE	1024
 #define ZBUFSIZE	32768
 
@@ -75,7 +74,7 @@ struct vndisk {
 	int	flags;
 	int	size;
 	char	*oarg;
-} vndisks[MAXVNDISK];
+} *vndisks;
 
 #define VN_CONFIG	0x01
 #define VN_UNCONFIG	0x02
@@ -215,6 +214,7 @@ main(argc, argv)
 	if (all) {
 		readconfig(flags);
 	} else {
+		vndisks = calloc(sizeof(struct vndisk), 1);
 		if (argc < optind + 1)
 			usage();
 		vndisks[0].dev = argv[optind++];
@@ -477,11 +477,13 @@ readconfig(flags)
 	FILE *f;
 	register char *cp, *sp;
 	register int ix;
+	int ax;
 
 	f = fopen(configfile, "r");
 	if (f == NULL)
 		err(1, "%s", configfile);
-	ix = 0;
+	ix = 0;		/* number of elements */
+	ax = 0;		/* allocated elements */
 	while (fgets(buf, LINESIZE, f) != NULL) {
 		cp = buf;
 		if (*cp == '#')
@@ -496,6 +498,12 @@ readconfig(flags)
 		if (EOL(*cp))
 			continue;
 		*cp++ = '\0';
+
+		if (ix == ax) {
+			ax = ax + 16;
+			vndisks = realloc(vndisks, ax * sizeof(struct vndisk));
+			bzero(&vndisks[ix], (ax - ix) * sizeof(struct vndisk));
+		}
 		vndisks[ix].dev = malloc(cp - sp);
 		strcpy(vndisks[ix].dev, sp);
 		while (!EOL(*cp) && WHITE(*cp))
