@@ -6714,7 +6714,7 @@ ahc_print_register(ahc_reg_parse_entry_t *table, u_int num_entries,
 		cur_column = &dummy_column;
 	}
 
-	if (cur_column != NULL && *cur_column >= wrap_point) {
+	if (*cur_column >= wrap_point) {
 		printf("\n");
 		*cur_column = 0;
 	}
