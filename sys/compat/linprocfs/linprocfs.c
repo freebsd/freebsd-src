@@ -54,6 +54,7 @@
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
+#include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/sbuf.h>
@@ -91,6 +92,7 @@ extern int ncpus;
 
 #include <compat/linux/linux_ioctl.h>
 #include <compat/linux/linux_mib.h>
+#include <compat/linux/linux_util.h>
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
 
@@ -326,6 +328,74 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 	return (0);
 }
 #endif /* __i386__ */
+
+/*
+ * Filler function for proc/mtab
+ *
+ * This file doesn't exist in Linux' procfs, but is included here so
+ * users can symlink /compat/linux/etc/mtab to /proc/mtab
+ */
+static int
+linprocfs_domtab(PFS_FILL_ARGS)
+{
+	struct nameidata nd;
+	struct mount *mp;
+	char *lep, *flep, *mntto, *mntfrom, *fstype;
+	size_t lep_len;
+	int error;
+
+	/* resolve symlinks etc. in the emulation tree prefix */
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, linux_emul_path, td);
+	flep = NULL;
+	if (namei(&nd) != 0 || vn_fullpath(td, nd.ni_vp, &lep, &flep) == -1)
+		lep = linux_emul_path;
+	lep_len = strlen(lep);
+	
+	mtx_lock(&mountlist_mtx);
+	error = 0;
+	TAILQ_FOREACH(mp, &mountlist, mnt_list) {
+		error = VFS_STATFS(mp, &mp->mnt_stat, td);
+		if (error)
+			break;
+
+		/* determine device name */
+		mntfrom = mp->mnt_stat.f_mntfromname;
+		
+		/* determine mount point */
+		mntto = mp->mnt_stat.f_mntonname;
+		if (strncmp(mntto, lep, lep_len) == 0 &&
+		    mntto[lep_len] == '/')
+			mntto += lep_len;
+
+		/* determine fs type */
+		fstype = mp->mnt_stat.f_fstypename;
+		if (strcmp(fstype, pn->pn_info->pi_name) == 0)
+			mntfrom = fstype = "proc";
+		else if (strcmp(fstype, "procfs") == 0)
+			continue;
+		
+		sbuf_printf(sb, "%s %s %s %s", mntfrom, mntto, fstype,
+		    mp->mnt_stat.f_flags & MNT_RDONLY ? "ro" : "rw");
+#define ADD_OPTION(opt, name) \
+	if (mp->mnt_stat.f_flags & (opt)) sbuf_printf(sb, "," name);
+		ADD_OPTION(MNT_SYNCHRONOUS,	"sync");
+		ADD_OPTION(MNT_NOEXEC,		"noexec");
+		ADD_OPTION(MNT_NOSUID,		"nosuid");
+		ADD_OPTION(MNT_NODEV,		"nodev");
+		ADD_OPTION(MNT_UNION,		"union");
+		ADD_OPTION(MNT_ASYNC,		"async");
+		ADD_OPTION(MNT_SUIDDIR,		"suiddir");
+		ADD_OPTION(MNT_NOSYMFOLLOW,	"nosymfollow");
+		ADD_OPTION(MNT_NOATIME,		"noatime");
+#undef ADD_OPTION
+		/* a real Linux mtab will also show NFS options */
+		sbuf_printf(sb, " 0 0\n");
+	}
+	mtx_unlock(&mountlist_mtx);
+	if (flep != NULL)
+		free(flep, M_TEMP);
+	return (error);
+}
 
 /*
  * Filler function for proc/stat
@@ -633,7 +703,7 @@ linprocfs_doprocexe(PFS_FILL_ARGS)
 	char *fullpath = "unknown";
 	char *freepath = NULL;
 
-	textvp_fullpath(p, &fullpath, &freepath);
+	vn_fullpath(td, td->td_proc->p_textvp, &fullpath, &freepath);
 	sbuf_printf(sb, "%s", fullpath);
 	if (freepath)
 		free(freepath, M_TEMP);
@@ -734,6 +804,7 @@ linprocfs_init(PFS_INIT_ARGS)
 #if 0
 	PFS_CREATE_FILE(modules);
 #endif
+	PFS_CREATE_FILE(mtab);
 	PFS_CREATE_FILE(stat);
 	PFS_CREATE_FILE(uptime);
 	PFS_CREATE_FILE(version);
