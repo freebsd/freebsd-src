@@ -68,8 +68,13 @@ TAILQ_HEAD(nch, ndis_cfglist);
 #define NDIS_INC(x)		\
 	(x)->ndis_txidx = ((x)->ndis_txidx + 1) % (x)->ndis_maxpkts 
 
+#define arpcom ic.ic_ac
+
 struct ndis_softc {
-	struct arpcom		arpcom;		/* interface info */
+	struct ieee80211com	ic;		/* interface info */
+#ifdef notdef
+	struct ieee80211com	arpcom;		/* interface info */
+#endif
 	struct ifmedia		ifmedia;	/* media info */
 	bus_space_handle_t	ndis_bhandle;
 	bus_space_tag_t		ndis_btag;
@@ -101,6 +106,10 @@ struct ndis_softc {
 	int			ndis_sc;
 	ndis_cfg		*ndis_regvals;
 	struct nch		ndis_cfglist_head;
+	int			ndis_80211;
+	int			ndis_link;
+	uint32_t		ndis_filter;
+	int			ndis_if_flags;
 
 	struct sysctl_ctx_list	ndis_ctx;
 	struct sysctl_oid	*ndis_tree;
