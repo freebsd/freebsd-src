@@ -82,9 +82,6 @@ vinumioctl(dev_t dev,
     switch (DEVTYPE(dev)) {
     case VINUM_SUPERDEV_TYPE:				    /* ordinary super device */
 	ioctl_reply = (struct _ioctl_reply *) data;	    /* save the address to reply to */
-	error = setjmp(command_fail);			    /* come back here on error */
-	if (error)					    /* bombed out */
-	    return 0;					    /* the reply will contain meaningful info */
 	switch (cmd) {
 #ifdef VINUMDEBUG
 	case VINUM_DEBUG:
