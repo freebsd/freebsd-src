@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)herror.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: herror.c,v 1.1.1.1 1994/05/27 04:57:15 rgrimes Exp $";
+static char rcsid[] = "$Id: herror.c,v 1.2 1995/05/30 05:40:49 rgrimes Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -62,8 +62,8 @@ static char rcsid[] = "$Id: herror.c,v 1.1.1.1 1994/05/27 04:57:15 rgrimes Exp $
 #include <unistd.h>
 #include <string.h>
 
-char	*h_errlist[] = {
-	"Error 0",
+const char *h_errlist[] = {
+	"Resolver Error 0 (no error)",
 	"Unknown host",				/* 1 HOST_NOT_FOUND */
 	"Host name lookup failure",		/* 2 TRY_AGAIN */
 	"Unknown server error",			/* 3 NO_RECOVERY */
@@ -92,8 +92,7 @@ herror(s)
 		v->iov_len = 2;
 		v++;
 	}
-	v->iov_base = (u_int)h_errno < h_nerr ?
-	    h_errlist[h_errno] : "Unknown error";
+	v->iov_base = (char *)hstrerror(h_errno);
 	v->iov_len = strlen(v->iov_base);
 	v++;
 	v->iov_base = "\n";
@@ -101,9 +100,13 @@ herror(s)
 	writev(STDERR_FILENO, iov, (v - iov) + 1);
 }
 
-char *
+const char *
 hstrerror(err)
 	int err;
 {
-	return (u_int)err < h_nerr ? h_errlist[err] : "Unknown resolver error";
+	if (err < 0)
+		return ("Resolver internal error");
+	else if (err < h_nerr)
+		return (h_errlist[err]);
+	return ("Unknown resolver error");
 }

@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_debug.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_debug.c,v 1.2 1994/09/25 02:12:34 pst Exp $";
+static char rcsid[] = "$Id: res_debug.c,v 1.3 1995/05/30 05:40:54 rgrimes Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -65,13 +65,17 @@ static char rcsid[] = "$Id: res_debug.c,v 1.2 1994/09/25 02:12:34 pst Exp $";
 #include <stdio.h>
 #include <resolv.h>
 #include <string.h>
+#include <netdb.h>
+
+#include <res_config.h>
+
 
 const char *_res_opcodes[] = {
 	"QUERY",
 	"IQUERY",
 	"CQUERYM",
-	"CQUERYU",
-	"4",
+	"CQUERYU",	/* experimental */
+	"NOTIFY",	/* experimental */
 	"5",
 	"6",
 	"7",
@@ -104,12 +108,13 @@ const char *_res_resultcodes[] = {
 	"NOCHANGE",
 };
 
-static char retbuf[16];
-
+/* XXX: we should use getservbyport() instead. */
 static const char *
 dewks(wks)
 	int wks;
 {
+	static char nbuf[20];
+
 	switch (wks) {
 	case 5: return "rje";
 	case 7: return "echo";
@@ -157,14 +162,17 @@ dewks(wks)
 	case 161: return "snmp";
 	case 162: return "snmp-trap";
 	case 170: return "print-srv";
-	default: (void) sprintf(retbuf, "%d", wks); return (retbuf);
+	default: (void) sprintf(nbuf, "%d", wks); return (nbuf);
 	}
 }
 
+/* XXX: we should use getprotobynumber() instead. */
 static const char *
 deproto(protonum)
 	int protonum;
 {
+	static char nbuf[20];
+
 	switch (protonum) {
 	case 1: return "icmp";
 	case 2: return "igmp";
@@ -178,13 +186,13 @@ deproto(protonum)
 	case 12: return "pup";
 	case 16: return "chaos";
 	case 17: return "udp";
-	default: (void) sprintf(retbuf, "%d", protonum); return (retbuf);
+	default: (void) sprintf(nbuf, "%d", protonum); return (nbuf);
 	}
 }
 
 static const u_char *
-do_rrset(msg, cp, cnt, pflag, file, hs)
-	int cnt, pflag;
+do_rrset(msg, len, cp, cnt, pflag, file, hs)
+	int cnt, pflag, len;
 	const u_char *cp, *msg;
 	const char *hs;
 	FILE *file;
@@ -201,8 +209,19 @@ do_rrset(msg, cp, cnt, pflag, file, hs)
 		    ((sflag) && (_res.pfcode & RES_PRF_HEAD1)))
 			fprintf(file, hs);
 		while (--n >= 0) {
+			if ((!_res.pfcode) || sflag) {
 			cp = p_rr(cp, msg, file);
-			if ((cp - msg) > PACKETSZ)
+			} else {
+				unsigned int dlen;
+				cp += __dn_skipname(cp, cp + MAXCDNAME);
+				cp += INT16SZ;
+				cp += INT16SZ;
+				cp += INT32SZ;
+				dlen = _getshort((u_char*)cp);
+				cp += INT16SZ;
+				cp += dlen;
+			}
+			if ((cp - msg) > len)
 				return (NULL);
 		}
 		if ((!_res.pfcode) ||
@@ -253,6 +272,9 @@ __fp_nquery(msg, len, file)
 	register const HEADER *hp;
 	register int n;
 
+	if ((_res.options & RES_INIT) == 0 && res_init() == -1)
+		return;
+
 #define TruncTest(x) if (x >= endMark) goto trunc
 #define	ErrorTest(x) if (x == NULL) goto error
 
@@ -282,8 +304,6 @@ __fp_nquery(msg, len, file)
 			fprintf(file, " rd");
 		if (hp->ra)
 			fprintf(file, " ra");
-		if (hp->pr)
-			fprintf(file, " pr");
 	}
 	if ((!_res.pfcode) || (_res.pfcode & RES_PRF_HEAD1)) {
 		fprintf(file, "; Ques: %d", ntohs(hp->qdcount));
@@ -304,7 +324,7 @@ __fp_nquery(msg, len, file)
 		while (--n >= 0) {
 			fprintf(file,";;\t");
 			TruncTest(cp);
-			cp = p_cdname(cp, msg, file);
+			cp = p_cdnname(cp, msg, len, file);
 			ErrorTest(cp);
 			TruncTest(cp);
 			if ((!_res.pfcode) || (_res.pfcode & RES_PRF_QUES))
@@ -323,7 +343,7 @@ __fp_nquery(msg, len, file)
 	 * Print authoritative answer records
 	 */
 	TruncTest(cp);
-	cp = do_rrset(msg, cp, hp->ancount, RES_PRF_ANS, file,
+	cp = do_rrset(msg, len, cp, hp->ancount, RES_PRF_ANS, file,
 		      ";; ANSWERS:\n");
 	ErrorTest(cp);
 
@@ -331,7 +351,7 @@ __fp_nquery(msg, len, file)
 	 * print name server records
 	 */
 	TruncTest(cp);
-	cp = do_rrset(msg, cp, hp->nscount, RES_PRF_AUTH, file,
+	cp = do_rrset(msg, len, cp, hp->nscount, RES_PRF_AUTH, file,
 		      ";; AUTHORITY RECORDS:\n");
 	ErrorTest(cp);
 
@@ -339,7 +359,7 @@ __fp_nquery(msg, len, file)
 	/*
 	 * print additional records
 	 */
-	cp = do_rrset(msg, cp, hp->arcount, RES_PRF_ADD, file,
+	cp = do_rrset(msg, len, cp, hp->arcount, RES_PRF_ADD, file,
 		      ";; ADDITIONAL RECORDS:\n");
 	ErrorTest(cp);
 	return;
@@ -393,7 +413,7 @@ __p_fqname(cp, msg, file)
 	FILE *file;
 {
 	char name[MAXDNAME];
-	int n, len;
+	int n;
 
 	if ((n = dn_expand(msg, cp + MAXCDNAME, cp, name, sizeof name)) < 0)
 		return (NULL);
@@ -422,6 +442,10 @@ __p_rr(cp, msg, file)
 	u_int32_t tmpttl, t;
 	int lcnt;
 
+	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
+		h_errno = NETDB_INTERNAL;
+		return (NULL);
+	}
 	if ((cp = p_fqname(cp, msg, file)) == NULL)
 		return (NULL);			/* compression error */
 	type = _getshort((u_char*)cp);
@@ -434,7 +458,7 @@ __p_rr(cp, msg, file)
 	cp += INT16SZ;
 	cp1 = cp;
 	if ((!_res.pfcode) || (_res.pfcode & RES_PRF_TTLID))
-		fprintf(file, "\t%lu", tmpttl);
+		fprintf(file, "\t%lu", (u_long)tmpttl);
 	if ((!_res.pfcode) || (_res.pfcode & RES_PRF_CLASS))
 		fprintf(file, "\t%s", __p_class(class));
 	fprintf(file, "\t%s", __p_type(type));
@@ -476,37 +500,46 @@ __p_rr(cp, msg, file)
 	case T_NS:
 	case T_PTR:
 		putc('\t', file);
-		cp = p_fqname(cp, msg, file);
+		if ((cp = p_fqname(cp, msg, file)) == NULL)
+			return (NULL);
 		break;
 
 	case T_HINFO:
 	case T_ISDN:
+		cp2 = cp + dlen;
 		if (n = *cp++) {
 			fprintf(file,"\t%.*s", n, cp);
 			cp += n;
 		}
-		if (n = *cp++) {
+		if ((cp < cp2) && (n = *cp++)) {
 			fprintf(file,"\t%.*s", n, cp);
 			cp += n;
-		}
+		} else if (type == T_HINFO)
+			fprintf(file, "\n;; *** Warning *** OS-type missing");
 		break;
 
 	case T_SOA:
 		putc('\t', file);
-		cp = p_fqname(cp, msg, file);	/* origin */
+		if ((cp = p_fqname(cp, msg, file)) == NULL)
+			return (NULL);
 		putc(' ', file);
-		cp = p_fqname(cp, msg, file);	/* mail addr */
+		if ((cp = p_fqname(cp, msg, file)) == NULL)
+			return (NULL);
 		fputs(" (\n", file);
 		t = _getlong((u_char*)cp);  cp += INT32SZ;
-		fprintf(file,"\t\t\t%lu\t; serial\n", t);
+		fprintf(file, "\t\t\t%lu\t; serial\n", (u_long)t);
 		t = _getlong((u_char*)cp);  cp += INT32SZ;
-		fprintf(file,"\t\t\t%lu\t; refresh (%s)\n", t, __p_time(t));
+		fprintf(file, "\t\t\t%lu\t; refresh (%s)\n",
+			(u_long)t, __p_time(t));
 		t = _getlong((u_char*)cp);  cp += INT32SZ;
-		fprintf(file,"\t\t\t%lu\t; retry (%s)\n", t, __p_time(t));
+		fprintf(file, "\t\t\t%lu\t; retry (%s)\n",
+			(u_long)t, __p_time(t));
 		t = _getlong((u_char*)cp);  cp += INT32SZ;
-		fprintf(file,"\t\t\t%lu\t; expire (%s)\n", t, __p_time(t));
+		fprintf(file, "\t\t\t%lu\t; expire (%s)\n",
+			(u_long)t, __p_time(t));
 		t = _getlong((u_char*)cp);  cp += INT32SZ;
-		fprintf(file,"\t\t\t%lu )\t; minimum (%s)", t, __p_time(t));
+		fprintf(file, "\t\t\t%lu )\t; minimum (%s)",
+			(u_long)t, __p_time(t));
 		break;
 
 	case T_MX:
@@ -514,7 +547,18 @@ __p_rr(cp, msg, file)
 	case T_RT:
 		fprintf(file,"\t%d ", _getshort((u_char*)cp));
 		cp += INT16SZ;
-		cp = p_fqname(cp, msg, file);
+		if ((cp = p_fqname(cp, msg, file)) == NULL)
+			return (NULL);
+		break;
+
+	case T_PX:
+		fprintf(file, "\t%d ", _getshort((u_char*)cp));
+		cp += INT16SZ;
+		if ((cp = p_fqname(cp, msg, file)) == NULL)
+			return (NULL);
+		putc(' ', file);
+		if ((cp = p_fqname(cp, msg, file)) == NULL)
+			return (NULL);
 		break;
 
   	case T_TXT:
@@ -524,7 +568,7 @@ __p_rr(cp, msg, file)
 		while (cp < cp2) {
 			if (n = (unsigned char) *cp++) {
 				for (c = n; c > 0 && cp < cp2; c--)
-					if (*cp == '\n') {
+					if ((*cp == '\n') || (*cp == '"')) {
 					    (void) putc('\\', file);
 					    (void) putc(*cp++, file);
 					} else
@@ -546,9 +590,11 @@ __p_rr(cp, msg, file)
 	case T_MINFO:
 	case T_RP:
 		putc('\t', file);
-		cp = p_fqname(cp, msg, file);
+		if ((cp = p_fqname(cp, msg, file)) == NULL)
+			return (NULL);
 		putc(' ', file);
-		cp = p_fqname(cp, msg, file);
+		if ((cp = p_fqname(cp, msg, file)) == NULL)
+			return (NULL);
 		break;
 
 	case T_UINFO:
@@ -628,8 +674,6 @@ __p_rr(cp, msg, file)
 	return (cp);
 }
 
-static	char nbuf[40];
-
 /*
  * Return a string for the type
  */
@@ -637,6 +681,8 @@ const char *
 __p_type(type)
 	int type;
 {
+	static char nbuf[20];
+
 	switch (type) {
 	case T_A:	return "A";
 	case T_NS:	return "NS";
@@ -652,12 +698,19 @@ __p_type(type)
 	case T_MINFO:	return "MINFO";
 	case T_MX:	return "MX";
 	case T_TXT:	return "TXT";
-	case T_NSAP:	return "NSAP";
 	case T_RP:	return "RP";
 	case T_AFSDB:	return "AFSDB";
 	case T_X25:	return "X25";
 	case T_ISDN:	return "ISDN";
 	case T_RT:	return "RT";
+	case T_NSAP:	return "NSAP";
+	case T_NSAP_PTR: return "NSAP_PTR";
+	case T_SIG:	return "SIG";
+	case T_KEY:	return "KEY";
+	case T_PX:	return "PX";
+	case T_GPOS:	return "GPOS";
+	case T_AAAA:	return "AAAA";
+	case T_LOC:	return "LOC";
 	case T_AXFR:	return "AXFR";
 	case T_MAILB:	return "MAILB";
 	case T_MAILA:	return "MAILA";
@@ -679,10 +732,12 @@ const char *
 __p_class(class)
 	int class;
 {
+	static char nbuf[20];
+
 	switch (class) {
-	case C_IN:	return("IN");
-	case C_HS:	return("HS");
-	case C_ANY:	return("ANY");
+	case C_IN:	return "IN";
+	case C_HS:	return "HS";
+	case C_ANY:	return "ANY";
 	default:	(void)sprintf(nbuf, "%d", class); return (nbuf);
 	}
 }
@@ -694,12 +749,14 @@ const char *
 __p_option(option)
 	u_long option;
 {
+	static char nbuf[40];
+
 	switch (option) {
 	case RES_INIT:		return "init";
 	case RES_DEBUG:		return "debug";
-	case RES_AAONLY:	return "aaonly";
+	case RES_AAONLY:	return "aaonly(unimpl)";
 	case RES_USEVC:		return "usevc";
-	case RES_PRIMARY:	return "primry";
+	case RES_PRIMARY:	return "primry(unimpl)";
 	case RES_IGNTC:		return "igntc";
 	case RES_RECURSE:	return "recurs";
 	case RES_DEFNAMES:	return "defnam";
@@ -707,7 +764,8 @@ __p_option(option)
 	case RES_DNSRCH:	return "dnsrch";
 	case RES_INSECURE1:	return "insecure1";
 	case RES_INSECURE2:	return "insecure2";
-	default:		sprintf(nbuf, "?0x%x?", option); return nbuf;
+	default:		sprintf(nbuf, "?0x%lx?", (u_long)option);
+				return (nbuf);
 	}
 }
 
@@ -718,6 +776,7 @@ char *
 __p_time(value)
 	u_int32_t value;
 {
+	static char nbuf[40];
 	int secs, mins, hours, days;
 	register char *p;
 
