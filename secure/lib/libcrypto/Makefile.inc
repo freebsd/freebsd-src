@@ -30,10 +30,10 @@ buildinf.h:  openssl/opensslconf.h openssl/headers-copied
 	echo "#endif" ) > ${.TARGET}
 
 openssl/opensslconf.h:  ../libcrypto/opensslconf-${MACHINE_ARCH}.h
-	@test -d openssl || mkdir -p openssl
+	@mkdir -p openssl
 	cp ${.OODATE} ${.TARGET}
 
 openssl/headers-copied:
-	@test -d openssl || mkdir -p openssl
+	@mkdir -p openssl
 	${INSTALL} ${COPY} -m 444 ${CRYPTO_HDRS} ${EXTRA_HDRS} openssl
 	@touch ${.TARGET}
