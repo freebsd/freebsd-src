@@ -834,7 +834,7 @@ ext2fs_read(struct open_file *f, void *addr, size_t size, size_t *resid)
 		bcopy(buf, addr, csize);
 
 		fp->f_seekp += csize;
-		addr += csize;
+		addr = (char *)addr + csize;
 		size -= csize;
 	}
 	if (resid)
