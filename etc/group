@@ -1,7 +1,7 @@
 # $FreeBSD$
 #
 wheel:*:0:root
-daemon:*:1:daemon
+daemon:*:1:
 kmem:*:2:root
 sys:*:3:root
 tty:*:4:root
@@ -18,7 +18,7 @@ mailnull:*:26:
 guest:*:31:root
 bind:*:53:
 uucp:*:66:
-xten:*:67:xten
+xten:*:67:
 dialer:*:68:
 network:*:69:
 www:*:80:
