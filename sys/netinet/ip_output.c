@@ -1021,25 +1021,23 @@ pass:
 #endif
 
 #ifdef MBUF_FRAG_TEST
-		if (mbuf_frag_size) {
+		if (mbuf_frag_size && m->m_pkthdr.len > mbuf_frag_size) {
 			struct mbuf *m1, *m2;
-			int length;
+			int length, tmp;
 
-			length = m->m_len;
+			tmp = length = m->m_pkthdr.len;
 
-			while (1) {
-				length -= mbuf_frag_size;
-					if (length < 1)
-						break;
+			while ((length -= mbuf_frag_size) >= 1) {
 				m1 = m_split(m, length, M_DONTWAIT);
+				if (m1 == NULL)
+					break;
+				m1->m_flags &= ~M_PKTHDR;
 				m2 = m;
-				while (1) {
-					if (m2->m_next == NULL)
-						break;
+				while (m2->m_next != NULL)
 					m2 = m2->m_next;
-				}
-			m2->m_next = m1;
+				m2->m_next = m1;
 			}
+			m->m_pkthdr.len = tmp;
 		}
 #endif
 		error = (*ifp->if_output)(ifp, m,
