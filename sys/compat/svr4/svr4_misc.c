@@ -1208,17 +1208,17 @@ svr4_sys_waitsys(td, uap)
 {
 	int nfound;
 	int error, *retval = td->td_retval;
-	struct proc *q, *t;
+	struct proc *p, *q, *t;
 
-
+	p = td->td_proc;
 	switch (uap->grp) {
 	case SVR4_P_PID:	
 		break;
 
 	case SVR4_P_PGID:
-		PROC_LOCK(td->td_proc);
-		uap->id = -td->td_proc->p_pgid;
-		PROC_UNLOCK(td->td_proc);
+		PROC_LOCK(p);
+		uap->id = -p->p_pgid;
+		PROC_UNLOCK(p);
 		break;
 
 	case SVR4_P_ALL:
@@ -1236,7 +1236,7 @@ svr4_sys_waitsys(td, uap)
 loop:
 	nfound = 0;
 	sx_slock(&proctree_lock);
-	LIST_FOREACH(q, &td->td_proc->p_children, p_sibling) {
+	LIST_FOREACH(q, &p->p_children, p_sibling) {
 		PROC_LOCK(q);
 		if (uap->id != WAIT_ANY &&
 		    q->p_pid != uap->id &&
@@ -1296,7 +1296,7 @@ loop:
 			PROC_UNLOCK(q);
 			sx_xunlock(&proctree_lock);
 			q->p_xstat = 0;
-			ruadd(&td->td_proc->p_stats->p_cru, q->p_ru);
+			ruadd(&p->p_stats->p_cru, q->p_ru);
 			FREE(q->p_ru, M_ZOMBIE);
 			q->p_ru = NULL;
 
@@ -1386,7 +1386,7 @@ loop:
 		return 0;
 	}
 
-	if ((error = tsleep(td->td_proc, PWAIT | PCATCH, "svr4_wait", 0)) != 0)
+	if ((error = tsleep(p, PWAIT | PCATCH, "svr4_wait", 0)) != 0)
 		return error;
 	goto loop;
 }
