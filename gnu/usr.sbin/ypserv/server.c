@@ -24,7 +24,7 @@
 ** Ported to FreeBSD and hacked all to pieces 
 ** by Bill Paul <wpaul@ctr.columbia.edu>
 **
-**	$Id: server.c,v 1.1 1995/01/31 08:58:53 wpaul Exp $
+**	$Id: server.c,v 1.2 1995/02/04 21:32:02 wpaul Exp $
 **
 */
 
@@ -48,6 +48,7 @@
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <signal.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 
@@ -789,6 +790,17 @@ static void print_ypmap_parms(const struct ypmap_parms *pp)
 
 
 /*
+** Clean up after ypxfr child processes signal their termination.
+*/
+void reapchild(sig)
+int sig;
+{
+    int st;
+
+    wait3(&st, WNOHANG, NULL);
+}
+
+/*
 ** Stole the ypxfr implementation from the yps package.
 */
 ypresp_xfr *ypproc_xfr_2_svc(ypreq_xfr *xfr,
@@ -855,9 +867,7 @@ ypresp_xfr *ypproc_xfr_2_svc(ypreq_xfr *xfr,
 	    result.xfrstat = YPXFR_XFRERR;
 	default:
 	{
-	    int st;
-
-	    wait4(-1, &st, WNOHANG, NULL);
+	    signal(SIGCHLD, reapchild);
 	    result.xfrstat = YPXFR_SUCC;
 	    break;
 	}
