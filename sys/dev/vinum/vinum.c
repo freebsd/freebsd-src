@@ -35,7 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinum.c,v 1.44 2003/05/23 00:50:55 grog Exp $
+ * $Id: vinum.c,v 1.44 2003/05/23 00:50:55 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -262,7 +262,6 @@ free_vinum(int cleardrive)
     }
     bzero(&vinum_conf, sizeof(vinum_conf));
     vinum_conf.version = VINUMVERSION;			    /* reinstate version number */
-    EVENTHANDLER_DEREGISTER(dev_clone, dev_clone_tag);
 }
 
 STATIC int
@@ -315,6 +314,7 @@ vinum_modevent(module_t mod, modeventtype_t type, void *unused)
 	for (i = 0; i < PLEXMUTEXES; i++)
 	    mtx_destroy(&plexmutex[i]);
 	log(LOG_INFO, "vinum: unloaded\n");		    /* tell the world */
+	EVENTHANDLER_DEREGISTER(dev_clone, dev_clone_tag);
 	return 0;
     default:
 	break;
@@ -328,7 +328,7 @@ static moduledata_t vinum_mod =
     (modeventhand_t) vinum_modevent,
     0
 };
-DECLARE_MODULE(vinum, vinum_mod, SI_SUB_VINUM, SI_ORDER_MIDDLE);
+DECLARE_MODULE(vinum, vinum_mod, SI_SUB_RAID, SI_ORDER_MIDDLE);
 
 /* ARGSUSED */
 /* Open a vinum object */
