@@ -125,11 +125,15 @@ static __inline void
 fxp_lwcopy(src, dst)
 	volatile u_int32_t *src, *dst;
 {
+#ifdef __i386__
+	*dst = *src;
+#else
 	volatile u_int16_t *a = (volatile u_int16_t *)src;
 	volatile u_int16_t *b = (volatile u_int16_t *)dst;
 
 	b[0] = a[0];
 	b[1] = a[1];
+#endif
 }
 
 /*
@@ -1158,7 +1162,7 @@ rcvloop:
 				 */
 				if (fxp_add_rfabuf(sc, m) == 0) {
 					struct ether_header *eh;
-					u_int16_t total_len;
+					int total_len;
 
 					total_len = rfa->actual_size &
 					    (MCLBYTES - 1);
@@ -1769,7 +1773,7 @@ fxp_add_rfabuf(sc, oldm)
 		sc->rfa_tailm->m_next = m;
 		v = vtophys(rfa);
 		fxp_lwcopy(&v, (volatile u_int32_t *) p_rfa->link_addr);
-		p_rfa->rfa_control &= ~FXP_RFA_CONTROL_EL;
+		p_rfa->rfa_control = 0;
 	} else {
 		sc->rfa_headm = m;
 	}
