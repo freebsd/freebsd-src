@@ -106,6 +106,7 @@
 #include <sys/conf.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/uio.h>
 #include <sys/syslog.h>
 #include <sys/malloc.h>
