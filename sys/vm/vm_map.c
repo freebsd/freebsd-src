@@ -254,7 +254,6 @@ vmspace_alloc(min, max)
 {
 	struct vmspace *vm;
 
-	GIANT_REQUIRED;
 	vm = uma_zalloc(vmspace_zone, M_WAITOK);
 	CTR1(KTR_VM, "vmspace_alloc: %p", vm);
 	_vm_map_init(&vm->vm_map, min, max);
