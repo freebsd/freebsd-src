@@ -39,6 +39,10 @@
 #include <machine/bus.h>
 #include <machine/resource.h>
 
+#if __FreeBSD_version < 500000
+typedef vm_offset_t vm_paddr_t;
+#endif
+
 struct acpi_softc {
     device_t		acpi_dev;
     dev_t		acpi_dev_t;
@@ -389,11 +393,13 @@ extern int	acpi_cmbat_get_battinfo(int, struct acpi_battinfo *);
 
 extern int	acpi_acad_get_acline(int *);
 
+#if __FreeBSD_version >= 500000
 #ifndef ACPI_MAX_THREADS
 #define ACPI_MAX_THREADS	3
 #endif
 #if ACPI_MAX_THREADS > 0
 #define ACPI_USE_THREADS
+#endif
 #endif
 
 #ifdef ACPI_USE_THREADS

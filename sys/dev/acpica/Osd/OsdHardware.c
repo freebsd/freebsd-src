@@ -36,7 +36,11 @@
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/pci_cfgreg.h>
+#if __FreeBSD_version >= 500000
 #include <dev/pci/pcireg.h>
+#else
+#include <pci/pcireg.h>
+#endif
 
 /*
  * ACPICA's rather gung-ho approach to hardware resource ownership is a little
