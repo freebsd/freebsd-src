@@ -34,7 +34,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: rtprio.c,v 1.5 1997/10/13 11:24:01 charnier Exp $";
+	"$Id: rtprio.c,v 1.6 1998/05/19 20:52:31 dufault Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -121,7 +121,7 @@ main(argc, argv)
 
 		if (proc == 0) {
 			execvp(argv[2], &argv[2]);
-			err(1, "%s", argv[0]);
+			err(1, "%s", argv[2]);
 		}
 	}
 	exit (1);
