@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.54 1997/04/23 10:26:18 bde Exp $
+#	$Id: bsd.lib.mk,v 1.55 1997/05/04 21:30:40 jdp Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -13,7 +13,7 @@ SHLIB_MINOR != . ${.CURDIR}/shlib_version ; echo $$minor
 
 .if defined(DESTDIR)
 CFLAGS+= -I${DESTDIR}/usr/include
-CXXINCLUDES+= -I${DESTDIR}/usr/include/${CXX}
+CXXINCLUDES+= -I${DESTDIR}/usr/include/g++
 .endif
 
 .if defined(DEBUG_FLAGS)
