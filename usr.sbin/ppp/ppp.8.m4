@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.139 1999/01/10 17:23:10 sada Exp $
+.\" $Id: ppp.8,v 1.140 1999/01/11 15:05:39 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -3490,6 +3490,14 @@ is not specified, the original process title is restored.  All the
 word replacements done by the shell commands (see the
 .Dq bg
 command above) are done here too.
+.Pp
+Note, if USER is required in the process title, the
+.Dq set proctitle
+command must appear in
+.Pa ppp.linkup ,
+as it is not known when the commands in
+.Pa ppp.conf
+are executed.
 .It set reconnect Ar timeout ntries
 Should the line drop unexpectedly (due to loss of CD or LQR
 failure), a connection will be re-established after the given
