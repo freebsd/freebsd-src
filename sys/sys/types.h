@@ -36,13 +36,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.4 (Berkeley) 1/21/94
- * $Id: types.h,v 1.3 1994/09/16 11:44:45 paul Exp $
+ * $Id: types.h,v 1.4 1994/09/25 15:56:25 davidg Exp $
  */
 
 #ifndef _SYS_TYPES_H_
 #define	_SYS_TYPES_H_
 
 #include <sys/cdefs.h>
+#include <machine/ansi.h>
 
 /* Machine type dependent parameters. */
 #include <machine/endian.h>
@@ -68,8 +69,8 @@ typedef	unsigned long	gid_t;		/* group id */
 typedef	unsigned long	ino_t;		/* inode number */
 typedef	unsigned short	mode_t;		/* permissions */
 typedef	unsigned short	nlink_t;	/* link count */
-typedef	quad_t		off_t;		/* file offset */
-typedef	long		pid_t;		/* process id */
+typedef	_BSD_OFF_T_	off_t;		/* file offset */
+typedef	_BSD_PID_T_	pid_t;		/* process id */
 typedef	long		segsz_t;	/* segment size */
 typedef	long		swblk_t;	/* swap offset */
 typedef	unsigned long	uid_t;		/* user id */
@@ -96,7 +97,6 @@ __END_DECLS
 #define	makedev(x,y)	((dev_t)(((x)<<8) | (y)))	/* create dev_t */
 #endif
 
-#include <machine/ansi.h>
 #include <machine/types.h>
 
 #ifdef	_BSD_CLOCK_T_
