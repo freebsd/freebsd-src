@@ -36,8 +36,6 @@
 #include <dev/aic7xxx/aic7xxx_freebsd.h>
 #include <dev/aic7xxx/aic7xxx_inline.h>
 
-#include <sys/eventhandler.h>
-
 #ifndef AHC_TMODE_ENABLE
 #define AHC_TMODE_ENABLE 0
 #endif
@@ -47,8 +45,6 @@
 #ifdef AHC_DEBUG
 static int     ahc_debug = AHC_DEBUG;
 #endif
-
-static void ahc_freebsd_intr(void *arg);
 
 #if UNUSED
 static void	ahc_dump_targcmd(struct target_cmd *cmd);
@@ -115,7 +111,7 @@ ahc_attach(struct ahc_softc *ahc)
 	ahc_lock(ahc, &s);
 	/* Hook up our interrupt handler */
 	if ((error = bus_setup_intr(ahc->dev_softc, ahc->platform_data->irq,
-				    INTR_TYPE_CAM, ahc_freebsd_intr, ahc,
+				    INTR_TYPE_CAM, ahc_platform_intr, ahc,
 				    &ahc->platform_data->ih)) != 0) {
 		device_printf(ahc->dev_softc, "bus_setup_intr() failed: %d\n",
 			      error);
@@ -231,8 +227,9 @@ fail:
 
 	if (count != 0)
 		/* We have to wait until after any system dumps... */
-		EVENTHANDLER_REGISTER(shutdown_final, ahc_shutdown,
-				      ahc, SHUTDOWN_PRI_DEFAULT);
+		ahc->platform_data->eh =
+		    EVENTHANDLER_REGISTER(shutdown_final, ahc_shutdown,
+					  ahc, SHUTDOWN_PRI_DEFAULT);
 
 	return (count);
 }
@@ -241,7 +238,7 @@ fail:
  * Catch an interrupt from the adapter
  */
 void
-ahc_freebsd_intr(void *arg)
+ahc_platform_intr(void *arg)
 {
 	struct	ahc_softc *ahc;
 
@@ -840,7 +837,7 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->hba_misc = 0;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = (ahc->features & AHC_WIDE) ? 15 : 7;
-		cpi->max_lun = 64;
+		cpi->max_lun = AHC_NUM_LUNS - 1;
 		if (SIM_IS_SCSIBUS_B(ahc, sim)) {
 			cpi->initiator_id = ahc->our_id_b;
 			if ((ahc->flags & AHC_RESET_BUS_B) == 0)
@@ -1185,7 +1182,9 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 		scb->hscb->control |= DISCENB;
 
 	if ((ccb->ccb_h.flags & CAM_NEGOTIATE) != 0
-	 && (tinfo->current.width != 0 || tinfo->current.period != 0)) {
+	 && (tinfo->goal.width != 0
+	  || tinfo->goal.period != 0
+	  || tinfo->goal.ppr_options != 0)) {
 		scb->flags |= SCB_NEGOTIATE;
 		scb->hscb->control |= MK_MESSAGE;
 	}
@@ -1401,19 +1400,7 @@ ahc_timeout(void *arg)
 
 	ahc_lock(ahc, &s);
 
-	/*
-	 * Ensure that the card doesn't do anything
-	 * behind our back.  Also make sure that we
-	 * didn't "just" miss an interrupt that would
-	 * affect this timeout.
-	 */
-	do {
-		ahc_freebsd_intr(ahc);
-		pause_sequencer(ahc);
-	} while (ahc_inb(ahc, INTSTAT) & INT_PEND);
-
-	/* Make sure the sequencer is in a safe location. */
-	ahc_clear_critical_section(ahc);
+	ahc_pause_and_flushwork(ahc);
 
 	if ((scb->flags & SCB_ACTIVE) == 0) {
 		/* Previous timeout took care of me already */
@@ -1812,18 +1799,36 @@ ahc_platform_alloc(struct ahc_softc *ahc, void *platform_arg)
 void
 ahc_platform_free(struct ahc_softc *ahc)
 {
-	if (ahc->platform_data != NULL) {
-		if (ahc->platform_data->regs != NULL)
-			bus_release_resource(ahc->dev_softc,
-					     ahc->platform_data->regs_res_type,
-					     ahc->platform_data->regs_res_id,
-					     ahc->platform_data->regs);
+	struct ahc_platform_data *pdata;
 
-		if (ahc->platform_data->irq != NULL)
+	pdata = ahc->platform_data;
+	if (pdata != NULL) {
+		device_printf(ahc->dev_softc, "Platform free\n");
+		if (pdata->regs != NULL)
 			bus_release_resource(ahc->dev_softc,
-					 ahc->platform_data->irq_res_type,
-					 0, ahc->platform_data->irq);
+					     pdata->regs_res_type,
+					     pdata->regs_res_id,
+					     pdata->regs);
 
+		if (pdata->irq != NULL)
+			bus_release_resource(ahc->dev_softc,
+					     pdata->irq_res_type,
+					     0, pdata->irq);
+
+		if (pdata->sim_b != NULL) {
+			xpt_async(AC_LOST_DEVICE, pdata->path_b, NULL);
+			xpt_free_path(pdata->path_b);
+			xpt_bus_deregister(cam_sim_path(pdata->sim_b));
+			cam_sim_free(pdata->sim_b, /*free_devq*/TRUE);
+		}
+		if (pdata->sim != NULL) {
+			xpt_async(AC_LOST_DEVICE, pdata->path, NULL);
+			xpt_free_path(pdata->path);
+			xpt_bus_deregister(cam_sim_path(pdata->sim));
+			cam_sim_free(pdata->sim, /*free_devq*/TRUE);
+		}
+		if (pdata->eh != NULL)
+			EVENTHANDLER_DEREGISTER(shutdown_final, pdata->eh);
 		free(ahc->platform_data, M_DEVBUF);
 	}
 }
@@ -1832,6 +1837,21 @@ int
 ahc_softc_comp(struct ahc_softc *lahc, struct ahc_softc *rahc)
 {
 	/* We don't sort softcs under FreeBSD so report equal always */
+	return (0);
+}
+
+int
+ahc_detach(device_t dev)
+{
+	struct ahc_softc *ahc;
+	u_long s;
+
+	device_printf(dev, "detaching device\n");
+	ahc = device_get_softc(dev);
+	ahc_lock(ahc, &s);
+	bus_teardown_intr(dev, ahc->platform_data->irq, ahc->platform_data->ih);
+	ahc_unlock(ahc, &s);
+	ahc_free(ahc);
 	return (0);
 }
 

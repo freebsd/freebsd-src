@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx_inline.h#10 $
+ * $Id: //depot/src/aic7xxx/aic7xxx_inline.h#12 $
  *
  * $FreeBSD$
  */
@@ -107,8 +107,6 @@ unpause_sequencer(struct ahc_softc *ahc)
 }
 
 /*********************** Untagged Transaction Routines ************************/
-u_int			ahc_index_busy_tcl(struct ahc_softc *ahc,
-					   u_int tcl, int unbusy);
 static __inline void	ahc_freeze_untagged_queues(struct ahc_softc *ahc);
 static __inline void	ahc_release_untagged_queues(struct ahc_softc *ahc);
 
@@ -349,7 +347,30 @@ ahc_queue_scb(struct ahc_softc *ahc, struct scb *scb)
 }
 
 /************************** Interrupt Processing ******************************/
+static __inline u_int ahc_check_cmdcmpltqueues(struct ahc_softc *ahc);
 static __inline void ahc_intr(struct ahc_softc *ahc);
+
+/*
+ * See if the firmware has posted any completed commands
+ * into our in-core command complete fifos.
+ */
+#define AHC_RUN_QOUTFIFO 0x1
+#define AHC_RUN_TQINFIFO 0x2
+static __inline u_int
+ahc_check_cmdcmpltqueues(struct ahc_softc *ahc)
+{
+	u_int retval;
+
+	retval = 0;
+	if (ahc->qoutfifo[ahc->qoutfifonext] != SCB_LIST_NULL)
+		retval |= AHC_RUN_QOUTFIFO;
+#ifdef AHC_TARGET_MODE
+	if ((ahc->flags & AHC_TARGETROLE) != 0
+	 && ahc->targetcmds[ahc->tqinfifonext].cmd_valid != 0)
+		retval |= AHC_RUN_TQINFIFO;
+#endif
+	return (retval);
+}
 
 /*
  * Catch an interrupt from the adapter
@@ -358,33 +379,43 @@ static __inline void
 ahc_intr(struct ahc_softc *ahc)
 {
 	u_int	intstat;
-
-	intstat = ahc_inb(ahc, INTSTAT);
+	u_int 	queuestat;
 
 	/*
-	 * Any interrupts to process?
+	 * Instead of directly reading the interrupt status register,
+	 * infer the cause of the interrupt by checking our in-core
+	 * completion queues.  This avoids a costly PCI bus read in
+	 * most cases.
 	 */
+	intstat = 0;
+	if ((queuestat = ahc_check_cmdcmpltqueues(ahc)) != 0)
+		intstat = CMDCMPLT;
+
+	if ((intstat & INT_PEND) == 0
+	 || (ahc->flags & AHC_ALL_INTERRUPTS) != 0) {
+
+		intstat = ahc_inb(ahc, INTSTAT);
 #if AHC_PCI_CONFIG > 0
-	if ((intstat & INT_PEND) == 0) {
-		if ((ahc->chip & AHC_PCI) != 0
-		 && (ahc->unsolicited_ints > 500)) {
-			if ((ahc_inb(ahc, ERROR) & PCIERRSTAT) != 0)
-				ahc_pci_intr(ahc);
-			ahc->unsolicited_ints = 0;
-		} else {
-			ahc->unsolicited_ints++;
-		}
-		return;
-	} else {
-		ahc->unsolicited_ints = 0;
-	}
-#else
-	if ((intstat & INT_PEND) == 0)
-		return;
+		if (ahc->unsolicited_ints > 500
+		 && (ahc->chip & AHC_PCI) != 0
+		 && (ahc_inb(ahc, ERROR) & PCIERRSTAT) != 0)
+			ahc_pci_intr(ahc);
 #endif
+	}
+
+	if (intstat == 0xFF)
+		/* Hot eject */
+		return;
+
+	if ((intstat & INT_PEND) == 0) {
+		ahc->unsolicited_ints++;
+		return;
+	}
+	ahc->unsolicited_ints = 0;
 
 	if (intstat & CMDCMPLT) {
 		ahc_outb(ahc, CLRINT, CLRCMDINT);
+
 		/*
 		 * Ensure that the chip sees that we've cleared
 		 * this interrupt before we walk the output fifo.
@@ -394,9 +425,12 @@ ahc_intr(struct ahc_softc *ahc)
 		 * and asserted the interrupt again.
 		 */
 		ahc_flush_device_writes(ahc);
-		ahc_run_qoutfifo(ahc);
 #ifdef AHC_TARGET_MODE
-		if ((ahc->flags & AHC_TARGETROLE) != 0)
+		if ((queuestat & AHC_RUN_QOUTFIFO) != 0)
+#endif
+			ahc_run_qoutfifo(ahc);
+#ifdef AHC_TARGET_MODE
+		if ((queuestat & AHC_RUN_TQINFIFO) != 0)
 			ahc_run_tqinfifo(ahc, /*paused*/FALSE);
 #endif
 	}
