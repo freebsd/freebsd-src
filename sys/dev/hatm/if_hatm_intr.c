@@ -250,50 +250,6 @@ hatm_mbuf1_free(void *buf, void *args)
 	hatm_ext_free(&sc->mbuf_list[1], (struct mbufx_free *)c);
 }
 
-/*
- * Allocate an external mbuf storage
- */
-static int
-hatm_mbuf_alloc(struct hatm_softc *sc, u_int group, uint32_t *phys,
-    uint32_t *handle)
-{
-	struct mbufx_free *cf;
-	struct mbuf_page *pg;
-
-	if (group == 0) {
-		struct mbuf0_chunk *buf0;
-
-		if ((cf = hatm_ext_alloc(sc, 0)) == NULL)
-			return (-1);
-		buf0 = (struct mbuf0_chunk *)cf;
-		pg = sc->mbuf_pages[buf0->hdr.pageno];
-		MBUF_SET_BIT(pg->hdr.card, buf0->hdr.chunkno);
-
-		*handle = MBUF_MAKE_HANDLE(buf0->hdr.pageno, buf0->hdr.chunkno);
-		*phys = pg->hdr.phys + buf0->hdr.chunkno * MBUF0_CHUNK +
-		    MBUF0_OFFSET;
-
-	} else if (group == 1) {
-		struct mbuf1_chunk *buf1;
-
-		if ((cf = hatm_ext_alloc(sc, 1)) == NULL)
-			return (-1);
-		buf1 = (struct mbuf1_chunk *)cf;
-		pg = sc->mbuf_pages[buf1->hdr.pageno];
-		MBUF_SET_BIT(pg->hdr.card, buf1->hdr.chunkno);
-
-		*handle = MBUF_MAKE_HANDLE(buf1->hdr.pageno, buf1->hdr.chunkno);
-		*phys = pg->hdr.phys + buf1->hdr.chunkno * MBUF1_CHUNK +
-		    MBUF1_OFFSET;
-
-	} else
-		return (-1);
-
-	bus_dmamap_sync(sc->mbuf_tag, pg->hdr.map, BUS_DMASYNC_PREREAD);
-
-	return (0);
-}
-
 static void
 hatm_mbuf_helper(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 {
@@ -321,6 +277,10 @@ he_intr_rbp(struct hatm_softc *sc, struct herbp *rbp, u_int large,
 	u_int ntail;
 	struct mbuf *m;
 	int error;
+	struct mbufx_free *cf;
+	struct mbuf_page *pg;
+	struct mbuf0_chunk *buf0;
+	struct mbuf1_chunk *buf1;
 
 	DBG(sc, INTR, ("%s buffer supply threshold crossed for group %u",
 	   large ? "large" : "small", group));
@@ -333,6 +293,7 @@ he_intr_rbp(struct hatm_softc *sc, struct herbp *rbp, u_int large,
 			ntail = 0;
 		if (ntail == rbp->head)
 			break;
+		m = NULL;
 
 		if (large) {
 			/* allocate the MBUF */
@@ -358,24 +319,54 @@ he_intr_rbp(struct hatm_softc *sc, struct herbp *rbp, u_int large,
 			    sc->rmaps[sc->lbufs_next],
 			    BUS_DMASYNC_PREREAD);
 
-			rbp->rbp[rbp->tail].handle = sc->lbufs_next |
-			    MBUF_LARGE_FLAG;
+			rbp->rbp[rbp->tail].handle =
+			    MBUF_MAKE_LHANDLE(sc->lbufs_next);
 
 			if (++sc->lbufs_next == sc->lbufs_size)
 				sc->lbufs_next = 0;
 
-		} else {
-			m = NULL;
-			if (hatm_mbuf_alloc(sc, group,
-			    &rbp->rbp[rbp->tail].phys,
-			    &rbp->rbp[rbp->tail].handle)) {
-				m_freem(m);
+		} else if (group == 0) {
+			/*
+			 * Allocate small buffer in group 0
+			 */
+			if ((cf = hatm_ext_alloc(sc, 0)) == NULL)
 				break;
-			}
-		}
+			buf0 = (struct mbuf0_chunk *)cf;
+			pg = sc->mbuf_pages[buf0->hdr.pageno];
+			MBUF_SET_BIT(pg->hdr.card, buf0->hdr.chunkno);
+			rbp->rbp[rbp->tail].phys = pg->hdr.phys +
+			    buf0->hdr.chunkno * MBUF0_CHUNK + MBUF0_OFFSET;
+			rbp->rbp[rbp->tail].handle =
+			    MBUF_MAKE_HANDLE(buf0->hdr.pageno,
+			    buf0->hdr.chunkno);
+
+			bus_dmamap_sync(sc->mbuf_tag, pg->hdr.map,
+			    BUS_DMASYNC_PREREAD);
+
+		} else if (group == 1) {
+			/*
+			 * Allocate small buffer in group 1
+			 */
+			if ((cf = hatm_ext_alloc(sc, 1)) == NULL)
+				break;
+			buf1 = (struct mbuf1_chunk *)cf;
+			pg = sc->mbuf_pages[buf1->hdr.pageno];
+			MBUF_SET_BIT(pg->hdr.card, buf1->hdr.chunkno);
+			rbp->rbp[rbp->tail].phys = pg->hdr.phys +
+			    buf1->hdr.chunkno * MBUF1_CHUNK + MBUF1_OFFSET;
+			rbp->rbp[rbp->tail].handle =
+			    MBUF_MAKE_HANDLE(buf1->hdr.pageno,
+			    buf1->hdr.chunkno);
+
+			bus_dmamap_sync(sc->mbuf_tag, pg->hdr.map,
+			    BUS_DMASYNC_PREREAD);
+
+		} else
+			/* ups */
+			break;
+
 		DBG(sc, DMA, ("MBUF loaded: handle=%x m=%p phys=%x",
 		    rbp->rbp[rbp->tail].handle, m, rbp->rbp[rbp->tail].phys));
-		rbp->rbp[rbp->tail].handle <<= HE_REGS_RBRQ_ADDR;
 
 		rbp->tail = ntail;
 	}
@@ -395,7 +386,7 @@ hatm_rx_buffer(struct hatm_softc *sc, u_int group, u_int handle)
 
 	if (handle & MBUF_LARGE_FLAG) {
 		/* large buffer - sync and unload */
-		handle &= ~MBUF_LARGE_FLAG;
+		MBUF_PARSE_LHANDLE(handle, handle);
 		DBG(sc, RX, ("RX large handle=%x", handle));
 
 		bus_dmamap_sync(sc->mbuf_tag, sc->rmaps[handle],
@@ -475,8 +466,7 @@ he_intr_rbrq(struct hatm_softc *sc, struct herbrq *rq, u_int group)
 
 		flags = e->addr & HE_REGM_RBRQ_FLAGS;
 		if (!(flags & HE_REGM_RBRQ_HBUF_ERROR))
-			m = hatm_rx_buffer(sc, group,
-			    (e->addr & HE_REGM_RBRQ_ADDR) >> HE_REGS_RBRQ_ADDR);
+			m = hatm_rx_buffer(sc, group, e->addr);
 		else
 			m = NULL;
 
