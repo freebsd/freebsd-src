@@ -13,6 +13,10 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20041118:	p18	FreeBSD-SA-04:16.fetch
+	Correct a buffer overflow in fetch(1) which could allow a
+	mallicious server to execute arbitrary code on the client.
+
 20040519:       p17	FreeBSD-SA-04:10.cvs
 	Correct a heap overflow in cvs's pserver protocol parser.
 
