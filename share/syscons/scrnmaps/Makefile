@@ -5,6 +5,7 @@ SCRDIR = /usr/share/syscons/scrnmaps
 CLEANFILES+= ${SCRMAPS_MK} ${SCRMAPS}
 
 NOMAN = noman
+NOOBJ = yes
 
 all: ${SCRMAPS}
 
