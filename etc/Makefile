@@ -5,7 +5,7 @@
 SUBDIR=	sendmail
 .endif
 
-BIN1=   amd.map apmd.conf auth.conf \
+BIN1=	amd.map apmd.conf auth.conf \
 	crontab csh.cshrc csh.login csh.logout \
 	dhclient.conf dm.conf fbtab ftpusers gettytab group \
 	hosts hosts.allow host.conf hosts.equiv hosts.lpd \
@@ -14,8 +14,8 @@ BIN1=   amd.map apmd.conf auth.conf \
 	pam.conf phones printcap profile protocols \
 	rc rc.atm rc.diskless1 rc.diskless2 rc.firewall rc.firewall6 \
 	rc.network rc.network6 rc.pccard rc.sendmail rc.serial rc.shutdown \
-	rc.syscons rc.sysctl remote rpc services shells sysctl.conf \
-	syslog.conf usbd.conf \
+	rc.syscons rc.sysctl remote rpc services \
+	shells sysctl.conf syslog.conf usbd.conf \
 	etc.${MACHINE_ARCH}/disktab \
 	etc.${MACHINE_ARCH}/rc.${MACHINE_ARCH} \
 	etc.${MACHINE_ARCH}/ttys \
@@ -46,26 +46,23 @@ MTREE=	BSD.include.dist BSD.local.dist BSD.root.dist BSD.usr.dist \
 .if !defined(NO_SENDMAIL)
 MTREE+=	BSD.sendmail.dist
 .endif
-NAMEDB= PROTO.localhost.rev PROTO.localhost-v6.rev named.conf named.root \
+
+NAMEDB=	PROTO.localhost.rev PROTO.localhost-v6.rev named.conf named.root \
 	make-localhost
-PPPCNF= ppp.conf
+
+PPPCNF=	ppp.conf
+
 ETCMAIL=Makefile README mailer.conf access.sample virtusertable.sample \
 	mailertable.sample aliases
 
-
 # Special top level files for FreeBSD
-COPYRIGHT=	COPYRIGHT
-FREEBSD=
-FREEBSD+=	${COPYRIGHT}
-
-etc:
+FREEBSD=COPYRIGHT
 
 distribute:
-	cd ${.CURDIR} ; ${MAKE} distribution DESTDIR=${DISTDIR}/bin
+	cd ${.CURDIR} ; ${MAKE} distribution DESTDIR=${DISTDIR}/${DISTRIBUTION}
 .if defined(OBJFORMAT)
-	echo OBJFORMAT=${OBJFORMAT} > ${DISTDIR}/bin/etc/objformat
+	echo OBJFORMAT=${OBJFORMAT} > ${DISTDIR}/${DISTRIBUTION}/etc/objformat
 .endif
-	@echo
 
 distribution:
 	cd ${.CURDIR}; \
@@ -75,49 +72,49 @@ distribution:
 		${BIN2} ${DESTDIR}/etc; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
 		master.passwd nsmb.conf opieaccess ${DESTDIR}/etc; \
+	    pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd
 	cd ${.CURDIR}/defaults; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-	    ${DEFAULTS} ${DESTDIR}/etc/defaults;
+	    ${DEFAULTS} ${DESTDIR}/etc/defaults
 	cd ${.CURDIR}/periodic; ${MAKE} install
 	cd ${.CURDIR}/../gnu/usr.bin/send-pr; ${MAKE} etc-gnats-freefall
 	cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap
 	cd ${.CURDIR}/../usr.sbin/rmt; ${MAKE} etc-rmt
-	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd
 .if !defined(NO_I4B)
-	( cd ${.CURDIR}/isdn; ${MAKE} install )
+	cd ${.CURDIR}/isdn; ${MAKE} install
 .endif
 .if !defined(NO_SENDMAIL)
-	( cd ${.CURDIR}/sendmail; ${MAKE} distribution );
+	cd ${.CURDIR}/sendmail; ${MAKE} distribution
 .endif
 .if !defined(NOUUCP)
-	( cd ${.CURDIR}/../gnu/libexec/uucp/sample; ${MAKE} install )
+	cd ${.CURDIR}/../gnu/libexec/uucp/sample; ${MAKE} install
 .endif
 .if exists(${.CURDIR}/../crypto) && !defined(NO_OPENSSL)
 .if !defined(NO_OPENSSH)
-	(cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 ${SSH} \
-	    ${DESTDIR}/etc/ssh )
+	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	    ${SSH} ${DESTDIR}/etc/ssh
 .endif
-	(cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 ${SSL} \
-	    ${DESTDIR}/etc/ssl )
+	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	    ${SSL} ${DESTDIR}/etc/ssl
 .endif
 .if !defined(NO_MAKEDEV)
-	( cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 555 \
-	    MAKEDEV.local MAKEDEV ${DESTDIR}/dev )
+	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 555 \
+	    MAKEDEV.local MAKEDEV ${DESTDIR}/dev
 .if !defined(NO_MAKEDEV_RUN)
-	(cd ${DESTDIR}/dev; sh MAKEDEV all)
+	cd ${DESTDIR}/dev; sh MAKEDEV all
 .endif
 .endif
-	(cd ${.CURDIR}/root; \
-		${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 dot.cshrc \
-		    ${DESTDIR}/root/.cshrc; \
-		${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 dot.klogin \
-		    ${DESTDIR}/root/.klogin; \
-		${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 dot.login \
-		    ${DESTDIR}/root/.login; \
-		${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 dot.profile \
-		    ${DESTDIR}/root/.profile; \
-		rm -f ${DESTDIR}/.cshrc ${DESTDIR}/.profile; \
-		ln ${DESTDIR}/root/.cshrc ${DESTDIR}/.cshrc; \
-		ln ${DESTDIR}/root/.profile ${DESTDIR}/.profile)
+	cd ${.CURDIR}/root; \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
+		dot.cshrc ${DESTDIR}/root/.cshrc; \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
+		dot.klogin ${DESTDIR}/root/.klogin; \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
+		dot.login ${DESTDIR}/root/.login; \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
+		dot.profile ${DESTDIR}/root/.profile; \
+	    rm -f ${DESTDIR}/.cshrc ${DESTDIR}/.profile; \
+	    ln ${DESTDIR}/root/.cshrc ${DESTDIR}/.cshrc; \
+	    ln ${DESTDIR}/root/.profile ${DESTDIR}/.profile
 	cd ${.CURDIR}/mtree; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${MTREE} ${DESTDIR}/etc/mtree
 	cd ${.CURDIR}/namedb; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
@@ -127,7 +124,7 @@ distribution:
 	cd ${.CURDIR}/mail; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${ETCMAIL} ${DESTDIR}/etc/mail
 	@if [ -d ${DESTDIR}/etc/mail -a -f ${DESTDIR}/etc/mail/aliases -a \
-	    ! -f ${DESTDIR}/etc/aliases ]; then \
+	      ! -f ${DESTDIR}/etc/aliases ]; then \
 		set -x; \
 		ln -s mail/aliases ${DESTDIR}/etc/aliases; \
 	fi
@@ -159,11 +156,10 @@ distribution:
 	    ${DESTDIR}/var/run/utmp
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 ${.CURDIR}/minfree \
 	    ${DESTDIR}/var/crash
-	(cd ${.CURDIR}/..; \
-	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 ${FREEBSD} \
-		${DESTDIR}/)
+	cd ${.CURDIR}/..; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
+	    ${FREEBSD} ${DESTDIR}/
 .if !defined(NOMAN)
-	(cd ${.CURDIR}/../share/man; ${MAKE} makedb; )
+	cd ${.CURDIR}/../share/man; ${MAKE} makedb
 .endif
 
 distrib-dirs:
