@@ -72,7 +72,6 @@ jail(td, uap)
 	if (j.version != 0)
 		return (EINVAL);
 
-	mtx_lock(&Giant);
 	MALLOC(pr, struct prison *, sizeof *pr , M_PRISON, M_WAITOK | M_ZERO);
 	mtx_init(&pr->pr_mtx, "jail mutex", NULL, MTX_DEF);
 	pr->pr_securelevel = securelevel;
@@ -97,14 +96,12 @@ jail(td, uap)
 	pr->pr_ref = 1;
 	PROC_UNLOCK(p);
 	crfree(oldcred);
-	mtx_unlock(&Giant);
 	return (0);
 badcred:
 	PROC_UNLOCK(p);
 	crfree(newcred);
 bail:
 	FREE(pr, M_PRISON);
-	mtx_unlock(&Giant);
 	return (error);
 }
 
