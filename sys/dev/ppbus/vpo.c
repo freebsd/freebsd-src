@@ -186,7 +186,7 @@ static void
 vpo_cam_rescan(struct vpo_data *vpo)
 {
         struct cam_path *path;
-        union ccb *ccb = malloc(sizeof(union ccb), M_TEMP, M_WAITOK | M_ZERO);
+        union ccb *ccb;
 
         if (xpt_create_path(&path, xpt_periph, cam_sim_path(vpo->sim), 0, 0)
             != CAM_REQ_CMP) {
@@ -194,6 +194,7 @@ vpo_cam_rescan(struct vpo_data *vpo)
                 return;
 	}
 
+        ccb = malloc(sizeof(union ccb), M_TEMP, M_WAITOK | M_ZERO);
         xpt_setup_ccb(&ccb->ccb_h, path, 5/*priority (low)*/);
         ccb->ccb_h.func_code = XPT_SCAN_BUS;
         ccb->ccb_h.cbfcnp = vpo_cam_rescan_callback;
