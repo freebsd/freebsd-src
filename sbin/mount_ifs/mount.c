@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mount.c	8.25 (Berkeley) 5/8/95";
 #else
 static const char rcsid[] =
-	"$Id: mount.c,v 1.20 1997/09/27 13:44:17 kato Exp $";
+	"$Id: mount.c,v 1.21 1997/11/13 00:28:49 julian Exp $";
 #endif
 #endif /* not lint */
 
@@ -607,7 +607,7 @@ putfsent(ent)
 		printf("\t%u %u\n", fst->fs_freq, fst->fs_passno);
 	else if ((fst = getfsfile(ent->f_mntonname)))
 		printf("\t%u %u\n", fst->fs_freq, fst->fs_passno);
-	else if (ent->f_type == MOUNT_UFS)
+	else if (strcmp(ent->f_fstypename, "ufs") == 0)
 		printf("\t1 1\n");
 	else
 		printf("\t0 0\n");
