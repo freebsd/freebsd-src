@@ -34,12 +34,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)output.h	8.2 (Berkeley) 5/4/95
- *	$Id$
+ *	$Id: output.h,v 1.6 1997/02/22 13:58:41 peter Exp $
  */
 
 #ifndef OUTPUT_INCL
 
-#if __STDC__
+#ifdef __STDC__
 #include <stdarg.h>
 #else
 #include <varargs.h>

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: error.c,v 1.8 1997/02/22 13:58:22 peter Exp $
  */
 
 #ifndef lint
@@ -145,7 +145,7 @@ exverror(cond, msg, ap)
 }
 
 
-#if __STDC__
+#ifdef __STDC__
 void
 error(char *msg, ...)
 #else
@@ -154,11 +154,11 @@ error(va_alist)
 	va_dcl
 #endif
 {
-#if !__STDC__
+#ifndef __STDC__
 	char *msg;
 #endif
 	va_list ap;
-#if __STDC__
+#ifdef __STDC__
 	va_start(ap, msg);
 #else
 	va_start(ap);
@@ -169,7 +169,7 @@ error(va_alist)
 }
 
 
-#if __STDC__
+#ifdef __STDC__
 void
 exerror(int cond, char *msg, ...)
 #else
@@ -178,12 +178,12 @@ exerror(va_alist)
 	va_dcl
 #endif
 {
-#if !__STDC__
+#ifndef __STDC__
 	int cond;
 	char *msg;
 #endif
 	va_list ap;
-#if __STDC__
+#ifdef __STDC__
 	va_start(ap, msg);
 #else
 	va_start(ap);
