@@ -19,6 +19,7 @@ int
 _pthread_cancel(pthread_t pthread)
 {
 	struct pthread *curthread = _get_curthread();
+	struct pthread *joinee = NULL;
 	int ret;
 
 	if ((ret = _thr_ref_add(curthread, pthread, /*include dead*/0)) == 0) {
@@ -64,7 +65,17 @@ _pthread_cancel(pthread_t pthread)
 				break;
 
 			case PS_JOIN:
+				/* Disconnect the thread from the joinee: */
+				joinee = pthread->join_status.thread;
+				pthread->join_status.thread = NULL;
 				pthread->cancelflags |= THR_CANCELLING;
+				_thr_setrunnable_unlocked(pthread);
+				if ((joinee != NULL) &&
+				    (curthread->kseg == joinee->kseg)) {
+					/* Remove the joiner from the joinee. */
+					joinee->joiner = NULL;
+					joinee = NULL;
+				}
 				break;
 
 			case PS_SUSPENDED:
@@ -103,6 +114,15 @@ _pthread_cancel(pthread_t pthread)
 		 */
 		THR_SCHED_UNLOCK(curthread, pthread);
 		_thr_ref_delete(curthread, pthread);
+
+		if ((joinee != NULL) &&
+		    (_thr_ref_add(curthread, joinee, /* include dead */1) == 0)) {
+			/* Remove the joiner from the joinee. */
+			THR_SCHED_LOCK(curthread, joinee);
+			joinee->joiner = NULL;
+			THR_SCHED_UNLOCK(curthread, joinee);
+			_thr_ref_delete(curthread, joinee);
+		}
 	}
 	return (ret);
 }

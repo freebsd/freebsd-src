@@ -47,13 +47,15 @@ _thr_ref_add(struct pthread *curthread, struct pthread *thread,
 {
 	kse_critical_t crit;
 	struct pthread *pthread;
+	struct kse *curkse;
 
 	if (thread == NULL)
 		/* Invalid thread: */
 		return (EINVAL);
 
 	crit = _kse_critical_enter();
-	KSE_LOCK_ACQUIRE(curthread->kse, &_thread_list_lock);
+	curkse = _get_curkse();
+	KSE_LOCK_ACQUIRE(curkse, &_thread_list_lock);
 	TAILQ_FOREACH(pthread, &_thread_list, tle) {
 		if (pthread == thread) {
 			if ((include_dead == 0) &&
@@ -63,12 +65,13 @@ _thr_ref_add(struct pthread *curthread, struct pthread *thread,
 				pthread = NULL;
 			else {
 				thread->refcount++;
-				curthread->critical_count++;
+				if (curthread != NULL)
+					curthread->critical_count++;
 			}
 			break;
 		}
 	}
-	KSE_LOCK_RELEASE(curthread->kse, &_thread_list_lock);
+	KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
 	_kse_critical_leave(crit);
 
 	/* Return zero if the thread exists: */
@@ -79,16 +82,19 @@ void
 _thr_ref_delete(struct pthread *curthread, struct pthread *thread)
 {
 	kse_critical_t crit;
+	struct kse *curkse;
 
 	if (thread != NULL) {
 		crit = _kse_critical_enter();
-		KSE_LOCK_ACQUIRE(curthread->kse, &_thread_list_lock);
+		curkse = _get_curkse();
+		KSE_LOCK_ACQUIRE(curkse, &_thread_list_lock);
 		thread->refcount--;
-		curthread->critical_count--;
+		if (curthread != NULL)
+			curthread->critical_count--;
 		if ((thread->refcount == 0) &&
 		    (thread->flags & THR_FLAGS_GC_SAFE) != 0)
 			THR_GCLIST_ADD(thread);
-		KSE_LOCK_RELEASE(curthread->kse, &_thread_list_lock);
+		KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
 		_kse_critical_leave(crit);
 	}
 }
