@@ -34,7 +34,7 @@
 #include <errno.h>
 #include <sys/param.h>
 #include <pthread.h>
-#include "pthread_private.h"
+#include "thr_private.h"
 
 __weak_reference(_pthread_setschedparam, pthread_setschedparam);
 

@@ -40,7 +40,7 @@
 #include <setjmp.h>
 #include <errno.h>
 #include <pthread.h>
-#include "pthread_private.h"
+#include "thr_private.h"
 
 /* Prototypes: */
 static void	thread_sig_add(struct pthread *pthread, int sig, int has_args);

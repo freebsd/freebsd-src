@@ -37,7 +37,7 @@
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <pthread.h>
-#include "pthread_private.h"
+#include "thr_private.h"
 
 #if defined(_PTHREADS_INVARIANTS)
 #define _MUTEX_INIT_LINK(m) 		do {		\

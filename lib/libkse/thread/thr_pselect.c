@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <signal.h>
 #include <pthread.h>
 
-#include "pthread_private.h"
+#include "thr_private.h"
 
 extern int __pselect(int count, fd_set *rfds, fd_set *wfds, fd_set *efds, 
 		const struct timespec *timo, const sigset_t *mask);

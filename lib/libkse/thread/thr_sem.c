@@ -33,7 +33,7 @@
 #include <errno.h>
 #include <semaphore.h>
 #include <pthread.h>
-#include "pthread_private.h"
+#include "thr_private.h"
 
 #define _SEM_CHECK_VALIDITY(sem)		\
 	if ((*(sem))->magic != SEM_MAGIC) {	\

@@ -32,7 +32,7 @@
  * $FreeBSD$
  */
 #include <pthread.h>
-#include "pthread_private.h"
+#include "thr_private.h"
 
 __weak_reference(_pthread_equal, pthread_equal);
 

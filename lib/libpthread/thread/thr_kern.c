@@ -49,7 +49,7 @@
 #include <sys/syscall.h>
 #include <fcntl.h>
 #include <pthread.h>
-#include "pthread_private.h"
+#include "thr_private.h"
 
 /* #define DEBUG_THREAD_KERN */
 #ifdef DEBUG_THREAD_KERN

@@ -32,7 +32,7 @@
  * $FreeBSD$
  */
 #include <pthread.h>
-#include "pthread_private.h"
+#include "thr_private.h"
 
 /*
  * This function needs to reference the global error variable which is

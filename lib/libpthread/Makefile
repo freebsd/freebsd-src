@@ -7,11 +7,11 @@
 # To included legacy CSRG sccsid strings, add -DLIBC_SCCS and -DSYSLIBC_SCCS
 # (for system call stubs) to CFLAGS below.  -DSYSLIBC_SCCS affects just the
 # system call stubs.
-LIB=c_r
+LIB=pthread
 SHLIB_MAJOR= 5
 SHLIB_MINOR= 0
 CFLAGS+=-DPTHREAD_KERNEL -D_THREAD_SAFE 
-CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}/uthread \
+CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}/thread \
 	-I${.CURDIR}/../../include
 
 # Uncomment this if you want libc_r to contain debug information for
@@ -21,11 +21,11 @@ CFLAGS+=-D_LOCK_DEBUG
 # enable extra internal consistancy checks
 CFLAGS+=-D_PTHREADS_INVARIANTS
 
-AINC=	-I${.CURDIR}/../libc/${MACHINE_ARCH} -I${.CURDIR}/uthread
+AINC=	-I${.CURDIR}/../libc/${MACHINE_ARCH} -I${.CURDIR}/thread
 PRECIOUSLIB=	yes
 
 .include "${.CURDIR}/man/Makefile.inc"
-.include "${.CURDIR}/uthread/Makefile.inc"
+.include "${.CURDIR}/thread/Makefile.inc"
 .include "${.CURDIR}/sys/Makefile.inc"
 
 .include <bsd.lib.mk>

@@ -33,7 +33,7 @@
  */
 #include <errno.h>
 #include <pthread.h>
-#include "pthread_private.h"
+#include "thr_private.h"
 
 __weak_reference(_pthread_attr_setinheritsched, pthread_attr_setinheritsched);
 
