@@ -49,6 +49,9 @@
 int ne2100_probe __P((lnc_softc_t *, unsigned));
 int bicc_probe __P((lnc_softc_t *, unsigned));
 int depca_probe __P((lnc_softc_t *, unsigned));
+#ifdef PC98
+int cnet98s_probe __P((lnc_softc_t *, unsigned));
+#endif
 int lance_probe __P((lnc_softc_t *));
 int pcnet_probe __P((lnc_softc_t *));
 int lnc_probe __P((struct isa_device *));

@@ -53,7 +53,7 @@
 #include <dev/lnc/if_lncreg.h>
 
 int pcnet_probe __P((lnc_softc_t *sc));
-static int cnet98s_probe __P((lnc_softc_t *sc, unsigned iobase));
+int cnet98s_probe __P((lnc_softc_t *sc, unsigned iobase));
 
 /* C-NET(98)S port addresses */
 #define CNET98S_RDP    0x400     /* Register Data Port */
@@ -84,7 +84,7 @@ static int cnet98s_probe __P((lnc_softc_t *sc, unsigned iobase));
 #define	LED_JABE	0x0002	/* Jabber */
 #define	LED_COLE	0x0001	/* Collision */
 
-static int
+int
 cnet98s_probe(lnc_softc_t *sc, unsigned iobase)
 {
 	int i;
