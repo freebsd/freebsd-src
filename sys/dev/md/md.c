@@ -114,11 +114,12 @@ static dev_t	status_dev = 0;
 
 static d_strategy_t mdstrategy;
 static d_open_t mdopen;
+static d_close_t mdclose;
 static d_ioctl_t mdioctl, mdctlioctl;
 
 static struct cdevsw md_cdevsw = {
         /* open */      mdopen,
-        /* close */     nullclose,
+        /* close */     mdclose,
         /* read */      physread,
         /* write */     physwrite,
         /* ioctl */     mdioctl,
@@ -159,6 +160,7 @@ struct md_s {
 	int busy;
 	enum md_types type;
 	unsigned nsect;
+	unsigned opencount;
 	unsigned secsize;
 	unsigned flags;
 
@@ -197,6 +199,16 @@ mdopen(dev_t dev, int flag, int fmt, struct proc *p)
 	dl->d_secpercyl = dl->d_nsectors * dl->d_ntracks;
 	dl->d_secperunit = sc->nsect;
 	dl->d_ncylinders = dl->d_secperunit / dl->d_secpercyl;
+	sc->opencount++;
+	return (0);
+}
+
+static int
+mdclose(dev_t dev, int flags, int fmt, struct proc *p)
+{
+	struct md_s *sc = dev->si_drv1;
+
+	sc->opencount--;
 	return (0);
 }
 
@@ -815,6 +827,8 @@ mdctlioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 		sc = mdfind(mdio->md_unit);
 		if (sc == NULL)
 			return (ENOENT);
+		if (sc->opencount != 0)
+			return (EBUSY);
 		switch(sc->type) {
 		case MD_VNODE:
 		case MD_SWAP:
@@ -898,8 +912,8 @@ md_drvinit(void *unused)
 		ptr = *(u_char **)c;
 		c = preload_search_info(mod, MODINFO_SIZE);
 		len = *(unsigned *)c;
-		printf("md%d: Preloaded image <%s> %d bytes at %p\n",
-		   mdunits, name, len, ptr);
+		printf("%s%d: Preloaded image <%s> %d bytes at %p\n",
+		    MD_NAME, mdunits, name, len, ptr);
 		md_preloaded(ptr, len);
 	} 
 	status_dev = make_dev(&mdctl_cdevsw, 0xffff00ff, UID_ROOT, GID_WHEEL,
