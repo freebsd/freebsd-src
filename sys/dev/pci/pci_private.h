@@ -41,6 +41,7 @@ extern devclass_t pci_devclass;
 
 void		pci_add_children(device_t dev, int busno, size_t dinfo_size);
 void		pci_add_child(device_t bus, struct pci_devinfo *dinfo);
+void		pci_driver_added(device_t dev, driver_t *driver);
 int		pci_print_child(device_t dev, device_t child);
 void		pci_probe_nomatch(device_t dev, device_t child);
 int		pci_read_ivar(device_t dev, device_t child, int which,
@@ -74,4 +75,5 @@ int		pci_child_pnpinfo_str_method(device_t cbdev, device_t child,
 		    char *buf, size_t buflen);
 int		pci_assign_interrupt_method(device_t dev, device_t child);
 int		pci_resume(device_t dev);
+int		pci_suspend(device_t dev);
 #endif /* _PCI_PRIVATE_H_ */

@@ -79,7 +79,7 @@ static device_method_t acpi_pci_methods[] = {
 	DEVMETHOD(device_probe,		acpi_pci_probe),
 	DEVMETHOD(device_attach,	acpi_pci_attach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_suspend,	pci_suspend),
 	DEVMETHOD(device_resume,	pci_resume),
 
 	/* Bus interface */
@@ -87,7 +87,7 @@ static device_method_t acpi_pci_methods[] = {
 	DEVMETHOD(bus_probe_nomatch,	pci_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	acpi_pci_read_ivar),
 	DEVMETHOD(bus_write_ivar,	pci_write_ivar),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
+	DEVMETHOD(bus_driver_added,	pci_driver_added),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
