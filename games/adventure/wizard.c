@@ -45,6 +45,7 @@ static char sccsid[] = "@(#)wizard.c	8.1 (Berkeley) 6/2/93";
 #include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 # include "hdr.h"
 
