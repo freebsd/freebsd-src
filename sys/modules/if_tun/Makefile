@@ -3,8 +3,7 @@
 .PATH: ${.CURDIR}/../../net
 
 KMOD=	if_tun
-SRCS=	if_tun.c opt_atalk.h opt_inet.h opt_inet6.h opt_ipx.h opt_mac.h \
-	vnode_if.h
+SRCS=	if_tun.c opt_atalk.h opt_inet.h opt_inet6.h opt_ipx.h opt_mac.h
 
 opt_atalk.h:
 	echo "#define NETATALK 1" > ${.TARGET}
