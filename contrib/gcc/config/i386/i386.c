@@ -9432,7 +9432,7 @@ ix86_expand_clrstr (src, count_exp, align_exp)
 				 gen_rtx_SUBREG (SImode, zeroreg, 0)));
       if (TARGET_64BIT && (align <= 4 || count == 0))
 	{
-	  rtx label = ix86_expand_aligntest (destreg, 2);
+	  rtx label = ix86_expand_aligntest (countreg, 4);
 	  emit_insn (gen_strsetsi (destreg,
 				   gen_rtx_SUBREG (SImode, zeroreg, 0)));
 	  emit_label (label);
@@ -9443,7 +9443,7 @@ ix86_expand_clrstr (src, count_exp, align_exp)
 				 gen_rtx_SUBREG (HImode, zeroreg, 0)));
       if (align <= 2 || count == 0)
 	{
-	  rtx label = ix86_expand_aligntest (destreg, 2);
+	  rtx label = ix86_expand_aligntest (countreg, 2);
 	  emit_insn (gen_strsethi (destreg,
 				   gen_rtx_SUBREG (HImode, zeroreg, 0)));
 	  emit_label (label);
@@ -9454,7 +9454,7 @@ ix86_expand_clrstr (src, count_exp, align_exp)
 				 gen_rtx_SUBREG (QImode, zeroreg, 0)));
       if (align <= 1 || count == 0)
 	{
-	  rtx label = ix86_expand_aligntest (destreg, 1);
+	  rtx label = ix86_expand_aligntest (countreg, 1);
 	  emit_insn (gen_strsetqi (destreg,
 				   gen_rtx_SUBREG (QImode, zeroreg, 0)));
 	  emit_label (label);
