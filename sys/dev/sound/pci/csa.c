@@ -295,24 +295,22 @@ csa_attach(device_t dev)
 	/* Attach the children. */
 
 	/* PCM Audio */
-	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
+	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (func == NULL) {
 		error = ENOMEM;
 		goto err_teardown;
 	}
-	bzero(func, sizeof(*func));
 	func->varinfo = &scp->binfo;
 	func->func = SCF_PCM;
 	scp->pcm = device_add_child(dev, "pcm", -1);
 	device_set_ivars(scp->pcm, func);
 
 	/* Midi Interface */
-	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
+	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (func == NULL) {
 		error = ENOMEM;
 		goto err_teardown;
 	}
-	bzero(func, sizeof(*func));
 	func->varinfo = &scp->binfo;
 	func->func = SCF_MIDI;
 	scp->midi = device_add_child(dev, "midi", -1);
