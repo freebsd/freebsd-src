@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.9 1995/04/24 06:04:36 bde Exp $
+ *	$Id: subr_diskslice.c,v 1.10 1995/04/24 17:06:59 bde Exp $
  */
 
 #include <sys/param.h>
@@ -272,24 +272,25 @@ dsgone(sspp)
  * is subject to the same restriction as dsopen().
  */
 int
-dsioctl(dev, cmd, data, flags, ssp, strat, setgeom)
+dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
+	char	*dname;
 	dev_t	dev;
 	int	cmd;
 	caddr_t	data;
 	int	flags;
-	struct diskslices *ssp;
+	struct diskslices **sspp;
 	d_strategy_t *strat;
 	ds_setgeom_t *setgeom;
 {
-	u_char	bopenmask;
-	u_char	copenmask;
 	int	error;
 	struct disklabel *lp;
 	int	old_wlabel;
 	int	slice;
 	struct diskslice *sp;
+	struct diskslices *ssp;
 
 	slice = dkslice(dev);
+	ssp = *sspp;
 	sp = &ssp->dss_slices[slice];
 	lp = sp->ds_label;
 	switch (cmd) {
@@ -364,23 +365,75 @@ dsioctl(dev, cmd, data, flags, ssp, strat, setgeom)
 	case DIOCSYNCSLICEINFO:
 		if (slice != WHOLE_DISK_SLICE || dkpart(dev) != RAW_PART)
 			return (EINVAL);
-		bopenmask = sp->ds_bopenmask;
-		copenmask = sp->ds_copenmask;
-		sp->ds_bopenmask &= ~(1 << RAW_PART);
-		sp->ds_copenmask &= ~(1 << RAW_PART);
-		sp->ds_openmask &= ~(1 << RAW_PART);
+		if (!*(int *)data)
+			for (slice = 0; slice < ssp->dss_nslices; slice++) {
+				u_char	openmask;
+
+				openmask = ssp->dss_slices[slice].ds_openmask;
+				if (openmask
+				    && (slice != WHOLE_DISK_SLICE
+					|| openmask & ~(1 << RAW_PART)))
+					return (EBUSY);
+			}
+
+		/*
+		 * Temporarily forget the current slices struct and read
+		 * the current one.
+		 * XXX should wait for current accesses on this disk to
+		 * complete, then lock out future accesses and opens.
+		 */
+		*sspp = NULL;
 		lp = malloc(sizeof *lp, M_DEVBUF, M_WAITOK);
 		*lp = *ssp->dss_slices[WHOLE_DISK_SLICE].ds_label;
-		error = dsopen("SYNCSLICES", dev, 0, &ssp, lp, strat, setgeom);
-		sp->ds_bopenmask = bopenmask;
-		sp->ds_copenmask = copenmask;
-		sp->ds_openmask = bopenmask | copenmask;
+		error = dsopen(dname, dev, S_IFCHR, sspp, lp, strat, setgeom);
+		if (error != 0) {
+			free(lp, M_DEVBUF);
+			*sspp = ssp;
+			return (error);
+		}
+
+		for (slice = 0; slice < ssp->dss_nslices; slice++) {
+			u_char	openmask;
+			int	part;
+
+			openmask = ssp->dss_slices[slice].ds_bopenmask;
+			for (part = 0; part < ssp->dss_nslices; part++) {
+				if (!(openmask & (1 << part)))
+					continue;
+				error = dsopen(dname,
+					       dkmodslice(dkmodpart(dev, part),
+							  slice),
+					       S_IFBLK, sspp, lp, strat,
+					       setgeom);
+				if (error != 0) {
+					free(lp, M_DEVBUF);
+					*sspp = ssp;
+					return (EBUSY);
+				}
+			}
+			openmask = ssp->dss_slices[slice].ds_copenmask;
+			for (part = 0; part < ssp->dss_nslices; part++) {
+				if (!(openmask & (1 << part)))
+					continue;
+				error = dsopen(dname,
+					       dkmodslice(dkmodpart(dev, part),
+							  slice),
+					       S_IFCHR, sspp, lp, strat,
+					       setgeom);
+				if (error != 0) {
+					free(lp, M_DEVBUF);
+					*sspp = ssp;
+					return (EBUSY);
+				}
+			}
+		}
 		free(lp, M_DEVBUF);
-		return (error);
+		dsgone(&ssp);
+		return (0);
 
 	case DIOCWDINFO:
-		error = dsioctl(dev, DIOCSDINFO, data, flags, ssp, strat,
-				setgeom);
+		error = dsioctl(dname, dev, DIOCSDINFO, data, flags, &ssp,
+				strat, setgeom);
 		if (error != 0)
 			return (error);
 		/*
