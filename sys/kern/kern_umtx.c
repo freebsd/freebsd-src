@@ -39,6 +39,13 @@
 #include <sys/thr.h>
 #include <sys/umtx.h>
 
+#define	UMTX_LOCK()	mtx_lock(&umtx_lock);
+#define	UMTX_UNLOCK()	mtx_unlock(&umtx_lock);
+
+struct mtx umtx_lock;
+
+MTX_SYSINIT(umtx, &umtx_lock, "User-land mutex lock", MTX_DEF);
+
 int
 _umtx_lock(struct thread *td, struct _umtx_lock_args *uap)
     /* struct umtx *umtx */
@@ -57,7 +64,7 @@ _umtx_lock(struct thread *td, struct _umtx_lock_args *uap)
 	 */
 	umtx = uap->umtx;	
 
-	PROC_LOCK(td->td_proc);
+	UMTX_LOCK();
 
 	for (;;) {
 		/*
@@ -103,7 +110,7 @@ _umtx_lock(struct thread *td, struct _umtx_lock_args *uap)
 	}
 
 	/*
-	 * We are now protected from further races via the proc lock.
+	 * We are now protected from further races via umtx_lock.
 	 * If userland messes with their mutex without using cmpset
 	 * they will deadlock themselves but they will still be
 	 * killable via signals.
@@ -146,7 +153,7 @@ _umtx_lock(struct thread *td, struct _umtx_lock_args *uap)
 		 * used to maintain proper ordering.
 		 */
 
-		error = msleep(&td->td_umtx, &td->td_proc->p_mtx,
+		error = msleep(&td->td_umtx, &umtx_lock,
 		    td->td_priority | PCATCH, "umtx", 0);
 
 		/*
@@ -171,7 +178,7 @@ _umtx_lock(struct thread *td, struct _umtx_lock_args *uap)
 	}
 
 out:
-	PROC_UNLOCK(td->td_proc);
+	UMTX_UNLOCK();
 
 	return (error);
 }
@@ -190,7 +197,7 @@ _umtx_unlock(struct thread *td, struct _umtx_unlock_args *uap)
 	error = 0;
 	umtx = uap->umtx;
 
-	PROC_LOCK(td->td_proc);
+	UMTX_LOCK();
 
 	/*
 	 * Make sure we own this mtx.
@@ -300,7 +307,7 @@ _umtx_unlock(struct thread *td, struct _umtx_unlock_args *uap)
 	wakeup(&td0->td_umtx);
 
 out:
-	PROC_UNLOCK(td->td_proc);
+	UMTX_UNLOCK();
 
 	return (error);
 }
