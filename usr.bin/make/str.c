@@ -38,10 +38,8 @@
  * @(#)str.c	5.8 (Berkeley) 6/1/90
  */
 
-#ifndef lint
 #include <sys/cdefs.h>
-__RCSID("$FreeBSD$");
-#endif /* not lint */
+__FBSDID("$FreeBSD$");
 
 #include "make.h"
 
