@@ -211,3 +211,4 @@ dev/tga/tga_pci.c		optional	tga
 dev/fb/fb.c			optional	tga
 dev/fb/gfb.c			optional	tga
 dev/gfb/gfb_pci.c		optional	tga
+pci/agp_amd.c			optional	agp
