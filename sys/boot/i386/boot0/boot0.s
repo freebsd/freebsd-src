@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id:$
+#	$Id: boot0.s,v 1.1.1.1 1998/10/05 10:08:37 rnordier Exp $
 
 # A 512-byte boot manager.
 
@@ -220,7 +220,7 @@ os_linux:	.ascii "Linu"; .byte 'x'|0x80
 os_freebsd:	.ascii "Free"
 os_bsd: 	.ascii "BS";   .byte 'D'|0x80
 
-		.fill start+PRT_OFF-0x3-.,0x1,0x90
+		.org PRT_OFF-0x3,0x90
 
 opt:		.byte 0x1			# Option
 ticks:		.word 0xb6			# Delay
