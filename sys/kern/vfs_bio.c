@@ -31,37 +31,13 @@
 
 #include <miscfs/specfs/specdev.h>
 
-struct	buf *buf;		/* the buffer pool itself */
-int	nbuf;			/* number of buffer headers */
-int	bufpages;		/* number of memory pages in the buffer pool */
-struct	buf *swbuf;		/* swap I/O headers */
-int	nswbuf;
-#define BUFHSZ 512
-int bufhash = BUFHSZ - 1;
+struct	buf *buf;		/* buffer header pool */
+int	nbuf;			/* number of buffer headers calculated elsewhere */
 
-struct buf *getnewbuf(int,int);
 extern	vm_map_t buffer_map, io_map;
+
 void vm_hold_free_pages(vm_offset_t from, vm_offset_t to);
 void vm_hold_load_pages(vm_offset_t from, vm_offset_t to);
-/*
- * Definitions for the buffer hash lists.
- */
-#define	BUFHASH(dvp, lbn)	\
-	(&bufhashtbl[((int)(dvp) / sizeof(*(dvp)) + (int)(lbn)) & bufhash])
-
-/*
- * Definitions for the buffer free lists.
- */
-#define	BQUEUES		5		/* number of free buffer queues */
-
-LIST_HEAD(bufhashhdr, buf) bufhashtbl[BUFHSZ], invalhash;
-TAILQ_HEAD(bqueues, buf) bufqueues[BQUEUES];
-
-#define	BQ_NONE		0	/* on no queue */
-#define	BQ_LOCKED	1	/* locked buffers */
-#define	BQ_LRU		2	/* useful buffers */
-#define	BQ_AGE		3	/* less useful buffers */
-#define	BQ_EMPTY	4	/* empty buffer headers*/
 
 int needsbuffer;
 
@@ -87,7 +63,7 @@ void bufinit()
 		LIST_INIT(&bufhashtbl[i]);
 
 	/* next, make a null set of free lists */
-	for(i=0;i<BQUEUES;i++)
+	for(i=0;i<BUFFER_QUEUES;i++)
 		TAILQ_INIT(&bufqueues[i]);
 
 	/* finally, initialize each buffer header and stick on empty q */
@@ -99,10 +75,10 @@ void bufinit()
 		bp->b_vp = NULL;
 		bp->b_rcred = NOCRED;
 		bp->b_wcred = NOCRED;
-		bp->b_qindex = BQ_EMPTY;
+		bp->b_qindex = QUEUE_EMPTY;
 		bp->b_vnbufs.le_next = NOLIST;
 		bp->b_data = (caddr_t)kmem_alloc_pageable(buffer_map, MAXBSIZE);
-		TAILQ_INSERT_TAIL(&bufqueues[BQ_EMPTY], bp, b_freelist);
+		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_EMPTY], bp, b_freelist);
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
 	}
 }
@@ -114,9 +90,9 @@ void
 bremfree(struct buf *bp)
 {
 	int s = splbio();
-	if( bp->b_qindex != BQ_NONE) {
+	if( bp->b_qindex != QUEUE_NONE) {
 		TAILQ_REMOVE(&bufqueues[bp->b_qindex], bp, b_freelist);
-		bp->b_qindex = BQ_NONE;
+		bp->b_qindex = QUEUE_NONE;
 	} else {
 		panic("bremfree: removing a buffer when not on a queue");
 	}
@@ -339,35 +315,35 @@ brelse(struct buf *bp)
 			brelvp(bp);
 	}
 
-	if( bp->b_qindex != BQ_NONE)
+	if( bp->b_qindex != QUEUE_NONE)
 		panic("brelse: free buffer onto another queue???");
 
 	/* enqueue */
 	/* buffers with junk contents */
 	if(bp->b_bufsize == 0) {
-		bp->b_qindex = BQ_EMPTY;
-		TAILQ_INSERT_HEAD(&bufqueues[BQ_EMPTY], bp, b_freelist);
+		bp->b_qindex = QUEUE_EMPTY;
+		TAILQ_INSERT_HEAD(&bufqueues[QUEUE_EMPTY], bp, b_freelist);
 		LIST_REMOVE(bp, b_hash);
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
 		bp->b_dev = NODEV;
 	} else if(bp->b_flags & (B_ERROR|B_INVAL|B_NOCACHE)) {
-		bp->b_qindex = BQ_AGE;
-		TAILQ_INSERT_HEAD(&bufqueues[BQ_AGE], bp, b_freelist);
+		bp->b_qindex = QUEUE_AGE;
+		TAILQ_INSERT_HEAD(&bufqueues[QUEUE_AGE], bp, b_freelist);
 		LIST_REMOVE(bp, b_hash);
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
 		bp->b_dev = NODEV;
 	/* buffers that are locked */
 	} else if(bp->b_flags & B_LOCKED) {
-		bp->b_qindex = BQ_LOCKED;
-		TAILQ_INSERT_TAIL(&bufqueues[BQ_LOCKED], bp, b_freelist);
+		bp->b_qindex = QUEUE_LOCKED;
+		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_LOCKED], bp, b_freelist);
 	/* buffers with stale but valid contents */
 	} else if(bp->b_flags & B_AGE) {
-		bp->b_qindex = BQ_AGE;
-		TAILQ_INSERT_TAIL(&bufqueues[BQ_AGE], bp, b_freelist);
+		bp->b_qindex = QUEUE_AGE;
+		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_AGE], bp, b_freelist);
 	/* buffers with valid and quite potentially reuseable contents */
 	} else {
-		bp->b_qindex = BQ_LRU;
-		TAILQ_INSERT_TAIL(&bufqueues[BQ_LRU], bp, b_freelist);
+		bp->b_qindex = QUEUE_LRU;
+		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_LRU], bp, b_freelist);
 	}
 
 	/* unlock */
@@ -389,20 +365,20 @@ getnewbuf(int slpflag, int slptimeo)
 	x = splbio();
 start:
 	/* can we constitute a new buffer? */
-	if (bp = bufqueues[BQ_EMPTY].tqh_first) {
-		if( bp->b_qindex != BQ_EMPTY)
+	if (bp = bufqueues[QUEUE_EMPTY].tqh_first) {
+		if( bp->b_qindex != QUEUE_EMPTY)
 			panic("getnewbuf: inconsistent EMPTY queue");
 		bremfree(bp);
 		goto fillbuf;
 	}
 
 tryfree:
-	if (bp = bufqueues[BQ_AGE].tqh_first) {
-		if( bp->b_qindex != BQ_AGE)
+	if (bp = bufqueues[QUEUE_AGE].tqh_first) {
+		if( bp->b_qindex != QUEUE_AGE)
 			panic("getnewbuf: inconsistent AGE queue");
 		bremfree(bp);
-	} else if (bp = bufqueues[BQ_LRU].tqh_first) {
-		if( bp->b_qindex != BQ_LRU)
+	} else if (bp = bufqueues[QUEUE_LRU].tqh_first) {
+		if( bp->b_qindex != QUEUE_LRU)
 			panic("getnewbuf: inconsistent LRU queue");
 		bremfree(bp);
 	} else	{
@@ -470,8 +446,10 @@ incore(struct vnode *vp, daddr_t blkno)
 		}
 		/* hit */
 		if (bp->b_lblkno == blkno && bp->b_vp == vp
-			&& (bp->b_flags & B_INVAL) == 0)
+			&& (bp->b_flags & B_INVAL) == 0) {
+			splx(s);
 			return (bp);
+		}
 		bp = bp->b_hash.le_next;
 	}
 	splx(s);
@@ -654,7 +632,7 @@ count_lock_queue()
 	struct buf *bp;
 	
 	count = 0;
-	for(bp = bufqueues[BQ_LOCKED].tqh_first;
+	for(bp = bufqueues[QUEUE_LOCKED].tqh_first;
 	    bp != NULL;
 	    bp = bp->b_freelist.tqe_next)
 		count++;

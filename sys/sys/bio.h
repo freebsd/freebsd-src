@@ -139,6 +139,31 @@ struct cluster_save {
 	struct buf **bs_children;	/* List of associated buffers. */
 };
 
+/* 
+ * number of buffer hash entries
+ */
+#define BUFHSZ 512
+
+/*
+ * buffer hash table calculation, originally by David Greenman
+ */
+#define BUFHASH(vnp, bn)        \
+	(&bufhashtbl[(((int)(vnp) / sizeof(struct vnode))+(int)(bn)) % BUFHSZ])
+
+/*
+ * Definitions for the buffer free lists.
+ */
+#define BUFFER_QUEUES	5	/* number of free buffer queues */
+
+LIST_HEAD(bufhashhdr, buf) bufhashtbl[BUFHSZ], invalhash;
+TAILQ_HEAD(bqueues, buf) bufqueues[BUFFER_QUEUES];
+
+#define QUEUE_NONE	0	/* on no queue */
+#define QUEUE_LOCKED	1	/* locked buffers */
+#define QUEUE_LRU	2	/* useful buffers */
+#define QUEUE_AGE	3	/* less useful buffers */
+#define QUEUE_EMPTY	4	/* empty buffer headers*/
+
 /*
  * Zero out the buffer's data area.
  */
