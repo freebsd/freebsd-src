@@ -18,7 +18,7 @@
  *		(614)451-1883
  */
 
-static char rcsid[] = "$Id: chat.c,v 1.4 1994/05/30 00:30:37 paulus Exp $";
+static char rcsid[] = "$Id: chat.c,v 1.1.1.1 1994/11/12 05:25:32 lars Exp $";
 
 #include <stdio.h>
 #include <fcntl.h>
@@ -79,7 +79,7 @@ static int _O = 0;		/* Internal state */
 char *program_name;
 
 #ifndef LOCK_DIR
-# ifdef __NetBSD__
+# if defined(__NetBSD__) || defined(__FreeBSD__)
 # define	PIDSTRING
 # define	LOCK_DIR	"/var/spool/lock"
 # else
