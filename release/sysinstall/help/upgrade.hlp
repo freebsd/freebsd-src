@@ -29,7 +29,8 @@ data files.
 0.2    IMPORTANT NOTE
 ---    --------------
 
-See section 2.4 for important details regarding changes to the
+If you are upgrading from FreeBSD 2.2.5 or earlier, see
+section 2.4 for important details regarding changes to the
 /etc/fstab file required during the upgrade procedure.
 
 1.0    Introduction
@@ -122,10 +123,10 @@ kernel may need to be generated to suit the local system configuration.
 
 IMPORTANT NOTE:
 ==============
-FreeBSD 2.2.6 introduces a change in the naming of the device from 
+FreeBSD 2.2.6 introduced a change in the naming of the device from 
 which the root filesystem is mounted.  This change affects all systems, 
 however user intervention is only required for systems undergoing an 
-upgrade installation.
+upgrade installation from a version prior to FreeBSD 2.2.6.
 
 Previously, the root filesystem was always mounted from the
 compatibility slice, while other partitions on the same disk were
