@@ -258,6 +258,7 @@ main(int argc, char **argv)
 
     sigemptyset(&uc.uc_sigmask);
     sigaltstack(NULL, &uc.uc_stack);
+    uc.uc_mcontext.mc_onstack = 0;
 
     if (tmode)
 	tracetrap(REGS);
