@@ -1,11 +1,11 @@
 /*
  * Korean LOCALE_CTYPE definitions using EUC-KR character sets
  *
- * Choi Jun Ho, junker@vishnu.snu.ac.kr
+ * Choi Jun Ho, junker@jazz.snu.ac.kr
  * NARAE, Seoul National Univ., CS Dept.
- * 96.12.3
+ * Mar 11 1997
  *
- * It is based on manpage mklocale(1), euc(4).
+ * It is based on manpage mklocale(1), euc(4), ja_JP.EUC.src.
  * 
  */
 
@@ -17,7 +17,8 @@ ENCODING     "EUC"
  * byte 2: 0xa1-0xfe
  */
 
-VARIABLE     1 0x0000 2 0x8080 2 0x0080 3 0x8000 0x8080
+/* we have codeset 1 and 2 */
+VARIABLE     1 0x0000 2 0x8080 0x8080
 
 /*
  * Code Set 1, US-ASCII equivalent
@@ -30,8 +31,8 @@ LOWER	     'a' - 'z'
 PUNCT	     0x21 - 0x2f 0x3a - 0x40 0x5b - 0x60 0x7b - 0x7e
 SPACE	     0x09 - 0x0d 0x20
 UPPER	     'A' - 'Z'
-XDIGIT	     'a' - 'f' 'A' - 'F'
-BLANK	     ' '
+XDIGIT	     '0' - '9' 'a' - 'f' 'A' - 'F'
+BLANK	     ' ' '\t'
 PRINT	     0x20 - 0x7e
 
 MAPLOWER     < 'A' - 'Z' : 'a' > < 'a' - 'z' : 'a' >
@@ -48,14 +49,14 @@ UPPER        0xa3c1 - 0xa3da
 LOWER        0xa3e1 - 0xa3fa
 PUNCT	     0xa3a1 - 0xa3af 0xa3ba - 0xa3c0 0xa3db - 0xa3e0 0xa3fb - 0xa3fe
 SPACE	     0xa1a1
-XDIGIT       0xa3c1 - 0xa3c6 0xa3e1 - 0xa3e6
+XDIGIT       0xa3b0 - 0xa3b9 0xa3c1 - 0xa3c6 0xa3e1 - 0xa3e6
 BLANK        0xa1a1
 PRINT        0xa1a1 - 0xfefe
 SPECIAL	     0xa1a2 - 0xa2e5
 
 MAPLOWER     < 0xa3c1 - 0xa3da : 0xa3e1 > < 0xa3e1 - 0xa3fa : 0xa3e1 >
 MAPUPPER     < 0xa3c1 - 0xa3da : 0xa3c1 > < 0xa3b0 - 0xa3b9 : 0xa3c1 >
-TODIGIT      < 0xa3b1 - 0xa3b9 : 0 >
+TODIGIT      < 0xa3b0 - 0xa3b9 : 0 >
 TODIGIT      < 0xa3c1 - 0xa3c6 : 10 > < 0xa3e1 - 0xa3e6 : 10 >
 
 
@@ -69,13 +70,13 @@ LOWER	     0xacd1 - 0xacf1			     /* Cyrillic */
 MAPLOWER     < 0xaca1 - 0xacc1 : 0xacd1 > < 0xacd1 - 0xacf1 : 0xacd1 >
 MAPUPPER     < 0xaca1 - 0xacc1 : 0xaca1 > < 0xacd1 - 0xacf1 : 0xaca1 >
 
-SPECIAL	     0xa5a1 - 0xa5aa  0xa5b0 - 0xa5b9 /* greek digit */ 
+DIGIT	     0xa5a1 - 0xa5aa  0xa5b0 - 0xa5b9 /* greek digit */ 
 SPECIAL      0xa6a1 - 0xa6e4  0xa7a1 - 0xa7ef /* symbols */
 SPECIAL      0xa8a1 - 0xa8fe  0xa9a1 - 0xa9fe /* circle symbols */
 
-PHONOGRAM    0xa4a1 - 0xa4fe  /* no combined hangul */
-PHONOGRAM    0xaaa1 - 0xaaf3  /* hirakana */
-PHONOGRAM    0xaba1 - 0xabf3  /* katakana */
+PHONOGRAM    0xa4a1 - 0xa4fe  /* full-width hangul glyph */
+PHONOGRAM    0xaaa1 - 0xaaf3  /* full-width hirakana */
+PHONOGRAM    0xaba1 - 0xabf6  /* full-width katakana */
 
 PHONOGRAM    0xb0a1 - 0xb0fe  0xb1a1 - 0xb1fe  0xb2a1 - 0xb2fe
 PHONOGRAM    0xb3a1 - 0xb3fe  0xb4a1 - 0xb4fe  0xb5a1 - 0xb5fe
@@ -106,9 +107,5 @@ IDEOGRAM     0xf7a1 - 0xf7fe  0xf8a1 - 0xf8fe  0xf9a1 - 0xf9fe
 IDEOGRAM     0xfaa1 - 0xfafe  0xfba1 - 0xfbfe  0xfca1 - 0xfcfe  
 IDEOGRAM     0xfda1 - 0xfdfe  /* hanja */
 
-/*
- * We have no Codeset 3, it is dummy
- */
-SPECIAL      0xa1 - 0xfe
-PHONOGRAM    0xa1 - 0xfe
-PRINT        0xa1 - 0xfe
+/* we don't have codeset 3 and 4 */
+/* end of LC_CTYPE definition */
