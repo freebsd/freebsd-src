@@ -15,14 +15,9 @@ CFLAGS+=	-I${KRB5DIR}/include \
 		-I${HDBOBJDIR} \
 		-I${.OBJDIR} \
 		${LDAPCFLAGS}
-LDADD=		-L${KRB5OBJDIR} -lkrb5 \
-		-L${ROKENOBJDIR} -lroken \
-		-L${VERSOBJDIR} -lvers \
-		-L${KADM5SOBJDIR} -lkadm5srv \
-		-L${HDBOBJDIR} -lhdb \
-		-L${ASN1OBJDIR} -lasn1 -lcrypto -lcrypt -lcom_err ${LDAPLDADD}
-DPADD=		${LIBKRB5} ${LIBKAFS5} ${LIBROKEN} \
-		${LIBKADM5CLNT} ${LIBKADM5SRV} ${LIBHDB} \
+LDADD=		-lkrb5 -lroken ${LIBVERS} -lkadm5srv -lhdb \
+		-lasn1 -lcrypto -lcrypt -lcom_err ${LDAPLDADD}
+DPADD=		${LIBKRB5} ${LIBROKEN} ${LIBVERS} ${LIBKADM5SRV} ${LIBHDB} \
 		${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR} ${LDAPLIBS}
 NOMAN=		yes
 
