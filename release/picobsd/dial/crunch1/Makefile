@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.3 1999/01/19 23:07:17 abial Exp $
+# $Id: Makefile,v 1.3.2.1 1999/05/07 10:02:34 abial Exp $
 #
 NOCRYPT?=	yes
 SRC?=/usr/src
@@ -7,11 +7,10 @@ SRC?=/usr/src
 all: crunch
 
 crunch:
-	if [ "X${INIT}" != "X" ]; \
-	then \
-		echo "progs ${INIT}" >crunch1.conf ; \
-	else \
+	if [ "${INIT}" = "init" ]; then \
 		echo "progs init getty" >crunch1.conf ; \
+	else \
+		echo "progs ${INIT}" >crunch1.conf ; \
 	fi;
 	@cat crunch.conf|sed -e "s@/usr/src@${SRC}@" >>crunch1.conf
 	@crunchgen ${.CURDIR}/crunch1.conf

@@ -1,393 +1,315 @@
 #!/bin/sh -
 
 #
-#	$Id: build,v 1.12 1999/01/19 23:02:05 abial Exp $
+#	$Id: build,v 1.12.2.1 1999/02/22 21:25:15 abial Exp $
 #
-
 # You can set the SRC variable which points to your source tree. It's
 # /usr/src by default (most people shouldn't change it).
 SRC=/usr/src
-
-# Default MFS sizes for different types of the floppy. Again, most people
-# shouldn't change them unless they know what they are doing.
-
-DIAL_DFLT_SIZE=1600
-ROUTER_DFLT_SIZE=820
-NET_DFLT_SIZE=1700
-ISP_DFLT_SIZE=1700
-
-# DEVFS is currently broken. Always set this.
-#
-NO_DEVFS=yes
-
-# Path to srcdirs of special program for init(8) (standard if empty)
-INIT=
 
 # --------- YOU SHOULD NOT NEED TO CHANGE ANYTHING BELOW -----------
 # The "build" script will ask you for parameters. Just run it... :-)
 # --------- YOU SHOULD NOT NEED TO CHANGE ANYTHING BELOW -----------
 
+# EDITOR is the editor you use
+EDITOR=${EDITOR:-vi}
+# LANGUAGE     language to be used (en or pl)
+LANGUAGE=en
+# TYPE         PicoBSD type (isp, router, net, custom)
+TYPE=${1:-dial}
+# SITE         site-specific files
+SITE=
+
+# FLOPPY_SIZE  floppy size in KB (default to 1440)
+FLOPPY_SIZE=1440
+
+# DEVFS is currently broken. Always set this.
+#
+NO_DEVFS=yes
+
+# RISU is where dialog replies go.
+RISU=.build.reply
+
+# abort in case of error...
 set -e
 
 # Build kernel with previously set parameters.
 
-build_kernel() {
-	echo ""
-	echo "-> Checking if we have to build the PICOBSD kernel..."
-	(cd ../${TYPE}/conf; make)
-	echo ""
+# assign default values to variables.
+
+set_defaults() {
+
+    while read name suff sz init mfs_in floppy_in ; do
+	if [ "$name" != "#" -a $name != "" ] ; then
+	    eval ${name}_suffix=$suff
+	    eval ${name}_DFLT_SIZE=$sz
+	    eval ${name}_INIT=$init
+	    eval ${name}_MFS_INODES=$mfs_in
+	    eval ${name}_FLOPPY_INODES=$floppy_in
+	fi
+    done <<__eof__
+# build	MFS		- Byte/inode -
+# name		suffix	DFLT_SZ	init	MFS	FLOPPY
+dial		-D	1600	init	4096	32768
+router		-R	820	oinit	3072	32768
+net		-N	2200	init	4096	32768
+isp		-I	2400	init	4096	32768
+custom		-C	2400	init	8192	32768
+__eof__
 }
 
-# Main build procedure. It calls other scripts (stage1-3 and populate)
+set_msgs() {
+    MSG1="Type: ${TYPE}"
+    if [ "X${TYPE}" = "Xcustom" ] ; then
+	MSG1="${MSG1} (from ${CUST_DIR})"
+    fi
+
+    MSG="PicoBSD build -- Current parameters:\n\n\t1.  ${MSG1}\n\
+\t2.  MFS size: ${SIZE} kB\n\t3.  Language: ${LANGUAGE}\n\
+\t4.  Site-info: ${SITE}\n"
+}
+
+
+# Main build procedure. It calls another scripts (stage1)
 main() {
 
-if [ "${TYPE}" = "dial" ]
-then
-	suffix="-D"
-fi
-if [ "${TYPE}" = "net" ]
-then
-	suffix="-N"
-fi
-if [ "${TYPE}" = "isp" ]
-then
-	suffix="-I"
-fi
-if [ "${TYPE}" = "router" ]
-then
-	suffix="-R"
-fi
-if [ "${TYPE}" = "custom" ]
-then
-	suffix="-C"
-fi
-export suffix
+    export suffix
 
-clear
-echo "-> Building with following parameters:"
-echo -n "	Type:     ${TYPE}"
-if [ "X${INIT}" != "X" ]
-then
-	echo " (using ${INIT} as init(8))"
-else
-	echo ""
-fi
-echo "	MFS size: ${SIZE} kB"
-echo "	Language: ${LANGUAGE}"
-echo ""
-echo "-> We'll use the sources living in ${SRC}"
-echo ""
-echo "-> I hope you have checked the ../${TYPE}/conf/PICOBSD config file..."
-echo ""
-echo ""
-sleep 2
+    clear
+    set_msgs
+    printf "${MSG}"
+    echo "-> We'll use the sources living in ${SRC}"
+    echo ""
+    echo "-> I hope you have checked the ../${TYPE}/PICOBSD config file..."
+    echo ""
+    echo ""
+    sleep 2
 
-# Build the kernel, if necessary
-build_kernel
+    export SIZE LANGUAGE TYPE SRC NO_DEVFS INIT
+    export SITE MFS_INODES FLOPPY_INODES FLOPPY_SIZE
 
-export SIZE LANGUAGE TYPE SRC NO_DEVFS INIT
+    # Build the kernel, if necessary
+    echo ""
+    echo "-> Checking if we have to build the PICOBSD kernel..."
+    (cd ../${TYPE}; make -f ../build/Makefile.conf )
+    echo ""
 
-for i in stage1 populate stage2 stage3
-do
-	echo "====================== ${i} started ====================="
-	./${i}
-	if [ "X$?" != "X0" ]
-	then
-		echo ""
-		echo "-> ERROR in \"${i}\" script. Aborting the build process."
-		echo -n "-> Cleaning temporary files... "
-		umount -f /mnt
-		vnconfig -u /dev/rvn0
-		./clean ${TYPE}
-		echo "Done."
-		exit 10
-	else
-	echo "==================== ${i} completed ====================="
-	fi
-done
+    ./stage1
+    if [ "X$?" != "X0" ] ; then
+	echo ""
+	echo "-> ERROR in \"${i}\" script. Aborting the build process."
+	echo -n "-> Cleaning temporary files... "
+	umount -f /mnt
+	vnconfig -u /dev/rvn0
+	./clean ${TYPE}
+	echo "Done."
+	exit 10
+    fi
+    echo "==================== ${i} completed ====================="
 }
 
 # check for existing custom config directory and ask user if they want to use it
 
 check_for_old_custom() {
-       KEEP_CUSTOM=no
-       if [ ! -d ../custom ]
-       then
-               return
-       fi
-       clear
-       echo "                   Custom directory setup"
-       echo ""
-       echo "There is an existing custom configuration linked to"
-       ls -l ../custom | awk -F\> '{ print $2 }' | awk '{ print $1 }'
-       echo ""
-       read -p "Do you wish to use the existing custom directory? (yes/no): " KEEP_CUSTOM
+   KEEP_CUSTOM=no
+   if [ ! -d ../custom ] ; then
+       return
+   fi
+   clear
+   echo "                   Custom directory setup"
+   echo ""
+   echo "There is an existing custom configuration linked to"
+   ls -l ../custom | awk -F\> '{ print $2 }' | awk '{ print $1 }'
+   echo ""
+   read -p "Do you wish to use the existing custom directory? (yes/no): " KEEP_CUSTOM
 }
 
 # Ask for, and set the custom config directory
 
 set_custom() {
-	clear
-	echo "                   Custom directory setup"
-	echo ""
-	echo "Please enter the full path to the directory containing your"
-	echo "custom setup."
-	echo "This directory tree must be laid out exactly like the standard"
-	echo "ones. (E.g. you can type in /home/abial/work/custom, which"
-	echo "should contain conf/, crunch1/, floppy.tree/, lang/, mfs.tree/)."
-	echo ""
-	read -p "Enter the custom directory: " CUST_DIR
-	if [ "X${CUST_DIR}" = "X" ]
-	then
-		echo "-> Error. Custom directory cannot be null!"
-		exit 1
-	fi
+    dialog --title "Custom directory setup" --inputbox \
+    "Please enter the full path to the directory containing your \
+    custom setup. \
+    This directory tree must be laid out exactly like the standard \
+    ones. (E.g. you can type in /home/abial/work/custom, which \
+    should contain crunch1/, floppy.tree/, lang/ )." \
+    10 70 2> ${RISU}
+    CUST_DIR=`cat ${RISU}`
 }
 
-# Set the LANGUAGE variable
-
-set_lang() {
-	clear
-	echo "                    Language setup"
-	echo ""
-	echo "Language can be either 'en' (English - default) or 'pl' (Polish)"
-	echo ""
-	read -p "Enter the LANGUAGE (en, pl): " LANGUAGE
-	if [ "X${LANGUAGE}" = "X" ]
-	then
-		LANGUAGE=en
-	fi
-}
-
-# Set the INIT variable
-
-set_init() {
-	clear
-	echo "                Choose your init(8) program"
-	echo ""
-	echo "You can choose either standard init(8) (which requires getty), or"
-	echo "you can choose 'oinit' from TinyWare collection."
-	echo ""
-	read -p "Enter the INIT (init, oinit): " INIT
-	if [ "X${INIT}" = "Xinit" ]
-	then
-		unset INIT
-	fi
-}
-
-# Set the default MFS size depending on the type of setup
-
-set_dflt_size() {
-	echo ""
-	if [ "X${TYPE}" = "X" ]
-	then
-		TYPE=dial
-	fi
-	echo "Setting default MFS size for \"${TYPE}\" type floppy."
-	if [ "X${TYPE}" = "Xdial" ]
-	then
-		SIZE=$DIAL_DFLT_SIZE
-	elif [ "X${TYPE}" = "Xnet" ]
-	then
-		SIZE=$NET_DFLT_SIZE
-	elif [ "X${TYPE}" = "Xrouter" ]
-	then
-		SIZE=$ROUTER_DFLT_SIZE
-	elif [ "X${TYPE}" = "Xisp" ]
-	then
-		SIZE=$ISP_DFLT_SIZE
-	elif [ "X${TYPE}" = "Xcustom" ]
-	then
-		SIZE=$DIAL_DFLT_SIZE
-	else
-		echo "Unknown type of setup: \"${TYPE}\". Aborting..."
-		exit 10
-	fi
-}
-
-# Set MFS size interactively
-
-set_size() {
-	clear
-	echo "            Memory Filesystem (MFS) Size setup"
-	echo ""
-	echo " Size can be anything decent (usually 1700 or 2500) in kB."
-	echo " NOTE1: you can also use other numbers (e.g. 1500, 1456, 1789 ...)"
-	echo " even much bigger (like 4567), but keep in mind that this memory is"
-	echo " totally lost to other programs. Usually you want to keep this as small as"
-	echo " possible."
-	echo ""
-	echo " NOTE2: for pre-canned setups there are specific requirements:"
-	echo "	dial   - requires at least SIZE=$DIAL_DFLT_SIZE"
-	echo "	router - requires at least SIZE=$ROUTER_DFLT_SIZE (500kB less without SNMP)"
-	echo "	net    - requires at least SIZE=$NET_DFLT_SIZE (500kB less without SNMP)"
-	echo "	isp    - requires at least SIZE=$ISP_DFLT_SIZE (500kB less without SNMP)"
-	echo ""
-	echo " The last two configurations are not likely to run reliably on machines"
-	echo " with less than 10MB of RAM, while the 'dial' is tested and proved to run"
-	echo " as many as ~30 processes on 10 consoles with only 8MB RAM. YMMV."
-	echo ""
-	read -p "Enter the SIZE in kB: " SIZE
-	if [ "X${SIZE}" = "X" ]
-	then
-		set_dflt_size
-	fi
-}
-
-# Set type of floppy interactively
+# Set type of floppy interactively. Also set the various defaults
+# associated to each type. We can override them manually afterwards.
 
 set_type() {
-	clear
-	echo "               Setup the type of configuration"
-	echo ""
 
-	echo " Type can be either 'dial', 'router', 'net' or 'isp'. There are four"
-	echo " sets of configuration files in subdirs ../dial, ../router, ../net"
-	echo " and ../isp respectively - the contents of the floppy is constructed"
-	echo " basing on the Makefiles and scripts in them."
-	echo ""
-	echo " You can also type in 'custom', and you'll be asked to enter the"
-	echo " full path to directory tree, where you stored your custom"
-	echo " configuration, laid out exactly like the standard ones. (E.g."
-	echo " you can type in /home/abial/work/custom, which should contain"
-	echo " conf/, crunch1/, floppy.tree/, lang/, mfs.tree/)."
-	echo ""
-	echo " If you define TYPE=dial, you'll end up having a floppy which is"
-	echo " suitable for dialup access and not much else. If you define TYPE=net,"
-	echo " you'll have a small router-fixit-like floppy, which lacks most"
-	echo " interactive tools. TYPE=isp gives you a dialin server floppy."
-	echo ""
-	read -p "Enter the TYPE of the floppy (dial, net, router, isp): " TYPE
-	if [ "X${TYPE}" = "X" ]
-	then
-		TYPE=dial
-	fi
-	if [ "X${TYPE}" = "Xrouter" ]
-	then
-		INIT=oinit
-	fi
-        if [ "X${TYPE}" = "Xcustom" ]
-        then
-                check_for_old_custom
-                if [ "X${KEEP_CUSTOM}" != "Xyes" ]
-                then
-                        [ -r ../custom ] && rm -f ../custom
-                        set_custom
-                        (cd ..; ln -sf ${CUST_DIR} custom)
-                fi
+    eval SIZE=$"${TYPE}_DFLT_SIZE"
+    eval INIT=$"${TYPE}_INIT"
+    eval MFS_INODES=$"${TYPE}_MFS_INODES"
+    eval FLOPPY_INODES=$"${TYPE}_FLOPPY_INODES"
+    eval suffix=$"${TYPE}_suffix"
+
+    case ${TYPE} in
+    custom)
+	check_for_old_custom
+	if [ "X${KEEP_CUSTOM}" != "Xyes" ] ; then
+	    [ -r ../custom ] && rm -f ../custom
+	    set_custom
+	    (cd ..; ln -sf ${CUST_DIR} custom)
         fi
-	if [ "X${TYPE}" = "Xdial" -a "X${INIT}" = "X" ]
-	then
-		set_init
-	fi
+	;;
+    esac
 	
-	set_dflt_size
 }
-
-put_title() {
-	clear
-	echo "                     Building the PicoBSD v. 0.4 floppy"
-	echo "============================================================================"
-	echo ""
-}
-
 
 #-------------------------------------------------------------------
 # Main entry of the script
 
+set_defaults
+set_type
+
 # If $1="package", it creates a neat set of floppies
 
-if [ X"$1" = X"package" ]
-then
-	touch build.status
-	echo "##############################################" >>build.status
-	echo "## `date` ">>build.status
-	echo "##############################################" >>build.status
-	./clean dial
-	for y in en pl
-	do
-		for z in dial router net isp
-		do
-			TYPE=${z}
-			LANGUAGE=${y}
-			set_dflt_size
-			echo "---------------------------------------------">>build.status
-			echo "Building TYPE=${z}, LANGUAGE=${y}, SIZE=${SIZE}" >>build.status
-			export TYPE SIZE LANGUAGE SRC NO_DEVFS INIT
-			main
-			if [ "X$?" != "X0" ]
-			then
-				echo "	** FAILED! **">>build.status
-			else
-				echo "	(ok)">>build.status
-			fi
-			mv picobsd.bin pb_${y}${suffix}.bin
-			echo "Calling ./clean for ${TYPE}, ${LANGUAGE}, ${SIZE}">>build.status
-			./clean ${TYPE}
-		done
+if [ X"$1" = X"package" ] ; then
+    shift
+    touch build.status
+    echo "##############################################" >>build.status
+    echo "## `date` ">>build.status
+    echo "##############################################" >>build.status
+    ./clean dial
+    for y in en pl ; do
+	for z in dial router net isp ; do
+	    TYPE=${z}
+	    LANGUAGE=${y}
+	    set_type
+	    echo "---------------------------------------------">>build.status
+	    echo "Building TYPE=${z}, LANGUAGE=${y}, SIZE=${SIZE}" >>build.status
+	    main
+	    if [ "X$?" != "X0" ] ; then
+		echo "	** FAILED! **">>build.status
+	    else
+		echo "	(ok)">>build.status
+	    fi
+	    mv picobsd.bin pb_${y}${suffix}.bin
+	    echo "Calling ./clean for ${TYPE}, ${LANGUAGE}, ${SIZE}">>build.status
+	    ./clean ${TYPE}
 	done
-	exit 0
+    done
+    exit 0
 fi
 
 # Set build parameters interactively
 
-TYPE=dial
-LANGUAGE=en
-set_dflt_size
-while [ "X${ans}" != "Xn" ]
-do
-	put_title
-	echo "Current build parameters are as follows:"
-	echo ""
-	echo "	1.	Type:     ${TYPE}"
-	if [ "X${INIT}" != "X" ]
-	then
-		echo "		a. (using ${INIT} as init(8))"
-	else
-		echo "		a. (using stock init as init(8))"
+while [ "X${ans}" != "Xn" ] ; do
+    set_msgs
+    dialog --menu "PicoBSD build menu -- ver 0.44 (20aug1999)" 19 70 12 \
+	1 "${MSG1}" \
+	a "init type: ${INIT}" \
+	e "edit kernel config file for ${TYPE}" \
+	c "edit crunch.conf file for ${TYPE}" \
+	2 "MFS size: ${SIZE}kB" \
+	3 "Language: ${LANGUAGE}" \
+	4 "Site-info: ${SITE}" \
+	5 "Floppy size: ${FLOPPY_SIZE}kB" \
+	6 "MFS bytes per inode: ${MFS_INODES}" \
+	7 "UFS bytes per inode: ${FLOPPY_INODES}" \
+	n "no change, build it" q "quit" 2> ${RISU}
+    ans=`cat ${RISU}`
+    case ${ans} in
+    1)
+	dialog --menu "Setup the type of configuration" 12 70 5 \
+	    dial "dialin (ppp etc.)" \
+	    router "router/bridge/mrouter" \
+	    net "net admin tool" \
+	    isp "isp (ppp and terminal server)" \
+	    custom "custom config (need pathname)" 2> ${RISU}
+	if [ $? = 0 ]; then
+	    TYPE=`cat ${RISU}`
+	    set_type
 	fi
-	echo ""
-	echo "	2.	MFS size: ${SIZE} kB"
-	echo "	3.	Language: ${LANGUAGE}"
-	echo ""
-	echo "Which parameter would you like to change?"
-	read -p "(1, a, 2, 3; n -no change, build it ; q -quit): " ans
-	case ${ans} in
-	1)	set_type
-		clear
-		;;
-	a)	set_init
-		clear
-		;;
-	2)	set_size
-		clear
-		;;
-	3)	set_lang
-		clear
-		;;
-	q)	echo ""
-		echo "Hey! Don't give up so quickly. Quitting for now..."
-		echo ""
-		exit 0
-		;;
-	n)	;;
-	*)	echo "Unknown option \"${ans}\". Try again."
-		sleep 2
-		clear
-		;;
-	esac
+	;;
+    a)
+	dialog --menu "Choose your init(8) program" \
+	10 70 2 init "Standard init (requires getty)" \
+	oinit "small init from TinyWare" 2> ${RISU}
+	if [ "$?" = "0" ]; then
+	    INIT=`cat ${RISU}`
+	fi
+	;;
+
+    e) ${EDITOR} ../${TYPE}/PICOBSD ;;
+    c) ${EDITOR} ../${TYPE}/crunch1/crunch.conf ;;
+    2) dialog --title "MFS Size setup" --inputbox \
+"MFS size depends on what you need to put on the MFS image. Typically \
+ranges between 800kB (for very small bridge/router images) to \
+as much as 2500kB kB for a densely packed image. \
+Keep in mind that this memory is \
+totally lost to other programs. Usually you want to keep \
+this as small as possible. " 10 70 2> ${RISU}
+	SIZE=`cat ${RISU}`
+	if [ "X${SIZE}" = "X" ] ; then
+	    eval SIZE=${TYPE}_DFLT_SIZE
+	fi
+	;;
+    3)      dialog --menu "Please choose language" \
+	10 40 2 en English pl Polish 2> ${RISU}
+	LANGUAGE=`cat ${RISU}`
+	;;
+    4) dialog --title "Site info setup" --inputbox \
+	"Please enter the full path to the directory \
+	containing site-specific setup. \
+	This directory tree must contain files that replace \
+	standard ones in floppy.tree/ and mfs.tree/ . " \
+	10 70 2> ${RISU}
+	SITE=`cat ${RISU}`
+	;;
+    5) dialog --menu "Set floppy size" 15 70 4 \
+		1440 "1.44MB" 1720 "1.72MB" \
+		2880 "2.88MB" 4096 "4MB" 2> ${RISU}
+	FLOPPY_SIZE=`cat ${RISU}`
+	;;
+    6) dialog --title "MFS bytes per inode:" --inputbox \
+	"Enter MFS bytes per inode (typically 4096..65536). \
+	A larger value means fewer inodes but more space on MFS" \
+	10 70 2> ${RISU}
+	MFS_INODES=`cat ${RISU}`
+	;;
+    7) dialog --title "Floppy bytes per inode:" --inputbox \
+	"Enter floppy bytes per inode (typically 3072..65536). \
+	A larger value means fewer inodes but more space on the floppy." \
+	10 70 2> ${RISU}
+	FLOPPY_INODES=`cat ${RISU}`
+	;;
+    n) ;;
+    q) exit 0 ;;
+    *) echo "Unknown option \"${ans}\". Try again."
+	sleep 2
+	clear
+	;;
+    esac
 done
-# Export the parameters
-export LANGUAGE SIZE TYPE SRC NO_DEVFS INIT
+
 # Call the build procedure
 main
 # Install if it's ok.
 echo ""
-if [ "X$?" = "X0" ]
-then
-	echo "The build process was completed successfuly."
-	echo ""
-	echo "Now we are going to install the image on the floppy."
-	./install
+if [ "X$?" = "X0" ] ; then
+FILENAME=picobsd.bin
+    echo "The build process was completed successfuly."
+    echo ""
+    echo "Now we are going to install the image on the floppy."
+    echo "Please insert a blank floppy in /dev/fd0."
+    echo "WARNING: the contents of the floppy will be permanently erased!"
+    echo "Your options:"
+    echo "	* ^C to abort,"
+    echo "	* Enter to install \"${FILENAME}\","
+    echo "	* name of other file to install."
+    echo ""
+    read -p "Your choice: " junk
+    if [ "X${junk}" != "X" ] ; then
+	FILENAME=${junk}
+    fi
+    echo "Writing ${FILENAME}..."
+    dd if=${FILENAME} of=/dev/rfd0
+    echo "Done."
 fi
 exit 0
