@@ -51,10 +51,14 @@ extern volatile cpumask_t started_cpus;
 extern volatile cpumask_t stopped_cpus;
 #endif /* SMP */
 
-extern cpumask_t all_cpus;
 extern u_int mp_maxid;
 extern int mp_ncpus;
 extern volatile int smp_started;
+
+extern cpumask_t all_cpus;
+extern cpumask_t idle_cpus_mask;
+extern cpumask_t hlt_cpus_mask;
+extern cpumask_t logical_cpus_mask;
 
 /*
  * Macro allowing us to determine whether a CPU is absent at any given
@@ -92,6 +96,7 @@ void	cpu_mp_start(void);
 
 void	forward_signal(struct thread *);
 void	forward_roundrobin(void);
+int	forward_wakeup(int cpunum);
 int	restart_cpus(cpumask_t);
 int	stop_cpus(cpumask_t);
 void	smp_rendezvous_action(void);

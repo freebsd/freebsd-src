@@ -698,6 +698,10 @@ void
 sched_add(struct thread *td, int flags)
 {
 	struct kse *ke;
+#ifdef SMP
+	int forwarded = 0;
+	int cpu;
+#endif
 
 	ke = td->td_kse;
 	mtx_assert(&sched_lock, MA_OWNED);
@@ -711,33 +715,70 @@ sched_add(struct thread *td, int flags)
 	    ("sched_add: process swapped out"));
 
 #ifdef SMP
-	/*
-	 * Only try to preempt if the thread is unpinned or pinned to the
-	 * current CPU.
-	 */
-	if (KSE_CAN_MIGRATE(ke) || ke->ke_runq == &runq_pcpu[PCPU_GET(cpuid)])
-#endif
-	/*
-	 * Don't try preempt if we are already switching. 
-	 * all hell might break loose.
-	 */
-	if ((flags & SRQ_YIELDING) == 0)
-		if (maybe_preempt(td))
-			return;
-
-#ifdef SMP
 	if (KSE_CAN_MIGRATE(ke)) {
-		CTR2(KTR_RUNQ, "sched_add: adding kse:%p (td:%p) to gbl runq", ke, td);
+		CTR2(KTR_RUNQ,
+		    "sched_add: adding kse:%p (td:%p) to gbl runq", ke, td);
+		cpu = NOCPU;
 		ke->ke_runq = &runq;
 	} else {
-		CTR2(KTR_RUNQ, "sched_add: adding kse:%p (td:%p)to pcpu runq", ke, td);
 		if (!SKE_RUNQ_PCPU(ke))
-			ke->ke_runq = &runq_pcpu[PCPU_GET(cpuid)];
+			ke->ke_runq = &runq_pcpu[(cpu = PCPU_GET(cpuid))];
+		else
+			cpu = td->td_lastcpu;
+		CTR3(KTR_RUNQ,
+		    "sched_add: Put kse:%p(td:%p) on cpu%d runq", ke, td, cpu);
 	}
 #else
 	CTR2(KTR_RUNQ, "sched_add: adding kse:%p (td:%p) to runq", ke, td);
 	ke->ke_runq = &runq;
+
 #endif
+	/* 
+	 * If we are yielding (on the way out anyhow) 
+	 * or the thread being saved is US,
+	 * then don't try be smart about preemption
+	 * or kicking off another CPU
+	 * as it won't help and may hinder.
+	 * In the YIEDLING case, we are about to run whoever is 
+	 * being put in the queue anyhow, and in the 
+	 * OURSELF case, we are puting ourself on the run queue
+	 * which also only happens when we are about to yield.
+	 */
+	if((flags & SRQ_YIELDING) == 0) {
+#ifdef SMP
+		cpumask_t me = PCPU_GET(cpumask);
+		int idle = idle_cpus_mask & me;
+		/*
+		 * Only try to kick off another CPU if
+		 * the thread is unpinned
+		 * or pinned to another cpu,
+		 * and there are other available and idle CPUs.
+		 * if we are idle, then skip straight to preemption.
+		 */
+		if ( (! idle) &&
+		    (idle_cpus_mask & ~(hlt_cpus_mask | me)) &&
+		    ( KSE_CAN_MIGRATE(ke) ||
+		      ke->ke_runq != &runq_pcpu[PCPU_GET(cpuid)])) {
+			forwarded = forward_wakeup(cpu);
+		}
+		/*
+		 * If we failed to kick off another cpu, then look to 
+		 * see if we should preempt this CPU. Only allow this
+		 * if it is not pinned or IS pinned to this CPU.
+		 * If we are the idle thread, we also try do preempt.
+		 * as it will be quicker and being idle, we won't 
+		 * lose in doing so.. 
+		 */
+		if ((!forwarded) &&
+		    (ke->ke_runq == &runq ||
+		     ke->ke_runq == &runq_pcpu[PCPU_GET(cpuid)]))
+#endif
+
+		{
+			if (maybe_preempt(td))
+				return;
+		}
+	}
 	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_tdcnt++;
 	runq_add(ke->ke_runq, ke);

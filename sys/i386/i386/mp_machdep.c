@@ -183,7 +183,6 @@ volatile int smp_tlb_wait;
  */
 
 static u_int logical_cpus;
-static u_int logical_cpus_mask;
 
 /* used to hold the AP's until we are ready to release them */
 static struct mtx ap_boot_mtx;
@@ -209,7 +208,6 @@ static void	install_ap_tramp(void);
 static int	start_ap(int apic_id);
 static void	release_aps(void *dummy);
 
-static int	hlt_cpus_mask;
 static int	hlt_logical_cpus;
 static struct	sysctl_ctx_list logical_cpu_clist;
 

@@ -49,9 +49,15 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/smp.h>
 
+#include "opt_sched.h"
+
 #ifdef SMP
 volatile cpumask_t stopped_cpus;
 volatile cpumask_t started_cpus;
+cpumask_t all_cpus;
+cpumask_t idle_cpus_mask;
+cpumask_t hlt_cpus_mask;
+cpumask_t logical_cpus_mask;
 
 void (*cpustop_restartfunc)(void);
 #endif
@@ -62,7 +68,6 @@ int mp_maxcpus = MAXCPU;
 
 struct cpu_top *smp_topology;
 volatile int smp_started;
-cpumask_t all_cpus;
 u_int mp_maxid;
 
 SYSCTL_NODE(_kern, OID_AUTO, smp, CTLFLAG_RD, NULL, "Kernel SMP");
@@ -96,6 +101,46 @@ SYSCTL_INT(_kern_smp, OID_AUTO, forward_roundrobin_enabled, CTLFLAG_RW,
 	   &forward_roundrobin_enabled, 0,
 	   "Forwarding of roundrobin to all other CPUs");
 
+#ifdef SCHED_4BSD
+/* Enable forwarding of wakeups to all other cpus */
+SYSCTL_NODE(_kern_smp, OID_AUTO, ipiwakeup, CTLFLAG_RD, NULL, "Kernel SMP");
+
+static int forward_wakeup_enabled = 0;
+SYSCTL_INT(_kern_smp_ipiwakeup, OID_AUTO, enabled, CTLFLAG_RW,
+	   &forward_wakeup_enabled, 0,
+	   "Forwarding of wakeup to idle CPUs");
+
+static int forward_wakeups_requested = 0;
+SYSCTL_INT(_kern_smp_ipiwakeup, OID_AUTO, requested, CTLFLAG_RD,
+	   &forward_wakeups_requested, 0,
+	   "Requests for Forwarding of wakeup to idle CPUs");
+
+static int forward_wakeups_delivered = 0;
+SYSCTL_INT(_kern_smp_ipiwakeup, OID_AUTO, delivered, CTLFLAG_RD,
+	   &forward_wakeups_delivered, 0,
+	   "Completed Forwarding of wakeup to idle CPUs");
+
+static int forward_wakeup_use_mask = 0;
+SYSCTL_INT(_kern_smp_ipiwakeup, OID_AUTO, usemask, CTLFLAG_RW,
+	   &forward_wakeup_use_mask, 0,
+	   "Use the mask of idle cpus");
+
+static int forward_wakeup_use_loop = 0;
+SYSCTL_INT(_kern_smp_ipiwakeup, OID_AUTO, useloop, CTLFLAG_RW,
+	   &forward_wakeup_use_loop, 0,
+	   "Use a loop to find idle cpus");
+
+static int forward_wakeup_use_single = 0;
+SYSCTL_INT(_kern_smp_ipiwakeup, OID_AUTO, onecpu, CTLFLAG_RW,
+	   &forward_wakeup_use_single, 0,
+	   "Only signal one idle cpu");
+
+static int forward_wakeup_use_htt = 0;
+SYSCTL_INT(_kern_smp_ipiwakeup, OID_AUTO, htt2, CTLFLAG_RW,
+	   &forward_wakeup_use_htt, 0,
+	   "account for htt");
+
+#endif /* SCHED_4BSD */
 /* Variables needed for SMP rendezvous. */
 static void (*smp_rv_setup_func)(void *arg);
 static void (*smp_rv_action_func)(void *arg);
@@ -202,6 +247,95 @@ forward_roundrobin(void)
 	}
 	ipi_selected(map, IPI_AST);
 }
+
+#ifdef SCHED_4BSD
+/* enable HTT_2 if you have a 2-way HTT cpu.*/
+int
+forward_wakeup(int  cpunum)
+{
+	cpumask_t map, me, dontuse;
+	cpumask_t map2;
+	struct pcpu *pc;
+	cpumask_t id, map3;
+
+	mtx_assert(&sched_lock, MA_OWNED);
+
+	CTR0(KTR_SMP, "forward_wakeup()");
+
+	if ((!forward_wakeup_enabled) ||
+	     (forward_wakeup_use_mask == 0 && forward_wakeup_use_loop == 0))
+		return (0);
+	if (!smp_started || cold || panicstr)
+		return (0);
+
+	forward_wakeups_requested++;
+
+/*
+ * check the idle mask we received against what we calculated before
+ * in the old version.
+ */
+	me = PCPU_GET(cpumask);
+	/* 
+	 * don't bother if we should be doing it ourself..
+	 */
+	if ((me & idle_cpus_mask) && (cpunum == NOCPU || me == (1 << cpunum)))
+		return (0);
+
+	dontuse = me | stopped_cpus | hlt_cpus_mask;
+	map3 = 0;
+	if (forward_wakeup_use_loop) {
+		SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+			id = pc->pc_cpumask;
+			if ( (id & dontuse) == 0 &&
+			    pc->pc_curthread == pc->pc_idlethread) {
+				map3 |= id;
+			}
+		}
+	}
+
+	if (forward_wakeup_use_mask) {
+		map = 0;
+		map = idle_cpus_mask & ~dontuse;
+
+		/* If they are both on, compare and use loop if different */
+		if (forward_wakeup_use_loop) {
+			if (map != map3) {
+				printf("map (%02X) != map3 (%02X)\n",
+						map, map3);
+				map = map3;
+			}
+		}
+	} else {
+		map = map3;
+	}
+	/* If we only allow a specific CPU, then mask off all the others */
+	if (cpunum != NOCPU) {
+		KASSERT((cpunum <= mp_maxcpus),("forward_wakeup: bad cpunum."));
+		map &= (1 << cpunum);
+	} else {
+		/* Try choose an idle die. */
+		if (forward_wakeup_use_htt) {
+			map2 =  (map & (map >> 1)) & 0x5555;
+			if (map2) {
+				map = map2;
+			}
+		}
+
+		/* set only one bit */ 
+		if (forward_wakeup_use_single) {
+			map = map & ((~map) + 1);
+		}
+	}
+	if (map) {
+		forward_wakeups_delivered++;
+		ipi_selected(map, IPI_AST);
+		return (1);
+	}
+	if (cpunum == NOCPU)
+		printf("forward_wakeup: Idle processor not found\n");
+	return (0);
+}
+#endif /* SCHED_4BSD */
 
 /*
  * When called the executing CPU will send an IPI to all other CPUs
