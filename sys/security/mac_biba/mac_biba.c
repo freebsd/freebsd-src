@@ -647,6 +647,8 @@ mac_biba_externalize_label(struct label *label, char *element_name,
 static int
 mac_biba_parse_element(struct mac_biba_element *element, char *string)
 {
+	char *compartment, *end, *grade;
+	int value;
 
 	if (strcmp(string, "high") == 0 ||
 	    strcmp(string, "hi") == 0) {
@@ -661,38 +663,36 @@ mac_biba_parse_element(struct mac_biba_element *element, char *string)
 		element->mbe_type = MAC_BIBA_TYPE_EQUAL;
 		element->mbe_grade = MAC_BIBA_TYPE_UNDEF;
 	} else {
-		char *p0, *p1;
-		int d;
-
-		p0 = string;
-		d = strtol(p0, &p1, 10);
-	
-		if (d < 0 || d > 65535)
-			return (EINVAL);
 		element->mbe_type = MAC_BIBA_TYPE_GRADE;
-		element->mbe_grade = d;
 
-		if (*p1 != ':')  {
-			if (p1 == p0 || *p1 != '\0')
+		/*
+		 * Numeric grade piece of the element.
+		 */
+		grade = strsep(&string, ":");
+		value = strtol(grade, &end, 10);
+		if (end == grade || *end != '\0')
+			return (EINVAL);
+		if (value < 0 || value > 65535)
+			return (EINVAL);
+		element->mbe_grade = value;
+
+		/*
+		 * Optional compartment piece of the element.  If none
+		 * are included, we assume that the label has no
+		 * compartments.
+		 */
+		if (string == NULL)
+			return (0);
+		if (*string == '\0')
+			return (0);
+
+		while ((compartment = strsep(&string, "+")) != NULL) {
+			value = strtol(compartment, &end, 10);
+			if (compartment == end || *end != '\0')
 				return (EINVAL);
-			else
-				return (0);
-		}
-		else
-			if (*(p1 + 1) == '\0')
-				return (0);
-
-		while ((p0 = ++p1)) {
-			d = strtol(p0, &p1, 10);
-			if (d < 1 || d > MAC_BIBA_MAX_COMPARTMENTS)
+			if (value < 1 || value > MAC_BIBA_MAX_COMPARTMENTS)
 				return (EINVAL);
-
-			MAC_BIBA_BIT_SET(d, element->mbe_compartments);
-
-			if (*p1 == '\0')
-				break;
-			if (p1 == p0 || *p1 != '+')
-				return (EINVAL);
+			MAC_BIBA_BIT_SET(value, element->mbe_compartments);
 		}
 	}
 
@@ -706,38 +706,30 @@ mac_biba_parse_element(struct mac_biba_element *element, char *string)
 static int
 mac_biba_parse(struct mac_biba *mac_biba, char *string)
 {
-	char *range, *rangeend, *rangehigh, *rangelow, *single;
+	char *rangehigh, *rangelow, *single;
 	int error;
 
-	/* Do we have a range? */
-	single = string;
-	range = index(string, '(');
-	if (range == single)
+	single = strsep(&string, "(");
+	if (*single == '\0')
 		single = NULL;
-	rangelow = rangehigh = NULL;
-	if (range != NULL) {
-		/* Nul terminate the end of the single string. */
-		*range = '\0';
-		range++;
-		rangelow = range;
-		rangehigh = index(rangelow, '-');
-		if (rangehigh == NULL)
+
+	if (string != NULL) {
+		rangelow = strsep(&string, "-");
+		if (string == NULL)
 			return (EINVAL);
-		rangehigh++;
-		if (*rangelow == '\0' || *rangehigh == '\0')
+		rangehigh = strsep(&string, ")");
+		if (string == NULL)
 			return (EINVAL);
-		rangeend = index(rangehigh, ')');
-		if (rangeend == NULL)
+		if (*string != '\0')
 			return (EINVAL);
-		if (*(rangeend + 1) != '\0')
-			return (EINVAL);
-		/* Nul terminate the ends of the ranges. */
-		*(rangehigh - 1) = '\0';
-		*rangeend = '\0';
+	} else {
+		rangelow = NULL;
+		rangehigh = NULL;
 	}
+
 	KASSERT((rangelow != NULL && rangehigh != NULL) ||
 	    (rangelow == NULL && rangehigh == NULL),
-	    ("mac_biba_internalize_label: range mismatch"));
+	    ("mac_biba_parse: range mismatch"));
 
 	bzero(mac_biba, sizeof(*mac_biba));
 	if (single != NULL) {

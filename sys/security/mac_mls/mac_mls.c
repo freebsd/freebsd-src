@@ -613,6 +613,8 @@ mac_mls_externalize_label(struct label *label, char *element_name,
 static int
 mac_mls_parse_element(struct mac_mls_element *element, char *string)
 {
+	char *compartment, *end, *level;
+	int value;
 
 	if (strcmp(string, "high") == 0 ||
 	    strcmp(string, "hi") == 0) {
@@ -627,38 +629,36 @@ mac_mls_parse_element(struct mac_mls_element *element, char *string)
 		element->mme_type = MAC_MLS_TYPE_EQUAL;
 		element->mme_level = MAC_MLS_TYPE_UNDEF;
 	} else {
-		char *p0, *p1;
-		int d;
-
-		p0 = string;
-		d = strtol(p0, &p1, 10);
-
-		if (d < 0 || d > 65535)
-			return (EINVAL);
 		element->mme_type = MAC_MLS_TYPE_LEVEL;
-		element->mme_level = d;
 
-		if (*p1 != ':')  {
-			if (p1 == p0 || *p1 != '\0')
+		/*
+		 * Numeric level piece of the element.
+		 */
+		level = strsep(&string, ":");
+		value = strtol(level, &end, 10);
+		if (end == level || *end != '\0')
+			return (EINVAL);
+		if (value < 0 || value > 65535)
+			return (EINVAL);
+		element->mme_level = value;
+
+		/*
+		 * Optional compartment piece of the element.  If none
+		 * are included, we assume that the label has no
+		 * compartments.
+		 */
+		if (string == NULL)
+			return (0);
+		if (*string == '\0')
+			return (0);
+
+		while ((compartment = strsep(&string, "+")) != NULL) {
+			value = strtol(compartment, &end, 10);
+			if (compartment == end || *end != '\0')
 				return (EINVAL);
-			else
-				return (0);
-		}
-		else
-			if (*(p1 + 1) == '\0')
-				return (0);
-
-		while ((p0 = ++p1)) {
-			d = strtol(p0, &p1, 10);
-			if (d < 1 || d > MAC_MLS_MAX_COMPARTMENTS)
+			if (value < 1 || value > MAC_MLS_MAX_COMPARTMENTS)
 				return (EINVAL);
-
-			MAC_MLS_BIT_SET(d, element->mme_compartments);
-
-			if (*p1 == '\0')
-				break;
-			if (p1 == p0 || *p1 != '+')
-				return (EINVAL);
+			MAC_MLS_BIT_SET(value, element->mme_compartments);
 		}
 	}
 
@@ -675,35 +675,26 @@ mac_mls_parse(struct mac_mls *mac_mls, char *string)
 	char *range, *rangeend, *rangehigh, *rangelow, *single;
 	int error;
 
-	/* Do we have a range? */
-	single = string;
-	range = index(string, '(');
-	if (range == single)
+	single = strsep(&string, "(");
+	if (string == NULL) {
+		string = single;
 		single = NULL;
-	rangelow = rangehigh = NULL;
-	if (range != NULL) {
-		/* Nul terminate the end of the single string. */
-		*range = '\0';
-		range++;
-		rangelow = range;
-		rangehigh = index(rangelow, '-');
-		if (rangehigh == NULL)
-			return (EINVAL);
-		rangehigh++;
-		if (*rangelow == '\0' || *rangehigh == '\0')
-			return (EINVAL);
-		rangeend = index(rangehigh, ')');
-		if (rangeend == NULL)
-			return (EINVAL);
-		if (*(rangeend + 1) != '\0')
-			return (EINVAL);
-		/* Nul terminate the ends of the ranges. */
-		*(rangehigh - 1) = '\0';
-		*rangeend = '\0';
 	}
+
+	if (string != NULL) {
+		rangelow = strsep(&string, "-");
+		if (string == NULL)
+			return (EINVAL);
+		rangehigh = strsep(&string, ")");
+		if (string == NULL)
+			return (EINVAL);
+		if (*string != '\0')
+			return (EINVAL);
+	}
+
 	KASSERT((rangelow != NULL && rangehigh != NULL) ||
 	    (rangelow == NULL && rangehigh == NULL),
-	    ("mac_mls_internalize_label: range mismatch"));
+	    ("mac_mls_parse: range mismatch"));
 
 	bzero(mac_mls, sizeof(*mac_mls));
 	if (single != NULL) {
