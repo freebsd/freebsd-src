@@ -125,11 +125,6 @@ Allocate and reserve all needed storage from the start, rather than as needed.
 .Xc
 Enable clustering on this disk.
 .It Xo
-.Oo Cm no Oc Ns Cm autounit
-.Xc
-Automatically allocate the next free unit number for this disk.
-The basename of the disk is printed on stdout.
-.It Xo
 .Oo Cm no Oc Ns Cm compress
 .Xc
 Enable/Disable compression features to reduce memory usage.
@@ -139,9 +134,9 @@ Enable/Disable compression features to reduce memory usage.
 Enable/Disable readonly mode.
 .El
 .It Fl u Ar unit
-Force the
+Request a specific unit number for the
 .Xr md 4
-device to use a specific unit number.
+device instead of automatic allocation.
 .El
 .Sh EXAMPLES
 To create a 4 megabyte
