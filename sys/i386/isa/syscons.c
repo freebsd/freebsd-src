@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.124 1995/08/16 22:36:43 nate Exp $
+ *  $Id: syscons.c,v 1.117.4.5 1995/09/14 07:09:32 davidg Exp $
  */
 
 #include "sc.h"
@@ -822,6 +822,9 @@ set_mouse_pos:
 	return 0;
 
     case KDENABIO:      	/* allow io operations */
+	error = suser(p->p_ucred, &p->p_acflag);
+	if (error != 0)
+	    return error;
 	fp = (struct trapframe *)p->p_md.md_regs;
 	fp->tf_eflags |= PSL_IOPL;
 	return 0;
