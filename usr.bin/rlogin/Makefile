@@ -4,12 +4,13 @@
 PROG=	rlogin
 SRCS=	rlogin.c
 CFLAGS+=-Wall
+CFLAGS+=-I${.CURDIR}/../../libexec/rlogind
 
 BINMODE=4555
 INSTALLFLAGS=-fschg
 
 .if exists(${DESTDIR}${LIBDIR}/libkrb.a) && defined(MAKE_KERBEROS4)
-SRCS+=	krcmd.c kcmd.c rcmd_util.c encrypt.c
+SRCS+=	krcmd.c kcmd.c rcmd_util.c
 DPADD=	${LIBUTIL} ${LIBKRB} ${LIBDES} ${LIBCRYPT} ${LIBCOM_ERR}
 CFLAGS+=-DKERBEROS -DCRYPT -DHAVE_CONFIG_H \
 	-I${.CURDIR}/../../kerberosIV/include \
