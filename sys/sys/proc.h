@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.22 1996/03/11 06:10:11 hsu Exp $
+ * $Id: proc.h,v 1.23 1996/04/07 16:46:28 bde Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -296,7 +296,6 @@ void	setrunnable __P((struct proc *));
 void	setrunqueue __P((struct proc *));
 void	remrq __P((struct proc *));
 void	cpu_switch __P((struct proc *));
-void	sleep __P((void *chan, int pri));
 int	tsleep __P((void *chan, int pri, char *wmesg, int timo));
 void	unsleep __P((struct proc *));
 void	wakeup __P((void *chan));
