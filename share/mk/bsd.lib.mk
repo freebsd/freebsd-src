@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.52 1997/04/09 20:31:15 jdp Exp $
+#	$Id: bsd.lib.mk,v 1.53 1997/04/13 06:44:23 jkh Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -86,20 +86,22 @@ STRIP?=	-s
 
 .S.o:
 	${CC} ${CFLAGS:M-[ID]*} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 
 .S.po:
 	${CC} -DPROF ${CFLAGS:M-[ID]*} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
+	@${LD} -O ${.TARGET} -X -r ${.TARGET}
 
 .S.so:
 	${CC} -fpic -DPIC ${CFLAGS:M-[ID]*} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
 	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 
-.m.po:
-	${CC} ${CFLAGS} -fgnu-runtime -pg -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -X -r ${.TARGET}
-
 .m.o:
 	${CC} ${CFLAGS} -fgnu-runtime -c ${.IMPSRC} -o ${.TARGET}
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+
+.m.po:
+	${CC} ${CFLAGS} -fgnu-runtime -pg -c ${.IMPSRC} -o ${.TARGET}
 	@${LD} -O ${.TARGET} -X -r ${.TARGET}
 
 .if !defined(INTERNALLIB) || defined(INTERNALSTATICLIB)
