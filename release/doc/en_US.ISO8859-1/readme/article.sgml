@@ -47,8 +47,11 @@
 
       <para>&os; is an operating system based on 4.4 BSD Lite for
 	Intel, AMD, Cyrix or NexGen <quote>x86</quote> based PC
-	hardware, Compaq (formerly DEC) Alpha computers, and UltraSPARC machines.  Versions
-	for the IA64 and PowerPC architectures are currently under
+	hardware (i386), NEC PC-9801/9821 series PCs and compatibles
+	(pc98), DEC/Compaq/HP Alpha computers (alpha), 
+	and UltraSPARC machines (sparc64).  Versions
+	for the IA64 (ia64), PowerPC (powerpc), and AMD
+	<quote>Hammer</quote> (amd64) architectures are currently under
 	development as well.  &os; works with a wide variety of
 	peripherals and configurations and can be used for everything
 	from software development to games to Internet Service
@@ -64,14 +67,14 @@
 
       <para>A large collection of third-party ported software (the
 	<quote>Ports Collection</quote>) is also provided to make it
-	easy to obtain and install all your favorite traditional UNIX
+	easy to obtain and install all your favorite traditional &unix;
 	utilities for &os;.  Each <quote>port</quote> consists of a
 	set of scripts to retrieve, configure, build, and install a
 	piece of software, with a single command.  Over &os.numports;
 	ports, from editors to programming languages to graphical
 	applications, make &os; a powerful and comprehensive operating
 	environment that extends far beyond what's provided by many
-	commercial versions of UNIX.  Most ports are also available as
+	commercial versions of &unix;.  Most ports are also available as
 	pre-compiled <quote>packages</quote>, which can be quickly
 	installed from the installation program.</para>
     </sect2>
@@ -198,18 +201,18 @@
 	preferable to subscribe instead to the &a.announce;.</para>
 
       <para>All of the mailing lists can be freely joined by anyone
-	wishing to do so.  Visit <ulink url="http://www.FreeBSD.org/mailman/listinfo">
+	wishing to do so.  Visit the <ulink url="http://www.FreeBSD.org/mailman/listinfo">
 	FreeBSD Mailman Info Page</ulink>.  This will give you more
 	information on joining the various lists, accessing archives,
 	etc.  There are a number of mailing lists targeted at special
 	interest groups not mentioned here; more information can be
-	obtained either through majordomo or the <ulink
+	obtained either from the Mailman pages or the <ulink
 	url="http://www.FreeBSD.org/support.html#mailing-list">mailing
 	lists section</ulink> of the &os; Web site.</para>
 
       <important>
 	<para>Do <emphasis>not</emphasis> send email to the lists
-	  asking to be subscribed.  Use the &a.majordomo; address
+	  asking to be subscribed.  Use the Mailman interface
 	  instead.</para>
       </important>
     </sect2>
@@ -224,8 +227,7 @@
 
       <para>The preferred method to submit bug reports from a machine
 	with Internet mail connectivity is to use the &man.send-pr.1;
-	command or use the Web form at <ulink
-	url="http://www.FreeBSD.org/send-pr.html">http://www.FreeBSD.org/send-pr.html</ulink>.
+	command.
 	<quote>Problem Reports</quote> (PRs) submitted in this way
 	will be filed and their progress tracked; the &os; developers
 	will do their best to respond to all reported bugs as soon as
@@ -278,7 +280,7 @@
 
 	  <listitem>
 	    <para><filename>EARLY.TXT</filename>: A guide for early
-	      adopters of &os; 5.0-RELEASE.  Highly recommended
+	      adopters of &os; &release.current;.  Highly recommended
 	      reading for users new to &os; &release.branch; and/or the
 	      5.<replaceable>X</replaceable> series of releases.</para>
 	  </listitem>
@@ -329,7 +331,7 @@
       </para>
 
       <para>On platforms that support &man.sysinstall.8; (currently
-	the i386 and alpha), these documents are generally available via the
+	alpha, i386, ia64, pc98, and sparc64), these documents are generally available via the
 	Documentation menu during installation.  Once the system is
 	installed, you can revisit this menu by re-running the
 	&man.sysinstall.8; utility.</para>
@@ -352,7 +354,7 @@
     <sect2>
       <title>Manual Pages</title>
 
-      <para>As with almost all UNIX-like operating systems, &os; comes
+      <para>As with almost all &unix;-like operating systems, &os; comes
 	with a set of on-line manual pages, accessed through the
 	&man.man.1; command or through the <ulink
 	url="http://www.FreeBSD.org/cgi/man.cgi">hypertext manual
@@ -395,8 +397,8 @@
       <para>A listing of other books and documents about &os; can be
         found in the <ulink
         url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/bibliography.html">bibliography</ulink>
-        of the &os; Handbook.  Because of &os;'s strong UNIX heritage,
-        many other articles and books written for UNIX systems are
+        of the &os; Handbook.  Because of &os;'s strong &unix; heritage,
+        many other articles and books written for &unix; systems are
         applicable as well, some of which are also listed in the
         bibliography.</para>
     </sect2>
