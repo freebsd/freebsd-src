@@ -1225,8 +1225,6 @@ static void rl_rxeof(sc)
 			    NULL);
 			if (m == NULL) {
 				ifp->if_ierrors++;
-				printf("rl%d: out of mbufs, tried to "
-				    "copy %d bytes\n", sc->rl_unit, wrap);
 			} else {
 				m_copyback(m, wrap, total_len - wrap,
 					sc->rl_cdata.rl_rx_buf);
@@ -1237,8 +1235,6 @@ static void rl_rxeof(sc)
 			    NULL);
 			if (m == NULL) {
 				ifp->if_ierrors++;
-				printf("rl%d: out of mbufs, tried to "
-				    "copy %d bytes\n", sc->rl_unit, total_len);
 			}
 			cur_rx += total_len + 4 + ETHER_CRC_LEN;
 		}
