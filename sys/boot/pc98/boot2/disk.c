@@ -129,17 +129,6 @@ devopen(void)
 			printf("bad disklabel\n");
 			return 1;
 		}
-		if( (maj == 4) || (maj == 0) || (maj == 1))
-		{
-			if (dl->d_type == DTYPE_SCSI)
-			{
-				maj = 4; /* use scsi as boot dev */
-			}
-			else
-			{
-				maj = 0; /* must be ESDI/IDE */
-			}
-		}
 		/* This little trick is for OnTrack DiskManager disks */
 		boff = dl->d_partitions[part].p_offset -
 			dl->d_partitions[2].p_offset + sector;
