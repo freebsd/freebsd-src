@@ -93,6 +93,8 @@ static void	vdropl(struct vnode *vp);
 static void	vinactive(struct vnode *, struct thread *);
 static void	v_incr_usecount(struct vnode *, int);
 static void	vfree(struct vnode *);
+static void	vnlru_free(int);
+static void	vdestroy(struct vnode *);
 
 /*
  * Enable Giant pushdown based on whether or not the vm is mpsafe in this
@@ -134,10 +136,11 @@ int vttoif_tab[9] = {
 static TAILQ_HEAD(freelst, vnode) vnode_free_list;
 
 /*
- * Minimum number of free vnodes.  If there are fewer than this free vnodes,
- * getnewvnode() will return a newly allocated vnode.
+ * Free vnode target.  Free vnodes may simply be files which have been stat'd
+ * but not read.  This is somewhat common, and a small cache of such files
+ * should be kept to avoid recreation costs.
  */
-static u_long wantfreevnodes = 25;
+static u_long wantfreevnodes;
 SYSCTL_LONG(_vfs, OID_AUTO, wantfreevnodes, CTLFLAG_RW, &wantfreevnodes, 0, "");
 /* Number of vnodes in the free list. */
 static u_long freevnodes;
@@ -251,9 +254,8 @@ static enum { SYNCER_RUNNING, SYNCER_SHUTTING_DOWN, SYNCER_FINAL_DELAY }
 int desiredvnodes;
 SYSCTL_INT(_kern, KERN_MAXVNODES, maxvnodes, CTLFLAG_RW,
     &desiredvnodes, 0, "Maximum number of vnodes");
-static int minvnodes;
 SYSCTL_INT(_kern, OID_AUTO, minvnodes, CTLFLAG_RW,
-    &minvnodes, 0, "Minimum number of vnodes");
+    &wantfreevnodes, 0, "Minimum number of vnodes (legacy)");
 static int vnlru_nowhere;
 SYSCTL_INT(_debug, OID_AUTO, vnlru_nowhere, CTLFLAG_RW,
     &vnlru_nowhere, 0, "Number of times the vnlru process ran without success");
@@ -295,7 +297,7 @@ vntblinit(void *dummy __unused)
 			    desiredvnodes, MAXVNODES_MAX);
 		desiredvnodes = MAXVNODES_MAX;
 	}
-	minvnodes = desiredvnodes / 4;
+	wantfreevnodes = desiredvnodes / 4; 
 	mtx_init(&mountlist_mtx, "mountlist", NULL, MTX_DEF);
 	mtx_init(&mntid_mtx, "mntid", NULL, MTX_DEF);
 	TAILQ_INIT(&vnode_free_list);
@@ -588,6 +590,51 @@ vlrureclaim(struct mount *mp)
 }
 
 /*
+ * Attempt to keep the free list at wantfreevnodes length.
+ */
+static void
+vnlru_free(int count)
+{
+	struct vnode *vp;
+
+	mtx_assert(&vnode_free_list_mtx, MA_OWNED);
+	for (; count > 0; count--) {
+		vp = TAILQ_FIRST(&vnode_free_list);
+		/*
+		 * The list can be modified while the free_list_mtx
+		 * has been dropped and vp could be NULL here.
+		 */
+		if (!vp)
+			break;
+		TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
+		TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
+		/*
+		 * Don't recycle if we can't get the interlock.
+		 */
+		if (!VI_TRYLOCK(vp))
+			continue;
+		if (!VCANRECYCLE(vp)) {
+			VI_UNLOCK(vp);
+			continue;
+		}
+		/*
+		 * We assume success to avoid having to relock the frelist
+		 * in the common case, simply restore counts on failure.
+		 */
+		freevnodes--;
+		numvnodes--;
+		mtx_unlock(&vnode_free_list_mtx);
+		if (vtryrecycle(vp) != 0) {
+			mtx_lock(&vnode_free_list_mtx);
+			freevnodes++;
+			numvnodes++;
+			continue;
+		}
+		vdestroy(vp);
+		mtx_lock(&vnode_free_list_mtx);
+	}
+}
+/*
  * Attempt to recycle vnodes in a context that is always safe to block.
  * Calling vlrurecycle() from the bowels of filesystem code has some
  * interesting deadlock problems.
@@ -611,7 +658,9 @@ vnlru_proc(void)
 	for (;;) {
 		kthread_suspend_check(p);
 		mtx_lock(&vnode_free_list_mtx);
-		if (numvnodes - freevnodes <= desiredvnodes * 9 / 10) {
+		if (freevnodes > wantfreevnodes)
+			vnlru_free(freevnodes - wantfreevnodes);
+		if (numvnodes <= desiredvnodes * 9 / 10) {
 			vnlruproc_sig = 0;
 			wakeup(&vnlruproc_sig);
 			msleep(vnlruproc, &vnode_free_list_mtx,
@@ -656,6 +705,33 @@ SYSINIT(vnlru, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start, &vnlru_kp)
 /*
  * Routines having to do with the management of the vnode table.
  */
+
+static void
+vdestroy(struct vnode *vp)
+{
+	struct bufobj *bo;
+
+	bo = &vp->v_bufobj;
+	VNASSERT(vp->v_data == NULL, vp, ("cleaned vnode isn't"));
+	VNASSERT(vp->v_usecount == 0, vp, ("Non-zero use count"));
+	VNASSERT(vp->v_writecount == 0, vp, ("Non-zero write count"));
+	VNASSERT(bo->bo_numoutput == 0, vp, ("Clean vnode has pending I/O's"));
+	VNASSERT(bo->bo_clean.bv_cnt == 0, vp, ("cleanbufcnt not 0"));
+	VNASSERT(bo->bo_clean.bv_root == NULL, vp, ("cleanblkroot not NULL"));
+	VNASSERT(bo->bo_dirty.bv_cnt == 0, vp, ("dirtybufcnt not 0"));
+	VNASSERT(bo->bo_dirty.bv_root == NULL, vp, ("dirtyblkroot not NULL"));
+#ifdef MAC
+	mac_destroy_vnode(vp);
+#endif
+	if (vp->v_pollinfo != NULL) {
+		knlist_destroy(&vp->v_pollinfo->vpi_selinfo.si_note);
+		mtx_destroy(&vp->v_pollinfo->vpi_lock);
+		uma_zfree(vnodepoll_zone, vp->v_pollinfo);
+	}
+	lockdestroy(vp->v_vnlock);
+	mtx_destroy(&vp->v_interlock);
+	uma_zfree(vnode_zone, vp);
+}
 
 /*
  * Check to see if a free vnode can be recycled. If it can,
@@ -728,18 +804,18 @@ getnewvnode(tag, mp, vops, vpp)
 	struct vnode **vpp;
 {
 	struct vnode *vp = NULL;
-	struct vpollinfo *pollinfo = NULL;
 	struct bufobj *bo;
 
 	mtx_lock(&vnode_free_list_mtx);
-
 	/*
-	 * Try to reuse vnodes if we hit the max.  This situation only
-	 * occurs in certain large-memory (2G+) situations.  We cannot
-	 * attempt to directly reclaim vnodes due to nasty recursion
-	 * problems.
+	 * Lend our context to reclaim vnodes if they've exceeded the max.
 	 */
-	while (numvnodes - freevnodes > desiredvnodes) {
+	if (freevnodes > wantfreevnodes)
+		vnlru_free(1);
+	/*
+	 * Wait for available vnodes.
+	 */
+	while (numvnodes > desiredvnodes) {
 		if (vnlruproc_sig == 0) {
 			vnlruproc_sig = 1;      /* avoid unnecessary wakeups */
 			wakeup(vnlruproc);
@@ -747,122 +823,40 @@ getnewvnode(tag, mp, vops, vpp)
 		msleep(&vnlruproc_sig, &vnode_free_list_mtx, PVFS,
 		    "vlruwk", hz);
 	}
-
+	numvnodes++;
+	mtx_unlock(&vnode_free_list_mtx);
+	vp = (struct vnode *) uma_zalloc(vnode_zone, M_WAITOK|M_ZERO);
 	/*
-	 * Attempt to reuse a vnode already on the free list, allocating
-	 * a new vnode if we can't find one or if we have not reached a
-	 * good minimum for good LRU performance.
+	 * Setup locks.
 	 */
-
-	if (freevnodes >= wantfreevnodes && numvnodes >= minvnodes) {
-		int error;
-		int count;
-
-		for (count = 0; count < freevnodes; vp = NULL, count++) {
-			vp = TAILQ_FIRST(&vnode_free_list);
-			/*
-			 * The list can be modified while the free_list_mtx
-			 * has been dropped and vp could be NULL here.
-			 */
-			if (!vp)
-				break;
-			TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
-			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
-			/*
-			 * Don't recycle if we can't get the interlock.
-			 */
-			if (!VI_TRYLOCK(vp))
-				continue;
-			if (!VCANRECYCLE(vp)) {
-				VI_UNLOCK(vp);
-				continue;
-			}
-			mtx_unlock(&vnode_free_list_mtx);
-			error = vtryrecycle(vp);
-			mtx_lock(&vnode_free_list_mtx);
-			if (error == 0)
-				break;
-		}
-	}
-	if (vp) {
-		freevnodes--;
-		bo = &vp->v_bufobj;
-		mtx_unlock(&vnode_free_list_mtx);
-
-#ifdef INVARIANTS
-		{
-			if (vp->v_data)
-				printf("cleaned vnode isn't, "
-				       "address %p, inode %p\n",
-				       vp, vp->v_data);
-			if (bo->bo_numoutput)
-				panic("%p: Clean vnode has pending I/O's", vp);
-			if (vp->v_usecount != 0)
-				panic("%p: Non-zero use count", vp);
-			if (vp->v_writecount != 0)
-				panic("%p: Non-zero write count", vp);
-		}
-#endif
-		if ((pollinfo = vp->v_pollinfo) != NULL) {
-			/*
-			 * To avoid lock order reversals, the call to
-			 * uma_zfree() must be delayed until the vnode
-			 * interlock is released.
-			 */
-			vp->v_pollinfo = NULL;
-		}
-#ifdef MAC
-		mac_destroy_vnode(vp);
-#endif
-		vp->v_iflag = 0;
-		vp->v_vflag = 0;
-		vp->v_lastw = 0;
-		vp->v_lasta = 0;
-		vp->v_cstart = 0;
-		vp->v_clen = 0;
-		bzero(&vp->v_un, sizeof vp->v_un);
-		lockdestroy(vp->v_vnlock);
-		lockinit(vp->v_vnlock, PVFS, tag, VLKTIMEOUT, LK_NOPAUSE);
-		VNASSERT(bo->bo_clean.bv_cnt == 0, vp,
-		    ("cleanbufcnt not 0"));
-		VNASSERT(bo->bo_clean.bv_root == NULL, vp,
-		    ("cleanblkroot not NULL"));
-		VNASSERT(bo->bo_dirty.bv_cnt == 0, vp,
-		    ("dirtybufcnt not 0"));
-		VNASSERT(bo->bo_dirty.bv_root == NULL, vp,
-		    ("dirtyblkroot not NULL"));
-	} else {
-		numvnodes++;
-		mtx_unlock(&vnode_free_list_mtx);
-
-		vp = (struct vnode *) uma_zalloc(vnode_zone, M_WAITOK|M_ZERO);
-		mtx_init(&vp->v_interlock, "vnode interlock", NULL, MTX_DEF);
-		vp->v_dd = vp;
-		bo = &vp->v_bufobj;
-		bo->__bo_vnode = vp;
-		bo->bo_mtx = &vp->v_interlock;
-		vp->v_vnlock = &vp->v_lock;
-		lockinit(vp->v_vnlock, PVFS, tag, VLKTIMEOUT, LK_NOPAUSE);
-		cache_purge(vp);		/* Sets up v_id. */
-		LIST_INIT(&vp->v_cache_src);
-		TAILQ_INIT(&vp->v_cache_dst);
-	}
-
-	TAILQ_INIT(&bo->bo_clean.bv_hd);
-	TAILQ_INIT(&bo->bo_dirty.bv_hd);
+	vp->v_vnlock = &vp->v_lock;
+	mtx_init(&vp->v_interlock, "vnode interlock", NULL, MTX_DEF);
+	lockinit(vp->v_vnlock, PVFS, tag, VLKTIMEOUT, LK_NOPAUSE);
+	/*
+	 * Initialize bufobj.
+	 */
+	bo = &vp->v_bufobj;
+	bo->__bo_vnode = vp;
+	bo->bo_mtx = &vp->v_interlock;
 	bo->bo_ops = &buf_ops_bio;
 	bo->bo_private = vp;
+	TAILQ_INIT(&bo->bo_clean.bv_hd);
+	TAILQ_INIT(&bo->bo_dirty.bv_hd);
+	/*
+	 * Initialize namecache.
+	 */
+	vp->v_dd = vp;
+	LIST_INIT(&vp->v_cache_src);
+	TAILQ_INIT(&vp->v_cache_dst);
+	cache_purge(vp);		/* Sets up v_id. */
+	/*
+	 * Finalize various vnode identity bits.
+	 */
 	vp->v_type = VNON;
 	vp->v_tag = tag;
 	vp->v_op = vops;
-	*vpp = vp;
 	v_incr_usecount(vp, 1);
 	vp->v_data = 0;
-	if (pollinfo != NULL) {
-		knlist_destroy(&pollinfo->vpi_selinfo.si_note);
-		mtx_destroy(&pollinfo->vpi_lock);
-		uma_zfree(vnodepoll_zone, pollinfo);
-	}
 #ifdef MAC
 	mac_init_vnode(vp);
 	if (mp != NULL && (mp->mnt_flag & MNT_MULTILABEL) == 0)
@@ -876,6 +870,7 @@ getnewvnode(tag, mp, vops, vpp)
 		bo->bo_bsize = mp->mnt_stat.f_iosize;
 	}
 
+	*vpp = vp;
 	return (0);
 }
 
