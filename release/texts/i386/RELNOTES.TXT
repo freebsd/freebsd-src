@@ -86,7 +86,7 @@ are now available with the GENERIC kernel. [MERGED]
 
 A driver for AGP hardware has been added. [MERGED]
 
-ipfilter has been updated to 3.4.8. [MERGED]
+ipfilter has been updated to 3.4.9.
 
 Various fixes and improvements to the IPv6 code have been merged in
 from the KAME project, including significantly-improved IPSEC
@@ -118,6 +118,14 @@ SMP support has been largely reworked, incorporating code from BSD/OS
 
 The xl(4) driver now supports the 3Com 3C556 and 3C556B MiniPCI
 adapters used on some laptops. [MERGED]
+
+The boot loader has been updated.  The new default kernel is now 
+/boot/kernel/kernel.ko.  The new default module location is 
+/boot/kernel/.
+
+A filesystem snapshot capability has been added to FFS.  Details can 
+be found in /usr/src/sys/ufs/ffs/README.snapshot.
+
 
 1.2. SECURITY FIXES
 -------------------
