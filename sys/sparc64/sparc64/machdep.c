@@ -167,7 +167,7 @@ cpu_startup(void *arg)
 	tick_tc.tc_name = "tick";
 	tc_init(&tick_tc);
 
-	cpu_identify(clock);
+	cpu_identify(rdpr(ver), clock, PCPU_GET(cpuid));
 	cache_init(child);
 
 	vm_ksubmap_init(&kmi);
