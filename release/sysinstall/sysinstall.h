@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.9 1995/10/07 11:55:36 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.10 1995/10/07 12:12:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -99,7 +99,7 @@
 #define RELNAME			"_releaseName"
 #define CPIO_VERBOSITY_LEVEL	"_cpioVerboseLevel"
 
-#define DEFAULT_TAPE_BLOCKSIZE	"10"
+#define DEFAULT_TAPE_BLOCKSIZE	"20"
 
 #define OPT_NO_CONFIRM		0x0001
 #define OPT_NFS_SECURE		0x0002
