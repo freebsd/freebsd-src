@@ -196,6 +196,7 @@ static void freebsd4_sendsig(sig_t catcher, int sig, sigset_t *mask,
 #endif
 
 long Maxmem = 0;
+long realmem = 0;
 
 vm_paddr_t phys_avail[10];
 
@@ -228,6 +229,9 @@ cpu_startup(dummy)
 #endif
 	printf("real memory  = %ju (%ju MB)\n", ptoa((uintmax_t)Maxmem),
 	    ptoa((uintmax_t)Maxmem) / 1048576);
+	/* This truncates if memory > 4GB, is this possible on PC98? */
+	realmem = (long)ptoa((uintmax_t)Maxmem);
+
 	/*
 	 * Display any holes after the first chunk of extended memory.
 	 */

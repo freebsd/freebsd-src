@@ -143,6 +143,7 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 struct msgbuf *msgbufp=0;
 
 long Maxmem = 0;
+long realmem = 0;
 
 vm_offset_t phys_avail[100];
 
@@ -246,6 +247,7 @@ cpu_startup(dummy)
 #endif
 	printf("real memory  = %ld (%ld MB)\n", ia64_ptob(Maxmem),
 	    ia64_ptob(Maxmem) / 1048576);
+	realmem = ia64_ptob(Maxmem);
 
 	/*
 	 * Display any holes after the first chunk of extended memory.
