@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1997/09/03 03:44:32 gibbs Exp $
+#	$Id: Makefile,v 1.4 1997/09/27 19:37:22 gibbs Exp $
 
 PROG=	aicasm
 
@@ -19,7 +19,7 @@ LDADD+=	-ll
 DEPENDFILE=
 .endif
 
-CFLAGS+= -I.
+CFLAGS+= -I/usr/include -I.
 NOMAN=	noman
 
 .ifdef DEBUG
