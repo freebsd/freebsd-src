@@ -67,7 +67,6 @@ static int	spec_open(struct vop_open_args *);
 static int	spec_poll(struct vop_poll_args *);
 static int	spec_print(struct vop_print_args *);
 static int	spec_read(struct vop_read_args *);
-static int	spec_strategy(struct vop_strategy_args *);
 static int	spec_specstrategy(struct vop_specstrategy_args *);
 static int	spec_write(struct vop_write_args *);
 
@@ -103,7 +102,7 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_rmdir_desc,		(vop_t *) vop_panic },
 	{ &vop_setattr_desc,		(vop_t *) vop_ebadf },
 	{ &vop_specstrategy_desc,	(vop_t *) spec_specstrategy },
-	{ &vop_strategy_desc,		(vop_t *) spec_strategy },
+	{ &vop_strategy_desc,		(vop_t *) vop_panic },
 	{ &vop_symlink_desc,		(vop_t *) vop_panic },
 	{ &vop_write_desc,		(vop_t *) spec_write },
 	{ NULL, NULL }
@@ -513,30 +512,6 @@ spec_xstrategy(struct vnode *vp, struct buf *bp)
 		DEV_STRATEGY(bp);
 		
 	return (0);
-}
-
-/*
- * Decoy strategy routine.  We should always come in via the specstrategy
- * method, but in case some code has botched it, we have a strategy as
- * well.  We will deal with the request anyway and first time around we
- * print some debugging useful information.
- */
-
-static int
-spec_strategy(ap)
-	struct vop_strategy_args /* {
-		struct vnode *a_vp;
-		struct buf *a_bp;
-	} */ *ap;
-{
-	static int once;
-
-	if (!once) {
-		vprint("VOP_STRATEGY on VCHR", ap->a_vp);
-		backtrace();
-		once++;
-	}
-	return spec_xstrategy(ap->a_vp, ap->a_bp);
 }
 
 static int

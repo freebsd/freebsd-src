@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 
 static int	vop_nolookup(struct vop_lookup_args *);
 static int	vop_nostrategy(struct vop_strategy_args *);
-static int	vop_nospecstrategy(struct vop_specstrategy_args *);
 
 /*
  * This vnode table stores what we want to do if the filesystem doesn't
@@ -98,7 +97,7 @@ static struct vnodeopv_entry_desc default_vnodeop_entries[] = {
 	{ &vop_putpages_desc,		(vop_t *) vop_stdputpages },
 	{ &vop_readlink_desc,		(vop_t *) vop_einval },
 	{ &vop_revoke_desc,		(vop_t *) vop_revoke },
-	{ &vop_specstrategy_desc,	(vop_t *) vop_nospecstrategy },
+	{ &vop_specstrategy_desc,	(vop_t *) vop_panic },
 	{ &vop_strategy_desc,		(vop_t *) vop_nostrategy },
 	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ NULL, NULL }
@@ -212,6 +211,8 @@ vop_nolookup(ap)
 static int
 vop_nostrategy (struct vop_strategy_args *ap)
 {
+	KASSERT(ap->a_vp == ap->a_bp->b_vp, ("%s(%p != %p)",
+	    __func__, ap->a_vp, ap->a_bp->b_vp));
 	printf("No strategy for buffer at %p\n", ap->a_bp);
 	vprint("vnode", ap->a_vp);
 	vprint("device vnode", ap->a_bp->b_vp);
@@ -219,29 +220,6 @@ vop_nostrategy (struct vop_strategy_args *ap)
 	ap->a_bp->b_error = EOPNOTSUPP;
 	bufdone(ap->a_bp);
 	return (EOPNOTSUPP);
-}
-
-/*
- *	vop_nospecstrategy:
- *
- *	This shouldn't happen.  VOP_SPECSTRATEGY should always have a VCHR
- *	argument vnode, and thos have a method for specstrategy over in
- *	specfs, so we only ever get here if somebody botched it.
- *	Pass the call to VOP_STRATEGY() and get on with life.
- *	The first time we print some info useful for debugging.
- */
-
-static int
-vop_nospecstrategy (struct vop_specstrategy_args *ap)
-{
-	static int once;
-
-	if (!once) {
-		vprint("VOP_SPECSTRATEGY on non-VCHR", ap->a_vp);
-		backtrace();
-		once++;
-	}
-	return VOP_STRATEGY(ap->a_vp, ap->a_bp);
 }
 
 /*
