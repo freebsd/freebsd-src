@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $Id: ufs_readwrite.c,v 1.32 1997/10/16 10:50:21 phk Exp $
+ * $Id: ufs_readwrite.c,v 1.33 1997/10/16 20:32:39 phk Exp $
  */
 
 #ifdef LFS_READWRITE
@@ -55,6 +55,7 @@
 #include <vm/vm.h>
 #include <vm/vm_pager.h>
 #include <vm/vnode_pager.h>
+#include <sys/poll.h>
 #endif
 
 /*
@@ -187,9 +188,10 @@ WRITE(ap)
 	struct proc *p;
 	ufs_daddr_t lbn;
 	off_t osize;
-	int blkoffset, error, flags, ioflag, resid, size, xfersize;
+	int blkoffset, error, extended, flags, ioflag, resid, size, xfersize;
 	struct timeval tv;
 
+	extended = 0;
 	ioflag = ap->a_ioflag;
 	uio = ap->a_uio;
 	vp = ap->a_vp;
@@ -264,6 +266,7 @@ WRITE(ap)
 
 		if (uio->uio_offset + xfersize > ip->i_size) {
 			ip->i_size = uio->uio_offset + xfersize;
+			extended = 1;
 		}
 
 		size = BLKSIZE(fs, ip, lbn) - bp->b_resid;
@@ -314,6 +317,9 @@ WRITE(ap)
 		gettime(&tv);
 		error = UFS_UPDATE(vp, &tv, &tv, 1);
 	}
+	if (!error)
+		VN_POLLEVENT(vp, POLLWRITE | (extended ? POLLEXTEND : 0));
+
 	return (error);
 }
 
