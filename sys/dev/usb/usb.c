@@ -1,4 +1,4 @@
-/*	$NetBSD: usb.c,v 1.54 2001/11/09 14:59:11 augustss Exp $	*/
+/*	$NetBSD: usb.c,v 1.56 2001/11/13 07:55:30 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -782,7 +782,7 @@ usb_schedsoftintr(usbd_bus_handle bus)
 	}
 #else
        bus->methods->soft_intr(bus);
-#endif
+#endif /* USB_USE_SOFTINTR */
 }
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
