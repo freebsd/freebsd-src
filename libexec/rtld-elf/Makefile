@@ -1,7 +1,8 @@
 # $FreeBSD$
 
 PROG?=		ld-elf.so.1
-SRCS=		reloc.c rtld.c rtld_start.S rtld_lock.c map_object.c \
+SRCS=		rtld_start.S \
+		reloc.c rtld.c rtld_lock.c map_object.c \
 		malloc.c xmalloc.c debug.c libmap.c
 MAN=		rtld.1
 CSTD?=		gnu99
