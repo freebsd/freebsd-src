@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000,2001 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998,1999,2000,2001,2002 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,28 @@
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <dev/ata/ata-all.h>
+#include <dev/pccard/pccardreg.h>
+#include <dev/pccard/pccardvar.h>
+#include <dev/pccard/pccarddevs.h>
+
+static int
+ata_pccard_match(device_t dev)
+{
+    int		error = 0;
+    u_int32_t	fcn = PCCARD_FUNCTION_UNSPEC;
+
+    error = pccard_get_function(dev, &fcn);
+    if (error != 0)
+	return (error);
+
+    /* if it says its a disk we should register it */
+    if (fcn == PCCARD_FUNCTION_DISK)
+	return (0);
+
+    /* other devices might need to be matched here */
+
+    return(ENXIO);
+}
 
 static int
 ata_pccard_probe(device_t dev)
@@ -93,9 +115,14 @@ ata_pccard_probe(device_t dev)
 
 static device_method_t ata_pccard_methods[] = {
     /* device interface */
-    DEVMETHOD(device_probe,	ata_pccard_probe),
-    DEVMETHOD(device_attach,	ata_attach),
+    DEVMETHOD(device_probe,	pccard_compat_probe),
+    DEVMETHOD(device_attach,	pccard_compat_attach),
     DEVMETHOD(device_detach,	ata_detach),
+
+    /* Card interface */
+    DEVMETHOD(card_compat_match,	ata_pccard_match),
+    DEVMETHOD(card_compat_probe,	ata_pccard_probe),
+    DEVMETHOD(card_compat_attach,	ata_attach),
     { 0, 0 }
 };
 
