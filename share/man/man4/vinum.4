@@ -975,15 +975,23 @@ Perform the following steps to analyse a
 problem:
 .Bl -enum
 .It
-Copy the files
+Copy the following files to the directory in which you will be
+performing the analysis, typically
+.Pa /var/crash :
+.Pp
+.Bl -bullet -compact
+.It
 .Pa /usr/src/sys/modules/vinum/.gdbinit.crash ,
+.It
 .Pa /usr/src/sys/modules/vinum/.gdbinit.kernel ,
+.It
 .Pa /usr/src/sys/modules/vinum/.gdbinit.serial ,
+.It
 .Pa /usr/src/sys/modules/vinum/.gdbinit.vinum
 and
+.It
 .Pa /usr/src/sys/modules/vinum/.gdbinit.vinum.paths
-to the directory in which you will be performing the analysis, typically
-.Pa /var/crash .
+.El
 .It
 Make sure that you build the
 .Nm
