@@ -27,7 +27,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: ldconfig.8,v 1.13 1997/07/11 14:45:40 jkh Exp $
+.\"	$Id: ldconfig.8,v 1.9.2.2 1997/08/08 02:18:07 jdp Exp $
 .\"
 .Dd October 3, 1993
 .Dt LDCONFIG 8
@@ -37,7 +37,7 @@
 .Nd configure the shared library cache
 .Sh SYNOPSIS
 .Nm ldconfig
-.Op Fl mrsv
+.Op Fl Rmrsv
 .Op Fl f Ar hints_file
 .Op Ar directory | file Ar ...
 .Sh DESCRIPTION
@@ -90,6 +90,10 @@ is typically run as part of the boot sequence.
 The following options recognized by
 .Nm ldconfig:
 .Bl -tag -width indent
+.It Fl R
+Rescan the previously configured directories.  This opens the previous hints
+file and fetches the directory list from the header.  Any additional pathnames
+on the command line are also processed.
 .It Fl f Ar hints_file
 Read and/or update the specified hints file, instead of
 .Pa /var/run/ld.so.hints .
@@ -104,7 +108,8 @@ Directories recorded in the hints file by previous runs of
 are also rescanned for new shared libraries.
 .It Fl r
 List the current contents of the hints file
-on the standard output. The hints file is not modified.
+on the standard output. The hints file is not modified.  The list of
+directories stored in the hints file is included.
 .It Fl s
 Do not scan the built-in system directory
 .Pq Dq /usr/lib

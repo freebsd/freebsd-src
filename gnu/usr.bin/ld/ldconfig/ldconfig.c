@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ldconfig.c,v 1.19 1997/07/11 14:45:41 jkh Exp $
+ *	$Id: ldconfig.c,v 1.15.2.2 1997/08/08 02:18:10 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -66,12 +66,11 @@
 #undef major
 #undef minor
 
-extern char			*__progname;
-
 static int			verbose;
 static int			nostd;
 static int			justread;
 static int			merge;
+static int			rescan;
 static char			*hints_file = _PATH_LD_HINTS;
 
 struct shlib_list {
@@ -102,8 +101,11 @@ char	*argv[];
 	int		i, c;
 	int		rval = 0;
 
-	while ((c = getopt(argc, argv, "f:mrsv")) != EOF) {
+	while ((c = getopt(argc, argv, "Rf:mrsv")) != EOF) {
 		switch (c) {
+		case 'R':
+			rescan = 1;
+			break;
 		case 'f':
 			hints_file = optarg;
 			break;
@@ -120,20 +122,20 @@ char	*argv[];
 			verbose = 1;
 			break;
 		default:
-			errx(1, "Usage: %s [-mrsv] [-f hints_file] [dir | file ...]",
-				__progname);
+			errx(1, "Usage: %s [-Rmrsv] [-f hints_file] "
+				"[dir | file ...]", argv[0]);
 			break;
 		}
 	}
 
 	dir_list = strdup("");
 
-	if (justread || merge) {
+	if (justread || merge || rescan) {
 		if ((rval = readhints()) != 0)
 			return rval;
 	}
 
-	if (!nostd && !merge)
+	if (!nostd && !merge && !rescan)
 		std_search_path();
 
 	/* Add any directories/files from the command line */
@@ -525,6 +527,15 @@ readhints()
 	blist = (struct hints_bucket *)(addr + hdr->hh_hashtab);
 	strtab = (char *)(addr + hdr->hh_strtab);
 
+	if (hdr->hh_version >= LD_HINTS_VERSION_2)
+		add_search_path(strtab + hdr->hh_dirlist);
+	else if (rescan)
+		errx(1, "%s too old and does not contain the search path",
+			hints_file);
+
+	if (rescan)
+		return 0;
+
 	for (i = 0; i < hdr->hh_nbucket; i++) {
 		struct hints_bucket	*bp = &blist[i];
 
@@ -549,8 +560,6 @@ readhints()
 		*shlib_tail = shp;
 		shlib_tail = &shp->next;
 	}
-	if (hdr->hh_version >= LD_HINTS_VERSION_2)
-		add_search_path(strtab + hdr->hh_dirlist);
 
 	return 0;
 }
