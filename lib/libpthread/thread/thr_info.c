@@ -167,19 +167,20 @@ dump_thread(int fd, pthread_t pthread, int long_version)
 			strcpy(s, "This is the initial thread\n");
 			__sys_write(fd, s, strlen(s));
 		}
-		snprintf(s, sizeof(s), "sigmask (hi) ");
-		__sys_write(fd, s, strlen(s));
-		for (i = _SIG_WORDS - 1; i >= 0; i--) {
-			snprintf(s, sizeof(s), "%08x ",
-			    pthread->oldsigmask.__bits[i]);
-			__sys_write(fd, s, strlen(s));
-		}
-		snprintf(s, sizeof(s), "(lo)\n");
-		__sys_write(fd, s, strlen(s));
-
+	
 		/* Process according to thread state: */
 		switch (pthread->state) {
 		case PS_SIGWAIT:
+			snprintf(s, sizeof(s), "sigmask (hi) ");
+			__sys_write(fd, s, strlen(s));
+			for (i = _SIG_WORDS - 1; i >= 0; i--) {
+				snprintf(s, sizeof(s), "%08x ",
+				    pthread->sigmask.__bits[i]);
+				__sys_write(fd, s, strlen(s));
+			}
+			snprintf(s, sizeof(s), "(lo)\n");
+			__sys_write(fd, s, strlen(s));
+
 			snprintf(s, sizeof(s), "waitset (hi) ");
 			__sys_write(fd, s, strlen(s));
 			for (i = _SIG_WORDS - 1; i >= 0; i--) {
@@ -195,7 +196,15 @@ dump_thread(int fd, pthread_t pthread, int long_version)
 		 * coded to dump information:
 		 */
 		default:
-			/* Nothing to do here. */
+			snprintf(s, sizeof(s), "sigmask (hi) ");
+			__sys_write(fd, s, strlen(s));
+			for (i = _SIG_WORDS - 1; i >= 0; i--) {
+				snprintf(s, sizeof(s), "%08x ",
+				    pthread->sigmask.__bits[i]);
+				__sys_write(fd, s, strlen(s));
+			}
+			snprintf(s, sizeof(s), "(lo)\n");
+			__sys_write(fd, s, strlen(s));
 			break;
 		}
 	}
