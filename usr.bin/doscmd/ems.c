@@ -1506,7 +1506,7 @@ check_saved_context(EMScontext *emp)
  */
 static int
 check_alloc_pages(u_short handle, u_short firstpage, u_short offset, 
-                  u_long length)
+                  u_long length __unused)
 {
     u_long nbytes;
 

@@ -80,7 +80,7 @@ static Name_t *names;
  * Initialize the drive to be based at 'base' in the BSD filesystem
  */
 void
-init_path(int drive, u_char *base, u_char *dir)
+init_path(int drive, const u_char *base, const u_char *dir)
 {
     Path_t *d;
 
@@ -233,7 +233,7 @@ dos_makepath(u_char *where, u_char *newpath)
     if (*where != '\\' && *where != '/') {
 	ustrncpy(tmppath, d->cwd, 1024);
 	if (d->cwd[1])
-	    ustrncat(tmppath, (u_char *)"/", 1024 - ustrlen(tmppath));
+	    ustrncat(tmppath, "/", 1024 - ustrlen(tmppath));
 	ustrncat(tmppath, where, 1024 - ustrlen(tmppath));
     } else {
 	ustrncpy(tmppath, where, 1024 - ustrlen(tmppath));

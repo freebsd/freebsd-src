@@ -45,9 +45,9 @@ ustrcat(u_char *s1, u_char *s2)
 }
 
 static inline u_char *
-ustrncat(u_char *s1, u_char *s2, size_t n)
+ustrncat(u_char *s1, const u_char *s2, size_t n)
 {
-    return((u_char *)strncat((char *)s1, (char *)s2, n));
+    return((u_char *)strncat((char *)s1, (const char *)s2, n));
 }
 
 static inline u_char *
@@ -63,15 +63,15 @@ ustrcmp(u_char *s1, u_char *s2)
 }
 
 static inline int
-ustrncmp(u_char *s1, u_char *s2, size_t n)
+ustrncmp(const u_char *s1, const u_char *s2, size_t n)
 {
-    return(strncmp((char *)s1, (char *)s2, n));
+    return(strncmp((const char *)s1, (const char *)s2, n));
 }
 
 static inline int
-ustrlen(u_char *s)
+ustrlen(const u_char *s)
 {
-    return(strlen((char *)s));
+    return(strlen((const char *)s));
 }
 
 static inline u_char *
@@ -81,9 +81,9 @@ ustrrchr(u_char *s, u_char c)
 }
 
 static inline u_char *
-ustrdup(u_char *s)
+ustrdup(const u_char *s)
 {
-    return((u_char *)strdup((char *)s));
+    return((u_char *)strdup((const char *)s));
 }
 
 static inline int
@@ -98,7 +98,7 @@ uaccess(u_char *s, int mode)
     return(access((char *)s, mode));
 }
 
-extern void	init_path(int, u_char *, u_char *);
+extern void	init_path(int, const u_char *, const u_char *);
 extern void	dos_makereadonly(int);
 extern int	dos_readonly(int);
 extern u_char	*dos_getcwd(int);

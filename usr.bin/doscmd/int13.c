@@ -244,7 +244,7 @@ init_hdisk(int drive, int cyl, int head, int tracksize, char *file, char *fake_p
 
     	for (fd = 0; fd < 4; ++fd) {
 	    if (*(u_short *)(di->sector0 + 0x1FE) == 0xAA55 &&
-	        ptab[fd].numSectors == head * tracksize * cyl &&
+	        ptab[fd].numSectors == (u_long)(head * tracksize * cyl) &&
 		(ptab[fd].systemID == 1 || ptab[fd].systemID == 4 ||
 		 ptab[fd].systemID == 6))
 		    break;
