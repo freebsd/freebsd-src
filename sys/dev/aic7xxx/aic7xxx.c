@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.11 1998/12/04 22:54:44 archie Exp $
+ *      $Id: aic7xxx.c,v 1.12 1998/12/10 04:14:49 gibbs Exp $
  */
 /*
  * A few notes on features of the driver.
@@ -255,6 +255,8 @@ static void	ahc_print_scb(struct scb *scb);
 static int	ahc_search_qinfifo(struct ahc_softc *ahc, int target,
 				   char channel, int lun, u_int tag,
 				   u_int32_t status, ahc_search_action action);
+static void	ahc_abort_ccb(struct ahc_softc *ahc, struct cam_sim *sim,
+			      union ccb *ccb);
 static int	ahc_reset_channel(struct ahc_softc *ahc, char channel,
 				  int initiate_reset);
 static int	ahc_abort_scbs(struct ahc_softc *ahc, int target,
@@ -2807,6 +2809,7 @@ ahc_init(struct ahc_softc *ahc)
 	int	i;
 	int	term;
 	u_int	scsi_conf;
+	u_int	scsiseq_template;
 
 #ifdef AHC_PRINT_SRAM
 	printf("Scratch Ram:");
@@ -2939,13 +2942,9 @@ ahc_init(struct ahc_softc *ahc)
 		ahc_outb(ahc, SIMODE1, ENSELTIMO|ENSCSIRST|ENSCSIPERR);
 		ahc_outb(ahc, SXFRCTL0, DFON|SPIOEN);
 
-		if (scsi_conf & RESET_SCSI) {
-			/* Reset the bus */
-			if (bootverbose)
-				printf("%s: Resetting Channel B\n",
-				       ahc_name(ahc));
-			ahc_reset_current_bus(ahc);
-		}
+		if ((scsi_conf & RESET_SCSI) != 0
+		 && (ahc->flags & AHC_INITIATORMODE) != 0)
+			ahc->flags |= AHC_RESET_BUS_B;
 
 		/* Select Channel A */
 		ahc_outb(ahc, SBLKCTL, ahc_inb(ahc, SBLKCTL) & ~SELBUSB);
@@ -2973,14 +2972,9 @@ ahc_init(struct ahc_softc *ahc)
 			      ahc_name(ahc)); 
 	}
 
-	if (scsi_conf & RESET_SCSI) {
-		/* Reset the bus */
-		if (bootverbose)
-			printf("%s: Resetting Channel %c\n", ahc_name(ahc),
-			       ahc->channel);
-
-		ahc_reset_current_bus(ahc);
-	}
+	if ((scsi_conf & RESET_SCSI) != 0
+	 && (ahc->flags & AHC_INITIATORMODE) != 0)
+		ahc->flags |= AHC_RESET_BUS_A;
 
 	/*
 	 * Look at the information that board initialization or
@@ -3214,6 +3208,16 @@ ahc_init(struct ahc_softc *ahc)
 
 	/* Message out buffer starts empty */
 	ahc_outb(ahc, MSG_OUT, MSG_NOOP);
+
+	/*
+	 * Setup the allowed SCSI Sequences based on operational mode.
+	 * If we are a target, we'll enalbe select in operations once
+	 * we've had a lun enabled.
+	 */
+	scsiseq_template = ENSELO|ENAUTOATNO|ENAUTOATNP;
+	if ((ahc->flags & AHC_INITIATORMODE) != 0)
+		scsiseq_template |= ENRSELI;
+	ahc_outb(ahc, SCSISEQ_TEMPLATE, scsiseq_template);
 
 	/*
 	 * Load the Sequencer program and Enable the adapter
@@ -3460,6 +3464,8 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 		target = ccb->ccb_h.target_id;
 		lun = ccb->ccb_h.target_lun;
 		if (cel->enable != 0) {
+			u_int scsiseq;
+
 			/* Are we already enabled?? */
 			if (lstate != NULL) {
 				ccb->ccb_h.status = CAM_LUN_ALRDY_ENA;
@@ -3503,41 +3509,122 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 			SLIST_INIT(&lstate->accept_tios);
 			SLIST_INIT(&lstate->immed_notifies);
 			tstate->enabled_luns[lun] = lstate;
+			pause_sequencer(ahc);
 			if ((ahc->features & AHC_MULTI_TID) != 0) {
 				u_int16_t targid_mask;
 
-				pause_sequencer(ahc);
 				targid_mask = ahc_inb(ahc, TARGID)
 					    | (ahc_inb(ahc, TARGID + 1) << 8);
 
 				targid_mask |= (0x01 << target);
 				ahc_outb(ahc, TARGID, targid_mask);
 				ahc_outb(ahc, TARGID+1, (targid_mask >> 8));
-				unpause_sequencer(ahc, /*always?*/FALSE);
 			}
+			/* Allow select-in operations */
+			scsiseq = ahc_inb(ahc, SCSISEQ_TEMPLATE);
+			scsiseq |= ENSELI;
+			ahc_outb(ahc, SCSISEQ_TEMPLATE, scsiseq);
+			scsiseq = ahc_inb(ahc, SCSISEQ);
+			scsiseq |= ENSELI;
+			ahc_outb(ahc, SCSISEQ, scsiseq);
+			unpause_sequencer(ahc, /*always?*/FALSE);
 			ccb->ccb_h.status = CAM_REQ_CMP;
 			xpt_print_path(ccb->ccb_h.path);
 			printf("Lun now enabled for target mode\n");
 			xpt_done(ccb);
 			break;
 		} else {
+			struct ccb_hdr *elm;
+
 			/* XXX Fully Implement Disable */
 			if (lstate == NULL) {
 				ccb->ccb_h.status = CAM_LUN_INVALID;
 				xpt_done(ccb);
 				break;
 			}
+
 			ccb->ccb_h.status = CAM_REQ_CMP;
+			LIST_FOREACH(elm, &ahc->pending_ccbs, sim_links.le) {
+				if (elm->func_code == XPT_CONT_TARGET_IO
+				 && !xpt_path_comp(elm->path, ccb->ccb_h.path)){
+					ccb->ccb_h.status = CAM_REQ_INVALID;
+					break;
+				}
+			}
+
+			if (SLIST_FIRST(&lstate->accept_tios) != NULL)
+				ccb->ccb_h.status = CAM_REQ_INVALID;
+
+			if (SLIST_FIRST(&lstate->immed_notifies) != NULL)
+				ccb->ccb_h.status = CAM_REQ_INVALID;
+
+			if (ccb->ccb_h.status == CAM_REQ_CMP) {
+				int i, empty;
+
+				free(lstate, M_DEVBUF);
+				tstate->enabled_luns[lun] = NULL;
+
+				/* Can we clean up the target too? */
+				for (empty = 1, i = 0; i < 8; i++)
+					if (tstate->enabled_luns[i] != NULL) {
+						empty = 0;
+						break;
+					}
+				if (empty) {
+					printf("Target Empty\n");
+					free(tstate, M_DEVBUF);
+					ahc->enabled_targets[target] = NULL;
+					pause_sequencer(ahc);
+					if (ahc->features & AHC_MULTI_TID) {
+						u_int16_t targid_mask;
+
+						targid_mask =
+						    ahc_inb(ahc, TARGID)
+						  | (ahc_inb(ahc, TARGID + 1)
+						     << 8);
+
+						targid_mask &= (0x01 << target);
+						ahc_outb(ahc, TARGID,
+							 targid_mask);
+						ahc_outb(ahc, TARGID+1,
+							 (targid_mask >> 8));
+					}
+
+					for (empty = 1, i = 0; i < 16; i++)
+						if (ahc->enabled_targets[i]
+						    != NULL) {
+							empty = 0;
+							break;
+						}
+					if (empty) {
+						/* Disallow select-in */
+						u_int scsiseq;
+
+						printf("No targets\n");
+						scsiseq =
+						    ahc_inb(ahc,
+							    SCSISEQ_TEMPLATE);
+						scsiseq &= ~ENSELI;
+						ahc_outb(ahc, SCSISEQ_TEMPLATE,
+							 scsiseq);
+						scsiseq = ahc_inb(ahc, SCSISEQ);
+						scsiseq &= ~ENSELI;
+						ahc_outb(ahc, SCSISEQ, scsiseq);
+					}
+					unpause_sequencer(ahc,
+							  /*always?*/FALSE);
+				}	
+			}
 			xpt_done(ccb);
 			break;
 		}
 		break;
 	}
 	case XPT_ABORT:			/* Abort the specified CCB */
-		/* XXX Implement */
-		ccb->ccb_h.status = CAM_REQ_INVALID;
-		xpt_done(ccb);
+	{
+		ahc_abort_ccb(ahc, sim, ccb);
 		break;
+	}
 	case XPT_SET_TRAN_SETTINGS:
 	{
 		struct	  ahc_devinfo devinfo;
@@ -3745,14 +3832,19 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 			cpi->target_sprt = 0;
 		}
 		cpi->hba_misc = (ahc->flags & AHC_INITIATORMODE)
-			      ? 0 : PIM_NOINITIATOR|PIM_NOBUSRESET;
+			      ? 0 : PIM_NOINITIATOR;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = (ahc->features & AHC_WIDE) ? 15 : 7;
 		cpi->max_lun = 7;
-		if (SIM_IS_SCSIBUS_B(ahc, sim))
+		if (SIM_IS_SCSIBUS_B(ahc, sim)) {
 			cpi->initiator_id = ahc->our_id_b;
-		else
+			if ((ahc->flags & AHC_RESET_BUS_B) == 0)
+				cpi->hba_misc |= PIM_NOBUSRESET;
+		} else {
 			cpi->initiator_id = ahc->our_id;
+			if ((ahc->flags & AHC_RESET_BUS_A) == 0)
+				cpi->hba_misc |= PIM_NOBUSRESET;
+		}
 		cpi->bus_id = cam_sim_bus(sim);
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(cpi->hba_vid, "Adaptec", HBA_IDLEN);
@@ -4448,15 +4540,14 @@ ahc_timeout(void *arg)
 		break;
 	}
 
+	printf(", SEQADDR == 0x%x\n",
+	       ahc_inb(ahc, SEQADDR0) | (ahc_inb(ahc, SEQADDR1) << 8));
+
+#if 0
 	printf(", SCSISIGI == 0x%x\n", ahc_inb(ahc, SCSISIGI));
-
-	printf("SEQADDR == 0x%x\n", ahc_inb(ahc, SEQADDR0)
-				 | (ahc_inb(ahc, SEQADDR1) << 8));
-
 	printf("SIMODE1 = 0x%x\n", ahc_inb(ahc, SIMODE1));
 	printf("INTSTAT = 0x%x\n", ahc_inb(ahc, INTSTAT));
 	printf("SSTAT1 == 0x%x\n", ahc_inb(ahc, SSTAT1));
-#if 0
 	printf("SCSIRATE == 0x%x\n", ahc_inb(ahc, SCSIRATE));
 	printf("CCSCBCTL == 0x%x\n", ahc_inb(ahc, CCSCBCTL));
 	printf("CCSCBCNT == 0x%x\n", ahc_inb(ahc, CCSCBCNT));
@@ -4464,7 +4555,6 @@ ahc_timeout(void *arg)
 	printf("DFSTATUS == 0x%x\n", ahc_inb(ahc, DFSTATUS));
 	printf("CCHCNT == 0x%x\n", ahc_inb(ahc, CCHCNT));
 #endif
-	/* Decide our course of action */
 	if (scb->flags & SCB_DEVICE_RESET) {
 		/*
 		 * Been down this road before.
@@ -4477,18 +4567,26 @@ bus_reset:
 		       "%d SCBs aborted\n", ahc_name(ahc), channel, found);
 	} else {
 		/*
-		 * Send a Bus Device Reset message:
-		 * The target that is holding up the bus may not
+		 * If we are a target, transition to bus free and report
+		 * the timeout.
+		 * 
+		 * The target/initiator that is holding up the bus may not
 		 * be the same as the one that triggered this timeout
 		 * (different commands have different timeout lengths).
-		 * Our strategy here is to queue a BDR message
-		 * to the timed out target if the bus is idle.
-		 * Otherwise, if we have an active target we stuff the
-		 * message buffer with a BDR message and assert ATN
-		 * in the hopes that the target will let go of the bus
-		 * and go to the mesgout phase.  If this fails, we'll
-		 * get another timeout 2 seconds later which will attempt
-		 * a bus reset.
+		 * If the bus is idle and we are actiing as the initiator
+		 * for this request, queue a BDR message to the timed out
+		 * target.  Otherwise, if the timed out transaction is
+		 * active:
+		 *   Initiator transaction:
+		 *	Stuff the message buffer with a BDR message and assert
+		 *	ATN in the hopes that the target will let go of the bus
+		 *	and go to the mesgout phase.  If this fails, we'll
+		 *	get another timeout 2 seconds later which will attempt
+		 *	a bus reset.
+		 *
+		 *   Target transaction:
+		 *	Transition to BUS FREE and report the error.
+		 *	It's good to be the target!
 		 */
 		u_int active_scb_index;
 
@@ -4519,7 +4617,25 @@ bus_reset:
 					    (newtimeout * hz) / 1000);
 				splx(s);
 				return;
+			} 
+
+			/* It's us */
+			if ((scb->hscb->control & TARGET_SCB) != 0) {
+
+				/*
+				 * Send back any queued up transactions
+				 * and properly record the error condition.
+				 */
+				ahc_freeze_devq(ahc, scb->ccb->ccb_h.path);
+				ahc_set_ccb_status(scb->ccb, CAM_CMD_TIMEOUT);
+				ahc_freeze_ccb(scb->ccb);
+				ahc_done(ahc, scb);
+
+				/* Will clear us from the bus */
+				restart_sequencer(ahc);
+				return;
 			}
+
 			ahc_set_recoveryscb(ahc, active_scb);
 			ahc_outb(ahc, MSG_OUT, MSG_BUS_DEV_RESET);
 			ahc_outb(ahc, SCSISIGO, bus_state|ATNO);
@@ -4531,6 +4647,15 @@ bus_reset:
 			unpause_sequencer(ahc, /*unpause_always*/TRUE);
 		} else {
 			int	 disconnected;
+
+			if (bus_state != P_BUSFREE
+			 && (ahc_inb(ahc, SSTAT0) & TARGET) != 0) {
+				/* Hung target selection.  Goto busfree */
+				printf("%s: Hung target selection\n",
+				       ahc_name(ahc));
+				restart_sequencer(ahc);
+				return;
+			}
 
 			if (ahc_search_qinfifo(ahc, target, channel, lun,
 					       scb->hscb->tag, /*status*/0,
@@ -4657,6 +4782,84 @@ ahc_search_qinfifo(struct ahc_softc *ahc, int target, char channel,
 	return (found);
 }
 
+
+static void
+ahc_abort_ccb(struct ahc_softc *ahc, struct cam_sim *sim, union ccb *ccb)
+{
+	union ccb *abort_ccb;
+
+	abort_ccb = ccb->cab.abort_ccb;
+	switch (abort_ccb->ccb_h.func_code) {
+	case XPT_ACCEPT_TARGET_IO:
+	case XPT_IMMED_NOTIFY:
+	case XPT_CONT_TARGET_IO:
+	{
+		struct tmode_tstate *tstate;
+		struct tmode_lstate *lstate;
+		struct ccb_hdr_slist *list;
+		cam_status status;
+
+		status = ahc_find_tmode_devs(ahc, sim, abort_ccb, &tstate,
+					     &lstate, TRUE);
+
+		if (status != CAM_REQ_CMP) {
+			ccb->ccb_h.status = status;
+			break;
+		}
+
+		if (abort_ccb->ccb_h.func_code == XPT_ACCEPT_TARGET_IO)
+			list = &lstate->accept_tios;
+		else if (abort_ccb->ccb_h.func_code == XPT_IMMED_NOTIFY)
+			list = &lstate->immed_notifies;
+		else
+			list = NULL;
+
+		if (list != NULL) {
+			struct ccb_hdr *curelm;
+			int found;
+
+			curelm = SLIST_FIRST(list);
+			found = 0;
+			if (curelm == &abort_ccb->ccb_h) {
+				found = 1;
+				SLIST_REMOVE_HEAD(list, sim_links.sle);
+			} else {
+				while(curelm != NULL) {
+					struct ccb_hdr *nextelm;
+
+					nextelm =
+					    SLIST_NEXT(curelm, sim_links.sle);
+
+					if (nextelm == &abort_ccb->ccb_h) {
+						found = 1;
+						SLIST_NEXT(curelm,
+							   sim_links.sle) =
+						    SLIST_NEXT(nextelm,
+							       sim_links.sle);
+						break;
+					}
+					curelm = nextelm;
+				}
+			}
+
+			if (found)
+				abort_ccb->ccb_h.status = CAM_REQ_ABORTED;
+			else
+				ccb->ccb_h.status = CAM_PATH_INVALID;
+			break;
+		}
+		/* FALLTHROUGH */
+	}
+	case XPT_SCSI_IO:
+		/* XXX Fully implement the hard ones */
+		ccb->ccb_h.status = CAM_UA_ABORT;
+		break;
+	default:
+		ccb->ccb_h.status = CAM_REQ_INVALID;
+		break;
+	}
+	xpt_done(ccb);
+}
 
 /*
  * Abort all SCBs that match the given description (target/channel/lun/tag),
