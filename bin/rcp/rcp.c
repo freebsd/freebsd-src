@@ -42,7 +42,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)rcp.c	8.2 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: rcp.c,v 1.20 1998/08/02 14:25:24 bde Exp $";
+	"$Id: rcp.c,v 1.22 1999/04/25 10:36:00 dt Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -570,9 +570,9 @@ sink(argc, argv)
 	struct timeval tv[2];
 	enum { YES, NO, DISPLAYED } wrerr;
 	BUF *bp;
-	off_t i, j;
+	off_t i, j, size;
 	int amt, count, exists, first, mask, mode, ofd, omode;
-	int setimes, size, targisdir, wrerrno = 0;
+	int setimes, targisdir, wrerrno = 0;
 	char ch, *cp, *np, *targ, *why, *vect[1], buf[BUFSIZ];
 
 #define	atime	tv[0]
