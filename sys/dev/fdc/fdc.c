@@ -1682,7 +1682,6 @@ fdc_detach(device_t dev)
 device_t
 fdc_add_child(device_t dev, const char *name, int unit)
 {
-	int flags;
 	struct fdc_ivars *ivar;
 	device_t child;
 
