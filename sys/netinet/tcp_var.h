@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_var.h	8.3 (Berkeley) 4/10/94
- * $Id: tcp_var.h,v 1.11 1995/04/09 01:29:29 davidg Exp $
+ * $Id: tcp_var.h,v 1.12 1995/06/19 16:45:33 wollman Exp $
  */
 
 #ifndef _NETINET_TCP_VAR_H_
@@ -139,6 +139,8 @@ struct tcpcb {
 
 /* TUBA stuff */
 	caddr_t	t_tuba_pcb;		/* next level down pcb for TCP over z */
+/* More RTT stuff */
+	u_long	t_rttupdated;		/* number of times rtt sampled */
 };
 
 /*
