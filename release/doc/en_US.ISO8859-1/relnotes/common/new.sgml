@@ -217,7 +217,7 @@
 
     <para>A new digi driver has been added to support PCI Xr-based and ISA
     Xem Digiboard cards.  A new &man.digictl.8; program is (mainly) used to
-    re-initialise cards that have external port modules attached such as
+    re-initialize cards that have external port modules attached such as
     the PC/Xem.</para>
 
     <para>The dgm driver has been removed in favor of the digi driver.</para>
@@ -844,7 +844,7 @@
 
       <para>The client-side and server-side of the NFS code in the
       kernel used to be intertwined in various complex ways.  They
-      have been split apart for ease of maintenence and further
+      have been split apart for ease of maintenance and further
       development.</para>
 
       <para>Support for file system Access Control Lists (ACLs) has been
@@ -1005,7 +1005,7 @@
 	<para>The &man.isic.4; driver now supports the Compaq Microcom
 	610 ISDN ISA PnP card.</para>
 
-	<para>Active CAPI-based ISDN cards manufacured by AVM are now
+	<para>Active CAPI-based ISDN cards manufactured by AVM are now
 	supported using the &man.i4bcapi.4; and the &man.iavc.4; driver.  The
 	supported cards are the AVM B1 PCI and AVM B1 ISA Basic Rate
 	cards and the AVM T1 Primary Rate cards. &merged;</para>
@@ -1452,7 +1452,7 @@
 
     <para>The behavior of &man.fsck.8; when dealing with various
     passes (a la <filename>/etc/fstab</filename>) has been modified to
-    accomodate multiple-disk filesystems.</para>
+    accommodate multiple-disk filesystems.</para>
 
     <para>&man.fsck.8; now has support for foreground
     (<option>-F</option>) and background (<option>-B</option>) checks.
