@@ -490,7 +490,15 @@ struct rl_softc {
  */
 #define COREGA_DEVICEID_FETHERIICBTXD			0xa11e
 
+/*
+ * Peppercon vendor ID
+ */
+#define PEPPERCON_VENDORID			0x1743
 
+/*
+ * Peppercon ROL-F device ID
+ */
+#define PEPPERCON_DEVICEID_ROLF			0x8139
 
 /*
  * PCI low memory base and low I/O base register, and
