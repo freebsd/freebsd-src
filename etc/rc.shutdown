@@ -44,6 +44,7 @@ PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin
 export HOME PATH
 
 # If there is a global system configuration file, suck it in.
+# XXX - It's only purpose is to catch rc_ng="YES".
 #
 if [ -r /etc/defaults/rc.conf ]; then
 	. /etc/defaults/rc.conf
@@ -51,6 +52,56 @@ if [ -r /etc/defaults/rc.conf ]; then
 elif [ -r /etc/rc.conf ]; then
 	. /etc/rc.conf
 fi
+
+case ${rc_ng} in
+[Yy][Ee][Ss])
+	. /etc/rc.subr
+
+	load_rc_config 'XXX'
+
+	# If requested, start a watchdog timer in the background which
+	# will terminate rc.shutdown if rc.shutdown doesn't complete
+	# within the specified time.
+	#
+	_rcshutdown_watchdog=
+	if [ -n "$rcshutdown_timeout" ]; then
+		debug "Initiating watchdog timer."
+		sleep $rcshutdown_timeout && ( 
+			_msg="$rcshutdown_timeout second watchdog" \
+			    " timeout expired. Shutdown terminated."
+			logger -t rc.shutdown "$_msg"
+			echo "$_msg"
+			date
+			kill -KILL $$ >/dev/null 2>&1
+		) &
+		_rcshutdown_watchdog=$!
+	fi
+
+	# Determine the shutdown order of the /etc/rc.d scripts,
+	# and perform the operation
+	# XXX - rcorder(8) with multiple -k switches works as a logical OR,
+	#       so, we can't do this: rcorder -k shutdown -k FreeBSD.
+	#
+	files=`eval grep -l \'^# KEYWORD:.*FreeBSD\' \`rcorder -k shutdown /etc/rc.d/*\``
+
+	for _rc_elem in `reverse_list $files`; do
+		debug "run_rc_script $_rc_elem stop"
+		run_rc_script $_rc_elem stop
+	done
+
+	# Terminate the background watchdog timer (if it is running)
+	#
+	if [ -n "$_rcshutdown_watchdog" ]; then
+		kill -TERM $_rcshutdown_watchdog >/dev/null 2>&1
+	fi
+
+	echo '.'
+	exit 0
+	;;
+*)
+	# fall-through to the old rc scripts
+	;;
+esac
 
 # reverse_list list
 #	print the list in reverse order

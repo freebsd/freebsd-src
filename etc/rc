@@ -46,11 +46,62 @@ stty status '^T'
 trap : 2
 trap : 3	# shouldn't be needed
 
-bootmode=$1
-
 HOME=/
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
 export HOME PATH
+
+# If there is a global system configuration file, suck it in.
+# XXX - The only purpose of duplicating it here is to catch rc_ng="YES"
+#
+if [ -r /etc/defaults/rc.conf ]; then
+        . /etc/defaults/rc.conf
+        source_rc_confs
+elif [ -r /etc/rc.conf ]; then
+        . /etc/rc.conf
+fi
+
+# Diskless setups have to depend on a different mechanism since
+# their config files haven't been retargeted yet.
+#
+[ -e /.rcng_yes ] && rc_ng="YES"
+
+case ${rc_ng} in
+[Yy][Ee][Ss])
+	. /etc/rc.subr
+
+	# Load system configuration files. The 'XXX' is there because
+	# the function requires an argument that we don't need to use.
+	#
+	load_rc_config 'XXX'
+
+	if [ "$1" = autoboot ]; then
+        	autoboot=yes
+		_boot="faststart"
+        	rc_fast=yes        # run_rc_command(): do fast booting
+		export autoboot
+		export rc_fast
+	else
+		autoboot=no
+		_boot="start"
+	fi
+
+	os=`eval ${CMD_OSTYPE}`
+	files=`rcorder -k ${os} -s nostart /etc/rc.d/*`
+
+	for _rc_elem in ${files}; do
+        	run_rc_script ${_rc_elem} ${_boot}
+	done
+
+	echo ''
+	date
+	exit 0
+	;;
+*)
+	# fall-through to the old rc scripts
+	;;
+esac
+
+bootmode=$1
 
 # BOOTP diskless boot.  We have to run the rc file early in order to
 # retarget various config files.
