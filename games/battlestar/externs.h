@@ -279,7 +279,7 @@ int wear[NUMOFWORDS];
 char beenthere[NUMOFROOMS+1];
 char injuries[NUMOFINJURIES];
 
-char uname[MAXLOGNAME+1];
+char uname[MAXLOGNAME];
 
 struct wlist {
 	char *string;
