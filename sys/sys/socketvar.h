@@ -35,6 +35,8 @@
 
 #include <sys/queue.h>			/* for TAILQ macros */
 #include <sys/selinfo.h>		/* for struct selinfo */
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
 
 /*
  * Kernel structure per socket.
@@ -93,6 +95,7 @@ struct socket {
  */
 	struct sockbuf {
 		struct	selinfo sb_sel;	/* process selecting read/write */
+		struct	mtx sb_mtx;	/* sockbuf lock */
 #define	sb_startzero	sb_mb
 		struct	mbuf *sb_mb;	/* the mbuf chain */
 		struct	mbuf *sb_mbtail; /* the last mbuf in the chain */
@@ -149,6 +152,30 @@ struct socket {
 extern struct mtx accept_mtx;
 #define	ACCEPT_LOCK()			mtx_lock(&accept_mtx)
 #define	ACCEPT_UNLOCK()			mtx_unlock(&accept_mtx)
+
+/*
+ * Per-socket buffer mutex used to protect most fields in the socket
+ * buffer.
+ */
+#define	SOCKBUF_MTX(_sb)		(&(_sb)->sb_mtx)
+#define	SOCKBUF_LOCK_INIT(_sb, _name) \
+	mtx_init(SOCKBUF_MTX(_sb), _name, NULL, MTX_DEF)
+#define	SOCKBUF_LOCK_DESTROY(_sb)	mtx_destroy(SOCKBUF_MTX(_sb))
+#define	SOCKBUF_LOCK(_sb)		mtx_lock(SOCKBUF_MTX(_sb))
+#define	SOCKBUF_OWNED(_sb)		mtx_owned(SOCKBUF_MTX(_sb))
+#define	SOCKBUF_UNLOCK(_sb)		mtx_unlock(SOCKBUF_MTX(_sb))
+#define	SOCKBUF_LOCK_ASSERT(_sb)	mtx_assert(SOCKBUF_MTX(_sb), MA_OWNED)
+
+/*
+ * Per-socket mutex: we reuse the receive socket buffer mutex for space
+ * efficiency.  This decision should probably be revisited as we optimize
+ * locking for the socket code.
+ */
+#define	SOCK_MTX(_so)			SOCKBUF_MTX(&(_so)->so_rcv)
+#define	SOCK_LOCK(_so)			SOCKBUF_LOCK(&(_so)->so_rcv)
+#define	SOCK_OWNED(_so)			SOCKBUF_OWNED(&(_so)->so_rcv)
+#define	SOCK_UNLOCK(_so)		SOCKBUF_UNLOCK(&(_so)->so_rcv)
+#define	SOCK_LOCK_ASSERT(_so)		SOCKBUF_LOCK_ASSERT(&(_so)->so_rcv)
 
 /*
  * Socket state bits.
