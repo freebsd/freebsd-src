@@ -1243,7 +1243,7 @@ emu_init(struct sc_info *sc)
 	u_int32_t spcs, ch, tmp, i;
 
    	/* disable audio and lock cache */
-	emu_wr(sc, HCFG, HCFG_LOCKSOUNDCACHE | HCFG_LOCKTANKCACHE | HCFG_MUTEBUTTONENABLE, 4);
+	emu_wr(sc, HCFG, HCFG_LOCKSOUNDCACHE | HCFG_LOCKTANKCACHE_MASK | HCFG_MUTEBUTTONENABLE, 4);
 
 	/* reset recording buffers */
 	emu_wrptr(sc, 0, MICBS, ADCBS_BUFSIZE_NONE);
@@ -1365,7 +1365,7 @@ emu_init(struct sc_info *sc)
 	 *   Lock Sound Memory = 0
 	 *   Auto Mute = 1
 	 */
-	tmp = HCFG_AUDIOENABLE | HCFG_LOCKTANKCACHE | HCFG_AUTOMUTE;
+	tmp = HCFG_AUDIOENABLE | HCFG_LOCKTANKCACHE_MASK | HCFG_AUTOMUTE;
 	if (sc->rev >= 6)
 		tmp |= HCFG_JOYENABLE;
 	emu_wr(sc, HCFG, tmp, 4);
@@ -1401,7 +1401,7 @@ emu_uninit(struct sc_info *sc)
        }
 
    	/* disable audio and lock cache */
-	emu_wr(sc, HCFG, HCFG_LOCKSOUNDCACHE | HCFG_LOCKTANKCACHE | HCFG_MUTEBUTTONENABLE, 4);
+	emu_wr(sc, HCFG, HCFG_LOCKSOUNDCACHE | HCFG_LOCKTANKCACHE_MASK | HCFG_MUTEBUTTONENABLE, 4);
 
 	emu_wrptr(sc, 0, PTB, 0);
 	/* reset recording buffers */
