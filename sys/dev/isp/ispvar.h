@@ -320,7 +320,7 @@ struct ispsoftc {
 				isp_touched	: 1,	/* board ever seen? */
 				isp_fast_mttr	: 1,	/* fast sram */
 				isp_bustype	: 1,	/* SBus or PCI */
-				isp_dogactive	: 1,	/* watchdog running */
+						: 1,
 				isp_dblev	: 8,	/* debug level */
 				isp_clock	: 8,	/* input clock */
 				isp_confopts	: 8;	/* config options */
