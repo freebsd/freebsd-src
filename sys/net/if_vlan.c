@@ -389,7 +389,8 @@ vlan_input_tag(struct ether_header *eh, struct mbuf *m, u_int16_t t)
 	}
 
 	if (ifv == NULL || (ifv->ifv_if.if_flags & IFF_UP) == 0) {
-		m_free(m);
+		m->m_pkthdr.rcvif->if_noproto++;
+		m_freem(m);
 		return -1;	/* So the parent can take note */
 	}
 
@@ -419,6 +420,7 @@ vlan_input(struct ether_header *eh, struct mbuf *m)
 	}
 
 	if (ifv == NULL || (ifv->ifv_if.if_flags & IFF_UP) == 0) {
+		m->m_pkthdr.rcvif->if_noproto++;
 		m_freem(m);
 		return -1;	/* so ether_input can take note */
 	}
