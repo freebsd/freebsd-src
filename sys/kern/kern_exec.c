@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.3 1994/08/06 09:06:31 davidg Exp $
+ *	$Id: kern_exec.c,v 1.4 1994/08/18 22:34:59 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -364,7 +364,7 @@ exec_extract_strings(iparams)
 {
 	char	**argv, **envv;
 	char	*argp, *envp;
-	int	length;
+	int	error, length;
 
 	/*
 	 * extract arguments first
@@ -372,17 +372,21 @@ exec_extract_strings(iparams)
 
 	argv = iparams->uap->argv; 
 
-	if (argv)
+	if (argv) {
 		while (argp = (caddr_t) fuword(argv++)) {
 			if (argp == (caddr_t) -1)
 				return (EFAULT);
-			if (copyinstr(argp, iparams->stringp, iparams->stringspace,
-				&length) == ENAMETOOLONG)
+			if (error = copyinstr(argp, iparams->stringp,
+			    iparams->stringspace, &length)) {
+				if (error == ENAMETOOLONG)
 					return(E2BIG);
+				return (error);
+			}
 			iparams->stringspace -= length;
 			iparams->stringp += length;
 			iparams->argc++;
 		}
+	}
 
 	/*
 	 * extract environment strings
@@ -390,17 +394,21 @@ exec_extract_strings(iparams)
 
 	envv = iparams->uap->envv; 
 
-	if (envv)
+	if (envv) {
 		while (envp = (caddr_t) fuword(envv++)) {
 			if (envp == (caddr_t) -1)
 				return (EFAULT);
-			if (copyinstr(envp, iparams->stringp, iparams->stringspace,
-				&length) == ENAMETOOLONG)
+			if (error = copyinstr(envp, iparams->stringp,
+			    iparams->stringspace, &length)) {
+				if (error == ENAMETOOLONG)
 					return(E2BIG);
+				return (error);
+			}
 			iparams->stringspace -= length;
 			iparams->stringp += length;
 			iparams->envc++;
 		}
+	}
 
 	return (0);
 }
