@@ -309,7 +309,7 @@ ugenopen(dev, flag, mode, p)
 			sce->ibuf = malloc(isize, M_USBDEV, M_WAITOK);
 			DPRINTFN(5, ("ugenopen: intr endpt=%d,isize=%d\n", 
 				     endpt, isize));
-			if (clalloc(&sce->q, UGEN_IBSIZE, 0) == -1)
+			if (clalloc(&sce->q, UGEN_IBSIZE, UGEN_IBSIZE) == -1)
 				return (ENOMEM);
 			err = usbd_open_pipe_intr(sce->iface, 
 				edesc->bEndpointAddress, 
