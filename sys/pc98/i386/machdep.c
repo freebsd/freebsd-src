@@ -588,7 +588,7 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 			    (tf->tf_eflags & ~(PSL_VIF | PSL_VIP))
 			    | (vm86->vm86_eflags & (PSL_VIF | PSL_VIP));
 		/* see sendsig for comment */
-		tf->tf_eflags &= ~(PSL_VM|PSL_NT|PSL_T|PSL_VIF|PSL_VIP);
+		tf->tf_eflags &= ~(PSL_VM | PSL_NT | PSL_VIF | PSL_VIP);
 	}
 
 	/* Copy the sigframe out to the user's stack. */
@@ -602,6 +602,7 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 
 	regs->tf_esp = (int)fp;
 	regs->tf_eip = PS_STRINGS - szosigcode;
+	regs->tf_eflags &= ~PSL_T;
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;
@@ -717,17 +718,13 @@ sendsig(catcher, sig, mask, code)
 			    (vm86->vm86_eflags & (PSL_VIF | PSL_VIP));
 
 		/*
-		 * We should never have PSL_T set when returning from vm86
-		 * mode.  It may be set here if we deliver a signal before
-		 * getting to vm86 mode, so turn it off.
-		 *
 		 * Clear PSL_NT to inhibit T_TSSFLT faults on return from
 		 * syscalls made by the signal handler.  This just avoids
 		 * wasting time for our lazy fixup of such faults.  PSL_NT
 		 * does nothing in vm86 mode, but vm86 programs can set it
 		 * almost legitimately in probes for old cpu types.
 		 */
-		tf->tf_eflags &= ~(PSL_VM|PSL_NT|PSL_T|PSL_VIF|PSL_VIP);
+		tf->tf_eflags &= ~(PSL_VM | PSL_NT | PSL_VIF | PSL_VIP);
 	}
 
 	/*
@@ -743,6 +740,7 @@ sendsig(catcher, sig, mask, code)
 
 	regs->tf_esp = (int)sfp;
 	regs->tf_eip = PS_STRINGS - *(p->p_sysent->sv_szsigcode);
+	regs->tf_eflags &= ~PSL_T;
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;

@@ -368,7 +368,7 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	regs->tf_esp = (int)fp;
 	regs->tf_eip = PS_STRINGS - *(p->p_sysent->sv_szsigcode) + 
 	    linux_sznonrtsigcode;
-	regs->tf_eflags &= ~PSL_VM;
+	regs->tf_eflags &= ~(PSL_T | PSL_VM);
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;
@@ -497,7 +497,7 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 */
 	regs->tf_esp = (int)fp;
 	regs->tf_eip = PS_STRINGS - *(p->p_sysent->sv_szsigcode);
-	regs->tf_eflags &= ~PSL_VM;
+	regs->tf_eflags &= ~(PSL_T | PSL_VM);
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;
