@@ -505,6 +505,8 @@ cdasync(void *callback_arg, u_int32_t code,
 		cam_status status;
 
 		cgd = (struct ccb_getdev *)arg;
+		if (cgd == NULL)
+			break;
 
 		if (SID_TYPE(&cgd->inq_data) != T_CDROM
 		    && SID_TYPE(&cgd->inq_data) != T_WORM)

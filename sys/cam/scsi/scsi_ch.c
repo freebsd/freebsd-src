@@ -325,6 +325,8 @@ chasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 		cam_status status;
 
 		cgd = (struct ccb_getdev *)arg;
+		if (cgd == NULL)
+			break;
 
 		if (SID_TYPE(&cgd->inq_data)!= T_CHANGER)
 			break;
