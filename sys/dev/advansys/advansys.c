@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: advansys.c,v 1.7 1998/12/22 18:12:09 gibbs Exp $
+ *      $Id: advansys.c,v 1.8 1999/04/07 22:59:12 gibbs Exp $
  */
 /*
  * Ported from:
@@ -1127,12 +1127,14 @@ adv_done(struct adv_softc *adv, union ccb *ccb, u_int done_stat,
 			ccb->ccb_h.status = CAM_SEQUENCE_FAIL;
 			adv_reset_bus(adv);
 			break;
+		case QHSTA_M_AUTO_REQ_SENSE_FAIL:
+			ccb->ccb_h.status = CAM_AUTOSENSE_FAIL;
+			break;
 		case QHSTA_D_QDONE_SG_LIST_CORRUPTED:
 		case QHSTA_D_ASC_DVC_ERROR_CODE_SET:
 		case QHSTA_D_HOST_ABORT_FAILED:
 		case QHSTA_D_EXE_SCSI_Q_FAILED:
 		case QHSTA_D_ASPI_NO_BUF_POOL:
-		case QHSTA_M_AUTO_REQ_SENSE_FAIL:
 		case QHSTA_M_BAD_TAG_CODE:
 		case QHSTA_D_LRAM_CMP_ERROR:
 		case QHSTA_M_MICRO_CODE_ERROR_HALT:
