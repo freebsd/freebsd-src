@@ -727,7 +727,7 @@ cpustats(void)
 	for (state = 0; state < CPUSTATES; ++state)
 		time += cur.cp_time[state];
 	for (state = 0; state < CPUSTATES; ++state)
-		printf("%3.0f",
+		printf(" %2.0f",
 		       rint(100. * cur.cp_time[state] / (time ? time : 1)));
 }
 
