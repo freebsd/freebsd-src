@@ -5215,7 +5215,7 @@ ncr_timeout (void *arg)
 **		scntl3:	(see the manual)
 **
 **	current script command:
-**		dsp:	script adress (relative to start of script).
+**		dsp:	script address (relative to start of script).
 **		dbc:	first word of script command.
 **
 **	First 16 register of the chip:
