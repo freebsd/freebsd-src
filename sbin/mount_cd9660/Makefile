@@ -5,7 +5,6 @@ SRCS=	mount_cd9660.c getmntopts.c
 MAN8=	mount_cd9660.8
 
 MOUNT=	${.CURDIR}/../mount
-CFLAGS+= -D_NEW_VFSCONF
 CFLAGS+= -I${MOUNT}
 .PATH:	${MOUNT}
 

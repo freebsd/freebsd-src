@@ -7,7 +7,6 @@ MLINKS=	mount_std.8 mount_devfs.8 mount_std.8 mount_fdesc.8 \
 	mount_std.8 mount_kernfs.8 mount_std.8 mount_procfs.8
 
 MOUNT=	${.CURDIR}/../mount
-CFLAGS+= -D_NEW_VFSCONF
 CFLAGS+= -I${MOUNT}
 .PATH:	${MOUNT}
 
