@@ -622,7 +622,7 @@ ipsec6_encapsulate(struct mbuf *m, struct secasvar *sav)
 		oip6 = mtod(m->m_next, struct ip6_hdr *);
 	}
 	ip6 = mtod(m, struct ip6_hdr *);
-	ovbcopy((caddr_t)ip6, (caddr_t)oip6, sizeof(struct ip6_hdr));
+	bcopy((caddr_t)ip6, (caddr_t)oip6, sizeof(struct ip6_hdr));
 
 	/* Fake link-local scope-class addresses */
 	if (IN6_IS_SCOPE_LINKLOCAL(&oip6->ip6_src))
