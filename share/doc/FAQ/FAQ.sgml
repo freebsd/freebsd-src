@@ -1,12 +1,12 @@
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
-<!-- $Id: FAQ.sgml,v 1.46 1997/04/21 00:42:54 jfieber Exp $ -->
+<!-- $Id: FAQ.sgml,v 1.47 1997/05/01 20:55:20 jkh Exp $ -->
 
   <article>
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
-<date>$Date: 1997/04/21 00:42:54 $</date>
+<date>$Date: 1997/05/01 20:55:20 $</date>
 
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
@@ -1903,8 +1903,7 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
 	<item><bf>COFF</bf>
 	<p>The SVR3 object format.  The header now comprises a section
 	table, so you can have more than just .text, .data, and .bss
-	sections.  IIRC, the section length values are 16-bit entities
-	only.</item>
+	sections.</item>
 	
 	<item><bf>ELF</bf>
 	<p>The successor to <tt/COFF/, featuring Multiple sections
