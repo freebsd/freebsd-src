@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)user.h	8.2 (Berkeley) 9/23/93
- * $Id: user.h,v 1.18 1999/01/07 21:23:47 julian Exp $
+ * $Id: user.h,v 1.19 1999/01/13 03:11:42 julian Exp $
  */
 
 #ifndef _SYS_USER_H_
@@ -69,9 +69,7 @@ struct kinfo_proc {
 		struct	session *e_sess;	/* session pointer */
 		struct	pcred e_pcred;		/* process credentials */
 		struct	ucred e_ucred;		/* current credentials */
-#ifdef COMPAT_LINUX_THREADS
 		struct  procsig e_procsig;	/* shared signal structure */
-#endif
 		struct	vmspace e_vm;		/* address space */
 		pid_t	e_ppid;			/* parent process id */
 		pid_t	e_pgid;			/* process group id */
@@ -128,13 +126,8 @@ struct	user {
 #define	U_tsize	u_kproc.kp_eproc.e_vm.vm_tsize
 #define	U_dsize	u_kproc.kp_eproc.e_vm.vm_dsize
 #define	U_ssize	u_kproc.kp_eproc.e_vm.vm_ssize
-#ifndef COMPAT_LINUX_THREADS
-#define	U_sig	u_sigacts.ps_sig
-#define	U_code	u_sigacts.ps_code
-#else
 #define	U_sig	u_kproc.kp_proc.p_sig
 #define	U_code	u_kproc.kp_proc.p_code
-#endif /* COMPAT_LINUX_THREADS */
 
 #ifndef KERNEL
 #define	u_ar0	U_ar0
