@@ -1,4 +1,5 @@
 /* $FreeBSD$ */
+
 /*
  * Soft Definitions for for Qlogic ISP SCSI adapters.
  *
