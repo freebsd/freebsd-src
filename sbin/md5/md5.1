@@ -28,6 +28,12 @@ in a secure manner before being encrypted with a private
 key under a public-key cryptosystem such as
 .Em RSA .
 .Pp
+MD5 has not yet (2001-09-03) been broken, but sufficient attacks have been
+made that its security is in some doubt.  The attacks on MD5
+are in the nature of finding ``collisions'' \- that is, multiple
+inputs which hash to the same value; it is still unlikely for an attacker
+to be able to determine the exact original input given a hash value.
+.Pp
 The following options may be used in any combination and must
 precede any files named on the command line.  The MD5
 sum of each file listed on the command line is printed after the options
