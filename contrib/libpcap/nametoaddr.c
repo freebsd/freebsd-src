@@ -30,6 +30,7 @@ static char rcsid[] =
 #include <sys/param.h>
 #include <sys/types.h>				/* concession to AIX */
 #include <sys/socket.h>
+#include <sys/time.h>
 
 #if __STDC__
 struct mbuf;

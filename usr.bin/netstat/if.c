@@ -38,6 +38,7 @@ static char sccsid[] = "@(#)if.c	8.3 (Berkeley) 4/28/95";
 #include <sys/types.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
