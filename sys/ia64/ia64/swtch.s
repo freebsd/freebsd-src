@@ -209,8 +209,6 @@ ENTRY(cpu_switch, 0)
 
 	mov	ar.rsc=3		// turn RSE back on
 
-XENTRY(cpu_throw)
-
 #ifdef SMP
 	add	r17 = PC_CPUID, r13
 	movl	r16 = smp_active
