@@ -3206,9 +3206,11 @@ loop:
 				}
 
 				if (VOP_GETVOBJECT(vp, &obj) == 0) {
+					VM_OBJECT_LOCK(obj);
 					vm_object_page_clean(obj, 0, 0,
 					    flags == MNT_WAIT ?
 					    OBJPC_SYNC : OBJPC_NOSYNC);
+					VM_OBJECT_UNLOCK(obj);
 				}
 				vput(vp);
 			}

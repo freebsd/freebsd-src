@@ -348,7 +348,7 @@ more:
 	/*
 	 * we allow reads during pageouts...
 	 */
-	return vm_pageout_flush(&mc[page_base], pageout_count, 0);
+	return vm_pageout_flush(&mc[page_base], pageout_count, 0, FALSE);
 }
 
 /*
@@ -361,10 +361,11 @@ more:
  *	the ordering.
  */
 int
-vm_pageout_flush(mc, count, flags)
+vm_pageout_flush(mc, count, flags, is_object_locked)
 	vm_page_t *mc;
 	int count;
 	int flags;
+	int is_object_locked;
 {
 	vm_object_t object;
 	int pageout_status[count];
@@ -389,7 +390,8 @@ vm_pageout_flush(mc, count, flags)
 	}
 	object = mc[0]->object;
 	vm_page_unlock_queues();
-	VM_OBJECT_LOCK(object);
+	if (!is_object_locked)
+		VM_OBJECT_LOCK(object);
 	vm_object_pip_add(object, count);
 	VM_OBJECT_UNLOCK(object);
 
@@ -442,7 +444,8 @@ vm_pageout_flush(mc, count, flags)
 				pmap_page_protect(mt, VM_PROT_READ);
 		}
 	}
-	VM_OBJECT_UNLOCK(object);
+	if (!is_object_locked)
+		VM_OBJECT_UNLOCK(object);
 	return numpagedout;
 }
 
