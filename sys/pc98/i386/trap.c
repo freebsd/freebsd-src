@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.19 1997/05/05 13:12:52 kato Exp $
+ *	$Id: trap.c,v 1.20 1997/05/08 09:31:08 kato Exp $
  */
 
 /*
@@ -44,7 +44,6 @@
 
 #include "opt_ktrace.h"
 #include "opt_ddb.h"
-#include "opt_smp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -88,7 +87,7 @@
 #include "npx.h"
 
 #ifdef SMP
-extern struct i386tss *SMPcommon_tss_ptr[NCPU];
+extern struct i386tss *SMPcommon_tss_ptr[];
 #else
 extern struct i386tss common_tss;
 #endif
