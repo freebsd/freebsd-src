@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.204 1996/05/30 08:53:26 asami Exp $
+# $Id: bsd.port.mk,v 1.205 1996/06/01 05:47:42 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -375,6 +375,7 @@ MASTER_SITE_OVERRIDE=  ftp://ftp.freebsd.org/pub/FreeBSD/distfiles/${DIST_SUBDIR
 MASTER_SITES+=	ftp://ftp.freebsd.org/pub/FreeBSD/distfiles/${DIST_SUBDIR}/
 PATCH_SITES+=	ftp://ftp.freebsd.org/pub/FreeBSD/distfiles/${DIST_SUBDIR}/
 .else
+MASTER_SITES?=	# to avoid "variable MASTER_SITES recursive" error
 MASTER_SITES:=	${MASTER_SITE_OVERRIDE} ${MASTER_SITES}
 PATCH_SITES:=	${MASTER_SITE_OVERRIDE} ${PATCH_SITES}
 .endif
