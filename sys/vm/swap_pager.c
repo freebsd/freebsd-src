@@ -546,7 +546,7 @@ swap_pager_freespace(object, start, size)
 {
 	int s = splvm();
 
-	GIANT_REQUIRED;
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	swp_pager_meta_free(object, start, size);
 	splx(s);
 }
