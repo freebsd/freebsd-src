@@ -2,25 +2,9 @@
 # $FreeBSD$
 
 PROG=	su
-SRCS=	su.c
 
-DPADD+= ${LIBUTIL}
-LDADD+= -lutil
-
-.if !defined(NOPAM)
-CFLAGS+= -DUSE_PAM
-DPADD+= ${LIBPAM}
-LDADD+= ${MINUSLPAM}
-.else
-COPTS+= -DSKEY
-DPADD+= ${LIBSKEY} ${LIBMD} ${LIBCRYPT}
-LDADD+= -lskey -lmd -lcrypt
-.endif
-
-.if defined(WHEELSU)
-COPTS+=	-DWHEELSU
-.endif
-CFLAGS+= -Wall
+DPADD+= ${LIBUTIL} ${LIBPAM}
+LDADD+= -lutil ${MINUSLPAM}
 
 BINMODE=4555
 INSTALLFLAGS=-fschg

@@ -48,90 +48,89 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/wait.h>
 
 #include <err.h>
 #include <errno.h>
 #include <grp.h>
+#include <libutil.h>
+#include <login_cap.h>
 #include <paths.h>
 #include <pwd.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
-#include <libutil.h>
-#include <login_cap.h>
 
-#ifdef USE_PAM
 #include <security/pam_appl.h>
 #include <security/pam_misc.h>
-#include <signal.h>
-#include <sys/wait.h>
 
-static int export_pam_environment __P((void));
-static int ok_to_export __P((const char *));
+#define PAM_END do {						\
+	int local_ret;						\
+	if (pamh != NULL && creds_set) {			\
+		local_ret = pam_setcred(pamh, PAM_DELETE_CRED);	\
+		if (local_ret != PAM_SUCCESS)			\
+			syslog(LOG_ERR, "pam_setcred: %s",	\
+				pam_strerror(pamh, local_ret));	\
+		local_ret = pam_end(pamh, local_ret);		\
+		if (local_ret != PAM_SUCCESS)			\
+			syslog(LOG_ERR, "pam_end: %s",		\
+				pam_strerror(pamh, local_ret));	\
+	}							\
+} while (0)
 
-static pam_handle_t *pamh = NULL;
-static char **environ_pam;
 
-#define PAM_END { \
-	if ((retcode = pam_setcred(pamh, PAM_DELETE_CRED)) != PAM_SUCCESS) { \
-		syslog(LOG_ERR, "pam_setcred: %s", pam_strerror(pamh, retcode)); \
-	} \
-	if ((retcode = pam_end(pamh,retcode)) != PAM_SUCCESS) { \
-		syslog(LOG_ERR, "pam_end: %s", pam_strerror(pamh, retcode)); \
-	} \
-}
-#else /* !USE_PAM */
-#ifdef	SKEY
-#include <skey.h>
-#endif
-#endif /* USE_PAM */
+#define PAM_SET_ITEM(what, item) do {				\
+	int local_ret;						\
+	local_ret = pam_set_item(pamh, what, item);		\
+	if (local_ret != PAM_SUCCESS) {				\
+		syslog(LOG_ERR, "pam_set_item(" #what "): %s",	\
+			pam_strerror(pamh, local_ret));		\
+		errx(1, "pam_set_item(" #what "): %s",		\
+			pam_strerror(pamh, local_ret));		\
+	}							\
+} while (0)
 
 #define	ARGSTR	"-flmc:"
 
-char   *ontty __P((void));
-int	chshell __P((char *));
-static void usage __P((void));
+enum tristate { UNSET, YES, NO };
+
+static pam_handle_t *pamh = NULL;
+static int	creds_set = 0;
+static char	**environ_pam;
+
+static char	*ontty(void);
+static int	chshell(char *);
+static void	usage(void);
+static int	export_pam_environment(void);
+static int	ok_to_export(const char *);
+
+extern char	**environ;
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char *argv[])
 {
-	extern char **environ;
-	struct passwd *pwd;
-#ifdef WHEELSU
-	char *targetpass;
-	int iswheelsu;
-#endif /* WHEELSU */
-	char *p, *user, *shell=NULL, *username, *cleanenv = NULL, **nargv, **np;
-	uid_t ruid;
-	gid_t gid;
-	int asme, ch, asthem, fastlogin, prio, i;
-	enum { UNSET, YES, NO } iscsh = UNSET;
-	login_cap_t *lc;
-	char *class=NULL;
-	int setwhat;
-#ifdef USE_PAM
-	int retcode;
-	struct pam_conv conv = { misc_conv, NULL };
-	char myhost[MAXHOSTNAMELEN + 1], *mytty;
-	int statusp=0;
-	int child_pid, child_pgrp, ret_pid;
-#else /* !USE_PAM */
-	char **g;
-	struct group *gr;
-#endif /* USE_PAM */
-	char shellbuf[MAXPATHLEN];
+	struct passwd	*pwd;
+	struct pam_conv	conv = {misc_conv, NULL};
+	enum tristate	iscsh;
+	login_cap_t	*lc;
+	uid_t		ruid;
+	gid_t		gid;
+	int		asme, ch, asthem, fastlogin, prio, i, setwhat, retcode,
+			statusp, child_pid, child_pgrp, ret_pid;
+	char		*p, *user, *shell, *username, *cleanenv, **nargv, **np,
+			*class, *mytty, shellbuf[MAXPATHLEN],
+			myhost[MAXHOSTNAMELEN + 1];
 
-#ifdef WHEELSU
-	iswheelsu =
-#endif /* WHEELSU */
-	asme = asthem = fastlogin = 0;
+	shell = class = cleanenv = NULL;
+	asme = asthem = fastlogin = statusp = 0;
 	user = "root";
-	while((ch = getopt(argc, argv, ARGSTR)) != -1) 
-		switch((char)ch) {
+	iscsh = UNSET;
+
+	while ((ch = getopt(argc, argv, ARGSTR)) != -1)
+		switch ((char)ch) {
 		case 'f':
 			fastlogin = 1;
 			break;
@@ -155,20 +154,19 @@ main(argc, argv)
 	if (optind < argc)
 		user = argv[optind++];
 
-	if (strlen(user) > MAXLOGNAME - 1) {
-		errx(1, "username too long");
-	}
-		
 	if (user == NULL)
 		usage();
 
-	if ((nargv = malloc (sizeof (char *) * (argc + 4))) == NULL) {
-	    errx(1, "malloc failure");
-	}
+	if (strlen(user) > MAXLOGNAME - 1)
+		errx(1, "username too long");
+
+	nargv = malloc(sizeof(char *) * (argc + 4));
+	if (nargv == NULL)
+		errx(1, "malloc failure");
 
 	nargv[argc + 3] = NULL;
 	for (i = argc; i >= optind; i--)
-	    nargv[i + 3] = argv[i];
+		nargv[i + 3] = argv[i];
 	np = &nargv[i + 3];
 
 	argv += optind;
@@ -177,33 +175,38 @@ main(argc, argv)
 	prio = getpriority(PRIO_PROCESS, 0);
 	if (errno)
 		prio = 0;
-	(void)setpriority(PRIO_PROCESS, 0, -2);
+
+	setpriority(PRIO_PROCESS, 0, -2);
 	openlog("su", LOG_CONS, LOG_AUTH);
 
-	/* get current login name and shell */
+	/* get current login name, real uid and shell */
 	ruid = getuid();
 	username = getlogin();
-	if (username == NULL || (pwd = getpwnam(username)) == NULL ||
-	    pwd->pw_uid != ruid)
+	pwd = getpwnam(username);
+	if (username == NULL || pwd == NULL || pwd->pw_uid != ruid)
 		pwd = getpwuid(ruid);
 	if (pwd == NULL)
 		errx(1, "who are you?");
-	username = strdup(pwd->pw_name);
 	gid = pwd->pw_gid;
+
+	username = strdup(pwd->pw_name);
 	if (username == NULL)
-		err(1, NULL);
+		err(1, "strdup failure");
+
 	if (asme) {
 		if (pwd->pw_shell != NULL && *pwd->pw_shell != '\0') {
-			/* copy: pwd memory is recycled */
-			shell = strncpy(shellbuf,  pwd->pw_shell, sizeof shellbuf);
-			shellbuf[sizeof shellbuf - 1] = '\0';
-		} else {
+			/* must copy - pwd memory is recycled */
+			shell = strncpy(shellbuf, pwd->pw_shell,
+			    sizeof(shellbuf));
+			shellbuf[sizeof(shellbuf) - 1] = '\0';
+		}
+		else {
 			shell = _PATH_BSHELL;
 			iscsh = NO;
 		}
 	}
 
-#ifdef USE_PAM
+	/* Do the whole PAM startup thing */
 	retcode = pam_start("su", user, &conv, &pamh);
 	if (retcode != PAM_SUCCESS) {
 		syslog(LOG_ERR, "pam_start: %s", pam_strerror(pamh, retcode));
@@ -211,144 +214,66 @@ main(argc, argv)
 	}
 
 	gethostname(myhost, sizeof(myhost));
-	retcode = pam_set_item(pamh, PAM_RHOST, myhost);
-	if (retcode != PAM_SUCCESS) {
-		syslog(LOG_ERR, "pam_set_item(PAM_RHOST): %s", pam_strerror(pamh, retcode));
-		errx(1, "pam_set_item(PAM_RHOST): %s", pam_strerror(pamh, retcode));
-	}
+	PAM_SET_ITEM(PAM_RHOST, myhost);
 
 	mytty = ttyname(STDERR_FILENO);
 	if (!mytty)
 		mytty = "tty";
-	retcode = pam_set_item(pamh, PAM_TTY, mytty);
+	PAM_SET_ITEM(PAM_TTY, mytty);
+
+	retcode = pam_authenticate(pamh, 0);
 	if (retcode != PAM_SUCCESS) {
-		syslog(LOG_ERR, "pam_set_item(PAM_TTY): %s", pam_strerror(pamh, retcode));
-		errx(1, "pam_set_item(PAM_TTY): %s", pam_strerror(pamh, retcode));
+		syslog(LOG_ERR, "pam_authenticate: %s",
+		    pam_strerror(pamh, retcode));
+		errx(1, "Sorry");
 	}
+	retcode = pam_get_item(pamh, PAM_USER, (const void **)&p);
+	if (retcode == PAM_SUCCESS)
+		user = p;
+	else
+		syslog(LOG_ERR, "pam_get_item(PAM_USER): %s",
+		    pam_strerror(pamh, retcode));
 
-	if (ruid) {
-		retcode = pam_authenticate(pamh, 0);
+	retcode = pam_acct_mgmt(pamh, 0);
+	if (retcode == PAM_NEW_AUTHTOK_REQD) {
+		retcode = pam_chauthtok(pamh,
+			PAM_CHANGE_EXPIRED_AUTHTOK);
 		if (retcode != PAM_SUCCESS) {
-			syslog(LOG_ERR, "pam_authenticate: %s", pam_strerror(pamh, retcode));
-			errx(1, "Sorry");
-		}
-
-		if ((retcode = pam_get_item(pamh, PAM_USER, (const void **) &p)) == PAM_SUCCESS) {
-			user = p;
-		} else
-			syslog(LOG_ERR, "pam_get_item(PAM_USER): %s",
-			       pam_strerror(pamh, retcode));
-
-		retcode = pam_acct_mgmt(pamh, 0);
-		if (retcode == PAM_NEW_AUTHTOK_REQD) {
-			retcode = pam_chauthtok(pamh, PAM_CHANGE_EXPIRED_AUTHTOK);
-			if (retcode != PAM_SUCCESS) {
-				syslog(LOG_ERR, "pam_chauthtok: %s", pam_strerror(pamh, retcode));
-				errx(1, "Sorry");
-			}
-		}
-		if (retcode != PAM_SUCCESS) {
-			syslog(LOG_ERR, "pam_acct_mgmt: %s", pam_strerror(pamh, retcode));
+			syslog(LOG_ERR, "pam_chauthtok: %s",
+			    pam_strerror(pamh, retcode));
 			errx(1, "Sorry");
 		}
 	}
-#endif /* USE_PAM */
+	if (retcode != PAM_SUCCESS) {
+		syslog(LOG_ERR, "pam_acct_mgmt: %s",
+			pam_strerror(pamh, retcode));
+		errx(1, "Sorry");
+	}
 
 	/* get target login information, default to root */
-	if ((pwd = getpwnam(user)) == NULL) {
+	pwd = getpwnam(user);
+	if (pwd == NULL)
 		errx(1, "unknown login: %s", user);
-	}
-	if (class==NULL) {
+	if (class == NULL)
 		lc = login_getpwclass(pwd);
-	} else {
-		if (ruid)
+	else {
+		if (ruid != 0)
 			errx(1, "only root may use -c");
 		lc = login_getclass(class);
 		if (lc == NULL)
 			errx(1, "unknown class: %s", class);
 	}
 
-#ifndef USE_PAM
-#ifdef WHEELSU
-	targetpass = strdup(pwd->pw_passwd);
-#endif /* WHEELSU */
-
-	if (ruid) {
-		{
-			/*
-			 * Only allow those with pw_gid==0 or those listed in
-			 * group zero to su to root.  If group zero entry is
-			 * missing or empty, then allow anyone to su to root.
-			 * iswheelsu will only be set if the user is EXPLICITLY
-			 * listed in group zero.
-			 */
-			if (pwd->pw_uid == 0 && (gr = getgrgid((gid_t)0)) &&
-			    gr->gr_mem && *(gr->gr_mem))
-				for (g = gr->gr_mem;; ++g) {
-					if (!*g) {
-						if (gid == 0)
-							break;
-						else
-							errx(1,
-			     "you are not in the correct group (%s) to su %s.",
-							    gr->gr_name,
-							    user);
-					}
-					if (strcmp(username, *g) == 0) {
-#ifdef WHEELSU
-						iswheelsu = 1;
-#endif /* WHEELSU */
-						break;
-					}
-				}
-		}
-		/* if target requires a password, verify it */
-		if (*pwd->pw_passwd) {
-#ifdef	SKEY
-#ifdef WHEELSU
-			if (iswheelsu) {
-				pwd = getpwnam(username);
-			}
-#endif /* WHEELSU */
-			p = skey_getpass("Password:", pwd, 1);
-			if (!(!strcmp(pwd->pw_passwd, skey_crypt(p, pwd->pw_passwd, pwd, 1))
-#ifdef WHEELSU
-			      || (iswheelsu && !strcmp(targetpass, crypt(p,targetpass)))
-#endif /* WHEELSU */
-			      ))
-#else /* !SKEY */
-			p = getpass("Password:");
-			if (strcmp(pwd->pw_passwd, crypt(p, pwd->pw_passwd)))
-#endif /* SKEY */
-			{
-				{
-					syslog(LOG_AUTH|LOG_WARNING, "BAD SU %s to %s%s", username, user, ontty());
-					errx(1, "Sorry");
-				}
-			}
-#ifdef WHEELSU
-			if (iswheelsu) {
-				pwd = getpwnam(user);
-			}
-#endif /* WHEELSU */
-		}
-		if (pwd->pw_expire && time(NULL) >= pwd->pw_expire) {
-			syslog(LOG_AUTH|LOG_WARNING,
-				"BAD SU %s to %s%s", username,
-				user, ontty());
-			errx(1, "Sorry - account expired");
-		}
-	}
-#endif /* USE_PAM */
-
+	/* if asme and non-standard target shell, must be root */
 	if (asme) {
-		/* if asme and non-standard target shell, must be root */
-		if (ruid && !chshell(pwd->pw_shell))
+		if (ruid != 0 && !chshell(pwd->pw_shell))
 			errx(1, "permission denied (shell).");
-	} else if (pwd->pw_shell && *pwd->pw_shell) {
+	}
+	else if (pwd->pw_shell && *pwd->pw_shell) {
 		shell = pwd->pw_shell;
 		iscsh = UNSET;
-	} else {
+	}
+	else {
 		shell = _PATH_BSHELL;
 		iscsh = NO;
 	}
@@ -360,24 +285,23 @@ main(argc, argv)
 			++p;
 		else
 			p = shell;
-		if ((iscsh = strcmp(p, "csh") ? NO : YES) == NO)
-		    iscsh = strcmp(p, "tcsh") ? NO : YES;
+		iscsh = strcmp(p, "csh") ? (strcmp(p, "tcsh") ? NO : YES) : YES;
 	}
-
-	(void)setpriority(PRIO_PROCESS, 0, prio);
+	setpriority(PRIO_PROCESS, 0, prio);
 
 	/*
-	 * PAM modules might add supplementary groups in
-	 * pam_setcred(), so initialize them first.
+	 * PAM modules might add supplementary groups in pam_setcred(), so
+	 * initialize them first.
 	 */
 	if (setusercontext(lc, pwd, pwd->pw_uid, LOGIN_SETGROUP) < 0)
 		err(1, "setusercontext");
 
-#ifdef USE_PAM
 	retcode = pam_setcred(pamh, PAM_ESTABLISH_CRED);
-	if (retcode != PAM_SUCCESS) {
-		syslog(LOG_ERR, "pam_setcred: %s", pam_strerror(pamh, retcode));
-	}
+	if (retcode != PAM_SUCCESS)
+		syslog(LOG_ERR, "pam_setcred(pamh, PAM_ESTABLISH_CRED): %s",
+		    pam_strerror(pamh, retcode));
+	else
+		creds_set = 1;
 
 	/*
 	 * We must fork() before setuid() because we need to call
@@ -385,109 +309,99 @@ main(argc, argv)
 	 */
 
 	statusp = 1;
-	switch ((child_pid = fork())) {
+	child_pid = fork();
+	switch (child_pid) {
 	default:
-            while ((ret_pid = waitpid(child_pid, &statusp, WUNTRACED)) != -1) {
-		if (WIFSTOPPED(statusp)) {
-		    child_pgrp = tcgetpgrp(1);
-		    kill(getpid(), SIGSTOP);
-		    tcsetpgrp(1, child_pgrp);
-		    kill(child_pid, SIGCONT); 
-		    statusp = 1;
-		    continue;
+		while ((ret_pid = waitpid(child_pid, &statusp, WUNTRACED)) != -1) {
+			if (WIFSTOPPED(statusp)) {
+				child_pgrp = tcgetpgrp(1);
+				kill(getpid(), SIGSTOP);
+				tcsetpgrp(1, child_pgrp);
+				kill(child_pid, SIGCONT); 
+				statusp = 1;
+				continue;
+			}
+			break;
 		}
-		break;
-            }
-	    if (ret_pid == -1)
-		err(1, "waitpid");
-	    PAM_END;
-	    exit(statusp);
+		if (ret_pid == -1)
+			err(1, "waitpid");
+		PAM_END;
+		exit(statusp);
 	case -1:
-	    err(1, "fork");
-	    PAM_END;
-	    exit (1);
+		err(1, "fork");
+		PAM_END;
+		exit(1);
 	case 0:
-#endif /* USE_PAM */
+		/*
+		 * Set all user context except for: Environmental variables
+		 * Umask Login records (wtmp, etc) Path
+		 */
+		setwhat = LOGIN_SETALL & ~(LOGIN_SETENV | LOGIN_SETUMASK |
+			   LOGIN_SETLOGIN | LOGIN_SETPATH | LOGIN_SETGROUP);
+		/*
+		 * Don't touch resource/priority settings if -m has been used
+		 * or -l and -c hasn't, and we're not su'ing to root.
+		 */
+		if ((asme || (!asthem && class == NULL)) && pwd->pw_uid)
+			setwhat &= ~(LOGIN_SETPRIORITY | LOGIN_SETRESOURCES);
+		if (setusercontext(lc, pwd, pwd->pw_uid, setwhat) < 0)
+			err(1, "setusercontext");
 
-	/*
-	 * Set all user context except for:
-	 *   Environmental variables
-	 *   Umask
-	 *   Login records (wtmp, etc)
-	 *   Path
-	 */
-	setwhat =  LOGIN_SETALL & ~(LOGIN_SETENV | LOGIN_SETUMASK |
-	    LOGIN_SETLOGIN | LOGIN_SETPATH | LOGIN_SETGROUP);
+		if (!asme) {
+			if (asthem) {
+				p = getenv("TERM");
+				environ = &cleanenv;
 
-	/*
-	 * Don't touch resource/priority settings if -m has been
-	 * used or -l and -c hasn't, and we're not su'ing to root.
-	 */
-        if ((asme || (!asthem && class == NULL)) && pwd->pw_uid)
-		setwhat &= ~(LOGIN_SETPRIORITY|LOGIN_SETRESOURCES);
-	if (setusercontext(lc, pwd, pwd->pw_uid, setwhat) < 0)
-		err(1, "setusercontext");
+				/*
+				 * Add any environmental variables that the
+				 * PAM modules may have set.
+				 */
+				environ_pam = pam_getenvlist(pamh);
+				if (environ_pam)
+					export_pam_environment();
 
-	if (!asme) {
-		if (asthem) {
-			p = getenv("TERM");
-			environ = &cleanenv;
-
-#ifdef USE_PAM
-			/*
-			 * Add any environmental variables that the
-			 * PAM modules may have set.
-			 */
-			environ_pam = pam_getenvlist(pamh);
-			if (environ_pam)
-				export_pam_environment();
-#endif /* USE_PAM */
-
-			/* set the su'd user's environment & umask */
-			setusercontext(lc, pwd, pwd->pw_uid, LOGIN_SETPATH|LOGIN_SETUMASK|LOGIN_SETENV);
-			if (p)
-				(void)setenv("TERM", p, 1);
-			if (chdir(pwd->pw_dir) < 0)
-				errx(1, "no directory");
+				/* set the su'd user's environment & umask */
+				setusercontext(lc, pwd, pwd->pw_uid,
+					LOGIN_SETPATH | LOGIN_SETUMASK |
+					LOGIN_SETENV);
+				if (p)
+					setenv("TERM", p, 1);
+				if (chdir(pwd->pw_dir) < 0)
+					errx(1, "no directory");
+			}
+			if (asthem || pwd->pw_uid)
+				setenv("USER", pwd->pw_name, 1);
+			setenv("HOME", pwd->pw_dir, 1);
+			setenv("SHELL", shell, 1);
 		}
-		if (asthem || pwd->pw_uid)
-			(void)setenv("USER", pwd->pw_name, 1);
-		(void)setenv("HOME", pwd->pw_dir, 1);
-		(void)setenv("SHELL", shell, 1);
+		login_close(lc);
+
+		if (iscsh == YES) {
+			if (fastlogin)
+				*np-- = "-f";
+			if (asme)
+				*np-- = "-m";
+		}
+		/* csh strips the first character... */
+		*np = asthem ? "-su" : iscsh == YES ? "_su" : "su";
+
+		if (ruid != 0)
+			syslog(LOG_NOTICE, "%s to %s%s", username, user,
+			    ontty());
+
+		execv(shell, np);
+		err(1, "%s", shell);
 	}
-
-	login_close(lc);
-
-	if (iscsh == YES) {
-		if (fastlogin)
-			*np-- = "-f";
-		if (asme)
-			*np-- = "-m";
-	}
-
-	/* csh strips the first character... */
-	*np = asthem ? "-su" : iscsh == YES ? "_su" : "su";
-
-	if (ruid != 0)
-		syslog(LOG_NOTICE, "%s to %s%s",
-		    username, user, ontty());
-
-	execv(shell, np);
-	err(1, "%s", shell);
-#ifdef USE_PAM
-	}
-#endif /* USE_PAM */
 }
 
-#ifdef USE_PAM
 static int
-export_pam_environment()
+export_pam_environment(void)
 {
 	char	**pp;
 
 	for (pp = environ_pam; *pp != NULL; pp++) {
 		if (ok_to_export(*pp))
-			(void) putenv(*pp);
+			putenv(*pp);
 		free(*pp);
 	}
 	return PAM_SUCCESS;
@@ -501,8 +415,7 @@ export_pam_environment()
  *   Solaris pam_putenv(3) man page.
  */
 static int
-ok_to_export(s)
-	const char *s;
+ok_to_export(const char *s)
 {
 	static const char *noexport[] = {
 		"SHELL", "HOME", "LOGNAME", "MAIL", "CDPATH",
@@ -522,30 +435,31 @@ ok_to_export(s)
 	}
 	return 1;
 }
-#endif /* USE_PAM */
 
 static void
-usage()
+usage(void)
 {
 	errx(1, "usage: su [%s] [login [args]]", ARGSTR);
 }
 
-int
-chshell(sh)
-	char *sh;
+static int
+chshell(char *sh)
 {
-	int  r = 0;
+	int r;
 	char *cp;
 
+	r = 0;
 	setusershell();
-	while (!r && (cp = getusershell()) != NULL)
-		r = strcmp(cp, sh) == 0;
+	do {
+		cp = getusershell();
+		r = strcmp(cp, sh);
+	} while (!r && cp != NULL);
 	endusershell();
 	return r;
 }
 
-char *
-ontty()
+static char *
+ontty(void)
 {
 	char *p;
 	static char buf[MAXPATHLEN + 4];
@@ -554,5 +468,5 @@ ontty()
 	p = ttyname(STDERR_FILENO);
 	if (p)
 		snprintf(buf, sizeof(buf), " on %s", p);
-	return (buf);
+	return buf;
 }
