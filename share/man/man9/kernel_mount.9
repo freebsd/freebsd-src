@@ -29,32 +29,36 @@
 .Dt KERNEL_MOUNT 9
 .Os
 .Sh NAME
-.Nm free_mntarg
-.Nm kernel_mount
-.Nm kernel_vmount
-.Nm mount_argb
-.Nm mount_argf
+.Nm free_mntarg ,
+.Nm kernel_mount ,
+.Nm kernel_vmount ,
+.Nm mount_arg ,
+.Nm mount_argb ,
+.Nm mount_argf ,
 .Nm mount_argsu
-.Nm mount_arg
-.Nd Functions provided as part of the kernel mount interface
+.Nd "functions provided as part of the kernel mount interface"
 .Sh SYNOPSIS
 .Ft void
 .Fn free_mntarg "struct mntarg *ma"
 .Ft int
-.Fn kernel_mount "struct mntarg *ma, int flags"
+.Fn kernel_mount "struct mntarg *ma" "int flags"
 .Ft int
-.Fn kernel_vmount "int flags, ..."
-.Ft struct mntarg *
-.Fn mount_arg "struct mntarg *ma, const char *name, const void *val, int len"
-.Ft struct mntarg *
-.Fn mount_argb "struct mntarg *ma, int flag, const char *name"
-.Ft struct mntarg *
-.Fn mount_argf "struct mntarg *ma, const char *name, const char *fmt, ..."
-.Ft struct mntarg *
-.Fn mount_argsu "struct mntarg *ma, const char *name, const void *val, int len"
+.Fn kernel_vmount "int flags" ...
+.Ft "struct mntarg *"
+.Fo mount_arg
+.Fa "struct mntarg *ma" "const char *name" "const void *val" "int len"
+.Fc
+.Ft "struct mntarg *"
+.Fn mount_argb "struct mntarg *ma" "int flag" "const char *name"
+.Ft "struct mntarg *"
+.Fn mount_argf "struct mntarg *ma" "const char *name" "const char *fmt" ...
+.Ft "struct mntarg *"
+.Fo mount_argsu
+.Fa "struct mntarg *ma" "const char *name" "const void *val" "int len"
+.Fc
 .Sh DESCRIPTION
 The
-.Xr kernel_mount 9
+.Fn kernel_mount
 family of functions are provided as an API for building a list
 of mount arguments which will be used to mount file systems
 from inside the kernel.
@@ -63,7 +67,7 @@ provides the information necessary for the kernel to control
 the
 .Xr mount 8
 utility.
-When an error occurs the process will stop.
+When an error occurs, the process will stop.
 This will not cause a
 .Xr panic 9 .
 .Pp
@@ -77,7 +81,7 @@ process is complete, it is an error otherwise.
 The
 .Fn free_mntarg
 function is used to free or clear the
-.Ft mntarg
+.Vt mntarg
 structure.
 .Pp
 The
@@ -105,7 +109,7 @@ The
 .Fn mount_arg
 function takes a plain argument and crafts parts of
 the structure with regards to various mount options.
-If the length is a value fewer than 0,
+If the length is a value less than 0,
 .Xr strlen 3
 is used.
 This argument will be referenced until either
@@ -116,14 +120,14 @@ is called.
 .Pp
 The
 .Fn mount_argb
-function is used to add Boolean arguments to
+function is used to add boolean arguments to
 the structure.
 The
 .Fa flag
-is the Boolean value and
+is the boolean value and
 .Fa name
 must start with
-.Em no ,
+.Qq Li no ,
 otherwise a panic will occur.
 .Pp
 The
@@ -136,7 +140,6 @@ The
 .Fn mount_argsu
 function will add arguments to the structure from a
 userland string.
-.Pp
 .Sh EXAMPLES
 An example of the
 .Fn *_cmount
@@ -145,49 +148,49 @@ function:
 static int
 msdosfs_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
 {
-        struct msdosfs_args args;
-        int error;
+	struct msdosfs_args args;
+	int error;
 
-        if (data == NULL)
-                return (EINVAL);
-        error = copyin(data, &args, sizeof args);
-        if (error)
-                return (error);
+	if (data == NULL)
+		return (EINVAL);
+	error = copyin(data, &args, sizeof args);
+	if (error)
+		return (error);
 
-        ma = mount_argsu(ma, "from", args.fspec, MAXPATHLEN);
-        ma = mount_arg(ma, "export", &args.export, sizeof args.export);
-        ma = mount_argf(ma, "uid", "%d", args.uid);
-        ma = mount_argf(ma, "gid", "%d", args.gid);
-        ma = mount_argf(ma, "mask", "%d", args.mask);
-        ma = mount_argf(ma, "dirmask", "%d", args.dirmask);
+	ma = mount_argsu(ma, "from", args.fspec, MAXPATHLEN);
+	ma = mount_arg(ma, "export", &args.export, sizeof args.export);
+	ma = mount_argf(ma, "uid", "%d", args.uid);
+	ma = mount_argf(ma, "gid", "%d", args.gid);
+	ma = mount_argf(ma, "mask", "%d", args.mask);
+	ma = mount_argf(ma, "dirmask", "%d", args.dirmask);
 
-        ma = mount_argb(ma, args.flags & MSDOSFSMNT_SHORTNAME, "noshortname");
-        ma = mount_argb(ma, args.flags & MSDOSFSMNT_LONGNAME, "nolongname");
-        ma = mount_argb(ma, !(args.flags & MSDOSFSMNT_NOWIN95), "nowin95");
-        ma = mount_argb(ma, args.flags & MSDOSFSMNT_KICONV, "nokiconv");
+	ma = mount_argb(ma, args.flags & MSDOSFSMNT_SHORTNAME, "noshortname");
+	ma = mount_argb(ma, args.flags & MSDOSFSMNT_LONGNAME, "nolongname");
+	ma = mount_argb(ma, !(args.flags & MSDOSFSMNT_NOWIN95), "nowin95");
+	ma = mount_argb(ma, args.flags & MSDOSFSMNT_KICONV, "nokiconv");
 
-        ma = mount_argsu(ma, "cs_win", args.cs_win, MAXCSLEN);
-        ma = mount_argsu(ma, "cs_dos", args.cs_dos, MAXCSLEN);
-        ma = mount_argsu(ma, "cs_local", args.cs_local, MAXCSLEN);
+	ma = mount_argsu(ma, "cs_win", args.cs_win, MAXCSLEN);
+	ma = mount_argsu(ma, "cs_dos", args.cs_dos, MAXCSLEN);
+	ma = mount_argsu(ma, "cs_local", args.cs_local, MAXCSLEN);
 
-        error = kernel_mount(ma, flags);
+	error = kernel_mount(ma, flags);
 
-        return (error);
+	return (error);
 }
 .Ed
 .Pp
 When working with
 .Fn kernel_vmount ,
-.Ft varargs
-must come in pairs, e.g.
-.Brq Em name , Em value .
+.Fa varargs
+must come in pairs, e.g.,
+.Brq Va name , value .
 .Bd -literal
-        error = kernel_vmount(
-            MNT_RDONLY,
-            "fstype", vfsname,
-            "fspath", "/",
-            "from", path,
-            NULL);
+	error = kernel_vmount(
+	    MNT_RDONLY,
+	    "fstype", vfsname,
+	    "fspath", "/",
+	    "from", path,
+	    NULL);
 .Ed
 .Sh SEE ALSO
 .Xr VFS 9 ,
@@ -200,9 +203,10 @@ family of functions and this manual page first
 appeared in
 .Fx 6.0 .
 .Sh AUTHORS
+.An -nosplit
 The
 .Fn kernel_mount
-family functions and API was developed by
+family of functions and API was developed by
 .An Poul-Henning Kamp Aq phk@FreeBSD.org .
 This manual page was written by
 .An Tom Rhodes Aq trhodes@FreeBSD.org .
