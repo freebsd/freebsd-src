@@ -34,7 +34,7 @@
 .Fd #include <sys/param.h>
 .Fd #include <sys/mount.h>
 .Ft int
-.Fn VFS_CHECKEXP "struct mount *mp" "struct mbuf  *nam" "int *exflagsp" "struct ucred **credanonp"
+.Fn VFS_CHECKEXP "struct mount *mp" "struct sockaddr *nam" "int *exflagsp" "struct ucred **credanonp"
 .Sh DESCRIPTION
 This is used by the NFS server to check if a mount point is exported 
 to a client.
