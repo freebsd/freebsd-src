@@ -244,28 +244,28 @@ struct ether_header eh_prototype =
 	 {0x00,0x00,0x00,0x00,0x00,0x00},
 	 ETHERTYPE_PPPOE_DISC};
 
-int stupid_isp;
+static int nonstandard;
 static int
 ngpppoe_set_ethertype(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	int val;
 
-	val = stupid_isp;
+	val = nonstandard;
 	error = sysctl_handle_int(oidp, &val, sizeof(int), req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 	if (val == 1) {
-		stupid_isp = 1;
+		nonstandard = 1;
 		eh_prototype.ether_type = ETHERTYPE_PPPOE_STUPID_DISC;
 	} else {
-		stupid_isp = 0;
+		nonstandard = 0;
 		eh_prototype.ether_type = ETHERTYPE_PPPOE_DISC;
 	}
 	return (0);
 }
 
-SYSCTL_PROC(_net_graph, OID_AUTO, stupid_isp, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_PROC(_net_graph, OID_AUTO, nonstandard_pppoe, CTLTYPE_INT | CTLFLAG_RW,
     0, sizeof(int), ngpppoe_set_ethertype, "I", "select normal or stupid ISP");
 
 union uniq {
@@ -942,7 +942,7 @@ AAA
 		length = ntohs(wh->ph.length);
 		switch(wh->eh.ether_type) {
 		case	ETHERTYPE_PPPOE_STUPID_DISC:
-			stupid_isp = 1;
+			nonstandard = 1;
 			eh_prototype.ether_type = ETHERTYPE_PPPOE_STUPID_DISC;
 			/* fall through */
 		case	ETHERTYPE_PPPOE_DISC:
@@ -1142,7 +1142,7 @@ AAA
 				 * from NEWCONNECTED to CONNECTED
 				 */
 				sp->pkt_hdr = neg->pkt->pkt_header;
-				if (stupid_isp)
+				if (nonstandard)
 					sp->pkt_hdr.eh.ether_type
 						= ETHERTYPE_PPPOE_STUPID_SESS;
 				else
@@ -1193,7 +1193,7 @@ AAA
 				 * Keep a copy of the header we will be using.
 				 */
 				sp->pkt_hdr = neg->pkt->pkt_header;
-				if (stupid_isp)
+				if (nonstandard)
 					sp->pkt_hdr.eh.ether_type
 						= ETHERTYPE_PPPOE_STUPID_SESS;
 				else
@@ -1475,7 +1475,7 @@ AAA
 			/* revert the stored header to DISC/PADT mode */
 		 	wh = &sp->pkt_hdr;
 			wh->ph.code = PADT_CODE;
-			if (stupid_isp)
+			if (nonstandard)
 				wh->eh.ether_type = ETHERTYPE_PPPOE_STUPID_DISC;
 			else
 				wh->eh.ether_type = ETHERTYPE_PPPOE_DISC;
