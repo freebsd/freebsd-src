@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/random.h>
 #include <sys/resourcevar.h>
+#include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
 #include <sys/vmmeter.h>
@@ -143,14 +144,12 @@ ithread_update(struct ithd *ithd)
 	ih = TAILQ_FIRST(&ithd->it_handlers);
 	if (ih == NULL) {
 		mtx_lock_spin(&sched_lock);
-		td->td_priority = PRI_MAX_ITHD;
-		td->td_base_pri = PRI_MAX_ITHD;
+		sched_prio(td, PRI_MAX_ITHD);
 		mtx_unlock_spin(&sched_lock);
 		return;
 	}
 	mtx_lock_spin(&sched_lock);
-	td->td_priority = ih->ih_pri;
-	td->td_base_pri = ih->ih_pri;
+	sched_prio(td, ih->ih_pri);
 	mtx_unlock_spin(&sched_lock);
 	missed = 0;
 	TAILQ_FOREACH(ih, &ithd->it_handlers, ih_next) {
