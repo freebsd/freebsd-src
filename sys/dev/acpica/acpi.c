@@ -168,7 +168,6 @@ static void
 acpi_identify(driver_t *driver, device_t parent)
 {
     device_t			child;
-    ACPI_PHYSICAL_ADDRESS	rsdp;
     int				error;
 #ifdef ENABLE_DEBUGGER
     char			*debugpoint = getenv("debug.acpi.debugger");
@@ -205,8 +204,7 @@ acpi_identify(driver_t *driver, device_t parent)
     if (debugpoint && !strcmp(debugpoint, "tables"))
 	acpi_EnterDebugger();
 #endif
-    if (((error = AcpiFindRootPointer(&rsdp)) != AE_OK) ||
-	((error = AcpiLoadTables(rsdp)) != AE_OK)) {
+    if ((error = AcpiLoadTables()) != AE_OK) {
 	printf("ACPI: table load failed: %s\n", acpi_strerror(error));
 	return_VOID;
     }
@@ -1095,7 +1093,7 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 	    /* wait for the WAK_STS bit */
 	    Count = 0;
 	    while (!(AcpiHwRegisterBitAccess(ACPI_READ, ACPI_MTX_LOCK, WAK_STS))) {
-		AcpiOsSleepUsec(1000);
+		AcpiOsSleep(0, 1);
 		/*
 		 * Some BIOSes don't set WAK_STS at all,
 		 * give up waiting for wakeup if we time out.
@@ -1258,19 +1256,6 @@ struct acpi_staticbuf {
     ACPI_BUFFER	buffer;
     char	data[512];
 };
-
-char *
-acpi_strerror(ACPI_STATUS excep)
-{
-    static struct acpi_staticbuf	buf;
-
-    buf.buffer.Length = 512;
-    buf.buffer.Pointer = &buf.data[0];
-
-    if (AcpiFormatException(excep, &buf.buffer) == AE_OK)
-	return(buf.buffer.Pointer);
-    return("(error formatting exception)");
-}
 
 char *
 acpi_name(ACPI_HANDLE handle)
