@@ -17,7 +17,7 @@
  *
  * From: Version 1.9, Wed Oct  4 18:58:15 MSK 1995
  *
- * $Id: if_spppsubr.c,v 1.18 1997/05/11 10:04:24 joerg Exp $
+ * $Id: if_spppsubr.c,v 1.19 1997/05/19 22:03:09 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -65,17 +65,17 @@
 /*
  * Interface flags that can be set in an ifconfig command.
  *
- * Setting link0 will cause the link to auto-dial only as packets
- * arrive to be sent.
- *
- * Setting link1 will make the link passive, i.e. it will be marked
+ * Setting link0 will make the link passive, i.e. it will be marked
  * as being administrative openable, but won't be opened to begin
  * with.  Incoming calls will be answered, or subsequent calls with
  * -link1 will cause the administrative open of the LCP layer.
+ *
+ * Setting link1 will cause the link to auto-dial only as packets
+ * arrive to be sent.
  */
 
-#define IFF_AUTO	IFF_LINK0	/* auto-dial on output */
-#define IFF_PASSIVE	IFF_LINK1	/* wait passively for connection */
+#define IFF_PASSIVE	IFF_LINK0	/* wait passively for connection */
+#define IFF_AUTO	IFF_LINK1	/* auto-dial on output */
 
 #define PPP_ALLSTATIONS 0xff            /* All-Stations broadcast address */
 #define PPP_UI          0x03            /* Unnumbered Information */
@@ -483,7 +483,7 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 	struct sppp *sp = (struct sppp*) ifp;
 	struct ppp_header *h;
 	struct ifqueue *ifq;
-	int s;
+	int s, rv = 0;
 
 	s = splimp();
 
@@ -551,13 +551,19 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 	case AF_INET:   /* Internet Protocol */
 		if (sp->pp_flags & PP_CISCO)
 			h->protocol = htons (ETHERTYPE_IP);
-		else if (sp->state[IDX_IPCP] == STATE_OPENED)
-			h->protocol = htons (PPP_IP);
 		else {
-			m_freem (m);
-			++ifp->if_oerrors;
-			splx (s);
-			return (ENETDOWN);
+			/*
+			 * Don't choke with an ENETDOWN early.  It's
+			 * possible that we just started dialing out,
+			 * so don't drop the packet immediately.  If
+			 * we notice that we run out of buffer space
+			 * below, we will however remember that we are
+			 * not ready to carry IP packets, and return
+			 * ENETDOWN, as opposed to ENOBUFS.
+			 */
+			h->protocol = htons(PPP_IP);
+			if (sp->state[IDX_IPCP] != STATE_OPENED)
+				rv = ENETDOWN;
 		}
 		break;
 #endif
@@ -597,7 +603,7 @@ nosupport:
 		m_freem (m);
 		++ifp->if_oerrors;
 		splx (s);
-		return (ENOBUFS);
+		return (rv? rv: ENOBUFS);
 	}
 	IF_ENQUEUE (ifq, m);
 	if (! (ifp->if_flags & IFF_OACTIVE))
