@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.2 1995/04/21 10:05:36 jkh Exp $
+# $Id: Makefile,v 1.3 1995/04/21 10:23:23 jkh Exp $
 
 PROG=   pkg_manage
 SRCS=   pkg_main.c pkg_manage.c pkg_ui.c version.c
@@ -10,8 +10,9 @@ CFLAGS+= -Wall -Wstrict-prototypes -DHELP_PATH=\"${HELPDIR}/\" \
 
 HELPDIR = /usr/share/misc/pkg_manage
 
-HELPS=  pkg_view-inst.hlp pkg_del-inst.hlp pkg_preview.hlp \
-	pkg_install.hlp pkg_main.hlp
+HELPS=	pkg_del-inst.hlp        pkg_install.hlp         pkg_preview_fs.hlp \
+	pkg_del_inst.hlp        pkg_main.hlp            pkg_view-inst.hlp  \
+	pkg_ds_install.hlp      pkg_preview.hlp         pkg_view_inst.hlp
 
 afterinstall:
 	@if [ ! -d ${HELPDIR} ]; then rm -f ${HELPDIR}; mkdir -p ${HELPDIR}; fi

@@ -60,7 +60,8 @@ typedef struct {
 #define INSTALL_HLP	HELP_PATH##"pkg_install.hlp"
 #define MAIN_HLP 	HELP_PATH##"pkg_main.hlp"
 #define DS_INSTALL_HLP  HELP_PATH##"pkg_ds_install.hlp"
-
+#define PREVIEW_HLP	HELP_PATH##"pkg_preview.hlp"
+#define PREVIEW_FS_HLP  HELP_PATH##"pkg_preview_fs.hlp"
 
 /*
  * prototypes
@@ -68,7 +69,6 @@ typedef struct {
 
 void	run_menu(void);
 void	get_pkginfo(void);
-void 	FreeMnu(unsigned char **mnu, int n);
 void    FreeInfo(void);
 void	install_package(char *fname);
 int	get_pkg_index(char *selection);

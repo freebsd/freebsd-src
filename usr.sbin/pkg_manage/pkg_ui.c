@@ -147,6 +147,45 @@ delete_installed(void)
 } /* delete_installed() */
 
 void
+preview_pkg(void)
+/* 
+ * Desc: View the package description and comment before installation
+ */
+{
+    char        *fname, *tmp_file;
+    char        args[512], title[512];
+    int		err;
+
+    use_helpfile(PREVIEW_FS_HLP);
+    fname = dialog_fselect(".", "*.tgz");
+    while (fname) {
+        use_helpfile(PREVIEW_HLP);
+        use_helpline("use PgUp and PgDn and arrow-keys to move through the text");
+        tmp_file = tempnam(NULL, "pkg.");
+	if (!tmp_file) {
+	    fprintf(stderr, "preview_pkg: Could not allocate space fore tmp_file");
+	    exit(-1);
+	}
+        sprintf(args, "-n %s", fname);
+	err = exec_catch_errors(PKG_ADD, args, tmp_file);
+	if (!err) {
+	    sprintf(title, "Preview package <%s>", fname);
+	    dialog_textbox(title, tmp_file, LINES, COLS);
+	}
+	unlink(tmp_file);
+        free(fname);
+        free(tmp_file);
+	use_helpfile(PREVIEW_FS_HLP);
+        fname = dialog_fselect(".", "*.tgz");
+    }
+    if (fname) free(fname);
+    use_helpfile(NULL);
+    use_helpline(NULL);
+
+    return;
+} /* preview_pkg() */
+
+void
 install_batch(void)
 /*
  * Desc: install several packages. 
@@ -209,9 +248,25 @@ install_batch(void)
     }
 
     names = (char **) malloc( sizeof(char *) * nf);
+    if (!names) {
+	fprintf(stderr, "install_batch(): Error mallocing space for names\n");
+	exit(-1);
+    }
     comment = (char **) malloc( sizeof(char *) * nf );
+    if (!comment) {
+	fprintf(stderr, "install_batch(): Error malloc'ing space for comment\n");
+	exit(-1);
+    }    
     desc = (char **) malloc( sizeof(char *) * nf );
+    if (!desc) {
+	fprintf(stderr, "install_batch(): Error malloc'ing space for desc\n");
+	exit(-1);
+    }
     sizes = (long *) malloc( sizeof(long) * nf );
+    if (!sizes) {
+	fprintf(stderr, "install_batch(): Error malloc'ing space for desc\n");
+	exit(-1);
+    }
 
     /* get_desc extracts the info from the file names[i] and puts the */
     /* comment in comment[i] and the description in desc[i], space is */
@@ -227,7 +282,11 @@ install_batch(void)
 	fprintf(stderr, "install_batch(): Error malloc'ing space for tmpfile\n");
 	exit(1);
     }
-    sprintf(tmp_dir, "/tmp/%s", tmp_file);
+    if (getenv("TMPDIR")) {
+	sprintf(tmp_dir, "%s/%s", getenv("TMP_DIR"), tmp_file);
+    } else {
+	sprintf(tmp_dir, "/tmp/%s", tmp_file);
+    }
     free(tmp_file);
     if (mkdir(tmp_dir, S_IRWXU)) {
 	dialog_notify("Could not create temporary directory in /tmp, exiting");
@@ -242,6 +301,10 @@ install_batch(void)
 
 
     w = dupwin(curscr);
+    if (!w) {
+	fprintf(stderr, "install_batch(): Error malloc'ing new window\n");
+	exit(-1);
+    }
     a = (int *) malloc( nf * sizeof(int) );
     j = 0;
     for (i=0; i<nf; i++) {
@@ -407,10 +470,10 @@ install_batch(void)
 	i=0;
 	n=0;
 	while (i < nf) {
-	    if ((pkg_obj->seld[i]) && (already_installed(names[i+p]))) {
+	    if ((pkg_obj->seld[i]) && (already_installed(names[i]))) {
 		/* popup a warning and remove the package from the */
 		/* packages that are going to be installed */
-		sprintf(msg, " The following package is already installed:\n %s (%s)\n",
+		sprintf(msg, " The following package is already installed:\n\n   %s (%s)\n\n",
 			names[i], fnames[i]);
 		strcat(msg, " This package will be skipped\n");
 		strcat(msg, " If you want to install it anyway, remove it first");
@@ -424,7 +487,7 @@ install_batch(void)
 	for (i=0; i<nf; i++) {
 	    if (pkg_obj->seld[i]) {
 		dialog_gauge("Installing packages:", names[i], LINES/2-3,
-			     COLS/2-30, 7, 60, (int) ((float) i/n*100));
+			     COLS/2-30, 7, 60, (int) ((float) (i+1)/n*100));
 		install_package(fnames[i]);
 	    }
 	}
@@ -462,8 +525,9 @@ run_menu(void)
     unsigned char *pkg_menu[] = {
 	"1. View installed", "Overview of the installed packages",
 	"2. Delete installed", "Delete an installed package",
-	"3. Install packages", "Install one or more packages",
-	"4. Quit", "Leave the program",
+	"3. Preview package", "Preview commands executed on installation",
+	"4. Install packages", "Install one or more packages",
+	"5. Quit", "Leave the program",
     };
 
     quit_pkg = FALSE;
@@ -471,7 +535,7 @@ run_menu(void)
 	use_helpline("F1=help, use arrow-keys or digit to select option and press enter");
 	use_helpfile(MAIN_HLP);
 	if (dialog_menu("Package Manager", "Choose one of the options",
-		    LINES, COLS, 4, 4, pkg_menu, selection, &ch, &sc)) {
+		    LINES, COLS, 5, 5, pkg_menu, selection, &ch, &sc)) {
 	    quit_pkg = TRUE;
 	} else {
 	    sel = atoi(selection);
@@ -482,10 +546,13 @@ run_menu(void)
 	    case 2: /* Delete installed package */
 		delete_installed();
 		break;
-	    case 3: /* Install multiple packages */
+	    case 3: /* Preview install */
+		preview_pkg();
+		break;
+	    case 4: /* Install multiple packages */
 		install_batch();
 		break;
-	    case 4: /* Quit */
+	    case 5: /* Quit */
 		quit_pkg = TRUE;
 		break;
 	    }
