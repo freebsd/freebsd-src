@@ -41,7 +41,7 @@
 #include <sys/syscall.h>
 
 #include <machine/asm.h>
-#include <machine/trap.h>
+#include <machine/utrap.h>
 
 #define	ERROR() \
 	mov	%o7, %g1 ; \
