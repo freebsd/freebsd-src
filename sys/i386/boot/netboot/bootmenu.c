@@ -12,11 +12,12 @@ extern int hostnamelen;
 extern unsigned long netmask;
 extern eth_reset();
 extern short aui;
+extern int howto;
 
 int cmd_ip(), cmd_server(), cmd_kernel(), cmd_help(), exit();
 int cmd_rootfs(), cmd_swapfs(), cmd_interface(), cmd_hostname();
 int cmd_netmask(), cmd_swapsize(), cmd_swapopts(), cmd_rootopts();
-int cmd_aui(), cmd_gateway();
+int cmd_aui(), cmd_gateway(), cmd_flags();
 
 struct bootcmds_t {
 	char *name;
@@ -39,6 +40,7 @@ struct bootcmds_t {
 	{"diskboot",	exit,		"          boot from disk"},
 	{"autoboot",	NULL,		"          continue"},
         {"trans",       cmd_aui,        "<on|off>     turn transceiver on|off"},
+	{"flags",	cmd_flags,	"[bcdhsv]  set boot flags"},
 	{NULL,		NULL,		NULL}
 };
 
@@ -281,6 +283,32 @@ cmd_swapopts(p)
 			printf (",udp");
 		printf ("\r\n");
         }
+}
+
+/**************************************************************************
+CMD_FLAGS - Set boot flags
+**************************************************************************/
+cmd_flags(buf)
+	char *buf;
+{
+	char p;
+	int flags = 0;
+
+	while ((p = *buf++))
+	switch (p) {
+	case 'b':	flags |= RB_HALT; break;
+	case 'c':	flags |= RB_CONFIG; break;
+	case 'd':	flags |= RB_KDB; break;
+	case 'h':	flags ^= RB_SERIAL; break;
+	case 's':	flags |= RB_SINGLE; break;
+	case 'v':	flags |= RB_VERBOSE; break;
+	case ' ':
+	case '\t':	break;
+	default:	printf("Unknown boot flag: %c\n", p);
+	}
+
+	howto = flags;
+	return(0);
 }
 
 /**************************************************************************
