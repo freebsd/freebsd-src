@@ -56,7 +56,6 @@
 46	-		-
 47	gsc		Genius Scanner
 48	cy		Cyclades
-50	card		pcmcia cards
 51	joy		joystick
 52	tun		IP tunnel device
 53	snp		tty snoop
