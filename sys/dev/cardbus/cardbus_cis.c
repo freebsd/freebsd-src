@@ -739,6 +739,7 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 				if (barlist[tmp]->res == NULL) {
 					DEVPRINTF((cbdev, "Cannot pre-allocate "
 					    "memory for cardbus device\n"));
+					free(barlist, M_DEVBUF);
 					return (ENOMEM);
 				}
 				barlist[tmp]->start =
@@ -795,6 +796,7 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 				if (barlist[tmp]->res == NULL) {
 					DEVPRINTF((cbdev, "Cannot pre-allocate "
 					    "IO port for cardbus device\n"));
+					free(barlist, M_DEVBUF);
 					return (ENOMEM);
 				}
 				barlist[tmp]->start =
@@ -811,7 +813,6 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 	}
 
 	/* Allocate IRQ */
-	/* XXX: Search CIS for IRQ description */
 	rid = 0;
 	res = bus_alloc_resource(cbdev, SYS_RES_IRQ, &rid, 0, ~0UL, 1,
 	    RF_SHAREABLE);
@@ -822,6 +823,7 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 	dinfo->pci.cfg.intline = rman_get_start(res);
 	pci_write_config(child, PCIR_INTLINE, rman_get_start(res), 1);
 
+	free(barlist, M_DEVBUF);
 	return (0);
 }
 
