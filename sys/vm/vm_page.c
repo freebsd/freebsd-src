@@ -1323,6 +1323,8 @@ vm_page_try_to_free(vm_page_t m)
 {
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	if (m->object != NULL)
+		VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if (m->dirty || m->hold_count || m->busy || m->wire_count ||
 	    (m->flags & (PG_BUSY|PG_UNMANAGED))) {
 		return (0);
