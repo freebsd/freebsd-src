@@ -57,9 +57,9 @@ static MALLOC_DEFINE(M_KTRACE, "KTRACE", "KTRACE");
 #ifdef KTRACE
 static struct ktr_header *ktrgetheader(int type);
 static void ktrwrite(struct vnode *, struct ktr_header *, struct uio *);
-static int ktrcanset(struct proc *,struct proc *);
-static int ktrsetchildren(struct proc *,struct proc *,int,int,struct vnode *);
-static int ktrops(struct proc *,struct proc *,int,int,struct vnode *);
+static int ktrcanset(struct thread *, struct proc *);
+static int ktrsetchildren(struct thread *, struct proc *, int, int, struct vnode *);
+static int ktrops(struct thread *, struct proc *, int, int, struct vnode *);
 
 
 static struct ktr_header *
@@ -325,16 +325,20 @@ ktrace(td, uap)
 	if (ops == KTROP_CLEARFILE) {
 		sx_slock(&allproc_lock);
 		LIST_FOREACH(p, &allproc, p_list) {
+			PROC_LOCK(p);
 			if (p->p_tracep == vp) {
-				if (ktrcanset(curp, p) && p->p_tracep == vp) {
+				if (ktrcanset(td, p) && p->p_tracep == vp) {
 					p->p_tracep = NULL;
 					p->p_traceflag = 0;
+					PROC_UNLOCK(p);
 					(void) vn_close(vp, FREAD|FWRITE,
 						td->td_ucred, td);
 				} else {
+					PROC_UNLOCK(p);
 					error = EPERM;
 				}
-			}
+			} else
+				PROC_UNLOCK(p);
 		}
 		sx_sunlock(&allproc_lock);
 		goto done;
@@ -367,9 +371,9 @@ ktrace(td, uap)
 		PGRP_UNLOCK(pg);
 		LIST_FOREACH(p, &pg->pg_members, p_pglist)
 			if (descend)
-				ret |= ktrsetchildren(curp, p, ops, facs, vp);
+				ret |= ktrsetchildren(td, p, ops, facs, vp);
 			else
-				ret |= ktrops(curp, p, ops, facs, vp);
+				ret |= ktrops(td, p, ops, facs, vp);
 		PGRPSESS_SUNLOCK();
 	} else {
 		/*
@@ -381,10 +385,11 @@ ktrace(td, uap)
 			goto done;
 		}
 		PROC_UNLOCK(p);
+		/* XXX: UNLOCK above has a race */
 		if (descend)
-			ret |= ktrsetchildren(curp, p, ops, facs, vp);
+			ret |= ktrsetchildren(td, p, ops, facs, vp);
 		else
-			ret |= ktrops(curp, p, ops, facs, vp);
+			ret |= ktrops(td, p, ops, facs, vp);
 	}
 	if (!ret)
 		error = EPERM;
@@ -442,31 +447,32 @@ utrace(td, uap)
 
 #ifdef KTRACE
 static int
-ktrops(curp, p, ops, facs, vp)
-	struct proc *p, *curp;
+ktrops(td, p, ops, facs, vp)
+	struct thread *td;
+	struct proc *p;
 	int ops, facs;
 	struct vnode *vp;
 {
+	struct vnode *vtmp = NULL, *newvp = NULL;
 
-	if (!ktrcanset(curp, p))
+	PROC_LOCK(p);
+	if (!ktrcanset(td, p)) {
+		PROC_UNLOCK(p);
 		return (0);
+	}
 	if (ops == KTROP_SET) {
 		if (p->p_tracep != vp) {
 			struct vnode *vtmp;
 
 			/*
-			 * if trace file already in use, relinquish
+			 * if trace file already in use, relinquish below
 			 */
-			VREF(vp);
-			while ((vtmp = p->p_tracep) != NULL) {
-				p->p_tracep = NULL;
-				vrele(vtmp);
-			}
-			p->p_tracep = vp;
+			newvp = vp;
+			vtmp = p->p_tracep;
+			p->p_tracep = NULL;
 		}
 		p->p_traceflag |= facs;
-		/* XXX: Not safe */
-		if (curp->p_ucred->cr_uid == 0)
+		if (td->td_ucred->cr_uid == 0)
 			p->p_traceflag |= KTRFAC_ROOT;
 	} else {
 		/* KTROP_CLEAR */
@@ -475,19 +481,36 @@ ktrops(curp, p, ops, facs, vp)
 
 			/* no more tracing */
 			p->p_traceflag = 0;
-			if ((vtmp = p->p_tracep) != NULL) {
-				p->p_tracep = NULL;
-				vrele(vtmp);
-			}
+			vtmp = p->p_tracep;
+			p->p_tracep = NULL;
 		}
 	}
+	PROC_UNLOCK(p);
 
+	/* Release old trace file if requested. */
+	if (vtmp != NULL)
+		vrele(vtmp);
+
+	/* Setup new trace file if requested. */
+	/*
+	 * XXX: Doing this before the PROC_UNLOCK above would result in
+	 * fewer lock operations but would break old behavior where the
+	 * above vrele() would not be traced when changing trace files.
+	 */
+	if (newvp != NULL) {
+		VREF(newvp);
+		PROC_LOCK(p);
+		p->p_tracep = newvp;
+		PROC_UNLOCK(p);
+	}
+			
 	return (1);
 }
 
 static int
-ktrsetchildren(curp, top, ops, facs, vp)
-	struct proc *curp, *top;
+ktrsetchildren(td, top, ops, facs, vp)
+	struct thread *td;
+	struct proc *top;
 	int ops, facs;
 	struct vnode *vp;
 {
@@ -497,7 +520,7 @@ ktrsetchildren(curp, top, ops, facs, vp)
 	p = top;
 	sx_slock(&proctree_lock);
 	for (;;) {
-		ret |= ktrops(curp, p, ops, facs, vp);
+		ret |= ktrops(td, p, ops, facs, vp);
 		/*
 		 * If this process has children, descend to them next,
 		 * otherwise do any siblings, and if done with this level,
@@ -589,15 +612,17 @@ ktrwrite(vp, kth, uio)
  * so, only root may further change it.
  */
 static int
-ktrcanset(callp, targetp)
-	struct proc *callp, *targetp;
+ktrcanset(td, targetp)
+	struct thread *td;
+	struct proc *targetp;
 {
 
+	PROC_LOCK_ASSERT(targetp, MA_OWNED);
 	if (targetp->p_traceflag & KTRFAC_ROOT &&
-	    suser_cred(callp->p_ucred, PRISON_ROOT))
+	    suser_cred(td->td_ucred, PRISON_ROOT))
 		return (0);
 
-	if (p_candebug(callp, targetp) != 0)
+	if (p_candebug(td->td_proc, targetp) != 0)
 		return (0);
 
 	return (1);
