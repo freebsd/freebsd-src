@@ -42,6 +42,7 @@
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/mutex.h>
+#include <sys/mount.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>

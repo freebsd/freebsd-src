@@ -248,8 +248,8 @@ extern int nfs_debug;
 
 #endif
 
-int	nfs_init(struct vfsconf *vfsp);
-int	nfs_uninit(struct vfsconf *vfsp);
+vfs_init_t nfs_init;
+vfs_uninit_t nfs_uninit;
 int	nfs_mountroot(struct mount *mp, struct thread *td);
 int	nfs_send(struct socket *, struct sockaddr *, struct mbuf *,
 	    struct nfsreq *);

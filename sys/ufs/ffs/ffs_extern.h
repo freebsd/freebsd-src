@@ -65,7 +65,7 @@ ufs2_daddr_t ffs_blkpref_ufs1(struct inode *, ufs_lbn_t, int, ufs1_daddr_t *);
 ufs2_daddr_t ffs_blkpref_ufs2(struct inode *, ufs_lbn_t, int, ufs2_daddr_t *);
 void	ffs_clrblock(struct fs *, u_char *, ufs1_daddr_t);
 void	ffs_clusteracct	(struct fs *, struct cg *, ufs1_daddr_t, int);
-int	ffs_fhtovp(struct mount *, struct fid *, struct vnode **);
+vfs_fhtovp_t ffs_fhtovp;
 int	ffs_flushfiles(struct mount *, int, struct thread *);
 void	ffs_fragacct(struct fs *, int, int32_t [], int);
 int	ffs_freefile(struct fs *, struct vnode *, ino_t, int );
@@ -75,8 +75,7 @@ void	ffs_load_inode(struct buf *, struct inode *, struct malloc_type *,
 int	ffs_mountfs(struct vnode *, struct mount *, struct thread *,
 	     struct malloc_type *);
 int	ffs_mountroot(void);
-int	ffs_mount(struct mount *, char *, caddr_t, struct nameidata *,
-	    struct thread *);
+vfs_mount_t ffs_mount;
 int	ffs_reallocblks(struct vop_reallocblks_args *);
 int	ffs_realloccg(struct inode *, ufs2_daddr_t, ufs2_daddr_t,
 	    ufs2_daddr_t, int, int, struct ucred *, struct buf **);
@@ -86,16 +85,16 @@ void	ffs_snapremove(struct vnode *vp);
 int	ffs_snapshot(struct mount *mp, char *snapfile);
 void	ffs_snapshot_mount(struct mount *mp);
 void	ffs_snapshot_unmount(struct mount *mp);
-int	ffs_statfs(struct mount *, struct statfs *, struct thread *);
-int	ffs_sync(struct mount *, int, struct ucred *, struct thread *);
+vfs_statfs_t ffs_statfs;
+vfs_sync_t ffs_sync;
 int	ffs_truncate(struct vnode *, off_t, int, struct ucred *, struct thread *);
-int	ffs_unmount(struct mount *, int, struct thread *);
+vfs_unmount_t ffs_unmount;
 int	ffs_update(struct vnode *, int);
 int	ffs_valloc(struct vnode *, int, struct ucred *, struct vnode **);
 
 int	ffs_vfree(struct vnode *, ino_t, int);
-int	ffs_vget(struct mount *, ino_t, int, struct vnode **);
-int	ffs_vptofh(struct vnode *, struct fid *);
+vfs_vget_t ffs_vget;
+vfs_vptofh_t ffs_vptofh;
 
 extern vop_t **ffs_vnodeop_p;
 extern vop_t **ffs_specop_p;

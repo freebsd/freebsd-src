@@ -94,14 +94,11 @@ static void	nfs_decode_args(struct nfsmount *nmp, struct nfs_args *argp);
 static int	mountnfs(struct nfs_args *, struct mount *,
 		    struct sockaddr *, char *, char *, struct vnode **,
 		    struct ucred *cred);
-static int	nfs_mount(struct mount *mp, char *path, caddr_t data,
-		    struct nameidata *ndp, struct thread *td);
-static int	nfs_unmount(struct mount *mp, int mntflags, struct thread *td);
-static int	nfs_root(struct mount *mp, struct vnode **vpp);
-static int	nfs_statfs(struct mount *mp, struct statfs *sbp,
-		    struct thread *td);
-static int	nfs_sync(struct mount *mp, int waitfor, struct ucred *cred,
-		    struct thread *td);
+static vfs_mount_t nfs_mount;
+static vfs_unmount_t nfs_unmount;
+static vfs_root_t nfs_root;
+static vfs_statfs_t nfs_statfs;
+static vfs_sync_t nfs_sync;
 
 /*
  * nfs vfs operations.
