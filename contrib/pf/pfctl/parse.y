@@ -2737,7 +2737,7 @@ natrule		: nataction interface af proto fromto tag redirpool pooltype
 				memcpy(&r.rpool.key, $8.key,
 				    sizeof(struct pf_poolhashkey));
 
-			if ($9 != NULL) {
+			if ($9 != 0) {
 				if (r.action != PF_NAT) {
 					yyerror("the 'static-port' option is "
 					    "only valid with nat rules");
