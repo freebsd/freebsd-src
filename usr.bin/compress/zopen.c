@@ -71,6 +71,7 @@ static char sccsid[] = "@(#)zopen.c	8.1 (Berkeley) 6/27/93";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "zopen.h"
 
 #define	BITS		16		/* Default bits. */
 #define	HSIZE		69001		/* 95% occupancy */
