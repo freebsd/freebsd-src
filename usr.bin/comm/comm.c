@@ -62,15 +62,13 @@ __FBSDID("$FreeBSD$");
 
 const char *tabs[] = { "", "\t", "\t\t" };
 
-FILE   *file(char *);
+FILE   *file(const char *);
 void	show(FILE *, const char *, char *);
-int     stricoll(char *, char *);
+int     stricoll(const char *, const char *);
 static void	usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int comp, file1done = 0, file2done = 0, read1, read2;
 	int ch, flag1, flag2, flag3, iflag;
@@ -170,10 +168,7 @@ main(argc, argv)
 }
 
 void
-show(fp, offset, buf)
-	FILE *fp;
-	const char *offset;
-	char *buf;
+show(FILE *fp, const char *offset, char *buf)
 {
 
 	do {
@@ -182,8 +177,7 @@ show(fp, offset, buf)
 }
 
 FILE *
-file(name)
-	char *name;
+file(const char *name)
 {
 	FILE *fp;
 
@@ -196,15 +190,14 @@ file(name)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: comm [-123i] file1 file2\n");
 	exit(1);
 }
 
 int
-stricoll(s1, s2)
-	char *s1, *s2;
+stricoll(const char *s1, const char *s2)
 {
 	char *p, line1[MAXLINELEN], line2[MAXLINELEN];
 
