@@ -134,8 +134,8 @@ apecs_pcib_maxslots(device_t dev)
 } while (0)
 
 u_int32_t
-apecs_pcib_read_config(device_t dev, int b, int s, int f,
-		       int reg, int width)
+apecs_pcib_read_config(device_t dev, u_int b, u_int s, u_int f,
+		       u_int reg, int width)
 {
 	switch (width) {
 	case 1:
@@ -151,8 +151,8 @@ apecs_pcib_read_config(device_t dev, int b, int s, int f,
 }
 
 static void
-apecs_pcib_write_config(device_t dev, int b, int s, int f,
-			int reg, u_int32_t val, int width)
+apecs_pcib_write_config(device_t dev, u_int b, u_int s, u_int f,
+			u_int reg, u_int32_t val, int width)
 {
 	switch (width) {
 	case 1:

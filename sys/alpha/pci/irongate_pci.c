@@ -147,8 +147,8 @@ irongate_check_abort(void)
 } while (0)
 
 static u_int32_t
-irongate_pcib_read_config(device_t dev, int b, int s, int f,
-			  int reg, int width)
+irongate_pcib_read_config(device_t dev, u_int b, u_int s, u_int f,
+			  u_int reg, int width)
 {
 	switch (width) {
 	case 1:
@@ -164,8 +164,8 @@ irongate_pcib_read_config(device_t dev, int b, int s, int f,
 }
 
 static void
-irongate_pcib_write_config(device_t dev, int b, int s, int f,
-			   int reg, u_int32_t val, int width)
+irongate_pcib_write_config(device_t dev, u_int b, u_int s, u_int f,
+			   u_int reg, u_int32_t val, int width)
 {
 	switch (width) {
 	case 1:

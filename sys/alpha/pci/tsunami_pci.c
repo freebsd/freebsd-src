@@ -217,8 +217,8 @@ tsunami_check_abort(void)
 } while (0)
 
 static u_int32_t
-tsunami_pcib_read_config(device_t dev, int b, int s, int f,
-			 int reg, int width)
+tsunami_pcib_read_config(device_t dev, u_int b, u_int s, u_int f,
+			 u_int reg, int width)
 {
 	int h = device_get_unit(dev);
 	switch (width) {
@@ -235,8 +235,8 @@ tsunami_pcib_read_config(device_t dev, int b, int s, int f,
 }
 
 static void
-tsunami_pcib_write_config(device_t dev, int b, int s, int f,
-			  int reg, u_int32_t val, int width)
+tsunami_pcib_write_config(device_t dev, u_int b, u_int s, u_int f,
+			  u_int reg, u_int32_t val, int width)
 {
 	int h = device_get_unit(dev);
 	switch (width) {

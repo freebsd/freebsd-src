@@ -298,7 +298,7 @@ cia_check_abort(void)
 } while (0)
 
 static u_int32_t
-cia_pcib_swiz_read_config(int b, int s, int f, int reg, int width)
+cia_pcib_swiz_read_config(u_int b, u_int s, u_int f, u_int reg, int width)
 {
 	switch (width) {
 	case 1:
@@ -314,7 +314,7 @@ cia_pcib_swiz_read_config(int b, int s, int f, int reg, int width)
 }
 
 static void
-cia_pcib_swiz_write_config(int b, int s, int f, int reg,
+cia_pcib_swiz_write_config(u_int b, u_int s, u_int f, u_int reg,
 			   u_int32_t val, int width)
 {
 	switch (width) {
@@ -330,7 +330,7 @@ cia_pcib_swiz_write_config(int b, int s, int f, int reg,
 }
 
 static u_int32_t
-cia_pcib_bwx_read_config(int b, int s, int f, int reg, int width)
+cia_pcib_bwx_read_config(u_int b, u_int s, u_int f, u_int reg, int width)
 {
 	switch (width) {
 	case 1:
@@ -346,8 +346,8 @@ cia_pcib_bwx_read_config(int b, int s, int f, int reg, int width)
 }
 
 static void
-cia_pcib_bwx_write_config(int b, int s, int f, int reg,
-			  u_int32_t val, int width)
+cia_pcib_bwx_write_config(u_int b, u_int s, u_int f, u_int reg,
+			  u_int32_t val, u_int width)
 {
 	switch (width) {
 	case 1:
