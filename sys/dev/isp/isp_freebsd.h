@@ -244,6 +244,7 @@ struct isposinfo {
 	XS_SETERR(ccb, CAM_REQ_INPROG), (ccb)->ccb_h.spriv_field0 = 0
 
 #define	XS_SAVE_SENSE(xs, sp)				\
+	(xs)->ccb_h.status |= CAM_AUTOSNS_VALID,	\
 	bcopy(sp->req_sense_data, &(xs)->sense_data,	\
 	    imin(XS_SNSLEN(xs), sp->req_sense_len))
 
@@ -358,7 +359,7 @@ isp_mbox_wait_complete(struct ispsoftc *isp)
 		if (isp->isp_mboxbsy != 0) {
 			isp_prt(isp, ISP_LOGWARN,
 			    "Interrupting Mailbox Command (0x%x) Timeout",
-			    isp->isp_mboxtmp[0]);
+			    isp->isp_lastmbxcmd);
 			isp->isp_mboxbsy = 0;
 		}
 		isp->isp_osinfo.mboxwaiting = 0;
@@ -375,7 +376,7 @@ isp_mbox_wait_complete(struct ispsoftc *isp)
 		if (isp->isp_mboxbsy != 0) {
 			isp_prt(isp, ISP_LOGWARN,
 			    "Polled Mailbox Command (0x%x) Timeout",
-			    isp->isp_mboxtmp[0]);
+			    isp->isp_lastmbxcmd);
 		}
 	}
 }
