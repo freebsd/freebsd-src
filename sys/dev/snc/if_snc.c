@@ -35,13 +35,8 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/sockio.h>
-#include <sys/mbuf.h>
 #include <sys/socket.h>
-#include <sys/syslog.h>
 
-#include <sys/module.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
@@ -51,10 +46,7 @@
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/if_media.h>
-#include <net/if_dl.h>
-#include <net/if_mib.h>
 
-#include <net/bpf.h>
 #include "opt_bdg.h"
 #ifdef BRIDGE
 #include <net/bridge.h>

@@ -44,16 +44,12 @@
 #include <sys/bus.h>
 #include <machine/bus.h>
 
-#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/if_media.h>
-#include <net/if_mib.h>
 
-#include <dev/pccard/pccardvar.h>
 
 #include <dev/snc/dp83932var.h>
-#include <dev/snc/dp83932reg.h>
 #include <dev/snc/if_sncvar.h>
 #include <dev/snc/if_sncreg.h>
 
