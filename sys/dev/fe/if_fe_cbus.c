@@ -320,7 +320,7 @@ fe_probe_re1000(device_t dev)
 	fe_inblk(sc, 0x18, sc->sc_enaddr, ETHER_ADDR_LEN);
 
 	/* Make sure it is Allied-Telesis's.  */
-	if (!valid_Ether_p(sc->sc_enaddr, 0x0000F4))
+	if (!fe_valid_Ether_p(sc->sc_enaddr, 0x0000F4))
 		return ENXIO;
 #if 1
 	/* Calculate checksum.  */
@@ -371,7 +371,7 @@ fe_probe_jli_re1000p(struct fe_softc * sc, u_char const * eeprom)
 	/* Get our station address from EEPROM, and make sure the
            EEPROM contains Allied-Telesis's address.  */
 	bcopy(eeprom + 8, sc->sc_enaddr, ETHER_ADDR_LEN);
-	if (!valid_Ether_p(sc->sc_enaddr, 0x0000F4))
+	if (!fe_valid_Ether_p(sc->sc_enaddr, 0x0000F4))
 		return NULL;
 
 	/* I don't know any sub-model identification.  */
@@ -544,7 +544,7 @@ fe_probe_cnet9ne (device_t dev)
 	fe_inblk(sc, 0x18, sc->sc_enaddr, ETHER_ADDR_LEN);
 
 	/* Make sure it is Contec's.  */
-	if (!valid_Ether_p(sc->sc_enaddr, 0x00804C))
+	if (!fe_valid_Ether_p(sc->sc_enaddr, 0x00804C))
 		return ENXIO;
 
 	/* Determine the card type.  */
@@ -630,7 +630,7 @@ fe_probe_ssi(device_t dev)
 	fe_read_eeprom_ssi(sc, eeprom);
 
 	/* Make sure the Ethernet (MAC) station address is of Contec's.  */
-	if (!valid_Ether_p(eeprom + FE_SSI_EEP_ADDR, 0x00804C))
+	if (!fe_valid_Ether_p(eeprom + FE_SSI_EEP_ADDR, 0x00804C))
 		return ENXIO;
 	bcopy(eeprom + FE_SSI_EEP_ADDR, sc->sc_enaddr, ETHER_ADDR_LEN);
 
@@ -700,7 +700,7 @@ fe_probe_lnx(device_t dev)
 	fe_read_eeprom_lnx(sc, eeprom);
 
 	/* Make sure the Ethernet (MAC) station address is of TDK/LANX's.  */
-	if (!valid_Ether_p(eeprom, 0x008098))
+	if (!fe_valid_Ether_p(eeprom, 0x008098))
 		return ENXIO;
 	bcopy(eeprom, sc->sc_enaddr, ETHER_ADDR_LEN);
 
@@ -768,12 +768,12 @@ fe_probe_gwy(device_t dev)
 
 	/* Get our station address from EEPROM. */
 	fe_inblk(sc, 0x18, sc->sc_enaddr, ETHER_ADDR_LEN);
-	if (!valid_Ether_p(sc->sc_enaddr, 0x000000))
+	if (!fe_valid_Ether_p(sc->sc_enaddr, 0x000000))
 		return ENXIO;
 
 	/* Determine the card type.  */
 	sc->typestr = "Generic MB86960 Ethernet";
-	if (valid_Ether_p(sc->sc_enaddr, 0x000061))
+	if (fe_valid_Ether_p(sc->sc_enaddr, 0x000061))
 		sc->typestr = "Gateway Ethernet (Fujitsu chipset)";
 
 	/* Gateway's board requires an explicit IRQ to work, since it
@@ -834,7 +834,7 @@ fe_probe_ubn(device_t dev)
 
 	/* Get our station address form ID ROM and make sure it is UBN's.  */
 	fe_inblk(sc, 0x18, sc->sc_enaddr, ETHER_ADDR_LEN);
-	if (!valid_Ether_p(sc->sc_enaddr, 0x00DD01))
+	if (!fe_valid_Ether_p(sc->sc_enaddr, 0x00DD01))
 		goto fail_ubn;
 #if 1
 	/* Calculate checksum.  */
@@ -975,8 +975,8 @@ fe_probe_rex(device_t dev)
 		sc->sc_enaddr[i] = eeprom[7 - i];
 
 	/* Make sure it is RATOC's.  */
-	if (!valid_Ether_p(sc->sc_enaddr, 0x00C0D0) &&
-	    !valid_Ether_p(sc->sc_enaddr, 0x00803D))
+	if (!fe_valid_Ether_p(sc->sc_enaddr, 0x00C0D0) &&
+	    !fe_valid_Ether_p(sc->sc_enaddr, 0x00803D))
 		return 0;
 
 	/* Setup the board type.  */

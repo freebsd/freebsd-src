@@ -139,7 +139,7 @@ void	fe_release_resource(device_t);
 
 int	fe_simple_probe(struct fe_softc const *,
 			struct fe_simple_probe_struct const *);
-int	valid_Ether_p(u_char const *, unsigned);
+int	fe_valid_Ether_p(u_char const *, unsigned);
 void	fe_softc_defaults(struct fe_softc *);
 void	fe_stop(struct fe_softc *sc);
 void	fe_irq_failure(char const *, int, int, char const *);

@@ -252,7 +252,7 @@ fe_probe_fmv(device_t dev)
 	/* Get our station address from EEPROM, and make sure it is
            Fujitsu's.  */
 	fe_inblk(sc, FE_FMV4, sc->sc_enaddr, ETHER_ADDR_LEN);
-	if (!valid_Ether_p(sc->sc_enaddr, 0x00000E))
+	if (!fe_valid_Ether_p(sc->sc_enaddr, 0x00000E))
 		return ENXIO;
 
 	/* Find the supported media and "hardware revision" to know
@@ -387,7 +387,7 @@ fe_probe_jli_ati(struct fe_softc * sc, u_char const * eeprom)
 	/* Get our station address from EEPROM, and make sure the
            EEPROM contains ATI's address.  */
 	bcopy(eeprom + 8, sc->sc_enaddr, ETHER_ADDR_LEN);
-	if (!valid_Ether_p(sc->sc_enaddr, 0x0000F4))
+	if (!fe_valid_Ether_p(sc->sc_enaddr, 0x0000F4))
 		return NULL;
 
 	/*
@@ -508,12 +508,12 @@ fe_probe_jli_icl(struct fe_softc * sc, u_char const * eeprom)
 	/* Make sure the EEPROM contains ICL's permanent station
            address.  If it isn't, probably this board is not an
            ICL's.  */
-	if (!valid_Ether_p(eeprom+122, 0x00004B))
+	if (!fe_valid_Ether_p(eeprom+122, 0x00004B))
 		return NULL;
 
 	/* Check if the "configured" Ethernet address in the EEPROM is
 	   valid.  Use it if it is, or use the "permanent" address instead.  */
-	if (valid_Ether_p(eeprom+4, 0x020000)) {
+	if (fe_valid_Ether_p(eeprom+4, 0x020000)) {
 		/* The configured address is valid.  Use it.  */
 		bcopy(eeprom+4, sc->sc_enaddr, ETHER_ADDR_LEN);
 	} else {
@@ -621,7 +621,7 @@ fe_probe_jli_rex(struct fe_softc * sc, u_char const * eeprom)
 	sc->sc_enaddr[5] = eeprom[6];
 
 	/* Make sure the EEPROM contains RATOC's station address.  */
-	if (!valid_Ether_p(sc->sc_enaddr, 0x00C0D0))
+	if (!fe_valid_Ether_p(sc->sc_enaddr, 0x00C0D0))
 		return NULL;
 
 	/* I don't know any sub-model identification.  */
@@ -658,7 +658,7 @@ fe_probe_jli_unk(struct fe_softc * sc, u_char const * eeprom)
 
 	/* Look for a bit pattern which looks like a MAC address.  */
 	for (n = 2; n <= romsize - ETHER_ADDR_LEN; n += 2) {
-		if (!valid_Ether_p(eeprom + n, 0x000000))
+		if (!fe_valid_Ether_p(eeprom + n, 0x000000))
 			continue;
 	}
 
@@ -839,7 +839,7 @@ fe_probe_ssi(device_t dev)
 	fe_read_eeprom_ssi(sc, eeprom);
 
 	/* Make sure the Ethernet (MAC) station address is of TDK's.  */
-	if (!valid_Ether_p(eeprom+FE_SSI_EEP_ADDR, 0x008098))
+	if (!fe_valid_Ether_p(eeprom+FE_SSI_EEP_ADDR, 0x008098))
 		return ENXIO;
 	bcopy(eeprom + FE_SSI_EEP_ADDR, sc->sc_enaddr, ETHER_ADDR_LEN);
 
@@ -900,7 +900,7 @@ fe_probe_lnx(device_t dev)
 	fe_read_eeprom_lnx(sc, eeprom);
 
 	/* Make sure the Ethernet (MAC) station address is of TDK/LANX's.  */
-	if (!valid_Ether_p(eeprom, 0x008098))
+	if (!fe_valid_Ether_p(eeprom, 0x008098))
 		return ENXIO;
 	bcopy(eeprom, sc->sc_enaddr, ETHER_ADDR_LEN);
 
@@ -965,7 +965,7 @@ fe_probe_gwy(device_t dev)
 	fe_inblk(sc, 0x18, sc->sc_enaddr, ETHER_ADDR_LEN);
 
 	/* Make sure it is Gateway Communication's.  */
-	if (!valid_Ether_p(sc->sc_enaddr, 0x000061))
+	if (!fe_valid_Ether_p(sc->sc_enaddr, 0x000061))
 		return ENXIO;
 
 	/* Gateway's board requires an explicit IRQ to work, since it
@@ -1017,7 +1017,7 @@ fe_probe_ubn(device_t dev)
 
 	/* Get our station address form ID ROM and make sure it is UBN's.  */
 	fe_inblk(sc, 0x18, sc->sc_enaddr, ETHER_ADDR_LEN);
-	if (!valid_Ether_p(sc->sc_enaddr, 0x00DD01))
+	if (!fe_valid_Ether_p(sc->sc_enaddr, 0x00DD01))
 		return ENXIO;
 #if 0
 	/* Calculate checksum.  */
