@@ -45,38 +45,38 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_isa.h"
 #include "opt_kstack_pages.h"
+#include "opt_cpu.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/proc.h>
-#include <sys/kse.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
-#include <sys/vnode.h>
-#include <sys/vmmeter.h>
+#include <sys/kse.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/sf_buf.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
+#include <sys/user.h>
+#include <sys/vnode.h>
+#include <sys/vmmeter.h>
 
 #include <machine/cpu.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <sys/lock.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
-#include <vm/vm_extern.h>
-
-#include <sys/user.h>
+#include <vm/vm_param.h>
 
 #include <amd64/isa/isa.h>
 
@@ -115,17 +115,13 @@ cpu_fork(td1, p2, td2, flags)
 	register struct proc *p1;
 	struct pcb *pcb2;
 	struct mdproc *mdp2;
-	register_t savecrit;
 
 	p1 = td1->td_proc;
 	if ((flags & RFPROC) == 0)
 		return;
 
 	/* Ensure that p1's pcb is up to date. */
-	savecrit = intr_disable();
-	if (PCPU_GET(fpcurthread) == td1)
-		fpusave(&td1->td_pcb->pcb_save);
-	intr_restore(savecrit);
+	fpuexit(td1);
 
 	/* Point the pcb to the top of the stack */
 	pcb2 = (struct pcb *)(td2->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
@@ -162,6 +158,7 @@ cpu_fork(td1, p2, td2, flags)
 	pcb2->pcb_rip = (register_t)fork_trampoline;
 	pcb2->pcb_rflags = td2->td_frame->tf_rflags & ~PSL_I; /* ints disabled */
 	/*-
+	 * pcb2->pcb_dr*:	cloned above.
 	 * pcb2->pcb_savefpu:	cloned above.
 	 * pcb2->pcb_flags:	cloned above.
 	 * pcb2->pcb_onfault:	cloned above (always NULL here?).
@@ -202,17 +199,27 @@ cpu_set_fork_handler(td, func, arg)
 void
 cpu_exit(struct thread *td)
 {
-	struct mdproc *mdp;
+	struct pcb *pcb = td->td_pcb;
 
-	mdp = &td->td_proc->p_md;
+	if (pcb->pcb_flags & PCB_DBREGS) {
+		/* disable all hardware breakpoints */
+		reset_dbregs();
+		pcb->pcb_flags &= ~PCB_DBREGS;
+	}
 }
 
 void
 cpu_thread_exit(struct thread *td)
 {
+	struct pcb *pcb = td->td_pcb;
 
 	if (td == PCPU_GET(fpcurthread))
 		fpudrop();
+	if (pcb->pcb_flags & PCB_DBREGS) {
+		/* disable all hardware breakpoints */
+		reset_dbregs();
+		pcb->pcb_flags &= ~PCB_DBREGS;
+	}
 }
 
 void
@@ -296,6 +303,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	pcb2->pcb_rflags = PSL_KERNEL; /* ints disabled */
 	/*
 	 * If we didn't copy the pcb, we'd need to do the following registers:
+	 * pcb2->pcb_dr*:	cloned above.
 	 * pcb2->pcb_savefpu:	cloned above.
 	 * pcb2->pcb_rflags:	cloned above.
 	 * pcb2->pcb_onfault:	cloned above (always NULL here?).
