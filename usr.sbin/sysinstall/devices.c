@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.78 1998/05/24 20:01:23 jkh Exp $
+ * $Id: devices.c,v 1.79 1998/06/29 09:28:01 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -76,10 +76,15 @@ static struct _devname {
     { DEVICE_TYPE_DISK, 	"rwd%d",	"IDE/ESDI/MFM/ST506 disk device",	3, 65538, 8, 16, 'c'	},
     { DEVICE_TYPE_DISK, 	"od%d",		"SCSI optical disk device",	20, 65538, 8, 4, 'b'		},
     { DEVICE_TYPE_DISK, 	"rod%d",	"SCSI optical disk device",	70, 65538, 8, 4, 'c'		},
-    { DEVICE_TYPE_DISK, 	"wfd%d",	"ATAPI FLOPPY (LS-120) device",	1, 65538, 8, 4, 'b'		},
-    { DEVICE_TYPE_DISK, 	"rwfd%d",	"ATAPI FLOPPY (LS-120) device",	87, 65538, 8, 4, 'c'		},
+    { DEVICE_TYPE_DISK, 	"wfd%d",	"ATAPI floppy device",	1, 65538, 8, 4, 'b'		},
+    { DEVICE_TYPE_DISK, 	"rwfd%d",	"ATAPI floppy device",	87, 65538, 8, 4, 'c'		},
     { DEVICE_TYPE_FLOPPY,	"fd%d",		"floppy drive unit A",	2, 0, 64, 4, 'b'			},
+    { DEVICE_TYPE_FLOPPY,	"wfd%d",	"ATAPI floppy drive unit A",	1, 0, 8, 4, 'b'			},
     { DEVICE_TYPE_FLOPPY,	"worm%d",	"SCSI optical disk / CDR",	23, 0, 1, 4, 'b'		},
+    { DEVICE_TYPE_NETWORK,	"fpa",		"DEC DEFPA PCI FDDI card"					},
+    { DEVICE_TYPE_NETWORK,	"sr",		"SDL T1/E1 sync serial PCI card"				},
+    { DEVICE_TYPE_NETWORK,	"cc3i",		"SDL HSSI sync serial PCI card"					},
+    { DEVICE_TYPE_NETWORK,	"en",		"Efficient Networks ATM PCI card"				},
     { DEVICE_TYPE_NETWORK,	"de",		"DEC DE435 PCI NIC or other DC21040-AA based card"		},
     { DEVICE_TYPE_NETWORK,	"fxp",		"Intel EtherExpress Pro/100B PCI Fast Ethernet card"		},
     { DEVICE_TYPE_NETWORK,	"ed",		"WD/SMC 80xx; Novell NE1000/2000; 3Com 3C503 card"		},
