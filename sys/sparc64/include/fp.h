@@ -27,26 +27,13 @@
 #ifndef	_MACHINE_FP_H_
 #define	_MACHINE_FP_H_
 
-/* A block of 8 double-precision (16 single-precision) FP registers. */
-struct fpblock {
-	u_int	fpb_i[16];
-};
-
-struct fpstate {
-	struct	fpblock fp_fb[4];
-};
-
 #ifdef _KERNEL
 
-struct pcb;
-struct thread;
-
 /*
- * Note: The pointers passed to the next two functions must be aligned on
- * 64 byte boundaries.
+ * Note: The pointer passed to savefpctx must be aligned on a 64 byte
+ * boundary.
  */
-void	savefpctx(struct fpstate *);
-void	restorefpctx(struct fpstate *);
+void	savefpctx(uint32_t *fp);
 
 #endif /* _KERNEL */
 #endif /* !_MACHINE_FP_H_ */
