@@ -10,7 +10,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_dummynet.c,v 1.1 1998/09/12 22:03:20 luigi Exp $
+ *	$Id: ip_dummynet.c,v 1.1.2.1 1998/10/16 15:00:16 luigi Exp $
  */
 
 /*
@@ -308,6 +308,7 @@ dummynet_io(int pipe_nr, int dir,
 	m_freem(m);
 	return 0 ; /* XXX error */
     }
+    bzero(pkt, sizeof(*pkt) );
     /* build and enqueue packet */
     pkt->hdr.mh_type = MT_DUMMYNET ;
     (struct ip_fw_chain *)pkt->hdr.mh_data = rule ;
@@ -565,8 +566,7 @@ ip_dn_ctl(int optname, struct mbuf **mm)
 void
 ip_dn_init(void)
 {
-    printf("DUMMYNET initialized (980901) -- size dn_pkt %d\n",
-	sizeof(struct dn_pkt));
+    printf("DUMMYNET initialized (990111)\n");
     all_pipes = NULL ;
     ip_dn_ctl_ptr = ip_dn_ctl;
 }
