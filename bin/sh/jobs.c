@@ -353,7 +353,11 @@ showjob(struct job *jp, int sformat, int lformat)
 		} else if (ps->status == -1) {
 			strcpy(s, "Running");
 		} else if (WIFEXITED(ps->status)) {
-			fmtstr(s, 64, "Exit %d", WEXITSTATUS(ps->status));
+			if (WEXITSTATUS(ps->status) == 0)
+				strcpy(s, "Done");
+			else
+				fmtstr(s, 64, "Done (%d)",
+				    WEXITSTATUS(ps->status));
 		} else {
 #if JOBS
 			if (WIFSTOPPED(ps->status)) 
