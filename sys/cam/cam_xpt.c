@@ -528,8 +528,6 @@ static u_int xpt_max_ccbs;	/*
 				 */
 static u_int xpt_ccb_count;	/* Current count of allocated ccbs */
 
-static struct cam_periph *xpt_periph;
-
 static periph_init_t xpt_periph_init;
 
 static periph_init_t probe_periph_init;
