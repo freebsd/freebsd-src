@@ -1,195 +1,158 @@
-#!/usr/local/bin/perl
-'di ';
-'ds 00 \\"';
-'ig 00 ';
+#!/usr/local/bin/perl -w
 #
-#       THIS PROGRAM IS ITS OWN MANUAL PAGE.  INSTALL IN man & bin.
+# Copyright (c) 1996-2000 by John T. Beck <john@beck.org>
+# All rights reserved.
 #
+# Copyright (c) 2000 by Sun Microsystems, Inc.
+# All rights reserved.
+#
+#ident	"@(#)etrn.pl	1.1	00/09/06 SMI"
+
+require 5.005;				# minimal Perl version required
+use strict;
+use English;
 
 # hardcoded constants, should work fine for BSD-based systems
 use Socket;
 use Getopt::Std;
-$sockaddr = 'S n a4 x8';
+use vars qw($opt_v);
+my $sockaddr = 'S n a4 x8';
 
 # system requirements:
 # 	must have 'hostname' program.
 
-#############################################################################
-#  Copyright (c) 1996-2000 John T. Beck <john@beck.org>
-#  All rights reserved.
-#
-#  Redistribution and use in source and binary forms, with or without
-#  modification, are permitted provided that the following conditions
-#  are met:
-#  1. Redistributions of source code must retain the above copyright
-#     notice, this list of conditions and the following disclaimer.
-#  2. Redistributions in binary form must reproduce the above copyright
-#     notice, this list of conditions and the following disclaimer in the
-#     documentation and/or other materials provided with the distribution.
-#  3. All advertising materials mentioning features or use of this software
-#     must display the following acknowledgement:
-#       This product includes software developed by John T. Beck.
-#  4. The name of John Beck may not be used to endorse or promote products
-#     derived from this software without specific prior written permission.
-#
-#  THIS SOFTWARE IS PROVIDED BY JOHN T. BECK ``AS IS'' AND ANY EXPRESS OR
-#  IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-#  OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-#  IN NO EVENT SHALL JOHN T. BECK BE LIABLE FOR ANY DIRECT, INDIRECT,
-#  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
-#  NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-#  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
-#  OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-#  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
-#  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-#  This copyright notice derived from material copyrighted by the Regents
-#  of the University of California.
-#
-#  Contributions accepted.
-#############################################################################
-#  Further disclaimer: the etrn.pl script was highly leveraged from the
-#  expn.pl script which is (C) 1993 David Muir Sharnoff.
-#############################################################################
-
-$port = 'smtp';
-$av0 = $0;
+my $port = 'smtp';
 select(STDERR);
 
-$0 = "$av0 - running hostname";
-chop($name = `hostname || uname -n`);
+chop(my $name = `hostname || uname -n`);
 
-$0 = "$av0 - lookup host FQDN and IP addr";
-($hostname,$aliases,$type,$len,undef) = gethostbyname($name);
+(my $hostname, my $aliases, my $type, my $len, undef) = gethostbyname($name);
 
-$0 = "$av0 - parsing args";
-$usage = "Usage: $av0 [-wd] host [args]";
-getopts('dw');
-$watch = $opt_w;
-$debug = $opt_d;
-$server = shift(@ARGV);
-@hosts = @ARGV;
+my $usage = "Usage: $PROGRAM_NAME [-v] host [args]";
+getopts('v');
+my $verbose = $opt_v;
+my $server = shift(@ARGV);
+my @hosts = @ARGV;
 die $usage unless $server;
-@cwfiles = ();
-$alarm_action = "";
+my @cwfiles = ();
+my $alarm_action = "";
 
 if (!@hosts) {
-	push(@hosts,$hostname);
+	push(@hosts, $hostname);
 
-	$0 = "$av0 - parsing sendmail.cf";
-	open(CF, "</etc/mail/sendmail.cf") || die "open /etc/mail/sendmail.cf: $!";
+	open(CF, "</etc/mail/sendmail.cf") ||
+	    die "open /etc/mail/sendmail.cf: $ERRNO";
 	while (<CF>){
-		if (/^Fw.*$/){			# look for a line starting with "Fw"
-			$cwfile = $_;
+		# look for a line starting with "Fw"
+		if (/^Fw.*$/) {
+			my $cwfile = $ARG;
 			chop($cwfile);
-			$optional = /^Fw-o/;
-			$cwfile =~ s,^Fw[^/]*,,;	# extract the file name
+			my $optional = /^Fw-o/;
+			# extract the file name
+			$cwfile =~ s,^Fw[^/]*,,;
+
+			# strip the options after the filename
+			$cwfile =~ s/ [^ ]+$//;
 
 			if (-r $cwfile) {
-			    push (@cwfiles, $cwfile);
+				push (@cwfiles, $cwfile);
 			} else {
-			    die "$cwfile is not readable" unless $optional;
+				die "$cwfile is not readable" unless $optional;
 			}
 		}
-		if (/^Cw(.*)$/){		# look for a line starting with "Cw"
-			@cws = split (' ', $1);
+		# look for a line starting with "Cw"
+		if (/^Cw(.*)$/) {
+			my @cws = split (' ', $1);
 			while (@cws) {
-				$thishost = shift(@cws);
-				push(@hosts, $thishost) unless $thishost =~ "$hostname|localhost";
+				my $thishost = shift(@cws);
+				push(@hosts, $thishost)
+				    unless $thishost =~ "$hostname|localhost";
 			}
 		}
 	}
 	close(CF);
 
-	for $cwfile (@cwfiles) {
-		$0 = "$av0 - reading $cwfile";
-		if (open(CW, "<$cwfile")){
-			while (<CW>){
+	for my $cwfile (@cwfiles) {
+		if (open(CW, "<$cwfile")) {
+			while (<CW>) {
 			        next if /^\#/;
-				$thishost = $_;
+				my $thishost = $ARG;
 				chop($thishost);
-				push(@hosts, $thishost) unless $thishost =~ $hostname;
+				push(@hosts, $thishost)
+				    unless $thishost =~ $hostname;
 			}
 			close(CW);
 		} else {
-			die "open $cwfile: $!";
+			die "open $cwfile: $ERRNO";
 		}
 	}
 }
 
-$0 = "$av0 - building local socket";
-($name,$aliases,$proto) = getprotobyname('tcp');
-($name,$aliases,$port) = getservbyname($port,'tcp')
+($name, $aliases, my $proto) = getprotobyname('tcp');
+($name, $aliases, $port) = getservbyname($port, 'tcp')
 	unless $port =~ /^\d+/;
 
 # look it up
-$0 = "$av0 - gethostbyname($server)";
 
-($name,$aliases,$type,$len,$thataddr) = gethostbyname($server);
+($name, $aliases, $type, $len, my $thataddr) = gethostbyname($server);
 (!defined($name)) && die "gethostbyname failed, unknown host $server";
 				
 # get a connection
-$0 = "$av0 - socket to $server";
-$that = pack($sockaddr, &AF_INET, $port, $thataddr);
+my $that = pack($sockaddr, &AF_INET, $port, $thataddr);
 socket(S, &AF_INET, &SOCK_STREAM, $proto)
-	|| die "socket: $!";
-$0 = "$av0 - connect to $server";
-print "debug = $debug server = $server\n" if (defined($debug) && $debug > 8);
+	|| die "socket: $ERRNO";
+print "server = $server\n" if (defined($verbose));
 &alarm("connect to $server");
 if (! connect(S, $that)) {
-	die "cannot connect to $server: $!\n";
+	die "cannot connect to $server: $ERRNO\n";
 }
 alarm(0);
-select((select(S),$| = 1)[0]); # don't buffer output to S
+select((select(S), $OUTPUT_AUTOFLUSH = 1)[0]);	# don't buffer output to S
 
 # read the greeting
-$0 = "$av0 - talking to $server";
 &alarm("greeting with $server");
-while(<S>) {
+while (<S>) {
 	alarm(0);
-	print if $watch;
+	print if $verbose;
 	if (/^(\d+)([- ])/) {
+		# SMTP's initial greeting response code is 220.
 		if ($1 != 220) {
-			$0 = "$av0 - bad numeric response from $server";
 			&alarm("giving up after bad response from $server");
-			&read_response($2,$watch);
+			&read_response($2, $verbose);
 			alarm(0);
-			print STDERR "$server: NOT 220 greeting: $_"
-				if ($debug || $watch);
+			print STDERR "$server: NOT 220 greeting: $ARG"
+				if ($verbose);
 		}
 		last if ($2 eq " ");
 	} else {
-		$0 = "$av0 - bad response from $server";
-		print STDERR "$server: NOT 220 greeting: $_"
-			if ($debug || $watch);
+		print STDERR "$server: NOT 220 greeting: $ARG"
+			if ($verbose);
 		close(S);
 	}
 	&alarm("greeting with $server");
 }
 alarm(0);
 	
-# if this causes problems, remove it
-$0 = "$av0 - sending helo to $server";
 &alarm("sending ehlo to $server");
 &ps("ehlo $hostname");
-$etrn_support = 0;
-while(<S>) {
-	if (/^250([- ])ETRN(.+)$/){
+my $etrn_support = 0;
+while (<S>) {
+	if (/^250([- ])ETRN(.+)$/) {
 		$etrn_support = 1;
 	}
-	print if $watch;
+	print if $verbose;
 	last if /^\d+ /;
 }
 alarm(0);
 
-if ($etrn_support){
-	print "ETRN supported\n" if ($debug);
+if ($etrn_support) {
+	print "ETRN supported\n" if ($verbose);
 	&alarm("sending etrn to $server");
 	while (@hosts) {
 		$server = shift(@hosts);
 		&ps("etrn $server");
-		while(<S>) {
-			print if $watch;
+		while (<S>) {
+			print if $verbose;
 			last if /^\d+ /;
 		}
 		sleep(1);
@@ -199,10 +162,9 @@ if ($etrn_support){
 }
 
 &alarm("sending 'quit' to $server");
-$0 = "$av0 - sending 'quit' to $server";
 &ps("quit");
-while(<S>) {
-	print if $watch;
+while (<S>) {
+	print if $verbose;
 	last if /^\d+ /;
 }
 close(S);
@@ -211,11 +173,11 @@ alarm(0);
 select(STDOUT);
 exit(0);
 
-# print to the server (also to stdout, if -w)
+# print to the server (also to stdout, if -v)
 sub ps
 {
-	local($p) = @_;
-	print ">>> $p\n" if $watch;
+	my ($p) = @_;
+	print ">>> $p\n" if $verbose;
 	print S "$p\n";
 }
 
@@ -233,107 +195,24 @@ sub handle_alarm
 
 sub giveup
 {
-	local($reason) = @_;
-	local($pk,$file,$line);
+	my $reason = @_;
+	(my $pk, my $file, my $line);
 	($pk, $file, $line) = caller;
 
-	$0 = "$av0 - giving up on $server: $reason";
-	print "Timed out during $reason\n" if $debug;
+	print "Timed out during $reason\n" if $verbose;
 	exit(1);
 }
 
 # read the rest of the current smtp daemon's response (and toss it away)
 sub read_response
 {
-	local($done,$watch) = @_;
-	local(@resp);
-	print $s if $watch;
-	while(($done eq "-") && ($s = <S>) && ($s =~ /^\d+([- ])/)) {
-		print $s if $watch;
+	(my $done, $verbose) = @_;
+	(my @resp);
+	print my $s if $verbose;
+	while (($done eq "-") && ($s = <S>) && ($s =~ /^\d+([- ])/)) {
+		print $s if $verbose;
 		$done = $1;
-		push(@resp,$s);
+		push(@resp, $s);
 	}
 	return @resp;
 }
-# to pass perl -w:
-my $x;
-$x=$opt_d;
-$x=$opt_w;
-&handle_alarm;
-################### BEGIN PERL/TROFF TRANSITION 
-.00 ;	
-
-'di
-.nr nl 0-1
-.nr % 0
-.\\"'; __END__ 
-.\" ############## END PERL/TROFF TRANSITION
-.TH ETRN 1 "January 25, 1997"
-.AT 3
-.SH NAME
-etrn \- start mail queue run
-.SH SYNOPSIS
-.B etrn
-.RI [ -w ]
-.RI [ -d ]
-.IR hostname
-.RI [ args ]
-.SH DESCRIPTION
-.B etrn
-will use the SMTP
-.B etrn
-command to start mail delivery from the host given on the command line.
-.B etrn
-usually sends an
-.B etrn
-for each host the local sendmail accepts e-mail for, but if
-.IR args
-are specified,
-.B etrn
-uses these as arguments for the SMTP
-.B etrn
-commands passed to the host given on the command line.
-.SH OPTIONS
-.LP
-The normal mode of operation for
-.B etrn
-is to do all of its work silently.
-The following options make it more verbose.
-It is not necessary to make it verbose to see what it is
-doing because as it works, it changes its 
-.BR argv [0]
-variable to reflect its current activity.
-The 
-.IR -w ,
-watch, flag will cause
-.B etrn
-to show you its conversations with the mail daemons.
-The 
-.IR -d ,
-debug, flag will expose many of the inner workings so that
-it is possible to eliminate bugs.
-.SH ENVIRONMENT
-No enviroment variables are used.
-.SH FILES
-.B /etc/mail/sendmail.cf
-.SH SEE ALSO
-.BR sendmail (8),
-RFC 1985.
-.SH BUGS
-Not all mail daemons will implement 
-.B etrn .
-.LP
-It is assumed that you are running domain names.
-.SH CREDITS
-Leveraged from David Muir Sharnoff's expn.pl script.
-Christian von Roques added support for
-.IR args
-and fixed a couple of bugs.
-.SH AVAILABILITY
-The latest version of 
-.B etrn
-is available in the contrib directory of the sendmail
-distribution through anonymous ftp at
-.IR ftp://ftp.sendmail.org/ucb/src/sendmail/ .
-.SH AUTHOR
-.I John T. Beck\ \ \ \ <john@beck.org>

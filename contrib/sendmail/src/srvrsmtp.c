@@ -16,7 +16,7 @@
 # include <libmilter/mfdef.h>
 #endif /* MILTER */
 
-SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.829 2002/06/17 21:54:57 gshapiro Exp $")
+SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.829.2.4 2002/08/16 14:56:01 ca Exp $")
 
 #if SASL || STARTTLS
 # include <sys/time.h>
@@ -382,9 +382,9 @@ smtp(nullserver, d_flags, e)
 	char *user;
 	char *in, *out2;
 # if SASL >= 20000
- 	char *auth_id;
+	char *auth_id;
 	const char *out;
- 	sasl_ssf_t ext_ssf;
+	sasl_ssf_t ext_ssf;
 # else /* SASL >= 20000 */
 	char *out;
 	const char *errstr;
@@ -654,7 +654,7 @@ smtp(nullserver, d_flags, e)
 			sasl_ok = ((sasl_setprop(conn, SASL_SSF_EXTERNAL,
 						 &ext_ssf) == SASL_OK) &&
 				   (sasl_setprop(conn, SASL_AUTH_EXTERNAL,
- 						 auth_id) == SASL_OK));
+						 auth_id) == SASL_OK));
 # else /* SASL >= 20000 */
 			ext_ssf.ssf = 0;
 			ext_ssf.auth_id = NULL;
@@ -1296,7 +1296,7 @@ smtp(nullserver, d_flags, e)
 				/* could this be shorter? XXX */
 # if SASL >= 20000
 				in = xalloc(strlen(q) + 1);
-  				result = sasl_decode64(q, strlen(q), in,
+				result = sasl_decode64(q, strlen(q), in,
 						       strlen(q), &inlen);
 # else /* SASL >= 20000 */
 				in = sm_rpool_malloc(e->e_rpool, strlen(q));
@@ -1329,7 +1329,7 @@ smtp(nullserver, d_flags, e)
 
 			/* see if that auth type exists */
 # if SASL >= 20000
-  			result = sasl_server_start(conn, p, in, inlen,
+			result = sasl_server_start(conn, p, in, inlen,
 						   &out, &outlen);
 			if (in != NULL)
 				sm_free(in);
@@ -1597,8 +1597,9 @@ smtp(nullserver, d_flags, e)
 			QuickAbort = false;
 			if (rscheck("tls_client",
 				     macvalue(macid("{verify}"), e),
-				     "STARTTLS", e, true, true, 5,
-				     NULL, NOQID) != EX_OK ||
+				     "STARTTLS", e,
+				     RSF_RMCOMM|RSF_COUNT,
+				     5, NULL, NOQID) != EX_OK ||
 			    Errors > 0)
 			{
 				extern char MsgBuf[];
@@ -1621,9 +1622,9 @@ smtp(nullserver, d_flags, e)
 				s = macvalue(macid("{cipher_bits}"), e);
 #  if SASL >= 20000
 				if (s != NULL && (ext_ssf = atoi(s)) > 0)
-  				{
+				{
 					auth_id = macvalue(macid("{cert_subject}"),
-  								   e);
+								   e);
 					sasl_ok = ((sasl_setprop(conn, SASL_SSF_EXTERNAL,
 								 &ext_ssf) == SASL_OK) &&
 						   (sasl_setprop(conn, SASL_AUTH_EXTERNAL,
@@ -2133,8 +2134,8 @@ smtp(nullserver, d_flags, e)
 				  e->e_from.q_paddr);
 #endif /* _FFR_MAIL_MACRO */
 			if (rscheck("check_mail", addr,
-				    NULL, e, true, true, 3, NULL,
-				    e->e_id) != EX_OK ||
+				    NULL, e, RSF_RMCOMM|RSF_COUNT, 3,
+				    NULL, e->e_id) != EX_OK ||
 			    Errors > 0)
 				sm_exc_raisenew_x(&EtypeQuickAbort, 1);
 			macdefine(&e->e_macro, A_PERM,
@@ -2373,12 +2374,16 @@ smtp(nullserver, d_flags, e)
 			macdefine(&e->e_macro, A_PERM,
 				macid("{addr_type}"), "e r");
 			if (rscheck("check_rcpt", addr,
-				    NULL, e, true, true, 3, NULL,
-				    e->e_id) != EX_OK ||
+				    NULL, e, RSF_RMCOMM|RSF_COUNT, 3,
+				    NULL, e->e_id) != EX_OK ||
 			    Errors > 0)
 				goto rcpt_done;
 			macdefine(&e->e_macro, A_PERM,
 				macid("{addr_type}"), NULL);
+
+			/* If discarding, don't bother to verify user */
+			if (bitset(EF_DISCARD, e->e_flags))
+				a->q_state = QS_VERIFIED;
 
 #if MILTER
 			if (smtp.sm_milterlist && smtp.sm_milterize &&
@@ -2528,8 +2533,8 @@ smtp(nullserver, d_flags, e)
 			{
 				/* do config file checking of the address */
 				if (rscheck(vrfy ? "check_vrfy" : "check_expn",
-					    p, NULL, e, true, false, 3, NULL,
-					    NOQID) != EX_OK ||
+					    p, NULL, e, RSF_RMCOMM,
+					    3, NULL, NOQID) != EX_OK ||
 				    Errors > 0)
 					sm_exc_raisenew_x(&EtypeQuickAbort, 1);
 				(void) sendtolist(p, NULLADDR, &vrfyqueue, 0, e);
@@ -2624,8 +2629,9 @@ smtp(nullserver, d_flags, e)
 			**  available to make a decision.
 			*/
 
-			if (rscheck("check_etrn", p, NULL, e, true, false, 3,
-				    NULL, NOQID) != EX_OK || Errors > 0)
+			if (rscheck("check_etrn", p, NULL, e,
+				    RSF_RMCOMM, 3, NULL, NOQID) != EX_OK ||
+			    Errors > 0)
 				break;
 
 			if (LogLevel > 5)
@@ -2883,7 +2889,8 @@ smtp_data(smtp, e)
 	}
 	(void) sm_snprintf(buf, sizeof buf, "%u", smtp->sm_nrcpts);
 	if (rscheck("check_data", buf, NULL, e,
-		    true, false, 3, NULL, e->e_id) != EX_OK)
+		    RSF_RMCOMM|RSF_UNSTRUCTURED|RSF_COUNT, 3, NULL,
+		    e->e_id) != EX_OK)
 		return;
 
 	/* put back discard bit */
@@ -2926,8 +2933,8 @@ smtp_data(smtp, e)
 
 #if _FFR_CHECK_EOM
 	/* rscheck() will set Errors or EF_DISCARD if it trips */
-	(void) rscheck("check_eom", buf, NULL, e, false,
-		       true, 3, NULL, e->e_id);
+	(void) rscheck("check_eom", buf, NULL, e, RSF_UNSTRUCTURED|RSF_COUNT,
+		       3, NULL, e->e_id);
 #endif /* _FFR_CHECK_EOM */
 
 #if MILTER
@@ -3593,8 +3600,8 @@ mail_esmtp_args(kp, vp, e)
 		SuprErrs = true;
 		QuickAbort = false;
 		if (strcmp(auth_param, "<>") != 0 &&
-		     (rscheck("trust_auth", pbuf, NULL, e, true, false, 9,
-			      NULL, NOQID) != EX_OK || Errors > 0))
+		     (rscheck("trust_auth", pbuf, NULL, e, RSF_RMCOMM,
+			      9, NULL, NOQID) != EX_OK || Errors > 0))
 		{
 			if (tTd(95, 8))
 			{

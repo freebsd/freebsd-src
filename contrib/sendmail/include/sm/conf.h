@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: conf.h,v 1.90.2.2 2002/06/21 22:31:35 gshapiro Exp $
+ *	$Id: conf.h,v 1.90.2.4 2002/08/26 22:58:37 gshapiro Exp $
  */
 
 /*
@@ -721,6 +721,7 @@ typedef int		pid_t;
 #  define HASSTRERROR	1	/* has strerror(3) */
 #  define HASGETDTABLESIZE	1
 #  define HASGETUSERSHELL	1
+#  define HAS_IN_H	1
 #  define SM_CONF_GETOPT	0	/* need a replacement for getopt(3) */
 #  define BSD4_4_SOCKADDR	/* has sa_len */
 #  define NETLINK	1	/* supports AF_LINK */
@@ -733,6 +734,7 @@ typedef int		pid_t;
 #  define ERRLIST_PREDEFINED	/* don't declare sys_errlist */
 #  ifndef NOT_SENDMAIL
 #   define sleep		sleepX
+extern unsigned int sleepX __P((unsigned int seconds));
 #  endif /* ! NOT_SENDMAIL */
 # endif /* defined(DARWIN) */
 

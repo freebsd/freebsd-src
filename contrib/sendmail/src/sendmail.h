@@ -48,7 +48,7 @@
 
 #ifdef _DEFINE
 # ifndef lint
-SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.919.2.1 2002/06/21 20:25:22 ca Exp $";
+SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.919.2.4 2002/08/16 14:56:01 ca Exp $";
 # endif /* ! lint */
 #endif /* _DEFINE */
 
@@ -293,6 +293,7 @@ typedef struct address ADDRESS;
 #define QS_REMOVED	12		/* removed (removefromlist()) */
 #define QS_DUPLICATE	13		/* duplicate suppressed */
 #define QS_INCLUDED	14		/* :include: delivery */
+#define QS_FATALERR	15		/* fatal error, don't deliver */
 
 /* address state testing primitives */
 #define QS_IS_OK(s)		((s) == QS_OK)
@@ -905,34 +906,34 @@ struct envelope
 };
 
 /* values for e_flags */
-#define EF_OLDSTYLE	0x0000001L	/* use spaces (not commas) in hdrs */
-#define EF_INQUEUE	0x0000002L	/* this message is fully queued */
-#define EF_NO_BODY_RETN	0x0000004L	/* omit message body on error */
-#define EF_CLRQUEUE	0x0000008L	/* disk copy is no longer needed */
-#define EF_SENDRECEIPT	0x0000010L	/* send a return receipt */
-#define EF_FATALERRS	0x0000020L	/* fatal errors occurred */
-#define EF_DELETE_BCC	0x0000040L	/* delete Bcc: headers entirely */
-#define EF_RESPONSE	0x0000080L	/* this is an error or return receipt */
-#define EF_RESENT	0x0000100L	/* this message is being forwarded */
-#define EF_VRFYONLY	0x0000200L	/* verify only (don't expand aliases) */
-#define EF_WARNING	0x0000400L	/* warning message has been sent */
-#define EF_QUEUERUN	0x0000800L	/* this envelope is from queue */
-#define EF_GLOBALERRS	0x0001000L	/* treat errors as global */
-#define EF_PM_NOTIFY	0x0002000L	/* send return mail to postmaster */
-#define EF_METOO	0x0004000L	/* send to me too */
-#define EF_LOGSENDER	0x0008000L	/* need to log the sender */
-#define EF_NORECEIPT	0x0010000L	/* suppress all return-receipts */
-#define EF_HAS8BIT	0x0020000L	/* at least one 8-bit char in body */
-#define EF_NL_NOT_EOL	0x0040000L	/* don't accept raw NL as EOLine */
-#define EF_CRLF_NOT_EOL	0x0080000L	/* don't accept CR-LF as EOLine */
-#define EF_RET_PARAM	0x0100000L	/* RCPT command had RET argument */
-#define EF_HAS_DF	0x0200000L	/* set when data file is instantiated */
-#define EF_IS_MIME	0x0400000L	/* really is a MIME message */
-#define EF_DONT_MIME	0x0800000L	/* never MIME this message */
-#define EF_DISCARD	0x1000000L	/* discard the message */
-#define EF_TOOBIG	0x2000000L	/* message is too big */
-#define EF_SPLIT	0x4000000L	/* envelope has been split */
-#define EF_UNSAFE	0x8000000L	/* unsafe: read from untrusted source */
+#define EF_OLDSTYLE	0x00000001L	/* use spaces (not commas) in hdrs */
+#define EF_INQUEUE	0x00000002L	/* this message is fully queued */
+#define EF_NO_BODY_RETN	0x00000004L	/* omit message body on error */
+#define EF_CLRQUEUE	0x00000008L	/* disk copy is no longer needed */
+#define EF_SENDRECEIPT	0x00000010L	/* send a return receipt */
+#define EF_FATALERRS	0x00000020L	/* fatal errors occurred */
+#define EF_DELETE_BCC	0x00000040L	/* delete Bcc: headers entirely */
+#define EF_RESPONSE	0x00000080L	/* this is an error or return receipt */
+#define EF_RESENT	0x00000100L	/* this message is being forwarded */
+#define EF_VRFYONLY	0x00000200L	/* verify only (don't expand aliases) */
+#define EF_WARNING	0x00000400L	/* warning message has been sent */
+#define EF_QUEUERUN	0x00000800L	/* this envelope is from queue */
+#define EF_GLOBALERRS	0x00001000L	/* treat errors as global */
+#define EF_PM_NOTIFY	0x00002000L	/* send return mail to postmaster */
+#define EF_METOO	0x00004000L	/* send to me too */
+#define EF_LOGSENDER	0x00008000L	/* need to log the sender */
+#define EF_NORECEIPT	0x00010000L	/* suppress all return-receipts */
+#define EF_HAS8BIT	0x00020000L	/* at least one 8-bit char in body */
+#define EF_NL_NOT_EOL	0x00040000L	/* don't accept raw NL as EOLine */
+#define EF_CRLF_NOT_EOL	0x00080000L	/* don't accept CR-LF as EOLine */
+#define EF_RET_PARAM	0x00100000L	/* RCPT command had RET argument */
+#define EF_HAS_DF	0x00200000L	/* set when data file is instantiated */
+#define EF_IS_MIME	0x00400000L	/* really is a MIME message */
+#define EF_DONT_MIME	0x00800000L	/* never MIME this message */
+#define EF_DISCARD	0x01000000L	/* discard the message */
+#define EF_TOOBIG	0x02000000L	/* message is too big */
+#define EF_SPLIT	0x04000000L	/* envelope has been split */
+#define EF_UNSAFE	0x08000000L	/* unsafe: read from untrusted source */
 
 #define DLVR_NOTIFY	0x01
 #define DLVR_RETURN	0x02
@@ -1086,7 +1087,7 @@ extern int	macid_parse __P((char *, char **));
 #define macid(name)  macid_parse(name, NULL)
 extern char	*macname __P((int));
 extern char	*macvalue __P((int, ENVELOPE *));
-extern int	rscheck __P((char *, char *, char *, ENVELOPE *, bool, bool, int, char *, char *));
+extern int	rscheck __P((char *, char *, char *, ENVELOPE *, int, int, char *, char *));
 extern int	rscap __P((char *, char *, char *, ENVELOPE *, char ***, char *, int));
 extern void	setclass __P((int, char *));
 extern int	strtorwset __P((char *, char **, int));
@@ -1562,6 +1563,13 @@ EXTERN unsigned long	PrivacyFlags;	/* privacy flags */
 #define RF_COPYALL		(RF_COPYPARSE|RF_COPYPADDR)
 #define RF_COPYNONE		0
 
+/*
+**  Flags passed to rscheck
+*/
+
+#define RSF_RMCOMM		0x0001	/* strip comments */ 
+#define RSF_UNSTRUCTURED	0x0002	/* unstructured, ignore syntax errors */
+#define RSF_COUNT		0x0004	/* count rejections (statistics)? */
 
 /*
 **  Flags passed to mime8to7 and putheader.

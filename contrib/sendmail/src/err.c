@@ -9,13 +9,13 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
+ * $FreeBSD$
+ *
  */
 
 #include <sendmail.h>
 
 SM_RCSID("@(#)$Id: err.c,v 8.189 2002/01/09 18:52:30 ca Exp $")
-
-/* $FreeBSD$ */
 
 #if LDAPMAP
 # include <lber.h>

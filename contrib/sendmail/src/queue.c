@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: queue.c,v 8.863.2.2 2002/06/25 21:34:31 gshapiro Exp $")
+SM_RCSID("@(#)$Id: queue.c,v 8.863.2.6 2002/08/16 16:27:37 gshapiro Exp $")
 
 #include <dirent.h>
 
@@ -1463,21 +1463,36 @@ runqueue(forkflag, verbose, persistent, runall)
 		**  Pick up where we left off (curnum), in case we
 		**  used up all the children last time without finishing.
 		**  This give a round-robin fairness to queue runs.
+		**
+		**  Increment CurRunners before calling run_work_group()
+		**  to avoid a "race condition" with proc_list_drop() which
+		**  decrements CurRunners if the queue runners terminate.
+		**  This actually doesn't cause any harm, but CurRunners
+		**  might become negative which is at least confusing.
+		**
+		**  Notice: CurRunners is an upper limit, in some cases
+		**  (too few jobs in the queue) this value is larger than
+		**  the actual number of queue runners. The discrepancy can
+		**  increase if some queue runners "hang" for a long time.
 		*/
 
+		CurRunners += WorkGrp[curnum].wg_maxact;
 		ret = run_work_group(curnum, forkflag, verbose, persistent,
 				     runall);
 
 		/*
 		**  Failure means a message was printed for ETRN
 		**  and subsequent queues are likely to fail as well.
+		**  Decrement CurRunners in that case because
+		**  none have been started.
 		*/
 
 		if (!ret)
+		{
+			CurRunners -= WorkGrp[curnum].wg_maxact;
 			break;
+		}
 
-		/* Success means the runner count needs to be updated. */
-		CurRunners += WorkGrp[curnum].wg_maxact;
 		if (!persistent)
 			schedule_queue_runs(runall, curnum, true);
 		INCR_MOD(curnum, NumWorkGroups);
@@ -2000,6 +2015,24 @@ run_work_group(wgrp, forkflag, verbose, persistent, runall)
 			maxrunners = njobs;
 		for (loop = 0; loop < maxrunners; loop++)
 		{
+#if _FFR_NONSTOP_PERSISTENCE
+			/*
+			**  Require a free "slot" before processing
+			**  this queue runner.
+			*/
+
+			while (MaxQueueChildren > 0 &&
+			       CurChildren > MaxQueueChildren)
+			{
+				int status;
+				pid_t ret;
+
+				while ((ret = sm_wait(&status)) <= 0)
+					continue;
+				proc_list_drop(ret, status, NULL);
+			}
+#endif /* _FFR_NONSTOP_PERSISTENCE */
+
 			/*
 			**  Since the delivery may happen in a child and the
 			**  parent does not wait, the parent may close the
@@ -2083,6 +2116,7 @@ run_work_group(wgrp, forkflag, verbose, persistent, runall)
 
 		sm_releasesignal(SIGCHLD);
 
+#if !_FFR_NONSTOP_PERSISTENCE
 		/*
 		**  Wait until all of the runners have completed before
 		**  seeing if there is another queue group in the
@@ -2101,6 +2135,7 @@ run_work_group(wgrp, forkflag, verbose, persistent, runall)
 				continue;
 			proc_list_drop(ret, status, NULL);
 		}
+#endif /* !_FFR_NONSTOP_PERSISTENCE */
 	}
 	else
 	{
@@ -5632,21 +5667,33 @@ setnewqueue(e)
 	/* not set somewhere else */
 	if (e->e_qgrp == NOQGRP)
 	{
+		ADDRESS *q;
+
 		/*
-		**  Use the queue group of the first recipient, as set by
+		**  Use the queue group of the "first" recipient, as set by
 		**  the "queuegroup" rule set.  If that is not defined, then
 		**  use the queue group of the mailer of the first recipient.
 		**  If that is not defined either, then use the default
 		**  queue group.
+		**  Notice: "first" depends on the sorting of sendqueue
+		**  in recipient().
+		**  To avoid problems with "bad" recipients look
+		**  for a valid address first.
 		*/
 
-		if (e->e_sendqueue == NULL)
+		q = e->e_sendqueue;
+		while (q != NULL &&
+		       (QS_IS_BADADDR(q->q_state) || QS_IS_DEAD(q->q_state)))
+		{
+			q = q->q_next;
+		}
+		if (q == NULL)
 			e->e_qgrp = 0;
-		else if (e->e_sendqueue->q_qgrp >= 0)
-			e->e_qgrp = e->e_sendqueue->q_qgrp;
-		else if (e->e_sendqueue->q_mailer != NULL &&
-			 ISVALIDQGRP(e->e_sendqueue->q_mailer->m_qgrp))
-			e->e_qgrp = e->e_sendqueue->q_mailer->m_qgrp;
+		else if (q->q_qgrp >= 0)
+			e->e_qgrp = q->q_qgrp;
+		else if (q->q_mailer != NULL &&
+			 ISVALIDQGRP(q->q_mailer->m_qgrp))
+			e->e_qgrp = q->q_mailer->m_qgrp;
 		else
 			e->e_qgrp = 0;
 		e->e_dfqgrp = e->e_qgrp;
@@ -7670,6 +7717,7 @@ split_across_queue_groups(e)
 	ENVELOPE *e;
 {
 	int naddrs, nsplits, i;
+	bool changed;
 	char **pvp;
 	ADDRESS *q, **addrs;
 	ENVELOPE *ee, *es;
@@ -7680,6 +7728,7 @@ split_across_queue_groups(e)
 
 	/* Count addresses and assign queue groups. */
 	naddrs = 0;
+	changed = false;
 	for (q = e->e_sendqueue; q != NULL; q = q->q_next)
 	{
 		if (QS_IS_DEAD(q->q_state))
@@ -7704,6 +7753,7 @@ split_across_queue_groups(e)
 				if (ISVALIDQGRP(i))
 				{
 					q->q_qgrp = i;
+					changed = true;
 					if (tTd(20, 4))
 						sm_syslog(LOG_INFO, NOQID,
 							"queue group name %s -> %d",
@@ -7717,7 +7767,10 @@ split_across_queue_groups(e)
 			}
 			if (q->q_mailer != NULL &&
 			    ISVALIDQGRP(q->q_mailer->m_qgrp))
+			{
+				changed = true;
 				q->q_qgrp = q->q_mailer->m_qgrp;
+			}
 			else if (ISVALIDQGRP(e->e_qgrp))
 				q->q_qgrp = e->e_qgrp;
 			else
@@ -7726,7 +7779,7 @@ split_across_queue_groups(e)
 	}
 
 	/* only one address? nothing to split. */
-	if (naddrs <= 1)
+	if (naddrs <= 1 && !changed)
 		return SM_SPLIT_NONE;
 
 	/* sort the addresses by queue group */

@@ -13,14 +13,14 @@
  *	$Id: conf.h,v 8.563 2002/06/04 02:13:50 geir Exp $
  */
 
-/* $FreeBSD$ */
-
 /*
 **  CONF.H -- All user-configurable parameters for sendmail
 **
 **	Send updates to sendmail@Sendmail.ORG so they will be
 **	included in the next release.
 */
+
+/* $FreeBSD$ */
 
 #ifndef CONF_H
 #define CONF_H 1

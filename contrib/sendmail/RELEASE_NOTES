@@ -1,10 +1,90 @@
 			SENDMAIL RELEASE NOTES
-      $Id: RELEASE_NOTES,v 8.1340.2.9 2002/06/25 22:53:32 ca Exp $
+      $Id: RELEASE_NOTES,v 8.1340.2.43 2002/08/26 21:53:31 gshapiro Exp $
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.12.6/8.12.6	2002/08/26
+	Do not add the FallbackMXhost (or its MX records) to the list
+		returned by the bestmx map when -z is used as option.
+		Otherwise sendmail may act as an open relay if FallbackMXhost
+		and FEATURE(`relay_based_on_MX') are used together.
+		Problem noted by Alexander Ignatyev.
+	Properly split owner- mailing list messages when SuperSafe is set
+		to interactive.  Problem noted by Todd C. Miller of
+		Courtesan Consulting.
+	Make sure that an envelope is queued in the selected queue group
+		even if some recipients are deleted or invalid.  Problem
+		found by Chris Adams of HiWAAY Informations Services.
+	Do not send a bounce message if a message is completely collected
+		from the SMTP client.  Problem noted by Kari Hurtta of the
+		Finnish Meteorological Institute.
+	Provide an 'install-submit-st' target for sendmail/Makefile to
+		install the MSP statistics file using the file named in the
+		confMSP_STFILE devtools variable.  Requested by Jeff
+		Earickson of Colby College.
+	Queue up mail with a temporary error if setusercontext() fails
+		during a delivery attempt.  Patch from Todd C. Miller of
+		Courtesan Consulting.
+	Fix handling of base64 encoded client authentication data for
+		SMTP AUTH.  Patch from Elena Slobodnik of life medien GmbH.
+	Set the OpenLDAP option LDAP_OPT_RESTART so the client libraries
+		restart interrupted system calls.  Problem noted by Luiz
+		Henrique Duma of BSIOne.
+	Prevent a segmentation fault if a program passed a NULL envp using
+		execve().
+	Document a problem with the counting of queue runners that may
+		cause delays if MaxQueueChildren is set too low. Problem
+		noted by Ian Duplisse of Cable Television Laboratories, Inc.
+	If discarding a message based on a recipient, don't try to look up
+		the recipient in the mailbox database if F=w is set.  This
+		allows users to discard bogus recipients when dealing with
+		spammers without tipping them off.  Problem noted by Neil
+		Rickert of Northern Illinois University.
+	If applying a header check to a header with unstructured data,
+		e.g., Subject:, then do not run syntax checks that are
+		supposed for addresses on the header content.
+	Count messages rejected/discarded via the check_data ruleset.
+	Portability:
+		Fix compilation on systems which do not allow simple
+			copying of the variable argument va_list.  Based on
+			fix from Scott Walters.
+		Fix NSD map open bug.  From Michel Bourget of SGI.
+		Add some additional IRIX shells to the default shell
+			list.  From Michel Bourget of SGI.
+		Fix compilation issues on Mac OS X 10.2 (Darwin 6.0).
+			NETISO support has been dropped.
+	CONFIG: There was a seemingly minor change in 8.12.4 with respect
+		to handling entries of IP nets/addresses with RHS REJECT.
+		These would be rejected in check_rcpt instead of only
+		being activated in check_relay.  This change has been made to
+		avoid potential bogus temporary rejection of relay attempts
+		"450 4.7.1 Relaying temporarily denied. Cannot resolve PTR
+		record for ..." if delay_checks is enabled.  However, this
+		modification causes a change of behavior if an IP net/address
+		is listed in the access map with REJECT and a host/domain
+		name is listed with OK or RELAY, hence it has been reversed
+		such that the behavior of 8.12.3 is restored.  The original
+		change was made on request of Neil Rickert of Northern
+		Illinois University, the side effect has been found by
+		Stefaan Van Hoornick.
+	CONFIG: Make sure delay_checks works even for sender addresses
+		using the local hostname ($j) or domains in class {P}.
+		Based on patch from Neil Rickert of Northern Illinois
+		University.
+	CONFIG: Fix temporary error handling for LDAP Routing lookups.
+		Fix from Andrzej Filip.
+	CONTRIB: New version of etrn.pl script and external man page
+		(etrn.0) from John Beck of Sun Microsystems.
+	LIBMILTER: Protect a free(3) operation from being called with a
+		NULL pointer.  Problem noted by Andrey J. Melnikoff.
+	LIBMILTER: Protect against more interrupted select() calls.  Based
+		on patch from Jose Marcio Martins da Cruz of Ecole Nationale
+		Superieure des Mines de Paris.
+	New Files:
+		contrib/etrn.0
 
 8.12.5/8.12.5	2002/06/25
 	SECURITY: The DNS map can cause a buffer overflow if the user

@@ -32,7 +32,7 @@
 #####  $Id: no_default_msa.m4,v 8.2 2001/02/14 05:03:22 gshapiro Exp $  #####
 
 
-#####  $Id: proto.m4,v 8.649 2002/06/13 18:53:24 ca Exp $  #####
+#####  $Id: proto.m4,v 8.649.2.5 2002/08/15 02:39:01 ca Exp $  #####
 
 # level 10 config file format
 V10/Berkeley
@@ -110,7 +110,7 @@ D{MTAHost}[localhost]
 
 
 # Configuration version number
-DZ8.12.5/Submit
+DZ8.12.6/Submit
 
 
 ###############
@@ -999,8 +999,8 @@ R<?> $*			$: $1
 R$*			$: <?> $>CanonAddr $1		canonify sender address and mark it
 R<?> $* < @ $+ . >	<?> $1 < @ $2 >			strip trailing dots
 # handle non-DNS hostnames (*.bitnet, *.decnet, *.uucp, etc)
-R<?> $* < @ $* $=P >	$: <OK> $1 < @ $2 $3 >
-R<?> $* < @ $j >	$: <OK> $1 < @ $j >
+R<?> $* < @ $* $=P >	$: <OKR> $1 < @ $2 $3 >
+R<?> $* < @ $j >	$: <OKR> $1 < @ $j >
 R<?> $* < @ $+ >	$: <? $(resolve $2 $: $2 <PERM> $) > $1 < @ $2 >
 R<? $* <$->> $* < @ $+ >
 			$: <$2> $3 < @ $4 >
@@ -1011,7 +1011,7 @@ R<?> $*			$: $&{daemon_flags} $| <?> $1
 R$* u $* $| <?> $*	$: <OKR> $3
 R$* $| $*		$: $2
 R<?> $*			$: < ? $&{client_name} > $1
-R<?> $*			$@ <OK>				...local unqualed ok
+R<?> $*			$@ <OKR>			...local unqualed ok
 R<? $+> $*		$#error $@ 5.5.4 $: "553 Domain name required for sender address " $&f
 							...remote is not
 # check results
