@@ -52,12 +52,14 @@ enum {
 
 #define VINUMMOD "vinum"
 
-#define DEFAULT_HISTORYFILE "/var/tmp/vinum_history"	    /* default name for history stuff */
+#define DEFAULT_HISTORYFILE "/var/log/vinum_history"	    /* default name for history stuff */
 
 /* Prototype declarations */
 void parseline(int c, char *args[]);			    /* parse a line with c parameters at args */
 void checkentry(int index);
 int haveargs(int);					    /* check arg, error message if not valid */
+void setsigs();
+void catchsig(int ignore);
 void vinum_create(int argc, char *argv[], char *arg0[]);
 void vinum_read(int argc, char *argv[], char *arg0[]);
 void vinum_modify(int argc, char *argv[], char *arg0[]);
@@ -124,6 +126,9 @@ void make_vol_dev(int, int);
 void make_plex_dev(int, int);
 void make_sd_dev(int);
 void list_defective_objects();
+void vinum_dumpconfig(int argc, char *argv[], char *argv0[]);
+void dumpconfig(char *part);
+int check_drive(char *devicename);
 void get_drive_info(struct drive *drive, int index);
 void get_sd_info(struct sd *sd, int index);
 void get_plex_sd_info(struct sd *sd, int plexno, int sdno);
