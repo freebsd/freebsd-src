@@ -107,7 +107,7 @@
 #	pci	PCI configuration-space access from user mode
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #
-#	$Id: MAKEDEV,v 1.160 1998/03/22 11:42:03 peter Exp $
+#	$Id: MAKEDEV,v 1.161 1998/03/22 13:18:07 peter Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -829,9 +829,11 @@ cuaA*)
 		minor=`expr $port - 1`
 		name=`expr $port + 1000 | cut -c 3-4` 
 		mknod cuaA$name c $major `expr $minor + 128`
+		chown uucp.dialer cuaA$name
+		umask 77
 		mknod cuaiA$name c $major `expr $minor + 128 + 65536`
 		mknod cualA$name c $major `expr $minor + 128 + 131072`
-		chown uucp.dialer cuaA$name cuaiA$name cualA$name
+		umask 7
 		port=`expr $port + 1`
 	done
 	umask 77
