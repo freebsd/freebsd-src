@@ -235,6 +235,8 @@ static struct mutex_prof mprof_buf[NUM_MPROF_BUFFERS];
 static int first_free_mprof_buf;
 #define	MPROF_HASH_SIZE		1009
 static struct mutex_prof *mprof_hash[MPROF_HASH_SIZE];
+/* SWAG: sbuf size = avg stat. line size * number of locks */
+#define MPROF_SBUF_SIZE		256 * 400
 
 static int mutex_prof_acquisitions;
 SYSCTL_INT(_debug_mutex_prof, OID_AUTO, acquisitions, CTLFLAG_RD,
@@ -275,12 +277,14 @@ dump_mutex_prof_stats(SYSCTL_HANDLER_ARGS)
 {
 	struct sbuf *sb;
 	int error, i;
+	static int multiplier = 1;
 
 	if (first_free_mprof_buf == 0)
 		return (SYSCTL_OUT(req, "No locking recorded",
 		    sizeof("No locking recorded")));
 
-	sb = sbuf_new(NULL, NULL, 1024, SBUF_AUTOEXTEND);
+retry_sbufops:
+	sb = sbuf_new(NULL, NULL, MPROF_SBUF_SIZE * multiplier, SBUF_FIXEDLEN);
 	sbuf_printf(sb, "%6s %12s %11s %5s %s\n",
 	    "max", "total", "count", "avg", "name");
 	/*
@@ -290,7 +294,7 @@ dump_mutex_prof_stats(SYSCTL_HANDLER_ARGS)
 	 * computation here).
 	 */
 	mtx_lock_spin(&mprof_mtx);
-	for (i = 0; i < first_free_mprof_buf; ++i)
+	for (i = 0; i < first_free_mprof_buf; ++i) {
 		sbuf_printf(sb, "%6ju %12ju %11ju %5ju %s:%d (%s)\n",
 		    mprof_buf[i].cnt_max / 1000,
 		    mprof_buf[i].cnt_tot / 1000,
@@ -298,6 +302,13 @@ dump_mutex_prof_stats(SYSCTL_HANDLER_ARGS)
 		    mprof_buf[i].cnt_cur == 0 ? (uintmax_t)0 :
 			mprof_buf[i].cnt_tot / (mprof_buf[i].cnt_cur * 1000),
 		    mprof_buf[i].file, mprof_buf[i].line, mprof_buf[i].name);
+		if (sbuf_overflowed(sb)) {
+			mtx_unlock_spin(&mprof_mtx);
+			sbuf_delete(sb);
+			multiplier++;
+			goto retry_sbufops;
+		}
+	}
 	mtx_unlock_spin(&mprof_mtx);
 	sbuf_finish(sb);
 	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
@@ -360,7 +371,8 @@ _mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
 		m->mtx_acqtime = 0;
 		if (now <= acqtime)
 			goto out;
-		for (p = m->mtx_filename; strncmp(p, "../", 3) == 0; p += 3)
+		for (p = m->mtx_filename;
+		    p != NULL && strncmp(p, "../", 3) == 0; p += 3)
 			/* nothing */ ;
 		if (p == NULL || *p == '\0')
 			p = unknown;
