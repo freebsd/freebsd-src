@@ -316,8 +316,7 @@ aio_onceonly(void)
 	aiop_zone = zinit("AIOP", sizeof(struct aiothreadlist), 0, 0, 1);
 	aiocb_zone = zinit("AIOCB", sizeof(struct aiocblist), 0, 0, 1);
 	aiol_zone = zinit("AIOL", AIO_LISTIO_MAX*sizeof(intptr_t), 0, 0, 1);
-	aiolio_zone = zinit("AIOLIO", AIO_LISTIO_MAX * sizeof(struct
-	    aio_liojob), 0, 0, 1);
+	aiolio_zone = zinit("AIOLIO", sizeof(struct aio_liojob), 0, 0, 1);
 	aiod_timeout = AIOD_TIMEOUT_DEFAULT;
 	aiod_lifetime = AIOD_LIFETIME_DEFAULT;
 	jobrefid = 1;
@@ -1518,8 +1517,8 @@ no_kqueue:
 	 * (thread) due to resource issues, we return an error for now (EAGAIN),
 	 * which is likely not the correct thing to do.
 	 */
-retryproc:
 	s = splnet();
+retryproc:
 	if ((aiop = TAILQ_FIRST(&aio_freeproc)) != NULL) {
 		TAILQ_REMOVE(&aio_freeproc, aiop, list);
 		TAILQ_INSERT_TAIL(&aio_activeproc, aiop, list);
@@ -1588,12 +1587,9 @@ aio_return(struct thread *td, struct aio_return_args *uap)
 	if (jobref == -1 || jobref == 0)
 		return EINVAL;
 
-	s = splnet();
-	for (cb = TAILQ_FIRST(&ki->kaio_jobdone); cb; cb = TAILQ_NEXT(cb,
-	    plist)) {
+	TAILQ_FOREACH(cb, &ki->kaio_jobdone, plist) {
 		if (((intptr_t) cb->uaiocb._aiocb_private.kernelinfo) ==
 		    jobref) {
-			splx(s);
 			if (ujob == cb->uuaiocb) {
 				td->td_retval[0] =
 				    cb->uaiocb._aiocb_private.status;
@@ -1611,8 +1607,6 @@ aio_return(struct thread *td, struct aio_return_args *uap)
 			return 0;
 		}
 	}
-	splx(s);
-	
 	s = splbio();
 	for (cb = TAILQ_FIRST(&ki->kaio_bufdone); cb; cb = ncb) {
 		ncb = TAILQ_NEXT(cb, plist);
@@ -1695,8 +1689,7 @@ aio_suspend(struct thread *td, struct aio_suspend_args *uap)
 
 	error = 0;
 	for (;;) {
-		for (cb = TAILQ_FIRST(&ki->kaio_jobdone); cb; cb =
-		    TAILQ_NEXT(cb, plist)) {
+		TAILQ_FOREACH(cb, &ki->kaio_jobdone, plist) {
 			for (i = 0; i < njoblist; i++) {
 				if (((intptr_t)
 				    cb->uaiocb._aiocb_private.kernelinfo) ==
@@ -1885,8 +1878,7 @@ aio_error(struct thread *td, struct aio_error_args *uap)
 	if ((jobref == -1) || (jobref == 0))
 		return EINVAL;
 
-	for (cb = TAILQ_FIRST(&ki->kaio_jobdone); cb; cb = TAILQ_NEXT(cb,
-	    plist)) {
+	TAILQ_FOREACH(cb, &ki->kaio_jobdone, plist) {
 		if (((intptr_t)cb->uaiocb._aiocb_private.kernelinfo) ==
 		    jobref) {
 			td->td_retval[0] = cb->uaiocb._aiocb_private.error;
