@@ -106,6 +106,10 @@ ata_pci_probe(device_t dev)
 	if (!ata_intel_ident(dev))
 	    return 0;
 	break;
+    case ATA_ITE_ID:
+	if (!ata_ite_ident(dev))
+	    return 0;
+	break;
     case ATA_NATIONAL_ID:
 	if (!ata_national_ident(dev))
 	    return 0;
@@ -134,18 +138,19 @@ ata_pci_probe(device_t dev)
 	if (!ata_via_ident(dev))
 	    return 0;
 	break;
-    case 0x16ca:
-	if (pci_get_devid(dev) == 0x000116ca) {
+    case ATA_CENATEK_ID:
+	if (pci_get_devid(dev) == ATA_CENATEK_ROCKET) {
 	    ata_generic_ident(dev);
 	    device_set_desc(dev, "Cenatek Rocket Drive controller");
 	    return 0;
 	}
 	break;
-    case 0x1042:
-	if (pci_get_devid(dev)==0x10001042 || pci_get_devid(dev)==0x10011042) {
+    case ATA_MICRON_ID:
+	if (pci_get_devid(dev) == ATA_MICRON_RZ1000 ||
+	    pci_get_devid(dev) == ATA_MICRON_RZ1001) {
 	    ata_generic_ident(dev);
 	    device_set_desc(dev, 
-		"RZ 100? ATA controller !WARNING! buggy HW data loss possible");
+		"RZ 100? ATA controller !WARNING! data loss/corruption risk");
 	    return 0;
 	}
 	break;
