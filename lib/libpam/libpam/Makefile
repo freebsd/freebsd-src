@@ -90,6 +90,7 @@ MAN		+= openpam_borrow_cred.3
 MAN		+= openpam_free_data.3
 MAN		+= openpam_get_option.3
 MAN		+= openpam_log.3
+MAN		+= openpam_nullconv.3
 MAN		+= openpam_restore_cred.3
 MAN		+= openpam_set_option.3
 MAN		+= openpam_ttyconv.3
