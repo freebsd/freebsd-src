@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_dnslookup.c,v 1.3.2.1 1997/01/14 01:33:55 wpaul Exp $
+ *	$Id: yp_dnslookup.c,v 1.3.2.2 1997/07/27 03:42:53 wpaul Exp $
  */
 
 /*
@@ -65,7 +65,7 @@
 #include "yp_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_dnslookup.c,v 1.3.2.1 1997/01/14 01:33:55 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_dnslookup.c,v 1.3.2.2 1997/07/27 03:42:53 wpaul Exp $";
 #endif
 
 static char *parse(hp)
@@ -390,7 +390,8 @@ void yp_run_dnsq()
 	 * query has failed.
 	 */
 	if (hent == NULL) {
-		if (h_errno == TRY_AGAIN && q->domain && *q->domain) {
+		if ((h_errno == TRY_AGAIN || h_errno == NO_RECOVERY)
+					&& q->domain && *q->domain) {
 			snprintf(retrybuf, sizeof(retrybuf), "%s.%s",
 						q->name, *q->domain);
 			if (debug)
