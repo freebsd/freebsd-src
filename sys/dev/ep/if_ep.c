@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.77 1998/10/22 05:58:39 bde Exp $
+ *  $Id: if_ep.c,v 1.78 1999/01/19 00:21:39 peter Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -104,6 +104,12 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/if_epreg.h>
 #include <i386/isa/elink.h>
+
+/* DELAY_MULTIPLE: How much to boost "base" delays, except
+ * for the inter-bit delays in get_eeprom_data.  A cyrix Media GX needed this.
+ */
+#define DELAY_MULTIPLE 10
+#define BIT_DELAY_MULTIPLE 10
 
 /* Exported variables */
 u_long	ep_unit;
@@ -305,7 +311,7 @@ ep_look_for_board_at(is)
 	elink_idseq(0xCF);
 
 	elink_reset();
-	DELAY(10000);
+	DELAY(DELAY_MULTIPLE * 10000);
 	for (i = 0; i < EP_MAX_BOARDS; i++) {
 	    outb(id_port, 0);
 	    outb(id_port, 0);
@@ -743,7 +749,7 @@ epinit(sc)
       case ACF_CONNECTOR_BNC:
 	if (sc->ep_connectors & BNC) {
 	    outw(BASE + EP_COMMAND, START_TRANSCEIVER);
-	    DELAY(1000);
+	    DELAY(DELAY_MULTIPLE * 1000);
 	}
 	break;
       case ACF_CONNECTOR_AUI:
@@ -1389,6 +1395,7 @@ send_ID_sequence(port)
  * the AX register which is conveniently returned to us by inb().  Hence; we
  * read 16 times getting one bit of data with each read.
  */
+
 static int
 get_eeprom_data(id_port, offset)
     int id_port;
@@ -1396,9 +1403,10 @@ get_eeprom_data(id_port, offset)
 {
     int i, data = 0;
     outb(id_port, 0x80 + offset);
-    DELAY(1000);
-    for (i = 0; i < 16; i++)
+    for (i = 0; i < 16; i++) {
+    	DELAY(BIT_DELAY_MULTIPLE * 1000);
 	data = (data << 1) | (inw(id_port) & 1);
+    }
     return (data);
 }
 
