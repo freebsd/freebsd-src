@@ -3221,6 +3221,8 @@ fhopen(td, uap)
 	}
 	if (fmode & FREAD)
 		mode |= VREAD;
+	if (fmode & O_APPEND)
+		mode |= VAPPEND;
 	if (mode) {
 		error = VOP_ACCESS(vp, mode, td->td_ucred, td);
 		if (error)
