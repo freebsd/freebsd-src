@@ -518,7 +518,7 @@ cv_wakeup(struct cv *cvp)
 	td->td_wchan = 0;
 	if (td->td_state == TDS_SLP) {
 		/* OPTIMIZED EXPANSION OF setrunnable(td); */
-		CTR3(KTR_PROC, "cv_signal: thread %p (pid %d, %s)",
+		CTR3(KTR_PROC, "cv_wakeup: thread %p (pid %d, %s)",
 		    td, td->td_proc->p_pid, td->td_proc->p_comm);
 		kg = td->td_ksegrp;
 		if (kg->kg_slptime > 1) /* XXXKSE */
