@@ -1,7 +1,7 @@
 /* insecure.c: The opieinsecure() library function.
 
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -14,6 +14,8 @@ License Agreement applies to this software.
 
         History:
 
+	Modified by cmetz for OPIE 2.4. Do utmp checks on utmpx systems.
+	     Handle unterminated ut_host.
 	Modified by cmetz for OPIE 2.31. Fixed a logic bug. Call endut[x]ent().
 	Modified by cmetz for OPIE 2.3. Added result caching. Use
 	     __opiegetutmpentry(). Ifdef around ut_host check. Eliminate
@@ -59,9 +61,9 @@ int opieinsecure FUNCTION_NOARGS
   char *s;
   char *term_name;
   int  insecure = 0;
-#if HAVE_UT_HOST
+#if HAVE_UT_HOST || DOUTMPX
   struct utmp utmp;
-#endif /* HAVE_UT_HOST */
+#endif /* HAVE_UT_HOST || DOUTMPX */
   static int result = -1;
 
   if (result != -1)
@@ -122,30 +124,34 @@ int opieinsecure FUNCTION_NOARGS
         return (result = 1);
   };
 
-#if HAVE_UT_HOST
+#if HAVE_UT_HOST || DOUTMPX
   if (isatty(0)) {
     memset(&utmp, 0, sizeof(struct utmp));
     {
       int i = __opiegetutmpentry(ttyname(0), &utmp);
       endutent();
       if (!i && utmp.ut_host[0]) {
+	char host[sizeof(utmp.ut_host) + 1];
 	insecure = 1;
 
-	if (s = strchr(utmp.ut_host, ':')) {
-	  int n = s - utmp.ut_host;
+	strncpy(host, utmp.ut_host, sizeof(utmp.ut_host));
+	host[sizeof(utmp.ut_host)] = 0;
+
+	if (s = strchr(host, ':')) {
+	  int n = s - host;
 	  if (!n)
 	    insecure = 0;
 	  else
 	    if (display_name) {
-	      if (!strncmp(utmp.ut_host, display_name, n))
+	      if (!strncmp(host, display_name, n))
 		insecure = 0;
-#ifdef SOLARIS
+#if 1 /* def SOLARIS */
 	      else
-		if (s = strchr(utmp.ut_host, ' ')) {
+		if (s = strchr(host, ' ')) {
 		  *s = ':';
 		  if (s = strchr(s + 1, ' '))
 		    *s = '.';
-		  if (!strncmp(utmp.ut_host, display_name, n))
+		  if (!strncmp(host, display_name, n))
 		    insecure = 0; 
 		}
 #endif /* SOLARIS */
@@ -154,7 +160,7 @@ int opieinsecure FUNCTION_NOARGS
       }
     };
   };
-#endif /* HAVE_UT_HOST */
+#endif /* HAVE_UT_HOST || DOUTMPX */
   if (insecure)
     return (result = 1);
 

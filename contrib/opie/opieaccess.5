@@ -7,11 +7,13 @@
 .\"
 .\"	History:
 .\"
+.\"	Modified by cmetz for OPIE 2.4. Fixed "0PIE" typo.
 .\"	Written at NRL for OPIE 2.0.
 .\"
 .ll 6i
 .pl 10.5i
 .\"	@(#)opieaccess.5	2.0 (NRL) 1/10/95
+.\" $FreeBSD$
 .\"
 .lt 6.0i
 .TH OPIEACCESS 5 "January 10, 1995"
@@ -61,7 +63,7 @@ mask	Mask of the network to match
 
 Subnets can be controlled by using the appropriate address and mask. Individual
 hosts can be controlled by using the appropriate address and a mask of
-255.255.255.255. If no rules are matched, the default is to deny non-0PIE
+255.255.255.255. If no rules are matched, the default is to deny non-OPIE
 logins.
 
 .SH SEE ALSO
