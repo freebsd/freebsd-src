@@ -142,13 +142,6 @@ static void
 toast_rules(struct rulehead *head)
 {
 	struct rule *rule;
-	int i;
-
-	i = 0;
-	for (rule = TAILQ_FIRST(head);
-	     rule != NULL;
-	     rule = TAILQ_NEXT(rule, r_entries))
-		i++;
 
 	while ((rule = TAILQ_FIRST(head)) != NULL) {
 		TAILQ_REMOVE(head, rule, r_entries);
