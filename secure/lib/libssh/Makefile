@@ -7,12 +7,12 @@ SRCS=	acss.c authfd.c authfile.c bufaux.c buffer.c \
 	compat.c compress.c crc32.c deattack.c fatal.c hostfile.c \
 	log.c match.c moduli.c mpaux.c nchan.c packet.c \
 	readpass.c rsa.c tildexpand.c ttymodes.c xmalloc.c \
-	atomicio.c key.c dispatch.c kex.c mac.c uuencode.c misc.c \
-	rijndael.c ssh-dss.c ssh-rsa.c dh.c kexdh.c kexgex.c \
-	kexdhc.c kexgexc.c scard.c msg.c progressmeter.c dns.c \
+	atomicio.c key.c dispatch.c kex.c mac.c uidswap.c uuencode.c misc.c \
+	monitor_fdpass.c rijndael.c ssh-dss.c ssh-rsa.c dh.c kexdh.c \
+	kexgex.c kexdhc.c kexgexc.c scard.c msg.c progressmeter.c dns.c \
 	entropy.c scard-opensc.c
 # Portability layer
-SRCS+=	bsd-misc.c getrrsetbyname.c vis.c xcrypt.c xmmap.c
+SRCS+=	bsd-closefrom.c bsd-misc.c getrrsetbyname.c vis.c xcrypt.c xmmap.c
 # FreeBSD additions
 SRCS+=	version.c
 
