@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: netbsd_getdirentries.c,v 1.1 1998/03/09 07:07:20 jb Exp $ */
 /*	From: NetBSD: getdirentries.c,v 1.1 1997/10/10 02:15:56 fvdl Exp */
 
 /*
@@ -34,17 +34,22 @@
  */
 
 #include <sys/types.h>
+#include <sys/syscall.h>
 #include <dirent.h>
 #include <unistd.h>
 
 int getdents __P((int, char *, size_t));
 
 int
+#ifdef _THREAD_SAFE
+_thread_sys_getdirentries(fd, buf, nbytes, basep)
+#else
 getdirentries(fd, buf, nbytes, basep)
+#endif
 	int fd, nbytes;
 	char *buf;
 	long *basep;
 {
-	*basep = lseek(fd, 0, SEEK_CUR);
+	*basep = __syscall((quad_t) SYS_lseek,fd, 0, 0, SEEK_CUR);
 	return getdents(fd, buf, nbytes);
 }
