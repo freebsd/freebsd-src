@@ -32,12 +32,6 @@
  *			and not portable.
  */
 
-#ifdef linux
-#include <linux/soundcard.h>
-#else
-#include <machine/soundcard.h>
-#endif
-
 /*
  *	Private events for Gravis Ultrasound (GUS)
  *
@@ -90,6 +84,7 @@
 #define _GUS_VOICEFADE		0x0d
 #define _GUS_VOLUME_SCALE	0x0e
 #define _GUS_VOICEVOL2		0x0f
+#define _GUS_VOICE_POS		0x10
 
 /*
  *	GUS API macros
@@ -120,5 +115,7 @@
 #define GUS_RAMPON(chn, voice, p1)		_GUS_CMD(chn, voice, _GUS_RAMPON, (p1), 0)
 #define GUS_RAMPOFF(chn, voice)			_GUS_CMD(chn, voice, _GUS_RAMPOFF, 0, 0)
 #define GUS_VOLUME_SCALE(chn, voice, p1, p2)	_GUS_CMD(chn, voice, _GUS_VOLUME_SCALE, (p1), (p2))
+#define GUS_VOICE_POS(chn, voice, p)		_GUS_CMD(chn, voice, _GUS_VOICE_POS, \
+							(p) & 0xffff, ((p) >> 16) & 0xffff)
 
 #endif

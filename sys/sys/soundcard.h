@@ -30,14 +30,15 @@
  /* 
   * If you make modifications to this file, please contact me before
   * distributing the modified version. There is already enough 
-  * diversity in the world.
+  * divercity in the world.
   *
   * Regards,
   * Hannu Savolainen
   * hsavolai@cs.helsinki.fi
   */
 
-#define SOUND_VERSION	200
+#define SOUND_VERSION	203
+#define VOXWARE
 
 #include <sys/ioctl.h>
 
@@ -50,6 +51,8 @@
 #define SNDCARD_PAS	3
 #define SNDCARD_GUS	4
 #define SNDCARD_MPU401	5
+#define SNDCARD_SB16	6
+#define SNDCARD_SB16MIDI 7
 
 /***********************************
  * IOCTL Commands for /dev/sequencer
@@ -66,9 +69,9 @@
  */
 /* #define	IOCTYPE		(0xff<<8) */
 #define	IOCPARM_MASK	0x7f		/* parameters must be < 128 bytes */
-#define	IOC_VOID	0x20000000	/* no parameters */
-#define	IOC_OUT		0x40000000	/* copy out parameters */
-#define	IOC_IN		0x80000000	/* copy in parameters */
+#define	IOC_VOID	0x00000000	/* no parameters */
+#define	IOC_OUT		0x20000000	/* copy out parameters */
+#define	IOC_IN		0x40000000	/* copy in parameters */
 #define	IOC_INOUT	(IOC_IN|IOC_OUT)
 /* the 0x20000000 is so we can distinguish new ioctl's from old */
 #define	_IO(x,y)	((int)(IOC_VOID|(x<<8)|y))
@@ -180,7 +183,7 @@ struct patch_info {
 	
 	        int		volume;
 	        int		spare[4];
-		char data[0];	/* The waveform data starts here */
+		char data[1];	/* The waveform data starts here */
 	};
 
 
@@ -402,7 +405,8 @@ struct midi_info {
 		char		name[30];
 		int		device;		/* 0-N. INITIALIZE BEFORE CALLING */
 		unsigned long	capabilities;	/* To be defined later */
-		int		dummies[19];	/* Reserve space */
+		int		dev_type;
+		int		dummies[18];	/* Reserve space */
 	};
 
 /********************************************
@@ -418,6 +422,7 @@ struct midi_info {
 #define SOUND_PCM_WRITE_CHANNELS	_IOWR('P', 6, int)
 #define SOUND_PCM_WRITE_FILTER		_IOWR('P', 7, int)
 #define SNDCTL_DSP_POST			_IO  ('P', 8)
+#define SNDCTL_DSP_SUBDIVIDE		_IOWR('P', 9, int)
 
 #define SOUND_PCM_READ_RATE		_IOR ('P', 2, int)
 #define SOUND_PCM_READ_CHANNELS		_IOR ('P', 6, int)
@@ -430,6 +435,7 @@ struct midi_info {
 #define SOUND_PCM_POST			SNDCTL_DSP_POST
 #define SOUND_PCM_RESET			SNDCTL_DSP_RESET
 #define SOUND_PCM_SYNC			SNDCTL_DSP_SYNC
+#define SOUND_PCM_SUBDIVIDE		SNDCTL_DSP_SUBDIVIDE
 
 /*********************************************
  * IOCTL commands for /dev/mixer
