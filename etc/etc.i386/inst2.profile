@@ -1,6 +1,6 @@
 stty status '^T'
-#trap : 2
-#trap : 3
+trap : 2
+trap : 3
 HOME=/; export HOME
 PATH=/sbin:/bin:/usr/sbin:/usr/bin; export PATH
 if [ -e /fastboot ]
@@ -48,6 +48,7 @@ else
 	esac
 fi
 
+trap 2
 trap "echo 'Reboot interrupted'; exit 1" 3
 umount -a >/dev/null 2>&1
 mount -a -t nonfs
