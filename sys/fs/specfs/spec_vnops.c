@@ -547,8 +547,6 @@ spec_specstrategy(ap)
 	} */ *ap;
 {
 
-	KASSERT(ap->a_vp == ap->a_bp->b_vp, ("%s(%p != %p)",
-	    __func__, ap->a_vp, ap->a_bp->b_vp));
 	return spec_xstrategy(ap->a_vp, ap->a_bp);
 }
 
