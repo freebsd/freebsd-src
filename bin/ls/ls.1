@@ -146,7 +146,7 @@ month, day, hour, minute, second, and year.
 .It Fl W
 Display whiteouts when scanning directories.
 .It Fl Z
-Display each file's LOMAC level.
+Display each file's MAC label.
 .It Fl a
 Include directory entries whose names begin with a
 dot
@@ -303,7 +303,7 @@ option is given, the following information
 is displayed for each file:
 file mode,
 number of links, owner name, group name,
-LOMAC level,
+MAC label,
 number of bytes in the file, abbreviated
 month, day-of-month file was last modified,
 hour file last modified, minute file last
@@ -618,11 +618,6 @@ The group field is now automatically included in the long listing for
 files in order to be compatible with the
 .St -p1003.2
 specification.
-.Sh FILES
-.Bl -tag -width ".Pa /dev/lomac" -compact
-.It Pa /dev/lomac
-interface used to query the
-.Xr lomac 4
 KLD
 .El
 .Sh SEE ALSO
@@ -630,7 +625,6 @@ KLD
 .Xr chmod 1 ,
 .Xr sort 1 ,
 .Xr xterm 1 ,
-.Xr lomac 4 ,
 .Xr termcap 5 ,
 .Xr symlink 7 ,
 .Xr sticky 8
