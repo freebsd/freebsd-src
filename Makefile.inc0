@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc0,v 1.10 1998/09/29 22:03:13 jkh Exp $
+#	$Id: Makefile.inc0,v 1.11 1998/10/17 15:25:26 bde Exp $
 #
 # This makefile ensures that the object directory is set according to the
 # object format to avoid mixing aout and elf formatted files during the
@@ -38,7 +38,7 @@ BKTGTS=	afterdistribute all checkdpadd clean cleandepend cleandir \
 # A generic rule for the backend targets.
 #
 ${BKTGTS} :
-	@cd ${.CURDIR}; ${MK_ENV} ${MAKE} ${.TARGET}
+	@cd ${.CURDIR}; ${MAKE} ${.TARGET}
 
 #
 # Temporary path and environment for the legacy build.
