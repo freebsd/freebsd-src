@@ -1,6 +1,6 @@
 .TH GREP 1 "1992 September 10" "GNU Project"
 .SH NAME
-grep, egrep, fgrep \- print lines matching a pattern
+grep, egrep, fgrep, zgrep \- print lines matching a pattern
 .SH SYNOPSIS
 .B grep
 [\-[AB] num]
@@ -59,6 +59,11 @@ and is compatible with the historical Unix
 .B Fgrep
 is the same as
 .BR "grep\ \-F" .
+When called as 
+.BR zgrep , 
+the 
+.BR \-Z
+option is assumed.
 .PD
 .LP
 All variants of

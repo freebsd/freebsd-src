@@ -725,6 +725,12 @@ main(argc, argv)
 #if HAVE_FTS > 0
   Rflag = Hflag = Pflag = Lflag = 0;
 #endif
+#if HAVE_LIBZ > 0
+    if (*prog == 'z') {
+	prog++;
+	Zflag = 1;
+    }
+#endif
 
   while ((opt = getopt(argc, argv, 
       GETOPT_STD/**/GETOPT_FTS/**/GETOPT_Z)) != -1)
