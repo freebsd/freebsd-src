@@ -26,7 +26,7 @@
 .\" $FreeBSD$
 .\"
 .Dd June 3, 1998
-.Dt PCM 4 i386
+.Dt PCM 4
 .Os FreeBSD
 .Sh NAME
 .Nm pcm
@@ -48,7 +48,9 @@ channel, or to 0x10 + C to specify channel C.
 .Pp
 PnP audio cards are also supported using the
 .Nm pnp
-support which is available in FreeBSD starting from release 2.2.6.
+support which is available in
+.Fx
+starting from release 2.2.6.
 See the
 .Xr pnp 4
 manpage for more information. In particular, remember that unit

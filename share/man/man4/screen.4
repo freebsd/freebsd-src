@@ -2,7 +2,7 @@
 .\" $FreeBSD$
 .\"
 .Dd January 8, 1995
-.Dt SCREEN 4 i386
+.Dt SCREEN 4
 .Os FreeBSD
 .Sh NAME
 .Nm screen
@@ -12,7 +12,8 @@
 Access to the
 .Ar virtual consoles 
 are obtained through the device files
-ttyv0 - ttyvb in /dev.
+ttyv0 - ttyvb in
+.Pa /dev .
 Each of these files correspond to a separate
 virtual console.
 All virtual console devices can be open at once, but only one is 
@@ -22,8 +23,9 @@ display screen.
 Output to a virtual console that not currently is on the display is
 saved in a buffer that holds a "screenfull" (normally 25) lines.
 Any output written to 
-.Ar /dev/console 
-(the original console device) is echoed to /dev/ttyv0.
+.Pa /dev/console 
+(the original console device) is echoed to
+.Pa /dev/ttyv0.
 .Pp
 To switch between the virtual consoles one uses the sequence 
 .Ar ALT+Fn
