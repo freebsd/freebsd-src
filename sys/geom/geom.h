@@ -198,6 +198,13 @@ void g_trace(int level, char *, ...);
 #	define G_T_BIO		2
 #	define G_T_ACCESS	4
 
+/* geom_enc.c */
+uint32_t g_dec_be2(u_char *p);
+uint32_t g_dec_be4(u_char *p);
+uint32_t g_dec_le2(u_char *p);
+uint32_t g_dec_le4(u_char *p);
+void g_enc_le4(u_char *p, uint32_t u);
+
 /* geom_event.c */
 void g_event_init(void);
 void g_orphan_provider(struct g_provider *pp, int error);
