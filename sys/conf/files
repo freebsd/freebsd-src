@@ -642,6 +642,7 @@ dev/usb/ums.c		optional ums
 dev/usb/uplcom.c	optional uplcom ucom
 dev/usb/urio.c		optional urio
 dev/usb/uscanner.c	optional uscanner
+dev/usb/uvisor.c	optional uvisor ucom
 dev/usb/uvscom.c	optional uvscom ucom
 dev/usb/usb.c		optional usb
 dev/usb/usb_ethersubr.c	optional usb

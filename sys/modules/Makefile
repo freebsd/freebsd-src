@@ -100,6 +100,7 @@ SUBDIR=	3dfx \
 	urio \
 	usb \
 	uscanner \
+	uvisor \
 	uvscom \
 	vpo \
 	vr \
