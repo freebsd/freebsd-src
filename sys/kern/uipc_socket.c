@@ -131,6 +131,9 @@ soalloc(waitok)
 	int waitok;
 {
 	struct socket *so;
+#ifdef MAC
+	int error;
+#endif
 	int flag;
 
 	if (waitok == 1)
@@ -140,14 +143,19 @@ soalloc(waitok)
 	flag |= M_ZERO;
 	so = uma_zalloc(socket_zone, flag);
 	if (so) {
+#ifdef MAC
+		error = mac_init_socket(so, flag);
+		if (error != 0) {
+			uma_zfree(socket_zone, so);
+			so = NULL;
+			return so;
+		}
+#endif
 		/* XXX race condition for reentrant kernel */
 		so->so_gencnt = ++so_gencnt;
 		/* sx_init(&so->so_sxlock, "socket sxlock"); */
 		TAILQ_INIT(&so->so_aiojobq);
 		++numopensockets;
-#ifdef MAC
-		mac_init_socket(so);
-#endif
 	}
 	return so;
 }
