@@ -3,7 +3,7 @@
 # highly experimental (not working right at all) and very limited
 # functionality.
 #
-# $Id: faithd.rb,v 1.1.1.1 1999/08/08 23:29:31 itojun Exp $
+# $Id: faithd.rb,v 1.1.2.4 1999/05/10 17:06:30 itojun Exp $
 # $FreeBSD$
 
 require "socket"
