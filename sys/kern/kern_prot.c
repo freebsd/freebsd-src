@@ -1243,6 +1243,7 @@ crfree(cr)
 {
 
 	mtx_lock(&cr->cr_mtx);
+	KASSERT(cr->cr_ref > 0, ("bad ucred refcount: %d", cr->cr_ref));
 	if (--cr->cr_ref == 0) {
 		mtx_destroy(&cr->cr_mtx);
 		/*
