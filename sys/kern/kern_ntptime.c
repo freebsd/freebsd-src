@@ -38,6 +38,8 @@
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/time.h>
 #include <sys/timex.h>
 #include <sys/timetc.h>
@@ -270,6 +272,9 @@ struct ntp_adjtime_args {
 };
 #endif
 
+/*
+ * MPSAFE
+ */
 int
 ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 {
@@ -292,11 +297,12 @@ ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 	 * the STA_PLL bit in the status word is cleared, the state and
 	 * status words are reset to the initial values at boot.
 	 */
+	mtx_lock(&Giant);
 	modes = ntv.modes;
 	if (modes)
 		error = suser(p);
 	if (error)
-		return (error);
+		goto done2;
 	s = splclock();
 	if (modes & MOD_MAXERROR)
 		time_maxerror = ntv.maxerror;
@@ -397,7 +403,7 @@ ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 
 	error = copyout((caddr_t)&ntv, (caddr_t)uap->tp, sizeof(ntv));
 	if (error)
-		return (error);
+		goto done2;
 
 	/*
 	 * Status word error decode. See comments in
@@ -409,10 +415,13 @@ ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 	    (time_status & STA_PPSTIME &&
 	    time_status & STA_PPSJITTER) ||
 	    (time_status & STA_PPSFREQ &&
-	    time_status & (STA_PPSWANDER | STA_PPSERROR)))
+	    time_status & (STA_PPSWANDER | STA_PPSERROR))) {
 		p->p_retval[0] = TIME_ERROR;
-	else
+	} else {
 		p->p_retval[0] = time_state;
+	}
+done2:
+	mtx_unlock(&Giant);
 	return (error);
 }
 

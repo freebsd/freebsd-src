@@ -351,6 +351,9 @@ struct profil_args {
 	u_int	scale;
 };
 #endif
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 profil(p, uap)
@@ -359,12 +362,17 @@ profil(p, uap)
 {
 	register struct uprof *upp;
 	int s;
+	int error = 0;
 
-	if (uap->scale > (1 << 16))
-		return (EINVAL);
+	mtx_lock(&Giant);
+
+	if (uap->scale > (1 << 16)) {
+		error = EINVAL;
+		goto done2;
+	}
 	if (uap->scale == 0) {
 		stopprofclock(p);
-		return (0);
+		goto done2;
 	}
 	upp = &p->p_stats->p_prof;
 
@@ -377,7 +385,9 @@ profil(p, uap)
 	startprofclock(p);
 	splx(s);
 
-	return (0);
+done2:
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 /*
