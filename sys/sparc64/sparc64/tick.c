@@ -57,10 +57,7 @@ int tick_missed;	/* statistics */
 void
 cpu_initclocks(void)
 {
-	u_int clock;
-
-	OF_getprop(PCPU_GET(node), "clock-frequency", &clock, sizeof(clock));
-	tick_start(clock, tick_hardclock);
+	tick_start(tick_hardclock);
 }
 
 static __inline void
@@ -112,14 +109,19 @@ tick_hardclock(struct clockframe *cf)
 }
 
 void
-tick_start(u_long clock, tick_func_t *func)
+tick_init(u_long clock)
 {
-	intr_setup(PIL_TICK, (ih_func_t *)func, -1, NULL, NULL);
 	tick_freq = clock;
 	tick_MHz = clock / 1000000;
 	tick_increment = clock / hz;
+}
+
+void
+tick_start(tick_func_t *func)
+{
+	intr_setup(PIL_TICK, (ih_func_t *)func, -1, NULL, NULL);
 	wrpr(tick, 0, 0);
-	wr(asr23, clock / hz, 0);
+	wr(asr23, tick_increment, 0);
 }
 
 #ifdef SMP

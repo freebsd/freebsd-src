@@ -149,18 +149,15 @@ CTASSERT(sizeof(struct pcpu) <= ((PCPU_PAGES * PAGE_SIZE) / 2));
 static void
 cpu_startup(void *arg)
 {
-	u_int clock;
-
-	OF_getprop(PCPU_GET(node), "clock-frequency", &clock, sizeof(clock));
 
 	tick_tc.tc_get_timecount = tick_get_timecount;
 	tick_tc.tc_poll_pps = NULL;
 	tick_tc.tc_counter_mask = ~0u;
-	tick_tc.tc_frequency = clock;
+	tick_tc.tc_frequency = tick_freq;
 	tick_tc.tc_name = "tick";
 	tc_init(&tick_tc);
 
-	cpu_identify(rdpr(ver), clock, PCPU_GET(cpuid));
+	cpu_identify(rdpr(ver), tick_freq, PCPU_GET(cpuid));
 
 	vm_ksubmap_init(&kmi);
 
@@ -200,6 +197,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	vm_offset_t end;
 	vm_offset_t va;
 	caddr_t kmdp;
+	u_int clock;
 	char *env;
 	char type[8];
 
@@ -346,6 +344,9 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 
 	mutex_init();
 	intr_init2();
+
+	OF_getprop(PCPU_GET(node), "clock-frequency", &clock, sizeof(clock));
+	tick_init(clock);
 }
 
 void
