@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <locale.h>
 #include <langinfo.h>
+#include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -269,22 +270,6 @@ get_cat_section(char *section)
 	cat_section = strdup(section);
 	strncpy(cat_section, "cat", 3);
 	return cat_section;
-}
-
-/*
- * Converts .../man/manXXX to .../man.
- */
-static char *
-get_mandir(char *section)
-{
-	char *slash;
-	char *mandir;
-
-	slash = strrchr(section, '/');
-	mandir = (char *) malloc(slash - section + 1);
-	strncpy(mandir, section, slash - section);
-	mandir[slash - section] = '\0';
-	return mandir;
 }
 
 /*
@@ -578,7 +563,11 @@ scan_section(char *mandir, char *section, char *cat_section)
 		if (cmp == 0)
 			continue;
 		/* we have an unexpected page */
+		snprintf(cat_path, sizeof cat_path, "%s/%s", cat_section,
+		    page_name);
 		if (!is_manpage_name(page_name)) {
+			if (test_path(cat_path, NULL) & TEST_DIR)
+				continue;
 			junk_reason = "invalid cat page name";
 		} else if (!is_gzipped(page_name) && e + 1 < nexpected &&
 		    strncmp(page_name, expected[e + 1], strlen(page_name)) == 0 &&
@@ -586,8 +575,6 @@ scan_section(char *mandir, char *section, char *cat_section)
 			junk_reason = "cat page unused due to existing " GZ_EXT;
 		} else
 			junk_reason = "cat page without man page";
-		snprintf(cat_path, sizeof cat_path, "%s/%s", cat_section,
-		    page_name);
 		junk(mandir, cat_path, junk_reason);
 	}
 	free(entries);
@@ -612,6 +599,7 @@ process_section(char *mandir, char *section)
 	cat_section = get_cat_section(section);
 	if (make_writable_dir(mandir, cat_section))
 		scan_section(mandir, section, cat_section);
+	free(cat_section);
 }
 
 static int
@@ -671,6 +659,7 @@ process_argument(const char *arg)
 {
 	char *dir;
 	char *mandir;
+	char *section;
 	char *parg;
 
 	parg = strdup(arg);
@@ -694,8 +683,11 @@ process_argument(const char *arg)
 			}
 			break;
 		case MAN_SECTION_DIR: {
-			mandir = get_mandir(dir);
-			process_mandir(mandir, dir);
+			mandir = strdup(dirname(dir));
+			section = strdup(basename(dir));
+			process_mandir(mandir, section);
+			free(mandir);
+			free(section);
 			break;
 			}
 		default:
