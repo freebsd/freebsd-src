@@ -11,7 +11,7 @@
 #
 # Please note: the md(4) driver must be present in the kernel
 # (either by being compiled in or available as a kld(4) module),
-# otherwise the target 'release.9' and possibly others will fail.
+# otherwise the target 'release.8' and possibly others will fail.
 #
 # Note: If you add options to this file, please keep release(7) updated!
 #
@@ -538,7 +538,7 @@ release.2:
 	touch ${.TARGET}
 
 # Make and install the generic kernel(s).
-release.4:
+release.3:
 .for kernel in ${KERNELS}
 	cd ${.CURDIR}/..; \
 	${CROSSMAKE} ${KERNEL_FLAGS} -DNO_MODULES \
@@ -558,7 +558,7 @@ release.4:
 
 # Make and install the three crunched binaries which live on the floppies.
 # You are not supposed to like this :-)
-release.5:
+release.4:
 	rm -rf ${RD}/crunch
 	mkdir -p ${RD}/crunch
 .for j in ${CRUNCH_TARGETS}
@@ -580,7 +580,7 @@ release.5:
 #
 # --==## Fix up the distributions. ##==--
 #
-release.6:
+release.5:
 	# Create any "synthetic dists" now.
 	@for i in ${DISTRIBUTIONS}; do \
 		if [ -f ${.CURDIR}/scripts/$${i}-make.sh ]; then \
@@ -598,7 +598,7 @@ release.6:
 #
 # --==## Package up the tarballs from assembled trees ##==--
 #
-release.7:
+release.6:
 	rm -rf ${RD}/dists
 	mkdir -p ${RD}/dists
 	@for i in ${DISTRIBUTIONS} ; \
@@ -629,7 +629,7 @@ release.7:
 #
 # --==## Make source dists ##==--
 #
-release.8:
+release.7:
 .if !defined(NOSRC)
 	@cd ${.CURDIR} && $(MAKE) doTARBALL SD=/usr/src \
 		TD=src TN=sbase ARG="[A-Z]*"
@@ -657,7 +657,7 @@ release.8:
 	touch ${.TARGET}
 
 # Build the memory root filesystem.
-release.9:
+release.8:
 	cp ${RD}/trees/base/etc/disktab /etc
 	rm -rf ${RD}/mfsfd
 	mkdir ${RD}/mfsfd
@@ -1006,13 +1006,13 @@ doTARBALL:
 		md5 * > CHECKSUM.MD5 ) \
 	)
 
-doRELEASE: release.1 release.2 ${DOCREL} release.4 release.5 \
-    release.6 release.7 release.8 release.9 ${EXTRAS}
+doRELEASE: release.1 release.2 ${DOCREL} release.3 release.4 \
+    release.5 release.6 release.7 release.8 ${EXTRAS}
 	@echo "Release done"
 
 floppies:
-	@rm -f release.5 release.9 floppies.[123]
-	@cd ${.CURDIR} && ${MAKE} release.5 release.9 floppies.1 floppies.2 \
+	@rm -f release.4 release.8 floppies.[123]
+	@cd ${.CURDIR} && ${MAKE} release.4 release.8 floppies.1 floppies.2 \
 	    floppies.3
 	@cd ${RD} && find floppies -print | cpio -dumpl ${FD}
 
