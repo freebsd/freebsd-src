@@ -6,7 +6,7 @@
 Please mail all suggestions and additions to <FreeBSD-FAQ@FreeBSD.ORG>
 
 
-Revision: $Id: FreeBSD.FAQ,v 1.9 1994/11/22 06:58:09 jkh Exp $
+Revision: $Id: FreeBSD.FAQ,v 1.10 1994/11/23 13:13:12 dfr Exp $
 
 All entries are assumed to be relevant to FreeBSD 2.0. 
 Any entries with a <XXX> are under construction.
@@ -581,6 +581,14 @@ bin-tarball:
 <XXX> 5.8:  I've had a couple of system panics and would like to be able
       browse the system dumps.  The normal kernel is stripped and
       I don't want to run a bloated kernel.  What can I do?
+
+5.9:  I just got a Perl application and it's bombing looking for
+      *.ph.  Where is it?
+
+There was a minor SNAFU in the 2.0-R bindist and they got left out.
+If you have the source, you just have to do a "make install" from
+/usr/src/gnu/usr.bin/perl/lib and everything will be fine.  Or you
+may ftp to freefall.cdrom.com and grab them from ~/pub/perl/libs.tar.gz.
 
 
 
