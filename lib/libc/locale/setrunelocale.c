@@ -87,7 +87,11 @@ _xpg4_setrunelocale(encoding)
 	if (_PathLocale == NULL) {
 		char *p = getenv("PATH_LOCALE");
 
-		if (p != NULL && !issetugid()) {
+		if (p != NULL
+#ifndef __NETBSD_SYSCALLS
+			&& !issetugid()
+#endif
+			) {
 			if (strlen(p) + 1/*"/"*/ + ENCODING_LEN +
 			    1/*"/"*/ + CATEGORY_LEN >= PATH_MAX)
 				return(EFAULT);
