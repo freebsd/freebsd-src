@@ -501,7 +501,7 @@ diag_config(int argc, char *argv[])
 
 	static const char config_text1[] =
 	    "Interface              Max        Max\n"
-	    "Index Name     PCR     VPI  VCI   VPCs VCCs  ESI          Media\n";
+	    "Index Name     PCR     VPI  VCI   VPCs VCCs  ESI\n";
 	static const char config_text2[] =
 	    "Interface                                       Version\n"
 	    "Index Name     Vendor      Card         "
