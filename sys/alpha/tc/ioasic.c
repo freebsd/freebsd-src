@@ -1,4 +1,4 @@
-/* $Id: ioasic.c,v 1.2 1999/05/08 21:58:48 dfr Exp $ */
+/* $Id: ioasic.c,v 1.3 1999/05/10 15:51:23 peter Exp $ */
 /* from $NetBSD: ioasic.c,v 1.19 1998/05/27 00:18:13 thorpej Exp $ */
 
 /*-
@@ -344,6 +344,7 @@ ioasic_intr(val)
         register struct ioasic_softc *sc = val;
         register int ifound;
         int gifound;
+	u_int32_t sir;
         volatile u_int32_t *sirp;
 
         sirp = (volatile u_int32_t *)IOASIC_REG_INTR(sc->sc_base);

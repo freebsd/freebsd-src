@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: autoconf.c,v 1.20 1999/05/10 02:56:38 peter Exp $
+ *	$Id: autoconf.c,v 1.21 1999/05/10 16:04:52 peter Exp $
  */
 
 #include "opt_bootp.h"
@@ -67,7 +67,7 @@ static int      setdumpdev __P((dev_t dev));
 
 #ifdef MFS_ROOT
 extern u_char *mfs_getimage __P((void));
-#emdif
+#endif
 
 device_t	isa_bus_device = 0;
 struct cam_sim *boot_sim = 0;
