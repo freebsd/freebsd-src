@@ -23,10 +23,10 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: bus_if.m,v 1.2 1998/07/12 16:20:51 dfr Exp $
+#	$Id: bus_if.m,v 1.3 1998/09/16 08:25:56 dfr Exp $
 #
 
-INTERFACE bus
+INTERFACE bus;
 
 #
 # This is called from system code which prints out a description of a
