@@ -705,6 +705,22 @@ such as:
 	Unknown interrupt 21 function 99
 .sp
 and exit.
+.Pp
+If
+.Nm
+emits the message 
+.Ic X11 support not compiled in
+when supplied the
+.Fl x
+switch, this support can be added by defining an environment variable
+.Ev X11BASE
+which points to the installed X Window System (normally
+.Pa /usr/X11R6
+) and then typing 
+.Ic make install
+in the source directory (normally 
+.Pa /usr/src/usr.bin/doscmd 
+).  For this to work, the X programmer's kit must have been installed.
 .Sh AUTHOR
 Pace Willisson
 .br
