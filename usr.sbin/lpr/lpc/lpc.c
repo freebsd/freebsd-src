@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)lpc.c	8.3 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: lpc.c,v 1.5 1997/09/24 06:47:46 charnier Exp $";
+	"$Id: lpc.c,v 1.6 1997/12/02 20:45:43 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -296,7 +296,7 @@ help(argc, argv)
 		else if (c == (struct cmd *)0)
 			printf("?Invalid help command %s\n", arg);
 		else
-			printf("%-*s\t%s\n", HELPINDENT,
+			printf("%-*s\t%s\n", (int) HELPINDENT,
 				c->c_name, c->c_help);
 	}
 }
