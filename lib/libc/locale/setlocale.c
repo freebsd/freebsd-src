@@ -218,7 +218,6 @@ currentlocale()
 	return (current_locale_string);
 }
 
-
 static int
 wrap_setrunelocale(locale)
 	char *locale;
@@ -239,6 +238,7 @@ loadlocale(category)
 	char *ret;
 	char *new = new_categories[category];
 	char *old = current_categories[category];
+	int (*func)();
 	int saverr;
 
 	if ((new[0] == '.' &&
@@ -268,43 +268,42 @@ loadlocale(category)
 			_PathLocale = _PATH_LOCALE;
 	}
 
-#define LOAD_CATEGORY(FUNC)                                   \
-	{                                                     \
-		if (strcmp(new, old) == 0)                    \
-			return (old);                         \
-		ret = FUNC(new) != 0 ? NULL : new;            \
-		if (ret == NULL) {                            \
-			saverr = errno;                       \
-			if (FUNC(old) != 0 && FUNC("C") == 0) \
-				(void)strcpy(old, "C");       \
-			errno = saverr;                       \
-		} else                                        \
-			(void)strcpy(old, new);               \
-		return (ret);                                 \
-	}
-
 	switch (category) {
 	case LC_CTYPE:
-		LOAD_CATEGORY(wrap_setrunelocale);
-		/* NOTREACHED */
+		func = wrap_setrunelocale;
+		break;
 	case LC_COLLATE:
-		LOAD_CATEGORY(__collate_load_tables);
-		/* NOTREACHED */
+		func = __collate_load_tables;
+		break;
 	case LC_TIME:
-		LOAD_CATEGORY(__time_load_locale);
-		/* NOTREACHED */
+		func = __time_load_locale;
+		break;
 	case LC_NUMERIC:
-		LOAD_CATEGORY(__numeric_load_locale);
-		/* NOTREACHED */
+		func = __numeric_load_locale;
+		break;
 	case LC_MONETARY:
-		LOAD_CATEGORY(__monetary_load_locale);
-		/* NOTREACHED */
+		func = __monetary_load_locale;
+		break;
 	case LC_MESSAGES:
-		LOAD_CATEGORY(__messages_load_locale);
-		/* NOTREACHED */
+		func = __messages_load_locale;
+		break;
 	default:
 		errno = EINVAL;
 		return (NULL);
 	}
+
+	if (strcmp(new, old) == 0)
+		return (old);
+
+	ret = func(new) != 0 ? NULL : new;
+	if (ret == NULL) {
+		saverr = errno;
+		if (func(old) != 0 && func("C") == 0)
+			(void)strcpy(old, "C");
+		errno = saverr;
+	} else
+		(void)strcpy(old, new);
+
+	return (ret);
 }
 
