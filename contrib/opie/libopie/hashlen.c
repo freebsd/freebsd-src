@@ -1,13 +1,14 @@
 /* hashlen.c: The opiehashlen() library function.
 
 %%% copyright-cmetz-96
-This software is Copyright 1996-1998 by Craig Metz, All Rights Reserved.
-The Inner Net License Version 2 applies to this software.
+This software is Copyright 1996-2001 by Craig Metz, All Rights Reserved.
+The Inner Net License Version 3 applies to this software.
 You should have received a copy of the license with this software. If
 you didn't get a copy, you may request one from <license@inner.net>.
 
         History:
 
+	Modified by cmetz for OPIE 2.4. Use struct opie_otpkey, isolate variables.
 	Created by cmetz for OPIE 2.3.
 
 $FreeBSD$
@@ -16,27 +17,27 @@ $FreeBSD$
 #include "opie_cfg.h"
 #include "opie.h"
 
+#include <sha.h>
 #include <md4.h>
 #include <md5.h>
 
-VOIDRET opiehashlen FUNCTION((algorithm, in, out, n), int algorithm AND VOIDPTR in AND VOIDPTR out AND int n)
+VOIDRET opiehashlen FUNCTION((algorithm, in, out, n), int algorithm AND
+VOIDPTR in AND struct opie_otpkey *out AND int n)
 {
   UINT4 *results = (UINT4 *)out;
   UINT4 mdx_tmp[4];
-#if 0
-  SHA_INFO sha;
-#endif /* 0 */
 
   switch(algorithm) {
-#if 0
-    case 3:
-      sha_init(&sha);
-      sha_update(&sha, (BYTE *)in, n);
-      sha_final(&sha);
-      results[0] = sha.digest[0] ^ sha.digest[2] ^ sha.digest[4];
-      results[1] = sha.digest[1] ^ sha.digest[3] ^ sha.digest[5];
+    case 3: {
+      SHA_CTX sha;
+      UINT4 digest[5];
+      SHA1_Init(&sha);
+      SHA1_Update(&sha, (unsigned char *)in, n);
+      SHA1_Final((unsigned char *)digest, &sha);
+      results[0] = digest[0] ^ digest[2] ^ digest[4];
+      results[1] = digest[1] ^ digest[3];
       break;
-#endif /* 0 */
+    }
     case 4: {
       MD4_CTX mdx;
       MD4Init(&mdx);

@@ -1,7 +1,7 @@
 /* challenge.c: The opiechallenge() library function.
 
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -20,6 +20,9 @@ License Agreement applies to this software.
 		syslog. Add sha plumbing.
 	Modified by cmetz for OPIE 2.2. Use FUNCTION declaration et al.
         Created at NRL for OPIE 2.2 from opiesubr2.c
+
+$FreeBSD$
+
 */
 #include "opie_cfg.h"
 #include <stdio.h>
@@ -52,8 +55,6 @@ int opiechallenge FUNCTION((mp, name, ss), struct opie *mp AND char *name AND ch
 {
   int rval = -1;
 
-  memset(mp, 0, sizeof(*mp));
-
   rval = opielookup(mp, name);
 #if DEBUG
   if (rval) syslog(LOG_DEBUG, "opiechallenge: opielookup(mp, name=%s) returned %d", name, rval);
@@ -66,11 +67,11 @@ int opiechallenge FUNCTION((mp, name, ss), struct opie *mp AND char *name AND ch
 #endif /* DEBUG */
   }
 
-  if (rval) {
+  if (rval ||
+    (snprintf(ss, OPIE_CHALLENGE_MAX, "otp-%s %d %s ext", algids[MDX], mp->opie_n - 1, mp->opie_seed) >= OPIE_CHALLENGE_MAX)) {
     opierandomchallenge(ss);
     memset(mp, 0, sizeof(*mp));
-  } else
-    sprintf(ss, "otp-%s %d %s ext", algids[MDX], mp->opie_n - 1, mp->opie_seed);
+  }
 
   return rval;
 }

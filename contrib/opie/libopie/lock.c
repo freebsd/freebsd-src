@@ -1,7 +1,7 @@
 /* lock.c: The opielock() library function.
 
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -14,6 +14,7 @@ License Agreement applies to this software.
 
         History:
 
+	Modified by cmetz for OPIE 2.4. Use snprintf.
 	Modified by cmetz for OPIE 2.31. Put locks in a separate dir.
             Bug fixes.
 	Modified by cmetz for OPIE 2.3. Do refcounts whether or not we
@@ -201,7 +202,9 @@ int opielock FUNCTION((principal), char *principal)
   if (!S_ISREG(statbuf[0].st_mode) || (statbuf[0].st_mode != statbuf[1].st_mode) || (statbuf[0].st_ino != statbuf[1].st_ino))
     goto lockret;
 
-  sprintf(buffer, "%d\n%d\n", getpid(), time(0));
+  if (snprintf(buffer, sizeof(buffer), "%d\n%d\n", getpid(), time(0)) >= sizeof(buffer))
+    goto lockret;
+
   i = strlen(buffer) + 1;
   if (lseek(fh, 0, SEEK_SET)) { 
     close(fh);

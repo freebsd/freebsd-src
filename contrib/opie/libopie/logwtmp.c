@@ -1,7 +1,7 @@
 /* logwtmp.c: Put an entry in the wtmp file.
 
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -14,6 +14,8 @@ License Agreement applies to this software.
 
 	History:
 
+	Modified by cmetz for OPIE 2.4. Set process to dead if name is null.
+		Added support for ut_id and ut_syslen.
 	Modified by cmetz for OPIE 2.32. Don't leave line=NULL, skip
 		past /dev/ in line. Fill in ut_host on systems with UTMPX and
 		ut_host.
@@ -110,7 +112,7 @@ static int fdx = -1;
  * after first call, for use with ftp (which may chroot
  * after login, but before logout).
  */
-VOIDRET opielogwtmp FUNCTION((line, name, host), char *line AND char *name AND char *host)
+VOIDRET opielogwtmp FUNCTION((line, name, host), char *line AND char *name AND char *host AND char *id)
 {
 #if !DISABLE_WTMP
   struct utmp ut;
@@ -136,8 +138,15 @@ VOIDRET opielogwtmp FUNCTION((line, name, host), char *line AND char *name AND c
     return;
   if (fstat(fd, &buf) == 0) {
 #if HAVE_UT_TYPE && defined(USER_PROCESS)
-    ut.ut_type = USER_PROCESS;
+    if (name && *name)
+      ut.ut_type = USER_PROCESS;
+    else
+      ut.ut_type = DEAD_PROCESS;
 #endif /* HAVE_UT_TYPE && defined(USER_PROCESS) */
+#if HAVE_UT_ID
+    if (id)
+      strncpy(ut.ut_id, id, sizeof(ut.ut_id));
+#endif /* HAVE_UT_ID */
 #if HAVE_UT_PID
     ut.ut_pid = getpid();
 #endif /* HAVE_UT_PID */
@@ -161,6 +170,18 @@ VOIDRET opielogwtmp FUNCTION((line, name, host), char *line AND char *name AND c
     strncpy(utx.ut_line, line, sizeof(utx.ut_line));
     strncpy(utx.ut_name, name, sizeof(utx.ut_name));
     strncpy(utx.ut_host, host, sizeof(utx.ut_host));
+#ifdef USER_PROCESS
+    if (name && *name)
+      utx.ut_type = USER_PROCESS;
+    else
+      utx.ut_type = DEAD_PROCESS;
+#endif /* USER_PROCESS */
+    if (id)
+      strncpy(utx.ut_id, id, sizeof(utx.ut_id));
+    utx.ut_pid = getpid();
+#if HAVE_UTX_SYSLEN
+    utx.ut_syslen = strlen(utx.ut_host) + 1;
+#endif /* HAVE_UTX_SYSLEN */
 #if HAVE_GETTIMEOFDAY
 #if HAVE_ONE_ARG_GETTIMEOFDAY
     gettimeofday(&utx.ut_tv);

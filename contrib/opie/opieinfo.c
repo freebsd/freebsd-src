@@ -2,7 +2,7 @@
 opieinfo: Print a user's current OPIE sequence number and seed
 
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -29,29 +29,34 @@ License Agreement applies to this software.
 	Modified at NRL for OPIE 2.0.
 	Written at Bellcore for the S/Key Version 1 software distribution
 		(keyinfo)
+
+$FreeBSD$
+
 */
 
 #include "opie_cfg.h"
+#include <sys/param.h>
+#include <errno.h>
 #include <stdio.h>
+#include <string.h>
 #if HAVE_UNISTD_H
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
-#if HAVE_PWD_H
-#include <pwd.h>
-#endif /* HAVE_PWD_H */
 #include "opie.h"
 
 /* extern char *optarg; */
-extern int errno, optind;
+/* extern int errno, optind; */
 
 static char *getusername FUNCTION_NOARGS
 {
-  struct passwd *p = getpwuid(getuid());
+  char *login;
 
-  if (!p)
-    return getlogin();
-
-  return p->pw_name;
+  login = getlogin();
+  if (login == NULL) {
+    fprintf(stderr, "Cannot find login name\n");
+    exit(1);
+  }
+  return login;
 }
 
 int main FUNCTION((argc, argv), int argc AND char *argv[])
@@ -71,10 +76,19 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
     }
   }
 
-  if (optind < argc)
+  if (optind < argc) {
+    if (getuid() != 0) {
+      fprintf(stderr, "Only superuser may get another user's keys\n");
+      exit(1);
+    }
     username = argv[optind];
-  else
+  } else
     username = getusername();
+
+  if (strlen(username) >= MAXLOGNAME) {
+    fprintf(stderr, "Username too long.\n");
+    exit(1);
+  }
 
   if ((i = opielookup(&opie, username)) && (i != 2)) {
     if (i < 0)

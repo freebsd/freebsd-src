@@ -1,5 +1,5 @@
-OPIE Software Distribution, Release 2.32                  Important Information
-========================================                  =====================
+OPIE Software Distribution, Release 2.4                   Important Information
+=======================================                   =====================
 
 Introduction
 ============
@@ -75,87 +75,104 @@ original Bellcore S/Key(tm) Version 1 software:
 A Glance at What's New
 ======================
 
-	2.32 January 1, 1998.
+    2.4 TEST VERSION -- NOT FOR REDISTRIBUTION
 
-	Indicate support for extended responses in challenges and check for
-	such indication before generating any extended responses.
+    Merged in opieauto, which is disabled by default.
 
-	Lots of portability and bug fixes.
+    Lots of documentation updates.
 
-	2.31 March 20, 1997.
+    Portability and bug fixes.
 
-	Removed active attack protection support due to patent problems.
+    2.32 January 1, 1998.
 
-	Moved user locks to a separate directory.
+    Indicate support for extended responses in challenges and check for such
+indication before generating any extended responses.
 
-	Moved user-serviceable configuration options to the configure script.
+    Lots of portability and bug fixes.
 
-	Lots of portability and bug fixes.
+    2.31 March 20, 1997.
 
-	2.3 September 22, 1996
+    Removed active attack protection support due to patent problems.
 
-	Autoconf is now the only supported configuration method.
+    Removed the supplemental key file; it did more harm than good.
 
-	Lots of internal functions got re-written in ways that will make some
+    Moved user locks to a separate directory.
+
+    Moved user-serviceable configuration options to the configure script.
+
+    Lots of portability and bug fixes.
+
+    2.3 September 22, 1996
+
+    Autoconf is now the only supported configuration method.
+
+    Lots of internal functions got re-written in ways that will make some
 planned future changes easier.
 
-	OTP extended responses, such as automatic re-initialization.
+    OTP extended responses, such as automatic re-initialization.
 
-	Support for a supplemental key file that stores information that was
-not in the original /etc/skeykeys file. This allows OPIE to store extra data
-needed for things like the OTP re-initialization extended response without
-breaking interoperability with other S/Key derived programs. This file is
-named "/etc/opiekeys.ext" by default. Unlike the standard key file, it MUST
-NOT be world readable.
+    Support for a supplemental key file that stores information that was not
+in the original /etc/skeykeys file. This allows OPIE to store extra data needed
+for things like the OTP re-initialization extended response without breaking
+interoperability with other S/Key derived programs. This file is named
+"/etc/opiekeys.ext" by default. Unlike the standard key file, it MUST NOT be
+world readable.
 
-	OPIE should better support some of the native "features" of drain
-bamaged OSs such as AIX, HP-UX, and Solaris.
+    OPIE should better support some of the native "features" of drain bamaged
+OSs such as AIX, HP-UX, and Solaris.
 
-	OPIE's utmp/wtmp handling has been completely re-written. This should
-solve many of the utmp/wtmp problems people have been having.
+    OPIE's utmp/wtmp handling has been completely re-written. This should solve
+many of the utmp/wtmp problems people have been having.
 
-	Lots of cleanups.
+    Lots of cleanups.
 
-	Bug fixes.
+    Bug fixes.
 
-	2.22 May 3, 1996.
+    2.22 May 3, 1996.
 
-	More minor bug fixes. OPIE once again works on Solaris 2.x.
+    More minor bug fixes. OPIE once again works on Solaris 2.x.
 
-	2.21 April 27, 1996.
+    2.21 April 27, 1996.
 
-	Minor bug fixes.
+    Minor bug fixes.
 
-        2.2 April 11, 1996.
+    2.2 April 11, 1996.
 
-        opiesubr.c, opiesubr2.c, and a few other functions moved into
-a subdirectory and split into files with fine granularity. Ditto with
-missing function replacements. This subdirectory structure changes a lot
-of things around and more splitting like this should be expected in the
-near future.
+    opiesubr.c, opiesubr2.c, and a few other functions moved into a
+subdirectory and split into files with fine granularity. Ditto with missing
+function replacements. This subdirectory structure changes a lot of things
+around and more splitting like this should be expected in the near future.
 
-        Added opiegenerator() library function that should make it very easy
-to create OTP clients using the OPIE library (this function is subject to
-change: there are a few problems remaining to be solved). Just about re-write
+    Added opiegenerator() library function that should make it very easy to
+create OTP clients using the OPIE library (this function is subject to change:
+there are a few problems remaining to be solved). Just about re-wrote
 opiegetpass() to use raw I/O and got most of the OPIE programs actually using
 that function. Autoconf build fixes. Lots of bug fixes. Lots of portability
 fixes. Function declarations should be ANSI style for ANSI compilers. Several
-fixes to bring OPIE in line with the latest OTP spec. MJR DES key crunch 
+fixes to bring OPIE in line with the latest OTP spec. MJR DES key crunch
 de-implemented.
 
-	Added sample programs: opiegen (client) and opieserv (server).
+    Added sample programs: opiegen (client) and opieserv (server).
 
-	Probably broke non-autoconf support along the way :(. I've tried to
-bring this back in sync, but it may still be broken.
+    Probably broke non-autoconf support along the way :(. I've tried to bring
+this back in sync, but it may still be broken.
 
-        2.11 December 27, 1995.
+    2.11 December 27, 1995.
 
-        Minor bug fixes.
+    Minor bug fixes.
 
-	2.10 December 26, 1995.
+    2.10 December 26, 1995.
 
-	Optional autoconf support. opieinfo is now a normal program.
-Bugs fixed -- should work much better on SunOS, HP-UX, and AIX.
+    Optional autoconf support. opieinfo is now a normal program. Bugs fixed --
+should work much better on SunOS, HP-UX, and AIX.
+
+    2.01 -- 2.04
+
+    Bug fix releases.
+
+    2.00
+
+    Initial release of OPIE 2.0.
 
 System Requirements
 ===================
@@ -177,12 +194,15 @@ OPIE code.
 If OPIE Doesn't Work
 ====================
 
-	First and foremost, make sure you have the latest version of OPIE. The
-latest version is available by anonymous FTP at:
+	Under NO circumstances should you send trouble reports directly to the
+authors or contributors. They WILL BE IGNORED.
 
-	ftp://ftp.nrl.navy.mil/pub/security/opie
-		and
-	ftp://ftp.inner.net/pub/opie
+	Make sure you have the latest version of OPIE. The latest version is
+available by HTTP at:
+
+	http://www.inner.net/pub/opie
+
+	(sorry, but anonymous FTP is no longer available)
 
 	If you have installed the OPIE software (either through "make test"
 in (7) above or "make install" in (14)), you can run "make uninstall" from the
@@ -194,7 +214,8 @@ installation procedure itself did not work properly.
 	If you are running a release version, try installing the latest public
 test version (look around). These frequently have already fixed the problem
 you are seeing, but may have new problems of their own (that's why they're
-test versions!).
+test versions!). Similarly, if you are running a test version, try installing
+the latest released version.
 
 	OPIE is NOT supported software. We don't promise to support you or
 even to acknowledge your mail, but we are interested in bug reports and are
@@ -233,7 +254,7 @@ Gotchas
 =======
 
 	Solaris 2.x is just a lose. It does a lot of nonstandard and downright
-broken things. If you want OPIE to be reliable on your box, upgrade to NetBSD
+broken things. If you want OPIE to be reliable on your box, upgrade to OpenBSD
 or Linux.
 
 	While an almost universal "feature", most people remain unaware that
@@ -342,6 +363,25 @@ it puts them. The lock file directory must be a directory used only for OPIE
 lock files. It must be a directory, owned by the superuser, and must be mode
 0700.
 
+	opieauto is a potential security hole. It opens a limited window of
+exposure by transmitting and storing information that can be used to
+generate one or more OTPs earlier than the current sequence number. Every
+effort has been made to limit the potential for compromise to the user-
+specified window. However, an attacker with superuser priveleges or access to
+your account on the client system can still generate OTPs based on the
+information cached via opieauto. In practice, there are other ways for such an
+an attacker to get your entire secret pass phrase, so this is probably not
+creating a significant new security problem. However, because of this
+potential for problems and because opieauto uses system features that are not
+present on all systems, opieauto support is not compiled in by default and
+must be specifically enabled at compile time.
+
+	Many users are running OPIE with the key file on a shared NFS volume
+in order to use OTP as a single-login system for a cluster of machines. OPIE
+was NOT designed to be operated this way, though it does seem to work. If it
+fails or if this proves insecure, this is not OPIE's fault. Note that, if you
+do this, you probably want to share the OPIE lock files too.
+
 Gripes
 ======
 
@@ -355,14 +395,12 @@ are complying to some or other "standard." My (cmetz) conclusion is that the
 only thing that is standard about utmp and wtmp handling is that it will be
 nonstandard on any given system. I've tried a lot of things and I've wasted
 *a lot* of time on trying to make utmp and wtmp handling work for everybody;
-my conclusion is that it will never happen. I personally am willing to stand
-behind the code for utmp/wtmp handling on reasonable Linux and 4.4BSD-Lite
-systems. If it breaks, tell me and I will fix it. While I am still interested
-in hearing about fixes for other OSs, I'm not likely to go out of my way to fix
-utmp/wtmp handling on them. If you want it fixed, the best way to do it is to
-fix it yourself and give me a patch. As long as the patch is reasonable, I'll
-include it in the next release. If you can't wait, use the --disable-utmp
-option.
+my conclusion is that it will never happen. While I am still interested in
+hearing about fixes for utmp/wtmp on systems where they don't work, I'm not
+likely to go out of my way to fix utmp/wtmp handling. If you want it fixed,
+the best way to do it is to fix it yourself and contribute a patch. As long as
+the patch is reasonable, it will be included in the next release. If you can't
+wait, use the --disable-utmp option.
 
 Credits
 =======
@@ -396,23 +434,29 @@ community effort. These contributors include:
 	Mowgli Assor
 	Lawrie Brown
 	Andrew Davis
+	Taso N. Devetzis
+	Carson Gaspar
 	Dennis Glatting
         Ben Golding
 	Axel Grewe
 	"Hobbit"
 	Kojima Hajime
 	Darren Hosking
-        Matt Hucke
+	Matt Hucke
+	Kenji Kamizono
 	Charles Karney
 	Jeff Kletsky
+	Peter Koch
 	Martijn Koster
 	Osamu Kurati
 	Ayamura Kikuchi
 	Ronald van der Meer
+	Bret Musser
         Hiroshi Nakano
 	Ikuo Nakagawa
 	Angelo Neri
 	C. R. Oldham
+	Ossama Othman
 	D. Jason Penney
 	John Perkins
 	Steve Price
@@ -429,7 +473,7 @@ City, Virginia.
 
 	If you have problems with OPIE, please follow the instructions under
 "If OPIE Doesn't Work." Under NO circumstances should you send trouble
-reports directly to the authors or contributors.
+reports directly to the authors or contributors. They WILL BE IGNORED.
 
 Trademarks
 ==========
@@ -440,12 +484,12 @@ NRL is a trademark of the U. S. Naval Research Laboratory.
 All other trademarks are trademarks of their respective owners.
 
 The term "OPIE" is in the public domain and hence cannot be legally 
-trademarked by anyone.
+trademarked by anyone. Please do not abuse it.
 
 Copyrights
 ==========
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If

@@ -1,7 +1,7 @@
 /* ftpcmd.y: yacc parser for the FTP daemon.
 
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -9,6 +9,7 @@ you didn't get a copy, you may request one from <license@inner.net>.
 
 	History:
 
+	Modified by cmetz for OPIE 2.4. Use DOTITLE rather than SETPROCTITLE.
 	Modified by cmetz for OPIE 2.3. Moved LS_COMMAND here.
         Modified by cmetz for OPIE 2.2. Fixed a *lot* of warnings.
                 Use FUNCTION declaration et al. Removed useless strings.
@@ -964,10 +965,10 @@ int yylex FUNCTION_NOARGS
 				dologout(0);
 			}
 			(void) alarm(0);
-#ifdef SETPROCTITLE
+#if DOTITLE
 			if (strncasecmp(cbuf, "PASS", 4) != NULL)
 				setproctitle("%s: %s", proctitle, cbuf);
-#endif /* SETPROCTITLE */
+#endif /* DOTITLE */
 			if ((cp = strchr(cbuf, '\r'))) {
 				*cp++ = '\n';
 				*cp = '\0';

@@ -1,11 +1,12 @@
-OPIE Software Distribution, Release 2.32                     Bug Reporting Form
-========================================                     ==================
+OPIE Software Distribution, Release 2.4                      Bug Reporting Form
+=======================================                      ==================
 
 	Before submitting a bug report, please check the README file and make
 sure that your "bug" is not a known problem.
 
 	Please make a copy of this file and then edit it with your favorite
-text editor to include the answers to the following questions:
+text editor (NOT a word processor; the end result needs to be reasonable ASCII
+text) to include the answers to the following questions:
 
 1. Your name and electronic mail address, in case we need more information.
 	If you can provide multiple addresses, please do so in case we
@@ -76,7 +77,7 @@ Copyright
 =========
 
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If

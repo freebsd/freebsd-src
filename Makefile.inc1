@@ -744,6 +744,7 @@ includes:
 # libradius: libmd
 # libreadline: libncurses
 # libskey: libcrypt libmd
+# libssh: libcrypto libz
 # libstc++: msun
 # libtacplus: libmd
 #
@@ -753,7 +754,7 @@ includes:
 # kerberosIV/lib kerberos5/lib: lib/libcrypt
 # lib/libpam: secure/lib/libcrypto kerberosIV/lib/libkrb \
 #             secure/lib/libssh lib/libz
-# secure/lib: lib/libmd
+# secure/lib: secure/lib/libcrypto lib/libmd lib/libz
 #
 .if exists(${.CURDIR}/lib/csu/${MACHINE_ARCH}.pcc)
 _csu=	lib/csu/${MACHINE_ARCH}.pcc
@@ -763,8 +764,11 @@ _csu=	lib/csu/i386-elf
 _csu=	lib/csu/${MACHINE_ARCH}
 .endif
 
-.if !defined(NOSECURE) && !defined(NOCRYPT)
+.if exists(${.CURDIR}/secure) && !defined(NOCRYPT) && !defined(NOSECURE)
 _secure_lib=	secure/lib
+.if exists(${.CURDIR}/secure/lib/libcrypto)
+_libcrypto=	secure/lib/libcrypto
+.endif
 .endif
 
 .if !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
@@ -785,10 +789,10 @@ _libkeycap=	usr.sbin/pcvt/keycap
 
 libraries:
 .for _lib in ${_csu} gnu/lib/csu gnu/lib/libgcc lib/libmd lib/libcrypt \
-    ${_secure_lib} ${_kerberosIV_lib} \
+    lib/libz ${_libcrypto} ${_secure_lib} ${_kerberosIV_lib} \
     ${_kerberos5_lib} lib/libcom_err lib/msun lib/libncurses \
     lib/libopie lib/libradius lib/libskey lib/libtacplus lib/libutil \
-    lib/libz lib gnu/lib ${_libperl} usr.bin/lex/lib ${_libkeycap}
+    lib gnu/lib ${_libperl} usr.bin/lex/lib ${_libkeycap}
 .if exists(${.CURDIR}/${_lib})
 	cd ${.CURDIR}/${_lib}; \
 		${MAKE} depend; \
