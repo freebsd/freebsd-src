@@ -44,9 +44,6 @@
     machine is totally unaware of the modification to the TCP stream.
 
 
-    This software is placed into the public domain with no restrictions
-    on its distribution.
-
     References: RFC 959, RFC 2428.
 
     Initial version:  August, 1996  (cjm)
