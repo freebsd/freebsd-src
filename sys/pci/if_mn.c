@@ -1225,23 +1225,6 @@ mn_attach (device_t self)
 	sc->unit = device_get_unit(self);
 	sprintf(sc->name, "mn%d", sc->unit);
 
-	/* Allocate interrupt */
-	rid = 0;
-	sc->irq = bus_alloc_resource(self, SYS_RES_IRQ, &rid, 0, ~0,
-	    1, RF_SHAREABLE | RF_ACTIVE);
-
-	if (sc->irq == NULL) {
-		printf("couldn't map interrupt\n");
-		return(ENXIO);
-	}
-
-	error = bus_setup_intr(self, sc->irq, INTR_TYPE_NET, mn_intr, sc, &sc->intrhand);
-
-	if (error) {
-		printf("couldn't set up irq\n");
-		return(ENXIO);
-	}
-
         rid = PCIR_MAPS;
         res = bus_alloc_resource(self, SYS_RES_MEMORY, &rid,
             0, ~0, 1, RF_ACTIVE);
@@ -1261,6 +1244,23 @@ mn_attach (device_t self)
         }
         sc->m1v = rman_get_virtual(res);
         sc->m1p = rman_get_start(res);
+
+	/* Allocate interrupt */
+	rid = 0;
+	sc->irq = bus_alloc_resource(self, SYS_RES_IRQ, &rid, 0, ~0,
+	    1, RF_SHAREABLE | RF_ACTIVE);
+
+	if (sc->irq == NULL) {
+		printf("couldn't map interrupt\n");
+		return(ENXIO);
+	}
+
+	error = bus_setup_intr(self, sc->irq, INTR_TYPE_NET, mn_intr, sc, &sc->intrhand);
+
+	if (error) {
+		printf("couldn't set up irq\n");
+		return(ENXIO);
+	}
 
 	u = pci_read_config(self, PCIR_COMMAND, 1);
 	printf("%x\n", u);
