@@ -71,11 +71,10 @@ struct g_gate_softc {
 	struct g_provider	*sc_provider;		/* P: (read-only) */
 	uint32_t		 sc_flags;		/* P: (read-only) */
 
-	struct bio_queue_head	 sc_inqueue;		/* P: sc_inqueue_mtx */
-	struct mtx		 sc_inqueue_mtx;
-	struct bio_queue_head	 sc_outqueue;		/* P: sc_outqueue_mtx */
-	struct mtx		 sc_outqueue_mtx;
-	uint32_t		 sc_queue_count;	/* P: (atomic) */
+	struct bio_queue_head	 sc_inqueue;		/* P: sc_queue_mtx */
+	struct bio_queue_head	 sc_outqueue;		/* P: sc_queue_mtx */
+	struct mtx		 sc_queue_mtx;
+	uint32_t		 sc_queue_count;	/* P: sc_queue_mtx */
 	uint32_t		 sc_queue_size;		/* P: (read-only) */
 	u_int			 sc_timeout;		/* P: (read-only) */
 	struct callout		 sc_callout;		/* P: (modified only
