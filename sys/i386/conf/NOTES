@@ -339,7 +339,7 @@ options 	KTRACE			#kernel tracing
 options 	KTR
 options 	KTR_EXTEND
 options 	KTR_ENTRIES=1024
-options 	KTR_COMPILE=KTR_INTR|KTR_PROC
+options 	KTR_COMPILE="(KTR_INTR|KTR_PROC)"
 options 	KTR_MASK=KTR_INTR
 options 	KTR_CPUMASK=0x3
 options 	KTR_VERBOSE
