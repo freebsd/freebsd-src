@@ -43,6 +43,7 @@
 #include <sys/queue.h>
 #include <sys/malloc.h>
 #include <sys/libkern.h>
+#include <sys/endian.h>
 #include <sys/md5.h>
 
 #include <crypto/rijndael/rijndael.h>
@@ -80,7 +81,7 @@ g_bde_kkey(struct g_bde_softc *sc, keyInstance *ki, int dir, off_t sector)
 	u_char buf2[8];
 
 	/* We have to be architecture neutral */
-	g_enc_le8(buf2, sector);
+	le64enc(buf2, sector);
 
 	MD5Init(&ct);
 	MD5Update(&ct, sc->key.salt, 8);
