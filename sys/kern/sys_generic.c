@@ -625,11 +625,7 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	if (nd < 0)
 		return (EINVAL);
 	fdp = td->td_proc->p_fd;
-	/*
-	 * XXX: kern_select() currently requires that we acquire Giant
-	 * even if none of the file descriptors we poll requires Giant.
-	 */
-	mtx_lock(&Giant);
+	
 	FILEDESC_LOCK_FAST(fdp);
 
 	if (nd > td->td_proc->p_fd->fd_nfiles)
@@ -764,7 +760,6 @@ done_nosellock:
 	if (selbits != &s_selbits[0])
 		free(selbits, M_SELECT);
 
-	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -837,11 +832,6 @@ poll(td, uap)
 
 	nfds = uap->nfds;
 
-	/*
-	 * XXX: poll() currently requires that we acquire Giant even if
-	 * none of the file descriptors we poll requires Giant.
-	 */
-	mtx_lock(&Giant);
 	/*
 	 * This is kinda bogus.  We have fd limits, but that is not
 	 * really related to the size of the pollfd array.  Make sure
@@ -943,7 +933,6 @@ out:
 	if (ni > sizeof(smallbits))
 		free(bits, M_TEMP);
 done2:
-	mtx_unlock(&Giant);
 	return (error);
 }
 
