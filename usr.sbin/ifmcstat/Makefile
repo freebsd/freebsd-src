@@ -5,6 +5,8 @@ PROG=	ifmcstat
 MAN=	ifmcstat.8
 BINMODE= 550
 
+WARNS?=	2
+
 DPADD=	${LIBKVM}
 LDADD=	-lkvm
 
