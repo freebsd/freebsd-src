@@ -39,18 +39,21 @@
 #include <dev/ic/ispmbox.h>
 #ifdef	ISP_TARGET_MODE
 #include <dev/ic/isp_target.h>
+#include <dev/ic/isp_tpublic.h>
 #endif
 #endif
 #ifdef	__FreeBSD__
 #include <dev/isp/ispmbox.h>
 #ifdef	ISP_TARGET_MODE
 #include <dev/isp/isp_target.h>
+#include <dev/isp/isp_tpublic.h>
 #endif
 #endif
 #ifdef	__linux__
 #include "ispmbox.h"
 #ifdef	ISP_TARGET_MODE
 #include "isp_target.h"
+#include "isp_tpublic.h"
 #endif
 #endif
 
