@@ -8,7 +8,7 @@ MAN4=	adv.4 adw.4 aha.4 ahb.4 ahc.4 aic.4 apm.4 ar.4 asc.4 atkbd.4 \
 	pcf.4 pcm.4 pcvt.4 perfmon.4 pn.4 pnp.4 ppc.4 psm.4 \
 	rdp.4 rl.4 sb.4 scd.4 screen.4 sf.4 si.4 sio.4 sis.4 sk.4 \
 	spkr.4 splash.4 sr.4 ste.4 syscons.4 sysmouse.4 ti.4 tl.4 tw.4 \
-	tk.4 ukbd.4 ums.4 usb.4 vga.4 vr.4 vx.4 \
+	tw.4 ukbd.4 ums.4 usb.4 vga.4 vr.4 vx.4 \
 	wb.4 wd.4 wfd.4 wi.4 wl.4 wt.4 xl.4 ze.4 zp.4
 
 MLINKS=		adv.4 ../adv.4
