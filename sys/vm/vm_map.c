@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.150 1999/02/19 03:11:37 dillon Exp $
+ * $Id: vm_map.c,v 1.151 1999/02/19 14:25:36 luoqi Exp $
  */
 
 /*
@@ -2162,12 +2162,14 @@ vm_map_split(entry)
 		/*
 		 * We must wait for pending I/O to complete before we can
 		 * rename the page.
+		 *
+		 * We do not have to VM_PROT_NONE the page as mappings should
+		 * not be changed by this operation.
 		 */
 		if (vm_page_sleep_busy(m, TRUE, "spltwt"))
 			goto retry;
 			
 		vm_page_busy(m);
-		vm_page_protect(m, VM_PROT_NONE);
 		vm_page_rename(m, new_object, idx);
 		/* page automatically made dirty by rename and cache handled */
 		vm_page_busy(m);
