@@ -34,13 +34,9 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/disk.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-#include <sys/bio.h>
 #include <sys/malloc.h>
-#include <sys/devicestat.h>
-#include <sys/sysctl.h>
 #include <machine/stdarg.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
@@ -185,8 +181,9 @@ ata_macio_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		 * Pass this on to the parent, using the IRQ from the
 		 * ATA pseudo-bus resource
 		 */
+		myrid = 0;
 		res = bus_generic_rl_alloc_resource(device_get_parent(dev),
-		   dev, SYS_RES_IRQ, 0, 0, ~0, 1, flags);
+		   dev, SYS_RES_IRQ, &myrid, 0, ~0, 1, flags);
 		return (res);
 
 	} else {	
@@ -230,12 +227,27 @@ static driver_t ata_macio_sub_driver = {
 DRIVER_MODULE(ata, atamacio, ata_macio_sub_driver, ata_devclass, 0, 0);
 
 static int
+ata_macio_intrnoop(struct ata_channel *ch)
+{
+
+	return (1);
+}
+ 
+static void
+ata_macio_locknoop(struct ata_channel *ch, int type)
+{
+	/* XXX SMP ? */
+}
+
+static int
 ata_macio_sub_probe(device_t dev)
 {
 	struct ata_channel *ch = device_get_softc(dev);
 
 	ch->unit = 0; 
 	ch->flags = ATA_USE_16BIT;
+	ch->intr_func = ata_macio_intrnoop;
+	ch->lock_func = ata_macio_locknoop;
 
 	return ata_probe(dev);
 }
