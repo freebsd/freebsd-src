@@ -33,14 +33,7 @@
 #define _NETGRAPH_BTSOCKET_H_
 
 /*
- * XXX FIXME: does not belong here, move to sys/socket.h later and fix AF_MAX
- */
-
-#define AF_BLUETOOTH	36		/* Address family */
-#define PF_BLUETOOTH	AF_BLUETOOTH	/* Protocol family */
-
-/*
- * XXX FIXME: does not belong here, move to other places later
+ * Bluetooth protocols
  */
 
 #define BLUETOOTH_PROTO_HCI	134	/* HCI protocol number */
@@ -48,7 +41,6 @@
 #define BLUETOOTH_PROTO_RFCOMM	136	/* RFCOMM protocol number */
 
 /*
- * XXX FIXME: probably does not belong here
  * Bluetooth version of struct sockaddr for raw HCI sockets
  *
  * XXX: sizeof(hci_node) was NG_NODELEN + 1, but NG_NODESIZ (the equivalent
