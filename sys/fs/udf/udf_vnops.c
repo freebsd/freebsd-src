@@ -62,8 +62,8 @@ static int udf_bmap(struct vop_bmap_args *);
 static int udf_lookup(struct vop_cachedlookup_args *);
 static int udf_reclaim(struct vop_reclaim_args *);
 static void udf_dumpblock(void *, int) __unused;
-static int udf_readatoffset(struct udf_node *, int *, int, struct buf **, u_int8_t **);
-static int udf_bmap_internal(struct udf_node *, u_int32_t, daddr64_t *, u_int32_t *);
+static int udf_readatoffset(struct udf_node *, int *, int, struct buf **, uint8_t **);
+static int udf_bmap_internal(struct udf_node *, uint32_t, daddr64_t *, uint32_t *);
 
 vop_t **udf_vnodeop_p;
 static struct vnodeopv_entry_desc udf_vnodeop_entries[] = {
@@ -176,8 +176,8 @@ udf_allocv(struct mount *mp, struct vnode **vpp, struct thread *td)
 static mode_t
 udf_permtomode(struct udf_node *node)
 {
-	u_int32_t perm;
-	u_int32_t flags;
+	uint32_t perm;
+	uint32_t flags;
 	mode_t mode;
 
 	perm = node->fentry->perm;
@@ -249,7 +249,7 @@ udf_timetotimespec(struct timestamp *time, struct timespec *t)
 {
 	int i, lpyear, daysinyear;
 	union {
-		u_int16_t	u_tz_offset;
+		uint16_t	u_tz_offset;
 		int16_t		s_tz_offset;
 	} tz;
 
@@ -395,7 +395,7 @@ udf_read(struct vop_read_args *a)
 	struct uio *uio = a->a_uio;
 	struct udf_node *node = VTON(vp);
 	struct buf *bp;
-	u_int8_t *data;
+	uint8_t *data;
 	int error = 0;
 	int size, n, fsize, offset;
 
@@ -432,7 +432,7 @@ udf_dumpblock(void *data, int len)
 		for (j = 0; j < 8; j++) {
 			if (i + j == len)
 				break;
-			printf("0x%02x ", (u_int8_t)((u_int8_t*)(data))[i + j]);
+			printf("0x%02x ", (uint8_t)((uint8_t*)(data))[i + j]);
 		}
 		i += j - 1;
 	}
@@ -548,7 +548,7 @@ udf_readdir(struct vop_readdir_args *a)
 	struct fileid_desc *fid;
 	struct udf_uiodir uiodir;
 	u_long *cookies = NULL;
-	u_int8_t *data;
+	uint8_t *data;
 	int ncookies;
 	int error = 0, offset, off, size, de_size, fid_size, fsize;
 	int total_fid_size = 0, frag_size = 0, fid_fragment = 0;
@@ -610,11 +610,11 @@ udf_readdir(struct vop_readdir_args *a)
 		if (off >= size || off + fid_size > size ||
 		    off + fid->l_iu + fid->l_fi + fid_size > size) {
 			struct fileid_desc *fid_buf;
-			u_int8_t *buf;
+			uint8_t *buf;
 
 			/* Copy what we have of the fid into a buffer */
 			frag_size = size - off;
-			MALLOC(buf, u_int8_t*, max(frag_size, fid_size),
+			MALLOC(buf, uint8_t*, max(frag_size, fid_size),
 			    M_UDFFID, M_NOWAIT | M_ZERO);
 			if (buf == NULL)
 				panic("No memory?");
@@ -658,7 +658,7 @@ udf_readdir(struct vop_readdir_args *a)
 				break;
 			}
 			bcopy(fid_buf, fid, frag_size);
-			bcopy(data, &((u_int8_t*)(fid))[frag_size],
+			bcopy(data, &((uint8_t*)(fid))[frag_size],
 			    total_fid_size - frag_size);
 
 			fid_fragment = 1;
@@ -797,7 +797,7 @@ static int
 udf_bmap(struct vop_bmap_args *a)
 {
 	struct udf_node *node;
-	u_int32_t max_size;
+	uint32_t max_size;
 	int error;
 
 	node = VTON(a->a_vp);
@@ -840,7 +840,7 @@ udf_lookup(struct vop_cachedlookup_args *a)
 	char *nameptr;
 	long namelen;
 	ino_t id = 0;
-	u_int8_t *data;
+	uint8_t *data;
 	int offset, off, error, size;
 	int numdirpasses, fid_size, fsize, icb_len;
 	int total_fid_size = 0, fid_fragment = 0;
@@ -890,12 +890,12 @@ lookloop:
 		if (off >= size || off + fid_size > size ||
 		    off + fid_size + fid->l_iu + fid->l_fi > size) {
 			struct fileid_desc *fid_buf;
-			u_int8_t *buf;
+			uint8_t *buf;
 			int frag_size = 0;
 
 			/* Copy what we have of the fid into a buffer */
 			frag_size = size - off;
-			MALLOC(buf, u_int8_t*, max(frag_size, fid_size),
+			MALLOC(buf, uint8_t*, max(frag_size, fid_size),
 			    M_UDFFID, M_NOWAIT | M_ZERO);
 			if (buf == NULL)
 				panic("No memory?");
@@ -938,7 +938,7 @@ lookloop:
 				return (ENOMEM);
 			}
 			bcopy(fid_buf, fid, frag_size);
-			bcopy(data, &((u_int8_t*)(fid))[frag_size],
+			bcopy(data, &((uint8_t*)(fid))[frag_size],
 			    total_fid_size - frag_size);
 
 			off = (total_fid_size - frag_size + 3) & ~0x03;
@@ -1068,12 +1068,12 @@ udf_reclaim(struct vop_reclaim_args *a)
  * with udf_read()
  */
 static int
-udf_readatoffset(struct udf_node *node, int *size, int offset, struct buf **bp, u_int8_t **data)
+udf_readatoffset(struct udf_node *node, int *size, int offset, struct buf **bp, uint8_t **data)
 {
 	struct udf_mnt *udfmp;
 	struct file_entry *fentry = NULL;
 	struct buf *bp1;
-	u_int32_t max_size;
+	uint32_t max_size;
 	daddr64_t sector;
 	int error;
 
@@ -1108,7 +1108,7 @@ udf_readatoffset(struct udf_node *node, int *size, int offset, struct buf **bp, 
 	}
 
 	bp1 = *bp;
-	*data = (u_int8_t *)&bp1->b_data[offset % udfmp->bsize];
+	*data = (uint8_t *)&bp1->b_data[offset % udfmp->bsize];
 	return (0);
 }
 
@@ -1117,13 +1117,13 @@ udf_readatoffset(struct udf_node *node, int *size, int offset, struct buf **bp, 
  * block.
  */
 static int
-udf_bmap_internal(struct udf_node *node, u_int32_t offset, daddr64_t *sector, u_int32_t *max_size)
+udf_bmap_internal(struct udf_node *node, uint32_t offset, daddr64_t *sector, uint32_t *max_size)
 {
 	struct udf_mnt *udfmp;
 	struct file_entry *fentry;
 	void *icb;
 	struct icb_tag *tag;
-	u_int32_t icblen = 0;
+	uint32_t icblen = 0;
 	daddr64_t lsector;
 	int ad_offset, ad_num = 0;
 	int i, p_offset;

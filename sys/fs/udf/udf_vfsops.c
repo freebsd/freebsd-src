@@ -241,12 +241,12 @@ udf_mount(struct mount *mp, char *path, caddr_t data, struct nameidata *ndp, str
  * Return zero if all is good, EINVAL if not.
  */
 int
-udf_checktag(struct desc_tag *tag, u_int16_t id)
+udf_checktag(struct desc_tag *tag, uint16_t id)
 {
-	u_int8_t *itag;
-	u_int8_t i, cksum = 0;
+	uint8_t *itag;
+	uint8_t i, cksum = 0;
 
-	itag = (u_int8_t *)tag;
+	itag = (uint8_t *)tag;
 
 	if (tag->id != id)
 		return (EINVAL);
@@ -270,9 +270,9 @@ udf_mountfs(struct vnode *devvp, struct mount *mp, struct thread *td, struct udf
 	struct logvol_desc *lvd;
 	struct fileset_desc *fsd;
 	struct file_entry *root_fentry;
-	u_int32_t sector, size, mvds_start, mvds_end;
-	u_int32_t fsd_offset = 0;
-	u_int16_t part_num = 0, fsd_part = 0;
+	uint32_t sector, size, mvds_start, mvds_end;
+	uint32_t fsd_offset = 0;
+	uint16_t part_num = 0, fsd_part = 0;
 	int error = EINVAL, needclose = 0;
 	int logvol_found = 0, part_found = 0, fsd_found = 0;
 	int bsize;
