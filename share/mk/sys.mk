@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 unix		?=	We run FreeBSD, not UNIX.
+.FreeBSD	?=	true
 
 # If the special target .POSIX appears (without prerequisites or
 # commands) before the first noncomment line in the makefile, make shall
