@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.6 1998/02/02 19:32:09 brian Exp $
+ * $Id: lcp.c,v 1.55.2.7 1998/02/02 19:33:37 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -753,7 +753,7 @@ LcpDecodeConfig(struct bundle *bundle, u_char *cp, int plen, int mode_type)
 	LcpInfo.want_magic = GenerateMagic();
 	break;
       case MODE_REJ:
-	LogPrintf(LogLCP, " Magic 0x%80x is REJected!\n", magic);
+	LogPrintf(LogLCP, " Magic 0x%08x is REJected!\n", magic);
 	LcpInfo.want_magic = 0;
 	LcpInfo.his_reject |= (1 << type);
 	break;
