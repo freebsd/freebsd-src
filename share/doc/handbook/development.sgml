@@ -1,4 +1,4 @@
-<!-- $Id$ -->
+<!-- $Id: development.sgml,v 1.11 1997/02/22 12:58:19 peter Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>The FreeBSD development model<label id="development"></heading>
@@ -22,8 +22,7 @@ Useful things to know about the FreeBSD project and its development process,
 whether working independently or in close cooperation:
 
 <descrip>
-<itemize>
-<item><bf>The CVS repository</bf><label id="development:cvs-repository">
+<tag><bf>The CVS repository</bf><label id="development:cvs-repository"></tag>
 
 <p>The central source tree for FreeBSD is maintained by <htmlurl
 url="http://www.cyclic.com/cyclic-pages/CVS-sheet.html" name="CVS">
@@ -36,9 +35,10 @@ as the <ref id="current" name="-current"> and <ref id="stable"
 name="-stable"> trees which are checked out of it, can be easily
 replicated to your own machine as well.  Please refer to the
 <ref id="synching" name="Synchronizing your source tree">
-section for more information on doing this.</item>
+section for more information on doing this.</p>
 
-<item><bf>The committers list</bf><label id="development:committers">
+<tag><bf>The committers list</bf><label id="development:committers"></tag>
+
 <p>The <ref id="contrib:committers" name="committers"> are the people
 who have <em>write</em> access to the CVS tree, and are thus
 authorized to make modifications to the FreeBSD source (the term
@@ -48,10 +48,9 @@ The best way of making submissions for review by the committers list
 is to use the <htmlurl url="http://www.freebsd.org/send-pr.html"
 name="send-pr(1)"> command, though if something appears to be jammed
 in the system then you may also reach them by sending mail to <htmlurl
-url="mailto:committers@freebsd.org" name="committers@freebsd.org">.
-</item>
+url="mailto:committers@freebsd.org" name="committers@freebsd.org">.</p>
 
-<item><bf>The FreeBSD core team</bf><label id="development:core">
+<tag><bf>The FreeBSD core team</bf><label id="development:core"></tag>
 
 <p>The <ref id="contrib:core" name="FreeBSD core team"> would be
 equivalent to the board of directors if the FreeBSD Project were a
@@ -61,7 +60,7 @@ directions.  Inviting dedicated and responsible developers to join our
 group of committers is one of the functions of the core team, as is
 the recruitment of new core team members as others move on.  Most
 current members of the core team started as committers who's addiction
-to the project got the better of them.
+to the project got the better of them.</p>
 
 <p>Some core team members also have specific <ref id="contrib:who"
 name="areas of responsibility">, meaning that they are committed to
@@ -72,28 +71,26 @@ financially, so "commitment" should also not be misconstrued as
 meaning "guaranteed support."  The ``board of directors'' analogy
 above is not actually very accurate, and it may be more suitable to
 say that these are the people who gave up their lives in favor of
-FreeBSD against their better judgement! <tt>;)</tt></item>
+FreeBSD against their better judgement! <tt>;)</tt></p>
 
-
-<item><bf>Outside contributors</bf>
+<tag><bf>Outside contributors</bf></tag>
 
 <p>Last, but definitely not least, the largest group of developers are
 the users themselves who provide feedback and bug-fixes to us on an
 almost constant basis.  The primary way of keeping in touch with FreeBSD's
 more non-centralized development is to subscribe to the &a.hackers;
 (see <ref id="eresources:mail" name="mailing list info">) where such
-things are discussed.
+things are discussed.</p>
 
-<ref id="contrib:additional" name="The list"> of those who have
+<p><ref id="contrib:additional" name="The list"> of those who have
 contributed something which made its way into our source tree is
 a long and growing one, so why not join it by contributing something
-back to FreeBSD today? <tt>:-)</tt>
+back to FreeBSD today? <tt>:-)</tt></p>
 
 <p>Providing code is not the only way of contributing to the project;
 for a more complete list of things that need doing, please refer to the <ref
-id="submitters" name="how to contribute"> section in this handbook.
+id="submitters" name="how to contribute"> section in this handbook.</p>
 
-</itemize>
 </descrip>
 
 In summary, our development model is organized as a loose set of
