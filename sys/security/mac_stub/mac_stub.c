@@ -1171,4 +1171,4 @@ static struct mac_policy_op_entry mac_none_ops[] =
 };
 
 MAC_POLICY_SET(mac_none_ops, trustedbsd_mac_none, "TrustedBSD MAC/None",
-    MPC_LOADTIME_FLAG_UNLOADOK, 0);
+    MPC_LOADTIME_FLAG_UNLOADOK, NULL);
