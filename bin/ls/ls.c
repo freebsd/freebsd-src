@@ -202,24 +202,7 @@ main(argc, argv)
 		        fts_options |= FTS_COMFOLLOW;
 			break;
 		case 'G':
-			if (isatty(STDOUT_FILENO))
-#ifdef COLORLS
-				if (tgetent(termcapbuf, getenv("TERM")) == 1) {
-					ansi_fgcol = tgetstr("AF", &bp);
-					ansi_bgcol = tgetstr("AB", &bp);
-
-					/* To switch colours off use 'op' if
-					 * available, otherwise use 'oc', or
-					 * don't do colours at all. */
-					ansi_coloff = tgetstr("op", &bp);
-					if (!ansi_coloff)
-						ansi_coloff = tgetstr("oc", &bp);
-					if (ansi_fgcol && ansi_bgcol && ansi_coloff)
-						f_color = 1;
-				}
-#else
-				(void)fprintf(stderr, "Color support not compiled in.\n");
-#endif
+			setenv("CLICOLOR", "", 1);
 			break;
 		case 'L':
 			fts_options &= ~FTS_PHYSICAL;
@@ -293,6 +276,27 @@ main(argc, argv)
 	}
 	argc -= optind;
 	argv += optind;
+
+	/* Enabling of colours is conditional on the environment. */
+	if (getenv("CLICOLOR") &&
+	    (isatty(STDOUT_FILENO) || getenv("CLICOLOR_FORCE")))
+#ifdef COLORLS
+		if (tgetent(termcapbuf, getenv("TERM")) == 1) {
+			ansi_fgcol = tgetstr("AF", &bp);
+			ansi_bgcol = tgetstr("AB", &bp);
+
+			/* To switch colours off use 'op' if
+			 * available, otherwise use 'oc', or
+			 * don't do colours at all. */
+			ansi_coloff = tgetstr("op", &bp);
+			if (!ansi_coloff)
+				ansi_coloff = tgetstr("oc", &bp);
+			if (ansi_fgcol && ansi_bgcol && ansi_coloff)
+				f_color = 1;
+		}
+#else
+		(void)fprintf(stderr, "Color support not compiled in.\n");
+#endif /*COLORLS*/
 
 #ifdef COLORLS
 	if (f_color) {
