@@ -18,7 +18,7 @@ DATA2=	yello
 DATA1:=	${DATA5:S/l/r/g}
 NIL=
 
-SMAKE=	${MAKE} -C ${.CURDIR}
+SMAKE=	MAKEFLAGS= ${MAKE} -C ${.CURDIR}
 
 all:
 	@if [ ! -x ./shell_test ] ; then \
