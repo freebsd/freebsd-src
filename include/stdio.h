@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stdio.h	8.5 (Berkeley) 4/29/95
- *	$Id: stdio.h,v 1.17 1998/05/05 21:59:19 jb Exp $
+ *	$Id: stdio.h,v 1.18 1998/06/14 16:04:20 bde Exp $
  */
 
 #ifndef	_STDIO_H_
@@ -146,6 +146,7 @@ __END_DECLS
 #define	__SNPT	0x0800		/* do not do fseek() optimization */
 #define	__SOFF	0x1000		/* set iff _offset is in fact correct */
 #define	__SMOD	0x2000		/* true => fgetln modified _p text */
+#define	__SALC	0x4000		/* allocate string space dynamically */
 
 /*
  * The following three definitions are for ANSI C, which took them
