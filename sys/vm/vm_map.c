@@ -2014,7 +2014,7 @@ vm_map_clean(map, start, end, syncio, invalidate)
 			vm_object_page_remove(object,
 			    OFF_TO_IDX(offset),
 			    OFF_TO_IDX(offset + size + PAGE_MASK),
-			    FALSE);
+			    TRUE);
 			vm_object_deallocate(object);
 		}
 		start += size;
