@@ -24,7 +24,7 @@ _pthread_cancel(pthread_t pthread)
 
 	if ((ret = _thr_ref_add(curthread, pthread, /*include dead*/0)) == 0) {
 		/*
-		 * Take the scheduling lock while we change the cancel flags.
+		 * Take the thread's lock while we change the cancel flags.
 		 */
 		THR_THREAD_LOCK(curthread, pthread);
 		THR_SCHED_LOCK(curthread, pthread);
@@ -118,7 +118,7 @@ _pthread_cancel(pthread_t pthread)
 		}
 
 		/*
-		 * Release the thread's scheduling lock and remove the
+		 * Release the thread's lock and remove the
 		 * reference:
 		 */
 		THR_SCHED_UNLOCK(curthread, pthread);
@@ -147,7 +147,7 @@ _pthread_setcancelstate(int state, int *oldstate)
 	int ret;
 	int need_exit = 0;
 
-	/* Take the scheduling lock while fiddling with the thread's state: */
+	/* Take the thread's lock while fiddling with the state: */
 	THR_THREAD_LOCK(curthread, curthread);
 
 	ostate = curthread->cancelflags & PTHREAD_CANCEL_DISABLE;
@@ -187,7 +187,7 @@ _pthread_setcanceltype(int type, int *oldtype)
 	int ret;
 	int need_exit = 0;
 
-	/* Take the scheduling lock while fiddling with the state: */
+	/* Take the thread's lock while fiddling with the state: */
 	THR_THREAD_LOCK(curthread, curthread);
 
 	otype = curthread->cancelflags & PTHREAD_CANCEL_ASYNCHRONOUS;
@@ -237,7 +237,6 @@ checkcancel(struct pthread *curthread)
 static void
 testcancel(struct pthread *curthread)
 {
-	/* Take the scheduling lock while fiddling with the state: */
 
 	if (checkcancel(curthread) != 0) {
 		/* Unlock before exiting: */
