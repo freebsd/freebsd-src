@@ -26,8 +26,6 @@
  * $FreeBSD$
  */
 
-#include "opt_kstack_pages.h"
-
 #include <sys/param.h>
 #include <sys/exec.h>
 #include <sys/fcntl.h>
@@ -277,36 +275,36 @@ aout_coredump(td, vp, limit)
 	caddr_t tempuser;
 	int error;
 
-	if (ctob((UAREA_PAGES + KSTACK_PAGES)
+	if (ctob((uarea_pages + kstack_pages)
 	    + vm->vm_dsize + vm->vm_ssize) >= limit)
 		return (EFAULT);
-	tempuser = malloc(ctob(UAREA_PAGES + KSTACK_PAGES), M_TEMP,
+	tempuser = malloc(ctob(uarea_pages + kstack_pages), M_TEMP,
 	    M_WAITOK | M_ZERO);
 	if (tempuser == NULL)
 		return (ENOMEM);
 	bcopy(p->p_uarea, tempuser, sizeof(struct user));
 	bcopy(td->td_frame,
-	    tempuser + ctob(UAREA_PAGES) +
+	    tempuser + ctob(uarea_pages) +
 	    ((caddr_t) td->td_frame - (caddr_t) td->td_kstack),
 	    sizeof(struct trapframe));
 	PROC_LOCK(p);
 	fill_kinfo_proc(p, &p->p_uarea->u_kproc);
 	PROC_UNLOCK(p);
 	error = vn_rdwr(UIO_WRITE, vp, (caddr_t) tempuser,
-	    ctob(UAREA_PAGES + KSTACK_PAGES),
+	    ctob(uarea_pages + kstack_pages),
 	    (off_t)0, UIO_SYSSPACE, IO_UNIT, cred, NOCRED,
 	    (int *)NULL, td);
 	free(tempuser, M_TEMP);
 	if (error == 0)
 		error = vn_rdwr(UIO_WRITE, vp, vm->vm_daddr,
 		    (int)ctob(vm->vm_dsize),
-		    (off_t)ctob(UAREA_PAGES + KSTACK_PAGES), UIO_USERSPACE,
+		    (off_t)ctob(uarea_pages + kstack_pages), UIO_USERSPACE,
 		    IO_UNIT | IO_DIRECT, cred, NOCRED, (int *) NULL, td);
 	if (error == 0)
 		error = vn_rdwr_inchunks(UIO_WRITE, vp,
 		    (caddr_t) trunc_page(USRSTACK - ctob(vm->vm_ssize)),
 		    round_page(ctob(vm->vm_ssize)),
-		    (off_t)ctob(UAREA_PAGES + KSTACK_PAGES) +
+		    (off_t)ctob(uarea_pages + kstack_pages) +
 		        ctob(vm->vm_dsize), UIO_USERSPACE,
 		    IO_UNIT | IO_DIRECT, cred, NOCRED, (int *) NULL, td);
 	return (error);
