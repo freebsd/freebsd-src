@@ -2640,3 +2640,9 @@ The RAID-5 component of
 was developed for Cybernet Inc.\&
 .Pq Pa www.cybernet.com
 for its NetMAX product.
+.Sh BUGS
+.Nm
+does not use the
+.Xr geom 4
+subsystem so vinum volumes can not use be used with GEOM based facilities like
+.Xr gbde 8 .
