@@ -226,7 +226,7 @@ rule_show(int ac __unused, char **av)
 			err(1, "ioctl DEVFSIO_RGETNEXT");
 	}
 	return (0);
-}	
+}
 
 static int
 rule_showsets(int ac, char **av __unused)
