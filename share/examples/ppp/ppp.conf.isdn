@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: sig.c,v 1.13.2.2 1999/05/02 08:59:53 brian Exp $
+#	$Id: ppp.conf.isdn,v 1.1 1999/08/09 22:57:47 brian Exp $
 
 # This is an example ppp profile for bringing up a multilink ppp connection
 # over ISDN.  It needs at least version 0.83.0 of the i4b code.  An example
@@ -44,10 +44,12 @@ isdn:
  enable lqr
  set reconnect 3 5
  set redial 3 10
- set timeout 60 
  set lqrperiod 45
  disable pred1 deflate
  deny pred1 deflate
+
+ # Our minimum charge period is 5 minutes, so don't hangup before then
+ set timeout 60 600
 
  # We have no chat scripts in the ISDN world (yet)
  set dial
