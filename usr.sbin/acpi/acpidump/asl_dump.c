@@ -36,6 +36,10 @@
 
 #include "acpidump.h"
 
+#include "aml/aml_env.h"
+
+struct aml_environ	asl_env;
+
 static u_int32_t
 asl_dump_pkglength(u_int8_t **dpp)
 {
@@ -184,6 +188,19 @@ print_indent(int indent)
 		printf("    ");
 }
 
+#define ASL_ENTER_SCOPE(dp_orig, old_name) do {				\
+	u_int8_t	*dp_copy;					\
+	u_int8_t	*name;						\
+	old_name = asl_env.curname;					\
+	dp_copy = dp_orig;						\
+	name = asl_dump_namestring(&dp_copy);				\
+	asl_env.curname = aml_search_name(&asl_env, name);		\
+} while(0)
+
+#define ASL_LEAVE_SCOPE(old_name) do {					\
+	asl_env.curname = old_name;					\
+} while(0)
+
 static void
 asl_dump_defscope(u_int8_t **dpp, int indent)
 {
@@ -191,12 +208,14 @@ asl_dump_defscope(u_int8_t **dpp, int indent)
 	u_int8_t	*start;
 	u_int8_t	*end;
 	u_int32_t	pkglength;
+	struct	aml_name *oname;
 
 	dp = *dpp;
 	start = dp;
 	pkglength = asl_dump_pkglength(&dp);
 
 	printf("Scope(");
+	ASL_ENTER_SCOPE(dp, oname);
 	asl_dump_termobj(&dp, indent);
 	printf(") {\n");
 	end = start + pkglength;
@@ -205,7 +224,7 @@ asl_dump_defscope(u_int8_t **dpp, int indent)
 	printf("}");
 
 	assert(dp == end);
-
+	ASL_LEAVE_SCOPE(oname);
 	*dpp = dp;
 }
 
@@ -263,6 +282,8 @@ asl_dump_defpackage(u_int8_t **dpp, int indent)
 	*dpp = dp;
 }
 
+int	scope_within_method = 0;
+
 static void
 asl_dump_defmethod(u_int8_t **dpp, int indent)
 {
@@ -271,12 +292,14 @@ asl_dump_defmethod(u_int8_t **dpp, int indent)
 	u_int8_t	*end;
 	u_int8_t	flags;
 	u_int32_t	pkglength;
+	struct	aml_name *oname;
 
 	dp = *dpp;
 	start = dp;
 	pkglength = asl_dump_pkglength(&dp);
 
 	printf("Method(");
+	ASL_ENTER_SCOPE(dp, oname);
 	asl_dump_termobj(&dp, indent);
 	flags = *dp++;
 	if (flags) {
@@ -287,12 +310,14 @@ asl_dump_defmethod(u_int8_t **dpp, int indent)
 	}
 	printf(") {\n");
 	end = start + pkglength;
+	scope_within_method = 1;
 	asl_dump_objectlist(&dp, end, indent + 1);
+	scope_within_method = 0;
 	print_indent(indent);
 	printf("}");
 
 	assert(dp == end);
-
+	ASL_LEAVE_SCOPE(oname);
 	*dpp = dp;
 }
 
@@ -506,6 +531,7 @@ asl_dump_defdevice(u_int8_t **dpp, int indent)
 	u_int8_t	*start;
 	u_int8_t	*end;
 	u_int32_t	pkglength;
+	struct	aml_name *oname;
 
 	dp = *dpp;
 	start = dp;
@@ -513,6 +539,7 @@ asl_dump_defdevice(u_int8_t **dpp, int indent)
 	end = start + pkglength;
 
 	printf("Device(");
+	ASL_ENTER_SCOPE(dp, oname);
 	asl_dump_termobj(&dp, indent);
 	printf(") {\n");
 	asl_dump_objectlist(&dp, end, indent + 1);
@@ -521,6 +548,7 @@ asl_dump_defdevice(u_int8_t **dpp, int indent)
 
 	assert(dp == end);
 
+	ASL_LEAVE_SCOPE(oname);
 	*dpp = dp;
 }
 
@@ -534,6 +562,7 @@ asl_dump_defprocessor(u_int8_t **dpp, int indent)
 	u_int8_t        pblklen;
 	u_int32_t       pkglength;
 	u_int32_t       pblkaddr;
+	struct	aml_name *oname;
 
 	dp = *dpp;
 	start = dp;
@@ -541,6 +570,7 @@ asl_dump_defprocessor(u_int8_t **dpp, int indent)
 	end = start + pkglength;
 
 	printf("Processor(");
+	ASL_ENTER_SCOPE(dp, oname);
 	asl_dump_termobj(&dp, indent);
 	procid = asl_dump_bytedata(&dp);
 	pblkaddr = asl_dump_dworddata(&dp);
@@ -552,6 +582,7 @@ asl_dump_defprocessor(u_int8_t **dpp, int indent)
 
 	assert(dp == end);
 
+	ASL_LEAVE_SCOPE(oname);
 	*dpp = dp;
 }
 
@@ -564,6 +595,7 @@ asl_dump_defpowerres(u_int8_t **dpp, int indent)
 	u_int8_t	systemlevel;
 	u_int16_t	resourceorder;
 	u_int32_t	pkglength;
+	struct	aml_name *oname;
 
 	dp = *dpp;
 	start = dp;
@@ -571,6 +603,7 @@ asl_dump_defpowerres(u_int8_t **dpp, int indent)
 	end = start + pkglength;
 
 	printf("PowerResource(");
+	ASL_ENTER_SCOPE(dp, oname);
 	asl_dump_termobj(&dp, indent);
 	systemlevel = asl_dump_bytedata(&dp);
 	resourceorder = asl_dump_worddata(&dp);
@@ -581,6 +614,7 @@ asl_dump_defpowerres(u_int8_t **dpp, int indent)
 
 	assert(dp == end);
 
+	ASL_LEAVE_SCOPE(oname);
 	*dpp = dp;
 }
 
@@ -591,6 +625,7 @@ asl_dump_defthermalzone(u_int8_t **dpp, int indent)
 	u_int8_t	*start;
 	u_int8_t	*end;
 	u_int32_t	pkglength;
+	struct	aml_name *oname;
 
 	dp = *dpp;
 	start = dp;
@@ -598,6 +633,7 @@ asl_dump_defthermalzone(u_int8_t **dpp, int indent)
 	end = start + pkglength;
 
 	printf("ThermalZone(");
+	ASL_ENTER_SCOPE(dp, oname);
 	asl_dump_termobj(&dp, indent);
 	printf(") {\n");
 	asl_dump_objectlist(&dp, end, indent + 1);
@@ -606,6 +642,7 @@ asl_dump_defthermalzone(u_int8_t **dpp, int indent)
 
 	assert(dp == end);
 
+	ASL_LEAVE_SCOPE(oname);
 	*dpp = dp;
 }
 
@@ -690,7 +727,9 @@ void
 asl_dump_termobj(u_int8_t **dpp, int indent)
 {
 	u_int8_t	*dp;
+	u_int8_t	*name;
 	u_int8_t	opcode;
+	struct	aml_name *method;
 	const	char *matchstr[] = {
 		"MTR", "MEQ", "MLE", "MLT", "MGE", "MGT",
 	};
@@ -713,7 +752,24 @@ asl_dump_termobj(u_int8_t **dpp, int indent)
 	case '_':
 	case '.':
 		dp--;
-		print_namestring(asl_dump_namestring(&dp));
+		print_namestring((name = asl_dump_namestring(&dp)));
+		if (scope_within_method == 1) {
+			method = aml_search_name(&asl_env, name);
+			if (method != NULL && method->property != NULL &&
+			    method->property->type == aml_t_method) {
+				int	i, argnum;
+
+				argnum = method->property->meth.argnum & 7;
+				printf("(");
+				for (i = 0; i < argnum; i++) {
+					asl_dump_termobj(&dp, indent);
+					if (i < (argnum-1)) {
+						printf(", ");
+					}
+				}
+				printf(")");
+			}
+		}
 		break;
 	case 0x0a:		/* BytePrefix */
 		printf("0x%x", asl_dump_bytedata(&dp));
@@ -925,8 +981,8 @@ asl_dump_termobj(u_int8_t **dpp, int indent)
 		OPTARG();
 		printf(")");
 		break;
-	case 0x73:		/* ConcatOp */
-		printf("Concat(");
+	case 0x73:		/* ConcatenateOp */
+		printf("Concatenate(");
 		asl_dump_termobj(&dp, indent);
 		printf(", ");
 		asl_dump_termobj(&dp, indent);
@@ -1058,7 +1114,7 @@ asl_dump_termobj(u_int8_t **dpp, int indent)
 		printf(")");
 		break;
 	case 0x87:		/* SizeOfOp */
-		printf("Sizeof(");
+		printf("SizeOf(");
 		asl_dump_termobj(&dp, indent);
 		printf(")");
 		break;

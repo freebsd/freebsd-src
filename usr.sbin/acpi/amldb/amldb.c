@@ -94,12 +94,9 @@ load_dsdt(const char *dsdtfile)
 	aml_new_name_group((int)code);
 	bzero(&env, sizeof(env));
 
-	/*
-	 * Microsoft asl.exe generates 0x23 byte additional info.
-	 * at the begining of the file, so just ignore it.   
-	 */
+#define SIZEOF_SDT_HDR 36	/* struct size except body */
 	if (strncmp(code, "DSDT", 4) == 0) {
-		env.dp = code + 0x23;
+		env.dp = code + SIZEOF_SDT_HDR;
 	} else {
 		env.dp = code;
 	}
