@@ -150,6 +150,9 @@ extern u_short	ip_id;				/* ip packet ctr, for ids */
 #endif
 extern int	ip_defttl;			/* default IP ttl */
 extern int	ipforwarding;			/* ip forwarding */
+#ifdef IPSTEALTH
+extern int	ipstealth;			/* stealth forwarding */
+#endif
 extern u_char	ip_protox[];
 extern struct socket *ip_rsvpd;	/* reservation protocol daemon */
 extern struct socket *ip_mrouter; /* multicast routing daemon */
