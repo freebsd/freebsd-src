@@ -35,6 +35,7 @@ SUBDIR=	accf_data \
 	fdescfs \
 	firewire \
 	fxp \
+	geom \
 	gx \
 	hifn \
 	if_disc \
