@@ -271,7 +271,7 @@ fork1(td, flags, pages, procp)
 			if (p1->p_fd->fd_refcnt > 1) {
 				struct filedesc *newfd;
 
-				newfd = fdcopy(td);
+				newfd = fdcopy(td->td_proc->p_fd);
 				FILEDESC_UNLOCK(p1->p_fd);
 				fdfree(td);
 				p1->p_fd = newfd;
@@ -448,7 +448,7 @@ again:
 		fd = fdinit(td->td_proc->p_fd);
 	else if (flags & RFFDG) {
 		FILEDESC_LOCK(p1->p_fd);
-		fd = fdcopy(td);
+		fd = fdcopy(td->td_proc->p_fd);
 		FILEDESC_UNLOCK(p1->p_fd);
 	} else
 		fd = fdshare(p1->p_fd);
