@@ -162,7 +162,7 @@
 .			if "\\$2"1" .ds vT FreeBSD General Commands Manual
 .			if "\\$2"2" .ds vT FreeBSD System Calls Manual
 .			if "\\$2"3" .ds vT FreeBSD Library Functions Manual
-.			if "\\$2"4" .ds vT FreeBSD Devices and Device Drivers Manual 
+.			if "\\$2"4" .ds vT FreeBSD Kernel Interfaces Manual
 .			if "\\$2"5" .ds vT FreeBSD File Formats Manual
 .			if "\\$2"6" .ds vT FreeBSD Games Manual
 .			if "\\$2"7" .ds vT FreeBSD Miscellaneous Information Manual
