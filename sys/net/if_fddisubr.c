@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	from: if_ethersubr.c,v 1.5 1994/12/13 22:31:45 wollman Exp
- * $Id: if_fddisubr.c,v 1.30 1998/05/21 00:33:16 dg Exp $
+ * $Id: if_fddisubr.c,v 1.31 1998/06/12 03:48:08 julian Exp $
  */
 
 #include "opt_atalk.h"
@@ -301,6 +301,7 @@ fddi_output(ifp, m0, dst, rt0)
 	case AF_UNSPEC:
 	{
 		struct ether_header *eh;
+		loop_copy = -1;
 		eh = (struct ether_header *)dst->sa_data;
  		(void)memcpy((caddr_t)edst, (caddr_t)eh->ether_dhost, sizeof (edst));
 		if (*edst & 1)
@@ -386,7 +387,8 @@ fddi_output(ifp, m0, dst, rt0)
 	 * on the wire). However, we don't do that here for security
 	 * reasons and compatibility with the original behavior.
 	 */
-	if (ifp->if_flags & IFF_SIMPLEX) {
+	if ((ifp->if_flags & IFF_SIMPLEX) &&
+	   (loop_copy != -1)) {
 		if ((m->m_flags & M_BCAST) || loop_copy) {
 			struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
 
