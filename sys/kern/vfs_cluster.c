@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.79 1999/01/27 21:49:58 dillon Exp $
+ * $Id: vfs_cluster.c,v 1.80 1999/03/12 02:24:56 julian Exp $
  */
 
 #include "opt_debug_cluster.h"
@@ -251,6 +251,7 @@ single_block_read:
 #endif
 		if ((bp->b_flags & B_CLUSTER) == 0)
 			vfs_busy_pages(bp, 0);
+		bp->b_flags &= ~(B_ERROR|B_INVAL);
 		error = VOP_STRATEGY(vp, bp);
 		curproc->p_stats->p_ru.ru_inblock++;
 	}
@@ -283,6 +284,7 @@ single_block_read:
 
 			if ((rbp->b_flags & B_CLUSTER) == 0)
 				vfs_busy_pages(rbp, 0);
+			rbp->b_flags &= ~(B_ERROR|B_INVAL);
 			(void) VOP_STRATEGY(vp, rbp);
 			curproc->p_stats->p_ru.ru_inblock++;
 		}
@@ -473,8 +475,10 @@ cluster_callback(bp)
 		if (error) {
 			tbp->b_flags |= B_ERROR;
 			tbp->b_error = error;
-		} else
-		    tbp->b_dirtyoff = tbp->b_dirtyend = 0;
+		} else {
+			tbp->b_dirtyoff = tbp->b_dirtyend = 0;
+			tbp->b_flags &= ~(B_ERROR|B_INVAL);
+		}
 		biodone(tbp);
 	}
 	relpbuf(bp, &cluster_pbuf_freecnt);

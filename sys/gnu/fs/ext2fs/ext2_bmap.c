@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_bmap.c	8.7 (Berkeley) 3/21/95
- * $Id: ufs_bmap.c,v 1.24 1998/10/27 11:47:08 bde Exp $
+ * $Id: ufs_bmap.c,v 1.25 1999/01/28 00:57:55 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -228,6 +228,7 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 #endif
 			bp->b_blkno = blkptrtodb(ump, daddr);
 			bp->b_flags |= B_READ;
+			bp->b_flags &= ~(B_INVAL|B_ERROR);
 			vfs_busy_pages(bp, 0);
 			VOP_STRATEGY(bp->b_vp, bp);
 			curproc->p_stats->p_ru.ru_inblock++;	/* XXX */
