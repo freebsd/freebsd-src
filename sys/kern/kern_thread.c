@@ -72,8 +72,6 @@ SYSCTL_INT(_kern_threads, OID_AUTO, max_threads_hits, CTLFLAG_RD,
 
 int virtual_cpu;
 
-#define RANGEOF(type, start, end) (offsetof(type, end) - offsetof(type, start))
-
 TAILQ_HEAD(, thread) zombie_threads = TAILQ_HEAD_INITIALIZER(zombie_threads);
 TAILQ_HEAD(, ksegrp) zombie_ksegrps = TAILQ_HEAD_INITIALIZER(zombie_ksegrps);
 struct mtx kse_zombie_lock;

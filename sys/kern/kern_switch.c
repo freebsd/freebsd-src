@@ -913,7 +913,6 @@ runq_remove(struct runq *rq, struct kse *ke)
 
 /****** functions that are temporarily here ***********/
 #include <vm/uma.h>
-#define RANGEOF(type, start, end) (offsetof(type, end) - offsetof(type, start))
 extern struct mtx kse_zombie_lock;
 
 /*
@@ -948,7 +947,6 @@ sched_destroyproc(struct proc *p)
 	KASSERT((p->p_numksegrps == 1), ("Cached proc with > 1 ksegrp "));
 }
 
-#define RANGEOF(type, start, end) (offsetof(type, end) - offsetof(type, start))
 /*
  * thread is being either created or recycled.
  * Fix up the per-scheduler resources associated with it.

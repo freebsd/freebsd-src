@@ -60,8 +60,6 @@ extern int max_threads_hits;
 extern struct mtx kse_zombie_lock;
 
 
-#define RANGEOF(type, start, end) (offsetof(type, end) - offsetof(type, start))
-
 TAILQ_HEAD(, kse_upcall) zombie_upcalls =
 	TAILQ_HEAD_INITIALIZER(zombie_upcalls);
 
@@ -582,10 +580,10 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 
 	if (uap->newgroup) {
 		newkg = ksegrp_alloc();
-		bzero(&newkg->kg_startzero, RANGEOF(struct ksegrp,
-		      kg_startzero, kg_endzero));
+		bzero(&newkg->kg_startzero,
+		    __rangeof(struct ksegrp, kg_startzero, kg_endzero));
 		bcopy(&kg->kg_startcopy, &newkg->kg_startcopy,
-		      RANGEOF(struct ksegrp, kg_startcopy, kg_endcopy));
+		    __rangeof(struct ksegrp, kg_startcopy, kg_endcopy));
 		sched_init_concurrency(newkg);
 		PROC_LOCK(p);
 		if (p->p_numksegrps >= max_groups_per_proc) {
@@ -1014,7 +1012,7 @@ thread_alloc_spare(struct thread *td)
 	spare = thread_alloc();
 	td->td_standin = spare;
 	bzero(&spare->td_startzero,
-	    (unsigned) RANGEOF(struct thread, td_startzero, td_endzero));
+	    __rangeof(struct thread, td_startzero, td_endzero));
 	spare->td_proc = td->td_proc;
 	spare->td_ucred = crhold(td->td_ucred);
 }
@@ -1049,7 +1047,7 @@ thread_schedule_upcall(struct thread *td, struct kse_upcall *ku)
 	 * do the crhold here because we are in schedlock already.
 	 */
 	bcopy(&td->td_startcopy, &td2->td_startcopy,
-	    (unsigned) RANGEOF(struct thread, td_startcopy, td_endcopy));
+	    __rangeof(struct thread, td_startcopy, td_endcopy));
 	thread_link(td2, ku->ku_ksegrp);
 	/* inherit parts of blocked thread's context as a good template */
 	cpu_set_upcall(td2, td);
