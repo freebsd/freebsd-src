@@ -10,33 +10,23 @@ BINMODE=	444
 
 M4?=	m4
 
-# The default set of flags compiled into boot0.  This enables update (writing
-# the modified boot0 back to disk after running so that the selection made is
-# saved), packet mode (detect and use the BIOS EDD extensions if we try to
-# boot past the 1024 cylinder liimt), and booting from all valid slices.
-BOOT_BOOT0_FLAGS?=	0x8f
+B0FLAGS=0xf
+B0TICKS=0xb6
 
-# The number of timer ticks to wait for a keypress before assuming the default
-# selection.  Since there are 18.2 ticks per second, the default value of
-# 0xb6 (182d) corresponds to 10 seconds.
-BOOT_BOOT0_TICKS?=	0xb6
-
-# The base address that we the boot0 code to to run it.  Don't change this
-# unless you are glutton for punishment.
-BOOT_BOOT0_ORG?=	0x600
+ORG=	0x600
 
 boot0: boot0.o
 .if ${OBJFORMAT} == aout
-	${LD} -N -s -T ${BOOT_BOOT0_ORG} -o boot0.out boot0.o
+	${LD} -N -s -T ${ORG} -o boot0.out boot0.o
 	dd if=boot0.out of=${.TARGET} ibs=32 skip=1
 .else
-	${LD} -N -e start -Ttext ${BOOT_BOOT0_ORG} -o boot0.out boot0.o
+	${LD} -N -e start -Ttext ${ORG} -o boot0.out boot0.o
 	objcopy -S -O binary boot0.out ${.TARGET}
 .endif
 
 boot0.o: boot0.s
-	${AS} ${AFLAGS} --defsym FLAGS=${BOOT_BOOT0_FLAGS} \
-		--defsym TICKS=${BOOT_BOOT0_TICKS} ${.IMPSRC} -o ${.TARGET}
+	${AS} ${AFLAGS} --defsym FLAGS=${B0FLAGS} --defsym TICKS=${B0TICKS} \
+		${.IMPSRC} -o ${.TARGET}
 
 CLEANFILES+= boot0.out boot0.o
 
