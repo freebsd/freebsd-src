@@ -38,7 +38,10 @@
 #include <net/netisr.h>			/* for NETISR_POLL		*/
 
 #ifdef SMP
+#include "opt_lint.h"
+#ifndef COMPILING_LINT
 #error DEVICE_POLLING is not compatible with SMP
+#endif
 #endif
 
 static void netisr_poll(void);		/* the two netisr handlers	*/
