@@ -443,7 +443,6 @@ SMP			opt_global.h
 MSGBUF_SIZE		opt_msgbuf.h
 
 # PCI related options
-PCI_ENABLE_IO_MODES	opt_pci.h
 PCI_ALLOW_UNSUPPORTED_IO_RANGE	opt_pci.h
 
 # NFS options
