@@ -11,6 +11,6 @@ CFLAGS+=-I${.CURDIR}/../../sys/contrib/ipfilter
 CFLAGS+=-I${.CURDIR}/../../contrib/ipfilter
 WARNS=	0
 
-MAINTAINER=	guido@freebsd.org
+MAINTAINER=	darrenr@freebsd.org
 
 .include <bsd.prog.mk>

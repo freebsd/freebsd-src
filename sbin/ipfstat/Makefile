@@ -14,6 +14,6 @@ WARNS=	0
 DPADD=	${LIBNCURSES} ${LIBKVM}
 LDADD=	-lncurses -lkvm
 
-MAINTAINER=	guido@freebsd.org
+MAINTAINER=	darrenr@freebsd.org
 
 .include <bsd.prog.mk>
