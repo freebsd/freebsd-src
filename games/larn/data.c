@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)data.c	5.3 (Berkeley) 5/13/91";
+#endif
+static const char rcsid[] =
+ "$FreeBSD$";
 #endif /* not lint */
 
 /*	data.c		Larn is copyrighted 1986 by Noah Morgan. */

@@ -34,12 +34,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)done.c	8.1 (Berkeley) 5/31/93";
+#endif
+static const char rcsid[] =
+ "$FreeBSD$";
 #endif /* not lint */
 
 /*      Re-coding of advent in C: termination routines                  */
