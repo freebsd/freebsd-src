@@ -67,6 +67,7 @@
  * address in a jmp_buf context.
  *
  * XXX - These need to be moved into architecture dependent support files.
+ * XXX - These need to be documented so porters know what's required.
  */
 #if	defined(__i386__)
 #define	GET_STACK_JB(jb)	((unsigned long)((jb)[0]._jb[2]))
@@ -101,6 +102,34 @@
 	(jb)[0]._jb[R_RA + 4] = (long)(ra);		\
 	(jb)[0]._jb[R_T12 + 4] = (long)(ra);		\
 } while (0)
+#elif	defined(__sparc64__)
+#include <machine/frame.h>
+
+#define	CCFSZ	sizeof (struct frame)
+
+#define	GET_STACK_JB(jb)				\
+	((unsigned long)((jb)[0]._jb[_JB_SP]) + SPOFF)
+#define	GET_STACK_SJB(sjb)				\
+	((unsigned long)((sjb)[0]._sjb[_JB_SP]) + SPOFF)
+#define	GET_STACK_UC(ucp)				\
+	((ucp)->uc_mcontext.mc_sp + SPOFF)
+/*
+ * XXX: sparc64 _longjmp() expects a register window on the stack
+ * at the given position, so we must make sure that the space where
+ * it is expected is readable. Subtracting the frame size here works
+ * because the SET_STACK macros are only used to set up new stacks
+ * or signal stacks, but it is a bit dirty.
+ */
+#define	SET_STACK_JB(jb, stk)				\
+	(jb)[0]._jb[_JB_SP] = (long)(stk) - SPOFF - CCFSZ
+#define	SET_STACK_SJB(sjb, stk)				\
+	(sjb)[0]._sjb[_JB_SP] = (long)(stk) - SPOFF - CCFSZ
+#define	SET_STACK_UC(ucp, stk)				\
+	(ucp)->uc_mcontext.mc_sp = (unsigned long)(stk) - SPOFF - CCFSZ
+#define	FP_SAVE_UC(ucp)		/* XXX */
+#define	FP_RESTORE_UC(ucp)	/* XXX */
+#define	SET_RETURN_ADDR_JB(jb, ra)			\
+	(jb)[0]._jb[_JB_PC] = (long)(ra) - 8
 #else
 #error "Don't recognize this architecture!"
 #endif
