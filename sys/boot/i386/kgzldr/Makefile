@@ -1,12 +1,18 @@
 # $FreeBSD$
 
-SRCS=	start.s boot.c inflate.c lib.c crt.s sio.s
+SRCS=	boot.c inflate.c lib.c
 OBJS=	${SRCS:N*.h:R:S/$/.o/g}
 CFLAGS=	-ffreestanding
 CFLAGS+=-Os
 CFLAGS+=-DKZIP
 LDFLAGS=-nostdlib -static -r
 .PATH:	${.CURDIR}/../../../kern
+
+.for asm in start crt sio
+OBJS+=	${asm}.o
+${asm}.o: ${asm}.s
+	as -o ${.TARGET} ${.ALLSRC:M*${asm}*}
+.endfor
 
 CLEANFILES=kgzldr.o
 
