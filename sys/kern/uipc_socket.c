@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- *	$Id: uipc_socket.c,v 1.57 1999/05/03 23:57:23 billf Exp $
+ *	$Id: uipc_socket.c,v 1.58 1999/05/21 15:54:40 ache Exp $
  */
 
 #include <sys/param.h>
@@ -538,6 +538,15 @@ nopages:
 		    if (dontroute)
 			    so->so_options |= SO_DONTROUTE;
 		    s = splnet();				/* XXX */
+		    /*
+		     * XXX all the SS_CANTSENDMORE checks previously
+		     * done could be out of date.  We could have recieved
+		     * a reset packet in an interrupt or maybe we slept
+		     * while doing page faults in uiomove() etc. We could
+		     * probably recheck again inside the splnet() protection
+		     * here, but there are probably other places that this
+		     * also happens.  We must rethink this.
+		     */
 		    error = (*so->so_proto->pr_usrreqs->pru_send)(so,
 			(flags & MSG_OOB) ? PRUS_OOB :
 			/*

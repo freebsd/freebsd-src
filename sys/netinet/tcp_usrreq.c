@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- *	$Id: tcp_usrreq.c,v 1.42 1999/04/28 11:37:50 phk Exp $
+ *	$Id: tcp_usrreq.c,v 1.43 1999/05/03 23:57:32 billf Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -326,7 +326,10 @@ tcp_usr_rcvd(struct socket *so, int flags)
 
 /*
  * Do a send by putting data in output queue and updating urgent
- * marker if URG set.  Possibly send more data.
+ * marker if URG set.  Possibly send more data.  Unlike the other
+ * pru_*() routines, the mbuf chains are our responsibility.  We
+ * must either enqueue them or free them.  The other pru_* routines
+ * generally are caller-frees.
  */
 static int
 tcp_usr_send(struct socket *so, int flags, struct mbuf *m, 
@@ -336,16 +339,34 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 	int error = 0;
 	struct inpcb *inp = sotoinpcb(so);
 	struct tcpcb *tp;
+	TCPDEBUG0;
 
-	COMMON_START();
-	if (control && control->m_len) {
-		m_freem(control); /* XXX shouldn't caller do this??? */
+	if (inp == NULL) {
+		/*
+		 * OOPS! we lost a race, the TCP session got reset after
+		 * we checked SS_CANTSENDMORE, eg: while doing uiomove or a
+		 * network interrupt in the non-splnet() section of sosend().
+		 */
 		if (m)
 			m_freem(m);
-		error = EINVAL;
+		if (control)
+			m_freem(control);
+		error = ECONNRESET;	/* XXX EPIPE? */
 		goto out;
 	}
-
+	tp = intotcpcb(inp);
+	TCPDEBUG1();
+	if (control) {
+		/* TCP doesn't do control messages (rights, creds, etc) */
+		if (control->m_len) {
+			m_freem(control);
+			if (m)
+				m_freem(m);
+			error = EINVAL;
+			goto out;
+		}
+		m_freem(control);	/* empty control, just free it */
+	}
 	if(!(flags & PRUS_OOB)) {
 		sbappend(&so->so_snd, m);
 		if (nam && tp->t_state < TCPS_SYN_SENT) {
