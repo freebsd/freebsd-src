@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.219 1998/12/07 21:58:22 archie Exp $
+ *	$Id: sio.c,v 1.220 1998/12/27 12:35:48 phk Exp $
  */
 
 #include "opt_comconsole.h"
@@ -2485,6 +2485,18 @@ static void siocnclose	__P((struct siocnstate *sp));
 static void siocnopen	__P((struct siocnstate *sp));
 static void siocntxwait	__P((void));
 
+/*
+ * XXX: sciocnget() and sciocnputc() are not declared static, as they are
+ * referred to from i386/i386/i386-gdbstub.c.
+ */
+static cn_probe_t siocnprobe;
+static cn_init_t siocninit;
+static cn_checkc_t siocncheckc;
+       cn_getc_t siocngetc;
+       cn_putc_t siocnputc;
+
+CONS_DRIVER(sio, siocnprobe, siocninit, siocngetc, siocncheckc, siocnputc);
+
 static void
 siocntxwait()
 {
@@ -2606,7 +2618,7 @@ siocnclose(sp)
 	outb(iobase + com_ier, sp->ier);
 }
 
-void
+static void
 siocnprobe(cp)
 	struct consdev	*cp;
 {
@@ -2672,14 +2684,14 @@ siocnprobe(cp)
 		}
 }
 
-void
+static void
 siocninit(cp)
 	struct consdev	*cp;
 {
 	comconsole = DEV_TO_UNIT(cp->cn_dev);
 }
 
-int
+static int
 siocncheckc(dev)
 	dev_t	dev;
 {
