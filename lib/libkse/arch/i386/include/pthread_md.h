@@ -31,23 +31,14 @@
 #ifndef _PTHREAD_MD_H_
 #define	_PTHREAD_MD_H_
 
-#include <setjmp.h>
+#include <sys/kse.h>
 #include <ucontext.h>
 
-extern int _thr_setcontext(ucontext_t *);
-extern int _thr_getcontext(ucontext_t *);
+extern int _thr_setcontext(mcontext_t *, intptr_t, intptr_t *);
+extern int _thr_getcontext(mcontext_t *);
 
-/*
- * These are needed to ensure an application doesn't attempt to jump
- * between stacks of different threads.  They return the stack of
- * jmp_buf, sigjmp_buf, and ucontext respectively.
- */
-#define	GET_STACK_JB(jb)	((unsigned long)((jb)[0]._jb[2]))
-#define	GET_STACK_SJB(sjb)	((unsigned long)((sjb)[0]._sjb[2]))
-#define	GET_STACK_UC(ucp)	((unsigned long)((ucp)->uc_mcontext.mc_esp))
-
-#define	THR_GETCONTEXT(ucp)	_thr_getcontext(ucp)
-#define	THR_SETCONTEXT(ucp)	_thr_setcontext(ucp)
+#define	THR_GETCONTEXT(ucp)	_thr_getcontext(&(ucp)->uc_mcontext);
+#define	THR_SETCONTEXT(ucp)	_thr_setcontext(&(ucp)->uc_mcontext, NULL, NULL);
 
 #define	THR_ALIGNBYTES	15
 #define	THR_ALIGN(td)	(((unsigned)(td) + THR_ALIGNBYTES) & ~THR_ALIGNBYTES)
@@ -62,5 +53,33 @@ struct ksd {
 	void	*base;
 	long	size;
 };
+
+extern void _i386_enter_uts(struct kse_mailbox *, kse_func_t, void *, long);
+
+static __inline int
+_thread_enter_uts(struct kse_thr_mailbox *tmbx, struct kse_mailbox *kmbx)
+{
+	int ret;
+
+	ret = _thr_getcontext(&tmbx->tm_context.uc_mcontext);
+	if (ret == 0) {
+		_i386_enter_uts(kmbx, kmbx->km_func,
+		    kmbx->km_stack.ss_sp, kmbx->km_stack.ss_size);
+		/* We should not reach here. */
+		return (-1);
+	}
+	else if (ret < 0)
+		return (-1);
+	return (0);
+}
+
+static __inline int
+_thread_switch(struct kse_thr_mailbox *tmbx, struct kse_thr_mailbox **loc)
+{
+	_thr_setcontext(&tmbx->tm_context.uc_mcontext,
+	    (intptr_t)tmbx, (intptr_t *)loc);
+	/* We should not reach here. */
+	return (-1);
+}
 
 #endif
