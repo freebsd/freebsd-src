@@ -1,4 +1,4 @@
-# $Id: INDEX.keymaps,v 1.26 1999/01/28 10:48:27 yokota Exp $
+# $Id: INDEX.keymaps,v 1.25.2.1 1999/01/31 13:06:22 yokota Exp $
 #
 # database for kbdmap(8) 
 #
@@ -51,6 +51,10 @@ br275.cp850.kbd:en:Brazilian 275 Codepage 850
 br275.cp850.kbd:de:Brasilianische 275 Codeseite 850
 br275.cp850.kbd:pt:Brasileiro 275 Codepage 850
 br275.cp850.kbd:es:Brasileño 275 Codepage 850
+
+ce.iso2.kbd:en:Central European ISO-8859-2
+
+cz.iso2.kbd:en:Czech ISO-8859-2
 
 danish.iso.kbd:en:Danish ISO-8859-1
 danish.iso.kbd:da:Dansk ISO-8859-1
@@ -180,6 +184,8 @@ spanish.iso.acc.kbd:es:Español ISO-8859-1 (con acentos)
 si.iso.kbd:en:Slovenian ISO-8859-2
 si.iso.kbd:pt:Eslovênio ISO-8859-2
 si.iso.kbd:es:Esloveno ISO-8859-2
+
+sk.iso2.kbd:en:Slovak ISO-8859-2
 
 swedish.iso.kbd:en:Swedish ISO-8859-1
 swedish.iso.kbd:de:Schwedisch ISO-8859-1
