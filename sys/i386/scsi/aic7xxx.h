@@ -20,7 +20,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7xxx.h,v 1.10.2.3 1995/09/21 02:11:20 davidg Exp $
+ *	$Id: aic7xxx.h,v 1.17 1996/01/03 06:32:12 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -35,14 +35,14 @@
 				 * based boards.  The aic7870 have 16 internal
 				 * SCBs, but external SRAM bumps this to 255.
 				 * The aic7770 family have only 4, and the 
-				 * aic7850 have only 3.
+				 * aic7850 has only 3.
 				 */
 
 /* #define AHCDEBUG */
 
 extern int bootverbose;
 typedef unsigned long int physaddr;
-extern int  ahc_unit;
+extern u_long ahc_unit;
 
 struct ahc_dma_seg {
         physaddr addr;
@@ -71,6 +71,12 @@ typedef enum {
 	AHC_FNONE	= 0x00,
 	AHC_INIT	= 0x01,
 	AHC_RUNNING	= 0x02,
+	AHC_USEDEFAULTS = 0x04,		/*
+					 * For cards without an seeprom
+					 * or a BIOS to initialize the chip's
+					 * SRAM, we use the default chip and
+					 * target settings.
+					 */
 	AHC_EXTSCB	= 0x10,		/* External SCBs present */
 	AHC_CHNLB	= 0x20,		/* 
 					 * Second controller on 3940 
@@ -81,56 +87,41 @@ typedef enum {
 
 /*
  * The driver keeps up to MAX_SCB scb structures per card in memory.  Only the
- * first 26 bytes of the structure are valid for the hardware, the rest used
- * for driver level bookeeping.  The "__attribute ((packed))" tags ensure that
- * gcc does not attempt to pad the long ints in the structure to word
- * boundaries since the first 26 bytes of this structure must have the correct
- * offsets for the hardware to find them.  The driver is further optimized
- * so that we only have to download the first 19 bytes since as long
- * as we always use S/G, the last fields should be zero anyway.
+ * first 26 bytes of the structure need to be transfered to the card during
+ * normal operation.  The remaining fields (next_waiting and host_scb) are
+ * initialized the first time an SCB is allocated in get_scb().  The fields
+ * starting at byte 32 are used for kernel level bookeeping.  
  */
 struct scb {
 /* ------------    Begin hardware supported fields    ---------------- */
-/*1*/   u_char control;
-#define	SCB_NEEDWDTR 0x80			/* Initiate Wide Negotiation */
-#define SCB_DISCENB  0x40			/* Disconnection Enable */
-#define	SCB_TE	     0x20			/* Tag enable */
-#define SCB_NEEDSDTR 0x10			/* Initiate Sync Negotiation */
-#define	SCB_NEEDDMA  0x08			/* Refresh SCB from host ram */
-#define	SCB_DIS	     0x04
-#define	SCB_TAG_TYPE 0x03
-#define		SIMPLE_QUEUE	0x00
-#define		HEAD_QUEUE	0x01
-#define		OR_QUEUE	0x02
-/*2*/	u_char target_channel_lun;		/* 4/1/3 bits */
+/*0*/   u_char control;
+/*1*/	u_char target_channel_lun;		/* 4/1/3 bits */
+/*2*/	u_char target_status;
 /*3*/	u_char SG_segment_count;
-/*7*/	physaddr SG_list_pointer	__attribute__ ((packed));
-/*11*/	physaddr cmdpointer		__attribute__ ((packed));
-/*12*/	u_char cmdlen;
-/*14*/	u_char RESERVED[2];			/* must be zero */
-/*15*/	u_char target_status;
-/*18*/	u_char residual_data_count[3];
-/*19*/	u_char residual_SG_segment_count;
-/*23*/	physaddr data			 __attribute__ ((packed));
-/*26*/  u_char datalen[3];
-#define	SCB_DOWN_SIZE 26		/* amount to actually download */
-#define SCB_UP_SIZE 26			/*
-					 * amount we need to upload to perform
-					 * a request sense.
+/*4*/	physaddr SG_list_pointer;
+/*8*/	u_char residual_SG_segment_count;
+/*9*/	u_char residual_data_count[3];
+/*12*/	physaddr data;
+/*16*/  u_long datalen;			/* Really only three bits, but its
+					 * faster to treat it as a long on
+					 * a quad boundary.
 					 */
-/*30*/	physaddr host_scb			 __attribute__ ((packed));
-/*31*/	u_char next_waiting;		/* Used to thread SCBs awaiting
+/*20*/	physaddr cmdpointer;
+/*24*/	u_char cmdlen;
+/*25*/	u_char RESERVED[2];		/* must be zero */
+#define SCB_PIO_TRANSFER_SIZE	26	/*
+					 * amount we need to upload/download
+					 * via rep in/outsb to perform
+					 * a request sense.  The second
+					 * RESERVED byte is initialized to
+					 * 0 in get_scb().
+					 */
+/*27*/	u_char next_waiting;		/* Used to thread SCBs awaiting
 					 * selection
 					 */
-#define SCB_LIST_NULL 0xff		/* SCB list equivelent to NULL */
-#if 0
-	/*
-	 *  No real point in transferring this to the
-	 *  SCB registers.
-	*/
-	unsigned char RESERVED[1];
-#endif
-	/*-----------------end of hardware supported fields----------------*/
+/*28*/	physaddr host_scb;
+#define	SCB_HARDWARE_SIZE	32
+/*-----------------end of hardware supported fields----------------*/
 	struct scb *next;	/* in free list */
 	struct scsi_xfer *xs;	/* the scsi_xfer for this cmd */
 	int	flags;
@@ -146,6 +137,7 @@ struct scb {
 };
 
 struct ahc_data {
+	int	unit;
 	ahc_type type;
 	ahc_flag flags;
 	u_long	baseport;
@@ -172,10 +164,51 @@ struct ahc_data {
 	u_char	pause;
 };
 
+/* Different debugging levels used when AHC_DEBUG is defined */
+#define AHC_SHOWMISC	0x0001
+#define AHC_SHOWCMDS	0x0002
+#define AHC_SHOWSCBS	0x0004
+#define AHC_SHOWABORTS	0x0008
+#define AHC_SHOWSENSE	0x0010
+#define AHC_SHOWSCBCNT	0x0020
+/* #define AHC_DEBUG */
+
+extern int ahc_debug; /* Initialized in i386/scsi/aic7xxx.c */
+
+/*
+ * Since the sequencer can disable pausing in a critical section, we
+ * must loop until it actually stops.
+ * XXX Should add a timeout in here??
+ */
+#define PAUSE_SEQUENCER(ahc)      \
+        outb(HCNTRL + ahc->baseport, ahc->pause);   \
+				\
+        while ((inb(HCNTRL + ahc->baseport) & PAUSE) == 0)             \
+                        ;
+
+#define UNPAUSE_SEQUENCER(ahc)    \
+        outb( HCNTRL + ahc->baseport, ahc->unpause )
+
+/*
+ * Restart the sequencer program from address zero
+ */
+#define RESTART_SEQUENCER(ahc)    \
+                do {                                    \
+                        outb( SEQCTL + ahc->baseport, SEQRESET|FASTMODE );    \
+                } while (inb(SEQADDR0 + ahc->baseport) != 0 &&   \
+			 inb(SEQADDR1 + ahc->baseport != 0));     \
+                                                        \
+                UNPAUSE_SEQUENCER(ahc);
+
+
 extern struct ahc_data *ahcdata[NAHC];
 
-int ahcprobe __P((int unit, u_long io_base, ahc_type type, ahc_flag flags));
-int ahc_attach __P((int unit));
-int ahcintr();
+void ahc_reset __P((u_long iobase));
+struct ahc_data *ahc_alloc __P((int unit, u_long io_base, ahc_type type, ahc_flag flags));
+void ahc_free __P((struct ahc_data *));
+int ahc_init __P((struct ahc_data *));
+int ahc_attach __P((struct ahc_data *));
+void ahc_eisa_intr __P((void *arg));
+int ahcintr __P((void *arg));
 
 #endif  /* _AIC7XXX_H_ */

@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *      $Id: 93cx6.c,v 1.2 1995/09/05 23:51:58 gibbs Exp $
+ *      $Id: 93cx6.c,v 1.4 1995/11/20 12:14:02 phk Exp $
  */
 
 /*
@@ -62,7 +62,7 @@
  * Right now, we only have to read the SEEPROM.  But we make it easier to
  * add other 93Cx6 functions.
  */
-struct seeprom_cmd {
+static struct seeprom_cmd {
   	unsigned char len;
  	unsigned char bits[3];
 } seeprom_read = {3, {1, 1, 0}};
@@ -92,7 +92,6 @@ int read_seeprom (u_long   offset,
 		  u_short  MS    /* mode select */)
 {
 	int i = 0, k = 0;
-	int wait;
 	unsigned char temp;
 
 	/*
