@@ -67,7 +67,7 @@ struct mntopt mopts[] = {
 	{ NULL }
 };
 
-static void	usage __P((void)) __dead2;
+static void	usage(void) __dead2;
 
 int
 main(argc, argv)

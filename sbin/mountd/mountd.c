@@ -158,53 +158,53 @@ struct fhreturn {
 };
 
 /* Global defs */
-char	*add_expdir __P((struct dirlist **, char *, int));
-void	add_dlist __P((struct dirlist **, struct dirlist *,
-				struct grouplist *, int));
-void	add_mlist __P((char *, char *));
-int	check_dirpath __P((char *));
-int	check_options __P((struct dirlist *));
+char	*add_expdir(struct dirlist **, char *, int);
+void	add_dlist(struct dirlist **, struct dirlist *,
+				struct grouplist *, int);
+void	add_mlist(char *, char *);
+int	check_dirpath(char *);
+int	check_options(struct dirlist *);
 int	checkmask(struct sockaddr *sa);
-int	chk_host __P((struct dirlist *, struct sockaddr *, int *, int *));
+int	chk_host(struct dirlist *, struct sockaddr *, int *, int *);
 void	del_mlist(char *hostp, char *dirp);
-struct dirlist *dirp_search __P((struct dirlist *, char *));
-int	do_mount __P((struct exportlist *, struct grouplist *, int,
-		struct xucred *, char *, int, struct statfs *));
-int	do_opt __P((char **, char **, struct exportlist *, struct grouplist *,
-				int *, int *, struct xucred *));
-struct	exportlist *ex_search __P((fsid_t *));
-struct	exportlist *get_exp __P((void));
-void	free_dir __P((struct dirlist *));
-void	free_exp __P((struct exportlist *));
-void	free_grp __P((struct grouplist *));
-void	free_host __P((struct hostlist *));
-void	get_exportlist __P((void));
-int	get_host __P((char *, struct grouplist *, struct grouplist *));
-struct hostlist *get_ht __P((void));
-int	get_line __P((void));
-void	get_mountlist __P((void));
-int	get_net __P((char *, struct netmsk *, int));
-void	getexp_err __P((struct exportlist *, struct grouplist *));
-struct grouplist *get_grp __P((void));
-void	hang_dirp __P((struct dirlist *, struct grouplist *,
-				struct exportlist *, int));
+struct dirlist *dirp_search(struct dirlist *, char *);
+int	do_mount(struct exportlist *, struct grouplist *, int,
+		struct xucred *, char *, int, struct statfs *);
+int	do_opt(char **, char **, struct exportlist *, struct grouplist *,
+				int *, int *, struct xucred *);
+struct	exportlist *ex_search(fsid_t *);
+struct	exportlist *get_exp(void);
+void	free_dir(struct dirlist *);
+void	free_exp(struct exportlist *);
+void	free_grp(struct grouplist *);
+void	free_host(struct hostlist *);
+void	get_exportlist(void);
+int	get_host(char *, struct grouplist *, struct grouplist *);
+struct hostlist *get_ht(void);
+int	get_line(void);
+void	get_mountlist(void);
+int	get_net(char *, struct netmsk *, int);
+void	getexp_err(struct exportlist *, struct grouplist *);
+struct grouplist *get_grp(void);
+void	hang_dirp(struct dirlist *, struct grouplist *,
+				struct exportlist *, int);
 void	huphandler(int sig);
 int	makemask(struct sockaddr_storage *ssp, int bitlen);
-void	mntsrv __P((struct svc_req *, SVCXPRT *));
-void	nextfield __P((char **, char **));
-void	out_of_mem __P((void));
-void	parsecred __P((char *, struct xucred *));
-int	put_exlist __P((struct dirlist *, XDR *, struct dirlist *, int *));
+void	mntsrv(struct svc_req *, SVCXPRT *);
+void	nextfield(char **, char **);
+void	out_of_mem(void);
+void	parsecred(char *, struct xucred *);
+int	put_exlist(struct dirlist *, XDR *, struct dirlist *, int *);
 void	*sa_rawaddr(struct sockaddr *sa, int *nbytes);
 int	sacmp(struct sockaddr *sa1, struct sockaddr *sa2,
     struct sockaddr *samask);
-int	scan_tree __P((struct dirlist *, struct sockaddr *));
-static void usage __P((void));
-int	xdr_dir __P((XDR *, char *));
-int	xdr_explist __P((XDR *, caddr_t));
-int	xdr_fhs __P((XDR *, caddr_t));
-int	xdr_mlist __P((XDR *, caddr_t));
-void	terminate __P((int));
+int	scan_tree(struct dirlist *, struct sockaddr *);
+static void usage(void);
+int	xdr_dir(XDR *, char *);
+int	xdr_explist(XDR *, caddr_t);
+int	xdr_fhs(XDR *, caddr_t);
+int	xdr_mlist(XDR *, caddr_t);
+void	terminate(int);
 
 struct exportlist *exphead;
 struct mountlist *mlhead;
@@ -244,7 +244,7 @@ int mountdlockfd;
 
 #ifdef DEBUG
 int debug = 1;
-void	SYSLOG __P((int, const char *, ...)) __printflike(2, 3);
+void	SYSLOG(int, const char *, ...) __printflike(2, 3);
 #define syslog SYSLOG
 #else
 int debug = 0;

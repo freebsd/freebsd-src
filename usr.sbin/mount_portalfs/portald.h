@@ -59,26 +59,26 @@ struct qelem {
 typedef struct provider provider;
 struct provider {
 	char *pr_match;
-	int (*pr_func) __P((struct portal_cred *,
-				char *key, char **v, int so, int *fdp));
+	int (*pr_func)(struct portal_cred *,
+				char *key, char **v, int so, int *fdp);
 };
 extern provider providers[];
 
 /*
  * Portal providers
  */
-extern int portal_exec __P((struct portal_cred *,
-				char *key, char **v, int so, int *fdp));
-extern int portal_file __P((struct portal_cred *,
-				char *key, char **v, int so, int *fdp));
-extern int portal_tcp __P((struct portal_cred *,
-				char *key, char **v, int so, int *fdp));
-extern int portal_tcplisten __P((struct portal_cred *,
-				char *key, char **v, int so, int *fdp));
+extern int portal_exec(struct portal_cred *,
+				char *key, char **v, int so, int *fdp);
+extern int portal_file(struct portal_cred *,
+				char *key, char **v, int so, int *fdp);
+extern int portal_tcp(struct portal_cred *,
+				char *key, char **v, int so, int *fdp);
+extern int portal_tcplisten(struct portal_cred *,
+				char *key, char **v, int so, int *fdp);
 
 /*
  * Global functions
  */
-extern void activate __P((qelem *q, int so));
-extern char **conf_match __P((qelem *q, char *key));
-extern void conf_read __P((qelem *q, char *conf));
+extern void activate(qelem *q, int so);
+extern char **conf_match(qelem *q, char *key);
+extern void conf_read(qelem *q, char *conf);

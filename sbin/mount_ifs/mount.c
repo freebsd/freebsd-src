@@ -70,21 +70,21 @@ static const char rcsid[] =
 
 int debug, fstab_style, verbose;
 
-char   *catopt __P((char *, const char *));
+char   *catopt(char *, const char *);
 struct statfs
-       *getmntpt __P((const char *));
-int	hasopt __P((const char *, const char *));
-int	ismounted __P((struct fstab *, struct statfs *, int));
-int	isremountable __P((const char *));
-void	mangle __P((char *, int *, const char **));
-char   *update_options __P((char *, char *, int));
-int	mountfs __P((const char *, const char *, const char *,
-			int, const char *, const char *));
-void	remopt __P((char *, const char *));
-void	prmount __P((struct statfs *));
-void	putfsent __P((const struct statfs *));
-void	usage __P((void));
-char   *flags2opts __P((int));
+       *getmntpt(const char *);
+int	hasopt(const char *, const char *);
+int	ismounted(struct fstab *, struct statfs *, int);
+int	isremountable(const char *);
+void	mangle(char *, int *, const char **);
+char   *update_options(char *, char *, int);
+int	mountfs(const char *, const char *, const char *,
+			int, const char *, const char *);
+void	remopt(char *, const char *);
+void	prmount(struct statfs *);
+void	putfsent(const struct statfs *);
+void	usage(void);
+char   *flags2opts(int);
 
 /* Map from mount options to printable formats. */
 static struct opt {

@@ -190,13 +190,13 @@ enum tryret {
 	TRYRET_LOCALERR		/* Local failure. */
 };
 
-int	getnfsargs __P((char *, struct nfs_args *));
-/* void	set_rpc_maxgrouplist __P((int)); */
+int	getnfsargs(char *, struct nfs_args *);
+/* void	set_rpc_maxgrouplist(int); */
 struct netconfig *getnetconf_cached(const char *netid);
 char	*netidbytype(int af, int sotype);
-void	usage __P((void)) __dead2;
-int	xdr_dir __P((XDR *, char *));
-int	xdr_fh __P((XDR *, struct nfhret *));
+void	usage(void) __dead2;
+int	xdr_dir(XDR *, char *);
+int	xdr_fh(XDR *, struct nfhret *);
 enum tryret nfs_tryproto(struct nfs_args *nfsargsp, struct addrinfo *ai,
     char *hostp, char *spec, char **errstr);
 enum tryret returncode(enum clnt_stat stat, struct rpc_err *rpcerr);

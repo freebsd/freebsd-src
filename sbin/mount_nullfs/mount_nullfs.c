@@ -66,8 +66,8 @@ struct mntopt mopts[] = {
 	{ NULL }
 };
 
-int	subdir __P((const char *, const char *));
-static void	usage __P((void)) __dead2;
+int	subdir(const char *, const char *);
+static void	usage(void) __dead2;
 
 int
 main(argc, argv)

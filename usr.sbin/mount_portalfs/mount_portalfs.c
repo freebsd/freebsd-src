@@ -73,7 +73,7 @@ struct mntopt mopts[] = {
 	{ NULL }
 };
 
-static void usage __P((void)) __dead2;
+static void usage(void) __dead2;
 
 static sig_atomic_t readcf;	/* Set when SIGHUP received */
 
