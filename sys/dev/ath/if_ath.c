@@ -288,7 +288,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	);
 	if (sc->sc_txhalq == (u_int) -1) {
 		if_printf(ifp, "unable to setup a data xmit queue!\n");
-		goto bad;
+		goto bad2;
 	}
 	sc->sc_bhalq = ath_hal_setuptxqueue(ah,
 		HAL_TX_QUEUE_BEACON,
@@ -296,7 +296,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	);
 	if (sc->sc_bhalq == (u_int) -1) {
 		if_printf(ifp, "unable to setup a beacon xmit queue!\n");
-		goto bad;
+		goto bad2;
 	}
 
 	ifp->if_softc = sc;
@@ -355,6 +355,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	sc->sc_rx_th.wr_ihdr.it_present = htole32(ATH_RX_RADIOTAP_PRESENT);
 
 	return 0;
+bad2:
+	ath_desc_free(sc);
 bad:
 	if (ah)
 		ath_hal_detach(ah);
