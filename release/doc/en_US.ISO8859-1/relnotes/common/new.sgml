@@ -277,6 +277,12 @@
 	<application>lukemftpd</application> 1.2 beta 1, has been imported and is
 	available as &man.lukemftpd.8;.</para>
 
+      <para>&man.m4.1; has been imported from OpenBSD, as of 26 April
+	2002.</para>
+
+      <para>The <application>OPIE</application> one-time-password
+	suite has been updated to 2.4.</para>
+
       <para><application>OpenSSH</application> has been updated to
 	version 3.4p1.  Among the changes:
 	  <itemizedlist>
@@ -328,6 +334,9 @@
 
       <para><application>sendmail</application> has been updated 
 	from version 8.12.3 to version 8.12.5.</para>
+
+      <para><application>GNU tar</application> has been updated to
+	1.13.25.</para>
 
       <para><application>tcpdump</application> has been updated to
 	3.7.1.</para>
