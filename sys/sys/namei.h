@@ -30,8 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)namei.h	8.2 (Berkeley) 1/4/94
- * $Id: namei.h,v 1.8 1995/08/28 09:19:06 julian Exp $
+ *	@(#)namei.h	8.5 (Berkeley) 1/9/95
+ * $Id: namei.h,v 1.10 1996/02/26 18:40:44 hsu Exp $
  */
 
 #ifndef _SYS_NAMEI_H_
@@ -125,18 +125,20 @@ struct nameidata {
  * name being sought. The caller is responsible for releasing the
  * buffer and for vrele'ing ni_startdir.
  */
-#define	NOCROSSMOUNT	0x00100	/* do not cross mount points */
-#define	RDONLY		0x00200	/* lookup with read-only semantics */
-#define	HASBUF		0x00400	/* has allocated pathname buffer */
-#define	SAVENAME	0x00800	/* save pathname buffer */
-#define	SAVESTART	0x01000	/* save starting directory */
-#define ISDOTDOT	0x02000	/* current component name is .. */
-#define MAKEENTRY	0x04000	/* entry is to be added to name cache */
-#define ISLASTCN	0x08000	/* this is last component of pathname */
-#define ISSYMLINK	0x10000	/* symlink needs interpretation */
-#define WILLBEDIR	0x20000	/* new files will be dirs; allow trailing / */
-#define ISUNICODE	0x40000	/* current component name is unicode*/
-#define PARAMASK	0xfff00	/* mask of parameter descriptors */
+#define	NOCROSSMOUNT	0x000100 /* do not cross mount points */
+#define	RDONLY		0x000200 /* lookup with read-only semantics */
+#define	HASBUF		0x000400 /* has allocated pathname buffer */
+#define	SAVENAME	0x000800 /* save pathname buffer */
+#define	SAVESTART	0x001000 /* save starting directory */
+#define ISDOTDOT	0x002000 /* current component name is .. */
+#define MAKEENTRY	0x004000 /* entry is to be added to name cache */
+#define ISLASTCN	0x008000 /* this is last component of pathname */
+#define ISSYMLINK	0x010000 /* symlink needs interpretation */
+#define	ISWHITEOUT	0x020000 /* found whiteout */
+#define	DOWHITEOUT	0x040000 /* do whiteouts */
+#define WILLBEDIR	0x080000 /* new files will be dirs; allow trailing / */
+#define ISUNICODE	0x100000 /* current component name is unicode*/
+#define PARAMASK	0x1fff00 /* mask of parameter descriptors */
 /*
  * Initialization of an nameidata structure.
  */
@@ -163,8 +165,8 @@ struct nameidata {
 #endif
 
 struct	namecache {
-	LIST_ENTRY(namecache) nc_hash;  /* hash chain */
-	TAILQ_ENTRY(namecache) nc_lru;  /* LRU chain */
+	LIST_ENTRY(namecache) nc_hash;	/* hash chain */
+	TAILQ_ENTRY(namecache) nc_lru;	/* LRU chain */
 	struct	vnode *nc_dvp;		/* vnode of parent of name */
 	u_long	nc_dvpid;		/* capability number of nc_dvp */
 	struct	vnode *nc_vp;		/* vnode the name refers to */
