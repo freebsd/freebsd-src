@@ -587,7 +587,7 @@ acpi_cmbat_init_battery(void *arg)
     ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
 		"battery initialization start\n");
 
-    for (retry = 0; retry < ACPI_CMBAT_RETRY_MAX; retry++, AcpiOsSleep(10, 0)) {
+    for (retry = 0; retry < ACPI_CMBAT_RETRY_MAX; retry++, AcpiOsSleep(10000)) {
 	sc->present = acpi_BatteryIsPresent(dev);
 	if (!sc->present)
 	    continue;

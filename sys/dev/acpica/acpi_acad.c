@@ -238,7 +238,7 @@ acpi_acad_init_acline(void *arg)
 	acpi_acad_get_status(dev);
 	if (sc->status != -1)
 	    break;
-	AcpiOsSleep(10, 0);
+	AcpiOsSleep(10000);
     }
 
     ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
