@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)fingerd.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id: fingerd.c,v 1.11 1998/05/15 03:23:28 jb Exp $";
+	"$Id: fingerd.c,v 1.12 1999/04/06 23:05:56 brian Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -74,7 +74,7 @@ main(argc, argv)
 	int p[2], logging, secure, sval;
 #define	ENTRIES	50
 	char **ap, *av[ENTRIES + 1], **comp, line[1024], *prog;
-	char rhost[MAXHOSTNAMELEN + 1];
+	char rhost[MAXHOSTNAMELEN];
 
 	prog = _PATH_FINGER;
 	logging = secure = 0;
@@ -131,6 +131,7 @@ main(argc, argv)
 		if (getpeername(0, (struct sockaddr *)&sin, &sval) < 0)
 			logerr("getpeername: %s", strerror(errno));
 		realhostname(rhost, sizeof rhost - 1, &sin.sin_addr);
+		rhost[sizeof(rhost) - 1] = '\0';
 		syslog(LOG_NOTICE, "query from %s: `%s'", rhost, t);
 	}
 
