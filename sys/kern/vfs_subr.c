@@ -43,7 +43,6 @@
  * External virtual filesystem routines
  */
 #include "opt_ddb.h"
-#include "opt_ffs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -235,6 +234,9 @@ SYSCTL_INT(_kern, OID_AUTO, minvnodes, CTLFLAG_RW,
 static int vnlru_nowhere;
 SYSCTL_INT(_debug, OID_AUTO, vnlru_nowhere, CTLFLAG_RW, &vnlru_nowhere, 0,
     "Number of times the vnlru process ran without success");
+
+/* Hook for calling soft updates */
+int (*softdep_process_worklist_hook)(struct mount *);
 
 #ifdef DEBUG_VFS_LOCKS
 /* Print lock violations */
@@ -1383,9 +1385,8 @@ sched_sync(void)
 		/*
 		 * Do soft update processing.
 		 */
-#ifdef SOFTUPDATES
-		softdep_process_worklist(NULL);
-#endif
+		if (softdep_process_worklist_hook != NULL)
+			(*softdep_process_worklist_hook)(NULL);
 
 		/*
 		 * The variable rushjob allows the kernel to speed up the

@@ -579,6 +579,8 @@ struct vattr;
 struct vnode;
 
 extern int	(*lease_check_hook)(struct vop_lease_args *);
+extern int	(*softdep_fsync_hook)(struct vnode *);
+extern int	(*softdep_process_worklist_hook)(struct mount *);
 
 struct	vnode *addaliasu(struct vnode *vp, udev_t nvp_rdev);
 int	bdevvp(dev_t dev, struct vnode **vpp);
