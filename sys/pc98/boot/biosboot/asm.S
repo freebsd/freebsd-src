@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:13  rpd
- *	$Id$
+ *	$Id: asm.S,v 1.3 1997/02/22 09:43:03 peter Exp $
  */
 
 
@@ -209,40 +209,6 @@ ourreturn:
 	/* For now there is not much we can do, just lock in a loop */
 	jmp	ourreturn
 
-/*
- *
- * pbzero( dst, cnt)
- *	where src is a virtual address and dst is a physical address
- */
-
-ENTRY(pbzero)
-	push	%ebp
-	mov	%esp, %ebp
-	push	%es
-	push	%esi
-	push	%edi
-	push	%ecx
-
-	cld
-
-	/* set %es to point at the flat segment */
-	movw	$0x10, %ax
-	mov	%ax, %es
-
-	mov	0x8(%ebp), %edi		/* destination */
-	mov	0xc(%ebp), %ecx		/* count */
-	xorl	%eax, %eax		/* value 0 */
-
-	rep
-	stosb
-
-	pop	%ecx
-	pop	%edi
-	pop	%esi
-	pop	%es
-	pop	%ebp
-
-	ret
 /*
  * pcpy(src, dst, cnt)
  *	where src is a virtual address and dst is a physical address
