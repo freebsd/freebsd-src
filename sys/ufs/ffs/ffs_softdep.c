@@ -1123,6 +1123,10 @@ softdep_initialize()
 	newblk_hashtbl = hashinit(64, M_NEWBLK, &newblk_hash);
 	sema_init(&newblk_in_progress, "newblk", PRIBIO, 0);
 
+	/* hooks through which the main kernel code calls us */
+	softdep_process_worklist_hook = softdep_process_worklist;
+	softdep_fsync_hook = softdep_fsync;
+
 	/* initialise bioops hack */
 	bioops.io_start = softdep_disk_io_initiation;
 	bioops.io_complete = softdep_disk_write_complete;
@@ -1139,6 +1143,8 @@ void
 softdep_uninitialize()
 {
 
+	softdep_process_worklist_hook = NULL;
+	softdep_fsync_hook = NULL;
 	hashdestroy(pagedep_hashtbl, M_PAGEDEP, pagedep_hash);
 	hashdestroy(inodedep_hashtbl, M_INODEDEP, inodedep_hash);
 	hashdestroy(newblk_hashtbl, M_NEWBLK, newblk_hash);
