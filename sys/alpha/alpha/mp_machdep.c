@@ -57,6 +57,11 @@ static struct mtx ap_boot_mtx;
 
 u_int boot_cpu_id;
 
+static void	release_aps(void *dummy);
+extern void	smp_init_secondary_glue(void);
+static int	smp_send_secondary_command(const char *command, int cpuid);
+static int	smp_start_secondary(int cpuid);
+
 /*
  * Communicate with a console running on a secondary processor.
  * Return 1 on failure.
@@ -206,8 +211,6 @@ smp_init_secondary(void)
 
 	panic("scheduler returned us to " __func__);
 }
-
-extern void smp_init_secondary_glue(void);
 
 static int
 smp_start_secondary(int cpuid)
