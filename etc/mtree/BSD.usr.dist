@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.58 1996/05/04 09:15:11 peter Exp $
+#	$Id: BSD.usr.dist,v 1.59 1996/05/10 21:42:58 ache Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -14,6 +14,8 @@
     include
     ..
     lib
+	tcl
+	..
     ..
     libdata
 	lint
@@ -306,6 +308,8 @@
                 i386
                 ..
             ..
+	    catn
+	    ..
             man1            uname=bin
             ..
             man2            uname=bin
@@ -330,6 +334,8 @@
             man9
                 i386
                 ..
+            ..
+            mann
             ..
         ..
         me
