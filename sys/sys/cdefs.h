@@ -190,7 +190,11 @@
 #endif	/* __ELF__ */
 #endif	/* __GNUC__ */
 
+#if defined(__GNUC__) && defined(__ELF__)
+#define	__IDSTRING(name,string)	__asm__(".ident\t\"" string "\"")
+#else
 #define	__IDSTRING(name,string)	static const char name[] __unused = string
+#endif
 
 #ifndef	__RCSID
 #define	__RCSID(s)	__IDSTRING(rcsid,s)
