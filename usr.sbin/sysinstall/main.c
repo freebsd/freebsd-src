@@ -127,6 +127,12 @@ main(int argc, char **argv)
     /* Probe for all relevant devices on the system */
     deviceGetAll();
 
+    /* Prompt for the driver floppy if appropriate. */
+    if (!pvariable_get("driverFloppyCheck")) {
+	driverFloppyCheck();
+	pvariable_set("driverFloppyCheck=1");
+    }
+
     /* First, see if we have any arguments to process (and argv[0] counts if it's not "sysinstall") */
     if (!RunningAsInit) {
 	int i, start_arg;

@@ -36,6 +36,7 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <fnmatch.h>
+#include <kenv.h>
 
 /* Prototypes */
 static int		kldModuleFire(dialogMenuItem *self);
@@ -94,6 +95,15 @@ moduleInitialize(void)
 	}
 	closedir(dirp);
     }
+}
+
+void
+driverFloppyCheck(void)
+{
+    /* Prompt for the driver floppy if requested. */
+    if (kenv(KENV_GET, "driver_floppy", NULL, 0) >= 0 &&
+	!msgYesNo("Would you like to load kernel modules from the driver floppy?"))
+	(void)kldBrowser(NULL);
 }
 
 int
