@@ -69,6 +69,7 @@
 extern u_short csd_ascii[];	/* pcvt_tbl.h */
 extern u_short csd_supplemental[];
 
+static void write_char (struct video_state *svsp, int attrib, int ch);
 static void check_scroll ( struct video_state *svsp );
 static void hp_entry ( U_char ch, struct video_state *svsp );
 static void vt_coldinit ( void );
@@ -84,7 +85,7 @@ static void writefkl ( int num, u_char *string, struct video_state *svsp );
 
 static __inline void write_char (svsp, attrib, ch)
 struct	video_state *svsp;
-u_short	attrib, ch;
+u_short	attrib, ch;		/* XXX inefficient interface */
 {
 	if ((ch >= 0x20) && (ch <= 0x7f))	/* use GL if ch >= 0x20 */
 	{
