@@ -1,10 +1,10 @@
-#	$Id$
+#	$Id: Makefile,v 1.1 1994/08/09 18:25:36 wollman Exp $
 #
 # Doing a make install builds /usr/share/examples
 #
 all clean cleandir depend lint tags:
 
-DIRS=sunrpc etc
+DIRS=sunrpc etc FreeBSD_version
 
 # Define SHARED to indicate whether you want symbolic links to the system
 # source (``symlinks''), or a separate copy (``copies''); (latter useful
