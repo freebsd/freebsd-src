@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.52 1998/04/15 17:45:26 bde Exp $
+ * $Id: if_ze.c,v 1.53 1998/06/07 17:10:39 dfr Exp $
  */
 
 /* XXX don't mix different PCCARD support code. */
@@ -70,7 +70,6 @@ static char const zedummy[] = "code to use the includes of card.h and pcic.h";
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -101,7 +100,9 @@ static char const zedummy[] = "code to use the includes of card.h and pcic.h";
 #include <machine/md_var.h>
 
 #include <i386/isa/isa_device.h>
+#ifndef SMP
 #include <i386/isa/icu.h>
+#endif
 #include <i386/isa/if_edreg.h>
 #include <i386/isa/pcic.h>
 
