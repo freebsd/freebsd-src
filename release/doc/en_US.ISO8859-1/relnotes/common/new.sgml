@@ -319,6 +319,11 @@
       <para>The &man.amr.4; driver is now safe for use on systems
 	using &man.pae.4;.</para>
 
+      <para arch="i386,ia64">The &man.arcmsr.4; driver has been added.
+	It supports the Areca ARC-11<replaceable>xx</replaceable> and
+	ARC-12<replaceable>xx</replaceable> series of SATA RAID
+	controllers.</para>
+
       <para>The &man.hptmv.4; driver, which supports the HighPoint
 	RocketRAID 182x series, has been added.</para>
 
