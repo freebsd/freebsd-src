@@ -43,6 +43,7 @@ char copyright[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <syslog.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/param.h>
@@ -50,6 +51,8 @@ char copyright[] =
 #include <sys/sysctl.h>
 
 #include "pathnames.h"
+
+#define REPORT_PERIOD (30*60)
 
 int main(argc, argv)
 	int argc;
@@ -64,107 +67,69 @@ int main(argc, argv)
 	/* Avoid time_t here, can be unsigned long or worse */
 	long offset, utcsec, localsec, diff;
 	time_t initial_sec, final_sec;
-	int ch, init = -1, verbose = 0;
+	int init = 1, nonex1 = 0, nonex2 = 0;
 	int disrtcset, need_restore = 0;
 
-	while ((ch = getopt(argc, argv, "aiv")) != EOF)
-		switch((char)ch) {
-		case 'i':               /* initial call, save offset */
-			if (init != -1)
-				goto usage;
-			init = 1;
-			break;
-		case 'a':               /* adjustment call, use saved offset */
-			if (init != -1)
-				goto usage;
-			init = 0;
-			break;
-		case 'v':               /* verbose */
-			verbose = 1;
-			break;
-		default:
-		usage:
-			fprintf(stderr, "Usage:\n\
-\tadjkerntz -i [-v]\t(initial call from /etc/rc)\n\
-\tadjkerntz -a [-v]\t(adjustment call from crontab)\n");
-			return 2;
-		}
-	if (init == -1)
-		goto usage;
+	if (argc != 1) {
+		fprintf(stderr, "Usage:\tadjkerntz\n");
+		return 2;
+	}
 
 	if (access(_PATH_CLOCK, F_OK))
 		return 0;
 
-	/* Restore saved offset */
-
-	mib[0] = CTL_MACHDEP;
-	mib[1] = CPU_ADJKERNTZ;
-	len = sizeof(kern_offset);
-	if (sysctl(mib, 2, &kern_offset, &len, NULL, 0) == -1) {
-		perror("sysctl(get_offset)");
+	if (daemon(0, 0)) {
+		perror("daemon");
 		return 1;
 	}
+
+	openlog("adjkerntz", LOG_PID, LOG_DAEMON);
+
+	/* Spy on timezone changes with 1sec accurancy */
+	for (;;sleep(1)) {
 
 /****** Critical section, do all things as fast as possible ******/
 
-	/* get local CMOS clock and possible kernel offset */
-	if (gettimeofday(&tv, &tz)) {
-		perror("gettimeofday");
-		return 1;
-	}
-
-	/* get the actual local timezone difference */
-	initial_sec = tv.tv_sec;
-	local = *localtime(&initial_sec);
-	utc = *gmtime(&initial_sec);
-	utc.tm_isdst = local.tm_isdst; /* Use current timezone for mktime(), */
-				       /* because it assumed local time */
-
-	/* calculate local CMOS diff from GMT */
-
-	utcsec = mktime(&utc);
-	localsec = mktime(&local);
-	if (utcsec == -1 || localsec == -1) {
-		/*
-		 * XXX user can only control local time, and it is
-		 * unacceptable to fail here for -i.  2:30 am in the
-		 * middle of the nonexistent hour means 3:30 am.
-		 */
-		fprintf(stderr,
-			"Nonexistent local time - try again in an hour\n");
-		return 1;
-	}
-	offset = utcsec - localsec;
-
-	/* correct the kerneltime for this diffs */
-	/* subtract kernel offset, if present, old offset too */
-
-	diff = offset - tz.tz_minuteswest * 60 - kern_offset;
-
-	if (diff != 0) {
-
-		/* Yet one step for final time */
-
-		final_sec = tv.tv_sec + diff;
+		/* get local CMOS clock and possible kernel offset */
+		if (gettimeofday(&tv, &tz)) {
+			syslog(LOG_ERR, "gettimeofday: %m");
+			return 1;
+		}
 
 		/* get the actual local timezone difference */
-		local = *localtime(&final_sec);
-		utc = *gmtime(&final_sec);
+		initial_sec = tv.tv_sec;
+		local = *localtime(&initial_sec);
+		utc = *gmtime(&initial_sec);
 		utc.tm_isdst = local.tm_isdst; /* Use current timezone for mktime(), */
 					       /* because it assumed local time */
+
+		/* calculate local CMOS diff from GMT */
 
 		utcsec = mktime(&utc);
 		localsec = mktime(&local);
 		if (utcsec == -1 || localsec == -1) {
 			/*
-			 * XXX as above.  The user has even less control,
-			 * but perhaps we never get here.
+			 * XXX user can only control local time, and it is
+			 * unacceptable to fail here for init.  2:30 am in the
+			 * middle of the nonexistent hour means 3:30 am.
 			 */
-			fprintf(stderr,
-		"Nonexistent (final) local time - try again in an hour\n");
-			return 1;
+			if (!(nonex1++ % REPORT_PERIOD)) {
+				if (nonex1 > 1)
+					nonex1 = 0;
+				syslog(LOG_WARNING,
+				"Nonexistent local time -- retry each second");
+			}
+			continue;
 		}
 		offset = utcsec - localsec;
+
+		mib[0] = CTL_MACHDEP;
+		mib[1] = CPU_ADJKERNTZ;
+		len = sizeof(kern_offset);
+		if (sysctl(mib, 2, &kern_offset, &len, NULL, 0) == -1) {
+			syslog(LOG_ERR, "sysctl(get_offset): %m");
+			return 1;
+		}
 
 		/* correct the kerneltime for this diffs */
 		/* subtract kernel offset, if present, old offset too */
@@ -172,72 +137,106 @@ int main(argc, argv)
 		diff = offset - tz.tz_minuteswest * 60 - kern_offset;
 
 		if (diff != 0) {
-			tv.tv_sec += diff;
-			tv.tv_usec = 0;       /* we are restarting here... */
-			stv = &tv;
+
+			/* Yet one step for final time */
+
+			final_sec = tv.tv_sec + diff;
+
+			/* get the actual local timezone difference */
+			local = *localtime(&final_sec);
+			utc = *gmtime(&final_sec);
+			utc.tm_isdst = local.tm_isdst; /* Use current timezone for mktime(), */
+						       /* because it assumed local time */
+
+			utcsec = mktime(&utc);
+			localsec = mktime(&local);
+			if (utcsec == -1 || localsec == -1) {
+				/*
+				 * XXX as above.  The user has even less control,
+				 * but perhaps we never get here.
+				 */
+				if (!(nonex2++ % REPORT_PERIOD)) {
+					if (nonex2 > 1)
+						nonex2 = 0;
+					syslog(LOG_WARNING,
+			"Nonexistent (final) local time -- retry each second");
+				}
+				continue;
+			}
+			offset = utcsec - localsec;
+
+			/* correct the kerneltime for this diffs */
+			/* subtract kernel offset, if present, old offset too */
+
+			diff = offset - tz.tz_minuteswest * 60 - kern_offset;
+
+			if (diff != 0) {
+				tv.tv_sec += diff;
+				tv.tv_usec = 0;       /* we are restarting here... */
+				stv = &tv;
+			}
+			else
+				stv = NULL;
 		}
 		else
 			stv = NULL;
-	}
-	else
-		stv = NULL;
 
-	if (tz.tz_dsttime != 0 || tz.tz_minuteswest != 0) {
-		tz.tz_dsttime = tz.tz_minuteswest = 0;  /* zone info is garbage */
-		stz = &tz;
-	}
-	else
-		stz = NULL;
+		if (tz.tz_dsttime != 0 || tz.tz_minuteswest != 0) {
+			tz.tz_dsttime = tz.tz_minuteswest = 0;  /* zone info is garbage */
+			stz = &tz;
+		}
+		else
+			stz = NULL;
 
-	if (stz != NULL || stv != NULL) {
-		if (init && stv != NULL) {
-			mib[0] = CTL_MACHDEP;
-			mib[1] = CPU_DISRTCSET;
-			len = sizeof(disrtcset);
-			if (sysctl(mib, 2, &disrtcset, &len, NULL, 0) == -1) {
-				perror("sysctl(get_disrtcset)");
-				return 1;
-			}
-			if (disrtcset == 0) {
-				disrtcset = 1;
-				need_restore = 1;
-				if (sysctl(mib, 2, NULL, NULL, &disrtcset, len) == -1) {
-					perror("sysctl(set_disrtcset)");
+		if (stz != NULL || stv != NULL) {
+			if (init && stv != NULL) {
+				mib[0] = CTL_MACHDEP;
+				mib[1] = CPU_DISRTCSET;
+				len = sizeof(disrtcset);
+				if (sysctl(mib, 2, &disrtcset, &len, NULL, 0) == -1) {
+					syslog(LOG_ERR, "sysctl(get_disrtcset): %m");
 					return 1;
 				}
+				if (disrtcset == 0) {
+					disrtcset = 1;
+					need_restore = 1;
+					if (sysctl(mib, 2, NULL, NULL, &disrtcset, len) == -1) {
+						syslog(LOG_ERR, "sysctl(set_disrtcset): %m");
+						return 1;
+					}
+				}
+			}
+			/* stz means that kernel zone shifted */
+			/* clock needs adjustment even if !init */
+			if ((init || stz != NULL) && settimeofday(stv, stz)) {
+				syslog(LOG_ERR, "settimeofday: %m");
+				return 1;
 			}
 		}
-		if ((init || stv == NULL) && settimeofday(stv, stz)) {
-			perror("settimeofday");
-			return 1;
-		}
-	}
 
-	if (kern_offset != offset) {
-		kern_offset = offset;
-		mib[0] = CTL_MACHDEP;
-		mib[1] = CPU_ADJKERNTZ;
-		len = sizeof(kern_offset);
-		if (sysctl(mib, 2, NULL, NULL, &kern_offset, len) == -1) {
-			perror("sysctl(update_offset)");
-			return 1;
+		if (kern_offset != offset) {
+			kern_offset = offset;
+			mib[0] = CTL_MACHDEP;
+			mib[1] = CPU_ADJKERNTZ;
+			len = sizeof(kern_offset);
+			if (sysctl(mib, 2, NULL, NULL, &kern_offset, len) == -1) {
+				syslog(LOG_ERR, "sysctl(update_offset): %m");
+				return 1;
+			}
 		}
-	}
 
-	if (need_restore) {
-		disrtcset = 0;
-		if (sysctl(mib, 2, NULL, NULL, &disrtcset, len) == -1) {
-			perror("sysctl(restore_disrtcset)");
-			return 1;
+		if (need_restore) {
+			need_restore = 0;
+			disrtcset = 0;
+			if (sysctl(mib, 2, NULL, NULL, &disrtcset, len) == -1) {
+				syslog(LOG_ERR, "sysctl(restore_disrtcset): %m");
+				return 1;
+			}
 		}
-	}
 
 /****** End of critical section ******/
 
-	if (verbose)
-		printf("Calculated zone offset difference: %ld seconds\n",
-		       diff);
-
-	return 0;
+		init = 0;
+	}
+	return 1;
 }
-
