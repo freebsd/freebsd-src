@@ -1,12 +1,13 @@
-/*	$NetBSD: usbdi_util.c,v 1.4 1998/08/02 22:30:53 augustss Exp $	*/
+/*	$NetBSD: usbdi_util.c,v 1.11 1999/01/03 01:00:56 augustss Exp $	*/
 /*	FreeBSD $Id$ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
- * Author: Lennart Augustsson <augustss@carlstedt.se>
- *         Carlstedt Research & Technology
+ * This code is derived from software contributed to The NetBSD Foundation
+ * by Lennart Augustsson (augustss@carlstedt.se) at
+ * Carlstedt Research & Technology.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,16 +38,14 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <dev/usb/usb_port.h>
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#if defined(__NetBSD__)
-#include <sys/device.h>
-#endif
 #include <sys/proc.h>
+#if defined(__FreeBSD__)
+#include <sys/bus.h>
+#endif
 #include <sys/select.h>
 
 #include <dev/usb/usb.h>
@@ -87,9 +86,19 @@ usbd_get_config_desc(dev, conf, d)
 	int conf;
 	usb_config_descriptor_t *d;
 {
+	usbd_status r;
+
 	DPRINTFN(3,("usbd_get_config_desc: conf=%d\n", conf));
-	return (usbd_get_desc(dev, UDESC_CONFIG, 
-			      conf, USB_CONFIG_DESCRIPTOR_SIZE, d));
+	r = usbd_get_desc(dev, UDESC_CONFIG, conf, 
+			  USB_CONFIG_DESCRIPTOR_SIZE, d);
+	if (r != USBD_NORMAL_COMPLETION)
+		return (r);
+	if (d->bDescriptorType != UDESC_CONFIG) {
+		DPRINTFN(-1,("usbd_get_config_desc: conf %d, bad desc %d\n",
+			     conf, d->bDescriptorType));
+		return (USBD_INVAL);
+	}
+	return (USBD_NORMAL_COMPLETION);
 }
 
 usbd_status
@@ -217,6 +226,8 @@ usbd_set_protocol(iface, report)
 
 	DPRINTFN(4, ("usbd_set_protocol: iface=%p, report=%d, endpt=%d\n",
 		     iface, report, id->bInterfaceNumber));
+	if (!id)
+		return (USBD_IOERROR);
 	r = usbd_interface2device_handle(iface, &dev);
 	if (r != USBD_NORMAL_COMPLETION)
 		return (r);
@@ -244,6 +255,8 @@ usbd_set_report(iface, type, id, data, len)
 	usbd_status r;
 
 	DPRINTFN(4, ("usbd_set_report: len=%d\n", len));
+	if (!ifd)
+		return (USBD_IOERROR);
 	r = usbd_interface2device_handle(iface, &dev);
 	if (r != USBD_NORMAL_COMPLETION)
 		return (r);
@@ -271,6 +284,8 @@ usbd_set_report_async(iface, type, id, data, len)
 	usbd_status r;
 
 	DPRINTFN(4, ("usbd_set_report_async: len=%d\n", len));
+	if (!ifd)
+		return (USBD_IOERROR);
 	r = usbd_interface2device_handle(iface, &dev);
 	if (r != USBD_NORMAL_COMPLETION)
 		return (r);
@@ -298,6 +313,8 @@ usbd_get_report(iface, type, id, data, len)
 	usbd_status r;
 
 	DPRINTFN(4, ("usbd_set_report: len=%d\n", len));
+	if (!id)
+		return (USBD_IOERROR);
 	r = usbd_interface2device_handle(iface, &dev);
 	if (r != USBD_NORMAL_COMPLETION)
 		return (r);
@@ -323,6 +340,8 @@ usbd_set_idle(iface, duration, id)
 	usbd_status r;
 
 	DPRINTFN(4, ("usbd_set_idle: %d %d\n", duration, id));
+	if (!ifd)
+		return (USBD_IOERROR);
 	r = usbd_interface2device_handle(iface, &dev);
 	if (r != USBD_NORMAL_COMPLETION)
 		return (r);
@@ -365,6 +384,8 @@ usbd_get_hid_descriptor(ifc)
 	char *p, *end;
 	usbd_status r;
 
+	if (!idesc)
+		return (0);
 	r = usbd_interface2device_handle(ifc, &dev);
 	if (r != USBD_NORMAL_COMPLETION)
 		return (0);
@@ -414,11 +435,77 @@ usbd_alloc_report_desc(ifc, descp, sizep, mem)
 	if (!*descp)
 		return (USBD_NOMEM);
 	/* XXX should not use 0 Report ID */
-	r = usbd_get_report_descriptor(dev, id->bInterfaceNumber, 0,
-					*sizep, *descp);
+	r = usbd_get_report_descriptor(dev, id->bInterfaceNumber, 0, 
+				       *sizep, *descp);
 	if (r != USBD_NORMAL_COMPLETION) {
 		free(*descp, mem);
 		return (r);
 	}
 	return (USBD_NORMAL_COMPLETION);
 }
+
+usbd_status 
+usbd_get_config(dev, conf)
+	usbd_device_handle dev;
+	u_int8_t *conf;
+{
+	usb_device_request_t req;
+
+	req.bmRequestType = UT_READ_DEVICE;
+	req.bRequest = UR_GET_CONFIG;
+	USETW(req.wValue, 0);
+	USETW(req.wIndex, 0);
+	USETW(req.wLength, 1);
+	return (usbd_do_request(dev, &req, conf));
+}
+
+static void usbd_bulk_transfer_cb __P((usbd_request_handle reqh, 
+		usbd_private_handle priv, usbd_status status));
+static void
+usbd_bulk_transfer_cb(reqh, priv, status)
+	usbd_request_handle reqh;
+	usbd_private_handle priv;
+	usbd_status status;
+{
+	wakeup(reqh);
+}
+
+usbd_status
+usbd_bulk_transfer(reqh, pipe, flags, buf, size, lbl)
+	usbd_request_handle reqh;
+	usbd_pipe_handle pipe;
+	u_int16_t flags;
+	void *buf;
+	u_int32_t *size;
+	char *lbl;
+{
+	usbd_private_handle priv;
+	void *buffer;
+	usbd_status r;
+	int s, error;
+
+	r = usbd_setup_request(reqh, pipe, 0, buf, *size,
+			       flags, USBD_NO_TIMEOUT, usbd_bulk_transfer_cb);
+	if (r != USBD_NORMAL_COMPLETION)
+		return (r);
+	DPRINTFN(1, ("usbd_bulk_transfer: transfer %d bytes\n", *size));
+	s = splusb();		/* don't want callback until tsleep() */
+	r = usbd_transfer(reqh);
+	if (r != USBD_IN_PROGRESS) {
+		splx(s);
+		return (r);
+	}
+	error = tsleep((caddr_t)reqh, PZERO | PCATCH, lbl, 0);
+	splx(s);
+	if (error) {
+		usbd_abort_pipe(pipe);
+		return (USBD_INTERRUPTED);
+	}
+	usbd_get_request_status(reqh, &priv, &buffer, size, &r);
+	if (r != USBD_NORMAL_COMPLETION) {
+		DPRINTF(("ugenread: error=%d\n", r));
+		usbd_clear_endpoint_stall(pipe);
+	}
+	return (r);
+}
+
