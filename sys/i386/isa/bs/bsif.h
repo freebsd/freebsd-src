@@ -106,6 +106,7 @@
 
 #ifdef __FreeBSD__
 #include <sys/conf.h>
+#include <sys/proc.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 #include <vm/pmap.h>
@@ -118,14 +119,12 @@
 #include <machine/dvcfg.h>
 
 #include <cam/scsi/scsi_all.h>
-#if 0
-#include <cam/scsi/scsiconf.h>
-#endif
 #include <cam/scsi/scsi_da.h>
 
 #include <pc98/pc98/pc98.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
+#include <i386/isa/intr_machdep.h>
 #endif	/* __FreeBSD__ */
 
 /***************************************************
@@ -209,9 +208,10 @@ u_int32_t bs_adapter_info __P((int));
 #define delay(y) DELAY(y)
 extern int dma_init_flag;
 
-#define softintr(y) ipending |= (1 << y)
-
-#endif /* IPENDING */
+#define softintr(y)	do {			\
+	atomic_set_int(&spending, 1 << y);	\
+	sched_ithd((void*)SOFTINTR);		\
+} while(0);
 
 static BS_INLINE void
 memcopy(from, to, len)
