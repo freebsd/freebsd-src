@@ -36,7 +36,7 @@
 static char sccsid[] = "From: @(#)route.c	8.6 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: route.c,v 1.27 1997/05/25 08:36:20 phk Exp $";
+	"$Id: route.c,v 1.28 1997/07/29 06:51:41 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -114,12 +114,14 @@ int	NewTree = 0;
 
 static struct sockaddr *kgetsa __P((struct sockaddr *));
 static void p_tree __P((struct radix_node *));
-static void p_rtnode __P(());
-static void ntreestuff __P(());
+static void p_rtnode __P((void));
+static void ntreestuff __P((void));
 static void np_rtentry __P((struct rt_msghdr *));
 static void p_sockaddr __P((struct sockaddr *, struct sockaddr *, int, int));
 static void p_flags __P((int, char *));
 static void p_rtentry __P((struct rtentry *));
+static u_long forgemask __P((u_long));
+static void domask __P((char *, u_long, u_long));
 
 /*
  * Print routing tables.
@@ -314,20 +316,20 @@ ntreestuff()
 	char *buf, *next, *lim;
 	register struct rt_msghdr *rtm;
 
-        mib[0] = CTL_NET;
-        mib[1] = PF_ROUTE;
-        mib[2] = 0;
-        mib[3] = 0;
-        mib[4] = NET_RT_DUMP;
-        mib[5] = 0;
-        if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
+	mib[0] = CTL_NET;
+	mib[1] = PF_ROUTE;
+	mib[2] = 0;
+	mib[3] = 0;
+	mib[4] = NET_RT_DUMP;
+	mib[5] = 0;
+	if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
 		err(1, "sysctl: net.route.0.0.dump estimate");
 	}
 
 	if ((buf = malloc(needed)) == 0) {
 		err(2, "malloc(%lu)", (unsigned long)needed);
 	}
-        if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0) {
+	if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0) {
 		err(1, "sysctl: net.route.0.0.dump");
 	}
 	lim  = buf + needed;
@@ -435,25 +437,28 @@ p_sockaddr(sa, mask, flags, width)
 		if (sdl->sdl_nlen == 0 && sdl->sdl_alen == 0 &&
 		    sdl->sdl_slen == 0)
 			(void) sprintf(workbuf, "link#%d", sdl->sdl_index);
-		else switch (sdl->sdl_type) {
-		case IFT_ETHER:
-		    {
-			register int i;
-			register u_char *lla = (u_char *)sdl->sdl_data +
-			    sdl->sdl_nlen;
+		else
+			switch (sdl->sdl_type) {
 
-			cplim = "";
-			for (i = 0; i < sdl->sdl_alen; i++, lla++) {
-				cp += sprintf(cp, "%s%x", cplim, *lla);
-				cplim = ":";
+			case IFT_ETHER:
+			    {
+				register int i;
+				register u_char *lla = (u_char *)sdl->sdl_data +
+				    sdl->sdl_nlen;
+
+				cplim = "";
+				for (i = 0; i < sdl->sdl_alen; i++, lla++) {
+					cp += sprintf(cp, "%s%x", cplim, *lla);
+					cplim = ":";
+				}
+				cp = workbuf;
+				break;
+			    }
+
+			default:
+				cp = link_ntoa(sdl);
+				break;
 			}
-			cp = workbuf;
-			break;
-		    }
-		default:
-			cp = link_ntoa(sdl);
-			break;
-		}
 		break;
 	    }
 
@@ -510,7 +515,7 @@ p_rtentry(rt)
 	/*
 	 * Don't print protocol-cloned routes unless -a.
 	 */
-	if(rt->rt_parent && !aflag)
+	if (rt->rt_parent && !aflag)
 		return;
 
 	if (!(sa = kgetsa(rt_key(rt))))
@@ -533,17 +538,16 @@ p_rtentry(rt)
 			snprintf(prettyname, sizeof prettyname,
 				 "%.6s%d", name, ifnet.if_unit);
 		}
-		if(rt->rt_rmx.rmx_expire) {
+		printf("%8.8s", prettyname);
+		if (rt->rt_rmx.rmx_expire) {
 			time_t expire_time;
 
-		        if ((expire_time
-			       =rt->rt_rmx.rmx_expire - time((time_t *)0)) > 0)
-			    printf(" %8.8s %6d%s", prettyname,
-				   (int)expire_time,
-				   rt->rt_nodes[0].rn_dupedkey ? " =>" : "");
-		} else {
-			printf(" %8.8s%s", prettyname,
-			       rt->rt_nodes[0].rn_dupedkey ? " =>" : "");
+			if ((expire_time =
+			    rt->rt_rmx.rmx_expire - time((time_t *)0)) > 0)
+				printf(" %6d%s", (int)expire_time,
+				    rt->rt_nodes[0].rn_dupedkey ? " =>" : "");
+		} else if (rt->rt_nodes[0].rn_dupedkey) {
+			printf(" =>");
 		}
 
 	}
@@ -696,11 +700,12 @@ ipx_print(sa)
 	register struct sockaddr *sa;
 {
 	u_short port;
-	struct servent *sp = 0;	
+	struct servent *sp = 0;
 	char *net = "", *host = "";
-	register char *p; register u_char *q;
+	register char *p;
+	register u_char *q;
 	struct ipx_addr work = ((struct sockaddr_ipx *)sa)->sipx_addr;
-static	char mybuf[50];
+	static char mybuf[50];
 	char cport[10], chost[15], cnet[15];
 
 	port = ntohs(work.x_port);
@@ -708,8 +713,10 @@ static	char mybuf[50];
 	if (ipx_nullnet(work) && ipx_nullhost(work)) {
 
 		if (port) {
-			if (sp)	sprintf(mybuf, "*.%s", sp->s_name);
-			else	sprintf(mybuf, "*.%x", port);
+			if (sp)
+				sprintf(mybuf, "*.%s", sp->s_name);
+			else
+				sprintf(mybuf, "*.%x", port);
 		} else
 			sprintf(mybuf, "*.*");
 
@@ -743,9 +750,12 @@ static	char mybuf[50];
 	}
 
 	if (port) {
-		if (strcmp(host, "*") == 0) host = "";
-		if (sp)	sprintf(cport, "%s%s", *host ? "." : "", sp->s_name);
-		else	sprintf(cport, "%s%x", *host ? "." : "", port);
+		if (strcmp(host, "*") == 0)
+			host = "";
+		if (sp)
+			sprintf(cport, "%s%s", *host ? "." : "", sp->s_name);
+		else
+			sprintf(cport, "%s%x", *host ? "." : "", port);
 	} else
 		*cport = 0;
 
@@ -759,7 +769,7 @@ ipx_phost(sa)
 {
 	register struct sockaddr_ipx *sipx = (struct sockaddr_ipx *)sa;
 	struct sockaddr_ipx work;
-static	union ipx_net ipx_zeronet;
+	static union ipx_net ipx_zeronet;
 	char *p;
 	struct ipx_addr in;
 
@@ -839,7 +849,8 @@ ns_phost(sa)
 	work.sns_addr.x_net = ns_zeronet;
 
 	p = ns_print((struct sockaddr *)&work);
-	if (strncmp("0H.", p, 3) == 0) p += 3;
+	if (strncmp("0H.", p, 3) == 0)
+		p += 3;
 	return(p);
 }
 #endif
@@ -849,9 +860,17 @@ upHex(p0)
 	char *p0;
 {
 	register char *p = p0;
-	for (; *p; p++) switch (*p) {
 
-	case 'a': case 'b': case 'c': case 'd': case 'e': case 'f':
-		*p += ('A' - 'a');
-	}
+	for (; *p; p++)
+		switch (*p) {
+
+		case 'a':
+		case 'b':
+		case 'c':
+		case 'd':
+		case 'e':
+		case 'f':
+			*p += ('A' - 'a');
+			break;
+		}
 }
