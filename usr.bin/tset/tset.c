@@ -81,7 +81,6 @@ main(argc, argv)
 
 	oldmode = mode;
 	Ospeed = cfgetospeed(&mode);
-#ifndef __FreeBSD__
 	switch(Ospeed) {
 		case B0: ospeed = 0; break;
 		case B50: ospeed = 1; break;
@@ -110,7 +109,7 @@ main(argc, argv)
 		case B115200: ospeed = 17; break;
 #endif
 	}
-#endif /* __FreeBSD__ */
+
 	if (p = strrchr(*argv, '/'))
 		++p;
 	else
