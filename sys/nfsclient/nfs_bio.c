@@ -480,20 +480,30 @@ nfs_bioread(vp, uio, ioflag, cred)
 
 		/*
 		 * Obtain the buffer cache block.  Figure out the buffer size
-		 * when we are at EOF.  nfs_getcacheblk() will also force
-		 * uncached delayed-writes to be flushed to the server.
+		 * when we are at EOF.  If we are modifying the size of the
+		 * buffer based on an EOF condition we need to hold 
+		 * nfs_rslock() through obtaining the buffer to prevent
+		 * a potential writer-appender from messing with n_size.
+		 * Otherwise we may accidently truncate the buffer and
+		 * lose dirty data.
 		 *
 		 * Note that bcount is *not* DEV_BSIZE aligned.
 		 */
 
+again:
 		bcount = biosize;
 		if ((off_t)lbn * biosize >= np->n_size) {
 			bcount = 0;
 		} else if ((off_t)(lbn + 1) * biosize > np->n_size) {
 			bcount = np->n_size - (off_t)lbn * biosize;
 		}
+		if (bcount != biosize && nfs_rslock(np, p) == ENOLCK)
+			goto again;
 
 		bp = nfs_getcacheblk(vp, lbn, bcount, p);
+
+		if (bcount != biosize)
+			nfs_rsunlock(np, p);
 		if (!bp)
 			return (EINTR);
 
@@ -708,6 +718,7 @@ nfs_write(ap)
 	daddr_t lbn;
 	int bcount;
 	int n, on, error = 0, iomode, must_commit;
+	int haverslock = 0;
 
 #ifdef DIAGNOSTIC
 	if (uio->uio_rw != UIO_WRITE)
@@ -724,6 +735,11 @@ nfs_write(ap)
 	if ((nmp->nm_flag & NFSMNT_NFSV3) != 0 &&
 	    (nmp->nm_state & NFSSTA_GOTFSINFO) == 0)
 		(void)nfs_fsinfo(nmp, vp, cred, p);
+
+	/*
+	 * Synchronously flush pending buffers if we are in synchronous
+	 * mode or if we are appending.
+	 */
 	if (ioflag & (IO_APPEND | IO_SYNC)) {
 		if (np->n_flag & NMODIFIED) {
 			np->n_attrstamp = 0;
@@ -731,20 +747,49 @@ nfs_write(ap)
 			if (error)
 				return (error);
 		}
-		if (ioflag & IO_APPEND) {
-			np->n_attrstamp = 0;
-			error = VOP_GETATTR(vp, &vattr, cred, p);
-			if (error)
-				return (error);
-			uio->uio_offset = np->n_size;
-		}
 	}
+
+	/*
+	 * If IO_APPEND then load uio_offset.  We restart here if we cannot
+	 * get the append lock.
+	 */
+restart:
+	if (ioflag & IO_APPEND) {
+		np->n_attrstamp = 0;
+		error = VOP_GETATTR(vp, &vattr, cred, p);
+		if (error)
+			return (error);
+		uio->uio_offset = np->n_size;
+	}
+
 	if (uio->uio_offset < 0)
 		return (EINVAL);
 	if ((uio->uio_offset + uio->uio_resid) > nmp->nm_maxfilesize)
 		return (EFBIG);
 	if (uio->uio_resid == 0)
 		return (0);
+
+	/*
+	 * We need to obtain the rslock if we intend to modify np->n_size
+	 * in order to guarentee the append point with multiple contending
+	 * writers, to guarentee that no other appenders modify n_size
+	 * while we are trying to obtain a truncated buffer (i.e. to avoid
+	 * accidently truncating data written by another appender due to
+	 * the race), and to ensure that the buffer is populated prior to
+	 * our extending of the file.  We hold rslock through the entire
+	 * operation.
+	 *
+	 * Note that we do not synchronize the case where someone truncates
+	 * the file while we are appending to it because attempting to lock
+	 * this case may deadlock other parts of the system unexpectedly.
+	 */
+	if ((ioflag & IO_APPEND) ||
+	    uio->uio_offset + uio->uio_resid > np->n_size) {
+		if (nfs_rslock(np, p) == ENOLCK)
+			goto restart;
+		haverslock = 1;
+	}
+
 	/*
 	 * Maybe this should be above the vnode op call, but so long as
 	 * file servers have no limits, i don't think it matters
@@ -752,6 +797,8 @@ nfs_write(ap)
 	if (p && uio->uio_offset + uio->uio_resid >
 	      p->p_rlimit[RLIMIT_FSIZE].rlim_cur) {
 		psignal(p, SIGXFSZ);
+		if (haverslock)
+			nfs_rsunlock(np, p);
 		return (EFBIG);
 	}
 
@@ -767,12 +814,12 @@ nfs_write(ap)
 				error = nqnfs_getlease(vp, ND_WRITE, cred, p);
 			} while (error == NQNFS_EXPIRED);
 			if (error)
-				return (error);
+				break;
 			if (np->n_lrev != np->n_brev ||
 			    (np->n_flag & NQNFSNONCACHE)) {
 				error = nfs_vinvalbuf(vp, V_SAVE, cred, p, 1);
 				if (error)
-					return (error);
+					break;
 				np->n_brev = np->n_lrev;
 			}
 		}
@@ -780,8 +827,8 @@ nfs_write(ap)
 		    iomode = NFSV3WRITE_FILESYNC;
 		    error = nfs_writerpc(vp, uio, cred, &iomode, &must_commit);
 		    if (must_commit)
-			nfs_clearcommit(vp->v_mount);
-		    return (error);
+			    nfs_clearcommit(vp->v_mount);
+		    break;
 		}
 		nfsstats.biocache_writes++;
 		lbn = uio->uio_offset / biosize;
@@ -795,36 +842,51 @@ again:
 
 		if (uio->uio_offset == np->n_size && n) {
 			/*
-			 * special append case.  Obtain buffer prior to
-			 * resizing it to maintain B_CACHE.
+			 * Get the buffer (in its pre-append state to maintain
+			 * B_CACHE if it was previously set).  Resize the
+			 * nfsnode after we have locked the buffer to prevent
+			 * readers from reading garbage.
 			 */
-			long save;
-
 			bcount = on;
 			bp = nfs_getcacheblk(vp, lbn, bcount, p);
-			if (!bp)
-				return (EINTR);
-			save = bp->b_flags & B_CACHE;
 
-			np->n_size = uio->uio_offset + n;
-			np->n_flag |= NMODIFIED;
-			vnode_pager_setsize(vp, np->n_size);
+			if (bp != NULL) {
+				long save;
 
-			bcount += n;
-			allocbuf(bp, bcount);
-			bp->b_flags |= save;
+				np->n_size = uio->uio_offset + n;
+				np->n_flag |= NMODIFIED;
+				vnode_pager_setsize(vp, np->n_size);
+
+				save = bp->b_flags & B_CACHE;
+				bcount += n;
+				allocbuf(bp, bcount);
+				bp->b_flags |= save;
+			}
 		} else {
+			/*
+			 * Obtain the locked cache block first, and then 
+			 * adjust the file's size as appropriate.
+			 */
+			bcount = on + n;
+			if ((off_t)lbn * biosize + bcount < np->n_size) {
+				if ((off_t)(lbn + 1) * biosize < np->n_size)
+					bcount = biosize;
+				else
+					bcount = np->n_size - (off_t)lbn * biosize;
+			}
+
+			bp = nfs_getcacheblk(vp, lbn, bcount, p);
+
 			if (uio->uio_offset + n > np->n_size) {
 				np->n_size = uio->uio_offset + n;
 				np->n_flag |= NMODIFIED;
 				vnode_pager_setsize(vp, np->n_size);
 			}
-			bcount = biosize;
-			if ((off_t)(lbn + 1) * biosize > np->n_size) 
-				bcount = np->n_size - (off_t)lbn * biosize;
-			bp = nfs_getcacheblk(vp, lbn, bcount, p);
-			if (!bp)
-				return (EINTR);
+		}
+
+		if (!bp) {
+			error = EINTR;
+			break;
 		}
 
 		/*
@@ -857,11 +919,13 @@ again:
 			error = nfs_doio(bp, cred, p);
 			if (error) {
 				brelse(bp);
-				return (error);
+				break;
 			}
 		}
-		if (!bp)
-			return (EINTR);
+		if (!bp) {
+			error = EINTR;
+			break;
+		}
 		if (bp->b_wcred == NOCRED) {
 			crhold(cred);
 			bp->b_wcred = cred;
@@ -869,13 +933,21 @@ again:
 		np->n_flag |= NMODIFIED;
 
 		/*
-		 * If dirtyend exceeds file size, chop it down.  If this
-		 * creates a reverse-indexed or degenerate situation with
-		 * dirtyoff/end, 0 them.
+		 * If dirtyend exceeds file size, chop it down.  This should
+		 * not normally occur but there is an append race where it
+		 * might occur XXX, so we log it. 
+		 *
+		 * If the chopping creates a reverse-indexed or degenerate
+		 * situation with dirtyoff/end, we 0 both of them.
 		 */
 
-		if ((off_t)bp->b_blkno * DEV_BSIZE + bp->b_dirtyend > np->n_size)
-			bp->b_dirtyend = np->n_size - (off_t)bp->b_blkno * DEV_BSIZE;
+		if (bp->b_dirtyend > bcount) {
+			printf("NFS append race @%lx:%d\n", 
+			    (long)bp->b_blkno * DEV_BSIZE, 
+			    bp->b_dirtyend - bcount);
+			bp->b_dirtyend = bcount;
+		}
+
 		if (bp->b_dirtyoff >= bp->b_dirtyend)
 			bp->b_dirtyoff = bp->b_dirtyend = 0;
 
@@ -914,14 +986,14 @@ again:
 			} while (error == NQNFS_EXPIRED);
 			if (error) {
 				brelse(bp);
-				return (error);
+				break;
 			}
 			if (np->n_lrev != np->n_brev ||
 			    (np->n_flag & NQNFSNONCACHE)) {
 				brelse(bp);
 				error = nfs_vinvalbuf(vp, V_SAVE, cred, p, 1);
 				if (error)
-					return (error);
+					break;
 				np->n_brev = np->n_lrev;
 				goto again;
 			}
@@ -940,7 +1012,7 @@ again:
 		if (error) {
 			bp->b_flags |= B_ERROR;
 			brelse(bp);
-			return (error);
+			break;
 		}
 
 		/*
@@ -969,11 +1041,11 @@ again:
 				bp->b_flags |= B_NOCACHE;
 			error = VOP_BWRITE(bp->b_vp, bp);
 			if (error)
-				return (error);
+				break;
 			if (np->n_flag & NQNFSNONCACHE) {
 				error = nfs_vinvalbuf(vp, V_SAVE, cred, p, 1);
 				if (error)
-					return (error);
+					break;
 			}
 		} else if ((n + on) == biosize &&
 			(nmp->nm_flag & NFSMNT_NQNFS) == 0) {
@@ -983,7 +1055,11 @@ again:
 			bdwrite(bp);
 		}
 	} while (uio->uio_resid > 0 && n > 0);
-	return (0);
+
+	if (haverslock)
+		nfs_rsunlock(np, p);
+
+	return (error);
 }
 
 /*

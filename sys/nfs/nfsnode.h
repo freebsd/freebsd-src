@@ -118,6 +118,7 @@ struct nfsnode {
 	short			n_fhsize;	/* size in bytes, of fh */
 	short			n_flag;		/* Flag for locking.. */
 	nfsfh_t			n_fh;		/* Small File Handle */
+	struct lock		n_rslock;
 };
 
 #define n_atim		n_un1.nf_atim
@@ -157,6 +158,31 @@ extern struct proc *nfs_iodwant[NFS_MAXASYNCDAEMON];
 extern struct nfsmount *nfs_iodmount[NFS_MAXASYNCDAEMON];
 
 #if defined(KERNEL) || defined(_KERNEL)
+
+/*
+ *	nfs_rslock -	Attempt to obtain lock on nfsnode
+ *
+ *	Attempt to obtain a lock on the passed nfsnode, returning ENOLCK
+ *	if the lock could not be obtained due to our having to sleep.  This
+ *	function is generally used to lock around code that modifies an
+ *	NFS file's size.  In order to avoid deadlocks the lock
+ *	should not be obtained while other locks are being held.
+ */
+
+static __inline
+int
+nfs_rslock(struct nfsnode *np, struct proc *p)
+{
+        return(lockmgr(&np->n_rslock, LK_EXCLUSIVE | LK_CANRECURSE | LK_SLEEPFAIL, NULL, p));
+}
+
+static __inline
+void
+nfs_rsunlock(struct nfsnode *np, struct proc *p)
+{
+	(void)lockmgr(&np->n_rslock, LK_RELEASE, NULL, p);
+}
+
 extern	vop_t	**fifo_nfsv2nodeop_p;
 extern	vop_t	**nfsv2_vnodeop_p;
 extern	vop_t	**spec_nfsv2nodeop_p;
