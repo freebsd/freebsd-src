@@ -175,16 +175,16 @@ setlocale(category, locale)
 	return (NULL);
 }
 
-#ifndef XPG4
-/* To be compatible with old binaries */
+/* To be compatible with crt0 hack */
 void
 _startup_setlocale(category, locale)
 	int category;
 	const char *locale;
 {
+#ifndef XPG4
 	(void) setlocale(category, locale);
-}
 #endif
+}
 
 static char *
 currentlocale()
