@@ -163,12 +163,12 @@ parse_entry(struct mod_metadata *md, const char *cval,
 	case MDT_DEPEND:
 		if (!dflag)
 			break;
-		check(ef_seg_read(ef, data, sizeof(mdp), (void**)&mdp));
+		check(ef_seg_read(ef, data, sizeof(mdp), &mdp));
 		printf("  depends on %s.%d (%d,%d)\n", cval,
 		    mdp.md_ver_preferred, mdp.md_ver_minimum, mdp.md_ver_maximum);
 		break;
 	case MDT_VERSION:
-		check(ef_seg_read(ef, data, sizeof(mdv), (void**)&mdv));
+		check(ef_seg_read(ef, data, sizeof(mdv), &mdv));
 		record_int(MDT_VERSION);
 		record_string(cval);
 		record_int(mdv.mv_version);
@@ -230,7 +230,7 @@ read_kld(char *filename, char *kldname)
 		finish = sym->st_value;
 		entries = (finish - start) / sizeof(void *);
 		check(ef_seg_read_entry_rel(&ef, start, sizeof(*p) * entries,
-		    (void**)&p));
+		    (void *)&p));
 		orgp = p;
 		while(entries--) {
 			check(ef_seg_read_rel(&ef, (Elf_Off)*p, sizeof(md), &md));
