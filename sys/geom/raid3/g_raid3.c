@@ -1009,9 +1009,17 @@ g_raid3_scatter(struct bio *pbp)
 		cp = disk->d_consumer;
 		cbp->bio_to = cp->provider;
 		G_RAID3_LOGREQ(3, cbp, "Sending request.");
-		KASSERT(cp->acr > 0 && cp->ace > 0,
-		    ("Consumer %s not opened (r%dw%de%d).", cp->provider->name,
-		    cp->acr, cp->acw, cp->ace));
+#ifdef	INVARIANTS
+		if (cbp->bio_cmd == BIO_READ) {
+			KASSERT(cp->acr > 0 && cp->ace > 0,
+			    ("Consumer %s not opened (r%dw%de%d).",
+			    cp->provider->name, cp->acr, cp->acw, cp->ace));
+		} else if (cbp->bio_cmd == BIO_WRITE) {
+			KASSERT(cp->acw > 0 && cp->ace > 0,
+			    ("Consumer %s not opened (r%dw%de%d).",
+			    cp->provider->name, cp->acr, cp->acw, cp->ace));
+		}
+#endif
 		cp->index++;
 		g_io_request(cbp, cp);
 	}
