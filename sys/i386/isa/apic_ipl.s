@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic_ipl.s,v 1.19 1997/07/23 21:18:30 smp Exp smp $
+ *	$Id: apic_ipl.s,v 1.9 1997/07/23 21:25:31 fsmp Exp $
  */
 
 
@@ -251,9 +251,7 @@ bad_mask:	.asciz	"bad mask"
  * It sets the associated bit in _apic_imen.
  * It sets the mask bit of the associated IO APIC register.
  */
-	ALIGN_TEXT
-	.globl _INTREN
-_INTREN:
+ENTRY(INTREN)
 	pushfl				/* save state of EI flag */
 	cli				/* prevent recursion */
 	IMASK_LOCK			/* enter critical reg */
@@ -285,9 +283,7 @@ _INTREN:
  * It clears the associated bit in _apic_imen.
  * It clears the mask bit of the associated IO APIC register.
  */
-	ALIGN_TEXT
-	.globl _INTRDIS
-_INTRDIS:
+ENTRY(INTRDIS)
 	pushfl				/* save state of EI flag */
 	cli				/* prevent recursion */
 	IMASK_LOCK			/* enter critical reg */
@@ -413,7 +409,7 @@ _INTRDIS:
 /*
  * u_int read_io_apic_mask(int apic); 
  */
-	.align 2
+	ALIGN_TEXT
 read_io_apic_mask:
 	ret
 
@@ -423,14 +419,14 @@ read_io_apic_mask:
  *
  * void set_io_apic_mask(apic, u_int32_t bits); 
  */
-	.align 2
+	ALIGN_TEXT
 set_io_apic_mask:
 	ret
 
 /*
  * void set_ioapic_maskbit(int apic, int bit); 
  */
-	.align 2
+	ALIGN_TEXT
 set_ioapic_maskbit:
 	ret
 
@@ -440,14 +436,14 @@ set_ioapic_maskbit:
  *
  * void clr_io_apic_mask(int apic, u_int32_t bits); 
  */
-	.align 2
+	ALIGN_TEXT
 clr_io_apic_mask:
 	ret
 
 /*
  * void clr_ioapic_maskbit(int apic, int bit); 
  */
-	.align 2
+	ALIGN_TEXT
 clr_ioapic_maskbit:
 	ret
 
@@ -460,9 +456,7 @@ clr_ioapic_maskbit:
 /*
  * u_int io_apic_write(int apic, int select);
  */
-	.align 2
-	.globl _io_apic_read
-_io_apic_read:
+ENTRY(io_apic_read)
 	movl	4(%esp), %ecx		/* APIC # */
 	movl	_ioapic(,%ecx,4), %edx	/* APIC base register address */
 	movl	8(%esp), %eax		/* target register index */
@@ -473,9 +467,7 @@ _io_apic_read:
 /*
  * void io_apic_write(int apic, int select, int value);
  */
-	.align 2
-	.globl _io_apic_write
-_io_apic_write:
+ENTRY(io_apic_write)
 	movl	4(%esp), %ecx		/* APIC # */
 	movl	_ioapic(,%ecx,4), %edx	/* APIC base register address */
 	movl	8(%esp), %eax		/* target register index */
@@ -487,129 +479,6 @@ _io_apic_write:
 /*
  * Send an EOI to the local APIC.
  */
-	.align 2
-	.globl _apic_eoi
-_apic_eoi:
+ENTRY(apic_eoi)
 	movl	$0, _lapic+0xb0
-	ret
-
-
-/******************************************************************************
- *
- */
-
-/*
- * test_and_set(struct simplelock *lkp);
- */
-	.align 2
-	.globl _test_and_set
-_test_and_set:
-	movl	4(%esp), %eax		/* get the address of the lock */
-	lock				/* do it atomically */
-	btsl	$0, (%eax)		/* set 0th bit, old value in CF */
-	setc	%al			/* previous value into %al */
-	movzbl	%al, %eax		/* return as an int */
-	ret
-
-/******************************************************************************
- *
- */
-
-/*
- * The simple-lock routines are the primitives out of which the lock
- * package is built. The machine-dependent code must implement an
- * atomic test_and_set operation that indivisibly sets the simple lock
- * to non-zero and returns its old value. It also assumes that the
- * setting of the lock to zero below is indivisible. Simple locks may
- * only be used for exclusive locks.
- * 
- * struct simplelock {
- * 	int	lock_data;
- * };
- */
-
-/*
- * void
- * s_lock_init(struct simplelock *lkp)
- * {
- * 	lkp->lock_data = 0;
- * }
- */
-	.align 2
-	.globl _s_lock_init
-_s_lock_init:
-	movl	4(%esp), %eax		/* get the address of the lock */
-#ifdef ANAL_SIMPLE_LOCK
-	xorl	%ecx, %ecx		/* cheap clear */
-	xchgl	%ecx, (%eax)		/* in case its not 32bit aligned */
-#else
-	movl	$0, (%eax)
-#endif /* ANAL_SIMPLE_LOCK */
-	ret
-
-
-/*
- * void
- * s_lock(__volatile struct simplelock *lkp)
- * {
- * 	while (test_and_set(&lkp->lock_data))
- * 		continue;
- * }
- *
- * Note:
- *	If the acquire fails we do a loop of reads waiting for the lock to
- *	become free instead of continually beating on the lock with btsl.
- *	The theory here is that the CPU will stay within its cache until
- *	a write by the other CPU updates it, instead of continually updating
- *	the local cache (and thus causing external bus writes) with repeated
- *	writes to the lock.
- */
-	.align 2
-	.globl _s_lock
-_s_lock:
-	movl	4(%esp), %eax		/* get the address of the lock */
-1:	lock				/* do it atomically */
-	btsl	$0, (%eax)		/* set 0th bit, old value in CF */
-	jnc	3f			/* it was clear, return */
-2:	btl	$0, (%eax)		/* wait to empty */
-	jc	2b			/* still set... */
-	jmp	1b			/* empty again, try once more */
-3:	ret
-
-
-/*
- * int
- * s_lock_try(__volatile struct simplelock *lkp)
- * {
- * 	return (!test_and_set(&lkp->lock_data));
- * }
- */
-	.align 2
-	.globl _s_lock_try
-_s_lock_try:
-	movl	4(%esp), %eax		/* get the address of the lock */
-	lock				/* do it atomically */
-	btsl	$0, (%eax)		/* set 0th bit, old value in CF */
-	setnc	%al			/* 1 if previous value was 0 */
-	movzbl	%al, %eax		/* convert to an int */
-	ret
-
-
-/*
- * void
- * s_unlock(__volatile struct simplelock *lkp)
- * {
- * 	lkp->lock_data = 0;
- * }
- */
-	.align 2
-	.globl _s_unlock
-_s_unlock:
-	movl	4(%esp), %eax		/* get the address of the lock */
-#ifdef ANAL_SIMPLE_LOCK
-	xorl	%ecx, %ecx		/* cheap clear */
-	xchgl	%ecx, (%eax)		/* in case its not 32bit aligned */
-#else
-	movl	$0, (%eax)
-#endif /* ANAL_SIMPLE_LOCK */
 	ret
