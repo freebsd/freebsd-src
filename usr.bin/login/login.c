@@ -274,6 +274,17 @@ main(argc, argv)
 
 		if (pwd) {
 #ifdef KERBEROS
+#ifdef SKEY
+			/*
+			 * Do not allow user to type in kerberos password
+			 * over the net (actually, this is ok for encrypted
+			 * links, but we have no way of determining if the
+			 * link is encrypted.
+			 */
+			if (!permit_password) {
+				rval = 1;		/* failed */
+			} else
+#endif
 			rval = klogin(pwd, instance, localhost, p);
 			if (rval != 0 && rootlogin && pwd->pw_uid != 0)
 				rootlogin = 0;
