@@ -17,6 +17,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040601:
+	The MIDI drivers have been removed. Until the new module-friendly
+	ones are merged, remove or comment out midi and seq from your
+	kernel configuration.
+
 20040423:
 	Due to a new option in ipfw (versrcreach) the ipfw(8) command
 	needs to be recompiled.  Normal accept/reject rules without
