@@ -1,0 +1,50 @@
+#!/usr/bin/perl
+eval 'exec /usr/bin/perl -S $0 ${1+"$@"}'
+	if 0;
+
+require 'sys/ipc.ph';
+require 'sys/shm.ph';
+
+$| = 1;
+
+$mode = shift;
+die "usage: ipcshm {r|s}\n" unless $mode =~ /^[rs]$/;
+$send = ($mode eq "s");
+
+$SIZE = 32;
+$id = shmget(0x1234, $SIZE, ($send ? 0 : &IPC_CREAT) | 0644);
+die "Can't get shared memory: $!\n" unless defined($id);
+print "shared memory id: $id\n";
+
+if ($send) {
+	while (<STDIN>) {
+		chop;
+		unless (shmwrite($id, pack("La*", length($_), $_), 0, $SIZE)) {
+			die "Can't write to shared memory: $!\n";
+		}
+	}
+}
+else {
+	$SIG{'INT'} = $SIG{'QUIT'} = "leave";
+	for (;;) {
+		$_ = <STDIN>;
+		unless (shmread($id, $_, 0, $SIZE)) {
+			die "Can't read shared memory: $!\n";
+		}
+		$len = unpack("L", $_);
+		$message = substr($_, length(pack("L",0)), $len);
+		printf "[%d] %s\n", $len, $message;
+	}
+}
+
+&leave;
+
+sub leave {
+	if (!$send) {
+		$x = shmctl($id, &IPC_RMID, 0);
+		if (!defined($x) || $x < 0) {
+			die "Can't remove shared memory: $!\n";
+		}
+	}
+	exit;
+}

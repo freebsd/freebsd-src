@@ -1,0 +1,9 @@
+built-in cpp
+perl to C translator
+multi-threading
+make more easily embeddable
+built-in globbing
+compile to threaded code
+rewrite regexp parser for better integrated optimization
+add structured types and objects
+allow for lexical scoping

@@ -1,0 +1,11 @@
+This is the perl test library.  To run all the tests, just type 'TEST'.
+
+To add new tests, just look at the current tests and do likewise.
+
+If a test fails, run it by itself to see if it prints any informative
+diagnostics.  If not, modify the test to print informative diagnostics.
+If you put out extra lines with a '#' character on the front, you don't
+have to worry about removing the extra print statements later since TEST
+ignores lines beginning with '#'.
+
+If you come up with new tests, send them to lwall@netlabs.com.

@@ -1,0 +1,9 @@
+FYEnjoyment, here are the test scripts I used while implementing SysV
+IPC in Perl.  Each of them must be run with the parameter "s" for
+"send" or "r" for "receive"; in each case, the receiver is the server
+and the sender is the client.
+
+-- 
+Chip Salzenberg at ComDev/TCT     <chip@tct.uucp>, <uunet!ateng!tct!chip>
+
+
