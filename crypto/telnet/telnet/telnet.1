@@ -42,7 +42,7 @@
 protocol
 .Sh SYNOPSIS
 .Nm
-.Op Fl 8EFKLNacdfrx
+.Op Fl 8EFKLNcdfry
 .Op Fl S Ar tos
 .Op Fl X Ar authtype
 .Op Fl e Ar escapechar
@@ -109,6 +109,7 @@ Disables the
 type of authentication.
 .It Fl a
 Attempt automatic login.
+This is now the default, so this option is ignored.
 Currently, this sends the user name via the
 .Ev USER
 variable
@@ -184,9 +185,10 @@ connection to
 .Ar src_addr ,
 which can be an IP address or a host name.
 .It Fl x
-Turns on encryption of the data stream if possible.  This
-option is not available outside of the United States and
-Canada.
+Turns on encryption of the data stream if possible.
+This is now the default, so this option is ignored.
+.It Fl y
+Suppresses encryption of the data stream.
 .It Ar host
 Indicates the official name, an alias, or the Internet address
 of a remote host.
