@@ -19,16 +19,22 @@ main(int argc, char **argv)
     printf("BRK(0)=%x ",sbrk(0));
     foo = malloc (sizeof *foo * NBUCKETS);
     memset(foo,0,sizeof *foo * NBUCKETS);
-    for (i = 0 ; i < NOPS ; i++) {
-	j = rand() % NBUCKETS;
-	if (foo[j]) {
+    for (i = 1; i <= 4096; i+=i) {
+        for (j = 0 ; j < 40960/i && j < NBUCKETS; j++) {
+	    foo[j] = malloc(i);
+        }
+        for (j = 0 ; j < 40960/i && j < NBUCKETS; j++) {
 	    free(foo[j]);
 	    foo[j] = 0;
-	} else {
-	    k = rand() % NSIZE;
-	    foo[j] = malloc(k);
+        }
+    }
+
+    for (i = 0 ; i < NOPS ; i++) {
+	j = random() % NBUCKETS;
+        k = random() % NSIZE;
+	foo[j] = realloc(foo[j], k & 1 ? 0 : k);
+	if (foo[j])
 	    foo[j][0] = 1;
-	}
     }
     printf("BRK(1)=%x ",sbrk(0));
     for (j = 0 ; j < NBUCKETS ; j++) {
