@@ -974,7 +974,6 @@ ext2_dirempty(ip, parentino, cred)
 	struct dirtemplate dbuf;
 	register struct ext2_dir_entry *dp = (struct ext2_dir_entry *)&dbuf;
 	int error, count, namlen;
-	int     DIRBLKSIZ = ip->i_e2fs->s_blocksize;
 		 
 #define	MINDIRSIZ (sizeof (struct dirtemplate) / 2)
 

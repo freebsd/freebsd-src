@@ -1,6 +1,6 @@
-static char     _if_iiid[] = "@(#)$Id: if_ii.c,v 1.4 1995/11/16 10:10:50 bde Exp $";
-/*******************************************************************************
- *  II - Version 0.1 $Revision: 1.4 $   $State: Exp $
+/* @(#)$Id: if_ii.c,v 1.5 1995/12/17 21:17:41 phk Exp $
+ *******************************************************************************
+ *  II - Version 0.1 $Revision: 1.5 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -82,8 +82,7 @@ static int
 iioutput(struct ifnet * ifp, struct mbuf * m, struct sockaddr * dst,
 	 struct rtentry * rtp)
 {
-	int             s, isr;
-	register struct ifqueue *ifq = 0;
+	int             s;
 
 	if (dst->sa_family != AF_INET)
 	{
@@ -113,7 +112,6 @@ iioutput(struct ifnet * ifp, struct mbuf * m, struct sockaddr * dst,
 int
 ii_input(int no, int len, char *buf, int dir)
 {
-	int             error = 0;
 	struct mbuf    *m;
 	struct ifnet   *ifp = &(ii_if[no]);
 	int             s;

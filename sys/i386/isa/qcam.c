@@ -154,9 +154,6 @@ qcam_registerdev (struct isa_device *id)
 static int
 qcam_probe (struct isa_device *devp)
 {
-	u_char reg, last;
-	int i, transitions = 0;
-
 	switch (devp->id_iobase) {	/* don't probe weird ports */
 	case IO_LPT1:
 	case IO_LPT2:

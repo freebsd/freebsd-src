@@ -68,8 +68,6 @@ ibcs2_socksys(p, uap, retval)
 	register struct ibcs2_socksys_args *uap;
 	int *retval;
 {
-	register struct filedesc *fdp = p->p_fd;
-	register struct file *fp;
 	int error;
 	int realargs[7]; /* 1 for command, 6 for recvfrom */
 	void *passargs;

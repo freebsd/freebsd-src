@@ -33,7 +33,7 @@
  * 
  *	@(#)ipx_ip.c
  *
- * $Id: ipx_ip.c,v 1.7 1996/03/11 15:13:50 davidg Exp $
+ * $Id: ipx_ip.c,v 1.8 1996/05/08 19:31:45 jhay Exp $
  */
 
 /*
@@ -212,7 +212,6 @@ ipxip_input(m, hlen)
 	s = splimp();
 	if (IF_QFULL(ifq)) {
 		IF_DROP(ifq);
-bad:
 		m_freem(m);
 		splx(s);
 		return;
@@ -287,7 +286,6 @@ ipxipoutput(ifp, m, dst, rt)
 		ifn->ifen_ifnet.if_ierrors = error;
 	}
 	return (error);
-bad:
 	m_freem(m);
 	return (ENETUNREACH);
 }

@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: bt74x.c,v 1.4 1996/01/31 18:02:18 gibbs Exp $
+ *	$Id: bt74x.c,v 1.5 1996/02/26 01:01:41 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -140,8 +140,6 @@ static int
 bt_eisa_probe(void)
 {
 	u_long iobase;
-	char intdef;
-	u_long irq;
 	struct eisa_device *e_dev = NULL;
 	int count;
 

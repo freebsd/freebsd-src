@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.17 1996/06/01 23:23:54 gpalmer Exp $
+ * $Id: if_ethersubr.c,v 1.18 1996/06/10 23:07:30 gpalmer Exp $
  */
 
 #include <sys/param.h>
@@ -379,9 +379,11 @@ ether_input(ifp, eh, m)
 	struct mbuf *m;
 {
 	register struct ifqueue *inq;
-	register struct llc *l;
 	u_short ether_type;
 	int s;
+#if defined (ISO) || defined (LLC)
+	register struct llc *l;
+#endif
 
 	if ((ifp->if_flags & IFF_UP) == 0) {
 		m_freem(m);
