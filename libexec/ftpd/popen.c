@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)popen.c	8.3 (Berkeley) 4/6/94";
 #endif
 static const char rcsid[] =
-	"$Id: popen.c,v 1.4.2.4 1998/02/24 22:18:18 danny Exp $";
+	"$Id: popen.c,v 1.4.2.5 1998/05/15 16:09:38 ache Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -118,10 +118,8 @@ ftpd_popen(program, type)
 	iop = NULL;
 #ifdef	INTERNAL_LS
 	fflush(NULL);
-	pid = (strcmp(gargv[0], _PATH_LS) == 0) ? fork() : vfork();
-#else
-	pid = vfork();
 #endif
+	pid = fork();
 	switch(pid) {
 	case -1:			/* error */
 		(void)close(pdes[0]);
