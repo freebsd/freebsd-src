@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.9 1994/08/13 03:50:14 wollman Exp $
+ *    $Id: spkr.c,v 1.10 1994/10/14 16:37:58 ache Exp $
  */
 
 #include "speaker.h"
@@ -90,7 +90,8 @@ unsigned int thz, ticks;
      * This is so other processes can execute while the tone is being
      * emitted.
      */
-    (void) tsleep((caddr_t)&endtone, SPKRPRI | PCATCH, "spkrtn", ticks);
+    if (ticks > 0)
+	tsleep((caddr_t)&endtone, SPKRPRI | PCATCH, "spkrtn", ticks);
     outb(IO_PPI, inb(IO_PPI) & ~PPI_SPKR);
     release_timer2();
 }
@@ -107,7 +108,8 @@ int	ticks;
 #ifdef DEBUG
     (void) printf("rest: %d\n", ticks);
 #endif /* DEBUG */
-    (void) tsleep((caddr_t)&endrest, SPKRPRI | PCATCH, "spkrrs", ticks);
+    if (ticks > 0)
+	tsleep((caddr_t)&endrest, SPKRPRI | PCATCH, "spkrrs", ticks);
 }
 
 /**************** PLAY STRING INTERPRETER BEGINS HERE **********************
