@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smptests.h,v 1.4 1997/07/06 23:36:49 smp Exp smp $
+ *	$Id: smptests.h,v 1.11 1997/07/13 00:47:54 smp Exp smp $
  */
 
 #ifndef _MACHINE_SMPTESTS_H_
@@ -39,36 +39,70 @@
 #define POST_ADDR		0x80
  */
 #ifdef POST_ADDR
+#define ASMPOSTCODE_INC				\
+	pushl	%eax ;				\
+	movl	_current_postcode, %eax ;	\
+	incl	%eax ;				\
+	andl	$0xff, %eax ;			\
+	movl	%eax, _current_postcode ;	\
+	outb	%al, $POST_ADDR ;		\
+	popl	%eax
+
+/*
+ * Overwrite the current_postcode low nibble .
+ */
+#define ASMPOSTCODE_HILO(X)			\
+	pushl	%eax ;				\
+	movl	$X, %eax ;			\
+	movl	%eax, _current_postcode ;	\
+	outb	%al, $POST_ADDR ;		\
+	popl	%eax
+
 /*
  * Overwrite the current_postcode low nibble .
  */
 #define ASMPOSTCODE_LO(X)			\
+	pushl	%eax ;				\
 	movl	_current_postcode, %eax ;	\
 	andl	$0xf0, %eax ;			\
 	orl	$X, %eax ;			\
-	outb	%al, $POST_ADDR
+	movl	%eax, _current_postcode ;	\
+	outb	%al, $POST_ADDR ;		\
+	popl	%eax
 
 /*
  * Overwrite the current_postcode high nibble .
  * Note: this does NOT shift the digit to the high position!
  */
 #define ASMPOSTCODE_HI(X)			\
+	pushl	%eax ;				\
 	movl	_current_postcode, %eax ;	\
 	andl	$0x0f, %eax ;			\
 	orl	$X, %eax ;			\
-	outb	%al, $POST_ADDR
+	movl	%eax, _current_postcode ;	\
+	outb	%al, $POST_ADDR ;		\
+	popl	%eax
 #else
+#define ASMPOSTCODE_INC
+#define ASMPOSTCODE_HILO(X)
 #define ASMPOSTCODE_LO(X)
 #define ASMPOSTCODE_HI(X)
 #endif /* POST_ADDR */
 
 
 /*
- * misc. counters
+ * Use non 'ExtInt' method of external (non-conected) 8254 timer
+ * See "Intel I486 Microprocessors and Related Products", page 4-292:
+ *       82489DX/8259A DUAL MODE CONNECTION
  *
-#define COUNT_XINVLTLB_HITS
-#define COUNT_SPURIOUS_INTS
  */
+#define TEST_ALTTIMER
+
+/*
+ * send 8254 timer INTs to all CPUs in LOPRIO mode
+ *
+*/
+#define TIMER_ALL
 
 
 /*
@@ -76,6 +110,7 @@
  *
 #define TEST_CPUSTOP
 #define DEBUG_CPUSTOP
+#define COUNT_CSHITS
  */
 
 
@@ -94,6 +129,14 @@
 #define IGNORE_IDLEPROCS
 
 
+/*
+ * misc. counters
+ *
+#define COUNT_XINVLTLB_HITS
+#define COUNT_SPURIOUS_INTS
+ */
+
+
 /**
  * hack to "fake-out" kernel into thinking it is running on a 'default config'
  *
@@ -101,5 +144,44 @@
 #define TEST_DEFAULT_CONFIG	6
  */
 
+
+/*
+ * simple test code for IPI interaction, save for future...
+ *
+#define TEST_TEST1
+#define IPI_TARGET_TEST1	1
+ */
+
+/*
+ * these are all temps for debugging CPUSTOP code in mplock.s
+ * they will (hopefully) go away soon...
+ *
+#define GUARD_INTS
+ */
+
+#ifdef GUARD_INTS
+#define GUARD_CPU	1
+#define MAYBE_PANIC(irq_num)		\
+	cmpl	$GUARD_CPU, _cpuid ;	\
+	jne	9f ;			\
+	cmpl	$1, _ok_test1 ;		\
+	jne	9f ;			\
+	pushl	lapic_isr3 ;		\
+	pushl	lapic_isr2 ;		\
+	pushl	lapic_isr1 ;		\
+	pushl	lapic_isr0 ;		\
+	pushl	lapic_irr3 ;		\
+	pushl	lapic_irr2 ;		\
+	pushl	lapic_irr1 ;		\
+	pushl	lapic_irr0 ;		\
+	pushl	$irq_num ;		\
+	pushl	_cpuid ;		\
+	pushl	$panic_msg ;		\
+	call	_printf ;		\
+	addl	$44, %esp ;		\
+9:
+#else
+#define MAYBE_PANIC(irq_num)
+#endif /* GUARD_INTS */
 
 #endif /* _MACHINE_SMPTESTS_H_ */
