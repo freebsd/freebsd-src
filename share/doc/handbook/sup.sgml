@@ -1,4 +1,4 @@
-<!-- $Id: sup.sgml,v 1.21 1996/12/05 11:17:11 asami Exp $ -->
+<!-- $Id: sup.sgml,v 1.22 1996/12/19 20:24:37 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -24,7 +24,7 @@ supfile is said to be supping <ref id="current" name="-current">.
 <url url="file:/usr/share/examples/sup/ports-supfile"
 name="/usr/share/examples/sup/ports-supfile">.<p>
 If you are interested in obtaining the
-<url url="http://www.freebsd.org/cgi-bin/cvsweb" name="CVS"> files
+<url url="http://www.freebsd.org/cgi/cvsweb.cgi" name="CVS"> files
 that make up the source tree, refer to
 <url url="file:/usr/share/examples/sup/cvs-supfile"
 name="/usr/share/examples/sup/cvs-supfile">.<p>
