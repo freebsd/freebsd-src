@@ -325,10 +325,6 @@ struct	proc {
 
 #define	P_MAGIC		0xbeefface
 
-#define	P_CAN_SEE	1
-#define	P_CAN_SCHED	3
-#define	P_CAN_DEBUG	4
-
 #ifdef _KERNEL
 
 #ifdef MALLOC_DECLARE
