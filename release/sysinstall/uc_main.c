@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * library functions for userconfig library
  *
- * $Id: uc_main.c,v 1.19 1998/09/16 09:25:20 jkh Exp $
+ * $Id: uc_main.c,v 1.20 1998/09/30 19:37:46 jkh Exp $
  */
 
 #include <sys/types.h>
@@ -52,8 +52,8 @@ static struct nlist _nl[] = {
     {"_eisa_dev_list"},
     {"_pcidevice_set"},
     {"_device_list"},
-    {"_scbusses"},
 #ifdef USE_SCSI
+    {"_scbusses"},
     {"_scsi_cinit"},
     {"_scsi_dinit"},
     {"_scsi_tinit"},
