@@ -49,6 +49,7 @@
 #include <sys/fcntl.h>
 #if defined(__FreeBSD__) && !defined(NOKLDLOAD)
 #include <sys/linker.h>
+#include <sys/module.h>
 #endif
 #include <sys/uio.h>
 #include <termios.h>
@@ -409,22 +410,15 @@ ether_Create(struct physical *p)
     int ifacelen, providerlen, oldflag;
     char connectpath[sizeof dev->hook + 2];	/* .:<hook> */
 
-#ifdef KLDSYM_LOOKUP
-    /* First make sure we've got the right code loaded */
-    char basesym[] = "ng_make_node", socksym[] = "ngdomain";
-    struct kld_sym_lookup baselookup = { sizeof baselookup, basesym, 0, 0 };
-    struct kld_sym_lookup socklookup = { sizeof socklookup, socksym, 0, 0 };
-#endif
-
     p->fd--;				/* We own the device - change fd */
 
-#ifdef KLDSYM_LOOKUP
-    if (kldsym(0, KLDSYM_LOOKUP, &baselookup) == -1) {
-      log_Printf(LogWARN, "Can't run without options NETGRAPH in the kernel\n");
+#if defined(__FreeBSD__) && !defined(NOKLDLOAD)
+    if (modfind("netgraph") == -1) {
+      log_Printf(LogWARN, "Netgraph is not built into the kernel\n");
       return NULL;
     }
 
-    if (kldsym(0, KLDSYM_LOOKUP, &socklookup) == -1 &&
+    if (modfind("ng_socket") == -1 &&
         ID0kldload("ng_socket") == -1) {
       log_Printf(LogWARN, "kldload: ng_socket: %s\n", strerror(errno));
       return NULL;
