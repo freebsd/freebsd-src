@@ -80,17 +80,6 @@ static int ar_init = 0;
 static struct ar_softc *ar_table[8];
 static MALLOC_DEFINE(M_AR, "AR driver", "ATA RAID driver");
   
-/* defines */
-#define PRINT_AD(adp) \
-        printf("  ad%d: %luMB <%.40s> [%d/%d/%d] at ata%d-%s %s%s\n", \
-               adp->lun, adp->total_secs / ((1024L * 1024L) / DEV_BSIZE), \
-	       adp->controller->dev_param[ATA_DEV(adp->unit)]->model, \
-	       adp->total_secs / (adp->heads * adp->sectors), \
-               adp->heads, adp->sectors, device_get_unit(adp->controller->dev),\
-               (adp->unit == ATA_MASTER) ? "master" : "slave", \
-               (adp->flags & AD_F_TAG_ENABLED) ? "tagged " : "", \
-               ata_mode2str(adp->controller->mode[ATA_DEV(adp->unit)]))
-
 int
 ar_probe(struct ad_softc *adp)
 {
@@ -136,9 +125,9 @@ ar_attach(struct ar_softc *raid)
     printf("array> [%d/%d/%d] subdisks:\n",
     	   raid->cylinders, raid->heads, raid->sectors);
     for (i = 0; i < raid->num_subdisks; i++)
-	PRINT_AD(raid->subdisk[i]);
+	ad_print(raid->subdisk[i], "   ");
     for (i = 0; i < raid->num_mirrordisks; i++)
-	PRINT_AD(raid->mirrordisk[i]);
+	ad_print(raid->mirrordisk[i], "   ");
 
     dev = disk_create(raid->lun, &raid->disk, 0, &ar_cdevsw, &ardisk_cdevsw);
     dev->si_drv1 = raid;
