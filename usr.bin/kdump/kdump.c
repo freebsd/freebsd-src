@@ -72,6 +72,8 @@ void dumpheader(struct ktr_header *);
 void ktrsyscall(struct ktr_syscall *);
 void ktrsysret(struct ktr_sysret *);
 void ktrnamei(char *, int);
+void hexdump(char *, int, int);
+void visdump(char *, int, int);
 void ktrgenio(struct ktr_genio *, int);
 void ktrpsig(struct ktr_psig *);
 void ktrcsw(struct ktr_csw *);
@@ -91,10 +93,11 @@ main(int argc, char *argv[])
 	void *m;
 	int trpoints = ALL_POINTS;
 	int drop_logged;
+	pid_t pid = 0;
 
 	(void) setlocale(LC_CTYPE, "");
 
-	while ((ch = getopt(argc,argv,"f:dlm:nRTt:")) != -1)
+	while ((ch = getopt(argc,argv,"f:dlm:np:RTt:")) != -1)
 		switch((char)ch) {
 		case 'f':
 			tracefile = optarg;
@@ -110,6 +113,9 @@ main(int argc, char *argv[])
 			break;
 		case 'n':
 			fancy = 0;
+			break;
+		case 'p':
+			pid = atoi(optarg);
 			break;
 		case 'R':
 			timestamp = 2;	/* relative timestamp */
@@ -146,7 +152,8 @@ main(int argc, char *argv[])
 			}
 		}
 		if (trpoints & (1<<ktr_header.ktr_type))
-			dumpheader(&ktr_header);
+			if (pid == 0 || ktr_header.ktr_pid == pid)
+				dumpheader(&ktr_header);
 		if ((ktrlen = ktr_header.ktr_len) < 0)
 			errx(1, "bogus length 0x%x", ktrlen);
 		if (ktrlen > size) {
@@ -157,6 +164,8 @@ main(int argc, char *argv[])
 		}
 		if (ktrlen && fread_tail(m, ktrlen, 1) == 0)
 			errx(1, "data too short");
+		if (pid && ktr_header.ktr_pid != pid)
+			continue;
 		if ((trpoints & (1<<ktr_header.ktr_type)) == 0)
 			continue;
 		drop_logged = 0;
@@ -388,30 +397,59 @@ ktrnamei(char *cp, int len)
 }
 
 void
-ktrgenio(struct ktr_genio *ktr, int len)
+hexdump(char *p, int len, int screenwidth)
 {
-	int datalen = len - sizeof (struct ktr_genio);
-	char *dp = (char *)ktr + sizeof (struct ktr_genio);
-	char *cp;
+	int n, i;
+	int width;
+
+	width = 0;
+	do {
+		width += 2;
+		i = 13;			/* base offset */
+		i += (width / 2) + 1;	/* spaces every second byte */
+		i += (width * 2);	/* width of bytes */
+		i += 3;			/* "  |" */
+		i += width;		/* each byte */
+		i += 1;			/* "|" */
+	} while (i < screenwidth);
+	width -= 2;
+
+	for (n = 0; n < len; n += width) {
+		for (i = n; i < n + width; i++) {
+			if ((i % width) == 0) {	/* beginning of line */
+				printf("       0x%04x", i);
+			}
+			if ((i % 2) == 0) {
+				printf(" ");
+			}
+			if (i < len)
+				printf("%02x", p[i] & 0xff);
+			else
+				printf("  ");
+		}
+		printf("  |");
+		for (i = n; i < n + width; i++) {
+			if (i >= len)
+				break;
+			if (p[i] >= ' ' && p[i] <= '~')
+				printf("%c", p[i]);
+			else
+				printf(".");
+		}
+		printf("|\n");
+	}
+	if ((i % width) != 0)
+		printf("\n");
+}
+
+void
+visdump(char *dp, int datalen, int screenwidth)
+{
 	int col = 0;
+	char *cp;
 	int width;
 	char visbuf[5];
-	static int screenwidth = 0;
 
-	if (screenwidth == 0) {
-		struct winsize ws;
-
-		if (fancy && ioctl(fileno(stderr), TIOCGWINSZ, &ws) != -1 &&
-		    ws.ws_col > 8)
-			screenwidth = ws.ws_col;
-		else
-			screenwidth = 80;
-	}
-	printf("fd %d %s %d byte%s\n", ktr->ktr_fd,
-		ktr->ktr_rw == UIO_READ ? "read" : "wrote", datalen,
-		datalen == 1 ? "" : "s");
-	if (maxdata && datalen > maxdata)
-		datalen = maxdata;
 	(void)printf("       \"");
 	col = 8;
 	for (;datalen > 0; datalen--, dp++) {
@@ -448,6 +486,42 @@ ktrgenio(struct ktr_genio *ktr, int len)
 	if (col == 0)
 		(void)printf("       ");
 	(void)printf("\"\n");
+}
+
+void
+ktrgenio(struct ktr_genio *ktr, int len)
+{
+	int datalen = len - sizeof (struct ktr_genio);
+	char *dp = (char *)ktr + sizeof (struct ktr_genio);
+	static int screenwidth = 0;
+	int i, binary;
+
+	if (screenwidth == 0) {
+		struct winsize ws;
+
+		if (fancy && ioctl(fileno(stderr), TIOCGWINSZ, &ws) != -1 &&
+		    ws.ws_col > 8)
+			screenwidth = ws.ws_col;
+		else
+			screenwidth = 80;
+	}
+	printf("fd %d %s %d byte%s\n", ktr->ktr_fd,
+		ktr->ktr_rw == UIO_READ ? "read" : "wrote", datalen,
+		datalen == 1 ? "" : "s");
+	if (maxdata && datalen > maxdata)
+		datalen = maxdata;
+
+	for (i = 0, binary = 0; i < datalen && binary == 0; i++)  {
+		if (dp[i] >= 32 && dp[i] < 127)
+			continue;
+		if (dp[i] == 10 || dp[i] == 13 || dp[i] == 0 || dp[i] == 9)
+			continue;
+		binary = 1;
+	}
+	if (binary)
+		hexdump(dp, datalen, screenwidth);
+	else
+		visdump(dp, datalen, screenwidth);
 }
 
 const char *signames[] = {
