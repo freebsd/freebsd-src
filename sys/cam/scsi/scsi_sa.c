@@ -2209,10 +2209,12 @@ tryagain:
 		    (softc->quirks & SA_QUIRK_NO_MODESEL) == 0) {
 			error = sasetparams(periph, SA_PARAM_BUFF_MODE, 0,
 			    0, 0, SF_NO_PRINT);
-			if (error == 0)
+			if (error == 0) {
 				softc->buffer_mode = SMH_SA_BUF_MODE_SIBUF;
-			xpt_print_path(ccb->ccb_h.path);
-			printf("unable to set buffered mode\n");
+			} else {
+				xpt_print_path(ccb->ccb_h.path);
+				printf("unable to set buffered mode\n");
+			}
 			error = 0;	/* not an error */
 		}
 
