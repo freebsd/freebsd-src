@@ -23,14 +23,15 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
-.\" $Id: uucplock.3,v 1.1 1997/03/30 12:11:29 brian Exp $
+.\" $Id: uucplock.3,v 1.2 1997/03/31 22:47:53 brian Exp $
 .\" "
 .Dd March 30, 1997
 .Os
 .Dt uucplock 3
 .Sh NAME
 .Nm uu_lock , 
-.Nm uu_unlock
+.Nm uu_unlock ,
+.Nm uu_lockerr
 .Nd acquire and release control of a serial device
 .Sh SYNOPSIS
 .Fd #include <libutil.h>
@@ -50,7 +51,7 @@ command line.
 The
 .Fn uu_lock
 function attempts to create a lock file called
-.Dq /var/spool/lock/LCK..
+.Pa /var/spool/lock/LCK..
 with a suffix given by the passed
 .Fa ttyname .
 If the file already exists, it is expected to contain the process
@@ -120,9 +121,9 @@ is passed, an empty string is returned.  Otherwise, a string specifying
 the reason for failure is returned.
 .Fn uu_lockerr
 uses the current value of
-.Dv errno
+.Va errno
 to determine the exact error.  Care should be made not to allow
-.Dv errno
+.Va errno
 to be changed between calls to
 .Fn uu_lock
 and
@@ -131,13 +132,13 @@ and
 If
 .Fn uu_lock
 returns one of the four error values above, the global value
-.Dv errno
+.Va errno
 can be used to determine the cause.  Refer to the respective manual pages
 for further details.
 .Pp
 .Fn uu_unlock
 will set the global variable
-.Dv errno
+.Va errno
 to reflect the reason that the lock file could not be removed.
 Refer to the description of
 .Xr unlink 2
@@ -158,14 +159,14 @@ process.  If this happens,
 returns
 .Dv UU_LOCK_READ_ERR
 and errno is set to
-.Dv EINVAL .
+.Er EINVAL .
 .Pp
 It is possible that a stale lock is not recognised as such if a new
 processes is assigned the same processes id as the program that left
 the stale lock.
 .Pp
 The calling process must have write permissions to the
-.Dq /var/spool/lock
+.Pa /var/spool/lock
 directory.  There is no mechanism in place to ensure that the
 permissions of this directory are the same as those of the
 serial devices that might be locked.
