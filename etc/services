@@ -1882,6 +1882,7 @@ ripd		2602/tcp   #RIPd vty
 ripngd		2603/tcp   #RIPngd vty
 ospfd		2604/tcp   #OSPFd vty
 bgpd		2605/tcp   #BGPd vty
+ospf6d		2606/tcp   #OSPF6d vty
 listen		2766/tcp   #System V listener port
 www-dev		2784/tcp   #world wide web - development
 www-dev		2784/udp   #world wide web - development
