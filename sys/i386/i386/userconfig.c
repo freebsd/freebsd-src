@@ -38,7 +38,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.17 1995/02/06 02:48:38 jkh Exp $
+ *      $Id: userconfig.c,v 1.18 1995/02/27 13:39:39 ugen Exp $
  */
 
 #include <sys/param.h>
@@ -47,6 +47,8 @@
 #include <i386/i386/cons.h>
 
 #include <i386/isa/isa_device.h>
+
+#include <scsi/scsiconf.h>
 
 #define PARM_DEVSPEC	0x1
 #define PARM_INT	0x2
@@ -74,6 +76,7 @@ typedef struct _cmd {
     CmdParm *parms;
 } Cmd;
 
+static void lsscsi(void);
 static void lsdevtab(struct isa_device *);
 static struct isa_device *find_device(char *, int);
 static struct isa_device *search_devtable(struct isa_device *, char *, int);
@@ -82,6 +85,7 @@ static Cmd *parse_cmd(char *);
 static int parse_args(char *, CmdParm *);
 unsigned long strtoul(const char *, char **, int);
 
+static int list_scsi(CmdParm *);
 static int list_devices(CmdParm *);
 static int set_device_ioaddr(CmdParm *);
 static int set_device_irq(CmdParm *);
@@ -131,6 +135,7 @@ static Cmd CmdList[] = {
     { "po",	set_device_ioaddr,	int_parms },	/* port dev addr */
     { "pr",	device_probe,		dev_parms },	/* probe dev */
     { "q", 	quitfunc, 		NULL },		/* quit		*/
+    { "s",	list_scsi,		NULL },		/* scsi */
     { NULL,	NULL,			NULL },
 };
 
@@ -556,4 +561,79 @@ strtoul(nptr, endptr, base)
 	if (endptr != 0)
 		*endptr = (char *)(any ? s - 1 : nptr);
 	return (acc);
+}
+
+/* scsi: Support for displaying configured SCSI devices.
+ * There is no way to edit them, and this is inconsistent
+ * with the ISA method.  This is here as a basis for further work.
+ */
+static char *
+type_text(char *name)	/* XXX: This is bogus */
+{
+	if (strcmp(name, "sd") == 0)
+		return "disk";
+
+	if (strcmp(name, "st") == 0)
+		return "tape";
+
+	return "device";
+}
+
+static void
+id_put(char *desc, int id)
+{
+    if (id != SCCONF_UNSPEC)
+    {
+    	if (desc)
+	    printf("%s", desc);
+
+    	if (id == SCCONF_ANY)
+	    printf("?");
+        else
+	    printf("%d", id);
+    }
+}
+
+static void
+lsscsi(void)
+{
+    int i;
+
+    printf("scsi: (can't be edited):\n");
+
+    for (i = 0; scsi_cinit[i].driver; i++)
+    {
+	id_put("controller scbus", scsi_cinit[i].bus);
+
+	if (scsi_cinit[i].unit != -1)
+	{
+	    printf(" at ");
+	    id_put(scsi_cinit[i].driver, scsi_cinit[i].unit);
+	}
+
+	printf("\n");
+    }
+
+    for (i = 0; scsi_dinit[i].name; i++)
+    {
+		printf("%s ", type_text(scsi_dinit[i].name));
+
+		id_put(scsi_dinit[i].name, scsi_dinit[i].unit);
+		id_put(" at scbus", scsi_dinit[i].cunit);
+		id_put(" target ", scsi_dinit[i].target);
+		id_put(" lun ", scsi_dinit[i].lun);
+
+		if (scsi_dinit[i].flags)
+	    	printf("flags 0x%x\n", scsi_dinit[i].flags);
+
+		printf("\n");
+    }
+}
+
+static int
+list_scsi(CmdParm *parms)
+{
+    lineno = 0;
+    lsscsi();
+    return 0;
 }
