@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.2 1997/04/29 22:05:13 smp Exp smp $
+ *	$Id: mp_machdep.c,v 1.5 1997/04/29 22:12:32 fsmp Exp $
  */
 
 #include "opt_smp.h"
@@ -952,7 +952,7 @@ undirect_pci_irq(int rirq)
 	/** FIXME: tickle the MB redirector chip */
 	return ???;
 #else
-	printf("Freeing (NOT implimented) irq %d for ISA cards.\n", rirq);
+	printf("Freeing (NOT implemented) irq %d for ISA cards.\n", rirq);
 	return 0;
 #endif				/* READY */
 }
