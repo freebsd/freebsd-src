@@ -1,4 +1,4 @@
-$Id: HW.TROUBLE,v 1.1 1994/10/08 03:10:34 jkh Exp $
+$Id: HW.TROUBLE,v 1.2 1995/02/22 03:49:46 phk Exp $
 
 This file lists hardware, which doesn't do what it should do.
 
@@ -49,4 +49,10 @@ The Seagate as master causes a constant drive light and system lockup,
 The WD will work fine alone or as master, but the Seagate is inaccessable
 if configured as slave in this config.                
 19950221 jbryant@server.iadfw.net
+
+On Packard Bell computers with a BIOS Reference ID of less than 25, Packard
+Bell will replace the BIOS at no charge.  I waited, I got the bios, popped
+the case, popped the chip, put in the new, and plugged in the drives.  It
+works.  WD as master, seagate as slave.         
+19950228 jbryant@server.iadfw.net
 ---
