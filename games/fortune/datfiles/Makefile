@@ -29,12 +29,12 @@ FILESDIR=	${SHAREDIR}/games/fortune
 .for f in fortunes fortunes2 fortunes2-o freebsd-tips limerick murphy murphy-o startrek zippy
 $f.dat: $f
 	PATH=$$PATH:/usr/games:${.OBJDIR}/../strfile \
-	    strfile -Crs ${.ALLSRC} ${.TARGET}
+	    strfile -Cs ${.ALLSRC} ${.TARGET}
 .endfor
 
 fortunes-o.dat: fortunes-o
 	PATH=$$PATH:/usr/games:${.OBJDIR}/../strfile \
-	    strfile -Crsx ${.ALLSRC} ${.TARGET}
+	    strfile -Csx ${.ALLSRC} ${.TARGET}
 
 fortunes-o: fortunes-o.${TYPE}
 	tr a-zA-Z n-za-mN-ZA-M < ${.ALLSRC} > ${.TARGET}
