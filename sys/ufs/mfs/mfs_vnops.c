@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vnops.c	8.11 (Berkeley) 5/22/95
- * $Id: mfs_vnops.c,v 1.42 1999/01/28 00:57:55 dillon Exp $
+ * $Id: mfs_vnops.c,v 1.43 1999/04/11 02:28:32 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -127,6 +127,9 @@ mfs_fsync(ap)
  *	We implement the B_FREEBUF strategy.  We can't just madvise()
  *	here because we have to do it in the correct order vs other bio
  *	requests, so we queue it.
+ *
+ *	Note: geteblk() sets B_INVAL.  We leave it set to guarentee buffer
+ *	throw-away on brelse()? XXX
  */
 
 static int

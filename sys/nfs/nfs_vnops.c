@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.123 1999/02/16 10:49:54 dfr Exp $
+ * $Id: nfs_vnops.c,v 1.124 1999/03/12 02:24:58 julian Exp $
  */
 
 
@@ -408,9 +408,9 @@ nfs_access(ap)
 				error = nfs_readrpc(vp, &auio, ap->a_cred);
 			else if (vp->v_type == VDIR) {
 				char* bp;
-				bp = malloc(NFS_DIRBLKSIZ, M_TEMP, M_WAITOK);
+				bp = malloc(DIRBLKSIZ, M_TEMP, M_WAITOK);
 				aiov.iov_base = bp;
-				aiov.iov_len = auio.uio_resid = NFS_DIRBLKSIZ;
+				aiov.iov_len = auio.uio_resid = DIRBLKSIZ;
 				error = nfs_readdirrpc(vp, &auio, ap->a_cred);
 				free(bp, M_TEMP);
 			} else if (vp->v_type == VLNK)
@@ -962,7 +962,7 @@ nfs_read(ap)
 
 	if (vp->v_type != VREG)
 		return (EPERM);
-	return (nfs_bioread(vp, ap->a_uio, ap->a_ioflag, ap->a_cred, 0));
+	return (nfs_bioread(vp, ap->a_uio, ap->a_ioflag, ap->a_cred));
 }
 
 /*
@@ -980,7 +980,7 @@ nfs_readlink(ap)
 
 	if (vp->v_type != VLNK)
 		return (EINVAL);
-	return (nfs_bioread(vp, ap->a_uio, 0, ap->a_cred, 0));
+	return (nfs_bioread(vp, ap->a_uio, 0, ap->a_cred));
 }
 
 /*
@@ -1985,7 +1985,7 @@ nfs_readdir(ap)
 	 * Call nfs_bioread() to do the real work.
 	 */
 	tresid = uio->uio_resid;
-	error = nfs_bioread(vp, uio, 0, ap->a_cred, 0);
+	error = nfs_bioread(vp, uio, 0, ap->a_cred);
 
 	if (!error && uio->uio_resid == tresid)
 		nfsstats.direofcache_misses++;
@@ -2004,7 +2004,7 @@ nfs_readdirrpc(vp, uiop, cred)
 
 {
 	register int len, left;
-	register struct dirent *dp;
+	register struct dirent *dp = NULL;
 	register u_int32_t *tl;
 	register caddr_t cp;
 	register int32_t t1, t2;
@@ -2019,12 +2019,9 @@ nfs_readdirrpc(vp, uiop, cred)
 	int attrflag;
 	int v3 = NFS_ISV3(vp);
 
-#ifndef nolint
-	dp = (struct dirent *)0;
-#endif
 #ifndef DIAGNOSTIC
-	if (uiop->uio_iovcnt != 1 || (uiop->uio_offset & (NFS_DIRBLKSIZ - 1)) ||
-		(uiop->uio_resid & (NFS_DIRBLKSIZ - 1)))
+	if (uiop->uio_iovcnt != 1 || (uiop->uio_offset & (DIRBLKSIZ - 1)) ||
+		(uiop->uio_resid & (DIRBLKSIZ - 1)))
 		panic("nfs readdirrpc bad uio");
 #endif
 
@@ -2381,7 +2378,7 @@ nfs_readdirplusrpc(vp, uiop, cred)
 		m_freem(mrep);
 	}
 	/*
-	 * Fill last record, iff any, out to a multiple of NFS_DIRBLKSIZ
+	 * Fill last record, iff any, out to a multiple of DIRBLKSIZ
 	 * by increasing d_reclen for the last record.
 	 */
 	if (blksiz > 0) {
@@ -3028,13 +3025,13 @@ nfs_bwrite(ap)
 		struct vnode *a_bp;
 	} */ *ap;
 {
-
 	return (nfs_writebp(ap->a_bp, 1));
 }
 
 /*
  * This is a clone of vn_bwrite(), except that B_WRITEINPROG isn't set unless
- * the force flag is one and it also handles the B_NEEDCOMMIT flag.
+ * the force flag is one and it also handles the B_NEEDCOMMIT flag.  We set
+ * B_CACHE if this is a VMIO buffer.
  */
 int
 nfs_writebp(bp, force)
@@ -3049,12 +3046,15 @@ nfs_writebp(bp, force)
 	if(!(bp->b_flags & B_BUSY))
 		panic("bwrite: buffer is not busy???");
 
-	if (bp->b_flags & B_INVAL)
-		bp->b_flags |= B_NOCACHE;
+	if (bp->b_flags & B_INVAL) {
+		brelse(bp);
+		return(0);
+	}
+
+	bp->b_flags |= B_CACHE;
 
 	/*
-	 * XXX we bundirty() the bp here.  Shouldn't we do it later after
-	 * the I/O has completed??
+	 * Undirty the bp.  We will redirty it later if the I/O fails.
 	 */
 
 	s = splbio();

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.13 (Berkeley) 4/21/95
- * $Id: ffs_inode.c,v 1.52 1999/01/07 16:14:16 bde Exp $
+ * $Id: ffs_inode.c,v 1.53 1999/01/28 00:57:54 dillon Exp $
  */
 
 #include "opt_quota.h"
@@ -452,6 +452,7 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	if ((bp->b_flags & B_CACHE) == 0) {
 		curproc->p_stats->p_ru.ru_inblock++;	/* pay for read */
 		bp->b_flags |= B_READ;
+		bp->b_flags &= ~(B_ERROR|B_INVAL);
 		if (bp->b_bcount > bp->b_bufsize)
 			panic("ffs_indirtrunc: bad buffer size");
 		bp->b_blkno = dbn;
