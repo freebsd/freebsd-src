@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_l2cap_evnt.c,v 1.4 2003/04/01 18:15:26 max Exp $
+ * $Id: ng_l2cap_evnt.c,v 1.5 2003/09/08 19:11:45 max Exp $
  * $FreeBSD$
  */
 
@@ -285,14 +285,12 @@ ng_l2cap_process_cmd_rej(ng_l2cap_con_p con, u_int8_t ident)
 	/* Check if we have pending command descriptor */
 	cmd = ng_l2cap_cmd_by_ident(con, ident);
 	if (cmd != NULL) {
-		KASSERT((cmd->con == con), 
-("%s: %s - invalid connection pointer!\n",
-			__func__, NG_NODE_NAME(con->l2cap->node)));
-		KASSERT((cmd->flags & NG_L2CAP_CMD_PENDING),
-("%s: %s - invalid command state, flags=%#x\n",
-			__func__, NG_NODE_NAME(con->l2cap->node), cmd->flags));
+		/* If command timeout already happened then ignore reject */
+		if (ng_l2cap_command_untimeout(cmd) != 0) {
+			NG_FREE_M(con->rx_pkt);
+			return (ETIMEDOUT);
+		}
 
-		ng_l2cap_command_untimeout(cmd);
 		ng_l2cap_unlink_cmd(cmd);
 
 		switch (cmd->code) {
@@ -432,10 +430,6 @@ ng_l2cap_process_con_rsp(ng_l2cap_con_p con, u_int8_t ident)
 		return (ENOENT);
 	}
 
-	KASSERT((cmd->flags & NG_L2CAP_CMD_PENDING),
-("%s: %s - invalid command state, flags=%#x\n",
-		__func__, NG_NODE_NAME(l2cap->node), cmd->flags));
-
 	/* Verify channel state, if invalid - do nothing */
 	if (cmd->ch->state != NG_L2CAP_W4_L2CAP_CON_RSP) {
 		NG_L2CAP_ERR(
@@ -458,10 +452,12 @@ ng_l2cap_process_con_rsp(ng_l2cap_con_p con, u_int8_t ident)
 	/*
 	 * Looks good. We got confirmation from our peer. Now process
 	 * it. First disable RTX timer. Then check the result and send 
-	 * notification to the upper layer.
+	 * notification to the upper layer. If command timeout already
+	 * happened then ignore response.
 	 */
 
-	ng_l2cap_command_untimeout(cmd);
+	if ((error = ng_l2cap_command_untimeout(cmd)) != 0)
+		return (error);
 
 	if (result == NG_L2CAP_PENDING) {
 		/*
@@ -585,10 +581,7 @@ ng_l2cap_process_cfg_req(ng_l2cap_con_p con, u_int8_t ident)
 				bcopy(&val.flow, &ch->iflow, sizeof(ch->iflow));
 				break;
 
-			default:
-				KASSERT(0,
-("%s: %s - unknown option: %d\n",	__func__, NG_NODE_NAME(l2cap->node), 
-					hdr.type));
+			default: /* Ignore unknown hint option */
 				break;
 			}
 		} else { /* Oops, something is wrong */
@@ -692,10 +685,6 @@ ng_l2cap_process_cfg_rsp(ng_l2cap_con_p con, u_int8_t ident)
 		return (ENOENT);
 	}
 
-	KASSERT((cmd->flags & NG_L2CAP_CMD_PENDING),
-("%s: %s - invalid command state, flags=%#x\n",
-		__func__, NG_NODE_NAME(l2cap->node), cmd->flags));
-
 	/* Verify CIDs and send reject if does not match */
 	if (cmd->ch->scid != scid) {
 		NG_L2CAP_ERR(
@@ -721,10 +710,14 @@ ng_l2cap_process_cfg_rsp(ng_l2cap_con_p con, u_int8_t ident)
 	 * then verify C flag. If it is set then we shall expect more 
 	 * configuration options from the peer and we will wait. Otherwise we 
 	 * have received all options and we will send L2CA_ConfigRsp event to
-	 * the upper layer protocol.
+	 * the upper layer protocol. If command timeout already happened then
+	 * ignore response.
 	 */
 
-	ng_l2cap_command_untimeout(cmd);
+	if ((error = ng_l2cap_command_untimeout(cmd)) != 0) {
+		NG_FREE_M(m);
+		return (error);
+	}
 
 	for (off = 0; ; ) {
 		error = get_next_l2cap_opt(m, &off, &hdr, &val); 
@@ -745,19 +738,16 @@ ng_l2cap_process_cfg_rsp(ng_l2cap_con_p con, u_int8_t ident)
 					sizeof(cmd->ch->oflow));
 			break;
 
-			default:
-				KASSERT(0,
-("%s: %s - unknown option: %d\n",	__func__, NG_NODE_NAME(l2cap->node), 
-					hdr.type));
+			default: /* Ignore unknown hint option */
 				break;
 			}
 		} else {
 			/*
 			 * XXX FIXME What to do here?
 			 *
-			 * This is really BAD :( options packet was broken,
-			 * so let upper layer know and do not wait for more
-			 * options
+			 * This is really BAD :( options packet was broken, or 
+			 * peer sent us option that we did not understand. Let 
+			 * upper layer know and do not wait for more options.
 			 */
 
 			NG_L2CAP_ALERT(
@@ -934,10 +924,6 @@ ng_l2cap_process_discon_rsp(ng_l2cap_con_p con, u_int8_t ident)
 		goto out;
 	}
 
-	KASSERT((cmd->flags & NG_L2CAP_CMD_PENDING),
-("%s: %s - invalid command state, flags=%#x\n",
-		__func__, NG_NODE_NAME(l2cap->node), cmd->flags));
-
 	/* Verify channel state, do nothing if invalid */
 	if (cmd->ch->state != NG_L2CAP_W4_L2CAP_DISCON_RSP) {
 		NG_L2CAP_ERR(
@@ -959,11 +945,14 @@ ng_l2cap_process_discon_rsp(ng_l2cap_con_p con, u_int8_t ident)
 	}
 
 	/*
-	 * Looks like we have successfuly disconnected channel, 
-	 * so notify upper layer.
+	 * Looks like we have successfuly disconnected channel, so notify 
+	 * upper layer. If command timeout already happened then ignore
+	 * response.
 	 */
 
-	ng_l2cap_command_untimeout(cmd);
+	if ((error = ng_l2cap_command_untimeout(cmd)) != 0)
+		goto out;
+
 	error = ng_l2cap_l2ca_discon_rsp(cmd->ch, cmd->token, NG_L2CAP_SUCCESS);
 	ng_l2cap_free_chan(cmd->ch); /* this will free commands too */
 out:
@@ -1025,14 +1014,12 @@ ng_l2cap_process_echo_rsp(ng_l2cap_con_p con, u_int8_t ident)
 	/* Check if we have this command */
 	cmd = ng_l2cap_cmd_by_ident(con, ident);
 	if (cmd != NULL) {
-		KASSERT((cmd->con == con),
-("%s: %s - invalid connection pointer!\n",
-			__func__, NG_NODE_NAME(l2cap->node)));
-		KASSERT((cmd->flags & NG_L2CAP_CMD_PENDING),
-("%s: %s - invalid command state, flags=%#x\n",
-			__func__, NG_NODE_NAME(l2cap->node), cmd->flags));
+		/* If command timeout already happened then ignore response */
+		if ((error = ng_l2cap_command_untimeout(cmd)) != 0) {
+			NG_FREE_M(con->rx_pkt);
+			return (error);
+		}
 
-		ng_l2cap_command_untimeout(cmd);
 		ng_l2cap_unlink_cmd(cmd);
 
 		error = ng_l2cap_l2ca_ping_rsp(cmd->con, cmd->token,
@@ -1133,14 +1120,12 @@ ng_l2cap_process_info_rsp(ng_l2cap_con_p con, u_int8_t ident)
 		return (ENOENT);
 	}
 	
-	KASSERT((cmd->con == con),
-("%s: %s - invalid connection pointer!\n",
-		__func__, NG_NODE_NAME(l2cap->node)));
-	KASSERT((cmd->flags & NG_L2CAP_CMD_PENDING),
-("%s: %s - invalid command state, flags=%#x\n",
-		__func__, NG_NODE_NAME(l2cap->node), cmd->flags));
+	/* If command timeout already happened then ignore response */
+	if ((error = ng_l2cap_command_untimeout(cmd)) != 0) {
+		NG_FREE_M(con->rx_pkt);
+		return (error);
+	}
 
-	ng_l2cap_command_untimeout(cmd);
 	ng_l2cap_unlink_cmd(cmd);
 
 	if (cp->result == NG_L2CAP_SUCCESS) {

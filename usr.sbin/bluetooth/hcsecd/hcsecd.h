@@ -25,12 +25,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: hcsecd.h,v 1.1 2002/11/24 20:22:39 max Exp $
+ * $Id: hcsecd.h,v 1.3 2003/09/08 18:54:21 max Exp $
  * $FreeBSD$
  */
 
 #ifndef _HCSECD_H_
 #define _HCSECD_H_ 1
+
+#define HCSECD_BUFFER_SIZE	512
+#define HCSECD_IDENT		"hcsecd"
+#define HCSECD_PIDFILE		"/var/run/" HCSECD_IDENT ".pid"
+#define HCSECD_KEYSFILE		"/var/db/"  HCSECD_IDENT ".keys"
 
 struct link_key
 {
@@ -49,9 +54,12 @@ extern char	*config_file;
 void		dump_config	(void);
 #endif
 
-void		read_config_file(int s);
+void		read_config_file(void);
 void		clean_config	(void);
 link_key_p	get_key		(bdaddr_p bdaddr, int exact_match);
+
+int		read_keys_file  (void);
+int		dump_keys_file  (void);
 
 #endif /* ndef _HCSECD_H_ */
 

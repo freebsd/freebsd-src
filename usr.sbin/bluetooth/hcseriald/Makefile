@@ -1,15 +1,10 @@
-# $Id: Makefile,v 1.2 2003/03/15 03:07:45 max Exp $
+# $Id: Makefile,v 1.5 2003/08/14 20:06:21 max Exp $
 # $FreeBSD$
 
-DESTDIR=	/usr/sbin/
-MANDIR=		../share/man/man
-
 PROG=		hcseriald
-MAN8=		hcseriald.8
-
-WARNS?=		2
-CFLAGS+=	-g -I${.CURDIR}/../../../sys/netgraph/bluetooth/include
+MAN=		hcseriald.8
 SRCS=		hcseriald.c
+WARNS?=		2
 
 DPADD=		${LIBNETGRAPH}
 LDADD=		-lnetgraph

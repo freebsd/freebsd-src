@@ -184,6 +184,7 @@ SUBDIR+=elf2exe \
 SUBDIR+=apm \
 	apmd \
 	asf \
+	bluetooth \
 	btxld \
 	kgmon \
 	kgzip \

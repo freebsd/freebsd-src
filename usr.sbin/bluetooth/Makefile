@@ -1,14 +1,16 @@
-# $Id: Makefile,v 1.3 2003/04/01 02:06:47 max Exp $
+# $Id: Makefile,v 1.5 2003/09/08 02:28:35 max Exp $
 # $FreeBSD$
 
-SUBDIR=	\
-	bt3cfw		\
-	bcmfw		\
-	hccontrol	\
-	hcsecd		\
-	hcseriald	\
-	l2control	\
-	l2ping		\
-	rfcomm_pppd
+SUBDIR= \
+	bcmfw \
+	bt3cfw \
+	hccontrol \
+	hcsecd \
+	hcseriald \
+	l2control \
+	l2ping \
+	rfcomm_pppd \
+	sdpcontrol
+
 .include <bsd.subdir.mk>
 

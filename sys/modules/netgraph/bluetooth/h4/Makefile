@@ -3,10 +3,8 @@
 
 .PATH: ${.CURDIR}/../../../../netgraph/bluetooth/drivers/h4
 
-CFLAGS+=	-g -I${.CURDIR}/../../../../netgraph/bluetooth/include \
+CFLAGS+=	-I${.CURDIR}/../../../../netgraph/bluetooth/include \
 		-I${.CURDIR}/../../../../netgraph/bluetooth/drivers/h4
-
-#CFLAGS+=	-DINVARIANTS=1 -DINVARIANT_SUPPORT=1 
 
 KMOD=		ng_h4
 SRCS=		ng_h4.c

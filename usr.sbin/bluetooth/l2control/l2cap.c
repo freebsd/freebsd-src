@@ -25,23 +25,46 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: l2cap.c,v 1.4 2003/04/26 23:11:25 max Exp $
+ * $Id: l2cap.c,v 1.5 2003/05/16 19:52:37 max Exp $
  * $FreeBSD$
  */
 
-#include <sys/types.h>
 #include <sys/ioctl.h>
-#include <bitstring.h>
+#include <bluetooth.h>
 #include <errno.h>
-#include <ng_hci.h>
-#include <ng_l2cap.h>
-#include <ng_btsocket.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "l2control.h"
 
 #define	SIZE(x)	(sizeof((x))/sizeof((x)[0]))
+
+/* Print BDADDR */
+static char *
+bdaddrpr(bdaddr_t const *ba)
+{
+	extern int	 numeric_bdaddr;
+	static char	 str[24];
+	struct hostent	*he = NULL;
+
+	if (memcmp(ba, NG_HCI_BDADDR_ANY, sizeof(*ba)) == 0) {
+		str[0] = '*';
+		str[1] = 0;
+
+		return (str);
+	}
+
+	if (!numeric_bdaddr &&
+	    (he = bt_gethostbyaddr((char *)ba, sizeof(*ba), AF_BLUETOOTH)) != NULL) {
+		strlcpy(str, he->h_name, sizeof(str));
+
+		return (str);
+	}
+
+	bt_ntoa(ba, str);
+
+	return (str);
+} /* bdaddrpr */
 
 /* Send read_node_flags command to the node */
 static int
@@ -134,17 +157,12 @@ l2cap_read_connection_list(int s, int argc, char **argv)
 "Remote BD_ADDR    Handle Flags Pending State\n");
 	for (n = 0; n < r.num_connections; n++) {
 		fprintf(stdout,
-			"%02x:%02x:%02x:%02x:%02x:%02x " \
+			"%-17.17s " \
 			"%6d " \
 			"%c%c%c%c%c " \
 			"%7d " \
 			"%s\n",
-			r.connections[n].remote.b[5],
-			r.connections[n].remote.b[4],
-			r.connections[n].remote.b[3],
-			r.connections[n].remote.b[2],
-			r.connections[n].remote.b[1],
-			r.connections[n].remote.b[0],
+			bdaddrpr(&r.connections[n].remote),
 			r.connections[n].con_handle, 
 			((r.connections[n].flags & NG_L2CAP_CON_OUTGOING)? 'O' : 'I'),
 			((r.connections[n].flags & NG_L2CAP_CON_LP_TIMO)? 'L' : ' '),
@@ -197,13 +215,11 @@ l2cap_read_channel_list(int s, int argc, char **argv)
 "Remote BD_ADDR     SCID/ DCID   PSM  IMTU/ OMTU State\n");
 	for (n = 0; n < r.num_channels; n++) {
 		fprintf(stdout,
-			"%02x:%02x:%02x:%02x:%02x:%02x " \
+			"%-17.17s " \
 			"%5d/%5d %5d " \
 			"%5d/%5d " \
 			"%s\n",
-			r.channels[n].remote.b[5], r.channels[n].remote.b[4], 
-			r.channels[n].remote.b[3], r.channels[n].remote.b[2], 
-			r.channels[n].remote.b[1], r.channels[n].remote.b[0],
+			bdaddrpr(&r.channels[n].remote),
 			r.channels[n].scid, r.channels[n].dcid,
 			r.channels[n].psm, r.channels[n].imtu,
 			r.channels[n].omtu,

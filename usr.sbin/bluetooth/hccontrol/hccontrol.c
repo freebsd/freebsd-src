@@ -25,20 +25,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: hccontrol.c,v 1.2 2003/04/27 19:45:24 max Exp $
+ * $Id: hccontrol.c,v 1.5 2003/09/05 00:38:24 max Exp $
  * $FreeBSD$
  */
 
-#include <sys/types.h>
-#include <sys/socket.h>
+#include <bluetooth.h>
 #include <sys/sysctl.h>
 #include <assert.h>
-#include <bitstring.h>
 #include <err.h>
 #include <errno.h>
-#include <ng_hci.h>
-#include <ng_l2cap.h>
-#include <ng_btsocket.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -54,6 +49,7 @@ static void usage                             (void);
 /* Globals */
 int	 verbose = 0; 
 int	 timeout;
+int	 numeric_bdaddr = 0;
 
 /* Main */
 int
@@ -63,10 +59,14 @@ main(int argc, char *argv[])
 	int	 n;
 
 	/* Process command line arguments */
-	while ((n = getopt(argc, argv, "n:vh")) != -1) {
+	while ((n = getopt(argc, argv, "n:Nvh")) != -1) {
 		switch (n) {
 		case 'n':
 			node = optarg;
+			break;
+
+		case 'N':
+			numeric_bdaddr = 1;
 			break;
 
 		case 'v':
@@ -254,7 +254,7 @@ find_hci_command(char const *command, struct hci_command *category)
 	return (NULL);
 } /* find_hci_command */
 
-/* Try to find command in specified category */
+/* Print commands in specified category */
 static void
 print_hci_command(struct hci_command *category)
 {

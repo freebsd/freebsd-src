@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: send_recv.c,v 1.1 2002/11/24 20:22:38 max Exp $
+ * $Id: send_recv.c,v 1.2 2003/05/21 22:40:30 max Exp $
  * $FreeBSD$
  */
 
@@ -35,7 +35,7 @@
 #include <sys/endian.h>
 #include <assert.h>
 #include <errno.h>
-#include <ng_hci.h>
+#include <netgraph/bluetooth/include/ng_hci.h>
 #include <string.h>
 #include <unistd.h>
 #include "hccontrol.h"

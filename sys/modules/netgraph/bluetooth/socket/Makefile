@@ -3,10 +3,7 @@
 
 .PATH: ${.CURDIR}/../../../../netgraph/bluetooth/socket
 
-CFLAGS+=	-g -I${.CURDIR}/../../../../netgraph/bluetooth/include
-
-#CFLAGS+=	-DINVARIANTS=1 -DINVARIANT_SUPPORT=1
-#CFLAGS+=	-DWITNESS=1 -DWITNESS_SKIPSPIN=1
+CFLAGS+=	-I${.CURDIR}/../../../../netgraph/bluetooth/include
 
 KMOD=		ng_btsocket
 SRCS=		ng_btsocket.c \

@@ -25,11 +25,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: util.c,v 1.1 2002/11/24 20:22:38 max Exp $
+ * $Id: util.c,v 1.2 2003/05/19 17:29:29 max Exp $
  * $FreeBSD$
  */
  
-#include <sys/types.h>
+#include <sys/param.h>
+#include <bluetooth.h>
+#include <stdio.h>
 #include <string.h>
 
 #define SIZE(x) (sizeof((x))/sizeof((x)[0]))
@@ -347,4 +349,30 @@ hci_status2str(int status)
 
 	return (status >= SIZE(t)? "Unknown error" : t[status]);
 } /* hci_status2str */
+
+char const * const
+hci_bdaddr2str(bdaddr_t const *ba)
+{
+	extern int	 numeric_bdaddr;
+	static char	 buffer[MAXHOSTNAMELEN];
+	struct hostent	*he = NULL;
+
+	if (memcmp(ba, NG_HCI_BDADDR_ANY, sizeof(*ba)) == 0) {
+		buffer[0] = '*';
+		buffer[1] = 0;
+
+		return (buffer);
+	}
+
+	if (!numeric_bdaddr &&
+	    (he = bt_gethostbyaddr((char *)ba, sizeof(*ba), AF_BLUETOOTH)) != NULL) {
+		strlcpy(buffer, he->h_name, sizeof(buffer));
+
+		return (buffer);
+	}
+
+	bt_ntoa(ba, buffer);
+
+	return (buffer);
+} /* hci_bdaddr2str */
 

@@ -3,10 +3,8 @@
 
 .PATH: ${.CURDIR}/../../../../netgraph/bluetooth/l2cap
 
-CFLAGS+=	-g -I${.CURDIR}/../../../../netgraph/bluetooth/include \
+CFLAGS+=	-I${.CURDIR}/../../../../netgraph/bluetooth/include \
 		-I${.CURDIR}/../../../../netgraph/bluetooth/l2cap
-
-#CFLAGS+=	-DINVARIANTS=1 -DINVARIANT_SUPPORT=1 
 
 KMOD=		ng_l2cap
 SRCS=		ng_l2cap_main.c ng_l2cap_cmds.c ng_l2cap_evnt.c \
