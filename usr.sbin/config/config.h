@@ -142,6 +142,7 @@ extern struct	device *dtab;
 
 extern char	errbuf[80];
 extern int	yyline;
+extern const	char *yyfile;
 
 extern struct	file_list *ftab;
 

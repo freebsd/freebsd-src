@@ -144,6 +144,7 @@ main(int argc, char **argv)
 		errx(2, "%s isn't a directory", p);
 
 	dtab = NULL;
+	yyfile = *argv;
 	if (yyparse())
 		exit(3);
 	if (machinename == NULL) {
