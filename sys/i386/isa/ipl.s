@@ -242,7 +242,7 @@ doreti_unpend:
 9:	
 #endif
 #endif
-	jmp	%edx
+	jmp	*%edx
 
 	ALIGN_TEXT
 doreti_swi:
@@ -265,7 +265,7 @@ doreti_swi:
 	orl	imasks(,%ecx,4),%eax
 	movl	%eax,_cpl
 #endif
-	call	%edx
+	call	*%edx
 	popl	%eax			/* cpl to restore */
 	jmp	doreti_next
 
