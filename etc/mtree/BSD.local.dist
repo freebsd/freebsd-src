@@ -208,8 +208,8 @@
         nls
             C
             ..
-	    bg_BG.CP1251
-	    ..
+            bg_BG.CP1251
+            ..
             cs_CZ.ISO_8859-2
             ..
             da_DK.ISO_8859-1
