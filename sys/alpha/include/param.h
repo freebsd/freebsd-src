@@ -1,4 +1,4 @@
-/* $Id: param.h,v 1.7 1998/09/09 01:21:25 jdp Exp $ */
+/* $Id: param.h,v 1.8 1999/02/19 19:34:47 luoqi Exp $ */
 /* From: NetBSD: param.h,v 1.20 1997/09/19 13:52:53 leo Exp */
 
 /*
@@ -46,10 +46,18 @@
 /*
  * Machine dependent constants for the Alpha.
  */
+#ifndef _MACHINE
 #define	_MACHINE	alpha
+#endif
+#ifndef MACHINE
 #define	MACHINE		"alpha"
+#endif
+#ifndef _MACHINE_ARCH
 #define	_MACHINE_ARCH	alpha
+#endif
+#ifndef MACHINE_ARCH
 #define	MACHINE_ARCH	"alpha"
+#endif
 #define	MID_MACHINE	MID_ALPHA
 
 #include <machine/alpha_cpu.h>
