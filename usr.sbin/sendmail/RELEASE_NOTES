@@ -1,12 +1,125 @@
 			SENDMAIL RELEASE NOTES
-	     @(#)RELEASE_NOTES	8.8.2.1 (Berkeley) 10/18/96
+	     @(#)RELEASE_NOTES	8.8.3.2 (Berkeley) 11/16/96
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
 
-8.8.2/8.8.2	96/11/18
+8.8.3/8.8.3	96/11/17
+	SECURITY: it was possible to get a root shell by lying to sendmail
+		about argv[0] and then sending it a signal.  Problem noted
+		by Leshka Zakharoff <leshka@leshka.chuvashia.su> on the
+		best-of-security list.
+	Log sendmail binary version number in "Warning: .cf version level
+		(%d) exceeds program functionality (%d) message" -- this
+		should make it clearer to people that they are running
+		the wrong binary.
+	Fix a problem that occurs when you open an SMTP connection and then
+		do one or more ETRN commands followed by a MAIL command; at
+		the end of the DATA phase sendmail would incorrectly report
+		"451 SMTP-MAIL: lost child: No child processes".  Problem
+		noted by Eric Bishop of Virginia Tech.
+	When doing text-based host canonification (typically /etc/hosts
+		lookup), a null host name would match any /etc/hosts entry
+		with space at the end of the line.  Problem noted by Steve
+		Hubert of the University of Washington, Seattle.
+	7 to 8 bit BASE64 MIME conversions could duplicate bits of text.
+		Problem reported by Tom Smith of Digital Equipment Corp.
+	Increase the size of the DNS answer buffer -- the standard UDP packet
+		size PACKETSZ (512) is not sufficient for some nameserver
+		answers containing very many resource records.  The resolver
+		may also switch to TCP and retry if it detects UDP packet
+		overflow.  Also, allow for the fact that the resolver
+		routines res_query and res_search return the size of the
+		*un*truncated answer in case the supplied answer buffer it
+		not big enough to accommodate the entire answer.  Patch from
+		Eric Wassenaar.
+	Improvements to MaxDaemonChildren code.  If you think you have too
+		many children, probe the ones you have to verify that they
+		are still around.  Suggested by Jared Mauch of CICnet, Inc.
+		Also, do this probe before growing the vector of children
+		pids; this previously caused the vector to grow indefinitely
+		due to a race condition.  Problem reported by Kyle Jones of
+		UUNET.
+	On some architectures, <db.h> (from the Berkeley DB library) defines
+		O_EXLOCK to zero; this fools the map compilation code into
+		thinking that it can avoid race conditions by locking on open.
+		Change it to check for O_EXLOCK non-zero.  Problem noted by
+		Leif Erlingsson of Data Lege.
+	Always call res_init() on startup (if compiled in, of course) to
+		allow the sendmail.cf file to tweak resolver flags; without
+		it, flag tweaks in ResolverOptions are ignored.  Patch from
+		Andrew Sun of Merrill Lynch.
+	Improvements to host status printing code.  Suggested by Steve Hubert
+		of the University of Washington, Seattle.
+	Change MinQueueAge option processing to do the check for the job age
+		when reading the queue file, rather than at the end; this
+		avoids parsing the addresses, which can do DNS lookups.
+		Problem noted by John Beck of InReference, Inc.
+	When MIME was being 7->8 bit decoded, "From " lines weren't being
+		properly escaped.  Problem noted by Peter Nilsson of the
+		University of Linkoping.
+	In some cases, sendmail would retain root permissions during queue
+		runs even if RunAsUser was set.  Problem noted by Mark
+		Thomas of Mark G. Thomas Consulting.
+	If the F=l flag was set on an SMTP mailer to indicate that it is
+		actually local delivery, and NOTIFY=SUCCESS is specified in
+		the envelope, and the receiving SMTP server speaks DSN, then
+		the DSN would be both generated locally and propogated to the
+		other end.
+	The U= mailer field didn't correctly extract the group id if the
+		user id was numeric.  Problem noted by Kenneth Herron of
+		MCI Telecommunications Communications.
+	If a message exceeded the fixed maximum size on input, the body of
+		the message was included in the bounce.  Note that this did
+		not occur if it exceeded the maximum _output_ size.  Problem
+		reported by Kyle Jones of UUNET.
+	PORTABILITY FIXES:
+		AIX4: 4.1 does't have a working setreuid(2); change the
+			AIX4 defines to use seteuid(2) instead, which
+			works on 4.1 as well as 4.2.  Problem noted by
+			Håkan Lindholm of interAF, Sweden.
+		AIX4: use tzname[] vector to determine time zone name.
+			Patch from NAKAMURA Motonori of Kyoto University.
+		MkLinux: add Makefile.Linux.ppc and OSTYPE(mklinux) support.
+			Contributed by Paul DeBois <dubois@primate.wisc.edu>.
+		Solaris: kstat(3k) support for retrieving the load average.
+			This adds the LA_KSTAT definition for LA_TYPE.
+			The outline of the implementation was contributed
+			by Michael Tokarev of Telecom Service, JSC, Moscow.
+		HP-UX 10.0 gripes about the (perfectly legal!) forward
+			declaration of struct rusage at the top of conf.h;
+			change it to only be included if you are using gcc,
+			which is apparently the only compiler that requires
+			it in the first place.  Problem noted by Jeff
+			Earickson of Colby College.
+		IRIX: don't default to using gcc.  IRIX is a civilized
+			operating system that comes with a decent compiler
+			by default.  Problem noted by Barry Bouwsma and
+			Kari Hurtta.
+	CONFIG: specify F=9 as default in FEATURE(local_procmail) for
+		consistency with other local mailers.  Inconsistency
+		pointed out by Teddy Hogeborn <teddy@fukt.hk-r.se>.
+	CONFIG: if the "limited best mx" feature is used (to reduce DNS
+		overhead) as part of the bestmx_is_local feature, the
+		domain part was dropped from the name.  Patch from Steve
+		Hubert of the University of Washington, Seattle.
+	CONFIG: catch addresses of the form "user@.dom.ain"; these could
+		end up being translated to the null host name, which would
+		return any entry in /etc/hosts that had a space at the end
+		of the line.  Problem noted by Steve Hubert of the
+		University of Washington, Seattle.
+	CONFIG: add OSTYPE(aix4).  From Michael Sofka of Rensselaer
+		Polytechnic Institute.
+	MAKEMAP: tweak hash and btree parameters for better performance.
+		Patch from Matt Dillon of Best Internet Communications.
+	NEW FILES:
+		src/Makefiles/Makefile.Linux.ppc
+		cf/ostype/aix4.m4
+		cf/ostype/mklinux.m4
+
+8.8.2/8.8.2	96/10/18
 	SECURITY: fix a botch in the 7-bit MIME patch; the previous patch
 		changed the code but didn't fix the problem.
 	PORTABILITY FIXES:
@@ -1089,7 +1202,7 @@ summary of the changes in that release.
 	Syntax errors such as unbalanced parentheses in the configuration
 		file could be omitted if you had "Oem" prior to the
 		syntax error in the config file.  Change to always print
-		the error message.  It was especially wierd because it
+		the error message.  It was especially weird because it
 		would cause a "warning" message to be sent to the Postmaster
 		for every message sent (but with no transcript).  Problem
 		noted by Gregory Paris of Motorola.
@@ -1823,7 +1936,7 @@ summary of the changes in that release.
 		only works on adjacent preferences, so an MX list that
 		had A=5, B=10, A=15 would leave both As, but one that had
 		A=5, A=10, B=15 would reduce to A, B.  This is intentional,
-		just in case there is something wierd I haven't thought of.
+		just in case there is something weird I haven't thought of.
 		Suggested by Barry Shein of Software Tool & Die.
 	SECURITY: .forward files cannot be symbolic links.  If they are,
 		a bad guy can read your private files.
@@ -2420,7 +2533,7 @@ summary of the changes in that release.
 		fixed by Michael Corrigan and Christophe Wolfhugel.
 
 8.6.7/8.6.6	94/03/14
-	SECURITY: it was possible to get root access by using wierd
+	SECURITY: it was possible to get root access by using weird
 		values to the -d flag.  Thanks to Alain Durand of
 		INRIA for forwarding me the notice from the bugtraq
 		list.
@@ -2558,7 +2671,7 @@ summary of the changes in that release.
 	CNAME loops caused an error message to be generated, but also
 		re-queued the message.  Changed to just re-queue the
 		message (it's really hard to just bounce it because
-		of the wierd way the name server works in the presence
+		of the weird way the name server works in the presence
 		of CNAME loops).  Problem noted by James M.R.Matheson
 		of Cambridge University.
 	Avoid giving ``warning: foo owned process doing -bs'' messages
@@ -2823,7 +2936,7 @@ summary of the changes in that release.
 	Make sure that route-addrs always have <angle brackets> around
 		them in non-SMTP envelopes (SMTP envelopes already do
 		this properly).
-	Avoid wierd headers on unbalanced punctuation of the form:
+	Avoid weird headers on unbalanced punctuation of the form:
 		``Joe User <user)'' -- this caused reference to the
 		null macro.  Fix from Rick McCarty of IO.COM.
 	Fix a problem that caused an alias "user: user@local.host" to
@@ -3488,7 +3601,7 @@ summary of the changes in that release.
 		the "to" address).  Problem noted by John Myers.
 	Fix dfopen to return NULL if the open failed; I was depending
 		on fdopen(-1) returning NULL, which isn't the case.  This
-		isn't serious, but does result in wierd error diagnoses.
+		isn't serious, but does result in weird error diagnoses.
 		From Michael Corrigan.
 	CONFIG: add UUCP_MAX_SIZE M4 macro to set the maximum size of
 		messages sent through UUCP-family mailers.  Suggested
@@ -3524,7 +3637,7 @@ summary of the changes in that release.
 		Changes from Eric Wassenaar.
 	Open /dev/null for the transcript if the create of the xf file
 		failed; this avoids at least one possible null pointer
-		reference in very wierd cases.  From Eric Wassenaar.
+		reference in very weird cases.  From Eric Wassenaar.
 	Clean up statistics gathering; it was over-reporting because of
 		forks.  From Eric Wassenaar.
 	Fix problem that causes old Return-Path: line to override new
@@ -3775,7 +3888,7 @@ summary of the changes in that release.
 	PRALIASES: support for printing NEWDB databases.  From
 		Michael J. Corrigan of U.C. San Diego.
 	CONFIG: don't pass pseudo-domains to $[ ... $] (if you have
-		a wildcard MX it can have wierd results).  From
+		a wildcard MX it can have weird results).  From
 		Christophe Wolfhugel.
 	CONFIG: dot terminate relay hostnames in S0.  From Christophe
 		Wolfhugel.
@@ -3888,7 +4001,7 @@ summary of the changes in that release.
 	Don't try to flock non-regular files when mailing to a file.
 		In particular, this was a problem if you tried to
 		send to /dev/null.
-	Fix a wierd bug that can cause senders to be queued as
+	Fix a weird bug that can cause senders to be queued as
 		recipients if the name server is down when the mail
 		is initially sent.  This hack just ignores sender
 		deletion (essentially, it sets the MeToo flag) if there
@@ -4222,7 +4335,7 @@ summary of the changes in that release.
 		file to have an F line, and the format of the T option
 		to accept take the format "return/warn" (both intervals).
 	Don't force all local names to lower case -- this was left over
-		from the wierd handling of case mapping on aliases.  It
+		from the weird handling of case mapping on aliases.  It
 		is now driven (as expected) by the "u" mailer flag.
 		Problem noted by P{r Emanuelsson.
 	Fix problem that caused headers on returned email to be trashed;
@@ -4325,7 +4438,7 @@ summary of the changes in that release.
 		mailer.
 	Additional debug printing in getcanonname (show query type).
 	Don't add the e_fromdomain on sender addresses -- this interacts
-		wierdly with the owner- code.
+		weirdly with the owner- code.
 	Improve delivery logging to not log obvious or meaningless stuff.
 	Include numeric IP address in Received: lines per RFC 1123 section
 		5.2.8.
@@ -4407,7 +4520,7 @@ summary of the changes in that release.
 	Config extensions for Sam Leffler's FlexFAX software.
 
 6.31/6.10	93/02/28
-	Fix some more bugs in alias owner code -- there were some wierd
+	Fix some more bugs in alias owner code -- there were some weird
 		cases where an error in a non-aliased name would override
 		the return info in an aliased name with an owner.
 	Changes from WIDE Project, forwarded to me by Motonori Nakamura:

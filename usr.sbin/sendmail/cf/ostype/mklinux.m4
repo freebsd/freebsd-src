@@ -32,8 +32,13 @@ divert(-1)
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-VERSIONID(`@(#)version.m4	8.8.3.1 (Berkeley) 11/16/96')
+#	MkLinux support contributed by Paul DeBois <dubois@primate.wisc.edu>
 #
+
 divert(0)
-# Configuration version number
-DZ8.8.3`'ifdef(`confCF_VERSION', `/confCF_VERSION')
+VERSIONID(`@(#)mklinux.m4	8.1 (Berkeley) 10/30/96')
+ifdef(`STATUS_FILE',,
+	`define(`STATUS_FILE', /var/log/sendmail.st)')
+ifdef(`PROCMAIL_MAILER_PATH',,
+	define(`PROCMAIL_MAILER_PATH', `/usr/bin/procmail'))
+FEATURE(local_procmail)
