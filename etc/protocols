@@ -1,7 +1,7 @@
 #
 # Internet (IP) protocols
 #
-#	$Id: protocols,v 1.2 1993/11/07 00:31:22 wollman Exp $
+#	$Id: protocols,v 1.3 1995/08/29 19:29:35 wollman Exp $
 #	from: @(#)protocols	5.1 (Berkeley) 4/17/89
 #
 # Updated for FreeBSD based on RFC 1340, Assigned Numbers (July 1992).
@@ -27,3 +27,4 @@ vmtp	81	VMTP		# Versatile Message Transport
 ospf	89	OSPFIGP		# Open Shortest Path First IGP
 ipip	94	IPIP		# Yet Another IP encapsulation
 encap	98	ENCAP		# Yet Another IP encapsulation
+divert	254	DIVERT		# Divert pseudo-protocol

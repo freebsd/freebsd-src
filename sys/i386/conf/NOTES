@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.272 1996/06/26 19:42:06 gpalmer Exp $
+#	$Id: LINT,v 1.273 1996/07/05 18:48:59 jhay Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -233,6 +233,8 @@ pseudo-device	tun	1		#Tunnel driver(user process ppp)
 # logged packets to the system logger.  IPFIREWALL_VERBOSE_LIMIT
 # limits the number of times a matching entry can be logged.
 #
+# IPDIVERT enables the divert IP sockets, used by ``ipfw divert''
+#
 # TCPDEBUG is undocumented.
 #
 options		"TCP_COMPAT_42"		#emulate 4.2BSD TCP bugs
@@ -241,6 +243,7 @@ options         IPFIREWALL              #firewall
 options         IPFIREWALL_VERBOSE      #print information about
 					# dropped packets
 options		"IPFIREWALL_VERBOSE_LIMIT=100" #limit verbosity
+options		IPDIVERT		#divert sockets
 options		TCPDEBUG
 
 
