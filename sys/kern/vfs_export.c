@@ -207,7 +207,7 @@ vfs_export(mp, argp)
 	nep = mp->mnt_export;
 	if (argp->ex_flags & MNT_DELEXPORT) {
 		if (nep == NULL)
-			return (EINVAL);
+			return (ENOENT);
 		if (mp->mnt_flag & MNT_EXPUBLIC) {
 			vfs_setpublicfs(NULL, NULL, NULL);
 			mp->mnt_flag &= ~MNT_EXPUBLIC;
