@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vfsops.c	8.20 (Berkeley) 6/10/95
- * $Id: lfs_vfsops.c,v 1.22 1997/09/07 16:21:05 bde Exp $
+ * $Id: lfs_vfsops.c,v 1.23 1997/10/10 18:17:21 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -42,11 +42,11 @@
 #include <sys/proc.h>
 #include <sys/kernel.h>
 #include <sys/vnode.h>
+#include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/buf.h>
 #include <sys/fcntl.h>
 #include <sys/disklabel.h>
-#include <sys/malloc.h>
 
 #include <miscfs/specfs/specdev.h>
 
@@ -57,6 +57,9 @@
 
 #include <ufs/lfs/lfs.h>
 #include <ufs/lfs/lfs_extern.h>
+
+MALLOC_DEFINE(M_LFSNODE, "LFS node", "LFS vnode private part");
+MALLOC_DEFINE(M_SEGMENT, "LFS segment", "Segment for LFS");
 
 static int lfs_fhtovp __P((struct mount *, struct fid *, struct sockaddr *,
 	    struct vnode **, int *, struct ucred **));

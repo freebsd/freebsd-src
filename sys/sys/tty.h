@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.38 1997/02/22 09:46:13 peter Exp $
+ * $Id: tty.h,v 1.39 1997/09/14 02:25:41 peter Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -213,6 +213,9 @@ struct speedtab {
 #define	TSA_PTS_READ(tp)	((void *)&(tp)->t_canq)
 
 #ifdef KERNEL
+#ifdef MALLOC_DECLARE
+MALLOC_DECLARE(M_TTYS);
+#endif
 extern	struct tty *constty;	/* Temporary virtual console. */
 
 int	 b_to_q __P((char *cp, int cc, struct clist *q));

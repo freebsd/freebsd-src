@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_nqlease.c	8.9 (Berkeley) 5/20/95
- * $Id: nfs_nqlease.c,v 1.28 1997/09/02 01:19:30 bde Exp $
+ * $Id: nfs_nqlease.c,v 1.29 1997/10/11 18:31:34 phk Exp $
  */
 
 
@@ -53,11 +53,11 @@
  */
 #include <sys/param.h>
 #include <sys/vnode.h>
+#include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -76,7 +76,7 @@
 #include <nfs/nfsnode.h>
 #include <nfs/nfsmount.h>
 
-MALLOC_DEFINE(M_NQMHOST, "NQNFS Host", "Nqnfs host address table");
+static MALLOC_DEFINE(M_NQMHOST, "NQNFS Host", "Nqnfs host address table");
 
 time_t nqnfsstarttime = (time_t)0;
 int nqsrv_clockskew = NQ_CLOCKSKEW;

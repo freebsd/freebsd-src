@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_srvcache.c	8.3 (Berkeley) 3/30/95
- * $Id: nfs_srvcache.c,v 1.13 1997/08/02 14:33:07 bde Exp $
+ * $Id: nfs_srvcache.c,v 1.14 1997/08/16 19:15:58 wollman Exp $
  */
 
 #ifndef NFS_NOSERVER 
@@ -44,10 +44,10 @@
  *		pages 53-63. San Diego, February 1989.
  */
 #include <sys/param.h>
+#include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
-#include <sys/malloc.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>	/* for dup_sockaddr */
 

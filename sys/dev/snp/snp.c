@@ -22,13 +22,13 @@
 #include <sys/filio.h>
 #include <sys/ioctl_compat.h>	/* Oooh..We need O/NTTYDISC	 */
 #include <sys/proc.h>
+#include <sys/malloc.h>
 #include <sys/tty.h>
 #include <sys/fcntl.h>
 #include <sys/conf.h>
 #include <sys/poll.h>
 #include <sys/uio.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/

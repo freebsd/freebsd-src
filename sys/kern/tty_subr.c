@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: tty_subr.c,v 1.26 1997/03/05 16:45:01 bde Exp $
+ * $Id: tty_subr.c,v 1.27 1997/03/24 11:24:37 bde Exp $
  */
 
 /*
@@ -34,9 +34,9 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 #include <sys/tty.h>
 #include <sys/clist.h>
-#include <sys/malloc.h>
 
 static void clist_init __P((void *));
 SYSINIT(clist, SI_SUB_CLIST, SI_ORDER_FIRST, clist_init, NULL)

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_ihash.c	8.7 (Berkeley) 5/17/95
- * $Id$
+ * $Id: ufs_ihash.c,v 1.8 1997/02/22 09:47:47 peter Exp $
  */
 
 #include <sys/param.h>
@@ -44,6 +44,7 @@
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/ufs_extern.h>
 
+static MALLOC_DEFINE(M_UFSIHASH, "UFS ihash", "UFS Inode hash tables");
 /*
  * Structures associated with inode cacheing.
  */
@@ -59,7 +60,7 @@ void
 ufs_ihashinit()
 {
 
-	ihashtbl = hashinit(desiredvnodes, M_UFSMNT, &ihash);
+	ihashtbl = hashinit(desiredvnodes, M_UFSIHASH, &ihash);
 	simple_lock_init(&ufs_ihash_slock);
 }
 

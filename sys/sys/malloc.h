@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)malloc.h	8.5 (Berkeley) 5/3/95
- * $Id: malloc.h,v 1.28 1997/10/11 13:10:17 phk Exp $
+ * $Id: malloc.h,v 1.29 1997/10/11 18:31:36 phk Exp $
  */
 
 #ifndef _SYS_MALLOC_H_
@@ -47,8 +47,8 @@
 #define M_KERNEL	0x0002
 
 struct malloc_type {
-	const char *ks_shortdesc;	/* Short description */
-	const char *ks_longdesc;	/* Long description */
+	const char * const ks_shortdesc;	/* Short description */
+	const char * const ks_longdesc;	/* Long description */
 	struct malloc_type *ks_next; /* Next pointer */
 	long	ks_inuse;	/* # of packets of this type currently in use */
 	long	ks_calls;	/* total packets of this type ever allocated */
@@ -69,52 +69,16 @@ struct malloc_type {
 	struct __hack
 
 #ifdef MALLOC_INSTANTIATE
-#define MALLOC_MAKE_TYPE(type, short, long) \
-	MALLOC_DEFINE(type, short, long);
+#define MALLOC_MAKE_TYPE(type, shortdesc, longdesc) \
+	MALLOC_DEFINE(type, shortdesc, longdesc);
 #else
-#define MALLOC_MAKE_TYPE(type, short, long) \
+#define MALLOC_MAKE_TYPE(type, shortdesc, longdesc) \
 	MALLOC_DECLARE(type);
 #endif
 
-MALLOC_MAKE_TYPE(M_FREE, "free", "should be on free list");
-MALLOC_MAKE_TYPE(M_MBUF, "mbuf", "mbuf");
-MALLOC_MAKE_TYPE(M_DEVBUF, "devbuf", "device driver memory");
-MALLOC_MAKE_TYPE(M_PCB, "pcb", "protocol control block");
-MALLOC_MAKE_TYPE(M_RTABLE, "routetbl", "routing tables");
-MALLOC_MAKE_TYPE(M_FTABLE, "fragtbl", "fragment reassembly header");
-MALLOC_MAKE_TYPE(M_IFADDR, "ifaddr", "interface address");
-MALLOC_MAKE_TYPE(M_SOCKET, "socket", "socket structure");
-MALLOC_MAKE_TYPE(M_SOOPTS, "soopts", "socket options");
-MALLOC_MAKE_TYPE(M_SONAME, "soname", "socket name");
-MALLOC_MAKE_TYPE(M_CRED, "cred", "credentials");
-MALLOC_MAKE_TYPE(M_SESSION, "session", "session header");
-MALLOC_MAKE_TYPE(M_IOV, "iov", "large iov's");
-MALLOC_MAKE_TYPE(M_MOUNT, "mount", "vfs mount struct");
-MALLOC_MAKE_TYPE(M_NFSREQ, "NFS req", "NFS request header");
-MALLOC_MAKE_TYPE(M_NFSMNT, "NFS mount", "NFS mount structure");
-MALLOC_MAKE_TYPE(M_VNODE, "vnodes", "Dynamically allocated vnodes");
 MALLOC_MAKE_TYPE(M_CACHE, "namecache", "Dynamically allocated cache entries");
-MALLOC_MAKE_TYPE(M_UFSMNT, "UFS mount", "UFS mount structure");
-MALLOC_MAKE_TYPE(M_VMPGDATA, "VM pgdata", "XXX: VM pager private data");
-MALLOC_MAKE_TYPE(M_FILE, "file", "Open file structure");
-MALLOC_MAKE_TYPE(M_PROC, "proc", "Proc structures");
-MALLOC_MAKE_TYPE(M_SUBPROC, "subproc", "Proc sub-structures");
-MALLOC_MAKE_TYPE(M_SEGMENT, "LFS segment", "Segment for LFS");
-MALLOC_MAKE_TYPE(M_LFSNODE, "LFS node", "LFS vnode private part");
-MALLOC_MAKE_TYPE(M_NQLEASE, "NQNFS Lease", "Nqnfs lease");
-MALLOC_MAKE_TYPE(M_NFSUID, "NFS uid", "Nfs uid mapping structure");
-MALLOC_MAKE_TYPE(M_NFSD, "NFS daemon", "Nfs server daemon structure");
-MALLOC_MAKE_TYPE(M_IFMADDR, "ether_multi", "link-level multicast address");
-MALLOC_MAKE_TYPE(M_ISOFSMNT, "ISOFS mount", "ISOFS mount structure");
-MALLOC_MAKE_TYPE(M_ISOFSNODE, "ISOFS node", "ISOFS vnode private part");
-MALLOC_MAKE_TYPE(M_NFSRVDESC, "NFSV3 srvdesc", "NFS server socket descriptor");
-MALLOC_MAKE_TYPE(M_NFSDIROFF, "NFSV3 diroff", "NFS directory offset data");
-MALLOC_MAKE_TYPE(M_NFSBIGFH, "NFSV3 bigfh", "NFS version 3 file handle");
-MALLOC_MAKE_TYPE(M_MSDOSFSMNT, "MSDOSFS mount", "MSDOSFS mount structure");
+MALLOC_MAKE_TYPE(M_DEVBUF, "devbuf", "device driver memory");
 MALLOC_MAKE_TYPE(M_TEMP, "temp", "misc temporary data buffers");
-MALLOC_MAKE_TYPE(M_TTYS, "ttys", "tty data structures");
-MALLOC_MAKE_TYPE(M_IPFW, "IpFw/IpAcct", "IpFw/IpAcct chain's");
-MALLOC_MAKE_TYPE(M_HOSTCACHE, "hostcache", "per-host information cache structure");
 
 /*
  * Array of descriptors that describe the contents of each page

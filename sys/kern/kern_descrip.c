@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.40 1997/09/14 02:52:13 peter Exp $
+ * $Id: kern_descrip.c,v 1.41 1997/10/11 18:31:22 phk Exp $
  */
 
 #include <sys/param.h>
@@ -66,7 +66,9 @@
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
 
-MALLOC_DEFINE(M_FILEDESC, "file desc", "Open file descriptor table");
+static MALLOC_DEFINE(M_FILEDESC, "file desc", "Open file descriptor table");
+static MALLOC_DEFINE(M_FILE, "file", "Open file structure");
+
 
 static	 d_open_t  fdopen;
 #define NUMFDESC 64

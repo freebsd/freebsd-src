@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.47 1997/09/07 12:56:44 bde Exp $
+ * $Id: nfs_vfsops.c,v 1.48 1997/09/10 19:52:26 phk Exp $
  */
 
 #include <sys/param.h>
@@ -46,9 +46,9 @@
 #include <sys/vnode.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/buf.h>
-#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -75,6 +75,15 @@
 extern int	nfs_mountroot __P((struct mount *mp));
 
 extern int	nfs_ticks;
+
+MALLOC_DEFINE(M_NFSREQ, "NFS req", "NFS request header");
+MALLOC_DEFINE(M_NFSMNT, "NFS mount", "NFS mount structure");
+MALLOC_DEFINE(M_NFSBIGFH, "NFSV3 bigfh", "NFS version 3 file handle");
+MALLOC_DEFINE(M_NFSD, "NFS daemon", "Nfs server daemon structure");
+MALLOC_DEFINE(M_NFSDIROFF, "NFSV3 diroff", "NFS directory offset data");
+MALLOC_DEFINE(M_NFSRVDESC, "NFSV3 srvdesc", "NFS server socket descriptor");
+MALLOC_DEFINE(M_NFSUID, "NFS uid", "Nfs uid mapping structure");
+MALLOC_DEFINE(M_NQLEASE, "NQNFS Lease", "Nqnfs lease");
 
 struct nfsstats	nfsstats;
 SYSCTL_NODE(_vfs, MOUNT_NFS, nfs, CTLFLAG_RW, 0, "NFS filesystem");

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mbuf.h	8.5 (Berkeley) 2/19/95
- * $Id: mbuf.h,v 1.23 1997/10/10 14:05:38 phk Exp $
+ * $Id: mbuf.h,v 1.24 1997/10/10 18:15:46 phk Exp $
  */
 
 #ifndef _SYS_MBUF_H_
@@ -395,7 +395,6 @@ extern int	max_linkhdr;		/* largest link-level header */
 extern int	max_protohdr;		/* largest protocol header */
 extern int	max_hdr;		/* largest link+protocol header */
 extern int	max_datalen;		/* MHLEN - max_hdr */
-extern struct malloc_type	*mbtypes[];		/* XXX */
 
 struct	mbuf *m_copym __P((struct mbuf *, int, int, int));
 struct	mbuf *m_copypacket __P((struct mbuf *, int));
@@ -418,26 +417,6 @@ void	m_copyback __P((struct mbuf *, int, int, caddr_t));
 void	m_copydata __P((struct mbuf *,int,int,caddr_t));
 void	m_freem __P((struct mbuf *));
 
-#ifdef MBTYPES
-struct malloc_type *mbtypes[] = {				/* XXX */
-	M_FREE,		/* MT_FREE	0	   should be on free list */
-	M_MBUF,		/* MT_DATA	1	   dynamic (data) allocation */
-	M_MBUF,		/* MT_HEADER	2	   packet header */
-	0,		/*		3 */
-	0,		/*		4 */
-	M_RTABLE,	/* MT_RTABLE	5	   routing tables */
-	0,		/*		6 */
-	0,		/*		7 */
-	M_MBUF,		/* MT_SONAME	8	   socket name */
-	0,		/* 		9 */
-	M_SOOPTS,	/* MT_SOOPTS	10	   socket options */
-	M_FTABLE,	/* MT_FTABLE	11	   fragment reassembly header */
-	0,		/*		12 */
-	0,		/*		13 */
-	M_MBUF,		/* MT_CONTROL	14	   extra-data protocol message */
-	M_MBUF,		/* MT_OOBDATA	15	   expedited data  */
-};
-#endif
-#endif
+#endif /* KERNEL */
 
 #endif /* !_SYS_MBUF_H_ */

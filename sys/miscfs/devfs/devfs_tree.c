@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.42 1997/10/10 07:54:05 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.43 1997/10/11 18:31:28 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -11,11 +11,11 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
+#include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
 #include <sys/time.h>
 #include <sys/vnode.h>
-#include <sys/malloc.h>
 #include <sys/devfsext.h>
 
 #include <machine/stdarg.h>
@@ -23,8 +23,8 @@
 #include <miscfs/devfs/devfsdefs.h>
 
 
-MALLOC_DEFINE(M_DEVFSNODE, "DEVFS node", "DEVFS node");
-MALLOC_DEFINE(M_DEVFSNAME, "DEVFS name", "DEVFS name");
+static MALLOC_DEFINE(M_DEVFSNODE, "DEVFS node", "DEVFS node");
+static MALLOC_DEFINE(M_DEVFSNAME, "DEVFS name", "DEVFS name");
 
 devnm_p	dev_root;		/* root of the backing tree */
 struct mount *devfs_hidden_mount;

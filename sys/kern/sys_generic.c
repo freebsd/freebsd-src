@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.29 1997/09/14 02:30:32 peter Exp $
+ * $Id: sys_generic.c,v 1.30 1997/10/11 18:31:24 phk Exp $
  */
 
 #include "opt_ktrace.h"
@@ -61,8 +61,9 @@
 #include <sys/ktrace.h>
 #endif
 
-MALLOC_DEFINE(M_IOCTLOPS, "ioctlops", "ioctl data buffer");
-MALLOC_DEFINE(M_SELECT, "select", "select() buffer");
+static MALLOC_DEFINE(M_IOCTLOPS, "ioctlops", "ioctl data buffer");
+static MALLOC_DEFINE(M_SELECT, "select", "select() buffer");
+MALLOC_DEFINE(M_IOV, "iov", "large iov's");
 
 static int	selscan __P((struct proc *, fd_mask **, fd_mask **, int, int *));
 static int	pollscan __P((struct proc *, struct pollfd *, int, int *));
