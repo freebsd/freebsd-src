@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef _IA64_IA32_IA32_H_
-#define _IA64_IA32_IA32_H_
+#ifndef _COMPAT_FREEBSD32_FREEBSD32_H_
+#define _COMPAT_FREEBSD32_FREEBSD32_H_
 
 #define PTRIN(v)	(void *)(uintptr_t) (v)
 #define PTROUT(v)	(u_int32_t)(uintptr_t) (v)
@@ -100,4 +100,4 @@ struct statfs32 {
 	int32_t f_spare[2];
 };
 
-#endif /* !_IA64_IA32_IA32_H_ */
+#endif /* !_COMPAT_FREEBSD32_FREEBSD32_H_ */
