@@ -520,17 +520,6 @@ if_detach(struct ifnet *ifp)
 	s = splnet();
 	if_down(ifp);
 
-	/*
-	 * Remove address from ifindex_table[] and maybe decrement if_index.
-	 * Clean up all addresses.
-	 */
-	ifaddr_byindex(ifp->if_index) = NULL;
-	destroy_dev(ifdev_byindex(ifp->if_index));
-	ifdev_byindex(ifp->if_index) = NULL;
-
-	while (if_index > 0 && ifaddr_byindex(if_index) == NULL)
-		if_index--;
-
 	for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa; ifa = next) {
 		next = TAILQ_NEXT(ifa, ifa_link);
 
@@ -570,6 +559,17 @@ if_detach(struct ifnet *ifp)
 	 */
 	in6_ifdetach(ifp);
 #endif
+	/*
+	 * Remove address from ifindex_table[] and maybe decrement if_index.
+	 * Clean up all addresses.
+	 */
+	ifaddr_byindex(ifp->if_index) = NULL;
+	destroy_dev(ifdev_byindex(ifp->if_index));
+	ifdev_byindex(ifp->if_index) = NULL;
+
+	while (if_index > 0 && ifaddr_byindex(if_index) == NULL)
+		if_index--;
+
 
 	/* We can now free link ifaddr. */
 	ifa = TAILQ_FIRST(&ifp->if_addrhead);
