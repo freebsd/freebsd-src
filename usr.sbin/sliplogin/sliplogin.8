@@ -55,14 +55,30 @@ for an entry matching
 If a matching entry is found, the line is configured appropriately
 for slip (8-bit transparent i/o) and converted to
 .Tn SLIP
-line
-discipline.
+line discipline using the optional line discipline parameters.
+.Pp
+The optional line discipline parameters consist of one or more of
+the following;
+.Sq normal ,
+.Sq compress ,
+.Sq noicmp ,
+or
+.Sq autocomp
+which correspond respectively to
+.Sq use normal line discipline
+(no header compression),
+.Sq enable VJ header compression ,
+.Sq throw away ICMP packets ,
+and
+.Sq auto enable VJ header compression
+(only if the remote end of the link also supports it).
 .Pp
 Then a shell script is invoked to initialize the slip
 interface with the appropriate local and remote
 .Tn IP
 address,
 netmask, etc.
+.Pp
 The usual initialization script is
 .Pa /etc/sliphome/slip.login
 but, if particular hosts need special initialization, the file
