@@ -71,16 +71,18 @@ all:	buildworld installworld buildimage
 #
 Customize:	_.cs
 _.cs:	_.iw _.di _.ik _.di
+	rm -f _.cs.tmp
+	touch _.cs.tmp
 .for cust in ${CUSTOMIZE}
 .if exists(${.CURDIR}/Customize/${${cust}})
-	sh -e ${.CURDIR}/Customize/${cust} ${WD} ${WORLDDIR} ${.CURDIR} ${CUSTOMIZE_ARGS}
+	sh -e ${.CURDIR}/Customize/${cust} ${WD} ${WORLDDIR} ${.CURDIR} ${CUSTOMIZE_ARGS}  >> _.cs.tmp 2>&1
 .elif exists(${.CURDIR}/${${cust}})
-	sh -e ${.CURDIR}/${cust} ${WD} ${WORLDDIR} ${.CURDIR} ${CUSTOMIZE_ARGS}
+	sh -e ${.CURDIR}/${cust} ${WD} ${WORLDDIR} ${.CURDIR} ${CUSTOMIZE_ARGS} >> _.cs.tmp 2>&1
 .else
-	sh -e ${cust} ${WD} ${WORLDDIR} ${.CURDIR} ${CUSTOMIZE_ARGS}
+	sh -e ${cust} ${WD} ${WORLDDIR} ${.CURDIR} ${CUSTOMIZE_ARGS} >> _.cs.tmp 2>&1
 .endif
 .endfor
-	touch _.cs
+	mv _.cs.tmp _.cs
 
 ###########################################################################
 #
@@ -145,11 +147,11 @@ buildimage:	_.md
 _.md:	_.cs
 	-umount ${WD}/dev > /dev/null 2>&1
 	chflags -R noschg ${WD} > /dev/null 2>&1
-	rm -rf ${WD}/var/* ${WD}/dev/* ${WD}/tmp
+	rm -rf ${WD}/dev/* ${WD}/tmp
 	# create trigger file for etc/rc.d/initdiskless
 	touch ${WD}/etc/diskless
 	mkdir -p ${WD}/conf/base/var
-	mtree -deU -f ${WD}/etc/mtree/BSD.var.dist -p ${WD}/conf/base/var
+	( cd ${WD}/var && find . -print | cpio -dumpl ../conf/base/var )
 	mkdir -p ${WD}/conf/base/etc
 	( cd ${WD}/etc && find . -print | cpio -dumpl ../conf/base/etc )
 	mkdir -p ${WD}/conf/default/etc
