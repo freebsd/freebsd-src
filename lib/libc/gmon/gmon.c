@@ -43,8 +43,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/gmon.h>
 #include <sys/sysctl.h>
 
+#include "namespace.h"
 #include <err.h>
-#include <errno.h>
+#include "un-namespace.h"
 #include <stdio.h>
 #include <fcntl.h>
 #include <string.h>
@@ -174,16 +175,16 @@ _mcleanup()
 	}
 
 	moncontrol(0);
-	snprintf(outname,sizeof(outname),"%s.gmon",__progname);
+	snprintf(outname, sizeof(outname), "%s.gmon", __progname);
 	fd = _open(outname, O_CREAT|O_TRUNC|O_WRONLY, 0666);
 	if (fd < 0) {
-		warnx("_mcleanup: %s - %s",outname,strerror(errno));
+		_warn("_mcleanup: %s", outname);
 		return;
 	}
 #ifdef DEBUG
 	log = _open("gmon.log", O_CREAT|O_TRUNC|O_WRONLY, 0664);
 	if (log < 0) {
-		perror("_mcleanup: gmon.log");
+		_warn("_mcleanup: gmon.log");
 		return;
 	}
 	len = sprintf(buf, "[mcleanup1] kcount 0x%x ssiz %d\n",
