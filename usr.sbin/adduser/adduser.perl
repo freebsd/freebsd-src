@@ -584,7 +584,7 @@ sub new_users_pwdmkdb {
     system(@pwd_mkdb, '-u', $name, $etc_passwd);
     if ($?) {
 	warn "$last\n";
-	warn "``$pwd_mkdb'' failed\n";
+	warn "``@pwd_mkdb'' failed\n";
 	exit($? >> 8);
     }
 }
