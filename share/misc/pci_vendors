@@ -17,6 +17,7 @@
 0100	Ncipher Corp. Ltd
 0123	General Dynamics
 0160	us robotics
+0315	SK - Electronics Co Ltd
 0675	Dynalink
 	1700	IS64PH ISDN Adapter
 	1702	IS64PH ISDN Adapter
@@ -97,6 +98,8 @@
 	B178	CISSB SMART2 Array Controller
 	B196	Conexant SoftK56 Modem
 	B1A4	NC7131 Gigabit Server Adapter
+	B203	iLo Processor
+	B204	iLo Processor
 	F130	ThunderLAN 1.0 NetFlex-3/P
 	F150	ThunderLAN 2.3 NetFlex-3/P with BNC
 	F700	LP7000 Compaq/Emulex Fibre Channel HBA
@@ -194,7 +197,7 @@
 	4C66	Radeon Mobility M9
 	4D46	Rage Mobility 128 AGP 4x
 	4D4C	Rage Mobility 128 AGP
-	4E44	R300_4E44
+	4E44	Radeon 9700 Series
 	5041	Rage 128 Pro PA PCI
 	5042	Rage 128 Pro PB AGP 2x
 	5043	Rage 128 Pro PC AGP 4x
@@ -737,6 +740,7 @@
 	0496	85C496 CPU to PCI & PCI to ISA Bridge
 	0530	SiS530 Host-to-PCI bridge
 	0540	SiS540 Host-to-PCI Bridge
+	0550	SiS550/1/2 CPU to PCI Bridge
 	0596	SiS596 Pentium PCI chipset with IDE
 	0597	SiS5513 EIDE Controller (step C)
 	0601	SiS83C601 PCI Enhanced IDE Controller
@@ -746,16 +750,24 @@
 	0640	SiS 640 Host-to-PCI Bridge
 	0645	SiS 645 Host-to-PCI Bridge
 	0646	SiS645DX Host-to-PCI Bridge
+	0648	SiS648 CPU to PCI Bridge
+	0649	CPU to PCI Bridge
 	0650	SiS 650 Host-to-PCI Bridge
+	0651	SiS651 CPU to PCI Bridge
+	0655	CPU to PCI Bridge
+	0660	CPU to PCI Bridge
 	0730	SiS 730 Host-to-PCI Bridge
 	0735	SiS 735 Host-to-PCI Bridge
 	0740	SiS 740 Host-to-PCI Bridge
 	0745	SiS745 CPU to PCI Bridge
+	0746	SiS746 CPU to PCI Bridge
 	0750	SiS750 CPU to PCI Bridge
+	0755	CPU to PCI Bridge
 	0900	SiS900 Fast Ethernet/Home Networking Ctrlr
 	3602	SiS83C602 EIDE Controller
 	5107	SiS5107 Hot Docking Controller
 	5300	SiS540 PCI Display Adapter
+	5315	SiS550/1/2 GUI Accelerator
 	5401	SiS5401 486 PCI Chipset
 	5511	SiS5511/5512 PCI/ISA System Memory Controller
 	5513	SiS5513 EIDE Controller (A,B step)
@@ -776,11 +788,14 @@
 	6325	SiS650/1,740 GUI 2D/3D Accelerator
 	6326	SiS 86C326 AGP/PCI Graphics & Video Accelerator
 	7001	SiS5597/8 Universal Serial Bus Controller
+	7005	SiS551/552 Memory Stick Controller
 	7007	SiS OHCI Compliant FireWire Controller
 	7012	SiS7012 Sound Codec
 	7013	SiS7013 56k Modem
+	7015	SiS550/1/2 Software Modem
 	7016	SiS7016 10/100 Ethernet Adapter
 	7018	SiS7018 PCI Audio Accelerator
+	7019	SiS550/1/2 Hardware Audio
 	7300	SiS730 GUI Accelerator + 3D
 103A	Seiko Epson Corporation
 103B	Tatung Corp. Of America
@@ -1160,7 +1175,7 @@
 	1280	ISP1280 SCSI Host Adapter
 	2020	ISP2020A Fast!SCSI Basic Adapter
 	2100	QLA2100 64-bit Fibre Channel Adapter
-	2200	ISP2200
+	2200	QLA2200 PCI Fibre Channel Adapter
 	2300	ISP 2300 64-bit PCI FC-AL Adapter
 	2312	ISP 2312 Fibre Channel Adapter
 1078	Cyrix Corporation
@@ -1925,12 +1940,13 @@
 	8475	EM8475 MPEG-1/2/4 Decoder Card for Video & Audio
 1106	VIA Technologies Inc
 	0130	VT6305 VIA Fire 1394.A OHCI Link Layer Ctrlr
+	0198	P4X600 CPU to PCI Bridge
 	0305	VT8363/5 KT133/KM133 System Controller
 	0391	VT8371 KX133 System Controller
 	0501	VT8501 Apollo MVP4 System Controller
 	0505	VT82C505 VL to PCI Bridge
 	0561	VT82C570 MV IDE Controller (Single FIFO)
-	0571	VT82C5x6/A/B,VT82C686A/B EIDE Controller
+	0571	VT82xxxx EIDE Controller (All VIA Chipsets)
 	0576	VT82C570 MV System Controller
 	0585	VT82C585 Apollo VP,VPX,VPX-97 System Controller
 	0586	VT82C586/A/B PCI to ISA Bridge
@@ -1938,7 +1954,7 @@
 	0596	VT82C596/A/B "Mobile South" PCI to ISA Bridge
 	0597	VT82C597/597AT/598MVP Apollo VP3/MVP3 System Controller
 	0598	VT82C598MVP Apollo MVP3 System Controller
-	0601	VT82C601 Apollo PLE133 System Controller
+	0601	VT8601 Apollo PLE133 CPU to PCI Bridge
 	0605	VT8605 ProSavage PM133 System Controller
 	0680	VT82C680 Apollo P6
 	0686	VT82C686/A/B "Super South" PCI to ISA Bridge
@@ -1950,7 +1966,7 @@
 	1106	VT82C570 MV IDE Controller
 	1571	VT82C416 IDE Controller
 	1595	VT82C595 Apollo VP2,VP2-97 System Controller
-	3038	VT82Cxxxx UHCI USB Controller (All VIA Chipsets)
+	3038	VT82xxxxx UHCI USB 1.1 Controller (All VIA Chipsets)
 	3040	VT83C572, VT86C586/A/B Power Management Controller
 	3043	VT86C100A Rhine 10/100 Fast Ethernet Adapter
 	3044	VT6306 VIA Fire II IEEE-1394 OHCI Link Layer Controller
@@ -1964,22 +1980,34 @@
 	3074	VT8233 PCI to ISA Bridge
 	3086	VT82C686 Power Management Controller (??)
 	3091	VT8633 Apollo Pro 266 CPU to PCI Bridge
-	3099	VT8366/A Apollo KT266/A,KT333 CPU to PCI Bridge
+	3099	VT8366/A,VT8367 Apollo KT266/A,KT333 CPU to PCI Bridge
 	3101	VT8653 Apollo Pro 266T CPU to PCI Bridge
-	3102	VT8362 CPU to PCI Bridge
+	3102	VT8362 ProSavage KN133 CPU to PCI Bridge
 	3103	VT8615 CPU to PCI Bridge
 	3104	VT6202 USB 2.0 Enhanced Host Controller
+	3106	VT6105M/LOM Rhine III 10/100 Mbps Fast Ethernet Controller
 	3109	VT8233C PCI to ISA Bridge
 	3112	VT8361 Apollo KLE133 System Controller
 	3113	PCI to PCI Bridge
-	3116	Apollo KM266 System Controller
+	3116	VT8375 ProSavageDDR PM266/KM266 CPU to PCI Bridge
+	3123	VT8623 Apollo CLE266 CPU to PCI Bridge
 	3128	VT8753 Apollo P4X266 System Controller
 	3133	VT3133 CPU to PCI Bridge
-	3147	VT8233 PCI to ISA Bridge
+	3147	VT8233A PCI to ISA Bridge
 	3148	VT8751 ProSavageDDR P4M266 System Controller
-	3156	VT8372 ProSavageDDR KN266 System Controller
-	3158	CPU-to-PCI Bridge
+	3156	VT8372 ProSavageDDR PN266/KN266 CPU to PCI Bridge
+	3158	ProSavageDDR P4N266 CPU to PCI Bridge
+	3168	ProSavageDDR P4X333 CPU to PCI Bridge
 	3177	VT8233A PCI to ISA Bridge
+	3178	ProSavageDDR P4N333 CPU to PCI Bridge
+	3188	Apollo K8HTB CPU to PCI Bridge
+	3189	VT8377 Apollo KT400 CPU to PCI Bridge
+	3202	K8N400 CPU to PCI Bridge
+	3204	K8M400 CPU to PCI Bridge
+	3205	KM400 CPU to PCI Bridge
+	3208	P4X800 CPU to PCI Bridge
+	3209	P4M400 CPU to PCI Bridge
+	3213	PCI to PCI Bridge
 	5030	VT82C596 ACPI Power Management Controller
 	6010	VT86C100A Rhine II Fast Etheenet Adapter (Error??)
 	6100	VT86C100A Rhine II PCI Fast Ethernet Controller
@@ -1997,18 +2025,23 @@
 	8691	VT82C691/693A/694X Apollo Pro/133/133A PCI to PCI Bridge
 	8693	VT82C693 Apollo Pro Plus PCI to PCI Bridge
 	B091	VT8633 Apollo Pro 266 CPU to AGP Controller
-	B099	VT8366/A Apollo KT266/A CPU to AGP Controller
+	B099	VT8366/A,VT8367 Apollo KT266/A,KT333 PCI to AGP Bridge
 	B101	VT8653 Apollo Pro 266T CPU to AGP Controller
 	B102	VT8362 PCI-to-PCI Bridge (AGP)
 	B103	VT8615 PCI-to-PCI Bridge (AGP)
 	B112	VT8361 Apollo KLE133 CPU to AGP Controller
 	B113	I/O APIC
 	B115	VT8363/5 KT/KM133 CPU to AGP Controller
-	B116	PCI-to-PCI Bridge (AGP)
+	B116	VT8375 ProSavageDDR PM266/KM266 PCI to AGP Bridge
 	B133	vt686b CPU to AGP Controller
 	B148	VT8751 ProSavageDDR P4M266 CPU to AGP Bridge
-	B156	VT8372 ProSavageDDR KN266 CPU to AGP Bridge
-	B158	PCI-to-PCI Bridge (AGP)
+	B156	VT8372 ProSavageDDR PN266/KN266 PCI to AGP Bridge
+	B158	ProSavageDDR P4N266 PCI to AGP Bridge
+	B168	ProSavageDDR P4X333 CPU to AGP 2.0/3.0 Bridge
+	B188	Apollo K8HTB CPU to AGP 2.0/3.0 Bridge
+	B198	ProSavageDDR P4X600 CPU to AGP Bridge
+	B213	I/O APIC
+	D213	PCI to PCI Bridge
 1107	Stratus Computer
 	8576	PCI Host Bridge
 1108	Proteon Inc.
@@ -2742,7 +2775,13 @@
 	9881	RL100TX Fast Ethernet Adapter
 11F7	Scientific Atlanta
 11F8	PMC-Sierra Inc.
+	7364	PM7364 FREEDM-32 Frame Engine and Datalink Manager
+	7366	PM7366 FREEDM-8 Frame Engine and Datalink Manager
+	7367	PM7367 FREEDM-32P32 Frame Engine and Datalink Manager
 	7375	PM7375 LASAR-155 ATM SAR
+	7380	PM7380 FREEDM-32P672 Frame Engine and Datalink Manager
+	7382	PM7382 FREEDM-32P256 Frame Engine and Datalink Manager
+	7384	PM7384 FREEDM-84P672 Frame Engine and Datalink Manager
 11F9	I-Cube Inc
 11FA	Kasan Electronics Company Ltd
 11FB	Datel Inc
@@ -3866,7 +3905,7 @@
 1491	Zeal Corp
 1492	TIME LOGIC Corp
 1493	Maker Communications
-1494	Wintop Technology, Inc
+1494	Wintop Technology Inc
 1495	Tokai Communications Industry Co. Ltd
 1496	Joytech Computer Co. Ltd.
 1497	SMA Regelsysteme GMBH
@@ -3892,7 +3931,7 @@
 14AB	Mentor Graphics Corp.
 14AC	Novaweb Technologies Inc
 14AD	Time Space Radio AB
-14AE	CTI, Inc
+14AE	CTI Inc
 14AF	Guillemot Corp
 14B0	BST Communication Technology Ltd
 14B1	Nextcom K.K.
@@ -4229,7 +4268,7 @@
 1523	Music Semiconductors
 1524	ENE Technology Inc
 1525	Impact Technologies
-1526	ISS, Inc
+1526	ISS Inc
 1527	Solectron
 1528	Acksys
 1529	American Microsystems Inc
@@ -4297,6 +4336,7 @@
 1565	Biostar Microtech Int'l Corp
 1566	Ardent Technologies Inc
 1567	Jungsoft
+	07D2	Disk Protection Card for Windows 2000
 1568	DDK Electronics Inc
 1569	Palit Microsystems Inc
 156A	Avtec Systems
@@ -4620,6 +4660,8 @@
 1677	Bernecker + Rainer
 1678	INH Semiconductor
 1679	Tokyo Electron Device Ltd.
+167D	Samsung Electro-Mechanics Co Ltd
+167E	Onnto Corp
 1680	Dunti Corp
 1681	Hercules
 1682	Pine Technology Ltd
@@ -4631,17 +4673,57 @@
 168E	Hyundai Multicav Computer Co Ltd
 168F	KDS Innotech Corp.
 1690	Netcontinuum Inc
+1693	Ferma
+1695	Epox Computer Co Ltd
+1696	Hitachi Video and Information System Inc
+169A	Otari Inc
+169B	Decsys Corporation
+169C	Netcell Corporation
+169D	Link Evolution Corp
+16A8	Shatai Systems Inc
+16AA	Enseo
+16AB	Global Sun Technology Inc
 16AE	SafeNet Inc.
+16AF	Nextcomm Inc
+16B0	Wincor Nixdorf International GmbH
+16B2	Design Of Systems On Silicon (DS2)
 16B3	CNF Mobile Solutions
+16B4	Aspex Technology Ltd
+16BD	Aristos Logic Corporation
+16BE	Creatix Polymedia GmbH
+16C3	Insilicon Corporation
+16C5	Puretek Industrial Co Ltd
+16C7	Micrel - Kendin Operations
+16C8	OCTASIC Inc
 16CA	Cenatek Inc.
 	0001	Rocket Drive Solid State Disk
 16CB	Minolta Co Ltd
-16CC	INARI
+16CC	Inari
+16CD	Densitron Computers Ltd
+16CF	Roland Corporation
 16D0	Systemax
+16D2	Axis Corporation
+16D8	Omnicluster Technologies
+16DA	Marek Micro GmBH
+16DE	Digital Stream Technology Inc
+16DF	Pika Technology Inc
 16E0	Third Millenium Test Solutions
+16E2	Geotest-Marvin Test Systems Inc
+16E3	European Space agency
+16E7	Keisoku Giken Co Ltd
+16E9	Silicon Sccess Networks
+16EB	Inside Telnetcom Co Ltd
+16ED	Sycron N.V.
+16EE	Canberra Industries Inc
+16EF	Amigo Technology
 16F0	TLA Inc
 16F1	Adicti Corp
+16F2	Bosch Rexroth AG
+16F4	VWEB Corp
 16F6	VideoTele.com Inc.
+16F7	Advanced Rendering Technology Ltd
+16FC	Ciena Corp
+16FE	Fujitsu LSI Solution Ltd
 1700	Antara LLC
 1701	Interactive computer Products Inc
 1702	Internet Machines Corp
@@ -4675,41 +4757,271 @@
 171E	Realchip Inc
 171F	Pijnenburg
 1720	Top Layer Networks Inc
+1721	Glonet Systems INC
+1722	Trimedia Technologies Inc
+1725	APT Technologies Inc
+1726	Avaya
+1729	Danam Communications INC
+172A	Accelerated Encryption
+172C	Ampere Inc
+172E	Digianswer A/S
+172F	Sparkle Computer Co Ltd
+1730	Brainvision Inc
 1734	Fujitsu-Siemens Computers GmbH
+1735	ATEN International Co Ltd
+1737	Linksys
+1738	Harris Corp
+1739	Interface Concept
 173B	Altima Communications Inc
 	03E8	AC1000 Gigabit Ethernet Adapter
+1740	Ulyssix Technologies Inc
 1743	Peppercon AG
 	8139	ROL/F-100 Fast Ethernet Adapter with ROL
+1745	VIXS
+1746	Corrent Corp
+1747	Test Research Inc
+1749	RLX Technologies Inc
+174A	Spirent Communications
 174B	PC Partner Ltd (May Be: Sapphire Technology Ltd??)
 174C	Intelitek
 174D	Wellx Telecom
 174E	Xi'an Tongshi Data Co Ltd
+174F	TAIKO Electric Works Ltd
+1751	Pixelworks Inc
+1753	Tera Recon Inc
+1754	Antares Microsystems Inc
 1755	Alchemy Semiconductor Inc.
+1757	Laservall S.P.A.
+1758	National Hybrid Inc
+1759	Trinamic Microchips
+175D	CTC Parker Automation
+175E	Ascension Technology Corp
+175F	Asita Technologies Inc
+1760	Tedia Spol. Sr.o
+1761	Pickering Interfaces Ltd
+1762	JR3 Inc
+1763	Cmicro Corporation
+1764	Micro Vision Co Ltd
+1765	Future Systems Inc
+1766	Eurotech Spa
+1767	Well Communication Corp
+1768	Malachite Technologies Inc
+176A	General Dynamics Canada
+176E	Kaba Mas Corporation
+176F	SAYA Limited
+1771	InnoVision Multimedia Ltd
+1772	Siber Core Technologies Inc
+1773	Soma Networks Inc
+1775	SBS Technologies Inc
+1778	For-A Company Limited
+1779	V One Multimedia PTE Ltd
+177B	Racal Instruments Inc
+177C	Tanbac Co Ltd
+177D	Cavium Networks
+177E	Jeol  USA Inc
+177F	Precision Instruments Inc
+1780	Unixtar Technology Inc
+1782	Lightsand Communications Inc
+1783	Trebia Networks
+1784	Lockheed Martin Systems Integration
+178A	Sandcraft Inc
+178D	DesignTech Co Ltd
+178E	Envara
+1790	Zuken Inc
+1791	Dotcast Inc
+1792	Artiza Networks Inc
+1793	Unitech Electronics Co Ltd
+1796	Forschungszentrum Julich
+1798	iReady Corp
+1799	Belkin Research and Development Labs
+179B	Ratio Entwicklungen GmbH
+179C	Indus TeQ Site Pvt Ltd
+179D	SES Japn Co Ltd
+179E	IntelliBus Network Systems
+17A1	Macro Image Technology Inc
+17A3	Dongguan Chang'an Global Smart Electronic Factory
+17A4	Resonext Communications Inc
+17A5	Quest Tech Consulting Inc
+17A6	Primarion
 17A7	Start Network Technology Co., Ltd.
+17A8	Gtech
+17A9	Arunta Comsec Pty Ltd
 17AA	Legend Ltd. (Beijing)
 17AB	Phillips Components
-17AD	Techno Scope Co Ltd
+17AD	Genesys Logic Inc
 17AE	NEC Corp
 17AF	Hightech Information Systems, Ltd.
+17B0	Sphinx Elektronik GmbH
+17B1	Astec Inc
+17B2	Aeroflex Test Solutions
+17B3	Hawking Technologies Inc
+17B4	Indra Networks Inc
+17B5	Emerge Core Networks LLC
+17B6	GE Medical Systems
+17B7	CAE
+17B9	Sapura Devices
+17BA	Sandburst Corporation
+17BB	ArTile Microsystems Inc
+17BC	Infiniswitch Corporation
+17BD	Merging Technologies
+17BE	Systemonic AG
+17BF	Max Diligent Technology Inc
+17C0	Wistron Corporation
+17C1	Nital Consulting Services Inc
+17C2	Newisys Inc
+17C3	Protogate Inc
+17C4	Movita Tehnologies Inc
+17C5	Digital Safety Technologies Inc
+17C6	American Computers & Digital Components Inc
+17C7	Bystronic Laser AG
+17C8	Hexium Ltd
+17C9	OPCiel Networks Inc
+17CA	Uniwide Technologies
+17CB	Woodside Networks Inc
+17CC	NetChip Technology Inc
+17CD	Tality Corporation
+17CF	Z-Com Inc
+17D0	Fodus Communications Inc
+17D1	Patton Electronics
+17D2	Red River
+17D3	Areca Technology Corporation
+17D4	Darim Vision Company
+17D5	S2IO Technologies
+17D6	Virtual Silicon Technology Inc
+17D7	SITA
+17D8	Wing-Span Enterprise Co Ltd
+17D9	Leader Electronics Corp
+17DA	0-In Design Automation Inc
+17DB	Cray Inc
+17DC	Visiowave S.A.
+17DD	ICOM Inc
+17DE	Kworld Computer Co Ltd
+17DF	Dini Group LaJalla Inc
+17E0	Integrated Circuit Solution Incorporation
+17E1	ETI A/S
+17E2	DoTop Technology Inc
+17E3	Opteon Corporation
+17E4	Sectra AB
+17E5	Paceline Systems
+17E6	Entropic Communications Inc
+17E7	Mitsubishi Electric Engineering Company Limited
+17E8	Chrontel Inc
+17E9	DH Electronics GmbH
+17EA	iStor Networks Inc
+17EB	Aplux Communications Ltd
+17EC	Chip Engines Inc
+17ED	Arbor Technology Corp
 17EE	Connect Components Ltd
 17EF	Sonexis
 17F0	Velio Communications Inc
 17F1	Interactive Silicon Inc
 17F2	Albatron Corp
+17F3	RDC Semiconductor Co Ltd
+17F4	MicroPlex Printware AG
+17F5	Cymer Inc
+17F6	Leopard Logic Inc
+17F7	Topdek Semiconductor Inc
+17F8	Bermai Inc
+17F9	GemTek Technology Co Ltd
+17FA	E-MOVE Technology Co Ltd
+17FB	Wavecrest Corp
+17FC	Iogear Inc
+17FD	Netexcell
+17FE	InProComm Inc
+17FF	Benq Corp
 1800	Virtual IP group Inc
+1801	Pro-Nets Technology Corp
+1802	Sinus Messtechnik GmbH
+1803	ProdaSafe GmbH
+1804	Enterasys Networks
+1805	Euresys S.A.
+1806	Nexio Systems Inc
+1807	Comit Systems Inc
+1808	Pigeon Point System
+1809	Emuzed Inc
+180A	Brecis Communications
+180B	Formoza-Altair
+180C	ICP Electronics Inc
+180D	Prolific Technology Inc
+180E	HCL Technologies Ltd
+1810	HCL Technologies Ltd
+1811	Wipro Technologies
+1812	LANergy
 1813	Ambient Technologies Inc
 	4000	Creatix V.90 HaM Modem
 	4100	MD8820 Modem
-1820	InfiniCon Systems Inc
+1814	Ralink Technology Corp
+1815	Devolo AG
+1816	Pro Team Computer Corporation
+1817	JAE
+1818	SMAR Equipamentos Industriais Ltd
+1819	Rosta Ltd
+181A	NurLogic Design Inc
+181B	Comax Technology Inc
+181C	Yamatake Corporation
+181D	eInfochips
+181E	TiARIS
+181F	Tachys Technologies
+1820	InfiniCom System
+1821	RedSwitch Inc
+1822	TwinHan Technology Co Ltd
+1823	FulCrum Microsystems
+1824	2C Computing Inc
+1825	Computer Access Technology Corporation
+1826	Cradle Technologies Inc
+1827	Denali Software Inc
+1828	Xsido Corporation
+1829	Verisity Design Inc
+182A	Ampro Computers Inc
+182B	Commetrex Corporation
+182C	SYNAD Technology Ltd
+182D	SiteCom Europe BV
+182E	Raza Foundries Inc
 1830	Credence
+1831	Glimmergalss Networks
+1832	Acquisition Logic Inc
+1833	Cognitronics Corporation
+1834	Delphi Connection Systems
+1835	SimpleTech Inc
+1836	IPFlex Inc
+1837	Sierra Logic Inc
+1838	Precision Photonics Corp
+1839	Genesis Microchip Inc
+183A	Transwarp Networks Inc
+183B	Mikrom GmbH
+183C	GCT Semicondustor Inc
+183D	SI Packets
+183E	Telewise Communications Inc
+183F	Computer Ultrasound Global Inc
 1840	vpr Matrix Inc
+1841	Lamprey Networks Inc
+1842	Camtel Technology Corp
+1843	Firstech Technology Co Ltd
+1844	Controlnet Inc
+1845	Siliquent Technologies Ltd
+1846	Lucent Technologies NS UK
+1847	Engim Inc
+1848	Microcom C.E. as
+1849	ASRock Inc
+184B	Systec Corporation
+184C	Hirose Electric Co Ltd
+184D	ICTV Inc
+184E	Netlogic Microsystems Inc
+184F	Ionwerks Inc
 1850	Advantest Corp
+1851	Microtune Inc
+1852	Anritsu Corp
+1853	Oasis Silicon Systems AG
+1854	LG Electronics
+1855	Cascade Semiconductor Solutions Inc
+1856	Silicon Logic Engineering Inc
 1898	DIC INFORMATION TECHNOLOGY ,LTD
 	2001	DVB Receiver Card
 1978	HARPO sp. z o.o.
 1A08	Sierra Semiconductor
 	0000	SC15064
 1B13	Jaton Corporation
+1B28	Taicom Data Systems Co Ltd
 1C1C	DTC / Symphony / Forex Computer Corp
 	0001	FR710/82C101 EIDE
 1D44	Distributed Processing Technology (DPT)
@@ -4749,6 +5061,9 @@
 	8013	VXPro II Chipset EIDE Controller
 3411	Quantum Designs (H.K.) Inc.
 3513	ARCOM Control Systems Ltd.
+3842	EVGA.COM
+38D0	mfp-online.de
+	62D6	fieldbus-master PCI Measurement bus controller for EPSI
 38EF	4links
 3D3D	3Dlabs, Inc. Ltd
 	0001	GLint 300SX 3D Accelerator
@@ -4788,11 +5103,14 @@
 	1360	RTL8139A 10/100 Mbps PCI Fast Ethernet Controller
 	1380	DEC 21143PD 10/100M PCI Fast Ethernet Controller
 4143	Digital Equipment Corp.
+4144	Alpha Data Parallel Systems Ltd
 416C	Aladdin Knowledge Systems
 	0100	AlladinCARD
 	0200	CPC
-4444	ICompression Inc.
+4250	Burke Porter Ltd
+4444	Conexant Inc (Was: Globespan, ICompression Inc)
 	0002	iTVC12 MPEG Encoder Card
+	0803	iTVC15 MPEG Codec
 4468	Bridgeport Machines
 4550	Tucker-Davis Technologies
 	9054	PLX9054
@@ -4818,6 +5136,7 @@
 4C53	SBS-OR Industrial Computers
 	5000	NV5000 Ethernet Adapter
 4CA1	Seanix Technology Inc
+4CCC	Computer Conversions Corp
 4D51	Mediaq Inc.
 	0200	MQ-200
 4D54	Microtechnica Co Ltd
@@ -4947,6 +5266,7 @@
 6666	Decision Computer International Co.
 	0001	PCCOM4
 	0002	PCCOM8
+6809	Kurusugawa Electronics Industry Inc
 7604	O.N. Electric Co. Ltd.
 7747	DaoGuo Technology Co.,Ltd
 7BDE	MIDAC Corporation
@@ -4987,25 +5307,28 @@
 	0962	80960RM/RN i960RM/RN Microprocessor/Bridge
 	0964	80960RP i960 RP Microprocessor Bridge
 	1000	82542 PRO/1000 Gigabit Server Adapter
-	1001	82543 PRO/1000 F Gigabit Ethernet Adapter
+	1001	82543 PRO/1000 F Gigabit Ethernet Adapter (Fiber)
 	1002	Pro 100 LAN+Modem 56 CardBus II
-	1004	82543 PRO/1000 T Gigabit Server Adapter
-	1008	82544 PRO/1000 XT Gigabit Ethernet Controller
-	1009	82544 PRO/1000 XF Gigabit Ethernet Controller
-	100C	82544GC Gigabit Ethernet Controller
-	100D	82544GC Gigabit Ethernet Controller
+	1004	82543 PRO/1000 T Gigabit Server Adapter (Copper)
+	1008	82544 PRO/1000 XT Gigabit Ethernet Controller (Copper)
+	1009	82544 PRO/1000 XF Gigabit Ethernet Controller (Fiber)
+	100C	82544 T Gigabit Ethernet Controller (Copper)
+	100D	82544GC Gigabit Ethernet Controller (LOM)
 	100E	82544XT PRO/1000 MT Gigabit Ethernet Controller
-	1010	82546EB Dual Gigabit Ethernet Controller
+	100F	82545EM Gigabit Ethernet Controller (Copper)
+	1010	82546EB Gigabit Ethernet Controller (Copper)
+	1011	82545EM Gigabit Ethernet Controller (Fiber)
+	1012	82546EB Gigabit Ethernet Controller (Fiber)
 	1015	82540EM PRO/1000 MT Mobile Connection
 	1029	82559 Fast Ethernet PCI/CardBus Controller
 	1030	82559 PCI Networking device
-	1031	82801CAM PRO/100 VE Network Connection
-	1032	PRO/100 VE Network Connection
-	1033	PRO/100 VM Network Connection
-	1034	PRO/100 VM Network Connection
-	1035	82562EH based Phoneline Network Connection
-	1036	82562EH based Phoneline Network Connection
-	1038	PRO/100 VM Network Connection
+	1031	82801CAM (ICH3) PRO/100 VE (LOM) Network Connection
+	1032	82801CAM (ICH3) PRO/100 VE Network Connection
+	1033	82801CAM (ICH3) PRO/100 VM Network Connection
+	1034	82801CAM (ICH3) PRO/100 VM Network Connection
+	1035	82801CAM (ICH3)/82562EH based Phoneline Network Connection
+	1036	82801CAM (ICH3)/82562EH based Phoneline Network Connection
+	1038	82801CAM (ICH3) PRO/100 VM (KM) Network Connection
 	1039	82801DB (ICH4) PRO/100 VE Network Connection
 	103A	82801DB LAN Controller with 82562ET/EZ (CNR) PHY
 	103B	82801DB (ICH4) PRO/100 VM Network Connection
@@ -5014,7 +5337,7 @@
 	103E	82801DB (ICH4) PRO/100 VM Network Connection
 	1040	536EP V.92 PCI Modem
 	1042	PRO/Wireless 2011 LAN PCI Card
-	1059	PRO/100 M Mobile Connection
+	1059	82551QM PRO/100 M Mobile Connection
 	1100	82815 815/E (Solano) Host to I/O Hub Bridge with 100MHz DRAM Controller
 	1101	82815 815/E (Solano) PCI to AGP Bridge
 	1102	82815 815/E (Solano) Internal GUI Accelerator
@@ -5026,7 +5349,7 @@
 	1131	82815/EM/EP/P 815/EM/EP/P (Solano) PCI to AGP Bridge
 	1132	82815/EM/EP/P 815/EM/EP/P (Solano) Interal GUI Accelerator
 	1161	82806AA PCI64 Hub Advanced Programmable Interrupt Controller
-	1162	BECC XScale 80200 Companion Chip (FPGA by ADI Engineering, Inc)
+	1162	BECC XScale 80200 Companion Chip (FPGA by ADI Engineering Inc)
 	1209	82559ER Fast Ethernet Controller
 	1221	82092AA PCI to PCMCIA Bridge
 	1222	82092AA EIDE Controller
@@ -5141,7 +5464,7 @@
 	2537	82850/82860 (850/860) ??? Controller
 	2539	82860 (Quad Processor mode)
 	2540	E7500 System Controller (MCH, Hub Interface A)
-	2541	E7500 System Controller (MCH, Hub Interface A)
+	2541	E7500 System Controller (MCH, Hub Interface A) Error Reporter
 	2543	E7500 HI_B Virtual PCI-to-PCI Bridge
 	2544	E7500 HI_B PCI-to-PCI Bridge Error Reporting
 	2545	E7500 HI_C Virtual PCI-to-PCI Bridge
@@ -5335,6 +5658,7 @@
 	00C3	AIC-7899D Ultra160 SCSI Host Adapter
 	00C5	RAID Subsystem HBA
 	00CF	AIC-7899 Ultra160 SCSI Host Adapter
+	0285	AAC-RAID RAID Controller
 907F	Atronics
 	2015	IDE-2015PL EIDE Controller
 919A	Gigapixel Corp
@@ -5354,14 +5678,15 @@
 	9855	Nm9855 Parallel/Serial Port Adapter
 9875	wouteronline
 9877	pan asia superitendence corp
-9902	Starbridge Technologies Inc
+9902	StarGen, Inc.
 	0001	SG2010 PCI-to-PCI Bridge
 	0002	SG2010 PCI to high speed serial bridge
-	0003	SG1010 6 port serial switch /PCI-to-PCI bridge
+	0003	SG1010 6 Port Serial Switch & PCI to PCI Bridge
 A0A0	Aopen Inc.
 A0F1	Unisys Corporation
 A200	NEC Corp.
 A259	Hewlett Packard
+A25A	Hewlett Packard Convex Division
 A25B	Hewlett Packard GmbH PL24-MKT
 A304	Sony
 A727	3com Corporation
@@ -5381,6 +5706,7 @@ B00C	IC Book Labs
 	081C	Dreadnought x16 Pro
 	091C	Dreadnought x16 Lite
 B1B3	Shiva Europe Ltd.
+B54B	Contec Co Ltd
 B894	Brown & Sharpe Mfg. Co.
 C001	TSI Telsys
 C0A9	Micron/Crucial Technology
@@ -5401,7 +5727,7 @@ DC93	Dawicontrol
 DEAD	Indigita Corporation
 DEAF	Middle Digital, Inc
 	9050	PC Weasel PCI VGA Device
-	9051	PC Weasel PCI Serial Comm. Device
+	9051	PC Weasel PCI Serial Communication Device
 	9052	PC Weasel PCI
 E000	Winbond
 	E000	W89C940 Ethernet Adapter
@@ -5423,7 +5749,7 @@ EACE	Endace Measurement Systems Ltd.
 	4100	DAG 4.10 OC-48
 	4110	DAG 4.11 OC-48
 	4200	DAG 4.2 OC-48
-	420E	DAG 4.2E Gigabit Ethernet
+	420E	DAG 4.2E Dual Gigabit Ethernet
 ECC0	Echo Corporation
 EDD8	ARK Logic, Inc
 	A091	ARK1000PV Stingray GUI Accelerator
