@@ -161,6 +161,12 @@ loop:
 		break;
 
 	case Pexe:
+		pfs->pfs_mode = (VREAD|VEXEC) |
+				(VREAD|VEXEC) >> 3 |
+				(VREAD|VEXEC) >> 6;
+		vp->v_type = VLNK;
+		break;
+
 	case Pmem:
 		pfs->pfs_mode = (VREAD|VWRITE) |
 				(VREAD) >> 3;;

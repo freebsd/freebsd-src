@@ -52,6 +52,7 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_param.h>
+#include <vm/vm_object.h>
 #include <vm/swap_pager.h>
 #include <sys/vmmeter.h>
 #include <sys/exec.h>
@@ -80,6 +81,7 @@ linprocfs_domeminfo(curp, p, pfs, uio)
 	unsigned long swaptotal;	/* total swap space in bytes */
 	unsigned long swapused;		/* used swap space in bytes */
 	unsigned long swapfree;		/* free swap space in bytes */
+	vm_object_t object;
 
 	if (uio->uio_rw != UIO_READ)
 		return (EOPNOTSUPP);
@@ -100,7 +102,12 @@ linprocfs_domeminfo(curp, p, pfs, uio)
 	swaptotal = swapblist->bl_blocks * 1024; /* XXX why 1024? */
 	swapfree = swapblist->bl_root->u.bmu_avail * PAGE_SIZE;
 	swapused = swaptotal - swapfree;
-	memshared = 0; /* XXX what's this supposed to be? */
+	memshared = 0;
+	for (object = TAILQ_FIRST(&vm_object_list); object != NULL;
+	    object = TAILQ_NEXT(object, object_list))
+		if (object->shadow_count > 1)
+			memshared += object->resident_page_count;
+	memshared *= PAGE_SIZE;
 	/*
 	 * We'd love to be able to write:
 	 *
