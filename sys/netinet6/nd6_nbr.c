@@ -830,7 +830,7 @@ nd6_na_output(ifp, daddr6, taddr6, flags, tlladdr, sdl0)
 	struct ip6_moptions im6o;
 	int icmp6len;
 	int maxlen;
-	caddr_t mac;
+	caddr_t mac = NULL;
 	struct ifnet *outif = NULL;
 
 	/* estimate the size of message */
@@ -908,7 +908,6 @@ nd6_na_output(ifp, daddr6, taddr6, flags, tlladdr, sdl0)
 	 * target lladdr option SHOULD NOT be included.
 	 */
 	if (tlladdr) {
-		mac = NULL;
 		/*
 		 * sdl0 != NULL indicates proxy NA.  If we do proxy, use
 		 * lladdr in sdl0.  If we are not proxying (sending NA for
