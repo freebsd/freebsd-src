@@ -2198,6 +2198,16 @@ ufs_pathconf(ap)
 		*ap->a_retval = 0;
 #endif
 		return (0);
+	case _POSIX_ACL_PATH_MAX:
+#ifdef UFS_ACL
+		if (ap->a_vp->v_mount->mnt_flag & MNT_ACLS)
+			*ap->a_retval = ACL_MAX_ENTRIES;
+		else
+			*ap->a_retval = 3;
+#else
+		*ap->a_retval = 3;
+#endif
+		return (0);
 	case _POSIX_MAC_PRESENT:
 #ifdef MAC
 		if (ap->a_vp->v_mount->mnt_flag & MNT_MULTILABEL)
