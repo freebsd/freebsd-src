@@ -33,6 +33,17 @@
 typedef __uintptr_t	devinfo_handle_t;
 #define DEVINFO_ROOT_DEVICE	((devinfo_handle_t)0)
 
+/*
+ * State of the device.
+ */
+/* XXX not sure if I want a copy here, or expose sys/bus.h */
+typedef enum devinfo_state {
+	DIS_NOTPRESENT,			/* not probed or probe failed */
+	DIS_ALIVE,			/* probe succeeded */
+	DIS_ATTACHED,			/* attach method called */
+	DIS_BUSY			/* device is open */
+} devinfo_state_t;
+
 struct devinfo_dev {
 	devinfo_handle_t	dd_handle;	/* device handle */
 	devinfo_handle_t	dd_parent;	/* parent handle */
@@ -40,6 +51,11 @@ struct devinfo_dev {
 	char			*dd_name;	/* name of device */
 	char			*dd_desc;	/* device description */
 	char			*dd_drivername;	/* name of attached driver*/
+	char			*dd_pnpinfo;	/* pnp info from parent bus */
+	char			*dd_location;	/* Where bus thinks dev at */
+	uint32_t		dd_devflags;	/* API flags */
+	uint16_t		dd_flags;	/* internal dev flags */
+	devinfo_state_t		dd_state;	/* attacement state of dev */
 };
 
 struct devinfo_rman {
