@@ -49,7 +49,7 @@ static char sccsid[] = "@(#)term.c	8.1 (Berkeley) 6/4/93";
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "termcap.h"	/* XXX: should be <termcap.h> */
+#include <termcap.h>
 #include <sys/types.h>
 
 #include "el.h"
@@ -67,82 +67,6 @@ static char sccsid[] = "@(#)term.c	8.1 (Berkeley) 6/4/93";
 		    el->el_term.t_str[a][0] != '\0')
 #define Str(a) el->el_term.t_str[a]
 #define Val(a) el->el_term.t_val[a]
-
-private struct {
-    char   *b_name;
-    int     b_rate;
-} baud_rate[] = {
-#ifdef B0
-    { "0", B0 },
-#endif
-#ifdef B50
-    { "50", B50 },
-#endif
-#ifdef B75
-    { "75", B75 },
-#endif
-#ifdef B110
-    { "110", B110 },
-#endif
-#ifdef B134
-    { "134", B134 },
-#endif
-#ifdef B150
-    { "150", B150 },
-#endif
-#ifdef B200
-    { "200", B200 },
-#endif
-#ifdef B300
-    { "300", B300 },
-#endif
-#ifdef B600
-    { "600", B600 },
-#endif
-#ifdef B900
-    { "900", B900 },
-#endif
-#ifdef B1200
-    { "1200", B1200 },
-#endif
-#ifdef B1800
-    { "1800", B1800 },
-#endif
-#ifdef B2400
-    { "2400", B2400 },
-#endif
-#ifdef B3600
-    { "3600", B3600 },
-#endif
-#ifdef B4800
-    { "4800", B4800 },
-#endif
-#ifdef B7200
-    { "7200", B7200 },
-#endif
-#ifdef B9600
-    { "9600", B9600 },
-#endif
-#ifdef EXTA
-    { "19200", EXTA },
-#endif
-#ifdef B19200
-    { "19200", B19200 },
-#endif
-#ifdef EXTB
-    { "38400", EXTB },
-#endif
-#ifdef B38400
-    { "38400", B38400 },
-#endif
-#ifdef B57600
-    { "57600", B57600 },
-#endif
-#ifdef B115200
-    { "115200", B115200 },
-#endif
-    { NULL, 0 }
-};
 
 private struct termcapstr {
     char   *name;
@@ -1131,11 +1055,11 @@ term_bind_arrow(el)
 /* term__putc():
  *	Add a character
  */
-protected void
+protected int
 term__putc(c)
     int c;
 {
-    (void) fputc(c, term_outfile);
+    return fputc(c, term_outfile);
 } /* end term__putc */
 
 
@@ -1320,14 +1244,7 @@ term_echotc(el, argc, argv)
     }
 #endif
     else if (strcmp(*argv, "baud") == 0) {
-	int     i;
-
-	for (i = 0; baud_rate[i].b_name != NULL; i++)
-	    if (el->el_tty.t_speed == baud_rate[i].b_rate) {
-		(void) fprintf(el->el_outfile, fmts, baud_rate[i].b_name);
-		return 0;
-	    }
-	(void) fprintf(el->el_outfile, fmtd, 0);
+	(void) fprintf(el->el_outfile, "%ld\n", el->el_tty.t_speed);
 	return 0;
     }
     else if (strcmp(*argv, "rows") == 0 || strcmp(*argv, "lines") == 0) {
