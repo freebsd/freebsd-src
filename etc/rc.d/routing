@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.51 1999/07/26 10:49:31 brian Exp $
+#	$Id: rc.network,v 1.52 1999/07/26 15:17:23 brian Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -196,6 +196,16 @@ network_pass1() {
     if [ X"$icmp_bmcastecho" = X"YES" ]; then
 	    echo -n ' broadcast ping responses=YES'
 	    sysctl -w net.inet.icmp.bmcastecho=1 >/dev/null
+    fi
+    
+    if [ "X$icmp_drop_redirect" = X"YES" ]; then
+	    echo -n ' ignore ICMP redirect=YES'
+	    sysctl -w net.inet.icmp.drop_redirect=1 >/dev/null
+    fi
+    
+    if [ "X$icmp_log_redirect" = X"YES" ]; then
+	    echo -n ' log ICMP redirect=YES'
+	    sysctl -w net.inet.icmp.log_redirect=1 >/dev/null
     fi
 
     if [ "X$gateway_enable" = X"YES" ]; then
