@@ -35,6 +35,10 @@
  * Symbol table routines for kld maintained kernels.
  */
 
+#include "opt_ddb.h"
+
+#ifndef DDB_NOKLDSYM
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/linker.h>
@@ -124,3 +128,5 @@ kdb_init()
 {
 	db_add_symbol_table(0, 0, "kernel", 0);
 }
+
+#endif /* !DDB_NOKLDSYM */
