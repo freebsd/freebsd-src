@@ -5,7 +5,9 @@ SSHSRC=	${.CURDIR}/../../../crypto/openssh
 
 PROG=	ssh
 BINOWN=	root
+.if defined(ENABLE_SUID_SSH)
 BINMODE=4555
+.endif
 MAN1=	ssh.1
 LINKS=	${BINDIR}/ssh ${BINDIR}/slogin
 MLINKS=	ssh.1 slogin.1
