@@ -167,6 +167,13 @@ Either
 or
 .Fa basep
 point outside the allocated address space.
+.It Bq Er EINVAL
+The file referenced by
+.Fa fd
+is not a directory, or
+.Fa nbytes
+is too small for returning a directory entry or block of entries,
+or the current position pointer is invalid.
 .It Bq Er EIO
 An
 .Tn I/O
