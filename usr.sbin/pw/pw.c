@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: pw.c,v 1.11 1999/01/08 10:52:38 davidn Exp $";
+	"$Id: pw.c,v 1.12 1999/02/23 07:15:10 davidn Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -98,18 +98,18 @@ main(int argc, char *argv[])
 	static const char *opts[W_NUM][M_NUM] =
 	{
 		{ /* user */
-			"VC:qn:u:c:d:e:p:g:G:mk:s:oL:i:w:h:Db:NPy:Y",
-			"VC:qn:u:rY",
-			"VC:qn:u:c:d:e:p:g:G:ml:k:s:w:L:h:FNPY",
-			"VC:qn:u:FPa",
-			"VC:q"
+			"V:C:qn:u:c:d:e:p:g:G:mk:s:oL:i:w:h:Db:NPy:Y",
+			"V:C:qn:u:rY",
+			"V:C:qn:u:c:d:e:p:g:G:ml:k:s:w:L:h:FNPY",
+			"V:C:qn:u:FPa",
+			"V:C:q"
 		},
 		{ /* grp  */
-			"VC:qn:g:h:M:pNPY",
-			"VC:qn:g:Y",
-			"VC:qn:g:l:h:FM:m:NPY",
-			"VC:qn:g:FPa",
-			"VC:q"
+			"V:C:qn:g:h:M:pNPY",
+			"V:C:qn:g:Y",
+			"V:C:qn:g:l:h:FM:m:NPY",
+			"V:C:qn:g:FPa",
+			"V:C:q"
 		 }
 	};
 
@@ -141,8 +141,8 @@ main(int argc, char *argv[])
 					--argc;
 				}
 				addarg(&arglist, 'V', optarg);
-			}
-			break;
+			} else
+				break;
 		}
 		else if ((tmp = getindex(Modes, argv[1])) != -1)
 			mode = tmp;
