@@ -137,14 +137,17 @@ FreeBSD 4.0  |      |  |  |  | NetBSD 1.4.2    |             |
  |   FreeBSD 4.1.1  |  |  /  |    |            |             |
  |      |           |  | /   |    v            |             |
  |   FreeBSD 4.2   Darwin/   | NetBSD 1.4.3    |             |
- |      |         Mac OS X   |             OpenBSD 2.8     BSD/OS 4.2
+ |      |         Mac OS X   |    |        OpenBSD 2.8     BSD/OS 4.2
+ |      |             |      |    v            |             |
+ |      |             |      |                 |             |
  |      |           10.0  NetBSD 1.5           |             |
  |   FreeBSD 4.3      |      |    |            |             v
  |      |             |      |    v        OpenBSD 2.9
  |      |             |      | NetBSD 1.5.1    |
- |   FreeBSD 4.4      |      |                 |
- |      |             |      |                 |
- |      v             |      |                 |
+ |      |             |      |    |            |
+ |   FreeBSD 4.4      |      | NetBSD 1.5.2    |
+ |      |             |      |    |            |
+ |      v             |      |    v            |
  |                    |      |                 |
 FreeBSD 5.0-current   |   NetBSD -current  OpenBSD -current
  |                    |      |                 |
@@ -338,6 +341,7 @@ Mac OS X 10.0           2001-03-24 [APL]
 FreeBSD 4.3  		2001-04-20 [FBD]
 OpenBSD 2.9  		2001-06-01 [OBD]
 NetBSD 1.5.1		2001-07-11 [NBD] (patch release)
+NetBSD 1.5.2		2001-09-13 [NBD] (patch release)
 FreeBSD 4.4  		2001-09-18 [FBD]
 Mac OS X 10.1		2001-09-xx [APL]
 
