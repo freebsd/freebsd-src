@@ -7,7 +7,7 @@
 MISRCS+=abort.c abs.c atexit.c atof.c atoi.c atol.c bsearch.c calloc.c div.c \
 	exit.c getenv.c getopt.c getsubopt.c hcreate.c heapsort.c labs.c \
 	ldiv.c malloc.c merge.c putenv.c qsort.c radixsort.c rand.c random.c \
-	reallocf.c realpath.c setenv.c strhash.c strtol.c \
+	reallocf.c realpath.c setenv.c strfmon.c strhash.c strtol.c \
 	strtoll.c strtoq.c strtoul.c strtoull.c strtouq.c system.c \
 	tdelete.c tfind.c tsearch.c twalk.c
 
