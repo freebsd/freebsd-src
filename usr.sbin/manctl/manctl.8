@@ -40,8 +40,9 @@
 .Nm Manctl
 compress or uncompress manual pages in directory path. 
 If possible, .so's are replaced with hard links.
-.Sh OPTIONS
-.Bl -tag -width -indent
+.Pp
+The following options are available:
+.Bl -tag -width indent
 .It Fl help
 Print options and exit.
 .It Fl compress
@@ -50,6 +51,7 @@ Compress uncompressed man pages (eliminating .so's).
 Uncompress compressed man pages.
 .It Fl purge
 Purge old formatted man pages (not implemented yet).
+.El
 .Sh SEE ALSO
 .Xr catman 1 ,
 .Xr man 1
