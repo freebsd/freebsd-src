@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.379 1997/11/04 21:11:14 steve Exp $
+#	$Id$
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -983,6 +983,8 @@ options		NATM			#native ATM
 # gus: Gravis Ultrasound - Ultrasound, Ultrasound 16, Ultrasound MAX
 # gusxvi: Gravis Ultrasound 16-bit PCM	(do not use)
 # mss: Microsoft Sound System
+# sscape: Ensoniq Soundscape MIDI interface
+# sscape_mss: Ensoniq Soundscape PCM (requires sscape)
 # opl: Yamaha OPL-2 and OPL-3 FM - SB, SB Pro, SB 16, ProAudioSpectrum
 # uart: stand-alone 6850 UART for MIDI
 # mpu: Roland MPU-401 stand-alone card
@@ -1037,13 +1039,14 @@ device awe0     at isa? port 0x620
 device gus0 at isa? port 0x220 irq 12 drq 1 vector gusintr
 #device gus0 at isa? port 0x220 irq 12 drq 1 flags 0x3 vector gusintr
 device mss0 at isa? port 0x530 irq 10 drq 1 vector adintr
+device sscape0  at isa? port 0x330 irq 9 drq 0 vector sscapeintr
+device sscape_mss0  at isa? port 0x534 irq 5 drq 1 vector sndintr
 device opl0     at isa? port 0x388
 device mpu0     at isa? port 0x330 irq 6 drq 0
 device uart0 at isa? port 0x330 irq 5 vector "m6850intr"
 
 # More undocumented sound devices with bogus configurations for linting.
 # broken
-#device sscape0  at isa? port 0x330 irq 6 drq 0
 #device trix0    at isa? port 0x330 irq 6 drq 0 vector sscapeintr
 
 # Luigi's snd code
