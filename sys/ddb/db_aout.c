@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_aout.c,v 1.6 1994/01/14 16:23:00 davidg Exp $
+ *	$Id: db_aout.c,v 1.7 1994/08/13 03:49:14 wollman Exp $
  */
 
 /*
@@ -331,11 +331,11 @@ kdb_init(void)
 	extern int	end;
 
 	if (esym > (char *)&end) {
-	    X_db_sym_init((int *)&end, esym, "386bsd");
+	    X_db_sym_init((int *)&end, esym, "kernel");
 	}
 #endif
 
-	X_db_sym_init (db_symtab, 0, "386bsd");
+	X_db_sym_init (db_symtab, 0, "kernel");
 }
 
 #if 0
