@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.188 1995/11/26 12:35:49 asami Exp $
+# $Id: bsd.port.mk,v 1.189 1995/12/07 14:11:29 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -491,7 +491,7 @@ do-fetch:
 			${ECHO_MSG} ">> $$file doesn't seem to exist on this system."; \
 			for site in ${MASTER_SITES}; do \
 			    ${ECHO_MSG} ">> Attempting to fetch from $${site}."; \
-				(${NCFTP} ${NCFTPFLAGS} $${site}$${file} || true); \
+				(${NCFTP} ${NCFTPFLAGS} $${site}$${file} ${NCFTPTAIL} || true); \
 				if [ -f $$file -o -f `/usr/bin/basename $$file` ]; then \
 					continue 2; \
 				fi \
@@ -509,7 +509,7 @@ do-fetch:
 			${ECHO_MSG} ">> $$file doesn't seem to exist on this system."; \
 			for site in ${PATCH_SITES}; do \
 			    ${ECHO_MSG} ">> Attempting to fetch from $${site}."; \
-				(${NCFTP} ${NCFTPFLAGS} $${site}$${file} || true); \
+				(${NCFTP} ${NCFTPFLAGS} $${site}$${file} ${NCFTPTAIL} || true); \
 				if [ -f $$file -o -f `/usr/bin/basename $$file` ]; then \
 					continue 2; \
 				fi \
@@ -890,7 +890,7 @@ fetch-list:
 	 for file in ${DISTFILES}; do \
 		if [ ! -f $$file -a ! -f `/usr/bin/basename $$file` ]; then \
 			for site in ${MASTER_SITES}; do \
-				/bin/echo -n ${NCFTP} ${NCFTPFLAGS} $${site}$${file} '||' ; \
+				/bin/echo -n ${NCFTP} ${NCFTPFLAGS} $${site}$${file} "${NCFTPTAIL}" '||' ; \
 					break; \
 			done; \
 			/bin/echo "echo $${file} not fetched" ; \
@@ -901,7 +901,7 @@ fetch-list:
 	 for file in ${PATCHFILES}; do \
 		if [ ! -f $$file -a ! -f `/usr/bin/basename $$file` ]; then \
 			for site in ${PATCH_SITES}; do \
-				/bin/echo -n ${NCFTP} ${NCFTPFLAGS} $${site}$${file} ${PATCH_PRFX}$${file} '||' ; \
+				/bin/echo -n ${NCFTP} ${NCFTPFLAGS} $${site}$${file} ${PATCH_PRFX}$${file} "${NCFTPTAIL}" '||' ; \
 					break; \
 			done; \
 			/bin/echo "echo $${file} not fetched" ; \
