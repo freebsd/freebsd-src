@@ -53,8 +53,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)ffs_softdep.c	9.27 (McKusick) 6/12/98
- *	$Id: ffs_softdep.c,v 1.11 1998/06/12 20:48:30 julian Exp $
+ *	from: @(#)ffs_softdep.c	9.28 (McKusick) 8/8/98
+ *	$Id: ffs_softdep.c,v 1.12 1998/06/12 21:21:26 julian Exp $
  */
 
 /*
@@ -2258,6 +2258,7 @@ free_diradd(dap)
 	} else {
 		dirrem = dap->da_previous;
 		pagedep = dirrem->dm_pagedep;
+		dirrem->dm_dirinum = pagedep->pd_ino;
 		add_to_worklist(&dirrem->dm_list);
 	}
 	if (inodedep_lookup(VFSTOUFS(pagedep->pd_mnt)->um_fs, dap->da_newinum,
@@ -2437,6 +2438,20 @@ softdep_setup_directory_change(bp, dp, ip, newinum, isrmdir)
 	 */
 	dirrem = newdirrem(bp, dp, ip, isrmdir);
 	pagedep = dirrem->dm_pagedep;
+	/*
+	 * The possible values for isrmdir:
+	 *	0 - non-directory file rename
+	 *	1 - directory rename within same directory
+	 *   inum - directory rename to new directory of given inode number
+	 * When renaming to a new directory, we are both deleting and
+	 * creating a new directory entry, so the link count on the new
+	 * directory should not change. Thus we do not need the followup
+	 * dirrem which is usually done in handle_workitem_remove. We set
+	 * the DIRCHG flag to tell handle_workitem_remove to skip the 
+	 * followup dirrem.
+	 */
+	if (isrmdir > 1)
+		dirrem->dm_state |= DIRCHG;
 
 	/*
 	 * Whiteouts have no additional dependencies,
@@ -2546,6 +2561,16 @@ handle_workitem_remove(dirrem)
 	ip->i_flag |= IN_CHANGE;
 	if ((error = UFS_TRUNCATE(vp, (off_t)0, 0, p->p_ucred, p)) != 0)
 		softdep_error("handle_workitem_remove: truncate", error);
+	/*
+	 * Rename a directory to a new parent. Since, we are both deleting
+	 * and creating a new directory entry, the link count on the new
+	 * directory should not change. Thus we skip the followup dirrem.
+	 */
+	if (dirrem->dm_state & DIRCHG) {
+		vput(vp);
+		WORKITEM_FREE(dirrem, D_DIRREM);
+		return;
+	}
 	ACQUIRE_LOCK(&lk);
 	(void) inodedep_lookup(ip->i_fs, dirrem->dm_oldinum, DEPALLOC,
 	    &inodedep);
