@@ -1,7 +1,7 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/proc-alpha.sgml,v 1.18 2002/10/22 21:23:18 ue Exp $
-  basiert auf: 1.45
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/proc-alpha.sgml,v 1.20 2002/11/23 16:06:52 ue Exp $
+  basiert auf: 1.48
 -->
 
 <sect1>
@@ -1224,7 +1224,13 @@ cpu     EV5</programlisting>
         geladen werden.</para>
 
       <para>Die SRM Konsole kann nicht vom IDE Anschlu&szlig; des
-        AlphaPC64 booten.</para>
+        AlphaPC64 booten.  Wenn Sie den IDE-Anschlu&szlig; verwenden
+	wollen, mu&szlig; in der Konfigurationsdatei f&uuml;r den
+	angep&szlig;aten Kernel die folgende Zeile stehen:</para>
+
+      <programlisting>device ata</programlisting>
+
+      <para>Der IDE-Anschlu&szlig; nutzt IRQ 14.</para>
 
       <para>Denken Sie daran, da&szlig; Sie ein Netzteil brauchen, das
         3.3 Volts bereitstellt (f&uuml;r die CPU).</para>
@@ -1638,7 +1644,7 @@ cpu     EV4</programlisting>
 
           <itemizedlist>
             <listitem>
-              <para>gepufferte Standard-DIMMs, 72 Bit breite</para>
+              <para>gepufferte Standard Fast Page Mode DIMMs, 72 Bit</para>
             </listitem>
 
             <listitem>
@@ -1799,7 +1805,9 @@ cd0: 250.000MB/s transfers (250.000 MHz, offset 12)</programlisting>
         allerdings sind die B&auml;nke ineinander verzahnt
         (<quote>physically interleaved layout</quote>). Eine Gruppe
         von 4 DIMMs besteht also <emphasis>nicht</emphasis> aus vier
-        nebeneinanderliegenden DIMMs.</para>
+        nebeneinanderliegenden DIMMs.  Denken Sie daran, da&szlig;
+	Sie SDRAM DIMMs <emphasis>nicht</emphasis> verwenden
+	k&ouml;nnen.</para>
 
       <para>Bei der AS600 sind die SIMMs auf zwei speziellen
         Speicherkarten untergebracht.  Die SIMM m&uuml;ssen in
