@@ -261,6 +261,10 @@ void ldisc_deregister(int);
 
 #define NUMCDEVSW 256
 
+/*
+ * XXX: do not use MAJOR_AUTO unless you have no choice.  In general drivers
+ * should just not initialize .d_maj and that will DTRT.
+ */
 #define	MAJOR_AUTO	0	/* XXX: Not GM */
 
 l_ioctl_t	l_nullioctl;
