@@ -1,7 +1,7 @@
 <!--
   The FreeBSD German Documentation Project
   The FreeBSD Documentation Project
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/readme/article.sgml,v 1.2.2.2 2002/03/12 18:18:05 ue Exp $
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/readme/article.sgml,v 1.2.2.3 2002/03/17 10:31:34 ue Exp $
   $Id: article.sgml,v 1.9 2002/03/10 15:37:18 ue Exp $
   basiert auf: 1.1.2.13 
 -->
@@ -114,10 +114,10 @@
       <para>Wenn Sie einen &release.type; benutzen wollen,
         m&uuml;ssen Sie sich mit der Technik von &os; und den
         aktuellen Vorg&auml;ngen bei der Entwicklung von &os;
-        &release.branch; (wie sie in der &a.stable; diskutiert werden)
+        &release.branch; (wie sie in der Mailingliste &a.stable; diskutiert werden)
         auskennen.</para>
 
-      <para>[Anmerkung des &Uuml;bersetzers:  Auf der &a.stable; wird
+      <para>[Anmerkung des &Uuml;bersetzers:  Auf der Mailingliste &a.stable; wird
         Englisch gesprochen und die meisten Dokumente sind ebenfalls
         in dieser Sprache verfa&szlig;t worden.  Ohne gute
         Englischkenntnisse kommt man also nicht weit.  Allerdings
@@ -208,7 +208,7 @@
       <title>Email und Mailinglisten</title>
 
       <para>Wenn Sie Fragen haben oder Hilfe ben&ouml;tigen, wenden
-        Sie sich bitte an &a.questions;.</para>
+        Sie sich bitte an Mailingliste &a.questions;.</para>
 
       <para>Wenn Sie die Entwicklung von -STABLE
         mitverfolgen, <emphasis>m&uuml;ssen</emphasis> Sie die
@@ -223,14 +223,14 @@
         W&uuml;nsche als Zeit, um diese umzusetzen.  Wenn Sie Kontakt
         zu den Entwicklern suchen, um technische Angelegenheiten zu
         besprechen oder um Ihre Hilfe anzubieten, wenden Sie sich
-        bitte an &a.hackers;.</para>
+        bitte an die Mailingliste &a.hackers;.</para>
 
       <para>Bitte beachten Sie, auf diesen Mailinglisten teilweise
         <emphasis>extrem viele</emphasis> Mails erscheinen.  Wenn Ihre
         Mailversorgung nur sehr langsam oder sehr teuer ist, oder Sie
         nur an den Schlagzeilen der &os;-Entwicklung interessiert
         sind, d&uuml;rfte es besser sein, wenn Sie sich auf
-        &a.announce; konzentrieren.</para>
+        die Mailingliste &a.announce; konzentrieren.</para>
 
       <para>Alle Mailinglisten stehen f&uuml;r jeden offen, der sich
         f&uuml;r das jeweilige Thema interessiert.  Senden Sie einfach
@@ -283,7 +283,7 @@
         dringend, diese Variante zu verwenden.  Wenn Sie allerdings
         aus irgendeinem Grund &man.send-pr.1; nicht benutzen
         k&ouml;nnen, k&ouml;nnen Sie versuchen, Ihren Problem Report
-        an &a.bugs; zu senden.</para>
+        an die Mailingliste &a.bugs; zu senden.</para>
 
       <para>Weitere Informationen finden Sie im Dokument <ulink
         url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/problem-reports/"><quote>Writing

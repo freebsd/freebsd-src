@@ -1,7 +1,7 @@
 <!--
 
 $FreeBSD$
-$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/install.sgml,v 1.2.2.2 2002/03/12 18:15:45 ue Exp $
+$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/install.sgml,v 1.2.2.3 2002/03/17 10:31:33 ue Exp $
 $Id: install.sgml,v 1.3 2002/03/10 15:37:17 ue Exp $
 basiert auf: 1.1.2.11
 
@@ -957,7 +957,7 @@ scratch.</para>
             ist dieses Programm noch nicht vollst&auml;ndig und es
             gibt noch einige Probleme damit.  Wenn Sie interessiert
             sind, an diesem Programm mitzuarbeiten, schreiben Sie eine
-            Mail an die &a.emulation;.</para>
+            Mail an die Mailingliste &a.emulation;.</para>
 
           <para>Sie k&ouml;nnen auch das Package <filename
             role="package">emulators/pcemu</filename> aus der &os;
