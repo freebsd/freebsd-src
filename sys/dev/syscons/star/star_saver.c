@@ -25,21 +25,18 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: star_saver.c,v 1.15 1998/09/15 18:16:39 sos Exp $
+ *	$Id: star_saver.c,v 1.16 1998/09/17 19:40:30 sos Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/exec.h>
-#include <sys/sysent.h>
-#include <sys/lkm.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
 
 #include <machine/md_var.h>
 #include <machine/pc/display.h>
 
 #include <saver.h>
-
-MOD_MISC(star_saver);
 
 #define NUM_STARS	50
 
@@ -94,20 +91,15 @@ star_saver(int blank)
 }
 
 static int
-star_saver_load(struct lkm_table *lkmtp, int cmd)
+star_saver_load(void)
 {
 	return add_scrn_saver(star_saver);
 }
 
 static int
-star_saver_unload(struct lkm_table *lkmtp, int cmd)
+star_saver_unload(void)
 {
 	return remove_scrn_saver(star_saver);
 }
 
-int
-star_saver_mod(struct lkm_table *lkmtp, int cmd, int ver)
-{
-	MOD_DISPATCH(star_saver, lkmtp, cmd, ver,
-		star_saver_load, star_saver_unload, lkm_nullcmd);
-}
+SAVER_MODULE(star_saver);
