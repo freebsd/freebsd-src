@@ -160,9 +160,9 @@
 #define _POSIX_MEMLOCK_RANGE
 #endif
 
-/* ??? #define	_POSIX_FSYNC			1 */
-#define	_POSIX_MAPPED_FILES		1
-#define _POSIX_SHARED_MEMORY_OBJECTS	1
+#define	_POSIX_FSYNC			200112L
+#define	_POSIX_MAPPED_FILES		200112L
+#define _POSIX_SHARED_MEMORY_OBJECTS	200112L
 
 /* POSIX.1B sysconf options */
 #define _SC_ASYNCHRONOUS_IO	28
