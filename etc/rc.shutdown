@@ -78,7 +78,7 @@ case ${entropy_file} in
 		;;
 	*)
 		dd if=/dev/random of=${entropy_file_confirmed} \
-		   bs=16384 count=1 2> /dev/null
+		   bs=4096 count=1 2> /dev/null
 		;;
 	esac
 	umask ${oumask}
