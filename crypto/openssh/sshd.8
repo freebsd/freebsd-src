@@ -569,14 +569,14 @@ Contains configuration data for
 The file format and configuration options are described in
 .Xr sshd_config 5 .
 .It Pa /etc/ssh/ssh_host_key, /etc/ssh/ssh_host_dsa_key
-These three files contain the private parts of the host keys.
+These two files contain the private parts of the host keys.
 These files should only be owned by root, readable only by root, and not
 accessible to others.
 Note that
 .Nm
 does not start if this file is group/world-accessible.
 .It Pa /etc/ssh/ssh_host_key.pub, /etc/ssh/ssh_host_dsa_key.pub
-These three files contain the public parts of the host keys.
+These two files contain the public parts of the host keys.
 These files should be world-readable but writable only by
 root.
 Their contents should match the respective private parts.
