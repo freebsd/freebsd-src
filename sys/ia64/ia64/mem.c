@@ -95,6 +95,12 @@ static struct cdevsw mem_cdevsw = {
 
 struct mem_range_softc mem_range_softc;
 
+static __inline int
+ia64_pa_access(vm_offset_t pa)
+{
+	return (VM_PROT_READ|VM_PROT_WRITE);
+}
+
 static int
 mmclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
