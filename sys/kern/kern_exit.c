@@ -217,13 +217,14 @@ exit1(td, rv)
 	 * Can't free the entire vmspace as the kernel stack
 	 * may be mapped within that space also.
 	 */
-	if (vm->vm_refcnt == 1) {
+	if (--vm->vm_refcnt == 0) {
 		if (vm->vm_shm)
 			shmexit(p);
 		pmap_remove_pages(vmspace_pmap(vm), VM_MIN_ADDRESS,
 		    VM_MAXUSER_ADDRESS);
 		(void) vm_map_remove(&vm->vm_map, VM_MIN_ADDRESS,
 		    VM_MAXUSER_ADDRESS);
+		vm->vm_freer = p;
 	}
 
 	PROC_LOCK(p);
@@ -400,8 +401,8 @@ exit1(td, rv)
 	/*
 	 * Finally, call machine-dependent code to release the remaining
 	 * resources including address space, the kernel stack and pcb.
-	 * The address space is released by "vmspace_free(p->p_vmspace)"
-	 * in vm_waitproc();
+	 * The address space is released by "vmspace_exitfree(p)" in
+	 * vm_waitproc().
 	 */
 	cpu_exit(td);
 
