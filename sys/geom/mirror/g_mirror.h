@@ -84,6 +84,8 @@ extern u_int g_mirror_debug;
 	}								\
 } while (0)
 
+#define	G_MIRROR_SYNC_BLOCK_SIZE	131072
+
 #define	G_MIRROR_BIO_FLAG_REGULAR	0x01
 #define	G_MIRROR_BIO_FLAG_SYNC		0x02
 
@@ -92,10 +94,11 @@ extern u_int g_mirror_debug;
  */
 struct g_mirror_disk_sync {
 	struct g_consumer *ds_consumer;	/* Consumer connected to our mirror. */
-	off_t		ds_offset;	/* Offset of next request to send. */
-	off_t		ds_offset_done;	/* Offset of already synchronized
+	off_t		 ds_offset;	/* Offset of next request to send. */
+	off_t		 ds_offset_done; /* Offset of already synchronized
 					   region. */
-	u_int		ds_syncid;	/* Disk's synchronization ID. */
+	u_int		 ds_syncid;	/* Disk's synchronization ID. */
+	u_char		*ds_data;
 };
 
 /*
@@ -103,11 +106,8 @@ struct g_mirror_disk_sync {
  */
 struct g_mirror_device_sync {
 	struct g_geom	*ds_geom;	/* Synchronization geom. */
-	size_t		 ds_block;	/* Synchronization request size. */
 	u_int		 ds_ndisks;	/* Number of disks in SYNCHRONIZING
 					   state. */
-	uma_zone_t	 ds_zone;	/* UMA zone for synchronization
-					   blocks. */
 };
 
 #define	G_MIRROR_DISK_STATE_NONE		0
