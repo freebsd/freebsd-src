@@ -36,7 +36,7 @@
  */
 
 #ifndef  __NetBSD__
-#ident "$Revision: 1.13 $"
+#ident "$Revision: 1.16 $"
 #endif
 
 /* Definitions for RIPv2 routing process.
@@ -178,7 +178,6 @@ struct rt_entry {
 #	    define RS_MHOME	0x020	/* from -m */
 #	    define RS_STATIC	0x040	/* from the kernel */
 #	    define RS_RDISC     0x080	/* from router discovery */
-#	    define RS_PERMANENT (RS_MHOME | RS_STATIC | RS_NET_SYN | RS_RDISC)
 	struct sockaddr_in rt_dst_sock;
 	naddr   rt_mask;
 	struct rt_spare {
@@ -212,11 +211,12 @@ struct rt_entry {
  *	nor non-passive, remote interfaces that are not aliases
  *		(i.e. remote & metric=0)
  */
-#define AGE_RT(rt,ifp) (0 == ((rt)->rt_state & RS_PERMANENT)		\
-			&& (!((rt)->rt_state & RS_IF)			\
-			    || (ifp) == 0				\
-			    || (((ifp)->int_state & IS_REMOTE)		\
-				&& !((ifp)->int_state & IS_PASSIVE))))
+#define AGE_RT(rt_state,ifp) (0 == ((rt_state) & (RS_MHOME | RS_STATIC	    \
+						  | RS_NET_SYN | RS_RDISC)) \
+			      && (!((rt_state) & RS_IF)			    \
+				  || (ifp) == 0				    \
+				  || (((ifp)->int_state & IS_REMOTE)	    \
+				      && !((ifp)->int_state & IS_PASSIVE))))
 
 /* true if A is better than B
  * Better if
@@ -256,7 +256,7 @@ struct interface {
 	naddr	int_std_net;		/* class A/B/C network (h) */
 	naddr	int_std_mask;		/* class A/B/C netmask (h) */
 	int	int_rip_sock;		/* for queries */
-	int	int_if_flags;		/* copied from kernel */
+	int	int_if_flags;		/* some bits copied from kernel */
 	u_int	int_state;
 	time_t	int_act_time;		/* last thought healthy */
 	u_short	int_transitions;	/* times gone up-down */
@@ -279,6 +279,7 @@ struct interface {
 	struct timeval int_rdisc_timer;
 };
 
+/* bits in int_state */
 #define IS_ALIAS	    0x0000001	/* interface alias */
 #define IS_SUBNET	    0x0000002	/* interface on subnetted network */
 #define	IS_REMOTE	    0x0000004	/* interface is not on this machine */
@@ -407,6 +408,7 @@ extern int	auth_ok;		/* 1=ignore auth if we do not care */
 extern struct timeval epoch;		/* when started */
 extern struct timeval now;		/* current idea of time */
 extern time_t	now_stale;
+extern time_t	now_expire;
 extern time_t	now_garbage;
 
 extern struct timeval next_bcast;	/* next general broadcast */
@@ -428,7 +430,8 @@ extern struct timeval need_kern;	/* need to update kernel table */
 extern int	update_seqno;		/* a route has changed */
 
 extern u_int	tracelevel, new_tracelevel;
-#define MAX_TRACELEVEL 3
+#define MAX_TRACELEVEL 4
+#define TRACEKERNEL (tracelevel >= 4)	/* log kernel changes */
 #define	TRACECONTENTS (tracelevel >= 3)	/* display packet contents */
 #define TRACEPACKETS (tracelevel >= 2)	/* note packets */
 #define	TRACEACTIONS (tracelevel != 0)
@@ -483,6 +486,7 @@ extern void	trace_on(char *, int);
 extern void	trace_off(char*, ...);
 extern void	trace_flush(void);
 extern void	set_tracelevel(void);
+extern void	trace_kernel(char *, ...);
 extern void	trace_act(char *, ...);
 extern void	trace_pkt(char *, ...);
 extern void	trace_add_del(char *, struct rt_entry *);

@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)output.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.16 $"
+#ident "$Revision: 1.17 $"
 
 #include "defs.h"
 
@@ -263,7 +263,7 @@ supply_out(struct ag_info *ag)
 	    && (ws.state & WS_ST_FLASH))
 		return;
 
-	/* Skip this route if required by split-horizon
+	/* Skip this route if required by split-horizon.
 	 */
 	if (ag->ag_state & AGS_SPLIT_HZ)
 		return;
@@ -363,7 +363,7 @@ walk_supply(struct radix_node *rn,
 	    struct walkarg *w)
 {
 #define RT ((struct rt_entry *)rn)
-	u_short ags = 0;
+	u_short ags;
 	char metric, pref;
 	naddr dst, nhop;
 
@@ -371,7 +371,8 @@ walk_supply(struct radix_node *rn,
 	/* Do not advertise the loopback interface
 	 * or external remote interfaces
 	 */
-	if (RT->rt_ifp != 0
+	if ((RT->rt_state & RS_IF)
+	    && RT->rt_ifp != 0
 	    && ((RT->rt_ifp->int_if_flags & IFF_LOOPBACK)
 		|| (RT->rt_ifp->int_state & IS_EXTERNAL))
 	    && !(RT->rt_state & RS_MHOME))
@@ -429,32 +430,8 @@ walk_supply(struct radix_node *rn,
 			nhop = 0;
 	}
 
-	/* Adjust the outgoing metric by the cost of the link.
-	 */
-	pref = metric = RT->rt_metric + ws.metric;
-	if (pref < HOPCNT_INFINITY) {
-		/* Keep track of the best metric with which the
-		 * route has been advertised recently.
-		 */
-		if (RT->rt_poison_metric >= metric
-		    || RT->rt_poison_time <= now_garbage) {
-			RT->rt_poison_time = now.tv_sec;
-			RT->rt_poison_metric = RT->rt_metric;
-		}
-
-	} else {
-		/* Do not advertise stable routes that will be ignored,
-		 * unless they are being held down and poisoned.  If the
-		 * route recently was advertised with a metric that would
-		 * have been less than infinity through this interface, we
-		 * need to continue to advertise it in order to poison it.
-		 */
-		pref = RT->rt_poison_metric + ws.metric;
-		if (pref >= HOPCNT_INFINITY)
-			return 0;
-
-		metric = HOPCNT_INFINITY;
-	}
+	metric = RT->rt_metric;
+	ags = 0;
 
 	if (RT->rt_state & RS_MHOME) {
 		/* retain host route of multi-homed servers */
@@ -521,8 +498,47 @@ walk_supply(struct radix_node *rn,
 	    && (ws.state & WS_ST_TO_ON_NET)
 	    && (!(RT->rt_state & RS_IF)
 		|| ws.ifp->int_if_flags & IFF_POINTOPOINT)) {
-		ags |= AGS_SPLIT_HZ;
-		ags &= ~(AGS_PROMOTE | AGS_SUPPRESS);
+		/* Poison-reverse the route instead of only not advertising it
+		 * it is recently changed from some other route.
+		 * In almost all cases, if there is no spare for the route
+		 * then it is either old or a brand new route, and if it
+		 * is brand new, there is no need for poison-reverse.
+		 */
+		metric = HOPCNT_INFINITY;
+		if (RT->rt_poison_time < now_expire
+		    || RT->rt_spares[1].rts_gate ==0) {
+			ags |= AGS_SPLIT_HZ;
+			ags &= ~(AGS_PROMOTE | AGS_SUPPRESS);
+		}
+	}
+
+	/* Adjust the outgoing metric by the cost of the link.
+	 */
+	pref = metric + ws.metric;
+	if (pref < HOPCNT_INFINITY) {
+		/* Keep track of the best metric with which the
+		 * route has been advertised recently.
+		 */
+		if (RT->rt_poison_metric >= metric
+		    || RT->rt_poison_time < now_expire) {
+			RT->rt_poison_time = now.tv_sec;
+			RT->rt_poison_metric = metric;
+		}
+		metric = pref;
+
+	} else {
+		/* Do not advertise stable routes that will be ignored,
+		 * unless they are being held down and poisoned.  If the
+		 * route recently was advertised with a metric that would
+		 * have been less than infinity through this interface, we
+		 * need to continue to advertise it in order to poison it.
+		 */
+		pref = RT->rt_poison_metric + ws.metric;
+		if (pref >= HOPCNT_INFINITY
+		    || RT->rt_poison_time < now_garbage )
+			return 0;
+
+		metric = HOPCNT_INFINITY;
 	}
 
 	ag_check(dst, RT->rt_mask, 0, nhop, metric, pref,

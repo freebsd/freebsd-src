@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)input.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.13 $"
+#ident "$Revision: 1.16 $"
 
 #include "defs.h"
 
@@ -69,9 +69,7 @@ read_rip(int sock,
 			logbad(1,"impossible recvfrom(rip) fromlen=%d",
 			       fromlen);
 
-		input(&from,
-		      (ifp != 0) ? ifp : iflookup(from.sin_addr.s_addr),
-		      &inbuf.rip, cc);
+		input(&from, ifp, &inbuf.rip, cc);
 	}
 }
 
@@ -80,7 +78,7 @@ read_rip(int sock,
  */
 static void
 input(struct sockaddr_in *from,		/* received from this IP address */
-      struct interface *ifp,
+      struct interface *sifp,		/* interface by which it arrived */
       struct rip *rip,
       int size)
 {
@@ -88,17 +86,21 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 	static naddr use_auth, bad_len, bad_mask;
 	static naddr unk_router, bad_router, bad_nhop;
 
+	struct interface *aifp;		/* interface if via 1 hop */
 	struct rt_entry *rt;
 	struct netinfo *n, *lim;
 	struct interface *ifp1;
 	naddr gate, mask, v1_mask, dst, ddst_h;
 	int i;
 
+	aifp = iflookup(from->sin_addr.s_addr);
+	if (sifp == 0)
+		sifp = aifp;
 
-	if (ifp != 0)
-		ifp->int_state |= IS_ACTIVE;
+	if (sifp != 0)
+		sifp->int_state |= IS_ACTIVE;
 
-	trace_rip("Recv", "from", from, ifp, rip, size);
+	trace_rip("Recv", "from", from, sifp, rip, size);
 
 	if (rip->rip_vers == 0) {
 		if (from->sin_addr.s_addr != bad_router)
@@ -107,6 +109,8 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 			       rip->rip_cmd, naddr_ntoa(FROM_NADDR));
 		bad_router = from->sin_addr.s_addr;
 		return;
+	} else if (rip->rip_vers > RIPv2) {
+		rip->rip_vers = RIPv2;
 	}
 	if (size > MAXPACKETSIZE) {
 		if (from->sin_addr.s_addr != bad_router)
@@ -131,7 +135,7 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 	 * RIPv1 systems will listen?  Crazy!
 	 */
 	if (!auth_ok
-	    && rip->rip_vers >= RIPv2
+	    && rip->rip_vers == RIPv2
 	    && n < lim && n->n_family == RIP_AF_AUTH) {
 		if (from->sin_addr.s_addr != use_auth)
 			msglog("RIPv2 message with authentication"
@@ -187,32 +191,42 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 			 * We respond to routers only if we are acting
 			 * as a supplier, or to anyone other than a router
 			 * (i.e. a query).
-			 *
-			 * Answer a query from a stray program with all
-			 * we know. Filter the answer to a query from a
-			 * router in the about same way broadcasts are
-			 * filtered.
-			 *
-			 * Only answer a router if we are a supplier
-			 * to keep an unwary host that is just starting
-			 * from picking us an a router.
 			 */
 			if (n->n_family == RIP_AF_UNSPEC
 			    && n->n_metric == HOPCNT_INFINITY
 			    && n == rip->rip_nets
 			    && n+1 == lim) {
 				if (from->sin_port != htons(RIP_PORT)) {
-					/* query from `rtquery` or similar
+					/* Answer a query from a utility
+					 * program with all we know.
 					 */
-					supply(from, ifp,
-					       OUT_QUERY, 0, rip->rip_vers);
-				} else if (supplier) {
-					/* a router trying to prime its
-					 * tables.
-					 */
-					supply(from, ifp,
-					       OUT_UNICAST, 0, rip->rip_vers);
+					supply(from, sifp, OUT_QUERY, 0,
+					       rip->rip_vers);
+					return;
 				}
+				/* A router trying to prime its tables.
+				 * Filter the answer in the about same way
+				 * broadcasts are filtered.
+				 *
+				 * Only answer a router if we are a supplier
+				 * to keep an unwary host that is just starting
+				 * from picking us as a router.  Respond with
+				 * RIPv1 instead of RIPv2 if that is what we
+				 * are broadcasting on the interface to keep
+				 * the remote router from getting the wrong
+				 * initial idea of the routes we send.
+				 */
+				if (!supplier
+				    || aifp == 0
+				    || (aifp->int_state & IS_PASSIVE)
+				    || (aifp->int_state & IS_ALIAS)
+				    || ((aifp->int_state & IS_NO_RIPV1_OUT)
+					&& (aifp->int_state&IS_NO_RIPV2_OUT)))
+					return;
+
+				supply(from, aifp, OUT_UNICAST, 0,
+				       (aifp->int_state&IS_NO_RIPV1_OUT)
+				       ? RIPv2 : RIPv1);
 				return;
 			}
 
@@ -241,7 +255,7 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 			if (rip->rip_vers == RIPv1
 			    || 0 == (mask = ntohl(n->n_mask))
 			    || 0 != (ntohl(dst) & ~mask))
-				mask = ripv1_mask_host(dst,ifp);
+				mask = ripv1_mask_host(dst,sifp);
 
 			rt = rtget(dst, mask);
 			if (!rt && dst != RIP_DEFAULT)
@@ -258,16 +272,16 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 				n->n_metric = HOPCNT_INFINITY;
 			} else {
 				n->n_metric = rt->rt_metric+1;
-				n->n_metric += (ifp!=0) ? ifp->int_metric : 1;
+				n->n_metric += (sifp!=0)?sifp->int_metric : 1;
 				if (n->n_metric > HOPCNT_INFINITY)
 					n->n_metric = HOPCNT_INFINITY;
 				if (rip->rip_vers != RIPv1) {
 					n->n_tag = rt->rt_tag;
-					if (ifp != 0
+					if (sifp != 0
 					    && on_net(rt->rt_gate,
-						      ifp->int_net,
-						      ifp->int_mask)
-					    && rt->rt_gate != ifp->int_addr)
+						      sifp->int_net,
+						      sifp->int_mask)
+					    && rt->rt_gate != sifp->int_addr)
 						n->n_nhop = rt->rt_gate;
 				}
 			}
@@ -284,9 +298,9 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 			rip->rip_vers = RIPv2;
 		if (from->sin_port != htons(RIP_PORT)) {
 			/* query */
-			(void)output(OUT_QUERY, from, ifp, rip, size);
+			(void)output(OUT_QUERY, from, sifp, rip, size);
 		} else if (supplier) {
-			(void)output(OUT_UNICAST, from, ifp, rip, size);
+			(void)output(OUT_UNICAST, from, sifp, rip, size);
 		}
 		return;
 
@@ -298,7 +312,7 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 			       naddr_ntoa(FROM_NADDR));
 			return;
 		}
-		if (ifp == 0) {
+		if (aifp == 0) {
 			msglog("trace command from unknown router %s",
 			       naddr_ntoa(FROM_NADDR));
 			return;
@@ -357,26 +371,27 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 		 * broadcast or point-to-point networks, and from
 		 * those listed in /etc/gateways.
 		 */
-		if (!ifp) {
+		if (!aifp) {
 			if (from->sin_addr.s_addr != unk_router)
-				msglog("packet from unknown router %s"
+				msglog("discard packet from unknown router %s"
 				       " or via unidentified interface",
 				       naddr_ntoa(FROM_NADDR));
 			unk_router = from->sin_addr.s_addr;
 			return;
 		}
-		if (ifp->int_state & IS_PASSIVE) {
-			trace_act("packet from %s via passive interface %s\n",
+		if (aifp->int_state & IS_PASSIVE) {
+			trace_act("discard packet from %s"
+				  " via passive interface %s\n",
 				  naddr_ntoa(FROM_NADDR),
-				  ifp->int_name);
+				  aifp->int_name);
 			return;
 		}
 
 		/* Check required version
 		 */
-		if (((ifp->int_state & IS_NO_RIPV1_IN)
+		if (((aifp->int_state & IS_NO_RIPV1_IN)
 		     && rip->rip_vers == RIPv1)
-		    || ((ifp->int_state & IS_NO_RIPV2_IN)
+		    || ((aifp->int_state & IS_NO_RIPV2_IN)
 			&& rip->rip_vers != RIPv1)) {
 			trace_pkt("discard RIPv%d response\n",
 				  rip->rip_vers);
@@ -385,15 +400,15 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 
 		/* Ignore routes via dead interface.
 		 */
-		if (ifp->int_state & IS_BROKE) {
+		if (aifp->int_state & IS_BROKE) {
 			trace_pkt("discard response via broken interface %s\n",
-				  ifp->int_name);
+				  aifp->int_name);
 			return;
 		}
 
 		/* Authenticate the packet if we have a secret.
 		 */
-		if (ifp->int_passwd[0] != '\0') {
+		if (aifp->int_passwd[0] != '\0') {
 			if (n >= lim
 			    || n->n_family != RIP_AF_AUTH
 			    || ((struct netauth*)n)->a_type != RIP_AUTH_PW) {
@@ -404,8 +419,8 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 				return;
 
 			} else if (0 != bcmp(((struct netauth*)n)->au.au_pw,
-					     ifp->int_passwd,
-					     sizeof(ifp->int_passwd))) {
+					     aifp->int_passwd,
+					     sizeof(aifp->int_passwd))) {
 				if (from->sin_addr.s_addr != use_auth)
 					msglog("bad password from %s",
 					       naddr_ntoa(FROM_NADDR));
@@ -456,31 +471,31 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 			/* Notice the next-hop.
 			 */
 			gate = from->sin_addr.s_addr;
-			if (n->n_nhop != 0
-			    && rip->rip_vers == RIPv2) {
-				/* Ignore the route if it points to us */
-				if (0 != ifwithaddr(n->n_nhop, 1, 0))
-					continue;
-
-				/* Use it only if it is valid. */
-				if (on_net(n->n_nhop,
-					   ifp->int_net, ifp->int_mask)
-				    && check_dst(n->n_nhop)) {
-					gate = n->n_nhop;
+			if (n->n_nhop != 0) {
+				if (rip->rip_vers == RIPv2) {
+					n->n_nhop = 0;
 				} else {
+				    /* Use it only if it is valid. */
+				    if (on_net(n->n_nhop,
+					       aifp->int_net, aifp->int_mask)
+					&& check_dst(n->n_nhop)) {
+					    gate = n->n_nhop;
+				    } else {
 					if (bad_nhop != from->sin_addr.s_addr)
-					    msglog("router %s to %s has"
-						   " bad next hop %s",
-						   naddr_ntoa(FROM_NADDR),
-						   naddr_ntoa(dst),
-						   naddr_ntoa(n->n_nhop));
+						msglog("router %s to %s has"
+						       " bad next hop %s",
+						       naddr_ntoa(FROM_NADDR),
+						       naddr_ntoa(dst),
+						       naddr_ntoa(n->n_nhop));
 					bad_nhop = from->sin_addr.s_addr;
+					n->n_nhop = 0;
+				    }
 				}
 			}
 
 			if (rip->rip_vers == RIPv1
 			    || 0 == (mask = ntohl(n->n_mask))) {
-				mask = ripv1_mask_host(dst,ifp);
+				mask = ripv1_mask_host(dst,aifp);
 			} else if ((ntohl(dst) & ~mask) != 0) {
 				if (bad_mask != from->sin_addr.s_addr) {
 					msglog("router %s sent bad netmask"
@@ -497,7 +512,7 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 
 			/* Adjust metric according to incoming interface..
 			 */
-			n->n_metric += ifp->int_metric;
+			n->n_metric += aifp->int_metric;
 			if (n->n_metric > HOPCNT_INFINITY)
 				n->n_metric = HOPCNT_INFINITY;
 
@@ -507,9 +522,9 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 			 * Be a little more paranoid than that, and reject
 			 * default routes with the same metric we advertised.
 			 */
-			if (ifp->int_d_metric != 0
+			if (aifp->int_d_metric != 0
 			    && dst == RIP_DEFAULT
-			    && n->n_metric >= ifp->int_d_metric)
+			    && n->n_metric >= aifp->int_d_metric)
 				continue;
 
 			/* We can receive aggregated RIPv2 routes that must
@@ -558,7 +573,7 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 			}
 
 			for (;;) {
-				input_route(ifp, FROM_NADDR,
+				input_route(aifp, FROM_NADDR,
 					    dst, mask, gate, n);
 				if (i-- == 0)
 					break;
@@ -610,6 +625,14 @@ input_route(struct interface *ifp,
 		if (n->n_metric == HOPCNT_INFINITY)
 			return;
 
+		/* Ignore the route if it points to us */
+		if (n->n_nhop != 0
+		    && 0 != ifwithaddr(n->n_nhop, 1, 0))
+			return;
+
+		/* If something has not gone crazy and tried to fill
+		 * our memory, accept the new route.
+		 */
 		if (total_routes < MAX_ROUTES)
 			rtadd(dst, mask, gate, from, n->n_metric,
 			      n->n_tag, 0, ifp);
@@ -630,10 +653,8 @@ input_route(struct interface *ifp,
 	 * synthetic, RIPv1 network route of our own.
 	 * The worst is that both kinds of routes might be
 	 * received, and the bad one might have the smaller
-	 * metric.  Partly solve this problem by faking the
-	 * RIPv1 route with a metric that reflects the most
-	 * distant part of the subnet.  Also never
-	 * aggregate into such a route.  Also keep it
+	 * metric.  Partly solve this problem by never
+	 * aggregating into such a route.  Also keep it
 	 * around as long as the interface exists.
 	 */
 
@@ -686,7 +707,13 @@ input_route(struct interface *ifp,
 	} else {
 		/* The update is for a route we know about,
 		 * but not from a familiar router.
+		 *
+		 * Ignore the route if it points to us.
 		 */
+		if (n->n_nhop != 0
+		    && 0 != ifwithaddr(n->n_nhop, 1, 0))
+			return;
+
 		rts = rts0;
 
 		/* Save the route as a spare only if it has

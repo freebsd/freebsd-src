@@ -79,18 +79,20 @@ change tracing, where
 .Em op
 is one of the following.
 Requests from processes not running with UID 0 or on distant networks
-are generally ignored.
+are generally ignored by the daemon except for a message in the system log.
 .El
 .Bl -tag -width Ds -offset indent-two
-.It Em on=filename
+.It Em on=tracefile
 turn tracing on into the specified file.  That file must usually
 have been specified when the daemon was started or be the same
 as a fixed name, often
-.Pa /tmp/routed.log .
+.Pa /etc/routed.trace .
 .It Em more
 increases the debugging level.
 .It Em off
 turns off tracing.
+.It Em dump
+dumps the daemon's routing table to the current tracefile.
 .El
 .Sh SEE ALSO
 .Xr routed 8 ,

@@ -298,6 +298,9 @@ does not care about authentication.
 .It Fl T Ar tracefile
 increases the debugging level to at least 1 and
 causes debugging information to be appended to the trace file.
+Note that because of security concerns, it is wisest to not run
+.Nm routed
+routinely with tracing directed to a file.
 .It Fl t
 increases the debugging level, which causes more information to be logged
 on the tracefile specified with

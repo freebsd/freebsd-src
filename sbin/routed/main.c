@@ -39,7 +39,7 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.14 $"
+#ident "$Revision: 1.17 $"
 
 #include "defs.h"
 #include "pathnames.h"
@@ -70,6 +70,7 @@ struct timeval epoch;			/* when started */
 struct timeval clk, prev_clk;
 struct timeval now;			/* current idea of time */
 time_t	now_stale;
+time_t	now_expire;
 time_t	now_garbage;
 
 struct timeval next_bcast;		/* next general broadcast */
@@ -111,6 +112,7 @@ main(int argc,
 	epoch.tv_sec -= EPOCH;
 	now.tv_sec = EPOCH;
 	now_stale = EPOCH - STALE_TIME;
+	now_expire = EPOCH - EXPIRE_TIME;
 	now_garbage = EPOCH - GARBAGE_TIME;
 	wtime.tv_sec = 0;
 
@@ -247,6 +249,16 @@ usage:
 	}
 
 
+	signal(SIGALRM, sigalrm);
+	if (!background)
+		signal(SIGHUP, sigterm);    /* SIGHUP fatal during debugging */
+	else
+		signal(SIGHUP, SIG_IGN);
+	signal(SIGTERM, sigterm);
+	signal(SIGINT, sigterm);
+	signal(SIGUSR1, sigtrace_on);
+	signal(SIGUSR2, sigtrace_off);
+
 	/* get into the background */
 	if (background) {
 #ifdef sgi
@@ -275,7 +287,7 @@ usage:
 	if (setsockopt(rt_sock, SOL_SOCKET,SO_USELOOPBACK,
 		       &off,sizeof(off)) < 0)
 		LOGERR("setsockopt(SO_USELOOPBACK,0)");
-	
+
 	fix_select();
 
 
@@ -303,13 +315,6 @@ usage:
 	age_timer.tv_sec = EPOCH+MIN_WAITTIME;
 	rdisc_timer = next_bcast;
 	ifinit_timer.tv_usec = next_bcast.tv_usec;
-
-	signal(SIGALRM, sigalrm);
-	signal(SIGHUP, sigterm);
-	signal(SIGTERM, sigterm);
-	signal(SIGINT, sigterm);
-	signal(SIGUSR1, sigtrace_on);
-	signal(SIGUSR2, sigtrace_off);
 
 	/* Collect an initial view of the world by checking the interface
 	 * configuration and the kludge file.
@@ -342,6 +347,7 @@ usage:
 		}
 		timevalsub(&now, &clk, &epoch);
 		now_stale = now.tv_sec - STALE_TIME;
+		now_expire = now.tv_sec - EXPIRE_TIME;
 		now_garbage = now.tv_sec - GARBAGE_TIME;
 
 		/* deal with interrupts that should affect tracing */

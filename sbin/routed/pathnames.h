@@ -43,5 +43,8 @@
  * or be the same as the tracefile specified when the daemon was started.
  * If this is a directory, routed will create log files in it.  That
  * might be a security problem.
+ *
+ * Leave this undefined, and only the trace file originally specified
+ * when routed was started, if any, will be appended to.
  */
-#define _PATH_TRACE	"/tmp/routed.log"
+#define _PATH_TRACE	"/etc/routed.trace"

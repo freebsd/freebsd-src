@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)if.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.8 $"
+#ident "$Revision: 1.9 $"
 
 #include "defs.h"
 #include "pathnames.h"
@@ -474,13 +474,6 @@ parse_parms(char *line)
 	if (tgt != 0)
 		return tgt;
 
-	if (parm.parm_int_state & IS_NO_ADV_IN)
-		parm.parm_int_state |= IS_NO_SOL_OUT;
-
-	if ((parm.parm_int_state & (IS_NO_RIP | IS_NO_RDISC))
-	    == (IS_NO_RIP | IS_NO_RDISC))
-		parm.parm_int_state |= IS_PASSIVE;
-
 	return check_parms(&parm);
 #undef DELIMS
 #undef PARS
@@ -495,6 +488,21 @@ check_parms(struct parm *new)
 	struct parm *parmp;
 
 
+	/* set implicit values
+	 */
+	if (!supplier && supplier_set)
+		new->parm_int_state |= (IS_NO_RIPV1_OUT
+					| IS_NO_RIPV2_OUT
+					| IS_NO_ADV_OUT);
+	if (new->parm_int_state & IS_NO_ADV_IN)
+		new->parm_int_state |= IS_NO_SOL_OUT;
+
+	if ((new->parm_int_state & (IS_NO_RIP | IS_NO_RDISC))
+	    == (IS_NO_RIP | IS_NO_RDISC))
+		new->parm_int_state |= IS_PASSIVE;
+
+	/* compare with existing sets of parameters
+	 */
 	for (parmp = parms; parmp != 0; parmp = parmp->parm_next) {
 		if (strcmp(new->parm_name, parmp->parm_name))
 			continue;

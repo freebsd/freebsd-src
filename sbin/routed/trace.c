@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)trace.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.11 $"
+#ident "$Revision: 1.13 $"
 
 #define	RIPCMDS
 #include "defs.h"
@@ -58,6 +58,8 @@ FILE	*ftrace = stdout;		/* output trace file */
 static char *tracelevel_pat = "%s\n";
 
 char savetracename[MAXPATHLEN+1];
+
+static void trace_dump(void);
 
 
 /* convert IP address to a string, but not into a single buffer
@@ -205,21 +207,26 @@ trace_on(char *filename,
 		}
 		filename = savetracename;
 
-	} else if (stat(filename, &stbuf) >= 0) {
-		if (!trusted) {
-			msglog("trace file \"%s\" already exists");
-			return;
-		}
-		if ((stbuf.st_mode & S_IFMT) != S_IFREG) {
+	} else if (!strcmp(filename,"dump/../table")) {
+		trace_dump();
+		return;
+
+	} else {
+		if (stat(filename, &stbuf) >= 0
+		    && (stbuf.st_mode & S_IFMT) != S_IFREG) {
 			msglog("wrong type (%#x) of trace file \"%s\"",
 			       stbuf.st_mode, filename);
 			return;
 		}
 
 		if (!trusted
-		    && strcmp(filename, savetracename)
-		    && strncmp(filename, _PATH_TRACE, sizeof(_PATH_TRACE)-1)) {
-			msglog("wrong directory for trace file: \"%s\"",
+#ifdef _PATH_TRACE
+		    && (strncmp(filename, _PATH_TRACE, sizeof(_PATH_TRACE)-1)
+			|| strstr(filename,"../")
+			|| 0 > stat(_PATH_TRACE, &stbuf))
+#endif
+		    && strcmp(filename, savetracename)) {
+			msglog("wrong directory for trace file \"%s\"",
 			       filename);
 			return;
 		}
@@ -280,11 +287,13 @@ set_tracelevel(void)
 		"Tracing actions stopped",
 		"Tracing packets stopped",
 		"Tracing packet contents stopped",
+		"Tracing kernel changes stopped",
 	};
 	static char *on_msgs[MAX_TRACELEVEL] = {
 		"Tracing actions started",
 		"Tracing packets started",
 		"Tracing packet contents started",
+		"Tracing kernel changes started",
 	};
 
 
@@ -567,6 +576,22 @@ trace_upslot(struct rt_entry *rt,
 }
 
 
+/* talk about a change made to the kernel table
+ */
+void
+trace_kernel(char *p, ...)
+{
+	va_list args;
+
+	if (!TRACEKERNEL || ftrace == 0)
+		return;
+
+	lastlog();
+	va_start(args, p);
+	vfprintf(ftrace, p, args);
+}
+
+
 /* display a message if tracing actions
  */
 void
@@ -635,7 +660,7 @@ trace_change(struct rt_entry *rt,
 	(void)fprintf(ftrace, "%s ",
 		      rt->rt_ifp == 0 ? "?" : rt->rt_ifp->int_name);
 	(void)fprintf(ftrace, "%s\n",
-		      AGE_RT(rt, rt->rt_ifp) ? ts(rt->rt_time) : "");
+		      AGE_RT(rt->rt_state, rt->rt_ifp) ? ts(rt->rt_time) : "");
 
 	(void)fprintf(ftrace, "%*s %19s%-16s ",
 		      strlen(label), "", "",
@@ -652,7 +677,7 @@ trace_change(struct rt_entry *rt,
 		(void)fprintf(ftrace, "%s ",
 			      ifp != 0 ? ifp->int_name : "?");
 	(void)fprintf(ftrace, "%s\n",
-		      ((rt->rt_time == new_time || !AGE_RT(rt, ifp))
+		      ((rt->rt_time == new_time || !AGE_RT(rt->rt_state, ifp))
 		       ? "" : ts(new_time)));
 }
 
@@ -680,6 +705,68 @@ trace_add_del(char * action, struct rt_entry *rt)
 	(void)fprintf(ftrace, "%s ",
 		      rt->rt_ifp != 0 ? rt->rt_ifp->int_name : "?");
 	(void)fprintf(ftrace, "%s\n", ts(rt->rt_time));
+}
+
+
+/* ARGSUSED */
+static int
+walk_trace(struct radix_node *rn,
+	   struct walkarg *w)
+{
+#define RT ((struct rt_entry *)rn)
+	struct rt_spare *rts;
+	int i, age;
+
+	(void)fprintf(ftrace, "  %-35s metric=%-2d ",
+		      trace_pair(RT->rt_dst, RT->rt_mask,
+				 naddr_ntoa(RT->rt_gate)),
+		      RT->rt_metric);
+	if (RT->rt_router != RT->rt_gate)
+		(void)fprintf(ftrace, "router=%s ",
+			      naddr_ntoa(RT->rt_router));
+	if (RT->rt_tag != 0)
+		(void)fprintf(ftrace, "tag=%#x ",
+			      ntohs(RT->rt_tag));
+	trace_bits(rs_bits, RT->rt_state, 0);
+	(void)fprintf(ftrace, "%s ",
+		      RT->rt_ifp == 0 ? "?" : RT->rt_ifp->int_name);
+	age = AGE_RT(RT->rt_state, RT->rt_ifp);
+	if (age)
+		(void)fprintf(ftrace, "%s", ts(RT->rt_time));
+
+	rts = &RT->rt_spares[1];
+	for (i = 1; i < NUM_SPARES; i++, rts++) {
+		if (rts->rts_metric != HOPCNT_INFINITY) {
+			(void)fprintf(ftrace,"\n    #%d%15s%-16s metric=%-2d ",
+				      i, "", naddr_ntoa(rts->rts_gate),
+				      rts->rts_metric);
+			if (rts->rts_router != rts->rts_gate)
+				(void)fprintf(ftrace, "router=%s ",
+					      naddr_ntoa(rts->rts_router));
+			if (rts->rts_tag != 0)
+				(void)fprintf(ftrace, "tag=%#x ",
+					      ntohs(rts->rts_tag));
+			(void)fprintf(ftrace, "%s ",
+				      (rts->rts_ifp == 0
+				       ? "?" : rts->rts_ifp->int_name));
+			if (age)
+				(void)fprintf(ftrace, "%s", ts(rts->rts_time));
+		}
+	}
+	(void)fputc('\n',ftrace);
+
+	return 0;
+}
+
+
+static void
+trace_dump(void)
+{
+	if (ftrace == 0)
+		return;
+	lastlog();
+
+	(void)rn_walktree(rhead, walk_trace, 0);
 }
 
 

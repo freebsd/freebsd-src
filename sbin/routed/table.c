@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)tables.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.23 $"
+#ident "$Revision: 1.25 $"
 
 #include "defs.h"
 
@@ -690,6 +690,13 @@ again:
 		w.w_rtm.rtm_msglen -= (sizeof(w.w_mask) - w.w_mask.sin_len);
 #endif
 	}
+
+	if (TRACEKERNEL)
+		trace_kernel("write kernel %s %s->%s metric=%d flags=%#x\n",
+			     rtm_type_name(action),
+			     addrname(dst, mask, 0), naddr_ntoa(gate),
+			     metric, flags);
+
 #ifndef NO_INSTALL
 	cc = write(rt_sock, &w, w.w_rtm.rtm_msglen);
 	if (cc == w.w_rtm.rtm_msglen)
@@ -850,6 +857,7 @@ rtm_add(struct rt_msghdr *rtm,
 		k->k_state |= KS_GATEWAY;
 	if (rtm->rtm_flags & RTF_STATIC)
 		k->k_state |= KS_STATIC;
+
 	if (0 != (rtm->rtm_flags & (RTF_DYNAMIC | RTF_MODIFIED))) {
 		if (supplier) {
 			/* Routers are not supposed to listen to redirects,
@@ -857,6 +865,7 @@ rtm_add(struct rt_msghdr *rtm,
 			 */
 			k->k_state &= ~KS_DYNAMIC;
 			k->k_state |= KS_DELETE;
+			LIM_SEC(need_kern, 0);
 			trace_act("mark redirected %s --> %s for deletion"
 				  " since this is a router\n",
 				  addrname(k->k_dst, k->k_mask, 0),
@@ -865,6 +874,7 @@ rtm_add(struct rt_msghdr *rtm,
 			k->k_state |= KS_DYNAMIC;
 			k->k_redirect_time = now.tv_sec;
 		}
+		return;
 	}
 
 	/* If it is not a static route, quit until the next comparison
@@ -1584,8 +1594,11 @@ rtchange(struct rt_entry *rt,
 		 * has gone bad, since there may be a working route that
 		 * aggregates this route.
 		 */
-		if (metric == HOPCNT_INFINITY)
+		if (metric == HOPCNT_INFINITY) {
 			need_kern.tv_sec = now.tv_sec;
+			if (new_time >= now.tv_sec - EXPIRE_TIME)
+				new_time = now.tv_sec - EXPIRE_TIME;
+		}
 		rt->rt_seqno = update_seqno;
 		set_need_flash();
 	}
@@ -1597,6 +1610,11 @@ rtchange(struct rt_entry *rt,
 	}
 
 	state |= (rt->rt_state & RS_SUBNET);
+
+	/* Keep various things from deciding ageless routes are stale.
+	 */
+	if (!AGE_RT(state, ifp))
+		new_time = now.tv_sec;
 
 	if (TRACEACTIONS)
 		trace_change(rt, state, gate, router, metric, tag, ifp,
@@ -1643,12 +1661,8 @@ rtswitch(struct rt_entry *rt,
 
 
 	/* Do not change permanent routes */
-	if (0 != (rt->rt_state & RS_PERMANENT))
-		return;
-
-	/* Do not discard synthetic routes until they go bad */
-	if ((rt->rt_state & RS_NET_SYN)
-	    && rt->rt_metric < HOPCNT_INFINITY)
+	if (0 != (rt->rt_state & (RS_MHOME | RS_STATIC | RS_RDISC
+				  | RS_NET_SYN | RS_IF)))
 		return;
 
 	/* find the best alternative among the spares */
@@ -1803,6 +1817,7 @@ walk_bad(struct radix_node *rn,
 
 		if (rts->rts_ifp != 0
 		    && (rts->rts_ifp->int_state & IS_BROKE)) {
+			/* mark the spare route to be deleted immediately */
 			new_time = rts->rts_time;
 			if (new_time >= now_garbage)
 				new_time = now_garbage-1;
@@ -1857,9 +1872,10 @@ walk_age(struct radix_node *rn,
 
 		ifp = rts->rts_ifp;
 		if (i == NUM_SPARES) {
-			if (!AGE_RT(RT, ifp)) {
+			if (!AGE_RT(RT->rt_state, ifp)) {
 				/* Keep various things from deciding ageless
-				 * routes are stale */
+				 * routes are stale
+				 */
 				rts->rts_time = now.tv_sec;
 				continue;
 			}
