@@ -221,7 +221,7 @@ tooption(name)
 read_options()
 {
 	FILE *fp;
-	char fname[32];
+	char fname[80];
 	char *wd, *this, *val;
 	struct opt_list *po;
 	int first = 1;
@@ -229,7 +229,7 @@ read_options()
 	char *lower();
 
 	otab = 0;
-	(void) strcpy(fname, "../../conf/options");
+	(void) snprintf(fname, sizeof fname, "../../conf/options");
 openit:
 	fp = fopen(fname, "r");
 	if (fp == 0) {
@@ -244,12 +244,12 @@ next:
 	if (wd == (char *)EOF) {
 		(void) fclose(fp);
 		if (first == 1) {
-			(void) sprintf(fname, "options.%s", machinename);
+			(void) snprintf(fname, sizeof fname, "options.%s", machinename);
 			first++;
 			goto openit;
 		}
 		if (first == 2) {
-			(void) sprintf(fname, "options.%s", raise(ident));
+			(void) snprintf(fname, sizeof fname, "options.%s", raise(ident));
 			first++;
 			fp = fopen(fname, "r");
 			if (fp != 0)
@@ -274,9 +274,7 @@ next:
 		return;
 	if (val == 0) {
 		char *s = ns(this);
-		(void) strcpy(genopt, "opt_");
-		(void) strcat(genopt, lower(s));
-		(void) strcat(genopt, ".h");
+		(void) snprintf(genopt, sizeof genopt, "opt_%s.h", lower(s));
 		val = genopt;
 		free(s);
 	}
