@@ -21,4 +21,8 @@ SUBDIR+= cc1obj
 SUBDIR+= f77 f771 f77doc
 .endif
 
+.if !defined(NO_GCOV)
+SUBDIR+= gcov
+.endif
+
 .include <bsd.subdir.mk>
