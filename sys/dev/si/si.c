@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.43 1996/06/12 05:03:50 gpalmer Exp $
+ *	$Id: si.c,v 1.44 1996/06/16 13:32:16 peter Exp $
  */
 
 #ifndef lint
@@ -1383,15 +1383,15 @@ si_Sioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	/* these next three use a different structure */
 	case TCSI_PORT:
 		SUCHECK;
-		sps->tc_siport = *xpp;
+		bcopy(xpp, &sps->tc_siport, sizeof(sps->tc_siport));
 		break;
 	case TCSI_CCB:
 		SUCHECK;
-		sps->tc_ccb = *xpp->sp_ccb;
+		bcopy((char *)xpp->sp_ccb, &sps->tc_ccb, sizeof(sps->tc_ccb));
 		break;
 	case TCSI_TTY:
 		SUCHECK;
-		sps->tc_tty = *xpp->sp_tty;
+		bcopy(xpp->sp_tty, &sps->tc_tty, sizeof(sps->tc_tty));
 		break;
 	default:
 		error = EINVAL;
