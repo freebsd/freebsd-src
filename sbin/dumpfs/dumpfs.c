@@ -244,12 +244,10 @@ dumpfs(const char *name)
 	ufs_disk_close(&disk);
 	return (0);
 
-err:	if (errno || disk.d_error != NULL) {
-		if (disk.d_error != NULL)
-			warnx("%s: %s", name, disk.d_error);
-		else
-			warn("%s", name);
-	}
+err:	if (disk.d_error != NULL)
+		warnx("%s: %s", name, disk.d_error);
+	else if (errno)
+		warn("%s", name);
 	ufs_disk_close(&disk);
 	return (1);
 }
