@@ -683,13 +683,16 @@ setlogin(p, uap, retval)
 	int *retval;
 {
 	int error;
+	char logintmp[sizeof(p->p_pgrp->pg_session->s_login)];
 
 	if ((error = suser(p->p_ucred, &p->p_acflag)))
 		return (error);
-	error = copyinstr((caddr_t) uap->namebuf,
-	    (caddr_t) p->p_pgrp->pg_session->s_login,
-	    sizeof (p->p_pgrp->pg_session->s_login) - 1, (u_int *)0);
+	error = copyinstr((caddr_t) uap->namebuf, (caddr_t) logintmp,
+	    sizeof(logintmp), (u_int *)0);
 	if (error == ENAMETOOLONG)
 		error = EINVAL;
+	else if (!error)
+		(void) memcpy(p->p_pgrp->pg_session->s_login, logintmp,
+		    sizeof(p->p_pgrp->pg_session->s_login));
 	return (error);
 }
