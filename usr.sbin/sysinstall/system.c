@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.20 1995/05/19 21:30:35 jkh Exp $
+ * $Id: system.c,v 1.21 1995/05/20 08:31:43 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -295,7 +295,7 @@ vsystem(char *fmt, ...)
     vsnprintf(cmd, FILENAME_MAX, fmt, args);
     va_end(args);
     omask = sigblock(sigmask(SIGCHLD));
-    msgNotify("Executing command: %s", cmd);
+    msgDebug("Executing command `%s'", cmd);
     switch(pid = vfork()) {
     case -1:			/* error */
 	(void)sigsetmask(omask);
