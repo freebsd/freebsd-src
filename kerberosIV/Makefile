@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.4 1997/10/02 17:10:56 markm Exp $
 
 SUBDIR=	include lib libexec usr.bin usr.sbin
 
@@ -38,7 +38,7 @@ help-distribute:	distribute
 	cd ${SDIR}/usr.bin/rlogin; ${CODAD}
 	cd ${SDIR}/usr.bin/rsh; ${CODAD}
 	cd ${SDIR}/usr.bin/su; ${CODAD}
-	cd ${SDIR}/usr.sbin/dump; ${CODAD}
-	cd ${SDIR}/usr.sbin/restore; ${CODAD}
+	cd ${SDIR}/sbin/dump; ${CODAD}
+	cd ${SDIR}/sbin/restore; ${CODAD}
 
 .include <bsd.subdir.mk>
