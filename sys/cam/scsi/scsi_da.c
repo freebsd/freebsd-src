@@ -342,14 +342,6 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
-		 * Apacer HandyDrive
-		 * PR: kern/43627
-		 */
-		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Apacer", "HandyDrive", "*"},
-		/*quirks*/ DA_Q_NO_SYNC_CACHE
-	},
-	{
-		/*
 		 * Daisy Technology PhotoClip on Zoran chip
 		 * PR: kern/43580
 		 */
