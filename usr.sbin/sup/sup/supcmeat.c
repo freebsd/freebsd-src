@@ -32,6 +32,9 @@
  *	across the network to save BandWidth
  *
  * $Log: supcmeat.c,v $
+ * Revision 1.2  1995/12/26 05:03:05  peter
+ * Apply ports/net/sup/patches/patch-aa...
+ *
  * Revision 1.1.1.1  1995/12/26 04:54:46  peter
  * Import the unmodified version of the sup that we are using.
  * The heritage of this version is not clear.  It appears to be NetBSD
@@ -322,7 +325,7 @@ int *tout;
 	/* If protocol is > 7 then try compression */
 	if (protver > 7) {
 		cancompress = TRUE;
-		notify ("SUP Fileserver supports compression.\n");
+		vnotify ("SUP Fileserver supports compression.\n");
 	}
 	return (FALSE);
 }
@@ -632,7 +635,7 @@ register TREE *t;
 denyone (t)
 register TREE *t;
 {
-	vnotify ("SUP: Access denied to %s\n",t->Tname);
+	notify ("SUP: Access denied to %s\n",t->Tname);
 	return (SCMOK);
 }
 
