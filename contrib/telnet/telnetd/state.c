@@ -1606,7 +1606,7 @@ send_status()
 	ADD(IAC);
 	ADD(SE);
 
-	writenet(statusbuf, ncp - statusbuf);
+	output_datalen(statusbuf, ncp - statusbuf);
 	netflush();	/* Send it on its way */
 
 	DIAG(TD_OPTIONS,
@@ -1631,7 +1631,7 @@ output_data(const char *format, ...)
 		remaining = BUFSIZ - (nfrontp - netobuf);
 	}
 	ret = vsnprintf(nfrontp, remaining, format, args);
-	nfrontp += ((ret < remaining - 1) ? ret : remaining - 1);
+	nfrontp += (ret < remaining) ? ret : remaining;
 	va_end(args);
 	return ret;
 }
@@ -1645,9 +1645,9 @@ output_datalen(const char *buf, size_t len)
 	if (remaining < len) {
 		netflush();
 		remaining = BUFSIZ - (nfrontp - netobuf);
+		if (remaining < len)
+			return -1;
 	}
-	if (remaining < len)
-		return -1;
 	memmove(nfrontp, buf, len);
 	nfrontp += len;
 	return (len);
