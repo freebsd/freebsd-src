@@ -375,7 +375,7 @@ acd_describe(struct acd *cdp)
 }
 
 static int
-acdopen(dev_t dev, int flags, int fmt, struct proc *p)
+acdopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
     int lun = dkunit(dev);
     struct acd *cdp;
@@ -401,7 +401,7 @@ acdopen(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 int 
-acdclose(dev_t dev, int flags, int fmt, struct proc *p)
+acdclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
     struct acd *cdp = acdtab[dkunit(dev)];
 
@@ -572,7 +572,7 @@ msf2lba(u_char m, u_char s, u_char f)
 }
 
 int 
-acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
+acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
     int lun = dkunit(dev);
     struct acd *cdp = acdtab[lun];
@@ -626,7 +626,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
             			0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0);
 
     case CDIOCRESET:
-        error = suser(p);
+        error = suser_td(td);
         if (error)
             return (error);
         return acd_request_wait(cdp, ATAPI_TEST_UNIT_READY,
