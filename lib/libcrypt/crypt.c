@@ -44,6 +44,6 @@ crypt(char *passwd, char *salt)
 #ifdef NONEXPORTABLE_CRYPT
 	return crypt_des(passwd, salt);
 #else
-	return NULL;
+	return crypt_md5(passwd, salt);
 #endif
 }
