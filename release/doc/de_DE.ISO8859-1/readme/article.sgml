@@ -1,8 +1,8 @@
 <!--
   The FreeBSD German Documentation Project
   The FreeBSD Documentation Project
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/readme/article.sgml,v 1.11 2002/10/31 21:37:53 ue Exp $
-  basiert auf: 1.18
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/readme/article.sgml,v 1.13 2002/12/07 21:11:04 ue Exp $
+  basiert auf: 1.19
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -166,7 +166,7 @@
 
       <para>Eine &Uuml;bersicht &uuml;ber die Firmen, die FreeBSD auf
         CDROM oder DVD vertreiben, finden Sie im Anhang <ulink
-        url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors.html"><quote>Bezugsquellen
+        url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/mirrors.html"><quote>Bezugsquellen
         f&uuml;r FreeBSD</quote></ulink> des Handbuches.</para>
     </sect2>
 
@@ -180,7 +180,7 @@
 
       <para>Eine Liste von alternativen Bezugsquellen f&uuml;r &os;
         finden Sie im Kapitel <ulink
-        url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors-ftp.html">FTP
+        url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/mirrors-ftp.html">FTP
         Server</ulink> des Handbuchs und auf unseren <ulink
         url="http://www.freebsdmirrors.org/"></ulink> Webseiten.  Wir
         raten Ihnen dringend, einen Mirror in der n&auml;heren
@@ -431,9 +431,9 @@
         &uuml;ber &os;, die vom &os; Project verwaltet werden, sind
         das &os; Handbuch und der &os; FAQ.  Die aktuellen Versionen
         des <ulink
-        url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">Handbuches</ulink>
+        url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/">Handbuches</ulink>
         und der <ulink
-        url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/faq/">FAQ</ulink>
+        url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/faq/">FAQ</ulink>
         sind immer auf der Webseite <ulink
         url="http://www.FreeBSD.org/docs.html">FreeBSD
         Dokumentation</ulink> und allen Ihren Mirror-Sites
@@ -455,7 +455,7 @@
 
       <para>Eine Liste zus&auml;tzlicher B&uuml;cher und
         Dokumentationen zu &os;  finden Sie im Kapitel <ulink
-        url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/bibliography.html">Bibliographie</ulink>
+        url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/bibliography.html">Bibliographie</ulink>
         des Handbuchs.  Da &os; ganz klar aus der UNIX-Welt stammt,
         enthalten auch andere Artikel und B&uuml;cher &uuml;ber
         UNIX-Systeme n&uuml;tzliche Informationen.  Eine Auswahl
