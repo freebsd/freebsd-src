@@ -68,9 +68,9 @@ MAN1=	${MAN}
 
 .MAIN: all
 .if !defined(NOMAN)
-all: objwarn ${PROG} all-man _SUBDIR
+all: objwarn ${PROG} ${SCRIPTS} all-man _SUBDIR
 .else
-all: objwarn ${PROG} _SUBDIR
+all: objwarn ${PROG} ${SCRIPTS} _SUBDIR
 .endif
 
 CLEANFILES+= ${PROG} ${OBJS}
@@ -130,6 +130,33 @@ realinstall: beforeinstall
 		${ECHO} $$t -\> $$l; \
 		ln -fs $$l $$t; \
 	done; true
+.endif
+
+.if defined(SCRIPTS) && !empty(SCRIPTS)
+realinstall: _scriptsinstall
+
+SCRIPTSDIR?=	${BINDIR}
+SCRIPTSOWN?=	${BINOWN}
+SCRIPTSGRP?=	${BINGRP}
+SCRIPTSMODE?=	${BINMODE}
+
+.for script in ${SCRIPTS}
+.if defined(SCRIPTSNAME)
+SCRIPTSNAME_${script:T}?=	${SCRIPTSNAME}
+.else
+SCRIPTSNAME_${script:T}?=	${script:T:R}
+.endif
+SCRIPTSDIR_${script:T}?=	${SCRIPTSDIR}
+SCRIPTSOWN_${script:T}?=	${SCRIPTSOWN}
+SCRIPTSGRP_${script:T}?=	${SCRIPTSGRP}
+SCRIPTSMODE_${script:T}?=	${SCRIPTSMODE}
+_scriptsinstall: SCRIPTSINS_${script:T}
+SCRIPTSINS_${script:T}: ${script}
+	${INSTALL} ${COPY} -o ${SCRIPTSOWN_${.ALLSRC:T}} \
+	    -g ${SCRIPTSGRP_${.ALLSRC:T}} -m ${SCRIPTSMODE_${.ALLSRC:T}} \
+	    ${_INSTALLFLAGS} ${.ALLSRC} \
+	    ${DESTDIR}${SCRIPTSDIR_${.ALLSRC:T}}/${SCRIPTSNAME_${.ALLSRC:T}}
+.endfor
 .endif
 
 install: afterinstall _SUBDIR
