@@ -275,6 +275,7 @@ devfs_lookupx(ap)
 	dd = dvp->v_data;
 	
 	*vpp = NULLVP;
+	cnp->cn_flags &= ~PDIRUNLOCK;
 
 	if ((flags & ISLASTCN) && nameiop == RENAME)
 		return (EOPNOTSUPP);
@@ -301,18 +302,15 @@ devfs_lookupx(ap)
 		if ((flags & ISLASTCN) && nameiop != LOOKUP)
 			return (EINVAL);
 		VOP_UNLOCK(dvp, 0, td);
+		cnp->cn_flags |= PDIRUNLOCK;
 		de = TAILQ_FIRST(&dd->de_dlist);	/* "." */
 		de = TAILQ_NEXT(de, de_list);		/* ".." */
 		de = de->de_dir;
 		error = devfs_allocv(de, dvp->v_mount, vpp, td);
-		if (error) {
+		if (error || ((flags & LOCKPARENT) && (flags & ISLASTCN))) {
 			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
-			return (error);
+			cnp->cn_flags &= ~PDIRUNLOCK;
 		}
-		if ((flags & LOCKPARENT) && (flags & ISLASTCN))
-			error = vn_lock(dvp, LK_EXCLUSIVE, td);
-		if (error)
-			vput(*vpp);
 		return (error);
 	}
 
@@ -360,8 +358,10 @@ notfound:
 	if ((nameiop == CREATE || nameiop == RENAME) &&
 	    (flags & (LOCKPARENT | WANTPARENT)) && (flags & ISLASTCN)) {
 		cnp->cn_flags |= SAVENAME;
-		if (!(flags & LOCKPARENT))
+		if (!(flags & LOCKPARENT)) {
 			VOP_UNLOCK(dvp, 0, td);
+			cnp->cn_flags |= PDIRUNLOCK;
+		}
 		return (EJUSTRETURN);
 	}
 	return (ENOENT);
@@ -381,15 +381,19 @@ found:
 		error = devfs_allocv(de, dvp->v_mount, vpp, td);
 		if (error)
 			return (error);
-		if (!(flags & LOCKPARENT))
+		if (!(flags & LOCKPARENT)) {
 			VOP_UNLOCK(dvp, 0, td);
+			cnp->cn_flags |= PDIRUNLOCK;
+		}
 		return (0);
 	}
 	error = devfs_allocv(de, dvp->v_mount, vpp, td);
 	if (error)
 		return (error);
-	if (!(flags & LOCKPARENT) || !(flags & ISLASTCN))
+	if (!(flags & LOCKPARENT) || !(flags & ISLASTCN)) {
 		VOP_UNLOCK(dvp, 0, td);
+		cnp->cn_flags |= PDIRUNLOCK;
+	}
 	return (0);
 }
 
