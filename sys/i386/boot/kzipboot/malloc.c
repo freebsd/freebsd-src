@@ -36,7 +36,7 @@
 extern unsigned char *storage;
 
 void *
-malloc(nbytes)
+kzipmalloc(nbytes)
 	size_t nbytes;
 {
 	unsigned char *p = storage;
@@ -50,7 +50,7 @@ malloc(nbytes)
 }
 
 void
-free(cp)
+kzipfree(cp)
 	void *cp;
 {
 }
