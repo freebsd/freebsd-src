@@ -88,7 +88,7 @@
 #define VADDR(pdi, pti) ((vm_offset_t)(((pdi)<<PDRSHIFT)|((pti)<<PAGE_SHIFT)))
 
 #ifndef NKPT
-#define	NKPT			17	/* actual number of kernel page tables */
+#define	NKPT			30	/* actual number of kernel page tables */
 #endif
 #ifndef NKPDE
 #ifdef SMP
