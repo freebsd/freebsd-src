@@ -317,7 +317,7 @@ sub update_passwd_file {
 	print STDERR "\n${whoami}: Warning: couldn't set mode of $new_passwd_file to 0600 ($!)\n\tcontinuing, but please check mode of /etc/master.passwd!\n";
     $skipped = 0;
     while (<MASTER_PW>) {
-	if (not /^\Q$login_name:/io) {
+	if (not /^\Q$login_name:/o) {
 	    print NEW_PW;
 	} else {
 	    print STDERR "Dropped entry for $login_name\n" if $debug;
