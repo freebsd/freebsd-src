@@ -66,6 +66,7 @@ ed_isa_probe(dev)
 	device_t dev;
 {
 	struct ed_softc *sc = device_get_softc(dev);
+	int flags = device_get_flags(dev);
 	int error = 0;
 
 	bzero(sc, sizeof(struct ed_softc));
@@ -85,22 +86,22 @@ ed_isa_probe(dev)
 
 	/* Heuristic probes */
 
-	error = ed_probe_WD80x3(dev);
+	error = ed_probe_WD80x3(dev, 0, flags);
 	if (error == 0)
 		goto end;
 	ed_release_resources(dev);
 
-	error = ed_probe_3Com(dev);
+	error = ed_probe_3Com(dev, 0, flags);
 	if (error == 0)
 		goto end;
 	ed_release_resources(dev);
 
-	error = ed_probe_Novell(dev);
+	error = ed_probe_Novell(dev, 0, flags);
 	if (error == 0)
 		goto end;
 	ed_release_resources(dev);
 
-	error = ed_probe_HP_pclanp(dev);
+	error = ed_probe_HP_pclanp(dev, 0, flags);
 	if (error == 0)
 		goto end;
 	ed_release_resources(dev);
@@ -125,17 +126,18 @@ ed_isa_attach(dev)
 		ed_alloc_port(dev, sc->port_rid, sc->port_used);
 	if (sc->mem_used)
 		ed_alloc_memory(dev, sc->mem_rid, sc->mem_used);
+
 	ed_alloc_irq(dev, sc->irq_rid, 0);
-		
+
 	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
 			       edintr, sc, &sc->irq_handle);
 	if (error) {
 		ed_release_resources(dev);
 		return (error);
-	}	       
+	}
 
 	return ed_attach(sc, device_get_unit(dev), flags);
-} 
+}
 
 static device_method_t ed_isa_methods[] = {
 	/* Device interface */

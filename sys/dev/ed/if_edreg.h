@@ -482,7 +482,12 @@
 #define ED_RCR_MON	0x20
 
 /*
- * bits 6 and 7 are unused/reserved.
+ * INTT: Interrupt Trigger Mode for AX88190.
+ */
+#define ED_RCR_INTT	0x40
+
+/*
+ * bit 7 is unused/reserved.
  */
 
 /*
@@ -600,6 +605,15 @@ struct ed_ring	{
 #define ED_FLAGS_FORCE_PIO		0x0010
 
 /*
+ * These are flags describing the chip type.
+ */
+#define ED_FLAGS_TOSH_ETHER		0x10000
+#define ED_FLAGS_GWETHER		0x20000
+#define ED_FLAGS_AX88190		0x30000
+
+#define ED_FLAGS_GETTYPE(flg)		((flg) & 0xff0000)
+
+/*
  *		Definitions for Western digital/SMC WD80x3 series ASIC
  */
 /*
@@ -629,14 +643,12 @@ struct ed_ring	{
 #define ED_WD_ICR_RX7	0x20	/* recall all but i/o and LAN address */
 #define	ED_WD_ICR_RIO	0x40	/* recall i/o address */
 #define ED_WD_ICR_STO	0x80	/* store to non-volatile memory */
-#ifdef TOSH_ETHER
 #define ED_WD_ICR_MEM	0xe0	/* shared mem address A15-A13 (R/W) */
 #define ED_WD_ICR_MSZ1	0x0f	/* memory size, 0x08 = 64K, 0x04 = 32K,
 				   0x02 = 16K, 0x01 = 8K */
 				/* 64K can only be used if mem address
 				   above 1Mb */
 				/* IAR holds address A23-A16 (R/W) */
-#endif
 
 /*
  * IO Address Register (IAR)
@@ -782,11 +794,8 @@ struct ed_ring	{
 /*
  * Checksum total. All 8 bytes in station address PROM will add up to this
  */
-#ifdef TOSH_ETHER
-#define ED_WD_ROM_CHECKSUM_TOTAL	0xA5
-#else
-#define ED_WD_ROM_CHECKSUM_TOTAL	0xFF
-#endif
+#define ED_WD_ROM_CHECKSUM_TOTAL		0xFF
+#define ED_WD_ROM_CHECKSUM_TOTAL_TOSH_ETHER	0xA5
 
 #define ED_WD_NIC_OFFSET	0x10		/* I/O base offset to NIC */
 #define ED_WD_ASIC_OFFSET	0		/* I/O base offset to ASIC */
@@ -1088,3 +1097,18 @@ struct ed_ring	{
  */
 
 #define ED_TYPE_HP_PCLANPLUS	0x00
+
+/*
+ * Chip types.
+ */
+
+#define ED_CHIP_TYPE_DP8390	0x00
+#define ED_CHIP_TYPE_WD790	0x01
+#define ED_CHIP_TYPE_AX88190	0x02
+
+/*
+ * AX88190 IOBASE registers.
+ */
+
+#define ED_AX88190_IOBASE0	0x3ca
+#define ED_AX88190_IOBASE1	0x3cc

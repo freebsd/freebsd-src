@@ -234,21 +234,34 @@ device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 # ed8: C-NET(98)
 # ed9: C-NET(98)E/L
 # ed10: EC/EP-98X
-# ed11: SIU-98-D
+# ed11: SB-9801
+# ed12: NC5098
 #
-#device ed0 at isa? port 0x00d0 irq 6
-##device ed0 at isa? port 0x10d0 irq 6 iomem 0xc8000    # SMC EtherEZ98
-#device ed5 at isa? port 0x00d0 irq 6 iomem 0xd0000 iosiz 16384 flags 0x600000
-#device ed1 at isa? port 0x00d8 irq 6 flags 0x200000
-#device ed3 at isa? port 0x00d0 irq 6 flags 0x400000
-#device ed4 at isa? port 0x56d0 irq 5 flags 0x500000
-#device ed2 at isa? port 0x00d8 irq 6 flags 0x300000
-#device ed7 at isa? port 0x00d0 irq 6 flags 0x900000
-#device ed6 at isa? port 0x0770 irq 6 flags 0x800000
-#device ed9 at isa? port 0x03d0 irq 6 flags 0xb00000
-#device ed8 at isa? port 0xa3d0 irq 6 iomem 0xd0000 iosiz 16384 flags 0xa00000
-#device ed10 at isa? port 0x00d0 irq 3 flags 0xd10000
-#device ed11 at isa? port 0x00d0 irq 6 iomem 0xd0000 iosiz 32768 flags 0x610000
+device	ed0 at isa? port 0x00d0 irq 6
+# EtherEZ98
+#device	ed0 at isa? port 0x10d0 irq 6 iomem 0xc8000
+device	ed5 at isa? port 0x00d0 irq 6 iomem 0xd0000 iosiz 16384 flags 0x600000
+# SIU-98-E
+#device	ed5 at isa? port 0x00d0 irq 6 iomem 0xd0000 iosiz 32768 flags 0x610000
+device	ed1 at isa? port 0x00d8 irq 6 flags 0x200000
+device	ed3 at isa? port 0x00d0 irq 6 flags 0x400000
+device	ed4 at isa? port 0x56d0 irq 5 flags 0x500000
+device	ed2 at isa? port 0x00d8 irq 6 flags 0x300000
+device	ed7 at isa? port 0x00d0 irq 6 flags 0x900000
+# PC-9801-77
+#device	ed7 at isa? port 0x00d0 irq 6 flags 0x910000
+device	ed6 at isa? port 0x0770 irq 6 flags 0x800000
+device	ed9 at isa? port 0x03d0 irq 6 flags 0xb00000
+# C-NET(98)E/L(0x55ED)
+#device	ed9 at isa? port 0x03d0 irq 6 flags 0xb10000
+device	ed8 at isa? port 0xa3d0 irq 6 iomem 0xd0000 iosiz 16384 flags 0xa00000
+# EN1646
+#device	ed10 at isa? port 0x00d0 irq 3 flags 0xd00000
+device	ed10 at isa? port 0x00d0 irq 3 flags 0xd10000
+device	ed11 at isa? port 0x00d0 irq 3 flags 0xe00000
+# SN-9801-2
+#device	ed11 at isa? port 0x00d0 irq 3 flags 0xe00001
+device	ed12 at isa? port 0x20d0 irq 3 flags 0xf00000
 #
 # MB86960A NIC
 #
