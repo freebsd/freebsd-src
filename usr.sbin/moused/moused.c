@@ -46,7 +46,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: moused.c,v 1.23 1998/11/20 11:22:17 yokota Exp $";
+	"$Id: moused.c,v 1.24 1998/12/13 23:26:21 steve Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -168,6 +168,7 @@ static symtab_t rifs[] = {
     { "inport",		MOUSE_IF_INPORT },
     { "ps/2",		MOUSE_IF_PS2 },
     { "sysmouse",	MOUSE_IF_SYSMOUSE },
+    { "usb",		MOUSE_IF_USB },
     { NULL,		MOUSE_IF_UNKNOWN },
 };
 
