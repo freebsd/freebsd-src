@@ -30,6 +30,10 @@
  * $FreeBSD$
  */
 
+#ifdef COMPILING_LINT
+#warning "The sr pci driver is broken and is not compiled with LINT"
+#else
+
 #include "sr.h"
 
 #include <sys/param.h>
@@ -131,3 +135,4 @@ sr_pci_attach(pcici_t config_id, int unit)
 		return;
 	}
 }
+#endif
