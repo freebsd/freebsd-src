@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: async.c,v 1.8 1997/05/26 00:43:55 brian Exp $
+ * $Id: async.c,v 1.9 1997/06/09 03:27:12 brian Exp $
  *
  */
 #include "fsm.h"
@@ -156,7 +156,7 @@ u_char c;
   default:
     if (hs->length >= HDLCSIZE) {
       /* packet is too large, discard it */
-      LogPrintf(LogERROR, "Packet too large (%d), diacarding.\n", hs->length);
+      LogPrintf(LogERROR, "Packet too large (%d), discarding.\n", hs->length);
       hs->length = 0;
       hs->mode = MODE_HUNT;
       break;
