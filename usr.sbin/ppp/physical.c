@@ -425,8 +425,8 @@ physical_DescriptorWrite(struct fdescriptor *d, struct bundle *bundle,
       if (errno == EAGAIN)
         result = 1;
       else if (errno != ENOBUFS) {
-	log_Printf(LogPHASE, "%s: write (%d): %s\n", p->link.name,
-                   p->fd, strerror(errno));
+	log_Printf(LogPHASE, "%s: write (fd %d, len %d): %s\n", p->link.name,
+                   p->fd, p->out->m_len, strerror(errno));
         datalink_Down(p->dl, CLOSE_NORMAL);
       }
     }
