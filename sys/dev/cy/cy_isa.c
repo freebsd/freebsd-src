@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.39 1996/10/13 01:30:32 davidg Exp $
+ *	$Id: cy.c,v 1.40 1996/10/14 16:10:00 davidg Exp $
  */
 
 #include "cy.h"
@@ -426,11 +426,11 @@ sioprobe(dev)
 	iobase = (cy_addr)dev->id_maddr;
 
 	/* Cyclom-16Y hardware reset (Cyclom-8Ys don't care) */
-	cy_inb(iobase, CY16_RESET);	/* XXX? */
+	cd_inb(iobase, CY16_RESET, 0);	/* XXX? */
 	DELAY(500);	/* wait for the board to get its act together */
 
 	/* this is needed to get the board out of reset */
-	cy_outb(iobase, CY_CLEAR_INTR, 0);
+	cd_outb(iobase, CY_CLEAR_INTR, 0, 0);
 	DELAY(500);
 
 	return (cy_units(iobase, 0) == 0 ? 0 : -1);
