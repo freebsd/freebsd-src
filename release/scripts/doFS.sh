@@ -105,7 +105,7 @@ dofs_md () {
 		fi
 	fi
 	disklabel -Brw /dev/${MDDEVICE} ${FSLABEL}
-	newfs -i ${FSINODE} -T ${FSLABEL} -o space -m 0 /dev/${MDDEVICE}c
+	newfs -i ${FSINODE} -o space -m 0 /dev/${MDDEVICE}c
 
 	mount /dev/${MDDEVICE}c ${MNT}
 
