@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2003
- *	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+ * Copyright (C) 2004
+ *	Hartmut Brandt.
  *	All rights reserved.
  *
  * Author: Harti Brandt <harti@freebsd.org>
@@ -26,25 +26,46 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmpd/trans_udp.h,v 1.3 2004/08/06 08:47:16 brandt Exp $
+ * $Begemot: bsnmp/lib/support.h,v 1.1 2004/08/06 08:47:59 brandt Exp $
  *
- * UDP transport
+ * Functions that are missing on certain systems. This header file is not
+ * to be installed.
  */
-struct udp_port {
-	struct tport	tport;		/* must begin with this */
+#ifndef bsnmp_support_h_
+#define bsnmp_support_h_
 
-	uint8_t		addr[4];	/* host byteorder */
-	uint16_t	port;		/* host byteorder */
+#include <sys/cdefs.h>
 
-	struct port_input input;	/* common input stuff */
+#ifndef HAVE_ERR_H
+void err(int, const char *, ...) __printflike(2, 3) __dead2;
+void errx(int, const char *, ...) __printflike(2, 3) __dead2;
 
-	struct sockaddr_in ret;		/* the return address */
+void warn(const char *, ...) __printflike(1, 2);
+void warnx(const char *, ...) __printflike(1, 2);
+#endif
+
+#ifndef HAVE_STRLCPY
+size_t strlcpy(char *, const char *, size_t);
+#endif
+
+#ifndef HAVE_GETADDRINFO
+
+struct addrinfo {
+	u_int	ai_flags;
+	int	ai_family;
+	int	ai_socktype;
+	int	ai_protocol;
+	struct sockaddr *ai_addr;
+	int	ai_addrlen;
+	struct addrinfo *ai_next;
 };
+#define	AI_CANONNAME	0x0001
 
-/* argument for open call */
-struct udp_open {
-	uint8_t		addr[4];	/* host byteorder */
-	uint16_t	port;		/* host byteorder */
-};
+int getaddrinfo(const char *, const char *, const struct addrinfo *,
+    struct addrinfo **);
+const char *gai_strerror(int);
+void freeaddrinfo(struct addrinfo *);
 
-extern const struct transport_def udp_trans;
+#endif
+
+#endif

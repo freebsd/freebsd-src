@@ -5,37 +5,34 @@
  *
  * Author: Harti Brandt <harti@freebsd.org>
  *         Kendy Kutzner
- *
- * Redistribution of this software and documentation and use in source and
- * binary forms, with or without modification, are permitted provided that
- * the following conditions are met:
- *
- * 1. Redistributions of source code or documentation must retain the above
- *    copyright notice, this list of conditions and the following disclaimer.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the Institute nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  *
- * THIS SOFTWARE AND DOCUMENTATION IS PROVIDED BY FRAUNHOFER FOKUS
- * AND ITS CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
- * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
- * FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL
- * FRAUNHOFER FOKUS OR ITS CONTRIBUTORS  BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
- * OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
- * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $Begemot: bsnmp/lib/snmpclient.c,v 1.27 2003/12/08 17:11:58 hbb Exp $
+ * $Begemot: bsnmp/lib/snmpclient.c,v 1.29 2004/08/06 08:46:57 brandt Exp $
  *
  * Support functions for SNMP clients.
  */
 #include <sys/types.h>
+#include <sys/time.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -48,10 +45,13 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <netdb.h>
-#include <inttypes.h>
-#include <err.h>
+#include <stdint.h>
 #include <limits.h>
+#ifdef HAVE_ERR_H
+#include <err.h>
+#endif
 
+#include "support.h"
 #include "asn1.h"
 #include "snmp.h"
 #include "snmpclient.h"
@@ -59,7 +59,6 @@
 
 /* global context */
 struct snmp_client snmp_client;
-
 
 /* List of all outstanding requests */
 struct sent_pdu {	
@@ -83,7 +82,7 @@ static struct sent_pdu_list sent_pdus;
  */
 struct entry {
 	TAILQ_ENTRY(entry)	link;
-	u_int64_t		found;
+	uint64_t		found;
 };
 TAILQ_HEAD(table, entry);
 
@@ -104,7 +103,7 @@ struct tabwork {
 	const struct snmp_table *descr;
 	struct table	*table;
 	struct worklist	worklist;
-	u_int32_t	last_change;
+	uint32_t	last_change;
 	int		first;
 	u_int		iter;
 	snmp_table_cb_f	callback;
@@ -150,7 +149,7 @@ table_free(struct tabwork *work, int all)
 		    i++) {
 			d = &work->descr->entries[i];
 			if (d->syntax == SNMP_SYNTAX_OCTETSTRING &&
-			    (e->found & ((u_int64_t)1 << i)))
+			    (e->found & ((uint64_t)1 << i)))
 				free(*(void **)(void *)
 				    ((u_char *)e + d->offset));
 		}
@@ -287,7 +286,7 @@ table_find(struct tabwork *work, const struct asn_oid *var)
 				seterr("bad index: unsigned too large");
 				goto err;
 			}
-			*(u_int32_t *)(void *)((u_char *)e +
+			*(uint32_t *)(void *)((u_char *)e +
 			    work->descr->entries[i].offset) = var->subs[p++];
 			break;
 
@@ -300,7 +299,7 @@ table_find(struct tabwork *work, const struct asn_oid *var)
 		  case SNMP_SYNTAX_ENDOFMIBVIEW:
 			abort();
 		}
-		e->found |= (u_int64_t)1 << i;
+		e->found |= (uint64_t)1 << i;
 	}
 
 	/* link into the correct place */
@@ -329,7 +328,7 @@ table_find(struct tabwork *work, const struct asn_oid *var)
 	 */
 	for (i = 0; i < work->descr->index_size; i++) {
 		if (work->descr->entries[i].syntax == SNMP_SYNTAX_OCTETSTRING &&
-		    (e->found & ((u_int64_t)1 << i)))
+		    (e->found & ((uint64_t)1 << i)))
 			free(*(void **)(void *)((u_char *)e +
 			    work->descr->entries[i].offset));
 	}
@@ -396,12 +395,12 @@ table_value(const struct snmp_table *descr, struct entry *e,
 	  case SNMP_SYNTAX_COUNTER:
 	  case SNMP_SYNTAX_GAUGE:
 	  case SNMP_SYNTAX_TIMETICKS:
-		*(u_int32_t *)(void *)((u_char *)e + descr->entries[i].offset) =
+		*(uint32_t *)(void *)((u_char *)e + descr->entries[i].offset) =
 		    b->v.uint32;
 		break;
 
 	  case SNMP_SYNTAX_COUNTER64:
-		*(u_int64_t *)(void *)((u_char *)e + descr->entries[i].offset) =
+		*(uint64_t *)(void *)((u_char *)e + descr->entries[i].offset) =
 		    b->v.counter64;
 		break;
 
@@ -411,7 +410,7 @@ table_value(const struct snmp_table *descr, struct entry *e,
 	  case SNMP_SYNTAX_ENDOFMIBVIEW:
 		abort();
 	}
-	e->found |= (u_int64_t)1 << i;
+	e->found |= (uint64_t)1 << i;
 
 	return (0);
 }
@@ -560,7 +559,6 @@ snmp_table_fetch(const struct snmp_table *descr, void *list)
 
 	for (;;) {
 		if (snmp_dialog(&work.pdu, &resp)) {
-			seterr("SNMP error: no response");
 			table_free(&work, 1);
 			return (-1);
 		}
@@ -1291,7 +1289,11 @@ snmp_receive_packet(struct snmp_pdu *pdu, struct timeval *tv)
 	int ret;
 	struct asn_buf abuf;
 	int32_t ip;
+#ifdef bsdi
+	int optlen;
+#else
 	socklen_t optlen;
+#endif
 
 	if ((buf = malloc(snmp_client.rxbuflen)) == NULL) {
 		seterr("%s", strerror(errno));
@@ -1365,8 +1367,14 @@ snmp_receive_packet(struct snmp_pdu *pdu, struct timeval *tv)
 		seterr("recv: %s", strerror(saved_errno));
 		return (-1);
 	}
-	if (ret == 0)
-		abort();
+	if (ret == 0) {
+		/* this happens when we have a streaming socket and the
+		 * remote side has closed it */
+		free(buf);
+		seterr("recv: socket closed by peer");
+		errno = EPIPE;
+		return (-1);
+	}
 
 	abuf.asn_ptr = buf;
 	abuf.asn_len = ret;
@@ -1627,8 +1635,12 @@ snmp_dialog(struct snmp_v1_pdu *req, struct snmp_v1_pdu *resp)
 				/* not for us */
 				(void)snmp_deliver_packet(resp);  
 			}
+			if (ret < 0 && errno == EPIPE)
+				/* stream closed */
+				return (-1);
 		}
         }
+	errno = ETIMEDOUT;
 	seterr("retry count exceeded");
         return (-1);
 }
