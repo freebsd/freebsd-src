@@ -87,7 +87,7 @@ static struct m3_card_type {
 };
 
 #define M3_BUFSIZE_DEFAULT 4096
-#define M3_PCHANS 2 /* create /dev/dsp0.[0-N] to use more than one */
+#define M3_PCHANS 4 /* create /dev/dsp0.[0-N] to use more than one */
 #define M3_RCHANS 1
 #define M3_MAXADDR ((1 << 27) - 1)
 
@@ -912,7 +912,6 @@ m3_intr(void *p)
 	if (status & HV_INT_PENDING) {
 		u_int8_t event;
 
-		device_printf(sc->dev, "Hardware Volume Interrupt\n");
 		event = m3_rd_1(sc, HW_VOL_COUNTER_MASTER);
 		switch (event) {
 		case 0x99:
@@ -1196,6 +1195,7 @@ m3_pci_attach(device_t dev)
 		device_printf(dev, "attach: pcm_setstatus error\n");
 		goto bad;
 	}
+
 	mixer_hwvol_init(dev);
 
 	/* Create the buffer for saving the card state during suspend */
@@ -1366,10 +1366,25 @@ m3_assp_halt(struct sc_info *sc)
 static void
 m3_config(struct sc_info *sc)
 {
-	u_int32_t data;
+	u_int32_t data, hv_cfg;
+	int hint;
+
+	/*
+	 * The volume buttons can be wired up via two different sets of pins.
+	 * This presents a problem since we can't tell which way it's
+	 * configured.  Allow the user to set a hint in order to twiddle
+	 * the proper bits.
+	 */
+	if (resource_int_value(device_get_name(sc->dev),
+	                       device_get_unit(sc->dev),
+			       "hwvol_config", &hint) == 0)
+		hv_cfg = (hint > 0) ? HV_BUTTON_FROM_GD : 0;
+	else
+		hv_cfg = HV_BUTTON_FROM_GD;
 
 	data = pci_read_config(sc->dev, PCI_ALLEGRO_CONFIG, 4);
-	data &= REDUCED_DEBOUNCE;
+	data &= HV_BUTTON_FROM_GD;
+	data |= REDUCED_DEBOUNCE | HV_CTRL_ENABLE | hv_cfg;
 	data |= PM_CTRL_ENABLE | CLK_DIV_BY_49 | USE_PCI_TIMING;
 	pci_write_config(sc->dev, PCI_ALLEGRO_CONFIG, data, 4);
 
