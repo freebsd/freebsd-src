@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.166 1998/07/08 01:04:27 julian Exp $
+ * $Id: vfs_bio.c,v 1.167 1998/07/13 07:05:55 bde Exp $
  */
 
 /*
@@ -2104,7 +2104,7 @@ SYSCTL_PROC(_kern, KERN_UPDATEINTERVAL, update, CTLTYPE_INT|CTLFLAG_RW,
 void
 vfs_unbusy_pages(struct buf * bp)
 {
-	int i;
+	int i, s;
 
 	if (bp->b_flags & B_VMIO) {
 		struct vnode *vp = bp->b_vp;
@@ -2123,7 +2123,9 @@ vfs_unbusy_pages(struct buf * bp)
 				bp->b_pages[i] = m;
 				pmap_qenter(trunc_page(bp->b_data), bp->b_pages, bp->b_npages);
 			}
+			s = splvm();
 			--obj->paging_in_progress;
+			splx(s);
 			m->flags &= ~PG_ZERO;
 			PAGE_BWAKEUP(m);
 		}
@@ -2221,7 +2223,7 @@ vfs_page_set_valid(struct buf *bp, vm_ooffset_t off, int pageno, vm_page_t m)
 void
 vfs_busy_pages(struct buf * bp, int clear_modify)
 {
-	int i,s;
+	int i, s;
 
 	if (bp->b_flags & B_VMIO) {
 		struct vnode *vp = bp->b_vp;
@@ -2248,7 +2250,9 @@ retry:
 
 			m->flags &= ~PG_ZERO;
 			if ((bp->b_flags & B_CLUSTER) == 0) {
+				s = splvm();
 				obj->paging_in_progress++;
+				splx(s);
 				m->busy++;
 			}
 
