@@ -427,6 +427,7 @@ grpagain:
 				} else {
 					endgrent();
 					latch = 0;
+					_pw_stepping_yp = 0;
 					gr = NULL;
 					return(0);
 				}
