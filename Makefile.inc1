@@ -351,6 +351,10 @@ installcheck:
 .endif
 
 #
+# distributeworld
+#
+# Distributes everything compiled by a `buildworld'.
+#
 # installworld
 #
 # Installs everything compiled by a 'buildworld'.
