@@ -41,7 +41,6 @@
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <isa/isavar.h>
-#include <machine/nexusvar.h>
 #include <machine/pci_cfgreg.h>
 #include <machine/segments.h>
 #include <machine/pc/bios.h>
