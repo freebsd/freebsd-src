@@ -30,9 +30,9 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)resolver.5	8.1 (Berkeley) 6/5/93
-.\"	$Id$
+.\"	$Id: resolver.5,v 1.3 1997/03/07 03:28:05 jmg Exp $
 .\"
-.Dd June 5, 1993
+.Dd November 11, 1993
 .Dt RESOLVER 5
 .Os BSD 4
 .Sh NAME
@@ -89,8 +89,7 @@ domain is assumed.
 .It Sy search
 Search list for host-name lookup.
 The search list is normally determined from the local domain name;
-by default, it begins with the local domain name, then successive
-parent domains that have at least two components in their names.
+by default, it contains only the local domain name.
 This may be changed by listing the desired domain search path
 following the
 .Sy search
@@ -105,6 +104,52 @@ for one of the domains.
 .Pp
 The search list is currently limited to six domains
 with a total of 256 characters.
+.It Sy sortlist
+Sortlist allows addresses returned by gethostbyname to be sorted.
+A sortlist is specified by IP address netmask pairs. The netmask is
+optional and defaults to the natural netmask of the net. The IP address
+and optional network pairs are separated by slashes. Up to 10 pairs may
+be specified.
+.Pp
+e.g. sortlist 130.155.160.0/255.255.240.0 130.155.0.0
+.It Sy options
+Options allows certain internal resolver variables to be modified.
+The syntax is
+.Pp
+-\fBoptions\fP \fIoption\fP \fI...\fP
+.Pp
+where
+.Sy option
+is one of the following:
+.Pp
+.Bl -tag -width nameserver
+.It Sy debug
+sets
+.Dv
+RES_DEBUG
+in _res.options.
+.It Sy ndots:n
+sets a threshold for the number of dots which must appear in a name given to
+.Fn res_query
+(see
+.Xr resolver 3 )
+before an
+.Em initial absolute query
+will be made. The default for
+.Em n
+is
+.Dq 1 ,
+meaning that if there are any dots in a name, the name
+will be tried first as an absolute name before any
+.Em search list
+elements are appended to it.
+.Pp
+The
+.Sy domain
+and
+.Sy search
+keywords are mutually exclusive.
+.El
 .El
 .Pp
 The
