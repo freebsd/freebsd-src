@@ -56,7 +56,7 @@ update_lineno(const char *cp)
 ;			{ return SEMICOLON; }
 #.*$			;
 \/\/.*$			;
-\/\*(.|\n)*\*\/		{ update_lineno(yytext); }
+\/\*([^*]|(\*+([^*\/])))*\*+\/ { update_lineno(yytext); }
 \{			{ return BEGINBLOCK; }
 \}			{ return ENDBLOCK; }
 [0-9]+			{ yylval.i = atoi(yytext); return NUMBER; }
