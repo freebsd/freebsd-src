@@ -241,7 +241,8 @@ mac_biba_range_in_range(struct mac_biba *rangea, struct mac_biba *rangeb)
 }
 
 static int
-mac_biba_effective_in_range(struct mac_biba *effective, struct mac_biba *range)
+mac_biba_effective_in_range(struct mac_biba *effective,
+    struct mac_biba *range)
 {
 
 	KASSERT((effective->mb_flags & MAC_BIBA_FLAG_EFFECTIVE) != 0,
