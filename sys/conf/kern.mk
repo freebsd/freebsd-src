@@ -64,7 +64,7 @@ INLINE_LIMIT?=	15000
 CFLAGS+=	-mcmodel=kernel -mno-red-zone \
 		-mfpmath=387 -mno-sse -mno-sse2 -mno-mmx -mno-3dnow \
 		-msoft-float -fno-asynchronous-unwind-tables
-INLINE_LIMIT?=	20000
+INLINE_LIMIT?=	8000
 .endif
 
 #
