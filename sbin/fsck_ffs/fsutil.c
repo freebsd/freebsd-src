@@ -321,7 +321,8 @@ ckfini(markclean)
 		errx(EEXIT, "panic: lost %d buffers", bufhead.b_size - cnt);
 	pbp = pdirbp = (struct bufarea *)0;
 	if (cursnapshot == 0 && sblock.fs_clean != markclean) {
-		sblock.fs_clean = markclean;
+		if ((sblock.fs_clean = markclean) != 0)
+			sblock.fs_flags &= ~(FS_UNCLEAN | FS_NEEDSFSCK);
 		sbdirty();
 		ofsmodified = fsmodified;
 		flush(fswritefd, &sblk);
@@ -336,7 +337,7 @@ ckfini(markclean)
 		printf("\n***** FILE SYSTEM STILL DIRTY *****\n");
 		rerun = 1;
 	}
-	if (debug)
+	if (debug && totalreads > 0)
 		printf("cache missed %ld of %ld (%d%%)\n", diskreads,
 		    totalreads, (int)(diskreads * 100 / totalreads));
 	(void)close(fsreadfd);
@@ -649,6 +650,19 @@ pfatal(fmt, va_alist)
 		if (usedsoftdep)
 			(void)fprintf(stderr,
 			    "\nUNEXPECTED SOFT UPDATE INCONSISTENCY\n");
+		/*
+		 * Force foreground fsck to clean up inconsistency.
+		 */
+		if (bkgrdflag) {
+			cmd.value = FS_NEEDSFSCK;
+			cmd.size = 1;
+			if (sysctlbyname("vfs.ffs.setflags", 0, 0,
+			    &cmd, sizeof cmd) == -1)
+				pwarn("CANNOT SET FS_NEEDSFSCK FLAG\n");
+			fprintf(stderr, "CANNOT RUN IN BACKGROUND\n");
+			ckfini(0);
+			exit(EEXIT);
+		}
 		return;
 	}
 	if (cdevname == NULL)
@@ -658,6 +672,16 @@ pfatal(fmt, va_alist)
 	(void)fprintf(stderr,
 	    "\n%s: UNEXPECTED%sINCONSISTENCY; RUN fsck MANUALLY.\n",
 	    cdevname, usedsoftdep ? " SOFT UPDATE " : " ");
+	/*
+	 * Force foreground fsck to clean up inconsistency.
+	 */
+	if (bkgrdflag) {
+		cmd.value = FS_NEEDSFSCK;
+		cmd.size = 1;
+		if (sysctlbyname("vfs.ffs.setflags", 0, 0,
+		    &cmd, sizeof cmd) == -1)
+			pwarn("CANNOT SET FS_NEEDSFSCK FLAG\n");
+	}
 	ckfini(0);
 	exit(EEXIT);
 }
