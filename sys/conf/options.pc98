@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.81 1999/03/10 14:01:59 kato Exp $
+#	$Id: options.pc98,v 1.82 1999/03/10 14:51:52 kato Exp $
 
 DISABLE_PSE
 IDE_DELAY
@@ -172,6 +172,11 @@ IPR_VJ			opt_i4b.h
 OLTR_NO_TMS_MAC		opt_oltr.h
 OLTR_NO_HAWKEYE_MAC	opt_oltr.h
 OLTR_NO_BULLSEYE_MAC	opt_oltr.h
+
+# Total number of ports controlled by the dgb(4) driver.
+# Defaults to NDGB*16.
+NDGBPORTS		opt_dgb.h
+
 # -------------------------------
 # EOF
 # -------------------------------
