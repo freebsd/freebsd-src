@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  *  	@(#) src/sys/cfs/coda_vfsops.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_vfsops.c,v 1.10 1998/12/04 22:54:43 archie Exp $
+ *  $Id: coda_vfsops.c,v 1.11 1999/01/17 20:25:17 peter Exp $
  * 
  */
 
@@ -47,6 +47,9 @@
 /*
  * HISTORY
  * $Log: coda_vfsops.c,v $
+ * Revision 1.11  1999/01/17 20:25:17  peter
+ * Clean up the KLD/LKM goop a bit.
+ *
  * Revision 1.10  1998/12/04 22:54:43  archie
  * Examine all occurrences of sprintf(), strcat(), and str[n]cpy()
  * for possible buffer overflow problems. Replaced most sprintf()'s
@@ -337,7 +340,7 @@ coda_mount(vfsp, path, data, ndp, p)
     /*
      * See if the device table matches our expectations.
      */
-    if (cdevsw[major(dev)]->d_open != vc_nb_open)
+    if (devsw(dev)->d_open != vc_nb_open)
     {
 	MARK_INT_FAIL(CODA_MOUNT_STATS);
 	return(ENXIO);

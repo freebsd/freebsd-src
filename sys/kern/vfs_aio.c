@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.47 1999/05/06 18:44:42 peter Exp $
+ * $Id: vfs_aio.c,v 1.48 1999/05/06 20:00:25 phk Exp $
  */
 
 /*
@@ -963,7 +963,7 @@ aio_qphysio(p, aiocbe)
 		return -1;
 	}
 
-	cdev = cdevsw[major(vp->v_rdev)];
+	cdev = devsw(vp->v_rdev);
 	if (cdev == NULL) {
 		return -1;
 	}

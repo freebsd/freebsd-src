@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_file.c,v 1.23 1999/01/10 23:15:35 eivind Exp $
+ *  $Id: linux_file.c,v 1.24 1999/05/06 18:44:20 peter Exp $
  */
 
 #include "opt_compat.h"
@@ -306,7 +306,7 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args)
 	if ((error = VOP_GETATTR(vp, &va, p->p_ucred, p)))
 	    return error;
 
-	d_tty = cdevsw[major(va.va_rdev)]->d_devtotty;
+	d_tty = devsw(va.va_rdev)->d_devtotty;
 	if (!d_tty || (!(tp = (*d_tty)(va.va_rdev))))
 	    return EINVAL;
 	if (args->cmd == LINUX_F_GETOWN) {

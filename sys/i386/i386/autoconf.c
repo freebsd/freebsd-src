@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.115 1999/05/06 22:16:19 peter Exp $
+ *	$Id: autoconf.c,v 1.116 1999/05/07 10:10:21 phk Exp $
  */
 
 /*
@@ -153,7 +153,7 @@ find_cdrom_root()
 			if (try_cdrom[j].major >= nblkdev)
 				continue;
 			rootdev = makedev(try_cdrom[j].major, i * 8);
-			bd = bdevsw(major(rootdev));
+			bd = bdevsw(rootdev);
 			if (bd == NULL || bd->d_open == NULL)
 				continue;
 			if (bootverbose)
