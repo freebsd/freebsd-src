@@ -88,6 +88,11 @@ int		unaligned_fixup __P((unsigned long, unsigned long,
 
 static void printtrap __P((const unsigned long, const unsigned long,
       const unsigned long, const unsigned long, struct trapframe *, int, int));
+
+#ifdef WITNESS
+extern char *syscallnames[];
+#endif
+
 /*
  * Define the code needed before returning to user mode, for
  * trap and syscall.
@@ -737,6 +742,15 @@ syscall(code, framep)
 	 */
 	STOPEVENT(p, S_SCX, code);
 	mtx_exit(&Giant, MTX_DEF);
+
+	mtx_assert(&sched_lock, MA_NOTOWNED);
+	mtx_assert(&Giant, MA_NOTOWNED);
+#ifdef WITNESS
+	if (witness_list(p)) {
+		panic("system call %s returning with mutex(s) held\n",
+		    syscallnames[code]);
+	}
+#endif
 }
 
 /*

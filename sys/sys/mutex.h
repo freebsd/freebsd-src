@@ -300,7 +300,7 @@ void	witness_enter(struct mtx *, int, const char *, int);
 void	witness_try_enter(struct mtx *, int, const char *, int);
 void	witness_exit(struct mtx *, int, const char *, int);
 void	witness_display(void(*)(const char *fmt, ...));
-void	witness_list(struct proc *);
+int	witness_list(struct proc *);
 int	witness_sleep(int, struct mtx *, const char *, int);
 void	witness_save(struct mtx *, const char **, int *);
 void	witness_restore(struct mtx *, const char *, int);
