@@ -36,12 +36,15 @@
 	.register	%g2, #ignore
 	.register	%g3, #ignore
 
+#if 0
 #define	IPI_WAIT(r1, r2, r3) \
 	ATOMIC_DEC_INT(r1, r2, r3) ; \
-9:	membar	#StoreLoad ; \
-	lduw	[r1], r2 ; \
+9:	lduw	[r1], r2 ; \
 	brnz,a,pn r2, 9b ; \
 	 nop
+#else
+#define	IPI_WAIT(r1, r2, r3)
+#endif
 
 /*
  * Trigger a softint at the desired level.
@@ -76,36 +79,41 @@ END(tl_ipi_test)
  * Demap a page from the dtlb and/or itlb.
  */
 ENTRY(tl_ipi_tlb_page_demap)
+#if KTR_COMPILE & KTR_SMP
+	CATR(KTR_SMP, "ipi_tlb_page_demap: pm=%p va=%#lx"
+	    , %g1, %g2, %g3, 7, 8, 9)
+	ldx	[%g5 + ITA_PMAP], %g2
+	stx	%g2, [%g1 + KTR_PARM1]
+	ldx	[%g5 + ITA_VA], %g2
+	stx	%g2, [%g1 + KTR_PARM2]
+9:
+#endif
+
+	ldx	[%g5 + ITA_PMAP], %g1
+
+	SET(kernel_pmap_store, %g3, %g2)
+	mov	TLB_DEMAP_NUCLEUS | TLB_DEMAP_PAGE, %g3
+
+	cmp	%g1, %g2
+	movne	%xcc, TLB_DEMAP_PRIMARY | TLB_DEMAP_PAGE, %g3
+
 	ldx	[%g5 + ITA_TLB], %g1
-	ldx	[%g5 + ITA_CTX], %g2
-	ldx	[%g5 + ITA_VA], %g3
+	ldx	[%g5 + ITA_VA], %g2
+	or	%g2, %g3, %g2
 
-	wr	%g0, ASI_DMMU, %asi
-
-	brz,a,pt %g2, 1f
-	 or	%g3, TLB_DEMAP_NUCLEUS | TLB_DEMAP_PAGE, %g3
-
-	stxa	%g2, [%g0 + AA_DMMU_SCXR] %asi
+	andcc	%g1, TLB_DTLB, %g0
+	bz,a,pn	%xcc, 1f
+	 nop
+	stxa	%g0, [%g2] ASI_DMMU_DEMAP
 	membar	#Sync
-	or	%g3, TLB_DEMAP_SECONDARY | TLB_DEMAP_PAGE, %g3
 
-1:	andcc	%g1, TLB_DTLB, %g0
-	bz,a,pn %xcc, 2f
+1:	andcc	%g1, TLB_ITLB, %g0
+	bz,a,pn	%xcc, 2f
 	 nop
-	stxa	%g0, [%g3] ASI_DMMU_DEMAP
+	stxa	%g0, [%g2] ASI_IMMU_DEMAP
+	membar	#Sync
 
-2:	andcc	%g1, TLB_ITLB, %g0
-	bz,a,pn %xcc, 3f
-	 nop
-	stxa	%g0, [%g3] ASI_IMMU_DEMAP
-
-3:	brz,a,pt %g2, 4f
-	 nop
-	stxa	%g0, [%g0 + AA_DMMU_SCXR] %asi
-
-4:	membar	#Sync
-
-	IPI_WAIT(%g5, %g1, %g2)
+2:	IPI_WAIT(%g5, %g1, %g2)
 	retry
 END(tl_ipi_tlb_page_demap)
 
@@ -113,55 +121,62 @@ END(tl_ipi_tlb_page_demap)
  * Demap a range of pages from the dtlb and itlb.
  */
 ENTRY(tl_ipi_tlb_range_demap)
-	ldx	[%g5 + ITA_CTX], %g1
+#if KTR_COMPILE & KTR_SMP
+	CATR(KTR_SMP, "ipi_tlb_range_demap: pm=%p start=%#lx end=%#lx"
+	    , %g1, %g2, %g3, 7, 8, 9)
+	ldx	[%g5 + ITA_PMAP], %g2
+	stx	%g2, [%g1 + KTR_PARM1]
 	ldx	[%g5 + ITA_START], %g2
-	ldx	[%g5 + ITA_END], %g3
+	stx	%g2, [%g1 + KTR_PARM2]
+	ldx	[%g5 + ITA_END], %g2
+	stx	%g2, [%g1 + KTR_PARM3]
+9:
+#endif
 
-	wr	%g0, ASI_DMMU, %asi
+	ldx	[%g5 + ITA_PMAP], %g1
 
-	brz,a,pt %g1, 1f
-	 mov	TLB_DEMAP_NUCLEUS | TLB_DEMAP_PAGE, %g4
+	SET(kernel_pmap_store, %g3, %g2)
+	mov	TLB_DEMAP_NUCLEUS | TLB_DEMAP_PAGE, %g3
 
-	stxa	%g1, [%g0 + AA_DMMU_SCXR] %asi
-	membar	#Sync
-	mov	TLB_DEMAP_SECONDARY | TLB_DEMAP_PAGE, %g4
+	cmp	%g1, %g2
+	movne	%xcc, TLB_DEMAP_PRIMARY | TLB_DEMAP_PAGE, %g3
 
-1:	set	PAGE_SIZE, %g5
+	ldx	[%g5 + ITA_START], %g1
+	ldx	[%g5 + ITA_END], %g2
 
-2:	or	%g4, %g2, %g4
+	set	PAGE_SIZE, %g6
+
+1:	or	%g1, %g3, %g4
 	stxa	%g0, [%g4] ASI_DMMU_DEMAP
 	stxa	%g0, [%g4] ASI_IMMU_DEMAP
+	membar	#Sync
 
-	add	%g2, %g5, %g2
-	cmp	%g2, %g3
-	bne,a,pt %xcc, 2b
+	add	%g1, %g6, %g1
+	cmp	%g1, %g2
+	blt,a,pt %xcc, 1b
 	 nop
-
-	brz,a,pt %g1, 3f
-	 nop
-	stxa	%g0, [%g0 + AA_DMMU_SCXR] %asi
-
-3:	membar	#Sync
 
 	IPI_WAIT(%g5, %g1, %g2)
 	retry
 END(tl_ipi_tlb_range_demap)
 
 /*
- * Demap an entire context from the dtlb and itlb.
+ * Demap the primary context from the dtlb and itlb.
  */
 ENTRY(tl_ipi_tlb_context_demap)
-	ldx	[%g5 + ITA_CTX], %g1
+#if KTR_COMPILE & KTR_SMP
+	CATR(KTR_SMP, "ipi_tlb_page_demap: pm=%p va=%#lx"
+	    , %g1, %g2, %g3, 7, 8, 9)
+	ldx	[%g5 + ITA_PMAP], %g2
+	stx	%g2, [%g1 + KTR_PARM1]
+	ldx	[%g5 + ITA_VA], %g2
+	stx	%g2, [%g1 + KTR_PARM2]
+9:
+#endif
 
-	mov	AA_DMMU_SCXR, %g2
-	stxa	%g1, [%g2] ASI_DMMU
-	membar	#Sync
-
-	mov	TLB_DEMAP_SECONDARY | TLB_DEMAP_CONTEXT, %g3
-	stxa	%g0, [%g3] ASI_DMMU_DEMAP
-	stxa	%g0, [%g3] ASI_IMMU_DEMAP
-
-	stxa	%g0, [%g2] ASI_DMMU
+	mov	TLB_DEMAP_PRIMARY | TLB_DEMAP_CONTEXT, %g1
+	stxa	%g0, [%g1] ASI_DMMU_DEMAP
+	stxa	%g0, [%g1] ASI_IMMU_DEMAP
 	membar	#Sync
 
 	IPI_WAIT(%g5, %g1, %g2)
