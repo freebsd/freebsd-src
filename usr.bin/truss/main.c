@@ -31,7 +31,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: main.c,v 1.11 1998/09/07 05:49:43 sef Exp $";
+	"$Id: main.c,v 1.12 1998/10/03 00:43:05 sef Exp $";
 #endif /* not lint */
 
 /*
@@ -254,6 +254,7 @@ main(int ac, char **av) {
     if (ioctl(Procfd, PIOCCONT, val) == -1)
       warn("PIOCCONT");
   } while (pfs.why != S_EXIT);
+  fflush(outfile);
   if (sigexit) {
     if (sigexit == SIGQUIT)
       exit(sigexit);
