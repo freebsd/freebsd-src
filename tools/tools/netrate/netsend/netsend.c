@@ -170,10 +170,8 @@ timing_loop(int s, struct timespec interval, long duration, u_char *packet,
 			*((u_int32_t *)packet) = htonl(counter);
 			counter++;
 		}
-		if (send(s, packet, packet_len, 0) < 0) {
-			perror("send");
+		if (send(s, packet, packet_len, 0) < 0)
 			send_errors++;
-		}
 		send_calls++;
 		if (duration != 0 && tmptime.tv_sec >= finishtime)
 			goto done;
