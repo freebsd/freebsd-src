@@ -152,6 +152,19 @@ printf( "ddp_route: oops\n" );
     }
 
     /*
+     * if the destination address is on a directly attached node use that,
+     * else use the official gateway.
+     */
+    if ( ntohs( satosat( &ro->ro_dst )->sat_addr.s_net ) >=
+	    ntohs( aa->aa_firstnet ) &&
+	    ntohs( satosat( &ro->ro_dst )->sat_addr.s_net ) <=
+	    ntohs( aa->aa_lastnet )) {
+	gate = *satosat( &ro->ro_dst );
+    } else {
+	gate = *satosat( ro->ro_rt->rt_gateway );
+    }
+
+    /*
      * There are several places in the kernel where data is added to
      * an mbuf without ensuring that the mbuf pointer is aligned.
      * This is bad for transition routing, since phase 1 and phase 2
@@ -172,23 +185,7 @@ printf( "ddp_route: oops\n" );
 	elh = mtod( m, struct elaphdr *);
 	elh->el_snode = satosat( &aa->aa_addr )->sat_addr.s_node;
 	elh->el_type = ELAP_DDPEXTEND;
-	if ( ntohs( satosat( &ro->ro_dst )->sat_addr.s_net ) >=
-		ntohs( aa->aa_firstnet ) &&
-		ntohs( satosat( &ro->ro_dst )->sat_addr.s_net ) <=
-		ntohs( aa->aa_lastnet )) {
-	    elh->el_dnode = satosat( &ro->ro_dst )->sat_addr.s_node;
-	} else {
-	    elh->el_dnode = satosat( ro->ro_rt->rt_gateway )->sat_addr.s_node;
-	}
-    }
-
-    if ( ntohs( satosat( &ro->ro_dst )->sat_addr.s_net ) >=
-	    ntohs( aa->aa_firstnet ) &&
-	    ntohs( satosat( &ro->ro_dst )->sat_addr.s_net ) <=
-	    ntohs( aa->aa_lastnet )) {
-	gate = *satosat( &ro->ro_dst );
-    } else {
-	gate = *satosat( ro->ro_rt->rt_gateway );
+	elh->el_dnode = gate->sat_addr.s_node;
     }
     ro->ro_rt->rt_use++;
 
