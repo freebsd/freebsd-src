@@ -50,7 +50,9 @@
  *
  * The first fixes the brain deadness of pccardd (where it reads the
  * CIS for common memory, sets it all up and then throws it all away
- * assuming the card is an ed driver...).
+ * assuming the card is an ed driver...). Note that this could be
+ * dangerous (because it doesn't interact with pccardd) if you
+ * use other memory mapped cards at the same time.
  *
  * The second option ensures that common memory is remapped whenever
  * we are going to access it (we can't just do it once, as something
@@ -114,14 +116,22 @@
 /*
  * TODO
  *
- * _stop
- * _reset
- * havenet checking
- * unload
- * shutdown
+ * _stop - mostly done
+ *	would be nice to understand shutdown/power save to prevent RX
+ * _reset - done
+ * 	just needs calling in the right places
+ *	converted most panic to resets
+ *	may be needed in a couple of other places when I do more commands
+ * havenet - mostly done
+ *	i think i've got all the places to set it right, but not so sure
+ *	we reset it in all the right places
+ * _unload - done
+ *	recreated most of stop but as card is unplugged don't try and
+ *	access it
  *
  * TX bpf
  * RX bpf
+ * shutdown
  * promisoius
  * multicast
  * ifp->if_hdr length
@@ -161,9 +171,9 @@
  *	31	IOCTL calls
  *	51	MBUFs dumped/packet types reported
  */
-#define RAY_DEBUG		6
+#define RAY_DEBUG		101
 
-#define RAY_CCS_TIMEOUT		(hz/2)	/* Timeout for CCS commands - only used for downloading startup parameters */
+#define RAY_DOWNLOAD_TIMEOUT	(hz/2)	/* Timeout for CCS commands - only used for downloading startup parameters */
 
 #define RAY_NEED_STARTJOIN_TIMO	0	/* Might be needed with build 4 */
 #define RAY_SJ_TIMEOUT		(90*hz)	/* Timeout for failing STARTJOIN commands - only used with RAY_NEED_STARTJOIN_TIMO */
@@ -173,6 +183,11 @@
 #define RAY_NEED_CM_REMAPPING	1	/* Needed until pccard maps more than one memory area */
 
 #define RAY_DUMP_CM_ON_GIFMEDIA	1	/* Dump some common memory when the SIOCGIFMEDIA ioctl is issued - a nasty hack for debugging and will be placed by an ioctl and control program */
+
+#define RAY_RESET_TIMEOUT	(5*hz)	/* Timeout for resetting the card */
+
+#define RAY_SIMPLE_TX		1	/* Simple TX routine */
+#define RAY_DECENT_TX		0	/* Decent TX routine - tbd */
 /*
  * XXX build options - move to LINT
  */
@@ -416,6 +431,8 @@ static void	ray_download_params	__P((struct ray_softc *sc));
 static void	ray_download_timo	__P((void *xsc));
 static u_int8_t	ray_free_ccs 		__P((struct ray_softc *sc, size_t ccs));
 static int	ray_issue_cmd		__P((struct ray_softc *sc, size_t ccs, u_int track));
+static void	ray_reset		__P((struct ray_softc *sc));
+static void	ray_reset_timo		__P((void *xsc));
 static void	ray_rcs_intr		__P((struct ray_softc *sc, size_t ccs));
 static void	ray_rx			__P((struct ray_softc *sc, size_t rcs));
 static void	ray_start_done		__P((struct ray_softc *sc, size_t ccs, u_int8_t status));
@@ -473,13 +490,21 @@ static void	ray_dump_mbuf		__P((struct ray_softc *sc, struct mbuf *m, char *s));
     bcopy((vp), (sc)->maddr + (off), (n))
 
 /*
- * Macro's
+ * Macro's and constants
  */
-#ifndef RAY_CCS_TIMEOUT
-#define RAY_CCS_TIMEOUT		(hz / 2)
+#ifndef RAY_DOWNLOAD_TIMEOUT
+#define RAY_DOWNLOAD_TIMEOUT	(hz / 2)
 #endif
 #ifndef RAY_START_TIMEOUT
 #define RAY_START_TIMEOUT	(hz / 2)
+#endif
+#ifndef RAY_RESET_TIMEOUT
+#define RAY_RESET_TIMEOUT	(10 * hz)
+#endif
+#if RAY_SIMPLE_TX
+#define RAY_IFQ_MAXLEN		(2)
+#else if RAY_DECENT_TX
+#define RAY_IFQ_MAXLEN		(RAY_CCS_TX_LAST+1)
 #endif
 #define RAY_CCS_FREE(sc, ccs) \
     SRAM_WRITE_FIELD_1((sc), (ccs), ray_cmd, c_status, RAY_CCS_STATUS_FREE)
@@ -533,6 +558,10 @@ ray_pccard_init (dev_p)
 
 #if RAY_NEED_CM_FIXUP
     doRemap = 0;
+    if (sc->md.start = 0x0) {
+	printf("ray%d: pccardd did not map CM - giving up\n", sc->unit);
+	return(ENXIO);
+    }
     if (sc->md.flags != MDF_ACTIVE) {
 	printf("ray%d: Fixing up CM flags from 0x%x to 0x40\n",
 		sc->unit, sc->md.flags);
@@ -588,19 +617,38 @@ ray_pccard_unload (dev_p)
     RAY_DPRINTFN(5, ("ray%d: PCCard unload\n", dev_p->isahd.id_unit));
 
     sc = &ray_softc[dev_p->isahd.id_unit];
+    ifp = &sc->arpcom.ac_if;
 
     if (sc->gone) {
 	printf("ray%d: already unloaded\n", sc->unit);
 	return;
     }
 
-/* XXX shouldn't we call _stop? */
-    /* Cleardown interface */
-    ifp = &sc->arpcom.ac_if;
-    ifp->if_flags &= ~(IFF_RUNNING|IFF_OACTIVE);
-    if_down(ifp); /* XXX probably should be if_detach but I don't know if it works in 3.1 */
+    /*
+     * Clear out timers and sort out driver state
+     */
+    untimeout(ray_download_timo, sc, sc->timerh);
+    untimeout(ray_reset_timo, sc, sc->timerh);
+#if RAY_NEED_STARTJOIN_TIMO
+    untimeout(ray_start_join_timo, sc, sc->sj_timerh);
+#endif /* RAY_NEED_STARTJOIN_TIMO */
+    untimeout(ray_start_timo, sc, sc->start_timerh);
+    sc->sc_havenet = 0;
 
-    /* Mark card as gone */
+    /*
+     * Mark as not running
+     */
+    ifp->if_flags &= ~IFF_RUNNING;
+    ifp->if_flags &= ~IFF_OACTIVE;
+
+    /*
+     * Cleardown interface
+     */
+    if_down(ifp); /* XXX should be if_detach for -current */
+
+    /*
+     * Mark card as gone
+     */
     sc->gone = 1;
     printf("ray%d: unloaded\n", sc->unit);
 
@@ -695,9 +743,11 @@ ray_attach (dev_p)
 
     if (sc->gone) {
 	printf("ray%d: unloaded before attach!\n", sc->unit);
-	return(0);
+	return(1);
     }
 
+printf("  maddr 0x%x\n", sc->maddr);
+RAY_DHEX8((u_int8_t *)sc->maddr, sizeof(sc->sc_ecf_startup));
     /*
      * Read startup results, check the card is okay and work out what
      * version we are using.
@@ -717,20 +767,18 @@ ray_attach (dev_p)
 	    "\007RERSERVED1"
 	    "\008TEST_COMPLETE"
 	);
-	return(0);
+	return(1);
     }
     if (sc->sc_version != RAY_ECFS_BUILD_4 &&
         sc->sc_version != RAY_ECFS_BUILD_5
        ) {
 	printf("ray%d: unsupported firmware version 0x%0x\n", sc->unit,
 	    ep->e_fw_build_string);
-	return(0);
+	return(1);
     }
 
     if (bootverbose || RAY_DEBUG) {
 	printf("ray%d: Start Up Results\n", sc->unit);
-	if (RAY_DEBUG > 10)
-	    RAY_DHEX8((u_int8_t *)sc->maddr + RAY_ECF_TO_HOST_BASE, 0x40);
 	if (sc->sc_version == RAY_ECFS_BUILD_4)
 	    printf("  Firmware version 4\n");
 	else
@@ -789,7 +837,7 @@ ray_attach (dev_p)
     ifp->if_ioctl = ray_ioctl;
     ifp->if_watchdog = ray_watchdog;
     ifp->if_init = ray_init;
-    ifp->if_snd.ifq_maxlen = RAY_CCS_TX_LAST;
+    ifp->if_snd.ifq_maxlen = RAY_IFQ_MAXLEN;
 
     /*
      * If this logical interface has already been attached,
@@ -856,6 +904,8 @@ ray_start (ifp)
     if ((ifp->if_flags & IFF_RUNNING) == 0 || !sc->sc_havenet)
 	return;
     if (!RAY_ECF_READY(sc)) {
+	RAY_DPRINTFN(1, ("ray%d: ray_start busy, schedule a timeout\n",
+		sc->unit));
 	sc->start_timerh = timeout(ray_start_timo, sc, RAY_START_TIMEOUT);
 	return;
     } else
@@ -1325,10 +1375,10 @@ ray_watchdog (ifp)
 
 /* XXX may need to have remedial action here
    for example
-   	ray_reset - may be useful elsewhere
-		ray_stop
-		...
-		ray_init
+   	ray_reset
+	    ray_stop
+	    ...
+	    ray_init
 
     do we only use on TX?
     	if so then we should clear OACTIVE etc.
@@ -1474,12 +1524,16 @@ ray_init (xsc)
 
 /*
  * Network stop.
+ *
+ * Assumes that a ray_init is used to restart the card.
+ *
  */
 static void
 ray_stop (sc)
     struct ray_softc	*sc;
 {
     struct ifnet	*ifp;
+    int			s;
 
     RAY_DPRINTFN(5, ("ray%d: Network stop\n", sc->unit));
     RAY_MAP_CM(sc);
@@ -1491,18 +1545,86 @@ ray_stop (sc)
 
     ifp = &sc->arpcom.ac_if;
 
-    /* XXX how do we clear ccs etc. properly */
-    /* XXX how do we inhibit interrupts properly */
-    /* XXX do these matter are we always restated with an _init? */
-
+    /*
+     * Clear out timers and sort out driver state
+     */
     untimeout(ray_download_timo, sc, sc->timerh);
+    untimeout(ray_reset_timo, sc, sc->timerh);
 #if RAY_NEED_STARTJOIN_TIMO
     untimeout(ray_start_join_timo, sc, sc->sj_timerh);
 #endif /* RAY_NEED_STARTJOIN_TIMO */
     untimeout(ray_start_timo, sc, sc->start_timerh);
+    sc->sc_havenet = 0;
 
-    /* Mark as not running */
+    /*
+     * Inhibit card - if we can't prevent reception then do not worry;
+     * stopping a NIC only guarantees no TX.
+     */
+    s = splimp();
+    /* XXX what does the SHUTDOWN command do? Or power saving in COR */
+    splx(s);
+
+    /*
+     * Mark as not running
+     */
     ifp->if_flags &= ~IFF_RUNNING;
+    ifp->if_flags &= ~IFF_OACTIVE;
+
+    return;
+}
+
+/*
+ * Reset the card
+ *
+ * I'm using the soft reset command in the COR register. I'm not sure
+ * if the sequence is right but it does seem to do the right thing. A
+ * nano second after reset is written the flashing light goes out, and
+ * a few seconds after the default is written the main card light goes
+ * out. We wait a while and then re-init the card.
+ */
+static void
+ray_reset (sc)
+    struct ray_softc	*sc;
+{
+    struct ifnet	*ifp;
+
+    RAY_DPRINTFN(5, ("ray%d: ray_reset\n", sc->unit));
+    RAY_MAP_CM(sc);
+
+    ifp = &sc->arpcom.ac_if;
+
+    if (ifp->if_flags & IFF_RUNNING)
+	ray_stop(sc);
+
+    printf("ray%d: resetting card\n", sc->unit);
+    ray_attr_write((sc), RAY_COR, RAY_COR_RESET);
+    ray_attr_write((sc), RAY_COR, RAY_COR_DEFAULT);
+    sc->timerh = timeout(ray_reset_timo, sc, RAY_RESET_TIMEOUT);
+
+    return;
+}
+
+/*
+ * Finishing resetting and restarting the card
+ */
+static void
+ray_reset_timo (xsc)
+    void		*xsc;
+{
+    struct ray_softc	*sc = xsc;
+
+    RAY_DPRINTFN(5, ("ray%d: ray_reset_timo\n", sc->unit));
+    RAY_MAP_CM(sc);
+
+    if (!RAY_ECF_READY(sc)) {
+	RAY_DPRINTFN(1, ("ray%d: ray_reset_timo still busy, re-schedule\n",
+		sc->unit));
+	sc->timerh = timeout(ray_reset_timo, sc, RAY_RESET_TIMEOUT);
+	return;
+    }
+
+    RAY_HCS_CLEAR_INTR(sc);
+    ray_init(sc);
 
     return;
 }
@@ -1628,8 +1750,9 @@ ray_rcs_intr (sc, rcs)
 	    break;
 
 	case RAY_ECMD_REJOIN_DONE:
-	    RAY_DPRINTFN(20, ("ray%d: ray_rcs_intr got UPDATE_PARAMS\n",
+	    RAY_DPRINTFN(20, ("ray%d: ray_rcs_intr got REJOIN_DONE\n",
 		    sc->unit));
+	    sc->sc_havenet = 1; /* Should not be here but in function */
 	    XXX;
 	    break;
 
@@ -2029,11 +2152,11 @@ PUT2(MIB5(mib_cw_min),			  RAY_MIB_CW_MIN_V5);
      MIB5(mib_privacy_can_join)		= sc->sc_priv_start;
      MIB5(mib_basic_rate_set[0])	= sc->sc_priv_join;
 
-    /* XXX I don't really want to panic here but we must ensure that the
-     * XXX card is idle - maybe stop it and reset it? */
-    if (!RAY_ECF_READY(sc))
-    	panic("ray%d: ray_download_params something is already happening\n",
+    if (!RAY_ECF_READY(sc)) {
+    	printf("ray%d: ray_download_params something is already happening\n",
 		sc->unit);
+	ray_reset(sc);
+    }
 
     if (sc->sc_version == RAY_ECFS_BUILD_4)
 	ray_write_region(sc, RAY_HOST_TO_ECF_BASE,
@@ -2048,14 +2171,18 @@ PUT2(MIB5(mib_cw_min),			  RAY_MIB_CW_MIN_V5);
      * command just gets serviced, so we use a timeout to complete the
      * sequence.
      */
-    if (!ray_alloc_ccs(sc, &sc->sc_ccs, RAY_CMD_START_PARAMS, SCP_UPD_STARTUP))
-    	panic("ray%d: ray_download_params can't get a CCS\n", sc->unit);
+    if (!ray_alloc_ccs(sc, &sc->sc_ccs,
+    	    RAY_CMD_START_PARAMS, SCP_UPD_STARTUP)) {
+    	printf("ray%d: ray_download_params can't get a CCS\n", sc->unit);
+	ray_reset(sc);
+    }
 
-    if (!ray_issue_cmd(sc, sc->sc_ccs, SCP_UPD_STARTUP))
-    	panic("ray%d: ray_download_params can't issue command\n", sc->unit);
+    if (!ray_issue_cmd(sc, sc->sc_ccs, SCP_UPD_STARTUP)) {
+    	printf("ray%d: ray_download_params can't issue command\n", sc->unit);
+	ray_reset(sc);
+    }
 
-    sc->timerh = timeout(ray_download_timo, sc, RAY_CCS_TIMEOUT);
-
+    sc->timerh = timeout(ray_download_timo, sc, RAY_DOWNLOAD_TIMEOUT);
     RAY_DPRINTFN(15, ("ray%d: Download now awaiting timeout\n", sc->unit));
 
     return;
@@ -2081,10 +2208,13 @@ ray_download_timo (xsc)
     cmd = SRAM_READ_FIELD_1(sc, sc->sc_ccs, ray_cmd, c_cmd);
     RAY_DPRINTFN(20, ("ray%d: check rayidx %d ccs 0x%x cmd 0x%x status %d\n",
     		sc->unit, RAY_CCS_INDEX(sc->sc_ccs), sc->sc_ccs, cmd, status));
-    if ((cmd != RAY_CMD_START_PARAMS) || (status != RAY_CCS_STATUS_FREE))
-    	printf("ray%d: Download ccs odd cmd = 0x%02x, status = 0x%02x",
+    if ((cmd != RAY_CMD_START_PARAMS) ||
+        ((status != RAY_CCS_STATUS_FREE) && (status != RAY_CCS_STATUS_BUSY))
+    ) {
+    	printf("ray%d: Download ccs odd cmd = 0x%02x, status = 0x%02x\n",
 		sc->unit, cmd, status);
-	/*XXX so what do we do? reset or retry? */
+	ray_init(sc);
+    }
 
     /*
      * If the card is still busy, re-schedule ourself
@@ -2092,7 +2222,7 @@ ray_download_timo (xsc)
     if (status == RAY_CCS_STATUS_BUSY) {
 	RAY_DPRINTFN(1, ("ray%d: ray_download_timo still busy, re-schedule\n",
 		sc->unit));
-	sc->timerh = timeout(ray_download_timo, sc, RAY_CCS_TIMEOUT);
+	sc->timerh = timeout(ray_download_timo, sc, RAY_DOWNLOAD_TIMEOUT);
 	return;
     }
 
@@ -2109,17 +2239,21 @@ ray_download_timo (xsc)
     else
 	    cmd = RAY_CMD_JOIN_NET;
 
-    if (!ray_alloc_ccs(sc, &ccs, cmd, SCP_UPD_STARTJOIN))
-    	panic("ray%d: ray_download_timo can't get a CCS to start/join net\n",
+    if (!ray_alloc_ccs(sc, &ccs, cmd, SCP_UPD_STARTJOIN)) {
+    	printf("ray%d: ray_download_timo can't get a CCS to start/join net\n",
 		sc->unit);
+	ray_reset(sc);
+    }
 
     SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_net, c_upd_param, 0);
 
-    if (!ray_issue_cmd(sc, ccs, SCP_UPD_STARTJOIN))
-    	panic("ray%d: ray_download_timo can't issue start/join\n", sc->unit);
+    if (!ray_issue_cmd(sc, ccs, SCP_UPD_STARTJOIN)) {
+    	printf("ray%d: ray_download_timo can't issue start/join\n", sc->unit);
+	ray_reset(sc);
+    }
 
 #if RAY_NEED_STARTJOIN_TIMO
-    sc->sj_timerh = timeout(ray_start_join_timo, sc, RAY_CCS_TIMEOUT);
+    sc->sj_timerh = timeout(ray_start_join_timo, sc, RAY_SJ_TIMEOUT);
 #endif /* RAY_NEED_STARTJOIN_TIMO */
 
     RAY_DPRINTFN(15, ("ray%d: Start-join awaiting interrupt/timeout\n",
@@ -2155,6 +2289,20 @@ ray_start_join_done (sc, ccs, status)
     ray_cmd_done(sc, SCP_UPD_STARTJOIN);
 #endif /* XXX_TRACKING */
 
+    /*
+     * XXX This switch and the following test are badly done. I
+     * XXX need to take remedial action in each case branch and
+     * XXX return from there. Then remove the test.
+     * XXX FAIL comment 
+     * XXX    if we fired the start command we successfully set the card up
+     * XXX    so just restart ray_start_join sequence and dont reset the card
+     * XXX    may need to split download_done for this
+     * XXX FREE
+     * XXX    not sure
+     * XXX BUSY
+     * XXX    maybe timeout but why would we get an interrupt when
+     * XXX    the card is not finished? 
+     */
     switch (status) {
 
     	case RAY_CCS_STATUS_FREE:
@@ -2170,11 +2318,6 @@ ray_start_join_done (sc, ccs, status)
 	    printf("ray%d: ray_start_join_done status is FAIL - why?\n",
 	    		sc->unit);
 	    sc->sc_havenet = 0;
-#if XXX
-	    if we fired the start command we successfully set the card up
-	    so just restart ray_start_join sequence and dont reset the card
-	    may need to split download_done for this
-#endif
 	    break;
 
 	default:
@@ -2182,7 +2325,6 @@ ray_start_join_done (sc, ccs, status)
 	    		sc->unit, status);
 	    break;
     }
-
     if (status != RAY_CCS_STATUS_COMPLETE)
 	return;
 
