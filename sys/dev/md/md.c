@@ -75,6 +75,7 @@
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/sf_buf.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 
@@ -523,11 +524,11 @@ static int
 mdstart_swap(struct md_s *sc, struct bio *bp)
 {
 	{
+		struct sf_buf *sf;
 		int i, rv;
 		int offs, len, lastp, lastend;
 		vm_page_t m;
 		u_char *p;
-		vm_offset_t kva;
 
 		p = bp->bio_data;
 
@@ -542,8 +543,6 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 		lastp = (bp->bio_offset + bp->bio_length - 1) / PAGE_SIZE;
 		lastend = (bp->bio_offset + bp->bio_length - 1) % PAGE_SIZE + 1;
 
-		kva = kmem_alloc_nofault(kernel_map, PAGE_SIZE);
-
 		VM_OBJECT_LOCK(sc->object);
 		vm_object_pip_add(sc->object, 1);
 		for (i = bp->bio_offset / PAGE_SIZE; i <= lastp; i++) {
@@ -551,20 +550,22 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 
 			m = vm_page_grab(sc->object, i,
 			    VM_ALLOC_NORMAL|VM_ALLOC_RETRY);
-			pmap_qenter(kva, &m, 1);
+			VM_OBJECT_UNLOCK(sc->object);
+			sf = sf_buf_alloc(m);
+			VM_OBJECT_LOCK(sc->object);
 			if (bp->bio_cmd == BIO_READ) {
 				if (m->valid != VM_PAGE_BITS_ALL) {
 					rv = vm_pager_get_pages(sc->object,
 					    &m, 1, 0);
 				}
-				bcopy((void *)(kva + offs), p, len);
+				bcopy((void *)(sf_buf_kva(sf) + offs), p, len);
 			} else if (bp->bio_cmd == BIO_WRITE) {
 				if (len != PAGE_SIZE && m->valid !=
 				    VM_PAGE_BITS_ALL) {
 					rv = vm_pager_get_pages(sc->object,
 					    &m, 1, 0);
 				}
-				bcopy(p, (void *)(kva + offs), len);
+				bcopy(p, (void *)(sf_buf_kva(sf) + offs), len);
 				m->valid = VM_PAGE_BITS_ALL;
 #if 0
 			} else if (bp->bio_cmd == BIO_DELETE) {
@@ -573,12 +574,12 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 					rv = vm_pager_get_pages(sc->object,
 					    &m, 1, 0);
 				}
-				bzero((void *)(kva + offs), len);
+				bzero((void *)(sf_buf_kva(sf) + offs), len);
 				vm_page_dirty(m);
 				m->valid = VM_PAGE_BITS_ALL;
 #endif
 			} 
-			pmap_qremove(kva, 1);
+			sf_buf_free(sf);
 			vm_page_lock_queues();
 			vm_page_wakeup(m);
 			vm_page_activate(m);
@@ -600,7 +601,6 @@ printf("wire_count %d busy %d flags %x hold_count %d act_count %d queue %d valid
 		vm_object_pip_subtract(sc->object, 1);
 		vm_object_set_writeable_dirty(sc->object);
 		VM_OBJECT_UNLOCK(sc->object);
-		kmem_free(kernel_map, kva, sc->secsize);
 		return (0);
 	}
 }
