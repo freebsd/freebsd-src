@@ -78,6 +78,8 @@ extern struct buf_ops buf_ops_bio;
 
 struct vm_object;
 
+typedef unsigned char b_xflags_t;
+
 /*
  * The buffer header describes an I/O operation in the kernel.
  *
@@ -117,12 +119,16 @@ struct buf {
 #define B_MAGIC_NFS	0x67238234
 	void	(*b_iodone)(struct buf *);
 	off_t	b_offset;		/* Offset into file. */
+#ifdef USE_BUFHASH
 	LIST_ENTRY(buf) b_hash;		/* Hash chain. */
+#endif
 	TAILQ_ENTRY(buf) b_vnbufs;	/* Buffer's associated vnode. */
+	struct buf	*b_left;	/* splay tree link (V) */
+	struct buf	*b_right;	/* splay tree link (V) */
 	TAILQ_ENTRY(buf) b_freelist;	/* Free list position if not active. */
 	long	b_flags;		/* B_* flags. */
 	unsigned short b_qindex;	/* buffer queue index */
-	unsigned char b_xflags;		/* extra flags */
+	b_xflags_t b_xflags;		/* extra flags */
 	struct lock b_lock;		/* Buffer lock */
 	long	b_bufsize;		/* Allocated buffer size. */
 	long	b_runningbufspace;	/* when I/O is running, pipelining */
@@ -250,6 +256,7 @@ struct buf {
 #define	BX_BKGRDWRITE	0x00000004	/* Do writes in background */
 #define	BX_BKGRDINPROG	0x00000008	/* Background write in progress */
 #define	BX_BKGRDWAIT	0x00000010	/* Background write waiting */
+#define BX_BKGRDMARKER	0x00000020	/* Mark buffer for splay tree */
 
 #define	NOOFFSET	(-1LL)		/* No buffer offset calculated yet */
 

@@ -120,15 +120,6 @@ SYSCTL_LONG(_vfs, OID_AUTO, freevnodes, CTLFLAG_RD, &freevnodes, 0, "");
  */
 static int reassignbufcalls;
 SYSCTL_INT(_vfs, OID_AUTO, reassignbufcalls, CTLFLAG_RW, &reassignbufcalls, 0, "");
-static int reassignbufloops;
-SYSCTL_INT(_vfs, OID_AUTO, reassignbufloops, CTLFLAG_RW, &reassignbufloops, 0, "");
-static int reassignbufsortgood;
-SYSCTL_INT(_vfs, OID_AUTO, reassignbufsortgood, CTLFLAG_RW, &reassignbufsortgood, 0, "");
-static int reassignbufsortbad;
-SYSCTL_INT(_vfs, OID_AUTO, reassignbufsortbad, CTLFLAG_RW, &reassignbufsortbad, 0, "");
-/* Set to 0 for old insertion-sort based reassignbuf, 1 for modern method. */
-static int reassignbufmethod = 1;
-SYSCTL_INT(_vfs, OID_AUTO, reassignbufmethod, CTLFLAG_RW, &reassignbufmethod, 0, "");
 static int nameileafonly;
 SYSCTL_INT(_vfs, OID_AUTO, nameileafonly, CTLFLAG_RW, &nameileafonly, 0, "");
 
@@ -812,6 +803,8 @@ getnewvnode(tag, mp, vops, vpp)
 		vp->v_cstart = 0;
 		vp->v_clen = 0;
 		vp->v_socket = 0;
+		KASSERT(vp->v_cleanblkroot == NULL, ("cleanblkroot not NULL"));
+		KASSERT(vp->v_dirtyblkroot == NULL, ("dirtyblkroot not NULL"));
 	} else {
 		mtx_unlock(&vnode_free_list_mtx);
 		vp = (struct vnode *) uma_zalloc(vnode_zone, M_WAITOK);
@@ -1132,6 +1125,199 @@ restartsync:
 }
 
 /*
+ * buf_splay() - splay tree core for the clean/dirty list of buffers in
+ * 		 a vnode.
+ *
+ *	NOTE: We have to deal with the special case of a background bitmap
+ *	buffer, a situation where two buffers will have the same logical
+ *	block offset.  We want (1) only the foreground buffer to be accessed
+ *	in a lookup and (2) must differentiate between the foreground and
+ *	background buffer in the splay tree algorithm because the splay
+ *	tree cannot normally handle multiple entities with the same 'index'.
+ *	We accomplish this by adding differentiating flags to the splay tree's
+ *	numerical domain.
+ */
+static
+struct buf *
+buf_splay(daddr_t lblkno, b_xflags_t xflags, struct buf *root)
+{
+	struct buf dummy;
+	struct buf *lefttreemax, *righttreemin, *y;
+
+	if (root == NULL)
+		return (NULL);
+	lefttreemax = righttreemin = &dummy;
+	for (;;) {
+		if (lblkno < root->b_lblkno ||
+		    (lblkno == root->b_lblkno &&
+		    (xflags & BX_BKGRDMARKER) < (root->b_xflags & BX_BKGRDMARKER))) {
+			if ((y = root->b_left) == NULL)
+				break;
+			if (lblkno < y->b_lblkno) {
+				/* Rotate right. */
+				root->b_left = y->b_right;
+				y->b_right = root;
+				root = y;
+				if ((y = root->b_left) == NULL)
+					break;
+			}
+			/* Link into the new root's right tree. */
+			righttreemin->b_left = root;
+			righttreemin = root;
+		} else if (lblkno > root->b_lblkno ||
+		    (lblkno == root->b_lblkno &&
+		    (xflags & BX_BKGRDMARKER) > (root->b_xflags & BX_BKGRDMARKER))) {
+			if ((y = root->b_right) == NULL)
+				break;
+			if (lblkno > y->b_lblkno) {
+				/* Rotate left. */
+				root->b_right = y->b_left;
+				y->b_left = root;
+				root = y;
+				if ((y = root->b_right) == NULL)
+					break;
+			}
+			/* Link into the new root's left tree. */
+			lefttreemax->b_right = root;
+			lefttreemax = root;
+		} else {
+			break;
+		}
+		root = y;
+	}
+	/* Assemble the new root. */
+	lefttreemax->b_right = root->b_left;
+	righttreemin->b_left = root->b_right;
+	root->b_left = dummy.b_right;
+	root->b_right = dummy.b_left;
+	return (root);
+}
+
+static
+void
+buf_vlist_remove(struct buf *bp)
+{
+	struct vnode *vp = bp->b_vp;
+	struct buf *root;
+
+	if (bp->b_xflags & BX_VNDIRTY) {
+		if (bp != vp->v_dirtyblkroot) {
+			root = buf_splay(bp->b_lblkno, bp->b_xflags, vp->v_dirtyblkroot);
+			KASSERT(root == bp, ("splay lookup failed during dirty remove"));
+		}
+		if (bp->b_left == NULL) {
+			root = bp->b_right;
+		} else {
+			root = buf_splay(bp->b_lblkno, bp->b_xflags, bp->b_left);
+			root->b_right = bp->b_right;
+		}
+		vp->v_dirtyblkroot = root;
+		TAILQ_REMOVE(&vp->v_dirtyblkhd, bp, b_vnbufs);
+	} else {
+		/* KASSERT(bp->b_xflags & BX_VNCLEAN, ("bp wasn't clean")); */
+		if (bp != vp->v_cleanblkroot) {
+			root = buf_splay(bp->b_lblkno, bp->b_xflags, vp->v_cleanblkroot);
+			KASSERT(root == bp, ("splay lookup failed during clean remove"));
+		}
+		if (bp->b_left == NULL) {
+			root = bp->b_right;
+		} else {
+			root = buf_splay(bp->b_lblkno, bp->b_xflags, bp->b_left);
+			root->b_right = bp->b_right;
+		}
+		vp->v_cleanblkroot = root;
+		TAILQ_REMOVE(&vp->v_cleanblkhd, bp, b_vnbufs);
+	}
+	bp->b_xflags &= ~(BX_VNDIRTY | BX_VNCLEAN);
+}
+
+/*
+ * Add the buffer to the sorted clean or dirty block list using a
+ * splay tree algorithm.
+ *
+ * NOTE: xflags is passed as a constant, optimizing this inline function!
+ */
+static 
+void
+buf_vlist_add(struct buf *bp, struct vnode *vp, b_xflags_t xflags)
+{
+	struct buf *root;
+
+	bp->b_xflags |= xflags;
+	if (xflags & BX_VNDIRTY) {
+		root = buf_splay(bp->b_lblkno, bp->b_xflags, vp->v_dirtyblkroot);
+		if (root == NULL) {
+			bp->b_left = NULL;
+			bp->b_right = NULL;
+			TAILQ_INSERT_TAIL(&vp->v_dirtyblkhd, bp, b_vnbufs);
+		} else if (bp->b_lblkno < root->b_lblkno ||
+		    (bp->b_lblkno == root->b_lblkno &&
+		    (bp->b_xflags & BX_BKGRDMARKER) < (root->b_xflags & BX_BKGRDMARKER))) {
+			bp->b_left = root->b_left;
+			bp->b_right = root;
+			root->b_left = NULL;
+			TAILQ_INSERT_BEFORE(root, bp, b_vnbufs);
+		} else {
+			bp->b_right = root->b_right;
+			bp->b_left = root;
+			root->b_right = NULL;
+			TAILQ_INSERT_AFTER(&vp->v_dirtyblkhd, 
+			    root, bp, b_vnbufs);
+		}
+		vp->v_dirtyblkroot = bp;
+	} else {
+		/* KASSERT(xflags & BX_VNCLEAN, ("xflags not clean")); */
+		root = buf_splay(bp->b_lblkno, bp->b_xflags, vp->v_cleanblkroot);
+		if (root == NULL) {
+			bp->b_left = NULL;
+			bp->b_right = NULL;
+			TAILQ_INSERT_TAIL(&vp->v_cleanblkhd, bp, b_vnbufs);
+		} else if (bp->b_lblkno < root->b_lblkno ||
+		    (bp->b_lblkno == root->b_lblkno &&
+		    (bp->b_xflags & BX_BKGRDMARKER) < (root->b_xflags & BX_BKGRDMARKER))) {
+			bp->b_left = root->b_left;
+			bp->b_right = root;
+			root->b_left = NULL;
+			TAILQ_INSERT_BEFORE(root, bp, b_vnbufs);
+		} else {
+			bp->b_right = root->b_right;
+			bp->b_left = root;
+			root->b_right = NULL;
+			TAILQ_INSERT_AFTER(&vp->v_cleanblkhd, 
+			    root, bp, b_vnbufs);
+		}
+		vp->v_cleanblkroot = bp;
+	}
+}
+
+#ifndef USE_BUFHASH
+
+/*
+ * Lookup a buffer using the splay tree.  Note that we specifically avoid
+ * shadow buffers used in background bitmap writes.
+ *
+ * This code isn't quite efficient as it could be because we are maintaining
+ * two sorted lists and do not know which list the block resides in.
+ */
+struct buf *
+gbincore(struct vnode *vp, daddr_t lblkno)
+{
+	struct buf *bp;
+
+	GIANT_REQUIRED;
+
+	bp = vp->v_cleanblkroot = buf_splay(lblkno, 0, vp->v_cleanblkroot);
+	if (bp && bp->b_lblkno == lblkno && !(bp->b_xflags & BX_BKGRDMARKER))
+		return(bp);
+	bp = vp->v_dirtyblkroot = buf_splay(lblkno, 0, vp->v_dirtyblkroot);
+	if (bp && bp->b_lblkno == lblkno && !(bp->b_xflags & BX_BKGRDMARKER))
+		return(bp);
+	return(NULL);
+}
+
+#endif
+
+/*
  * Associate a buffer with a vnode.
  */
 void
@@ -1143,6 +1329,9 @@ bgetvp(vp, bp)
 
 	KASSERT(bp->b_vp == NULL, ("bgetvp: not free"));
 
+	KASSERT((bp->b_xflags & (BX_VNDIRTY|BX_VNCLEAN)) == 0,
+	    ("bgetvp: bp already attached! %p", bp));
+
 	vhold(vp);
 	bp->b_vp = vp;
 	bp->b_dev = vn_todev(vp);
@@ -1150,9 +1339,7 @@ bgetvp(vp, bp)
 	 * Insert onto list for new vnode.
 	 */
 	s = splbio();
-	bp->b_xflags |= BX_VNCLEAN;
-	bp->b_xflags &= ~BX_VNDIRTY;
-	TAILQ_INSERT_TAIL(&vp->v_cleanblkhd, bp, b_vnbufs);
+	buf_vlist_add(bp, vp, BX_VNCLEAN);
 	splx(s);
 }
 
@@ -1164,7 +1351,6 @@ brelvp(bp)
 	register struct buf *bp;
 {
 	struct vnode *vp;
-	struct buflists *listheadp;
 	int s;
 
 	KASSERT(bp->b_vp != NULL, ("brelvp: NULL"));
@@ -1174,14 +1360,8 @@ brelvp(bp)
 	 */
 	vp = bp->b_vp;
 	s = splbio();
-	if (bp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN)) {
-		if (bp->b_xflags & BX_VNDIRTY)
-			listheadp = &vp->v_dirtyblkhd;
-		else
-			listheadp = &vp->v_cleanblkhd;
-		TAILQ_REMOVE(listheadp, bp, b_vnbufs);
-		bp->b_xflags &= ~(BX_VNDIRTY | BX_VNCLEAN);
-	}
+	if (bp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN))
+		buf_vlist_remove(bp);
 	if ((vp->v_flag & VONWORKLST) && TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
 		vp->v_flag &= ~VONWORKLST;
 		LIST_REMOVE(vp, v_synclist);
@@ -1396,7 +1576,6 @@ reassignbuf(bp, newvp)
 	register struct buf *bp;
 	register struct vnode *newvp;
 {
-	struct buflists *listheadp;
 	int delay;
 	int s;
 
@@ -1418,12 +1597,7 @@ reassignbuf(bp, newvp)
 	 * Delete from old vnode list, if on one.
 	 */
 	if (bp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN)) {
-		if (bp->b_xflags & BX_VNDIRTY)
-			listheadp = &bp->b_vp->v_dirtyblkhd;
-		else
-			listheadp = &bp->b_vp->v_cleanblkhd;
-		TAILQ_REMOVE(listheadp, bp, b_vnbufs);
-		bp->b_xflags &= ~(BX_VNDIRTY | BX_VNCLEAN);
+		buf_vlist_remove(bp);
 		if (bp->b_vp != newvp) {
 			vdrop(bp->b_vp);
 			bp->b_vp = NULL;	/* for clarification */
@@ -1434,9 +1608,6 @@ reassignbuf(bp, newvp)
 	 * of clean buffers.
 	 */
 	if (bp->b_flags & B_DELWRI) {
-		struct buf *tbp;
-
-		listheadp = &newvp->v_dirtyblkhd;
 		if ((newvp->v_flag & VONWORKLST) == 0) {
 			switch (newvp->v_type) {
 			case VDIR:
@@ -1453,61 +1624,10 @@ reassignbuf(bp, newvp)
 			}
 			vn_syncer_add_to_worklist(newvp, delay);
 		}
-		bp->b_xflags |= BX_VNDIRTY;
-		tbp = TAILQ_FIRST(listheadp);
-		if (tbp == NULL ||
-		    bp->b_lblkno == 0 ||
-		    (bp->b_lblkno > 0 && tbp->b_lblkno < 0) ||
-		    (bp->b_lblkno > 0 && bp->b_lblkno < tbp->b_lblkno)) {
-			TAILQ_INSERT_HEAD(listheadp, bp, b_vnbufs);
-			++reassignbufsortgood;
-		} else if (bp->b_lblkno < 0) {
-			TAILQ_INSERT_TAIL(listheadp, bp, b_vnbufs);
-			++reassignbufsortgood;
-		} else if (reassignbufmethod == 1) {
-			/*
-			 * New sorting algorithm, only handle sequential case,
-			 * otherwise append to end (but before metadata)
-			 */
-			if ((tbp = gbincore(newvp, bp->b_lblkno - 1)) != NULL &&
-			    (tbp->b_xflags & BX_VNDIRTY)) {
-				/*
-				 * Found the best place to insert the buffer
-				 */
-				TAILQ_INSERT_AFTER(listheadp, tbp, bp, b_vnbufs);
-				++reassignbufsortgood;
-			} else {
-				/*
-				 * Missed, append to end, but before meta-data.
-				 * We know that the head buffer in the list is
-				 * not meta-data due to prior conditionals.
-				 *
-				 * Indirect effects:  NFS second stage write
-				 * tends to wind up here, giving maximum
-				 * distance between the unstable write and the
-				 * commit rpc.
-				 */
-				tbp = TAILQ_LAST(listheadp, buflists);
-				while (tbp && tbp->b_lblkno < 0)
-					tbp = TAILQ_PREV(tbp, buflists, b_vnbufs);
-				TAILQ_INSERT_AFTER(listheadp, tbp, bp, b_vnbufs);
-				++reassignbufsortbad;
-			}
-		} else {
-			/*
-			 * Old sorting algorithm, scan queue and insert
-			 */
-			struct buf *ttbp;
-			while ((ttbp = TAILQ_NEXT(tbp, b_vnbufs)) &&
-			    (ttbp->b_lblkno < bp->b_lblkno)) {
-				++reassignbufloops;
-				tbp = ttbp;
-			}
-			TAILQ_INSERT_AFTER(listheadp, tbp, bp, b_vnbufs);
-		}
+		buf_vlist_add(bp, newvp, BX_VNDIRTY);
 	} else {
-		bp->b_xflags |= BX_VNCLEAN;
-		TAILQ_INSERT_TAIL(&newvp->v_cleanblkhd, bp, b_vnbufs);
+		buf_vlist_add(bp, newvp, BX_VNCLEAN);
+
 		if ((newvp->v_flag & VONWORKLST) &&
 		    TAILQ_EMPTY(&newvp->v_dirtyblkhd)) {
 			newvp->v_flag &= ~VONWORKLST;
