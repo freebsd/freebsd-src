@@ -919,6 +919,7 @@ void config()
 			sep->se_maxchild = new->se_maxchild;
 			sep->se_numchild = new->se_numchild;
 			sep->se_maxcpm = new->se_maxcpm;
+			sep->se_bi = new->se_bi;
 			/* might need to turn on or off service now */
 			if (sep->se_fd >= 0) {
 			      if (sep->se_maxchild > 0
