@@ -228,7 +228,7 @@ bsdtar_strmode(struct archive_entry *entry, char *bp)
 		else bp[6] = 'S';
 	}
 	if (mode & S_ISVTX) {
-		if (mode & S_IXGRP) bp[9] = 't';
+		if (mode & S_IXOTH) bp[9] = 't';
 		else bp[9] = 'T';
 	}
 	if (archive_entry_acl_count(entry, ARCHIVE_ENTRY_ACL_TYPE_ACCESS))
