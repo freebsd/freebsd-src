@@ -2360,6 +2360,8 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 	xf.xf_size = sizeof(xf);
 	sx_slock(&allproc_lock);
 	LIST_FOREACH(p, &allproc, p_list) {
+		if (p->p_state == PRS_NEW)
+			continue;
 		PROC_LOCK(p);
 		if (p_cansee(req->td, p) != 0) {
 			PROC_UNLOCK(p);
