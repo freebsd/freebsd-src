@@ -72,6 +72,9 @@ cat << \__EOF
 .\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
 .Dd July 5, 2000
 .Dt LINT 7
 .Os
@@ -85,10 +88,7 @@ It is intended to be used with
 .Fl X
 flag of
 .Xr lint 1 .
-.Pp
-.Bd -ragged -offset indent -compact
-.Bl -column "Id# Message"
+.Bl -column -offset indent "Id#" "Message"
 __EOF
 "$@" | sed -e 's/^/.It /' -e 's/\\/\\e/g' -e "s/'/\\'/"
 echo ".El"
-echo ".Ed"
