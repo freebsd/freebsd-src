@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: tty_subr.c,v 1.28 1997/10/12 20:24:09 phk Exp $
+ * $Id: tty_subr.c,v 1.29 1998/04/15 17:46:27 bde Exp $
  */
 
 /*
@@ -223,7 +223,7 @@ getc(clistp)
 
 	/* If there are characters in the list, get one */
 	if (clistp->c_cc) {
-		cblockp = (struct cblock *)((long)clistp->c_cf & ~CROUND);
+		cblockp = (struct cblock *)((intptr_t)clistp->c_cf & ~CROUND);
 		chr = (u_char)*clistp->c_cf;
 
 		/*
@@ -280,7 +280,7 @@ q_to_b(clistp, dest, amount)
 	s = spltty();
 
 	while (clistp && amount && (clistp->c_cc > 0)) {
-		cblockp = (struct cblock *)((long)clistp->c_cf & ~CROUND);
+		cblockp = (struct cblock *)((intptr_t)clistp->c_cf & ~CROUND);
 		cblockn = cblockp + 1; /* pointer arithmetic! */
 		numc = min(amount, (char *)cblockn - clistp->c_cf);
 		numc = min(numc, clistp->c_cc);
@@ -327,7 +327,7 @@ ndflush(clistp, amount)
 	s = spltty();
 
 	while (amount && (clistp->c_cc > 0)) {
-		cblockp = (struct cblock *)((long)clistp->c_cf & ~CROUND);
+		cblockp = (struct cblock *)((intptr_t)clistp->c_cf & ~CROUND);
 		cblockn = cblockp + 1; /* pointer arithmetic! */
 		numc = min(amount, (char *)cblockn - clistp->c_cf);
 		numc = min(numc, clistp->c_cc);
@@ -380,8 +380,8 @@ putc(chr, clistp)
 		clistp->c_cf = clistp->c_cl = cblockp->c_info;
 		clistp->c_cc = 0;
 	} else {
-		cblockp = (struct cblock *)((long)clistp->c_cl & ~CROUND);
-		if (((long)clistp->c_cl & CROUND) == 0) {
+		cblockp = (struct cblock *)((intptr_t)clistp->c_cl & ~CROUND);
+		if (((intptr_t)clistp->c_cl & CROUND) == 0) {
 			struct cblock *prev = (cblockp - 1);
 
 			if (clistp->c_cbcount >= clistp->c_cbreserved) {
@@ -459,14 +459,14 @@ b_to_q(src, amount, clistp)
 		clistp->c_cf = clistp->c_cl = cblockp->c_info;
 		clistp->c_cc = 0;
 	} else {
-		cblockp = (struct cblock *)((long)clistp->c_cl & ~CROUND);
+		cblockp = (struct cblock *)((intptr_t)clistp->c_cl & ~CROUND);
 	}
 
 	while (amount) {
 		/*
 		 * Get another cblock if needed.
 		 */
-		if (((long)clistp->c_cl & CROUND) == 0) {
+		if (((intptr_t)clistp->c_cl & CROUND) == 0) {
 			struct cblock *prev = cblockp - 1;
 
 			if (clistp->c_cbcount >= clistp->c_cbreserved) {
@@ -568,9 +568,9 @@ nextc(clistp, cp, dst)
 		 * If the next character is beyond the end of this
 		 * cblock, advance to the next cblock.
 		 */
-		if (((long)cp & CROUND) == 0)
+		if (((intptr_t)cp & CROUND) == 0)
 			cp = ((struct cblock *)cp - 1)->c_next->c_info;
-		cblockp = (struct cblock *)((long)cp & ~CROUND);
+		cblockp = (struct cblock *)((intptr_t)cp & ~CROUND);
 
 		/*
 		 * Get the character. Set the quote flag if this character
@@ -604,7 +604,7 @@ unputc(clistp)
 
 		chr = (u_char)*clistp->c_cl;
 
-		cblockp = (struct cblock *)((long)clistp->c_cl & ~CROUND);
+		cblockp = (struct cblock *)((intptr_t)clistp->c_cl & ~CROUND);
 
 		/*
 		 * Set quote flag if this character was quoted.
@@ -618,7 +618,7 @@ unputc(clistp)
 		 * one.
 		 */
 		if (clistp->c_cc && (clistp->c_cl <= (char *)cblockp->c_info)) {
-			cbp = (struct cblock *)((long)clistp->c_cf & ~CROUND);
+			cbp = (struct cblock *)((intptr_t)clistp->c_cf & ~CROUND);
 
 			while (cbp->c_next != cblockp)
 				cbp = cbp->c_next;
@@ -640,7 +640,7 @@ unputc(clistp)
 	 * free the last cblock.
 	 */
 	if ((clistp->c_cc == 0) && clistp->c_cl) {
-		cblockp = (struct cblock *)((long)clistp->c_cl & ~CROUND);
+		cblockp = (struct cblock *)((intptr_t)clistp->c_cl & ~CROUND);
 		cblock_free(cblockp);
 		if (--clistp->c_cbcount >= clistp->c_cbreserved)
 			++cslushcount;

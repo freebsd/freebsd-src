@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- *	$Id: uipc_usrreq.c,v 1.34 1998/05/07 04:58:21 msmith Exp $
+ *	$Id: uipc_usrreq.c,v 1.35 1998/05/15 20:11:31 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -715,7 +715,7 @@ unp_pcblist SYSCTL_HANDLER_ARGS
 	struct xunpgen xug;
 	struct unp_head *head;
 
-	head = ((long)arg1 == SOCK_DGRAM ? &unp_dhead : &unp_shead);
+	head = ((intptr_t)arg1 == SOCK_DGRAM ? &unp_dhead : &unp_shead);
 
 	/*
 	 * The process of preparing the PCB list is too time-consuming and
