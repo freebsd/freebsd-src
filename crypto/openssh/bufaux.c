@@ -37,7 +37,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: bufaux.c,v 1.17 2001/01/21 19:05:45 markus Exp $");
+RCSID("$OpenBSD: bufaux.c,v 1.22 2002/01/18 18:14:17 stevesk Exp $");
 RCSID("$FreeBSD$");
 
 #include <openssl/bn.h>
@@ -63,7 +63,7 @@ buffer_put_bignum(Buffer *buffer, BIGNUM *value)
 	oi = BN_bn2bin(value, buf);
 	if (oi != bin_size)
 		fatal("buffer_put_bignum: BN_bn2bin() failed: oi %d != bin_size %d",
-		      oi, bin_size);
+		    oi, bin_size);
 
 	/* Store the number of bits in the buffer in two bytes, msb first. */
 	PUT_16BIT(msg, bits);
@@ -78,7 +78,7 @@ buffer_put_bignum(Buffer *buffer, BIGNUM *value)
 /*
  * Retrieves an BIGNUM from the buffer.
  */
-int
+void
 buffer_get_bignum(Buffer *buffer, BIGNUM *value)
 {
 	int bits, bytes;
@@ -91,11 +91,9 @@ buffer_get_bignum(Buffer *buffer, BIGNUM *value)
 	bytes = (bits + 7) / 8;
 	if (buffer_len(buffer) < bytes)
 		fatal("buffer_get_bignum: input buffer too small");
-	bin = (u_char *) buffer_ptr(buffer);
+	bin = buffer_ptr(buffer);
 	BN_bin2bn(bin, bytes, value);
 	buffer_consume(buffer, bytes);
-
-	return 2 + bytes;
 }
 
 /*
@@ -113,16 +111,16 @@ buffer_put_bignum2(Buffer *buffer, BIGNUM *value)
 	oi = BN_bn2bin(value, buf+1);
 	if (oi != bytes-1)
 		fatal("buffer_put_bignum: BN_bn2bin() failed: oi %d != bin_size %d",
-		      oi, bytes);
+		    oi, bytes);
 	hasnohigh = (buf[1] & 0x80) ? 0 : 1;
 	if (value->neg) {
 		/**XXX should be two's-complement */
 		int i, carry;
 		u_char *uc = buf;
 		log("negativ!");
-		for(i = bytes-1, carry = 1; i>=0; i--) {
+		for (i = bytes-1, carry = 1; i>=0; i--) {
 			uc[i] ^= 0xff;
-			if(carry)
+			if (carry)
 				carry = !++uc[i];
 		}
 	}
@@ -131,15 +129,14 @@ buffer_put_bignum2(Buffer *buffer, BIGNUM *value)
 	xfree(buf);
 }
 
-int
+void
 buffer_get_bignum2(Buffer *buffer, BIGNUM *value)
 {
 	/**XXX should be two's-complement */
 	int len;
-	u_char *bin = (u_char *)buffer_get_string(buffer, (u_int *)&len);
+	u_char *bin = buffer_get_string(buffer, (u_int *)&len);
 	BN_bin2bn(bin, len, value);
 	xfree(bin);
-	return len;
 }
 
 /*
@@ -188,11 +185,11 @@ buffer_put_int64(Buffer *buffer, u_int64_t value)
  * will be stored there.  A null character will be automatically appended
  * to the returned string, and is not counted in length.
  */
-char *
+void *
 buffer_get_string(Buffer *buffer, u_int *length_ptr)
 {
 	u_int len;
-	char *value;
+	u_char *value;
 	/* Get the length. */
 	len = buffer_get_int(buffer);
 	if (len > 256 * 1024)

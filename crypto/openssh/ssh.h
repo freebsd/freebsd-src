@@ -1,3 +1,6 @@
+/*	$OpenBSD: ssh.h,v 1.64 2002/03/04 17:27:39 stevesk Exp $	*/
+/*	$FreeBSD$	*/
+
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -9,9 +12,6 @@
  * incompatible with the protocol description in the RFC file, it must be
  * called by a name other than "ssh" or "Secure Shell".
  */
-
-/* RCSID("$OpenBSD: ssh.h,v 1.62 2001/01/23 10:45:10 markus Exp $"); */
-/* RCSID("$FreeBSD$"); */
 
 #ifndef SSH_H
 #define SSH_H
@@ -83,8 +83,8 @@
 /* Name of Kerberos service for SSH to use. */
 #define KRB4_SERVICE_NAME		"rcmd"
 
-/* Kerberos IV tickets can't be forwarded. This is an AFS hack! */ 
-#define SSH_CMSG_HAVE_KRB4_TGT SSH_CMSG_HAVE_KERBEROS_TGT /* credentials (s) */
+/* Used to identify ``EscapeChar none'' */
+#define SSH_ESCAPECHAR_NONE		-2
 
 #ifdef USE_PAM
 #include "auth-pam.h"

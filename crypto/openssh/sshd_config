@@ -1,70 +1,93 @@
-#	$OpenBSD: sshd_config,v 1.38 2001/04/15 21:41:29 deraadt Exp $
-# $FreeBSD$
+#	$OpenBSD: src/usr.bin/ssh/sshd_config,v 1.48 2002/02/19 02:50:59 deraadt Exp $
+#	$FreeBSD$
 
 # This is the sshd server system-wide configuration file.  See sshd(8)
 # for more information.
 
-Port 22
+# The strategy used for options in the default sshd_config shipped with
+# OpenSSH is to specify options with their default value where
+# possible, but leave them commented.  Uncommented options change a
+# default value.
+
+# Note that some of FreeBSD's defaults differ from OpenBSD's, and
+# FreeBSD has a few additional options.
+
+#VersionAddendum FreeBSD localisations 20020318
+
+#Port 22
 #Protocol 2,1
 #ListenAddress 0.0.0.0
 #ListenAddress ::
-HostKey /etc/ssh/ssh_host_key
-HostKey /etc/ssh/ssh_host_dsa_key
-ServerKeyBits 768
-LoginGraceTime 120
-KeyRegenerationInterval 3600
-PermitRootLogin no
-# ConnectionsPerPeriod has been deprecated completely
 
-# After 10 unauthenticated connections, refuse 30% of the new ones, and
-# refuse any more than 60 total.
-MaxStartups 10:30:60
-# Don't read ~/.rhosts and ~/.shosts files
-IgnoreRhosts yes
-# Uncomment if you don't trust ~/.ssh/known_hosts for RhostsRSAAuthentication
-#IgnoreUserKnownHosts yes
-StrictModes yes
-X11Forwarding yes
-X11DisplayOffset 10
-PrintMotd yes
-#PrintLastLog no
-KeepAlive yes
+# HostKey for protocol version 1
+#HostKey /etc/ssh/ssh_host_key
+# HostKeys for protocol version 2
+#HostKey /etc/ssh/ssh_host_rsa_key
+#HostKey /etc/ssh/ssh_host_dsa_key
+
+# Lifetime and size of ephemeral version 1 server key
+#KeyRegenerationInterval 3600
+#ServerKeyBits 768
 
 # Logging
-SyslogFacility AUTH
-LogLevel INFO
 #obsoletes QuietMode and FascistLogging
+#SyslogFacility AUTH
+#LogLevel INFO
 
-RhostsAuthentication no
-#
-# For this to work you will also need host keys in /etc/ssh_known_hosts
-RhostsRSAAuthentication no
+# Authentication:
+
+#LoginGraceTime 120
+#PermitRootLogin no
+#StrictModes yes
+
+#RSAAuthentication yes
+#PubkeyAuthentication yes
+#AuthorizedKeysFile	.ssh/authorized_keys
+
+# rhosts authentication should not be used
+#RhostsAuthentication no
+# Don't read the user's ~/.rhosts and ~/.shosts files
+#IgnoreRhosts yes
+# For this to work you will also need host keys in /etc/ssh/ssh_known_hosts
+#RhostsRSAAuthentication no
 # similar for protocol version 2
-HostbasedAuthentication no
-#
-RSAAuthentication yes
+#HostbasedAuthentication no
+# Change to yes if you don't trust ~/.ssh/known_hosts for
+# RhostsRSAAuthentication and HostbasedAuthentication
+#IgnoreUserKnownHosts no
 
 # To disable tunneled clear text passwords, change to no here!
-PasswordAuthentication yes
-PermitEmptyPasswords no
+#PasswordAuthentication yes
+#PermitEmptyPasswords no
 
-# Uncomment to disable s/key passwords 
-#ChallengeResponseAuthentication no
+# Change to no to disable s/key passwords
+#ChallengeResponseAuthentication yes
 
-# To change Kerberos options
-#KerberosAuthentication no
+# Kerberos options
+# KerberosAuthentication automatically enabled if keyfile exists
+#KerberosAuthentication yes
 #KerberosOrLocalPasswd yes
-#AFSTokenPassing no
-#KerberosTicketCleanup no
+#KerberosTicketCleanup yes
 
-# Kerberos TGT Passing does only work with the AFS kaserver
-#KerberosTgtPassing yes
+# AFSTokenPassing automatically enabled if k_hasafs() is true
+#AFSTokenPassing yes
 
-CheckMail yes
+# Kerberos TGT Passing only works with the AFS kaserver
+#KerberosTgtPassing no
+
+#X11Forwarding yes
+#X11DisplayOffset 10
+#X11UseLocalhost yes
+#PrintMotd yes
+#PrintLastLog yes
+#KeepAlive yes
 #UseLogin no
+#CheckMail yes
 
-#MaxStartups 10:30:60
-#Banner /etc/issue.net
-#ReverseMappingCheck yes
+#MaxStartups 10
+# no default banner path
+#Banner /some/path
+#VerifyReverseMapping no
 
+# override default of no subsystems
 Subsystem	sftp	/usr/libexec/sftp-server
