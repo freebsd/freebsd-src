@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: module.h,v 1.7 1999/01/27 20:09:21 dillon Exp $
+ *	$Id: module.h,v 1.8 1999/01/27 21:50:00 dillon Exp $
  */
 
 #ifndef _SYS_MODULE_H_
@@ -64,8 +64,12 @@ typedef union modspecific {
 #ifdef KERNEL
 
 #define DECLARE_MODULE(name, data, sub, order) \
-SYSINIT(name##module, sub, order, module_register_init, &data) \
-struct __hack
+    SYSINIT(name##module, sub, order, module_register_init, &data) \
+    struct __hack
+
+#define C_DECLARE_MODULE(name, data, sub, order) \
+    C_SYSINIT(name##module, sub, order, module_register_init, &data) \
+    struct __hack
 
 void module_register_init(void *data);
 int module_register(const char *name, modeventhand_t callback, void *arg,
