@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media_strategy.c,v 1.15 1995/05/24 09:00:44 jkh Exp $
+ * $Id: media_strategy.c,v 1.16 1995/05/24 11:19:11 gpalmer Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -333,7 +333,7 @@ mediaGetCDROM(char *dist)
 
     if (attr_parse(&dist_attr, buf) == 0)
     {
-	msgConfirm("Cannot load information file for distribution\n");
+	msgConfirm("Cannot load information file for %s distribution!\nPlease verify that your media is valid and try again.", dist);
 	return FALSE;
     }
    
@@ -376,7 +376,7 @@ mediaGetFloppy(char *dist)
     snprintf(buf, PATH_MAX, "/stand/info/%s.inf", dist);
     if (attr_parse(&dist_attr, buf) == 0)
     {
-	msgConfirm("Cannot load information file for distribution\n");
+	msgConfirm("Cannot load information file for %s distribution!\nPlease verify that your media is valid and try again.", dist);
 	return FALSE;
     }
    
@@ -399,11 +399,16 @@ mediaInitTape(Device *dev)
     return TRUE;
 }
 
+static Boolean networkInitialized;
+
 Boolean
 mediaInitNetwork(Device *dev)
 {
     int i;
     char *rp;
+
+    if (networkInitialized)
+	return TRUE;
 
     configResolv();
     if (!strncmp("cuaa", dev->name, 4)) {
@@ -437,6 +442,7 @@ mediaInitNetwork(Device *dev)
 not on the local network\n");
     else
 	vsystem("route add default %s", rp);
+    networkInitialized = TRUE;
     return TRUE;
 }
 
@@ -455,7 +461,32 @@ mediaShutdownTape(Device *dev)
 void
 mediaShutdownNetwork(Device *dev)
 {
-    return;
+    char *cp;
+
+    if (!networkInitialized)
+	return;
+
+    if (!strncmp("cuaa", dev->name, 4)) {
+	msgConfirm("You may now go to the 3rd screen (ALT-F3) and shut down\nyour PPP connection.  It shouldn't be needed any longer\n(unless you wish to create a shell by typing ESC and\nexperiment with it further, in which case go right ahead!)");
+	return;
+    }
+    else {
+	int i;
+	char ifconfig[64];
+
+	snprintf(ifconfig, 64, "%s%s", VAR_IFCONFIG, dev->name);
+	cp = getenv(ifconfig);
+	if (!cp)
+	    return;
+	i = vsystem("ifconfig %s down", dev->name);
+	if (i)
+	    msgConfirm("Warning: Unable to down the %s interface properly", dev->name);
+    }
+
+    cp = getenv(VAR_GATEWAY);
+    if (cp)
+	vsystem("route delete default");
+    networkInitialized = FALSE;
 }
 
 static FTP_t ftp;
@@ -497,9 +528,9 @@ mediaInitFTP(Device *dev)
     *(dir++) = '\0';
     msgDebug("hostname = `%s'\n", hostname);
     msgDebug("dir = `%s'\n", dir);
-    msgNotify("Looking up %s..", hostname);
+    msgNotify("Looking up host %s..", hostname);
     if ((gethostbyname(hostname) == NULL) && (inet_addr(hostname) == INADDR_NONE)) {
-	msgConfirm("Cannot resolve hostname `%s'!\n", hostname);
+	msgConfirm("Cannot resolve hostname `%s'!  Are you sure your name server\nand/or gateway values are set properly?", hostname);
 	return FALSE;
     }
 
@@ -515,9 +546,10 @@ mediaInitFTP(Device *dev)
     if (getenv("ftpPassive"))
 	FtpPassive(ftp, 1);
     FtpBinary(ftp, 1);
-    msgNotify("CD to distribution in ~ftp/%s", dir ? dir : "");
-    if (*dir != '\0')
+    if (*dir != '\0') {
+	msgNotify("CD to distribution in ~ftp/%s", dir);
 	FtpChdir(ftp, dir);
+    }
     msgDebug("leaving mediaInitFTP!\n");
     return TRUE;
 }
@@ -527,19 +559,20 @@ mediaGetFTP(char *dist)
 {
     int 	fd;
     char 	buf[512];
-    int		pfd[2], pid, numchunks;
+    int		pfd[2], numchunks;
     const char *tmp;
     struct attribs	*dist_attr;
-    
-    msgNotify("Attempting to get distribution `%s' over FTP\n", dist);
+    static pid_t pid = 0;
+
+    msgNotify("Attempting to retreive distribution `%s' over FTP", dist);
     dist_attr = safe_malloc(sizeof(struct attribs) * MAX_ATTRIBS);
 
     snprintf(buf, PATH_MAX, "/stand/info/%s.inf", dist);
 
-    msgDebug("Parsing attributes file\n");
+    msgDebug("Parsing attributes file for %s\n", dist);
     if (attr_parse(&dist_attr, buf) == 0)
     {
-	msgConfirm("Cannot load information file for distribution\n");
+	msgConfirm("Cannot load information file for %s distribution!\nPlease verify that your media is valid and try again.", dist);
 	return -1;
     }
    
@@ -554,27 +587,38 @@ mediaGetFTP(char *dist)
 	return(FtpGet(ftp, buf));
     }
 
+    /* reap the previous child corpse - yuck! */
+    if (pid) {
+	int i, j;
+
+	i = waitpid(pid, &j, 0);
+	if (i < 0 || WEXITSTATUS(j)) {
+	    msgConfirm("Previous FTP transaction returned status code %d - aborting\ntransfer.", WEXITSTATUS(j));
+	    pid = 0;
+	    return -1;
+	}
+	pid = 0;
+    }
     pipe(pfd);
     pid = fork();
     if (!pid)
     {
-	int		chunk = 0;
+	int		chunk;
 	int		retval;
-	
+
 	dup2(pfd[1], 1); close(pfd[1]);
 	close(pfd[0]);
 	
-	while (chunk < numchunks)
-	{
+	for (chunk = 0; chunk < numchunks; chunk++) {
+	    char buffer[10240];
 	    int n;
-	    char *buffer = safe_malloc(10240);
 	    
 	    snprintf(buf, 512, "%s.%c%c", dist, (chunk / 26) + 'a', (chunk % 26) + 'a');
 	    fd = FtpGet(ftp, buf);
 
 	    if (fd < 0)
 	    {
-		msgConfirm("FtpGet returned %d\n", fd);
+		msgConfirm("FtpGet failed to retreive piece `%s' in the %s distribution!\nAborting the transfer", chunk, dist);
 		exit(1);
 	    }
 	    
@@ -583,18 +627,16 @@ mediaGetFTP(char *dist)
 		retval = write(1, buffer, n);
 		if (retval != n)
 		{
-		    msgConfirm("write didn't write out the complete file!\n
-(wrote %d bytes of %d bytes)\n", retval, n);
+		    msgConfirm("Write failure on transfer! (wrote %d bytes of %d bytes)", retval, n);
 		    exit(1);
 		}
 		
 	    }
 	    FtpEOF(ftp);
 	    close(fd);
-	    ++chunk;
 	}
 	close(1);
-	msgDebug("Extract of %s finished!!!\n", dist);
+	msgDebug("Extract of %s finished with success!!!\n", dist);
 	exit(0);
     }
     close(pfd[1]);
@@ -604,6 +646,14 @@ mediaGetFTP(char *dist)
 void
 mediaShutdownFTP(Device *dev)
 {
+    Device *netdev = (Device *)dev->private;
+
+    if (ftp != NULL) {
+	FtpClose(ftp);
+	ftp = NULL;
+    }
+    if (netdev->shutdown)
+	(*netdev->shutdown)(netdev);
 }
 
 Boolean

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ftp.c,v 1.3 1995/05/24 09:00:19 jkh Exp $
+ * $Id: ftp.c,v 1.4 1995/05/24 11:19:10 gpalmer Exp $
  *
  */
 
@@ -268,7 +268,7 @@ FtpGet(FTP_t ftp, char *file)
     if (ftp->passive) {
 	debug(ftp, "LIBFTP: send <%s>\n","PASV");
 	if (writes(ftp->fd_ctrl,"PASV\r\n"))
-	    return -1;*/
+	    return -1;
 	i = get_a_number(ftp,&q);
 	if (i != 227)
 	    return -1;

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.17 1995/05/23 02:40:53 jkh Exp $
+ * $Id: dist.c,v 1.18 1995/05/24 09:00:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -240,7 +240,7 @@ distExtract(char *parent, Distribution *me)
 		    if (getenv(NO_CONFIRMATION))
 			status = 0;
 		    else
-			status = !msgYesNo("Unable to transfer the %s distribution from %s.\nDo you want to retry this distribution later?", distname);
+			status = !msgYesNo("Unable to transfer the %s distribution from %s.\nDo you want to retry this distribution later?", distname, mediaDevice->name);
 		}
 	    }
 	    if (!status) {
