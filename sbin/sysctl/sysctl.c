@@ -45,10 +45,12 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#ifdef __i386__
 #include <sys/diskslice.h>	/* used for bootdev parsing */
+#include <sys/reboot.h>		/* used for bootdev parsing */
+#endif
 #include <sys/param.h>
 #include <sys/time.h>
-#include <sys/reboot.h>		/* used for bootdev parsing */
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
@@ -405,6 +407,7 @@ oidfmt(int *oid, int len, char *fmt, u_int *kind)
 	return 0;
 }
 
+#ifdef __i386__
 /*
  * Code to map a bootdev major number into a suitable device name.
  * Major numbers are mapped into names as in boot2.c
@@ -451,6 +454,7 @@ machdep_bootdev(u_long value)
 			majdev, unit, slice, part);
 	return 0;
 }
+#endif
 
 /*
  * This formats and outputs the value of one variable
@@ -545,8 +549,10 @@ show_var(int *oid, int nlen)
 		if (!nflag)
 			printf("%s%s", name, sep);
 		fmt++;
+#ifdef __i386__
 		if (!strcmp(name, "machdep.guessed_bootdev"))
 			return machdep_bootdev(*(unsigned long *)p);
+#endif
 		val = "";
 		while (len >= sizeof(long)) {
 			if(*fmt == 'U')
