@@ -8,7 +8,7 @@ AMD (am-utils) 6.0.1
 
 For the import of AMD many files were pruned by:
 
-	tar -X FREEBSD-Xlist -xf am-utils-6.0.1.tar.gz
+	tar -X FREEBSD-Xlist -xzf am-utils-6.0.1.tar.gz
 
 Then imported by:
 
