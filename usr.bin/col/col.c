@@ -99,6 +99,7 @@ void	flush_line __P((LINE *));
 void	flush_lines __P((int));
 void	flush_blanks __P((void));
 void	free_line __P((LINE *));
+int	main __P((int, char **));
 void	usage __P((void));
 void	wrerr __P((void));
 void   *xmalloc __P((void *, size_t));
