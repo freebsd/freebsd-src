@@ -32,14 +32,14 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1993, 198019861988\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif not lint
+#endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)bad144.c	8.1 (Berkeley) 6/6/93";
-#endif not lint
+static const char sccsid[] = "@(#)bad144.c	8.1 (Berkeley) 6/6/93";
+#endif /* not lint */
 
 /*
  * bad144
@@ -62,8 +62,10 @@ static char sccsid[] = "@(#)bad144.c	8.1 (Berkeley) 6/6/93";
 #include <sys/disklabel.h>
 #include <ufs/ffs/fs.h>
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <paths.h>
 
@@ -80,10 +82,12 @@ char	label[BBSIZE];
 daddr_t	size;
 struct	disklabel *dp;
 char	name[BUFSIZ];
-daddr_t sn;
 
+u_short	dkcksum __P((struct disklabel *lp));
+
+int	main __P((int argc, char *argv[]));
 void	blkzero __P((int f, daddr_t sn));
-int	compare __P((struct bt_bad *b1, struct bt_bad *b2));
+int	compare __P((const void *cvb1, const void *cvb2));
 daddr_t	badsn __P((struct bt_bad *bt));
 daddr_t	getold __P((int f, struct dkbad *bad));
 int	blkcopy __P((int f, daddr_t s1, daddr_t s2));
@@ -91,12 +95,13 @@ void	Perror __P((char *op));
 void	shift __P((int f, int new, int old));
 int	checkold __P((struct dkbad *oldbad));
 
+int
 main(argc, argv)
 	int argc;
 	char *argv[];
 {
 	register struct bt_bad *bt;
-	daddr_t	sn, bn[126];
+	daddr_t	sn, bn[DKBAD_MAXBAD];
 	int i, f, nbad, new, bad, errs;
 
 	argc--, argv++;
@@ -148,7 +153,8 @@ usage:
 		exit(1);
 	}
 	if (argv[0][0] != '/')
-		(void)sprintf(name, "%s/r%sc", _PATH_DEV, argv[0]);
+		(void)sprintf(name, "%s/r%s%c", _PATH_DEV, argv[0],
+			      'a' + RAW_PART);
 	else
 		strcpy(name, argv[0]);
 	f = open(name, argc == 1? O_RDONLY : O_RDWR);
@@ -167,7 +173,7 @@ usage:
 		exit(1);
 	}
 	if (dp->d_secsize > MAXSECSIZE || dp->d_secsize <= 0) {
-		fprintf(stderr, "Disk sector size too large/small (%ld)\n",
+		fprintf(stderr, "Disk sector size too large/small (%lu)\n",
 			dp->d_secsize);
 		exit(7);
 	}
@@ -176,7 +182,7 @@ usage:
 	argv++;
 	if (argc == 0) {
 		sn = getold(f, &oldbad);
-		printf("bad block information at sector %lu in %s:\n",
+		printf("bad block information at sector %ld in %s:\n",
 		    sn, name);
 		printf("cartridge serial number: %ld(10)\n", oldbad.bt_csn);
 		switch (oldbad.bt_flag) {
@@ -193,11 +199,11 @@ usage:
 			break;
 		}
 		bt = oldbad.bt_bad;
-		for (i = 0; i < 126; i++) {
+		for (i = 0; i < DKBAD_MAXBAD; i++) {
 			bad = (bt->bt_cyl<<16) + bt->bt_trksec;
 			if (bad < 0)
 				break;
-			printf("sn=%lu, cn=%d, tn=%d, sn=%d\n", badsn(bt),
+			printf("sn=%ld, cn=%d, tn=%d, sn=%d\n", badsn(bt),
 			    bt->bt_cyl, bt->bt_trksec>>8, bt->bt_trksec&0xff);
 			bt++;
 		}
@@ -214,10 +220,11 @@ usage:
 		i = checkold(&oldbad);
 		if (verbose)
 			printf("Had %d bad sectors, adding %d\n", i, argc);
-		if (i + argc > 126) {
+		if (i + argc > DKBAD_MAXBAD) {
 			printf("bad144: not enough room for %d more sectors\n",
 				argc);
-			printf("limited to 126 by information format\n");
+			printf("limited to %d by information format\n",
+			       DKBAD_MAXBAD);
 			exit(1);
 		}
 		curbad = oldbad;
@@ -226,9 +233,10 @@ usage:
 		argc--;
 		curbad.bt_mbz = 0;
 		curbad.bt_flag = DKBAD_MAGIC;
-		if (argc > 126) {
+		if (argc > DKBAD_MAXBAD) {
 			printf("bad144: too many bad sectors specified\n");
-			printf("limited to 126 by information format\n");
+			printf("limited to %d by information format\n",
+			       DKBAD_MAXBAD);
 			exit(1);
 		}
 		i = 0;
@@ -236,10 +244,10 @@ usage:
 	errs = 0;
 	new = argc;
 	while (argc > 0) {
-		daddr_t sn = atoi(*argv++);
+		sn = atoi(*argv++);
 		argc--;
 		if (sn < 0 || sn >= size) {
-			printf("%lu: out of range [0,%lu) for disk %s\n",
+			printf("%ld: out of range [0,%ld) for disk %s\n",
 			    sn, size, dp->d_typename);
 			errs++;
 			continue;
@@ -254,9 +262,9 @@ usage:
 	if (errs)
 		exit(1);
 	nbad = i;
-	while (i < 126) {
-		curbad.bt_bad[i].bt_trksec = -1;
-		curbad.bt_bad[i].bt_cyl = -1;
+	while (i < DKBAD_MAXBAD) {
+		curbad.bt_bad[i].bt_trksec = DKBAD_NOTRKSEC;
+		curbad.bt_bad[i].bt_cyl = DKBAD_NOCYL;
 		i++;
 	}
 	if (add) {
@@ -265,8 +273,7 @@ usage:
 		 * Then shuffle the replacement sectors so that
 		 * the previous bad sectors get the same replacement data.
 		 */
-		qsort((char *)curbad.bt_bad, nbad, sizeof (struct bt_bad),
-		    compare);
+		qsort(curbad.bt_bad, nbad, sizeof (struct bt_bad), compare);
 		if (dups) {
 			fprintf(stderr,
 "bad144: bad sectors have been duplicated; can't add existing sectors\n");
@@ -279,11 +286,11 @@ usage:
 	else
 		i = badfile * 2;
 	for (; i < 10 && i < dp->d_nsectors; i += 2) {
-		if (lseek(f, dp->d_secsize * (size - dp->d_nsectors + i),
-		    L_SET) < 0)
+		if (lseek(f, (off_t)dp->d_secsize * (size - dp->d_nsectors + i),
+			  SEEK_SET) < 0)
 			Perror("lseek");
 		if (verbose)
-			printf("write badsect file at %ld\n",
+			printf("write badsect file at %lu\n",
 				size - dp->d_nsectors + i);
 		if (nflag == 0 && write(f, (caddr_t)&curbad, sizeof(curbad)) !=
 		    sizeof(curbad)) {
@@ -300,20 +307,17 @@ usage:
 		for (i = nbad - new; i < nbad; i++)
 			format(f, bn[i]);
 #endif
-	i = 1;
-	if (ioctl(f, DIOCWLABEL, &i) < 0)
-		Perror("ioctl DIOCWLABEL(1)");
-
-        dp->d_flags |= D_BADSECT;
-	dp->d_checksum = 0;
-        dp->d_checksum = dkcksum(dp);  
-	if (lseek(f, 0, L_SET) < 0)
-		Perror("lseek");
-	if (write(f, label, sizeof(label)) < 0) 
-		Perror("read");
-	i = 0;
-	if (ioctl(f, DIOCWLABEL, &i) < 0)
-		Perror("ioctl DIOCWLABEL(0)");
+	if (nflag == 0 && (dp->d_flags & D_BADSECT) == 0) {
+		dp->d_flags |= D_BADSECT;
+		dp->d_checksum = 0;
+		dp->d_checksum = dkcksum(dp);  
+		if (ioctl(f, DIOCWDINFO, dp) < 0) {
+			fprintf(stderr,
+		"Can't write disklabel to enable bad sector handling: %s\n",
+				strerror(errno));
+			exit(1);
+		}
+	}
 #ifdef DIOCSBAD
 	if (nflag == 0 && ioctl(f, DIOCSBAD, (caddr_t)&curbad) < 0)
 		fprintf(stderr,
@@ -337,14 +341,14 @@ getold(f, bad)
 		i = badfile * 2;
 	for (; i < 10 && i < dp->d_nsectors; i += 2) {
 		sn = size - dp->d_nsectors + i;
-		if (lseek(f, sn * dp->d_secsize, L_SET) < 0)
+		if (lseek(f, dp->d_secsize * (off_t)sn, SEEK_SET) < 0)
 			Perror("lseek");
 		if (read(f, (char *) bad, dp->d_secsize) == dp->d_secsize) {
 			if (i > 0)
 				printf("Using bad-sector file %d\n", i/2);
 			return(sn);
 		}
-		(void)sprintf(msg, "bad144: read bad sector file at sn %lu", sn);
+		(void)sprintf(msg, "bad144: read bad sector file at sn %ld", sn);
 		perror(msg);
 		if (badfile != -1)
 			break;
@@ -373,15 +377,16 @@ checkold(oldbad)
 		errors++;
 	}
 	bt = oldbad->bt_bad;
-	for (i = 0; i < 126; i++, bt++) {
-		if (bt->bt_cyl == 0xffff && bt->bt_trksec == 0xffff)
+	for (i = 0; i < DKBAD_MAXBAD; i++, bt++) {
+		if (bt->bt_cyl == DKBAD_NOCYL &&
+		    bt->bt_trksec == DKBAD_NOTRKSEC)
 			break;
 		if ((bt->bt_cyl >= dp->d_ncylinders) ||
 		    ((bt->bt_trksec >> 8) >= dp->d_ntracks) ||
 		    ((bt->bt_trksec & 0xff) >= dp->d_nsectors)) {
 			fprintf(stderr,
 		     "bad144: cyl/trk/sect out of range in existing entry: ");
-			fprintf(stderr, "sn=%lu, cn=%d, tn=%d, sn=%u\n",
+			fprintf(stderr, "sn=%ld, cn=%d, tn=%d, sn=%d\n",
 				badsn(bt), bt->bt_cyl, bt->bt_trksec>>8,
 				bt->bt_trksec & 0xff);
 			errors++;
@@ -397,7 +402,7 @@ checkold(oldbad)
 		}
 		if (i > 0 && sn == lsn) {
 		    fprintf(stderr,
-			"bad144: bad sector file contains duplicates (sn %lu)\n",
+			"bad144: bad sector file contains duplicates (sn %ld)\n",
 			sn);
 		    errors++;
 		}
@@ -415,7 +420,7 @@ checkold(oldbad)
  */
 void
 shift(f, new, old)
-	int f,new,old;
+	int f, new, old;
 {
 	daddr_t repl;
 
@@ -466,24 +471,24 @@ blkcopy(f, s1, s2)
 		}
 	}
 	for (tries = 0; tries < RETRIES; tries++) {
-		if (lseek(f, dp->d_secsize * s1, L_SET) < 0)
+		if (lseek(f, (off_t)dp->d_secsize * s1, SEEK_SET) < 0)
 			Perror("lseek");
 		if ((n = read(f, buf, dp->d_secsize)) == dp->d_secsize)
 			break;
 	}
 	if (n != dp->d_secsize) {
-		fprintf(stderr, "bad144: can't read sector, %lu: ", s1);
+		fprintf(stderr, "bad144: can't read sector, %ld: ", s1);
 		if (n < 0)
 			perror((char *)0);
 		return(0);
 	}
-	if (lseek(f, dp->d_secsize * s2, L_SET) < 0)
+	if (lseek(f, (off_t)dp->d_secsize * s2, SEEK_SET) < 0)
 		Perror("lseek");
 	if (verbose)
-		printf("copying %lu to %lu\n", s1, s2);
+		printf("copying %ld to %ld\n", s1, s2);
 	if (nflag == 0 && write(f, buf, dp->d_secsize) != dp->d_secsize) {
 		fprintf(stderr,
-		    "bad144: can't write replacement sector, %lu: ", s2);
+		    "bad144: can't write replacement sector, %ld: ", s2);
 		perror((char *)0);
 		return(0);
 	}
@@ -505,21 +510,23 @@ blkzero(f, sn)
 			exit(20);
 		}
 	}
-	if (lseek(f, dp->d_secsize * sn, L_SET) < 0)
+	if (lseek(f, (off_t)dp->d_secsize * sn, SEEK_SET) < 0)
 		Perror("lseek");
 	if (verbose)
-		printf("zeroing %lu\n", sn);
+		printf("zeroing %ld\n", sn);
 	if (nflag == 0 && write(f, zbuf, dp->d_secsize) != dp->d_secsize) {
 		fprintf(stderr,
-		    "bad144: can't write replacement sector, %lu: ", sn);
+		    "bad144: can't write replacement sector, %ld: ", sn);
 		perror((char *)0);
 	}
 }
 
 int
-compare(b1, b2)
-register struct bt_bad *b1, *b2;
+compare(cvb1, cvb2)
+	const void *cvb1, *cvb2;
 {
+	const struct bt_bad *b1 = cvb1, *b2 = cvb2;
+
 	if (b1->bt_cyl > b2->bt_cyl)
 		return(1);
 	if (b1->bt_cyl < b2->bt_cyl)
@@ -609,7 +616,7 @@ rp06format(fp, dp, blk, buf, count)
 {
 
 	if (count < sizeof(struct rp06hdr)) {
-		fprintf(stderr, "Can't read header on blk %d, can't reformat\n",
+		fprintf(stderr, "Can't read header on blk %ld, can't reformat\n",
 			blk);
 		return (-1);
 	}
@@ -653,7 +660,7 @@ format(fd, blk)
 	 * process the sector as well.
 	 */
 	if (verbose)
-		printf("format blk %d\n", blk);
+		printf("format blk %ld\n", blk);
 	bzero((char *)&fop, sizeof(fop));
 	fop.df_buf = buf;
 	fop.df_count = fp->f_bufsize;
@@ -679,7 +686,7 @@ format(fd, blk)
 		Perror("write format");
 	if (fop.df_count != fp->f_bufsize) {
 		char msg[80];
-		(void)sprintf(msg, "bad144: write format %d", blk);
+		(void)sprintf(msg, "bad144: write format %ld", blk);
 		perror(msg);
 	}
 }
