@@ -344,6 +344,7 @@ get_mountpoint(struct chunk *old)
 {
     char *val;
     PartInfo *tmp;
+    Boolean newfs;
 
     if (old && old->private_data)
 	tmp = old->private_data;
@@ -384,9 +385,13 @@ get_mountpoint(struct chunk *old)
     else if (old)
 	old->flags &= ~CHUNK_IS_ROOT;
 
-    safe_free(tmp);
+    newfs = FALSE;
+    if (tmp) {
+	newfs = tmp->newfs;
+    	safe_free(tmp);
+    }
     val = string_skipwhite(string_prune(val));
-    tmp = new_part(val, TRUE, 0);
+    tmp = new_part(val, newfs, 0);
     if (old) {
 	old->private_data = tmp;
 	old->private_free = safe_free;
