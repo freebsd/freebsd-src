@@ -1,4 +1,3 @@
-/* @(#)auth.h	2.3 88/08/07 4.0 RPCSRC; from 1.17 88/02/08 SMI */
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -6,26 +5,30 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
- * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
+ * WARRANTIES OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
+ *
+ *	from: @(#)auth.h 1.17 88/02/08 SMI
+ *	from: @(#)auth.h	2.3 88/08/07 4.0 RPCSRC
+ *	$Id: auth.h,v 1.6 1996/12/30 13:59:37 peter Exp $
  */
 
 /*
@@ -38,6 +41,10 @@
  * "sessions".
  */
 
+#ifndef _RPC_AUTH_H
+#define _RPC_AUTH_H
+#include <sys/cdefs.h>
+#include <sys/socket.h>
 
 #define MAX_AUTH_BYTES	400
 #define MAXNETNAMELEN	255	/* maximum length of network user's name */
@@ -62,19 +69,17 @@ enum auth_stat {
 	AUTH_FAILED=7			/* some unknown reason */
 };
 
-#if (mc68000 || sparc || vax || i386 || tahoe || luna68k || hp300 || mips)
-typedef u_long u_int32;	/* 32-bit unsigned integers */
-#endif
-
 union des_block {
 	struct {
-		u_int32 high;
-		u_int32 low;
+		u_int32_t high;
+		u_int32_t low;
 	} key;
 	char c[8];
 };
 typedef union des_block des_block;
-extern bool_t xdr_des_block();
+__BEGIN_DECLS
+extern bool_t xdr_des_block __P((XDR *, des_block *));
+__END_DECLS
 
 /*
  * Authentication info.  Opaque to client.
@@ -84,21 +89,29 @@ struct opaque_auth {
 	caddr_t	oa_base;		/* address of more auth stuff */
 	u_int	oa_length;		/* not to exceed MAX_AUTH_BYTES */
 };
+__BEGIN_DECLS
+bool_t xdr_opaque_auth __P((XDR *xdrs, struct opaque_auth *ap));
+__END_DECLS
 
 
 /*
  * Auth handle, interface to client side authenticators.
  */
-typedef struct {
+typedef struct __rpc_auth {
 	struct	opaque_auth	ah_cred;
 	struct	opaque_auth	ah_verf;
 	union	des_block	ah_key;
 	struct auth_ops {
-		void	(*ah_nextverf)();
-		int	(*ah_marshal)();	/* nextverf & serialize */
-		int	(*ah_validate)();	/* validate varifier */
-		int	(*ah_refresh)();	/* refresh credentials */
-		void	(*ah_destroy)();	/* destroy this structure */
+		void	(*ah_nextverf) __P((struct __rpc_auth *));
+		/* nextverf & serialize */
+		int	(*ah_marshal) __P((struct __rpc_auth *, XDR *));
+		/* validate verifier */
+		int	(*ah_validate) __P((struct __rpc_auth *,
+				struct opaque_auth *));
+		/* refresh credentials */
+		int	(*ah_refresh) __P((struct __rpc_auth *));
+		/* destroy this structure */
+		void	(*ah_destroy) __P((struct __rpc_auth *));
 	} *ah_ops;
 	caddr_t ah_private;
 } AUTH;
@@ -140,7 +153,6 @@ typedef struct {
 
 extern struct opaque_auth _null_auth;
 
-
 /*
  * These are the various implementations of client side authenticators.
  */
@@ -154,13 +166,97 @@ extern struct opaque_auth _null_auth;
  *	int len;
  *	int *aup_gids;
  */
-extern AUTH *authunix_create();
-extern AUTH *authunix_create_default();	/* takes no parameters */
-extern AUTH *authnone_create();		/* takes no parameters */
-extern AUTH *authdes_create();
+__BEGIN_DECLS
+struct sockaddr_in;
+extern AUTH *authunix_create		__P((char *, int, int, int, int *));
+extern AUTH *authunix_create_default	__P((void));
+extern AUTH *authnone_create		__P((void));
+__END_DECLS
 
+/* Forward compatibility with TI-RPC */
+#define authsys_create authunix_create
+#define authsys_create_default authunix_create_default
+
+/*
+ * DES style authentication
+ * AUTH *authdes_create(servername, window, timehost, ckey)
+ * 	char *servername;		- network name of server
+ *	u_int window;			- time to live
+ * 	struct sockaddr *timehost;	- optional hostname to sync with
+ * 	des_block *ckey;		- optional conversation key to use
+ */
+__BEGIN_DECLS
+extern AUTH *authdes_create __P(( char *, u_int, struct sockaddr *, des_block * ));
+#ifdef NOTYET
+/*
+ * TI-RPC supports this call, but it requires the inclusion of
+ * NIS+-specific headers which would require the inclusion of other
+ * headers which would result in a tangled mess. For now, the NIS+
+ * code prototypes this routine internally.
+ */
+extern AUTH *authdes_pk_create __P(( char *, netobj *, u_int,
+				     struct sockaddr *, des_block *,
+				     nis_server * ));
+#endif
+__END_DECLS
+
+/*
+ * Netname manipulation routines.
+ */
+__BEGIN_DECLS
+extern int netname2user __P(( char *, uid_t *, gid_t *, int *, gid_t *));
+extern int netname2host __P(( char *, char *, int ));
+extern int getnetname __P(( char * ));
+extern int user2netname __P(( char *, uid_t, char * ));
+extern int host2netname __P(( char *, char *, char * ));
+extern void passwd2des __P(( char *, char * ));
+__END_DECLS
+
+/*
+ * Keyserv interface routines.
+ * XXX Should not be here.
+ */
+#ifndef HEXKEYBYTES
+#define HEXKEYBYTES 48
+#endif
+typedef char kbuf[HEXKEYBYTES];
+typedef char *namestr;
+
+struct netstarg {
+	kbuf st_priv_key;
+	kbuf st_pub_key;
+	namestr st_netname;
+};
+
+__BEGIN_DECLS
+extern int key_decryptsession __P(( const char *, des_block * ));
+extern int key_decryptsession_pk __P(( char *, netobj *, des_block * ));
+extern int key_encryptsession __P(( const char *, des_block * ));
+extern int key_encryptsession_pk __P(( char *, netobj *, des_block * ));
+extern int key_gendes __P(( des_block * ));
+extern int key_setsecret __P(( const char * ));
+extern int key_secretkey_is_set __P(( void ));
+extern int key_setnet __P(( struct netstarg * ));
+extern int key_get_conv __P(( char *, des_block * ));
+__END_DECLS
+
+/*
+ * Publickey routines.
+ */
+__BEGIN_DECLS
+extern int getpublickey __P(( char *, char * ));
+extern int getpublicandprivatekey __P(( char *, char * ));
+extern int getsecretkey __P(( char *, char *, char * ));
+__END_DECLS
+
+
+#ifndef AUTH_NONE /* Protect against <login_cap.h> */
 #define AUTH_NONE	0		/* no authentication */
+#endif
 #define	AUTH_NULL	0		/* backward compatibility */
 #define	AUTH_UNIX	1		/* unix style (uid, gids) */
+#define	AUTH_SYS	1		/* forward compatibility */
 #define	AUTH_SHORT	2		/* short hand unix style */
 #define AUTH_DES	3		/* des style (encrypted timestamps) */
+
+#endif /* !_RPC_AUTH_H */

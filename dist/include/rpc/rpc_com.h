@@ -5,48 +5,74 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- *
+ * 
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
- * WARRANTIES OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- *
+ * 
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- *
+ * 
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- *
+ * 
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- *
+ * 
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
- *
- *	from: @(#)svc_auth.h 1.6 86/07/16 SMI
- *	from: @(#)svc_auth.h	2.1 88/07/29 4.0 RPCSRC
- *	$Id: svc_auth.h,v 1.4 1996/01/30 23:32:36 mpp Exp $
+ */
+/*
+ * Copyright (c) 1986 - 1991 by Sun Microsystems, Inc.
  */
 
 /*
- * svc_auth.h, Service side of rpc authentication.
+ * rpc_com.h, Common definitions for both the server and client side.
+ * All for the topmost layer of rpc
  *
- * Copyright (C) 1984, Sun Microsystems, Inc.
  */
 
-#ifndef _RPC_SVCAUTH_H
-#define _RPC_SVCAUTH_H
+#ifndef _RPC_RPCCOM_H
+#define	_RPC_RPCCOM_H
+
+#pragma ident	"@(#)rpc_com.h	1.11	93/07/05 SMI"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*
- * Server side authenticator
+ * File descriptor to be used on xxx_create calls to get default descriptor
  */
-__BEGIN_DECLS
-extern enum auth_stat _authenticate __P((struct svc_req *, struct rpc_msg *));
-extern int svc_auth_reg __P(( register int, enum auth_stat (*)() ));
-extern enum auth_stat _svcauth_des __P(( struct svc_req *, struct rpc_msg * ));
-__END_DECLS
+#define	RPC_ANYSOCK	-1
+#define	RPC_ANYFD	RPC_ANYSOCK
+/*
+ * The max size of the transport, if the size cannot be determined
+ * by other means.
+ */
+#define	RPC_MAXDATASIZE 9000
+#define	RPC_MAXADDRSIZE 1024
 
-#endif /* !_RPC_SVCAUTH_H */
+#if defined(__STDC__) || defined(__cplusplus)
+extern u_int __rpc_get_t_size (int, long);
+extern u_int __rpc_get_a_size (long);
+extern int __rpc_dtbsize (void);
+extern int _rpc_dtablesize (void);
+extern  int  _rpc_get_default_domain(char **);
+#else
+extern u_int __rpc_get_t_size ();
+extern u_int __rpc_get_a_size ();
+extern int __rpc_dtbsize ();
+extern int _rpc_dtablesize ();
+extern  int _rpc_get_default_domain();
+#endif
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* _RPC_RPCCOM_H */

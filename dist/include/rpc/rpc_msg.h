@@ -1,4 +1,3 @@
-/* @(#)rpc_msg.h	2.1 88/07/29 4.0 RPCSRC */
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -6,28 +5,31 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
- * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
+ * WARRANTIES OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
+ *
+ *	from: @(#)rpc_msg.h 1.7 86/07/16 SMI
+ *	from: @(#)rpc_msg.h	2.1 88/07/29 4.0 RPCSRC
+ *	$Id: rpc_msg.h,v 1.6 1996/12/30 13:59:39 peter Exp $
  */
-/*      @(#)rpc_msg.h 1.7 86/07/16 SMI      */
 
 /*
  * rpc_msg.h
@@ -35,6 +37,9 @@
  *
  * Copyright (C) 1984, Sun Microsystems, Inc.
  */
+
+#ifndef _RPC_RPCMSG_H
+#define _RPC_RPCMSG_H
 
 #define RPC_MSG_VERSION		((u_long) 2)
 #define RPC_SERVICE_PORT	((u_short) 2048)
@@ -83,8 +88,8 @@ struct accepted_reply {
 	enum accept_stat	ar_stat;
 	union {
 		struct {
-			u_long	low;
-			u_long	high;
+			u_int32_t	low;
+			u_int32_t	high;
 		} AR_versions;
 		struct {
 			caddr_t	where;
@@ -103,8 +108,8 @@ struct rejected_reply {
 	enum reject_stat rj_stat;
 	union {
 		struct {
-			u_long low;
-			u_long high;
+			u_int32_t low;
+			u_int32_t high;
 		} RJ_versions;
 		enum auth_stat RJ_why;  /* why authentication did not work */
 	} ru;
@@ -129,10 +134,10 @@ struct reply_body {
  * Body of an rpc request call.
  */
 struct call_body {
-	u_long cb_rpcvers;	/* must be equal to two */
-	u_long cb_prog;
-	u_long cb_vers;
-	u_long cb_proc;
+	u_int32_t cb_rpcvers;	/* must be equal to two */
+	u_int32_t cb_prog;
+	u_int32_t cb_vers;
+	u_int32_t cb_proc;
 	struct opaque_auth cb_cred;
 	struct opaque_auth cb_verf; /* protocol specific - provided by client */
 };
@@ -141,7 +146,7 @@ struct call_body {
  * The rpc message
  */
 struct rpc_msg {
-	u_long			rm_xid;
+	u_int32_t		rm_xid;
 	enum msg_type		rm_direction;
 	union {
 		struct call_body RM_cmb;
@@ -153,14 +158,14 @@ struct rpc_msg {
 #define	acpted_rply	ru.RM_rmb.ru.RP_ar
 #define	rjcted_rply	ru.RM_rmb.ru.RP_dr
 
-
+__BEGIN_DECLS
 /*
  * XDR routine to handle a rpc message.
  * xdr_callmsg(xdrs, cmsg)
  * 	XDR *xdrs;
  * 	struct rpc_msg *cmsg;
  */
-extern bool_t	xdr_callmsg();
+extern bool_t	xdr_callmsg	__P((XDR *, struct rpc_msg *));
 
 /*
  * XDR routine to pre-serialize the static part of a rpc message.
@@ -168,7 +173,7 @@ extern bool_t	xdr_callmsg();
  * 	XDR *xdrs;
  * 	struct rpc_msg *cmsg;
  */
-extern bool_t	xdr_callhdr();
+extern bool_t	xdr_callhdr	__P((XDR *, struct rpc_msg *));
 
 /*
  * XDR routine to handle a rpc reply.
@@ -176,7 +181,7 @@ extern bool_t	xdr_callhdr();
  * 	XDR *xdrs;
  * 	struct rpc_msg *rmsg;
  */
-extern bool_t	xdr_replymsg();
+extern bool_t	xdr_replymsg	__P((XDR *, struct rpc_msg *));
 
 /*
  * Fills in the error part of a reply message.
@@ -184,4 +189,8 @@ extern bool_t	xdr_replymsg();
  * 	struct rpc_msg *msg;
  * 	struct rpc_err *error;
  */
-extern void	_seterr_reply();
+struct rpc_err;
+extern void	_seterr_reply	__P((struct rpc_msg *, struct rpc_err *));
+__END_DECLS
+
+#endif /* !_RPC_RPCMSG_H */
