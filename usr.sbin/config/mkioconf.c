@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkioconf.c	8.2 (Berkeley) 1/21/94";
 #endif
 static const char rcsid[] =
-	"$Id: mkioconf.c,v 1.39 1998/09/03 21:03:43 nsouch Exp $";
+	"$Id: mkioconf.c,v 1.40 1998/09/04 07:48:53 ache Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -795,11 +795,11 @@ id(int unit)
 	switch(unit)
 	{
 		case UNKNOWN:
-		s ="SCCONF_UNSPEC";
-		break;
+		s ="CAMCONF_UNSPEC";
+		break;;
 
 		case QUES:
-		s ="SCCONF_ANY";
+		s ="CAMCONF_ANY";
 		break;
 
 		default:
@@ -817,44 +817,6 @@ static void id_put(fp, unit, s)
 	fprintf(fp, "%s%s", id(unit), s);
 }
 
-struct node
-{
-	char *id;
-	struct node *next;
-};
-
-static void
-add_unique(struct node *node, char *id)
-{
-	struct node *prev = node;
-
-	for (prev = node; node; node = node->next)
-	{
-		if (strcmp(node->id, id) == 0)	/* Already there */
-			return;
-
-		prev = node;
-	}
-
-	node = (struct node *)malloc(sizeof(node));
-	prev->next = node;
-
-	node->id = id;
-	node->next = 0;
-}
-
-static  int
-is_old_scsi_device(char *name)
-{
-	static char *tab[] = {"cd", "ch", "sd", "st", "od", "uk"};
-	int i;
-	for (i = 0; i < sizeof(tab) / sizeof(tab[0]); i++)
-		if (eq(tab[i], name))
-			return 1;
-
-	return 0;
-}
-
 /* XXX: dufault@hda.com: wiped out mkioconf.c locally:
  *      All that nice "conflicting SCSI ID checking" is now
  *      lost and should be put back in.
@@ -866,19 +828,16 @@ scbus_devtab(fp, fp1, dev_idp)
 	int	*dev_idp;
 {
 	register struct device *dp, *mp;
-	struct node unique, *node;
-	unique.id = "unique";
-	unique.next = 0;
 
 	fprintf(fp, "\n");
 	fprintf(fp, "/*\n");
-	fprintf(fp, " * SCSI devices.\n");
+	fprintf(fp, " * CAM devices.\n");
 	fprintf(fp, " */\n");
 	fprintf(fp, "\n");
-	fprintf(fp, "#include <scsi/scsiconf.h>\n");
+	fprintf(fp, "#include <cam/cam_conf.h>\n");
 	fprintf(fp, "\n");
-	fprintf(fp, "struct scsi_ctlr_config scsi_cinit[] = {\n");
-	fprintf(fp, "/* scbus, driver, driver unit, ctlr bus */\n");
+	fprintf(fp, "struct cam_sim_config cam_sinit[] = {\n");
+	fprintf(fp, "/* pathid, sim name, sim unit, sim bus */\n");
 
 	/* XXX: Why do we always get an entry such as:
 	 * { '?', "ncr", '?', '?' },
@@ -898,20 +857,15 @@ scbus_devtab(fp, fp1, dev_idp)
 	fprintf(fp, "{ 0, 0, 0, 0 }\n");
 	fprintf(fp, "};\n");
 
+
 	fprintf(fp, "\n");
-	fprintf(fp, "struct scsi_device_config scsi_dinit[] = {\n");
-	fprintf(fp, "/* name    unit  cunit   target   LUN  flags */\n");
+	fprintf(fp, "struct cam_periph_config cam_pinit[] = {\n");
+	fprintf(fp,
+"/* periph name, periph unit, pathid, target, LUN, flags */\n");
 	for (dp = dtab; dp; dp = dp->d_next) {
 		if (dp->d_type == CONTROLLER || dp->d_type == MASTER ||
 		    dp->d_type == PSEUDO_DEVICE)
 			continue;
-
-		/* For backward compatability we must add the original
-		 * SCSI devices by name even if we don't know it is
-		 * connected to a SCSI bus.
-		 */
-		if (is_old_scsi_device(dp->d_name))
-			add_unique(&unique, dp->d_name);
 
 		mp = dp->d_conn;
 		if (mp == 0 || !eq(mp->d_name, "scbus")) {
@@ -936,20 +890,8 @@ scbus_devtab(fp, fp1, dev_idp)
 		id_put(fp, dp->d_target, ", ");
 		id_put(fp, dp->d_lun, ", ");
 		fprintf(fp, " 0x%x },\n", dp->d_flags);
-		add_unique(&unique, dp->d_name);
 	}
 	fprintf(fp, "{ 0, 0, 0, 0, 0, 0 }\n");
-	fprintf(fp, "};\n");
-
-	fprintf(fp1, "\n");
-	for (node = unique.next; node; node = node->next)
-		fprintf(fp1, "void %sinit __P((void));\n", node->id);
-
-	fprintf(fp, "\n");
-	fprintf(fp, "void (*scsi_tinit[]) __P((void)) = {\n");
-	for (node = unique.next; node; node = node->next)
-		fprintf(fp, "\t%sinit,\n", node->id);
-	fprintf(fp, "\t0,\n");
 	fprintf(fp, "};\n");
 }
 
