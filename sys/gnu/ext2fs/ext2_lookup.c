@@ -3,8 +3,6 @@
  *
  *  Aug 1995, Godmar Back (gback@cs.utah.edu)
  *  University of Utah, Department of Computer Science
- *
- * $FreeBSD$
  */
 /*
  * Copyright (c) 1989, 1993
@@ -44,6 +42,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lookup.c	8.6 (Berkeley) 4/1/94
+ * $FreeBSD$
  */
 
 #include <sys/param.h>
