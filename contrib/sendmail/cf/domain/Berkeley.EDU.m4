@@ -11,7 +11,7 @@ divert(-1)
 #
 #
 divert(0)
-VERSIONID(`@(#)Berkeley.EDU.m4	8.14 (Berkeley) 5/19/98')
+VERSIONID(`@(#)Berkeley.EDU.m4	8.14 (Berkeley) 5/19/1998')
 DOMAIN(berkeley-only)dnl
 define(`BITNET_RELAY', `bitnet-relay.Berkeley.EDU')dnl
 define(`UUCP_RELAY', `uucp-relay.Berkeley.EDU')dnl

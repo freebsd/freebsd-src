@@ -12,11 +12,11 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)powerux.m4	8.7 (Berkeley) 5/19/98')
+VERSIONID(`@(#)powerux.m4	8.8 (Berkeley) 10/6/1998')
 
 define(`ALIAS_FILE', /etc/mail/aliases)dnl
-ifdef(`HELP_FILE',,`define(`HELP_FILE', /etc/mail/sendmail.hf)')dnl
-ifdef(`STATUS_FILE',,`define(`STATUS_FILE', /etc/mail/sendmail.st)')dnl
+ifdef(`HELP_FILE',,`define(`HELP_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/helpfile', `/etc/mail/sendmail.hf'))')dnl
+ifdef(`STATUS_FILE',,`define(`STATUS_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/statistics', `/etc/mail/sendmail.st'))')dnl
 define(`LOCAL_MAILER_PATH', `/usr/bin/rmail')dnl
 define(`LOCAL_MAILER_FLAGS', `mn9')dnl
 define(`LOCAL_MAILER_ARGS', `rmail $u')dnl

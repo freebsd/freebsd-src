@@ -12,10 +12,10 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)sinix.m4	8.8 (Berkeley) 5/19/98')
+VERSIONID(`@(#)sinix.m4	8.9 (Berkeley) 10/6/1998')
 ifdef(`QUEUE_DIR',, `define(`QUEUE_DIR', /var/spool/mqueue)')dnl
-define(`ALIAS_FILE', /etc/aliases)dnl
+define(`ALIAS_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/aliases', `/etc/aliases'))dnl
 define(`LOCAL_MAILER_PATH', `/bin/mail.local')dnl
-ifdef(`STATUS_FILE',, `define(`STATUS_FILE', /var/sendmail.st)')dnl
-ifdef(`HELP_FILE',, `define(`HELP_FILE', /etc/sendmail.hf)')dnl
+ifdef(`STATUS_FILE',, `define(`STATUS_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/statistics', `/var/sendmail.st'))')dnl
+ifdef(`HELP_FILE',, `define(`HELP_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/helpfile', `/etc/sendmail.hf'))')dnl
 define(`confEBINDIR', `/usr/ucblib')dnl

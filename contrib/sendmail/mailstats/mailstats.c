@@ -18,7 +18,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)mailstats.c	8.26 (Berkeley) 7/2/98";
+static char sccsid[] = "@(#)mailstats.c	8.28 (Berkeley) 9/14/1998";
 #endif /* not lint */
 
 #ifndef NOT_SENDMAIL
@@ -45,17 +45,20 @@ main(argc, argv)
 	char *cfile;
 	FILE *cfp;
 	bool mnames;
+	bool progmode;
 	long frmsgs = 0, frbytes = 0, tomsgs = 0, tobytes = 0, rejmsgs = 0;
 	long dismsgs = 0;
 	char mtable[MAXMAILERS][MNAMELEN+1];
 	char sfilebuf[MAXLINE];
 	char buf[MAXLINE];
+	time_t now;
 	extern char *ctime();
 
 	cfile = _PATH_SENDMAILCF;
 	sfile = NULL;
 	mnames = TRUE;
-	while ((ch = getopt(argc, argv, "C:f:o")) != EOF)
+	progmode = FALSE;
+	while ((ch = getopt(argc, argv, "C:f:op")) != EOF)
 	{
 		switch (ch)
 		{
@@ -71,11 +74,22 @@ main(argc, argv)
 			mnames = FALSE;
 			break;
 
+#if _FFR_MAILSTATS_PROGMODE
+		  case 'p':
+			progmode = TRUE;
+			break;
+#endif
+
 		  case '?':
 		  default:
   usage:
-			fputs("usage: mailstats [-C cffile] [-f stfile] -o\n",
+#if _FFR_MAILSTATS_PROGMODE
+			fputs("usage: mailstats [-C cffile] [-f stfile] -o -p\n",
 				stderr);
+#else
+			fputs("usage: mailstats [-C cffile] [-f stfile] -o \n",
+				stderr);
+#endif
 			exit(EX_USAGE);
 		}
 	}
@@ -226,15 +240,29 @@ main(argc, argv)
 		}
 	}
 
-	printf("Statistics from %s", ctime(&stat.stat_itime));
-	printf(" M   msgsfr  bytes_from   msgsto    bytes_to  msgsrej msgsdis%s\n",
-		mnames ? "  Mailer" : "");
+	if (progmode)
+	{
+		time(&now);
+		printf("%ld %ld\n", (long) stat.stat_itime, (long) now);
+	}
+	else
+	{
+		printf("Statistics from %s", ctime(&stat.stat_itime));
+		printf(" M   msgsfr  bytes_from   msgsto    bytes_to  msgsrej msgsdis%s\n",
+			mnames ? "  Mailer" : "");
+	}
 	for (i = 0; i < MAXMAILERS; i++)
 	{
 		if (stat.stat_nf[i] || stat.stat_nt[i] ||
 		    stat.stat_nr[i] || stat.stat_nd[i])
 		{
-			printf("%2d %8ld %10ldK %8ld %10ldK   %6ld  %6ld", i,
+			char *format;
+
+			if (progmode)
+				format = "%2d %8ld %10ld %8ld %10ld   %6ld  %6ld";
+			else
+				format = "%2d %8ld %10ldK %8ld %10ldK   %6ld  %6ld";
+			printf(format, i,
 			    stat.stat_nf[i], stat.stat_bf[i],
 			    stat.stat_nt[i], stat.stat_bt[i],
 			    stat.stat_nr[i], stat.stat_nd[i]);
@@ -249,8 +277,20 @@ main(argc, argv)
 			dismsgs += stat.stat_nd[i];
 		}
 	}
-	printf("=============================================================\n");
-	printf(" T %8ld %10ldK %8ld %10ldK   %6ld  %6ld\n",
-		frmsgs, frbytes, tomsgs, tobytes, rejmsgs, dismsgs);
+	if (progmode)
+	{
+		printf(" T %8ld %10ld %8ld %10ld   %6ld  %6ld\n",
+		       frmsgs, frbytes, tomsgs, tobytes, rejmsgs, dismsgs);
+		close(fd);
+		fd = open(sfile, O_RDWR | O_TRUNC);
+		if (fd > 0)
+			close(fd);
+	}
+	else
+	{
+		printf("=============================================================\n");
+		printf(" T %8ld %10ldK %8ld %10ldK   %6ld  %6ld\n",
+			frmsgs, frbytes, tomsgs, tobytes, rejmsgs, dismsgs);
+	}
 	exit(EX_OK);
 }

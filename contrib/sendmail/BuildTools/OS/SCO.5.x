@@ -1,4 +1,4 @@
-#	@(#)SCO.5.x	8.10	(Berkeley)	6/30/98
+#	@(#)SCO.5.x	8.10	(Berkeley)	6/30/1998
 define(`confCC', `cc -b elf')
 define(`confLIBS', `-lsocket -lndbm -lprot -lcurses -lm -lx -lgen')
 define(`confMAPDEF', `-DMAP_REGEX -DNDBM')

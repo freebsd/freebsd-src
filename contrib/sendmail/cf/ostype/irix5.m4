@@ -28,13 +28,13 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)irix5.m4	8.10 (Berkeley) 5/19/98')
+VERSIONID(`@(#)irix5.m4	8.11 (Berkeley) 10/6/1998')
 ifdef(`LOCAL_MAILER_FLAGS',, `define(`LOCAL_MAILER_FLAGS', Ehmu9)')dnl
 ifdef(`LOCAL_MAILER_ARGS',, `define(`LOCAL_MAILER_ARGS', `mail -s -d $u')')dnl
 ifdef(`QUEUE_DIR',, `define(`QUEUE_DIR', /var/spool/mqueue)')dnl
-define(`ALIAS_FILE', /etc/aliases)dnl
-ifdef(`STATUS_FILE',, `define(`STATUS_FILE', /var/sendmail.st)')dnl
-ifdef(`HELP_FILE',, `define(`HELP_FILE', /etc/sendmail.hf)')dnl
+define(`ALIAS_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/aliases', `/etc/aliases'))dnl
+ifdef(`STATUS_FILE',, `define(`STATUS_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/statistics', `/var/sendmail.st'))')dnl
+ifdef(`HELP_FILE',, `define(`HELP_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/helpfile', `/etc/sendmail.hf'))')dnl
 define(`confDEF_USER_ID', `998:998')dnl
 define(`confTIME_ZONE', USE_TZ)dnl
 define(`confEBINDIR', `/usr/lib')dnl

@@ -1,4 +1,4 @@
-#	@(#)dgux	8.5	(Berkeley)	3/12/98
+#	@(#)dgux	8.5	(Berkeley)	3/12/1998
 define(`confMAPDEF', `-DNDBM -DNIS')
 define(`confLIBS', `-ldbm')
 define(`confMBINDIR', `/usr/bin')

@@ -1,4 +1,4 @@
-#	@(#)Paragon	8.3	(Berkeley)	3/12/98
+#	@(#)Paragon	8.3	(Berkeley)	3/12/1998
 define(`confMAPDEF', `-DNDBM')
 define(`confLIBDIRS', `-L/usr/shlib -L/usr/lib')
 define(`confLIBS', `-ldbm')

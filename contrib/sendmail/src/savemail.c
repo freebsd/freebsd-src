@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)savemail.c	8.138 (Berkeley) 6/17/98";
+static char sccsid[] = "@(#)savemail.c	8.139 (Berkeley) 8/5/1998";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -91,8 +91,7 @@ savemail(e, sendbody)
 			      RF_COPYPARSE|RF_SENDERADDR, '\0', NULL, e) == NULL)
 		{
 			syserr("553 Cannot parse Postmaster!");
-			ExitStat = EX_SOFTWARE;
-			finis();
+			finis(TRUE, EX_SOFTWARE);
 		}
 	}
 	e->e_to = NULL;

@@ -7,7 +7,7 @@
 # the sendmail distribution.
 #
 #
-#	@(#)configure.sh	8.27 (Berkeley) 5/19/98
+#	@(#)configure.sh	8.27 (Berkeley) 5/19/1998
 
 #
 #  Special script to autoconfigure for M4 generation of Makefile

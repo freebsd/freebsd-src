@@ -1,4 +1,4 @@
-#	@(#)DomainOS	8.6	(Berkeley)	6/24/98
+#	@(#)DomainOS	8.6	(Berkeley)	6/24/1998
 define(`confCC', `cc -A nansi -A,systype,any -A,runtype,bsd4.3')
 define(`confBEFORE', `unistd.h dirent.h')
 define(`confMAPDEF', `-DNDBM')

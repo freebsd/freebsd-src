@@ -11,7 +11,7 @@ divert(-1)
 #
 #
 divert(0)
-VERSIONID(`@(#)unspecified-domain.m4	8.7 (Berkeley) 5/19/98')
+VERSIONID(`@(#)unspecified-domain.m4	8.7 (Berkeley) 5/19/1998')
 errprint(`*** ERROR: You are trying to use the Berkeley sample configuration')
 errprint(`	files outside of the Computer Science Division at Berkeley.')
 errprint(`	The configuration (.mc) files must be customized to reference')

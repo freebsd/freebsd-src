@@ -1,4 +1,4 @@
-#	@(#)NeXT.3.x	8.7	(Berkeley)	3/12/98
+#	@(#)NeXT.3.x	8.7	(Berkeley)	3/12/1998
 PUSHDIVERT(1)
 # NEXTSTEP 3.1 and 3.2 only support m68k and i386
 #ARCH=  -arch m68k -arch i386 -arch hppa -arch sparc

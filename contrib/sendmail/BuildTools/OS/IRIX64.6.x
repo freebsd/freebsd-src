@@ -1,4 +1,4 @@
-#	@(#)IRIX64.6.x	8.11	(Berkeley)	4/24/98
+#	@(#)IRIX64.6.x	8.11	(Berkeley)	4/24/1998
 PUSHDIVERT(1)
 # Select what ABI we are using -- see abi(5) for details
 #    -32	~ IRIX 5.3				(default: -mips2)

@@ -1,7 +1,7 @@
 #
 #  This Makefile is designed to work on the old "make" program.
 #
-#	@(#)Makefile.m4	8.21	(Berkeley)	6/4/98
+#	@(#)Makefile.m4	8.22	(Berkeley)	7/12/1998
 #
 
 # C compiler
@@ -34,7 +34,7 @@ LIBDIRS=confLIBDIRS
 LIBS=	ifdef(`confLIBS', `confLIBS')
 
 # location of mail.local binary (usually /usr/sbin or /usr/etc)
-BINDIR=	${DESTDIR}ifdef(`confEBINDIR', `confEBINDIR', `/usr/libexec')
+EBINDIR=${DESTDIR}ifdef(`confEBINDIR', `confEBINDIR', `/usr/libexec')
 
 # additional .o files needed
 OBJADD=	ifdef(`confOBJADD', `confOBJADD')
@@ -91,7 +91,7 @@ install:
 force-install: install-mail.local install-docs
 
 install-mail.local: mail.local
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} mail.local ${BINDIR}
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} mail.local ${EBINDIR}
 
 install-docs: mail.local.${MAN8SRC}
 ifdef(`confNO_MAN_INSTALL', `dnl',

@@ -12,8 +12,8 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)osf1.m4	8.10 (Berkeley) 5/19/98')
-define(`ALIAS_FILE', /usr/adm/sendmail/aliases)dnl
-ifdef(`STATUS_FILE',, `define(`STATUS_FILE', /usr/adm/sendmail/sendmail.st)')dnl
-ifdef(`HELP_FILE',, `define(`HELP_FILE', /usr/share/lib/sendmail.hf)')dnl
+VERSIONID(`@(#)osf1.m4	8.11 (Berkeley) 10/6/1998')
+define(`ALIAS_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/aliases', `/usr/adm/sendmail/aliases'))dnl
+ifdef(`STATUS_FILE',, `define(`STATUS_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/statistics', `/usr/adm/sendmail/sendmail.st'))')dnl
+ifdef(`HELP_FILE',, `define(`HELP_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/helpfile', `/usr/share/lib/sendmail.hf'))')dnl
 define(`confDEF_USER_ID', `daemon')

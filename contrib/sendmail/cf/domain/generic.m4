@@ -19,7 +19,7 @@ divert(-1)
 #  files.
 #
 divert(0)
-VERSIONID(`@(#)generic.m4	8.9 (Berkeley) 5/19/98')
+VERSIONID(`@(#)generic.m4	8.9 (Berkeley) 5/19/1998')
 define(`confFORWARD_PATH', `$z/.forward.$w+$h:$z/.forward+$h:$z/.forward.$w:$z/.forward')dnl
 FEATURE(redirect)dnl
 FEATURE(use_cw_file)dnl

@@ -21,7 +21,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`@(#)mail.cs.mc	8.15 (Berkeley) 5/19/98')
+VERSIONID(`@(#)mail.cs.mc	8.15 (Berkeley) 5/19/1998')
 OSTYPE(ultrix4)dnl
 DOMAIN(Berkeley.EDU)dnl
 MASQUERADE_AS(CS.Berkeley.EDU)dnl

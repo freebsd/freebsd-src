@@ -9,7 +9,7 @@
  * the sendmail distribution.
  *
  *
- *	@(#)conf.h	8.372 (Berkeley) 6/4/98
+ *	@(#)conf.h	8.380 (Berkeley) 11/9/1998
  */
 
 /*
@@ -64,6 +64,11 @@ struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
 # define MACBUFSIZE	4096		/* max expanded macro buffer size */
 # define TOBUFSIZE	512		/* max buffer to hold address list */
 # define MAXSHORTSTR	203		/* max short string length */
+# if _FFR_MAX_MIME_HEADER_LENGTH
+#  define MAXMACNAMELEN	25		/* max macro name length */
+# else
+#  define MAXMACNAMELEN	20		/* max macro name length */
+# endif
 
 /**********************************************************************
 **  Compilation options.
@@ -344,12 +349,12 @@ typedef int		pid_t;
 # define GIDSET_T	gid_t
 # define SFS_TYPE	SFS_4ARGS	/* four argument statfs() call */
 # define SFS_BAVAIL	f_bfree		/* alternate field name */
+# define SYSLOG_BUFSIZE 512
 # ifdef IRIX6
 #  define STAT64        1
 #  define QUAD_T	unsigned long long
 #  define LA_TYPE	LA_IRIX6	/* figure out at run time */
 #  define SAFENFSPATHCONF 0	/* pathconf(2) lies on NFS filesystems */
-#  define SYSLOG_BUFSIZE 512
 # else
 #  define LA_TYPE	LA_INT
 
@@ -674,6 +679,41 @@ typedef int		pid_t;
 
 #endif
 
+/*
+**  Apple Rhapsody
+**	Contributed by Wilfredo Sanchez <wsanchez@apple.com>
+*/
+
+#ifdef __APPLE__
+# define HASFCHMOD	1	/* has fchmod(2) syscall */
+# define HASFLOCK	1	/* has flock(2) syscall */
+# define HASUNAME	1	/* has uname(2) syscall */
+# define HASUNSETENV	1
+# define HASSETSID	1	/* has the setsid(2) POSIX syscall */
+# define HASINITGROUPS	1
+# define HASSETVBUF	1
+# define HASSETREUID	1
+# define USESETEUID	1	/* has useable seteuid(2) call */
+# define HASLSTAT	1
+# define HASSETRLIMIT	1
+# define HASWAITPID	1
+# define HASSTRERROR	1	/* has strerror(3) */
+# define HASSNPRINTF	1	/* has snprintf(3) and vsnprintf(3) */
+# define USESTRERROR	1	/* has strerror(3) */
+# define HASGETDTABLESIZE	1
+# define HASGETUSERSHELL	1
+# define NEEDGETOPT	1	/* need a replacement for getopt(3) */
+# define BSD4_4_SOCKADDR	/* has sa_len */
+# define NETLINK	1	/* supports AF_LINK */
+# define HAS_ST_GEN	1	/* has st_gen field in stat struct */
+# define GIDSET_T	gid_t
+# define LA_TYPE	LA_SUBR		/* use getloadavg(3) */
+# define SFS_TYPE	SFS_MOUNT	/* use <sys/mount.h> statfs() impl */
+# define SPT_TYPE	SPT_PSSTRINGS
+# define SPT_PADCHAR	'\0'	/* pad process title with nulls */
+# define ERRLIST_PREDEFINED	/* don't declare sys_errlist */
+#endif
+
 
 /*
 **  4.4 BSD
@@ -814,11 +854,14 @@ typedef int		pid_t;
 # endif
 # if defined(__FreeBSD__)
 #  undef SPT_TYPE
-#  if __FreeBSD__ == 2
-#   include <osreldate.h>		/* and this works */
-#   if __FreeBSD_version >= 199512	/* 2.2-current right now */
+#  if __FreeBSD__ >= 2
+#   include <osreldate.h>
+#   if __FreeBSD_version >= 199512	/* 2.2-current when it appeared */
 #    include <libutil.h>
 #    define SPT_TYPE	SPT_BUILTIN
+#   endif
+#   if __FreeBSD_version >= 222000	/* 2.2.2-release and later */
+#    define HASSETUSERCONTEXT 	1	/* BSDI-style login classes */
 #   endif
 #  endif
 #  ifndef SPT_TYPE
@@ -1216,9 +1259,9 @@ extern void		*malloc();
 **	Florian La Roche <rzsfl@rz.uni-sb.de>
 **	Karl London <karl@borg.demon.co.uk>
 **
-**  Last compiled against:	[06/10/96 @ 09:21:40 PM (Monday)]
-**	sendmail 8.8-a4		named bind-4.9.4-T4B	db-1.85
-**	gcc 2.7.2		libc-5.3.12		linux 2.0.0
+**  Last compiled against:	[07/21/98 @ 11:47:34 AM (Tuesday)]
+**	sendmail 8.9.1		bind-8.1.2		db-2.4.14
+**	gcc-2.8.1		glibc-2.0.94		linux-2.1.109
 **
 **  NOTE: Override HASFLOCK as you will but, as of 1.99.6, mixed-style
 ** 	file locking is no longer allowed.  In particular, make sure
@@ -1228,6 +1271,7 @@ extern void		*malloc();
 
 #ifdef __linux__
 # define BSD		1	/* include BSD defines */
+# define USESETEUID	0	/* Have it due to POSIX, but doesn't work */
 # define NEEDGETOPT	1	/* need a replacement for getopt(3) */
 # define HASUNAME	1	/* use System V uname(2) system call */
 # define HASUNSETENV	1	/* has unsetenv(3) call */
@@ -1255,7 +1299,7 @@ extern void		*malloc();
 # ifndef _PATH_SENDMAILPID
 #  define _PATH_SENDMAILPID	"/var/run/sendmail.pid"
 # endif
-# define TZ_TYPE	TZ_TNAME
+# define TZ_TYPE	TZ_TZNAME
 # include <sys/sysmacros.h>
 # undef atol			/* wounded in <stdlib.h> */
 #endif
@@ -1484,6 +1528,37 @@ typedef int		pid_t;
 # endif
 #endif
 
+/*
+**  System V Rel 5.x (a.k.a Unixware7 w/o BSD-Compatiblity Libs ie. native)
+**
+**	Contributed by Paul Gampe <paulg@apnic.net>
+*/
+
+#ifdef __svr5__
+# include <sys/mkdev.h>
+# define __svr4__
+# define SYS5SIGNALS		1
+# define HASSETSID		1
+# define HASSETREUID		1
+# define HASWAITPID		1
+# define HASGETDTABLESIZE	1
+# define GIDSET_T		gid_t
+# define SOCKADDR_LEN_T		size_t
+# define SOCKOPT_LEN_T		size_t
+# ifndef _PATH_UNIX
+#  define _PATH_UNIX		"/stand/unix"
+# endif
+# define SPT_PADCHAR		'\0'	/* pad process title with nulls */
+# define SYSLOG_BUFSIZE		1024	/* unsure */
+# ifndef _PATH_VENDOR_CF
+#  define _PATH_VENDOR_CF	"/etc/sendmail.cf"
+# endif
+# ifndef _PATH_SENDMAILPID
+#  define _PATH_SENDMAILPID	"/etc/sendmail.pid"
+# endif
+#endif
+
+/* ###################################################################### */ 
 
 /*
 **  UnixWare 2.x
@@ -1516,7 +1591,9 @@ typedef int		pid_t;
 # define LA_TYPE		LA_ZERO
 # undef WIFEXITED
 # undef WEXITSTATUS
-# define _PATH_UNIX		"/unix"
+# ifndef _PATH_UNIX
+#  define _PATH_UNIX		"/unix"
+# endif
 # ifndef _PATH_VENDOR_CF
 #  define _PATH_VENDOR_CF	"/usr/ucblib/sendmail.cf"
 # endif

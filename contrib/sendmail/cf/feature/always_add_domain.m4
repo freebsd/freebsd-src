@@ -12,7 +12,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)always_add_domain.m4	8.6 (Berkeley) 5/19/98')
+VERSIONID(`@(#)always_add_domain.m4	8.6 (Berkeley) 5/19/1998')
 divert(-1)
 
 define(`_ALWAYS_ADD_DOMAIN_', 1)

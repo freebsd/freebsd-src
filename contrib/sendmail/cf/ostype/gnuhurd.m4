@@ -13,8 +13,8 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)gnuhurd.m4	8.7 (Berkeley) 5/19/98')
-ifdef(`HELP_FILE',, `define(`HELP_FILE', /share/misc/sendmail.hf)')dnl
-ifdef(`STATUS_FILE',, `define(`STATUS_FILE', /var/log/sendmail.st)')dnl
+VERSIONID(`@(#)gnuhurd.m4	8.8 (Berkeley) 10/6/1998')
+ifdef(`HELP_FILE',, `define(`HELP_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/helpfile', `/share/misc/sendmail.hf'))')dnl
+ifdef(`STATUS_FILE',, `define(`STATUS_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/statistics', `/var/log/sendmail.st'))')dnl
 ifdef(`LOCAL_MAILER_PATH',, `define(`LOCAL_MAILER_PATH', /libexec/mail.local)')dnl
 define(`confEBINDIR', `/libexec')dnl

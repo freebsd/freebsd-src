@@ -11,7 +11,7 @@ divert(-1)
 #
 #
 divert(0)
-VERSIONID(`@(#)CS.Berkeley.EDU.m4	8.7 (Berkeley) 5/19/98')
+VERSIONID(`@(#)CS.Berkeley.EDU.m4	8.7 (Berkeley) 5/19/1998')
 DOMAIN(Berkeley.EDU)dnl
 HACK(cssubdomain)dnl
 define(`confUSERDB_SPEC',

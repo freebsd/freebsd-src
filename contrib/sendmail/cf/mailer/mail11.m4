@@ -40,7 +40,7 @@ POPDIVERT
 ###   UTK-MAIL11 Mailer specification   ###
 ###########################################
 
-VERSIONID(`@(#)mail11.m4	8.8 (Berkeley) 5/19/98')
+VERSIONID(`@(#)mail11.m4	8.8 (Berkeley) 5/19/1998')
 
 Mmail11, P=MAIL11_MAILER_PATH, F=MAIL11_MAILER_FLAGS, S=15, R=25,
 	A=MAIL11_MAILER_ARGS

@@ -9,7 +9,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)access_db.m4	8.8 (Berkeley) 5/19/98')
+VERSIONID(`@(#)access_db.m4	8.8 (Berkeley) 5/19/1998')
 divert(-1)
 
 define(`ACCESS_TABLE',

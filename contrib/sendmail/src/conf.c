@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)conf.c	8.431 (Berkeley) 6/25/98";
+static char sccsid[] = "@(#)conf.c	8.450 (Berkeley) 12/17/1998";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -217,7 +217,6 @@ setdefaults(e)
 	int i;
 	struct passwd *pw;
 	char buf[MAXNAME];
-	extern void inittimeouts __P((char *));
 	extern void setdefuser __P((void));
 	extern void setupmaps __P((void));
 	extern void setupmailers __P((void));
@@ -247,7 +246,7 @@ setdefaults(e)
 		DefGid = 1;			/* option g */
 		setdefuser();
 	}
-	TrustedFileUid = 0;
+	TrustedUid = 0;
 	if (tTd(37, 4))
 		printf("setdefaults: DefUser=%s, DefUid=%d, DefGid=%d\n",
 		       DefUser != NULL ? DefUser : "<1:1>",
@@ -292,6 +291,7 @@ setdefaults(e)
 #ifdef HESIOD_INIT
 	HesiodContext = NULL;
 #endif
+	ControlSocketName = NULL;
 	setupmaps();
 	setupmailers();
 	setupheaders();
@@ -324,7 +324,6 @@ void
 setupmailers()
 {
 	char buf[100];
-	extern void makemailer __P((char *));
 
 	strcpy(buf, "prog, P=/bin/sh, F=lsoDq9, T=DNS/RFC822/X-Unix, A=sh -c \201u");
 	makemailer(buf);
@@ -838,6 +837,14 @@ switch_map_find(service, maptype, mapreturn)
 					*p++ = '\0';
 				if (buf[0] == '\0')
 					continue;
+				if (p == NULL)
+				{
+					sm_syslog(LOG_ERR, NOQID,
+						  "Bad line on %.100s: %.100s",
+						  ServiceSwitchFile,
+						  buf);
+					continue;
+				}
 				while (isspace(*p))
 					p++;
 				if (*p == '\0')
@@ -1280,10 +1287,10 @@ init_md(argc, argv)
 #endif
 #ifdef __QNX__
 	/*
-	** Due to QNX's network distributed nature, you can target a tcpip
-	** stack on a different node in the qnx network; this patch lets
-	** this feature work.  The __sock_locate() must be done before the
-	** environment is clear.
+	**  Due to QNX's network distributed nature, you can target a tcpip
+	**  stack on a different node in the qnx network; this patch lets
+	**  this feature work.  The __sock_locate() must be done before the
+	**  environment is clear.
 	*/
 	__sock_locate();
 #endif
@@ -2047,7 +2054,7 @@ refuseconnections(port)
 	else if (conncnt++ > ConnRateThrottle && ConnRateThrottle > 0)
 	{
 		/* sleep to flatten out connection load */
-		setproctitle("deferring connections on port %d: %d per second",
+		sm_setproctitle(TRUE, "deferring connections on port %d: %d per second",
 			port, ConnRateThrottle);
 		if (LogLevel >= 14)
 			sm_syslog(LOG_INFO, NOQID,
@@ -2059,7 +2066,7 @@ refuseconnections(port)
 	CurrentLA = getla();
 	if (CurrentLA >= refusela)
 	{
-		setproctitle("rejecting connections on port %d: load average: %d",
+		sm_setproctitle(TRUE, "rejecting connections on port %d: load average: %d",
 			port, CurrentLA);
 		if (LogLevel >= 14)
 			sm_syslog(LOG_INFO, NOQID,
@@ -2070,7 +2077,7 @@ refuseconnections(port)
 
 	if (!enoughdiskspace(MinBlocksFree + 1))
 	{
-		setproctitle("rejecting connections on port %d: min free: %d",
+		sm_setproctitle(TRUE, "rejecting connections on port %d: min free: %d",
 			port, MinBlocksFree);
 		if (LogLevel >= 14)
 			sm_syslog(LOG_INFO, NOQID,
@@ -2081,12 +2088,10 @@ refuseconnections(port)
 
 	if (MaxChildren > 0 && CurChildren >= MaxChildren)
 	{
-		extern void proc_list_probe __P((void));
-
 		proc_list_probe();
 		if (CurChildren >= MaxChildren)
 		{
-			setproctitle("rejecting connections on port %d: %d children, max %d",
+			sm_setproctitle(TRUE, "rejecting connections on port %d: %d children, max %d",
 				port, CurChildren, MaxChildren);
 			if (LogLevel >= 14)
 				sm_syslog(LOG_INFO, NOQID,
@@ -2170,11 +2175,11 @@ typedef unsigned int	*pt_entry_t;
 #  define SPT_PADCHAR	' '
 # endif
 
+#endif /* SPT_TYPE != SPT_NONE && SPT_TYPE != SPT_BUILTIN */
+
 # ifndef SPT_BUFSIZE
 #  define SPT_BUFSIZE	MAXLINE
 # endif
-
-#endif /* SPT_TYPE != SPT_NONE && SPT_TYPE != SPT_BUILTIN */
 
 /*
 **  Pointers for setproctitle.
@@ -2319,6 +2324,44 @@ setproctitle(fmt, va_alist)
 }
 
 #endif /* SPT_TYPE != SPT_BUILTIN */
+/*
+**  SM_SETPROCTITLE -- set process task and set process title for ps
+**
+**	Possibly set process status and call setproctitle() to
+**	change the ps display.
+**
+**	Parameters:
+**		status -- whether or not to store as process status
+**		fmt -- a printf style format string.
+**		a, b, c -- possible parameters to fmt.
+**
+**	Returns:
+**		none.
+*/
+
+/*VARARGS2*/
+void
+# ifdef __STDC__
+sm_setproctitle(bool status, const char *fmt, ...)
+# else
+sm_setproctitle(status, fmt, va_alist)
+	bool status;
+	const char *fmt;
+	va_dcl
+#endif
+{
+	char buf[SPT_BUFSIZE];
+
+	VA_LOCAL_DECL
+	/* print the argument string */
+	VA_START(fmt);
+	(void) vsnprintf(buf, SPT_BUFSIZE, fmt, ap);
+	VA_END;
+
+	if (status)
+		proc_list_set(getpid(), buf);
+	setproctitle("%s", buf);
+}
 /*
 **  WAITFOR -- wait for a particular process id.
 **
@@ -2789,8 +2832,8 @@ dgux_inet_addr(host)
 
 
 /*
-** this version hacked to add `atend' flag to allow state machine
-** to reset if invoked by the program to scan args for a 2nd time
+**  this version hacked to add `atend' flag to allow state machine
+**  to reset if invoked by the program to scan args for a 2nd time
 */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -2962,7 +3005,7 @@ char	*DefaultUserShells[] =
 	"/bin/bsh",		/* Bourne shell */
 	"/usr/bin/bsh",
 #endif
-#ifdef __svr4__
+#if defined(__svr4__) || defined(__svr5__)
 	"/bin/ksh",		/* Korn shell */
 	"/usr/bin/ksh",
 #endif
@@ -3665,7 +3708,61 @@ setvendor(vendor)
 	}
 #endif
 
+#if defined(VENDOR_NAME) && defined(VENDOR_CODE)
+	if (strcasecmp(vendor, VENDOR_NAME) == 0)
+	{
+		VendorCode = VENDOR_CODE;
+		return TRUE;
+	}
+#endif
+
 	return FALSE;
+}
+/*
+**  GETVENDOR -- return vendor name based on vendor code
+**
+**	Parameters:
+**		vendorcode -- numeric representation of vendor.
+**
+**	Returns:
+**		string containing vendor name.
+*/
+
+char *
+getvendor(vendorcode)
+	int vendorcode;
+{
+#if defined(VENDOR_NAME) && defined(VENDOR_CODE)
+	/*
+	**  Can't have the same switch case twice so need to 
+	**  handle VENDOR_CODE outside of switch.  It might
+	**  match one of the existing VENDOR_* codes.
+	*/
+
+	if (vendorcode == VENDOR_CODE)
+		return VENDOR_NAME;
+#endif
+
+	switch (vendorcode)
+	{
+		case VENDOR_BERKELEY:
+			return "Berkeley";
+		
+		case VENDOR_SUN:
+			return "Sun";
+
+		case VENDOR_HP:
+			return "HP";
+
+		case VENDOR_IBM:
+			return "IBM";
+
+		case VENDOR_SENDMAIL:
+			return "Sendmail";
+
+		default:
+			return "Unknown";
+	}
 }
 /*
 **  VENDOR_PRE_DEFAULTS, VENDOR_POST_DEFAULTS -- set vendor-specific defaults
@@ -3730,7 +3827,7 @@ vendor_daemon_setup(e)
 	if (getluid() != -1)
 	{
 		usrerr("Daemon cannot have LUID");
-		exit(EX_USAGE);
+		finis(FALSE, EX_USAGE);
 	}
 #endif /* SECUREWARE */
 }
@@ -4173,10 +4270,87 @@ secureware_setup_secure(uid)
 				rc, uid);
 			break;
 		}
-		exit(EX_NOPERM);
+		finis(FALSE, EX_NOPERM);
 	}
 }
 #endif /* SECUREWARE */
+/*
+**  ADD_LOCAL_HOST_NAMES -- Add a hostname to class 'w' based on IP address
+**
+**	Add hostnames to class 'w' based on the IP address read from
+**	the network interface.
+**
+**	Parameters:
+**		sa -- a pointer to a SOCKADDR containing the address
+**
+**	Returns:
+**		0 if successful, -1 if host lookup fails.
+*/
+
+int
+add_hostnames(sa)
+	SOCKADDR *sa;
+{
+	struct hostent *hp;
+
+	/* lookup name with IP address */
+	switch (sa->sa.sa_family)
+	{
+		case AF_INET:
+			hp = sm_gethostbyaddr((char *) &sa->sin.sin_addr,
+				sizeof(sa->sin.sin_addr), sa->sa.sa_family);
+			break;
+
+		default:
+#if _FFR_LOG_UNSUPPORTED_FAMILIES
+			/* XXX: Give warning about unsupported family */
+			if (LogLevel > 3)
+				sm_syslog(LOG_WARNING, NOQID,
+					  "Unsupported address family %d: %.100s",
+					  sa->sa.sa_family, anynet_ntoa(sa));
+#endif
+			return -1;
+	}
+
+	if (hp == NULL)
+	{
+		int save_errno = errno;
+
+		if (LogLevel > 3)
+			sm_syslog(LOG_WARNING, NOQID,
+				"gethostbyaddr(%.100s) failed: %d\n",
+				anynet_ntoa(sa),
+#if NAMED_BIND
+				h_errno
+#else
+				-1
+#endif
+				);
+		errno = save_errno;
+		return -1;
+	}
+
+	/* save its cname */
+	if (!wordinclass((char *) hp->h_name, 'w'))
+	{
+		setclass('w', (char *) hp->h_name);
+		if (tTd(0, 4))
+			printf("\ta.k.a.: %s\n", hp->h_name);
+	}
+
+	/* save all it aliases name */
+	while (*hp->h_aliases)
+	{
+		if (!wordinclass(*hp->h_aliases, 'w'))
+		{
+			setclass('w', *hp->h_aliases);
+			if (tTd(0, 4))
+				printf("\ta.k.a.: %s\n", *hp->h_aliases);
+		}
+		hp->h_aliases++;
+	}
+	return 0;
+}
 /*
 **  LOAD_IF_NAMES -- load interface-specific names into $=w
 **
@@ -4254,9 +4428,8 @@ load_if_names()
 	for (i = 0; i < ifc.ifc_len; )
 	{
 		struct ifreq *ifr = (struct ifreq *) &ifc.ifc_buf[i];
-		struct sockaddr *sa = &ifr->ifr_addr;
+		SOCKADDR *sa = (SOCKADDR *) &ifr->ifr_addr;
 		struct in_addr ia;
-		struct hostent *hp;
 #ifdef SIOCGIFFLAGS
 		struct ifreq ifrf;
 #endif
@@ -4264,14 +4437,14 @@ load_if_names()
 		extern char *inet_ntoa();
 
 #ifdef BSD4_4_SOCKADDR
-		if (sa->sa_len > sizeof ifr->ifr_addr)
-			i += sizeof ifr->ifr_name + sa->sa_len;
+		if (sa->sa.sa_len > sizeof ifr->ifr_addr)
+			i += sizeof ifr->ifr_name + sa->sa.sa_len;
 		else
 #endif
 			i += sizeof *ifr;
 
 		if (tTd(0, 20))
-			printf("%s\n", anynet_ntoa((SOCKADDR *) sa));
+			printf("%s\n", anynet_ntoa(sa));
 
 		if (ifr->ifr_addr.sa_family != AF_INET)
 			continue;
@@ -4290,7 +4463,7 @@ load_if_names()
 			continue;
 
 		/* extract IP address from the list*/
-		ia = (((struct sockaddr_in *) sa)->sin_addr);
+		ia = sa->sin.sin_addr;
 		if (ia.s_addr == INADDR_ANY || ia.s_addr == INADDR_NONE)
 		{
 			message("WARNING: interface %s is UP with %s address",
@@ -4313,41 +4486,7 @@ load_if_names()
 		if (bitset(IFF_LOOPBACK, IFRFREF.ifr_flags))
 			continue;
 
-		/* lookup name with IP address */
-		hp = sm_gethostbyaddr((char *) &ia, sizeof(ia), AF_INET);
-		if (hp == NULL)
-		{
-			if (LogLevel > 3)
-				sm_syslog(LOG_WARNING, NOQID,
-					"gethostbyaddr(%.100s) failed: %d\n",
-					inet_ntoa(ia),
-#if NAMED_BIND
-					h_errno);
-#else
-					-1);
-#endif
-			continue;
-		}
-
-		/* save its cname */
-		if (!wordinclass((char *) hp->h_name, 'w'))
-		{
-			setclass('w', (char *) hp->h_name);
-			if (tTd(0, 4))
-				printf("\ta.k.a.: %s\n", hp->h_name);
-		}
-
-		/* save all it aliases name */
-		while (*hp->h_aliases)
-		{
-			if (!wordinclass(*hp->h_aliases, 'w'))
-			{
-				setclass('w', *hp->h_aliases);
-				if (tTd(0, 4))
-				printf("\ta.k.a.: %s\n", *hp->h_aliases);
-			}
-			hp->h_aliases++;
-		}
+		(void) add_hostnames(sa);
 	}
 	free(ifc.ifc_buf);
 	close(s);
@@ -4412,7 +4551,7 @@ sm_syslog(level, id, fmt, va_alist)
 	extern int SyslogErrno;
 	extern char *DoprEnd;
 	VA_LOCAL_DECL
-	extern void sm_dopr __P((char *, const char *, ...));
+	extern void sm_dopr __P((char *, const char *, va_list));
 	
 	SyslogErrno = errno;
 	if (id == NULL)

@@ -23,7 +23,7 @@ POPDIVERT
 ###   Local and Program Mailer specification   ###
 ##################################################
 
-VERSIONID(`@(#)local.m4	8.30 (Berkeley) 6/30/98')
+VERSIONID(`@(#)local.m4	8.30 (Berkeley) 6/30/1998')
 
 Mlocal,		P=LOCAL_MAILER_PATH, F=CONCAT(`lsDFMAw5:/|@q', LOCAL_MAILER_FLAGS), S=10/30, R=20/40,
 		_OPTINS(`LOCAL_MAILER_MAX', `M=', `, ')_OPTINS(`LOCAL_MAILER_CHARSET', `C=', `, ')T=DNS/RFC822/X-Unix,

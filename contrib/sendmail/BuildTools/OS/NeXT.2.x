@@ -1,4 +1,4 @@
-#	@(#)NeXT.2.x	8.7	(Berkeley)	3/12/98
+#	@(#)NeXT.2.x	8.7	(Berkeley)	3/12/1998
 define(`confBEFORE', `unistd.h dirent.h')
 define(`confMAPDEF', `-DNDBM -DNIS -DNETINFO')
 define(`confENVDEF', `-DNeXT ')

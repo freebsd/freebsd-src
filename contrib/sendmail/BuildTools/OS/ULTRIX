@@ -1,5 +1,5 @@
-#	@(#)ULTRIX	8.7	(Berkeley)	3/12/98
-define(`confCC', `cc -Olimit 950')
+#	@(#)ULTRIX	8.8	(Berkeley)	12/18/1998
+define(`confCC', `cc -Olimit 970')
 define(`confMAPDEF', `-DNDBM -DNIS')
 define(`confENVDEF', `-DIDENTPROTO=0 ')
 define(`confMBINDIR', `/usr/lib')

@@ -12,9 +12,9 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)qnx.m4	8.7 (Berkeley) 5/19/98')
+VERSIONID(`@(#)qnx.m4	8.8 (Berkeley) 10/6/1998')
 define(`QUEUE_DIR', /usr/spool/mqueue)dnl
-define(`HELP_FILE', /etc/sendmail.hf)dnl
+define(`HELP_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/helpfile', `/etc/sendmail.hf'))dnl
 define(`LOCAL_MAILER_ARGS', `mail $u')dnl
 define(`LOCAL_MAILER_FLAGS', `Sh')dnl
 define(`LOCAL_MAILER_PATH', /usr/bin/mailx)dnl

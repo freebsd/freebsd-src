@@ -1,4 +1,4 @@
-#	@(#)QNX	8.4	(Berkeley)	2/19/98
+#	@(#)QNX	8.4	(Berkeley)	2/19/1998
 PUSHDIVERT(1)
 #
 # For this Makefile to work you must compile and install the libdb package

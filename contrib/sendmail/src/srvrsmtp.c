@@ -14,9 +14,9 @@
 
 #ifndef lint
 #if SMTP
-static char sccsid[] = "@(#)srvrsmtp.c	8.181 (Berkeley) 6/15/98 (with SMTP)";
+static char sccsid[] = "@(#)srvrsmtp.c	8.187 (Berkeley) 10/23/1998 (with SMTP)";
 #else
-static char sccsid[] = "@(#)srvrsmtp.c	8.181 (Berkeley) 6/15/98 (without SMTP)";
+static char sccsid[] = "@(#)srvrsmtp.c	8.187 (Berkeley) 10/23/1998 (without SMTP)";
 #endif
 #endif /* not lint */
 
@@ -127,7 +127,7 @@ smtp(nullserver, e)
 	char *id;
 	volatile int nrcpts = 0;	/* number of RCPT commands */
 	bool doublequeue;
-	bool discard;
+	volatile bool discard;
 	volatile int badcommands = 0;	/* count of bad commands */
 	volatile int nverifies = 0;	/* count of VRFY/EXPN commands */
 	volatile int n_etrn = 0;	/* count of ETRN commands */
@@ -163,7 +163,7 @@ smtp(nullserver, e)
 	/* check_relay may have set discard bit, save for later */
 	discard = bitset(EF_DISCARD, e->e_flags);
 
-	setproctitle("server %s startup", CurSmtpClient);
+	sm_setproctitle(TRUE, "server %s startup", CurSmtpClient);
 #if DAEMON
 	if (LogLevel > 11)
 	{
@@ -222,7 +222,7 @@ smtp(nullserver, e)
 
 		/* read the input line */
 		SmtpPhase = "server cmd read";
-		setproctitle("server %s cmd read", CurSmtpClient);
+		sm_setproctitle(TRUE, "server %s cmd read", CurSmtpClient);
 		p = sfgets(inp, sizeof inp, InChannel, TimeOuts.to_nextcommand,
 				SmtpPhase);
 
@@ -243,15 +243,15 @@ smtp(nullserver, e)
 				CurSmtpClient);
 
 			/*
-			** If have not accepted mail (DATA), do not bounce
-			** bad addresses back to sender.
+			**  If have not accepted mail (DATA), do not bounce
+			**  bad addresses back to sender.
 			*/
 			if (bitset(EF_CLRQUEUE, e->e_flags))
 				e->e_sendqueue = NULL;
 
 			if (InChild)
 				ExitStat = EX_QUIT;
-			finis();
+			finis(TRUE, ExitStat);
 		}
 
 		/* clean up end of line */
@@ -267,9 +267,9 @@ smtp(nullserver, e)
 				inp);
 
 		if (e->e_id == NULL)
-			setproctitle("%s: %.80s", CurSmtpClient, inp);
+			sm_setproctitle(TRUE, "%s: %.80s", CurSmtpClient, inp);
 		else
-			setproctitle("%s %s: %.80s", e->e_id, CurSmtpClient, inp);
+			sm_setproctitle(TRUE, "%s %s: %.80s", e->e_id, CurSmtpClient, inp);
 
 		/* break off command */
 		for (p = inp; isascii(*p) && isspace(*p); p++)
@@ -457,7 +457,7 @@ smtp(nullserver, e)
 			{
 				errno = 0;
 				syserr("503 Nested MAIL command: MAIL %s", p);
-				finis();
+				finis(TRUE, ExitStat);
 			}
 
 			/* make sure we know who the sending host is */
@@ -498,7 +498,7 @@ smtp(nullserver, e)
 				goto undo_subproc_no_pm;
 			nrcpts = 0;
 			e->e_flags |= EF_LOGSENDER|EF_CLRQUEUE;
-			setproctitle("%s %s: %.80s", e->e_id, CurSmtpClient, inp);
+			sm_setproctitle(TRUE, "%s %s: %.80s", e->e_id, CurSmtpClient, inp);
 
 			/* child -- go do the processing */
 			if (setjmp(TopFrame) > 0)
@@ -512,7 +512,7 @@ smtp(nullserver, e)
 					QuickAbort = FALSE;
 					SuprErrs = TRUE;
 					e->e_flags &= ~EF_FATALERRS;
-					finis();
+					finis(TRUE, ExitStat);
 				}
 				break;
 			}
@@ -633,8 +633,14 @@ smtp(nullserver, e)
 			if (p == NULL)
 				break;
 			a = parseaddr(p, NULLADDR, RF_COPYALL, ' ', &delimptr, e);
-			if (a == NULL || Errors > 0)
+			if (Errors > 0)
 				break;
+			if (a == NULL)
+			{
+				usrerr("501 Missing recipient");
+				break;
+			}
+
 			if (delimptr != NULL && *delimptr != '\0')
 				*delimptr++ = '\0';
 
@@ -808,8 +814,6 @@ smtp(nullserver, e)
 
 				if (!shouldqueue(e->e_msgpriority, e->e_ctime))
 				{
-					extern pid_t dowork __P((char *, bool, bool, ENVELOPE *));
-
 					unlockqueue(e);
 					(void) dowork(id, TRUE, TRUE, e);
 				}
@@ -818,7 +822,7 @@ smtp(nullserver, e)
   abortmessage:
 			/* if in a child, pop back to our parent */
 			if (InChild)
-				finis();
+				finis(TRUE, ExitStat);
 
 			/* clean up a bit */
 			gotmail = FALSE;
@@ -837,7 +841,7 @@ smtp(nullserver, e)
 			e->e_sendqueue = NULL;
 			e->e_flags |= EF_CLRQUEUE;
 			if (InChild)
-				finis();
+				finis(TRUE, ExitStat);
 
 			/* clean up a bit */
 			gotmail = FALSE;
@@ -916,7 +920,7 @@ smtp(nullserver, e)
 				vrfyqueue = vrfyqueue->q_next;
 			}
 			if (InChild)
-				finis();
+				finis(TRUE, ExitStat);
 			break;
 
 		  case CMDETRN:		/* etrn -- force queue flush */
@@ -992,7 +996,7 @@ doquit:
 				sm_syslog(LOG_INFO, NULL,
 					"Null connection from %.100s",
 					CurSmtpClient);
-			finis();
+			finis(TRUE, ExitStat);
 
 		  case CMDVERB:		/* set verbose mode */
 			if (bitset(PRIV_NOEXPN, PrivacyFlags) ||
@@ -1417,7 +1421,7 @@ runinchild(label, e)
 			auto int st;
 
 			/* parent -- wait for child to complete */
-			setproctitle("server %s child wait", CurSmtpClient);
+			sm_setproctitle(TRUE, "server %s child wait", CurSmtpClient);
 			st = waitfor(childpid);
 			if (st == -1)
 				syserr("451 %s: lost child", label);
@@ -1429,7 +1433,7 @@ runinchild(label, e)
 			if (WEXITSTATUS(st) == EX_QUIT)
 			{
 				disconnect(1, e);
-				finis();
+				finis(TRUE, ExitStat);
 			}
 
 			/* restore the child signal */
@@ -1447,10 +1451,6 @@ runinchild(label, e)
 			(void) releasesignal(SIGCHLD);
 		}
 	}
-
-	/* open alias database */
-	initmaps(FALSE, e);
-
 	return (0);
 }
 

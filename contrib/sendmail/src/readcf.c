@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)readcf.c	8.230 (Berkeley) 6/5/98";
+static char sccsid[] = "@(#)readcf.c	8.235 (Berkeley) 8/18/1998";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -106,19 +106,19 @@ readcf(cfname, safe, e)
 	if (cf == NULL)
 	{
 		syserr("cannot open");
-		exit(EX_OSFILE);
+		finis(FALSE, EX_OSFILE);
 	}
 
 	if (fstat(fileno(cf), &statb) < 0)
 	{
 		syserr("cannot fstat");
-		exit(EX_OSFILE);
+		finis(FALSE, EX_OSFILE);
 	}
 
 	if (!S_ISREG(statb.st_mode))
 	{
 		syserr("not a plain file");
-		exit(EX_OSFILE);
+		finis(FALSE, EX_OSFILE);
 	}
 
 	if (OpMode != MD_TEST && bitset(S_IWGRP|S_IWOTH, statb.st_mode))
@@ -518,7 +518,7 @@ readcf(cfname, safe, e)
 	if (ferror(cf))
 	{
 		syserr("I/O read error");
-		exit(EX_OSFILE);
+		finis(FALSE, EX_OSFILE);
 	}
 	fclose(cf);
 	FileName = NULL;
@@ -1515,11 +1515,18 @@ struct optioninfo
 #define O_CNCTONLYTO	0xa6
 	{ "ConnectOnlyTo",		O_CNCTONLYTO,	FALSE	},
 #endif
-#if _FFR_TRUSTED_FILE_OWNER
-#define O_TRUSTFILEOWN	0xa7
-	{ "TrustedFileOwner",		O_TRUSTFILEOWN,	FALSE	},
+#if _FFR_TRUSTED_USER
+#define O_TRUSTUSER	0xa7
+	{ "TrustedUser",		O_TRUSTUSER,	FALSE	},
 #endif
-
+#if _FFR_MAX_MIME_HEADER_LENGTH
+#define O_MAXMIMEHDRLEN	0xa8
+	{ "MaxMimeHeaderLength",	O_MAXMIMEHDRLEN,	FALSE	},
+#endif
+#if _FFR_CONTROL_SOCKET
+#define O_CONTROLSOCKET	0xa9
+	{ "ControlSocketName",		O_CONTROLSOCKET,	FALSE	},
+#endif
 	{ NULL,				'\0',		FALSE	}
 };
 
@@ -1707,7 +1714,7 @@ setoption(opt, val, safe, sticky, e)
 
 		  default:
 			syserr("Unknown 8-bit mode %c", *val);
-			exit(EX_USAGE);
+			finis(FALSE, EX_USAGE);
 		}
 		break;
 #endif
@@ -1771,7 +1778,7 @@ setoption(opt, val, safe, sticky, e)
 
 		  default:
 			syserr("Unknown delivery mode %c", *val);
-			exit(EX_USAGE);
+			finis(FALSE, EX_USAGE);
 		}
 		buf[0] = (char)e->e_sendmode;
 		buf[1] = '\0';
@@ -2401,30 +2408,61 @@ setoption(opt, val, safe, sticky, e)
 		break;
 #endif
 
-#if _FFR_TRUSTED_FILE_OWNER
-	  case O_TRUSTFILEOWN:
+#if _FFR_TRUSTED_USER
+	  case O_TRUSTUSER:
 		if (isascii(*val) && isdigit(*val))
-			TrustedFileUid = atoi(val);
+			TrustedUid = atoi(val);
 		else
 		{
 			register struct passwd *pw;
 
-			TrustedFileUid = 0;
+			TrustedUid = 0;
 			pw = sm_getpwnam(val);
 			if (pw == NULL)
-				syserr("readcf: option TrustedFileOwner: unknown user %s", val);
+				syserr("readcf: option TrustedUser: unknown user %s", val);
 			else
-				TrustedFileUid = pw->pw_uid;
+				TrustedUid = pw->pw_uid;
 		}
 
 #ifdef UID_MAX
-		if (TrustedFileUid > UID_MAX)
+		if (TrustedUid > UID_MAX)
 		{
-			syserr("readcf: option TrustedFileOwner: uid value (%ld) > UID_MAX (%ld)",
-				TrustedFileUid, UID_MAX);
-			TrustedFileUid = 0;
+			syserr("readcf: option TrustedUser: uid value (%ld) > UID_MAX (%ld)",
+				TrustedUid, UID_MAX);
+			TrustedUid = 0;
 		}
 #endif
+		break;
+#endif
+
+#if _FFR_MAX_MIME_HEADER_LENGTH
+	  case O_MAXMIMEHDRLEN:
+		p = strchr(val, '/');
+		if (p != NULL)
+			*p++ = '\0';
+		MaxMimeHeaderLength = atoi(val);
+		if (p != NULL && *p != '\0')
+			MaxMimeFieldLength = atoi(p);
+		else
+			MaxMimeFieldLength = MaxMimeHeaderLength / 2;
+
+		if (MaxMimeHeaderLength < 0)
+			MaxMimeHeaderLength = 0;
+		else if (MaxMimeHeaderLength < 128)
+			printf("Warning: MaxMimeHeaderLength: header length limit set lower than 128\n");
+
+		if (MaxMimeFieldLength < 0)
+			MaxMimeFieldLength = 0;
+		else if (MaxMimeFieldLength < 40)
+			printf("Warning: MaxMimeHeaderLength: field length limit set lower than 40\n");
+		break;
+#endif
+
+#if _FFR_CONTROL_SOCKET
+	  case O_CONTROLSOCKET:
+		if (ControlSocketName != NULL)
+			free(ControlSocketName);
+		ControlSocketName = newstr(val);
 		break;
 #endif
 

@@ -9,7 +9,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)accept_unresolvable_domains.m4	8.7 (Berkeley) 5/19/98')
+VERSIONID(`@(#)accept_unresolvable_domains.m4	8.7 (Berkeley) 5/19/1998')
 divert(-1)
 
 define(`_ACCEPT_UNRESOLVABLE_DOMAINS_', 1)
