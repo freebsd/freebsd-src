@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.52 1997/12/20 03:05:36 sef Exp $
+ * $Id: proc.h,v 1.53 1998/01/22 17:30:11 dyson Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -257,7 +257,6 @@ struct	pcred {
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_SESSION);
-MALLOC_DECLARE(M_PROC);
 MALLOC_DECLARE(M_SUBPROC);
 #endif
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.7 (Berkeley) 2/14/95
- * $Id: kern_proc.c,v 1.34 1998/02/06 12:13:24 eivind Exp $
+ * $Id: kern_proc.c,v 1.35 1998/02/09 06:09:23 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -51,7 +51,7 @@
 
 static MALLOC_DEFINE(M_PGRP, "pgrp", "process group header");
 MALLOC_DEFINE(M_SESSION, "session", "session header");
-MALLOC_DEFINE(M_PROC, "proc", "Proc structures");
+static MALLOC_DEFINE(M_PROC, "proc", "Proc structures");
 MALLOC_DEFINE(M_SUBPROC, "subproc", "Proc sub-structures");
 
 struct prochd qs[NQS];		/* as good a place as any... */
@@ -369,7 +369,7 @@ DB_SHOW_COMMAND(pgrpdump, pgrpdump)
 {
 	register struct pgrp *pgrp;
 	register struct proc *p;
-	register i;
+	register int i;
 
 	for (i = 0; i <= pgrphash; i++) {
 		if (pgrp = pgrphashtbl[i].lh_first) {
