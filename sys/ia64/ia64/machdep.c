@@ -85,7 +85,6 @@
 #include <sys/ucontext.h>
 #include <machine/sigframe.h>
 #include <machine/efi.h>
-#include <machine/inst.h>
 #include <machine/unwind.h>
 #include <i386/include/specialreg.h>
 
@@ -1437,30 +1436,6 @@ Debugger(const char *msg)
 	printf("Debugger(\"%s\") called.\n", msg);
 }
 #endif /* no DDB */
-
-/*
- * Utility functions for manipulating instruction bundles.
- */
-void
-ia64_unpack_bundle(u_int64_t low, u_int64_t high, struct ia64_bundle *bp)
-{
-	bp->template = low & 0x1f;
-	bp->slot[0] = (low >> 5) & ((1L<<41) - 1);
-	bp->slot[1] = (low >> 46) | ((high & ((1L<<23) - 1)) << 18);
-	bp->slot[2] = (high >> 23);
-}
-
-void
-ia64_pack_bundle(u_int64_t *lowp, u_int64_t *highp,
-		 const struct ia64_bundle *bp)
-{
-	u_int64_t low, high;
-
-	low = bp->template | (bp->slot[0] << 5) | (bp->slot[1] << 46);
-	high = (bp->slot[1] >> 18) | (bp->slot[2] << 23);
-	*lowp = low;
-	*highp = high;
-}
 
 int
 sysbeep(int pitch, int period)
