@@ -87,7 +87,7 @@ linux_open(struct thread *td, struct linux_open_args *args)
 	int flags;
 	int mode;
     } */ bsd_open_args;
-	struct proc *p = td->td_proc;
+    struct proc *p = td->td_proc;
     int error;
     caddr_t sg;
 
