@@ -211,7 +211,7 @@ struct mountlist *mlhead;
 struct grouplist *grphead;
 char exname[MAXPATHLEN];
 struct xucred def_anon = {
-	0,
+	XUCRED_VERSION,
 	(uid_t)-2,
 	1,
 	{ (gid_t)-2 },
@@ -2050,6 +2050,7 @@ parsecred(namelist, cr)
 	struct group *gr;
 	int ngroups, groups[NGROUPS + 1];
 
+	cr->cr_version = XUCRED_VERSION;
 	/*
 	 * Set up the unprivileged user.
 	 */

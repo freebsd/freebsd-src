@@ -651,11 +651,7 @@ udp_getcred(SYSCTL_HANDLER_ARGS)
 	error = cr_cansee(req->td->td_proc->p_ucred, inp->inp_socket->so_cred);
 	if (error)
 		goto out;
-	bzero(&xuc, sizeof(xuc));
-	xuc.cr_uid = inp->inp_socket->so_cred->cr_uid;
-	xuc.cr_ngroups = inp->inp_socket->so_cred->cr_ngroups;
-	bcopy(inp->inp_socket->so_cred->cr_groups, xuc.cr_groups,
-	    sizeof(xuc.cr_groups));
+	cru2x(inp->inp_socket->so_cred, &xuc);
 	error = SYSCTL_OUT(req, &xuc, sizeof(struct xucred));
 out:
 	splx(s);
