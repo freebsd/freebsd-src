@@ -56,6 +56,6 @@ mmap(addr, len, prot, flags, fd, offset)
 	off_t	offset;
 {
 
-	return((void *)(long)__syscall((quad_t)SYS_mmap, addr, len, prot, flags,
-		fd, 0, offset));
+	return ((void *)(intptr_t)__syscall((quad_t)SYS_mmap, addr, len, prot,
+	    flags, fd, 0, offset));
 }
