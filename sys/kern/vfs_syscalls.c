@@ -1015,8 +1015,8 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 	if (fp->f_count == 1) {
 		KASSERT(fdp->fd_ofiles[indx] != fp,
 		    ("Open file descriptor lost all refs"));
-		FILEDESC_UNLOCK(fdp);
 		FILE_UNLOCK(fp);
+		FILEDESC_UNLOCK(fdp);
 		VOP_UNLOCK(vp, 0, td);
 		vn_close(vp, flags & FMASK, fp->f_cred, td);
 		mtx_unlock(&Giant);
@@ -1032,8 +1032,8 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 		fp->f_ops = &vnops;
 	fp->f_seqcount = 1;
 	fp->f_type = (vp->v_type == VFIFO ? DTYPE_FIFO : DTYPE_VNODE);
-	FILEDESC_UNLOCK(fdp);
 	FILE_UNLOCK(fp);
+	FILEDESC_UNLOCK(fdp);
 
 	/* assert that vn_open created a backing object if one is needed */
 	KASSERT(!vn_canvmio(vp) || VOP_GETVOBJECT(vp, NULL) == 0,
