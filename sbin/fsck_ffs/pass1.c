@@ -221,7 +221,10 @@ checkinode(ino_t inumber, struct inodesc *idesc)
 	}
 	lastino = inumber;
 	/* This should match the file size limit in ffs_mountfs(). */
-	kernmaxfilesize = (off_t)0x40000000 * sblock.fs_bsize - 1;
+	if (sblock.fs_magic == FS_UFS1_MAGIC)
+		kernmaxfilesize = (off_t)0x40000000 * sblock.fs_bsize - 1;
+	else
+		kernmaxfilesize = sblock.fs_maxfilesize;
 	if (DIP(dp, di_size) > kernmaxfilesize ||
 	    DIP(dp, di_size) > sblock.fs_maxfilesize ||
 	    (mode == IFDIR && DIP(dp, di_size) > MAXDIRSIZE)) {
