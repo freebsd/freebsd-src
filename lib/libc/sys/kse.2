@@ -282,7 +282,7 @@ there is a new reason to do so, e.g., a previously
 blocked thread becomes runnable.
 If successful,
 .Fn kse_release
-does not return o the caller.
+does not return to the caller.
 .Pp
 The
 .Fn kse_wakeup
@@ -507,7 +507,8 @@ may contain any of the following bits OR'ed together:
 .El
 .Sh RETURN VALUES
 The
-.Fn kse_create , kse_wakeup ,
+.Fn kse_create ,
+.Fn kse_wakeup ,
 and
 .Fn kse_thr_interrupt
 system calls
