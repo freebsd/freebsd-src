@@ -37,15 +37,18 @@
 .Sh NAME
 .Nm nologin
 .Nd disallow logins
-
 .Sh DESCRIPTION
 .Nm Nologin
-disallows logins if the file /etc/nologin exists. 
-Programs display the contents of /etc/nologin to the user and exit.
-
+disallows logins if the file 
+.Pa /etc/nologin
+exists. 
+Programs display the contents of
+.Pa /etc/nologin
+to the user and exit.
 .Sh SECURITY
-Ignored by login(1) for user root.
-
+Ignored by 
+.Xr login 1
+for user root.
 .Sh FILES
 .Bl -tag -width /etc/nologinxxx -compact
 .It Pa /etc/nologin
@@ -54,7 +57,6 @@ The
 file resides in
 .Pa /etc .
 .El
-
 .Sh SEE ALSO
 .Xr login 1 ,
 .Xr rlogin 1 ,
