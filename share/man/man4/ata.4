@@ -56,10 +56,10 @@ such as the ZIP and LS120:
 To support ATAPI tape drives:
 .Cd device atapist
 .Pp
-To set the controller numbering to static,
-just like the deprecated
-.Xr wd 4
-driver:
+To enable static controller and device numbering
+(see the
+.Sx NOTES
+section below):
 .Cd options ATA_STATIC_ID
 .Pp
 To enable DMA on an ATAPI device:
@@ -157,6 +157,18 @@ ATAPI tape drive device nodes
 sample generic kernel config file for ata based systems
 .El
 .Sh NOTES
+Static numbering
+(enabled with the
+.Dv ATA_STATIC_ID
+kernel option)
+reserves a number for each possibly connected disk,
+even when not present.
+This may result in odd situations where,
+for example,
+ad0 and ad2 exist in the absence of ad1.
+The advantage is that the addition of the formerly absent drive
+does not cause the numbers of the other drives to change.
+.Pp
 The ata driver does not support MFM/RLL/ESDI (ST-506) style disks.
 .Pp
 Remember that in order to use UDMA4 mode you
