@@ -579,6 +579,9 @@ bpfwrite(dev, uio, ioflag)
 	if (datlen > ifp->if_mtu)
 		return (EMSGSIZE);
 
+	if (d->bd_hdrcmplt)
+		dst.sa_family = pseudo_AF_HDRCMPLT;
+
 	s = splnet();
 #if BSD >= 199103
 	error = (*ifp->if_output)(ifp, m, &dst, (struct rtentry *)0);
@@ -626,6 +629,8 @@ reset_d(d)
  *  BIOCGSTATS		Get packet stats.
  *  BIOCIMMEDIATE	Set immediate mode.
  *  BIOCVERSION		Get filter language version.
+ *  BIOCGHDRCMPLT	Get "header already complete" flag
+ *  BIOCSHDRCMPLT	Set "header already complete" flag
  */
 /* ARGSUSED */
 static	int
@@ -821,6 +826,20 @@ bpfioctl(dev, cmd, addr, flags, p)
 			bv->bv_minor = BPF_MINOR_VERSION;
 			break;
 		}
+
+	/*
+	 * Get "header already complete" flag
+	 */
+	case BIOCGHDRCMPLT:
+		*(u_int *)addr = d->bd_hdrcmplt;
+		break;
+
+	/*
+	 * Set "header already complete" flag
+	 */
+	case BIOCSHDRCMPLT:
+		d->bd_hdrcmplt = *(u_int *)addr ? 1 : 0;
+		break;
 
 	case FIONBIO:		/* Non-blocking I/O */
 		break;

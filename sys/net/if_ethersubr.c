@@ -132,8 +132,8 @@ ether_output(ifp, m0, dst, rt0)
 	struct rtentry *rt0;
 {
 	short type;
-	int s, error = 0;
- 	u_char edst[6];
+	int s, error = 0, hdrcmplt = 0;
+ 	u_char esrc[6], edst[6];
 	register struct mbuf *m = m0;
 	register struct rtentry *rt;
 	register struct ether_header *eh;
@@ -326,6 +326,12 @@ ether_output(ifp, m0, dst, rt0)
 		} break;
 #endif /* LLC */
 
+	case pseudo_AF_HDRCMPLT:
+		hdrcmplt = 1;
+		eh = (struct ether_header *)dst->sa_data;
+		(void)memcpy(esrc, eh->ether_shost, sizeof (esrc));
+		/* FALLTHROUGH */
+
 	case AF_UNSPEC:
 		loop_copy = -1; /* if this is for us, don't do it */
 		eh = (struct ether_header *)dst->sa_data;
@@ -350,8 +356,12 @@ ether_output(ifp, m0, dst, rt0)
 	(void)memcpy(&eh->ether_type, &type,
 		sizeof(eh->ether_type));
  	(void)memcpy(eh->ether_dhost, edst, sizeof (edst));
- 	(void)memcpy(eh->ether_shost, ac->ac_enaddr,
-	    sizeof(eh->ether_shost));
+	if (hdrcmplt)
+		(void)memcpy(eh->ether_shost, esrc,
+			sizeof(eh->ether_shost));
+	else
+		(void)memcpy(eh->ether_shost, ac->ac_enaddr,
+			sizeof(eh->ether_shost));
 
 	/*
 	 * If a simplex interface, and the packet is being sent to our
