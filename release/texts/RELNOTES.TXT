@@ -68,6 +68,10 @@ RealTek RTL 8002 chip.
 Added driver support for fast ethernet adapters based on the
 ASIX Electronics AX88140A chip.
 
+Added driver support for PCI gigabit ethernet adapters based on
+the Alteon Networks Tigon 1 and Tigon 2 chipsets, including the
+Alteon AceNIC, 3Com 3c985 and Netgear GA620.
+
 Integrated isdn4bsd from the isdn4bsd project group into the
 regular system.
 
@@ -79,18 +83,15 @@ Phillips I2C/SMBUS support.
 Initial support for USB devices (some keyboards, mice).
 
 The lpt driver is now deprecated. Please use ppbus with the ppc driver
-instead (see the ppc(4) and ppbus(4) man pages for details). At some
-point before the next release, the old lpt driver will be removed and
-the nlpt driver will be renamed to lpt.
+instead (see the ppc(4) and ppbus(4) man pages for details). If you are
+using the 'nlpt' driver in your kernel configuration file, you need to
+rename 'nlpt' to 'lpt'.
 
 Support has been added for direct access to NTFS filesystems.
 
 Support has been added for Joliet extensions on ISO 9660 filesystems.
 Only iso8859-1 characters (latin-1) are supported at this time, though.
 
-Driver support has been added for PCI gigabit ethernet adapters
-based on the Alteon Networks Tigon 1 and Tigon 2 chipsets, including
-the Alteon AceNIC, 3Com 3c985 and Netgear GA620.
 
 1.2. SECURITY FIXES
 -------------------
@@ -119,7 +120,12 @@ Sendmail upgraded to version 8.9.3.
 
 AMD, texinfo, global and many other various utilities updated.
 
-Tar now supports compressing via bzip2 with the new -y/--bzip2/--bunzip2 flags.
+Tar now supports compressing via bzip2 with the new
+-y/--bzip2/--bunzip2 flags.
+
+TCP Wrappers is now part of the base system.  inetd, the port mapper,
+and sendmail are now linked agaist libwrap.  The "PROCESS_OPTIONS"
+syntax is the default.  See `man 5 hosts_options' for more information.
 
 
 2. Supported Configurations
