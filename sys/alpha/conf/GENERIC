@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.6 1998/09/16 08:22:09 dfr Exp $
+#	$Id: GENERIC,v 1.7 1998/09/18 00:46:37 mjacob Exp $
 
 machine		"alpha"
 cpu		"EV4"
@@ -42,7 +42,7 @@ options		SCSI_DELAY=15000	#Be pessimistic about Joe SCSI device
 options		UCONSOLE		#Allow users to grab the console
 options		FAILSAFE		#Be conservative
 
-config		kernel	root on sd0
+config		kernel	root on da0
 
 # Platform chipsets
 controller	cia0
@@ -56,14 +56,14 @@ controller	isa0
 # TurboChannel host bus support
 controller	tcasic0
 controller	tc0
-controller	tcds0
+#controller	tcds0
 controller	ioasic0
 
 # A single entry for any of these controllers (ncr, ahb, ahc, amd) is
 # sufficient for any number of installed devices.
 controller	ncr0
 controller	isp0
-controller	esp0
+#controller	esp0
 
 controller	scbus0
 
@@ -76,7 +76,7 @@ device		cd0
 device		mcclock0 at isa0 port 0x70
 
 # syscons is the default console driver, resembling an SCO console
-device		sc0	at isa? port "IO_KBD" irq 1
+device		sc0	at isa0 port "IO_KBD" irq 1
 
 device		sio0	at isa0 port "IO_COM1" irq 4
 device		sio1	at isa0 port "IO_COM2" irq 3 flags 0x50
