@@ -26,21 +26,18 @@
  * $FreeBSD$
  */
 
-/* This should be compliant with the ANSI C99 definition */
-
-#ifndef	_STDBOOL_H_
+#ifndef _STDBOOL_H_
 #define	_STDBOOL_H_	
 
-#define __bool_true_false_are_defined 1
+#define	__bool_true_false_are_defined	1
 
 /* And those constants must also be available as macros */
 #define	false	0
 #define	true	1
 
-/* User visible type `bool' is provided as a macro which may be redefined */
-#define bool _Bool
+#define	bool	_Bool
 #if __STDC_VERSION__ < 199901L
-typedef int	_Bool;		/* not built into pre-C99 compilers */
+typedef	int	_Bool;
 #endif
 
-#endif /* _STDBOOL_H_ */
+#endif /* !_STDBOOL_H_ */
