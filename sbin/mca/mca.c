@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <uuid.h>
 
 #define	BCD(x)	((x >> 4) * 10 + (x & 15))
 
@@ -79,14 +80,14 @@ severity(int error)
 }
 
 static const char *
-uuid(struct uuid *id)
+uuid(uuid_t *id)
 {
 	static char buffer[64];
+	char *s;
 
-	sprintf(buffer, "%08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x",
-	    id->time_low, id->time_mid, id->time_hi_and_version,
-	    id->clock_seq_hi_and_reserved, id->clock_seq_low, id->node[0],
-	    id->node[1], id->node[2], id->node[3], id->node[4], id->node[5]);
+	uuid_to_string(id, &s, NULL);
+	strcpy(buffer, s);
+	free(s);
 	return (buffer);
 }
 
@@ -338,32 +339,32 @@ show_generic(void)
 static size_t
 show_section(struct mca_section_header *sh)
 {
-	static struct uuid uuid_cpu = MCA_UUID_CPU;
-	static struct uuid uuid_memory = MCA_UUID_MEMORY;
-	static struct uuid uuid_sel = MCA_UUID_SEL;
-	static struct uuid uuid_pci_bus = MCA_UUID_PCI_BUS;
-	static struct uuid uuid_smbios = MCA_UUID_SMBIOS;
-	static struct uuid uuid_pci_dev = MCA_UUID_PCI_DEV;
-	static struct uuid uuid_generic = MCA_UUID_GENERIC;
+	static uuid_t uuid_cpu = MCA_UUID_CPU;
+	static uuid_t uuid_memory = MCA_UUID_MEMORY;
+	static uuid_t uuid_sel = MCA_UUID_SEL;
+	static uuid_t uuid_pci_bus = MCA_UUID_PCI_BUS;
+	static uuid_t uuid_smbios = MCA_UUID_SMBIOS;
+	static uuid_t uuid_pci_dev = MCA_UUID_PCI_DEV;
+	static uuid_t uuid_generic = MCA_UUID_GENERIC;
 
 	printf("  <section>\n");
 	show_value(4, "uuid", "%s", uuid(&sh->sh_uuid));
 	show_value(4, "revision", "%d.%d", BCD(sh->sh_major),
 	    BCD(sh->sh_minor));
 
-	if (!memcmp(&sh->sh_uuid, &uuid_cpu, sizeof(uuid_cpu)))
+	if (uuid_equal(&sh->sh_uuid, &uuid_cpu, NULL))
 		show_cpu((void*)(sh + 1));
-	else if (!memcmp(&sh->sh_uuid, &uuid_memory, sizeof(uuid_memory)))
+	else if (uuid_equal(&sh->sh_uuid, &uuid_memory, NULL))
 		show_memory((void*)(sh + 1));
-	else if (!memcmp(&sh->sh_uuid, &uuid_sel, sizeof(uuid_sel)))
+	else if (uuid_equal(&sh->sh_uuid, &uuid_sel, NULL))
 		show_sel();
-	else if (!memcmp(&sh->sh_uuid, &uuid_pci_bus, sizeof(uuid_pci_bus)))
+	else if (uuid_equal(&sh->sh_uuid, &uuid_pci_bus, NULL))
 		show_pci_bus((void*)(sh + 1));
-	else if (!memcmp(&sh->sh_uuid, &uuid_smbios, sizeof(uuid_smbios)))
+	else if (uuid_equal(&sh->sh_uuid, &uuid_smbios, NULL))
 		show_smbios();
-	else if (!memcmp(&sh->sh_uuid, &uuid_pci_dev, sizeof(uuid_pci_dev)))
+	else if (uuid_equal(&sh->sh_uuid, &uuid_pci_dev, NULL))
 		show_pci_dev((void*)(sh + 1));
-	else if (!memcmp(&sh->sh_uuid, &uuid_generic, sizeof(uuid_generic)))
+	else if (uuid_equal(&sh->sh_uuid, &uuid_generic, NULL))
 		show_generic();
 
 	printf("  </section>\n");
