@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.281
+    Original revision: 1.283
 -->
 
 <articleinfo>
@@ -700,7 +700,7 @@
 	である Granch SBNI12 シリーズ用の sbni ドライバが
 	追加されました.
 	これらのデバイスを設定するのに, &os; Ports Collection の
-	<port>sysutil/sbniconfig</port> が利用できます. &merged;</para>
+	<port>sysutils/sbniconfig</port> が利用できます. &merged;</para>
 
       <para>&man.sis.4; ドライバが
 	SiS 900, SiS 7016 ファストイーサネットコントローラチップ
@@ -3031,7 +3031,7 @@ hw.pcic.irq="0"</programlisting>
 	できます. &merged;</para>
 
       <para><application>ISC DHCP</application> クライアントがバージョン
-        2.0pl5 に更新されました.
+        3.0.1RC6 に更新されました.
         &merged;</para>
 
       <para><application>Kerberos IV</application> がバージョン
