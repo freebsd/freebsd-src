@@ -51,6 +51,9 @@ static const char rcsid[] =
 
 #include "find.h"
 
+static PLAN *yanknode __P((PLAN **));
+static PLAN *yankexpr __P((PLAN **));
+
 /*
  * yanknode --
  *	destructively removes the top from the plan
@@ -78,7 +81,7 @@ static PLAN *
 yankexpr(planp)
 	PLAN **planp;		/* pointer to top of plan (modified) */
 {
-	register PLAN *next;	/* temp node holding subexpression results */
+	PLAN *next;		/* temp node holding subexpression results */
 	PLAN *node;		/* pointer to returned node or expression */
 	PLAN *tail;		/* pointer to tail of subplan */
 	PLAN *subplan;		/* pointer to head of ( ) expression */
@@ -131,8 +134,8 @@ PLAN *
 paren_squish(plan)
 	PLAN *plan;		/* plan with ( ) nodes */
 {
-	register PLAN *expr;	/* pointer to next expression */
-	register PLAN *tail;	/* pointer to tail of result plan */
+	PLAN *expr;		/* pointer to next expression */
+	PLAN *tail;		/* pointer to tail of result plan */
 	PLAN *result;		/* pointer to head of result plan */
 
 	result = tail = NULL;
@@ -169,9 +172,9 @@ PLAN *
 not_squish(plan)
 	PLAN *plan;		/* plan to process */
 {
-	register PLAN *next;	/* next node being processed */
-	register PLAN *node;	/* temporary node used in f_not processing */
-	register PLAN *tail;	/* pointer to tail of result plan */
+	PLAN *next;		/* next node being processed */
+	PLAN *node;		/* temporary node used in f_not processing */
+	PLAN *tail;		/* pointer to tail of result plan */
 	PLAN *result;		/* pointer to head of result plan */
 
 	tail = result = NULL;
@@ -233,8 +236,8 @@ PLAN *
 or_squish(plan)
 	PLAN *plan;		/* plan with ors to be squished */
 {
-	register PLAN *next;	/* next node being processed */
-	register PLAN *tail;	/* pointer to tail of result plan */
+	PLAN *next;		/* next node being processed */
+	PLAN *tail;		/* pointer to tail of result plan */
 	PLAN *result;		/* pointer to head of result plan */
 
 	tail = result = next = NULL;
