@@ -2349,26 +2349,26 @@ aac_describe_controller(struct aac_softc *sc)
 		aac_release_sync_fib(sc);
 		return;
 	}
+	info = (struct aac_adapter_info *)&fib->data[0];   
+
+	device_printf(sc->aac_dev, "%s %dMHz, %dMB cache memory, %s\n", 
+		      aac_describe_code(aac_cpu_variant, info->CpuVariant),
+		      info->ClockSpeed, info->BufferMem / (1024 * 1024), 
+		      aac_describe_code(aac_battery_platform,
+					info->batteryPlatform));
 
 	/* save the kernel revision structure for later use */
-	info = (struct aac_adapter_info *)&fib->data[0];   
 	sc->aac_revision = info->KernelRevision;
+	device_printf(sc->aac_dev, "Kernel %d.%d-%d, Build %d, S/N %6X\n",
+		      info->KernelRevision.external.comp.major,
+		      info->KernelRevision.external.comp.minor,
+		      info->KernelRevision.external.comp.dash,
+		      info->KernelRevision.buildNumber,
+		      (u_int32_t)(info->SerialNumber & 0xffffff));
 
-	if (bootverbose) {
-		device_printf(sc->aac_dev, "%s %dMHz, %dMB cache memory, %s\n", 
-		    aac_describe_code(aac_cpu_variant, info->CpuVariant),
-		    info->ClockSpeed, info->BufferMem / (1024 * 1024), 
-		    aac_describe_code(aac_battery_platform,
-		    info->batteryPlatform));
+	aac_release_sync_fib(sc);
 
-		device_printf(sc->aac_dev,
-		    "Kernel %d.%d-%d, Build %d, S/N %6X\n",
-		    info->KernelRevision.external.comp.major,
-		    info->KernelRevision.external.comp.minor,
-		    info->KernelRevision.external.comp.dash,
-		    info->KernelRevision.buildNumber,
-		    (u_int32_t)(info->SerialNumber & 0xffffff));
-
+	if (1 || bootverbose) {
 		device_printf(sc->aac_dev, "Supported Options=%b\n",
 			      sc->supported_options,
 			      "\20"
@@ -2386,7 +2386,6 @@ aac_describe_controller(struct aac_softc *sc)
 			      "\14ALARM"
 			      "\15NONDASD");
 	}
-	aac_release_sync_fib(sc);
 }
 
 /*
