@@ -406,10 +406,14 @@ get_stat_data (char const *file_name, struct stat *stat_data)
   if (status != 0)
     {
       if (errno == ENOENT)
-	stat_warn (file_name);
+	{
+	  report_difference (_("does not exist"));
+	}
       else
-	stat_error (file_name);
-      report_difference (0);
+	{
+	  stat_error (file_name);
+          report_difference (0);
+	}
       return 0;
     }
 
