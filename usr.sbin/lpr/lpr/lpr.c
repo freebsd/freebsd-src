@@ -600,6 +600,7 @@ test(file)
 			if (cp == file) {
 				fd = checkwriteperm(file,"/");
 			} else {
+				path = alloca(strlen(file) + 1);
 				strcpy(path,file);
 				*cp = '\0';
 				fd = checkwriteperm(path,file);
