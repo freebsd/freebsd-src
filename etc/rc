@@ -548,7 +548,13 @@ fi
 #
 case ${linux_enable} in
 [Yy][Ee][Ss])
-	echo -n ' linux';	linux > /dev/null 2>&1
+	echo -n ' linux'
+	if ! kldstat -v | grep -E 'linux(aout|elf)' > /dev/null; then
+		kldload linux > /dev/null 2>&1
+	fi
+	if [ -x /compat/linux/sbin/ldconfig ]; then
+		/compat/linux/sbin/ldconfig
+	fi
 	;;
 esac
 
@@ -556,7 +562,7 @@ esac
 #
 case ${svr4_enable} in
 [Yy][Ee][Ss])
-	echo -n ' svr4';	svr4 > /dev/null 2>&1
+	echo -n ' svr4';	kldload svr4 > /dev/null 2>&1
 	;;
 esac
 
