@@ -22,6 +22,10 @@ case "$monthly_accounting_enable" in
 	    then
 		remove=YES
 		zcat $W.0.gz > $W.0 || rc=1
+	    elif [ -f $W.0.bz2 ]
+	    then
+		remove=YES
+		bzcat $W.0.bz2 > $W.0 || rc=1
 	    else
 		echo '$monthly_accounting_enable is set but' \
 		    "$W.0 doesn't exist"
