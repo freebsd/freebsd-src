@@ -4651,6 +4651,7 @@ open_include_file (filename, searchptr)
   register char *from;
   char *p, *dir;
 
+#if 0
   if (searchptr && ! searchptr->got_name_map)
     {
       searchptr->name_map = read_name_map (searchptr->fname
@@ -4673,7 +4674,7 @@ open_include_file (filename, searchptr)
 	    }
 	}
     }
-
+#endif
   /* Try to find a mapping file for the particular directory we are
      looking in.  Thus #include <sys/types.h> will look up sys/types.h
      in /usr/include/header.gcc and look up types.h in
@@ -4702,9 +4703,11 @@ open_include_file (filename, searchptr)
       dir[p - filename] = '\0';
       from = p + 1;
     }
+#if 0
   for (map = read_name_map (dir); map; map = map->map_next)
     if (! strcmp (map->map_from, from))
       return open (map->map_to, O_RDONLY, 0666);
+#endif
 
   return open (filename, O_RDONLY, 0666);
 }
