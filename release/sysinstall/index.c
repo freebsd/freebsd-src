@@ -3,6 +3,9 @@
 #include <stdlib.h>
 #include <ncurses.h>
 #include <dialog.h>
+#include <sys/param.h>
+#include <sys/mount.h>
+#include <sys/stat.h>
 #include "sysinstall.h"
 
 /* Macros and magic values */
@@ -66,6 +69,8 @@ static char *descrs[] = {
     "x11", "X Window System based utilities.",
     NULL, NULL,
 };
+
+static char *make_playpen(char *pen, size_t sz);
 
 static char *
 fetch_desc(char *name)
@@ -348,7 +353,10 @@ index_sort(PkgNodePtr top)
     }
 }
 
-/* Since we only delete from cloned chains, this is easy */
+/*
+ * No, we don't free n because someone else is still pointing at it.
+ * It's just clone linked from another location, which we're adjusting.
+ */
 void
 index_delete(PkgNodePtr n)
 {
@@ -529,92 +537,159 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
     }
 }
 
-void
+int
 index_extract(Device *dev, PkgNodePtr plist)
 {
     PkgNodePtr tmp;
-    char *cp;
+    int fd;
 
-    /*
-     * What follows is kinda gross.  We have to essentially replicate the internals
-     * of all the supported device get() methods since we don't want a file descriptor,
-     * we want a file name for pkg_add.
-     */
+
+    dev->flags |= OPT_EXPLORATORY_GET;
+    fd = dev->get(dev, "packages/INDEX", NULL);
+    dev->flags &= ~OPT_EXPLORATORY_GET;
+    if (fd < 0) {
+	msgNotify("Can't find packages/INDEX file - looking for ports/INDEX.");
+	fd = mediaDevice->get(mediaDevice, "ports/INDEX", NULL);
+	if (fd < 0) {
+	    msgConfirm("Unable to get ports/INDEX file from selected media.\n"
+		       "Please verify media (or path to media) and try again.");
+	    return RET_FAIL;
+	}
+    }
+
     tmp = plist->kids;
     while (tmp) {
-	char target[511];
+	char path[511];
+	char pen[FILENAME_MAX];
+	char *where;
+	int i;
 
-	target[0] = '\0';
-	switch (dev->type) {
-	case DEVICE_TYPE_UFS:
-	case DEVICE_TYPE_TAPE:
-	    sprintf(target, "%s/%s/packages/All/%s.tgz", (char *)dev->private, getenv(RELNAME), tmp->name);
-	    if (!file_readable(target))
-		sprintf(target, "%s/packages/All/%s.tgz", (char *)dev->private, tmp->name);
-	    break;
+	sprintf(path, "packages/%s", tmp->name);
+	fd = dev->get(dev, path, NULL);
+	if (fd >= 0) {
+	    pid_t tpid;
 
-	case DEVICE_TYPE_CDROM:
-	    sprintf(target, "/cdrom/%s/packages/All/%s.tgz", getenv(RELNAME), tmp->name);
-	    if (!file_readable(target))
-		sprintf(target, "/cdrom/packages/All/%s.tgz", tmp->name);
-	    break;
-
-	case DEVICE_TYPE_DOS:
-	case DEVICE_TYPE_NFS:
-	    sprintf(target, "/dist/%s/packages/All/%s.tgz", getenv(RELNAME), tmp->name);
-	    if (!file_readable(target))
-		sprintf(target, "/dist/packages/All/%s.tgz", tmp->name);
-	    break;
-
-	case DEVICE_TYPE_FTP:
-	    cp = getenv("ftp");
-	    if (cp) {
-		sprintf(target, "%s/packages/All/%s.tgz", cp, tmp->name);
-		if (isDebug)
-		    msgDebug("Media type is FTP, trying for: %s\n", target);
-		if (vsystem("/usr/sbin/pkg_add %s%s", isDebug() ? "-v " : "", target)) {
-		    if (optionIsSet(OPT_NO_CONFIRM))
-			msgNotify("Unable to get package %s from %s..", tmp->name, cp);
-		    else
-			msgConfirm("Unable to get package %s from %s..", tmp->name, cp);
-		}
-	    }
-	    else {
-		msgConfirm("FTP site not chosen - please visit the media\n"
-			   "menu and correct this problem before trying again.");
-		return;
-	    }
-	    continue;
-
-	case DEVICE_TYPE_FLOPPY:
-	default:
-	    msgConfirm("Selected media type is unsupported for package installation.\n"
-		       "Please change the media type and retry this operation.");
-	    return;
-	}
-
-	if (target[0]) {
 	    if (isDebug())
-		msgDebug("Media type is %d, target is %s\n", dev->type, target);
-	    if (file_readable(target)) {
-		msgNotify("Extracting %s..", target);
-		if (vsystem("/usr/sbin/pkg_add %s%s", isDebug() ? "-v " : "", target)) {
-		    if (optionIsSet(OPT_NO_CONFIRM))
-			msgNotify("Error extracting package %s..", target);
-		    else
-			msgConfirm("Error extracting package %s..", target);
+		msgDebug("Got target %s from media type %d\n", path, dev->type);
+	    pen[0] = '\0';
+	    if ((where = make_playpen(pen, 0)) != NULL) {
+		if (isDebug())
+		    msgDebug("Working in temporary directory %s, will return to %s\n", pen, where);
+		tpid = fork();
+		if (!tpid) {
+		    dup2(fd, 0);
+		    i = vsystem("tar %s-xzf -", !strcmp(variable_get(CPIO_VERBOSITY_LEVEL), "low") ? "" : "-v ");
+		    if (isDebug())
+			msgDebug("tar command returns %d status\n", i);
+		    exit(i);
 		}
-		if (dev->type == DEVICE_TYPE_TAPE)
-		    unlink(target);
+		else {
+		    int pstat;
+
+		    close(fd);
+		    tpid = waitpid(tpid, &pstat, 0);
+		    if (vsystem("(pwd; cat +CONTENTS) | pkg_add -S"))
+			msgConfirm("An error occurred while trying to pkg_add %s.\n"
+				   "Please check debugging screen for possible further details.");
+		}
+		if (chdir(where) == -1)
+		    msgFatal("Unable to get back to where I was before, jojo!\n(%s)\n", where);
+		vsystem("rm -rf %s", pen);
 	    }
-	    else {
-		if (optionIsSet(OPT_NO_CONFIRM))
-		    msgNotify("Unable to locate package %s..", target);
-		else
-		    msgConfirm("Unable to locate package %s..", target);
-	    }
+	    else
+		msgConfirm("Unable to find a temporary location to unpack this stuff in.\n"
+			   "You must simply not have enough space or you've configured your\n"
+			   "system oddly.  Sorry!");
+	    dev->close(dev, fd);
+	    if (dev->type == DEVICE_TYPE_TAPE)
+		unlink(path);
+	}
+	else {
+	    if (optionIsSet(OPT_NO_CONFIRM))
+		msgNotify("Unable to locate package %s..", path);
+	    else
+		msgConfirm("Unable to locate package %s..", path);
 	}
 	tmp = tmp->next;
     }
-    return;
+    return RET_SUCCESS;
 }
+
+static size_t
+min_free(char *tmpdir)
+{
+    struct statfs buf;
+
+    if (statfs(tmpdir, &buf) != 0) {
+	perror("Error in statfs");
+	return -1;
+    }
+    return buf.f_bavail * buf.f_bsize;
+}
+
+/* Find a good place to play. */
+static char *
+find_play_pen(char *pen, size_t sz)
+{
+    struct stat sb;
+
+    if (pen[0] && stat(pen, &sb) != RET_FAIL && (min_free(pen) >= sz))
+	return pen;
+    else if (stat("/var/tmp", &sb) != RET_FAIL && min_free("/var/tmp") >= sz)
+	strcpy(pen, "/var/tmp/instmp.XXXXXX");
+    else if (stat("/tmp", &sb) != RET_FAIL && min_free("/tmp") >= sz)
+	strcpy(pen, "/tmp/instmp.XXXXXX");
+    else if ((stat("/usr/tmp", &sb) == RET_SUCCESS || mkdir("/usr/tmp", 01777) == RET_SUCCESS) &&
+	     min_free("/usr/tmp") >= sz)
+	strcpy(pen, "/usr/tmp/instmp.XXXXXX");
+    else {
+	msgConfirm("Can't find enough temporary space to extract the files, please try\n"
+		   "This again after your system is up (you can run /stand/sysinstall\n"
+		   "directly) and you've had a chance to point /var/tmp somewhere with\n"
+		   "sufficient temporary space available.");
+	return NULL;
+    }
+    return pen;
+}
+
+/*
+ * Make a temporary directory to play in and chdir() to it, returning
+ * pathname of previous working directory.
+ */
+static char *
+make_playpen(char *pen, size_t sz)
+{
+    static char Previous[FILENAME_MAX];
+
+    if (!find_play_pen(pen, sz))
+	return NULL;
+
+    if (!mktemp(pen)) {
+	msgConfirm("Can't mktemp '%s'.", pen);
+	return NULL;
+    }
+    if (mkdir(pen, 0755) == RET_FAIL) {
+	msgConfirm("Can't mkdir '%s'.", pen);
+	return NULL;
+    }
+    if (isDebug()) {
+	if (sz)
+	    msgDebug("Requested space: %d bytes, free space: %d bytes in %s\n", (int)sz, min_free(pen), pen);
+    }
+    if (min_free(pen) < sz) {
+	rmdir(pen);
+	msgConfirm("Not enough free space to create: `%s'\n"
+		   "Please try this again after your system is up (you can run\n"
+		   "/stand/sysinstall directly) and you've had a chance to point\n"
+		   "/var/tmp somewhere with sufficient temporary space available.");
+        return NULL;
+    }
+    if (!getcwd(Previous, FILENAME_MAX)) {
+	msgConfirm("getcwd");
+	return NULL;
+    }
+    if (chdir(pen) == RET_FAIL)
+	msgConfirm("Can't chdir to '%s'.", pen);
+    return Previous;
+}
+
