@@ -78,7 +78,6 @@
  * - Andrew Gallatin for providing FreeBSD/Alpha support.
  */
 
-#include "bpf.h"
 #include "vlan.h"
 
 #include <sys/param.h>
@@ -96,9 +95,7 @@
 #include <net/if_dl.h>
 #include <net/if_media.h>
 
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 
 #if NVLAN > 0
 #include <net/if_types.h>
@@ -1728,9 +1725,7 @@ static int ti_attach(dev)
 	if_attach(ifp);
 	ether_ifattach(ifp);
 
-#if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
-#endif
 
 fail:
 	splx(s);
@@ -1859,7 +1854,6 @@ static void ti_rxeof(sc)
 		eh = mtod(m, struct ether_header *);
 		m->m_pkthdr.rcvif = ifp;
 
-#if NBPF > 0
 		/*
 	 	 * Handle BPF listeners. Let the BPF user see the packet, but
 	 	 * don't pass it up to the ether_input() layer unless it's
@@ -1876,7 +1870,6 @@ static void ti_rxeof(sc)
 				continue;
 			}
 		}
-#endif
 
 		/* Remove header from mbuf and pass it on. */
 		m_adj(m, sizeof(struct ether_header));
@@ -2144,10 +2137,8 @@ static void ti_start(ifp)
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
-#if NBPF > 0
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, m_head);
-#endif
 	}
 
 	/* Transmit */

@@ -32,9 +32,6 @@
  * $FreeBSD$
  */
 
-
-#include "bpf.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -49,9 +46,7 @@
 #include <net/if_dl.h>
 #include <net/if_media.h>
 
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 
 #include "opt_bdg.h"
 #ifdef BRIDGE
@@ -726,11 +721,9 @@ again:
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = m->m_len = total_len;
 
-#if NBPF > 0
 		/* Handle BPF listeners. Let the BPF user see the packet. */
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, m);
-#endif
 
 #ifdef BRIDGE
 		if (do_bridge) {
@@ -746,7 +739,6 @@ again:
 		}
 #endif
 
-#if NBPF > 0
 		/*
 		 * Don't pass packet up to the ether_input() layer unless it's
 		 * a broadcast packet, multicast packet, matches our ethernet
@@ -760,7 +752,6 @@ again:
 				continue;
 			}
 		}
-#endif
 
 		/* Remove header from mbuf and pass it on. */
 		m_adj(m, sizeof(struct ether_header));
@@ -1107,9 +1098,7 @@ static int ste_attach(dev)
 	if_attach(ifp);
 	ether_ifattach(ifp);
 
-#if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
-#endif
 
 fail:
 	splx(s);
@@ -1566,14 +1555,12 @@ static void ste_start(ifp)
 		}
 		prev = cur_tx;
 
-#if NBPF > 0
 		/*
 		 * If there's a BPF listener, bounce a copt of this frame
 		 * to him.
 	 	 */
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, cur_tx->ste_mbuf);
-#endif
 	}
 
 	if (cur_tx == NULL)
