@@ -600,6 +600,22 @@ installNovice(dialogMenuItem *self)
 		  "to browse the collection now?"))
 	configPackages(self);
 
+    dialog_clear_norefresh();
+    if (!msgYesNo("Would you like to add any initial user accounts to the system?\n"
+		  "Adding at least one account for yourself at this stage is suggested\n"
+		  "since working as the \"root\" user is dangerous (it is easy to do\n"
+		  "things which adversely affect the entire system)."))
+	configUsers(self);
+
+    dialog_clear_norefresh();
+    if (!msgYesNo("Would you like to set the system manager's password now?\n\n"
+		  "This is the password you'll use to log in as \"root\".")) {
+	WINDOW *w = savescr();
+
+	systemExecute("passwd root");
+	restorescr(w);
+    }
+
     /* XXX Put whatever other nice configuration questions you'd like to ask the user here XXX */
 
     /* Give user the option of one last configuration spree */
