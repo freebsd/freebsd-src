@@ -30,10 +30,9 @@
 
 #include <sys/bus.h>
 
-int  OF_decode_addr(phandle_t, int *, bus_addr_t *);
+int  OF_decode_addr(phandle_t, int, int *, bus_addr_t *);
 void OF_getetheraddr(device_t, u_char *);
 void cpu_shutdown(void *);
 void openfirmware_exit(void *);
 
 #endif /* _MACHINE_OFW_MACHDEP_H_ */
-
