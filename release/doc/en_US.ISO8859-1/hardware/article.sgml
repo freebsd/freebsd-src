@@ -834,6 +834,8 @@
       </itemizedlist>
     </para>
 
+    <para arch="i386">IBM / Adaptec ServeRAID series (ips driver)</para>
+
     <para arch="i386,alpha,pc98,sparc64">LSI Logic Fusion/MP
 	architecture Fiber Channel controllers (mpt driver)
       <itemizedlist>

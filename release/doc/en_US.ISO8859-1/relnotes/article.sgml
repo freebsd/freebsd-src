@@ -439,6 +439,9 @@
         believed to fix problems detecting attached disks during
         installation.</para>
 
+      <para arch="i386">The ips driver, which supports the IBM (now
+	Adaptec) ServeRAID series, has been added.</para>
+
       <para>A bug in the &man.mly.4; driver that caused hangs has been
 	corrected.</para>
 
