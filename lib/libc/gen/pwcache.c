@@ -49,9 +49,7 @@ __FBSDID("$FreeBSD$");
 #define	MASK	(NCACHE - 1)		/* bits to store with */
 
 char *
-user_from_uid(uid, nouser)
-	uid_t uid;
-	int nouser;
+user_from_uid(uid_t uid, int nouser)
 {
 	static struct ncache {
 		uid_t	uid;
@@ -85,9 +83,7 @@ user_from_uid(uid, nouser)
 }
 
 char *
-group_from_gid(gid, nogroup)
-	gid_t gid;
-	int nogroup;
+group_from_gid(gid_t gid, int nogroup)
 {
 	static struct ncache {
 		gid_t	gid;
