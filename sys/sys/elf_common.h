@@ -237,7 +237,7 @@ typedef struct {
 				   terminationfunctions. */
 #define	DT_RUNPATH	29	/* String table offset of a null-terminated
 				   library search path string. */
-#define	DT_FLAGS	30	/* Object specific flag values.
+#define	DT_FLAGS	30	/* Object specific flag values. */
 #define	DT_ENCODING	32	/* Values greater than or equal to DT_ENCODING
 				   and less than DT_LOOS follow the rules for
 				   the interpretation of the d_un union
