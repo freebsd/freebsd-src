@@ -115,7 +115,7 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 #
 # CPU_ENABLE_TCC enables Thermal Control Circuitry (TCC) found in some
 # Pentium(tm) 4 and (possibly) later CPUs.  When enabled and detected,
-# TCC allows to restrict power consumption by using machdep.cpuperf*
+# TCC allows to restrict power consumption by using group of hw.p4tcc.*
 # sysctls.  This operates independently of SpeedStep and is useful on
 # systems where other mechanisms such as apm(4) or acpi(4) don't work.
 #
