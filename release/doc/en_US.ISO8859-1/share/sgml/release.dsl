@@ -34,17 +34,6 @@
                 (literal ">.")
             (make element gi: "p"
                   attributes: (list (list "align" "center"))
-              (make element gi: "small"  
-                (literal "All users of FreeBSD ")
-		(literal (entity-text "release.branch"))
-		(literal " should subscribe to the ")
-                (literal "<")
-		(create-link (list (list "HREF" "mailto:current@FreeBSD.org"))
-                  (literal "current@FreeBSD.org"))
-                (literal "> mailing list.")))
-
-            (make element gi: "p"
-                  attributes: (list (list "align" "center"))
 	      (literal "For questions about this documentation, e-mail <")
 	      (create-link (list (list "HREF" "mailto:doc@FreeBSD.org"))
                 (literal "doc@FreeBSD.org"))
@@ -71,7 +60,7 @@
               (("xfree86") (string-append u "&" "manpath=XFree86+4.2.0"))
               (("netbsd")  (string-append u "&" "manpath=NetBSD+1.5"))
               (("ports")   (string-append u "&" "manpath=FreeBSD+Ports"))
-              (else        (string-append u "&" "manpath=FreeBSD+5.0-current")))))
+              (else        (string-append u "&" "manpath=FreeBSD+5.0-RELEASE")))))
       ]]>
 
       (define (toc-depth nd)
