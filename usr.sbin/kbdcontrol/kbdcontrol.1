@@ -30,13 +30,12 @@ characteristics etc.
 .TP
 The following command line options are supported.
 .TP
-.BI "\-b\ " [ duration.pitch ]
+.BI "\-b\ " [ duration.pitch | normal | visual ]
 Set the bell duration and pitch values. Argument may also be one of 
 .BI "normal"
 which set sound parameters back to normal values, or 
 .BI "visual"
 which set the bell to visual mode, ie flashes the screen instead.
-
 .TP
 .BI "\-r\ " [ delay.repeat | slow | fast | normal ]
 Set keyboard
@@ -66,8 +65,11 @@ to send
 .BI "\-F\ "
 Set function keys back to the standard definitions.
 .TP
-.B \-v
-Turns on verbose output.
+.B "\-x "
+Use hexadecimal numbers in keyboard map dump.
+.TP
+.BI "\-h " #
+Set history buffer size (in lines).
 .PP
 .SH FILES
 /usr/share/syscons/keymaps
@@ -76,6 +78,6 @@ Report when found.
 .SH "SEE ALSO"
 .BR vidcontrol (1) ,
 .BR keyboard (4) ,
-.BR screen (4) ,
+.BR screen (4) .
 .SH AUTHORS
 Søren Schmidt (sos@FreeBSD.org)
