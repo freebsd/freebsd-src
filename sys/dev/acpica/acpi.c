@@ -1358,11 +1358,27 @@ acpi_AllocBuffer(int size)
     return (buf);
 }
 
+ACPI_STATUS
+acpi_SetInteger(ACPI_HANDLE handle, char *path, int number)
+{
+    ACPI_OBJECT arg1;
+    ACPI_OBJECT_LIST args;
+
+    ACPI_ASSERTLOCK;
+
+    arg1.Type = ACPI_TYPE_INTEGER;
+    arg1.Integer.Value = number;
+    args.Count = 1;
+    args.Pointer = &arg1;
+
+    return (AcpiEvaluateObject(handle, path, &args, NULL));
+}
+
 /*
  * Evaluate a path that should return an integer.
  */
 ACPI_STATUS
-acpi_EvaluateInteger(ACPI_HANDLE handle, char *path, int *number)
+acpi_GetInteger(ACPI_HANDLE handle, char *path, int *number)
 {
     ACPI_STATUS	status;
     ACPI_BUFFER	buf;
@@ -1566,14 +1582,8 @@ acpi_AppendBufferResource(ACPI_BUFFER *buf, ACPI_RESOURCE *res)
 ACPI_STATUS
 acpi_SetIntrModel(int model)
 {
-    ACPI_OBJECT_LIST ArgList;
-    ACPI_OBJECT Arg;
 
-    Arg.Type = ACPI_TYPE_INTEGER;
-    Arg.Integer.Value = model;
-    ArgList.Count = 1;
-    ArgList.Pointer = &Arg;
-    return (AcpiEvaluateObject(ACPI_ROOT_OBJECT, "_PIC", &ArgList, NULL));
+    return (acpi_SetInteger(ACPI_ROOT_OBJECT, "_PIC", model));
 }
 
 #define ACPI_MINIMUM_AWAKETIME	5
@@ -1927,21 +1937,12 @@ acpi_disabled(char *subsys)
 void
 acpi_device_enable_wake_capability(ACPI_HANDLE h, int enable)
 {
-    ACPI_OBJECT_LIST		ArgList;
-    ACPI_OBJECT			Arg;
-
     /*
      * TBD: All Power Resources referenced by elements 2 through N
      *      of the _PRW object are put into the ON state.
      */
 
-    ArgList.Count = 1;
-    ArgList.Pointer = &Arg;
-
-    Arg.Type = ACPI_TYPE_INTEGER;
-    Arg.Integer.Value = enable;
-
-    (void)AcpiEvaluateObject(h, "_PSW", &ArgList, NULL);
+    (void)acpi_SetInteger(h, "_PSW", enable);
 }
 
 void

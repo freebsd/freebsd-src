@@ -95,7 +95,7 @@ acpi_acad_get_status(void *context)
     dev = context;
     sc = device_get_softc(dev);
     h = acpi_get_handle(dev);
-    if (ACPI_FAILURE(acpi_EvaluateInteger(h, "_PSR", &newstatus))) {
+    if (ACPI_FAILURE(acpi_GetInteger(h, "_PSR", &newstatus))) {
 	sc->status = -1;
 	return;
     }

@@ -139,7 +139,7 @@ acpi_lid_notify_status_changed(void *arg)
      *	Zero:		The lid is closed
      *	Non-zero:	The lid is open
      */
-    status = acpi_EvaluateInteger(sc->lid_handle, "_LID", &sc->lid_status);
+    status = acpi_GetInteger(sc->lid_handle, "_LID", &sc->lid_status);
     if (ACPI_FAILURE(status))
 	return_VOID;
 

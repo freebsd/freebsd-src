@@ -449,10 +449,10 @@ acpi_ec_probe(device_t dev)
 	 * global lock value to see if we should acquire it when
 	 * accessing the EC.
 	 */
-	status = acpi_EvaluateInteger(h, "_UID", &uid);
+	status = acpi_GetInteger(h, "_UID", &uid);
 	if (ACPI_FAILURE(status))
 	    uid = 0;
-	status = acpi_EvaluateInteger(h, "_GLK", &glk);
+	status = acpi_GetInteger(h, "_GLK", &glk);
 	if (ACPI_FAILURE(status))
 	    glk = 0;
 
@@ -461,7 +461,7 @@ acpi_ec_probe(device_t dev)
 	 * signal status (SCI).  Note that we don't handle the case where
 	 * it can return a package instead of an int.
 	 */
-	status = acpi_EvaluateInteger(h, "_GPE", &gpebit);
+	status = acpi_GetInteger(h, "_GPE", &gpebit);
 	if (ACPI_FAILURE(status)) {
 	    device_printf(dev, "can't evaluate _GPE - %s\n",
 			  AcpiFormatException(status));

@@ -729,15 +729,10 @@ static void
 vid_set_switch_policy(ACPI_HANDLE handle, UINT32 policy)
 {
 	ACPI_STATUS status;
-	ACPI_OBJECT_LIST args;
-	ACPI_OBJECT arg1;
 
 	ACPI_ASSERTLOCK;
-	arg1.Type = ACPI_TYPE_INTEGER;
-	arg1.Integer.Value = policy;
-	args.Count = 1;
-	args.Pointer = &arg1;
-	status = AcpiEvaluateObject(handle, "_DOS", &args, NULL);
+
+	status = acpi_SetInteger(handle, "_DOS", policy);
 	if (ACPI_FAILURE(status))
 		printf("can't evaluate %s._DOS - %s\n",
 		       acpi_name(handle), AcpiFormatException(status));
@@ -760,7 +755,7 @@ vid_enum_outputs_subr(ACPI_HANDLE handle, UINT32 level __unused,
 	size_t i;
 
 	argset = context;
-	status = acpi_EvaluateInteger(handle, "_ADR", &adr);
+	status = acpi_GetInteger(handle, "_ADR", &adr);
 	if (ACPI_SUCCESS(status)) {
 		for (i = 0; i < argset->dod_pkg->Package.Count; i++) {
 			tmp = &argset->dod_pkg->Package.Elements[i];
@@ -883,15 +878,10 @@ static void
 vo_set_brightness(ACPI_HANDLE handle, int level)
 {
 	ACPI_STATUS status;
-	ACPI_OBJECT_LIST args;
-	ACPI_OBJECT arg1;
 
 	ACPI_ASSERTLOCK;
-	arg1.Type = ACPI_TYPE_INTEGER;
-	arg1.Integer.Value = level;
-	args.Count = 1;
-	args.Pointer = &arg1;
-	status = AcpiEvaluateObject(handle, "_BCM", &args, NULL);
+
+	status = acpi_SetInteger(handle, "_BCM", level);
 	if (ACPI_FAILURE(status))
 		printf("can't evaluate %s._BCM - %s\n",
 		       acpi_name(handle), AcpiFormatException(status));
@@ -904,7 +894,7 @@ vo_get_device_status(ACPI_HANDLE handle)
 	ACPI_STATUS status;
 
 	ACPI_ASSERTLOCK;
-	status = acpi_EvaluateInteger(handle, "_DCS", &dcs);
+	status = acpi_GetInteger(handle, "_DCS", &dcs);
 	if (ACPI_FAILURE(status))
 		printf("can't evaluate %s._DCS - %s\n",
 		       acpi_name(handle), AcpiFormatException(status));
@@ -919,7 +909,7 @@ vo_query_graphics_state(ACPI_HANDLE handle)
 	ACPI_STATUS status;
 
 	ACPI_ASSERTLOCK;
-	status = acpi_EvaluateInteger(handle, "_DGS", &dgs);
+	status = acpi_GetInteger(handle, "_DGS", &dgs);
 	if (ACPI_FAILURE(status))
 		printf("can't evaluate %s._DGS - %s\n",
 		       acpi_name(handle), AcpiFormatException(status));
@@ -931,15 +921,10 @@ static void
 vo_set_device_state(ACPI_HANDLE handle, UINT32 state)
 {
 	ACPI_STATUS status;
-	ACPI_OBJECT_LIST args;
-	ACPI_OBJECT arg1;
 
 	ACPI_ASSERTLOCK;
-	arg1.Type = ACPI_TYPE_INTEGER;
-	arg1.Integer.Value = state;
-	args.Count = 1;
-	args.Pointer = &arg1;
-	status = AcpiEvaluateObject(handle, "_DSS", &args, NULL);
+
+	status = acpi_SetInteger(handle, "_DSS", state);
 	if (ACPI_FAILURE(status))
 		printf("can't evaluate %s._DSS - %s\n",
 		       acpi_name(handle), AcpiFormatException(status));
