@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.60 1999/04/20 14:33:24 peter Exp $
+#	$Id: bsd.kmod.mk,v 1.61 1999/04/23 20:53:34 peter Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 #
@@ -197,9 +197,14 @@ beforeinstall:
 afterinstall:
 .endif
 
+_INSTALLFLAGS:=	${INSTALLFLAGS}
+.for ie in ${INSTALLFLAGS_EDIT}
+_INSTALLFLAGS:=	${_INSTALLFLAGS${ie}}
+.endfor
+
 realinstall: _SUBDIR
 	${INSTALL} ${COPY} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
-	    ${INSTALLFLAGS} ${PROG} ${DESTDIR}${KMODDIR}
+	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${KMODDIR}
 .if defined(LINKS) && !empty(LINKS)
 	@set ${LINKS}; \
 	while test $$# -ge 2; do \
