@@ -206,6 +206,8 @@ SUBDIR+=acpi \
 	boot0cfg \
 	btxld \
 	lptcontrol \
+	mount_nwfs \
+	mount_smbfs \
 	sicontrol \
 	spkrtest \
 	zzz
