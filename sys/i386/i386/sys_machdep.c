@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.9 1995/05/30 07:59:40 rgrimes Exp $
+ *	$Id$
  *
  */
 
