@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.46 1996/07/27 04:06:11 dyson Exp $
+ * $Id: vm_mmap.c,v 1.47 1996/07/27 17:21:41 dyson Exp $
  */
 
 /*
@@ -883,13 +883,14 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	 * Lookup/allocate object.
 	 */
 	if (flags & MAP_ANON) {
-		type = OBJT_SWAP;
 		/*
 		 * Unnamed anonymous regions always start at 0.
 		 */
 		if (handle == 0) {
 			foff = 0;
 			type = OBJT_DEFAULT;
+		} else {
+			type = OBJT_SWAP;
 		}
 	} else {
 		vp = (struct vnode *) handle;
