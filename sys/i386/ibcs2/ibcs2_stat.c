@@ -231,13 +231,18 @@ ibcs2_utssys(p, uap, retval)
 	switch (SCARG(uap, flag)) {
 	case 0:			/* uname(2) */
 	{
+		char machine_name[9], *p;
 		struct ibcs2_utsname sut;
 		bzero(&sut, ibcs2_utsname_len);
 
 		strncpy(sut.sysname, IBCS2_UNAME_SYSNAME, sizeof(sut.sysname));
 		strncpy(sut.release, IBCS2_UNAME_RELEASE, sizeof(sut.release));
 		strncpy(sut.version, IBCS2_UNAME_VERSION, sizeof(sut.version));
-		strncpy(sut.nodename, hostname, sizeof(sut.nodename));
+		strncpy(machine_name, hostname, sizeof(machine_name));
+		p = index(machine_name, '.');
+		if ( p )
+			*p = '\0';
+		strncpy(sut.nodename, machine_name, sizeof(sut.nodename));
 		strncpy(sut.machine, machine, sizeof(sut.machine));
 		sut.sysname[sizeof(sut.sysname)-1] = '\0';
 		sut.release[sizeof(sut.release)-1] = '\0';
