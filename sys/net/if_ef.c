@@ -120,7 +120,6 @@ ef_attach(struct efnet *sc)
 	struct ifaddr *ifa2;
 	struct sockaddr_dl *sdl2;
 
-	ifp->if_output = ether_output;
 	ifp->if_start = ef_start;
 	ifp->if_watchdog = NULL;
 	ifp->if_init = ef_init;
