@@ -52,7 +52,7 @@
 #define HAVE_FLOCK 1
 
 /* Define if you have the fparseln function.  */
-/* #undef HAVE_FPARSELN */
+#define HAVE_FPARSELN 1
 
 /* Define if you have the fts_open function.  */
 #define HAVE_FTS_OPEN 1
@@ -249,8 +249,11 @@
 /* Define if not using in-built /bin/ls code */
 /* #undef NO_INTERNAL_LS */
 
+#include <sys/param.h>
+#if __FreeBSD_version <= 500020
 /* Define if using S/Key */
-/* #undef SKEY */
+#define SKEY 1
+#endif
 
 /*
  * Define this if compiling with SOCKS (the firewall traversal library).
@@ -279,3 +282,6 @@
 /* #undef	sendto */
 /* #undef	shutdown */
 /* #undef	write */
+
+/* Define if you have the <arpa/ftp.h> header file.  */
+#define HAVE_FTP_NAMES 1
