@@ -1138,6 +1138,8 @@ parseredir: {
 			}
 		} else if (c == '&')
 			np->type = NFROMFD;
+		else if (c == '>')
+			np->type = NFROMTO;
 		else {
 			np->type = NFROM;
 			pungetc();
