@@ -19,7 +19,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mouse.h,v 1.1 1994/09/09 11:27:31 dfr Exp $
+ *	$Id$
  */
 
 #ifndef _MACHINE_MOUSE_H_
@@ -68,6 +68,7 @@ typedef struct mousestatus {
     int     dx;			/* x movement */
     int     dy;			/* y movement */
 } mousestatus_t;
+
 /* button */
 #define MOUSE_BUTTON1DOWN	0x0001	/* left */
 #define MOUSE_BUTTON2DOWN	0x0002	/* middle */
@@ -85,13 +86,16 @@ typedef struct mousehw {
 	int iftype;		/* MOUSE_IF_XXX */
 	int type;		/* mouse/track ball/pad... */
 	int hwid;		/* I/F dependent hardware ID
-				   for the PS/2 mouse, it will be PSM_XXX_ID */
+				 * for the PS/2 mouse, it will be PSM_XXX_ID 
+				 */
 } mousehw_t;
+
 /* iftype */
 #define MOUSE_IF_SERIAL		0
 #define MOUSE_IF_BUS		1
 #define MOUSE_IF_INPORT		2
 #define MOUSE_IF_PS2		3
+
 /* type */
 #define MOUSE_UNKNOWN		(-1)	/* should be treated as a mouse */
 #define MOUSE_MOUSE		0
@@ -102,9 +106,12 @@ typedef struct mousehw {
 typedef struct mousemode {
 	int protocol;		/* MOUSE_PROTO_XXX */
 	int rate;		/* report rate (per sec), -1 if unknown */
-	int resolution;		/* ppi, -1 if unknown */
+	int resolution;		/* 1:low, 2:medium low, 3:medium high
+				 * 4:high, 0: default, -1 if unknown 
+				 */
 	int accelfactor;	/* accelation factor (must be 1 or greater) */
 } mousemode_t;
+
 /* protocol */
 #define MOUSE_PROTO_MS		0	/* Microsoft Serial, 3 bytes */
 #define MOUSE_PROTO_MSC		1	/* Mouse Systems, 5 bytes */
