@@ -138,9 +138,17 @@ case ${entropy_file} in
 [Nn][Oo] | '')
 	;;
 *)
-	if [ -f ${entropy_file} -a -r ${entropy_file} ]; then
+	if [ -f ${entropy_file} -a -r ${entropy_file} -a -w /dev/random ]; then
 		echo "Reading entropy file"
-		cat ${entropy_file} > /dev/random
+		if ! cat ${entropy_file} 2>/dev/null >/dev/random; then
+			if ! kldstat -n randomdev >/dev/null 2>&1; then
+				kldload randomdev && \
+				    cat ${entropy_file} 2>/dev/null >/dev/random
+			fi
+		fi
+		if [ $? != 0 ]; then
+			echo "Writing entropy file to /dev/random failed"
+		fi
 		rm -f ${entropy_file}
 	fi
 	;;
