@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.7 1995/03/24 00:16:26 jkh Exp $
+#	$Id: sysconfig,v 1.8 1995/03/30 00:01:09 ache Exp $
 
 ######################### Start Of Syscons Section #######################
 
@@ -17,6 +17,9 @@ keyrate=NO
 # Change function keys default values (or no change if NO)
 # Syntax: "<funkey_number> <new_value> [<funkey_number> <new_value>]..."
 keychange=NO
+
+# Desired cursor type {normal|blink|destructive}, NO if no change
+cursor=NO
 
 # Choose screen map from /usr/share/syscons/scrnmaps/* (or NO for none)
 scrnmap=NO
@@ -42,6 +45,7 @@ saver=NO
 # keymap=ru.koi8-r
 # keyrate=fast
 # keychange="61 [K"
+# cursor=destructive
 # scrnmap=koi8-r2cp866
 # font8x16=cp866b-8x16
 # font8x14=cp866-8x14
