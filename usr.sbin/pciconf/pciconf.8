@@ -34,11 +34,11 @@
 .Nm
 .Fl l Op Fl v
 .Nm
-.Fl a Ar sel
+.Fl a Ar selector
 .Nm
-.Fl r Oo Fl b | h Oc Ar sel addr Ns Op : Ns Ar addr
+.Fl r Oo Fl b | h Oc Ar selector addr Ns Op : Ns Ar addr2
 .Nm
-.Fl w Oo Fl b | h Oc Ar sel addr Op Ar value
+.Fl w Oo Fl b | h Oc Ar selector addr value
 .Sh DESCRIPTION
 The
 .Nm
@@ -138,19 +138,19 @@ non-zero indicates that it does not.
 The
 .Fl r
 option reads a configuration space register at byte offset
-.Ar reg
+.Ar addr
 of device
 .Ar selector
 and prints out its value in hexadecimal.
-The optional second
-.Ar reg2
+The optional second address
+.Ar addr2
 specifies a range to read.
 The
 .Fl w
 option writes the
 .Ar value
 into a configuration space register at byte offset
-.Ar reg
+.Ar addr
 of device
 .Ar selector .
 For both operations, the flags
