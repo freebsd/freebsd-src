@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: strcat.c,v 1.4 1997/02/22 09:40:02 peter Exp $
  */
 
 #include <string.h>
@@ -43,6 +43,6 @@ strcat(s, append)
 	char *save = s;
 
 	for (; *s; ++s);
-	while (*s++ = *append++);
+	while ((*s++ = *append++) != 0);
 	return(save);
 }
