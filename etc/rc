@@ -54,6 +54,8 @@ export HOME PATH
 
 # BOOTP diskless boot.  We have to run the rc file early in order to
 # retarget various config files.
+# See /usr/share/examples/diskless/clone_root for details on how
+# to setup diskless on the client and the server.
 #
 if [ -r /etc/rc.diskless1 ]; then
 	dlv=`/sbin/sysctl -n vfs.nfs.diskless_valid 2> /dev/null`
@@ -187,8 +189,14 @@ esac
 
 umount -a >/dev/null 2>&1
 
-# Mount everything except nfs filesystems.
-mount -a -t nonfs
+# If using diskless, run custom disk mounting function here
+#
+if [ -n "${diskless_mount}" -a -r "${diskless_mount}" ]; then
+	sh ${diskless_mount}
+else
+# otherwise mount everything except nfs filesystems.
+	mount -a -t nonfs
+fi
 
 case $? in
 0)
@@ -199,11 +207,6 @@ case $? in
 	;;
 esac
 
-# Run custom disk mounting function here
-#
-if [ -n "${diskless_mount}" -a -r "${diskless_mount}" ]; then
-		sh ${diskless_mount}
-fi
 
 adjkerntz -i
 
