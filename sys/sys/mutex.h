@@ -277,6 +277,8 @@ extern int mtx_pool_valid;
 
 #define mtx_recursed(m)	((m)->mtx_recurse != 0)
 
+#define mtx_name(m)	((m)->mtx_object.lo_name)
+
 /*
  * Global locks.
  */
