@@ -48,7 +48,7 @@ Dès que le système est complètement installé et fonctionne en mode
 et d'avoir une session dans chacun d'eux.  Il suffit d'utiliser
 la combinaison de touches ALT-F<n> pour passer de l'un à l'autre : 
 ALT-F1 pour aller sur la session "1", ALT-F2 pour la session "2", etc.
-4 écrans virtuels sont disponibles par défaut mais il est possible d'en 
+3 écrans virtuels sont disponibles par défaut mais il est possible d'en 
 ajouter d'autres en éditant le fichier /etc/ttys (la limite supérieure est
 fixée à 12) 
 Les utilisateurs de X11 pourront noter que ces écrans sont toujours 
