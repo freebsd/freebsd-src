@@ -202,6 +202,15 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
+    <para>&man.burncd.8; now accepts a value of <literal>max</literal>
+      for its <option>-s</option> option to set the drive's maximum
+      write speed.</para>
+
+    <para>&man.cdcontrol.1; now supports a
+      <literal>speed</literal> command to set the maximum speed to be
+      used by the drive (the maximum possible speed can be selected
+      setting the speed to <literal>max</literal>).</para>
+
     <para>The &man.getconf.1; utility has been added.  It prints the
       values of POSIX or X/Open path or system configuration
       variables.</para>
