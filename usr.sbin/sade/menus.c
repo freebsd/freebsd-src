@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.166 1998/05/24 20:01:29 jkh Exp $
+ * $Id: menus.c,v 1.167 1998/07/20 10:48:11 yokota Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -122,52 +122,57 @@ clearX11Fonts(dialogMenuItem *self)
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
-#define IS_DEVELOPER(dist, extra) ((((dist) & (_DIST_DEVELOPER | (extra))) == (_DIST_DEVELOPER | (extra))) || \
-				   (((dist) & (_DIST_DEVELOPER | DIST_DES | (extra))) == (_DIST_DEVELOPER | DIST_DES | (extra))))
-#define IS_USER(dist, extra) ((((dist) & (_DIST_USER | (extra))) == (_DIST_USER | (extra))) || \
-			      (((dist) & (_DIST_USER | DIST_DES | (extra))) == (_DIST_USER | DIST_DES | (extra))))
+#define _IS_SET(dist, set) (((dist) & (set)) == (set))
+
+#define IS_DEVELOPER(dist, extra) (_IS_SET(dist, _DIST_DEVELOPER | extra) || \
+	_IS_SET(dist, _DIST_DEVELOPER | DIST_DES | extra))
+
+#define IS_USER(dist, extra) (_IS_SET(dist, _DIST_USER | extra) || \
+	_IS_SET(dist, _DIST_USER | DIST_DES | extra))
 
 static int
 checkDistDeveloper(dialogMenuItem *self)
 {
-    return (IS_DEVELOPER(Dists, 0) && SrcDists == DIST_SRC_ALL);
+    return IS_DEVELOPER(Dists, 0) && _IS_SET(SrcDists, DIST_SRC_ALL);
 }
 
 static int
 checkDistXDeveloper(dialogMenuItem *self)
 {
-    return (IS_DEVELOPER(Dists, DIST_XF86) && SrcDists == DIST_SRC_ALL);
+    return IS_DEVELOPER(Dists, DIST_XF86) && _IS_SET(SrcDists, DIST_SRC_ALL);
 }
 
 static int
 checkDistKernDeveloper(dialogMenuItem *self)
 {
-    return (IS_DEVELOPER(Dists, 0) && SrcDists == DIST_SRC_SYS);
+    return IS_DEVELOPER(Dists, 0) && _IS_SET(SrcDists, DIST_SRC_SYS);
 }
 
 static int
 checkDistUser(dialogMenuItem *self)
 {
-    return (IS_USER(Dists, 0));
+    return IS_USER(Dists, 0);
 }
 
 static int
 checkDistXUser(dialogMenuItem *self)
 {
-    return (IS_USER(Dists, DIST_XF86));
+    return IS_USER(Dists, DIST_XF86);
 }
 
 static int
 checkDistMinimum(dialogMenuItem *self)
 {
-    return (Dists == DIST_BIN);
+    return Dists == DIST_BIN;
 }
 
 static int
 checkDistEverything(dialogMenuItem *self)
 {
-    return (Dists == DIST_ALL && SrcDists == DIST_SRC_ALL && XF86Dists == DIST_XF86_ALL &&
-	    XF86ServerDists == DIST_XF86_SERVER_ALL && XF86FontDists == DIST_XF86_FONTS_ALL);
+    return Dists == DIST_ALL && _IS_SET(SrcDists, DIST_SRC_ALL) && \
+	_IS_SET(XF86Dists, DIST_XF86_ALL) && \
+	_IS_SET(XF86ServerDists, DIST_XF86_SERVER_ALL) && \
+	_IS_SET(XF86FontDists, DIST_XF86_FONTS_ALL);
 }
 
 static int
@@ -185,7 +190,7 @@ srcFlagCheck(dialogMenuItem *item)
 static int
 x11FlagCheck(dialogMenuItem *item)
 {
-    return XF86Dists;
+    return Dists & DIST_XF86;
 }
 
 static int
@@ -754,7 +759,7 @@ DMenu MenuSubDistributions = {
 	srcFlagCheck,	distSetSrc },
       { "ports",	"The FreeBSD Ports collection",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_PORTS },
-      { "XFree86",	"The XFree86 3.3.2 distribution",
+      { "XFree86",	"The XFree86 3.3.2.3 distribution",
 	x11FlagCheck,	distSetXF86 },
       { "All",		"All sources, binaries and X Window System binaries",
 	NULL, distSetEverything, NULL, NULL, ' ', ' ', ' ' },
@@ -841,8 +846,8 @@ DMenu MenuSrcDistributions = {
 
 DMenu MenuXF86Select = {
     DMENU_NORMAL_TYPE,
-    "XFree86 3.3.2 Distribution",
-    "Please select the components you need from the XFree86 3.3.2\n"
+    "XFree86 3.3.2.3 Distribution",
+    "Please select the components you need from the XFree86 3.3.2.3\n"
     "distribution sets.",
     "Press F1 to read the XFree86 release notes for FreeBSD",
     "XF86",
@@ -857,7 +862,7 @@ DMenu MenuXF86Select = {
 
 DMenu MenuXF86SelectCore = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
-    "XFree86 3.3.2 base distribution types",
+    "XFree86 3.3.2.3 base distribution types",
     "Please check off the basic XFree86 components you wish to install.\n"
     "Bin, lib, and set are recommended for a minimum installaion.",
     "Press F1 to read the XFree86 release notes for FreeBSD",
@@ -884,9 +889,9 @@ DMenu MenuXF86SelectCore = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SET },
       { "9set",		"XFree86 Setup Utility for PC98 machines",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_9SET },
-      { "sources",	"XFree86 3.3.2 standard sources",
+      { "sources",	"XFree86 3.3.2.3 standard sources",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SRC },
-      { "csources",	"XFree86 3.3.2 contrib sources",
+      { "csources",	"XFree86 3.3.2.3 contrib sources",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_CSRC },
       { "All",		"Select all of the above",
 	NULL,		setX11Misc, NULL, NULL, ' ', ' ', ' ' },
