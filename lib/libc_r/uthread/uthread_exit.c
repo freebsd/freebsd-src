@@ -134,6 +134,12 @@ pthread_exit(void *status)
 		_thread_cleanupspecific();
 	}
 
+	/* Free thread-specific poll_data structure, if allocated */
+	if (_thread_run->poll_data.fds != NULL) {
+		free(_thread_run->poll_data.fds);
+		_thread_run->poll_data.fds = NULL;
+	}
+
 	/*
 	 * Defer signals to protect the scheduling queues from access
 	 * by the signal handler:
