@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 M. Warner Losh.
+ * Copyright (c) 2004-2005 M. Warner Losh.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,21 +54,23 @@ static const struct pccard_product fdc_pccard_products[] = {
 static int
 fdc_pccard_alloc_resources(device_t dev, struct fdc_data *fdc)
 {
-	fdc->rid_ioport = 0;
-	fdc->res_ioport = bus_alloc_resource(dev, SYS_RES_IOPORT,
-	    &fdc->rid_ioport, 0ul, ~0ul, 1, RF_ACTIVE);
-	if (fdc->res_ioport == NULL) {
+	struct resource *res;
+	int rid, i;
+
+	rid = 0;
+	res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0ul, ~0ul, 1,
+	    RF_ACTIVE);
+	if (res == NULL) {
 		device_printf(dev, "cannot alloc I/O port range\n");
 		return (ENXIO);
 	}
-	fdc->portt = rman_get_bustag(fdc->res_ioport);
-	fdc->porth = rman_get_bushandle(fdc->res_ioport);
-	fdc->stst = fdc->portt;
-	fdc->stsh = fdc->porth;
-	fdc->sts_off = 0;
-	fdc->ctlt = fdc->portt;
-	fdc->ctlh = fdc->porth;
-	fdc->ctl_off = 7;
+	for (i = 0; i < FDC_MAXREG; i++) {
+		fdc->resio[i] = res;
+		fdc->ridio[i] = rid;
+		fdc->ioff[i] = i;
+		fdc->ioh[i] = rman_get_bushandle(res);
+	}
+	fdc->iot = rman_get_bustag(res);
 
 	fdc->rid_irq = 0;
 	fdc->res_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &fdc->rid_irq,
@@ -101,7 +103,7 @@ fdc_pccard_attach(device_t dev)
 	device_t child;
 
 	fdc = device_get_softc(dev);
-	fdc->flags = FDC_NODMA;
+	fdc->flags = FDC_NODMA | FDC_NOFAST;
 	fdc->fdct = FDC_NE765;
 	error = fdc_pccard_alloc_resources(dev, fdc);
 	if (error == 0)

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 M. Warner Losh.
+ * Copyright (c) 2004-2005 M. Warner Losh.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,116 +47,73 @@ __FBSDID("$FreeBSD$");
 static int fdc_isa_probe(device_t);
 
 static struct isa_pnp_id fdc_ids[] = {
-	{0x0007d041, "PC standard floppy disk controller"}, /* PNP0700 */
+	{0x0007d041, "PC standard floppy controller"}, /* PNP0700 */
 	{0x0107d041, "Standard floppy controller supporting MS Device Bay Spec"}, /* PNP0701 */
 	{0}
 };
 
+/*
+ * On standard ISA, we don't just use an 8 port range
+ * (e.g. 0x3f0-0x3f7) since that covers an IDE control register at
+ * 0x3f6.  So, on older hardware, we use 0x3f0-0x3f5 and 0x3f7.
+ * However, some BIOSs omit the control port, while others start at
+ * 0x3f2.  Of the latter, sometimes we have two resources, other times
+ * we have one.  We have to deal with the following cases:
+ *
+ * 1:	0x3f0-0x3f5			# very rare
+ * 2:	0x3f0				# hints -> 0x3f0-0x3f5,0x3f7
+ * 3:	0x3f0-0x3f5,0x3f7		# Most common
+ * 4:	0x3f2-0x3f5,0x3f7		# Second most common
+ * 5:	0x3f2-0x3f5			# implies 0x3f7 too.
+ * 6:	0x3f2-0x3f3,0x3f4-0x3f5,0x3f7	# becoming common
+ * 7:	0x3f2-0x3f3,0x3f4-0x3f5		# rare
+ * 8:	0x3f0-0x3f1,0x3f2-0x3f3,0x3f4-0x3f5,0x3f7
+ * 9:	0x3f0-0x3f3,0x3f4-0x3f5,0x3f7
+ *
+ * The following code is generic for any value of 0x3fx.  It is also
+ * generic for all the above cases, as well as cases where things are
+ * even weirder.
+ */
 int
 fdc_isa_alloc_resources(device_t dev, struct fdc_data *fdc)
 {
+	struct resource *res;
 	int nports = 6;
+	int i, j, rid, newrid;
 
 	fdc->fdc_dev = dev;
-	fdc->rid_ioport = 0;
-	fdc->rid_irq = 0;
-	fdc->rid_drq = 0;
-	fdc->rid_ctl = 1;
+	rid = 0;
+	for (i = 0; i < FDC_MAXREG; i++)
+		fdc->resio[i] = NULL;
 
-	/*
-	 * On standard ISA, we don't just use an 8 port range
-	 * (e.g. 0x3f0-0x3f7) since that covers an IDE control
-	 * register at 0x3f6.  So, on older hardware, we use
-	 * 0x3f0-0x3f5 and 0x3f7.  However, some BIOSs omit the
-	 * control port, while others start at 0x3f2.  Of the latter,
-	 * sometimes we have two resources, other times we have one.
-	 * We have to deal with the following cases:
-	 *
-	 * 1:	0x3f0-0x3f5			# very rare
-	 * 2:	0x3f0				# hints -> 0x3f0-0x3f5,0x3f7
-	 * 3:	0x3f0-0x3f5,0x3f7		# Most common
-	 * 4:	0x3f2-0x3f5,0x3f7		# Second most common
-	 * 5:	0x3f2-0x3f5			# implies 0x3f7 too.
-	 * 6:	0x3f2-0x3f3,0x3f4-0x3f5,0x3f7	# becoming common
-	 * 7:	0x3f2-0x3f3,0x3f4-0x3f5		# rare
-	 * 8:	0x3f0-0x3f1,0x3f2-0x3f3,0x3f4-0x3f5,0x3f7
-	 * 9:	0x3f0-0x3f3,0x3f4-0x3f5,0x3f7
-	 *
-	 * The following code is generic for any value of 0x3fx :-)
-	 */
-
-	/*
-	 * First, allocated the main range of ports.  In the best of
-	 * worlds, this is 4 or 6 ports.  In others, well, that's
-	 * why this function is so complicated.
-	 */
-again_ioport:
-	fdc->res_ioport = bus_alloc_resource(dev, SYS_RES_IOPORT,
-	    &fdc->rid_ioport, 0ul, ~0ul, nports, RF_ACTIVE);
-	if (fdc->res_ioport == 0) {
-		device_printf(dev, "cannot allocate I/O port (%d ports)\n",
-		    nports);
-		return (ENXIO);
-	}
-	if ((rman_get_end(fdc->res_ioport) & 0x7) == 1) {
-		/* Case 8 */
-		bus_release_resource(dev, SYS_RES_IOPORT, fdc->rid_ioport,
-		    fdc->res_ioport);
-		fdc->rid_ioport++;
-		goto again_ioport;
-	}
-	fdc->portt = rman_get_bustag(fdc->res_ioport);
-	fdc->porth = rman_get_bushandle(fdc->res_ioport);
-
-	/*
-	 * Handle cases 4-8 above
-	 */
-	fdc->port_off = -(fdc->porth & 0x7);
-
-	/*
-	 * Deal with case 6-9: FDSTS and FDDATA.
-	 */
-	if ((rman_get_end(fdc->res_ioport) & 0x7) == 3) {
-		fdc->rid_sts = fdc->rid_ioport + 1;
-		fdc->res_sts = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
-		    &fdc->rid_sts, RF_ACTIVE);
-		if (fdc->res_sts == NULL) {
-			device_printf(dev, "Can't alloc rid 1");
-			fdc_release_resources(fdc);
-			return (ENXIO);
+	for (rid = 0; ; rid++) {
+		newrid = rid;
+		res = bus_alloc_resource(dev, SYS_RES_IOPORT,
+		    &newrid, 0ul, ~0ul, nports, RF_ACTIVE);
+		if (res == NULL)
+			break;
+		i = rman_get_start(res);
+		for (j = 0; j < rman_get_size(res); j++) {
+			fdc->resio[i + j] = res;
+			fdc->ridio[i + j] = newrid;
+			fdc->ioff[i + j] = j;
+			fdc->ioh[i + j] = rman_get_bushandle(res);
 		}
-		fdc->sts_off = -4;
-		fdc->stst = rman_get_bustag(fdc->res_sts);
-		fdc->stsh = rman_get_bushandle(fdc->res_sts);
-	} else {
-		fdc->res_sts = NULL;
-		fdc->sts_off = fdc->port_off;
-		fdc->stst = fdc->portt;
-		fdc->stsh = fdc->porth;
 	}
-
-	/*
-	 * allocate the control port.  For cases 1, 2, 5 and 7, we
-	 * fake it from the ioports resource.  XXX IS THIS THE RIGHT THING
-	 * TO DO, OR SHOULD WE CREATE A NEW RID? (I think we need a new rid)
-	 */
-	fdc->rid_ctl = fdc->rid_sts + 1;
-	fdc->res_ctl = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
-	    &fdc->rid_ctl, RF_ACTIVE);
-	if (fdc->res_ctl == NULL) {
-		fdc->ctl_off = 7 + fdc->port_off;
-		fdc->res_ctl = NULL;
-		fdc->ctlt = fdc->portt;
-		fdc->ctlh = fdc->porth;
-	} else {
-		fdc->ctl_off = 0;
-		fdc->ctlt = rman_get_bustag(fdc->res_ctl);
-		fdc->ctlh = rman_get_bushandle(fdc->res_ctl);
+	if (fdc->resio[2] == NULL)
+		return (ENXIO);
+	fdc->iot = rman_get_bustag(fdc->resio[2]);
+	if (fdc->resio[7] == NULL) {
+		/* XXX allocate */
+		fdc->resio[7] = fdc->resio[2];
+		fdc->ridio[7] = fdc->ridio[2];
+		fdc->ioff[7] = fdc->ioff[2] + 5;
+		fdc->ioh[7] = fdc->ioh[2];
 	}
 
 	fdc->res_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &fdc->rid_irq,
 	    RF_ACTIVE | RF_SHAREABLE);
-	if (fdc->res_irq == 0) {
+	if (fdc->res_irq == NULL) {
 		device_printf(dev, "cannot reserve interrupt line\n");
 		return (ENXIO);
 	}
@@ -164,7 +121,7 @@ again_ioport:
 	if ((fdc->flags & FDC_NODMA) == 0) {
 		fdc->res_drq = bus_alloc_resource_any(dev, SYS_RES_DRQ,
 		    &fdc->rid_drq, RF_ACTIVE | RF_SHAREABLE);
-		if (fdc->res_drq == 0) {
+		if (fdc->res_drq == NULL) {
 			device_printf(dev, "cannot reserve DMA request line\n");
 			/* This is broken and doesn't work for ISA case */
 			fdc->flags |= FDC_NODMA;
