@@ -1,4 +1,4 @@
-/*	$NetBSD: uhid.c,v 1.26 1999/10/13 08:10:56 augustss Exp $	*/
+/*	$NetBSD: uhid.c,v 1.27 1999/11/12 00:34:57 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -371,7 +371,7 @@ uhidopen(dev, flag, mode, p)
 		return (EBUSY);
 	sc->sc_state |= UHID_OPEN;
 
-	if (clalloc(&sc->sc_q, UHID_BSIZE, UHID_BSIZE) == -1) {
+	if (clalloc(&sc->sc_q, UHID_BSIZE, 0) == -1) {
 		sc->sc_state &= ~UHID_OPEN;
 		return (ENOMEM);
 	}
