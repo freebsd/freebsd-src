@@ -35,28 +35,37 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1990, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)clri.c	8.2 (Berkeley) 9/23/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
-#include <sys/time.h>
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
 
 #include <err.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+
+static void
+usage(void)
+{
+	(void)fprintf(stderr, "usage: clri filesystem inode ...\n");
+	exit(1);
+}
 
 int
 main(argc, argv)
@@ -72,10 +81,8 @@ main(argc, argv)
 	int inonum;
 	char *fs, sblock[SBSIZE];
 
-	if (argc < 3) {
-		(void)fprintf(stderr, "usage: clri filesystem inode ...\n");
-		exit(1);
-	}
+	if (argc < 3)
+		usage();
 
 	fs = *++argv;
 
@@ -89,7 +96,7 @@ main(argc, argv)
 
 	sbp = (struct fs *)sblock;
 	if (sbp->fs_magic != FS_MAGIC)
-		errx(1, "%s: superblock magic number 0x%x, not 0x%x.",
+		errx(1, "%s: superblock magic number 0x%x, not 0x%x",
 		    fs, sbp->fs_magic, FS_MAGIC);
 	bsize = sbp->fs_bsize;
 
@@ -97,7 +104,7 @@ main(argc, argv)
 	while (*++argv) {
 		/* get the inode number. */
 		if ((inonum = atoi(*argv)) <= 0)
-			errx(1, "%s is not a valid inode number.", *argv);
+			errx(1, "%s is not a valid inode number", *argv);
 		(void)printf("clearing %d\n", inonum);
 
 		/* read in the appropriate block. */
