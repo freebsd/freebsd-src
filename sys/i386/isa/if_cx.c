@@ -580,7 +580,7 @@ cxwatchdog (struct ifnet *ifp)
 	for (q=c->slaveq; q; q=q->slaveq)
 		cxup (q);
 
-		cxstart (ifp);
+	cxstart (ifp);
 }
 
 /*
