@@ -46,6 +46,7 @@
  */
 
 #include "opt_quota.h"
+#include "opt_suiddir.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
