@@ -8,6 +8,7 @@
 #	-DNOCRYPT will prevent building of crypt versions
 #	-DNOMAN do not build the manual pages
 #	-DNOPROFILE do not build profiled libraries
+#	-DNORESCUE do not build rescue binaries
 #	-DNOGAMES do not go into games subdir
 #	-DNOSHARE do not go into share subdir
 #	-DNOINFO do not make or install info files
@@ -66,7 +67,7 @@ SUBDIR+= kerberos5
 .if exists(${.CURDIR}/libexec)
 SUBDIR+= libexec
 .endif
-.if exists(${.CURDIR}/rescue) && defined(RESCUE)
+.if exists(${.CURDIR}/rescue) && !defined(NORESCUE)
 SUBDIR+= rescue
 .endif
 .if exists(${.CURDIR}/sbin)
@@ -667,7 +668,7 @@ _xargs=		usr.bin/xargs
 _yacc=		usr.bin/yacc
 .endif
 
-.if defined(RESCUE) && \
+.if !defined(NORESCUE) && \
     ${BOOTSTRAPPING} < 501100
 _crunchgen=	usr.sbin/crunch/crunchgen
 .endif
@@ -725,6 +726,7 @@ build-tools:
 .for _tool in \
     bin/csh \
     bin/sh \
+    rescue/rescue \
     gnu/usr.bin/cc/cc_tools \
     ${_fortran} \
     ${_libkrb5} \
@@ -752,7 +754,7 @@ _elf2aout=	usr.bin/elf2aout
 _btxld=		usr.sbin/btxld
 .endif
 
-.if (defined(RESCUE) || \
+.if (!defined(NORESCUE) || \
     defined(RELEASEDIR)) && \
     ( ${TARGET_ARCH} != ${MACHINE_ARCH} || ${BOOTSTRAPPING} < 501101 )
 _crunchide=	usr.sbin/crunch/crunchide
