@@ -134,7 +134,7 @@ acpi_throttle_identify(driver_t *driver, device_t parent)
 	ACPI_OBJECT *obj;
 
 	/* Make sure we're not being doubly invoked. */
-	if (device_find_child(parent, "acpi_throttle", -1) != NULL)
+	if (device_find_child(parent, "acpi_throttle", -1))
 		return;
 
 	/* Check for a valid duty width and parent CPU type. */
@@ -167,6 +167,15 @@ acpi_throttle_probe(device_t dev)
 {
 
 	if (resource_disabled("acpi_throttle", 0))
+		return (ENXIO);
+
+	/*
+	 * On i386 platforms at least, ACPI throttling is accomplished by
+	 * the chipset modulating the STPCLK# pin based on the duty cycle.
+	 * Since p4tcc uses the same mechanism (but internal to the CPU),
+	 * we disable acpi_throttle when p4tcc is also present.
+	 */
+	if (device_find_child(device_get_parent(dev), "p4tcc", -1))
 		return (ENXIO);
 
 	device_set_desc(dev, "ACPI CPU Throttling");
