@@ -212,7 +212,7 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 {
 	register struct proc *p = curproc;
 	register struct trapframe *regs;
-	struct linux_rt_sigframe *fp, frame;
+	struct l_rt_sigframe *fp, frame;
 	int oonstack;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
@@ -220,7 +220,7 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	oonstack = sigonstack(regs->tf_esp);
 
 #ifdef DEBUG
-	if (ldebug(sigreturn))
+	if (ldebug(rt_sendsig))
 		printf(ARGS(rt_sendsig, "%p, %d, %p, %lu"),
 		    catcher, sig, (void*)mask, code);
 #endif
@@ -229,10 +229,10 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 */
 	if ((p->p_flag & P_ALTSTACK) && !oonstack &&
 	    SIGISMEMBER(p->p_sigacts->ps_sigonstack, sig)) {
-		fp = (struct linux_rt_sigframe *)(p->p_sigstk.ss_sp +
-		    p->p_sigstk.ss_size - sizeof(struct linux_rt_sigframe));
+		fp = (struct l_rt_sigframe *)(p->p_sigstk.ss_sp +
+		    p->p_sigstk.ss_size - sizeof(struct l_rt_sigframe));
 	} else
-		fp = (struct linux_rt_sigframe *)regs->tf_esp - 1;
+		fp = (struct l_rt_sigframe *)regs->tf_esp - 1;
 	PROC_UNLOCK(p);
 
 	/*
@@ -241,7 +241,7 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 *	if access is denied.
 	 */
 	if ((grow_stack (p, (int)fp) == FALSE) ||
-	    !useracc((caddr_t)fp, sizeof (struct linux_rt_sigframe), 
+	    !useracc((caddr_t)fp, sizeof (struct l_rt_sigframe), 
 	    VM_PROT_WRITE)) {
 		/*
 		 * Process has trashed its stack; give it an illegal
@@ -253,7 +253,7 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		SIGDELSET(p->p_sigcatch, SIGILL);
 		SIGDELSET(p->p_sigmask, SIGILL);
 #ifdef DEBUG
-		if (ldebug(sigreturn))
+		if (ldebug(rt_sendsig))
 			printf(LMSG("rt_sendsig: bad stack %p, oonstack=%x"),
 			    fp, oonstack);
 #endif
@@ -314,7 +314,7 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	frame.sf_sc.uc_mcontext.sc_trapno = code;	/* XXX ???? */
 
 #ifdef DEBUG
-	if (ldebug(sigreturn))
+	if (ldebug(rt_sendsig))
 		printf(LMSG("rt_sendsig flags: 0x%x, sp: %p, ss: 0x%x, mask: 0x%x"),
 		    frame.sf_sc.uc_stack.ss_flags, p->p_sigstk.ss_sp,
 		    p->p_sigstk.ss_size, frame.sf_sc.uc_mcontext.sc_mask);
@@ -362,8 +362,8 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 {
 	register struct proc *p = curproc;
 	register struct trapframe *regs;
-	struct linux_sigframe *fp, frame;
-	linux_sigset_t lmask;
+	struct l_sigframe *fp, frame;
+	l_sigset_t lmask;
 	int oonstack, i;
 
 	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig)) {
@@ -376,7 +376,7 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	oonstack = sigonstack(regs->tf_esp);
 
 #ifdef DEBUG
-	if (ldebug(sigreturn))
+	if (ldebug(sendsig))
 		printf(ARGS(sendsig, "%p, %d, %p, %lu"),
 		    catcher, sig, (void*)mask, code);
 #endif
@@ -384,13 +384,12 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	/*
 	 * Allocate space for the signal handler context.
 	 */
-	PROC_LOCK(p);
 	if ((p->p_flag & P_ALTSTACK) && !oonstack &&
 	    SIGISMEMBER(p->p_sigacts->ps_sigonstack, sig)) {
-		fp = (struct linux_sigframe *)(p->p_sigstk.ss_sp +
-		    p->p_sigstk.ss_size - sizeof(struct linux_sigframe));
+		fp = (struct l_sigframe *)(p->p_sigstk.ss_sp +
+		    p->p_sigstk.ss_size - sizeof(struct l_sigframe));
 	} else
-		fp = (struct linux_sigframe *)regs->tf_esp - 1;
+		fp = (struct l_sigframe *)regs->tf_esp - 1;
 	PROC_UNLOCK(p);
 
 	/*
@@ -399,7 +398,7 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 *	if access is denied.
 	 */
 	if ((grow_stack (p, (int)fp) == FALSE) ||
-	    !useracc((caddr_t)fp, sizeof (struct linux_sigframe), 
+	    !useracc((caddr_t)fp, sizeof (struct l_sigframe), 
 	    VM_PROT_WRITE)) {
 		/*
 		 * Process has trashed its stack; give it an illegal
@@ -411,7 +410,6 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		SIGDELSET(p->p_sigcatch, SIGILL);
 		SIGDELSET(p->p_sigmask, SIGILL);
 		psignal(p, SIGILL);
-		PROC_UNLOCK(p);
 		return;
 	}
 
@@ -450,7 +448,7 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	frame.sf_sc.sc_err    = regs->tf_err;
 	frame.sf_sc.sc_trapno = code;	/* XXX ???? */
 
-	bzero(&frame.sf_fpstate, sizeof(struct linux_fpstate));
+	bzero(&frame.sf_fpstate, sizeof(struct l_fpstate));
 
 	for (i = 0; i < (LINUX_NSIG_WORDS-1); i++)
 		frame.sf_extramask[i] = lmask.__bits[i+1];
@@ -476,6 +474,7 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	regs->tf_es = _udatasel;
 	regs->tf_fs = _udatasel;
 	regs->tf_ss = _udatasel;
+	PROC_LOCK(p);
 }
 
 /*
@@ -493,9 +492,9 @@ linux_sigreturn(p, args)
 	struct proc *p;
 	struct linux_sigreturn_args *args;
 {
-	struct linux_sigframe frame;
+	struct l_sigframe frame;
 	register struct trapframe *regs;
-	linux_sigset_t lmask;
+	l_sigset_t lmask;
 	int eflags, i;
 
 	regs = p->p_frame;
@@ -589,9 +588,9 @@ linux_rt_sigreturn(p, args)
 	struct linux_rt_sigreturn_args *args;
 {
 	struct sigaltstack_args sasargs;
-	struct linux_ucontext 	 uc;
-	struct linux_sigcontext *context;
-	linux_stack_t *lss;
+	struct l_ucontext uc;
+	struct l_sigcontext *context;
+	l_stack_t *lss;
 	stack_t *ss;
 	register struct trapframe *regs;
 	int eflags;
