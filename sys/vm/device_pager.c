@@ -95,7 +95,8 @@ dev_pager_init()
 	sx_init(&dev_pager_sx, "dev_pager create");
 	mtx_init(&dev_pager_mtx, "dev_pager list", NULL, MTX_DEF);
 	fakepg_zone = uma_zcreate("DP fakepg", sizeof(struct vm_page),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE); 
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
+	    UMA_ZONE_NOFREE|UMA_ZONE_VM); 
 }
 
 /*
