@@ -137,16 +137,19 @@ main (argc, argv)
   char *env_value;
   char *env_argv[30];
   int   env_argc;
+  extern FILE *rl_outstream;
   
   /* Initialize many variables. */
   compile_only = FALSE;
   use_math = FALSE;
   warn_not_std = FALSE;
   std_only = FALSE;
-  if (isatty(0) && isatty(1)) 
+  if (isatty(0) && isatty(1))
     interactive = TRUE;
-  else
+  else {
     interactive = FALSE;
+    rl_outstream = stderr;
+  }
   quiet = FALSE;
   file_names = NULL;
 
