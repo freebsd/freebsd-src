@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: pl.c,v 1.3 1994/08/28 14:15:23 jkh Exp $";
+static const char *rcsid = "$Id: pl.c,v 1.4 1994/08/29 16:31:38 adam Exp $";
 #endif
 
 /*
@@ -25,14 +25,6 @@ static const char *rcsid = "$Id: pl.c,v 1.3 1994/08/28 14:15:23 jkh Exp $";
 #include "lib.h"
 #include "create.h"
 
-#define QUERY_GZIP \
-"File '%s' appears to be gzip'd.\nWould you like to unpack it first"
-#define UNZIP "gzip -d %s"
-
-#define QUERY_COMPRESS \
-"File '%s' appears to be compressed.\nWould you like to unpack it first"
-#define UNCOMPRESS "compress -d %s"
-
 /* Check a list for files that require preconversion */
 void
 check_list(char *home, Package *pkg)
@@ -54,14 +46,6 @@ check_list(char *home, Package *pkg)
 	else if (p->type == PLIST_FILE) {
 	    cmd[0] = '\0';
 	    sprintf(name, "%s/%s", there ? there : where, p->name);
-	    /* gzip? */
-	    if ((suffix(name, "gz") || suffix(name, "z")) &&
-		y_or_n(TRUE, QUERY_GZIP, name))
-		sprintf(cmd, UNZIP, name);
-
-	    /* Compress? */
-	    else if (suffix(name, "Z") && y_or_n(TRUE, QUERY_COMPRESS, name))
-		sprintf(cmd, UNCOMPRESS, name);
 
 	    if (*cmd) {
 		if (Verbose)
