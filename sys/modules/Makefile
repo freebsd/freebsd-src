@@ -124,8 +124,7 @@ SUBDIR=	3dfx \
 	xl
 
 .if ${MACHINE_ARCH} != "sparc64"
-SUBDIR+=msdosfs \
-	syscons
+SUBDIR+=syscons
 .endif
 
 .if !defined(NO_IPFILTER) && ${MACHINE_ARCH} != "ia64"
