@@ -226,7 +226,7 @@ short dirch;
 }
 
 is_passable(row, col)
-row, col;
+int row, col;
 {
 	if ((row < MIN_ROW) || (row > (DROWS - 2)) || (col < 0) ||
 		(col > (DCOLS-1))) {
@@ -239,7 +239,7 @@ row, col;
 }
 
 next_to_something(drow, dcol)
-drow, dcol;
+int drow, dcol;
 {
 	short i, j, i_end, j_end, row, col;
 	short pass_count = 0;
