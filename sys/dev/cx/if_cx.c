@@ -2789,23 +2789,10 @@ static int ng_cx_disconnect (hook_p hook)
 
 static int cx_modevent (module_t mod, int type, void *unused)
 {
-	struct cdev *dev;
 	static int load_count = 0;
-	struct cdevsw *cdsw;
 
-#if __FreeBSD_version >= 502103
-	dev = findcdev (makedev(CDEV_MAJOR, 0));
-#else
-	dev = makedev (CDEV_MAJOR, 0);
-#endif
 	switch (type) {
 	case MOD_LOAD:
-		if (dev != NULL &&
-		    (cdsw = devsw (dev)) &&
-		    cdsw->d_maj == CDEV_MAJOR) {
-			printf ("Sigma driver is already in system\n");
-			return (EEXIST);
-		}
 #if __FreeBSD_version >= 500000 && defined NETGRAPH
 		if (ng_newtype (&typestruct))
 			printf ("Failed to register ng_cx\n");
