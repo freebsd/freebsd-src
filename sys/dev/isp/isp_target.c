@@ -46,14 +46,14 @@
 #endif
 
 #ifdef	ISP_TARGET_MODE
-static char *atiocope =
+static const char atiocope[] =
     "ATIO returned for lun %d because it was in the middle of Bus Device Reset";
-static char *atior =
+static const char atior[] =
     "ATIO returned for lun %d from initiator %d because a Bus Reset occurred";
 
-static void isp_got_msg __P((struct ispsoftc *, int, in_entry_t *));
-static void isp_got_msg_fc __P((struct ispsoftc *, int, in_fcentry_t *));
-static void isp_notify_ack __P((struct ispsoftc *, void *));
+static void isp_got_msg(struct ispsoftc *, int, in_entry_t *);
+static void isp_got_msg_fc(struct ispsoftc *, int, in_fcentry_t *);
+static void isp_notify_ack(struct ispsoftc *, void *);
 static void isp_handle_atio(struct ispsoftc *, at_entry_t *);
 static void isp_handle_atio2(struct ispsoftc *, at2_entry_t *);
 static void isp_handle_ctio(struct ispsoftc *, ct_entry_t *);
@@ -106,10 +106,7 @@ static void isp_handle_ctio2(struct ispsoftc *, ct2_entry_t *);
  */
 
 int
-isp_target_notify(isp, vptr, optrp)
-	struct ispsoftc *isp;
-	void *vptr;
-	u_int16_t *optrp;
+isp_target_notify(struct ispsoftc *isp, void *vptr, u_int16_t *optrp)
 {
 	u_int16_t status, seqid;
 	union {
@@ -268,13 +265,8 @@ isp_target_notify(isp, vptr, optrp)
  * response entry. The caller is responsible for synchronizing this.
  */
 int
-isp_lun_cmd(isp, cmd, bus, tgt, lun, opaque)
-	struct ispsoftc *isp;
-	int cmd;
-	int bus;
-	int tgt;
-	int lun;
-	u_int32_t opaque;
+isp_lun_cmd(struct ispsoftc *isp, int cmd, int bus, int tgt, int lun,
+    u_int32_t opaque)
 {
 	lun_entry_t el;
 	u_int16_t iptr, optr;
@@ -312,6 +304,7 @@ isp_lun_cmd(isp, cmd, bus, tgt, lun, opaque)
 	} else if (isp->isp_maxluns <= 16) {
 		el.le_lun = lun;
 	}
+	el.le_timeout = 2;
 
 	if (isp_getrqentry(isp, &iptr, &optr, &outp)) {
 		isp_prt(isp, ISP_LOGWARN,
@@ -326,9 +319,7 @@ isp_lun_cmd(isp, cmd, bus, tgt, lun, opaque)
 
 
 int
-isp_target_put_entry(isp, ap)
-	struct ispsoftc *isp;
-	void *ap;
+isp_target_put_entry(struct ispsoftc *isp, void *ap)
 {
 	void *outp;
 	u_int16_t iptr, optr;
@@ -365,13 +356,7 @@ isp_target_put_entry(isp, ap)
 }
 
 int
-isp_target_put_atio(isp, iid, tgt, lun, ttype, tval)
-	struct ispsoftc *isp;
-	int iid;
-	int tgt;
-	int lun;
-	int ttype;
-	int tval;
+isp_target_put_atio(struct ispsoftc *isp, void *arg)
 {
 	union {
 		at_entry_t _atio;
@@ -380,23 +365,27 @@ isp_target_put_atio(isp, iid, tgt, lun, ttype, tval)
 
 	MEMZERO(&atun, sizeof atun);
 	if (IS_FC(isp)) {
+		at2_entry_t *aep = arg;
 		atun._atio2.at_header.rqs_entry_type = RQSTYPE_ATIO2;
 		atun._atio2.at_header.rqs_entry_count = 1;
 		if (isp->isp_maxluns > 16) {
-			atun._atio2.at_scclun = (u_int16_t) lun;
+			atun._atio2.at_scclun = (u_int16_t) aep->at_scclun;
 		} else {
-			atun._atio2.at_lun = (u_int8_t) lun;
+			atun._atio2.at_lun = (u_int8_t) aep->at_scclun;
 		}
 		atun._atio2.at_status = CT_OK;
 	} else {
+		at_entry_t *aep = arg;
 		atun._atio.at_header.rqs_entry_type = RQSTYPE_ATIO;
 		atun._atio.at_header.rqs_entry_count = 1;
-		atun._atio.at_iid = iid;
-		atun._atio.at_tgt = tgt;
-		atun._atio.at_lun = lun;
-		atun._atio.at_tag_type = ttype;
-		atun._atio.at_tag_val = tval;
-		atun._atio.at_status = CT_OK;
+		atun._atio.at_handle = aep->at_handle;
+		atun._atio.at_iid = aep->at_iid;
+		atun._atio.at_tgt = aep->at_tgt;
+		atun._atio.at_lun = aep->at_lun;
+		atun._atio.at_tag_type = aep->at_tag_type;
+		atun._atio.at_tag_val = aep->at_tag_val;
+		atun._atio.at_status = (aep->at_flags & AT_TQAE);
+		atun._atio.at_status |= CT_OK;
 	}
 	return (isp_target_put_entry(isp, &atun));
 }
@@ -412,7 +401,7 @@ isp_target_put_atio(isp, iid, tgt, lun, ttype, tval)
  * values.
  *
  * NB: the key, asc, ascq, cannot be used for parallel SCSI as it doesn't
- * NB: inline SCSI sense reporting.
+ * NB: inline SCSI sense reporting. As such, we lose this information. XXX.
  *
  * For both parallel && fibre channel, we use the feature that does
  * an automatic resource autoreplenish so we don't have then later do
@@ -473,6 +462,9 @@ isp_endcmd(struct ispsoftc *isp, void *arg, u_int32_t code, u_int16_t hdl)
 		cto->ct_lun = aep->at_lun;
 		cto->ct_tag_type = aep->at_tag_type;
 		cto->ct_tag_val = aep->at_tag_val;
+		if (aep->at_flags & AT_TQAE) {
+			cto->ct_flags |= CT_TQAE;
+		}
 		cto->ct_flags = CT_SENDSTATUS | CT_NO_DATA;
 		if (hdl == 0) {
 			cto->ct_flags |= CT_CCINCR;
@@ -484,10 +476,7 @@ isp_endcmd(struct ispsoftc *isp, void *arg, u_int32_t code, u_int16_t hdl)
 }
 
 void
-isp_target_async(isp, bus, event)
-	struct ispsoftc *isp;
-	int bus;
-	int event;
+isp_target_async(struct ispsoftc *isp, int bus, int event)
 {
 	tmd_event_t evt;
 	tmd_msg_t msg;
@@ -550,10 +539,7 @@ isp_target_async(isp, bus, event)
  */
 
 static void
-isp_got_msg(isp, bus, inp)
-	struct ispsoftc *isp;
-	int bus;
-	in_entry_t *inp;
+isp_got_msg(struct ispsoftc *isp, int bus, in_entry_t *inp)
 {
 	u_int8_t status = inp->in_status & ~QLTM_SVALID;
 
@@ -579,13 +565,10 @@ isp_got_msg(isp, bus, inp)
  * Synthesize a message from the task management flags in a FCP_CMND_IU.
  */
 static void
-isp_got_msg_fc(isp, bus, inp)
-	struct ispsoftc *isp;
-	int bus;
-	in_fcentry_t *inp;
+isp_got_msg_fc(struct ispsoftc *isp, int bus, in_fcentry_t *inp)
 {
-	static char *f1 = "%s from iid %d lun %d seq 0x%x";
-	static char *f2 = 
+	static const char f1[] = "%s from iid %d lun %d seq 0x%x";
+	static const char f2[] = 
 	    "unknown %s 0x%x lun %d iid %d task flags 0x%x seq 0x%x\n";
 
 	if (inp->in_status != IN_MSG_RECEIVED) {
@@ -638,9 +621,7 @@ isp_got_msg_fc(isp, bus, inp)
 }
 
 static void
-isp_notify_ack(isp, arg)
-	struct ispsoftc *isp;
-	void *arg;
+isp_notify_ack(struct ispsoftc *isp, void *arg)
 {
 	char storage[QENTRY_LEN];
 	u_int16_t iptr, optr;
@@ -701,9 +682,7 @@ isp_notify_ack(isp, arg)
 }
 
 static void
-isp_handle_atio(isp, aep)
-	struct ispsoftc *isp;
-	at_entry_t *aep;
+isp_handle_atio(struct ispsoftc *isp, at_entry_t *aep)
 {
 	int lun;
 	lun = aep->at_lun;
@@ -776,16 +755,13 @@ isp_handle_atio(isp, aep)
 		isp_prt(isp, ISP_LOGERR,
 		    "Unknown ATIO status 0x%x from initiator %d for lun %d",
 		    aep->at_status, aep->at_iid, lun);
-		(void) isp_target_put_atio(isp, aep->at_iid, aep->at_tgt,
-		    lun, aep->at_tag_type, aep->at_tag_val);
+		(void) isp_target_put_atio(isp, aep);
 		break;
 	}
 }
 
 static void
-isp_handle_atio2(isp, aep)
-	struct ispsoftc *isp;
-	at2_entry_t *aep;
+isp_handle_atio2(struct ispsoftc *isp, at2_entry_t *aep)
 {
 	int lun;
 
@@ -862,15 +838,13 @@ isp_handle_atio2(isp, aep)
 		isp_prt(isp, ISP_LOGERR,
 		    "Unknown ATIO2 status 0x%x from initiator %d for lun %d",
 		    aep->at_status, aep->at_iid, lun);
-		(void) isp_target_put_atio(isp, aep->at_iid, 0, lun, 0, 0);
+		(void) isp_target_put_atio(isp, aep);
 		break;
 	}
 }
 
 static void
-isp_handle_ctio(isp, ct)
-	struct ispsoftc *isp;
-	ct_entry_t *ct;
+isp_handle_ctio(struct ispsoftc *isp, ct_entry_t *ct)
 {
 	void *xs;
 	int pl = ISP_LOGTDEBUG2;
@@ -881,7 +855,6 @@ isp_handle_ctio(isp, ct)
 		if (xs == NULL)
 			pl = ISP_LOGALL;
 	} else {
-		pl = ISP_LOGTDEBUG1;
 		xs = NULL;
 	}
 
@@ -966,8 +939,13 @@ isp_handle_ctio(isp, ct)
 		isp_prt(isp, ISP_LOGERR, "Firmware timed out on %s", fmsg);
 		break;
 
+	case	CT_PANIC:
+		if (fmsg == NULL)
+			fmsg = "Unrecoverable Error";
+		/*FALLTHROUGH*/
 	case CT_ERR:
-		fmsg = "Completed with Error";
+		if (fmsg == NULL)
+			fmsg = "Completed with Error";
 		/*FALLTHROUGH*/
 	case CT_PHASE_ERROR:
 		if (fmsg == NULL)
@@ -1019,35 +997,23 @@ isp_handle_ctio(isp, ct)
 			    ct->ct_syshandle, ct->ct_status & ~QLTM_SVALID);
 		}
 	} else {
-		if (ct->ct_flags & CT_SENDSTATUS) {
-			/*
-			 * Sent status and command complete.
-			 *
-			 * We're now really done with this command, so we
-			 * punt to the platform dependent layers because
-			 * only there can we do the appropriate command
-			 * complete thread synchronization.
-			 */
-			isp_prt(isp, pl, "status CTIO complete");
-		} else {
 			/*
 			 * Final CTIO completed. Release DMA resources and
 			 * notify platform dependent layers.
 			 */
-			isp_prt(isp, pl, "data CTIO complete");
+		if (ct->ct_flags & CT_DATAMASK) {
 			ISP_DMAFREE(isp, xs, ct->ct_syshandle);
 		}
-		(void) isp_async(isp, ISPASYNC_TARGET_ACTION, ct);
+		isp_prt(isp, pl, "final CTIO complete");
 		/*
 		 * The platform layer will destroy the handle if appropriate.
 		 */
+		(void) isp_async(isp, ISPASYNC_TARGET_ACTION, ct);
 	}
 }
 
 static void
-isp_handle_ctio2(isp, ct)
-	struct ispsoftc *isp;
-	ct2_entry_t *ct;
+isp_handle_ctio2(struct ispsoftc *isp, ct2_entry_t *ct)
 {
 	XS_T *xs;
 	int pl = ISP_LOGTDEBUG2;
@@ -1058,7 +1024,6 @@ isp_handle_ctio2(isp, ct)
 		if (xs == NULL)
 			pl = ISP_LOGALL;
 	} else {
-		pl = ISP_LOGTDEBUG1;
 		xs = NULL;
 	}
 
@@ -1172,7 +1137,7 @@ isp_handle_ctio2(isp, ct)
 		break;
 
 	default:
-		isp_prt(isp, ISP_LOGERR, "Unknown CTIO status 0x%x",
+		isp_prt(isp, ISP_LOGERR, "Unknown CTIO2 status 0x%x",
 		    ct->ct_status & ~QLTM_SVALID);
 		break;
 	}
