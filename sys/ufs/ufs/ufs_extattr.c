@@ -64,7 +64,8 @@ static int ufs_extattr_sync = 0;
 SYSCTL_INT(_debug, OID_AUTO, ufs_extattr_sync, CTLFLAG_RW, &ufs_extattr_sync,
     0, "");
 
-static int	ufs_extattr_valid_attrname(const char *attrname);
+static int	ufs_extattr_valid_attrname(int attrnamespace,
+    const char *attrname);
 static int	ufs_extattr_credcheck(struct vnode *vp,
     struct ufs_extattr_list_entry *uele, struct ucred *cred, struct thread *td,
     int access);
@@ -109,17 +110,14 @@ ufs_extattr_uepm_unlock(struct ufsmount *ump, struct thread *td)
  * Invalid currently consists of:
  *	 NULL pointer for attrname
  *	 zero-length attrname (used to retrieve application attribute list)
- *	 attrname consisting of "$" (used to treive system attribute list)
  */
 static int
-ufs_extattr_valid_attrname(const char *attrname)
+ufs_extattr_valid_attrname(int attrnamespace, const char *attrname)
 {
 
 	if (attrname == NULL)
 		return (0);
 	if (strlen(attrname) == 0)
-		return (0);
-	if (strlen(attrname) == 1 && attrname[0] == '$')
 		return (0);
 	return (1);
 }
@@ -586,7 +584,7 @@ ufs_extattr_enable(struct ufsmount *ump, int attrnamespace,
 	struct uio	auio;
 	int	error = 0;
 
-	if (!ufs_extattr_valid_attrname(attrname))
+	if (!ufs_extattr_valid_attrname(attrnamespace, attrname))
 		return (EINVAL);
 	if (backing_vnode->v_type != VREG)
 		return (EINVAL);
@@ -671,7 +669,7 @@ ufs_extattr_disable(struct ufsmount *ump, int attrnamespace,
 	struct ufs_extattr_list_entry	*uele;
 	int	error = 0;
 
-	if (!ufs_extattr_valid_attrname(attrname))
+	if (!ufs_extattr_valid_attrname(attrnamespace, attrname))
 		return (EINVAL);
 
 	uele = ufs_extattr_find_attr(ump, attrnamespace, attrname);
@@ -1031,7 +1029,7 @@ ufs_extattr_set(struct vnode *vp, int attrnamespace, const char *name,
 		return (EROFS);
 	if (!(ump->um_extattr.uepm_flags & UFS_EXTATTR_UEPM_STARTED))
 		return (EOPNOTSUPP);
-	if (!ufs_extattr_valid_attrname(name))
+	if (!ufs_extattr_valid_attrname(attrnamespace, name))
 		return (EINVAL);
 
 	attribute = ufs_extattr_find_attr(ump, attrnamespace, name);
@@ -1142,7 +1140,7 @@ ufs_extattr_rm(struct vnode *vp, int attrnamespace, const char *name,
 		return (EROFS);
 	if (!(ump->um_extattr.uepm_flags & UFS_EXTATTR_UEPM_STARTED))
 		return (EOPNOTSUPP);
-	if (!ufs_extattr_valid_attrname(name))
+	if (!ufs_extattr_valid_attrname(attrnamespace, name))
 		return (EINVAL);
 
 	attribute = ufs_extattr_find_attr(ump, attrnamespace, name);
