@@ -99,6 +99,7 @@
 #define FTP_CONTROL_PORT_NUMBER 21
 #define IRC_CONTROL_PORT_NUMBER_1 6667
 #define IRC_CONTROL_PORT_NUMBER_2 6668
+#define CUSEEME_PORT_NUMBER 7648
 
 /*
    The following macro is used to update an
@@ -623,6 +624,9 @@ UdpAliasIn(struct ip *pip)
 								&ud->uh_dport );
 		}
 
+        if (ntohs(ud->uh_dport) == CUSEEME_PORT_NUMBER)
+            AliasHandleCUSeeMeIn(pip, original_address);
+
 /* If UDP checksum is not zero, then adjust since destination port */
 /* is being unaliased and destination port is being altered.       */
         if (ud->uh_sum != 0)
@@ -667,6 +671,9 @@ UdpAliasOut(struct ip *pip)
 
         alias_address = GetAliasAddress(link);
         alias_port = GetAliasPort(link);
+
+        if (ntohs(ud->uh_dport) == CUSEEME_PORT_NUMBER)
+            AliasHandleCUSeeMeOut(pip, link);
 
 /* If NETBIOS Datagram, It should be alias address in UDP Data, too */
 		if (ntohs(ud->uh_dport) == NETBIOS_DGM_PORT_NUMBER

@@ -92,6 +92,8 @@ void AliasHandleFtpOut(struct ip *, struct alias_link *, int);
 void AliasHandleIrcOut(struct ip *pip, struct alias_link *link, int maxsize );
 void AliasHandleUdpNbt(struct ip *, struct alias_link *, struct in_addr *, u_short);
 void AliasHandleUdpNbtNS(struct ip *, struct alias_link *, struct in_addr *, u_short *, struct in_addr *, u_short *);
+void AliasHandleCUSeeMeOut(struct ip *, struct alias_link *);
+void AliasHandleCUSeeMeIn(struct ip *, struct in_addr);
 
 
 
