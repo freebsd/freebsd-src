@@ -2259,6 +2259,7 @@ struct bge_bcom_hack {
 struct bge_softc {
 	struct arpcom		arpcom;		/* interface info */
 	device_t		bge_dev;
+	struct mtx		bge_mtx;
 	device_t		bge_miibus;
 	bus_space_handle_t	bge_bhandle;
 	vm_offset_t		bge_vhandle;
@@ -2294,7 +2295,14 @@ struct bge_softc {
 	int			bge_if_flags;
 	int			bge_txcnt;
 	int			bge_link;
-	struct callout_handle	bge_stat_ch;
+	struct callout		bge_stat_ch;
 	char			*bge_vpd_prodname;
 	char			*bge_vpd_readonly;
 };
+
+#define	BGE_LOCK_INIT(_sc, _name) \
+	mtx_init(&(_sc)->bge_mtx, _name, MTX_NETWORK_LOCK, MTX_DEF)
+#define	BGE_LOCK(_sc)		mtx_lock(&(_sc)->bge_mtx)
+#define	BGE_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->bge_mtx, MA_OWNED)
+#define	BGE_UNLOCK(_sc)		mtx_unlock(&(_sc)->bge_mtx)
+#define	BGE_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->bge_mtx)

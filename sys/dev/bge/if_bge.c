@@ -186,6 +186,7 @@ static void bge_dma_free	(struct bge_softc *);
 static void bge_txeof		(struct bge_softc *);
 static void bge_rxeof		(struct bge_softc *);
 
+static void bge_tick_locked	(struct bge_softc *);
 static void bge_tick		(void *);
 static void bge_stats_update	(struct bge_softc *);
 static void bge_stats_update_regs
@@ -194,8 +195,10 @@ static int bge_encap		(struct bge_softc *, struct mbuf *,
 					u_int32_t *);
 
 static void bge_intr		(void *);
+static void bge_start_locked	(struct ifnet *);
 static void bge_start		(struct ifnet *);
 static int bge_ioctl		(struct ifnet *, u_long, caddr_t);
+static void bge_init_locked	(struct bge_softc *);
 static void bge_init		(void *);
 static void bge_stop		(struct bge_softc *);
 static void bge_watchdog		(struct ifnet *);
@@ -1155,6 +1158,8 @@ bge_setmulti(sc)
 	struct ifmultiaddr *ifma;
 	u_int32_t hashes[4] = { 0, 0, 0, 0 };
 	int h, i;
+
+	BGE_LOCK_ASSERT(sc);
 
 	ifp = &sc->arpcom.ac_if;
 
@@ -2227,14 +2232,11 @@ static int
 bge_attach(dev)
 	device_t dev;
 {
-	int s;
 	struct ifnet *ifp;
 	struct bge_softc *sc;
 	u_int32_t hwcfg = 0;
 	u_int32_t mac_addr = 0;
 	int unit, error = 0, rid;
-
-	s = splimp();
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
@@ -2272,16 +2274,9 @@ bge_attach(dev)
 		goto fail;
 	}
 
-	error = bus_setup_intr(dev, sc->bge_irq, INTR_TYPE_NET,
-	   bge_intr, sc, &sc->bge_intrhand);
-
-	if (error) {
-		bge_release_resources(sc);
-		printf("bge%d: couldn't set up irq\n", unit);
-		goto fail;
-	}
-
 	sc->bge_unit = unit;
+
+	BGE_LOCK_INIT(sc, device_get_nameunit(dev));
 
 	/* Try to reset the chip. */
 	bge_reset(sc);
@@ -2450,11 +2445,20 @@ bge_attach(dev)
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
-	callout_handle_init(&sc->bge_stat_ch);
+	callout_init(&sc->bge_stat_ch, CALLOUT_MPSAFE);
+
+	/*
+	 * Hookup IRQ last.
+	 */
+	error = bus_setup_intr(dev, sc->bge_irq, INTR_TYPE_NET | INTR_MPSAFE,
+	   bge_intr, sc, &sc->bge_intrhand);
+
+	if (error) {
+		bge_release_resources(sc);
+		printf("bge%d: couldn't set up irq\n", unit);
+	}
 
 fail:
-	splx(s);
-
 	return(error);
 }
 
@@ -2464,16 +2468,16 @@ bge_detach(dev)
 {
 	struct bge_softc *sc;
 	struct ifnet *ifp;
-	int s;
-
-	s = splimp();
 
 	sc = device_get_softc(dev);
 	ifp = &sc->arpcom.ac_if;
 
-	ether_ifdetach(ifp);
+	BGE_LOCK(sc);
 	bge_stop(sc);
 	bge_reset(sc);
+	BGE_UNLOCK(sc);
+
+	ether_ifdetach(ifp);
 
 	if (sc->bge_tbi) {
 		ifmedia_removeall(&sc->bge_ifmedia);
@@ -2485,8 +2489,6 @@ bge_detach(dev)
 	bge_release_resources(sc);
 	if (sc->bge_asicrev != BGE_ASICREV_BCM5705)
 		bge_free_jumbo_mem(sc);
-
-	splx(s);
 
 	return(0);
 }
@@ -2516,6 +2518,9 @@ bge_release_resources(sc)
 		    BGE_PCI_BAR0, sc->bge_res);
 
 	bge_dma_free(sc);
+
+	if (mtx_initialized(&sc->bge_mtx))	/* XXX */
+		BGE_LOCK_DESTROY(sc);
 
         return;
 }
@@ -2620,6 +2625,8 @@ bge_rxeof(sc)
 {
 	struct ifnet *ifp;
 	int stdcnt = 0, jumbocnt = 0;
+
+	BGE_LOCK_ASSERT(sc);
 
 	ifp = &sc->arpcom.ac_if;
 
@@ -2733,7 +2740,9 @@ bge_rxeof(sc)
 		if (have_tag)
 			VLAN_INPUT_TAG(ifp, m, vlan_tag, continue);
 
+		BGE_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
+		BGE_LOCK(sc);
 	}
 
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_return_ring_tag,
@@ -2762,6 +2771,8 @@ bge_txeof(sc)
 {
 	struct bge_tx_bd *cur_tx = NULL;
 	struct ifnet *ifp;
+
+	BGE_LOCK_ASSERT(sc);
 
 	ifp = &sc->arpcom.ac_if;
 
@@ -2806,6 +2817,8 @@ bge_intr(xsc)
 	sc = xsc;
 	ifp = &sc->arpcom.ac_if;
 
+	BGE_LOCK(sc);
+
 	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
 	    sc->bge_cdata.bge_status_map, BUS_DMASYNC_POSTWRITE);
 
@@ -2838,8 +2851,8 @@ bge_intr(xsc)
 		status = CSR_READ_4(sc, BGE_MAC_STS);
 		if (status & BGE_MACSTAT_MI_INTERRUPT) {
 			sc->bge_link = 0;
-			untimeout(bge_tick, sc, sc->bge_stat_ch);
-			bge_tick(sc);
+			callout_stop(&sc->bge_stat_ch);
+			bge_tick_locked(sc);
 			/* Clear the interrupt */
 			CSR_WRITE_4(sc, BGE_MAC_EVT_ENB,
 			    BGE_EVTENB_MI_INTERRUPT);
@@ -2865,8 +2878,8 @@ bge_intr(xsc)
 			if (!(status & (BGE_MACSTAT_PORT_DECODE_ERROR|
 			    BGE_MACSTAT_MI_COMPLETE))) {
 				sc->bge_link = 0;
-				untimeout(bge_tick, sc, sc->bge_stat_ch);
-				bge_tick(sc);
+				callout_stop(&sc->bge_stat_ch);
+				bge_tick_locked(sc);
 			}
 			/* Clear the interrupt */
 			CSR_WRITE_4(sc, BGE_MAC_STS, BGE_MACSTAT_SYNC_CHANGED|
@@ -2895,35 +2908,32 @@ bge_intr(xsc)
 	CSR_WRITE_4(sc, BGE_MBX_IRQ0_LO, 0);
 
 	if (ifp->if_flags & IFF_RUNNING && ifp->if_snd.ifq_head != NULL)
-		bge_start(ifp);
+		bge_start_locked(ifp);
+
+	BGE_UNLOCK(sc);
 
 	return;
 }
 
 static void
-bge_tick(xsc)
-	void *xsc;
-{
+bge_tick_locked(sc)
 	struct bge_softc *sc;
+{
 	struct mii_data *mii = NULL;
 	struct ifmedia *ifm = NULL;
 	struct ifnet *ifp;
-	int s;
 
-	sc = xsc;
 	ifp = &sc->arpcom.ac_if;
 
-	s = splimp();
+	BGE_LOCK_ASSERT(sc);
 
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5705)
 		bge_stats_update_regs(sc);
 	else
 		bge_stats_update(sc);
-	sc->bge_stat_ch = timeout(bge_tick, sc, hz);
-	if (sc->bge_link) {
-		splx(s);
+	callout_reset(&sc->bge_stat_ch, hz, bge_tick, sc);
+	if (sc->bge_link)
 		return;
-	}
 
 	if (sc->bge_tbi) {
 		ifm = &sc->bge_ifmedia;
@@ -2933,9 +2943,8 @@ bge_tick(xsc)
 			CSR_WRITE_4(sc, BGE_MAC_STS, 0xFFFFFFFF);
 			printf("bge%d: gigabit link up\n", sc->bge_unit);
 			if (ifp->if_snd.ifq_head != NULL)
-				bge_start(ifp);
+				bge_start_locked(ifp);
 		}
-		splx(s);
 		return;
 	}
 
@@ -2950,12 +2959,23 @@ bge_tick(xsc)
 			printf("bge%d: gigabit link up\n",
 			   sc->bge_unit);
 		if (ifp->if_snd.ifq_head != NULL)
-			bge_start(ifp);
+			bge_start_locked(ifp);
 	}
 
-	splx(s);
-
 	return;
+}
+
+static void
+bge_tick(xsc)
+	void *xsc;
+{
+	struct bge_softc *sc;
+
+	sc = xsc;
+
+	BGE_LOCK(sc);
+	bge_tick_locked(sc);
+	BGE_UNLOCK(sc);
 }
 
 static void
@@ -3094,7 +3114,7 @@ bge_encap(sc, m_head, txidx)
  * to the mbuf data regions directly in the transmit descriptors.
  */
 static void
-bge_start(ifp)
+bge_start_locked(ifp)
 	struct ifnet *ifp;
 {
 	struct bge_softc *sc;
@@ -3163,23 +3183,35 @@ bge_start(ifp)
 	return;
 }
 
+/*
+ * Main transmit routine. To avoid having to do mbuf copies, we put pointers
+ * to the mbuf data regions directly in the transmit descriptors.
+ */
 static void
-bge_init(xsc)
-	void *xsc;
+bge_start(ifp)
+	struct ifnet *ifp;
 {
-	struct bge_softc *sc = xsc;
+	struct bge_softc *sc;
+
+	sc = ifp->if_softc;
+	BGE_LOCK(sc);
+	bge_start_locked(ifp);
+	BGE_UNLOCK(sc);
+}
+
+static void
+bge_init_locked(sc)
+	struct bge_softc *sc;
+{
 	struct ifnet *ifp;
 	u_int16_t *m;
-        int s;
 
-	s = splimp();
+	BGE_LOCK_ASSERT(sc);
 
 	ifp = &sc->arpcom.ac_if;
 
-	if (ifp->if_flags & IFF_RUNNING) {
-		splx(s);
+	if (ifp->if_flags & IFF_RUNNING)
 		return;
-	}
 
 	/* Cancel pending I/O and flush buffers. */
 	bge_stop(sc);
@@ -3192,7 +3224,6 @@ bge_init(xsc)
 	 */
 	if (bge_blockinit(sc)) {
 		printf("bge%d: initialization failure\n", sc->bge_unit);
-		splx(s);
 		return;
 	}
 
@@ -3267,9 +3298,20 @@ bge_init(xsc)
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
 
-	splx(s);
+	callout_reset(&sc->bge_stat_ch, hz, bge_tick, sc);
 
-	sc->bge_stat_ch = timeout(bge_tick, sc, hz);
+	return;
+}
+
+static void
+bge_init(xsc)
+	void *xsc;
+{
+	struct bge_softc *sc = xsc;
+
+	BGE_LOCK(sc);
+	bge_init_locked(sc);
+	BGE_UNLOCK(sc);
 
 	return;
 }
@@ -3366,10 +3408,8 @@ bge_ioctl(ifp, command, data)
 {
 	struct bge_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *) data;
-	int s, mask, error = 0;
+	int mask, error = 0;
 	struct mii_data *mii;
-
-	s = splimp();
 
 	switch(command) {
 	case SIOCSIFMTU:
@@ -3384,6 +3424,7 @@ bge_ioctl(ifp, command, data)
 		}
 		break;
 	case SIOCSIFFLAGS:
+		BGE_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
 			/*
 			 * If only the state of the PROMISC flag changed,
@@ -3404,19 +3445,22 @@ bge_ioctl(ifp, command, data)
 				BGE_CLRBIT(sc, BGE_RX_MODE,
 				    BGE_RXMODE_RX_PROMISC);
 			} else
-				bge_init(sc);
+				bge_init_locked(sc);
 		} else {
 			if (ifp->if_flags & IFF_RUNNING) {
 				bge_stop(sc);
 			}
 		}
 		sc->bge_if_flags = ifp->if_flags;
+		BGE_UNLOCK(sc);
 		error = 0;
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		if (ifp->if_flags & IFF_RUNNING) {
+			BGE_LOCK(sc);
 			bge_setmulti(sc);
+			BGE_UNLOCK(sc);
 			error = 0;
 		}
 		break;
@@ -3445,8 +3489,6 @@ bge_ioctl(ifp, command, data)
 		error = ether_ioctl(ifp, command, data);
 		break;
 	}
-
-	(void)splx(s);
 
 	return(error);
 }
@@ -3482,12 +3524,14 @@ bge_stop(sc)
 	struct mii_data *mii = NULL;
 	int mtmp, itmp;
 
+	BGE_LOCK_ASSERT(sc);
+
 	ifp = &sc->arpcom.ac_if;
 
 	if (!sc->bge_tbi)
 		mii = device_get_softc(sc->bge_miibus);
 
-	untimeout(bge_tick, sc, sc->bge_stat_ch);
+	callout_stop(&sc->bge_stat_ch);
 
 	/*
 	 * Disable all of the receiver blocks
@@ -3584,8 +3628,10 @@ bge_shutdown(dev)
 
 	sc = device_get_softc(dev);
 
+	BGE_LOCK(sc);
 	bge_stop(sc); 
 	bge_reset(sc);
+	BGE_UNLOCK(sc);
 
 	return;
 }
