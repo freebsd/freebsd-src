@@ -548,16 +548,6 @@ ata_boot_attach(void)
 	    ad_attach(&ch->device[MASTER]);
 	if (ch->devices & ATA_ATA_SLAVE)
 	    ad_attach(&ch->device[SLAVE]);
-	if (ctlr >= 2) {
-	    u_int8_t id1, id2, fan;
-
-	    ata_drawersensor(&ch->device[MASTER], 1, 0x4e, 0);
-	    id1 = ata_drawersensor(&ch->device[MASTER], 0, 0x4f, 0);
-	    ata_drawersensor(&ch->device[MASTER], 1, 0x4e, 0x80);
-	    id2 = ata_drawersensor(&ch->device[MASTER], 0, 0x4f, 0);
-	    fan = ata_drawersensor(&ch->device[MASTER], 0, 0x28, 0);
-    	    printf("winbond ID 0x%02x 0x%02x 0x%02x\n", id1, id2, fan);
-	}
     }
     ata_raid_attach();
 #endif
