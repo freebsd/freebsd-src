@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ftpcmd.y	8.3 (Berkeley) 4/6/94
+ *	$Id$
  */
 
 /*

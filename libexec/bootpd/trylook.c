@@ -1,5 +1,7 @@
 /*
  * trylook.c - test program for lookup.c
+ *
+ *	$Id$
  */
 
 #include <sys/types.h>

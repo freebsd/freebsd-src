@@ -1,4 +1,7 @@
-/* Author: Wietse Venema, Eindhoven University of Technology. */
+/* Author: Wietse Venema, Eindhoven University of Technology. 
+ *
+ *	$Id$
+ */
 
 #include <stdio.h>
 #include <pwd.h>
