@@ -45,6 +45,7 @@
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
 #include <sys/callout.h>
+#include <sys/cdefs.h>
 #include <sys/queue.h>
 #include <sys/stdint.h>		/* for people using printf mainly */
 
@@ -77,7 +78,10 @@ extern int bootverbose;		/* nonzero to print verbose messages */
 extern int maxusers;		/* system tune hint */
 
 #ifdef	INVARIANTS		/* The option is always available */
-#define	KASSERT(exp,msg)	do { if (!(exp)) panic msg; } while (0)
+#define	KASSERT(exp,msg) do {						\
+	if (__predict_false(!(exp)))					\
+		panic msg;						\
+} while (0)
 #else
 #define	KASSERT(exp,msg)
 #endif
