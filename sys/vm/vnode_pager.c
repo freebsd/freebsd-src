@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.27 1995/03/01 23:30:04 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.28 1995/03/07 19:04:10 davidg Exp $
  */
 
 /*
@@ -174,8 +174,7 @@ vnode_pager_alloc(handle, size, prot, offset)
 		 */
 		if ((rtval = VOP_GETATTR(vp, &vattr, p->p_ucred, p)) == 0) {
 			object = vm_object_allocate(round_page(vattr.va_size));
-			object->flags &= ~OBJ_INTERNAL;
-			object->flags |= OBJ_CANPERSIST;
+			object->flags = OBJ_CANPERSIST;
 			vm_object_enter(object, pager);
 			object->pager = pager;
 		} else {
