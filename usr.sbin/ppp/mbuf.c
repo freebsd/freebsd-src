@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.c,v 1.24 1999/03/29 08:21:28 brian Exp $
+ * $Id: mbuf.c,v 1.25 1999/05/08 11:07:07 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -45,13 +45,13 @@ static int totalalloced;
 static unsigned long long mbuf_Mallocs, mbuf_Frees;
 
 int
-mbuf_Length(struct mbuf * bp)
+mbuf_Length(struct mbuf *bp)
 {
   int len;
 
   for (len = 0; bp; bp = bp->next)
     len += bp->cnt;
-  return (len);
+  return len;
 }
 
 struct mbuf *
@@ -155,7 +155,7 @@ mbuf_Prepend(struct mbuf *bp, const void *ptr, size_t len, size_t extra)
 {
   struct mbuf *head;
 
-  if (bp->offset) {
+  if (bp && bp->offset) {
     if (bp->offset >= len) {
       bp->offset -= len;
       bp->cnt += len;
@@ -168,7 +168,7 @@ mbuf_Prepend(struct mbuf *bp, const void *ptr, size_t len, size_t extra)
     bp->offset = 0;
   }
 
-  head = mbuf_Alloc(len + extra, bp->type);
+  head = mbuf_Alloc(len + extra, bp ? bp->type : MB_FSM);
   head->offset = extra;
   head->cnt -= extra;
   memcpy(MBUF_CTOP(head), ptr, len);
@@ -274,13 +274,15 @@ mbuf_Dequeue(struct mqueue *q)
 void
 mbuf_Enqueue(struct mqueue *queue, struct mbuf *bp)
 {
-  if (queue->last) {
-    queue->last->pnext = bp;
-    queue->last = bp;
-  } else
-    queue->last = queue->top = bp;
-  queue->qlen++;
-  log_Printf(LogDEBUG, "mbuf_Enqueue: len = %d\n", queue->qlen);
+  if (bp != NULL) {
+    if (queue->last) {
+      queue->last->pnext = bp;
+      queue->last = bp;
+    } else
+      queue->last = queue->top = bp;
+    queue->qlen++;
+    log_Printf(LogDEBUG, "mbuf_Enqueue: len = %d\n", queue->qlen);
+  }
 }
 
 struct mbuf *
@@ -288,24 +290,26 @@ mbuf_Contiguous(struct mbuf *bp)
 {
   /* Put it all in one contigous (aligned) mbuf */
 
-  if (bp->next != NULL) {
-    struct mbuf *nbp;
-    u_char *cp;
+  if (bp != NULL) {
+    if (bp->next != NULL) {
+      struct mbuf *nbp;
+      u_char *cp;
 
-    nbp = mbuf_Alloc(mbuf_Length(bp), bp->type);
+      nbp = mbuf_Alloc(mbuf_Length(bp), bp->type);
 
-    for (cp = MBUF_CTOP(nbp); bp; bp = mbuf_FreeSeg(bp)) {
-      memcpy(cp, MBUF_CTOP(bp), bp->cnt);
-      cp += bp->cnt;
+      for (cp = MBUF_CTOP(nbp); bp; bp = mbuf_FreeSeg(bp)) {
+        memcpy(cp, MBUF_CTOP(bp), bp->cnt);
+        cp += bp->cnt;
+      }
+      bp = nbp;
     }
-    bp = nbp;
-  }
 #ifndef __i386__	/* Do any other archs not care about alignment ? */
-  else if ((bp->offset & 0x03) != 0) {
-    bcopy(MBUF_CTOP(bp), bp + 1, bp->cnt);
-    bp->offset = 0;
-  }
+    else if ((bp->offset & 0x03) != 0) {
+      bcopy(MBUF_CTOP(bp), bp + 1, bp->cnt);
+      bp->offset = 0;
+    }
 #endif
+  }
 
   return bp;
 }
