@@ -28,7 +28,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: od.4,v 1.1 1997/04/01 19:52:37 mpp Exp $
 .\"
 .Dd March 16, 1997
 .Dt OD 4
@@ -153,7 +153,7 @@ interface to the SCSI bad-block mapping.
 .It Dv DIOCGDINFO
 Read the in-core copy of the disklabel for the
 drive from the kernel. This may be a fictitious disklabel if the drive 
-has never been initialised, in which case it will contain information read
+has never been initialized, in which case it will contain information read
 from the SCSI inquiry commands, and should be the same as
 the information printed at boot.
 .It Dv DIOCSDINFO
