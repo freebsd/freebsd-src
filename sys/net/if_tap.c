@@ -202,6 +202,8 @@ tapmodevent(mod, type, data)
 		mtx_unlock(&tapmtx);
 		clone_cleanup(&tapclones);
 
+		mtx_destroy(&tapmtx);
+
 		break;
 
 	default:
