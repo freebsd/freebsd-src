@@ -1,6 +1,9 @@
 .\" Copyright (c) 1980, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
+.\" Portions of this manual page are Copyrighted by
+.\"	The NetBSD Foundation.
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -32,7 +35,7 @@
 .\"     @(#)rc.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd December 11, 1993
+.Dd November 4, 2002
 .Dt RC 8
 .Os
 .Sh NAME
@@ -40,52 +43,271 @@
 .Nd command scripts for auto\-reboot and daemon startup
 .Sh SYNOPSIS
 .Nm
+.Nm rc.d/
+.Nm rc.d/atm*
+.Nm rc.d/network*
+.Nm rc.d/pccard
+.Nm rc.d/serial
 .Nm rc.conf
 .Nm rc.conf.local
-.Nm rc.early
-.Nm rc.d
-.Nm rc.serial
-.Nm rc.pccard
-.Nm rc.network
 .Nm rc.firewall
-.Nm rc.atm
-.Nm rc.<arch>
 .Nm rc.local
 .Nm rc.shutdown
+.Nm rc.subr
 .Sh DESCRIPTION
 The
 .Nm
-utility is the command script which controls the automatic reboot
-(calling the other scripts) and
+utility is the command script which controls the automatic boot process
+after being called by
+.Xr init 8 .
+The
 .Nm rc.local
-is the script holding commands which are pertinent only
-to a specific site.  Typically, the /usr/local/etc/rc.d
-mechanism is used instead of rc.local these days but if
-you do want to use rc.local, /etc/rc still supports it.
-In this case, rc.local should source /etc/rc.conf and
-contain additional custom startup code for your system.
+script contains commands which are pertinent only
+to a specific site.  Typically, the
+.Nm /usr/local/etc/rc.d
+mechanism is used instead of
+.Nm rc.local
+these days but if
+you want to use
+.Nm rc.local
+it is still supported.  In this case it should source
+.Nm /etc/rc.conf
+and contain additional custom startup code for your system.
+The best way to handle
+.Nm rc.local ;
+however, is to separate it out into
+.Nm /etc/rc.d
+style scripts and place them in
+.Nm /usr/local/etc/rc.d .
 The
 .Nm rc.conf
 file contains the global system configuration information referenced
-by the rc files, while
+by the startup scripts, while
 .Nm rc.conf.local
 contains the local system configuration.
 See
-.Xr rc.conf 5 .
+.Xr rc.conf 5
+for more information.
 .Pp
 The
 .Nm rc.d
 directories contain scripts which will be automatically
 executed at boot time and shutdown time.
-At boot time,
-the specified directories are processed immediately after
-.Nm rc.local
-is executed.
-(See below for details on how to specify directories to check.)
-At shutdown time,
-the directories are processed by
-.Nm rc.shutdown .
-The following key points apply to the scripts within each directory:
+.Ss Operation of rc
+.Bl -enum
+.It
+Source
+.Pa /etc/rc.subr
+to load various
+.Xr rc.subr 8
+shell functions to use.
+.It
+If autobooting, set
+.Sy autoboot=yes
+and enable a flag
+.Sy ( rc_fast=yes ) ,
+which prevents the
+.Nm rc.d
+scripts from performing the check for already running processes
+(thus speeding up the boot process).
+This
+.Sy rc_fast=yes
+speedup won't occur when
+.Nm
+is started up after exiting the single-user shell.
+.It
+Invoke
+.Xr rcorder 8
+to order the files in
+.Pa /etc/rc.d/
+that do not have a
+.Dq nostart
+keyword (refer to
+.Xr rcorder 8 's
+.Fl s
+flag),
+and assigns the result to a variable.
+.It
+Calls each script in turn using run_rc_script() (from
+.Xr rc.subr 8 ) ,
+which sets
+.Dv $1
+to
+.Sq start ,
+and sources the script in a subshell.
+If the script has a
+.Sq .sh
+suffix then it is sourced directly into the current shell.
+.El
+.Ss Operation of rc.shutdown
+.Bl -enum
+.It
+Source
+.Pa /etc/rc.subr
+to load various
+.Xr rc.subr 8
+shell functions to use.
+.It
+Invoke
+.Xr rcorder 8
+to order the files in
+.Pa /etc/rc.d/
+that have a
+.Dq shutdown
+keyword (refer to
+.Xr rcorder 8 's
+.Fl k
+flag),
+reverses that order, and assigns the result to a variable.
+.It
+Calls each script in turn using run_rc_script() (from
+.Xr rc.subr 8 ) ,
+which sets
+.Dv $1
+to
+.Sq stop ,
+and sources the script in a subshell.
+If the script has a
+.Sq .sh
+suffix then it is sourced directly into the current shell.
+.El
+.Ss Contents of rc.d/
+.Nm rc.d/
+is located in
+.Pa /etc/rc.d .
+The following file naming conventions are currently used in
+.Nm rc.d/ :
+.Bl -tag -width ALLUPPERCASExx -offset indent
+.It Pa ALLUPPERCASE
+Scripts that are
+.Sq placeholders
+to ensure that certain operations are performed before others.
+In order of startup, these are:
+.Bl -tag -width NETWORKINGxx
+.It Pa NETWORKING
+Ensure basic network services are running, including general
+network configuration (
+.Pa network1,
+.Pa network2
+.Pa network3 ) .
+.It Pa SERVERS
+Ensure basic services (such as
+.Pa NETWORKING ,
+.Pa ppp-user ,
+.Pa syslogd ,
+and
+.Pa isdnd )
+exist for services that start early (such as
+.Pa named ) ,
+because they're required by
+.Pa DAEMON
+below.
+.It Pa DAEMON
+Check-point before all general purpose daemons such as
+.Pa lpd
+and
+.Pa ntpd .
+.It Pa LOGIN
+Check-point before user login services
+.Pa ( inetd
+and
+.Pa sshd ) ,
+as well as services which might run commands as users
+.Pa ( cron
+and
+.Pa sendmail ) .
+.El
+.It Pa foo.sh
+Scripts that are to be sourced into the current shell rather than a subshell
+have a
+.Sq Pa .sh
+suffix.
+Extreme care must be taken in using this, as the startup sequence will
+terminate if the script does.
+.It Pa bar
+Scripts that are sourced in a subshell.
+These can stop the boot if necessary with the following shell
+commands:
+.Bd -literal -offset
+	if [ "$autoboot" = yes ]; then
+		kill -TERM $$
+	fi
+	exit 1
+.Ed
+.Pp
+Note that this should be used extremely sparingly!
+.El
+.Pp
+Each script should contain
+.Xr rcorder 8
+keywords, especially an appropriate
+.Dq PROVIDE
+entry, and if necessary
+.Dq REQUIRE
+and
+.Dq BEFORE
+keywords. In addition, all scripts must have a
+.Dq # KEYWORD: FreeBSD
+line.
+.Pp
+Each script is expected to support at least the following arguments, which
+are automatically supported if it uses the run_rc_command() function.
+.Bl -tag -width restart -offset indent
+.It Sy start
+Start the service.
+This should check that the service is to be started as specified by
+.Xr rc.conf 5 .
+Also checks if the service is already running and refuses to start if
+it is.
+This latter check is not performed by standard
+.Fx
+scripts if the system is starting directly to multi-user mode, to
+speed up the boot process.
+If
+.Sq forcestart
+is given, ignore the
+.Xr rc.conf 5
+check and start anyway.
+.It Sy stop
+If the service is to be started as specified by
+.Xr rc.conf 5 ,
+stop the service.
+This should check that the service is running and complain if it's not.
+If
+.Sq forcestop
+is given, ignore the
+.Xr rc.conf 5
+check and attempt to stop.
+.It Sy restart
+Perform a
+.Sy stop
+then a
+.Sy start .
+.It Sy status
+If the script starts a process (rather than performing a one-off
+operation), show the status of the process.
+Otherwise it's not necessary to support this argument.
+Defaults to displaying the process ID of the program (if running).
+.It Sy poll
+If the script starts a process (rather than performing a one-off
+operation), wait for the command to exit.
+Otherwise it's not necessary to support this argument.
+.It Sy rcvar
+Display which
+.Xr rc.conf 5
+variables are used to control the startup of the service (if any).
+.El
+.Pp
+If a script must implement additional commands it can list them in
+the
+.Sq extra_commands
+variable and define their actions in a variable constructed from
+the command name (see the
+.Sx EXAMPLES
+section).
+.Pp
+The following key points apply to old-style scripts in
+.Nm /usr/local/etc/rc.d :
 .Pp
 .Bl -bullet -compact
 .It
@@ -118,16 +340,52 @@ so for example
 would be executed before
 .Pa 200.bar ;
 without the numeric prefixes the opposite would be true.
-.El
-.Pp
+.It
 The output from each script is traditionally a space character,
 followed by the name of the software package being started or shut down,
 .Em without
 a trailing newline character (see the
 .Sx EXAMPLES
 section).
+.El
+.Sh Scripts of Interest
+When an automatic reboot is in progress,
+.Nm
+is invoked with the argument
+.Em autoboot .
+One of the scripts run from
+.Nm /etc/rc.d
+is
+.Pa /etc/rc.d/fsck .
+This script runs
+.Xr fsck 8
+with option
+.Fl p
+and
+.Fl F
+to ``preen'' all the disks of minor inconsistencies resulting
+from the last system shutdown. If this fails, then checks/repairs of serious inconsistencies
+caused by hardware or software failure will be performed in the background at the end
+of the booting process. If
+.Em autoboot
+is not set, when going from single-user to multi-user mode for example, the script
+does not do anything.
 .Pp
-The system initialization scripts can execute scripts from multiple
+The
+.Nm rc.early
+script is run very early in the startup process, immediately before the
+filesystem check. The
+.Nm rc.early
+script is deprecated. Any commands in this
+file should be separated out into
+.Nm rc.d
+style scripts and integrated into the
+.Nm rc
+system.
+.Pp
+The
+.Nm /etc/rc.d/local
+script can execute scripts from multiple
 .Nm rc.d
 directories.
 The default locations are
@@ -140,59 +398,27 @@ but these may be overridden with the
 variable.
 .Pp
 The
-.Nm rc.shutdown
-script contains any necessary commands
-to be executed as the system is shut down.
-.Pp
-When an automatic reboot is in progress,
-.Nm
-is invoked with the argument
-.Em autoboot .
-The first portion of
-.Nm
-runs an
-.Xr fsck 8
-with option
-.Fl p
-to ``preen'' all the disks of minor inconsistencies resulting
-from the last system shutdown and to check for serious inconsistencies
-caused by hardware or software failure.
-If this auto-check and repair succeeds, then the second part of
-.Nm
-is run.
-.Pp
-The second part of
-.Nm ,
-which is run after an auto-reboot succeeds and also if
-.Nm
-is invoked when a single user shell terminates (see
-.Xr init 8 ) ,
-starts all the daemons on the system, preserves editor files
-and clears the scratch directory
-.Pa /tmp .
-.Pp
-The
-.Nm rc.early
-script is run very early in the startup process, immediately before the
-filesystem check.
-.Pp
-The
-.Nm rc.serial
+.Nm /etc/rc.d/serial
 script is used to set any special configurations for serial devices.
 .Pp
 The
-.Nm rc.pccard
+.Nm /etc/rc.d/pccard
 script is used to enable PC-cards.
 .Pp
 The
-.Nm rc.network
-script is used to start the network.
+.Nm /etc/rc.d/network*
+scripts are used to start the network.
 The network is started in three passes.
-The first pass sets the hostname and domainname, configures the network
-interfaces, turns on any IP firewall rules, and starts routing.
-The second pass starts most of the network related daemons.
-The third pass starts NFS, amd, rwhod, Kerberos and
-the multicast routing daemon.
+The first pass,
+.Nm /etc/rc.d/network1 ,
+sets the hostname and domainname and configures the network
+interfaces. The
+.Nm /etc/rc.d/network2
+script starts routing and sets routing options.  The
+.Nm /etc/rc.d/network3
+script sets additional networking options. Lastly, the
+.Nm /etc/rc.d/network_ipv6
+script configures IPv6 interfaces and options.
 .Pp
 The
 .Nm rc.firewall
@@ -216,33 +442,80 @@ will load the rules in the given filename (full path required).
 .El
 .Pp
 The
-.Nm rc.atm
-script is used to configure ATM network interfaces.
+.Nm /etc/rc.d/atm*
+scripts are used to configure ATM network interfaces.
 The interfaces are configured in three passes.
 The first pass performs the initial interface configuration.
 The second pass completes the interface configuration and defines PVCs and
 permanent ATMARP entries.
 The third pass starts any ATM daemons.
 .Pp
-The
-.Nm rc.<arch>
-script runs architecture specific programs.
+Most daemons, including network related daemons, have their own script in
+.Nm /etc/rc.d ,
+which can be used to start, stop, and check the status of the service.
 .Pp
-The
-.Nm rc.local
-script is executed after the scripts above, but before the rest of the
-.Nm
-file is completed.
-In a default installation
-.Nm rc.local
-does not exist, but its contents will be executed if the file is created
-by the administrator.
+Any architecture specific scripts, such as
+.Pa /etc/rc.d/apm
+for example, specifically check that they are on that architecture
+before starting the daemon.
 .Pp
-Following tradition, the startup files reside in
+Following tradition, all startup files reside in
 .Pa /etc .
 .Sh EXAMPLES
-The following is a simple, hypothetical example of an
-.Nm rc.d
+The following is a minimal
+.Nm /etc/rc.d
+style script. Most scripts require little more than the following.
+.Bd -literal -offset indent
+#!/bin/sh
+#
+
+# PROVIDE: foo
+# REQUIRE: bar_service_required_to_precede_foo
+# BEFORE:  baz_service_requiring_foo_to_precede_it
+# KEYWORD: FreeBSD
+
+. /etc/rc.subr
+
+name="foo"
+rcvar=`set_rcvar`
+command="/usr/local/bin/foo"
+
+load_rc_config $name
+run_rc_command "$1"
+.Ed
+.Pp
+Certain scripts may want to provide enhanced functionality. The
+user may access this functionality through additional commands. The
+script may list and define as many commands at it needs.
+.Bd -literal -offset indent
+#!/bin/sh
+#
+
+# PROVIDE: foo
+# REQUIRE: bar_service_required_to_precede_foo
+# BEFORE:  baz_service_requiring_foo_to_precede_it
+# KEYWORD: FreeBSD
+
+. /etc/rc.subr
+
+name="foo"
+rcvar=`set_rcvar`
+command="/usr/local/bin/foo"
+extra_commands="nop hello"
+hello_cmd="echo Hello World."
+nop_cmd="do_nop"
+
+do_nop()
+{
+	echo "I do nothing."
+}
+
+load_rc_config $name
+run_rc_command "$1"
+.Ed
+.Pp
+The following is a simple, hypothetical example of an old-style
+.Nm /usr/local/etc/rc.d
 script,
 which would start a daemon at boot time,
 and kill it at shutdown time.
@@ -273,6 +546,8 @@ is unnecessary, but is often included.
 .Xr kill 1 ,
 .Xr rc.conf 5 ,
 .Xr init 8 ,
+.Xr rc.subr 8 ,
+.Xr rcorder 8 ,
 .Xr reboot 8 ,
 .Xr savecore 8
 .Sh HISTORY
