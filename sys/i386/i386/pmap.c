@@ -1452,7 +1452,7 @@ pmap_allocpte(pmap_t pmap, vm_offset_t va)
 	/*
 	 * Get the page directory entry
 	 */
-	ptepa = (vm_offset_t) pmap->pm_pdir[ptepindex];
+	ptepa = pmap->pm_pdir[ptepindex];
 
 	/*
 	 * This supports switching from a 4MB page to a
