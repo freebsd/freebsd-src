@@ -162,6 +162,22 @@
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:34.rpc.asc">FreeBSD-SA-02:34</ulink>
       contains workaround and bugfix information.</para>
 
+    <para>Local users can, under certain circumstances, read and write
+      arbitrary blocks on an FFS filesystem has been corrected.  More
+      details can be found in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:35.ffs.asc">FreeBSD-SA-02:35</ulink>,
+      which contains a workaround and bugfix information.</para>
+
+    <para>A bug in the NFS server code could allow a remote
+      denial of service attack.  Security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:36.nfs.asc">FreeBSD-SA-02:36</ulink>
+      has information on a fix and a workaround.</para>
+
+    <para>A bug in &man.kqueue.2; could allow local users to panic a
+      system.  Correction information is contained in security
+      advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:37.kqueue.asc">FreeBSD-SA-02:37</ulink>.</para>
+
 ]]>
   </sect1>
 
