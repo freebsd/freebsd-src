@@ -531,13 +531,12 @@ int ZEXPORTVA gzprintf (gzFile file, const char *format, /* args */ ...)
 
     va_start(va, format);
 #ifdef HAS_vsnprintf
-    (void)vsnprintf(buf, sizeof(buf), format, va);
+    len = vsnprintf(buf, sizeof(buf), format, va);
 #else
-    (void)vsprintf(buf, format, va);
+    len = vsprintf(buf, format, va);
 #endif
     va_end(va);
-    len = strlen(buf); /* some *sprintf don't return the nb of bytes written */
-    if (len <= 0) return 0;
+    if (len <= 0 || len >= sizeof(buf)) return 0;
 
     return gzwrite(file, buf, (unsigned)len);
 }
@@ -554,14 +553,14 @@ int ZEXPORTVA gzprintf (file, format, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10,
     int len;
 
 #ifdef HAS_snprintf
-    snprintf(buf, sizeof(buf), format, a1, a2, a3, a4, a5, a6, a7, a8,
+    len = snprintf(buf, sizeof(buf), format, a1, a2, a3, a4, a5, a6, a7, a8,
 	     a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20);
 #else
     sprintf(buf, format, a1, a2, a3, a4, a5, a6, a7, a8,
 	    a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20);
-#endif
     len = strlen(buf); /* old sprintf doesn't return the nb of bytes written */
-    if (len <= 0) return 0;
+#endif
+    if (len <= 0 || len >= sizeof(buf)) return 0;
 
     return gzwrite(file, buf, len);
 }
