@@ -526,6 +526,7 @@ struct dc_mii_frame {
  * ADMtek specific registers and constants for the AL981 and AN985.
  * The AN985 doesn't use the magic PHY registers.
  */
+#define DC_AL_CR		0x88	/* command register */
 #define DC_AL_PAR0		0xA4	/* station address */
 #define DC_AL_PAR1		0xA8	/* station address */
 #define DC_AL_MAR0		0xAC	/* multicast hash filter */
@@ -538,6 +539,7 @@ struct dc_mii_frame {
 #define DC_AL_LPAR		0xC8	/* bnilt in PHY link part. ability */
 #define DC_AL_ANER		0xCC	/* built in PHY autoneg expansion */
 
+#define DC_AL_CR_ATUR		0x00000001 /* automatic TX underrun recovery */
 #define DC_ADMTEK_PHYADDR	0x1
 #define DC_AL_EE_NODEADDR	4
 /* End of ADMtek specific registers */
