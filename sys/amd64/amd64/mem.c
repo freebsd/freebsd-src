@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id$
+ *	$Id: mem.c,v 1.3 1993/10/16 14:15:06 rgrimes Exp $
  */
 
 /*
@@ -228,3 +228,29 @@ mmrw(dev, uio, flags)
 		free(zbuf, M_TEMP);
 	return (error);
 }
+
+
+
+
+/*******************************************************\
+* allow user processes to MMAP some memory sections	*
+* instead of going through read/write			*
+\*******************************************************/
+int memmmap(dev_t dev, int offset, int nprot)
+{
+	switch (minor(dev))
+	{
+
+/* minor device 0 is physical memory */
+	case 0:
+        	return i386_btop(offset);
+
+/* minor device 1 is kernel memory */
+	case 1:
+        	return i386_btop(vtophys(offset));
+
+	default:
+		return -1;
+	}
+}
+
