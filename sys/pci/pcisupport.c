@@ -856,6 +856,8 @@ isab_match(device_t dev)
 	/* VIA Technologies -- vendor 0x1106 */
 	case 0x05861106: /* south bridge section */
 		return ("VIA 82C586 PCI-ISA bridge");
+	case 0x05961106:
+		return ("VIA 82C596B PCI-ISA bridge");
 	case 0x06861106:
 		return ("VIA 82C686 PCI-ISA bridge");
 
