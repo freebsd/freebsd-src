@@ -81,7 +81,7 @@ kthread_create(void (*func)(void *), void *arg,
 	if (!proc0.p_stats /* || proc0.p_stats->p_start.tv_sec == 0 */)
 		panic("kthread_create called too soon");
 
-	error = fork1(thread0, RFMEM | RFFDG | RFPROC | RFSTOPPED | flags, &p2);
+	error = fork1(&thread0, RFMEM | RFFDG | RFPROC | RFSTOPPED | flags, &p2);
 	if (error)
 		return error;
 
@@ -102,14 +102,14 @@ kthread_create(void (*func)(void *), void *arg,
 	va_end(ap);
 
 	/* call the processes' main()... */
-	cpu_set_fork_handler(&p2->p_thread, func, arg); /* XXXKSE */
+	cpu_set_fork_handler(FIRST_THREAD_IN_PROC(p2), func, arg);
 
 	/* Delay putting it on the run queue until now. */
 	mtx_lock_spin(&sched_lock);
 	p2->p_sflag |= PS_INMEM;
 	if (!(flags & RFSTOPPED)) {
 		p2->p_stat = SRUN;
-		setrunqueue(&p2->p_thread); /* XXXKSE */
+		setrunqueue(FIRST_THREAD_IN_PROC(p2)); /* XXXKSE */
 	}
 	mtx_unlock_spin(&sched_lock);
 

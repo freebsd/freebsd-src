@@ -575,7 +575,7 @@ int	lease_check __P((struct vop_lease_args *ap));
 int	spec_vnoperate __P((struct vop_generic_args *));
 int	speedup_syncer __P((void));
 #define textvp_fullpath(p, rb, rfb) \
-	vn_fullpath(&(p)->p_thread, (p)->p_textvp, rb, rfb)
+	vn_fullpath(FIRST_THREAD_IN_PROC(p), (p)->p_textvp, rb, rfb)
 int	vn_fullpath __P((struct thread *td, struct vnode *vn,
 	    char **retbuf, char **freebuf));
 int	vaccess __P((enum vtype type, mode_t file_mode, uid_t uid, gid_t gid,

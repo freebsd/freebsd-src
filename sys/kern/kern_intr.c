@@ -197,7 +197,7 @@ ithread_create(struct ithd **ithread, int vector, int flags,
 		free(ithd, M_ITHREAD);
 		return (error);
 	}
-	td = &p->p_thread;	/* XXXKSE */
+	td = FIRST_THREAD_IN_PROC(p);	/* XXXKSE */
 	td->td_ksegrp->kg_pri.pri_class = PRI_ITHD;
 	td->td_ksegrp->kg_pri.pri_level = PRI_MAX_ITHD;
 	p->p_stat = SWAIT;

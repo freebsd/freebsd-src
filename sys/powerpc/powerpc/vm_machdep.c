@@ -120,10 +120,9 @@ vm_fault_quick(v, prot)
  * ready to run and return to user mode.
  */
 void
-cpu_fork(struct thread *td1, struct proc *p2, int flags)
+cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 {
 	struct	proc *p1;
-	struct	thread *td2;
 	struct	trapframe *tf;
 	struct	callframe *cf;
 	struct	switchframe *sf;
@@ -136,7 +135,6 @@ cpu_fork(struct thread *td1, struct proc *p2, int flags)
 		return;
 
 	p1 = td1->td_proc;
-	td2 = &p2->p_thread;
 
 	/* Point the pcb to the top of the stack */
 	pcb2 = (struct pcb *)(td2->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;

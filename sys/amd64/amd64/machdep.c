@@ -1658,13 +1658,19 @@ init386(first)
 #endif
 	struct pcpu *pc;
 
-	proc_linkup(&proc0);
+
 	proc0.p_uarea = proc0uarea;
-	thread0 = &proc0.p_thread;
-	thread0->td_kstack = proc0kstack;
-	thread0->td_pcb = (struct pcb *)
-	   (thread0->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	thread0.td_kstack = proc0kstack;
+	thread0.td_pcb = (struct pcb *)
+	   (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
 	atdevbase = ISA_HOLE_START + KERNBASE;
+
+	/*
+ 	 *  This may be done better later if it gets more
+	 * high level components in it. If so just link td->td_proc
+	 * here.
+	 */
+	proc_linkup(&proc0, &proc0.p_ksegrp, &proc0.p_kse, &thread0);
 
 	metadata_missing = 0;
 	if (bootinfo.bi_modulep) {
@@ -1721,9 +1727,9 @@ init386(first)
 	PCPU_SET(prvspace, pc);
 
 	/* setup curproc so that mutexes work */
-	PCPU_SET(curthread, thread0);
+	PCPU_SET(curthread, &thread0);
 
-	LIST_INIT(&thread0->td_contested);
+	LIST_INIT(&thread0.td_contested);
 
 	/*
 	 * Initialize mutexes.
@@ -1826,7 +1832,7 @@ init386(first)
 
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
 	/* Note: -16 is so we can grow the trapframe if we came from vm86 */
-	PCPU_SET(common_tss.tss_esp0, thread0->td_kstack +
+	PCPU_SET(common_tss.tss_esp0, thread0.td_kstack +
 	    KSTACK_PAGES * PAGE_SIZE - sizeof(struct pcb) - 16);
 	PCPU_SET(common_tss.tss_ss0, GSEL(GDATA_SEL, SEL_KPL));
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
@@ -1883,10 +1889,10 @@ init386(first)
 	_udatasel = LSEL(LUDATA_SEL, SEL_UPL);
 
 	/* setup proc 0's pcb */
-	thread0->td_pcb->pcb_flags = 0; /* XXXKSE */
-	thread0->td_pcb->pcb_cr3 = (int)IdlePTD;
-	thread0->td_pcb->pcb_ext = 0;
-	thread0->td_frame = &proc0_tf;
+	thread0.td_pcb->pcb_flags = 0; /* XXXKSE */
+	thread0.td_pcb->pcb_cr3 = (int)IdlePTD;
+	thread0.td_pcb->pcb_ext = 0;
+	thread0.td_frame = &proc0_tf;
 }
 
 void

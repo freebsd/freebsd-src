@@ -137,7 +137,7 @@ exec_osf1_imgact(struct image_params *imgp)
 		ndp = (struct nameidata *)malloc(sizeof(struct nameidata),
 		    M_TEMP, M_WAITOK);
 		NDINIT(ndp, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME, UIO_SYSSPACE,
-		    "/compat/osf1/sbin/loader", &imgp->proc->p_thread);
+		    "/compat/osf1/sbin/loader", FIRST_THREAD_IN_PROC(imgp->proc));
 		error = namei(ndp);
 		if (error) {
 			uprintf("imgact_osf1: can't read /compat/osf1/sbin/loader\n");
@@ -150,7 +150,7 @@ exec_osf1_imgact(struct image_params *imgp)
 		}
 		imgp->vp = ndp->ni_vp;
 		error = exec_map_first_page(imgp);
-		VOP_UNLOCK(imgp->vp, 0, &imgp->proc->p_thread);
+		VOP_UNLOCK(imgp->vp, 0, FIRST_THREAD_IN_PROC(imgp->proc));
 		osf_auxargs->loader = "/compat/osf1/sbin/loader";
 	}
 
@@ -249,7 +249,7 @@ exec_osf1_imgact(struct image_params *imgp)
 	free(imgp->auxargs, M_TEMP);
 	if (ndp) {
 		VOP_CLOSE(ndp->ni_vp, FREAD, imgp->proc->p_ucred,
-		    &imgp->proc->p_thread);
+		    FIRST_THREAD_IN_PROC(imgp->proc));
 		vrele(ndp->ni_vp);
 	}
 	return(error);

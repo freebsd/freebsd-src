@@ -415,15 +415,14 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 
 	pmap_setavailmem(startkernel, endkernel);
 
-	proc_linkup(&proc0);
+	proc_linkup(&proc0, &proc0.p_ksegrp, &proc0.p_kse, &thread0);
 
 	proc0uarea = (struct user *)pmap_steal_memory(UAREA_PAGES * PAGE_SIZE);
 	proc0kstack = pmap_steal_memory(KSTACK_PAGES * PAGE_SIZE);
 	proc0.p_uarea = proc0uarea;
-	thread0 = &proc0.p_thread;
-	thread0->td_kstack = proc0kstack;
-	thread0->td_pcb = (struct pcb *)
-	    (thread0->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	thread0.td_kstack = proc0kstack;
+	thread0.td_pcb = (struct pcb *)
+	    (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
 
 	pcpup = pmap_steal_memory(round_page(sizeof(struct pcpu)));
 
@@ -440,9 +439,9 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 
 	/* setup curproc so the mutexes work */
 
-	PCPU_SET(curthread, thread0);
+	PCPU_SET(curthread, &thread0);
 
-	LIST_INIT(&thread0->td_contested);
+	LIST_INIT(&thread0.td_contested);
 
 /* XXX: NetBSDism I _think_.  Not sure yet. */
 #if 0
@@ -596,8 +595,8 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 	PCPU_GET(next_asn) = 1;	/* 0 used for proc0 pmap */
 
 	/* setup proc 0's pcb */
-	thread0->td_pcb->pcb_flags = 0; /* XXXKSE */
-	thread0->td_frame = &proc0_tf;
+	thread0.td_pcb->pcb_flags = 0; /* XXXKSE */
+	thread0.td_frame = &proc0_tf;
 }
 
 static int N_mapping;
