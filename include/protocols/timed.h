@@ -31,6 +31,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)timed.h	8.1 (Berkeley) 6/2/93
+ *
+ * $FreeBSD$
  */
 
 #ifndef	_PROTOCOLS_TIMED_H_
@@ -44,11 +46,14 @@
 #define ANYADDR 	NULL
 
 struct tsp {
-	u_char	tsp_type;
-	u_char	tsp_vers;
-	u_short	tsp_seq;
+	u_int8_t	tsp_type;
+	u_int8_t	tsp_vers;
+	u_int16_t	tsp_seq;
 	union {
-		struct timeval tspu_time;
+		struct {
+			int32_t	tv_sec;
+			int32_t	tv_usec;
+		} tspu_time;
 		char tspu_hopcnt;
 	} tsp_u;
 	char tsp_name[MAXHOSTNAMELEN];
