@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)jot.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: jot.c,v 1.9 1999/05/13 12:18:24 kris Exp $";
+	"$Id: jot.c,v 1.10 1999/07/22 17:11:59 sheldonh Exp $";
 #endif /* not lint */
 
 /*
@@ -54,6 +54,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <limits.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -79,9 +80,13 @@ int	intdata;
 int	chardata;
 int	nosign;
 int	nofinalnl;
+int	oflowlen;
+char	*oflowstr;
 char	*sepstring = "\n";
 char	format[BUFSIZ];
+struct sigaction act, oact;
 
+void	arith_oflow __P((int));
 void	getargs __P((int, char *[]));
 void	getformat __P((void));
 int		getprec __P((char *));
@@ -99,6 +104,13 @@ main(argc, argv)
 	register double	*y = &yd;
 	register long	*i = &id;
 
+	act.sa_handler = arith_oflow;
+	act.sa_flags = 0;
+	sigfillset(&act.sa_mask);
+	oflowstr = "caught SIGFPE: arithmetic overflow\n";
+	oflowlen = strlen(oflowstr);
+	if (sigaction(SIGFPE, &act, &oact))
+		err(1, "loading SIGFPE handler");
 	getargs(argc, argv);
 	if (randomize) {
 		*x = (ender - begin) * (ender > begin ? 1 : -1);
@@ -448,4 +460,12 @@ getformat()
 				break;
 			}
 	}
+}
+
+void
+arith_oflow(int sig)
+{
+
+	write(STDERR_FILENO, oflowstr, oflowlen);
+	_exit(sig);
 }
