@@ -242,11 +242,6 @@ g_mbr_start(struct bio *bp)
 	gio = (struct g_ioctl *)bp->bio_data;
 
 	switch (gio->cmd) {
-	case DIOCGMBR:
-		/* Return a copy of the disklabel to userland. */
-		bcopy(mp->sec0, gio->data, 512);
-		g_io_deliver(bp, 0);
-		return (1);
 	case DIOCSMBR:
 		/*
 		 * These we cannot do without the topology lock and some
