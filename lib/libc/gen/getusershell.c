@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -127,7 +129,7 @@ initshells()
 		if (*cp == '#' || *cp == '\0')
 			continue;
 		*sp++ = cp;
-		while (!isspace(*cp) && *cp != '#' && *cp != '\0')
+		while (!isspace((unsigned char)*cp) && *cp != '#' && *cp != '\0')
 			cp++;
 		*cp++ = '\0';
 	}

@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -283,16 +285,16 @@ static int _listmatch(list, group, len)
 	int glen = strlen(group);
 
 	/* skip possible leading whitespace */
-	while(isspace(*ptr))
+	while(isspace((unsigned char)*ptr))
 		ptr++;
 
 	while (ptr < list + len) {
 		cptr = ptr;
-		while(*ptr != ','  && *ptr != '\0' && !isspace(*ptr))
+		while(*ptr != ','  && *ptr != '\0' && !isspace((unsigned char)*ptr))
 			ptr++;
 		if (strncmp(cptr, group, glen) == 0 && glen == (ptr - cptr))
 			return(1);
-		while(*ptr == ','  || isspace(*ptr))
+		while(*ptr == ','  || isspace((unsigned char)*ptr))
 			ptr++;
 	}
 

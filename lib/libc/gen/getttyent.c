@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -92,13 +94,13 @@ getttyent()
 			if (!fgets(&line[i], lbsize - i, tf))
 				return (NULL);
 		}
-		while (isspace(*p))
+		while (isspace((unsigned char)*p))
 			++p;
 		if (*p && *p != '#')
 			break;
 	}
 
-#define	scmp(e)	!strncmp(p, e, sizeof(e) - 1) && isspace(p[sizeof(e) - 1])
+#define scmp(e) !strncmp(p, e, sizeof(e) - 1) && isspace((unsigned char)p[sizeof(e) - 1])
 #define	vcmp(e)	!strncmp(p, e, sizeof(e) - 1) && p[sizeof(e) - 1] == '='
 
 	zapchar = 0;
