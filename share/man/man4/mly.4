@@ -65,54 +65,43 @@ Physical devices which are not claimed by a logical
 device are presented on SCSI channels which match the physical channels
 on the controller.
 .Sh DIAGNOSTICS
-Controller initialisation phase:
+.Ss Controller initialisation phase
 .Bl -diag
 .It "mly%d: controller initialisation started"
 .It "mly%d: initialisation complete"
-.El
 .Pp
 The controller firmware has started initialisation.
 Normally this process is performed by the controller BIOS,
 but the driver may need
 to do this in cases where the BIOS has failed, or is not compatible
 (eg. on non-x86 systems).
-.Bl -diag
 .It "mly%d: drive spinup in progress"
-.El
 .Pp
 Drive startup is in progress; this may take several minutes.
-.Bl -diag
 .It "mly%d: mirror race recovery failed, one or more drives offline"
 .It "mly%d: mirror race recovery in progress"
 .It "mly%d: mirror race recovery on a critical drive"
-.El
 .Pp
 These error codes are undocumented.
-.Bl -diag
 .It "mly%d: FATAL MEMORY PARITY ERROR"
-.El
 .Pp
 Firmware detected a fatal memory error; the driver will not attempt to
 attach to this controller.
-.Bl -diag
 .It "mly%d: unknown initialisation code %x"
-.El
 .Pp
 An unknown error occurred during initialisation; it will be ignored.
-.Pp
-Driver initialisation/shutdown phase:
+.El
+.Ss Driver initialisation/shutdown phase
 .Bl -diag
 .It "mly%d: can't enable busmaster feature"
 .It "mly%d: memory window not available"
 .It "mly%d: can't allocate register window"
 .It "mly%d: can't allocate interrupt"
 .It "mly%d: can't set up interrupt"
-.El
 .Pp
 The system's PCI BIOS has not correctly configured the controller's
 PCI interface; initialisation has failed and the driver will not
 attach to this controller.
-.Bl -diag
 .It "mly%d: can't allocate parent DMA tag"
 .It "mly%d: can't allocate buffer DMA tag"
 .It "mly%d: can't allocate command packet DMA tag"
@@ -120,24 +109,19 @@ attach to this controller.
 .It "mly%d: can't allocate s/g table"
 .It "mly%d: can't allocate memory mailbox DMA tag"
 .It "mly%d: can't allocate memory mailbox"
-.El
 .Pp
 A resource allocation error occurred while initialising the driver;
 initialisation has failed and the driver will not attach to this
 controller.
-.Bl -diag
 .It "mly%d: BTL rescan result corrupted"
-.El
 .Pp
 The results of a scan for an attached device were corrupted.
 One or more devices may not be correctly reported.
-.Bl -diag
 .It "mly%d: flushing cache..."
-.El
 .Pp
 The controller cache is being flushed prior to detach or shutdown.
-.Pp
-Operational diagnostics:
+.El
+.Ss Operational diagnostics
 .Bl -diag
 .It "mly%d: physical device %d:%d online"
 .It "mly%d: physical device %d:%d standby"
@@ -189,11 +173,9 @@ Operational diagnostics:
 .It "mly%d: physical device %d:%d offline"
 .It "mly%d:   sense key %d  asc %02x  ascq %02x"
 .It "mly%d:   info %4D  csi %4D"
-.El
 .Pp
 The reported event refers to the physical device at the given channel:target
 address.
-.Bl -diag
 .It "mly%d: logical device %d (%s) consistency check started"
 .It "mly%d: logical device %d (%s) consistency check completed"
 .It "mly%d: logical device %d (%s) consistency check cancelled"
@@ -225,11 +207,9 @@ address.
 .It "mly%d: logical device %d (%s) bad data block found"
 .It "mly%d: logical device %d (%s) read of data block in bdt"
 .It "mly%d: logical device %d (%s) write back data for disk block lost"
-.El
 .Pp
 The event report will include the name of the SCSI device which has
 attached to the device if possible.
-.Bl -diag
 .It "mly%d: enclosure %d fan %d failed"
 .It "mly%d: enclosure %d fan %d ok"
 .It "mly%d: enclosure %d fan %d not present"
@@ -243,11 +223,9 @@ attached to the device if possible.
 .It "mly%d: enclosure %d unit %d access critical"
 .It "mly%d: enclosure %d unit %d access ok"
 .It "mly%d: enclosure %d unit %d access offline"
-.El
 .Pp
 These events refer to external enclosures by number.
 The driver does not attempt to name the enclosures.
-.Bl -diag
 .It "mly%d: controller cache write back error"
 .It "mly%d: controller battery backup unit found"
 .It "mly%d: controller battery backup unit charge level low"
@@ -258,9 +236,9 @@ The driver does not attempt to name the enclosures.
 .It "mly%d: controller memory soft ecc error"
 .It "mly%d: controller memory hard ecc error"
 .It "mly%d: controller battery backup unit failed"
-.El
 .Pp
 These events report controller status changes.
+.El
 .Sh BUGS
 The driver does not yet provide an external management interface.
 .Pp
