@@ -71,6 +71,8 @@
  *
  *    ?             What was the last sigval ?             SNN   (signal NN)
  *
+ *    D             detach                                 OK
+ *
  * All commands and responses are sent with a packet which includes a
  * checksum.  A packet consists of
  *
@@ -91,6 +93,7 @@
  ****************************************************************************/
 
 #include <sys/param.h>
+#include <sys/reboot.h>
 #include <sys/systm.h>
 
 #include <machine/cons.h>
@@ -487,6 +490,11 @@ gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
 	  remcomOutBuffer[2] = hexchars[sigval % 16];
 	  remcomOutBuffer[3] = 0;
 	  break;
+
+	case 'D':		/* detach; say OK and turn off gdb */
+	  putpacket(remcomOutBuffer);
+	  boothowto &= ~RB_GDB;
+	  return;
 
 	case 'g':		/* return the value of the CPU registers */
 	  mem2hex ((vm_offset_t)&registers, remcomOutBuffer, NUMREGBYTES);
