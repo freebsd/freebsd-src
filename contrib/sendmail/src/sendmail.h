@@ -20,7 +20,7 @@
 #ifdef _DEFINE
 # define EXTERN
 # ifndef lint
-static char SmailId[] =	"@(#)$Id: sendmail.h,v 8.517.4.69 2001/07/20 18:46:01 gshapiro Exp $";
+static char SmailId[] =	"@(#)$Id: sendmail.h,v 8.517.4.70 2001/08/14 23:08:12 ca Exp $";
 # endif /* ! lint */
 #else /* _DEFINE */
 # define EXTERN extern
@@ -764,6 +764,8 @@ struct rewrite
 
 /* to make the code clearer */
 #define MATCHZERO	CANONHOST
+
+#define MAXMATCH	9	/* max params per rewrite */
 
 /* external <==> internal mapping table */
 struct metamac
