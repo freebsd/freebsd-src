@@ -488,7 +488,9 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		}
 
 		if (uap->addr != (caddr_t)1) {
+			PROC_LOCK(p);
 			fill_kinfo_proc(p, &p->p_uarea->u_kproc);
+			PROC_UNLOCK(p);
 			error = ptrace_set_pc(td2,
 			    (u_long)(uintfptr_t)uap->addr);
 			if (error) {

@@ -629,6 +629,7 @@ DB_SHOW_COMMAND(pgrpdump, pgrpdump)
 
 /*
  * Fill in an kinfo_proc structure for the specified process.
+ * Must be called with the target process locked.
  */
 void
 fill_kinfo_proc(p, kp)
@@ -644,7 +645,7 @@ fill_kinfo_proc(p, kp)
 
 	kp->ki_structsize = sizeof(*kp);
 	kp->ki_paddr = p;
-	PROC_LOCK(p);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	kp->ki_addr =/* p->p_addr; */0; /* XXXKSE */
 	kp->ki_args = p->p_args;
 	kp->ki_tracep = p->p_tracep;
@@ -764,7 +765,6 @@ fill_kinfo_proc(p, kp)
 	kp->ki_lock = p->p_lock;
 	if (p->p_pptr)
 		kp->ki_ppid = p->p_pptr->p_pid;
-	PROC_UNLOCK(p);
 }
 
 /*
@@ -786,6 +786,9 @@ zpfind(pid_t pid)
 }
 
 
+/*
+ * Must be called with the process locked and will return with it unlocked.
+ */
 static int
 sysctl_out_proc(struct proc *p, struct sysctl_req *req, int doingzomb)
 {
@@ -794,7 +797,9 @@ sysctl_out_proc(struct proc *p, struct sysctl_req *req, int doingzomb)
 	struct proc *np;
 	pid_t pid = p->p_pid;
 
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	fill_kinfo_proc(p, &kinfo_proc);
+	PROC_UNLOCK(p);
 	error = SYSCTL_OUT(req, (caddr_t)&kinfo_proc, sizeof(kinfo_proc));
 	if (error)
 		return (error);
@@ -834,7 +839,6 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 			PROC_UNLOCK(p);
 			return (0);
 		}
-		PROC_UNLOCK(p);
 		error = sysctl_out_proc(p, req, 0);
 		return (error);
 	}
@@ -858,16 +862,21 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 		else
 			p = LIST_FIRST(&zombproc);
 		for (; p != 0; p = LIST_NEXT(p, p_list)) {
+			PROC_LOCK(p);
 			/*
 			 * Show a user only appropriate processes.
 			 */
-			if (p_cansee(curproc, p))
+			if (p_cansee(curproc, p)) {
+				PROC_UNLOCK(p);
 				continue;
+			}
 			/*
 			 * Skip embryonic processes.
 			 */
-			if (p->p_stat == SIDL)
+			if (p->p_stat == SIDL) {
+				PROC_UNLOCK(p);
 				continue;
+			}
 			/*
 			 * TODO - make more efficient (see notes below).
 			 * do by session.
@@ -876,17 +885,14 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 
 			case KERN_PROC_PGRP:
 				/* could do this by traversing pgrp */
-				PROC_LOCK(p);
 				if (p->p_pgrp == NULL || 
 				    p->p_pgrp->pg_id != (pid_t)name[0]) {
 					PROC_UNLOCK(p);
 					continue;
 				}
-				PROC_UNLOCK(p);
 				break;
 
 			case KERN_PROC_TTY:
-				PROC_LOCK(p);
 				if ((p->p_flag & P_CONTROLT) == 0 ||
 				    p->p_session == NULL) {
 					PROC_UNLOCK(p);
@@ -901,24 +907,24 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 					continue;
 				}
 				SESS_UNLOCK(p->p_session);
-				PROC_UNLOCK(p);
 				break;
 
 			case KERN_PROC_UID:
 				if (p->p_ucred == NULL || 
-				    p->p_ucred->cr_uid != (uid_t)name[0])
+				    p->p_ucred->cr_uid != (uid_t)name[0]) {
+					PROC_UNLOCK(p);
 					continue;
+				}
 				break;
 
 			case KERN_PROC_RUID:
 				if (p->p_ucred == NULL || 
-				    p->p_ucred->cr_ruid != (uid_t)name[0])
+				    p->p_ucred->cr_ruid != (uid_t)name[0]) {
+					PROC_UNLOCK(p);
 					continue;
+				}
 				break;
 			}
-
-			if (p_cansee(curproc, p))
-				continue;
 
 			error = sysctl_out_proc(p, req, doingzomb);
 			if (error) {
