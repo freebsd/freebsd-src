@@ -27,7 +27,6 @@ LIBCOMPAT?=	${DESTDIR}${LIBDIR}/libcompat.a
 LIBCRYPT?=	${DESTDIR}${LIBDIR}/libcrypt.a
 LIBCRYPTO?=	${DESTDIR}${LIBDIR}/libcrypto.a
 LIBCURSES?=	${DESTDIR}${LIBDIR}/libcurses.a
-LIBDES?=	${DESTDIR}${LIBDIR}/libdes.a
 LIBDEVINFO?=	${DESTDIR}${LIBDIR}/libdevinfo.a
 LIBDEVSTAT?=	${DESTDIR}${LIBDIR}/libdevstat.a
 LIBDIALOG?=	${DESTDIR}${LIBDIR}/libdialog.a
@@ -94,13 +93,11 @@ MINUSLPAM+=	-lssh -lcrypto
 .endif
 
 LIBPANEL?=	${DESTDIR}${LIBDIR}/libpanel.a
-LIBPC?=		${DESTDIR}${LIBDIR}/libpc.a
+LIBPC?=		${DESTDIR}${LIBDIR}/libpc.a	# XXX doesn't exist
 LIBPCAP?=	${DESTDIR}${LIBDIR}/libpcap.a
-LIBPERL?=	${DESTDIR}${LIBDIR}/libperl.a
-LIBPLOT?=	${DESTDIR}${LIBDIR}/libplot.a
+LIBPLOT?=	${DESTDIR}${LIBDIR}/libplot.a	# XXX doesn't exist
 LIBRADIUS?=	${DESTDIR}${LIBDIR}/libradius.a
 LIBREADLINE?=	${DESTDIR}${LIBDIR}/libreadline.a
-LIBRESOLV?=	${DESTDIR}${LIBDIR}/libresolv.a
 LIBROKEN?=	${DESTDIR}${LIBDIR}/libroken.a
 LIBRPCSVC?=	${DESTDIR}${LIBDIR}/librpcsvc.a
 LIBSBUF?=	${DESTDIR}${LIBDIR}/libsbuf.a
