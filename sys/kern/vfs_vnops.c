@@ -340,9 +340,9 @@ sequential_heuristic(struct uio *uio, struct file *fp)
 		 * are.
 		 */
 		fp->f_seqcount += (uio->uio_resid + BKVASIZE - 1) / BKVASIZE;
-		if (fp->f_seqcount >= 127)
-			fp->f_seqcount = 127;
-		return(fp->f_seqcount << 16);
+		if (fp->f_seqcount > IO_SEQMAX)
+			fp->f_seqcount = IO_SEQMAX;
+		return(fp->f_seqcount << IO_SEQSHIFT);
 	}
 
 	/*
