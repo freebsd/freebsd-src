@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.18 1998/06/16 19:40:24 brian Exp $
+ *	$Id: bundle.c,v 1.19 1998/06/16 19:40:34 brian Exp $
  */
 
 #include <sys/param.h>
@@ -1449,17 +1449,18 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s, struct sockaddr_un *sun)
   }
 
   write(s, "!", 1);	/* ACK */
+  close(s);
 
-  if (cmsg->cmsg_type == SCM_RIGHTS) {
-    /* We've successfully received an open file descriptor through our socket */
-    log_Printf(LogDEBUG, "Receiving non-tty device\n");
-    link_fd = *(int *)CMSG_DATA(cmsg);
-  } else {
-    /* It's a ``controlling'' tty device via CATPROG */
-    log_Printf(LogDEBUG, "Receiving tty device\n");
-    link_fd = dup(s);
-    fcntl(link_fd, F_SETFL, fcntl(link_fd, F_GETFL, 0) | O_NONBLOCK);
+  if (cmsg->cmsg_type != SCM_RIGHTS) {
+    log_Printf(LogERROR, "Recvmsg: no descriptor received !\n");
+    while (niov--)
+      free(iov[niov].iov_base);
+    return;
   }
+
+  /* We've successfully received an open file descriptor through our socket */
+  log_Printf(LogDEBUG, "Receiving device descriptor\n");
+  link_fd = *(int *)CMSG_DATA(cmsg);
 
   if (strncmp(Version, iov[0].iov_base, iov[0].iov_len)) {
     log_Printf(LogWARN, "Cannot receive datalink, incorrect version"
@@ -1480,7 +1481,6 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s, struct sockaddr_un *sun)
     close(link_fd);
 
   free(iov[0].iov_base);
-  close(s);
 }
 
 void
