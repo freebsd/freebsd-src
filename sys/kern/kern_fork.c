@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.25 1996/08/22 03:50:18 julian Exp $
+ * $Id: kern_fork.c,v 1.26 1996/09/03 14:21:51 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -113,6 +113,7 @@ rfork(p, uap, retval)
 
 
 int	nprocs = 1;		/* process 0 */
+static int nextpid = 0;
 
 static int
 fork1(p1, flags, retval)
@@ -124,7 +125,7 @@ fork1(p1, flags, retval)
 	register uid_t uid;
 	struct proc *newproc;
 	int count;
-	static int nextpid, pidchecked = 0;
+	static int pidchecked = 0;
 	fle_p ep ;
 
 	ep = fork_list;
