@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.31 1996/05/22 17:23:09 wollman Exp $
+ *	$Id: raw_ip.c,v 1.32 1996/07/20 00:16:20 alex Exp $
  */
 
 #include <sys/param.h>
@@ -47,6 +47,7 @@
 #include <net/if.h>
 #include <net/route.h>
 
+#define _IP_VHL
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -177,8 +178,9 @@ rip_output(m, so, dst)
 		ip = mtod(m, struct ip *);
 		/* don't allow both user specified and setsockopt options,
 		   and don't allow packet length sizes that will crash */
-		if (((ip->ip_hl != (sizeof (*ip) >> 2)) && inp->inp_options) ||
-		     (ip->ip_len > m->m_pkthdr.len)) {
+		if (((IP_VHL_HL(ip->ip_vhl) != (sizeof (*ip) >> 2)) 
+		     && inp->inp_options)
+		    || (ip->ip_len > m->m_pkthdr.len)) {
 			m_freem(m);
 			return EINVAL;
 		}
