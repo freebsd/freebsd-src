@@ -509,6 +509,9 @@ ata_getparam(struct ata_device *atadev, u_int8_t command)
     bswap(ata_parm->revision, sizeof(ata_parm->revision));
     btrim(ata_parm->revision, sizeof(ata_parm->revision));
     bpack(ata_parm->revision, ata_parm->revision, sizeof(ata_parm->revision));
+    bswap(ata_parm->serial, sizeof(ata_parm->serial));
+    btrim(ata_parm->serial, sizeof(ata_parm->serial));
+    bpack(ata_parm->serial, ata_parm->serial, sizeof(ata_parm->serial));
     atadev->param = ata_parm;
     return 0;
 }
