@@ -150,7 +150,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <sect3>
       <title>Network Protocols</title>
 
-      <para></para>
+      <para>&man.bridge.4; now has better support for multiple,
+	fully-independent bridging clusters, and is much more stable in
+	the presence of dynamic attachments and detatchments.  Full
+	support for VLANs is also supported.</para>
     </sect3>
 
     <sect3>
@@ -191,6 +194,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
   <sect2 id="userland">
     <title>Userland Changes</title>
 
+    <para>&man.ldd.1; can now be used on shared libraries, in addition
+      to executables.</para>
+
     <para>&man.ngctl.8; now supports a <option>write</option> command
       to send a data packet down a given hook.</para>
 
@@ -201,7 +207,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <sect3>
       <title>Contributed Software</title>
 
-      <para></para>
+      <para><application>BIND</application> has been updated to
+	8.3.1-REL.</para>
+
+      <para><application>bzip2</application> has been updated to
+	1.0.2.</para>
     </sect3>
 
     <sect3>
