@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
- * $Id: ffs_vnops.c,v 1.42 1998/02/06 12:14:16 eivind Exp $
+ * $Id: ffs_vnops.c,v 1.43 1998/02/26 06:39:38 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -74,6 +74,7 @@ static struct vnodeopv_entry_desc ffs_vnodeop_entries[] = {
 	{ &vop_getpages_desc,		(vop_t *) ffs_getpages },
 	{ &vop_putpages_desc,		(vop_t *) ffs_putpages },
 	{ &vop_read_desc,		(vop_t *) ffs_read },
+	{ &vop_balloc_desc,		(vop_t *) ffs_balloc },
 	{ &vop_reallocblks_desc,	(vop_t *) ffs_reallocblks },
 	{ &vop_write_desc,		(vop_t *) ffs_write },
 	{ NULL, NULL }
@@ -120,12 +121,11 @@ ffs_fsync(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-	register struct vnode *vp = ap->a_vp;
-	register struct buf *bp;
+	struct vnode *vp = ap->a_vp;
+	struct buf *bp;
 	struct timeval tv;
 	struct buf *nbp;
-	int pass;
-	int s;
+	int s, error, passes, skipmeta;
 	daddr_t lbn;
 
 
@@ -137,31 +137,45 @@ ffs_fsync(ap)
 		lbn = lblkno(ip->i_fs, (ip->i_size + ip->i_fs->fs_bsize - 1));
 	}
 
-	pass = 0;
 	/*
 	 * Flush all dirty buffers associated with a vnode.
 	 */
+	passes = NIADDR;
+	skipmeta = 0;
+	if (ap->a_waitfor == MNT_WAIT)
+		skipmeta = 1;
 loop:
 	s = splbio();
+loop2:
 	for (bp = vp->v_dirtyblkhd.lh_first; bp; bp = nbp) {
 		nbp = bp->b_vnbufs.le_next;
-		if ((bp->b_flags & B_BUSY) || (pass == 0 && (bp->b_lblkno < 0)))
+		/* 
+		 * First time through on a synchronous call,
+		 * or if it's already scheduled, skip to the next 
+		 * buffer
+		 */
+		if ((bp->b_flags & B_BUSY) ||
+		    ((skipmeta == 1) && (bp->b_lblkno < 0)))
 			continue;
 		if ((bp->b_flags & B_DELWRI) == 0)
 			panic("ffs_fsync: not dirty");
-
-		if (((bp->b_vp != vp) || (ap->a_waitfor != MNT_NOWAIT)) ||
-			((vp->v_type != VREG) && (vp->v_type != VBLK))) {
-
+		/*
+		 * If data is outstanding to another vnode, or we were
+		 * asked to wait for everything, or it's not a file or BDEV,
+		 * start the IO on this buffer immediatly.
+		 */
+		if (((bp->b_vp != vp) || (ap->a_waitfor == MNT_WAIT)) ||
+		    ((vp->v_type != VREG) && (vp->v_type != VBLK))) {
 			bremfree(bp);
 			bp->b_flags |= B_BUSY;
 			splx(s);
 
 			/*
-			 * Wait for I/O associated with indirect blocks to complete,
-			 * since there is no way to quickly wait for them below.
+			 * Wait for I/O associated with indirect blocks to
+			 * complete, since there is no way to quickly wait
+			 * for them below.
 			 */
-			if ((bp->b_vp == vp) && (ap->a_waitfor == MNT_NOWAIT)) {
+			if ((bp->b_vp == vp) || (ap->a_waitfor != MNT_WAIT)) {
 				if (bp->b_flags & B_CLUSTEROK) {
 					bdwrite(bp);
 					(void) vfs_bio_awrite(bp);
@@ -171,26 +185,30 @@ loop:
 			} else {
 				(void) bwrite(bp);
 			}
-
 		} else if ((vp->v_type == VREG) && (bp->b_lblkno >= lbn)) {
-
+			/* 
+			 * If the buffer is for data that has been truncated
+			 * off the file, then throw it away.
+			 */
 			bremfree(bp);
 			bp->b_flags |= B_BUSY | B_INVAL | B_NOCACHE;
 			brelse(bp);
 			splx(s);
-
 		} else {
 			vfs_bio_awrite(bp);
 			splx(s);
 		}
 		goto loop;
 	}
-	splx(s);
-
-	if (pass == 0) {
-		pass = 1;
-		goto loop;
+	/*
+	 * If we were asked to do this synchronously, then go back for
+	 * another pass, this time doing the metadata.
+	 */
+	if (skipmeta) {
+		skipmeta = 0;
+		goto loop2; /* stay within the splbio() */
 	}
+	splx(s);
 
 	if (ap->a_waitfor == MNT_WAIT) {
 		s = splbio();
@@ -198,15 +216,38 @@ loop:
 			vp->v_flag |= VBWAIT;
 			(void) tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 1, "ffsfsn", 0);
 		}
+		/* 
+		 * Ensure that any filesystem metatdata associated
+		 * with the vnode has been written.
+		 */
 		splx(s);
-#ifdef DIAGNOSTIC
+		if ((error = softdep_sync_metadata(ap)) != 0)
+			return (error);
+		s = splbio();
 		if (vp->v_dirtyblkhd.lh_first) {
-			vprint("ffs_fsync: dirty", vp);
-			goto loop;
-		}
+			/*
+			 * Block devices associated with filesystems may
+			 * have new I/O requests posted for them even if
+			 * the vnode is locked, so no amount of trying will
+			 * get them clean. Thus we give block devices a
+			 * good effort, then just give up. For all other file
+			 * types, go around and try again until it is clean.
+			 */
+			if (passes > 0) {
+				passes -= 1;
+				goto loop2;
+			}
+#ifdef DIAGNOSTIC
+			if (vp->v_type != VBLK)
+				vprint("ffs_fsync: dirty", vp);
 #endif
+		}
 	}
-
 	gettime(&tv);
-	return (UFS_UPDATE(ap->a_vp, &tv, &tv, ap->a_waitfor == MNT_WAIT));
+	error = UFS_UPDATE(ap->a_vp, &tv, &tv, (ap->a_waitfor == MNT_WAIT));
+	if (error)
+		return (error);
+	if (DOINGSOFTDEP(vp) && ap->a_waitfor == MNT_WAIT)
+		error = softdep_fsync(vp);
+	return (error);
 }

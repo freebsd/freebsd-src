@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.45 1998/01/22 17:30:10 dyson Exp $
+ * $Id: buf.h,v 1.46 1998/03/07 21:36:20 dyson Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -47,6 +47,24 @@
 #define NOLIST ((struct buf *)0x87654321)
 
 struct buf;
+struct mount;
+
+/*
+ * To avoid including <ufs/ffs/softdep.h> 
+ */   
+LIST_HEAD(workhead, worklist);
+/*
+ * These are currently used only by the soft dependency code, hence
+ * are stored once in a global variable. If other subsystems wanted
+ * to use these hooks, a pointer to a set of bio_ops could be added
+ * to each buffer.
+ */
+extern struct bio_ops {
+	void	(*io_start) __P((struct buf *));
+	void	(*io_complete) __P((struct buf *));
+	void	(*io_deallocate) __P((struct buf *));
+	int	(*io_sync) __P((struct mount *));
+} bioops;
 
 struct iodone_chain {
 	long	ic_prev_flags;
@@ -104,6 +122,7 @@ struct buf {
 	} b_cluster;
 	struct	vm_page *b_pages[btoc(MAXPHYS)];
 	int		b_npages;
+	struct	workhead b_dep;		/* List of filesystem dependencies. */
 };
 
 /*
@@ -264,6 +283,7 @@ int	breadn __P((struct vnode *, daddr_t, int, daddr_t *, int *, int,
 int	bwrite __P((struct buf *));
 void	bdwrite __P((struct buf *));
 void	bawrite __P((struct buf *));
+void	bdirty __P((struct buf *));
 int	bowrite __P((struct buf *));
 void	brelse __P((struct buf *));
 void	bqrelse __P((struct buf *));

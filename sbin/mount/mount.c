@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mount.c	8.25 (Berkeley) 5/8/95";
 #else
 static const char rcsid[] =
-	"$Id: mount.c,v 1.21 1997/11/13 00:28:49 julian Exp $";
+	"$Id: mount.c,v 1.22 1998/02/13 04:54:27 bde Exp $";
 #endif
 #endif /* not lint */
 
@@ -98,6 +98,7 @@ static struct opt {
 	{ MNT_NOCLUSTERR,	"noclusterr" },
 	{ MNT_NOCLUSTERW,	"noclusterw" },
 	{ MNT_SUIDDIR,		"suiddir" },
+	{ MNT_SOFTDEP,		"soft-updates" },
 	{ NULL }
 };
 
@@ -495,7 +496,8 @@ prmount(sfp)
 		else
 			(void)printf("%d", sfp->f_owner);
 	}
-	(void)printf(f ? ")\n" : "\n");
+	(void)printf("%swrites: sync %d async %d)\n", !f++ ? " (" : ", ",
+	    sfp->f_syncwrites, sfp->f_asyncwrites);
 }
 
 struct statfs *
@@ -602,6 +604,8 @@ putfsent(ent)
 		printf(",noclusterr");
 	if (ent->f_flags & MNT_NOCLUSTERW)
 		printf(",noclusterw");
+	if (ent->f_flags & MNT_SUIDDIR)
+		printf(",suiddir");
 
 	if ((fst = getfsspec(ent->f_mntfromname)))
 		printf("\t%u %u\n", fst->fs_freq, fst->fs_passno);

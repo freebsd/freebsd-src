@@ -559,6 +559,8 @@ allocino(request, type)
 {
 	register ino_t ino;
 	register struct dinode *dp;
+	struct cg *cgp = &cgrp;
+	int cg;
 
 	if (request == 0)
 		request = ROOTINO;
@@ -569,9 +571,16 @@ allocino(request, type)
 			break;
 	if (ino == maxino)
 		return (0);
+	cg = ino_to_cg(&sblock, ino);
+	getblk(&cgblk, cgtod(&sblock, cg), sblock.fs_cgsize);
+	if (!cg_chkmagic(cgp))
+		pfatal("CG %d: BAD MAGIC NUMBER\n", cg);
+	setbit(cg_inosused(cgp), ino % sblock.fs_ipg);
+	cgp->cg_cs.cs_nifree--;
 	switch (type & IFMT) {
 	case IFDIR:
 		statemap[ino] = DSTATE;
+		cgp->cg_cs.cs_ndir++;
 		break;
 	case IFREG:
 	case IFLNK:
@@ -580,12 +589,14 @@ allocino(request, type)
 	default:
 		return (0);
 	}
+	cgdirty();
 	dp = ginode(ino);
 	dp->di_db[0] = allocblk((long)1);
 	if (dp->di_db[0] == 0) {
 		statemap[ino] = USTATE;
 		return (0);
 	}
+	dp->di_flags = 0;
 	dp->di_mode = type;
 	dp->di_atime = time(NULL);
 	dp->di_mtime = dp->di_ctime = dp->di_atime;

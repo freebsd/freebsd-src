@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $Id: ufs_readwrite.c,v 1.43 1998/02/26 06:39:50 msmith Exp $
+ * $Id: ufs_readwrite.c,v 1.44 1998/03/07 21:36:42 dyson Exp $
  */
 
 #define	BLKSIZE(a, b, c)	blksize(a, b, c)
@@ -338,10 +338,10 @@ WRITE(ap)
 			flags |= B_CLRBUF;
 		else
 			flags &= ~B_CLRBUF;
-
-		error = ffs_balloc(ip,
-		    lbn, blkoffset + xfersize, ap->a_cred, &bp, flags);
-		if (error)
+/* XXX is uio->uio_offset the right thing here? */
+		error = VOP_BALLOC(vp, uio->uio_offset, xfersize,
+		    ap->a_cred, flags, &bp);
+		if (error != 0)
 			break;
 
 		if (uio->uio_offset + xfersize > ip->i_size) {

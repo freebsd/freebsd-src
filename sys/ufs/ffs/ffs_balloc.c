@@ -31,13 +31,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_balloc.c	8.8 (Berkeley) 6/16/95
- * $Id: ffs_balloc.c,v 1.18 1998/02/04 22:33:31 eivind Exp $
+ * $Id: ffs_balloc.c,v 1.19 1998/02/06 12:14:14 eivind Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/lock.h>
+#include <sys/mount.h>
 #include <sys/vnode.h>
 
 #include <ufs/ufs/quota.h>
@@ -53,16 +54,23 @@
  * the inode and the logical block number in a file.
  */
 int
-ffs_balloc(ip, lbn, size, cred, bpp, flags)
+ffs_balloc(ap)
+	struct vop_balloc_args /* {
+		struct inode *a_ip;
+		ufs_daddr_t a_lbn;
+		int a_size;
+		struct ucred *a_cred;
+		int a_flags;
+		struct buf *a_bpp;
+	} */ *ap;
+{
 	register struct inode *ip;
 	register ufs_daddr_t lbn;
 	int size;
 	struct ucred *cred;
-	struct buf **bpp;
 	int flags;
-{
-	register struct fs *fs;
-	register ufs_daddr_t nb;
+	struct fs *fs;
+	ufs_daddr_t nb;
 	struct buf *bp, *nbp;
 	struct vnode *vp = ITOV(ip);
 	struct indir indirs[NIADDR + 2];
@@ -70,10 +78,18 @@ ffs_balloc(ip, lbn, size, cred, bpp, flags)
 	int deallocated, osize, nsize, num, i, error;
 	ufs_daddr_t *allocib, *blkp, *allocblk, allociblk[NIADDR + 1];
 
-	*bpp = NULL;
+	vp = ap->a_vp;
+	ip = VTOI(vp);
+	fs = ip->i_fs;
+	lbn = lblkno(fs, ap->a_startoffset);
+	size = blkoff(fs, ap->a_startoffset) + ap->a_size;
+	if (size > fs->fs_bsize)
+		panic("ffs_balloc: blk too big");
+	*ap->a_bpp = NULL;
 	if (lbn < 0)
 		return (EFBIG);
-	fs = ip->i_fs;
+	cred = ap->a_cred;
+	flags = ap->a_flags;
 
 	/*
 	 * If the next write will extend the file into a new block,
@@ -89,6 +105,10 @@ ffs_balloc(ip, lbn, size, cred, bpp, flags)
 				osize, (int)fs->fs_bsize, cred, &bp);
 			if (error)
 				return (error);
+			if (DOINGSOFTDEP(vp))
+				softdep_setup_allocdirect(ip, nb,
+				    dbtofsb(fs, bp->b_blkno), ip->i_db[nb],
+				    fs->fs_bsize, osize, bp);
 			ip->i_size = smalllblktosize(fs, nb + 1);
 			ip->i_db[nb] = dbtofsb(fs, bp->b_blkno);
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
@@ -110,7 +130,7 @@ ffs_balloc(ip, lbn, size, cred, bpp, flags)
 				return (error);
 			}
 			bp->b_blkno = fsbtodb(fs, nb);
-			*bpp = bp;
+			*ap->a_bpp = bp;
 			return (0);
 		}
 		if (nb != 0) {
@@ -132,6 +152,10 @@ ffs_balloc(ip, lbn, size, cred, bpp, flags)
 					&ip->i_db[0]), osize, nsize, cred, &bp);
 				if (error)
 					return (error);
+				if (DOINGSOFTDEP(vp))
+					softdep_setup_allocdirect(ip, lbn,
+					    dbtofsb(fs, bp->b_blkno), nb,
+					    nsize, osize, bp);
 			}
 		} else {
 			if (ip->i_size < smalllblktosize(fs, lbn + 1))
@@ -147,10 +171,13 @@ ffs_balloc(ip, lbn, size, cred, bpp, flags)
 			bp->b_blkno = fsbtodb(fs, newb);
 			if (flags & B_CLRBUF)
 				vfs_bio_clrbuf(bp);
+			if (DOINGSOFTDEP(vp))
+				softdep_setup_allocdirect(ip, lbn, newb, 0,
+				    nsize, 0, bp);
 		}
 		ip->i_db[lbn] = dbtofsb(fs, bp->b_blkno);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
-		*bpp = bp;
+		*ap->a_bpp = bp;
 		return (0);
 	}
 	/*
@@ -180,12 +207,18 @@ ffs_balloc(ip, lbn, size, cred, bpp, flags)
 		bp = getblk(vp, indirs[1].in_lbn, fs->fs_bsize, 0, 0);
 		bp->b_blkno = fsbtodb(fs, nb);
 		vfs_bio_clrbuf(bp);
-		/*
-		 * Write synchronously so that indirect blocks
-		 * never point at garbage.
-		 */
-		if (error = bwrite(bp))
-			goto fail;
+		if (DOINGSOFTDEP(vp)) {
+			softdep_setup_allocdirect(ip, NDADDR + indirs[0].in_off,
+			    newb, 0, fs->fs_bsize, 0, bp);
+			bdwrite(bp);
+		} else {
+			/*
+			 * Write synchronously so that indirect blocks
+			 * never point at garbage.
+			 */
+			if (error = bwrite(bp))
+				goto fail;
+		}
 		allocib = &ip->i_ib[indirs[0].in_off];
 		*allocib = nb;
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
@@ -221,13 +254,19 @@ ffs_balloc(ip, lbn, size, cred, bpp, flags)
 		nbp = getblk(vp, indirs[i].in_lbn, fs->fs_bsize, 0, 0);
 		nbp->b_blkno = fsbtodb(fs, nb);
 		vfs_bio_clrbuf(nbp);
-		/*
-		 * Write synchronously so that indirect blocks
-		 * never point at garbage.
-		 */
-		if (error = bwrite(nbp)) {
-			brelse(bp);
-			goto fail;
+		if (DOINGSOFTDEP(vp)) {
+			softdep_setup_allocindir_meta(nbp, ip, bp,
+			    indirs[i - 1].in_off, nb);
+			bdwrite(nbp);
+		} else {
+			/*
+			 * Write synchronously so that indirect blocks
+			 * never point at garbage.
+			 */
+			if (error = bwrite(nbp)) {
+				brelse(bp);
+				goto fail;
+			}
 		}
 		bap[indirs[i - 1].in_off] = nb;
 		/*
@@ -259,6 +298,9 @@ ffs_balloc(ip, lbn, size, cred, bpp, flags)
 		nbp->b_blkno = fsbtodb(fs, nb);
 		if (flags & B_CLRBUF)
 			vfs_bio_clrbuf(nbp);
+		if (DOINGSOFTDEP(vp))
+			softdep_setup_allocindir_page(ip, lbn, bp,
+			    indirs[i].in_off, nb, 0, nbp);
 		bap[indirs[i].in_off] = nb;
 		/*
 		 * If required, write synchronously, otherwise use
@@ -271,7 +313,7 @@ ffs_balloc(ip, lbn, size, cred, bpp, flags)
 				bp->b_flags |= B_CLUSTEROK;
 			bdwrite(bp);
 		}
-		*bpp = nbp;
+		*ap->a_bpp = nbp;
 		return (0);
 	}
 	brelse(bp);
@@ -285,7 +327,7 @@ ffs_balloc(ip, lbn, size, cred, bpp, flags)
 		nbp = getblk(vp, lbn, fs->fs_bsize, 0, 0);
 		nbp->b_blkno = fsbtodb(fs, nb);
 	}
-	*bpp = nbp;
+	*ap->a_bpp = nbp;
 	return (0);
 fail:
 	/*

@@ -1,5 +1,7 @@
+#undef __FreeBSD__
+#define __FreeBSD__ 3
 /*	$NetBSD: if_de.c,v 1.56 1997/10/20 14:32:46 matt Exp $	*/
-/*	$Id: if_de.c,v 1.79 1998/02/06 12:14:08 eivind Exp $ */
+/*	$Id: if_de.c,v 1.80 1998/02/20 13:11:50 bde Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)

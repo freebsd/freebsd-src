@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.21 (Berkeley) 5/20/95
- *	$Id: mount.h,v 1.56 1998/02/22 01:17:51 jkh Exp $
+ *	$Id: mount.h,v 1.57 1998/03/01 22:46:36 msmith Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -79,7 +79,8 @@ struct statfs {
 	uid_t	f_owner;		/* user that mounted the filesystem */
 	int	f_type;			/* type of filesystem (see below) */
 	int	f_flags;		/* copy of mount exported flags */
-	long	f_spare[2];		/* spare for later */
+	long    f_syncwrites;		/* count of sync writes since mount */
+	long    f_asyncwrites;		/* count of async writes since mount */
 	char	f_fstypename[MFSNAMELEN]; /* fs type name */
 	char	f_mntonname[MNAMELEN];	/* directory on which mounted */
 	char	f_mntfromname[MNAMELEN];/* mounted filesystem */
@@ -146,6 +147,7 @@ struct mount {
 	struct vfsops	*mnt_op;		/* operations on fs */
 	struct vfsconf	*mnt_vfc;		/* configuration info */
 	struct vnode	*mnt_vnodecovered;	/* vnode we mounted on */
+	struct vnode	*mnt_syncer;		/* syncer vnode */
 	struct vnodelst	mnt_vnodelist;		/* list of vnodes this mount */
 	struct lock	mnt_lock;		/* mount structure lock */
 	int		mnt_flag;		/* flags shared with user */
@@ -167,6 +169,7 @@ struct mount {
 #define	MNT_UNION	0x00000020	/* union with underlying filesystem */
 #define	MNT_ASYNC	0x00000040	/* file system written asynchronously */
 #define	MNT_SUIDDIR	0x00100000	/* special handling of SUID on dirs */
+#define	MNT_SOFTDEP	0x00200000	/* soft updates being done */
 #define	MNT_NOATIME	0x10000000	/* disable update of file access time */
 #define	MNT_NOCLUSTERR	0x40000000	/* disable cluster read */
 #define	MNT_NOCLUSTERW	0x80000000	/* disable cluster write */
@@ -203,7 +206,8 @@ struct mount {
 			MNT_DEFEXPORTED	| MNT_EXPORTANON| MNT_EXKERB	| \
 			MNT_LOCAL	| MNT_USER	| MNT_QUOTA	| \
 			MNT_ROOTFS	| MNT_NOATIME	| MNT_NOCLUSTERR| \
-			MNT_NOCLUSTERW	| MNT_SUIDDIR/*	| MNT_EXPUBLIC */)
+			MNT_NOCLUSTERW	| MNT_SUIDDIR	| MNT_SOFTDEP	 \
+			/*	| MNT_EXPUBLIC */)
 /*
  * External filesystem command modifier flags.
  * Unmount can use the MNT_FORCE flag.
@@ -248,8 +252,8 @@ struct mount {
  *
  * waitfor flags to vfs_sync() and getfsstat()
  */
-#define MNT_WAIT	1
-#define MNT_NOWAIT	2
+#define MNT_WAIT	1	/* synchronously wait for I/O to complete */
+#define MNT_NOWAIT	2	/* start all I/O, but do not wait for it */
 #define MNT_LAZY	3	/* push data not written by filesystem syncer */
 
 /*
@@ -448,6 +452,7 @@ int	vfs_export			    /* process mount export info */
 int	vfs_vrele __P((struct mount *, struct vnode *));
 struct	netcred *vfs_export_lookup	    /* lookup host in fs export list */
 	  __P((struct mount *, struct netexport *, struct sockaddr *));
+int	vfs_allocate_syncvnode __P((struct mount *));
 void	vfs_getnewfsid __P((struct mount *));
 struct	mount *vfs_getvfs __P((fsid_t *));      /* return vfs given fsid */
 int	vfs_mountedon __P((struct vnode *));    /* is a vfs mounted on vp */

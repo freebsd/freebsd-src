@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.58 1998/03/07 21:35:52 dyson Exp $
+ * $Id: spec_vnops.c,v 1.59 1998/03/08 08:46:18 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -548,8 +548,12 @@ spec_strategy(ap)
 		struct buf *a_bp;
 	} */ *ap;
 {
+	struct buf *bp;
 
-	(*bdevsw[major(ap->a_bp->b_dev)]->d_strategy)(ap->a_bp);
+	bp = ap->a_bp;
+	if ((LIST_FIRST(&bp->b_dep)) != NULL && bioops.io_start)
+		(*bioops.io_start)(bp);
+	(*bdevsw[major(bp->b_dev)]->d_strategy)(bp);
 	return (0);
 }
 
@@ -633,7 +637,9 @@ spec_close(ap)
 		 * we must invalidate any in core blocks, so that
 		 * we can, for instance, change floppy disks.
 		 */
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, ap->a_p);
 		error = vinvalbuf(vp, V_SAVE, ap->a_cred, ap->a_p, 0, 0);
+		VOP_UNLOCK(vp, 0, ap->a_p);
 		if (error)
 			return (error);
 

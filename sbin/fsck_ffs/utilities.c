@@ -87,6 +87,7 @@ reply(question)
 	printf("\n");
 	if (!persevere && (nflag || fswritefd < 0)) {
 		printf("%s? no\n\n", question);
+		resolved = 0;
 		return (0);
 	}
 	if (yflag || (persevere && nflag)) {
@@ -97,13 +98,17 @@ reply(question)
 		printf("%s? [yn] ", question);
 		(void) fflush(stdout);
 		c = getc(stdin);
-		while (c != '\n' && getc(stdin) != '\n')
-			if (feof(stdin))
+		while (c != '\n' && getc(stdin) != '\n') {
+			if (feof(stdin)) {
+				resolved = 0;
 				return (0);
+			}
+		}
 	} while (c != 'y' && c != 'Y' && c != 'n' && c != 'N');
 	printf("\n");
 	if (c == 'y' || c == 'Y')
 		return (1);
+	resolved = 0;
 	return (0);
 }
 
@@ -360,7 +365,8 @@ ufs_daddr_t
 allocblk(frags)
 	long frags;
 {
-	register int i, j, k;
+	int i, j, k, cg, baseblk;
+	struct cg *cgp = &cgrp;
 
 	if (frags <= 0 || frags > sblock.fs_frag)
 		return (0);
@@ -375,9 +381,21 @@ allocblk(frags)
 				j += k;
 				continue;
 			}
-			for (k = 0; k < frags; k++)
+			cg = dtog(&sblock, i + j);
+			getblk(&cgblk, cgtod(&sblock, cg), sblock.fs_cgsize);
+			if (!cg_chkmagic(cgp))
+				pfatal("CG %d: BAD MAGIC NUMBER\n", cg);
+			baseblk = dtogd(&sblock, i + j);
+			for (k = 0; k < frags; k++) {
 				setbmap(i + j + k);
+				clrbit(cg_blksfree(cgp), baseblk + k);
+			}
 			n_blks += frags;
+			if (frags == sblock.fs_frag)
+				cgp->cg_cs.cs_nbfree--;
+			else
+				cgp->cg_cs.cs_nffree -= frags;
+			cgdirty();
 			return (i + j);
 		}
 	}
@@ -545,7 +563,8 @@ dofix(idesc, msg)
 
 /*
  * An unexpected inconsistency occured.
- * Die if preening, otherwise just print message and continue.
+ * Die if preening or filesystem is running with soft dependency protocol,
+ * otherwise just print message and continue.
  */
 void
 #if __STDC__
@@ -565,19 +584,23 @@ pfatal(fmt, va_alist)
 	if (!preen) {
 		(void)vfprintf(stderr, fmt, ap);
 		va_end(ap);
+		if (usedsoftdep)
+			(void)fprintf(stderr,
+			    "\nUNEXPECTED SOFTDEP INCONSISTENCY\n");
 		return;
 	}
 	(void)fprintf(stderr, "%s: ", cdevname);
 	(void)vfprintf(stderr, fmt, ap);
 	(void)fprintf(stderr,
-	    "\n%s: UNEXPECTED INCONSISTENCY; RUN fsck MANUALLY.\n",
-	    cdevname);
+	    "\n%s: UNEXPECTED%sINCONSISTENCY; RUN fsck MANUALLY.\n",
+	    cdevname, usedsoftdep ? " SOFTDEP " : " ");
+	ckfini(0);
 	exit(EEXIT);
 }
 
 /*
- * Pwarn just prints a message when not preening,
- * or a warning (preceded by filename) when preening.
+ * Pwarn just prints a message when not preening or running soft dependency
+ * protocol, or a warning (preceded by filename) when preening.
  */
 void
 #if __STDC__
