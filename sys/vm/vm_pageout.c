@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.106 1998/01/06 05:26:11 dyson Exp $
+ * $Id: vm_pageout.c,v 1.107 1998/01/12 01:44:44 dyson Exp $
  */
 
 /*
@@ -594,19 +594,24 @@ vm_pageout_map_deactivate_pages(map, desired)
 
 void
 vm_pageout_page_free(vm_page_t m) {
-	vm_object_t objref = NULL;
+	struct vnode *vp;
+	vm_object_t object;
 
-	m->flags |= PG_BUSY;
-	if (m->object->type == OBJT_VNODE) {
-		objref = m->object;
-		vm_object_reference(objref);
+	object = m->object;
+	vp = NULL;
+
+	object->ref_count++;
+	if (object->type == OBJT_VNODE) {
+		vp = object->handle;
+		vp->v_usecount++;
+		if (VSHOULDBUSY(vp))
+			vbusy(vp);
 	}
+	m->flags |= PG_BUSY;
 	vm_page_protect(m, VM_PROT_NONE);
 	PAGE_WAKEUP(m);
 	vm_page_free(m);
-	if (objref) {
-		vm_object_vndeallocate(objref);
-	}
+	vm_object_deallocate(object);
 }
 
 /*
@@ -776,10 +781,10 @@ rescan0:
 				continue;
 			}
 
-			if (object->type == OBJT_VNODE) {
+			if (object->type == OBJT_VNODE && (object->flags & OBJ_DEAD) == 0) {
 				vp = object->handle;
 				if (VOP_ISLOCKED(vp) ||
-				    vget(vp, LK_EXCLUSIVE, curproc)) {
+				    vget(vp, LK_EXCLUSIVE|LK_NOOBJ, curproc)) {
 					if ((m->queue == PQ_INACTIVE) &&
 						(m->hold_count == 0) &&
 						(m->busy == 0) &&

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.175 1997/12/22 00:36:48 dyson Exp $
+ *	$Id: pmap.c,v 1.176 1997/12/22 10:06:09 dyson Exp $
  */
 
 /*
@@ -114,8 +114,6 @@
 #else
 #define PMAP_INLINE
 #endif
-
-#define PTPHINT
 
 /*
  * Get PDEs and PTEs for user/kernel address space
@@ -1051,10 +1049,8 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m) {
 			invltlb_1pg(pteva);
 		}
 
-#if defined(PTPHINT)
 		if (pmap->pm_ptphint == m)
 			pmap->pm_ptphint = NULL;
-#endif
 
 		/*
 		 * If the page is finally unwired, simply free it.
@@ -1100,7 +1096,6 @@ pmap_unuse_pt(pmap, va, mpte)
 
 	if (mpte == NULL) {
 		ptepindex = (va >> PDRSHIFT);
-#if defined(PTPHINT)
 		if (pmap->pm_ptphint &&
 			(pmap->pm_ptphint->pindex == ptepindex)) {
 			mpte = pmap->pm_ptphint;
@@ -1108,9 +1103,6 @@ pmap_unuse_pt(pmap, va, mpte)
 			mpte = pmap_page_lookup( pmap->pm_pteobj, ptepindex);
 			pmap->pm_ptphint = mpte;
 		}
-#else
-		mpte = pmap_page_lookup( pmap->pm_pteobj, ptepindex);
-#endif
 	}
 
 	return pmap_unwire_pte_hold(pmap, mpte);
@@ -1244,11 +1236,9 @@ pmap_release_free_page(pmap, p)
 		pmap_kremove((vm_offset_t) pmap->pm_pdir);
 	}
 
-#if defined(PTPHINT)
 	if (pmap->pm_ptphint &&
 		(pmap->pm_ptphint->pindex == p->pindex))
 		pmap->pm_ptphint = NULL;
-#endif
 
 	vm_page_free_zero(p);
 	splx(s);
@@ -1315,12 +1305,10 @@ retry:
 	ptepa = VM_PAGE_TO_PHYS(m);
 	pmap->pm_pdir[ptepindex] = (pd_entry_t) (ptepa | PG_U | PG_RW | PG_V);
 
-#if defined(PTPHINT)
 	/*
 	 * Set the page table hint
 	 */
 	pmap->pm_ptphint = m;
-#endif
 
 	/*
 	 * Try to use the new mapping, but if we cannot, then
@@ -1376,7 +1364,6 @@ pmap_allocpte(pmap, va)
 	 * hold count, and activate it.
 	 */
 	if (ptepa) {
-#if defined(PTPHINT)
 		/*
 		 * In order to get the page table page, try the
 		 * hint first.
@@ -1388,9 +1375,6 @@ pmap_allocpte(pmap, va)
 			m = pmap_page_lookup( pmap->pm_pteobj, ptepindex);
 			pmap->pm_ptphint = m;
 		}
-#else
-		m = pmap_page_lookup( pmap->pm_pteobj, ptepindex);
-#endif
 		++m->hold_count;
 		return m;
 	}
@@ -2252,7 +2236,6 @@ retry:
 			if (ptepa) {
 				if (ptepa & PG_PS)
 					panic("pmap_enter_quick: unexpected mapping into 4MB page");
-#if defined(PTPHINT)
 				if (pmap->pm_ptphint &&
 					(pmap->pm_ptphint->pindex == ptepindex)) {
 					mpte = pmap->pm_ptphint;
@@ -2260,9 +2243,6 @@ retry:
 					mpte = pmap_page_lookup( pmap->pm_pteobj, ptepindex);
 					pmap->pm_ptphint = mpte;
 				}
-#else
-				mpte = pmap_page_lookup( pmap->pm_pteobj, ptepindex);
-#endif
 				if (mpte == NULL)
 					goto retry;
 				++mpte->hold_count;
@@ -2469,12 +2449,14 @@ retry:
  * of pmap_object_init_pt, except it runs at page fault time instead
  * of mmap time.
  */
-#define PFBAK 2
-#define PFFOR 2
+#define PFBAK 3
+#define PFFOR 3
 #define PAGEORDER_SIZE (PFBAK+PFFOR)
 
 static int pmap_prefault_pageorder[] = {
-	-PAGE_SIZE, PAGE_SIZE, -2 * PAGE_SIZE, 2 * PAGE_SIZE
+	-PAGE_SIZE, PAGE_SIZE,
+	-2 * PAGE_SIZE, 2 * PAGE_SIZE,
+	-3 * PAGE_SIZE, 3 * PAGE_SIZE
 };
 
 void

@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.141 1998/01/06 05:15:55 dyson Exp $
+ * $Id: vfs_bio.c,v 1.142 1998/01/12 01:46:25 dyson Exp $
  */
 
 /*
@@ -793,11 +793,6 @@ vfs_vmio_release(bp)
 					vp = bp->b_vp;
 					vm_page_protect(m, VM_PROT_NONE);
 					vm_page_free(m);
-					if (vp && VSHOULDFREE(vp) &&
-						(vp->v_flag & (VFREE|VTBFREE)) == 0) {
-						TAILQ_INSERT_TAIL(&vnode_tobefree_list, vp, v_freelist);
-						vp->v_flag |= VTBFREE;
-					}
 				}
 			} else {
 				/*
@@ -892,7 +887,9 @@ vfs_bio_awrite(struct buf * bp)
 			splx(s);
 			return nwritten;
 		}
-	} else if ((vp->v_flag & VOBJBUF) && (vp->v_type == VBLK) &&
+	}
+#if 0
+   	else if ((vp->v_flag & VOBJBUF) && (vp->v_type == VBLK) &&
 		((size = bp->b_bufsize) >= PAGE_SIZE)) {
 		maxcl = MAXPHYS / size;
 		for (i = 1; i < maxcl; i++) {
@@ -913,11 +910,11 @@ vfs_bio_awrite(struct buf * bp)
 		 */
 		if (ncl != 1) {
 			nwritten = cluster_wbuild(vp, size, lblkno, ncl);
-			printf("Block cluster: (%d, %d)\n", lblkno, nwritten);
 			splx(s);
 			return nwritten;
 		}
 	}
+#endif
 
 	bremfree(bp);
 	splx(s);
@@ -1086,6 +1083,7 @@ trytofreespace:
 		brelvp(bp);
 
 fillbuf:
+
 	/* we are not free, nor do we contain interesting data */
 	if (bp->b_rcred != NOCRED) {
 		crfree(bp->b_rcred);
@@ -1112,7 +1110,7 @@ fillbuf:
 	bp->b_npages = 0;
 	bp->b_dirtyoff = bp->b_dirtyend = 0;
 	bp->b_validoff = bp->b_validend = 0;
-	bp->b_usecount = 4;
+	bp->b_usecount = 5;
 
 	maxsize = (maxsize + PAGE_MASK) & ~PAGE_MASK;
 

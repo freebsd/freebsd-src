@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.84 1997/12/29 00:24:58 dyson Exp $
+ *	$Id: vm_page.c,v 1.85 1998/01/12 01:44:41 dyson Exp $
  */
 
 /*
@@ -894,18 +894,21 @@ vm_page_alloc(object, pindex, page_req)
 			(cnt.v_free_count < cnt.v_pageout_free_min))
 		pagedaemon_wakeup();
 
-	if (((page_req == VM_ALLOC_NORMAL) || (page_req == VM_ALLOC_ZERO)) &&
-		oldobject &&
-		((oldobject->type == OBJT_VNODE) &&
-		 (oldobject->ref_count == 0) &&
-		 (oldobject->resident_page_count == 0))) {
+	s = splvm();
+	if ((qtype == PQ_CACHE) &&
+		((page_req == VM_ALLOC_NORMAL) || (page_req == VM_ALLOC_ZERO)) &&
+		oldobject && (oldobject->type == OBJT_VNODE) &&
+		((oldobject->flags & OBJ_DEAD) == 0)) {
 		struct vnode *vp;
 		vp = (struct vnode *) oldobject->handle;
-		if (VSHOULDFREE(vp)) {
-			vm_object_reference(oldobject);
-			vm_object_vndeallocate(oldobject);
+		if (vp && VSHOULDFREE(vp)) {
+			if ((vp->v_flag & (VFREE|VTBFREE|VDOOMED)) == 0) {
+				TAILQ_INSERT_TAIL(&vnode_tobefree_list, vp, v_freelist);
+				vp->v_flag |= VTBFREE;
+			}
 		}
 	}
+	splx(s);
 
 	return (m);
 }
@@ -970,6 +973,10 @@ static int
 vm_page_freechk_and_unqueue(m)
 	vm_page_t m;
 {
+	vm_object_t oldobject;
+
+	oldobject = m->object;
+
 #if !defined(MAX_PERF)
 	if (m->busy ||
 		(m->flags & PG_BUSY) ||
@@ -997,6 +1004,18 @@ vm_page_freechk_and_unqueue(m)
 		}
 		m->wire_count = 0;
 		cnt.v_wire_count--;
+	}
+
+	if (oldobject && (oldobject->type == OBJT_VNODE) &&
+		((oldobject->flags & OBJ_DEAD) == 0)) {
+		struct vnode *vp;
+		vp = (struct vnode *) oldobject->handle;
+		if (vp && VSHOULDFREE(vp)) {
+			if ((vp->v_flag & (VTBFREE|VDOOMED|VFREE)) == 0) {
+				TAILQ_INSERT_TAIL(&vnode_tobefree_list, vp, v_freelist);
+				vp->v_flag |= VTBFREE;
+			}
+		}
 	}
 
 	return 1;
@@ -1068,6 +1087,7 @@ vm_page_free(m)
 	} else {
 		TAILQ_INSERT_HEAD(pq->pl, m, pageq);
 	}
+
 	vm_page_free_wakeup();
 	splx(s);
 }
