@@ -88,6 +88,8 @@ struct keyboard {
 	int		kb_delay2;
 #define KB_DELAY1	500
 #define KB_DELAY2	100
+	int		kb_prev_key;	/* keycode previously seen */
+	unsigned long	kb_count;	/* # of processed key strokes */
 };
 
 #define KBD_IS_VALID(k)		((k)->kb_flags & KB_VALID)
