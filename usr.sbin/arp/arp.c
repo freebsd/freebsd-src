@@ -520,6 +520,12 @@ print_entry(struct sockaddr_dl *sdl,
             case IFT_ISO88025:
                 printf(" [token-ring]");
                 break;
+            case IFT_FDDI:
+                printf(" [fddi]");
+                break;
+            case IFT_ATM:
+                printf(" [atm]");
+                break;
 	    case IFT_L2VLAN:
 		printf(" [vlan]");
 		break;
