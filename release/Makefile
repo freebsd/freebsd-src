@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.52 1997/06/28 08:22:10 pst Exp $
+#	$Id: Makefile,v 1.246.2.53 1997/06/29 18:13:57 jkh Exp $
 #
 # How to roll a release:
 #
@@ -23,7 +23,7 @@
 # BIN_DISTS are special in that they get full /etc installation sets.
 #
 COMPAT_DISTS?=	compat1x compat20 compat21
-OTHER_DISTS?=	games manpages catpages proflibs dict info doc
+OTHER_DISTS?=	manpages catpages games proflibs dict info doc
 CRYPTO_DISTS?=	krb des
 BIN_DISTS?=	bin
 DISTRIBUTIONS?=	${BIN_DISTS} ${OTHER_DISTS} ${COMPAT_DISTS} ${CRYPTO_DISTS}
