@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)setuid.2	8.1 (Berkeley) 6/4/93
-.\"	$Id: setuid.2,v 1.2 1996/08/29 21:24:16 wosch Exp $
+.\"	$Id: setuid.2,v 1.3 1996/09/01 22:42:13 ache Exp $
 .\"
 .Dd June 4, 1993
 .Dt SETUID 2
@@ -59,8 +59,15 @@ function
 sets the real and effective
 user IDs and the saved set-user-ID of the current process
 to the specified value.
-.\" Comment out next line for !_POSIX_SAVED_IDS
-The real user ID and the saved set-user-ID are changed only if the effective user ID is that of the super user.
+.\" Comment out next block for !_POSIX_SAVED_IDS
+The real user ID and the saved set-user-ID are changed only if the
+effective user ID is that of the super user.
+I.e.
+.Fn setuid
+function is equal to
+.Fn seteuid
+function if the effective user ID is not that of the super user.
+.\" End of block
 The
 .Fn setuid
 function is permitted if the specified ID is equal to the real user ID
@@ -74,8 +81,15 @@ function
 sets the real and effective
 group IDs and the saved set-group-ID of the current process
 to the specified value.
-.\" Comment out next line for !_POSIX_SAVED_IDS
-The real group ID and the saved set-group-ID are changed only if the effective user ID is that of the super user.
+.\" Comment out next block for !_POSIX_SAVED_IDS
+The real group ID and the saved set-group-ID are changed only if the
+effective user ID is that of the super user.
+I.e.
+.Fn setgid
+function is equal to
+.Fn setegid
+function if the effective user ID is not that of the super user.
+.\" End of block
 The
 .Fn setgid
 function is permitted if the specified ID is equal to the real group ID
