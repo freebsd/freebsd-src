@@ -1142,6 +1142,7 @@ pccard/pccard.c		count card
 pccard/pccard_beep.c	optional card
 pccard/pccard_nbk.c	optional card
 pccard/pcic.c		optional pcic card
+pccard/pcic_pci.c	optional pcic card pci
 pci/agp.c		optional agp
 pci/agp_if.m		optional agp
 pci/agp_intel.c		optional agp
@@ -1176,7 +1177,6 @@ pci/meteor.c		count meteor pci
 pci/ncr.c		optional ncr
 pci/ohci_pci.c		optional ohci
 dev/pccbb/pccbb.c	optional pccbb
-pci/pcic_p.c		optional pcic pci card
 pci/simos.c		optional simos
 pci/uhci_pci.c		optional uhci
 pci/xrpu.c		optional xrpu
