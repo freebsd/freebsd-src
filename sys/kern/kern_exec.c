@@ -281,6 +281,7 @@ interpret:
 		if (attr.va_mode & VSGID)
 			p->p_ucred->cr_gid = attr.va_gid;
 		setsugid(p);
+		setugidsafety(p);
 	} else {
 		if (p->p_ucred->cr_uid == p->p_cred->p_ruid &&
 		    p->p_ucred->cr_gid == p->p_cred->p_rgid)

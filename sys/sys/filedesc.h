@@ -139,6 +139,7 @@ pid_t	fgetown __P((struct sigio *));
 int	fsetown __P((pid_t, struct sigio **));
 void	funsetown __P((struct sigio *));
 void	funsetownlst __P((struct sigiolst *));
+void	setugidsafety __P((struct proc *p));
 #endif
 
 #endif
