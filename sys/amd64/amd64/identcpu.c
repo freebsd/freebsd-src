@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.69 1999/07/06 06:25:38 green Exp $
+ *	$Id: identcpu.c,v 1.70 1999/07/06 12:42:26 peter Exp $
  */
 
 #include "opt_cpu.h"
@@ -128,7 +128,7 @@ void
 printcpuinfo(void)
 {
 
-	u_int regs[4], nreg;
+	u_int regs[4], nreg = 0;
 	cpu_class = i386_cpus[cpu].cpu_class;
 	printf("CPU: ");
 	strncpy(cpu_model, i386_cpus[cpu].cpu_name, sizeof cpu_model);
