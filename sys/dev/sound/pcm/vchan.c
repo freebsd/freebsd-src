@@ -77,7 +77,9 @@ feed_vchan_s16(struct pcm_feeder *f, struct pcm_channel *c, u_int8_t *b, u_int32
 	int16_t *tmp, *dst;
 	unsigned int cnt;
 
-	KASSERT(sndbuf_getsize(src) >= count, ("bad bufsize"));
+	if (sndbuf_getsize(src) < count)
+		panic("feed_vchan_s16(%s): tmp buffer size %d < count %d, flags = 0x%x",
+		    c->name, sndbuf_getsize(src), count, c->flags);
 	count &= ~1;
 	bzero(b, count);
 
