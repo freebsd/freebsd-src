@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.51 1997/06/08 12:55:26 ache Exp $
+ * $Id: soundcard.c,v 1.52 1997/07/20 11:58:40 bde Exp $
  */
 
 #include <i386/isa/sound/sound_config.h>
@@ -69,13 +69,13 @@ static d_close_t	sndclose;
 static d_read_t		sndread;
 static d_write_t	sndwrite;
 static d_ioctl_t	sndioctl;
-static d_select_t	sndselect;
+static d_poll_t		sndpoll;
 
 #define CDEV_MAJOR 30
 static struct cdevsw snd_cdevsw = 
 	{ sndopen,	sndclose,	sndread,	sndwrite,	/*30*/
   	  sndioctl,	nostop,		nullreset,	nodevtotty,/* sound */
-  	  sndselect,	nommap,		NULL,	"snd", NULL, -1 };
+  	  sndpoll,	nommap,		NULL,	"snd", NULL, -1 };
 
 struct isa_driver opldriver	= {sndprobe, sndattach, "opl"};
 struct isa_driver sbdriver	= {sndprobe, sndattach, "sb"};
@@ -197,24 +197,24 @@ sndioctl (dev_t dev, int cmd, caddr_t arg, int flags, struct proc *p)
 }
 
 static int
-sndselect (dev_t dev, int rw, struct proc *p)
+sndpoll (dev_t dev, int events, struct proc *p)
 {
   dev = minor (dev);
 
-  DEB (printk ("snd_select(dev=%d, rw=%d, pid=%d)\n", dev, rw, p->p_pid));
+  DEB (printk ("snd_poll(dev=%d, rw=%d, pid=%d)\n", dev, rw, p->p_pid));
 #ifdef ALLOW_SELECT
   switch (dev & 0x0f)
     {
 #ifndef EXCLUDE_SEQUENCER
     case SND_DEV_SEQ:
     case SND_DEV_SEQ2:
-      return sequencer_select (dev, &files[dev], rw, p);
+      return sequencer_poll (dev, &files[dev], events, p);
       break;
 #endif
 
 #ifndef EXCLUDE_MIDI
     case SND_DEV_MIDIN:
-      return MIDIbuf_select (dev, &files[dev], rw, p);
+      return MIDIbuf_poll (dev, &files[dev], events, p);
       break;
 #endif
 
@@ -222,7 +222,7 @@ sndselect (dev_t dev, int rw, struct proc *p)
     case SND_DEV_DSP:
     case SND_DEV_DSP16:
     case SND_DEV_AUDIO:
-      return audio_select (dev, &files[dev], rw, p);
+      return audio_poll (dev, &files[dev], events, p);
       break;
 #endif
 

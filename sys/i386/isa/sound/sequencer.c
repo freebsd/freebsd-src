@@ -1770,55 +1770,34 @@ sequencer_ioctl (int dev, struct fileinfo *file,
 
 #ifdef ALLOW_SELECT
 int
-sequencer_select (int dev, struct fileinfo *file, int sel_type, select_table * wait)
+sequencer_poll (int dev, struct fileinfo *file, int events, select_table * wait)
 {
   unsigned long   flags;
+  int revents = 0;
 
   dev = dev >> 4;
 
-  switch (sel_type)
-    {
-    case SEL_IN:
-      DISABLE_INTR (flags);
-      if (!iqlen)
-	{
-#if defined(__FreeBSD__)
-          selrecord(wait, &selinfo[dev]);
-#else
-	  midi_sleep_flag.mode = WK_SLEEP;
-	  select_wait (&midi_sleeper, wait);
-#endif
-	  RESTORE_INTR (flags);
-	  return 0;
-	}
+  DISABLE_INTR (flags);
+
+  if (events & (POLLIN | POLLRDNORM))
+    if (!iqlen)
+      selrecord(wait, &selinfo[dev]);
+    else {
+      revents |= events & (POLLIN | POLLRDNORM);
       midi_sleep_flag.mode &= ~WK_SLEEP;
-      RESTORE_INTR (flags);
-      return 1;
-      break;
-
-    case SEL_OUT:
-      DISABLE_INTR (flags);
-      if (qlen >= SEQ_MAX_QUEUE)
-	{
-#if defined(__FreeBSD__)
-          selrecord(wait, &selinfo[dev]);
-#else
-	  seq_sleep_flag.mode = WK_SLEEP;
-	  select_wait (&seq_sleeper, wait);
-#endif
-	  RESTORE_INTR (flags);
-	  return 0;
-	}
-      seq_sleep_flag.mode &= ~WK_SLEEP;
-      RESTORE_INTR (flags);
-      return 1;
-      break;
-
-    case SEL_EX:
-      return 0;
     }
 
-  return 0;
+  if (events & (POLLOUT | POLLWRNORM))
+    if (qlen >= SEQ_MAX_QUEUE)
+      selrecord(wait, &selinfo[dev]);
+    else {
+      revents |= events & (POLLOUT | POLLWRNORM);
+      seq_sleep_flag.mode &= ~WK_SLEEP;
+    }
+
+  RESTORE_INTR (flags);
+
+  return (revents);
 }
 
 #endif
@@ -1976,9 +1955,9 @@ sequencer_init (long mem_start)
 
 #ifdef ALLOW_SELECT
 int
-sequencer_select (int dev, struct fileinfo *file, int sel_type, select_table * wait)
+sequencer_poll (int dev, struct fileinfo *file, int events, select_table * wait)
 {
-  return RET_ERROR (EIO);
+  return (events & (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM | POLLHUP);
 }
 
 #endif

@@ -17,7 +17,7 @@ void DMAbuf_reset_dma (int dev);
 void DMAbuf_inputintr(int dev);
 void DMAbuf_outputintr(int dev, int underflow_flag);
 #ifdef ALLOW_SELECT
-int DMAbuf_select(int dev, struct fileinfo *file, int sel_type, select_table * wait);
+int DMAbuf_poll(int dev, struct fileinfo *file, int events, select_table * wait);
 #endif
 
 /*
@@ -34,7 +34,7 @@ int audio_lseek (int dev, struct fileinfo *file, off_t offset, int orig);
 long audio_init (long mem_start);
 
 #ifdef ALLOW_SELECT
-int audio_select(int dev, struct fileinfo *file, int sel_type, select_table * wait);
+int audio_poll(int dev, struct fileinfo *file, int events, select_table * wait);
 #endif
 
 /*
@@ -56,7 +56,7 @@ void seq_input_event(unsigned char *event, int len);
 void seq_copy_to_input (unsigned char *event, int len);
 
 #ifdef ALLOW_SELECT
-int sequencer_select(int dev, struct fileinfo *file, int sel_type, select_table * wait);
+int sequencer_poll(int dev, struct fileinfo *file, int events, select_table * wait);
 #endif
 
 /*
@@ -74,7 +74,7 @@ void MIDIbuf_bytes_received(int dev, unsigned char *buf, int count);
 long MIDIbuf_init(long mem_start);
 
 #ifdef ALLOW_SELECT
-int MIDIbuf_select(int dev, struct fileinfo *file, int sel_type, select_table * wait);
+int MIDIbuf_poll(int dev, struct fileinfo *file, int events, select_table * wait);
 #endif
 
 /*

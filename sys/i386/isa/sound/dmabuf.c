@@ -1000,61 +1000,43 @@ DMAbuf_reset_dma (int dev)
 
 #ifdef ALLOW_SELECT
 int
-DMAbuf_select (int dev, struct fileinfo *file, int sel_type, select_table * wait)
+DMAbuf_poll (int dev, struct fileinfo *file, int events, select_table * wait)
 {
   struct dma_buffparms *dmap = audio_devs[dev]->dmap;
   unsigned long   flags;
+  int revents = 0;
 
-  switch (sel_type)
-    {
-    case SEL_IN:
-      if (dmap->dma_mode != DMODE_INPUT)
-	return 0;
+  if (events & (POLLIN | POLLRDNORM))
+    if (dmap->dma_mode == DMODE_INPUT) {
 
       DISABLE_INTR (flags);
+
       if (!dmap->qlen)
-	{
-#if defined(__FreeBSD__)
-	  selrecord(wait, &selinfo[dev]);
-#else
-	  dev_sleep_flag[dev].mode = WK_SLEEP;
-	  select_wait (&dev_sleeper[dev], wait);
-#endif
-	  RESTORE_INTR (flags);
-	  return 0;
-	}
+	selrecord(wait, &selinfo[dev]);
+      else
+	revents |= events & (POLLIN | POLLRDNORM);
+
       RESTORE_INTR (flags);
-      return 1;
-      break;
-
-    case SEL_OUT:
-      if (dmap->dma_mode == DMODE_INPUT)
-	return 0;
-
-      if (dmap->dma_mode == DMODE_NONE)
-	return 1;
-
-      DISABLE_INTR (flags);
-      if (!space_in_queue (dev))
-	{
-#if defined(__FreeBSD__)
-	  selrecord(wait, &selinfo[dev]);
-#else
-	  dev_sleep_flag[dev].mode = WK_SLEEP;
-	  select_wait (&dev_sleeper[dev], wait);
-#endif
-	  RESTORE_INTR (flags);
-	  return 0;
-	}
-      RESTORE_INTR (flags);
-      return 1;
-      break;
-
-    case SEL_EX:
-      return 0;
     }
 
-  return 0;
+  if (events & (POLLOUT | POLLWRNORM))
+    if (dmap->dma_mode != DMODE_INPUT) {
+
+      if (dmap->dma_mode == DMODE_NONE)
+	revents |= events & (POLLOUT | POLLWRNORM);
+      else {
+	DISABLE_INTR (flags);
+
+	if (!space_in_queue (dev))
+	  selrecord(wait, &selinfo[dev]);
+	else
+	  revents |= events & (POLLOUT | POLLWRNORM);
+
+	RESTORE_INTR (flags);
+      }
+    }
+
+  return (revents);
 }
 
 #endif /* ALLOW_SELECT */
