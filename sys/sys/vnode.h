@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.20 1995/04/20 03:18:19 julian Exp $
+ * $Id: vnode.h,v 1.21 1995/06/28 12:01:07 davidg Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -107,16 +107,18 @@ struct vnode {
 /*
  * Vnode flags.
  */
-#define	VROOT		0x0001	/* root of its file system */
-#define	VTEXT		0x0002	/* vnode is a pure text prototype */
-#define	VSYSTEM		0x0004	/* vnode being used by kernel */
-#define	VXLOCK		0x0100	/* vnode is locked to change underlying type */
-#define	VXWANT		0x0200	/* process is waiting for vnode */
-#define	VBWAIT		0x0400	/* waiting for output to complete */
-#define	VALIASED	0x0800	/* vnode has an alias */
-#define	VDIROP		0x1000	/* LFS: vnode is involved in a directory op */
+#define VROOT		0x0001	/* root of its file system */
+#define VTEXT		0x0002	/* vnode is a pure text prototype */
+#define VSYSTEM		0x0004	/* vnode being used by kernel */
+#define VOLOCK		0x0008	/* vnode is locked waiting for an object */
+#define VOWANT		0x0010	/* a process is waiting for VOLOCK */
+#define VXLOCK		0x0100	/* vnode is locked to change underlying type */
+#define VXWANT		0x0200	/* process is waiting for vnode */
+#define VBWAIT		0x0400	/* waiting for output to complete */
+#define VALIASED	0x0800	/* vnode has an alias */
+#define VDIROP		0x1000	/* LFS: vnode is involved in a directory op */
 #define VVMIO		0x2000	/* VMIO flag */
-#define VNINACT		0x4000  /* LFS: skip ufs_inactive() in lfs_vunref */
+#define VNINACT		0x4000	/* LFS: skip ufs_inactive() in lfs_vunref */
 #define VAGE		0x8000	/* Insert vnode at head of free list */
 
 /*

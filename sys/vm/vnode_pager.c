@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.40 1995/05/30 08:16:23 rgrimes Exp $
+ *	$Id: vnode_pager.c,v 1.41 1995/06/28 12:01:13 davidg Exp $
  */
 
 /*
@@ -136,13 +136,23 @@ vnode_pager_alloc(handle, size, prot, offset)
 	if (handle == NULL)
 		return (NULL);
 
-	/*
-	 * Vnodes keep a pointer to any associated pager so no need to lookup
-	 * with vm_pager_lookup.
-	 */
 	vp = (struct vnode *) handle;
-	while ((object = vp->v_object) &&
-		(object->flags & OBJ_DEAD))
+
+	/*
+	 * Prevent race condition when allocating the object. This
+	 * can happen with NFS vnodes since the nfsnode isn't locked.
+	 */
+	while (vp->v_flag & VOLOCK) {
+		vp->v_flag |= VOWANT;
+		tsleep(vp, PVM, "vnpobj", 0);
+	}
+	vp->v_flag |= VOLOCK;
+
+	/*
+	 * If the object is being terminated, wait for it to
+	 * go away.
+	 */
+	while (((object = vp->v_object) != NULL) && (object->flags & OBJ_DEAD))
 		tsleep(object, PVM, "vadead", 0);
 
 	pager = NULL;
@@ -154,13 +164,8 @@ vnode_pager_alloc(handle, size, prot, offset)
 		 * Allocate pager structures
 		 */
 		pager = (vm_pager_t) malloc(sizeof *pager, M_VMPAGER, M_WAITOK);
-		if (pager == NULL)
-			return (NULL);
 		vnp = (vn_pager_t) malloc(sizeof *vnp, M_VMPGDATA, M_WAITOK);
-		if (vnp == NULL) {
-			free((caddr_t) pager, M_VMPAGER);
-			return (NULL);
-		}
+
 		/*
 		 * And an object of the appropriate size
 		 */
@@ -170,6 +175,15 @@ vnode_pager_alloc(handle, size, prot, offset)
 			vm_object_enter(object, pager);
 			object->pager = pager;
 		} else {
+			/*
+			 * The VOP_GETATTR failed...
+			 * Unlock, wakeup any waiters, free pagers, and exit.
+			 */
+			vp->v_flag &= ~VOLOCK;
+			if (vp->v_flag & VOWANT) {
+				vp->v_flag &= ~VOWANT;
+				wakeup(vp);
+			}
 			free((caddr_t) vnp, M_VMPGDATA);
 			free((caddr_t) pager, M_VMPAGER);
 			return (NULL);
@@ -197,8 +211,15 @@ vnode_pager_alloc(handle, size, prot, offset)
 		 */
 		(void) vm_object_lookup(pager);
 	}
-	if( vp->v_type == VREG)
+
+	if (vp->v_type == VREG)
 		vp->v_flag |= VVMIO;
+
+	vp->v_flag &= ~VOLOCK;
+	if (vp->v_flag & VOWANT) {
+		vp->v_flag &= ~VOWANT;
+		wakeup(vp);
+	}
 	return (pager);
 }
 
