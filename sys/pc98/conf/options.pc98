@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.64 1998/08/10 16:54:09 kato Exp $
+#	$Id: options.pc98,v 1.65 1998/09/09 14:39:20 kato Exp $
 BOUNCEPAGES		opt_bounce.h
 DISABLE_PSE
 USER_LDT
@@ -40,11 +40,6 @@ NCPU			opt_smp.h
 NBUS			opt_smp.h
 NAPIC			opt_smp.h
 NINTR			opt_smp.h
-
-AHC_TAGENABLE		opt_aic7xxx.h
-AHC_SCBPAGING_ENABLE	opt_aic7xxx.h
-AHC_ALLOW_MEMIO		opt_aic7xxx.h
-AHC_SHARE_SCBS		opt_aic7xxx.h
 
 CLK_CALIBRATION_LOOP		opt_clock.h
 CLK_USE_I8254_CALIBRATION	opt_clock.h

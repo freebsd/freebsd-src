@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.67 1998/09/05 02:36:18 kato Exp $
+#	$Id: files.pc98,v 1.68 1998/09/09 14:39:56 kato Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -28,12 +28,13 @@ font8x16.o			optional	std8x16font		\
 #
 i386/apm/apm.c			optional	apm	device-driver
 i386/apm/apm_setup.s		optional	apm
-#i386/eisa/dpt_eisa.c		optional	eisa dpt device-driver
-#i386/eisa/3c5x9.c		optional	ep	device-driver
-#i386/eisa/aic7770.c		optional	ahc	device-driver	   \
-#	dependency	"aic7xxx_reg.h $S/i386/eisa/aic7770.c"
-#i386/eisa/aha1742.c		optional	ahb	device-driver
-#i386/eisa/bt74x.c		optional	bt	device-driver
+i386/eisa/dpt_eisa.c		optional	eisa dpt device-driver
+i386/eisa/3c5x9.c		optional	ep	device-driver
+i386/eisa/adv_eisa.c		optional	adv	device-driver
+i386/eisa/ahc_eisa.c		optional	ahc	device-driver	   \
+	dependency	"aic7xxx_reg.h $S/i386/eisa/ahc_eisa.c"
+i386/eisa/ahb.c			optional	ahb	device-driver
+i386/eisa/bt_eisa.c		optional	bt	device-driver
 i386/eisa/eisaconf.c		optional	eisa
 i386/eisa/if_vx_eisa.c		optional	vx	device-driver
 i386/eisa/if_fea.c		optional	fea	device-driver
@@ -98,11 +99,14 @@ i386/isa/bs/bs.c		optional	bs	device-driver
 i386/isa/bs/bsfunc.c		optional	bs	device-driver
 i386/isa/bs/bshw.c		optional	bs	device-driver
 i386/isa/bs/bsif.c		optional	bs	device-driver
-i386/isa/aha1542.c		optional	aha	device-driver
-i386/isa/aic6360.c              optional        aic     device-driver
+i386/isa/adv_isa.c		optional	adv	device-driver
+#i386/isa/aha1542.c		optional	aha	device-driver
+i386/isa/aha_isa.c		optional	aha	device-driver
+#i386/isa/aic6360.c              optional        aic     device-driver
+i386/isa/aic_isa.c              optional        aic     device-driver
 i386/isa/alog.c                 optional        alog    device-driver
 i386/isa/b004.c			optional	bqu	device-driver
-i386/isa/bt5xx-445.c		optional	bt	device-driver
+i386/isa/bt_isa.c		optional	bt	device-driver
 pc98/pc98/clock.c		standard
 i386/isa/cronyx.c		optional	cx	device-driver
 i386/isa/ctx.c			optional	ctx	device-driver
@@ -147,7 +151,7 @@ pc98/pc98/lpt.c			optional	lpt	device-driver
 i386/isa/labpc.c		optional	labpc	device-driver
 i386/isa/mcd.c			optional	mcd	device-driver
 pc98/pc98/mse.c			optional	mse	device-driver
-i386/isa/ncr5380.c		optional	nca	device-driver
+#i386/isa/ncr5380.c		optional	nca	device-driver
 pc98/pc98/npx.c			mandatory	npx	device-driver
 pc98/pc98/pcaudio.c		optional	pca	device-driver
 i386/isa/matcd/matcd.c		optional	matcd	device-driver
@@ -169,7 +173,7 @@ i386/isa/random_machdep.c	standard
 i386/isa/rc.c			optional	rc	device-driver
 i386/isa/rp.c			optional	rp	device-driver
 i386/isa/scd.c			optional	scd	device-driver
-i386/isa/seagate.c		optional	sea	device-driver
+#i386/isa/seagate.c		optional	sea	device-driver
 i386/isa/si.c			optional	si	device-driver
 i386/isa/si2_z280.c		optional	si	device-driver
 i386/isa/si3_t225.c		optional	si	device-driver
@@ -246,7 +250,7 @@ pc98/pc98/spkr.c		optional	speaker	device-driver
 i386/isa/stallion.c		optional	stl	device-driver
 pc98/pc98/syscons.c		optional	sc	device-driver
 i386/isa/tw.c			optional	tw	device-driver
-i386/isa/ultra14f.c		optional	uha	device-driver
+#i386/isa/ultra14f.c		optional	uha	device-driver
 pc98/pc98/wd.c			optional	wdc	device-driver
 pc98/pc98/wd.c			optional	wd	device-driver
 i386/isa/atapi.c		optional	atapi	device-driver
@@ -270,10 +274,6 @@ i386/linux/linux_stats.c	optional	compat_linux
 i386/linux/linux_sysent.c	optional	compat_linux
 i386/linux/linux_sysvec.c	optional	compat_linux
 i386/linux/linux_util.c		optional	compat_linux
-i386/scsi/93cx6.c		optional	ahc	device-driver
-i386/scsi/aic7xxx.c		optional	ahc	device-driver	   \
-	dependency	"aic7xxx_{reg,seq}.h"
-i386/scsi/bt.c			optional	bt	device-driver
 libkern/bcd.c			standard
 libkern/divdi3.c		standard
 libkern/inet_ntoa.c		standard
