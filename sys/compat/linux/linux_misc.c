@@ -600,7 +600,7 @@ linux_mremap(struct thread *td, struct linux_mremap_args *args)
 		error = munmap(td, &bsd_args);
 	}
 
-	td->td_retval[0] = error ? 0 : (u_long)args->addr;
+	td->td_retval[0] = error ? 0 : (uintptr_t)args->addr;
 	return error;
 }
 
