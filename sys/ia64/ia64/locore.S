@@ -114,8 +114,6 @@ ENTRY(__start, 1)
 	;; 
 	movl	out0=thread0
 	;;
-	ld8	out0=[out0]
-	;;
 	add	out0=TD_PCB,out0
 	;;
 	ld8	out0=[out0]

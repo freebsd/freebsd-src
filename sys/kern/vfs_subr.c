@@ -602,7 +602,7 @@ vnlru_proc(void)
 	int s;
 	int done;
 	struct proc *p = vnlruproc;
-	struct thread *td = &p->p_thread;	/* XXXKSE */
+	struct thread *td = FIRST_THREAD_IN_PROC(p);	/* XXXKSE */
 
 	mtx_lock(&Giant);
 
@@ -1217,7 +1217,7 @@ sched_sync(void)
 	struct mount *mp;
 	long starttime;
 	int s;
-	struct thread *td = &updateproc->p_thread;  /* XXXKSE */
+	struct thread *td = FIRST_THREAD_IN_PROC(updateproc);  /* XXXKSE */
 
 	mtx_lock(&Giant);
 
@@ -1315,8 +1315,8 @@ speedup_syncer()
 {
 
 	mtx_lock_spin(&sched_lock);
-	if (updateproc->p_thread.td_wchan == &lbolt) /* XXXKSE */
-		setrunnable(&updateproc->p_thread);
+	if (FIRST_THREAD_IN_PROC(updateproc)->td_wchan == &lbolt) /* XXXKSE */
+		setrunnable(FIRST_THREAD_IN_PROC(updateproc));
 	mtx_unlock_spin(&sched_lock);
 	if (rushjob < syncdelay / 2) {
 		rushjob += 1;
@@ -2560,7 +2560,8 @@ vfs_unmountall()
 	if (curthread != NULL)
 		td = curthread;
 	else
-		td = &initproc->p_thread;	/* XXX XXX should this be proc0? */
+/* XXX XXX should this be proc0? */
+		td = FIRST_THREAD_IN_PROC(initproc);
 	/*
 	 * Since this only runs when rebooting, it is not interlocked.
 	 */

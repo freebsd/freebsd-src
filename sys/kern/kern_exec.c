@@ -629,7 +629,7 @@ exec_new_vmspace(imgp)
 		error = vm_map_find(&vmspace->vm_map, 0, 0, &bsaddr,
 				    4*PAGE_SIZE, 0,
 				    VM_PROT_ALL, VM_PROT_ALL, 0);
-		imgp->proc->p_thread.td_md.md_bspstore = bsaddr;
+		FIRST_THREAD_IN_PROC(imgp->proc)->td_md.md_bspstore = bsaddr;
 	}
 #endif
 

@@ -239,6 +239,9 @@ fork1(td, flags, procp)
 	struct forklist *ep;
 	struct filedesc *fd;
 	struct proc *p1 = td->td_proc;
+	struct thread *td2;
+	struct kse *ke2;
+	struct ksegrp *kg2;
 
 	GIANT_REQUIRED;
 
@@ -251,7 +254,7 @@ fork1(td, flags, procp)
 	 * certain parts of a process from itself.
 	 */
 	if ((flags & RFPROC) == 0) {
-		vm_forkproc(td, 0, flags);
+		vm_forkproc(td, NULL, NULL, flags);
 
 		/*
 		 * Close all file descriptors.
@@ -414,37 +417,37 @@ again:
 	LIST_INSERT_HEAD(PIDHASH(p2->p_pid), p2, p_hash);
 	sx_xunlock(&allproc_lock);
 
+
 	/*
 	 * Make a proc table entry for the new process.
 	 * Start by zeroing the section of proc that is zero-initialized,
 	 * then copy the section that is copied directly from the parent.
 	 */
+	td2 = thread_get(p2);
+	ke2 = &p2->p_kse;
+	kg2 = &p2->p_ksegrp;
+
+#define RANGEOF(type, start, end) (offsetof(type, end) - offsetof(type, start))
+
 	bzero(&p2->p_startzero,
-	    (unsigned) ((caddr_t)&p2->p_endzero - (caddr_t)&p2->p_startzero));
-	bzero(&p2->p_kse.ke_startzero,
-	    (unsigned) ((caddr_t)&p2->p_kse.ke_endzero
-			- (caddr_t)&p2->p_kse.ke_startzero));
-	bzero(&p2->p_thread.td_startzero,
-	    (unsigned) ((caddr_t)&p2->p_thread.td_endzero
-			- (caddr_t)&p2->p_thread.td_startzero));
-	bzero(&p2->p_ksegrp.kg_startzero,
-	    (unsigned) ((caddr_t)&p2->p_ksegrp.kg_endzero
-			- (caddr_t)&p2->p_ksegrp.kg_startzero));
+	    (unsigned) RANGEOF(struct proc, p_startzero, p_endzero));
+	bzero(&ke2->ke_startzero,
+	    (unsigned) RANGEOF(struct kse, ke_startzero, ke_endzero));
+	bzero(&td2->td_startzero,
+	    (unsigned) RANGEOF(struct thread, td_startzero, td_endzero));
+	bzero(&kg2->kg_startzero,
+	    (unsigned) RANGEOF(struct ksegrp, kg_startzero, kg_endzero));
+
 	PROC_LOCK(p1);
 	bcopy(&p1->p_startcopy, &p2->p_startcopy,
-	    (unsigned) ((caddr_t)&p2->p_endcopy - (caddr_t)&p2->p_startcopy));
-
-	bcopy(&p1->p_kse.ke_startcopy, &p2->p_kse.ke_startcopy,
-	    (unsigned) ((caddr_t)&p2->p_kse.ke_endcopy
-			- (caddr_t)&p2->p_kse.ke_startcopy));
-
-	bcopy(&p1->p_thread.td_startcopy, &p2->p_thread.td_startcopy,
-	    (unsigned) ((caddr_t)&p2->p_thread.td_endcopy
-			- (caddr_t)&p2->p_thread.td_startcopy));
-
-	bcopy(&p1->p_ksegrp.kg_startcopy, &p2->p_ksegrp.kg_startcopy,
-	    (unsigned) ((caddr_t)&p2->p_ksegrp.kg_endcopy
-			- (caddr_t)&p2->p_ksegrp.kg_startcopy));
+	    (unsigned) RANGEOF(struct proc, p_startcopy, p_endcopy));
+	bcopy(&td->td_kse->ke_startcopy, &ke2->ke_startcopy,
+	    (unsigned) RANGEOF(struct kse, ke_startcopy, ke_endcopy));
+	bcopy(&td->td_startcopy, &td2->td_startcopy,
+	    (unsigned) RANGEOF(struct thread, td_startcopy, td_endcopy));
+	bcopy(&td->td_ksegrp->kg_startcopy, &kg2->kg_startcopy,
+	    (unsigned) RANGEOF(struct ksegrp, kg_startcopy, kg_endcopy));
+#undef RANGEOF
 	PROC_UNLOCK(p1);
 
 	/*
@@ -452,7 +455,7 @@ again:
 	 * Others in the kernel would be 'aborted' in the child.
 	 * i.e return E*something*
 	 */
-	proc_linkup(p2);
+	proc_linkup(p2, kg2, ke2, td2);
 
 	mtx_init(&p2->p_mtx, "process lock", MTX_DEF);
 	PROC_LOCK(p2);
@@ -471,7 +474,7 @@ again:
 	mtx_unlock_spin(&sched_lock);
 	PROC_LOCK(p1);
 	p2->p_ucred = crhold(p1->p_ucred);
-	p2->p_thread.td_ucred = crhold(p2->p_ucred);	/* XXXKSE */
+	td2->td_ucred = crhold(p2->p_ucred);	/* XXXKSE */
 
 	if (p2->p_args)
 		p2->p_args->ar_ref++;
@@ -579,10 +582,10 @@ again:
 	sx_xunlock(&proctree_lock);
 	PROC_LOCK(p2);
 	LIST_INIT(&p2->p_children);
-	LIST_INIT(&p2->p_thread.td_contested); /* XXXKSE only 1 thread? */
+	LIST_INIT(&td2->td_contested); /* XXXKSE only 1 thread? */
 
 	callout_init(&p2->p_itcallout, 0);
-	callout_init(&p2->p_thread.td_slpcallout, 1); /* XXXKSE */
+	callout_init(&td2->td_slpcallout, 1); /* XXXKSE */
 
 	PROC_LOCK(p1);
 #ifdef KTRACE
@@ -623,7 +626,7 @@ again:
 	 * Finish creating the child process.  It will return via a different
 	 * execution path later.  (ie: directly into user mode)
 	 */
-	vm_forkproc(td, p2, flags);
+	vm_forkproc(td, p2, td2, flags);
 
 	if (flags == (RFFDG | RFPROC)) {
 		cnt.v_forks++;
@@ -659,7 +662,7 @@ again:
 	if ((flags & RFSTOPPED) == 0) {
 		mtx_lock_spin(&sched_lock);
 		p2->p_stat = SRUN;
-		setrunqueue(&p2->p_thread);
+		setrunqueue(td2);
 		mtx_unlock_spin(&sched_lock);
 	}
 

@@ -557,9 +557,9 @@ pmap_bootstrap(vm_offset_t ptaddr, u_int maxasn)
 	 * Set up proc0's PCB such that the ptbr points to the right place
 	 * and has the kernel pmap's.
 	 */
-	thread0->td_pcb->pcb_hw.apcb_ptbr =
+	thread0.td_pcb->pcb_hw.apcb_ptbr =
 	    ALPHA_K0SEG_TO_PHYS((vm_offset_t)Lev1map) >> PAGE_SHIFT;
-	thread0->td_pcb->pcb_hw.apcb_asn = 0;
+	thread0.td_pcb->pcb_hw.apcb_asn = 0;
 }
 
 int

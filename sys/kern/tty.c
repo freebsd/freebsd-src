@@ -2315,6 +2315,7 @@ ttyinfo(tp)
 	const char *stmp;
 	long ltmp;
 	int tmp;
+	struct thread *td;
 
 	if (ttycheckoutq(tp,0) == 0)
 		return;
@@ -2332,13 +2333,16 @@ ttyinfo(tp)
 	else {
 		mtx_lock_spin(&sched_lock);
 
+
 		/* Pick interesting process. */
 		for (pick = NULL; p != 0; p = LIST_NEXT(p, p_pglist))
 			if (proc_compare(pick, p))
 				pick = p;
 
+		td = FIRST_THREAD_IN_PROC(pick);
+
 		stmp = pick->p_stat == SRUN ? "running" :  /* XXXKSE */
-		    pick->p_thread.td_wmesg ? pick->p_thread.td_wmesg : "iowait";
+		    td->td_wmesg ? td->td_wmesg : "iowait";
 		calcru(pick, &utime, &stime, NULL);
 		ltmp = pick->p_stat == SIDL || pick->p_stat == SWAIT ||
 		    pick->p_stat == SZOMB ? 0 :

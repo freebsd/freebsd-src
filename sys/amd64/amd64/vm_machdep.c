@@ -117,13 +117,13 @@ vm_fault_quick(v, prot)
  * ready to run and return to user mode.
  */
 void
-cpu_fork(td1, p2, flags)
+cpu_fork(td1, p2, td2, flags)
 	register struct thread *td1;
 	register struct proc *p2;
+	struct thread *td2;
 	int flags;
 {
 	register struct proc *p1;
-	struct thread *td2;
 	struct pcb *pcb2;
 	struct mdproc *mdp2;
 #ifdef DEV_NPX
@@ -131,7 +131,6 @@ cpu_fork(td1, p2, flags)
 #endif
 
 	p1 = td1->td_proc;
-	td2 = &p2->p_thread;
 	if ((flags & RFPROC) == 0) {
 		if ((flags & RFMEM) == 0) {
 			/* unshare user LDT */

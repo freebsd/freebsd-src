@@ -124,13 +124,13 @@ struct ia64_fdesc {
  * ready to run and return to user mode.
  */
 void
-cpu_fork(td1, p2, flags)
+cpu_fork(td1, p2, td2, flags)
 	register struct thread *td1;
 	register struct proc *p2;
+	register struct thread *td2;
 	int flags;
 {
 	struct proc *p1;
-	struct thread *td2;
 	struct trapframe *p2tf;
 	u_int64_t bspstore, *p1bs, *p2bs, rnatloc, rnat;
 
@@ -138,7 +138,6 @@ cpu_fork(td1, p2, flags)
 		return;
 
 	p1 = td1->td_proc;
-	td2 = &p2->p_thread;
 	td2->td_pcb = (struct pcb *)
 	    (td2->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
 	td2->td_md.md_flags = td1->td_md.md_flags & (MDP_FPUSED | MDP_UAC_MASK);

@@ -275,17 +275,16 @@ sparc64_init(caddr_t mdp, u_int *state, u_int mid, u_int bootmid,
 	/*
 	 * Initialize proc0 stuff (p_contested needs to be done early).
 	 */
-	proc_linkup(&proc0);
+	proc_linkup(&proc0, &proc0.p_ksegrp, &proc0.p_kse, &thread0);
 	proc0.p_md.md_utrap = NULL;
 	proc0.p_uarea = (struct user *)uarea0;
 	proc0.p_stats = &proc0.p_uarea->u_stats;
-	thread0 = &proc0.p_thread;
-	thread0->td_kstack = kstack0;
-	thread0->td_pcb = (struct pcb *)
-	    (thread0->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	thread0.td_kstack = kstack0;
+	thread0.td_pcb = (struct pcb *)
+	    (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
 	frame0.tf_tstate = TSTATE_IE | TSTATE_PEF;
-	thread0->td_frame = &frame0;
-	LIST_INIT(&thread0->td_contested);
+	thread0.td_frame = &frame0;
+	LIST_INIT(&thread0.td_contested);
 
 	/*
 	 * Prime our per-cpu data page for use.  Note, we are using it for our
@@ -294,8 +293,8 @@ sparc64_init(caddr_t mdp, u_int *state, u_int mid, u_int bootmid,
 	 */
 	pc = (struct pcpu *)(pcpu0 + PAGE_SIZE) - 1;
 	pcpu_init(pc, 0, sizeof(struct pcpu));
-	pc->pc_curthread = thread0;
-	pc->pc_curpcb = thread0->td_pcb;
+	pc->pc_curthread = &thread0;
+	pc->pc_curpcb = &thread0.td_pcb;
 	pc->pc_mid = mid;
 
 	/*

@@ -627,7 +627,7 @@ static int
 lomac_do_recwd(struct proc *p) {
 	struct nameidata nd;
 	struct filedesc *fdp = curthread->td_proc->p_fd;
-	struct thread *td = &p->p_thread;
+	struct thread *td = FIRST_THREAD_IN_PROC(p); /* XXXKSE Only one? */
 	char *nbuf;
 	struct vnode *cdir, *rdir, *vp;
 	int error;

@@ -394,10 +394,12 @@ exec_coff_imgact(imgp)
 				DPRINTF(("%s(%d):  shared library %s\n",
 					 __FILE__, __LINE__, libname));
 				strcpy(&libbuf[emul_path_len], libname);
-/* XXXKSE only 1:1 in coff */		      		error = coff_load_file(&imgp->proc->p_thread, libbuf);
+/* XXXKSE only 1:1 in coff */  	error = coff_load_file(
+				    FIRST_THREAD_IN_PROC(imgp->proc), libbuf);
 		      		if (error)
-	      				error = coff_load_file(&imgp->proc->p_thread,
-							       libname);
+	      				error = coff_load_file(
+					    FIRST_THREAD_IN_PROC(imgp->proc),
+					    libname);
 		      		if (error)
 					break;
 		    	}
