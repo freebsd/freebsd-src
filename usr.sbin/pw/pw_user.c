@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw_user.c,v 1.3 1996/12/16 17:37:58 davidn Exp $
+ *	$Id: pw_user.c,v 1.4 1996/12/17 01:43:30 davidn Exp $
  */
 
 #include <unistd.h>
@@ -742,46 +742,73 @@ pw_pwcrypt(char *password)
 	return strcpy(buf, crypt(password, salt));
 }
 
+#if defined(__FreeBSD__)
+
+#if defined(USE_MD5RAND)
 u_char *
-pw_genmd5rand (u_char *d)		/* cryptographically secure rng */
+pw_getrand(u_char *buf, int len)	/* cryptographically secure rng */
 {
-	MD5_CTX md5_ctx;
-	struct timeval tv, tvo;
-	struct rusage ru;
-	int n=0;
-	int t;
-	MD5Init (&md5_ctx);
-	t=getpid();
-	MD5Update (&md5_ctx, (u_char*)&t, sizeof t);
-	t=getppid();
-	MD5Update (&md5_ctx, (u_char*)&t, sizeof t);
-	gettimeofday (&tvo, NULL);
-	do {
-		getrusage (RUSAGE_SELF, &ru);
-		MD5Update (&md5_ctx, (u_char*)&ru, sizeof ru);
-		gettimeofday (&tv, NULL);
-		MD5Update (&md5_ctx, (u_char*)&tv, sizeof tv);
-	} while (n++<20 || tv.tv_usec-tvo.tv_usec<100*1000);
-	MD5Final (d, &md5_ctx);
-	return d;
+	int i;
+	for (i=0;i<len;i+=16) {
+		u_char ubuf[16];
+
+		MD5_CTX md5_ctx;
+		struct timeval tv, tvo;
+		struct rusage ru;
+		int n=0;
+		int t;
+
+		MD5Init (&md5_ctx);
+		t=getpid();
+		MD5Update (&md5_ctx, (u_char*)&t, sizeof t);
+		t=getppid();
+		MD5Update (&md5_ctx, (u_char*)&t, sizeof t);
+		gettimeofday (&tvo, NULL);
+		do {
+			getrusage (RUSAGE_SELF, &ru);
+			MD5Update (&md5_ctx, (u_char*)&ru, sizeof ru);
+			gettimeofday (&tv, NULL);
+			MD5Update (&md5_ctx, (u_char*)&tv, sizeof tv);
+		} while (n++<20 || tv.tv_usec-tvo.tv_usec<100*1000);
+		MD5Final (ubuf, &md5_ctx);
+		memcpy(buf+i, ubuf, MIN(16, len-n));
+	}
+	return buf;
 }
+
+#else	/* Use random device (preferred) */
 
 static u_char *
 pw_getrand(u_char *buf, int len)
 {
 	int		fd;
 	fd = open("/dev/urandom", O_RDONLY);
-	if (fd==-1 || read(fd, buf, len)!=len) {
-		int n;
-		for (n=0;n<len;n+=16) {
-			u_char ubuf[16];
-			pw_genmd5rand(ubuf);
-			memcpy(buf+n, ubuf, MIN(16, len-n));
-		}
-	}
+	if (fd==-1)
+		cmderr(EX_OSFILE, "can't open /dev/urandom: %s\n", strerror(errno));
+	else if (read(fd, buf, len)!=len)
+		cmderr(EX_IOERR, "read error on /dev/urandom\n");
 	close(fd);
 	return buf;
 }
+
+#endif
+
+#else	/* Portable version */
+
+static u_char *
+pw_getrand(u_char *buf, int len)
+{
+	int i;
+
+	for (i = 0; i < len; i++) {
+		unsigned val = random();
+		/* Use all bits in the random value */
+		buf[i]=(u_char)((val >> 24) ^ (val >> 16) ^ (val >> 8) ^ val);
+	}
+	return buf;
+}
+
+#endif
 
 static char    *
 pw_password(struct userconf * cnf, struct cargs * args, char const * user)
@@ -840,6 +867,8 @@ print_user(struct passwd * pwd, int pretty)
 		struct group   *grp = getgrgid(pwd->pw_gid);
 		char            uname[60] = "User &", office[60] = "[None]",
 		                wphone[60] = "[None]", hphone[60] = "[None]";
+		char		acexpire[32] = "[None]", pwexpire[32] = "[None]";
+		struct tm *    tptr;
 
 		if ((p = strtok(pwd->pw_gecos, ",")) != NULL) {
 			strncpy(uname, p, sizeof uname);
@@ -868,16 +897,21 @@ print_user(struct passwd * pwd, int pretty)
 			memmove(p, pwd->pw_name, l);
 			*p = (char) toupper(*p);
 		}
+		if (pwd->pw_expire > (time_t)0 && (tptr = localtime(&pwd->pw_expire)) != NULL)
+		  strftime(acexpire, sizeof acexpire, "%c", tptr);
+		if (pwd->pw_change > (time_t)9 && (tptr = localtime(&pwd->pw_change)) != NULL)
+		  strftime(pwexpire, sizeof pwexpire, "%c", tptr);
 		printf("Login Name : %-10s   #%-22ld  Group : %-10s   #%ld\n"
 		       " Full Name : %s\n"
 		       "      Home : %-32.32s      Class : %s\n"
 		       "     Shell : %-32.32s     Office : %s\n"
-		       "Work Phone : %-32.32s Home Phone : %s\n",
-		       
+		       "Work Phone : %-32.32s Home Phone : %s\n"
+		       "Acc Expire : %-32.32s Pwd Expire : %s\n",
 		       pwd->pw_name, (long) pwd->pw_uid,
 		       grp ? grp->gr_name : "(invalid)", (long) pwd->pw_gid,
 		       uname, pwd->pw_dir, pwd->pw_class,
-		       pwd->pw_shell, office, wphone, hphone);
+		       pwd->pw_shell, office, wphone, hphone,
+		       acexpire, pwexpire);
 	        setgrent();
 		j = 0;
 		while ((grp=getgrent()) != NULL)
