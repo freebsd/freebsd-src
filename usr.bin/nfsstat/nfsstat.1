@@ -42,12 +42,10 @@
 statistics
 .Sh SYNOPSIS
 .Nm
+.Op Fl csW
 .Op Fl M Ar core
 .Op Fl N Ar system
-.Op Fl W
 .Op Fl w Ar wait
-.Op Fl s
-.Op Fl c
 .Sh DESCRIPTION
 The
 .Nm
@@ -57,6 +55,8 @@ client and server activity.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
+.It Fl c
+Only display client side statistics
 .It Fl M
 Extract values associated with the name list from the specified core
 instead of the default
@@ -64,6 +64,8 @@ instead of the default
 .It Fl N
 Extract the name list from the specified system instead of the default
 .Pa /kernel .
+.It Fl s
+Only display server side statistics
 .It Fl W
 Use wide format with interval short summary.  This option is especially
 useful when combined with -c or -s and a time delay.
@@ -73,10 +75,6 @@ Display a shorter summary of
 activity for both the client and server at
 .Ar wait
 second intervals.
-.It Fl s
-Only display server side statistics
-.It Fl c
-Only display client side statistics
 .El
 .Sh FILES
 .Bl -tag -width /dev/kmem -compact
