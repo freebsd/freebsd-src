@@ -29,7 +29,6 @@
 #ifndef _PC98_PC98_SC_MACHDEP_H_
 #define	_PC98_PC98_SC_MACHDEP_H_
 
-#undef SC_ALT_MOUSE_IMAGE
 #undef SC_DFLT_FONT
 #undef SC_MOUSE_CHAR
 #undef SC_PIXEL_MODE
@@ -53,9 +52,5 @@
 
 #define PRINTABLE(c)		((c) > 0x1b || ((c) > 0x0f && (c) < 0x1b) \
 				 || (c) < 0x07)
-
-#define ISMOUSEAVAIL(af)	(1)
-#define ISFONTAVAIL(af)		((af) & V_ADP_FONT)
-#define ISPALAVAIL(af)		((af) & V_ADP_PALETTE)
 
 #endif /* !_PC98_PC98_SC_MACHDEP_H_ */
