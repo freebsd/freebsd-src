@@ -922,7 +922,7 @@ DMenu MenuXDesktops = {
 	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=afterstep" },
       { "6 Windowmaker",	"The Windowmaker window manager",
 	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=windowmaker" },
-      { "7 fvwm2",		"The fvwm2 window manager",
+      { "7 fvwm",		"The fvwm window manager",
 	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=fvwm2" },
       { NULL } },
 };
