@@ -375,6 +375,15 @@ make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, const
 	}
 
 	dev = makedev(devsw->d_maj, minor);
+	if (dev->si_flags & SI_CHEAPCLONE &&
+	    dev->si_flags & SI_NAMED &&
+	    dev->si_devsw == devsw) {
+		/*
+		 * This is allowed as it removes races and generally
+		 * simplifies cloning devices.
+		 */
+		return (dev);
+	}
 	if (dev->si_flags & SI_NAMED) {
 		printf( "WARNING: Driver mistake: repeat make_dev(\"%s\")\n",
 		    dev->si_name);
