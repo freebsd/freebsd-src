@@ -32,7 +32,7 @@
 .\"     From: @(#)rcmd.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd February 15, 1996
+.Dd March 3, 2000
 .Dt RCMD 3
 .Os BSD 4.2
 .Sh NAME
@@ -42,8 +42,7 @@
 .Nm ruserok ,
 .Nm rcmd_af ,
 .Nm rresvport_af ,
-.Nm iruserok_af ,
-.Nm ruserok_af
+.Nm iruserok_sa
 .Nd routines for returning a stream to a remote command
 .Sh SYNOPSIS
 .Fd #include <unistd.h>
@@ -60,9 +59,7 @@
 .Ft int
 .Fn rresvport_af "int *port" "int af"
 .Ft int
-.Fn iruserok_af "void *raddr" "int superuser" "const char *ruser" "const char *luser" "int af"
-.Ft int
-.Fn ruserok_af "const char *rhost" "int superuser" "const char *ruser" "const char *luser" "int af"
+.Fn iruserok_sa "const void *addr" "int addrlen" "int superuser" "const char *ruser" "const char *luser"
 .Sh DESCRIPTION
 The
 .Fn rcmd
@@ -93,7 +90,7 @@ looks up the host
 .Fa *ahost
 using
 .Xr gethostbyname 3 ,
-returning \-1 if the host does not exist.
+returning -1 if the host does not exist.
 Otherwise
 .Fa *ahost
 is set to the standard name of the host
@@ -137,13 +134,14 @@ The protocol is described in detail in
 .Pp
 The
 .Fn rresvport
-function is used to obtain a socket with a privileged
-address bound to it.  This socket is suitable for use
-by 
+function is used to obtain a socket to which an address with a Privileged
+Internet port is bound.
+This socket is suitable for use by 
 .Fn rcmd
-and several other functions.  Privileged Internet ports are those
-in the range 0 to 1023.  Only the super-user
-is allowed to bind an address of this sort to a socket.
+and several other functions.
+Privileged Internet ports are those in the range 0 to 1023.
+Only the super-user is allowed to bind an address of this sort
+to a socket.
 .Pp
 The
 .Fn iruserok
@@ -174,7 +172,7 @@ file; otherwise
 .Fn iruserok
 and
 .Fn ruserok
-return \-1.
+return -1.
 If the local domain (as obtained from
 .Xr gethostname 3 )
 is the same as the remote domain, only the machine name need be specified.
@@ -186,18 +184,59 @@ It requires trusting the local DNS at most, while the
 .Fn ruserok
 function requires trusting the entire DNS, which can be spoofed.
 .Pp
-Functions with ``_af'' suffix, i.e.
-.Fn rcmd_af ,
-.Fn rresvport_af ,
-.Fn iruserok_af
-and
-.Fn ruserok_af ,
-works just as same as functions without ``_af'', and is capable of
-handling both IPv6 port and IPv4 port.
-Functions without
+The functions with an
 .Dq Li _af
-works for IPv4 only.
-To switch address family,
+suffix or
+.Dq Li _sa
+suffix, i.e.,
+.Fn rcmd_af,
+.Fn rresvport_af
+and
+.Fn iruserok_sa ,
+work the same as functions without an
+.Dq Li _af
+suffix nor
+.Dq Li _sa
+suffix, except that they are capable of handling both IPv6 and IPv4 ports.
+.Pp
+The
+.Dq Li _af
+suffix means the function has an additional
+.Fa af
+argument which is used to specify address family,
+such as
+.Dv AF_INET
+for IPv4, and
+.Dv AF_INET6
+for IPv6.
+The
+.Fa af
+argument extension is implemented for functions
+which have no binary address argument.
+Instead, the
+.Fa af
+argument specifies which address family is desired.
+.Pp
+The
+.Dq Li _sa
+suffix means the function has general socket address and
+length arguments instead of protocol dependent address argument.
+As the socket address is a protocol independent data structure,
+IPv4 and IPv6 socket address can be passed as desired.
+.Fa sa
+argument extension is implemented for functions
+which pass a protocol dependent binary address argument.
+The argument needs to be replaced with a more general format
+to support multiple address families in a general way.
+.Pp
+The functions without an
+.Dq Li _af
+suffix nor
+.Dq Li _sa
+suffix work for IPv4 only, except for
+.Fn ruserok
+which can handle both IPv6 and IPv4.
+.To switch the address family, the
 .Fa af
 argument must be filled with
 .Dv AF_INET ,
@@ -212,13 +251,14 @@ The
 .Fn rcmd
 function
 returns a valid socket descriptor on success.
-It returns \-1 on error and prints a diagnostic message on the standard error.
+It returns -1 on error and prints a diagnostic message
+on the standard error.
 .Pp
 The
 .Fn rresvport
 function
 returns a valid, bound socket descriptor on success.
-It returns \-1 on error with the global value
+It returns -1 on error with the global value
 .Va errno
 set according to the reason for failure.
 The error code
@@ -233,20 +273,27 @@ is overloaded to mean ``All network ports in use.''
 .Xr rlogind 8 ,
 .Xr rshd 8
 .Pp
-W. Stevens and M. Thomas, ``Advanced Socket API for IPv6,''
-RFC2292.
+.Rs
+.%A W. Stevens and M. Thomas
+.%T ``Advanced Socket API for IPv6,''
+RFC2292,
+.Re
+.Rs
+.%A W. Stevens, M. Thomas and E. Nordmark
+.%T ``Advanced Socket API for IPv6,''
+draft-ietf-ipngwg-rfc2292bis-01.txt,
+.Re
 .Sh HISTORY
 These
 functions appeared in 
 .Bx 4.2 .
 .Fn rresvport_af
-appeared in RFC2292, and implemented by WIDE project
-for Hydrangea IPv6 protocol stack kit.
+appeared in RFC2292, and was implemented by the WIDE project
+for the Hydrangea IPv6 protocol stack kit.
 .Fn rcmd_af
 appeared in draft-ietf-ipngwg-rfc2292bis-01.txt,
-and implemented by WIDE/KAME IPv6 protocol stack kit.
-.Fn iruserok_af
-and
-.Fn rusreok_af
-are proposed and implemented by WIDE project
-for Hydrangea IPv6 protocol stack kit.
+and was implemented in the WIDE/KAME IPv6 protocol stack kit.
+.Fn iruserok_sa
+appeared in discussion on the IETF ipngwg mailing list,
+and was implemented in
+.Fx 4.0 .
