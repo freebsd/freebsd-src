@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: arp.c,v 1.4 1996/01/11 17:48:34 phk Exp $
+ * $Id: arp.c,v 1.5 1996/05/11 20:48:09 phk Exp $
  *
  */
 
@@ -258,6 +258,7 @@ get_ether_addr(s, ipaddr, hwaddr)
 	if (ifr->ifr_addr.sa_family == AF_INET) {
 	    ina = ((struct sockaddr_in *) &ifr->ifr_addr)->sin_addr.s_addr;
 	    strncpy(ifreq.ifr_name, ifr->ifr_name, sizeof(ifreq.ifr_name));
+	    ifreq.ifr_name[sizeof(ifreq.ifr_name)-1]='\0';
 	    /*
 	     * Check that the interface is up, and not point-to-point
 	     * or loopback.
@@ -350,7 +351,7 @@ struct sockaddr_dl *dlo;
   struct ifnet ifnet;
   int n;
   u_long addr, ifaddraddr, ifnetfound, ifaddrfound;
-  char name[32];
+  char name[16+32];
   struct sockaddr *sa;
   char *cp;
   struct sockaddr_dl *sdl;
