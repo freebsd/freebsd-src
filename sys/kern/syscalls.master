@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.4 1994/08/19 11:45:23 davidg Exp $
+	$Id: syscalls.master,v 1.5 1994/08/26 18:15:15 wollman Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -218,7 +218,7 @@
 163	STD	2 setdomainname
 164	STD	1 uname
 165	STD	2 sysarch
-166	UNIMPL	0 nosys
+166	STD	2 rtprio
 167	UNIMPL	0 nosys
 168	UNIMPL	0 nosys
 169	UNIMPL	0 nosys

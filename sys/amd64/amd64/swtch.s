@@ -33,15 +33,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.10 1994/08/19 22:49:42 davidg Exp $
+ *	$Id: swtch.s,v 1.11 1994/08/30 17:19:10 bde Exp $
  */
 
 #include "npx.h"	/* for NNPX */
 #include "assym.s"	/* for preprocessor defines */
-#include "errno.h"	/* for error codes */
+#include <sys/errno.h>	/* for error codes */
 
-#include "machine/asmacros.h"	/* for miscellaneous assembly macros */
-#include "machine/spl.h"	/* for SWI_AST_MASK ... */
+#include <machine/asmacros.h>	/* for miscellaneous assembly macros */
+#include <machine/spl.h>	/* for SWI_AST_MASK ... */
+#include <sys/rtprio.h>
 
 
 /*****************************************************************************/
@@ -58,9 +59,10 @@
  * queues.
  */
 	.data
-	.globl	_curpcb, _whichqs
+	.globl	_curpcb, _whichqs, _whichrtqs
 _curpcb:	.long	0			/* pointer to curproc's PCB area */
 _whichqs:	.long	0			/* which run queues have data */
+_whichrtqs:	.long	0			/* which realtime run queues have data */
 
 	.globl	_qs,_cnt,_panic
 	.comm	_noproc,4
@@ -82,6 +84,20 @@ ENTRY(setrunqueue)
 	pushl	$set2
 	call	_panic
 set1:
+	cmpl	$RTPRIO_RTOFF,P_RTPRIO(%eax)	/* Realtime process ? */
+	je	set1_nort
+
+	movl	P_RTPRIO(%eax),%edx
+	btsl	%edx,_whichrtqs			/* set q full bit */
+	shll	$3,%edx
+	addl	$_rtqs,%edx			/* locate q hdr */
+	movl	%edx,P_LINK(%eax)		/* link process on tail of q */
+	movl	P_RLINK(%edx),%ecx
+	movl	%ecx,P_RLINK(%eax)
+	movl	%eax,P_RLINK(%edx)
+	movl	%eax,P_LINK(%ecx)
+	ret
+set1_nort:                    
 	movzbl	P_PRI(%eax),%edx
 	shrl	$2,%edx
 	btsl	%edx,_whichqs			/* set q full bit */
@@ -103,6 +119,34 @@ set2:	.asciz	"setrunqueue"
  */
 ENTRY(remrq)
 	movl	4(%esp),%eax
+	cmpl	$RTPRIO_RTOFF,P_RTPRIO(%eax)	/* Realtime process ? */
+	je	rem_nort
+
+	movl	P_RTPRIO(%eax),%edx
+	btrl	%edx,_whichrtqs			/* clear full bit, panic if clear already */
+	jb	rem1rt
+	pushl	$rem3
+	call	_panic
+rem1rt:
+	pushl	%edx
+	movl	P_LINK(%eax),%ecx		/* unlink process */
+	movl	P_RLINK(%eax),%edx
+	movl	%edx,P_RLINK(%ecx)
+	movl	P_RLINK(%eax),%ecx
+	movl	P_LINK(%eax),%edx
+	movl	%edx,P_LINK(%ecx)
+	popl	%edx
+	movl	$_rtqs,%ecx
+	shll	$3,%edx
+	addl	%edx,%ecx
+	cmpl	P_LINK(%ecx),%ecx		/* q still has something? */
+	je	rem2rt
+	shrl	$3,%edx				/* yes, set bit as still full */
+	btsl	%edx,_whichrtqs
+rem2rt:
+	movl	$0,P_RLINK(%eax)		/* zap reverse link to indicate off list */
+	ret
+rem_nort:     
 	movzbl	P_PRI(%eax),%edx
 	shrl	$2,%edx
 	btrl	%edx,_whichqs			/* clear full bit, panic if clear already */
@@ -156,8 +200,10 @@ _idle:
 	ALIGN_TEXT
 idle_loop:
 	cli
-	cmpl	$0,_whichqs
+	cmpl	$0,_whichrtqs
 	jne	sw1a
+	cmpl	$0,_whichqs
+	jne	nortqr
 	sti
 	hlt					/* wait for interrupt */
 	jmp	idle_loop
@@ -214,6 +260,41 @@ ENTRY(cpu_switch)
 sw1:
 	cli
 sw1a:
+	movl    _whichrtqs,%edi /* pick next p. from rtqs */
+
+rt2:
+	/* XXX - bsf is sloow */
+	bsfl	%edi,%eax			/* find a full q */
+	je	nortqr		/* no proc on rt q - try normal ... */
+
+	/* XX update whichqs? */
+	btrl	%eax,%edi			/* clear q full status */
+	jnb	rt2				/* if it was clear, look for another */
+	movl	%eax,%ebx			/* save which one we are using */
+	shll	$3,%eax
+	addl	$_rtqs,%eax			/* select q */
+	movl	%eax,%esi
+
+#ifdef        DIAGNOSTIC
+	cmpl	P_LINK(%eax),%eax		/* linked to self? (e.g. not on list) */
+	je	badsw				/* not possible */
+#endif
+
+	movl	P_LINK(%eax),%ecx		/* unlink from front of process q */
+	movl	P_LINK(%ecx),%edx
+	movl	%edx,P_LINK(%eax)
+	movl	P_RLINK(%ecx),%eax
+	movl	%eax,P_RLINK(%edx)
+
+	cmpl	P_LINK(%ecx),%esi		/* q empty */
+	je	rt3
+	btsl	%ebx,%edi			/* nope, set to indicate full */
+rt3:
+	movl	%edi,_whichrtqs			/* update q status */
+	jmp	swtch_com
+
+	/* old sw1a */
+nortqr:
 	movl	_whichqs,%edi
 2:
 	/* XXX - bsf is sloow */
@@ -246,6 +327,7 @@ sw1a:
 3:
 	movl	%edi,_whichqs			/* update q status */
 
+swtch_com:
 	movl	$0,%eax
 	movl	%eax,_want_resched
 
