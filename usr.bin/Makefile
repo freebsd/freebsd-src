@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.118 1998/11/02 11:01:38 joerg Exp $
+#	$Id: Makefile,v 1.119 1998/11/08 12:37:30 gpalmer Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct xsend
@@ -144,6 +144,7 @@ SUBDIR=	apply \
 	split \
 	su \
 	symorder \
+	systat \
 	tail \
 	talk \
 	tconv \
@@ -174,6 +175,7 @@ SUBDIR=	apply \
 	uuencode \
 	vacation \
 	vgrind \
+	vmstat \
 	vi \
 	vis \
 	w \
@@ -216,9 +218,7 @@ SUBDIR+=ar \
 	sasc \
 	size \
 	strings \
-	strip \
-	systat \
-	vmstat
+	strip
 .endif
 
 .include <bsd.subdir.mk>
