@@ -619,13 +619,6 @@ makebootarea(void *boot, struct disklabel *dp, int f)
 	}
 
 	(void)close(b);
-	/*
-	 * Make sure no part of the bootstrap is written in the area
-	 * reserved for the label.
-	 */
-	for (p = (char *)lp; p < (char *)lp + sizeof(struct disklabel); p++)
-		if (*p)
-			errx(2, "bootstrap doesn't leave room for disk label");
 	return (lp);
 }
 
