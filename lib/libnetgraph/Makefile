@@ -2,7 +2,7 @@
 # $Whistle: Makefile,v 1.4 1999/01/17 03:41:02 julian Exp $
 
 LIB=		netgraph
-WARNS?=		2
+WARNS?=		3
 MAN=		netgraph.3
 
 SHLIB_MAJOR=	1
