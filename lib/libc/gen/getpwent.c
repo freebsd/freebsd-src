@@ -934,31 +934,38 @@ nis_endstate(void *p)
 	free(p);
 }
 
+/*
+ * Test for the presence of special FreeBSD-specific master.passwd.by*
+ * maps. We do this using yp_order(). If it fails, then either the server
+ * doesn't have the map, or the YPPROC_ORDER procedure isn't supported by
+ * the server (Sun NIS+ servers in YP compat mode behave this way). If
+ * the master.passwd.by* maps don't exist, then let the lookup routine try
+ * the regular passwd.by* maps instead. If the lookup routine fails, it
+ * can return an error as needed.
+ */
 static int
 nis_map(char *domain, enum nss_lookup_type how, char *buffer, size_t bufsize,
     int *master)
 {
-	int	rv;
-	char	*outname;
+	int	rv, order;
 
 	*master = 0;
 	if (geteuid() == 0) {
 		if (snprintf(buffer, bufsize, "master.passwd.by%s",
 		    (how == nss_lt_id) ? "uid" : "name") >= bufsize)
 			return (NS_UNAVAIL);
-		rv = yp_master(domain, buffer, &outname);
+		rv = yp_order(domain, buffer, &order);
 		if (rv == 0) {
 			*master = 1;
 			return (NS_SUCCESS);
 		}
 	}
+
 	if (snprintf(buffer, bufsize, "passwd.by%s",
 	    (how == nss_lt_id) ? "uid" : "name") >= bufsize)
 		return (NS_UNAVAIL);
-	rv = yp_master(domain, buffer, &outname);
-	if (rv == 0)
-		return (NS_SUCCESS);
-	return (NS_UNAVAIL);
+
+	return (NS_SUCCESS);
 }
 
 
