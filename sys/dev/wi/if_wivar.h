@@ -160,7 +160,9 @@ struct wi_softc	{
 	u_int32_t		wi_icv;
 	int			wi_icv_flag;
 	struct callout_handle	wi_stat_ch;
+#if __FreeBSD_version >= 500000
 	struct mtx		wi_mtx;
+#endif
 	int			wi_nic_type;
 	int			wi_bus_type;	/* Bus attachment type */
 	struct {
@@ -188,8 +190,31 @@ struct wi_card_ident {
 	u_int8_t	firm_type;
 };
 
-#define	WI_LOCK(_sc)
-#define	WI_UNLOCK(_sc)
+#if __FreeBSD_version < 500000
+/*
+ * Various compat hacks/kludges
+ */
+#define le16toh(x) (x)
+#define htole16(x) (x)
+#define ifaddr_byindex(idx) ifnet_addrs[(idx) - 1];
+#define	WI_LOCK(_sc, _s)	s = splimp()
+#define	WI_UNLOCK(_sc, _s)	splx(s)
+#define IF_HANDOFF(q, m, ifp) \
+		if (IF_QFULL((q))) { \
+			IF_DROP((q)); \
+			m_freem((m)); \
+		} else { \
+			(ifp)->if_obytes += (m)->m_pkthdr.len; \
+			if ((m)->m_flags & M_MCAST) \
+				(ifp)->if_omcasts++; \
+			IF_ENQUEUE((q), (m)); \
+			if (((ifp)->if_flags & IFF_OACTIVE) == 0) \
+				(*(ifp)->if_start)((ifp)); \
+		}
+#else
+#define	WI_LOCK(_sc, _s) _s = 1
+#define	WI_UNLOCK(_sc, _s)
+#endif
 
 int wi_generic_attach(device_t);
 int wi_generic_detach(device_t);
