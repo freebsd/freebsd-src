@@ -182,11 +182,6 @@ extern struct vm_object kmem_object_store;
 #define	VM_OBJECT_MTX(object)		(&(object)->mtx)
 #define	VM_OBJECT_UNLOCK(object)	mtx_unlock(&(object)->mtx)
 
-#define	vm_object_lock(object) \
-	mtx_lock((object) == kmem_object ? &kmem_object->mtx : &Giant)
-#define	vm_object_unlock(object) \
-	mtx_unlock((object) == kmem_object ? &kmem_object->mtx : &Giant)
-
 void vm_object_set_flag(vm_object_t object, u_short bits);
 void vm_object_clear_flag(vm_object_t object, u_short bits);
 void vm_object_pip_add(vm_object_t object, short i);

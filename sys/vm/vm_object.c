@@ -440,14 +440,13 @@ vm_object_deallocate(vm_object_t object)
 {
 	vm_object_t temp;
 
-	vm_object_lock(object);
+	if (object != kmem_object)
+		mtx_lock(&Giant);
 	while (object != NULL) {
-
+		VM_OBJECT_LOCK(object);
 		if (object->type == OBJT_VNODE) {
-			VM_OBJECT_LOCK(object);
 			vm_object_vndeallocate(object);
-			mtx_unlock(&Giant);
-			return;
+			goto done;
 		}
 
 		KASSERT(object->ref_count != 0,
@@ -461,8 +460,8 @@ vm_object_deallocate(vm_object_t object)
 		 */
 		object->ref_count--;
 		if (object->ref_count > 1) {
-			vm_object_unlock(object);
-			return;
+			VM_OBJECT_UNLOCK(object);
+			goto done;
 		} else if (object->ref_count == 1) {
 			if (object->shadow_count == 0) {
 				vm_object_set_flag(object, OBJ_ONEMAPPING);
@@ -487,11 +486,14 @@ vm_object_deallocate(vm_object_t object)
 						robject->paging_in_progress ||
 						object->paging_in_progress
 					) {
+	/* XXX */				VM_OBJECT_UNLOCK(object);
 						vm_object_pip_sleep(robject, "objde1");
 						vm_object_pip_sleep(object, "objde2");
+	/* XXX */				VM_OBJECT_LOCK(object);
 					}
-
+					VM_OBJECT_UNLOCK(object);
 					if (robject->ref_count == 1) {
+	/* XXX */				VM_OBJECT_LOCK(robject);
 						robject->ref_count--;
 						object = robject;
 						goto doterm;
@@ -502,11 +504,10 @@ vm_object_deallocate(vm_object_t object)
 					continue;
 				}
 			}
-			vm_object_unlock(object);
-			return;
+			VM_OBJECT_UNLOCK(object);
+			goto done;
 		}
 doterm:
-		VM_OBJECT_LOCK(object);
 		temp = object->backing_object;
 		if (temp != NULL) {
 			VM_OBJECT_LOCK(temp);
@@ -527,7 +528,9 @@ doterm:
 			VM_OBJECT_UNLOCK(object);
 		object = temp;
 	}
-	vm_object_unlock(object);
+done:
+	if (object != kmem_object)
+		mtx_unlock(&Giant);
 }
 
 /*
