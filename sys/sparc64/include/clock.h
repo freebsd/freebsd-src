@@ -33,6 +33,9 @@ extern u_long tick_increment;
 extern u_long tick_freq;
 extern u_long tick_MHz;
 
+extern int adjkerntz;
+extern int wall_cmos_clock;
+
 int	sysbeep(int, int);
 
 #endif /* !_MACHINE_CLOCK_H_ */
