@@ -59,9 +59,11 @@ __FBSDID("$FreeBSD$");
 #if (ELFSIZE == 32)
 #include <sys/elf32.h>
 #define	xewtoh(x)	((data == ELFDATA2MSB) ? be32toh(x) : le32toh(x))
+#define	htoxew(x)	((data == ELFDATA2MSB) ? htobe32(x) : htole32(x))
 #elif (ELFSIZE == 64)
 #include <sys/elf64.h>
 #define	xewtoh(x)	((data == ELFDATA2MSB) ? be64toh(x) : le64toh(x))
+#define	htoxew(x)	((data == ELFDATA2MSB) ? htobe64(x) : htole64(x))
 #endif
 #include <sys/elf_generic.h>
 
@@ -339,14 +341,10 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 		Elf_Rela *relap = tmpl->mem;
 
 		for (ewi = 0; ewi < xewtoh(tmpl->size) / sizeof(*relap); ewi++) {
-			relap[ewi].r_info =
-#if (ELFSIZE == 32)					/* XXX */
-			    symfwmap[ELF_R_SYM(xe32toh(relap[ewi].r_info))] << 8 |
-			    ELF_R_TYPE(xe32toh(relap[ewi].r_info));
-#elif (ELFSIZE == 64)					/* XXX */
-			    symfwmap[ELF_R_SYM(xewtoh(relap[ewi].r_info))] << 32 |
-			    ELF_R_TYPE(xewtoh(relap[ewi].r_info));
-#endif							/* XXX */
+			relap[ewi].r_info = htoxew(ELF_R_INFO(
+			    symfwmap[ELF_R_SYM(xewtoh(relap[ewi].r_info))],
+			    ELF_R_TYPE(xewtoh(relap[ewi].r_info))
+			));
 		}
 	}
 
@@ -355,14 +353,10 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 		Elf_Rel *relp = tmpl->mem;
 
 		for (ewi = 0; ewi < xewtoh(tmpl->size) / sizeof *relp; ewi++) {
-			relp[ewi].r_info =
-#if (ELFSIZE == 32)					/* XXX */
-			    symfwmap[ELF_R_SYM(xe32toh(relp[ewi].r_info))] << 8 |
-			    ELF_R_TYPE(xe32toh(relp[ewi].r_info));
-#elif (ELFSIZE == 64)					/* XXX */
-			    symfwmap[ELF_R_SYM(xewtoh(relp[ewi].r_info))] << 32 |
-			    ELF_R_TYPE(xewtoh(relp[ewi].r_info));
-#endif							/* XXX */
+			relp[ewi].r_info = htoxew(ELF_R_INFO(
+			    symfwmap[ELF_R_SYM(xewtoh(relp[ewi].r_info))],
+			    ELF_R_TYPE(xewtoh(relp[ewi].r_info))
+			));
 		}
 	}
 
