@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mman.h	8.2 (Berkeley) 1/9/95
- * $Id: mman.h,v 1.12 1996/03/11 02:09:09 hsu Exp $
+ * $Id: mman.h,v 1.13 1996/05/19 07:36:41 dyson Exp $
  */
 
 #ifndef _SYS_MMAN_H_
@@ -83,6 +83,7 @@
 #define	MADV_SEQUENTIAL	2	/* expect sequential page references */
 #define	MADV_WILLNEED	3	/* will need these pages */
 #define	MADV_DONTNEED	4	/* dont need these pages */
+#define	MADV_FREE	5	/* dont need these pages, and junk contents */
 
 /*
  * Return bits from mincore
