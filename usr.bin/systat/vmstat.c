@@ -209,6 +209,7 @@ initkre()
 {
 	char *intrnamebuf, *cp;
 	int i;
+	size_t sz;
 
 	if ((num_devices = getnumdevs()) < 0) {
 		warnx("%s", devstat_errbuf);
@@ -226,9 +227,14 @@ initkre()
 		return(0);
 
 	if (nintr == 0) {
-		GETSYSCTL("hw.nintr", nintr);
+		if (sysctlbyname("hw.intrcnt", NULL, &sz, NULL, 0) == -1) {
+			error("sysctl(hw.intrcnt...) failed: %s",
+			      strerror(errno));
+			return (0);
+		}
+		nintr = sz / sizeof(u_long);
 		intrloc = calloc(nintr, sizeof (long));
-		intrname = calloc(nintr, sizeof (long));
+		intrname = calloc(nintr, sizeof (char *));
 		intrnamebuf = sysctl_dynread("hw.intrnames", NULL);
 		if (intrnamebuf == NULL || intrname == NULL || 
 		    intrloc == NULL) {
@@ -767,7 +773,7 @@ getinfo(s, st)
 	GETSYSCTL("debug.freevnodes", s->freevnodes);
 	GETSYSCTL("vfs.cache.nchstats", s->nchstats);
 	GETSYSCTL("vfs.numdirtybuffers", s->numdirtybuffers);
-	getsysctl("hw.intrcnt", s->intrcnt, nintr * LONG);
+	getsysctl("hw.intrcnt", s->intrcnt, nintr * sizeof(u_long));
 
 	size = sizeof(s->Total);
 	mib[0] = CTL_VM;
