@@ -44,7 +44,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/mbuf.h>
+#include <sys/mutex.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>	/* for sodupsockaddr */
 
@@ -72,7 +74,7 @@ static u_long nfsrvhash;
 /*
  * Static array that defines which nfs rpc's are nonidempotent
  */
-static int nonidempotent[NFS_NPROCS] = {
+static const int nonidempotent[NFS_NPROCS] = {
 	FALSE,
 	FALSE,
 	TRUE,
@@ -99,7 +101,7 @@ static int nonidempotent[NFS_NPROCS] = {
 };
 
 /* True iff the rpc reply is an nfs status ONLY! */
-static int nfsv2_repstat[NFS_NPROCS] = {
+static const int nfsv2_repstat[NFS_NPROCS] = {
 	FALSE,
 	FALSE,
 	FALSE,
@@ -154,6 +156,8 @@ nfsrv_getcache(struct nfsrv_descript *nd, struct mbuf **repp)
 	caddr_t bpos;
 	int ret;
 
+	NFSD_LOCK_ASSERT();
+
 	/*
 	 * Don't cache recent requests for reliable transport protocols.
 	 * (Maybe we should for the case of a reconnect, but..)
@@ -167,7 +171,8 @@ loop:
 		        NFS_DPF(RC, ("H%03x", rp->rc_xid & 0xfff));
 			if ((rp->rc_flag & RC_LOCKED) != 0) {
 				rp->rc_flag |= RC_WANTED;
-				(void) tsleep(rp, PZERO-1, "nfsrc", 0);
+				(void) msleep(rp, &nfsd_mtx, PZERO-1,
+				    "nfsrc", 0);
 				goto loop;
 			}
 			rp->rc_flag |= RC_LOCKED;
@@ -188,8 +193,10 @@ loop:
 				ret = RC_REPLY;
 			} else if (rp->rc_flag & RC_REPMBUF) {
 				nfsrvstats.srvcache_nonidemdonehits++;
+				NFSD_UNLOCK();
 				*repp = m_copym(rp->rc_reply, 0, M_COPYALL,
 						M_TRYWAIT);
+				NFSD_LOCK();
 				ret = RC_REPLY;
 			} else {
 				nfsrvstats.srvcache_idemdonehits++;
@@ -207,15 +214,17 @@ loop:
 	nfsrvstats.srvcache_misses++;
 	NFS_DPF(RC, ("M%03x", nd->nd_retxid & 0xfff));
 	if (numnfsrvcache < desirednfsrvcache) {
+		NFSD_UNLOCK();
 		rp = (struct nfsrvcache *)malloc((u_long)sizeof *rp,
 		    M_NFSD, M_WAITOK | M_ZERO);
+		NFSD_LOCK();
 		numnfsrvcache++;
 		rp->rc_flag = RC_LOCKED;
 	} else {
 		rp = TAILQ_FIRST(&nfsrvlruhead);
 		while ((rp->rc_flag & RC_LOCKED) != 0) {
 			rp->rc_flag |= RC_WANTED;
-			(void) tsleep(rp, PZERO-1, "nfsrc", 0);
+			(void) msleep(rp, &nfsd_mtx, PZERO-1, "nfsrc", 0);
 			rp = TAILQ_FIRST(&nfsrvlruhead);
 		}
 		rp->rc_flag |= RC_LOCKED;
@@ -261,6 +270,8 @@ nfsrv_updatecache(struct nfsrv_descript *nd, int repvalid, struct mbuf *repmbuf)
 {
 	struct nfsrvcache *rp;
 
+	NFSD_LOCK_ASSERT();
+
 	if (!nd->nd_nam2)
 		return;
 loop:
@@ -270,7 +281,8 @@ loop:
 			NFS_DPF(RC, ("U%03x", rp->rc_xid & 0xfff));
 			if ((rp->rc_flag & RC_LOCKED) != 0) {
 				rp->rc_flag |= RC_WANTED;
-				(void) tsleep(rp, PZERO-1, "nfsrc", 0);
+				(void) msleep(rp, &nfsd_mtx, PZERO-1,
+				    "nfsrc", 0);
 				goto loop;
 			}
 			rp->rc_flag |= RC_LOCKED;
@@ -298,8 +310,10 @@ loop:
 					rp->rc_status = nd->nd_repstat;
 					rp->rc_flag |= RC_REPSTATUS;
 				} else {
+					NFSD_UNLOCK();
 					rp->rc_reply = m_copym(repmbuf,
 						0, M_COPYALL, M_TRYWAIT);
+					NFSD_LOCK();
 					rp->rc_flag |= RC_REPMBUF;
 				}
 			}
@@ -321,6 +335,8 @@ void
 nfsrv_cleancache(void)
 {
 	struct nfsrvcache *rp, *nextrp;
+
+	NFSD_LOCK_ASSERT();
 
 	for (rp = TAILQ_FIRST(&nfsrvlruhead); rp != 0; rp = nextrp) {
 		nextrp = TAILQ_NEXT(rp, rc_lru);

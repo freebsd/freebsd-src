@@ -160,7 +160,7 @@ void	nfsm_srvfhtom_xx(fhandle_t *f, int v3, struct mbuf **mb,
 	    caddr_t *bpos);
 void	nfsm_srvpostop_fh_xx(fhandle_t *f, struct mbuf **mb, caddr_t *bpos);
 void	nfsm_clget_xx(u_int32_t **tl, struct mbuf *mb, struct mbuf **mp,
-	    char **bp, char **be, caddr_t bpos);
+	    char **bp, char **be, caddr_t bpos, int droplock);
 
 #define nfsm_srvfhtom(f, v3) \
 	nfsm_srvfhtom_xx((f), (v3), &mb, &bpos)
@@ -178,6 +178,9 @@ void	nfsm_clget_xx(u_int32_t **tl, struct mbuf *mb, struct mbuf **mp,
 	nfsm_srvfattr(nfsd, (a), (f))
 
 #define nfsm_clget \
-	nfsm_clget_xx(&tl, mb, &mp, &bp, &be, bpos)
+	nfsm_clget_xx(&tl, mb, &mp, &bp, &be, bpos, 1)
+
+#define nfsm_clget_nolock \
+	nfsm_clget_xx(&tl, mb, &mp, &bp, &be, bpos, 0)
 
 #endif
