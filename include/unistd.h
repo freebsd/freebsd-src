@@ -112,7 +112,7 @@ int	 encrypt __P((char *, int));
 void	 endusershell __P((void));
 int	 exect __P((const char *, char * const *, char * const *));
 int	 fchdir __P((int));
-int	 fchown __P((int, int, int));
+int	 fchown __P((int, uid_t, gid_t));
 int	 fsync __P((int));
 int	 ftruncate __P((int, off_t));
 int	 getdomainname __P((char *, int));
