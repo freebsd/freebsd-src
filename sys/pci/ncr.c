@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.87 1996/12/15 16:37:17 se Exp $
+**  $Id: ncr.c,v 1.88 1996/12/15 23:25:50 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -51,7 +51,9 @@
 
 #define NCR_GETCC_WITHMSG
 
+#if defined (__FreeBSD__) && defined(KERNEL)
 #include "opt_ncr.h"
+#endif /* defined (__FreeBSD__) && defined(KERNEL) */
 
 #ifdef	FAILSAFE
 #define	SCSI_NCR_DFLT_TAGS (0)
@@ -239,12 +241,12 @@
 **    Can be changed at runtime too.
 */
 
-#ifdef SCSI_DEBUG_FLAGS
+#ifdef SCSI_NCR_DEBUG
 	#define DEBUG_FLAGS ncr_debug
-#else /* SCSI_DEBUG_FLAGS */
-	#define SCSI_DEBUG_FLAGS	0
+#else /* SCSI_NCR_DEBUG */
+	#define SCSI_NCR_DEBUG	0
 	#define DEBUG_FLAGS	0
-#endif /* SCSI_DEBUG_FLAGS */
+#endif /* SCSI_NCR_DEBUG */
 
 
 
@@ -1259,7 +1261,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.87 1996/12/15 16:37:17 se Exp $\n";
+	"\n$Id: ncr.c,v 1.88 1996/12/15 23:25:50 se Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -1271,7 +1273,7 @@ static const u_long	ncr_version = NCR_VERSION	* 11
 static const int nncr=MAX_UNITS;	/* XXX to be replaced by SYSCTL */
 ncb_p         ncrp [MAX_UNITS];		/* XXX to be replaced by SYSCTL */
 
-static int ncr_debug = SCSI_DEBUG_FLAGS;
+static int ncr_debug = SCSI_NCR_DEBUG;
 SYSCTL_INT(_debug, OID_AUTO, ncr_debug, CTLFLAG_RW, &ncr_debug, 0, "");
 
 static int ncr_cache; /* to be aligned _NOT_ static */
