@@ -73,8 +73,6 @@ static int secsize = 0;		/* the sensed sector size */
 
 static char *disk;
 
-static struct disklabel disklabel;		/* disk parameters */
-
 static int cyls, sectors, heads, cylsecs, disksecs;
 
 struct mboot {
@@ -754,18 +752,6 @@ get_params()
 	u_int u;
 	off_t o;
 
-	if (ioctl(fd, DIOCGDINFO, &disklabel) == -1) {
-		warnx("can't get disk parameters on %s; supplying dummy ones", disk);
-		dos_cyls = cyls = 1;
-		dos_heads = heads = 1;
-		dos_sectors = sectors = 1;
-		dos_cylsecs = cylsecs = heads * sectors;
-		disksecs = cyls * heads * sectors;
-	} else {
-		dos_cyls = cyls = disklabel.d_ncylinders;
-		dos_heads = heads = disklabel.d_ntracks;
-		dos_sectors = sectors = disklabel.d_nsectors;
-	}
 	error = ioctl(fd, DIOCGFWSECTORS, &u);
 	if (error == 0)
 		sectors = dos_sectors = u;
@@ -785,7 +771,6 @@ get_params()
 		disksecs = o / u;
 		cyls = dos_cyls = o / (u * dos_heads * dos_sectors);
 	}
-
 
 	return (disksecs);
 }
