@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsobject - Dispatcher object management routines
- *              $Revision: 76 $
+ *              $Revision: 81 $
  *
  *****************************************************************************/
 
@@ -218,7 +218,7 @@ AcpiDsInitOneObject (
         if (ACPI_FAILURE (Status))
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Method %p [%4.4s] - parse failure, %s\n",
-                ObjHandle, &((ACPI_NAMESPACE_NODE *)ObjHandle)->Name,
+                ObjHandle, (char*)&((ACPI_NAMESPACE_NODE *)ObjHandle)->Name,
                 AcpiFormatException (Status)));
 
             /* This parse failed, but we will continue parsing more methods */
@@ -338,7 +338,7 @@ AcpiDsInitObjectFromOp (
 
     ObjDesc = *RetObjDesc;
     OpInfo = AcpiPsGetOpcodeInfo (Opcode);
-    if (ACPI_GET_OP_TYPE (OpInfo) != ACPI_OP_TYPE_OPCODE)
+    if (OpInfo->Class == AML_CLASS_UNKNOWN)
     {
         /* Unknown opcode */
 
@@ -414,7 +414,7 @@ AcpiDsInitObjectFromOp (
         {
             if (ByteList->Opcode != AML_INT_BYTELIST_OP)
             {
-                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Expecting bytelist, got: %x\n",
+                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Expecting bytelist, got: %p\n",
                     ByteList));
                 return (AE_TYPE);
             }
@@ -462,9 +462,9 @@ AcpiDsInitObjectFromOp (
 
     case INTERNAL_TYPE_REFERENCE:
 
-        switch (ACPI_GET_OP_CLASS (OpInfo))
+        switch (OpInfo->Type)
         {
-        case OPTYPE_LOCAL_VARIABLE:
+        case AML_TYPE_LOCAL_VARIABLE:
 
             /* Split the opcode into a base opcode + offset */
 
@@ -473,7 +473,7 @@ AcpiDsInitObjectFromOp (
             break;
 
 
-        case OPTYPE_METHOD_ARGUMENT:
+        case AML_TYPE_METHOD_ARGUMENT:
 
             /* Split the opcode into a base opcode + offset */
 
@@ -780,6 +780,16 @@ AcpiDsCreateNode (
     FUNCTION_TRACE_PTR ("DsCreateNode", Op);
 
 
+    /*
+     * Because of the execution pass through the non-control-method
+     * parts of the table, we can arrive here twice.  Only init
+     * the named object node the first time through
+     */
+    if (Node->Object)
+    {
+        return_ACPI_STATUS (AE_OK);
+    }
+
     if (!Op->Value.Arg)
     {
         /* No arguments, there is nothing to do */
@@ -802,15 +812,8 @@ AcpiDsCreateNode (
     /* Init obj */
 
     Status = AcpiNsAttachObject (Node, ObjDesc, (UINT8) Node->Type);
-    if (ACPI_FAILURE (Status))
-    {
-        goto Cleanup;
-    }
 
-    return_ACPI_STATUS (Status);
-
-
-Cleanup:
+    /* Remove local reference to the object */
 
     AcpiUtRemoveReference (ObjDesc);
     return_ACPI_STATUS (Status);

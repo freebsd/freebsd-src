@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: hwacpi - ACPI Hardware Initialization/Mode Interface
- *              $Revision: 45 $
+ *              $Revision: 46 $
  *
  *****************************************************************************/
 
@@ -327,7 +327,7 @@ AcpiHwSetMode (
 
     /* Give the platform some time to react */
 
-    AcpiOsStall (5000);
+    AcpiOsStall (20000);
 
     if (AcpiHwGetMode () == Mode)
     {

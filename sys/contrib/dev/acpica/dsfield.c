@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsfield - Dispatcher field routines
- *              $Revision: 44 $
+ *              $Revision: 46 $
  *
  *****************************************************************************/
 
@@ -121,21 +121,246 @@
 #include "acdispat.h"
 #include "acinterp.h"
 #include "acnamesp.h"
+#include "acparser.h"
 
 
 #define _COMPONENT          ACPI_DISPATCHER
         MODULE_NAME         ("dsfield")
 
+   
 
-/*
- * Field flags: Bits 00 - 03 : AccessType (AnyAcc, ByteAcc, etc.)
- *                   04      : LockRule (1 == Lock)
- *                   05 - 06 : UpdateRule
- */
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDsCreateBufferField
+ *
+ * PARAMETERS:  Opcode              - The opcode to be executed
+ *              Operands            - List of operands for the opcode
+ *              WalkState           - Current state
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Execute the CreateField operators: 
+ *              CreateBitFieldOp,
+ *              CreateByteFieldOp, 
+ *              CreateWordFieldOp, 
+ *              CreateDWordFieldOp,
+ *              CreateQWordFieldOp,
+ *              CreateFieldOp       (all of which define fields in buffers)
+ *
+ ******************************************************************************/
 
-#define FIELD_ACCESS_TYPE_MASK      0x0F
-#define FIELD_LOCK_RULE_MASK        0x10
-#define FIELD_UPDATE_RULE_MASK      0x60
+ACPI_STATUS
+AcpiDsCreateBufferField (
+    ACPI_PARSE_OBJECT       *Op,
+    ACPI_WALK_STATE         *WalkState)
+{
+    ACPI_PARSE_OBJECT       *Arg;
+    ACPI_NAMESPACE_NODE     *Node;
+    ACPI_STATUS             Status;
+    ACPI_OPERAND_OBJECT     *ObjDesc;
+
+
+    FUNCTION_TRACE ("DsCreateBufferField");
+
+
+    /* Get the NameString argument */
+
+    if (Op->Opcode == AML_CREATE_FIELD_OP)
+    {
+        Arg = AcpiPsGetArg (Op, 3);
+    }
+    else
+    {
+        /* Create Bit/Byte/Word/Dword field */
+
+        Arg = AcpiPsGetArg (Op, 2);
+    }
+
+    if (!Arg)
+    {
+        return_ACPI_STATUS (AE_AML_NO_OPERAND);
+    }
+
+    /*
+     * Enter the NameString into the namespace
+     */
+    Status = AcpiNsLookup (WalkState->ScopeInfo, Arg->Value.String,
+                            INTERNAL_TYPE_DEF_ANY, IMODE_LOAD_PASS1,
+                            NS_NO_UPSEARCH | NS_DONT_OPEN_SCOPE,
+                            WalkState, &(Node));
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    /* We could put the returned object (Node) on the object stack for later, but
+     * for now, we will put it in the "op" object that the parser uses, so we
+     * can get it again at the end of this scope
+     */
+    Op->Node = Node;
+
+    /*
+     * If there is no object attached to the node, this node was just created and
+     * we need to create the field object.  Otherwise, this was a lookup of an
+     * existing node and we don't want to create the field object again.
+     */
+    if (Node->Object)
+    {
+        return_ACPI_STATUS (AE_OK);
+    }
+
+    /*
+     * The Field definition is not fully parsed at this time.
+     * (We must save the address of the AML for the buffer and index operands)
+     */
+
+    /* Create the buffer field object */
+
+    ObjDesc = AcpiUtCreateInternalObject (ACPI_TYPE_BUFFER_FIELD);
+    if (!ObjDesc)
+    {
+        Status = AE_NO_MEMORY;
+        goto Cleanup;
+    }
+
+    /*
+     * Allocate a method object for this field unit
+     */
+    ObjDesc->BufferField.Extra = AcpiUtCreateInternalObject (
+                                    INTERNAL_TYPE_EXTRA);
+    if (!ObjDesc->BufferField.Extra)
+    {
+        Status = AE_NO_MEMORY;
+        goto Cleanup;
+    }
+
+    /*
+     * Remember location in AML stream of the field unit
+     * opcode and operands -- since the buffer and index
+     * operands must be evaluated.
+     */
+    ObjDesc->BufferField.Extra->Extra.AmlStart  = ((ACPI_PARSE2_OBJECT *) Op)->Data;
+    ObjDesc->BufferField.Extra->Extra.AmlLength = ((ACPI_PARSE2_OBJECT *) Op)->Length;
+    ObjDesc->BufferField.Node = Node;
+
+    /* Attach constructed field descriptor to parent node */
+
+    Status = AcpiNsAttachObject (Node, ObjDesc, ACPI_TYPE_BUFFER_FIELD);
+
+
+Cleanup:
+
+    /* Remove local reference to the object */
+
+    AcpiUtRemoveReference (ObjDesc);
+    return_ACPI_STATUS (Status);
+}
+
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDsGetFieldNames
+ *
+ * PARAMETERS:  Info            - CreateField info structure
+ *  `           WalkState       - Current method state
+ *              Arg             - First parser arg for the field name list
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Process all named fields in a field declaration.  Names are
+ *              entered into the namespace.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiDsGetFieldNames (
+    ACPI_CREATE_FIELD_INFO  *Info,
+    ACPI_WALK_STATE         *WalkState,
+    ACPI_PARSE_OBJECT       *Arg)
+{
+    ACPI_STATUS             Status;
+
+
+    FUNCTION_TRACE_U32 ("DsGetFieldNames", Info);
+
+
+    /* First field starts at bit zero */
+
+    Info->FieldBitPosition = 0;
+
+    /* Process all elements in the field list (of parse nodes) */
+
+    while (Arg)
+    {
+        /*
+         * Three types of field elements are handled:
+         * 1) Offset - specifies a bit offset
+         * 2) AccessAs - changes the access mode
+         * 3) Name - Enters a new named field into the namespace
+         */
+        switch (Arg->Opcode)
+        {
+        case AML_INT_RESERVEDFIELD_OP:
+
+            Info->FieldBitPosition += Arg->Value.Size;
+            break;
+
+
+        case AML_INT_ACCESSFIELD_OP:
+
+            /*
+             * Get a new AccessType and AccessAttribute for all
+             * entries (until end or another AccessAs keyword)
+             */
+            Info->FieldFlags  = (UINT8) ((Info->FieldFlags & FIELD_ACCESS_TYPE_MASK) ||
+                                        ((UINT8) (Arg->Value.Integer >> 8)));
+            break;
+
+
+        case AML_INT_NAMEDFIELD_OP:
+
+            /* Enter a new field name into the namespace */
+
+            Status = AcpiNsLookup (WalkState->ScopeInfo,
+                            (NATIVE_CHAR *) &((ACPI_PARSE2_OBJECT *)Arg)->Name,
+                            Info->FieldType, IMODE_LOAD_PASS1,
+                            NS_NO_UPSEARCH | NS_DONT_OPEN_SCOPE,
+                            NULL, &Info->FieldNode);
+            if (ACPI_FAILURE (Status))
+            {
+                return_ACPI_STATUS (Status);
+            }
+
+            /* Create and initialize an object for the new Field Node */
+
+            Info->FieldBitLength = Arg->Value.Size;
+
+            Status = AcpiExPrepFieldValue (Info);
+            if (ACPI_FAILURE (Status))
+            {
+                return_ACPI_STATUS (Status);
+            }
+
+            /* Keep track of bit position for the next field */
+
+            Info->FieldBitPosition += Info->FieldBitLength;
+            break;
+
+
+        default:
+
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Invalid opcode in field list: %X\n",
+                Arg->Opcode));
+            return_ACPI_STATUS (AE_AML_ERROR);
+            break;
+        }
+
+        Arg = Arg->Next;
+    }
+
+    return_ACPI_STATUS (AE_OK);
+}
 
 
 /*******************************************************************************
@@ -160,15 +385,13 @@ AcpiDsCreateField (
 {
     ACPI_STATUS             Status = AE_AML_ERROR;
     ACPI_PARSE_OBJECT       *Arg;
-    ACPI_NAMESPACE_NODE     *Node;
-    UINT8                   FieldFlags;
-    UINT32                  FieldBitPosition = 0;
+    ACPI_CREATE_FIELD_INFO  Info;
 
 
     FUNCTION_TRACE_PTR ("DsCreateField", Op);
 
 
-    /* First arg is the name of the parent OpRegion */
+    /* First arg is the name of the parent OpRegion (must already exist) */
 
     Arg = Op->Value.Arg;
     if (!RegionNode)
@@ -185,63 +408,14 @@ AcpiDsCreateField (
     /* Second arg is the field flags */
 
     Arg = Arg->Next;
-    FieldFlags = (UINT8) Arg->Value.Integer;
+    Info.FieldFlags = Arg->Value.Integer8;
 
     /* Each remaining arg is a Named Field */
 
-    Arg = Arg->Next;
-    while (Arg)
-    {
-        switch (Arg->Opcode)
-        {
-        case AML_INT_RESERVEDFIELD_OP:
+    Info.FieldType = INTERNAL_TYPE_REGION_FIELD;
+    Info.RegionNode = RegionNode;
 
-            FieldBitPosition += Arg->Value.Size;
-            break;
-
-
-        case AML_INT_ACCESSFIELD_OP:
-
-            /*
-             * Get a new AccessType and AccessAttribute for all
-             * entries (until end or another AccessAs keyword)
-             */
-            FieldFlags  = (UINT8) ((FieldFlags & FIELD_ACCESS_TYPE_MASK) ||
-                                   ((UINT8) (Arg->Value.Integer >> 8)));
-            break;
-
-
-        case AML_INT_NAMEDFIELD_OP:
-
-            Status = AcpiNsLookup (WalkState->ScopeInfo,
-                            (NATIVE_CHAR *) &((ACPI_PARSE2_OBJECT *)Arg)->Name,
-                            INTERNAL_TYPE_REGION_FIELD, IMODE_LOAD_PASS1,
-                            NS_NO_UPSEARCH | NS_DONT_OPEN_SCOPE,
-                            NULL, &Node);
-            if (ACPI_FAILURE (Status))
-            {
-                return_ACPI_STATUS (Status);
-            }
-
-            /*
-             * Initialize an object for the new Node that is on
-             * the object stack
-             */
-            Status = AcpiExPrepRegionFieldValue (Node, RegionNode, FieldFlags,
-                            FieldBitPosition, Arg->Value.Size);
-            if (ACPI_FAILURE (Status))
-            {
-                return_ACPI_STATUS (Status);
-            }
-
-            /* Keep track of bit position for *next* field */
-
-            FieldBitPosition += Arg->Value.Size;
-            break;
-        }
-
-        Arg = Arg->Next;
-    }
+    Status = AcpiDsGetFieldNames (&Info, WalkState, Arg->Next);
 
     return_ACPI_STATUS (Status);
 }
@@ -269,17 +443,13 @@ AcpiDsCreateBankField (
 {
     ACPI_STATUS             Status = AE_AML_ERROR;
     ACPI_PARSE_OBJECT       *Arg;
-    ACPI_NAMESPACE_NODE     *RegisterNode;
-    ACPI_NAMESPACE_NODE     *Node;
-    UINT32                  BankValue;
-    UINT8                   FieldFlags;
-    UINT32                  FieldBitPosition = 0;
+    ACPI_CREATE_FIELD_INFO  Info;
 
 
     FUNCTION_TRACE_PTR ("DsCreateBankField", Op);
 
 
-    /* First arg is the name of the parent OpRegion */
+    /* First arg is the name of the parent OpRegion (must already exist) */
 
     Arg = Op->Value.Arg;
     if (!RegionNode)
@@ -293,14 +463,12 @@ AcpiDsCreateBankField (
         }
     }
 
-    /* Second arg is the Bank Register */
+    /* Second arg is the Bank Register (must already exist) */
 
     Arg = Arg->Next;
-
     Status = AcpiNsLookup (WalkState->ScopeInfo, Arg->Value.String,
-                    INTERNAL_TYPE_BANK_FIELD_DEFN, IMODE_LOAD_PASS1,
-                    NS_NO_UPSEARCH | NS_DONT_OPEN_SCOPE,
-                    NULL, &RegisterNode);
+                    INTERNAL_TYPE_BANK_FIELD_DEFN, IMODE_EXECUTE,
+                    NS_SEARCH_PARENT, WalkState, &Info.RegisterNode);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -309,71 +477,19 @@ AcpiDsCreateBankField (
     /* Third arg is the BankValue */
 
     Arg = Arg->Next;
-    BankValue = Arg->Value.Integer32;
+    Info.BankValue = Arg->Value.Integer32;
 
-
-    /* Next arg is the field flags */
+    /* Fourth arg is the field flags */
 
     Arg = Arg->Next;
-    FieldFlags = Arg->Value.Integer8;
+    Info.FieldFlags = Arg->Value.Integer8;
 
     /* Each remaining arg is a Named Field */
 
-    Arg = Arg->Next;
-    while (Arg)
-    {
-        switch (Arg->Opcode)
-        {
-        case AML_INT_RESERVEDFIELD_OP:
+    Info.FieldType = INTERNAL_TYPE_BANK_FIELD;
+    Info.RegionNode = RegionNode;
 
-            FieldBitPosition += Arg->Value.Size;
-            break;
-
-
-        case AML_INT_ACCESSFIELD_OP:
-
-            /*
-             * Get a new AccessType and AccessAttribute for
-             * all entries (until end or another AccessAs keyword)
-             */
-            FieldFlags = (UINT8) ((FieldFlags & FIELD_ACCESS_TYPE_MASK) ||
-                                 ((UINT8) (Arg->Value.Integer >> 8)));
-            break;
-
-
-        case AML_INT_NAMEDFIELD_OP:
-
-            Status = AcpiNsLookup (WalkState->ScopeInfo,
-                            (NATIVE_CHAR *) &((ACPI_PARSE2_OBJECT *)Arg)->Name,
-                            INTERNAL_TYPE_REGION_FIELD, IMODE_LOAD_PASS1,
-                            NS_NO_UPSEARCH | NS_DONT_OPEN_SCOPE,
-                            NULL, &Node);
-            if (ACPI_FAILURE (Status))
-            {
-                return_ACPI_STATUS (Status);
-            }
-
-            /*
-             * Initialize an object for the new Node that is on
-             * the object stack
-             */
-            Status = AcpiExPrepBankFieldValue (Node, RegionNode, RegisterNode,
-                            BankValue, FieldFlags, FieldBitPosition,
-                            Arg->Value.Size);
-            if (ACPI_FAILURE (Status))
-            {
-                return_ACPI_STATUS (Status);
-            }
-
-            /* Keep track of bit position for the *next* field */
-
-            FieldBitPosition += Arg->Value.Size;
-            break;
-
-        }
-
-        Arg = Arg->Next;
-    }
+    Status = AcpiDsGetFieldNames (&Info, WalkState, Arg->Next);
 
     return_ACPI_STATUS (Status);
 }
@@ -401,113 +517,46 @@ AcpiDsCreateIndexField (
 {
     ACPI_STATUS             Status;
     ACPI_PARSE_OBJECT       *Arg;
-    ACPI_NAMESPACE_NODE     *Node;
-    ACPI_NAMESPACE_NODE     *IndexRegisterNode;
-    ACPI_NAMESPACE_NODE     *DataRegisterNode;
-    UINT8                   FieldFlags;
-    UINT32                  FieldBitPosition = 0;
+    ACPI_CREATE_FIELD_INFO  Info;
 
 
     FUNCTION_TRACE_PTR ("DsCreateIndexField", Op);
 
 
+    /* First arg is the name of the Index register (must already exist) */
+
     Arg = Op->Value.Arg;
-
-    /* First arg is the name of the Index register */
-
     Status = AcpiNsLookup (WalkState->ScopeInfo, Arg->Value.String,
-                    ACPI_TYPE_ANY, IMODE_LOAD_PASS1,
-                    NS_NO_UPSEARCH | NS_DONT_OPEN_SCOPE,
-                    NULL, &IndexRegisterNode);
+                    ACPI_TYPE_ANY, IMODE_EXECUTE,
+                    NS_SEARCH_PARENT, WalkState, &Info.RegisterNode);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
     }
 
-    /* Second arg is the data register */
+    /* Second arg is the data register (must already exist) */
 
     Arg = Arg->Next;
-
     Status = AcpiNsLookup (WalkState->ScopeInfo, Arg->Value.String,
-                    INTERNAL_TYPE_INDEX_FIELD_DEFN, IMODE_LOAD_PASS1,
-                    NS_NO_UPSEARCH | NS_DONT_OPEN_SCOPE,
-                    NULL, &DataRegisterNode);
+                    INTERNAL_TYPE_INDEX_FIELD_DEFN, IMODE_EXECUTE,
+                    NS_SEARCH_PARENT, WalkState, &Info.DataRegisterNode);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
     }
-
 
     /* Next arg is the field flags */
 
     Arg = Arg->Next;
-    FieldFlags = (UINT8) Arg->Value.Integer;
+    Info.FieldFlags = Arg->Value.Integer8;
 
 
     /* Each remaining arg is a Named Field */
 
-    Arg = Arg->Next;
-    while (Arg)
-    {
-        switch (Arg->Opcode)
-        {
-        case AML_INT_RESERVEDFIELD_OP:
+    Info.FieldType = INTERNAL_TYPE_INDEX_FIELD;
+    Info.RegionNode = RegionNode;
 
-            FieldBitPosition += Arg->Value.Size;
-            break;
-
-
-        case AML_INT_ACCESSFIELD_OP:
-
-            /*
-             * Get a new AccessType and AccessAttribute for all
-             * entries (until end or another AccessAs keyword)
-             */
-            FieldFlags = (UINT8) ((FieldFlags & FIELD_ACCESS_TYPE_MASK) ||
-                                 ((UINT8) (Arg->Value.Integer >> 8)));
-            break;
-
-
-        case AML_INT_NAMEDFIELD_OP:
-
-            Status = AcpiNsLookup (WalkState->ScopeInfo,
-                            (NATIVE_CHAR *) &((ACPI_PARSE2_OBJECT *)Arg)->Name,
-                            INTERNAL_TYPE_INDEX_FIELD, IMODE_LOAD_PASS1,
-                            NS_NO_UPSEARCH | NS_DONT_OPEN_SCOPE,
-                            NULL, &Node);
-            if (ACPI_FAILURE (Status))
-            {
-                return_ACPI_STATUS (Status);
-            }
-
-            /*
-             * Initialize an object for the new Node that is on
-             * the object stack
-             */
-            Status = AcpiExPrepIndexFieldValue (Node, IndexRegisterNode,
-                            DataRegisterNode, FieldFlags,
-                            FieldBitPosition, Arg->Value.Size);
-            if (ACPI_FAILURE (Status))
-            {
-                return_ACPI_STATUS (Status);
-            }
-
-            /* Keep track of bit position for the *next* field */
-
-            FieldBitPosition += Arg->Value.Size;
-            break;
-
-
-        default:
-
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Invalid opcode in field list: %X\n",
-                Arg->Opcode));
-            Status = AE_AML_ERROR;
-            break;
-        }
-
-        Arg = Arg->Next;
-    }
+    Status = AcpiDsGetFieldNames (&Info, WalkState, Arg->Next);
 
     return_ACPI_STATUS (Status);
 }

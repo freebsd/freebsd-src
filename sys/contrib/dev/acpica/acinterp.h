@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acinterp.h - Interpreter subcomponent prototypes and defines
- *       $Revision: 110 $
+ *       $Revision: 116 $
  *
  *****************************************************************************/
 
@@ -270,23 +270,50 @@ AcpiExWriteDataToField (
  */
 
 ACPI_STATUS
-AcpiExTriadic (
+AcpiExOpcode_3A_0T_0R (
     ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
-AcpiExHexadic (
+AcpiExOpcode_3A_1T_1R (
     ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
-AcpiExCreateBufferField (
-    UINT8                   *AmlStart,
-    UINT32                  AmlLength,
-    ACPI_NAMESPACE_NODE     *Node,
+AcpiExOpcode_6A_0T_1R (
     ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
-AcpiExReconfiguration (
+AcpiExGetObjectReference (
+    ACPI_OPERAND_OBJECT     *ObjDesc,
+    ACPI_OPERAND_OBJECT     **ReturnDesc,
     ACPI_WALK_STATE         *WalkState);
+
+ACPI_STATUS
+AcpiExDoConcatenate (
+    ACPI_OPERAND_OBJECT     *ObjDesc,
+    ACPI_OPERAND_OBJECT     *ObjDesc2,
+    ACPI_OPERAND_OBJECT     **ActualReturnDesc,
+    ACPI_WALK_STATE         *WalkState);
+
+BOOLEAN
+AcpiExDoLogicalOp (
+    UINT16                  Opcode,
+    ACPI_INTEGER            Operand0,
+    ACPI_INTEGER            Operand1);
+
+ACPI_INTEGER
+AcpiExDoMathOp (
+    UINT16                  Opcode,
+    ACPI_INTEGER            Operand0,
+    ACPI_INTEGER            Operand1);
+
+ACPI_STATUS
+AcpiExLoadOp (
+    ACPI_OPERAND_OBJECT     *RgnDesc,
+    ACPI_OPERAND_OBJECT     *DdbHandle);
+
+ACPI_STATUS
+AcpiExUnloadTable (
+    ACPI_OPERAND_OBJECT     *DdbHandle);
 
 ACPI_STATUS
 AcpiExCreateMutex (
@@ -294,13 +321,11 @@ AcpiExCreateMutex (
 
 ACPI_STATUS
 AcpiExCreateProcessor (
-    ACPI_PARSE_OBJECT       *Op,
-    ACPI_NAMESPACE_NODE     *ProcessorNode);
+    ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
 AcpiExCreatePowerResource (
-    ACPI_PARSE_OBJECT       *Op,
-    ACPI_NAMESPACE_NODE     *PowerNode);
+    ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
 AcpiExCreateRegion (
@@ -325,8 +350,7 @@ ACPI_STATUS
 AcpiExCreateMethod (
     UINT8                   *AmlStart,
     UINT32                  AmlLength,
-    UINT32                  MethodFlags,
-    ACPI_NAMESPACE_NODE     *Method);
+    ACPI_WALK_STATE         *WalkState);
 
 
 /*
@@ -391,6 +415,9 @@ AcpiExPrepIndexFieldValue (
     UINT32                  FieldPosition,
     UINT32                  FieldLength);
 
+ACPI_STATUS
+AcpiExPrepFieldValue (
+    ACPI_CREATE_FIELD_INFO  *Info);
 
 /*
  * amsystem - Interface to OS services
@@ -442,36 +469,39 @@ AcpiExSystemWaitSemaphore (
  */
 
 ACPI_STATUS
-AcpiExMonadic1 (
+AcpiExOpcode_1A_0T_0R (
     ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
-AcpiExMonadic2 (
+AcpiExOpcode_1A_0T_1R (
     ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
-AcpiExMonadic2R (
+AcpiExOpcode_1A_1T_1R (
     ACPI_WALK_STATE         *WalkState);
 
+ACPI_STATUS
+AcpiExOpcode_1A_1T_0R (
+    ACPI_WALK_STATE         *WalkState);
 
 /*
  * amdyadic - ACPI AML (p-code) execution, dyadic operators
  */
 
 ACPI_STATUS
-AcpiExDyadic1 (
+AcpiExOpcode_2A_0T_0R (
     ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
-AcpiExDyadic2 (
+AcpiExOpcode_2A_0T_1R (
     ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
-AcpiExDyadic2R (
+AcpiExOpcode_2A_1T_1R (
     ACPI_WALK_STATE         *WalkState);
 
 ACPI_STATUS
-AcpiExDyadic2S (
+AcpiExOpcode_2A_2T_1R (
     ACPI_WALK_STATE         *WalkState);
 
 

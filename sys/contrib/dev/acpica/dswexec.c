@@ -2,7 +2,7 @@
  *
  * Module Name: dswexec - Dispatcher method execution callbacks;
  *                        dispatch to interpreter.
- *              $Revision: 71 $
+ *              $Revision: 79 $
  *
  *****************************************************************************/
 
@@ -129,6 +129,21 @@
 #define _COMPONENT          ACPI_DISPATCHER
         MODULE_NAME         ("dswexec")
 
+/*
+ * Dispatch tables for opcode classes 
+ */
+ACPI_EXECUTE_OP         AcpiGbl_OpTypeDispatch [] = {
+                            AcpiExOpcode_1A_0T_0R,
+                            AcpiExOpcode_1A_0T_1R,
+                            AcpiExOpcode_1A_1T_0R,
+                            AcpiExOpcode_1A_1T_1R,
+                            AcpiExOpcode_2A_0T_0R,
+                            AcpiExOpcode_2A_0T_1R,
+                            AcpiExOpcode_2A_1T_1R,
+                            AcpiExOpcode_2A_2T_1R,
+                            AcpiExOpcode_3A_0T_0R,
+                            AcpiExOpcode_3A_1T_1R,
+                            AcpiExOpcode_6A_0T_1R};
 
 /*****************************************************************************
  *
@@ -188,7 +203,7 @@ AcpiDsGetPredicateValue (
 
     if (!ObjDesc)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "No predicate ObjDesc=%X State=%X\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "No predicate ObjDesc=%p State=%p\n",
             ObjDesc, WalkState));
 
         return_ACPI_STATUS (AE_AML_NO_OPERAND);
@@ -202,7 +217,7 @@ AcpiDsGetPredicateValue (
     if (ObjDesc->Common.Type != ACPI_TYPE_INTEGER)
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-            "Bad predicate (not a number) ObjDesc=%X State=%X Type=%X\n",
+            "Bad predicate (not a number) ObjDesc=%p State=%p Type=%X\n",
             ObjDesc, WalkState, ObjDesc->Common.Type));
 
         Status = AE_AML_OPERAND_TYPE;
@@ -236,7 +251,7 @@ AcpiDsGetPredicateValue (
 
 Cleanup:
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Completed a predicate eval=%X Op=%X\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Completed a predicate eval=%X Op=%pn",
         WalkState->ControlState->Common.Value, WalkState->Op));
 
      /* Break to debugger to display result */
@@ -276,7 +291,7 @@ AcpiDsExecBeginOp (
 {
     ACPI_PARSE_OBJECT       *Op;
     ACPI_STATUS             Status = AE_OK;
-    UINT8                   OpcodeClass;
+    UINT32                  OpcodeClass;
 
 
     FUNCTION_TRACE_PTR ("DsExecBeginOp", WalkState);
@@ -316,7 +331,7 @@ AcpiDsExecBeginOp (
         (WalkState->ControlState->Common.State ==
             CONTROL_CONDITIONAL_EXECUTING))
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Exec predicate Op=%X State=%X\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Exec predicate Op=%p State=%p\n",
                         Op, WalkState));
 
         WalkState->ControlState->Common.State = CONTROL_PREDICATE_EXECUTING;
@@ -327,13 +342,13 @@ AcpiDsExecBeginOp (
     }
 
 
-    OpcodeClass = (UINT8) ACPI_GET_OP_CLASS (WalkState->OpInfo);
+    OpcodeClass = WalkState->OpInfo->Class;
 
     /* We want to send namepaths to the load code */
 
     if (Op->Opcode == AML_INT_NAMEPATH_OP)
     {
-        OpcodeClass = OPTYPE_NAMED_OBJECT;
+        OpcodeClass = AML_CLASS_NAMED_OBJECT;
     }
 
     /*
@@ -341,7 +356,7 @@ AcpiDsExecBeginOp (
      */
     switch (OpcodeClass)
     {
-    case OPTYPE_CONTROL:
+    case AML_CLASS_CONTROL:
 
         Status = AcpiDsResultStackPush (WalkState);
         if (ACPI_FAILURE (Status))
@@ -353,7 +368,7 @@ AcpiDsExecBeginOp (
         break;
 
 
-    case OPTYPE_NAMED_OBJECT:
+    case AML_CLASS_NAMED_OBJECT:
 
         if (WalkState->WalkType == WALK_METHOD)
         {
@@ -378,18 +393,8 @@ AcpiDsExecBeginOp (
 
     /* most operators with arguments */
 
-    case OPTYPE_MONADIC1:
-    case OPTYPE_DYADIC1:
-    case OPTYPE_MONADIC2:
-    case OPTYPE_MONADIC2R:
-    case OPTYPE_DYADIC2:
-    case OPTYPE_DYADIC2R:
-    case OPTYPE_DYADIC2S:
-    case OPTYPE_RECONFIGURATION:
-    case OPTYPE_TRIADIC:
-    case OPTYPE_QUADRADIC:
-    case OPTYPE_HEXADIC:
-    case OPTYPE_CREATE_FIELD:
+    case AML_CLASS_EXECUTE:
+    case AML_CLASS_CREATE:
 
         /* Start a new result/operand state */
 
@@ -429,7 +434,8 @@ AcpiDsExecEndOp (
 {
     ACPI_PARSE_OBJECT       *Op;
     ACPI_STATUS             Status = AE_OK;
-    UINT8                   Optype;
+    UINT32                  OpType;
+    UINT32                  OpClass;
     ACPI_PARSE_OBJECT       *NextOp;
     ACPI_PARSE_OBJECT       *FirstArg;
     UINT32                  i;
@@ -438,16 +444,16 @@ AcpiDsExecEndOp (
     FUNCTION_TRACE_PTR ("DsExecEndOp", WalkState);
 
 
-    Op = WalkState->Op;
+    Op      = WalkState->Op;
+    OpType  = WalkState->OpInfo->Type;
+    OpClass = WalkState->OpInfo->Class;
 
-
-    if (ACPI_GET_OP_TYPE (WalkState->OpInfo) != ACPI_OP_TYPE_OPCODE)
+    if (OpClass == AML_CLASS_UNKNOWN)
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unknown opcode %X\n", Op->Opcode));
         return_ACPI_STATUS (AE_NOT_IMPLEMENTED);
     }
 
-    Optype = (UINT8) ACPI_GET_OP_CLASS (WalkState->OpInfo);
     FirstArg = Op->Value.Arg;
 
     /* Init the walk state */
@@ -459,48 +465,20 @@ AcpiDsExecEndOp (
 
     /* Call debugger for single step support (DEBUG build only) */
 
-    DEBUGGER_EXEC (Status = AcpiDbSingleStep (WalkState, Op, Optype));
+    DEBUGGER_EXEC (Status = AcpiDbSingleStep (WalkState, Op, OpClass));
     DEBUGGER_EXEC (if (ACPI_FAILURE (Status)) {return_ACPI_STATUS (Status);});
 
 
-    /* Decode the opcode */
-
-    switch (Optype)
+    switch (OpClass)
     {
-    case OPTYPE_UNDEFINED:
+    /* Decode the Opcode Class */
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Undefined opcode type Op=%X\n", Op));
-        return_ACPI_STATUS (AE_NOT_IMPLEMENTED);
+    case AML_CLASS_ARGUMENT: /* constants, literals, etc.  do nothing */
         break;
-
-
-    case OPTYPE_BOGUS:
-        ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Internal opcode=%X type Op=%X\n",
-            WalkState->Opcode, Op));
-        break;
-
-    case OPTYPE_CONSTANT:           /* argument type only */
-    case OPTYPE_LITERAL:            /* argument type only */
-    case OPTYPE_DATA_TERM:          /* argument type only */
-    case OPTYPE_LOCAL_VARIABLE:     /* argument type only */
-    case OPTYPE_METHOD_ARGUMENT:    /* argument type only */
-        break;
-
 
     /* most operators with arguments */
 
-    case OPTYPE_MONADIC1:
-    case OPTYPE_DYADIC1:
-    case OPTYPE_MONADIC2:
-    case OPTYPE_MONADIC2R:
-    case OPTYPE_DYADIC2:
-    case OPTYPE_DYADIC2R:
-    case OPTYPE_DYADIC2S:
-    case OPTYPE_RECONFIGURATION:
-    case OPTYPE_TRIADIC:
-    case OPTYPE_QUADRADIC:
-    case OPTYPE_HEXADIC:
-
+    case AML_CLASS_EXECUTE:
 
         /* Build resolved operand stack */
 
@@ -547,98 +525,26 @@ AcpiDsExecEndOp (
         DUMP_OPERANDS (WALK_OPERANDS, IMODE_EXECUTE, AcpiPsGetOpcodeName (WalkState->Opcode),
                         WalkState->NumOperands, "after ExResolveOperands");
 
-        switch (Optype)
-        {
-        case OPTYPE_MONADIC1:
-
-            /* 1 Operand, 0 ExternalResult, 0 InternalResult */
-
-            Status = AcpiExMonadic1 (WalkState);
-            break;
+        /*
+         * Dispatch the request to the appropriate interpreter handler
+         * routine.  There is one routine per opcode "type" based upon the
+         * number of opcode arguments and return type.
+         */
+        Status = AcpiGbl_OpTypeDispatch [OpType] (WalkState);
 
 
-        case OPTYPE_MONADIC2:
-
-            /* 1 Operand, 0 ExternalResult, 1 InternalResult */
-
-            Status = AcpiExMonadic2 (WalkState);
-            break;
-
-
-        case OPTYPE_MONADIC2R:
-
-            /* 1 Operand, 1 ExternalResult, 1 InternalResult */
-
-            Status = AcpiExMonadic2R (WalkState);
-            break;
-
-
-        case OPTYPE_DYADIC1:
-
-            /* 2 Operands, 0 ExternalResult, 0 InternalResult */
-
-            Status = AcpiExDyadic1 (WalkState);
-            break;
-
-
-        case OPTYPE_DYADIC2:
-
-            /* 2 Operands, 0 ExternalResult, 1 InternalResult */
-
-            Status = AcpiExDyadic2 (WalkState);
-            break;
-
-
-        case OPTYPE_DYADIC2R:
-
-            /* 2 Operands, 1 or 2 ExternalResults, 1 InternalResult */
-
-            Status = AcpiExDyadic2R (WalkState);
-            break;
-
-
-        case OPTYPE_DYADIC2S:   /* Synchronization Operator */
-
-            /* 2 Operands, 0 ExternalResult, 1 InternalResult */
-
-            Status = AcpiExDyadic2S (WalkState);
-            break;
-
-
-        case OPTYPE_TRIADIC:    /* WalkState->Opcode with 3 operands */
-
-            /* 3 Operands, 1 ExternalResult, 1 InternalResult */
-
-            Status = AcpiExTriadic (WalkState);
-            break;
-
-
-        case OPTYPE_QUADRADIC:  /* Opcode with 4 operands */
-            break;
-
-
-        case OPTYPE_HEXADIC:    /* Opcode with 6 operands */
-
-            /* 6 Operands, 0 ExternalResult, 1 InternalResult */
-
-            Status = AcpiExHexadic (WalkState);
-            break;
-
-
-        case OPTYPE_RECONFIGURATION:
-
-            /* 1 or 2 operands, 0 Internal Result */
-
-            Status = AcpiExReconfiguration (WalkState);
-            break;
-        }
-
-        /* Clear the operand stack */
+        /* Delete argument objects and clear the operand stack */
 
         for (i = 0; i < WalkState->NumOperands; i++)
         {
+            /*
+             * Remove a reference to all operands, including both 
+             * "Arguments" and "Targets".
+             */
+            AcpiUtRemoveReference (WalkState->Operands[i]);
             WalkState->Operands[i] = NULL;
         }
+
         WalkState->NumOperands = 0;
 
         /*
@@ -654,137 +560,134 @@ AcpiDsExecEndOp (
         break;
 
 
-    case OPTYPE_CONTROL:    /* Type 1 opcode, IF/ELSE/WHILE/NOOP */
+    default:
 
-        /* 1 Operand, 0 ExternalResult, 0 InternalResult */
-
-        Status = AcpiDsExecEndControlOp (WalkState, Op);
-
-        AcpiDsResultStackPop (WalkState);
-        break;
-
-
-    case OPTYPE_METHOD_CALL:
-
-        ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Method invocation, Op=%X\n", Op));
-
-        /*
-         * (AML_METHODCALL) Op->Value->Arg->Node contains
-         * the method Node pointer
-         */
-        /* NextOp points to the op that holds the method name */
-
-        NextOp = FirstArg;
-
-        /* NextOp points to first argument op */
-
-        NextOp = NextOp->Next;
-
-        /*
-         * Get the method's arguments and put them on the operand stack
-         */
-        Status = AcpiDsCreateOperands (WalkState, NextOp);
-        if (ACPI_FAILURE (Status))
+        switch (OpType)
         {
+        case AML_TYPE_CONTROL:    /* Type 1 opcode, IF/ELSE/WHILE/NOOP */
+
+            /* 1 Operand, 0 ExternalResult, 0 InternalResult */
+
+            Status = AcpiDsExecEndControlOp (WalkState, Op);
+
+            AcpiDsResultStackPop (WalkState);
             break;
-        }
-
-        /*
-         * Since the operands will be passed to another
-         * control method, we must resolve all local
-         * references here (Local variables, arguments
-         * to *this* method, etc.)
-         */
-        Status = AcpiDsResolveOperands (WalkState);
-        if (ACPI_FAILURE (Status))
-        {
-            break;
-        }
-
-        /*
-         * Tell the walk loop to preempt this running method and
-         * execute the new method
-         */
-        Status = AE_CTRL_TRANSFER;
-
-        /*
-         * Return now; we don't want to disturb anything,
-         * especially the operand count!
-         */
-        return_ACPI_STATUS (Status);
-        break;
 
 
-    case OPTYPE_CREATE_FIELD:
+        case AML_TYPE_METHOD_CALL:
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-            "Executing CreateField Buffer/Index Op=%X\n", Op));
+            ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Method invocation, Op=%p\n", Op));
 
-        Status = AcpiDsLoad2EndOp (WalkState);
-        if (ACPI_FAILURE (Status))
-        {
-            break;
-        }
+            /*
+             * (AML_METHODCALL) Op->Value->Arg->Node contains
+             * the method Node pointer
+             */
+            /* NextOp points to the op that holds the method name */
 
-        Status = AcpiDsEvalBufferFieldOperands (WalkState, Op);
-        break;
+            NextOp = FirstArg;
 
+            /* NextOp points to first argument op */
 
-    case OPTYPE_NAMED_OBJECT:
+            NextOp = NextOp->Next;
 
-        Status = AcpiDsLoad2EndOp (WalkState);
-        if (ACPI_FAILURE (Status))
-        {
-            break;
-        }
-
-        switch (Op->Opcode)
-        {
-        case AML_REGION_OP:
-
-            ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-                "Executing OpRegion Address/Length Op=%X\n", Op));
-
-            Status = AcpiDsEvalRegionOperands (WalkState, Op);
+            /*
+             * Get the method's arguments and put them on the operand stack
+             */
+            Status = AcpiDsCreateOperands (WalkState, NextOp);
             if (ACPI_FAILURE (Status))
             {
                 break;
             }
 
-            Status = AcpiDsResultStackPop (WalkState);
+            /*
+             * Since the operands will be passed to another
+             * control method, we must resolve all local
+             * references here (Local variables, arguments
+             * to *this* method, etc.)
+             */
+            Status = AcpiDsResolveOperands (WalkState);
+            if (ACPI_FAILURE (Status))
+            {
+                break;
+            }
+
+            /*
+             * Tell the walk loop to preempt this running method and
+             * execute the new method
+             */
+            Status = AE_CTRL_TRANSFER;
+
+            /*
+             * Return now; we don't want to disturb anything,
+             * especially the operand count!
+             */
+            return_ACPI_STATUS (Status);
             break;
 
 
-        case AML_METHOD_OP:
+        case AML_TYPE_CREATE_FIELD:
+
+            ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+                "Executing CreateField Buffer/Index Op=%p\n", Op));
+
+            Status = AcpiDsLoad2EndOp (WalkState);
+            if (ACPI_FAILURE (Status))
+            {
+                break;
+            }
+
+            Status = AcpiDsEvalBufferFieldOperands (WalkState, Op);
             break;
 
 
-        case AML_ALIAS_OP:
+        case AML_TYPE_NAMED_FIELD:
+        case AML_TYPE_NAMED_COMPLEX:
+        case AML_TYPE_NAMED_SIMPLE:
 
-            /* Alias creation was already handled by call
-            to psxload above */
+            Status = AcpiDsLoad2EndOp (WalkState);
+            if (ACPI_FAILURE (Status))
+            {
+                break;
+            }
+
+            if (Op->Opcode == AML_REGION_OP)
+            {
+                ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+                    "Executing OpRegion Address/Length Op=%p\n", Op));
+
+                Status = AcpiDsEvalRegionOperands (WalkState, Op);
+                if (ACPI_FAILURE (Status))
+                {
+                    break;
+                }
+
+                Status = AcpiDsResultStackPop (WalkState);
+            }
+
             break;
 
+        case AML_TYPE_UNDEFINED:
+
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Undefined opcode type Op=%p\n", Op));
+            return_ACPI_STATUS (AE_NOT_IMPLEMENTED);
+            break;
+
+
+        case AML_TYPE_BOGUS:
+            ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Internal opcode=%X type Op=%p\n",
+                WalkState->Opcode, Op));
+            break;
 
         default:
-            /* Nothing needs to be done */
 
-            Status = AE_OK;
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+                "Unimplemented opcode, class=%X type=%X Opcode=%X Op=%p\n",
+                OpClass, OpType, Op->Opcode, Op));
+
+            Status = AE_NOT_IMPLEMENTED;
             break;
         }
-
-        break;
-
-    default:
-
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-            "Unimplemented opcode, type=%X Opcode=%X Op=%X\n",
-            Optype, Op->Opcode, Op));
-
-        Status = AE_NOT_IMPLEMENTED;
-        break;
     }
-
 
     /*
      * ACPI 2.0 support for 64-bit integers:

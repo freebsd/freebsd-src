@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: acobject.h - Definition of ACPI_OPERAND_OBJECT  (Internal object only)
- *       $Revision: 92 $
+ *       $Revision: 93 $
  *
  *****************************************************************************/
 
@@ -193,8 +193,7 @@
  * Fields common to both Strings and Buffers
  */
 #define ACPI_COMMON_BUFFER_INFO \
-    UINT32                      Length; \
-    NATIVE_CHAR                 *Pointer;           /* String value in AML stream or in allocated space */
+    UINT32                      Length;
 
 
 
@@ -233,6 +232,7 @@ typedef struct /* STRING - has length and pointer - Null terminated, ASCII chara
 {
     ACPI_OBJECT_COMMON_HEADER
     ACPI_COMMON_BUFFER_INFO
+    NATIVE_CHAR                 *Pointer;           /* String value in AML stream or in allocated space */
 
 } ACPI_OBJECT_STRING;
 
@@ -241,6 +241,7 @@ typedef struct /* BUFFER - has length and pointer - not null terminated */
 {
     ACPI_OBJECT_COMMON_HEADER
     ACPI_COMMON_BUFFER_INFO
+    UINT8                       *Pointer;           /* Buffer value in AML stream or in allocated space */
 
 } ACPI_OBJECT_BUFFER;
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbinstal - ACPI table installation and removal
- *              $Revision: 44 $
+ *              $Revision: 45 $
  *
  *****************************************************************************/
 
@@ -239,7 +239,7 @@ AcpiTbRecognizeTable (
             Status          = AcpiGbl_AcpiTableData[i].Status;
 
             ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Found %4.4s\n",
-                AcpiGbl_AcpiTableData[i].Signature));
+                (char*)AcpiGbl_AcpiTableData[i].Signature));
             break;
         }
     }

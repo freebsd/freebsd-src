@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: utdelete - object deletion and reference count utilities
- *              $Revision: 78 $
+ *              $Revision: 81 $
  *
  ******************************************************************************/
 
@@ -283,14 +283,9 @@ AcpiUtDeleteInternalObj (
      */
     if (ObjPointer)
     {
-        if (!AcpiTbSystemTablePointer (ObjPointer))
-        {
-            ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Deleting Obj Ptr %p \n", ObjPointer));
-
-            ACPI_MEM_FREE (ObjPointer);
-        }
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Deleting Obj Ptr %p \n", ObjPointer));
+        ACPI_MEM_FREE (ObjPointer);
     }
-
 
     /* Only delete the object if it was dynamically allocated */
 
@@ -521,14 +516,6 @@ AcpiUtUpdateObjectReference (
         return_ACPI_STATUS (AE_OK);
     }
 
-    if (AcpiTbSystemTablePointer (Object))
-    {
-        ACPI_DEBUG_PRINT (
-            (ACPI_DB_INFO, "**** Object %p points into an ACPI table\n", 
-            Object));
-        return_ACPI_STATUS (AE_OK);
-    }
-
 
     State = AcpiUtCreateUpdateState (Object, Action);
 
@@ -657,24 +644,9 @@ AcpiUtUpdateObjectReference (
 
 
         case ACPI_TYPE_REGION:
-
-    /* TBD: [Investigate]
-            AcpiUtUpdateRefCount (Object->Region.AddrHandler, Action);
-    */
-/*
-            Status =
-                AcpiUtCreateUpdateStateAndPush (Object->Region.AddrHandler,
-                                                Action, &StateList);
-            if (ACPI_FAILURE (Status))
-            {
-                return_ACPI_STATUS (Status);
-            }
-*/
-            break;
-
-
         case INTERNAL_TYPE_REFERENCE:
 
+            /* No subobjects */
             break;
         }
 
@@ -754,6 +726,17 @@ AcpiUtRemoveReference (
 
     FUNCTION_TRACE_PTR ("UtRemoveReference", Object);
 
+    /*
+     * Allow a NULL pointer to be passed in, just ignore it.  This saves
+     * each caller from having to check.  Also, ignore NS nodes.
+     *
+     */
+    if (!Object ||
+        (VALID_DESCRIPTOR_TYPE (Object, ACPI_DESC_TYPE_NAMED)))
+
+    {
+        return_VOID;
+    }
 
     /*
      * Ensure that we have a valid object

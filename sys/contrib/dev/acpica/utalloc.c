@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utalloc - local cache and memory allocation routines
- *              $Revision: 103 $
+ *              $Revision: 106 $
  *
  *****************************************************************************/
 
@@ -621,7 +621,7 @@ AcpiUtDumpAllocations (
             if (((ACPI_OPERAND_OBJECT  *)(&Element->UserSpace))->Common.Type != ACPI_CACHED_OBJECT)
             {
                 ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OK,
-                            "%p Len %04lX %9.9s-%ld",
+                            "%p Len %04X %9.9s-%d",
                             &Element->UserSpace, Element->Size, Element->Module,
                             Element->Line));
 
@@ -632,8 +632,9 @@ AcpiUtDumpAllocations (
                 {
                 case ACPI_DESC_TYPE_INTERNAL:
                     ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OK,
-                            " ObjType %s",
-                            AcpiUtGetTypeName (((ACPI_OPERAND_OBJECT  *)(&Element->UserSpace))->Common.Type)));
+                            " ObjType %12.12s R%d",
+                            AcpiUtGetTypeName (((ACPI_OPERAND_OBJECT *)(&Element->UserSpace))->Common.Type),
+                            ((ACPI_OPERAND_OBJECT *)(&Element->UserSpace))->Common.ReferenceCount));
                     break;
 
                 case ACPI_DESC_TYPE_PARSER:
@@ -645,7 +646,7 @@ AcpiUtDumpAllocations (
                 case ACPI_DESC_TYPE_NAMED:
                     ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OK,
                             " Node %4.4s",
-                            &((ACPI_NAMESPACE_NODE *)(&Element->UserSpace))->Name));
+                            (char*)&((ACPI_NAMESPACE_NODE *)(&Element->UserSpace))->Name));
                     break;
 
                 case ACPI_DESC_TYPE_STATE:
