@@ -158,6 +158,7 @@ static struct type *read_enum_type ();
 static struct type *read_struct_type ();
 static struct type *read_array_type ();
 static long read_number ();
+static void read_huge_number ();
 static void finish_block ();
 static struct blockvector *make_blockvector ();
 static struct symbol *define_symbol ();
@@ -5291,11 +5292,12 @@ read_range_type (pp, typenums)
      char **pp;
      int typenums[2];
 {
-  char *errp = *pp;
   int rangenums[2];
-  int n2, n3;
+  long n2, n3;
+  int n2bits, n3bits;
   int self_subrange;
   struct type *result_type;
+  struct type *index_type;
 
   /* First comes a type we are a subrange of.
      In C it is usually 0, 1 or the type being defined.  */
@@ -5309,8 +5311,45 @@ read_range_type (pp, typenums)
 
   /* The remaining two operands are usually lower and upper bounds
      of the range.  But in some special cases they mean something else.  */
-  n2 = read_number (pp, ';');
-  n3 = read_number (pp, ';');
+  read_huge_number (pp, ';', &n2, &n2bits);
+  read_huge_number (pp, ';', &n3, &n3bits);
+
+  if (n2bits == -1 || n3bits == -1)
+    error ("Unrecognized type range %s.", pp);
+
+  if (n2bits != 0 || n3bits != 0)
+#ifdef LONG_LONG
+    {
+      char got_signed = 0;
+      char got_unsigned = 0;
+      /* Number of bits in the type.  */
+      int nbits;
+
+      /* Range from 0 to <large number> is an unsigned large integral type.  */
+      if ((n2bits == 0 && n2 == 0) && n3bits != 0)
+	{
+	  got_unsigned = 1;
+	  nbits = n3bits;
+	}
+      /* Range fro <large number> to <large number>-1 is a large signed
+	 integral type.  */
+      else if (n2bits != 0 && n3bits != 0 && n2bits == n3bits + 1)
+	{
+	  got_signed = 1;
+	  nbits = n2bits;
+	}
+
+      /* Check for "long long".  */
+      if (got_signed && nbits == CHAR_BIT * sizeof (long long))
+	return builtin_type_long_long;
+      if (got_unsigned && nbits == CHAR_BIT * sizeof (long long))
+	return builtin_type_unsigned_long_long;
+
+      error ("Large type isn't a long long.");
+    }
+#else /* LONG_LONG */
+    error ("Type long long not supported on this machine.");
+#endif
 
   /* A type defined as a subrange of itself, with bounds both 0, is void.  */
   if (self_subrange && n2 == 0 && n3 == 0)
@@ -5354,31 +5393,29 @@ read_range_type (pp, typenums)
 	       *dbx_lookup_type (rangenums) == builtin_type_int))
     {
       /* an unsigned type */
-#ifdef LONG_LONG
-      if (n3 == - sizeof (long long))
-	return builtin_type_unsigned_long_long;
-#endif
-      if (n3 == (1 << (8 * sizeof (int))) - 1)
+      if (n3 == UINT_MAX)
 	return builtin_type_unsigned_int;
-      if (n3 == (1 << (8 * sizeof (short))) - 1)
+      if (n3 == ULONG_MAX)
+	return builtin_type_unsigned_long;
+      if (n3 == USHRT_MAX)
 	return builtin_type_unsigned_short;
-      if (n3 == (1 << (8 * sizeof (char))) - 1)
+      if (n3 == UCHAR_MAX)
 	return builtin_type_unsigned_char;
     }
 #ifdef LONG_LONG
   else if (n3 == 0 && n2 == -sizeof (long long))
     return builtin_type_long_long;
-#endif  
+#endif
   else if (n2 == -n3 -1)
     {
       /* a signed type */
-      if (n3 == (1 << (8 * sizeof (int) - 1)) - 1)
+      if (n3 == INT_MAX)
 	return builtin_type_int;
-      if (n3 == (1 << (8 * sizeof (long) - 1)) - 1)
+      if (n3 == LONG_MAX)
 	 return builtin_type_long;
-      if (n3 == (1 << (8 * sizeof (short) - 1)) - 1)
+      if (n3 == SHRT_MAX)
 	return builtin_type_short;
-      if (n3 == (1 << (8 * sizeof (char) - 1)) - 1)
+      if (n3 == CHAR_MAX)
 	return builtin_type_char;
     }
 
@@ -5389,7 +5426,7 @@ read_range_type (pp, typenums)
      a self_subrange type; I'm going to assume that this is used
      as an idiom, and that all of them are special cases.  So . . .  */
   if (self_subrange)
-    error ("Type defined as subrange of itself.");
+    error ("Type defined as subrange of itself: %s.", pp);
 
   result_type = (struct type *) obstack_alloc (symbol_obstack,
 					       sizeof (struct type));
@@ -5468,6 +5505,109 @@ read_number (pp, end)
 
   *pp = p;
   return n * sign;
+}
+
+static void
+read_huge_number (pp, end, valu, bits)
+     char **pp;
+     int end;
+     long *valu;
+     int *bits;
+{
+  char *p = *pp;
+  int sign = 1;
+  long n = 0;
+  int radix = 10;
+  char overflow = 0;
+  int nbits = 0;
+  int c;
+  long upper_limit;
+
+  /* Handle an optional leading minus sign.  */
+
+  if (*p == '-')
+    {
+      sign = -1;
+      p++;
+    }
+
+  /* Leading zero means octal.  GCC uses this to output values larger
+     than an int (because that would be hard in decimal).  */
+  if (*p == '0')
+    {
+      radix = 8;
+      p++;
+    }
+
+  upper_limit = LONG_MAX / radix;
+  while ((c = *p++) >= '0' && c <= '9')
+    {
+      if (n <= upper_limit)
+	{
+	  n *= radix;
+	  n += c - '0';
+	}
+      else
+	overflow = 1;
+
+      /* This depends on large values being output in octal, which is
+	 what GCC does. */
+      if (radix == 8)
+	{
+	  if (nbits == 0)
+	    {
+	      if (c == '0')
+		/* Ignore leading zeroes.  */
+		;
+	      else if (c == '1')
+		nbits = 1;
+	      else if (c == '2' || c == '3')
+		nbits = 2;
+	      else
+		nbits = 3;
+	    }
+	  else
+	    nbits += 3;
+	}
+    }
+  if (end)
+    {
+      if (c && c != end)
+	{
+	  if (bits != NULL)
+	    *bits = -1;
+	  return;
+	}
+    }
+  else
+    --p;
+
+  *pp = p;
+  if (overflow)
+    {
+      if (nbits == 0)
+	{
+	  /* Large decimal constants are an error (because it is hard to
+	     count how many bits are in them).  */
+	  if (bits != NULL)
+	    *bits = -1;
+	  return;
+	}
+
+      /* -0x7f is the same as 0x80.  So deal with it by adding one to
+	 the number of bits.  */
+      if (sign == -1)
+	++nbits;
+      if (bits)
+	*bits = nbits;
+    }
+  else
+    {
+      if (valu)
+	*valu = n * sign;
+      if (bits)
+	*bits = 0;
+    }
 }
 
 /* Read in an argument list. This is a list of types. It is terminated with
