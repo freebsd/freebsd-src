@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.46 1997/08/28 03:37:46 msmith Exp $
+ *	$Id: isa_device.h,v 1.47 1997/09/21 21:41:19 gibbs Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
@@ -121,6 +121,57 @@ void	isa_dma_release __P((int chan));
 int	isa_dmastatus __P((int chan));
 int	isa_dmastop __P((int chan));
 void	reconfig_isadev __P((struct isa_device *isdp, u_int *mp));
+
+inthand2_t	adintr;
+inthand2_t	ahaintr;
+inthand2_t	aicintr;
+inthand2_t	alogintr;
+inthand2_t	arintr;
+inthand2_t	ascintr;
+inthand2_t	bt_isa_intr;
+inthand2_t	cxintr;
+inthand2_t	cyintr;
+inthand2_t	edintr;
+inthand2_t	egintr;
+inthand2_t	elintr;
+inthand2_t	epintr;
+inthand2_t	exintr;
+inthand2_t	fdintr;
+inthand2_t	feintr;
+inthand2_t	gusintr;
+inthand2_t	ieintr;
+inthand2_t	labpcintr;
+inthand2_t	le_intr;
+inthand2_t	lncintr;
+inthand2_t	loranintr;
+inthand2_t	lptintr;
+inthand2_t	m6850intr;
+inthand2_t	mcdintr;
+inthand2_t	mseintr;
+inthand2_t	ncaintr;
+inthand2_t	npxintr;
+inthand2_t	pasintr;
+inthand2_t	pcrint;
+inthand2_t	ppcintr;
+inthand2_t	psmintr;
+inthand2_t	rcintr;
+inthand2_t	sbintr;
+inthand2_t	scintr;
+inthand2_t	seaintr;
+inthand2_t	siointr;
+inthand2_t	sndintr;
+inthand2_t	spigintr;
+inthand2_t	srintr;
+inthand2_t	sscapeintr;
+inthand2_t	stlintr;
+inthand2_t	twintr;
+inthand2_t	uhaintr;
+inthand2_t	wdintr;
+inthand2_t	wdsintr;
+inthand2_t	wlintr;
+inthand2_t	wtintr;
+inthand2_t	zeintr;
+inthand2_t	zpintr;
 
 #endif /* KERNEL */
 
