@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.7 1997/05/23 08:33:59 asami Exp $
+# $Id: Makefile,v 1.8 1998/02/25 01:23:28 bde Exp $
 #
 
 GPPDIR=	${.CURDIR}/../../../contrib/libg++
@@ -69,10 +69,7 @@ SRCS+=	cleanup.c filedoalloc.c fileops.c floatconv.c genops.c iofclose.c \
 	ioseekpos.c iostrerror.c ioungetc.c iovfprintf.c iovfscanf.c \
 	outfloat.c strops.c
 
-
-
-beforedepend:	config.h
-strerror.o:	config.h
+SRCS+=	config.h
 CLEANFILES+=	config.h
 
 config.h:
@@ -122,170 +119,98 @@ ${file}.po: ${file}.cc
 .endfor
 
 # ======== cstrmain.o ========
-CSTRMAIN=	-DC
+SRCS+=	cstrmain.cc
+CLEANFILES+=	cstrmain.cc
+
+cstrmain.cc: sinst.cc
+	echo "#define C 1" > ${.TARGET}
 .for i in REP MAIN TRAITS ADDSS ADDPS ADDCS ADDSP ADDSC  EQSS EQPS EQSP NESS \
-	NEPS NESP LTSS LTPS LTSP GTSS GTPS GTSP  LESS LEPS LESP GESS GEPS GESP
-CSTRMAIN+=	-D${i}
+    NEPS NESP LTSS LTPS LTSP GTSS GTPS GTSP  LESS LEPS LESP GESS GEPS GESP
+	echo "#define $i 1" >> ${.TARGET}
 .endfor
-
-OBJS+=	cstrmain.o
-
-cstrmain.o:	sinst.cc
-	${CXX} ${CXXFLAGS} ${CSTRMAIN} -c ${.ALLSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
-
-cstrmain.so:	sinst.cc
-	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} ${CSTRMAIN} -c ${.ALLSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
-
-cstrmain.po:	sinst.cc
-	${CXX} -p ${CXXFLAGS} ${CSTRMAIN} -c ${.ALLSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -X -r ${.TARGET}
+	cat ${.ALLSRC} >> ${.TARGET}
 
 # ======== cstrio.o ========
-CSTRIO=	-DC
+SRCS+=	cstrio.cc
+CLEANFILES+=	cstrio.cc
+
+cstrio.cc: sinst.cc
+	echo "#define C 1" > ${.TARGET}
 .for i in EXTRACT INSERT GETLINE
-CSTRIO+=	-D${i}
+	echo "#define $i 1" >> ${.TARGET}
 .endfor
-
-OBJS+=	cstrio.o
-
-cstrio.o:	sinst.cc
-	${CXX} ${CXXFLAGS} ${CSTRIO} -c ${.ALLSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
-
-cstrio.so:	sinst.cc
-	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} ${CSTRIO} -c ${.ALLSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
-
-cstrio.po:	sinst.cc
-	${CXX} -p ${CXXFLAGS} ${CSTRIO} -c ${.ALLSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -X -r ${.TARGET}
+	cat ${.ALLSRC} >> ${.TARGET}
 
 # ======== fcomplex.o =======
-FCOMPLEX=	-DF
+SRCS+=	fcomplex.cc
+CLEANFILES+=	fcomplex.cc
+
+fcomplex.cc: cinst.cc
+	echo "#define F 1" > ${.TARGET}
 .for i in MAIN ADDCC ADDCF ADDFC SUBCC SUBCF SUBFC MULCC MULCF MULFC DIVCC \
-	DIVCF DIVFC PLUS MINUS EQCC EQCF EQFC NECC NECF NEFC ABS ARG POLAR \
-	CONJ NORM COS COSH EXP LOG POWCC POWCF POWCI POWFC SIN SINH SQRT
-FCOMPLEX+=	-D${i}
+    DIVCF DIVFC PLUS MINUS EQCC EQCF EQFC NECC NECF NEFC ABS ARG POLAR \
+    CONJ NORM COS COSH EXP LOG POWCC POWCF POWCI POWFC SIN SINH SQRT
+	echo "#define $i 1" >> ${.TARGET}
 .endfor
-
-OBJS+=	fcomplex.o
-
-fcomplex.o:	cinst.cc
-	${CXX} ${CXXFLAGS} ${FCOMPLEX} -c ${.ALLSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
-
-fcomplex.so:	cinst.cc
-	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} ${FCOMPLEX} -c ${.ALLSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
-
-fcomplex.po:	cinst.cc
-	${CXX} -p ${CXXFLAGS} ${FCOMPLEX} -c ${.ALLSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -X -r ${.TARGET}
+	cat ${.ALLSRC} >> ${.TARGET}
 
 # ======== fcomio.o =======
-FCOMIO=	-DF
+SRCS+=	fcomio.cc
+CLEANFILES+=	fcomio.cc
+
+fcomio.cc: cinst.cc
+	echo "#define F 1" > ${.TARGET}
 .for i in EXTRACT INSERT
-FCOMIO+=-D${i}
+	echo "#define $i 1" >> ${.TARGET}
 .endfor
-
-OBJS+=	fcomio.o
-
-fcomio.o:	cinst.cc
-	${CXX} ${CXXFLAGS} ${FCOMIO} -c ${.ALLSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
-
-fcomio.so:	cinst.cc
-	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} ${FCOMIO} -c ${.ALLSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
-
-fcomio.po:	cinst.cc
-	${CXX} -p ${CXXFLAGS} ${FCOMIO} -c ${.ALLSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -X -r ${.TARGET}
+	cat ${.ALLSRC} >> ${.TARGET}
 
 # ======== dcomplex.o =======
-DCOMPLEX=	-DD
+SRCS+=	dcomplex.cc
+CLEANFILES+=	dcomplex.cc
+
+dcomplex.cc: cinst.cc
+	echo "#define D 1" > ${.TARGET}
 .for i in MAIN ADDCC ADDCF ADDFC SUBCC SUBCF SUBFC MULCC MULCF MULFC DIVCC \
-	DIVCF DIVFC PLUS MINUS EQCC EQCF EQFC NECC NECF NEFC ABS ARG POLAR \
-	CONJ NORM COS COSH EXP LOG POWCC POWCF POWCI POWFC SIN SINH SQRT
-DCOMPLEX+=	-D${i}
+    DIVCF DIVFC PLUS MINUS EQCC EQCF EQFC NECC NECF NEFC ABS ARG POLAR \
+    CONJ NORM COS COSH EXP LOG POWCC POWCF POWCI POWFC SIN SINH SQRT
+	echo "#define $i 1" >> ${.TARGET}
 .endfor
-
-OBJS+=	dcomplex.o
-
-dcomplex.o:	cinst.cc
-	${CXX} ${CXXFLAGS} ${DCOMPLEX} -c ${.ALLSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
-
-dcomplex.so:	cinst.cc
-	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} ${DCOMPLEX} -c ${.ALLSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
-
-dcomplex.po:	cinst.cc
-	${CXX} -p ${CXXFLAGS} ${DCOMPLEX} -c ${.ALLSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -X -r ${.TARGET}
+	cat ${.ALLSRC} >> ${.TARGET}
 
 # ======== dcomio.o =======
-DCOMIO=	-DD
+SRCS+=	dcomio.cc
+CLEANFILES+=	dcomio.cc
+
+dcomio.cc: cinst.cc
+	echo "#define D 1" > ${.TARGET}
 .for i in EXTRACT INSERT
-DCOMIO+=-D${i}
+	echo "#define $i 1" >> ${.TARGET}
 .endfor
-
-OBJS+=	dcomio.o
-
-dcomio.o:	cinst.cc
-	${CXX} ${CXXFLAGS} ${DCOMIO} -c ${.ALLSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
-
-dcomio.so:	cinst.cc
-	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} ${DCOMIO} -c ${.ALLSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
-
-dcomio.po:	cinst.cc
-	${CXX} -p ${CXXFLAGS} ${DCOMIO} -c ${.ALLSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -X -r ${.TARGET}
+	cat ${.ALLSRC} >> ${.TARGET}
 
 # ======== ldcomplex.o =======
-LDCOMPLEX=	-DLD
+SRCS+=	ldcomplex.cc
+CLEANFILES+=	ldcomplex.cc
+
+ldcomplex.cc: cinst.cc
+	echo "#define LD 1" > ${.TARGET}
 .for i in MAIN ADDCC ADDCF ADDFC SUBCC SUBCF SUBFC MULCC MULCF MULFC DIVCC \
-	DIVCF DIVFC PLUS MINUS EQCC EQCF EQFC NECC NECF NEFC ABS ARG POLAR \
-	CONJ NORM COS COSH EXP LOG POWCC POWCF POWCI POWFC SIN SINH SQRT
-LDCOMPLEX+=	-D${i}
+    DIVCF DIVFC PLUS MINUS EQCC EQCF EQFC NECC NECF NEFC ABS ARG POLAR \
+    CONJ NORM COS COSH EXP LOG POWCC POWCF POWCI POWFC SIN SINH SQRT
+	echo "#define $i 1" >> ${.TARGET}
 .endfor
-
-OBJS+=	ldcomplex.o
-
-ldcomplex.o:	cinst.cc
-	${CXX} ${CXXFLAGS} ${LDCOMPLEX} -c ${.ALLSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
-
-ldcomplex.so:	cinst.cc
-	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} ${LDCOMPLEX} -c ${.ALLSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
-
-ldcomplex.po:	cinst.cc
-	${CXX} -p ${CXXFLAGS} ${LDCOMPLEX} -c ${.ALLSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -X -r ${.TARGET}
+	cat ${.ALLSRC} >> ${.TARGET}
 
 # ======== ldcomio.o =======
-LDCOMIO=	-DLD
+SRCS+=	ldcomio.cc
+CLEANFILES+=	ldcomio.cc
+
+ldcomio.cc: cinst.cc
+	echo "#define LD 1" > ${.TARGET}
 .for i in EXTRACT INSERT
-LDCOMIO+=-D${i}
+	echo "#define $i 1" >> ${.TARGET}
 .endfor
-
-OBJS+=	ldcomio.o
-
-ldcomio.o:	cinst.cc
-	${CXX} ${CXXFLAGS} ${LDCOMIO} -c ${.ALLSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
-
-ldcomio.so:	cinst.cc
-	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} ${LDCOMIO} -c ${.ALLSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
-
-ldcomio.po:	cinst.cc
-	${CXX} -p ${CXXFLAGS} ${LDCOMIO} -c ${.ALLSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -X -r ${.TARGET}
+	cat ${.ALLSRC} >> ${.TARGET}
 
 .include <bsd.lib.mk>
