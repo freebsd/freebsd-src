@@ -103,7 +103,7 @@ archive_read_open(struct archive *a, void *client_data,
     archive_close_callback *closer)
 {
 	const void *buffer;
-	size_t bytes_read;
+	ssize_t bytes_read;
 	int high_bidder;
 	int e;
 
@@ -129,6 +129,17 @@ archive_read_open(struct archive *a, void *client_data,
 
 	/* Read first block now for format detection. */
 	bytes_read = (a->client_reader)(a, a->client_data, &buffer);
+
+	/* client_reader should have already set error information. */
+	if (bytes_read < 0)
+		return (ARCHIVE_FATAL);
+
+	/* An empty archive is a serious error. */
+	if (bytes_read == 0) {
+		archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Empty input file");
+		return (ARCHIVE_FATAL);
+	}
 
 	/* Select a decompression routine. */
 	high_bidder = choose_decompressor(a, buffer, bytes_read);
