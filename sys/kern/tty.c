@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.16 1994/12/04 01:01:45 ache Exp $
+ * $Id: tty.c,v 1.17 1995/01/05 00:01:00 ache Exp $
  */
 
 #include <sys/param.h>
@@ -908,10 +908,8 @@ ttioctl(tp, cmd, data, flag)
 		break;
 	case TIOCSDRAINWAIT:
 		error = suser(p->p_ucred, &p->p_acflag);
-		if (error != 0) {
-			splx(s);
-			return (EPERM);
-		}
+		if (error)
+			return (error);
 		tp->t_timeout = *(int *)data * hz;
 		wakeup((caddr_t)&tp->t_outq);
 		break;
