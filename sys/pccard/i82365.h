@@ -207,6 +207,8 @@
 #define PCIC_GPI_TRANS	0x08	/* GPI Transition Control */
 #define PCIC_CDRES_EN	0x10	/* card detect resume enable */
 #define PCIC_SW_CD_INT	0x20	/* s/w card detect interrupt */
+#define PCIC_VS1STAT	0x40	/* 0 VS1# low, 1 VS1# high */
+#define PCIC_VS2STAT	0x80	/* 0 VS2# low, 1 VS2# high */
 
 /* CL-PD67[12]x: For 3.3V cards, etc. (PCIC_MISC1) */
 #define PCIC_MISC1_5V_DETECT 0x01	/* PD6710 only */
