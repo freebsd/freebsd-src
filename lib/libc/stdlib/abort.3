@@ -57,6 +57,11 @@ signal
 is being caught and the signal handler does not return.
 .Pp
 Any open streams are flushed and closed.
+.Sh IMPLEMENTATION NOTES
+The
+.Fn abort
+function is thread-safe.
+It is unknown if it is async-cancel-safe.
 .Sh RETURN VALUES
 The
 .Fn abort
@@ -71,3 +76,8 @@ The
 function
 conforms to
 .St -p1003.1-90 .
+The
+.Fn abort
+function also conforms to
+.St -isoC-99
+with the implementation specific details as noted above.
