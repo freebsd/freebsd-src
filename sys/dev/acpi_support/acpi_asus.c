@@ -265,78 +265,76 @@ acpi_asus_probe(device_t dev)
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
-	if (!acpi_disabled("asus") &&
-	    ACPI_ID_PROBE(device_get_parent(dev), dev, asus_ids)) {
-		sc = device_get_softc(dev);
-		sc->dev = dev;
-		sc->handle = acpi_get_handle(dev);
+	if (acpi_disabled("asus") ||
+	    ACPI_ID_PROBE(device_get_parent(dev), dev, asus_ids) == NULL)
+		return (ENXIO);
 
-		Arg.Type = ACPI_TYPE_INTEGER;
-		Arg.Integer.Value = 0;
+	sc = device_get_softc(dev);
+	sc->dev = dev;
+	sc->handle = acpi_get_handle(dev);
 
-		Args.Count = 1;
-		Args.Pointer = &Arg;
+	Arg.Type = ACPI_TYPE_INTEGER;
+	Arg.Integer.Value = 0;
 
-		Buf.Pointer = NULL;
-		Buf.Length = ACPI_ALLOCATE_BUFFER;
+	Args.Count = 1;
+	Args.Pointer = &Arg;
 
-		AcpiEvaluateObject(sc->handle, "INIT", &Args, &Buf);
-		Obj = Buf.Pointer;
+	Buf.Pointer = NULL;
+	Buf.Length = ACPI_ALLOCATE_BUFFER;
 
-		/*
-		 * The Samsung P30 returns a null-pointer from INIT, we
-		 * can identify it from the 'ODEM' string in the DSDT.
-		 */
-		if (Obj->String.Pointer == NULL) {
-			ACPI_STATUS		status;
-			ACPI_TABLE_HEADER	th;
+	AcpiEvaluateObject(sc->handle, "INIT", &Args, &Buf);
+	Obj = Buf.Pointer;
 
-			status = AcpiGetTableHeader(ACPI_TABLE_DSDT, 1, &th);
-			if (ACPI_FAILURE(status)) {
-				device_printf(dev, "Unsupported laptop\n");
-				AcpiOsFree(Buf.Pointer);
-				return (ENXIO);
-			}
+	/*
+	 * The Samsung P30 returns a null-pointer from INIT, we
+	 * can identify it from the 'ODEM' string in the DSDT.
+	 */
+	if (Obj->String.Pointer == NULL) {
+		ACPI_STATUS		status;
+		ACPI_TABLE_HEADER	th;
 
-			if (strncmp("ODEM", th.OemTableId, 4) == 0) {
-				sc->model = &acpi_samsung_models[0];
-				device_set_desc(dev,
-				    "Samsung P30 Laptop Extras");
-				AcpiOsFree(Buf.Pointer);
-				return (0);
-			}
+		status = AcpiGetTableHeader(ACPI_TABLE_DSDT, 1, &th);
+		if (ACPI_FAILURE(status)) {
+			device_printf(dev, "Unsupported (Samsung?) laptop\n");
+			AcpiOsFree(Buf.Pointer);
+			return (ENXIO);
 		}
 
-		sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
-		if (sb == NULL)
-			return (ENOMEM);
-
-		/*
-		 * Asus laptops are simply identified by name, easy!
-		 */
-		for (model = acpi_asus_models; model->name != NULL; model++)
-			if (strcmp(Obj->String.Pointer, model->name) == 0) {
-				sbuf_printf(sb, "Asus %s Laptop Extras",
-				    Obj->String.Pointer);
-				sbuf_finish(sb);
-				
-				sc->model = model;
-				device_set_desc(dev, sbuf_data(sb));
-
-				sbuf_delete(sb);
-				AcpiOsFree(Buf.Pointer);
-				return (0);
-			}
-
-		sbuf_printf(sb, "Unsupported Asus laptop detected: %s\n",
-		    Obj->String.Pointer);
-		sbuf_finish(sb);
-
-		device_printf(dev, sbuf_data(sb));
-
-		sbuf_delete(sb);
-		AcpiOsFree(Buf.Pointer);
+		if (strncmp("ODEM", th.OemTableId, 4) == 0) {
+			sc->model = &acpi_samsung_models[0];
+			device_set_desc(dev, "Samsung P30 Laptop Extras");
+			AcpiOsFree(Buf.Pointer);
+			return (0);
+		}
 	}
+
+	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	/*
+	 * Asus laptops are simply identified by name, easy!
+	 */
+	for (model = acpi_asus_models; model->name != NULL; model++)
+		if (strncmp(Obj->String.Pointer, model->name, 3) == 0) {
+			sbuf_printf(sb, "Asus %s Laptop Extras", model->name);
+			sbuf_finish(sb);
+
+			sc->model = model;
+			device_set_desc(dev, sbuf_data(sb));
+
+			sbuf_delete(sb);
+			AcpiOsFree(Buf.Pointer);
+			return (0);
+		}
+
+	sbuf_printf(sb, "Unsupported Asus laptop: %s\n", Obj->String.Pointer);
+	sbuf_finish(sb);
+
+	device_printf(dev, sbuf_data(sb));
+
+	sbuf_delete(sb);
+	AcpiOsFree(Buf.Pointer);
 
 	return (ENXIO);
 }
