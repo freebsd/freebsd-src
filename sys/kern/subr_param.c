@@ -35,8 +35,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)param.c	8.2 (Berkeley) 1/21/94
- * $Id: param.c,v 1.14 1996/01/04 20:28:02 wollman Exp $
+ *	@(#)param.c	8.3 (Berkeley) 8/20/94
+ * $Id: param.c,v 1.15 1996/03/02 18:23:57 peter Exp $
  */
 
 #include "opt_sysvipc.h"
@@ -182,28 +182,3 @@ int	nswbuf = 0;
  * (if they've been externed everywhere else; hah!).
  */
 struct	buf *swbuf;
-
-/*
- * Proc/pgrp hashing.
- * Here so that hash table sizes can depend on MAXUSERS/NPROC.
- * Hash size must be a power of two.
- * NOW omission of this file will cause loader errors!
- */
-
-#if NPROC > 1024
-#define	PIDHSZ		512
-#else
-#if NPROC > 512
-#define	PIDHSZ		256
-#else
-#if NPROC > 256
-#define	PIDHSZ		128
-#else
-#define	PIDHSZ		64
-#endif
-#endif
-#endif
-
-struct	proc *pidhash[PIDHSZ];
-struct	pgrp *pgrphash[PIDHSZ];
-int	pidhashmask = PIDHSZ - 1;
