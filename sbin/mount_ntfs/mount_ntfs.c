@@ -37,6 +37,8 @@
 #define NTFS
 #include <sys/mount.h>
 #include <sys/stat.h>
+#include <sys/module.h>
+#include <sys/iconv.h>
 #include <fs/ntfs/ntfsmount.h>
 #include <ctype.h>
 #include <err.h>
@@ -51,6 +53,8 @@
 
 #include "mntopts.h"
 
+#define TRANSITION_PERIOD_HACK
+
 static struct mntopt mopts[] = {
 	MOPT_STDOPTS,
 	{ NULL }
@@ -61,7 +65,7 @@ static uid_t	a_uid(char *);
 static mode_t	a_mask(char *);
 static void	usage(void) __dead2;
 
-static void     load_u2wtable(struct ntfs_args *, char *);
+static int	set_charset(struct ntfs_args *);
 
 int
 main(argc, argv)
@@ -75,8 +79,14 @@ main(argc, argv)
 
 	mntflags = set_gid = set_uid = set_mask = 0;
 	(void)memset(&args, '\0', sizeof(args));
+	args.cs_ntfs = NULL;
+	args.cs_local = NULL;
 
-	while ((c = getopt(argc, argv, "aiu:g:m:o:W:")) !=  -1) {
+#ifdef TRANSITION_PERIOD_HACK
+	while ((c = getopt(argc, argv, "aiu:g:m:o:C:W:")) !=  -1) {
+#else
+	while ((c = getopt(argc, argv, "aiu:g:m:o:C:")) !=  -1) {
+#endif
 		switch (c) {
 		case 'u':
 			args.uid = a_uid(optarg);
@@ -99,10 +109,32 @@ main(argc, argv)
 		case 'o':
 			getmntopts(optarg, mopts, &mntflags, 0);
 			break;
-		case 'W':
-			load_u2wtable(&args, optarg);
-			args.flag |= NTFSMNT_U2WTABLE;
+		case 'C':
+			args.cs_local = malloc(ICONV_CSNMAXLEN);
+			if (args.cs_local == NULL)
+				err(EX_OSERR, "malloc()");
+			strncpy(args.cs_local,
+			    kiconv_quirkcs(optarg, KICONV_VENDOR_MICSFT),
+			    ICONV_CSNMAXLEN);
 			break;
+#ifdef TRANSITION_PERIOD_HACK
+		case 'W':
+			args.cs_local = malloc(ICONV_CSNMAXLEN);
+			if (args.cs_local == NULL)
+				err(EX_OSERR, "malloc()");
+			if (strcmp(optarg, "iso22dos") == 0) {
+				strcpy(args.cs_local, "ISO8859-2");
+			} else if (strcmp(optarg, "iso72dos") == 0) {
+				strcpy(args.cs_local, "ISO8859-7");
+			} else if (strcmp(optarg, "koi2dos") == 0) {
+				strcpy(args.cs_local, "KOI8-R");
+			} else if (strcmp(optarg, "koi8u2dos") == 0) {
+				strcpy(args.cs_local, "KOI8-U");
+			} else {
+				err(EX_NOINPUT, "%s", optarg);
+			}
+			break;
+#endif /* TRANSITION_PERIOD_HACK */
 		case '?':
 		default:
 			usage();
@@ -115,6 +147,18 @@ main(argc, argv)
 
 	dev = argv[optind];
 	dir = argv[optind + 1];
+
+	if (args.cs_local) {
+		if (set_charset(&args) == -1)
+			err(EX_OSERR, "ntfs_iconv");
+		args.flag |= NTFS_MFLAG_KICONV;
+		/*
+		 * XXX
+		 * Force to be MNT_RDONLY,
+		 * since only reading is supported right now,
+		 */
+		mntflags |= MNT_RDONLY;
+	}
 
 	/*
 	 * Resolve the mountpoint with realpath(3) and remove unnecessary 
@@ -207,74 +251,36 @@ a_mask(s)
 void
 usage()
 {
-	fprintf(stderr, "usage: mount_ntfs [-a] [-i] [-u user] [-g group] [-m mask] [-W u2wtable] bdev dir\n");
+#ifdef TRANSITION_PERIOD_HACK
+	fprintf(stderr, "%s\n%s\n",
+	"usage: mount_ntfs [-a] [-i] [-u user] [-g group] [-m mask]",
+	"                  [-C charset] [-W u2wtable] bdev dir");
+#else
+	fprintf(stderr, "usage: mount_ntfs [-a] [-i] [-u user] [-g group] [-m mask] [-C charset] bdev dir\n");
+#endif
 	exit(EX_USAGE);
 }
 
-void
-load_u2wtable (pargs, name)
-	struct ntfs_args *pargs;
-	char *name;
+int
+set_charset(struct ntfs_args *pargs)
 {
-	FILE *f;
-	int i, j, code[8];
-	size_t line = 0;
-	char buf[128];
-	char *fn, *s, *p;
+	int error;
 
-	if (*name == '/')
-		fn = name;
-	else {
-		snprintf(buf, sizeof(buf), "/usr/libdata/msdosfs/%s", name);
-		buf[127] = '\0';
-		fn = buf;
-	}
-	if ((f = fopen(fn, "r")) == NULL)
-		err(EX_NOINPUT, "%s", fn);
-	p = NULL;
-	for (i = 0; i < 16; i++) {
-		do {
-			if (p != NULL) free(p);
-			if ((p = s = fparseln(f, NULL, &line, NULL, 0)) == NULL)
-				errx(EX_DATAERR, "can't read u2w table row %d near line %d", i, line);
-			while (isspace((unsigned char)*s))
-				s++;
-		} while (*s == '\0');
-		if (sscanf(s, "%i%i%i%i%i%i%i%i",
-code, code + 1, code + 2, code + 3, code + 4, code + 5, code + 6, code + 7) != 8)
-			errx(EX_DATAERR, "u2w table: missing item(s) in row %d, line %d", i, line);
-		for (j = 0; j < 8; j++)
-			pargs->u2w[i * 8 + j] = code[j];
-	}
-	for (i = 0; i < 16; i++) {
-		do {
-			free(p);
-			if ((p = s = fparseln(f, NULL, &line, NULL, 0)) == NULL)
-				errx(EX_DATAERR, "can't read d2u table row %d near line %d", i, line);
-			while (isspace((unsigned char)*s))
-				s++;
-		} while (*s == '\0');
-		if (sscanf(s, "%i%i%i%i%i%i%i%i",
-code, code + 1, code + 2, code + 3, code + 4, code + 5, code + 6, code + 7) != 8)
-			errx(EX_DATAERR, "d2u table: missing item(s) in row %d, line %d", i, line);
-		for (j = 0; j < 8; j++)
-			/* pargs->d2u[i * 8 + j] = code[j] */;
-	}
-	for (i = 0; i < 16; i++) {
-		do {
-			free(p);
-			if ((p = s = fparseln(f, NULL, &line, NULL, 0)) == NULL)
-				errx(EX_DATAERR, "can't read u2d table row %d near line %d", i, line);
-			while (isspace((unsigned char)*s))
-				s++;
-		} while (*s == '\0');
-		if (sscanf(s, "%i%i%i%i%i%i%i%i",
-code, code + 1, code + 2, code + 3, code + 4, code + 5, code + 6, code + 7) != 8)
-			errx(EX_DATAERR, "u2d table: missing item(s) in row %d, line %d", i, line);
-		for (j = 0; j < 8; j++)
-			/* pargs->u2d[i * 8 + j] = code[j] */;
-	}
-	free(p);
-	fclose(f);
+	if (modfind("ntfs_iconv") < 0)
+		if (kldload("ntfs_iconv") < 0 || modfind("ntfs_iconv") < 0) {
+			warnx( "cannot find or load \"ntfs_iconv\" kernel module");
+			return (-1);
+		}
+
+	if ((pargs->cs_ntfs = malloc(ICONV_CSNMAXLEN)) == NULL)
+		return (-1);
+	strncpy(pargs->cs_ntfs, ENCODING_UNICODE, ICONV_CSNMAXLEN);
+	error = kiconv_add_xlat16_cspair(pargs->cs_local, pargs->cs_ntfs, 0);
+	if (error)
+		return (-1);
+	error = kiconv_add_xlat16_cspair(pargs->cs_ntfs, pargs->cs_local, 0);
+	if (error)
+		return (-1);
+
+	return (0);
 }
-

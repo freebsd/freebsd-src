@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/iconv.h>
 #include <sys/malloc.h>
+#include <sys/mount.h>
+#include <sys/syslog.h>
 
 #include "iconv_converter_if.h"
 
@@ -48,7 +50,7 @@ SYSCTL_NODE(_kern, OID_AUTO, iconv, CTLFLAG_RW, NULL, "kernel iconv interface");
 MALLOC_DEFINE(M_ICONV, "ICONV", "ICONV structures");
 MALLOC_DEFINE(M_ICONVDATA, "ICONV data", "ICONV data");
 
-MODULE_VERSION(libiconv, 1);
+MODULE_VERSION(libiconv, 2);
 
 #ifdef notnow
 /*
@@ -272,7 +274,28 @@ int
 iconv_conv(void *handle, const char **inbuf,
 	size_t *inbytesleft, char **outbuf, size_t *outbytesleft)
 {
-	return ICONV_CONVERTER_CONV(handle, inbuf, inbytesleft, outbuf, outbytesleft);
+	return ICONV_CONVERTER_CONV(handle, inbuf, inbytesleft, outbuf, outbytesleft, 0, 0);
+}
+
+int
+iconv_conv_case(void *handle, const char **inbuf,
+	size_t *inbytesleft, char **outbuf, size_t *outbytesleft, int casetype)
+{
+	return ICONV_CONVERTER_CONV(handle, inbuf, inbytesleft, outbuf, outbytesleft, 0, casetype);
+}
+
+int
+iconv_convchr(void *handle, const char **inbuf,
+	size_t *inbytesleft, char **outbuf, size_t *outbytesleft)
+{
+	return ICONV_CONVERTER_CONV(handle, inbuf, inbytesleft, outbuf, outbytesleft, 1, 0);
+}
+
+int
+iconv_convchr_case(void *handle, const char **inbuf,
+	size_t *inbytesleft, char **outbuf, size_t *outbytesleft, int casetype)
+{
+	return ICONV_CONVERTER_CONV(handle, inbuf, inbytesleft, outbuf, outbytesleft, 1, casetype);
 }
 
 /*
@@ -371,6 +394,7 @@ iconv_sysctl_add(SYSCTL_HANDLER_ARGS)
 	error = SYSCTL_OUT(req, &dout, sizeof(dout));
 	if (error)
 		goto bad;
+	ICDEBUG("%s => %s, %d bytes\n",din.ia_from, din.ia_to, din.ia_datalen);
 	return 0;
 bad:
 	iconv_unregister_cspair(csp);
@@ -421,7 +445,7 @@ iconv_converter_handler(module_t mod, int type, void *data)
 }
 
 /*
- * Common used functions
+ * Common used functions (don't use with unicode)
  */
 char *
 iconv_convstr(void *handle, char *dst, const char *src)
@@ -434,7 +458,8 @@ iconv_convstr(void *handle, char *dst, const char *src)
 		strcpy(dst, src);
 		return dst;
 	}
-	inlen = outlen = strlen(src);
+	inlen = strlen(src);
+	outlen = inlen * 3;
 	error = iconv_conv(handle, NULL, NULL, &p, &outlen);
 	if (error)
 		return NULL;
@@ -459,7 +484,8 @@ iconv_convmem(void *handle, void *dst, const void *src, int size)
 		memcpy(dst, src, size);
 		return dst;
 	}
-	inlen = outlen = size;
+	inlen = size;
+	outlen = inlen * 3;
 	error = iconv_conv(handle, NULL, NULL, &d, &outlen);
 	if (error)
 		return NULL;
@@ -482,4 +508,23 @@ iconv_lookupcp(char **cpp, const char *s)
 		if (strcmp(*cpp, s) == 0)
 			return 0;
 	return ENOENT;
+}
+
+/*
+ * Return if fsname is in use of not
+ */
+int
+iconv_vfs_refcount(const char *fsname)
+{
+	struct vfsconf *vfsp;
+
+	for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next) {
+		if (!strcmp(vfsp->vfc_name, fsname)) {
+			if (vfsp->vfc_refcount > 0)
+				return (EBUSY);
+			else
+				return (0);
+		}
+	}
+	return (0);
 }

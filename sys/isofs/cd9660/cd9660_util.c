@@ -46,16 +46,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
+#include <sys/iconv.h>
 
 #include <isofs/cd9660/iso.h>
+#include <isofs/cd9660/cd9660_mount.h>
 
-/*
- * XXX: limited support for loading of Unicode
- * conversion routine as a kld at a run-time.
- * Should be removed when native Unicode kernel
- * interfaces have been introduced.
- */
-u_char (*cd9660_wchar2char)(u_int32_t wchar) = NULL;
+extern struct iconv_functions *cd9660_iconv;
 
 /*
  * Get one character out of an iso filename
@@ -63,29 +59,47 @@ u_char (*cd9660_wchar2char)(u_int32_t wchar) = NULL;
  * Return number of bytes consumed
  */
 int
-isochar(isofn, isoend, joliet_level, c)
+isochar(isofn, isoend, joliet_level, c, clen, flags, handle)
       u_char *isofn;
       u_char *isoend;
       int joliet_level;
-      u_char *c;
+      u_short *c;
+      int *clen;
+      int flags;
+      void *handle;
 {
+      size_t i, j, len;
+      char inbuf[3], outbuf[3], *inp, *outp;
+
       *c = *isofn++;
+      if (clen) *clen = 1;
       if (joliet_level == 0 || isofn == isoend)
               /* (00) and (01) are one byte in Joliet, too */
               return 1;
 
-      /* No Unicode support yet :-( */
-      switch (*c) {
-      default:
-              *c = '?';
-              break;
-      case '\0':
-              *c = *isofn;
-              break;
+      if (flags & ISOFSMNT_KICONV && cd9660_iconv) {
+              i = j = len = 2;
+              inbuf[0]=(char)*(isofn - 1);
+              inbuf[1]=(char)*isofn;
+              inbuf[2]='\0';
+              inp = inbuf;
+              outp = outbuf;
+              cd9660_iconv->convchr(handle, (const char **)&inp, &i, &outp, &j);
+              len -= j;
+              if (clen) *clen = len;
+              *c = '\0';
+              while(len--)
+                      *c |= (*(outp - len - 1) & 0xff) << (len << 3);
+      } else {
+              switch (*c) {
+              default:
+                      *c = '?';
+                      break;
+              case '\0':
+                      *c = *isofn;
+                      break;
+              }
       }
-      /* XXX: if Unicode conversion routine is loaded then use it */
-      if (cd9660_wchar2char != NULL)
-            *c = cd9660_wchar2char((*(isofn - 1) << 8) | *isofn);
 
       return 2;
 }
@@ -96,53 +110,60 @@ isochar(isofn, isoend, joliet_level, c)
  * Note: Version number plus ';' may be omitted.
  */
 int
-isofncmp(fn, fnlen, isofn, isolen, joliet_level)
+isofncmp(fn, fnlen, isofn, isolen, joliet_level, flags, handle, lhandle)
 	u_char *fn;
 	int fnlen;
 	u_char *isofn;
 	int isolen;
 	int joliet_level;
+	int flags;
+	void *handle;
+	void *lhandle;
 {
 	int i, j;
-	u_char c, *fnend = fn + fnlen, *isoend = isofn + isolen;
+	u_short c, d;
+	u_char *fnend = fn + fnlen, *isoend = isofn + isolen;
 
-	for (; fn != fnend; fn++) {
+	for (; fn < fnend; ) {
+		d = sgetrune(fn, fnend - fn, (char const **)&fn, flags, lhandle);
 		if (isofn == isoend)
-			return *fn;
-		isofn += isochar(isofn, isoend, joliet_level, &c);
+			return d;
+		isofn += isochar(isofn, isoend, joliet_level, &c, NULL, flags, handle);
 		if (c == ';') {
-			if (*fn++ != ';')
-				return fn[-1];
-			for (i = 0; fn != fnend; i = i * 10 + *fn++ - '0') {
+			if (d != ';')
+				return d;
+			for (i = 0; fn < fnend; i = i * 10 + *fn++ - '0') {
 				if (*fn < '0' || *fn > '9') {
 					return -1;
 				}
 			}
 			for (j = 0; isofn != isoend; j = j * 10 + c - '0')
 				isofn += isochar(isofn, isoend,
-						 joliet_level, &c);
+						 joliet_level, &c,
+						 NULL, flags, handle);
 			return i - j;
 		}
-		if (c != *fn) {
+		if (c != d) {
 			if (c >= 'A' && c <= 'Z') {
-				if (c + ('a' - 'A') != *fn) {
-					if (*fn >= 'a' && *fn <= 'z')
-						return *fn - ('a' - 'A') - c;
+				if (c + ('a' - 'A') != d) {
+					if (d >= 'a' && d <= 'z')
+						return d - ('a' - 'A') - c;
 					else
-						return *fn - c;
+						return d - c;
 				}
 			} else
-				return *fn - c;
+				return d - c;
 		}
 	}
 	if (isofn != isoend) {
-		isofn += isochar(isofn, isoend, joliet_level, &c);
+		isofn += isochar(isofn, isoend, joliet_level, &c, NULL, flags, handle);
 		switch (c) {
 		default:
 			return -c;
 		case '.':
 			if (isofn != isoend) {
-				isochar(isofn, isoend, joliet_level, &c);
+				isochar(isofn, isoend, joliet_level, &c,
+					NULL, flags, handle);
 				if (c == ';')
 					return 0;
 			}
@@ -158,7 +179,7 @@ isofncmp(fn, fnlen, isofn, isolen, joliet_level)
  * translate a filename of length > 0
  */
 void
-isofntrans(infn, infnlen, outfn, outfnlen, original, assoc, joliet_level)
+isofntrans(infn, infnlen, outfn, outfnlen, original, assoc, joliet_level, flags, handle)
 	u_char *infn;
 	int infnlen;
 	u_char *outfn;
@@ -166,25 +187,61 @@ isofntrans(infn, infnlen, outfn, outfnlen, original, assoc, joliet_level)
 	int original;
 	int assoc;
 	int joliet_level;
+	int flags;
+	void *handle;
 {
-	int fnidx = 0;
-	u_char c, d = '\0', *infnend = infn + infnlen;
+	u_short c, d = '\0';
+	u_char *outp = outfn, *infnend = infn + infnlen;
+	int clen;
 
 	if (assoc) {
-		*outfn++ = ASSOCCHAR;
-		fnidx++;
+		*outp++ = ASSOCCHAR;
 	}
-	for (; infn != infnend; fnidx++) {
-		infn += isochar(infn, infnend, joliet_level, &c);
+	for (; infn != infnend; ) {
+		infn += isochar(infn, infnend, joliet_level, &c, &clen, flags, handle);
 
 		if (!original && !joliet_level && c >= 'A' && c <= 'Z')
-			*outfn++ = c + ('a' - 'A');
+			c += ('a' - 'A');
 		else if (!original && c == ';') {
-			fnidx -= (d == '.');
+			outp -= (d == '.');
 			break;
-		} else
-			*outfn++ = c;
+		}
 		d = c;
+		while(clen--)
+			*outp++ = c >> (clen << 3);
 	}
-	*outfnlen = fnidx;
+	*outfnlen = outp - outfn;
+}
+
+/*
+ * same as sgetrune(3)
+ */
+u_short
+sgetrune(string, n, result, flags, handle)
+	const char *string;
+	size_t n;
+	char const **result;
+	int flags;
+	void *handle;
+{
+	size_t i, j, len;
+	char outbuf[3], *outp;
+	u_short c = '\0';
+
+	len = i = (n < 2) ? n : 2;
+	j = 2;
+	outp = outbuf;
+
+	if (flags & ISOFSMNT_KICONV && cd9660_iconv) {
+		cd9660_iconv->convchr(handle, (const char **)&string,
+			&i, &outp, &j);
+		len -= i;
+	} else {
+		len = 1;
+		string++;
+	}
+
+	if (result) *result = string;
+	while(len--) c |= (*(string - len - 1) & 0xff) << (len << 3);
+	return (c);
 }

@@ -238,7 +238,12 @@ searchloop:
 					if (namelen != 1
 					    || ep->name[0] != 0)
 						goto notfound;
-				} else if (!(res = isofncmp(name, len, ep->name, namelen, imp->joliet_level))) {
+				} else if (!(res = isofncmp(name, len,
+							    ep->name, namelen,
+							    imp->joliet_level,
+							    imp->im_flags,
+							    imp->im_d2l,
+							    imp->im_l2d))) {
 					if (isoflags & 2)
 						ino = isodirino(ep, imp);
 					else

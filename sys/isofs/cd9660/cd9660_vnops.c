@@ -562,7 +562,9 @@ cd9660_readdir(ap)
 					   idp->current.d_name, &namelen,
 					   imp->iso_ftype == ISO_FTYPE_9660,
 					   isonum_711(ep->flags)&4,
-					   imp->joliet_level);
+					   imp->joliet_level,
+					   imp->im_flags,
+					   imp->im_d2l);
 				idp->current.d_namlen = (u_char)namelen;
 				if (imp->iso_ftype == ISO_FTYPE_DEFAULT)
 					error = iso_shipdir(idp);

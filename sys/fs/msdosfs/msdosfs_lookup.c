@@ -57,9 +57,9 @@
 #include <sys/mount.h>
 
 #include <fs/msdosfs/bpb.h>
+#include <fs/msdosfs/msdosfsmount.h>
 #include <fs/msdosfs/direntry.h>
 #include <fs/msdosfs/denode.h>
-#include <fs/msdosfs/msdosfsmount.h>
 #include <fs/msdosfs/fat.h>
 
 /*
@@ -150,21 +150,19 @@ msdosfs_lookup(ap)
 	}
 
 	switch (unix2dosfn((const u_char *)cnp->cn_nameptr, dosfilename,
-	    cnp->cn_namelen, 0,
-	    pmp->pm_flags & MSDOSFSMNT_U2WTABLE, pmp->pm_u2d,
-	    pmp->pm_flags & MSDOSFSMNT_ULTABLE, pmp->pm_lu)) {
+	    cnp->cn_namelen, 0, pmp)) {
 	case 0:
 		return (EINVAL);
 	case 1:
 		break;
 	case 2:
 		wincnt = winSlotCnt((const u_char *)cnp->cn_nameptr,
-		    cnp->cn_namelen) + 1;
+		    cnp->cn_namelen, pmp) + 1;
 		break;
 	case 3:
 		olddos = 0;
 		wincnt = winSlotCnt((const u_char *)cnp->cn_nameptr,
-		    cnp->cn_namelen) + 1;
+		    cnp->cn_namelen, pmp) + 1;
 		break;
 	}
 	if (pmp->pm_flags & MSDOSFSMNT_SHORTNAME) {
@@ -193,6 +191,7 @@ msdosfs_lookup(ap)
 	 * by cnp->cn_nameptr.
 	 */
 	tdp = NULL;
+	mbnambuf_init();
 	/*
 	 * The outer loop ranges over the clusters that make up the
 	 * directory.  Note that the root directory is different from all
@@ -232,6 +231,7 @@ msdosfs_lookup(ap)
 				 * Drop memory of previous long matches
 				 */
 				chksum = -1;
+				mbnambuf_init();
 
 				if (slotcount < wincnt) {
 					slotcount++;
@@ -256,14 +256,18 @@ msdosfs_lookup(ap)
 					if (pmp->pm_flags & MSDOSFSMNT_SHORTNAME)
 						continue;
 
-					chksum = winChkName((const u_char *)cnp->cn_nameptr,
-							    unlen,
-							    (struct winentry *)dep,
+					chksum = win2unixfn((struct winentry *)dep,
 							    chksum,
-							    pmp->pm_flags & MSDOSFSMNT_U2WTABLE,
-							    pmp->pm_u2w,
-							    pmp->pm_flags & MSDOSFSMNT_ULTABLE,
-							    pmp->pm_ul);
+							    pmp);
+					continue;
+				}
+
+				chksum = winChkName((const u_char *)cnp->cn_nameptr,
+						    unlen,
+						    chksum,
+						    pmp);
+				if (chksum == -2) {
+					chksum = -1;
 					continue;
 				}
 
@@ -659,9 +663,7 @@ createde(dep, ddep, depp, cnp)
 				ddep->de_fndoffset -= sizeof(struct direntry);
 			}
 			if (!unix2winfn(un, unlen, (struct winentry *)ndep,
-					cnt++, chksum,
-					pmp->pm_flags & MSDOSFSMNT_U2WTABLE,
-					pmp->pm_u2w))
+					cnt++, chksum, pmp))
 				break;
 		}
 	}
@@ -992,19 +994,14 @@ uniqdosname(dep, cnp, cp)
 	
 	if (pmp->pm_flags & MSDOSFSMNT_SHORTNAME)
 		return (unix2dosfn((const u_char *)cnp->cn_nameptr, cp,
-		    cnp->cn_namelen, 0,
-		    pmp->pm_flags & MSDOSFSMNT_U2WTABLE, pmp->pm_u2d,
-		    pmp->pm_flags & MSDOSFSMNT_ULTABLE, pmp->pm_lu) ?
-		    0 : EINVAL);
+		    cnp->cn_namelen, 0, pmp) ? 0 : EINVAL);
 
 	for (gen = 1;; gen++) {
 		/*
 		 * Generate DOS name with generation number
 		 */
 		if (!unix2dosfn((const u_char *)cnp->cn_nameptr, cp,
-		    cnp->cn_namelen, gen,
-		    pmp->pm_flags & MSDOSFSMNT_U2WTABLE, pmp->pm_u2d,
-		    pmp->pm_flags & MSDOSFSMNT_ULTABLE, pmp->pm_lu))
+		    cnp->cn_namelen, gen, pmp))
 			return gen == 1 ? EINVAL : EEXIST;
 
 		/*

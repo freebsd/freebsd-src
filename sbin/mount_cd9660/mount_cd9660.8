@@ -47,6 +47,7 @@
 .Op Fl begjrv
 .Op Fl o Ar options
 .Op Fl s Ar startsector
+.Op Fl C Ar charset
 .Ar special | node
 .Sh DESCRIPTION
 The
@@ -123,6 +124,10 @@ It is possible to mount an arbitrary session of a multi-session CD by specifying
 the correct
 .Ar startsector
 here.
+.It Fl C Ar charset
+Specify local
+.Ar charset
+to convert Unicode file names when using Joliet extensions.
 .It Fl v
 Be verbose about the starting sector decisions made.
 .El
@@ -150,3 +155,7 @@ The
 .Nm
 utility first appeared in
 .Bx 4.4 .
+.Pp
+The unicode conversion routine was added by
+.An Ryuichiro Imura Aq imura@ryu16.org
+at 2003.

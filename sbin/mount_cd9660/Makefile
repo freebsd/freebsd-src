@@ -4,10 +4,16 @@
 PROG=	mount_cd9660
 SRCS=	mount_cd9660.c getmntopts.c
 MAN=	mount_cd9660.8
+DPADD=	${LIBKICONV}
+LDADD=	-lkiconv
 
 MOUNT=	${.CURDIR}/../mount
 CFLAGS+= -I${MOUNT}
 WARNS=	0
+
+# Needs to be dynamically linked for optional dlopen() access to
+# userland libiconv
+NOSHARED?=	NO
 
 .PATH:	${MOUNT}
 

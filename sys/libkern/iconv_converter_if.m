@@ -53,6 +53,8 @@ METHOD int conv {
         size_t *inbytesleft;
 	char **outbuf;
 	size_t *outbytesleft;
+	int convchar;
+	int casetype;
 };
 
 STATICMETHOD int init {

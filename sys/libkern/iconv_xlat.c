@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #ifdef MODULE_DEPEND
-MODULE_DEPEND(iconv_xlat, libiconv, 1, 1, 1);
+MODULE_DEPEND(iconv_xlat, libiconv, 2, 2, 2);
 #endif
 
 /*
@@ -84,7 +84,8 @@ iconv_xlat_close(void *data)
 
 static int
 iconv_xlat_conv(void *d2p, const char **inbuf,
-	size_t *inbytesleft, char **outbuf, size_t *outbytesleft)
+	size_t *inbytesleft, char **outbuf, size_t *outbytesleft,
+	int convchar, int casetype)
 {
 	struct iconv_xlat *dp = (struct iconv_xlat*)d2p;
 	const char *src;
@@ -93,14 +94,19 @@ iconv_xlat_conv(void *d2p, const char **inbuf,
 
 	if (inbuf == NULL || *inbuf == NULL || outbuf == NULL || *outbuf == NULL)
 		return 0;
-	r = n = min(*inbytesleft, *outbytesleft);
+	if (casetype != 0)
+		return -1;
+	if (convchar == 1)
+		r = n = 1;
+	else
+		r = n = min(*inbytesleft, *outbytesleft);
 	src = *inbuf;
 	dst = *outbuf;
 	while(r--)
 		*dst++ = dp->d_table[(u_char)*src++];
 	*inbuf += n;
 	*outbuf += n;
-	*inbytesleft += n;
+	*inbytesleft -= n;
 	*outbytesleft -= n;
 	return 0;
 }
