@@ -220,8 +220,8 @@ struct timex {
 #ifdef __FreeBSD__
 
 #ifdef _KERNEL
-struct timecounter;
-void	ntp_update_second(struct timecounter *tc);
+struct timehands;
+void	ntp_update_second(int64_t *adjustment, time_t *newsec);
 #else /* !_KERNEL */
 #include <sys/cdefs.h>
 
