@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.322 1997/09/20 15:40:55 joerg Exp $
+#	$Id: Makefile,v 1.323 1997/09/20 17:10:09 joerg Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -125,14 +125,14 @@ rerelease release:
 		cvs -d ${CVSROOT} co -P src
 .if defined(INTCVSROOT)
 	cd ${CHROOTDIR}/usr && \
-	    cvs -d ${INTCVSROOT} co -P src/secure src/eBones
+	    cvs -d ${INTCVSROOT} co -P src/secure src/crypto
 .endif
 .else
 	cd ${CHROOTDIR}/usr && rm -rf src && \
 		cvs -d ${CVSROOT} co -P -r ${RELEASETAG} src
 .if defined(INTCVSROOT)
 	cd ${CHROOTDIR}/usr && \
-	    cvs -d ${INTCVSROOT} co -P -r ${RELEASETAG} src/secure src/eBones
+	    cvs -d ${INTCVSROOT} co -P -r ${RELEASETAG} src/secure src/crypto
 .endif
 .endif
 .if defined(LOCAL_PATCHES) && exists(${LOCAL_PATCHES})
@@ -255,8 +255,8 @@ release.1:
 release.2:
 	cd ${.CURDIR}/../etc && make distrib-dirs DESTDIR=${RD}/trees/bin
 	cd ${.CURDIR}/.. && make distribute DISTDIR=${RD}/trees
-.if exists(${.CURDIR}/../eBones) && !defined(NOKERBEROS)
-	cd ${.CURDIR}/../eBones && ( \
+.if exists(${.CURDIR}/../kerberos4) && !defined(NOKERBEROS)
+	cd ${.CURDIR}/../kerberos4 && ( \
 		make bootstrap &&\
 		make obj all help-distribute DISTDIR=${RD}/trees &&\
 		make kprog \
