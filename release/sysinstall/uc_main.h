@@ -23,25 +23,26 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: uc_main.h,v 1.4 1997/02/22 14:12:32 peter Exp $
  */
 
 #define ISA_BIOTAB 0  
 #define ISA_TTYTAB 1
 #define ISA_NETTAB 2
-#define ISA_NULLTAB 3
-#define ISA_WDCTAB 4  
-#define ISA_FDCTAB 5
-#define EISA_SET 6
-#define EISA_LIST 7
-#define PCI_SET 8
-#define SCSI_LIST 9
-#define SCSI_BUSSES 10
-#define SCSI_CINIT 11
-#define SCSI_DINIT 12
-#define SCSI_TINIT 13
+#define ISA_CAMTAB 3
+#define ISA_NULLTAB 4
+#define ISA_WDCTAB 5
+#define ISA_FDCTAB 6
+#define EISA_SET 7
+#define EISA_LIST 8
+#define PCI_SET 9
+#define SCSI_LIST 10
+#define SCSI_BUSSES 11
+#define SCSI_CINIT 12
+#define SCSI_DINIT 13
+#define SCSI_TINIT 14
 /* symbols + the null terminator */
-#define NSYMBOLS 15
+#define NSYMBOLS 16
 
 struct kernel {
   int     fd;    /* file descriptor for the kernel image, either a binary or /dev/kmem */
