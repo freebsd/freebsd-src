@@ -29,7 +29,6 @@
 #include "opt_bus.h"
 
 #include <sys/param.h>
-#include <sys/bus_private.h>
 #include <sys/kernel.h>
 #include <sys/kobj.h>
 #include <sys/malloc.h>
@@ -39,6 +38,7 @@
 #include <sys/rman.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/bus_private.h>
 
 #include <machine/stdarg.h>
 
