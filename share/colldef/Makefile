@@ -34,6 +34,7 @@ LOCALES=	bg_BG.CP1251 \
 		sr_YU.ISO8859-5 \
 		sv_SE.ISO8859-1 \
 		sv_SE.ISO8859-15 \
+		uk_UA.CP1251 \
 		uk_UA.ISO8859-5 \
 		uk_UA.KOI8-U
 
