@@ -33,7 +33,7 @@
  *	i4b daemon - network monitor client
  *	-----------------------------------
  *
- *	$Id: main.c,v 1.9 1998/10/27 10:54:23 hm Exp $
+ *	$Id: main.c,v 1.10 1999/02/14 09:44:57 hm Exp $
  *
  *      last edit-date: [Tue Oct 27 11:53:12 1998]
  *

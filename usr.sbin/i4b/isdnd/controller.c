@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,9 @@
  *	i4b daemon - controller state support routines
  *	----------------------------------------------
  *
- *	$Id: controller.c,v 1.10 1998/12/05 18:03:06 hm Exp $
+ *	$Id: controller.c,v 1.12 1999/02/15 16:48:04 hm Exp $
  *
- *      last edit-date: [Sat Dec  5 18:06:10 1998]
+ *      last edit-date: [Mon Feb 15 16:37:55 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -61,10 +61,10 @@ init_controller_state(int controller, int ctrl_type, int card_type, int tei)
 			isdn_ctrl_tab[controller].stateb2 = CHAN_IDLE;
 			isdn_ctrl_tab[controller].freechans = MAX_CHANCTRL;
 			isdn_ctrl_tab[controller].tei = tei;
-			log(LL_DMN, "init_controller_state: controller %d is %s",
+			DBGL(DL_RCCF, (log(LL_DBG, "init_controller_state: controller %d is %s",
 			  controller, 
 			  name_of_controller(isdn_ctrl_tab[controller].ctrl_type,
-					     isdn_ctrl_tab[controller].card_type));
+					     isdn_ctrl_tab[controller].card_type))));
 		}
 		else
 		{

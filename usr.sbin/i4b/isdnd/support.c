@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,9 @@
  *	i4b daemon - misc support routines
  *	----------------------------------
  *
- *	$Id: support.c,v 1.43 1998/12/18 09:47:09 hm Exp $ 
+ *	$Id: support.c,v 1.48 1999/02/17 14:31:42 hm Exp $ 
  *
- *      last edit-date: [Mon Dec 14 11:17:22 1998]
+ *      last edit-date: [Mon Feb 15 16:40:05 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -511,7 +511,8 @@ name_of_controller(int ctrl_type, int card_type)
 		"Siemens I-Talk",
 		"ELSA MicroLink ISDN/MC",
 		"ELSA MicroLink MCall",
- 		"ITK ix1 micro"
+ 		"ITK ix1 micro",
+		"AVM Fritz!Card PCI"
 	};
 	static char *daic_card[] = {
 		"EICON.Diehl S",
@@ -573,7 +574,7 @@ init_controller(void)
 			do_exit(1);
 		}
 	}
-	log(LL_DMN, "init_controller: found %d ISDN controller(s)", max);
+	DBGL(DL_RCCF, (log(LL_DBG, "init_controller: found %d ISDN controller(s)", max)));
 }
 
 /*---------------------------------------------------------------------------*
@@ -586,10 +587,11 @@ bdrivername(int drivertype)
 		"rbch",
 		"tel",
 		"ipr",
-		"isp"
+		"isp",
+		"ibc"
 	};
 
-	if(drivertype >= BDRV_RBCH && drivertype <= BDRV_ISPPP)
+	if(drivertype >= BDRV_RBCH && drivertype <= BDRV_IBC)
 		return(bdtab[drivertype]);
 	else
 		return("unknown");
@@ -659,9 +661,29 @@ unitlen_chkupd(cfg_entry_t *cep)
 /* XXX check if the values are possible, if not, adjust them */
 	
 	tupd.cdid = cep->cdid;
-	tupd.unitlen_time = cep->unitlength;
-	tupd.idle_time = cep->idle_time_out;
-	tupd.earlyhup_time = cep->earlyhangup;
+
+	/* init the short hold data based on the shorthold algorithm type */
+	
+	switch( cep->shorthold_algorithm )
+	{
+
+	case msg_alg__fix_unit_size:
+		tupd.shorthold_data.shorthold_algorithm = msg_alg__fix_unit_size;
+		tupd.shorthold_data.unitlen_time = cep->unitlength;
+		tupd.shorthold_data.idle_time = cep->idle_time_out;
+		tupd.shorthold_data.earlyhup_time = cep->earlyhangup;
+		break;
+
+	case msg_alg__var_unit_size:
+		tupd.shorthold_data.shorthold_algorithm = msg_alg__var_unit_size;
+		tupd.shorthold_data.unitlen_time = cep->unitlength;
+		tupd.shorthold_data.idle_time = cep->idle_time_out;
+		tupd.shorthold_data.earlyhup_time = 0;
+		break;
+	default:
+		log(LL_ERR, "unitlen_chkupd bad shorthold_algorithm %d", cep->shorthold_algorithm );
+
+	}
 
 	if((ioctl(isdnfd, I4B_TIMEOUT_UPD, &tupd)) < 0)
 	{

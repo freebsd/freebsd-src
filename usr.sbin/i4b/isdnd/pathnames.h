@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,9 @@
  *	i4b daemon - location of files
  *	------------------------------
  *
- *	$Id: pathnames.h,v 1.5 1998/12/05 18:03:30 hm Exp $ 
+ *	$Id: pathnames.h,v 1.7 1999/02/14 19:51:01 hm Exp $ 
  *
- *      last edit-date: [Sat Dec  5 18:11:17 1998]
+ *      last edit-date: [Sun Feb 14 10:11:43 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -45,7 +45,11 @@
 #define LIBDIR		"/usr/local/lib/isdn"
 
 #define LOG_FILE_DEF	"/var/log/isdnd.log"
+#ifdef __bsdi__
 #define ACCT_FILE_DEF	"/var/log/isdnd.acct"
+#else
+#define ACCT_FILE_DEF	"/var/account/isdnd.acct"
+#endif
 
 #define PIDFILE		"/var/run/isdnd.pid"
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,9 @@
  *	pcause.h - Q.850 causes definitions
  *	-----------------------------------
  *
- *	$Id: pcause.h,v 1.2 1998/12/18 17:09:38 hm Exp $
+ *	$Id: pcause.h,v 1.3 1999/02/14 09:44:57 hm Exp $
  *
- *      last edit-date: [Fri Dec 18 18:13:23 1998]
+ *      last edit-date: [Sun Feb 14 10:17:15 1999]
  *
  *---------------------------------------------------------------------------*/
 

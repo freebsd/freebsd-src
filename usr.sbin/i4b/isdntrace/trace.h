@@ -1,5 +1,5 @@
 /*
- *   Copyright (c) 1996, 1998 Hellmuth Michaelis. All rights reserved.
+ *   Copyright (c) 1996, 1999 Hellmuth Michaelis. All rights reserved.
  *
  *   Copyright (c) 1996 Gary Jennejohn.  All rights reserved.
  *
@@ -35,9 +35,9 @@
  *	trace.h - header file for isdn trace
  *	------------------------------------
  *
- *	$Id: trace.h,v 1.7 1998/10/19 12:32:23 hm Exp $ 
+ *	$Id: trace.h,v 1.8 1999/02/14 09:44:58 hm Exp $ 
  *
- *      last edit-date: [Mon Oct 19 14:27:21 1998]
+ *      last edit-date: [Sun Feb 14 10:23:35 1999]
  *
  *	-hm	splitting
  *	-hm	new filenames

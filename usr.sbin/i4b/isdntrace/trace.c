@@ -1,5 +1,5 @@
 /*
- *   Copyright (c) 1996, 1998 Hellmuth Michaelis.  All rights reserved.
+ *   Copyright (c) 1996, 1999 Hellmuth Michaelis.  All rights reserved.
  *
  *   Copyright (c) 1996 Gary Jennejohn.  All rights reserved. 
  *
@@ -35,9 +35,9 @@
  *	trace.c - print traces of D (B) channel activity for isdn4bsd
  *	-------------------------------------------------------------
  *
- *	$Id: trace.c,v 1.10 1998/10/19 12:32:21 hm Exp $ 
+ *	$Id: trace.c,v 1.11 1999/02/14 09:44:58 hm Exp $ 
  *
- *      last edit-date: [Mon Oct 19 14:30:58 1998]
+ *      last edit-date: [Sun Feb 14 10:23:28 1999]
  *
  *	-hm	rewriting for isic and new trace format
  *	-hm	new option -f, use automatic name for -o
