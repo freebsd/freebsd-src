@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.552 1999/02/10 02:41:23 des Exp $
+#	$Id: LINT,v 1.553 1999/02/12 12:15:02 brian Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1672,9 +1672,11 @@ options		POWERFAIL_NMI	# make it beep instead of panicing
 # iicsmb I2C to SMB bridge with any iicbus interface
 # bktr	brooktree848 I2C hardware interface
 # intpm	Intel PIIX4 Power Management Unit
+# alpm	Acer Aladdin-IV/V/Pro2 Power Management Unit
 #
 controller smbus0
 controller intpm0
+controller alpm0
 
 device smb0	at smbus?
 
