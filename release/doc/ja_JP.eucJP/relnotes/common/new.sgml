@@ -208,7 +208,7 @@
   <sect2 id="kernel">
     <title>カーネルの変更点</title>
 
-    <para arch="i386">コンソールを初期する際に、
+    <para arch="i386">コンソールを初期化する際に、
       AT キーボードが接続されていない時でも
       &man.atkbd.4; が AT キーボードを登録してしまうバグが修正されました。
       これにより、USB キーボードのみが接続されているシステムで
@@ -249,12 +249,12 @@
       &merged;
 
       <warning>
-	<para>このドライバは実験的なものと考えるべきであり、
+	<para>このドライバは試験的なものと考えるべきであり、
 	  使用には注意を払ってください。</para>
       </warning>
 
       <note>
-	<para>公開鍵処理には対応していません。</para>
+	<para>公開鍵暗号処理には対応していません。</para>
       </note></para>
 
     <para>カーネルにソフトウェアウォッチドッグ機能が実装されました。
@@ -328,7 +328,7 @@
         これは、IDT77252 ベースの ATM インタフェースに対応しています。</para>
 
       <para>&man.re.4; ドライバが追加されました。
-	これは、 RealTek RTL8139C+、RTL8169、RTL8169SIt、RTL8110S
+	これは、 RealTek RTL8139C+、RTL8169、RTL8169S、RTL8110S
 	PCI Fast Ethernet コントローラおよび
 	Gigabit Ethernet コントローラに対応しています。</para>
 
@@ -407,7 +407,8 @@
 	ジャイアントカーネルロックの外に出たことです。
 	従来は <literal>device atadisk</literal> によって
 	ATA ソフトウェア RAID システムに暗示的に対応していましたが、
-	カーネルコンフィグファイルに <literal>device ataraid</literal> を
+	今後はカーネルコンフィグファイルに
+	<literal>device ataraid</literal> を明示的に
 	追加する必要があります。</para>
 
       <para>&man.ccd.4; が raw ディスクと &man.geom.4;
@@ -491,10 +492,6 @@
       ポーリング間隔は
       <option>-i</option> オプションで制御することができます。</para>
 
-    <para>&man.ipfw.8; <literal>list</literal> および <literal>show</literal>
-      コマンドで、ルール番号を範囲で指定することができるようになりました。
-      &merged;</para>
-
     <para>&man.ffsinfo.8; ユーティリティが
       UFS2 ファイルシステムを解釈するに更新され、
       再びベースシステムに含まれるようになりました。</para>
@@ -502,6 +499,10 @@
     <para>&man.iasl.8; ユーティリティが追加されました。
       これは、ACPI Source Language (ASL) と ACPI Machine language (AML) の
       コンパイラ・逆コンパイラです。</para>
+
+    <para>&man.ipfw.8; <literal>list</literal> および <literal>show</literal>
+      コマンドで、ルール番号を範囲で指定することができるようになりました。
+      &merged;</para>
 
     <para>&man.ipfw.8; に、実際の動作を行なわずにコマンドの文法だけをチェックする
       <option>-n</option> フラグが追加されました。&merged;</para>
@@ -614,7 +615,8 @@
       PAM モジュールや NSS モジュールに対応できるようになりました。
       また、共有ライブラリを使用することで
       ルートファイルシステムに必要とされるディスク容量が削減されました。
-      この機能は変数 <varname>WITH_DYNAMICROOT</varname>
+      この機能は <literal>buildworld</literal> の際に
+      変数 <varname>WITH_DYNAMICROOT</varname>
       を定義して有効にすることができます。</para>
 
   </sect2>
@@ -644,7 +646,7 @@
 	  最適化オプション <literal>-march=pentium4</literal>
 	  が指定されていると誤ったコードを生成してしまいます。
 	  今回の更新によりその問題は修正されたと考えられており、
-	  初期に行っていた <literal>CPUTYPE</literal> が
+	  以前行っていた <literal>CPUTYPE</literal> が
 	  <literal>p4</literal> の場合の回避策は削除されました。</para>
       </note></para>
 
