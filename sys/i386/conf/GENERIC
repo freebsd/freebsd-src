@@ -113,6 +113,7 @@ device		dpt		# DPT Smartcache - See LINT for options!
 device		mly		# Mylex AcceleRAID/eXtremeRAID
 
 # RAID controllers
+device		aac		# Adaptec FSA RAID, Dell PERC2/PERC3
 device		ida		# Compaq Smart RAID
 device		amr		# AMI MegaRAID
 device		mlx		# Mylex DAC960 family
