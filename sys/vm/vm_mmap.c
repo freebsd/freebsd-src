@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.28 1995/10/23 03:49:37 dyson Exp $
+ * $Id: vm_mmap.c,v 1.29 1995/11/12 06:43:24 bde Exp $
  */
 
 /*
@@ -63,7 +63,9 @@
 #include <vm/vm_pageout.h>
 #include <vm/vm_prot.h>
 
-void pmap_object_init_pt();
+extern void	pmap_object_init_pt __P((pmap_t pmap, vm_offset_t addr,
+					 vm_object_t object, vm_offset_t offset,
+					 vm_offset_t size));
 
 #ifndef _SYS_SYSPROTO_H_
 struct sbrk_args {

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.37 1995/10/23 05:35:46 dyson Exp $
+ *	$Id: vm_page.c,v 1.38 1995/11/20 12:19:34 phk Exp $
  */
 
 /*
@@ -78,6 +78,10 @@
 #include <vm/vm_map.h>
 #include <vm/vm_pageout.h>
 
+#ifdef DDB
+extern void	print_page_info __P((void));
+#endif
+
 /*
  *	Associated with page of user-allocatable memory is a
  *	page structure.
@@ -114,7 +118,10 @@ static u_short vm_page_dev_bsize_chunks[] = {
 	0x1ff, 0x3ff, 0x7ff, 0xfff, 0x1fff, 0x3fff, 0x7fff, 0xffff
 };
 
-static void vm_page_unqueue __P((vm_page_t ));
+static inline __pure int
+		vm_page_hash __P((vm_object_t object, vm_offset_t offset))
+		__pure2;
+static void	vm_page_unqueue __P((vm_page_t ));
 
 /*
  *	vm_set_page_size:
@@ -294,7 +301,6 @@ vm_page_startup(starta, enda, vaddr)
 	vm_page_array = (vm_page_t) vaddr;
 	mapped = vaddr;
 
-
 	/*
 	 * Validate these addresses.
 	 */
@@ -340,7 +346,7 @@ vm_page_startup(starta, enda, vaddr)
  *
  *	NOTE:  This macro depends on vm_page_bucket_count being a power of 2.
  */
-inline const int
+static inline __pure int
 vm_page_hash(vm_object_t object, vm_offset_t offset)
 {
 	return ((unsigned) object + (offset >> PAGE_SHIFT)) & vm_page_hash_mask;

@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.50 1995/11/16 09:51:19 bde Exp $
+ * $Id: swap_pager.c,v 1.51 1995/11/20 12:19:58 phk Exp $
  */
 
 /*
@@ -136,10 +136,32 @@ struct pagerops swappagerops = {
 };
 
 static int npendingio = NPENDINGIO;
-static void swap_pager_finish();
 int dmmin, dmmax;
 
+static __pure int
+		swap_pager_block_index __P((vm_offset_t offset)) __pure2;
+static __pure int
+		swap_pager_block_offset __P((vm_offset_t offset)) __pure2;
+static int	*swap_pager_diskaddr __P((vm_object_t object,
+					  vm_offset_t offset, int *valid));
+static void	swap_pager_finish __P((swp_clean_t spc));
+static void	swap_pager_freepage __P((vm_page_t m));
+static void	swap_pager_free_swap __P((vm_object_t object));
+static void	swap_pager_freeswapspace __P((vm_object_t object,
+					      unsigned int from,
+					      unsigned int to));
+static int	swap_pager_getswapspace __P((vm_object_t object,
+					     unsigned int amount,
+					     unsigned int *rtval));
 static void	swap_pager_iodone __P((struct buf *));
+static void	swap_pager_iodone1 __P((struct buf *bp));
+static int	swap_pager_ready __P((void));
+static void	swap_pager_reclaim __P((void));
+static void	swap_pager_ridpages __P((vm_page_t *m, int count,
+					 int reqpage));
+static void	swap_pager_setvalid __P((vm_object_t object,
+					 vm_offset_t offset, int valid));
+static void	swapsizecheck __P((void));
 
 static inline void
 swapsizecheck()
@@ -283,7 +305,7 @@ swap_pager_alloc(handle, size, prot, offset)
  * if the block has been written
  */
 
-inline static int *
+static inline int *
 swap_pager_diskaddr(object, offset, valid)
 	vm_object_t object;
 	vm_offset_t offset;
@@ -687,16 +709,14 @@ swap_pager_dealloc(object)
 	object->un_pager.swp.swp_blocks = NULL;
 }
 
-static inline int
-const
+static inline __pure int
 swap_pager_block_index(offset)
 	vm_offset_t offset;
 {
 	return (offset / (SWB_NPAGES * PAGE_SIZE));
 }
 
-static inline int
-const
+static inline __pure int
 swap_pager_block_offset(offset)
 	vm_offset_t offset;
 {
@@ -1603,7 +1623,7 @@ swap_pager_iodone(bp)
 /*
  * return true if any swap control structures can be allocated
  */
-int
+static int
 swap_pager_ready()
 {
 	if (swap_pager_free.tqh_first)
