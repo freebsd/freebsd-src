@@ -247,7 +247,7 @@ whois(const char *query, const char *hostname, int flags)
 	struct addrinfo *hostres, *res;
 	char *buf, *host, *nhost, *p;
 	int i, s;
-	size_t len;
+	size_t c, len;
 
 	hostres = gethostinfo(hostname, 1);
 	for (res = hostres; res; res = res->ai_next) {
@@ -287,6 +287,8 @@ whois(const char *query, const char *hostname, int flags)
 				s_asprintf(&nhost, "%.*s",
 				     (int)(buf + len - host), host);
 			} else if (strcmp(hostname, ANICHOST) == 0) {
+				for (c = 0; c <= len; c++)
+					buf[c] = tolower((int)buf[c]);
 				for (i = 0; ip_whois[i] != NULL; i++) {
 					if (strnstr(buf, ip_whois[i], len) !=
 					    NULL) {
