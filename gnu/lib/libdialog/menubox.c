@@ -389,7 +389,7 @@ draw:
 			touchwin(save);
 			wrefresh(save);
 		    }
-		    else if (status & DITEM_RECREATE) {
+		    if (status & DITEM_RECREATE) {
 			delwin(menu);
 			delwin(dialog);
 			delwin(save);
