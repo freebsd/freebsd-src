@@ -305,7 +305,7 @@ term.h:		MKterm.h.awk edit_cfg.sh Caps
 make_keys:	make_keys.c names.c
 	${CC} -o $@ ${CFLAGS} ${NCURSES}/ncurses/tinfo/make_keys.c
 
-make_hash:	comp_hash.c
+make_hash:	comp_hash.c hashsize.h
 	${CC} -o $@ ${CFLAGS} -DMAIN_PROGRAM \
 		${NCURSES}/ncurses/tinfo/comp_hash.c
 
