@@ -1359,6 +1359,8 @@ pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va)
 	pv_entry_t pv;
 	int rtval;
 
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if (m->md.pv_list_count < pmap->pm_stats.resident_count) {
 		TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 			if (pmap == pv->pv_pmap && va == pv->pv_va) 
@@ -1416,6 +1418,7 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va)
 	pt_entry_t oldpte;
 	vm_page_t m;
 
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	oldpte = *ptq;
 	*ptq = 0;
 	if (oldpte & PG_W)
@@ -1760,7 +1763,9 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if (opa) {
 		int err;
 		vm_page_lock_queues();
+		PMAP_LOCK(pmap);
 		err = pmap_remove_pte(pmap, pte, va);
+		PMAP_UNLOCK(pmap);
 		vm_page_unlock_queues();
 		if (err)
 			panic("pmap_enter: pte vanished, va: 0x%lx", va);
