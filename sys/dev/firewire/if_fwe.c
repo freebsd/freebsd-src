@@ -618,9 +618,11 @@ fwe_as_input(struct fw_xferq *xferq)
 #if defined(__DragonFly__) || __FreeBSD_version < 500000
 		eh = (struct ether_header *)c;
 		m->m_data += sizeof(struct ether_header);
+		m->m_len = m->m_pkthdr.len = fp->mode.stream.len - ETHER_ALIGN
+		    - sizeof(struct ether_header);
+#else
+		m->m_len = m->m_pkthdr.len = fp->mode.stream.len - ETHER_ALIGN;
 #endif
-		m->m_len = m->m_pkthdr.len =
-				fp->mode.stream.len - ETHER_ALIGN;
 		m->m_pkthdr.rcvif = ifp;
 #if 0
 		FWEDEBUG(ifp, "%02x %02x %02x %02x %02x %02x\n"
