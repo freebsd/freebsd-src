@@ -144,19 +144,6 @@ bracket(s)
 	/* NOTREACHED */
 }
 
-int isalnum __P((int)),
-    isalpha __P((int)),
-    isblank __P((int)),
-    isspace __P((int)),
-    iscntrl __P((int)),
-    isdigit __P((int)),
-    isgraph __P((int)),
-    islower __P((int)),
-    isprint __P((int)),
-    ispunct __P((int)),
-    isupper __P((int)),
-    isxdigit __P((int));
-
 typedef struct {
 	char *name;
 	int (*func) __P((int));
