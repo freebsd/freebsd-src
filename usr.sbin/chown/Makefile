@@ -3,6 +3,7 @@
 
 PROG=	chown
 LINKS=	${BINDIR}/chown /usr/bin/chgrp
+WARNS?=	2
 MAN=	chgrp.1 chown.8
 
 .include <bsd.prog.mk>
