@@ -1143,6 +1143,12 @@ check_extport(struct ahc_softc *ahc, u_int *sxfrctl1)
 		}
 	}
 
+#ifdef 0
+	/*
+	 * This code causes a machine with an aic7880 chipset
+	 * to reboot spontaneously. Whatever it's supposed to do,
+	 * it's doing it wrong. -wpaul
+	 */
 	if (!have_seeprom) {
 		/*
 		 * Pull scratch ram settings and treat them as
@@ -1168,6 +1174,7 @@ check_extport(struct ahc_softc *ahc, u_int *sxfrctl1)
 				printf("And it even worked!\n");
 		}
 	}
+#endif
 
 	if (!have_seeprom) {
 		if (bootverbose)
