@@ -39,7 +39,7 @@ extern int ip_gif_ttl;
 
 struct gif_softc;
 void in_gif_input __P((struct mbuf *, int off, int proto));
-int in_gif_output __P((struct ifnet *, int, struct mbuf *, struct rtentry *));
+int in_gif_output __P((struct ifnet *, int, struct mbuf *));
 int gif_encapcheck4 __P((const struct mbuf *, int, int, void *));
 int in_gif_attach __P((struct gif_softc *));
 int in_gif_detach __P((struct gif_softc *));
