@@ -3,4 +3,4 @@
 .PATH: ${.CURDIR}/nls
 
 SRCS+=	catclose.c catgets.c catopen.c msgcat.c
-MAN+=	catclose.3 catgets.3 catopen.3
+MAN3+=  nls/catclose.3 nls/catgets.3 nls/catopen.3
