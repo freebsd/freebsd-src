@@ -30,11 +30,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sysent.h,v 1.6 1995/11/21 12:55:14 bde Exp $
+ *	$Id: sysent.h,v 1.7 1996/03/02 19:38:20 peter Exp $
  */
 
 #ifndef _SYS_SYSENT_H_
-#define _SYS_SYSENT_H_ 1
+#define	_SYS_SYSENT_H_
 
 typedef	int	sy_call_t __P((struct proc *, void *, int *));
 
@@ -49,19 +49,19 @@ struct trapframe;
 struct sysentvec {
 	int		sv_size;	/* number of entries */
 	struct sysent	*sv_table;	/* pointer to sysent */
-	unsigned int	sv_mask;	/* optional mask to index */
+	u_int		sv_mask;	/* optional mask to index */
 	int		sv_sigsize;	/* size of signal translation table */
 	int		*sv_sigtbl;	/* signal translation table */
 	int		sv_errsize;	/* size of signal translation table */
 	int 		*sv_errtbl;	/* errno translation table */
 	int		(*sv_fixup) __P((int **, struct image_params *));
 					/* stack fixup function */
-	void		(*sv_sendsig) __P((sig_t, int, int, unsigned));
+	void		(*sv_sendsig) __P((sig_t, int, int, u_long));
 					/* send signal */
 	char 		*sv_sigcode;	/* start of sigtramp code */
 	int 		*sv_szsigcode;	/* size of sigtramp code */
 	void		(*sv_prepsyscall) __P((struct trapframe *, int *,
-						u_int *, caddr_t *));
+					       u_int *, caddr_t *));
 };
 
 #ifdef KERNEL
@@ -69,6 +69,4 @@ extern struct sysentvec aout_sysvec;
 extern struct sysent sysent[];
 #endif
 
-#endif /* _SYS_SYSENT_H_ */
-
-
+#endif /* !_SYS_SYSENT_H_ */
