@@ -34,7 +34,7 @@
 #include <sys/proc.h>
 
 #include <alpha/linux/linux.h>
-#include <alpha/linux/linux_proto.h>
+#include <linux_proto.h>
 
 #define	DUMMY(s) 							\
 int									\
