@@ -44,8 +44,6 @@
  * Kernel signal definitions and data structures,
  * not exported to user programs.
  */
-int	__sigisempty	__P((sigset_t *set));
-int	__sigseteq	__P((sigset_t *set1, sigset_t *set2));
 
 /*
  * Process signal actions and state, needed only within the process
