@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.55 1994/10/15 18:05:25 ache Exp $
+ *	$Id: sio.c,v 1.56 1994/10/19 21:38:19 bde Exp $
  */
 
 #include "sio.h"
@@ -263,6 +263,7 @@ int	sioselect	__P((dev_t dev, int rw, struct proc *p));
 
 /* Console device entry points. */
 int	siocngetc	__P((dev_t dev));
+int	siocncheckc	__P((dev_t dev));
 struct consdev;
 void	siocninit	__P((struct consdev *cp));
 void	siocnprobe	__P((struct consdev *cp));
@@ -1999,6 +2000,26 @@ siocninit(cp)
 	 */
 	comconsole = DEV_TO_UNIT(cp->cn_dev);
 }
+
+int
+siocncheckc(dev)
+	dev_t	dev;
+{
+	int	c=0;
+	Port_t	iobase;
+	int	s;
+	struct siocnstate	sp;
+
+	iobase = siocniobase;
+	s = spltty();
+	siocnopen(&sp);
+	if (inb(iobase + com_lsr) & LSR_RXRDY)
+		c = inb(iobase + com_data);
+	siocnclose(&sp);
+	splx(s);
+	return (c);
+}
+
 
 int
 siocngetc(dev)
