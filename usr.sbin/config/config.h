@@ -45,7 +45,7 @@
 struct file_list {
 	struct	file_list *f_next;
 	char	*f_fn;			/* the name */
-	u_char	f_type;			/* see below */
+	int     f_type;                 /* type or count */
 	u_char	f_flags;		/* see below */
 	char	*f_special;		/* special make rule if present */
 	char	*f_depends;		/* additional dependancies */
