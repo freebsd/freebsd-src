@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_conv.c,v 1.19 1998/02/22 17:26:24 ache Exp $ */
+/*	$Id: msdosfs_conv.c,v 1.20 1998/02/22 18:00:49 ache Exp $ */
 /*	$NetBSD: msdosfs_conv.c,v 1.25 1997/11/17 15:36:40 ws Exp $	*/
 
 /*-
@@ -351,14 +351,16 @@ u2l[256] = {
  * null.
  */
 int
-dos2unixfn(dn, un, lower)
+dos2unixfn(dn, un, lower, ul)
 	u_char dn[11];
 	u_char *un;
 	int lower;
+	u_int8_t *ul;
 {
 	int i;
 	int thislong = 1;
 	u_char c;
+	int table_loaded = (ul != NULL);
 
 	/*
 	 * If first char of the filename is SLOT_E5 (0x05), then the real
@@ -370,7 +372,9 @@ dos2unixfn(dn, un, lower)
 		c = dos2unix[0xe5];
 	else
 		c = dos2unix[*dn];
-	*un++ = lower ? u2l[c] : c;
+	*un++ = lower ?
+		(table_loaded && (c & 0x80) ?
+		 ul[c & 0x7f] : u2l[c]) : c;
 	dn++;
 
 	/*
@@ -378,7 +382,9 @@ dos2unixfn(dn, un, lower)
 	 */
 	for (i = 1; i < 8 && *dn != ' '; i++) {
 		c = dos2unix[*dn++];
-		*un++ = lower ? u2l[c] : c;
+		*un++ = lower ?
+			(table_loaded && (c & 0x80) ?
+			 ul[c & 0x7f] : u2l[c]) : c;
 		thislong++;
 	}
 	dn += 8 - i;
@@ -392,7 +398,9 @@ dos2unixfn(dn, un, lower)
 		thislong++;
 		for (i = 0; i < 3 && *dn != ' '; i++) {
 			c = dos2unix[*dn++];
-			*un++ = lower ? u2l[c] : c;
+			*un++ = lower ?
+				(table_loaded && (c & 0x80) ?
+				 ul[c & 0x7f] : u2l[c]) : c;
 			thislong++;
 		}
 	}
@@ -663,17 +671,20 @@ find_lcode(code, u2w)
  * Returns the checksum or -1 if no match
  */
 int
-winChkName(un, unlen, wep, chksum, u2w)
+winChkName(un, unlen, wep, chksum, u2w, ul)
 	const u_char *un;
 	int unlen;
 	struct winentry *wep;
 	int chksum;
 	u_int16_t *u2w;
+	u_int8_t *ul;
 {
 	u_int8_t *cp;
 	int i;
 	u_int16_t code;
-	int table_loaded = (u2w != NULL);
+	int u2w_loaded = (u2w != NULL);
+	int ul_loaded = (ul != NULL);
+	u_int8_t c1, c2;
 
 	/*
 	 * First compare checksums
@@ -706,14 +717,19 @@ winChkName(un, unlen, wep, chksum, u2w)
 		}
 		code = (cp[1] << 8) | cp[0];
 		if (code & 0xff80) {
-			if (table_loaded)
+			if (u2w_loaded)
 				code = find_lcode(code, u2w);
 			else if (code & 0xff00)
 				code = '?';
 		}
-		if (u2l[code] != u2l[*un++])
+		c1 = ul_loaded && (code & 0x80) ?
+		     ul[code & 0x7f] : u2l[code];
+		c2 = ul_loaded && (*un & 0x80) ?
+		     ul[*un & 0x7f] : u2l[*un];
+		if (c1 != c2)
 			return -1;
 		cp += 2;
+		un++;
 	}
 	for (cp = wep->wePart2, i = sizeof(wep->wePart2)/2; --i >= 0;) {
 		if (--unlen < 0) {
@@ -723,14 +739,19 @@ winChkName(un, unlen, wep, chksum, u2w)
 		}
 		code = (cp[1] << 8) | cp[0];
 		if (code & 0xff80) {
-			if (table_loaded)
+			if (u2w_loaded)
 				code = find_lcode(code, u2w);
 			else if (code & 0xff00)
 				code = '?';
 		}
-		if (u2l[code] != u2l[*un++])
+		c1 = ul_loaded && (code & 0x80) ?
+		     ul[code & 0x7f] : u2l[code];
+		c2 = ul_loaded && (*un & 0x80) ?
+		     ul[*un & 0x7f] : u2l[*un];
+		if (c1 != c2)
 			return -1;
 		cp += 2;
+		un++;
 	}
 	for (cp = wep->wePart3, i = sizeof(wep->wePart3)/2; --i >= 0;) {
 		if (--unlen < 0) {
@@ -740,14 +761,19 @@ winChkName(un, unlen, wep, chksum, u2w)
 		}
 		code = (cp[1] << 8) | cp[0];
 		if (code & 0xff80) {
-			if (table_loaded)
+			if (u2w_loaded)
 				code = find_lcode(code, u2w);
 			else if (code & 0xff00)
 				code = '?';
 		}
-		if (u2l[code] != u2l[*un++])
+		c1 = ul_loaded && (code & 0x80) ?
+		     ul[code & 0x7f] : u2l[code];
+		c2 = ul_loaded && (*un & 0x80) ?
+		     ul[*un & 0x7f] : u2l[*un];
+		if (c1 != c2)
 			return -1;
 		cp += 2;
+		un++;
 	}
 	return chksum;
 }
