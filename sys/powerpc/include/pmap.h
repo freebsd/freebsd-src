@@ -75,6 +75,8 @@ vm_offset_t	pmap_kextract(vm_offset_t);
 
 int		pmap_pte_spill(vm_offset_t);
 
+#define	vtophys(va)	pmap_kextract(((vm_offset_t)(va)))
+
 extern	vm_offset_t avail_start;
 extern	vm_offset_t avail_end;
 extern	vm_offset_t phys_avail[];
