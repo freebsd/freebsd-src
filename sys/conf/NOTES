@@ -1014,8 +1014,7 @@ options 	VGA_WIDTH90		# support 90 column modes
 options 	FB_DEBUG		# Frame buffer debugging
 options 	FB_INSTALL_CDEV		# install a CDEV entry in /dev
 
-# Splash screen at start up!  Screen savers require this too.
-device		splash
+device		splash			# Splash screen and screen saver support
 
 # Various screen savers.
 device		apm_saver		# Requires APM
