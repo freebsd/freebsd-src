@@ -30,7 +30,7 @@
 /	level.
 /	Check for council of wise, and being too big to be king.
 /
-/************************************************************************/
+*************************************************************************/
 
 movelevel()
 {
@@ -110,7 +110,7 @@ double	inc;			/* increment between new and old levels */
 /	Look at coordinates and return an appropriately formatted
 /	string.
 /
-/************************************************************************/
+*************************************************************************/
 
 char	*
 descrlocation(playerp, shortflag)
@@ -211,7 +211,7 @@ static char	*nametable[4][4] =   /* names of places */
 /	a few books.  Higher level players shouldn't even bother to pick
 /	up gold, except maybe to buy mana once in a while.
 /
-/************************************************************************/
+*************************************************************************/
 
 tradingpost()
 {
@@ -499,7 +499,7 @@ bool	dishonest = FALSE;/* set when merchant is dishonest */
 / DESCRIPTION:
 /	Important player statistics are printed on the screen.
 /
-/************************************************************************/
+*************************************************************************/
 
 displaystats()
 {
@@ -533,7 +533,7 @@ displaystats()
 / DESCRIPTION:
 /	Print out some player statistics of lesser importance.
 /
-/************************************************************************/
+*************************************************************************/
 
 allstatslist()
 {
@@ -592,7 +592,7 @@ static	char	*flags[] =	/* to print value of some bools */
 /	has a crown.
 /	If 'shortflag' is TRUE, return a 3 character string.
 /
-/************************************************************************/
+*************************************************************************/
 
 char	*
 descrtype(playerp, shortflag)
@@ -685,7 +685,7 @@ static char	*results[] =	/* description table */
 /	Search the player file for the player of the given name.
 /	If player is found, fill structure with player data.
 /
-/************************************************************************/
+*************************************************************************/
 
 long
 findname(name, playerp)
@@ -731,7 +731,7 @@ long	loc = 0;			/* location in the file */
 /	Search the player file for an unused entry.  If none are found,
 /	make one at the end of the file.
 /
-/************************************************************************/
+*************************************************************************/
 
 long
 allocrecord()
@@ -779,7 +779,7 @@ long	loc = 0L;		/* location in file */
 / DESCRIPTION:
 /	Mark structure as not used, and update player file.
 /
-/************************************************************************/
+*************************************************************************/
 
 freerecord(playerp, loc)
 struct player	*playerp;
@@ -812,7 +812,7 @@ long	loc;
 /	Mark player as inactive, and cleanup.
 /	Do not save players below level 1.
 /
-/************************************************************************/
+*************************************************************************/
 
 leavegame()
 {
@@ -859,7 +859,7 @@ leavegame()
 /	Update scoreboard, lastdead, and let other players know about
 /	the demise of their comrade.
 /
-/************************************************************************/
+*************************************************************************/
 
 death(how)
 char	*how;
@@ -989,7 +989,7 @@ static	char	*deathmesg[] =
 / DESCRIPTION:
 /	Update location in player file with given structure.
 /
-/************************************************************************/
+*************************************************************************/
 
 writerecord(playerp, place)
 register struct player	*playerp;
@@ -1023,7 +1023,7 @@ long	place;
 /	Experience level is a geometric progression.  This has been finely
 /	tuned over the years, and probably should not be changed.
 /
-/************************************************************************/
+*************************************************************************/
 
 double
 explevel(experience)
@@ -1057,7 +1057,7 @@ double	experience;
 / DESCRIPTION: 
 /	Put nul characters in place of spaces at the end of the string.
 /
-/************************************************************************/
+*************************************************************************/
 
 truncstring(string)
 register char	*string;
@@ -1094,7 +1094,7 @@ register int	length;		/* length of string */
 /	If the player is beyond the point of no return, he/she is forced
 /	to stay there.
 /
-/************************************************************************/
+*************************************************************************/
 
 altercoordinates(xnew, ynew, operation)
 double	xnew;
@@ -1170,7 +1170,7 @@ int	operation;
 / DESCRIPTION:
 /	Read structure information from player file.
 /
-/************************************************************************/
+*************************************************************************/
 
 readrecord(playerp, loc)
 register struct player	*playerp;
@@ -1201,7 +1201,7 @@ long	loc;
 / DESCRIPTION:
 /	Handle adjustment and maximums on various player characteristics.
 /
-/************************************************************************/
+*************************************************************************/
 
 adjuststats()
 {
@@ -1319,7 +1319,7 @@ double	dtemp;				/* for temporary calculations */
 / DESCRIPTION:
 /	Put a bunch of default values in the given structure.
 /
-/************************************************************************/
+*************************************************************************/
 
 initplayer(playerp)
 register struct  player   *playerp;
@@ -1401,7 +1401,7 @@ register struct  player   *playerp;
 / DESCRIPTION:
 /	If there is a message from other players, print it.
 /
-/************************************************************************/
+*************************************************************************/
 
 readmessage()
 {
@@ -1434,7 +1434,7 @@ readmessage()
 / DESCRIPTION:
 /	Print message about offending file, and exit.
 /
-/************************************************************************/
+*************************************************************************/
 
 error(whichfile)
 	char	*whichfile;
@@ -1479,7 +1479,7 @@ error(whichfile)
 /	This function is provided because someone's hypot() library function
 /	fails if x1 == x2 && y1 == y2.
 /
-/************************************************************************/
+*************************************************************************/
 
 double
 distance(x1, x2, y1, y2)
@@ -1515,7 +1515,7 @@ double	deltax, deltay;
 / DESCRIPTION:
 /	When an illegal signal is caught, print a message, and cleanup.
 /
-/************************************************************************/
+*************************************************************************/
 
 ill_sig(whichsig)
 int whichsig;
@@ -1550,7 +1550,7 @@ int whichsig;
 /	Return verbal description of player status.
 /	If player status is S_PLAYING, check for low energy and blindness.
 /
-/************************************************************************/
+*************************************************************************/
 
 char	*
 descrstatus(playerp)
@@ -1613,7 +1613,7 @@ register struct player	*playerp;
 /	We mask large integers with 32767 to handle sites that return
 /	31 bit random integers.
 /
-/************************************************************************/
+*************************************************************************/
 
 double
 drandom()
@@ -1651,7 +1651,7 @@ drandom()
 /	Add taxes to tax data base; add remaining gold and gems to
 /	player's cache.
 /
-/************************************************************************/
+*************************************************************************/
 
 collecttaxes(gold, gems)
 double	gold;

@@ -207,7 +207,7 @@ startup()
 
 	demo=Start(0);
 	srand((int)(time((time_t *)NULL)));	/* random seed */
-	/* srand(371);				/* non-random seed */
+	/* srand(371); */			/* non-random seed */
 	hinted[3]=yes(65,1,0);
 	newloc=1;
 	delhit = 0;

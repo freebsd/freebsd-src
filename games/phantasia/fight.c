@@ -32,7 +32,7 @@
 /	Arbitrate between monster and player.  Watch for either
 /	dying.
 /
-/************************************************************************/
+*************************************************************************/
 
 encounter(particular)
 int	particular;
@@ -209,7 +209,7 @@ int	flockcnt = 1;			/* how many time flocked */
 /	is altered (to add monsters, or make them tougher), this
 /	routine may also need to be changed.
 /
-/************************************************************************/
+*************************************************************************/
 
 pickmonster()
 {
@@ -265,7 +265,7 @@ pickmonster()
 / DESCRIPTION:
 /	Process all monster battle options.
 /
-/************************************************************************/
+*************************************************************************/
 
 playerhits()
 {
@@ -443,7 +443,7 @@ int	ch;		/* input */
 /	Handle all special monsters here.  If the monster is not a special
 /	one, simply roll a hit against the player.
 /
-/************************************************************************/
+*************************************************************************/
 
 monsthits()
 {
@@ -720,7 +720,7 @@ SPECIALHIT:
 /	Clear current monster's energy, experience, treasure type, and
 /	flock.  This is the same as having the monster run away.
 /
-/************************************************************************/
+*************************************************************************/
 
 cancelmonster()
 {
@@ -753,7 +753,7 @@ cancelmonster()
 /	Hit monster specified number of times.  Handle when monster dies,
 /	and a few special monsters.
 /
-/************************************************************************/
+*************************************************************************/
 
 hitmonster(inflict)
 double	inflict;
@@ -808,7 +808,7 @@ double	inflict;
 / DESCRIPTION:
 /	Prompt player and process magic spells.
 /
-/************************************************************************/
+*************************************************************************/
 
 throwspell()
 {
@@ -1048,7 +1048,7 @@ int	ch;		/* input */
 /	Adjust statistics based upon current size.
 /	Handle some special monsters.
 /
-/************************************************************************/
+*************************************************************************/
 
 callmonster(which)
 int	which;
@@ -1158,7 +1158,7 @@ struct monster	Othermonster;		/* to find a name for mimics */
 /	certain player statistics.
 /	Handle cursed treasure.
 /
-/************************************************************************/
+*************************************************************************/
 
 awardtreasure()
 {
@@ -1606,7 +1606,7 @@ double	dtemp;				/* for temporary calculations */
 /	Handle cursed treasure.  Look for amulets and charms to save
 /	the player from the curse.
 /
-/************************************************************************/
+*************************************************************************/
 
 cursedtreasure()
 {
@@ -1648,7 +1648,7 @@ cursedtreasure()
 / DESCRIPTION:
 /	Swap a few player statistics randomly.
 /
-/************************************************************************/
+*************************************************************************/
 
 scramblestats()
 {

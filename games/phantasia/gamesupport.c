@@ -48,7 +48,7 @@
 /	    - another player structure would be necessary to check for names
 /	      already in use
 /
-/************************************************************************/
+*************************************************************************/
 
 changestats(ingameflag)
 bool	ingameflag;
@@ -508,7 +508,7 @@ BALTER:
 / DESCRIPTION:
 /	Read monster file, and print a monster listing on standard output.
 /
-/************************************************************************/
+*************************************************************************/
 
 monstlist()
 {
@@ -544,7 +544,7 @@ register int 	count = 0;		/* count in file */
 / DESCRIPTION:
 /	Read the scoreboard file and print the contents.
 /
-/************************************************************************/
+*************************************************************************/
 
 scorelist()
 {
@@ -581,7 +581,7 @@ register FILE	*fp;		/* to open the file */
 / DESCRIPTION:
 /	Read player file, and print list of active records to standard output.
 /
-/************************************************************************/
+*************************************************************************/
 
 activelist()
 {
@@ -618,7 +618,7 @@ activelist()
 /	Delete characters which have not been used with the last
 /	three weeks.
 /
-/************************************************************************/
+*************************************************************************/
 
 purgeoldplayers()
 {
@@ -674,7 +674,7 @@ long	loc = 0L;	/* location in file */
 /	if an entry is found, and it is lower than the current player,
 /	replace it, otherwise create an entry.
 /
-/************************************************************************/
+*************************************************************************/
 
 enterscore()
 {
