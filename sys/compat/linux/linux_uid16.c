@@ -42,6 +42,8 @@ DUMMY(setfsgid16);
 DUMMY(getresuid16);
 DUMMY(getresgid16);
 
+#define	CAST_NOCHG(x)	(x == 0xFFFF) ? -1 : x;
+
 int
 linux_chown16(struct thread *td, struct linux_chown16_args *args)
 {
@@ -58,8 +60,8 @@ linux_chown16(struct thread *td, struct linux_chown16_args *args)
 #endif
 
 	bsd.path = args->path;
-	bsd.uid = args->uid;
-	bsd.gid = args->gid;
+	bsd.uid = CAST_NOCHG(args->uid);
+	bsd.gid = CAST_NOCHG(args->gid);
 	return (chown(td, &bsd));
 }
 
@@ -79,8 +81,8 @@ linux_lchown16(struct thread *td, struct linux_lchown16_args *args)
 #endif
 
 	bsd.path = args->path;
-	bsd.uid = args->uid;
-	bsd.gid = args->gid;
+	bsd.uid = CAST_NOCHG(args->uid);
+	bsd.gid = CAST_NOCHG(args->gid);
 	return (lchown(td, &bsd));
 }
 
@@ -249,8 +251,8 @@ linux_setregid16(struct thread *td, struct linux_setregid16_args *args)
 {
 	struct setregid_args bsd;
 
-	bsd.rgid = args->rgid;
-	bsd.egid = args->egid;
+	bsd.rgid = CAST_NOCHG(args->rgid);
+	bsd.egid = CAST_NOCHG(args->egid);
 	return (setregid(td, &bsd));
 }
 
@@ -259,8 +261,8 @@ linux_setreuid16(struct thread *td, struct linux_setreuid16_args *args)
 {
 	struct setreuid_args bsd;
 
-	bsd.ruid = args->ruid;
-	bsd.euid = args->euid;
+	bsd.ruid = CAST_NOCHG(args->ruid);
+	bsd.euid = CAST_NOCHG(args->euid);
 	return (setreuid(td, &bsd));
 }
 
@@ -269,9 +271,9 @@ linux_setresgid16(struct thread *td, struct linux_setresgid16_args *args)
 {
 	struct setresgid_args bsd;
 
-	bsd.rgid = args->rgid;
-	bsd.egid = args->egid;
-	bsd.sgid = args->sgid;
+	bsd.rgid = CAST_NOCHG(args->rgid);
+	bsd.egid = CAST_NOCHG(args->egid);
+	bsd.sgid = CAST_NOCHG(args->sgid);
 	return (setresgid(td, &bsd));
 }
 
@@ -280,8 +282,8 @@ linux_setresuid16(struct thread *td, struct linux_setresuid16_args *args)
 {
 	struct setresuid_args bsd;
 
-	bsd.ruid = args->ruid;
-	bsd.euid = args->euid;
-	bsd.suid = args->suid;
+	bsd.ruid = CAST_NOCHG(args->ruid);
+	bsd.euid = CAST_NOCHG(args->euid);
+	bsd.suid = CAST_NOCHG(args->suid);
 	return (setresuid(td, &bsd));
 }
