@@ -391,7 +391,7 @@ oltr_pci_attach(device_t dev)
 	ifp->if_init	= oltr_init;
 	ifp->if_start	= oltr_start;
 	ifp->if_ioctl	= oltr_ioctl;
-	ifp->if_flags	= IFF_BROADCAST;
+	ifp->if_flags	= IFF_BROADCAST | IFF_NEEDSGIANT;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	bcopy(sc->config.macaddress, sc->arpcom.ac_enaddr, sizeof(sc->config.macaddress));
 
