@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
- *	$Id: if_plip.c,v 1.10 1999/02/08 14:12:38 des Exp $
+ *	$Id: if_plip.c,v 1.11 1999/02/14 11:59:59 nsouch Exp $
  */
 
 /*
@@ -99,7 +99,6 @@
 #endif
 
 #include <dev/ppbus/ppbconf.h>
-#include <dev/ppbus/lpt.h>
 
 #include "opt_plip.h"
 
@@ -359,7 +358,7 @@ lpioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 		return ENOBUFS;
 	    }
 
-	    ppb_wctr(&sc->lp_dev, LPC_ENA);
+	    ppb_wctr(&sc->lp_dev, IRQENABLE);
 	    ifp->if_flags |= IFF_RUNNING;
 	}
 	break;
@@ -646,7 +645,7 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
     s = splhigh();
 
     /* Suspend (on laptops) or receive-errors might have taken us offline */
-    ppb_wctr(&sc->lp_dev, LPC_ENA);
+    ppb_wctr(&sc->lp_dev, IRQENABLE);
 
     if (ifp->if_flags & IFF_LINK0) {
 
