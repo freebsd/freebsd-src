@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.62 1999/08/18 06:11:59 mdodd Exp $
+ *	$Id: if_ie.c,v 1.63 1999/08/18 22:14:22 mdodd Exp $
  */
 
 /*
@@ -172,7 +172,7 @@ static int	ni_probe(struct isa_device * dvp);
 static int	ee16_probe(struct isa_device * dvp);
 
 static int	check_ie_present(int unit, caddr_t where, unsigned size);
-static void	ieinit(int unit);
+static void	ieinit(void *);
 static void	ie_stop(int unit);
 static int	ieioctl(struct ifnet * ifp, u_long command, caddr_t data);
 static void	iestart(struct ifnet * ifp);
@@ -285,6 +285,7 @@ static struct ie_softc {
 	void	 (*ie_chan_attn) (int);
 	enum	 ie_hardware hard_type;
 	int	 hard_vers;
+	int	 unit;
 
 	u_short	 port;		/* i/o base address for this interface */
 	caddr_t	 iomem;		/* memory size */
@@ -412,6 +413,7 @@ el_probe(struct isa_device *dvp)
 	u_char	signature[] = "*3COM*";
 	int	unit = dvp->id_unit;
 
+	sc->unit = unit;
 	sc->port = dvp->id_iobase;
 	sc->iomembot = dvp->id_maddr;
 	sc->bus_use = 0;
@@ -824,6 +826,7 @@ ieattach(struct isa_device *dvp)
 	ifp->if_output = ether_output;
 	ifp->if_start = iestart;
 	ifp->if_ioctl = ieioctl;
+	ifp->if_init = ieinit;
 	ifp->if_type = IFT_ETHER;
 	ifp->if_addrlen = 6;
 	ifp->if_hdrlen = 14;
@@ -2121,9 +2124,10 @@ mc_setup(int unit, v_caddr_t ptr,
  * THIS ROUTINE MUST BE CALLED AT splimp() OR HIGHER.
  */
 static void
-ieinit(int unit)
+ieinit(xsc)
+	void *xsc;
 {
-	struct ie_softc *ie = &ie_softc[unit];
+	struct ie_softc *ie = xsc;
 	volatile struct ie_sys_ctl_block *scb = ie->scb;
 	v_caddr_t ptr;
 	int	i;
@@ -2144,9 +2148,9 @@ ieinit(int unit)
 
 		scb->ie_command_list = MK_16(MEM, cmd);
 
-		if (command_and_wait(unit, IE_CU_START, cmd, IE_STAT_COMPL)
+		if (command_and_wait(sc->unit, IE_CU_START, cmd, IE_STAT_COMPL)
 		 || !(cmd->com.ie_cmd_status & IE_STAT_OK)) {
-			printf("ie%d: configure command failed\n", unit);
+			printf("ie%d: configure command failed\n", sc->unit);
 			return;
 		}
 	}
@@ -2160,13 +2164,13 @@ ieinit(int unit)
 		cmd->com.ie_cmd_cmd = IE_CMD_IASETUP | IE_CMD_LAST;
 		cmd->com.ie_cmd_link = 0xffff;
 
-		bcopy((volatile char *)ie_softc[unit].arpcom.ac_enaddr,
+		bcopy((volatile char *)ie_softc[sc->unit].arpcom.ac_enaddr,
 		      (volatile char *)&cmd->ie_address, sizeof cmd->ie_address);
 		scb->ie_command_list = MK_16(MEM, cmd);
-		if (command_and_wait(unit, IE_CU_START, cmd, IE_STAT_COMPL)
+		if (command_and_wait(sc->unit, IE_CU_START, cmd, IE_STAT_COMPL)
 		    || !(cmd->com.ie_cmd_status & IE_STAT_OK)) {
 			printf("ie%d: individual address "
-			       "setup command failed\n", unit);
+			       "setup command failed\n", sc->unit);
 			return;
 		}
 	}
@@ -2174,12 +2178,12 @@ ieinit(int unit)
 	/*
 	 * Now run the time-domain reflectometer.
 	 */
-	run_tdr(unit, (volatile void *) ptr);
+	run_tdr(sc->unit, (volatile void *) ptr);
 
 	/*
 	 * Acknowledge any interrupts we have generated thus far.
 	 */
-	ie_ack(ie->scb, IE_ST_WHENCE, unit, ie->ie_chan_attn);
+	ie_ack(ie->scb, IE_ST_WHENCE, sc->unit, ie->ie_chan_attn);
 
 	/*
 	 * Set up the RFA.
@@ -2229,11 +2233,11 @@ ieinit(int unit)
 		bart_config |= IEE16_BART_MCS16_TEST;
 		outb(PORT + IEE16_CONFIG, bart_config);
 		ee16_interrupt_enable(ie);
-		ee16_chan_attn(unit);
+		ee16_chan_attn(sc->unit);
 	}
 	ie->arpcom.ac_if.if_flags |= IFF_RUNNING;	/* tell higher levels
 							 * we're here */
-	start_receiver(unit);
+	start_receiver(sc->unit);
 
 	return;
 }
@@ -2272,12 +2276,12 @@ ieioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			   (ifp->if_flags & IFF_RUNNING) == 0) {
 			ie_softc[ifp->if_unit].promisc =
 			    ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI);
-			ieinit(ifp->if_unit);
+			ieinit(ifp->if_softc);
 		} else if (ie_softc[ifp->if_unit].promisc ^
 			   (ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI))) {
 			ie_softc[ifp->if_unit].promisc =
 			    ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI);
-			ieinit(ifp->if_unit);
+			ieinit(ifp->if_softc);
 		}
 		break;
 
