@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 
 #include "libc_private.h"
 
-static char buf[sizeof(_PATH_DEV) + MAXNAMLEN] = _PATH_DEV;
+static char buf[sizeof(_PATH_DEV) + MAXNAMLEN];
 static char *oldttyname(int, struct stat *);
 static char *ttyname_threaded(int fd);
 static char *ttyname_unthreaded(int fd);
