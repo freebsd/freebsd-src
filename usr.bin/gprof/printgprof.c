@@ -110,8 +110,9 @@ flatprofheader()
 	    "%  " , "cumulative" , "self  " , "" , "self  " , "total " , "" );
     printf( "%5.5s %10.10s %8.8s %8.8s %8.8s %8.8s  %-8.8s\n" ,
 	    "time" , "seconds " , "seconds" , "calls" ,
-	    hz >= 10000 ? "us/call" : "ms/call" ,
-	    hz >= 10000 ? "us/call" : "ms/call" , "name" );
+	    hz >= 10000000 ? "ns/call" : hz >= 10000 ? "us/call" : "ms/call" ,
+	    hz >= 10000000 ? "ns/call" : hz >= 10000 ? "us/call" : "ms/call" ,
+	    "name" );
 }
 
 flatprofline( np )
@@ -129,7 +130,11 @@ flatprofline( np )
 	printf( "%5.1f %10.2f %8.2f" ,
 	    100 * np -> time / totime , actime / hz , np -> time / hz );
     if ( np -> ncall != 0 ) {
-	if (hz >= 10000)
+	if (hz >= 10000000)
+	    printf( " %8d %8.0f %8.0f  " , np -> ncall ,
+		1e9 * np -> time / hz / np -> ncall ,
+		1e9 * ( np -> time + np -> childtime ) / hz / np -> ncall );
+	else if (hz >= 10000)
 	    printf( " %8d %8.0f %8.0f  " , np -> ncall ,
 		1e6 * np -> time / hz / np -> ncall ,
 		1e6 * ( np -> time + np -> childtime ) / hz / np -> ncall );
