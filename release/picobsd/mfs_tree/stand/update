@@ -5,8 +5,8 @@
 thefiles=$*
 [ -z "$thefiles" ] && \
     thefiles="/etc/rc.conf /etc/rc.firewall /etc/master.passwd"
-dev=`sysctl -n kern.bootdevname`
-[ -z ${dev} ] && dev="/dev/fd0"
+dev=`sysctl -n machdep.guessed_bootdev`
+[ -c "${dev}" ] || dev="/dev/fd0"
 mount ${dev} /mnt
 if [ "$?" != "0" ] ; then
 	echo ""
