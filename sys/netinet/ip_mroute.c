@@ -9,7 +9,7 @@
  * Modified by Bill Fenner, PARC, April 1995
  *
  * MROUTING Revision: 3.5
- * $Id: ip_mroute.c,v 1.34 1996/07/12 17:22:32 fenner Exp $
+ * $Id: ip_mroute.c,v 1.34.2.1 1996/11/24 07:54:08 phk Exp $
  */
 
 #include "opt_mrouting.h"
@@ -1611,13 +1611,9 @@ encap_send(ip, vifp, m)
     HTONS(ip->ip_len);
     HTONS(ip->ip_off);
     ip->ip_sum = 0;
-#if defined(LBL) && !defined(ultrix)
-    ip->ip_sum = ~oc_cksum((caddr_t)ip, ip->ip_hl << 2, 0);
-#else
     mb_copy->m_data += sizeof(multicast_encap_iphdr);
     ip->ip_sum = in_cksum(mb_copy, ip->ip_hl << 2);
     mb_copy->m_data -= sizeof(multicast_encap_iphdr);
-#endif
 
     if (vifp->v_rate_limit <= 0)
 	tbf_send_packet(vifp, mb_copy);
