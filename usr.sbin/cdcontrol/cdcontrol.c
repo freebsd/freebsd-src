@@ -1098,6 +1098,7 @@ input (int *cmd)
 #define MAXLINE 80
 	static EditLine *el = NULL;
 	static History *hist = NULL;
+	HistEvent he;
 	static char buf[MAXLINE];
 	int num = 0;
 	int len;
@@ -1107,9 +1108,10 @@ input (int *cmd)
 	do {
 		if (verbose) {
 			if (!el) {
-				el = el_init("cdcontrol", stdin, stdout);
+				el = el_init("cdcontrol", stdin, stdout,
+				    stderr);
 				hist = history_init();
-				history(hist, H_EVENT, 100);
+				history(hist, &he, H_EVENT, 100);
 				el_set(el, EL_HIST, history, hist);
 				el_set(el, EL_EDITOR, "emacs");
 				el_set(el, EL_PROMPT, cdcontrol_prompt);
@@ -1125,7 +1127,7 @@ input (int *cmd)
 			len = (num > MAXLINE) ? MAXLINE : num;
 			memcpy(buf, bp, len);
 			buf[len] = 0;
-			history(hist, H_ENTER, bp);
+			history(hist, &he, H_ENTER, bp);
 #undef MAXLINE
 
 		} else {
