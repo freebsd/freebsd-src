@@ -105,7 +105,7 @@ int
 edit_disklabel(int disk)
 {
 	WINDOW *window;
-	int key;
+	int key = 0;
 	int next;
 	int cur_field;
 	int i;
@@ -114,19 +114,45 @@ edit_disklabel(int disk)
 	int nsects;
 	int avail_sects;
 
-    lbl->d_magic = DISKMAGIC;
-    bcopy("INSTALLATION", lbl->d_typename, strlen("INSTALLATION"));
-    lbl->d_rpm = 3600;
-    lbl->d_interleave = 1;
-    lbl->d_trackskew = 0;
-    lbl->d_cylskew = 0;
-    lbl->d_magic2 = DISKMAGIC;
-    lbl->d_checksum = 0;
-    lbl->d_bbsize = BBSIZE;
-    lbl->d_sbsize = SBSIZE;
-    lbl->d_npartitions = 8;
-	 lbl->d_boot0 = boot1;
-	 lbl->d_boot1 = boot2;
+	lbl->d_magic = DISKMAGIC;
+	bcopy("INSTALLATION", lbl->d_typename, strlen("INSTALLATION"));
+	lbl->d_rpm = 3600;
+	lbl->d_interleave = 1;
+	lbl->d_trackskew = 0;
+	lbl->d_cylskew = 0;
+	lbl->d_magic2 = DISKMAGIC;
+	lbl->d_checksum = 0;
+	lbl->d_bbsize = BBSIZE;
+	lbl->d_sbsize = SBSIZE;
+	lbl->d_npartitions = 8;
+
+	/* Inialise the fstab entries */
+	for (i=0; i < MAXPARTITIONS; i++) {
+		disk_list[disk].mounts[i].fs_spec = 
+			(char *)malloc(label_field[i*5].maxlen+1);
+		if (!disk_list[disk].mounts[i].fs_spec) {
+			sprintf(errmsg, "Couldn't allocate memory for device mounts\n");
+			return (-1);
+		}
+		sprintf(disk_list[disk].mounts[i].fs_spec,
+			     "%s%d%s", disk_list[disk].devconf->dc_name,
+								disk_list[disk].devconf->dc_unit,
+								partname[i]);
+		disk_list[disk].mounts[i].fs_mntops =
+			(char *)malloc(label_field[(i*5)+1].maxlen+1);
+		if (!disk_list[disk].mounts[i].fs_mntops) {
+			sprintf(errmsg, "Couldn't allocate memory for mount options\n");
+			return (-1);
+		}
+		sprintf(disk_list[disk].mounts[i].fs_mntops, "%s", "YES");
+		disk_list[disk].mounts[i].fs_file =
+			(char *)malloc(label_field[(i*5)+4].maxlen+1);
+		if (!disk_list[disk].mounts[i].fs_file) {
+			sprintf(errmsg, "Couldn't allocate memory for mount points\n");
+			return (-1);
+		}
+		sprintf(disk_list[disk].mounts[i].fs_file, "%s", "Not Mounted");
+	}
 
 	if (!(window = newwin(24, 79, 0, 0))) {
 		sprintf(errmsg, "Failed to open window for disklabel editor\n");
@@ -136,13 +162,13 @@ edit_disklabel(int disk)
 	keypad(window, TRUE);
     
 	draw_box(window, 0, 0, 24, 79, dialog_attr, border_attr);
-    
+   
+
 	cur_field = 1;
 	while (key != ESC) {
 		for (i=0; i < MAXPARTITIONS; i++) {
-			sprintf(label_field[(i*5)].field, "%s%d%s", disk_list[disk].devconf->dc_name,
-															  disk_list[disk].devconf->dc_unit,
-															  partname[i]);
+			sprintf(label_field[(i*5)].field, "%s",
+					  disk_list[disk].mounts[i].fs_spec);
 			sprintf(label_field[(i*5)+1].field, "%s",
 					  disk_list[disk].mounts[i].fs_mntops);
 			sprintf(label_field[(i*5)+2].field, "%s",
@@ -200,6 +226,7 @@ edit_disklabel(int disk)
 	if (write_bootblocks(disk) == -1)
 		return(-1);
 
+	delwin(window);
 	dialog_clear();
 	return(0);
 }
