@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.4 1994/10/01 21:50:33 wollman Exp $
+ * $Id: if_ether.c,v 1.5 1994/10/02 17:48:36 phk Exp $
  */
 
 /*
@@ -147,6 +147,16 @@ arp_rtrequest(req, rt, sa)
 		if ((rt->rt_flags & RTF_HOST) == 0 &&
 		    SIN(rt_mask(rt))->sin_addr.s_addr != 0xffffffff)
 			rt->rt_flags |= RTF_CLONING;
+#if 0
+		/*
+		 * Actually, all IP gateway routes should have the cloning
+		 * flag turned on.  We can't do this yet because the expiration
+		 * stuff isn't working yet.
+		 */
+		if (rt->rt_flags & RTF_GATEWAY) {
+			rt->rt_flags |= RTF_CLONING;
+		}
+#endif
 		if (rt->rt_flags & RTF_CLONING) {
 			/*
 			 * Case 1: This route should come from a route to iface.
@@ -288,12 +298,13 @@ arprequest(ac, sip, tip, enaddr)
  * taken over here, either now or for later transmission.
  */
 int
-arpresolve(ac, rt, m, dst, desten)
+arpresolve(ac, rt, m, dst, desten, rt0)
 	register struct arpcom *ac;
 	register struct rtentry *rt;
 	struct mbuf *m;
 	register struct sockaddr *dst;
 	register u_char *desten;
+	struct rtentry *rt0;
 {
 	register struct llinfo_arp *la;
 	struct sockaddr_dl *sdl;
