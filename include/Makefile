@@ -32,7 +32,7 @@ PHDRS=	sched.h semaphore.h _semaphore.h # mqueue.h
 LHDRS=	aio.h errno.h fcntl.h linker_set.h poll.h stdint.h syslog.h \
 	termios.h ucontext.h
 
-LDIRS=	cam net netatalk netatm netgraph netinet netinet6 \
+LDIRS=	cam net netatalk netatm netgraph netinet netinet6 netipsec \
 	netipx netkey netnatm netncp netns netsmb nfs nfsclient nfsserver \
 	pccard posix4 sys vm
 
