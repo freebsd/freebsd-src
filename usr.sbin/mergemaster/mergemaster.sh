@@ -15,7 +15,7 @@ PATH=/bin:/usr/bin:/usr/sbin
 display_usage () {
   VERSION_NUMBER=`grep "[$]FreeBSD:" $0 | cut -d ' ' -f 4`
   echo "mergemaster version ${VERSION_NUMBER}"
-  echo 'Usage: mergemaster [-scrvahipC] [-m /path]'
+  echo 'Usage: mergemaster [-scrvahipCP] [-m /path]'
   echo '         [-t /path] [-d] [-u N] [-w N] [-D /path]'
   echo "Options:"
   echo "  -s  Strict comparison (diff every pair of files)"
@@ -27,6 +27,7 @@ display_usage () {
   echo '  -i  Automatically install files that do not exist in destination directory'
   echo '  -p  Pre-buildworld mode, only compares crucial files'
   echo '  -C  Compare local rc.conf variables to the defaults'
+  echo '  -P  Preserve files that are overwritten'
   echo "  -m /path/directory  Specify location of source to do the make in"
   echo "  -t /path/directory  Specify temp root directory"
   echo "  -d  Add date and time to directory name (e.g., /var/tmp/temproot.`date +%m%d.%H.%M`)"
@@ -237,7 +238,7 @@ fi
 
 # Check the command line options
 #
-while getopts ":ascrvhipCm:t:du:w:D:" COMMAND_LINE_ARGUMENT ; do
+while getopts ":ascrvhipCPm:t:du:w:D:" COMMAND_LINE_ARGUMENT ; do
   case "${COMMAND_LINE_ARGUMENT}" in
   s)
     STRICT=yes
@@ -269,6 +270,9 @@ while getopts ":ascrvhipCm:t:du:w:D:" COMMAND_LINE_ARGUMENT ; do
   C)
     COMP_CONFS=yes
     ;;
+  P)
+    PRESERVE_FILES=yes
+    ;;
   p)
     PRE_WORLD=yes
     unset COMP_CONFS
@@ -298,6 +302,11 @@ while getopts ":ascrvhipCm:t:du:w:D:" COMMAND_LINE_ARGUMENT ; do
     ;;
   esac
 done
+
+# Don't force the user to set this in the mergemaster rc file
+if [ -n "${PRESERVE_FILES}" -a -z "${PRESERVE_FILES_DIR}" ]; then
+  PRESERVE_FILES_DIR=/var/tmp/mergemaster/preserved-files-`date +%y%m%d-%H%M%S`
+fi
 
 echo ''
 
@@ -499,6 +508,7 @@ case "${RERUN}" in
       esac
       make DESTDIR=${TEMPROOT} distrib-dirs &&
       make MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj obj &&
+      make MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj all &&
       make MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj DESTDIR=${TEMPROOT} \
           -DNO_MAKEDEV_RUN distribution;} ||
     { echo '';
@@ -549,8 +559,8 @@ case "${RERUN}" in
   ;; # End of the "RERUN" test
 esac
 
-# We really don't want to deal with derived files like login.conf.db, pwd.db,
-# passwd, or spwd.db.  Instead, we want to compare the masters, and run *_mkdb.
+# We really don't want to have to deal with files like login.conf.db, pwd.db,
+# or spwd.db.  Instead, we want to compare the text versions, and run *_mkdb.
 # Prompt the user to do so below, as needed.
 #
 rm -f ${TEMPROOT}/etc/*.db ${TEMPROOT}/etc/passwd
@@ -627,6 +637,15 @@ fi
 # Create directories as needed
 #
 do_install_and_rm () {
+  case "${PRESERVE_FILES}" in
+  [Yy][Ee][Ss])
+    if [ -f "${3}/${2##*/}" ]; then
+      mkdir -p ${PRESERVE_FILES_DIR}/${2%/*}
+      cp ${3}/${2##*/} ${PRESERVE_FILES_DIR}/${2%/*}
+    fi
+    ;;
+  esac
+
   install -m "${1}" "${2}" "${3}" &&
   rm -f "${2}"
 }
