@@ -42,11 +42,11 @@
 /* hold the address of the routine which is actually called if
  * the ramdomdev is loaded
  */
-static void (*reap)(struct timespec *, u_int64_t, u_int, u_int, u_int) = NULL;
+static void (*reap)(struct timespec *, void *, u_int, u_int, u_int, u_int) = NULL;
 
 /* Initialise the harvester at load time */
 void
-random_init_harvester(void (*reaper)(struct timespec *, u_int64_t, u_int, u_int, u_int))
+random_init_harvester(void (*reaper)(struct timespec *, void *, u_int, u_int, u_int, u_int))
 {
 	reap = reaper;
 }
@@ -64,12 +64,12 @@ random_deinit_harvester(void)
  * the entropy device.
  */
 void
-random_harvest(u_int64_t entropy, u_int bits, u_int frac, u_int origin)
+random_harvest(void *entropy, u_int count, u_int bits, u_int frac, u_int origin)
 {
 	struct timespec timebuf;
 
 	if (reap) {
 		nanotime(&timebuf);
-		(*reap)(&timebuf, entropy, bits, frac, origin);
+		(*reap)(&timebuf, entropy, count, bits, frac, origin);
 	}
 }
