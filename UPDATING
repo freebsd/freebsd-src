@@ -8,6 +8,14 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
+20030828:
+	Unfortuntely, the previous entry turned out to be incorrect;
+	the instability has not yet been solved.  If you are running
+	a pre-August 9th kernel, please hold off updating at this
+	time.  Please read the stable@freebsd.org list for up to
+	date information on this issue.  Once a final solution has
+	been committed, this file will be updated.
+
 20030826:
 	A bug in the i386 virtual memory system which could result in
 	frequent panics was accidently included with the PAE changes
