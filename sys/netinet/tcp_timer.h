@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_timer.h	8.1 (Berkeley) 6/10/93
- *	$Id$
+ *	$Id: tcp_timer.h,v 1.12 1997/02/22 09:41:42 peter Exp $
  */
 
 #ifndef _NETINET_TCP_TIMER_H_
@@ -129,7 +129,6 @@ static char *tcptimers[] =
 #ifdef KERNEL
 extern int tcp_keepinit;		/* time to establish connection */
 extern int tcp_keepidle;		/* time before keepalive probes begin */
-extern int tcp_keepintvl;		/* time between keepalive probes */
 extern int tcp_maxidle;			/* time to drop after starting probes */
 extern int tcp_ttl;			/* time to live for TCP segs */
 extern int tcp_backoff[];

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.h,v 1.4 1997/02/22 09:45:19 peter Exp $
+ *	$Id: imgact_elf.h,v 1.5 1997/05/21 23:07:31 jdp Exp $
  */
 
 #ifndef _SYS_IMGACT_ELF_H_
@@ -34,8 +34,6 @@
 #include <machine/elf.h>
 
 #ifdef KERNEL
-
-extern int elf_trace;
 
 #define AUXARGS_ENTRY(pos, id, val) {suword(pos++, id); suword(pos++, val);}
 

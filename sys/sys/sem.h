@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: sem.h,v 1.12 1997/02/22 09:45:51 peter Exp $ */
 /*	$NetBSD: sem.h,v 1.5 1994/06/29 06:45:15 cgd Exp $	*/
 
 /*
@@ -145,7 +145,6 @@ extern struct seminfo	seminfo;
 
 extern struct semid_ds *sema;	/* semaphore id pool */
 extern struct sem *sem;		/* semaphore pool */
-extern struct sem_undo *semu_list; /* list of active undo structures */
 extern int	*semu;		/* undo structure pool */
 
 /*

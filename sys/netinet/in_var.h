@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_var.h	8.2 (Berkeley) 1/9/95
- *	$Id: in_var.h,v 1.25 1997/02/22 09:41:30 peter Exp $
+ *	$Id: in_var.h,v 1.26 1997/04/27 20:01:06 wollman Exp $
  */
 
 #ifndef _NETINET_IN_VAR_H_
@@ -85,9 +85,6 @@ extern	TAILQ_HEAD(in_ifaddrhead, in_ifaddr) in_ifaddrhead;
 extern	struct	ifqueue	ipintrq;		/* ip packet input queue */
 extern	struct	in_addr zeroin_addr;
 extern	u_char	inetctlerrmap[];
-extern	int rtq_reallyold;	/* XXX */
-extern	int rtq_minreallyold;	/* XXX */
-extern	int rtq_toomany;	/* XXX */
 
 /*
  * Macro for finding the interface (ifnet structure) corresponding to one

@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.23 1997/02/22 09:40:15 peter Exp $
+ * $Id: fdesc_vnops.c,v 1.24 1997/09/02 20:06:09 bde Exp $
  */
 
 /*
@@ -66,6 +66,8 @@ extern	struct cdevsw ctty_cdevsw;
 #define FDL_WANT	0x01
 #define FDL_LOCKED	0x02
 static int fdcache_lock;
+
+static vop_t **fdesc_vnodeop_p;
 
 dev_t devctty;
 
@@ -940,7 +942,6 @@ fdesc_badop()
 #define fdesc_update ((int (*) __P((struct  vop_update_args *)))eopnotsupp)
 #define fdesc_bwrite ((int (*) __P((struct  vop_bwrite_args *)))eopnotsupp)
 
-static vop_t **fdesc_vnodeop_p;
 static struct vnodeopv_entry_desc fdesc_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)fdesc_lookup },		/* lookup */

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.38 1997/08/21 20:33:38 bde Exp $
+ * $Id: kern_clock.c,v 1.39 1997/09/02 20:05:37 bde Exp $
  */
 
 /* Portions of this software are covered by the following: */
@@ -93,7 +93,7 @@ static struct callout calltodo;
 /* Some of these don't belong here, but it's easiest to concentrate them. */
 static long cp_time[CPUSTATES];
 long dk_seek[DK_NDRIVE];
-static long dk_time[DK_NDRIVE];
+static long dk_time[DK_NDRIVE];	/* time busy (in statclock ticks) */
 long dk_wds[DK_NDRIVE];
 long dk_wpms[DK_NDRIVE];
 long dk_xfer[DK_NDRIVE];

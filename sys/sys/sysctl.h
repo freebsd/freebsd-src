@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.54 1997/07/12 11:12:41 peter Exp $
+ * $Id: sysctl.h,v 1.55 1997/08/29 09:03:40 kato Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -380,7 +380,6 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 
 #ifdef KERNEL
 
-extern char	cpu_model[];
 extern char	machine[];
 extern char	osrelease[];
 extern char	ostype[];

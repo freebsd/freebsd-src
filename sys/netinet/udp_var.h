@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_var.h	8.1 (Berkeley) 6/10/93
- * $Id: udp_var.h,v 1.12 1997/02/22 09:41:44 peter Exp $
+ * $Id: udp_var.h,v 1.13 1997/08/16 19:15:42 wollman Exp $
  */
 
 #ifndef _NETINET_UDP_VAR_H_
@@ -100,9 +100,6 @@ struct	udpstat {
 }
 
 #ifdef KERNEL
-extern struct	inpcbhead udb;
-extern struct	inpcbinfo udbinfo;
-extern struct	udpstat udpstat;
 extern struct	pr_usrreqs udp_usrreqs;
 
 void	 udp_ctlinput __P((int, struct sockaddr *, void *));
