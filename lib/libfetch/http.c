@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.7 1998/11/06 22:14:08 des Exp $
+ *	$Id: http.c,v 1.8 1998/12/16 10:24:55 des Exp $
  */
 
 /*
@@ -61,15 +61,9 @@
  * SUCH DAMAGE. */
 
 #include <sys/param.h>
-#include <sys/errno.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-
-#include <netinet/in.h>
 
 #include <err.h>
 #include <ctype.h>
-#include <netdb.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -79,12 +73,6 @@
 #include "fetch.h"
 #include "common.h"
 #include "httperr.h"
-
-#ifndef NDEBUG
-#define DEBUG(x) do x; while (0)
-#else
-#define DEBUG(x) do { } while (0)
-#endif
 
 extern char *__progname;
 
@@ -305,9 +293,9 @@ _http_auth(char *usr, char *pwd)
 FILE *
 fetchGetHTTP(struct url *URL, char *flags)
 {
-    int sd = -1, err, i, enc = ENC_NONE, verbose;
+    int sd = -1, e, i, enc = ENC_NONE, verbose;
     struct cookie *c;
-    char *ln, *p, *q;
+    char *ln, *p, *px, *q;
     FILE *f, *cf;
     size_t len;
 
@@ -322,13 +310,11 @@ fetchGetHTTP(struct url *URL, char *flags)
 	URL->port = 80; /* default HTTP port */
     
     /* attempt to connect to proxy server */
-    if (getenv("HTTP_PROXY")) {
-	char *px, host[MAXHOSTNAMELEN];
+    if ((px = getenv("HTTP_PROXY")) != NULL) {
+	char host[MAXHOSTNAMELEN];
 	int port = 3128; /* XXX I think 3128 is default... check? */
-	size_t len;
 
 	/* measure length */
-	px = getenv("HTTP_PROXY");
 	len = strcspn(px, ":");
 
 	/* get port (atoi is a little too tolerant perhaps?) */
@@ -389,12 +375,12 @@ fetchGetHTTP(struct url *URL, char *flags)
 	p++;
     if (!isdigit(*p))
 	goto fouch;
-    err = atoi(p);
-    DEBUG(fprintf(stderr, "code:     [\033[1m%d\033[m]\n", err));
+    e = atoi(p);
+    DEBUG(fprintf(stderr, "code:     [\033[1m%d\033[m]\n", e));
     
     /* add code to handle redirects later */
-    if (err != 200) {
-	_http_seterr(err);
+    if (e != 200) {
+	_http_seterr(e);
 	goto fouch;
     }
 

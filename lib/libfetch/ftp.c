@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ftp.c,v 1.7 1998/11/06 22:14:08 des Exp $
+ *	$Id: ftp.c,v 1.8 1998/12/16 10:24:55 des Exp $
  */
 
 /*
@@ -58,11 +58,8 @@
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <sys/errno.h>
 
 #include <ctype.h>
-#include <errno.h>
-#include <netdb.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -73,13 +70,13 @@
 #include "common.h"
 #include "ftperr.h"
 
-#define FTP_DEFAULT_TO_ANONYMOUS
 #define FTP_ANONYMOUS_USER	"ftp"
 #define FTP_ANONYMOUS_PASSWORD	"ftp"
 #define FTP_DEFAULT_PORT 21
 
 #define FTP_OPEN_DATA_CONNECTION	150
 #define FTP_OK				200
+#define FTP_SERVICE_READY		220
 #define FTP_PASSIVE_MODE		227
 #define FTP_LOGGED_IN			230
 #define FTP_FILE_ACTION_OK		250
@@ -97,15 +94,11 @@ static char *_ftp_last_reply;
  * Get server response, check that first digit is a '2'
  */
 static int
-_ftp_chkerr(FILE *s, int *e)
+_ftp_chkerr(FILE *s)
 {
     char *line;
     size_t len;
-    int err;
 
-    if (e)
-	*e = 0;
-    
     do {
 	if (((line = fgetln(s, &len)) == NULL) || (len < 4)) {
 	    _fetch_syserr();
@@ -123,17 +116,10 @@ _ftp_chkerr(FILE *s, int *e)
     
     if (!isdigit(line[1]) || !isdigit(line[1])
 	|| !isdigit(line[2]) || (line[3] != ' ')) {
-	_ftp_seterr(0);
 	return -1;
     }
 
-    err = (line[0] - '0') * 100 + (line[1] - '0') * 10 + (line[2] - '0');
-    _ftp_seterr(err);
-
-    if (e)
-	*e = err;
-
-    return (line[0] == '2') - 1;
+    return (line[0] - '0') * 100 + (line[1] - '0') * 10 + (line[2] - '0');
 }
 
 /*
@@ -143,7 +129,6 @@ static int
 _ftp_cmd(FILE *f, char *fmt, ...)
 {
     va_list ap;
-    int e;
 
     va_start(ap, fmt);
     vfprintf(f, fmt, ap);
@@ -154,8 +139,7 @@ _ftp_cmd(FILE *f, char *fmt, ...)
 #endif
     va_end(ap);
     
-    _ftp_chkerr(f, &e);
-    return e;
+    return _ftp_chkerr(f);
 }
 
 /*
@@ -310,8 +294,10 @@ _ftp_connect(char *host, int port, char *user, char *pwd, int verbose)
     }
 
     /* expect welcome message */
-    if (_ftp_chkerr(f, NULL) == -1)
+    if ((e = _ftp_chkerr(f)) != FTP_SERVICE_READY) {
+	_ftp_seterr(e);
 	goto fouch;
+    }
     
     /* send user name and password */
     if (!user || !*user)
@@ -327,12 +313,16 @@ _ftp_connect(char *host, int port, char *user, char *pwd, int verbose)
     }
 
     /* did the server request an account? */
-    if (e == FTP_NEED_ACCOUNT)
-	/* help! */ ;
+    if (e == FTP_NEED_ACCOUNT) {
+	_ftp_seterr(e);
+	goto fouch;
+    }
     
     /* we should be done by now */
-    if (e != FTP_LOGGED_IN)
+    if (e != FTP_LOGGED_IN) {
+	_ftp_seterr(e);
 	goto fouch;
+    }
 
     /* might as well select mode and type at once */
 #ifdef FTP_FORCE_STREAM_MODE
@@ -359,7 +349,7 @@ fouch:
 static void
 _ftp_disconnect(FILE *f)
 {
-    _ftp_cmd(f, "QUIT" ENDL);
+    (void)_ftp_cmd(f, "QUIT" ENDL);
     fclose(f);
 }
 
@@ -383,18 +373,15 @@ static FILE *
 fetchXxxFTP(struct url *url, char *oper, char *mode, char *flags)
 {
     FILE *cf = NULL;
-    int e;
 
     /* set default port */
     if (!url->port)
 	url->port = FTP_DEFAULT_PORT;
     
-    /* try to use previously cached connection; there should be a 226 waiting */
-    if (_ftp_isconnected(url)) {
-	_ftp_chkerr(cached_socket, &e);
-	if (e > 0)
+    /* try to use previously cached connection */
+    if (_ftp_isconnected(url))
+	if (_ftp_cmd(cached_socket, "NOOP" ENDL) > 0)
 	    cf = cached_socket;
-    }
 
     /* connect to server */
     if (!cf) {
@@ -409,7 +396,8 @@ fetchXxxFTP(struct url *url, char *oper, char *mode, char *flags)
     }
 
     /* initiate the transfer */
-    return _ftp_transfer(cf, oper, url->doc, mode, (flags && strchr(flags, 'p')));
+    return _ftp_transfer(cf, oper, url->doc, mode,
+			 (flags && strchr(flags, 'p')));
 }
 
 /*
@@ -436,4 +424,3 @@ fetchStatFTP(struct url *url, struct url_stat *us, char *flags)
     warnx("fetchStatFTP(): not implemented");
     return -1;
 }
-
