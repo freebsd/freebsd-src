@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: login.c,v 1.28 1997/07/22 07:39:43 charnier Exp $";
+	"$Id: login.c,v 1.29 1997/09/28 08:49:22 markm Exp $";
 #endif /* not lint */
 
 /*
@@ -552,7 +552,7 @@ main(argc, argv)
 	if (pwd->pw_change || pwd->pw_expire)
 		(void)gettimeofday(&tp, (struct timezone *)NULL);
 
-#define DEFAULT_WARN  (2L * 7L & 86400L)  /* Two weeks */
+#define DEFAULT_WARN  (2L * 7L * 86400L)  /* Two weeks */
 
 #ifdef LOGIN_CAP
 	warntime = login_getcaptime(lc, "warnpassword",
