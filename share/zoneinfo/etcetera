@@ -1,4 +1,4 @@
-# @(#)etcetera	7.4
+# @(#)etcetera	7.5
 
 # All of these are set up just so people can "zic -l" to a timezone
 # that's right for their area, even if it doesn't have a name or DST rules
@@ -27,7 +27,8 @@ Link	Etc/GMT				Etc/GMT0
 #		zic -l GMT-12
 # so we moved the names into the Etc subdirectory.
 
-Zone	Etc/GMT-13	13	-	GMT-13 # 12 hours ahead of GMT, plus DST
+Zone	Etc/GMT-14	14	-	GMT-14	# 14 hours ahead of GMT
+Zone	Etc/GMT-13	13	-	GMT-13
 Zone	Etc/GMT-12	12	-	GMT-12
 Zone	Etc/GMT-11	11	-	GMT-11
 Zone	Etc/GMT-10	10	-	GMT-10
