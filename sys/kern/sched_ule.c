@@ -249,8 +249,10 @@ static void sched_pctcpu_update(struct kse *ke);
 /* Operations on per processor queues */
 static struct kse * kseq_choose(struct kseq *kseq);
 static void kseq_setup(struct kseq *kseq);
-static void kseq_add(struct kseq *kseq, struct kse *ke);
-static void kseq_rem(struct kseq *kseq, struct kse *ke);
+static void kseq_load_add(struct kseq *kseq, struct kse *ke);
+static void kseq_load_rem(struct kseq *kseq, struct kse *ke);
+static __inline void kseq_runq_add(struct kseq *kseq, struct kse *ke);
+static __inline void kseq_runq_rem(struct kseq *kseq, struct kse *ke);
 static void kseq_nice_add(struct kseq *kseq, int nice);
 static void kseq_nice_rem(struct kseq *kseq, int nice);
 void kseq_print(int cpu);
@@ -259,7 +261,7 @@ void kseq_print(int cpu);
 static int sched_pickcpu(void);
 #endif
 static struct kse *runq_steal(struct runq *rq);
-static void kseq_balance(void *arg);
+static void sched_balance(void *arg);
 static void kseq_move(struct kseq *from, int cpu);
 static __inline void kseq_setidle(struct kseq *kseq);
 static void kseq_notify(struct kse *ke, int cpu);
@@ -280,7 +282,7 @@ kseq_print(int cpu)
 
 	printf("kseq:\n");
 	printf("\tload:           %d\n", kseq->ksq_load);
-	printf("\tload REALTIME:  %d\n", kseq->ksq_load_timeshare);
+	printf("\tload TIMESHARE: %d\n", kseq->ksq_load_timeshare);
 #ifdef SMP
 	printf("\tload transferable: %d\n", kseq->ksq_load_transferable);
 #endif
@@ -292,8 +294,28 @@ kseq_print(int cpu)
 			    i - SCHED_PRI_NHALF, kseq->ksq_nice[i]);
 }
 
+static __inline void
+kseq_runq_add(struct kseq *kseq, struct kse *ke)
+{
+#ifdef SMP
+	if (KSE_CAN_MIGRATE(ke, PRI_BASE(ke->ke_ksegrp->kg_pri_class)))
+		kseq->ksq_load_transferable++;
+#endif
+	runq_add(ke->ke_runq, ke);
+}
+
+static __inline void
+kseq_runq_rem(struct kseq *kseq, struct kse *ke)
+{
+#ifdef SMP
+	if (KSE_CAN_MIGRATE(ke, PRI_BASE(ke->ke_ksegrp->kg_pri_class)))
+		kseq->ksq_load_transferable--;
+#endif
+	runq_remove(ke->ke_runq, ke);
+}
+
 static void
-kseq_add(struct kseq *kseq, struct kse *ke)
+kseq_load_add(struct kseq *kseq, struct kse *ke)
 {
 	int class;
 	mtx_assert(&sched_lock, MA_OWNED);
@@ -301,21 +323,20 @@ kseq_add(struct kseq *kseq, struct kse *ke)
 	if (class == PRI_TIMESHARE)
 		kseq->ksq_load_timeshare++;
 #ifdef SMP
-	if (KSE_CAN_MIGRATE(ke, class))
-		kseq->ksq_load_transferable++;
 	kseq->ksq_rslices += ke->ke_slice;
 #endif
 	kseq->ksq_load++;
 	if (ke->ke_ksegrp->kg_pri_class == PRI_TIMESHARE)
-	CTR6(KTR_ULE, "Add kse %p to %p (slice: %d, pri: %d, nice: %d(%d))",
-	    ke, ke->ke_runq, ke->ke_slice, ke->ke_thread->td_priority,
-	    ke->ke_ksegrp->kg_nice, kseq->ksq_nicemin);
+		CTR6(KTR_ULE,
+		    "Add kse %p to %p (slice: %d, pri: %d, nice: %d(%d))",
+		    ke, ke->ke_runq, ke->ke_slice, ke->ke_thread->td_priority,
+		    ke->ke_ksegrp->kg_nice, kseq->ksq_nicemin);
 	if (ke->ke_ksegrp->kg_pri_class == PRI_TIMESHARE)
 		kseq_nice_add(kseq, ke->ke_ksegrp->kg_nice);
 }
 
 static void
-kseq_rem(struct kseq *kseq, struct kse *ke)
+kseq_load_rem(struct kseq *kseq, struct kse *ke)
 {
 	int class;
 	mtx_assert(&sched_lock, MA_OWNED);
@@ -323,8 +344,6 @@ kseq_rem(struct kseq *kseq, struct kse *ke)
 	if (class == PRI_TIMESHARE)
 		kseq->ksq_load_timeshare--;
 #ifdef SMP
-	if (KSE_CAN_MIGRATE(ke, class))
-		kseq->ksq_load_transferable--;
 	kseq->ksq_rslices -= ke->ke_slice;
 #endif
 	kseq->ksq_load--;
@@ -373,7 +392,7 @@ kseq_nice_rem(struct kseq *kseq, int nice)
 
 #ifdef SMP
 /*
- * kseq_balance is a simple CPU load balancing algorithm.  It operates by
+ * sched_balance is a simple CPU load balancing algorithm.  It operates by
  * finding the least loaded and most loaded cpu and equalizing their load
  * by migrating some processes.
  *
@@ -389,7 +408,7 @@ kseq_nice_rem(struct kseq *kseq, int nice)
  *
  */
 static void
-kseq_balance(void *arg)
+sched_balance(void *arg)
 {
 	struct kseq *kseq;
 	int high_load;
@@ -413,8 +432,8 @@ kseq_balance(void *arg)
 		if (CPU_ABSENT(i) || (i & stopped_cpus) != 0)
 			continue;
 		kseq = KSEQ_CPU(i);
-		if (kseq->ksq_load > high_load) {
-			high_load = kseq->ksq_load;
+		if (kseq->ksq_load_transferable > high_load) {
+			high_load = kseq->ksq_load_transferable;
 			high_cpu = i;
 		}
 		if (low_load == -1 || kseq->ksq_load < low_load) {
@@ -422,32 +441,26 @@ kseq_balance(void *arg)
 			low_cpu = i;
 		}
 	}
-
 	kseq = KSEQ_CPU(high_cpu);
-
-	high_load = kseq->ksq_load_transferable;
 	/*
 	 * Nothing to do.
 	 */
-	if (high_load < kseq->ksq_cpus + 1)
+	if (high_load == 0 || low_load >= kseq->ksq_load)
 		goto out;
-
-	high_load -= kseq->ksq_cpus;
-
-	if (low_load >= high_load)
-		goto out;
-
-	diff = high_load - low_load;
+	/*
+	 * Determine what the imbalance is and then adjust that to how many
+	 * kses we actually have to give up (load_transferable).
+	 */
+	diff = kseq->ksq_load - low_load;
 	move = diff / 2;
 	if (diff & 0x1)
 		move++;
-
+	move = min(move, high_load);
 	for (i = 0; i < move; i++)
 		kseq_move(kseq, low_cpu);
-
 out:
 	mtx_unlock_spin(&sched_lock);
-	callout_reset(&kseq_lb_callout, hz, kseq_balance, NULL);
+	callout_reset(&kseq_lb_callout, hz, sched_balance, NULL);
 
 	return;
 }
@@ -458,9 +471,9 @@ kseq_move(struct kseq *from, int cpu)
 	struct kse *ke;
 
 	ke = kseq_steal(from);
-	runq_remove(ke->ke_runq, ke);
 	ke->ke_state = KES_THREAD;
-	kseq_rem(from, ke);
+	kseq_runq_rem(from, ke);
+	kseq_load_rem(from, ke);
 
 	ke->ke_cpu = cpu;
 	kseq_notify(ke, cpu);
@@ -660,12 +673,12 @@ sched_setup(void *dummy)
 		}
 	}
 	callout_init(&kseq_lb_callout, CALLOUT_MPSAFE);
-	kseq_balance(NULL);
+	sched_balance(NULL);
 #else
 	kseq_setup(KSEQ_SELF());
 #endif
 	mtx_lock_spin(&sched_lock);
-	kseq_add(KSEQ_SELF(), &kse0);
+	kseq_load_add(KSEQ_SELF(), &kse0);
 	mtx_unlock_spin(&sched_lock);
 }
 
@@ -925,7 +938,7 @@ sched_switch(struct thread *td)
 
 	if (TD_IS_RUNNING(td)) {
 		if (td->td_proc->p_flag & P_SA) {
-			kseq_rem(KSEQ_CPU(ke->ke_cpu), ke);
+			kseq_load_rem(KSEQ_CPU(ke->ke_cpu), ke);
 			setrunqueue(td);
 		} else {
 			/*
@@ -939,12 +952,11 @@ sched_switch(struct thread *td)
 				else
 					ke->ke_runq = &KSEQ_SELF()->ksq_idle;
 			}
-			runq_add(ke->ke_runq, ke);
-			/* setrunqueue(td); */
+			kseq_runq_add(KSEQ_SELF(), ke);
 		}
 	} else {
 		if (ke->ke_runq)
-			kseq_rem(KSEQ_CPU(ke->ke_cpu), ke);
+			kseq_load_rem(KSEQ_CPU(ke->ke_cpu), ke);
 		/*
 		 * We will not be on the run queue. So we must be
 		 * sleeping or similar.
@@ -1103,20 +1115,26 @@ sched_class(struct ksegrp *kg, int class)
 		kseq = KSEQ_CPU(ke->ke_cpu);
 
 #ifdef SMP
-		if (KSE_CAN_MIGRATE(ke, oclass))
-			kseq->ksq_load_transferable--;
-		if (KSE_CAN_MIGRATE(ke, nclass))
-			kseq->ksq_load_transferable++;
+		/*
+		 * On SMP if we're on the RUNQ we must adjust the transferable
+		 * count because could be changing to or from an interrupt
+		 * class.
+		 */
+		if (ke->ke_state == KES_ONRUNQ) {
+			if (KSE_CAN_MIGRATE(ke, oclass))
+				kseq->ksq_load_transferable--;
+			if (KSE_CAN_MIGRATE(ke, nclass))
+				kseq->ksq_load_transferable++;
+		}
 #endif
-		if (oclass == PRI_TIMESHARE)
+		if (oclass == PRI_TIMESHARE) {
 			kseq->ksq_load_timeshare--;
-		if (nclass == PRI_TIMESHARE)
-			kseq->ksq_load_timeshare++;
-
-		if (kg->kg_pri_class == PRI_TIMESHARE)
 			kseq_nice_rem(kseq, kg->kg_nice);
-		else if (class == PRI_TIMESHARE)
+		}
+		if (nclass == PRI_TIMESHARE) {
+			kseq->ksq_load_timeshare++;
 			kseq_nice_add(kseq, kg->kg_nice);
+		}
 	}
 
 	kg->kg_pri_class = class;
@@ -1136,7 +1154,7 @@ sched_exit(struct proc *p, struct proc *child)
 void
 sched_exit_kse(struct kse *ke, struct kse *child)
 {
-	kseq_rem(KSEQ_CPU(child->ke_cpu), child);
+	kseq_load_rem(KSEQ_CPU(child->ke_cpu), child);
 }
 
 void
@@ -1220,14 +1238,14 @@ sched_clock(struct thread *td)
 	/*
 	 * We're out of time, recompute priorities and requeue.
 	 */
-	kseq_rem(kseq, ke);
+	kseq_load_rem(kseq, ke);
 	sched_priority(kg);
 	sched_slice(ke);
 	if (SCHED_CURR(kg, ke))
 		ke->ke_runq = kseq->ksq_curr;
 	else
 		ke->ke_runq = kseq->ksq_next;
-	kseq_add(kseq, ke);
+	kseq_load_add(kseq, ke);
 	td->td_flags |= TDF_NEEDRESCHED;
 }
 
@@ -1290,7 +1308,7 @@ sched_choose(void)
 		if (ke->ke_ksegrp->kg_pri_class == PRI_IDLE)
 			kseq_setidle(kseq);
 #endif
-		runq_remove(ke->ke_runq, ke);
+		kseq_runq_rem(kseq, ke);
 		ke->ke_state = KES_THREAD;
 
 		if (ke->ke_ksegrp->kg_pri_class == PRI_TIMESHARE) {
@@ -1373,10 +1391,14 @@ sched_add(struct thread *td)
 	}
 #ifdef SMP
 	/*
-	 * If there are any idle processors, give them our extra load.
+	 * If there are any idle processors, give them our extra load.  The
+	 * threshold at which we start to reassign kses has a large impact
+	 * on the overall performance of the system.  Tuned too high and
+	 * some CPUs may idle.  Too low and there will be excess migration
+	 * and context swiches.
 	 */
-	if (kseq_idle && KSE_CAN_MIGRATE(ke, class) &&
-	    kseq->ksq_load_transferable >= kseq->ksq_cpus) {
+	if (kseq->ksq_load_transferable > kseq->ksq_cpus &&
+	    KSE_CAN_MIGRATE(ke, class) && kseq_idle) {
 		int cpu;
 
 		/*
@@ -1405,8 +1427,8 @@ sched_add(struct thread *td)
 	ke->ke_ksegrp->kg_runq_kses++;
 	ke->ke_state = KES_ONRUNQ;
 
-	runq_add(ke->ke_runq, ke);
-	kseq_add(kseq, ke);
+	kseq_runq_add(kseq, ke);
+	kseq_load_add(kseq, ke);
 }
 
 void
@@ -1430,8 +1452,8 @@ sched_rem(struct thread *td)
 	ke->ke_state = KES_THREAD;
 	ke->ke_ksegrp->kg_runq_kses--;
 	kseq = KSEQ_CPU(ke->ke_cpu);
-	runq_remove(ke->ke_runq, ke);
-	kseq_rem(kseq, ke);
+	kseq_runq_rem(kseq, ke);
+	kseq_load_rem(kseq, ke);
 }
 
 fixpt_t
@@ -1484,7 +1506,7 @@ sched_bind(struct thread *td, int cpu)
 	/* sched_rem without the runq_remove */
 	ke->ke_state = KES_THREAD;
 	ke->ke_ksegrp->kg_runq_kses--;
-	kseq_rem(KSEQ_CPU(ke->ke_cpu), ke);
+	kseq_load_rem(KSEQ_CPU(ke->ke_cpu), ke);
 	ke->ke_cpu = cpu;
 	kseq_notify(ke, cpu);
 	/* When we return from mi_switch we'll be on the correct cpu. */
