@@ -513,6 +513,7 @@ dotrim(char *log, const char *pid_file, int numdays, int flags, int perm,
 	char file1[MAXPATHLEN], file2[MAXPATHLEN];
 	char zfile1[MAXPATHLEN], zfile2[MAXPATHLEN];
 	char jfile1[MAXPATHLEN];
+	char tfile[MAXPATHLEN];
 	int notified, need_notification, fd, _numdays;
 	struct stat st;
 	pid_t pid;
@@ -644,20 +645,28 @@ dotrim(char *log, const char *pid_file, int numdays, int flags, int perm,
 	if (noaction)
 		printf("Start new log...");
 	else {
-		fd = creat(log, perm);
+		strlcpy(tfile, log, sizeof(tfile));
+		strlcat(tfile, ".XXXXXX", sizeof(tfile));
+		mkstemp(tfile);
+		fd = creat(tfile, perm);
 		if (fd < 0)
 			err(1, "can't start new log");
 		if (fchown(fd, owner_uid, group_gid))
 			err(1, "can't chmod new log file");
 		(void) close(fd);
 		if (!(flags & CE_BINARY))
-			if (log_trim(log))	/* Add status message */
+			if (log_trim(tfile))	/* Add status message */
 				err(1, "can't add status message to log");
 	}
 	if (noaction)
 		printf("chmod %o %s...\n", perm, log);
-	else
-		(void) chmod(log, perm);
+	else {
+		(void) chmod(tfile, perm);
+		if (rename(tfile, log) < 0) {
+			err(1, "can't start new log");
+			(void) unlink(tfile);
+		}
+	}
 
 	pid = 0;
 	need_notification = notified = 0;
