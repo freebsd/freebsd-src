@@ -161,7 +161,7 @@ pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	time(&utmp.ut_time);
 	/* note: does not need to be NUL-terminated */
 	strncpy(utmp.ut_name, user, sizeof(utmp.ut_name));
-	if (rhost)
+	if (rhost != NULL)
 		strncpy(utmp.ut_host, rhost, sizeof(utmp.ut_host));
 	(void)strncpy(utmp.ut_line, tty, sizeof(utmp.ut_line));
 	login(&utmp);
@@ -201,7 +201,7 @@ pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	
 	/* note: does not need to be NUL-terminated */
 	strncpy(ll.ll_line, tty, sizeof(ll.ll_line));
-	if (rhost)
+	if (rhost != NULL)
 		/* note: does not need to be NUL-terminated */
 		strncpy(ll.ll_host, rhost, sizeof(ll.ll_host));
 	
