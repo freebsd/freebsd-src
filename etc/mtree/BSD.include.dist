@@ -16,7 +16,11 @@
         ..
         ic
         ..
+        iicbus
+        ..
         ppbus
+        ..
+        smbus
         ..
         usb
         ..
