@@ -11,7 +11,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) winPipe.test 1.9 97/08/05 11:44:28
+# SCCS: @(#) winPipe.test 1.11 97/10/09 17:06:16
 
 if {$tcl_platform(platform) != "windows"} {
     return
@@ -161,9 +161,6 @@ test winpipe-1.24 {32 bit comprehensive tests: read/write application} {
     catch {close $f}
     set r
 } "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-test winpipe-1.25 {32 bit comprehensive tests: to socket} {
-    # doesn't work
-} {}
 }
 
 set stderr16 "stderr16"
@@ -280,10 +277,83 @@ test winpipe-2.24 {16 bit comprehensive tests: read/write application} {nt} {
     catch {close $f}
     set r
 } "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-test winpipe-2.25 {16 bit comprehensive tests: to socket} {
-    # doesn't work
-} {}
 }
 
-file delete big little
+test winpipe-3.1 {Tcl_WaitPid} {nt} {
+    proc readResults {f} {
+	global x result
+	if { [eof $f] } {
+	    close $f
+	    set x 1
+	} else {
+	    set line [read $f ]
+	    set result "$result$line"
+	}
+    }
 
+    set f [open "|$cat32 < big 2> stderr" r]
+    fconfigure $f  -buffering none -blocking 0
+    fileevent $f readable "readResults $f"
+    set x 0
+    set result ""
+    vwait x
+    list $result $x [contents stderr]
+} "{$big} 1 stderr32"
+
+close [open nothing w]
+
+catch {set env_tmp $env(TMP)}
+catch {set env_temp $env(TEMP)}
+
+set env(TMP) c:/
+set env(TEMP) c:/
+
+test winpipe-3.1 {TclpCreateTempFile: cleanup temp files} {
+    set x {}
+    set existing [glob -nocomplain c:/tcl*.tmp]
+    exec $tcltest < nothing 
+    foreach p [glob -nocomplain c:/tcl*.tmp] {
+	if {[lsearch $existing $p] != -1} {
+	    lappend x $p
+	}
+    }
+    set x
+} {}
+test winpipe-3.2 {TclpCreateTempFile: TMP and TEMP not defined} {
+    set tmp $env(TMP)
+    set temp $env(TEMP)
+    unset env(TMP)
+    unset env(TEMP)
+    exec $tcltest < nothing
+    set env(TMP) $tmp
+    set env(TEMP) $temp
+    set x {}
+} {}
+test winpipe-3.3 {TclpCreateTempFile: TMP specifies non-existent directory} {
+    set tmp $env(TMP)
+    set env(TMP) snarky
+    exec $tcltest < nothing
+    set env(TMP) $tmp
+    set x {}
+} {}
+test winpipe-3.3 {TclpCreateTempFile: TEMP specifies non-existent directory} {
+    set tmp $env(TMP)
+    set temp $env(TEMP)
+    unset env(TMP)
+    set env(TEMP) snarky
+    exec $tcltest < nothing
+    set env(TMP) $tmp
+    set env(TEMP) $temp
+    set x {}
+} {}
+
+# restore old values fro env(TMP) and env(TEMP)
+
+if {[catch {set env(TMP) $env_tmp}]} {
+    unset $env(TMP)
+}
+if {[catch {set env(TEMP) $env_temp}]} {
+    unset $env(TEMP)
+}
+
+file delete big little stdout stderr nothing

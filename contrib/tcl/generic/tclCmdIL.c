@@ -13,7 +13,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclCmdIL.c 1.168 97/07/29 12:52:40
+ * SCCS: @(#) tclCmdIL.c 1.173 97/11/18 13:55:01
  */
 
 #include "tclInt.h"
@@ -987,13 +987,21 @@ InfoHostnameCmd(dummy, interp, objc, objv)
     int objc;			/* Number of arguments. */
     Tcl_Obj *CONST objv[];	/* Argument objects. */
 {
+    char *name;
     if (objc != 2) {
         Tcl_WrongNumArgs(interp, 2, objv, NULL);
         return TCL_ERROR;
     }
 
-    Tcl_SetStringObj(Tcl_GetObjResult(interp), Tcl_GetHostName(), -1);
-    return TCL_OK;
+    name = Tcl_GetHostName();
+    if (name) {
+	Tcl_SetStringObj(Tcl_GetObjResult(interp), name, -1);
+	return TCL_OK;
+    } else {
+	Tcl_SetStringObj(Tcl_GetObjResult(interp),
+		"unable to determine name of host", -1);
+	return TCL_ERROR;
+    }
 }
 
 /*
@@ -1748,6 +1756,7 @@ Tcl_JoinObjCmd(dummy, interp, objc, objv)
     char *joinString, *bytes;
     int joinLength, listLen, length, i, result;
     Tcl_Obj **elemPtrs;
+    Tcl_Obj *resObjPtr;
 
     if (objc == 2) {
 	joinString = " ";
@@ -1774,14 +1783,14 @@ Tcl_JoinObjCmd(dummy, interp, objc, objv)
      * directly into the interpreter's result object.
      */
 
+    resObjPtr = Tcl_GetObjResult(interp);
+
     for (i = 0;  i < listLen;  i++) {
 	bytes = Tcl_GetStringFromObj(elemPtrs[i], &length);
 	if (i > 0) {
-	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), joinString,
-		    bytes, (char *) NULL);
-	} else {
-	    Tcl_AppendToObj(Tcl_GetObjResult(interp), bytes, length);
+	    Tcl_AppendToObj(resObjPtr, joinString, joinLength);
 	}
+	Tcl_AppendToObj(resObjPtr, bytes, length);
     }
     return TCL_OK;
 }
@@ -1895,8 +1904,8 @@ Tcl_LinsertObjCmd(dummy, interp, objc, objv)
     Tcl_Obj *CONST objv[];	/* Argument objects. */
 {
     Tcl_Obj *listPtr, *resultPtr;
-    int index, isDuplicate;
-    int result;
+    Tcl_ObjType *typePtr;
+    int index, isDuplicate, len, result;
 
     if (objc < 4) {
 	Tcl_WrongNumArgs(interp, 1, objv, "list index element ?element ...?");
@@ -1923,15 +1932,28 @@ Tcl_LinsertObjCmd(dummy, interp, objc, objv)
     listPtr = objv[1];
     isDuplicate = 0;
     if (Tcl_IsShared(listPtr)) {
+	/*
+	 * The following code must reflect the logic in Tcl_DuplicateObj()
+	 * except that it must duplicate the list object directly into the
+	 * interpreter's result.
+	 */
+	
 	Tcl_ResetResult(interp);
 	resultPtr = Tcl_GetObjResult(interp);
-	if (listPtr->typePtr != NULL) {
-	    Tcl_InvalidateStringRep(resultPtr);
-	    listPtr->typePtr->dupIntRepProc(listPtr, resultPtr);
-	} else if (listPtr->bytes != NULL) {
-	    int len = listPtr->length;
-	    
+	typePtr = listPtr->typePtr;
+	if (listPtr->bytes == NULL) {
+	    resultPtr->bytes = NULL;
+	} else if (listPtr->bytes != tclEmptyStringRep) {
+	    len = listPtr->length;
 	    TclInitStringRep(resultPtr, listPtr->bytes, len);
+	}
+	if (typePtr != NULL) {
+	    if (typePtr->dupIntRepProc == NULL) {
+		resultPtr->internalRep = listPtr->internalRep;
+		resultPtr->typePtr = typePtr;
+	    } else {
+		(*typePtr->dupIntRepProc)(listPtr, resultPtr);
+	    }
 	}
 	listPtr = resultPtr;
 	isDuplicate = 1;
@@ -2164,7 +2186,9 @@ Tcl_LreplaceObjCmd(dummy, interp, objc, objv)
     Tcl_Obj *CONST objv[];	/* Argument objects. */
 {
     register Tcl_Obj *listPtr;
-    int createdNewObj, first, last, listLen, numToDelete, result;
+    int createdNewObj, first, last, listLen, numToDelete;
+    int firstArgLen, result;
+    char *firstArg;
 
     if (objc < 4) {
 	Tcl_WrongNumArgs(interp, 1, objv,
@@ -2201,6 +2225,7 @@ Tcl_LreplaceObjCmd(dummy, interp, objc, objv)
     if (result != TCL_OK) {
 	goto errorReturn;
     }
+    firstArg = Tcl_GetStringFromObj(objv[2], &firstArgLen);
 
     result = TclGetIntForIndex(interp, objv[3], /*endValue*/ (listLen - 1),
 	    &last);
@@ -2211,7 +2236,8 @@ Tcl_LreplaceObjCmd(dummy, interp, objc, objv)
     if (first < 0)  {
     	first = 0;
     }
-    if (first >= listLen) {
+    if ((first >= listLen) && (listLen > 0)
+	    && (strncmp(firstArg, "end", (unsigned) firstArgLen) != 0)) {
 	Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
 		"list doesn't contain element ",
 		Tcl_GetStringFromObj(objv[2], (int *) NULL), (int *) NULL);
@@ -2821,11 +2847,11 @@ DictionaryCompare(left, right)
 	     */
 
 	    zeros = 0;
-	    while (*right == '0') {
+	    while ((*right == '0') && (*(right + 1) != '\0')) {
 		right++;
 		zeros--;
 	    }
-	    while (*left == '0') {
+	    while ((*left == '0') && (*(left + 1) != '\0')) {
 		left++;
 		zeros++;
 	    }

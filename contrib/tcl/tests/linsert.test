@@ -10,9 +10,12 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) linsert.test 1.13 97/02/27 16:53:19
+# SCCS: @(#) linsert.test 1.14 97/11/18 13:54:18
 
 if {[string compare test [info procs test]] == 1} then {source defs}
+
+catch {unset lis}
+catch {rename p ""}
 
 test linsert-1.1 {linsert command} {
     linsert {1 2 3 4 5} 0 a
@@ -92,3 +95,11 @@ test linsert-3.1 {linsert won't modify shared argument objects} {
     }
     p
 } "a b c"
+test linsert-3.2 {linsert won't modify shared argument objects} {
+    catch {unset lis}
+    set lis [format "a \"%s\" c" "b"]
+    linsert $lis 0 [string length $lis]
+} "7 a b c"
+
+catch {unset lis}
+catch {rename p ""}

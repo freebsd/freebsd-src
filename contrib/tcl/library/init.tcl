@@ -3,7 +3,7 @@
 # Default system startup file for Tcl-based applications.  Defines
 # "unknown" procedure and auto-load facilities.
 #
-# SCCS: @(#) init.tcl 1.86 97/08/08 10:37:39
+# SCCS: @(#) init.tcl 1.95 97/11/19 17:16:34
 #
 # Copyright (c) 1991-1993 The Regents of the University of California.
 # Copyright (c) 1994-1996 Sun Microsystems, Inc.
@@ -19,6 +19,7 @@ package require -exact Tcl 8.0
 
 # Compute the auto path to use in this interpreter.
 # (auto_path could be already set, in safe interps for instance)
+
 if {![info exists auto_path]} {
     if [catch {set auto_path $env(TCLLIBPATH)}] {
 	set auto_path ""
@@ -28,17 +29,20 @@ if {[lsearch -exact $auto_path [info library]] < 0} {
     lappend auto_path [info library]
 }
 catch {
-    foreach dir $tcl_pkgPath {
-	if {[lsearch -exact $auto_path $dir] < 0} {
-	    lappend auto_path $dir
+    foreach __dir $tcl_pkgPath {
+	if {[lsearch -exact $auto_path $__dir] < 0} {
+	    lappend auto_path $__dir
 	}
     }
-    unset dir
+    unset __dir
 }
+
+# Setup the unknown package handler
+
+package unknown tclPkgUnknown
 
 # Conditionalize for presence of exec.
 
-package unknown tclPkgUnknown
 if {[info commands exec] == ""} {
 
     # Some machines, such as the Macintosh, do not have exec. Also, on all
@@ -57,6 +61,11 @@ if {[info commands tclLog] == ""} {
 	catch {puts stderr $string}
     }
 }
+
+# The procs defined in this file that have a leading space
+# are 'hidden' from auto_mkindex because they are not
+# auto-loadable.
+
 
 # unknown --
 # This procedure is called when a Tcl command is invoked that doesn't
@@ -78,7 +87,7 @@ if {[info commands tclLog] == ""} {
 # args -	A list whose elements are the words of the original
 #		command, including the command name.
 
-proc unknown args {
+ proc unknown args {
     global auto_noexec auto_noload env unknown_pending tcl_interactive
     global errorCode errorInfo
 
@@ -97,7 +106,7 @@ proc unknown args {
 	    return -code error "self-referential recursion in \"unknown\" for command \"$name\"";
 	}
 	set unknown_pending($name) pending;
-	set ret [catch {auto_load $name} msg]
+	set ret [catch {auto_load $name [uplevel 1 {namespace current}]} msg]
 	unset unknown_pending($name);
 	if {$ret != 0} {
 	    return -code $ret -errorcode $errorCode \
@@ -125,6 +134,7 @@ proc unknown args {
 	    }
 	}
     }
+
     if {([info level] == 1) && ([info script] == "") \
 	    && [info exists tcl_interactive] && $tcl_interactive} {
 	if ![info exists auto_noexec] {
@@ -186,11 +196,21 @@ proc unknown args {
 #
 # Arguments: 
 # cmd -			Name of the command to find and load.
+# namespace (optional)  The namespace where the command is being used - must be
+#                       a canonical namespace as returned [namespace current]
+#                       for instance. If not given, namespace current is used.
 
-proc auto_load cmd {
+ proc auto_load {cmd {namespace {}}} {
     global auto_index auto_oldpath auto_path env errorInfo errorCode
 
-    foreach name [list $cmd ::$cmd] {
+    if {[string length $namespace] == 0} {
+	set namespace [uplevel {namespace current}]
+    }
+    set nameList [auto_qualify $cmd $namespace]
+    # workaround non canonical auto_index entries that might be around
+    # from older auto_mkindex versions
+    lappend nameList $cmd
+    foreach name $nameList {
 	if [info exists auto_index($name)] {
 	    uplevel #0 $auto_index($name)
 	    return [expr {[info commands $name] != ""}]
@@ -246,13 +266,74 @@ proc auto_load cmd {
 	    }
 	}
     }
-    if [info exists auto_index($cmd)] {
-	uplevel #0 $auto_index($cmd)
-	if {[info commands $cmd] != ""} {
-	    return 1
+    foreach name $nameList {
+	if [info exists auto_index($name)] {
+	    uplevel #0 $auto_index($name)
+	    if {[info commands $name] != ""} {
+		return 1
+	    }
 	}
     }
     return 0
+}
+
+# auto_qualify --
+# compute a fully qualified names list for use in the auto_index array.
+# For historical reasons, commands in the global namespace do not have leading
+# :: in the index key. The list has two elements when the command name is
+# relative (no leading ::) and the namespace is not the global one. Otherwise
+# only one name is returned (and searched in the auto_index).
+#
+# Arguments -
+# cmd		The command name. Can be any name accepted for command
+#               invocations (Like "foo::::bar").
+# namespace	The namespace where the command is being used - must be
+#               a canonical namespace as returned by [namespace current]
+#               for instance.
+
+ proc auto_qualify {cmd namespace} {
+
+    # count separators and clean them up
+    # (making sure that foo:::::bar will be treated as foo::bar)
+    set n [regsub -all {::+} $cmd :: cmd]
+
+    # Ignore namespace if the name starts with ::
+    # Handle special case of only leading ::
+
+    # Before each return case we give an example of which category it is
+    # with the following form :
+    # ( inputCmd, inputNameSpace) -> output
+
+    if {[regexp {^::(.*)$} $cmd x tail]} {
+	if {$n > 1} {
+	    # ( ::foo::bar , * ) -> ::foo::bar
+	    return [list $cmd]
+	} else {
+	    # ( ::global , * ) -> global
+	    return [list $tail]
+	}
+    }
+    
+    # Potentially returning 2 elements to try  :
+    # (if the current namespace is not the global one)
+
+    if {$n == 0} {
+	if {[string compare $namespace ::] == 0} {
+	    # ( nocolons , :: ) -> nocolons
+	    return [list $cmd]
+	} else {
+	    # ( nocolons , ::sub ) -> ::sub::nocolons nocolons
+	    return [list ${namespace}::$cmd $cmd]
+	}
+    } else {
+	if {[string compare $namespace ::] == 0} {
+	    #  ( foo::bar , :: ) -> ::foo::bar
+	    return [list ::$cmd]
+	} else {
+	    # ( foo::bar , ::sub ) -> ::sub::foo::bar ::foo::bar
+	    return [list ${namespace}::$cmd ::$cmd]
+	}
+    }
 }
 
 if {[string compare $tcl_platform(platform) windows] == 0} {
@@ -382,7 +463,7 @@ proc auto_reset {} {
     foreach p [info procs] {
 	if {[info exists auto_index($p)] && ![string match auto_* $p]
 		&& ([lsearch -exact {unknown pkg_mkIndex tclPkgSetup
-			tclPkgUnknown} $p] < 0)} {
+			tclMacPkgSearch tclPkgUnknown} $p] < 0)} {
 	    rename $p {}
 	}
     }
@@ -395,7 +476,9 @@ proc auto_reset {} {
 # Regenerate a tclIndex file from Tcl source files.  Takes as argument
 # the name of the directory in which the tclIndex file is to be placed,
 # followed by any number of glob patterns to use in that directory to
-# locate all of the relevant files.
+# locate all of the relevant files. It does not parse or source the file
+# so the generated index will not contain the appropriate namespace qualifiers
+# if you don't explicitly specify it.
 #
 # Arguments: 
 # dir -			Name of the directory in which to create an index.
@@ -424,6 +507,7 @@ proc auto_mkindex {dir args} {
 	    set f [open $file]
 	    while {[gets $f line] >= 0} {
 		if [regexp {^proc[ 	]+([^ 	]*)} $line match procName] {
+		    set procName [lindex [auto_qualify $procName "::"] 0]
 		    append index "set [list auto_index($procName)]"
 		    append index " \[list source \[file join \$dir [list $file]\]\]\n"
 		}
@@ -515,6 +599,13 @@ proc pkg_mkIndex {dir args} {
 			default { eval package-orig {$what} $args }
 		    }
 		}
+		proc pkgGetAllNamespaces {{root {}}} {
+		    set list $root
+                    foreach ns [namespace children $root] {
+                        eval lappend list [pkgGetAllNamespaces $ns]
+                    }
+                    return $list
+                }
 		package unknown dummy
 		set origCmds [info commands]
 		set dir ""		;# in case file is pkgIndex.tcl
@@ -540,7 +631,7 @@ proc pkg_mkIndex {dir args} {
 		    source $file
 		    set type source
 		}
-		foreach ns [namespace children] {
+		foreach ns [pkgGetAllNamespaces] {
 		    namespace import ${ns}::*
 		}
 		foreach i [info commands] {
@@ -633,7 +724,7 @@ proc tclMacPkgSearch {dir} {
 	    foreach y [resource list TEXT $res] {
 		if {$y == "pkgIndex"} {source -rsrc pkgIndex}
 	    }
-	    resource close $res
+	    catch {resource close $res}
 	}
     }
 }
@@ -652,13 +743,10 @@ proc tclMacPkgSearch {dir} {
 # exact -		Either "-exact" or omitted.  Not used.
 
 proc tclPkgUnknown {name version {exact {}}} {
-    global auto_path tcl_platform env dir
+    global auto_path tcl_platform env
 
     if ![info exists auto_path] {
 	return
-    }
-    if {[info exists dir]} {
-	set save_dir $dir
     }
     for {set i [expr [llength $auto_path] - 1]} {$i >= 0} {incr i -1} {
 	# we can't use glob in safe interps, so enclose the following
@@ -686,17 +774,12 @@ proc tclPkgUnknown {name version {exact {}}} {
 	if {(![interp issafe]) && ($tcl_platform(platform) == "macintosh")} {
 	    set dir [lindex $auto_path $i]
 	    tclMacPkgSearch $dir
-		foreach x [glob -nocomplain [file join $dir *]] {
-		    if [file isdirectory $x] {
-			set dir $x
-			tclMacPkgSearch $dir
-		    }
+	    foreach x [glob -nocomplain [file join $dir *]] {
+		if [file isdirectory $x] {
+		    set dir $x
+		    tclMacPkgSearch $dir
 		}
+	    }
 	}
-    }
-    if {[info exists save_dir]} {
-	set dir $save_dir
-    } else {
-	unset dir
     }
 }

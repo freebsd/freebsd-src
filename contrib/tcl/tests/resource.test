@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) resource.test 1.6 97/07/23 17:41:51
+# SCCS: @(#) resource.test 1.8 97/11/06 12:36:32
 
 # Only run this test on Macintosh systems
 if {$tcl_platform(platform) != "macintosh"} {
@@ -22,7 +22,7 @@ test resource-1.1 {resource tests} {
 } {1 {wrong # args: should be "resource option ?arg ...?"}}
 test resource-1.2 {resource tests} {
     list [catch {resource _bad_} msg] $msg
-} {1 {bad option "_bad_": must be close, list, open, read, types, or write}}
+} {1 {bad option "_bad_": must be close, delete, files, list, open, read, types, or write}}
 
 # resource open & close tests
 test resource-2.1 {resource open & close tests} {
@@ -41,16 +41,34 @@ test resource-2.5 {resource open & close tests} {
     testWriteTextResource -rsrc fileRsrcName -file rsrc.file  {error "don't source me"}
     set id [resource open rsrc.file]
     resource close $id
+    file delete rsrc.file
 } {}
 test resource-2.6 {resource open & close tests} {
+    catch {file delete rsrc.file}
+    testWriteTextResource -rsrc fileRsrcName -file rsrc.file  {error "don't source me"}
+    set id [resource open rsrc.file]
+    set result [string compare [resource open rsrc.file] $id]
+    resource close $id
+    file delete rsrc.file
+    set result
+} {0}
+test resource-2.7 {resource open & close tests} {
     list [catch {resource close} msg] $msg
 } {1 {wrong # args: should be "resource close resourceRef"}}
-test resource-2.7 {resource open & close tests} {
+test resource-2.8 {resource open & close tests} {
     list [catch {resource close foo bar} msg] $msg
 } {1 {wrong # args: should be "resource close resourceRef"}}
-test resource-2.8 {resource open & close tests} {
+test resource-2.9 {resource open & close tests} {
     list [catch {resource close _bad_resource_} msg] $msg
 } {1 {invalid resource file reference "_bad_resource_"}}
+test resource-2.10 {resource open & close tests} {
+    set result [catch {resource close System} mssg]
+    lappend result $mssg
+} {1 {can't close "System" resource file}}
+test resource-2.11 {resource open & close tests} {
+    set result [catch {resource close application} mssg]
+    lappend result $mssg
+} {1 {can't close "application" resource file}}
 
 # Tests for listing resources
 test resource-3.1 {resource list tests} {
@@ -74,7 +92,7 @@ test resource-3.5 {resource list tests} {
     set result
 } {fileRsrcName}
 test resource-3.6 {resource list tests} {
-    # There should be any resource of this type
+    # There should not be any resource of this type
     resource list XXXX
 } {}
 test resource-3.7 {resource list tests} {
@@ -86,7 +104,7 @@ test resource-3.7 {resource list tests} {
     }
 } {ok}
 
-# Tests for listing resources
+# Tests for reading resources
 test resource-4.1 {resource read tests} {
     list [catch {resource read} msg] $msg
 } {1 {wrong # args: should be "resource read resourceType resourceId ?resourceRef?"}}
@@ -123,11 +141,23 @@ test resource-5.4 {resource types tests} {
 # resource write tests
 test resource-6.1 {resource write tests} {
     list [catch {resource write} msg] $msg
-} {1 {wrong # args: should be "resource write ?-id resourceId? ?-name resourceName? ?-file resourceRef? resourceType data"}}
+} {1 {wrong # args: should be "resource write ?-id resourceId? ?-name resourceName? ?-file resourceRef? ?-force? resourceType data"}}
 test resource-6.2 {resource write tests} {
     list [catch {resource write _bad_type_ data} msg] $msg
 } {1 {expected Macintosh OS type but got "_bad_type_"}}
 test resource-6.3 {resource write tests} {
+    catch {file delete rsrc2.file}
+    set id [resource open rsrc2.file w]
+    resource close $id
+    set id [resource open rsrc2.file r]
+    set result [catch {resource write -file $id -name Hello TEXT foo} errMsg]
+    lappend result [string compare $errMsg "cannot write to resource file \"$id\", it was opened read only"]
+    lappend result [lsearch [resource list TEXT $id] Hello]
+    resource close $id
+    file delete rsrc2.file
+    set result   
+} {1 0 -1}
+test resource-6.4 {resource write tests} {
     catch {file delete rsrc2.file}
     set id [resource open rsrc2.file w]
     resource write -file $id -name Hello TEXT {set x "our test data"}
@@ -136,30 +166,172 @@ test resource-6.3 {resource write tests} {
     file delete rsrc2.file
     set x
 } {our test data}
+test resource-6.5 {resource write tests} {
+    catch {file delete rsrc2.file}
+    set id [resource open rsrc2.file w]
+    resource write -file $id -id 256 TEXT {HAHAHAHAHAHAHA}
+    set result [catch {resource write -file $id -id 256 TEXT {HOHOHOHOHOHO}} mssg]
+    resource close $id
+    file delete rsrc2.file
+    lappend result $mssg
+} {1 {the resource 256 already exists, use "-force" to overwrite it.}}
+test resource-6.6 {resource write tests} {
+    catch {file delete rsrc2.file}
+    testWriteTextResource -rsrc fileRsrcName -rsrcid 256  -file rsrc2.file  -protected {error "don't tread on me"}
+    set id [resource open rsrc2.file w]
+    set result [catch {resource write -id 256 -force -file $id TEXT {NAHNAHNANAHNAH}} mssg] 
+    resource close $id
+    file delete rsrc2.file
+    lappend result $mssg
+} {1 {could not write resource id 256 of type TEXT, it was protected.}}
+test resource-6.7 {resource write tests} {
+    catch {file delete rsrc2.file}
+    set id [resource open rsrc2.file w]
+    resource write -file $id -id 256 -name FOO TEXT {set x [list "our first test data"]}
+    resource write -file $id -id 256 -name BAR -force TEXT {set x [list "our second test data"]}
+    source -rsrcid 256 rsrc2.file
+    lappend x [resource list TEXT $id]
+    resource close $id
+    file delete rsrc2.file
+    set x
+} {{our second test data} BAR}
 
+#Tests for listing open resource files
+test resource-7.1 {resource file tests} {
+    catch {resource files foo bar} mssg
+    set mssg
+} {wrong # args: should be "resource files ?resourceId?"}
+test resource-7.2 {resource file tests} {
+    catch {file delete rsrc2.file}
+    set rsrcFiles [resource files]
+    set id [resource open rsrc2.file w]
+    set result [string compare $rsrcFiles [lrange [resource files] 1 end]]
+    lappend result [string compare $id [lrange [resource files] 0 0]]
+    resource close $id
+    file delete rsrc2.file
+    set result
+} {0 0}
+test resource-7.3 {resource file tests} {
+    set result 0
+    foreach file [resource files] {
+        if {[catch {resource types $file}] != 0} {
+            set result 1
+        }
+    }
+    set result
+} {0}
+test resource-7.4 {resource file tests} {
+    catch {resource files __NO_SUCH_RESOURCE__} mssg
+    set mssg
+} {invalid resource file reference "__NO_SUCH_RESOURCE__"}
+test resource-7.5 {resource file tests} {
+    set sys [resource files System]
+    string compare $sys [file join $env(SYS_FOLDER) System]
+} {0}
+test resource-7.6 {resource file tests} {
+    set app [resource files application]
+    string compare $app [info nameofexecutable]
+} {0}
+
+#Tests for the resource delete command
+test resource-8.1 {resource delete tests} {
+    list [catch {resource delete} msg] $msg
+} {1 {wrong # args: should be "resource delete ?-id resourceId? ?-name resourceName? ?-file resourceRef? resourceType"}}
+test resource-8.2 {resource delete tests} {
+    list [catch {resource delete TEXT} msg] $msg
+} {1 {you must specify either "-id" or "-name" or both to "resource delete"}}
+test resource-8.3 {resource delete tests} {
+    set result [catch {resource delete -file ffffff -id 128 TEXT} mssg]
+    lappend result $mssg    
+} {1 {invalid resource file reference "ffffff"}}    
+test resource-8.4 {resource delete tests} {
+    catch {file delete rsrc2.file}
+    testWriteTextResource -rsrc fileRsrcName -rsrcid 128 -file rsrc2.file {Some stuff}
+    set id [resource open rsrc2.file r]
+    set result [catch {resource delete -id 128 -file $id TEXT} mssg]
+    resource close $id
+    file delete rsrc2.file
+    lappend result [string compare $mssg "cannot delete from resource file \"$id\", it was opened read only"]   
+} {1 0}
+test resource-8.5 {resource delete tests} {
+    catch {file delete rsrc2.file}
+    testWriteTextResource -rsrc fileRsrcName -rsrcid 128 -file rsrc2.file {Some stuff}
+    set id [resource open rsrc2.file w]
+    set result [catch {resource delete -id 128 -file $id _bad_type_} mssg]
+    resource close $id
+    file delete rsrc2.file
+    lappend result $mssg
+} {1 {expected Macintosh OS type but got "_bad_type_"}}
+test resource-8.5 {resource delete tests} {
+    catch {file delete rsrc2.file}
+    set id [resource open rsrc2.file w]
+    set result [catch {resource delete -id 128 -file $id TEXT} mssg]
+    resource close $id
+    file delete rsrc2.file
+    lappend result $mssg
+} {1 {resource not found}}
+test resource-8.6 {resource delete tests} {
+    catch {file delete rsrc2.file}
+    set id [resource open rsrc2.file w]
+    set result [catch {resource delete -name foo -file $id TEXT} mssg]
+    resource close $id
+    file delete rsrc2.file
+    lappend result $mssg
+} {1 {resource not found}}
+test resource-8.7 {resource delete tests} {
+    catch {file delete rsrc2.file}
+    set id [resource open rsrc2.file w]
+    resource write -file $id -name foo -id 128 TEXT {some stuff}
+    resource write -file $id -name bar -id 129 TEXT {some stuff}
+    set result [catch {resource delete -name foo -id 129 -file $id TEXT} mssg]
+    resource close $id
+    file delete rsrc2.file
+    lappend result $mssg
+} {1 {"-id" and "-name" values do not point to the same resource}}
+test resource-8.8 {resource delete tests} {
+    catch {file delete rsrc2.file}
+    testWriteTextResource -rsrc fileRsrcName -rsrcid 256  -file rsrc2.file  -protected {error "don't tread on me"}
+    set id [resource open rsrc2.file w]
+    set result [catch {resource delete -id 256 -file $id TEXT } mssg] 
+    resource close $id
+    file delete rsrc2.file
+    lappend result $mssg
+} {1 {resource cannot be deleted: it is protected.}}
+test resource-8.9 {resource delete tests} {
+    catch {file delete rsrc2.file}
+    testWriteTextResource -rsrc fileRsrcName -rsrcid 128 -file rsrc2.file {Some stuff}
+    set id [resource open rsrc2.file w]
+    set result [resource list TEXT $id]
+    resource delete -id 128 -file $id TEXT
+    lappend result [resource list TEXT $id]
+    resource close $id
+    file delete rsrc2.file
+    set result
+} {fileRsrcName {}}
+    
 # Tests for the Mac version of the source command
 catch {file delete rsrc.file}
 testWriteTextResource -rsrc fileRsrcName -rsrcid 128 \
     -file rsrc.file  {set rsrc_foo 1}
-test resource-7.1 {source command} {
+test resource-9.1 {source command} {
     catch {unset rsrc_foo}
     source -rsrc fileRsrcName rsrc.file
     list [catch {set rsrc_foo} msg] $msg
 } {0 1}
-test resource-7.2 {source command} {
+test resource-9.2 {source command} {
     catch {unset rsrc_foo}
     list [catch {source -rsrc no_resource rsrc.file} msg] $msg
 } {1 {The resource "no_resource" could not be loaded from rsrc.file.}}
-test resource-7.3 {source command} {
+test resource-9.3 {source command} {
     catch {unset rsrc_foo}
     source -rsrcid 128 rsrc.file
     list [catch {set rsrc_foo} msg] $msg
 } {0 1}
-test resource-7.4 {source command} {
+test resource-9.4 {source command} {
     catch {unset rsrc_foo}
     list [catch {source -rsrcid bad_int rsrc.file} msg] $msg
 } {1 {expected integer but got "bad_int"}}
-test resource-7.5 {source command} {
+test resource-9.5 {source command} {
     catch {unset rsrc_foo}
     list [catch {source -rsrcid 100 rsrc.file} msg] $msg
 } {1 {The resource "ID=100" could not be loaded from rsrc.file.}}

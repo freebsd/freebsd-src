@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and
 # redistribution of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) http.tcl 1.6 97/08/07 16:48:32
+# SCCS: @(#) http.tcl 1.8 97/10/28 16:23:30
 
 package provide http 2.0	;# This uses Tcl namespaces
 
@@ -352,7 +352,7 @@ proc http::size {token} {
 	Finish $token $err
     }
 }
- proc http::CopyDone {token count} {
+ proc http::CopyDone {token count {error {}}} {
     variable $token
     upvar 0 $token state
     set s $state(sock)
@@ -360,7 +360,9 @@ proc http::size {token} {
     if [info exists state(-progress)] {
 	eval $state(-progress) {$token $state(totalsize) $state(currentsize)}
     }
-    if [::eof $s] {
+    if {([string length $error] != 0)} {
+	Finish $token $error
+    } elseif {[::eof $s]} {
 	Eof $token
     } else {
 	CopyStart $s $token

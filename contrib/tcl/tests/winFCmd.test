@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) winFCmd.test 1.10 97/08/05 11:44:57
+# SCCS: @(#) winFCmd.test 1.11 97/10/10 11:50:05
 #
 
 if {[string compare test [info procs test]] == 1} then {source defs}
@@ -853,32 +853,35 @@ test winFCmd-12.4 {ConvertFileNameFormat} {
     close [open td1 w]
     list [catch {string tolower [file attributes ./td1 -longname]} msg] $msg [cleanup]
 } {0 ./td1 {}}
-test winFCmd-12.5 {ConvertFileNameFormat} {
+test winFCmd-12.5 {ConvertFileNameFormat: absolute path} {
+    list [file attributes / -longname] [file attributes \\ -longname]
+} {/ /}
+test winFCmd-12.6 {ConvertFileNameFormat: absolute path with drive} {
     catch {file delete -force -- c:/td1}
     close [open c:/td1 w]
     list [catch {string tolower [file attributes c:/td1 -longname]} msg] $msg [file delete -force -- c:/td1]
 } {0 c:/td1 {}}
-test winFCmd-12.6 {ConvertFileNameFormat} {UNCPath} {
+test winFCmd-12.7 {ConvertFileNameFormat} {UNCPath} {
     catch {file delete -force -- //bisque/icepick/test/td1}
     close [open //bisque/icepick/test/td1 w]
     list [catch {string tolower [file attributes //bisque/icepick/test/td1 -longname]} msg] $msg [file delete -force -- //bisque/icepick/test/td1]
 } {0 //bisque/icepick/test/td1 {}}
-test winFCmd-12.7 {ConvertFileNameFormat} {longFileNames} {
+test winFCmd-12.8 {ConvertFileNameFormat} {longFileNames} {
     cleanup
     close [open td1 w]
     list [catch {string tolower [file attributes td1 -longname]} msg] $msg [cleanup]
 } {0 td1 {}}
-test winFCmd-12.8 {ConvertFileNameFormat} {win32s} {
+test winFCmd-12.9 {ConvertFileNameFormat} {win32s} {
     cleanup
     close [open td1 w]
     list [catch {string tolower [file attributes td1 -longname]} msg] $msg [cleanup]
 } {0 td1 {}}
-test winFCmd-12.9 {ConvertFileNameFormat} {longFileNames} {
+test winFCmd-12.10 {ConvertFileNameFormat} {longFileNames} {
     cleanup
     close [open td1td1td1 w]
     list [catch {file attributes td1td1td1 -shortname}] [cleanup]
 } {0 {}}
-test winFCmd-12.10 {ConvertFileNameFormat} {longFileNames} {
+test winFCmd-12.11 {ConvertFileNameFormat} {longFileNames} {
     cleanup
     close [open td1 w]
     list [catch {string tolower [file attributes td1 -shortname]} msg] $msg [cleanup]

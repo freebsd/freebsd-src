@@ -8,7 +8,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclXtTest.c 1.1 97/03/24 14:30:42
+ * SCCS: @(#) tclXtTest.c 1.2 97/09/15 15:26:52
  */
 
 #include <X11/Intrinsic.h>
@@ -100,7 +100,7 @@ TesteventloopCmd(clientData, interp, argc, argv)
 
 	done = 0;
 	while (!done) {
-	    XtProcessEvent(XtIMAll);
+	    XtAppProcessEvent(TclSetAppContext(NULL), XtIMAll);
 	}
 	(void) Tcl_SetServiceMode(oldMode);
 	framePtr = oldFramePtr;

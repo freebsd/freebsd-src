@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) tclvars.n 1.33 97/08/13 17:50:20
+'\" SCCS: @(#) tclvars.n 1.34 97/08/22 18:51:04
 '\" 
 .so man.macros
 .TH tclvars n 8.0 Tcl "Tcl Built-In Commands"
@@ -37,12 +37,14 @@ If the entire \fBenv\fR array is unset then Tcl will stop
 monitoring \fBenv\fR accesses and will not update environment
 variables.
 .RS
-Under Windows, the environment variables PATH, COMSPEC, and WINDIR in any
+.VS 8.0 
+Under Windows, the environment variables PATH and COMSPEC in any
 capitalization are converted automatically to upper case.  For instance, the
 PATH variable could be exported by the operating system as ``path'',
 ``Path'', ``PaTh'', etc., causing otherwise simple Tcl code to have to
 support many special cases.  All other environment variables inherited by
 Tcl are left unmodified.
+.VE
 .RE
 .RS
 On the Macintosh, the environment variable is constructed by Tcl as no
@@ -213,7 +215,7 @@ hold a string giving the current patch level for Tcl, such as
 \fB7.4b4\fR for the fourth beta release of Tcl 7.4.
 The value of this variable is returned by the \fBinfo patchlevel\fR
 command.
-.VS br
+.VS 8.0 br
 .TP
 \fBtcl_pkgPath\fR
 This variable holds a list of directories indicating where packages are

@@ -8,7 +8,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) clock.n 1.17 97/02/03 16:34:17
+'\" SCCS: @(#) clock.n 1.18 97/09/10 13:31:23
 '\" 
 .so man.macros
 .TH clock n 7.4 Tcl "Tcl Built-In Commands"
@@ -150,10 +150,11 @@ A specific month and day with optional year.  The
 acceptable formats are \fImm/dd\fR?\fI/yy\fR?, \fImonthname dd\fR
 ?, \fIyy\fR?, \fIdd monthname \fR?\fIyy\fR? and \fIday, dd monthname
 yy\fR.  The default year is the current year.  If the year is less
-then 100, we treat the years 00-38 as 2000-2038 and the years 70-99
-as 1970-1999.  The years 39-70 are undefined and may not be valid on
-certain platforms.  (For thos platforms where it is defined then the
-years 69-99 match to 1969-1999.)
+.VS
+than 100, we treat the years 00-68 as 2000-2068 and the years 69-99
+as 1969-1999.  Not all platforms can represent the years 38-70, so
+an error may result if these years are used.
+.VE
 .TP
 \fIrelative time\fR
 A specification relative to the current time.  The format is \fInumber

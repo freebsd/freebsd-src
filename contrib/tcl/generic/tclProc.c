@@ -10,7 +10,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclProc.c 1.115 97/08/12 13:36:11
+ * SCCS: @(#) tclProc.c 1.116 97/10/29 18:33:24
  */
 
 #include "tclInt.h"
@@ -784,7 +784,7 @@ TclObjInterpProc(clientData, interp, objc, objv)
 	    localPtr = localPtr->nextPtr) {
 	varPtr->value.objPtr = NULL;
 	varPtr->name = localPtr->name; /* will be just '\0' if temp var */
-	varPtr->nsPtr = procPtr->cmdPtr->nsPtr;
+	varPtr->nsPtr = NULL;
 	varPtr->hPtr = NULL;
 	varPtr->refCount = 0;
 	varPtr->tracePtr = NULL;

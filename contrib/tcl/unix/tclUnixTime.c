@@ -9,7 +9,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclUnixTime.c 1.12 97/01/08 17:38:15
+ * SCCS: @(#) tclUnixTime.c 1.13 97/10/31 15:04:58
  */
 
 #include "tclInt.h"
@@ -127,7 +127,7 @@ TclpGetTimeZone (currentTime)
 #if defined(HAVE_TM_GMTOFF) && !defined (TCL_GOT_TIMEZONE)
 #   define TCL_GOT_TIMEZONE
     time_t     curTime = (time_t) currentTime;
-    struct tm *timeDataPtr = localtime(&currentTime);
+    struct tm *timeDataPtr = localtime(&curTime);
     int        timeZone;
 
     timeZone = -(timeDataPtr->tm_gmtoff / 60);

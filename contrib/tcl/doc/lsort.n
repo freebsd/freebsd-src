@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) lsort.n 1.9 97/03/24 20:51:09
+'\" SCCS: @(#) lsort.n 1.10 97/08/22 18:50:53
 '\" 
 .so man.macros
 .TH lsort n 8.0 Tcl "Tcl Built-In Commands"
@@ -29,7 +29,7 @@ control the sorting process (unique abbreviations are accepted):
 \fB\-ascii\fR
 Use string comparison with ASCII collation order.  This is
 the default.
-.VS br
+.VS 8.0 br
 .TP 20
 \fB\-dictionary\fR
 Use dictionary-style comparison.  This is the same as \fB\-ascii\fR
@@ -62,7 +62,7 @@ This is the default.
 .TP 20
 \fB\-decreasing\fR
 Sort the list in decreasing order (``largest'' items first).
-.VS br
+.VS 8.0 br
 .TP 20
 \fB\-index\0\fIindex\fR
 If this option is specified, each of the elements of \fIlist\fR must

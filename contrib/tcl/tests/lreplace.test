@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) lreplace.test 1.15 96/12/16 21:43:57
+# SCCS: @(#) lreplace.test 1.16 97/10/29 16:32:39
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -89,6 +89,13 @@ test lreplace-1.24 {lreplace command} {
 test lreplace-1.25 {lreplace command} {
     concat \"[lreplace {\}\     hello} end end]\"
 } {"\}\ "}
+test lreplace-1.26 {lreplace command} {
+    catch {unset foo}
+    set foo {a b}
+    list [set foo [lreplace $foo end end]] \
+        [set foo [lreplace $foo end end]] \
+        [set foo [lreplace $foo end end]]
+} {a {} {}}
 
 
 test lreplace-2.1 {lreplace errors} {
@@ -120,3 +127,5 @@ test lreplace-3.1 {lreplace won't modify shared argument objects} {
     }
     p
 } "a b c"
+
+catch {unset foo}
