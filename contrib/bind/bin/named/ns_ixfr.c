@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_ixfr.c,v 8.26 2001/03/12 01:48:58 marka Exp $";
+static const char rcsid[] = "$Id: ns_ixfr.c,v 8.26.2.2 2001/08/10 03:00:08 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -489,8 +489,8 @@ ixfr_log_maint(struct zoneinfo *zp) {
 
 	(void) strcat(tmpname, ".XXXXXX");
 	if ((fd = mkstemp(tmpname)) == -1) {
-		ns_warning(ns_log_db, "can't make tmpfile (%s): %s", 
-				strerror(errno));
+		ns_warning(ns_log_db, "can't make tmpfile (%s): %s",
+			   tmpname, strerror(errno));
 		memput(tmpname, len);
 		(void) my_fclose(from_fp);
 	 	return (-1);
