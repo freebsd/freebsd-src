@@ -6079,6 +6079,10 @@ maybe_eliminate_biv_1 (x, insn, bl, eliminate_p, where)
       else
 	break;
 
+#if 0	/* XXX patch to correct strength-reduction problem from
+	 * Richard Henderson <richard@atheist.tamu.edu> incorporated
+	 * 3 Jan 1996 - jkh@FreeBSD.org
+	 */
       if (CONSTANT_P (arg))
 	{
 	  /* First try to replace with any giv that has constant positive
@@ -6224,6 +6228,7 @@ maybe_eliminate_biv_1 (x, insn, bl, eliminate_p, where)
 	    }
 #endif
 	}
+#endif
 
       /* If we get here, the biv can't be eliminated.  */
       return 0;
