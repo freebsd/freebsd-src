@@ -238,20 +238,18 @@ tcp_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct sockaddr_in *sinp;
 	const int inirw = INI_WRITE;
 
-	COMMON_START();
-
+	sinp = (struct sockaddr_in *)nam;
+	if (nam->sa_len != sizeof (*sinp))
+		return (EINVAL);
 	/*
 	 * Must check for multicast addresses and disallow binding
 	 * to them.
 	 */
-	sinp = (struct sockaddr_in *)nam;
-	if (nam->sa_len != sizeof (*sinp))
-		return (EINVAL);
 	if (sinp->sin_family == AF_INET &&
-	    IN_MULTICAST(ntohl(sinp->sin_addr.s_addr))) {
-		error = EAFNOSUPPORT;
-		goto out;
-	}
+	    IN_MULTICAST(ntohl(sinp->sin_addr.s_addr)))
+		return (EAFNOSUPPORT);
+
+	COMMON_START();
 	error = in_pcbbind(inp, nam, td->td_ucred);
 	if (error)
 		goto out;
@@ -269,20 +267,18 @@ tcp6_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct sockaddr_in6 *sin6p;
 	const int inirw = INI_WRITE;
 
-	COMMON_START();
-
+	sin6p = (struct sockaddr_in6 *)nam;
+	if (nam->sa_len != sizeof (*sin6p))
+		return (EINVAL);
 	/*
 	 * Must check for multicast addresses and disallow binding
 	 * to them.
 	 */
-	sin6p = (struct sockaddr_in6 *)nam;
-	if (nam->sa_len != sizeof (*sin6p))
-		return (EINVAL);
 	if (sin6p->sin6_family == AF_INET6 &&
-	    IN6_IS_ADDR_MULTICAST(&sin6p->sin6_addr)) {
-		error = EAFNOSUPPORT;
-		goto out;
-	}
+	    IN6_IS_ADDR_MULTICAST(&sin6p->sin6_addr))
+		return (EAFNOSUPPORT);
+
+	COMMON_START();
 	inp->inp_vflag &= ~INP_IPV4;
 	inp->inp_vflag |= INP_IPV6;
 	if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0) {
@@ -366,23 +362,19 @@ tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct sockaddr_in *sinp;
 	const int inirw = INI_WRITE;
 
-	COMMON_START();
-
-	/*
-	 * Must disallow TCP ``connections'' to multicast addresses.
-	 */
 	sinp = (struct sockaddr_in *)nam;
 	if (nam->sa_len != sizeof (*sinp))
 		return (EINVAL);
+	/*
+	 * Must disallow TCP ``connections'' to multicast addresses.
+	 */
 	if (sinp->sin_family == AF_INET
-	    && IN_MULTICAST(ntohl(sinp->sin_addr.s_addr))) {
-		error = EAFNOSUPPORT;
-		goto out;
-	}
-
+	    && IN_MULTICAST(ntohl(sinp->sin_addr.s_addr)))
+		return (EAFNOSUPPORT);
 	if (td && jailed(td->td_ucred))
 		prison_remote_ip(td->td_ucred, 0, &sinp->sin_addr.s_addr);
 
+	COMMON_START();
 	if ((error = tcp_connect(tp, nam, td)) != 0)
 		goto out;
 	error = tcp_output(tp);
@@ -400,20 +392,17 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct sockaddr_in6 *sin6p;
 	const int inirw = INI_WRITE;
 
-	COMMON_START();
-
-	/*
-	 * Must disallow TCP ``connections'' to multicast addresses.
-	 */
 	sin6p = (struct sockaddr_in6 *)nam;
 	if (nam->sa_len != sizeof (*sin6p))
 		return (EINVAL);
+	/*
+	 * Must disallow TCP ``connections'' to multicast addresses.
+	 */
 	if (sin6p->sin6_family == AF_INET6
-	    && IN6_IS_ADDR_MULTICAST(&sin6p->sin6_addr)) {
-		error = EAFNOSUPPORT;
-		goto out;
-	}
+	    && IN6_IS_ADDR_MULTICAST(&sin6p->sin6_addr))
+		return (EAFNOSUPPORT);
 
+	COMMON_START();
 	if (IN6_IS_ADDR_V4MAPPED(&sin6p->sin6_addr)) {
 		struct sockaddr_in sin;
 
