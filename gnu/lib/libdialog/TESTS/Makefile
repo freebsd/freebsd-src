@@ -8,6 +8,7 @@ PROGS=	msg yesno prgbox gauge dselect fselect text menu1 menu2 menu3 \
 	input1 input2 check1 check2 check3 radio1 radio2 radio3 \
 	ftree1 ftree2 tree
 
+WARNS?=	2
 CFLAGS+= -Wall -Wstrict-prototypes
 LDFLAGS+= -ldialog
 
