@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.75 1999/01/16 11:42:16 kato Exp $
+ *	$Id: sio.c,v 1.76 1999/01/19 00:21:53 peter Exp $
  */
 
 #include "opt_comconsole.h"
@@ -1342,7 +1342,7 @@ sioprobe(dev)
 	 * Leave MCR_IENABLE alone.  For ports without a master port, it gates
 	 * the OUT2 output of the UART to
 	 * the ICU input.  Closing the gate would give a floating ICU input
-	 * (unless there is another device driving at) and spurious interrupts.
+	 * (unless there is another device driving it) and spurious interrupts.
 	 * (On the system that this was first tested on, the input floats high
 	 * and gives a (masked) interrupt as soon as the gate is closed.)
 	 */
@@ -4093,6 +4093,7 @@ static pnpid_t siopnp_ids[] = {
 	{ 0x7121b04e, "SupraExpress 56i Sp"},
 	{ 0x11007256, "USR0011"},
 	{ 0x30207256, "USR2030"},
+	{ 0x31307256, "USR3031"},
 	{ 0 }
 };
 
