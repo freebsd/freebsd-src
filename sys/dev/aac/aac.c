@@ -1485,7 +1485,7 @@ aac_init(struct aac_softc *sc)
 			       1,			/* nsegments */
 			       AAC_FIB_COUNT *
 			       sizeof(struct aac_fib),	/* maxsegsize */
-			       BUS_DMA_ALLOCNOW,	/* flags */
+			       0,			/* flags */
 			       NULL, NULL,		/* No locking needed */
 			       &sc->aac_fib_dmat)) {
 		device_printf(sc->aac_dev, "can't allocate FIB DMA tag\n");;
@@ -1505,7 +1505,7 @@ aac_init(struct aac_softc *sc)
 			       8192 + sizeof(struct aac_common), /* maxsize */
 			       1,			/* nsegments */
 			       BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
-			       BUS_DMA_ALLOCNOW,	/* flags */
+			       0,			/* flags */
 			       NULL, NULL,		/* No locking needed */
 			       &sc->aac_common_dmat)) {
 		device_printf(sc->aac_dev,
