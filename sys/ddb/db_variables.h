@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_variables.h,v 1.3 1993/11/25 01:30:14 wollman Exp $
+ *	$Id: db_variables.h,v 1.4 1995/05/30 07:57:19 rgrimes Exp $
  */
 
 /*
@@ -31,27 +31,30 @@
  *	Date:	7/90
  */
 
-#ifndef	_DB_VARIABLES_H_
-#define	_DB_VARIABLES_H_
+#ifndef _DDB_DB_VARIABLES_H_
+#define	_DDB_DB_VARIABLES_H_
 
 /*
  * Debugger variables.
  */
+struct db_variable;
+typedef	int	db_varfcn_t __P((struct db_variable *vp, db_expr_t *valuep,
+				 int op));
 struct db_variable {
 	char	*name;		/* Name of variable */
 	int	*valuep;	/* value of variable */
 				/* function to call when reading/writing */
-	int	(*fcn)(/* db_variable *vp, db_expr_t *valuep, int op */);
+	db_varfcn_t *fcn;
 #define DB_VAR_GET	0
 #define DB_VAR_SET	1
 };
-#define	FCN_NULL	((int (*)())0)
+#define	FCN_NULL	((db_varfcn_t *)0)
 
 extern struct db_variable	db_vars[];	/* debugger variables */
 extern struct db_variable	*db_evars;
 extern struct db_variable	db_regs[];	/* machine registers */
 extern struct db_variable	*db_eregs;
 
-extern void db_read_variable(struct db_variable *, db_expr_t *);
+void	db_read_variable __P((struct db_variable *, db_expr_t *));
 
-#endif	/* _DB_VARIABLES_H_ */
+#endif /* _!DDB_DB_VARIABLES_H_ */

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_watch.h,v 1.3 1994/08/18 22:34:29 wollman Exp $
+ *	$Id: db_watch.h,v 1.4 1995/05/30 07:57:21 rgrimes Exp $
  */
 
 /*
@@ -31,8 +31,8 @@
  *	Date:	10/90
  */
 
-#ifndef	_DDB_DB_WATCH_
-#define	_DDB_DB_WATCH_
+#ifndef _DDB_DB_WATCH_H_
+#define	_DDB_DB_WATCH_H_
 
 #include <vm/vm_map.h>
 #include <machine/db_machdep.h>
@@ -48,13 +48,11 @@ typedef struct db_watchpoint {
 	struct db_watchpoint *link;	/* link in in-use or free chain */
 } *db_watchpoint_t;
 
-extern boolean_t db_find_watchpoint(/* vm_map_t map, db_addr_t addr,
-				     db_regs_t *regs */);
+void		db_delete_watchpoint __P((vm_map_t map, db_addr_t addr));
+boolean_t	db_find_watchpoint __P((vm_map_t map, db_addr_t addr,
+					db_regs_t *regs));
+void		db_list_watchpoints __P((void));
+void		db_set_watchpoint __P((vm_map_t map, db_addr_t addr,
+				       vm_size_t size));
 
-
-
-extern void db_set_watchpoint(/* vm_map_t map, db_addr_t addr, vm_size_t size */);
-extern void db_delete_watchpoint(/* vm_map_t map, db_addr_t addr */);
-extern void db_list_watchpoints();
-
-#endif	_DDB_DB_WATCH_
+#endif /* !_DDB_DB_WATCH_H_ */
