@@ -2021,6 +2021,16 @@ scan_esc(scr_stat *scp, u_char c)
 #endif
 	switch (c) {
 
+	case '7':   /* Save cursor position */
+	    scp->saved_xpos = scp->xpos;
+	    scp->saved_ypos = scp->ypos;
+	    break;
+
+	case '8':   /* Restore saved cursor position */
+	    if (scp->saved_xpos >= 0 && scp->saved_ypos >= 0)
+		move_crsr(scp, scp->saved_xpos, scp->saved_ypos);
+	    break;
+
 	case '[':   /* Start ESC [ sequence */
 	    scp->term.esc = 2;
 	    scp->term.last_param = -1;
@@ -2162,6 +2172,7 @@ scan_esc(scr_stat *scp, u_char c)
     		mark_for_update(scp, scp->cursor_atr - scp->atr_buf);
 #endif
     		mark_for_update(scp, scp->xsize * scp->ysize);
+		remove_cutmarking(scp);
 		break;
 	    case 1: /* clear from beginning of display to cursor */
 #ifdef PC98
@@ -2181,9 +2192,20 @@ scan_esc(scr_stat *scp, u_char c)
 #ifdef PC98
     		mark_for_update(scp, scp->cursor_atr - scp->atr_buf);
 #endif
+		remove_cutmarking(scp);
 		break;
 	    case 2: /* clear entire display */
-		clear_screen(scp);
+#ifdef PC98
+		fillw(scr_map[0x20], scp->scr_buf,
+		      scp->xsize * scp->ysize);
+		fillw(at2pc98(scp->term.cur_color), scp->atr_buf,
+		      scp->xsize * scp->ysize);
+#else
+		fillw(scp->term.cur_color | scr_map[0x20], scp->scr_buf,
+		      scp->xsize * scp->ysize);
+#endif
+		mark_all(scp);
+		remove_cutmarking(scp);
 		break;
 	    }
 	    break;
@@ -2513,6 +2535,16 @@ scan_esc(scr_stat *scp, u_char c)
 		    break;
 		}
 	    }
+	    break;
+
+	case 's':   /* Save cursor position */
+	    scp->saved_xpos = scp->xpos;
+	    scp->saved_ypos = scp->ypos;
+	    break;
+
+	case 'u':   /* Restore saved cursor position */
+	    if (scp->saved_xpos >= 0 && scp->saved_ypos >= 0)
+		move_crsr(scp, scp->saved_xpos, scp->saved_ypos);
 	    break;
 
 	case 'x':
@@ -3280,6 +3312,8 @@ init_scp(scr_stat *scp)
     scp->font_size = FONT_16;
     scp->xsize = COL;
     scp->ysize = ROW;
+    scp->xpos = scp->ypos = 0;
+    scp->saved_xpos = scp->saved_ypos = -1;
     scp->start = scp->xsize * scp->ysize;
     scp->end = 0;
     scp->term.esc = 0;
