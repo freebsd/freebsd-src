@@ -279,7 +279,7 @@ getcreds(struct svc_req *rp, uid_t *u, gid_t *g)
   case AUTH_DES:
     adp = (struct authdes_cred *) rp->rq_clntcred;
     *g = INVALIDID;		/* some unknown group id */
-    if (sscanf(adp->adc_fullname.name, "unix.%lu@", u) == 1)
+    if (sscanf(adp->adc_fullname.name, "unix.%lu@", (u_long *) u) == 1)
         break;
     /* fall through */
 #endif /* HAVE_RPC_AUTH_DES_H */
