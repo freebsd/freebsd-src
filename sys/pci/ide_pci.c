@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ide_pci.c,v 1.27 1999/01/17 05:18:54 bde Exp $
+ *	$Id: ide_pci.c,v 1.28 1999/01/17 05:46:25 bde Exp $
  */
 
 #include "pci.h"
@@ -109,6 +109,15 @@ generic_dmainit(struct	ide_pci_cookie *cookie,
 
 static void
 generic_status(struct ide_pci_cookie *cookie);
+
+static int
+sis_5591_dmainit(struct	ide_pci_cookie *cookie, 
+	struct	wdparams *wp, 
+	int	(*wdcmd)(int, void *),
+	void	*wdinfo);
+
+static void
+sis_5591_status(struct ide_pci_cookie *cookie);
 
 static void
 via_571_status(struct ide_pci_cookie *cookie);
@@ -279,7 +288,7 @@ generic_dmainit(struct ide_pci_cookie *cookie,
 		/* If we're here, then this controller is most likely not set 
 		   for UDMA, even if the drive may be. Make the drive wise
 		   up. */  
-		   
+
 		if(!wdcmd(WDDMA_MDMA2, wdinfo)) 
 			printf("generic_dmainit: could not set multiword DMA mode!\n");
 		return 1;
@@ -1081,7 +1090,214 @@ static struct vendor_fns vs_acer =
 	acer_status
 };
 	
-	 
+/* SiS 5591 */
+
+static void
+sis_5591_status(struct ide_pci_cookie *cookie)
+{
+	int iobase_wd;
+	int ctlr, unit;
+	int iobase_bm;
+	pcici_t tag;
+	pcidi_t type;
+	u_int word40[5];
+	int i, unitno;
+	int DRTC, DATC;
+	int val;
+
+	iobase_wd = cookie->iobase_wd;
+	unit = cookie->unit;
+	ctlr = cookie->ctlr;
+	iobase_bm = cookie->iobase_bm;
+	tag = cookie->tag;
+	type = cookie->type;
+
+	unitno = ctlr * 2 + unit;
+
+	for (i=0; i<5; i++) {
+		word40[i] = pci_conf_read(tag, i * 4 + 0x40);
+	}
+
+	DRTC = word40[ctlr] >> (16 * unit);
+	DATC = word40[ctlr] >> (8 + 16*unit);
+
+	if (unitno == 0) {
+		if ((word40[4] & 0x80000) == 0) {
+			val = word40[2] & 0xf;
+			if (val == 0)
+				val = 12;
+			else if (val > 11)
+				val++;
+			printf ("SiS 5591 status: CRTC %d PCICLK, ", val);
+			val = (word40[2] >> 8) & 0x7;
+			if (val == 0)
+				val = 8 ;
+			else if (val > 6)
+				val = 12;
+			printf ("CATC %d PCICLK, applies to all IDE devices\n", val);
+		} else {
+			printf ("SiS 5591 status: CRTC and CATC timings are per device, taken from DRTC and DATC\n");
+		}
+		printf ("SiS 5591 status: burst cycles %s, fast post write control %s\n",
+			((word40[2] >> 16) & 0x80) ? "enabled" : "disabled",
+			((word40[2] >> 16) & 0x20) ? "enabled" : "disabled");
+
+	}
+        val = DRTC & 0xf;
+        if (val == 0)
+		val = 12;
+	else if (val > 11)
+		val++;
+	printf ("SiS 5591 status: %s drive %d DRTC %d PCICLK,",
+		unitno < 2 ? "primary" : "secondary", 
+		unitno & 1,
+		val);
+        val = DATC & 0x7;
+        if (val == 0)
+		val = 8 ;
+	else if (val > 6)
+		val = 12;
+	printf (" DATC %d PCICLK\n", val);
+	printf ("SiS 5591 status: %s drive %d Ultra DMA %s",
+		unitno < 2 ? "primary" : "secondary", 
+		unitno & 1,
+		(DATC & 0x80) ? "disabled\n" : "enabled");
+	if ((DATC & 0x80) == 0)
+		printf (", %d PCICLK data out\n", ((DATC >> 5) & 0x3) + 1);
+	printf ("SiS 5591 status: %s drive %d postwrite %s, prefetch %s prefetch count is %d\n",
+		unitno < 2 ? "primary" : "secondary", 
+		unitno & 1,
+		((word40[2] >> (28 + unitno)) & 1) ? "enabled" : "disabled",
+		((word40[2] >> (24 + unitno)) & 1) ? "enabled" : "disabled",
+		(word40[3] >> (16 * ctlr)) & 0xffff);
+	printf ("SiS 5591 status: %s drive %d has%s been configured for DMA\n",
+		unitno < 2 ? "primary" : "secondary", 
+		unitno & 1,
+		(inb(iobase_bm + BMISTA_PORT) & ((unit == 0) ? BMISTA_DMA0CAP : BMISTA_DMA1CAP)) ?
+		" " : " not");
+}
+
+static int
+sis_5591_dmainit(struct ide_pci_cookie *cookie, 
+		struct wdparams *wp, 
+		int(*wdcmd)(int, void *),
+		void *wdinfo)
+{
+	int r;
+	unsigned int workword, new, mask;
+	int ctlr, unit;
+	int iobase_bm;
+	pcici_t tag;
+	int unitno;
+
+	unit = cookie->unit;
+	ctlr = cookie->ctlr;
+	iobase_bm = cookie->iobase_bm;
+	tag = cookie->tag;
+
+	unitno = ctlr * 2 + unit;
+
+	if (udma_mode(wp) >= 2) {
+		workword = pci_conf_read(tag, ctlr * 4 + 0x40);
+
+		/* These settings are a little arbitrary.  They're taken from my
+		 * system, where the BIOS has already set the values, but where 
+		 * we don't detect that we're initialized because the
+		 * BMISTA_DMA?CAP values aren't set by the BIOS.
+		 * 0x8000 turns on UDMA
+		 * 0x2000 sets UDMA cycle time to 2 PCI clocks for data out
+		 * 0x0300 sets DATC to 3 PCI clocks
+		 * 0x0001 sets DRTC to 1 PCI clock
+		 */
+		if (unit) {
+			mask = 0x0000ffff;
+			new  = 0xa3010000;
+		} else {
+			mask = 0xffff0000;
+			new  = 0x0000a301;
+		}
+
+		workword &= mask;
+		workword |= new;
+
+		pci_conf_write(tag, ctlr * 4 + 0x40, workword);
+
+		outb(iobase_bm + BMISTA_PORT,
+		     (inb(iobase_bm + BMISTA_PORT) | ((unit == 0) ? BMISTA_DMA0CAP : BMISTA_DMA1CAP)));
+
+		if (bootverbose)
+			printf("SiS 5591 dmainit: %s drive %d setting ultra DMA mode 2\n",
+			       unitno < 2 ? "primary" : "secondary", 
+			       unitno & 1);
+		r = wdcmd(WDDMA_UDMA2, wdinfo);
+		if (!r) {
+			printf("SiS 5591 dmainit: %s drive %d setting DMA mode failed\n",
+			       unitno < 2 ? "primary" : "secondary", 
+			       unitno & 1);
+			return 0;
+		}
+
+		if (bootverbose)
+			sis_5591_status(cookie);
+
+		return 1;
+
+	}
+
+	/* otherwise, try and program it for MW DMA mode 2 */
+	else if (mwdma_mode(wp) >= 2 && pio_mode(wp) >= 4) {
+		workword = pci_conf_read(tag, ctlr * 4 + 0x40);
+
+		/* These settings are a little arbitrary.  They're taken from my
+		 * system, where the BIOS has already set the values, but where 
+		 * we don't detect that we're initialized because the
+		 * BMISTA_DMA?CAP values aren't set by the BIOS.
+		 * 0x0300 sets DATC to 3 PCI clocks
+		 * 0x0001 sets DRTC to 1 PCI clock
+		 */
+		if (unit) {
+			mask = 0x0000ffff;
+			new  = 0x03010000;
+		} else {
+			mask = 0xffff0000;
+			new  = 0x00000301;
+		}
+
+		workword &= mask;
+		workword |= new;
+
+		pci_conf_write(tag, ctlr * 4 + 0x40, workword);
+
+		outb(iobase_bm + BMISTA_PORT,
+		     (inb(iobase_bm + BMISTA_PORT) | ((unit == 0) ? BMISTA_DMA0CAP : BMISTA_DMA1CAP)));
+
+		/* Set multiword DMA mode 2 on drive */
+		if (bootverbose)
+			printf("SiS 5591 dmainit: %s drive %d setting multiword DMA mode 2\n",
+			       unitno < 2 ? "primary" : "secondary", 
+			       unitno & 1);
+		r = wdcmd(WDDMA_MDMA2, wdinfo);
+		if (!r) {
+			printf("SiS 5591 dmainit: %s drive %d setting DMA mode failed\n",
+			       unitno < 2 ? "primary" : "secondary", 
+			       unitno & 1);
+			return 0;
+		}
+
+		if (bootverbose)
+			sis_5591_status(cookie);
+
+		return 1;
+
+	}
+	return 0;
+}
+
+static struct vendor_fns vs_sis_5591 = 
+{ 
+	sis_5591_dmainit, 
+	sis_5591_status
+};
 
 /* Generic SFF-8038i code-- all code below here, except for PCI probes,
  * more or less conforms to the SFF-8038i spec as extended for PCI.
@@ -1169,6 +1385,8 @@ ide_pci_probe(pcici_t tag, pcidi_t type)
 			return ("Cyrix 5530 Bus-master IDE controller");
 		if (type == 0x522910b9)
 			return ("Acer Aladdin IV/V (M5229) Bus-master IDE controller");
+	        if (type == 0x55131039)
+			return ("SiS 5591 Bus-master IDE Controller");
 		if (data & 0x8000)
 			return ("PCI IDE controller (busmaster capable)");
 #ifndef CMD640
@@ -1238,6 +1456,9 @@ ide_pci_attach(pcici_t tag, int unit)
 		break;
 	case 0x522910B9: /* Acer Aladdin IV/V (M5229) */
 		vp = &vs_acer;
+		break;
+	case 0x55131039: /* SiS 5591 */
+		vp = &vs_sis_5591;
 		break;
 	default:
 		/* everybody else */
