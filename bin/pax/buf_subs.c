@@ -167,7 +167,7 @@ rd_start(void)
 
 /*
  * cp_start()
- *	set up buffer system for copying within the file system
+ *	set up buffer system for copying within the filesystem
  */
 
 void
