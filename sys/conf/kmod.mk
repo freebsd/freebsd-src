@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.23 1996/06/24 04:24:00 jkh Exp $
+#	$Id: bsd.kmod.mk,v 1.24 1996/06/30 22:16:19 jkh Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 # <bsd.kmod.mk> includes the file named "../Makefile.inc" if it exists,
@@ -93,7 +93,7 @@
 #
 CWARNFLAGS?= -W -Wreturn-type -Wcomment -Wredundant-decls -Wimplicit \
 	-Wnested-externs -Wstrict-prototypes -Wmissing-prototypes \
-	-Winline -Wunused
+	-Winline -Wunused -Wpointer-arith
 
 CFLAGS+=${COPTS} -DKERNEL -DACTUALLY_LKM_NOT_KERNEL -I${.CURDIR}/../../sys \
 	${CWARNFLAGS}

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: istallion.c,v 1.3 1996/06/12 04:26:35 gpalmer Exp $
+ * $Id: istallion.c,v 1.4 1996/06/18 01:22:25 bde Exp $
  */
 
 /*****************************************************************************/
@@ -2631,7 +2631,7 @@ static char *stli_ecpgetmemptr(stlibrd_t *brdp, unsigned long offset, int line)
 		ptr = 0;
 		val = 0;
 	} else {
-		ptr = brdp->vaddr + (offset % ECP_ATPAGESIZE);
+		ptr = (char *) brdp->vaddr + (offset % ECP_ATPAGESIZE);
 		val = (unsigned char) (offset / ECP_ATPAGESIZE);
 	}
 	outb((brdp->iobase + ECP_ATMEMPR), val);
@@ -2721,7 +2721,7 @@ static char *stli_ecpeigetmemptr(stlibrd_t *brdp, unsigned long offset, int line
 		ptr = 0;
 		val = 0;
 	} else {
-		ptr = brdp->vaddr + (offset % ECP_EIPAGESIZE);
+		ptr = (char *) brdp->vaddr + (offset % ECP_EIPAGESIZE);
 		if (offset < ECP_EIPAGESIZE)
 			val = ECP_EIENABLE;
 		else
@@ -2773,7 +2773,7 @@ static char *stli_ecpmcgetmemptr(stlibrd_t *brdp, unsigned long offset, int line
 		ptr = 0;
 		val = 0;
 	} else {
-		ptr = brdp->vaddr + (offset % ECP_MCPAGESIZE);
+		ptr = (char *) brdp->vaddr + (offset % ECP_MCPAGESIZE);
 		val = ((unsigned char) (offset / ECP_MCPAGESIZE)) | ECP_MCENABLE;
 	}
 	outb((brdp->iobase + ECP_MCCONFR), val);
@@ -2854,7 +2854,7 @@ static char *stli_onbgetmemptr(stlibrd_t *brdp, unsigned long offset, int line)
 			__LINE__, brdp->brdnr);
 		ptr = 0;
 	} else {
-		ptr = brdp->vaddr + (offset % ONB_ATPAGESIZE);
+		ptr = (char *) brdp->vaddr + (offset % ONB_ATPAGESIZE);
 	}
 	return(ptr);
 }
@@ -2945,7 +2945,7 @@ static char *stli_onbegetmemptr(stlibrd_t *brdp, unsigned long offset, int line)
 		ptr = 0;
 		val = 0;
 	} else {
-		ptr = brdp->vaddr + (offset % ONB_EIPAGESIZE);
+		ptr = (char *) brdp->vaddr + (offset % ONB_EIPAGESIZE);
 		if (offset < ONB_EIPAGESIZE)
 			val = ONB_EIENABLE;
 		else
@@ -3014,7 +3014,7 @@ static char *stli_bbygetmemptr(stlibrd_t *brdp, unsigned long offset, int line)
 		ptr = 0;
 		val = 0;
 	} else {
-		ptr = brdp->vaddr + (offset % BBY_PAGESIZE);
+		ptr = (char *) brdp->vaddr + (offset % BBY_PAGESIZE);
 		val = (unsigned char) (offset / BBY_PAGESIZE);
 	}
 	outb((brdp->iobase + BBY_ATCONFR), val);
@@ -3074,7 +3074,7 @@ static char *stli_stalgetmemptr(stlibrd_t *brdp, unsigned long offset, int line)
 			__LINE__, brdp->brdnr);
 		ptr = 0;
 	} else {
-		ptr = brdp->vaddr + (offset % STAL_PAGESIZE);
+		ptr = (char *) brdp->vaddr + (offset % STAL_PAGESIZE);
 	}
 	return(ptr);
 }
@@ -3090,7 +3090,7 @@ static void stli_stalreset(stlibrd_t *brdp)
 	printf("stli_stalreset(brdp=%x)\n", (int) brdp);
 #endif
 
-	vecp = (volatile unsigned long *) (brdp->vaddr + 0x30);
+	vecp = (volatile unsigned long *) ((char *) brdp->vaddr + 0x30);
 	*vecp = 0xffff0000;
 	outb(brdp->iobase, 0);
 	for (i = 0; (i < 1000); i++)

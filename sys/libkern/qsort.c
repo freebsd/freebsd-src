@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: qsort.c,v 1.4 1996/08/28 20:32:19 bde Exp $
  */
 
 #include <stdlib.h>
@@ -101,16 +101,16 @@ qsort(a, n, es, cmp)
 loop:	SWAPINIT(a, es);
 	swap_cnt = 0;
 	if (n < 7) {
-		for (pm = a + es; pm < (char *) a + n * es; pm += es)
-			for (pl = pm; pl > (char *) a && cmp(pl - es, pl) > 0;
+		for (pm = (char *)a + es; pm < (char *)a + n * es; pm += es)
+			for (pl = pm; pl > (char *)a && cmp(pl - es, pl) > 0;
 			     pl -= es)
 				swap(pl, pl - es);
 		return;
 	}
-	pm = a + (n / 2) * es;
+	pm = (char *)a + (n / 2) * es;
 	if (n > 7) {
 		pl = a;
-		pn = a + (n - 1) * es;
+		pn = (char *)a + (n - 1) * es;
 		if (n > 40) {
 			d = (n / 8) * es;
 			pl = med3(pl, pl + d, pl + 2 * d, cmp);
@@ -120,9 +120,9 @@ loop:	SWAPINIT(a, es);
 		pm = med3(pl, pm, pn, cmp);
 	}
 	swap(a, pm);
-	pa = pb = a + es;
+	pa = pb = (char *)a + es;
 
-	pc = pd = a + (n - 1) * es;
+	pc = pd = (char *)a + (n - 1) * es;
 	for (;;) {
 		while (pb <= pc && (r = cmp(pb, a)) <= 0) {
 			if (r == 0) {
@@ -148,14 +148,14 @@ loop:	SWAPINIT(a, es);
 		pc -= es;
 	}
 	if (swap_cnt == 0) {  /* Switch to insertion sort */
-		for (pm = a + es; pm < (char *) a + n * es; pm += es)
-			for (pl = pm; pl > (char *) a && cmp(pl - es, pl) > 0;
+		for (pm = (char *)a + es; pm < (char *)a + n * es; pm += es)
+			for (pl = pm; pl > (char *)a && cmp(pl - es, pl) > 0;
 			     pl -= es)
 				swap(pl, pl - es);
 		return;
 	}
 
-	pn = a + n * es;
+	pn = (char *)a + n * es;
 	r = min(pa - (char *)a, pb - pa);
 	vecswap(a, pb - r, r);
 	r = min(pd - pc, pn - pd - es);

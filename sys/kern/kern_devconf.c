@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_devconf.c,v 1.14 1996/01/31 18:05:19 gibbs Exp $
+ *	$Id: kern_devconf.c,v 1.15 1996/06/12 15:10:27 joerg Exp $
  */
 
 /*
@@ -159,7 +159,7 @@ sysctl_hw_devconfig SYSCTL_HANDLER_ARGS
 	 * determine the proper length. (dc_datalen includes the
 	 * externalized data so it can't be used)
 	 */
-	rv = SYSCTL_OUT(req, &dc, (void *)&dc.dc_data - (void *)&dc);
+	rv = SYSCTL_OUT(req, &dc, (char *)&dc.dc_data - (char *)&dc);
 	if(rv)
 		return rv;
 

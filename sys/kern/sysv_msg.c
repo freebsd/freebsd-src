@@ -1,4 +1,4 @@
-/*	$Id: sysv_msg.c,v 1.11 1995/12/15 05:00:27 peter Exp $ */
+/*	$Id: sysv_msg.c,v 1.12 1996/01/05 16:37:56 wollman Exp $ */
 
 /*
  * Implementation of SVID messages
@@ -652,7 +652,7 @@ msgsnd(p, uap, retval)
 		wakeup((caddr_t)msqptr);
 		return(eval);
 	}
-	user_msgp += sizeof(msghdr->msg_type);
+	user_msgp = (char *)user_msgp + sizeof(msghdr->msg_type);
 
 	/*
 	 * Validate the message type
@@ -694,7 +694,7 @@ msgsnd(p, uap, retval)
 			return(eval);
 		}
 		msgsz -= tlen;
-		user_msgp += tlen;
+		user_msgp = (char *)user_msgp + tlen;
 		next = msgmaps[next].next;
 	}
 	if (next != -1)
@@ -990,7 +990,7 @@ msgrcv(p, uap, retval)
 		wakeup((caddr_t)msqptr);
 		return(eval);
 	}
-	user_msgp += sizeof(msghdr->msg_type);
+	user_msgp = (char *)user_msgp + sizeof(msghdr->msg_type);
 
 	/*
 	 * Return the segments to the user
@@ -1019,7 +1019,7 @@ msgrcv(p, uap, retval)
 			wakeup((caddr_t)msqptr);
 			return(eval);
 		}
-		user_msgp += tlen;
+		user_msgp = (char *)user_msgp + tlen;
 		next = msgmaps[next].next;
 	}
 
