@@ -428,6 +428,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Fujitsu", "Memorybird", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE
+	},
+	{
+		/*
+		 * Sony USB Key-Storage
+		 * PR: kern/46386
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Sony", "Storage Media", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
 	}
 };
 
