@@ -15,20 +15,21 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id:$
+ * $Id: os.h,v 1.1.1.1 1995/01/31 06:29:56 amurai Exp $
  *
  *	TODO:
  */
 
 #ifndef _OS_H_
 #define	_OS_H_
+#include "cdefs.h"
 
-int OsSetIpaddress(struct in_addr myaddr, struct in_addr hisaddr, struct in_addr netmask);
-int OsInterfaceDown(int);
-void OsSetInterfaceParams(int type, int mtu, int speed);
-int OpenTunnel(int *);
-void OsCloseLink(int flag);
-void OsLinkup(void), OsLinkdown(void);
-void OsSetRoute();
-void DeleteIfRoutes(int);
+int OsSetIpaddress __P((struct in_addr myaddr, struct in_addr hisaddr, struct in_addr netmask));
+int OsInterfaceDown __P((int));
+void OsSetInterfaceParams __P((int type, int mtu, int speed));
+int OpenTunnel __P((int *));
+void OsCloseLink __P((int flag));
+void OsLinkup __P((void)), OsLinkdown __P((void));
+void OsSetRoute __P((int, struct in_addr, struct in_addr, struct in_addr));
+void DeleteIfRoutes __P((int));
 #endif

@@ -18,7 +18,7 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
  * $Id:$
- *
+ * 
  *  TODO:
  */
 #include "fsm.h"
@@ -40,7 +40,7 @@ VjInit()
 }
 
 void
-SendPppFlame(pri, bp)
+SendPppFrame(pri, bp)
 int pri;
 struct mbuf *bp;
 {
@@ -49,10 +49,10 @@ struct mbuf *bp;
   int cproto = IpcpInfo.his_compproto >> 16;
 
 #ifdef DEBUG
-  logprintf("SendPppFlame: proto = %x\n", IpcpInfo.his_compproto);
+  logprintf("SendPppFrame: proto = %x\n", IpcpInfo.his_compproto);
 #endif
   if (cproto== PROTO_VJCOMP) {
-    type = sl_compress_tcp(bp, MBUF_CTOP(bp), &cslc, IpcpInfo.his_compproto & 0xff);
+    type = sl_compress_tcp(bp, (struct ip *)MBUF_CTOP(bp), &cslc, IpcpInfo.his_compproto & 0xff);
 
 #ifdef DEBUG
     logprintf("type = %x\n", type);
@@ -95,6 +95,10 @@ u_char type;
      */
     bufp = MBUF_CTOP(bp);
     len = sl_uncompress_tcp(&bufp, len, type, &cslc);
+    if (len <= 0) {
+      pfree(bp);
+      bp = NULLBUFF;
+    }
     return(bp);
   }
   /*
@@ -109,6 +113,10 @@ u_char type;
   bufp = work + MAX_HDR;
   bp = mbread(bp, bufp, rlen);
   len = sl_uncompress_tcp(&bufp, olen, type, &cslc);
+  if (len <= 0) {
+    pfree(bp);
+    return NULLBUFF;
+  }
   len -= olen;
   len += rlen;
   nbp = mballoc(len, MB_VJCOMP);

@@ -18,17 +18,24 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
  * $Id:$
- *
+ * 
  *  TODO:
  */
 #include "fsm.h"
 #include <fcntl.h>
 #include <termios.h>
 #include <sys/ioctl.h>
+#include <sys/tty.h>
 #include "hdlc.h"
 #include "lcp.h"
 #include "modem.h"
 #include "vars.h"
+
+#ifndef O_NONBLOCK
+#ifdef O_NDELAY
+#define O_NONBLOCK O_NDELAY
+#endif
+#endif
 
 extern int DoChat();
 
@@ -86,6 +93,113 @@ struct mqueue *queue;
   return(bp);
 }
 
+static struct speeds{
+  int nspeed;
+  speed_t speed;
+} speeds[] = {
+#ifdef B50
+  { 50, B50, },
+#endif
+#ifdef B75
+  { 75, B75, },
+#endif
+#ifdef B110
+  { 110, B110, },
+#endif
+#ifdef B134
+  { 134, B134, },
+#endif
+#ifdef B150
+  { 150, B150, },
+#endif
+#ifdef B200
+  { 200, B200, },
+#endif
+#ifdef B300
+  { 300, B300, },
+#endif
+#ifdef B600
+  { 600, B600, },
+#endif
+#ifdef B1200
+  { 1200, B1200, },
+#endif
+#ifdef B1800
+  { 1800, B1800, },
+#endif
+#ifdef B2400
+  { 2400, B2400, },
+#endif
+#ifdef B4800
+  { 4800, B4800, },
+#endif
+#ifdef B9600
+  { 9600, B9600, },
+#endif
+#ifdef B19200
+  { 19200, B19200, },
+#endif
+#ifdef B38400
+  { 38400, B38400, },
+#endif
+#ifndef POSIX_SOURCE
+#ifdef B7200
+  { 7200, B7200, },
+#endif
+#ifdef B14400
+  { 14400, B14400, },
+#endif
+#ifdef B28800
+  { 28800, B28800, },
+#endif
+#ifdef B57600
+  { 57600, B57600, },
+#endif
+#ifdef B76800
+  { 76800, B76800, },
+#endif
+#ifdef B115200
+  { 115200, B115200, },
+#endif
+#ifdef B230400
+  { 230400, B230400, },
+#endif
+#ifdef EXTA
+  { 19200, EXTA, },
+#endif
+#ifdef EXTB
+  { 38400, EXTB, },
+#endif
+#endif  /*_POSIX_SOURCE */
+  { 0, 0 }
+};
+
+int SpeedToInt(speed)
+speed_t speed;
+{
+  struct speeds *sp;
+
+  for (sp = speeds; sp->nspeed; sp++) {
+    if (sp->speed == speed) {
+      return(sp->nspeed);
+    }
+  }
+  return 0;
+}
+
+speed_t IntToSpeed(nspeed)
+int nspeed;
+{
+  struct speeds *sp;
+
+  for (sp = speeds; sp->nspeed; sp++) {
+    if (sp->nspeed == nspeed) {
+      return(sp->speed);
+    }
+  }
+  return B0;
+}
+
 static time_t uptime;
 
 void
@@ -132,12 +246,13 @@ ModemTimeout()
     }
   } else {
     if (!Online) {
-online:
       time(&uptime);
       LogPrintf(LOG_PHASE, "Connected!\n");
       mbits = TIOCM_CD;
       connect_count++;
       connect_time = 0;
+    } else if (uptime == 0) {
+      time(&uptime);
     }
   }
 }
@@ -188,10 +303,10 @@ char *str;
   val = GetParityValue(str);
   if (val > 0) {
     VarParity = val;
-    ioctl(modem, TIOCGETA, &rstio);
+    tcgetattr(modem, &rstio);
     rstio.c_cflag &= ~(CSIZE|PARODD|PARENB);
     rstio.c_cflag |= val;
-    ioctl(modem, TIOCSETA, &rstio);
+    tcsetattr(modem, TCSADRAIN, &rstio);
   }
   return(val);
 }
@@ -254,7 +369,7 @@ int mode;
   mbits = 0;
   if (mode & MODE_DIRECT) {
     if (isatty(0))
-      modem = open("/dev/tty", O_RDWR|O_NONBLOCK);
+      modem = open(ctermid(NULL), O_RDWR|O_NONBLOCK);
   } else if (modem == 0) {
     if (strncmp(VarDevice, "/dev", 4) == 0) {
       uucplock = rindex(VarDevice, '/')+1;
@@ -295,8 +410,11 @@ int mode;
    * the one desired for further operation. In this implementation,
    * we assume that modem is configuted to use CTS/RTS flow control.
    */
-  if (dev_is_modem = isatty(modem)) {
-    ioctl(modem, TIOCGETA, &rstio);
+  dev_is_modem = isatty(modem) || DEV_IS_SYNC;
+  if (DEV_IS_SYNC)
+    sleep(1);
+  if (dev_is_modem && !DEV_IS_SYNC) {
+    tcgetattr(modem, &rstio);
 #ifdef DEBUG
     logprintf("## modem = %d\n", modem);
     logprintf("modem (get): iflag = %x, oflag = %x, cflag = %x\n",
@@ -314,7 +432,7 @@ int mode;
        */
       rstio.c_cflag &= ~(CSIZE|PARENB|PARODD);
       rstio.c_cflag |= VarParity;
-      rstio.c_ispeed = rstio.c_ospeed = VarSpeed;
+      cfsetspeed(&rstio, IntToSpeed(VarSpeed));
     }
     rstio.c_iflag |= (IGNBRK | ISTRIP | IGNPAR | IXON | IXOFF);
     rstio.c_iflag &= ~(BRKINT|ICRNL|IXANY|IMAXBEL);
@@ -328,19 +446,20 @@ int mode;
     rstio.c_cc[VMIN] = 1;
     rstio.c_cc[VTIME] = 0;
 #endif
-    ioctl(modem, TIOCSETA, &rstio);
+    tcsetattr(modem, TCSADRAIN, &rstio);
 #ifdef DEBUG
     logprintf("modem (put): iflag = %x, oflag = %x, cflag = %x\n",
     rstio.c_iflag, rstio.c_oflag, rstio.c_cflag);
 #endif
 
+    if (!(mode & MODE_DIRECT))
+      ioctl(modem, TIOCMGET, &mbits);
 #ifdef DEBUG
-    ioctl(modem, TIOCMGET, &mbits);
     fprintf(stderr, "modem control = %o\n", mbits);
 #endif
 
     oldflag = fcntl(modem, F_GETFL, 0);
-    fcntl(modem, F_SETFL, oldflag & ~O_NDELAY);
+    fcntl(modem, F_SETFL, oldflag & ~O_NONBLOCK);
   }
   StartModemTimer();
 
@@ -352,8 +471,8 @@ ModemSpeed()
 {
   struct termios rstio;
 
-  ioctl(modem, TIOCGETA, &rstio);
-  return(rstio.c_ispeed);
+  tcgetattr(modem, &rstio);
+  return(SpeedToInt(cfgetispeed(&rstio)));
 }
 
 static struct termios modemios;
@@ -368,7 +487,7 @@ int modem;
   struct termios rstio;
   int oldflag;
 
-  if (!isatty(modem))
+  if (!isatty(modem) || DEV_IS_SYNC)
     return(0);
   if (!(mode & MODE_DIRECT) && modem && !Online) {
 #ifdef DEBUG
@@ -378,14 +497,14 @@ int modem;
     return(-1);
 #endif
   }
-  ioctl(modem, TIOCGETA, &rstio);
+  tcgetattr(modem, &rstio);
   modemios = rstio;
   rstio.c_cflag &= ~(CSIZE|PARENB|PARODD);
   rstio.c_cflag |= CS8;
   rstio.c_iflag &= ~(ISTRIP|IXON|IXOFF|BRKINT|ICRNL|INLCR);
-  ioctl(modem, TIOCSETA, &rstio);
+  tcsetattr(modem, TCSADRAIN, &rstio);
   oldflag = fcntl(modem, F_GETFL, 0);
-  fcntl(modem, F_SETFL, oldflag | O_NDELAY);
+  fcntl(modem, F_SETFL, oldflag | O_NONBLOCK);
 #ifdef DEBUG
   oldflag = fcntl(modem, F_GETFL, 0);
   logprintf("modem (put2): iflag = %x, oflag = %x, cflag = %x\n",
@@ -402,9 +521,9 @@ int modem;
   int oldflag;
 
   if (isatty(modem)) {
-    ioctl(modem, TIOCSETA, &modemios);
+    tcsetattr(modem, TCSADRAIN, &modemios);
     oldflag = fcntl(modem, F_GETFL, 0);
-    fcntl(modem, F_SETFL, oldflag & ~O_NDELAY);
+    fcntl(modem, F_SETFL, oldflag & ~O_NONBLOCK);
   }
 }
 
@@ -412,7 +531,7 @@ void
 HangupModem(flag)
 int flag;
 {
-  int n = 0;
+  struct termios tio;
 
   if (!isatty(modem)) {
     mbits &= ~TIOCM_DTR;
@@ -421,9 +540,15 @@ int flag;
     return;
   }
 
-  if (Online) {
+  if (modem && Online) {
     mbits &= ~TIOCM_DTR;
+#ifdef __bsdi__ /* not a POSIX way */
     ioctl(modem, TIOCMSET, &mbits);
+#else
+    tcgetattr(modem, &tio);
+    cfsetspeed(&tio, B0);
+    tcsetattr(modem, TCSANOW, &tio);
+#endif
     sleep(1);
 #ifdef notdef
     mbits &= ~TIOCM_CD;
@@ -436,14 +561,20 @@ int flag;
   if (modem && (flag || !(mode & MODE_DEDICATED))) {
     ModemTimeout();			/* XXX */
     StopTimer(&ModemTimer);		/* XXX */
-    ioctl(modem, TIOCFLUSH, &n);
+    tcflush(modem, TIOCFLUSH);
     UnrawModem(modem);
     close(modem);
     (void) uu_unlock(uucplock);
     modem = 0;			/* Mark as modem has closed */
-  } else {
+  } else if (modem) {
     mbits |= TIOCM_DTR;
+#ifndef notyet
     ioctl(modem, TIOCMSET, &mbits);
+#else
+    tcgetattr(modem, &ts);
+    cfsetspeed(&ts, IntToSpeed(VarSpeed));
+    tcsetattr(modem, TCSADRAIN, &ts);
+#endif
   }
 }
 
@@ -469,6 +600,21 @@ int count;
   bp = mballoc(count, MB_MODEM);
   bcopy(ptr, MBUF_CTOP(bp), count);
   Enqueue(&OutputQueues[pri], bp);
+}
+
+void
+ModemOutput(pri, bp)
+int pri;
+struct mbuf *bp;
+{
+  struct mbuf *wp;
+  int len;
+
+  len = plength(bp);
+  wp = mballoc(len, MB_MODEM);
+  mbread(bp, MBUF_CTOP(wp), len);
+  Enqueue(&OutputQueues[pri], wp);
+  ModemStartOutput(modem);
 }
 
 int
@@ -514,7 +660,7 @@ int fd;
   }
   if (modemout) {
     nb = modemout->cnt;
-    if (nb > 300) nb = 300;
+    if (nb > 1600) nb = 1600;
     if (fd == 0) fd = 1;
     nw = write(fd, MBUF_CTOP(modemout), nb);
 #ifdef QDEBUG
@@ -560,9 +706,16 @@ DialModem()
 int
 ShowModemStatus()
 {
+#ifdef TIOCOUTQ
   int nb;
+#endif
 
-  printf("device: %s  speed: %d\n", VarDevice, VarSpeed);
+  printf("device: %s  speed: ", VarDevice);
+  if (DEV_IS_SYNC)
+    printf("sync\n");
+  else
+    printf("%d\n", VarSpeed);
+
   switch (VarParity & CSIZE) {
   case CS7:
     printf("cs7, ");
@@ -582,8 +735,10 @@ ShowModemStatus()
   printf("fd = %d, modem control = %o\n", modem, mbits);
 #endif
   printf("connect count: %d\n", connect_count);
+#ifdef TIOCOUTQ
   ioctl(modem, TIOCOUTQ, &nb);
   printf("outq: %d\n", nb);
+#endif
   printf("DialScript  = %s\n", VarDialScript);
   printf("LoginScript = %s\n", VarLoginScript);
   printf("PhoneNumber = %s\n", VarPhone);

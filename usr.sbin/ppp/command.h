@@ -24,6 +24,7 @@ struct cmdtab {
   char *name;
   char *alias;
   int  (*func)();
+  u_char  lauth;
   char *helpmes;
   char *syntax;
   void *args;

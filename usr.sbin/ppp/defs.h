@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <termios.h>
 #include "mbuf.h"
 #include "log.h"
 
@@ -36,7 +37,11 @@
  *  Check follwiing definitions for your machine envirinment
  */
 #define	LOGFILE		"/var/log/ppp.log"	/* Name of log file */
+#ifdef __FreeBSD__
 #define	MODEM_DEV	"/dev/cua01"		/* name of tty device */
+#else
+#define	MODEM_DEV	"/dev/tty01"		/* name of tty device */
+#endif
 #define MODEM_SPEED	B38400			/* tty speed */
 #define	SERVER_PORT	3000			/* Base server port no. */
 
@@ -73,5 +78,12 @@ int modem;
 int tun_in, tun_out;
 int netfd;
 char *dstsystem;
+
+#ifndef TRUE
+#define	TRUE 	(1)
+#endif
+#ifndef FALSE
+#define	FALSE 	(0)
+#endif
 
 #endif	/* _DEFS_H_ */

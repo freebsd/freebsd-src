@@ -73,5 +73,6 @@ struct filterent {
 struct filterent ifilters[MAXFILTERS];
 struct filterent ofilters[MAXFILTERS];
 struct filterent dfilters[MAXFILTERS];
+struct filterent afilters[MAXFILTERS];	/* keep Alive packet filter */
 
 #endif	_FILTER_H_

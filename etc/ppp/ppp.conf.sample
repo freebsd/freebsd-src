@@ -4,7 +4,7 @@
 #
 #	  Written by Toshiharu OHNO
 #
-# $Id:$
+# $Id: ppp.conf.sample,v 1.1.1.1 1995/01/31 06:24:33 amurai Exp $
 #
 #################################################################
 #
@@ -99,6 +99,7 @@ pmdemend:
 users:
  disable pap
  enable chap
+ enable  proxy
  set authname ppp-server
  set ifaddr 192.244.176.44 292.244.184.31
 #

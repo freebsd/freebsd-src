@@ -22,6 +22,7 @@
 
 #ifndef _LOG_H_
 #define	_LOG_H_
+#include "cdefs.h"
 /*
  *  Definition of log level
  */
@@ -43,11 +44,11 @@
 
 extern int loglevel;
 
-extern void LogTimeStamp();
-extern int LogOpen();
-extern void DupLog();
-extern void LogClose();
-extern void logprintf(), LogPrintf();
-extern void LogDumpBp(int level, char *header, struct mbuf *bp);
-extern void LogDumpBuff(int level, char *header, u_char *ptr, int cnt);
+extern void LogTimeStamp __P((void));
+extern int LogOpen __P((void));
+extern void DupLog __P((void));
+extern void LogClose __P((void));
+extern void logprintf __P((char *, ...)), LogPrintf __P((int, char *, ...));
+extern void LogDumpBp __P((int level, char *header, struct mbuf *bp));
+extern void LogDumpBuff __P((int level, char *header, u_char *ptr, int cnt));
 #endif

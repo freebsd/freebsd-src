@@ -15,13 +15,15 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id:$
+ * $Id: vars.h,v 1.1.1.1 1995/01/31 06:29:55 amurai Exp $
  *
  *	TODO:
  */
 
 #ifndef _VARS_H_
 #define	_VARS_H_
+
+#include <sys/param.h>
 
 struct confdesc {
   char *name;
@@ -41,8 +43,8 @@ struct confdesc {
 #define	ConfAcfcomp	4
 #define	ConfProtocomp	5
 #define	ConfPred1	6
-#define	ConfIpAddress	6
-#define	MAXCONFS	7
+#define	ConfProxy	7
+#define	MAXCONFS	8
 
 #define	Enabled(x)	(pppConfs[x].myside & CONF_ENABLE)
 #define	Acceptable(x)	(pppConfs[x].hisside & CONF_ACCEPT)
@@ -56,13 +58,18 @@ struct pppvars {
   int    modem_parity;		/* Parity setting */
   int    idle_timeout;		/* Idle timeout value */
   int	 lqr_timeout;		/* LQR timeout value */
+  int    retry_timeout;		/* Retry timeout value */
   char   modem_dev[20];		/* Name of device */
   int	 open_mode;		/* LCP open mode */
+  #define LOCAL_AUTH	0x01
+  #define LOCAL_NO_AUTH	0x02
+  u_char lauth;			/* Local Authorized status */
   char   dial_script[200];	/* Dial script */
   char   login_script[200];	/* Login script */
   char   auth_key[50];		/* PAP/CHAP key */
   char	 auth_name[50];		/* PAP/CHAP system name */
   char   phone_number[50];	/* Telephone Number */
+  char   shostname[MAXHOSTNAMELEN];/* Local short Host Name */
 };
 
 #define VarAccmap	pppVars.var_accmap
@@ -71,16 +78,21 @@ struct pppvars {
 #define	VarSpeed	pppVars.modem_speed
 #define	VarParity	pppVars.modem_parity
 #define	VarOpenMode	pppVars.open_mode
+#define	VarLocalAuth	pppVars.lauth
 #define	VarDialScript	pppVars.dial_script
 #define	VarLoginScript	pppVars.login_script
 #define VarIdleTimeout  pppVars.idle_timeout
 #define	VarLqrTimeout	pppVars.lqr_timeout
+#define	VarRetryTimeout	pppVars.retry_timeout
 #define	VarAuthKey	pppVars.auth_key
 #define	VarAuthName	pppVars.auth_name
 #define	VarPhone	pppVars.phone_number
+#define	VarShortHost	pppVars.shostname
+
+#define	DEV_IS_SYNC	(VarSpeed == 0)
 
 extern struct pppvars pppVars;
 
-int ipInOctets, ipOutOctets;
+int ipInOctets, ipOutOctets, ipKeepAlive;
 int ipConnectSecs, ipIdleSecs;
 #endif
