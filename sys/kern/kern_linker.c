@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.8 1998/10/10 00:07:53 peter Exp $
+ *	$Id: kern_linker.c,v 1.9 1998/10/10 02:29:07 peter Exp $
  */
 
 #include "opt_ddb.h"
@@ -74,6 +74,7 @@ linker_add_class(const char* desc, void* priv,
     lc = malloc(sizeof(struct linker_class), M_LINKER, M_NOWAIT);
     if (!lc)
 	return ENOMEM;
+    bzero(lc, sizeof(*lc));
 
     lc->desc = desc;
     lc->priv = priv;
@@ -252,6 +253,7 @@ linker_make_file(const char* pathname, void* priv, struct linker_file_ops* ops)
     lf = malloc(sizeof(struct linker_file) + namelen, M_LINKER, M_WAITOK);
     if (!lf)
 	goto out;
+    bzero(lf, sizeof(*lf));
 
     lf->refs = 1;
     lf->userrefs = 0;
@@ -339,6 +341,7 @@ linker_file_add_dependancy(linker_file_t file, linker_file_t dep)
 		     M_LINKER, M_WAITOK);
     if (newdeps == NULL)
 	return ENOMEM;
+    bzero(newdeps, (file->ndeps + 1) * sizeof(linker_file_t*));
 
     if (file->deps) {
 	bcopy(file->deps, newdeps, file->ndeps * sizeof(linker_file_t*));
@@ -413,6 +416,7 @@ linker_file_lookup_symbol(linker_file_t file, const char* name, int deps)
 	    KLD_DPF(SYM, ("linker_file_lookup_symbol: nomem\n"));
 	    return 0;
 	}
+	bzero(cp, sizeof(struct common_symbol) + common_size + strlen(name)+ 1);
 
 	cp->address = (caddr_t) (cp + 1);
 	cp->name = cp->address + common_size;
@@ -738,8 +742,6 @@ linker_preload(void* arg)
 		}
 		sysinit_add((struct sysinit **)sysinits->ls_items);
 	    }
-
-	    break;
 	}
     }
 }
