@@ -97,7 +97,6 @@ main(int argc, char *argv[])
 	DIR *dirp;
 	char name[2 * MAXPATHLEN];
 	char *name_dir_end;
-	int i;
 
 	if (argc < 3)
 		usage();
