@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: netinst.sh,v 1.1 1994/11/16 07:51:45 jkh Exp $
+# $Id: netinst.sh,v 1.2 1994/11/17 11:53:14 jkh Exp $
 
 if [ "$_NETINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -24,7 +24,7 @@ ROUTE=route
 ROUTE_FLAGS="add default"
 
 # Grab the miscellaneous functions.
-. miscfuncs.sh
+. /stand/miscfuncs.sh
 
 network_setup_ether()
 {
