@@ -3959,15 +3959,16 @@
 .  ti -\n[doc-reg-dtl]u
 .
 .  nh
-.  ie (\n[dl]u > \n[doc-list-indent-stack\n[doc-list-depth]]u) \{\
-.    doc-item-box\n[doc-list-depth]
+.  doc-item-box\n[doc-list-depth]
+.  ie (\n[dl]u > \n[doc-list-indent-stack\n[doc-list-depth]]u) \
 .    br
-.  \}
 .  el \{\
-.    chop doc-item-box\n[doc-list-depth]
-.    \" Using \Z prevents stretching of the spaces in the tag
-.    nop \Z'\*[doc-item-box\n[doc-list-depth]]'\c
-.    nop \h'\n[doc-reg-dtl]u'\c
+.    \" format the tag separately to prevent stretching of spaces
+.    vpt 0
+.    br
+.    sp -1
+.    vpt 1
+.    nop \&\c
 .    nr doc-have-space 1
 .  \}
 .
