@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installPreconfig.c,v 1.8 1995/10/22 12:04:07 jkh Exp $
+ * $Id: installPreconfig.c,v 1.10 1995/10/22 17:39:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -78,6 +78,7 @@ static struct _word {
     { "distExtractAll",		distExtractAll		},
     { "docBrowser",		docBrowser		},
     { "docShowDocument",	docShowDocument		},
+    { "installApache",		installApache		},
     { "installCommit",		installCommit		},
     { "installExpress",		installExpress		},
     { "installUpgrade",		installUpgrade		},
@@ -97,6 +98,8 @@ static struct _word {
     { "mediaSetFtpUserPass",	mediaSetFtpUserPass	},
     { "mediaSetCPIOVerbosity",	mediaSetCPIOVerbosity	},
     { "mediaGetType",		mediaGetType		},
+    { "msgConfirm",		msgSimpleConfirm	},
+    { "msgNotify",		msgSimpleNotify		},
     { "packageAdd",		package_add		},
     { "system",			(int (*)(char *))system	},
     { "systemInteractive",	systemExecute		},
