@@ -30,15 +30,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/signalvar.h>
-#include <sys/kernel.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/pcpu.h>
 #include <sys/proc.h>
-#include <sys/sysctl.h>
-#include <sys/ucontext.h>
-#include <machine/clock.h>
 #include <machine/critical.h>
 
 /*
@@ -47,8 +39,6 @@ __FBSDID("$FreeBSD$");
 void
 cpu_critical_fork_exit(void)
 {
-	struct thread *td;
 
-	td = curthread;
-	td->td_md.md_savecrit = read_rflags() | PSL_I;
+	curthread->td_md.md_savecrit = read_rflags() | PSL_I;
 }
