@@ -633,7 +633,7 @@ sysctl_kern_proc_args SYSCTL_HANDLER_ARGS
 	if (!p)
 		return (0);
 
-	if (p_trespass(curproc, p))
+	if ((!ps_argsopen) && p_trespass(curproc, p))
 		return (0);
 
 	if (req->newptr && curproc != p)
