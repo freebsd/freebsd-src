@@ -24,6 +24,8 @@
 #include <netatalk/ddp_var.h>
 #include <netatalk/at_extern.h>
 
+struct ifqueue		atintrq1, atintrq2;
+
 int		ddp_forward = 1;
 int		ddp_firewall = 0;
 extern int	ddp_cksum;
