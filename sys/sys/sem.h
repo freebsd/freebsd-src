@@ -84,6 +84,13 @@ struct seminfo {
 };
 extern struct seminfo	seminfo;
 
+/*
+ * Kernel wrapper for the user-level structure
+ */
+struct semid_kernel {
+	struct	semid_ds u;
+};
+
 /* internal "mode" bits */
 #define	SEM_ALLOC	01000	/* semaphore is allocated */
 #define	SEM_DEST	02000	/* semaphore will be destroyed on last detach */
