@@ -112,11 +112,11 @@ int	(*vlan_input_tag_p)(struct ether_header *eh, struct mbuf *m,
 		u_int16_t t);
 
 /* bridge support */
-int do_bridge = 0;
+int do_bridge;
 bridge_in_t *bridge_in_ptr;
 bdg_forward_t *bdg_forward_ptr;
 bdgtakeifaces_t *bdgtakeifaces_ptr;
-struct bdg_softc *ifp2sc = NULL;
+struct bdg_softc *ifp2sc;
 
 static	int ether_resolvemulti __P((struct ifnet *, struct sockaddr **,
 				    struct sockaddr *));
