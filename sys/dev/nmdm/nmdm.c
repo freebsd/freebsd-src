@@ -63,8 +63,7 @@ MALLOC_DEFINE(M_NLMDM, "nullmodem", "nullmodem data structures");
 static void 	nmdmstart(struct tty *tp);
 static void 	nmdmstop(struct tty *tp, int rw);
 static void 	wakeup_other(struct tty *tp, int flag);
-static void 	nmdminit(int);
-static int 	nmdmshutdown(void);
+static void 	nmdminit(dev_t dev);
 
 static d_open_t		nmdmopen;
 static d_close_t	nmdmclose;
@@ -72,7 +71,6 @@ static d_read_t		nmdmread;
 static d_write_t	nmdmwrite;
 static d_ioctl_t	nmdmioctl;
 
-#define	CDEV_MAJOR	18
 static struct cdevsw nmdm_cdevsw = {
 	.d_open =	nmdmopen,
 	.d_close =	nmdmclose,
@@ -80,14 +78,14 @@ static struct cdevsw nmdm_cdevsw = {
 	.d_write =	nmdmwrite,
 	.d_ioctl =	nmdmioctl,
 	.d_poll =	ttypoll,
-	.d_name =	"pts",
-	.d_maj =	CDEV_MAJOR,
-	.d_flags =	D_TTY,
+	.d_name =	"nmdm",
+	.d_flags =	D_TTY | D_PSEUDO,
 };
 
 #define BUFSIZ 		100		/* Chunk size iomoved to/from user */
 #define NMDM_MAX_NUM	128		/* Artificially limit # devices. */
 #define	PF_STOPPED	0x10		/* user told stopped */
+#define BFLAG		CLONE_FLAG0
 
 struct softpart {
 	struct tty	nm_tty;
@@ -97,10 +95,60 @@ struct softpart {
 };
 
 struct	nm_softc {
-	int	pt_flags;
-	struct softpart part1, part2;
-	struct	prison *pt_prison;
+	TAILQ_ENTRY(nm_softc)	pt_list;
+	int			pt_flags;
+	struct softpart 	part1, part2;
+	struct	prison 		*pt_prison;
 };
+
+static struct clonedevs *nmdmclones;
+static TAILQ_HEAD(,nm_softc) nmdmhead = TAILQ_HEAD_INITIALIZER(nmdmhead);
+
+static void
+nmdm_clone(void *arg, char *name, int nameen, dev_t *dev)
+{
+	int i, unit;
+	char *p;
+	dev_t d1, d2;
+
+	if (*dev != NODEV)
+		return;
+	if (strcmp(name, "nmdm") == 0) {
+		p = NULL;
+		unit = -1;
+	} else {
+		i = dev_stdclone(name, &p, "nmdm", &unit);
+		if (i == 0)
+			return;
+		if (p[0] != '\0' && p[0] != 'A' && p[0] != 'B')
+			return;
+		else if (p[0] != '\0' && p[1] != '\0')
+			return;
+	}
+	i = clone_create(&nmdmclones, &nmdm_cdevsw, &unit, &d1, 0);
+	if (i) {
+		d1 = make_dev(&nmdm_cdevsw, unit2minor(unit),
+		     0, 0, 0666, "nmdm%dA", unit);
+		if (d1 == NULL)
+			return;
+		d2 = make_dev(&nmdm_cdevsw, unit2minor(unit) | BFLAG,
+		     0, 0, 0666, "nmdm%dB", unit);
+		if (d2 == NULL) {
+			destroy_dev(d1);
+			return;
+		}
+		d2->si_drv2 = d1;
+		d1->si_drv2 = d2;
+		dev_depends(d1, d2);
+		dev_depends(d2, d1);
+		d1->si_flags |= SI_CHEAPCLONE;
+		d2->si_flags |= SI_CHEAPCLONE;
+	}
+	if (p != NULL && p[0] == 'B')
+		*dev = d1->si_drv2;
+	else
+		*dev = d1;
+}
 
 static void
 nmdm_crossover(struct nm_softc *pti,
@@ -123,24 +171,22 @@ do {	\
  * This function creates and initializes a pair of ttys.
  */
 static void
-nmdminit(n)
-	int n;
+nmdminit(dev_t dev1)
 {
-	dev_t dev1, dev2;
+	dev_t dev2;
 	struct nm_softc *pt;
 
-	/* For now we only map the lower 8 bits of the minor */
-	if (n & ~0xff)
-		return;
+	dev2 = dev1->si_drv2;
 
-	pt = malloc(sizeof(*pt), M_NLMDM, M_WAITOK);
-	bzero(pt, sizeof(*pt));
-	pt->part1.dev = dev1 = make_dev(&nmdm_cdevsw, n+n,
-	    0, 0, 0666, "nmdm%dA", n);
-	pt->part2.dev = dev2 = make_dev(&nmdm_cdevsw, n+n+1,
-	    0, 0, 0666, "nmdm%dB", n);
+	dev1->si_flags &= ~SI_CHEAPCLONE;
+	dev2->si_flags &= ~SI_CHEAPCLONE;
 
+	pt = malloc(sizeof(*pt), M_NLMDM, M_WAITOK | M_ZERO);
+	TAILQ_INSERT_TAIL(&nmdmhead, pt, pt_list);
 	dev1->si_drv1 = dev2->si_drv1 = pt;
+
+	pt->part1.dev = dev1;
+	pt->part2.dev = dev2;
 	dev1->si_tty = &pt->part1.nm_tty;
 	dev2->si_tty = &pt->part2.nm_tty;
 	ttyregister(&pt->part1.nm_tty);
@@ -148,9 +194,9 @@ nmdminit(n)
 	pt->part1.nm_tty.t_oproc = nmdmstart;
 	pt->part2.nm_tty.t_oproc = nmdmstart;
 	pt->part1.nm_tty.t_stop = nmdmstop;
+	pt->part2.nm_tty.t_stop = nmdmstop;
 	pt->part2.nm_tty.t_dev = dev1;
 	pt->part1.nm_tty.t_dev = dev2;
-	pt->part2.nm_tty.t_stop = nmdmstop;
 }
 
 /*
@@ -161,39 +207,14 @@ nmdmopen(dev_t dev, int flag, int devtype, struct thread *td)
 {
 	register struct tty *tp, *tp2;
 	int error;
-	int minr;
-	dev_t nextdev;
 	struct nm_softc *pti;
-	int is_b;
-	int	pair;
 	struct	softpart *ourpart, *otherpart;
 
-	/*
-	 * XXX: Gross hack for DEVFS:
-	 * If we openned this device, ensure we have the
-	 * next one too, so people can open it.
-	 */
-	minr = dev2unit(dev);
-	pair = minr >> 1;
-	is_b = minr & 1;
-	
-	if (pair < (NMDM_MAX_NUM - 1)) {
-		nextdev = makedev(major(dev), minr + 2);
-		if (!nextdev->si_drv1) {
-			nmdminit(pair + 1);
-		}
-	} else { /* Limit ourselves to 128 of them for now */
-		if (pair > (NMDM_MAX_NUM - 1))
-			return (ENXIO);
-	}
-	if (!dev->si_drv1)
-		nmdminit(pair);
-
-	if (!dev->si_drv1)
-		return(ENXIO);	
-
+	if (dev->si_drv1 == NULL)
+		nmdminit(dev);
 	pti = dev->si_drv1;
-	if (is_b) 
+
+	if (minor(dev) & BFLAG)
 		tp = &pti->part2.nm_tty;
 	else 
 		tp = &pti->part1.nm_tty;
@@ -567,52 +588,32 @@ nmdm_crossover(struct nm_softc *pti, struct softpart *ourpart,
 static int
 nmdm_modevent(module_t mod, int type, void *data)
 {
+	static eventhandler_tag tag;
+	struct nm_softc *pt, *tpt;
         int error = 0;
 
         switch(type) {
-        case MOD_LOAD: /* start with 4 of them */
-		nmdminit(0);
-		nmdminit(1);
-		nmdminit(2);
-		nmdminit(3);
+        case MOD_LOAD: 
+		tag = EVENTHANDLER_REGISTER(dev_clone, nmdm_clone, 0, 1000);
+		if (tag == NULL)
+			return (ENOMEM);
 		break;
 
 	case MOD_SHUTDOWN:
 		/* FALLTHROUGH */
 	case MOD_UNLOAD:
-		nmdmshutdown();
+		EVENTHANDLER_DEREGISTER(dev_clone, tag);
+		TAILQ_FOREACH_SAFE(pt, &nmdmhead, pt_list, tpt) {
+			destroy_dev(pt->part1.dev);
+			TAILQ_REMOVE(&nmdmhead, pt, pt_list);
+			free(pt, M_NLMDM);
+		}
+		clone_cleanup(&nmdmclones);
 		break;
 	default:
 		error = EOPNOTSUPP;
 	}
 	return (error);
-}
-
-/*
- * Handle teardown of device
- */
-static int
-nmdmshutdown(void)
-{
-	int i;
-	dev_t	nextdev1;
-	dev_t	nextdev2;
-	void * ptr1;
-
-	for(i = 0;( i < NMDM_MAX_NUM) ;i++) {
-		nextdev1 = makedev(CDEV_MAJOR, (i+i) );
-		nextdev2 = makedev(CDEV_MAJOR, (i+i) + 1);
-		ptr1 = nextdev1->si_drv1;
-		if (ptr1) {
-			destroy_dev(nextdev1);
-			destroy_dev(nextdev2);
-			free(ptr1, M_NLMDM);
-		} else {
-			freedev(nextdev1);
-			freedev(nextdev2);
-		}
-	}
-	return(0);
 }
 
 DEV_MODULE(nmdm, nmdm_modevent, NULL);
