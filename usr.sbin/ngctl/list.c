@@ -99,7 +99,7 @@ ListCmd(int ac, char **av)
 	printf("There are %d total %snodes:\n",
 	    nlist->numnames, named_only ? "named " : "");
 	for (k = 0; k < nlist->numnames; k++) {
-		char	path[NG_PATHLEN+1];
+		char	path[NG_PATHSIZ];
 		char	*av[3] = { "list", "-n", path };
 
 		snprintf(path, sizeof(path),
