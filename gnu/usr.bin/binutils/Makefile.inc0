@@ -18,8 +18,10 @@ RELTOP:= ..
 RELSRC=	${RELTOP}/../../../contrib/binutils
 SRCDIR=	${.CURDIR}/${RELSRC}
 
+.if (${TARGET_ARCH} == "alpha")
+WARNS=	2
+.endif
 CFLAGS+= -D_GNU_SOURCE
-
 CFLAGS+= -I.
 .if exists(${.CURDIR}/${BINUTIL_ARCH})
 CFLAGS+= -I${.CURDIR}/${BINUTIL_ARCH}
