@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.85 1995/11/15 07:45:56 davidg Exp $
+ * $Id: if_ed.c,v 1.86 1995/11/16 09:55:51 bde Exp $
  */
 
 #include "ed.h"
@@ -318,7 +318,7 @@ ed_registerdev(struct isa_device *id, const char *descr)
  *	NULL if device not found
  *	or # of i/o addresses used (if found)
  */
-int
+static int
 ed_probe(isa_dev)
 	struct isa_device *isa_dev;
 {
@@ -373,7 +373,7 @@ ed_probe(isa_dev)
  * Return 1 if 8390 was found, 0 if not.
  */
 
-int
+static int
 ed_probe_generic8390(sc)
 	struct ed_softc *sc;
 {
@@ -390,7 +390,7 @@ ed_probe_generic8390(sc)
 /*
  * Probe and vendor-specific initialization routine for SMC/WD80x3 boards
  */
-int
+static int
 ed_probe_WD80x3(isa_dev)
 	struct isa_device *isa_dev;
 {
@@ -784,7 +784,7 @@ ed_probe_WD80x3(isa_dev)
 /*
  * Probe and vendor-specific initialization routine for 3Com 3c503 boards
  */
-int
+static int
 ed_probe_3Com(isa_dev)
 	struct isa_device *isa_dev;
 {
@@ -1051,7 +1051,7 @@ ed_probe_3Com(isa_dev)
 /*
  * Probe and vendor-specific initialization routine for NE1000/2000 boards
  */
-int
+static int
 ed_probe_Novell(isa_dev)
 	struct isa_device *isa_dev;
 {
@@ -1273,7 +1273,7 @@ ed_probe_Novell(isa_dev)
 /*
  * Probe and vendor-specific initialization routine for PCCARDs
  */
-int
+static int
 ed_probe_pccard(isa_dev, ether)
 	struct isa_device *isa_dev;
 	u_char *ether;
@@ -1381,7 +1381,7 @@ ed_probe_pccard(isa_dev, ether)
 /*
  * Install interface into kernel networking data structures
  */
-int
+static int
 ed_attach(isa_dev)
 	struct isa_device *isa_dev;
 {
@@ -1455,7 +1455,7 @@ ed_attach(isa_dev)
 /*
  * Reset interface.
  */
-void
+static void
 ed_reset(unit)
 	int     unit;
 {
@@ -1477,7 +1477,7 @@ ed_reset(unit)
 /*
  * Take interface offline.
  */
-void
+static void
 ed_stop(unit)
 	int     unit;
 {
@@ -1503,7 +1503,7 @@ ed_stop(unit)
  * Device timeout/watchdog routine. Entered if the device neglects to
  *	generate an interrupt after a transmit has been started on it.
  */
-void
+static void
 ed_watchdog(unit)
 	int     unit;
 {
@@ -1520,7 +1520,7 @@ ed_watchdog(unit)
 /*
  * Initialize device.
  */
-void
+static void
 ed_init(unit)
 	int     unit;
 {
@@ -1731,7 +1731,7 @@ ed_xmit(ifp)
  *  2) that the IFF_OACTIVE flag is checked before this code is called
  *     (i.e. that the output part of the interface is idle)
  */
-void
+static void
 ed_start(ifp)
 	struct ifnet *ifp;
 {
@@ -2222,7 +2222,7 @@ edintr(unit)
  * Process an ioctl request. This code needs some work - it looks
  *	pretty ugly.
  */
-int
+static int
 ed_ioctl(ifp, command, data)
 	register struct ifnet *ifp;
 	int     command;
@@ -2487,7 +2487,7 @@ ed_get_packet(sc, buf, len, multicast)
  *		are word sized.
  *	This routine is currently Novell-specific.
  */
-void
+static void
 ed_pio_readmem(sc, src, dst, amount)
 	struct ed_softc *sc;
 	unsigned short src;
@@ -2523,7 +2523,7 @@ ed_pio_readmem(sc, src, dst, amount)
  *	Only used in the probe routine to test the memory. 'len' must
  *	be even.
  */
-void
+static void
 ed_pio_writemem(sc, src, dst, len)
 	struct ed_softc *sc;
 	char   *src;
@@ -2568,7 +2568,7 @@ ed_pio_writemem(sc, src, dst, len)
  * Write an mbuf chain to the destination NIC memory address using
  *	programmed I/O.
  */
-u_short
+static u_short
 ed_pio_write_mbufs(sc, m, dst)
 	struct ed_softc *sc;
 	struct mbuf *m;
@@ -2713,7 +2713,7 @@ ed_ring_copy(sc, src, dst, amount)
 	return (src + amount);
 }
 
-void
+static void
 ed_setrcr(ifp, sc)
 	struct ifnet *ifp;
 	struct ed_softc *sc;
@@ -2813,7 +2813,7 @@ ds_crc(ep)
  * Compute the multicast address filter from the
  * list of multicast addresses we need to listen to.
  */
-void
+static void
 ds_getmcaf(sc, mcaf)
 	struct ed_softc *sc;
 	u_long *mcaf;
