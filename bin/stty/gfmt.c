@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)gfmt.c	8.6 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: gfmt.c,v 1.8 1998/05/18 06:48:13 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -67,10 +67,12 @@ gprint(tp, wp, ldisc)
 	struct cchar *cp;
 
 	(void)printf("gfmt1:cflag=%lx:iflag=%lx:lflag=%lx:oflag=%lx:",
-	    tp->c_cflag, tp->c_iflag, tp->c_lflag, tp->c_oflag);
+	    (u_long)tp->c_cflag, (u_long)tp->c_iflag, (u_long)tp->c_lflag,
+	    (u_long)tp->c_oflag);
 	for (cp = cchars1; cp->name; ++cp)
 		(void)printf("%s=%x:", cp->name, tp->c_cc[cp->sub]);
-	(void)printf("ispeed=%ld:ospeed=%ld\n", cfgetispeed(tp), cfgetospeed(tp));
+	(void)printf("ispeed=%lu:ospeed=%lu\n",
+	    (u_long)cfgetispeed(tp), (u_long)cfgetospeed(tp));
 }
 
 void
