@@ -79,7 +79,6 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");
 
-static void	addalias(struct vnode *vp, struct cdev *nvp_rdev);
 static void	delmntque(struct vnode *vp);
 static void	insmntque(struct vnode *vp, struct mount *mp);
 static void	vclean(struct vnode *vp, int flags, struct thread *td);
@@ -1752,39 +1751,6 @@ reassignbuf(struct buf *bp)
 	VI_UNLOCK(vp);
 }
 
-/*
- * Create a vnode for a device.
- * Used for mounting the root filesystem.
- */
-int
-bdevvp(dev, vpp)
-	struct cdev *dev;
-	struct vnode **vpp;
-{
-	register struct vnode *vp;
-	struct vnode *nvp;
-	int error;
-
-	if (dev == NULL) {
-		*vpp = NULLVP;
-		return (ENXIO);
-	}
-	if (vfinddev(dev, vpp))
-		return (0);
-
-	error = getnewvnode("none", (struct mount *)0, &devfs_specops, &nvp);
-	if (error) {
-		*vpp = NULLVP;
-		return (error);
-	}
-	vp = nvp;
-	vp->v_type = VCHR;
-	vp->v_bufobj.bo_bsize = DEV_BSIZE;
-	addalias(vp, dev);
-	*vpp = vp;
-	return (0);
-}
-
 static void
 v_incr_usecount(struct vnode *vp, int delta)
 {
@@ -1795,86 +1761,6 @@ v_incr_usecount(struct vnode *vp, int delta)
 		vp->v_rdev->si_usecount += delta;
 		dev_unlock();
 	}
-}
-
-/*
- * Add vnode to the alias list hung off the struct cdev *.
- *
- * The reason for this gunk is that multiple vnodes can reference
- * the same physical device, so checking vp->v_usecount to see
- * how many users there are is inadequate; the v_usecount for
- * the vnodes need to be accumulated.  vcount() does that.
- */
-struct vnode *
-addaliasu(nvp, nvp_rdev)
-	struct vnode *nvp;
-	dev_t nvp_rdev;
-{
-	struct vnode *ovp;
-	struct vop_vector *ops;
-	struct cdev *dev;
-
-	if (nvp->v_type == VBLK)
-		return (nvp);
-	if (nvp->v_type != VCHR)
-		panic("addaliasu on non-special vnode");
-	dev = findcdev(nvp_rdev);
-	if (dev == NULL)
-		return (nvp);
-	/*
-	 * Check to see if we have a bdevvp vnode with no associated
-	 * filesystem. If so, we want to associate the filesystem of
-	 * the new newly instigated vnode with the bdevvp vnode and
-	 * discard the newly created vnode rather than leaving the
-	 * bdevvp vnode lying around with no associated filesystem.
-	 */
-	if (vfinddev(dev, &ovp) == 0 || ovp->v_data != NULL) {
-		addalias(nvp, dev);
-		return (nvp);
-	}
-	/*
-	 * Discard unneeded vnode, but save its node specific data.
-	 * Note that if there is a lock, it is carried over in the
-	 * node specific data to the replacement vnode.
-	 */
-	vref(ovp);
-	ovp->v_data = nvp->v_data;
-	ovp->v_tag = nvp->v_tag;
-	nvp->v_data = NULL;
-	lockdestroy(ovp->v_vnlock);
-	lockinit(ovp->v_vnlock, PVFS, nvp->v_vnlock->lk_wmesg,
-	    nvp->v_vnlock->lk_timo, nvp->v_vnlock->lk_flags & LK_EXTFLG_MASK);
-	ops = ovp->v_op;
-	ovp->v_op = nvp->v_op;
-	if (VOP_ISLOCKED(nvp, curthread)) {
-		VOP_UNLOCK(nvp, 0, curthread);
-		vn_lock(ovp, LK_EXCLUSIVE | LK_RETRY, curthread);
-	}
-	nvp->v_op = ops;
-	delmntque(ovp);
-	insmntque(ovp, nvp->v_mount);
-	vrele(nvp);
-	vgone(nvp);
-	return (ovp);
-}
-
-/* This is a local helper function that do the same as addaliasu, but for a
- * struct cdev *instead of an dev_t. */
-static void
-addalias(nvp, dev)
-	struct vnode *nvp;
-	struct cdev *dev;
-{
-
-	KASSERT(nvp->v_type == VCHR, ("addalias on non-special vnode"));
-	VI_LOCK(nvp);
-	dev_lock();
-	dev->si_refcount++;
-	nvp->v_rdev = dev;
-	SLIST_INSERT_HEAD(&dev->si_hlist, nvp, v_specnext);
-	dev->si_usecount += nvp->v_usecount;
-	dev_unlock();
-	VI_UNLOCK(nvp);
 }
 
 /*

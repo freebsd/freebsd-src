@@ -101,11 +101,12 @@ SYSCTL_INT(_vfs_nfs, NFS_TPRINTF_DELAY,
         downdelayinterval, CTLFLAG_RW, &nfs_tprintf_delay, 0, "");
 
 static int	nfs_iosize(struct nfsmount *nmp);
-static void	nfs_decode_args(struct nfsmount *nmp, struct nfs_args *argp);
+static void	nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp);
 static int	mountnfs(struct nfs_args *, struct mount *,
 		    struct sockaddr *, char *, char *, struct vnode **,
 		    struct ucred *cred);
-static vfs_omount_t nfs_omount;
+static vfs_mount_t nfs_mount;
+static vfs_cmount_t nfs_cmount;
 static vfs_unmount_t nfs_unmount;
 static vfs_root_t nfs_root;
 static vfs_statfs_t nfs_statfs;
@@ -117,7 +118,8 @@ static vfs_sysctl_t nfs_sysctl;
  */
 static struct vfsops nfs_vfsops = {
 	.vfs_init =		nfs_init,
-	.vfs_omount =		nfs_omount,
+	.vfs_mount =		nfs_mount,
+	.vfs_cmount =		nfs_cmount,
 	.vfs_root =		nfs_root,
 	.vfs_statfs =		nfs_statfs,
 	.vfs_sync =		nfs_sync,
@@ -519,13 +521,17 @@ nfs_mountdiskless(char *path, char *which, int mountflag,
 }
 
 static void
-nfs_decode_args(struct nfsmount *nmp, struct nfs_args *argp)
+nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp)
 {
 	int s;
 	int adjsock;
 	int maxio;
 
 	s = splnet();
+	if (vfs_getopt(mp->mnt_optnew, "ro", NULL, NULL))
+		mp->mnt_flag &= ~MNT_RDONLY;
+	else
+		mp->mnt_flag |= MNT_RDONLY;
 	/*
 	 * Silently clear NFSMNT_NOCONN if it's a TCP mount, it makes
 	 * no sense in that context.
@@ -658,6 +664,8 @@ nfs_decode_args(struct nfsmount *nmp, struct nfs_args *argp)
 	}
 }
 
+static const char *nfs_opts[] = { "from", "nfs_args", NULL };
+
 /*
  * VFS Operations.
  *
@@ -669,7 +677,7 @@ nfs_decode_args(struct nfsmount *nmp, struct nfs_args *argp)
  */
 /* ARGSUSED */
 static int
-nfs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
+nfs_mount(struct mount *mp, struct thread *td)
 {
 	int error;
 	struct nfs_args args;
@@ -678,27 +686,21 @@ nfs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
 	char hst[MNAMELEN];
 	size_t len;
 	u_char nfh[NFSX_V3FHMAX];
+	char *path = "XXX: foo";
+
+
+	if (vfs_filteropt(mp->mnt_optnew, nfs_opts))
+		return (EINVAL);
 
 	if (mp->mnt_flag & MNT_ROOTFS)
 		return (nfs_mountroot(mp, td));
-	error = copyin(data, (caddr_t)&args, sizeof (struct nfs_args));
+
+	error = vfs_copyopt(mp->mnt_optnew, "nfs_args", &args, sizeof args);
 	if (error)
 		return (error);
+
 	if (args.version != NFS_ARGSVERSION) {
-#ifdef COMPAT_PRELITE2
-		/*
-		 * If the argument version is unknown, then assume the
-		 * caller is a pre-lite2 4.4BSD client and convert its
-		 * arguments.
-		 */
-		struct onfs_args oargs;
-		error = copyin(data, (caddr_t)&oargs, sizeof (struct onfs_args));
-		if (error)
-			return (error);
-		nfs_convert_oargs(&args,&oargs);
-#else /* !COMPAT_PRELITE2 */
 		return (EPROGMISMATCH);
-#endif /* COMPAT_PRELITE2 */
 	}
 	if (mp->mnt_flag & MNT_UPDATE) {
 		struct nfsmount *nmp = VFSTONFS(mp);
@@ -713,7 +715,7 @@ nfs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
 		    ~(NFSMNT_NFSV3 | NFSMNT_NOLOCKD /*|NFSMNT_XLATECOOKIE*/)) |
 		    (nmp->nm_flag &
 			(NFSMNT_NFSV3 | NFSMNT_NOLOCKD /*|NFSMNT_XLATECOOKIE*/));
-		nfs_decode_args(nmp, &args);
+		nfs_decode_args(mp, nmp, &args);
 		return (0);
 	}
 
@@ -743,6 +745,34 @@ nfs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
 		return (error);
 	args.fh = nfh;
 	error = mountnfs(&args, mp, nam, path, hst, &vp, td->td_ucred);
+	return (error);
+}
+
+
+/*
+ * VFS Operations.
+ *
+ * mount system call
+ * It seems a bit dumb to copyinstr() the host and path here and then
+ * bcopy() them in mountnfs(), but I wanted to detect errors before
+ * doing the sockargs() call because sockargs() allocates an mbuf and
+ * an error after that means that I have to release the mbuf.
+ */
+/* ARGSUSED */
+static int
+nfs_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
+{
+	int error;
+	struct nfs_args args;
+
+	error = copyin(data, &args, sizeof (struct nfs_args));
+	if (error)
+		return (error);
+
+	ma = mount_arg(ma, "nfs_args", &args, sizeof args);
+
+	error = kernel_mount(ma, flags);
+
 	return (error);
 }
 
@@ -815,7 +845,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	nmp->nm_soproto = argp->proto;
 	nmp->nm_rpcops = &nfs_rpcops;
 
-	nfs_decode_args(nmp, argp);
+	nfs_decode_args(mp, nmp, argp);
 
 	if (nmp->nm_sotype == SOCK_STREAM)
 		mtx_init(&nmp->nm_nfstcpstate.mtx, "NFS/TCP state lock", 

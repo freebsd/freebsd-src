@@ -216,8 +216,8 @@ vfs_register(struct vfsconf *vfc)
 	 * Check the mount and unmount operations.
 	 */
 	vfsops = vfc->vfc_vfsops;
-	KASSERT(vfsops->vfs_mount != NULL || vfsops->vfs_omount != NULL,
-	    ("Filesystem %s has no (o)mount op", vfc->vfc_name));
+	KASSERT(vfsops->vfs_mount != NULL,
+	    ("Filesystem %s has no mount op", vfc->vfc_name));
 	KASSERT(vfsops->vfs_unmount != NULL,
 	    ("Filesystem %s has no unmount op", vfc->vfc_name));
 

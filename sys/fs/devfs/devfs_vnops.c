@@ -194,7 +194,14 @@ loop:
 
 	if (de->de_dirent->d_type == DT_CHR) {
 		vp->v_type = VCHR;
-		vp = addaliasu(vp, dev->si_udev);
+		VI_LOCK(vp);
+		dev_lock();
+		dev->si_refcount++;
+		vp->v_rdev = dev;
+		SLIST_INSERT_HEAD(&dev->si_hlist, vp, v_specnext);
+		dev->si_usecount += vp->v_usecount;
+		dev_unlock();
+		VI_UNLOCK(vp);
 		vp->v_op = &devfs_specops;
 	} else if (de->de_dirent->d_type == DT_DIR) {
 		vp->v_type = VDIR;
