@@ -14,7 +14,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: pas.c,v 1.2 1994/09/11 20:28:50 phk Exp $
  *
  * This is a driver for the one particular kind of the "ProAudioSpectrum"
  * card from MediaVision.  To find out if your card is supported, you can
@@ -272,8 +272,10 @@ pasprobe(struct isa_device *dev)
     outb(0x9a01,0xbc + unit);
     outb(0x9a01,base >> 2);
 
+#ifdef PAS_DEBUG
     printf("%x: 0x803=%x 0xec03=%x 0xff88=%x\n",
 	base,inb(base^0x803),inb(base^0xec03),inb(base^0xfc00));
+#endif
 
     /* Killer one */
     i = inb(base ^ 0x803);
@@ -296,7 +298,7 @@ ok:
     outb(base^0x803,1);
     if(i != j) return 0;
 
-    return 1;
+    return 4;
 }
 
 static u_int32
