@@ -632,15 +632,6 @@ END(fuword64)
  * suswintr(void *addr)
  */
 
-ENTRY(fswintrberr, 0)
-{	.mfb
-	add		ret0=-1,r0
-	nop		0
-	br.ret.sptk	rp
-	;;
-}
-END(fswintrberr)
-
 ENTRY(fuswintr, 1)
 {	.mfb
 	add		ret0=-1,r0
