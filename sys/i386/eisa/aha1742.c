@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id$
+ *      $Id: aha1742.c,v 1.57 1997/02/22 09:31:54 peter Exp $
  */
 
 #include <sys/types.h>
@@ -32,6 +32,7 @@
 
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
+#include <scsi/scsi_debug.h>
 
 #include <machine/clock.h>
 
