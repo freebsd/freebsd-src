@@ -10,5 +10,6 @@
 <!ENTITY sect.proc.alpha SYSTEM "../alpha/proc-alpha.sgml">
 <!ENTITY sect.proc.i386 SYSTEM "../i386/proc-i386.sgml">
 <!ENTITY sect.proc.ia64 SYSTEM "../ia64/proc-ia64.sgml">
+<!ENTITY sect.proc.sparc64 SYSTEM "../sparc64/proc-sparc64.sgml">
 <!ENTITY sect.dev SYSTEM "../common/dev.sgml">
 
