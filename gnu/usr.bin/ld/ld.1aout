@@ -27,7 +27,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: ld.1,v 1.17 1997/05/29 15:34:34 dfr Exp $
+.\"	$Id: ld.1,v 1.18 1997/05/31 04:28:53 jdp Exp $
 .\"
 .Dd October 14, 1993
 .Dt LD 1
@@ -153,7 +153,7 @@ standard output, and exit.
 Add
 .Ar path
 to the list of directories to search for libraries specified with the
-.Ar -l
+.Fl l
 option.
 .It Fl l Ns Ar lib-spec
 This option specifies a library to be considered for inclusion in the
