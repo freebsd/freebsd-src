@@ -1438,10 +1438,14 @@ vget(vp, flags, p)
 	if ((flags & LK_INTERLOCK) == 0)
 		mtx_enter(&vp->v_interlock, MTX_DEF);
 	if (vp->v_flag & VXLOCK) {
-		vp->v_flag |= VXWANT;
-		mtx_exit(&vp->v_interlock, MTX_DEF);
-		tsleep((caddr_t)vp, PINOD, "vget", 0);
-		return (ENOENT);
+		if (vp->v_vxproc == curproc) {
+			printf("VXLOCK interlock avoided\n");
+		} else {
+			vp->v_flag |= VXWANT;
+			mtx_exit(&vp->v_interlock, MTX_DEF);
+			tsleep((caddr_t)vp, PINOD, "vget", 0);
+			return (ENOENT);
+		}
 	}
 
 	vp->v_usecount++;
@@ -1731,6 +1735,7 @@ vclean(vp, flags, p)
 	if (vp->v_flag & VXLOCK)
 		panic("vclean: deadlock");
 	vp->v_flag |= VXLOCK;
+	vp->v_vxproc = curproc;
 	/*
 	 * Even if the count is zero, the VOP_INACTIVE routine may still
 	 * have the object locked while it cleans it out. The VOP_LOCK
@@ -1807,6 +1812,7 @@ vclean(vp, flags, p)
 	vn_pollgone(vp);
 	vp->v_tag = VT_NON;
 	vp->v_flag &= ~VXLOCK;
+	vp->v_vxproc = NULL;
 	if (vp->v_flag & VXWANT) {
 		vp->v_flag &= ~VXWANT;
 		wakeup((caddr_t) vp);

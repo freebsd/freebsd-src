@@ -45,6 +45,7 @@
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/resourcevar.h>
+#include <sys/vmmeter.h>
 #include <sys/stat.h>
 
 #include <vm/vm.h>
@@ -110,6 +111,8 @@ ffs_update(vp, waitfor)
 	*((struct dinode *)bp->b_data +
 	    ino_to_fsbo(fs, ip->i_number)) = ip->i_din;
 	if (waitfor && !DOINGASYNC(vp)) {
+		return (bwrite(bp));
+	} else if (vm_page_count_severe() || buf_dirty_count_severe()) {
 		return (bwrite(bp));
 	} else {
 		if (bp->b_bufsize == fs->fs_bsize)

@@ -129,6 +129,7 @@ struct vnode {
 		short	vpi_events;		/* what they are looking for */
 		short	vpi_revents;		/* what has happened */
 	} v_pollinfo;
+	struct proc *v_vxproc;			/* proc owning VXLOCK */
 #ifdef	DEBUG_LOCKS
 	const char *filename;			/* Source file doing locking */
 	int line;				/* Line number doing locking */
