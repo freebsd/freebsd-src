@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibus.c,v 1.16 1995/10/09 21:56:24 se Exp $
+**  $Id: pcibus.c,v 1.8.4.3 1995/10/10 01:00:58 davidg Exp $
 **
 **  pci bus subroutines for i386 architecture.
 **
@@ -231,7 +231,6 @@ pcibus_setup (void)
 	};
 
 	outl (CONF1_ADDR_PORT, CONF1_ENABLE_CHK1);
-	outl (CONF1_DATA_PORT, 0);
 	mode1res = inl(CONF1_ADDR_PORT);
 	outl (CONF1_ADDR_PORT, oldval);
 
