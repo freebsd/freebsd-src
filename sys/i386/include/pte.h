@@ -82,14 +82,19 @@ unsigned int
 
 #define	PD_MASK		0xffc00000	/* page directory address bits */
 #define	PD_SHIFT	22		/* page directory address bits */
+#define PT_MASK		0x003ff000UL	/* page table address bits */
+#define PG_SHIFT	12		/* page table address shift */  
 
 #define	PG_V		0x00000001
+#define PG_RW		0x00000002
+#define PG_u		0x00000004
 #define	PG_PROT		0x00000006 /* all protection bits . */
 #define	PG_NC_PWT	0x00000008 /* page cache write through */
 #define	PG_NC_PCD	0x00000010 /* page cache disable */
 #define PG_N		0x00000018 /* Non-cacheable */
 #define PG_U		0x00000020 /* page was accessed */
 #define	PG_M		0x00000040 /* page was modified */
+#define PG_W		0x00000200
 #define	PG_FRAME	0xfffff000
 
 #define	PG_NOACC	0

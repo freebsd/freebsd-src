@@ -162,6 +162,7 @@ struct domain impdomain =
       impsw, &impsw[sizeof (impsw)/sizeof(impsw[0])] };
 #endif
 
+#if 0
 #include "hy.h"
 #if NHY > 0
 /*
@@ -180,4 +181,5 @@ struct protosw hysw[] = {
 
 struct domain hydomain =
     { AF_HYLINK, "hy", 0, 0, 0, hysw, &hysw[sizeof (hysw)/sizeof(hysw[0])] };
+#endif
 #endif

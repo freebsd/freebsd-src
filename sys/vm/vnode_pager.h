@@ -53,7 +53,4 @@ typedef struct vnpager	*vn_pager_t;
 
 #define VN_PAGER_NULL	((vn_pager_t)0)
 
-#define	VNP_PAGING	0x01		/* vnode used for pageout */
-#define VNP_CACHED	0x02		/* vnode is cached */
-
 #endif	/* _VNODE_PAGER_ */

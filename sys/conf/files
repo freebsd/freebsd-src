@@ -1,3 +1,19 @@
+ddb/db_access.c		optional ddb
+ddb/db_aout.c		optional ddb
+ddb/db_break.c		optional ddb
+ddb/db_command.c	optional ddb
+ddb/db_examine.c	optional ddb
+ddb/db_expr.c		optional ddb
+ddb/db_input.c		optional ddb
+ddb/db_lex.c		optional ddb
+ddb/db_output.c		optional ddb
+ddb/db_print.c		optional ddb
+ddb/db_run.c		optional ddb
+ddb/db_sym.c		optional ddb
+ddb/db_trap.c		optional ddb
+ddb/db_variables.c	optional ddb
+ddb/db_watch.c		optional ddb
+ddb/db_write_cmd.c	optional ddb
 isofs/cd9660/cd9660_bmap.c	optional cd9660
 isofs/cd9660/cd9660_lookup.c	optional cd9660
 isofs/cd9660/cd9660_node.c	optional cd9660
@@ -18,6 +34,8 @@ kdb/kdb_print.c		optional kadb
 kdb/kdb_runpcs.c	optional kadb
 kdb/kdb_sym.c		optional kadb
 kdb/kdb_trap.c		optional kadb
+kern/imgact_aout.c	standard
+kern/imgact_shell.c	standard
 kern/init_main.c	standard
 kern/init_sysent.c	standard
 kern/kern_acct.c	standard
@@ -41,6 +59,7 @@ kern/kern_xxx.c		standard
 kern/subr_log.c		standard
 kern/subr_prf.c		standard
 kern/subr_prof.c	standard
+kern/subr_rlist.c	standard
 kern/subr_rmap.c	standard
 kern/subr_xxx.c		standard
 kern/sys_generic.c	standard
@@ -218,6 +237,15 @@ nfs/nfs_subs.c		optional nfs
 nfs/nfs_syscalls.c	optional nfs
 nfs/nfs_vfsops.c	optional nfs
 nfs/nfs_vnops.c		optional nfs
+scsi/cd.c		optional cd
+scsi/ch.c		optional ch
+scsi/scsiconf.c		optional scbus
+scsi/scsi_base.c	optional scbus
+scsi/scsi_ioctl.c	optional scbus
+scsi/sd.c		optional sd
+scsi/st.c		optional st
+scsi/su.c		optional su
+scsi/uk.c		optional uk
 ufs/ffs/ffs_alloc.c	optional ffs
 ufs/ffs/ffs_alloc.c	optional mfs
 ufs/ffs/ffs_balloc.c	optional ffs
@@ -254,9 +282,9 @@ ufs/ufs/ufs_lookup.c	standard
 ufs/ufs/ufs_quota.c	standard
 ufs/ufs/ufs_vfsops.c	standard
 ufs/ufs/ufs_vnops.c	standard
-vm/device_pager.c	optional devpager
+vm/device_pager.c	standard
 vm/kern_lock.c		standard
-vm/swap_pager.c		optional swappager
+vm/swap_pager.c		standard
 vm/vm_fault.c		standard
 vm/vm_glue.c		standard
 vm/vm_init.c		standard
@@ -271,4 +299,4 @@ vm/vm_pager.c		standard
 vm/vm_swap.c		standard
 vm/vm_unix.c		standard
 vm/vm_user.c		standard
-vm/vnode_pager.c	optional vnodepager
+vm/vnode_pager.c	standard

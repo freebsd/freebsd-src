@@ -213,6 +213,7 @@ struct nfsreq nfsreqh;
  * Initialize sockets and congestion for a new NFS connection.
  * We do not free the sockaddr if error.
  */
+int
 nfs_connect(nmp, rep)
 	register struct nfsmount *nmp;
 	struct nfsreq *rep;
@@ -351,6 +352,7 @@ bad:
  * If this fails the mount point is DEAD!
  * nb: Must be called with the nfs_sndlock() set on the mount point.
  */
+int
 nfs_reconnect(rep)
 	register struct nfsreq *rep;
 {
@@ -408,6 +410,7 @@ nfs_disconnect(nmp)
  * - return EPIPE if a connection is lost for connection based sockets (TCP...)
  * - do any cleanup required by recoverable socket errors (???)
  */
+int
 nfs_send(so, nam, top, rep)
 	register struct socket *so;
 	struct mbuf *nam;
@@ -475,6 +478,7 @@ nfs_send(so, nam, top, rep)
  * For SOCK_STREAM we must be very careful to read an entire record once
  * we have read any of it, even if the system call has been interrupted.
  */
+int
 nfs_receive(rep, aname, mp)
 	register struct nfsreq *rep;
 	struct mbuf **aname;
@@ -681,6 +685,7 @@ errout:
  * with outstanding requests using the xid, until ours is found.
  */
 /* ARGSUSED */
+int
 nfs_reply(myrep)
 	struct nfsreq *myrep;
 {
@@ -847,6 +852,7 @@ nfsmout:
  *	  by mrep or error
  * nb: always frees up mreq mbuf list
  */
+int
 nfs_request(vp, mrest, procnum, procp, cred, mrp, mdp, dposp)
 	struct vnode *vp;
 	struct mbuf *mrest;
@@ -1122,6 +1128,7 @@ nfsmout:
  * Generate the rpc reply header
  * siz arg. is used to decide if adding a cluster is worthwhile
  */
+int
 nfs_rephead(siz, nd, err, cache, frev, mrq, mbp, bposp)
 	int siz;
 	struct nfsd *nd;
@@ -1341,6 +1348,7 @@ nfs_timer(arg)
  * Test for a termination condition pending on the process.
  * This is used for NFSMNT_INT mounts.
  */
+int
 nfs_sigintr(nmp, rep, p)
 	struct nfsmount *nmp;
 	struct nfsreq *rep;
@@ -1364,6 +1372,7 @@ nfs_sigintr(nmp, rep, p)
  * and also to avoid race conditions between the processes with nfs requests
  * in progress when a reconnect is necessary.
  */
+int
 nfs_sndlock(flagp, rep)
 	register int *flagp;
 	struct nfsreq *rep;
@@ -1409,6 +1418,7 @@ nfs_sndunlock(flagp)
 	}
 }
 
+int
 nfs_rcvlock(rep)
 	register struct nfsreq *rep;
 {
@@ -1659,6 +1669,7 @@ dorecs:
  * stream socket. The "waitflag" argument indicates whether or not it
  * can sleep.
  */
+int
 nfsrv_getstream(slp, waitflag)
 	register struct nfssvc_sock *slp;
 	int waitflag;
@@ -1666,7 +1677,7 @@ nfsrv_getstream(slp, waitflag)
 	register struct mbuf *m;
 	register char *cp1, *cp2;
 	register int len;
-	struct mbuf *om, *m2, *recm;
+	struct mbuf *om, *m2, *recm = 0;
 	u_long recmark;
 
 	if (slp->ns_flag & SLP_GETSTREAM)
@@ -1763,6 +1774,7 @@ nfsrv_getstream(slp, waitflag)
 /*
  * Parse an RPC header.
  */
+int
 nfsrv_dorec(slp, nd)
 	register struct nfssvc_sock *slp;
 	register struct nfsd *nd;
@@ -1798,6 +1810,7 @@ nfsrv_dorec(slp, nd)
  * - verify it
  * - fill in the cred struct.
  */
+int
 nfs_getreq(nd, has_header)
 	register struct nfsd *nd;
 	int has_header;
@@ -1975,6 +1988,7 @@ nfsrv_wakenfsd(slp)
 	nfsd_head.nd_flag |= NFSD_CHECKSLP;
 }
 
+int
 nfs_msg(p, server, msg)
 	struct proc *p;
 	char *server, *msg;
@@ -1987,4 +2001,5 @@ nfs_msg(p, server, msg)
 		tpr = NULL;
 	tprintf(tpr, "nfs server %s: %s\n", server, msg);
 	tprintf_close(tpr);
+	return (0);
 }

@@ -199,7 +199,7 @@ int	fd_debug = 1;
 
 static void fdstart(fdcu_t);
 void fdintr(fdcu_t);
-static void fd_turnoff(caddr_t, int);
+static void fd_turnoff(caddr_t);
 
 /****************************************************************************/
 /*                      autoconfiguration stuff                             */
@@ -347,7 +347,7 @@ fdattach(dev)
 			break;
 		}
 
-		fd_turnoff((caddr_t)fdu, 0);
+		fd_turnoff((caddr_t)fdu);
 		hdr = 1;
 	}
 	printf("\n");
@@ -417,7 +417,7 @@ void fdstrategy(struct buf *bp)
 	dp = &(fdc->head);
 	s = splbio();
 	disksort(dp, bp);
-	untimeout(fd_turnoff, (caddr_t)fdu); /* a good idea */
+	untimeout((timeout_func_t)fd_turnoff, (caddr_t)fdu); /* a good idea */
 	fdstart(fdcu);
 	splx(s);
 	return;
@@ -463,7 +463,7 @@ set_motor(fdcu, fdu, reset)
 }
 
 static void
-fd_turnoff(caddr_t arg1, int arg2)
+fd_turnoff(caddr_t arg1)
 {
 	fdu_t fdu = (fdu_t)arg1;
 	int	s;
@@ -476,7 +476,7 @@ fd_turnoff(caddr_t arg1, int arg2)
 }
 
 void
-fd_motor_on(caddr_t arg1, int arg2)
+fd_motor_on(caddr_t arg1)
 {
 	fdu_t fdu = (fdu_t)arg1;
 	int	s;
@@ -502,7 +502,7 @@ fd_turnon(fdu)
 	{
 		fd_turnon1(fdu);
 		fd->flags |= FD_MOTOR_WAIT;
-		timeout(fd_motor_on, (caddr_t)fdu, hz); /* in 1 sec its ok */
+		timeout((timeout_func_t)fd_motor_on, (caddr_t)fdu, hz); /* in 1 sec its ok */
 	}
 }
 
@@ -685,7 +685,7 @@ fdstart(fdcu)
 }
 
 static void
-fd_timeout(caddr_t arg1, int arg2)
+fd_timeout(caddr_t arg1)
 {
 	fdcu_t fdcu = (fdcu_t)arg1;
 	fdu_t fdu = fdc_data[fdcu].fdu;
@@ -809,8 +809,8 @@ fdstate(fdcu, fdc)
 	TRACE1("fd%d",fdu);
 	TRACE1("[%s]",fdstates[fdc->state]);
 	TRACE1("(0x%x)",fd->flags);
-	untimeout(fd_turnoff, (caddr_t)fdu);
-	timeout(fd_turnoff, (caddr_t)fdu, 4 * hz);
+	untimeout((timeout_func_t)fd_turnoff, (caddr_t)fdu);
+	timeout((timeout_func_t)fd_turnoff, (caddr_t)fdu, 4 * hz);
 	switch (fdc->state)
 	{
 	case DEVIDLE:
@@ -855,12 +855,12 @@ fdstate(fdcu, fdc)
 		out_fdc(fdcu,bp->b_cylin * fd->ft->steptrac);
 		fd->track = -2;
 		fdc->state = SEEKWAIT;
-		timeout(fd_timeout, (caddr_t)fdcu, 2 * hz);
+		timeout((timeout_func_t)fd_timeout, (caddr_t)fdcu, 2 * hz);
 		return(0);	/* will return later */
 	case SEEKWAIT:
-		untimeout(fd_timeout, (caddr_t)fdcu);
+		untimeout((timeout_func_t)fd_timeout, (caddr_t)fdcu);
 		/* allow heads to settle */
-		timeout(fd_pseudointr, (caddr_t)fdcu, hz / 50);
+		timeout((timeout_func_t)fd_pseudointr, (caddr_t)fdcu, hz / 50);
 		fdc->state = SEEKCOMPLETE;
 		return(0);	/* will return later */
 		break;
@@ -925,10 +925,10 @@ fdstate(fdcu, fdc)
 			out_fdc(fdcu,fd->ft->datalen);  /* data length */
 		}
 		fdc->state = IOCOMPLETE;
-		timeout(fd_timeout, (caddr_t)fdcu, 2 * hz);
+		timeout((timeout_func_t)fd_timeout, (caddr_t)fdcu, 2 * hz);
 		return(0);	/* will return later */
 	case IOCOMPLETE: /* IO DONE, post-analyze */
-		untimeout(fd_timeout, (caddr_t)fdcu);
+		untimeout((timeout_func_t)fd_timeout, (caddr_t)fdcu);
 		for(i=0;i<7;i++)
 		{
 			fdc->status[i] = in_fdc(fdcu);
@@ -964,7 +964,7 @@ fdstate(fdcu, fdc)
 			/* ALL DONE */
 			fd->skip = 0;
 			bp->b_resid = 0;
-			dp->b_actf = bp->av_forw;
+			dp->b_actf = bp->b_actf;
 			biodone(bp);
 			fdc->fd = (fd_p) 0;
 			fdc->fdu = -1;
@@ -991,7 +991,7 @@ fdstate(fdcu, fdc)
 		return(0);	/* will return later */
 	case RECALWAIT:
 		/* allow heads to settle */
-		timeout(fd_pseudointr, (caddr_t)fdcu, hz / 30);
+		timeout((timeout_func_t)fd_pseudointr, (caddr_t)fdcu, hz / 30);
 		fdc->state = RECALCOMPLETE;
 		return(0);	/* will return later */
 	case RECALCOMPLETE:
@@ -1079,7 +1079,7 @@ retrier(fdcu)
 		bp->b_flags |= B_ERROR;
 		bp->b_error = EIO;
 		bp->b_resid = bp->b_bcount - fdc->fd->skip;
-		dp->b_actf = bp->av_forw;
+		dp->b_actf = bp->b_actf;
 		fdc->fd->skip = 0;
 		biodone(bp);
 		fdc->state = FINDWORK;

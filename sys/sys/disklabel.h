@@ -164,6 +164,8 @@ struct disklabel {
 #define	p_sgs	__partition_u1.sgs
 	} d_partitions[MAXPARTITIONS];	/* actually may be more */
 };
+struct cpu_disklabel {
+};
 #else /* LOCORE */
 	/*
 	 * offsets for asm boot files.
@@ -187,6 +189,11 @@ struct disklabel {
 #define	DTYPE_HPIB		7		/* CS/80 on HP-IB */
 #define	DTYPE_HPFL		8		/* HP Fiber-link */
 #define	DTYPE_FLOPPY		10		/* floppy */
+
+/* d_subtype values: */
+#define DSTYPE_INDOSPART	0x8		/* is inside dos partition */
+#define DSTYPE_DOSPART(s)	((s) & 3)	/* dos partition number */
+#define DSTYPE_GEOMETRY		0x10		/* drive params in label */
 
 #ifdef DKTYPENAMES
 static char *dktypenames[] = {
@@ -299,6 +306,31 @@ struct partinfo {
 	struct disklabel *disklab;
 	struct partition *part;
 };
+
+/* DOS partition table -- located in boot block */
+
+#define DOSBBSECTOR	0	/* DOS boot block relative sector number */
+#define DOSPARTOFF	446
+#define NDOSPART	4
+
+struct dos_partition {
+	unsigned char	dp_flag;	/* bootstrap flags */
+	unsigned char	dp_shd;		/* starting head */
+	unsigned char	dp_ssect;	/* starting sector */
+	unsigned char	dp_scyl;	/* starting cylinder */
+	unsigned char	dp_typ;		/* partition type */
+#define		DOSPTYP_386BSD	0xa5	/* 386BSD partition type */
+	unsigned char	dp_ehd;		/* end head */
+	unsigned char	dp_esect;	/* end sector */
+	unsigned char	dp_ecyl;	/* end cylinder */
+	unsigned long	dp_start;	/* absolute starting sector number */
+	unsigned long	dp_size;	/* partition size in sectors */
+};
+
+extern struct dos_partition dos_partitions[NDOSPART];
+
+#define DPSECT(s) ((s) & 0x3f)		/* isolate relevant bits of sector */
+#define DPCYL(c, s) ((c) + (((s) & 0xc0)<<2)) /* and those that are cylinder */
 
 /*
  * Disk-specific ioctls.

@@ -292,9 +292,13 @@ kmem_malloc(map, size, canwait)
 	vm_map_lock(map);
 	if (vm_map_findspace(map, 0, size, &addr)) {
 		vm_map_unlock(map);
+#if 0
 		if (canwait)		/* XXX  should wait */
 			panic("kmem_malloc: %s too small",
 			    map == kmem_map ? "kmem_map" : "mb_map");
+#endif
+		if (canwait)
+			panic("kmem_malloc: map too small");
 		return (0);
 	}
 	offset = addr - vm_map_min(kmem_map);
@@ -404,7 +408,7 @@ vm_offset_t kmem_alloc_wait(map, size)
 		}
 		assert_wait((int)map, TRUE);
 		vm_map_unlock(map);
-		thread_block();
+		thread_block("kmaw");
 	}
 	vm_map_insert(map, NULL, (vm_offset_t)0, addr, addr + size);
 	vm_map_unlock(map);

@@ -44,6 +44,7 @@
 #include <sys/malloc.h>
 #include <sys/queue.h>
 
+int
 uiomove(cp, n, uio)
 	register caddr_t cp;
 	register int n;
@@ -101,6 +102,7 @@ uiomove(cp, n, uio)
 /*
  * Give next character to user as result of read.
  */
+int
 ureadc(c, uio)
 	register int c;
 	register struct uio *uio;
@@ -143,6 +145,7 @@ again:
 /*
  * Get next character written in by user from uio.
  */
+int
 uwritec(uio)
 	struct uio *uio;
 {

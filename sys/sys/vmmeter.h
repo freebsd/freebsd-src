@@ -74,6 +74,8 @@ struct vmmeter {
 	 */
 	unsigned v_page_size;	/* page size in bytes */
 	unsigned v_kernel_pages;/* number of pages in use by kernel */
+	unsigned v_page_count;	/* total number of pages in system */
+	unsigned v_free_reserved; /* number of pages reserved for deadlock */
 	unsigned v_free_target;	/* number of pages desired free */
 	unsigned v_free_min;	/* minimum number of pages desired free */
 	unsigned v_free_count;	/* number of pages free */

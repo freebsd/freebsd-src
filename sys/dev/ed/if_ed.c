@@ -63,7 +63,7 @@
 
 /* For backwards compatibility */
 #ifndef IFF_ALTPHYS
-#define IFF_ALTPHYS IFF_LLC0
+#define IFF_ALTPHYS IFF_LINK0
 #endif
  
 /*
@@ -113,7 +113,7 @@ void	edintr(int);
 int	ed_ioctl(struct ifnet *, int, caddr_t);
 int	ed_probe(struct isa_device *);
 void	ed_start(struct ifnet *);
-void	ed_reset(int, int);
+void	ed_reset(int);
 void	ed_watchdog(int);
 
 static void ed_get_packet(struct ed_softc *, char *, int /*u_short*/);
@@ -1090,9 +1090,8 @@ ed_attach(isa_dev)
  * Reset interface.
  */
 void
-ed_reset(unit, uban)
+ed_reset(unit)
 	int unit;
-	int uban;		/* XXX */
 {
 	int s;
 
@@ -1147,7 +1146,7 @@ ed_watchdog(unit)
 	log(LOG_ERR, "ed%d: device timeout\n", unit);
 	++sc->arpcom.ac_if.if_oerrors;
 
-	ed_reset(unit, 0);
+	ed_reset(unit);
 }
 
 /*
@@ -1501,7 +1500,7 @@ outloop:
 		len = ed_pio_write_mbufs(sc, m, buffer);
 	}
 		
-	sc->txb_len[sc->txb_new] = MAX(len, ETHER_MIN_LEN);
+	sc->txb_len[sc->txb_new] = max(len, ETHER_MIN_LEN);
 
 	sc->txb_inuse++;
 
@@ -1652,7 +1651,7 @@ ed_rint(unit)
 			    "ed%d: NIC memory corrupt - invalid packet length %d\n",
 			    unit, len);
 			++sc->arpcom.ac_if.if_ierrors;
-			ed_reset(unit, 0);
+			ed_reset(unit);
 			return;
 		}
 
@@ -1817,7 +1816,7 @@ edintr(unit)
 				/*
 				 * Stop/reset/re-init NIC
 				 */
-				ed_reset(unit, 0);
+				ed_reset(unit);
 			} else {
 
 			    /*
@@ -2388,7 +2387,7 @@ ed_pio_write_mbufs(sc,m,dst)
 	if (!maxwait) {
 		log(LOG_WARNING, "ed%d: remote transmit DMA failed to complete\n",
 		    sc->arpcom.ac_if.if_unit);
-		ed_reset(sc->arpcom.ac_if.if_unit, 0);
+		ed_reset(sc->arpcom.ac_if.if_unit);
 	}
 
 	return(len);

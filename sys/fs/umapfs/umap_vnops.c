@@ -67,7 +67,7 @@ umap_bypass(ap)
 {
 	extern int (**umap_vnodeop_p)();  /* not extern, really "forward" */
 	struct ucred **credpp = 0, *credp = 0;
-	struct ucred *savecredp, *savecompcredp = 0;
+	struct ucred *savecredp = 0, *savecompcredp = 0;
 	struct ucred *compcredp = 0;
 	struct vnode **this_vp_p;
 	int error;

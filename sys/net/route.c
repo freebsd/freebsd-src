@@ -175,7 +175,7 @@ ifafree(ifa)
  * N.B.: must be called at splnet
  *
  */
-int
+void
 rtredirect(dst, gateway, netmask, flags, src, rtp)
 	struct sockaddr *dst, *gateway, *netmask, *src;
 	int flags;

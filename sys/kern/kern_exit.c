@@ -84,6 +84,7 @@ exit(p, uap, retval)
 
 	exit1(p, W_EXITCODE(uap->rval, 0));
 	/* NOTREACHED */
+	while (1);
 }
 
 /*
@@ -293,6 +294,7 @@ struct wait_args {
 #define GETPS(rp)	(rp)[PS]
 #endif
 
+int
 owait(p, uap, retval)
 	struct proc *p;
 	register struct wait_args *uap;
@@ -317,6 +319,7 @@ owait(p, uap, retval)
 	return (wait1(p, uap, retval));
 }
 
+int
 wait4(p, uap, retval)
 	struct proc *p;
 	struct wait_args *uap;

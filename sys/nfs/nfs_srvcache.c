@@ -135,6 +135,7 @@ static int repliesstatus[NFS_NPROCS] = {
 /*
  * Initialize the server request cache list
  */
+void
 nfsrv_initcache()
 {
 
@@ -155,6 +156,7 @@ nfsrv_initcache()
  *   return DOIT
  * Update/add new request at end of lru list
  */
+int
 nfsrv_getcache(nam, nd, repp)
 	struct mbuf *nam;
 	register struct nfsd *nd;

@@ -107,6 +107,8 @@ struct vm_page {
 
 	u_short			wire_count;	/* wired down maps refs (P) */
 	u_short			flags;		/* see below */
+	short			hold_count;	/* page hold count */
+	u_short			act_count;	/* page usage count */
 
 	vm_offset_t		phys_addr;	/* physical address of page */
 };
@@ -209,7 +211,7 @@ simple_lock_data_t	vm_page_queue_free_lock;
 				(m)->flags &= ~PG_BUSY; \
 				if ((m)->flags & PG_WANTED) { \
 					(m)->flags &= ~PG_WANTED; \
-					thread_wakeup((int) (m)); \
+					wakeup((caddr_t) (m)); \
 				} \
 			}
 
@@ -222,6 +224,8 @@ simple_lock_data_t	vm_page_queue_free_lock;
 	(mem)->flags = PG_BUSY | PG_CLEAN | PG_FAKE; \
 	vm_page_insert((mem), (object), (offset)); \
 	(mem)->wire_count = 0; \
+	(mem)->hold_count = 0; \
+	(mem)->act_count = 0; \
 }
 
 void		 vm_page_activate __P((vm_page_t));
@@ -233,10 +237,32 @@ void		 vm_page_insert __P((vm_page_t, vm_object_t, vm_offset_t));
 vm_page_t	 vm_page_lookup __P((vm_object_t, vm_offset_t));
 void		 vm_page_remove __P((vm_page_t));
 void		 vm_page_rename __P((vm_page_t, vm_object_t, vm_offset_t));
-void		 vm_page_startup __P((vm_offset_t *, vm_offset_t *));
+vm_offset_t	 vm_page_startup __P((vm_offset_t, vm_offset_t, vm_offset_t));
 void		 vm_page_unwire __P((vm_page_t));
 void		 vm_page_wire __P((vm_page_t));
 boolean_t	 vm_page_zero_fill __P((vm_page_t));
+
+
+/*
+ * Keep page from being freed by the page daemon
+ * much of the same effect as wiring, except much lower
+ * overhead and should be used only for *very* temporary
+ * holding ("wiring").
+ */
+static inline void
+vm_page_hold(mem)
+	vm_page_t mem;
+{
+	mem->hold_count++;
+}
+
+static inline void
+vm_page_unhold(mem)
+	vm_page_t mem;
+{
+	if( --mem->hold_count < 0)
+		panic("vm_page_unhold: hold count < 0!!!");
+}
 
 #endif /* KERNEL */
 #endif /* !_VM_PAGE_ */

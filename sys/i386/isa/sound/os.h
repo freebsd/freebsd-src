@@ -186,7 +186,7 @@ struct snd_wait {
  * 1 or 0 could be returned (1 should be better than 0).
  * I'm not sure if the following is correct for FreeBSD.
  */
-#define PROCESS_ABORTING(q, f) (f.aborting | curproc->p_sig)
+#define PROCESS_ABORTING(q, f) (f.aborting | curproc->p_siglist)
 
 /*
  * The following macro calls sleep. It should be implemented such that

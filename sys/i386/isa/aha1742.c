@@ -274,7 +274,7 @@ int     ahb_attach();
 int	ahb_init __P((int unit));
 int     ahbintr();
 int32   ahb_scsi_cmd();
-void    ahb_timeout(caddr_t, int);
+void    ahb_timeout(caddr_t);
 void	ahb_done();
 struct	ecb *cheat;
 void	ahb_free_ecb();
@@ -993,7 +993,7 @@ ahb_scsi_cmd(xs)
 		if (!(flags & SCSI_NOMASK)) {
 			s = splbio();
 			ahb_send_immed(unit, xs->sc_link->target, AHB_TARG_RESET);
-			timeout(ahb_timeout, (caddr_t)ecb, (xs->timeout * hz) / 1000);
+			timeout((timeout_t)ahb_timeout, (caddr_t)ecb, (xs->timeout * hz) / 1000);
 			splx(s);
 			return (SUCCESSFULLY_QUEUED);
 		} else {
@@ -1122,7 +1122,7 @@ ahb_scsi_cmd(xs)
 	if (!(flags & SCSI_NOMASK)) {
 		s = splbio();
 		ahb_send_mbox(unit, OP_START_ECB, xs->sc_link->target, ecb);
-		timeout(ahb_timeout, (caddr_t)ecb, (xs->timeout * hz) / 1000);
+		timeout((timeout_t)ahb_timeout, (caddr_t)ecb, (xs->timeout * hz) / 1000);
 		splx(s);
 		SC_DEBUG(xs->sc_link, SDEV_DB3, ("cmd_sent\n"));
 		return (SUCCESSFULLY_QUEUED);
@@ -1152,7 +1152,7 @@ ahb_scsi_cmd(xs)
 }
 
 void
-ahb_timeout(caddr_t arg1, int arg2)
+ahb_timeout(caddr_t arg1)
 {
 	struct ecb * ecb = (struct ecb *)arg1;
 	int     unit;
@@ -1199,7 +1199,7 @@ ahb_timeout(caddr_t arg1, int arg2)
 		printf("\n");
 		ahb_send_mbox(unit, OP_ABORT_ECB, ecb->xs->sc_link->target, ecb);
 		/* 2 secs for the abort */
-		timeout(ahb_timeout, (caddr_t)ecb, 2 * hz);
+		timeout((timeout_t)ahb_timeout, (caddr_t)ecb, 2 * hz);
 		ecb->flags = ECB_ABORTED;
 	}
 	splx(s);

@@ -122,6 +122,10 @@ panic(fmt, va_alist)
 	if (boothowto & RB_KDB)
 		kdbpanic();
 #endif
+#include "ddb.h"
+#if NDDB > 0
+	Debugger ("panic");
+#endif
 	boot(bootopt);
 }
 
@@ -508,8 +512,10 @@ putchar(c, flags, tp)
  * Scaled down version of sprintf(3).
  */
 #ifdef __STDC__
+int
 sprintf(char *buf, const char *cfmt, ...)
 #else
+int
 sprintf(buf, cfmt, va_alist)
 	char *buf, *cfmt;
 #endif

@@ -45,6 +45,7 @@
  */
 #include "machine/frame.h"
 #include "machine/segments.h"
+#include <machine/spl.h>
 
 /*
  * definitions of cpu-dependent requirements
@@ -53,20 +54,16 @@
 #undef	COPY_SIGCODE		/* don't copy sigcode above user stack in exec */
 
 #define	cpu_exec(p)	/* nothing */
+#define cpu_swapin(p)	/* nothing */
+#define cpu_setstack(p, ap)		(p)->p_md.md_regs = ap
+#define cpu_set_init_frame(p, fp)	(p)->p_md.md_regs = fp
 
-/*
- * Arguments to hardclock, softclock and gatherstats
- * encapsulate the previous machine state in an opaque
- * clockframe; for now, use generic intrframe.
- * XXX softclock() has been fixed.  It never needed a
- * whole frame, only a usermode flag, at least on this
- * machine.  Fix the rest.
- */
-typedef struct intrframe clockframe;
+#define	CLKF_USERMODE(framep)	(ISPL((framep)->cf_cs) == SEL_UPL)
+#define CLKF_INTR(framep)	(0)
+#define	CLKF_BASEPRI(framep)	(((framep)->cf_ppl & ~SWI_AST_MASK) == 0)
+#define	CLKF_PC(framep)		((framep)->cf_eip)
 
-#define	CLKF_USERMODE(framep)	(ISPL((framep)->if_cs) == SEL_UPL)
-#define	CLKF_BASEPRI(framep)	(((framep)->if_ppl & ~SWI_AST_MASK) == 0)
-#define	CLKF_PC(framep)		((framep)->if_eip)
+#define resettodr()	/* no todr to set */
 
 /*
  * Preempt the current process if in interrupt from user mode,
@@ -79,7 +76,7 @@ typedef struct intrframe clockframe;
  * interrupt.  On tahoe, request an ast to send us through trap(),
  * marking the proc as needing a profiling tick.
  */
-#define	profile_tick(p, framep)	{ (p)->p_flag |= SOWEUPC; aston(); }
+#define	need_proftick(p)	{ (p)->p_flag |= P_OWEUPC; aston(); }
 
 /*
  * Notify the current process (p) that it has a signal pending,
@@ -99,6 +96,17 @@ struct cpu_nameclass {
 	char *cpu_name;
 	int  cpu_class;
 };
+
+/*
+ * CTL_MACHDEP definitions.
+ */
+#define CPU_CONSDEV		1	/* dev_t: console terminal device */
+#define CPU_MAXID		2	/* number of valid machdep ids */
+
+#define CTL_MACHDEP_NAMES { \
+	{ 0, 0 }, \
+	{ "console_device", CTLTYPE_STRUCT }, \
+}
 
 #ifdef KERNEL
 extern int want_resched;	/* resched was called */

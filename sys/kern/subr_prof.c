@@ -146,6 +146,7 @@ struct profil_args {
 	u_int	scale;
 };
 /* ARGSUSED */
+int
 profil(p, uap, retval)
 	struct proc *p;
 	register struct profil_args *uap;

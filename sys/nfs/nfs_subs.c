@@ -262,6 +262,7 @@ nfsm_rpchead(cr, nqnfs, procid, auth_type, auth_len, auth_str, mrest,
 /*
  * copies mbuf chain to the uio scatter/gather list
  */
+int
 nfsm_mbuftouio(mrep, uiop, siz, dpos)
 	struct mbuf **mrep;
 	register struct uio *uiop;
@@ -336,6 +337,7 @@ nfsm_mbuftouio(mrep, uiop, siz, dpos)
 /*
  * copies a uio scatter/gather list to an mbuf chain...
  */
+int
 nfsm_uiotombuf(uiop, mq, siz, bpos)
 	register struct uio *uiop;
 	struct mbuf **mq;
@@ -423,6 +425,7 @@ nfsm_uiotombuf(uiop, mq, siz, bpos)
  * This is used by the macros nfsm_dissect and nfsm_dissecton for tough
  * cases. (The macros use the vars. dpos and dpos2)
  */
+int
 nfsm_disct(mdp, dposp, siz, left, cp2)
 	struct mbuf **mdp;
 	caddr_t *dposp;
@@ -485,6 +488,7 @@ nfsm_disct(mdp, dposp, siz, left, cp2)
 /*
  * Advance the position in the mbuf chain.
  */
+int
 nfs_adv(mdp, dposp, offs, left)
 	struct mbuf **mdp;
 	caddr_t *dposp;
@@ -511,13 +515,14 @@ nfs_adv(mdp, dposp, offs, left)
 /*
  * Copy a string into mbufs for the hard cases...
  */
+int
 nfsm_strtmbuf(mb, bpos, cp, siz)
 	struct mbuf **mb;
 	char **bpos;
 	char *cp;
 	long siz;
 {
-	register struct mbuf *m1, *m2;
+	register struct mbuf *m1 = 0, *m2;
 	long left, xfer, len, tlen;
 	u_long *tl;
 	int putsize;
@@ -576,6 +581,7 @@ nfsm_strtmbuf(mb, bpos, cp, siz)
 /*
  * Called once to initialize data structures...
  */
+int
 nfs_init()
 {
 	register int i;
@@ -626,6 +632,8 @@ nfs_init()
 	 */
 	nfsreqh.r_prev = nfsreqh.r_next = &nfsreqh;
 	nfs_timer();
+
+	return (0);
 }
 
 /*
@@ -642,6 +650,7 @@ nfs_init()
  * Iff vap not NULL
  *    copy the attributes to *vaper
  */
+int
 nfs_loadattrcache(vpp, mdp, dposp, vaper)
 	struct vnode **vpp;
 	struct mbuf **mdp;
@@ -806,6 +815,7 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
  * If the cache is valid, copy contents to *vap and return 0
  * otherwise return an error
  */
+int
 nfs_getattrcache(vp, vaper)
 	register struct vnode *vp;
 	struct vattr *vaper;
@@ -862,6 +872,7 @@ nfs_getattrcache(vp, vaper)
 /*
  * Set up nameidata for a lookup() call and do it
  */
+int
 nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, p)
 	register struct nameidata *ndp;
 	fhandle_t *fhp;
@@ -1035,6 +1046,7 @@ nfsm_adj(mp, len, nul)
  *	- if cred->cr_uid == 0 or MNT_EXPORTANON set it to credanon
  *	- if not lockflag unlock it with VOP_UNLOCK()
  */
+int
 nfsrv_fhtovp(fhp, lockflag, vpp, cred, slp, nam, rdonlyp)
 	fhandle_t *fhp;
 	int lockflag;
@@ -1094,6 +1106,7 @@ nfsrv_fhtovp(fhp, lockflag, vpp, cred, slp, nam, rdonlyp)
  * The AF_INET family is handled as a special case so that address mbufs
  * don't need to be saved to store "struct in_addr", which is only 4 bytes.
  */
+int
 netaddr_match(family, haddr, nam)
 	int family;
 	union nethostaddr *haddr;

@@ -81,7 +81,7 @@ struct	filedesc0 filedesc0;
 struct	plimit limit0;
 struct	vmspace vmspace0;
 struct	proc *curproc = &proc0;
-struct	proc *initproc, *pageproc;
+struct	proc *initproc, *pageproc, *pagescanproc, *updateproc;
 
 int	cmask = CMASK;
 extern	struct user *proc0paddr;
@@ -93,12 +93,26 @@ struct	timeval runtime;
 
 static void start_init __P((struct proc *p, void *framep));
 
+#if __GNUC__ >= 2
+void __main() {}
+#endif
+
+/*
+ * This table is filled in by the linker with functions that need to be
+ * called to initialize various pseudo-devices and whatnot.
+ */
+typedef void (*pseudo_func_t)(void);
+extern const struct linker_set pseudo_set;
+static const pseudo_func_t *pseudos =
+	(const pseudo_func_t *)&pseudo_set.ls_items[0];
+
 /*
  * System startup; initialize the world, create process 0, mount root
  * filesystem, and fork to create init and pagedaemon.  Most of the
  * hard work is done in the lower-level initialization routines including
  * startup(), which does memory initialization and autoconfiguration.
  */
+void
 main(framep)
 	void *framep;
 {
@@ -178,7 +192,7 @@ main(framep)
 	p->p_vmspace = &vmspace0;
 	vmspace0.vm_refcnt = 1;
 	pmap_pinit(&vmspace0.vm_pmap);
-	vm_map_init(&p->p_vmspace->vm_map, round_page(VM_MIN_ADDRESS),
+	vm_map_init(&vmspace0.vm_map, round_page(VM_MIN_ADDRESS),
 	    trunc_page(VM_MAX_ADDRESS), TRUE);
 	vmspace0.vm_map.pmap = &vmspace0.vm_pmap;
 	p->p_addr = proc0paddr;				/* XXX */
@@ -214,14 +228,12 @@ main(framep)
 	/* Initialize clists. */
 	clist_init();
 
-#ifdef SYSVSHM
-	/* Initialize System V style shared memory. */
-	shminit();
-#endif
-
-	/* Attach pseudo-devices. */
-	for (pdev = pdevinit; pdev->pdev_attach != NULL; pdev++)
-		(*pdev->pdev_attach)(pdev->pdev_count);
+	/*
+	 * Attach pseudo-devices.
+	 */
+	while(*pseudos) {
+		(**pseudos++)();
+	}
 
 	/*
 	 * Initialize protocols.  Block reception of incoming packets
@@ -287,6 +299,37 @@ main(framep)
 		vm_pageout();
 		/* NOTREACHED */
 	}
+#if 1
+	/*
+	 * Start page scanner daemon (process 3).
+	 */
+	if (fork(p, (void *) NULL, rval))
+		panic("failed fork page scanner daemon");
+	if (rval[1]) {
+		p = curproc;
+		pagescanproc = p;
+		p->p_flag |= P_INMEM | P_SYSTEM;
+		bcopy("pagescan", p->p_comm, sizeof("pagescan"));
+		vm_pagescan();
+		/*NOTREACHED*/
+	}
+#endif
+
+	/*
+	 * Start update daemon (process 4).
+	 */
+#ifndef LAPTOP
+	if (fork(p, (void *) NULL, rval))
+		panic("failed fork update daemon");
+	if (rval[1]) {
+		p = curproc;
+		updateproc = p;
+		p->p_flag |= P_INMEM | P_SYSTEM;
+		bcopy("update", p->p_comm, sizeof("update"));
+		vfs_update();
+		/*NOTREACHED*/
+	}
+#endif
 
 	/* The scheduler is an infinite loop. */
 	scheduler();
@@ -331,10 +374,11 @@ start_init(p, framep)
 	/*
 	 * Need just enough stack to hold the faked-up "execve()" arguments.
 	 */
-	addr = trunc_page(VM_MAX_ADDRESS - PAGE_SIZE);
+	addr = trunc_page(VM_MAXUSER_ADDRESS - PAGE_SIZE);
 	if (vm_allocate(&p->p_vmspace->vm_map, &addr, PAGE_SIZE, FALSE) != 0)
 		panic("init: couldn't allocate argument space");
 	p->p_vmspace->vm_maxsaddr = (caddr_t)addr;
+	p->p_vmspace->vm_ssize = 1;
 
 	for (pathp = &initpaths[0]; (path = *pathp) != NULL; pathp++) {
 		/*
@@ -377,8 +421,8 @@ start_init(p, framep)
 		 * Point at the arguments.
 		 */
 		args.fname = arg0;
-		args.argp = uap;
-		args.envp = NULL;
+		args.argv = uap;
+		args.envv = NULL;
 
 		/*
 		 * Now try to exec the program.  If can't for any reason

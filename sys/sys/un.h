@@ -42,10 +42,7 @@ struct	sockaddr_un {
 	char	sun_path[104];		/* path name (gag) */
 };
 
-#ifdef KERNEL
-int	unp_discard();
-#else
-
+#ifndef KERNEL
 /* actual length of an initialized sockaddr_un */
 #define SUN_LEN(su) \
 	(sizeof(*(su)) - sizeof((su)->sun_path) + strlen((su)->sun_path))

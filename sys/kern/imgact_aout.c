@@ -31,15 +31,15 @@
  *	$Id: imgact_aout.c,v 1.3 1993/12/30 01:39:29 davidg Exp $
  */
 
-#include "param.h"
-#include "systm.h"
-#include "resourcevar.h"
-#include "exec.h"
-#include "mman.h"
-#include "imgact.h"
-#include "kernel.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/resourcevar.h>
+#include <sys/exec.h>
+#include <sys/mman.h>
+#include <sys/imgact.h>
+#include <sys/kernel.h>
 
-#include "vm/vm.h"
+#include <vm/vm.h>
 
 int
 exec_aout_imgact(iparams)
@@ -135,8 +135,8 @@ exec_aout_imgact(iparams)
 		a_out->a_text,				/* size */
 		VM_PROT_READ | VM_PROT_EXECUTE,		/* protection */
 		VM_PROT_READ | VM_PROT_EXECUTE | VM_PROT_WRITE,	/* max protection */
-		MAP_FILE | MAP_PRIVATE | MAP_FIXED,	/* flags */
-		iparams->vnodep,			/* vnode */
+		MAP_PRIVATE | MAP_FIXED,		/* flags */
+		(caddr_t)iparams->vnodep,		/* vnode */
 		file_offset);				/* offset */
 	if (error)
 		return (error);
@@ -151,7 +151,8 @@ exec_aout_imgact(iparams)
 		&vmaddr,
 		a_out->a_data,
 		VM_PROT_READ | VM_PROT_WRITE | (a_out->a_text ? 0 : VM_PROT_EXECUTE),
-		VM_PROT_ALL, MAP_FILE | MAP_PRIVATE | MAP_FIXED, iparams->vnodep,
+		VM_PROT_ALL, MAP_PRIVATE | MAP_FIXED,
+		(caddr_t) iparams->vnodep,
 		file_offset + a_out->a_text);
 	if (error)
 		return (error);

@@ -1,41 +1,20 @@
-/*-
- * Copyright (c) 1982, 1986, 1990, 1993
- *	The Regents of the University of California.  All rights reserved.
- * (c) UNIX System Laboratories, Inc.
- * All or some portions of this file are derived from material licensed
- * to the University of California by American Telephone and Telegraph
- * Co. or Unix System Laboratories, Inc. and are reproduced herein with
- * the permission of UNIX System Laboratories, Inc.
+/*
+ * Copyright (c) 1994 John S. Dyson
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    notice immediately at the beginning of the file, without modification,
+ *    this list of conditions, and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- *	from: @(#)kern_physio.c	8.1 (Berkeley) 6/10/93
+ * 3. Absolutely no warranty of function or purpose is made by the author
+ *    John S. Dyson.
+ * 4. Modifications may be freely made to this file if the above conditions
+ *    are met.
  */
 
 #include <sys/param.h>
@@ -43,51 +22,150 @@
 #include <sys/buf.h>
 #include <sys/conf.h>
 #include <sys/proc.h>
+#include <vm/vm.h>
 
-physio(a1, a2, a3, a4, a5, a6)
-	int (*a1)(); 
-	struct buf *a2;
-	dev_t a3;
-	int a4;
-	u_int (*a5)();
-	struct uio *a6;
+static void physwakeup();
+
+int
+physio(strategy, bp, dev, rw, minp, uio)
+	int (*strategy)(); 
+	struct buf *bp;
+	dev_t dev;
+	int rw;
+	u_int (*minp)();
+	struct uio *uio;
 {
+	int i;
+	int bp_alloc = (bp == 0);
+	int bufflags = rw?B_READ:0;
+	int error;
+	int spl;
 
-	/*
-	 * Body deleted.
-	 */
-	return (EIO);
+/*
+ * keep the process from being swapped
+ */
+	curproc->p_flag |= P_PHYSIO;
+
+	/* create and build a buffer header for a transfer */
+
+	if (bp_alloc) {
+		bp = (struct buf *)getpbuf();
+	} else {
+		spl = splbio();
+		while (bp->b_flags & B_BUSY) {
+			bp->b_flags |= B_WANTED;
+			tsleep((caddr_t)bp, PRIBIO, "physbw", 0);
+		}
+		bp->b_flags |= B_BUSY;
+		splx(spl);
+	}
+
+	bp->b_proc = curproc;
+	bp->b_dev = dev;
+	error = bp->b_error = 0;
+
+	for(i=0;i<uio->uio_iovcnt;i++) {
+		while( uio->uio_iov[i].iov_len) {
+			vm_offset_t v, lastv, pa;
+			caddr_t adr;
+
+			bp->b_bcount = uio->uio_iov[i].iov_len;
+			bp->b_bufsize = bp->b_bcount;
+			bp->b_flags = B_BUSY | B_PHYS | B_CALL | bufflags;
+			bp->b_iodone = physwakeup;
+			bp->b_data = uio->uio_iov[i].iov_base;
+			bp->b_blkno = btodb(uio->uio_offset);
+
+			
+			if (rw && !useracc(bp->b_data, bp->b_bufsize, B_WRITE)) {
+				error = EFAULT;
+				goto doerror;
+			}
+			if (!rw && !useracc(bp->b_data, bp->b_bufsize, B_READ)) {
+				error = EFAULT;
+				goto doerror;
+			}
+
+			vmapbuf(bp);
+
+			/* perform transfer */
+			(*strategy)(bp);
+
+			spl = splbio();
+			while ((bp->b_flags & B_DONE) == 0)
+				tsleep((caddr_t)bp, PRIBIO, "physstr", 0);
+			splx(spl);
+
+			vunmapbuf(bp);
+
+			/*
+			 * update the uio data
+			 */
+			{ 
+				int iolen = bp->b_bcount - bp->b_resid;
+				uio->uio_iov[i].iov_len -= iolen;
+				uio->uio_iov[i].iov_base += iolen;
+				uio->uio_resid -= iolen;
+				uio->uio_offset += iolen;
+			}
+
+			/*
+			 * check for an error
+			 */
+			if( bp->b_flags & B_ERROR) {
+				error = bp->b_error;
+				goto doerror;
+			}
+		}
+	}
+
+
+doerror:
+	if (bp_alloc) {
+		relpbuf(bp);
+	} else {
+		bp->b_flags &= ~(B_BUSY|B_PHYS);
+		if( bp->b_flags & B_WANTED) {
+			bp->b_flags &= ~B_WANTED;
+			wakeup((caddr_t)bp);
+		}
+	}
+/*
+ * allow the process to be swapped
+ */
+	curproc->p_flag &= ~P_PHYSIO;
+
+	return (error);
 }
 
 u_int
-minphys(a1)
-	struct buf *a1;
+minphys(struct buf *bp)
 {
 
-	/*
-	 * Body deleted.
-	 */
-	return (0);
+	if( bp->b_bcount > MAXBSIZE) {
+		bp->b_bcount = MAXBSIZE;
+	}
+	return bp->b_bcount;
 }
 
-/*
- * Do a read on a device for a user process.
- */
-rawread(dev, uio)
-	dev_t dev;
-	struct uio *uio;
+int
+rawread(dev_t dev, struct uio *uio)
 {
 	return (physio(cdevsw[major(dev)].d_strategy, (struct buf *)NULL,
-	    dev, B_READ, minphys, uio));
+	    dev, 1, minphys, uio));
 }
 
-/*
- * Do a write on a device for a user process.
- */
-rawwrite(dev, uio)
-	dev_t dev;
-	struct uio *uio;
+int
+rawwrite(dev_t dev, struct uio *uio)
 {
 	return (physio(cdevsw[major(dev)].d_strategy, (struct buf *)NULL,
-	    dev, B_WRITE, minphys, uio));
+	    dev, 0, minphys, uio));
+}
+
+static void
+physwakeup(bp)
+	struct buf *bp;
+{
+	wakeup((caddr_t) bp);
+	bp->b_flags &= ~B_CALL;
 }

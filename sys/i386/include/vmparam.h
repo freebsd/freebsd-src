@@ -174,20 +174,6 @@
 #define	KLSDIST	3		/* klusters advance/retard for seq. fifo */
 
 /*
- * Paging thresholds (see vm_sched.c).
- * Strategy of 1/19/85:
- *	lotsfree is 512k bytes, but at most 1/4 of memory
- *	desfree is 200k bytes, but at most 1/8 of memory
- *	minfree is 64k bytes, but at most 1/2 of desfree
- */
-#define	LOTSFREE	(512 * 1024)
-#define	LOTSFREEFRACT	4
-#define	DESFREE		(200 * 1024)
-#define	DESFREEFRACT	8
-#define	MINFREE		(64 * 1024)
-#define	MINFREEFRACT	2
-
-/*
  * There are two clock hands, initially separated by HANDSPREAD bytes
  * (but at most all of user memory).  The amount of time to reclaim
  * a page once the pageout process examines it increases with this

@@ -14,6 +14,7 @@ i386/i386/mem.c			standard
 i386/i386/microtime.s		standard
 i386/i386/ns_cksum.c		optional	ns
 i386/i386/pmap.c		standard
+i386/i386/procfs_machdep.c	optional	procfs
 i386/i386/sys_machdep.c		standard
 i386/i386/trap.c		standard
 i386/i386/vm_machdep.c		standard

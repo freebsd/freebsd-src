@@ -296,14 +296,9 @@ swi_clock:
 	ALIGN_TEXT
 swi_net:
 	MCOUNT
-#if 0	
-	DONET(NETISR_RAW, _rawintr,netisr_raw)
-#endif
 #ifdef INET
+	DONET(NETISR_ARP, _arpintr,netisr_ip)
 	DONET(NETISR_IP, _ipintr,netisr_ip)
-#endif
-#ifdef IMP
-	DONET(NETISR_IMP, _impintr,netisr_imp)
 #endif
 #ifdef NS
 	DONET(NETISR_NS, _nsintr,netisr_ns)
@@ -311,9 +306,8 @@ swi_net:
 #ifdef ISO
 	DONET(NETISR_ISO, _clnlintr,netisr_iso)
 #endif
-#ifdef	CCITT
-	DONET(NETISR_X25, _pkintr, 29)
-	DONET(NETISR_HDLC, _hdintr, 30)
+#ifdef CCITT
+	DONET(NETISR_CCITT, _ccittintr, 29)
 #endif
 	ret
 

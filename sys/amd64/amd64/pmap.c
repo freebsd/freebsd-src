@@ -85,19 +85,19 @@
  *	and to when physical maps must be made correct.
  */
 
-#include "param.h"
-#include "systm.h"
-#include "proc.h"
-#include "malloc.h"
-#include "user.h"
-#include "i386/include/cpufunc.h"
-#include "i386/include/cputypes.h"
+#include <sys/param.h>
+#include <sys/proc.h>
+#include <sys/malloc.h>
+#include <sys/user.h>
 
-#include "vm/vm.h"
-#include "vm/vm_kern.h"
-#include "vm/vm_page.h"
+#include <vm/vm.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_page.h>
 
-#include "i386/isa/isa.h"
+#include <i386/include/cpufunc.h>
+#include <i386/include/cputypes.h>
+
+#include <i386/isa/isa.h>
 
 /*
  * Allocate various and sundry SYSMAPs used in the days of old VM
@@ -149,12 +149,12 @@ static inline void		*vm_get_pmap();
 static inline void		vm_put_pmap();
 inline void			pmap_use_pt();
 inline void			pmap_unuse_pt();
-inline pt_entry_t * const	pmap_pte();
+inline pt_entry_t * 		pmap_pte();
 static inline pv_entry_t	get_pv_entry();
 void				pmap_alloc_pv_entry();
 void				pmap_clear_modify();
 void				i386_protection_init();
-extern vm_offset_t pager_sva, pager_eva;
+extern vm_offset_t clean_sva, clean_eva;
 extern int cpu_class;
 
 #if BSDVM_COMPAT
@@ -163,8 +163,8 @@ extern int cpu_class;
 /*
  * All those kernel PT submaps that BSD is so fond of
  */
-pt_entry_t *CMAP1, *CMAP2, *mmap;
-caddr_t		CADDR1, CADDR2, vmmap;
+pt_entry_t *CMAP1, *CMAP2, *ptmmap;
+caddr_t		CADDR1, CADDR2, ptvmmap;
 pt_entry_t *msgbufmap;
 struct msgbuf	*msgbufp;
 #endif
@@ -180,8 +180,8 @@ void init_pv_entries(int) ;
  */
 
 inline pt_entry_t *
-const pmap_pte(pmap, va)
-	register pmap_t	pmap;
+pmap_pte(pmap, va)
+	pmap_t	pmap;
 	vm_offset_t va;
 {
 
@@ -374,7 +374,7 @@ pmap_bootstrap(firstaddr, loadaddr)
 
 	SYSMAP(caddr_t		,CMAP1		,CADDR1	   ,1		)
 	SYSMAP(caddr_t		,CMAP2		,CADDR2	   ,1		)
-	SYSMAP(caddr_t		,mmap		,vmmap	   ,1		)
+	SYSMAP(caddr_t		,ptmmap		,ptvmmap	   ,1		)
 	SYSMAP(struct msgbuf *	,msgbufmap	,msgbufp   ,1		)
 	virtual_avail = va;
 #endif
@@ -530,7 +530,7 @@ static inline void
 vm_put_pmap(up)
 	struct pmaplist *up;
 {
-	kmem_free(kernel_map, up, ctob(1));
+	kmem_free(kernel_map, (vm_offset_t)up, ctob(1));
 }
 
 /*
@@ -851,7 +851,7 @@ pmap_remove(pmap, sva, eva)
 		if (pmap_is_managed(pa)) {
 			if ((((int) oldpte & PG_M) && (sva < USRSTACK || sva > UPT_MAX_ADDRESS))
 				|| (sva >= USRSTACK && sva < USRSTACK+(UPAGES*NBPG))) {
-				if (sva < pager_sva || sva >= pager_eva) {
+				if (sva < clean_sva || sva >= clean_eva) {
 					m = PHYS_TO_VM_PAGE(pa);
 					m->flags &= ~PG_CLEAN;
 				}
@@ -941,7 +941,7 @@ pmap_remove(pmap, sva, eva)
 
 		if ((((int) oldpte & PG_M) && (va < USRSTACK || va > UPT_MAX_ADDRESS))
 			|| (va >= USRSTACK && va < USRSTACK+(UPAGES*NBPG))) {
-			if (va < pager_sva || va >= pager_eva) {
+			if (va < clean_sva || va >= clean_eva ) {
 				m = PHYS_TO_VM_PAGE(pa);
 				m->flags &= ~PG_CLEAN;
 			}
@@ -1006,7 +1006,7 @@ pmap_remove_all(pa)
 		if ( (m->flags & PG_CLEAN) &&
 			((((int) *pte) & PG_M) && (pv->pv_va < USRSTACK || pv->pv_va > UPT_MAX_ADDRESS))
 			|| (pv->pv_va >= USRSTACK && pv->pv_va < USRSTACK+(UPAGES*NBPG))) {
-			if (pv->pv_va < pager_sva || pv->pv_va >= pager_eva) {
+			if (pv->pv_va < clean_sva || pv->pv_va >= clean_eva) {
 				m->flags &= ~PG_CLEAN;
 			}
 		}
@@ -1261,7 +1261,11 @@ validate:
 	if (va < UPT_MIN_ADDRESS)
 		(int) npte |= PG_u;
 	else if (va < UPT_MAX_ADDRESS)
-		(int) npte |= PG_u | PG_RW;
+		(int) npte |= PG_u | PG_RW | PG_NC_PWT;
+
+/*
+	printf("mapping: pa: %x, to va: %x, with pte: %x\n", pa, va, npte);
+*/
 
 	if( *pte != npte) {
 		*pte = npte;
@@ -1414,7 +1418,7 @@ validate:
 	/*
 	 * Now validate mapping with desired protection/wiring.
 	 */
-	*pte = (pt_entry_t) ( (int) (pa | PG_RO | PG_V | PG_u));
+	*pte = (pt_entry_t) ( (int) (pa | PG_V | PG_u));
 }
 
 /*
@@ -1448,16 +1452,16 @@ pmap_object_init_pt(pmap, addr, object, offset, size)
 	 */
 	if( size > object->size / 2) {
 		objbytes = size;
-		p = (vm_page_t) queue_first(&object->memq);
-		while (!queue_end(&object->memq, (queue_entry_t) p) && objbytes != 0) {
+		p = object->memq.tqh_first;
+		while ((p != NULL) && (objbytes != 0)) {
 			tmpoff = p->offset;
 			if( tmpoff < offset) {
-				p = (vm_page_t) queue_next(&p->listq);
+				p = p->listq.tqe_next;
 				continue;
 			}
 			tmpoff -= offset;
 			if( tmpoff >= size) {
-				p = (vm_page_t) queue_next(&p->listq);
+				p = p->listq.tqe_next;
 				continue;
 			}
 			
@@ -1469,7 +1473,7 @@ pmap_object_init_pt(pmap, addr, object, offset, size)
 				vm_page_unhold(p);
 				pmap_enter_quick(pmap, addr+tmpoff, VM_PAGE_TO_PHYS(p));
 			}
-			p = (vm_page_t) queue_next(&p->listq);
+			p = p->listq.tqe_next;
 			objbytes -= NBPG;
 		}
 	} else {
@@ -1699,13 +1703,13 @@ pmap_testbit(pa, bit)
 			 * ptes as never modified.
 			 */
 			if (bit & PG_U ) {
-				if ((pv->pv_va >= pager_sva) && (pv->pv_va < pager_eva)) {
+				if ((pv->pv_va >= clean_sva) && (pv->pv_va < clean_eva)) {
 					continue;
 				}
 			} 
 			if (bit & PG_M ) {
 				if (pv->pv_va >= USRSTACK) {
-					if (pv->pv_va >= pager_sva && pv->pv_va < pager_eva) {
+					if (pv->pv_va >= clean_sva && pv->pv_va < clean_eva) {
 						continue;
 					}
 					if (pv->pv_va < USRSTACK+(UPAGES*NBPG)) {
@@ -1761,7 +1765,7 @@ pmap_changebit(pa, bit, setem)
 			 * don't write protect pager mappings
 			 */
 			if (!setem && (bit == PG_RW)) {
-				if (va >= pager_sva && va < pager_eva)
+				if (va >= clean_sva && va < clean_eva)
 					continue;
 			}
 
@@ -1869,6 +1873,10 @@ pmap_phys_address(ppn)
 /*
  * Miscellaneous support routines follow
  */
+/*
+ * This really just builds a table for page write enable
+ * translation.
+ */
 
 void
 i386_protection_init()
@@ -1879,12 +1887,10 @@ i386_protection_init()
 	for (prot = 0; prot < 8; prot++) {
 		switch (prot) {
 		case VM_PROT_NONE | VM_PROT_NONE | VM_PROT_NONE:
-			*kp++ = 0;
-			break;
 		case VM_PROT_READ | VM_PROT_NONE | VM_PROT_NONE:
 		case VM_PROT_READ | VM_PROT_NONE | VM_PROT_EXECUTE:
 		case VM_PROT_NONE | VM_PROT_NONE | VM_PROT_EXECUTE:
-			*kp++ = PG_RO;
+			*kp++ = 0;
 			break;
 		case VM_PROT_NONE | VM_PROT_WRITE | VM_PROT_NONE:
 		case VM_PROT_NONE | VM_PROT_WRITE | VM_PROT_EXECUTE:

@@ -63,6 +63,7 @@ extern int nfs_numasync;
  * Vnode op for read using bio
  * Any similarity to readip() is purely coincidental
  */
+int
 nfs_bioread(vp, uio, ioflag, cred)
 	register struct vnode *vp;
 	register struct uio *uio;
@@ -71,13 +72,13 @@ nfs_bioread(vp, uio, ioflag, cred)
 {
 	register struct nfsnode *np = VTONFS(vp);
 	register int biosize, diff;
-	struct buf *bp, *rabp;
+	struct buf *bp = 0, *rabp;
 	struct vattr vattr;
 	struct proc *p;
 	struct nfsmount *nmp;
 	daddr_t lbn, bn, rabn;
 	caddr_t baddr;
-	int got_buf, nra, error = 0, n, on, not_readin;
+	int got_buf = 0, nra, error = 0, n = 0, on = 0, not_readin;
 
 #ifdef lint
 	ioflag = ioflag;
@@ -346,6 +347,7 @@ again:
 /*
  * Vnode op for write using bio
  */
+int
 nfs_write(ap)
 	struct vop_write_args /* {
 		struct vnode *a_vp;
@@ -566,6 +568,7 @@ nfs_getcacheblk(vp, bn, size, p)
  * Flush and invalidate all dirty buffers. If another process is already
  * doing the flush, just wait for completion.
  */
+int
 nfs_vinvalbuf(vp, flags, cred, p, intrflg)
 	struct vnode *vp;
 	int flags;
@@ -626,6 +629,7 @@ nfs_vinvalbuf(vp, flags, cred, p, intrflg)
  * This is mainly to avoid queueing async I/O requests when the nfsiods
  * are all hung on a dead server.
  */
+int
 nfs_asyncio(bp, cred)
 	register struct buf *bp;
 	struct ucred *cred;
@@ -670,7 +674,7 @@ nfs_doio(bp, cr, p)
 	register struct vnode *vp;
 	struct nfsnode *np;
 	struct nfsmount *nmp;
-	int error, diff, len;
+	int error = 0, diff, len;
 	struct uio uio;
 	struct iovec io;
 
