@@ -376,7 +376,7 @@ bundle_Close(struct bundle *bundle, const char *name, int how)
       switch (how) {
         case CLOSE_LCP:
           datalink_DontHangup(dl);
-          /* fall through */
+          break;
         case CLOSE_STAYDOWN:
           datalink_StayDown(dl);
           break;
