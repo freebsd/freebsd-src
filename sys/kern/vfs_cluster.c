@@ -151,6 +151,7 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 			 * for efficiency.
 			 */
 			s = splbio();
+			VI_LOCK(vp);
 			for (i = 1; i < maxra; i++) {
 				/*
 				 * Stop if the buffer does not exist or it
@@ -168,6 +169,7 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 					(i == (maxra - 1)))
 					tbp->b_flags |= B_RAM;
 			}
+			VI_UNLOCK(vp);
 			splx(s);
 			if (i >= maxra) {
 				return 0;
@@ -790,7 +792,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 		 * is delayed-write but either locked or inval, it cannot
 		 * partake in the clustered write.
 		 */
-		if (((tbp = gbincore(vp, start_lbn)) == NULL) ||
+		if (((tbp = incore(vp, start_lbn)) == NULL) ||
 		  ((tbp->b_flags & (B_LOCKED | B_INVAL | B_DELWRI)) != B_DELWRI) ||
 		  BUF_LOCK(tbp, LK_EXCLUSIVE | LK_NOWAIT)) {
 			++start_lbn;
@@ -864,7 +866,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 				 * If the adjacent data is not even in core it
 				 * can't need to be written.
 				 */
-				if ((tbp = gbincore(vp, start_lbn)) == NULL) {
+				if ((tbp = incore(vp, start_lbn)) == NULL) {
 					splx(s);
 					break;
 				}
@@ -956,7 +958,9 @@ cluster_wbuild(vp, size, start_lbn, len)
 			tbp->b_flags |= B_ASYNC;
 			tbp->b_iocmd = BIO_WRITE;
 			reassignbuf(tbp, tbp->b_vp);	/* put on clean list */
+			VI_LOCK(tbp->b_vp);
 			++tbp->b_vp->v_numoutput;
+			VI_UNLOCK(tbp->b_vp);
 			splx(s);
 			BUF_KERNPROC(tbp);
 			TAILQ_INSERT_TAIL(&bp->b_cluster.cluster_head,
