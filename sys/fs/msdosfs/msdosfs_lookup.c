@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_lookup.c,v 1.22 1998/02/26 06:45:44 msmith Exp $ */
+/*	$Id: msdosfs_lookup.c,v 1.23 1998/05/09 09:36:38 dt Exp $ */
 /*	$NetBSD: msdosfs_lookup.c,v 1.37 1997/11/17 15:36:54 ws Exp $	*/
 
 /*-
@@ -169,8 +169,10 @@ msdosfs_lookup(ap)
 		    cnp->cn_namelen) + 1;
 		break;
 	}
-	if (pmp->pm_flags & MSDOSFSMNT_SHORTNAME)
+	if (pmp->pm_flags & MSDOSFSMNT_SHORTNAME) {
 		wincnt = 1;
+		olddos = 1;
+	}
 	unlen = winLenFixup(cnp->cn_nameptr, cnp->cn_namelen);
 
 	/*
@@ -978,6 +980,13 @@ uniqdosname(dep, cnp, cp)
 	daddr_t bn;
 	struct buf *bp;
 	int error;
+	
+	if (pmp->pm_flags & MSDOSFSMNT_SHORTNAME != 0)
+		return (unix2dosfn((const u_char *)cnp->cn_nameptr, cp,
+		    cnp->cn_namelen, 0,
+		    pmp->pm_flags & MSDOSFSMNT_U2WTABLE, pmp->pm_u2d,
+		    pmp->pm_flags & MSDOSFSMNT_ULTABLE, pmp->pm_lu) ?
+		    0 : EINVAL);
 
 	for (gen = 1;; gen++) {
 		/*

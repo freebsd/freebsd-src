@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_conv.c,v 1.25 1998/02/27 12:22:22 msmith Exp $ */
+/*	$Id: msdosfs_conv.c,v 1.26 1998/04/15 17:46:37 bde Exp $ */
 /*	$NetBSD: msdosfs_conv.c,v 1.25 1997/11/17 15:36:40 ws Exp $	*/
 
 /*-
@@ -627,6 +627,8 @@ unix2dosfn(un, dn, unlen, gen, u2d_loaded, u2d, lu_loaded, lu)
 	/*
 	 * Now insert the generation number into the filename part
 	 */
+	if (gen == 0)
+		return conv;
 	for (wcp = gentext + sizeof(gentext); wcp > gentext && gen; gen /= 10)
 		*--wcp = gen % 10 + '0';
 	if (gen)
