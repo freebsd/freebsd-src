@@ -525,58 +525,58 @@ typedef struct {
 /*** ioctl() related stuff ***/
 
 struct usb_ctl_request {
-	int	addr;
-	usb_device_request_t request;
-	void	*data;
-	int	flags;
+	int	ucr_addr;
+	usb_device_request_t ucr_request;
+	void	*ucr_data;
+	int	ucr_flags;
 #define USBD_SHORT_XFER_OK	0x04	/* allow short reads */
-	int	actlen;		/* actual length transferred */
+	int	ucr_actlen;		/* actual length transferred */
 };
 
 struct usb_alt_interface {
-	int	config_index;
-	int	interface_index;
-	int	alt_no;
+	int	uai_config_index;
+	int	uai_interface_index;
+	int	uai_alt_no;
 };
 
 #define USB_CURRENT_CONFIG_INDEX (-1)
 #define USB_CURRENT_ALT_INDEX (-1)
 
 struct usb_config_desc {
-	int	config_index;
-	usb_config_descriptor_t desc;
+	int	ucd_config_index;
+	usb_config_descriptor_t ucd_desc;
 };
 
 struct usb_interface_desc {
-	int	config_index;
-	int	interface_index;
-	int	alt_index;
-	usb_interface_descriptor_t desc;
+	int	uid_config_index;
+	int	uid_interface_index;
+	int	uid_alt_index;
+	usb_interface_descriptor_t uid_desc;
 };
 
 struct usb_endpoint_desc {
-	int	config_index;
-	int	interface_index;
-	int	alt_index;
-	int	endpoint_index;
-	usb_endpoint_descriptor_t desc;
+	int	ued_config_index;
+	int	ued_interface_index;
+	int	ued_alt_index;
+	int	ued_endpoint_index;
+	usb_endpoint_descriptor_t ued_desc;
 };
 
 struct usb_full_desc {
-	int	config_index;
-	u_int	size;
-	u_char	*data;
+	int	ufd_config_index;
+	u_int	ufd_size;
+	u_char	*ufd_data;
 };
 
 struct usb_string_desc {
-	int	string_index;
-	int	language_id;
-	usb_string_descriptor_t desc;
+	int	usd_string_index;
+	int	usd_language_id;
+	usb_string_descriptor_t usd_desc;
 };
 
 struct usb_ctl_report_desc {
-	int	size;
-	u_char	data[1024];	/* filled data size will vary */
+	int	ucrd_size;
+	u_char	ucrd_data[1024];	/* filled data size will vary */
 };
 
 typedef struct { u_int32_t cookie; } usb_event_cookie_t;
@@ -584,27 +584,27 @@ typedef struct { u_int32_t cookie; } usb_event_cookie_t;
 #define USB_MAX_DEVNAMES 4
 #define USB_MAX_DEVNAMELEN 16
 struct usb_device_info {
-	u_int8_t	bus;
-	u_int8_t	addr;	/* device address */
-	usb_event_cookie_t cookie;
-	char		product[USB_MAX_STRING_LEN];
-	char		vendor[USB_MAX_STRING_LEN];
-	char		release[8];
-	u_int16_t	productNo;
-	u_int16_t	vendorNo;
-	u_int16_t	releaseNo;
-	u_int8_t	class;
-	u_int8_t	subclass;
-	u_int8_t	protocol;
-	u_int8_t	config;
-	u_int8_t	speed;
+	u_int8_t	udi_bus;
+	u_int8_t	udi_addr;	/* device address */
+	usb_event_cookie_t udi_cookie;
+	char		udi_product[USB_MAX_STRING_LEN];
+	char		udi_vendor[USB_MAX_STRING_LEN];
+	char		udi_release[8];
+	u_int16_t	udi_productNo;
+	u_int16_t	udi_vendorNo;
+	u_int16_t	udi_releaseNo;
+	u_int8_t	udi_class;
+	u_int8_t	udi_subclass;
+	u_int8_t	udi_protocol;
+	u_int8_t	udi_config;
+	u_int8_t	udi_speed;
 #define USB_SPEED_LOW  1
 #define USB_SPEED_FULL 2
 #define USB_SPEED_HIGH 3
-	int		power;	/* power consumption in mA, 0 if selfpowered */
-	int		nports;
-	char		devnames[USB_MAX_DEVNAMES][USB_MAX_DEVNAMELEN];
-	u_int8_t	ports[16];/* hub only: addresses of devices on ports */
+	int		udi_power;	/* power consumption in mA, 0 if selfpowered */
+	int		udi_nports;
+	char		udi_devnames[USB_MAX_DEVNAMES][USB_MAX_DEVNAMELEN];
+	u_int8_t	udi_ports[16];/* hub only: addresses of devices on ports */
 #define USB_PORT_ENABLED 0xff
 #define USB_PORT_SUSPENDED 0xfe
 #define USB_PORT_POWERED 0xfd
@@ -612,12 +612,12 @@ struct usb_device_info {
 };
 
 struct usb_ctl_report {
-	int	report;
-	u_char	data[1024];	/* filled data size will vary */
+	int	ucr_report;
+	u_char	ucr_data[1024];	/* filled data size will vary */
 };
 
 struct usb_device_stats {
-	u_long	requests[4];	/* indexed by transfer type UE_* */
+	u_long	uds_requests[4];	/* indexed by transfer type UE_* */
 };
 
 /* Events that can be read from /dev/usb */
