@@ -598,34 +598,60 @@ apm_resume(void)
 }
 
 
+/* get power status per battery */
+static int
+apm_get_pwstatus(apm_pwstatus_t app)
+{
+	struct apm_softc *sc = &apm_softc;
+
+	if (app->ap_device != PMDV_ALLDEV &&
+	    (app->ap_device < PMDV_BATT0 || app->ap_device > PMDV_BATT_ALL))
+		return 1;
+
+	sc->bios.r.eax = (APM_BIOS << 8) | APM_GETPWSTATUS;
+	sc->bios.r.ebx = app->ap_device;
+	sc->bios.r.ecx = 0;
+	sc->bios.r.edx = 0xffff;	/* default to unknown battery time */
+
+	if (apm_bioscall())
+		return 1;
+
+	app->ap_acline    = (sc->bios.r.ebx >> 8) & 0xff;
+	app->ap_batt_stat = sc->bios.r.ebx & 0xff;
+	app->ap_batt_flag = (sc->bios.r.ecx >> 8) & 0xff;
+	app->ap_batt_life = sc->bios.r.ecx & 0xff;
+	sc->bios.r.edx &= 0xffff;
+	if (sc->bios.r.edx == 0xffff)	/* Time is unknown */
+		app->ap_batt_time = -1;
+	else if (sc->bios.r.edx & 0x8000)	/* Time is in minutes */
+		app->ap_batt_time = (sc->bios.r.edx & 0x7fff) * 60;
+	else				/* Time is in seconds */
+		app->ap_batt_time = sc->bios.r.edx;
+
+	return 0;
+}
+
+
 /* get APM information */
 static int
 apm_get_info(apm_info_t aip)
 {
 	struct apm_softc *sc = &apm_softc;
+	struct apm_pwstatus aps;
 
-	sc->bios.r.eax = (APM_BIOS << 8) | APM_GETPWSTATUS;
-	sc->bios.r.ebx = PMDV_ALLDEV;
-	sc->bios.r.ecx = 0;
-	sc->bios.r.edx = 0xffff;		/* default to unknown battery time */
-
-	if (apm_bioscall())
+	bzero(&aps, sizeof(aps));
+	aps.ap_device = PMDV_ALLDEV;
+	if (apm_get_pwstatus(&aps))
 		return 1;
 
 	aip->ai_infoversion = 1;
-	aip->ai_acline      = (sc->bios.r.ebx >> 8) & 0xff;
-	aip->ai_batt_stat   = sc->bios.r.ebx & 0xff;
-	aip->ai_batt_life   = sc->bios.r.ecx & 0xff;
+	aip->ai_acline      = aps.ap_acline;
+	aip->ai_batt_stat   = aps.ap_batt_stat;
+	aip->ai_batt_life   = aps.ap_batt_life;
+	aip->ai_batt_time   = aps.ap_batt_time;
 	aip->ai_major       = (u_int)sc->majorversion;
 	aip->ai_minor       = (u_int)sc->minorversion;
 	aip->ai_status      = (u_int)sc->active;
-	sc->bios.r.edx &= 0xffff;
-	if (sc->bios.r.edx == 0xffff)	/* Time is unknown */
-		aip->ai_batt_time = -1;
-	else if (sc->bios.r.edx & 0x8000)	/* Time is in minutes */
-		aip->ai_batt_time = (sc->bios.r.edx & 0x7fff) * 60;
-	else			/* Time is in seconds */
-		aip->ai_batt_time = sc->bios.r.edx;
 
 	sc->bios.r.eax = (APM_BIOS << 8) | APM_GETCAPABILITIES;
 	sc->bios.r.ebx = 0;
@@ -1204,6 +1230,10 @@ apmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 		break;
 	case APMIO_GETINFO:
 		if (apm_get_info((apm_info_t)addr))
+			error = ENXIO;
+		break;
+	case APMIO_GETPWSTATUS:
+		if (apm_get_pwstatus((apm_pwstatus_t)addr))
 			error = ENXIO;
 		break;
 	case APMIO_ENABLE:
