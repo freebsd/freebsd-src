@@ -199,11 +199,11 @@ numlabels(row)
 	 */
 	if (linesperregion < 3)
 		linesperregion = 3;
-	col = 0;
+	col = INSET;
 	for (i = 0; i < dk_ndrive; i++)
 		if (dk_select[i] && dk_mspw[i] != 0.0) {
 			if (col + COLWIDTH >= wnd->maxx - INSET) {
-				col = 0, row += linesperregion + 1;
+				col = INSET, row += linesperregion + 1;
 				if (row > wnd->maxy - (linesperregion + 1))
 					break;
 			}
@@ -229,7 +229,7 @@ barlabels(row)
 		if (dk_select[i] && dk_mspw[i] != 0.0) {
 			if (row > wnd->maxy - linesperregion)
 				break;
-			mvwprintw(wnd, row++, 0, "%3.3s   bps|", dr_name[i]);
+			mvwprintw(wnd, row++, 0, "%-4.4s  bps|", dr_name[i]);
 			mvwaddstr(wnd, row++, 0, "      tps|");
 			if (msps)
 				mvwaddstr(wnd, row++, 0, "     msps|");
@@ -271,15 +271,15 @@ showiostat()
 			}
 		return;
 	}
-	col = 0;
+	col = INSET;
 	wmove(wnd, row + linesperregion, 0);
 	wdeleteln(wnd);
 	wmove(wnd, row + 3, 0);
 	winsertln(wnd);
 	for (i = 0; i < dk_ndrive; i++)
 		if (dk_select[i] && dk_mspw[i] != 0.0) {
-			if (col + COLWIDTH >= wnd->maxx) {
-				col = 0, row += linesperregion + 1;
+			if (col + COLWIDTH >= wnd->maxx - INSET) {
+				col = INSET, row += linesperregion + 1;
 				if (row > wnd->maxy - (linesperregion + 1))
 					break;
 				wmove(wnd, row + linesperregion, 0);

@@ -330,7 +330,7 @@ labelkre()
 	for (i = 0; i < dk_ndrive && j < MAXDRIVES; i++)
 		if (dk_select[i]) {
 			mvprintw(DISKROW, DISKCOL + 5 + 5 * j,
-				"  %3.3s", dr_name[j]);
+				" %4.4s", dr_name[j]);
 			j++;
 		}
 	for (i = 0; i < nintr; i++) {
@@ -476,7 +476,7 @@ showkre()
 	for (i = 0, c = 0; i < dk_ndrive && c < MAXDRIVES; i++)
 		if (dk_select[i]) {
 			mvprintw(DISKROW, DISKCOL + 5 + 5 * c,
-				"  %3.3s", dr_name[i]);
+				" %4.4s", dr_name[i]);
 			dinfo(i, ++c);
 		}
 	putint(s.nchcount, NAMEIROW + 2, NAMEICOL, 9);
