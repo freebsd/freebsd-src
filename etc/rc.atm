@@ -3,7 +3,7 @@
 
 # ATM networking startup script
 #
-#	$Id$
+#	$Id: rc.atm,v 1.2 1998/10/08 08:56:01 phk Exp $
 
 #
 # Initial interface configuration.
@@ -122,7 +122,7 @@ atm_pass2() {
 			atm set arpserver ${net} ${atmarp_args} || continue
 		fi
 		eval scsparp_args=\$atm_scsparp_${net}
-		if [ "X${scsparp_args}" = X"YES" ]; then
+		if [ "${scsparp_args}" = "YES" ]; then
 			if [ "${atmarp_args}" != "local" ]; then
 				echo "local arpserver required for SCSP"
 				continue
@@ -135,7 +135,7 @@ atm_pass2() {
     echo "."
 
     # Define any PVCs.
-    if [ "X${atm_pvcs}" != "X" ]; then
+    if [ -n "${atm_pvcs}" ]; then
 	for i in ${atm_pvcs}; do
 		eval pvc_args=\$atm_pvc_${i}
 		atm add pvc ${pvc_args}
@@ -143,7 +143,7 @@ atm_pass2() {
     fi
 
     # Define any permanent ARP entries.
-    if [ "X${atm_arps}" != "X" ]; then
+    if [ -n "${atm_arps}" ]; then
 	for i in ${atm_arps}; do
 		eval arp_args=\$atm_arp_${i}
 		atm add arp ${arp_args}
@@ -157,7 +157,7 @@ atm_pass2() {
 #
 atm_pass3() {
     # Start SCSP daemon (if needed)
-    if [ ${atm_scspd} -eq 1 ]; then
+    if [ "${atm_scspd}" -eq 1 ]; then
 	echo -n " scspd"
 	scspd
     fi

@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: pccard_ether,v 1.10 1999/02/10 18:08:16 jkh Exp $
+#	$Id: pccard_ether,v 1.11 1999/02/22 02:55:18 steve Exp $
 #
 # pccard_ether interfacename [ifconfig option]
 #
@@ -14,8 +14,8 @@ elif [ -f /etc/rc.conf ]; then
 	. /etc/rc.conf
 fi
 
-if [ "x$pccard_ifconfig" != "xNO" ] ; then
-	if [ "x$pccard_ifconfig" = "xDHCP" ] ; then
+if [ "${pccard_ifconfig}" != "NO" ] ; then
+	if [ "${pccard_ifconfig}" = "DHCP" ] ; then
 		if [ -f /sbin/dhclient ] ; then
 		    if [ -s /var/run/dhclient.pid ] ; then
 			kill `cat /var/run/dhclient.pid`
@@ -34,17 +34,17 @@ if [ "x$pccard_ifconfig" != "xNO" ] ; then
 	else
 		interface=$1
 		shift
-		ifconfig $interface $pccard_ifconfig $*
+		ifconfig ${interface} ${pccard_ifconfig} $*
 	fi
 fi
 
-if [ "x$defaultrouter" != "xNO" ] ; then
+if [ "${defaultrouter}" != "NO" ] ; then
 	static_routes="default ${static_routes}"
 	route_default="default ${defaultrouter}"
 fi
     
 # Set up any static routes.
-if [ "x${static_routes}" != "x" ]; then
+if [ -n "${static_routes}" ]; then
 	# flush beforehand, just in case....
         route -n flush
 	arp -d -a

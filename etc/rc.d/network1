@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.54 1999/08/19 21:15:16 brian Exp $
+#	$Id: rc.network,v 1.55 1999/08/22 23:26:03 brian Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -14,25 +14,25 @@ network_pass1() {
     echo -n 'Doing initial network setup:'
     # Set the host name if it is not already set
     if [ -z "`hostname -s`" ] ; then
-	    hostname $hostname
+	    hostname ${hostname}
 	    echo -n ' hostname'
     fi
 
     # Set the domainname if we're using NIS
-    if [ -n "$nisdomainname" -a "x$nisdomainname" != "xNO" ] ; then
-	    domainname $nisdomainname
+    if [ -n "${nisdomainname}" -a "${nisdomainname}" != "NO" ] ; then
+	    domainname ${nisdomainname}
 	    echo -n ' domain'
     fi
     echo '.'
 
     # Initial ATM interface configuration
-    if [ "X${atm_enable}" = X"YES" -a -f /etc/rc.atm ]; then
+    if [ "${atm_enable}" = "YES" -a -f /etc/rc.atm ]; then
 	    . /etc/rc.atm
 	    atm_pass1
     fi
 
     # ISDN subsystem startup
-    if [ "X${isdn_enable}" = X"YES" -a -f /etc/rc.isdn ]; then
+    if [ "${isdn_enable}" = "YES" -a -f /etc/rc.isdn ]; then
 	    . /etc/rc.isdn
     fi
 
@@ -51,7 +51,7 @@ network_pass1() {
     done
 
     # Set up all the network interfaces, calling startup scripts if needed
-    if [ "x${network_interfaces}" = "xauto" ]; then
+    if [ "${network_interfaces}" = "auto" ]; then
 	    network_interfaces="`ifconfig -l`"
     fi
     for ifn in ${network_interfaces}; do
@@ -64,7 +64,7 @@ network_pass1() {
 	    eval ifconfig_args=\$ifconfig_${ifn}
 	    if [ -n "${ifconfig_args}" ] ; then
 		    # See if we are using DHCP
-		    if [ X"${ifconfig_args}" = X"DHCP" ]; then
+		    if [ "${ifconfig_args}" = "XDHCP" ]; then
 			     ${dhcp_program} ${dhcp_flags} ${ifn}
 		    else
 			     ifconfig ${ifn} ${ifconfig_args}
@@ -97,16 +97,16 @@ network_pass1() {
     done
 
     # Warm up user ppp if required, must happen before natd.
-    if [ "X$ppp_enable" = X"YES" ]; then
+    if [ "${ppp_enable}" = "YES" ]; then
 	    # Establish ppp mode.
-	    if [ "X$ppp_mode" != X"ddial" -a "X$ppp_mode" != X"direct" \
-		-a "X$ppp_mode" != X"dedicated" ]; then \
+	    if [ "${ppp_mode}" != "ddial" -a "${ppp_mode}" != "direct" \
+		-a "${ppp_mode}" != "dedicated" ]; then \
 	        ppp_mode="auto";
 	    fi
 	    ppp_command="-${ppp_mode} ";
 
 	    # Switch on alias mode?
-	    if [ "X$ppp_nat" = X"YES" ]; then
+	    if [ "${ppp_nat}" = "YES" ]; then
 		ppp_command="${ppp_command} -nat";
 	    fi
 
@@ -122,7 +122,7 @@ network_pass1() {
 	firewall_in_kernel=0
     fi
 
-    if [ $firewall_in_kernel = 0 -a "x$firewall_enable"  = "xYES" ] ; then
+    if [ ${firewall_in_kernel} = 0 -a "${firewall_enable}"  = "YES" ] ; then
 	if kldload ipfw; then
 		firewall_in_kernel=1		# module loaded successfully
 		echo "Kernel firewall module loaded."
@@ -132,16 +132,16 @@ network_pass1() {
     fi
 
     # Load the filters if required
-    if [ $firewall_in_kernel = 1 ]; then
+    if [ ${firewall_in_kernel} = 1 ]; then
 	if [ -z "${firewall_script}" ] ; then
 	    firewall_script="/etc/rc.firewall"
 	fi
-	if [ -f ${firewall_script} -a X"$firewall_enable" = X"YES" ]; then
+	if [ -f ${firewall_script} -a "${firewall_enable}" = "YES" ]; then
 	    . ${firewall_script}
 	    echo -n 'Firewall rules loaded, starting divert daemons:'
 
 	    # Network Address Translation daemon
-	    if [ X"${natd_enable}" = X"YES" -a -n "${natd_interface}" ]; then
+	    if [ "${natd_enable}" = "YES" -a -n "${natd_interface}" ]; then
 		if echo ${natd_interface} | \
 		    grep -q -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
 		    natd_ifarg="-a ${natd_interface}"
@@ -153,7 +153,7 @@ network_pass1() {
 	    echo '.'
 	else
 	    IPFW_DEFAULT=`ipfw l 65535`
-	    if [ "$IPFW_DEFAULT" = "65535 deny ip from any to any" ]; then
+	    if [ "${IPFW_DEFAULT}" = "65535 deny ip from any to any" ]; then
 		echo -n "Warning: kernel has firewall functionality, "
 		echo "but firewall rules are not enabled."
 		echo "         All ip services are disabled."
@@ -168,13 +168,13 @@ network_pass1() {
 
     # Configure routing
 
-    if [ "x$defaultrouter" != "xNO" ] ; then
+    if [ "${defaultrouter}" != "NO" ] ; then
 	    static_routes="default ${static_routes}"
 	    route_default="default ${defaultrouter}"
     fi
     
     # Set up any static routes.  This should be done before router discovery.
-    if [ "x${static_routes}" != "x" ]; then
+    if [ -n "${static_routes}" ]; then
 	    for i in ${static_routes}; do
 		    eval route_args=\$route_${i}
 		    route add ${route_args}
@@ -182,78 +182,78 @@ network_pass1() {
     fi
 
     echo -n 'Additional routing options:'
-    if [ -n "$tcp_extensions" -a "x$tcp_extensions" != "xYES" ] ; then
+    if [ -n "${tcp_extensions}" -a "${tcp_extensions}" != "YES" ] ; then
 	    echo -n ' tcp extensions=NO'
 	    sysctl -w net.inet.tcp.rfc1323=0 >/dev/null
     fi
 
-    if [ -n "$log_in_vain" -a "x$log_in_vain" != "xNO" ] ; then
+    if [ -n "${log_in_vain}" -a "${log_in_vain}" != "NO" ] ; then
 	    echo -n ' log_in_vain=YES'
 	    sysctl -w net.inet.tcp.log_in_vain=1 >/dev/null
 	    sysctl -w net.inet.udp.log_in_vain=1 >/dev/null
     fi
 
-    if [ X"$icmp_bmcastecho" = X"YES" ]; then
+    if [ "${icmp_bmcastecho}" = "YES" ]; then
 	    echo -n ' broadcast ping responses=YES'
 	    sysctl -w net.inet.icmp.bmcastecho=1 >/dev/null
     fi
     
-    if [ "X$icmp_drop_redirect" = X"YES" ]; then
+    if [ "${icmp_drop_redirect}" = "YES" ]; then
 	    echo -n ' ignore ICMP redirect=YES'
 	    sysctl -w net.inet.icmp.drop_redirect=1 >/dev/null
     fi
     
-    if [ "X$icmp_log_redirect" = X"YES" ]; then
+    if [ "${icmp_log_redirect}" = "YES" ]; then
 	    echo -n ' log ICMP redirect=YES'
 	    sysctl -w net.inet.icmp.log_redirect=1 >/dev/null
     fi
 
-    if [ "X$gateway_enable" = X"YES" ]; then
+    if [ "${gateway_enable}" = "YES" ]; then
 	    echo -n ' IP gateway=YES'
 	    sysctl -w net.inet.ip.forwarding=1 >/dev/null
     fi
     
-    if [ "X$forward_sourceroute" = X"YES" ]; then
+    if [ "${forward_sourceroute}" = "YES" ]; then
 	    echo -n ' do source routing=YES'
 	    sysctl -w net.inet.ip.sourceroute=1 >/dev/null
     fi
 
-    if [ "X$accept_sourceroute" = X"YES" ]; then
+    if [ "${accept_sourceroute}" = "YES" ]; then
 	    echo -n ' accept source routing=YES'
 	    sysctl -w net.inet.ip.accept_sourceroute=1 >/dev/null
     fi
 
-    if [ "X$tcp_keepalive" = X"YES" ]; then
+    if [ "${tcp_keepalive}" = "YES" ]; then
 	    echo -n ' TCP keepalive=YES'
 	    sysctl -w net.inet.tcp.always_keepalive=1 >/dev/null
     fi
 
-    if [ "X$ipxgateway_enable" = X"YES" ]; then
+    if [ "${ipxgateway_enable}" = "YES" ]; then
 	    echo -n ' IPX gateway=YES'
 	    sysctl -w net.ipx.ipx.ipxforwarding=1 >/dev/null
     fi
     
-    if [ "X$arpproxy_all" = X"YES" ]; then
+    if [ "${arpproxy_all}" = "YES" ]; then
 	    echo -n ' ARP proxyall=YES'
 	    sysctl -w net.link.ether.inet.proxyall=1 >/dev/null
     fi
     echo '.'
 
     echo -n 'routing daemons:'
-    if [ "X$router_enable" = X"YES" ]; then
+    if [ "${router_enable}" = "YES" ]; then
 	    echo -n " ${router}";	${router} ${router_flags}
     fi
     
-    if [ "X$ipxrouted_enable" = X"YES" ]; then
+    if [ "${ipxrouted_enable}" = "YES" ]; then
 	    echo -n ' IPXrouted'
 	    IPXrouted ${ipxrouted_flags} > /dev/null 2>&1
     fi
     
-    if [ "X${mrouted_enable}" = X"YES" ]; then
+    if [ "${mrouted_enable}" = "YES" ]; then
 	    echo -n ' mrouted'; mrouted ${mrouted_flags}
     fi
 
-    if [ "X$rarpd_enable" = X"YES" ]; then
+    if [ "${rarpd_enable}" = "YES" ]; then
 	    echo -n ' rarpd';     rarpd ${rarpd_flags}
     fi
     echo '.'
@@ -262,54 +262,54 @@ network_pass1() {
 
 network_pass2() {
     echo -n 'Doing additional network setup:'
-    if [ "X${named_enable}" = X"YES" ]; then
+    if [ "${named_enable}" = "YES" ]; then
 	    echo -n ' named';		${named_program-"named"} ${named_flags}
     fi
 
-    if [ "X${ntpdate_enable}" = X"YES" ]; then
+    if [ "${ntpdate_enable}" = "YES" ]; then
 	    echo -n ' ntpdate';	${ntpdate_program} ${ntpdate_flags} >/dev/null 2>&1
     fi
 
-    if [ "X${xntpd_enable}" = X"YES" ]; then
+    if [ "${xntpd_enable}" = "YES" ]; then
 	    echo -n ' xntpd';	${xntpd_program} ${xntpd_flags}
     fi
 
-    if [ "X${timed_enable}" = X"YES" ]; then
+    if [ "${timed_enable}" = "YES" ]; then
 	    echo -n ' timed';		timed ${timed_flags}
     fi
 
-    if [ "X${portmap_enable}" = X"YES" ]; then
+    if [ "${portmap_enable}" = "YES" ]; then
 	    echo -n ' portmap';		${portmap_program} ${portmap_flags}
     fi
 
     # Start ypserv if we're an NIS server.
     # Run rpc.ypxfrd and rpc.yppasswdd only on the NIS master server.
-    if [ "X${nis_server_enable}" = X"YES" ]; then
+    if [ "${nis_server_enable}" = "YES" ]; then
 	    echo -n ' ypserv'; ypserv ${nis_server_flags}
 	    
-	    if [ "X${nis_ypxfrd_enable}" = X"YES" ]; then
+	    if [ "${nis_ypxfrd_enable}" = "YES" ]; then
 		    echo -n ' rpc.ypxfrd'; rpc.ypxfrd ${nis_ypxfrd_flags}
 	    fi
 	    
-	    if [ "X${nis_yppasswdd_enable}" = X"YES" ]; then
+	    if [ "${nis_yppasswdd_enable}" = "YES" ]; then
 		    echo -n ' rpc.yppasswdd'; rpc.yppasswdd ${nis_yppasswdd_flags}
 	    fi
     fi
 
     # Start ypbind if we're an NIS client
-    if [ "X${nis_client_enable}" = X"YES" ]; then
+    if [ "${nis_client_enable}" = "YES" ]; then
 	    echo -n ' ypbind'; ypbind ${nis_client_flags}
-	    if [ "X${nis_ypset_enable}" = X"YES" ]; then
+	    if [ "${nis_ypset_enable}" = "YES" ]; then
 		    echo -n ' ypset'; ypset ${nis_ypset_flags}
 	    fi
     fi
 
     # Start keyserv if we are running Secure RPC
-    if [ "X${keyserv_enable}" = X"YES" ]; then
+    if [ "${keyserv_enable}" = "YES" ]; then
 	    echo -n ' keyserv';		keyserv ${keyserv_flags}
     fi
     # Start ypupdated if we are running Secure RPC and we are NIS master
-    if [ "X$rpc_ypupdated_enable" = X"YES" ]; then
+    if [ "${rpc_ypupdated_enable}" = "YES" ]; then
 	    echo -n ' rpc.ypupdated';	rpc.ypupdated
     fi
 
@@ -325,40 +325,40 @@ network_pass2() {
 network_pass3() {
     echo -n 'Starting final network daemons:'
 
-    if [ "X${nfs_server_enable}" = X"YES" -a -r /etc/exports ]; then
+    if [ "${nfs_server_enable}" = "YES" -a -r /etc/exports ]; then
 	    echo -n ' mountd'
-	    if [ "X${weak_mountd_authentication}" = X"YES" ]; then
+	    if [ "${weak_mountd_authentication}" = "YES" ]; then
 		    mountd_flags="-n"
 	    fi
 	    mountd ${mountd_flags}
-	    if [ "X${nfs_reserved_port_only}" = X"YES" ]; then
+	    if [ "${nfs_reserved_port_only}" = "YES" ]; then
 		    echo -n ' NFS on reserved port only=YES'
 		    sysctl -w vfs.nfs.nfs_privport=1 >/dev/null
 	    fi
 	    echo -n ' nfsd';		nfsd ${nfs_server_flags}
-	    if [ "X$rpc_lockd_enable" = X"YES" ]; then
+	    if [ "${rpc_lockd_enable}" = "YES" ]; then
 		echo -n ' rpc.lockd';		rpc.lockd
 	    fi
-	    if [ "X$rpc_statd_enable" = X"YES" ]; then
+	    if [ "${rpc_statd_enable}" = "YES" ]; then
 		echo -n ' rpc.statd';		rpc.statd
 	    fi
     fi
     
-    if [ "X${nfs_client_enable}" = X"YES" ]; then
+    if [ "${nfs_client_enable}" = "YES" ]; then
 	    echo -n ' nfsiod';		nfsiod ${nfs_client_flags}
-	    if [ "X${nfs_access_cache}" != X ]; then
+	    if [ "${nfs_access_cache}" != "X" ]; then
 		echo -n " NFS access cache time=${nfs_access_cache}"
 		sysctl -w vfs.nfs.access_cache_timeout=${nfs_access_cache} \
 		    >/dev/null
 	    fi
     fi
 
-    if [ "X${amd_enable}" = X"YES" ]; then
+    if [ "${amd_enable}" = "YES" ]; then
 	    echo -n ' amd'
-	    if [ "X${amd_map_program}" != X"NO" ]; then
+	    if [ "${amd_map_program}" != "NO" ]; then
 		amd_flags="${amd_flags} `eval ${amd_map_program}`"
 	    fi
-	    if [ -n "$amd_flags" ]
+	    if [ -n "${amd_flags}" ]
 	    then
 	      amd -p ${amd_flags} > /var/run/amd.pid 2> /dev/null
 	    else
@@ -366,20 +366,20 @@ network_pass3() {
 	    fi
     fi
 
-    if [ "X${rwhod_enable}" = X"YES" ]; then
+    if [ "${rwhod_enable}" = "YES" ]; then
 	    echo -n ' rwhod';	rwhod ${rwhod_flags}
     fi
 
     # Kerberos runs ONLY on the Kerberos server machine
-    if [ "X${kerberos_server_enable}" = X"YES" ]; then
-	    if [ "X${kerberos_stash}" = "XYES" ]; then
+    if [ "${kerberos_server_enable}" = "YES" ]; then
+	    if [ "${kerberos_stash}" = "YES" ]; then
 		stash_flag=-n
 	    else
 		stash_flag=
 	    fi
 	    echo -n ' kerberos'; \
 		kerberos ${stash_flag} >> /var/log/kerberos.log &
-	    if [ "X${kadmind_server_enable}" = "XYES" ]; then
+	    if [ "${kadmind_server_enable}" = "YES" ]; then
 		echo -n ' kadmind'; \
 		(sleep 20; kadmind ${stash_flag} >/dev/null 2>&1 &) &
 	    fi
