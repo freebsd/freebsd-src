@@ -1827,67 +1827,13 @@ device		pci
 device		ahc		# AHA2940 and onboard AIC7xxx devices
 device		amd		# AMD 53C974 (Teckram DC-390(T))
 device		isp		# Qlogic family
+device		ispfw		# Firmware for QLogic HBAs
 device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets)
 #
 # Options for ISP
 #
-#	SCSI_ISP_NO_FWLOAD_MASK	- mask of isp unit numbers (obviously
-#				  a max of 32) that you wish to disable
-#				  to disable the loading of firmware on.
-#	SCSI_ISP_NO_NVRAM_MASK	- mask of isp unit numbers (obviously
-#				  a max of 32) that you wish to disable
-#				  them picking up information from NVRAM
-#				  (for broken cards you can't fix the NVRAM
-#				  on- very rare, or for systems you can't
-#				  change NVRAM on (e.g. alpha) and you don't
-#				  like what's in there)
-#	SCSI_ISP_PREFER_MEM_MAP	- control preference for using memory mappings
-#				  instead of I/O space mappings. It defaults
-#				  to 1 for i386, 0 for alpha. Set to 1 to
-#				  unconditionally prefer mapping memory,
-#				  else it will use I/O space mappings. Of
-#				  course, this can fail if the PCI implement-
-#				  ation doesn't support what you want.
-#
-#	SCSI_ISP_FCDUPLEX	- mask of isp unit numbers (obviously
-#				  a max of 32) that you wish to set fibre
-#				  channel full duplex mode on.
-#				  to disable the loading of firmware on.
-#	SCSI_ISP_FABRIC		  enable loading of Fabric f/w flavor (2100).
-#	SCSI_ISP_SCCLUN		  enable loading of expanded lun f/w (2100).
-#	SCSI_ISP_WWN		- define a WWN to use as a default
-#
-#	ISP_DISABLE_1020_SUPPORT	Disable support for 1020/1040 cards
-#	ISP_DISABLE_1080_SUPPORT	Disable support for 1080/1240 cards
-#	ISP_DISABLE_12160_SUPPORT	Disable support for 12160 cards
-#	ISP_DISABLE_2100_SUPPORT	Disable support for 2100 cards
-#	(these really just to save some code space)
-#	(use of all four will cause the kernel to not compile)
-#
-#	ISP_COMPILE_FW		-	compile all firmware in
-#	ISP_COMPILE_1020_FW	-	compile in 1020/1040 firmware
-#	ISP_COMPILE_1080_FW	-	compile in 1080/1240/1280 firmware
-#	ISP_COMPILE_12160_FW	-	compile in 12160 firmware
-#	ISP_COMPILE_2100_FW	-	compile in 2100 firmware
-#	ISP_COMPILE_2200_FW	-	compile in 2200 firmware
-#
 #	ISP_TARGET_MODE		-	enable target mode operation
-#
-#options 	SCSI_ISP_NO_FWLOAD_MASK=0x12	# disable FW load for isp1, isp4
-#options 	SCSI_ISP_NO_NVRAM_MASK=0x1	# disable NVRAM for isp0
-#options 	SCSI_ISP_PREFER_MEM_MAP=0	# prefer I/O mapping
-#options 	SCSI_ISP_FCDUPLEX=0x4		# isp2 is a Fibre Channel card
-						# we want in full duplex mode.
-#options 	SCSI_ISP_WWN="0x5000000099990000"
-#options 	ISP_DISABLE_1020_SUPPORT
-#options 	ISP_DISABLE_1080_SUPPORT
-#options 	ISP_DISABLE_12160_SUPPORT
-#options 	ISP_DISABLE_2100_SUPPORT
-#options 	ISP_COMPILE_1020_FW=1
-#options 	ISP_COMPILE_1080_FW=1
-#options 	ISP_COMPILE_2100_FW=1
-#options 	ISP_COMPILE_2200_FW=1
 #options 	ISP_TARGET_MODE=1
 
 # Options used in dev/sym/ (Symbios SCSI driver).
