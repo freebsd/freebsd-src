@@ -40,7 +40,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/limits.h>
 #include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -109,17 +108,18 @@ int	ipport_reservedlow = 0;
 static int
 sysctl_net_ipport_check(SYSCTL_HANDLER_ARGS)
 {
-	int error = sysctl_handle_int(oidp,
-		oidp->oid_arg1, oidp->oid_arg2, req);
-	if (!error) {
+	int error;
+
+	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
+	if (error == 0) {
 		RANGECHK(ipport_lowfirstauto, 1, IPPORT_RESERVED - 1);
 		RANGECHK(ipport_lowlastauto, 1, IPPORT_RESERVED - 1);
-		RANGECHK(ipport_firstauto, IPPORT_RESERVED, USHRT_MAX);
-		RANGECHK(ipport_lastauto, IPPORT_RESERVED, USHRT_MAX);
-		RANGECHK(ipport_hifirstauto, IPPORT_RESERVED, USHRT_MAX);
-		RANGECHK(ipport_hilastauto, IPPORT_RESERVED, USHRT_MAX);
+		RANGECHK(ipport_firstauto, IPPORT_RESERVED, IPPORT_MAX);
+		RANGECHK(ipport_lastauto, IPPORT_RESERVED, IPPORT_MAX);
+		RANGECHK(ipport_hifirstauto, IPPORT_RESERVED, IPPORT_MAX);
+		RANGECHK(ipport_hilastauto, IPPORT_RESERVED, IPPORT_MAX);
 	}
-	return error;
+	return (error);
 }
 
 #undef RANGECHK
