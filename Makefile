@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.106 1996/10/06 02:17:43 jkh Exp $
+#	$Id: Makefile,v 1.107 1996/10/14 12:58:47 peter Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -23,8 +23,10 @@
 # update      - convenient way to update your source tree (eg: sup/cvs)
 # most        - build user commands, no libraries or include files
 # installmost - install user commands, no libraries or include files
-# all         - run through SUBDIR and build everything.  This is an implicit
-#               rule, not particularly useful for everybody.  Use 'world'.
+#
+# Standard targets (not defined here) are documented in the makefiles in
+# /usr/share/mk.  These include:
+#		obj depend all install clean cleandepend cleanobj
 
 
 # Put initial settings here.
@@ -495,19 +497,16 @@ libraries:
 # compile and install.
 #
 build-tools:
-	cd ${.CURDIR}/usr.bin/symorder && ${MAKE} depend && \
+.for d in				\
+		usr.bin/symorder	\
+		usr.bin/sgmls		\
+		usr.bin/sgmlfmt		\
+		share/sgml		\
+		usr.sbin/zic		\
+		gnu/usr.bin/awk		\
+		gnu/usr.bin/groff
+	cd ${.CURDIR}/$d && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/sgmls && ${MAKE} depend && \
-		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR} 
-	cd ${.CURDIR}/usr.bin/sgmlfmt && ${MAKE} depend && \
-		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR} 
-	cd ${.CURDIR}/share/sgml && ${MAKE} depend && \
-		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR} 
-	cd ${.CURDIR}/usr.sbin/zic && ${MAKE} depend && \
-		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/gnu/usr.bin/awk && ${MAKE} depend && \
-		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/gnu/usr.bin/groff && ${MAKE} depend && \
-		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+.endfor
 
 .include <bsd.subdir.mk>
