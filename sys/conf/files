@@ -357,6 +357,8 @@ dev/hea/eni_intr.c	optional hea
 dev/hea/eni_receive.c	optional hea
 dev/hea/eni_transmit.c	optional hea
 dev/hea/eni_vcm.c	optional hea
+dev/hea/hea_pci.c	optional hea pci
+dev/hea/hea_freebsd.c	optional hea
 dev/hfa/fore_buffer.c	optional hfa
 dev/hfa/fore_command.c	optional hfa
 dev/hfa/fore_globals.c	optional hfa
