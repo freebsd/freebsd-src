@@ -523,19 +523,29 @@ In case of failure, it returns
 and attempts to restore the chain to its original state.
 .El
 .Sh STRESS TESTING
-When running a kernel compiled with the option MBUF_STRESS_TEST,
-the following sysctl-controlled options may be used to create
-various failure / extreme cases for testing of network drivers
+When running a kernel compiled with the option
+.Dv MBUF_STRESS_TEST ,
+the following
+.Xr sysctl 8 Ns
+-controlled options may be used to create
+various failure/extreme cases for testing of network drivers
 and other mbuf-reliant parts of the kernel.
-.Pp
-.Va net.inet.ip.mbuf_frag_size
-causes ip_output to fragment outgoing mbuf chains into fragments of
-the specified size.  Setting this option to 1 is an excellent way to
+.Bl -tag -width ident
+.It Va net.inet.ip.mbuf_frag_size
+Causes
+.Fn ip_output
+to fragment outgoing mbuf chains into fragments of the specified size.
+Setting this variable to 1 is an excellent way to
 test the long mbuf chain handling ability of network drivers.
-.Pp
-.Va kern.ipc.m_defragrandomfailures
-causes the function m_defrag to randomly fail, returning NULL.  Any
-piece of code which uses m_defrag should be tested with this feature.
+.It Va kern.ipc.m_defragrandomfailures
+Causes the function
+.Fn m_defrag
+to randomly fail, returning
+.Dv NULL .
+Any piece of code which uses
+.Fn m_defrag
+should be tested with this feature.
+.El
 .Sh RETURN VALUES
 See above.
 .Sh HISTORY
