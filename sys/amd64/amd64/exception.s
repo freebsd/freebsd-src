@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.46 1997/10/27 16:35:34 bde Exp $
+ *	$Id: exception.s,v 1.47 1997/10/27 17:19:20 bde Exp $
  */
 
 #include "npx.h"
@@ -224,6 +224,10 @@ calltrap:
 #ifndef SMP
 	subl	%eax,%eax
 #endif
+#ifdef VM86
+	cmpl	$1,_in_vm86call
+	je	2f			/* keep kernel cpl */
+#endif
 	testb	$SEL_RPL_MASK,TRAPF_CS_OFF(%esp)
 	jne	1f
 #ifdef VM86
@@ -231,6 +235,7 @@ calltrap:
 	jne	1f
 #endif /* VM86 */
 
+2:
 #ifdef SMP
 	ECPL_LOCK
 #ifdef CPL_AND_CML
@@ -361,6 +366,13 @@ ENTRY(fork_trampoline)
 	MEXITCOUNT
 	jmp	_doreti
 
+
+#ifdef VM86
+/*
+ * Include vm86 call routines, which want to call _doreti.
+ */
+#include "i386/i386/vm86bios.s"
+#endif /* VM86 */
 
 /*
  * Include what was once config+isa-dependent code.

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.103 1998/01/09 03:20:58 eivind Exp $
+ *	$Id: locore.s,v 1.104 1998/01/31 02:53:41 eivind Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -184,6 +184,12 @@ _KPTphys:	.long	0			/* phys addr of kernel page tables */
 	.globl	_proc0paddr
 _proc0paddr:	.long	0			/* address of proc 0 address space */
 p0upa:		.long	0			/* phys addr of proc0's UPAGES */
+
+#ifdef VM86
+	.globl	_vm86paddr, _vm86pa
+_vm86paddr:	.long	0			/* address of vm86 region */
+_vm86pa:	.long	0			/* phys addr of vm86 region */
+#endif
 
 #ifdef BDE_DEBUGGER
 	.globl	_bdb_exists			/* flag to indicate BDE debugger is present */
@@ -828,6 +834,13 @@ over_symalloc:
 	addl	$KERNBASE, %esi
 	movl	%esi, R(_proc0paddr)
 
+#ifdef VM86
+	ALLOCPAGES(4)			/* IOPAGES + ext + stack */
+	movl	%esi,R(_vm86pa)
+	addl	$KERNBASE, %esi
+	movl	%esi, R(_vm86paddr)
+#endif /* VM86 */
+
 #ifdef SMP
 /* Allocate cpu0's private data page */
 	ALLOCPAGES(1)
@@ -894,6 +907,25 @@ map_read_write:
 	movl	$ISA_HOLE_LENGTH>>PAGE_SHIFT, %ecx
 	fillkptphys($PG_RW)
 
+#ifdef VM86
+/* Map space for the vm86 region */
+	movl	R(_vm86pa), %eax
+	movl	$4, %ecx
+	fillkptphys($PG_RW)
+
+/* Map page 0 into the vm86 page table */
+	movl	$0, %eax
+	movl	$0, %ebx
+	movl	$1, %ecx
+	fillkpt(R(_vm86pa), $PG_RW|PG_U)
+
+/* ...likewise for the ISA hole */
+	movl	$ISA_HOLE_START, %eax
+	movl	$ISA_HOLE_START>>PAGE_SHIFT, %ebx
+	movl	$ISA_HOLE_LENGTH>>PAGE_SHIFT, %ecx
+	fillkpt(R(_vm86pa), $PG_RW|PG_U)
+#endif /* VM86 */
+
 #ifdef SMP
 /* Map cpu0's private page into global kmem (4K @ cpu0prvpage) */
 	movl	R(cpu0pp), %eax
@@ -922,6 +954,25 @@ map_read_write:
 	movl	$MPPTDI, %ebx
 	movl	$1, %ecx
 	fillkpt(R(_IdlePTD), $PG_RW)
+
+/* Fakeup VA for the local apic to allow early traps. */
+	ALLOCPAGES(1)
+	movl	%esi, %eax
+	movl	$2, %ebx		/* pte offset = 2 */
+	movl	$1, %ecx		/* one private pt coming right up */
+	fillkpt(R(cpu0pt), $PG_RW)
+
+/* Initialize mp lock to allow early traps */
+	movl	$1, R(_mp_lock)
+
+/* Initialize curproc to &proc0 */	
+	movl	R(cpu0pp), %eax
+	movl	$CNAME(proc0), 4(%eax)
+
+/* Initialize my_idlePTD to IdlePTD */		
+	movl	R(_IdlePTD), %ecx
+	movl	%ecx,32(%eax)
+		
 #endif	/* SMP */
 
 /* install a pde for temporary double map of bottom of VA */
