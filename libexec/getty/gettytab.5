@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)gettytab.5	8.4 (Berkeley) 4/19/94
+.\"     @(#)gettytab.5	8.5 (Berkeley) 6/1/94
 .\"
-.Dd April 19, 1994
+.Dd June 1, 1994
 .Dt GETTYTAB 5
 .Os BSD 4.2
 .Sh NAME
@@ -213,6 +213,7 @@ screen clear string may be preceded by a (decimal) number
 of milliseconds of delay required (a la termcap).
 This delay is simulated by repeated use of the pad character
 .Em \&pc .
+.pl -1
 .Pp
 The initial message, and login message,
 .Em \&im
