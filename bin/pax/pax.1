@@ -485,9 +485,8 @@ Link files.
 (The letter ell).
 In the
 .Em copy
-mode (
-.Fl r
-.Fl w ) ,
+mode
+.Pq Fl r w ,
 hard links are made between the source and destination file hierarchies
 whenever possible.
 .It Fl n
@@ -676,8 +675,8 @@ Where <ls -l listing> is the output format specified by the
 utility when used with the
 .Fl l
 option.
-Otherwise for all the other operational modes (
-.Em read , write ,
+Otherwise for all the other operational modes
+.Em ( read , write ,
 and
 .Em copy ) ,
 pathnames are written and flushed to
@@ -966,8 +965,8 @@ option, except that the modification time is checked using the
 pathname created after all the file name modifications have completed.
 .El
 .Pp
-The options that operate on the names of files or archive members (
-.Fl c ,
+The options that operate on the names of files or archive members
+.Fl ( c ,
 .Fl i ,
 .Fl n ,
 .Fl s ,
