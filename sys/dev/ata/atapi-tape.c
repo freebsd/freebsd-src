@@ -122,7 +122,7 @@ astattach(struct ata_device *atadev)
 	ast_read_position(stp, 0, &position);
     }
 
-    devstat_add_entry(&stp->stats, "ast", stp->lun, DEV_BSIZE,
+    stp->stats = devstat_new_entry("ast", stp->lun, DEV_BSIZE,
 		      DEVSTAT_NO_ORDERED_TAGS,
 		      DEVSTAT_TYPE_SEQUENTIAL | DEVSTAT_TYPE_IF_IDE,
 		      DEVSTAT_PRIORITY_TAPE);
@@ -154,7 +154,7 @@ astdetach(struct ata_device *atadev)
     }
     destroy_dev(stp->dev1);
     destroy_dev(stp->dev2);
-    devstat_remove_entry(&stp->stats);
+    devstat_remove_entry(stp->stats);
     ata_free_name(atadev);
     ata_free_lun(&ast_lun_map, stp->lun);
     free(stp, M_AST);
@@ -477,7 +477,7 @@ ast_start(struct ata_device *atadev)
     ccb[3] = blkcount>>8;
     ccb[4] = blkcount;
 
-    devstat_start_transaction(&stp->stats);
+    devstat_start_transaction(stp->stats);
 
     atapi_queue_cmd(stp->device, ccb, bp->bio_data, blkcount * stp->blksize, 
 		    (bp->bio_cmd == BIO_READ) ? ATPR_F_READ : 0,
@@ -500,7 +500,7 @@ ast_done(struct atapi_request *request)
 	bp->bio_resid = bp->bio_bcount - request->donecount;
 	ast_total += (bp->bio_bcount - bp->bio_resid);
     }
-    biofinish(bp, &stp->stats, 0);
+    biofinish(bp, stp->stats, 0);
     return 0;
 }
 
