@@ -138,8 +138,7 @@ tsb_stte_vtophys(pmap_t pm, struct stte *stp)
 
 	va = (vm_offset_t)stp;
 	if (pm == kernel_pmap)
-		return (tsb_kernel_phys +
-		    ((va - TSB_KERNEL_MIN_ADDRESS) << STTE_SHIFT));
+		return (tsb_kernel_phys + (va - TSB_KERNEL_MIN_ADDRESS));
 
 	if (trunc_page(va) == TSB_USER_MIN_ADDRESS)
 		data = pm->pm_stte.st_tte.tte_data;
@@ -185,7 +184,7 @@ tsb_tte_enter_kernel(vm_offset_t va, struct tte tte)
 
 	stp = tsb_kvtostte(va);
 	stp->st_tte = tte;
-#if 1
+#if 0
 	pv_insert(kernel_pmap, TD_PA(tte.tte_data), va, stp);
 #endif
 }
@@ -197,7 +196,7 @@ tsb_remove_kernel(vm_offset_t va)
 
 	stp = tsb_kvtostte(va);
 	tte_invalidate(&stp->st_tte);
-#if 1
+#if 0
 	pv_remove_virt(stp);
 #endif
 }
