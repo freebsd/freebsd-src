@@ -347,6 +347,3 @@ struct acd {
 	u_int next_writeable_lba;	/* Next writable position */
 	struct wormio_prepare_track preptrack;	/* Scratch region */
 };
-
-#define CDRIOCBLANK     	_IO('c',100)    /* Blank a CDRW disc */
-#define CDRIOCNEXTWRITEABLEADDR	_IOR('c',101,int)   
