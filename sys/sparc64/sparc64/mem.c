@@ -121,8 +121,8 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 			off = uio->uio_offset & PAGE_MASK;
 			cnt = PAGE_SIZE - ((vm_offset_t)iov->iov_base &
 			    PAGE_MASK);
-			cnt = min(cnt, PAGE_SIZE - off);
-			cnt = min(cnt, iov->iov_len);
+			cnt = ulmin(cnt, PAGE_SIZE - off);
+			cnt = ulmin(cnt, iov->iov_len);
 
 			m = NULL;
 			for (i = 0; phys_avail[i] != 0; i += 2) {
