@@ -59,28 +59,35 @@ SBRS = FBSDBOOT.SBR \
 FBSDBOOT_DEP = c:\src\fbsdboot\reboot.h \
 	c:\src\fbsdboot\boot.h \
 	c:\src\fbsdboot\param.h \
+	c:\src\fbsdboot\sysparam.h \
 	c:\src\fbsdboot\syslimit.h \
 	c:\src\fbsdboot\quota.h \
 	c:\src\fbsdboot\cdefs.h \
 	c:\src\fbsdboot\fs.h \
 	c:\src\fbsdboot\inode.h \
 	c:\src\fbsdboot\dinode.h \
-	c:\src\fbsdboot\dosboot.h
+	c:\src\fbsdboot\bootinfo.h \
+	c:\src\fbsdboot\dosboot.h \
+	c:\src\fbsdboot\protmod.h
 
 
 PROTMOD_DEP = c:\src\fbsdboot\boot.h \
 	c:\src\fbsdboot\param.h \
+	c:\src\fbsdboot\sysparam.h \
 	c:\src\fbsdboot\syslimit.h \
 	c:\src\fbsdboot\quota.h \
 	c:\src\fbsdboot\cdefs.h \
 	c:\src\fbsdboot\fs.h \
 	c:\src\fbsdboot\inode.h \
 	c:\src\fbsdboot\dinode.h \
+	c:\src\fbsdboot\bootinfo.h \
 	c:\src\fbsdboot\protmod.h
 
 
-BOOT_DEP = c:\src\fbsdboot\protmod.h \
+BOOT_DEP = c:\src\fbsdboot\bootinfo.h \
+	c:\src\fbsdboot\protmod.h \
 	c:\src\fbsdboot\param.h \
+	c:\src\fbsdboot\sysparam.h \
 	c:\src\fbsdboot\syslimit.h \
 	c:\src\fbsdboot\boot.h \
 	c:\src\fbsdboot\quota.h \
@@ -89,23 +96,28 @@ BOOT_DEP = c:\src\fbsdboot\protmod.h \
 	c:\src\fbsdboot\inode.h \
 	c:\src\fbsdboot\dinode.h \
 	c:\src\fbsdboot\reboot.h \
-	c:\src\fbsdboot\exec.h
+	c:\src\fbsdboot\exec.h \
+	c:\src\fbsdboot\mexec.h \
+	c:\src\fbsdboot\imgact.h
 
 
 DISK_DEP = c:\src\fbsdboot\boot.h \
 	c:\src\fbsdboot\param.h \
+	c:\src\fbsdboot\sysparam.h \
 	c:\src\fbsdboot\syslimit.h \
 	c:\src\fbsdboot\quota.h \
 	c:\src\fbsdboot\cdefs.h \
 	c:\src\fbsdboot\fs.h \
 	c:\src\fbsdboot\inode.h \
 	c:\src\fbsdboot\dinode.h \
+	c:\src\fbsdboot\dkbad.h \
 	c:\src\fbsdboot\disklabe.h
 
 
 SYS_DEP = c:\src\fbsdboot\protmod.h \
 	c:\src\fbsdboot\boot.h \
 	c:\src\fbsdboot\param.h \
+	c:\src\fbsdboot\sysparam.h \
 	c:\src\fbsdboot\syslimit.h \
 	c:\src\fbsdboot\quota.h \
 	c:\src\fbsdboot\cdefs.h \
@@ -118,6 +130,7 @@ SYS_DEP = c:\src\fbsdboot\protmod.h \
 
 DOSBOOT_DEP = c:\src\fbsdboot\protmod.h \
 	c:\src\fbsdboot\param.h \
+	c:\src\fbsdboot\sysparam.h \
 	c:\src\fbsdboot\syslimit.h \
 	c:\src\fbsdboot\boot.h \
 	c:\src\fbsdboot\quota.h \
@@ -125,8 +138,11 @@ DOSBOOT_DEP = c:\src\fbsdboot\protmod.h \
 	c:\src\fbsdboot\fs.h \
 	c:\src\fbsdboot\inode.h \
 	c:\src\fbsdboot\dinode.h \
+	c:\src\fbsdboot\bootinfo.h \
 	c:\src\fbsdboot\reboot.h \
-	c:\src\fbsdboot\exec.h
+	c:\src\fbsdboot\exec.h \
+	c:\src\fbsdboot\mexec.h \
+	c:\src\fbsdboot\imgact.h
 
 
 all:	$(PROJ).EXE

@@ -15,4 +15,4 @@
  *	USE OF THIS SOFTWARE.
  * 
  */
-void dosboot(int howto, char *kernel);
+void dosboot(long howto, char *kernel);

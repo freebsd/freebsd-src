@@ -36,6 +36,7 @@
 #include "dkbad.h"
 #endif
 #include "disklabe.h"
+#include "diskslic.h"
 
 #define	BIOS_DEV_FLOPPY	0x0
 #define	BIOS_DEV_WIN	0x80
@@ -62,8 +63,6 @@ long dosdev, slice, unit, part, maj, boff, poff, bnum, cnt;
 
 extern int biosread(int dev, int track, int head, int sector, int cnt, unsigned char far *buffer);
 
-/*#define EMBEDDED_DISKLABEL 1*/
-/*extern struct disklabel disklabel;*/
 struct	disklabel disklabel;
 
 static void Bread(int dosdev, long sector);
@@ -129,10 +128,11 @@ int devopen(void)
 		Bread(dosdev, 0);
 		dptr = (struct dos_partition *)(((char *)I_ADDR)+DOSPARTOFF);
 		sector = LABELSECTOR;
+		slice = WHOLE_DISK_SLICE;
 		for (i = 0; i < NDOSPART; i++, dptr++)
 			if (dptr->dp_typ == DOSPTYP_386BSD) {
+				slice = BASE_SLICE + i;
 				sector = dptr->dp_start + LABELSECTOR;
-				slice = i+1;
 				break;
 			}
 		Bread(dosdev, sector++);
@@ -161,10 +161,20 @@ int devopen(void)
 		    long dkbbnum;
 		    struct dkbad *dkbptr;
 
-		    /* find the first readable bad144 sector */
-		    /* some of this code is copied from ufs/disk_subr.c */
+		    /* find the first readable bad sector table */
+		    /* some of this code is copied from ufs/ufs_disksubr.c */
+		    /* including the bugs :-( */
 		    /* read a bad sector table */
-		    dkbbnum = dl->d_secperunit - dl->d_nsectors;
+
+#define BAD144_PART	2	/* XXX scattered magic numbers */
+#define BSD_PART	0	/* XXX should be 2 but bad144.c uses 0 */
+		    if (dl->d_partitions[BSD_PART].p_offset != 0)
+			    dkbbnum = dl->d_partitions[BAD144_PART].p_offset
+				      + dl->d_partitions[BAD144_PART].p_size;
+		    else
+			    dkbbnum = dl->d_secperunit;
+		    dkbbnum -= dl->d_nsectors;
+
 		    if (dl->d_secsize > DEV_BSIZE)
 		      dkbbnum *= dl->d_secsize / DEV_BSIZE;
 		    else

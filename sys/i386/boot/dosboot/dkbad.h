@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dkbad.h	8.1 (Berkeley) 6/2/93
- * $Id: dkbad.h,v 1.4 1994/12/11 23:20:50 bde Exp $
+ * $Id: dkbad.h,v 1.5 1995/04/15 23:21:28 bde Exp $
  */
 
 #ifndef _SYS_DKBAD_H_
@@ -60,6 +60,7 @@
 #define	DKBAD_MAGIC	0x4321		/* normal value for bt_flag */
 #define	DKBAD_MAXBAD	126		/* maximum bad sectors supported */
 #define	DKBAD_NOCYL	0xffff		/* cylinder to mark end of disk table */
+#define	DKBAD_NOTRKSEC	0xffff		/* track/sector to mark end */
 
 struct dkbad {
 	long bt_csn;			/* cartridge serial number */
@@ -77,7 +78,7 @@ struct dkbad {
 #define	CONT	3
 
 #ifdef KERNEL
-include <sys/conf.h>
+#include <sys/conf.h>
 
 #define	DKBAD_NOSECT	(-1)		/* sector to mark end of core table */
 
