@@ -184,7 +184,7 @@ nga_constructor(node_p *nodep)
 
 	if ((error = ng_make_node_common(&typestruct, nodep)))
 		return (error);
-	MALLOC(sc, sc_p, sizeof(*sc), M_NETGRAPH, M_WAITOK);
+	MALLOC(sc, sc_p, sizeof(*sc), M_NETGRAPH, M_NOWAIT);
 	if (sc == NULL)
 		return (ENOMEM);
 	bzero(sc, sizeof(*sc));
@@ -193,11 +193,11 @@ nga_constructor(node_p *nodep)
 	sc->cfg.amru = NG_ASYNC_DEFAULT_MRU;
 	sc->cfg.smru = NG_ASYNC_DEFAULT_MRU;
 	MALLOC(sc->abuf, u_char *,
-	    ASYNC_BUF_SIZE(sc->cfg.smru), M_NETGRAPH, M_WAITOK);
+	    ASYNC_BUF_SIZE(sc->cfg.smru), M_NETGRAPH, M_NOWAIT);
 	if (sc->abuf == NULL)
 		goto fail;
 	MALLOC(sc->sbuf, u_char *,
-	    SYNC_BUF_SIZE(sc->cfg.amru), M_NETGRAPH, M_WAITOK);
+	    SYNC_BUF_SIZE(sc->cfg.amru), M_NETGRAPH, M_NOWAIT);
 	if (sc->sbuf == NULL) {
 		FREE(sc->abuf, M_NETGRAPH);
 fail:

@@ -126,7 +126,7 @@ ng_rfc1490_constructor(node_p *nodep)
 	int error;
 
 	/* Allocate private structure */
-	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_WAITOK);
+	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_NOWAIT);
 	if (priv == NULL)
 		return (ENOMEM);
 	bzero(priv, sizeof(*priv));
