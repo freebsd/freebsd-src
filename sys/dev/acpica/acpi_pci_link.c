@@ -1018,7 +1018,7 @@ acpi_pci_link_resume(device_t dev)
 	/* Walk through all PRT entries for this PCI bridge. */
 	ACPI_SERIAL_BEGIN(pci_link);
 	TAILQ_FOREACH(entry, &acpi_prt_entries, links) {
-		if (entry->pcidev == dev || entry->pci_link == NULL)
+		if (entry->pcidev != dev || entry->pci_link == NULL)
 			continue;
 		link = entry->pci_link;
 
