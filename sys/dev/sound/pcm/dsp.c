@@ -141,9 +141,9 @@ dsp_close(snddev_info *d, int chan, int devtype)
 {
 	pcm_channel *rdch, *wrch;
 
+	d->ref[chan]--;
 #if 0
 	/* enable this if/when every close() is propagated here */
-	d->ref[chan]--;
 	if (d->ref[chan]) return 0;
 #endif
 	d->flags &= ~SD_F_TRANSIENT;
