@@ -41,7 +41,6 @@
 
 struct upa_regs {
 	u_int32_t	phys_hi;
-	u_int32_t	phys_mid;
 	u_int32_t	phys_lo;
 	u_int32_t	size_hi;
 	u_int32_t	size_lo;
@@ -56,6 +55,11 @@ struct upa_ranges {
 	u_int32_t	size_hi;
 	u_int32_t	size_lo;
 };
+
+#define	UPA_REG_PHYS(r) \
+	(((u_int64_t)(r)->phys_hi << 32) | (u_int64_t)(r)->phys_lo)
+#define	UPA_REG_SIZE(r) \
+	(((u_int64_t)(r)->size_hi << 32) | (u_int64_t)(r)->size_lo)
 
 #define	UPA_RANGE_CHILD(r) \
 	(((u_int64_t)(r)->child_hi << 32) | (u_int64_t)(r)->child_lo)
