@@ -1279,6 +1279,7 @@ options		ACPI_DEBUG
 # adv: All Narrow SCSI bus AdvanSys controllers.
 # adw: Second Generation AdvanSys controllers including the ADV940UW.
 # aha: Adaptec 154x/1535/1640
+# ahb: Adaptec 174x EISA controllers
 # ahc: Adaptec 274x/284x/2910/293x/294x/394x/3950x/3960x/398X/4944/
 #      19160x/29160x, aic7770/aic78xx
 # aic: Adaptec 6260/6360, APA-1460 (PC Card), NEC PC9801-100 (C-BUS)
@@ -1315,6 +1316,7 @@ device		aha	1
 hint.aha.0.at="isa"
 device		aic
 hint.aic.0.at="isa"
+device		ahb
 device		ahc
 device		amd
 device		isp
@@ -1437,6 +1439,11 @@ device		aac
 device		ida		# Compaq Smart RAID
 device		mlx		# Mylex DAC960
 device		amr		# AMI MegaRAID
+
+#
+# 3ware ATA RAID
+#
+device		twe		# 3ware ATA RAID
 
 #
 # The 'ATA' driver supports all ATA and ATAPI devices, including PC Card
