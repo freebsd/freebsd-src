@@ -76,6 +76,7 @@ void		 _fetch_syserr(void);
 void		 _fetch_info(const char *, ...);
 int		 _fetch_default_port(const char *);
 int		 _fetch_default_proxy_port(const char *);
+int		 _fetch_bind(int, int, const char *);
 conn_t		*_fetch_connect(const char *, int, int, int);
 conn_t		*_fetch_reopen(int);
 conn_t		*_fetch_ref(conn_t *);
