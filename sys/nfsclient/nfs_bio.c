@@ -63,6 +63,23 @@
 #include <nfs/nqnfs.h>
 #include <nfs/nfsnode.h>
 
+/*
+ * Just call nfs_writebp() with the force argument set to 1.
+ *
+ * NOTE: B_DONE may or may not be set in a_bp on call.
+ */
+static int
+nfs_bwrite(struct buf *bp)
+{
+	return (nfs_writebp(bp, 1, curproc));
+}
+
+struct buf_ops buf_ops_nfs = {
+	"buf_ops_nfs",
+	nfs_bwrite
+};
+
+
 static struct buf *nfs_getcacheblk __P((struct vnode *vp, daddr_t bn, int size,
 					struct proc *p));
 
@@ -890,6 +907,8 @@ again:
 				bcount += n;
 				allocbuf(bp, bcount);
 				bp->b_flags |= save;
+				bp->b_magic = B_MAGIC_NFS;
+				bp->b_op = &buf_ops_nfs;
 			}
 		} else {
 			/*

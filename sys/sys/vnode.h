@@ -540,7 +540,6 @@ struct ucred;
 struct uio;
 struct vattr;
 struct vnode;
-struct vop_bwrite_args;
 
 extern int	(*lease_check_hook) __P((struct vop_lease_args *));
 
@@ -620,7 +619,6 @@ int	vfs_object_create __P((struct vnode *vp, struct proc *p,
 void	vfs_timestamp __P((struct timespec *));
 void	vfs_write_resume __P((struct mount *mp));
 void	vfs_write_suspend __P((struct mount *mp));
-int	vop_stdbwrite __P((struct vop_bwrite_args *ap));
 int	vop_stdgetwritemount __P((struct vop_getwritemount_args *));
 int	vop_stdinactive __P((struct vop_inactive_args *));
 int	vop_stdislocked __P((struct vop_islocked_args *));

@@ -137,7 +137,6 @@ struct vnodeopv_entry_desc coda_vnodeop_entries[] = {
     { &vop_islocked_desc, coda_islocked },	/* islocked */
     { &vop_pathconf_desc, coda_vop_error },	/* pathconf */
     { &vop_advlock_desc, coda_vop_nop },	/* advlock */
-    { &vop_bwrite_desc, coda_vop_error },	/* bwrite */
     { &vop_lease_desc, coda_vop_nop },		/* lease */
     { &vop_poll_desc, (vop_t *) vop_stdpoll },
     { &vop_getpages_desc, coda_fbsd_getpages },	/* pager intf.*/

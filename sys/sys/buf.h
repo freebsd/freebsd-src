@@ -68,6 +68,13 @@ extern struct bio_ops {
 	int	(*io_countdeps) __P((struct buf *, int));
 } bioops;
 
+struct buf_ops {
+	char	*bop_name;
+	int	(*bop_write) __P((struct buf *));
+};
+
+extern struct buf_ops buf_ops_bio;
+
 /*
  * The buffer header describes an I/O operation in the kernel.
  *
@@ -99,6 +106,10 @@ struct buf {
 #define	b_ioflags	b_io.bio_flags
 #define	b_pblkno	b_io.bio_pblkno
 #define	b_resid		b_io.bio_resid
+	struct buf_ops	*b_op;
+	unsigned		b_magic;
+#define B_MAGIC_BIO	0x10b10b10
+#define B_MAGIC_NFS	0x67238234
 	void	(*b_iodone) __P((struct buf *));
 	off_t	b_offset;		/* Offset into file. */
 	LIST_ENTRY(buf) b_hash;		/* Hash chain. */
@@ -410,7 +421,9 @@ bufq_first(struct buf_queue_head *head)
 	return (TAILQ_FIRST(&head->queue));
 }
 
-#define BUF_WRITE(bp)		VOP_BWRITE((bp)->b_vp, (bp))
+#define BUF_WRITE(bp)					\
+	(bp)->b_op->bop_write(bp)
+
 #define BUF_STRATEGY(bp)	VOP_STRATEGY((bp)->b_vp, (bp))
 
 static __inline void
