@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_extern.h	8.10 (Berkeley) 5/14/95
- * $Id: ufs_extern.h,v 1.17 1997/09/14 02:58:10 peter Exp $
+ * $Id: ufs_extern.h,v 1.18 1997/10/10 18:18:12 phk Exp $
  */
 
 #ifndef _UFS_UFS_EXTERN_H_
@@ -51,6 +51,10 @@ struct uio;
 struct vattr;
 struct vfsconf;
 struct vnode;
+
+int	ufs_vnoperate __P((struct vop_generic_args *));
+int	ufs_vnoperatefifo __P((struct vop_generic_args *));
+int	ufs_vnoperatespec __P((struct vop_generic_args *));
 
 int	 ufs_abortop __P((struct vop_abortop_args *));
 int	 ufs_access __P((struct vop_access_args *));

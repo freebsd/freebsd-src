@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo_vnops.c	8.10 (Berkeley) 5/27/95
- * $Id: fifo_vnops.c,v 1.29 1997/10/15 09:21:00 phk Exp $
+ * $Id: fifo_vnops.c,v 1.30 1997/10/15 10:04:18 phk Exp $
  */
 
 #include <sys/param.h>
@@ -61,52 +61,66 @@ struct fifoinfo {
 };
 
 static int	fifo_ebadf __P((void));
+static int	fifo_badop __P((void));
 static int	fifo_print __P((struct vop_print_args *));
+static int	fifo_lookup __P((struct vop_lookup_args *));
+static int	fifo_open __P((struct vop_open_args *));
+static int	fifo_close __P((struct vop_close_args *));
+static int	fifo_read __P((struct vop_read_args *));
+static int	fifo_write __P((struct vop_write_args *));
+static int	fifo_ioctl __P((struct vop_ioctl_args *));
+static int	fifo_poll __P((struct vop_poll_args *));
+static int	fifo_inactive __P((struct  vop_inactive_args *));
+static int	fifo_bmap __P((struct vop_bmap_args *));
+static int	fifo_pathconf __P((struct vop_pathconf_args *));
+static int	fifo_advlock __P((struct vop_advlock_args *));
+
 
 vop_t **fifo_vnodeop_p;
 static struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vn_default_error },
-	{ &vop_abortop_desc,		(vop_t *) fifo_abortop },
-	{ &vop_access_desc,		(vop_t *) fifo_access },
+	{ &vop_abortop_desc,		(vop_t *) fifo_badop },
+	{ &vop_access_desc,		(vop_t *) fifo_ebadf },
 	{ &vop_advlock_desc,		(vop_t *) fifo_advlock },
-	{ &vop_blkatoff_desc,		(vop_t *) fifo_blkatoff },
+	{ &vop_blkatoff_desc,		(vop_t *) fifo_badop },
 	{ &vop_bmap_desc,		(vop_t *) fifo_bmap },
-	{ &vop_bwrite_desc,		(vop_t *) fifo_bwrite },
+	{ &vop_bwrite_desc,		(vop_t *) nullop },
 	{ &vop_close_desc,		(vop_t *) fifo_close },
-	{ &vop_create_desc,		(vop_t *) fifo_create },
-	{ &vop_fsync_desc,		(vop_t *) fifo_fsync },
-	{ &vop_getattr_desc,		(vop_t *) fifo_getattr },
+	{ &vop_create_desc,		(vop_t *) fifo_badop },
+	{ &vop_fsync_desc,		(vop_t *) nullop },
+	{ &vop_getattr_desc,		(vop_t *) fifo_ebadf },
 	{ &vop_inactive_desc,		(vop_t *) fifo_inactive },
 	{ &vop_ioctl_desc,		(vop_t *) fifo_ioctl },
-	{ &vop_islocked_desc,		(vop_t *) fifo_islocked },
-	{ &vop_lease_desc,		(vop_t *) fifo_lease_check },
-	{ &vop_link_desc,		(vop_t *) fifo_link },
-	{ &vop_lock_desc,		(vop_t *) fifo_lock },
+	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
+	{ &vop_lease_desc,		(vop_t *) nullop },
+	{ &vop_link_desc,		(vop_t *) fifo_badop },
+	{ &vop_lock_desc,		(vop_t *) vop_nolock },
 	{ &vop_lookup_desc,		(vop_t *) fifo_lookup },
-	{ &vop_mkdir_desc,		(vop_t *) fifo_mkdir },
-	{ &vop_mknod_desc,		(vop_t *) fifo_mknod },
-	{ &vop_mmap_desc,		(vop_t *) fifo_mmap },
+	{ &vop_mkdir_desc,		(vop_t *) fifo_badop },
+	{ &vop_mknod_desc,		(vop_t *) fifo_badop },
+	{ &vop_mmap_desc,		(vop_t *) fifo_badop },
 	{ &vop_open_desc,		(vop_t *) fifo_open },
 	{ &vop_pathconf_desc,		(vop_t *) fifo_pathconf },
 	{ &vop_poll_desc,		(vop_t *) fifo_poll },
 	{ &vop_print_desc,		(vop_t *) fifo_print },
 	{ &vop_read_desc,		(vop_t *) fifo_read },
-	{ &vop_readdir_desc,		(vop_t *) fifo_readdir },
-	{ &vop_readlink_desc,		(vop_t *) fifo_readlink },
-	{ &vop_reclaim_desc,		(vop_t *) fifo_reclaim },
-	{ &vop_remove_desc,		(vop_t *) fifo_remove },
-	{ &vop_rename_desc,		(vop_t *) fifo_rename },
-	{ &vop_revoke_desc,		(vop_t *) fifo_revoke },
-	{ &vop_rmdir_desc,		(vop_t *) fifo_rmdir },
-	{ &vop_seek_desc,		(vop_t *) fifo_seek },
-	{ &vop_setattr_desc,		(vop_t *) fifo_setattr },
-	{ &vop_strategy_desc,		(vop_t *) fifo_strategy },
-	{ &vop_symlink_desc,		(vop_t *) fifo_symlink },
-	{ &vop_truncate_desc,		(vop_t *) fifo_truncate },
-	{ &vop_unlock_desc,		(vop_t *) fifo_unlock },
-	{ &vop_update_desc,		(vop_t *) fifo_update },
-	{ &vop_valloc_desc,		(vop_t *) fifo_valloc },
-	{ &vop_vfree_desc,		(vop_t *) fifo_vfree },
+	{ &vop_readdir_desc,		(vop_t *) fifo_badop },
+	{ &vop_readlink_desc,		(vop_t *) fifo_badop },
+	{ &vop_reallocblks_desc,	(vop_t *) fifo_badop },
+	{ &vop_reclaim_desc,		(vop_t *) nullop },
+	{ &vop_remove_desc,		(vop_t *) fifo_badop },
+	{ &vop_rename_desc,		(vop_t *) fifo_badop },
+	{ &vop_revoke_desc,		(vop_t *) vop_revoke },
+	{ &vop_rmdir_desc,		(vop_t *) fifo_badop },
+	{ &vop_seek_desc,		(vop_t *) fifo_badop },
+	{ &vop_setattr_desc,		(vop_t *) fifo_ebadf },
+	{ &vop_strategy_desc,		(vop_t *) fifo_badop },
+	{ &vop_symlink_desc,		(vop_t *) fifo_badop },
+	{ &vop_truncate_desc,		(vop_t *) fifo_badop },
+	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
+	{ &vop_update_desc,		(vop_t *) nullop },
+	{ &vop_valloc_desc,		(vop_t *) fifo_badop },
+	{ &vop_vfree_desc,		(vop_t *) fifo_badop },
 	{ &vop_write_desc,		(vop_t *) fifo_write },
 	{ NULL, NULL }
 };
@@ -115,11 +129,21 @@ static struct vnodeopv_desc fifo_vnodeop_opv_desc =
 
 VNODEOP_SET(fifo_vnodeop_opv_desc);
 
+int
+fifo_vnoperate(ap)
+	struct vop_generic_args /* {
+		struct vnodeop_desc *a_desc;
+		<other random data follows, presumably>
+	} */ *ap;
+{
+	return (VOCALL(fifo_vnodeop_p, ap->a_desc->vdesc_offset, ap));
+}
+
 /*
  * Trivial lookup routine that always fails.
  */
 /* ARGSUSED */
-int
+static int
 fifo_lookup(ap)
 	struct vop_lookup_args /* {
 		struct vnode * a_dvp;
@@ -137,7 +161,7 @@ fifo_lookup(ap)
  * to find an active instance of a fifo.
  */
 /* ARGSUSED */
-int
+static int
 fifo_open(ap)
 	struct vop_open_args /* {
 		struct vnode *a_vp;
@@ -236,7 +260,7 @@ bad:
  * Vnode op for read
  */
 /* ARGSUSED */
-int
+static int
 fifo_read(ap)
 	struct vop_read_args /* {
 		struct vnode *a_vp;
@@ -277,7 +301,7 @@ fifo_read(ap)
  * Vnode op for write
  */
 /* ARGSUSED */
-int
+static int
 fifo_write(ap)
 	struct vop_write_args /* {
 		struct vnode *a_vp;
@@ -309,7 +333,7 @@ fifo_write(ap)
  * Device ioctl operation.
  */
 /* ARGSUSED */
-int
+static int
 fifo_ioctl(ap)
 	struct vop_ioctl_args /* {
 		struct vnode *a_vp;
@@ -341,7 +365,7 @@ fifo_ioctl(ap)
 }
 
 /* ARGSUSED */
-int
+static int
 fifo_poll(ap)
 	struct vop_poll_args /* {
 		struct vnode *a_vp;
@@ -368,7 +392,7 @@ fifo_poll(ap)
 	return (revents);
 }
 
-int
+static int
 fifo_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
@@ -383,7 +407,7 @@ fifo_inactive(ap)
 /*
  * This is a noop, simply returning what one has been given.
  */
-int
+static int
 fifo_bmap(ap)
 	struct vop_bmap_args /* {
 		struct vnode *a_vp;
@@ -410,7 +434,7 @@ fifo_bmap(ap)
  * Device close routine
  */
 /* ARGSUSED */
-int
+static int
 fifo_close(ap)
 	struct vop_close_args /* {
 		struct vnode *a_vp;
@@ -478,7 +502,7 @@ fifo_print(ap)
 /*
  * Return POSIX pathconf information applicable to fifo's.
  */
-int
+static int
 fifo_pathconf(ap)
 	struct vop_pathconf_args /* {
 		struct vnode *a_vp;
@@ -517,7 +541,7 @@ fifo_ebadf()
  * Fifo advisory byte-level locks.
  */
 /* ARGSUSED */
-int
+static int
 fifo_advlock(ap)
 	struct vop_advlock_args /* {
 		struct vnode *a_vp;
@@ -534,7 +558,7 @@ fifo_advlock(ap)
 /*
  * Fifo bad operation
  */
-int
+static int
 fifo_badop()
 {
 
