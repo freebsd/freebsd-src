@@ -329,5 +329,5 @@ typedef struct {
 	int	r_inst;
 	int	r_lunwidth;
 	int	r_buswidth;
-	void   (*r_action) __P((int, void *));
+	void   (*r_action)(int, void *);
 } hba_register_t;
