@@ -35,6 +35,7 @@
 
 # This stuff need original libdes to run (new_rnd_key.c module),
 # current eBones/des lib don't have it
+# Kerberos4 stuff ifdefed by MAKE_KERBEROS (make.conf) because of it
 
 PROG=	telnet
 
@@ -47,17 +48,17 @@ LDADD+= -ltermcap -ltelnet
 
 CFLAGS+=-DAUTHENTICATION -DENCRYPTION
 
+.ifdef MAKE_KERBEROS
 .if exists(/usr/lib/libkrb.a)
 CFLAGS+= -DKRB4
-LDADD+= -lkrb
+LDADD+= -lkrb -ldes
+.endif
 .endif
 
 .if exists(/usr/lib/libkrb5.a)
 CFLAGS+= -DKRB5 -DFORWARD
-LDADD+=  -lkrb5
+LDADD+=  -lkrb5 -ldes
 .endif
-
-LDADD+= -ldes
 
 #endif	/* ENCRYPTION */
 
