@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ieee_float.c,v 1.3 1999/05/10 16:02:11 peter Exp $
+ *	$Id: ieee_float.c,v 1.4 1999/06/14 11:42:30 simokawa Exp $
  */
 
 /*
@@ -438,8 +438,10 @@ ieee_add(fp_register_t fa, fp_register_t fb,
 			result.t.fraction |= QNAN_BIT;
 		} else if (isQNaN(fa))
 			result = fa;
-		else if (isSNaN(fa))
+		else if (isSNaN(fa)) {
 			result = fa;
+			result.t.fraction |= QNAN_BIT;
+		}
 		
 		/* If either operand is a signalling NaN, trap. */
 		if (isSNaN(fa) || isSNaN(fb))
@@ -568,9 +570,11 @@ ieee_mul(fp_register_t fa, fp_register_t fb,
 			result.t.fraction |= QNAN_BIT;
 		} else if (isQNaN(fa))
 			result = fa;
-		else if (isSNaN(fa))
+		else if (isSNaN(fa)) {
 			result = fa;
-		
+			result.t.fraction |= QNAN_BIT;
+		}
+
 		/* If either operand is a signalling NaN, trap. */
 		if (isSNaN(fa) || isSNaN(fb))
 			*status |= FPCR_INV;
@@ -736,8 +740,10 @@ ieee_div(fp_register_t fa, fp_register_t fb,
 			result.t.fraction |= QNAN_BIT;
 		} else if (isQNaN(fa))
 			result = fa;
-		else if (isSNaN(fa))
+		else if (isSNaN(fa)) {
 			result = fa;
+			result.t.fraction |= QNAN_BIT;
+		}
 		
 		/* If either operand is a signalling NaN, trap. */
 		if (isSNaN(fa) || isSNaN(fb))
