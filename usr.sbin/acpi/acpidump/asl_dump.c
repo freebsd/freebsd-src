@@ -371,6 +371,7 @@ asl_dump_field(u_int8_t **dpp, u_int32_t offset)
 	case 'A' ... 'Z':
 	case '_':
 	case '.':
+	case '/':
 		name = asl_dump_namestring(&dp);
 		width = asl_dump_pkglength(&dp);
 		offset += width;
@@ -751,6 +752,7 @@ asl_dump_termobj(u_int8_t **dpp, int indent)
 	case 'A' ... 'Z':
 	case '_':
 	case '.':
+	case '/':
 		dp--;
 		print_namestring((name = asl_dump_namestring(&dp)));
 		if (scope_within_method == 1) {
