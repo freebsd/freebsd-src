@@ -552,6 +552,7 @@ syncache_socket(sc, lso)
 	/*
 	 * Insert new socket into hash list.
 	 */
+	inp->inp_inc.inc_isipv6 = sc->sc_inc.inc_isipv6;
 #ifdef INET6
 	if (sc->sc_inc.inc_isipv6) {
 		inp->in6p_laddr = sc->sc_inc.inc6_laddr;
