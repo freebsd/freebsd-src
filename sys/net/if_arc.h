@@ -143,7 +143,6 @@ int	arc_ioctl __P((struct ifnet *, int, caddr_t));
 
 void		arc_frag_init __P((struct ifnet *));
 struct mbuf *	arc_frag_next __P((struct ifnet *));
-
 #endif
 
 #endif /* _NET_IF_ARC_H_ */
