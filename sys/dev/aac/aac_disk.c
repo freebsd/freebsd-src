@@ -135,12 +135,17 @@ aac_disk_open(dev_t dev, int flags, int fmt, d_thread_t *td)
 
 	sc = (struct aac_disk *)dev->si_drv1;
 	
-	if (sc == NULL)
+	if (sc == NULL) {
+		printf("aac_disk_open: No Softc\n");
 		return (ENXIO);
+	}
 
 	/* check that the controller is up and running */
-	if (sc->ad_controller->aac_state & AAC_STATE_SUSPEND)
+	if (sc->ad_controller->aac_state & AAC_STATE_SUSPEND) {
+		printf("Controller Suspended controller state = 0x%x\n",
+		       sc->ad_controller->aac_state);
 		return(ENXIO);
+	}
 
 	sc->ad_disk.d_sectorsize = AAC_BLOCK_SIZE;
 	sc->ad_disk.d_mediasize = (off_t)sc->ad_size * AAC_BLOCK_SIZE;
