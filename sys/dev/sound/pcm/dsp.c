@@ -54,7 +54,7 @@ getchns(snddev_info *d, int chan, pcm_channel **rdch, pcm_channel **wrch)
 	KASSERT((d->flags & SD_F_PRIO_SET) != SD_F_PRIO_SET, \
 		("getchns: read and write both prioritised"));
 
-	if (d->flags & SD_F_SIMPLEX) {
+	if ((d->flags & SD_F_SIMPLEX) && (d->flags & SD_F_PRIO_SET)) {
 		*rdch = (d->flags & SD_F_PRIO_RD)? d->arec[chan] : &d->fakechan;
 		*wrch = (d->flags & SD_F_PRIO_WR)? d->aplay[chan] : &d->fakechan;
 	} else {
