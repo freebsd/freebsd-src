@@ -133,6 +133,8 @@ extern struct nfsstats nfsstats;
 int nfsrvw_procrastinate = NFS_GATHERDELAY * 1000;
 int nfsrvw_procrastinate_v3 = 0;
 
+static struct timeval	nfsver = { 0 };
+
 SYSCTL_DECL(_vfs_nfs);
 
 static int nfs_async;
@@ -1192,8 +1194,10 @@ nfsrv_write(nfsd, slp, procp, mrq)
 		 * but it may make the values more human readable,
 		 * for debugging purposes.
 		 */
-		*tl++ = txdr_unsigned(boottime.tv_sec);
-		*tl = txdr_unsigned(boottime.tv_usec);
+		if (nfsver.tv_sec == 0)
+			nfsver = boottime;
+		*tl++ = txdr_unsigned(nfsver.tv_sec);
+		*tl = txdr_unsigned(nfsver.tv_usec);
 	} else {
 		nfsm_build(fp, struct nfs_fattr *, NFSX_V2FATTR);
 		nfsm_srvfillattr(vap, fp);
@@ -1478,8 +1482,10 @@ loop1:
 			     * but it may make the values more human readable,
 			     * for debugging purposes.
 			     */
-			    *tl++ = txdr_unsigned(boottime.tv_sec);
-			    *tl = txdr_unsigned(boottime.tv_usec);
+			    if (nfsver.tv_sec == 0)
+				    nfsver = boottime;
+			    *tl++ = txdr_unsigned(nfsver.tv_sec);
+			    *tl = txdr_unsigned(nfsver.tv_usec);
 			} else {
 			    nfsm_build(fp, struct nfs_fattr *, NFSX_V2FATTR);
 			    nfsm_srvfillattr(&va, fp);
@@ -3681,8 +3687,10 @@ nfsrv_commit(nfsd, slp, procp, mrq)
 	nfsm_srvwcc_data(for_ret, &bfor, aft_ret, &aft);
 	if (!error) {
 		nfsm_build(tl, u_int32_t *, NFSX_V3WRITEVERF);
-		*tl++ = txdr_unsigned(boottime.tv_sec);
-		*tl = txdr_unsigned(boottime.tv_usec);
+		if (nfsver.tv_sec == 0)
+			nfsver = boottime;
+		*tl++ = txdr_unsigned(nfsver.tv_sec);
+		*tl = txdr_unsigned(nfsver.tv_usec);
 	} else {
 		error = 0;
 	}
