@@ -1,11 +1,11 @@
 #       bsd.sgml.mk - 8 Sep 1995 John Fieber
 #       This file is in the public domain.
 #
-#	$Id: bsd.sgml.mk,v 1.11 1996/10/06 21:55:18 wosch Exp $
+#	$Id: bsd.sgml.mk,v 1.12 1996/10/08 13:45:06 jfieber Exp $
 #
 # The include file <bsd.sgml.mk> handles installing sgml documents.
 # <bsd.prog.mk> includes the file named "../Makefile.inc" if it exists,
-# as well as the include file <bsd.obj.mk>.
+# as well as the include files <bsd.dep.mk> and <bsd.obj.mk>.
 #
 #
 # +++ variables +++
@@ -13,7 +13,7 @@
 # DISTRIBUTION	Name of distribution. [doc]
 #
 # FORMATS 	Indicates which output formats will be generated
-#		(ascii, html, latex, nroff). [html ascii]
+#		(ascii, html, latex, latin1, nroff). [html latin1]
 #
 # LPR		Printer command. [lpr]
 #
