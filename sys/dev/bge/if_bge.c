@@ -1319,7 +1319,7 @@ bge_blockinit(sc)
 
 	/* Note: the BCM5704 has a smaller mbuf space than other chips. */
 
-	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 ||
+	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 &&
 	    sc->bge_asicrev != BGE_ASICREV_BCM5750) {
 		/* Configure mbuf memory pool */
 		if (sc->bge_extram) {
@@ -1360,7 +1360,7 @@ bge_blockinit(sc)
 	CSR_WRITE_4(sc, BGE_BMAN_DMA_DESCPOOL_HIWAT, 10);
 
 	/* Enable buffer manager */
-	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 ||
+	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 &&
 	    sc->bge_asicrev != BGE_ASICREV_BCM5750) {
 		CSR_WRITE_4(sc, BGE_BMAN_MODE,
 		    BGE_BMANMODE_ENABLE|BGE_BMANMODE_LOMBUF_ATTN);
@@ -1427,7 +1427,7 @@ bge_blockinit(sc)
 	 * using this ring (i.e. once we set the MTU
 	 * high enough to require it).
 	 */
-	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 ||
+	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 &&
 	    sc->bge_asicrev != BGE_ASICREV_BCM5750) {
 		rcb = &sc->bge_ldata.bge_info.bge_jumbo_rx_rcb;
 
@@ -1492,7 +1492,7 @@ bge_blockinit(sc)
 	vrcb->bge_hostaddr.bge_addr_hi =
 	    htole32(BGE_ADDR_HI(sc->bge_ldata.bge_tx_ring_paddr));
 	vrcb->bge_nicaddr = BGE_NIC_TXRING_ADDR(0, BGE_TX_RING_CNT);
-	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 ||
+	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 &&
 	    sc->bge_asicrev != BGE_ASICREV_BCM5750)
 		vrcb->bge_maxlen_flags =
 		    BGE_RCB_MAXLEN_FLAGS(BGE_TX_RING_CNT, 0);
@@ -1582,7 +1582,7 @@ bge_blockinit(sc)
 	CSR_WRITE_4(sc, BGE_HCC_TX_COAL_TICKS, sc->bge_tx_coal_ticks);
 	CSR_WRITE_4(sc, BGE_HCC_RX_MAX_COAL_BDS, sc->bge_rx_max_coal_bds);
 	CSR_WRITE_4(sc, BGE_HCC_TX_MAX_COAL_BDS, sc->bge_tx_max_coal_bds);
-	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 ||
+	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 &&
 	    sc->bge_asicrev != BGE_ASICREV_BCM5750) {
 		CSR_WRITE_4(sc, BGE_HCC_RX_COAL_TICKS_INT, 0);
 		CSR_WRITE_4(sc, BGE_HCC_TX_COAL_TICKS_INT, 0);
@@ -1591,7 +1591,7 @@ bge_blockinit(sc)
 	CSR_WRITE_4(sc, BGE_HCC_TX_MAX_COAL_BDS_INT, 0);
 
 	/* Set up address of statistics block */
-	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 ||
+	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 &&
 	    sc->bge_asicrev != BGE_ASICREV_BCM5750) {
 		CSR_WRITE_4(sc, BGE_HCC_STATS_ADDR_HI,
 		    BGE_ADDR_HI(sc->bge_ldata.bge_stats_paddr));
@@ -1623,7 +1623,7 @@ bge_blockinit(sc)
 	CSR_WRITE_4(sc, BGE_RXLP_MODE, BGE_RXLPMODE_ENABLE);
 
 	/* Turn on RX list selector state machine. */
-	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 ||
+	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 &&
 	    sc->bge_asicrev != BGE_ASICREV_BCM5750)
 		CSR_WRITE_4(sc, BGE_RXLS_MODE, BGE_RXLSMODE_ENABLE);
 
@@ -1646,7 +1646,7 @@ bge_blockinit(sc)
 #endif
 
 	/* Turn on DMA completion state machine */
-	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 ||
+	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 &&
 	    sc->bge_asicrev != BGE_ASICREV_BCM5750)
 		CSR_WRITE_4(sc, BGE_DMAC_MODE, BGE_DMACMODE_ENABLE);
 
@@ -1668,7 +1668,7 @@ bge_blockinit(sc)
 	CSR_WRITE_4(sc, BGE_RDBDI_MODE, BGE_RDBDIMODE_ENABLE);
 
 	/* Turn on Mbuf cluster free state machine */
-	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 ||
+	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 &&
 	    sc->bge_asicrev != BGE_ASICREV_BCM5750)
 		CSR_WRITE_4(sc, BGE_MBCF_MODE, BGE_MBCFMODE_ENABLE);
 
@@ -2003,7 +2003,7 @@ bge_dma_alloc(dev)
 
 	sc->bge_ldata.bge_rx_std_ring_paddr = ctx.bge_busaddr;
 
-	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 ||
+	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 &&
 	    sc->bge_asicrev != BGE_ASICREV_BCM5750) {
 
 		/*
@@ -2356,7 +2356,7 @@ bge_attach(dev)
 	 * Try to allocate memory for jumbo buffers.
 	 * The 5705 does not appear to support jumbo frames.
 	 */
-	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 ||
+	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 &&
 	    sc->bge_asicrev != BGE_ASICREV_BCM5750) {
 		if (bge_alloc_jumbo_mem(sc)) {
 			printf("bge%d: jumbo buffer allocation "
@@ -2505,7 +2505,7 @@ bge_detach(dev)
 	}
 
 	bge_release_resources(sc);
-	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 ||
+	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 &&
 	    sc->bge_asicrev != BGE_ASICREV_BCM5750)
 		bge_free_jumbo_mem(sc);
 
@@ -2603,7 +2603,7 @@ bge_reset(sc)
 	bge_writereg_ind(sc, BGE_MISC_CFG, (65 << 1));
 
 	/* Enable memory arbiter. */
-	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 ||
+	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 &&
 	    sc->bge_asicrev != BGE_ASICREV_BCM5750)
 		CSR_WRITE_4(sc, BGE_MARB_MODE, BGE_MARBMODE_ENABLE);
 
@@ -2698,7 +2698,7 @@ bge_rxeof(sc)
 	    sc->bge_cdata.bge_rx_return_ring_map, BUS_DMASYNC_POSTWRITE);
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_std_ring_tag,
 	    sc->bge_cdata.bge_rx_std_ring_map, BUS_DMASYNC_POSTREAD);
-	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 ||
+	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 &&
 	    sc->bge_asicrev != BGE_ASICREV_BCM5750) {
 		bus_dmamap_sync(sc->bge_cdata.bge_rx_jumbo_ring_tag,
 		    sc->bge_cdata.bge_rx_jumbo_ring_map,
@@ -2815,7 +2815,7 @@ bge_rxeof(sc)
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_std_ring_tag,
 	    sc->bge_cdata.bge_rx_std_ring_map,
 	    BUS_DMASYNC_POSTREAD|BUS_DMASYNC_PREWRITE);
-	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 ||
+	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 &&
 	    sc->bge_asicrev != BGE_ASICREV_BCM5750) {
 		bus_dmamap_sync(sc->bge_cdata.bge_rx_jumbo_ring_tag,
 		    sc->bge_cdata.bge_rx_jumbo_ring_map,
@@ -3643,7 +3643,7 @@ bge_stop(sc)
 	BGE_CLRBIT(sc, BGE_RX_MODE, BGE_RXMODE_ENABLE);
 	BGE_CLRBIT(sc, BGE_RBDI_MODE, BGE_RBDIMODE_ENABLE);
 	BGE_CLRBIT(sc, BGE_RXLP_MODE, BGE_RXLPMODE_ENABLE);
-	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 ||
+	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 &&
 	    sc->bge_asicrev != BGE_ASICREV_BCM5750)
 		BGE_CLRBIT(sc, BGE_RXLS_MODE, BGE_RXLSMODE_ENABLE);
 	BGE_CLRBIT(sc, BGE_RDBDI_MODE, BGE_RBDIMODE_ENABLE);
@@ -3658,7 +3658,7 @@ bge_stop(sc)
 	BGE_CLRBIT(sc, BGE_SDI_MODE, BGE_SDIMODE_ENABLE);
 	BGE_CLRBIT(sc, BGE_RDMA_MODE, BGE_RDMAMODE_ENABLE);
 	BGE_CLRBIT(sc, BGE_SDC_MODE, BGE_SDCMODE_ENABLE);
-	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 ||
+	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 &&
 	    sc->bge_asicrev != BGE_ASICREV_BCM5750)
 		BGE_CLRBIT(sc, BGE_DMAC_MODE, BGE_DMACMODE_ENABLE);
 	BGE_CLRBIT(sc, BGE_SBDC_MODE, BGE_SBDCMODE_ENABLE);
@@ -3669,12 +3669,12 @@ bge_stop(sc)
 	 */
 	BGE_CLRBIT(sc, BGE_HCC_MODE, BGE_HCCMODE_ENABLE);
 	BGE_CLRBIT(sc, BGE_WDMA_MODE, BGE_WDMAMODE_ENABLE);
-	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 ||
+	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 &&
 	    sc->bge_asicrev != BGE_ASICREV_BCM5750)
 		BGE_CLRBIT(sc, BGE_MBCF_MODE, BGE_MBCFMODE_ENABLE);
 	CSR_WRITE_4(sc, BGE_FTQ_RESET, 0xFFFFFFFF);
 	CSR_WRITE_4(sc, BGE_FTQ_RESET, 0);
-	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 ||
+	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 &&
 	    sc->bge_asicrev != BGE_ASICREV_BCM5750) {
 		BGE_CLRBIT(sc, BGE_BMAN_MODE, BGE_BMANMODE_ENABLE);
 		BGE_CLRBIT(sc, BGE_MARB_MODE, BGE_MARBMODE_ENABLE);
@@ -3693,7 +3693,7 @@ bge_stop(sc)
 	bge_free_rx_ring_std(sc);
 
 	/* Free jumbo RX list. */
-	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 ||
+	if (sc->bge_asicrev != BGE_ASICREV_BCM5705 &&
 	    sc->bge_asicrev != BGE_ASICREV_BCM5750)
 		bge_free_rx_ring_jumbo(sc);
 
