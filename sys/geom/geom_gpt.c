@@ -57,6 +57,9 @@
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
 
+CTASSERT(offsetof(struct gpt_hdr, padding) == 92);
+CTASSERT(sizeof(struct gpt_ent) == 128);
+
 /*
  * XXX: GEOM is not dynamic enough. We are forced to use a compile-time
  * limit. The minimum number of partitions (128) as required by EFI is
