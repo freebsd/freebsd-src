@@ -15,7 +15,7 @@
 
 /* $FreeBSD$ */
 
-SM_RCSID("@(#)$Id: headers.c,v 8.266 2001/10/12 01:50:12 gshapiro Exp $")
+SM_RCSID("@(#)$Id: headers.c,v 8.266.4.1 2002/08/16 14:56:01 ca Exp $")
 
 static size_t	fix_mime_header __P((char *));
 static int	priencode __P((char *));
@@ -287,23 +287,27 @@ hse:
 
 	if (bitset(pflag, CHHDR_CHECK))
 	{
-		bool stripcom = false;
+		int rscheckflags;
 		char *rs;
 
 		/* no ruleset? look for default */
 		rs = hi->hi_ruleset;
+		rscheckflags = RSF_COUNT;
+		if (!bitset(hi->hi_flags, H_FROM|H_RCPT))
+			rscheckflags |= RSF_UNSTRUCTURED;
 		if (rs == NULL)
 		{
 			s = stab("*", ST_HEADER, ST_FIND);
 			if (s != NULL)
 			{
 				rs = (&s->s_header)->hi_ruleset;
-				stripcom = bitset((&s->s_header)->hi_flags,
-						  H_STRIPCOMM);
+				if (bitset((&s->s_header)->hi_flags,
+					   H_STRIPCOMM))
+					rscheckflags |= RSF_RMCOMM;
 			}
 		}
-		else
-			stripcom = bitset(hi->hi_flags, H_STRIPCOMM);
+		else if (bitset(hi->hi_flags, H_STRIPCOMM))
+			rscheckflags |= RSF_RMCOMM;
 		if (rs != NULL)
 		{
 			int l, k;
@@ -368,7 +372,7 @@ hse:
 #endif /* _FFR_HDR_TYPE */
 				macdefine(&e->e_macro, A_PERM,
 					macid("{addr_type}"), "h");
-			(void) rscheck(rs, fvalue, NULL, e, stripcom, true, 3,
+			(void) rscheck(rs, fvalue, NULL, e, rscheckflags, 3,
 				       NULL, e->e_id);
 		}
 	}
