@@ -30,10 +30,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)pathnames.h	8.1 (Berkeley) 6/6/93
+ *	from: @(#)pathnames.h	5.2 (Berkeley) 6/1/90
+ *	$Id: pathnames.h,v 1.2 1993/08/01 18:11:58 mycroft Exp $
  */
 
 #define	_PATH_OBJDIR		"obj"
 #define	_PATH_DEFSHELLDIR	"/bin"
-#define	_PATH_DEFSYSMK		"sys.mk"
+#define	_PATH_DEFSYSMK		"/usr/share/mk/sys.mk"
 #define	_PATH_DEFSYSPATH	"/usr/share/mk"
