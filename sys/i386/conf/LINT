@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.536 1999/01/17 19:09:41 peter Exp $
+#	$Id: LINT,v 1.537 1999/01/19 15:11:46 des Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1296,7 +1296,6 @@ device pca0 at isa? port "IO_TIMER1" tty
 # spigot: The Creative Labs Video Spigot video-acquisition board
 # meteor: Matrox Meteor video capture board
 # bktr: Brooktree bt848/848a/849/878/879 family video capture and TV Tuner board
-# alog: Industrial Computer Source AIO8-P driver
 # cy: Cyclades serial driver
 # dgb: Digiboard PC/Xi and PC/Xe series driver (ALPHA QUALITY!)
 # dgm: Digiboard PC/Xem driver
@@ -1402,7 +1401,6 @@ device		apm0	at isa?
 device		gp0	at isa? port 0x2c0 tty
 device		gsc0	at isa? port "IO_GSC1" tty drq 3
 device		joy0	at isa? port IO_GAME
-device          alog0   at isa? port 0x260 tty irq 5
 device		cy0	at isa? tty irq 10 iomem 0xd4000 iosiz 0x2000
 options		CY_PCI_FASTINTR		# Use with cy_pci unless irq is shared
 device		dgb0	at isa? port 0x220 iomem 0xfc0000 iosiz ? tty
