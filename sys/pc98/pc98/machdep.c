@@ -1309,7 +1309,7 @@ getmemsize(int first)
 	struct vm86context vmc;
 #endif
 	vm_offset_t pa, physmap[PHYSMAP_SIZE];
-	pt_entry_t pte;
+	pt_entry_t *pte;
 	const char *cp;
 #ifndef PC98
 	struct bios_smap *smap;
@@ -1372,7 +1372,7 @@ getmemsize(int first)
 	 */
 	for (pa = trunc_page(basemem * 1024);
 	     pa < ISA_HOLE_START; pa += PAGE_SIZE) {
-		pte = (pt_entry_t)vtopte(pa + KERNBASE);
+		pte = vtopte(pa + KERNBASE);
 		*pte = pa | PG_RW | PG_V;
 	}
 
@@ -1380,7 +1380,7 @@ getmemsize(int first)
 	 * if basemem != 640, map pages r/w into vm86 page table so 
 	 * that the bios can scribble on it.
 	 */
-	pte = (pt_entry_t)vm86paddr;
+	pte = (pt_entry_t *)vm86paddr;
 	for (i = basemem / 4; i < 160; i++)
 		pte[i] = (i << PAGE_SHIFT) | PG_V | PG_RW | PG_U;
 
@@ -1389,7 +1389,7 @@ getmemsize(int first)
 	 * map page 1 R/W into the kernel page table so we can use it
 	 * as a buffer.  The kernel will unmap this page later.
 	 */
-	pte = (pt_entry_t)vtopte(KERNBASE + (1 << PAGE_SHIFT));
+	pte = vtopte(KERNBASE + (1 << PAGE_SHIFT));
 	*pte = (1 << PAGE_SHIFT) | PG_RW | PG_V;
 
 	/*
@@ -1585,9 +1585,9 @@ physmap_done:
 	phys_avail[pa_indx++] = physmap[0];
 	phys_avail[pa_indx] = physmap[0];
 #if 0
-	pte = (pt_entry_t)vtopte(KERNBASE);
+	pte = vtopte(KERNBASE);
 #else
-	pte = (pt_entry_t)CMAP1;
+	pte = CMAP1;
 #endif
 
 	/*
