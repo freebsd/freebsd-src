@@ -60,8 +60,10 @@
 .Pp
 In
 .Pa /boot/device.hints :
-.Cd hint.matcd.\fI[0-3]\fP.at="isa"
-.Cd hint.matcd.\fI[0-3]\fP.port="\fIaddress\fP"
+.Bd -unfilled -compact
+.Va hint.matcd.[0-3].at Ns = Ns Qq Li isa
+.Va hint.matcd.[0-3].port Ns = Ns Qq Ar address
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
@@ -90,7 +92,9 @@ interface.
 CD-DA (digital audio) activity may occur on all drives
 simultaneously.
 .Pp
-The drive hardware supports a "bus disconnect" system similar to that found
+The drive hardware supports a
+.Dq "bus disconnect"
+system similar to that found
 in SCSI, and this allows simultaneous data read operations to be in progress
 on multiple drives on the same host interface, but the driver currently
 limits read operations to one active drive per host interface at a time.
@@ -107,7 +111,9 @@ as a loadable
 .Fx
 kernel module.
 The kernel module can be loaded or unloaded at any time
-using the \fBkldload\fR(8)/\fBkldunload\fR(8) commands.
+using the
+.Xr kldload 8 Ns / Ns Xr kldunload 8
+commands.
 .Pp
 For most configurations, the
 .Nm
@@ -118,35 +124,40 @@ CD-ROM/CD-WO disc that is initiated from a non-FreeBSD operating system or
 you have a BIOS boot capability for this type of Compact Disc drive, having
 the driver already in the kernel can simplify the installation process.
 .Pp
-if you determine that you need to have the
+If you determine that you need to have the
 .Nm
 driver linked into the kernel, it is necessary to add an entry to the kernel
 configuration file and generate a new kernel.
 The
 .Fx
 kernel source tree comes
-with the file \fI/usr/src/sys/i386/conf/GENERIC\fR.
+with the file
+.Pa /usr/src/sys/i386/conf/GENERIC .
 You should make a copy of this file and give the copy the name of your system,
-such as "MYSYSTEM".
+such as
+.Pa MYSYSTEM .
 You can then edit the new file to include devices you
 want the system to include in the basic kernel and delete the device entries
-for drivers that you don't want included.
+for drivers that you do not want included.
 Eliminating drivers for hardware
-that you don't have can reduce the size of the finished kernel.
+that you do not have can reduce the size of the finished kernel.
 .Pp
 To include the
 .Nm
 driver to the configuration file, you will need to add this entry:
-.Bd -literal -offset indent
-device matcd
-.Ed
+.Pp
+.D1 Cd "device matcd"
 .Pp
 and after making any other adjustments, save the file.
 .Pp
-Then generate a new kernel by using the \fBconfig\fR(8) command and follow
+Then generate a new kernel by using the
+.Xr config 8
+command and follow
 all of the instructions that are displayed.
 If the kernel completely
-builds, use the "make install" command and then reboot the system for that
+builds, use the
+.Dq Li "make install"
+command and then reboot the system for that
 new kernel to become operational.
 .Sh DRIVER CONFIGURATION
 Regardless of whether the
@@ -154,7 +165,7 @@ Regardless of whether the
 driver is linked into the kernel or is used as a loadable kernel module,
 the number of host interfaces that the driver will expect (or search for)
 is dictated by the number of entries present in the file
-\fI/boot/device\.hints\fR.
+.Pa /boot/device.hints .
 For example, in order to support two host
 interfaces, you would include entries like:
 .Bd -literal -offset indent
@@ -163,28 +174,43 @@ hint.matcd.0.port="0x230"
 
 hint.matcd.1.at="isa"
 hint.matcd.1.port="0x260"
-
 .Ed
+.Pp
 Each set of entries designates a different
 .Nm
 host interface, and where the I/O ports on that host interface adapter
 are located.
 .Pp
-(If you only want a single entry, include only the \fBhint.matcd.0\fR items,
-while add \fBhint.matcd.2\fR and \fBhint.matcd.3\fR as needed to support
+(If you only want a single entry, include only the
+.Va hint.matcd.0
+items, while add
+.Va hint.matcd.2
+and
+.Va hint.matcd.3
+as needed to support
 three or four host interfaces.)
 .Pp
-Note that the two \fBhint.matcd.0\fR entries in the \fI/boot/device\.hints\fR
+Note that the two
+.Va hint.matcd.0
+entries in the
+.Pa /boot/device.hints
 file are all that you need to support up to four drives on a single host
 interface.
 .Pp
-If the \fIaddress\fR parameter of a
-\fBhint.matcd.\fIn\fR.port="\fIaddress\fP"\fR entry
-in \fI/boot/device\.hints\fR file is set to "\fB-1\fR", the
+If the
+.Ar address
+parameter of a
+.Va hint.matcd. Ns Ar n Ns Va .port Ns = Ns Qq Ar address
+entry in
+.Pa /boot/device.hints
+file is set to
+.Qq Li \-1 ,
+the
 .Nm
 driver searches for the host interface adapters by using a table
 of known I/O ports on Creative host adapters contained in the driver itself
-(see \fI/usr/src/sys/dev/matcd/options.h\fR).
+(see
+.Pa /usr/src/sys/dev/matcd/options.h ) .
 .Pp
 Although the multiple port scan allows the
 .Nm
@@ -200,7 +226,7 @@ amount of time it takes to boot or to load the kernel module.
 If you are having problems with the
 .Nm
 driver interfering with other adapters while it is probing for hardware, or
-you don't like the additional amount of time it takes for the entire search
+you do not like the additional amount of time it takes for the entire search
 of I/O ports to complete, you can solve this by explicitly specifying where
 all the
 .Nm
@@ -212,22 +238,29 @@ above where the first I/O port for the audio section of the card (0x220).
 .Pp
 If you have determined exactly where the Matsushita I/O ports start on your
 system, specify the port by setting the
-\fBhint.matcd.\fIn\fR.port="\fIaddress\fP"\fR entry at the kernel boot
-prompt, or by editing the entry in the \fI/boot/device\.hints\fR file.
+.Va hint.matcd. Ns Ar n Ns Va .port Ns = Ns Qq Ar address
+entry at the kernel boot
+prompt, or by editing the entry in the
+.Pa /boot/device.hints
+file.
 .Pp
-If you make a change to the \fI/boot/device\.hints\fR configuration file
+If you make a change to the
+.Pa /boot/device.hints
+configuration file
 while the system is running, it is currently necessary to reboot the system
 before the updated values take effect.
 .Sh SUPPORTED HARDWARE
 At this time, there are only two known drive models that work with the
 .Nm
 driver:
-.Bl -item -width CR-123-X -compact -offset indent
+.Pp
+.Bl -bullet -compact
 .It
 Matsushita CR-562-x
 .It
 Matsushita CR-563-x
 .El
+.Pp
 Most resellers leave these original markings on the drives since the label
 also has the FCC, VDE, CSA and RU certification marks.
 .Pp
@@ -244,9 +277,10 @@ The Matsushita CR-522-x and CR-523-x Compact Disc drives are not usable with
 The CR-522 and CR-523 models can also be identified from the front as they
 both require a CD-caddy.
 .Pp
-Later versions of Matsushita and "Creative" Compact Disc drives use a
+Later versions of Matsushita and Creative Compact Disc drives use a
 basic IDE interface, so these other drives must use an IDE driver, such
-as \fBata\fR(4).
+as
+.Xr acd 4 .
 .Pp
 The TEAC CD-55 4X Compact Disc drive also uses the same Creative/Panasonic
 electrical interface, but the TEAC drive is not command set compatible with
@@ -259,35 +293,42 @@ was found in products from Creative Labs, including SoundBlaster sound
 cards.
 There are numerous models of SoundBlaster sound cards, and most
 of the newer cards provide the appropriate interface, sometimes labeled as
-the "Creative/Panasonic" interface.
+the
+.Dq Creative/Panasonic
+interface.
 .Pp
 The following host interface adapters are known to work with the
 .Nm
 driver:
-.Bl -tag -width LONGNAME -compact -offset indent
-.It Creative
-Sound Blaster Pro (SBPRO) (CT1330A)
-.It Creative
-Sound Blaster 16 (CT1730)
-.It Creative
-Sound Blaster 16 - cost-reduced (CT1740)
-.It Creative
-OmniCD upgrade kit adapter card - stand-alone CD (CT1810)
-.It Creative
-Sound Blaster 16 - 2-layer, cost-reduced (CT2230)
-.It Creative
-Sound Blaster 16 (Vibra16) - 2-layer, single-chip (CT2260)
-.It Creative
-Sound Blaster 16 Value (SB16) - 2-layer, cost-reduced (CT2770)
-.It Creative
-PhoneBlaster SB16 + Sierra 14.4K Voice/FAX/Data/Speakerphone modem combo (CT3100)
-.It Reveal
-(SC400)
+.Pp
+.Bl -bullet -compact
+.It
+Creative Sound Blaster Pro (SBPRO) (CT1330A)
+.It
+Creative Sound Blaster 16 (CT1730)
+.It
+Creative Sound Blaster 16 - cost-reduced (CT1740)
+.It
+Creative OmniCD upgrade kit adapter card - stand-alone CD (CT1810)
+.It
+Creative Sound Blaster 16 - 2-layer, cost-reduced (CT2230)
+.It
+Creative Sound Blaster 16 (Vibra16) - 2-layer, single-chip (CT2260)
+.It
+Creative Sound Blaster 16 Value (SB16) - 2-layer, cost-reduced (CT2770)
+.It
+Creative PhoneBlaster SB16 + Sierra 14.4K Voice/FAX/Data/Speakerphone modem combo (CT3100)
+.It
+Reveal (SC400)
 .El
 .Pp
 Caution: Some of these sound boards can be optionally manufactured to not
 include the Panasonic/Creative interface connector and electronics, so check
-the board visually to verify that the "Creative" or "Panasonic" drive connector
+the board visually to verify that the
+.Dq Creative
+or
+.Dq Panasonic
+drive connector
 is actually there before buying the card solely based on model number.
 .Pp
 This is by no means a complete list as Creative Labs and other vendors
@@ -299,111 +340,126 @@ Media Vision, IBM and Lasermate adapters are also supported.
 However,
 these adapters use a wide range of I/O port addresses, so the driver
 must be reconfigured to locate these adapters, at least initially.
-.Pp
 .Sh SUPPORTED OPERATIONS
 The
 .Nm
 driver supports block and character access.
-Partition "a" returns
+Partition
+.Pa a
+returns
 2048-byte User Data blocks from data CDs.
-Partition "c" returns the full
+Partition
+.Pa c
+returns the full
 2352-byte Frames from any type of CD, including audio CDs.
 (Partition
-"c" cannot be "mounted" with cd9660 or other standard file system emulators.)
+.Pa c
+cannot be
+.Dq mounted
+with cd9660 or other standard file system emulators.)
 No other partitions are supported.
 .Pp
 The
-.Nm matcdl
+.Pa matcdl
 devices work the same as the normal
-.Nm
+.Pa matcd
 devices except that the drive trays are locked and
 remain locked until all of the devs on that drive are closed.
 .Pp
-.Nm Matcd
+The
+.Nm
+driver
 accepts numerous
-.Fn ioctl
+.Xr ioctl 2
 commands, including functions related to Compact Disc audio and
 drive tray control features.
 The commands are:
 .Pp
 .Bl -tag -width CDIOCREADSUBCHANNELXXX -compact -offset indent
-.It DIOCGDINFO
+.It Dv DIOCGDINFO
 get disklabel.
-.It CDIOCREADSUBCHANNEL
+.It Dv CDIOCREADSUBCHANNEL
 report the current optical pick-up position and sub channel data.
-.It CDIOCREADTOCHEADER
+.It Dv CDIOCREADTOCHEADER
 reads table of contents summary from the disc.
-.It CDIOCREADTOCENTRYS
+.It Dv CDIOCREADTOCENTRYS
 reads length/size and other control information for an individual track.
-.It CDIOCPLAYTRACKS
+.It Dv CDIOCPLAYTRACKS
 plays audio starting at a track/index and stopping at a track/index.
-.It CDIOCPLAYBLOCKS
+.It Dv CDIOCPLAYBLOCKS
 plays audio starting at a block and stopping at a block.
-.It CDIOCPLAYMSF
+.It Dv CDIOCPLAYMSF
 plays audio starting at a particular time offset.
-.It CDIOCPAUSE
+.It Dv CDIOCPAUSE
 pauses a playing disc.
-.It CDIOCRESUME
+.It Dv CDIOCRESUME
 resumes playing a previously paused disc.
 Ignored if the drive is
 already playing.
-.It CDIOCSTOP
+.It Dv CDIOCSTOP
 stops playing a disc.
-.It CDIOCEJECT
+.It Dv CDIOCEJECT
 opens the disc tray.
-.It CDIOCCLOSE
+.It Dv CDIOCCLOSE
 closes the disc tray.
-.It CDIOCPREVENT
+.It Dv CDIOCPREVENT
 blocks further attempts to open the drive door until all devices close
-or a CDIOCALLOW ioctl is issued.
-.It CDIOCALLOW
+or a
+.Dv CDIOCALLOW
+ioctl is issued.
+.It Dv CDIOCALLOW
 unlocks the drive door if it was locked.
 This ioctl is rejected if
 any locking devices are open, so it must be issued via a non-locking
 device.
-.It CDIOCGETVOL
+.It Dv CDIOCGETVOL
 returns the current volume settings of the drive.
-.It CDIOCSETVOL
+.It Dv CDIOCSETVOL
 sets the volume settings of the drive.
-.It CDIOCSETSTEREO
+.It Dv CDIOCSETSTEREO
 the left channel audio is sent to the left channel output and the
 right channel audio is sent to the right channel output.
 This is the
 default state.
-(Note that the drive does not have a documented "Mono" mode,
+(Note that the drive does not have a documented
+.Dq Mono
+mode,
 where L combined with R audio from the disc is sent to both the left and right
 output channels.)
-.It CDIOCSETMUTE
+.It Dv CDIOCSETMUTE
 the audio output is to be turned off.
 The drive continues to read
 the audio on the disc and that audio is discarded until the audio routing is
 turned back on.
-.It CDIOCSETLEFT
+.It Dv CDIOCSETLEFT
 the left channel audio is to be sent to the left and right channel outputs.
 The right channel audio signal is discarded.
-.It CDIOCSETRIGHT
+.It Dv CDIOCSETRIGHT
 the right channel audio is to be sent to the left and right channel
 outputs.
 The left channel audio signal is discarded.
-.It CDIOCSETPATCH
+.It Dv CDIOCSETPATCH
 the audio is to be routed as specified in the provided bit maps.
-.It CDIOCSETPITCH
+.It Dv CDIOCSETPITCH
 the playback speed of the audio is increased or decreased
-(for Karaoke "off-key" applications).
+(for Karaoke
+.Dq off-key
+applications).
 Speed can be adjusted +/-13%.
-.It CDIOCCAPABILITY
+.It Dv CDIOCCAPABILITY
 report the capabilities of the drive and driver.
 Results are returned
-as shown in \fI/usr/include/sys/cdio.h\fR.
+as shown in
+.In sys/cdio.h .
 .El
 .Pp
 The
-.Fn ioctl
+.Xr ioctl 2
 commands defined above are the only ones that the
 .Nm
 driver supports.
 .Sh FILES
-.Bl -tag -width /usr/src/sys/dev/matcd/options.h -compact
+.Bl -tag -width ".Pa /usr/src/sys/dev/matcd/options.h" -compact
 .It Pa /dev/matcd[0-15]a
 Used to access 2048-byte blocks of data on a Compact Disc
 that is recorded in the Mode 1 Form 1 format.
@@ -459,7 +515,8 @@ The first drive on the second host
 interface is always logical drive 4 regardless of how many drives are
 present on the first host interface.
 .Pp
-Host interfaces are numbered as specified in the \fI/boot/devices.hints\fR
+Host interfaces are numbered as specified in the
+.Pa /boot/devices.hints
 file.
 .Sh SEE ALSO
 .In sys/cdio.h
@@ -470,7 +527,7 @@ file.
 The driver and documentation was written by
 .An Frank Durda IV .
 .Pp
-Program and Documentation are Copyright 1994, 1995, 2002, 2003,
+Program and Documentation are Copyright 1994, 1995, 2002, 2003.
 All rights reserved.
 .Sh HISTORY
 The
@@ -478,7 +535,6 @@ The
 driver originally appeared in
 .Fx 2.0.5 .
 The
-.Fx
-5.1.x compatible implementation described here appeared in
-.Fx
-5.2.0.
+.Fx 5.1
+compatible implementation described here appeared in
+.Fx 5.2 .
