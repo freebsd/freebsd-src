@@ -1,6 +1,8 @@
-/*	$FreeBSD$	*/
 /*	$NecBSD: scsi_low.c,v 1.24.10.8 2001/06/26 07:39:44 honda Exp $	*/
 /*	$NetBSD$	*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #define	SCSI_LOW_STATICS
 #define	SCSI_LOW_DEBUG
@@ -8,6 +10,7 @@
 #define	SCSI_LOW_START_UP_CHECK
 
 /* #define	SCSI_LOW_INFO_DETAIL */
+
 /* #define	SCSI_LOW_QCLEAR_AFTER_CA */
 /* #define	SCSI_LOW_FLAGS_QUIRKS_OK */
 

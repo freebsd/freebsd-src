@@ -23,9 +23,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
 /*
  * Portions of this driver taken from the original FreeBSD cd driver.
  * Written by Julian Elischer (julian@tfs.com)
@@ -45,6 +44,9 @@
  *
  *      from: cd.c,v 1.83 1997/05/04 15:24:22 joerg Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_cd.h"
 
