@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 1996 Whistle Communications
  * All Rights Reserved.
@@ -14,22 +13,22 @@
  * any damages whatsoever resulting from the use of this software.
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/disklabel.h>
+#include <fcntl.h>
+#include <err.h>
 #include <stdio.h>
 #include <string.h>
-#include <errno.h>
-#include <sys/stat.h>
-#include <sys/ioctl.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdlib.h>
 #include <unistd.h>
 
 struct mboot
 {
-	unsigned char padding[2]; /* force the longs to be long alligned */
+	unsigned char padding[2]; /* force the longs to be long aligned */
 	unsigned char bootinst[DOSPARTOFF];
 	struct	dos_partition parts[4];
 	unsigned short int	signature;
@@ -43,20 +42,18 @@ struct mboot mboot;
 static int	bflag;
 static int	eflag;
 static int	dflag;
-static int	nameblock = NAMEBLOCK;
 
 #define BOOT_MAGIC 0xAA55
 
-extern char	*__progname;
-
-static void usage(void) {
-	fprintf (stderr, " usage: %s [-b] device bootstring [bootstring] ...\n"
-			, __progname);
-	fprintf (stderr, "    or: %s {-e,-d} device \n" , __progname);
-	fprintf (stderr, "The -e and -d flags are mutually exclusive\n");
+static void
+usage(void) {
+	fprintf (stderr, "%s\n%s\n",
+	"usage: nextboot [-b] device bootstring [bootstring] ...",
+	"       nextboot {-e,-d} device");
 	exit(1);
 }
 
+int
 main (int argc, char** argv)
 {
 	int 	fd = -1;
@@ -97,11 +94,8 @@ main (int argc, char** argv)
 			usage();
 		}
 	}
-        if ((fd = open(argv[0], O_RDWR, 0)) < 0) {
-		perror("open");
-		printf ("file: %s\n",argv[0]);
-		usage();
-        }
+        if ((fd = open(argv[0], O_RDWR, 0)) < 0)
+		errx(1, "can't open %s", argv[0]);
 
 	argc--;
 	argv++;
@@ -109,18 +103,12 @@ main (int argc, char** argv)
 	/*******************************************
 	 * Check that we have an MBR
 	 */
-	if (lseek(fd,0,0) == -1) {
-		perror("lseek");
-		exit(1);
-	}
-	if (read (fd,&mboot.bootinst[0],BLOCKSIZE ) != BLOCKSIZE) {
-		perror("read0");
-		exit(1);
-	}
-	if(mboot.signature != (unsigned short)BOOT_MAGIC) {
-		printf(" no fdisk part.. not touching block 1\n");
-		exit(1);
-	} 
+	if (lseek(fd,0,0) == -1)
+		err(1, "lseek");
+	if (read (fd,&mboot.bootinst[0],BLOCKSIZE ) != BLOCKSIZE)
+		err(1, "read0");
+	if (mboot.signature != (unsigned short)BOOT_MAGIC)
+		errx(1, "no fdisk part.. not touching block 1");
 
 	/*******************************************
 	 * And check that none of the partitions in it cover the name block;
@@ -129,28 +117,22 @@ main (int argc, char** argv)
 		if( mboot.parts[part].dp_size
 		 && (mboot.parts[part].dp_start <= NAMEBLOCK)
 		 && (mboot.parts[part].dp_start
-			+ mboot.parts[part].dp_size > NAMEBLOCK)) {
-			printf(" Name sector lies within a Bios partition.\n");
-			printf(" Aborting write.\n");
-			exit(1);
-		}
+			+ mboot.parts[part].dp_size > NAMEBLOCK))
+			errx(1,
+		"name sector lies within a Bios partition: aborting write");
 	}
 
 
 	/*******************************************
-	 *  Now check the  name sector itself to see if it's been initialised.
+	 *  Now check the  name sector itself to see if it's been initialized.
 	 */
-	if (lseek(fd,NAMEBLOCK * BLOCKSIZE,0) == -1) {
-		perror("lseek");
-		exit(1);
-	}
-	if ( read (fd,namebuf,BLOCKSIZE ) != BLOCKSIZE) {
-		perror("read1");
-		exit(1);
-	}
+	if (lseek(fd,NAMEBLOCK * BLOCKSIZE,0) == -1)
+		err(1, "lseek");
+	if (read(fd,namebuf,BLOCKSIZE) != BLOCKSIZE)
+		err(1, "read1");
 	/*******************************************
 	 * check if we are just enabling or disabling
-	 * Remember the flags are exlusive..
+	 * Remember the flags are exclusive..
 	 */
 	if(!bflag) { /* don't care what's there if bflag is set */
 		switch(*(unsigned long *)cp)
@@ -159,10 +141,7 @@ main (int argc, char** argv)
 		case	ENABLE_MAGIC:
 			break;
 		default:
-			fprintf(stderr,
-				"namesector not  initialised.."
-				"use the -b flag..\n");
-			exit(1);
+			errx(1, "namesector not initialized, use the -b flag");
 		}
 	}
 
@@ -199,24 +178,18 @@ main (int argc, char** argv)
 	/*******************************************
 	 *  write it to disk.
 	 */
-	if (lseek(fd,NAMEBLOCK * BLOCKSIZE,0) == -1) {
-		perror("lseek");
-		exit(1);
-	}
-	if(write (fd,namebuf,BLOCKSIZE ) != BLOCKSIZE) {
-		perror("write");
-		exit(1);
-	}
+	if (lseek(fd,NAMEBLOCK * BLOCKSIZE,0) == -1)
+		err(1, "lseek");
+	if(write (fd,namebuf,BLOCKSIZE ) != BLOCKSIZE)
+		err(1, "write");
 
 #if 0
 	/*******************************************
 	 * just to be safe/paranoid.. read it back..
 	 * and print it..
 	 */
-	if (lseek(fd,NAMEBLOCK * BLOCKSIZE,0) == -1) {
-		perror("lseek (second) ");
-		exit(1);
-	}
+	if (lseek(fd,NAMEBLOCK * BLOCKSIZE,0) == -1)
+		err(1, "lseek (second)");
 	read (fd,namebuf,512);
 	for (i = 0;i< 16;i++) {
 		for ( j = 0; j < 16; j++) {
@@ -227,5 +200,3 @@ main (int argc, char** argv)
 #endif
 	exit(0);
 }
-
-
