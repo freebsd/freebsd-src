@@ -39,6 +39,8 @@ SSL=	${.CURDIR}/../crypto/openssl/apps/openssl.cnf
 # -rwxr-xr-x root:wheel, for the new cron root:wheel
 BIN2=	netstart pccard_ether rc.suspend rc.resume
 
+DEFAULTS= rc.conf pccard.conf periodic.conf
+
 MTREE=	BSD.include.dist BSD.local.dist BSD.root.dist BSD.usr.dist \
 	BSD.var.dist BSD.x11.dist BSD.x11-4.dist
 .if !defined(NO_SENDMAIL)
@@ -52,9 +54,7 @@ ETCMAIL=Makefile README mailer.conf access.sample virtusertable.sample \
 
 
 # Special top level files for FreeBSD
-COPYRIGHT=	COPYRIGHT
-FREEBSD=
-FREEBSD+=	${COPYRIGHT}
+FREEBSD=COPYRIGHT
 
 etc:
 
@@ -68,45 +68,42 @@ distribute:
 	    ${DISTDIR}/${DISTRIBUTION}/boot/device.hints
 
 distribution:
-	(cd ${.CURDIR}; \
+	cd ${.CURDIR}; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${BIN1} ${DESTDIR}/etc; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 ${BIN2} ${DESTDIR}/etc; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 defaults/rc.conf ${DESTDIR}/etc/defaults/; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 defaults/pccard.conf ${DESTDIR}/etc/defaults/; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 defaults/periodic.conf ${DESTDIR}/etc/defaults/; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
-	    ${DESTDIR}/var/log/cron; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 \
 	    master.passwd nsmb.conf opieaccess ${DESTDIR}/etc; \
-	( cd ${.CURDIR}/periodic; ${MAKE} install ); \
-	( cd ${.CURDIR}/rc.d; ${MAKE} install ); \
-	( cd ${.CURDIR}/../gnu/usr.bin/send-pr; ${MAKE} etc-gnats-freefall ); \
-	( cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap ); \
-	( cd ${.CURDIR}/../usr.sbin/rmt; ${MAKE} etc-rmt ); \
-	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd; )
-	( cd ${.CURDIR}/pam.d; ${MAKE} install )
+	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd
+	cd ${.CURDIR}/defaults; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 \
+	    ${DEFAULTS} ${DESTDIR}/etc/defaults
+	cd ${.CURDIR}/periodic; ${MAKE} install
+	cd ${.CURDIR}/rc.d; ${MAKE} install
+	cd ${.CURDIR}/../gnu/usr.bin/send-pr; ${MAKE} etc-gnats-freefall
+	cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap
+	cd ${.CURDIR}/../usr.sbin/rmt; ${MAKE} etc-rmt
+	cd ${.CURDIR}/pam.d; ${MAKE} install
 .if !defined(NO_I4B)
-	( cd ${.CURDIR}/isdn; ${MAKE} install )
+	cd ${.CURDIR}/isdn; ${MAKE} install
 .endif
 .if !defined(NO_SENDMAIL)
-	( cd ${.CURDIR}/sendmail; ${MAKE} distribution );
+	cd ${.CURDIR}/sendmail; ${MAKE} distribution
 .endif
 .if exists(${.CURDIR}/../crypto) && !defined(NO_OPENSSL)
 .if !defined(NO_OPENSSH)
-	(cd ${.CURDIR}; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${SSH} \
-	    ${DESTDIR}/etc/ssh )
+	cd ${.CURDIR}; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${SSH} \
+	    ${DESTDIR}/etc/ssh
 .endif
-	(cd ${.CURDIR}; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${SSL} \
-	    ${DESTDIR}/etc/ssl )
+	cd ${.CURDIR}; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${SSL} \
+	    ${DESTDIR}/etc/ssl
 .endif
 .if !defined(NO_MAKEDEV_INSTALL)
-	( cd ${.CURDIR}; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
-	     MAKEDEV.local MAKEDEV ${DESTDIR}/dev )
+	cd ${.CURDIR}; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
+	     MAKEDEV.local MAKEDEV ${DESTDIR}/dev
 .if !defined(NO_MAKEDEV_RUN)
-	(cd ${DESTDIR}/dev; sh MAKEDEV all)
+	cd ${DESTDIR}/dev; sh MAKEDEV all
 .endif
 .endif
-	(cd ${.CURDIR}/root; \
+	cd ${.CURDIR}/root; \
 		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.cshrc \
 		    ${DESTDIR}/root/.cshrc; \
 		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.klogin \
@@ -117,7 +114,7 @@ distribution:
 		    ${DESTDIR}/root/.profile; \
 		rm -f ${DESTDIR}/.cshrc ${DESTDIR}/.profile; \
 		ln ${DESTDIR}/root/.cshrc ${DESTDIR}/.cshrc; \
-		ln ${DESTDIR}/root/.profile ${DESTDIR}/.profile)
+		ln ${DESTDIR}/root/.profile ${DESTDIR}/.profile
 	cd ${.CURDIR}/mtree; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${MTREE} ${DESTDIR}/etc/mtree
 	cd ${.CURDIR}/namedb; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 \
@@ -137,6 +134,8 @@ distribution:
 	    ${DESTDIR}/var/db/locate.database
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
 	    ${DESTDIR}/var/log/auth.log
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
+	    ${DESTDIR}/var/log/cron
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
 	    ${DESTDIR}/var/log/lpd-errs
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 640 /dev/null \
@@ -157,11 +156,11 @@ distribution:
 	    ${DESTDIR}/var/run/utmp
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${.CURDIR}/minfree \
 	    ${DESTDIR}/var/crash
-	(cd ${.CURDIR}/..; \
+	cd ${.CURDIR}/..; \
 	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FREEBSD} \
-		${DESTDIR}/)
+		${DESTDIR}/
 .if !defined(NOMAN)
-	(cd ${.CURDIR}/../share/man; ${MAKE} makedb; )
+	cd ${.CURDIR}/../share/man; ${MAKE} makedb
 .endif
 
 distrib-dirs:
@@ -214,14 +213,11 @@ distrib-dirs:
 	done
 
 etc-examples:
-	(cd ${.CURDIR}; \
+	cd ${.CURDIR}; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${BIN1} ${BIN2} \
-	    opieaccess ${DESTDIR}/usr/share/examples/etc; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 defaults/rc.conf \
-	    ${DESTDIR}/usr/share/examples/etc/defaults; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 defaults/pccard.conf \
-	    ${DESTDIR}/usr/share/examples/etc/defaults; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 defaults/periodic.conf \
-	    ${DESTDIR}/usr/share/examples/etc/defaults)
+	    nsmb.conf opieaccess ${DESTDIR}/usr/share/examples/etc
+	cd ${.CURDIR}/defaults; \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${DEFAULTS} \
+	    ${DESTDIR}/usr/share/examples/etc/defaults
 
 .include <bsd.prog.mk>
