@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.46.4.6 1995/10/01 20:25:42 davidg Exp $
+ * $Id: vfs_bio.c,v 1.46.4.7 1995/11/19 01:42:34 davidg Exp $
  */
 
 /*
@@ -608,7 +608,8 @@ start:
 	/* can we constitute a new buffer? */
 	if ((bp = bufqueues[QUEUE_EMPTY].tqh_first)) {
 		if (bp->b_qindex != QUEUE_EMPTY)
-			panic("getnewbuf: inconsistent EMPTY queue");
+			panic("getnewbuf: inconsistent EMPTY queue, qindex=%d",
+			    bp->b_qindex);
 		bremfree(bp);
 		goto fillbuf;
 	}
@@ -620,10 +621,12 @@ trytofreespace:
 	 */
 	if ((bp = bufqueues[QUEUE_AGE].tqh_first)) {
 		if (bp->b_qindex != QUEUE_AGE)
-			panic("getnewbuf: inconsistent AGE queue");
+			panic("getnewbuf: inconsistent AGE queue, qindex=%d",
+			    bp->b_qindex);
 	} else if ((bp = bufqueues[QUEUE_LRU].tqh_first)) {
 		if (bp->b_qindex != QUEUE_LRU)
-			panic("getnewbuf: inconsistent LRU queue");
+			panic("getnewbuf: inconsistent LRU queue, qindex=%d",
+			    bp->b_qindex);
 	}
 	if (!bp) {
 		/* wait for a free buffer of any kind */
@@ -658,12 +661,16 @@ trytofreespace:
 	if (bp->b_vp)
 		brelvp(bp);
 
-	/* we are not free, nor do we contain interesting data */
-	if (bp->b_rcred != NOCRED)
-		crfree(bp->b_rcred);
-	if (bp->b_wcred != NOCRED)
-		crfree(bp->b_wcred);
 fillbuf:
+	/* we are not free, nor do we contain interesting data */
+	if (bp->b_rcred != NOCRED) {
+		crfree(bp->b_rcred);
+		bp->b_rcred = NOCRED;
+	}
+	if (bp->b_wcred != NOCRED) {
+		crfree(bp->b_wcred);
+		bp->b_wcred = NOCRED;
+	}
 	bp->b_flags |= B_BUSY;
 	LIST_REMOVE(bp, b_hash);
 	LIST_INSERT_HEAD(&invalhash, bp, b_hash);
@@ -680,7 +687,6 @@ fillbuf:
 	bp->b_resid = 0;
 	bp->b_bcount = 0;
 	bp->b_npages = 0;
-	bp->b_wcred = bp->b_rcred = NOCRED;
 	bp->b_data = buffers_kva + (bp - buf) * MAXBSIZE;
 	bp->b_dirtyoff = bp->b_dirtyend = 0;
 	bp->b_validoff = bp->b_validend = 0;
@@ -1463,14 +1469,14 @@ vfs_bio_clrbuf(struct buf *bp) {
  * not associated with a file object.
  */
 void
-vm_hold_load_pages(struct buf * bp, vm_offset_t froma, vm_offset_t toa)
+vm_hold_load_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 {
 	vm_offset_t pg;
 	vm_page_t p;
-	vm_offset_t from = round_page(froma);
-	vm_offset_t to = round_page(toa);
 
-	for (pg = from; pg < to; pg += PAGE_SIZE) {
+	to = round_page(to);
+
+	for (pg = round_page(from); pg < to; pg += PAGE_SIZE) {
 
 tryagain:
 
@@ -1482,23 +1488,26 @@ tryagain:
 		}
 		vm_page_wire(p);
 		pmap_kenter(pg, VM_PAGE_TO_PHYS(p));
-		bp->b_pages[((caddr_t) pg - bp->b_data) / PAGE_SIZE] = p;
+		bp->b_pages[(pg - trunc_page(bp->b_data)) >> PAGE_SHIFT] = p;
 		PAGE_WAKEUP(p);
 		bp->b_npages++;
 	}
 }
 
 void
-vm_hold_free_pages(struct buf * bp, vm_offset_t froma, vm_offset_t toa)
+vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 {
 	vm_offset_t pg;
 	vm_page_t p;
-	vm_offset_t from = round_page(froma);
-	vm_offset_t to = round_page(toa);
+	int index;
 
-	for (pg = from; pg < to; pg += PAGE_SIZE) {
-		p = bp->b_pages[((caddr_t) pg - bp->b_data) / PAGE_SIZE];
-		bp->b_pages[((caddr_t) pg - bp->b_data) / PAGE_SIZE] = 0;
+	from = round_page(from);
+	to = round_page(to);
+	index = (from - trunc_page(bp->b_data)) >> PAGE_SHIFT;
+
+	for (pg = from; pg < to; pg += PAGE_SIZE, index++) {
+		p = bp->b_pages[index];
+		bp->b_pages[index] = 0;
 		pmap_kremove(pg);
 		vm_page_free(p);
 		--bp->b_npages;
