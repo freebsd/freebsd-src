@@ -40,13 +40,24 @@
 #include <sys/syscall.h>
 #include <machine/asm.h>
 
-#define	SYSCALL(x)	2: jmp PIC_PLT(HIDENAME(cerror));	\
+#ifdef PIC
+#define	SYSCALL(x)	2: movq PIC_GOT(HIDENAME(cerror)),%rcx;		\
+			jmp *%rcx;					\
 			ENTRY(__CONCAT(__sys_,x));			\
 			.weak CNAME(x);					\
 			.set CNAME(x),CNAME(__CONCAT(__sys_,x));	\
 			.weak CNAME(__CONCAT(_,x));			\
 			.set CNAME(__CONCAT(_,x)),CNAME(__CONCAT(__sys_,x)); \
 			mov __CONCAT($SYS_,x),%rax; KERNCALL; jb 2b
+#else
+#define	SYSCALL(x)	2: jmp HIDENAME(cerror);			\
+			ENTRY(__CONCAT(__sys_,x));			\
+			.weak CNAME(x);					\
+			.set CNAME(x),CNAME(__CONCAT(__sys_,x));	\
+			.weak CNAME(__CONCAT(_,x));			\
+			.set CNAME(__CONCAT(_,x)),CNAME(__CONCAT(__sys_,x)); \
+			mov __CONCAT($SYS_,x),%rax; KERNCALL; jb 2b
+#endif
 
 #define	RSYSCALL(x)	SYSCALL(x); ret
 

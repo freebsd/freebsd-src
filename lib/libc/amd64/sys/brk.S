@@ -51,17 +51,36 @@ ENTRY(_brk)
 ENTRY(brk)
 	pushq	%rdi
 	movq	%rdi,%rax
-	cmpq	%rax,PIC_GOT(HIDENAME(minbrk))
+#ifdef PIC
+	movq	PIC_GOT(HIDENAME(minbrk)),%rdx
+	cmpq	%rax,(%rdx)
+#else
+	cmpq	%rax,HIDENAME(minbrk)(%rip)
+#endif
 	jbe	ok
-	movq	PIC_GOT(HIDENAME(minbrk)),%rdi
+#ifdef PIC
+	movq	(%rdx),%rdi
+#else
+	movq	HIDENAME(minbrk)(%rip),%rdi
+#endif
 ok:
 	movq	$SYS_break,%rax
 	KERNCALL
 	jb	err
 	movq	0(%rsp),%rax
-	movq	%rax,PIC_GOT(HIDENAME(curbrk))
+#ifdef PIC
+	movq	PIC_GOT(HIDENAME(curbrk)),%rdx
+	movq	%rax,(%rdx)
+#else
+	movq	%rax,HIDENAME(curbrk)(%rip)
+#endif
 	movq	$0,%rax
 	popq	%rdi
 	ret
 err:
-	jmp	PIC_PLT(HIDENAME(cerror))
+#ifdef PIC
+	movq	PIC_GOT(HIDENAME(cerror)),%rdx
+	jmp	*%rdx
+#else
+	jmp	HIDENAME(cerror)
+#endif

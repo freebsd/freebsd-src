@@ -54,19 +54,38 @@ HIDENAME(curbrk):	.quad	CNAME(_end)
 ENTRY(sbrk)
 	pushq	%rdi
 	movq	%rdi,%rcx
-	movq	PIC_GOT(HIDENAME(curbrk)),%rax
+#ifdef PIC
+	movq	PIC_GOT(HIDENAME(curbrk)),%rdx
+	movq	(%rdx),%rax
+#else
+	movq	HIDENAME(curbrk)(%rip),%rax
+#endif
 	testq	%rcx,%rcx
 	jz	back
 	addq	%rax,%rdi
 	mov	$SYS_break,%eax
 	KERNCALL
 	jb	err
-	movq	PIC_GOT(HIDENAME(curbrk)),%rax
+#ifdef PIC
+	movq	PIC_GOT(HIDENAME(curbrk)),%rdx
+	movq	(%rdx),%rax
+#else
+	movq	HIDENAME(curbrk)(%rip),%rax
+#endif
 	movq	0(%rsp), %rcx
-	addq	%rcx,PIC_GOT(HIDENAME(curbrk))
+#ifdef PIC
+	addq	%rcx,(%rdx)
+#else
+	addq	%rcx,HIDENAME(curbrk)(%rip)
+#endif
 back:
 	addq	$8, %rsp
 	ret
 err:
 	addq	$8, %rsp
-	jmp	PIC_PLT(HIDENAME(cerror))
+#ifdef PIC
+	movq	PIC_GOT(HIDENAME(cerror)),%rdx
+	jmp	*%rdx
+#else
+	jmp	HIDENAME(cerror)
+#endif

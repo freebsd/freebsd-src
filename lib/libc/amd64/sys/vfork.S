@@ -53,5 +53,10 @@ ENTRY(__sys_vfork)
 	jb	1f
 	jmp	*%rsi
 1:
-	pushq	%rcx
-	jmp     PIC_PLT(HIDENAME(cerror))
+	pushq	%rsi
+#ifdef PIC
+	movq	PIC_GOT(HIDENAME(cerror)),%rdx
+	jmp	*%rdx
+#else
+	jmp     HIDENAME(cerror)
+#endif
