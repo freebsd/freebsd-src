@@ -42,7 +42,16 @@
 # .EXE formats (Greg Roelofs, newt@uchicago.edu)
 #
 0	string	MZ		MS-DOS executable (EXE)
->24	string	@		\b, OS/2 or Windows
+>24	string	@		\b, OS/2 or MS Windows
+>>0xe7	string	LH/2\ Self-Extract	\b, %s
+>>0xe9	string	PKSFX2		\b, %s
+>0x1c	string	RJSX\xff\xff	\b, ARJ SFX
+>0x1c	string	diet\xf9\x9c	\b, diet compressed
+>0x1e	string	Copyright\ 1989-1990\ PKWARE\ Inc.	\b, PKSFX
+# JM: 0x1e "PKLITE Copr. 1990-92 PKWARE Inc. All Rights Reserved\7\0\0\0"
+>0x1e	string	PKLITE\ Copr.	\b, %.6s compressed
+>0x24	string	LHa's\ SFX	\b, %.15s
+>0x24	string	LHA's\ SFX	\b, %.15s
 >1638	string	-lh5-		\b, LHa SFX archive v2.13S
 >7195	string	Rar!		\b, RAR self-extracting archive
 #
@@ -72,11 +81,13 @@
 >49801	string	\x79\xff\x80\xff\x76\xff	\b, CODEC archive v3.21
 >>49824	leshort		=1			\b, 1 file
 >>49824	leshort		>1			\b, %u files
+
 # .COM formats (Daniel Quinlan, quinlan@yggdrasil.com)
 # Uncommenting only the first two lines will cover about 2/3 of COM files,
 # but it isn't feasible to match all COM files since there must be at least
 # two dozen different one-byte "magics".
 #0	byte		0xe9		MS-DOS executable (COM)
+#>6	string	SFX\ of\ LHarc	(%s)
 #0	byte		0x8c		MS-DOS executable (COM)
 # 0xeb conflicts with "sequent" magic
 #0	byte		0xeb		MS-DOS executable (COM)
@@ -87,19 +98,39 @@
 #0	byte		0xf0		MS-DOS program library data
 #
 
+#
+# Windows NT Registry files.
+#
+0	string		regf		Windows NT Registry file
+
 # Popular applications
 2080	string	Microsoft\ Word\ 6.0\ Document	%s
+2080	string	Documento\ Microsoft\ Word\ 6 Spanish Microsoft Word 6 document data
+# Pawel Wiecek <coven@i17linuxb.ists.pwr.wroc.pl> (for polish Word)
+2112	string	MSWordDoc	Microsoft Word document data
 #
 0	belong	0x31be0000	Microsoft Word Document
 #
+0       string  PO^Q`           Microsoft Word 6.0 Document
+#
 2080	string	Microsoft\ Excel\ 5.0\ Worksheet	%s
 #
+# Pawel Wiecek <coven@i17linuxb.ists.pwr.wroc.pl> (for polish Excel)
+2114	string	Biff5		Microsoft Excel 5.0 Worksheet
+#
 0	belong	0x00001a00	Lotus 1-2-3
->4	belong	0x00100400	wk3 document
->4	belong	0x02100400	wk4 document
->4	belong	0x07800100	fm3 or fmb document
->4	belong	0x07800000	fm3 or fmb document
+>4	belong	0x00100400	wk3 document data
+>4	belong	0x02100400	wk4 document data
+>4	belong	0x07800100	fm3 or fmb document data
+>4	belong	0x07800000	fm3 or fmb document data
 #
 0	belong	0x00000200 	Lotus 1-2-3
->4	belong	0x06040600	wk1 document
->4	belong	0x06800200	fmt document
+>4	belong	0x06040600	wk1 document data
+>4	belong	0x06800200	fmt document data
+
+# WordPerfect documents - Trevor Johnson <trevor@jpj.net>
+#
+1	string	WPC		WordPerfect document
+
+# Help files
+0	string	?_\3\0		MS Windows Help Data
