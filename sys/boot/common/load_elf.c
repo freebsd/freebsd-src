@@ -622,7 +622,7 @@ int
 elf_lookup_symbol(struct preloaded_file *fp, elf_file_t ef, const char* name,
 		  Elf_Sym *symp)
 {
-    unsigned long symnum;
+    Elf_Hashelt symnum;
     Elf_Sym sym;
     char *strp;
     unsigned long hash;
