@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_lock.c	8.18 (Berkeley) 5/21/95
- * $Id: kern_lock.c,v 1.25 1999/03/15 05:11:27 julian Exp $
+ * $Id: kern_lock.c,v 1.26 1999/06/26 02:46:00 mckusick Exp $
  */
 
 #include "opt_lint.h"
@@ -337,12 +337,14 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 			 *	Recursive lock.
 			 */
 #if !defined(MAX_PERF)
-			if ((extflags & LK_CANRECURSE) == 0)
+			if ((extflags & (LK_NOWAIT | LK_CANRECURSE)) == 0)
 				panic("lockmgr: locking against myself");
 #endif
-			lkp->lk_exclusivecount++;
-			COUNT(p, 1);
-			break;
+			if ((extflags & LK_CANRECURSE) != 0) {
+				lkp->lk_exclusivecount++;
+				COUNT(p, 1);
+				break;
+			}
 		}
 		/*
 		 * If we are just polling, check to see if we will sleep.
