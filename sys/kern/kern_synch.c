@@ -47,6 +47,7 @@
 #include <sys/ipl.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
+#include <sys/condvar.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/signalvar.h>
@@ -77,10 +78,8 @@ static struct callout roundrobin_callout;
 
 static int	curpriority_cmp __P((struct proc *p));
 static void	endtsleep __P((void *));
-static void	maybe_resched __P((struct proc *chk));
 static void	roundrobin __P((void *arg));
 static void	schedcpu __P((void *arg));
-static void	updatepri __P((struct proc *p));
 
 static int
 sysctl_kern_quantum(SYSCTL_HANDLER_ARGS)
@@ -130,7 +129,7 @@ curpriority_cmp(p)
  * Arrange to reschedule if necessary, taking the priorities and
  * schedulers into account.
  */
-static void
+void
 maybe_resched(chk)
 	struct proc *chk;
 {
@@ -358,7 +357,7 @@ schedcpu(arg)
  * For all load averages >= 1 and max p_estcpu of 255, sleeping for at
  * least six times the loadfactor will decay p_estcpu to zero.
  */
-static void
+void
 updatepri(p)
 	register struct proc *p;
 {
@@ -993,8 +992,11 @@ setrunnable(p)
 	default:
 		panic("setrunnable");
 	case SSTOP:
-	case SSLEEP:
-		unsleep(p);		/* e.g. when sending signals */
+	case SSLEEP:			/* e.g. when sending signals */
+		if (p->p_flag & P_CVWAITQ)
+			cv_waitq_remove(p);
+		else
+			unsleep(p);
 		break;
 
 	case SIDL:

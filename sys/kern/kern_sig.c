@@ -56,6 +56,7 @@
 #include <sys/acct.h>
 #include <sys/fcntl.h>
 #include <sys/ipl.h>
+#include <sys/condvar.h>
 #include <sys/mutex.h>
 #include <sys/wait.h>
 #include <sys/ktr.h>
@@ -1229,8 +1230,12 @@ psignal(p, sig)
 		 * the process runnable, leave it stopped.
 		 */
 		mtx_enter(&sched_lock, MTX_SPIN);
-		if (p->p_wchan && p->p_flag & P_SINTR)
-			unsleep(p);
+		if (p->p_wchan && p->p_flag & P_SINTR) {
+			if (p->p_flag & P_CVWAITQ)
+				cv_waitq_remove(p);
+			else
+				unsleep(p);
+		}
 		mtx_exit(&sched_lock, MTX_SPIN);
 		goto out;
 

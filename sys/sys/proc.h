@@ -313,6 +313,8 @@ struct	proc {
 #define	P_OLDMASK	0x2000000 /* Need to restore mask after suspend. */
 #define	P_ALTSTACK	0x4000000 /* Have alternate signal stack. */
 
+#define	P_CVWAITQ	0x8000000 /* proces is on a cv_waitq (not slpq) */
+
 #define	P_MAGIC		0xbeefface
 
 #define	P_CAN_SEE	1
@@ -520,6 +522,8 @@ void	cpu_idle __P((void));
 void	cpu_switch __P((void));
 void	cpu_throw __P((void)) __dead2;
 void	unsleep __P((struct proc *));
+void	updatepri __P((struct proc *));
+void	maybe_resched __P((struct proc *));
 
 void	cpu_exit __P((struct proc *)) __dead2;
 void	exit1 __P((struct proc *, int)) __dead2;
