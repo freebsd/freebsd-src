@@ -92,7 +92,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+   "$FreeBSD$";
 #endif /* not lint */
 
 /*
@@ -535,12 +535,13 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	phandle_t	chosen, mmu;
 	int		sz;
 	int		i, j;
+	int		ofw_mappings;
 	vm_size_t	size, physsz;
 	vm_offset_t	pa, va, off;
 	u_int		batl, batu;
 
         /*
-         * Set up BAT0 to only map the lowest 256 MB area
+         * Set up BAT0 to map the lowest 256 MB area
          */
         battable[0x0].batl = BATL(0x00000000, BAT_M, BAT_PP_RW);
         battable[0x0].batu = BATU(0x00000000, BAT_BL_256M, BAT_Vs);
@@ -602,10 +603,29 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 
 	qsort(pregions, pregions_sz, sizeof(*pregions), mr_cmp);
 	for (i = 0; i < pregions_sz; i++) {
+		vm_offset_t pa;
+		vm_offset_t end;
+
 		CTR3(KTR_PMAP, "physregion: %#x - %#x (%#x)",
 			pregions[i].mr_start,
 			pregions[i].mr_start + pregions[i].mr_size,
 			pregions[i].mr_size);
+		/*
+		 * Install entries into the BAT table to allow all
+		 * of physmem to be convered by on-demand BAT entries.
+		 * The loop will sometimes set the same battable element
+		 * twice, but that's fine since they won't be used for
+		 * a while yet.
+		 */
+		pa = pregions[i].mr_start & 0xf0000000;
+		end = pregions[i].mr_start + pregions[i].mr_size;
+		do {
+                        u_int n = pa >> ADDR_SR_SHFT;
+			
+			battable[n].batl = BATL(pa, BAT_M, BAT_PP_RW);
+			battable[n].batu = BATU(pa, BAT_BL_256M, BAT_Vs);
+			pa += SEGMENT_LENGTH;
+		} while (pa < end);
 	}
 
 	if (sizeof(phys_avail)/sizeof(phys_avail[0]) < regions_sz)
@@ -700,20 +720,26 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	CTR0(KTR_PMAP, "pmap_bootstrap: translations");
 	sz /= sizeof(*translations);
 	qsort(translations, sz, sizeof (*translations), om_cmp);
-	for (i = 0; i < sz; i++) {
+	for (i = 0, ofw_mappings = 0; i < sz; i++) {
 		CTR3(KTR_PMAP, "translation: pa=%#x va=%#x len=%#x",
 		    translations[i].om_pa, translations[i].om_va,
 		    translations[i].om_len);
 
-		/* Drop stuff below something? */
+		/*
+		 * If the mapping is 1:1, let the RAM and device on-demand
+		 * BAT tables take care of the translation.
+		 */
+		if (translations[i].om_va == translations[i].om_pa)
+			continue;
 
-		/* Enter the pages? */
+		/* Enter the pages */
 		for (off = 0; off < translations[i].om_len; off += PAGE_SIZE) {
 			struct	vm_page m;
 
 			m.phys_addr = translations[i].om_pa + off;
 			pmap_enter(&ofw_pmap, translations[i].om_va + off, &m,
-			    VM_PROT_ALL, 1);
+				   VM_PROT_ALL, 1);
+			ofw_mappings++;
 		}
 	}
 #ifdef SMP
@@ -786,12 +812,10 @@ pmap_activate(struct thread *td)
 	pmap_t	pm, pmr;
 
 	/*
-	 * Load all the data we need up front to encourasge the compiler to
+	 * Load all the data we need up front to encourage the compiler to
 	 * not issue any loads while we have interrupts disabled below.
 	 */
 	pm = &td->td_proc->p_vmspace->vm_pmap;
-
-	KASSERT(pm->pm_active == 0, ("pmap_activate: pmap already active?"));
 
 	if ((pmr = (pmap_t)pmap_kextract((vm_offset_t)pm)) == NULL)
 		pmr = pm;
@@ -898,10 +922,12 @@ pmap_zero_page(vm_page_t m)
 
 	bzero(va, PAGE_SIZE);
 
+#if 0
 	for (i = PAGE_SIZE / CACHELINESIZE; i > 0; i--) {
 		__asm __volatile("dcbz 0,%0" :: "r"(va));
 		va += CACHELINESIZE;
 	}
+#endif
 
 	if (pa >= SEGMENT_LENGTH)
 		pmap_pa_unmap(pmap_pvo_zeropage, NULL, NULL);
@@ -911,8 +937,8 @@ void
 pmap_zero_page_area(vm_page_t m, int off, int size)
 {
 	vm_offset_t pa = VM_PAGE_TO_PHYS(m);
-	caddr_t	va;
-	int	i;
+	caddr_t va;
+	int     i;
 
 	if (pa < SEGMENT_LENGTH) {
 		va = (caddr_t) pa;
@@ -925,12 +951,14 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 		panic("pmap_zero_page: can't zero pa %#x", pa);
 	}
 
-	bzero(va, size);
+	bzero(va + off, size);
 
+#if 0
 	for (i = size / CACHELINESIZE; i > 0; i--) {
 		__asm __volatile("dcbz 0,%0" :: "r"(va));
 		va += CACHELINESIZE;
 	}
+#endif
 
 	if (pa >= SEGMENT_LENGTH)
 		pmap_pa_unmap(pmap_pvo_zeropage, NULL, NULL);
@@ -1029,6 +1057,9 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		if (pg != NULL)
 			pmap_attr_save(pg, PTE_EXEC);
 	}
+
+	/* XXX syncicache always until problems are sorted */
+	pmap_syncicache(VM_PAGE_TO_PHYS(m), PAGE_SIZE);
 }
 
 vm_offset_t
@@ -1129,13 +1160,14 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
 		    va);
 #endif
 
-	pte_lo = PTE_I | PTE_G | PTE_BW;
-	for (i = 0; phys_avail[i + 2] != 0; i += 2) {
-		if (pa >= phys_avail[i] && pa < phys_avail[i + 1]) {
+	pte_lo = PTE_I | PTE_G;
+	for (i = 0; i < pregions_sz; i++) {
+		if ((pa >= pregions[i].mr_start) &&
+		    (pa < (pregions[i].mr_start + pregions[i].mr_size))) {
 			pte_lo &= ~(PTE_I | PTE_G);
 			break;
 		}
-	}
+	}	
 
 	error = pmap_pvo_enter(kernel_pmap, pmap_upvo_zone,
 	    &pmap_pvo_kunmanaged, va, pa, pte_lo, PVO_WIRED);
@@ -1176,7 +1208,7 @@ void
 pmap_kremove(vm_offset_t va)
 {
 
-	pmap_remove(kernel_pmap, va, roundup(va, PAGE_SIZE));
+	pmap_remove(kernel_pmap, va, va + PAGE_SIZE);
 }
 
 /*
@@ -1455,7 +1487,18 @@ pmap_qremove(vm_offset_t va, int count)
 void
 pmap_release(pmap_t pmap)
 {
-	TODO;
+        int idx, mask;
+        
+	/*
+	 * Free segment register's VSID
+	 */
+        if (pmap->pm_sr[0] == 0)
+                panic("pmap_release");
+
+        idx = VSID_TO_HASH(pmap->pm_sr[0]) & (NPMAPS-1);
+        mask = 1 << (idx % VSID_NBPW);
+        idx /= VSID_NBPW;
+        pmap_vsid_bitmap[idx] &= ~mask;
 }
 
 /*
@@ -1726,9 +1769,12 @@ pmap_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 	int	first;
 	u_int	ptegidx;
 	int	i;
+	int     bootstrap;
 
 	pmap_pvo_enter_calls++;
 	first = 0;
+	
+	bootstrap = 0;
 
 	/*
 	 * Compute the PTE Group index.
@@ -1766,7 +1812,7 @@ pmap_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 		}
 		pvo = &pmap_bpvo_pool[pmap_bpvo_pool_index];
 		pmap_bpvo_pool_index++;
-		pvo->pvo_vaddr |= PVO_BOOTSTRAP;
+		bootstrap = 1;
 	}
 
 	if (pvo == NULL) {
@@ -1784,6 +1830,8 @@ pmap_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 		pvo->pvo_vaddr |= PVO_WIRED;
 	if (pvo_head != &pmap_pvo_kunmanaged)
 		pvo->pvo_vaddr |= PVO_MANAGED;
+	if (bootstrap)
+		pvo->pvo_vaddr |= PVO_BOOTSTRAP;
 	pmap_pte_create(&pvo->pvo_pte, sr, va, pa | pte_lo);
 
 	/*
@@ -2219,6 +2267,47 @@ pmap_clear_bit(vm_page_t m, int ptebit)
 }
 
 /*
+ * Return true if the physical range is encompassed by the battable[idx]
+ */
+static int
+pmap_bat_mapped(int idx, vm_offset_t pa, vm_size_t size)
+{
+	u_int prot;
+	u_int32_t start;
+	u_int32_t end;
+	u_int32_t bat_ble;
+
+	/*
+	 * Return immediately if not a valid mapping
+	 */
+	if (!battable[idx].batu & BAT_Vs)
+		return (EINVAL);
+
+	/*
+	 * The BAT entry must be cache-inhibited, guarded, and r/w
+	 * so it can function as an i/o page
+	 */
+	prot = battable[idx].batl & (BAT_I|BAT_G|BAT_PP_RW);
+	if (prot != (BAT_I|BAT_G|BAT_PP_RW))
+		return (EPERM);	
+
+	/*
+	 * The address should be within the BAT range. Assume that the
+	 * start address in the BAT has the correct alignment (thus
+	 * not requiring masking)
+	 */
+	start = battable[idx].batl & BAT_PBS;
+	bat_ble = (battable[idx].batu & ~(BAT_EBS)) | 0x03;
+	end = start | (bat_ble << 15) | 0x7fff;
+
+	if ((pa < start) || ((pa + size) > end))
+		return (ERANGE);
+
+	return (0);
+}
+
+
+/*
  * Map a set of physical memory pages into the kernel virtual
  * address space. Return a pointer to where it is mapped. This
  * routine is intended to be used for mapping device memory,
@@ -2227,24 +2316,35 @@ pmap_clear_bit(vm_page_t m, int ptebit)
 void *
 pmap_mapdev(vm_offset_t pa, vm_size_t size)
 {
-	vm_offset_t va, tmpva, offset;
-	
-	pa = trunc_page(pa);
+	vm_offset_t va, tmpva, ppa, offset;
+	int i;
+
+	ppa = trunc_page(pa);
 	offset = pa & PAGE_MASK;
 	size = roundup(offset + size, PAGE_SIZE);
 	
 	GIANT_REQUIRED;
+
+	/*
+	 * If the physical address lies within a valid BAT table entry,
+	 * return the 1:1 mapping. This currently doesn't work
+	 * for regions that overlap 256M BAT segments.
+	 */
+	for (i = 0; i < 16; i++) {
+		if (pmap_bat_mapped(i, pa, size) == 0)
+			return ((void *) pa);
+	}
 
 	va = kmem_alloc_pageable(kernel_map, size);
 	if (!va)
 		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
 
 	for (tmpva = va; size > 0;) {
-		pmap_kenter(tmpva, pa);
+		pmap_kenter(tmpva, ppa);
 		TLBIE(tmpva); /* XXX or should it be invalidate-all ? */
 		size -= PAGE_SIZE;
 		tmpva += PAGE_SIZE;
-		pa += PAGE_SIZE;
+		ppa += PAGE_SIZE;
 	}
 
 	return ((void *)(va + offset));
@@ -2255,8 +2355,14 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 {
 	vm_offset_t base, offset;
 
-	base = trunc_page(va);
-	offset = va & PAGE_MASK;
-	size = roundup(offset + size, PAGE_SIZE);
-	kmem_free(kernel_map, base, size);
+	/*
+	 * If this is outside kernel virtual space, then it's a
+	 * battable entry and doesn't require unmapping
+	 */
+	if ((va >= VM_MIN_KERNEL_ADDRESS) && (va <= VM_MAX_KERNEL_ADDRESS)) {
+		base = trunc_page(va);
+		offset = va & PAGE_MASK;
+		size = roundup(offset + size, PAGE_SIZE);
+		kmem_free(kernel_map, base, size);
+	}
 }
