@@ -882,7 +882,10 @@ ENTRY(exception_restore, 0)
 	ld8.fill r15=[r1],-16		// r1=&tf_r[FRAME_R13]
 	ld8.fill r14=[r2],-16		// r2=&tf_r[FRAME_R12]
 	;;
-	ld8.fill r13=[r1],-16		// r1=&tf_r[FRAME_R11]
+	// Don't restore r13 if returning to kernel
+	.pred.rel.mutex p1,p2
+(p2)	ld8.fill r13=[r1],-16		// r1=&tf_r[FRAME_R11]
+(p1)	add	r1=-16,r1		// r1=&tf_r[FRAME_R11]
 	ld8.fill r12=[r2],-16		// r2=&tf_r[FRAME_R10]
 	;;
 	ld8.fill r11=[r1],-16		// r1=&tf_r[FRAME_R9]
