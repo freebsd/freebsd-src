@@ -401,7 +401,8 @@ smb_iod_addrq(struct smb_rq *rqp)
 	int error;
 
 	SMBIODEBUG("\n");
-	if (rqp->sr_cred->scr_td->td_proc == iod->iod_p) {
+	if (rqp->sr_cred->scr_td != NULL &&
+	    rqp->sr_cred->scr_td->td_proc == iod->iod_p) {
 		rqp->sr_flags |= SMBR_INTERNAL;
 		SMB_IOD_RQLOCK(iod);
 		TAILQ_INSERT_HEAD(&iod->iod_rqlist, rqp, sr_link);
