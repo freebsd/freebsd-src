@@ -820,7 +820,7 @@ pseudo-device	ccd	4	#Concatenated disk driver
 # device is also untested.  Use at your own risk.
 #
 # The option VINUMDEBUG must match the value set in CFLAGS
-# in /usr/src/sbin/vinum/Makefile.  Failure to do so will result in
+# in src/sbin/vinum/Makefile.  Failure to do so will result in
 # the following message from vinum(8):
 #
 # Can't get vinum config: Invalid argument
@@ -1310,7 +1310,7 @@ device oltr0 at isa?
 #
 # the current driver supports only PVC operations (no atm-arp, no multicast).
 # for more details, please read the original documents at
-# http://www.ccrc.wustl.edu/pub/chuck/bsdatm/wucs.html
+# http://www.ccrc.wustl.edu/pub/chuck/tech/bsdatm/bsdatm.html
 #
 pseudo-device	atm
 device en0
@@ -1341,7 +1341,7 @@ options 	NATM			#native ATM
 # the problem.
 #
 # Beware!  The addresses specified below are also hard-coded in
-# i386/isa/sound/sound_config.h.  If you change the values here, you
+# src/sys/i386/isa/sound/sound_config.h.  If you change the values here, you
 # must also change the values in the include file.
 #
 # pcm: PCM audio through various sound cards.
@@ -1349,7 +1349,7 @@ options 	NATM			#native ATM
 # This has support for a large number of new audio cards, based on
 # CS423x, OPTi931, Yamaha OPL-SAx, and also for SB16, GusPnP.
 # For more information about this driver and supported cards,
-# see the pcm.4 man page and /sys/i386/isa/snd/CARDS.
+# see the pcm.4 man page.
 #
 # The flags of the device tells the device a bit more info about the
 # device that normally is obtained through the PnP interface.
@@ -1381,7 +1381,7 @@ options 	NATM			#native ATM
 # options GUS_DMA
 # options GUS_IRQ
 #
-# The i386/isa/sound/sound.doc has more information.
+# The src/sys/i386/isa/sound/sound.doc has more information.
 
 # Controls all "VOXWARE" driver sound devices.  See Luigi's driver
 # below for an alternate which may work better for some cards.
@@ -1562,7 +1562,7 @@ device		stl0	at isa? port 0x2a0 irq 10
 device		stli0	at isa? port 0x2a0 iomem 0xcc000 flags 23 iosiz 0x1000
 # You are unlikely to have the hardware for loran0 <phk@FreeBSD.org>
 device		loran0	at isa? port ? irq 5
-# HOT1 Xilinx 6200 card (www.vcc.com)
+# HOT1 Xilinx 6200 card (http://www.vcc.com/)
 device		xrpu0
 
 #
@@ -1742,7 +1742,7 @@ controller	miibus0
 # options 	OVERRIDE_MSP=1
 # options 	OVERRIDE_DBX=1
 # These options can be used to override the auto detection
-# The current values for xxx are found in /usr/src/sys/pci/brooktree848.c
+# The current values for xxx are found in src/sys/dev/bktr/bktr_card.h
 # Using sysctl(8) run-time overrides on a per-card basis can be made
 #
 # options 	BROOKTREE_SYSTEM_DEFAULT=BROOKTREE_PAL
@@ -2266,7 +2266,7 @@ options 	VM_KMEM_SIZE_SCALE
 # some controllers by Olivetti, Dec, HP, AT&T, SNI, AST, Alphatronic, NEC and
 # Compaq are actually DPT controllers.
 #
-# See sys/dev/dpt for debugging and other subtle options.
+# See src/sys/dev/dpt for debugging and other subtle options.
 #   DPT_MEASURE_PERFORMANCE Enables a set of (semi)invasive metrics. Various
 #                           instruments are enabled.  The tools in
 #                           /usr/sbin/dpt_* assume these to be enabled.
