@@ -33,17 +33,20 @@
 
 #include "test_locl.h"
 
-RCSID("$Id: common.c,v 1.10 2000/02/12 21:30:47 assar Exp $");
+RCSID("$Id: common.c,v 1.11 2000/08/27 04:29:34 assar Exp $");
 
 static int help_flag;
 static int version_flag;
 static char *port_str;
+static char *keytab_str;
+krb5_keytab keytab;
 char *service = SERVICE;
 int fork_flag;
 
 static struct getargs args[] = {
     { "port", 'p', arg_string, &port_str, "port to listen to", "port" },
     { "service", 's', arg_string, &service, "service to use", "service" },
+    { "keytab", 'k', arg_string, &keytab_str, "keytab to use", "keytab" },
     { "fork", 'f', arg_flag, &fork_flag, "do fork" },
     { "help", 'h', arg_flag, &help_flag },
     { "version", 0, arg_flag, &version_flag }
@@ -104,8 +107,16 @@ int
 server_setup(krb5_context *context, int argc, char **argv)
 {
     int port = common_setup(context, &argc, argv, server_usage);
+    krb5_error_code ret;
+
     if(argv[argc] != NULL)
 	server_usage(1, args, num_args);
+    if (keytab_str != NULL)
+	ret = krb5_kt_resolve (*context, keytab_str, &keytab);
+    else
+	ret = krb5_kt_default (*context, &keytab);
+    if (ret)
+	krb5_err (*context, 1, ret, "krb5_kt_resolve/default");
     return port;
 }
 

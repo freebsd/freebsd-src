@@ -1,4 +1,4 @@
-.\" $Id: hpropd.8,v 1.1 1997/08/27 23:42:34 assar Exp $
+.\" $Id: hpropd.8,v 1.5 2000/11/12 15:37:33 joda Exp $
 .\"
 .Dd Aug 27, 1997
 .Dt HPROPD 8
@@ -9,19 +9,65 @@
 receive a propagated database
 .Sh SYNOPSIS
 .Nm
-.Op Fl d Ar database
-.Op Fl -database= Ns Ar database
+.Oo Fl d Ar file \*(Ba Xo
+.Fl -database= Ns Ar file Oc
+.Xc
+.Op Fl n | Fl -stdin
+.Op Fl -print
+.Op Fl i | Fl -no-inetd
+.Oo Fl k Ar keytab \*(Ba Xo
+.Fl -keytab= Ns Ar keytab Oc
+.Xc
+.Op Fl 4 | Fl -v4dump
 .Sh DESCRIPTION
 .Nm
 receives databases sent by
 .Nm hprop .
 and writes it as a local database.
 .Pp
+By default,
+.Nm
+expects to be started from
+.Nm inetd
+if stdin is a socket and expects to receive the dumped database over
+stdin otherwise.
+If the database is sent over the network, it is authenticated and
+encrypted.
+Only connections from
+.Li kadmin/hprop
+are accepted.
+.Pp
 Options supported:
 .Bl -tag -width Ds
-.It Fl d Ar database
-.It Fl -database= Ns Ar database
-the database to create.
+.It Xo
+.Fl d Ar file Ns ,
+.Fl -database= Ns Ar file
+.Xc
+database
+.It Xo
+.Fl n Ns ,
+.Fl -stdin
+.Xc
+read from stdin
+.It Xo
+.Fl -print
+.Xc
+print dump to stdout
+.It Xo
+.Fl i Ns ,
+.Fl -no-inetd
+.Xc
+Not started from inetd
+.It Xo
+.Fl k Ar keytab Ns ,
+.Fl -keytab= Ns Ar keytab
+.Xc
+keytab to use for authentication
+.It Xo
+.Fl 4 Ns ,
+.Fl -v4dump
+.Xc
+create v4 type DB
 .El
 .Sh SEE ALSO
 .Xr hprop 8

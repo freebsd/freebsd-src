@@ -1,24 +1,22 @@
-# $Id: Makefile.am,v 1.98 2000/02/19 18:53:56 assar Exp $
+# $Id: Makefile.am,v 1.119 2001/01/30 01:50:52 assar Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
-INCLUDES += $(INCLUDE_krb4)
-
 bin_PROGRAMS = verify_krb5_conf
 
-noinst_PROGRAMS = dump_config
+noinst_PROGRAMS = dump_config test_get_addrs
 
 check_PROGRAMS = n-fold-test string-to-key-test
 TESTS = n-fold-test string-to-key-test
 
-if KRB4
-KRB4LIB = $(LIB_krb4)
-keytab_krb4_c = keytab_krb4.c
-endif
-
 LDADD = libkrb5.la \
-	$(KRB4LIB) \
-	$(top_builddir)/lib/des/libdes.la \
+	$(LIB_des) \
+	$(top_builddir)/lib/asn1/libasn1.la \
+	$(LIB_roken)
+
+libkrb5_la_LIBADD = \
+	../com_err/error.lo ../com_err/com_err.lo \
+	$(LIB_des) \
 	$(top_builddir)/lib/asn1/libasn1.la \
 	$(LIB_roken)
 
@@ -27,10 +25,12 @@ lib_LTLIBRARIES = libkrb5.la
 ERR_FILES = krb5_err.c heim_err.c
 
 libkrb5_la_SOURCES = \
+	acl.c \
 	add_et_list.c \
 	addr_families.c \
 	address.c \
 	aname_to_localname.c \
+	appdefault.c \
 	asn1_glue.c \
 	auth_context.c \
 	build_ap_req.c \
@@ -48,6 +48,7 @@ libkrb5_la_SOURCES = \
 	creds.c \
 	crypto.c \
 	data.c \
+	eai_to_heim_errno.c \
 	expand_hostname.c \
 	fcache.c \
 	free.c \
@@ -71,8 +72,8 @@ libkrb5_la_SOURCES = \
 	keytab.c \
 	keytab_file.c \
 	keytab_memory.c \
-	$(keytab_krb4_c) \
 	keytab_keyfile.c \
+	keytab_krb4.c \
 	krbhst.c \
 	kuserok.c \
 	log.c \
@@ -99,6 +100,7 @@ libkrb5_la_SOURCES = \
 	rd_safe.c \
 	read_message.c \
 	recvauth.c \
+	replay.c \
 	send_to_kdc.c \
 	sendauth.c \
 	set_default_realm.c \
@@ -117,9 +119,7 @@ libkrb5_la_SOURCES = \
 	write_message.c \
 	$(ERR_FILES)
 
-EXTRA_libkrb5_la_SOURCES = keytab_krb4.c
-
-libkrb5_la_LDFLAGS = -version-info 9:1:0
+libkrb5_la_LDFLAGS = -version-info 15:0:0
 
 $(libkrb5_la_OBJECTS): $(srcdir)/krb5-protos.h $(srcdir)/krb5-private.h
 
@@ -129,11 +129,25 @@ $(srcdir)/krb5-protos.h:
 $(srcdir)/krb5-private.h:
 	cd $(srcdir); perl ../../cf/make-proto.pl -p krb5-private.h $(libkrb5_la_SOURCES) || rm -f krb5-private.h
 
-libkrb5_la_LIBADD = ../com_err/error.lo ../com_err/com_err.lo
+#libkrb5_la_LIBADD = ../com_err/error.lo ../com_err/com_err.lo
 
-man_MANS = krb5.conf.5 krb5_warn.3 krb5_openlog.3 \
-	krb5_425_conv_principal.3 krb5_build_principal.3 krb5_free_principal.3 \
-	krb5_parse_name.3 krb5_sname_to_principal.3 krb5_unparse_name.3
+man_MANS =					\
+	kerberos.8				\
+	krb5.conf.5				\
+	krb5_425_conv_principal.3		\
+	krb5_appdefault.3			\
+	krb5_build_principal.3			\
+	krb5_config.3				\
+	krb5_free_principal.3			\
+	krb5_openlog.3				\
+	krb5_parse_name.3			\
+	krb5_sname_to_principal.3		\
+	krb5_unparse_name.3			\
+	krb5_warn.3				\
+	verify_krb5_conf.8			\
+	krb5_auth_context.3			\
+	krb5_context.3				\
+	krb5_init_context.3
 
 include_HEADERS = krb5.h krb5-protos.h krb5-private.h krb5_err.h heim_err.h
 

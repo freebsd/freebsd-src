@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: create_s.c,v 1.16 1999/12/02 17:05:05 joda Exp $");
+RCSID("$Id: create_s.c,v 1.19 2001/01/30 01:24:28 assar Exp $");
 
 static kadm5_ret_t
 get_default(kadm5_server_context *context, krb5_principal princ, 
@@ -87,7 +87,8 @@ create_principal(kadm5_server_context *context,
 	def_mask = KADM5_ATTRIBUTES | KADM5_MAX_LIFE | KADM5_MAX_RLIFE;
     }
 
-    ret = _kadm5_setup_entry(ent, mask | def_mask,
+    ret = _kadm5_setup_entry(context,
+			     ent, mask | def_mask,
 			     princ, mask,
 			     defent, def_mask);
     if(defent)
@@ -119,11 +120,13 @@ kadm5_s_create_principal_with_key(void *server_handle,
     if(ret)
 	goto out;
 
-    ret = _kadm5_set_keys2(&ent, princ->n_key_data, princ->key_data);
+    ret = _kadm5_set_keys2(context, &ent, princ->n_key_data, princ->key_data);
     if(ret)
 	goto out;
     
-    hdb_seal_keys(context->db, &ent);
+    ret = hdb_seal_keys(context->context, context->db, &ent);
+    if (ret)
+	goto out;
     
     kadm5_log_create (context, &ent);
 
@@ -174,8 +177,12 @@ kadm5_s_create_principal(void *server_handle,
     ent.keys.val[2].salt->type = hdb_pw_salt;
     ent.keys.val[3].key.keytype = ETYPE_DES3_CBC_SHA1;
     ret = _kadm5_set_keys(context, &ent, password);
+    if (ret)
+	goto out;
 
-    hdb_seal_keys(context->db, &ent);
+    ret = hdb_seal_keys(context->context, context->db, &ent);
+    if (ret)
+	goto out;
     
     kadm5_log_create (context, &ent);
 

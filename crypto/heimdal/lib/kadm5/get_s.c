@@ -33,7 +33,7 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: get_s.c,v 1.11 1999/12/26 19:38:23 assar Exp $");
+RCSID("$Id: get_s.c,v 1.13 2000/06/19 16:11:31 joda Exp $");
 
 kadm5_ret_t
 kadm5_s_get_principal(void *server_handle, 
@@ -78,8 +78,12 @@ kadm5_s_get_principal(void *server_handle,
 	out->attributes |= ent.flags.server ? 0 : KRB5_KDB_DISALLOW_SVR;
 	out->attributes |= ent.flags.change_pw ? KRB5_KDB_PWCHANGE_SERVICE : 0;
     }
-    if(mask & KADM5_MAX_LIFE && ent.max_life)
-	out->max_life = *ent.max_life;
+    if(mask & KADM5_MAX_LIFE) {
+	if(ent.max_life)
+	    out->max_life = *ent.max_life;
+	else
+	    out->max_life = INT_MAX;
+    }
     if(mask & KADM5_MOD_TIME) {
 	if(ent.modified_by)
 	    out->mod_date = ent.modified_by->time;
@@ -92,10 +96,12 @@ kadm5_s_get_principal(void *server_handle,
 		ret = krb5_copy_principal(context->context, 
 					  ent.modified_by->principal,
 					  &out->mod_name);
-	} else
+	} else if(ent.created_by.principal != NULL)
 	    ret = krb5_copy_principal(context->context, 
 				      ent.created_by.principal,
 				      &out->mod_name);
+	else
+	    out->mod_name = NULL;
     }
     if(ret)
 	goto out;
@@ -115,8 +121,12 @@ kadm5_s_get_principal(void *server_handle,
 	/* XXX implement */;
     if(mask & KADM5_POLICY)
 	out->policy = NULL;
-    if(mask & KADM5_MAX_RLIFE && ent.max_renew)
-	out->max_renewable_life = *ent.max_renew;
+    if(mask & KADM5_MAX_RLIFE) {
+	if(ent.max_renew)
+	    out->max_renewable_life = *ent.max_renew;
+	else
+	    out->max_renewable_life = INT_MAX;
+    }
     if(mask & KADM5_LAST_SUCCESS)
 	/* XXX implement */;
     if(mask & KADM5_LAST_FAILED)
@@ -140,7 +150,7 @@ kadm5_s_get_principal(void *server_handle,
 	    if(key->salt)
 		kd->key_data_type[1] = key->salt->type;
 	    else
-		kd->key_data_type[1] = pa_pw_salt;
+		kd->key_data_type[1] = KRB5_PADATA_PW_SALT;
 	    /* setup key */
 	    kd->key_data_length[0] = key->key.keyvalue.length;
 	    kd->key_data_contents[0] = malloc(kd->key_data_length[0]);

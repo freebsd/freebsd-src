@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: read_message.c,v 1.5 1999/12/02 17:05:12 joda Exp $");
+RCSID("$Id: read_message.c,v 1.7 2000/07/21 22:54:09 joda Exp $");
 
 krb5_error_code
 krb5_read_message (krb5_context context,
@@ -49,7 +49,7 @@ krb5_read_message (krb5_context context,
 	return errno;
     if(ret < 4) {
 	data->length = 0;
-	return 0;
+	return HEIM_ERR_EOF;
     }
     len = (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3];
     ret = krb5_data_alloc (data, len);
@@ -60,4 +60,42 @@ krb5_read_message (krb5_context context,
 	return errno;
     }
     return 0;
+}
+
+krb5_error_code
+krb5_read_priv_message(krb5_context context,
+		       krb5_auth_context ac,
+		       krb5_pointer p_fd,
+		       krb5_data *data)
+{
+    krb5_error_code ret;
+    krb5_data packet;
+
+    ret = krb5_read_message(context, p_fd, &packet);
+    if(ret)
+	return ret;
+    ret = krb5_rd_priv (context, ac, &packet, data, NULL);
+    krb5_data_free(&packet);
+    if(ret)
+	return ret;
+    return ret;
+}
+
+krb5_error_code
+krb5_read_safe_message(krb5_context context,
+		       krb5_auth_context ac,
+		       krb5_pointer p_fd,
+		       krb5_data *data)
+{
+    krb5_error_code ret;
+    krb5_data packet;
+
+    ret = krb5_read_message(context, p_fd, &packet);
+    if(ret)
+	return ret;
+    ret = krb5_rd_safe (context, ac, &packet, data, NULL);
+    krb5_data_free(&packet);
+    if(ret)
+	return ret;
+    return ret;
 }

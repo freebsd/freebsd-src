@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "der_locl.h"
 
-RCSID("$Id: der_put.c,v 1.22 1999/12/02 17:05:02 joda Exp $");
+RCSID("$Id: der_put.c,v 1.24 2001/01/29 08:31:27 assar Exp $");
 
 /*
  * All encoding functions take a pointer `p' to first position in
@@ -221,6 +221,31 @@ encode_integer (unsigned char *p, size_t len, const int *data, size_t *size)
 }
 
 int
+encode_unsigned (unsigned char *p, size_t len, const unsigned *data,
+		 size_t *size)
+{
+    unsigned num = *data;
+    size_t ret = 0;
+    size_t l;
+    int e;
+    
+    e = der_put_unsigned (p, len, num, &l);
+    if(e)
+	return e;
+    p -= l;
+    len -= l;
+    ret += l;
+    e = der_put_length_and_tag (p, len, l, UNIV, PRIM, UT_Integer, &l);
+    if (e)
+	return e;
+    p -= l;
+    len -= l;
+    ret += l;
+    *size = ret;
+    return 0;
+}
+
+int
 encode_general_string (unsigned char *p, size_t len, 
 		       const general_string *data, size_t *size)
 {
@@ -268,17 +293,20 @@ encode_octet_string (unsigned char *p, size_t len,
     return 0;
 }
 
-void
+int
 time2generalizedtime (time_t t, octet_string *s)
 {
      struct tm *tm;
 
      s->data = malloc(16);
+     if (s->data == NULL)
+	 return ENOMEM;
      s->length = 15;
      tm = gmtime (&t);
      sprintf (s->data, "%04d%02d%02d%02d%02d%02dZ", tm->tm_year + 1900,
 	      tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min,
 	      tm->tm_sec);
+     return 0;
 }
 
 int
@@ -290,7 +318,9 @@ encode_generalized_time (unsigned char *p, size_t len,
     octet_string k;
     int e;
 
-    time2generalizedtime (*t, &k);
+    e = time2generalizedtime (*t, &k);
+    if (e)
+	return e;
     e = der_put_octet_string (p, len, &k, &l);
     free (k.data);
     if (e)

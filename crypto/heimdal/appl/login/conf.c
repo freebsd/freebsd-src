@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
 
 #include "login_locl.h"
 
-RCSID("$Id: conf.c,v 1.2 1999/11/09 18:05:49 joda Exp $");
+RCSID("$Id: conf.c,v 1.3 2000/05/29 16:52:24 assar Exp $");
 
 static char *confbuf;
 
@@ -49,7 +49,7 @@ login_conf_get_string(const char *str)
     char *value;
     if(login_conf_init() != 0)
 	return NULL;
-    if(cgetstr(confbuf, str, &value) < 0)
+    if(cgetstr(confbuf, (char *)str, &value) < 0)
 	return NULL;
     return value;
 }

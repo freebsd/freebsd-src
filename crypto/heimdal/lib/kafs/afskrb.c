@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -33,7 +33,7 @@
 
 #include "kafs_locl.h"
 
-RCSID("$Id: afskrb.c,v 1.13 1999/12/02 16:58:39 joda Exp $");
+RCSID("$Id: afskrb.c,v 1.14 2000/03/16 05:35:56 assar Exp $");
 
 struct krb_kafs_data {
     const char *realm;
@@ -69,13 +69,9 @@ afslog_uid_int(kafs_data *data,
 	return _kafs_afslog_all_local_cells (data, uid, homedir);
 
     /* Extract realm from ticket file. */
-    {
-        char name[ANAME_SZ], inst[INST_SZ];
-
-	ret = krb_get_default_principal(name, inst, realm);
-	if (ret != KSUCCESS)
-	    return ret;
-    }
+    ret = krb_get_tf_fullname(tkt_string(), NULL, NULL, realm);
+    if (ret != KSUCCESS)
+	return ret;
 
     ret = _kafs_get_cred(data, cell, realm_hint, realm, &c);
     

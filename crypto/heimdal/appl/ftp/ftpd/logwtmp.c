@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: logwtmp.c,v 1.14 1999/12/02 16:58:31 joda Exp $");
+RCSID("$Id: logwtmp.c,v 1.15 2000/09/19 13:17:05 assar Exp $");
 #endif
 
 #include <stdio.h>
@@ -58,6 +58,7 @@ RCSID("$Id: logwtmp.c,v 1.14 1999/12/02 16:58:31 joda Exp $");
 #ifdef HAVE_UTMPX_H
 #include <utmpx.h>
 #endif
+#include <roken.h>
 #include "extern.h"
 
 #ifndef WTMP_FILE

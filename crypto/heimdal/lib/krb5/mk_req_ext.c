@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: mk_req_ext.c,v 1.21 1999/12/02 17:05:11 joda Exp $");
+RCSID("$Id: mk_req_ext.c,v 1.24 2000/11/15 07:01:26 assar Exp $");
 
 krb5_error_code
 krb5_mk_req_internal(krb5_context context,
@@ -42,7 +42,8 @@ krb5_mk_req_internal(krb5_context context,
 		     krb5_data *in_data,
 		     krb5_creds *in_creds,
 		     krb5_data *outbuf,
-		     krb5_key_usage usage)
+		     krb5_key_usage checksum_usage,
+		     krb5_key_usage encrypt_usage)
 {
   krb5_error_code ret;
   krb5_data authenticator;
@@ -88,6 +89,11 @@ krb5_mk_req_internal(krb5_context context,
   krb5_free_keyblock(context, ac->keyblock);
   krb5_copy_keyblock(context, &in_creds->session, &ac->keyblock);
   
+  /* it's unclear what type of checksum we can use.  try the best one, except:
+   * a) if it's configured differently for the current realm, or
+   * b) if the session key is des-cbc-crc
+   */
+
   if (in_data) {
       if(ac->keyblock->keytype == ETYPE_DES_CBC_CRC) {
 	  /* this is to make DCE secd (and older MIT kdcs?) happy */
@@ -99,10 +105,13 @@ krb5_mk_req_internal(krb5_context context,
 				     &c);
       } else {
 	  krb5_crypto crypto;
-	  krb5_crypto_init(context, ac->keyblock, 0, &crypto);
+
+	  ret = krb5_crypto_init(context, ac->keyblock, 0, &crypto);
+	  if (ret)
+	      return ret;
 	  ret = krb5_create_checksum(context, 
 				     crypto,
-				     usage,
+				     checksum_usage,
 				     in_data->data,
 				     in_data->length,
 				     &c);
@@ -120,7 +129,8 @@ krb5_mk_req_internal(krb5_context context,
 				  in_creds,
 				  c_opt,
 				  NULL,
-				  &authenticator);
+				  &authenticator,
+				  encrypt_usage);
   if (c_opt)
       free_Checksum (c_opt);
   if (ret)
@@ -147,5 +157,6 @@ krb5_mk_req_extended(krb5_context context,
 				 in_data,
 				 in_creds,
 				 outbuf,
-				 KRB5_KU_AP_REQ_AUTH_CKSUM);
+				 KRB5_KU_AP_REQ_AUTH_CKSUM,
+				 KRB5_KU_AP_REQ_AUTH);
 }

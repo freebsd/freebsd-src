@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: chpass_c.c,v 1.3 1999/12/02 17:05:05 joda Exp $");
+RCSID("$Id: chpass_c.c,v 1.5 2000/07/11 15:59:14 joda Exp $");
 
 kadm5_ret_t
 kadm5_c_chpass_principal(void *server_handle, 
@@ -47,12 +47,58 @@ kadm5_c_chpass_principal(void *server_handle,
     int32_t tmp;
     krb5_data reply;
 
+    ret = _kadm5_connect(server_handle);
+    if(ret)
+	return ret;
+
     sp = krb5_storage_from_mem(buf, sizeof(buf));
     if (sp == NULL)
 	return ENOMEM;
     krb5_store_int32(sp, kadm_chpass);
     krb5_store_principal(sp, princ);
     krb5_store_string(sp, password);
+    ret = _kadm5_client_send(context, sp);
+    krb5_storage_free(sp);
+    ret = _kadm5_client_recv(context, &reply);
+    if(ret)
+	return ret;
+    sp = krb5_storage_from_data (&reply);
+    if (sp == NULL) {
+	krb5_data_free (&reply);
+	return ENOMEM;
+    }
+    krb5_ret_int32(sp, &tmp);
+    krb5_storage_free(sp);
+    krb5_data_free (&reply);
+    return tmp;
+}
+
+kadm5_ret_t
+kadm5_c_chpass_principal_with_key(void *server_handle, 
+				  krb5_principal princ,
+				  int n_key_data,
+				  krb5_key_data *key_data)
+{
+    kadm5_client_context *context = server_handle;
+    kadm5_ret_t ret;
+    krb5_storage *sp;
+    unsigned char buf[1024];
+    int32_t tmp;
+    krb5_data reply;
+    int i;
+
+    ret = _kadm5_connect(server_handle);
+    if(ret)
+	return ret;
+
+    sp = krb5_storage_from_mem(buf, sizeof(buf));
+    if (sp == NULL)
+	return ENOMEM;
+    krb5_store_int32(sp, kadm_chpass_with_key);
+    krb5_store_principal(sp, princ);
+    krb5_store_int32(sp, n_key_data);
+    for (i = 0; i < n_key_data; ++i)
+	kadm5_store_key_data (sp, &key_data[i]);
     ret = _kadm5_client_send(context, sp);
     krb5_storage_free(sp);
     ret = _kadm5_client_recv(context, &reply);

@@ -1,16 +1,89 @@
+-- $Id: k5.asn1,v 1.23 2000/12/11 06:30:35 assar Exp $
+
 KERBEROS5 DEFINITIONS ::=
 BEGIN
 
-nt-unknown INTEGER ::= 0 -- Name type not known
-nt-principal INTEGER ::= 1 -- Just the name of the principal as in
-nt-srv-inst INTEGER ::= 2 -- Service and other unique instance (krbtgt)
-nt-srv-hst INTEGER ::= 3 -- Service with host name as instance
-nt-srv-xhst INTEGER ::= 4 -- Service with host as remaining components
-nt-uid INTEGER ::= 5 -- Unique ID
+NAME-TYPE ::= INTEGER {
+	KRB5_NT_UNKNOWN(0),	-- Name type not known
+	KRB5_NT_PRINCIPAL(1),	-- Just the name of the principal as in
+	KRB5_NT_SRV_INST(2),	-- Service and other unique instance (krbtgt)
+	KRB5_NT_SRV_HST(3),	-- Service with host name as instance
+	KRB5_NT_SRV_XHST(4),	-- Service with host as remaining components
+	KRB5_NT_UID(5),		-- Unique ID
+	KRB5_NT_X500_PRINCIPAL(6) -- PKINIT
+}
+
+-- message types
+
+MESSAGE-TYPE ::= INTEGER {
+	krb-as-req(10), -- Request for initial authentication
+	krb-as-rep(11), -- Response to KRB_AS_REQ request
+	krb-tgs-req(12), -- Request for authentication based on TGT
+	krb-tgs-rep(13), -- Response to KRB_TGS_REQ request
+	krb-ap-req(14), -- application request to server
+	krb-ap-rep(15), -- Response to KRB_AP_REQ_MUTUAL
+	krb-safe(20), -- Safe (checksummed) application message
+	krb-priv(21), -- Private (encrypted) application message
+	krb-cred(22), -- Private (encrypted) message to forward credentials
+	krb-error(30) -- Error response
+}
+
+
+-- pa-data types
+
+PADATA-TYPE ::= INTEGER {
+	KRB5-PADATA-NONE(0),
+	KRB5-PADATA-TGS-REQ(1),
+	KRB5-PADATA-AP-REQ(1),
+	KRB5-PADATA-ENC-TIMESTAMP(2),
+	KRB5-PADATA-PW-SALT(3),
+	KRB5-PADATA-ENC-UNIX-TIME(5),
+	KRB5-PADATA-SANDIA-SECUREID(6),
+	KRB5-PADATA-SESAME(7),
+	KRB5-PADATA-OSF-DCE(8),
+	KRB5-PADATA-CYBERSAFE-SECUREID(9),
+	KRB5-PADATA-AFS3-SALT(10),
+	KRB5-PADATA-ETYPE-INFO(11),
+	KRB5-PADATA-SAM-CHALLENGE(12), -- (sam/otp)
+	KRB5-PADATA-SAM-RESPONSE(13), -- (sam/otp)
+	KRB5-PADATA-PK-AS-REQ(14), -- (PKINIT)
+	KRB5-PADATA-PK-AS-REP(15), -- (PKINIT)
+	KRB5-PADATA-PK-AS-SIGN(16), -- (PKINIT)
+	KRB5-PADATA-PK-KEY-REQ(17), -- (PKINIT)
+	KRB5-PADATA-PK-KEY-REP(18), -- (PKINIT)
+	KRB5-PADATA-USE-SPECIFIED-KVNO(20),
+	KRB5-PADATA-SAM-REDIRECT(21), -- (sam/otp)
+	KRB5-PADATA-GET-FROM-TYPED-DATA(22),
+	KRB5-PADATA-SAM-ETYPE-INFO(23)
+}
+
+-- checksumtypes
+
+CKSUMTYPE ::= INTEGER {
+	CKSUMTYPE_NONE(0),
+	CKSUMTYPE_CRC32(1),
+	CKSUMTYPE_RSA_MD4(2),
+	CKSUMTYPE_RSA_MD4_DES(3),
+	CKSUMTYPE_DES_MAC(4),
+	CKSUMTYPE_DES_MAC_K(5),
+	CKSUMTYPE_RSA_MD4_DES_K(6),
+	CKSUMTYPE_RSA_MD5(7),
+	CKSUMTYPE_RSA_MD5_DES(8),
+	CKSUMTYPE_RSA_MD5_DES3(9),
+	-- CKSUMTYPE_SHA1(10),
+	CKSUMTYPE_HMAC_SHA1_DES3(12),
+	CKSUMTYPE_SHA1(1000),		-- correct value? 10 (9 also)
+	CKSUMTYPE_HMAC_MD5(-138),	-- unofficial microsoft number
+	CKSUMTYPE_HMAC_MD5_ENC(-1138)	-- even more unofficial
+}
+
+-- this is sugar to make something ASN1 does not have: unsigned
+
+UNSIGNED ::= INTEGER (0..4294967295)
 
 Realm ::= GeneralString
 PrincipalName ::= SEQUENCE {
-	name-type[0]		INTEGER,
+	name-type[0]		NAME-TYPE,
 	name-string[1]		SEQUENCE OF GeneralString
 }
 
@@ -81,6 +154,7 @@ KDCOptions ::= BIT STRING {
 	unused10(10),
 	unused11(11),
 	request-anonymous(14),
+	canonicalize(15),
 	disable-transited-check(26),
 	renewable-ok(27),
 	enc-tkt-in-skey(28),
@@ -133,7 +207,7 @@ EncTicketPart ::= [APPLICATION 3] SEQUENCE {
 }
 
 Checksum ::= SEQUENCE {
-	cksumtype[0]		INTEGER,
+	cksumtype[0]		CKSUMTYPE,
 	checksum[1]		OCTET STRING
 }
 
@@ -145,13 +219,13 @@ Authenticator ::= [APPLICATION 2] SEQUENCE    {
 	cusec[4]		INTEGER,
 	ctime[5]		KerberosTime,
 	subkey[6]		EncryptionKey OPTIONAL,
-	seq-number[7]		INTEGER OPTIONAL,
+	seq-number[7]		UNSIGNED OPTIONAL,
 	authorization-data[8]	AuthorizationData OPTIONAL
 	}
 
 PA-DATA ::= SEQUENCE {
 	-- might be encoded AP-REQ
-	padata-type[1]		INTEGER,
+	padata-type[1]		PADATA-TYPE,
 	padata-value[2]		OCTET STRING
 }
 
@@ -185,7 +259,7 @@ KDC-REQ-BODY ::= SEQUENCE {
 
 KDC-REQ ::= SEQUENCE {
 	pvno[1]			INTEGER,
-	msg-type[2]		INTEGER,
+	msg-type[2]		MESSAGE-TYPE,
 	padata[3]		METHOD-DATA OPTIONAL,
 	req-body[4]		KDC-REQ-BODY
 }
@@ -203,7 +277,7 @@ PA-ENC-TS-ENC ::= SEQUENCE {
 
 KDC-REP ::= SEQUENCE {
 	pvno[0]			INTEGER,
-	msg-type[1]		INTEGER,
+	msg-type[1]		MESSAGE-TYPE,
 	padata[2]		METHOD-DATA OPTIONAL,
 	crealm[3]		Realm,
 	cname[4]		PrincipalName,
@@ -234,7 +308,7 @@ EncTGSRepPart ::= [APPLICATION 26] EncKDCRepPart
 
 AP-REQ ::= [APPLICATION 14] SEQUENCE {
 	pvno[0]			INTEGER,
-	msg-type[1]		INTEGER,
+	msg-type[1]		MESSAGE-TYPE,
 	ap-options[2]		APOptions,
 	ticket[3]		Ticket,
 	authenticator[4]	EncryptedData
@@ -242,7 +316,7 @@ AP-REQ ::= [APPLICATION 14] SEQUENCE {
 
 AP-REP ::= [APPLICATION 15] SEQUENCE {
 	pvno[0]			INTEGER,
-	msg-type[1]		INTEGER,
+	msg-type[1]		MESSAGE-TYPE,
 	enc-part[2]		EncryptedData
 }
 
@@ -250,42 +324,42 @@ EncAPRepPart ::= [APPLICATION 27]     SEQUENCE {
 	ctime[0]		KerberosTime,
 	cusec[1]		INTEGER,
 	subkey[2]		EncryptionKey OPTIONAL,
-	seq-number[3]		INTEGER OPTIONAL
+	seq-number[3]		UNSIGNED OPTIONAL
 }
 
 KRB-SAFE-BODY ::= SEQUENCE {
 	user-data[0]		OCTET STRING,
 	timestamp[1]		KerberosTime OPTIONAL,
 	usec[2]			INTEGER OPTIONAL,
-	seq-number[3]		INTEGER OPTIONAL,
+	seq-number[3]		UNSIGNED OPTIONAL,
 	s-address[4]		HostAddress OPTIONAL,
 	r-address[5]		HostAddress OPTIONAL
 }
 
 KRB-SAFE ::= [APPLICATION 20] SEQUENCE {
 	pvno[0]			INTEGER,
-	msg-type[1]		INTEGER,
+	msg-type[1]		MESSAGE-TYPE,
 	safe-body[2]		KRB-SAFE-BODY,
 	cksum[3]		Checksum
 }
 
 KRB-PRIV ::= [APPLICATION 21] SEQUENCE {
 	pvno[0]			INTEGER,
-	msg-type[1]		INTEGER,
+	msg-type[1]		MESSAGE-TYPE,
 	enc-part[3]		EncryptedData
 }
 EncKrbPrivPart ::= [APPLICATION 28] SEQUENCE {
 	user-data[0]		OCTET STRING,
 	timestamp[1]		KerberosTime OPTIONAL,
 	usec[2]			INTEGER OPTIONAL,
-	seq-number[3]		INTEGER OPTIONAL,
+	seq-number[3]		UNSIGNED OPTIONAL,
 	s-address[4]		HostAddress OPTIONAL, -- sender's addr
 	r-address[5]		HostAddress OPTIONAL  -- recip's addr
 }
 
 KRB-CRED ::= [APPLICATION 22]   SEQUENCE {
 	pvno[0]			INTEGER,
-	msg-type[1]		INTEGER, -- KRB_CRED
+	msg-type[1]		MESSAGE-TYPE, -- KRB_CRED
 	tickets[2]		SEQUENCE OF Ticket,
 	enc-part[3]		EncryptedData
 }
@@ -315,7 +389,7 @@ EncKrbCredPart ::= [APPLICATION 29]   SEQUENCE {
 
 KRB-ERROR ::= [APPLICATION 30] SEQUENCE {
 	pvno[0]			INTEGER,
-	msg-type[1]		INTEGER,
+	msg-type[1]		MESSAGE-TYPE,
 	ctime[2]		KerberosTime OPTIONAL,
 	cusec[3]		INTEGER OPTIONAL,
 	stime[4]		KerberosTime,
@@ -330,51 +404,6 @@ KRB-ERROR ::= [APPLICATION 30] SEQUENCE {
 }
 
 pvno INTEGER ::= 5 -- current Kerberos protocol version number
-
--- message types
-
-krb-as-req INTEGER ::= 10 -- Request for initial authentication
-krb-as-rep INTEGER ::= 11 -- Response to KRB_AS_REQ request
-krb-tgs-req INTEGER ::= 12 -- Request for authentication based on TGT
-krb-tgs-rep INTEGER ::= 13 -- Response to KRB_TGS_REQ request
-krb-ap-req INTEGER ::= 14 -- application request to server
-krb-ap-rep INTEGER ::= 15 -- Response to KRB_AP_REQ_MUTUAL
-krb-safe INTEGER ::= 20 -- Safe (checksummed) application message
-krb-priv INTEGER ::= 21 -- Private (encrypted) application message
-krb-cred INTEGER ::= 22 -- Private (encrypted) message to forward credentials
-krb-error INTEGER ::= 30 -- Error response
-
--- pa-data types
-
-pa-tgs-req		INTEGER ::= 1
-pa-enc-timestamp	INTEGER ::= 2
-pa-pw-salt		INTEGER ::= 3
-pa-enc-unix-time	INTEGER ::= 5
-pa-sandia-secureid	INTEGER ::= 6
-pa-sesame		INTEGER ::= 7
-pa-osf-dce		INTEGER ::= 8
-pa-cybersafe-secureid	INTEGER ::= 9
-pa-afs3-salt		INTEGER ::= 10
-pa-etype-info		INTEGER ::= 11
-sam-challenge		INTEGER ::= 12 -- (sam/otp)
-sam-response		INTEGER ::= 13 -- (sam/otp)
-pa-pk-as-req		INTEGER ::= 14 -- (pkinit)
-pa-pk-as-rep		INTEGER ::= 15 -- (pkinit)
-pa-pk-as-sign		INTEGER ::= 16 -- (pkinit)
-pa-pk-key-req		INTEGER ::= 17 -- (pkinit)
-pa-pk-key-rep		INTEGER ::= 18 -- (pkinit)
--- checksumtypes
-
-CRC32 			INTEGER ::= 1
-rsa-md4 		INTEGER ::= 2
-rsa-md4-des		INTEGER ::= 3
-des-mac			INTEGER ::= 4
-des-mac-k 		INTEGER ::= 5
-rsa-md4-des-k		INTEGER ::= 6
-rsa-md5			INTEGER ::= 7
-rsa-md5-des		INTEGER ::= 8
-rsa-md5-des3		INTEGER ::= 9
-hmac-sha1-des3		INTEGER ::= 12
 
 -- transited encodings
 

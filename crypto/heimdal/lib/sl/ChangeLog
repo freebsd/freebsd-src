@@ -1,3 +1,49 @@
+2001-01-26  Johan Danielsson  <joda@pdc.kth.se>
+
+	* sl.h: proto
+
+	* sl.c (sl_command_loop): try to handle user pressing C-c
+
+2000-12-11  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libss_la_LDFLAGS): bump version to 1:2:1
+
+2000-08-19  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: add dependencies for libss/libsl shared libraries
+
+2000-07-25  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: bump ss version to 1:1:1
+
+2000-06-27  Assar Westerlund  <assar@sics.se>
+
+	* parse.y (yyerror): static-ize
+	* make_cmds.h (error_message, yylex): add prototypes
+	* lex.l: fix prototypes and kill warnings
+
+2000-05-24  Assar Westerlund  <assar@sics.se>
+
+	* ss.h (SS_ET_COMMAND_NOT_FOUND): add
+	* ss.c: check allocation and return some other error codes too
+
+2000-04-29  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.in: add LIB_tgetent.  From Derrick J Brashear
+	<shadow@dementia.org>
+
+2000-04-03  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: set version to 1:0:1
+
+2000-03-07  Assar Westerlund  <assar@sics.se>
+
+	* sl.h (SL_BADCOMMAND): define
+	(sl_apropos): add prototype
+
+	* sl.c: mandoc-generation
+	(sl_apropos): stolen from arla
+
 2000-01-06  Assar Westerlund  <assar@sics.se>
 
 	* Makefile.am: bump both versions to 0:1:0
