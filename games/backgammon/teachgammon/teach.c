@@ -46,18 +46,18 @@ static char sccsid[] = "@(#)teach.c	8.1 (Berkeley) 5/31/93";
 #include <unistd.h>
 #include "back.h"
 
-char	*hello[];
-char	*list[];
-char	*intro1[];
-char	*intro2[];
-char	*moves[];
-char	*remove[];
-char	*hits[];
-char	*endgame[];
-char	*doubl[];
-char	*stragy[];
-char	*prog[];
-char	*lastch[];
+extern char	*hello[];
+extern char	*list[];
+extern char	*intro1[];
+extern char	*intro2[];
+extern char	*moves[];
+extern char	*remove[];
+extern char	*hits[];
+extern char	*endgame[];
+extern char	*doubl[];
+extern char	*stragy[];
+extern char	*prog[];
+extern char	*lastch[];
 
 extern char	ospeed;			/* tty output speed for termlib */
 
