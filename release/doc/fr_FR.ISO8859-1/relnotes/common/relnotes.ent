@@ -1,0 +1,21 @@
+<!--
+     The FreeBSD Documentation Project
+     The FreeBSD French Documentation Project
+
+     $Id$
+     $FreeBSD$
+     Original revision: 1.1.2.3
+-->
+<!-- Text constants which probably don't need to be changed.-->
+
+<!-- 
+  -CURRENT defines a merged entity, which we use to indicate when a
+  release notes item has been merged.  We remove it from any -STABLE
+  branch(es) because it's not used in this environment and leaving
+  the entity undefined helps us locate cut-n-paste errors.
+-->
+
+<!-- Files to be included -->
+
+<!ENTITY art SYSTEM "../common/new.sgml">
+
