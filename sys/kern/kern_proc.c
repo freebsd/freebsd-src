@@ -80,7 +80,6 @@ struct proclist allproc;
 struct proclist zombproc;
 struct sx allproc_lock;
 struct sx proctree_lock;
-struct sx pgrpsess_lock;
 struct mtx pargs_ref_lock;
 uma_zone_t proc_zone;
 uma_zone_t ithread_zone;
@@ -96,7 +95,6 @@ procinit()
 
 	sx_init(&allproc_lock, "allproc");
 	sx_init(&proctree_lock, "proctree");
-	sx_init(&pgrpsess_lock, "pgrpsess");
 	mtx_init(&pargs_ref_lock, "struct pargs.ref", NULL, MTX_DEF);
 	LIST_INIT(&allproc);
 	LIST_INIT(&zombproc);
@@ -284,7 +282,7 @@ dopfind(pid)
 
 /*
  * Locate a process group by number.
- * The caller must hold pgrpsess_lock.
+ * The caller must hold proctree_lock.
  */
 struct pgrp *
 pgfind(pgid)
@@ -292,7 +290,7 @@ pgfind(pgid)
 {
 	register struct pgrp *pgrp;
 
-	PGRPSESS_LOCK_ASSERT(SX_LOCKED);
+	sx_assert(&proctree_lock, SX_LOCKED);
 
 	LIST_FOREACH(pgrp, PGRPHASH(pgid), pg_hash) {
 		if (pgrp->pg_id == pgid) {
@@ -317,7 +315,7 @@ enterpgrp(p, pgid, pgrp, sess)
 {
 	struct pgrp *pgrp2;
 
-	PGRPSESS_LOCK_ASSERT(SX_XLOCKED);
+	sx_assert(&proctree_lock, SX_XLOCKED);
 
 	KASSERT(pgrp != NULL, ("enterpgrp: pgrp == NULL"));
 	KASSERT(p->p_pid == pgid,
@@ -362,7 +360,7 @@ enterpgrp(p, pgid, pgrp, sess)
 	LIST_INIT(&pgrp->pg_members);
 
 	/*
-	 * As we have an exclusive lock of pgrpsess_lock,
+	 * As we have an exclusive lock of proctree_lock,
 	 * this should not deadlock.
 	 */
 	LIST_INSERT_HEAD(PGRPHASH(pgid), pgrp, pg_hash);
@@ -383,7 +381,8 @@ enterthispgrp(p, pgrp)
 	register struct proc *p;
 	struct pgrp *pgrp;
 {
-	PGRPSESS_LOCK_ASSERT(SX_XLOCKED);
+
+	sx_assert(&proctree_lock, SX_XLOCKED);
 	PROC_LOCK_ASSERT(p, MA_NOTOWNED);
 	PGRP_LOCK_ASSERT(pgrp, MA_NOTOWNED);
 	PGRP_LOCK_ASSERT(p->p_pgrp, MA_NOTOWNED);
@@ -411,7 +410,7 @@ doenterpgrp(p, pgrp)
 {
 	struct pgrp *savepgrp;
 
-	PGRPSESS_LOCK_ASSERT(SX_XLOCKED);
+	sx_assert(&proctree_lock, SX_XLOCKED);
 	PROC_LOCK_ASSERT(p, MA_NOTOWNED);
 	PGRP_LOCK_ASSERT(pgrp, MA_NOTOWNED);
 	PGRP_LOCK_ASSERT(p->p_pgrp, MA_NOTOWNED);
@@ -449,7 +448,7 @@ leavepgrp(p)
 {
 	struct pgrp *savepgrp;
 
-	PGRPSESS_XLOCK();
+	sx_assert(&proctree_lock, SX_XLOCKED);
 	savepgrp = p->p_pgrp;
 	PGRP_LOCK(savepgrp);
 	PROC_LOCK(p);
@@ -459,7 +458,6 @@ leavepgrp(p)
 	PGRP_UNLOCK(savepgrp);
 	if (LIST_EMPTY(&savepgrp->pg_members))
 		pgdelete(savepgrp);
-	PGRPSESS_XUNLOCK();
 	return (0);
 }
 
@@ -472,7 +470,7 @@ pgdelete(pgrp)
 {
 	struct session *savesess;
 
-	PGRPSESS_LOCK_ASSERT(SX_XLOCKED);
+	sx_assert(&proctree_lock, SX_XLOCKED);
 	PGRP_LOCK_ASSERT(pgrp, MA_NOTOWNED);
 	SESS_LOCK_ASSERT(pgrp->pg_session, MA_NOTOWNED);
 
@@ -520,7 +518,7 @@ fixjobc(p, pgrp, entering)
 	register struct pgrp *hispgrp;
 	register struct session *mysession;
 
-	PGRPSESS_LOCK_ASSERT(SX_LOCKED);
+	sx_assert(&proctree_lock, SX_LOCKED);
 	PROC_LOCK_ASSERT(p, MA_NOTOWNED);
 	PGRP_LOCK_ASSERT(pgrp, MA_NOTOWNED);
 	SESS_LOCK_ASSERT(pgrp->pg_session, MA_NOTOWNED);
@@ -530,7 +528,6 @@ fixjobc(p, pgrp, entering)
 	 * group; if so, adjust count for p's process group.
 	 */
 	mysession = pgrp->pg_session;
-	sx_slock(&proctree_lock);
 	if ((hispgrp = p->p_pptr->p_pgrp) != pgrp &&
 	    hispgrp->pg_session == mysession) {
 		PGRP_LOCK(pgrp);
@@ -564,7 +561,6 @@ fixjobc(p, pgrp, entering)
 			PGRP_UNLOCK(hispgrp);
 		}
 	}
-	sx_sunlock(&proctree_lock);
 }
 
 /*
