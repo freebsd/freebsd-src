@@ -86,7 +86,7 @@ ENTRY(__start, 1)
 	srlz.i
 	;;
 	srlz.d
-	mov	r9=KSTACK_PAGES*PAGE_SIZE-SIZEOF_PCB-16
+	mov	r9=KSTACK_PAGES*PAGE_SIZE-SIZEOF_PCB-SIZEOF_TRAPFRAME-16
 	;; 
 	movl	gp=__gp			// find kernel globals
 	add	sp=r9,r11		// proc0's stack
