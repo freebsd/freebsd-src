@@ -21,7 +21,7 @@
 
 #include <tack.h>
 
-MODULE_ID("$Id: tack.c,v 1.1 1998/01/10 01:34:45 tom Exp $")
+MODULE_ID("$Id: tack.c,v 1.2 2001/10/28 01:05:35 tom Exp $")
 
 /*
    This program is designed to test terminfo, not curses.  Therefore
@@ -126,7 +126,7 @@ struct test_menu edit_menu = {
 extern struct test_list mode_test_list[];
 
 struct test_menu mode_menu = {
-	0, 'n', 0, "Mode test menu",
+	0, 'n', 0, "Test modes and glitches:",
 	"mode", "n) run standard tests",
 	0, mode_test_list, 0, 0, 0
 };
@@ -135,7 +135,7 @@ extern struct test_list acs_test_list[];
 
 static struct test_menu acs_menu = {
 	0, 'n', 0,
-	"Alternate character set and graphics rendition test menu",
+	"Test alternate character set and graphics rendition:",
 	"acs", "n) run standard tests",
 	0, acs_test_list, 0, 0, 0
 };
@@ -144,7 +144,7 @@ extern struct test_list color_test_list[];
 
 struct test_menu color_menu = {
 	0, 'n', 0,
-	"Color test menu",
+	"Test color:",
 	"color", "n) run standard tests",
 	0, color_test_list, 0, 0, 0
 };
@@ -153,7 +153,7 @@ extern struct test_list crum_test_list[];
 
 static struct test_menu crum_menu = {
 	0, 'n', 0,
-	"Cursor movement test menu",
+	"Test cursor movement:",
 	"move", "n) run standard tests",
 	0, crum_test_list, 0, 0, 0
 };
@@ -162,7 +162,7 @@ extern struct test_list funkey_test_list[];
 
 static struct test_menu funkey_menu = {
 	0, 'n', 0,
-	"Function key test menu",
+	"Test function keys:",
 	"fkey", "n) run standard tests",
 	sync_test, funkey_test_list, 0, 0, 0
 };
@@ -171,7 +171,7 @@ extern struct test_list printer_test_list[];
 
 static struct test_menu printer_menu = {
 	0, 'n', 0,
-	"Printer test menu",
+	"Test printer:",
 	"printer", "n) run standard tests",
 	0, printer_test_list, 0, 0, 0
 };
@@ -181,7 +181,7 @@ extern struct test_list pad_test_list[];
 
 static struct test_menu pad_menu = {
 	0, 'n', 0,
-	"Pad test menu",
+	"Test padding and string capabilities:",
 	"pad", "n) run standard tests",
 	sync_test, pad_test_list, 0, 0, 0
 };
@@ -190,11 +190,11 @@ static struct test_list normal_test_list[] = {
 	{0, 0, 0, 0, "e) edit terminfo", 0, &edit_menu},
 	{0, 0, 0, 0, "i) send reset and init", menu_reset_init, 0},
 	{MENU_NEXT, 0, 0, 0, "x) test modes and glitches", 0, &mode_menu},
-	{MENU_NEXT, 0, 0, 0, "a) test alternate character sets", 0, &acs_menu},
+	{MENU_NEXT, 0, 0, 0, "a) test alternate character set and graphic rendition", 0, &acs_menu},
 	{MENU_NEXT, 0, 0, 0, "c) test color", 0, &color_menu},
 	{MENU_NEXT, 0, 0, 0, "m) test cursor movement", 0, &crum_menu},
 	{MENU_NEXT, 0, 0, 0, "f) test function keys", 0, &funkey_menu},
-	{MENU_NEXT, 0, 0, 0, "p) test string capabilities", 0, &pad_menu},
+	{MENU_NEXT, 0, 0, 0, "p) test padding and string capabilities", 0, &pad_menu},
 	{0, 0, 0, 0, "P) test printer", 0, &printer_menu},
 	{MENU_MENU, 0, 0, 0, "/) test a specific capability", 0, 0},
 	{0, 0, 0, 0, "t) auto generate pad delays", pad_gen, &pad_menu},

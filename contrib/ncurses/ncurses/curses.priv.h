@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,11 +29,12 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Thomas E. Dickey 1996-2002                                      *
  ****************************************************************************/
 
 
 /*
- * $Id: curses.priv.h,v 1.171 2000/12/10 00:13:52 tom Exp $
+ * $Id: curses.priv.h,v 1.218 2002/05/18 19:48:38 tom Exp $
  *
  *	curses.priv.h
  *
@@ -110,6 +111,9 @@ extern int errno;
 #define USE_FUNC_POLL 0
 #endif
 
+/* include signal.h before curses.h to work-around defect in glibc 2.1.3 */
+#include <signal.h>
+
 /* Alessandro Rubini's GPM (general-purpose mouse) */
 #if HAVE_LIBGPM && HAVE_GPM_H
 #define USE_GPM_SUPPORT 1
@@ -140,7 +144,7 @@ extern int errno;
 #undef HAVE_SIZECHANGE
 #endif
 
-#if HAVE_SIZECHANGE
+#if HAVE_SIZECHANGE && defined(SIGWINCH)
 #define USE_SIZECHANGE 1
 #else
 #undef USE_SIGWINCH
@@ -214,6 +218,7 @@ struct tries {
 #define L_BRACE '{'
 #define R_BRACE '}'
 #define S_QUOTE '\''
+#define D_QUOTE '"'
 
 /*
  * Structure for palette tables
@@ -233,7 +238,24 @@ color_t;
 
 #define WINDOWLIST struct _win_list
 
+#if USE_WIDEC_SUPPORT
+#define _nc_bkgd    _bkgrnd
+#else
+#undef _XOPEN_SOURCE_EXTENDED
+#define _nc_bkgd    _bkgd
+#define wgetbkgrnd(win, wch)	*wch = win->_bkgd
+#define wbkgrnd	    wbkgd
+#endif
+
 #include <curses.h>	/* we'll use -Ipath directive to get the right one! */
+
+struct ldat
+{
+	NCURSES_CH_T	*text;	    	/* text of the line */
+	NCURSES_SIZE_T	firstchar;  	/* first changed character in the line */
+	NCURSES_SIZE_T	lastchar;   	/* last changed character in the line */
+	NCURSES_SIZE_T	oldindex;   	/* index of the line at last update */
+};
 
 /*
  * Structure for soft labels.
@@ -260,6 +282,12 @@ typedef struct {
         chtype attr;             /* soft label attribute */
 } SLK;
 
+typedef struct {
+	unsigned long hashval;
+	int oldcount, newcount;
+	int oldindex, newindex;
+} HASHMAP;
+
 struct screen {
 	int             _ifd;           /* input file ptr for screen        */
 	FILE            *_ofp;          /* output file ptr for screen       */
@@ -278,7 +306,8 @@ struct screen {
 
 	struct tries    *_keytry;       /* "Try" for use with keypad mode   */
 	struct tries    *_key_ok;       /* Disabled keys via keyok(,FALSE)  */
-	int             _tried;         /* keypad mode was initialized      */
+	bool            _tried;         /* keypad mode was initialized      */
+	bool            _keypad_on;     /* keypad mode is currently on      */
 
 	unsigned int    _fifo[FIFO_SIZE];       /* input push-back buffer   */
 	short           _fifohead,      /* head of fifo queue               */
@@ -287,7 +316,7 @@ struct screen {
 	                _fifohold;      /* set if breakout marked           */
 
 	int             _endwin;        /* are we out of window mode?       */
-	unsigned long   _current_attr;  /* terminal attribute current set   */
+	attr_t          _current_attr;  /* terminal attribute current set   */
 	int             _coloron;       /* is color enabled?                */
 	int             _cursor;        /* visibility of the cursor         */
 	int             _cursrow;       /* physical cursor row              */
@@ -411,6 +440,8 @@ struct screen {
 
 	/* hashes for old and new lines */
 	unsigned long	*oldhash, *newhash;
+	HASHMAP 	*hashtab;
+	int		hashtab_len;
 
 	bool            _cleanup;	/* cleanup after int/quit signal */
 	int             (*_outch)(int);	/* output handler if not putc */
@@ -422,9 +453,19 @@ extern NCURSES_EXPORT_VAR(SCREEN *) _nc_screen_chain;
 #include <nomacros.h>
 #endif
 
+/*
+ * The margins are used in resizeterm() to retain the original layout after
+ * resizing.
+ */
 	WINDOWLIST {
 	WINDOWLIST *next;
-	WINDOW	*win;
+#if HAVE_RESIZETERM
+	int	l_margin;
+	int	r_margin;
+	int	t_margin;
+	int	b_margin;
+#endif
+	WINDOW	win;
 };
 
 typedef	struct {
@@ -486,11 +527,89 @@ typedef	struct {
 #define O_BINARY 0
 #endif
 
-#define CharOf(c)    ((unsigned char)(c))
-#define TextOf(c)    ((c) & (chtype)A_CHARTEXT)
-#define AttrOf(c)    ((c) & (chtype)A_ATTRIBUTES)
+#define UChar(c)	((unsigned char)(c))
+#define ChCharOf(c)	((c) & (chtype)A_CHARTEXT)
+#define ChAttrOf(c)     ((c) & (chtype)A_ATTRIBUTES)
 
-#define BLANK        (' '|A_NORMAL)
+#if USE_WIDEC_SUPPORT /* { */
+#define CharOf(c)	((c).chars[0])
+#define AttrOf(c)	((c).attr)
+#define AddAttr(c,a)	(c).attr |= a
+#define RemAttr(c,a)	(c).attr &= ~(a)
+#define SetAttr(c,a)	(c).attr = a
+#define NewChar(ch)	{ ChAttrOf(ch), { ChCharOf(ch) } }
+#define NewChar2(c,a)	{ a, { c } }
+#define CharEq(a,b)	(!memcmp(&a, &b, sizeof(a)))
+#define SetChar(ch,c,a)	do { 							    \
+			    NCURSES_CH_T *_cp = &ch;				    \
+			    memset(_cp,0,sizeof(ch)); _cp->chars[0] = c; _cp->attr = a; \
+			} while (0)
+#define CHREF(wch)	(&wch)
+#define CHDEREF(wch)	(*wch)
+#define ARG_CH_T	NCURSES_CH_T *
+#define CARG_CH_T	const NCURSES_CH_T *
+#define PUTC_DATA	char PUTC_buf[MB_LEN_MAX]; int PUTC_i, PUTC_n; \
+			mbstate_t PUT_st; wchar_t PUTC_ch
+#define PUTC(ch,b)	do { if(!isnac(ch)) { 					    \
+			    memset (&PUT_st, '\0', sizeof (PUT_st));		    \
+			    PUTC_i = 0;						    \
+			    do {						    \
+				PUTC_ch = PUTC_i < CCHARW_MAX ?			    \
+					    (ch).chars[PUTC_i] : L'\0';		    \
+				PUTC_n = wcrtomb(PUTC_buf,			    \
+						 (ch).chars[PUTC_i], &PUT_st);	    \
+				if (PUTC_ch == L'\0')				    \
+				    --PUTC_n;					    \
+				if (PUTC_n <= 0)				    \
+				    break;					    \
+				fwrite(PUTC_buf, (unsigned) PUTC_n, 1, b);	    \
+				++PUTC_i;					    \
+			    } while (PUTC_ch != L'\0');				    \
+			} } while (0)
+
+#define BLANK		{ WA_NORMAL, ' ' }
+#define ISBLANK(ch)	((ch).chars[0] == L' ' && (ch).chars[1] == L'\0')
+
+#define WA_NAC		1
+#define isnac(ch)	(AttrOf(ch) & WA_NAC)
+#define if_WIDEC(code)  code
+#define Charable(ch)	(!isnac(ch) &&  			   	\
+			 (ch).chars[1] == L'\0' &&			\
+                         (wctob(CharOf(ch)) == (char)CharOf(ch)))
+
+#define L(ch)		L ## ch
+#else /* }{ */
+#define CharOf(c)	ChCharOf(c)
+#define AttrOf(c)	ChAttrOf(c)
+#define AddAttr(c,a)	c |= a
+#define RemAttr(c,a)	c &= ~(a & A_ATTRIBUTES)
+#define SetAttr(c,a)	c = (c & ~A_ATTRIBUTES) | a
+#define NewChar(ch)	(ch)
+#define NewChar2(c,a)	(c | a)
+#define CharEq(a,b)	(a == b)
+#define SetChar(ch,c,a)	ch = c | a
+#define CHREF(wch)	wch
+#define CHDEREF(wch)	wch
+#define ARG_CH_T	NCURSES_CH_T
+#define CARG_CH_T	NCURSES_CH_T
+#define PUTC_DATA	int data = 0
+#define PUTC(a,b)	do { data = CharOf(ch); putc(data,b); } while (0)
+
+#define BLANK		(' '|A_NORMAL)
+#define ISBLANK(ch)	(CharOf(ch) == ' ')
+
+#define isnac(ch)	(0)
+#define if_WIDEC(code) /* nothing */
+
+#define L(ch)		ch
+#endif /* } */
+
+#define AttrOfD(ch)	AttrOf(CHDEREF(ch))
+#define CharOfD(ch)	CharOf(CHDEREF(ch))
+#define SetChar2(wch,ch)    SetChar(wch,ChCharOf(ch),ChAttrOf(ch))
+
+#define BLANK_ATTR	A_NORMAL
+#define BLANK_TEXT	L(' ')
 
 #define CHANGED     -1
 
@@ -532,9 +651,9 @@ typedef	struct {
  * instrument the public functions so that the traces can be easily transformed
  * into regression scripts.
  */
-#define T_CALLED(fmt) "called " fmt
-#define T_CREATE(fmt) "create " fmt
-#define T_RETURN(fmt) "return " fmt
+#define T_CALLED(fmt) "called {" fmt
+#define T_CREATE(fmt) "create :" fmt
+#define T_RETURN(fmt) "return }" fmt
 
 #ifdef TRACE
 #define TR(n, a)	if (_nc_tracing & (n)) _tracef a
@@ -545,16 +664,26 @@ typedef	struct {
 #define returnChar(code) TRACE_RETURN(code,chtype)
 #define returnCode(code) TRACE_RETURN(code,int)
 #define returnPtr(code)  TRACE_RETURN(code,ptr)
+#define returnSP(code)   TRACE_RETURN(code,sp)
 #define returnVoid       T((T_RETURN(""))); return
 #define returnWin(code)  TRACE_RETURN(code,win)
+extern NCURSES_EXPORT(SCREEN *) _nc_retrace_sp (SCREEN *);
 extern NCURSES_EXPORT(WINDOW *) _nc_retrace_win (WINDOW *);
 extern NCURSES_EXPORT(attr_t) _nc_retrace_attr_t (attr_t);
 extern NCURSES_EXPORT(attr_t) _nc_retrace_chtype (chtype);
 extern NCURSES_EXPORT(char *) _nc_retrace_ptr (char *);
-extern NCURSES_EXPORT_VAR(const char *) _nc_tputs_trace;
+extern NCURSES_EXPORT(char *) _nc_varargs (const char *, va_list);
+extern NCURSES_EXPORT(const char *) _nc_altcharset_name(attr_t, chtype);
 extern NCURSES_EXPORT(int) _nc_retrace_int (int);
-extern NCURSES_EXPORT_VAR(long) _nc_outchars;
 extern NCURSES_EXPORT(void) _nc_fifo_dump (void);
+extern NCURSES_EXPORT_VAR(const char *) _nc_tputs_trace;
+extern NCURSES_EXPORT_VAR(long) _nc_outchars;
+extern NCURSES_EXPORT_VAR(unsigned) _nc_tracing;
+#if USE_WIDEC_SUPPORT
+extern NCURSES_EXPORT(const char *) _nc_viswbuf2 (int, const wchar_t *);
+extern NCURSES_EXPORT(const char *) _nc_viscbuf2 (int, const cchar_t *, int);
+extern NCURSES_EXPORT(const char *) _nc_viscbuf (const cchar_t *, int);
+#endif
 #else
 #define T(a)
 #define TR(n, a)
@@ -563,14 +692,17 @@ extern NCURSES_EXPORT(void) _nc_fifo_dump (void);
 #define returnChar(code) return code
 #define returnCode(code) return code
 #define returnPtr(code)  return code
+#define returnSP(code)   return code
 #define returnVoid       return
 #define returnWin(code)  return code
 #endif
 
-extern NCURSES_EXPORT_VAR(unsigned) _nc_tracing;
-extern NCURSES_EXPORT(const char *) _nc_visbuf2 (int, const char *);
+#define empty_module(name) \
+extern	NCURSES_EXPORT(void) name (void); \
+	NCURSES_EXPORT(void) name (void) { }
 
-#define _trace_key(ch) ((ch > KEY_MIN) ? keyname(ch) : _tracechar((unsigned char)ch))
+/* used in _nc_visbuf() whether or not we're tracing */
+extern NCURSES_EXPORT(const char *) _nc_visbuf2 (int, const char *);
 
 #define ALL_BUT_COLOR ((chtype)~(A_COLOR))
 #define IGNORE_COLOR_OFF FALSE
@@ -617,13 +749,12 @@ extern NCURSES_EXPORT(const char *) _nc_visbuf2 (int, const char *);
 		    : INFINITY)))
 
 #if USE_XMC_SUPPORT
-#define UpdateAttrs(c)	if (SP->_current_attr != AttrOf(c)) { \
+#define UpdateAttrs(a)	if (SP->_current_attr != (a)) { \
 				attr_t chg = SP->_current_attr; \
-				vidattr(AttrOf(c)); \
+				vidattr((a)); \
 				if (magic_cookie_glitch > 0 \
 				 && XMC_CHANGES((chg ^ SP->_current_attr))) { \
-					TR(TRACE_ATTRS, \
-						("%s @%d before glitch %d,%d", \
+					T(("%s @%d before glitch %d,%d", \
 						__FILE__, __LINE__, \
 						SP->_cursrow, \
 						SP->_curscol)); \
@@ -631,8 +762,8 @@ extern NCURSES_EXPORT(const char *) _nc_visbuf2 (int, const char *);
 				} \
 			}
 #else
-#define UpdateAttrs(c)	if (SP->_current_attr != AttrOf(c)) \
-				vidattr(AttrOf(c))
+#define UpdateAttrs(a)	if (SP->_current_attr != (a)) \
+				vidattr((a));
 #endif
 
 #if NCURSES_EXPANDED && NCURSES_EXT_FUNCS
@@ -681,6 +812,14 @@ extern NCURSES_EXPORT(void) _nc_linedump (void);
 extern NCURSES_EXPORT(void) _nc_init_acs (void);	/* corresponds to traditional 'init_acs()' */
 extern NCURSES_EXPORT(int) _nc_msec_cost (const char *const, int);  /* used by 'tack' program */
 
+/* lib_addstr.c */
+#if USE_WIDEC_SUPPORT
+extern NCURSES_EXPORT(int) _nc_wchstrlen(const cchar_t *);
+#endif
+
+/* lib_getch.c */
+extern NCURSES_EXPORT(int) _nc_wgetch(WINDOW *, unsigned long *, int);
+
 /* lib_mvcur.c */
 #define INFINITY	1000000	/* cost: too high to use */
 
@@ -700,6 +839,11 @@ extern NCURSES_EXPORT(int) _nc_has_mouse (void);
 /* lib_mvcur.c */
 #define INFINITY	1000000	/* cost: too high to use */
 
+/* lib_wacs.c */
+#if USE_WIDEC_SUPPORT
+extern NCURSES_EXPORT(void) _nc_init_wacs(void);
+#endif
+
 typedef struct {
     char *s_head;
     char *s_tail;
@@ -707,11 +851,11 @@ typedef struct {
 } string_desc;
 
 /* strings.c */
-extern NCURSES_EXPORT(string_desc *) _nc_str_init (string_desc * dst, char *src, size_t len);
-extern NCURSES_EXPORT(string_desc *) _nc_str_null (string_desc * dst, size_t len);
-extern NCURSES_EXPORT(string_desc *) _nc_str_copy (string_desc * dst, string_desc * src);
-extern NCURSES_EXPORT(bool) _nc_safe_strcat (string_desc * dst, const char *src);
-extern NCURSES_EXPORT(bool) _nc_safe_strcpy (string_desc * dst, const char *src);
+extern NCURSES_EXPORT(string_desc *) _nc_str_init (string_desc *, char *, size_t);
+extern NCURSES_EXPORT(string_desc *) _nc_str_null (string_desc *, size_t);
+extern NCURSES_EXPORT(string_desc *) _nc_str_copy (string_desc *, string_desc *);
+extern NCURSES_EXPORT(bool) _nc_safe_strcat (string_desc *, const char *);
+extern NCURSES_EXPORT(bool) _nc_safe_strcpy (string_desc *, const char *);
 
 extern NCURSES_EXPORT(void) _nc_mvcur_init (void);
 extern NCURSES_EXPORT(void) _nc_mvcur_resume (void);
@@ -729,30 +873,29 @@ extern NCURSES_EXPORT(char *) _nc_strstr (const char *, const char *);
 #endif
 
 /* safe_sprintf.c */
-extern NCURSES_EXPORT(char *) _nc_printf_string (const char *fmt, va_list ap);
+extern NCURSES_EXPORT(char *) _nc_printf_string (const char *, va_list);
 
 /* tries.c */
-extern NCURSES_EXPORT(void) _nc_add_to_try (struct tries **tree, const char *str, unsigned short code);
-extern NCURSES_EXPORT(char *) _nc_expand_try (struct tries *tree, unsigned short code, int *count, size_t len);
-extern NCURSES_EXPORT(int) _nc_remove_key (struct tries **tree, unsigned short code);
-extern NCURSES_EXPORT(int) _nc_remove_string (struct tries **tree, char *string);
+extern NCURSES_EXPORT(void) _nc_add_to_try (struct tries **, const char *, unsigned short);
+extern NCURSES_EXPORT(char *) _nc_expand_try (struct tries *, unsigned short, int *, size_t);
+extern NCURSES_EXPORT(int) _nc_remove_key (struct tries **, unsigned short);
+extern NCURSES_EXPORT(int) _nc_remove_string (struct tries **, char *);
 
 /* elsewhere ... */
 extern NCURSES_EXPORT(WINDOW *) _nc_makenew (int, int, int, int, int);
 extern NCURSES_EXPORT(char *) _nc_home_terminfo (void);
 extern NCURSES_EXPORT(char *) _nc_trace_buf (int, size_t);
-extern NCURSES_EXPORT(chtype) _nc_background (WINDOW *);
-extern NCURSES_EXPORT(chtype) _nc_render (WINDOW *, chtype);
+extern NCURSES_EXPORT(NCURSES_CH_T) _nc_render (WINDOW *, NCURSES_CH_T);
 extern NCURSES_EXPORT(int)  _nc_access (const char *, int);
 extern NCURSES_EXPORT(int) _nc_baudrate (int);
-extern NCURSES_EXPORT(int) _nc_freewin (WINDOW *win);
+extern NCURSES_EXPORT(int) _nc_freewin (WINDOW *);
 extern NCURSES_EXPORT(int) _nc_getenv_num (const char *);
 extern NCURSES_EXPORT(int) _nc_keypad (bool);
 extern NCURSES_EXPORT(int) _nc_ospeed (int);
 extern NCURSES_EXPORT(int) _nc_outch (int);
 extern NCURSES_EXPORT(int) _nc_setupscreen (short, short const, FILE *);
 extern NCURSES_EXPORT(int) _nc_timed_wait (int, int, int *);
-extern NCURSES_EXPORT(int) _nc_waddch_nosync (WINDOW *, const chtype);
+extern NCURSES_EXPORT(int) _nc_waddch_nosync (WINDOW *, const NCURSES_CH_T);
 extern NCURSES_EXPORT(void) _nc_do_color (int, int, bool, int (*)(int));
 extern NCURSES_EXPORT(void) _nc_flush (void);
 extern NCURSES_EXPORT(void) _nc_freeall (void);
@@ -763,18 +906,27 @@ extern NCURSES_EXPORT(void) _nc_make_oldhash (int i);
 extern NCURSES_EXPORT(void) _nc_outstr (const char *str);
 extern NCURSES_EXPORT(void) _nc_scroll_oldhash (int n, int top, int bot);
 extern NCURSES_EXPORT(void) _nc_scroll_optimize (void);
-extern NCURSES_EXPORT(void) _nc_scroll_window (WINDOW *, int const, short const, short const, chtype);
+extern NCURSES_EXPORT(void) _nc_scroll_window (WINDOW *, int const, short const, short const, NCURSES_CH_T);
 extern NCURSES_EXPORT(void) _nc_set_buffer (FILE *, bool);
 extern NCURSES_EXPORT(void) _nc_signal_handler (bool);
-extern NCURSES_EXPORT(void) _nc_synchook (WINDOW *win);
-extern NCURSES_EXPORT(void) _nc_trace_tries (struct tries *tree);
+extern NCURSES_EXPORT(void) _nc_synchook (WINDOW *);
+extern NCURSES_EXPORT(void) _nc_trace_tries (struct tries *);
 
 #if USE_SIZECHANGE
 extern NCURSES_EXPORT(void) _nc_update_screensize (void);
 #endif
 
-#if USE_WIDEC_SUPPORT
-extern NCURSES_EXPORT(int) _nc_utf8_outch (int);
+#if HAVE_RESIZETERM
+extern NCURSES_EXPORT(void) _nc_resize_margins (WINDOW *);
+#else
+#define _nc_resize_margins(wp) /* nothing */
+#endif
+
+/*
+ * Not everyone has vsscanf(), but we'd like to use it for scanw().
+ */
+#if !HAVE_VSSCANF
+extern int vsscanf(const char *str, const char *format, va_list __arg);
 #endif
 
 /* scroll indices */
@@ -805,10 +957,9 @@ extern NCURSES_EXPORT_VAR(SCREEN *) SP;
 #endif
 
 /*
- * We don't want to use the lines or columns capabilities internally,
- * because if the application is running multiple screens under
- * X windows, it's quite possible they could all have type xterm
- * but have different sizes!  So...
+ * We don't want to use the lines or columns capabilities internally, because
+ * if the application is running multiple screens under X, it's quite possible
+ * they could all have type xterm but have different sizes!  So...
  */
 #define screen_lines	SP->_lines
 #define screen_columns	SP->_columns

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,27 +29,80 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *                                                                          *
+ * some of the code in here was contributed by:                             *
+ * Magnus Bengtsson, d6mbeng@dtek.chalmers.se (Nov'93)                      *
  ****************************************************************************/
 
 #include <curses.priv.h>
 
 #include <termcap.h>
 #include <tic.h>
+#include <ctype.h>
 
 #define __INTERNAL_CAPS_VISIBLE
 #include <term_entry.h>
 
-MODULE_ID("$Id: lib_termcap.c,v 1.39 2000/12/10 02:56:30 tom Exp $")
+MODULE_ID("$Id: lib_termcap.c,v 1.42 2001/09/22 19:17:31 tom Exp $")
 
-/*
-   some of the code in here was contributed by:
-   Magnus Bengtsson, d6mbeng@dtek.chalmers.se
-*/
+#define CSI       233
+#define ESC       033		/* ^[ */
+#define L_BRACK   '['
+#define SHIFT_OUT 017		/* ^N */
 
-NCURSES_EXPORT_VAR(char *)
-UP = 0;
-NCURSES_EXPORT_VAR(char *)
-BC = 0;
+NCURSES_EXPORT_VAR(char *) UP = 0;
+NCURSES_EXPORT_VAR(char *) BC = 0;
+
+static char *fix_me = 0;
+
+static char *
+set_attribute_9(int flag)
+{
+    const char *result;
+
+    if ((result = tparm(set_attributes, 0, 0, 0, 0, 0, 0, 0, 0, flag)) == 0)
+	result = "";
+    return strdup(result);
+}
+
+static int
+is_csi(char *s)
+{
+    if (UChar(s[0]) == CSI)
+	return 1;
+    else if (s[0] == ESC && s[1] == L_BRACK)
+	return 2;
+    return 0;
+}
+
+static char *
+skip_zero(char *s)
+{
+    if (s[0] == '0') {
+	if (s[1] == ';')
+	    s += 2;
+	else if (isalpha(UChar(s[1])))
+	    s += 1;
+    }
+    return s;
+}
+
+static bool
+similar_sgr(char *a, char *b)
+{
+    int csi_a = is_csi(a);
+    int csi_b = is_csi(b);
+
+    if (csi_a != 0 && csi_b != 0 && csi_a == csi_b) {
+	a += csi_a;
+	b += csi_b;
+	if (*a != *b) {
+	    a = skip_zero(a);
+	    b = skip_zero(b);
+	}
+    }
+    return strcmp(a, b) == 0;
+}
 
 /***************************************************************************
  *
@@ -67,14 +120,18 @@ BC = 0;
  ***************************************************************************/
 
 NCURSES_EXPORT(int)
-tgetent
-(char *bufp GCC_UNUSED, const char *name)
+tgetent(char *bufp GCC_UNUSED, const char *name)
 {
     int errcode;
 
     T((T_CALLED("tgetent()")));
 
     setupterm((NCURSES_CONST char *) name, STDOUT_FILENO, &errcode);
+
+    PC = 0;
+    UP = 0;
+    BC = 0;
+    fix_me = 0;
 
     if (errcode == 1) {
 
@@ -89,6 +146,68 @@ tgetent
 	    UP = cursor_up;
 	if (backspace_if_not_bs != NULL)
 	    BC = backspace_if_not_bs;
+
+	/*
+	 * While 'sgr0' is the "same" as termcap 'me', there is a compatibility
+	 * issue.  The sgr/sgr0 capabilities include setting/clearing alternate
+	 * character set mode.  A termcap application cannot use sgr, so sgr0
+	 * strings that reset alternate character set mode will be
+	 * misinterpreted.  Here, we remove those from the more common
+	 * ISO/ANSI/VT100 entries, which have sgr0 agreeing with sgr.
+	 */
+	if (exit_attribute_mode != 0
+	    && set_attributes != 0) {
+	    char *on = set_attribute_9(1);
+	    char *off = set_attribute_9(0);
+	    char *tmp;
+	    size_t i, j, k;
+
+	    if (similar_sgr(off, exit_attribute_mode)
+		&& !similar_sgr(off, on)) {
+		TR(TRACE_DATABASE, ("adjusting sgr0 : %s", _nc_visbuf(off)));
+		FreeIfNeeded(fix_me);
+		fix_me = off;
+		for (i = 0; off[i] != '\0'; ++i) {
+		    if (on[i] != off[i]) {
+			j = strlen(off);
+			k = strlen(on);
+			while (j != 0
+			       && k != 0
+			       && off[j - 1] == on[k - 1]) {
+			    --j, --k;
+			}
+			while (off[j] != '\0') {
+			    off[i++] = off[j++];
+			}
+			off[i] = '\0';
+			break;
+		    }
+		}
+		/* SGR 10 would reset to normal font */
+		if ((i = is_csi(off)) != 0
+		    && off[strlen(off) - 1] == 'm') {
+		    tmp = skip_zero(off + i);
+		    if (tmp[0] == '1'
+			&& skip_zero(tmp + 1) != tmp + 1) {
+			i = tmp - off;
+			if (off[i - 1] == ';')
+			    i--;
+			j = skip_zero(tmp + 1) - off;
+			while (off[j] != '\0') {
+			    off[i++] = off[j++];
+			}
+			off[i] = '\0';
+		    }
+		}
+		TR(TRACE_DATABASE, ("...adjusted me : %s", _nc_visbuf(fix_me)));
+		if (!strcmp(fix_me, exit_attribute_mode)) {
+		    TR(TRACE_DATABASE, ("...same result, discard"));
+		    free(fix_me);
+		    fix_me = 0;
+		}
+	    }
+	    free(on);
+	}
 
 	(void) baudrate();	/* sets ospeed as a side-effect */
 
@@ -169,10 +288,10 @@ tgetnum(NCURSES_CONST char *id)
  ***************************************************************************/
 
 NCURSES_EXPORT(char *)
-tgetstr
-(NCURSES_CONST char *id, char **area)
+tgetstr(NCURSES_CONST char *id, char **area)
 {
     int i;
+    char *result = NULL;
 
     T((T_CALLED("tgetstr(%s,%p)"), id, area));
     if (cur_term != 0) {
@@ -180,17 +299,24 @@ tgetstr
 	for_each_string(i, tp) {
 	    const char *capname = ExtStrname(tp, i, strcodes);
 	    if (!strncmp(id, capname, 2)) {
-		TR(TRACE_DATABASE, ("found match : %s", _nc_visbuf(tp->Strings[i])));
+		result = tp->Strings[i];
+		TR(TRACE_DATABASE, ("found match : %s", _nc_visbuf(result)));
 		/* setupterm forces canceled strings to null */
-		if (area != 0
-		    && *area != 0
-		    && VALID_STRING(tp->Strings[i])) {
-		    (void) strcpy(*area, tp->Strings[i]);
-		    *area += strlen(*area) + 1;
+		if (VALID_STRING(result)) {
+		    if (result == exit_attribute_mode
+			&& fix_me != 0) {
+			result = fix_me;
+			TR(TRACE_DATABASE, ("altered to : %s", _nc_visbuf(result)));
+		    }
+		    if (area != 0
+			&& *area != 0) {
+			(void) strcpy(*area, result);
+			*area += strlen(*area) + 1;
+		    }
 		}
-		returnPtr(tp->Strings[i]);
+		break;
 	    }
 	}
     }
-    returnPtr(NULL);
+    returnPtr(result);
 }

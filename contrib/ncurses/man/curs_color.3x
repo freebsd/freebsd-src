@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_color.3x,v 1.16 2000/07/15 22:57:03 tom Exp $
+.\" $Id: curs_color.3x,v 1.19 2002/02/16 22:38:32 tom Exp $
 .TH curs_color 3X ""
 .SH NAME
 \fBstart_color\fR,
@@ -100,8 +100,8 @@ third arguments must be between 0 and \fBCOLORS\fR (the 0 color pair is wired
 to white on black and cannot be changed).
 .PP
 If the color-pair was previously
-initialized, the screen is refreshed and all occurrences of that color-pair is
-changed to the new definition.
+initialized, the screen is refreshed and all occurrences of that color-pair
+are changed to the new definition.
 
 As an extension, ncurses allows you to set color pair 0 via
 the \fBassume_default_colors\fR routine, or to specify the use of
@@ -202,7 +202,7 @@ but only if that routine has been first invoked.
 The assumption that \fBCOLOR_BLACK\fR is the default
 background color for all terminals can be modified using the
 \fBassume_default_colors\fP extension,
-..
+
 .SH SEE ALSO
 \fBcurses\fR(3X),
 \fBcurs_initscr\fR(3X),

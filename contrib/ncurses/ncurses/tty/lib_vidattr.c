@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -64,7 +64,7 @@
 #include <curses.priv.h>
 #include <term.h>
 
-MODULE_ID("$Id: lib_vidattr.c,v 1.36 2000/12/10 03:05:48 tom Exp $")
+MODULE_ID("$Id: lib_vidattr.c,v 1.39 2001/08/26 00:40:46 Philippe.Blain Exp $")
 
 #define doPut(mode) TPUTS_TRACE(#mode); tputs(mode, 1, outc)
 
@@ -88,13 +88,12 @@ MODULE_ID("$Id: lib_vidattr.c,v 1.36 2000/12/10 03:05:48 tom Exp $")
 
 NCURSES_EXPORT(int)
 vidputs
-(attr_t newmode, int (*outc) (int))
+(chtype newmode, int (*outc) (int))
 {
     static attr_t previous_attr = A_NORMAL;
     attr_t turn_on, turn_off;
     int pair;
     bool reverse = FALSE;
-    bool used_ncv = FALSE;
     bool can_color = (SP == 0 || SP->_coloron);
 #if NCURSES_EXT_FUNCS
     bool fix_pair0 = (SP != 0 && SP->_coloron && !SP->_default_color);
@@ -182,7 +181,7 @@ vidputs
 	}
 
 	SetColorsIf((pair != 0) || fix_pair0, previous_attr);
-    } else if (set_attributes && !used_ncv) {
+    } else if (set_attributes) {
 	if (turn_on || turn_off) {
 	    TPUTS_TRACE("set_attributes");
 	    tputs(tparm(set_attributes,
@@ -230,12 +229,24 @@ vidputs
 	TurnOn(A_PROTECT,	enter_protected_mode);
 	TurnOn(A_INVIS,		enter_secure_mode);
 	TurnOn(A_UNDERLINE,	enter_underline_mode);
+#ifdef enter_horizontal_hl_mode
 	TurnOn(A_HORIZONTAL,	enter_horizontal_hl_mode);
+#endif
+#ifdef enter_left_hl_mode
 	TurnOn(A_LEFT,		enter_left_hl_mode);
+#endif
+#ifdef enter_low_hl_mode
 	TurnOn(A_LOW,		enter_low_hl_mode);
+#endif
+#ifdef enter_right_hl_mode
 	TurnOn(A_RIGHT,		enter_right_hl_mode);
+#endif
+#ifdef enter_top_hl_mode
 	TurnOn(A_TOP,		enter_top_hl_mode);
+#endif
+#ifdef enter_vertical_hl_mode
 	TurnOn(A_VERTICAL,	enter_vertical_hl_mode);
+#endif
 	/* *INDENT-ON* */
 
     }
@@ -252,7 +263,7 @@ vidputs
 }
 
 NCURSES_EXPORT(int)
-vidattr(attr_t newmode)
+vidattr(chtype newmode)
 {
     T((T_CALLED("vidattr(%s)"), _traceattr(newmode)));
 

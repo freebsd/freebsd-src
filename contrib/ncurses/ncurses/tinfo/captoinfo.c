@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -92,7 +92,7 @@
 #include <ctype.h>
 #include <tic.h>
 
-MODULE_ID("$Id: captoinfo.c,v 1.40 2000/11/05 00:22:36 tom Exp $")
+MODULE_ID("$Id: captoinfo.c,v 1.41 2001/06/02 22:50:31 skimo Exp $")
 
 #define MAX_PUSHED	16	/* max # args we can push onto the stack */
 
@@ -194,7 +194,7 @@ cvtchar(register const char *sp)
 	case '2':
 	case '3':
 	    len = 1;
-	    while (isdigit(CharOf(*sp))) {
+	    while (isdigit(UChar(*sp))) {
 		c = 8 * c + (*sp++ - '0');
 		len++;
 	    }
@@ -294,9 +294,9 @@ _nc_captoinfo(const char *cap, const char *s, int const parametrized)
     capstart = 0;
     if (s == 0)
 	s = "";
-    if (parametrized >= 0 && isdigit(CharOf(*s)))
+    if (parametrized >= 0 && isdigit(UChar(*s)))
 	for (capstart = s;; s++)
-	    if (!(isdigit(CharOf(*s)) || *s == '*' || *s == '.'))
+	    if (!(isdigit(UChar(*s)) || *s == '*' || *s == '.'))
 		break;
 
     while (*s != '\0') {
@@ -464,7 +464,7 @@ _nc_captoinfo(const char *cap, const char *s, int const parametrized)
 		dp = save_char(dp, '%');
 		s--;
 		_nc_warning("unknown %% code %s (%#x) in %s",
-			    unctrl((chtype) * s), CharOf(*s), cap);
+			    unctrl((chtype) * s), UChar(*s), cap);
 		break;
 	    }
 	    break;
@@ -545,7 +545,7 @@ _nc_captoinfo(const char *cap, const char *s, int const parametrized)
     if (capstart) {
 	dp = save_string(dp, "$<");
 	for (s = capstart;; s++)
-	    if (isdigit(CharOf(*s)) || *s == '*' || *s == '.')
+	    if (isdigit(UChar(*s)) || *s == '*' || *s == '.')
 		dp = save_char(dp, *s);
 	    else
 		break;
@@ -569,8 +569,8 @@ bcd_expression(const char *str)
     char ch1, ch2;
 
     if (sscanf(str, fmt, &ch1, &ch2) == 2
-	&& isdigit(CharOf(ch1))
-	&& isdigit(CharOf(ch2))
+	&& isdigit(UChar(ch1))
+	&& isdigit(UChar(ch2))
 	&& (ch1 == ch2)) {
 	len = 28;
 #ifndef NDEBUG
@@ -651,13 +651,13 @@ _nc_infotocap(const char *cap GCC_UNUSED, const char *str, int const parametrize
     padding = str + strlen(str) - 1;
     if (*padding == '>' && *--padding == '/') {
 	--padding;
-	while (isdigit(CharOf(*padding)) || *padding == '.' || *padding == '*')
+	while (isdigit(UChar(*padding)) || *padding == '.' || *padding == '*')
 	    padding--;
 	if (*padding == '<' && *--padding == '$')
 	    trimmed = padding;
 	padding += 2;
 
-	while (isdigit(CharOf(*padding)) || *padding == '.' || *padding == '*')
+	while (isdigit(UChar(*padding)) || *padding == '.' || *padding == '*')
 	    bufptr = save_char(bufptr, *padding++);
     }
 
@@ -669,7 +669,7 @@ _nc_infotocap(const char *cap GCC_UNUSED, const char *str, int const parametrize
 	    bufptr = save_char(bufptr, *++str);
 	} else if (str[0] == '$' && str[1] == '<') {	/* discard padding */
 	    str += 2;
-	    while (isdigit(CharOf(*str))
+	    while (isdigit(UChar(*str))
 		   || *str == '.'
 		   || *str == '*'
 		   || *str == '/'
@@ -737,7 +737,7 @@ _nc_infotocap(const char *cap GCC_UNUSED, const char *str, int const parametrize
 	    case '8':
 	    case '9':
 		bufptr = save_char(bufptr, '%');
-		while (isdigit(CharOf(*str)))
+		while (isdigit(UChar(*str)))
 		    bufptr = save_char(bufptr, *str++);
 		if (strchr("doxX.", *str)) {
 		    if (*str != 'd')	/* termcap doesn't have octal, hex */

@@ -29,7 +29,7 @@
 #
 # Author: Thomas E. Dickey 1996,2000
 #
-# $Id: run_tic.in,v 1.10 2000/10/09 22:57:35 tom Exp $
+# $Id: run_tic.in,v 1.11 2001/10/14 00:44:33 tom Exp $
 # This script is used to install terminfo.src using tic.  We use a script
 # because the path checking is too awkward to do in a makefile.
 #
@@ -52,15 +52,21 @@ echo '** Building terminfo database, please wait...'
 : ${ticdir=@TERMINFO@}
 : ${source=@TERMINFO_SRC@}
 : ${LN_S="@LN_S@"}
+: ${THAT_CC=cc}
+: ${THIS_CC=cc}
 
 test -z "${DESTDIR}" && DESTDIR=
 
-# Allow tic to run either from the install-path, or from the build-directory
+# Allow tic to run either from the install-path, or from the build-directory.
+# Do not do this if we appear to be cross-compiling.  In that case, we rely
+# on the host's copy of tic to compile the terminfo database.
+if test "$THAT_CC" = "$THIS_CC" ; then
 case "$PATH" in
 :*) PATH=../progs:${DESTDIR}$bindir$PATH ;;
 *) PATH=../progs:${DESTDIR}$bindir:$PATH ;;
 esac
 export PATH
+fi
 
 #
 # set another env var that doesn't get reset when `shlib' runs, so `shlib' uses

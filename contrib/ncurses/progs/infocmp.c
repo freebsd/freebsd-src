@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -41,7 +41,7 @@
 #include <term_entry.h>
 #include <dump_entry.h>
 
-MODULE_ID("$Id: infocmp.c,v 1.60 2001/02/24 22:03:12 tom Exp $")
+MODULE_ID("$Id: infocmp.c,v 1.63 2001/09/22 19:57:40 tom Exp $")
 
 #define L_CURL "{"
 #define R_CURL "}"
@@ -937,21 +937,35 @@ usage(void)
 }
 
 static char *
-name_initializer(const char *type)
+any_initializer(const char *fmt, const char *type)
 {
     static char *initializer;
     char *s;
 
     if (initializer == 0)
-	initializer = (char *) malloc(strlen(entries->tterm.term_names) + 20);
+	initializer = (char *) malloc(strlen(entries->tterm.term_names) +
+				      strlen(type) + strlen(fmt));
 
-    (void) sprintf(initializer, "%s_data_%s", type, entries->tterm.term_names);
+    (void) strcpy(initializer, entries->tterm.term_names);
     for (s = initializer; *s != 0 && *s != '|'; s++) {
-	if (!isalnum(CharOf(*s)))
+	if (!isalnum(UChar(*s)))
 	    *s = '_';
     }
     *s = 0;
+    (void) sprintf(s, fmt, type);
     return initializer;
+}
+
+static char *
+name_initializer(const char *type)
+{
+    return any_initializer("_%s_data", type);
+}
+
+static char *
+string_variable(const char *type)
+{
+    return any_initializer("_s_%s", type);
 }
 
 /* dump C initializers for the terminal type */
@@ -959,8 +973,39 @@ static void
 dump_initializers(TERMTYPE * term)
 {
     int n;
-    const char *str = 0;
     int size;
+    const char *str = 0;
+
+    printf("\nstatic char %s[] = \"%s\";\n\n",
+	   name_initializer("alias"), entries->tterm.term_names);
+
+    for_each_string(n, term) {
+	char buf[MAX_STRING], *sp, *tp;
+
+	if (VALID_STRING(term->Strings[n])) {
+	    tp = buf;
+	    *tp++ = '"';
+	    for (sp = term->Strings[n];
+		 *sp != 0 && (tp - buf) < MAX_STRING - 6;
+		 sp++) {
+		if (isascii(UChar(*sp))
+		    && isprint(UChar(*sp))
+		    && *sp != '\\'
+		    && *sp != '"')
+		    *tp++ = *sp;
+		else {
+		    (void) sprintf(tp, "\\%03o", UChar(*sp));
+		    tp += 4;
+		}
+	    }
+	    *tp++ = '"';
+	    *tp = '\0';
+	    size += (strlen(term->Strings[n]) + 1);
+	    (void) printf("static char %-20s[] = %s;\n",
+			  string_variable(ExtStrname(term, n, strnames)), buf);
+	}
+    }
+    printf("\n");
 
     (void) printf("static char %s[] = %s\n", name_initializer("bool"), L_CURL);
 
@@ -1015,52 +1060,47 @@ dump_initializers(TERMTYPE * term)
     (void) printf("static char * %s[] = %s\n", name_initializer("string"), L_CURL);
 
     for_each_string(n, term) {
-	char buf[MAX_STRING], *sp, *tp;
 
 	if (term->Strings[n] == ABSENT_STRING)
 	    str = "ABSENT_STRING";
 	else if (term->Strings[n] == CANCELLED_STRING)
 	    str = "CANCELLED_STRING";
 	else {
-	    tp = buf;
-	    *tp++ = '"';
-	    for (sp = term->Strings[n];
-		 *sp != 0 && (tp - buf) < MAX_STRING - 6;
-		 sp++) {
-		if (isascii(CharOf(*sp))
-		    && isprint(CharOf(*sp))
-		    && *sp != '\\'
-		    && *sp != '"')
-		    *tp++ = *sp;
-		else {
-		    (void) sprintf(tp, "\\%03o", CharOf(*sp));
-		    tp += 4;
-		}
-	    }
-	    *tp++ = '"';
-	    *tp = '\0';
-	    size += (strlen(term->Strings[n]) + 1);
-	    str = buf;
+	    str = string_variable(ExtStrname(term, n, strnames));
 	}
-#if NCURSES_XNAMES
-	if (n == STRCOUNT) {
-	    (void) printf("%s;\n", R_CURL);
-
-	    (void) printf("static char * %s[] = %s\n",
-			  name_initializer("string_ext"), L_CURL);
-	}
-#endif
 	(void) printf("\t/* %3d: %-8s */\t%s,\n", n,
 		      ExtStrname(term, n, strnames), str);
     }
     (void) printf("%s;\n", R_CURL);
+
+#if NCURSES_XNAMES
+    if ((NUM_BOOLEANS(term) != BOOLCOUNT)
+	|| (NUM_NUMBERS(term) != NUMCOUNT)
+	|| (NUM_STRINGS(term) != STRCOUNT)) {
+	(void) printf("static char * %s[] = %s\n",
+		      name_initializer("string_ext"), L_CURL);
+	for (n = BOOLCOUNT; n < NUM_BOOLEANS(term); ++n) {
+	    (void) printf("\t/* %3d: bool */\t\"%s\",\n",
+			  n, ExtBoolname(term, n, boolnames));
+	}
+	for (n = NUMCOUNT; n < NUM_NUMBERS(term); ++n) {
+	    (void) printf("\t/* %3d: num */\t\"%s\",\n",
+			  n, ExtNumname(term, n, numnames));
+	}
+	for (n = STRCOUNT; n < NUM_STRINGS(term); ++n) {
+	    (void) printf("\t/* %3d: str */\t\"%s\",\n",
+			  n, ExtStrname(term, n, strnames));
+	}
+	(void) printf("%s;\n", R_CURL);
+    }
+#endif
 }
 
 /* dump C initializers for the terminal type */
 static void
 dump_termtype(TERMTYPE * term)
 {
-    (void) printf("\t%s\n\t\t\"%s\",\n", L_CURL, term->term_names);
+    (void) printf("\t%s\n\t\t%s,\n", L_CURL, name_initializer("alias"));
     (void) printf("\t\t(char *)0,\t/* pointer to string table */\n");
 
     (void) printf("\t\t%s,\n", name_initializer("bool"));
@@ -1072,7 +1112,9 @@ dump_termtype(TERMTYPE * term)
     (void) printf("#if NCURSES_XNAMES\n");
     (void) printf("\t\t(char *)0,\t/* pointer to extended string table */\n");
     (void) printf("\t\t%s,\t/* ...corresponding names */\n",
-		  (NUM_STRINGS(term) != STRCOUNT)
+		  ((NUM_BOOLEANS(term) != BOOLCOUNT)
+		   || (NUM_NUMBERS(term) != NUMCOUNT)
+		   || (NUM_STRINGS(term) != STRCOUNT))
 		  ? name_initializer("string_ext")
 		  : "(char **)0");
 

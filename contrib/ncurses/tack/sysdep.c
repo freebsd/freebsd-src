@@ -24,15 +24,18 @@
  * global has no effect.
  */
 
-#if defined(__BEOS__)
-#include <OS.h>
-#endif
+#include <signal.h>	/* include before curses.h to work around glibc bug */
 
 #include <tack.h>
 
-#include <signal.h>
 #include <term.h>
 #include <errno.h>
+
+#if defined(__BEOS__)
+#undef false
+#undef true
+#include <OS.h>
+#endif
 
 #if HAVE_SELECT
 #if HAVE_SYS_TIME_H && HAVE_SYS_TIME_SELECT
@@ -43,7 +46,7 @@
 #endif
 #endif
 
-MODULE_ID("$Id: sysdep.c,v 1.9 2000/09/02 19:17:39 tom Exp $")
+MODULE_ID("$Id: sysdep.c,v 1.11 2002/04/21 19:40:43 tom Exp $")
 
 #if DECL_ERRNO
 extern int errno;

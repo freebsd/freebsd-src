@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 #include <time.h>
 #include <term.h>		/* exit_ca_mode, non_rev_rmcup */
 
-MODULE_ID("$Id: lib_screen.c,v 1.17 2000/12/10 02:43:27 tom Exp $")
+MODULE_ID("$Id: lib_screen.c,v 1.19 2001/12/19 00:55:28 tom Exp $")
 
 static time_t dumptime;
 
@@ -71,7 +71,7 @@ getwin(FILE * filep)
     nwin->_flags = tmp._flags & ~(_SUBWIN | _ISPAD);
 
     nwin->_attrs = tmp._attrs;
-    nwin->_bkgd = tmp._bkgd;
+    nwin->_nc_bkgd = tmp._nc_bkgd;
 
     nwin->_clear = tmp._clear;
     nwin->_scroll = tmp._scroll;

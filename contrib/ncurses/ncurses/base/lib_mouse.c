@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998,1999,2000,2002 Free Software Foundation, Inc.         *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -84,7 +84,7 @@
 #endif
 #endif
 
-MODULE_ID("$Id: lib_mouse.c,v 1.57 2000/12/10 02:43:27 tom Exp $")
+MODULE_ID("$Id: lib_mouse.c,v 1.58 2002/01/12 22:38:07 tom Exp $")
 
 #define MY_TRACE TRACE_ICALLS|TRACE_IEVENT
 
@@ -655,7 +655,7 @@ _nc_mouse_parse(int runcount)
     /* first pass; merge press/release pairs */
     do {
 	merge = FALSE;
-	for (ep = runp; next = NEXT(ep), next != eventp; ep = next) {
+	for (ep = runp; (next = NEXT(ep)) != eventp; ep = next) {
 	    if (ep->x == next->x && ep->y == next->y
 		&& (ep->bstate & (BUTTON1_PRESSED | BUTTON2_PRESSED | BUTTON3_PRESSED))
 		&& (!(ep->bstate & BUTTON1_PRESSED)
@@ -720,7 +720,7 @@ _nc_mouse_parse(int runcount)
 	MEVENT *follower;
 
 	merge = FALSE;
-	for (ep = runp; next = NEXT(ep), next != eventp; ep = next)
+	for (ep = runp; (next = NEXT(ep)) != eventp; ep = next)
 	    if (ep->id != INVALID_EVENT) {
 		if (next->id != INVALID_EVENT)
 		    continue;

@@ -32,9 +32,11 @@
 
 /* Common internal header for menu and form library */
 
-#if HAVE_CONFIG_H
-#  include <ncurses_cfg.h>
-#endif
+#ifndef MF_COMMON_H_incl
+#define MF_COMMON_H_incl 1
+
+#include <ncurses_cfg.h>
+#include <curses.h>
 
 #include <stdlib.h>
 #include <sys/types.h>
@@ -91,3 +93,5 @@ extern int errno;
 #    define INLINE inline
 #  endif
 #endif
+
+#endif /* MF_COMMON_H_incl */

@@ -3,7 +3,7 @@
  *
  * Generate timing statistics for vertical-motion optimization.
  *
- * $Id: hashtest.c,v 1.17 2001/03/10 19:47:22 tom Exp $
+ * $Id: hashtest.c,v 1.21 2002/03/23 22:17:24 tom Exp $
  */
 
 #ifdef TRACE
@@ -14,11 +14,9 @@
 #define USE_TRACE 0
 #endif
 
-#include <test.priv.h>
-
-#include <string.h>
 #include <ctype.h>
-#include <signal.h>
+
+#include <test.priv.h>
 
 #define LO_CHAR ' '
 #define HI_CHAR '~'
@@ -43,7 +41,7 @@ static RETSIGTYPE
 finish(int sig GCC_UNUSED)
 {
     cleanup();
-    exit(EXIT_FAILURE);
+    ExitProgram(EXIT_FAILURE);
 }
 
 static void
@@ -154,7 +152,7 @@ usage(void)
 
     for (n = 0; n < SIZEOF(tbl); n++)
 	fprintf(stderr, "%s\n", tbl[n]);
-    exit(EXIT_FAILURE);
+    ExitProgram(EXIT_FAILURE);
 }
 
 int
@@ -223,6 +221,6 @@ main(int argc, char *argv[])
     }
 
     cleanup();			/* we're done */
-    return (EXIT_SUCCESS);
+    ExitProgram(EXIT_SUCCESS);
 }
 /* hashtest.c ends here */

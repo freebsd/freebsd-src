@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -52,7 +52,7 @@
 #include <tic.h>
 #include <term_entry.h>
 
-MODULE_ID("$Id: comp_parse.c,v 1.48 2001/01/15 00:44:51 tom Exp $")
+MODULE_ID("$Id: comp_parse.c,v 1.50 2001/06/16 17:52:18 tom Exp $")
 
 static void sanity_check(TERMTYPE *);
 NCURSES_IMPEXP void NCURSES_API(*_nc_check_termtype) (TERMTYPE *) = sanity_check;
@@ -180,7 +180,7 @@ _nc_read_entry_source(FILE * fp, char *buf,
 	memset(&thisentry, 0, sizeof(thisentry));
 	if (_nc_parse_entry(&thisentry, literal, silent) == ERR)
 	    break;
-	if (!isalnum(CharOf(thisentry.tterm.term_names[0])))
+	if (!isalnum(UChar(thisentry.tterm.term_names[0])))
 	    _nc_err_abort("terminal names must start with letter or digit");
 
 	/*
@@ -486,6 +486,8 @@ sanity_check(TERMTYPE * tp)
     PAIRED(enter_xon_mode, exit_xon_mode);
     PAIRED(enter_am_mode, exit_am_mode);
     ANDMISSING(label_off, label_on);
+#ifdef remove_clock
     PAIRED(display_clock, remove_clock);
+#endif
     ANDMISSING(set_color_pair, initialize_pair);
 }

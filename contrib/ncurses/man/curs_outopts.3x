@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998,2001 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_outopts.3x,v 1.16 2001/03/31 23:47:31 tom Exp $
+.\" $Id: curs_outopts.3x,v 1.17 2001/10/14 00:50:30 tom Exp $
 .TH curs_outopts 3X ""
 .SH NAME
 \fBclearok\fR, \fBidlok\fR, \fBidcok\fR, \fBimmedok\fR,
@@ -57,74 +57,96 @@
 .br
 .SH DESCRIPTION
 These routines set options that change the style of output within
-\fBcurses\fR.  All options are initially \fBFALSE\fR, unless otherwise stated.
+\fBcurses\fR.
+All options are initially \fBFALSE\fR, unless otherwise stated.
 It is not necessary to turn these options off before calling \fBendwin\fR.
 
 If \fBclearok\fR is called with \fBTRUE\fR as argument, the next
 call to \fBwrefresh\fR with this window will clear the screen completely and
-redraw the entire screen from scratch.  This is useful when the contents of the
-screen are uncertain, or in some cases for a more pleasing visual effect.  If
+redraw the entire screen from scratch.
+This is useful when the contents of the
+screen are uncertain, or in some cases for a more pleasing visual effect.
+If
 the \fIwin\fR argument to \fBclearok\fR is the global variable \fBcurscr\fR,
 the next call to \fBwrefresh\fR with any window causes the screen to be cleared
 and repainted from scratch.
 
 If \fBidlok\fR is called with \fBTRUE\fR as second argument, \fBcurses\fR
 considers using the hardware insert/delete line feature of terminals so
-equipped.  Calling \fBidlok\fR with \fBFALSE\fR as second argument disables use
-of line insertion and deletion.  This option should be enabled only if the
-application needs insert/delete line, for example, for a screen editor.  It is
+equipped.
+Calling \fBidlok\fR with \fBFALSE\fR as second argument disables use
+of line insertion and deletion.
+This option should be enabled only if the
+application needs insert/delete line, for example, for a screen editor.
+It is
 disabled by default because insert/delete line tends to be visually annoying
-when used in applications where it isn't really needed.  If insert/delete line
+when used in applications where it isn't really needed.
+If insert/delete line
 cannot be used, \fBcurses\fR redraws the changed portions of all lines.
 
 If \fBidcok\fR is called with \fBFALSE\fR as second argument, \fBcurses\fR
 no longer considers using the hardware insert/delete character feature of
-terminals so equipped.  Use of character insert/delete is enabled by default.
+terminals so equipped.
+Use of character insert/delete is enabled by default.
 Calling \fBidcok\fR with \fBTRUE\fR as second argument re-enables use
 of character insertion and deletion.
 
 If \fBimmedok\fR is called with \fBTRUE as argument\fR, any change
 in the window image, such as the ones caused by \fBwaddch, wclrtobot, wscrl\fR,
-\fIetc\fR., automatically cause a call to \fBwrefresh\fR.  However, it may
+\fIetc\fR., automatically cause a call to \fBwrefresh\fR.
+However, it may
 degrade performance considerably, due to repeated calls to \fBwrefresh\fR.
 It is disabled by default.
 
 Normally, the hardware cursor is left at the location of the window cursor
-being refreshed.  The \fBleaveok\fR option allows the cursor to be left
-wherever the update happens to leave it.  It is useful for applications where
+being refreshed.
+The \fBleaveok\fR option allows the cursor to be left
+wherever the update happens to leave it.
+It is useful for applications where
 the cursor is not used, since it reduces the need for cursor motions.
 
 The \fBsetscrreg\fR and \fBwsetscrreg\fR routines allow the application
-programmer to set a software scrolling region in a window.  \fItop\fR and
+programmer to set a software scrolling region in a window.
+\fItop\fR and
 \fIbot\fR are the line numbers of the top and bottom margin of the scrolling
-region.  (Line 0 is the top line of the window.)  If this option and
+region.
+(Line 0 is the top line of the window.)  If this option and
 \fBscrollok\fR are enabled, an attempt to move off the bottom margin line
 causes all lines in the scrolling region to scroll one line in the direction
-of the first line.  Only the text of the window is scrolled.  (Note that this
+of the first line.
+Only the text of the window is scrolled.
+(Note that this
 has nothing to do with the use of a physical scrolling region capability in the
-terminal, like that in the VT100.  If \fBidlok\fR is enabled and the terminal
+terminal, like that in the VT100.
+If \fBidlok\fR is enabled and the terminal
 has either a scrolling region or insert/delete line capability, they will
 probably be used by the output routines.)
 
 The \fBscrollok\fR option controls what happens when the cursor of a window is
 moved off the edge of the window or scrolling region, either as a result of a
 newline action on the bottom line, or typing the last character of the last
-line.  If disabled, (\fIbf\fR is \fBFALSE\fR), the cursor is left on the bottom
-line.  If enabled, (\fIbf\fR is \fBTRUE\fR), the window is scrolled up one line
-(Note that in order to get the physical scrolling effect on the terminal, it is
+line.
+If disabled, (\fIbf\fR is \fBFALSE\fR), the cursor is left on the bottom
+line.
+If enabled, (\fIbf\fR is \fBTRUE\fR), the window is scrolled up one line
+(Note that to get the physical scrolling effect on the terminal, it is
 also necessary to call \fBidlok\fR).
 
 The \fBnl\fR and \fBnonl\fR routines control whether the underlying display
 device translates the return key into newline on input, and whether it
 translates newline into return and line-feed on output (in either case, the
 call \fBaddch('\\n')\fR does the equivalent of return and line feed on the
-virtual screen).  Initially, these translations do occur.  If you disable them
+virtual screen).
+Initially, these translations do occur.
+If you disable them
 using \fBnonl\fR, \fBcurses\fR will be able to make better use of the line-feed
-capability, resulting in faster cursor motion.  Also, \fBcurses\fR will then be
+capability, resulting in faster cursor motion.
+Also, \fBcurses\fR will then be
 able to detect the return key.
 .SH RETURN VALUE
 The functions \fBsetscrreg\fR and \fBwsetscrreg\fR return \fBOK\fR upon success
-and \fBERR\fR upon failure. All other routines that return an integer always
+and \fBERR\fR upon failure.
+All other routines that return an integer always
 return \fBOK\fR.
 .SH PORTABILITY
 These functions are described in the XSI Curses standard, Issue 4.
@@ -132,19 +154,22 @@ These functions are described in the XSI Curses standard, Issue 4.
 The XSI Curses standard is ambiguous on the question of whether \fBraw\fR()
 should disable the CRLF translations controlled by \fBnl\fR() and \fBnonl\fR().
 BSD curses did turn off these translations; AT&T curses (at least as late as
-SVr1) did not.  We choose to do so, on the theory that a programmer requesting
+SVr1) did not.
+We choose to do so, on the theory that a programmer requesting
 raw input wants a clean (ideally 8-bit clean) connection that the operating
 system does not mess with.
 
 Some historic curses implementations had, as an undocumented feature, the
 ability to do the equivalent of \fBclearok(..., 1)\fR by saying
-\fBtouchwin(stdscr)\fR or \fBclear(stdscr)\fR.  This will not work under
+\fBtouchwin(stdscr)\fR or \fBclear(stdscr)\fR.
+This will not work under
 ncurses.
 
 Earlier System V curses implementations specified that with \fBscrollok\fR 
 enabled, any window modification triggering a scroll also forced a physical
-refresh.  XSI Curses does not require this, and \fBncurses\fR avoids doing
-it in order to perform better vertical-motion optimization at \fBwrefresh\fR
+refresh.
+XSI Curses does not require this, and \fBncurses\fR avoids doing
+it to perform better vertical-motion optimization at \fBwrefresh\fR
 time.
 
 The XSI Curses standard does not mention that the cursor should be

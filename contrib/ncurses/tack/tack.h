@@ -19,7 +19,7 @@
 ** Boston, MA 02111-1307, USA.
 */
 
-/* $Id: tack.h,v 1.8 2001/03/24 21:53:35 tom Exp $ */
+/* $Id: tack.h,v 1.9 2001/06/18 18:44:49 tom Exp $ */
 
 #ifndef NCURSES_TACK_H_incl
 #define NCURSES_TACK_H_incl 1
@@ -60,7 +60,7 @@ extern char *_nc_strstr(const char *, const char *);
 #define strstr(h,n) _nc_strstr(h,n)
 #endif
 
-#define CharOf(c)    ((unsigned char)(c))
+#define UChar(c)    ((unsigned char)(c))
 
 extern FILE *log_fp;
 extern FILE *debug_fp;

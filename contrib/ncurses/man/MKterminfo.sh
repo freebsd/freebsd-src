@@ -1,6 +1,6 @@
 #!/bin/sh
 #***************************************************************************
-# Copyright (c) 1998-2000 Free Software Foundation, Inc.                   *
+# Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.              *
 #                                                                          *
 # Permission is hereby granted, free of charge, to any person obtaining a  *
 # copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 # authorization.                                                           *
 #***************************************************************************
 #
-# $Id: MKterminfo.sh,v 1.6 2000/01/25 11:31:57 tom Exp $
+# $Id: MKterminfo.sh,v 1.9 2001/09/01 23:06:18 tom Exp $
 #
 # MKterminfo.sh -- generate terminfo.5 from Caps tabular data
 #
@@ -68,8 +68,9 @@ sed -n <$caps "\
 /%%-STOP-HERE-%%/q
 /^#%/s///p
 /^#/d
+s/[	]\+/	/g
 s/$/T}/
-s/	[Y\-][B\-][C\-][G\-][E\-]\**	/	T{/
+s/	[A-Z0-9_()\-]\+	[0-9\-]\+	[Y\-][B\-][C\-][G\-][EK\-]\**	/	T{/
 s/	bool	/	/p
 s/	num	/	/p
 s/	str	/	/p
@@ -80,6 +81,7 @@ rm -f $temp
 saved=no
 while true
 do
+	data=
 	read data
 	test -z "$data" && break
 	case "$data" in #(vi

@@ -35,7 +35,7 @@
 #include "cursesm.h"
 #include "cursesapp.h"
 
-MODULE_ID("$Id: cursesm.cc,v 1.15 2001/03/24 20:03:56 tom Exp $")
+MODULE_ID("$Id: cursesm.cc,v 1.16 2001/07/14 20:54:43 juergen Exp $")
 
 NCursesMenuItem::~NCursesMenuItem() {
   if (item)
@@ -290,9 +290,9 @@ NCursesMenu::operator()(void) {
   post();
   show();
   refresh();
-
-  while (!b_action && ((drvCmnd = virtualize((c=getch()))) != CMD_QUIT)) {
-
+  
+  while (!b_action && ((drvCmnd = virtualize((c=getKey()))) != CMD_QUIT)) {
+    
     switch((err=driver(drvCmnd))) {
     case E_REQUEST_DENIED:
       On_Request_Denied(c);

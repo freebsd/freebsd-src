@@ -21,7 +21,7 @@
 
 #include <tack.h>
 
-MODULE_ID("$Id: ansi.c,v 1.8 2001/03/24 22:00:27 tom Exp $")
+MODULE_ID("$Id: ansi.c,v 1.9 2001/06/18 18:44:17 tom Exp $")
 
 /*
  * Standalone tests for ANSI terminals.  Three entry points:
@@ -180,7 +180,7 @@ valid_mode(int expected)
 	read_ansi();
 
 	ape = 0;
-	ch = CharOf(pack_buf[0]);
+	ch = UChar(pack_buf[0]);
 	ansi_value[0] = 0;
 	if (ch != A_CSI && ch != A_DCS)
 		return FALSE;
@@ -255,7 +255,7 @@ read_reports(void)
 				vcr = TRUE;
 				break;
 			}
-		j = CharOf(pack_buf[0]);
+		j = UChar(pack_buf[0]);
 		if (j != A_CSI && j != A_DCS) {
 			put_crlf();
 			t = "*** The above request gives illegal response ***";
@@ -323,7 +323,7 @@ request_cfss(void)
 		putchp(' ');
 		for (j = 0; ansi_buf[j]; j++) {
 			if (ansi_buf[j] == 'r') {
-				for (k = j++; (ch = CharOf(ansi_buf[k])) != 0; k++)
+				for (k = j++; (ch = UChar(ansi_buf[k])) != 0; k++)
 					if (ch == A_ESC) {
 						break;
 					} else if (ch == A_ST) {

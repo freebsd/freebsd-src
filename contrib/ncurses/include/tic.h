@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2000,2001 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
  ****************************************************************************/
 
 /*
- * $Id: tic.h,v 1.38 2001/03/11 15:12:08 tom Exp $
+ * $Id: tic.h,v 1.40 2001/08/12 00:45:57 tom Exp $
  *	tic.h - Global variables and structures for the terminfo
  *			compiler.
  */
@@ -216,16 +216,16 @@ extern NCURSES_EXPORT(const struct name_table_entry * const *) _nc_get_hash_tabl
 #define NOTFOUND	((struct name_table_entry *) 0)
 
 /* out-of-band values for representing absent capabilities */
-#define ABSENT_BOOLEAN		-1
-#define ABSENT_NUMERIC		-1
+#define ABSENT_BOOLEAN		(-1)		/* 255 */
+#define ABSENT_NUMERIC		(-1)
 #define ABSENT_STRING		(char *)0
 
 /* out-of-band values for representing cancels */
-#define CANCELLED_BOOLEAN	(char)(-2)
-#define CANCELLED_NUMERIC	-2
-#define CANCELLED_STRING	(char *)-1
+#define CANCELLED_BOOLEAN	(char)(-2)	/* 254 */
+#define CANCELLED_NUMERIC	(-2)
+#define CANCELLED_STRING	(char *)(-1)
 
-#define VALID_BOOLEAN(s) ((s) >= 0)
+#define VALID_BOOLEAN(s) ((unsigned char)(s) <= 1) /* reject "-1" */
 #define VALID_NUMERIC(s) ((s) >= 0)
 #define VALID_STRING(s) ((s) != CANCELLED_STRING && (s) != ABSENT_STRING)
 
@@ -241,6 +241,7 @@ extern NCURSES_EXPORT(const struct name_table_entry * const *) _nc_get_hash_tabl
 
 /* access.c */
 extern NCURSES_EXPORT(char *) _nc_basename (char *);
+extern NCURSES_EXPORT(char *) _nc_rootname (char *);
 
 /* comp_hash.c: name lookup */
 extern NCURSES_EXPORT(struct name_table_entry const *) _nc_find_entry

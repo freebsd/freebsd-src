@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -43,7 +43,7 @@
 #include <term.h>		/* cur_term */
 #include <tic.h>
 
-MODULE_ID("$Id: lib_set_term.c,v 1.61 2000/12/10 02:43:27 tom Exp $")
+MODULE_ID("$Id: lib_set_term.c,v 1.64 2002/02/10 00:21:10 tom Exp $")
 
 NCURSES_EXPORT(SCREEN *)
 set_term(SCREEN * screenp)
@@ -268,8 +268,13 @@ _nc_setupscreen
      */
     if (getenv("COLORFGBG") != 0) {
 	char *p = getenv("COLORFGBG");
+	TR(TRACE_CHARPUT | TRACE_MOVE, ("decoding COLORFGBG %s", p));
 	p = extract_fgbg(p, &(SP->_default_fg));
 	p = extract_fgbg(p, &(SP->_default_bg));
+	if (*p)			/* assume rxvt was compiled with xpm support */
+	    p = extract_fgbg(p, &(SP->_default_bg));
+	TR(TRACE_CHARPUT | TRACE_MOVE, ("decoded fg=%d, bg=%d",
+					SP->_default_fg, SP->_default_bg));
     }
 #endif
 #endif /* NCURSES_EXT_FUNCS */
@@ -319,6 +324,9 @@ _nc_setupscreen
 	acs_chars = 0;
 #endif
     }
+#if USE_WIDEC_SUPPORT
+    _nc_init_wacs();
+#endif
     _nc_init_acs();
     memcpy(SP->_acs_map, acs_map, sizeof(chtype) * ACS_LEN);
 
@@ -346,6 +354,9 @@ _nc_setupscreen
 
     newscr->_clear = TRUE;
     curscr->_clear = FALSE;
+
+    def_shell_mode();
+    def_prog_mode();
 
     for (i = 0, rsp = rippedoff; rsp->line && (i < N_RIPS); rsp++, i++) {
 	if (rsp->hook) {
@@ -381,9 +392,6 @@ _nc_setupscreen
     if ((stdscr = newwin(LINES = SP->_lines_avail, scolumns, 0, 0)) == 0)
 	return ERR;
     SP->_stdscr = stdscr;
-
-    def_shell_mode();
-    def_prog_mode();
 
     return OK;
 }

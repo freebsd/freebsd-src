@@ -22,7 +22,7 @@
 #include <tack.h>
 #include <time.h>
 
-MODULE_ID("$Id: sync.c,v 1.2 2000/03/04 20:28:16 tom Exp $")
+MODULE_ID("$Id: sync.c,v 1.3 2001/06/16 17:55:48 tom Exp $")
 
 /* terminal-synchronization and performance tests */
 
@@ -143,7 +143,11 @@ probe_enq_ok(void)
 	fflush(stdout);
 	can_test("u8 u9", FLAG_TESTED);
 
+#ifdef user9
 	tty_ENQ = user9 ? user9 : "\005";
+#else
+	tty_ENQ = "\005";
+#endif
 	tc_putp(tty_ENQ);
 	event_start(TIME_SYNC);	/* start the timer */
 	read_key(tty_ACK, TTY_ACK_SIZE - 1);
@@ -159,16 +163,22 @@ probe_enq_ok(void)
 		putln(expand(tty_ENQ));
 		ptext("ACK received: ");
 		putln(expand(tty_ACK));
+#ifdef user8
 		len = user8 ? strlen(user8) : 0;
+#else
+		len = 0;
+#endif
 		sprintf(temp, "Length of ACK %d.  Expected length of ACK %d.",
 			(int) strlen(tty_ACK), len);
 		ptextln(temp);
+#ifdef user8
 		if (len) {
 			temp[0] = user8[len - 1];
 			temp[1] = '\0';
 			ptext("Terminating character found in (u8): ");
 			putln(expand(temp));
 		}
+#endif
 		return;
 	}
 
@@ -180,6 +190,7 @@ probe_enq_ok(void)
 		return;
 	}
 	tc = tty_ACK[len - 1];
+#ifdef user8
 	if (user8) {
 		ulen = strlen(user8);
 		if (tc == user8[ulen - 1]) {
@@ -189,6 +200,7 @@ probe_enq_ok(void)
 			return;
 		}
 	}
+#endif
 	/* fixed length acknowledge string */
 	ACK_length = len;
 	ACK_terminator = -2;

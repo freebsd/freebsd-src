@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +27,8 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
+ *  Author: Thomas Dickey 1996-2001                                         *
+ *     and: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
@@ -38,11 +39,15 @@
 #include <curses.priv.h>
 #include <term.h>		/* acs_chars */
 
-MODULE_ID("$Id: lib_traceatr.c,v 1.32 2000/12/10 03:02:45 tom Exp $")
+MODULE_ID("$Id: lib_traceatr.c,v 1.41 2002/02/10 01:26:56 tom Exp $")
 
 #define COLOR_OF(c) (c < 0 || c > 7 ? "default" : colors[c].name)
 
 #ifdef TRACE
+
+static const char l_brace[] = {L_BRACE, 0};
+static const char r_brace[] = {R_BRACE, 0};
+
 NCURSES_EXPORT(char *)
 _traceattr2(int bufnum, attr_t newmode)
 {
@@ -87,7 +92,7 @@ _traceattr2(int bufnum, attr_t newmode)
     unsigned save_nc_tracing = _nc_tracing;
     _nc_tracing = 0;
 
-    strcpy(tmp++, "{");
+    strcpy(tmp++, l_brace);
 
     for (n = 0; n < SIZEOF(names); n++) {
 	if ((newmode & names[n].val) != 0) {
@@ -112,14 +117,14 @@ _traceattr2(int bufnum, attr_t newmode)
 	    }
 	}
     }
-    if (AttrOf(newmode) == A_NORMAL) {
+    if (ChAttrOf(newmode) == A_NORMAL) {
 	if (buf[1] != '\0')
 	    strcat(tmp, "|");
 	strcat(tmp, "A_NORMAL");
     }
 
     _nc_tracing = save_nc_tracing;
-    return (strcat(buf, "}"));
+    return (strcat(buf, r_brace));
 }
 
 NCURSES_EXPORT(char *)
@@ -136,15 +141,14 @@ _nc_retrace_attr_t(attr_t code)
     return code;
 }
 
-NCURSES_EXPORT(char *)
-_tracechtype2(int bufnum, chtype ch)
+const char *
+_nc_altcharset_name(attr_t attr, chtype ch)
 {
-    char *buf = _nc_trace_buf(bufnum, BUFSIZ);
-    char *found = 0;
+    const char *result = 0;
 
-    strcpy(buf, "{");
-    if (ch & A_ALTCHARSET) {
+    if (attr & A_ALTCHARSET) {
 	char *cp;
+	char *found = 0;
 	static const struct {
 	    unsigned int val;
 	    const char *name;
@@ -189,32 +193,41 @@ _tracechtype2(int bufnum, chtype ch)
 	    *sp;
 
 	for (cp = acs_chars; cp[0] && cp[1]; cp += 2) {
-	    if (TextOf(cp[1]) == TextOf(ch)) {
+	    if (ChCharOf(cp[1]) == ChCharOf(ch)) {
 		found = cp;
 		/* don't exit from loop - there may be redefinitions */
 	    }
 	}
 
 	if (found != 0) {
-	    ch = TextOf(*found);
+	    ch = ChCharOf(*found);
 	    for (sp = names; sp->val; sp++)
 		if (sp->val == ch) {
-		    (void) strcat(buf, sp->name);
-		    ch &= ~A_ALTCHARSET;
+		    result = sp->name;
 		    break;
 		}
 	}
     }
+    return result;
+}
 
-    if (found == 0)
-	(void) strcat(buf, _tracechar(TextOf(ch)));
+NCURSES_EXPORT(char *)
+_tracechtype2(int bufnum, chtype ch)
+{
+    char *buf = _nc_trace_buf(bufnum, BUFSIZ);
+    const char *found;
 
-    if (AttrOf(ch) != A_NORMAL)
+    strcpy(buf, l_brace);
+    if ((found = _nc_altcharset_name(ChAttrOf(ch), ch)) != 0) {
+	(void) strcat(buf, found);
+    } else
+	(void) strcat(buf, _tracechar(ChCharOf(ch)));
+
+    if (ChAttrOf(ch) != A_NORMAL)
 	(void) sprintf(buf + strlen(buf), " | %s",
-		_traceattr2(bufnum + 20, AttrOf(ch)));
+		_traceattr2(bufnum + 20, ChAttrOf(ch)));
 
-    strcat(buf, "}");
-    return (buf);
+    return (strcat(buf, r_brace));
 }
 
 NCURSES_EXPORT(char *)
@@ -231,9 +244,55 @@ _nc_retrace_chtype (attr_t code)
     return code;
 }
 
-#else
-extern NCURSES_EXPORT(void) _nc_lib_traceatr (void);
-NCURSES_EXPORT(void) _nc_lib_traceatr (void)
+#if USE_WIDEC_SUPPORT
+NCURSES_EXPORT(char *)
+_tracecchar_t2 (int bufnum, const cchar_t *ch)
 {
+    char *buf = _nc_trace_buf(bufnum, BUFSIZ);
+    attr_t attr = AttrOfD(ch);
+    const char *found;
+
+    strcpy(buf, l_brace);
+    if ((found = _nc_altcharset_name(attr, CharOfD(ch))) != 0) {
+	(void) strcat(buf, found);
+	attr &= ~A_ALTCHARSET;
+    } else if (!isnac(CHDEREF(ch))) {
+	PUTC_DATA;
+	int n;
+
+	memset (&PUT_st, '\0', sizeof (PUT_st));
+	PUTC_i = 0;
+	(void) strcat(buf, "{ ");
+	do {
+	    PUTC_ch = PUTC_i < CCHARW_MAX ? ch->chars[PUTC_i] : L'\0';
+	    PUTC_n = wcrtomb(PUTC_buf, ch->chars[PUTC_i], &PUT_st);
+	    if (PUTC_ch == L'\0')
+		--PUTC_n;
+	    if (PUTC_n <= 0)
+		break;
+	    for (n = 0; n < PUTC_n; n++) {
+		if (n)
+		    (void) strcat(buf, ", ");
+		(void) strcat(buf, _tracechar(UChar(PUTC_buf[n])));
+	    }
+	    ++PUTC_i;
+	} while (PUTC_ch != L'\0');
+	(void) strcat(buf, " }");
+    }
+    if (attr != A_NORMAL)
+	(void) sprintf(buf + strlen(buf), " | %s",
+		_traceattr2(bufnum + 20, attr));
+
+    return (strcat(buf, r_brace));
 }
+
+NCURSES_EXPORT(char *)
+_tracecchar_t (const cchar_t *ch)
+{
+    return _tracecchar_t2(0, ch);
+}
+#endif
+
+#else
+empty_module(_nc_lib_traceatr)
 #endif /* TRACE */
