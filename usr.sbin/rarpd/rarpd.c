@@ -33,8 +33,8 @@ static const char rcsid[] =
 /*
  * rarpd - Reverse ARP Daemon
  *
- * Usage:	rarpd -a [ -dfsv ] [ hostname ]
- *		rarpd [ -dfsv ] interface [ hostname ]
+ * Usage:	rarpd -a [ -dfsv ] [-t directory] [ hostname ]
+ *		rarpd [ -dfsv ] [-t directory] interface [ hostname ]
  *
  * 'hostname' is optional solely for backwards compatibility with Sun's rarpd.
  * Currently, the argument is ignored.
@@ -177,7 +177,7 @@ main(int argc, char *argv[])
 	openlog(name, LOG_PID | LOG_CONS, LOG_DAEMON);
 
 	opterr = 0;
-	while ((op = getopt(argc, argv, "adfsv")) != -1) {
+	while ((op = getopt(argc, argv, "adfst:v")) != -1) {
 		switch (op) {
 		case 'a':
 			++aflag;
@@ -193,6 +193,10 @@ main(int argc, char *argv[])
 
 		case 's':
 			++sflag;
+			break;
+
+		case 't':
+			tftp_dir = optarg;
 			break;
 
 		case 'v':
@@ -395,7 +399,7 @@ init(char *target)
 void
 usage(void)
 {
-	(void)fprintf(stderr, "usage: rarpd [-adfsv] [interface]\n");
+	(void)fprintf(stderr, "usage: rarpd [-adfsv] [-t directory] [interface]\n");
 	exit(1);
 }
 
