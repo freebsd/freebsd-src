@@ -4279,6 +4279,8 @@ ahc_search_qinfifo(struct ahc_softc *ahc, int target, char channel,
 					printf("Inactive SCB in qinfifo\n");
 				ahc_done(ahc, scb);
 
+				/* FALLTHROUGH */
+			case SEARCH_REMOVE:
 				/*
 				 * The sequencer increments its position in
 				 * the qinfifo as soon as it determines that
@@ -4298,8 +4300,6 @@ ahc_search_qinfifo(struct ahc_softc *ahc, int target, char channel,
 			case SEARCH_COUNT:
 				ahc_qinfifo_requeue(ahc, prev_scb, scb);
 				prev_scb = scb;
-				break;
-			case SEARCH_REMOVE:
 				break;
 			}
 		} else {
