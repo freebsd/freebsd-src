@@ -181,6 +181,8 @@ ktrgenio(vp, fd, rw, uio, error)
 
 	if (error)
 		return;
+
+	mtx_lock(&Giant);
 	/*
 	 * don't let p_tracep get ripped out from under us
 	 */
@@ -200,6 +202,7 @@ ktrgenio(vp, fd, rw, uio, error)
 		vrele(vp);
 	FREE(kth, M_KTRACE);
 	p->p_traceflag &= ~KTRFAC_ACTIVE;
+	mtx_unlock(&Giant);
 }
 
 void

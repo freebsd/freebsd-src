@@ -65,7 +65,12 @@ soo_read(fp, uio, cred, flags, td)
 	int flags;
 {
 	struct socket *so = (struct socket *)fp->f_data;
-	return so->so_proto->pr_usrreqs->pru_soreceive(so, 0, uio, 0, 0, 0);
+	int error;
+
+	mtx_lock(&Giant);
+	error = so->so_proto->pr_usrreqs->pru_soreceive(so, 0, uio, 0, 0, 0);
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 /* ARGSUSED */
@@ -78,8 +83,13 @@ soo_write(fp, uio, cred, flags, td)
 	int flags;
 {
 	struct socket *so = (struct socket *)fp->f_data;
-	return so->so_proto->pr_usrreqs->pru_sosend(so, 0, uio, 0, 0, 0,
+	int error;
+
+	mtx_lock(&Giant);
+	error = so->so_proto->pr_usrreqs->pru_sosend(so, 0, uio, 0, 0, 0,
 						    uio->uio_td);
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 int
