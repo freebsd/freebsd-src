@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)getgroups.2	8.2 (Berkeley) 4/16/94
+.\"     $Id$
 .\"
 .Dd April 16, 1994
 .Dt GETGROUPS 2
@@ -38,7 +39,7 @@
 .Nm getgroups
 .Nd get group access list
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
+.Fd #include <sys/types.h>
 .Fd #include <unistd.h>
 .Ft int
 .Fn getgroups "int gidsetlen" "gid_t *gidset"
@@ -60,6 +61,13 @@ as defined in
 .Aq Pa sys/param.h ,
 will ever
 be returned.
+If
+.Fa gidsetlen
+is zero,
+.Fn getgroups
+returns the number of supplementary group IDs associated with
+the calling process without modifying the array pointed to by
+.Fa gidset .
 .Sh RETURN VALUES
 A successful call returns the number of groups in the group set.
 A value of -1 indicates that an error occurred, and the error
