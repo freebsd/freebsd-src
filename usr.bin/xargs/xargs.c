@@ -70,9 +70,14 @@ main(argc, argv, env)
 {
 	register int ch;
 	register char *p, *bbp, *ebp, **bxp, **exp, **xp;
-	int cnt, indouble, insingle, nargs, nflag, nline, xflag, wasquoted;
-	char **av, *argp, **ep = env;
+	int cnt, jfound, indouble, insingle;
+	int nargs, nflag, nline, xflag, wasquoted;
+	char **av, **avj, *argp, **ep, *replstr;
 	long arg_max;
+
+	ep = env;
+	jfound = 0;
+	replstr = NULL;			/* set if user requests -J */
 
 	/*
 	 * POSIX.2 limits the exec line length to ARG_MAX - 2K.  Running that
@@ -96,8 +101,11 @@ main(argc, argv, env)
 		nline -= strlen(*ep++) + 1 + sizeof(*ep);
 	}
 	nflag = xflag = wasquoted = 0;
-	while ((ch = getopt(argc, argv, "0n:s:tx")) != -1)
+	while ((ch = getopt(argc, argv, "0J:n:s:tx")) != -1)
 		switch(ch) {
+		case 'J':
+			replstr = optarg;
+			break;
 		case 'n':
 			nflag = 1;
 			if ((nargs = atoi(optarg)) <= 0)
@@ -144,6 +152,13 @@ main(argc, argv, env)
 	else {
 		cnt = 0;
 		do {
+			if (replstr && strcmp(*argv, replstr) == 0) {
+				jfound = 1;
+				argv++;
+				for (avj = argv; *avj; avj++)
+					cnt += strlen(*avj) + 1;
+				break;
+			}
 			cnt += strlen(*bxp++ = *argv) + 1;
 		} while (*++argv);
 	}
@@ -211,6 +226,10 @@ arg2:
 			if (xp == exp || p > ebp || ch == EOF) {
 				if (xflag && xp != exp && p > ebp)
 					errx(1, "insufficient space for arguments");
+				if (jfound) {
+					for (avj = argv; *avj; avj++)
+						*xp++ = *avj;
+				}
 				*xp = NULL;
 				run(av);
 				if (ch == EOF)
@@ -253,6 +272,10 @@ addch:			if (p < ebp) {
 			if (xflag)
 				errx(1, "insufficient space for arguments");
 
+			if (jfound) {
+				for (avj = argv; *avj; avj++)
+					*xp++ = *avj;
+			}
 			*xp = NULL;
 			run(av);
 			xp = bxp;
@@ -307,7 +330,8 @@ run(argv)
 static void
 usage()
 {
-	(void)fprintf(stderr,
-"usage: xargs [-0] [-t] [-n number [-x]] [-s size] [utility [argument ...]]\n");
+	fprintf(stderr,
+	    "usage: xargs [-0t] [-J replstr] [-n number [-x]] [-s size]\n"
+	    "           [utility [argument ...]]\n");
 	exit(1);
 }
