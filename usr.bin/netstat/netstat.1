@@ -135,7 +135,7 @@ With either interface display (option
 .Fl i
 or an interval, as described below),
 show the number of dropped packets.
-.It Fl f Ar address_family 
+.It Fl f Ar address_family
 Limit statistics or address control block reports to those
 of the specified
 .Ar address family  .
@@ -174,7 +174,7 @@ By default, show the IP Multicast virtual-interface and routing tables.
 If the
 .Fl s
 option is also present, show multicast routing statistics.
-.It Fl I Ar interface 
+.It Fl I Ar interface
 Show information about the specified interface;
 used with a
 .Ar wait
@@ -230,7 +230,7 @@ Show network addresses and ports as numbers (normally
 interprets addresses and ports and attempts to display them
 symbolically).
 This option may be used with any of the display formats.
-.It Fl p Ar protocol 
+.It Fl p Ar protocol
 Show statistics about
 .Ar protocol ,
 which is either a well-known name for a protocol or an alias for it.  Some
@@ -325,21 +325,21 @@ and
 manual pages.
 The mapping between letters and flags is:
 .Bl -column XXXX RTF_BLACKHOLE
-1	RTF_PROTO1	Protocol specific routing flag #1 
-2	RTF_PROTO2	Protocol specific routing flag #2 
+1	RTF_PROTO1	Protocol specific routing flag #1
+2	RTF_PROTO2	Protocol specific routing flag #2
 3	RTF_PROTO3	Protocol specific routing flag #3
-B	RTF_BLACKHOLE	Just discard pkts (during updates) 
+B	RTF_BLACKHOLE	Just discard pkts (during updates)
 b	RTF_BROADCAST	The route represents a broadcast address
-C	RTF_CLONING	Generate new routes on use 
+C	RTF_CLONING	Generate new routes on use
 c	RTF_PRCLONING	Protocol-specified generate new routes on use
-D	RTF_DYNAMIC	Created dynamically (by redirect) 
+D	RTF_DYNAMIC	Created dynamically (by redirect)
 G	RTF_GATEWAY	Destination requires forwarding by intermediary
-H	RTF_HOST	Host entry (net otherwise) 
+H	RTF_HOST	Host entry (net otherwise)
 L	RTF_LLINFO	Valid protocol to link address translation
-M	RTF_MODIFIED	Modified dynamically (by redirect) 
-R	RTF_REJECT	Host or net unreachable 
-S	RTF_STATIC	Manually added 
-U	RTF_UP	Route usable 
+M	RTF_MODIFIED	Modified dynamically (by redirect)
+R	RTF_REJECT	Host or net unreachable
+S	RTF_STATIC	Manually added
+U	RTF_UP	Route usable
 W	RTF_WASCLONED	Route was generated as a result of cloning
 X	RTF_XRESOLVE	External daemon translates proto to link address
 .El

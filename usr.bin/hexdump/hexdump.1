@@ -90,14 +90,14 @@ implies this option.
 Display the input offset in hexadecimal, followed by eight
 space-separated, five column, zero-filled, two-byte units
 of input data, in unsigned decimal, per line.
-.It Fl e Ar format_string 
+.It Fl e Ar format_string
 Specify a format string to be used for displaying data.
-.It Fl f Ar format_file 
+.It Fl f Ar format_file
 Specify a file that contains one or more newline separated format strings.
 Empty lines and lines whose first non-blank character is a hash mark
 .Pf ( Cm \&# )
 are ignored.
-.It Fl n Ar length 
+.It Fl n Ar length
 Interpret only
 .Ar length
 bytes of input.
@@ -106,7 +106,7 @@ bytes of input.
 Display the input offset in hexadecimal, followed by eight
 space-separated, six column, zero-filled, two byte quantities of
 input data, in octal, per line.
-.It Fl s Ar offset 
+.It Fl s Ar offset
 Skip
 .Ar offset
 bytes from the beginning of the input.
@@ -221,7 +221,7 @@ described in the C standard are supported:
 .Nm Hexdump
 also supports the following additional conversion strings:
 .Bl -tag -width Fl
-.It Cm \&_a Ns Op Cm dox 
+.It Cm \&_a Ns Op Cm dox
 Display the input offset, cumulative across input files, of the
 next byte to be displayed.
 The appended characters
@@ -231,7 +231,7 @@ and
 .Cm x
 specify the display base
 as decimal, octal or hexadecimal respectively.
-.It Cm \&_A Ns Op Cm dox 
+.It Cm \&_A Ns Op Cm dox
 Identical to the
 .Cm \&_a
 conversion string except that it is only performed
@@ -268,12 +268,12 @@ are as follows:
 One byte counts only.
 .It Xo
 .Li \&%d , \&%i , \&%o ,
-.Li \&%u , \&%X , \&%x 
+.Li \&%u , \&%X , \&%x
 .Xc
 Four byte default, one, two and four byte counts supported.
 .It Xo
 .Li \&%E , \&%e , \&%f ,
-.Li \&%G , \&%g 
+.Li \&%G , \&%g
 .Xc
 Eight byte default, four byte counts supported.
 .El

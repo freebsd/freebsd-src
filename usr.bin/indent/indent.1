@@ -186,7 +186,7 @@ code.  The default is
 Enables (disables) forcing of `else's to cuddle up to the immediately preceding
 `}'.  The default is
 .Fl \&ce  .
-.It Fl \&ci Ns Ar n 
+.It Fl \&ci Ns Ar n
 Sets the continuation indent to be
 .Ar n  .
 Continuation
@@ -198,7 +198,7 @@ is in effect.
 .Fl \&ci
 defaults to the same value as
 .Fl i  .
-.It Fl cli Ns Ar n 
+.It Fl cli Ns Ar n
 Causes case labels to be indented
 .Ar n
 tab stops to the right of the containing
@@ -208,7 +208,7 @@ statement.
 causes case labels to be indented half a tab stop.  The
 default is
 .Fl cli0  .
-.It Fl d Ns Ar n 
+.It Fl d Ns Ar n
 Controls the placement of comments which are not to the
 right of code.  For example,
 .Fl \&d\&1
@@ -217,7 +217,7 @@ left of code.  Specifying the default
 .Fl \&d\&0
 lines-up these comments with the code.  See the section on comment
 indentation below.
-.It Fl \&di Ns Ar n 
+.It Fl \&di Ns Ar n
 Specifies the indentation, in character positions, from a declaration keyword
 to the following identifier.  The default is
 .Fl di16  .
@@ -258,13 +258,13 @@ should be used.
 Block comments are then handled like box comments.
 The default is
 .Fl fcb  .
-.It Fl i Ns Ar n 
+.It Fl i Ns Ar n
 The number of spaces for one indentation level.  The default is 8.
 .It Fl \&ip , nip
 Enables (disables) the indentation of parameter declarations from the left
 margin.  The default is
 .Fl \&ip  .
-.It Fl l Ns Ar n 
+.It Fl l Ns Ar n
 Maximum length of an output line.  The default is 78.
 .It Fl \&lp , nlp
 Lines-up code surrounded by parenthesis in continuation lines.  If a line
@@ -326,7 +326,7 @@ get rid of blank lines after declarations.  Default:
 Causes
 .Nm
 to take its input from stdin and put its output to stdout.
-.It Fl T Ns Ar typename 
+.It Fl T Ns Ar typename
 Adds
 .Ar typename
 to the list of type keywords.  Names accumulate:
@@ -397,13 +397,13 @@ line as possible.  Blank lines break paragraphs.
 .Ss Comment indentation
 If a comment is on a line with code it is started in the `comment column',
 which is set by the
-.Fl c Ns Ns Ar n 
+.Fl c Ns Ns Ar n
 command line parameter.  Otherwise, the comment is started at
 .Ar n
 indentation levels less than where code is currently being placed, where
 .Ar n
 is specified by the
-.Fl d Ns Ns Ar n 
+.Fl d Ns Ns Ar n
 command line parameter.  If the code on a line extends past the comment
 column, the comment starts further to the right, and the right margin may be
 automatically extended in extreme cases.

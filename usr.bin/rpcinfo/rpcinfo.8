@@ -54,7 +54,7 @@ server and reports what it finds.
 .Pp
 In the first synopsis,
 .Nm
-lists all the registered RPC services with 
+lists all the registered RPC services with
 .Nm rpcbind
 on
 .Ar host .
@@ -65,7 +65,7 @@ If
 .Fl s
 is used, the information is displayed in a concise format.
 .Pp
-In the second synopsis, 
+In the second synopsis,
 .Nm
 lists all the RPC services registered with
 .Nm rpcbind ,
@@ -107,14 +107,14 @@ attempts to find all the registered version
 numbers for the specified
 .Ar prognum
 by calling version 0,
-which is presumed not to exist; 
+which is presumed not to exist;
 if it does exist,
 .Nm
 attempts to obtain this information by calling
 an extremely high version number instead,
 and attempts to call each registered version.
-Note: 
-the version number is required for 
+Note:
+the version number is required for
 .Fl b
 and
 .Fl d
@@ -131,7 +131,7 @@ environment variable, or if that is unset or empty, the transport
 in the
 .Xr netconfig 5
 database is used.
-This is a generic option, 
+This is a generic option,
 and can be used in conjunction with other options as
 shown in the
 .Sx SYNOPSIS .
@@ -139,7 +139,7 @@ shown in the
 Use
 .Ar serv_address
 as the (universal) address for the service on
-.Ar transport 
+.Ar transport
 to ping procedure 0
 of the specified
 .Ar prognum
@@ -150,11 +150,11 @@ option is required with the
 .Fl a
 option.
 .Pp
-If 
+If
 .Ar versnum
 is not specified,
 .Nm
-tries to ping all 
+tries to ping all
 available version numbers for that program number.
 This option avoids calls to remote
 .Nm rpcbind
@@ -196,7 +196,7 @@ Display a list of entries with a given
 .Ar prognum
 and
 .Ar versnum
-on the specified 
+on the specified
 .Ar host .
 Entries are returned for all transports
 in the same protocol family as that used to contact the remote
@@ -226,7 +226,7 @@ options instead of the port number given by
 Use of this option avoids a call to the remote
 .Nm rpcbind
 to find out the address of the service.
-This option is made 
+This option is made
 obsolete by the
 .Fl a
 option.
@@ -269,7 +269,7 @@ on the specified
 .Ar host
 using UDP,
 and report whether a response was received.
-This option is made 
+This option is made
 obsolete by the
 .Fl T
 option as shown in the third synopsis.
@@ -280,7 +280,7 @@ To show all of the RPC services registered on the local machine use:
 .Dl "example% rpcinfo"
 .Pp
 To show all of the RPC
-services registered with 
+services registered with
 .Nm rpcbind
 on the machine named
 .Dq klaxon
@@ -289,7 +289,7 @@ use:
 .Dl "example% rpcinfo klaxon"
 .Pp
 The information displayed by the above commands can be quite lengthy.
-Use the 
+Use the
 .Fl s
 option to display a more concise list:
 .Pp
@@ -305,12 +305,12 @@ option to display a more concise list:
 .El
 .Pp
 To show whether the RPC
-service with program number 
+service with program number
 .Ar prognum
 and version
 .Ar versnum
 is
-registered on the machine named 
+registered on the machine named
 .Dq klaxon
 for the transport TCP
 use:
@@ -324,7 +324,7 @@ protocol on the local machine use:
 .Pp
 .Dl "example% rpcinfo -p"
 .Pp
-To delete the registration for version 
+To delete the registration for version
 1 of the
 .Nm walld
 (program number 100008)

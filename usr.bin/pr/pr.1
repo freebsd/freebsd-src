@@ -126,11 +126,11 @@ In the following option descriptions, column, lines, offset, page, and
 width are positive decimal integers and gap is a nonnegative decimal integer.
 .Bl -tag -width 4n
 .It Ar \&+page
-Begin output at page number 
+Begin output at page number
 .Ar page
 of the formatted input.
 .It Fl Ar column
-Produce output that is 
+Produce output that is
 .Ar columns
 wide (default is 1) that is written vertically
 down each column in the order in which the text
@@ -146,7 +146,7 @@ When used with
 .Fl t ,
 the minimum number of lines is used to display the output.
 .It Fl a
-Modify the effect of the 
+Modify the effect of the
 .Fl column
 option so that the columns are filled across the page in a round-robin order
 (e.g., when column is 2, the first input line heads column
@@ -169,15 +169,15 @@ found in the input.
 Expand each input
 .Em <tab>
 to the next greater column
-position specified by the formula 
+position specified by the formula
 .Ar n*gap+1 ,
-where 
+where
 .Em n
 is an integer > 0.
 If
 .Ar gap
 is zero or is omitted the default is 8.
-All 
+All
 .Em <tab>
 characters in the input are expanded into the appropriate
 number of
@@ -194,7 +194,7 @@ sequence of
 .Em <newline>
 characters.
 .It Fl h Ar header
-Use the string 
+Use the string
 .Ar header
 to replace the
 .Ar file name
@@ -231,12 +231,12 @@ Use
 specified as argument instead of one found in environment.
 Use "C" to reset locale to default.
 .It Fl l Ar lines
-Override the 66 line default and reset the page length to 
+Override the 66 line default and reset the page length to
 .Ar lines .
 If
 .Ar lines
 is not greater than the sum of both the header and trailer
-depths (in lines), the 
+depths (in lines), the
 .Nm
 utility suppresses output of both the header and trailer, as if the
 .Fl t
@@ -262,7 +262,7 @@ are assumed.
 Provide
 .Ar width
 digit line numbering.
-The default for 
+The default for
 .Ar width ,
 if not specified, is 5.
 The number occupies the first
@@ -296,7 +296,7 @@ Separate text columns by the single character
 .Ar char
 instead of by the appropriate number of
 .Em <space>s
-(default for 
+(default for
 .Ar char
 is the
 .Em <tab>

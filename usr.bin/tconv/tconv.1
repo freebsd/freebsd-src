@@ -35,7 +35,7 @@ that the
 library uses.
 It performs the same functions of
 .Xr captoinfo 1
-and 
+and
 .Xr tic 1
 of System V.
 It also can be used to generate a terminfo source listing from a terminfo
@@ -79,24 +79,24 @@ environment variable, and in
 otherwise
 .Nm
 will look in all available databases.
-If neither 
+If neither
 .Fl I
 or
 .Fl B
 are given the
 .Fl I
 option will be assumed.
-If the 
+If the
 .Fl B
 option is used, the compiled output will be put in the
 terminfo database, otherwise standard output is used.
 .Pp
 You cannot translate from terminfo binary to terminfo binary.
-Translating from terminfo source to terminfo source is possible, 
-but not of much use in most cases, as 
+Translating from terminfo source to terminfo source is possible,
+but not of much use in most cases, as
 .Em use=
 fields will be followed and incorporated into the output terminal
-description. 
+description.
 .Pp
 .Nm Tconv
 should be able translate all standard termcap parameterized strings
@@ -157,7 +157,7 @@ The default filename of the termcap database.
 .Xr terminfo 5
 .Sh DIAGNOSTICS
 The line number of a warning message when translating a file
-may refer to the last line of an entry instead of the line in the entry 
+may refer to the last line of an entry instead of the line in the entry
 that generated the warning.
 .Sh BUGS
 More warning messages could be generated.
