@@ -549,7 +549,7 @@ decode_options (int argc, char **argv)
       /* Allocate a new argument array, and copy program name in it.  */
 
       new_argc = argc - 1 + strlen (argv[1]);
-      new_argv = xmalloc (new_argc * sizeof (char *));
+      new_argv = xmalloc ((new_argc + 1) * sizeof (char *));
       in = argv;
       out = new_argv;
       *out++ = *in++;
@@ -576,6 +576,9 @@ decode_options (int argc, char **argv)
 
       while (in < argv + argc)
 	*out++ = *in++;
+
+      /* And NULL terminate the argv[] array */
+      *out++ = NULL;
 
       /* Replace the old option list by the new one.  */
 
