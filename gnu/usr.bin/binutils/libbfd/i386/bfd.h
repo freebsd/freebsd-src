@@ -64,11 +64,11 @@ extern "C" {
 /* The word size of the default bfd target.  */
 #define BFD_DEFAULT_TARGET_SIZE 32
 
-#if defined(__i386__) || defined(__powerpc__)
-#define BFD_HOST_64BIT_LONG 0
-#else
+#if defined(__alpha__) || defined(__sparc64__)
 #define BFD_HOST_64BIT_LONG 1
-#endif /* __i386__ */
+#else
+#define BFD_HOST_64BIT_LONG 0
+#endif /* 64-bit host */
 #if 0
 #define BFD_HOST_64_BIT 
 #define BFD_HOST_U_64_BIT 
