@@ -214,6 +214,9 @@ rewrite(FS *fs)
 	char savech, cs[3];
 	int nconv, prec;
 
+	nextpr = NULL;
+	prec = 0;
+
 	for (fu = fs->nextfu; fu; fu = fu->nextfu) {
 		/*
 		 * Break each format unit into print units; each conversion
