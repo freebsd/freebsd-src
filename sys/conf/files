@@ -212,6 +212,8 @@ dev/smbus/smbconf.c	optional smbus
 dev/smbus/smbus.c	optional smbus
 dev/smbus/smb.c		optional smb
 dev/sn/if_sn.c		optional sn
+dev/sn/if_sn_isa.c	optional sn isa
+dev/sn/if_sn_pccard.c	optional sn card
 dev/iicbus/iicbb.c	optional iicbb
 iicbb_if.o		optional iicbb					\
 	dependency	"iicbb_if.c"					\
