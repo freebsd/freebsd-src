@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  */
 
+#if 0
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1988, 1993\n\
@@ -38,12 +39,11 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-#if 0
 static char sccsid[] = "@(#)chroot.c	8.1 (Berkeley) 6/9/93";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
@@ -54,7 +54,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-static void usage __P((void));
+static void usage(void);
 
 int
 main(argc, argv)
@@ -76,7 +76,7 @@ main(argc, argv)
 	if (argc < 1)
 		usage();
 
-	if (chdir(argv[0]) || chroot("."))
+	if (chdir(argv[0]) == -1 || chroot(".") == -1)
 		err(1, "%s", argv[0]);
 
 	if (argv[1]) {
@@ -86,7 +86,7 @@ main(argc, argv)
 
 	if (!(shell = getenv("SHELL")))
 		shell = _PATH_BSHELL;
-	execlp(shell, shell, "-i", NULL);
+	execlp(shell, shell, "-i", (char *)NULL);
 	err(1, "%s", shell);
 	/* NOTREACHED */
 }
