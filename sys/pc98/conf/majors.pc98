@@ -1,4 +1,4 @@
-$Id: majors.pc98,v 1.18 1997/12/10 09:28:58 kato Exp $
+$Id: majors.pc98,v 1.19 1998/01/18 15:08:34 kato Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -127,3 +127,4 @@ chrdev	name		comments
 85	vesa		VESA support device (j_mini@efn.org)
 86      alog            Industrial Computer Source AIO8-P driver
 87	wfd		ATAPI floppy client of "ata"
+88	dpt		DPT RAID Controller <shimon@i-connect.net>
