@@ -1416,8 +1416,6 @@ sched_clock(struct thread *td)
 	kg = ke->ke_ksegrp;
 
 	mtx_assert(&sched_lock, MA_OWNED);
-	KASSERT((td != NULL), ("schedclock: null thread pointer"));
-
 	/* Adjust ticks for pctcpu */
 	ke->ke_ticks++;
 	ke->ke_ltick = ticks;
@@ -1555,7 +1553,8 @@ sched_add(struct thread *td)
 	if (ke->ke_flags & KEF_ASSIGNED)
 		return;
 	kseq = KSEQ_SELF();
-	KASSERT((ke->ke_thread != NULL), ("sched_add: No thread on KSE"));
+	KASSERT((ke->ke_thread != NULL),
+	    ("sched_add: No thread on KSE"));
 	KASSERT((ke->ke_thread->td_kse != NULL),
 	    ("sched_add: No KSE on thread"));
 	KASSERT(ke->ke_state != KES_ONRUNQ,
@@ -1647,7 +1646,8 @@ sched_rem(struct thread *td)
 	if (ke->ke_flags & KEF_ASSIGNED)
 		return;
 	mtx_assert(&sched_lock, MA_OWNED);
-	KASSERT((ke->ke_state == KES_ONRUNQ), ("KSE not on run queue"));
+	KASSERT((ke->ke_state == KES_ONRUNQ),
+	    ("sched_rem: KSE not on run queue"));
 
 	ke->ke_state = KES_THREAD;
 	ke->ke_ksegrp->kg_runq_kses--;
