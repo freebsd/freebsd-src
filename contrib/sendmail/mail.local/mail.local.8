@@ -1,4 +1,5 @@
-.\" Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+.\" Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+.\"	 All rights reserved.
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
@@ -7,46 +8,60 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	@(#)mail.local.8	8.7 (Berkeley) 5/19/1998
+.\"	$Id: mail.local.8,v 8.14 1999/08/26 15:49:20 ca Exp $
 .\"
-.Dd May 19, 1998
-.Dt MAIL.LOCAL 8
-.Os
-.Sh NAME
-.Nm mail.local
-.Nd store mail in a mailbox
-.Sh SYNOPSIS
-.Nm mail.local
-.Op Fl f Ar from
-.Op Fl b
-.Op Fl s
-.Ar user ...
-.Sh DESCRIPTION
-.Nm Mail.local
+.\" $FreeBSD$
+.\"
+.TH MAIL.LOCAL 8 "$Date: 1999/08/26 15:49:20 $"
+.SH NAME
+.B mail.local
+\- store mail in a mailbox
+.SH SYNOPSIS
+.B mail.local
+.RB [ \-7 "] [" \-B "] [" \-d "] [" \-l "] [" \-s "] [" \-f 
+.IR from "] " "user ..."
+.SH DESCRIPTION
+.B Mail.local
 reads the standard input up to an end-of-file and appends it to each
-.Ar user's
-.Pa mail
-file.
-The
-.Ar user
+.I user's
+.B mail 
+file.  The
+.I user
 must be a valid user name.
-.Pp
+.PP
 The options are as follows:
-.Bl -tag -width xxxfrom
-.It Fl f Ar from
-Specify the sender's name.
-.It Fl b
+.TP 1i
+.B \-7
+Do not advertise 8BITMIME support in LMTP mode.
+.TP 
+.B \-B
 Turn off the attempts to notify the
 .Dq biff
 service.
-.It Fl s
+.TP 
+.B \-b
+Return a permanent error instead of a temporary error
+if a mailbox exceeds quota.
+.TP 
+.B \-d
+Specify this is a delivery (for backward compatibility).
+.TP 
+.BI \-f " from"
+Specify the sender's name.
+.TP
+.B \-l
+Turn on LMTP mode.
+.TP
+.B \-s
 Turn off the
 .Xr fsync 2
 call that forces the mailbox to be committed to disk before returning a
 .Dq success
 status.
-.El
-.Pp
+.TP 
+.BI \-r " from"
+Specify the sender's name (for backward compatibility).
+.PP
 Individual mail messages in the mailbox are delimited by an empty
 line followed by a line beginning with the string ``From ''.
 A line containing the string ``From '', the sender's name and a time stamp
@@ -57,47 +72,48 @@ which could be mistaken for a ``From '' delimiter line
 (that is,
 a line beginning with the five characters
 ``From '' following a blank line).
-.Pp
+.PP
 The mail files are exclusively locked with 
-.Xr flock 2
-while mail is appended,
+flock(2) 
+while mail is appended, 
 and a
-.Pa user.lock
-file also is created while the mailbox is locked
+.B user.lock
+file also is created while the mailbox is locked 
 for compatibility with older MUAs.
-.Pp
-If the ``biff'' service is returned by
-.Xr getservbyname 3 ,
+.PP
+If the ``biff'' service is returned by 
+getservbyname(3), 
 the biff server is notified of delivered mail.
-.Pp
+.PP
 The
-.Nm mail.local
+.B mail.local
 utility exits 0 on success, and >0 if an error occurs.
-.Sh ENVIRONMENT
-.Bl -tag -width indent
-.It Ev TZ
+.SH ENVIRONMENT
+.IP TZ
 Used to set the appropriate time zone on the timestamp.
-.El
-.Sh FILES
-.Bl -tag -width /tmp/local.XXXXXX -compact
-.It Pa /tmp/local.XXXXXX
+.SH FILES
+.PD 0.2v
+.TP 2.2i
+/tmp/local.XXXXXX
 temporary files
-.It Pa /var/mail/user
+.TP
+/var/mail/user
 user's mailbox directory
-.It Pa /var/mail/user.lock
+.TP 
+/var/mail/user.lock
 lock file for a user's mailbox
-.El
-.Sh SEE ALSO
-.Xr mail 1 ,
-.Xr flock 2 ,
-.Xr getservbyname 3 ,
-.Xr comsat 8 ,
-.Xr sendmail 8
-.Sh HISTORY
+.PD
+.SH SEE ALSO
+mail(1), 
+flock(2), 
+getservbyname(3), 
+comsat(8), 
+sendmail(8)
+.SH HISTORY
 A superset of
-.Nm mail.local
+.B mail.local
 (handling mailbox reading as well as mail delivery)
-appeared in
-.At v7 .
+appeared in 
+Version 7 AT&T UNIX 
 as the program
-.Nm mail .
+.BR mail .
