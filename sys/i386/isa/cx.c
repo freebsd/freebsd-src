@@ -678,12 +678,7 @@ int cxselect (dev_t dev, int flag, struct proc *p)
 
 	if (unit == UNIT_CTL)
 		return (0);
-#ifdef __FreeBSD__
-	return (ttselect (dev, flag, p));
-#endif
-#ifdef __bsdi__
 	return (ttyselect (cxchan[unit]->ttyp, flag, p));
-#endif
 }
 
 /*
