@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
  * reintroduced and updated by Chris Stenton <chris@gnome.co.uk> 8/10/94
  */
 
+#include "opt_apic.h"
 #include "opt_clock.h"
 #include "opt_isa.h"
 #include "opt_mca.h"
@@ -72,8 +73,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/psl.h>
-#if defined(SMP)
-#include <machine/smp.h>
+#ifdef DEV_APIC
+#include <machine/apicvar.h>
 #endif
 #include <machine/specialreg.h>
 
@@ -137,6 +138,7 @@ static	u_int32_t i8254_lastcount;
 static	u_int32_t i8254_offset;
 static	int	(*i8254_pending)(struct intsrc *);
 static	int	i8254_ticked;
+static	int	using_lapic_timer;
 #ifndef BURN_BRIDGES
 /*
  * XXX new_function and timer_func should not handle clockframes, but
@@ -188,11 +190,8 @@ clkintr(struct clockframe *frame)
 		clkintr_pending = 0;
 		mtx_unlock_spin(&clock_lock);
 	}
-	timer_func(frame);
-#ifdef SMP
-	if (timer_func == hardclock)
-		forward_hardclock();
-#endif
+	if (timer_func != hardclock || !using_lapic_timer)
+		timer_func(frame);
 #ifndef BURN_BRIDGES
 	switch (timer0_state) {
 
@@ -200,13 +199,12 @@ clkintr(struct clockframe *frame)
 		break;
 
 	case ACQUIRED:
+		if (using_lapic_timer)
+			break;
 		if ((timer0_prescaler_count += timer0_max_count)
 		    >= hardclock_max_count) {
 			timer0_prescaler_count -= hardclock_max_count;
 			hardclock(frame);
-#ifdef SMP
-			forward_hardclock();
-#endif
 		}
 		break;
 
@@ -238,10 +236,8 @@ clkintr(struct clockframe *frame)
 			timer0_prescaler_count = 0;
 			timer_func = hardclock;
 			timer0_state = RELEASED;
-			hardclock(frame);
-#ifdef SMP
-			forward_hardclock();
-#endif
+			if (!using_lapic_timer)
+				hardclock(frame);
 		}
 		break;
 	}
@@ -377,9 +373,6 @@ rtcintr(struct clockframe *frame)
 		}
 		if (pscnt == psdiv)
 			statclock(frame);
-#ifdef SMP
-		forward_statclock();
-#endif
 	}
 }
 
@@ -924,7 +917,10 @@ cpu_initclocks()
 {
 	int diag;
 
-	if (statclock_disable) {
+#ifdef DEV_APIC
+	using_lapic_timer = lapic_setup_clock();
+#endif
+	if (statclock_disable || using_lapic_timer) {
 		/*
 		 * The stat interrupt mask is different without the
 		 * statistics clock.  Also, don't set the interrupt
@@ -950,7 +946,7 @@ cpu_initclocks()
 	writertc(RTC_STATUSB, RTCSB_24HR);
 
 	/* Don't bother enabling the statistics clock. */
-	if (!statclock_disable) {
+	if (!statclock_disable && !using_lapic_timer) {
 		diag = rtcin(RTC_DIAG);
 		if (diag != 0)
 			printf("RTC BIOS diagnostic error %b\n", diag, RTCDG_BITS);
@@ -969,6 +965,8 @@ void
 cpu_startprofclock(void)
 {
 
+	if (using_lapic_timer)
+		return;
 	rtc_statusa = RTCSA_DIVIDER | RTCSA_PROF;
 	writertc(RTC_STATUSA, rtc_statusa);
 	psdiv = pscnt = psratio;
@@ -978,6 +976,8 @@ void
 cpu_stopprofclock(void)
 {
 
+	if (using_lapic_timer)
+		return;
 	rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
 	writertc(RTC_STATUSA, rtc_statusa);
 	psdiv = pscnt = 1;
