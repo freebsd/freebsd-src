@@ -527,12 +527,16 @@ fwohci_reset(struct fwohci_softc *sc, device_t dev)
 
 	fwohci_probe_phy(sc, dev);
 
-	OWRITE(sc,  OHCI_SID_BUF, vtophys(sc->fc.sid_buf));
+	OWRITE(sc, OHCI_SID_BUF, vtophys(sc->fc.sid_buf));
 	OWRITE(sc, OHCI_LNKCTL, OHCI_CNTL_SID);
 
 	/* enable link */
 	OWRITE(sc, OHCI_HCCCTL, OHCI_HCC_LINKEN);
 	fw_busreset(&sc->fc);
+
+	/* force to start rx dma */
+	sc->arrq.xferq.flag &= ~FWXFERQ_RUNNING;
+	sc->arrs.xferq.flag &= ~FWXFERQ_RUNNING;
 	fwohci_rx_enable(sc, &sc->arrq);
 	fwohci_rx_enable(sc, &sc->arrs);
 
@@ -1106,27 +1110,26 @@ fwohci_db_init(struct fwohci_dbch *dbch)
 	int	idb;
 	struct fwohcidb *db;
 	struct fwohcidb_tr *db_tr;
+
+
+	if ((dbch->flags & FWOHCI_DBCH_INIT) != 0)
+		goto out;
+
 	/* allocate DB entries and attach one to each DMA channels */
 	/* DB entry must start at 16 bytes bounary. */
-	dbch->frag.buf = NULL;
-	dbch->frag.len = 0;
-	dbch->frag.plen = 0;
-	dbch->xferq.queued = 0;
-	dbch->pdb_tr = NULL;
-
 	STAILQ_INIT(&dbch->db_trq);
 	db_tr = (struct fwohcidb_tr *)
 		malloc(sizeof(struct fwohcidb_tr) * dbch->ndb,
 		M_DEVBUF, M_DONTWAIT | M_ZERO);
 	if(db_tr == NULL){
-		printf("fwochi_db_init: malloc failed\n");
+		printf("fwohci_db_init: malloc failed\n");
 		return;
 	}
 	db = (struct fwohcidb *)
 		contigmalloc(sizeof (struct fwohcidb) * dbch->ndesc * dbch->ndb,
 		M_DEVBUF, M_DONTWAIT, 0x10000, 0xffffffff, PAGE_SIZE, 0ul);
 	if(db == NULL){
-		printf("fwochi_db_init: contigmalloc failed\n");
+		printf("fwohci_db_init: contigmalloc failed\n");
 		free(db_tr, M_DEVBUF);
 		return;
 	}
@@ -1150,6 +1153,12 @@ fwohci_db_init(struct fwohci_dbch *dbch)
 	}
 	STAILQ_LAST(&dbch->db_trq, fwohcidb_tr,link)->link.stqe_next
 			= STAILQ_FIRST(&dbch->db_trq);
+out:
+	dbch->frag.buf = NULL;
+	dbch->frag.len = 0;
+	dbch->frag.plen = 0;
+	dbch->xferq.queued = 0;
+	dbch->pdb_tr = NULL;
 	dbch->top = STAILQ_FIRST(&dbch->db_trq);
 	dbch->bottom = dbch->top;
 	dbch->flags = FWOHCI_DBCH_INIT;
@@ -1327,6 +1336,7 @@ fwohci_rx_enable(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 		}
 	}
 	dbch->xferq.flag |= FWXFERQ_RUNNING;
+	dbch->top = STAILQ_FIRST(&dbch->db_trq);
 	for( i = 0, dbch->bottom = dbch->top; i < (dbch->ndb - 1); i++){
 		dbch->bottom = STAILQ_NEXT(dbch->bottom, link);
 	}
@@ -1526,10 +1536,9 @@ fwohci_irx_enable(struct firewire_comm *fc, int dmach)
 }
 
 int
-fwohci_shutdown(device_t dev)
+fwohci_shutdown(struct fwohci_softc *sc, device_t dev)
 {
 	u_int i;
-	struct fwohci_softc *sc = device_get_softc(dev);
 
 /* Now stopping all DMA channel */
 	OWRITE(sc,  OHCI_ARQCTLCLR, OHCI_CNTL_DMA_RUN);
@@ -1553,6 +1562,28 @@ fwohci_shutdown(device_t dev)
 			| OHCI_INT_DMA_PRRQ | OHCI_INT_DMA_PRRS
 			| OHCI_INT_DMA_ARRQ | OHCI_INT_DMA_ARRS 
 			| OHCI_INT_PHY_BUS_R);
+/* XXX Link down?  Bus reset? */
+	return 0;
+}
+
+int
+fwohci_resume(struct fwohci_softc *sc, device_t dev)
+{
+	int i;
+
+	fwohci_reset(sc, dev);
+	/* XXX resume isochronus receive automatically. (how about TX?) */
+	for(i = 0; i < sc->fc.nisodma; i ++) {
+		if((sc->ir[i].xferq.flag & FWXFERQ_RUNNING) != 0) {
+			device_printf(sc->fc.dev,
+				"resume iso receive ch: %d\n", i);
+			sc->ir[i].xferq.flag &= ~FWXFERQ_RUNNING;
+			sc->fc.irx_enable(&sc->fc, i);
+		}
+	}
+
+	bus_generic_resume(dev);
+	sc->fc.ibr(&sc->fc);
 	return 0;
 }
 
@@ -1814,7 +1845,7 @@ fwohci_set_intr(struct firewire_comm *fc, int enable)
 
 	sc = (struct fwohci_softc *)fc;
 	if (bootverbose)
-		device_printf(sc->fc.dev, "fwochi_set_intr: %d\n", enable);
+		device_printf(sc->fc.dev, "fwohci_set_intr: %d\n", enable);
 	if (enable) {
 		sc->intmask |= OHCI_INT_EN;
 		OWRITE(sc, FWOHCI_INTMASK, OHCI_INT_EN);
