@@ -6,18 +6,24 @@
 
 SRCS+=	ansi.c big5.c btowc.c collate.c collcmp.c euc.c fix_grouping.c frune.c \
 	isctype.c iswctype.c \
-	ldpart.c lmessages.c lmonetary.c lnumeric.c localeconv.c mbrune.c \
+	ldpart.c lmessages.c lmonetary.c lnumeric.c localeconv.c mbrlen.c \
+	mbrtowc.c mbrune.c mbsinit.c mbsrtowcs.c \
 	mskanji.c nl_langinfo.c nomacros.c none.c rune.c \
 	runetype.c setinvalidrune.c setlocale.c setrunelocale.c table.c \
-	tolower.c toupper.c utf2.c wctob.c wctrans.c wctype.c wcwidth.c
+	tolower.c toupper.c utf2.c wcrtomb.c wcsrtombs.c wctob.c wctrans.c \
+	wctype.c wcwidth.c
 
 .if ${LIB} == "c"
 MAN+=	btowc.3 \
 	ctype.3 digittoint.3 isalnum.3 isalpha.3 isascii.3 isblank.3 iscntrl.3 \
 	isdigit.3 isgraph.3 islower.3 isprint.3 ispunct.3 isspace.3 \
-	isupper.3 iswalnum.3 isxdigit.3 mbrune.3 multibyte.3 nl_langinfo.3 \
+	isupper.3 iswalnum.3 isxdigit.3 mbrlen.3 mbrtowc.3 mbrune.3 mbsinit.3 \
+	mbsrtowcs.3 multibyte.3 \
+	nl_langinfo.3 \
 	rune.3 \
-	setlocale.3 toascii.3 tolower.3 toupper.3 towlower.3 wctrans.3 wctype.3
+	setlocale.3 toascii.3 tolower.3 toupper.3 towlower.3 wcsrtombs.3 \
+	wcrtomb.3 \
+	wctrans.3 wctype.3
 MAN+=	euc.4 utf2.4
 
 MLINKS+=btowc.3 wctob.3
