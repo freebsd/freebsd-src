@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: reg_compare.c,v 1.8 1997/02/22 09:29:21 peter Exp $
+ *     $Id: reg_compare.c,v 1.9 1997/06/14 15:11:05 bde Exp $
  *
  */
 
@@ -340,8 +340,10 @@ void
 fcompp()
 {
 	/* fcompp */
-	if (FPU_rm != 1)
-		return Un_impl();
+	if (FPU_rm != 1) {
+		Un_impl();
+		return;
+	}
 	if (compare_st_st(1)) {
 		pop();
 		FPU_st0_ptr = &st(0);
