@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_cd.c,v 1.14.2.1 1999/02/18 22:05:55 ken Exp $
+ *      $Id: scsi_cd.c,v 1.14.2.2 1999/04/07 23:09:03 gibbs Exp $
  */
 /*
  * Portions of this driver taken from the original FreeBSD cd driver.
@@ -1189,7 +1189,7 @@ cdrunchangerqueue(void *arg)
 		} 
 	}
 
-	softc = (struct cd_softc *)camq_remove(&changer->devq, 0);
+	softc = (struct cd_softc *)camq_remove(&changer->devq, CAMQ_HEAD);
 
 	changer->cur_device = softc;
 
