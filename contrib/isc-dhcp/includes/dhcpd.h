@@ -41,6 +41,10 @@
  * ``http://www.nominum.com''.
  */
 
+#ifndef lint
+"$FreeBSD$\n";
+#endif /* not lint */
+
 #ifndef __CYGWIN32__
 #include <sys/types.h>
 #include <netinet/in.h>
@@ -778,6 +782,8 @@ struct interface_info {
 	unsigned remote_id_len;		/* Length of Remote ID. */
 
 	char name [IFNAMSIZ];		/* Its name... */
+	int linkstatus;			/* Link status */
+	int ieee802;			/* True if media is ieee802 */
 	int index;			/* Its index. */
 	int rfdesc;			/* Its read file descriptor. */
 	int wfdesc;			/* Its write file descriptor, if
@@ -1853,6 +1859,9 @@ void send_release PROTO ((void *));
 void send_decline PROTO ((void *));
 
 void state_reboot PROTO ((void *));
+#ifdef ENABLE_POLLING_MODE
+void state_link PROTO (());
+#endif
 void state_init PROTO ((void *));
 void state_selecting PROTO ((void *));
 void state_requesting PROTO ((void *));

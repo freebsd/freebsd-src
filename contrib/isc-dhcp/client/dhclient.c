@@ -48,6 +48,13 @@ static char ocopyright[] =
 #include "dhcpd.h"
 #include "version.h"
 
+#ifdef __FreeBSD__
+#include <sys/ioctl.h>
+#include <net/if_media.h>
+#include <net80211/ieee80211_ioctl.h>
+#include <net80211/ieee80211.h>
+#endif
+
 TIME cur_time;
 TIME default_lease_time = 43200; /* 12 hours... */
 TIME max_lease_time = 86400; /* 24 hours... */
@@ -85,6 +92,10 @@ int client_env_count=0;
 int onetry=0;
 int quiet=1;
 int nowait=0;
+int doinitcheck=0;
+#ifdef ENABLE_POLLING_MODE
+int polling_interval = 5;
+#endif
 
 static void usage PROTO ((void));
 
@@ -202,6 +213,19 @@ int main (argc, argv, envp)
 		} else if (!strcmp (argv [i], "-n")) {
 			/* do not start up any interfaces */
 			interfaces_requested = 1;
+#ifdef ENABLE_POLLING_MODE
+		} else if (!strcmp (argv [i], "-i")) {
+			if (++i == argc)
+				usage ();
+			polling_interval = (int)strtol(argv [i],
+			    (char **)NULL, 10);
+			if (polling_interval <= 0) {
+				log_info ("Incorrect polling interval %d",
+				    polling_interval);
+				log_info ("Using a default of 5 seconds");
+				polling_interval = 5;
+			}
+#endif
 		} else if (!strcmp (argv [i], "-w")) {
 			/* do not exit if there are no broadcast interfaces. */
 			persist = 1;
@@ -233,6 +257,8 @@ int main (argc, argv, envp)
 			    log_fatal ("%s: interface name too long (max %ld)",
 				       argv [i], (long)strlen (argv [i]));
  		    strlcpy (tmp -> name, argv [i], IFNAMSIZ);
+		    set_ieee802(tmp);
+		    tmp->linkstatus = interface_active(tmp);
 		    if (interfaces) {
 			    interface_reference (&tmp -> next,
 						 interfaces, MDL);
@@ -386,6 +412,7 @@ int main (argc, argv, envp)
 					     INTERFACE_AUTOMATIC)) !=
 			     INTERFACE_REQUESTED))
 				continue;
+			set_ieee802(ip);
 			script_init (ip -> client,
 				     "PREINIT", (struct string_list *)0);
 			if (ip -> client -> alias)
@@ -428,8 +455,13 @@ int main (argc, argv, envp)
 				client -> state = S_INIT;
 				/* Set up a timeout to start the initialization
 				   process. */
+#ifdef ENABLE_POLLING_MODE
 				add_timeout (cur_time + random () % 5,
+					     state_link, client, 0, 0);
+#else
+				add_timeout(cur_time + random () % 5,
 					     state_reboot, client, 0, 0);
+#endif
 			}
 		}
 	}
@@ -1353,6 +1385,9 @@ void send_discover (cpp)
 	int interval;
 	int increase = 1;
 
+	if (interface_active(client -> interface) == 0)
+		return;
+
 	/* Figure out how long it's been since we started transmitting. */
 	interval = cur_time - client -> first_sending;
 
@@ -1457,6 +1492,9 @@ void state_panic (cpp)
 	struct client_state *client = cpp;
 	struct client_lease *loop;
 	struct client_lease *lp;
+
+	if (interface_active(client -> interface) == 0)
+		return;
 
 	loop = lp = client -> active;
 
@@ -2771,7 +2809,8 @@ void client_location_changed ()
 				break;
 			}
 			client -> state = S_INIT;
-			state_reboot (client);
+			if (interface_active(ip))
+				state_reboot(client);
 		}
 	}
 }
@@ -2932,8 +2971,10 @@ isc_result_t dhclient_interface_startup_hook (struct interface_info *interface)
 			client -> state = S_INIT;
 			/* Set up a timeout to start the initialization
 			   process. */
-			add_timeout (cur_time + random () % 5,
-				     state_reboot, client, 0, 0);
+			if (interface_active(ip)) {
+				add_timeout(cur_time + random () % 5,
+					     state_reboot, client, 0, 0);
+			}
 		}
 	}
 	return ISC_R_SUCCESS;
@@ -2997,7 +3038,8 @@ isc_result_t dhcp_set_control_state (control_object_state_t oldstate,
 		    break;
 
 		  case server_awaken:
-		    state_reboot (client);
+		    if (interface_active(ip))
+			    state_reboot(client);
 		    break;
 		}
 	    }
@@ -3134,3 +3176,150 @@ isc_result_t client_dns_update (struct client_state *client, int addp, int ttl)
 	data_string_forget (&ddns_dhcid, MDL);
 	return rcode;
 }
+
+/* Check to see if there's a wire plugged in */
+int
+interface_active(struct interface_info *ip) {
+#ifdef __FreeBSD__
+	struct ifmediareq ifmr;
+	int *media_list, i;
+	char *ifname;
+	int sock;
+
+	ifname = ip -> name;
+
+	if ((sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
+		log_fatal("Can't create interface_active socket");
+
+	(void) memset(&ifmr, 0, sizeof(ifmr));
+	(void) strncpy(ifmr.ifm_name, ifname, sizeof(ifmr.ifm_name));
+
+	if (ioctl(sock, SIOCGIFMEDIA, (caddr_t)&ifmr) < 0) {
+		/*
+		 * Interface doesn't support SIOCGIFMEDIA, presume okay
+		 */
+		close(sock);
+		return (1);
+	}
+	close(sock);
+
+	if (ifmr.ifm_count == 0) {
+		/*
+		 * this is unexpected (to me), but we'll just assume
+		 * that this means interface does not support SIOCGIFMEDIA
+		 */
+		log_fatal("%s: no media types?", ifname);
+		return (1);
+	}
+
+	if (ifmr.ifm_status & IFM_AVALID) {
+		if (ip->ieee802) {
+			if ((IFM_TYPE(ifmr.ifm_active) == IFM_IEEE80211) &&
+			     (ifmr.ifm_status & IFM_ACTIVE))
+				return (1);
+		} else {
+			if (ifmr.ifm_status & IFM_ACTIVE)
+				return (1);
+		}
+	}
+
+	return (0);
+#else /* ifdef __FreeBSD__ */
+
+	return (1);
+#endif /* Other OSs */
+}
+
+#ifdef __FreeBSD__
+set_ieee802 (struct interface_info *ip) {
+
+	struct ieee80211req     ireq;
+	u_int8_t                data[32];
+	int                     associated = 0;
+	int *media_list, i;
+	char *ifname;
+	int sock;
+
+	ifname = ip -> name;
+
+	if ((sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
+		log_fatal("Can't create interface_active socket");
+
+	(void) memset(&ireq, 0, sizeof(ireq));
+	(void) strncpy(ireq.i_name, ifname, sizeof(ireq.i_name));
+	ireq.i_data = &data;
+	ireq.i_type = IEEE80211_IOC_SSID;
+	ireq.i_val = -1;
+	/*
+	 * If we can't get the SSID,
+	 * this isn't an 802.11 device.
+	 */
+	if (ioctl(sock, SIOCG80211, &ireq) < 0)
+		ip->ieee802 = 0;
+	else {
+#ifdef DEBUG
+		printf("Device %s has 802.11\n", ifname);
+#endif
+		ip->ieee802 = 1;
+	}
+	close(sock);
+}
+#endif /* __FreeBSD__ */
+
+#ifdef ENABLE_POLLING_MODE
+/* Check the state of the NICs if we have link */
+void state_link (cpp)
+        void *cpp;
+{
+	struct interface_info *ip;
+	struct client_state *client;
+
+#ifdef DEBUG
+	printf("Polling interface status\n");
+#endif
+	for (ip = interfaces; ip; ip = ip -> next) {
+		if (ip->linkstatus == 0 || doinitcheck == 0) {
+			if (interface_active(ip)) {
+#ifdef DEBUG
+				printf("%s: Found Link on interface\n", ip->name);
+#endif
+				for (client = ip -> client;
+				     client; client = client -> next) {
+					add_timeout(cur_time + random () % 5,
+					             state_reboot, client, 0, 0);
+				}
+				ip->linkstatus = 1;
+			} else {
+#ifdef DEBUG
+				printf("%s: No Link on interface\n", ip->name);
+#endif
+				for (client = ip -> client;
+				     client; client = client -> next) {
+					cancel_timeout(state_init, client);
+			 		cancel_timeout(send_discover, client);
+					cancel_timeout(send_request, client);
+					/*
+					 * XXX without this, dhclient does
+					 * not poll on a interface if there
+					 * is no cable plugged in at startup
+					 * time
+					 */
+					if (client -> state == S_INIT) {
+						add_timeout(cur_time + polling_interval,
+						             state_link, client, 0, 0);
+					}
+			 	}
+				ip->linkstatus = 0;
+			}
+		} else {
+			if (interface_active(ip) == 0) {
+#ifdef DEBUG
+				printf("%s: Lost Link on interface\n", ip->name);
+#endif
+				ip->linkstatus = 0;
+			}
+		}
+	}
+	doinitcheck = 1;
+}
+#endif /* ifdef ENABLE_POLLING_MODE */
