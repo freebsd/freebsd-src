@@ -1,10 +1,10 @@
-#	$Id: $
+#	$Id: Makefile,v 1.15 1996/05/07 23:18:43 wosch Exp $
 
 LIB=	disk
 SRCS=	blocks.c disklabel.c dkcksum.c chunk.c disk.c change.c \
 	create_chunk.c rules.c write_disk.c data.c
 
-CFLAGS+= 	-Wall -g
+CFLAGS+= 	-Wall
 CLEANFILES+=	tmp.c tst01 tst01.o data.c
 VPATH=		${.CURDIR}/../../sbin/disklabel
 NOPROFILE=	yes

@@ -1,7 +1,7 @@
 
 PROG=crunchgen
 SRCS=crunchgen.c crunched_skel.c
-CFLAGS+=-g -Wall
+CFLAGS+=-Wall
 CLEANFILES+= crunched_skel.c
 
 crunched_skel.c: crunched_main.c
