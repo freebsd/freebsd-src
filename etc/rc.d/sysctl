@@ -13,12 +13,12 @@
 
 name="sysctl"
 stop_cmd=":"
-start_cmd="FreeBSD_start"
+start_cmd="sysctl_start"
+reload_cmd="sysctl_start"
+lastload_cmd="sysctl_start last"
 extra_commands="reload lastload"
-reload_cmd="FreeBSD_start"
-lastload_cmd="FreeBSD_start last"
 
-FreeBSD_start()
+sysctl_start()
 {
 	#
 	# Read in /etc/sysctl.conf and set things accordingly
