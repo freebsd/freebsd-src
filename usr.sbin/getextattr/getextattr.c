@@ -41,7 +41,7 @@ void
 usage(void)
 {
 
-	fprintf(stderr, "getextattr [-s] [namespace] [attrname] "
+	fprintf(stderr, "getextattr [-s] [attrnamespace] [attrname] "
 	    "[filename ...]\n");
 	exit(-1);
 }
@@ -58,7 +58,7 @@ main(int argc, char *argv[])
 	char	*attrname;
 	char	buf[BUFSIZE];
 	char	visbuf[BUFSIZE*4];
-	int	error, i, arg_counter, namespace;
+	int	error, i, arg_counter, attrnamespace;
 	int	ch;
 
 	int	flag_as_string = 0;
@@ -83,7 +83,7 @@ main(int argc, char *argv[])
 	if (argc < 3)
 		usage();
 
-	error = extattr_string_to_namespace(argv[0], &namespace);
+	error = extattr_string_to_namespace(argv[0], &attrnamespace);
 	if (error) {
 		perror(argv[0]);
 		return (-1);
@@ -97,8 +97,8 @@ main(int argc, char *argv[])
 	iov_buf.iov_len = BUFSIZE;
 
 	for (arg_counter = 1; arg_counter < argc; arg_counter++) {
-		error = extattr_get_file(argv[arg_counter], namespace, attrname,
-		    &iov_buf, 1);
+		error = extattr_get_file(argv[arg_counter], attrnamespace,
+		    attrname, &iov_buf, 1);
 
 		if (error == -1)
 			perror(argv[arg_counter]);
