@@ -1896,7 +1896,7 @@ done:
 static void
 swp_pager_meta_free(vm_object_t object, vm_pindex_t index, daddr_t count)
 {
-	GIANT_REQUIRED;
+
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	if (object->type != OBJT_SWAP)
 		return;
@@ -1945,7 +1945,6 @@ swp_pager_meta_free_all(vm_object_t object)
 {
 	daddr_t index = 0;
 
-	GIANT_REQUIRED;
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	if (object->type != OBJT_SWAP)
 		return;
@@ -2259,11 +2258,13 @@ found:
 	/*
 	 * Prevent further allocations on this device.
 	 */
+	mtx_lock(&sw_dev_mtx);
 	sp->sw_flags |= SW_CLOSING;
 	for (dvbase = 0; dvbase < sp->sw_end; dvbase += dmmax) {
 		swap_pager_avail -= blist_fill(sp->sw_blist,
 		     dvbase, dmmax);
 	}
+	mtx_unlock(&sw_dev_mtx);
 
 	/*
 	 * Page in the contents of the device and close it.
