@@ -61,7 +61,7 @@ static int ncp_next_handle = 1;
 static struct lock lhlock;
 
 static int ncp_sysctl_connstat(SYSCTL_HANDLER_ARGS);
-static int ncp_conn_lock_any(struct ncp_conn *conn, struct proc *p, 
+static int ncp_conn_lock_any(struct ncp_conn *conn, struct thread *td,
     struct ucred *cred);
 
 SYSCTL_DECL(_net_ncp);
@@ -93,15 +93,15 @@ ncp_conn_destroy(void)
 }
 
 int
-ncp_conn_locklist(int flags, struct proc *p)
+ncp_conn_locklist(int flags, struct thread *td)
 {
-	return lockmgr(&listlock, flags | LK_CANRECURSE, 0, p);
+	return lockmgr(&listlock, flags | LK_CANRECURSE, 0, td);
 }
 
 void
-ncp_conn_unlocklist(struct proc *p)
+ncp_conn_unlocklist(struct thread *td)
 {
-	lockmgr(&listlock, LK_RELEASE, 0, p);
+	lockmgr(&listlock, LK_RELEASE, 0, td);
 }
 
 int
@@ -120,55 +120,55 @@ ncp_conn_access(struct ncp_conn *conn, struct ucred *cred, mode_t mode)
 }
 
 int
-ncp_conn_lock_any(struct ncp_conn *conn, struct proc *p, struct ucred *cred)
+ncp_conn_lock_any(struct ncp_conn *conn, struct thread *td, struct ucred *cred)
 {
 	int error;
 
 	if (conn->nc_id == 0) return EACCES;
-	error = lockmgr(&conn->nc_lock, LK_EXCLUSIVE | LK_CANRECURSE, 0, p);
+	error = lockmgr(&conn->nc_lock, LK_EXCLUSIVE | LK_CANRECURSE, 0, td);
 	if (error == ERESTART)
 		return EINTR;
-	error = ncp_chkintr(conn, p);
+	error = ncp_chkintr(conn, td);
 	if (error) {
-		lockmgr(&conn->nc_lock, LK_RELEASE, 0, p);
+		lockmgr(&conn->nc_lock, LK_RELEASE, 0, td);
 		return error;
 	}
 
 	if (conn->nc_id == 0) {
-		lockmgr(&conn->nc_lock, LK_RELEASE, 0, p);
+		lockmgr(&conn->nc_lock, LK_RELEASE, 0, td);
 		return EACCES;
 	}
-	conn->procp = p;	/* who currently operates */
+	conn->td = td;		/* who currently operates */
 	conn->ucred = cred;
 	return 0;
 }
 
 int
-ncp_conn_lock(struct ncp_conn *conn, struct proc *p, struct ucred *cred, int mode)
+ncp_conn_lock(struct ncp_conn *conn, struct thread *td, struct ucred *cred, int mode)
 {
 	int error;
 
-	error = ncp_conn_access(conn,cred,mode);
+	error = ncp_conn_access(conn, cred, mode);
 	if (error) return error;
-	return ncp_conn_lock_any(conn, p, cred);
+	return ncp_conn_lock_any(conn, td, cred);
 }
 
 /*
  * Lock conn but unlock connlist
  */
 static int
-ncp_conn_lock2(struct ncp_conn *conn, struct proc *p, struct ucred *cred, int mode)
+ncp_conn_lock2(struct ncp_conn *conn, struct thread *td, struct ucred *cred, int mode)
 {
 	int error;
 
-	error = ncp_conn_access(conn,cred,mode);
+	error = ncp_conn_access(conn, cred, mode);
 	if (error) {
-		ncp_conn_unlocklist(p);
+		ncp_conn_unlocklist(td);
 		return error;
 	}
 	conn->nc_lwant++;
-	ncp_conn_unlocklist(p);
-	error = ncp_conn_lock_any(conn,p,cred);
+	ncp_conn_unlocklist(td);
+	error = ncp_conn_lock_any(conn, td, cred);
 	conn->nc_lwant--;
 	if (conn->nc_lwant == 0) {
 		wakeup(&conn->nc_lwant);
@@ -177,17 +177,18 @@ ncp_conn_lock2(struct ncp_conn *conn, struct proc *p, struct ucred *cred, int mo
 }
 
 void
-ncp_conn_unlock(struct ncp_conn *conn, struct proc *p)
+ncp_conn_unlock(struct ncp_conn *conn, struct thread *td)
 {
 	/*
 	 * note, that LK_RELASE will do wakeup() instead of wakeup_one().
 	 * this will do a little overhead
 	 */
-	lockmgr(&conn->nc_lock, LK_RELEASE, 0, p);
+	lockmgr(&conn->nc_lock, LK_RELEASE, 0, td);
 }
 
-int 
-ncp_conn_assert_locked(struct ncp_conn *conn,char *checker, struct proc *p){
+int
+ncp_conn_assert_locked(struct ncp_conn *conn, const char *checker, struct thread *td)
+{
 	if (conn->nc_lock.lk_flags & LK_HAVE_EXCL) return 0;
 	printf("%s: connection isn't locked!\n", checker);
 	return EIO;
@@ -205,11 +206,11 @@ ncp_conn_invalid(struct ncp_conn *ncp)
 	return ncp->flags & NCPFL_INVALID;
 }
 
-/* 
+/*
  * create, fill with defaults and return in locked state
  */
 int
-ncp_conn_alloc(struct ncp_conn_args *cap, struct proc *p, struct ucred *cred,
+ncp_conn_alloc(struct ncp_conn_args *cap, struct thread *td, struct ucred *cred,
 	struct ncp_conn **conn)
 {
 	struct ncp_conn *ncp;
@@ -242,18 +243,18 @@ ncp_conn_alloc(struct ncp_conn_args *cap, struct proc *p, struct ucred *cred,
 	ncp->seq = 0;
 	ncp->connid = 0xFFFF;
 	ncp->li = *cap;
-	ncp->nc_group = (cap->group != NCP_DEFAULT_GROUP) ? 
+	ncp->nc_group = (cap->group != NCP_DEFAULT_GROUP) ?
 		cap->group : cred->cr_groups[0];
 
 	if (cap->retry_count == 0)
 		ncp->li.retry_count = NCP_RETRY_COUNT;
 	if (cap->timeout == 0)
 		ncp->li.timeout = NCP_RETRY_TIMEOUT;
-	ncp_conn_lock_any(ncp, p, ncp->nc_owner);
+	ncp_conn_lock_any(ncp, td, ncp->nc_owner);
 	*conn = ncp;
-	ncp_conn_locklist(LK_EXCLUSIVE, p);
+	ncp_conn_locklist(LK_EXCLUSIVE, td);
 	SLIST_INSERT_HEAD(&conn_list,ncp,nc_next);
-	ncp_conn_unlocklist(p);
+	ncp_conn_unlocklist(td);
 	return (error);
 }
 
@@ -263,7 +264,7 @@ ncp_conn_alloc(struct ncp_conn_args *cap, struct proc *p, struct ucred *cred,
 int
 ncp_conn_free(struct ncp_conn *ncp)
 {
-	struct proc *p;
+	struct thread *td;
 	int error;
 
 	if (ncp == NULL) {
@@ -274,8 +275,8 @@ ncp_conn_free(struct ncp_conn *ncp)
 		NCPERROR("nc_id == 0\n");
 		return EACCES;
 	}
-	p = ncp->procp;
-	error = ncp_conn_assert_locked(ncp, __func__, p);
+	td = ncp->td;
+	error = ncp_conn_assert_locked(ncp, __func__, td);
 	if (error)
 		return error;
 	if (ncp->ref_cnt != 0 || (ncp->flags & NCPFL_PERMANENT))
@@ -291,20 +292,20 @@ ncp_conn_free(struct ncp_conn *ncp)
 	 * Mark conn as dead and wait for other process
 	 */
 	ncp->nc_id = 0;
-	ncp_conn_unlock(ncp, p);
+	ncp_conn_unlock(ncp, td);
 	/*
 	 * if signal is raised - how I do react ?
 	 */
-	lockmgr(&ncp->nc_lock, LK_DRAIN, 0, p);
+	lockmgr(&ncp->nc_lock, LK_DRAIN, 0, td);
 	lockdestroy(&ncp->nc_lock);
 	while (ncp->nc_lwant) {
 		printf("lwant = %d\n", ncp->nc_lwant);
 		tsleep(&ncp->nc_lwant, PZERO,"ncpdr",2*hz);
 	}
-	ncp_conn_locklist(LK_EXCLUSIVE, p);
+	ncp_conn_locklist(LK_EXCLUSIVE, td);
 	SLIST_REMOVE(&conn_list, ncp, ncp_conn, nc_next);
 	ncp_conn_cnt--;
-	ncp_conn_unlocklist(p);
+	ncp_conn_unlocklist(td);
 	if (ncp->li.user)
 		free(ncp->li.user, M_NCPDATA);
 	if (ncp->li.password)
@@ -349,7 +350,7 @@ ncp_conn_reconnect(struct ncp_conn *ncp)
 }
 
 int
-ncp_conn_login(struct ncp_conn *conn, struct proc *p, struct ucred *cred)
+ncp_conn_login(struct ncp_conn *conn, struct thread *td, struct ucred *cred)
 {
 	struct ncp_bindery_object user;
 	u_char ncp_key[8];
@@ -359,36 +360,38 @@ ncp_conn_login(struct ncp_conn *conn, struct proc *p, struct ucred *cred)
 	if (error) {
 		printf("%s: Warning: use unencrypted login\n", __func__);
 		error = ncp_login_unencrypted(conn, conn->li.objtype,
-		    conn->li.user, conn->li.password, p, cred);
+		    conn->li.user, conn->li.password, td, cred);
 	} else {
 		error = ncp_get_bindery_object_id(conn, conn->li.objtype,
-		    conn->li.user, &user, p, cred);
+		    conn->li.user, &user, td, cred);
 		if (error)
 			return error;
 		error = ncp_login_encrypted(conn, &user, ncp_key,
-		    conn->li.password, p, cred);
+		    conn->li.password, td, cred);
 	}
 	if (!error)
 		conn->flags |= NCPFL_LOGGED | NCPFL_WASLOGGED;
 	return error;
 }
 
-/* 
- * Lookup connection by handle, return a locked conn descriptor 
+/*
+ * Lookup connection by handle, return a locked conn descriptor
  */
 int
-ncp_conn_getbyref(int ref,struct proc *p,struct ucred *cred, int mode, struct ncp_conn **connpp){
+ncp_conn_getbyref(int ref, struct thread *td, struct ucred *cred, int mode,
+		  struct ncp_conn **connpp)
+{
 	struct ncp_conn *ncp;
-	int error=0;
+	int error = 0;
 
-	ncp_conn_locklist(LK_SHARED, p);
+	ncp_conn_locklist(LK_SHARED, td);
 	SLIST_FOREACH(ncp, &conn_list, nc_next)
 		if (ncp->nc_id == ref) break;
 	if (ncp == NULL) {
-		ncp_conn_unlocklist(p);
+		ncp_conn_unlocklist(td);
 		return(EBADF);
 	}
-	error = ncp_conn_lock2(ncp, p, cred, mode);
+	error = ncp_conn_lock2(ncp, td, cred, mode);
 	if (!error)
 		*connpp = ncp;
 	return (error);
@@ -397,18 +400,20 @@ ncp_conn_getbyref(int ref,struct proc *p,struct ucred *cred, int mode, struct nc
  * find attached, but not logged in connection to specified server
  */
 int
-ncp_conn_getattached(struct ncp_conn_args *li,struct proc *p,struct ucred *cred,int mode, struct ncp_conn **connpp){
-	struct ncp_conn *ncp, *ncp2=NULL;
+ncp_conn_getattached(struct ncp_conn_args *li, struct thread *td,
+		     struct ucred *cred, int mode, struct ncp_conn **connpp)
+{
+	struct ncp_conn *ncp, *ncp2 = NULL;
 	int error = 0;
 
-	ncp_conn_locklist(LK_SHARED, p);
+	ncp_conn_locklist(LK_SHARED, td);
 	SLIST_FOREACH(ncp, &conn_list, nc_next) {
 		if ((ncp->flags & NCPFL_LOGGED) != 0 ||
-		    strcmp(ncp->li.server,li->server) != 0 || 
+		    strcmp(ncp->li.server,li->server) != 0 ||
 		    ncp->li.saddr.sa_len != li->saddr.sa_len ||
 		    bcmp(&ncp->li.saddr,&ncp->li.saddr,li->saddr.sa_len) != 0)
 			continue;
-		if (ncp_suser(cred) == 0 || 
+		if (ncp_suser(cred) == 0 ||
 		    cred->cr_uid == ncp->nc_owner->cr_uid)
 			break;
 		error = ncp_conn_access(ncp,cred,mode);
@@ -417,18 +422,18 @@ ncp_conn_getattached(struct ncp_conn_args *li,struct proc *p,struct ucred *cred,
 	}
 	if (ncp == NULL) ncp = ncp2;
 	if (ncp == NULL) {
-		ncp_conn_unlocklist(p);
+		ncp_conn_unlocklist(td);
 		return(EBADF);
 	}
-	error = ncp_conn_lock2(ncp,p,cred,mode);
+	error = ncp_conn_lock2(ncp, td, cred, mode);
 	if (!error)
 		*connpp=ncp;
 	return (error);
 }
 
-/* 
+/*
  * Lookup connection by server/user pair, return a locked conn descriptor.
- * if li is NULL or server/user pair incomplete, try to select best connection 
+ * if li is NULL or server/user pair incomplete, try to select best connection
  * based on owner.
  * Connection selected in next order:
  * 1. Try to search conn with ucred owner, if li is NULL also find a primary
@@ -437,13 +442,15 @@ ncp_conn_getattached(struct ncp_conn_args *li,struct proc *p,struct ucred *cred,
  */
 
 int
-ncp_conn_getbyli(struct ncp_conn_args *li,struct proc *p,struct ucred *cred,int mode, struct ncp_conn **connpp){
-	struct ncp_conn *ncp, *ncp2=NULL;
-	int error=0, partial, haveserv;
+ncp_conn_getbyli(struct ncp_conn_args *li, struct thread *td,
+		 struct ucred *cred, int mode, struct ncp_conn **connpp)
+{
+	struct ncp_conn *ncp, *ncp2 = NULL;
+	int error = 0, partial, haveserv;
 
 	partial = (li == NULL || li->server[0] == 0 || li->user == NULL);
 	haveserv = (li && li->server[0]);
-	ncp_conn_locklist(LK_SHARED, p);
+	ncp_conn_locklist(LK_SHARED, td);
 	SLIST_FOREACH(ncp, &conn_list, nc_next) {
 		if (partial) {
 			if (cred->cr_uid == ncp->nc_owner->cr_uid) {
@@ -473,10 +480,10 @@ ncp_conn_getbyli(struct ncp_conn_args *li,struct proc *p,struct ucred *cred,int 
 	}
 	if (ncp == NULL) ncp = ncp2;
 	if (ncp == NULL) {
-		ncp_conn_unlocklist(p);
+		ncp_conn_unlocklist(td);
 		return(EBADF);
 	}
-	error = ncp_conn_lock2(ncp,p,cred,mode);
+	error = ncp_conn_lock2(ncp, td, cred,mode);
 	if (!error)
 		*connpp=ncp;
 	return (error);
@@ -488,59 +495,62 @@ ncp_conn_getbyli(struct ncp_conn_args *li,struct proc *p,struct ucred *cred,int 
  * connection expected to be locked.
  */
 int
-ncp_conn_setprimary(struct ncp_conn *conn, int on){
+ncp_conn_setprimary(struct ncp_conn *conn, int on)
+{
 	struct ncp_conn *ncp=NULL;
 
 	if (conn->ucred->cr_uid != conn->nc_owner->cr_uid)
 		return EACCES;
-	ncp_conn_locklist(LK_SHARED, conn->procp);
+	ncp_conn_locklist(LK_SHARED, conn->td);
 	SLIST_FOREACH(ncp, &conn_list, nc_next) {
 		if (conn->ucred->cr_uid == ncp->nc_owner->cr_uid)
 			ncp->flags &= ~NCPFL_PRIMARY;
 	}
-	ncp_conn_unlocklist(conn->procp);
+	ncp_conn_unlocklist(conn->td);
 	if (on)
 		conn->flags |= NCPFL_PRIMARY;
 	return 0;
 }
-/* 
+/*
  * Lease conn to given proc, returning unique handle
  * problem: how locks should be applied ?
  */
 int
-ncp_conn_gethandle(struct ncp_conn *conn, struct proc *p, struct ncp_handle **handle){
+ncp_conn_gethandle(struct ncp_conn *conn, struct thread *td, struct ncp_handle **handle)
+{
 	struct ncp_handle *refp;
 
-	lockmgr(&lhlock, LK_EXCLUSIVE, 0, p);
+	lockmgr(&lhlock, LK_EXCLUSIVE, 0, td);
 	SLIST_FOREACH(refp, &lhlist, nh_next)
-		if (refp->nh_conn == conn && p == refp->nh_proc) break;
+		if (refp->nh_conn == conn && td == refp->nh_td) break;
 	if (refp) {
 		conn->ref_cnt++;
 		refp->nh_ref++;
 		*handle = refp;
-		lockmgr(&lhlock, LK_RELEASE, 0, p);
+		lockmgr(&lhlock, LK_RELEASE, 0, td);
 		return 0;
 	}
 	MALLOC(refp,struct ncp_handle *,sizeof(struct ncp_handle),M_NCPDATA,
 	    M_WAITOK | M_ZERO);
 	SLIST_INSERT_HEAD(&lhlist,refp,nh_next);
 	refp->nh_ref++;
-	refp->nh_proc = p;
+	refp->nh_td = td;
 	refp->nh_conn = conn;
 	refp->nh_id = ncp_next_handle++;
 	*handle = refp;
 	conn->ref_cnt++;
-	lockmgr(&lhlock, LK_RELEASE, 0, p);
+	lockmgr(&lhlock, LK_RELEASE, 0, td);
 	return 0;
 }
 /*
  * release reference, if force - ignore refcount
  */
 int
-ncp_conn_puthandle(struct ncp_handle *handle, struct proc *p, int force) {
+ncp_conn_puthandle(struct ncp_handle *handle, struct thread *td, int force)
+{
 	struct ncp_handle *refp = handle;
 
-	lockmgr(&lhlock, LK_EXCLUSIVE, 0, p);
+	lockmgr(&lhlock, LK_EXCLUSIVE, 0, td);
 	refp->nh_ref--;
 	refp->nh_conn->ref_cnt--;
 	if (force) {
@@ -551,20 +561,20 @@ ncp_conn_puthandle(struct ncp_handle *handle, struct proc *p, int force) {
 		SLIST_REMOVE(&lhlist, refp, ncp_handle, nh_next);
 		FREE(refp, M_NCPDATA);
 	}
-	lockmgr(&lhlock, LK_RELEASE, 0, p);
+	lockmgr(&lhlock, LK_RELEASE, 0, td);
 	return 0;
 }
 /*
  * find a connHandle
  */
 int
-ncp_conn_findhandle(int connHandle, struct proc *p, struct ncp_handle **handle) {
+ncp_conn_findhandle(int connHandle, struct thread *td, struct ncp_handle **handle) {
 	struct ncp_handle *refp;
 
-	lockmgr(&lhlock, LK_SHARED, 0, p);
+	lockmgr(&lhlock, LK_SHARED, 0, td);
 	SLIST_FOREACH(refp, &lhlist, nh_next)
-		if (refp->nh_proc == p && refp->nh_id == connHandle) break;
-	lockmgr(&lhlock, LK_RELEASE, 0, p);
+		if (refp->nh_td == td && refp->nh_id == connHandle) break;
+	lockmgr(&lhlock, LK_RELEASE, 0, td);
 	if (refp == NULL) {
 		return EBADF;
 	}
@@ -575,20 +585,21 @@ ncp_conn_findhandle(int connHandle, struct proc *p, struct ncp_handle **handle) 
  * Clear handles associated with specified process
  */
 int
-ncp_conn_putprochandles(struct proc *p) {
+ncp_conn_putprochandles(struct thread *td)
+{
 	struct ncp_handle *hp, *nhp;
 	int haveone = 0;
 
-	lockmgr(&lhlock, LK_EXCLUSIVE, 0, p);
+	lockmgr(&lhlock, LK_EXCLUSIVE, 0, td);
 	for (hp = SLIST_FIRST(&lhlist); hp; hp = nhp) {
 		nhp = SLIST_NEXT(hp, nh_next);
-		if (hp->nh_proc != p) continue;
+		if (hp->nh_td != td) continue;
 		haveone = 1;
 		hp->nh_conn->ref_cnt -= hp->nh_ref;
 		SLIST_REMOVE(&lhlist, hp, ncp_handle, nh_next);
 		FREE(hp, M_NCPDATA);
 	}
-	lockmgr(&lhlock, LK_RELEASE, 0, p);
+	lockmgr(&lhlock, LK_RELEASE, 0, td);
 	return haveone;
 }
 /*
@@ -626,7 +637,8 @@ ncp_conn_getinfo(struct ncp_conn *ncp, struct ncp_conn_stat *ncs) {
 }
 
 static int
-ncp_sysctl_connstat(SYSCTL_HANDLER_ARGS) {
+ncp_sysctl_connstat(SYSCTL_HANDLER_ARGS)
+{
 	int error;
 	struct ncp_conn_stat ncs;
 	struct ncp_conn *ncp;
@@ -634,7 +646,7 @@ ncp_sysctl_connstat(SYSCTL_HANDLER_ARGS) {
 
 	error = 0;
 	sysctl_wire_old_buffer(req, 0);
-	ncp_conn_locklist(LK_SHARED, req->p);
+	ncp_conn_locklist(LK_SHARED, req->td);
 	error = SYSCTL_OUT(req, &ncp_conn_cnt, sizeof(ncp_conn_cnt));
 	SLIST_FOREACH(ncp, &conn_list, nc_next) {
 		if (error) break;
@@ -650,6 +662,6 @@ ncp_sysctl_connstat(SYSCTL_HANDLER_ARGS) {
 		ncp->nc_lwant--;
 		error = SYSCTL_OUT(req, &ncs, sizeof(ncs));
 	}
-	ncp_conn_unlocklist(req->p);
+	ncp_conn_unlocklist(req->td);
 	return(error);
 }

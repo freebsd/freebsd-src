@@ -57,14 +57,14 @@ static int ncp_sign_packet(struct ncp_conn *conn, struct ncp_rq *rqp, int *size)
 
 int
 ncp_rq_alloc_any(u_int32_t ptype, u_int8_t fn, struct ncp_conn *ncp,
-	struct proc *p, struct ucred *cred,
+	struct thread *td, struct ucred *cred,
 	struct ncp_rq **rqpp)
 {
 	struct ncp_rq *rqp;
 	int error;
 
 	MALLOC(rqp, struct ncp_rq *, sizeof(*rqp), M_NCPRQ, M_WAITOK);
-	error = ncp_rq_init_any(rqp, ptype, fn, ncp, p, cred);
+	error = ncp_rq_init_any(rqp, ptype, fn, ncp, td, cred);
 	rqp->nr_flags |= NCPR_ALLOCED;
 	if (error) {
 		ncp_rq_done(rqp);
@@ -76,19 +76,19 @@ ncp_rq_alloc_any(u_int32_t ptype, u_int8_t fn, struct ncp_conn *ncp,
 
 int
 ncp_rq_alloc(u_int8_t fn, struct ncp_conn *ncp,
-	struct proc *p, struct ucred *cred, struct ncp_rq **rqpp)
+	struct thread *td, struct ucred *cred, struct ncp_rq **rqpp)
 {
-	return ncp_rq_alloc_any(NCP_REQUEST, fn, ncp, p, cred, rqpp);
+	return ncp_rq_alloc_any(NCP_REQUEST, fn, ncp, td, cred, rqpp);
 }
 
 int
 ncp_rq_alloc_subfn(u_int8_t fn, u_int8_t subfn, struct ncp_conn *ncp,
-	struct proc *p,	struct ucred *cred, struct ncp_rq **rqpp)
+	struct thread *td, struct ucred *cred, struct ncp_rq **rqpp)
 {
 	struct ncp_rq *rqp;
 	int error;
 
-	error = ncp_rq_alloc_any(NCP_REQUEST, fn, ncp, p, cred, &rqp);
+	error = ncp_rq_alloc_any(NCP_REQUEST, fn, ncp, td, cred, &rqp);
 	if (error)
 		return error;
 	mb_reserve(&rqp->rq, 2);
@@ -100,7 +100,7 @@ ncp_rq_alloc_subfn(u_int8_t fn, u_int8_t subfn, struct ncp_conn *ncp,
 int
 ncp_rq_init_any(struct ncp_rq *rqp, u_int32_t ptype, u_int8_t fn,
 	struct ncp_conn *ncp,
-	struct proc *p,	struct ucred *cred)
+	struct thread *td, struct ucred *cred)
 {
 	struct ncp_rqhdr *rq;
 	struct ncp_bursthdr *brq;
@@ -111,7 +111,7 @@ ncp_rq_init_any(struct ncp_rq *rqp, u_int32_t ptype, u_int8_t fn,
 	error = ncp_conn_access(ncp, cred, NCPM_EXECUTE);
 	if (error)
 		return error;
-	rqp->nr_p = p;
+	rqp->nr_td = td;
 	rqp->nr_cred = cred;
 	rqp->nr_conn = ncp;
 	mbp = &rqp->rq;
@@ -239,11 +239,11 @@ ncp_sign_packet(struct ncp_conn *conn, struct ncp_rq *rqp, int *size)
  * Low level send rpc, here we do not attempt to restore any connection,
  * Connection expected to be locked
  */
-int 
+int
 ncp_request_int(struct ncp_rq *rqp)
 {
 	struct ncp_conn *conn = rqp->nr_conn;
-	struct proc *p = conn->procp;
+	struct thread *td = conn->td;
 	struct socket *so = conn->ncp_so;
 	struct ncp_rqhdr *rq;
 	struct ncp_rphdr *rp=NULL;
@@ -257,8 +257,8 @@ ncp_request_int(struct ncp_rq *rqp)
 		ncp_conn_invalidate(conn);
 		return ENOTCONN;
 	}
-	if (p == NULL)
-		p = curproc;	/* XXX maybe procpage ? */
+	if (td == NULL)
+		td = curthread;	/* XXX maybe procpage ? */
 	/*
 	 * Flush out replies on previous reqs
 	 */
@@ -307,10 +307,10 @@ ncp_request_int(struct ncp_rq *rqp)
 		}
 		tv.tv_sec = conn->li.timeout;
 		tv.tv_usec = 0;
-		error = ncp_sock_rselect(so, p, &tv, POLLIN);
+		error = ncp_sock_rselect(so, td, &tv, POLLIN);
 		if (error == EWOULDBLOCK )	/* timeout expired */
 			continue;
-		error = ncp_chkintr(conn, p);
+		error = ncp_chkintr(conn, td);
 		if (error)
 			break;
 		/*
@@ -422,7 +422,7 @@ ncp_restore_login(struct ncp_conn *conn)
 	conn->flags |= NCPFL_RESTORING;
 	error = ncp_conn_reconnect(conn);
 	if (!error && (conn->flags & NCPFL_WASLOGGED))
-		error = ncp_conn_login(conn, conn->procp, conn->ucred);
+		error = ncp_conn_login(conn, conn->td, conn->ucred);
 	if (error)
 		ncp_ncp_disconnect(conn);
 	conn->flags &= ~NCPFL_RESTORING;
@@ -435,7 +435,7 @@ ncp_request(struct ncp_rq *rqp)
 	struct ncp_conn *ncp = rqp->nr_conn;
 	int error, rcnt;
 
-	error = ncp_conn_lock(ncp, rqp->nr_p, rqp->nr_cred, NCPM_EXECUTE);
+	error = ncp_conn_lock(ncp, rqp->nr_td, rqp->nr_cred, NCPM_EXECUTE);
 	if (error)
 		goto out;
 	rcnt = NCP_RESTORE_COUNT;
@@ -460,7 +460,7 @@ ncp_request(struct ncp_rq *rqp)
 		if (error)
 			continue;
 	}
-	ncp_conn_unlock(ncp, rqp->nr_p);
+	ncp_conn_unlock(ncp, rqp->nr_td);
 out:
 	if (error && (rqp->nr_flags & NCPR_DONTFREEONERR) == 0)
 		ncp_rq_done(rqp);
