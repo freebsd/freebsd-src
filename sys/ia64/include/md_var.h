@@ -75,6 +75,7 @@ void	busdma_swi(void);
 int	copyout_regstack(struct thread *, uint64_t *, uint64_t *);
 void	cpu_mp_add(u_int, u_int, u_int);
 int	do_ast(struct trapframe *);
+void	ia32_trap(int, struct trapframe *);
 int	ia64_count_cpus(void);
 void	ia64_flush_dirty(struct thread *, struct _special *);
 int	ia64_highfp_drop(struct thread *);
@@ -89,6 +90,7 @@ void	os_mca(void);
 void	spillfd(void *src, void *dst);
 int	syscall(struct trapframe *);
 void	trap(int, struct trapframe *);
+void	trap_panic(int, struct trapframe *);
 int	unaligned_fixup(struct trapframe *, struct thread *);
 
 #endif	/* _KERNEL */
