@@ -118,10 +118,12 @@ extern	unsigned imen;		/* interrupt mask enable */
 
 /* 32-47: ISA IRQ0-IRQ15, 48-55: IO APIC IRQ16-IRQ31 */
 #define	ICU_LEN		32
+#define	HWI_MASK	0xffffffff	/* bits for h/w interrupts */
 
 #else
 
 #define	ICU_LEN		16		/* 32-47 are ISA interrupts */
+#define	HWI_MASK	0xffff		/* bits for h/w interrupts */
 
 #endif /* APIC_IO */
 
