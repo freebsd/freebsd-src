@@ -239,8 +239,9 @@ static vm_offset_t pager_sva, pager_eva;
 static void
 alpha_srm_shutdown(void *junk, int howto)
 {
-	if (howto & RB_HALT)
-		alpha_pal_halt();
+	if (howto & RB_HALT) {
+		cpu_halt();
+	}
 }
 
 static void
@@ -1615,7 +1616,14 @@ cpu_boot(int howto)
 void
 cpu_halt(void)
 {
-	/*alpha_pal_halt(); */
+#ifdef	SMP
+	printf("sending IPI_HALT to other processors\n");
+	DELAY(1000000);
+	ipi_all_but_self(IPI_HALT);
+	DELAY(1000000);
+	printf("Halting Self\n");
+	DELAY(1000000);
+#endif
 	prom_halt(1);
 }
 

@@ -23,6 +23,7 @@
 #define	IPI_AST			0x0004
 #define	IPI_CHECKSTATE		0x0008
 #define	IPI_STOP		0x0010
+#define	IPI_HALT		0x1000
 
 #ifndef LOCORE
 

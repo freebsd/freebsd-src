@@ -472,6 +472,9 @@ smp_handle_ipi(struct trapframe *frame)
 			atomic_clear_int(&started_cpus, cpumask);
 			atomic_clear_int(&stopped_cpus, cpumask);
 			break;
+		case IPI_HALT:
+			prom_halt(1);
+			/* NOTREACHED */
 		}
 	}
 
