@@ -1571,6 +1571,10 @@ msdosfs_readdir(ap)
 			return (error);
 		}
 		n = min(n, blsize - bp->b_resid);
+		if (n == 0) {
+			brelse(bp);
+			return (EIO);
+		}
 
 		/*
 		 * Convert from dos directory entries to fs-independent
