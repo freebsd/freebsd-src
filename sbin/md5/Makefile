@@ -6,6 +6,6 @@ PROG=	md5
 LDADD+=	-lmd
 DPADD+= ${LIBMD}
 
-WARNS=	2
+WARNS?=	2
 
 .include <bsd.prog.mk>

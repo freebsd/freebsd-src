@@ -4,6 +4,6 @@
 PROG=	stty
 SRCS=	cchar.c gfmt.c key.c modes.c print.c stty.c util.c
 
-WARNS=	2
+WARNS?=	2
 
 .include <bsd.prog.mk>

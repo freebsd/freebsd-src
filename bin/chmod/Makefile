@@ -3,6 +3,6 @@
 
 PROG=	chmod
 
-WARNS=	2
+WARNS?=	2
 
 .include <bsd.prog.mk>

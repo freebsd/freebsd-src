@@ -7,7 +7,7 @@ MAN=	adventure.6
 HIDEGAME=hidegame
 CLEANFILES=data.c setup setup.o
 
-WARNS=	2
+WARNS?=	2
 
 build-tools: setup
 
