@@ -54,7 +54,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	ipfw(8) is recompiled.
 
 20040420:
-	Due to changes in the callout ABI, kernels compiled after this 
+	Due to changes in the callout ABI, kernels compiled after this
 	date may be incompatible with kernel modules compiled prior to
 	20040406.
 
@@ -236,7 +236,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	If ACPI is not being used and hyperthreading is enabled in the
 	BIOS, logical CPUs can be enabled by building a custom kernel
 	with the option MPTABLE_FORCE_HTT enabled.
- 
+
 20031103:
 	The i386 APIC_IO kernel option has been replaced by
 	'device apic'.  The ACPI module has also been temporarily
@@ -269,7 +269,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 
 20030923:
 	Fix a bug in arplookup(), whereby a hostile party on a locally
-	attached network could exhaust kernel memory, and cause a system 
+	attached network could exhaust kernel memory, and cause a system
 	panic, by sending a flood of spoofed ARP requests. See
 	FreeBSD-SA-03:14.arp.
 
@@ -291,7 +291,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	may or may not exist on your system.
 
 20030824:
-	ATAng has been committed. You need to build world as sys/ata.h 
+	ATAng has been committed. You need to build world as sys/ata.h
 	has changed, and userland atacontrol depends on it.
 	If you use ATA SW raids you need "device ataraid" in your
 	kernel config file, as it is no longer pulled in automatically.
@@ -445,7 +445,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
  	which FreeBSD's GCC maintainers were not aware of relative to previous
  	versions of FreeBSD.  We have gone back to the ABI for now, and any
  	code compiled which is required to interoperate with other code (not
- 	built at the same time) returning structs or unions should be 
+ 	built at the same time) returning structs or unions should be
 	rebuilt.
 
 20021216:
@@ -517,7 +517,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 
 20020702:
 	Problems with libc_r clients like KDE and GNOME have been resolved.
-	There are still some minor problems with some signals but the 
+	There are still some minor problems with some signals but the
 	system is stable enough for general use again. SMP is less so than UP
 	but each can successfully complete multiple buildworlds.
 	Libkvm needs to be recompiled due to KSE.
@@ -631,7 +631,7 @@ http://www.freebsd.org/cgi/mid.cgi?db=mid&id=<9744.1009655556@axl.seasidesoftwar
 20011207:
 	Daily security checks have been split out to use the periodic(8)
 	scripts.  Some change in configuration may be necessary.  Please
-	see 
+	see
 http://www.freebsd.org/cgi/mid.cgi?db=mid&id=<20011207155805.R8975@blossom.cjclark.org>
 	for details.
 
@@ -742,18 +742,18 @@ http://www.freebsd.org/cgi/mid.cgi?db=mid&id=<20011207155805.R8975@blossom.cjcla
 	have been rectified around this date.
 
 20010823:
- 	named now runs as user bind and group bind rather than as 
- 	root.  If named_enable is set to YES in /etc/rc.conf, ensure 
- 	that user bind is available in /etc/passwd (using vipw(8)) 
- 	and that group bind is available in /etc/group.  Also make 
- 	sure that user or group bind has read (and not write) 
- 	permission for your name server configuration and that it 
- 	has read and write permission for your slave zone files and 
+ 	named now runs as user bind and group bind rather than as
+ 	root.  If named_enable is set to YES in /etc/rc.conf, ensure
+ 	that user bind is available in /etc/passwd (using vipw(8))
+ 	and that group bind is available in /etc/group.  Also make
+ 	sure that user or group bind has read (and not write)
+ 	permission for your name server configuration and that it
+ 	has read and write permission for your slave zone files and
  	directory.
- 
- 	If you wish to continue to run named as root (a less secure 
+
+ 	If you wish to continue to run named as root (a less secure
  	alternative), add a line to /etc/rc.conf saying
- 
+
  		named_flags=
 
 20010709:
@@ -1007,7 +1007,7 @@ Updater failed: Cannot delete "/usr/ports/www/jakarta-tomcat/files": Directory n
 	Important new FreeBSD-version stuff: PAM support has been worked
 	in, partially from the "Unix" OpenSSH version.  This requires
 	adding the following in pam.conf:
-  
+
 	sshd    auth    sufficient      pam_skey.so
 	sshd    auth    required        pam_unix.so         try_first_pass
 	sshd    session required        pam_permit.so
@@ -1136,7 +1136,7 @@ Updater failed: Cannot delete "/usr/ports/www/jakarta-tomcat/files": Directory n
 
 20000904:
 	A new issue with the sendmail upgrade has come to light.
-	/etc/aliases has moved to /etc/mail/aliases.  Mergemaster will 
+	/etc/aliases has moved to /etc/mail/aliases.  Mergemaster will
 	incorrectly install the default aliases in /etc/mail rather than
 	move the old one from /etc.  So you'll need to manually move the
 	file, create a symbolic link, remove the old /etc/aliases.db and
@@ -1212,7 +1212,7 @@ Updater failed: Cannot delete "/usr/ports/www/jakarta-tomcat/files": Directory n
 	to /MYKERNEL.
 
 20000711:
-	If you use CVSUP or CTM to get CVS trees, AND you used to get 
+	If you use CVSUP or CTM to get CVS trees, AND you used to get
 	the old crypto files from internat.freebsd.org AND you check
 	out files from the CVS tree with the cvs command, please read
 		http://people.freebsd.org/~imp/internat.txt
@@ -1362,7 +1362,7 @@ Updater failed: Cannot delete "/usr/ports/www/jakarta-tomcat/files": Directory n
 	is now available.
 
 20000502:
-	Modules have been disconnected from the buildworld tree and 
+	Modules have been disconnected from the buildworld tree and
 	connected to the kernel building instead.
 
 20000427:
@@ -1451,7 +1451,7 @@ COMMON ITEMS:
 	cd ../compile/KERNEL_NAME_HERE
 	make depend
 	make
-	make install	
+	make install
 
 	If this fails, go to the "To build a kernel" section.
 
@@ -1497,10 +1497,10 @@ COMMON ITEMS:
 	<reboot into current>
 	<do a "native" rebuild/install as described in the previous section>
 	<maybe install compatibility libraries from /usr/src/lib/compat>
- 	<reboot>	
+ 	<reboot>
 
 
-	To upgrade in-place from 4.x-stable to current 
+	To upgrade in-place from 4.x-stable to current
 	----------------------------------------------
 	# 5.x uses more space than 4.x.  Also, the location of kernel
 	# modules has changed.  If you are installing 5.0 onto a 4.x
@@ -1510,7 +1510,7 @@ COMMON ITEMS:
 	# the / partition, you may want to completely remove all its content
 	# before upgrading, as this can be a common source of shortage of
 	# space on /.
-	
+
 	<make sure you have good level 0 dumps>
 	<maybe fix /etc/fstab>				[7]
 	make buildworld					[9]
