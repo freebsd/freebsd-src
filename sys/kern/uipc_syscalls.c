@@ -1841,12 +1841,14 @@ do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 		vm_offset_t pgoff;
 
 		pindex = OFF_TO_IDX(off);
+		VM_OBJECT_LOCK(obj);  
 retry_lookup:
 		/*
 		 * Calculate the amount to transfer. Not to exceed a page,
 		 * the EOF, or the passed in nbytes.
 		 */
 		xfsize = obj->un_pager.vnp.vnp_size - off;
+		VM_OBJECT_UNLOCK(obj);
 		if (xfsize > PAGE_SIZE)
 			xfsize = PAGE_SIZE;
 		pgoff = (vm_offset_t)(off & PAGE_MASK);
@@ -1868,6 +1870,7 @@ retry_lookup:
 			sbunlock(&so->so_snd);
 			goto done;
 		}
+		VM_OBJECT_LOCK(obj);  
 		/*
 		 * Attempt to look up the page.  
 		 *
@@ -1881,7 +1884,9 @@ retry_lookup:
 			pg = vm_page_alloc(obj, pindex,
 			    VM_ALLOC_NORMAL | VM_ALLOC_WIRED);
 			if (pg == NULL) {
+				VM_OBJECT_UNLOCK(obj);
 				VM_WAIT;
+				VM_OBJECT_LOCK(obj);  
 				goto retry_lookup;
 			}
 			vm_page_lock_queues();
@@ -1910,6 +1915,7 @@ retry_lookup:
 			 */
 			vm_page_io_start(pg);
 			vm_page_unlock_queues();
+			VM_OBJECT_UNLOCK(obj);
 
 			/*
 			 * Get the page from backing store.
@@ -1948,7 +1954,8 @@ retry_lookup:
 				sbunlock(&so->so_snd);
 				goto done;
 			}
-		}
+		} else
+			VM_OBJECT_UNLOCK(obj);
 		vm_page_unlock_queues();
 
 		/*
