@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (C) 2000 Benno Rice.
  * All rights reserved.
  *
