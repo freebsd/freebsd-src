@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-     "@(#) $Header: /tcpdump/master/tcpdump/print-ip6opts.c,v 1.8 2000/12/13 07:57:05 itojun Exp $";
+     "@(#) $Header: /tcpdump/master/tcpdump/print-ip6opts.c,v 1.9 2001/05/09 02:47:26 itojun Exp $";
 #endif
 
 #ifdef INET6
@@ -78,10 +78,20 @@ ip6_sopt_print(const u_char *bp, int len)
     int optlen;
 
     for (i = 0; i < len; i += optlen) {
+	if (bp[i] == IP6OPT_PAD1)
+	    optlen = 1;
+	else {
+	    if (i + 1 < len)
+		optlen = bp[i + 1] + 2;
+	    else
+		goto trunc;
+	}
+	if (i + optlen > len)
+	    goto trunc;
+
 	switch (bp[i]) {
 	case IP6OPT_PAD1:
             printf(", pad1");
-	    optlen = 1;
 	    break;
 	case IP6OPT_PADN:
 	    if (len - i < IP6OPT_MINLEN) {
@@ -89,7 +99,6 @@ ip6_sopt_print(const u_char *bp, int len)
 		goto trunc;
 	    }
             printf(", padn");
-	    optlen = bp[i + 1] + 2;
 	    break;
         case IP6SOPT_ALTCOA:
              if (len - i < IP6SOPT_ALTCOA_MINLEN) {
@@ -97,7 +106,6 @@ ip6_sopt_print(const u_char *bp, int len)
 		goto trunc;
 	    }
             printf(", alt-CoA: %s", ip6addr_string(&bp[i+2]));
-	    optlen = bp[i + 1] + 2;
 	    break;
         case IP6SOPT_UI:
              if (len - i < IP6SOPT_UI_MINLEN) {
@@ -105,7 +113,6 @@ ip6_sopt_print(const u_char *bp, int len)
 		goto trunc;
 	    }
             printf("(ui: 0x%04x) ", ntohs(*(u_int16_t *)&bp[i + 2]));
-	    optlen = bp[i + 1] + 2;
 	    break;
 	default:
 	    if (len - i < IP6OPT_MINLEN) {
@@ -113,7 +120,6 @@ ip6_sopt_print(const u_char *bp, int len)
 		goto trunc;
 	    }
 	    printf(", sopt_type 0x%02x: len=%d", bp[i], bp[i + 1]);
-	    optlen = bp[i + 1] + 2;
 	    break;
 	}
     }
@@ -130,10 +136,20 @@ ip6_opt_print(const u_char *bp, int len)
     int optlen;
 
     for (i = 0; i < len; i += optlen) {
+	if (bp[i] == IP6OPT_PAD1)
+	    optlen = 1;
+	else {
+	    if (i + 1 < len)
+		optlen = bp[i + 1] + 2;
+	    else
+		goto trunc;
+	}
+	if (i + optlen > len)
+	    goto trunc;
+
 	switch (bp[i]) {
 	case IP6OPT_PAD1:
             printf("(pad1)");
-	    optlen = 1;
 	    break;
 	case IP6OPT_PADN:
 	    if (len - i < IP6OPT_MINLEN) {
@@ -141,7 +157,6 @@ ip6_opt_print(const u_char *bp, int len)
 		goto trunc;
 	    }
             printf("(padn)");
-	    optlen = bp[i + 1] + 2;
 	    break;
 	case IP6OPT_ROUTER_ALERT:
 	    if (len - i < IP6OPT_RTALERT_LEN) {
@@ -153,7 +168,6 @@ ip6_opt_print(const u_char *bp, int len)
 		goto trunc;
 	    }
 	    printf("(rtalert: 0x%04x) ", ntohs(*(u_int16_t *)&bp[i + 2]));
-	    optlen = IP6OPT_RTALERT_LEN;
 	    break;
 	case IP6OPT_JUMBO:
 	    if (len - i < IP6OPT_JUMBO_LEN) {
@@ -165,7 +179,6 @@ ip6_opt_print(const u_char *bp, int len)
 		goto trunc;
 	    }
 	    printf("(jumbo: %u) ", (u_int32_t)ntohl(*(u_int32_t *)&bp[i + 2]));
-	    optlen = IP6OPT_JUMBO_LEN;
 	    break;
         case IP6OPT_HOME_ADDRESS:
 	    if (len - i < IP6OPT_HOMEADDR_MINLEN) {
@@ -179,10 +192,9 @@ ip6_opt_print(const u_char *bp, int len)
 	    printf("(homeaddr: %s", ip6addr_string(&bp[i + 2]));
             if (bp[i + 1] > IP6OPT_HOMEADDR_MINLEN - 2) {
 		ip6_sopt_print(&bp[i + IP6OPT_HOMEADDR_MINLEN],
-		    (optlen-IP6OPT_HOMEADDR_MINLEN));
+		    (optlen - IP6OPT_HOMEADDR_MINLEN));
 	    }
             printf(")");
-	    optlen = bp[i + 1] + 2;
 	    break;
         case IP6OPT_BINDING_UPDATE:
 	    if (len - i < IP6OPT_BU_MINLEN) {
@@ -210,7 +222,6 @@ ip6_opt_print(const u_char *bp, int len)
 	    printf(", lifetime: %u",
 		(u_int32_t)ntohs(*(u_int32_t *)&bp[i + 8]));
 
-	    optlen = bp[i + 1] + 2;
 	    if (bp[i + 1] > IP6OPT_BU_MINLEN - 2) {
 		ip6_sopt_print(&bp[i + IP6OPT_BU_MINLEN],
 		    (optlen - IP6OPT_BU_MINLEN));
@@ -237,10 +248,9 @@ ip6_opt_print(const u_char *bp, int len)
 
 	    if (bp[i + 1] > IP6OPT_BA_MINLEN - 2) {
 		ip6_sopt_print(&bp[i + IP6OPT_BA_MINLEN],
-		    (optlen-IP6OPT_BA_MINLEN));
+		    (optlen - IP6OPT_BA_MINLEN));
 	    }
             printf(")");
-	    optlen = bp[i + 1] + 2;
 	    break;
         case IP6OPT_BINDING_REQ:
 	    if (len - i < IP6OPT_BR_MINLEN) {
@@ -250,10 +260,9 @@ ip6_opt_print(const u_char *bp, int len)
             printf("(br");
             if (bp[i + 1] > IP6OPT_BR_MINLEN - 2) {
 		ip6_sopt_print(&bp[i + IP6OPT_BR_MINLEN],
-		    (optlen-IP6OPT_BR_MINLEN));
+		    (optlen - IP6OPT_BR_MINLEN));
 	    }
             printf(")");
-	    optlen = bp[i + 1] + 2;
 	    break;
 	default:
 	    if (len - i < IP6OPT_MINLEN) {
@@ -261,7 +270,6 @@ ip6_opt_print(const u_char *bp, int len)
 		goto trunc;
 	    }
 	    printf("(opt_type 0x%02x: len=%d) ", bp[i], bp[i + 1]);
-	    optlen = bp[i + 1] + 2;
 	    break;
 	}
     }

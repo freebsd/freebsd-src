@@ -1,4 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/tcp.h,v 1.7 2000/10/03 09:17:41 guy Exp $ (LBL) */
+/* @(#) $Header: /tcpdump/master/tcpdump/tcp.h,v 1.8 2001/05/09 01:16:57 fenner Exp $ (LBL) */
 /*
  * Copyright (c) 1982, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -53,6 +53,8 @@ struct tcphdr {
 #define	TH_PUSH	0x08
 #define	TH_ACK	0x10
 #define	TH_URG	0x20
+#define TH_ECNECHO	0x40	/* ECN Echo */
+#define TH_CWR		0x80	/* ECN Cwnd Reduced */
 	u_int16_t	th_win;			/* window */
 	u_int16_t	th_sum;			/* checksum */
 	u_int16_t	th_urp;			/* urgent pointer */
@@ -62,14 +64,17 @@ struct tcphdr {
 #define	TCPOPT_NOP		1
 #define	TCPOPT_MAXSEG		2
 #define    TCPOLEN_MAXSEG		4
-#define TCPOPT_WINDOW		3
-#define    TCPOLEN_WINDOW		3
-#define TCPOPT_SACK_PERMITTED	4		/* Experimental */
-#define    TCPOLEN_SACK_PERMITTED	2
-#define TCPOPT_SACK		5		/* Experimental */
-#define TCPOPT_TIMESTAMP	8
+#define	TCPOPT_WSCALE		3	/* window scale factor (rfc1323) */
+#define	TCPOPT_SACKOK		4	/* selective ack ok (rfc2018) */
+#define	TCPOPT_SACK		5	/* selective ack (rfc2018) */
+#define	TCPOPT_ECHO		6	/* echo (rfc1072) */
+#define	TCPOPT_ECHOREPLY	7	/* echo (rfc1072) */
+#define TCPOPT_TIMESTAMP	8	/* timestamp (rfc1323) */
 #define    TCPOLEN_TIMESTAMP		10
 #define    TCPOLEN_TSTAMP_APPA		(TCPOLEN_TIMESTAMP+2) /* appendix A */
+#define TCPOPT_CC		11	/* T/TCP CC options (rfc1644) */
+#define TCPOPT_CCNEW		12	/* T/TCP CC options (rfc1644) */
+#define TCPOPT_CCECHO		13	/* T/TCP CC options (rfc1644) */
 
 #define TCPOPT_TSTAMP_HDR	\
     (TCPOPT_NOP<<24|TCPOPT_NOP<<16|TCPOPT_TIMESTAMP<<8|TCPOLEN_TIMESTAMP)
