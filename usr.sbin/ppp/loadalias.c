@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: loadalias.c,v 1.16 1998/05/21 21:46:19 brian Exp $
+ *	$Id: loadalias.c,v 1.17 1998/06/07 03:54:41 brian Exp $
  */
 
 #include <sys/param.h>
@@ -41,7 +41,11 @@
 #include "loadalias.h"
 
 #if __FreeBSD__ >= 3
+#ifdef __ELF__
+#define _PATH_ALIAS_PREFIX "libalias.so.2"	/* dlopen() searches */
+#else
 #define _PATH_ALIAS_PREFIX "libalias.so.2.5"	/* dlopen() searches */
+#endif
 #else
 #define _PATH_ALIAS_PREFIX "/usr/lib/libalias.so.2."
 #endif
