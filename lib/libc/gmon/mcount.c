@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mcount.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id: mcount.c,v 1.5 1995/12/30 07:01:50 bde Exp $";
+	"$Id: mcount.c,v 1.6 1996/05/02 08:43:37 phk Exp $";
 #endif
 
 #include <sys/param.h>
@@ -79,8 +79,7 @@ _MCOUNT_DECL(frompc, selfpc)	/* _mcount; may be static, inline, etc */
 	register struct gmonparam *p;
 	register long toindex;
 #ifdef KERNEL
-	register int s;		/* XXX */
-	u_long save_eflags;	/* XXX */
+	MCOUNT_DECL(s)
 #endif
 
 	p = &_gmonparam;
@@ -93,7 +92,7 @@ _MCOUNT_DECL(frompc, selfpc)	/* _mcount; may be static, inline, etc */
 		return;
 #endif
 #ifdef KERNEL
-	MCOUNT_ENTER;
+	MCOUNT_ENTER(s);
 #else
 	p->state = GMON_PROF_BUSY;
 #endif
@@ -261,7 +260,7 @@ skip_guprof_stuff:
 	}
 done:
 #ifdef KERNEL
-	MCOUNT_EXIT;
+	MCOUNT_EXIT(s);
 #else
 	p->state = GMON_PROF_ON;
 #endif
@@ -269,7 +268,7 @@ done:
 overflow:
 	p->state = GMON_PROF_ERROR;
 #ifdef KERNEL
-	MCOUNT_EXIT;
+	MCOUNT_EXIT(s);
 #endif
 	return;
 }
