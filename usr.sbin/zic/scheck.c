@@ -1,6 +1,6 @@
 #ifndef lint
 #ifndef NOID
-static char	elsieid[] = "@(#)scheck.c	8.11";
+static char	elsieid[] = "@(#)scheck.c	8.13";
 #endif /* !defined lint */
 #endif /* !defined NOID */
 
@@ -14,7 +14,7 @@ extern void	ifree P((char * p));
 char *
 scheck(string, format)
 const char * const	string;
-const char * const	format;
+char * const		format;
 {
 	register char *		fbuf;
 	register const char *	fp;
@@ -22,12 +22,12 @@ const char * const	format;
 	register int		c;
 	register char *		result;
 	char			dummy;
-	static char		nada[1];
+	static char		nada;
 
-	result = nada;
+	result = &nada;
 	if (string == NULL || format == NULL)
 		return result;
-	fbuf = imalloc(2 * strlen(format) + 4);
+	fbuf = imalloc((int) (2 * strlen(format) + 4));
 	if (fbuf == NULL)
 		return result;
 	fp = format;
@@ -42,7 +42,7 @@ const char * const	format;
 		*tp++ = '*';
 		if (*fp == '*')
 			++fp;
-		while (isascii(*fp) && isdigit(*fp))
+		while (is_digit(*fp))
 			*tp++ = *fp++;
 		if (*fp == 'l' || *fp == 'h')
 			*tp++ = *fp++;
