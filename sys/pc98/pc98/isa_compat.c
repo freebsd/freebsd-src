@@ -73,7 +73,7 @@ isa_compat_alloc_resources(device_t dev, struct isa_compat_resources *res)
 		res->ports = bus_alloc_resource(dev, SYS_RES_IOPORT,
 						&rid, 0ul, ~0ul, 1,
 						RF_ACTIVE);
-		if (res->ports == NULL)
+		if (res->ports == NULL && bootverbose)
 			printf("isa_compat: didn't get ports for %s\n",
 			       device_get_name(dev));
 	} else
@@ -86,7 +86,7 @@ isa_compat_alloc_resources(device_t dev, struct isa_compat_resources *res)
 		res->memory = bus_alloc_resource(dev, SYS_RES_MEMORY,
 						 &rid, 0ul, ~0ul, 1,
 						 RF_ACTIVE);
-		if (res->memory == NULL)
+		if (res->memory == NULL && bootverbose)
 			printf("isa_compat: didn't get memory for %s\n",
 			       device_get_name(dev));
 	} else
@@ -98,7 +98,7 @@ isa_compat_alloc_resources(device_t dev, struct isa_compat_resources *res)
 		res->drq = bus_alloc_resource(dev, SYS_RES_DRQ,
 					      &rid, 0ul, ~0ul, 1,
 					      RF_ACTIVE);
-		if (res->drq == NULL)
+		if (res->drq == NULL && bootverbose)
 			printf("isa_compat: didn't get drq for %s\n",
 			       device_get_name(dev));
 	} else
@@ -110,7 +110,7 @@ isa_compat_alloc_resources(device_t dev, struct isa_compat_resources *res)
 		res->irq = bus_alloc_resource(dev, SYS_RES_IRQ,
 					      &rid, 0ul, ~0ul, 1,
 					      RF_SHAREABLE | RF_ACTIVE);
-		if (res->irq == NULL)
+		if (res->irq == NULL && bootverbose)
 			printf("isa_compat: didn't get irq for %s\n",
 			       device_get_name(dev));
 	} else
@@ -289,7 +289,7 @@ isa_wrap_old_drivers(void)
 		bzero(driver, sizeof(driver_t));
 		driver->name = op->driver->name;
 		driver->methods = isa_compat_methods;
-		driver->softc = sizeof(struct isa_device);
+		driver->size = sizeof(struct isa_device);
 		driver->priv = op;
 		if (op->driver->sensitive_hw)
 			resource_set_int(op->driver->name, -1, "sensitive", 1);
