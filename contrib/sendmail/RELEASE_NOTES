@@ -1,10 +1,44 @@
 			SENDMAIL RELEASE NOTES
-      $Id: RELEASE_NOTES,v 8.1336 2002/06/03 13:21:25 ca Exp $
+      $Id: RELEASE_NOTES,v 8.1340.2.9 2002/06/25 22:53:32 ca Exp $
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.12.5/8.12.5	2002/06/25
+	SECURITY: The DNS map can cause a buffer overflow if the user
+		specifies a dns map using TXT records in the configuration
+		file and a rogue DNS server is queried.  None of the
+		sendmail supplied configuration files use this option hence
+		they are not vulnerable.  Problem noted independently by
+		Joost Pol of PINE Internet and Anton Rang of Sun Microsystems.
+	Unprintable characters in responses from DNS servers for the DNS
+		map type are changed to 'X' to avoid potential problems
+		with rogue DNS servers.
+	Require a suboption when setting the Milter option.  Problem noted
+		by Bryan Costales.
+	Do not silently overwrite command line settings for
+		DirectSubmissionModifiers.  Problem noted by Bryan
+		Costales.
+	Prevent a segmentation fault when clearing the event list by
+		turning off alarms before checking if event list is
+		empty.  Problem noted by Allan E Johannesen of Worcester
+		Polytechnic Institute.
+	Close a potential race condition in transitioning a memory buffered
+		file onto disk.  From Janani Devarajan of Sun Microsystems.
+	Portability:
+		Include paths.h on Linux systems running glibc 2.0 or later
+			to get the definition for _PATH_SENDMAIL, used by
+			rmail and vacation.  Problem noted by Kevin
+			A. McGrail of Peregrine Hardware.
+		NOTE: Linux appears to have broken flock() again.  Unless
+			the bug is fixed before sendmail 8.13 is shipped,
+			8.13 will change the default locking method to
+			fcntl() for Linux kernel 2.4 and later.  You may
+			want to do this in 8.12 by compiling with
+			-DHASFLOCK=0.  Be sure to update other sendmail
+			related programs to match locking techniques.
 
 8.12.4/8.12.4	2002/06/03
 	SECURITY: Inherent limitations in the UNIX file locking model

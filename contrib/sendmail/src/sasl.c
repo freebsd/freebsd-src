@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: sasl.c,v 8.18 2002/05/25 00:26:42 gshapiro Exp $")
+SM_RCSID("@(#)$Id: sasl.c,v 8.19 2002/06/12 15:06:12 ca Exp $")
 
 #if SASL
 # include <stdlib.h>
@@ -262,10 +262,10 @@ iptostring(addr, addrlen, out, outlen)
 		errno = EINVAL;
 		return false;
 	}
-	if (inet_ntop(AF_INET, &(addr->sin.sin_addr),
-		      hbuf, sizeof hbuf) == NULL)
+	if (sm_strlcpy(hbuf, inet_ntoa(addr->sin.sin_addr), sizeof(hbuf))
+	    >= sizeof(hbuf))
 	{
-		errno = EINVAL;
+		errno = ENOMEM;
 		return false;
 	}
 	sm_snprintf(pbuf, sizeof pbuf, "%d", ntohs(addr->sin.sin_port));

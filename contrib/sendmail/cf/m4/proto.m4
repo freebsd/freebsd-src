@@ -13,7 +13,7 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`$Id: proto.m4,v 8.646 2002/05/19 21:22:40 gshapiro Exp $')
+VERSIONID(`$Id: proto.m4,v 8.649 2002/06/13 18:53:24 ca Exp $')
 
 # level CF_LEVEL config file format
 V`'CF_LEVEL/ifdef(`VENDOR_NAME', `VENDOR_NAME', `Berkeley')
@@ -479,7 +479,7 @@ _OPTION(RefuseLA, `confREFUSE_LA', `12')
 _OPTION(DelayLA, `confDELAY_LA', `0')
 
 # maximum number of children we allow at one time
-_OPTION(MaxDaemonChildren, `confMAX_DAEMON_CHILDREN', `12')
+_OPTION(MaxDaemonChildren, `confMAX_DAEMON_CHILDREN', `0')
 
 # maximum number of new connections per second
 _OPTION(ConnectionRateThrottle, `confCONNECTION_RATE_THROTTLE', `0')
@@ -621,7 +621,7 @@ _OPTION(TLSSrvOptions, `confTLS_SRV_OPTIONS', `')
 # Input mail filters
 _OPTION(InputMailFilters, `confINPUT_MAIL_FILTERS', `')
 
-ifdef(`confINPUT_MAIL_FILTERS', `dnl
+ifelse(len(X`'_MAIL_FILTERS_DEF), `1', `dnl', `dnl
 # Milter options
 _OPTION(Milter.LogLevel, `confMILTER_LOG_LEVEL', `')
 _OPTION(Milter.macros.connect, `confMILTER_MACROS_CONNECT', `')
