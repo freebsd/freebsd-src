@@ -991,7 +991,7 @@ ip_fw_chk(struct ip **pip, int hlen,
 	     */
 	    switch (proto) {
 	    case IPPROTO_TCP :
-		PULLUP_TO(hlen + 14);
+		PULLUP_TO(hlen + sizeof(struct tcphdr));
 		tcp =(struct tcphdr *)((u_int32_t *)ip + ip->ip_hl);
 		dst_port = tcp->th_dport ;
 		src_port = tcp->th_sport ;
@@ -999,20 +999,20 @@ ip_fw_chk(struct ip **pip, int hlen,
 		break ;
 
 	    case IPPROTO_UDP :
-		PULLUP_TO(hlen + 4);
+		PULLUP_TO(hlen + sizeof(struct udphdr));
 		udp =(struct udphdr *)((u_int32_t *)ip + ip->ip_hl);
 		dst_port = udp->uh_dport ;
 		src_port = udp->uh_sport ;
 		break;
 
 	    case IPPROTO_ICMP:
-		PULLUP_TO(hlen + 2);
+		PULLUP_TO(hlen + 4);	/* type, code and checksum. */
 		flags = ((struct icmp *)
 			((u_int32_t *)ip + ip->ip_hl))->icmp_type ;
 		break ;
 
 	    default :
-		src_port = dst_port = 0 ;
+		break;
 	    }
 #undef PULLUP_TO
 	    last_pkt.src_ip = ntohl(src_ip.s_addr) ;
