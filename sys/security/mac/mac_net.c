@@ -46,6 +46,7 @@
  */
 
 #include "opt_mac.h"
+#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/extattr.h>
