@@ -95,7 +95,8 @@ MAN2+=	sys/accept.2 sys/access.2 sys/acct.2 sys/adjtime.2 sys/bind.2 \
 	sys/quotactl.2 sys/read.2 sys/readlink.2 sys/reboot.2 sys/recv.2 \
 	sys/rename.2 sys/revoke.2 sys/rmdir.2 sys/rtprio.2 sys/select.2 \
 	sys/send.2 sys/setgroups.2 \
-	sys/setpgid.2 sys/setsid.2 sys/setuid.2 sys/shutdown.2 \
+	sys/setpgid.2 sys/setregid.2 sys/setreuid.2 \
+	sys/setsid.2 sys/setuid.2 sys/shutdown.2 \
 	sys/sigaction.2 sys/sigpending.2 sys/sigprocmask.2 sys/sigreturn.2 \
 	sys/sigaltstack.2 sys/sigstack.2 sys/sigsuspend.2 sys/socket.2 \
 	sys/socketpair.2 sys/stat.2 sys/statfs.2 sys/swapon.2 sys/symlink.2 \
