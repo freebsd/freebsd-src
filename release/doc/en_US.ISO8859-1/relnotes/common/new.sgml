@@ -124,7 +124,8 @@
     <sect3>
       <title>Network Interface Support</title>
 
-      <para></para>
+      <para>The &man.nge.4; driver now supports network device
+	&man.polling.4;.</para>
 
 <!-- Above this line, order network driver changes by manpage/variable name-->
 
