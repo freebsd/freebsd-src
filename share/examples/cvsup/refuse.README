@@ -25,6 +25,7 @@ and you do not want CVSup to overwrite it:
 If you are an English speaker and don't wish to receive the
 foreign-language documentation or ports, use the following patterns:
 
+    doc/da_*
     doc/de_*
     doc/es_*
     doc/el_*
