@@ -178,7 +178,7 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, struct tte tte)
 		tp = rtp;
 	if ((tp->tte_data & TD_V) != 0) {
 		TSB_STATS_INC(tsb_nrepl);
-		ova = tte_get_va(*tp);
+		ova = TV_GET_VA(tp->tte_vpn);
 		if ((tp->tte_data & TD_PV) != 0) {
 			om = PHYS_TO_VM_PAGE(TD_GET_PA(tp->tte_data));
 			if ((tp->tte_data & TD_W) != 0 &&
@@ -189,7 +189,7 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, struct tte tte)
 			pmap_cache_remove(om, ova);
 			pv_remove(pm, om, ova);
 		}
-		tlb_tte_demap(*tp, ova);
+		tlb_tte_demap(*tp, pm->pm_context);
 	}
 
 	*tp = tte;
@@ -218,7 +218,7 @@ tsb_foreach(pmap_t pm1, pmap_t pm2, vm_offset_t start, vm_offset_t end,
 	for (i = 0; i < TSB_SIZE; i++) {
 		tp = &pm1->pm_tsb[i];
 		if ((tp->tte_data & TD_V) != 0) {
-			va = tte_get_va(*tp);
+			va = TV_GET_VA(tp->tte_vpn);
 			if (va >= start && va < end) {
 				if (!callback(pm1, pm2, tp, va))
 					break;

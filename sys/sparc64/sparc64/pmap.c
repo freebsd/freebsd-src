@@ -384,7 +384,7 @@ pmap_bootstrap(vm_offset_t ekva)
 		    off += PAGE_SIZE) {
 			va = translations[i].om_start + off;
 			tte.tte_data = translations[i].om_tte + off;
-			tte.tte_tag = TT_CTX(TLB_CTX_KERNEL) | TT_VA(va);
+			tte.tte_vpn = TV_VPN(va);
 			tp = tsb_kvtotte(va);
 			CTR4(KTR_PMAP,
 			    "mapping: va=%#lx tp=%p tte=%#lx pa=%#lx",
@@ -432,9 +432,9 @@ pmap_map_tsb(void)
 	for (i = 0; i < KVA_PAGES; i++) {
 		va = (vm_offset_t)tsb_kernel + i * PAGE_SIZE_4M;
 		pa = tsb_kernel_phys + i * PAGE_SIZE_4M;
-		tte.tte_tag = TT_CTX(TLB_CTX_KERNEL) | TT_VA(va);
-		tte.tte_data = TD_V | TD_4M | TD_VA_LOW(va) | TD_PA(pa) |
-		    TD_L | TD_CP | TD_CV | TD_P | TD_W;
+		tte.tte_vpn = TV_VPN(va);
+		tte.tte_data = TD_V | TD_4M | TD_PA(pa) | TD_L | TD_CP |
+		    TD_CV | TD_P | TD_W;
 		tlb_store_slot(TLB_DTLB, va, TLB_CTX_KERNEL, tte,
 		    TLB_SLOT_TSB_KERNEL_MIN + i);
 	}
@@ -633,9 +633,9 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
 	struct tte tte;
 	struct tte *tp;
 
-	tte.tte_tag = TT_CTX(TLB_CTX_KERNEL) | TT_VA(va);
-	tte.tte_data = TD_V | TD_8K | TD_VA_LOW(va) | TD_PA(pa) |
-	    TD_REF | TD_SW | TD_CP | TD_CV | TD_P | TD_W;
+	tte.tte_vpn = TV_VPN(va);
+	tte.tte_data = TD_V | TD_8K | TD_PA(pa) | TD_REF | TD_SW | TD_CP |
+	    TD_CV | TD_P | TD_W;
 	tp = tsb_kvtotte(va);
 	CTR4(KTR_PMAP, "pmap_kenter: va=%#lx pa=%#lx tp=%p data=%#lx",
 	    va, pa, tp, tp->tte_data);
@@ -657,9 +657,8 @@ pmap_kenter_flags(vm_offset_t va, vm_offset_t pa, u_long flags)
 	struct tte tte;
 	struct tte *tp;
 
-	tte.tte_tag = TT_CTX(TLB_CTX_KERNEL) | TT_VA(va);
-	tte.tte_data = TD_V | TD_8K | TD_VA_LOW(va) | TD_PA(pa) |
-	    TD_REF | TD_P | flags;
+	tte.tte_vpn = TV_VPN(va);
+	tte.tte_data = TD_V | TD_8K | TD_PA(pa) | TD_REF | TD_P | flags;
 	tp = tsb_kvtotte(va);
 	CTR4(KTR_PMAP, "pmap_kenter_flags: va=%#lx pa=%#lx tp=%p data=%#lx",
 	    va, pa, tp, tp->tte_data);
@@ -691,7 +690,7 @@ pmap_kremove(vm_offset_t va)
 	CTR3(KTR_PMAP, "pmap_kremove: va=%#lx tp=%p data=%#lx", va, tp,
 	    tp->tte_data);
 	atomic_clear_long(&tp->tte_data, TD_V);
-	tp->tte_tag = 0;
+	tp->tte_vpn = 0;
 	tp->tte_data = 0;
 	tlb_page_demap(TLB_DTLB, TLB_CTX_KERNEL, va);
 }
@@ -1224,7 +1223,7 @@ pmap_remove_tte(struct pmap *pm, struct pmap *pm2, struct tte *tp, vm_offset_t v
 		pmap_cache_remove(m, va);
 	}
 	atomic_clear_long(&tp->tte_data, TD_V);
-	tp->tte_tag = 0;
+	tp->tte_vpn = 0;
 	tp->tte_data = 0;
 	if (PMAP_REMOVE_DONE(pm))
 		return (0);
@@ -1339,8 +1338,8 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	    "pmap_enter: ctx=%p m=%p va=%#lx pa=%#lx prot=%#x wired=%d",
 	    pm->pm_context, m, va, pa, prot, wired);
 
-	tte.tte_tag = TT_CTX(pm->pm_context) | TT_VA(va);
-	tte.tte_data = TD_V | TD_8K | TD_VA_LOW(va) | TD_PA(pa) | TD_CP;
+	tte.tte_vpn = TV_VPN(va);
+	tte.tte_data = TD_V | TD_8K | TD_PA(pa) | TD_CP;
 
 	/*
 	 * If there is an existing mapping, and the physical address has not
@@ -1385,7 +1384,7 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 					if (pmap_track_modified(pm, va))
 						vm_page_dirty(m);
 				}
-				tlb_tte_demap(otte, va);
+				tlb_tte_demap(otte, pm->pm_context);
 			}
 		} else {
 			CTR0(KTR_PMAP, "pmap_enter: replace");
@@ -1416,7 +1415,7 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 				if (pmap_cache_enter(m, va) != 0)
 					tte.tte_data |= TD_CV;
 			}
-			tlb_tte_demap(otte, va);
+			tlb_tte_demap(otte, pm->pm_context);
 		}
 	} else {
 		CTR0(KTR_PMAP, "pmap_enter: new");
@@ -1511,8 +1510,9 @@ pmap_copy_tte(pmap_t src_pmap, pmap_t dst_pmap, struct tte *tp, vm_offset_t va)
 	vm_page_t m;
 
 	if (tsb_tte_lookup(dst_pmap, va) == NULL) {
-		tte.tte_data = tp->tte_data & ~(TD_PV | TD_REF | TD_CV | TD_W);
-		tte.tte_tag = TT_CTX(dst_pmap->pm_context) | TT_VA(va);
+		tte.tte_data = tp->tte_data &
+		    ~(TD_PV | TD_REF | TD_SW | TD_CV | TD_W);
+		tte.tte_vpn = TV_VPN(va);
 		m = PHYS_TO_VM_PAGE(TD_GET_PA(tp->tte_data));
 		if ((tp->tte_data & TD_PV) != 0) {
 			KASSERT((m->flags & (PG_FICTITIOUS|PG_UNMANAGED)) == 0,
@@ -1634,7 +1634,7 @@ pmap_remove_pages(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 			continue;
 
 		atomic_clear_long(&tp->tte_data, TD_V);
-		tp->tte_tag = 0;
+		tp->tte_vpn = 0;
 		tp->tte_data = 0;
 
 		m = pv->pv_m;

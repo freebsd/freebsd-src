@@ -31,16 +31,17 @@
 
 #define	TLB_SLOT_COUNT			64
 
-#define	TLB_SLOT_TSB_KERNEL_MIN		60	/* XXX */
-#define	TLB_SLOT_TSB_USER_PRIMARY	61
-#define	TLB_SLOT_TSB_USER_SECONDARY	62
+#define	TLB_SLOT_TSB_KERNEL_MIN		62	/* XXX */
 #define	TLB_SLOT_KERNEL			63
 
 #define	TLB_DAR_SLOT_SHIFT		(3)
 #define	TLB_DAR_SLOT(slot)		((slot) << TLB_DAR_SLOT_SHIFT)
 
-#define	TLB_TAR_VA(va)			((va) & ~PAGE_MASK)
-#define	TLB_TAR_CTX(ctx)		((ctx) & PAGE_MASK)
+#define	TAR_VPN_SHIFT			(13)
+#define	TAR_CTX_MASK			((1 << TAR_VPN_SHIFT) - 1)
+
+#define	TLB_TAR_VA(va)			((va) & ~TAR_CTX_MASK)
+#define	TLB_TAR_CTX(ctx)		((ctx) & TAR_CTX_MASK)
 
 #define	TLB_DEMAP_ID_SHIFT		(4)
 #define	TLB_DEMAP_ID_PRIMARY		(0)
@@ -222,9 +223,9 @@ tlb_range_demap(u_int ctx, vm_offset_t start, vm_offset_t end)
 }
 
 static __inline void
-tlb_tte_demap(struct tte tte, vm_offset_t va)
+tlb_tte_demap(struct tte tte, u_int ctx)
 {
-	tlb_page_demap(TD_GET_TLB(tte.tte_data), TT_GET_CTX(tte.tte_tag), va);
+	tlb_page_demap(TD_GET_TLB(tte.tte_data), ctx, TV_GET_VA(tte.tte_vpn));
 }
 
 static __inline void
