@@ -115,7 +115,7 @@ struct tty_list *
 add_tty(char *name)
 {
 	struct tty_list *tp;
-	register char *rcp;
+	char *rcp;
 
 	Flags |= AC_T;
 
@@ -324,7 +324,7 @@ show_today(struct user_list *users, struct utmp_list *logins, time_t secs)
 		secs += up->secs;
 		up->secs = 0;			/* for next day */
 	}
- 	if (secs)
+	if (secs)
 		(void)printf("%s %11.2f\n", date, ((double)secs / 3600));
 }
 
@@ -428,7 +428,7 @@ log_in(struct utmp_list *head, struct utmp *up)
 	if (Debug) {
 		printf("%-.*s %-.*s: %-.*s logged in", 19,
 		    ctime(&lp->usr.ut_time), sizeof (up->ut_line),
-		       up->ut_line, sizeof (up->ut_name), up->ut_name);
+		    up->ut_line, sizeof (up->ut_name), up->ut_name);
 		if (*up->ut_host)
 			printf(" (%-.*s)", sizeof (up->ut_host), up->ut_host);
 		putchar('\n');
