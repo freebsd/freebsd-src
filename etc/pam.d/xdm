@@ -1,0 +1,26 @@
+#
+# $FreeBSD$
+#
+# PAM configuration for the "xdm" service
+#
+
+# auth
+xdm	auth	required	pam_nologin.so	no_warn
+#xdm	auth	sufficient	pam_kerberosIV.so	no_warn try_first_pass
+#xdm	auth	sufficient	pam_krb5.so	no_warn try_first_pass
+#xdm	auth	sufficient	pam_ssh.so	no_warn try_first_pass
+xdm	auth	required	pam_unix.so	no_warn try_first_pass
+
+# account
+#xdm	account	required	pam_kerberosIV.so
+#xdm	account	required	pam_krb5.so
+xdm	account	required	pam_unix.so
+
+# session
+#xdm	session	required	pam_kerberosIV.so
+#xdm	session	required	pam_krb5.so
+#xdm	session	required	pam_ssh.so
+xdm	session	required	pam_unix.so
+
+# password
+xdm	password required	pam_deny.so
