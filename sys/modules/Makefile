@@ -375,7 +375,7 @@ _vinum=		vinum
 .endif
 
 .if ${MACHINE_ARCH} == "amd64"
-_ndis=		ndis
+#_ndis=		ndis
 .endif
 
 .if ${MACHINE_ARCH} == "ia64"
