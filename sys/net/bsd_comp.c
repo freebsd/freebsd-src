@@ -40,7 +40,7 @@
 /*
  * This version is for use with mbufs on BSD-derived systems.
  *
- * $Id: bsd_comp.c,v 1.6 1997/02/22 09:40:57 peter Exp $
+ * $Id: bsd_comp.c,v 1.7 1997/08/19 14:10:44 peter Exp $
  */
 
 #include <sys/param.h>
@@ -192,12 +192,6 @@ struct compressor ppp_bsd_compress = {
 #define RATIO_SCALE_LOG	8
 #define RATIO_SCALE	(1<<RATIO_SCALE_LOG)
 #define RATIO_MAX	(0x7fffffff>>RATIO_SCALE_LOG)
-
-static void bsd_clear __P((struct bsd_db *));
-static int bsd_check __P((struct bsd_db *));
-static void *bsd_alloc __P((u_char *, int, int));
-static int bsd_init __P((struct bsd_db *, u_char *, int, int, int, int,
-			 int, int));
 
 /*
  * clear the dictionary
