@@ -796,7 +796,7 @@ ti_bcopy_swap(src, dst, len, swap_type)
 	size_t tmplen;
 
 	if (len & 0x3) {
-		printf("ti_bcopy_swap: length %d isn't 32-bit aligned\n",
+		printf("ti_bcopy_swap: length %zd isn't 32-bit aligned\n",
 		       len);
 		return(-1);
 	}
