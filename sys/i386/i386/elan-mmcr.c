@@ -75,6 +75,7 @@ static struct pps_state elan_pps;
 u_int	pps_a, pps_d;
 u_int	echo_a, echo_d;
 #endif /* CPU_ELAN_PPS */
+#ifdef CPU_SOEKRIS
 u_int	led_cookie[32];
 dev_t	led_dev[32];
 
@@ -90,6 +91,7 @@ gpio_led(void *cookie, int state)
 		v ^= 0xc;
 	mmcrptr[v / 2] = u;
 }
+#endif
 
 static int
 sysctl_machdep_elan_gpio_config(SYSCTL_HANDLER_ARGS)
@@ -97,7 +99,10 @@ sysctl_machdep_elan_gpio_config(SYSCTL_HANDLER_ARGS)
 	u_int u, v;
 	int i, np, ne;
 	int error;
-	char buf[32], tmp[10];
+	char buf[32];
+#ifdef CPU_SOEKRIS
+	char tmp[10];
+#endif
 
 	error = SYSCTL_OUT(req, gpio_config, 33);
 	if (error != 0 || req->newptr == NULL)
@@ -141,11 +146,13 @@ sysctl_machdep_elan_gpio_config(SYSCTL_HANDLER_ARGS)
 			v = 2;
 		else
 			v = 0;
+#ifdef CPU_SOEKRIS
 		if (buf[i] != 'l' && buf[i] != 'L' && led_dev[i] != NULL) {
 			led_destroy(led_dev[i]);	
 			led_dev[i] = NULL;
 			mmcrptr[(0xc2a + v) / 2] &= ~u;
 		}
+#endif
 		switch (buf[i]) {
 #ifdef CPU_ELAN_PPS
 		case 'P':
@@ -165,6 +172,7 @@ sysctl_machdep_elan_gpio_config(SYSCTL_HANDLER_ARGS)
 			gpio_config[i] = buf[i];
 			break;
 #endif /* CPU_ELAN_PPS */
+#ifdef CPU_SOEKRIS
 		case 'l':
 		case 'L':
 			if (buf[i] == 'L')
@@ -179,6 +187,7 @@ sysctl_machdep_elan_gpio_config(SYSCTL_HANDLER_ARGS)
 			mmcrptr[(0xc2a + v) / 2] |= u;
 			gpio_config[i] = buf[i];
 			break;
+#endif
 		case '.':
 			gpio_config[i] = buf[i];
 			break;
