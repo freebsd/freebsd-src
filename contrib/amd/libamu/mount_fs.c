@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: mount_fs.c,v 1.11.2.5 2001/04/14 21:08:25 ezk Exp $
+ * $Id: mount_fs.c,v 1.11.2.11 2003/05/08 17:57:53 ib42 Exp $
  * $FreeBSD$
  *
  */
@@ -106,13 +106,10 @@ struct opt_tab mnt_flags[] =
   {MNTTAB_OPT_OVERLAY, MNT2_GEN_OPT_OVERLAY},
 #endif /* defined(MNT2_GEN_OPT_OVERLAY) && defined(MNTTAB_OPT_OVERLAY) */
 
-#if defined(MNT2_NFS_OPT_PROPLIST) && defined(MNTTAB_OPT_PROPLIST)
-  {MNTTAB_OPT_PROPLIST, MNT2_NFS_OPT_PROPLIST},
-#endif /* defined(MNT2_NFS_OPT_PROPLIST) && defined(MNTTAB_OPT_PROPLIST) */
-
-#if defined(MNT2_NFS_OPT_NONLM) && defined(MNTTAB_OPT_NOLOCK)
-  {MNTTAB_OPT_NOLOCK, MNT2_NFS_OPT_NONLM},
-#endif /* defined(MNT2_NFS_OPT_NONLM) && defined(MNTTAB_OPT_NOLOCK) */
+  /*
+   * Do not define MNT2_NFS_OPT_* entries here!  This is for generic
+   * mount(2) options only, not for NFS mount options.
+   */
 
   {0, 0}
 };
@@ -123,27 +120,14 @@ int
 compute_mount_flags(mntent_t *mntp)
 {
   struct opt_tab *opt;
-  int flags;
+  int flags = 0;
 
-  /* start: this must come first */
 #ifdef MNT2_GEN_OPT_NEWTYPE
   flags = MNT2_GEN_OPT_NEWTYPE;
-#else /* not MNT2_GEN_OPT_NEWTYPE */
-  /* Not all machines have MNT2_GEN_OPT_NEWTYPE (HP-UX 9.01) */
-  flags = 0;
-#endif /* not MNT2_GEN_OPT_NEWTYPE */
-
-#if defined(MNT2_GEN_OPT_OVERLAY) && defined(MNTTAB_OPT_OVERLAY)
-  /*
-   * Overlay this amd mount (presumably on another amd which died
-   * before and left the machine hung).  This will allow a new amd or
-   * hlfsd to be remounted on top of another one.
-   */
-  if (hasmntopt(mntp, MNTTAB_OPT_OVERLAY)) {
-    flags |= MNT2_GEN_OPT_OVERLAY;
-    plog(XLOG_INFO, "using an overlay mount");
-  }
-#endif /* defined(MNT2_GEN_OVERLAY) && defined(MNTOPT_OVERLAY) */
+#endif /* MNT2_GEN_OPT_NEWTYPE */
+#ifdef MNT2_GEN_OPT_AUTOMOUNTED
+  flags |= MNT2_GEN_OPT_AUTOMOUNTED;
+#endif /* not MNT2_GEN_OPT_AUTOMOUNTED */
 
   /*
    * Crack basic mount options
@@ -301,25 +285,25 @@ again:
    * Additional fields in mntent_t
    * are fixed up here
    */
-# ifdef HAVE_FIELD_MNTENT_T_MNT_CNODE
+# ifdef HAVE_MNTENT_T_MNT_CNODE
   mnt->mnt_cnode = 0;
-# endif /* HAVE_FIELD_MNTENT_T_MNT_CNODE */
+# endif /* HAVE_MNTENT_T_MNT_CNODE */
 
-# ifdef HAVE_FIELD_MNTENT_T_MNT_RO
+# ifdef HAVE_MNTENT_T_MNT_RO
   mnt->mnt_ro = (hasmntopt(mnt, MNTTAB_OPT_RO) != NULL);
-# endif /* HAVE_FIELD_MNTENT_T_MNT_RO */
+# endif /* HAVE_MNTENT_T_MNT_RO */
 
-# ifdef HAVE_FIELD_MNTENT_T_MNT_TIME
-#  ifdef HAVE_FIELD_MNTENT_T_MNT_TIME_STRING
+# ifdef HAVE_MNTENT_T_MNT_TIME
+#  ifdef HAVE_MNTENT_T_MNT_TIME_STRING
   {				/* allocate enough space for a long */
     char *str = (char *) xmalloc(13 * sizeof(char));
     sprintf(str, "%ld", time((time_t *) NULL));
     mnt->mnt_time = str;
   }
-#  else /* not HAVE_FIELD_MNTENT_T_MNT_TIME_STRING */
+#  else /* not HAVE_MNTENT_T_MNT_TIME_STRING */
   mnt->mnt_time = time((time_t *) NULL);
-#  endif /* not HAVE_FIELD_MNTENT_T_MNT_TIME_STRING */
-# endif /* HAVE_FIELD_MNTENT_T_MNT_TIME */
+#  endif /* not HAVE_MNTENT_T_MNT_TIME_STRING */
+# endif /* HAVE_MNTENT_T_MNT_TIME */
 
   write_mntent(mnt, mnttabname);
 
@@ -375,7 +359,7 @@ compute_nfs_args(nfs_args_t *nap, mntent_t *mntp, int genflags, struct sockaddr_
 	    fhp->v3.mountres3_u.mountinfo.fhandle.fhandle3_val,
 	    fh3.fh3_length);
 
-# if defined(HAVE_FIELD_NFS_ARGS_T_FHSIZE) || defined(HAVE_FIELD_NFS_ARGS_T_FH_LEN)
+# if defined(HAVE_NFS_ARGS_T_FHSIZE) || defined(HAVE_NFS_ARGS_T_FH_LEN)
     /*
      * Some systems (Irix/bsdi3) have a separate field in nfs_args for
      * the length of the file handle for NFS V3.  They insist that
@@ -383,9 +367,9 @@ compute_nfs_args(nfs_args_t *nap, mntent_t *mntp, int genflags, struct sockaddr_
      * include the length field.
      */
     NFS_FH_DREF(nap->NFS_FH_FIELD, &(fh3.fh3_u.data));
-# else /* not defined(HAVE_FIELD_NFS_ARGS_T_FHSIZE) || defined(HAVE_FIELD_NFS_ARGS_T_FH_LEN) */
+# else /* not defined(HAVE_NFS_ARGS_T_FHSIZE) || defined(HAVE_NFS_ARGS_T_FH_LEN) */
     NFS_FH_DREF(nap->NFS_FH_FIELD, &fh3);
-# endif /* not defined(HAVE_FIELD_NFS_ARGS_T_FHSIZE) || defined(HAVE_FIELD_NFS_ARGS_T_FH_LEN) */
+# endif /* not defined(HAVE_NFS_ARGS_T_FHSIZE) || defined(HAVE_NFS_ARGS_T_FH_LEN) */
 # ifdef MNT2_NFS_OPT_NFSV3
     nap->flags |= MNT2_NFS_OPT_NFSV3;
 # endif /* MNT2_NFS_OPT_NFSV3 */
@@ -396,24 +380,24 @@ compute_nfs_args(nfs_args_t *nap, mntent_t *mntp, int genflags, struct sockaddr_
 #endif /* HAVE_FS_NFS3 */
     NFS_FH_DREF(nap->NFS_FH_FIELD, &(fhp->v2.fhs_fh));
 
-#ifdef HAVE_FIELD_NFS_ARGS_T_FHSIZE
+#ifdef HAVE_NFS_ARGS_T_FHSIZE
 # ifdef HAVE_FS_NFS3
   if (nfs_version == NFS_VERSION3)
     nap->fhsize = fh3.fh3_length;
   else
 # endif /* HAVE_FS_NFS3 */
     nap->fhsize = FHSIZE;
-#endif /* HAVE_FIELD_NFS_ARGS_T_FHSIZE */
+#endif /* HAVE_NFS_ARGS_T_FHSIZE */
 
   /* this is the version of the nfs_args structure, not of NFS! */
-#ifdef HAVE_FIELD_NFS_ARGS_T_FH_LEN
+#ifdef HAVE_NFS_ARGS_T_FH_LEN
 # ifdef HAVE_FS_NFS3
   if (nfs_version == NFS_VERSION3)
     nap->fh_len = fh3.fh3_length;
   else
 # endif /* HAVE_FS_NFS3 */
     nap->fh_len = FHSIZE;
-#endif /* HAVE_FIELD_NFS_ARGS_T_FH_LEN */
+#endif /* HAVE_NFS_ARGS_T_FH_LEN */
 
   /************************************************************************/
   /***	HOST NAME							***/
@@ -441,14 +425,14 @@ compute_nfs_args(nfs_args_t *nap, mntent_t *mntp, int genflags, struct sockaddr_
 #endif /* MNTTAB_OPT_ACTIMEO */
 
   if (acval) {
-#ifdef HAVE_FIELD_NFS_ARGS_T_ACREGMIN
+#ifdef HAVE_NFS_ARGS_T_ACREGMIN
     nap->acregmin = acval;	/* min ac timeout for reg files (sec) */
     nap->acregmax = acval;	/* max ac timeout for reg files (sec) */
-#endif /* HAVE_FIELD_NFS_ARGS_T_ACREGMIN */
-#ifdef HAVE_FIELD_NFS_ARGS_T_ACDIRMIN
+#endif /* HAVE_NFS_ARGS_T_ACREGMIN */
+#ifdef HAVE_NFS_ARGS_T_ACDIRMIN
     nap->acdirmin = acval;	/* min ac timeout for dirs (sec) */
     nap->acdirmax = acval;	/* max ac timeout for dirs (sec) */
-#endif /* HAVE_FIELD_NFS_ARGS_T_ACDIRMIN */
+#endif /* HAVE_NFS_ARGS_T_ACDIRMIN */
   } else {
 #ifdef MNTTAB_OPT_ACREGMIN
     nap->acregmin = hasmntval(mntp, MNTTAB_OPT_ACREGMIN);
@@ -504,7 +488,7 @@ compute_nfs_args(nfs_args_t *nap, mntent_t *mntp, int genflags, struct sockaddr_
     nap->flags |= MNT2_NFS_OPT_TCP;
 #endif /* MNT2_NFS_OPT_TCP */
 
-#ifdef HAVE_FIELD_NFS_ARGS_T_SOTYPE
+#ifdef HAVE_NFS_ARGS_T_SOTYPE
   /* bsdi3 uses this */
   if (nfs_proto) {
     if (STREQ(nfs_proto, "tcp"))
@@ -512,9 +496,9 @@ compute_nfs_args(nfs_args_t *nap, mntent_t *mntp, int genflags, struct sockaddr_
     else if (STREQ(nfs_proto, "udp"))
       nap->sotype = SOCK_DGRAM;
   }
-#endif /* HAVE_FIELD_NFS_ARGS_T_SOTYPE */
+#endif /* HAVE_NFS_ARGS_T_SOTYPE */
 
-#ifdef HAVE_FIELD_NFS_ARGS_T_PROTO
+#ifdef HAVE_NFS_ARGS_T_PROTO
   nap->proto = 0;		/* bsdi3 sets this field to zero  */
 # ifdef IPPROTO_TCP
   if (nfs_proto) {
@@ -524,16 +508,16 @@ compute_nfs_args(nfs_args_t *nap, mntent_t *mntp, int genflags, struct sockaddr_
       nap->proto = IPPROTO_UDP;
   }
 # endif /* IPPROTO_TCP */
-#endif /* HAVE_FIELD_NFS_ARGS_T_SOTYPE */
+#endif /* HAVE_NFS_ARGS_T_SOTYPE */
 
-#ifdef HAVE_FIELD_NFS_ARGS_T_VERSION
+#ifdef HAVE_NFS_ARGS_T_VERSION
 # ifdef NFS_ARGSVERSION
   nap->version = NFS_ARGSVERSION; /* BSDI 3.0 and OpenBSD 2.2 */
 # endif /* NFS_ARGSVERSION */
 # ifdef DG_MOUNT_NFS_VERSION
   nap->version = DG_MOUNT_NFS_VERSION; /* dg-ux */
 # endif /* DG_MOUNT_NFS_VERSION */
-#endif /* HAVE_FIELD_NFS_ARGS_VERSION */
+#endif /* HAVE_NFS_ARGS_VERSION */
 
   /************************************************************************/
   /***	OTHER NFS SOCKET RELATED OPTIONS AND FLAGS			***/
@@ -715,18 +699,23 @@ compute_nfs_args(nfs_args_t *nap, mntent_t *mntp, int genflags, struct sockaddr_
     nap->flags |= MNT2_NFS_OPT_MAXGRPS;
 #endif /* defined(MNT2_NFS_OPT_MAXGRPS) && defined(MNTTAB_OPT_MAXGROUPS) */
 
-#ifdef HAVE_FIELD_NFS_ARGS_T_OPTSTR
+#if defined(MNT2_NFS_OPT_NONLM) && defined(MNTTAB_OPT_NOLOCK)
+  if (hasmntopt(mntp, MNTTAB_OPT_NOLOCK) != NULL)
+    nap->flags |= MNT2_NFS_OPT_NONLM;
+#endif /* defined(MNT2_NFS_OPT_NONLM) && defined(MNTTAB_OPT_NOLOCK) */
+
+#ifdef HAVE_NFS_ARGS_T_OPTSTR
   nap->optstr = mntp->mnt_opts;
-#endif /* HAVE_FIELD_NFS_ARGS_T_OPTSTR */
+#endif /* HAVE_NFS_ARGS_T_OPTSTR */
 
   /************************************************************************/
   /***	FINAL ACTIONS							***/
   /************************************************************************/
 
-#ifdef HAVE_FIELD_NFS_ARGS_T_GFS_FLAGS
+#ifdef HAVE_NFS_ARGS_T_GFS_FLAGS
   /* Ultrix stores generic flags in nfs_args.gfs_flags. */
   nap->gfs_flags = genflags;
-#endif /* HAVE_FIELD_NFS_ARGS_T_FLAGS */
+#endif /* HAVE_NFS_ARGS_T_FLAGS */
 
   return;			/* end of compute_nfs_args() function */
 }
@@ -864,19 +853,19 @@ print_nfs_args(const nfs_args_t *nap, u_long nfs_version)
   nbp = nap->syncaddr;
   plog(XLOG_DEBUG, "NA->syncaddr {netbuf} 0x%x", (int) nbp);
   kncp = nap->knconf;
-  plog(XLOG_DEBUG, "NA->knconf->semantics %lu", (unsigned long) kncp->knc_semantics);
+  plog(XLOG_DEBUG, "NA->knconf->semantics %lu", (u_long) kncp->knc_semantics);
   plog(XLOG_DEBUG, "NA->knconf->protofmly \"%s\"", kncp->knc_protofmly);
   plog(XLOG_DEBUG, "NA->knconf->proto \"%s\"", kncp->knc_proto);
-  plog(XLOG_DEBUG, "NA->knconf->rdev %lu", kncp->knc_rdev);
+  plog(XLOG_DEBUG, "NA->knconf->rdev %lu", (u_long) kncp->knc_rdev);
   /* don't print knconf->unused field */
 #else /* not HAVE_TRANSPORT_TYPE_TLI */
   sap = (struct sockaddr_in *) &nap->addr;
   plog(XLOG_DEBUG, "NA->addr {sockaddr_in} (len=%d) = \"%s\"",
        (int) sizeof(struct sockaddr_in),
        get_hex_string(sizeof(struct sockaddr_in), (const char *)sap));
-#ifdef HAVE_FIELD_STRUCT_SOCKADDR_SA_LEN
+#ifdef HAVE_STRUCT_SOCKADDR_SA_LEN
   plog(XLOG_DEBUG, "NA->addr.sin_len = \"%d\"", sap->sin_len);
-#endif /* HAVE_FIELD_STRUCT_SOCKADDR_SA_LEN */
+#endif /* HAVE_STRUCT_SOCKADDR_SA_LEN */
   plog(XLOG_DEBUG, "NA->addr.sin_family = \"%d\"", sap->sin_family);
   plog(XLOG_DEBUG, "NA->addr.sin_port = \"%d\"", sap->sin_port);
   plog(XLOG_DEBUG, "NA->addr.sin_addr = \"%s\"",
@@ -884,22 +873,22 @@ print_nfs_args(const nfs_args_t *nap, u_long nfs_version)
 #endif /* not HAVE_TRANSPORT_TYPE_TLI */
 
   plog(XLOG_DEBUG, "NA->hostname = \"%s\"", nap->hostname ? nap->hostname : "null");
-#ifdef HAVE_FIELD_NFS_ARGS_T_NAMLEN
+#ifdef HAVE_NFS_ARGS_T_NAMLEN
   plog(XLOG_DEBUG, "NA->namlen = %d", nap->namlen);
-#endif /* HAVE_FIELD_NFS_ARGS_T_NAMLEN */
+#endif /* HAVE_NFS_ARGS_T_NAMLEN */
 
 #ifdef MNT2_NFS_OPT_FSNAME
   plog(XLOG_DEBUG, "NA->fsname = \"%s\"", nap->fsname ? nap->fsname : "null");
 #endif /* MNT2_NFS_OPT_FSNAME */
 
-#ifdef HAVE_FIELD_NFS_ARGS_T_FHSIZE
+#ifdef HAVE_NFS_ARGS_T_FHSIZE
   plog(XLOG_DEBUG, "NA->fhsize = %d", nap->fhsize);
   fhlen = nap->fhsize;
-#endif /* HAVE_FIELD_NFS_ARGS_T_FHSIZE */
-#ifdef HAVE_FIELD_NFS_ARGS_T_FH_LEN
+#endif /* HAVE_NFS_ARGS_T_FHSIZE */
+#ifdef HAVE_NFS_ARGS_T_FH_LEN
   plog(XLOG_DEBUG, "NA->fh_len = %d", nap->fh_len);
   fhlen = nap->fh_len;
-#endif /* HAVE_FIELD_NFS_ARGS_T_FH_LEN */
+#endif /* HAVE_NFS_ARGS_T_FH_LEN */
 
   /*
    * XXX: need to figure out how to correctly print file handles,
@@ -910,32 +899,32 @@ print_nfs_args(const nfs_args_t *nap, u_long nfs_version)
   plog(XLOG_DEBUG, "NA->filehandle = \"%s\"",
        get_hex_string(fhlen, (const char *) &nap->NFS_FH_FIELD));
 
-#ifdef HAVE_FIELD_NFS_ARGS_T_SOTYPE
+#ifdef HAVE_NFS_ARGS_T_SOTYPE
   plog(XLOG_DEBUG, "NA->sotype = %d", nap->sotype);
-#endif /* HAVE_FIELD_NFS_ARGS_T_SOTYPE */
-#ifdef HAVE_FIELD_NFS_ARGS_T_PROTO
+#endif /* HAVE_NFS_ARGS_T_SOTYPE */
+#ifdef HAVE_NFS_ARGS_T_PROTO
   plog(XLOG_DEBUG, "NA->proto = %d", (int) nap->proto);
-#endif /* HAVE_FIELD_NFS_ARGS_T_PROTO */
-#ifdef HAVE_FIELD_NFS_ARGS_T_VERSION
+#endif /* HAVE_NFS_ARGS_T_PROTO */
+#ifdef HAVE_NFS_ARGS_T_VERSION
   plog(XLOG_DEBUG, "NA->version = %d", nap->version);
-#endif /* HAVE_FIELD_NFS_ARGS_T_VERSION */
+#endif /* HAVE_NFS_ARGS_T_VERSION */
 
   plog(XLOG_DEBUG, "NA->flags = 0x%x", (int) nap->flags);
 
   plog(XLOG_DEBUG, "NA->rsize = %d", (int) nap->rsize);
   plog(XLOG_DEBUG, "NA->wsize = %d", (int) nap->wsize);
-#ifdef HAVE_FIELD_NFS_ARGS_T_BSIZE
+#ifdef HAVE_NFS_ARGS_T_BSIZE
   plog(XLOG_DEBUG, "NA->bsize = %d", nap->bsize);
-#endif /* HAVE_FIELD_NFS_ARGS_T_BSIZE */
+#endif /* HAVE_NFS_ARGS_T_BSIZE */
   plog(XLOG_DEBUG, "NA->timeo = %d", (int) nap->timeo);
   plog(XLOG_DEBUG, "NA->retrans = %d", (int) nap->retrans);
 
-#ifdef HAVE_FIELD_NFS_ARGS_T_ACREGMIN
+#ifdef HAVE_NFS_ARGS_T_ACREGMIN
   plog(XLOG_DEBUG, "NA->acregmin = %d", (int) nap->acregmin);
   plog(XLOG_DEBUG, "NA->acregmax = %d", (int) nap->acregmax);
   plog(XLOG_DEBUG, "NA->acdirmin = %d", (int) nap->acdirmin);
   plog(XLOG_DEBUG, "NA->acdirmax = %d", (int) nap->acdirmax);
-#endif /* HAVE_FIELD_NFS_ARGS_T_ACREGMIN */
+#endif /* HAVE_NFS_ARGS_T_ACREGMIN */
 #ifdef MNTTAB_OPT_SYMTTL
   plog(XLOG_DEBUG, "NA->symttl = %d", nap->symttl);
 #endif /* MNTTAB_OPT_SYMTTL */

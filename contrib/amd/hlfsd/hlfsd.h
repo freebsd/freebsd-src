@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: hlfsd.h,v 1.4.2.2 2001/01/12 22:47:21 ro Exp $
+ * $Id: hlfsd.h,v 1.4.2.6 2002/12/27 22:45:08 ezk Exp $
  * $FreeBSD$
  *
  * HLFSD was written at Columbia University Computer Science Department, by
@@ -53,7 +53,7 @@
  * MACROS AND CONSTANTS:
  */
 
-#define HLFSD_VERSION	"hlfsd 1.1 (1993-2001)"
+#define HLFSD_VERSION	"hlfsd 1.2 (1993-2002)"
 #define PERS_SPOOLMODE	0755
 #define OPEN_SPOOLMODE	01777
 #define DOTSTRING	"."
@@ -139,7 +139,7 @@ extern SVCXPRT *nfs_program_2_transp;	/* For quick_reply() */
 extern SVCXPRT *nfsxprt;
 extern char *alt_spooldir;
 extern char *home_subdir;
-extern char *homedir(int);
+extern char *homedir(int, int);
 extern char *mailbox(int, char *);
 extern char *passwdfile;
 extern char *slinkname;
