@@ -46,7 +46,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: moused.c,v 1.4.2.3 1997/09/29 06:36:13 charnier Exp $";
+	"$Id: moused.c,v 1.4.2.4 1998/01/20 03:52:44 yokota Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -123,27 +123,6 @@ static const char rcsid[] =
 	else							\
 	    warnx(fmt, ##args);					\
 }
-
-/* The following macros are defined in <sys/time.h> in 3.0-CURRENT. */
-
-#define timeradd(tvp, uvp, vvp)					\
-	do {								\
-		(vvp)->tv_sec = (tvp)->tv_sec + (uvp)->tv_sec;		\
-		(vvp)->tv_usec = (tvp)->tv_usec + (uvp)->tv_usec;	\
-		if ((vvp)->tv_usec >= 1000000) {			\
-			(vvp)->tv_sec++;				\
-			(vvp)->tv_usec -= 1000000;			\
-		}							\
-	} while (0)
-#define timersub(tvp, uvp, vvp)					\
-	do {								\
-		(vvp)->tv_sec = (tvp)->tv_sec - (uvp)->tv_sec;		\
-		(vvp)->tv_usec = (tvp)->tv_usec - (uvp)->tv_usec;	\
-		if ((vvp)->tv_usec < 0) {				\
-			(vvp)->tv_sec--;				\
-			(vvp)->tv_usec += 1000000;			\
-		}							\
-	} while (0)
 
 /* structures */
 
@@ -231,10 +210,12 @@ static symtab_t pnpprod[] = {
     { "MSH0001",	MOUSE_PROTO_INTELLI,	MOUSE_MODEL_INTELLI },
     /* MS IntelliMouse TrackBall */
     { "MSH0004",	MOUSE_PROTO_INTELLI,	MOUSE_MODEL_INTELLI },
-    /* Genius EZScroll */
-    { "KYEEZ00",	MOUSE_PROTO_MS,		MOUSE_MODEL_EASYSCROLL },  
+    /* Genius PnP Mouse */
+    { "KYE0001",	MOUSE_PROTO_MS,		MOUSE_MODEL_GENERIC },
     /* Genius NetMouse */
     { "KYE0003",	MOUSE_PROTO_INTELLI,	MOUSE_MODEL_NET },
+    /* Genius EZScroll */
+    { "KYEEZ00",	MOUSE_PROTO_MS,		MOUSE_MODEL_EASYSCROLL },  
     /* Logitech MouseMan (new 4 button model) */
     { "LGI800C",	MOUSE_PROTO_INTELLI,	MOUSE_MODEL_MOUSEMANPLUS },
     /* Logitech MouseMan+ */
@@ -824,7 +805,7 @@ static unsigned char proto[][7] = {
     {	0xf8,	0x80,	0x00,	0x00,	5,    0x00,  0xff }, /* MouseSystems */
     {	0xe0,	0x80,	0x80,	0x00,	3,    0x00,  0xff }, /* Logitech */
     {	0xe0,	0x80,	0x80,	0x00,	3,    0x00,  0xff }, /* MMSeries */
-    { 	0x40,	0x40,	0x40,	0x00,	3,   ~0x23,  0x00 }, /* MouseMan */
+    { 	0x40,	0x40,	0x40,	0x00,	3,   ~0x33,  0x00 }, /* MouseMan */
     {	0xf8,	0x80,	0x00,	0x00,	5,    0x00,  0xff }, /* Bus */
     {	0xf8,	0x80,	0x00,	0x00,	5,    0x00,  0xff }, /* InPort */
     {	0xc0,	0x00,	0x00,	0x00,	3,    0x00,  0xff }, /* PS/2 mouse */
@@ -1357,12 +1338,13 @@ r_protocol(u_char rBuf, mousestatus_t *act)
     {
     case MOUSE_PROTO_MS:		/* Microsoft */
     case MOUSE_PROTO_LOGIMOUSEMAN:	/* MouseMan/TrackMan */
+	act->button = act->obutton & MOUSE_BUTTON4DOWN;
 	if (rodent.flags & ChordMiddle)
-	    act->button = ((pBuf[0] & MOUSE_MSS_BUTTONS) == MOUSE_MSS_BUTTONS)
+	    act->button |= ((pBuf[0] & MOUSE_MSS_BUTTONS) == MOUSE_MSS_BUTTONS)
 		? MOUSE_BUTTON2DOWN 
 		: butmapmss[(pBuf[0] & MOUSE_MSS_BUTTONS) >> 4];
 	else
-	    act->button = (act->obutton & MOUSE_BUTTON2DOWN)
+	    act->button |= (act->obutton & MOUSE_BUTTON2DOWN)
 		| butmapmss[(pBuf[0] & MOUSE_MSS_BUTTONS) >> 4];
 	act->dx = (char)(((pBuf[0] & 0x03) << 6) | (pBuf[1] & 0x3F));
 	act->dy = (char)(((pBuf[0] & 0x0C) << 4) | (pBuf[2] & 0x3F));
