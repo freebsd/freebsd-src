@@ -29,6 +29,7 @@
 int chn_reinit(pcm_channel *c);
 int chn_write(pcm_channel *c, struct uio *buf);
 int chn_read(pcm_channel *c, struct uio *buf);
+u_int32_t chn_start(pcm_channel *c, int force);
 int chn_sync(pcm_channel *c, int threshold);
 int chn_flush(pcm_channel *c);
 int chn_poll(pcm_channel *c, int ev, struct proc *p);

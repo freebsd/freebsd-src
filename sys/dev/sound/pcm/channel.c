@@ -43,7 +43,6 @@ static void buf_clear(snd_dbuf *b, u_int32_t fmt, int length);
 static void chn_dmaupdate(pcm_channel *c);
 static void chn_wrintr(pcm_channel *c);
 static void chn_rdintr(pcm_channel *c);
-static u_int32_t chn_start(pcm_channel *c);
 static int chn_buildfeeder(pcm_channel *c);
 /*
  * SOUND OUTPUT
@@ -489,7 +488,7 @@ chn_write(pcm_channel *c, struct uio *buf)
 
 	/* Start playing if not yet. */
 	if (!b->dl)
-		chn_start(c);
+		chn_start(c, 0);
 
 	if (ret == 0) {
 		count = hz;
@@ -758,7 +757,7 @@ chn_read(pcm_channel *c, struct uio *buf)
 
 	/* Start capturing if not yet. */
   	if ((!bs->rl || !b->rl) && !b->dl)
-		chn_start(c);
+		chn_start(c, 0);
 
   	if (!(c->flags & CHN_F_NBIO)) {
 		count = hz;
@@ -815,23 +814,23 @@ chn_intr(pcm_channel *c)
 }
 
 u_int32_t
-chn_start(pcm_channel *c)
+chn_start(pcm_channel *c, int force)
 {
 	u_int32_t r, s;
 	snd_dbuf *b = &c->buffer;
 
 	r = 0;
 	s = spltty();
-    	if (b->dl == 0 && !(c->flags & (CHN_F_MAPPED | CHN_F_NOTRIGGER))) {
+    	if (b->dl == 0 && !(c->flags & CHN_F_NOTRIGGER)) {
 		if (c->direction == PCMDIR_PLAY) {
-			/* Fill up the DMA buffer. */
-			while (chn_wrfeed(c) > 0);
-			if (b->rl >= b->blksz)
+			if (!(c->flags & CHN_F_MAPPED))
+				while (chn_wrfeed(c) > 0); /* Fill up the DMA buffer. */
+			if (force || (b->rl >= b->blksz))
 				r = CHN_F_TRIGGERED;
 		} else {
-			/* Suck up the DMA buffer. */
-			while (chn_rdfeed(c) > 0);
-			if (b->fl >= b->blksz)
+			if (!(c->flags & CHN_F_MAPPED))
+				while (chn_rdfeed(c) > 0); /* Suck up the DMA buffer. */
+			if (force || (b->fl >= b->blksz))
 				r = CHN_F_TRIGGERED;
 		}
 		c->flags |= r;
@@ -1021,7 +1020,7 @@ chn_poll(pcm_channel *c, int ev, struct proc *p)
 			while (chn_rdfeed(c) > 0);
 		}
 		if (!b->dl)
-			chn_start(c);
+			chn_start(c, 1);
 	}
 	ret = 0;
 	if (chn_polltrigger(c) && chn_pollreset(c))
@@ -1111,7 +1110,6 @@ fmtvalid(u_int32_t fmt, u_int32_t *fmtlist)
 	for (i = 0; fmtlist[i]; i++)
 		if (fmt == fmtlist[i])
 			return 1;
-
 	return 0;
 }
 
@@ -1122,6 +1120,8 @@ chn_reset(pcm_channel *c, u_int32_t fmt)
 
 	chn_abort(c);
 	c->flags &= CHN_F_RESET;
+	if (c->reset)
+		c->reset(c->devinfo);
 	r = chn_setblocksize(c, CHN_2NDBUFBLKNUM, CHN_2NDBUFBLKSIZE);
 	if (r)
 		return r;
@@ -1134,6 +1134,8 @@ chn_reset(pcm_channel *c, u_int32_t fmt)
 			r = chn_setvolume(c, 100, 100);
 	}
 	chn_resetbuf(c);
+	if (c->resetdone)
+		c->resetdone(c->devinfo);
 	/* c->flags |= CHN_F_INIT; */
 	return 0;
 }
