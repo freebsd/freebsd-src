@@ -771,11 +771,6 @@ readrest:
 		vm_prot_t retry_prot;
 
 		/*
-		 * Since map entries may be pageable, make sure we can take a
-		 * page fault on them.
-		 */
-
-		/*
 		 * Unlock vnode before the lookup to avoid deadlock.   E.G.
 		 * avoid a deadlock between the inode and exec_map that can
 		 * occur due to locks being obtained in different orders.
@@ -890,13 +885,13 @@ readrest:
 		vm_page_zero_invalid(fs.m, TRUE);
 		printf("Warning: page %p partially invalid on fault\n", fs.m);
 	}
-	unlock_things(&fs);
+	VM_OBJECT_UNLOCK(fs.object);
 
 	pmap_enter(fs.map->pmap, vaddr, fs.m, prot, wired);
 	if (((fault_flags & VM_FAULT_WIRE_MASK) == 0) && (wired == 0)) {
 		vm_fault_prefault(fs.map->pmap, vaddr, fs.entry);
 	}
-	mtx_unlock(&Giant);
+	VM_OBJECT_LOCK(fs.object);
 	vm_page_lock_queues();
 	vm_page_flag_set(fs.m, PG_REFERENCED);
 
@@ -915,6 +910,10 @@ readrest:
 	vm_page_wakeup(fs.m);
 	vm_page_unlock_queues();
 
+	/*
+	 * Unlock everything, and return
+	 */
+	unlock_and_deallocate(&fs);
 	PROC_LOCK(curproc);
 	if ((curproc->p_sflag & PS_INMEM) && curproc->p_stats) {
 		if (hardfault) {
@@ -925,10 +924,6 @@ readrest:
 	}
 	PROC_UNLOCK(curproc);
 
-	/*
-	 * Unlock everything, and return
-	 */
-	vm_object_deallocate(fs.first_object);
 	return (KERN_SUCCESS);
 }
 
