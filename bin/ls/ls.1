@@ -358,6 +358,14 @@ or
 .Xr sticky 8 . )
 .El
 .El
+.Sh EXAMPLES
+The following is how to do an
+.Nm
+listing sorted by size (and shows why
+.Nm
+does not need this functionality.
+.Pp
+.Dl "% ls -l | sort [-r] -n +4"
 .Sh DIAGNOSTICS
 The
 .Nm
@@ -525,6 +533,7 @@ specification.
 .Sh SEE ALSO
 .Xr chflags 1 ,
 .Xr chmod 1 ,
+.Xr sort 1 ,
 .Xr xterm 1 ,
 .Xr termcap 5 ,
 .Xr symlink 7 ,
