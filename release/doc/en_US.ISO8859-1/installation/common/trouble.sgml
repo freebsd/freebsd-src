@@ -38,7 +38,7 @@
           after installing &os;, the kernel loads and probes my
           hardware, but stops with messages like:</para>
 
-          <screen>changing root device to wd1s1a panic: cannot mount root</screen>
+          <screen>changing root device to ad1s1a panic: cannot mount root</screen>
           <para>What is wrong?  What can I do?</para>
 
           <para>What is this
