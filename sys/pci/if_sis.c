@@ -128,7 +128,7 @@ static void sis_start		(struct ifnet *);
 static void sis_startl		(struct ifnet *);
 static int sis_ioctl		(struct ifnet *, u_long, caddr_t);
 static void sis_init		(void *);
-static void sis_initl		(void *);
+static void sis_initl		(struct sis_softc *);
 static void sis_stop		(struct sis_softc *);
 static void sis_watchdog		(struct ifnet *);
 static void sis_shutdown		(device_t);
@@ -828,15 +828,13 @@ sis_miibus_writereg(dev, phy, reg, data)
 }
 
 static void
-sis_miibus_statchg(dev)
-	device_t		dev;
+sis_miibus_statchg(device_t dev)
 {
 	struct sis_softc	*sc;
 
 	sc = device_get_softc(dev);
-	sis_init(sc);
-
-	return;
+	SIS_LOCK_ASSERT(sc);
+	sis_initl(sc);
 }
 
 static u_int32_t
@@ -971,8 +969,7 @@ sis_setmulti_sis(sc)
 }
 
 static void
-sis_reset(sc)
-	struct sis_softc	*sc;
+sis_reset(struct sis_softc *sc)
 {
 	int		i;
 
@@ -1817,6 +1814,7 @@ sis_intr(arg)
 	CSR_WRITE_4(sc, SIS_IER, 0);
 
 	for (;;) {
+		SIS_LOCK_ASSERT(sc);
 		/* Reading the ISR register clears all interrupts. */
 		status = CSR_READ_4(sc, SIS_ISR);
 
@@ -1940,8 +1938,7 @@ sis_encap(sc, m_head, txidx)
  */
 
 static void
-sis_start(ifp)
-	struct ifnet		*ifp;
+sis_start(struct ifnet *ifp)
 {
 	struct sis_softc	*sc;
 
@@ -2009,15 +2006,14 @@ sis_init(void *xsc)
 	struct sis_softc	*sc = xsc;
 
 	SIS_LOCK(sc);
-	sis_initl(xsc);
+	sis_initl(sc);
 	SIS_UNLOCK(sc);
 }
 	
 
 static void
-sis_initl(void *xsc)
+sis_initl(struct sis_softc *sc)
 {
-	struct sis_softc	*sc = xsc;
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
 	struct mii_data		*mii;
 
@@ -2292,8 +2288,11 @@ sis_ioctl(ifp, command, data)
 		if (ifp->if_flags & IFF_UP) {
 			sis_init(sc);
 		} else {
-			if (ifp->if_flags & IFF_RUNNING)
+			if (ifp->if_flags & IFF_RUNNING) {
+				SIS_LOCK(sc);
 				sis_stop(sc);
+				SIS_UNLOCK(sc);
+			}
 		}
 		error = 0;
 		break;
@@ -2347,8 +2346,6 @@ sis_watchdog(ifp)
 		sis_startl(ifp);
 
 	SIS_UNLOCK(sc);
-
-	return;
 }
 
 /*
@@ -2364,7 +2361,7 @@ sis_stop(sc)
 
 	if (sc->sis_stopped)
 		return;
-	SIS_LOCK(sc);
+	SIS_LOCK_ASSERT(sc);
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_timer = 0;
 
@@ -2417,9 +2414,6 @@ sis_stop(sc)
 		sizeof(sc->sis_tx_list));
 
 	sc->sis_stopped = 1;
-	SIS_UNLOCK(sc);
-
-	return;
 }
 
 /*
@@ -2427,8 +2421,7 @@ sis_stop(sc)
  * get confused by errant DMAs when rebooting.
  */
 static void
-sis_shutdown(dev)
-	device_t		dev;
+sis_shutdown(device_t dev)
 {
 	struct sis_softc	*sc;
 
@@ -2437,6 +2430,4 @@ sis_shutdown(dev)
 	sis_reset(sc);
 	sis_stop(sc);
 	SIS_UNLOCK(sc);
-
-	return;
 }
