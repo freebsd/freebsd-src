@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.143.2.13 1998/02/01 06:10:09 steve Exp $
+#	$Id: Makefile,v 1.143.2.14 1998/02/01 13:28:38 brian Exp $
 
 # -rw-r--r--
 BINOWN= root
@@ -63,6 +63,7 @@ distribution:
 	( cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap ); \
 	( cd ${.CURDIR}/../usr.sbin/rmt; ${MAKE} etc-rmt ); \
 	( cd ${.CURDIR}/../usr.sbin/sendmail/cf/cf; ${MAKE} etc-sendmail.cf ); \
+	( cd ${.CURDIR}/../sys/i386/boot/biosboot; ${MAKE} install-boothelp ); \
 	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
 	     MAKEDEV.local etc.${MACHINE}/MAKEDEV ${DESTDIR}/dev )
