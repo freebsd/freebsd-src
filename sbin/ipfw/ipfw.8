@@ -20,7 +20,7 @@
 .Oc
 .Op Fl U Ar macro
 .Oc
-.Ar file
+.Ar pathname
 .Nm ipfw
 .Op Fl f | q
 .Cm flush
@@ -207,8 +207,10 @@ To ease configuration, rules can be put into a file which is
 processed using
 .Nm
 as shown in the first synopsis line.
-The
-.Ar file
+An absolute
+.Ar pathname
+must be used.
+The file
 will be read line by line and applied as arguments to the
 .Nm
 utility.
@@ -216,7 +218,7 @@ utility.
 Optionally, a preprocessor can be specified using
 .Fl p Ar preproc
 where
-.Ar file
+.Ar pathname
 is to be piped through.
 Useful preprocessors include
 .Xr cpp 1
