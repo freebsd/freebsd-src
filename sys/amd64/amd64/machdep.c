@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.298 1998/06/03 07:56:59 bde Exp $
+ *	$Id: machdep.c,v 1.299 1998/06/07 17:10:01 dfr Exp $
  */
 
 #include "apm.h"
@@ -210,6 +210,9 @@ vm_offset_t clean_sva, clean_eva;
 static vm_offset_t pager_sva, pager_eva;
 #ifdef NETISR
 extern struct linker_set netisr_set;
+#endif
+#if NNPX > 0
+extern struct isa_driver npxdriver;
 #endif
 
 #define offsetof(type, member)	((size_t)(&((type *)0)->member))

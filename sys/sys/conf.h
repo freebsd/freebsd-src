@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.39 1998/02/13 12:46:28 phk Exp $
+ * $Id: conf.h,v 1.40 1998/06/07 17:12:57 dfr Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -285,7 +285,5 @@ int	iskmemdev __P((dev_t dev));
 int	iszerodev __P((dev_t dev));
 void	setconf __P((void));
 #endif /* KERNEL */
-
-#include <machine/conf.h>
 
 #endif /* !_SYS_CONF_H_ */
