@@ -1,6 +1,8 @@
 /*-
- * Copyright (c) 1997, 1998
+ * Copyright (c) 1997, 1998, 1999
  *	Nan Yang Computer Services Limited.  All rights reserved.
+ *
+ *  Written by Greg Lehey
  *
  *  This software is distributed under the so-called ``Berkeley
  *  License'':
@@ -33,7 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumutil.c,v 1.11 1999/03/19 06:50:44 grog Exp grog $
+ * $Id: vinumutil.c,v 1.12 1999/05/15 04:44:24 grog Exp grog $
  */
 
 /* This file contains utility routines used both in kernel and user context */
@@ -169,7 +171,10 @@ VolState(char *text)
  *
  * The scale factors are:
  *
- * b    blocks (of 512 bytes)
+ * s    sectors (of 512 bytes)
+ * b    blocks (of 512 bytes).  This unit is deprecated,
+ *      because it's confusing, but maintained to avoid
+ *      confusing Veritas users.
  * k    kilobytes (1024 bytes)
  * m    megabytes (of 1024 * 1024 bytes)
  * g    gigabytes (of 1024 * 1024 * 1024 bytes)
