@@ -116,6 +116,7 @@ struct tty {
 
 	struct mtx t_mtx;
 	int	t_refcnt;
+	int	t_hotchar;		/* linedisc preferred hot char */
 };
 
 #define	t_cc		t_termios.c_cc

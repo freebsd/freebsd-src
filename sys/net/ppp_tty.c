@@ -148,8 +148,7 @@ void		pppasyncdetach(void);
 
 static struct linesw pppdisc = {
 	pppopen,	pppclose,	pppread,	pppwrite,
-	ppptioctl,	pppinput,	pppstart,	ttymodem,
-	PPP_FLAG
+	ppptioctl,	pppinput,	pppstart,	ttymodem
 };
 
 void
@@ -185,13 +184,7 @@ pppopen(dev, tp)
 
     s = spltty();
 
-    if (tp->t_line == PPPDISC) {
-	sc = (struct ppp_softc *) tp->t_sc;
-	if (sc != NULL && sc->sc_devp == (void *) tp) {
-	    splx(s);
-	    return (0);
-	}
-    }
+    tp->t_hotchar = PPP_FLAG;
 
     if ((sc = pppalloc(td->td_proc->p_pid)) == NULL) {
 	splx(s);
@@ -254,7 +247,6 @@ pppclose(tp, flag)
     ttyflush(tp, FREAD | FWRITE);
     clist_free_cblocks(&tp->t_canq);
     clist_free_cblocks(&tp->t_outq);
-    tp->t_line = 0;
     sc = (struct ppp_softc *) tp->t_sc;
     if (sc != NULL) {
 	tp->t_sc = NULL;

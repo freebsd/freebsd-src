@@ -66,7 +66,6 @@ struct linesw {
 	l_rint_t	*l_rint;
 	l_start_t	*l_start;
 	l_modem_t	*l_modem;
-	u_char		l_hotchar;
 };
 
 extern struct linesw *linesw[];
