@@ -214,7 +214,7 @@ numlabels(row)
 	char tmpstr[10];
 
 #define COLWIDTH	17
-#define DRIVESPERLINE	((wnd->maxx - INSET) / COLWIDTH)
+#define DRIVESPERLINE	((wnd->_maxx - INSET) / COLWIDTH)
 	for (ndrives = 0, i = 0; i < num_devices; i++)
 		if (dev_select[i].selected)
 			ndrives++;
@@ -222,7 +222,7 @@ numlabels(row)
 	/*
 	 * Deduct -regions for blank line after each scrolling region.
 	 */
-	linesperregion = (wnd->maxy - row - regions) / regions;
+	linesperregion = (wnd->_maxy - row - regions) / regions;
 	/*
 	 * Minimum region contains space for two
 	 * label lines and one line of statistics.
@@ -232,9 +232,9 @@ numlabels(row)
 	col = INSET;
 	for (i = 0; i < num_devices; i++)
 		if (dev_select[i].selected) {
-			if (col + COLWIDTH >= wnd->maxx - INSET) {
+			if (col + COLWIDTH >= wnd->_maxx - INSET) {
 				col = INSET, row += linesperregion + 1;
-				if (row > wnd->maxy - (linesperregion + 1))
+				if (row > wnd->_maxy - (linesperregion + 1))
 					break;
 			}
 			sprintf(tmpstr, "%s%d", dev_select[i].device_name,
@@ -260,7 +260,7 @@ barlabels(row)
 	linesperregion = 2 + kbpt;
 	for (i = 0; i < num_devices; i++)
 		if (dev_select[i].selected) {
-			if (row > wnd->maxy - linesperregion)
+			if (row > wnd->_maxy - linesperregion)
 				break;
 			sprintf(tmpstr, "%s%d", dev_select[i].device_name,
 				dev_select[i].unit_number);
@@ -296,7 +296,7 @@ showiostat()
 		row += 2;
 		for (i = 0; i < num_devices; i++)
 			if (dev_select[i].selected) {
-				if (row > wnd->maxy - linesperregion)
+				if (row > wnd->_maxy - linesperregion)
 					break;
 				row = devstats(row, INSET, i);
 			}
@@ -309,9 +309,9 @@ showiostat()
 	winsertln(wnd);
 	for (i = 0; i < num_devices; i++)
 		if (dev_select[i].selected) {
-			if (col + COLWIDTH >= wnd->maxx - INSET) {
+			if (col + COLWIDTH >= wnd->_maxx - INSET) {
 				col = INSET, row += linesperregion + 1;
-				if (row > wnd->maxy - (linesperregion + 1))
+				if (row > wnd->_maxy - (linesperregion + 1))
 					break;
 				wmove(wnd, row + linesperregion, 0);
 				wdeleteln(wnd);
