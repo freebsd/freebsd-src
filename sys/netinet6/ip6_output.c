@@ -1399,6 +1399,7 @@ ip6_ctloutput(so, sopt)
 			case IPV6_CHECKSUM:
 			case IPV6_FAITH:
 			case IPV6_BINDV6ONLY:
+			case IPV6_PORTRANGE:
 				switch (optname) {
 
 				case IPV6_UNICAST_HOPS:
