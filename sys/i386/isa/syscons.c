@@ -878,7 +878,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		/* process button presses */
 		if (cur_console->mouse_buttons != mouse->u.data.buttons) {
 		    cur_console->mouse_buttons = mouse->u.data.buttons;
-		    if (!(scp->status & UNKNOWN_MODE)) {
+		    if (!(cur_console->status & UNKNOWN_MODE)) {
 			if (cur_console->mouse_buttons & LEFT_BUTTON)
 			    mouse_cut_start(cur_console);
 			else
