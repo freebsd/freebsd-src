@@ -716,7 +716,7 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 
 	    /* Perform shmctl wanting removed segments lookup */
 	    error = kern_shmctl(td, args->shmid, IPC_INFO,
-	        (void *)&bsd_shminfo, &bufsz, 1);
+	        (void *)&bsd_shminfo, &bufsz);
 	    if (error)
 		return error;
 	
@@ -731,7 +731,7 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 
 	    /* Perform shmctl wanting removed segments lookup */
 	    error = kern_shmctl(td, args->shmid, SHM_INFO,
-	        (void *)&bsd_shm_info, &bufsz, 1);
+	        (void *)&bsd_shm_info, &bufsz);
 	    if (error)
 		return error;
 
@@ -744,7 +744,7 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 	case LINUX_IPC_STAT:
 	    /* Perform shmctl wanting removed segments lookup */
 	    error = kern_shmctl(td, args->shmid, IPC_STAT,
-	        (void *)&bsd_shmid, &bufsz, 1);
+	        (void *)&bsd_shmid, &bufsz);
 	    if (error)
 		return error;
 		
@@ -756,7 +756,7 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
     case LINUX_SHM_STAT:
 	/* Perform shmctl wanting removed segments lookup */
 	error = kern_shmctl(td, args->shmid, IPC_STAT,
-	    (void *)&bsd_shmid, &bufsz, 1);
+	    (void *)&bsd_shmid, &bufsz);
 	if (error)
 		return error;
 		
@@ -775,7 +775,7 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 
 	/* Perform shmctl wanting removed segments lookup */
 	return kern_shmctl(td, args->shmid, IPC_SET,
-	    (void *)&bsd_shmid, &bufsz, 1);
+	    (void *)&bsd_shmid, &bufsz);
 
     case LINUX_IPC_RMID: {
 	void *buf;
@@ -790,7 +790,7 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 		linux_to_bsd_shmid_ds(&linux_shmid, &bsd_shmid);
 		buf = (void *)&bsd_shmid;
 	}
-	return kern_shmctl(td, args->shmid, IPC_RMID, buf, &bufsz, 1);
+	return kern_shmctl(td, args->shmid, IPC_RMID, buf, &bufsz);
     }
 
     case LINUX_SHM_LOCK:
