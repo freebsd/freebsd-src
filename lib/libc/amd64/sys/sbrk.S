@@ -42,13 +42,13 @@ __FBSDID("$FreeBSD$");
 
 #include "SYS.h"
 
-	.globl	CNAME(end)
+	.globl	CNAME(_end)
 	.globl	HIDENAME(minbrk)
 	.globl	HIDENAME(curbrk)
 
 	.data
-HIDENAME(minbrk):	.long	CNAME(end)
-HIDENAME(curbrk):	.long	CNAME(end)
+HIDENAME(minbrk):	.long	CNAME(_end)
+HIDENAME(curbrk):	.long	CNAME(_end)
 	.text
 
 ENTRY(sbrk)
