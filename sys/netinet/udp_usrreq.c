@@ -689,7 +689,8 @@ udp_output(inp, m, addr, control, td)
 	register struct udpiphdr *ui;
 	register int len = m->m_pkthdr.len;
 	struct in_addr faddr, laddr;
-	struct sockaddr_in *sin;
+	struct cmsghdr *cm;
+	struct sockaddr_in *sin, src;
 	int error = 0;
 	u_short fport, lport;
 
@@ -697,16 +698,73 @@ udp_output(inp, m, addr, control, td)
 	mac_create_mbuf_from_socket(inp->inp_socket, m);
 #endif
 
-	if (control)
-		m_freem(control);		/* XXX */
-
 	if (len + sizeof(struct udpiphdr) > IP_MAXPACKET) {
 		error = EMSGSIZE;
+		if (control)
+			m_freem(control);
 		goto release;
 	}
 
+	src.sin_addr.s_addr = INADDR_ANY;
+	if (control != NULL) {
+		/*
+		 * XXX: Currently, we assume all the optional information
+		 * is stored in a single mbuf.
+		 */
+		if (control->m_next) {
+			error = EINVAL;
+			m_freem(control);
+			goto release;
+		}
+		for (; control->m_len > 0;
+		    control->m_data += CMSG_ALIGN(cm->cmsg_len),
+		    control->m_len -= CMSG_ALIGN(cm->cmsg_len)) {
+			cm = mtod(control, struct cmsghdr *);
+			if (control->m_len < sizeof(*cm) || cm->cmsg_len == 0 ||
+			    cm->cmsg_len > control->m_len) {
+				error = EINVAL;
+				break;
+			}
+			if (cm->cmsg_level != IPPROTO_IP)
+				continue;
+
+			switch (cm->cmsg_type) {
+			case IP_SENDSRCADDR:
+				if (cm->cmsg_len !=
+				    CMSG_LEN(sizeof(struct in_addr))) {
+					error = EINVAL;
+					break;
+				}
+				bzero(&src, sizeof(src));
+				src.sin_family = AF_INET;
+				src.sin_len = sizeof(src);
+				src.sin_port = inp->inp_lport;
+				src.sin_addr = *(struct in_addr *)CMSG_DATA(cm);
+				break;
+			default:
+				error = ENOPROTOOPT;
+				break;
+			}
+			if (error)
+				break;
+		}
+		m_freem(control);
+	}
+	if (error)
+		goto release;
 	laddr = inp->inp_laddr;
 	lport = inp->inp_lport;
+	if (src.sin_addr.s_addr != INADDR_ANY) {
+		if (lport == 0) {
+			error = EINVAL;
+			goto release;
+		}
+		error = in_pcbbind_setup(inp, (struct sockaddr *)&src,
+		    &laddr.s_addr, &lport, td);
+		if (error)
+			goto release;
+	}
+
 	if (addr) {
 		sin = (struct sockaddr_in *)addr;
 		if (td && jailed(td->td_ucred))
