@@ -1084,7 +1084,10 @@ swapmode()
 			    devname(sw[i].sw_dev, S_IFBLK),
 			    hlen, sw[i].sw_nblks / div);
 
-		xsize = sw[i].sw_nblks;
+		/* The first dmmax is never allocated to avoid trashing of 
+		 * disklabels
+		 */
+		xsize = sw[i].sw_nblks - dmmax;
 		xfree = perdev[i];
 		used = xsize - xfree;
 		npfree++;
