@@ -468,7 +468,7 @@ static int
 ns8250_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 {
 	struct uart_bas *bas;
-	int error;
+	int divisor, error;
 	uint8_t efr, lcr;
 
 	bas = &sc->sc_bas;
@@ -513,6 +513,16 @@ ns8250_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 		uart_barrier(bas);
 		uart_setreg(bas, REG_LCR, lcr);
 		uart_barrier(bas);
+		break;
+	case UART_IOCTL_BAUD:
+		lcr = uart_getreg(bas, REG_LCR);
+		uart_setreg(bas, REG_LCR, lcr | LCR_DLAB);
+		uart_barrier(bas);
+		divisor = uart_getdreg(bas, REG_DL);
+		uart_barrier(bas);
+		uart_setreg(bas, REG_LCR, lcr);
+		uart_barrier(bas);
+		*(int*)data = bas->rclk / divisor / 16;
 		break;
 	default:
 		error = EINVAL;
