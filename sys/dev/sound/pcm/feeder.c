@@ -388,6 +388,10 @@ feed_root(struct pcm_feeder *feeder, struct pcm_channel *ch, u_int8_t *buffer, u
 	l = min(count, sndbuf_getready(src));
 	sndbuf_dispose(src, buffer, l);
 
+	/* When recording only return as much data as available */
+	if (ch->direction == PCMDIR_REC)
+		return l;
+
 /*
 	if (l < count)
 		printf("appending %d bytes\n", count - l);
