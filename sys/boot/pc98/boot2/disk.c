@@ -43,8 +43,8 @@
 
 #include "boot.h"
 #include <sys/disklabel.h>
-#include <sys/diskslice.h>
 #include <sys/diskpc98.h>
+#include <machine/bootinfo.h>
 
 #define	BIOS_DEV_FLOPPY	0x0
 #define	BIOS_DEV_WIN	0x80
