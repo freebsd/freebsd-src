@@ -753,9 +753,6 @@ mi_switch(void)
 	struct thread *td = curthread;	/* XXX */
 	struct proc *p = td->td_proc;	/* XXX */
 	struct kse *ke = td->td_kse;
-#if 0
-	register struct rlimit *rlim;
-#endif
 	u_int sched_nest;
 
 	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
@@ -788,36 +785,13 @@ mi_switch(void)
 	}
 #endif
 
-#if 0
 	/*
 	 * Check if the process exceeds its cpu resource allocation.
-	 * If over max, kill it.
-	 *
-	 * XXX drop sched_lock, pickup Giant
 	 */
 	if (p->p_state != PRS_ZOMBIE &&
 	    p->p_limit->p_cpulimit != RLIM_INFINITY &&
-	    p->p_runtime > p->p_limit->p_cpulimit) {
-		rlim = &p->p_rlimit[RLIMIT_CPU];
-		if (p->p_runtime / (rlim_t)1000000 >= rlim->rlim_max) {
-			mtx_unlock_spin(&sched_lock);
-			PROC_LOCK(p);
-			killproc(p, "exceeded maximum CPU limit");
-			mtx_lock_spin(&sched_lock);
-			PROC_UNLOCK(p);
-		} else {
-			mtx_unlock_spin(&sched_lock);
-			PROC_LOCK(p);
-			psignal(p, SIGXCPU);
-			mtx_lock_spin(&sched_lock);
-			PROC_UNLOCK(p);
-			if (rlim->rlim_cur < rlim->rlim_max) {
-				/* XXX: we should make a private copy */
-				rlim->rlim_cur += 5;
-			}
-		}
-	}
-#endif
+	    p->p_runtime.sec > p->p_limit->p_cpulimit)
+		p->p_sflag |= PS_XCPU;
 
 	/*
 	 * Finish up stats for outgoing thread.

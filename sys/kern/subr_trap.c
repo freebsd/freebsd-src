@@ -153,6 +153,7 @@ ast(struct trapframe *framep)
 	struct proc *p = td->td_proc;
 	struct kse *ke;
 	struct ksegrp *kg = td->td_ksegrp;
+	struct rlimit *rlim;
 	u_int prticks, sticks;
 	int sflag;
 	int flags;
@@ -222,6 +223,19 @@ ast(struct trapframe *framep)
 	if (sflag & PS_PROFPEND) {
 		PROC_LOCK(p);
 		psignal(p, SIGPROF);
+		PROC_UNLOCK(p);
+	}
+	if (sflag & PS_XCPU) {
+		PROC_LOCK(p);
+		rlim = &p->p_rlimit[RLIMIT_CPU];
+		if (p->p_runtime.sec >= rlim->rlim_max)
+			killproc(p, "exceeded maximum CPU limit");
+		else {
+			psignal(p, SIGXCPU);
+			if (rlim->rlim_cur < rlim->rlim_max)
+				/* XXX: we should make a private copy */
+				rlim->rlim_cur += 5;
+		}
 		PROC_UNLOCK(p);
 	}
 	if (flags & KEF_NEEDRESCHED) {
