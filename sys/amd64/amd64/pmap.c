@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.224 1999/03/05 08:05:44 alc Exp $
+ *	$Id: pmap.c,v 1.225 1999/03/13 07:31:29 alc Exp $
  */
 
 /*
@@ -329,8 +329,8 @@ pmap_bootstrap(firstaddr, loadaddr)
 	kernel_pmap = &kernel_pmap_store;
 
 	kernel_pmap->pm_pdir = (pd_entry_t *) (KERNBASE + (u_int)IdlePTD);
-
 	kernel_pmap->pm_count = 1;
+	kernel_pmap->pm_active = -1;	/* don't allow deactivation */
 	TAILQ_INIT(&kernel_pmap->pm_pvlist);
 	nkpt = NKPT;
 
@@ -732,6 +732,34 @@ invltlb_1pg( vm_offset_t va) {
 	{
 		invlpg(va);
 	}
+}
+
+static __inline void
+pmap_TLB_invalidate(pmap_t pmap, vm_offset_t va)
+{
+#if defined(SMP)
+	if (pmap->pm_active & (1 << cpuid))
+		cpu_invlpg((void *)va);
+	if (pmap->pm_active & other_cpus)
+		smp_invltlb();
+#else
+	if (pmap->pm_active)
+		invltlb_1pg(va);
+#endif
+}
+
+static __inline void
+pmap_TLB_invalidate_all(pmap_t pmap)
+{
+#if defined(SMP)
+	if (pmap->pm_active & (1 << cpuid))
+		cpu_invltlb();
+	if (pmap->pm_active & other_cpus)
+		smp_invltlb();
+#else
+	if (pmap->pm_active)
+		invltlb();
+#endif
 }
 
 static unsigned *
@@ -1196,8 +1224,8 @@ pmap_pinit0(pmap)
 	pmap->pm_pdir =
 		(pd_entry_t *)kmem_alloc_pageable(kernel_map, PAGE_SIZE);
 	pmap_kenter((vm_offset_t) pmap->pm_pdir, (vm_offset_t) IdlePTD);
-	pmap->pm_flags = 0;
 	pmap->pm_count = 1;
+	pmap->pm_active = 0;
 	pmap->pm_ptphint = NULL;
 	TAILQ_INIT(&pmap->pm_pvlist);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
@@ -1260,8 +1288,8 @@ pmap_pinit(pmap)
 	*(unsigned *) (pmap->pm_pdir + PTDPTDI) =
 		VM_PAGE_TO_PHYS(ptdpg) | PG_V | PG_RW | PG_A | PG_M;
 
-	pmap->pm_flags = 0;
 	pmap->pm_count = 1;
+	pmap->pm_active = 0;
 	pmap->pm_ptphint = NULL;
 	TAILQ_INIT(&pmap->pm_pvlist);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
@@ -3391,11 +3419,18 @@ pmap_mincore(pmap, addr)
 void
 pmap_activate(struct proc *p)
 {
+	pmap_t	pmap;
+
+	pmap = vmspace_pmap(p->p_vmspace);
+#if defined(SMP)
+	pmap->pm_active |= 1 << cpuid;
+#else
+	pmap->pm_active |= 1;
+#endif
 #if defined(SWTCH_OPTIM_STATS)
 	tlb_flush_count++;
 #endif
-	load_cr3(p->p_addr->u_pcb.pcb_cr3 =
-		vtophys(vmspace_pmap(p->p_vmspace)->pm_pdir));
+	load_cr3(p->p_addr->u_pcb.pcb_cr3 = vtophys(pmap->pm_pdir));
 }
 
 vm_offset_t
