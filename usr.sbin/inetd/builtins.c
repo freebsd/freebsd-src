@@ -219,7 +219,7 @@ daytime_stream(s, sep)		/* Return human-readable time of day */
 	clock = time((time_t *) 0);
 
 	(void) sprintf(buffer, "%.24s\r\n", ctime(&clock));
-	(void) write(s, buffer, strlen(buffer));
+	(void) send(s, buffer, strlen(buffer), MSG_EOF);
 }
 
 /*
@@ -320,7 +320,7 @@ iderror(lport, fport, s, er)	/* Generic ident_stream error-sending func */
 		syslog(LOG_ERR, "asprintf: %m");
 		exit(EX_OSERR);
 	}
-	write(s, p, strlen(p));
+	send(s, p, strlen(p), MSG_EOF);
 	free(p);
 
 	exit(0);
@@ -614,7 +614,7 @@ printit:
 		syslog(LOG_ERR, "asprintf: %m");
 		exit(EX_OSERR);
 	}
-	write(s, p, strlen(p));
+	send(s, p, strlen(p), MSG_EOF);
 	free(p);
 	
 	exit(0);
@@ -676,7 +676,7 @@ machtime_stream(s, sep)
 	unsigned long result;
 
 	result = machtime();
-	(void) write(s, (char *) &result, sizeof(result));
+	(void) send(s, (char *) &result, sizeof(result), MSG_EOF);
 }
 
 /*
