@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1991, 1992 the Free Software Foundation, Inc.
+ * Copyright (C) 1991, 1992, 1993 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Progamming Language.
@@ -30,12 +30,12 @@
 Regexp *
 make_regexp(s, len, ignorecase, dfa)
 char *s;
-int len;
+size_t len;
 int ignorecase;
 int dfa;
 {
 	Regexp *rp;
-	char *err;
+	const char *rerr;
 	char *src = s;
 	char *temp;
 	char *end = s + len;
@@ -90,7 +90,7 @@ int dfa;
 	*dest = '\0' ;	/* Only necessary if we print dest ? */
 	emalloc(rp, Regexp *, sizeof(*rp), "make_regexp");
 	memset((char *) rp, 0, sizeof(*rp));
-	emalloc(rp->pat.buffer, char *, 16, "make_regexp");
+	emalloc(rp->pat.buffer, unsigned char *, 16, "make_regexp");
 	rp->pat.allocated = 16;
 	emalloc(rp->pat.fastmap, char *, 256, "make_regexp");
 
@@ -99,13 +99,14 @@ int dfa;
 	else
 		rp->pat.translate = NULL;
 	len = dest - temp;
-	if ((err = re_compile_pattern(temp, (size_t) len, &(rp->pat))) != NULL)
-		fatal("%s: /%s/", err, temp);
+	if ((rerr = re_compile_pattern(temp, len, &(rp->pat))) != NULL)
+		fatal("%s: /%s/", rerr, temp);
 	if (dfa && !ignorecase) {
-		regcompile(temp, len, &(rp->dfareg), 1);
+		dfacomp(temp, len, &(rp->dfareg), 1);
 		rp->dfa = 1;
 	} else
 		rp->dfa = 0;
+
 	free(temp);
 	return rp;
 }
@@ -115,24 +116,24 @@ research(rp, str, start, len, need_start)
 Regexp *rp;
 register char *str;
 int start;
-register int len;
+register size_t len;
 int need_start;
 {
 	char *ret = str;
 
 	if (rp->dfa) {
-		char save1;
-		char save2;
+		char save;
 		int count = 0;
 		int try_backref;
 
-		save1 = str[start+len];
-		str[start+len] = '\n';
-		save2 = str[start+len+1];
-		ret = regexecute(&(rp->dfareg), str+start, str+start+len+1, 1,
+		/*
+		 * dfa likes to stick a '\n' right after the matched
+		 * text.  So we just save and restore the character.
+		 */
+		save = str[start+len];
+		ret = dfaexec(&(rp->dfareg), str+start, str+start+len, 1,
 					&count, &try_backref);
-		str[start+len] = save1;
-		str[start+len+1] = save2;
+		str[start+len] = save;
 	}
 	if (ret) {
 		if (need_start || rp->dfa == 0)
@@ -151,12 +152,12 @@ Regexp *rp;
 	free(rp->pat.buffer);
 	free(rp->pat.fastmap);
 	if (rp->dfa)
-		reg_free(&(rp->dfareg));
+		dfafree(&(rp->dfareg));
 	free(rp);
 }
 
 void
-reg_error(s)
+dfaerror(s)
 const char *s;
 {
 	fatal(s);
@@ -194,7 +195,8 @@ NODE *t;
 		t->re_text = dupnode(t1);
 		free_temp(t1);
 	}
-	t->re_reg = make_regexp(t->re_text->stptr, t->re_text->stlen, IGNORECASE, t->re_cnt);
+	t->re_reg = make_regexp(t->re_text->stptr, t->re_text->stlen,
+				IGNORECASE, t->re_cnt);
 	t->re_flags &= ~CASE;
 	t->re_flags |= IGNORECASE;
 	return t->re_reg;
@@ -203,6 +205,8 @@ NODE *t;
 void
 resetup()
 {
-	(void) re_set_syntax(RE_SYNTAX_AWK);
-	regsyntax(RE_SYNTAX_AWK, 0);
+	reg_syntax_t syn = RE_SYNTAX_AWK;
+
+	(void) re_set_syntax(syn);
+	dfasyntax(syn, 0);
 }

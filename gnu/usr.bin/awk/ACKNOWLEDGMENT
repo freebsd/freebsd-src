@@ -8,12 +8,16 @@ platforms and providing a great deal of feedback.  They are:
 
 	Hal Peterson <hrp@pecan.cray.com> (Cray)
 	Pat Rankin <gawk.rankin@EQL.Caltech.Edu> (VMS)
-	Michal Jaegermann <NTOMCZAK@vm.ucs.UAlberta.CA> (Atari, NeXT, DEC 3100)
+	Michal Jaegermann <michal@gortel.phys.UAlberta.CA> (Atari, NeXT, DEC 3100)
 	Mike Lijewski <mjlx@eagle.cnsf.cornell.edu> (IBM RS6000)
-	Scott Deifik <scottd@amgen.com> (MSDOS 2.14)
+	Scott Deifik <scottd@amgen.com> (MSDOS 2.14 and 2.15)
 	Kent Williams (MSDOS 2.11)
 	Conrad Kwok (MSDOS earlier versions)
 	Scott Garfinkle (MSDOS earlier versions)
+	Kai Uwe Rommel <rommel@ars.muc.de> (OS/2)
+	Darrel Hankerson <hankedr@mail.auburn.edu> (OS/2)
+	Mark Moraes <Mark-Moraes@deshaw.com> (Code Center, Purify)
+	Kaveh Ghazi <ghazi@noc.rutgers.edu> (Lots of Unix variants)
 
 Last, but far from least, we would like to thank Brian Kernighan who
 has helped to clear up many dark corners of the language and provided a
