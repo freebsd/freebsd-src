@@ -49,6 +49,10 @@
 
 #include "ef.h"
 
+static void ef_print_phdr(Elf_Phdr *);
+static u_long ef_get_offset(elf_file_t, Elf_Off);
+static int ef_parse_dynamic(elf_file_t);
+
 void
 ef_print_phdr(Elf_Phdr *phdr)
 {
@@ -213,12 +217,18 @@ ef_parse_dynamic(elf_file_t ef)
 int
 ef_read(elf_file_t ef, Elf_Off offset, size_t len, void*dest)
 {
+	ssize_t r;
 
-	if (offset != -1) {
+	if (offset != (Elf_Off)-1) {
 		if (lseek(ef->ef_fd, offset, SEEK_SET) == -1)
 			return EIO;
 	}
-	return read(ef->ef_fd, dest, len) == len ? 0 : EIO;
+
+	r = read(ef->ef_fd, dest, len);
+	if (r != -1 && (size_t)r == len)
+		return 0;
+	else
+		return EIO;
 }
 
 int
