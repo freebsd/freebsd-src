@@ -35,10 +35,8 @@
 #include <sys/queue.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
-#include <sys/linker.h>
 #include <sys/libkern.h>
 #include <sys/malloc.h>
-#include <sys/mbuf.h>
 #include <sys/proc.h>
 #include <sys/random.h>
 #include <sys/time.h>
