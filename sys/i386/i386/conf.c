@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.12 1993/10/23 22:13:08 jkh Exp $
+ *	$Id: conf.c,v 1.13 1993/10/26 22:25:20 nate Exp $
  */
 
 #include "param.h"
@@ -48,7 +48,8 @@ int	nullop(), enxio(), enodev(), rawread(), rawwrite(), swstrategy();
 int	rawread(), rawwrite(), swstrategy();
 
 #include "wd.h"
-#if NWD > 0
+#include "wx.h"
+#if (NWD > 0) || (NWX > 0)
 int	wdopen(),wdclose(),wdstrategy(),wdioctl();
 int	wddump(),wdsize();
 #else
