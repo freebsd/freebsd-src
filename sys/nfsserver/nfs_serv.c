@@ -3695,8 +3695,14 @@ nfsrv_commit(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			 * If we have a buffer and it is marked B_DELWRI we
 			 * have to lock and write it.  Otherwise the prior
 			 * write is assumed to have already been committed.
+			 *
+			 * gbincore() can return invalid buffers now so we
+			 * have to check that bit as well (though B_DELWRI
+			 * should not be set if B_INVAL is set there could be
+			 * a race here since we haven't locked the buffer).
 			 */
-			if ((bp = gbincore(vp, lblkno)) != NULL && (bp->b_flags & B_DELWRI)) {
+			if ((bp = gbincore(vp, lblkno)) != NULL &&
+			    (bp->b_flags & (B_DELWRI|B_INVAL)) == B_DELWRI) {
 				if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
 					BUF_LOCK(bp, LK_EXCLUSIVE | LK_SLEEPFAIL);
 					continue; /* retry */

@@ -152,10 +152,13 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 			 */
 			s = splbio();
 			for (i = 1; i < maxra; i++) {
-
-				if (!(tbp = incore(vp, lblkno+i))) {
+				/*
+				 * Stop if the buffer does not exist or it
+				 * is invalid (about to go away?)
+				 */
+				tbp = gbincore(vp, lblkno+i);
+				if (tbp == NULL || (tbp->b_flags & B_INVAL))
 					break;
-				}
 
 				/*
 				 * Set another read-ahead mark so we know 
@@ -396,7 +399,8 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 			 * would block in the lock.  The same checks have to
 			 * be made again after we officially get the buffer.
 			 */
-			if ((tbp = incore(vp, lbn + i)) != NULL) {
+			if ((tbp = incore(vp, lbn + i)) != NULL &&
+			    (tbp->b_flags & B_INVAL) == 0) {
 				if (BUF_LOCK(tbp, LK_EXCLUSIVE | LK_NOWAIT))
 					break;
 				BUF_UNLOCK(tbp);
