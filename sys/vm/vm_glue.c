@@ -128,9 +128,7 @@ kernacc(addr, len, rw)
 	prot = rw;
 	saddr = trunc_page((vm_offset_t)addr);
 	eaddr = round_page((vm_offset_t)addr + len);
-	vm_map_lock_read(kernel_map);
 	rv = vm_map_check_protection(kernel_map, saddr, eaddr, prot);
-	vm_map_unlock_read(kernel_map);
 	return (rv == TRUE);
 }
 
@@ -163,7 +161,7 @@ useracc(addr, len, rw)
 		return (FALSE);
 	}
 	map = &curproc->p_vmspace->vm_map;
-	vm_map_lock_read(map);
+
 	/*
 	 * We save the map hint, and restore it.  Useracc appears to distort
 	 * the map hint unnecessarily.
@@ -172,7 +170,6 @@ useracc(addr, len, rw)
 	rv = vm_map_check_protection(map,
 	    trunc_page((vm_offset_t)addr), round_page((vm_offset_t)addr + len), prot);
 	map->hint = save_hint;
-	vm_map_unlock_read(map);
 	
 	return (rv == TRUE);
 }
