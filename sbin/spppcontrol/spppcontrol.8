@@ -181,20 +181,20 @@ This is the default, and will not
 be explicitly displayed in the
 .Dq list
 mode.
-.It Ar lcp-timeout Ns \&= Ns Em timeout-value
+.It Va lcp-timeout Ns Li = Ns Ar timeout-value
 Allows to change the value of the LCP restart timer.
 Values are specified in milliseconds.
 The value must be between 10 and 20000 ms,
 defaulting to 3000 ms.
-.It Ar enable-vj
+.It Va enable-vj
 Enable negotiation of Van Jacobsen header compression.
 (Enabled by default.)
-.It Ar disable-vj
+.It Va disable-vj
 Disable negotiation of Van Jacobsen header compression.
-.It Ar enable-ipv6
+.It Va enable-ipv6
 Enable negotiation of the IPv6 network control protocol.
 (Enabled by default if the kernel has IPv6 enabled.)
-.It Ar disable-ipv6
+.It Va disable-ipv6
 Disable negotiation of the IPv6 network control protocol.
 Since every IPv4 interface in an IPv6-enabled kernel automatically gets an IPv6
 address assigned, this option provides for a way to administratively
