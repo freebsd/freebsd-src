@@ -108,6 +108,8 @@ main(void)
      */
     if (initial_howto & RB_SERIAL)
 	setenv("console", "comconsole", 1);
+    if (initial_howto & RB_MUTE)
+	setenv("console", "nullconsole", 1);
     cons_probe();
 
     /*
