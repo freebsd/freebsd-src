@@ -128,9 +128,12 @@
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
     <sect3 id="proc">
-      <title>Processor/Motherboard Support</title>
+      <title>Platform-Specific Hardware Support</title>
 
-      <para></para>
+      <para arch="i386">PCI interrupts are always routed on i386 UP
+	machines, which may improve the usability of some PCI devices
+	(particularly on laptops).</para>
+
     </sect3>
 
     <sect3 id="boot">
@@ -152,26 +155,31 @@
     <sect3 id="net-proto">
       <title>Network Protocols</title>
 
-      <para></para>
+      <para>To reduce information leakage, IPv4 packets no longer have
+	a <varname>ip_id</varname> field set unless fragmentation is
+	being done.</para>
 
     </sect3>
 
     <sect3 id="disks">
       <title>Disks and Storage</title>
 
-      <para></para>
+      <para>Various &man.geom.4; modules can now be loaded as kernel
+	modules, namely:
+	<filename>geom_apple</filename>,
+	<filename>geom_bde</filename>,
+	<filename>geom_bsd</filename>,
+	<filename>geom_gpt</filename>,
+	<filename>geom_mbr</filename>,
+	<filename>geom_pc98</filename>,
+	<filename>geom_sunlabel</filename>,
+	<filename>geom_vol_ffs</filename>.
+	</para>
 
     </sect3>
 
     <sect3 id="fs">
       <title>File Systems</title>
-
-      <para></para>
-
-    </sect3>
-
-    <sect3 id="pccard">
-      <title>PCCARD Support</title>
 
       <para></para>
 
@@ -189,14 +197,30 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
-    <para></para>
+    <para>&man.chroot.8; now allows the optional setting of a user,
+      primary group, or group list to use inside the chroot
+      environment via the <option>-u</option>, <option>-g</option>,
+      and <option>-G</option> options respectively.</para>
+
+    <para>The <filename>libcipher</filename> DES cryptography library
+      has been removed.  All of its functionality is provided by the
+      <filename>libcrypto</filename> library, and all base systems
+      programs that used <filename>libcipher</filename> have been
+      converted to use <filename>libcrypto</filename> instead.</para>
+
+    <para arch="i386,ia64">The <filename>libthr</filename> 1:1
+      threading library is now built by default.</para>
+
+    <para>The &man.pam.guest.8; PAM module has been added to allow
+      guest logins.  It replaces the pam_ftp(8) module.</para>
 
   </sect2>
 
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
-    <para></para>
+    <para><application>OpenPAM</application> has been updated to the
+      <quote>Digitalis</quote> release.</para>
 
   </sect2>
 
