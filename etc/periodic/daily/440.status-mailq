@@ -25,7 +25,7 @@ case "$daily_status_mailq_enable" in
 	    rc=$(case "$daily_status_mailq_shorten" in
 		[Yy][Ee][Ss])
 		    mailq |
-			perl -ne  'print if /^\s+\S+@/' |
+			egrep -e '^[[:space:]]+[^[:space:]]+@' |
 			sort |
 			uniq -c |
 			sort -nr |
@@ -45,7 +45,7 @@ case "$daily_status_mailq_enable" in
 		    rc=$(case "$daily_status_mailq_shorten" in
 			[Yy][Ee][Ss])
 			    mailq -Ac |
-				perl -ne  'print if /^\s+\S+@/' |
+				egrep -e '^[[:space:]]+[^[:space:]]+@' |
 				sort |
 				uniq -c |
 				sort -nr |
