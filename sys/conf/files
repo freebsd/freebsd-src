@@ -1666,6 +1666,9 @@ security/mac/mac_pipe.c		optional mac
 security/mac/mac_process.c	optional mac
 security/mac/mac_socket.c	optional mac
 security/mac/mac_system.c	optional mac
+security/mac/mac_sysv_msg.c	optional mac
+security/mac/mac_sysv_sem.c	optional mac
+security/mac/mac_sysv_shm.c	optional mac
 security/mac/mac_vfs.c		optional mac
 security/mac_biba/mac_biba.c	optional mac_biba
 security/mac_bsdextended/mac_bsdextended.c	optional mac_bsdextended
