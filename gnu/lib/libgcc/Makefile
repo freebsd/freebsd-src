@@ -1,13 +1,17 @@
 # $FreeBSD$
 
-GCCDIR=	${.CURDIR}/../../../contrib/gcc.295
+TARGET_ARCH?=	${MACHINE_ARCH}
 
-.PATH: ${GCCDIR}/cp ${GCCDIR}
+GCCDIR=	${.CURDIR}/../../../contrib/gcc
+.PATH: ${GCCDIR}/config/${TARGET_ARCH} ${GCCDIR}
 
 # allow to be overridden for the a.out case
 .if !defined(LIB) || ${LIB} != "gcc_r"
 LIB=	gcc
 .endif
+
+#SHLIB_MAJOR=	1
+#SHLIB_MINOR=	0
 
 .if ${OBJFORMAT} == aout
 # Install libgcc_pic.a, since ld.so uses it.
@@ -15,9 +19,8 @@ INSTALL_PIC_ARCHIVE=  yes
 .endif
 
 #
-# XXX This is a hack, but it seems to work.  libgcc1.a is supposed to be
-# compiled by the native compiler, and libgcc2.a is meant to be compiled
-# by *this* version of gcc.
+# XXX This is a hack, but it seems to work.
+# libgcc2.a is meant to be compiled by *this* version of gcc.
 #
 # Normally, this does not make any difference, since we only have gcc, but
 # when bootstrapping from gcc-2.6.3, we have to use the freshly built 2.7.2
@@ -31,144 +34,176 @@ INSTALL_PIC_ARCHIVE=  yes
 XCC=	${CC}
 XCXX=	${CXX}
 
-# Members of libgcc1.a.
-LIB1FUNCS= _mulsi3 _udivsi3 _divsi3 _umodsi3 _modsi3 \
-	   _lshrsi3 _ashrsi3 _ashlsi3 \
-	   _divdf3 _muldf3 _negdf2 _adddf3 _subdf3 \
-	   _fixdfsi _fixsfsi _floatsidf _floatsisf _truncdfsf2 _extendsfdf2 \
-	   _addsf3 _negsf2 _subsf3 _mulsf3 _divsf3 \
-	   _eqdf2 _nedf2 _gtdf2 _gedf2 _ltdf2 _ledf2 \
-	   _eqsf2 _nesf2 _gtsf2 _gesf2 _ltsf2 _lesf2
-
-# Library members defined in libgcc2.c.
-LIB2FUNCS= _muldi3 _divdi3 _moddi3 _udivdi3 _umoddi3 _negdi2 \
-	   _lshrdi3 _ashldi3 _ashrdi3 _ffsdi2 \
-	   _udiv_w_sdiv _udivmoddi4 _cmpdi2 _ucmpdi2 _floatdidf _floatdisf \
-	   _fixunsdfsi _fixunssfsi _fixunsdfdi _fixdfdi _fixunssfdi _fixsfdi \
-	   _fixxfdi _fixunsxfdi _floatdixf _fixunsxfsi \
-	   _fixtfdi _fixunstfdi _floatditf \
-	   __gcc_bcmp _varargs __dummy _eprintf \
-	   _bb _shtab _clear_cache _trampoline __main _exit _ctors \
-	   _eh _pure
-
-# Library members defined in new1.cc.
-NEW1FUNCS= _op_new _op_newnt 
-
-# Library members defined in new2.cc.
-NEW2FUNCS= _op_vnew _op_vnewnt _op_delete _op_delnt _op_vdel _op_vdelnt 
-
-SRCS=	frame.c tinfo.cc tinfo2.cc new.cc exception.cc
-
-CFLAGS+=	-fexceptions
-CFLAGS+=	-DIN_GCC
+CFLAGS+=	-nostdlib -fexceptions
+CFLAGS+=	-DIN_GCC -DIN_LIBGCC2 -D__GCC_FLOAT_NOT_NEEDED \
+		-DFINE_GRAINED_LIBRARIES
 .if ${OBJFORMAT} != aout
 CFLAGS+=	-D_PTHREADS -DGTHREAD_USE_WEAK
 .endif
-CFLAGS+=	-I${GCCDIR}/config -I${GCCDIR} -I.
-CXXFLAGS+=	-I${GCCDIR}/cp/inc
-CXXFLAGS+=	-nostdinc++
+CFLAGS+=	-I${.CURDIR}/../../usr.bin/cc/cc_tools \
+		-I${GCCDIR}/config -I${GCCDIR} -I.
 
-COMMONHDRS=	config.h tconfig.h tm.h
-CLEANFILES+=	${COMMONHDRS}
+# Remove any objects from LIB2FUNCS and LIB2_DIVMOD_FUNCS that are
+# defined as optimized assembly code in LIB1ASMFUNCS.
+.if defined(LIB1ASMFUNCS)
+.for sym in ${LIB1ASMFUNCS}
+LIB2FUNCS_1=	${LIB2FUNCS_1:S/${sym}//g}
+LIB2FUNCS_2=	${LIB2FUNCS_2:S/${sym}//g}
+LIB2_DIVMOD_FUNCS= ${LIB2_DIVMOD_FUNCS:S/${sym}//g}
+.endfor
+.endif
+
+SYMS=		${LIB1ASMFUNCS}		\
+		${LIB2FUNCS_1}		\
+		${LIB2FUNCS_2}		\
+		${LIB2_DIVMOD_FUNCS}
+.if ${TARGET_ARCH} == "arm" || ${TARGET_ARCH} == "powerpc" || ${TARGET_ARCH} == "sparc64"
+SYMS+=		${FPBIT_FUNCS} ${DPBIT_FUNCS}
+.endif
+SYMS_ST=	${LIB2FUNCS_ST}		\
+		${LIB2ADD_ST}
+OBJS_T=		${SYMS:S/$/.o/}  ${SYMS_ST:S/$/.o/}
+OBJS_P=		${SYMS:S/$/.po/} ${SYMS_ST:S/$/.po/}
+OBJS_S=		${SYMS:S/$/.So/}
+OBJS=		${SYMS:S/$/.o/}
+STATICOBJS=	${SYMS_ST:S/$/.o/}
+SRCS=		${LIB2ADD} ${LIB2ADDEH}
+
+
+
+#---------------------------------------------------------------------------
+#
+# When upgrading GCC, get the following defintions straight from Makefile.in
+#
+
+# Library members defined in libgcc2.c.
+# Variable length limited to 255 charactes when passed to a shell script.
+LIB2FUNCS_1 = _muldi3 _negdi2 _lshrdi3 _ashldi3 _ashrdi3 _ffsdi2 _clz \
+    _cmpdi2 _ucmpdi2 _floatdidf _floatdisf _fixunsdfsi _fixunssfsi \
+    _fixunsdfdi _fixdfdi _fixunssfdi _fixsfdi _fixxfdi _fixunsxfdi
+
+LIB2FUNCS_2 = _floatdixf _fixunsxfsi _fixtfdi _fixunstfdi _floatditf \
+    _clear_cache _trampoline __main _exit _absvsi2 _absvdi2 _addvsi3 \
+    _addvdi3 _subvsi3 _subvdi3 _mulvsi3 _mulvdi3 _negvsi2 _negvdi2 _ctors
+
+# Defined in libgcc2.c, included only in the static library.
+LIB2FUNCS_ST = _eprintf _bb __gcc_bcmp
+
+FPBIT_FUNCS = _pack_sf _unpack_sf _addsub_sf _mul_sf _div_sf \
+    _fpcmp_parts_sf _compare_sf _eq_sf _ne_sf _gt_sf _ge_sf \
+    _lt_sf _le_sf _unord_sf _si_to_sf _sf_to_si _negate_sf _make_sf \
+    _sf_to_df _thenan_sf _sf_to_usi _usi_to_sf
+
+DPBIT_FUNCS = _pack_df _unpack_df _addsub_df _mul_df _div_df \
+    _fpcmp_parts_df _compare_df _eq_df _ne_df _gt_df _ge_df \
+    _lt_df _le_df _unord_df _si_to_df _df_to_si _negate_df _make_df \
+    _df_to_sf _thenan_df _df_to_usi _usi_to_df
+
+# These might cause a divide overflow trap and so are compiled with
+# unwinder info.
+LIB2_DIVMOD_FUNCS = _divdi3 _moddi3 _udivdi3 _umoddi3 _udiv_w_sdiv _udivmoddi4
+
+MACHMODE_H = machmode.h machmode.def
+
+LIB2ADD = $(LIB2FUNCS_EXTRA)
+LIB2ADD_ST = $(LIB2FUNCS_STATIC_EXTRA)
+
+# Additional sources to handle exceptions; overridden on ia64.
+LIB2ADDEH = unwind-dw2.c unwind-dw2-fde.c unwind-sjlj.c
+
+#-----------------------------------------------------------------------
+#
+#	Platform specific bits.
+#	When upgrading GCC, get the following defintions from config/<cpu>/t-*
+#
+
+.if ${TARGET_ARCH} == "alpha"
+#	from config/alpha/t-alpha
+LIB2FUNCS_EXTRA = qrnnd.asm
+.endif
+
+.if ${TARGET_ARCH} == "arm"
+#	from config/arm/t-strongarm-elf
+LIB1ASMSRC = arm/lib1funcs.asm
+LIB1ASMFUNCS = _udivsi3 _divsi3 _umodsi3 _modsi3 _dvmd_tls _bb_init_func
+# We want fine grained libraries, so use the new code to build the
+# floating point emulation libraries.
+XXX fix this: NEED_FP_EMULATION set to "yes" with different rules per platform
+.endif
+
+.if ${TARGET_ARCH} == "ia64"
+#	from config/ia64/t-ia64
+LIB1ASMSRC    = ia64/lib1funcs.asm
+LIB1ASMFUNCS  = __divtf3 __divdf3 __divsf3 \
+	__divdi3 __moddi3 __udivdi3 __umoddi3 \
+	__divsi3 __modsi3 __udivsi3 __umodsi3 __save_stack_nonlocal \
+	__nonlocal_goto __restore_stack_nonlocal __trampoline
+LIB2ADDEH = unwind-ia64.c unwind-sjlj.c
+.endif
+
+.if ${TARGET_ARCH} == "powerpc"
+#	from config/rs6000/t-ppccomm
+LIB2FUNCS_EXTRA = tramp.S
+# This one can't end up in shared libgcc
+LIB2FUNCS_STATIC_EXTRA = eabi.S
+# We want fine grained libraries, so use the new code to build the
+# floating point emulation libraries.
+OBJS+=	dp-bit.o fp-bit.o
+.endif
+
+.if ${TARGET_ARCH} == "sparc64"
+#	from config/sparc/t-elf
+# We want fine grained libraries, so use the new code to build the
+# floating point emulation libraries.
+LIB1ASMSRC = sparc/lb1spc.asm
+LIB1ASMFUNCS = _mulsi3 _divsi3 _modsi3
+OBJS+=	dp-bit.o fp-bit.o
+.endif
+
+dp-bit.o: config/fp-bit.c
+	${XCC} -c ${CFLAGS} -o ${.TARGET} ${.ALLSRC:M*fp-bit*}
+
+dp-bit.So: config/fp-bit.c
+	${XCC} ${PICFLAG} -c ${CFLAGS} -o ${.TARGET} ${.ALLSRC:M*fp-bit*}
+
+dp-bit.po: config/fp-bit.c
+	${XCC} -p -c ${CFLAGS} -o ${.TARGET} ${.ALLSRC:M*fp-bit*}
+
+fp-bit.o: config/fp-bit.c
+	${XCC} -DFLOAT=1 -c ${CFLAGS} -o ${.TARGET} ${.ALLSRC:M*fp-bit*}
+
+fp-bit.So: config/fp-bit.c
+	${XCC} ${PICFLAG} -DFLOAT=1 -c ${CFLAGS} -o ${.TARGET} ${.ALLSRC:M*fp-bit*}
+
+fp-bit.po: config/fp-bit.c
+	${XCC} -p -DFLOAT=1 -c ${CFLAGS} -o ${.TARGET} ${.ALLSRC:M*fp-bit*}
+
+#-----------------------------------------------------------------------
+
+COMMONHDRS=	tconfig.h
 SRCS+=		${COMMONHDRS}
+CLEANFILES+=	${COMMONHDRS}
 
-LIB1OBJS=	${LIB1FUNCS:S/$/.o/}
-LIB2OBJS=	${LIB2FUNCS:S/$/.o/}
-LIB1SOBJS=	${LIB1FUNCS:S/$/.So/}
-LIB2SOBJS=	${LIB2FUNCS:S/$/.So/}
-LIB1POBJS=	${LIB1FUNCS:S/$/.po/}
-LIB2POBJS=	${LIB2FUNCS:S/$/.po/}
-NEW1OBJS=	${NEW1FUNCS:S/$/.o/}
-NEW2OBJS=	${NEW2FUNCS:S/$/.o/}
-NEW1SOBJS=	${NEW1FUNCS:S/$/.So/}
-NEW2SOBJS=	${NEW2FUNCS:S/$/.So/}
-NEW1POBJS=	${NEW1FUNCS:S/$/.po/}
-NEW2POBJS=	${NEW2FUNCS:S/$/.po/}
+tconfig.h: ${.CURDIR}/../../usr.bin/cc/cc_tools/Makefile
+	${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET}
 
-OBJS=	${LIB1OBJS} ${LIB2OBJS} ${NEW1OBJS} ${NEW2OBJS}
+${OBJS} beforedepend: ${COMMONHDRS}
 
-config.h:
-	echo '#include <${MACHINE_ARCH}/xm-${MACHINE_ARCH}.h>'	> ${.TARGET}
-	echo '#include <xm-freebsd.h>'				>> ${.TARGET}
-
-tconfig.h:
-	echo '#include "gansidecl.h"'				> ${.TARGET}
-	echo '#include "${MACHINE_ARCH}/xm-${MACHINE_ARCH}.h"'	>> ${.TARGET}
-
-#	KEEP THIS IN SYNC with src/gcc/usr.bin/cc/cc_tools/Makefile !!
-tm.h:
-	echo '#include "${MACHINE_ARCH}/${MACHINE_ARCH}.h"'	> ${.TARGET}
-.if ${MACHINE_ARCH} == "i386"
-	echo '#include "${MACHINE_ARCH}/att.h"'			>> ${.TARGET}
-.endif
-	echo '#include <freebsd.h>'				>> ${.TARGET}
-	echo '#include "${MACHINE_ARCH}/freebsd.h"'		>> ${.TARGET}
-.if ${MACHINE_ARCH} == "i386"
-	echo '#include "${MACHINE_ARCH}/perform.h"'		>> ${.TARGET}
-.endif
-
-${OBJS}: ${COMMONHDRS}
-
-${LIB1OBJS}: libgcc1.c
-	${CC} -c ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
-
-${LIB2OBJS}: libgcc2.c
+${OBJS_T}: libgcc2.c
 	${XCC} -c ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
-${NEW1OBJS}: new1.cc
-	${XCXX} -c ${CXXFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.cc}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
-
-${NEW2OBJS}: new2.cc
-	${CXX} -c ${CXXFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.cc}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
-
 .if !defined(NOPIC)
-${LIB1SOBJS}: libgcc1.c
-	${CC} -c ${PICFLAG} ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
-
-${LIB2SOBJS}: libgcc2.c
+${OBJS_S}: libgcc2.c
 	${XCC} -c ${PICFLAG} ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
-
-${NEW1SOBJS}: new1.cc
-	${XCXX} -c ${PICFLAG} ${CXXFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.cc}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
-
-${NEW2SOBJS}: new2.cc
-	${CXX} -c ${PICFLAG} ${CXXFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.cc}
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 .endif
 
 .if !defined(NOPROFILE)
-${LIB1POBJS}: libgcc1.c
-	${CC} -c -p ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
-	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
-
-${LIB2POBJS}: libgcc2.c
+${OBJS_P}: libgcc2.c
 	${XCC} -c -p ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
-	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
-
-${NEW1POBJS}: new1.cc
-	${XCXX} -c -p ${CXXFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.cc}
-	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
-	@mv ${.TARGET}.tmp ${.TARGET}
-
-${NEW2POBJS}: new2.cc
-	${CXX} -c -p ${CXXFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.cc}
 	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 .endif

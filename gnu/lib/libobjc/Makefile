@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-OBJCDIR=${.CURDIR}/../../../contrib/libobjc.295
-GCCDIR=	${.CURDIR}/../../../contrib/gcc.295
+OBJCDIR=${.CURDIR}/../../../contrib/libobjc
+GCCDIR=	${.CURDIR}/../../../contrib/gcc
 
 .PATH: ${OBJCDIR}/objc ${OBJCDIR}
 
@@ -17,14 +17,16 @@ SRCS=   archive.c class.c encoding.c gc.c hash.c init.c misc.c \
 HDRS=	encoding.h hash.h objc-api.h objc-list.h objc.h runtime.h \
 	sarray.h thr.h typedstream.h NXConstStr.h Object.h Protocol.h
 
-CFLAGS+= -I${OBJCDIR}/objc -I${OBJCDIR} -I.
+CFLAGS+= -fgnu-runtime -DHAVE_GTHR_DEFAULT -DIN_TARGET_LIBS
+CFLAGS+= -I. -I${.CURDIR}/../../usr.bin/cc/cc_tools
+CFLAGS+= -I${OBJCDIR}/objc -I${OBJCDIR} 
 CFLAGS+= -I${GCCDIR}/config -I${GCCDIR}
 
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${HDRS:S;^;${OBJCDIR}/objc/;} ${DESTDIR}/usr/include/objc
 
-GENHDRS=	runtime-info.h tconfig.h tm.h 
+GENHDRS=	runtime-info.h tconfig.h
 CLEANFILES+=	${GENHDRS}
 SRCS+=		${GENHDRS}
 
@@ -34,20 +36,7 @@ runtime-info.h:
 	`${CC} --print-prog-name=cc1obj` -print-objc-runtime-info \
 	    < /dev/null > ${.TARGET}
 
-tconfig.h:
-	echo '#include "gansidecl.h"'				> ${.TARGET}
-	echo '#include "${MACHINE_ARCH}/xm-${MACHINE_ARCH}.h"'	>> ${.TARGET}
-
-#	KEEP THIS IN SYNC with src/gcc/usr.bin/cc/cc_tools/Makefile !!
-tm.h:
-	echo '#include "${MACHINE_ARCH}/${MACHINE_ARCH}.h"'	> ${.TARGET}
-.if ${MACHINE_ARCH} == "i386"
-	echo '#include "${MACHINE_ARCH}/att.h"'			>> ${.TARGET}
-.endif
-	echo '#include <freebsd.h>'				>> ${.TARGET}
-	echo '#include "${MACHINE_ARCH}/freebsd.h"'		>> ${.TARGET}
-.if ${MACHINE_ARCH} == "i386"
-	echo '#include "${MACHINE_ARCH}/perform.h"'		>> ${.TARGET}
-.endif
+tconfig.h: ${.CURDIR}/../../usr.bin/cc/cc_tools/Makefile
+	${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET}
 
 .include <bsd.lib.mk>
