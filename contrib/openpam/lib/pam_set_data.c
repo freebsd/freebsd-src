@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_set_data.c#12 $
+ * $P4: //depot/projects/openpam/lib/pam_set_data.c#15 $
  */
 
 #include <stdlib.h>
@@ -73,7 +73,7 @@ pam_set_data(pam_handle_t *pamh,
 	if ((dp = malloc(sizeof *dp)) == NULL)
 		RETURNC(PAM_BUF_ERR);
 	if ((dp->name = strdup(module_data_name)) == NULL) {
-		free(dp);
+		FREE(dp);
 		RETURNC(PAM_BUF_ERR);
 	}
 	dp->data = data;

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_end.c#11 $
+ * $P4: //depot/projects/openpam/lib/pam_end.c#13 $
  */
 
 #include <stdlib.h>
@@ -63,14 +63,14 @@ pam_end(pam_handle_t *pamh,
 		if (dp->cleanup)
 			(dp->cleanup)(pamh, dp->data, status);
 		pamh->module_data = dp->next;
-		free(dp->name);
-		free(dp);
+		FREE(dp->name);
+		FREE(dp);
 	}
 
 	/* clear environment */
 	while (pamh->env_count)
-		free(pamh->env[--pamh->env_count]);
-	free(pamh->env);
+		FREE(pamh->env[--pamh->env_count]);
+	FREE(pamh->env);
 
 	/* clear chains */
 	openpam_clear_chains(pamh->chains);
@@ -79,7 +79,7 @@ pam_end(pam_handle_t *pamh,
 	for (i = 0; i < PAM_NUM_ITEMS; ++i)
 		pam_set_item(pamh, i, NULL);
 
-	free(pamh);
+	FREE(pamh);
 
 	RETURNC(PAM_SUCCESS);
 }

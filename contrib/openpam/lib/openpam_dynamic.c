@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_dynamic.c#7 $
+ * $P4: //depot/projects/openpam/lib/openpam_dynamic.c#13 $
  */
 
 #include <dlfcn.h>
@@ -42,6 +42,10 @@
 #include <security/pam_appl.h>
 
 #include "openpam_impl.h"
+
+#ifndef RTLD_NOW
+#define RTLD_NOW RTLD_LAZY
+#endif
 
 /*
  * OpenPAM internal
@@ -62,18 +66,18 @@ openpam_dynamic(const char *path)
 		goto buf_err;
 
 	/* try versioned module first, then unversioned module */
-	if (asprintf(&vpath, "%s.%d", path, LIB_MAJ) == -1)
+	if (asprintf(&vpath, "%s.%d", path, LIB_MAJ) < 0)
 		goto buf_err;
 	if ((dlh = dlopen(vpath, RTLD_NOW)) == NULL) {
 		openpam_log(PAM_LOG_DEBUG, "%s: %s", vpath, dlerror());
 		*strrchr(vpath, '.') = '\0';
 		if ((dlh = dlopen(vpath, RTLD_NOW)) == NULL) {
 			openpam_log(PAM_LOG_DEBUG, "%s: %s", vpath, dlerror());
-			free(module);
+			FREE(module);
 			return (NULL);
 		}
 	}
-	free(vpath);
+	FREE(vpath);
 	if ((module->path = strdup(path)) == NULL)
 		goto buf_err;
 	module->dlh = dlh;
@@ -88,7 +92,7 @@ openpam_dynamic(const char *path)
 	openpam_log(PAM_LOG_ERROR, "%m");
 	if (dlh != NULL)
 		dlclose(dlh);
-	free(module);
+	FREE(module);
 	return (NULL);
 }
 

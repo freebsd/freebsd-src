@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_acct_mgmt.c#11 $
+ * $P4: //depot/projects/openpam/lib/pam_acct_mgmt.c#14 $
  */
 
 #include <sys/param.h>
@@ -78,6 +78,6 @@ pam_acct_mgmt(pam_handle_t *pamh,
  *	=PAM_DISALLOW_NULL_AUTHTOK:
  *		Fail if the user's authentication token is null.
  *
- * If any other bits are set, =pam_authenticate will return
+ * If any other bits are set, =pam_acct_mgmt will return
  * =PAM_SYMBOL_ERR.
  */

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_vprompt.c#9 $
+ * $P4: //depot/projects/openpam/lib/pam_vprompt.c#12 $
  */
 
 #include <stdarg.h>
@@ -77,7 +77,7 @@ pam_vprompt(pam_handle_t *pamh,
 	rsp = NULL;
 	r = (conv->conv)(1, &msgp, &rsp, conv->appdata_ptr);
 	*resp = rsp == NULL ? NULL : rsp->resp;
-	free(rsp);
+	FREE(rsp);
 	RETURNC(r);
 }
 

@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 #-
-# Copyright (c) 2002 Networks Associates Technology, Inc.
+# Copyright (c) 2002-2003 Networks Associates Technology, Inc.
 # All rights reserved.
 #
 # This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,7 +32,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $P4: //depot/projects/openpam/misc/gendoc.pl#19 $
+# $P4: //depot/projects/openpam/misc/gendoc.pl#25 $
 #
 
 use strict;
@@ -42,7 +42,7 @@ use POSIX qw(strftime);
 use vars qw($COPYRIGHT $TODAY %FUNCTIONS %PAMERR);
 
 $COPYRIGHT = ".\\\"-
-.\\\" Copyright (c) 2002 Networks Associates Technology, Inc.
+.\\\" Copyright (c) 2001-2003 Networks Associates Technology, Inc.
 .\\\" All rights reserved.
 .\\\"
 .\\\" This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -235,7 +235,7 @@ sub parse_source($) {
 	s/\s*=(struct \w+(?: \*)?)\b\s*/\n.Vt $1\n/gs;
 	s/\s*:([a-z_]+)\b\s*/\n.Va $1\n/gs;
 	s/\s*;([a-z_]+)\b\s*/\n.Dv $1\n/gs;
-	if (s/\s*=([a-z_]+)\b\s*/\n.Xr $1 3\n/gs) {
+	while (s/\s*=([a-z_]+)\b\s*/\n.Xr $1 3\n/s) {
 	    ++$xref{"$1 3"};
 	}
 	s/\s*\"(?=\w)/\n.Do\n/gs;
@@ -274,10 +274,6 @@ sub parse_source($) {
     };
     if ($source =~ m/^ \* NODOC\s*$/m) {
 	$FUNCTIONS{$func}->{'nodoc'} = 1;
-	$FUNCTIONS{$func}->{'nolist'} = 1;
-    }
-    if ($source =~ m/^ \* NOLIST\s*$/m) {
-	$FUNCTIONS{$func}->{'nolist'} = 1;
     }
     if ($source !~ m/^ \* XSSO \d/m) {
 	$FUNCTIONS{$func}->{'openpam'} = 1;
@@ -498,7 +494,7 @@ sub gensummary($) {
     while (<STDIN>) {
 	if (m/^\.Xr (\S+)\s*(\d)\s*$/) {
 	    $xref{$1} = $2;
-        }
+	}
 	print FILE $_;
     }
 
@@ -518,14 +514,14 @@ The following return codes are defined by
     print FILE ".Xr openpam 3\n"
 	if ($page eq 'pam');
     foreach $func (keys(%FUNCTIONS)) {
-        $xref{$func} = 3;
+	$xref{$func} = 3;
     }
     my @refs = sort(keys(%xref));
     while ($_ = shift(@refs)) {
 	print FILE ".Xr $_ $xref{$_}";
-        print FILE " ,"
+	print FILE " ,"
 	    if (@refs);
-        print FILE "\n";
+	print FILE "\n";
     }
     print FILE ".Sh STANDARDS
 .Rs

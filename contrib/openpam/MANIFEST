@@ -1,5 +1,5 @@
 #
-# $P4: //depot/projects/openpam/MANIFEST#13 $
+# $P4: //depot/projects/openpam/MANIFEST#16 $
 #
 CREDITS
 HISTORY
@@ -7,9 +7,11 @@ INSTALL
 LICENSE
 MANIFEST
 Makefile
+Makefile.inc
 README
 RELNOTES
 bin/Makefile
+bin/Makefile.inc
 bin/su/Makefile
 bin/su/su.c
 doc/Makefile
@@ -21,6 +23,7 @@ doc/man/openpam_free_data.3
 doc/man/openpam_get_option.3
 doc/man/openpam_log.3
 doc/man/openpam_nullconv.3
+doc/man/openpam_readline.3
 doc/man/openpam_restore_cred.3
 doc/man/openpam_set_option.3
 doc/man/openpam_ttyconv.3
@@ -76,6 +79,7 @@ lib/openpam_impl.h
 lib/openpam_load.c
 lib/openpam_log.c
 lib/openpam_nullconv.c
+lib/openpam_readline.c
 lib/openpam_restore_cred.c
 lib/openpam_set_option.c
 lib/openpam_static.c
