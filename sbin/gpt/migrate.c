@@ -313,12 +313,12 @@ migrate(int fd)
 	mbr->mbr_part[0].part_esect = 0xff;
 	mbr->mbr_part[0].part_ecyl = 0xff;
 	mbr->mbr_part[0].part_start_lo = htole16(1);
-	if (mediasz > 0xffffffff) {
+	if (last > 0xffffffff) {
 		mbr->mbr_part[0].part_size_lo = htole16(0xffff);
 		mbr->mbr_part[0].part_size_hi = htole16(0xffff);
 	} else {
-		mbr->mbr_part[0].part_size_lo = htole16(mediasz);
-		mbr->mbr_part[0].part_size_hi = htole16(mediasz >> 16);
+		mbr->mbr_part[0].part_size_lo = htole16(last);
+		mbr->mbr_part[0].part_size_hi = htole16(last >> 16);
 	}
 	gpt_write(fd, map);
 }
