@@ -259,7 +259,7 @@ grapungrap()
 unfoulplayer()
 {
 	struct ship *to;
-	i;
+	int i;
 
 	foreachship(to) {
 		if (fouled2(ms, to) == 0)

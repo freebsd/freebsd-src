@@ -145,7 +145,7 @@ turned()
 loadplayer()
 {
 	char c;
-	loadL, loadR, ready, load;
+	int loadL, loadR, ready, load;
 
 	if (!mc->crew3) {
 		Signal("Out of crew", (struct ship *)0);

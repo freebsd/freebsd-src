@@ -141,7 +141,7 @@ Write(type, ship, isstr, a, b, c, d)
 Sync()
 {
 	sig_t sighup, sigint;
-	n;
+	int n;
 	int type, shipnum, isstr, a, b, c, d;
 	char buf[80];
 	char erred = 0;
