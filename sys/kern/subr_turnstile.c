@@ -50,11 +50,14 @@
  *	6 capitalized : a member of the Jehovah's Witnesses 
  */
 
+#include "opt_witness.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/vmmeter.h>
 #include <sys/ktr.h>
@@ -680,26 +683,30 @@ struct witness_blessed {
 	char	*b_lock2;
 };
 
-#ifdef KDEBUG
+#ifdef DDB
 /*
- * When WITNESS_KDEBUG is set to 1, it will cause the system to
+ * When DDB is enabled and witness_ddb is set to 1, it will cause the system to
  * drop into kdebug() when:
  *	- a lock heirarchy violation occurs
  *	- locks are held when going to sleep.
  */
-#ifndef WITNESS_KDEBUG
-#define WITNESS_KDEBUG 0
+#ifdef WITNESS_DDB
+int	witness_ddb = 1;
+#else
+int	witness_ddb = 0;
 #endif
-int	witness_kdebug = WITNESS_KDEBUG;
-#endif /* KDEBUG */
+SYSCTL_INT(_debug, OID_AUTO, witness_ddb, CTLFLAG_RW, &witness_ddb, 0, "");
+#endif /* DDB */
 
-#ifndef WITNESS_SKIPSPIN
-#define WITNESS_SKIPSPIN 0
+#ifdef WITNESS_SKIPSPIN
+int	witness_skipspin = 1;
+#else
+int	witness_skipspin = 0;
 #endif
-int	witness_skipspin = WITNESS_SKIPSPIN;
+SYSCTL_INT(_debug, OID_AUTO, witness_skipspin, CTLFLAG_RD, &witness_skipspin, 0,
+    "");
 
-
-static struct mtx	 w_mtx;
+MUTEX_DECLARE(static,w_mtx);
 static struct witness	*w_free;
 static struct witness	*w_all;
 static int		 w_inited;
@@ -724,49 +731,24 @@ static void witness_free __P((struct witness *m));
 
 static char *ignore_list[] = {
 	"witness lock",
-	"Kdebug",		/* breaks rules and may or may not work */
-	"Page Alias",		/* sparc only, witness lock won't block intr */
 	NULL
 };
 
 static char *spin_order_list[] = {
 	"sched lock",
-	"log mtx",
-	"zslock",	/* sparc only above log, this one is a real hack */
-	"time lock",	/* above callout */
-	"callout mtx",	/* above wayout */
+	"clk",
+	"sio",
 	/*
 	 * leaf locks
 	 */
-	"wayout mtx",
-	"kernel_pmap",  /* sparc only, logically equal "pmap" below */
-	"pmap",		/* sparc only */
 	NULL
 };
 
 static char *order_list[] = {
-	"tcb", "inp", "so_snd", "so_rcv", "Giant lock", NULL,
-	"udb", "inp", NULL,
-	"unp head", "unp", "so_snd", NULL,
-	"de0", "Giant lock", NULL,
-	"ifnet", "Giant lock", NULL,
-	"fifo", "so_snd", NULL,
-	"hme0", "Giant lock", NULL,
-	"esp0", "Giant lock", NULL,
-	"hfa0", "Giant lock", NULL,
-	"so_rcv", "atm_global", NULL,
-	"so_snd", "atm_global", NULL,
-	"NFS", "Giant lock", NULL,
 	NULL
 };
 
 static char *dup_list[] = {
-	"inp",
-	"process group",
-	"session",
-	"unp",
-	"rtentry",
-	"rawcb",
 	NULL
 };
 
@@ -813,9 +795,9 @@ witness_enter(struct mtx *m, int flags, const char *file, int line)
 	struct mtx *m1;
 	struct proc *p;
 	int i;
-#ifdef KDEBUG
-	int go_into_kdebug = 0;
-#endif /* KDEBUG */
+#ifdef DDB
+	int go_into_ddb = 0;
+#endif /* DDB */
 
 	w = m->mtx_witness;
 	p = CURPROC;
@@ -867,9 +849,9 @@ witness_enter(struct mtx *m, int flags, const char *file, int line)
 			m->mtx_description);
 		printf(" 1st @ %s:%d\n", w->w_file, w->w_line);
 		printf(" 2nd @ %s:%d\n", file, line);
-#ifdef KDEBUG
-		go_into_kdebug = 1;
-#endif /* KDEBUG */
+#ifdef DDB
+		go_into_ddb = 1;
+#endif /* DDB */
 		goto out;
 	}
 	MPASS(!mtx_owned(&w_mtx));
@@ -911,9 +893,9 @@ witness_enter(struct mtx *m, int flags, const char *file, int line)
 			    m1, w1->w_description, w1->w_file, w1->w_line);
 			printf(" 3rd %p %s @ %s:%d\n",
 			    m, w->w_description, file, line);
-#ifdef KDEBUG
-			go_into_kdebug = 1;
-#endif /* KDEBUG */
+#ifdef DDB
+			go_into_ddb = 1;
+#endif /* DDB */
 			goto out;
 		}
 	}
@@ -922,10 +904,10 @@ witness_enter(struct mtx *m, int flags, const char *file, int line)
 		mtx_exit(&w_mtx, MTX_SPIN);
 
 out:
-#ifdef KDEBUG
-	if (witness_kdebug && go_into_kdebug)
-		kdebug();
-#endif /* KDEBUG */
+#ifdef DDB
+	if (witness_ddb && go_into_ddb)
+		Debugger("witness_enter");
+#endif /* DDB */
 	w->w_file = file;
 	w->w_line = line;
 	m->mtx_line = line;
@@ -1059,10 +1041,10 @@ witness_sleep(int check_only, struct mtx *mtx, const char *file, int line)
 		n++;
 	next:
 	}
-#ifdef KDEBUG
-	if (witness_kdebug && n)
-		kdebug();
-#endif /* KDEBUG */
+#ifdef DDB
+	if (witness_ddb && n)
+		Debugger("witness_sleep");
+#endif /* DDB */
 	return (n);
 }
 
@@ -1081,7 +1063,7 @@ enroll(const char *description, int flag)
 			return (NULL);
 
 	if (w_inited == 0) {
-		mtx_init(&w_mtx, "witness lock", MTX_DEF);
+		mtx_init(&w_mtx, "witness lock", MTX_COLD | MTX_DEF);
 		for (i = 0; i < WITNESS_COUNT; i++) {
 			w = &w_data[i];
 			witness_free(w);
