@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id$
+**  $Id: ncrreg.h,v 1.7 1997/02/22 09:44:10 peter Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -160,6 +160,7 @@ struct ncr_reg {
         #define   MPEE    0x08  /* mod: master parity error enable  */
 
 /*22*/  u_char    nc_ctest5;
+	#define   DFS     0x20  /* mod: dma fifo size               */
 /*23*/  u_char    nc_ctest6;
 
 /*24*/  u_long    nc_dbc;	/* ### Byte count and command       */
@@ -224,10 +225,18 @@ struct ncr_reg {
 
 /*4f*/  u_char    nc_stest3;
 	#define   TE     0x80	/* c: tolerAnt enable */
+	#define   HSC    0x20	/* c: Halt SCSI Clock */
 	#define   CSF    0x02	/* c: clear scsi fifo */
 
 /*50*/  u_short   nc_sidl;	/* Lowlevel: latched from scsi data */
-/*52*/  u_short   nc_52_;
+/*52*/  u_char    nc_stest4;
+	#define   SMODE  0xc0	/* SCSI bus mode      (895/6 only) */
+	#define    SMODE_HVD 0x40	/* High Voltage Differential       */
+	#define    SMODE_SE  0x80	/* Single Ended                    */
+	#define    SMODE_LVD 0xc0	/* Low Voltage Differential        */
+	#define   LCKFRQ 0x20	/* Frequency Lock (895/6 only)     */
+
+/*53*/  u_char    nc_53_;
 /*54*/  u_short   nc_sodl;	/* Lowlevel: data out to scsi data  */
 /*56*/  u_short   nc_56_;
 /*58*/  u_short   nc_sbdl;	/* Lowlevel: data from scsi data    */
@@ -368,8 +377,6 @@ struct scr_tblsel {
 #define	SCR_ATN		0x00000008
 
 
-
-
 /*-----------------------------------------------------------
 **
 **	Memory to memory move
@@ -380,10 +387,19 @@ struct scr_tblsel {
 **	<< source_address >>
 **	<< destination_address >>
 **
+**	SCR_COPY   sets the NO FLUSH option by default.
+**	SCR_COPY_F does not set this option.
+**
+**	For chips which do not support this option,
+**	ncr_copy_and_bind() will remove this bit.
 **-----------------------------------------------------------
 */
 
-#define SCR_COPY(n) (0xc0000000 | (n))
+#define SCR_NO_FLUSH 0x01000000
+
+#define SCR_COPY(n) (0xc0000000 | SCR_NO_FLUSH | (n))
+#define SCR_COPY_F(n) (0xc0000000 | (n))
+
 
 /*-----------------------------------------------------------
 **
@@ -489,6 +505,7 @@ struct scr_tblsel {
 **-----------------------------------------------------------
 */
 
+#define SCR_NO_OP       0x80000000
 #define SCR_JUMP        0x80080000
 #define SCR_JUMPR       0x80880000
 #define SCR_CALL        0x88080000
@@ -562,5 +579,32 @@ struct scr_tblsel {
 #define	S_QUEUE_FULL	(0x28)
 #define	S_ILLEGAL	(0xff)
 #define	S_SENSE		(0x80)
+
+/*
+**	Bits defining chip features.
+**	For now only some of them are used, since we explicitely 
+**	deal with PCI device id and revision id.
+*/
+#define FE_LED0		(1<<0)
+#define FE_WIDE		(1<<1)
+#define FE_ULTRA	(1<<2)
+#define FE_ULTRA2	(1<<3)
+#define FE_DBLR		(1<<4)
+#define FE_QUAD		(1<<5)
+#define FE_ERL		(1<<6)
+#define FE_CLSE		(1<<7)
+#define FE_WRIE		(1<<8)
+#define FE_ERMP		(1<<9)
+#define FE_BOF		(1<<10)
+#define FE_DFS		(1<<11)
+#define FE_PFEN		(1<<12)
+#define FE_LDSTR	(1<<13)
+#define FE_RAM		(1<<14)
+#define FE_CLK80	(1<<15)
+#define FE_DIFF		(1<<16)
+#define FE_BIOS		(1<<17)
+#define FE_CACHE_SET	(FE_ERL|FE_CLSE|FE_WRIE|FE_ERMP)
+#define FE_SCSI_SET	(FE_WIDE|FE_ULTRA|FE_ULTRA2|FE_DBLR|FE_QUAD|F_CLK80)
+#define FE_SPECIAL_SET	(FE_CACHE_SET|FE_BOF|FE_DFS|FE_LDSTR|FE_PFEN|FE_RAM)
 
 #endif /*__NCR_REG_H__*/
