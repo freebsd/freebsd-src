@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.21 1996/10/07 10:01:17 sos Exp $
+ * $Id: command.c,v 1.22 1996/10/10 11:27:35 sos Exp $
  *
  */
 #include <sys/types.h>
@@ -480,16 +480,20 @@ char **argv;
   return(val);
 }
 
+int aft_cmd = 1;
+
 void
-Prompt(flag)
-int flag;
+Prompt()
 {
   char *pconnect, *pauth;
 
   if (!(mode & MODE_INTER))
     return;
 
-  if (flag) printf("\n");
+  if (!aft_cmd)
+    printf("\n");
+  else
+    aft_cmd = 0;
 
   if ( VarLocalAuth == LOCAL_AUTH )
     pauth = " ON ";
