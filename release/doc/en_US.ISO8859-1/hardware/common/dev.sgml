@@ -2105,6 +2105,9 @@
       </itemizedlist>
     </para>
 
+    <para arch="i386">Granch SBNI16 SHDSL modems (&man.sbsh.4;
+      driver)</para>
+
     <para arch="i386">SMC COM90cx6 ARCNET network adapters (cm driver)
       <itemizedlist>
         <listitem>
