@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)ring.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)ring.c	8.2 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 /*
@@ -295,7 +295,7 @@ ring_supply_data(ring, buffer, count)
 
     while (count) {
 	i = MIN(count, ring_empty_consecutive(ring));
-	memcpy(ring->supply, buffer, i);
+	memmove(ring->supply, buffer, i);
 	ring_supplied(ring, i);
 	count -= i;
 	buffer += i;
@@ -317,7 +317,7 @@ ring_consume_data(ring, buffer, count)
 
     while (count) {
 	i = MIN(count, ring_full_consecutive(ring));
-	memcpy(buffer, ring->consume, i);
+	memmove(buffer, ring->consume, i);
 	ring_consumed(ring, i);
 	count -= i;
 	buffer += i;
