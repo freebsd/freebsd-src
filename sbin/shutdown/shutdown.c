@@ -94,7 +94,8 @@ struct interval {
 
 static time_t offset, shuttime;
 static int dohalt, dopower, doreboot, killflg, mbuflen, oflag;
-static char *nosync, *whom, mbuf[BUFSIZ];
+static char mbuf[BUFSIZ];
+static const char *nosync, *whom;
 
 void badtime __P((void));
 void die_you_gravy_sucking_pig_dog __P((void));
@@ -111,7 +112,7 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	register char *p, *endp;
+	char *p, *endp;
 	struct passwd *pw;
 	int arglen, ch, len, readstdin;
 
@@ -247,7 +248,7 @@ loop()
 		 * the next wait time.
 		 */
 		if ((sltime = offset - tp->timeleft)) {
-			if (sltime > tp->timetowait / 5)
+			if (sltime > (u_int)(tp->timetowait / 5))
 				timewarn(offset);
 			(void)sleep(sltime);
 		}
@@ -267,7 +268,7 @@ loop()
 
 static jmp_buf alarmbuf;
 
-static char *restricted_environ[] = {
+static const char *restricted_environ[] = {
 	"PATH=" _PATH_STDPATH,
 	NULL
 };
@@ -280,7 +281,7 @@ timewarn(timeleft)
 	static char hostname[MAXHOSTNAMELEN + 1];
 	FILE *pf;
 	char wcmd[MAXPATHLEN + 4];
-	extern char **environ;
+	extern const char **environ;
 
 	if (!first++)
 		(void)gethostname(hostname, sizeof(hostname));
@@ -326,7 +327,7 @@ timewarn(timeleft)
 
 void
 timeout(signo)
-	int signo;
+	int signo __unused;
 {
 	longjmp(alarmbuf, 1);
 }
@@ -394,10 +395,10 @@ die_you_gravy_sucking_pig_dog()
 
 void
 getoffset(timearg)
-	register char *timearg;
+	char *timearg;
 {
-	register struct tm *lt;
-	register char *p;
+	struct tm *lt;
+	char *p;
 	time_t now;
 	int this_year;
 
@@ -500,7 +501,7 @@ nolog()
 
 void
 finish(signo)
-	int signo;
+	int signo __unused;
 {
 	if (!killflg)
 		(void)unlink(_PATH_NOLOGIN);
