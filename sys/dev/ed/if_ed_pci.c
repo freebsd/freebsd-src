@@ -20,9 +20,6 @@
  * $FreeBSD$
  */
 
-#include "card.h"
-#if NCARD == 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
@@ -126,4 +123,3 @@ static driver_t ed_pci_driver = {
 static devclass_t ed_devclass;
 
 DRIVER_MODULE(ed, pci, ed_pci_driver, ed_devclass, 0, 0);
-#endif
