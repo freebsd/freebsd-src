@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.1 1995/05/23 02:40:50 jkh Exp $
+ * $Id: config.c,v 1.2 1995/05/23 18:06:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -212,3 +212,16 @@ config_resolv(void)
     fclose(fp);
     alreadyDone = TRUE;
 }
+
+int
+config_packages(char *str)
+{
+    return 0;
+}
+
+int
+config_ports(char *str)
+{
+    return 0;
+}
+

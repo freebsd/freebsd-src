@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.24 1995/05/21 18:24:34 jkh Exp $
+ * $Id: menus.c,v 1.25 1995/05/23 02:41:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -205,7 +205,7 @@ To specify a URL not in this list, chose \"other\".",
 	DMENU_SET_VARIABLE, (void *)"ftp=ftp://ftp.freebsd.org/pub/FreeBSD/2.0.5-ALPHA", 0, 0			},
       { "Secondary Site", "freefall.cdrom.com",
 	DMENU_SET_VARIABLE, (void *)"ftp=ftp://freefall.cdrom.com/pub/FreeBSD/2.0.5-ALPHA", 0, 0		},
-      { "Other", "Specify another ftp site by URL (e.g. ftp://some.site/pub/FreeBSD/..)",
+      { "Other", "Specify some other ftp site by URL",
 	DMENU_SET_VARIABLE, (void *)"ftp=other", 0, 0								},
       { "Australia", "ftp.physics.usyd.edu.au",
 	DMENU_SET_VARIABLE, (void *)"ftp=ftp://ftp.physics.usyd.edu.au/FreeBSD/2.0.5-ALPHA", 0, 0		},
@@ -377,7 +377,7 @@ selecting OK at this stage will chose them as defaults.",
       { "src", "Sources for everything but DES [120MB]",
 	DMENU_CALL, (void *)distSetSrc, 0			},
       { "XFree86", "The XFree86 3.1.1L distribution [?]",
-	DMENU_SUBMENU, (void *)&MenuXF86, 0			},
+	DMENU_SUBMENU, (void *)&MenuXF86Select, 0		},
       { NULL } },
 };
 
@@ -419,26 +419,6 @@ you wish to install.",
       { "XFree86", "XFree86 3.1.1L source + contrib distribution [200MB]",
 	DMENU_SET_FLAG, (void *)&SrcDists, DIST_SRC_XF86, 0	},
       { NULL } },
-};
-
-DMenu MenuXF86 = {
-    DMENU_NORMAL_TYPE,
-    "XFree86 3.1.1u1 Distribution",
-    "Welcome to the XFree86 3.1.1u1 distribution from The XFree86\n\
-Project, Inc.  Our recommended sequence is to Select the desired\n\
-release components, Configure XFree86 and then (optionally)\n\
-Start it up!",
-    "Press F1 to read the XFree86 release notes for FreeBSD",
-    "XFree86.hlp",
-    { { "Select", "Select and load components of the XFree86 distribution",
-	DMENU_SUBMENU, &MenuXF86Select, 0, 0 },
-      { "Configure", "Configure an installed XFree86 distribution",
-	DMENU_SYSTEM_COMMAND, "PATH=/usr/bin:/bin:/usr/X11R6/bin xf86config",
-	0, 0 },
-      { "Start", "Try to start the server up",
-	DMENU_SYSTEM_COMMAND, "PATH=/usr/bin:/bin:/usr/X11R6/bin startx",
-	0, 0 },
-      { NULL } }
 };
 
 DMenu MenuXF86Select = {
@@ -650,5 +630,31 @@ boot record to be untouched, then select \"none\".",
 	DMENU_SET_VARIABLE, (void *)"bootManager=mbr", 0, 0	},
       { "None", "Leave the Master Boot Record untouched",	/* N */
 	DMENU_CALL, (void *)diskPartitionEditor, 0, 0		},
+      { NULL } },
+};
+
+/* Final configuration menu */
+DMenu MenuConfigure = {
+    DMENU_NORMAL_TYPE,
+    "FreeBSD Configuration Menu",	/* title */
+    "Congradulations!  If you're seeing this menu, FreeBSD is now\n\
+installed on your hard disk and just about ready to boot.  There\n\
+are a last few things you may wish to set up at this point to make\n\
+your FreeBSD system more generally usable and which may be selected\n\
+from the menu below.  When you're done, select Cancel.",
+    "Press F1 for more information on these options",
+    "configure.hlp",
+    { { "Time Zone", "Set which time zone you're in",
+	DMENU_SYSTEM_COMMAND, "tzsetup", 0, 0		},
+      { "Add User", "Add users to the system",
+	DMENU_SYSTEM_COMMAND, "adduser", 0, 0		},
+      { "Root Pass", "Set the system manager's password",
+	DMENU_SYSTEM_COMMAND, "passwd root", 0, 0	},
+      { "Packages", "Install extra FreeBSD packaged software",
+	DMENU_CALL, config_packages, 0, 1		},
+      { "Ports", "Enable the FreeBSD Ports Collection from CD",
+	DMENU_CALL, config_ports, 0, 1			},
+      { "XFree86", "Configure XFree86 (if installed)",
+	DMENU_SYSTEM_COMMAND, "PATH=/usr/bin:/bin:/usr/X11R6/bin xf86config", 0, 0 },
       { NULL } },
 };
