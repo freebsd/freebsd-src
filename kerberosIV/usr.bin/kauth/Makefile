@@ -9,8 +9,9 @@ CFLAGS+=	-I${KRB4DIR}/include \
 		-I${KRB4DIR}/lib/krb \
 		-I${KRB4DIR}/appl/kauth
 LDADD=		-L${ROKENOBJDIR} -lroken -L${KAFSOBJDIR} -lkafs \
-		-L${KRBOBJDIR} -lkrb -ldes -lcrypt
-DPADD=		${LIBROKEN} ${LIBKAFS} ${LIBKRB} ${LIBDES} ${LIBCRYPT}
+		-L${KRBOBJDIR} -lkrb -ldes -lcrypt -lcom_err
+DPADD=		${LIBROKEN} ${LIBKAFS} ${LIBKRB} ${LIBDES} ${LIBCRYPT} \
+		${LIBCOM_ERR}
 
 .include <bsd.prog.mk>
 

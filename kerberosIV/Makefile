@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+MAINTAINER=	markm@FreeBSD.org
+
 SUBDIR=	include lib libexec usr.bin usr.sbin
 
 SDIR= ${.CURDIR}/..
