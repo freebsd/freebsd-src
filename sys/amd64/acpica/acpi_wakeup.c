@@ -277,7 +277,9 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	}
 
 out:
+	vm_page_lock_queues();
 	pmap_remove(pm, sc->acpi_wakephys, sc->acpi_wakephys + PAGE_SIZE);
+	vm_page_unlock_queues();
 	if (opage) {
 		pmap_enter(pm, sc->acpi_wakephys, page,
 			   VM_PROT_READ | VM_PROT_WRITE, 0);
