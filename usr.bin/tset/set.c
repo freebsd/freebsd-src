@@ -285,13 +285,13 @@ set_tabs()
 {
 	int c;
 	char *capsp, *clear_tabs;
-	char *set_column, *set_pos, *set_tab, *tg_out;
+	char *set_column, *set_pos, *Set_tab, *tg_out;
 	char caps[1024];
 
 	capsp = caps;
-	set_tab = tgetstr("st", &capsp);
+	Set_tab = tgetstr("st", &capsp);
 
-	if (set_tab && (clear_tabs = tgetstr("ct", &capsp))) {
+	if (Set_tab && (clear_tabs = tgetstr("ct", &capsp))) {
 		(void)putc('\r', stderr);	/* Force to left margin. */
 		tputs(clear_tabs, 0, outc);
 	}
@@ -299,8 +299,8 @@ set_tabs()
 	set_column = tgetstr("ch", &capsp);
 	set_pos = set_column ? NULL : tgetstr("cm", &capsp);
 
-	if (set_tab) {
-		for (c = 8; c < columns; c += 8) {
+	if (Set_tab) {
+		for (c = 8; c < Columns; c += 8) {
 			/*
 			 * Get to the right column.  "OOPS" is returned by
 			 * tgoto() if it can't do the job.  (*snarl*)
@@ -309,13 +309,13 @@ set_tabs()
 			if (set_column)
 				tg_out = tgoto(set_column, 0, c);
 			if (*tg_out == 'O' && set_pos)
-				tg_out = tgoto(set_pos, c, lines - 1);
+				tg_out = tgoto(set_pos, c, Lines - 1);
 			if (*tg_out != 'O')
 				tputs(tg_out, 1, outc);
 			else
 				(void)fprintf(stderr, "%s", "        ");
 			/* Set the tab. */
-			tputs(set_tab, 0, outc);
+			tputs(Set_tab, 0, outc);
 		}
 		putc('\r', stderr);
 		return (1);
