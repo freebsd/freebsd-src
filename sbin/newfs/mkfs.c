@@ -627,6 +627,7 @@ next:
 		if (cylno % 9 == 0)
 			printf("\n");
 		printf(" %d,", fsbtodb(&sblock, cgsblock(&sblock, cylno)));
+		fflush(stdout);
 	}
 	if (!mfs)
 		printf("\n");
