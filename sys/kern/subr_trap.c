@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.62 1995/10/28 15:38:32 phk Exp $
+ *	$Id: trap.c,v 1.63 1995/12/07 12:45:39 davidg Exp $
  */
 
 /*
@@ -87,13 +87,13 @@ extern int trapwrite __P((unsigned addr));
 extern void syscall __P((struct trapframe frame));
 extern void linux_syscall __P((struct trapframe frame));
 
-int	trap_pfault	__P((struct trapframe *, int));
-void	trap_fatal	__P((struct trapframe *));
+static int	trap_pfault	__P((struct trapframe *, int));
+static void	trap_fatal	__P((struct trapframe *));
 
 extern inthand_t IDTVEC(syscall);
 
 #define MAX_TRAP_MSG		27
-char *trap_msg[] = {
+static char *trap_msg[] = {
 	"",					/*  0 unused */
 	"privileged instruction fault",		/*  1 T_PRIVINFLT */
 	"",					/*  2 unused */
@@ -457,7 +457,7 @@ out:
  * to be made safe are the iBCS2 code and the process tracing/
  * debugging code.
  */
-int
+static int
 trap_pfault(frame, usermode)
 	struct trapframe *frame;
 	int usermode;
@@ -680,7 +680,7 @@ nogo:
 	return((rv == KERN_PROTECTION_FAILURE) ? SIGBUS : SIGSEGV);
 }
 
-void
+static void
 trap_fatal(frame)
 	struct trapframe *frame;
 {

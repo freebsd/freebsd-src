@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.20 1995/02/17 02:22:42 phk Exp $
+ *	$Id: swtch.s,v 1.21 1995/09/03 20:39:19 dyson Exp $
  */
 
 #include "npx.h"	/* for NNPX */
@@ -59,7 +59,7 @@
  * queues.
  */
 	.data
-	.globl	_curpcb, _whichqs, _whichrtqs, _whichidqs
+	.globl	_curpcb
 _curpcb:	.long	0			/* pointer to curproc's PCB area */
 _whichqs:	.long	0			/* which run queues have data */
 _whichrtqs:	.long	0			/* which realtime run queues have data */
