@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.126 1996/10/13 01:38:37 dyson Exp $
+ *	$Id: pmap.c,v 1.127 1996/10/15 03:16:31 dyson Exp $
  */
 
 /*
@@ -731,6 +731,7 @@ pmap_new_proc(p)
 		m->valid = VM_PAGE_BITS_ALL;
 	}
 
+	pmap->pm_stats.resident_count += UPAGES;
 	p->p_addr = up;
 }
 
@@ -763,6 +764,7 @@ pmap_dispose_proc(p)
 		vm_page_unwire(m);
 		vm_page_free(m);
 	}
+	pmap->pm_stats.resident_count -= UPAGES;
 
 	kmem_free(u_map, (vm_offset_t)p->p_addr, ctob(UPAGES));
 }
@@ -798,6 +800,7 @@ pmap_swapout_proc(p)
 		vm_page_deactivate(m);
 		pmap_kremove( (vm_offset_t) p->p_addr + PAGE_SIZE * i);
 	}
+	pmap->pm_stats.resident_count -= UPAGES;
 }
 
 /*
@@ -856,6 +859,7 @@ retry:
 		PAGE_WAKEUP(m);
 		m->flags |= PG_MAPPED|PG_WRITEABLE;
 	}
+	pmap->pm_stats.resident_count += UPAGES;
 }
 
 /***************************************************
