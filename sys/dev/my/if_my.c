@@ -75,11 +75,11 @@
 static int      MY_USEIOSPACE = 1;
 
 #if (MY_USEIOSPACE)
-#define MY_RES			SYS_RES_IOPORT
-#define MY_RID			MY_PCI_LOIO
+#define MY_RES                  SYS_RES_IOPORT
+#define MY_RID                  MY_PCI_LOIO
 #else
-#define MY_RES			SYS_RES_MEMORY
-#define MY_RID			MY_PCI_LOMEM
+#define MY_RES                  SYS_RES_MEMORY
+#define MY_RID                  MY_PCI_LOMEM
 #endif
 
 
@@ -1477,7 +1477,7 @@ my_encap(struct my_softc * sc, struct my_chain * c, struct mbuf * m_head)
 	f->my_ctl = MY_TXFD | MY_TXLD | MY_CRCEnable | MY_PADEnable;
 	f->my_ctl |= total_len << MY_PKTShift;	/* pkt size */
 	f->my_ctl |= total_len;	/* buffer size */
-	/* 89/12/29 add, for mtd891 */
+	/* 89/12/29 add, for mtd891 *//* [ 89? ] */
 	if (sc->my_info->my_did == MTD891ID)
 		f->my_ctl |= MY_ETIControl | MY_RetryTxLC;
 	c->my_mbuf = m_head;
