@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: diskslice.h,v 1.20 1997/02/22 09:45:06 peter Exp $
+ *	$Id: diskslice.h,v 1.21 1997/09/16 14:31:44 bde Exp $
  */
 
 #ifndef	_SYS_DISKSLICE_H_
@@ -41,8 +41,6 @@
 #define	MAX_SLICES		32
 #define	WHOLE_DISK_SLICE	1
 
-/* upcoming change from julian.. early warning of probable form */
-#if 1
 struct	diskslice {
 	u_long	ds_offset;		/* starting sector */
 	u_long	ds_size;		/* number of sectors */
@@ -69,38 +67,6 @@ struct	diskslice {
 	u_char	ds_openmask;		/* [bc]devs open */
 	u_char	ds_wlabel;		/* nonzero if label is writable */
 };
-
-#else
-/* switch table for slice handlers (sample only) */
-struct	slice_switch {
-	int	(*slice_load)();
-	int	(*slice_check)();
-	int	(*slice_gone)();
-	/*
-	 * etc.
-	 * each  routine is called with the address of the private data
-	 * and the minor number..
-	 * Other arguments as needed
-	 */
-};
-
-struct	diskslice {
-	u_long	ds_offset;		/* starting sector */
-	u_long	ds_size;		/* number of sectors */
-	int	ds_type;		/* (foreign) slice type */
-#ifdef PC98
-	int	ds_subtype;		/* sub slice type */
-	u_char	ds_name[16];		/* slice name */
-#endif
-	struct dkbad_intern *ds_bad;	/* bad sector table, if any */
-	void	*ds_date;		/* Slice type specific data */
-	struct slice_switch *switch;	/* switch table for type handler */
-	u_char	ds_bopenmask;		/* bdevs open */
-	u_char	ds_copenmask;		/* cdevs open */
-	u_char	ds_openmask;		/* [bc]devs open */
-	u_char	ds_wlabel;		/* nonzero if label is writable */
-};
-#endif
 
 struct diskslices {
 	struct bdevsw *dss_bdevsw;	/* for containing device */
