@@ -50,6 +50,8 @@ __SCCSID("@(#)fields.c	8.1 (Berkeley) 6/6/93");
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <locale.h>
+
 #define blancmange(ptr) {					\
 	if (BLANK & d_mask[*(ptr)])				\
 		while (BLANK & d_mask[*(++(ptr))]);		\
@@ -67,7 +69,6 @@ static u_char *number(u_char *, u_char *, u_char *, u_char *, int);
 extern struct coldesc clist[(ND+1)*2];
 extern int ncols;
 
-#define DECIMAL '.'
 #define OFFSET 128
 
 u_char TENS[10];	/* TENS[0] = REC_D <= 128 ? 130 - '0' : 2 -'0'... */
@@ -231,7 +232,10 @@ number(pos, bufend, line, lineend, Rflag)
 	int bite, expsign = 1, sign = 1;
 	u_char lastvalue, *nonzero, *tline, *C_TENS;
 	u_char *nweights;
+	static char DECIMAL = 0;
 
+	if (!DECIMAL)
+		DECIMAL = localeconv()->decimal_point[0];
 	if (Rflag)
 		nweights = rnum;
 	else
