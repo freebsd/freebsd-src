@@ -1079,6 +1079,14 @@ pci_add_map(device_t dev, pcicfgregs* cfg, int reg)
 		base |= ((u_int64_t)cfg->hose << shift);
 	}
 #endif
+
+	/*
+	 * This code theoretically does the right thing, but has
+	 * undesirable side effects in some cases where
+	 * peripherals respond oddly to having these bits
+	 * enabled.  Leave them alone by default.
+	 */
+#ifdef PCI_ENABLE_IO_MODES
 	if (type == SYS_RES_IOPORT && !pci_porten(cfg)) {
 		cfg->cmdreg |= PCIM_CMD_PORTEN;
 		pci_cfgwrite(cfg, PCIR_COMMAND, cfg->cmdreg, 2);
@@ -1087,6 +1095,12 @@ pci_add_map(device_t dev, pcicfgregs* cfg, int reg)
 		cfg->cmdreg |= PCIM_CMD_MEMEN;
 		pci_cfgwrite(cfg, PCIR_COMMAND, cfg->cmdreg, 2);
 	}
+#else
+        if (type == SYS_RES_IOPORT && !pci_porten(cfg))
+                return 1;
+        if (type == SYS_RES_MEMORY && !pci_memen(cfg))
+		return 1;
+#endif
 
 	resource_list_add(rl, type, reg,
 			  base, base + (1 << ln2size) - 1,
