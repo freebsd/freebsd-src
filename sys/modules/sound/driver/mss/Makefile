@@ -4,7 +4,7 @@
 
 KMOD=	snd_mss
 SRCS=	device_if.h bus_if.h isa_if.h pci_if.h
-SRCS+=	mss.c
+SRCS+=	mss.c gusc.c
 
 .if ${MACHINE} == "pc98"
 CFLAGS+= -DPC98
