@@ -82,17 +82,10 @@ devclass_t	pccard_devclass;
 #define PCCARD_NDRQ	0
 
 static int
-pccard_add_children(device_t dev, int busno)
-{
-	device_add_child(dev, NULL, -1, NULL);
-	return 0;
-}
-
-static int
 pccard_probe(device_t dev)
 {
 	device_set_desc(dev, "PC Card bus -- kludge version");
-	return pccard_add_children(dev, device_get_unit(dev));
+	return 0;
 }
 
 static void
