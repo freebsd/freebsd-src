@@ -706,11 +706,17 @@ read_len:
 #ifndef NOPOLL
     othersyscall:
 			if (use_poll) {
+				struct timeval itv;
+
 				msec = (_res.retrans << try) * 1000;
 				if (try > 0)
 					msec /= _res.nscount;
 				if (msec <= 0)
 					msec = 1000;
+				gettimeofday(&timeout, NULL);
+				itv.tv_sec = msec / 1000;
+				itv.tv_usec = (msec % 1000) * 1000;
+				timeradd(&timeout, &itv, &timeout);
 			} else {
 #endif
 				timeout.tv_sec = (_res.retrans << try);
@@ -756,11 +762,22 @@ read_len:
 				} else if (use_poll == 1)
 					use_poll = 2;
 				if (n < 0) {
-					if (errno == EINTR)
-						goto wait;
-					Perror(stderr, "poll", errno);
-					res_close();
-					goto next_ns;
+					if (errno == EINTR) {
+						struct timeval ctv;
+
+						gettimeofday(&ctv, NULL);
+						if (timercmp(&ctv, &timeout, <)) {
+							timersub(&timeout,
+							    &ctv, &ctv);
+							msec = ctv.tv_sec * 1000;
+							msec += ctv.tv_usec / 1000;
+							goto wait;
+						}
+					} else {
+						Perror(stderr, "poll", errno);
+						res_close();
+						goto next_ns;
+					}
 				}
 			} else {
 #endif
