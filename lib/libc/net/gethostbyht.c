@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)gethostnamadr.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: gethostbyht.c,v 1.9 1997/02/22 15:00:07 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -122,8 +122,7 @@ gethostent()
 	if (!(cp = strpbrk(p, " \t")))
 		goto again;
 	*cp++ = '\0';
-	if ((_res.options & RES_USE_INET6) &&
-	    inet_pton(AF_INET6, p, host_addr) > 0) {
+	if (inet_pton(AF_INET6, p, host_addr) > 0) {
 		af = AF_INET6;
 		len = IN6ADDRSZ;
 	} else if (inet_pton(AF_INET, p, host_addr) > 0) {
@@ -160,12 +159,6 @@ gethostent()
 			*cp++ = '\0';
 	}
 	*q = NULL;
-	if (_res.options & RES_USE_INET6) {
-		char *bp = hostbuf;
-		int buflen = sizeof hostbuf;
-
-		_map_v4v6_hostent(&host, &bp, &buflen);
-	}
 	h_errno = NETDB_SUCCESS;
 	return (&host);
 }

@@ -55,8 +55,8 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)gethostnamadr.c	8.1 (Berkeley) 6/4/93";
-static char fromrcsid[] = "From: Id: gethnamaddr.c,v 8.20 1996/09/28 06:51:07 vixie Exp";
-static char rcsid[] = "$Id: gethostbydns.c,v 1.20 1997/02/22 15:00:06 peter Exp $";
+static char fromrcsid[] = "From: Id: gethnamaddr.c,v 8.21 1997/06/01 20:34:37 vixie Exp";
+static char rcsid[] = "$Id: gethostbydns.c,v 1.21 1997/03/12 11:02:00 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -191,6 +191,10 @@ gethostanswer(answer, anslen, qname, qtype)
 		 * (i.e., with the succeeding search-domain tacked on).
 		 */
 		n = strlen(bp) + 1;		/* for the \0 */
+		if (n >= MAXHOSTNAMELEN) {
+			h_errno = NO_RECOVERY;
+			return (NULL);
+		}
 		host.h_name = bp;
 		bp += n;
 		buflen -= n;
@@ -239,11 +243,15 @@ gethostanswer(answer, anslen, qname, qtype)
 			/* Store alias. */
 			*ap++ = bp;
 			n = strlen(bp) + 1;	/* for the \0 */
+			if (n >= MAXHOSTNAMELEN) {
+				had_error++;
+				continue;
+			}
 			bp += n;
 			buflen -= n;
 			/* Get canonical name. */
 			n = strlen(tbuf) + 1;	/* for the \0 */
-			if (n > buflen) {
+			if (n > buflen || n >= MAXHOSTNAMELEN) {
 				had_error++;
 				continue;
 			}
@@ -255,14 +263,14 @@ gethostanswer(answer, anslen, qname, qtype)
 		}
 		if (qtype == T_PTR && type == T_CNAME) {
 			n = dn_expand(answer->buf, eom, cp, tbuf, sizeof tbuf);
-			if ((n < 0) || !res_hnok(tbuf)) {
+			if (n < 0 || !res_dnok(tbuf)) {
 				had_error++;
 				continue;
 			}
 			cp += n;
 			/* Get canonical name. */
 			n = strlen(tbuf) + 1;	/* for the \0 */
-			if (n > buflen) {
+			if (n > buflen || n >= MAXHOSTNAMELEN) {
 				had_error++;
 				continue;
 			}
@@ -303,6 +311,10 @@ gethostanswer(answer, anslen, qname, qtype)
 				n = -1;
 			if (n != -1) {
 				n = strlen(bp) + 1;	/* for the \0 */
+				if (n >= MAXHOSTNAMELEN) {
+					had_error++;
+					break;
+				}
 				bp += n;
 				buflen -= n;
 			}
@@ -311,6 +323,10 @@ gethostanswer(answer, anslen, qname, qtype)
 			host.h_name = bp;
 			if (_res.options & RES_USE_INET6) {
 				n = strlen(bp) + 1;	/* for the \0 */
+				if (n >= MAXHOSTNAMELEN) {
+					had_error++;
+					break;
+				}
 				bp += n;
 				buflen -= n;
 				_map_v4v6_hostent(&host, &bp, &buflen);
@@ -381,8 +397,8 @@ gethostanswer(answer, anslen, qname, qtype)
 # endif /*RESOLVSORT*/
 		if (!host.h_name) {
 			n = strlen(qname) + 1;	/* for the \0 */
-			if (n > buflen)
-				goto try_again;
+			if (n > buflen || n >= MAXHOSTNAMELEN)
+				goto no_recovery;
 			strcpy(bp, qname);
 			host.h_name = bp;
 			bp += n;
@@ -393,8 +409,8 @@ gethostanswer(answer, anslen, qname, qtype)
 		h_errno = NETDB_SUCCESS;
 		return (&host);
 	}
- try_again:
-	h_errno = TRY_AGAIN;
+ no_recovery:
+	h_errno = NO_RECOVERY;
 	return (NULL);
 }
 
