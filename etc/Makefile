@@ -40,6 +40,8 @@ SSL=	${.CURDIR}/../crypto/openssl/apps/openssl.cnf
 # -rwxr-xr-x root:wheel, for the new cron root:wheel
 BIN2=	netstart pccard_ether rc.suspend rc.resume
 
+DEFAULTS= rc.conf make.conf pccard.conf periodic.conf
+
 MTREE=	BSD.include.dist BSD.local.dist BSD.root.dist BSD.usr.dist \
 	BSD.var.dist BSD.x11.dist BSD.x11-4.dist
 .if !defined(NO_SENDMAIL)
@@ -67,22 +69,20 @@ distribute:
 	@echo
 
 distribution:
-	(cd ${.CURDIR}; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${BIN1} ${DESTDIR}/etc; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 ${BIN2} ${DESTDIR}/etc; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 defaults/rc.conf ${DESTDIR}/etc/defaults/; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 defaults/make.conf ${DESTDIR}/etc/defaults/; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 defaults/pccard.conf ${DESTDIR}/etc/defaults/; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 defaults/periodic.conf ${DESTDIR}/etc/defaults/; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
-	    ${DESTDIR}/var/log/cron; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 \
-	    master.passwd nsmb.conf ${DESTDIR}/etc; \
-	( cd ${.CURDIR}/periodic; ${MAKE} install ); \
-	( cd ${.CURDIR}/../gnu/usr.bin/send-pr; ${MAKE} etc-gnats-freefall ); \
-	( cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap ); \
-	( cd ${.CURDIR}/../usr.sbin/rmt; ${MAKE} etc-rmt ); \
-	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd )
+	cd ${.CURDIR}; \
+	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 \
+		${BIN1} ${DESTDIR}/etc; \
+	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 \
+		${BIN2} ${DESTDIR}/etc; \
+	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 \
+		master.passwd nsmb.conf opieaccess ${DESTDIR}/etc; \
+	cd ${.CURDIR}/defaults; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 \
+	    ${DEFAULTS} ${DESTDIR}/etc/defaults;
+	cd ${.CURDIR}/periodic; ${MAKE} install
+	cd ${.CURDIR}/../gnu/usr.bin/send-pr; ${MAKE} etc-gnats-freefall
+	cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap
+	cd ${.CURDIR}/../usr.sbin/rmt; ${MAKE} etc-rmt
+	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd
 .if !defined(NO_I4B)
 	( cd ${.CURDIR}/isdn; ${MAKE} install )
 .endif
@@ -138,6 +138,8 @@ distribution:
 	    ${DESTDIR}/var/db/locate.database
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
 	    ${DESTDIR}/var/log/auth.log
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
+	    ${DESTDIR}/var/log/cron
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
 	    ${DESTDIR}/var/log/lpd-errs
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 640 /dev/null \
@@ -218,15 +220,10 @@ distrib-dirs:
 
 etc-examples:
 	(cd ${.CURDIR}; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${BIN1} ${BIN2} \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
+	    ${BIN1} ${BIN2} nsmb.conf opieaccess \
 	    ${DESTDIR}/usr/share/examples/etc; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 defaults/rc.conf \
-	    ${DESTDIR}/usr/share/examples/etc/defaults; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 defaults/make.conf \
-	    ${DESTDIR}/usr/share/examples/etc/defaults; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 defaults/pccard.conf \
-	    ${DESTDIR}/usr/share/examples/etc/defaults; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 defaults/periodic.conf \
-	    ${DESTDIR}/usr/share/examples/etc/defaults)
+	cd ${.CURDIR}/defaults; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
+	    ${DEFAULTS} ${DESTDIR}/usr/share/examples/etc/defaults; \
 
 .include <bsd.prog.mk>
