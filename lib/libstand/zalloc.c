@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: zalloc.c,v 1.1 1998/09/26 01:42:39 msmith Exp $
+ *	$Id: zalloc.c,v 1.2 1998/09/26 03:24:14 dillon Exp $
  */
 
 /*
@@ -564,7 +564,7 @@ zallocstats(MemPool *mp)
     int fcount = 0;
     MemNode *mn;
 
-    printf("Pool %s, %d bytes reserved", mp->mp_Ident, mp->mp_Size);
+    printf("Pool %s, %d bytes reserved", mp->mp_Ident, (int) mp->mp_Size);
 
     mn = mp->mp_First;
 
