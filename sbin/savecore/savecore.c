@@ -562,8 +562,9 @@ check_space()
 	needed = (dumpsize + kernelsize) / 1024;
  	if (((minfree > 0) ? spacefree : totfree) - needed < minfree) {
 		syslog(LOG_WARNING,
-    "no dump, not enough free space on device (%lld available, need %lld)",
-		    (long long)(minfree > 0 ? spacefree : totfree), (long long)needed);
+	"no dump, not enough free space on device (%lld available, need %lld)",
+		    (long long)(minfree > 0 ? spacefree : totfree),
+		    (long long)needed);
 		return (0);
 	}
 	if (spacefree - needed < 0)
