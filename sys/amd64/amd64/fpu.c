@@ -74,6 +74,7 @@
 #include <machine/resource.h>
 #include <machine/specialreg.h>
 #include <machine/segments.h>
+#include <machine/ucontext.h>
 
 #ifndef SMP
 #include <i386/isa/icu.h>
@@ -151,17 +152,11 @@ void	stop_emulating(void);
 	(cpu_fxsr ? \
 		(thread)->td_pcb->pcb_save.sv_xmm.sv_env.en_sw : \
 		(thread)->td_pcb->pcb_save.sv_87.sv_env.en_sw)
-#define GET_FPU_EXSW_PTR(pcb) \
-	(cpu_fxsr ? \
-		&(pcb)->pcb_save.sv_xmm.sv_ex_sw : \
-		&(pcb)->pcb_save.sv_87.sv_ex_sw)
 #else /* CPU_ENABLE_SSE */
 #define GET_FPU_CW(thread) \
 	(thread->td_pcb->pcb_save.sv_87.sv_env.en_cw)
 #define GET_FPU_SW(thread) \
 	(thread->td_pcb->pcb_save.sv_87.sv_env.en_sw)
-#define GET_FPU_EXSW_PTR(pcb) \
-	(&(pcb)->pcb_save.sv_87.sv_ex_sw)
 #endif /* CPU_ENABLE_SSE */
 
 typedef u_char bool_t;
@@ -190,6 +185,8 @@ static	volatile u_int		npx_intrs_while_probing;
 static	volatile u_int		npx_traps_while_probing;
 #endif
 
+static	union savefpu		npx_cleanstate;
+static	bool_t			npx_cleanstate_ready;
 static	bool_t			npx_ex16;
 static	bool_t			npx_exists;
 static	bool_t			npx_irq13;
@@ -461,6 +458,7 @@ npx_attach(dev)
 	device_t dev;
 {
 	int flags;
+	register_t s;
 
 	if (resource_int_value("npx", 0, "flags", &flags) != 0)
 		flags = 0;
@@ -497,6 +495,14 @@ npx_attach(dev)
 	}
 	npxinit(__INITIAL_NPXCW__);
 
+	if (npx_cleanstate_ready == 0) {
+		s = intr_disable();
+		stop_emulating();
+		fpusave(&npx_cleanstate);
+		start_emulating();
+		npx_cleanstate_ready = 1;
+		intr_restore(s);
+	}
 #ifdef I586_CPU_XXX
 	if (cpu_class == CPUCLASS_586 && npx_ex16 && npx_exists &&
 	    timezero("i586_bzero()", i586_bzero) <
@@ -543,8 +549,6 @@ npxinit(control)
 		fninit();
 #endif
 	fldcw(&control);
-	if (PCPU_GET(curpcb) != NULL)
-		fpusave(&PCPU_GET(curpcb)->pcb_save);
 	start_emulating();
 	intr_restore(savecrit);
 }
@@ -559,15 +563,14 @@ npxexit(td)
 	register_t savecrit;
 
 	savecrit = intr_disable();
-	if (td == PCPU_GET(fpcurthread))
+	if (curthread == PCPU_GET(fpcurthread))
 		npxsave(&PCPU_GET(curpcb)->pcb_save);
 	intr_restore(savecrit);
 #ifdef NPX_DEBUG
 	if (npx_exists) {
 		u_int	masked_exceptions;
 
-		masked_exceptions = PCPU_GET(curpcb)->pcb_save.sv_87.sv_env.en_cw
-		    & PCPU_GET(curpcb)->pcb_save.sv_87.sv_env.en_sw & 0x7f;
+		masked_exceptions = GET_FPU_CW(td) & GET_FPU_SW(td) & 0x7f;
 		/*
 		 * Log exceptions that would have trapped with the old
 		 * control word (overflow, divide by 0, and invalid operand).
@@ -579,6 +582,19 @@ npxexit(td)
 			    masked_exceptions);
 	}
 #endif
+}
+
+int
+npxformat()
+{
+
+	if (!npx_exists)
+		return (_MC_FPFMT_NODEV);
+#ifdef	CPU_ENABLE_SSE
+	if (cpu_fxsr)
+		return (_MC_FPFMT_XMM);
+#endif
+	return (_MC_FPFMT_387);
 }
 
 /* 
@@ -774,7 +790,6 @@ npxtrap()
 {
 	register_t savecrit;
 	u_short control, status;
-	u_long *exstat;
 
 	if (!npx_exists) {
 		printf("npxtrap: fpcurthread = %p, curthread = %p, npx_exists = %d\n",
@@ -796,11 +811,7 @@ npxtrap()
 		fnstsw(&status);
 	}
 
-	exstat = GET_FPU_EXSW_PTR(curthread->td_pcb);
-	*exstat = status;
-	if (PCPU_GET(fpcurthread) != curthread)
-		GET_FPU_SW(curthread) &= ~0x80bf;
-	else
+	if (PCPU_GET(fpcurthread) == curthread)
 		fnclex();
 	intr_restore(savecrit);
 	return (fpetable[status & ((~control & 0x3f) | 0x40)]);
@@ -813,17 +824,29 @@ npxtrap()
  * and not necessarily for every context switch, but it is too hard to
  * access foreign pcb's.
  */
+
+static int err_count = 0;
+
 int
 npxdna()
 {
-	u_long *exstat;
+	struct pcb *pcb;
 	register_t s;
+	u_short control;
 
 	if (!npx_exists)
 		return (0);
+	if (PCPU_GET(fpcurthread) == curthread) {
+		printf("npxdna: fpcurthread == curthread %d times\n",
+		    ++err_count);
+		stop_emulating();
+		return (1);
+	}
 	if (PCPU_GET(fpcurthread) != NULL) {
-		printf("npxdna: fpcurthread = %p, curthread = %p\n",
-		       PCPU_GET(fpcurthread), curthread);
+		printf("npxdna: fpcurthread = %p (%d), curthread = %p (%d)\n",
+		       PCPU_GET(fpcurthread),
+		       PCPU_GET(fpcurthread)->td_proc->p_pid,
+		       curthread, curthread->td_proc->p_pid);
 		panic("npxdna");
 	}
 	s = intr_disable();
@@ -832,22 +855,35 @@ npxdna()
 	 * Record new context early in case frstor causes an IRQ13.
 	 */
 	PCPU_SET(fpcurthread, curthread);
+	pcb = PCPU_GET(curpcb);
 
-	exstat = GET_FPU_EXSW_PTR(PCPU_GET(curpcb));
-	*exstat = 0;
-	/*
-	 * The following frstor may cause an IRQ13 when the state being
-	 * restored has a pending error.  The error will appear to have been
-	 * triggered by the current (npx) user instruction even when that
-	 * instruction is a no-wait instruction that should not trigger an
-	 * error (e.g., fnclex).  On at least one 486 system all of the
-	 * no-wait instructions are broken the same as frstor, so our
-	 * treatment does not amplify the breakage.  On at least one
-	 * 386/Cyrix 387 system, fnclex works correctly while frstor and
-	 * fnsave are broken, so our treatment breaks fnclex if it is the
-	 * first FPU instruction after a context switch.
-	 */
-	fpurstor(&PCPU_GET(curpcb)->pcb_save);
+	if ((pcb->pcb_flags & PCB_NPXINITDONE) == 0) {
+		/*
+		 * This is the first time this thread has used the FPU or
+		 * the PCB doesn't contain a clean FPU state.  Explicitly
+		 * initialize the FPU and load the default control word.
+		 */
+		fninit();
+		control = __INITIAL_NPXCW__;
+		fldcw(&control);
+		pcb->pcb_flags |= PCB_NPXINITDONE;
+	} else {
+		/*
+		 * The following frstor may cause an IRQ13 when the state
+		 * being restored has a pending error.  The error will
+		 * appear to have been triggered by the current (npx) user
+		 * instruction even when that instruction is a no-wait
+		 * instruction that should not trigger an error (e.g.,
+		 * fnclex).  On at least one 486 system all of the no-wait
+		 * instructions are broken the same as frstor, so our
+		 * treatment does not amplify the breakage.  On at least
+		 * one 386/Cyrix 387 system, fnclex works correctly while
+		 * frstor and fnsave are broken, so our treatment breaks
+		 * fnclex if it is the first FPU instruction after a context
+		 * switch.
+		 */
+		fpurstor(&pcb->pcb_save);
+	}
 	intr_restore(s);
 
 	return (1);
@@ -886,6 +922,87 @@ npxsave(addr)
 
 	start_emulating();
 	PCPU_SET(fpcurthread, NULL);
+}
+
+/*
+ * This should be called with interrupts disabled and only when the owning
+ * FPU thread is non-null.
+ */
+void
+npxdrop()
+{
+	struct thread *td;
+
+	td = PCPU_GET(fpcurthread);
+	PCPU_SET(fpcurthread, NULL);
+	td->td_pcb->pcb_flags &= ~PCB_NPXINITDONE;
+	start_emulating();
+}
+
+/*
+ * Get the state of the FPU without dropping ownership (if possible).
+ * It returns the FPU ownership status.
+ */
+int
+npxgetregs(td, addr)
+	struct thread *td;
+	union savefpu *addr;
+{
+	register_t s;
+
+	if (!npx_exists)
+		return (_MC_FPOWNED_NONE);
+
+	if ((td->td_pcb->pcb_flags & PCB_NPXINITDONE) == 0) {
+		if (npx_cleanstate_ready)
+			bcopy(&npx_cleanstate, addr, sizeof(npx_cleanstate));
+		else
+			bzero(addr, sizeof(*addr));
+		return (_MC_FPOWNED_NONE);
+	}
+
+	s = intr_disable();
+	if (curthread == PCPU_GET(fpcurthread)) {
+		fpusave(addr);
+#ifdef CPU_ENABLE_SSE
+		if (!cpu_fxsr)
+#endif
+			/*
+			 * fnsave initializes the FPU and destroys whatever
+			 * context it contains.  Make sure the FPU owner
+			 * starts with a clean state next time.
+			 */
+			npxdrop();
+		intr_restore(s);
+		return (_MC_FPOWNED_FPU);
+	} else {
+		intr_restore(s);
+		bcopy(&td->td_pcb->pcb_save, addr, sizeof(*addr));
+		return (_MC_FPOWNED_PCB);
+	}
+}
+
+/*
+ * Set the state of the FPU.
+ */
+void
+npxsetregs(td, addr)
+	struct thread *td;
+	union savefpu *addr;
+{
+	register_t s;
+
+	if (!npx_exists)
+		return;
+
+	s = intr_disable();
+	if (curthread == PCPU_GET(fpcurthread)) {
+		fpurstor(addr);
+		intr_restore(s);
+	} else {
+		intr_restore(s);
+		bcopy(addr, &td->td_pcb->pcb_save, sizeof(*addr));
+	}
 }
 
 static void
