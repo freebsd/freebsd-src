@@ -50,6 +50,7 @@ static struct isa_pnp_id pcic_ids[] = {
 	{PCIC_PNP_VLSI_82C146,		NULL},		/* PNP0E02 */
 	{PCIC_PNP_82365_CARDBUS,	NULL},		/* PNP0E03 */
 	{PCIC_PNP_SCM_SWAPBOX,		NULL},		/* SCM0469 */ 
+	{PCIC_NEC_PC9801_102,		NULL},		/* NEC8091 */
 	{0}
 };
 
