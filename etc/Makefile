@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.140 1996/08/14 14:41:56 jkh Exp $
+#	$Id: Makefile,v 1.141 1996/08/17 22:27:03 wosch Exp $
 
 # -rw-r--r--
 BINOWN= root
@@ -61,6 +61,7 @@ distribution:
 	( cd ${.CURDIR}/../gnu/libexec/uucp/sample; ${MAKE} install ); \
 	( cd ${.CURDIR}/../usr.bin/file; ${MAKE} etc-magic ); \
 	( cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap ); \
+	( cd ${.CURDIR}/../usr.sbin/rmt; ${MAKE} etc-rmt ); \
 	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
 	     MAKEDEV.local etc.${MACHINE}/MAKEDEV ${DESTDIR}/dev )
