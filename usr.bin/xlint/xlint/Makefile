@@ -4,7 +4,7 @@
 
 PROG=	xlint
 SRCS=	xlint.c mem.c
-MAN=	lint.1
+MAN1=	lint.1
 
 CFLAGS+=-I${.CURDIR}/../lint1
 
