@@ -31,6 +31,9 @@
  *
  * $FreeBSD$
  */
+#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/signalvar.h>
 #include <signal.h>
 #include <errno.h>
 #include <pthread.h>
@@ -39,9 +42,9 @@
 __weak_reference(_sigpending, sigpending);
 
 int
-_sigpending(sigset_t * set)
+_sigpending(sigset_t *set)
 {
-	struct pthread	*curthread = _get_curthread();
+	struct pthread *curthread = _get_curthread();
 	int ret = 0;
 
 	/* Check for a null signal set pointer: */
@@ -51,6 +54,7 @@ _sigpending(sigset_t * set)
 	}
 	else {
 		*set = curthread->sigpend;
+		SIGSETOR(*set, _process_sigpending);
 	}
 	/* Return the completion status: */
 	return (ret);
