@@ -1,4 +1,4 @@
-/*	$Id: bootp_subr.c,v 1.6 1997/10/28 15:59:02 bde Exp $	*/
+/*	$Id: bootp_subr.c,v 1.7 1998/01/09 03:21:07 eivind Exp $	*/
 
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass
@@ -69,7 +69,7 @@
 #include <nfs/xdr_subs.h>
 
 
-#define MIN_REPLY_HDR 16	/* xid, dir, astat, errno */
+#define BOOTP_MIN_LEN		300	/* Minimum size of bootp udp packet */
 
 /*
  * What is the longest we will wait before re-sending a request?
@@ -390,8 +390,8 @@ bootpc_call(call,reply,procp)
 				goto out;
 			len = sizeof(*reply) - auio.uio_resid;
 
-			/* Does the reply contain at least a header? */
-			if (len < MIN_REPLY_HDR)
+			/* Do we have the required number of bytes ? */
+			if (len < BOOTP_MIN_LEN)
 				continue;
 
 			/* Is it the right reply? */
