@@ -118,7 +118,6 @@
 #include <netipsec/ipsec.h>
 #include <netipsec/ipsec6.h>
 #include <netipsec/key.h>
-#define	IPSEC
 #endif /* FAST_IPSEC */
 
 struct	in6_addr zeroin6_addr;
@@ -435,7 +434,7 @@ in6_pcbdetach(inp)
 	struct socket *so = inp->inp_socket;
 	struct inpcbinfo *ipi = inp->inp_pcbinfo;
 
-#ifdef IPSEC
+#if defined(IPSEC) || defined(FAST_IPSEC)
 	if (inp->in6p_sp != NULL)
 		ipsec6_delete_pcbpolicy(inp);
 #endif /* IPSEC */
