@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: linker.h,v 1.4 1998/08/12 08:44:21 dfr Exp $
+ *	$Id: linker.h,v 1.5 1998/09/14 18:31:19 msmith Exp $
  */
 
 #ifndef _SYS_LINKER_H_
@@ -190,6 +190,15 @@ caddr_t linker_file_lookup_symbol(linker_file_t file, const char* name,
 #define KLD_IDENT_SYMNAME	"kld_identifier_"
 #define MODINFOMD_KLDIDENT	(MODINFOMD_NOCOPY | 0x4000)
 #define MODINFOMD_KLDDEP	(MODINFOMD_NOCOPY | 0x4001)
+
+/*
+ * Module lookup
+ */
+extern caddr_t		module_metadata;
+extern caddr_t		module_search_by_name(const char *name);
+extern caddr_t		module_search_by_type(const char *type);
+extern caddr_t		module_search_info(caddr_t mod, int inf);
+
 
 #ifdef KLD_DEBUG
 
