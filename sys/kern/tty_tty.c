@@ -70,10 +70,12 @@ ctty_clone(void *arg, char *name, int namelen, dev_t *dev)
 		return;
 	if (strcmp(name, "tty"))
 		return;
-	if (curthread->td_proc->p_flag & P_CONTROLT)
-		*dev = curthread->td_proc->p_session->s_ttyvp->v_rdev;
-	else
+	if (!(curthread->td_proc->p_flag & P_CONTROLT))
 		*dev = ctty;
+	else if (curthread->td_proc->p_session->s_ttyvp == NULL)
+		*dev = ctty;
+	else
+		*dev = curthread->td_proc->p_session->s_ttyvp->v_rdev;
 }
 
 static void
