@@ -9,7 +9,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_nat.c	1.11 6/5/96 (C) 1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_nat.c,v 1.3 1998/06/20 18:37:50 peter Exp $";
+static const char rcsid[] = "@(#)$Id: ip_nat.c,v 1.4 1998/08/15 21:51:53 bde Exp $";
 #endif
 
 #include "opt_ipfilter.h"
@@ -103,11 +103,11 @@ extern struct ifnet vpnif;
 #undef	SOCKADDR_IN
 #define	SOCKADDR_IN	struct sockaddr_in
 
-nat_t	*nat_table[2][NAT_SIZE], *nat_instances = NULL;
-ipnat_t	*nat_list = NULL;
+       nat_t	*nat_table[2][NAT_SIZE], *nat_instances = NULL;
+static ipnat_t	*nat_list = NULL;
 u_long	fr_defnatage = 1200,	/* 10 minutes (600 seconds) */
 	fr_defnaticmpage = 6;	/* 3 seconds */
-natstat_t nat_stats;
+static natstat_t nat_stats;
 #if	(SOLARIS || defined(__sgi)) && defined(_KERNEL)
 extern	kmutex_t	ipf_nat;
 #endif

@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  */
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_auth.c,v 1.4 1998/06/20 18:37:50 peter Exp $";
+static const char rcsid[] = "@(#)$Id: ip_auth.c,v 1.5 1998/08/15 21:51:53 bde Exp $";
 #endif
 
 #if defined(KERNEL) && !defined(_KERNEL)
@@ -117,10 +117,10 @@ int	fr_authsize = FR_NUMAUTH;
 int	fr_authused = 0;
 int	fr_defaultauthage = 600;
 fr_authstat_t	fr_authstats;
-frauth_t fr_auth[FR_NUMAUTH];
+static frauth_t fr_auth[FR_NUMAUTH];
 mb_t	*fr_authpkts[FR_NUMAUTH];
-int	fr_authstart = 0, fr_authend = 0, fr_authnext = 0;
-frauthent_t	*fae_list = NULL;
+static int	fr_authstart = 0, fr_authend = 0, fr_authnext = 0;
+static frauthent_t	*fae_list = NULL;
 frentry_t	*ipauth = NULL;
 
 
