@@ -1,6 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 
-# XXX NOT DONE YET:	csu
 # XXX MISSING:		libmp libplot
 SUBDIR=	libc libcompat libcurses libedit libkvm libm \
 	libresolv librpc/rpc libtelnet libterm libutil liby
@@ -9,8 +8,8 @@ SUBDIR=	libc libcompat libcurses libedit libkvm libm \
 SUBDIR+=csu/tahoe.pcc
 .elif	${MACHINE} == "vax"
 SUBDIR+=csu/vax.pcc
-#.else
-#SUBDIR+=csu/${MACHINE}
+.else
+SUBDIR+=csu/${MACHINE}
 .endif
 
 .include <bsd.subdir.mk>
