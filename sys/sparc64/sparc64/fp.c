@@ -39,9 +39,13 @@
 #include <machine/tstate.h>
 
 void
-fp_init_thread(struct pcb *pcb)
+fp_init_thread(struct thread *td)
 {
+	struct trapframe *tf;
+	struct pcb *pcb;
 
+	pcb = td->td_pcb;
+	tf = td->td_frame;
 	bzero(&pcb->pcb_fpstate.fp_fb, sizeof(pcb->pcb_fpstate.fp_fb));
 #if 0
 	pcb->pcb_fpstate.fp_fsr = 0;
@@ -53,9 +57,9 @@ fp_init_thread(struct pcb *pcb)
 	 * This does of course reduce the accuracy, so it should be removed
 	 * as soon as possible.
 	 */
-	pcb->pcb_fpstate.fp_fsr = FSR_NS;
+	tf->tf_fsr = FSR_NS;
 #endif
-	wr(fprs, 0, 0);
+	tf->tf_fprs = 0;
 }
 
 int
@@ -66,23 +70,17 @@ fp_enable_thread(struct thread *td, struct trapframe *tf)
 	pcb = td->td_pcb;
 	CTR5(KTR_TRAP, "fp_enable_thread: tpc=%#lx, tnpc=%#lx, tstate=%#lx, "
 	    "fprs=%#lx, fsr=%#lx", tf->tf_tpc, tf->tf_tnpc, tf->tf_tstate,
-	    pcb->pcb_fpstate.fp_fprs, pcb->pcb_fpstate.fp_fsr);
-	if ((tf->tf_tstate & TSTATE_PEF) != 0 &&
-	    (pcb->pcb_fpstate.fp_fprs & FPRS_FEF) == 0) {
-		/*
-		 * Enable FEF for now. The SCD mandates that this should be
-		 * done when no user trap is set. User traps are not currently
-		 * supported...
-		 */
-		wr(fprs, rd(fprs), FPRS_FEF);
-		return (1);
-	}
-	
-	if ((tf->tf_tstate & TSTATE_PEF) != 0)
+	    tf->tf_fprs, tf->tf_fsr);
+	if ((tf->tf_fprs & FPRS_FEF) != 0)
 		return (0);
+
+	/*
+	 * Enable FEF for now. The SCD mandates that this should be
+	 * done when no user trap is set. User traps are not currently
+	 * supported...
+	 */
+	tf->tf_fprs |= FPRS_FEF;
 	mtx_lock_spin(&sched_lock);
-	tf->tf_tstate |= TSTATE_PEF;
-	/* Actually load the FP state into the registers. */
 	restorefpctx(&pcb->pcb_fpstate);
 	mtx_unlock_spin(&sched_lock);
 	return (1);
@@ -91,11 +89,9 @@ fp_enable_thread(struct thread *td, struct trapframe *tf)
 int
 fp_exception_other(struct thread *td, struct trapframe *tf)
 {
-	u_long fsr;
 
-	__asm __volatile("stx %%fsr, %0" : "=m" (fsr));
 	CTR4(KTR_TRAP, "fp_exception_other: tpc=%#lx, tnpc=%#lx, ftt=%lx "
-	    "fsr=%lx", tf->tf_tpc, tf->tf_tnpc, FSR_FTT(fsr), fsr);
+	    "fsr=%lx", tf->tf_tpc, tf->tf_tnpc, FSR_FTT(tf->tf_fsr), tf->tf_fsr);
 	/* XXX: emulate unimplemented and unfinished instructions. */
 	return (SIGFPE);
 }
