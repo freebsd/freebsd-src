@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 13, 2004
+.Dd December 14, 2004
 .Dt ACPI 4
 .Os
 .Sh NAME
@@ -247,8 +247,7 @@ the region to be avoided in the kernel environment variable
 .Va debug.acpi.avoid .
 The object and all of its children will be ignored during the
 bus/children scan of the namespace.
-The ACPI CA code will still
-know about the avoided region.
+The ACPI CA code will still know about the avoided region.
 .Sh DEBUGGING OUTPUT
 To enable debugging output,
 .Nm
@@ -263,21 +262,39 @@ tokens, with layers listed in
 .Va debug.acpi.layer
 and levels in
 .Va debug.acpi.level .
+.Pp
+The first set of layers is for ACPI-CA components, and the second is for
+.Fx
+drivers.
+The ACPI-CA layer descriptions include the prefix for the files they
+refer to.
 The supported layers are:
 .Pp
 .Bl -tag -compact -width ".Li ACPI_CA_DISASSEMBLER"
 .It Li ACPI_UTILITIES
+Utility ("ut") functions
 .It Li ACPI_HARDWARE
+Hardware access ("hw")
 .It Li ACPI_EVENTS
+Event and GPE ("ev")
 .It Li ACPI_TABLES
+Table access ("tb")
 .It Li ACPI_NAMESPACE
+Namespace evaluation ("ns")
 .It Li ACPI_PARSER
+AML parser ("ps")
 .It Li ACPI_DISPATCHER
+Internal representation of interpreter state ("ds")
 .It Li ACPI_EXECUTER
+Execute AML methods ("ex")
 .It Li ACPI_RESOURCES
+Resource parsing ("rs")
 .It Li ACPI_CA_DEBUGGER
+Debugger implementation ("db", "dm")
 .It Li ACPI_OS_SERVICES
+Usermode support routines ("os")
 .It Li ACPI_CA_DISASSEMBLER
+Disassembler implementation (unused)
 .It Li ACPI_ALL_COMPONENTS
 All the above ACPI-CA components
 .It Li ACPI_AC_ADAPTER
@@ -312,12 +329,17 @@ The supported levels are:
 .Pp
 .Bl -tag -compact -width ".Li ACPI_LV_AML_DISASSEMBLE"
 .It Li ACPI_LV_ERROR
+Fatal error conditions
 .It Li ACPI_LV_WARN
+Warnings and potential problems
 .It Li ACPI_LV_INIT
+Initialization progress
 .It Li ACPI_LV_DEBUG_OBJECT
+Stores to objects
 .It Li ACPI_LV_INFO
+General information and progress
 .It Li ACPI_LV_ALL_EXCEPTIONS
-All the above errors and warnings
+All the previous levels
 .It Li ACPI_LV_INIT_NAMES
 .It Li ACPI_LV_PARSE
 .It Li ACPI_LV_LOAD
@@ -333,6 +355,7 @@ All the above errors and warnings
 .It Li ACPI_LV_USER_REQUESTS
 .It Li ACPI_LV_PACKAGE
 .It Li ACPI_LV_VERBOSITY1
+All the previous levels
 .It Li ACPI_LV_ALLOCATIONS
 .It Li ACPI_LV_FUNCTIONS
 .It Li ACPI_LV_OPTIMIZATIONS
@@ -343,16 +366,27 @@ All the above errors and warnings
 .It Li ACPI_LV_IO
 .It Li ACPI_LV_INTERRUPTS
 .It Li ACPI_LV_VERBOSITY3
+All the previous levels
 .It Li ACPI_LV_AML_DISASSEMBLE
 .It Li ACPI_LV_VERBOSE_INFO
 .It Li ACPI_LV_FULL_TABLES
 .It Li ACPI_LV_EVENTS
 .It Li ACPI_LV_VERBOSE
+All levels after
+.Qq Li ACPI_LV_VERBOSITY3
 .El
 .Pp
 Selection of the appropriate layer and level values is important
 to avoid massive amounts of debugging output.
-Check the code to see which you need.
+For example, the following configuration is a good way to gather initial
+information.
+It enables debug output for both ACPI-CA and the
+.Nm
+driver, printing basic information about errors, warnings, and progress.
+.Bd -literal -offset indent
+debug.acpi.layer="ACPI_ALL_COMPONENTS ACPI_ALL_DRIVERS"
+debug.acpi.level="ACPI_LV_ALL_EXCEPTIONS"
+.Ed
 .Pp
 Debugging output by the ACPI CA subsystem is prefixed with the
 module name in lowercase, followed by a source line number.
