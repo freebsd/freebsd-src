@@ -73,6 +73,9 @@
         - Eliminated PacketAliasIn2() and
           PacketAliasOut2() as poorly conceived.
 
+    Version 2.3 Dec 1998 (dillon)
+	- Major bounds checking additions, see FreeBSD/CVS
+
     See HISTORY file for additional revisions.
 
 */
@@ -603,6 +606,7 @@ UdpAliasIn(struct ip *pip)
         u_short alias_port;
         int accumulate;
         u_short *sptr;
+	int r = 0;
 
         alias_address = GetAliasAddress(link);
         original_address = GetOriginalAddress(link);
@@ -613,11 +617,11 @@ UdpAliasIn(struct ip *pip)
 		if (ntohs(ud->uh_dport) == NETBIOS_DGM_PORT_NUMBER
          || ntohs(ud->uh_sport) == NETBIOS_DGM_PORT_NUMBER )
 		{
-            AliasHandleUdpNbt(pip, link, &original_address, ud->uh_dport);
+            r = AliasHandleUdpNbt(pip, link, &original_address, ud->uh_dport);
 		} else if (ntohs(ud->uh_dport) == NETBIOS_NS_PORT_NUMBER
          || ntohs(ud->uh_sport) == NETBIOS_NS_PORT_NUMBER )
 		{
-            AliasHandleUdpNbtNS(pip, link, 
+            r = AliasHandleUdpNbtNS(pip, link, 
 								&alias_address,
 								&alias_port,
 								&original_address, 
@@ -648,7 +652,14 @@ UdpAliasIn(struct ip *pip)
                              (u_short *) &pip->ip_dst,
                              2);
         pip->ip_dst = original_address;
-        return(PKT_ALIAS_OK);
+
+	/*
+	 * If we cannot figure out the packet, ignore it.
+	 */
+	if (r < 0)
+	    return(PKT_ALIAS_IGNORED);
+	else
+	    return(PKT_ALIAS_OK);
     }
     return(PKT_ALIAS_IGNORED);
 }
