@@ -178,10 +178,13 @@ CROSSENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
 		MACHINE_ARCH=${TARGET_ARCH} \
 		MACHINE=${TARGET} \
 		OBJFORMAT_PATH=${WORLDTMP}/usr/libexec \
-		PERL5LIB=${WORLDTMP}/usr/libdata/perl/5.00503 \
 		GROFF_BIN_PATH=${WORLDTMP}/usr/bin \
 		GROFF_FONT_PATH=${WORLDTMP}/usr/share/groff_font \
 		GROFF_TMAC_PATH=${WORLDTMP}/usr/share/tmac
+
+.if !defined(NOPERL)
+CROSSENV+=	PERL5LIB=${WORLDTMP}/usr/libdata/perl/5.00503
+.endif
 
 # bootstrap-tool stage
 BMAKEENV=	MAKEOBJDIRPREFIX=${WORLDTMP} \
@@ -364,7 +367,7 @@ distributeworld installworld: installcheck
 	mkdir -p ${INSTALLTMP}
 	for prog in [ awk cap_mkdb cat chflags chmod chown \
 	    date echo egrep find grep \
-	    ln make makewhatis mkdir mtree mv perl pwd_mkdb rm sed sh sysctl \
+	    ln make makewhatis mkdir mtree mv pwd_mkdb rm sed sh sysctl \
 	    test true uname wc zic; do \
 		cp `which $$prog` ${INSTALLTMP}; \
 	done
@@ -581,7 +584,7 @@ _strfile=	games/fortune/strfile
 
 bootstrap-tools:
 .for _tool in ${_strfile} usr.bin/yacc usr.bin/colldef \
-    usr.bin/uudecode usr.bin/xinstall \
+    usr.bin/makewhatis usr.bin/uudecode usr.bin/xinstall \
     usr.sbin/config \
     gnu/usr.bin/gperf gnu/usr.bin/groff gnu/usr.bin/texinfo
 	${ECHODIR} "===> ${_tool}"; \
