@@ -54,7 +54,7 @@ static rtx skip_unreturned_value 	PARAMS ((rtx));
 /* Examine a CALL_PLACEHOLDER pattern and determine where the call's
    return value is located.  P_HARD_RETURN receives the hard register
    that the function used; P_SOFT_RETURN receives the pseudo register
-   that the sequence used.  Return non-zero if the values were located.  */
+   that the sequence used.  Return nonzero if the values were located.  */
 
 static int
 identify_call_return_value (cp, p_hard_return, p_soft_return)
@@ -86,7 +86,7 @@ identify_call_return_value (cp, p_hard_return, p_soft_return)
   /* If we didn't get a single hard register (e.g. a parallel), give up.  */
   if (GET_CODE (hard) != REG)
     return 0;
-    
+
   /* Stack adjustment done after call may appear here.  */
   insn = skip_stack_adjustment (insn);
   if (! insn)
@@ -101,7 +101,7 @@ identify_call_return_value (cp, p_hard_return, p_soft_return)
   insn = NEXT_INSN (insn);
   if (! insn)
     return 0;
-  
+
   /* We're looking for a source of the hard return register.  */
   set = single_set (insn);
   if (! set || SET_SRC (set) != hard)
@@ -168,7 +168,7 @@ skip_copy_to_return_value (orig_insn)
 
   /* The destination must be the same as the called function's return
      value to ensure that any return value is put in the same place by the
-     current function and the function we're calling. 
+     current function and the function we're calling.
 
      Further, the source must be the same as the pseudo into which the
      called function's return value was copied.  Otherwise we're returning
@@ -541,11 +541,11 @@ replace_call_placeholder (insn, use)
      sibcall_use_t use;
 {
   if (use == sibcall_use_tail_recursion)
-    emit_insns_before (XEXP (PATTERN (insn), 2), insn);
+    emit_insn_before (XEXP (PATTERN (insn), 2), insn);
   else if (use == sibcall_use_sibcall)
-    emit_insns_before (XEXP (PATTERN (insn), 1), insn);
+    emit_insn_before (XEXP (PATTERN (insn), 1), insn);
   else if (use == sibcall_use_normal)
-    emit_insns_before (XEXP (PATTERN (insn), 0), insn);
+    emit_insn_before (XEXP (PATTERN (insn), 0), insn);
   else
     abort ();
 
@@ -554,7 +554,7 @@ replace_call_placeholder (insn, use)
      pass above from deleting it as unused.  */
   if (XEXP (PATTERN (insn), 3))
     LABEL_PRESERVE_P (XEXP (PATTERN (insn), 3)) = 0;
-  
+
   /* "Delete" the placeholder insn.  */
   remove_insn (insn);
 }
@@ -580,23 +580,13 @@ optimize_sibling_and_tail_recursive_calls ()
 
   insns = get_insns ();
 
-  /* We do not perform these calls when flag_exceptions is true, so this
-     is probably a NOP at the current time.  However, we may want to support
-     sibling and tail recursion optimizations in the future, so let's plan
-     ahead and find all the EH labels.  */
-  find_exception_handler_labels ();
-
-  rebuild_jump_labels (insns);
-  /* We need cfg information to determine which blocks are succeeded
-     only by the epilogue.  */
-  find_basic_blocks (insns, max_reg_num (), 0);
   cleanup_cfg (CLEANUP_PRE_SIBCALL | CLEANUP_PRE_LOOP);
 
   /* If there are no basic blocks, then there is nothing to do.  */
   if (n_basic_blocks == 0)
     return;
 
-  /* If we are using sjlj exceptions, we may need to add a call to 
+  /* If we are using sjlj exceptions, we may need to add a call to
      _Unwind_SjLj_Unregister at exit of the function.  Which means
      that we cannot do any sibcall transformations.  */
   if (USING_SJLJ_EXCEPTIONS && current_function_has_exception_handlers ())
@@ -620,7 +610,7 @@ optimize_sibling_and_tail_recursive_calls ()
 
       /* Walk forwards through the last normal block and see if it
 	 does nothing except fall into the exit block.  */
-      for (insn = BLOCK_HEAD (n_basic_blocks - 1);
+      for (insn = EXIT_BLOCK_PTR->prev_bb->head;
 	   insn;
 	   insn = NEXT_INSN (insn))
 	{
@@ -686,8 +676,7 @@ optimize_sibling_and_tail_recursive_calls ()
 	     sibling call optimizations, but not tail recursion.
 	     Similarly if we use varargs or stdarg since they implicitly
 	     may take the address of an argument.  */
- 	  if (current_function_calls_alloca
-	      || current_function_varargs || current_function_stdarg)
+	  if (current_function_calls_alloca || current_function_stdarg)
 	    sibcall = 0;
 
 	  /* See if there are any reasons we can't perform either sibling or
@@ -720,8 +709,8 @@ optimize_sibling_and_tail_recursive_calls ()
 	    successful_replacement = true;
 	  replaced_call_placeholder = true;
 
-	  replace_call_placeholder (insn, 
-				    tailrecursion != 0 
+	  replace_call_placeholder (insn,
+				    tailrecursion != 0
 				      ? sibcall_use_tail_recursion
 				      : sibcall != 0
 					 ? sibcall_use_sibcall
@@ -735,11 +724,11 @@ optimize_sibling_and_tail_recursive_calls ()
       tree arg;
 
       /* A sibling call sequence invalidates any REG_EQUIV notes made for
-	 this function's incoming arguments. 
+	 this function's incoming arguments.
 
 	 At the start of RTL generation we know the only REG_EQUIV notes
 	 in the rtl chain are those for incoming arguments, so we can safely
-	 flush any REG_EQUIV note. 
+	 flush any REG_EQUIV note.
 
 	 This is (slight) overkill.  We could keep track of the highest
 	 argument we clobber and be more selective in removing notes, but it
@@ -749,7 +738,7 @@ optimize_sibling_and_tail_recursive_calls ()
       /* A sibling call sequence also may invalidate RTX_UNCHANGING_P
 	 flag of some incoming arguments MEM RTLs, because it can write into
 	 those slots.  We clear all those bits now.
-	 
+
 	 This is (slight) overkill, we could keep track of which arguments
 	 we actually write into.  */
       for (insn = get_insns (); insn; insn = NEXT_INSN (insn))
@@ -759,9 +748,9 @@ optimize_sibling_and_tail_recursive_calls ()
 	}
 
       /* Similarly, invalidate RTX_UNCHANGING_P for any incoming
-	 arguments passed in registers. */
-      for (arg = DECL_ARGUMENTS (current_function_decl); 
-	   arg; 
+	 arguments passed in registers.  */
+      for (arg = DECL_ARGUMENTS (current_function_decl);
+	   arg;
 	   arg = TREE_CHAIN (arg))
 	{
 	  if (REG_P (DECL_RTL (arg)))
@@ -769,7 +758,7 @@ optimize_sibling_and_tail_recursive_calls ()
 	}
     }
 
-  /* There may have been NOTE_INSN_BLOCK_{BEGIN,END} notes in the 
+  /* There may have been NOTE_INSN_BLOCK_{BEGIN,END} notes in the
      CALL_PLACEHOLDER alternatives that we didn't emit.  Rebuild the
      lexical block tree to correspond to the notes that still exist.  */
   if (replaced_call_placeholder)
@@ -777,4 +766,5 @@ optimize_sibling_and_tail_recursive_calls ()
 
   /* This information will be invalid after inline expansion.  Kill it now.  */
   free_basic_block_vars (0);
+  free_EXPR_LIST_list (&tail_recursion_label_list);
 }

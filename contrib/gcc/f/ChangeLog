@@ -1,47 +1,277 @@
-2003-02-05  Release Manager
+2003-07-09  Toon Moene  <toon@moene.indiv.nluug.nl>
 
-	* GCC 3.2.2 Released.
+	PR Fortran/11301
+	* com.c (ffecom_sym_transform_): finish_decl should have
+	the same last argument as start_decl.
 
-2003-01-28  Christian Cornelssen  <ccorn@cs.tu-berlin.de>
+Tue Jul  8 15:18:14 2003  Andreas Schwab  <schwab@suse.de>
+
+	* Make-lang.in (f/g77.dvi): Replace PWD with PWD_COMMAND.
+
+2003-07-05  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	PR Fortran/11301
+	* com.c (ffecom_sym_transform_): Only install
+	FFEINFO_whereGLOBAL symbols in the global binding
+	level if not -fno-globals.
+
+2003-06-13  Richard Henderson  <rth@redhat.com>
+
+        PR debug/9864
+        * com.c (ffecom_sym_transform_): Install FFEINFO_whereGLOBAL
+        symbols in the global binding level.
+
+2003-05-18  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	PR fortran/10726
+	* intdoc.in: Fix documentation of IDATE.
+	* intdoc.texi: Regenerate.
+	* news.texi: Update due to the above.
+
+2003-05-16  Wolfgang Bangerth <bangerth@dealii.org>
+
+	* g77.texi: Remove most of the preface of the bugs section.
+
+2003-05-15  Wolfgang Bangerth <bangerth@dealii.org>
+
+	* g77.texi: Remove most of the bug reporting instructions and
+	merge them into bugs.html.
+
+2003-05-13  Release Manager
+
+	* GCC 3.3 Released.
+
+2003-05-13  Release Manager
+
+	* GCC 3.3 Released.
+
+2003-05-13  Release Manager
+
+	* GCC 3.3 Released.
+
+2003-04-11  Bud Davis <bdavis9659@comcast.net>
+
+	PR Fortran/9263
+	* gcc/f/data.c (ffedata_advance_): Check initial, final and
+	increment values for INTEGER typeness.
+	* gcc/f/news.texi: Document these fixes.
+
+2003-03-26  Roger Sayle  <roger@eyesopen.com>
+
+	PR fortran/9793
+	* target.h (ffetarget_divide_integer1): Perform division by -1
+	using negation to prevent possible overflow trap on the host.
+
+2003-03-25  Marcelo Abreu  <mmabreu@inf.ufrgs.br>
+
+	PR fortran/10204
+	* ffe.texi: Reference the GCC web site in the URL.
+
+2003-03-24  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	PR fortran/10197
+	* news.texi: Document PR fortran/10197 fixed.
+
+Sun Mar 23 23:43:45 2003  Mark Mitchell  <mark@codesourcery.com>
+
+	PR c++/7086
+	* com.c (ffecom_sym_transform_): Adjust calls to
+	put_var_into_stack.
+	(ffe_mark_addressable): Likewise.
+
+2003-03-22  Bud Davis  <bdavis9659@comcast.net>
+
+	* com.c (ffecom_constantunion_with_type): New function.
+	* com.h (ffecom_constantunion_with_type): Declare.
+	* stc.c (ffestc_R810): Check for kind type.
+	* ste.c (ffeste_R810): Use ffecom_constantunion_with_type
+	to discern SELECT CASE variables.
+
+2003-03-15  Andreas Jaeger  <aj@suse.de>
+
+	* g77spec.c (DEFAULT_SWITCH_TAKES_ARG): Remove.
+	(DEFAULT_WORD_SWITCH_TAKES_ARG): Remove.
+
+2003-02-21  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* news.texi: Document fixing PR fortran/9038.
+
+2003-02-04  Joseph S. Myers  <jsm@polyomino.org.uk>
+
+	* g77.texi, invoke.texi: Update to GFDL 1.2.
+
+2003-01-30  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* news.texi: Document fixing PR fortran/7681
+	and PR optimization/9258.
+
+2003-01-26  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* lang-specs.h: Revert change to solve 9038.
+	* news.texi: Document this.
+
+2003-01-26  Christian Cornelssen  <ccorn@cs.tu-berlin.de>
 
 	* Make-lang.in (f77.install-common, f77.install-info)
 	(f77.install-man, f77.uninstall): Prepend $(DESTDIR) to
 	destination paths in all (un)installation commands.
 
-2002-11-22  Toon Moene  <toon@moene.indiv.nluug.nl>
+2003-01-05  Steven Bosscher  <s.bosscher@student.tudelft.nl>
+
+	PR Fortran/9038
+	* lang-specs.h: Prevent -f<option> from being passed
+	to cc1.
+	* news.texi: Document this fix.
+
+2003-01-03  Bud Davis <bdavis11@directvinternet.com>
+
+	* stc.c (ffestc_R810): Allow any kind integer in
+	case statements.
+	* ste.c (ffeste_R810): Give error message when
+	case selector exceeds its valid values.
+
+2003-01-01  Andreas Jaeger  <aj@suse.de>
+
+	* f/Make-lang.in ($(srcdir)/f/BUGS): Add include path for
+	gcc-common.texi.
+	($(srcdir)/f/NEWS): Likewise.
+
+2002-12-28  Joseph S. Myers  <jsm@polyomino.org.uk>
+
+	* g77.texi: Use @copying.
+
+2002-12-23  Joseph S. Myers  <jsm@polyomino.org.uk>
+
+	* root.texi: Include gcc-common.texi.
+	* bugs.texi, news.texi: Don't include root.texi as part of full
+	manual.
+	* g77.texi: Update for use of gcc-common.texi.
+	* Make-lang.in ($(srcdir)/f/g77.info, f/g77.dvi): Depend on
+	$(srcdir)/doc/include/gcc-common.texi.
+
+2002-12-19  Kazu Hirata  <kazu@cs.umass.edu>
+
+	* intdoc.in: Fix typos.
+
+2002-12-18  Kazu Hirata  <kazu@cs.umass.edu>
+
+	* g77.texi: Fix typos.
+	* intdoc.texi: Likewise.
+	* news.texi: Follow spelling conventions.
+
+Mon Dec 16 13:55:24 2002  Mark Mitchell  <mark@codesourcery.com>
+
+	* root.texi (DEVELOPMENT): @clear it.
+
+2002-11-20  Toon Moene  <toon@moene.indiv.nluug.nl>
 
 	* invoke.texi: Explain the purpose of -fmove-all-movables,
 	-freduce-all-givs and -frerun-loop-opts better.
 
-2002-11-19  Release Manager
+2002-11-19  Toon Moene  <toon@moene.indiv.nluug.nl>
 
-	* GCC 3.2.1 Released.
+	PR fortran/8587
+	* news.texi: Show PR fortran/8587 fixed.
 
-2002-11-19  Release Manager
+2002-11-19  Jason Thorpe  <thorpej@wasabisystems.com>
 
-	* GCC 3.2.1 Released.
+	* g77spec.c (lang_specific_spec_functions): New.
 
-2002-11-18  Release Manager
+2002-11-02  Toon Moene  <toon@moene.indiv.nluug.nl>
 
-	* GCC 3.2.1 Released.
+	* g77.texi: Correct documentation on generating C++ prototypes
+	of Fortran routines with f2c.
+	* news.texi: Document fixes in GCC-3.3, 3.2 and 3.1.
 
-2002-10-28  Andris Pavenis  <pavenis@latnet.lv>
-            Toon Moene  <toon@moene.indiv.nluug.nl>
+2002-10-30  Roger Sayle  <roger@eyesopen.com>
 
-	PR fortran/8308
-	* lang-specs.h: Correct ratfor specs.
-	* news.texi: Document this fix.
+	* com.c (ffecom_subscript_check_): Cast the failure branch
+	of the bounds check COND_EXPR to void, to indicate noreturn.
+	(ffe_truthvalue_conversion): Only apply truth value conversion
+	to the non-void branches of a COND_EXPR.
 
-2002-09-14  Hans-Peter Nilsson  <hp@bitrange.com>
+2002-10-26  Andris Pavenis  <pavenis@latnet.lv>
+
+	* lang-specs.h: Fix ratfor specs.
+
+2002-10-15  Richard Henderson  <rth@redhat.com>
+
+	* target.h (ffetarget_print_real1, ffetarget_print_real2): Use
+	real_to_decimal directly, and with the new arguments.
+
+2002-09-23  Zack Weinberg  <zack@codesourcery.com>
+
+	* Make-lang.in (g77spec.o): Don't depend on f/version.h.
+	(f/parse.o): Depend on version.h not f/version.h.
+	(g77version.o, f/version.o): Delete all references.
+
+	* com.c (ffecom_init_0): Fix transposed array indices in bsearch test.
+	* g77spec.c: Don't include f/version.h or refer to ffe_version_string.
+	* parse.c: Use version_string, not ffe_version_string.
+	* version.c, version.h: Delete files.
+
+2002-09-23  Kazu Hirata  <kazu@cs.umass.edu>
+
+	* ChangeLog: Follow spelling conventions.
+	* ChangeLog.0: Likewise.
+	* com.c: Likewise.
+	* ffe.texi: Likewise.
+	* g77.texi: Likewise.
+	* intdoc.in: Likewise.
+	* invoke.texi: Likewise.
+	* news.texi: Likewise.
+	* intdoc.texi: Regenerate.
+
+2002-09-16  Geoffrey Keating  <geoffk@apple.com>
+
+	* com.c (union lang_tree_node): Add chain_next option.
+
+2002-09-16  Richard Henderson  <rth@redhat.com>
+
+	* target.c (ffetarget_real1): Don't pass FFETARGET_ATOF_
+	directly to ffetarget_make_real1.
+	(ffetarget_real2): Similarly.
+	* target.h (ffetarget_cvt_r1_to_rv_, ffetarget_cvt_rv_to_r2_,
+	ffetarget_cvt_r2_to_rv_): Use new real.h interface and simplify.
+
+2002-09-15  Kazu Hirata  <kazu@cs.umass.edu>
+
+	* intdoc.texi: Regenerate.
+
+2002-09-15  Kazu Hirata  <kazu@cs.umass.edu>
+
+	* ChangeLog: Follow spelling conventions.
+	* intdoc.in: Likewise.
+
+2002-09-09  Gerald Pfeifer  <pfeifer@dbai.tuwien.ac.at>
+
+	Fix PR web/7596:
+	* ffe.texi (Front End): Fix broken links.
+	* bugs.texi (Known Bugs): Refer to gcc.gnu.org instead of
+	www.gnu.org for onlinedocs.
+	* news.texi (News): Ditto.
+
+2002-09-07  Jan Hubicka  <jh@suse.cz>
+
+	* com.c (ffe_type_for_mode): Handle long double.
+
+2002-09-04  Richard Henderson  <rth@redhat.com>
+
+	* target.h (ffetarget_print_real1, ffetarget_print_real2): Update
+	call to REAL_VALUE_TO_DECIMAL.
+
+2002-08-31  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* com.c: Don't set flag_finite_math_only by default.
+	* invoke.texi: Reverse the documentation of option
+	-ffinite-math-only to reflect the new default.
+
+2002-08-30  Hans-Peter Nilsson  <hp@bitrange.com>
 
 	* target.c (ffetarget_memcpy_): Don't test nonexistent
 	HOST_BYTES_BIG_ENDIAN, HOST_BITS_BIG_ENDIAN.  Check
 	HOST_WORDS_BIG_ENDIAN against both WORDS_BIG_ENDIAN and
 	BYTES_BIG_ENDIAN.
-
-2002-09-07  Jan Hubicka  <jh@suse.cz>
-
-	* com.c (ffe_type_for_mode): Handle long double.
 
 2002-08-30  Alan Modra  <amodra@bigpond.net.au>
 
@@ -53,44 +283,185 @@
 	* bugs.texi, news.texi: Update URLs for online news and bugs
 	lists.
 
-2002-08-14  Release Manager
+2002-08-22  Hans-Peter Nilsson  <hp@bitrange.com>
 
-	* GCC 3.2 Released.
+	* where.h (struct _ffewhere_file_): Mark GTY.
+	(ffewhere_file_kill): Remove prototype.
+	* where.c: Include ggc.h.
+	(struct _ffewhere_ll_, struct _ffewhere_root_ll_): Mark GTY.
+	(ffewhere_root_ll_): Ditto.  Change type from struct
+	_ffewhere_root_ll_ to struct _ffewhere_root_ll_*.  All uses
+	changed.
+	(ffewhere_file_kill): Remove.
+	(ffewhere_file_new): Use GC to allocate ffewhereFile objects.
+	(ffewhere_file_set): Use GC to allocate ffewhereLL_ objects.
+	(ffewhere_init_1): Use GC to allocate ffewhere_root_ll_ sentinel.
+	Include gt-f-where.h.
+	* lex.c (ffelex_current_wf_, ffelex_include_wherefile_): Mark GTY.
+	Include gt-f-lex.h.
+	* std.c (ffestd_S3P4): Don't call ffewhere_file_kill.
+	* config-lang.in (gtfiles): Add f/where.h f/where.c and f/lex.c.
+	* Make-lang.in (gt-f-lex.h gt-f-where.h): Add to dependents of
+	s-gtype.
+	(f/lex.o): Depend on gt-f-lex.h.
+	(f/where.o): Depend on gt-f-where.h.
 
-2002-08-04  Toon Moene  <toon@moene.indiv.nluug.nl>
+Tue Aug 20 16:49:40 2002  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
 
-	* news.texi: Mention nothing changed for 3.2.
+	* where.c (ffewhere_track): Remove impossible if-then clause.
 
-Sun Aug  4 16:48:53 2002  Joseph S. Myers  <jsm@polyomino.org.uk>
+Thu Aug  8 10:06:14 2002  Nathan Sidwell  <nathan@codesourcery.com>
 
-	* root.texi (version-gcc): Increase to 3.2.
+	* f/Make-lang.in (f.mostlyclean): Remove coverage files.
 
-2002-07-25  Release Manager
+2002-08-06  Gerald Pfeifer  <pfeifer@dbai.tuwien.ac.at>
 
-	* GCC 3.1.1 Released.
+	* g77.texi (Top): Rename Index to Keyword Index.
 
-2002-06-30  Toon Moene  <toon@moene.indiv.nluug.nl>
+2002-08-05  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* invoke.texi: Improve description of
+	-fno-finite-math-only flag.
+
+Sun Aug  4 16:45:49 2002  Joseph S. Myers  <jsm@polyomino.org.uk>
+
+	* root.texi (version-gcc): Increase to 3.3.
+
+2002-07-30  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* com.c (ffe_init_options): Set
+	flag_finite_math_only.
+	* invoke.texi: Document -fno-finite-math-only.
+
+Mon Jul 29 22:05:35 2002  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* com.c (read_name_map): Use concat in lieu of xmalloc/strcpy.
+
+2002-07-25  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* news.texi: Document better handling of (no-)alias
+	information of dummy arguments and induction variables
+	on loop unrolling.
+
+2002-07-01  Roger Sayle  <roger@eyesopen.com>
+
+	* f/com.c (builtin_function): Accept additional parameter.
+	(ffe_com_init_0): Pass an additional NULL_TREE argument to
+	builtin_function.
+
+2002-06-28  Toon Moene  <toon@moene.indiv.nluug.nl>
 
 	* news.texi: Mention 2 Gbyte limit on 32-bit targets
 	for arrays explicitly in news on g77-3.1.
 
-2002-05-14  Release Manager
+Thu Jun 20 21:56:34 2002  Neil Booth  <neil@daikokuya.co.uk>
 
-	* GCC 3.1 Released.
+	* lang-specs.h: Use cc1 for traditional preprocessing.
 
-2002-05-14  Release Manager
+2002-06-20  Andreas Jaeger  <aj@suse.de>
 
-	* GCC 3.1 Released.
+	* com.c (ffecom_prepare_expr_,ffecom_expr_power_integer_):
+	Remove #ifdefed HAHA sections.
+
+2002-06-20  Nathanael Nerode  <neroden@twcny.rr.com>
+
+	* com.c: Remove #ifdef HOHO sections.
+
+2002-06-17  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* bit.c: Don't include glimits.h.
+	* target.c: Likewise.
+	* where.h: Likewise.
+
+2002-06-12  Gabriel Dos Reis  <gdr@codesourcery.com>
+
+	* bad.c (ffebad_start_): Adjust calls to diagnostic_count_error.
+
+2002-06-04  Gabriel Dos Reis  <gdr@codesourcery.com>
+
+	* bad.c (ffebad_start_): Adjust call to count_error.
+	* Make-lang.in (f/bad.o): Depend on diagnostic.h
+	* bad.c: #include diagnostic.h
+
+2002-06-03  Geoffrey Keating  <geoffk@redhat.com>
+
+	* Make-lang.in (f/com.o): Depend on debug.h.
+	* com.c: Include debug.h.
+	(LANG_HOOKS_MARK_TREE): Delete.
+	(struct lang_identifier): Use gengtype.
+	(union lang_tree_node): New.
+	(struct lang_decl): New dummy definition.
+	(struct lang_type): New dummy definition.
+	(ffe_mark_tree): Delete.
+
+	* com.c (struct language_function): New dummy structure.
+
+	* Make-lang.in: Add rules to generate gt-f-ste.h gtype-f.h; allow
+	for filename changes.
+	(com.o): Allow for filename changes; add gtype-f.h as dependency.
+	(ste.o): Add gt-f-ste.h as dependency.
+	* config-lang.in (gtfiles): Add com.h, ste.c.
+	* com.c: Replace uses of ggc_add_* with GTY markers.  Include
+	gtype-f.h.
+	(mark_binding_level): Delete.
+	* com.h: Replace uses of ggc_add_* with GTY markers.
+	* ste.c: Replace uses of ggc_add_* with GTY markers.  Include
+	gt-f-ste.h.
+
+	* Make-lang.in (f/gt-com.h): Build using gengtype.
+	(com.o): Depend on f/gt-com.h.
+	* com.c: Rename struct binding_level to f_binding_level.
+	(struct f_binding_level): Use gengtype.
+	(struct tree_ggc_tracker): Use gengtype.
+	(mark_tracker_head): Use gt_ggc_m_tree_ggc_tracker.
+	(make_binding_level): Use GGC.
+	(mark_binding_level): Use gt_ggc_m_f_binding_level.
+	(ffecom_init_decl_processing): Change free_binding_level
+	to a deletable root.
+	* config-lang.in (gtfiles): Define.
+	* where.c: Strings need no longer be allocated in GCable memory;
+	remove my change of 30 Dec 1999.
+
+2002-05-31  Matthew Woodcraft  <mattheww@chiark.greenend.org.uk>
+
+	* lang-specs.h: Use cpp_debug_options.
+
+2002-05-28  Zack Weinberg  <zack@codesourcery.com>
+
+	* bld.c, com.c, expr.c, target.c: Include real.h.
+	* Make-lang.in: Update dependency lists.
+
+2002-05-16  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	* Make-lang.in: Allow for PWDCMD to override hardcoded pwd.
+
+2002-05-09  Hassan Aurag  <aurag@cae.com>
+
+	* expr.c (ffeexpr_reduced_ugly2log_): Allow logicals-as-integers
+	under -fugly-logint as arguments of .and., .or., .xor.
+
+2002-05-07  Jan Hubicka  <jh@suse.cz>
+
+	* target.h (FFETARGET_32bit_longs): Undefine for x86-64.
 
 2002-04-29  Joseph S. Myers  <jsm28@cam.ac.uk>
 
 	* invoke.texi: Use @gol at ends of lines inside @gccoptlist.
 	* g77.texi: Update last update date.
 
+Thu Apr 25 07:44:44 2002  Neil Booth  <neil@daikokuya.demon.co.uk>
+
+	* com.h (ffe_parse_file): Update.
+	* lex.c (ffe_parse_file): Update.
+
 2002-04-20  Toon Moene  <toon@moene.indiv.nluug.nl>
 
 	* root.texi: Remove variable version-g77.
 	* g77.texi: Remove the single use of that variable.
+
+Thu Apr 18 19:10:44 2002  Neil Booth  <neil@daikokuya.demon.co.uk>
+
+	* com.c (incomplete_type_error): Remove.
 
 Tue Apr 16 14:55:47 2002  Mark Mitchell  <mark@codesourcery.com>
 
@@ -101,21 +472,63 @@ Mon Apr 15 10:59:14 2002  Mark Mitchell  <mark@codesourcery.com>
 
 	* g77.texi: Remove Chill reference.
 
-2002-04-14  Hans-Peter Nilsson  <hp@bitrange.com>
+2002-04-13  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* news.texi: Deprecate frontend version number;
+	update list of fixed bugs.
+
+2002-04-08  Hans-Peter Nilsson  <hp@bitrange.com>
 
 	* Make-lang.in (f/target.o): Depend on diagnostic.h.
 	* target.c: Include diagnostic.h.
 	(ffetarget_memcpy_): Call sorry if host and target endians are
 	not matching.
 
-2002-04-13  Toon Moene  <toon@moene.indiv.nluug.nl>
+Thu Apr  4 23:29:48 2002  Neil Booth  <neil@daikokuya.demon.co.uk>
 
-	* news.texi: Deprecate frontend version number;
-	update list of fixed bugs.
+	* com.c (LANG_HOOKS_TRUTHVALUE_CONVERSION): Redefine.
+	(truthvalue_conversion): Rename.  Update.  Make static.
+	(ffecom_truth_value): Update.
 
-2002-04-01  Phil Edwards  <pme@gcc.gnu.org>
+Mon Apr  1 21:39:36 2002  Neil Booth  <neil@daikokuya.demon.co.uk>
 
-	* version.c:  Fix misplaced leading blanks on first line.
+	* com.c (LANG_HOOKS_MARK_ADDRESSABLE): Redefine.
+	(mark_addressable): Rename.
+	(ffecom_arrayref_, ffecom_1): Update.
+
+Mon Apr  1 09:59:53 2002  Neil Booth  <neil@daikokuya.demon.co.uk>
+
+	* com.c (LANG_HOOKS_SIGNED_TYPE, LANG_HOOKS_UNSIGNED_TYPE,
+	LANG_HOOKS_SIGNED_OR_UNSIGNED_TYPE): New.
+	(unsigned_type, signed_type, signed_or_unsigned_type): Rename.
+
+Sun Mar 31 23:50:22 2002  Neil Booth  <neil@daikokuya.demon.co.uk>
+
+	* com.c (lang_print_error_function): Rename.
+	(LANG_HOOKS_PRINT_ERROR_FUNCTION): Redefine.
+	(ffe_init): Don't set hook.
+
+Fri Mar 29 21:59:15 2002  Neil Booth  <neil@daikokuya.demon.co.uk>
+
+	* com.c (LANG_HOOKS_TYPE_FOR_MODE, LANG_HOOKS_TYPE_FOR_SIZE):
+	Redefine.
+	(type_for_mode, type_for_size): Rename.
+	(signed_or_unsigned_type, signed_type, truthvalue_conversion,
+	unsigned_type):	Use new hooks.
+
+Tue Mar 26 10:30:05 2002  Andrew Cagney  <ac131313@redhat.com>
+
+	* invoke.texi (Warning Options): Mention -Wswitch-enum.
+	Fix PR c/5044.
+
+Tue Mar 26 07:30:51 2002  Neil Booth  <neil@daikokuya.demon.co.uk>
+
+	* com.c (LANG_HOOKS_MARK_TREE): Redefine.
+	(lang_mark_tree): Rename ffe_mark_tree, make static.
+
+Mon Mar 25 19:27:11 2002  Neil Booth  <neil@daikokuya.demon.co.uk>
+
+	* com.c (maybe_build_cleanup): Remove.
 
 2002-03-23  Toon Moene  <toon@moene.indiv.nluug.nl>
 
@@ -124,9 +537,60 @@ Mon Apr 15 10:59:14 2002  Mark Mitchell  <mark@codesourcery.com>
 	addressing get caught.
 	* news.texi: Document the fixing of this problem.
 
-Mon Mar 18 18:43:22 CET 2002  Jan Hubicka  <jh@suse.cz>
+Sat Mar 23 11:18:17 2002  Andrew Cagney  <ac131313@redhat.com>
 
-	* target.h (FFETARGET_32bit_longs): Undefine for x86-64.
+	* invoke.texi (Warning Options): Mention -Wswitch-default.
+
+Thu Mar 21 18:55:41 2002  Neil Booth  <neil@daikokuya.demon.co.uk>
+
+	* cp-tree.h (pushdecl, pushlevel, poplevel, set_block,
+	insert_block, getdecls, global_bindings_p): New.
+
+Wed Mar 20 08:03:42 2002  Neil Booth  <neil@daikokuya.demon.co.uk>
+
+	* com.c (lang_printable_name): Rename.
+	(LANG_HOOKS_DECL_PRINTABLE_NAME): Redefine.
+	(ffe_init): Don't use old hook.
+
+Sun Mar 17 18:50:15 2002  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* com.h (ffe_parse_file): Prototype.
+
+Sun Mar 17 20:57:30 2002  Neil Booth  <neil@daikokuya.demon.co.uk>
+
+	* com.c (LANG_HOOKS_PARSE_FILE): Redefine.
+	* com.h (ffe_parse_file): New.
+	* parse.c (NAME_OF_STDIN): Remove.
+	(yyparse): Rename ffe_parse_file.
+
+Tue Mar 12 20:23:18 2002  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* com.c (tree_code_type, tree_code_length, tree_code_name):
+	Define.
+
+Sun Mar 10 12:37:42 2002  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* target.c (ffetarget_print_hex): Const-ify.
+
+2002-03-06  Phil Edwards  <pme@gcc.gnu.org>
+
+	* version.c:  Fix misplaced leading blanks on first line.
+
+2002-03-03  Zack Weinberg  <zack@codesourcery.com>
+
+	* com.c, target.h: Remove all #ifndef REAL_ARITHMETIC
+	blocks, make all #ifdef REAL_ARITHMETIC blocks unconditional.
+	Delete some further #ifdef blocks predicated on REAL_ARITHMETIC.
+
+Thu Feb 28 07:53:46 2002  Neil Booth  <neil@daikokuya.demon.co.uk>
+
+	* com.c (copy_lang_decl): Delete.
+
+2002-02-27  Zack Weinberg  <zack@codesourcery.com>
+
+	* com.c, lex.c, top.c: Delete traditional-mode-related code
+	copied from the C front end but not used, or used only to
+	permit the compiler to link.
 
 2002-02-13  Toon Moene  <toon@moene.indiv.nluug.nl>
 
@@ -1528,7 +1992,7 @@ Fri Sep 24 10:48:10 1999  Bernd Schmidt  <bernds@cygnus.co.uk>
 
 Tue Sep 21 09:08:30 1999  Toon Moene  <toon@moene.indiv.nluug.nl>
 
-	* g77spec.c (lang_specific_driver): Initialise return value.
+	* g77spec.c (lang_specific_driver): Initialize return value.
 
 Thu Sep 16 18:07:11 1999  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
 
@@ -2808,7 +3272,7 @@ Sat Jul 11 19:24:32 1998  Craig Burley  <burley@gnu.org>
 Sat Jul 11 18:24:37 1998  Craig Burley  <burley@gnu.org>
 
 	* com.c (ffecom_expr_) [FFEBLD_opCONTER]: Die if padding
-	for constant is non-zero.
+	for constant is nonzero.
 
 	* com.c (__eprintf): Delete this function, it is obsolete.
 
@@ -2864,7 +3328,7 @@ Wed Jul  1 11:19:13 1998  Craig Burley  <burley@gnu.org>
 	and even more elegantly than those.
 
 	* target.c (ffetarget_align): Make sure alignments
-	are non-zero, just in case.
+	are nonzero, just in case.
 
 See ChangeLog.0 for earlier changes.
 

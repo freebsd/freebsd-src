@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler, for DEC Alpha on OSF/1.
-   Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2001
+   Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2001, 2002, 2003
    Free Software Foundation, Inc.
    Contributed by Richard Kenner (kenner@vlsi1.ultra.nyu.edu)
 
@@ -32,14 +32,24 @@ Boston, MA 02111-1307, USA.  */
 
 /* Names to predefine in the preprocessor for this target machine.  */
 
-#define CPP_PREDEFINES "\
--Dunix -D__osf__ -D_LONGLONG -DSYSTYPE_BSD \
--D_SYSTYPE_BSD -Asystem=unix -Asystem=xpg4"
-
-/* Tru64 UNIX V5 requires additional definitions for 16 byte long double
-   support.  Empty by default.  */
-
-#define CPP_XFLOAT_SPEC ""
+#define TARGET_OS_CPP_BUILTINS()			\
+    do {						\
+	builtin_define_std ("unix");			\
+	builtin_define_std ("SYSTYPE_BSD");		\
+	builtin_define ("_SYSTYPE_BSD");		\
+	builtin_define ("__osf__");			\
+	builtin_define ("__digital__");			\
+	builtin_define ("__arch64__");			\
+	builtin_define ("_LONGLONG");			\
+	builtin_define ("__PRAGMA_EXTERN_PREFIX");	\
+	builtin_assert ("system=unix");			\
+	builtin_assert ("system=xpg4");			\
+	/* Tru64 UNIX V5 has a 16 byte long		\
+	   double type and requires __X_FLOAT		\
+	   to be defined for <math.h>.  */		\
+        if (LONG_DOUBLE_TYPE_SIZE == 128)		\
+          builtin_define ("__X_FLOAT");			\
+    } while (0)
 
 /* Accept DEC C flags for multithreaded programs.  We use _PTHREAD_USE_D4
    instead of PTHREAD_USE_D4 since both have the same effect and the former
@@ -47,8 +57,7 @@ Boston, MA 02111-1307, USA.  */
 
 #undef CPP_SUBTARGET_SPEC
 #define CPP_SUBTARGET_SPEC \
-"%{pthread|threads:-D_REENTRANT} %{threads:-D_PTHREAD_USE_D4} %(cpp_xfloat) \
--D__EXTERN_PREFIX"
+"%{pthread|threads:-D_REENTRANT} %{threads:-D_PTHREAD_USE_D4}"
 
 /* Under OSF4, -p and -pg require -lprof1, and -lprof1 requires -lpdf.  */
 
@@ -136,9 +145,7 @@ Boston, MA 02111-1307, USA.  */
 #endif
 
 #undef SUBTARGET_EXTRA_SPECS
-#define SUBTARGET_EXTRA_SPECS		\
-  { "cpp_xfloat", CPP_XFLOAT_SPEC },	\
-  { "asm_oldas", ASM_OLDAS_SPEC }
+#define SUBTARGET_EXTRA_SPECS { "asm_oldas", ASM_OLDAS_SPEC }
 
 /* Indicate that we have a stamp.h to use.  */
 #ifndef CROSS_COMPILE
@@ -193,7 +200,7 @@ __enable_execute_stack (addr)						\
 #define ASM_OUTPUT_WEAK_ALIAS(FILE, NAME, VALUE)	\
   do							\
     {							\
-      ASM_GLOBALIZE_LABEL (FILE, NAME);			\
+      (*targetm.asm_out.globalize_label) (FILE, NAME);  \
       fputs ("\t.weakext\t", FILE);			\
       assemble_name (FILE, NAME);			\
       if (VALUE)					\
@@ -208,7 +215,6 @@ __enable_execute_stack (addr)						\
 #define ASM_WEAKEN_LABEL(FILE, NAME) ASM_OUTPUT_WEAK_ALIAS(FILE, NAME, 0)
 
 /* Handle #pragma weak and #pragma pack.  */
-#undef HANDLE_SYSV_PRAGMA
 #define HANDLE_SYSV_PRAGMA 1
 
 /* Handle #pragma extern_prefix.  Technically only needed for Tru64 5.x,

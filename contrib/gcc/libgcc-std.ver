@@ -175,3 +175,12 @@ GCC_3.0 {
   _Unwind_SjLj_ForcedUnwind
   _Unwind_SjLj_Resume
 }
+
+%inherit GCC_3.3 GCC_3.0
+GCC_3.3 {
+  _Unwind_FindEnclosingFunction
+  _Unwind_GetCFA
+  _Unwind_Backtrace
+  _Unwind_Resume_or_Rethrow
+  _Unwind_SjLj_Resume_or_Rethrow
+}

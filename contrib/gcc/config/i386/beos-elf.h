@@ -1,5 +1,5 @@
 /* Definitions for Intel x86 running BeOS
-   Copyright (C) 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
+   Copyright (C) 1998, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -19,7 +19,6 @@ the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
 
-#undef TARGET_VERSION
 #define TARGET_VERSION fprintf (stderr, " (i386 BeOS/ELF)");
 
 /* Change debugging to Dwarf2.  */
@@ -41,21 +40,8 @@ Boston, MA 02111-1307, USA.  */
 /* Output assembler code to FILE to increment profiler label # LABELNO
    for profiling a function entry.  */
 
-#undef FUNCTION_PROFILER
-#define FUNCTION_PROFILER(FILE, LABELNO)  \
-{									\
-  if (flag_pic)								\
-    {									\
-      fprintf (FILE, "\tleal %sP%d@GOTOFF(%%ebx),%%edx\n",		\
-	       LPREFIX, (LABELNO));					\
-      fprintf (FILE, "\tcall *mcount@GOT(%%ebx)\n");			\
-    }									\
-  else									\
-    {									\
-      fprintf (FILE, "\tmovl $%sP%d,%%edx\n", LPREFIX, (LABELNO));	\
-      fprintf (FILE, "\tcall mcount\n");				\
-    }									\
-}
+#undef MCOUNT_NAME
+#define MCOUNT_NAME "mcount"
 
 #undef SIZE_TYPE
 #define SIZE_TYPE "long unsigned int"
@@ -66,22 +52,28 @@ Boston, MA 02111-1307, USA.  */
 #undef WCHAR_TYPE
 #define WCHAR_TYPE "short unsigned int"
    
-#undef WCHAR_UNSIGNED
-#define WCHAR_UNSIGNED 1
-
 #undef WCHAR_TYPE_SIZE
 #define WCHAR_TYPE_SIZE 16
+
+#define TARGET_OS_CPP_BUILTINS()					\
+  do									\
+    {									\
+	builtin_define ("__ELF__");					\
+	builtin_define ("__BEOS__");					\
+	builtin_define ("__INTEL__");					\
+	builtin_define ("_X86_");					\
+	builtin_define ("__stdcall=__attribute__((__stdcall__))");	\
+	builtin_define ("__cdecl=__attribute__((__cdecl__))");		\
+	builtin_define ("__declspec(x)=__attribute__((x))");		\
+	builtin_assert ("system=beos");					\
+	if (flag_pic)							\
+	  {								\
+	    builtin_define ("__PIC__");					\
+	    builtin_define ("__pic__");					\
+	  }								\
+    }									\
+  while (0)
     
-#undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-D__ELF__ -D__BEOS__ -D__INTEL__ -D_X86_=1 \
--D__stdcall=__attribute__((__stdcall__)) \
--D__cdecl=__attribute__((__cdecl__)) \
--D__declspec(x)=__attribute__((x)) \
--Asystem=beos"
-
-#undef CPP_SPEC
-#define CPP_SPEC "%(cpp_cpu) %{!no-fPIC:%{!no-fpic:-D__PIC__ -D__pic__}}"
-
 /* BeOS uses lots of multichars, so don't warn about them unless the
    user explicitly asks for the warnings with -Wmultichar.  Note that
    CC1_SPEC is used for both cc1 and cc1plus.  */

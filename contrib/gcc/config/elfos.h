@@ -1,6 +1,6 @@
 /* elfos.h  --  operating system specific defines to be used when
    targeting GCC for some generic ELF system
-   Copyright (C) 1991, 1994, 1995, 1999, 2000, 2001
+   Copyright (C) 1991, 1994, 1995, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
    Based on svr4.h contributed by Ron Guilmette (rfg@netcom.com).
 
@@ -46,9 +46,11 @@ Boston, MA 02111-1307, USA.  */
 
 #define NO_DOLLAR_IN_LABEL
 
-/* Writing `int' for a bitfield forces int alignment for the structure.  */
+/* Writing `int' for a bit-field forces int alignment for the structure.  */
 
+#ifndef PCC_BITFIELD_TYPE_MATTERS
 #define PCC_BITFIELD_TYPE_MATTERS 1
+#endif
 
 /* Implicit library calls should use memcpy, not bcopy, etc.  */
 
@@ -56,19 +58,15 @@ Boston, MA 02111-1307, USA.  */
 
 /* Handle #pragma weak and #pragma pack.  */
 
-#define HANDLE_SYSV_PRAGMA
+#define HANDLE_SYSV_PRAGMA 1
 
 /* System V Release 4 uses DWARF debugging info.  */
 
-#ifndef DWARF_DEBUGGING_INFO
 #define DWARF_DEBUGGING_INFO 1
-#endif
 
 /* All ELF targets can support DWARF-2.  */
 
-#ifndef DWARF2_DEBUGGING_INFO
 #define DWARF2_DEBUGGING_INFO 1
-#endif
 
 /* The GNU tools operate better with dwarf2, and it is required by some
    psABI's.  Since we don't have any native tools to be compatible with,
@@ -172,7 +170,7 @@ Boston, MA 02111-1307, USA.  */
    in each assembly file where they are referenced.  */
 
 #define ASM_OUTPUT_EXTERNAL_LIBCALL(FILE, FUN)	\
-  ASM_GLOBALIZE_LABEL (FILE, XSTR (FUN, 0))
+  (*targetm.asm_out.globalize_label) (FILE, XSTR (FUN, 0))
 
 /* This says how to output assembler code to declare an
    uninitialized external linkage data object.  Under SVR4,
@@ -216,17 +214,8 @@ Boston, MA 02111-1307, USA.  */
 #undef  ASCII_DATA_ASM_OP
 #define ASCII_DATA_ASM_OP	"\t.ascii\t"
 
-/* Support const sections and the ctors and dtors sections for g++.
-   Note that there appears to be two different ways to support const
-   sections at the moment.  You can either #define the symbol
-   READONLY_DATA_SECTION (giving it some code which switches to the
-   readonly data section) or else you can #define the symbols
-   EXTRA_SECTIONS, EXTRA_SECTION_FUNCTIONS, SELECT_SECTION, and
-   SELECT_RTX_SECTION.  We do both here just to be on the safe side.  */
-
-#define USE_CONST_SECTION	1
-
-#define CONST_SECTION_ASM_OP	"\t.section\t.rodata"
+/* Support a read-only data section.  */
+#define READONLY_DATA_SECTION_ASM_OP	"\t.section\t.rodata"
 
 /* On svr4, we *do* have support for the .init and .fini sections, and we
    can put stuff in there to be executed before and after `main'.  We let
@@ -237,176 +226,22 @@ Boston, MA 02111-1307, USA.  */
 #define INIT_SECTION_ASM_OP	"\t.section\t.init"
 #define FINI_SECTION_ASM_OP	"\t.section\t.fini"
 
-#ifdef HAVE_GAS_SUBSECTION_ORDERING
-
-#define ASM_SECTION_START_OP	"\t.subsection\t-1"
-
 /* Output assembly directive to move to the beginning of current section.  */
-#define ASM_OUTPUT_SECTION_START(FILE)	\
+#ifdef HAVE_GAS_SUBSECTION_ORDERING
+# define ASM_SECTION_START_OP	"\t.subsection\t-1"
+# define ASM_OUTPUT_SECTION_START(FILE)	\
   fprintf ((FILE), "%s\n", ASM_SECTION_START_OP)
-
 #endif
 
-/* A default list of other sections which we might be "in" at any given
-   time.  For targets that use additional sections (e.g. .tdesc) you
-   should override this definition in the target-specific file which
-   includes this file.  */
-
-#undef  EXTRA_SECTIONS
-#define EXTRA_SECTIONS in_const
-
-/* A default list of extra section function definitions.  For targets
-   that use additional sections (e.g. .tdesc) you should override this
-   definition in the target-specific file which includes this file.  */
-
-#undef  EXTRA_SECTION_FUNCTIONS
-#define EXTRA_SECTION_FUNCTIONS		\
-  CONST_SECTION_FUNCTION
-
-#define READONLY_DATA_SECTION() const_section ()
-
-#define CONST_SECTION_FUNCTION					\
-void								\
-const_section ()						\
-{								\
-  if (!USE_CONST_SECTION)					\
-    text_section ();						\
-  else if (in_section != in_const)				\
-    {								\
-      fprintf (asm_out_file, "%s\n", CONST_SECTION_ASM_OP);	\
-      in_section = in_const;					\
-    }								\
-}
-
 #define MAKE_DECL_ONE_ONLY(DECL) (DECL_WEAK (DECL) = 1)
-
-#define UNIQUE_SECTION(DECL, RELOC)				\
-  do								\
-    {								\
-      int len;							\
-      int sec;							\
-      const char *name;						\
-      char *string;						\
-      const char *prefix;					\
-      static const char *const prefixes[4][2] =			\
-      {								\
-	{ ".text.",   ".gnu.linkonce.t." },			\
-	{ ".rodata.", ".gnu.linkonce.r." },			\
-	{ ".data.",   ".gnu.linkonce.d." },			\
-	{ ".bss.",    ".gnu.linkonce.b." }			\
-      };							\
-      								\
-      if (TREE_CODE (DECL) == FUNCTION_DECL)			\
-	sec = 0;						\
-      else if (DECL_INITIAL (DECL) == 0				\
-	       || DECL_INITIAL (DECL) == error_mark_node)	\
-        sec =  3;						\
-      else if (DECL_READONLY_SECTION (DECL, RELOC))		\
-	sec = 1;						\
-      else							\
-	sec = 2;						\
-      								\
-      name   = IDENTIFIER_POINTER (DECL_ASSEMBLER_NAME (DECL));	\
-      /* Strip off any encoding in name.  */			\
-      STRIP_NAME_ENCODING (name, name);				\
-      prefix = prefixes[sec][DECL_ONE_ONLY(DECL)];		\
-      len    = strlen (name) + strlen (prefix);			\
-      string = alloca (len + 1);				\
-      								\
-      sprintf (string, "%s%s", prefix, name);			\
-      								\
-      DECL_SECTION_NAME (DECL) = build_string (len, string);	\
-    }								\
-  while (0)
      
 /* Switch into a generic section.  */
 #define TARGET_ASM_NAMED_SECTION  default_elf_asm_named_section
 
-/* A C statement or statements to switch to the appropriate
-   section for output of RTX in mode MODE.  RTX is some kind
-   of constant in RTL.  The argument MODE is redundant except
-   in the case of a `const_int' rtx.
-   If assembler supports SHF_MERGE sections, put it into
-   a .rodata.cstN section where N is size of the constant,
-   otherwise into const section.  */
-
-#undef  SELECT_RTX_SECTION
-#define SELECT_RTX_SECTION(MODE, RTX, ALIGN)	\
-  mergeable_constant_section ((MODE), (ALIGN), 0)
-
-/* A C statement or statements to switch to the appropriate
-   section for output of DECL.  DECL is either a `VAR_DECL' node
-   or a constant of some sort.  RELOC indicates whether forming
-   the initial value of DECL requires link-time relocations.  
- 
-   To optimize loading of shared programs, define following subsections
-   of data section by attaching:
-
-   .rel
-     Section with this string in name contains data that do have
-     relocations, so they get grouped together and dynamic linker
-     will visit fewer pages in memory.
-   .ro
-     Marks data read only otherwise.  This is useful with prelinking
-     as most of relocations won't be dynamically linked and thus
-     stay read only.
-   .local
-     Marks data containing relocations only to local objects.  These
-     relocation will get fully resolved by prelinking.
- */
-
-#undef SELECT_SECTION
-#define SELECT_SECTION(DECL, RELOC, ALIGN)			\
-{								\
-  if (TREE_CODE (DECL) == STRING_CST)				\
-    {								\
-      if (! flag_writable_strings)				\
-	mergeable_string_section ((DECL), (ALIGN), 0);		\
-      else							\
-	data_section ();					\
-    }								\
-  else if (TREE_CODE (DECL) == VAR_DECL)			\
-    {								\
-      if (!TREE_READONLY (DECL) || TREE_SIDE_EFFECTS (DECL)	\
-	  || !DECL_INITIAL (DECL)				\
-	  || (DECL_INITIAL (DECL) != error_mark_node		\
-	      && !TREE_CONSTANT (DECL_INITIAL (DECL))))		\
-	{							\
-	  if (flag_pic && ((RELOC) & 2))			\
-	    named_section (NULL_TREE, ".data.rel", RELOC);	\
-	  else if (flag_pic && (RELOC))				\
-	    named_section (NULL_TREE, ".data.rel.local", RELOC);\
-	  else							\
-	    data_section ();					\
-	}							\
-      else if (flag_pic && ((RELOC) & 2))			\
-	named_section (NULL_TREE, ".data.rel.ro", RELOC);	\
-      else if (flag_pic && (RELOC))				\
-	named_section (NULL_TREE, ".data.rel.ro.local", RELOC);	\
-      else if (flag_merge_constants < 2)			\
-	/* C and C++ don't allow different variables to share	\
-	   the same location.  -fmerge-all-constants allows	\
-	   even that (at the expense of not conforming).  */	\
-	const_section ();					\
-      else if (TREE_CODE (DECL_INITIAL (DECL)) == STRING_CST)	\
-	mergeable_string_section (DECL_INITIAL (DECL), (ALIGN),	\
-				  0);				\
-      else							\
-	mergeable_constant_section (DECL_MODE (DECL), (ALIGN),	\
-				    0);				\
-    }								\
-  else if (TREE_CODE (DECL) == CONSTRUCTOR)			\
-    {								\
-      if ((flag_pic && RELOC)					\
-	  || TREE_SIDE_EFFECTS (DECL)				\
-	  || ! TREE_CONSTANT (DECL))				\
-	data_section ();					\
-      else							\
-	const_section ();					\
-    }								\
-  else								\
-    const_section ();						\
-}
+#undef  TARGET_ASM_SELECT_RTX_SECTION
+#define TARGET_ASM_SELECT_RTX_SECTION default_elf_select_rtx_section
+#undef	TARGET_ASM_SELECT_SECTION
+#define TARGET_ASM_SELECT_SECTION default_elf_select_section
 
 /* Define the strings used for the special svr4 .type and .size directives.
    These strings generally do not vary from one system running svr4 to
@@ -454,18 +289,13 @@ const_section ()						\
    function's return value.  We allow for that here.  */
 
 #ifndef ASM_DECLARE_FUNCTION_NAME
-#define ASM_DECLARE_FUNCTION_NAME(FILE, NAME, DECL)	\
-  do							\
-    {							\
-      fprintf (FILE, "%s", TYPE_ASM_OP);		\
-      assemble_name (FILE, NAME);			\
-      putc (',', FILE);					\
-      fprintf (FILE, TYPE_OPERAND_FMT, "function");	\
-      putc ('\n', FILE);				\
-      							\
-      ASM_DECLARE_RESULT (FILE, DECL_RESULT (DECL));	\
-      ASM_OUTPUT_LABEL(FILE, NAME);			\
-    }							\
+#define ASM_DECLARE_FUNCTION_NAME(FILE, NAME, DECL)		\
+  do								\
+    {								\
+      ASM_OUTPUT_TYPE_DIRECTIVE (FILE, NAME, "function");	\
+      ASM_DECLARE_RESULT (FILE, DECL_RESULT (DECL));		\
+      ASM_OUTPUT_LABEL (FILE, NAME);				\
+    }								\
   while (0)
 #endif
 
@@ -474,26 +304,19 @@ const_section ()						\
 #define ASM_DECLARE_OBJECT_NAME(FILE, NAME, DECL)		\
   do								\
     {								\
-      fprintf (FILE, "%s", TYPE_ASM_OP);			\
-      assemble_name (FILE, NAME);				\
-      putc (',', FILE);						\
-      fprintf (FILE, TYPE_OPERAND_FMT, "object");		\
-      putc ('\n', FILE);					\
-      								\
+      HOST_WIDE_INT size;					\
+								\
+      ASM_OUTPUT_TYPE_DIRECTIVE (FILE, NAME, "object");		\
+								\
       size_directive_output = 0;				\
-      								\
       if (!flag_inhibit_size_directive				\
 	  && (DECL) && DECL_SIZE (DECL))			\
 	{							\
 	  size_directive_output = 1;				\
-	  fprintf (FILE, "%s", SIZE_ASM_OP);			\
-	  assemble_name (FILE, NAME);				\
-	  putc (',', FILE);					\
-	  fprintf (FILE, HOST_WIDE_INT_PRINT_DEC,		\
-		   int_size_in_bytes (TREE_TYPE (DECL)));	\
-	  fputc ('\n', FILE);					\
+	  size = int_size_in_bytes (TREE_TYPE (DECL));		\
+	  ASM_OUTPUT_SIZE_DIRECTIVE (FILE, NAME, size);		\
 	}							\
-      								\
+								\
       ASM_OUTPUT_LABEL (FILE, NAME);				\
     }								\
   while (0)
@@ -508,6 +331,7 @@ const_section ()						\
   do								\
     {								\
       const char *name = XSTR (XEXP (DECL_RTL (DECL), 0), 0);	\
+      HOST_WIDE_INT size;					\
       								\
       if (!flag_inhibit_size_directive				\
 	  && DECL_SIZE (DECL)					\
@@ -516,12 +340,8 @@ const_section ()						\
 	  && !size_directive_output)				\
 	{							\
 	  size_directive_output = 1;				\
-	  fprintf (FILE, "%s", SIZE_ASM_OP);			\
-	  assemble_name (FILE, name);				\
-	  putc (',', FILE);					\
-	  fprintf (FILE, HOST_WIDE_INT_PRINT_DEC,		\
-		   int_size_in_bytes (TREE_TYPE (DECL))); 	\
-	  fputc ('\n', FILE);					\
+	  size = int_size_in_bytes (TREE_TYPE (DECL));		\
+	  ASM_OUTPUT_SIZE_DIRECTIVE (FILE, name, size);		\
 	}							\
     }								\
   while (0)
@@ -532,23 +352,7 @@ const_section ()						\
   do								\
     {								\
       if (!flag_inhibit_size_directive)				\
-	{							\
-	  char label[256];					\
-	  static int labelno;					\
-	  							\
-	  labelno++;						\
-	  							\
-	  ASM_GENERATE_INTERNAL_LABEL (label, "Lfe", labelno);	\
-	  ASM_OUTPUT_INTERNAL_LABEL (FILE, "Lfe", labelno);	\
-	  							\
-	  fprintf (FILE, "%s", SIZE_ASM_OP);			\
-	  assemble_name (FILE, (FNAME));			\
-	  fprintf (FILE, ",");					\
-	  assemble_name (FILE, label);				\
-	  fprintf (FILE, "-");					\
-	  assemble_name (FILE, (FNAME));			\
-	  putc ('\n', FILE);					\
-	}							\
+	ASM_OUTPUT_MEASURED_SIZE (FILE, FNAME);			\
     }								\
   while (0)
 #endif
@@ -598,7 +402,7 @@ const_section ()						\
    generated assembly code more compact (and thus faster to assemble)
    as well as more readable, especially for targets like the i386
    (where the only alternative is to output character sequences as
-   comma separated lists of numbers).   */
+   comma separated lists of numbers).  */
 
 #define ASM_OUTPUT_LIMITED_STRING(FILE, STR)		\
   do							\

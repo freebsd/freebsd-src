@@ -1,5 +1,5 @@
 /* Functions to support general ended bitmaps.
-   Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002
+   Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003
    Free Software Foundation, Inc.
 
 This file is part of GCC.
@@ -20,12 +20,20 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
 #ifndef GCC_BITMAP_H
-#define GCC_BITMAP_H 
+#define GCC_BITMAP_H
+
+/* Fundamental storage type for bitmap.  */
+
+/* typedef unsigned HOST_WIDE_INT BITMAP_WORD; */
+/* #define nBITMAP_WORD_BITS HOST_BITS_PER_WIDE_INT */
+typedef unsigned long BITMAP_WORD;
+#define nBITMAP_WORD_BITS (CHAR_BIT * SIZEOF_LONG)
+#define BITMAP_WORD_BITS (unsigned) nBITMAP_WORD_BITS
 
 /* Number of words to use for each element in the linked list.  */
 
 #ifndef BITMAP_ELEMENT_WORDS
-#define BITMAP_ELEMENT_WORDS 2
+#define BITMAP_ELEMENT_WORDS ((128 + nBITMAP_WORD_BITS - 1) / nBITMAP_WORD_BITS)
 #endif
 
 /* Number of bits in each actual element of a bitmap.  We get slightly better
@@ -33,28 +41,30 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
    bits is unsigned, assuming it is a power of 2.  */
 
 #define BITMAP_ELEMENT_ALL_BITS \
-  ((unsigned) (BITMAP_ELEMENT_WORDS * HOST_BITS_PER_WIDE_INT))
+  ((unsigned) (BITMAP_ELEMENT_WORDS * BITMAP_WORD_BITS))
 
 /* Bitmap set element.  We use a linked list to hold only the bits that
    are set.  This allows for use to grow the bitset dynamically without
    having to realloc and copy a giant bit array.  The `prev' field is
    undefined for an element on the free list.  */
 
-typedef struct bitmap_element_def
+typedef struct bitmap_element_def GTY(())
 {
   struct bitmap_element_def *next;		/* Next element.  */
   struct bitmap_element_def *prev;		/* Previous element.  */
   unsigned int indx;			/* regno/BITMAP_ELEMENT_ALL_BITS.  */
-  unsigned HOST_WIDE_INT bits[BITMAP_ELEMENT_WORDS]; /* Bits that are set.  */
+  BITMAP_WORD bits[BITMAP_ELEMENT_WORDS]; /* Bits that are set.  */
 } bitmap_element;
 
 /* Head of bitmap linked list.  */
-typedef struct bitmap_head_def {
+typedef struct bitmap_head_def GTY(()) {
   bitmap_element *first;	/* First element in linked list.  */
   bitmap_element *current;	/* Last element looked at.  */
   unsigned int indx;		/* Index of last element looked at.  */
-
-} bitmap_head, *bitmap;
+  int using_obstack;		/* Are we using an obstack or ggc for
+                                   allocation?  */
+} bitmap_head;
+typedef struct bitmap_head_def *bitmap;
 
 /* Enumeration giving the various operations we support.  */
 enum bitmap_bits {
@@ -100,10 +110,12 @@ extern void debug_bitmap_file PARAMS ((FILE *, bitmap));
 /* Print a bitmap */
 extern void bitmap_print PARAMS ((FILE *, bitmap, const char *, const char *));
 
-/* Initialize a bitmap header.  */
-extern bitmap bitmap_initialize PARAMS ((bitmap));
+/* Initialize a bitmap header.  If HEAD is NULL, a new header will be
+   allocated.  USING_OBSTACK indicates how elements should be allocated.  */
+extern bitmap bitmap_initialize PARAMS ((bitmap head, 
+					 int using_obstack));
 
-/* Release all memory held by bitmaps.  */
+/* Release all memory used by the bitmap obstack.  */
 extern void bitmap_release_memory PARAMS ((void));
 
 /* A few compatibility/functions macros for compatibility with sbitmaps */
@@ -117,22 +129,15 @@ extern int bitmap_last_set_bit PARAMS((bitmap));
 
 /* Allocate a bitmap with oballoc.  */
 #define BITMAP_OBSTACK_ALLOC(OBSTACK)				\
-  bitmap_initialize ((bitmap) obstack_alloc (OBSTACK, sizeof (bitmap_head)))
+  bitmap_initialize ((bitmap) obstack_alloc (OBSTACK, sizeof (bitmap_head)), 1)
 
-/* Allocate a bitmap with alloca.  Note alloca cannot be passed as an
-   argument to a function, so we set a temporary variable to the value
-   returned by alloca and pass that variable to bitmap_initialize().
-   PTR is then set to the value returned from bitmap_initialize() to
-   avoid having it appear more than once in case it has side effects.  */
-#define BITMAP_ALLOCA(PTR) \
-do { \
-  bitmap temp_bitmap_ = (bitmap) alloca (sizeof (bitmap_head)); \
-  (PTR) = bitmap_initialize (temp_bitmap_); \
-} while (0)
-  
+/* Allocate a bitmap with ggc_alloc.  */
+#define BITMAP_GGC_ALLOC()			\
+  bitmap_initialize (NULL, 0)
+
 /* Allocate a bitmap with xmalloc.  */
 #define BITMAP_XMALLOC()                                        \
-  bitmap_initialize ((bitmap) xmalloc (sizeof (bitmap_head)))
+  bitmap_initialize ((bitmap) xmalloc (sizeof (bitmap_head)), 1)
 
 /* Do any cleanup needed on a bitmap when it is no longer used.  */
 #define BITMAP_FREE(BITMAP)			\
@@ -165,9 +170,8 @@ do {						\
 do {									\
   bitmap_element *ptr_ = (BITMAP)->first;				\
   unsigned int indx_ = (MIN) / BITMAP_ELEMENT_ALL_BITS;			\
-  unsigned bit_num_ = (MIN) % ((unsigned) HOST_BITS_PER_WIDE_INT);	\
-  unsigned word_num_ = (((MIN) / ((unsigned) HOST_BITS_PER_WIDE_INT))	\
-			% BITMAP_ELEMENT_WORDS);			\
+  unsigned bit_num_ = (MIN) % BITMAP_WORD_BITS;				\
+  unsigned word_num_ = (MIN) / BITMAP_WORD_BITS % BITMAP_ELEMENT_WORDS;	\
 									\
 									\
   /* Find the block the minimum bit is in.  */				\
@@ -184,20 +188,19 @@ do {									\
     {									\
       for (; word_num_ < BITMAP_ELEMENT_WORDS; word_num_++)		\
 	{								\
-	  unsigned HOST_WIDE_INT word_ = ptr_->bits[word_num_];		\
+	  BITMAP_WORD word_ = ptr_->bits[word_num_];			\
 									\
 	  if (word_ != 0)						\
 	    {								\
-	      for (; bit_num_ < HOST_BITS_PER_WIDE_INT; bit_num_++)	\
+	      for (; bit_num_ < BITMAP_WORD_BITS; bit_num_++)		\
 		{							\
-		  unsigned HOST_WIDE_INT mask_				\
-		    = ((unsigned HOST_WIDE_INT) 1) << bit_num_;		\
+		  BITMAP_WORD mask_ = ((BITMAP_WORD) 1) << bit_num_;	\
 									\
 		  if ((word_ & mask_) != 0)				\
 		    {							\
 		      word_ &= ~ mask_;					\
 		      (BITNUM) = (ptr_->indx * BITMAP_ELEMENT_ALL_BITS  \
-				  + word_num_ * HOST_BITS_PER_WIDE_INT  \
+				  + word_num_ * BITMAP_WORD_BITS	\
 				  + bit_num_);				\
 		      CODE;						\
 									\
@@ -223,9 +226,8 @@ do {									\
   bitmap_element *ptr1_ = (BITMAP1)->first;				\
   bitmap_element *ptr2_ = (BITMAP2)->first;				\
   unsigned int indx_ = (MIN) / BITMAP_ELEMENT_ALL_BITS;			\
-  unsigned bit_num_ = (MIN) % ((unsigned) HOST_BITS_PER_WIDE_INT);	\
-  unsigned word_num_ = (((MIN) / ((unsigned) HOST_BITS_PER_WIDE_INT))	\
-			% BITMAP_ELEMENT_WORDS);			\
+  unsigned bit_num_ = (MIN) % BITMAP_WORD_BITS;				\
+  unsigned word_num_ = (MIN) / BITMAP_WORD_BITS % BITMAP_ELEMENT_WORDS;	\
 									\
   /* Find the block the minimum bit is in in the first bitmap.  */	\
   while (ptr1_ != 0 && ptr1_->indx < indx_)				\
@@ -251,20 +253,19 @@ do {									\
 									\
       for (; word_num_ < BITMAP_ELEMENT_WORDS; word_num_++)		\
 	{								\
-	  unsigned HOST_WIDE_INT word_ = (ptr1_->bits[word_num_]	\
-					  & ~ tmp2_->bits[word_num_]);	\
+	  BITMAP_WORD word_ = (ptr1_->bits[word_num_]			\
+			       & ~ tmp2_->bits[word_num_]);		\
 	  if (word_ != 0)						\
 	    {								\
-	      for (; bit_num_ < HOST_BITS_PER_WIDE_INT; bit_num_++)	\
+	      for (; bit_num_ < BITMAP_WORD_BITS; bit_num_++)		\
 		{							\
-		  unsigned HOST_WIDE_INT mask_				\
-		    = ((unsigned HOST_WIDE_INT)1) << bit_num_;		\
+		  BITMAP_WORD mask_ = ((BITMAP_WORD) 1) << bit_num_;	\
 									\
 		  if ((word_ & mask_) != 0)				\
 		    {							\
 		      word_ &= ~ mask_;					\
 		      (BITNUM) = (ptr1_->indx * BITMAP_ELEMENT_ALL_BITS \
-				  + word_num_ * HOST_BITS_PER_WIDE_INT  \
+				  + word_num_ * BITMAP_WORD_BITS	\
 				  + bit_num_);				\
 									\
 		      CODE;						\
@@ -290,9 +291,8 @@ do {									\
   bitmap_element *ptr1_ = (BITMAP1)->first;				\
   bitmap_element *ptr2_ = (BITMAP2)->first;				\
   unsigned int indx_ = (MIN) / BITMAP_ELEMENT_ALL_BITS;			\
-  unsigned bit_num_ = (MIN) % ((unsigned) HOST_BITS_PER_WIDE_INT);	\
-  unsigned word_num_ = (((MIN) / ((unsigned) HOST_BITS_PER_WIDE_INT))	\
-			% BITMAP_ELEMENT_WORDS);			\
+  unsigned bit_num_ = (MIN) % BITMAP_WORD_BITS;				\
+  unsigned word_num_ = (MIN) / BITMAP_WORD_BITS % BITMAP_ELEMENT_WORDS;	\
 									\
   /* Find the block the minimum bit is in in the first bitmap.  */	\
   while (ptr1_ != 0 && ptr1_->indx < indx_)				\
@@ -324,20 +324,19 @@ do {									\
 									\
       for (; word_num_ < BITMAP_ELEMENT_WORDS; word_num_++)		\
 	{								\
-	  unsigned HOST_WIDE_INT word_ = (ptr1_->bits[word_num_]	\
-					  & ptr2_->bits[word_num_]);	\
+	  BITMAP_WORD word_ = (ptr1_->bits[word_num_]			\
+			       & ptr2_->bits[word_num_]);		\
 	  if (word_ != 0)						\
 	    {								\
-	      for (; bit_num_ < HOST_BITS_PER_WIDE_INT; bit_num_++)	\
+	      for (; bit_num_ < BITMAP_WORD_BITS; bit_num_++)		\
 		{							\
-		  unsigned HOST_WIDE_INT mask_				\
-		    = ((unsigned HOST_WIDE_INT)1) << bit_num_;		\
+		  BITMAP_WORD mask_ = ((BITMAP_WORD) 1) << bit_num_;	\
 									\
 		  if ((word_ & mask_) != 0)				\
 		    {							\
 		      word_ &= ~ mask_;					\
 		      (BITNUM) = (ptr1_->indx * BITMAP_ELEMENT_ALL_BITS \
-				  + word_num_ * HOST_BITS_PER_WIDE_INT  \
+				  + word_num_ * BITMAP_WORD_BITS	\
 				  + bit_num_);				\
 									\
 		      CODE;						\

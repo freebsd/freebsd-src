@@ -4,7 +4,12 @@
 
 @c Common values used in the GCC manuals:
 
-@set version-GCC 3.2.2
+@set version-GCC 3.3.1
+
+@c DEVELOPMENT is set to indicate an in-development version,
+@c as compared to a release version.  When making a release
+@c branch, clear this.
+@clear DEVELOPMENT
 
 @c Common macros to support generating man pages:
 

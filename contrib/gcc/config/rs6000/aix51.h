@@ -75,6 +75,8 @@ do {									\
 %{mcpu=common: -mcom} \
 %{mcpu=power: -mpwr} \
 %{mcpu=power2: -mpwr2} \
+%{mcpu=power3: -m604} \
+%{mcpu=power4: -m604} \
 %{mcpu=powerpc: -mppc} \
 %{mcpu=rios: -mpwr} \
 %{mcpu=rios1: -mpwr} \
@@ -82,8 +84,6 @@ do {									\
 %{mcpu=rsc: -mpwr} \
 %{mcpu=rsc1: -mpwr} \
 %{mcpu=rs64a: -mppc} \
-%{mcpu=403: -mppc} \
-%{mcpu=505: -mppc} \
 %{mcpu=601: -m601} \
 %{mcpu=602: -mppc} \
 %{mcpu=603: -m603} \
@@ -91,81 +91,52 @@ do {									\
 %{mcpu=604: -m604} \
 %{mcpu=604e: -m604} \
 %{mcpu=620: -mppc} \
-%{mcpu=630: -mppc} \
-%{mcpu=821: -mppc} \
-%{mcpu=860: -mppc}"
+%{mcpu=630: -m604}"
 
 #undef	ASM_DEFAULT_SPEC
 #define ASM_DEFAULT_SPEC "-mcom"
 
-#undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-D_IBMR2 -D_POWER -D_LONG_LONG \
--D_AIX -D_AIX32 -D_AIX41 -D_AIX43 -D_AIX51 -Asystem=unix -Asystem=aix"
+#undef TARGET_OS_CPP_BUILTINS
+#define TARGET_OS_CPP_BUILTINS()      \
+  do                                  \
+    {                                 \
+      builtin_define ("_IBMR2");      \
+      builtin_define ("_POWER");      \
+      builtin_define ("_LONG_LONG");  \
+      builtin_define ("_AIX");        \
+      builtin_define ("_AIX32");      \
+      builtin_define ("_AIX41");      \
+      builtin_define ("_AIX43");      \
+      builtin_define ("_AIX51");      \
+      builtin_assert ("system=unix"); \
+      builtin_assert ("system=aix");  \
+    }                                 \
+  while (0)
 
 #undef CPP_SPEC
-#define CPP_SPEC "%{posix: -D_POSIX_SOURCE}\
-  %{ansi: -D_ANSI_C_SOURCE}\
-  %{!maix64: -D__WCHAR_TYPE__=short\\ unsigned\\ int}\
-  %{maix64: -D__64BIT__ -D_ARCH_PPC -D__LONG_MAX__=9223372036854775807L \
-    -D__WCHAR_TYPE__=unsigned\\ int}\
-  %{mpe: -I/usr/lpp/ppe.poe/include}\
-  %{pthread: -D_THREAD_SAFE}\
-  %(cpp_cpu)"
+#define CPP_SPEC "%{posix: -D_POSIX_SOURCE}	\
+  %{ansi: -D_ANSI_C_SOURCE}			\
+  %{maix64: -D__64BIT__}			\
+  %{mpe: -I/usr/lpp/ppe.poe/include}		\
+  %{pthread: -D_THREAD_SAFE}"
 
 /* The GNU C++ standard library requires that these macros be 
    defined.  */
 #undef CPLUSPLUS_CPP_SPEC                       
-#define CPLUSPLUS_CPP_SPEC                      \
-  "-D_XOPEN_SOURCE=500                          \
-   -D_XOPEN_SOURCE_EXTENDED=1                   \
-   -D_LARGE_FILE_API                            \
-   -D_ALL_SOURCE                                \
-   %{!maix64: -D__WCHAR_TYPE__=short\\ unsigned\\ int}\
-   %{maix64: -D__64BIT__ -D_ARCH_PPC -D__LONG_MAX__=9223372036854775807L \
-     -D__WCHAR_TYPE__=unsigned\\ int}\
-   %{mpe: -I/usr/lpp/ppe.poe/include}\
-   %{pthread: -D_THREAD_SAFE}\
-   %(cpp_cpu)"
-
-/* Common CPP definitions used by CPP_SPEC among the various targets
-   for handling -mcpu=xxx switches.  */
-#undef CPP_CPU_SPEC
-#define CPP_CPU_SPEC \
-"%{!mcpu*: %{!maix64: \
-  %{mpower: %{!mpower2: -D_ARCH_PWR}} \
-  %{mpower2: -D_ARCH_PWR2} \
-  %{mpowerpc*: -D_ARCH_PPC} \
-  %{!mpower*: %{!mpowerpc*: %(cpp_default)}}}} \
-%{mcpu=common: -D_ARCH_COM} \
-%{mcpu=power: -D_ARCH_PWR} \
-%{mcpu=power2: -D_ARCH_PWR2} \
-%{mcpu=powerpc: -D_ARCH_PPC} \
-%{mcpu=rios: -D_ARCH_PWR} \
-%{mcpu=rios1: -D_ARCH_PWR} \
-%{mcpu=rios2: -D_ARCH_PWR2} \
-%{mcpu=rsc: -D_ARCH_PWR} \
-%{mcpu=rsc1: -D_ARCH_PWR} \
-%{mcpu=rs64a: -D_ARCH_PPC} \
-%{mcpu=403: -D_ARCH_PPC} \
-%{mcpu=505: -D_ARCH_PPC} \
-%{mcpu=601: -D_ARCH_PPC -D_ARCH_PWR} \
-%{mcpu=602: -D_ARCH_PPC} \
-%{mcpu=603: -D_ARCH_PPC} \
-%{mcpu=603e: -D_ARCH_PPC} \
-%{mcpu=604: -D_ARCH_PPC} \
-%{mcpu=620: -D_ARCH_PPC} \
-%{mcpu=630: -D_ARCH_PPC} \
-%{mcpu=821: -D_ARCH_PPC} \
-%{mcpu=860: -D_ARCH_PPC}"
-
-#undef	CPP_DEFAULT_SPEC
-#define CPP_DEFAULT_SPEC "-D_ARCH_COM"
+#define CPLUSPLUS_CPP_SPEC			\
+  "-D_XOPEN_SOURCE=500				\
+   -D_XOPEN_SOURCE_EXTENDED=1			\
+   -D_LARGE_FILE_API				\
+   -D_ALL_SOURCE				\
+   %{maix64: -D__64BIT__}			\
+   %{mpe: -I/usr/lpp/ppe.poe/include}		\
+   %{pthread: -D_THREAD_SAFE}"
 
 #undef TARGET_DEFAULT
 #define TARGET_DEFAULT MASK_NEW_MNEMONICS
 
 #undef PROCESSOR_DEFAULT
-#define PROCESSOR_DEFAULT PROCESSOR_PPC604
+#define PROCESSOR_DEFAULT PROCESSOR_PPC604e
 
 /* Define this macro as a C expression for the initializer of an
    array of string to tell the driver program which options are
@@ -203,9 +174,6 @@ do {									\
 
 #undef PTRDIFF_TYPE
 #define PTRDIFF_TYPE "long int"
-
-/* __WCHAR_TYPE__ is dynamic, so do not define it statically.  */
-#define NO_BUILTIN_WCHAR_TYPE
 
 /* Type used for wchar_t, as a string used in a declaration.  */
 #undef  WCHAR_TYPE

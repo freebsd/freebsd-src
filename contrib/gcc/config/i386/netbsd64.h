@@ -20,50 +20,40 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-
-/* Provide a LINK_SPEC appropriate for a NetBSD/x86-64 ELF target.
-   This is a copy of LINK_SPEC from <netbsd-elf.h> tweaked for
-   the x86-64 target.  */
-
-#undef LINK_SPEC
-#define LINK_SPEC							\
-  "%{!m32:-m elf_x86_64}						\
-   %{m32:-m elf_i386}							\
-   %{assert*} %{R*}							\
-   %{shared:-shared}							\
-   %{!shared:								\
-     -dc -dp								\
-     %{!nostdlib:							\
-       %{!r*:								\
-	  %{!e*:-e _start}}}						\
-     %{!static:								\
-       %{rdynamic:-export-dynamic}					\
-       %{!dynamic-linker:-dynamic-linker /usr/libexec/ld.elf_so}}	\
-     %{static:-static}}"
+#define TARGET_OS_CPP_BUILTINS()		\
+  do						\
+    {						\
+      NETBSD_OS_CPP_BUILTINS_ELF();		\
+      if (TARGET_64BIT)				\
+	NETBSD_OS_CPP_BUILTINS_LP64();		\
+    }						\
+  while (0)
 
 
-/* Names to predefine in the preprocessor for this target machine.  */
-
-#define CPP_PREDEFINES							\
-  "-D__NetBSD__ -D__ELF__ -Asystem=unix -Asystem=NetBSD"
-
-
-/* Provide some extra CPP specs needed by NetBSD/x86_64.  */
-#define CPP_LP64_SPEC "%{!m32:-D_LP64}"
-
-#define CPP_SUBTARGET_SPEC "%(cpp_lp64)"
+/* Extra specs needed for NetBSD/x86-64 ELF.  */
 
 #undef SUBTARGET_EXTRA_SPECS
-#define SUBTARGET_EXTRA_SPECS						\
-  { "cpp_lp64", CPP_LP64_SPEC },					\
-  { "cpp_subtarget", CPP_SUBTARGET_SPEC },
+#define SUBTARGET_EXTRA_SPECS			\
+  { "netbsd_cpp_spec", NETBSD_CPP_SPEC },	\
+  { "netbsd_link_spec", NETBSD_LINK_SPEC_ELF },	\
+  { "netbsd_entry_point", NETBSD_ENTRY_POINT },
 
 
-/* Provide a CPP_SPEC appropriate for NetBSD.  Currently we deal with
-   our subtarget specs and the GCC option `-posix'.  */
+/* Provide a LINK_SPEC appropriate for a NetBSD/x86-64 ELF target.  */
+
+#undef LINK_SPEC
+#define LINK_SPEC \
+  "%{m32:-m elf_i386} \
+   %{m64:-m elf_x86_64} \
+   %(netbsd_link_spec)"
+
+#define NETBSD_ENTRY_POINT "_start"
+
+
+/* Provide a CPP_SPEC appropriate for NetBSD.  */
 
 #undef CPP_SPEC
-#define CPP_SPEC "%(cpp_cpu) %(cpp_subtarget) %{posix:-D_POSIX_SOURCE}"
+#define CPP_SPEC "%(netbsd_cpp_spec)"
 
 
 /* Output assembler code to FILE to call the profiler.  */
@@ -79,6 +69,7 @@ Boston, MA 02111-1307, USA.  */
     fprintf (FILE, "\tcall __mcount\n");				\
 }
 
+/* Attempt to enable execute permissions on the stack.  */
+#define TRANSFER_FROM_TRAMPOLINE NETBSD_ENABLE_EXECUTE_STACK
 
-#undef TARGET_VERSION
 #define TARGET_VERSION fprintf (stderr, " (NetBSD/x86_64 ELF)");

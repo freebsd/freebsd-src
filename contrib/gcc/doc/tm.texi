@@ -1,4 +1,4 @@
-@c Copyright (C) 1988,1989,1992,1993,1994,1995,1996,1997,1998,1999,2000,2001,2002
+@c Copyright (C) 1988,1989,1992,1993,1994,1995,1996,1997,1998,1999,2000,2001,2002,2003
 @c Free Software Foundation, Inc.
 @c This is part of the GCC manual.
 @c For copying conditions, see the file gcc.texi.
@@ -46,9 +46,10 @@ through the macros defined in the @file{.h} file.
 * PIC::			Macros for position independent code.
 * Assembler Format::    Defining how to write insns and pseudo-ops to output.
 * Debugging Info::      Defining the format of debugging output.
-* Cross-compilation::   Handling floating point for cross-compilers.
+* Floating Point::      Handling floating point for cross-compilers.
 * Mode Switching::      Insertion of mode-switching instructions.
 * Target Attributes::   Defining target-specific uses of @code{__attribute__}.
+* MIPS Coprocessors::   MIPS coprocessor support and how to customize it.
 * Misc::                Everything else.
 @end menu
 
@@ -162,6 +163,23 @@ multilibs.  Example nonsensical definition, where @code{-malt-abi},
 @{ "-compat", "-EB -malign=4 -mspoo" @}
 @end smallexample
 
+@findex DRIVER_SELF_SPECS
+@item DRIVER_SELF_SPECS
+A list of specs for the driver itself.  It should be a suitable
+initializer for an array of strings, with no surrounding braces.
+
+The driver applies these specs to its own command line before choosing
+the multilib directory or running any subcommands.  It applies them in
+the order given, so each spec can depend on the options added by
+earlier ones.  It is also possible to remove options using
+@samp{%<@var{option}} in the usual way.
+
+This macro can be useful when a port has several interdependent target
+options.  It provides a way of standardizing the command line so
+that the other specs are easier to write.
+
+Do not define this macro if it does not need to do anything.
+
 @findex CPP_SPEC
 @item CPP_SPEC
 A C string constant that tells the GCC driver program options to
@@ -175,46 +193,6 @@ Do not define this macro if it does not need to do anything.
 This macro is just like @code{CPP_SPEC}, but is used for C++, rather
 than C@.  If you do not define this macro, then the value of
 @code{CPP_SPEC} (if any) will be used instead.
-
-@findex NO_BUILTIN_SIZE_TYPE
-@item NO_BUILTIN_SIZE_TYPE
-If this macro is defined, the preprocessor will not define the built-in macro
-@code{__SIZE_TYPE__}.  The macro @code{__SIZE_TYPE__} must then be defined
-by @code{CPP_SPEC} instead.
-
-This should be defined if @code{SIZE_TYPE} depends on target dependent flags
-which are not accessible to the preprocessor.  Otherwise, it should not
-be defined.
-
-@findex NO_BUILTIN_PTRDIFF_TYPE
-@item NO_BUILTIN_PTRDIFF_TYPE
-If this macro is defined, the preprocessor will not define the built-in macro
-@code{__PTRDIFF_TYPE__}.  The macro @code{__PTRDIFF_TYPE__} must then be
-defined by @code{CPP_SPEC} instead.
-
-This should be defined if @code{PTRDIFF_TYPE} depends on target dependent flags
-which are not accessible to the preprocessor.  Otherwise, it should not
-be defined.
-
-@findex NO_BUILTIN_WCHAR_TYPE
-@item NO_BUILTIN_WCHAR_TYPE
-If this macro is defined, the preprocessor will not define the built-in macro
-@code{__WCHAR_TYPE__}.  The macro @code{__WCHAR_TYPE__} must then be
-defined by @code{CPP_SPEC} instead.
-
-This should be defined if @code{WCHAR_TYPE} depends on target dependent flags
-which are not accessible to the preprocessor.  Otherwise, it should not
-be defined.
-
-@findex NO_BUILTIN_WINT_TYPE
-@item NO_BUILTIN_WINT_TYPE
-If this macro is defined, the preprocessor will not define the built-in macro
-@code{__WINT_TYPE__}.  The macro @code{__WINT_TYPE__} must then be
-defined by @code{CPP_SPEC} instead.
-
-This should be defined if @code{WINT_TYPE} depends on target dependent flags
-which are not accessible to the preprocessor.  Otherwise, it should not
-be defined.
 
 @findex CC1_SPEC
 @item CC1_SPEC
@@ -412,7 +390,7 @@ the target makefile fragment or if none of the options listed in
 
 @findex RELATIVE_PREFIX_NOT_LINKDIR
 @item RELATIVE_PREFIX_NOT_LINKDIR
-Define this macro to tell @code{gcc} that it should only translate
+Define this macro to tell @command{gcc} that it should only translate
 a @option{-B} prefix into a @option{-L} linker option if the prefix
 indicates an absolute file name.
 
@@ -622,6 +600,53 @@ The macro @code{STANDARD_STARTFILE_PREFIX}.
 Here are run-time target specifications.
 
 @table @code
+@findex TARGET_CPU_CPP_BUILTINS
+@item TARGET_CPU_CPP_BUILTINS()
+This function-like macro expands to a block of code that defines
+built-in preprocessor macros and assertions for the target cpu, using
+the functions @code{builtin_define}, @code{builtin_define_std} and
+@code{builtin_assert} defined in @file{c-common.c}.  When the front end
+calls this macro it provides a trailing semicolon, and since it has
+finished command line option processing your code can use those
+results freely.
+
+@code{builtin_assert} takes a string in the form you pass to the
+command-line option @option{-A}, such as @code{cpu=mips}, and creates
+the assertion.  @code{builtin_define} takes a string in the form
+accepted by option @option{-D} and unconditionally defines the macro.
+
+@code{builtin_define_std} takes a string representing the name of an
+object-like macro.  If it doesn't lie in the user's namespace,
+@code{builtin_define_std} defines it unconditionally.  Otherwise, it
+defines a version with two leading underscores, and another version
+with two leading and trailing underscores, and defines the original
+only if an ISO standard was not requested on the command line.  For
+example, passing @code{unix} defines @code{__unix}, @code{__unix__}
+and possibly @code{unix}; passing @code{_mips} defines @code{__mips},
+@code{__mips__} and possibly @code{_mips}, and passing @code{_ABI64}
+defines only @code{_ABI64}.
+
+You can also test for the C dialect being compiled.  The variable
+@code{c_language} is set to one of @code{clk_c}, @code{clk_cplusplus}
+or @code{clk_objective_c}.  Note that if we are preprocessing
+assembler, this variable will be @code{clk_c} but the function-like
+macro @code{preprocessing_asm_p()} will return true, so you might want
+to check for that first.  If you need to check for strict ANSI, the
+variable @code{flag_iso} can be used.  The function-like macro
+@code{preprocessing_trad_p()} can be used to check for traditional
+preprocessing.
+
+With @code{TARGET_OS_CPP_BUILTINS} this macro obsoletes the
+@code{CPP_PREDEFINES} target macro.
+
+@findex TARGET_OS_CPP_BUILTINS
+@item TARGET_OS_CPP_BUILTINS()
+Similarly to @code{TARGET_CPU_CPP_BUILTINS} but this macro is optional
+and is used for the target operating system instead.
+
+With @code{TARGET_CPU_CPP_BUILTINS} this macro obsoletes the
+@code{CPP_PREDEFINES} target macro.
+
 @findex CPP_PREDEFINES
 @item CPP_PREDEFINES
 Define this to be a string constant containing @option{-D} options to
@@ -819,11 +844,9 @@ structure contains a field called @code{machine} whose type is
 to their own specific data.
 
 If a target needs per-function specific data it should define the type
-@code{struct machine_function} and also the macro
-@code{INIT_EXPANDERS}.  This macro should be used to initialize some or
-all of the function pointers @code{init_machine_status},
-@code{free_machine_status} and @code{mark_machine_status}.  These
-pointers are explained below.
+@code{struct machine_function} and also the macro @code{INIT_EXPANDERS}.
+This macro should be used to initialize the function pointer
+@code{init_machine_status}.  This pointer is explained below.
 
 One typical use of per-function, target specific data is to create an
 RTX to hold the register containing the function's return address.  This
@@ -859,19 +882,9 @@ specific initialization of the @code{struct function} structure.  It is
 intended that this would be used to initialize the @code{machine} of
 that structure.
 
-@findex free_machine_status
-@item   free_machine_status
-This is a @code{void (*)(struct function *)} function pointer.  If this
-pointer is non-@code{NULL} it will be called once per function, after the
-function has been compiled, in order to allow any memory allocated
-during the @code{init_machine_status} function call to be freed.
-
-@findex mark_machine_status
-@item   mark_machine_status
-This is a @code{void (*)(struct function *)} function pointer.  If this
-pointer is non-@code{NULL} it will be called once per function in order to mark
-any data items in the @code{struct machine_function} structure which
-need garbage collection.
+@code{struct machine_function} structures are expected to be freed by GC.
+Generally, any memory that they reference must be allocated by using
+@code{ggc_alloc}, including the structure itself.
 
 @end table
 
@@ -930,11 +943,12 @@ multi-word integers.
 @findex BITS_PER_UNIT
 @item BITS_PER_UNIT
 Define this macro to be the number of bits in an addressable storage
-unit (byte); normally 8.
+unit (byte).  If you do not define this macro the default is 8.
 
 @findex BITS_PER_WORD
 @item BITS_PER_WORD
-Number of bits in a word; normally 32.
+Number of bits in a word.  If you do not define this macro, the default
+is @code{BITS_PER_UNIT * UNITS_PER_WORD}.
 
 @findex MAX_BITS_PER_WORD
 @item MAX_BITS_PER_WORD
@@ -956,7 +970,8 @@ smallest value that @code{UNITS_PER_WORD} can have at run-time.
 @item POINTER_SIZE
 Width of a pointer, in bits.  You must specify a value no wider than the
 width of @code{Pmode}.  If it is not equal to the width of @code{Pmode},
-you must define @code{POINTERS_EXTEND_UNSIGNED}.
+you must define @code{POINTERS_EXTEND_UNSIGNED}.  If you do not specify
+a value the default is @code{BITS_PER_WORD}.
 
 @findex POINTERS_EXTEND_UNSIGNED
 @item POINTERS_EXTEND_UNSIGNED
@@ -1219,9 +1234,14 @@ Like @code{PCC_BITFIELD_TYPE_MATTERS} except that its effect is limited
 to aligning a bit-field within the structure.
 
 @findex MEMBER_TYPE_FORCES_BLK
-@item MEMBER_TYPE_FORCES_BLK (@var{field})
+@item MEMBER_TYPE_FORCES_BLK (@var{field}, @var{mode})
 Return 1 if a structure or array containing @var{field} should be accessed using
 @code{BLKMODE}.
+
+If @var{field} is the only field in the structure, @var{mode} is its
+mode, otherwise @var{mode} is VOIDmode.  @var{mode} is provided in the
+case where structures of one field would require the structure's mode to
+retain the field's mode.
 
 Normally, this is not needed.  See the file @file{c4x.h} for an example
 of how to use this macro to prevent a structure having a floating point
@@ -1290,22 +1310,6 @@ You need not define this macro if it always returns @code{word_mode}.
 You would most commonly define this macro if the @code{allocate_stack}
 pattern needs to support both a 32- and a 64-bit mode.
 
-@findex CHECK_FLOAT_VALUE
-@item CHECK_FLOAT_VALUE (@var{mode}, @var{value}, @var{overflow})
-A C statement to validate the value @var{value} (of type
-@code{double}) for mode @var{mode}.  This means that you check whether
-@var{value} fits within the possible range of values for mode
-@var{mode} on this target machine.  The mode @var{mode} is always
-a mode of class @code{MODE_FLOAT}.  @var{overflow} is nonzero if
-the value is already known to be out of range.
-
-If @var{value} is not valid or if @var{overflow} is nonzero, you should
-set @var{overflow} to 1 and then assign some valid value to @var{value}.
-Allowing an invalid value to go through the compiler can produce
-incorrect assembler code which may even cause Unix assemblers to crash.
-
-This macro need not be defined if there is no work for it to do.
-
 @findex TARGET_FLOAT_FORMAT
 @item TARGET_FLOAT_FORMAT
 A code distinguishing the floating point format of the target machine.
@@ -1319,7 +1323,8 @@ need to define this macro when the format is IEEE@.
 
 @findex VAX_FLOAT_FORMAT
 @item VAX_FLOAT_FORMAT
-This code indicates the ``D float'' format used on the VAX@.
+This code indicates the ``F float'' (for @code{float}) and ``D float''
+or ``G float'' formats (for @code{double}) used on the VAX and PDP-11@.
 
 @findex IBM_FLOAT_FORMAT
 @item IBM_FLOAT_FORMAT
@@ -1334,15 +1339,101 @@ This code indicates the format used on the TMS320C3x/C4x.
 This code indicates any other format.
 @end table
 
-The value of this macro is compared with @code{HOST_FLOAT_FORMAT}, which
-is defined by the @command{configure} script, to determine whether the
-target machine has the same format as the host machine.  If any other
+If any other
 formats are actually in use on supported machines, new codes should be
 defined for them.
 
 The ordering of the component words of floating point values stored in
 memory is controlled by @code{FLOAT_WORDS_BIG_ENDIAN}.
 
+@findex MODE_HAS_NANS
+@item MODE_HAS_NANS (@var{mode})
+When defined, this macro should be true if @var{mode} has a NaN
+representation.  The compiler assumes that NaNs are not equal to
+anything (including themselves) and that addition, subtraction,
+multiplication and division all return NaNs when one operand is
+NaN@.
+
+By default, this macro is true if @var{mode} is a floating-point
+mode and the target floating-point format is IEEE@.
+
+@findex MODE_HAS_INFINITIES
+@item MODE_HAS_INFINITIES (@var{mode})
+This macro should be true if @var{mode} can represent infinity.  At
+present, the compiler uses this macro to decide whether @samp{x - x}
+is always defined.  By default, the macro is true when @var{mode}
+is a floating-point mode and the target format is IEEE@.
+
+@findex MODE_HAS_SIGNED_ZEROS
+@item MODE_HAS_SIGNED_ZEROS (@var{mode})
+True if @var{mode} distinguishes between positive and negative zero.
+The rules are expected to follow the IEEE standard:
+
+@itemize @bullet
+@item
+@samp{x + x} has the same sign as @samp{x}.
+
+@item
+If the sum of two values with opposite sign is zero, the result is
+positive for all rounding modes expect towards @minus{}infinity, for
+which it is negative.
+
+@item
+The sign of a product or quotient is negative when exactly one
+of the operands is negative.
+@end itemize
+
+The default definition is true if @var{mode} is a floating-point
+mode and the target format is IEEE@.
+
+@findex MODE_HAS_SIGN_DEPENDENT_ROUNDING
+@item MODE_HAS_SIGN_DEPENDENT_ROUNDING (@var{mode})
+If defined, this macro should be true for @var{mode} if it has at
+least one rounding mode in which @samp{x} and @samp{-x} can be
+rounded to numbers of different magnitude.  Two such modes are
+towards @minus{}infinity and towards +infinity.
+
+The default definition of this macro is true if @var{mode} is
+a floating-point mode and the target format is IEEE@.
+
+@findex ROUND_TOWARDS_ZERO
+@item ROUND_TOWARDS_ZERO
+If defined, this macro should be true if the prevailing rounding
+mode is towards zero.  A true value has the following effects:
+
+@itemize @bullet
+@item
+@code{MODE_HAS_SIGN_DEPENDENT_ROUNDING} will be false for all modes.
+
+@item
+@file{libgcc.a}'s floating-point emulator will round towards zero
+rather than towards nearest.
+
+@item
+The compiler's floating-point emulator will round towards zero after
+doing arithmetic, and when converting from the internal float format to
+the target format.
+@end itemize
+
+The macro does not affect the parsing of string literals.  When the
+primary rounding mode is towards zero, library functions like
+@code{strtod} might still round towards nearest, and the compiler's
+parser should behave like the target's @code{strtod} where possible.
+
+Not defining this macro is equivalent to returning zero.
+
+@findex LARGEST_EXPONENT_IS_NORMAL
+@item LARGEST_EXPONENT_IS_NORMAL (@var{size})
+This macro should return true if floats with @var{size}
+bits do not have a NaN or infinity representation, but use the largest
+exponent for normal numbers instead.
+
+Defining this macro to true for @var{size} causes @code{MODE_HAS_NANS}
+and @code{MODE_HAS_INFINITIES} to be false for @var{size}-bit modes.
+It also affects the way @file{libgcc.a} and @file{real.c} emulate
+floating-point arithmetic.
+
+The default definition of this macro returns false for all sizes.
 @end table
 
 @deftypefn {Target Hook} bool TARGET_MS_BITFIELD_LAYOUT_P (tree @var{record_type})
@@ -1355,8 +1446,22 @@ alignment of the underlying types of itself and of the previous
 bit-field; (ii) a zero-sized bit-field will affect the alignment of
 the whole enclosing structure, even if it is unnamed; except that
 (iii) a zero-sized bit-field will be disregarded unless it follows
-another bit-field of non-zero size.  If this hook returns @code{true},
+another bit-field of nonzero size.  If this hook returns @code{true},
 other macros that control bit-field layout are ignored.
+
+When a bit-field is inserted into a packed record, the whole size
+of the underlying type is used by one or more same-size adjacent
+bit-fields (that is, if its long:3, 32 bits is used in the record,
+and any additional adjacent long bit-fields are packed into the same
+chunk of 32 bits. However, if the size changes, a new field of that
+size is allocated). In an unpacked record, this is the same as using
+alignment, but not equivalent when packing.
+
+If both MS bit-fields and @samp{__attribute__((packed))} are used,
+the latter will take precedence. If @samp{__attribute__((packed))} is
+used on a single field when MS bit-fields are in use, it will take
+precedence for that field, but the alignment of the rest of the structure
+may affect its placement.
 @end deftypefn
 
 @node Type Layout
@@ -1414,14 +1519,6 @@ A C expression for the size in bits of the type @code{char} on the
 target machine.  If you don't define this, the default is
 @code{BITS_PER_UNIT}.
 
-@findex MAX_CHAR_TYPE_SIZE
-@item MAX_CHAR_TYPE_SIZE
-Maximum number for the size in bits of the type @code{char} on the
-target machine.  If this is undefined, the default is
-@code{CHAR_TYPE_SIZE}.  Otherwise, it is the constant value that is the
-largest value that @code{CHAR_TYPE_SIZE} can have at run-time.  This is
-used in @code{cpp}.
-
 @findex BOOL_TYPE_SIZE
 @item BOOL_TYPE_SIZE
 A C expression for the size in bits of the C++ type @code{bool} and
@@ -1452,9 +1549,12 @@ target machine.  If this is undefined, the default is
 the largest value that @code{LONG_DOUBLE_TYPE_SIZE} can have at run-time.
 This is used in @code{cpp}.
 
-@findex INTEL_EXTENDED_IEEE_FORMAT
-Define this macro to be 1 if the target machine uses 80-bit floating-point
-values with 128-bit size and alignment.  This is used in @file{real.c}.
+@findex TARGET_FLT_EVAL_METHOD
+@item TARGET_FLT_EVAL_METHOD
+A C expression for the value for @code{FLT_EVAL_METHOD} in @file{float.h},
+assuming, if applicable, that the floating-point control word is in its
+default state.  If you do not define this macro the value of
+@code{FLT_EVAL_METHOD} will be zero.
 
 @findex WIDEST_HARDWARE_FP_SIZE
 @item WIDEST_HARDWARE_FP_SIZE
@@ -1620,6 +1720,20 @@ pointer to which the function's data is relative.
 
 If vtables are used, the value of this macro should be the number
 of words that the function descriptor occupies.
+
+@findex TARGET_VTABLE_ENTRY_ALIGN
+@item TARGET_VTABLE_ENTRY_ALIGN
+By default, the vtable entries are void pointers, the so the alignment
+is the same as pointer alignment.  The value of this macro specifies
+the alignment of the vtable entry in bits.  It should be defined only
+when special alignment is necessary. */
+
+@findex TARGET_VTABLE_DATA_ENTRY_DISTANCE
+@item TARGET_VTABLE_DATA_ENTRY_DISTANCE
+There are a few non-descriptor entries in the vtable at offsets below
+zero.  If these entries must be padded (say, to preserve the alignment
+specified by @code{TARGET_VTABLE_ENTRY_ALIGN}), set this to the number
+of words in each data entry.
 @end table
 
 @node Escape Sequences
@@ -2190,7 +2304,7 @@ which is the register value plus a displacement.
 @findex MODE_BASE_REG_CLASS
 @item MODE_BASE_REG_CLASS (@var{mode})
 This is a variation of the @code{BASE_REG_CLASS} macro which allows
-the selection of a base register in a mode depenedent manner.  If
+the selection of a base register in a mode dependent manner.  If
 @var{mode} is VOIDmode then it should return the same value as
 @code{BASE_REG_CLASS}.
 
@@ -2299,7 +2413,7 @@ from memory or even from other types of registers.  An example is the
 from general registers, but not memory.  Some machines allow copying all
 registers to and from memory, but require a scratch register for stores
 to some memory locations (e.g., those with symbolic address on the RT,
-and those with certain symbolic address on the Sparc when compiling
+and those with certain symbolic address on the SPARC when compiling
 PIC)@.  In some cases, both an intermediate and a scratch register are
 required.
 
@@ -2447,25 +2561,22 @@ should be the maximum value of @code{HARD_REGNO_NREGS (@var{regno},
 This macro helps control the handling of multiple-word values
 in the reload pass.
 
-@item CLASS_CANNOT_CHANGE_MODE
-If defined, a C expression for a class that contains registers for
-which the compiler may not change modes arbitrarily.
-
-@item CLASS_CANNOT_CHANGE_MODE_P(@var{from}, @var{to})
-A C expression that is true if, for a register in
-@code{CLASS_CANNOT_CHANGE_MODE}, the requested mode punning is invalid.
+@item CANNOT_CHANGE_MODE_CLASS(@var{from}, @var{to}, @var{class})
+If defined, a C expression that returns nonzero for a @var{class} for which
+a change from mode @var{from} to mode @var{to} is invalid.
 
 For the example, loading 32-bit integer or floating-point objects into
 floating-point registers on the Alpha extends them to 64 bits.
 Therefore loading a 64-bit object and then storing it as a 32-bit object
 does not store the low-order 32 bits, as would be the case for a normal
-register.  Therefore, @file{alpha.h} defines @code{CLASS_CANNOT_CHANGE_MODE}
-as @code{FLOAT_REGS} and @code{CLASS_CANNOT_CHANGE_MODE_P} restricts
-mode changes to same-size modes.
+register.  Therefore, @file{alpha.h} defines @code{CANNOT_CHANGE_MODE_CLASS}
+as below:
 
-Compare this to IA-64, which extends floating-point values to 82 bits,
-and stores 64-bit integers in a different format than 64-bit doubles.
-Therefore @code{CLASS_CANNOT_CHANGE_MODE_P} is always true.
+@example
+#define CANNOT_CHANGE_MODE_CLASS(FROM, TO, CLASS) \
+  (GET_MODE_SIZE (FROM) != GET_MODE_SIZE (TO) \
+   ? reg_classes_intersect_p (FLOAT_REGS, (CLASS)) : 0)
+@end example
 @end table
 
 Three other special macros describe which operands fit which constraint
@@ -2518,6 +2629,44 @@ letter @samp{Q} is defined as representing a memory address that does
 a @samp{Q} constraint on the input and @samp{r} on the output.  The next
 alternative specifies @samp{m} on the input and a register class that
 does not include r0 on the output.
+
+@findex EXTRA_MEMORY_CONSTRAINT
+@item EXTRA_MEMORY_CONSTRAINT (@var{c})
+A C expression that defines the optional machine-dependent constraint
+letters, amongst those accepted by @code{EXTRA_CONSTRAINT}, that should
+be treated like memory constraints by the reload pass.
+
+It should return 1 if the operand type represented by the constraint 
+letter @var{c} comprises a subset of all memory references including
+all those whose address is simply a base register.  This allows the reload 
+pass to reload an operand, if it does not directly correspond to the operand 
+type of @var{c}, by copying its address into a base register.
+
+For example, on the S/390, some instructions do not accept arbitrary
+memory references, but only those that do not make use of an index
+register.  The constraint letter @samp{Q} is defined via
+@code{EXTRA_CONSTRAINT} as representing a memory address of this type.
+If the letter @samp{Q} is marked as @code{EXTRA_MEMORY_CONSTRAINT},
+a @samp{Q} constraint can handle any memory operand, because the
+reload pass knows it can be reloaded by copying the memory address
+into a base register if required.  This is analogous to the way
+a @samp{o} constraint can handle any memory operand.
+
+@findex EXTRA_ADDRESS_CONSTRAINT
+@item EXTRA_ADDRESS_CONSTRAINT (@var{c})
+A C expression that defines the optional machine-dependent constraint
+letters, amongst those accepted by @code{EXTRA_CONSTRAINT}, that should
+be treated like address constraints by the reload pass.
+
+It should return 1 if the operand type represented by the constraint 
+letter @var{c} comprises a subset of all memory addresses including
+all those that consist of just a base register.  This allows the reload 
+pass to reload an operand, if it does not directly correspond to the operand 
+type of @var{c}, by copying it into a base register.
+
+Any constraint marked as @code{EXTRA_ADDRESS_CONSTRAINT} can only
+be used with the @code{address_operand} predicate.  It is treated 
+analogously to the @samp{p} constraint.
 @end table
 
 @node Stack and Calling
@@ -2566,7 +2715,7 @@ definition used does not matter.
 
 This macro defines the operation used when something is pushed
 on the stack.  In RTL, a push operation will be
-@code{(set (mem (STACK_PUSH_CODE (reg sp))) ...)}
+@code{(set (mem (STACK_PUSH_CODE (reg sp))) @dots{})}
 
 The choices are @code{PRE_DEC}, @code{POST_DEC}, @code{PRE_INC},
 and @code{POST_INC}.  Which of these is correct depends on
@@ -2641,7 +2790,7 @@ address of the stack word that points to the previous frame.
 @item SETUP_FRAME_ADDRESSES
 If defined, a C expression that produces the machine-specific code to
 setup the stack so that arbitrary frames can be accessed.  For example,
-on the Sparc, we must flush all of the register windows to the stack
+on the SPARC, we must flush all of the register windows to the stack
 before we can access arbitrary stack frames.  You will seldom need to
 define this macro.
 
@@ -2750,8 +2899,12 @@ It will be assigned zero on code paths that return normally.
 Typically this is a call-clobbered hard register that is otherwise
 untouched by the epilogue, but could also be a stack slot.
 
-You must define this macro if you want to support call frame exception
-handling like that provided by DWARF 2.
+Do not define this macro if the stack pointer is saved and restored
+by the regular prolog and epilog code in the call frame itself; in 
+this case, the exception handling library routines will update the 
+stack location to be restored in place.  Otherwise, you must define 
+this macro if you want to support call frame exception handling like 
+that provided by DWARF 2.
 
 @findex EH_RETURN_HANDLER_RTX
 @item EH_RETURN_HANDLER_RTX
@@ -2763,8 +2916,9 @@ Typically this is the location in the call frame at which the normal
 return address is stored.  For targets that return by popping an
 address off the stack, this might be a memory address just below
 the @emph{target} call frame rather than inside the current call
-frame.  @code{EH_RETURN_STACKADJ_RTX} will have already been assigned,
-so it may be used to calculate the location of the target call frame.
+frame.  If defined, @code{EH_RETURN_STACKADJ_RTX} will have already 
+been assigned, so it may be used to calculate the location of the 
+target call frame.
 
 Some targets have more complex requirements than storing to an
 address calculable during initial code generation.  In that case
@@ -3434,14 +3588,6 @@ nonzero, the caller does not make a copy.  Instead, it passes a pointer to the
 determined that the value won't be modified, it need not make a copy;
 otherwise a copy must be made.
 
-@findex FUNCTION_ARG_REG_LITTLE_ENDIAN
-@item FUNCTION_ARG_REG_LITTLE_ENDIAN
-If defined TRUE on a big-endian system then structure arguments passed
-(and returned) in registers are passed in a little-endian manner instead of
-the big-endian manner.  On the HP-UX IA64 and PA64 platforms structures are
-aligned differently then integral values and setting this value to true will
-allow for the special handling of structure arguments and return values.
-
 @findex CUMULATIVE_ARGS
 @item CUMULATIVE_ARGS
 A C type for declaring a variable that is used as the first argument of
@@ -3567,11 +3713,6 @@ This section discusses the macros that control returning scalars as
 values---values that can fit in registers.
 
 @table @code
-@findex TRADITIONAL_RETURN_FLOAT
-@item TRADITIONAL_RETURN_FLOAT
-Define this macro if @option{-traditional} should not cause functions
-declared to return @code{float} to convert the value to @code{double}.
-
 @findex FUNCTION_VALUE
 @item FUNCTION_VALUE (@var{valtype}, @var{func})
 A C expression to create an RTX representing the place where a
@@ -3916,7 +4057,7 @@ arguments.  But usually, on such machines, nothing else has been pushed
 yet, because the function prologue itself does all the pushing.)  This
 region is used on machines where an argument may be passed partly in
 registers and partly in memory, and, in some cases to support the
-features in @code{<varargs.h>} and @code{<stdarg.h>}.
+features in @code{<stdarg.h>}.
 
 @item
 An area of memory used to save certain registers used by the function.
@@ -4003,9 +4144,11 @@ outputting the insns in this list, usually by calling
 You need not define this macro if you did not define
 @code{DELAY_SLOTS_FOR_EPILOGUE}.
 
-@findex ASM_OUTPUT_MI_THUNK
-@item ASM_OUTPUT_MI_THUNK (@var{file}, @var{thunk_fndecl}, @var{delta}, @var{function})
-A C compound statement that outputs the assembler code for a thunk
+@end table
+
+@findex TARGET_ASM_OUTPUT_MI_THUNK
+@deftypefn {Target Hook} void TARGET_ASM_OUTPUT_MI_THUNK (FILE *@var{file}, tree @var{thunk_fndecl}, HOST_WIDE_INT @var{delta}, tree @var{function})
+A function that outputs the assembler code for a thunk
 function, used to implement C++ virtual function calls with multiple
 inheritance.  The thunk acts as a wrapper around a virtual function,
 adjusting the implicit object parameter before handing control off to
@@ -4036,7 +4179,24 @@ If you do not define this macro, the target-independent code in the C++
 front end will generate a less efficient heavyweight thunk that calls
 @var{function} instead of jumping to it.  The generic approach does
 not support varargs.
-@end table
+@end deftypefn
+
+@findex TARGET_ASM_OUTPUT_MI_VCALL_THUNK
+@deftypefn {Target Hook} void TARGET_ASM_OUTPUT_MI_VCALL_THUNK (FILE *@var{file}, tree @var{thunk_fndecl}, HOST_WIDE_INT @var{delta}, int @var{vcall_offset}, tree @var{function})
+A function like @code{TARGET_ASM_OUTPUT_MI_THUNK}, except that if
+@var{vcall_offset} is nonzero, an additional adjustment should be made
+after adding @code{delta}.  In particular, if @var{p} is the
+adjusted pointer, the following adjustment should be made:
+
+@example
+p += (*((ptrdiff_t **)p))[vcall_offset/sizeof(ptrdiff_t)]
+@end example
+
+@noindent
+If this function is defined, it will always be used in place of
+@code{TARGET_ASM_OUTPUT_MI_THUNK}.
+
+@end deftypefn
 
 @node Profiling
 @subsection Generating Code for Profiling
@@ -4078,22 +4238,6 @@ must not use the @var{labelno} argument to @code{FUNCTION_PROFILER}.
 @item PROFILE_BEFORE_PROLOGUE
 Define this macro if the code for function profiling should come before
 the function prologue.  Normally, the profiling code comes after.
-
-
-@findex TARGET_ALLOWS_PROFILING_WITHOUT_FRAME_POINTER
-@item TARGET_ALLOWS_PROFILING_WITHOUT_FRAME_POINTER
-On some targets, it is impossible to use profiling when the frame
-pointer has been omitted.  For example, on x86 GNU/Linux systems,
-the @code{mcount} routine provided by the GNU C Library finds the
-address of the routine that called the routine that called @code{mcount}
-by looking in the immediate caller's stack frame.  If the immediate
-caller has no frame pointer, this lookup will fail.
-
-By default, GCC assumes that the target does allow profiling when the
-frame pointer is omitted.  This macro should be defined to a C
-expression that evaluates to @code{false} if the target does not allow
-profiling when the frame pointer is omitted.
-
 @end table
 
 @node Tail Calls
@@ -4524,6 +4668,13 @@ remainder in division of one unsigned full-word by another.  If you do
 not define this macro, the default name is used, which is
 @code{__umoddi3}, a function defined in @file{libgcc.a}.
 
+@findex DECLARE_LIBRARY_RENAMES
+@item DECLARE_LIBRARY_RENAMES
+This macro, if defined, should expand to a piece of C code that will get
+expanded when compiling functions for libgcc.a.  It can be used to
+provide alternate names for gcc's internal library functions if there
+are ABI-mandated names that the compiler should provide.
+
 @findex INIT_TARGET_OPTABS
 @item INIT_TARGET_OPTABS
 Define this macro as a C statement that declares additional library
@@ -4692,11 +4843,11 @@ sums that are not marked with  @code{const}.  It assumes that a naked
 naked constant sums as illegitimate addresses, so that none of them will
 be given to @code{PRINT_OPERAND_ADDRESS}.
 
-@cindex @code{ENCODE_SECTION_INFO} and address validation
+@cindex @code{TARGET_ENCODE_SECTION_INFO} and address validation
 On some machines, whether a symbolic address is legitimate depends on
 the section that the address refers to.  On these machines, define the
-macro @code{ENCODE_SECTION_INFO} to store the information into the
-@code{symbol_ref}, and then check for it here.  When you see a
+target hook @code{TARGET_ENCODE_SECTION_INFO} to store the information
+into the @code{symbol_ref}, and then check for it here.  When you see a
 @code{const}, you will have to look inside it to find the
 @code{symbol_ref} in order to determine the section.  @xref{Assembler
 Format}.
@@ -4706,8 +4857,8 @@ The best way to modify the name string is by adding text to the
 beginning, with suitable punctuation to prevent any ambiguity.  Allocate
 the new name in @code{saveable_obstack}.  You will have to modify
 @code{ASM_OUTPUT_LABELREF} to remove and decode the added text and
-output the name accordingly, and define @code{STRIP_NAME_ENCODING} to
-access the original name string.
+output the name accordingly, and define @code{TARGET_STRIP_NAME_ENCODING}
+to access the original name string.
 
 You can check the information stored here into the @code{symbol_ref} in
 the definitions of the macros @code{GO_IF_LEGITIMATE_ADDRESS} and
@@ -4931,29 +5082,34 @@ two places, the @file{md} file and in @code{NOTICE_UPDATE_CC}.
 
 @findex EXTRA_CC_MODES
 @item EXTRA_CC_MODES
-A list of additional modes for condition code values in registers
-(@pxref{Jump Patterns}).  This macro should expand to a sequence of
-calls of the macro @code{CC} separated by white space.  @code{CC} takes
-two arguments.  The first is the enumeration name of the mode, which
-should begin with @samp{CC} and end with @samp{mode}.  The second is a C
-string giving the printable name of the mode; it should be the same as
-the first argument, but with the trailing @samp{mode} removed.
+Condition codes are represented in registers by machine modes of class
+@code{MODE_CC}.  By default, there is just one mode, @code{CCmode}, with
+this class.  If you need more such modes, create a file named
+@file{@var{machine}-modes.def} in your @file{config/@var{machine}}
+directory (@pxref{Back End, , Anatomy of a Target Back End}), containing
+a list of these modes.  Each entry in the list should be a call to the
+macro @code{CC}.  This macro takes one argument, which is the name of
+the mode: it should begin with @samp{CC}.  Do not put quotation marks
+around the name, or include the trailing @samp{mode}; these are
+automatically added.  There should not be anything else in the file
+except comments.
 
-You should only define this macro if additional modes are required.
+A sample @file{@var{machine}-modes.def} file might look like this:
 
-A sample definition of @code{EXTRA_CC_MODES} is:
 @smallexample
-#define EXTRA_CC_MODES            \
-    CC(CC_NOOVmode, "CC_NOOV")    \
-    CC(CCFPmode, "CCFP")          \
-    CC(CCFPEmode, "CCFPE")
+CC (CC_NOOV)   /* @r{Comparison only valid if there was no overflow.} */
+CC (CCFP)      /* @r{Floating point comparison that cannot trap.} */
+CC (CCFPE)     /* @r{Floating point comparison that may trap.} */
 @end smallexample
+
+When you create this file, the macro @code{EXTRA_CC_MODES} is
+automatically defined by @command{configure}, with value @samp{1}.
 
 @findex SELECT_CC_MODE
 @item SELECT_CC_MODE (@var{op}, @var{x}, @var{y})
 Returns a mode from class @code{MODE_CC} to be used when comparison
 operation code @var{op} is applied to rtx @var{x} and @var{y}.  For
-example, on the Sparc, @code{SELECT_CC_MODE} is defined as (see
+example, on the SPARC, @code{SELECT_CC_MODE} is defined as (see
 @pxref{Jump Patterns} for a description of the reason for this
 definition)
 
@@ -4997,7 +5153,7 @@ then @code{REVERSIBLE_CC_MODE (@var{mode})} must be zero.
 
 You need not define this macro if it would always returns zero or if the
 floating-point format is anything other than @code{IEEE_FLOAT_FORMAT}.
-For example, here is the definition used on the Sparc, where floating-point
+For example, here is the definition used on the SPARC, where floating-point
 inequality comparisons are always given @code{CCFPEmode}:
 
 @smallexample
@@ -5246,6 +5402,22 @@ than @code{MOVE_RATIO}.
 A C expression used by @code{move_by_pieces} to determine the largest unit
 a load or store used to copy memory is.  Defaults to @code{MOVE_MAX}.
 
+@findex CLEAR_RATIO
+@item CLEAR_RATIO
+The threshold of number of scalar move insns, @emph{below} which a sequence
+of insns should be generated to clear memory instead of a string clear insn
+or a library call.  Increasing the value will always make code faster, but
+eventually incurs high cost in increased code size.
+
+If you don't define this, a reasonable default is used.
+
+@findex CLEAR_BY_PIECES_P
+@item CLEAR_BY_PIECES_P (@var{size}, @var{alignment})
+A C expression used to determine whether @code{clear_by_pieces} will be used
+to clear a chunk of memory, or whether some other block clear mechanism
+will be used.  Defaults to 1 if @code{move_by_pieces_ninsns} returns less
+than @code{CLEAR_RATIO}.
+
 @findex USE_LOAD_POST_INCREMENT
 @item USE_LOAD_POST_INCREMENT (@var{mode})
 A C expression used to determine whether a load postincrement is a good
@@ -5315,11 +5487,18 @@ hooks for this purpose.  It is usually enough to define just a few of
 them: try the first ones in this list first.
 
 @deftypefn {Target Hook} int TARGET_SCHED_ISSUE_RATE (void)
-This hook returns the maximum number of instructions that can ever issue
-at the same time on the target machine.  The default is one.  This value
-must be constant over the entire compilation.  If you need it to vary
-depending on what the instructions are, you must use
+This hook returns the maximum number of instructions that can ever
+issue at the same time on the target machine.  The default is one.
+Although the insn scheduler can define itself the possibility of issue
+an insn on the same cycle, the value can serve as an additional
+constraint to issue insns on the same simulated processor cycle (see
+hooks @samp{TARGET_SCHED_REORDER} and @samp{TARGET_SCHED_REORDER2}).
+This value must be constant over the entire compilation.  If you need
+it to vary depending on what the instructions are, you must use
 @samp{TARGET_SCHED_VARIABLE_ISSUE}.
+
+For the automaton based pipeline interface, you could define this hook
+to return the value of the macro @code{MAX_DFA_ISSUE_RATE}.
 @end deftypefn
 
 @deftypefn {Target Hook} int TARGET_SCHED_VARIABLE_ISSUE (FILE *@var{file}, int @var{verbose}, rtx @var{insn}, int @var{more})
@@ -5335,12 +5514,18 @@ instruction that was scheduled.
 @end deftypefn
 
 @deftypefn {Target Hook} int TARGET_SCHED_ADJUST_COST (rtx @var{insn}, rtx @var{link}, rtx @var{dep_insn}, int @var{cost})
-This function corrects the value of @var{cost} based on the relationship
-between @var{insn} and @var{dep_insn} through the dependence @var{link}.
-It should return the new value.  The default is to make no adjustment to
-@var{cost}.  This can be used for example to specify to the scheduler
+This function corrects the value of @var{cost} based on the
+relationship between @var{insn} and @var{dep_insn} through the
+dependence @var{link}.  It should return the new value.  The default
+is to make no adjustment to @var{cost}.  This can be used for example
+to specify to the scheduler using the traditional pipeline description
 that an output- or anti-dependence does not incur the same cost as a
-data-dependence.
+data-dependence.  If the scheduler using the automaton based pipeline
+description, the cost of anti-dependence is zero and the cost of
+output-dependence is maximum of one and the difference of latency
+times of the first and the second insns.  If these values are not
+acceptable, you could use the hook to modify them too.  See also
+@pxref{Automaton pipeline description}.
 @end deftypefn
 
 @deftypefn {Target Hook} int TARGET_SCHED_ADJUST_PRIORITY (rtx @var{insn}, int @var{priority})
@@ -5398,13 +5583,139 @@ to.  @var{verbose} is the verbose level provided by
 @option{-fsched-verbose-@var{n}}.
 @end deftypefn
 
-@deftypefn {Target Hook} rtx TARGET_SCHED_CYCLE_DISPLAY (int @var{clock}, rtx @var{last})
-This hook is called in verbose mode only, at the beginning of each pass
-over a basic block.  It should insert an insn into the chain after
-@var{last}, which has no effect, but records the value @var{clock} in
-RTL dumps and assembly output.  Define this hook only if you need this
-level of detail about what the scheduler is doing.
+@deftypefn {Target Hook} int TARGET_SCHED_USE_DFA_PIPELINE_INTERFACE (void)
+This hook is called many times during insn scheduling.  If the hook
+returns nonzero, the automaton based pipeline description is used for
+insn scheduling.  Otherwise the traditional pipeline description is
+used.  The default is usage of the traditional pipeline description.
+
+You should also remember that to simplify the insn scheduler sources
+an empty traditional pipeline description interface is generated even
+if there is no a traditional pipeline description in the @file{.md}
+file.  The same is true for the automaton based pipeline description.
+That means that you should be accurate in defining the hook.
 @end deftypefn
+
+@deftypefn {Target Hook} int TARGET_SCHED_DFA_PRE_CYCLE_INSN (void)
+The hook returns an RTL insn.  The automaton state used in the
+pipeline hazard recognizer is changed as if the insn were scheduled
+when the new simulated processor cycle starts.  Usage of the hook may
+simplify the automaton pipeline description for some @acronym{VLIW}
+processors.  If the hook is defined, it is used only for the automaton
+based pipeline description.  The default is not to change the state
+when the new simulated processor cycle starts.
+@end deftypefn
+
+@deftypefn {Target Hook} void TARGET_SCHED_INIT_DFA_PRE_CYCLE_INSN (void)
+The hook can be used to initialize data used by the previous hook.
+@end deftypefn
+
+@deftypefn {Target Hook} int TARGET_SCHED_DFA_POST_CYCLE_INSN (void)
+The hook is analogous to @samp{TARGET_SCHED_DFA_PRE_CYCLE_INSN} but used
+to changed the state as if the insn were scheduled when the new
+simulated processor cycle finishes.
+@end deftypefn
+
+@deftypefn {Target Hook} void TARGET_SCHED_INIT_DFA_POST_CYCLE_INSN (void)
+The hook is analogous to @samp{TARGET_SCHED_INIT_DFA_PRE_CYCLE_INSN} but
+used to initialize data used by the previous hook.
+@end deftypefn
+
+@deftypefn {Target Hook} int TARGET_SCHED_FIRST_CYCLE_MULTIPASS_DFA_LOOKAHEAD (void)
+This hook controls better choosing an insn from the ready insn queue
+for the @acronym{DFA}-based insn scheduler.  Usually the scheduler
+chooses the first insn from the queue.  If the hook returns a positive
+value, an additional scheduler code tries all permutations of
+@samp{TARGET_SCHED_FIRST_CYCLE_MULTIPASS_DFA_LOOKAHEAD ()}
+subsequent ready insns to choose an insn whose issue will result in
+maximal number of issued insns on the same cycle.  For the
+@acronym{VLIW} processor, the code could actually solve the problem of
+packing simple insns into the @acronym{VLIW} insn.  Of course, if the
+rules of @acronym{VLIW} packing are described in the automaton.
+
+This code also could be used for superscalar @acronym{RISC}
+processors.  Let us consider a superscalar @acronym{RISC} processor
+with 3 pipelines.  Some insns can be executed in pipelines @var{A} or
+@var{B}, some insns can be executed only in pipelines @var{B} or
+@var{C}, and one insn can be executed in pipeline @var{B}.  The
+processor may issue the 1st insn into @var{A} and the 2nd one into
+@var{B}.  In this case, the 3rd insn will wait for freeing @var{B}
+until the next cycle.  If the scheduler issues the 3rd insn the first,
+the processor could issue all 3 insns per cycle.
+
+Actually this code demonstrates advantages of the automaton based
+pipeline hazard recognizer.  We try quickly and easy many insn
+schedules to choose the best one.
+
+The default is no multipass scheduling.
+@end deftypefn
+
+@deftypefn {Target Hook} void TARGET_SCHED_INIT_DFA_BUBBLES (void)
+The @acronym{DFA}-based scheduler could take the insertion of nop
+operations for better insn scheduling into account.  It can be done
+only if the multi-pass insn scheduling works (see hook
+@samp{TARGET_SCHED_FIRST_CYCLE_MULTIPASS_DFA_LOOKAHEAD}).
+
+Let us consider a @acronym{VLIW} processor insn with 3 slots.  Each
+insn can be placed only in one of the three slots.  We have 3 ready
+insns @var{A}, @var{B}, and @var{C}.  @var{A} and @var{C} can be
+placed only in the 1st slot, @var{B} can be placed only in the 3rd
+slot.  We described the automaton which does not permit empty slot
+gaps between insns (usually such description is simpler).  Without
+this code the scheduler would place each insn in 3 separate
+@acronym{VLIW} insns.  If the scheduler places a nop insn into the 2nd
+slot, it could place the 3 insns into 2 @acronym{VLIW} insns.  What is
+the nop insn is returned by hook @samp{TARGET_SCHED_DFA_BUBBLE}.  Hook
+@samp{TARGET_SCHED_INIT_DFA_BUBBLES} can be used to initialize or
+create the nop insns.
+
+You should remember that the scheduler does not insert the nop insns.
+It is not wise because of the following optimizations.  The scheduler
+only considers such possibility to improve the result schedule.  The
+nop insns should be inserted lately, e.g. on the final phase.
+@end deftypefn
+
+@deftypefn {Target Hook} rtx TARGET_SCHED_DFA_BUBBLE (int @var{index})
+This hook @samp{FIRST_CYCLE_MULTIPASS_SCHEDULING} is used to insert
+nop operations for better insn scheduling when @acronym{DFA}-based
+scheduler makes multipass insn scheduling (see also description of
+hook @samp{TARGET_SCHED_INIT_DFA_BUBBLES}).  This hook
+returns a nop insn with given @var{index}.  The indexes start with
+zero.  The hook should return @code{NULL} if there are no more nop
+insns with indexes greater than given index.
+@end deftypefn
+
+Macros in the following table are generated by the program
+@file{genattr} and can be useful for writing the hooks.
+
+@table @code
+@findex TRADITIONAL_PIPELINE_INTERFACE
+@item TRADITIONAL_PIPELINE_INTERFACE
+The macro definition is generated if there is a traditional pipeline
+description in @file{.md} file. You should also remember that to
+simplify the insn scheduler sources an empty traditional pipeline
+description interface is generated even if there is no a traditional
+pipeline description in the @file{.md} file.  The macro can be used to
+distinguish the two types of the traditional interface.
+
+@findex DFA_PIPELINE_INTERFACE
+@item DFA_PIPELINE_INTERFACE
+The macro definition is generated if there is an automaton pipeline
+description in @file{.md} file.  You should also remember that to
+simplify the insn scheduler sources an empty automaton pipeline
+description interface is generated even if there is no an automaton
+pipeline description in the @file{.md} file.  The macro can be used to
+distinguish the two types of the automaton interface.
+
+@findex MAX_DFA_ISSUE_RATE
+@item MAX_DFA_ISSUE_RATE
+The macro definition is generated in the automaton based pipeline
+description interface.  Its value is calculated from the automaton
+based pipeline description and is equal to maximal number of all insns
+described in constructions @samp{define_insn_reservation} which can be
+issued on the same processor cycle.
+
+@end table
 
 @node Sections
 @section Dividing the Output into Sections (Texts, Data, @dots{})
@@ -5436,11 +5747,38 @@ Normally this is not needed, as simply defining @code{TEXT_SECTION_ASM_OP}
 is enough.  The MIPS port uses this to sort all functions after all data
 declarations.
 
+@findex HOT_TEXT_SECTION_NAME
+@item HOT_TEXT_SECTION_NAME
+If defined, a C string constant for the name of the section containing most
+frequently executed functions of the program.  If not defined, GCC will provide
+a default definition if the target supports named sections.
+
+@findex UNLIKELY_EXECUTED_TEXT_SECTION_NAME
+@item UNLIKELY_EXECUTED_TEXT_SECTION_NAME
+If defined, a C string constant for the name of the section containing unlikely
+executed functions in the program.
+
 @findex DATA_SECTION_ASM_OP
 @item DATA_SECTION_ASM_OP
 A C expression whose value is a string, including spacing, containing the
 assembler operation to identify the following data as writable initialized
 data.  Normally @code{"\t.data"} is right.
+
+@findex READONLY_DATA_SECTION_ASM_OP
+@item READONLY_DATA_SECTION_ASM_OP
+A C expression whose value is a string, including spacing, containing the
+assembler operation to identify the following data as read-only initialized
+data.
+
+@findex READONLY_DATA_SECTION
+@item READONLY_DATA_SECTION
+A macro naming a function to call to switch to the proper section for
+read-only data.  The default is to use @code{READONLY_DATA_SECTION_ASM_OP}
+if defined, else fall back to @code{text_section}.
+
+The most common definition will be @code{data_section}, if the target
+does not have a special read-only data section, and does not put data
+in the text section.
 
 @findex SHARED_SECTION_ASM_OP
 @item SHARED_SECTION_ASM_OP
@@ -5515,44 +5853,6 @@ functions should do jobs analogous to those of @code{text_section} and
 @code{data_section}, for your additional sections.  Do not define this
 macro if you do not define @code{EXTRA_SECTIONS}.
 
-@findex READONLY_DATA_SECTION
-@item READONLY_DATA_SECTION
-On most machines, read-only variables, constants, and jump tables are
-placed in the text section.  If this is not the case on your machine,
-this macro should be defined to be the name of a function (either
-@code{data_section} or a function defined in @code{EXTRA_SECTIONS}) that
-switches to the section to be used for read-only items.
-
-If these items should be placed in the text section, this macro should
-not be defined.
-
-@findex SELECT_SECTION
-@item SELECT_SECTION (@var{exp}, @var{reloc}, @var{align})
-A C statement or statements to switch to the appropriate section for
-output of @var{exp}.  You can assume that @var{exp} is either a
-@code{VAR_DECL} node or a constant of some sort.  @var{reloc}
-indicates whether the initial value of @var{exp} requires link-time
-relocations.  Bit 1 is set when variable contains local relocations
-only, while bit 2 is set for global relocations.
-Select the section by calling @code{text_section} or one
-of the alternatives for other sections.  @var{align} is the constant
-alignment in bits.
-
-Do not define this macro if you put all read-only variables and
-constants in the read-only data section (usually the text section).
-
-@findex SELECT_RTX_SECTION
-@item SELECT_RTX_SECTION (@var{mode}, @var{rtx}, @var{align})
-A C statement or statements to switch to the appropriate section for
-output of @var{rtx} in mode @var{mode}.  You can assume that @var{rtx}
-is some kind of constant in RTL@.  The argument @var{mode} is redundant
-except in the case of a @code{const_int} rtx.  Select the section by
-calling @code{text_section} or one of the alternatives for other
-sections.  @var{align} is the constant alignment in bits.
-
-Do not define this macro if you put all constants in the read-only
-data section.
-
 @findex JUMP_TABLES_IN_TEXT_SECTION
 @item JUMP_TABLES_IN_TEXT_SECTION
 Define this macro to be an expression with a nonzero value if jump
@@ -5561,44 +5861,104 @@ section, along with the assembler instructions.  Otherwise, the
 readonly data section is used.
 
 This macro is irrelevant if there is no separate readonly data section.
+@end table
 
-@findex ENCODE_SECTION_INFO
-@item ENCODE_SECTION_INFO (@var{decl})
-Define this macro if references to a symbol or a constant must be
+@deftypefn {Target Hook} void TARGET_ASM_SELECT_SECTION (tree @var{exp}, int @var{reloc}, unsigned HOST_WIDE_INT @var{align})
+Switches to the appropriate section for output of @var{exp}.  You can
+assume that @var{exp} is either a @code{VAR_DECL} node or a constant of
+some sort.  @var{reloc} indicates whether the initial value of @var{exp}
+requires link-time relocations.  Bit 0 is set when variable contains
+local relocations only, while bit 1 is set for global relocations.
+Select the section by calling @code{data_section} or one of the
+alternatives for other sections.  @var{align} is the constant alignment
+in bits.
+
+The default version of this function takes care of putting read-only
+variables in @code{readonly_data_section}.
+@end deftypefn
+
+@deftypefn {Target Hook} void TARGET_ASM_UNIQUE_SECTION (tree @var{decl}, int @var{reloc})
+Build up a unique section name, expressed as a @code{STRING_CST} node,
+and assign it to @samp{DECL_SECTION_NAME (@var{decl})}.
+As with @code{TARGET_ASM_SELECT_SECTION}, @var{reloc} indicates whether
+the initial value of @var{exp} requires link-time relocations.
+
+The default version of this function appends the symbol name to the
+ELF section name that would normally be used for the symbol.  For
+example, the function @code{foo} would be placed in @code{.text.foo}.
+Whatever the actual target object format, this is often good enough.
+@end deftypefn
+
+@deftypefn {Target Hook} void TARGET_ASM_SELECT_RTX_SECTION (enum machine_mode @var{mode}, rtx @var{x}, unsigned HOST_WIDE_INT @var{align})
+Switches to the appropriate section for output of constant pool entry
+@var{x} in @var{mode}.  You can assume that @var{x} is some kind of
+constant in RTL@.  The argument @var{mode} is redundant except in the
+case of a @code{const_int} rtx.  Select the section by calling
+@code{readonly_data_section} or one of the alternatives for other
+sections.  @var{align} is the constant alignment in bits.
+
+The default version of this function takes care of putting symbolic
+constants in @code{flag_pic} mode in @code{data_section} and everything
+else in @code{readonly_data_section}.
+@end deftypefn
+
+@deftypefn {Target Hook} void TARGET_ENCODE_SECTION_INFO (tree @var{decl}, int @var{new_decl_p})
+Define this hook if references to a symbol or a constant must be
 treated differently depending on something about the variable or
 function named by the symbol (such as what section it is in).
 
-The macro definition, if any, is executed under two circumstances.  One
-is immediately after the rtl for @var{decl} that represents a variable
-or a function has been created and stored in @code{DECL_RTL
-(@var{decl})}.  The value of the rtl will be a @code{mem} whose address
-is a @code{symbol_ref}.  The other is immediately after the rtl for
-@var{decl} that represents a constant has been created and stored in
-@code{TREE_CST_RTL (@var{decl})}.  The macro is called once for each
-distinct constant in a source file.
+The hook is executed under two circumstances.  One is immediately after
+the rtl for @var{decl} that represents a variable or a function has been
+created and stored in @code{DECL_RTL(@var{decl})}.  The value of the rtl
+will be a @code{mem} whose address is a @code{symbol_ref}.  The other is
+immediately after the rtl for @var{decl} that represents a constant has
+been created and stored in @code{TREE_CST_RTL (@var{decl})}.  The macro
+is called once for each distinct constant in a source file.
 
-@cindex @code{SYMBOL_REF_FLAG}, in @code{ENCODE_SECTION_INFO}
-The usual thing for this macro to do is to record a flag in the
+The @var{new_decl_p} argument will be true if this is the first time
+that @code{ENCODE_SECTION_INFO} has been invoked on this decl.  It will
+be false for subsequent invocations, which will happen for duplicate
+declarations.  Whether or not anything must be done for the duplicate
+declaration depends on whether the hook examines @code{DECL_ATTRIBUTES}.
+
+@cindex @code{SYMBOL_REF_FLAG}, in @code{TARGET_ENCODE_SECTION_INFO}
+The usual thing for this hook to do is to record a flag in the
 @code{symbol_ref} (such as @code{SYMBOL_REF_FLAG}) or to store a
-modified name string in the @code{symbol_ref} (if one bit is not enough
-information).
+modified name string in the @code{symbol_ref} (if one bit is not
+enough information).
+@end deftypefn
 
-@findex STRIP_NAME_ENCODING
-@item STRIP_NAME_ENCODING (@var{var}, @var{sym_name})
-Decode @var{sym_name} and store the real name part in @var{var}, sans
-the characters that encode section info.  Define this macro if
-@code{ENCODE_SECTION_INFO} alters the symbol's name string.
+@deftypefn {Target Hook} const char *TARGET_STRIP_NAME_ENCODING (const char *name)
+Decode @var{name} and return the real name part, sans
+the characters that @code{TARGET_ENCODE_SECTION_INFO}
+may have added.
+@end deftypefn
 
-@findex UNIQUE_SECTION
-@item UNIQUE_SECTION (@var{decl}, @var{reloc})
-A C statement to build up a unique section name, expressed as a
-@code{STRING_CST} node, and assign it to @samp{DECL_SECTION_NAME (@var{decl})}.
-@var{reloc} indicates whether the initial value of @var{exp} requires
-link-time relocations.  If you do not define this macro, GCC will use
-the symbol name prefixed by @samp{.} as the section name.  Note - this
-macro can now be called for uninitialized data items as well as
-initialized data and functions.
-@end table
+@deftypefn {Target Hook} bool TARGET_IN_SMALL_DATA_P (tree @var{exp})
+Returns true if @var{exp} should be placed into a ``small data'' section.
+The default version of this hook always returns false.
+@end deftypefn
+
+@deftypevar {Target Hook} bool TARGET_HAVE_SRODATA_SECTION
+Contains the value true if the target places read-only
+``small data'' into a separate section.  The default value is false.
+@end deftypevar
+
+@deftypefn {Target Hook} bool TARGET_BINDS_LOCAL_P (tree @var{exp})
+Returns true if @var{exp} names an object for which name resolution
+rules must resolve to the current ``module'' (dynamic shared library
+or executable image).
+
+The default version of this hook implements the name resolution rules
+for ELF, which has a looser model of global name binding than other
+currently supported object file formats.
+@end deftypefn
+
+@deftypevar {Target Hook} bool TARGET_HAVE_TLS
+Contains the value true if the target supports thread-local storage.
+The default value is false.
+@end deftypevar
+
 
 @node PIC
 @section Position Independent Code
@@ -5966,26 +6326,18 @@ of @code{ASM_OUTPUT_DOUBLE} and the like:
 @findex REAL_VALUE_TO_TARGET_DOUBLE
 @findex REAL_VALUE_TO_TARGET_LONG_DOUBLE
 These translate @var{x}, of type @code{REAL_VALUE_TYPE}, to the target's
-floating point representation, and store its bit pattern in the array of
-@code{long int} whose address is @var{l}.  The number of elements in the
-output array is determined by the size of the desired target floating
-point data type: 32 bits of it go in each @code{long int} array
-element.  Each array element holds 32 bits of the result, even if
-@code{long int} is wider than 32 bits on the host machine.
+floating point representation, and store its bit pattern in the variable
+@var{l}.  For @code{REAL_VALUE_TO_TARGET_SINGLE}, this variable should
+be a simple @code{long int}.  For the others, it should be an array of
+@code{long int}.  The number of elements in this array is determined by
+the size of the desired target floating point data type: 32 bits of it
+go in each @code{long int} array element.  Each array element holds 32
+bits of the result, even if @code{long int} is wider than 32 bits on the
+host machine.
 
 The array element values are designed so that you can print them out
 using @code{fprintf} in the order they should appear in the target
 machine's memory.
-
-@item REAL_VALUE_TO_DECIMAL (@var{x}, @var{format}, @var{string})
-@findex REAL_VALUE_TO_DECIMAL
-This macro converts @var{x}, of type @code{REAL_VALUE_TYPE}, to a
-decimal number and stores it as a string into @var{string}.
-You must pass, as @var{string}, the address of a long enough block
-of space to hold the result.
-
-The argument @var{format} is a @code{printf}-specification that serves
-as a suggestion for how to format the output string.
 @end table
 
 @node Uninitialized Data
@@ -6122,7 +6474,78 @@ A C statement (sans semicolon) to output to the stdio stream
 @var{stream} the assembler definition of a label named @var{name}.
 Use the expression @code{assemble_name (@var{stream}, @var{name})} to
 output the name itself; before and after that, output the additional
-assembler syntax for defining the name, and a newline.
+assembler syntax for defining the name, and a newline.  A default
+definition of this macro is provided which is correct for most systems.
+
+@findex SIZE_ASM_OP
+@item SIZE_ASM_OP
+A C string containing the appropriate assembler directive to specify the
+size of a symbol, without any arguments.  On systems that use ELF, the
+default (in @file{config/elfos.h}) is @samp{"\t.size\t"}; on other
+systems, the default is not to define this macro.
+
+Define this macro only if it is correct to use the default definitions
+of @code{ASM_OUTPUT_SIZE_DIRECTIVE} and @code{ASM_OUTPUT_MEASURED_SIZE}
+for your system.  If you need your own custom definitions of those
+macros, or if you do not need explicit symbol sizes at all, do not
+define this macro.
+
+@findex ASM_OUTPUT_SIZE_DIRECTIVE
+@item ASM_OUTPUT_SIZE_DIRECTIVE (@var{stream}, @var{name}, @var{size})
+A C statement (sans semicolon) to output to the stdio stream
+@var{stream} a directive telling the assembler that the size of the
+symbol @var{name} is @var{size}.  @var{size} is a @code{HOST_WIDE_INT}.
+If you define @code{SIZE_ASM_OP}, a default definition of this macro is
+provided.
+
+@findex ASM_OUTPUT_MEASURED_SIZE
+@item ASM_OUTPUT_MEASURED_SIZE (@var{stream}, @var{name})
+A C statement (sans semicolon) to output to the stdio stream
+@var{stream} a directive telling the assembler to calculate the size of
+the symbol @var{name} by subtracting its address from the current
+address.  
+
+If you define @code{SIZE_ASM_OP}, a default definition of this macro is
+provided.  The default assumes that the assembler recognizes a special
+@samp{.} symbol as referring to the current address, and can calculate
+the difference between this and another symbol.  If your assembler does
+not recognize @samp{.} or cannot do calculations with it, you will need
+to redefine @code{ASM_OUTPUT_MEASURED_SIZE} to use some other technique.
+
+@findex TYPE_ASM_OP
+@item TYPE_ASM_OP
+A C string containing the appropriate assembler directive to specify the
+type of a symbol, without any arguments.  On systems that use ELF, the
+default (in @file{config/elfos.h}) is @samp{"\t.type\t"}; on other
+systems, the default is not to define this macro.
+
+Define this macro only if it is correct to use the default definition of
+@code{ASM_OUTPUT_TYPE_DIRECTIVE} for your system.  If you need your own
+custom definition of this macro, or if you do not need explicit symbol
+types at all, do not define this macro.
+
+@findex TYPE_OPERAND_FMT
+@item TYPE_OPERAND_FMT
+A C string which specifies (using @code{printf} syntax) the format of
+the second operand to @code{TYPE_ASM_OP}.  On systems that use ELF, the
+default (in @file{config/elfos.h}) is @samp{"@@%s"}; on other systems,
+the default is not to define this macro.
+
+Define this macro only if it is correct to use the default definition of
+@code{ASM_OUTPUT_TYPE_DIRECTIVE} for your system.  If you need your own
+custom definition of this macro, or if you do not need explicit symbol
+types at all, do not define this macro.
+
+@findex ASM_OUTPUT_TYPE_DIRECTIVE
+@item ASM_OUTPUT_TYPE_DIRECTIVE (@var{stream}, @var{type})
+A C statement (sans semicolon) to output to the stdio stream
+@var{stream} a directive telling the assembler that the type of the
+symbol @var{name} is @var{type}.  @var{type} is a C string; currently,
+that string is always either @samp{"function"} or @samp{"object"}, but
+you should not count on this.
+
+If you define @code{TYPE_ASM_OP} and @code{TYPE_OPERAND_FMT}, a default
+definition of this macro is provided.
 
 @findex ASM_DECLARE_FUNCTION_NAME
 @item ASM_DECLARE_FUNCTION_NAME (@var{stream}, @var{name}, @var{decl})
@@ -6136,6 +6559,9 @@ outputting the label definition (perhaps using
 If this macro is not defined, then the function name is defined in the
 usual manner as a label (by means of @code{ASM_OUTPUT_LABEL}).
 
+You may wish to use @code{ASM_OUTPUT_TYPE_DIRECTIVE} in the definition
+of this macro.
+
 @findex ASM_DECLARE_FUNCTION_SIZE
 @item ASM_DECLARE_FUNCTION_SIZE (@var{stream}, @var{name}, @var{decl})
 A C statement (sans semicolon) to output to the stdio stream
@@ -6145,6 +6571,9 @@ function.  The argument @var{decl} is the @code{FUNCTION_DECL} tree node
 representing the function.
 
 If this macro is not defined, then the function size is not defined.
+
+You may wish to use @code{ASM_OUTPUT_MEASURED_SIZE} in the definition
+of this macro.
 
 @findex ASM_DECLARE_OBJECT_NAME
 @item ASM_DECLARE_OBJECT_NAME (@var{stream}, @var{name}, @var{decl})
@@ -6156,6 +6585,9 @@ label definition (perhaps using @code{ASM_OUTPUT_LABEL}).  The argument
 
 If this macro is not defined, then the variable name is defined in the
 usual manner as a label (by means of @code{ASM_OUTPUT_LABEL}).
+
+You may wish to use @code{ASM_OUTPUT_TYPE_DIRECTIVE} and/or
+@code{ASM_OUTPUT_SIZE_DIRECTIVE} in the definition of this macro.
 
 @findex ASM_DECLARE_REGISTER_GLOBAL
 @item ASM_DECLARE_REGISTER_GLOBAL (@var{stream}, @var{decl}, @var{regno}, @var{name})
@@ -6177,15 +6609,20 @@ something about the size of the object.
 If you don't define this macro, that is equivalent to defining it to do
 nothing.
 
-@findex ASM_GLOBALIZE_LABEL
-@item ASM_GLOBALIZE_LABEL (@var{stream}, @var{name})
-A C statement (sans semicolon) to output to the stdio stream
-@var{stream} some commands that will make the label @var{name} global;
-that is, available for reference from other files.  Use the expression
-@code{assemble_name (@var{stream}, @var{name})} to output the name
-itself; before and after that, output the additional assembler syntax
-for making that name global, and a newline.
+You may wish to use @code{ASM_OUTPUT_SIZE_DIRECTIVE} and/or
+@code{ASM_OUTPUT_MEASURED_SIZE} in the definition of this macro.
+@end table
 
+@deftypefn {Target Hook} void TARGET_ASM_GLOBALIZE_LABEL (FILE *@var{stream}, const char *@var{name})
+This target hook is a function to output to the stdio stream
+@var{stream} some commands that will make the label @var{name} global;
+that is, available for reference from other files.
+
+The default implementation relies on a proper definition of
+@code{GLOBAL_ASM_OP}.
+@end deftypefn
+
+@table @code
 @findex ASM_WEAKEN_LABEL
 @item ASM_WEAKEN_LABEL (@var{stream}, @var{name})
 A C statement (sans semicolon) to output to the stdio stream
@@ -6241,6 +6678,12 @@ you want to control one-only symbol support with a compiler flag, or if
 setting the @code{DECL_ONE_ONLY} flag is enough to mark a declaration to
 be emitted as one-only.
 
+@deftypefn {Target Hook} void TARGET_ASM_ASSEMBLE_VISIBILITY (tree @var{decl}, const char *@var{visibility})
+This target hook is a function to output to @var{asm_out_file} some
+commands that will make the symbol(s) associated with @var{decl} have
+hidden, protected or internal visibility as specified by @var{visibility}.
+@end deftypefn
+
 @findex ASM_OUTPUT_EXTERNAL
 @item ASM_OUTPUT_EXTERNAL (@var{stream}, @var{decl}, @var{name})
 A C statement (sans semicolon) to output to the stdio stream
@@ -6276,17 +6719,17 @@ A C statement (sans semicolon) to output a reference to
 @code{SYMBOL_REF} @var{sym}.  If not defined, @code{assemble_name}
 will be used to output the name of the symbol.  This macro may be used
 to modify the way a symbol is referenced depending on information
-encoded by @code{ENCODE_SECTION_INFO}.
+encoded by @code{TARGET_ENCODE_SECTION_INFO}.
 
 @findex ASM_OUTPUT_LABEL_REF
 @item ASM_OUTPUT_LABEL_REF (@var{stream}, @var{buf})
 A C statement (sans semicolon) to output a reference to @var{buf}, the
-result of ASM_GENERATE_INTERNAL_LABEL.  If not defined,
+result of @code{ASM_GENERATE_INTERNAL_LABEL}.  If not defined,
 @code{assemble_name} will be used to output the name of the symbol.
 This macro is not used by @code{output_asm_label}, or the @code{%l}
 specifier that calls it; the intention is that this macro should be set
-when it is necessary to output a label differently when its address
-is being taken.
+when it is necessary to output a label differently when its address is
+being taken.
 
 @findex ASM_OUTPUT_INTERNAL_LABEL
 @item ASM_OUTPUT_INTERNAL_LABEL (@var{stream}, @var{prefix}, @var{num})
@@ -6321,17 +6764,6 @@ bundles.
 
 If this macro is not defined, then @code{ASM_OUTPUT_INTERNAL_LABEL} will be
 used.
-
-@findex ASM_OUTPUT_ALTERNATE_LABEL_NAME
-@item ASM_OUTPUT_ALTERNATE_LABEL_NAME (@var{stream}, @var{string})
-A C statement to output to the stdio stream @var{stream} the string
-@var{string}.
-
-The default definition of this macro is as follows:
-
-@example
-fprintf (@var{stream}, "%s:\n", LABEL_ALTERNATE_NAME (INSN))
-@end example
 
 @findex ASM_GENERATE_INTERNAL_LABEL
 @item ASM_GENERATE_INTERNAL_LABEL (@var{string}, @var{prefix}, @var{num})
@@ -6385,15 +6817,6 @@ which defines (equates) the symbol whose tree node is @var{decl_of_name}
 to have the value of the tree node @var{decl_of_value}.  This macro will
 be used in preference to @samp{ASM_OUTPUT_DEF} if it is defined and if
 the tree nodes are available.
-
-@findex ASM_OUTPUT_DEFINE_LABEL_DIFFERENCE_SYMBOL
-@item ASM_OUTPUT_DEFINE_LABEL_DIFFERENCE_SYMBOL (@var{stream}, @var{symbol}, @var{high}, @var{low})
-A C statement to output to the stdio stream @var{stream} assembler code
-which defines (equates) the symbol @var{symbol} to have a value equal to
-the difference of the two symbols @var{high} and @var{low},
-i.e.@: @var{high} minus @var{low}.  GCC guarantees that the symbols @var{high}
-and @var{low} are already known by the assembler so that the difference
-resolves into a constant.
 
 @findex SET_ASM_OP
 If @code{SET_ASM_OP} is defined, a default definition is provided which is
@@ -6513,7 +6936,7 @@ When arbitrary sections are available, there are two variants, depending
 upon how the code in @file{crtstuff.c} is called.  On systems that
 support a @dfn{.init} section which is executed at program startup,
 parts of @file{crtstuff.c} are compiled into that section.  The
-program is linked by the @code{gcc} driver like this:
+program is linked by the @command{gcc} driver like this:
 
 @example
 ld -o @var{output_file} crti.o crtbegin.o @dots{} -lgcc crtend.o crtn.o
@@ -6832,10 +7255,10 @@ A C compound statement to output to stdio stream @var{stream} the
 assembler syntax for an instruction operand that is a memory reference
 whose address is @var{x}.  @var{x} is an RTL expression.
 
-@cindex @code{ENCODE_SECTION_INFO} usage
+@cindex @code{TARGET_ENCODE_SECTION_INFO} usage
 On some machines, the syntax for a symbolic address depends on the
-section that the address refers to.  On these machines, define the macro
-@code{ENCODE_SECTION_INFO} to store the information into the
+section that the address refers to.  On these machines, define the hook
+@code{TARGET_ENCODE_SECTION_INFO} to store the information into the
 @code{symbol_ref}, and then check for it here.  @xref{Assembler Format}.
 
 @findex DBR_OUTPUT_SEQEND
@@ -7082,6 +7505,13 @@ is a function that outputs a standard GAS section directive, if
 directive followed by a synthetic label.
 @end deftypefn
 
+@deftypevar {Target Hook} bool TARGET_TERMINATE_DW2_EH_FRAME_INFO
+Contains the value true if the target should add a zero word onto the
+end of a Dwarf-2 frame info section when used for exception handling.
+Default value is false if @code{EH_FRAME_SECTION_NAME} is defined, and
+true otherwise.
+@end deftypevar
+
 @node Alignment Output
 @subsection Assembler Commands for Alignment
 
@@ -7173,6 +7603,11 @@ section.
 A C statement to output to the stdio stream @var{stream} an assembler
 command to advance the location counter to a multiple of 2 to the
 @var{power} bytes.  @var{power} will be a C expression of type @code{int}.
+
+@findex ASM_OUTPUT_ALIGN_WITH_NOP
+@item ASM_OUTPUT_ALIGN_WITH_NOP (@var{stream}, @var{power})
+Like @code{ASM_OUTPUT_ALIGN}, except that the ``nop'' instruction is used
+for padding, if necessary.
 
 @findex ASM_OUTPUT_MAX_SKIP_ALIGN
 @item ASM_OUTPUT_MAX_SKIP_ALIGN (@var{stream}, @var{power}, @var{max_skip})
@@ -7620,6 +8055,22 @@ Define this macro to be a nonzero value if the assembler can generate Dwarf 2
 line debug info sections.  This will result in much more compact line number
 tables, and hence is desirable if it works.
 
+@findex ASM_OUTPUT_DWARF_DELTA
+@item ASM_OUTPUT_DWARF_DELTA (@var{stream}, @var{size}, @var{label1}, @var{label2})
+A C statement to issue assembly directives that create a difference
+between the two given labels, using an integer of the given size.
+
+@findex ASM_OUTPUT_DWARF_OFFSET
+@item ASM_OUTPUT_DWARF_OFFSET (@var{stream}, @var{size}, @var{label})
+A C statement to issue assembly directives that create a
+section-relative reference to the given label, using an integer of the
+given size.
+
+@findex ASM_OUTPUT_DWARF_PCREL
+@item ASM_OUTPUT_DWARF_PCREL (@var{stream}, @var{size}, @var{label})
+A C statement to issue assembly directives that create a self-relative
+reference to the given label, using an integer of the given size.
+
 @findex PUT_SDB_@dots{}
 @item PUT_SDB_@dots{}
 Define these macros to override the assembler syntax for the special
@@ -7673,180 +8124,118 @@ behavior is controlled by @code{OPTIMIZATION_OPTIONS} and
 @code{OVERRIDE_OPTIONS}.
 @end table
 
-@node Cross-compilation
+@node Floating Point
 @section Cross Compilation and Floating Point
 @cindex cross compilation and floating point
 @cindex floating point and cross compilation
 
-While all modern machines use 2's complement representation for integers,
+While all modern machines use twos-complement representation for integers,
 there are a variety of representations for floating point numbers.  This
 means that in a cross-compiler the representation of floating point numbers
 in the compiled program may be different from that used in the machine
 doing the compilation.
 
-@findex atof
 Because different representation systems may offer different amounts of
-range and precision, the cross compiler cannot safely use the host
-machine's floating point arithmetic.  Therefore, floating point constants
-must be represented in the target machine's format.  This means that the
-cross compiler cannot use @code{atof} to parse a floating point constant;
-it must have its own special routine to use instead.  Also, constant
-folding must emulate the target machine's arithmetic (or must not be done
-at all).
+range and precision, all floating point constants must be represented in
+the target machine's format.  Therefore, the cross compiler cannot
+safely use the host machine's floating point arithmetic; it must emulate
+the target's arithmetic.  To ensure consistency, GCC always uses
+emulation to work with floating point values, even when the host and
+target floating point formats are identical.
 
-The macros in the following table should be defined only if you are cross
-compiling between different floating point formats.
+The following macros are provided by @file{real.h} for the compiler to
+use.  All parts of the compiler which generate or optimize
+floating-point calculations must use these macros.  They may evaluate
+their operands more than once, so operands must not have side effects.
 
-Otherwise, don't define them.  Then default definitions will be set up which
-use @code{double} as the data type, @code{==} to test for equality, etc.
+@defmac REAL_VALUE_TYPE
+The C data type to be used to hold a floating point value in the target
+machine's format.  Typically this is a @code{struct} containing an
+array of @code{HOST_WIDE_INT}, but all code should treat it as an opaque
+quantity.
+@end defmac
 
-You don't need to worry about how many times you use an operand of any
-of these macros.  The compiler never uses operands which have side effects.
+@deftypefn Macro int REAL_VALUES_EQUAL (REAL_VALUE_TYPE @var{x}, REAL_VALUE_TYPE @var{y})
+Compares for equality the two values, @var{x} and @var{y}.  If the target
+floating point format supports negative zeroes and/or NaNs,
+@samp{REAL_VALUES_EQUAL (-0.0, 0.0)} is true, and
+@samp{REAL_VALUES_EQUAL (NaN, NaN)} is false.
+@end deftypefn
 
-@table @code
-@findex REAL_VALUE_TYPE
-@item REAL_VALUE_TYPE
-A macro for the C data type to be used to hold a floating point value
-in the target machine's format.  Typically this would be a
-@code{struct} containing an array of @code{int}.
+@deftypefn Macro int REAL_VALUES_LESS (REAL_VALUE_TYPE @var{x}, REAL_VALUE_TYPE @var{y})
+Tests whether @var{x} is less than @var{y}.
+@end deftypefn
 
-@findex REAL_VALUES_EQUAL
-@item REAL_VALUES_EQUAL (@var{x}, @var{y})
-A macro for a C expression which compares for equality the two values,
-@var{x} and @var{y}, both of type @code{REAL_VALUE_TYPE}.
+@deftypefn Macro HOST_WIDE_INT REAL_VALUE_FIX (REAL_VALUE_TYPE @var{x})
+Truncates @var{x} to a signed integer, rounding toward zero.
+@end deftypefn
 
-@findex REAL_VALUES_LESS
-@item REAL_VALUES_LESS (@var{x}, @var{y})
-A macro for a C expression which tests whether @var{x} is less than
-@var{y}, both values being of type @code{REAL_VALUE_TYPE} and
-interpreted as floating point numbers in the target machine's
-representation.
+@deftypefn Macro {unsigned HOST_WIDE_INT} REAL_VALUE_UNSIGNED_FIX (REAL_VALUE_TYPE @var{x})
+Truncates @var{x} to an unsigned integer, rounding toward zero.  If
+@var{x} is negative, returns zero.
+@end deftypefn
 
-@findex REAL_VALUE_LDEXP
-@findex ldexp
-@item REAL_VALUE_LDEXP (@var{x}, @var{scale})
-A macro for a C expression which performs the standard library
-function @code{ldexp}, but using the target machine's floating point
-representation.  Both @var{x} and the value of the expression have
-type @code{REAL_VALUE_TYPE}.  The second argument, @var{scale}, is an
-integer.
+@deftypefn Macro REAL_VALUE_TYPE REAL_VALUE_ATOF (const char *@var{string}, enum machine_mode @var{mode})
+Converts @var{string} into a floating point number in the target machine's
+representation for mode @var{mode}.  This routine can handle both
+decimal and hexadecimal floating point constants, using the syntax
+defined by the C language for both.
+@end deftypefn
 
-@findex REAL_VALUE_FIX
-@item REAL_VALUE_FIX (@var{x})
-A macro whose definition is a C expression to convert the target-machine
-floating point value @var{x} to a signed integer.  @var{x} has type
-@code{REAL_VALUE_TYPE}.
+@deftypefn Macro int REAL_VALUE_NEGATIVE (REAL_VALUE_TYPE @var{x})
+Returns 1 if @var{x} is negative (including negative zero), 0 otherwise.
+@end deftypefn
 
-@findex REAL_VALUE_UNSIGNED_FIX
-@item REAL_VALUE_UNSIGNED_FIX (@var{x})
-A macro whose definition is a C expression to convert the target-machine
-floating point value @var{x} to an unsigned integer.  @var{x} has type
-@code{REAL_VALUE_TYPE}.
+@deftypefn Macro int REAL_VALUE_ISINF (REAL_VALUE_TYPE @var{x})
+Determines whether @var{x} represents infinity (positive or negative).
+@end deftypefn
 
-@findex REAL_VALUE_RNDZINT
-@item REAL_VALUE_RNDZINT (@var{x})
-A macro whose definition is a C expression to round the target-machine
-floating point value @var{x} towards zero to an integer value (but still
-as a floating point number).  @var{x} has type @code{REAL_VALUE_TYPE},
-and so does the value.
+@deftypefn Macro int REAL_VALUE_ISNAN (REAL_VALUE_TYPE @var{x})
+Determines whether @var{x} represents a ``NaN'' (not-a-number).
+@end deftypefn
 
-@findex REAL_VALUE_UNSIGNED_RNDZINT
-@item REAL_VALUE_UNSIGNED_RNDZINT (@var{x})
-A macro whose definition is a C expression to round the target-machine
-floating point value @var{x} towards zero to an unsigned integer value
-(but still represented as a floating point number).  @var{x} has type
-@code{REAL_VALUE_TYPE}, and so does the value.
+@deftypefn Macro void REAL_ARITHMETIC (REAL_VALUE_TYPE @var{output}, enum tree_code @var{code}, REAL_VALUE_TYPE @var{x}, REAL_VALUE_TYPE @var{y})
+Calculates an arithmetic operation on the two floating point values
+@var{x} and @var{y}, storing the result in @var{output} (which must be a
+variable).
 
-@findex REAL_VALUE_ATOF
-@item REAL_VALUE_ATOF (@var{string}, @var{mode})
-A macro for a C expression which converts @var{string}, an expression of
-type @code{char *}, into a floating point number in the target machine's
-representation for mode @var{mode}.  The value has type
-@code{REAL_VALUE_TYPE}.
+The operation to be performed is specified by @var{code}.  Only the
+following codes are supported: @code{PLUS_EXPR}, @code{MINUS_EXPR},
+@code{MULT_EXPR}, @code{RDIV_EXPR}, @code{MAX_EXPR}, @code{MIN_EXPR}.
 
-@findex REAL_INFINITY
-@item REAL_INFINITY
-Define this macro if infinity is a possible floating point value, and
-therefore division by 0 is legitimate.
+If @code{REAL_ARITHMETIC} is asked to evaluate division by zero and the
+target's floating point format cannot represent infinity, it will call
+@code{abort}.  Callers should check for this situation first, using
+@code{MODE_HAS_INFINITIES}.  @xref{Storage Layout}.
+@end deftypefn
 
-@findex REAL_VALUE_ISINF
-@findex isinf
-@item REAL_VALUE_ISINF (@var{x})
-A macro for a C expression which determines whether @var{x}, a floating
-point value, is infinity.  The value has type @code{int}.
-By default, this is defined to call @code{isinf}.
+@deftypefn Macro REAL_VALUE_TYPE REAL_VALUE_NEGATE (REAL_VALUE_TYPE @var{x})
+Returns the negative of the floating point value @var{x}.
+@end deftypefn
 
-@findex REAL_VALUE_ISNAN
-@findex isnan
-@item REAL_VALUE_ISNAN (@var{x})
-A macro for a C expression which determines whether @var{x}, a floating
-point value, is a ``nan'' (not-a-number).  The value has type
-@code{int}.  By default, this is defined to call @code{isnan}.
-@end table
+@deftypefn Macro REAL_VALUE_TYPE REAL_VALUE_ABS (REAL_VALUE_TYPE @var{x})
+Returns the absolute value of @var{x}.
+@end deftypefn
 
-@cindex constant folding and floating point
-Define the following additional macros if you want to make floating
-point constant folding work while cross compiling.  If you don't
-define them, cross compilation is still possible, but constant folding
-will not happen for floating point values.
+@deftypefn Macro REAL_VALUE_TYPE REAL_VALUE_TRUNCATE (REAL_VALUE_TYPE @var{mode}, enum machine_mode @var{x})
+Truncates the floating point value @var{x} to fit in @var{mode}.  The
+return value is still a full-size @code{REAL_VALUE_TYPE}, but it has an
+appropriate bit pattern to be output asa floating constant whose
+precision accords with mode @var{mode}.
+@end deftypefn
 
-@table @code
-@findex REAL_ARITHMETIC
-@item REAL_ARITHMETIC (@var{output}, @var{code}, @var{x}, @var{y})
-A macro for a C statement which calculates an arithmetic operation of
-the two floating point values @var{x} and @var{y}, both of type
-@code{REAL_VALUE_TYPE} in the target machine's representation, to
-produce a result of the same type and representation which is stored
-in @var{output} (which will be a variable).
+@deftypefn Macro void REAL_VALUE_TO_INT (HOST_WIDE_INT @var{low}, HOST_WIDE_INT @var{high}, REAL_VALUE_TYPE @var{x})
+Converts a floating point value @var{x} into a double-precision integer
+which is then stored into @var{low} and @var{high}.  If the value is not
+integral, it is truncated.
+@end deftypefn
 
-The operation to be performed is specified by @var{code}, a tree code
-which will always be one of the following: @code{PLUS_EXPR},
-@code{MINUS_EXPR}, @code{MULT_EXPR}, @code{RDIV_EXPR},
-@code{MAX_EXPR}, @code{MIN_EXPR}.
-
-@cindex overflow while constant folding
-The expansion of this macro is responsible for checking for overflow.
-If overflow happens, the macro expansion should execute the statement
-@code{return 0;}, which indicates the inability to perform the
-arithmetic operation requested.
-
-@findex REAL_VALUE_NEGATE
-@item REAL_VALUE_NEGATE (@var{x})
-A macro for a C expression which returns the negative of the floating
-point value @var{x}.  Both @var{x} and the value of the expression
-have type @code{REAL_VALUE_TYPE} and are in the target machine's
-floating point representation.
-
-There is no way for this macro to report overflow, since overflow
-can't happen in the negation operation.
-
-@findex REAL_VALUE_TRUNCATE
-@item REAL_VALUE_TRUNCATE (@var{mode}, @var{x})
-A macro for a C expression which converts the floating point value
-@var{x} to mode @var{mode}.
-
-Both @var{x} and the value of the expression are in the target machine's
-floating point representation and have type @code{REAL_VALUE_TYPE}.
-However, the value should have an appropriate bit pattern to be output
-properly as a floating constant whose precision accords with mode
-@var{mode}.
-
-There is no way for this macro to report overflow.
-
-@findex REAL_VALUE_TO_INT
-@item REAL_VALUE_TO_INT (@var{low}, @var{high}, @var{x})
-A macro for a C expression which converts a floating point value
-@var{x} into a double-precision integer which is then stored into
-@var{low} and @var{high}, two variables of type @var{int}.
-
-@item REAL_VALUE_FROM_INT (@var{x}, @var{low}, @var{high}, @var{mode})
+@deftypefn Macro void REAL_VALUE_FROM_INT (REAL_VALUE_TYPE @var{x}, HOST_WIDE_INT @var{low}, HOST_WIDE_INT @var{high}, enum machine_mode @var{mode})
 @findex REAL_VALUE_FROM_INT
-A macro for a C expression which converts a double-precision integer
-found in @var{low} and @var{high}, two variables of type @var{int},
-into a floating point value which is then stored into @var{x}.
-The value is in the target machine's representation for mode @var{mode}
-and has the type @code{REAL_VALUE_TYPE}.
-@end table
+Converts a double-precision integer found in @var{low} and @var{high},
+into a floating point value which is then stored into @var{x}.  The
+value is truncated to fit in mode @var{mode}.
+@end deftypefn
 
 @node Mode Switching
 @section Mode Switching Instructions
@@ -7997,6 +8386,50 @@ attributes, @code{false} otherwise.  By default, if a function has a
 target specific attribute attached to it, it will not be inlined.
 @end deftypefn
 
+@node MIPS Coprocessors
+@section Defining coprocessor specifics for MIPS targets.
+@cindex MIPS coprocessor-definition macros
+
+The MIPS specification allows MIPS implementations to have as many as 4
+coprocessors, each with as many as 32 private registers.  gcc supports
+accessing these registers and transferring values between the registers
+and memory using asm-ized variables.  For example:
+
+@smallexample
+  register unsigned int cp0count asm ("c0r1");
+  unsigned int d;
+
+  d = cp0count + 3;
+@end smallexample
+
+(``c0r1'' is the default name of register 1 in coprocessor 0; alternate
+names may be added as described below, or the default names may be
+overridden entirely in @code{SUBTARGET_CONDITIONAL_REGISTER_USAGE}.)
+
+Coprocessor registers are assumed to be epilogue-used; sets to them will
+be preserved even if it does not appear that the register is used again
+later in the function.
+
+Another note: according to the MIPS spec, coprocessor 1 (if present) is
+the FPU.  One accesses COP1 registers through standard mips
+floating-point support; they are not included in this mechanism.
+
+There is one macro used in defining the MIPS coprocessor interface which
+you may want to override in subtargets; it is described below.
+
+@table @code
+
+@item ALL_COP_ADDITIONAL_REGISTER_NAMES
+@findex ALL_COP_ADDITIONAL_REGISTER_NAMES
+A comma-separated list (with leading comma) of pairs describing the
+alternate names of coprocessor registers.  The format of each entry should be
+@smallexample
+@{ @var{alternatename}, @var{register_number}@}
+@end smallexample
+Default: empty.
+
+@end table
+
 @node Misc
 @section Miscellaneous Parameters
 @cindex parameters, miscellaneous
@@ -8059,7 +8492,7 @@ elements of a jump-table should have.
 Optional: return the preferred mode for an @code{addr_diff_vec}
 when the minimum and maximum offset are known.  If you define this,
 it enables extra code in branch shortening to deal with @code{addr_diff_vec}.
-To make this work, you also have to define INSN_ALIGN and
+To make this work, you also have to define @code{INSN_ALIGN} and
 make the alignment for @code{addr_diff_vec} explicit.
 The @var{body} argument is provided so that the offset_unsigned and scale
 flags can be updated.
@@ -8316,11 +8749,6 @@ Defining @code{STDC_0_IN_SYSTEM_HEADERS} makes GNU CPP follows the host
 convention when processing system header files, but when processing user
 files @code{__STDC__} will always expand to 1.
 
-@findex SCCS_DIRECTIVE
-@item SCCS_DIRECTIVE
-Define this if the preprocessor should ignore @code{#sccs} directives
-and print no error message.
-
 @findex NO_IMPLICIT_EXTERN_C
 @item NO_IMPLICIT_EXTERN_C
 Define this macro if the system header files support C++ as well as C@.
@@ -8400,6 +8828,21 @@ The pack pragma specifies the maximum alignment (in bytes) of fields
 within a structure, in much the same way as the @samp{__aligned__} and
 @samp{__packed__} @code{__attribute__}s do.  A pack value of zero resets
 the behavior to the default.
+
+A subtlety for Microsoft Visual C/C++ style bit-field packing
+(e.g. -mms-bitfields) for targets that support it:
+When a bit-field is inserted into a packed record, the whole size
+of the underlying type is used by one or more same-size adjacent
+bit-fields (that is, if its long:3, 32 bits is used in the record,
+and any additional adjacent long bit-fields are packed into the same
+chunk of 32 bits. However, if the size changes, a new field of that
+size is allocated).
+
+If both MS bit-fields and @samp{__attribute__((packed))} are used,
+the latter will take precedence. If @samp{__attribute__((packed))} is
+used on a single field when MS bit-fields are in use, it will take
+precedence for that field, but the alignment of the rest of the structure
+may affect its placement.
 
 The weak pragma only works if @code{SUPPORTS_WEAK} and
 @code{ASM_WEAKEN_LABEL} are defined.  If enabled it allows the creation
@@ -8561,29 +9004,54 @@ conditional execution instructions instead of a branch.  A value of
 1 if it does use cc0.
 
 @findex IFCVT_MODIFY_TESTS
-@item IFCVT_MODIFY_TESTS
-A C expression to modify the tests in @code{TRUE_EXPR}, and
-@code{FALSE_EXPR} for use in converting insns in @code{TEST_BB},
-@code{THEN_BB}, @code{ELSE_BB}, and @code{JOIN_BB} basic blocks to
-conditional execution.  Set either @code{TRUE_EXPR} or @code{FALSE_EXPR}
-to a null pointer if the tests cannot be converted.
+@item IFCVT_MODIFY_TESTS(@var{ce_info}, @var{true_expr}, @var{false_expr})
+Used if the target needs to perform machine-dependent modifications on the
+conditionals used for turning basic blocks into conditionally executed code.
+@var{ce_info} points to a data structure, @code{struct ce_if_block}, which
+contains information about the currently processed blocks.  @var{true_expr}
+and @var{false_expr} are the tests that are used for converting the
+then-block and the else-block, respectively.  Set either @var{true_expr} or
+@var{false_expr} to a null pointer if the tests cannot be converted.
+
+@findex IFCVT_MODIFY_MULTIPLE_TESTS
+@item IFCVT_MODIFY_MULTIPLE_TESTS(@var{ce_info}, @var{bb}, @var{true_expr}, @var{false_expr})
+Like @code{IFCVT_MODIFY_TESTS}, but used when converting more complicated
+if-statements into conditions combined by @code{and} and @code{or} operations.
+@var{bb} contains the basic block that contains the test that is currently
+being processed and about to be turned into a condition.
 
 @findex IFCVT_MODIFY_INSN
-@item IFCVT_MODIFY_INSN
-A C expression to modify the @code{PATTERN} of an @code{INSN} that is to
-be converted to conditional execution format.
+@item IFCVT_MODIFY_INSN(@var{ce_info}, @var{pattern}, @var{insn})
+A C expression to modify the @var{PATTERN} of an @var{INSN} that is to
+be converted to conditional execution format.  @var{ce_info} points to
+a data structure, @code{struct ce_if_block}, which contains information
+about the currently processed blocks.
 
 @findex IFCVT_MODIFY_FINAL
-@item IFCVT_MODIFY_FINAL
+@item IFCVT_MODIFY_FINAL(@var{ce_info})
 A C expression to perform any final machine dependent modifications in
-converting code to conditional execution in the basic blocks
-@code{TEST_BB}, @code{THEN_BB}, @code{ELSE_BB}, and @code{JOIN_BB}.
+converting code to conditional execution.  The involved basic blocks
+can be found in the @code{struct ce_if_block} structure that is pointed
+to by @var{ce_info}.
 
 @findex IFCVT_MODIFY_CANCEL
-@item IFCVT_MODIFY_CANCEL
+@item IFCVT_MODIFY_CANCEL(@var{ce_info})
 A C expression to cancel any machine dependent modifications in
-converting code to conditional execution in the basic blocks
-@code{TEST_BB}, @code{THEN_BB}, @code{ELSE_BB}, and @code{JOIN_BB}.
+converting code to conditional execution.  The involved basic blocks
+can be found in the @code{struct ce_if_block} structure that is pointed
+to by @var{ce_info}.
+
+@findex IFCVT_INIT_EXTRA_FIELDS
+@item IFCVT_INIT_EXTRA_FIELDS(@var{ce_info})
+A C expression to initialize any extra fields in a @code{struct ce_if_block}
+structure, which are defined by the @code{IFCVT_EXTRA_FIELDS} macro.
+
+@findex IFCVT_EXTRA_FIELDS
+@item IFCVT_EXTRA_FIELDS
+If defined, it should expand to a set of field declarations that will be
+added to the @code{struct ce_if_block} structure.  These should be initialized
+by the @code{IFCVT_INIT_EXTRA_FIELDS} macro.
+
 @end table
 
 @deftypefn {Target Hook} void TARGET_INIT_BUILTINS ()
@@ -8667,6 +9135,22 @@ specified on its command line and create an export list for the linker.
 Define this macro for systems like AIX, where the linker discards
 object files that are not referenced from @code{main} and uses export
 lists.
+
+@findex MODIFY_JNI_METHOD_CALL
+@item MODIFY_JNI_METHOD_CALL (@var{mdecl})
+Define this macro to a C expression representing a variant of the
+method call @var{mdecl}, if Java Native Interface (JNI) methods
+must be invoked differently from other methods on your target.
+For example, on 32-bit Windows, JNI methods must be invoked using
+the @code{stdcall} calling convention and this macro is then
+defined as this expression:
+
+@smallexample
+build_type_attribute_variant (@var{mdecl},
+                              build_tree_list
+                              (get_identifier ("stdcall"),
+                               NULL))
+@end smallexample
 
 @end table
 

@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler, for IBM RS/6000.
-   Copyright (C) 2000, 2001 Free Software Foundation, Inc.
+   Copyright (C) 2000, 2001, 2002 Free Software Foundation, Inc.
    Contributed by Richard Kenner (kenner@vlsi1.ultra.nyu.edu)
 
 This file is part of GNU CC.
@@ -19,13 +19,16 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
+#ifndef GCC_RS6000_PROTOS_H
+#define GCC_RS6000_PROTOS_H
+
 /* Declare functions in rs6000.c */
 
 #ifdef RTX_CODE
 
 #ifdef TREE_CODE
-extern void init_cumulative_args PARAMS ((CUMULATIVE_ARGS *, tree, rtx, int));
-extern void rs6000_va_start PARAMS ((int, tree, rtx));
+extern void init_cumulative_args PARAMS ((CUMULATIVE_ARGS *, tree, rtx, int, int));
+extern void rs6000_va_start PARAMS ((tree, rtx));
 #endif /* TREE_CODE */
 
 extern struct rtx_def *rs6000_got_register PARAMS ((rtx));
@@ -61,8 +64,12 @@ extern int non_add_cint_operand PARAMS ((rtx, enum machine_mode));
 extern int non_logical_cint_operand PARAMS ((rtx, enum machine_mode));
 extern int logical_operand PARAMS ((rtx, enum machine_mode));
 extern int mask_operand PARAMS ((rtx, enum machine_mode));
+extern int mask_operand_wrap PARAMS ((rtx, enum machine_mode));
 extern int mask64_operand PARAMS ((rtx, enum machine_mode));
+extern int mask64_2_operand PARAMS ((rtx, enum machine_mode));
+extern void build_mask64_2_operands PARAMS ((rtx, rtx *));
 extern int and64_operand PARAMS ((rtx, enum machine_mode));
+extern int and64_2_operand PARAMS ((rtx, enum machine_mode));
 extern int and_operand PARAMS ((rtx, enum machine_mode));
 extern int count_register_operand PARAMS ((rtx, enum machine_mode));
 extern int xer_operand PARAMS ((rtx, enum machine_mode));
@@ -96,6 +103,8 @@ extern int addrs_ok_for_quad_peep PARAMS ((rtx, rtx));
 extern enum reg_class secondary_reload_class PARAMS ((enum reg_class,
 						      enum machine_mode, rtx));
 extern int ccr_bit PARAMS ((rtx, int));
+extern int extract_MB PARAMS ((rtx));
+extern int extract_ME PARAMS ((rtx));
 extern void print_operand PARAMS ((FILE *, rtx, int));
 extern void print_operand_address PARAMS ((FILE *, rtx));
 extern enum rtx_code rs6000_reverse_condition PARAMS ((enum machine_mode,
@@ -120,8 +129,6 @@ extern rtx rs6000_legitimize_address PARAMS ((rtx, rtx, enum machine_mode));
 extern rtx rs6000_legitimize_reload_address PARAMS ((rtx, enum machine_mode,
 			    int, int, int, int *));
 extern int rs6000_legitimate_address PARAMS ((enum machine_mode, rtx, int));
-extern void rs6000_select_rtx_section PARAMS ((enum machine_mode, rtx));
-
 extern rtx rs6000_return_addr PARAMS ((int, rtx));
 extern void rs6000_output_symbol_ref PARAMS ((FILE*, rtx));
 
@@ -144,10 +151,7 @@ extern void setup_incoming_varargs PARAMS ((CUMULATIVE_ARGS *,
 					    enum machine_mode, tree,
 					    int *, int));
 extern struct rtx_def *rs6000_va_arg PARAMS ((tree, tree));
-extern void output_mi_thunk PARAMS ((FILE *, tree, int, tree));
-extern void rs6000_encode_section_info PARAMS ((tree));
-extern void rs6000_select_section PARAMS ((tree, int));
-extern void rs6000_unique_section PARAMS ((tree, int));
+extern int function_ok_for_sibcall PARAMS ((tree));
 #ifdef ARGS_SIZE_RTX
 /* expr.h defines ARGS_SIZE_RTX and `enum direction' */
 extern enum direction function_arg_padding PARAMS ((enum machine_mode, tree));
@@ -158,8 +162,6 @@ extern enum direction function_arg_padding PARAMS ((enum machine_mode, tree));
 extern void optimization_options PARAMS ((int, int));
 extern void rs6000_override_options PARAMS ((const char *));
 extern void rs6000_file_start PARAMS ((FILE *, const char *));
-extern struct rtx_def *rs6000_float_const PARAMS ((const char *,
-						   enum machine_mode));
 extern int direct_return PARAMS ((void));
 extern union tree_node *rs6000_build_va_list PARAMS ((void));
 extern int first_reg_to_save PARAMS ((void));
@@ -185,5 +187,18 @@ extern void rs6000_emit_load_toc_table PARAMS ((int));
 extern void rs6000_aix_emit_builtin_unwind_init PARAMS ((void));
 extern void rs6000_emit_epilogue PARAMS ((int));
 extern void debug_stack_info PARAMS ((rs6000_stack_t *));
+extern const char * output_isel PARAMS ((rtx *));
+extern int vrsave_operation PARAMS ((rtx, enum machine_mode));
+extern int rs6000_register_move_cost PARAMS ((enum machine_mode,
+					      enum reg_class, enum reg_class));
+extern int rs6000_memory_move_cost PARAMS ((enum machine_mode,
+					    enum reg_class, int));
 
-extern void machopic_output_stub PARAMS ((FILE *, const char *, const char *));
+/* Declare functions in rs6000-c.c */
+
+#ifdef GCC_CPPLIB_H
+extern void rs6000_pragma_longcall PARAMS ((cpp_reader *));
+extern void rs6000_cpu_cpp_builtins PARAMS ((cpp_reader *));
+#endif
+
+#endif  /* rs6000-protos.h */

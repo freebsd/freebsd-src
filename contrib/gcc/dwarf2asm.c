@@ -60,7 +60,7 @@ dw2_assemble_integer (size, x)
   else
     assemble_integer (x, size, BITS_PER_UNIT, 1);
 }
-     
+
 
 /* Output an immediate constant in a given size.  */
 
@@ -104,11 +104,14 @@ dw2_asm_output_delta VPARAMS ((int size, const char *lab1, const char *lab2,
   VA_FIXEDARG (ap, const char *, lab2);
   VA_FIXEDARG (ap, const char *, comment);
 
+#ifdef ASM_OUTPUT_DWARF_DELTA
+  ASM_OUTPUT_DWARF_DELTA (asm_out_file, size, lab1, lab2);
+#else
   dw2_assemble_integer (size,
 			gen_rtx_MINUS (Pmode,
 				       gen_rtx_SYMBOL_REF (Pmode, lab1),
 				       gen_rtx_SYMBOL_REF (Pmode, lab2)));
-
+#endif
   if (flag_debug_asm && comment)
     {
       fprintf (asm_out_file, "\t%s ", ASM_COMMENT_START);
@@ -316,7 +319,7 @@ size_of_sleb128 (value)
 }
 
 /* Given an encoding, return the number of bytes the format occupies.
-   This is only defined for fixed-size encodings, and so does not 
+   This is only defined for fixed-size encodings, and so does not
    include leb128.  */
 
 int
@@ -561,7 +564,7 @@ dw2_asm_output_data_uleb128 VPARAMS ((unsigned HOST_WIDE_INT value,
   VA_CLOSE (ap);
 }
 
-/* Output an signed LEB128 quantity.  */
+/* Output a signed LEB128 quantity.  */
 
 void
 dw2_asm_output_data_sleb128 VPARAMS ((HOST_WIDE_INT value,
@@ -704,7 +707,7 @@ mark_indirect_pool_entry (node, data)
      splay_tree_node node;
      void* data ATTRIBUTE_UNUSED;
 {
-  ggc_mark_nonnull_tree ((tree) node->value);
+  ggc_mark_tree ((tree) node->value);
   return 0;
 }
 
@@ -739,7 +742,7 @@ dw2_force_const_mem (x)
   if (GET_CODE (x) != SYMBOL_REF)
     abort ();
 
-  STRIP_NAME_ENCODING (str, XSTR (x, 0));
+  str = (* targetm.strip_name_encoding) (XSTR (x, 0));
   node = splay_tree_lookup (indirect_pool, (splay_tree_key) str);
   if (node)
     decl = (tree) node->value;
@@ -845,7 +848,7 @@ dw2_asm_output_encoded_addr_rtx VPARAMS ((int encoding,
     {
     restart:
       /* Allow the target first crack at emitting this.  Some of the
-	 special relocations require special directives instead of 
+	 special relocations require special directives instead of
 	 just ".4byte" or whatever.  */
 #ifdef ASM_MAYBE_OUTPUT_ENCODED_ADDR_RTX
       ASM_MAYBE_OUTPUT_ENCODED_ADDR_RTX (asm_out_file, encoding, size,
@@ -883,7 +886,7 @@ dw2_asm_output_encoded_addr_rtx VPARAMS ((int encoding,
 	  break;
 
 	default:
-	  /* Other encodings should have been handled by 
+	  /* Other encodings should have been handled by
 	     ASM_MAYBE_OUTPUT_ENCODED_ADDR_RTX.  */
 	  abort ();
 	}

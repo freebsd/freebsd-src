@@ -136,10 +136,13 @@ So instead we use the macro below and test it against specific values.  */
 #define GCC_VERSION (__GNUC__ * 1000 + __GNUC_MINOR__)
 #endif /* GCC_VERSION */
 
-#if defined (__STDC__) || defined (_AIX) || (defined (__mips) && defined (_SYSTYPE_SVR4)) || defined(_WIN32)
+#if defined (__STDC__) || defined (_AIX) || (defined (__mips) && defined (_SYSTYPE_SVR4)) || defined(_WIN32) || (defined(__alpha) && defined(__cplusplus))
 /* All known AIX compilers implement these things (but don't always
    define __STDC__).  The RISC/OS MIPS compiler defines these things
    in SVR4 mode, but does not define __STDC__.  */
+/* eraxxon@alumni.rice.edu: The Compaq C++ compiler, unlike many other
+   C++ compilers, does not define __STDC__, though it acts as if this
+   was so. (Verified versions: 5.7, 6.2, 6.3, 6.5) */
 
 #define ANSI_PROTOTYPES	1
 #define PTR		void *
@@ -265,14 +268,42 @@ So instead we use the macro below and test it against specific values.  */
 #define ATTRIBUTE_NORETURN __attribute__ ((__noreturn__))
 #endif /* ATTRIBUTE_NORETURN */
 
+/* Attribute `nonnull' was valid as of gcc 3.3.  */
+#ifndef ATTRIBUTE_NONNULL
+# if (GCC_VERSION >= 3003)
+#  define ATTRIBUTE_NONNULL(m) __attribute__ ((__nonnull__ (m)))
+# else
+#  define ATTRIBUTE_NONNULL(m)
+# endif /* GNUC >= 3.3 */
+#endif /* ATTRIBUTE_NONNULL */
+
+/* Use ATTRIBUTE_PRINTF when the format specifier must not be NULL.
+   This was the case for the `printf' format attribute by itself
+   before GCC 3.3, but as of 3.3 we need to add the `nonnull'
+   attribute to retain this behavior.  */
 #ifndef ATTRIBUTE_PRINTF
-#define ATTRIBUTE_PRINTF(m, n) __attribute__ ((__format__ (__printf__, m, n)))
+#define ATTRIBUTE_PRINTF(m, n) __attribute__ ((__format__ (__printf__, m, n))) ATTRIBUTE_NONNULL(m)
 #define ATTRIBUTE_PRINTF_1 ATTRIBUTE_PRINTF(1, 2)
 #define ATTRIBUTE_PRINTF_2 ATTRIBUTE_PRINTF(2, 3)
 #define ATTRIBUTE_PRINTF_3 ATTRIBUTE_PRINTF(3, 4)
 #define ATTRIBUTE_PRINTF_4 ATTRIBUTE_PRINTF(4, 5)
 #define ATTRIBUTE_PRINTF_5 ATTRIBUTE_PRINTF(5, 6)
 #endif /* ATTRIBUTE_PRINTF */
+
+/* Use ATTRIBUTE_NULL_PRINTF when the format specifier may be NULL.  A
+   NULL format specifier was allowed as of gcc 3.3.  */
+#ifndef ATTRIBUTE_NULL_PRINTF
+# if (GCC_VERSION >= 3003)
+#  define ATTRIBUTE_NULL_PRINTF(m, n) __attribute__ ((__format__ (__printf__, m, n)))
+# else
+#  define ATTRIBUTE_NULL_PRINTF(m, n)
+# endif /* GNUC >= 3.3 */
+# define ATTRIBUTE_NULL_PRINTF_1 ATTRIBUTE_NULL_PRINTF(1, 2)
+# define ATTRIBUTE_NULL_PRINTF_2 ATTRIBUTE_NULL_PRINTF(2, 3)
+# define ATTRIBUTE_NULL_PRINTF_3 ATTRIBUTE_NULL_PRINTF(3, 4)
+# define ATTRIBUTE_NULL_PRINTF_4 ATTRIBUTE_NULL_PRINTF(4, 5)
+# define ATTRIBUTE_NULL_PRINTF_5 ATTRIBUTE_NULL_PRINTF(5, 6)
+#endif /* ATTRIBUTE_NULL_PRINTF */
 
 /* We use __extension__ in some places to suppress -pedantic warnings
    about GCC extensions.  This feature didn't work properly before

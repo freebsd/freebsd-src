@@ -1,5 +1,5 @@
 /* lang-specs.h file for Fortran
-   Copyright (C) 1995, 1996, 1997, 1999, 2000, 2002
+   Copyright (C) 1995, 1996, 1997, 1999, 2000, 2002, 2003
    Free Software Foundation, Inc.
    Contributed by James Craig Burley.
 
@@ -29,12 +29,15 @@ the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
   {".fpp", "@f77-cpp-input", 0},
   {".FPP", "@f77-cpp-input", 0},
   {"@f77-cpp-input",
-   "tradcpp0 -lang-fortran %(cpp_options) %{!M:%{!MM:%{!E:%{!pipe:%g.f} |\n\
+   "cc1 -E -traditional-cpp -D_LANGUAGE_FORTRAN %(cpp_options) \
+        %{E|M|MM:%(cpp_debug_options)}\
+        %{!M:%{!MM:%{!E:%{!pipe:%g.f} |\n\
     f771 %{!pipe:%g.f} %(cc1_options) %{I*} %{!fsyntax-only:%(invoke_as)}}}}", 0},
   {".r", "@ratfor", 0},
   {"@ratfor",
    "%{C:%{!E:%eGNU C does not support -C without using -E}}\
-    ratfor %{C} %{v} %{E:%W{o*}} %{!E: %{!pipe:-o %g.f} %i |\n\
+    %{CC:%{!E:%eGNU C does not support -CC without using -E}}\
+    ratfor %{C} %{CC} %{v} %{E:%W{o*}} %{!E: %{!pipe:-o %g.f} %i |\n\
     f771 %{!pipe:%g.f} %(cc1_options) %{I*} %{!fsyntax-only:%(invoke_as)}}", 0},
   {".f",   "@f77", 0},
   {".for", "@f77", 0},

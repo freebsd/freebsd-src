@@ -1,5 +1,5 @@
 /* Target definitions for GNU compiler for Intel 80386 running System V.4
-   Copyright (C) 1991, 2001 Free Software Foundation, Inc.
+   Copyright (C) 1991, 2001, 2002 Free Software Foundation, Inc.
 
    Written by Ron Guilmette (rfg@netcom.com).
 
@@ -21,7 +21,6 @@ the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
 
-#undef TARGET_VERSION
 #define TARGET_VERSION fprintf (stderr, " (i386 System V Release 4)");
 
 /* The svr4 ABI for the i386 says that records and unions are returned
@@ -31,12 +30,6 @@ Boston, MA 02111-1307, USA.  */
 #define RETURN_IN_MEMORY(TYPE) \
   (TYPE_MODE (TYPE) == BLKmode \
    || (VECTOR_MODE_P (TYPE_MODE (TYPE)) && int_size_in_bytes (TYPE) == 8))
-
-/* Define which macros to predefine.  __svr4__ is our extension.  */
-/* This used to define X86, but james@bigtex.cactus.org says that
-   is supposed to be defined optionally by user programs--not by default.  */
-#define CPP_PREDEFINES \
-  "-Dunix -D__svr4__ -Asystem=unix -Asystem=svr4"
 
 /* Output at beginning of assembler file.  */
 /* The .file command should always begin the output.  */
@@ -141,6 +134,3 @@ Boston, MA 02111-1307, USA.  */
 	   "addl\t$_GLOBAL_OFFSET_TABLE_+[.-.LPR%=],%0"			\
 	   : "=d"(BASE))
 #endif
-
-#undef CPP_SPEC
-#define CPP_SPEC "%(cpp_cpu)"

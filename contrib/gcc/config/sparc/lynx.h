@@ -19,7 +19,6 @@ the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
 #undef ASM_OUTPUT_IDENT
-#undef SELECT_RTX_SECTION
 
 #define BSS_SECTION_ASM_OP	"\t.section\t\".bss\""
 
@@ -39,7 +38,7 @@ Boston, MA 02111-1307, USA.  */
 
 #undef LINK_SPEC
 
-/* Sparc version of libc.a has references to libm.a (printf calls pow for
+/* SPARC version of libc.a has references to libm.a (printf calls pow for
    instance), so we must always link both.  */
 
 #undef LIB_SPEC

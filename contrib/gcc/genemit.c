@@ -59,7 +59,7 @@ static void max_operand_1		PARAMS ((rtx));
 static int max_operand_vec		PARAMS ((rtx, int));
 static void print_code			PARAMS ((RTX_CODE));
 static void gen_exp			PARAMS ((rtx, enum rtx_code, char *));
-static void gen_insn			PARAMS ((rtx));
+static void gen_insn			PARAMS ((rtx, int));
 static void gen_expand			PARAMS ((rtx));
 static void gen_split			PARAMS ((rtx));
 static void output_add_clobbers		PARAMS ((void));
@@ -246,7 +246,7 @@ gen_exp (x, subroutine_type, used)
       else
 	{
 	  printf ("GEN_INT (");
-	  printf (HOST_WIDE_INT_PRINT_DEC, INTVAL (x));
+	  printf (HOST_WIDE_INT_PRINT_DEC_C, INTVAL (x));
 	  printf (")");
 	}
       return;
@@ -297,8 +297,9 @@ gen_exp (x, subroutine_type, used)
 /* Generate the `gen_...' function for a DEFINE_INSN.  */
 
 static void
-gen_insn (insn)
+gen_insn (insn, lineno)
      rtx insn;
+     int lineno;
 {
   int operands;
   int i;
@@ -382,6 +383,8 @@ gen_insn (insn)
      to be recognized.  */
   if (XSTR (insn, 0)[0] == 0 || XSTR (insn, 0)[0] == '*')
     return;
+
+  printf ("/* %s:%d */\n", read_rtx_filename, lineno);
 
   /* Find out how many operands this function has,
      and also whether any of them have register constraints.  */
@@ -521,8 +524,9 @@ gen_expand (expand)
       rtx next = XVECEXP (expand, 1, i);
       if ((GET_CODE (next) == SET && GET_CODE (SET_DEST (next)) == PC)
 	  || (GET_CODE (next) == PARALLEL
-	      && GET_CODE (XVECEXP (next, 0, 0)) == SET
-	      && GET_CODE (SET_DEST (XVECEXP (next, 0, 0))) == PC)
+	      && ((GET_CODE (XVECEXP (next, 0, 0)) == SET
+		   && GET_CODE (SET_DEST (XVECEXP (next, 0, 0))) == PC)
+		  || GET_CODE (XVECEXP (next, 0, 0)) == RETURN))
 	  || GET_CODE (next) == RETURN)
 	printf ("  emit_jump_insn (");
       else if ((GET_CODE (next) == SET && GET_CODE (SET_SRC (next)) == CALL)
@@ -552,15 +556,15 @@ gen_expand (expand)
 	printf ("  emit_barrier ();");
     }
 
-  /* Call `gen_sequence' to make a SEQUENCE out of all the
+  /* Call `get_insns' to extract the list of all the
      insns emitted within this gen_... function.  */
 
-  printf ("  _val = gen_sequence ();\n");
+  printf ("  _val = get_insns ();\n");
   printf ("  end_sequence ();\n");
   printf ("  return _val;\n}\n\n");
 }
 
-/* Like gen_expand, but generates a SEQUENCE.  */
+/* Like gen_expand, but generates insns resulting from splitting SPLIT.  */
 
 static void
 gen_split (split)
@@ -664,10 +668,10 @@ gen_split (split)
 	printf ("  emit_barrier ();");
     }
 
-  /* Call `gen_sequence' to make a SEQUENCE out of all the
+  /* Call `get_insns' to make a list of all the
      insns emitted within this gen_... function.  */
 
-  printf ("  _val = gen_sequence ();\n");
+  printf ("  _val = get_insns ();\n");
   printf ("  end_sequence ();\n");
   printf ("  return _val;\n}\n\n");
 
@@ -838,7 +842,7 @@ from the machine description file `md'.  */\n\n");
   printf ("#include \"toplev.h\"\n");
   printf ("#include \"ggc.h\"\n\n");
   printf ("#define FAIL return (end_sequence (), _val)\n");
-  printf ("#define DONE return (_val = gen_sequence (), end_sequence (), _val)\n");
+  printf ("#define DONE return (_val = get_insns (), end_sequence (), _val)\n\n");
 
   /* Read the machine description.  */
 
@@ -852,25 +856,28 @@ from the machine description file `md'.  */\n\n");
 
       switch (GET_CODE (desc))
 	{
-	  case DEFINE_INSN:
-	      gen_insn (desc);
-	      break;
+	case DEFINE_INSN:
+	  gen_insn (desc, line_no);
+	  break;
 
-	  case DEFINE_EXPAND:
-	      gen_expand (desc);
-	      break;
+	case DEFINE_EXPAND:
+	  printf ("/* %s:%d */\n", read_rtx_filename, line_no);
+	  gen_expand (desc);
+	  break;
 
-	  case DEFINE_SPLIT:
-	      gen_split (desc);
-	      break;
+	case DEFINE_SPLIT:
+	  printf ("/* %s:%d */\n", read_rtx_filename, line_no);
+	  gen_split (desc);
+	  break;
 
-	  case DEFINE_PEEPHOLE2:
-	      gen_split (desc);
-	      break;
+	case DEFINE_PEEPHOLE2:
+	  printf ("/* %s:%d */\n", read_rtx_filename, line_no);
+	  gen_split (desc);
+	  break;
 
-	  default:
-	      break;
-	 }
+	default:
+	  break;
+	}
       ++insn_index_number;
     }
 

@@ -54,10 +54,30 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #define TARGET_ASM_INTEGER default_assemble_integer
 
+#ifndef TARGET_ASM_GLOBALIZE_LABEL
+#define TARGET_ASM_GLOBALIZE_LABEL default_globalize_label
+#endif
+
+#ifndef TARGET_ASM_ASSEMBLE_VISIBILITY
+#define TARGET_ASM_ASSEMBLE_VISIBILITY default_assemble_visibility
+#endif
+
 #define TARGET_ASM_FUNCTION_PROLOGUE default_function_pro_epilogue
 #define TARGET_ASM_FUNCTION_EPILOGUE default_function_pro_epilogue
 #define TARGET_ASM_FUNCTION_END_PROLOGUE no_asm_to_stream
 #define TARGET_ASM_FUNCTION_BEGIN_EPILOGUE no_asm_to_stream
+
+#ifndef TARGET_ASM_SELECT_SECTION
+#define TARGET_ASM_SELECT_SECTION default_select_section
+#endif
+
+#ifndef TARGET_ASM_UNIQUE_SECTION
+#define TARGET_ASM_UNIQUE_SECTION default_unique_section
+#endif
+
+#ifndef TARGET_ASM_SELECT_RTX_SECTION
+#define TARGET_ASM_SELECT_RTX_SECTION default_select_rtx_section
+#endif
 
 #if !defined(TARGET_ASM_CONSTRUCTOR) && !defined(USE_COLLECT2)
 # ifdef CTORS_SECTION_ASM_OP
@@ -83,6 +103,9 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 # endif
 #endif
 
+#define TARGET_ASM_OUTPUT_MI_THUNK NULL
+#define TARGET_ASM_CAN_OUTPUT_MI_THUNK hook_bool_tree_hwi_hwi_tree_false
+
 #if defined(TARGET_ASM_CONSTRUCTOR) && defined(TARGET_ASM_DESTRUCTOR)
 #define TARGET_HAVE_CTORS_DTORS true
 #else
@@ -96,6 +119,22 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #else
 #define TARGET_ASM_NAMED_SECTION default_no_named_section
 #define TARGET_HAVE_NAMED_SECTIONS false
+#endif
+
+#ifndef TARGET_HAVE_TLS
+#define TARGET_HAVE_TLS false
+#endif
+
+#ifndef TARGET_HAVE_SRODATA_SECTION
+#define TARGET_HAVE_SRODATA_SECTION false
+#endif
+
+#ifndef TARGET_TERMINATE_DW2_EH_FRAME_INFO
+#ifdef EH_FRAME_SECTION_NAME
+#define TARGET_TERMINATE_DW2_EH_FRAME_INFO false
+#else
+#define TARGET_TERMINATE_DW2_EH_FRAME_INFO true
+#endif
 #endif
 
 #ifndef TARGET_ASM_EXCEPTION_SECTION
@@ -124,6 +163,8 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 			TARGET_ASM_ALIGNED_INT_OP,		\
 			TARGET_ASM_UNALIGNED_INT_OP,		\
 			TARGET_ASM_INTEGER,			\
+			TARGET_ASM_GLOBALIZE_LABEL,		\
+			TARGET_ASM_ASSEMBLE_VISIBILITY,		\
 			TARGET_ASM_FUNCTION_PROLOGUE,		\
 			TARGET_ASM_FUNCTION_END_PROLOGUE,	\
 			TARGET_ASM_FUNCTION_BEGIN_EPILOGUE,	\
@@ -131,8 +172,13 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 			TARGET_ASM_NAMED_SECTION,		\
 			TARGET_ASM_EXCEPTION_SECTION,		\
 			TARGET_ASM_EH_FRAME_SECTION,		\
+			TARGET_ASM_SELECT_SECTION,		\
+			TARGET_ASM_SELECT_RTX_SECTION,		\
+			TARGET_ASM_UNIQUE_SECTION,		\
 			TARGET_ASM_CONSTRUCTOR,			\
-			TARGET_ASM_DESTRUCTOR}
+			TARGET_ASM_DESTRUCTOR,                  \
+                        TARGET_ASM_OUTPUT_MI_THUNK,             \
+                        TARGET_ASM_CAN_OUTPUT_MI_THUNK }
 
 /* Scheduler hooks.  All of these default to null pointers, which
    haifa-sched.c looks for and handles.  */
@@ -144,27 +190,37 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define TARGET_SCHED_FINISH 0
 #define TARGET_SCHED_REORDER 0
 #define TARGET_SCHED_REORDER2 0
-#define TARGET_SCHED_CYCLE_DISPLAY 0
+#define TARGET_SCHED_USE_DFA_PIPELINE_INTERFACE 0
+#define TARGET_SCHED_INIT_DFA_PRE_CYCLE_INSN 0
+#define TARGET_SCHED_DFA_PRE_CYCLE_INSN 0
+#define TARGET_SCHED_INIT_DFA_POST_CYCLE_INSN 0
+#define TARGET_SCHED_DFA_POST_CYCLE_INSN 0
+#define TARGET_SCHED_FIRST_CYCLE_MULTIPASS_DFA_LOOKAHEAD 0
+#define TARGET_SCHED_INIT_DFA_BUBBLES 0
+#define TARGET_SCHED_DFA_BUBBLE 0
 
-#define TARGET_SCHED	{TARGET_SCHED_ADJUST_COST,	\
-			 TARGET_SCHED_ADJUST_PRIORITY,	\
-			 TARGET_SCHED_ISSUE_RATE,	\
-			 TARGET_SCHED_VARIABLE_ISSUE,	\
-			 TARGET_SCHED_INIT,		\
-			 TARGET_SCHED_FINISH,		\
-			 TARGET_SCHED_REORDER,		\
-			 TARGET_SCHED_REORDER2,		\
-			 TARGET_SCHED_CYCLE_DISPLAY}
+#define TARGET_SCHED						\
+  {TARGET_SCHED_ADJUST_COST,					\
+   TARGET_SCHED_ADJUST_PRIORITY,				\
+   TARGET_SCHED_ISSUE_RATE,					\
+   TARGET_SCHED_VARIABLE_ISSUE,					\
+   TARGET_SCHED_INIT,						\
+   TARGET_SCHED_FINISH,						\
+   TARGET_SCHED_REORDER,					\
+   TARGET_SCHED_REORDER2,					\
+   TARGET_SCHED_USE_DFA_PIPELINE_INTERFACE,			\
+   TARGET_SCHED_INIT_DFA_PRE_CYCLE_INSN,			\
+   TARGET_SCHED_DFA_PRE_CYCLE_INSN,				\
+   TARGET_SCHED_INIT_DFA_POST_CYCLE_INSN,			\
+   TARGET_SCHED_DFA_POST_CYCLE_INSN,				\
+   TARGET_SCHED_FIRST_CYCLE_MULTIPASS_DFA_LOOKAHEAD,		\
+   TARGET_SCHED_INIT_DFA_BUBBLES,				\
+   TARGET_SCHED_DFA_BUBBLE}
 
 /* All in tree.c.  */
 #define TARGET_MERGE_DECL_ATTRIBUTES merge_decl_attributes
 #define TARGET_MERGE_TYPE_ATTRIBUTES merge_type_attributes
-#define TARGET_ATTRIBUTE_TABLE default_target_attribute_table
-#define TARGET_COMP_TYPE_ATTRIBUTES default_comp_type_attributes
-#define TARGET_SET_DEFAULT_TYPE_ATTRIBUTES default_set_default_type_attributes
-#define TARGET_INSERT_ATTRIBUTES default_insert_attributes
-#define TARGET_FUNCTION_ATTRIBUTE_INLINABLE_P default_function_attribute_inlinable_p
-#define TARGET_MS_BITFIELD_LAYOUT_P default_ms_bitfield_layout_p
+#define TARGET_ATTRIBUTE_TABLE NULL
 
 /* In builtins.c.  */
 #define TARGET_INIT_BUILTINS default_init_builtins
@@ -175,8 +231,30 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define TARGET_SECTION_TYPE_FLAGS default_section_type_flags
 #endif
 
+#ifndef TARGET_STRIP_NAME_ENCODING
+#define TARGET_STRIP_NAME_ENCODING default_strip_name_encoding
+#endif
+
+#ifndef TARGET_BINDS_LOCAL_P
+#define TARGET_BINDS_LOCAL_P default_binds_local_p
+#endif
+
 /* In hook.c.  */
-#define TARGET_CANNOT_MODIFY_JUMPS_P hook_void_bool_false
+#define TARGET_CANNOT_MODIFY_JUMPS_P hook_bool_void_false
+#define TARGET_CANNOT_FORCE_CONST_MEM hook_bool_rtx_false
+#define TARGET_COMP_TYPE_ATTRIBUTES hook_int_tree_tree_1
+#define TARGET_SET_DEFAULT_TYPE_ATTRIBUTES hook_void_tree
+#define TARGET_INSERT_ATTRIBUTES hook_void_tree_treeptr
+#define TARGET_FUNCTION_ATTRIBUTE_INLINABLE_P hook_bool_tree_false
+#define TARGET_MS_BITFIELD_LAYOUT_P hook_bool_tree_false
+
+#ifndef TARGET_IN_SMALL_DATA_P
+#define TARGET_IN_SMALL_DATA_P hook_bool_tree_false
+#endif
+
+#ifndef TARGET_ENCODE_SECTION_INFO
+#define TARGET_ENCODE_SECTION_INFO hook_void_tree_int
+#endif
 
 /* The whole shebang.  */
 #define TARGET_INITIALIZER			\
@@ -194,9 +272,17 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
   TARGET_INIT_BUILTINS,				\
   TARGET_EXPAND_BUILTIN,			\
   TARGET_SECTION_TYPE_FLAGS,			\
+  TARGET_CANNOT_MODIFY_JUMPS_P,			\
+  TARGET_CANNOT_FORCE_CONST_MEM,		\
+  TARGET_IN_SMALL_DATA_P,			\
+  TARGET_BINDS_LOCAL_P,				\
+  TARGET_ENCODE_SECTION_INFO,			\
+  TARGET_STRIP_NAME_ENCODING,			\
   TARGET_HAVE_NAMED_SECTIONS,			\
   TARGET_HAVE_CTORS_DTORS,			\
-  TARGET_CANNOT_MODIFY_JUMPS_P			\
+  TARGET_HAVE_TLS,				\
+  TARGET_HAVE_SRODATA_SECTION,			\
+  TARGET_TERMINATE_DW2_EH_FRAME_INFO		\
 }
 
 #include "hooks.h"

@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler for IA-64.
-   Copyright (C) 1999, 2000 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2000, 2002 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -21,7 +21,8 @@ Boston, MA 02111-1307, USA.  */
 /* Variables defined in ia64.c.  */
 
 #ifdef RTX_CODE
-extern rtx ia64_compare_op0, ia64_compare_op1;
+extern GTY(()) rtx ia64_compare_op0;
+extern GTY(()) rtx ia64_compare_op1;
 #endif
 
 /* Functions defined in ia64.c */
@@ -31,6 +32,7 @@ extern int call_operand PARAMS((rtx, enum machine_mode));
 extern int sdata_symbolic_operand PARAMS((rtx, enum machine_mode));
 extern int got_symbolic_operand PARAMS((rtx, enum machine_mode));
 extern int symbolic_operand PARAMS((rtx, enum machine_mode));
+extern int tls_symbolic_operand PARAMS((rtx, enum machine_mode));
 extern int function_operand PARAMS((rtx, enum machine_mode));
 extern int setjmp_operand PARAMS((rtx, enum machine_mode));
 extern int move_operand PARAMS((rtx, enum machine_mode));
@@ -66,14 +68,18 @@ extern int ar_pfs_reg_operand PARAMS((rtx, enum machine_mode));
 extern int general_tfmode_operand PARAMS((rtx, enum machine_mode));
 extern int destination_tfmode_operand PARAMS((rtx, enum machine_mode));
 extern int tfreg_or_fp01_operand PARAMS((rtx, enum machine_mode));
+extern int basereg_operand PARAMS((rtx, enum machine_mode));
 
+extern rtx ia64_expand_move PARAMS ((rtx, rtx));
 extern int ia64_move_ok PARAMS((rtx, rtx));
+extern int addp4_optimize_ok PARAMS((rtx, rtx));
 extern int ia64_depz_field_mask PARAMS((rtx, rtx));
-extern rtx ia64_gp_save_reg PARAMS((int));
 extern rtx ia64_split_timode PARAMS((rtx[], rtx, rtx));
 extern rtx spill_tfmode_operand PARAMS((rtx, int));
 extern rtx ia64_expand_compare PARAMS((enum rtx_code, enum machine_mode));
 extern void ia64_expand_call PARAMS((rtx, rtx, rtx, int));
+extern void ia64_split_call PARAMS((rtx, rtx, rtx, rtx, rtx, int, int));
+extern void ia64_reload_gp PARAMS((void));
 
 extern HOST_WIDE_INT ia64_initial_elimination_offset PARAMS((int, int));
 extern void ia64_expand_prologue PARAMS((void));
@@ -100,7 +106,6 @@ extern rtx ia64_function_arg PARAMS((CUMULATIVE_ARGS *, enum machine_mode,
 				     tree, int, int));
 extern rtx ia64_expand_builtin PARAMS((tree, rtx, rtx,
 				       enum machine_mode, int));
-extern void ia64_va_start PARAMS((int, tree, rtx));
 extern rtx ia64_va_arg PARAMS((tree, tree));
 extern rtx ia64_function_value PARAMS((tree, tree));
 #endif /* RTX_CODE */
@@ -118,8 +123,6 @@ extern int ia64_function_arg_pass_by_reference PARAMS((CUMULATIVE_ARGS *,
 						       tree, int));
 extern int ia64_return_in_memory PARAMS((tree));
 extern void ia64_asm_output_external PARAMS((FILE *, tree, const char *));
-
-extern void ia64_encode_section_info PARAMS((tree));
 #endif /* TREE_CODE */
 
 extern int ia64_register_move_cost PARAMS((enum machine_mode, enum reg_class,
@@ -130,6 +133,7 @@ extern void emit_safe_across_calls PARAMS((FILE *));
 extern void ia64_init_builtins PARAMS((void));
 extern void ia64_override_options PARAMS((void));
 extern int ia64_dbx_register_number PARAMS((int));
+extern bool ia64_function_ok_for_sibcall PARAMS ((tree));
 
 #ifdef SDATA_SECTION_ASM_OP
 extern void sdata_section PARAMS ((void));
@@ -143,3 +147,9 @@ extern void sbss_section PARAMS ((void));
 /* expr.h defines ARGS_SIZE_RTX and `enum direction'.  */
 extern enum direction ia64_hpux_function_arg_padding PARAMS ((enum machine_mode, tree));
 #endif /* ARGS_SIZE_RTX */
+
+#ifdef GCC_C_PRAGMA_H
+extern void ia64_hpux_handle_builtin_pragma PARAMS ((cpp_reader *));
+#endif
+
+extern void ia64_hpux_asm_file_end PARAMS ((FILE *));

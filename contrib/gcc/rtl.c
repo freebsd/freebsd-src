@@ -1,6 +1,6 @@
 /* RTL utility routines.
-   Copyright (C) 1987, 1988, 1991, 1994, 1997, 1998, 1999, 2000, 2001, 2002
-   Free Software Foundation, Inc.
+   Copyright (C) 1987, 1988, 1991, 1994, 1997, 1998, 1999, 2000, 2001, 2002,
+   2003 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -27,70 +27,6 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "errors.h"
 
 
-/* Calculate the format for CONST_DOUBLE.  This depends on the relative
-   widths of HOST_WIDE_INT and REAL_VALUE_TYPE.
-
-   We need to go out to 0wwwww, since REAL_ARITHMETIC assumes 16-bits
-   per element in REAL_VALUE_TYPE.
-
-   This is duplicated in gengenrtl.c.
-
-   A number of places assume that there are always at least two 'w'
-   slots in a CONST_DOUBLE, so we provide them even if one would suffice.  */
-
-#ifdef REAL_ARITHMETIC
-# if MAX_LONG_DOUBLE_TYPE_SIZE == 96
-#  define REAL_WIDTH	\
-     (11*8 + HOST_BITS_PER_WIDE_INT)/HOST_BITS_PER_WIDE_INT
-# else
-#  if MAX_LONG_DOUBLE_TYPE_SIZE == 128
-#   define REAL_WIDTH	\
-      (19*8 + HOST_BITS_PER_WIDE_INT)/HOST_BITS_PER_WIDE_INT
-#  else
-#   if HOST_FLOAT_FORMAT != TARGET_FLOAT_FORMAT
-#    define REAL_WIDTH	\
-       (7*8 + HOST_BITS_PER_WIDE_INT)/HOST_BITS_PER_WIDE_INT
-#   endif
-#  endif
-# endif
-#endif /* REAL_ARITHMETIC */
-
-#ifndef REAL_WIDTH
-# if HOST_BITS_PER_WIDE_INT*2 >= MAX_LONG_DOUBLE_TYPE_SIZE
-#  define REAL_WIDTH	2
-# else
-#  if HOST_BITS_PER_WIDE_INT*3 >= MAX_LONG_DOUBLE_TYPE_SIZE
-#   define REAL_WIDTH	3
-#  else
-#   if HOST_BITS_PER_WIDE_INT*4 >= MAX_LONG_DOUBLE_TYPE_SIZE
-#    define REAL_WIDTH	4
-#   endif
-#  endif
-# endif
-#endif /* REAL_WIDTH */
-
-#if REAL_WIDTH == 1
-# define CONST_DOUBLE_FORMAT	"0ww"
-#else
-# if REAL_WIDTH == 2
-#  define CONST_DOUBLE_FORMAT	"0ww"
-# else
-#  if REAL_WIDTH == 3
-#   define CONST_DOUBLE_FORMAT	"0www"
-#  else
-#   if REAL_WIDTH == 4
-#    define CONST_DOUBLE_FORMAT	"0wwww"
-#   else
-#    if REAL_WIDTH == 5
-#     define CONST_DOUBLE_FORMAT	"0wwwww"
-#    else
-#     define CONST_DOUBLE_FORMAT	/* nothing - will cause syntax error */
-#    endif
-#   endif
-#  endif
-# endif
-#endif
-
 /* Indexed by rtx code, gives number of operands for an rtx with that code.
    Does NOT include rtx header data (code and links).  */
 
@@ -216,7 +152,7 @@ const enum machine_mode class_narrowest_mode[(int) MAX_MODE_CLASS] = {
     /* MODE_CC */		CCmode,
     /* MODE_COMPLEX_INT */	CQImode,
     /* MODE_COMPLEX_FLOAT */	QCmode,
-    /* MODE_VECTOR_INT */	V2QImode,
+    /* MODE_VECTOR_INT */	V1DImode,
     /* MODE_VECTOR_FLOAT */	V2SFmode
 };
 
@@ -250,6 +186,7 @@ const char * const rtx_format[NUM_RTX_CODE] = {
      "u" a pointer to another insn
          prints the uid of the insn.
      "b" is a pointer to a bitmap header.
+     "B" is a basic block pointer.
      "t" is a tree pointer.  */
 
 #define DEF_RTL_EXPR(ENUM, NAME, FORMAT, CLASS)   FORMAT ,
@@ -278,9 +215,9 @@ const char * const note_insn_name[NOTE_INSN_MAX - NOTE_INSN_BIAS] =
   "NOTE_INSN_PROLOGUE_END", "NOTE_INSN_EPILOGUE_BEG",
   "NOTE_INSN_DELETED_LABEL", "NOTE_INSN_FUNCTION_BEG",
   "NOTE_INSN_EH_REGION_BEG", "NOTE_INSN_EH_REGION_END",
-  "NOTE_INSN_REPEATED_LINE_NUMBER", "NOTE_INSN_RANGE_BEG",
-  "NOTE_INSN_RANGE_END", "NOTE_INSN_LIVE",
-  "NOTE_INSN_BASIC_BLOCK", "NOTE_INSN_EXPECTED_VALUE"
+  "NOTE_INSN_REPEATED_LINE_NUMBER",
+  "NOTE_INSN_BASIC_BLOCK", "NOTE_INSN_EXPECTED_VALUE",
+  "NOTE_INSN_PREDICTION"
 };
 
 const char * const reg_note_name[] =
@@ -289,7 +226,7 @@ const char * const reg_note_name[] =
   "REG_WAS_0", "REG_RETVAL", "REG_LIBCALL", "REG_NONNEG",
   "REG_NO_CONFLICT", "REG_UNUSED", "REG_CC_SETTER", "REG_CC_USER",
   "REG_LABEL", "REG_DEP_ANTI", "REG_DEP_OUTPUT", "REG_BR_PROB",
-  "REG_EXEC_COUNT", "REG_NOALIAS", "REG_SAVE_AREA", "REG_BR_PRED",
+  "REG_NOALIAS", "REG_SAVE_AREA", "REG_BR_PRED",
   "REG_FRAME_RELATED_EXPR", "REG_EH_CONTEXT", "REG_EH_REGION",
   "REG_SAVE_NOTE", "REG_MAYBE_DEAD", "REG_NORETURN",
   "REG_NON_LOCAL_GOTO", "REG_SETJMP", "REG_ALWAYS_RETURN",
@@ -395,13 +332,13 @@ copy_rtx (orig)
 
   /* We do not copy the USED flag, which is used as a mark bit during
      walks over the RTL.  */
-  copy->used = 0;
+  RTX_FLAG (copy, used) = 0;
 
   /* We do not copy FRAME_RELATED for INSNs.  */
   if (GET_RTX_CLASS (code) == 'i')
-    copy->frame_related = 0;
-  copy->jump = orig->jump;
-  copy->call = orig->call;
+    RTX_FLAG (copy, frame_related) = 0;
+  RTX_FLAG (copy, jump) = RTX_FLAG (orig, jump);
+  RTX_FLAG (copy, call) = RTX_FLAG (orig, call);
 
   format_ptr = GET_RTX_FORMAT (GET_CODE (copy));
 
@@ -432,6 +369,7 @@ copy_rtx (orig)
 	case 'S':
 	case 'T':
 	case 'u':
+	case 'B':
 	case '0':
 	  /* These are left unchanged.  */
 	  break;
@@ -449,44 +387,14 @@ rtx
 shallow_copy_rtx (orig)
      rtx orig;
 {
-  int i;
   RTX_CODE code = GET_CODE (orig);
-  rtx copy = rtx_alloc (code);
+  size_t n = GET_RTX_LENGTH (code);
+  rtx copy = ggc_alloc_rtx (n);
 
-  PUT_MODE (copy, GET_MODE (orig));
-  copy->in_struct = orig->in_struct;
-  copy->volatil = orig->volatil;
-  copy->unchanging = orig->unchanging;
-  copy->integrated = orig->integrated;
-  copy->frame_related = orig->frame_related;
-
-  for (i = 0; i < GET_RTX_LENGTH (code); i++)
-    copy->fld[i] = orig->fld[i];
+  memcpy (copy, orig,
+	  sizeof (struct rtx_def) + sizeof (rtunion) * (n - 1));
 
   return copy;
-}
-
-/* Return the alignment of MODE. This will be bounded by 1 and
-   BIGGEST_ALIGNMENT.  */
-
-unsigned int
-get_mode_alignment (mode)
-     enum machine_mode mode;
-{
-  unsigned int alignment;
-
-  if (GET_MODE_CLASS (mode) == MODE_COMPLEX_FLOAT
-      || GET_MODE_CLASS (mode) == MODE_COMPLEX_INT)
-    alignment = GET_MODE_UNIT_SIZE (mode);
-  else
-    alignment = GET_MODE_SIZE (mode);
-  
-  /* Extract the LSB of the size.  */
-  alignment = alignment & -alignment;
-  alignment *= BITS_PER_UNIT;
-
-  alignment = MIN (BIGGEST_ALIGNMENT, MAX (1, alignment));
-  return alignment;
 }
 
 /* This is 1 until after the rtl generation pass.  */
@@ -701,3 +609,18 @@ rtvec_check_failed_bounds (r, n, file, line, func)
      n, GET_NUM_ELEM (r) - 1, func, trim_filename (file), line);
 }
 #endif /* ENABLE_RTL_CHECKING */
+
+#if defined ENABLE_RTL_FLAG_CHECKING
+void
+rtl_check_failed_flag (name, r, file, line, func)
+    const char *name;
+    rtx r;
+    const char *file;
+    int line;
+    const char *func;
+{
+  internal_error
+    ("RTL flag check: %s used with unexpected rtx code `%s' in %s, at %s:%d",
+     name, GET_RTX_NAME (GET_CODE (r)), func, trim_filename (file), line);
+}
+#endif /* ENABLE_RTL_FLAG_CHECKING */

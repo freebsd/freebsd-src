@@ -27,7 +27,8 @@ typedef int (*successor_phi_fn)         PARAMS ((rtx, int, int, void *));
 extern int for_each_successor_phi       PARAMS ((basic_block bb,
 						 successor_phi_fn,
 						 void *));
-void compute_dominance_frontiers	PARAMS ((sbitmap *frontiers, int *idom));
+void compute_dominance_frontiers	PARAMS ((sbitmap *frontiers,
+						 dominance_info idom));
 extern int remove_phi_alternative	PARAMS ((rtx, basic_block));
 
 
@@ -44,7 +45,7 @@ extern void ssa_const_prop		PARAMS ((void));
 extern int in_ssa_form;
 
 /* Element I is the single instruction that sets register I.  */
-extern varray_type ssa_definition;
+extern GTY(()) varray_type ssa_definition;
 
 /* Element I is an INSN_LIST of instructions that use register I.  */
 extern varray_type ssa_uses;

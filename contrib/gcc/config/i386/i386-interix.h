@@ -1,5 +1,5 @@
 /* Target definitions for GNU compiler for Intel 80386 running Interix
-   Parts Copyright (C) 1991, 1999, 2000 Free Software Foundation, Inc.
+   Parts Copyright (C) 1991, 1999, 2000, 2002 Free Software Foundation, Inc.
 
    Parts:
      by Douglas B. Rupp (drupp@cs.washington.edu).
@@ -24,17 +24,13 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-#define YES_UNDERSCORES
-
-/* YES_UNDERSCORES must precede gas.h */
-#include <i386/gas.h>
 /* The rest must follow.  */
 
-#define DBX_DEBUGGING_INFO
-#define SDB_DEBUGGING_INFO
+#define DBX_DEBUGGING_INFO 1
+#define SDB_DEBUGGING_INFO 1
 #define PREFERRED_DEBUGGING_TYPE DBX_DEBUG
 
-#define HANDLE_SYSV_PRAGMA
+#define HANDLE_SYSV_PRAGMA 1
 #undef HANDLE_PRAGMA_WEAK  /* until the link format can handle it */
 
 /* By default, target has a 80387, uses IEEE compatible arithmetic,
@@ -48,7 +44,6 @@ Boston, MA 02111-1307, USA.  */
 #undef TARGET_CPU_DEFAULT
 #define TARGET_CPU_DEFAULT 2 /* 486 */
 
-#define WCHAR_UNSIGNED 1
 #define WCHAR_TYPE_SIZE 16
 #define WCHAR_TYPE "short unsigned int"
 
@@ -58,35 +53,39 @@ Boston, MA 02111-1307, USA.  */
 #define ASM_LOAD_ADDR(loc, reg)   "     leal " #loc "," #reg "\n"
 
 /* cpp handles __STDC__ */
-#undef CPP_PREDEFINES
-#define CPP_PREDEFINES " \
-  -D__INTERIX \
-  -D__OPENNT \
-  -D_M_IX86=300 -D_X86_=1 \
-  -D__stdcall=__attribute__((__stdcall__)) \
-  -D__cdecl=__attribute__((__cdecl__)) \
-  -D__declspec(x)=__attribute__((x)) \
-  -Asystem=unix -Asystem=interix"
+#define TARGET_OS_CPP_BUILTINS()					\
+  do									\
+    {									\
+	builtin_define ("__INTERIX");					\
+	builtin_define ("__OPENNT");					\
+	builtin_define ("_M_IX86=300");					\
+	builtin_define ("_X86_=1");					\
+	builtin_define ("__stdcall=__attribute__((__stdcall__))");	\
+	builtin_define ("__cdecl=__attribute__((__cdecl__))");		\
+	builtin_define ("__declspec(x)=__attribute__((x))");		\
+	builtin_assert ("system=unix");					\
+	builtin_assert ("system=interix");				\
+	if (preprocessing_asm_p ())					\
+	  builtin_define_std ("LANGUAGE_ASSEMBLY");			\
+	else								\
+	  {								\
+	     builtin_define_std ("LANGUAGE_C");				\
+	     if (c_language == clk_cplusplus)				\
+	       builtin_define_std ("LANGUAGE_C_PLUS_PLUS");		\
+	     if (flag_objc)						\
+	       builtin_define_std ("LANGUAGE_OBJECTIVE_C");		\
+	  } 								\
+    }									\
+  while (0)
 
 #undef CPP_SPEC
 /* Write out the correct language type definition for the header files.  
    Unless we have assembler language, write out the symbols for C.
-   cpp_cpu is an Intel specific variant. See i386.h
    mieee is an Alpha specific variant.  Cross polination a bad idea.
    */
-#define CPP_SPEC "\
-%{!.S:	-D__LANGUAGE_C__ -D__LANGUAGE_C %{!ansi:-DLANGUAGE_C}}  \
-%{.S:	-D__LANGUAGE_ASSEMBLY__ -D__LANGUAGE_ASSEMBLY %{!ansi:-DLANGUAGE_ASSEMBLY}} \
-%{.cc:	-D__LANGUAGE_C_PLUS_PLUS__ -D__LANGUAGE_C_PLUS_PLUS -D__cplusplus} \
-%{.cxx:	-D__LANGUAGE_C_PLUS_PLUS__ -D__LANGUAGE_C_PLUS_PLUS -D__cplusplus} \
-%{.C:	-D__LANGUAGE_C_PLUS_PLUS__ -D__LANGUAGE_C_PLUS_PLUS -D__cplusplus} \
-%{.m:	-D__LANGUAGE_OBJECTIVE_C__ -D__LANGUAGE_OBJECTIVE_C} \
--remap \
-%(cpp_cpu) \
-%{posix:-D_POSIX_SOURCE} \
+#define CPP_SPEC "-remap %{posix:-D_POSIX_SOURCE} \
 -isystem %$INTERIX_ROOT/usr/include"
 
-#undef TARGET_VERSION
 #define TARGET_VERSION fprintf (stderr, " (i386 Interix)");
 
 /* The global __fltused is necessary to cause the printf/scanf routines
@@ -238,50 +237,15 @@ Boston, MA 02111-1307, USA.  */
 #undef LD_INIT_SWITCH
 #undef LD_FINI_SWITCH
 
+/* The following are needed for us to be able to use winnt.c, but are not
+   otherwise meaningful to Interix.  (The functions that use these are
+   never called because we don't do DLLs.) */
+#define TARGET_NOP_FUN_DLLIMPORT 1
+#define drectve_section()  /* nothing */
+
 #define EH_FRAME_IN_DATA_SECTION
 
-/* Note that there appears to be two different ways to support const
-   sections at the moment.  You can either #define the symbol
-   READONLY_DATA_SECTION (giving it some code which switches to the
-   readonly data section) or else you can #define the symbols
-   EXTRA_SECTIONS, EXTRA_SECTION_FUNCTIONS, SELECT_SECTION, and
-   SELECT_RTX_SECTION.  We do both here just to be on the safe side.  */
-
-#define USE_CONST_SECTION	1
-
-#define CONST_SECTION_ASM_OP	"\t.section\t.rdata,\"r\""
-
-/* A default list of other sections which we might be "in" at any given
-   time.  For targets that use additional sections (e.g. .tdesc) you
-   should override this definition in the target-specific file which
-   includes this file.  */
-
-#undef EXTRA_SECTIONS
-#define EXTRA_SECTIONS in_const
-
-/* A default list of extra section function definitions.  For targets
-   that use additional sections (e.g. .tdesc) you should override this
-   definition in the target-specific file which includes this file.  */
-
-#undef EXTRA_SECTION_FUNCTIONS
-#define EXTRA_SECTION_FUNCTIONS						\
-  CONST_SECTION_FUNCTION
-
-#undef READONLY_DATA_SECTION
-#define READONLY_DATA_SECTION() const_section ()
-
-#define CONST_SECTION_FUNCTION						\
-void									\
-const_section ()							\
-{									\
-  if (!USE_CONST_SECTION)						\
-    text_section();							\
-  else if (in_section != in_const)					\
-    {									\
-      fprintf (asm_out_file, "%s\n", CONST_SECTION_ASM_OP);		\
-      in_section = in_const;						\
-    }									\
-}
+#define READONLY_DATA_SECTION_ASM_OP	"\t.section\t.rdata,\"r\""
 
 /* The MS compilers take alignment as a number of bytes, so we do as well */
 #undef ASM_OUTPUT_ALIGN
@@ -346,57 +310,13 @@ while (0)
 
 /* Define this macro if references to a symbol must be treated
    differently depending on something about the variable or
-   function named by the symbol (such as what section it is in).
+   function named by the symbol (such as what section it is in).  */
 
-   Apply stddef, handle (as yet unimplemented) pic.
+#undef TARGET_ENCODE_SECTION_INFO
+#define TARGET_ENCODE_SECTION_INFO i386_pe_encode_section_info
+#undef  TARGET_STRIP_NAME_ENCODING
+#define TARGET_STRIP_NAME_ENCODING  i386_pe_strip_name_encoding_full
 
-   stddef renaming does NOT apply to Alpha.  */
-
-union tree_node;
-const char *gen_stdcall_suffix PARAMS ((union tree_node *));
-
-#undef ENCODE_SECTION_INFO
-#define ENCODE_SECTION_INFO(DECL) 					\
-do 									\
-  {									\
-    if (flag_pic)							\
-      {									\
-	rtx rtl = (TREE_CODE_CLASS (TREE_CODE (DECL)) != 'd'		\
-		   ? TREE_CST_RTL (DECL) : DECL_RTL (DECL));		\
-	SYMBOL_REF_FLAG (XEXP (rtl, 0))					\
-	  = (TREE_CODE_CLASS (TREE_CODE (DECL)) != 'd'			\
-	     || ! TREE_PUBLIC (DECL));					\
-      }									\
-    if (TREE_CODE (DECL) == FUNCTION_DECL) 				\
-      if (lookup_attribute ("stdcall",					\
-			    TYPE_ATTRIBUTES (TREE_TYPE (DECL))))	\
-        XEXP (DECL_RTL (DECL), 0) = 					\
-          gen_rtx (SYMBOL_REF, Pmode, gen_stdcall_suffix (DECL)); 	\
-  }									\
-while (0)
-
-/* This macro gets just the user-specified name
-   out of the string in a SYMBOL_REF.  Discard
-   trailing @[NUM] encoded by ENCODE_SECTION_INFO.  */
-#undef  STRIP_NAME_ENCODING
-#define STRIP_NAME_ENCODING(VAR,SYMBOL_NAME)				\
-do {									\
-  const char *_p;							\
-  const char *_name = SYMBOL_NAME;					\
-  for (_p = _name; *_p && *_p != '@'; ++_p)				\
-    ;									\
-  if (*_p == '@')							\
-    {									\
-      int _len = _p - _name;						\
-      char *_new_name = (char *) alloca (_len + 1);			\
-      strncpy (_new_name, _name, _len);					\
-      _new_name[_len] = '\0';						\
-      (VAR) = _new_name;						\
-    }									\
-  else									\
-    (VAR) = _name;							\
-} while (0)
-      
 #if 0	
 /* Turn this back on when the linker is updated to handle grouped
    .data$ sections correctly. See corresponding note in i386/interix.c. 
@@ -408,8 +328,8 @@ do {									\
    symbols must be explicitly imported from shared libraries (DLLs).  */
 #define MULTIPLE_SYMBOL_SPACES
 
-extern void i386_pe_unique_section ();
-#define UNIQUE_SECTION(DECL,RELOC) i386_pe_unique_section (DECL, RELOC)
+extern void i386_pe_unique_section PARAMS ((tree, int));
+#define TARGET_ASM_UNIQUE_SECTION i386_pe_unique_section
 
 #define SUPPORTS_ONE_ONLY 1
 #endif /* 0 */

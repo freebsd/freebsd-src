@@ -20,24 +20,81 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
+/* Target CPU builtins.  */
+#define TARGET_CPU_CPP_BUILTINS()			\
+  do							\
+    {							\
+	builtin_define ("__alpha");			\
+	builtin_define ("__alpha__");			\
+	builtin_assert ("cpu=alpha");			\
+	builtin_assert ("machine=alpha");		\
+	if (TARGET_CIX)					\
+	  {						\
+	    builtin_define ("__alpha_cix__");		\
+	    builtin_assert ("cpu=cix");			\
+	  }						\
+	if (TARGET_FIX)					\
+	  {						\
+	    builtin_define ("__alpha_fix__");		\
+	    builtin_assert ("cpu=fix");			\
+	  }						\
+	if (TARGET_BWX)					\
+	  {						\
+	    builtin_define ("__alpha_bwx__");		\
+	    builtin_assert ("cpu=bwx");			\
+	  }						\
+	if (TARGET_MAX)					\
+	  {						\
+	    builtin_define ("__alpha_max__");		\
+	    builtin_assert ("cpu=max");			\
+	  }						\
+	if (TARGET_CPU_EV6)				\
+	  {						\
+	    builtin_define ("__alpha_ev6__");		\
+	    builtin_assert ("cpu=ev6");			\
+	  }						\
+	else if (TARGET_CPU_EV5)			\
+	  {						\
+	    builtin_define ("__alpha_ev5__");		\
+	    builtin_assert ("cpu=ev5");			\
+	  }						\
+	else	/* Presumably ev4.  */			\
+	  {						\
+	    builtin_define ("__alpha_ev4__");		\
+	    builtin_assert ("cpu=ev4");			\
+	  }						\
+	if (TARGET_IEEE || TARGET_IEEE_WITH_INEXACT)	\
+	  builtin_define ("_IEEE_FP");			\
+	if (TARGET_IEEE_WITH_INEXACT)			\
+	  builtin_define ("_IEEE_FP_INEXACT");		\
+							\
+	/* Macros dependent on the C dialect.  */	\
+	SUBTARGET_LANGUAGE_CPP_BUILTINS();		\
+} while (0)
 
-/* For C++ we need to ensure that __LANGUAGE_C_PLUS_PLUS is defined independent
-   of the source file extension.  */
-#define CPLUSPLUS_CPP_SPEC "\
--D__LANGUAGE_C_PLUS_PLUS__ -D__LANGUAGE_C_PLUS_PLUS -D__cplusplus \
-%(cpp) \
-"
+#ifndef SUBTARGET_LANGUAGE_CPP_BUILTINS
+#define SUBTARGET_LANGUAGE_CPP_BUILTINS()		\
+  do							\
+    {							\
+      if (preprocessing_asm_p ())			\
+	builtin_define_std ("LANGUAGE_ASSEMBLY");	\
+      else if (c_language == clk_c)			\
+	builtin_define_std ("LANGUAGE_C");		\
+      else if (c_language == clk_cplusplus)		\
+	{						\
+	  builtin_define ("__LANGUAGE_C_PLUS_PLUS");	\
+	  builtin_define ("__LANGUAGE_C_PLUS_PLUS__");	\
+	}						\
+      if (flag_objc)					\
+	{						\
+	  builtin_define ("__LANGUAGE_OBJECTIVE_C");	\
+	  builtin_define ("__LANGUAGE_OBJECTIVE_C__");	\
+	}						\
+    }							\
+  while (0)
+#endif
 
-/* Write out the correct language type definition for the header files.  
-   Unless we have assembler language, write out the symbols for C.  */
-#define CPP_SPEC "\
-%{!undef:\
-%{.S:-D__LANGUAGE_ASSEMBLY__ -D__LANGUAGE_ASSEMBLY %{!ansi:-DLANGUAGE_ASSEMBLY }}\
-%{.m:-D__LANGUAGE_OBJECTIVE_C__ -D__LANGUAGE_OBJECTIVE_C }\
-%{!.S:%{!.cc:%{!.cxx:%{!.cpp:%{!.cp:%{!.c++:%{!.C:%{!.m:-D__LANGUAGE_C__ -D__LANGUAGE_C %{!ansi:-DLANGUAGE_C }}}}}}}}}\
-%{mieee:-D_IEEE_FP }\
-%{mieee-with-inexact:-D_IEEE_FP -D_IEEE_FP_INEXACT }}\
-%(cpp_cpu) %(cpp_subtarget)"
+#define CPP_SPEC "%(cpp_subtarget)"
 
 #ifndef CPP_SUBTARGET_SPEC
 #define CPP_SUBTARGET_SPEC ""
@@ -89,6 +146,7 @@ extern int target_flags;
 extern enum alpha_trap_precision alpha_tp;
 extern enum alpha_fp_rounding_mode alpha_fprm;
 extern enum alpha_fp_trap_mode alpha_fptm;
+extern int alpha_tls_size;
 
 /* This means that floating-point support exists in the target implementation
    of the Alpha architecture.  This is usually the default.  */
@@ -160,6 +218,10 @@ extern enum alpha_fp_trap_mode alpha_fptm;
 #define MASK_SMALL_DATA (1 << 13)
 #define TARGET_SMALL_DATA (target_flags & MASK_SMALL_DATA)
 
+/* This means emit thread pointer loads for kernel not user.  */
+#define MASK_TLS_KERNEL	(1 << 14)
+#define TARGET_TLS_KERNEL (target_flags & MASK_TLS_KERNEL)
+
 /* This means that the processor is an EV5, EV56, or PCA56.
    Unlike alpha_cpu this is not affected by -mtune= setting.  */
 #define MASK_CPU_EV5	(1 << 28)
@@ -203,6 +265,9 @@ extern enum alpha_fp_trap_mode alpha_fptm;
 #ifndef TARGET_FIXUP_EV5_PREFETCH
 #define TARGET_FIXUP_EV5_PREFETCH 0
 #endif
+#ifndef HAVE_AS_TLS
+#define HAVE_AS_TLS 0
+#endif
 
 /* Macro to define tables used to set the flags.
    This is a list in braces of pairs in braces,
@@ -245,6 +310,8 @@ extern enum alpha_fp_trap_mode alpha_fptm;
      N_("Emit 16-bit relocations to the small data areas")},		\
     {"large-data", -MASK_SMALL_DATA,					\
      N_("Emit 32-bit relocations to the small data areas")},		\
+    {"tls-kernel", MASK_TLS_KERNEL,					\
+     N_("Emit rdval instead of rduniq for thread pointer")},		\
     {"", TARGET_DEFAULT | TARGET_CPU_DEFAULT				\
 	 | TARGET_DEFAULT_EXPLICIT_RELOCS, ""} }
 
@@ -268,6 +335,7 @@ extern const char *alpha_fprm_string;	/* For -mfp-rounding-mode=[n|m|c|d] */
 extern const char *alpha_fptm_string;	/* For -mfp-trap-mode=[n|u|su|sui]  */
 extern const char *alpha_tp_string;	/* For -mtrap-precision=[p|f|i] */
 extern const char *alpha_mlat_string;	/* For -mmemory-latency= */
+extern const char *alpha_tls_size_string; /* For -mtls-size= */
 
 #define TARGET_OPTIONS					\
 {							\
@@ -283,66 +351,9 @@ extern const char *alpha_mlat_string;	/* For -mmemory-latency= */
    N_("Control the precision given to fp exceptions")},	\
   {"memory-latency=",	&alpha_mlat_string,		\
    N_("Tune expected memory latency")},			\
+  {"tls-size=",		&alpha_tls_size_string,		\
+   N_("Specify bit size of immediate TLS offsets")},	\
 }
-
-/* Attempt to describe CPU characteristics to the preprocessor.  */
-
-/* Corresponding to amask...  */
-#define CPP_AM_BWX_SPEC	"-D__alpha_bwx__ -Acpu=bwx"
-#define CPP_AM_MAX_SPEC	"-D__alpha_max__ -Acpu=max"
-#define CPP_AM_FIX_SPEC	"-D__alpha_fix__ -Acpu=fix"
-#define CPP_AM_CIX_SPEC	"-D__alpha_cix__ -Acpu=cix"
-
-/* Corresponding to implver...  */
-#define CPP_IM_EV4_SPEC	"-D__alpha_ev4__ -Acpu=ev4"
-#define CPP_IM_EV5_SPEC	"-D__alpha_ev5__ -Acpu=ev5"
-#define CPP_IM_EV6_SPEC	"-D__alpha_ev6__ -Acpu=ev6"
-
-/* Common combinations.  */
-#define CPP_CPU_EV4_SPEC	"%(cpp_im_ev4)"
-#define CPP_CPU_EV5_SPEC	"%(cpp_im_ev5)"
-#define CPP_CPU_EV56_SPEC	"%(cpp_im_ev5) %(cpp_am_bwx)"
-#define CPP_CPU_PCA56_SPEC	"%(cpp_im_ev5) %(cpp_am_bwx) %(cpp_am_max)"
-#define CPP_CPU_EV6_SPEC \
-  "%(cpp_im_ev6) %(cpp_am_bwx) %(cpp_am_max) %(cpp_am_fix)"
-#define CPP_CPU_EV67_SPEC \
-  "%(cpp_im_ev6) %(cpp_am_bwx) %(cpp_am_max) %(cpp_am_fix) %(cpp_am_cix)"
-
-#ifndef CPP_CPU_DEFAULT_SPEC
-# if TARGET_CPU_DEFAULT & MASK_CPU_EV6
-#  if TARGET_CPU_DEFAULT & MASK_CIX
-#    define CPP_CPU_DEFAULT_SPEC	CPP_CPU_EV67_SPEC
-#  else
-#    define CPP_CPU_DEFAULT_SPEC	CPP_CPU_EV6_SPEC
-#  endif
-# else
-#  if TARGET_CPU_DEFAULT & MASK_CPU_EV5
-#   if TARGET_CPU_DEFAULT & MASK_MAX
-#    define CPP_CPU_DEFAULT_SPEC	CPP_CPU_PCA56_SPEC
-#   else
-#    if TARGET_CPU_DEFAULT & MASK_BWX
-#     define CPP_CPU_DEFAULT_SPEC	CPP_CPU_EV56_SPEC
-#    else
-#     define CPP_CPU_DEFAULT_SPEC	CPP_CPU_EV5_SPEC
-#    endif
-#   endif
-#  else
-#   define CPP_CPU_DEFAULT_SPEC		CPP_CPU_EV4_SPEC
-#  endif
-# endif
-#endif /* CPP_CPU_DEFAULT_SPEC */
-
-#ifndef CPP_CPU_SPEC
-#define CPP_CPU_SPEC "\
-%{!undef:-Acpu=alpha -Amachine=alpha -D__alpha -D__alpha__ \
-%{mcpu=ev4|mcpu=21064:%(cpp_cpu_ev4) }\
-%{mcpu=ev5|mcpu=21164:%(cpp_cpu_ev5) }\
-%{mcpu=ev56|mcpu=21164a:%(cpp_cpu_ev56) }\
-%{mcpu=pca56|mcpu=21164pc|mcpu=21164PC:%(cpp_cpu_pca56) }\
-%{mcpu=ev6|mcpu=21264:%(cpp_cpu_ev6) }\
-%{mcpu=ev67|mcpu=21264a:%(cpp_cpu_ev67) }\
-%{!mcpu*:%(cpp_cpu_default) }}"
-#endif
 
 /* This macro defines names of additional specifications to put in the
    specs that can be used in various specifications like CC1_SPEC.  Its
@@ -359,21 +370,6 @@ extern const char *alpha_mlat_string;	/* For -mmemory-latency= */
 #endif
 
 #define EXTRA_SPECS				\
-  { "cpp_am_bwx", CPP_AM_BWX_SPEC },		\
-  { "cpp_am_max", CPP_AM_MAX_SPEC },		\
-  { "cpp_am_fix", CPP_AM_FIX_SPEC },		\
-  { "cpp_am_cix", CPP_AM_CIX_SPEC },		\
-  { "cpp_im_ev4", CPP_IM_EV4_SPEC },		\
-  { "cpp_im_ev5", CPP_IM_EV5_SPEC },		\
-  { "cpp_im_ev6", CPP_IM_EV6_SPEC },		\
-  { "cpp_cpu_ev4", CPP_CPU_EV4_SPEC },		\
-  { "cpp_cpu_ev5", CPP_CPU_EV5_SPEC },		\
-  { "cpp_cpu_ev56", CPP_CPU_EV56_SPEC },	\
-  { "cpp_cpu_pca56", CPP_CPU_PCA56_SPEC },	\
-  { "cpp_cpu_ev6", CPP_CPU_EV6_SPEC },		\
-  { "cpp_cpu_ev67", CPP_CPU_EV67_SPEC },	\
-  { "cpp_cpu_default", CPP_CPU_DEFAULT_SPEC },	\
-  { "cpp_cpu", CPP_CPU_SPEC },			\
   { "cpp_subtarget", CPP_SUBTARGET_SPEC },	\
   SUBTARGET_EXTRA_SPECS
 
@@ -409,14 +405,15 @@ extern const char *alpha_mlat_string;	/* For -mmemory-latency= */
 
 /* target machine storage layout */
 
-/* Define to enable software floating point emulation.  */
-#define REAL_ARITHMETIC
-
 /* Define the size of `int'.  The default is the same as the word size.  */
 #define INT_TYPE_SIZE 32
 
 /* Define the size of `long long'.  The default is the twice the word size.  */
 #define LONG_LONG_TYPE_SIZE 64
+
+/* We're IEEE unless someone says to use VAX.  */
+#define TARGET_FLOAT_FORMAT \
+  (TARGET_FLOAT_VAX ? VAX_FLOAT_FORMAT : IEEE_FLOAT_FORMAT)
 
 /* The two floating-point formats we support are S-floating, which is
    4 bytes, and T-floating, which is 8 bytes.  `float' is S and `double'
@@ -474,15 +471,6 @@ extern const char *alpha_mlat_string;	/* For -mmemory-latency= */
    for them.  Might as well be consistent with bytes.  */
 #define WORDS_BIG_ENDIAN 0
 
-/* number of bits in an addressable storage unit */
-#define BITS_PER_UNIT 8
-
-/* Width in bits of a "word", which is the contents of a machine register.
-   Note that this is not necessarily the width of data type `int';
-   if using 16-bit ints on a 68000, this would still be 32.
-   But on a machine with 16-bit registers, this would be 16.  */
-#define BITS_PER_WORD 64
-
 /* Width of a word, in units (bytes).  */
 #define UNITS_PER_WORD 8
 
@@ -505,7 +493,7 @@ extern const char *alpha_mlat_string;	/* For -mmemory-latency= */
 /* Every structure's size must be a multiple of this.  */
 #define STRUCTURE_SIZE_BOUNDARY 8
 
-/* A bitfield declared as `int' forces `int' alignment for the struct.  */
+/* A bit-field declared as `int' forces `int' alignment for the struct.  */
 #define PCC_BITFIELD_TYPE_MATTERS 1
 
 /* No data type wants to be aligned rounder than this.  */
@@ -524,14 +512,14 @@ extern const char *alpha_mlat_string;	/* For -mmemory-latency= */
 #define DATA_ALIGNMENT(EXP, ALIGN) MAX ((ALIGN), BITS_PER_WORD)
 #endif
 
-/* Set this non-zero if move instructions will actually fail to work
+/* Set this nonzero if move instructions will actually fail to work
    when given unaligned data.
 
    Since we get an error message when we do one, call them invalid.  */
 
 #define STRICT_ALIGNMENT 1
 
-/* Set this non-zero if unaligned move instructions are extremely slow.
+/* Set this nonzero if unaligned move instructions are extremely slow.
 
    On the Alpha, they trap.  */
 
@@ -640,6 +628,12 @@ extern const char *alpha_mlat_string;	/* For -mmemory-latency= */
    ? GET_MODE_UNIT_SIZE (MODE) == 8 || GET_MODE_UNIT_SIZE (MODE) == 4	\
    : 1)
 
+/* Value is 1 if MODE is a supported vector mode.  */
+
+#define VECTOR_MODE_SUPPORTED_P(MODE) \
+  (TARGET_MAX \
+   && ((MODE) == V8QImode || (MODE) == V4HImode || (MODE) == V2SImode))
+
 /* A C expression that is nonzero if a value of mode
    MODE1 is accessible in mode MODE2 without copying.
 
@@ -719,7 +713,7 @@ extern const char *alpha_mlat_string;	/* For -mmemory-latency= */
    class that represents their union.  */
    
 enum reg_class {
-  NO_REGS, R24_REG, R25_REG, R27_REG,
+  NO_REGS, R0_REG, R24_REG, R25_REG, R27_REG,
   GENERAL_REGS, FLOAT_REGS, ALL_REGS,
   LIM_REG_CLASSES
 };
@@ -728,8 +722,8 @@ enum reg_class {
 
 /* Give names of register classes as strings for dump file.  */
 
-#define REG_CLASS_NAMES				\
- {"NO_REGS", "R24_REG", "R25_REG", "R27_REG",	\
+#define REG_CLASS_NAMES					\
+ {"NO_REGS", "R0_REG", "R24_REG", "R25_REG", "R27_REG",	\
   "GENERAL_REGS", "FLOAT_REGS", "ALL_REGS" }
 
 /* Define which registers fit in which classes.
@@ -738,6 +732,7 @@ enum reg_class {
 
 #define REG_CLASS_CONTENTS				\
 { {0x00000000, 0x00000000},	/* NO_REGS */		\
+  {0x00000001, 0x00000000},	/* R0_REG */		\
   {0x01000000, 0x00000000},	/* R24_REG */		\
   {0x02000000, 0x00000000},	/* R25_REG */		\
   {0x08000000, 0x00000000},	/* R27_REG */		\
@@ -751,7 +746,8 @@ enum reg_class {
    or could index an array.  */
 
 #define REGNO_REG_CLASS(REGNO)			\
- ((REGNO) == 24 ? R24_REG			\
+ ((REGNO) == 0 ? R0_REG				\
+  : (REGNO) == 24 ? R24_REG			\
   : (REGNO) == 25 ? R25_REG			\
   : (REGNO) == 27 ? R27_REG			\
   : (REGNO) >= 32 && (REGNO) <= 62 ? FLOAT_REGS	\
@@ -768,6 +764,7 @@ enum reg_class {
   : (C) == 'b' ? R25_REG		\
   : (C) == 'c' ? R27_REG		\
   : (C) == 'f' ? FLOAT_REGS		\
+  : (C) == 'v' ? R0_REG			\
   : NO_REGS)
 
 /* Define this macro to change register usage conditional on target flags.  */
@@ -811,7 +808,9 @@ enum reg_class {
 
    'T' is a HIGH.
 
-   'U' is a symbolic operand.  */
+   'U' is a symbolic operand.
+
+   'W' is a vector zero.   */
 
 #define EXTRA_CONSTRAINT  alpha_extra_constraint
 
@@ -858,15 +857,11 @@ enum reg_class {
 #define CLASS_MAX_NREGS(CLASS, MODE)				\
  ((GET_MODE_SIZE (MODE) + UNITS_PER_WORD - 1) / UNITS_PER_WORD)
 
-/* If defined, gives a class of registers that cannot be used as the
-   operand of a SUBREG that changes the mode of the object illegally.  */
+/* Return the class of registers that cannot change mode from FROM to TO.  */
 
-#define CLASS_CANNOT_CHANGE_MODE	FLOAT_REGS
-
-/* Defines illegal mode changes for CLASS_CANNOT_CHANGE_MODE.  */
-
-#define CLASS_CANNOT_CHANGE_MODE_P(FROM,TO) \
-  (GET_MODE_SIZE (FROM) != GET_MODE_SIZE (TO))
+#define CANNOT_CHANGE_MODE_CLASS(FROM, TO, CLASS)		\
+  (GET_MODE_SIZE (FROM) != GET_MODE_SIZE (TO)			\
+   ? reg_classes_intersect_p (FLOAT_REGS, CLASS) : 0)
 
 /* Define the cost of moving between registers of various classes.  Moving
    between FLOAT_REGS and anything else except float regs is expensive. 
@@ -1172,12 +1167,11 @@ extern int alpha_memory_latency;
 
 /* We do not allow indirect calls to be optimized into sibling calls, nor
    can we allow a call to a function in a different compilation unit to
-   be optimized into a sibcall.  Except if the function is known not to
-   return, in which case our caller doesn't care what the gp is.  */
+   be optimized into a sibcall.  */
 #define FUNCTION_OK_FOR_SIBCALL(DECL)			\
   (DECL							\
-   && ((TREE_ASM_WRITTEN (DECL) && !flag_pic)		\
-       || ! TREE_PUBLIC (DECL)))
+   && (! TREE_PUBLIC (DECL)				\
+       || (TREE_ASM_WRITTEN (DECL) && (*targetm.binds_local_p) (DECL))))
 
 /* Try to output insns to set TARGET equal to the constant C if it can be
    done in less than N insns.  Do all computations in MODE.  Returns the place
@@ -1474,7 +1468,7 @@ do {									     \
 #define MAX_FIXED_MODE_SIZE	GET_MODE_BITSIZE (TImode)
 
 /* Nonzero if access to memory by bytes is no faster than for words.
-   Also non-zero if doing byte operations (specifically shifts) in registers
+   Also nonzero if doing byte operations (specifically shifts) in registers
    is undesirable. 
 
    On the Alpha, we want to not use the byte operation and instead use
@@ -1730,60 +1724,6 @@ do {									     \
 
 #define DATA_SECTION_ASM_OP "\t.data"
 
-/* Define an extra section for read-only data, a routine to enter it, and
-   indicate that it is for read-only data.
-
-   The first time we enter the readonly data section for a file, we write
-   eight bytes of zero.  This works around a bug in DEC's assembler in
-   some versions of OSF/1 V3.x.  */
-
-#define EXTRA_SECTIONS	readonly_data
-
-#define EXTRA_SECTION_FUNCTIONS					\
-void								\
-literal_section ()						\
-{								\
-  if (in_section != readonly_data)				\
-    {								\
-      static int firsttime = 1;				        \
-								\
-      fprintf (asm_out_file, "%s\n", READONLY_DATA_SECTION_ASM_OP); \
-      if (firsttime)						\
-	{							\
-	  firsttime = 0;				        \
-	  assemble_aligned_integer (8, const0_rtx);		\
-	}							\
-								\
-      in_section = readonly_data;				\
-    }								\
-}								\
-
-#define READONLY_DATA_SECTION	literal_section
-
-/* Define this macro if references to a symbol must be treated differently
-   depending on something about the variable or function named by the symbol
-   (such as what section it is in).  */
-
-#define ENCODE_SECTION_INFO(DECL)  alpha_encode_section_info (DECL)
-
-/* If a variable is weakened, made one only or moved into a different
-   section, it may be necessary to redo the section info to move the
-   variable out of sdata.  */
-
-#define REDO_SECTION_INFO_P(DECL)                                       \
-   ((TREE_CODE (DECL) == VAR_DECL)                                      \
-    && (DECL_ONE_ONLY (DECL) || DECL_WEAK (DECL) || DECL_COMMON (DECL)  \
-        || DECL_SECTION_NAME (DECL) != 0))
-
-#define STRIP_NAME_ENCODING(VAR,SYMBOL_NAME)	\
-do {						\
-  (VAR) = (SYMBOL_NAME);			\
-  if ((VAR)[0] == '@')				\
-    (VAR) += 2;					\
-  if ((VAR)[0] == '*')				\
-    (VAR)++;					\
-} while (0)
-
 /* How to refer to registers in assembler output.
    This sequence is indexed by compiler's hard-register-number (see above).  */
 
@@ -1802,7 +1742,7 @@ do {						\
 #define ASM_OUTPUT_LABELREF(STREAM, NAME)	\
 do {						\
   const char *name_ = NAME;			\
-  if (*name_ == '@')				\
+  if (*name_ == '@' || *name_ == '%')		\
     name_ += 2;					\
   if (*name_ == '*')				\
     name_++;					\
@@ -1811,17 +1751,8 @@ do {						\
   fputs (name_, STREAM);			\
 } while (0)
 
-/* This is how to output the definition of a user-level label named NAME,
-   such as the label on a static function or variable NAME.  */
-
-#define ASM_OUTPUT_LABEL(FILE,NAME)	\
-  do { assemble_name (FILE, NAME); fputs (":\n", FILE); } while (0)
-
-/* This is how to output a command to make the user-level label named NAME
-   defined for reference from other files.  */
-
-#define ASM_GLOBALIZE_LABEL(FILE,NAME)	\
-  do { fputs ("\t.globl ", FILE); assemble_name (FILE, NAME); fputs ("\n", FILE);} while (0)
+/* Globalizing directive for a label.  */
+#define GLOBAL_ASM_OP "\t.globl "
 
 /* The prefix to add to user-visible assembler symbols.  */
 
@@ -1847,11 +1778,6 @@ do {						\
 
 #define ASM_GENERATE_INTERNAL_LABEL(LABEL,PREFIX,NUM)	\
   sprintf ((LABEL), "*$%s%ld", (PREFIX), (long)(NUM))
-
-/* Check a floating-point value for validity for a particular machine mode.  */
-
-#define CHECK_FLOAT_VALUE(MODE, D, OVERFLOW) \
-  ((OVERFLOW) = check_float_value (MODE, &D, OVERFLOW))
 
 /* We use the default ASCII-output routine, except that we don't write more
    than 50 characters since the assembler doesn't support very long lines.  */
@@ -1985,7 +1911,7 @@ do {						\
 
 #define PRINT_OPERAND_PUNCT_VALID_P(CODE) \
   ((CODE) == '/' || (CODE) == ',' || (CODE) == '-' || (CODE) == '~' \
-   || (CODE) == '#' || (CODE) == '*')
+   || (CODE) == '#' || (CODE) == '*' || (CODE) == '&')
 
 /* Print a memory address as an operand to reference that memory location.  */
 
@@ -1995,9 +1921,11 @@ do {						\
 /* Define the codes that are matched by predicates in alpha.c.  */
 
 #define PREDICATE_CODES 						\
-  {"reg_or_0_operand", {SUBREG, REG, CONST_INT}},			\
+  {"reg_or_0_operand", {SUBREG, REG, CONST_INT, CONST_DOUBLE,		\
+			CONST_VECTOR}},					\
   {"reg_or_6bit_operand", {SUBREG, REG, CONST_INT}},			\
   {"reg_or_8bit_operand", {SUBREG, REG, CONST_INT}},			\
+  {"reg_or_const_int_operand", {SUBREG, REG, CONST_INT}},		\
   {"cint8_operand", {CONST_INT}},					\
   {"reg_or_cint_operand", {SUBREG, REG, CONST_INT}},			\
   {"add_operand", {SUBREG, REG, CONST_INT}},				\
@@ -2008,24 +1936,29 @@ do {						\
   {"mode_mask_operand", {CONST_INT}},					\
   {"mul8_operand", {CONST_INT}},					\
   {"mode_width_operand", {CONST_INT}},					\
-  {"reg_or_fp0_operand", {SUBREG, REG, CONST_DOUBLE}},			\
   {"alpha_comparison_operator", {EQ, LE, LT, LEU, LTU}},		\
   {"alpha_zero_comparison_operator", {EQ, NE, LE, LT, LEU, LTU}},	\
   {"alpha_swapped_comparison_operator", {EQ, GE, GT, GEU, GTU}},	\
   {"signed_comparison_operator", {EQ, NE, LE, LT, GE, GT}},		\
   {"alpha_fp_comparison_operator", {EQ, LE, LT, UNORDERED}},		\
   {"divmod_operator", {DIV, MOD, UDIV, UMOD}},				\
-  {"fp0_operand", {CONST_DOUBLE}},					\
+  {"const0_operand", {CONST_INT, CONST_DOUBLE, CONST_VECTOR}},		\
   {"current_file_function_operand", {SYMBOL_REF}},			\
   {"direct_call_operand", {SYMBOL_REF}},				\
   {"local_symbolic_operand", {SYMBOL_REF, CONST, LABEL_REF}},		\
   {"small_symbolic_operand", {SYMBOL_REF, CONST}},			\
   {"global_symbolic_operand", {SYMBOL_REF, CONST}},			\
+  {"dtp16_symbolic_operand", {CONST}},					\
+  {"dtp32_symbolic_operand", {CONST}},					\
+  {"gotdtp_symbolic_operand", {CONST}},					\
+  {"tp16_symbolic_operand", {CONST}},					\
+  {"tp32_symbolic_operand", {CONST}},					\
+  {"gottp_symbolic_operand", {CONST}},					\
   {"call_operand", {REG, SYMBOL_REF}},					\
   {"input_operand", {SUBREG, REG, MEM, CONST_INT, CONST_DOUBLE,		\
-		     SYMBOL_REF, CONST, LABEL_REF, HIGH}},		\
+		     CONST_VECTOR, SYMBOL_REF, CONST, LABEL_REF, HIGH}},\
   {"some_operand", {SUBREG, REG, MEM, CONST_INT, CONST_DOUBLE,		\
-		    SYMBOL_REF, CONST, LABEL_REF, HIGH}},		\
+		    CONST_VECTOR, SYMBOL_REF, CONST, LABEL_REF, HIGH}},	\
   {"some_ni_operand", {SUBREG, REG, MEM}},				\
   {"aligned_memory_operand", {MEM}},					\
   {"unaligned_memory_operand", {MEM}},					\
@@ -2045,8 +1978,8 @@ do {						\
   (VALIST) = alpha_build_va_list ()
 
 /* Implement `va_start' for varargs and stdarg.  */
-#define EXPAND_BUILTIN_VA_START(stdarg, valist, nextarg) \
-  alpha_va_start (stdarg, valist, nextarg)
+#define EXPAND_BUILTIN_VA_START(valist, nextarg) \
+  alpha_va_start (valist, nextarg)
 
 /* Implement `va_arg'.  */
 #define EXPAND_BUILTIN_VA_ARG(valist, type) \
@@ -2061,9 +1994,9 @@ do {						\
 
 /* Definitions for debugging.  */
 
-#define SDB_DEBUGGING_INFO		/* generate info for mips-tfile */
-#define DBX_DEBUGGING_INFO		/* generate embedded stabs */
-#define MIPS_DEBUGGING_INFO		/* MIPS specific debugging info */
+#define SDB_DEBUGGING_INFO 1		/* generate info for mips-tfile */
+#define DBX_DEBUGGING_INFO 1		/* generate embedded stabs */
+#define MIPS_DEBUGGING_INFO 1		/* MIPS specific debugging info */
 
 #ifndef PREFERRED_DEBUGGING_TYPE	/* assume SDB_DEBUGGING_INFO */
 #define PREFERRED_DEBUGGING_TYPE  SDB_DEBUG
@@ -2201,8 +2134,3 @@ do {							\
 
 /* Generate calls to memcpy, etc., not bcopy, etc.  */
 #define TARGET_MEM_FUNCTIONS 1
-
-/* Output code to add DELTA to the first argument, and then jump to FUNCTION.
-   Used for C++ multiple inheritance.  */
-#define ASM_OUTPUT_MI_THUNK(FILE, THUNK_FNDECL, DELTA, FUNCTION) \
-  alpha_output_mi_thunk_osf (FILE, THUNK_FNDECL, DELTA, FUNCTION)

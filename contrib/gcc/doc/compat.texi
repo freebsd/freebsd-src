@@ -130,11 +130,11 @@ C++ library.  This requires specifying the location of the C++ library
 header files when invoking the compiler whose usual library is not being
 used.  The location of GCC's C++ header files depends on how the GCC
 build was configured, but can be seen by using the G++ @option{-v} option.
-With default configuration options for G++ 3.2 the compile line for a
+With default configuration options for G++ 3.3 the compile line for a
 different C++ compiler needs to include
 
 @example
-    -I@var{gcc_install_directory}/include/c++/3.2
+    -I@var{gcc_install_directory}/include/c++/3.3
 @end example
 
 Similarly, compiling code with G++ that must use a C++ library other

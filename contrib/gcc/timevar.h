@@ -41,9 +41,9 @@
 
      - As a standalone timer, using timevar_start and timevar_stop.
        All time elapsed between the two calls is attributed to the
-       variable.  
+       variable.
 */
-   
+
 /* This structure stores the various varieties of time that can be
    measured.  Times are stored in seconds.  The time may be an
    absolute time or a time difference; in the former case, the time
@@ -67,7 +67,7 @@ struct timevar_time_def
    the contents of timevar.def.  */
 
 #define DEFTIMEVAR(identifier__, name__) \
-    identifier__, 
+    identifier__,
 typedef enum
 {
 #include "timevar.def"
@@ -75,6 +75,9 @@ typedef enum
 }
 timevar_id_t;
 #undef DEFTIMEVAR
+
+/* Execute the sequence: timevar_pop (TV), return (E);  */
+#define POP_TIMEVAR_AND_RETURN(TV, E)  return (timevar_pop (TV), (E))
 
 extern void init_timevar PARAMS ((void));
 extern void timevar_push PARAMS ((timevar_id_t));

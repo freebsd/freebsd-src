@@ -1,5 +1,5 @@
 /* where.h -- Public #include File (module.h template V1.0)
-   Copyright (C) 1995 Free Software Foundation, Inc.
+   Copyright (C) 1995, 2002 Free Software Foundation, Inc.
    Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
@@ -61,12 +61,11 @@ typedef unsigned int ffewhereUses_;
 
 /* Include files needed by this one. */
 
-#include "glimits.h"
 #include "top.h"
 
 /* Structure definitions. */
 
-struct _ffewhere_file_
+struct _ffewhere_file_ GTY (())
   {
     size_t length;
     char text[1];
@@ -88,7 +87,6 @@ extern struct _ffewhere_line_ ffewhere_unknown_line_;
 
 /* Declare functions with prototypes. */
 
-void ffewhere_file_kill (ffewhereFile wf);
 ffewhereFile ffewhere_file_new (const char *name, size_t length);
 void ffewhere_file_set (ffewhereFile wf, bool have_num, ffewhereLineNumber ln);
 void ffewhere_init_1 (void);
