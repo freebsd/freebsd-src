@@ -984,6 +984,9 @@ if_link_state_change(struct ifnet *ifp, int link_state)
 		if ((ifp->if_type == IFT_ETHER || ifp->if_type == IFT_L2VLAN) &&
 		    IFP2AC(ifp)->ac_netgraph != NULL)
 			(*ng_ether_link_state_p)(ifp, link_state);
+
+		log(LOG_NOTICE, "%s: link state changed to %s\n", ifp->if_xname,
+		    (link_state == LINK_STATE_UP) ? "UP" : "DOWN" );
 	}
 }
 
