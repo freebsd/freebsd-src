@@ -113,6 +113,7 @@ struct ct_isa_softc {
 };
 
 static struct isa_pnp_id ct_pnp_ids[] = {
+	{ 0x0100e7b1,	"Logitec LHA-301" },
 	{ 0x110154dc,	"I-O DATA SC-98III" },
 	{ 0x4120acb4,	"MELCO IFC-NN" },
 	{ 0,		NULL }
