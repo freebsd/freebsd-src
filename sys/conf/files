@@ -21,7 +21,7 @@ aic79xx_{seq,reg}.h		optional ahd pci			   \
 	dependency	"$S/dev/aic7xxx/aic79xx.{reg,seq} $S/cam/scsi/scsi_message.h aicasm"
 kern/device_if.m		standard
 kern/bus_if.m			standard
-kern/clock_if.m			standard
+kern/clock_if.m			optional genclock
 kern/linker_if.m		standard
 cam/cam.c		optional scbus
 cam/cam_extend.c	optional scbus
@@ -395,8 +395,8 @@ dev/ida/ida_disk.c	optional ida
 dev/ida/ida_eisa.c	optional ida eisa
 dev/ida/ida_pci.c	optional ida pci
 dev/ie/if_ie.c		count ie isa nowerror
-dev/iicbus/iicbb_if.m	standard
-dev/iicbus/iicbus_if.m	standard
+dev/iicbus/iicbb_if.m	optional iicbb
+dev/iicbus/iicbus_if.m	optional iicbus
 dev/iicbus/if_ic.c	optional ic
 dev/iicbus/iic.c	optional iic
 dev/iicbus/iicbb.c	optional iicbb
@@ -449,7 +449,7 @@ dev/mii/xmphy.c		optional miibus
 dev/mii/lxtphy.c	optional miibus
 dev/mii/qsphy.c		optional miibus
 dev/mii/acphy.c		optional miibus
-dev/mii/miibus_if.m	standard
+dev/mii/miibus_if.m	optional miibus
 dev/mk48txx/mk48txx.c	optional mk48txx
 dev/mlx/mlx.c		optional mlx
 dev/mlx/mlx_disk.c	optional mlx
@@ -484,7 +484,7 @@ dev/pdq/pdq.c		optional fea eisa nowerror
 dev/pdq/pdq.c		optional fpa pci nowerror
 dev/pdq/pdq_ifsubr.c	optional fea eisa nowerror
 dev/pdq/pdq_ifsubr.c	optional fpa pci nowerror
-dev/ppbus/ppbus_if.m	standard
+dev/ppbus/ppbus_if.m	optional ppbus
 dev/ppbus/if_plip.c	optional plip
 dev/ppbus/immio.c	optional vpo
 dev/ppbus/lpbb.c	optional lpbb
@@ -516,7 +516,7 @@ dev/si/si3_t225.c	optional si
 dev/si/si_eisa.c	optional si eisa
 dev/si/si_isa.c		optional si isa
 dev/si/si_pci.c		optional si pci
-dev/smbus/smbus_if.m	standard
+dev/smbus/smbus_if.m	optional smbus
 dev/smbus/smb.c		optional smb
 dev/smbus/smbconf.c	optional smbus
 dev/smbus/smbus.c	count smbus
@@ -607,7 +607,7 @@ dev/tx/if_tx.c		optional tx
 dev/txp/if_txp.c	optional txp
 #
 # USB support
-dev/usb/usb_if.m	standard
+dev/usb/usb_if.m	optional usb
 dev/usb/hid.c		optional usb
 dev/usb/if_aue.c	optional aue
 dev/usb/if_cue.c	optional cue
@@ -1274,7 +1274,7 @@ pccard/pcic.c		optional pcic card
 pccard/pcic_isa.c	optional pcic card isa
 pccard/pcic_pci.c	optional pcic card pci
 pci/agp.c		optional agp
-pci/agp_if.m		standard
+pci/agp_if.m		optional agp
 pci/agp_intel.c		optional agp
 pci/agp_via.c		optional agp
 pci/agp_sis.c		optional agp
