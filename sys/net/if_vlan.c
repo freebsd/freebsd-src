@@ -57,6 +57,7 @@
 #include <net/bpf.h>
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_clone.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
@@ -117,8 +118,6 @@ static struct mtx ifv_mtx;
 #define	VLAN_LOCK()	mtx_lock(&ifv_mtx)
 #define	VLAN_UNLOCK()	mtx_unlock(&ifv_mtx)
 
-static	int vlan_clone_create(struct if_clone *, int);
-static	void vlan_clone_destroy(struct ifnet *);
 static	void vlan_start(struct ifnet *ifp);
 static	void vlan_ifinit(void *foo);
 static	void vlan_input(struct ifnet *ifp, struct mbuf *m);
@@ -127,9 +126,16 @@ static	int vlan_setmulti(struct ifnet *ifp);
 static	int vlan_unconfig(struct ifnet *ifp);
 static	int vlan_config(struct ifvlan *ifv, struct ifnet *p);
 static	void vlan_link_state(struct ifnet *ifp, int link);
+static	int vlan_set_promisc(struct ifnet *ifp);
 
-struct if_clone vlan_cloner = IF_CLONE_INITIALIZER(VLANNAME,
-    vlan_clone_create, vlan_clone_destroy, 0, IF_MAXUNIT);
+static	struct ifnet *vlan_clone_match_ethertag(struct if_clone *,
+    const char *, int *);
+static	int vlan_clone_match(struct if_clone *, const char *);
+static	int vlan_clone_create(struct if_clone *, char *, size_t);
+static	int vlan_clone_destroy(struct if_clone *, struct ifnet *);
+
+struct if_clone vlan_cloner = IFC_CLONE_INITIALIZER(VLANNAME, NULL, IF_MAXUNIT,
+    NULL, vlan_clone_match, vlan_clone_create, vlan_clone_destroy);
 
 /*
  * Program our multicast filter. What we're actually doing is
@@ -231,7 +237,8 @@ vlan_modevent(module_t mod, int type, void *data)
 		vlan_input_p = NULL;
 		vlan_link_state_p = NULL;
 		while (!LIST_EMPTY(&ifv_list))
-			vlan_clone_destroy(&LIST_FIRST(&ifv_list)->ifv_if);
+			vlan_clone_destroy(&vlan_cloner,
+			    &LIST_FIRST(&ifv_list)->ifv_if);
 		VLAN_LOCK_DESTROY();
 		break;
 	} 
@@ -247,18 +254,117 @@ static moduledata_t vlan_mod = {
 DECLARE_MODULE(if_vlan, vlan_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_DEPEND(if_vlan, miibus, 1, 1, 1);
 
-static int
-vlan_clone_create(struct if_clone *ifc, int unit)
+static struct ifnet *
+vlan_clone_match_ethertag(struct if_clone *ifc, const char *name, int *tag)
 {
+	int t;
+	const char *cp;
+	struct ifnet *ifp;
+
+	t = 0;
+
+	/* Check for <etherif>.<vlan> style interface names. */
+	IFNET_RLOCK();
+	TAILQ_FOREACH(ifp, &ifnet, if_link) {
+		if (ifp->if_type != IFT_ETHER)
+			continue;
+		if (strncmp(ifp->if_xname, name, strlen(ifp->if_xname)) != 0)
+			continue;
+		cp = name + strlen(ifp->if_xname);
+		if (*cp != '.')
+			continue;
+		for(; *cp != '\0'; cp++) {
+			if (*cp < '0' || *cp > '9')
+				continue;
+			t = (t * 10) + (*cp - '0');
+		}
+		if (tag != NULL)
+			*tag = t;
+		break;
+	}
+	IFNET_RUNLOCK();
+
+	return ifp;
+}
+
+static int
+vlan_clone_match(struct if_clone *ifc, const char *name)
+{
+	const char *cp;
+
+	if (vlan_clone_match_ethertag(ifc, name, NULL) != NULL)
+		return (1);
+
+	if (strncmp(VLANNAME, name, strlen(VLANNAME)) != 0)
+		return (0);
+	for (cp = name + 4; *cp != '\0'; cp++) {
+		if (*cp < '0' || *cp > '9')
+			return (0);
+	}
+
+	return (1);
+}
+
+static int
+vlan_clone_create(struct if_clone *ifc, char *name, size_t len)
+{
+	char *dp;
+	int wildcard;
+	int unit;
+	int error;
+	int tag;
+	int ethertag;
 	struct ifvlan *ifv;
 	struct ifnet *ifp;
+	struct ifnet *p;
+
+	if ((p = vlan_clone_match_ethertag(ifc, name, &tag)) != NULL) {
+		ethertag = 1;
+		unit = -1;
+		wildcard = 0;
+
+		/*
+		 * Don't let the caller set up a VLAN tag with
+		 * anything except VLID bits.
+		 */
+		if (tag & ~EVL_VLID_MASK) {
+			return (EINVAL);
+		}
+	} else {
+		ethertag = 0;
+
+		error = ifc_name2unit(name, &unit);
+		if (error != 0)
+			return (error);
+
+		wildcard = (unit < 0);
+	}
+
+	error = ifc_alloc_unit(ifc, &unit);
+	if (error != 0)
+		return (error);
+
+	/* In the wildcard case, we need to update the name. */
+	if (wildcard) {
+		for (dp = name; *dp != '\0'; dp++);
+		if (snprintf(dp, len - (dp-name), "%d", unit) >
+		    len - (dp-name) - 1) {
+			panic("%s: interface name too long", __func__);
+		}
+	}
 
 	ifv = malloc(sizeof(struct ifvlan), M_VLAN, M_WAITOK | M_ZERO);
 	ifp = &ifv->ifv_if;
 	SLIST_INIT(&ifv->vlan_mc_listhead);
 
 	ifp->if_softc = ifv;
-	if_initname(ifp, ifc->ifc_name, unit);
+	/*
+	 * Set the name manually rather then using if_initname because
+	 * we don't conform to the default naming convention for interfaces.
+	 */
+	strlcpy(ifp->if_xname, name, IFNAMSIZ);
+	ifp->if_dname = ifc->ifc_name;
+	ifp->if_dunit = unit;
 	/* NB: flags are not set here */
 	ifp->if_linkmib = &ifv->ifv_mib;
 	ifp->if_linkmiblen = sizeof ifv->ifv_mib;
@@ -278,11 +384,36 @@ vlan_clone_create(struct if_clone *ifc, int unit)
 	LIST_INSERT_HEAD(&ifv_list, ifv, ifv_list);
 	VLAN_UNLOCK();
 
+	if (ethertag) {
+		VLAN_LOCK();
+		error = vlan_config(ifv, p);
+		if (error != 0) {
+			/*
+			 * Since we've partialy failed, we need to back
+			 * out all the way, otherwise userland could get
+			 * confused.  Thus, we destroy the interface.
+			 */
+			LIST_REMOVE(ifv, ifv_list);
+			vlan_unconfig(ifp);
+			VLAN_UNLOCK();
+			ether_ifdetach(ifp);
+			free(ifv, M_VLAN);
+
+			return (error);
+		}
+		ifv->ifv_tag = tag;
+		ifp->if_flags |= IFF_RUNNING;
+		VLAN_UNLOCK();
+
+		/* Update promiscuous mode, if necessary. */
+		vlan_set_promisc(ifp);
+	}
+
 	return (0);
 }
 
-static void
-vlan_clone_destroy(struct ifnet *ifp)
+static int
+vlan_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 {
 	struct ifvlan *ifv = ifp->if_softc;
 
@@ -294,6 +425,8 @@ vlan_clone_destroy(struct ifnet *ifp)
 	ether_ifdetach(ifp);
 
 	free(ifv, M_VLAN);
+
+	return (0);
 }
 
 static void

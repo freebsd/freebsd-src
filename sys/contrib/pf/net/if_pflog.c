@@ -63,6 +63,9 @@
 #endif
 
 #include <net/if.h>
+#if defined(__FreeBSD__)
+#include <net/if_clone.h>
+#endif
 #include <net/if_types.h>
 #include <net/route.h>
 #include <net/bpf.h>
@@ -123,8 +126,7 @@ extern int ifqmaxlen;
 #ifdef __FreeBSD__
 static MALLOC_DEFINE(M_PFLOG, PFLOGNAME, "Packet Filter Logging Interface");
 static LIST_HEAD(pflog_list, pflog_softc) pflog_list;
-struct if_clone pflog_cloner = IF_CLONE_INITIALIZER(PFLOGNAME,
-	pflog_clone_create, pflog_clone_destroy, 1, IF_MAXUNIT);
+IFC_SIMPLE_DECLARE(pflog, 1);
 
 static void
 pflog_clone_destroy(struct ifnet *ifp)

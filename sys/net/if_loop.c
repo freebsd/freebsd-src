@@ -54,6 +54,7 @@
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_clone.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
 #include <net/route.h>
@@ -112,8 +113,7 @@ static MALLOC_DEFINE(M_LO, LONAME, "Loopback Interface");
 static struct mtx lo_mtx;
 static LIST_HEAD(lo_list, lo_softc) lo_list;
 
-struct if_clone lo_cloner = IF_CLONE_INITIALIZER(LONAME,
-    lo_clone_create, lo_clone_destroy, 1, IF_MAXUNIT);
+IFC_SIMPLE_DECLARE(lo, 1);
 
 static void
 lo_clone_destroy(ifp)

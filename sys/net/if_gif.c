@@ -52,6 +52,7 @@
 #include <machine/cpu.h>
 
 #include <net/if.h>
+#include <net/if_clone.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
 #include <net/route.h>
@@ -100,8 +101,7 @@ void	(*ng_gif_detach_p)(struct ifnet *ifp);
 static int	gif_clone_create(struct if_clone *, int);
 static void	gif_clone_destroy(struct ifnet *);
 
-struct if_clone gif_cloner = IF_CLONE_INITIALIZER("gif",
-    gif_clone_create, gif_clone_destroy, 0, IF_MAXUNIT);
+IFC_SIMPLE_DECLARE(gif, 0);
 
 static int gifmodevent(module_t, int, void *);
 
