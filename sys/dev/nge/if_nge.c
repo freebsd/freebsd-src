@@ -1412,14 +1412,11 @@ static void
 nge_txeof(sc)
 	struct nge_softc	*sc;
 {
-	struct nge_desc		*cur_tx = NULL;
+	struct nge_desc		*cur_tx;
 	struct ifnet		*ifp;
 	u_int32_t		idx;
 
 	ifp = &sc->arpcom.ac_if;
-
-	/* Clear the timeout timer. */
-	ifp->if_timer = 0;
 
 	/*
 	 * Go through our tx list and free mbufs for those
@@ -1453,17 +1450,17 @@ nge_txeof(sc)
 		if (cur_tx->nge_mbuf != NULL) {
 			m_freem(cur_tx->nge_mbuf);
 			cur_tx->nge_mbuf = NULL;
+			ifp->if_flags &= ~IFF_OACTIVE;
 		}
 
 		sc->nge_cdata.nge_tx_cnt--;
 		NGE_INC(idx, NGE_TX_LIST_CNT);
-		ifp->if_timer = 0;
 	}
 
 	sc->nge_cdata.nge_tx_cons = idx;
 
-	if (cur_tx != NULL)
-		ifp->if_flags &= ~IFF_OACTIVE;
+	if (idx == sc->nge_cdata.nge_tx_prod)
+		ifp->if_timer = 0;
 
 	return;
 }
