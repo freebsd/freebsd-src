@@ -2070,7 +2070,6 @@ pmap_kenter_temporary(vm_offset_t pa, int i)
 	return (void *) ALPHA_PHYS_TO_K0SEG(pa - (i * PAGE_SIZE));
 }
 
-#define MAX_INIT_PT (96)
 /*
  * pmap_object_init_pt preloads the ptes for a given object
  * into the specified pmap.  This eliminates the blast of soft
@@ -2079,112 +2078,12 @@ pmap_kenter_temporary(vm_offset_t pa, int i)
 void
 pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 		    vm_object_t object, vm_pindex_t pindex,
-		    vm_size_t size, int limit)
+		    vm_size_t size)
 {
-	vm_offset_t tmpidx;
-	int psize;
-	vm_page_t p, mpte;
-	int objpgs;
 
-	if (pmap == NULL || object == NULL)
-		return;
-	VM_OBJECT_LOCK(object);
-	psize = alpha_btop(size);
-
-	if ((object->type != OBJT_VNODE) ||
-		((limit & MAP_PREFAULT_PARTIAL) && (psize > MAX_INIT_PT) &&
-			(object->resident_page_count > MAX_INIT_PT))) {
-		goto unlock_return;
-	}
-
-	if (psize + pindex > object->size) {
-		if (object->size < pindex)
-			goto unlock_return;
-		psize = object->size - pindex;
-	}
-
-	mpte = NULL;
-	/*
-	 * if we are processing a major portion of the object, then scan the
-	 * entire thing.
-	 */
-	if (psize > (object->resident_page_count >> 2)) {
-		objpgs = psize;
-
-		for (p = TAILQ_FIRST(&object->memq);
-		    ((objpgs > 0) && (p != NULL));
-		    p = TAILQ_NEXT(p, listq)) {
-
-			tmpidx = p->pindex;
-			if (tmpidx < pindex) {
-				continue;
-			}
-			tmpidx -= pindex;
-			if (tmpidx >= psize) {
-				continue;
-			}
-			/*
-			 * don't allow an madvise to blow away our really
-			 * free pages allocating pv entries.
-			 */
-			if ((limit & MAP_PREFAULT_MADVISE) &&
-			    cnt.v_free_count < cnt.v_free_reserved) {
-				break;
-			}
-			vm_page_lock_queues();
-			if (((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
-				(p->busy == 0) &&
-			    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
-				if ((p->queue - p->pc) == PQ_CACHE)
-					vm_page_deactivate(p);
-				vm_page_busy(p);
-				vm_page_unlock_queues();
-				VM_OBJECT_UNLOCK(object);
-				mpte = pmap_enter_quick(pmap, 
-					addr + alpha_ptob(tmpidx), p, mpte);
-				VM_OBJECT_LOCK(object);
-				vm_page_lock_queues();
-				vm_page_wakeup(p);
-			}
-			vm_page_unlock_queues();
-			objpgs -= 1;
-		}
-	} else {
-		/*
-		 * else lookup the pages one-by-one.
-		 */
-		for (tmpidx = 0; tmpidx < psize; tmpidx += 1) {
-			/*
-			 * don't allow an madvise to blow away our really
-			 * free pages allocating pv entries.
-			 */
-			if ((limit & MAP_PREFAULT_MADVISE) &&
-			    cnt.v_free_count < cnt.v_free_reserved) {
-				break;
-			}
-			p = vm_page_lookup(object, tmpidx + pindex);
-			if (p == NULL)
-				continue;
-			vm_page_lock_queues();
-			if ((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL &&
-				(p->busy == 0) &&
-			    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
-				if ((p->queue - p->pc) == PQ_CACHE)
-					vm_page_deactivate(p);
-				vm_page_busy(p);
-				vm_page_unlock_queues();
-				VM_OBJECT_UNLOCK(object);
-				mpte = pmap_enter_quick(pmap, 
-					addr + alpha_ptob(tmpidx), p, mpte);
-				VM_OBJECT_LOCK(object);
-				vm_page_lock_queues();
-				vm_page_wakeup(p);
-			}
-			vm_page_unlock_queues();
-		}
-	}
-unlock_return:
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	KASSERT(object->type == OBJT_DEVICE,
+	    ("pmap_object_init_pt: non-device object"));
 }
 
 /*

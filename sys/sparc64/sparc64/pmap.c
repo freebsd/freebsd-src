@@ -1341,9 +1341,12 @@ pmap_enter_quick(pmap_t pm, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 
 void
 pmap_object_init_pt(pmap_t pm, vm_offset_t addr, vm_object_t object,
-		    vm_pindex_t pindex, vm_size_t size, int limit)
+		    vm_pindex_t pindex, vm_size_t size)
 {
-	/* XXX */
+
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	KASSERT(object->type == OBJT_DEVICE,
+	    ("pmap_object_init_pt: non-device object"));
 }
 
 void
