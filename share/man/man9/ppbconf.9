@@ -1,0 +1,205 @@
+.\" Copyright (c) 1998, Nicolas Souchu
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"
+.Dd April 5, 1998
+.Dt PPBCONF 9
+.Os FreeBSD
+.Sh NAME
+.Nm ppbconf
+.Nd
+ppbus developer's guide
+.Sh SYNOPSIS
+.Fd "#include <dev/ppbus/ppbconf.h>"
+.Sh DESCRIPTION
+See
+.Xr ppbus 4
+for ppbus description.
+.Sh PPBUS STRUCTURES
+Each ppbus layer
+.Po
+.Em adapter ,
+.Em ppbus
+and
+.Em device
+.Pc
+is described by one or more C structure.
+.Ss The adapter layer
+.Bd -literal
+struct ppb_adapter {
+
+        void (*intr_handler)(int);
+        void (*reset_epp_timeout)(int);
+        void (*ecp_sync)(int);
+
+        int (*exec_microseq)(int, struct ppb_microseq *, int *);
+
+        int (*setmode)(int, int);
+
+        void (*outsb_epp)(int, char *, int);
+        void (*outsw_epp)(int, char *, int);
+        void (*outsl_epp)(int, char *, int);
+        void (*insb_epp)(int, char *, int);
+        void (*insw_epp)(int, char *, int);
+        void (*insl_epp)(int, char *, int);
+
+        char (*r_dtr)(int);
+        char (*r_str)(int);
+        char (*r_ctr)(int);
+        char (*r_epp)(int);
+        char (*r_ecr)(int);
+        char (*r_fifo)(int);
+
+        void (*w_dtr)(int, char);
+        void (*w_str)(int, char);
+        void (*w_ctr)(int, char);
+        void (*w_epp)(int, char);
+        void (*w_ecr)(int, char);
+        void (*w_fifo)(int, char);
+};
+.Ed
+.Pp
+This structure is the interface between
+.Xr ppc 4
+layer and upper ppbus system levels. For each ppc device, this
+structure is filled with generic i/o functions that may be redefined if
+needed for particular chipsets.
+.Pp
+Developers are really encouraged to use the
+exec_microseq entry to avoid indirect function call overhead. See
+.Xr microseq 9
+for more info.
+.Ss The ppbus layer
+.Bd -literal
+struct ppb_driver
+{       
+        struct ppb_device   *(*probe)(struct ppb_data *ppb);
+        int                 (*attach)(struct ppb_device *pdp);
+        char                *name;
+};      
+.Ed
+.Bd -literal
+struct ppb_data {
+
+#define PPB_PnP_PRINTER 0
+#define PPB_PnP_MODEM   1
+#define PPB_PnP_NET     2
+#define PPB_PnP_HDC     3
+#define PPB_PnP_PCMCIA  4
+#define PPB_PnP_MEDIA   5
+#define PPB_PnP_FDC     6
+#define PPB_PnP_PORTS   7
+#define PPB_PnP_SCANNER 8         
+#define PPB_PnP_DIGICAM 9
+#define PPB_PnP_UNKNOWN 10    
+        int     class_id;       /* not a PnP device if class_id < 0 */
+
+	ushort mode;				/* IEEE 1284-1994 mode
+						 * NIBBLE, PS2, EPP, ECP */
+	ushort avm;				/* IEEE 1284-1994 available
+						 * modes */
+
+        struct ppb_link *ppb_link;         /* link to the adapter */
+        struct ppb_device *ppb_owner;      /* device which owns the bus */
+        LIST_HEAD(, ppb_device) ppb_devs;  /* list of devices on the bus */
+        LIST_ENTRY(ppb_data)    ppb_chain; /* list of busses */
+};
+.Ed
+.Ss The device layer
+.Bd -literal
+/* microseqences used for GET/PUT operations */
+struct ppb_xfer {
+	struct ppb_microseq *prolog;		/* loop prologue */
+	struct ppb_microseq *body;		/* loop body */
+	struct ppb_microseq *epilog;		/* loop epilogue */
+};
+.Ed
+.Bd -literal
+struct ppb_context {
+        int valid;                      /* 1 if the struct is valid */  
+        int mode;                       /* operating mode */
+
+	struct microseq *curpc;		/* pc in curmsq */
+	struct microseq *curmsq;	/* currently executed microseq */
+}; 
+.Ed
+.Bd -literal
+struct ppb_device {
+        
+        int id_unit;                    /* unit of the device */
+        char *name;                     /* name of the device */
+
+	ushort mode;			/* current mode of the device */
+	ushort avm;			/* available modes of the device */
+    
+        struct ppb_context ctx;         /* context of the device */
+
+					/* mode dependent get msq. If NULL,
+					 * IEEE1284 code is used */
+	struct ppb_xfer
+		get_xfer[PPB_MAX_XFER];
+
+					/* mode dependent put msq. If NULL,
+					 * IEEE1284 code is used */
+	struct ppb_xfer
+		put_xfer[PPB_MAX_XFER];
+
+        void (*intr)(int);              /* interrupt handler */
+
+        struct ppb_data *ppb;           /* link to the ppbus */
+
+        LIST_ENTRY(ppb_device)  chain;  /* list of devices on the bus */
+};
+.Ed
+.Ss Linking these structures all together
+.Bd -literal
+struct ppb_link {
+
+        int adapter_unit;               /* unit of the adapter */
+        int base;                       /* base address of the port */
+        int id_irq;                     /* != 0 if irq enabled */
+
+#define EPP_1_9         0x0             /* default */
+#define EPP_1_7         0x1
+        int epp_protocol;               /* EPP protocol: 0=1.9, 1=1.7 */
+
+        struct ppb_adapter *adapter;    /* link to the ppc adapter */
+        struct ppb_data *ppbus;         /* link to the ppbus */
+};      
+.Ed
+.Sh EXAMPLE
+See vpo.c source file.
+.Sh SEE ALSO
+.Xr ppbus 4 ,
+.Xr ppi 4 ,
+.Xr microseq 9
+.Sh HISTORY
+The
+.Nm
+manual page first appeared in
+.Fx 3.0 .
+.Sh AUTHOR
+This
+manual page was written by
+.An Nicolas Souchu .
