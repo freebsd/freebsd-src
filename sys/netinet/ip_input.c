@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.96 1998/07/08 08:49:51 dg Exp $
+ * $Id: ip_input.c,v 1.97 1998/07/13 12:12:24 bde Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -1357,7 +1357,8 @@ ip_forward(m, srcrt)
 #ifdef DIAGNOSTIC
 	if (ipprintfs)
 		printf("forward: src %lx dst %lx ttl %x\n",
-			ip->ip_src.s_addr, ip->ip_dst.s_addr, ip->ip_ttl);
+		    (u_long)ip->ip_src.s_addr, (u_long)ip->ip_dst.s_addr,
+		    ip->ip_ttl);
 #endif
 
 

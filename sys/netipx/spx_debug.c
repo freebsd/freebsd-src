@@ -33,7 +33,7 @@
  *
  *	@(#)spx_debug.c
  *
- * $Id: spx_debug.c,v 1.11 1997/10/28 12:24:26 bde Exp $
+ * $Id: spx_debug.c,v 1.12 1998/01/08 23:41:57 eivind Exp $
  */
 
 #include "opt_inet.h"
@@ -99,7 +99,7 @@ spx_trace(act, ostate, sp, si, req)
 	if (act >= SA_DROP)
 		act = SA_DROP;
 	if (sp != NULL)
-		printf("%x %s:", sp, tcpstates[ostate]);
+		printf("%p %s:", (void *)sp, tcpstates[ostate]);
 	else
 		printf("???????? ");
 	printf("%s ", spxnames[act]);
