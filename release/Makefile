@@ -333,7 +333,7 @@ release.4:
 .else
 	cp ${.CURDIR}/boot_crunch.conf.generic ${.OBJDIR}/boot_crunch.conf
 .endif
-	cd ${.CURDIR}/sysinstall && make clean obj depend all install
+	cd ${.CURDIR}/sysinstall && make obj depend all install
 	rm -rf ${RD}/crunch
 	mkdir -p ${RD}/crunch
 	export RELEASE_BUILD_FIXIT=noway ; \
