@@ -82,6 +82,8 @@ agp_amd64_match(device_t dev)
 		return ("AMD 8151 AGP graphics tunnel");
 	case 0x07551039:
 		return ("SiS 755 host to AGP bridge");
+	case 0x00d110de:
+		return ("NVIDIA nForce3 AGP Controller");
 	case 0x02041106:
 		return ("VIA 8380 host to PCI bridge");
 	case 0x02821106:
