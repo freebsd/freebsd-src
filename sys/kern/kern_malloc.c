@@ -283,6 +283,9 @@ free(addr, type)
 	if (addr == NULL)
 		return;
 
+	KASSERT(ksp->ks_memuse > 0,
+		("malloc(9)/free(9) confusion.\n%s",
+		 "Probably freeing with wrong type, but maybe not here."));
 	size = 0;
 
 	slab = vtoslab((vm_offset_t)addr & (~UMA_SLAB_MASK));
@@ -318,6 +321,9 @@ free(addr, type)
 		uma_large_free(slab);
 	}
 	mtx_lock(&ksp->ks_mtx);
+	KASSERT(size <= ksp->ks_memuse,
+		("malloc(9)/free(9) confusion.\n%s",
+		 "Probably freeing with wrong type, but maybe not here."));
 	ksp->ks_memuse -= size;
 	ksp->ks_inuse--;
 	mtx_unlock(&ksp->ks_mtx);
