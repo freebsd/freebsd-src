@@ -105,7 +105,8 @@ popen(command, type)
 			if (pdes[1] != STDOUT_FILENO) {
 				(void)dup2(pdes[1], STDOUT_FILENO);
 				(void)close(pdes[1]);
-				(void)dup2(STDOUT_FILENO, STDIN_FILENO);
+				if (twoway)
+					(void)dup2(STDOUT_FILENO, STDIN_FILENO);
 			} else if (twoway && (pdes[1] != STDIN_FILENO))
 				(void)dup2(pdes[1], STDIN_FILENO);
 		} else {
