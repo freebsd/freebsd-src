@@ -568,6 +568,7 @@ static void wi_rxeof(sc)
 		m->m_pkthdr.len = m->m_len =
 		    rx_frame.wi_dat_len + WI_SNAPHDR_LEN;
 
+#if 0
 		bcopy((char *)&rx_frame.wi_addr1,
 		    (char *)&eh->ether_dhost, ETHER_ADDR_LEN);
 		if (sc->wi_ptype == WI_PORTTYPE_ADHOC) {
@@ -577,6 +578,13 @@ static void wi_rxeof(sc)
 			bcopy((char *)&rx_frame.wi_addr3,
 			    (char *)&eh->ether_shost, ETHER_ADDR_LEN);
 		}
+#else
+		bcopy((char *)&rx_frame.wi_dst_addr,
+			(char *)&eh->ether_dhost, ETHER_ADDR_LEN);
+		bcopy((char *)&rx_frame.wi_src_addr,
+			(char *)&eh->ether_shost, ETHER_ADDR_LEN);
+#endif
+
 		bcopy((char *)&rx_frame.wi_type,
 		    (char *)&eh->ether_type, ETHER_TYPE_LEN);
 
@@ -664,7 +672,7 @@ void wi_update_stats(sc)
 	u_int16_t		id;
 	struct ifnet		*ifp;
 	u_int32_t		*ptr;
-	int			i;
+	int			len, i;
 	u_int16_t		t;
 
 	ifp = &sc->arpcom.ac_if;
@@ -673,13 +681,14 @@ void wi_update_stats(sc)
 
 	wi_read_data(sc, id, 0, (char *)&gen, 4);
 
-	if (gen.wi_type != WI_INFO_COUNTERS ||
-	    gen.wi_len > (sizeof(sc->wi_stats) / 4) + 1)
+	if (gen.wi_type != WI_INFO_COUNTERS)
 		return;
 
+	len = (gen.wi_len - 1 < sizeof(sc->wi_stats) / 4) ?
+		gen.wi_len - 1 : sizeof(sc->wi_stats) / 4;
 	ptr = (u_int32_t *)&sc->wi_stats;
 
-	for (i = 0; i < gen.wi_len - 1; i++) {
+	for (i = 0; i < len - 1; i++) {
 		t = CSR_READ_2(sc, WI_DATA1);
 #ifdef WI_HERMES_STATS_WAR
 		if (t > 0xF000)
@@ -706,7 +715,7 @@ static void wi_intr(xsc)
 
 	ifp = &sc->arpcom.ac_if;
 
-	if (!(ifp->if_flags & IFF_UP)) {
+	if (sc->wi_gone || !(ifp->if_flags & IFF_UP)) {
 		CSR_WRITE_2(sc, WI_EVENT_ACK, 0xFFFF);
 		CSR_WRITE_2(sc, WI_INT_EN, 0);
 		WI_UNLOCK(sc);
@@ -731,6 +740,7 @@ static void wi_intr(xsc)
 
 	if (status & WI_EV_ALLOC) {
 		int			id;
+
 		id = CSR_READ_2(sc, WI_ALLOC_FID);
 		CSR_WRITE_2(sc, WI_EVENT_ACK, WI_EV_ALLOC);
 		if (id == sc->wi_tx_data_id)
@@ -754,8 +764,9 @@ static void wi_intr(xsc)
 	/* Re-enable interrupts. */
 	CSR_WRITE_2(sc, WI_INT_EN, WI_INTRS);
 
-	if (ifp->if_snd.ifq_head != NULL)
+	if (ifp->if_snd.ifq_head != NULL) {
 		wi_start(ifp);
+	}
 
 	WI_UNLOCK(sc);
 
@@ -803,6 +814,8 @@ static int wi_cmd(sc, cmd, val)
 				return(EIO);
 			break;
 		}
+		if (cmd == WI_CMD_INI)
+			DELAY(100);
 	}
 
 	if (i == WI_TIMEOUT)
@@ -824,6 +837,7 @@ static void wi_reset(sc)
 	}
 	if (i == WI_INIT_TRIES)
 		device_printf(sc->dev, "init failed\n");
+
 	CSR_WRITE_2(sc, WI_INT_EN, 0);
 	CSR_WRITE_2(sc, WI_EVENT_ACK, 0xFFFF);
 
@@ -1008,6 +1022,7 @@ static int wi_seek(sc, id, off, chan)
 {
 	int			i;
 	int			selreg, offreg;
+	int			status;
 
 	switch (chan) {
 	case WI_BAP0:
@@ -1027,12 +1042,16 @@ static int wi_seek(sc, id, off, chan)
 	CSR_WRITE_2(sc, offreg, off);
 
 	for (i = 0; i < WI_TIMEOUT; i++) {
-		if (!(CSR_READ_2(sc, offreg) & (WI_OFF_BUSY|WI_OFF_ERR)))
+		status = CSR_READ_2(sc, offreg);
+		if (!(status & (WI_OFF_BUSY|WI_OFF_ERR)))
 			break;
 	}
 
-	if (i == WI_TIMEOUT)
+	if (i == WI_TIMEOUT) {
+		device_printf(sc->dev, "timeout in wi_seek to %x/%x; last status %x\n",
+			id, off, status);
 		return(ETIMEDOUT);
+	}
 
 	return(0);
 }
@@ -1079,7 +1098,7 @@ static int wi_write_data(sc, id, off, buf, len)
 #ifdef WI_HERMES_AUTOINC_WAR
 	int			retries;
 
-	retries = WI_TIMEOUT >> 4;
+	retries = 512;
 again:
 #endif
 
@@ -1131,14 +1150,18 @@ static int wi_alloc_nicmem(sc, len, id)
 			break;
 	}
 
-	if (i == WI_TIMEOUT)
+	if (i == WI_TIMEOUT) {
+		device_printf(sc->dev, "time out allocating memory on card\n");
 		return(ETIMEDOUT);
+	}
 
 	CSR_WRITE_2(sc, WI_EVENT_ACK, WI_EV_ALLOC);
 	*id = CSR_READ_2(sc, WI_ALLOC_FID);
 
-	if (wi_seek(sc, *id, 0, WI_BAP0))
+	if (wi_seek(sc, *id, 0, WI_BAP0)) {
+		device_printf(sc->dev, "seek failed while allocating memory on card\n");
 		return(EIO);
+	}
 
 	for (i = 0; i < len / 2; i++)
 		CSR_WRITE_2(sc, WI_DATA0, 0);
@@ -1464,11 +1487,11 @@ static void wi_init(xsc)
 	/* Enable desired port */
 	wi_cmd(sc, WI_CMD_ENABLE|sc->wi_portnum, 0);
 
-	if (wi_alloc_nicmem(sc, 1518 + sizeof(struct wi_frame) + 8, &id))
+	if (wi_alloc_nicmem(sc, ETHER_MAX_LEN + sizeof(struct wi_frame) + 8, &id))
 		device_printf(sc->dev, "tx buffer allocation failed\n");
 	sc->wi_tx_data_id = id;
 
-	if (wi_alloc_nicmem(sc, 1518 + sizeof(struct wi_frame) + 8, &id))
+	if (wi_alloc_nicmem(sc, ETHER_MAX_LEN + sizeof(struct wi_frame) + 8, &id))
 		device_printf(sc->dev, "mgmt. buffer allocation failed\n");
 	sc->wi_tx_mgmt_id = id;
 
