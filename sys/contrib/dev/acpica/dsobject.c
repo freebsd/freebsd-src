@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsobject - Dispatcher object management routines
- *              $Revision: 110 $
+ *              $Revision: 114 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -128,194 +128,6 @@
 
 
 #ifndef ACPI_NO_METHOD_EXECUTION
-/*******************************************************************************
- *
- * FUNCTION:    AcpiDsInitOneObject
- *
- * PARAMETERS:  ObjHandle       - Node
- *              Level           - Current nesting level
- *              Context         - Points to a init info struct
- *              ReturnValue     - Not used
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Callback from AcpiWalkNamespace.  Invoked for every object
- *              within the namespace.
- *
- *              Currently, the only objects that require initialization are:
- *              1) Methods
- *              2) Operation Regions
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiDsInitOneObject (
-    ACPI_HANDLE             ObjHandle,
-    UINT32                  Level,
-    void                    *Context,
-    void                    **ReturnValue)
-{
-    ACPI_OBJECT_TYPE        Type;
-    ACPI_STATUS             Status;
-    ACPI_INIT_WALK_INFO     *Info = (ACPI_INIT_WALK_INFO *) Context;
-
-
-    ACPI_FUNCTION_NAME ("DsInitOneObject");
-
-
-    /*
-     * We are only interested in objects owned by the table that
-     * was just loaded
-     */
-    if (((ACPI_NAMESPACE_NODE *) ObjHandle)->OwnerId !=
-            Info->TableDesc->TableId)
-    {
-        return (AE_OK);
-    }
-
-    Info->ObjectCount++;
-
-    /* And even then, we are only interested in a few object types */
-
-    Type = AcpiNsGetType (ObjHandle);
-
-    switch (Type)
-    {
-    case ACPI_TYPE_REGION:
-
-        Status = AcpiDsInitializeRegion (ObjHandle);
-        if (ACPI_FAILURE (Status))
-        {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Region %p [%4.4s] - Init failure, %s\n",
-                ObjHandle, ((ACPI_NAMESPACE_NODE *) ObjHandle)->Name.Ascii,
-                AcpiFormatException (Status)));
-        }
-
-        Info->OpRegionCount++;
-        break;
-
-
-    case ACPI_TYPE_METHOD:
-
-        Info->MethodCount++;
-
-        if (!(AcpiDbgLevel & ACPI_LV_INIT))
-        {
-            ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OK, "."));
-        }
-
-        /*
-         * Set the execution data width (32 or 64) based upon the
-         * revision number of the parent ACPI table.
-         * TBD: This is really for possible future support of integer width
-         * on a per-table basis. Currently, we just use a global for the width.
-         */
-        if (Info->TableDesc->Pointer->Revision == 1)
-        {
-            ((ACPI_NAMESPACE_NODE *) ObjHandle)->Flags |= ANOBJ_DATA_WIDTH_32;
-        }
-
-        /*
-         * Always parse methods to detect errors, we may delete
-         * the parse tree below
-         */
-        Status = AcpiDsParseMethod (ObjHandle);
-        if (ACPI_FAILURE (Status))
-        {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Method %p [%4.4s] - parse failure, %s\n",
-                ObjHandle, ((ACPI_NAMESPACE_NODE *) ObjHandle)->Name.Ascii,
-                AcpiFormatException (Status)));
-
-            /* This parse failed, but we will continue parsing more methods */
-
-            break;
-        }
-
-        /*
-         * Delete the parse tree.  We simple re-parse the method
-         * for every execution since there isn't much overhead
-         */
-        AcpiNsDeleteNamespaceSubtree (ObjHandle);
-        AcpiNsDeleteNamespaceByOwner (((ACPI_NAMESPACE_NODE *) ObjHandle)->Object->Method.OwningId);
-        break;
-
-
-    case ACPI_TYPE_DEVICE:
-
-        Info->DeviceCount++;
-        break;
-
-
-    default:
-        break;
-    }
-
-    /*
-     * We ignore errors from above, and always return OK, since
-     * we don't want to abort the walk on a single error.
-     */
-    return (AE_OK);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiDsInitializeObjects
- *
- * PARAMETERS:  TableDesc       - Descriptor for parent ACPI table
- *              StartNode       - Root of subtree to be initialized.
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Walk the namespace starting at "StartNode" and perform any
- *              necessary initialization on the objects found therein
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiDsInitializeObjects (
-    ACPI_TABLE_DESC         *TableDesc,
-    ACPI_NAMESPACE_NODE     *StartNode)
-{
-    ACPI_STATUS             Status;
-    ACPI_INIT_WALK_INFO     Info;
-
-
-    ACPI_FUNCTION_TRACE ("DsInitializeObjects");
-
-
-    ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
-        "**** Starting initialization of namespace objects ****\n"));
-    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OK, "Parsing Methods:"));
-
-    Info.MethodCount    = 0;
-    Info.OpRegionCount  = 0;
-    Info.ObjectCount    = 0;
-    Info.DeviceCount    = 0;
-    Info.TableDesc      = TableDesc;
-
-    /* Walk entire namespace from the supplied root */
-
-    Status = AcpiWalkNamespace (ACPI_TYPE_ANY, StartNode, ACPI_UINT32_MAX,
-                    AcpiDsInitOneObject, &Info, NULL);
-    if (ACPI_FAILURE (Status))
-    {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "WalkNamespace failed, %s\n",
-            AcpiFormatException (Status)));
-    }
-
-    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OK,
-        "\nTable [%4.4s] - %hd Objects with %hd Devices %hd Methods %hd Regions\n",
-        TableDesc->Pointer->Signature, Info.ObjectCount,
-        Info.DeviceCount, Info.MethodCount, Info.OpRegionCount));
-
-    ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
-        "%hd Methods, %hd Regions\n", Info.MethodCount, Info.OpRegionCount));
-
-    return_ACPI_STATUS (AE_OK);
-}
-
-
 /*****************************************************************************
  *
  * FUNCTION:    AcpiDsBuildInternalObject
@@ -479,23 +291,24 @@ AcpiDsBuildInternalBufferObj (
     {
         ObjDesc->Buffer.Pointer = NULL;
         ACPI_REPORT_WARNING (("Buffer created with zero length in AML\n"));
-        return_ACPI_STATUS (AE_OK);
     }
-
-    ObjDesc->Buffer.Pointer = ACPI_MEM_CALLOCATE (
-                                    ObjDesc->Buffer.Length);
-    if (!ObjDesc->Buffer.Pointer)
+    else
     {
-        AcpiUtDeleteObjectDesc (ObjDesc);
-        return_ACPI_STATUS (AE_NO_MEMORY);
-    }
+        ObjDesc->Buffer.Pointer = ACPI_MEM_CALLOCATE (
+                                        ObjDesc->Buffer.Length);
+        if (!ObjDesc->Buffer.Pointer)
+        {
+            AcpiUtDeleteObjectDesc (ObjDesc);
+            return_ACPI_STATUS (AE_NO_MEMORY);
+        }
 
-    /* Initialize buffer from the ByteList (if present) */
+        /* Initialize buffer from the ByteList (if present) */
 
-    if (ByteList)
-    {
-        ACPI_MEMCPY (ObjDesc->Buffer.Pointer, ByteList->Named.Data,
-                     ByteListLength);
+        if (ByteList)
+        {
+            ACPI_MEMCPY (ObjDesc->Buffer.Pointer, ByteList->Named.Data,
+                         ByteListLength);
+        }
     }
 
     ObjDesc->Buffer.Flags |= AOPOBJ_DATA_VALID;
@@ -685,7 +498,7 @@ AcpiDsCreateNode (
         return_ACPI_STATUS (Status);
     }
 
-    /* Re-type the object according to it's argument */
+    /* Re-type the object according to its argument */
 
     Node->Type = ACPI_GET_OBJECT_TYPE (ObjDesc);
 

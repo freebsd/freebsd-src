@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exoparg2 - AML execution - opcodes with 2 arguments
- *              $Revision: 115 $
+ *              $Revision: 117 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -477,7 +477,7 @@ AcpiExOpcode_2A_1T_1R (
             Status = AE_NO_MEMORY;
             goto Cleanup;
         }
-        
+
         /* Allocate a new string buffer (Length + 1 for null terminator) */
 
         ReturnDesc->String.Pointer = ACPI_MEM_CALLOCATE (Length + 1);

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evxfevnt - External Interfaces, ACPI event disable/enable
- *              $Revision: 57 $
+ *              $Revision: 62 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -155,7 +155,7 @@ AcpiEnable (void)
 
     if (AcpiHwGetMode() == ACPI_SYS_MODE_ACPI)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_OK, "Already in ACPI mode.\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INIT, "System is already in ACPI mode\n"));
     }
     else
     {
@@ -164,11 +164,11 @@ AcpiEnable (void)
         Status = AcpiHwSetMode (ACPI_SYS_MODE_ACPI);
         if (ACPI_FAILURE (Status))
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_FATAL, "Could not transition to ACPI mode.\n"));
+            ACPI_REPORT_ERROR (("Could not transition to ACPI mode.\n"));
             return_ACPI_STATUS (Status);
         }
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_OK, "Transition to ACPI mode successful\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INIT, "Transition to ACPI mode successful\n"));
     }
 
     return_ACPI_STATUS (Status);
@@ -203,20 +203,21 @@ AcpiDisable (void)
 
     if (AcpiHwGetMode() == ACPI_SYS_MODE_LEGACY)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_OK, "Already in LEGACY mode.\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INIT, "System is already in legacy (non-ACPI) mode\n"));
     }
     else
     {
         /* Transition to LEGACY mode */
+
         Status = AcpiHwSetMode (ACPI_SYS_MODE_LEGACY);
 
         if (ACPI_FAILURE (Status))
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Could not transition to LEGACY mode."));
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Could not exit ACPI mode to legacy mode"));
             return_ACPI_STATUS (Status);
         }
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_OK, "Transition to LEGACY mode successful\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INIT, "ACPI mode disabled\n"));
     }
 
     return_ACPI_STATUS (Status);
@@ -245,6 +246,7 @@ AcpiEnableEvent (
 {
     ACPI_STATUS             Status = AE_OK;
     UINT32                  Value;
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo;
 
 
     ACPI_FUNCTION_TRACE ("AcpiEnableEvent");
@@ -296,14 +298,15 @@ AcpiEnableEvent (
 
         /* Ensure that we have a valid GPE number */
 
-        if (AcpiEvGetGpeNumberIndex (Event) == ACPI_GPE_INVALID)
+        GpeEventInfo = AcpiEvGetGpeEventInfo (Event);
+        if (!GpeEventInfo)
         {
             return_ACPI_STATUS (AE_BAD_PARAMETER);
         }
 
         /* Enable the requested GPE number */
 
-        Status = AcpiHwEnableGpe (Event);
+        Status = AcpiHwEnableGpe (GpeEventInfo);
         if (ACPI_FAILURE (Status))
         {
             return_ACPI_STATUS (Status);
@@ -311,7 +314,7 @@ AcpiEnableEvent (
 
         if (Flags & ACPI_EVENT_WAKE_ENABLE)
         {
-            AcpiHwEnableGpeForWakeup (Event);
+            AcpiHwEnableGpeForWakeup (GpeEventInfo);
         }
         break;
 
@@ -347,6 +350,7 @@ AcpiDisableEvent (
 {
     ACPI_STATUS             Status = AE_OK;
     UINT32                  Value;
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo;
 
 
     ACPI_FUNCTION_TRACE ("AcpiDisableEvent");
@@ -396,7 +400,8 @@ AcpiDisableEvent (
 
         /* Ensure that we have a valid GPE number */
 
-        if (AcpiEvGetGpeNumberIndex (Event) == ACPI_GPE_INVALID)
+        GpeEventInfo = AcpiEvGetGpeEventInfo (Event);
+        if (!GpeEventInfo)
         {
             return_ACPI_STATUS (AE_BAD_PARAMETER);
         }
@@ -408,11 +413,11 @@ AcpiDisableEvent (
 
         if (Flags & ACPI_EVENT_WAKE_DISABLE)
         {
-            AcpiHwDisableGpeForWakeup (Event);
+            AcpiHwDisableGpeForWakeup (GpeEventInfo);
         }
         else
         {
-            Status = AcpiHwDisableGpe (Event);
+            Status = AcpiHwDisableGpe (GpeEventInfo);
         }
         break;
 
@@ -444,6 +449,7 @@ AcpiClearEvent (
     UINT32                  Type)
 {
     ACPI_STATUS             Status = AE_OK;
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo;
 
 
     ACPI_FUNCTION_TRACE ("AcpiClearEvent");
@@ -475,12 +481,13 @@ AcpiClearEvent (
 
         /* Ensure that we have a valid GPE number */
 
-        if (AcpiEvGetGpeNumberIndex (Event) == ACPI_GPE_INVALID)
+        GpeEventInfo = AcpiEvGetGpeEventInfo (Event);
+        if (!GpeEventInfo)
         {
             return_ACPI_STATUS (AE_BAD_PARAMETER);
         }
 
-        Status = AcpiHwClearGpe (Event);
+        Status = AcpiHwClearGpe (GpeEventInfo);
         break;
 
 
@@ -516,6 +523,7 @@ AcpiGetEventStatus (
     ACPI_EVENT_STATUS       *EventStatus)
 {
     ACPI_STATUS             Status = AE_OK;
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo;
 
 
     ACPI_FUNCTION_TRACE ("AcpiGetEventStatus");
@@ -551,7 +559,8 @@ AcpiGetEventStatus (
 
         /* Ensure that we have a valid GPE number */
 
-        if (AcpiEvGetGpeNumberIndex (Event) == ACPI_GPE_INVALID)
+        GpeEventInfo = AcpiEvGetGpeEventInfo (Event);
+        if (!GpeEventInfo)
         {
             return_ACPI_STATUS (AE_BAD_PARAMETER);
         }
@@ -568,4 +577,5 @@ AcpiGetEventStatus (
 
     return_ACPI_STATUS (Status);
 }
+
 

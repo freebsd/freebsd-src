@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsutils - Utilities for the resource manager
- *              $Revision: 33 $
+ *              $Revision: 37 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -159,33 +159,12 @@ AcpiRsGetPrtMethodData (
     /* Parameters guaranteed valid by caller */
 
     /*
-     *  Execute the method, no parameters
+     * Execute the method, no parameters
      */
-    Status = AcpiNsEvaluateRelative (Handle, "_PRT", NULL, &ObjDesc);
+    Status = AcpiUtEvaluateObject (Handle, "_PRT", ACPI_BTYPE_PACKAGE, &ObjDesc);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
-    }
-
-    if (!ObjDesc)
-    {
-        /* Return object is required */
-
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "No object was returned from _PRT\n"));
-        return_ACPI_STATUS (AE_TYPE);
-    }
-
-    /*
-     * The return object must be a package, so check the parameters.  If the
-     * return object is not a package, then the underlying AML code is corrupt
-     * or improperly written.
-     */
-    if (ACPI_GET_OBJECT_TYPE (ObjDesc) != ACPI_TYPE_PACKAGE)
-    {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "_PRT did not return a Package, returned %s\n",
-                AcpiUtGetObjectTypeName (ObjDesc)));
-        Status = AE_AML_OPERAND_TYPE;
-        goto Cleanup;
     }
 
     /*
@@ -195,8 +174,6 @@ AcpiRsGetPrtMethodData (
     Status = AcpiRsCreatePciRoutingTable (ObjDesc, RetBuffer);
 
     /* On exit, we must delete the object returned by EvaluateObject */
-
-Cleanup:
 
     AcpiUtRemoveReference (ObjDesc);
     return_ACPI_STATUS (Status);
@@ -238,32 +215,10 @@ AcpiRsGetCrsMethodData (
     /*
      * Execute the method, no parameters
      */
-    Status = AcpiNsEvaluateRelative (Handle, "_CRS", NULL, &ObjDesc);
+    Status = AcpiUtEvaluateObject (Handle, "_CRS", ACPI_BTYPE_BUFFER, &ObjDesc);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
-    }
-
-    if (!ObjDesc)
-    {
-        /* Return object is required */
-
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "No object was returned from _CRS\n"));
-        return_ACPI_STATUS (AE_TYPE);
-    }
-
-    /*
-     * The return object will be a buffer, but check the
-     * parameters.  If the return object is not a buffer,
-     * then the underlying AML code is corrupt or improperly
-     * written.
-     */
-    if (ACPI_GET_OBJECT_TYPE (ObjDesc) != ACPI_TYPE_BUFFER)
-    {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "_CRS did not return a Buffer, returned %s\n",
-                AcpiUtGetObjectTypeName (ObjDesc)));
-        Status = AE_AML_OPERAND_TYPE;
-        goto Cleanup;
     }
 
     /*
@@ -274,8 +229,6 @@ AcpiRsGetCrsMethodData (
     Status = AcpiRsCreateResourceList (ObjDesc, RetBuffer);
 
     /* On exit, we must delete the object returned by evaluateObject */
-
-Cleanup:
 
     AcpiUtRemoveReference (ObjDesc);
     return_ACPI_STATUS (Status);
@@ -317,32 +270,10 @@ AcpiRsGetPrsMethodData (
     /*
      * Execute the method, no parameters
      */
-    Status = AcpiNsEvaluateRelative (Handle, "_PRS", NULL, &ObjDesc);
+    Status = AcpiUtEvaluateObject (Handle, "_PRS", ACPI_BTYPE_BUFFER, &ObjDesc);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
-    }
-
-    if (!ObjDesc)
-    {
-        /* Return object is required */
-
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "No object was returned from _PRS\n"));
-        return_ACPI_STATUS (AE_TYPE);
-    }
-
-    /*
-     * The return object will be a buffer, but check the
-     * parameters.  If the return object is not a buffer,
-     * then the underlying AML code is corrupt or improperly
-     * written..
-     */
-    if (ACPI_GET_OBJECT_TYPE (ObjDesc) != ACPI_TYPE_BUFFER)
-    {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "_PRS did not return a Buffer, returned %s\n",
-                AcpiUtGetObjectTypeName (ObjDesc)));
-        Status = AE_AML_OPERAND_TYPE;
-        goto Cleanup;
     }
 
     /*
@@ -354,12 +285,64 @@ AcpiRsGetPrsMethodData (
 
     /* On exit, we must delete the object returned by evaluateObject */
 
-Cleanup:
-
     AcpiUtRemoveReference (ObjDesc);
     return_ACPI_STATUS (Status);
 }
 
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiRsGetMethodData
+ *
+ * PARAMETERS:  Handle          - a handle to the containing object
+ *              RetBuffer       - a pointer to a buffer structure for the
+ *                                  results
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: This function is called to get the _CRS or _PRS value of an
+ *              object contained in an object specified by the handle passed in
+ *
+ *              If the function fails an appropriate status will be returned
+ *              and the contents of the callers buffer is undefined.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiRsGetMethodData (
+    ACPI_HANDLE             Handle,
+    char                    *Path,
+    ACPI_BUFFER             *RetBuffer)
+{
+    ACPI_OPERAND_OBJECT     *ObjDesc;
+    ACPI_STATUS             Status;
+
+
+    ACPI_FUNCTION_TRACE ("RsGetMethodData");
+
+
+    /* Parameters guaranteed valid by caller */
+
+    /*
+     * Execute the method, no parameters
+     */
+    Status = AcpiUtEvaluateObject (Handle, Path, ACPI_BTYPE_BUFFER, &ObjDesc);
+    if (ACPI_FAILURE (Status)) {
+        return_ACPI_STATUS (Status);
+    }
+
+    /*
+     * Make the call to create a resource linked list from the
+     * byte stream buffer that comes back from the method
+     * execution.
+     */
+    Status = AcpiRsCreateResourceList (ObjDesc, RetBuffer);
+
+    /* On exit, we must delete the object returned by EvaluateObject */
+
+    AcpiUtRemoveReference (ObjDesc);
+    return_ACPI_STATUS (Status);
+}
 
 /*******************************************************************************
  *

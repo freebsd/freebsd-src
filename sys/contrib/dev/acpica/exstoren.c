@@ -3,7 +3,7 @@
  *
  * Module Name: exstoren - AML Interpreter object store support,
  *                        Store to Node (namespace object)
- *              $Revision: 52 $
+ *              $Revision: 55 $
  *
  *****************************************************************************/
 
@@ -11,7 +11,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -277,7 +277,7 @@ AcpiExStoreObjectToObject (
     ACPI_STATUS             Status = AE_OK;
 
 
-    ACPI_FUNCTION_TRACE_PTR ("AcpiExStoreObjectToObject", SourceDesc);
+    ACPI_FUNCTION_TRACE_PTR ("ExStoreObjectToObject", SourceDesc);
 
 
     ActualSrcDesc = SourceDesc;
@@ -312,7 +312,7 @@ AcpiExStoreObjectToObject (
 
         if (SourceDesc == ActualSrcDesc)
         {
-            /* 
+            /*
              * No conversion was performed.  Return the SourceDesc as the
              * new object.
              */

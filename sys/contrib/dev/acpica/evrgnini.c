@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evrgnini- ACPI AddressSpace (OpRegion) init
- *              $Revision: 63 $
+ *              $Revision: 66 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -380,6 +380,11 @@ AcpiEvPciConfigRegionSetup (
         PciId->Bus = ACPI_LOWORD (Temp);
     }
 
+    /*
+     * Complete this device's PciId
+     */
+    AcpiOsDerivePciId (Node, RegionObj->Region.Node, &PciId);
+
     *RegionContext = PciId;
     return_ACPI_STATUS (AE_OK);
 }
@@ -500,7 +505,7 @@ AcpiEvDefaultRegionSetup (
  *              Get the appropriate address space handler for a newly
  *              created region.
  *
- *              This also performs address space specific intialization.  For
+ *              This also performs address space specific initialization.  For
  *              example, PCI regions must have an _ADR object that contains
  *              a PCI address in the scope of the definition.  This address is
  *              required to perform an access to PCI config space.

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exregion - ACPI default OpRegion (address space) handlers
- *              $Revision: 80 $
+ *              $Revision: 82 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -230,9 +230,9 @@ AcpiExSystemMemorySpaceHandler (
          * constrain the maximum mapping size to something reasonable.
          */
         WindowSize = (ACPI_SIZE) ((MemInfo->Address + MemInfo->Length) - Address);
-        if (WindowSize > SYSMEM_REGION_WINDOW_SIZE)
+        if (WindowSize > ACPI_SYSMEM_REGION_WINDOW_SIZE)
         {
-            WindowSize = SYSMEM_REGION_WINDOW_SIZE;
+            WindowSize = ACPI_SYSMEM_REGION_WINDOW_SIZE;
         }
 
         /* Create a new mapping starting at the address given */

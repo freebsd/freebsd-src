@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actbl.h - Table data structures defined in ACPI specification
- *       $Revision: 53 $
+ *       $Revision: 58 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -165,37 +165,37 @@
  * Architecture-independent tables
  * The architecture dependent tables are in separate files
  */
-typedef struct  /* Root System Descriptor Pointer */
+typedef struct rsdp_descriptor /* Root System Descriptor Pointer */
 {
-    NATIVE_CHAR             Signature [8];          /* ACPI signature, contains "RSD PTR " */
+    char                    Signature [8];          /* ACPI signature, contains "RSD PTR " */
     UINT8                   Checksum;               /* To make sum of struct == 0 */
-    NATIVE_CHAR             OemId [6];              /* OEM identification */
+    char                    OemId [6];              /* OEM identification */
     UINT8                   Revision;               /* Must be 0 for 1.0, 2 for 2.0 */
     UINT32                  RsdtPhysicalAddress;    /* 32-bit physical address of RSDT */
     UINT32                  Length;                 /* XSDT Length in bytes including hdr */
     UINT64                  XsdtPhysicalAddress;    /* 64-bit physical address of XSDT */
     UINT8                   ExtendedChecksum;       /* Checksum of entire table */
-    NATIVE_CHAR             Reserved [3];           /* Reserved field must be 0 */
+    char                    Reserved [3];           /* Reserved field must be 0 */
 
 } RSDP_DESCRIPTOR;
 
 
-typedef struct  /* ACPI common table header */
+typedef struct acpi_table_header /* ACPI common table header */
 {
-    NATIVE_CHAR             Signature [4];          /* ACPI signature (4 ASCII characters) */
+    char                    Signature [4];          /* ACPI signature (4 ASCII characters) */
     UINT32                  Length;                 /* Length of table, in bytes, including header */
     UINT8                   Revision;               /* ACPI Specification minor version # */
     UINT8                   Checksum;               /* To make sum of entire table == 0 */
-    NATIVE_CHAR             OemId [6];              /* OEM identification */
-    NATIVE_CHAR             OemTableId [8];         /* OEM table identification */
+    char                    OemId [6];              /* OEM identification */
+    char                    OemTableId [8];         /* OEM table identification */
     UINT32                  OemRevision;            /* OEM revision number */
-    NATIVE_CHAR             AslCompilerId [4];      /* ASL compiler vendor ID */
+    char                    AslCompilerId [4];      /* ASL compiler vendor ID */
     UINT32                  AslCompilerRevision;    /* ASL compiler revision number */
 
 } ACPI_TABLE_HEADER;
 
 
-typedef struct  /* Common FACS for internal use */
+typedef struct acpi_common_facs  /* Common FACS for internal use */
 {
     UINT32                  *GlobalLock;
     UINT64                  *FirmwareWakingVector;
@@ -204,7 +204,7 @@ typedef struct  /* Common FACS for internal use */
 } ACPI_COMMON_FACS;
 
 
-typedef struct  /* APIC Table */
+typedef struct apic_table
 {
     ACPI_TABLE_HEADER       Header;                 /* ACPI table header */
     UINT32                  LocalApicAddress;       /* Physical address for accessing local APICs */
@@ -214,7 +214,7 @@ typedef struct  /* APIC Table */
 } APIC_TABLE;
 
 
-typedef struct  /* APIC Header */
+typedef struct apic_header
 {
     UINT8                   Type;                   /* APIC type.  Either APIC_PROC or APIC_IO */
     UINT8                   Length;                 /* Length of APIC structure */
@@ -222,7 +222,7 @@ typedef struct  /* APIC Header */
 } APIC_HEADER;
 
 
-typedef struct  /* Processor APIC */
+typedef struct processor_apic
 {
     APIC_HEADER             Header;
     UINT8                   ProcessorApicId;        /* ACPI processor id */
@@ -233,7 +233,7 @@ typedef struct  /* Processor APIC */
 } PROCESSOR_APIC;
 
 
-typedef struct  /* IO APIC */
+typedef struct io_apic
 {
     APIC_HEADER             Header;
     UINT8                   IoApicId;               /* I/O APIC ID */
@@ -252,7 +252,7 @@ typedef struct  /* IO APIC */
  *  IA64 TBD:   Modify Smart Battery Description to comply with ACPI IA64
  *              extensions.
  */
-typedef struct  /* Smart Battery Description Table */
+typedef struct smart_battery_description_table
 {
     ACPI_TABLE_HEADER       Header;
     UINT32                  WarningLevel;
@@ -283,15 +283,15 @@ typedef struct  /* Smart Battery Description Table */
 #define ACPI_TABLE_ROOT         0x00
 #define ACPI_TABLE_PRIMARY      0x10
 #define ACPI_TABLE_SECONDARY    0x20
-#define ACPI_TABLE_OTHER        0x30
+#define ACPI_TABLE_ALL          0x30
 #define ACPI_TABLE_TYPE_MASK    0x30
 
 /* Data about each known table type */
 
-typedef struct _AcpiTableSupport
+typedef struct acpi_table_support
 {
-    NATIVE_CHAR             *Name;
-    NATIVE_CHAR             *Signature;
+    char                    *Name;
+    char                    *Signature;
     void                    **GlobalPtr;
     UINT8                   SigLength;
     UINT8                   Flags;

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evmisc - Miscellaneous event manager support functions
- *              $Revision: 59 $
+ *              $Revision: 64 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -160,60 +160,6 @@ AcpiEvIsNotifyObject (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiEvGetGpeRegisterIndex
- *
- * PARAMETERS:  GpeNumber       - Raw GPE number
- *
- * RETURN:      None.
- *
- * DESCRIPTION: Returns the register index (index into the GPE register info
- *              table) associated with this GPE.
- *
- ******************************************************************************/
-
-UINT32
-AcpiEvGetGpeRegisterIndex (
-    UINT32                  GpeNumber)
-{
-
-    if (GpeNumber > AcpiGbl_GpeNumberMax)
-    {
-        return (ACPI_GPE_INVALID);
-    }
-
-    return (ACPI_DIV_8 (AcpiGbl_GpeNumberToIndex[GpeNumber].NumberIndex));
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiEvGetGpeNumberIndex
- *
- * PARAMETERS:  GpeNumber       - Raw GPE number
- *
- * RETURN:      None.
- *
- * DESCRIPTION: Returns the number index (index into the GPE number info table)
- *              associated with this GPE.
- *
- ******************************************************************************/
-
-UINT32
-AcpiEvGetGpeNumberIndex (
-    UINT32                  GpeNumber)
-{
-
-    if (GpeNumber > AcpiGbl_GpeNumberMax)
-    {
-        return (ACPI_GPE_INVALID);
-    }
-
-    return (AcpiGbl_GpeNumberToIndex[GpeNumber].NumberIndex);
-}
-
-
-/*******************************************************************************
- *
  * FUNCTION:    AcpiEvQueueNotifyRequest
  *
  * PARAMETERS:
@@ -331,7 +277,7 @@ AcpiEvQueueNotifyRequest (
     {
         /* There is no per-device notify handler for this device */
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, 
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
             "No notify handler for [%4.4s] node %p\n", Node->Name.Ascii, Node));
     }
 
@@ -675,8 +621,11 @@ AcpiEvReleaseGlobalLock (void)
 void
 AcpiEvTerminate (void)
 {
-    NATIVE_UINT_MAX32       i;
+    ACPI_NATIVE_UINT        i;
     ACPI_STATUS             Status;
+    ACPI_GPE_BLOCK_INFO     *GpeBlock;
+    ACPI_GPE_BLOCK_INFO     *NextGpeBlock;
+    ACPI_GPE_EVENT_INFO     *GpeEventInfo;
 
 
     ACPI_FUNCTION_TRACE ("EvTerminate");
@@ -694,32 +643,38 @@ AcpiEvTerminate (void)
          */
         for (i = 0; i < ACPI_NUM_FIXED_EVENTS; i++)
         {
-            Status = AcpiDisableEvent(i, ACPI_EVENT_FIXED, 0);
+            Status = AcpiDisableEvent ((UINT32) i, ACPI_EVENT_FIXED, 0);
             if (ACPI_FAILURE (Status))
             {
-                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Could not disable fixed event %d\n", i));
+                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Could not disable fixed event %d\n", (UINT32) i));
             }
         }
 
         /*
          * Disable all GPEs
          */
-        for (i = 0; i < AcpiGbl_GpeNumberMax; i++)
+        GpeBlock = AcpiGbl_GpeBlockListHead;
+        while (GpeBlock)
         {
-            if (AcpiEvGetGpeNumberIndex(i) != ACPI_GPE_INVALID)
+            GpeEventInfo = GpeBlock->EventInfo;
+            for (i = 0; i < (GpeBlock->RegisterCount * 8); i++)
             {
-                Status = AcpiHwDisableGpe(i);
+                Status = AcpiHwDisableGpe (GpeEventInfo);
                 if (ACPI_FAILURE (Status))
                 {
-                    ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Could not disable GPE %d\n", i));
+                    ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Could not disable GPE %d\n", (UINT32) i));
                 }
+
+                GpeEventInfo++;
             }
+
+            GpeBlock = GpeBlock->Next;
         }
 
         /*
          * Remove SCI handler
          */
-        Status = AcpiEvRemoveSciHandler();
+        Status = AcpiEvRemoveSciHandler ();
         if (ACPI_FAILURE(Status))
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Could not remove SCI handler\n"));
@@ -739,24 +694,17 @@ AcpiEvTerminate (void)
     }
 
     /*
-     * Free global tables, etc.
+     * Free global GPE blocks and related info structures
      */
-    if (AcpiGbl_GpeRegisterInfo)
+    GpeBlock = AcpiGbl_GpeBlockListHead;
+    while (GpeBlock)
     {
-        ACPI_MEM_FREE (AcpiGbl_GpeRegisterInfo);
-        AcpiGbl_GpeRegisterInfo = NULL;
-    }
+        NextGpeBlock = GpeBlock->Next;
+        ACPI_MEM_FREE (GpeBlock->EventInfo);
+        ACPI_MEM_FREE (GpeBlock->RegisterInfo);
+        ACPI_MEM_FREE (GpeBlock);
 
-    if (AcpiGbl_GpeNumberInfo)
-    {
-        ACPI_MEM_FREE (AcpiGbl_GpeNumberInfo);
-        AcpiGbl_GpeNumberInfo = NULL;
-    }
-
-    if (AcpiGbl_GpeNumberToIndex)
-    {
-        ACPI_MEM_FREE (AcpiGbl_GpeNumberToIndex);
-        AcpiGbl_GpeNumberToIndex = NULL;
+        GpeBlock = NextGpeBlock;
     }
 
     return_VOID;

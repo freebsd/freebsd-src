@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psargs - Parse AML opcode arguments
- *              $Revision: 65 $
+ *              $Revision: 69 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -215,7 +215,7 @@ AcpiPsGetNextPackageEnd (
     ACPI_PARSE_STATE        *ParserState)
 {
     UINT8                   *Start = ParserState->Aml;
-    NATIVE_UINT             Length;
+    ACPI_NATIVE_UINT        Length;
 
 
     ACPI_FUNCTION_TRACE ("PsGetNextPackageEnd");
@@ -223,7 +223,7 @@ AcpiPsGetNextPackageEnd (
 
     /* Function below changes ParserState->Aml */
 
-    Length = (NATIVE_UINT) AcpiPsGetNextPackageLength (ParserState);
+    Length = (ACPI_NATIVE_UINT) AcpiPsGetNextPackageLength (ParserState);
 
     return_PTR (Start + Length); /* end of package */
 }
@@ -244,7 +244,7 @@ AcpiPsGetNextPackageEnd (
  *
  ******************************************************************************/
 
-NATIVE_CHAR *
+char *
 AcpiPsGetNextNamestring (
     ACPI_PARSE_STATE        *ParserState)
 {
@@ -302,7 +302,7 @@ AcpiPsGetNextNamestring (
     }
 
     ParserState->Aml = (UINT8*) End;
-    return_PTR ((NATIVE_CHAR *) Start);
+    return_PTR ((char *) Start);
 }
 
 
@@ -334,7 +334,7 @@ AcpiPsGetNextNamepath (
     ACPI_PARSE_OBJECT       *Arg,
     BOOLEAN                 MethodCall)
 {
-    NATIVE_CHAR             *Path;
+    char                    *Path;
     ACPI_PARSE_OBJECT       *NameOp;
     ACPI_STATUS             Status = AE_OK;
     ACPI_OPERAND_OBJECT     *MethodDesc;
@@ -377,7 +377,7 @@ AcpiPsGetNextNamepath (
                  * This name is actually a control method invocation
                  */
                 MethodDesc = AcpiNsGetAttachedObject (Node);
-                ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, 
+                ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
                     "Control Method - %p Desc %p Path=%p\n",
                     Node, MethodDesc, Path));
 
@@ -399,13 +399,13 @@ AcpiPsGetNextNamepath (
 
                 if (!MethodDesc)
                 {
-                    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, 
+                    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
                         "Control Method - %p has no attached object\n",
                         Node));
                     return_ACPI_STATUS (AE_AML_INTERNAL);
                 }
 
-                ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, 
+                ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
                     "Control Method - %p Args %X\n",
                     Node, MethodDesc->Method.ParamCount));
 
@@ -424,13 +424,13 @@ AcpiPsGetNextNamepath (
 
         if (ACPI_FAILURE (Status))
         {
-            /* 
+            /*
              * 1) Any error other than NOT_FOUND is always severe
              * 2) NOT_FOUND is only important if we are executing a method.
              * 3) If executing a CondRefOf opcode, NOT_FOUND is ok.
              */
-            if ((((WalkState->ParseFlags & ACPI_PARSE_MODE_MASK) == ACPI_PARSE_EXECUTE) && 
-                (Status == AE_NOT_FOUND)                                                && 
+            if ((((WalkState->ParseFlags & ACPI_PARSE_MODE_MASK) == ACPI_PARSE_EXECUTE) &&
+                (Status == AE_NOT_FOUND)                                                &&
                 (WalkState->Op->Common.AmlOpcode != AML_COND_REF_OF_OP)) ||
 
                 (Status != AE_NOT_FOUND))
@@ -442,7 +442,7 @@ AcpiPsGetNextNamepath (
                 /*
                  * We got a NOT_FOUND during table load or we encountered
                  * a CondRefOf(x) where the target does not exist.
-                 * -- either case is ok 
+                 * -- either case is ok
                  */
                 Status = AE_OK;
             }
@@ -450,7 +450,7 @@ AcpiPsGetNextNamepath (
     }
 
     /*
-     * Regardless of success/failure above,  
+     * Regardless of success/failure above,
      * Just initialize the Op with the pathname.
      */
     AcpiPsInitOp (Arg, AML_INT_NAMEPATH_OP);
@@ -773,7 +773,7 @@ AcpiPsGetNextArg (
 
             /* Fill in bytelist data */
 
-            Arg->Common.Value.Size = ACPI_PTR_DIFF (ParserState->PkgEnd, 
+            Arg->Common.Value.Size = ACPI_PTR_DIFF (ParserState->PkgEnd,
                                                     ParserState->Aml);
             Arg->Named.Data = ParserState->Aml;
 
