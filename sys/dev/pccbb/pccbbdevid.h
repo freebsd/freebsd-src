@@ -27,6 +27,7 @@
  */
 
 /* Vendor/Device IDs */
+#define PCI_DEVICE_ID_INTEL_82092AA	0x12218086ul	/* 16bit I/O */
 #define	PCI_DEVICE_ID_PCIC_CLPD6729	0x11001013ul	/* 16bit I/O */
 #define	PCI_DEVICE_ID_PCIC_CLPD6832	0x11101013ul
 #define	PCI_DEVICE_ID_PCIC_CLPD6833	0x11131013ul
@@ -75,7 +76,6 @@
 /*
  * Other ID, from sources too vague to be reliable
  *	Mfg		  model		PCI ID
- *   Intel		82092AA		0x12218086	16bit I/O
  *   smc/Databook	DB87144		0x310610b3
  *   SMC/databook	smc34c90	0xb10610b3
  *   Omega/Trident	82c194		0x01941023
