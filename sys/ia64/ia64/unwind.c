@@ -1,30 +1,33 @@
-/*-
- * Copyright (c) 2001 Doug Rabson
+/*
+ * Copyright (c) 2003 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- * $FreeBSD$
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -57,41 +60,91 @@ LIST_HEAD(unw_table_list, unw_table);
 
 static struct unw_table_list unw_tables;
 
+#ifdef DDB
+#define	DDBHEAPSZ	8192
+
+struct mhdr {
+	uint32_t	sig;
+#define	MSIG_FREE	0x65657246	/* "Free". */
+#define	MSIG_USED	0x64657355	/* "Used". */
+	uint32_t	size;
+	int32_t		next;
+	int32_t		prev;
+};
+
+extern int db_active;
+
+static struct mhdr *ddbheap;
+#endif /* DDB */
+
 static void *
 unw_alloc(size_t sz)
 {
+#ifdef DDB
+	struct mhdr *hdr, *hfree;
 
-	return (malloc(sz, M_UNWIND, M_NOWAIT));
+	if (db_active) {
+		sz = (sz + 15) >> 4;
+		hdr = ddbheap;
+		while (hdr->sig != MSIG_FREE || hdr->size < sz) {
+			if (hdr->next == -1)
+				return (NULL);
+			hdr = ddbheap + hdr->next;
+		}
+		if (hdr->size > sz + 1) {
+			hfree = hdr + sz + 1;
+			hfree->sig = MSIG_FREE;
+			hfree->size = hdr->size - sz - 1;
+			hfree->prev = hdr - ddbheap;
+			hfree->next = hdr->next;
+			hdr->size = sz;
+			hdr->next = hfree - ddbheap;
+			if (hfree->next >= 0) {
+				hfree = ddbheap + hfree->next;
+				hfree->prev = hdr->next;
+			}
+		}
+		hdr->sig = MSIG_USED;
+		return (void*)(hdr + 1);
+	}
+#endif
+	return (malloc(sz, M_UNWIND, M_WAITOK));
 }
 
 static void
 unw_free(void *p)
 {
+#ifdef DDB
+	struct mhdr *hdr, *hfree;
 
+	if (db_active) {
+		hdr = (struct mhdr*)p - 1;
+		if (hdr->sig != MSIG_USED)
+			return;
+		hdr->sig = MSIG_FREE;
+		if (hdr->prev >= 0 && ddbheap[hdr->prev].sig == MSIG_FREE) {
+			hfree = ddbheap + hdr->prev;
+			hfree->size += hdr->size + 1;
+			hfree->next = hdr->next;
+			if (hdr->next >= 0) {
+				hfree = ddbheap + hdr->next;
+				hfree->prev = hdr->prev;
+			}
+		} else if (hdr->next >= 0 &&
+		    ddbheap[hdr->next].sig == MSIG_FREE) {
+			hfree = ddbheap + hdr->next;
+			hdr->size += hfree->size + 1;
+			hdr->next = hfree->next;
+			if (hdr->next >= 0) {
+				hfree = ddbheap + hdr->next;
+				hfree->prev = hdr - ddbheap;
+			}
+		}
+		return;
+	}
+#endif
 	free(p, M_UNWIND);
 }
-
-#if 0
-static struct unw_entry *
-unw_entry_lookup(struct unw_table *ut, uint64_t ip)
-{
-	struct unw_entry *end, *mid, *start;
-
-	ip -= ut->ut_base;
-	start = ut->ut_start;
-	end = ut->ut_end - 1;
-	while (start < end) {
-		mid = start + ((end - start) >> 1);
-		if (ip < mid->ue_start)
-			end = mid;
-		else if (ip >= mid->ue_end)
-			start = mid + 1;
-		else
-			break;
-	}
-	return ((start < end) ? mid : NULL);
-}
-#endif
 
 static struct unw_table *
 unw_table_lookup(uint64_t ip)
@@ -225,6 +278,13 @@ unw_create(struct unw_regstate *rs, struct trapframe *tf)
 	return ((uwxerr) ? EINVAL : 0);		/* XXX */
 }
 
+void
+unw_delete(struct unw_regstate *rs)
+{
+
+	uwx_free(rs->env);
+}
+
 int
 unw_step(struct unw_regstate *rs)
 {
@@ -266,10 +326,7 @@ unw_table_add(uint64_t base, uint64_t start, uint64_t end)
 {
 	struct unw_table *ut;
 
-	ut = malloc(sizeof(struct unw_table), M_UNWIND, M_NOWAIT);
-	if (ut == NULL)
-		return (ENOMEM);
-
+	ut = malloc(sizeof(struct unw_table), M_UNWIND, M_WAITOK);
 	ut->ut_base = base;
 	ut->ut_start = (struct unw_entry*)start;
 	ut->ut_end = (struct unw_entry*)end;
@@ -303,5 +360,12 @@ unw_initialize(void *dummy __unused)
 
 	LIST_INIT(&unw_tables);
 	uwx_register_alloc_cb(unw_alloc, unw_free);
+#ifdef DDB
+	ddbheap = malloc(DDBHEAPSZ, M_UNWIND, M_WAITOK);
+	ddbheap->sig = MSIG_FREE;
+	ddbheap->size = (DDBHEAPSZ - sizeof(struct mhdr)) >> 4;
+	ddbheap->next = -1;
+	ddbheap->prev = -1;
+#endif
 }
 SYSINIT(unwind, SI_SUB_KMEM, SI_ORDER_ANY, unw_initialize, 0);
