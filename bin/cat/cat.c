@@ -71,7 +71,7 @@ int rval;
 const char *filename;
 
 static void usage(void);
-static void scanfiles(char **argv, int cooked);
+static void scanfiles(char *argv[], int cooked);
 static void cook_cat(FILE *);
 static void raw_cat(int);
 
@@ -132,8 +132,8 @@ usage(void)
 	/* NOTREACHED */
 }
 
-void
-scanfiles(char **argv, int cooked)
+static void
+scanfiles(char *argv[], int cooked)
 {
 	int i = 0;
 	char *path;
