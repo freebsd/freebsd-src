@@ -1,4 +1,3 @@
-
 .if !exists(${.CURDIR}/../Makefile.inc)
 error:
 	@echo
@@ -27,7 +26,7 @@ install: ${FONTS}
 	@if [ ! -d ${DESTDIR}${FONTDIR} ]; then mkdir ${DESTDIR}${FONTDIR};fi
 	@for i in ${FONTS}; do \
 		${ECHO} "installing font $$i into ${DESTDIR}${FONTDIR}"; \
-		${INSTALL} -c -m ${LIBMODE} -o ${LIBOWN} -g ${LIBGRP} \
+		${INSTALL} ${COPY} -m ${LIBMODE} -o ${LIBOWN} -g ${LIBGRP} \
 		$$i ${DESTDIR}${FONTDIR}; \
 	done
 

@@ -28,7 +28,7 @@ send-pr.el:	send-pr-el.in Makefile
 	    ${.ALLSRC:N*Makefile} > ${.TARGET}
 
 beforeinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		send-pr ${DESTDIR}${BINDIR}/send-pr
 
 # called from /usr/src/etc/Makefile 
