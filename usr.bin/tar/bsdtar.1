@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 5, 2004
+.Dd April 13, 2004
 .Dt BSDTAR 1
 .Os
 .Sh NAME
@@ -35,9 +35,18 @@
 .Op Ar bundled-flags Ao args Ac
 .Op Ao Ar file Ac | Ao Ar pattern Ac ...
 .Nm
-.Brq Fl c | Fl t | Fl x
+.Brq Fl c
 .Op Ar options
-.Op Ar files | patterns | directories
+.Op Ar files | directories
+.Nm
+.Brq Fl r | Fl u
+.Fl f Ar archive-file
+.Op Ar options
+.Op Ar files | directories
+.Nm
+.Brq Fl t | Fl x
+.Op Ar options
+.Op Ar patterns
 .Sh DESCRIPTION
 .Nm
 creates and manipulates streaming archive files.
@@ -48,32 +57,37 @@ option word.
 This usage is provided for compatibility with historical implementations.
 See COMPATIBILITY below for details.
 .Pp
-The preferred usage is illustrated in the second synopsis.
+The other synopsis forms show the preferred usage.
 The first option to
 .Nm
-must be a mode indicator from the following list:
+is a mode indicator from the following list:
 .Bl -tag -compact -width indent
 .It Fl c
 Create a new archive containing the specified items.
 .It Fl r
 Like
 .Fl c ,
-but new entries are appended to the archive specified with the
-.Fl f
-option, which is required.
-If a new entry has the same name as an existing entry, it will normally
-overwrite (replace) that entry on extraction.
+but new entries are appended to the archive.
 Note that this only works on uncompressed archives stored in regular files.
+The
+.Fl f
+option is required.
 .It Fl t
 List archive contents to stdout.
 .It Fl u
 Like
 .Fl r ,
-but new entries are written only if they have a modification date
+but new entries are added only if they have a modification date
 newer than the corresponding entry in the archive.
 Note that this only works on uncompressed archives stored in regular files.
+The
+.Fl f
+option is required.
 .It Fl x
 Extract to disk from the archive.
+If a file with the same name appears more than once in the archive,
+each copy will be extracted, with later copies overwriting (replacing)
+earlier copies.
 .El
 .Pp
 In
@@ -159,6 +173,9 @@ Read the archive from or write the archive to the specified file.
 The filename can be
 .Pa -
 for standard input or standard output.
+If not specified, the default tape device will be used.
+(On FreeBSD, the default tape device is
+.Pa /dev/sa0 . )
 .It Fl -fast-read
 (x and t mode only)
 Extract or list only the first archive entry that matches each pattern
@@ -172,18 +189,24 @@ This option is provided as a performance optimization.
 (c and r mode only)
 Symbolic links named on the command line will be followed; the
 target of the link will be archived, not the link itself.
+.It Fl h
+(c and r mode only)
+Synonym for
+.Fl H .
 .It Fl j
 (c mode only)
 Compress the resulting archive with
 .Xr bzip2 1 .
+In extract or list modes, this option is ignored.
 Note that, unlike other
 .Nm tar
 implementations, this implementation recognizes bzip2 compression
 automatically when reading archives.
-This option is ignored in extract or list modes.
 .It Fl k
 (x mode only)
 Do not overwrite existing files.
+In particular, if a file appears more than once in an archive,
+later copies will not overwrite earlier copies.
 .It Fl L
 (c and r mode only)
 All symbolic links will be followed.
@@ -270,17 +293,20 @@ When visiting subdirectories, ignore any that are on different devices.
 (c mode only)
 Compress the resulting archive with
 .Xr bzip2 1 .
+In extract or list modes, this option is ignored.
+Note that, unlike other
+.Nm tar
+implementations, this implementation recognizes bzip2 compression
+automatically when reading archives.
 .It Fl z
 (c mode only)
 Compress the resulting archive with
 .Xr gzip 1 .
+In extract or list modes, this option is ignored.
 Note that, unlike other
 .Nm tar
-implementations, this implementation recognizes gzip
-and bzip2 compression automatically when reading archives.
-The
-.Fl j , y , No and Fl z
-options are ignored for extract or list mode.
+implementations, this implementation recognizes gzip compression
+automatically when reading archives.
 .El
 .Sh EXAMPLES
 The following creates a new archive
@@ -370,8 +396,7 @@ is the argument to the
 flag.
 .Pp
 The mode options c, r, t, u, and x and the options
-b, f, l, m, o, v, and w are implemented to be compatible
-with SUSv2.
+b, f, l, m, o, v, and w comply with SUSv2.
 .Pp
 On systems that support getopt_long(), additional long options
 are available to improve compatibility with other tar implementations.

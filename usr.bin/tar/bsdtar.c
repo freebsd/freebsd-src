@@ -73,6 +73,7 @@ const char *tar_opts = "b:C:cF:f:HhjkLlmnOoPprtT:UuvwXxyZz";
 #define	OPTION_EXCLUDE 1
 #define	OPTION_FAST_READ 2
 #define OPTION_NODUMP 3
+#define OPTION_HELP 4
 
 const struct option tar_longopts[] = {
         { "absolute-paths",     no_argument,       NULL, 'P' },
@@ -92,7 +93,7 @@ const struct option tar_longopts[] = {
         { "format",             required_argument, NULL, 'F' },
         { "gunzip",             no_argument,       NULL, 'z' },
         { "gzip",               no_argument,       NULL, 'z' },
-        { "help",               no_argument,       NULL, 'h' },
+        { "help",               no_argument,       NULL, OPTION_HELP },
         { "interactive",        no_argument,       NULL, 'w' },
         { "keep-old-files",     no_argument,       NULL, 'k' },
         { "list",               no_argument,       NULL, 't' },
@@ -203,7 +204,10 @@ main(int argc, char **argv)
 		case 'H': /* BSD convention */
 			bsdtar->symlink_mode = 'H';
 			break;
-		case 'h':
+		case 'h': /* Linux LSB for 'tar'; synonym for -H */
+			bsdtar->symlink_mode = 'H';
+			break;
+		case OPTION_HELP:
 			long_help();
 			break;
 		case 'j': /* GNU tar */
