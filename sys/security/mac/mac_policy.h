@@ -73,7 +73,7 @@ struct mac_policy_ops {
 	void	(*mpo_init_cred_label)(struct label *label);
 	void	(*mpo_init_devfsdirent_label)(struct label *label);
 	void	(*mpo_init_ifnet_label)(struct label *label);
-	void	(*mpo_init_ipq_label)(struct label *label);
+	int	(*mpo_init_ipq_label)(struct label *label, int flag);
 	int	(*mpo_init_mbuf_label)(struct label *label, int flag);
 	void	(*mpo_init_mount_label)(struct label *label);
 	void	(*mpo_init_mount_fs_label)(struct label *label);
