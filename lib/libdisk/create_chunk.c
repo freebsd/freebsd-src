@@ -184,31 +184,49 @@ Fixup_Names(struct disk *d)
     for(c2 = c1->part; c2 ; c2 = c2->next) {
 	if (c2->type == freebsd)
 	    Fixup_FreeBSD_Names(d,c2);
+#ifndef PC98
 	if (c2->type == extended)
 	    Fixup_Extended_Names(d,c2);
+#endif
     }
 }
 
 int
+#ifdef PC98
+Create_Chunk(struct disk *d, u_long offset, u_long size, chunk_e type, int subtype, u_long flags, const char *sname)
+#else
 Create_Chunk(struct disk *d, u_long offset, u_long size, chunk_e type, int subtype, u_long flags)
+#endif
 {
     int i;
     u_long l;
     
     if(!(flags & CHUNK_FORCE_ALL))
     {
+#ifdef PC98
+	/* Never use the first cylinder */
+	if (!offset) {
+	    offset += (d->bios_sect * d->bios_hd);
+	    size -= (d->bios_sect * d->bios_hd);
+	}
+#else
 	/* Never use the first track */
 	if (!offset) {
 	    offset += d->bios_sect;
 	    size -= d->bios_sect;
 	}
+#endif
 	
 	/* Always end on cylinder boundary */
 	l = (offset+size) % (d->bios_sect * d->bios_hd);
 	size -= l;
     }
     
+#ifdef PC98
+    i = Add_Chunk(d,offset,size,"X",type,subtype,flags,sname);
+#else
     i = Add_Chunk(d,offset,size,"X",type,subtype,flags);
+#endif
     Fixup_Names(d);
     return i;
 }
@@ -230,7 +248,11 @@ Create_Chunk_DWIM(struct disk *d, struct chunk *parent , u_long size, chunk_e ty
     }
     return 0;
  found:
+#ifdef PC98
+    i = Add_Chunk(d,offset,size,"X",type,subtype,flags,"-");
+#else
     i = Add_Chunk(d,offset,size,"X",type,subtype,flags);
+#endif
     if (i)
 	return 0;
     Fixup_Names(d);
