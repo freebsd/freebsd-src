@@ -31,7 +31,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Oct  9 11:32:28 2000]
+ *      last edit-date: [Tue Oct 10 15:24:49 2000]
  *
  *	Format:
  *
@@ -79,8 +79,8 @@ init_holidays(char *filename)
 	
 	if((fp = fopen(filename, "r")) == NULL)
 	{
-		log(LL_ERR, "init_holiday: error opening holidayfile %s: %s!", filename, strerror(errno));
-		exit(1);
+		log(LL_WRN, "init_holiday: error opening holidayfile %s: %s!", filename, strerror(errno));
+		return;
 	}
 
 	while((fgets(buffer, MAXBUFSZ, fp)) != NULL)
