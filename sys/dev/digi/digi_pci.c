@@ -225,6 +225,3 @@ static driver_t digi_pci_drv = {
 	digi_pci_methods,
 	sizeof(struct digi_softc),
 };
-
-
-DRIVER_MODULE(digi, pci, digi_pci_drv, digi_devclass, digi_modhandler, 0);
