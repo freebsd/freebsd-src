@@ -692,7 +692,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 
 			seg_addr = trunc_page(phdr[i].p_vaddr);
 			seg_size = round_page(phdr[i].p_memsz +
-					phdr[i].p_vaddr - seg_addr);
+			    phdr[i].p_vaddr - seg_addr);
 
 			/*
 			 * Is this .text or .data?  Use VM_PROT_WRITE
@@ -819,8 +819,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	imgp->proc->p_sysent = brand_info->sysvec;
 	if (interp != NULL) {
 		path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-		snprintf(path, MAXPATHLEN, "%s%s",
-			 brand_info->emul_path, interp);
+		snprintf(path, MAXPATHLEN, "%s%s", brand_info->emul_path,
+		    interp);
 		if ((error = __elfN(load_file)(imgp->proc, path, &addr,
 		    &imgp->entry_addr, pagesize)) != 0) {
 			if ((error = __elfN(load_file)(imgp->proc, interp,
