@@ -253,31 +253,16 @@ die(signo)
 	exit(0);
 }
 
-#if __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
-#if __STDC__
 void
 error(const char *fmt, ...)
-#else
-void
-error(fmt, va_alist)
-	char *fmt;
-	va_dcl
-#endif
 {
 	va_list ap;
 	char buf[255];
 	int oy, ox;
-#if __STDC__
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 
+	va_start(ap, fmt);
 	if (wnd) {
 		getyx(stdscr, oy, ox);
 		(void) vsnprintf(buf, sizeof(buf), fmt, ap);
