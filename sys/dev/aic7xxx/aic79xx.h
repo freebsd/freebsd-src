@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx.h#84 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx.h#85 $
  *
  * $FreeBSD$
  */
@@ -258,27 +258,30 @@ typedef enum {
 	AHD_PCIX_CHIPRST_BUG	= 0x0040,
 	/* MMAPIO is not functional in PCI-X mode.  */
 	AHD_PCIX_MMAPIO_BUG	= 0x0080,
+	/* Reads to SCBRAM fail to reset the discard timer. */
+	AHD_PCIX_SCBRAM_RD_BUG  = 0x0100,
 	/* Bug workarounds that can be disabled on non-PCIX busses. */
 	AHD_PCIX_BUG_MASK	= AHD_PCIX_CHIPRST_BUG
-				| AHD_PCIX_MMAPIO_BUG,
+				| AHD_PCIX_MMAPIO_BUG
+				| AHD_PCIX_SCBRAM_RD_BUG,
 	/*
 	 * LQOSTOP0 status set even for forced selections with ATN
 	 * to perform non-packetized message delivery.
 	 */
-	AHD_LQO_ATNO_BUG	= 0x0100,
+	AHD_LQO_ATNO_BUG	= 0x0200,
 	/* FIFO auto-flush does not always trigger.  */
-	AHD_AUTOFLUSH_BUG	= 0x0200,
+	AHD_AUTOFLUSH_BUG	= 0x0400,
 	/* The CLRLQO registers are not self-clearing. */
-	AHD_CLRLQO_AUTOCLR_BUG	= 0x0400,
+	AHD_CLRLQO_AUTOCLR_BUG	= 0x0800,
 	/* The PACKETIZED status bit refers to the previous connection. */
-	AHD_PKTIZED_STATUS_BUG  = 0x0800,
+	AHD_PKTIZED_STATUS_BUG  = 0x1000,
 	/* "Short Luns" are not placed into outgoing LQ packets correctly. */
-	AHD_PKT_LUN_BUG		= 0x1000,
+	AHD_PKT_LUN_BUG		= 0x2000,
 	/*
 	 * Only the FIFO allocated to the non-packetized connection may
 	 * be in use during a non-packetzied connection.
 	 */
-	AHD_NONPACKFIFO_BUG	= 0x2000,
+	AHD_NONPACKFIFO_BUG	= 0x4000,
 	/*
 	 * Writing to a DFF SCBPTR register may fail if concurent with
 	 * a hardware write to the other DFF SCBPTR register.  This is
@@ -286,30 +289,30 @@ typedef enum {
 	 * this bug have the AHD_NONPACKFIFO_BUG and all writes of concern
 	 * occur in non-packetized connections.
 	 */
-	AHD_MDFF_WSCBPTR_BUG	= 0x4000,
+	AHD_MDFF_WSCBPTR_BUG	= 0x8000,
 	/* SGHADDR updates are slow. */
-	AHD_REG_SLOW_SETTLE_BUG	= 0x8000,
+	AHD_REG_SLOW_SETTLE_BUG	= 0x10000,
 	/*
 	 * Changing the MODE_PTR coincident with an interrupt that
 	 * switches to a different mode will cause the interrupt to
 	 * be in the mode written outside of interrupt context.
 	 */
-	AHD_SET_MODE_BUG	= 0x10000,
+	AHD_SET_MODE_BUG	= 0x20000,
 	/* Non-packetized busfree revision does not work. */
-	AHD_BUSFREEREV_BUG	= 0x20000,
+	AHD_BUSFREEREV_BUG	= 0x40000,
 	/*
 	 * Paced transfers are indicated with a non-standard PPR
 	 * option bit in the neg table, 160MHz is indicated by
 	 * sync factor 0x7, and the offset if off by a factor of 2.
 	 */
-	AHD_PACED_NEGTABLE_BUG	= 0x40000,
+	AHD_PACED_NEGTABLE_BUG	= 0x80000,
 	/* LQOOVERRUN false positives. */
-	AHD_LQOOVERRUN_BUG	= 0x80000,
+	AHD_LQOOVERRUN_BUG	= 0x100000,
 	/*
 	 * Controller write to INTSTAT will lose to a host
 	 * write to CLRINT.
 	 */
-	AHD_INTCOLLISION_BUG	= 0x100000,
+	AHD_INTCOLLISION_BUG	= 0x200000,
 	/*
 	 * The GEM318 violates the SCSI spec by not waiting
 	 * the mandated bus settle delay between phase changes
@@ -319,7 +322,7 @@ typedef enum {
 	 * glitches.  This flag tells the firmware to tolerate
 	 * early REQ assertions.
 	 */
-	AHD_EARLY_REQ_BUG	= 0x200000
+	AHD_EARLY_REQ_BUG	= 0x400000
 } ahd_bug;
 
 /*
