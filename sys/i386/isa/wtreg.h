@@ -1,12 +1,12 @@
 /*
  * Streamer tape driver for 386bsd and FreeBSD.
- * Supports Archive QIC-02 and Wangtek QIC-02/QIC-36 boards.
+ * Supports Archive and Wangtek compatible QIC-02/QIC-36 boards.
  *
  * Copyright (C) 1993 by:
  *      Sergey Ryzhkov       <sir@kiae.su>
  *      Serge Vakulenko      <vak@zebub.msk.su>
  *
- * Placed in the public domain with NO WARRANTIES, not even the implied
+ * This software is distributed with NO WARRANTIES, not even the implied
  * warranties for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  * Authors grant any other persons or organisations permission to use
@@ -18,8 +18,9 @@
  * Authors thank Robert Baron, CMU and Intel and retain here
  * the original CMU copyright notice.
  *
- *	from: Version 1.1, Fri Sep 24 02:14:42 MSD 1993
- *	$Id$
+ * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
+ * $Id$
+ *
  */
 
 /*
@@ -53,8 +54,8 @@
 #define WTQICMD         _IO('W', 0)
 
 /* QIC-02 commands allowed for WTQICMD */
-#define QIC_ERASE       0x22
-#define QIC_RETENS      0x24
+#define QIC_ERASE       0x22    /* erase the tape */
+#define QIC_RETENS      0x24    /* retension the tape */
 
 /* internal QIC-02 commands */
 #define QIC_RDDATA      0x80    /* read data */
@@ -67,6 +68,8 @@
 #define QIC_FMT24       0x27    /* set format QIC-24 */
 #define QIC_FMT120      0x28    /* set format QIC-120 */
 #define QIC_FMT150      0x29    /* set format QIC-150 */
+#define QIC_FMT300      0x2a    /* set format QIC-300/QIC-2100 */
+#define QIC_FMT600      0x2b    /* set format QIC-600/QIC-2200 */
 
 /* tape driver flags */
 #define TPINUSE         0x0001  /* tape is already open */
@@ -97,15 +100,26 @@
 #define TP_ST0          0x0080  /* Status byte 0 bits */
 #define TP_ST0MASK      0x00ff  /* Status byte 0 mask */
 #define TP_POR          0x0100  /* Power on/reset occurred */
-#define TP_RES1         0x0200  /* Reserved for end of media */
-#define TP_RES2         0x0400  /* Reserved for bus parity */
+#define TP_ERM          0x0200  /* Reserved for end of recorded media */
+#define TP_BPE          0x0400  /* Reserved for bus parity error */
 #define TP_BOM          0x0800  /* Beginning of media */
-#define	TP_MBD		0x1000	/* Marginal block detected */
-#define	TP_NDT		0x2000	/* No data detected */
+#define TP_MBD          0x1000  /* Marginal block detected */
+#define TP_NDT          0x2000  /* No data detected */
 #define TP_ILL          0x4000  /* Illegal command - should not happen! */
-#define	TP_ST1		0x8000	/* Status byte 1 bits */
+#define TP_ST1          0x8000  /* Status byte 1 bits */
 #define TP_ST1MASK      0xff00  /* Status byte 1 mask */
 
 /* formats for printing flags and error values */
 #define WTDS_BITS "\20\1inuse\2read\3write\4start\5rmark\6wmark\7rew\10excep\11vol\12wo\13ro\14wany\15rany\16wp\17timer\20active"
-#define WTER_BITS "\20\1eof\2bnl\3uda\4eom\5wrp\6usl\7cni\11por\12res1\13res2\14bom\15mbd\16ndt\17ill"
+#define WTER_BITS "\20\1eof\2bnl\3uda\4eom\5wrp\6usl\7cni\11por\12erm\13bpe\14bom\15mbd\16ndt\17ill"
+
+/* device minor number */
+#define WT_BSIZE        0100    /* long block flag */
+#define WT_DENSEL       0070    /* density select mask */
+#define WT_DENSDFLT     0000    /* default density */
+#define WT_QIC11        0010    /* 11 megabytes? */
+#define WT_QIC24        0020    /* 60 megabytes */
+#define WT_QIC120       0030    /* 120 megabytes */
+#define WT_QIC150       0040    /* 150 megabytes */
+#define WT_QIC300       0050    /* 300 megabytes? */
+#define WT_QIC600       0060    /* 600 megabytes? */
