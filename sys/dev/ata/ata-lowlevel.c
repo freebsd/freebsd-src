@@ -329,6 +329,7 @@ ata_interrupt(void *data)
 
 	    /* if data write command, output the data */
 	    if (request->flags & ATA_R_WRITE) {
+
 		/* if we get an error here we are done with the HW */
 		if (ata_wait(request->device,
 			     (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ)) < 0) {
@@ -336,11 +337,10 @@ ata_interrupt(void *data)
 		    request->status = ATA_IDX_INB(ch, ATA_STATUS);
 		    break;
 		}
-		else {
-		    /* output data and return waiting for new interrupt */
-		    ata_pio_write(request, request->transfersize);
-		    return;
-		}
+
+		/* output data and return waiting for new interrupt */
+		ata_pio_write(request, request->transfersize);
+		return;
 	    }
 
 	    /* if data read command, return & wait for interrupt */
