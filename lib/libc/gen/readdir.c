@@ -45,7 +45,7 @@ static char sccsid[] = "@(#)readdir.c	8.3 (Berkeley) 9/29/94";
 #ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
-#endif _THREAD_SAFE
+#endif /* _THREAD_SAFE */
 
 /*
  * get next entry in a directory.
