@@ -56,8 +56,10 @@ struct ngsock {
 	struct ng_node	*node;		/* the associated netgraph node */
 	struct ngpcb	*datasock;	/* optional data socket */
 	struct ngpcb	*ctlsock;	/* optional control socket */
+	int    flags;
 	int    refs;
 };
+#define	NGS_FLAG_NOLINGER	1	/* close with last hook */
 
 #endif /* _NETGRAPH_NG_SOCKETVAR_H_ */
 
