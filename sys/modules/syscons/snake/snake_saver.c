@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: snake_saver.c,v 1.21 1999/01/11 03:18:52 yokota Exp $
+ *	$Id: snake_saver.c,v 1.22 1999/01/17 14:25:19 yokota Exp $
  */
 
 #include <sys/param.h>
@@ -58,7 +58,7 @@ snake_saver(video_adapter_t *adp, int blank)
 #define	savs	messagep
 
 	if (blank) {
-		if (adp->va_mode_flags & V_INFO_GRAPHICS)
+		if (adp->va_info.vi_flags & V_INFO_GRAPHICS)
 			return EAGAIN;
 		if (blanked <= 0) {
 			window = (u_short *)adp->va_window;

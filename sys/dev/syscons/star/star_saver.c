@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: star_saver.c,v 1.18 1999/01/11 03:18:53 yokota Exp $
+ *	$Id: star_saver.c,v 1.19 1999/01/17 14:25:19 yokota Exp $
  */
 
 #include <sys/param.h>
@@ -58,7 +58,7 @@ star_saver(video_adapter_t *adp, int blank)
 	static u_short 	stars[NUM_STARS][2];
 
 	if (blank) {
-		if (adp->va_mode_flags & V_INFO_GRAPHICS)
+		if (adp->va_info.vi_flags & V_INFO_GRAPHICS)
 			return EAGAIN;
 		if (!blanked) {
 			window = (u_short *)adp->va_window;
