@@ -5,7 +5,7 @@
 # forth in the LICENSE file which can be found at the top level of
 # the sendmail distribution.
 #
-#	$Id: README,v 1.21 2002/01/23 17:30:48 gshapiro Exp $
+#	$Id: README,v 1.24 2003/12/20 09:23:48 gshapiro Exp $
 #
 
 Libsm is a library of generally useful C abstractions.
@@ -108,6 +108,9 @@ SM_CONF_BROKEN_STRTOD
 
 SM_CONF_GETOPT
 	Set to 1 if your operating system does not include getopt(3).
+
+SM_CONF_LDAP_INITIALIZE
+	Set to 1 if your LDAP client libraries include ldap_initialize(3).
 
 SM_CONF_LDAP_MEMFREE
 	Set to 1 if your LDAP client libraries include ldap_memfree(3).

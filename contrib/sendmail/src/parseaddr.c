@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: parseaddr.c,v 8.359.2.9 2003/09/16 18:07:50 ca Exp $")
+SM_RCSID("@(#)$Id: parseaddr.c,v 8.378 2004/05/18 20:01:54 ca Exp $")
 
 static void	allocaddr __P((ADDRESS *, int, char *, ENVELOPE *));
 static int	callsubr __P((char**, int, ENVELOPE *));
@@ -90,7 +90,7 @@ parseaddr(addr, a, flags, delim, delimptr, e, isrcpt)
 	if (delimptr == NULL)
 		delimptr = &delimptrbuf;
 
-	pvp = prescan(addr, delim, pvpbuf, sizeof pvpbuf, delimptr, NULL);
+	pvp = prescan(addr, delim, pvpbuf, sizeof pvpbuf, delimptr, NULL, false);
 	if (pvp == NULL)
 	{
 		if (tTd(20, 1))
@@ -228,7 +228,7 @@ parseaddr(addr, a, flags, delim, delimptr, e, isrcpt)
 	if (tTd(20, 1))
 	{
 		sm_dprintf("parseaddr-->");
-		printaddr(a, false);
+		printaddr(sm_debug_file(), a, false);
 	}
 
 	return a;
@@ -460,6 +460,7 @@ allocaddr(a, flags, paddr, e)
 **			terminating delimiter.
 **		toktab -- if set, a token table to use for parsing.
 **			If NULL, use the default table.
+**		ignore -- if true, ignore unbalanced addresses
 **
 **	Returns:
 **		A pointer to a vector of tokens.
@@ -611,13 +612,14 @@ unsigned char	TokTypeNoC[256] =
 #define NOCHAR		(-1)	/* signal nothing in lookahead token */
 
 char **
-prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
+prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab, ignore)
 	char *addr;
 	int delim;
 	char pvpbuf[];
 	int pvpbsize;
 	char **delimptr;
 	unsigned char *toktab;
+	bool ignore;
 {
 	register char *p;
 	register char *q;
@@ -633,7 +635,6 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
 	char *saveto = CurEnv->e_to;
 	static char *av[MAXATOM + 1];
 	static bool firsttime = true;
-	extern int errno;
 
 	if (firsttime)
 	{
@@ -678,7 +679,7 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
 	if (tTd(22, 11))
 	{
 		sm_dprintf("prescan: ");
-		xputs(p);
+		xputs(sm_debug_file(), p);
 		sm_dprintf("\n");
 	}
 
@@ -722,7 +723,9 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
 			if (c == '\0')
 			{
 				/* diagnose and patch up bad syntax */
-				if (state == QST)
+				if (ignore)
+					break;
+				else if (state == QST)
 				{
 					usrerr("553 Unbalanced '\"'");
 					c = '"';
@@ -748,7 +751,7 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
 					break;
 
 				/* special case for better error management */
-				if (delim == ',' && !route_syntax)
+				if (delim == ',' && !route_syntax && !ignore)
 				{
 					usrerr("553 Unbalanced '<'");
 					c = '>';
@@ -799,8 +802,11 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
 			{
 				if (cmntcnt <= 0)
 				{
-					usrerr("553 Unbalanced ')'");
-					c = NOCHAR;
+					if (!ignore)
+					{
+						usrerr("553 Unbalanced ')'");
+						c = NOCHAR;
+					}
 				}
 				else
 					cmntcnt--;
@@ -823,8 +829,11 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
 			{
 				if (anglecnt <= 0)
 				{
-					usrerr("553 Unbalanced '>'");
-					c = NOCHAR;
+					if (!ignore)
+					{
+						usrerr("553 Unbalanced '>'");
+						c = NOCHAR;
+					}
 				}
 				else
 					anglecnt--;
@@ -868,7 +877,7 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
 			if (tTd(22, 36))
 			{
 				sm_dprintf("tok=");
-				xputs(tok);
+				xputs(sm_debug_file(), tok);
 				sm_dprintf("\n");
 			}
 			if (avp >= &av[MAXATOM])
@@ -894,7 +903,7 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab)
 	if (tTd(22, 12))
 	{
 		sm_dprintf("prescan==>");
-		printav(av);
+		printav(sm_debug_file(), av);
 	}
 	CurEnv->e_to = saveto;
 	if (av[0] == NULL)
@@ -997,12 +1006,12 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 	{
 		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 				     "%s%-16.16s   input:", prefix, rulename);
-		printav(pvp);
+		printav(smioout, pvp);
 	}
 	else if (tTd(21, 1))
 	{
 		sm_dprintf("%s%-16.16s   input:", prefix, rulename);
-		printav(pvp);
+		printav(sm_debug_file(), pvp);
 	}
 	if (reclevel++ > MaxRuleRecursion)
 	{
@@ -1037,7 +1046,7 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 				       rwr->r_line);
 			else
 				sm_dprintf("-----trying rule:");
-			printav(rwr->r_lhs);
+			printav(sm_debug_file(), rwr->r_lhs);
 		}
 
 		/* try to match on this rule */
@@ -1051,7 +1060,7 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 			if (tTd(21, 1))
 			{
 				sm_dprintf("workspace: ");
-				printav(pvp);
+				printav(sm_debug_file(), pvp);
 			}
 			break;
 		}
@@ -1062,9 +1071,9 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 			if (tTd(21, 35))
 			{
 				sm_dprintf("ADVANCE rp=");
-				xputs(rp);
+				xputs(sm_debug_file(), rp);
 				sm_dprintf(", ap=");
-				xputs(ap);
+				xputs(sm_debug_file(), ap);
 				sm_dprintf("\n");
 			}
 			if (rp == NULL)
@@ -1097,9 +1106,9 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 					if (tTd(21, 36))
 					{
 						sm_dprintf("EXTEND  rp=");
-						xputs(rp);
+						xputs(sm_debug_file(), rp);
 						sm_dprintf(", ap=");
-						xputs(ap);
+						xputs(sm_debug_file(), ap);
 						sm_dprintf("\n");
 					}
 					goto extendclass;
@@ -1195,9 +1204,9 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 				if (tTd(21, 36))
 				{
 					sm_dprintf("BACKUP  rp=");
-					xputs(rp);
+					xputs(sm_debug_file(), rp);
 					sm_dprintf(", ap=");
-					xputs(ap);
+					xputs(sm_debug_file(), ap);
 					sm_dprintf("\n");
 				}
 
@@ -1248,7 +1257,7 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 		if (tTd(21, 12))
 		{
 			sm_dprintf("-----rule matches:");
-			printav(rvp);
+			printav(sm_debug_file(), rvp);
 		}
 
 		rp = *rvp;
@@ -1359,7 +1368,7 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 					/* scan the new replacement */
 					xpvp = prescan(mval, '\0', pvpbuf,
 						       sizeof pvpbuf, NULL,
-						       NULL);
+						       NULL, false);
 					if (xpvp == NULL)
 					{
 						/* prescan pre-printed error */
@@ -1531,7 +1540,7 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 			{
 				/* scan the new replacement */
 				xpvp = prescan(replac, '\0', pvpbuf,
-					       sizeof pvpbuf, NULL, NULL);
+					       sizeof pvpbuf, NULL, NULL, false);
 				if (xpvp == NULL)
 				{
 					/* prescan already printed error */
@@ -1571,7 +1580,7 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 		if (tTd(21, 4))
 		{
 			sm_dprintf("rewritten as:");
-			printav(pvp);
+			printav(sm_debug_file(), pvp);
 		}
 	}
 
@@ -1579,12 +1588,12 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 	{
 		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 				     "%s%-16.16s returns:", prefix, rulename);
-		printav(pvp);
+		printav(smioout, pvp);
 	}
 	else if (tTd(21, 1))
 	{
 		sm_dprintf("%s%-16.16s returns:", prefix, rulename);
-		printav(pvp);
+		printav(sm_debug_file(), pvp);
 	}
 	return rstat;
 }
@@ -1896,7 +1905,7 @@ buildaddr(tv, a, flags, e)
 	if (tTd(24, 5))
 	{
 		sm_dprintf("buildaddr, flags=%x, tv=", flags);
-		printav(tv);
+		printav(sm_debug_file(), tv);
 	}
 
 	maxatom = MAXATOM;
@@ -1913,7 +1922,6 @@ buildaddr(tv, a, flags, e)
 	{
 		syserr("554 5.3.5 buildaddr: no mailer in parsed address");
 badaddr:
-#if _FFR_ALLOW_S0_ERROR_4XX
 		/*
 		**  ExitStat may have been set by an earlier map open
 		**  failure (to a permanent error (EX_OSERR) in syserr())
@@ -1923,11 +1931,7 @@ badaddr:
 		**  XXX the real fix is probably to set ExitStat correctly,
 		**  i.e., to EX_TEMPFAIL if the map open is just a temporary
 		**  error.
-		**
-		**  tempfail is tested here even if _FFR_ALLOW_S0_ERROR_4XX
-		**  is not set; that's ok because it is initialized to false.
 		*/
-#endif /* _FFR_ALLOW_S0_ERROR_4XX */
 
 		if (ExitStat == EX_TEMPFAIL || tempfail)
 			a->q_state = QS_QUEUEUP;
@@ -2027,10 +2031,8 @@ badaddr:
 			else
 				usrerr(fmt, ubuf + off);
 			/* XXX ubuf[off - 1] = ' '; */
-#if _FFR_ALLOW_S0_ERROR_4XX
 			if (ubuf[0] == '4')
 				tempfail = true;
-#endif /* _FFR_ALLOW_S0_ERROR_4XX */
 		}
 		else
 		{
@@ -2123,7 +2125,7 @@ badaddr:
 	if (tTd(24, 6))
 	{
 		sm_dprintf("buildaddr => ");
-		printaddr(a, false);
+		printaddr(sm_debug_file(), a, false);
 	}
 	return a;
 }
@@ -2182,19 +2184,19 @@ cataddr(pvp, evp, buf, sz, spacesub)
 			if (--sz <= 0)
 				break;
 		}
-		if ((i = sm_strlcpy(p, *pvp, sz)) >= sz)
+		i = sm_strlcpy(p, *pvp, sz);
+		sz -= i;
+		if (sz <= 0)
 			break;
 		oatomtok = natomtok;
 		p += i;
-		sz -= i;
 		if (pvp++ == evp)
 			break;
 	}
-#if _FFR_CATCH_LONG_STRINGS
-	/* Don't silently truncate long strings; broken for evp != NULL */
-	if (*pvp != NULL)
+
+	/* Don't silently truncate long strings */
+	if (sz <= 0)
 		syserr("cataddr: string too long");
-#endif /* _FFR_CATCH_LONG_STRINGS */
 	*p = '\0';
 }
 /*
@@ -2298,7 +2300,8 @@ static struct qflags	AddressFlags[] =
 };
 
 void
-printaddr(a, follow)
+printaddr(fp, a, follow)
+	SM_FILE_T *fp;
 	register ADDRESS *a;
 	bool follow;
 {
@@ -2309,14 +2312,14 @@ printaddr(a, follow)
 
 	if (a == NULL)
 	{
-		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "[NULL]\n");
+		(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, "[NULL]\n");
 		return;
 	}
 
 	while (a != NULL)
 	{
-		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%p=", a);
-		(void) sm_io_flush(smioout, SM_TIME_DEFAULT);
+		(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, "%p=", a);
+		(void) sm_io_flush(fp, SM_TIME_DEFAULT);
 
 		/* find the mailer -- carefully */
 		m = a->q_mailer;
@@ -2327,100 +2330,100 @@ printaddr(a, follow)
 			m->m_name = "NULL";
 		}
 
-		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+		(void) sm_io_fprintf(fp, SM_TIME_DEFAULT,
 				     "%s:\n\tmailer %d (%s), host `%s'\n",
 				     a->q_paddr == NULL ? "<null>" : a->q_paddr,
 				     m->m_mno, m->m_name,
 				     a->q_host == NULL ? "<null>" : a->q_host);
-		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+		(void) sm_io_fprintf(fp, SM_TIME_DEFAULT,
 				     "\tuser `%s', ruser `%s'\n",
 				     a->q_user,
 				     a->q_ruser == NULL ? "<null>" : a->q_ruser);
-		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "\tstate=");
+		(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, "\tstate=");
 		switch (a->q_state)
 		{
 		  case QS_OK:
-			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "OK");
+			(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, "OK");
 			break;
 
 		  case QS_DONTSEND:
-			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+			(void) sm_io_fprintf(fp, SM_TIME_DEFAULT,
 					     "DONTSEND");
 			break;
 
 		  case QS_BADADDR:
-			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+			(void) sm_io_fprintf(fp, SM_TIME_DEFAULT,
 					     "BADADDR");
 			break;
 
 		  case QS_QUEUEUP:
-			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+			(void) sm_io_fprintf(fp, SM_TIME_DEFAULT,
 					     "QUEUEUP");
 			break;
 
 		  case QS_RETRY:
-			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "RETRY");
+			(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, "RETRY");
 			break;
 
 		  case QS_SENT:
-			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "SENT");
+			(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, "SENT");
 			break;
 
 		  case QS_VERIFIED:
-			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+			(void) sm_io_fprintf(fp, SM_TIME_DEFAULT,
 					     "VERIFIED");
 			break;
 
 		  case QS_EXPANDED:
-			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+			(void) sm_io_fprintf(fp, SM_TIME_DEFAULT,
 					     "EXPANDED");
 			break;
 
 		  case QS_SENDER:
-			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+			(void) sm_io_fprintf(fp, SM_TIME_DEFAULT,
 					     "SENDER");
 			break;
 
 		  case QS_CLONED:
-			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+			(void) sm_io_fprintf(fp, SM_TIME_DEFAULT,
 					     "CLONED");
 			break;
 
 		  case QS_DISCARDED:
-			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+			(void) sm_io_fprintf(fp, SM_TIME_DEFAULT,
 					     "DISCARDED");
 			break;
 
 		  case QS_REPLACED:
-			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+			(void) sm_io_fprintf(fp, SM_TIME_DEFAULT,
 					     "REPLACED");
 			break;
 
 		  case QS_REMOVED:
-			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+			(void) sm_io_fprintf(fp, SM_TIME_DEFAULT,
 					     "REMOVED");
 			break;
 
 		  case QS_DUPLICATE:
-			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+			(void) sm_io_fprintf(fp, SM_TIME_DEFAULT,
 					     "DUPLICATE");
 			break;
 
 		  case QS_INCLUDED:
-			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+			(void) sm_io_fprintf(fp, SM_TIME_DEFAULT,
 					     "INCLUDED");
 			break;
 
 		  default:
-			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+			(void) sm_io_fprintf(fp, SM_TIME_DEFAULT,
 					     "%d", a->q_state);
 			break;
 		}
-		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+		(void) sm_io_fprintf(fp, SM_TIME_DEFAULT,
 				     ", next=%p, alias %p, uid %d, gid %d\n",
 				     a->q_next, a->q_alias,
 				     (int) a->q_uid, (int) a->q_gid);
-		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "\tflags=%lx<",
+		(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, "\tflags=%lx<",
 				     a->q_flags);
 		firstone = true;
 		for (qfp = AddressFlags; qfp->qf_name != NULL; qfp++)
@@ -2428,30 +2431,30 @@ printaddr(a, follow)
 			if (!bitset(qfp->qf_bit, a->q_flags))
 				continue;
 			if (!firstone)
-				(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				(void) sm_io_fprintf(fp, SM_TIME_DEFAULT,
 						     ",");
 			firstone = false;
-			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%s",
+			(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, "%s",
 					     qfp->qf_name);
 		}
-		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, ">\n");
-		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+		(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, ">\n");
+		(void) sm_io_fprintf(fp, SM_TIME_DEFAULT,
 				     "\towner=%s, home=\"%s\", fullname=\"%s\"\n",
 				     a->q_owner == NULL ? "(none)" : a->q_owner,
 				     a->q_home == NULL ? "(none)" : a->q_home,
 				     a->q_fullname == NULL ? "(none)" : a->q_fullname);
-		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+		(void) sm_io_fprintf(fp, SM_TIME_DEFAULT,
 				     "\torcpt=\"%s\", statmta=%s, status=%s\n",
 				     a->q_orcpt == NULL ? "(none)" : a->q_orcpt,
 				     a->q_statmta == NULL ? "(none)" : a->q_statmta,
 				     a->q_status == NULL ? "(none)" : a->q_status);
-		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+		(void) sm_io_fprintf(fp, SM_TIME_DEFAULT,
 				     "\tfinalrcpt=\"%s\"\n",
 				     a->q_finalrcpt == NULL ? "(none)" : a->q_finalrcpt);
-		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+		(void) sm_io_fprintf(fp, SM_TIME_DEFAULT,
 				     "\trstatus=\"%s\"\n",
 				     a->q_rstatus == NULL ? "(none)" : a->q_rstatus);
-		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+		(void) sm_io_fprintf(fp, SM_TIME_DEFAULT,
 				     "\tstatdate=%s\n",
 				     a->q_statdate == 0 ? "(none)" : ctime(&a->q_statdate));
 
@@ -2559,7 +2562,7 @@ remotename(name, m, flags, pstat, e)
 	**	domain will be appended.
 	*/
 
-	pvp = prescan(name, '\0', pvpbuf, sizeof pvpbuf, NULL, NULL);
+	pvp = prescan(name, '\0', pvpbuf, sizeof pvpbuf, NULL, NULL, false);
 	if (pvp == NULL)
 		return name;
 	if (REWRITE(pvp, 3, e) == EX_TEMPFAIL)
@@ -2684,9 +2687,9 @@ maplocaluser(a, sendq, aliaslevel, e)
 	if (tTd(29, 1))
 	{
 		sm_dprintf("maplocaluser: ");
-		printaddr(a, false);
+		printaddr(sm_debug_file(), a, false);
 	}
-	pvp = prescan(a->q_user, '\0', pvpbuf, sizeof pvpbuf, NULL, NULL);
+	pvp = prescan(a->q_user, '\0', pvpbuf, sizeof pvpbuf, NULL, NULL, false);
 	if (pvp == NULL)
 	{
 		if (tTd(29, 9))
@@ -2748,7 +2751,7 @@ maplocaluser(a, sendq, aliaslevel, e)
 	if (tTd(29, 5))
 	{
 		sm_dprintf("maplocaluser: QS_REPLACED ");
-		printaddr(a, false);
+		printaddr(sm_debug_file(), a, false);
 	}
 	a1->q_alias = a;
 	allocaddr(a1, RF_COPYALL, sm_rpool_strdup_x(e->e_rpool, a->q_paddr), e);
@@ -2942,10 +2945,8 @@ rscheck(rwset, p1, p2, e, flags, logl, host, logid)
 	auto ADDRESS a1;
 	bool saveQuickAbort = QuickAbort;
 	bool saveSuprErrs = SuprErrs;
-#if _FFR_QUARANTINE
 	bool quarantine = false;
 	char ubuf[BUFSIZ * 2];
-#endif /* _FFR_QUARANTINE */
 	char buf0[MAXLINE];
 	char pvpbuf[PSBUFSIZE];
 	extern char MsgBuf[];
@@ -2987,7 +2988,8 @@ rscheck(rwset, p1, p2, e, flags, logl, host, logid)
 		SuprErrs = true;
 		QuickAbort = false;
 		pvp = prescan(buf, '\0', pvpbuf, sizeof pvpbuf, NULL,
-			      bitset(RSF_RMCOMM, flags) ? NULL : TokTypeNoC);
+			      bitset(RSF_RMCOMM, flags) ? NULL : TokTypeNoC,
+			      bitset(RSF_RMCOMM, flags) ? false : true);
 		SuprErrs = saveSuprErrs;
 		if (pvp == NULL)
 		{
@@ -3019,7 +3021,6 @@ rscheck(rwset, p1, p2, e, flags, logl, host, logid)
 			e->e_flags |= EF_DISCARD;
 			discard = true;
 		}
-#if _FFR_QUARANTINE
 		else if (strcmp(pvp[1], "error") == 0 &&
 			 pvp[2] != NULL && (pvp[2][0] & 0377) == CANONHOST &&
 			 pvp[3] != NULL && strcmp(pvp[3], "quarantine") == 0)
@@ -3040,7 +3041,6 @@ rscheck(rwset, p1, p2, e, flags, logl, host, logid)
 				  macid("{quarantine}"), e->e_quarmsg);
 			quarantine = true;
 		}
-#endif /* _FFR_QUARANTINE */
 		else
 		{
 			int savelogusrerrs = LogUsrErrs;
@@ -3091,12 +3091,10 @@ rscheck(rwset, p1, p2, e, flags, logl, host, logid)
 				sm_syslog(LOG_NOTICE, logid,
 					  "ruleset=%s, arg1=%s%s, discard",
 					  rwset, p1, lbuf);
-#if _FFR_QUARANTINE
 			else if (quarantine)
 				sm_syslog(LOG_NOTICE, logid,
 					  "ruleset=%s, arg1=%s%s, quarantine=%s",
 					  rwset, p1, lbuf, ubuf);
-#endif /* _FFR_QUARANTINE */
 			else
 				sm_syslog(LOG_NOTICE, logid,
 					  "ruleset=%s, arg1=%s%s, reject=%s",
@@ -3198,7 +3196,7 @@ rscap(rwset, p1, p2, e, pvp, pvpbuf, size)
 	{
 		SuprErrs = true;
 		QuickAbort = false;
-		*pvp = prescan(buf, '\0', pvpbuf, size, NULL, NULL);
+		*pvp = prescan(buf, '\0', pvpbuf, size, NULL, NULL, false);
 		if (*pvp != NULL)
 			rstat = rewrite(*pvp, rsno, 0, e, size);
 		else

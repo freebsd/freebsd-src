@@ -5,7 +5,7 @@
 # forth in the LICENSE file which can be found at the top level of
 # the sendmail distribution.
 #
-#	$Id: SECURITY,v 1.50.2.1 2002/09/23 21:28:48 ca Exp $
+#	$Id: SECURITY,v 1.51 2002/09/23 21:29:18 ca Exp $
 #
 
 This file gives some hints how to configure and run sendmail for

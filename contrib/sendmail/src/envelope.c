@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: envelope.c,v 8.282.2.2 2002/12/04 15:44:08 ca Exp $")
+SM_RCSID("@(#)$Id: envelope.c,v 8.293 2004/02/18 00:46:18 gshapiro Exp $")
 
 /*
 **  CLRSESSENVELOPE -- clear session oriented data in an envelope
@@ -101,7 +101,6 @@ newenvelope(e, parent, rpool)
 	if (parent != NULL)
 	{
 		e->e_msgpriority = parent->e_msgsize;
-#if _FFR_QUARANTINE
 		if (parent->e_quarmsg == NULL)
 		{
 			e->e_quarmsg = NULL;
@@ -115,7 +114,6 @@ newenvelope(e, parent, rpool)
 			macdefine(&e->e_macro, A_PERM,
 				  macid("{quarantine}"), e->e_quarmsg);
 		}
-#endif /* _FFR_QUARANTINE */
 	}
 	e->e_puthdr = putheader;
 	e->e_putbody = putbody;
@@ -176,13 +174,13 @@ dropenvelope(e, fulldrop, split)
 	if (tTd(50, 1))
 	{
 		sm_dprintf("dropenvelope %p: id=", e);
-		xputs(e->e_id);
+		xputs(sm_debug_file(), e->e_id);
 		sm_dprintf(", flags=");
 		printenvflags(e);
 		if (tTd(50, 10))
 		{
 			sm_dprintf("sendq=");
-			printaddr(e->e_sendqueue, true);
+			printaddr(sm_debug_file(), e->e_sendqueue, true);
 		}
 	}
 
@@ -507,7 +505,6 @@ simpledrop:
 		}
 		if (!panic)
 			(void) xunlink(queuename(e, DATAFL_LETTER));
-#if _FFR_QUARANTINE
 		if (panic && QueueMode == QM_LOST)
 		{
 			/*
@@ -518,7 +515,6 @@ simpledrop:
 			/* EMPTY */
 		}
 		else
-#endif /* _FFR_QUARANTINE */
 		if (xunlink(queuename(e, ANYQFL_LETTER)) == 0)
 		{
 			/* add to available space in filesystem */
@@ -655,11 +651,9 @@ clearenvelope(e, fullclear, rpool)
 
 	*e = BlankEnvelope;
 	e->e_message = NULL;
-#if _FFR_QUARANTINE
 	e->e_qfletter = '\0';
 	e->e_quarmsg = NULL;
 	macdefine(&e->e_macro, A_PERM, macid("{quarantine}"), "");
-#endif /* _FFR_QUARANTINE */
 
 	/*
 	**  Copy the macro table.
@@ -732,13 +726,7 @@ initsys(e)
 
 	openxscript(e);
 	e->e_ctime = curtime();
-#if _FFR_QUARANTINE
 	e->e_qfletter = '\0';
-#endif /* _FFR_QUARANTINE */
-#if _FFR_QUEUEDELAY
-	e->e_queuealg = QueueAlg;
-	e->e_queuedelay = QueueInitDelay;
-#endif /* _FFR_QUEUEDELAY */
 
 	/*
 	**  Set OutChannel to something useful if stdout isn't it.
@@ -807,6 +795,8 @@ settime(e)
 	register struct tm *tm;
 
 	now = curtime();
+	(void) sm_snprintf(buf, sizeof buf, "%ld", (long) now);
+	macdefine(&e->e_macro, A_TEMP, macid("{time}"), buf);
 	tm = gmtime(&now);
 	(void) sm_snprintf(buf, sizeof buf, "%04d%02d%02d%02d%02d",
 			   tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
@@ -1044,7 +1034,7 @@ setsender(from, e, delimptr, delimchar, internal)
 	if (tTd(45, 5))
 	{
 		sm_dprintf("setsender: QS_SENDER ");
-		printaddr(&e->e_from, false);
+		printaddr(sm_debug_file(), &e->e_from, false);
 	}
 	SuprErrs = false;
 
@@ -1140,7 +1130,7 @@ setsender(from, e, delimptr, delimchar, internal)
 	**	links in the net.
 	*/
 
-	pvp = prescan(from, delimchar, pvpbuf, sizeof pvpbuf, NULL, NULL);
+	pvp = prescan(from, delimchar, pvpbuf, sizeof pvpbuf, NULL, NULL, false);
 	if (pvp == NULL)
 	{
 		/* don't need to give error -- prescan did that already */
@@ -1180,15 +1170,17 @@ setsender(from, e, delimptr, delimchar, internal)
 
 		/* strip off to the last "@" sign */
 		for (lastat = NULL; *pvp != NULL; pvp++)
+		{
 			if (strcmp(*pvp, "@") == 0)
 				lastat = pvp;
+		}
 		if (lastat != NULL)
 		{
 			e->e_fromdomain = copyplist(lastat, true, e->e_rpool);
 			if (tTd(45, 3))
 			{
 				sm_dprintf("Saving from domain: ");
-				printav(e->e_fromdomain);
+				printav(sm_debug_file(), e->e_fromdomain);
 			}
 		}
 	}
@@ -1249,19 +1241,17 @@ printenvflags(e)
 	register struct eflags *ef;
 	bool first = true;
 
-	(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%lx", e->e_flags);
+	sm_dprintf("%lx", e->e_flags);
 	for (ef = EnvelopeFlags; ef->ef_name != NULL; ef++)
 	{
 		if (!bitset(ef->ef_bit, e->e_flags))
 			continue;
 		if (first)
-			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "<%s",
-					     ef->ef_name);
+			sm_dprintf("<%s", ef->ef_name);
 		else
-			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, ",%s",
-					     ef->ef_name);
+			sm_dprintf(",%s", ef->ef_name);
 		first = false;
 	}
 	if (!first)
-		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, ">\n");
+		sm_dprintf(">\n");
 }

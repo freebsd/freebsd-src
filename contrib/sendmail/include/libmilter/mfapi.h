@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2004 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -7,7 +7,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: mfapi.h,v 8.44.2.4 2003/10/20 21:51:49 msk Exp $
+ *	$Id: mfapi.h,v 8.59 2004/07/07 21:41:31 ca Exp $
  */
 
 /*
@@ -17,13 +17,22 @@
 #ifndef _LIBMILTER_MFAPI_H
 # define _LIBMILTER_MFAPI_H	1
 
-# include <sys/types.h>
+#ifndef SMFI_VERSION
+# define SMFI_VERSION	2		/* version number */
+#endif /* ! SMFI_VERSION */
 
+# include <sys/types.h>
 # include <sys/socket.h>
-# include "libmilter/mfdef.h"
+
+#include "libmilter/mfdef.h"
 
 # define LIBMILTER_API		extern
 
+
+/* Only need to export C interface if used by C++ source code */
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
 
 #ifndef _SOCK_ADDR
 # define _SOCK_ADDR	struct sockaddr
@@ -66,6 +75,19 @@ typedef int	sfsistat;
 # endif /* __STDC__ */
 #endif /* __P */
 
+#if SM_CONF_STDBOOL_H
+# include <stdbool.h>
+#else /* SM_CONF_STDBOOL_H */
+# ifndef __cplusplus
+#  ifndef bool
+#   ifndef __bool_true_false_are_defined
+typedef int	bool;
+#    define __bool_true_false_are_defined	1
+#   endif /* ! __bool_true_false_are_defined */
+#  endif /* bool */
+# endif /* ! __cplusplus */
+#endif /* SM_CONF_STDBOOL_H */
+
 /*
 **  structure describing one milter
 */
@@ -105,11 +127,19 @@ struct smfiDesc
 
 	/* connection cleanup */
 	sfsistat	(*xxfi_close) SM__P((SMFICTX *));
+
+#if SMFI_VERSION > 2
+	/* any unrecognized or unimplemented command filter */
+	sfsistat	(*xxfi_unknown) SM__P((SMFICTX *, char *));
+#endif /* SMFI_VERSION > 2 */
+
+#if SMFI_VERSION > 3
+	/* any unrecognized or unimplemented command filter */
+	sfsistat	(*xxfi_data) SM__P((SMFICTX *));
+#endif /* SMFI_VERSION > 3 */
 };
 
-#if _FFR_SMFI_OPENSOCKET
 LIBMILTER_API int smfi_opensocket __P((bool));
-#endif /* _FFR_SMFI_OPENSOCKET */
 LIBMILTER_API int smfi_register __P((struct smfiDesc));
 LIBMILTER_API int smfi_main __P((void));
 LIBMILTER_API int smfi_setbacklog __P((int));
@@ -117,8 +147,9 @@ LIBMILTER_API int smfi_setdbg __P((int));
 LIBMILTER_API int smfi_settimeout __P((int));
 LIBMILTER_API int smfi_setconn __P((char *));
 LIBMILTER_API int smfi_stop __P((void));
-
-#define SMFI_VERSION	2		/* version number */
+#if _FFR_MAXDATASIZE
+LIBMILTER_API size_t smfi_setmaxdatasize __P((size_t));
+#endif /* _FFR_MAXDATASIZE */
 
 /*
 **  What the filter might do -- values to be ORed together for
@@ -132,9 +163,7 @@ LIBMILTER_API int smfi_stop __P((void));
 #define SMFIF_ADDRCPT	0x00000004L	/* filter may add recipients */
 #define SMFIF_DELRCPT	0x00000008L	/* filter may delete recipients */
 #define SMFIF_CHGHDRS	0x00000010L	/* filter may change/delete headers */
-#if _FFR_QUARANTINE
-# define SMFIF_QUARANTINE 0x00000020L	/* filter may quarantine envelope */
-#endif /* _FFR_QUARANTINE */
+#define SMFIF_QUARANTINE 0x00000020L	/* filter may quarantine envelope */
 
 /*
 **  Continue processing message/connection.
@@ -230,6 +259,16 @@ extern sfsistat	xxfi_envrcpt __P((SMFICTX *, char **));
 **		Later arguments are the ESMTP arguments.
 */
 
+/* unknown command filter */
+
+extern sfsistat	*xxfi_unknown __P((SMFICTX *, char *));
+
+/*
+**  xxfi_unknown(ctx, arg) Invoked when SMTP command is not recognized or not
+**  implemented.
+**	char *arg; Null-terminated SMTP command
+*/
+
 /* header filter */
 extern sfsistat	xxfi_header __P((SMFICTX *, char *, char *));
 
@@ -311,14 +350,12 @@ LIBMILTER_API char * smfi_getsymval __P((SMFICTX *, char *));
 
 LIBMILTER_API int smfi_setreply __P((SMFICTX *, char *, char *, char *));
 
-#if _FFR_MULTILINE
 /*
 **  Alternatively, smfi_setmlreply can be called if a multi-line SMTP reply
 **  is needed.
 */
 
 LIBMILTER_API int smfi_setmlreply __P((SMFICTX *, const char *, const char *, ...));
-#endif /* _FFR_MULTILINE */
 
 /*
 **  Set the specific reply code to be used in response to the active
@@ -342,10 +379,9 @@ LIBMILTER_API int smfi_setmlreply __P((SMFICTX *, const char *, const char *, ..
 LIBMILTER_API int smfi_addheader __P((SMFICTX *, char *, char *));
 
 /*
-**  Add a header to the message. This header is not passed to other
-**  filters. It is not checked for standards compliance; the mail filter
-**  must ensure that no protocols are violated as a result of adding this
-**  header.
+**  Add a header to the message. It is not checked for standards
+**  compliance; the mail filter must ensure that no protocols are violated
+**  as a result of adding this header.
 **
 **	SMFICTX *ctx; Opaque context structure
 **	char *headerf; Header field name
@@ -363,6 +399,19 @@ LIBMILTER_API int smfi_chgheader __P((SMFICTX *, char *, int, char *));
 **	char *headerf; Header field name
 **	int index; The Nth occurence of header field name
 **	char *headerv; New header field value (empty for delete header)
+*/
+
+LIBMILTER_API int smfi_insheader __P((SMFICTX *, int, char *, char *));
+
+/*
+**  Insert a header into the message.  It is not checked for standards
+**  compliance; the mail filter must ensure that no protocols are violated
+**  as a result of adding this header.
+**
+**	SMFICTX *ctx; Opaque context structure
+**  	int idx; index into the header list where the insertion should happen
+**	char *headerh; Header field name
+**	char *headerv; Header field value
 */
 
 LIBMILTER_API int smfi_addrcpt __P((SMFICTX *, char *));
@@ -413,7 +462,6 @@ LIBMILTER_API int smfi_replacebody __P((SMFICTX *, unsigned char *, int));
 **  xxfi_abort is called. This can be used to reset state.
 */
 
-#if _FFR_QUARANTINE
 /*
 **  Quarantine an envelope
 **
@@ -422,7 +470,6 @@ LIBMILTER_API int smfi_replacebody __P((SMFICTX *, unsigned char *, int));
 */
 
 LIBMILTER_API int smfi_quarantine __P((SMFICTX *ctx, char *reason));
-#endif /* _FFR_QUARANTINE */
 
 /*
 **  Connection-private data (specific to an SMTP connection) can be
@@ -441,5 +488,8 @@ LIBMILTER_API int smfi_setpriv __P((SMFICTX *, void *));
 
 LIBMILTER_API void *smfi_getpriv __P((SMFICTX *));
 
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
 
 #endif /* ! _LIBMILTER_MFAPI_H */
