@@ -1523,6 +1523,9 @@ pcic_detach(device_t dev)
 	int i;
 	int ret;
 
+	ret = bus_generic_detach(dev);
+	if (ret != 0)
+		return (ret);
 	device_get_children(dev, &kids, &nkids);
 	for (i = 0; i < nkids; i++) {
 		if ((ret = device_delete_child(pccarddev, kids[i])) != 0)
@@ -1530,7 +1533,7 @@ pcic_detach(device_t dev)
 				device_get_nameunit(kids[i]), ret);
 	}
 	free(kids, M_TEMP);
-	return (bus_generic_detach(dev));
+	return 0;
 }
 
 SYSINIT(pcic, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY, pcic_start_threads, 0);
