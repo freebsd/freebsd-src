@@ -227,7 +227,10 @@ logmessage(int pri, char *host, char *buf)
 			break;
 	}
 	if (lsent != len)
-		warnx ("sendmsg");
+		if (lsent == -1)
+			warn ("sendto");
+		else
+			warnx ("sendto: short send - %d bytes", lsent);
 
 	free(line);
 }
