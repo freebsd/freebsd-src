@@ -343,8 +343,7 @@ struct dn_pipe {		/* a pipe */
 #ifdef _KERNEL
 typedef	int ip_dn_ctl_t(struct sockopt *); /* raw_ip.c */
 typedef	void ip_dn_ruledel_t(void *); /* ip_fw.c */
-typedef	int ip_dn_io_t(struct mbuf *m, int pipe_nr, int dir,
-	struct ip_fw_args *fwa);
+typedef	int ip_dn_io_t(struct mbuf *m, int dir, struct ip_fw_args *fwa);
 extern	ip_dn_ctl_t *ip_dn_ctl_ptr;
 extern	ip_dn_ruledel_t *ip_dn_ruledel_ptr;
 extern	ip_dn_io_t *ip_dn_io_ptr;
