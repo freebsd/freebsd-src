@@ -54,7 +54,6 @@ Current local changes:
   - CVSREADONLYFS environment variable and global option -R to enable
     no-locking readonly mode (eg: cvs repo is a cdrom or mirror)
   - the verify message script can edit the submitted log message.
-  - if pserver username is "anoncvs", implicitly use a password of "anoncvs".
   - CVSROOT/options file
   - Variable keyword expansion controls including custom keywords.
   - $ CVSHeader$ keyword - like Header, but with $CVSROOT stripped off.

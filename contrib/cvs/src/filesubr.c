@@ -55,9 +55,13 @@ copy_file (from, to)
 
     if (isdevice (from))
     {
+#if defined(HAVE_MKNOD) && defined(HAVE_ST_RDEV)
 	if (stat (from, &sb) < 0)
 	    error (1, errno, "cannot stat %s", from);
 	mknod (to, sb.st_mode, sb.st_rdev);
+#else
+	error (1, 0, "cannot copy device files on this system (%s)", from);
+#endif
     }
     else
     {
@@ -624,10 +628,15 @@ xcmp (file1, file2)
        numbers match. */
     if (S_ISBLK (sb1.st_mode) || S_ISCHR (sb1.st_mode))
     {
+#ifdef HAVE_ST_RDEV
 	if (sb1.st_rdev == sb2.st_rdev)
 	    return 0;
 	else
 	    return 1;
+#else
+	error (1, 0, "cannot compare device files on this system (%s and %s)",
+	       file1, file2);
+#endif
     }
 
     if ((fd1 = open (file1, O_RDONLY)) < 0)
