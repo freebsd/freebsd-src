@@ -68,8 +68,6 @@ __FBSDID("$FreeBSD$");
 #include "log.h"
 #include "pam_ssh.h"
 
-int IPv4or6 = AF_UNSPEC;
-
 /*
  * Generic cleanup function for SSH "Key" type.
  */
