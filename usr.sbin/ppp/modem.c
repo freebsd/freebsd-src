@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.100 1999/01/10 01:26:28 brian Exp $
+ * $Id: modem.c,v 1.101 1999/01/28 01:56:33 brian Exp $
  *
  *  TODO:
  */
@@ -134,6 +134,8 @@ modem_Create(struct datalink *dl, int type)
   p->cfg.parity = CS8;
   strncpy(p->cfg.devlist, MODEM_LIST, sizeof p->cfg.devlist - 1);
   p->cfg.devlist[sizeof p->cfg.devlist - 1] = '\0';
+  p->cfg.cd.required = 0;
+  p->cfg.cd.delay = DEF_CDDELAY;
 
   lcp_Init(&p->link.lcp, dl->bundle, &p->link, &dl->fsmp);
   ccp_Init(&p->link.ccp, dl->bundle, &p->link, &dl->fsmp);
@@ -277,9 +279,12 @@ modem_Timeout(void *data)
   int change;
 
   timer_Stop(&modem->Timer);
+  modem->Timer.load = SECTICKS;		/* Once a second please */
   timer_Start(&modem->Timer);
 
   if (modem->isatty || physical_IsSync(modem)) {
+    ombits = modem->mbits;
+
     if (modem->fd >= 0) {
       if (ioctl(modem->fd, TIOCMGET, &modem->mbits) < 0) {
 	log_Printf(LogPHASE, "%s: ioctl error (%s)!\n", modem->link.name,
@@ -289,18 +294,36 @@ modem_Timeout(void *data)
       }
     } else
       modem->mbits = 0;
-    change = ombits ^ modem->mbits;
-    if (change & TIOCM_CD) {
-      if (modem->mbits & TIOCM_CD)
-        log_Printf(LogDEBUG, "%s: offline -> online\n", modem->link.name);
-      else {
-        log_Printf(LogDEBUG, "%s: online -> offline\n", modem->link.name);
-        log_Printf(LogPHASE, "%s: Carrier lost\n", modem->link.name);
+
+    if (ombits == -1) {
+      /* First time looking for carrier */
+      if (Online(modem))
+        log_Printf(LogDEBUG, "%s: %s: CD detected\n",
+                   modem->link.name, modem->name.full);
+      else if (modem->cfg.cd.required) {
+        log_Printf(LogPHASE, "%s: %s: Required CD not detected\n",
+                   modem->link.name, modem->name.full);
         datalink_Down(modem->dl, CLOSE_NORMAL);
+      } else {
+        log_Printf(LogPHASE, "%s: %s doesn't support CD\n",
+                   modem->link.name, modem->name.full);
+        timer_Stop(&modem->Timer);
+        modem->mbits = TIOCM_CD;
       }
-    } else
-      log_Printf(LogDEBUG, "%s: Still %sline\n", modem->link.name,
-                Online(modem) ? "on" : "off");
+    } else {
+      change = ombits ^ modem->mbits;
+      if (change & TIOCM_CD) {
+        if (modem->mbits & TIOCM_CD)
+          log_Printf(LogDEBUG, "%s: offline -> online\n", modem->link.name);
+        else {
+          log_Printf(LogDEBUG, "%s: online -> offline\n", modem->link.name);
+          log_Printf(LogPHASE, "%s: Carrier lost\n", modem->link.name);
+          datalink_Down(modem->dl, CLOSE_NORMAL);
+        }
+      } else
+        log_Printf(LogDEBUG, "%s: Still %sline\n", modem->link.name,
+                  Online(modem) ? "on" : "off");
+    }
   } else if (!Online(modem)) {
     /* mbits was set to zero in modem_Open() */
     modem->mbits = TIOCM_CD;
@@ -310,18 +333,15 @@ modem_Timeout(void *data)
 static void
 modem_StartTimer(struct bundle *bundle, struct physical *modem)
 {
-  struct pppTimer *ModemTimer;
-
-  ModemTimer = &modem->Timer;
-
-  timer_Stop(ModemTimer);
-  ModemTimer->load = SECTICKS;
-  ModemTimer->func = modem_Timeout;
-  ModemTimer->name = "modem CD";
-  ModemTimer->arg = modem;
+  timer_Stop(&modem->Timer);
+  modem->Timer.load = SECTICKS * modem->cfg.cd.delay;
+  modem->Timer.func = modem_Timeout;
+  modem->Timer.name = "modem CD";
+  modem->Timer.arg = modem;
   log_Printf(LogDEBUG, "%s: Using modem_Timeout [%p]\n",
             modem->link.name, modem_Timeout);
-  timer_Start(ModemTimer);
+  modem->mbits = -1;		/* So we know it's the first time */
+  timer_Start(&modem->Timer);
 }
 
 static const struct parity {
@@ -724,14 +744,7 @@ modem_Raw(struct physical *modem, struct bundle *bundle)
     return (-1);
   fcntl(modem->fd, F_SETFL, oldflag | O_NONBLOCK);
 
-  if ((modem->isatty || physical_IsSync(modem)) &&
-      ioctl(modem->fd, TIOCMGET, &modem->mbits) == 0 &&
-      (modem->mbits & TIOCM_CD)) {
-    modem_StartTimer(bundle, modem);
-    modem_Timeout(modem);
-  } else
-    log_Printf(LogDEBUG, "%s: %s doesn't support CD\n",
-               modem->link.name, modem->name.full);
+  modem_StartTimer(bundle, modem);
 
   return 0;
 }
@@ -933,8 +946,13 @@ modem_ShowStatus(struct cmdargs const *arg)
   prompt_Printf(arg->prompt, ", CTS/RTS %s\n",
                 (modem->cfg.rts_cts ? "on" : "off"));
 
+  prompt_Printf(arg->prompt, " CD check delay:  %d second%s",
+                modem->cfg.cd.delay, modem->cfg.cd.delay == 1 ? "" : "s");
+  if (modem->cfg.cd.required)
+    prompt_Printf(arg->prompt, " (required!)\n\n");
+  else
+    prompt_Printf(arg->prompt, "\n\n");
 
-  prompt_Printf(arg->prompt, "\n");
   throughput_disp(&modem->link.throughput, arg->prompt);
 
   return 0;
@@ -1046,7 +1064,7 @@ iov2modem(struct datalink *dl, struct iovec *iov, int *niov, int maxiov, int fd)
                    Enabled(dl->bundle, OPT_THROUGHPUT));
   if (p->Timer.state != TIMER_STOPPED) {
     p->Timer.state = TIMER_STOPPED;	/* Special - see modem2iov() */
-    modem_StartTimer(dl->bundle, p);
+    modem_StartTimer(dl->bundle, p);	/* XXX: Should we set cd.required ? */
   }
 
   return p;

@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.147 1999/02/12 00:52:30 brian Exp $
+.\" $Id: ppp.8,v 1.148 1999/02/14 12:16:41 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -3117,6 +3117,37 @@ be agreeable with the peer), or if
 is specified,
 .Nm
 will expect the peer to specify the number.
+.It set cd Ar seconds Ns Op \&!
+Normally,
+.Nm
+checks for the existence of carrier one second after the login script is
+complete.  If it's not set,
+.Nm
+assumes that this is because the device doesn't support carrier (which
+is true for most NULL-modem cables), logs the fact and stops checking
+for carrier.  However, some modems take some time to assert the carrier
+signal, resulting in
+.Nm ppp Ns No s
+inability to detect when the link is dropped.
+.Ar Seconds
+specifies the number of seconds that
+.Nm
+should wait after the login script has finished before first checking for
+carrier.
+.Pp
+If
+.Ar seconds
+is followed immediately by an exclaimation mark
+.Pq Dq \&! ,
+.Nm
+will
+.Em require
+carrier.  If carrier is not detected at the first check, the link will
+be considered disconnected.
+.Pp
+Carrier
+.Em require Ns No ment
+is ignored when the link is not a tty device.
 .It set choked Op Ar timeout
 This sets the number of seconds that
 .Nm
