@@ -103,7 +103,11 @@ int rijndael_cipherInit(cipherInstance *cipher, BYTE mode, char *IV) {
 int rijndael_blockEncrypt(cipherInstance *cipher, keyInstance *key,
 		BYTE *input, int inputLen, BYTE *outBuffer) {
 	int i, k, t, numBlocks;
+#if 1 /*STRICT_ALIGN*/
+	u_int8_t block[16], iv[16];
+#else
 	u_int8_t block[16], *iv;
+#endif
 
 	if (cipher == NULL ||
 		key == NULL ||
@@ -126,21 +130,41 @@ int rijndael_blockEncrypt(cipherInstance *cipher, keyInstance *key,
 		break;
 		
 	case MODE_CBC:
+#if 1 /*STRICT_ALIGN*/
+		memcpy(iv, cipher->IV, 16);
+#else
 		iv = cipher->IV;
+#endif
 		for (i = numBlocks; i > 0; i--) {
+#if 1 /*STRICT_ALIGN*/
+			memcpy(block, input, 16);
+			((u_int32_t*)block)[0] ^= ((u_int32_t*)iv)[0];
+			((u_int32_t*)block)[1] ^= ((u_int32_t*)iv)[1];
+			((u_int32_t*)block)[2] ^= ((u_int32_t*)iv)[2];
+			((u_int32_t*)block)[3] ^= ((u_int32_t*)iv)[3];
+#else
 			((u_int32_t*)block)[0] = ((u_int32_t*)input)[0] ^ ((u_int32_t*)iv)[0];
 			((u_int32_t*)block)[1] = ((u_int32_t*)input)[1] ^ ((u_int32_t*)iv)[1];
 			((u_int32_t*)block)[2] = ((u_int32_t*)input)[2] ^ ((u_int32_t*)iv)[2];
 			((u_int32_t*)block)[3] = ((u_int32_t*)input)[3] ^ ((u_int32_t*)iv)[3];
+#endif
 			rijndaelEncrypt(key->rk, key->Nr, block, outBuffer);
+#if 1 /*STRICT_ALIGN*/
+			memcpy(iv, outBuffer, 16);
+#else
 			iv = outBuffer;
+#endif
 			input += 16;
 			outBuffer += 16;
 		}
 		break;
 
     case MODE_CFB1:
+#if 1 /*STRICT_ALIGN*/
+		memcpy(iv, cipher->IV, 16);
+#else
 		iv = cipher->IV;
+#endif
         for (i = numBlocks; i > 0; i--) {
 			memcpy(outBuffer, input, 16);
             for (k = 0; k < 128; k++) {
@@ -154,6 +178,9 @@ int rijndael_blockEncrypt(cipherInstance *cipher, keyInstance *key,
             outBuffer += 16;
             input += 16;
         }
+#if 1 /*STRICT_ALIGN*/
+		memcpy(cipher->IV, iv, 16);
+#endif
         break;
 
 	default:
@@ -237,7 +264,11 @@ int rijndael_padEncrypt(cipherInstance *cipher, keyInstance *key,
 int rijndael_blockDecrypt(cipherInstance *cipher, keyInstance *key,
 		BYTE *input, int inputLen, BYTE *outBuffer) {
 	int i, k, t, numBlocks;
+#if 1 /*STRICT_ALIGN*/
+	u_int8_t block[16], iv[16];
+#else
 	u_int8_t block[16], *iv;
+#endif
 
 	if (cipher == NULL ||
 		key == NULL ||
@@ -260,22 +291,37 @@ int rijndael_blockDecrypt(cipherInstance *cipher, keyInstance *key,
 		break;
 		
 	case MODE_CBC:
+#if 1 /*STRICT_ALIGN*/
+		memcpy(iv, cipher->IV, 16);
+#else
 		iv = cipher->IV;
+#endif
 		for (i = numBlocks; i > 0; i--) {
 			rijndaelDecrypt(key->rk, key->Nr, input, block);
 			((u_int32_t*)block)[0] ^= ((u_int32_t*)iv)[0];
 			((u_int32_t*)block)[1] ^= ((u_int32_t*)iv)[1];
 			((u_int32_t*)block)[2] ^= ((u_int32_t*)iv)[2];
 			((u_int32_t*)block)[3] ^= ((u_int32_t*)iv)[3];
+#if 1 /*STRICT_ALIGN*/
+			memcpy(iv, input, 16);
+#else
 			memcpy(cipher->IV, input, 16);
+#endif
 			memcpy(outBuffer, block, 16);
 			input += 16;
 			outBuffer += 16;
 		}
+#if 1 /*STRICT_ALIGN*/
+		memcpy(cipher->IV, iv, 16);
+#endif
 		break;
 
     case MODE_CFB1:
+#if 1 /*STRICT_ALIGN*/
+		memcpy(iv, cipher->IV, 16);
+#else
 		iv = cipher->IV;
+#endif
         for (i = numBlocks; i > 0; i--) {
 			memcpy(outBuffer, input, 16);
             for (k = 0; k < 128; k++) {
@@ -289,6 +335,9 @@ int rijndael_blockDecrypt(cipherInstance *cipher, keyInstance *key,
             outBuffer += 16;
             input += 16;
         }
+#if 1 /*STRICT_ALIGN*/
+		memcpy(cipher->IV, iv, 16);
+#endif
         break;
 
 	default:
