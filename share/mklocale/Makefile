@@ -6,6 +6,7 @@ CLEANFILES+= ${LOCALES:S/$/.out/g}
 LOCALES=	bg_BG.CP1251 \
 		el_GR.ISO8859-7 \
 		hi_IN.ISCII-DEV \
+		hy_AM.ARMSCII-8 \
 		ja_JP.SJIS \
 		ja_JP.eucJP \
 		ko_KR.eucKR \
