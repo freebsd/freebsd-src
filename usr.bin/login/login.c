@@ -250,7 +250,7 @@ main(int argc, char *argv[])
 	 * Get "login-retries" & "login-backoff" from default class
 	 */
 	lc = login_getclass(NULL);
-	prompt = login_getcapstr(lc, "prompt",
+	prompt = login_getcapstr(lc, "login_prompt",
 	    default_prompt, default_prompt);
 	passwd_prompt = login_getcapstr(lc, "passwd_prompt",
 	    default_passwd_prompt, default_passwd_prompt);
