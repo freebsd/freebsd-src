@@ -246,7 +246,7 @@ lomac_local_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	}
 	if (so->so_proto->pr_flags & PR_CONNREQUIRED) {
 		if ((so2->so_options & SO_ACCEPTCONN) == 0 ||
-		    (so3 = sonewconn3(so2, 0, td)) == 0) {
+		    (so3 = sonewconn(so2, 0)) == 0) {
 			error = ECONNREFUSED;
 			goto bad;
 		}
