@@ -178,7 +178,8 @@ __FBSDID("$FreeBSD$");
 #define pmap_pte_u(pte)		((*(int *)pte & PG_A) != 0)
 #define pmap_pte_v(pte)		((*(int *)pte & PG_V) != 0)
 
-#define pmap_pte_set_w(pte, v) ((v)?(*(int *)pte |= PG_W):(*(int *)pte &= ~PG_W))
+#define pmap_pte_set_w(pte, v)	((v) ? atomic_set_int((u_int *)(pte), PG_W) : \
+    atomic_clear_int((u_int *)(pte), PG_W))
 #define pmap_pte_set_prot(pte, v) ((*(int *)pte &= ~PG_PROT), (*(int *)pte |= (v)))
 
 struct pmap kernel_pmap_store;
