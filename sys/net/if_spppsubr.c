@@ -4936,23 +4936,32 @@ sppp_params(struct sppp *sp, u_long cmd, void *data)
 {
 	u_long subcmd;
 	struct ifreq *ifr = (struct ifreq *)data;
-	struct spppreq spr;
+	struct spppreq *spr;
+	int rv = 0;
 
+	if ((spr = malloc(sizeof(struct spppreq), M_TEMP, M_NOWAIT)) == 0)
+		return (EAGAIN);
 	/*
 	 * ifr->ifr_data is supposed to point to a struct spppreq.
 	 * Check the cmd word first before attempting to fetch all the
 	 * data.
 	 */
-	if ((subcmd = fuword(ifr->ifr_data)) == -1)
-		return EFAULT;
+	if ((subcmd = fuword(ifr->ifr_data)) == -1) {
+		rv = EFAULT;
+		goto quit;
+	}
 
-	if (copyin((caddr_t)ifr->ifr_data, &spr, sizeof spr) != 0)
-		return EFAULT;
+	if (copyin((caddr_t)ifr->ifr_data, spr, sizeof(struct spppreq)) != 0) {
+		rv = EFAULT;
+		goto quit;
+	}
 
 	switch (subcmd) {
 	case SPPPIOGDEFS:
-		if (cmd != SIOCGIFGENERIC)
-			return EINVAL;
+		if (cmd != SIOCGIFGENERIC) {
+			rv = EINVAL;
+			break;
+		}
 		/*
 		 * We copy over the entire current state, but clean
 		 * out some of the stuff we don't wanna pass up.
@@ -4960,29 +4969,33 @@ sppp_params(struct sppp *sp, u_long cmd, void *data)
 		 * called by any user.  No need to ever get PAP or
 		 * CHAP secrets back to userland anyway.
 		 */
-		spr.defs.pp_phase = sp->pp_phase;
-		spr.defs.enable_vj = sp->enable_vj;
-		spr.defs.lcp = sp->lcp;
-		spr.defs.ipcp = sp->ipcp;
-		spr.defs.ipv6cp = sp->ipv6cp;
-		spr.defs.myauth = sp->myauth;
-		spr.defs.hisauth = sp->hisauth;
-		bzero(spr.defs.myauth.secret, AUTHKEYLEN);
-		bzero(spr.defs.myauth.challenge, AUTHKEYLEN);
-		bzero(spr.defs.hisauth.secret, AUTHKEYLEN);
-		bzero(spr.defs.hisauth.challenge, AUTHKEYLEN);
+		spr->defs.pp_phase = sp->pp_phase;
+		spr->defs.enable_vj = sp->enable_vj;
+		spr->defs.lcp = sp->lcp;
+		spr->defs.ipcp = sp->ipcp;
+		spr->defs.ipv6cp = sp->ipv6cp;
+		spr->defs.myauth = sp->myauth;
+		spr->defs.hisauth = sp->hisauth;
+		bzero(spr->defs.myauth.secret, AUTHKEYLEN);
+		bzero(spr->defs.myauth.challenge, AUTHKEYLEN);
+		bzero(spr->defs.hisauth.secret, AUTHKEYLEN);
+		bzero(spr->defs.hisauth.challenge, AUTHKEYLEN);
 		/*
 		 * Fixup the LCP timeout value to milliseconds so
 		 * spppcontrol doesn't need to bother about the value
 		 * of "hz".  We do the reverse calculation below when
 		 * setting it.
 		 */
-		spr.defs.lcp.timeout = sp->lcp.timeout * 1000 / hz;
-		return copyout(&spr, (caddr_t)ifr->ifr_data, sizeof spr);
+		spr->defs.lcp.timeout = sp->lcp.timeout * 1000 / hz;
+		rv = copyout(spr, (caddr_t)ifr->ifr_data,
+			     sizeof(struct spppreq));
+		break;
 
 	case SPPPIOSDEFS:
-		if (cmd != SIOCSIFGENERIC)
-			return EINVAL;
+		if (cmd != SIOCSIFGENERIC) {
+			rv = EINVAL;
+			break;
+		}
 		/*
 		 * We have a very specific idea of which fields we
 		 * allow being passed back from userland, so to not
@@ -5008,50 +5021,57 @@ sppp_params(struct sppp *sp, u_long cmd, void *data)
 		 * secrets are cleared if the authentication protocol is
 		 * reset to 0.  */
 		if (sp->pp_phase != PHASE_DEAD &&
-		    sp->pp_phase != PHASE_ESTABLISH)
-			return EBUSY;
+		    sp->pp_phase != PHASE_ESTABLISH) {
+			rv = EBUSY;
+			break;
+		}
 
-		if ((spr.defs.myauth.proto != 0 && spr.defs.myauth.proto != PPP_PAP &&
-		     spr.defs.myauth.proto != PPP_CHAP) ||
-		    (spr.defs.hisauth.proto != 0 && spr.defs.hisauth.proto != PPP_PAP &&
-		     spr.defs.hisauth.proto != PPP_CHAP))
-			return EINVAL;
+		if ((spr->defs.myauth.proto != 0 && spr->defs.myauth.proto != PPP_PAP &&
+		     spr->defs.myauth.proto != PPP_CHAP) ||
+		    (spr->defs.hisauth.proto != 0 && spr->defs.hisauth.proto != PPP_PAP &&
+		     spr->defs.hisauth.proto != PPP_CHAP)) {
+			rv = EINVAL;
+			break;
+		}
 
-		if (spr.defs.myauth.proto == 0)
+		if (spr->defs.myauth.proto == 0)
 			/* resetting myauth */
 			bzero(&sp->myauth, sizeof sp->myauth);
 		else {
 			/* setting/changing myauth */
-			sp->myauth.proto = spr.defs.myauth.proto;
-			bcopy(spr.defs.myauth.name, sp->myauth.name, AUTHNAMELEN);
-			if (spr.defs.myauth.secret[0] != '\0')
-				bcopy(spr.defs.myauth.secret, sp->myauth.secret,
+			sp->myauth.proto = spr->defs.myauth.proto;
+			bcopy(spr->defs.myauth.name, sp->myauth.name, AUTHNAMELEN);
+			if (spr->defs.myauth.secret[0] != '\0')
+				bcopy(spr->defs.myauth.secret, sp->myauth.secret,
 				      AUTHKEYLEN);
 		}
-		if (spr.defs.hisauth.proto == 0)
+		if (spr->defs.hisauth.proto == 0)
 			/* resetting hisauth */
 			bzero(&sp->hisauth, sizeof sp->hisauth);
 		else {
 			/* setting/changing hisauth */
-			sp->hisauth.proto = spr.defs.hisauth.proto;
-			sp->hisauth.flags = spr.defs.hisauth.flags;
-			bcopy(spr.defs.hisauth.name, sp->hisauth.name, AUTHNAMELEN);
-			if (spr.defs.hisauth.secret[0] != '\0')
-				bcopy(spr.defs.hisauth.secret, sp->hisauth.secret,
+			sp->hisauth.proto = spr->defs.hisauth.proto;
+			sp->hisauth.flags = spr->defs.hisauth.flags;
+			bcopy(spr->defs.hisauth.name, sp->hisauth.name, AUTHNAMELEN);
+			if (spr->defs.hisauth.secret[0] != '\0')
+				bcopy(spr->defs.hisauth.secret, sp->hisauth.secret,
 				      AUTHKEYLEN);
 		}
 		/* set LCP restart timer timeout */
-		if (spr.defs.lcp.timeout != 0)
-			sp->lcp.timeout = spr.defs.lcp.timeout * hz / 1000;
+		if (spr->defs.lcp.timeout != 0)
+			sp->lcp.timeout = spr->defs.lcp.timeout * hz / 1000;
 		/* set VJ enable flag */
-		sp->enable_vj = spr.defs.enable_vj;
+		sp->enable_vj = spr->defs.enable_vj;
 		break;
 
 	default:
-		return EINVAL;
+		rv = EINVAL;
 	}
 
-	return 0;
+ quit:
+	free(spr, M_TEMP);
+
+	return (rv);
 }
 
 static void
