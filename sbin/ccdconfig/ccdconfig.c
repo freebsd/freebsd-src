@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <libgeom.h>
 
 #include <sys/devicestat.h>
 #include <sys/ccdvar.h>
@@ -426,9 +427,27 @@ static int
 dump_ccd(int argc, char **argv)
 {
 	char *cp;
+	char const *errstr;
 	int i, error, numccd, numconfiged = 0;
 	struct ccdconf conf;
 	int ccd;
+	struct gctl_req *grq;
+
+	grq = gctl_get_handle();
+	gctl_ro_param(grq, "verb", -1, "list");
+	gctl_ro_param(grq, "class", -1, "CCD");
+	cp = malloc(65536);
+	gctl_rw_param(grq, "output", 65536, cp);
+	if (verbose)
+		gctl_ro_param(grq, "verbose", -1, "yes");
+	errstr = gctl_issue(grq);
+	if (errstr == NULL) {
+		printf("%s", cp);
+		return (0);
+	} else {
+		warnx("%s\nor possibly kernel and ccdconfig out of sync",
+		    errstr);
+	}
 
 	/*
 	 * Read the ccd configuration data from the kernel and dump
