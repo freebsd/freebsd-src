@@ -59,7 +59,13 @@ function locates the first occurrence of
 .Vt char )
 in the string pointed to by
 .Fa s .
-The terminating null character is considered part of the string.
+The terminating null character is considered part of the string;
+therefore if
+.Fa c
+is
+.Ql \e0 ,
+the functions locate the terminating
+.Ql \e0 .
 .Pp
 The
 .Fn strrchr
@@ -75,12 +81,6 @@ and
 return a pointer to the located character, or
 .Dv NULL
 if the character does not appear in the string.
-If
-.Fa c
-is
-.Ql \e0 ,
-the functions locate the terminating
-.Ql \e0 .
 .Sh SEE ALSO
 .Xr memchr 3 ,
 .Xr strcspn 3 ,
