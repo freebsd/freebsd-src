@@ -3,7 +3,6 @@
 
 PROG=	gcore
 SRCS=	elfcore.c gcore.c
-CFLAGS+=-Wall
 DPADD=	${LIBKVM}
 LDADD=	-lkvm
 
