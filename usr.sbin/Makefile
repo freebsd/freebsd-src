@@ -1,6 +1,10 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
 # $FreeBSD$
 
+.if ${MACHINE_ARCH} != "powerpc"
+_sysinstall=sysinstall
+.endif
+
 # XXX MISSING:		mkproto
 SUBDIR=	IPXrouted \
 	ac \
@@ -101,7 +105,7 @@ SUBDIR=	IPXrouted \
 	sliplogin \
 	slstat \
 	spray \
-	sysinstall \
+	${_sysinstall} \
 	syslogd \
 	tcpdchk \
 	tcpdmatch \
