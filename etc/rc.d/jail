@@ -100,11 +100,19 @@ jail_start()
 
 			# Transitional symlink for old binaries
 			if [ ! -L ${jail_devdir}/log ]; then
-				devfs_link ${jail_devdir} ../var/run/log log
+				__pwd="`pwd`"
+				cd "${jail_devdir}"
+				ln -sf ../var/run/log log
+				cd "$__pwd"
 			fi
 
+			# XXX - It seems symlinks don't work when there
+			#	is a devfs(5) device of the same name.
 			# Jail console output
-			devfs_link ${jail_devdir} ../var/log/console console
+			#	__pwd="`pwd`"
+			#	cd "${jail_devdir}"
+			#	ln -sf ../var/log/console console
+			#	cd "$__pwd"
 		fi
 		if checkyesno jail_fdescfs; then
 			info "Mounting fdescfs on ${jail_fdescdir}"
