@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.33 1999/05/08 06:39:35 phk Exp $
+ * $Id: kern_conf.c,v 1.34 1999/05/09 08:10:17 peter Exp $
  */
 
 #include <sys/param.h>
@@ -72,7 +72,7 @@ cdevsw_add(dev_t *descrip,
 {
 	int i ;
 
-	if ( (int)*descrip == NODEV) {	/* auto (0 is valid) */
+	if ( *descrip == NODEV) {	/* auto (0 is valid) */
 		/*
 		 * Search the table looking for a slot...
 		 */
@@ -107,12 +107,13 @@ cdevsw_add(dev_t *descrip,
 } 
 
 void
-cdevsw_add_generic(int bmaj, int cmaj, struct cdevsw *cdevsw)
+cdevsw_add_generic(int bmaj, int cmaj, struct cdevsw *devsw)
 {
 	dev_t dev;
 
 	dev = makedev(cmaj, 0);
-	cdevsw_add(&dev, cdevsw, NULL);
+	cdevsw_add(&dev, devsw, NULL);
+	cdevsw[cmaj]->d_bmaj = bmaj;
 	bmaj2cmaj[bmaj] = cmaj;
 }
 
