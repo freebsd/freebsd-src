@@ -62,7 +62,7 @@ host-num = digit [ digit [ digit ] ] .
 port-num = service-name | decnumber .
 
 withopt = [ "not" | "no" ] opttype [ withopt ] .
-opttype = "ipopts" | "short" | "frag" | "opt" ipopts  .
+opttype = "ipopts" | "short" | "frag" | "opt" optname .
 optname	= ipopts [ "," optname ] .
 ipopts  = optlist | "sec-class" [ secname ] .
 secname	= seclvl [ "," secname ] .
