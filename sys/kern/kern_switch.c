@@ -129,8 +129,7 @@ runq_findbit(struct runq *rq)
 	rqb = &rq->rq_status;
 	for (i = 0; i < RQB_LEN; i++)
 		if (rqb->rqb_bits[i]) {
-			pri = (RQB_FFS(rqb->rqb_bits[i]) - 1) +
-			    (i << RQB_L2BPW);
+			pri = RQB_FFS(rqb->rqb_bits[i]) + (i << RQB_L2BPW);
 			CTR3(KTR_RUNQ, "runq_findbit: bits=%#x i=%d pri=%d",
 			    rqb->rqb_bits[i], i, pri);
 			return (pri);
