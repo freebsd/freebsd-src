@@ -365,7 +365,6 @@ struct atapi_sense {
 
 /* externs */
 extern devclass_t ata_devclass;
-extern struct intr_config_hook *ata_delayed_attach;
 extern int ata_wc;
  
 /* public prototypes */
@@ -391,8 +390,6 @@ int ata_limit_mode(struct ata_device *atadev, int mode, int maxmode);
 /* ata-queue.c: */
 int ata_reinit(struct ata_channel *ch);
 void ata_start(struct ata_channel *ch);
-struct ata_request *ata_alloc_request(void);
-void ata_free_request(struct ata_request *request);
 int ata_controlcmd(struct ata_device *atadev, u_int8_t command, u_int16_t feature, u_int64_t lba, u_int16_t count);
 int ata_atapicmd(struct ata_device *atadev, u_int8_t *ccb, caddr_t data, int count, int flags, int timeout);
 void ata_queue_request(struct ata_request *request);
@@ -410,6 +407,11 @@ void ast_attach(struct ata_device *atadev);
 void atapi_cam_attach_bus(struct ata_channel *ch);
 void atapi_cam_detach_bus(struct ata_channel *ch);
 void atapi_cam_reinit_bus(struct ata_channel *ch);
+
+/* macros for alloc/free of ata_requests */
+extern uma_zone_t ata_zone;
+#define ata_alloc_request() uma_zalloc(ata_zone, M_NOWAIT | M_ZERO)
+#define ata_free_request(request) uma_zfree(ata_zone, request)
 
 /* macros for locking a channel */
 #define ATA_LOCK_CH(ch, value) \
