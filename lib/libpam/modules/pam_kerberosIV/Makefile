@@ -27,6 +27,7 @@
 LIB=		pam_kerberosIV
 SHLIB_NAME=	${LIB}.so.${SHLIB_MAJOR}
 SRCS=		pam_kerberosIV.c klogin.c
+NO_WERROR=	yes
 CFLAGS+=	-DKERBEROS
 DPADD=		${LIBKRB} ${LIBCRYPTO} ${LIBCOM_ERR}
 LDADD=		-lkrb -lcrypto -lcom_err
