@@ -872,14 +872,14 @@ bad:
 
 
 /*
- * Read the specinfo structure in the kernel (as pointed to by a dev_t)
+ * Read the cdev structure in the kernel (as pointed to by a dev_t)
  * in order to work out the associated udev_t
  */
 udev_t
 dev2udev(dev)
 	dev_t dev;
 {
-	struct specinfo si;
+	struct cdev si;
 
 	if (KVM_READ(dev, &si, sizeof si)) {
 		return si.si_udev;

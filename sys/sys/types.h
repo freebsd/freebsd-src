@@ -187,10 +187,10 @@ typedef	__uintfptr_t	uintfptr_t;
 typedef	u_int64_t	uoff_t;
 typedef	struct vm_page	*vm_page_t;
 
-struct specinfo;
+struct cdev;
 
 typedef	u_int32_t	udev_t;		/* device number */
-typedef struct specinfo	*dev_t;
+typedef struct cdev	*dev_t;
 
 #define offsetof(type, field) __offsetof(type, field)
 
