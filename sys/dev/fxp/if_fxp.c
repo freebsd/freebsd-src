@@ -678,6 +678,7 @@ fxp_attach(device_t dev)
 	if (sc->flags & FXP_FLAG_EXT_RFA) {
 		ifp->if_hwassist = FXP_CSUM_FEATURES;
 		ifp->if_capabilities = IFCAP_HWCSUM;
+		ifp->if_capenable = ifp->if_capabilities;
 	}
 
 	/*
