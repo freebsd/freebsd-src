@@ -24,7 +24,12 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "diff.h"
 #include <signal.h>
 #include "getopt.h"
+#ifdef __FreeBSD__
+#include <locale.h>
+#include <fnmatch.h>
+#else
 #include "fnmatch.h"
+#endif
 
 #ifndef DEFAULT_WIDTH
 #define DEFAULT_WIDTH 130
@@ -235,6 +240,9 @@ main (argc, argv)
   int width = DEFAULT_WIDTH;
   int show_c_function = 0;
 
+#ifdef __FreeBSD__
+  setlocale(LC_ALL, "");
+#endif
   /* Do our initializations.  */
   initialize_main (&argc, &argv);
   program_name = argv[0];
