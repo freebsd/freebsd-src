@@ -10,10 +10,20 @@
  */
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 
 #include <machine/cpufunc.h>
 #include <machine/md_var.h>
 #include <machine/ver.h>
+
+static char machine[] = "sparc64";
+SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD,
+    machine, 0, "Machine class");
+
+static char cpu_model[128];
+SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD,
+    cpu_model, 0, "Machine model");
 
 void
 cpu_identify(unsigned int freq)
@@ -62,6 +72,7 @@ cpu_identify(unsigned int freq)
 		return;
 	}
 
+	snprintf(cpu_model, sizeof(cpu_model), "%s %s", manus, impls);
 	printf("CPU: %s %s Processor (%d.%02d MHZ CPU)\n", manus, impls,
 	    (freq + 4999) / 1000000, ((freq + 4999) / 10000) % 100);
 	if (bootverbose) {
