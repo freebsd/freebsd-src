@@ -2755,8 +2755,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<title>sendmail</title>
 
 	<para><application>sendmail</application> has been updated from
-	version 8.9.3 to version 8.11.6.  Important changes include: new
-	default file locations (see
+	version 8.9.3 to version 8.12.2.  Important changes include:
+	&man.sendmail.8; is no longer installed as a set-user-ID root
+	binary (now set-group-ID smmsp); new default file locations (see
 	<filename>/usr/src/contrib/sendmail/cf/README</filename>);
 	&man.newaliases.1; is limited to <username>root</username> and
 	trusted users; STARTTLS encryption; and the MSA port (587) is
@@ -2764,9 +2765,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<filename>/usr/src/contrib/sendmail/RELEASE_NOTES</filename> for
 	more information. &merged;</para>
 
-	<para>&man.mail.local.8; is no longer installed as a SUID binary.
-	If you are using a <filename>/etc/mail/sendmail.cf</filename> from
-	the default <filename>sendmail.cf</filename> included with &os;
+	<para>&man.mail.local.8; is no longer installed as a set-user-ID
+	binary.  If you are using a <filename>/etc/mail/sendmail.cf</filename>
+	from the default <filename>sendmail.cf</filename> included with &os;
 	any time after 3.1.0, you are fine.  If you are using a
 	hand-configured <filename>sendmail.cf</filename> and
 	<command>mail.local</command> for delivery, check to make sure the
