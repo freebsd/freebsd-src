@@ -1268,6 +1268,8 @@ wi_write_record(sc, ltv)
 			ltv = &p2ltv;
 			break;
 		case WI_RID_TX_CRYPT_KEY:
+			if (ltv->wi_val > WI_NLTV_KEYS)
+				return (EINVAL);
 			p2ltv.wi_type = WI_RID_P2_TX_CRYPT_KEY;
 			p2ltv.wi_len = 2;
 			p2ltv.wi_val = ltv->wi_val;
@@ -1328,6 +1330,10 @@ wi_write_record(sc, ltv)
 			case 11: ltv->wi_val = 5; break; /* 11Mb/s fixed */
 			default: return EINVAL;
 			}
+		case WI_RID_TX_CRYPT_KEY:
+			if (ltv->wi_val > WI_NLTV_KEYS)
+				return (EINVAL);
+			break;
 		}
 	}
 
