@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.76 1994/06/29 21:19:38 jkh Exp $
+#	$Id: Makefile,v 1.77 1994/09/05 05:14:01 gpalmer Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -108,7 +108,8 @@ CPIO_CPIO+=	usr/share/misc/termcap
 CPIO_CPIO_DIRS=		tmp usr/lib usr/libexec usr/share usr/share/misc
 CPIO_CPIO_DIRS+=	var var/tmp var/run var/spool var/spool/lock
 
-CRYPT_LIB=	lib/libcrypt
+SCRYPT_LIB=	lib/libscrypt
+DESCRYPT_LIB=	secure/lib/libdescrypt
 CRYPT_SRCS=	bin/ed bin/rcp
 CRYPT_SRCS+=	libexec/ftpd libexec/makekey libexec/rexecd libexec/rlogind
 CRYPT_SRCS+=	libexec/rshd libexec/telnetd libexec/uucpd
@@ -119,21 +120,24 @@ CRYPT_DIRS=	bin sbin usr usr/bin usr/lib usr/libexec
 
 all depend etc install lint:
 
-crypt:
+scrypt:
 	rm -f ${LIBCRYPT};
-	(cd ${.CURDIR}/../${CRYPT_LIB}; \
+	(cd ${.CURDIR}/../${SCRYPT_LIB}; \
+		${MAKE} cleandir obj depend all install)
+	for i in ${CRYPT_SRCS}; do \
+		cd ${.CURDIR}/../$$i; \
+		${MAKE} cleandir obj depend all; \
+	done
+
+descrypt:
+	rm -f ${LIBCRYPT};
+	(cd ${.CURDIR}/../${DESCRYPT_LIB}; \
 		${MAKE} cleandir obj depend all install)
 	for i in ${CRYPT_SRCS}; do \
 		cd ${.CURDIR}/../$$i; \
 		${MAKE} cleandir obj depend all; \
 	done
 	
-non-crypt:
-	rm -f ${LIBCRYPT}
-	for i in ${CRYPT_SRCS}; do \
-		cd ${.CURDIR}/../$$i; \
-		${MAKE} cleandir obj depend all; \
-	done
 	
 distribution: distrib-dirs
 	(cd ${.CURDIR}; \
@@ -188,10 +192,10 @@ distribution: distrib-dirs
 	(cd ${.CURDIR}/etc.${MACHINE}; install -c -o ${BINOWN} -g ${BINGRP} \
 	    -m 444 fstab.* ${DESTDIR}/etc)
 .if defined(NOCRYPT)
-	(cd ${.CURDIR}; ${MAKE} non-crypt)
-	(cd ${.CURDIR}/..; NOCRYPT=nocrypt; export NOCRYPT; ${MAKE} install)
+	(cd ${.CURDIR}; ${MAKE} scrypt)
+	(cd ${.CURDIR}/..; ${MAKE} install)
 .else
-	(cd ${.CURDIR}; ${MAKE} crypt)
+	(cd ${.CURDIR}; ${MAKE} descrypt)
 	(cd ${.CURDIR}/..; ${MAKE} install)
 .endif
 	(cd ${.CURDIR}/../usr.sbin/sendmail/src; \
