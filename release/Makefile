@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.6 1994/10/28 06:42:38 jkh Exp $
+#	$Id: Makefile,v 1.7 1994/10/29 12:48:12 phk Exp $
 #
 
 FLOPPY=		fd0
@@ -17,7 +17,8 @@ CPIO1+= ftp rsh sed telnet rlogin
 CPIO2=  etc/services
 
 # Somewhat on the rough side...
-CLEANFILES=	*.o *.c *.cache *.mk *.lo ${CPIO1} *.flp *.gz
+CLEANFILES+=	*.o *.c *.cache *.mk *.lo ${CPIO1} *.flp *.gz 
+CLEANFILES+=	root_flp cpio_flp_1
 
 MTREE_DIR=	${.CURDIR}/../etc/mtree
 
@@ -58,6 +59,8 @@ boot.flp:
 	ln ${MNT}/stand/sysinstall ${MNT}/stand/newfs
 	install -c -m 400 ${.CURDIR}/../COPYRIGHT ${MNT}/COPYRIGHT
 	install -c -m 400 ${.CURDIR}/../README ${MNT}/README
+	install -c -m 400 ${.CURDIR}/../share/FAQ/DISKSPACE.FAQ \
+		${MNT}/DISKSPACE.FAQ
 	touch ${MNT}/this_is_boot_flp
 	-umount ${MNT}
 	fsck /dev/r${FLOPPY}
@@ -81,6 +84,8 @@ crunch:
 floppies: crunch boot.flp cpio.flp
 
 release20: 
+	( cd ${.CURDIR} ; ${MAKE} cleandist)
+	( cd ${.CURDIR} ; ${MAKE} obj)
 	-mkdir ${RELEASEDIR}
 	chflags -R noschg ${RELEASEDIR}/.
 	rm -rf ${RELEASEDIR}/*
