@@ -332,7 +332,8 @@ ptrace(curp, uap)
 	case PT_STEP:
 	case PT_CONTINUE:
 	case PT_DETACH:
-		if ((uap->req != PT_STEP) && ((unsigned)uap->data >= NSIG))
+		/* Zero means do not send any signal */
+		if (data < 0 || data > _SIG_MAXSIG)
 			return EINVAL;
 
 		PHOLD(p);
