@@ -32,6 +32,8 @@
 #
 # $FreeBSD$
 
+use Fcntl;
+
 sub LOCK_SH {0x01;}
 sub LOCK_EX {0x02;}
 sub LOCK_NB {0x04;}
