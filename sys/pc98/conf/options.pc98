@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.78.2.2 1999/03/03 10:57:44 kato Exp $
+#	$Id: options.pc98,v 1.78.2.3 1999/03/25 08:55:34 kato Exp $
 
 DISABLE_PSE
 IDE_DELAY
@@ -74,8 +74,6 @@ SC_MOUSE_CHAR		opt_syscons.h
 
 FB_INSTALL_CDEV		opt_fb.h
 
-VESA			opt_vesa.h
-
 GDC			opt_gdc.h
 
 PSM_HOOKAPM		opt_psm.h
@@ -84,6 +82,10 @@ PSM_DEBUG		opt_psm.h
 
 PCIC_RESUME_RESET	opt_pcic.h
 
+ATKBD_DFLT_KEYMAP	opt_atkbd.h
+UKBD_DFLT_KEYMAP	opt_ukbd.h
+
+KBD_DISABLE_KEYMAP_LOAD	opt_kbd.h
 KBD_INSTALL_CDEV	opt_kbd.h
 KBD_MAXRETRY		opt_kbd.h
 KBD_MAXWAIT		opt_kbd.h

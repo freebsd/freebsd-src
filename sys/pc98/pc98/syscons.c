@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.109.2.3 1999/02/07 11:22:02 kato Exp $
+ *  $Id: syscons.c,v 1.109.2.4 1999/04/04 02:53:57 kato Exp $
  */
 
 #include "sc.h"
@@ -278,6 +278,8 @@ static const int	nsccons = MAXCONS+2;
 		(*kbdsw[(kbd)->kb_index]->clear_state)((kbd))
 #define kbd_get_fkeystr(kbd, fkey, len)					\
 		(*kbdsw[(kbd)->kb_index]->get_fkeystr)((kbd), (fkey), (len))
+#define kbd_poll(kbd, on)						\
+		(*kbdsw[(kbd)->kb_index]->poll)((kbd), (on))
 
 /* prototypes */
 static int scattach(struct isa_device *dev);
@@ -2039,7 +2041,9 @@ sccngetch(int flags)
     cur_console->kbd_mode = K_XLATE;
     kbd_ioctl(kbd, KDSKBMODE, (caddr_t)&cur_console->kbd_mode);
 
+    kbd_poll(kbd, TRUE);
     c = scgetc(kbd, SCGETC_CN | flags);
+    kbd_poll(kbd, FALSE);
 
     cur_console->kbd_mode = cur_mode;
     kbd_ioctl(kbd, KDSKBMODE, (caddr_t)&cur_console->kbd_mode);
