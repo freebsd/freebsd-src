@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: parse.c,v 1.14 1996/10/08 04:06:05 steve Exp $
  */
 
 #ifndef lint
@@ -166,6 +166,9 @@ typedef enum {
     Parallel,	    /* .PARALLEL */
     ExPath,	    /* .PATH */
     Phony,	    /* .PHONY */
+#ifdef POSIX
+    Posix,	    /* .POSIX */
+#endif
     Precious,	    /* .PRECIOUS */
     ExShell,	    /* .SHELL */
     Silent,	    /* .SILENT */
@@ -219,6 +222,9 @@ static struct {
 { ".PARALLEL",	  Parallel,	0 },
 { ".PATH",	  ExPath,	0 },
 { ".PHONY",	  Phony,	OP_PHONY },
+#ifdef POSIX
+{ ".POSIX",	  Posix,	0 },
+#endif
 { ".PRECIOUS",	  Precious, 	OP_PRECIOUS },
 { ".RECURSIVE",	  Attribute,	OP_MAKE },
 { ".SHELL", 	  ExShell,    	0 },
@@ -1049,6 +1055,11 @@ ParseDoDependency (line)
 	    case ExPath:
 		Lst_ForEach(paths, ParseClearPath, (ClientData)NULL);
 		break;
+#ifdef POSIX
+	    case Posix:
+		Var_Set("%POSIX", "1003.2", VAR_GLOBAL);
+		break;
+#endif
 	    default:
 		break;
 	}
