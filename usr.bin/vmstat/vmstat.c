@@ -203,7 +203,7 @@ main(argc, argv)
 				     maxshowdevs);
 			break;
 		case 'p':
-			if (buildmatch(optarg, &matches, &num_matches) != 0)
+			if (devstat_buildmatch(optarg, &matches, &num_matches) != 0)
 				errx(1, "%s", devstat_errbuf);
 			break;
 		case 's':
@@ -268,7 +268,7 @@ main(argc, argv)
 		 * kernel devstat version.  If not, exit and print a
 		 * message informing the user of his mistake.
 		 */
-		if (checkversion() < 0)
+		if (devstat_checkversion(NULL) < 0)
 			errx(1, "%s", devstat_errbuf);
 
 
@@ -320,7 +320,7 @@ char **
 getdrivedata(argv)
 	char **argv;
 {
-	if ((num_devices = getnumdevs()) < 0)
+	if ((num_devices = devstat_getnumdevs(NULL)) < 0)
 		errx(1, "%s", devstat_errbuf);
 
 	cur.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo));
@@ -328,7 +328,7 @@ getdrivedata(argv)
 	bzero(cur.dinfo, sizeof(struct devinfo));
 	bzero(last.dinfo, sizeof(struct devinfo));
 
-	if (getdevs(&cur) == -1)
+	if (devstat_getdevs(NULL, &cur) == -1)
 		errx(1, "%s", devstat_errbuf);
 
 	num_devices = cur.dinfo->numdevs;
@@ -360,7 +360,7 @@ getdrivedata(argv)
 	 * those devices.
 	 */
 	if ((num_devices_specified == 0) && (num_matches == 0)) {
-		if (buildmatch(da, &matches, &num_matches) != 0)
+		if (devstat_buildmatch(da, &matches, &num_matches) != 0)
 			errx(1, "%s", devstat_errbuf);
 
 		select_mode = DS_SELECT_ADD;
@@ -372,7 +372,7 @@ getdrivedata(argv)
 	 * device list has changed, so we don't look for return values of 0
 	 * or 1.  If we get back -1, though, there is an error.
 	 */
-	if (selectdevs(&dev_select, &num_selected, &num_selections,
+	if (devstat_selectdevs(&dev_select, &num_selected, &num_selections,
 		       &select_generation, generation, cur.dinfo->devices,
 		       num_devices, matches, num_matches, specified_devices,
 		       num_devices_specified, select_mode,
@@ -437,7 +437,7 @@ dovmstat(interval, reps)
 		 * the selection process again, in case a device that we
 		 * were previously displaying has gone away.
 		 */
-		switch (getdevs(&cur)) {
+		switch (devstat_getdevs(NULL, &cur)) {
 		case -1:
 			errx(1, "%s", devstat_errbuf);
 			break;
@@ -447,7 +447,7 @@ dovmstat(interval, reps)
 			num_devices = cur.dinfo->numdevs;
 			generation = cur.dinfo->generation;
 
-			retval = selectdevs(&dev_select, &num_selected,
+			retval = devstat_selectdevs(&dev_select, &num_selected,
 					    &num_selections, &select_generation,
 					    generation, cur.dinfo->devices,
 					    num_devices, matches, num_matches,
@@ -680,7 +680,7 @@ devstats()
 		last.cp_time[state] = tmp;
 	}
 
-	busy_seconds = compute_etime(cur.busy_time, last.busy_time);
+	busy_seconds = devstat_compute_etime(cur.busy_time, last.busy_time);
 
 	for (dn = 0; dn < num_devices; dn++) {
 		int di;
