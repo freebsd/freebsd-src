@@ -2570,7 +2570,6 @@ static int
 OptSet(struct cmdargs const *arg)
 {
   int bit = (int)(long)arg->cmd->args;
-  const char *cmd;
   unsigned keep;			/* Keep these bits */
   unsigned add;				/* Add these bits */
 
