@@ -44,7 +44,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/condvar.h>
-#include <sys/ipl.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
@@ -885,8 +884,10 @@ mi_switch()
 		rlim = &p->p_rlimit[RLIMIT_CPU];
 		if (p->p_runtime / (rlim_t)1000000 >= rlim->rlim_max) {
 			mtx_unlock_spin(&sched_lock);
+			PROC_LOCK(p);
 			killproc(p, "exceeded maximum CPU limit");
 			mtx_lock_spin(&sched_lock);
+			PROC_UNLOCK_NOSWITCH(p);
 		} else {
 			mtx_unlock_spin(&sched_lock);
 			PROC_LOCK(p);
