@@ -107,6 +107,8 @@ Boolean			allPrecious;	/* .PRECIOUS given on line by itself */
 
 static Boolean		noBuiltins;	/* -r flag */
 static Lst		makefiles;	/* ordered list of makefiles to read */
+static Boolean		printVars;	/* print value of one or more vars */
+static Lst		variables;	/* list of variables to print */
 int			maxJobs;	/* -J argument */
 static int		maxLocal;	/* -L argument */
 Boolean			compatMake;	/* -B argument */
@@ -153,9 +155,9 @@ MainParseArgs(argc, argv)
 
 	optind = 1;	/* since we're called more than once */
 #ifdef notyet
-# define OPTFLAGS "BD:I:L:PSd:ef:ij:knqrst"
+# define OPTFLAGS "BD:I:L:PSVd:ef:ij:knqrst"
 #else
-# define OPTFLAGS "D:I:d:ef:ij:knqrst"
+# define OPTFLAGS "D:I:V:d:ef:ij:knqrst"
 #endif
 rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != EOF) {
 		switch(c) {
@@ -167,6 +169,12 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != EOF) {
 		case 'I':
 			Parse_AddIncludeDir(optarg);
 			Var_Append(MAKEFLAGS, "-I", VAR_GLOBAL);
+			Var_Append(MAKEFLAGS, optarg, VAR_GLOBAL);
+			break;
+		case 'V':
+			printVars = TRUE;
+			(void)Lst_AtEnd(variables, (ClientData)optarg);
+			Var_Append(MAKEFLAGS, "-V", VAR_GLOBAL);
 			Var_Append(MAKEFLAGS, optarg, VAR_GLOBAL);
 			break;
 #ifdef notyet
@@ -453,6 +461,8 @@ main(argc, argv)
 
 	create = Lst_Init(FALSE);
 	makefiles = Lst_Init(FALSE);
+	printVars = FALSE;
+	variables = Lst_Init(FALSE);
 	beSilent = FALSE;		/* Print commands as executed */
 	ignoreErrors = FALSE;		/* Pay attention to non-zero returns */
 	noExecute = FALSE;		/* Execute all commands */
@@ -622,6 +632,21 @@ main(argc, argv)
 	if (DEBUG(GRAPH1))
 		Targ_PrintGraph(1);
 
+	/* print the values of any variables requested by the user */
+	if (printVars) {
+		LstNode ln;
+
+		for (ln = Lst_First(variables); ln != NILLNODE;
+		    ln = Lst_Succ(ln)) {
+			char *value = Var_Value((char *)Lst_Datum(ln),
+					  VAR_GLOBAL, &p1);
+
+			printf("%s\n", value ? value : "");
+			if (p1)
+				free(p1);
+		}
+	}
+
 	/*
 	 * Have now read the entire graph and need to make a list of targets
 	 * to create. If none was given on the command line, we consult the
@@ -636,7 +661,7 @@ main(argc, argv)
  * this was original amMake -- want to allow parallelism, so put this
  * back in, eventually.
  */
-	if (!compatMake) {
+	if (!compatMake && !printVars) {
 		/*
 		 * Initialize job module before traversing the graph, now that
 		 * any .BEGIN and .END targets have been read.  This is done
@@ -652,14 +677,16 @@ main(argc, argv)
 
 		/* Traverse the graph, checking on all the targets */
 		outOfDate = Make_Run(targs);
-	} else
+	} else if (!printVars) {
 		/*
 		 * Compat_Init will take care of creating all the targets as
 		 * well as initializing the module.
 		 */
 		Compat_Run(targs);
+	}
 
 	Lst_Destroy(targs, NOFREE);
+	Lst_Destroy(variables, NOFREE);
 	Lst_Destroy(makefiles, NOFREE);
 	Lst_Destroy(create, (void (*) __P((ClientData))) free);
 
@@ -919,8 +946,8 @@ static void
 usage()
 {
 	(void)fprintf(stderr,
-"usage: make [-eiknqrst] [-D variable] [-d flags] [-f makefile ]\n\
-            [-I directory] [-j max_jobs] [variable=value]\n");
+"usage: make [-eiknqrst] [-D variable] [-d flags] [-f makefile] [-I directory]\n\
+            [-j max_jobs] [-V variable] [variable=value] [target ...]\n");
 	exit(2);
 }
 
