@@ -34,9 +34,13 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 static const char sccsid[] = "@(#)delete.c	8.3 (Berkeley) 4/2/94";
-#endif /* not lint */
+#endif
 
 #include <sys/param.h>
 #include <sys/stat.h>
