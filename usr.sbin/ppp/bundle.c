@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.48 1998/04/16 21:19:05 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.49 1998/04/16 22:11:46 brian Exp $
  */
 
 #include <sys/types.h>
@@ -665,14 +665,14 @@ bundle_SetRoute(struct bundle *bundle, int cmd, struct in_addr dst,
   rtmes.m_rtm.rtm_flags = RTF_UP | RTF_GATEWAY | RTF_STATIC;
 
   memset(&rtdata, '\0', sizeof rtdata);
-  rtdata.sin_len = 16;
+  rtdata.sin_len = sizeof rtdata;
   rtdata.sin_family = AF_INET;
   rtdata.sin_port = 0;
   rtdata.sin_addr = dst;
 
   cp = rtmes.m_space;
-  memcpy(cp, &rtdata, 16);
-  cp += 16;
+  memcpy(cp, &rtdata, rtdata.sin_len);
+  cp += rtdata.sin_len;
   if (cmd == RTM_ADD)
     if (gateway.s_addr == INADDR_ANY) {
       /* Add a route through the interface */
@@ -695,8 +695,8 @@ bundle_SetRoute(struct bundle *bundle, int cmd, struct in_addr dst,
       rtmes.m_rtm.rtm_addrs |= RTA_GATEWAY;
     } else {
       rtdata.sin_addr = gateway;
-      memcpy(cp, &rtdata, 16);
-      cp += 16;
+      memcpy(cp, &rtdata, rtdata.sin_len);
+      cp += rtdata.sin_len;
       rtmes.m_rtm.rtm_addrs |= RTA_GATEWAY;
     }
 
@@ -705,8 +705,8 @@ bundle_SetRoute(struct bundle *bundle, int cmd, struct in_addr dst,
 
   if (cmd == RTM_ADD || dst.s_addr == INADDR_ANY) {
     rtdata.sin_addr = mask;
-    memcpy(cp, &rtdata, 16);
-    cp += 16;
+    memcpy(cp, &rtdata, rtdata.sin_len);
+    cp += rtdata.sin_len;
     rtmes.m_rtm.rtm_addrs |= RTA_NETMASK;
   }
 
@@ -715,7 +715,7 @@ bundle_SetRoute(struct bundle *bundle, int cmd, struct in_addr dst,
   wb = ID0write(s, &rtmes, nb);
   if (wb < 0) {
     LogPrintf(LogTCPIP, "bundle_SetRoute failure:\n");
-    LogPrintf(LogTCPIP, "bundle_SetRoute:  Cmd = %s\n", cmd);
+    LogPrintf(LogTCPIP, "bundle_SetRoute:  Cmd = %s\n", cmdstr);
     LogPrintf(LogTCPIP, "bundle_SetRoute:  Dst = %s\n", inet_ntoa(dst));
     LogPrintf(LogTCPIP, "bundle_SetRoute:  Gateway = %s\n", inet_ntoa(gateway));
     LogPrintf(LogTCPIP, "bundle_SetRoute:  Mask = %s\n", inet_ntoa(mask));
