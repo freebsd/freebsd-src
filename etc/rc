@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.104.2.23 1997/09/13 21:08:29 brian Exp $
+#	$Id: rc,v 1.104.2.24 1997/09/21 16:10:34 joerg Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -76,11 +76,16 @@ fi
 
 umount -a >/dev/null 2>&1
 
+# If we don't have an unlimited "max memory" ulimit, then mfs partitions
+# are limited to 32meg.
+ULIMIT_MAX_MEM=`ulimit -d`
+ulimit -d unlimited
 mount -a -t nonfs
 if [ $? != 0 ]; then
 	echo "Filesystem mount failed, startup aborted"
 	exit 1
 fi
+ulimit -d ${ULIMIT_MAX_MEM}
 
 # If there is a global system configuration file, suck it in.
 if [ -f /etc/rc.conf ]; then
