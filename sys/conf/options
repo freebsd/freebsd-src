@@ -56,7 +56,7 @@ KDB_TRACE	opt_kdb.h
 KDB_UNATTENDED	opt_kdb.h
 
 # Miscellaneous options.
-NO_ADAPTIVE_MUTEXES
+NO_ADAPTIVE_MUTEXES	opt_adaptive_mutexes.h
 ALQ
 CODA_COMPAT_5	opt_coda.h
 COMPAT_43	opt_compat.h
