@@ -271,7 +271,7 @@ static void		acpi_pr_FindLapic(device_t dev, ACPI_HANDLE handle, PROCESSOR_APIC 
 static ACPI_STATUS	acpi_pr_CalculatePowerStates(struct acpi_pr_softc *sc);
 static ACPI_STATUS	acpi_pr_CalculatePerformanceStates(struct acpi_pr_softc *sc);
 static ACPI_STATUS	acpi_pr_CalculateThrottlingStates(struct acpi_pr_softc *sc);
-static void		acpi_pr_IdleHandler(void *arg, int count);
+static void		acpi_pr_IdleHandler(void *arg, int count) __unused;
 static ACPI_STATUS	acpi_pr_PolicyInitialize(struct acpi_pr_softc *sc);
 
 static device_method_t acpi_pr_methods[] = {
@@ -385,12 +385,17 @@ acpi_pr_attach(device_t dev)
 static void
 acpi_pr_FindLapic(device_t dev, ACPI_HANDLE handle, PROCESSOR_APIC *lapic)
 {
+#if 0	/* broken by new ACPICA code that doesn't support the APIC table */
     ACPI_BUFFER		buf;
     ACPI_STATUS		status;
     APIC_HEADER		*hdr;
     APIC_TABLE		*tbl;
     PROCESSOR_APIC	*pap;
     int			len, cpuno;
+#else
+    ACPI_STATUS		status;
+    int			cpuno;
+#endif
 
     /*
      * Assume that we're not going to suceed in finding/parsing the APIC table.
