@@ -125,7 +125,7 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
 	+((unit & ~31) << 16);				    /* high-order unit bits */
     }
 
-    if ((unit & 7) == 2)				    /* partition c */
+    if ((devminor & 7) == 2)				    /* partition c */
 	return ENOTTY;					    /* not buying that */
 
     drive->dev = makedev(devmajor, devminor);		    /* find the device */
