@@ -11,7 +11,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: if_is.c,v 1.29 1994/10/23 21:27:21 wollman Exp $
+ * $Id: if_is.c,v 1.30 1994/10/26 00:16:19 phk Exp $
  */
 
 /* TODO
@@ -1007,6 +1007,7 @@ is_ioctl(ifp, cmd, data)
 {
 	register struct ifaddr *ifa = (struct ifaddr *)data;
 	int unit = ifp->if_unit;
+	register struct is_softc *is=&is_softc[unit];
 	struct ifreq *ifr = (struct ifreq *)data;
 	int s, error = 0;
 
