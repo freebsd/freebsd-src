@@ -1118,9 +1118,6 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* Define if you are running IRIX 4. */
 /* #undef IRIX4 */
 
-/* Define if you have the krb4 package. */
-/* #undef KRB4 */
-
 /* Enable Kerberos 5 support in applications. */
 #define KRB5 1
 
@@ -1328,13 +1325,7 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* Define to `int' if <sys/types.h> doesn't define. */
 /* #undef uid_t */
 
-#if defined(HAVE_FOUR_VALUED_KRB_PUT_INT) || !defined(KRB4)
 #define KRB_PUT_INT(F, T, L, S) krb_put_int((F), (T), (L), (S))
-#else
-#define KRB_PUT_INT(F, T, L, S) krb_put_int((F), (T), (S))
-#endif
-
-
 
 #if defined(ENCRYPTION) && !defined(AUTHENTICATION)
 #define AUTHENTICATION 1
