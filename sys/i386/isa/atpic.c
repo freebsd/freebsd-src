@@ -343,6 +343,28 @@ atpic_handle_intr(struct intrframe iframe)
 	KASSERT((uint)iframe.if_vec < ICU_LEN,
 	    ("unknown int %d\n", iframe.if_vec));
 	isrc = &atintrs[iframe.if_vec].at_intsrc;
+
+	/*
+	 * If we don't have an ithread, see if this is a spurious
+	 * interrupt.
+	 */
+	if (isrc->is_ithread == NULL &&
+	    (iframe.if_vec == 7 || iframe.if_vec == 15)) {
+		int port, isr;
+
+		/*
+		 * Read the ISR register to see if IRQ 7/15 is really
+		 * pending.  Reset read register back to IRR when done.
+		 */
+		port = ((struct atpic *)isrc->is_pic)->at_ioaddr;
+		mtx_lock_spin(&icu_lock);
+		outb(port, OCW3_SEL | OCW3_RR | OCW3_RIS);
+		isr = inb(port);
+		outb(port, OCW3_SEL | OCW3_RR);
+		mtx_unlock_spin(&icu_lock);
+		if ((isr & IRQ7) == 0)
+			return;
+	}
 	intr_execute_handlers(isrc, &iframe);
 }
 
