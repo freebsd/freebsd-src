@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: cd.c,v 1.6 1993/08/28 03:08:49 rgrimes Exp $
+ *	$Id: cd.c,v 1.7 1993/09/08 21:04:32 rgrimes Exp $
  */
 
 #define SPLCD splbio
@@ -68,10 +68,6 @@ int	cd_done();
 int	cdstrategy();
 int	cd_debug = 0;
 
-struct buf		cd_buf_queue[NCD];
-struct	scsi_xfer	cd_scsi_xfer[NCD][CDOUTSTANDING]; /* XXX */
-struct	scsi_xfer	*cd_free_xfer[NCD];
-int			cd_xfer_block_wait[NCD];
 
 struct	cd_data
 {
@@ -94,12 +90,21 @@ struct	cd_data
 	int	partflags[MAXPARTITIONS];	/* per partition flags */
 #define CDOPEN	0x01
 	int		openparts;		/* one bit for each open partition */
-}*cd_data[NCD];
+	int		xfer_block_wait;
+	struct	scsi_xfer	*free_xfer;
+	struct	scsi_xfer	scsi_xfer[CDOUTSTANDING]; /* XXX */
+	struct	buf		buf_queue;
+};
 
 #define CD_STOP		0
 #define CD_START	1
 #define CD_EJECT	-2
 
+struct	cd_driver
+{
+	int	size;
+	struct	cd_data	**cd_data;
+}*cd_driver;
 
 static	int	next_cd_unit = 0;
 /***********************************************************************\
@@ -109,34 +114,77 @@ static	int	next_cd_unit = 0;
 int	cdattach(ctlr,targ,lu,scsi_switch)
 struct	scsi_switch *scsi_switch;
 {
-	int	unit,i;
-	unsigned char *tbl;
-	struct cd_data *cd;
-	struct cd_parms *dp;
+	int		unit,i;
+	unsigned char	*tbl;
+	struct cd_data	*cd, **cdrealloc;
+	struct cd_parms	*dp;
 
 #ifdef	CDDEBUG
 	if(scsi_debug & PRINTROUTINES) printf("cdattach: "); 
 #endif	/*CDDEBUG*/
 	/*******************************************************\
-	* Check we have the resources for another drive		*
+	* Check if we have resources allocated yet, if not	*
+	* allocate and initialize them				*
+	\*******************************************************/
+	if (next_cd_unit == 0)
+	{
+		cd_driver =
+			malloc(sizeof(struct cd_driver),M_DEVBUF,M_NOWAIT);
+		if(!cd_driver)
+		{
+			printf("cd%d: malloc failed for cd_driver\n",unit);
+			return(0);
+		}
+		bzero(cd_driver,sizeof(cd_driver));
+		cd_driver->size = 0;
+	}
+	/*******************************************************\
+	* allocate the resources for another drive		*
+	* if we have already allocate a cd_data pointer we must	*
+	* copy the old pointers into a new region that is	*
+	* larger and release the old region, aka realloc	*
 	\*******************************************************/
 	unit = next_cd_unit++;
-	if( unit >= NCD)
+	/* XXX
+	 * This if will always be true for now, but future code may
+	 * preallocate more units to reduce overhead.  This would be
+	 * done by changing the malloc to be (next_cd_unit * x) and
+	 * the cd_driver->size++ to be +x
+	 */
+	if(unit >= cd_driver->size)
 	{
-		printf("Too many scsi CDs..(%d > %d) reconfigure kernel\n",
-			(unit + 1),NCD);
-		return(0);
+		cdrealloc =
+			malloc(sizeof(cd_driver->cd_data) * next_cd_unit,
+				M_DEVBUF,M_NOWAIT);
+		if(!cdrealloc)
+		{
+			printf("cd%d: malloc failed for cdrealloc\n",unit);
+			return(0);
+		}
+		/* Make sure we have something to copy before we copy it */
+		if(cd_driver->size)
+		{
+			bcopy(cd_driver->cd_data,cdrealloc,
+				sizeof(cd_driver->cd_data) * cd_driver->size);
+			free(cd_driver->cd_data,M_DEVBUF);
+		}
+		cd_driver->cd_data = cdrealloc;
+		cd_driver->cd_data[unit] = NULL;
+		cd_driver->size++;
 	}
-	cd = cd_data[unit];
-	if(cd_data[unit])
+	if(cd_driver->cd_data[unit])
 	{
 		printf("cd%d: Already has storage!\n",unit);
 		return(0);
 	}
-	cd = cd_data[unit] = malloc(sizeof(struct cd_data),M_DEVBUF,M_NOWAIT);
+	/*******************************************************\
+	* allocate the per drive data area			*
+	\*******************************************************/
+	cd = cd_driver->cd_data[unit] =
+		malloc(sizeof(struct cd_data),M_DEVBUF,M_NOWAIT);
 	if(!cd)
 	{
-		printf("cd%d: malloc failed in cd.c\n",unit);
+		printf("cd%d: malloc failed for cd_data\n",unit);
 		return(0);
 	}
 	dp  = &(cd->params);
@@ -152,8 +200,8 @@ struct	scsi_switch *scsi_switch;
 	i = cd->cmdscount;
 	while(i-- )
 	{
-		cd_scsi_xfer[unit][i].next = cd_free_xfer[unit];
-		cd_free_xfer[unit] = &cd_scsi_xfer[unit][i];
+		cd->scsi_xfer[i].next = cd->free_xfer;
+		cd->free_xfer = &cd->scsi_xfer[i];
 	}
 	/*******************************************************\
 	* Use the subdriver to request information regarding	*
@@ -171,10 +219,7 @@ struct	scsi_switch *scsi_switch;
 	}
 	cd->flags |= CDINIT;
 	return;
-
 }
-
-
 
 /*******************************************************\
 *	open the device. Make sure the partition info	*
@@ -193,16 +238,16 @@ cdopen(dev)
 #ifdef	CDDEBUG
 	if(scsi_debug & (PRINTROUTINES | TRACEOPENS))
 		printf("cdopen: dev=0x%x (unit %d (of %d),partition %d)\n"
-				,   dev,      unit,   NCD,         part);
+			,dev,unit,cd_driver->size,part);
 #endif	/*CDDEBUG*/
 	/*******************************************************\
 	* Check the unit is legal				*
 	\*******************************************************/
-	if ( unit >= NCD )
+	if ( unit >= cd_driver->size )
 	{
 		return(ENXIO);
 	}
-	cd = cd_data[unit];
+	cd = cd_driver->cd_data[unit];
 	/*******************************************************\
 	* Make sure the device has been initialised		*
 	\*******************************************************/
@@ -309,26 +354,28 @@ int	flags;
 int	unit;
 {
 	struct scsi_xfer *xs;
+	struct cd_data *cd;
 	int	s;
 
+	cd = cd_driver->cd_data[unit];
 	if(flags & (SCSI_NOSLEEP |  SCSI_NOMASK))
 	{
-		if (xs = cd_free_xfer[unit])
+		if (xs = cd->free_xfer)
 		{
-			cd_free_xfer[unit] = xs->next;
+			cd->free_xfer = xs->next;
 			xs->flags = 0;
 		}
 	}
 	else
 	{
 		s = SPLCD();
-		while (!(xs = cd_free_xfer[unit]))
+		while (!(xs = cd->free_xfer))
 		{
-			cd_xfer_block_wait[unit]++;  /* someone waiting! */
-			sleep((caddr_t)&cd_free_xfer[unit], PRIBIO+1);
-			cd_xfer_block_wait[unit]--;
+			cd->xfer_block_wait++;  /* someone waiting! */
+			sleep((caddr_t)&cd->free_xfer, PRIBIO+1);
+			cd->xfer_block_wait--;
 		}
-		cd_free_xfer[unit] = xs->next;
+		cd->free_xfer = xs->next;
 		splx(s);
 		xs->flags = 0;
 	}
@@ -343,25 +390,27 @@ struct scsi_xfer *xs;
 int	unit;
 int	flags;
 {
+	struct cd_data *cd;
 	int	s;
 	
+	cd = cd_driver->cd_data[unit];
 	if(flags & SCSI_NOMASK)
 	{
-		if (cd_xfer_block_wait[unit])
+		if (cd->xfer_block_wait)
 		{
 			printf("cd%d: doing a wakeup from NOMASK mode\n", unit);
-			wakeup((caddr_t)&cd_free_xfer[unit]);
+			wakeup((caddr_t)&cd->free_xfer);
 		}
-		xs->next = cd_free_xfer[unit];
-		cd_free_xfer[unit] = xs;
+		xs->next = cd->free_xfer;
+		cd->free_xfer = xs;
 	}
 	else
 	{
 		s = SPLCD();
-		if (cd_xfer_block_wait[unit])
-			wakeup((caddr_t)&cd_free_xfer[unit]);
-		xs->next = cd_free_xfer[unit];
-		cd_free_xfer[unit] = xs;
+		if (cd->xfer_block_wait)
+			wakeup((caddr_t)&cd->free_xfer);
+		xs->next = cd->free_xfer;
+		cd->free_xfer = xs;
 		splx(s);
 	}
 }
@@ -376,7 +425,7 @@ int	flags;
 void	cdminphys(bp)
 struct buf	*bp;
 {
-	(*(cd_data[UNIT(bp->b_dev)]->sc_sw->scsi_minphys))(bp);
+	(*(cd_driver->cd_data[UNIT(bp->b_dev)]->sc_sw->scsi_minphys))(bp);
 }
 
 /*******************************************************\
@@ -396,7 +445,7 @@ struct	buf	*bp;
 
 	cdstrats++;
 	unit = UNIT((bp->b_dev));
-	cd = cd_data[unit];
+	cd = cd_driver->cd_data[unit];
 #ifdef	CDDEBUG
 	if(scsi_debug & PRINTROUTINES) printf("\ncdstrategy ");
 	if(scsi_debug & SHOWREQUESTS) printf("cd%d: %d bytes @ blk%d\n",
@@ -446,7 +495,7 @@ struct	buf	*bp;
 	}
 
 	opri = SPLCD();
-	dp = &cd_buf_queue[unit];
+	dp = &cd->buf_queue;
 
 	/*******************************************************\
 	* Place it in the queue of disk activities for this disk*
@@ -497,28 +546,29 @@ int	unit;
 	struct	scsi_xfer	*xs;
 	struct	scsi_rw_big	cmd;
 	int			blkno, nblk;
-	struct cd_data *cd = cd_data[unit];
+	struct cd_data *cd;
 	struct partition *p ;
 
 #ifdef	CDDEBUG
 	if(scsi_debug & PRINTROUTINES) printf("cdstart%d ",unit);
 #endif	/*CDDEBUG*/
+	cd = cd_driver->cd_data[unit];
 	/*******************************************************\
 	* See if there is a buf to do and we are not already	*
 	* doing one						*
 	\*******************************************************/
-	if(!cd_free_xfer[unit])
+	if(!cd->free_xfer)
 	{
 		return;    /* none for us, unit already underway */
 	}
 
-	if(cd_xfer_block_wait[unit])    /* there is one, but a special waits */
+	if(cd->xfer_block_wait)    /* there is one, but a special waits */
 	{
 		return;	/* give the special that's waiting a chance to run */
 	}
 
 
-	dp = &cd_buf_queue[unit];
+	dp = &cd->buf_queue;
 	if ((bp = dp->b_actf) != NULL)	/* yes, an assign */
 	{
 		dp->b_actf = bp->av_forw;
@@ -607,10 +657,12 @@ struct	scsi_xfer	*xs;
 {
 	struct	buf		*bp;
 	int	retval;
+	struct cd_data *cd;
 
 #ifdef	CDDEBUG
 	if(scsi_debug & PRINTROUTINES) printf("cd_done%d ",unit);
 #endif	/*CDDEBUG*/
+	cd = cd_driver->cd_data[unit];
 	if (! (xs->flags & INUSE)) 	/* paranoia always pays off */
 		panic("scsi_xfer not in use!");
 	if(bp = xs->bp)
@@ -643,7 +695,7 @@ struct	scsi_xfer	*xs;
 			{
 				xs->error = XS_NOERROR;
 				xs->flags &= ~ITSDONE;
-				if ( (*(cd_data[unit]->sc_sw->scsi_cmd))(xs)
+				if ((*(cd->sc_sw->scsi_cmd))(xs)
 					== SUCCESSFULLY_QUEUED)
 				{	/* shhh! don't wake the job, ok? */
 					/* don't tell cdstart either, */
@@ -686,7 +738,7 @@ cdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 	\*******************************************************/
 	unit = UNIT(dev);
 	part = PARTITION(dev);
-	cd = cd_data[unit];
+	cd = cd_driver->cd_data[unit];
 #ifdef	CDDEBUG
 	if(scsi_debug & PRINTROUTINES) printf("cdioctl%d ",unit);
 #endif	/*CDDEBUG*/
@@ -694,7 +746,7 @@ cdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 	/*******************************************************\
 	* If the device is not valid.. abandon ship		*
 	\*******************************************************/
-	if (!(cd_data[unit]->flags & CDVALID))
+	if (!(cd_driver->cd_data[unit]->flags & CDVALID))
 		return(EIO);
 	switch(cmd)
 	{
@@ -998,8 +1050,9 @@ unsigned char	unit;
 	/*unsigned int n, m;*/
 	char *errstring;
 	struct dos_partition *dos_partition_p;
-	struct cd_data *cd = cd_data[unit];
+	struct cd_data *cd;
 
+	cd = cd_driver->cd_data[unit];
 	/*******************************************************\
 	* If the info is already loaded, use it			*
 	\*******************************************************/
@@ -1083,8 +1136,8 @@ cd_size(unit, flags)
 #ifdef	CDDEBUG
 	if(cd_debug)printf("cd%d: %d %d byte blocks\n",unit,size,blksize);
 #endif	/*CDDEBUG*/
-	cd_data[unit]->params.disksize = size;
-	cd_data[unit]->params.blksize = blksize;
+	cd_driver->cd_data[unit]->params.disksize = size;
+	cd_driver->cd_data[unit]->params.blksize = blksize;
 	return(size);
 }
 	
@@ -1301,7 +1354,7 @@ cd_start_unit(unit,part,type)
 {
 	struct scsi_start_stop scsi_cmd;
 
-        if(type==CD_EJECT && (cd_data[unit]->openparts&~(1<<part)) == 0 ) {
+        if(type==CD_EJECT && (cd_driver->cd_data[unit]->openparts&~(1<<part)) == 0 ) {
 		cd_prevent_unit(unit,CD_EJECT,0);
 	}
 
@@ -1329,7 +1382,7 @@ int     unit,type,flags;
 {
         struct  scsi_prevent    scsi_cmd;
 
-        if(type==CD_EJECT || type==PR_PREVENT || cd_data[unit]->openparts == 0 ) {
+        if(type==CD_EJECT || type==PR_PREVENT || cd_driver->cd_data[unit]->openparts == 0 ) {
                 bzero(&scsi_cmd, sizeof(scsi_cmd));
                 scsi_cmd.op_code = PREVENT_ALLOW;
                 scsi_cmd.how = (type==CD_EJECT)?PR_ALLOW:type;
@@ -1422,7 +1475,7 @@ struct cd_toc_entry *data;
 
 int	cd_get_parms(unit, flags)
 {
-	struct cd_data *cd = cd_data[unit];
+	struct cd_data *cd = cd_driver->cd_data[unit];
 
 	/*******************************************************\
 	* First check if we have it all loaded			*
@@ -1459,8 +1512,8 @@ dev_t dev;
 	if(scsi_debug & TRACEOPENS)
 		printf("cd%d: closing part %d\n",unit,part);
 #endif
-	cd_data[unit]->partflags[part] &= ~CDOPEN;
-	cd_data[unit]->openparts &= ~(1 << part);
+	cd_driver->cd_data[unit]->partflags[part] &= ~CDOPEN;
+	cd_driver->cd_data[unit]->openparts &= ~(1 << part);
        	cd_prevent_unit(unit,PR_ALLOW,SCSI_SILENT);
 	return(0);
 }
@@ -1486,7 +1539,7 @@ int	datalen;
 	struct	scsi_xfer *xs;
 	int	retval;
 	int	s;
-	struct cd_data *cd = cd_data[unit];
+	struct cd_data *cd = cd_driver->cd_data[unit];
 
 #ifdef	CDDEBUG
 	if(scsi_debug & PRINTROUTINES) printf("\ncd_scsi_cmd%d ",unit);
@@ -1660,8 +1713,8 @@ struct	scsi_xfer *xs;
 			return(EINVAL);
 		case	0x6:
 			if(!silent)printf("cd%d: Unit attention\n", unit); 
-			if (cd_data[unit]->openparts)
-			cd_data[unit]->flags &= ~(CDVALID | CDHAVELABEL);
+			if (cd_driver->cd_data[unit]->openparts)
+			cd_driver->cd_data[unit]->flags &= ~(CDVALID | CDHAVELABEL);
 			{
 				return(EIO);
 			}
