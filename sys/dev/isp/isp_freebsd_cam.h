@@ -1,5 +1,4 @@
 /* $FreeBSD$ */
-/* $Id: isp_freebsd_cam.h,v 1.3 1998/09/16 16:42:40 mjacob Exp $ */
 /*
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions (CAM version)
  *---------------------------------------
@@ -79,11 +78,6 @@ struct isposinfo {
 #define	isp_name	isp_osinfo.name
 
 
-/*
- * XXXX: UNTIL WE PUT CODE IN THAT CHECKS RETURNS FROM MALLOC
- * XXXX: FOR CONTIGOUS PAGES, WE LIMIT TO PAGE_SIZE THE SIZE
- * XXXX: OF MAILBOXES.
- */
 #define	MAXISPREQUEST	64
 
 #define	PVS			"Qlogic ISP Driver, FreeBSD CAM"
@@ -95,7 +89,11 @@ struct isposinfo {
 #define	PRINTF			printf
 #define	IDPRINTF(lev, x)	if (isp->isp_dblev >= lev) printf x
 
+#ifdef	CAMDEBUG
 #define	DFLT_DBLEVEL		2
+#else
+#define	DFLT_DBLEVEL		1
+#endif
 
 #define	ISP_LOCKVAL_DECL	int isp_spl_save
 #define	ISP_UNLOCK(isp)		(void) splx(isp_spl_save)
@@ -193,8 +191,6 @@ struct isposinfo {
 #define	CMD_COMPLETE		0
 #define	CMD_EAGAIN		1
 #define	CMD_QUEUED		2
-
-
 
 #define	SYS_DELAY(x)	DELAY(x)
 
