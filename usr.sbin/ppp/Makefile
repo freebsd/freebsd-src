@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1996/01/11 17:48:33 phk Exp $
+#	$Id: Makefile,v 1.5 1996/01/30 20:04:20 phk Exp $
 
 PROG=	ppp
 SRCS=	async.c auth.c ccp.c chap.c chat.c command.c filter.c fsm.c hdlc.c \
@@ -6,11 +6,13 @@ SRCS=	async.c auth.c ccp.c chap.c chat.c command.c filter.c fsm.c hdlc.c \
 	pap.c pred.c route.c slcompress.c timer.c systems.c uucplock.c vars.c \
 	vjcomp.c arp.c
 #CFLAGS+= -DHAVE_SHELL_CMD_WITH_ANY_MODE
-CFLAGS += -Wall
+CFLAGS += -Wall -DUSE_PERROR
 LDADD += -lmd
 DPADD += ${LIBMD}
 MAN8=	ppp.8
 BINMODE=4555
 BINOWN=	root
+
+.PATH: ${.CURDIR}/../../sbin/startslip
 
 .include <bsd.prog.mk>
