@@ -1787,6 +1787,8 @@ hint.oltr.0.at="isa"
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 device		dc		# DEC/Intel 21143 and various workalikes
+device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
+hint.fxp.0.prefer_iomap="0"
 device		rl		# RealTek 8129/8139
 device		pcn		# AMD Am79C79x PCI 10/100 NICs
 device		sf		# Adaptec AIC-6915 (``Starfire'')
@@ -1800,8 +1802,6 @@ device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')
-device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
-hint.fxp.0.prefer_iomap="0"
 device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 
 # PCI Gigabit & FDDI NICs.
