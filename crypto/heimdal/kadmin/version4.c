@@ -41,7 +41,7 @@
 #include <krb_err.h>
 #include <kadm_err.h>
 
-RCSID("$Id: version4.c,v 1.29 2002/10/29 10:33:23 joda Exp $");
+RCSID("$Id: version4.c,v 1.29.2.1 2004/04/29 12:29:23 lha Exp $");
 
 #define KADM_NO_OPCODE -1
 #define KADM_NO_ENCRYPT -2
@@ -965,6 +965,8 @@ handle_v4(krb5_context context,
 	if(term_flag)
 	    exit(0);
 	if(first) {
+	    if (len < 2)
+		krb5_errx(context, 1, "received too short len (%d < 2)", len);
 	    /* first time around, we have already read len, and two
                bytes of the version string */
 	    krb5_data_alloc(&message, len);
