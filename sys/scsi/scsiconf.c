@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.45 1995/12/27 17:07:12 pst Exp $
+ *      $Id: scsiconf.c,v 1.47 1996/01/28 21:51:57 jkh Exp $
  */
 
 #include <sys/types.h>
@@ -291,6 +291,10 @@ static struct scsidevs knowndevs[] =
 	{
 		T_READONLY, T_READONLY, T_REMOV, "PIONEER", "CD-ROM DRM-6??*" ,"*",
 		"cd", SC_MORE_LUS, CD_Q_NO_TOUCH
+	},
+	{
+		T_READONLY, T_READONLY, T_REMOV, "NRC", "MBR-7" ,"*",
+		"cd", SC_MORE_LUS
 	},
 	{
 		T_READONLY, T_READONLY, T_REMOV, "CHINON",  "CD-ROM CDS-535","*",
