@@ -31,14 +31,18 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1987, 1992, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)rev.c	8.3 (Berkeley) 5/4/95";
+static const char sccsid[] = "@(#)rev.c	8.3 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -57,7 +61,7 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	register char *filename, *p, *t;
+	const char *filename, *p, *t;
 	FILE *fp;
 	size_t len;
 	int ch, rval;
