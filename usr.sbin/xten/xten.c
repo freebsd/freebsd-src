@@ -69,95 +69,98 @@ char *X10cmdnames[] = {
 };
 
 int find(char *, char *[]);
-static void usage(void);
+static void usage(void) __dead2;
 
 int
-main(argc, argv)
-int argc;
-char *argv[];
+main(int argc, char *argv[])
 {
-  int c, tmp, h, k, sock, error;
-  FILE *daemon;
-  struct sockaddr_un sa;
-  char *sockpath = SOCKPATH;
-  char reply[CMDLEN], cmd[CMDLEN], *cp;
-  int interactive = 0;
+	int c, tmp, h, k, sock, error;
+	FILE *daemon;
+	struct sockaddr_un sa;
+	char *sockpath = SOCKPATH;
+	char reply[CMDLEN], cmd[CMDLEN], *cp;
+	int interactive = 0;
 
-  if(argc == 2 && !strcmp(argv[1], "-")) interactive++;
-  else if(argc < 3)
-    usage();
-  if((sock = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
-    errx(1, "can't create socket");
-  strcpy(sa.sun_path, sockpath);
-  sa.sun_family = AF_UNIX;
-  if(connect(sock, (struct sockaddr *)(&sa), strlen(sa.sun_path) + 2) < 0)
-    errx(1, "can't connect to X-10 daemon");
-  if((daemon = fdopen(sock, "w+")) == NULL)
-    errx(1, "can't attach stream to socket");
-  /*
-   * If interactive, copy standard input to daemon and report results
-   * on standard output.
-   */
-  if(interactive) {
-    while(!feof(stdin)) {
-      if(fgets(cmd, CMDLEN, stdin) != NULL) {
-	fprintf(daemon, "%s", cmd);
-	fflush(daemon);
-	if(fgets(reply, CMDLEN, daemon) != NULL) {
-	  fprintf(stdout, "%s", reply);
-	  fflush(stdout);
+	if (argc == 2 && !strcmp(argv[1], "-"))
+		interactive++;
+	else if(argc < 3)
+		usage();
+	if ((sock = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
+		errx(1, "can't create socket");
+	strcpy(sa.sun_path, sockpath);
+	sa.sun_family = AF_UNIX;
+	if (connect(sock, (struct sockaddr *)&sa, strlen(sa.sun_path) + 2) < 0)
+		errx(1, "can't connect to X-10 daemon");
+	if ((daemon = fdopen(sock, "w+")) == NULL)
+		errx(1, "can't attach stream to socket");
+	/*
+	 * If interactive, copy standard input to daemon and report results
+	 * on standard output.
+	 */
+	if (interactive) {
+		while (!feof(stdin)) {
+			if (fgets(cmd, CMDLEN, stdin) != NULL) {
+				fprintf(daemon, "%s", cmd);
+				fflush(daemon);
+				if (fgets(reply, CMDLEN, daemon) != NULL) {
+					fprintf(stdout, "%s", reply);
+					fflush(stdout);
+				}
+			}
+		}
+		exit(0);
 	}
-      }
-    }
-    exit(0);
-  }
-  /*
-   * Otherwise, interpret arguments and issue commands to daemon,
-   * handling retries in case of errors.
-   */
-  if((h = find(argv[1], X10housenames)) < 0)
-    errx(1, "invalid house code: %s", argv[1]);
-  argv++;
-  argv++;
-  while(argc >= 3) {
-    cp = argv[0];
-    if((tmp = find(cp, X10housenames)) >= 0) {
-      h = tmp;
-      argv++;
-      argc--;
-      continue;
-    }
-    while(*cp != '\0' && *cp != ':') cp++;
-    if(*cp == ':') c = atoi(cp+1);
-    else c = 2;
-    *cp = '\0';
-    if((k = find(argv[0], X10cmdnames)) < 0) {
-      warnx("invalid key/unit code: %s", argv[0]);
-      error++;
-    }
-    error = 0;
-    while(error < RETRIES) {
-      fprintf(daemon, "send %s %s %d\n", X10housenames[h], X10cmdnames[k], c);
-      fflush(daemon);
-      fgets(reply, CMDLEN, daemon);
-      if(strncmp(reply, "ERROR", 5)) break;
-      error++;
-      usleep(200000);
-    }
-    if(error == RETRIES) {
-      warnx("command failed: send %s %s %d",
-	      X10housenames[h], X10cmdnames[k], c);
-    }
-    argc--;
-    argv++;
-  }
-  fprintf(daemon, "done\n");
-  fgets(reply, CMDLEN, daemon);
-  exit(0);
+	/*
+	 * Otherwise, interpret arguments and issue commands to daemon,
+	 * handling retries in case of errors.
+	 */
+	if ((h = find(argv[1], X10housenames)) < 0)
+		errx(1, "invalid house code: %s", argv[1]);
+	argv++;
+	argv++;
+	while (argc >= 3) {
+		cp = argv[0];
+		if((tmp = find(cp, X10housenames)) >= 0) {
+			h = tmp;
+			argv++;
+			argc--;
+			continue;
+		}
+		while (*cp != '\0' && *cp != ':')
+			cp++;
+		if (*cp == ':')
+			c = atoi(cp+1);
+		else
+			c = 2;
+		*cp = '\0';
+		if ((k = find(argv[0], X10cmdnames)) < 0) {
+			warnx("invalid key/unit code: %s", argv[0]);
+			error++;
+		}
+		error = 0;
+		while (error < RETRIES) {
+			fprintf(daemon, "send %s %s %d\n", X10housenames[h],
+			    X10cmdnames[k], c);
+			fflush(daemon);
+			fgets(reply, CMDLEN, daemon);
+			if(strncmp(reply, "ERROR", 5)) break;
+			error++;
+			usleep(200000);
+		}
+		if (error == RETRIES) {
+			warnx("command failed: send %s %s %d",
+			    X10housenames[h], X10cmdnames[k], c);
+		}
+		argc--;
+		argv++;
+	}
+	fprintf(daemon, "done\n");
+	fgets(reply, CMDLEN, daemon);
+	exit(0);
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr,
 		"usage: xten house key[:cnt] [[house] key[:cnt] ...]\n");
@@ -165,14 +168,13 @@ usage()
 }
 
 int
-find(s, tab)
-char *s;
-char *tab[];
+find(char *s, char *tab[])
 {
 	int i;
 
-	for(i = 0; tab[i] != NULL; i++) {
-	  if(strcasecmp(s, tab[i]) == 0) return(i);
+	for (i = 0; tab[i] != NULL; i++) {
+		if (strcasecmp(s, tab[i]) == 0) 
+			return (i);
 	}
-	return(-1);
+	return (-1);
 }
