@@ -5573,15 +5573,22 @@ bad:
 
 #ifdef __FreeBSD__
 /*
- * XXX
- * FreeBSD supports cksum offload for the following drivers.
- * em(4), gx(4), lge(4), nge(4), ti(4), xl(4)
- * If we can make full use of it we would outperform ipfw/ipfilter in
- * very heavy traffic. 
- * I have not tested 'cause I don't have NICs that supports cksum offload.
- * (There might be problems. Typical phenomena would be
- *   1. No route message for UDP packet.
- *   2. No connection acceptance from external hosts regardless of rule set.)
+ * FreeBSD supports cksum offloads for the following drivers.
+ *  em(4), fxp(4), gx(4), ixgb(4), lge(4), ndis(4), nge(4), re(4),
+ *   ti(4), txp(4), xl(4)
+ *
+ * CSUM_DATA_VALID | CSUM_PSEUDO_HDR :
+ *  network driver performed cksum including pseudo header, need to verify
+ *   csum_data
+ * CSUM_DATA_VALID :
+ *  network driver performed cksum, needs to additional pseudo header
+ *  cksum computation with partial csum_data(i.e. lack of H/W support for
+ *  pseudo header, for instance hme(4), sk(4) and possibly gem(4))
+ *
+ * After validating the cksum of packet, set both flag CSUM_DATA_VALID and
+ * CSUM_PSEUDO_HDR in order to avoid recomputation of the cksum in upper
+ * TCP/UDP layer.
+ * Also, set csum_data to 0xffff to force cksum validation.
  */
 int
 pf_check_proto_cksum(struct mbuf *m, int off, int len, u_int8_t p, sa_family_t af)
@@ -5649,12 +5656,6 @@ pf_check_proto_cksum(struct mbuf *m, int off, int len, u_int8_t p, sa_family_t a
 				if (m->m_len < sizeof(struct ip))
 					return (1);
 				sum = in4_cksum(m, p, off, len);
-				if (sum == 0) {
-					m->m_pkthdr.csum_flags |=
-					    (CSUM_DATA_VALID |
-					     CSUM_PSEUDO_HDR);
-					m->m_pkthdr.csum_data = 0xffff;
-				}
 			}
 			break;
 #ifdef INET6
@@ -5662,16 +5663,6 @@ pf_check_proto_cksum(struct mbuf *m, int off, int len, u_int8_t p, sa_family_t a
 			if (m->m_len < sizeof(struct ip6_hdr))
 				return (1);
 			sum = in6_cksum(m, p, off, len);
-			/*
-			 * XXX
-			 * IPv6 H/W cksum off-load not supported yet!
-			 *
-			 * if (sum == 0) {
-			 *	m->m_pkthdr.csum_flags |=
-			 *	    (CSUM_DATA_VALID|CSUM_PSEUDO_HDR);
-			 *	m->m_pkthdr.csum_data = 0xffff;
-			 *}
-			 */
 			break;
 #endif /* INET6 */
 		default:
@@ -5696,6 +5687,12 @@ pf_check_proto_cksum(struct mbuf *m, int off, int len, u_int8_t p, sa_family_t a
 #endif /* INET6 */
 		}
 		return (1);
+	} else {
+		if (p == IPPROTO_TCP || p == IPPROTO_UDP) {
+			m->m_pkthdr.csum_flags |=
+			    (CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
+			m->m_pkthdr.csum_data = 0xffff;
+		}
 	}
 	return (0);
 }
