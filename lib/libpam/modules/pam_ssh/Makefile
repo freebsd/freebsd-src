@@ -10,5 +10,6 @@ CFLAGS+=	-I${SSHSRC}
 DPADD=		${LIBCRYPTO} ${LIBCRYPT} ${LIBUTIL} ${LIBZ}
 LDADD=		-L${.OBJDIR}/../../../../secure/lib/libssh -lssh -lcrypto \
 		-lcrypt -lutil -lz
+MAN=		pam_ssh.8
 
 .include <bsd.lib.mk>
