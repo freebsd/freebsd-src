@@ -163,7 +163,7 @@ static __inline int gpbc(void)
 
 	if (bp > bufbase) {
 		if (*--bp) 
-			return (*bp);
+			return ((unsigned char)*bp);
 		else
 			return (EOF);
 	}
