@@ -1380,12 +1380,17 @@ addaliasu(nvp, nvp_rdev)
 	ovp->v_data = nvp->v_data;
 	ovp->v_tag = nvp->v_tag;
 	nvp->v_data = NULL;
-	ops = nvp->v_op;
-	nvp->v_op = ovp->v_op;
-	ovp->v_op = ops;
-	lockinit(&ovp->v_lock, PVFS, "vnlock", 0, LK_NOPAUSE);
+	lockinit(&ovp->v_lock, PVFS, nvp->v_lock.lk_wmesg,
+	    nvp->v_lock.lk_timo, nvp->v_lock.lk_flags & LK_EXTFLG_MASK);
 	if (nvp->v_vnlock)
 		ovp->v_vnlock = &ovp->v_lock;
+	ops = ovp->v_op;
+	ovp->v_op = nvp->v_op;
+	if (VOP_ISLOCKED(nvp, curproc)) {
+		VOP_UNLOCK(nvp, 0, curproc);
+		vn_lock(ovp, LK_EXCLUSIVE | LK_RETRY, curproc);
+	}
+	nvp->v_op = ops;
 	insmntque(ovp, nvp->v_mount);
 	vrele(nvp);
 	vgone(nvp);
