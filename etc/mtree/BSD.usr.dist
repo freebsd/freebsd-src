@@ -801,7 +801,6 @@
         nls
             C
             ..
-            POSIX type=link link=C
             af_ZA.ISO8859-1
             ..
             af_ZA.ISO8859-15
@@ -896,7 +895,6 @@
             ..
             en_US.ISO8859-1
             ..
-            en_US.US-ASCII type=link link=C
             en_US.ISO8859-15
             ..
             en_US.UTF-8
