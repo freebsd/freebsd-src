@@ -3,7 +3,7 @@
 .PATH: ${.CURDIR}/../misc
 
 PROG=	geom
-NOMAN=	notyet
+MAN=	geom.8
 SRCS=	geom.c subr.c
 
 CFLAGS+= -DCLASSDIR=\"${CLASSDIR}\"
