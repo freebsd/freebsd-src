@@ -361,6 +361,11 @@ find_major(struct cdevsw *devsw)
 {
 	int i;
 
+	if (devsw->d_maj != MAJOR_AUTO) {
+		printf("NOTICE: Ignoring d_maj hint from driver \"%s\", %s",
+		    devsw->d_name, "driver should be updated/fixed\n");
+		devsw->d_maj = MAJOR_AUTO;
+	}
 	for (i = NUMCDEVSW - 1; i > 0; i--)
 		if (reserved_majors[i] != i)
 			break;
@@ -426,12 +431,8 @@ prep_cdevsw(struct cdevsw *devsw)
 
 	devsw->d_flags |= D_INIT;
 
-	if (devsw->d_maj != MAJOR_AUTO) {
-		printf("NOTICE: Ignoring d_maj hint from driver \"%s\", %s",
-		    devsw->d_name, "driver should be updated/fixed\n");
-		devsw->d_maj = MAJOR_AUTO;
-	}
-	find_major(devsw);
+	if (!(devsw->d_flags & D_ALLOCMAJ))
+		find_major(devsw);
 	dev_unlock();
 }
 
@@ -704,8 +705,8 @@ clone_create(struct clonedevs **cdp, struct cdevsw *csw, int *up, struct cdev **
 	KASSERT(*up <= CLONE_UNITMASK,
 	    ("Too high unit (0x%x) in clone_create", *up));
 
-	if (csw->d_maj == MAJOR_AUTO)
-		find_major(csw);
+	if (!(csw->d_flags & D_INIT))
+		prep_cdevsw(csw);
 
 	/*
 	 * Search the list for a lot of things in one go:
