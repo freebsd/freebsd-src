@@ -950,6 +950,7 @@ product SANDISK SDDR12		0x0100	ImageMate SDDR-12
 product SANDISK SDDR09		0x0200	ImageMate SDDR-09
 
 /* ScanLogic products */
+product SCANLOGIC SL11R		0x0002	SL11R IDE Adapter
 product SCANLOGIC 336CX		0x0300	Phantom 336CX - C3 scanner
 
 /* Shuttle Technology products */
