@@ -958,11 +958,11 @@ static int sis_attach(dev)
 		 */
 		if (sc->sis_rev == SIS_REV_630S ||
 		    sc->sis_rev == SIS_REV_630E ||
-		    sc->sis_rev == SIS_REV_630EA1 ||
-		    sc->sis_rev == SIS_REV_630ET)
+		    sc->sis_rev == SIS_REV_630EA1)
 			sis_read_cmos(sc, dev, (caddr_t)&eaddr, 0x9, 6);
 
-		else if (sc->sis_rev == SIS_REV_635)
+		else if (sc->sis_rev == SIS_REV_635 ||
+			 sc->sis_rev == SIS_REV_630ET)
 			sis_read_mac(sc, dev, (caddr_t)&eaddr);
 		else
 #endif
@@ -976,13 +976,6 @@ static int sis_attach(dev)
 	 */
 	printf("sis%d: Ethernet address: %6D\n", unit, eaddr, ":");
 
-	/*
-	 * From the Linux driver:
-	 * 630ET : set the mii access mode as software-mode
-	 */
-	if (sc->sis_rev == SIS_REV_630ET)
-		SIS_SETBIT(sc, SIS_CSR, SIS_CSR_ACCESS_MODE);
-	
 	sc->sis_unit = unit;
 	callout_handle_init(&sc->sis_stat_ch);
 	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);

@@ -383,7 +383,7 @@ struct sis_ring_data {
 #define SIS_REV_630E		0x0081
 #define SIS_REV_630S		0x0082
 #define SIS_REV_630EA1		0x0083
-#define SIS_REV_630ET		0x0083
+#define SIS_REV_630ET		0x0084
 #define SIS_REV_635		0x0090
 
 /*
