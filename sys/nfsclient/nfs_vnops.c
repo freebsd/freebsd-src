@@ -526,7 +526,9 @@ nfs_close(struct vop_close_args *ap)
 		    error = nfs_flush(vp, ap->a_cred, MNT_WAIT, ap->a_td, cm);
 		    /* np->n_flag &= ~NMODIFIED; */
 		} else {
+		    vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, ap->a_td);
 		    error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred, ap->a_td, 1);
+		    VOP_UNLOCK(vp, 0, ap->a_td);
 		}
 		np->n_attrstamp = 0;
 	    }
@@ -3131,7 +3133,9 @@ nfsfifo_close(struct vop_close_args *ap)
 				vattr.va_atime = np->n_atim;
 			if (np->n_flag & NUPD)
 				vattr.va_mtime = np->n_mtim;
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, ap->a_td);
 			(void)VOP_SETATTR(vp, &vattr, ap->a_cred, ap->a_td);
+			VOP_UNLOCK(vp, 0, ap->a_td);
 		}
 	}
 	return (VOCALL(fifo_vnodeop_p, VOFFSET(vop_close), ap));

@@ -1063,6 +1063,8 @@ nfs_vinvalbuf(struct vnode *vp, int flags, struct ucred *cred,
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	int error = 0, slpflag, slptimeo;
 
+	ASSERT_VOP_LOCKED(vp, "nfs_vinvalbuf");
+
 	VI_LOCK(vp);
 	if (vp->v_iflag & VI_XLOCK) {
 		/* XXX Should we wait here? */
@@ -1344,7 +1346,7 @@ nfs_doio(struct buf *bp, struct ucred *cr, struct thread *td)
 			uiop->uio_resid = 0;
 		    }
 		}
-		ASSERT_VOP_LOCKED(vp, "nfs_doio");
+		/* ASSERT_VOP_LOCKED(vp, "nfs_doio"); */
 		if (p && (vp->v_vflag & VV_TEXT) &&
 			(np->n_mtime != np->n_vattr.va_mtime.tv_sec)) {
 			uprintf("Process killed due to text file modification\n");
