@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.c,v 1.9.2.11 1997/09/05 23:07:40 brian Exp $
+ * $Id: vars.c,v 1.9.2.12 1997/09/07 01:01:25 brian Exp $
  *
  */
 #include "fsm.h"
@@ -29,8 +29,8 @@
 #include "auth.h"
 #include "defs.h"
 
-char VarVersion[] = "PPP Version 1.1";
-char VarLocalVersion[] = "$Date: 1997/09/05 23:07:40 $";
+char VarVersion[] = "PPP Version 1.2";
+char VarLocalVersion[] = "$Date: 1997/09/07 01:01:25 $";
 
 /*
  * Order of conf option is important. See vars.h.
