@@ -118,6 +118,7 @@ void vmInnerLoop(FICL_VM *pVM)
 }
 #endif
 
+
 /**************************************************************************
                         v m G e t S t r i n g
 ** Parses a string out of the VM input buffer and copies up to the first
@@ -128,7 +129,7 @@ void vmInnerLoop(FICL_VM *pVM)
 **************************************************************************/
 char *vmGetString(FICL_VM *pVM, FICL_STRING *spDest, char delimiter)
 {
-    STRINGINFO si = vmParseString(pVM, delimiter);
+    STRINGINFO si = vmParseStringEx(pVM, delimiter, 0);
 
     if (SI_COUNT(si) > FICL_STRING_MAX)
     {
@@ -175,7 +176,7 @@ STRINGINFO vmGetWord0(FICL_VM *pVM)
     char *pSrc      = vmGetInBuf(pVM);
     char *pEnd      = vmGetInBufEnd(pVM);
     STRINGINFO si;
-    UNS32 count = 0;
+    FICL_UNS count = 0;
     char ch;
 
     pSrc = skipSpace(pSrc, pEnd);
@@ -229,14 +230,22 @@ int vmGetWordToPad(FICL_VM *pVM)
 ** trailing delimiter.
 **************************************************************************/
 STRINGINFO vmParseString(FICL_VM *pVM, char delim)
+{ 
+	return vmParseStringEx(pVM, delim, 1);
+}
+
+STRINGINFO vmParseStringEx(FICL_VM *pVM, char delim, char fSkipLeading)
 {
     STRINGINFO si;
     char *pSrc      = vmGetInBuf(pVM);
     char *pEnd      = vmGetInBufEnd(pVM);
     char ch;
 
-    while ((pSrc != pEnd) && (*pSrc == delim))  /* skip lead delimiters */
-        pSrc++;
+	if (fSkipLeading)
+	{                       /* skip lead delimiters */
+		while ((pSrc != pEnd) && (*pSrc == delim))
+			pSrc++;
+	}
 
     SI_SETPTR(si, pSrc);    /* mark start of text */
 
@@ -256,6 +265,27 @@ STRINGINFO vmParseString(FICL_VM *pVM, char delim)
 
     vmUpdateTib(pVM, pSrc);
     return si;
+}
+
+
+/**************************************************************************
+                        v m P o p
+** 
+**************************************************************************/
+CELL vmPop(FICL_VM *pVM)
+{
+    return stackPop(pVM->pStack);
+}
+
+
+/**************************************************************************
+                        v m P u s h
+** 
+**************************************************************************/
+void vmPush(FICL_VM *pVM, CELL c)
+{
+    stackPush(pVM->pStack, c);
+    return;
 }
 
 
@@ -361,6 +391,18 @@ void vmSetTextOut(FICL_VM *pVM, OUTFUNC textOut)
 
     return;
 }
+
+
+/**************************************************************************
+                        v m S t e p
+** Single step the vm - equivalent to "step into" - used for debugging
+**************************************************************************/
+#if FICL_WANT_DEBUGGER
+void vmStep(FICL_VM *pVM)
+{
+	M_VM_STEP(pVM);
+}
+#endif
 
 
 /**************************************************************************
@@ -553,7 +595,7 @@ char *ultoa(FICL_UNS value, char *string, int radix )
 
         while (ud.lo)
         {
-            result = ficlLongDiv(ud, (UNS32)radix);
+            result = ficlLongDiv(ud, (FICL_UNS)radix);
             ud.lo = result.quot;
             *cp++ = digits[result.rem];
         }

@@ -9,6 +9,11 @@
 \ locstate: 0 = looking for | or -- or }}
 \           1 = found |
 \           2 = found --
+\           3 = found }
+\           4 = end of line
+\
+\ $FreeBSD$
+
 hide
 0 constant zero
 
@@ -19,16 +24,18 @@ hide
 : ?|    ( c-addr u -- c-addr u flag )
     2dup s" |"  compare 0= ;
 
+\ examine name and push true if it's a 2local
+\ (starts with '2'), false otherwise. 
+: ?2loc ( c-addr u -- c-addr n flag )
+    over c@ [char] 2 = if true else false endif ;
+
 : ?delim   ( c-addr u -- state | c-addr u 0 )
-    ?| if 
-        2drop 1
-    else 
-        ?-- if 
-            2drop 2
-        else 
-            ?} if 2drop 3  else 0  endif
-        endif
-    endif
+    ?|  if  2drop 1 exit endif
+    ?-- if  2drop 2 exit endif
+    ?}  if  2drop 3 exit endif
+    dup 0= 
+        if  2drop 4 exit endif
+    0
 ;
 
 set-current
@@ -45,7 +52,9 @@ set-current
     repeat
 
     \ now unstack the locals
-    0 do (local) loop   \ ( )
+    0 ?do 
+	    ?2loc if (2local) else (local) endif 
+	loop   \ ( )
 
     \ zero locals until -- or }
     locstate 1 = if
@@ -53,7 +62,11 @@ set-current
             parse-word
             ?delim dup to locstate
         0= while
-            postpone zero  (local)
+		    ?2loc if 
+			    postpone zero postpone zero  (2local)
+			else
+                postpone zero  (local)
+		    endif
         repeat
     endif
 
