@@ -369,7 +369,6 @@ init_main_thread(struct pthread *thread)
 	TAILQ_INIT(&thread->pri_mutexq);
 
 	thread->state = PS_RUNNING;
-	thread->uniqueid = 0;
 
 	/* Others cleared to zero by thr_alloc() */
 }
