@@ -80,19 +80,19 @@ not the file or directory to which it points.
 .\".Sh CAVEAT
 .\"The system can deadlock if a loop in the file system graph is present.
 .\"This loop takes the form of an entry in directory
-.\".Ql Pa a ,
+.\".Pa a ,
 .\"say
-.\".Ql Pa a/foo ,
+.\".Pa a/foo ,
 .\"being a hard link to directory
-.\".Ql Pa b ,
+.\".Pa b ,
 .\"and an entry in
 .\"directory
-.\".Ql Pa b ,
+.\".Pa b ,
 .\"say
-.\".Ql Pa b/bar ,
+.\".Pa b/bar ,
 .\"being a hard link
 .\"to directory
-.\".Ql Pa a .
+.\".Pa a .
 .\"When such a loop exists and two separate processes attempt to
 .\"perform
 .\".Ql rename a/foo b/bar

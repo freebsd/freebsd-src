@@ -113,7 +113,7 @@ If not specified, the
 default of 9600 is used.
 .It Fl u Ar unit-command
 When the line is switched to slip discipline, run
-.Ql Nm "sh -c" Ar unit-command old new
+.Dq Nm "sh -c" Ar unit-command old new
 where
 .Ar old
 and
@@ -125,18 +125,18 @@ using more than one slip line.
 When
 .Nm
 is connected for the first time,
-.Ql Nm "sh -c" Ar unit-command \-1 new
+.Dq Nm "sh -c" Ar unit-command \-1 new
 is run.
 When
 .Nm
 is disconnected,
-.Ql Nm "sh -c" Ar unit-command old \-1
+.Dq Nm "sh -c" Ar unit-command old \-1
 is run.
 The
 .Nm
 utility will abort if the unit number
 changes and
-.Ql Fl u Ar \%unit-command
+.Dq Fl u Ar \%unit-command
 was not specified.
 .It Fl z
 Force redial
