@@ -393,12 +393,6 @@ trap(int vector, int imm, struct trapframe *framep)
 		break;
 
 	case IA64_VEC_SINGLE_STEP_TRAP:
-		/*
-		 * Clear single-step bit.
-		 */
-		framep->tf_cr_ipsr &= IA64_PSR_SS;
-		/* FALLTHROUTH */
-
 	case IA64_VEC_DEBUG:
 	case IA64_VEC_TAKEN_BRANCH_TRAP:
 	case IA64_VEC_BREAK:
