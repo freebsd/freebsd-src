@@ -6,6 +6,14 @@ typedef struct _hist_entry {
   char *data;
 } HIST_ENTRY;
 
+/* A structure used to pass the current state of the history stuff around. */
+typedef struct _hist_state {
+  HIST_ENTRY **entries;		/* Pointer to the entries themselves. */
+  int offset;			/* The location pointer within this array. */
+  int length;			/* Number of elements within this array. */
+  int size;			/* Number of slots allocated to this array. */
+} HISTORY_STATE;
+
 /* For convenience only.  You set this when interpreting history commands.
    It is the logical offset of the first history element. */
 extern int history_base;
@@ -13,6 +21,12 @@ extern int history_base;
 /* Begin a session in which the history functions might be used.  This
    just initializes the interactive variables. */
 extern void using_history ();
+
+/* Return the current HISTORY_STATE of the history. */
+extern HISTORY_STATE *history_get_history_state ();
+
+/* Set the state of the current history array to STATE. */
+extern void history_set_history_state ();
 
 /* Place STRING at the end of the history list.
    The associated data field (if any) is set to NULL. */

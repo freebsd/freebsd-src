@@ -1,33 +1,40 @@
 /* funmap.c -- attach names to functions. */
 
-/* Copyright (C) 1988, 1989, 1991 Free Software Foundation, Inc.
+/* Copyright (C) 1987, 1989, 1992 Free Software Foundation, Inc.
 
-   This file is part of GNU Readline, a library for reading lines
-   of text with interactive input and history editing.
+   This file is part of the GNU Readline Library, a library for
+   reading lines of text with interactive input and history editing.
 
-   Readline is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
+   The GNU Readline Library is free software; you can redistribute it
+   and/or modify it under the terms of the GNU General Public License
+   as published by the Free Software Foundation; either version 1, or
    (at your option) any later version.
 
-   Readline is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   The GNU Readline Library is distributed in the hope that it will be
+   useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+   of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
+   The GNU General Public License is often shipped with GNU software, and
+   is generally kept in a file called COPYING or LICENSE.  If you do not
+   have a copy of the license, write to the Free Software Foundation,
+   675 Mass Ave, Cambridge, MA 02139, USA. */
 
-/* #define STATIC_MALLOC */
-#if !defined (STATIC_MALLOC)
-extern char *xmalloc (), *xrealloc ();
-#else
+#if defined (STATIC_MALLOC)
 static char *xmalloc (), *xrealloc ();
+#else
+extern char *xmalloc (), *xrealloc ();
 #endif /* STATIC_MALLOC */
 
-#include "sysdep.h"
+#if !defined (BUFSIZ)
 #include <stdio.h>
+#endif /* BUFSIZ */
+
+#if defined (HAVE_STDLIB_H)
+#  include <stdlib.h>
+#else
+#  include "ansi_stdlib.h"
+#endif /* HAVE_STDLIB_H */
 
 #include "readline.h"
 
@@ -56,6 +63,7 @@ static FUNMAP default_funmap[] = {
   { "clear-screen", rl_clear_screen },
   { "complete", rl_complete },
   { "delete-char", rl_delete },
+  { "delete-horizontal-space", rl_delete_horizontal_space },
   { "digit-argument", rl_digit_argument },
   { "do-lowercase-version", rl_do_lowercase_version },
   { "downcase-word", rl_downcase_word },
@@ -66,9 +74,12 @@ static FUNMAP default_funmap[] = {
   { "forward-char", rl_forward },
   { "forward-search-history", rl_forward_search_history },
   { "forward-word", rl_forward_word },
+  { "insert-completions", rl_insert_completions },
   { "kill-line", rl_kill_line },
   { "kill-word", rl_kill_word },
   { "next-history", rl_get_next_history },
+  { "non-incremental-forward-search-history", rl_noninc_forward_search },
+  { "non-incremental-reverse-search-history", rl_noninc_reverse_search },
   { "possible-completions", rl_possible_completions },
   { "previous-history", rl_get_previous_history },
   { "quoted-insert", rl_quoted_insert },
@@ -107,7 +118,6 @@ static FUNMAP default_funmap[] = {
   { "vi-complete", rl_vi_complete },
   { "vi-delete", rl_vi_delete },
   { "vi-delete-to", rl_vi_delete_to },
-  { "vi-dosearch", rl_vi_dosearch },
   { "vi-eWord", rl_vi_eWord },
   { "vi-editing-mode", rl_vi_editing_mode },
   { "vi-end-word", rl_vi_end_word },
@@ -125,7 +135,7 @@ static FUNMAP default_funmap[] = {
   { "vi-overstrike-delete", rl_vi_overstrike_delete },
   { "vi-prev-word", rl_vi_prev_word },
   { "vi-put", rl_vi_put },
-  { "vi-replace, ", rl_vi_replace },
+  { "vi-replace", rl_vi_replace },
   { "vi-search", rl_vi_search },
   { "vi-search-again", rl_vi_search_again },
   { "vi-subst", rl_vi_subst },
@@ -158,6 +168,7 @@ rl_add_funmap_entry (name, function)
 static int funmap_initialized = 0;
 
 /* Make the funmap contain all of the default entries. */
+void
 rl_initialize_funmap ()
 {
   register int i;
@@ -177,7 +188,12 @@ static int
 qsort_string_compare (s1, s2)
      register char **s1, **s2;
 {
-  return (strcmp (*s1, *s2));
+  int r;
+
+  r = **s1 - **s2;
+  if (r == 0)
+    r = strcmp (*s1, *s2);
+  return r;
 }
 
 /* Produce a NULL terminated array of known function names.  The array

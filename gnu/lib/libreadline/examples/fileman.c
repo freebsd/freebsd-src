@@ -247,11 +247,7 @@ com_list (arg)
   if (!arg)
     arg = "*";
 
-#ifdef __GO32__
-  sprintf (syscom, "ls -lp %s", arg);
-#else
   sprintf (syscom, "ls -FClg %s", arg);
-#endif
   system (syscom);
 }
 
@@ -397,49 +393,3 @@ valid_argument (caller, arg)
  * compile-command: "cc -g -I../.. -L.. -o fileman fileman.c -lreadline -ltermcap"
  * end:
  */
-
-#ifdef __GO32__
-/* **************************************************************** */
-/*								    */
-/*			xmalloc and xrealloc ()		     	    */
-/*								    */
-/* **************************************************************** */
-
-static void memory_error_and_abort ();
-
-char *
-xmalloc (bytes)
-     int bytes;
-{
-  char *temp = (char *)malloc (bytes);
-
-  if (!temp)
-    memory_error_and_abort ();
-  return (temp);
-}
-
-char *
-xrealloc (pointer, bytes)
-     char *pointer;
-     int bytes;
-{
-  char *temp;
-
-  if (!pointer)
-    temp = (char *)xmalloc (bytes);
-  else
-    temp = (char *)realloc (pointer, bytes);
-
-  if (!temp)
-    memory_error_and_abort ();
-
-  return (temp);
-}
-
-static void
-memory_error_and_abort ()
-{
-  fprintf (stderr, "xmalloc: Out of virtual memory!\n");
-  abort ();
-}
-#endif
