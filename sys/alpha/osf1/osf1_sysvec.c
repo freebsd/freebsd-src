@@ -52,6 +52,8 @@
 #include <alpha/osf1/osf1_util.h>
 #include <alpha/osf1/osf1.h>
 
+MODULE_VERSION(osf1, 1);
+
 int osf1_szsigcode;
 extern char sigcode[];
 static int osf1_freebsd_fixup __P((long **stack_base,
