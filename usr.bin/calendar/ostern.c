@@ -1,12 +1,13 @@
 /* 
  * Copyright (c) 1995 Wolfram Schneider. Public domain.
  *
- * $Id: ostern.c,v 1.2 1996/05/10 16:29:42 ache Exp $
+ * $Id: ostern.c,v 1.3 1996/05/10 17:32:05 ache Exp $
 */
 
-#include <string.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
 
 #include "calendar.h"
 
