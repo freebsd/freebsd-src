@@ -2606,7 +2606,7 @@ Parse_MainName()
     main = Lst_Init (FALSE);
 
     if (mainNode == NILGNODE) {
-	Punt ("make: no target to make.\n");
+	Punt ("no target to make.");
     	/*NOTREACHED*/
     } else if (mainNode->type & OP_DOUBLEDEP) {
 	(void) Lst_AtEnd (main, (ClientData)mainNode);
