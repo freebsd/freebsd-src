@@ -155,14 +155,17 @@ ${KMOD}.kld: ${OBJS}
 	${LD} ${LDFLAGS} -r -o ${.TARGET} ${OBJS}
 
 .if !defined(NOMAN)
-.include <bsd.man.mk>
-.if !defined(_MANPAGES) || empty(_MANPAGES)
-MAN1=	${KMOD}.4
+.if 0
+MAN?=	${KMOD}.4
 .endif
-
-.elif !target(maninstall)
+.include <bsd.man.mk>
+.else
+.if !target(all-man)
+all-man: _SUBDIR
+.endif
+.if !target(maninstall)
 maninstall: _SUBDIR
-all-man:
+.endif
 .endif
 
 _ILINKS=@ machine
