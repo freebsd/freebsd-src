@@ -22,10 +22,6 @@
 #undef DEBUG
 
 #include "cx.h"
-#include "sppp.h"
-#if NSPPP <= 0
-#error The device 'cx' requires sppp.
-#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
