@@ -551,7 +551,7 @@ ipv6cp_DecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
           fsm_Close(&ipv6cp->fsm);
         } else if (token == ipv6cp->peer_token)
 	  log_Printf(log_IsKept(LogIPV6CP) ? LogIPV6CP : LogPHASE,
-                    "0x08lx: Unacceptable token!\n", (unsigned long)token);
+                    "0x%08lx: Unacceptable token!\n", (unsigned long)token);
         else if (token != ipv6cp->my_token) {
           n = 100;
           while (n && !ipcp_SetIPv6address(ipv6cp, token, ipv6cp->peer_token)) {
