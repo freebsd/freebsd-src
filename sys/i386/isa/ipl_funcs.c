@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl_funcs.c,v 1.22 1999/07/10 15:28:01 bde Exp $
+ *	$Id: ipl_funcs.c,v 1.23 1999/07/10 21:57:52 alc Exp $
  */
 
 #include <sys/types.h>
@@ -76,31 +76,15 @@ softclockpending(void)
 
 #ifndef SMP
 
-#define	GENSPL(name, set_cpl) \
-unsigned name(void)				\
+#define	GENSPL(NAME, OP, MODIFIER, PC)		\
+unsigned NAME(void)				\
 {						\
 	unsigned x;				\
 						\
 	x = cpl;				\
-	set_cpl;				\
+	cpl OP MODIFIER;			\
 	return (x);				\
 }
-
-GENSPL(splbio, cpl |= bio_imask)
-GENSPL(splcam, cpl |= cam_imask)
-GENSPL(splclock, cpl = HWI_MASK | SWI_MASK)
-GENSPL(splhigh, cpl = HWI_MASK | SWI_MASK)
-GENSPL(splimp, cpl |= net_imask)
-GENSPL(splnet, cpl |= SWI_NET_MASK)
-GENSPL(splsoftcam, cpl |= SWI_CAMBIO_MASK | SWI_CAMNET_MASK)
-GENSPL(splsoftcambio, cpl |= SWI_CAMBIO_MASK)
-GENSPL(splsoftcamnet, cpl |= SWI_CAMNET_MASK)
-GENSPL(splsoftclock, cpl = SWI_CLOCK_MASK)
-GENSPL(splsofttty, cpl |= SWI_TTY_MASK)
-GENSPL(splsoftvm, cpl |= SWI_VM_MASK)
-GENSPL(splstatclock, cpl |= stat_imask)
-GENSPL(spltty, cpl |= tty_imask)
-GENSPL(splvm, cpl |= net_imask | bio_imask | cam_imask)
 
 void
 spl0(void)
@@ -213,53 +197,21 @@ unsigned NAME(void)							\
 	return (x);							\
 }
 
-/*    NAME:            OP:     MODIFIER:				PC: */
-GENSPL(splbio,		|=,	bio_imask,				2)
-GENSPL(splcam,		|=,	cam_imask,				7)
-GENSPL(splclock,	 =,	HWI_MASK | SWI_MASK,			3)
-GENSPL(splhigh,		 =,	HWI_MASK | SWI_MASK,			4)
-GENSPL(splimp,		|=,	net_imask,				5)
-GENSPL(splnet,		|=,	SWI_NET_MASK,				6)
-GENSPL(splsoftcam,	|=,	SWI_CAMBIO_MASK | SWI_CAMNET_MASK,	8)
-GENSPL(splsoftcambio,	|=,	SWI_CAMBIO_MASK,			9)
-GENSPL(splsoftcamnet, 	|=,	SWI_CAMNET_MASK,			10)
-GENSPL(splsoftclock,	 =,	SWI_CLOCK_MASK,				11)
-GENSPL(splsofttty,	|=,	SWI_TTY_MASK,				12)
-GENSPL(splsoftvm,	|=,	SWI_VM_MASK,				16)
-GENSPL(splstatclock,	|=,	stat_imask,				13)
-GENSPL(spltty,		|=,	tty_imask,				14)
-GENSPL(splvm,		|=,	net_imask | bio_imask | cam_imask,	15)
-
 #else /* INTR_SPL */
 
-#define	GENSPL(NAME, set_cpl)			\
+#define	GENSPL(NAME, OP, MODIFIER, PC)		\
 unsigned NAME(void)				\
 {						\
 	unsigned x;				\
 						\
 	IFCPL_LOCK();				\
 	x = cpl;				\
+	cpl OP MODIFIER;			\
 	set_cpl;				\
 	IFCPL_UNLOCK();				\
 						\
 	return (x);				\
 }
-
-GENSPL(splbio, cpl |= bio_imask)
-GENSPL(splclock, cpl = HWI_MASK | SWI_MASK)
-GENSPL(splhigh, cpl = HWI_MASK | SWI_MASK)
-GENSPL(splimp, cpl |= net_imask)
-GENSPL(splnet, cpl |= SWI_NET_MASK)
-GENSPL(splcam, cpl |= cam_imask)
-GENSPL(splsoftcam, cpl |= SWI_CAMBIO_MASK | SWI_CAMNET_MASK)
-GENSPL(splsoftcambio, cpl |= SWI_CAMBIO_MASK)
-GENSPL(splsoftcamnet, cpl |= SWI_CAMNET_MASK)
-GENSPL(splsoftclock, cpl = SWI_CLOCK_MASK)
-GENSPL(splsofttty, cpl |= SWI_TTY_MASK)
-GENSPL(splsoftvm, cpl |= SWI_VM_MASK)
-GENSPL(splstatclock, cpl |= stat_imask)
-GENSPL(spltty, cpl |= tty_imask)
-GENSPL(splvm, cpl |= net_imask | bio_imask | cam_imask)
 
 #endif /* INTR_SPL */
 
@@ -388,3 +340,22 @@ splq(intrmask_t mask)
 }
 
 #endif /* !SMP */
+
+/* Finally, generate the actual spl*() functions */
+
+/*    NAME:            OP:     MODIFIER:				PC: */
+GENSPL(splbio,		|=,	bio_imask,				2)
+GENSPL(splcam,		|=,	cam_imask,				7)
+GENSPL(splclock,	 =,	HWI_MASK | SWI_MASK,			3)
+GENSPL(splhigh,		 =,	HWI_MASK | SWI_MASK,			4)
+GENSPL(splimp,		|=,	net_imask,				5)
+GENSPL(splnet,		|=,	SWI_NET_MASK,				6)
+GENSPL(splsoftcam,	|=,	SWI_CAMBIO_MASK | SWI_CAMNET_MASK,	8)
+GENSPL(splsoftcambio,	|=,	SWI_CAMBIO_MASK,			9)
+GENSPL(splsoftcamnet, 	|=,	SWI_CAMNET_MASK,			10)
+GENSPL(splsoftclock,	 =,	SWI_CLOCK_MASK,				11)
+GENSPL(splsofttty,	|=,	SWI_TTY_MASK,				12)
+GENSPL(splsoftvm,	|=,	SWI_VM_MASK,				16)
+GENSPL(splstatclock,	|=,	stat_imask,				13)
+GENSPL(spltty,		|=,	tty_imask,				14)
+GENSPL(splvm,		|=,	net_imask | bio_imask | cam_imask,	15)
