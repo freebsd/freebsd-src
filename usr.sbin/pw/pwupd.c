@@ -168,8 +168,12 @@ pw_update(struct passwd * pwd, char const * user, int mode)
 			 */
 			if (pwd != NULL)
 				fmtpwentry(pwbuf, pwd, PWF_MASTER);
-			if ((rc = fileupdate(getpwpath(_MASTERPASSWD), 0644, pwbuf, pfx, l, mode)) != 0)
-				rc = pwdb(NULL) == 0;
+			if ((rc = fileupdate(getpwpath(_MASTERPASSWD), 0644, pwbuf, pfx, l, mode)) != 0) {
+				if (mode == UPD_DELETE)
+					rc = pwdb(NULL) == 0;
+				else
+					rc = pwdb("-u", user, NULL) == 0;
+			}
 		}
 	}
 	return rc;
