@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 PERL5SRC?= ${.CURDIR}/../../../../contrib/perl5
+PERL5LIB?= ${.CURDIR}/../libperl
 
 BINDIR?=	/usr/bin
 
@@ -25,8 +26,8 @@ CLEANFILES+= ${.OBJDIR}/${I}
 DEPEND_H+= ${.OBJDIR}/${I}
 .endfor
 
-linkfarm: ${DEPEND_H}
-	@for d in ${CLEANDIRS} ; do \
+links: ${DEPEND_H}
+	@for d in ${FARMDIRS} ; do \
 		rm -rf $${d} ;\
 		for i in `cd ${PERL5SRC}; find $${d} -type d -a \! -name CVS` ;\
 		do \
@@ -47,8 +48,36 @@ linkfarm: ${DEPEND_H}
 	@ln -sf ${PERL5SRC}/writemain.SH writemain.sh
 	@ln -sf ${PERL5SRC}/regcomp.c regcomp.c
 	@ln -sf ${PERL5SRC}/regexec.c regexec.c
-	@ln -sf ${CANONICALOBJDIR}/../libperl/config.sh config.sh
 	@touch ${.TARGET}
 
-CLEANFILES+=	linkfarm
+CLEANFILES+=	links
+CLEANFILES+=	config.h config.sh config_h.sh
+CLEANFILES+=	regcomp.c regexec.c
+CLEANFILES+=	writemain writemain.sh config_h.sh cflags cflags.sh myconfig
 CLEANDIRS+=	lib ext Porting hints build
+FARMDIRS=	lib ext Porting hints
+
+PERL_THREADED?= no
+.if ${PERL_THREADED} == "yes"
+CFLAGS+=        -pthread
+THREAD=		threads-
+.endif
+
+PERL_DEBUGGING?=        no
+.if ${PERL_DEBUGGING} == "yes"
+CFLAGS+=        -DDEBUGGING
+.endif
+
+config.sh: ${PERL5LIB}/config.SH-${THREAD}${OBJFORMAT}.${MACHINE_ARCH}
+	ln -sf ${.OODATE} ${.TARGET}
+
+config.h: links config_h.sh config.sh
+	sh config_h.sh
+
+cflags.sh config_h.sh writemain.sh: links
+
+cflags: cflags.sh
+	sh cflags.sh
+
+writemain: writemain.sh
+	sh writemain.sh
