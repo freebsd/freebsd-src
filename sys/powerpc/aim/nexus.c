@@ -269,11 +269,14 @@ nexus_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 		return (ENOENT);
 
 	switch (which) {
-	case NEXUS_IVAR_NODE:
 	case NEXUS_IVAR_NAME:
 		return (EINVAL);
 
-	/* Identified devices will want to set this */
+	/* Identified devices may want to set these */
+	case NEXUS_IVAR_NODE:
+		dinfo->ndi_node = (phandle_t)value;
+		break;
+
 	case NEXUS_IVAR_DEVICE_TYPE:
 		dinfo->ndi_device_type = (char *)value;
 		break;
