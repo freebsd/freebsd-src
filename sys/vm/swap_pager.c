@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.46 1995/09/11 00:47:17 dyson Exp $
+ * $Id: swap_pager.c,v 1.47 1995/09/24 04:40:19 davidg Exp $
  */
 
 /*
@@ -1083,6 +1083,11 @@ swap_pager_getpages(object, m, count, reqpage)
 		} else {
 			swap_pager_ridpages(m, count, reqpage);
 		}
+	}
+	if (rv == VM_PAGER_OK) {
+		pmap_clear_modify(VM_PAGE_TO_PHYS(m[reqpage]));
+		m[reqpage]->valid = VM_PAGE_BITS_ALL;
+		m[reqpage]->dirty = 0;
 	}
 	return (rv);
 }
