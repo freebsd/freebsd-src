@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
 /*
  * colcrt - replaces col for crts with new nroff esp. when using tbl.
  * Bill Joy UCB July 14, 1977
@@ -72,8 +73,6 @@ int	outcol;
 
 char	suppresul;
 char	printall;
-
-FILE	*f;
 
 static void	move(int, int);
 static void	pflush(int);
@@ -103,7 +102,7 @@ main(int argc, char *argv[])
 
 	do {
 		if (argc > 0) {
-			if (!(f = freopen(argv[0], "r", stdin))) {
+			if (freopen(argv[0], "r", stdin) == NULL) {
 				fflush(stdout);
 				err(1, "%s", argv[0]);
 			}
@@ -118,68 +117,68 @@ main(int argc, char *argv[])
 				break;
 			}
 			switch (c) {
-				case '\n':
-					if (outline >= 265)
+			case '\n':
+				if (outline >= 265)
+					pflush(62);
+				outline += 2;
+				outcol = 0;
+				continue;
+			case '\016':
+			case '\017':
+				continue;
+			case 033:
+				c = getc(stdin);
+				switch (c) {
+				case '9':
+					if (outline >= 266)
 						pflush(62);
-					outline += 2;
-					outcol = 0;
+					outline++;
 					continue;
-				case '\016':
-					case '\017':
+				case '8':
+					if (outline >= 1)
+						outline--;
 					continue;
-				case 033:
-					c = getc(stdin);
-					switch (c) {
-						case '9':
-							if (outline >= 266)
-								pflush(62);
-							outline++;
-							continue;
-						case '8':
-							if (outline >= 1)
-								outline--;
-							continue;
-						case '7':
-							outline -= 2;
-							if (outline < 0)
-								outline = 0;
-							continue;
-						default:
-							continue;
-					}
-				case '\b':
-					if (outcol)
-						outcol--;
+				case '7':
+					outline -= 2;
+					if (outline < 0)
+						outline = 0;
 					continue;
-				case '\t':
-					outcol += 8;
-					outcol &= ~7;
-					outcol--;
-					c = ' ';
 				default:
-					if (outcol >= 132) {
-						outcol++;
-						continue;
-					}
-					cp = &page[outline][outcol];
-					outcol++;
-					if (c == '_') {
-						if (suppresul)
-							continue;
-						cp += 132;
-						c = '-';
-					}
-					if (*cp == 0) {
-						*cp = c;
-						dp = cp - outcol;
-						for (cp--; cp >= dp && *cp == 0; cp--)
-							*cp = ' ';
-					} else
-						if (plus(c, *cp) || plus(*cp, c))
-							*cp = '+';
-						else if (*cp == ' ' || *cp == 0)
-							*cp = c;
 					continue;
+				}
+			case '\b':
+				if (outcol)
+					outcol--;
+				continue;
+			case '\t':
+				outcol += 8;
+				outcol &= ~7;
+				outcol--;
+				c = ' ';
+			default:
+				if (outcol >= 132) {
+					outcol++;
+					continue;
+				}
+				cp = &page[outline][outcol];
+				outcol++;
+				if (c == '_') {
+					if (suppresul)
+						continue;
+					cp += 132;
+					c = '-';
+				}
+				if (*cp == 0) {
+					*cp = c;
+					dp = cp - outcol;
+					for (cp--; cp >= dp && *cp == 0; cp--)
+						*cp = ' ';
+				} else
+					if (plus(c, *cp) || plus(*cp, c))
+						*cp = '+';
+					else if (*cp == ' ' || *cp == 0)
+						*cp = c;
+				continue;
 			}
 		}
 	} while (argc > 0);
@@ -201,11 +200,10 @@ plus(char c, char d)
 	return ((c == '|' && d == '-') || d == '_');
 }
 
-int first;
-
 static void
 pflush(int ol)
 {
+	static int first;
 	int i;
 	char *cp;
 	char lastomit;
