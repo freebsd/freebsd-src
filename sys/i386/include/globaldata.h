@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: globaldata.h,v 1.1 1998/04/06 15:37:21 peter Exp $
  */
 
 /*
@@ -46,6 +46,7 @@ struct globaldata {
 #ifdef VM86
 	struct segment_descriptor common_tssd;
 	u_int		private_tss;
+	u_int		my_tr;		
 #endif
 #ifdef SMP
 	u_int		cpuid;
@@ -57,11 +58,7 @@ struct globaldata {
 	pt_entry_t	*prv_CMAP2;
 	pt_entry_t	*prv_CMAP3;
 	int		inside_intr;
-#ifdef VM86
-	u_int		my_tr;			/* XX VM86 only */
 #endif
-#endif
-
 };
 
 #ifdef SMP
