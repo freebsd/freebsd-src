@@ -32,21 +32,21 @@
 INTERFACE clock;
 
 METHOD void init {
-	device_t dev;
+	kobj_t dev;
 };
 
 METHOD void get {
-	device_t dev;
+	kobj_t dev;
 	time_t base;
 	struct clocktime *ct;
 };
 
 METHOD void set {
-	device_t dev;
+	kobj_t dev;
 	struct clocktime *ct;
 };
 
 METHOD int getsecs {
-	device_t dev;
+	kobj_t dev;
 	int *secp;
 };
