@@ -7,25 +7,27 @@
 # Output and error are redirected to console by init,
 # and the console is the controlling terminal.
 
-# Note that almost all the user-configurable behavior is no longer in
-# this file, but rather in /etc/defaults/rc.conf.  Please check this file
-# first before contemplating any changes here.
+# Note that almost all of the user-configurable behavior is no longer in
+# this file, but rather in /etc/defaults/rc.conf.  Please check that file
+# first before contemplating any changes here.  If you do need to change
+# this file for some reason, we would like to know about it.
 
 stty status '^T'
 
 # Set shell to ignore SIGINT (2), but not children;
 # shell catches SIGQUIT (3) and returns to single user after fsck.
+#
 trap : 2
 trap : 3	# shouldn't be needed
 
-HOME=/; export HOME
+HOME=/
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin
-export PATH
+export HOME PATH
 
 # BOOTP diskless boot.  We have to run the rc file early in order to
 # retarget various config files.
 #
-if [ -f /etc/rc.diskless1 ]; then
+if [ -r /etc/rc.diskless1 ]; then
 	dlv=`/sbin/sysctl -n vfs.nfs.diskless_valid 2> /dev/null`
 	if [ ${dlv:=0} != 0 ]; then
 		. /etc/rc.diskless1
@@ -34,26 +36,33 @@ fi
 
 # If there is a global system configuration file, suck it in.
 #
-if [ -f /etc/defaults/rc.conf ]; then
+if [ -r /etc/defaults/rc.conf ]; then
 	. /etc/defaults/rc.conf
-elif [ -f /etc/rc.conf ]; then
+elif [ -r /etc/rc.conf ]; then
 	. /etc/rc.conf
 fi
 
 # Configure ccd devices.
-if [ -f /etc/ccd.conf ]; then
+#
+if [ -r /etc/ccd.conf ]; then
 	ccdconfig -C
 fi
 
-if [ "${start_vinum}" = "YES" ]; then
+case ${start_vinum} in
+[Yy][Ee][Ss])
 	vinum start
-elif [ -n "${vinum_drives}" ]; then
-	vinum read ${vinum_drives}
-fi
+	;;
+*)
+	if [ -n "${vinum_drives}" ]; then
+		vinum read ${vinum_drives}
+	fi
+	;;
+esac
 
 swapon -a
 
-if [ "$1" = "autoboot" ]; then
+case $1 in
+autoboot)
 	echo Automatic reboot in progress...
 	fsck -p
 	case $? in
@@ -84,9 +93,11 @@ if [ "$1" = "autoboot" ]; then
 		exit 1
 		;;
 	esac
-else
+	;;
+*)
 	echo Skipping disk checks ...
-fi
+	;;
+esac
 
 set -T
 trap "echo 'Reboot interrupted'; exit 1" 3
@@ -94,35 +105,43 @@ trap "echo 'Reboot interrupted'; exit 1" 3
 # root normally must be read/write, but if this is a BOOTP NFS
 # diskless boot it does not have to be.
 #
-
-if [ "${root_rw_mount}" != "NO" ]; then
-	mount -u -o rw /
-fi
-
-if [ $? != 0 ]; then
-	echo "Filesystem mount failed, startup aborted"
-	exit 1
-fi
+case ${root_rw_mount} in
+[Nn][Oo] | '')
+	;;
+*)
+	if ! mount -u -o rw / ; then
+		echo "Mounting root filesystem rw failed, startup aborted"
+		exit 1
+	fi
+	;;
+esac
 
 umount -a >/dev/null 2>&1
 
-if [ "${early_nfs_mounts}" != "YES" ]; then
-	mount -a -t nonfs
-else
+# Where/how would this get set?
+#
+case ${early_nfs_mounts} in
+[Yy][Ee][Ss])
 	mount -a
-fi
-if [ $? != 0 ]; then
-	echo "Filesystem mount failed, startup aborted"
+	;;
+*)
+	mount -a -t nonfs
+	;;
+esac
+
+case $? in
+0)
+	;;
+*)
+	echo "Mounting /etc/fstab filesystems failed, startup aborted"
 	exit 1
-fi
+	;;
+esac
 
 # Run custom disk mounting function here
 #
-
-if [ -n "${diskless_mount}" ]; then
-	if [ -f "${diskless_mount}" ]; then
+if [ -n "${diskless_mount}" -a -r "${diskless_mount}" ]; then
 		sh ${diskless_mount}
-	fi
 fi
 
 adjkerntz -i
@@ -135,7 +154,7 @@ clean_var() {
 		# Keep a copy of the boot messages around
 		dmesg >/var/run/dmesg.boot
 		# And an initial utmp file
-		(cd /var/run && cp /dev/null utmp && chmod 644 utmp; )
+		(cd /var/run && cp /dev/null utmp && chmod 644 utmp;)
 		>/var/run/clean_var
 	fi
 }
@@ -148,46 +167,60 @@ if [ -d /var/run -a -d /var/spool/lock -a -d /var/spool/uucp/.Temp ]; then
 fi
 
 # Add additional swapfile, if configured.
-if [ "${swapfile}" != "NO" -a -w "${swapfile}" -a -b /dev/vn0b ]; then
-	echo "Adding ${swapfile} as additional swap."
-	vnconfig /dev/vn0b ${swapfile} && swapon /dev/vn0b
-fi
+#
+case ${swapfile} in
+[Nn][Oo] | '')
+	;;
+*)
+	if [ -w "${swapfile}" -a -b /dev/vn0b ]; then
+		echo "Adding ${swapfile} as additional swap."
+		vnconfig /dev/vn0b ${swapfile} && swapon /dev/vn0b
+	fi
+	;;
+esac
 
-# set sysctl variables early as we can
-if [ -f /etc/rc.sysctl ]; then
+# Set sysctl variables as early as we can
+#
+if [ -r /etc/rc.sysctl ]; then
 	. /etc/rc.sysctl
 fi
 
-# configure serial devices
-if [ -f /etc/rc.serial ]; then
+# Configure serial devices
+#
+if [ -r /etc/rc.serial ]; then
 	. /etc/rc.serial
 fi
 
-# start up PC-card configuration
-if [ -f /etc/rc.pccard ]; then
+# Start up PC-card configuration
+#
+if [ -r /etc/rc.pccard ]; then
 	. /etc/rc.pccard
 fi
 
-# start up the initial network configuration.
-if [ -f /etc/rc.network ]; then
+# Start up the initial network configuration.
+#
+if [ -r /etc/rc.network ]; then
 	. /etc/rc.network	# We only need to do this once.
 	network_pass1
 fi
 
+# Retest for early_nfs here?
+#
 echo -n "Mounting NFS file systems"
 mount -a -t nfs
 echo .
 
 # Whack the pty perms back into shape.
+#
 chflags 0 /dev/tty[pqrsPQRS]*
 chmod 666 /dev/tty[pqrsPQRS]*
 chown root:wheel /dev/tty[pqrsPQRS]*
 
-# clean up left-over files
+# Clean up left-over files
+#
 clean_var			# If it hasn't already been done
 rm /var/run/clean_var
 
-#
 # Clearing /tmp at boot-time seems to have a long tradition.  It doesn't
 # help in any way for long-living systems, and it might accidentally
 # clobber files you would rather like to have preserved after a crash
@@ -195,150 +228,191 @@ rm /var/run/clean_var
 #
 # See also the example of another cleanup policy in /etc/periodic/daily.
 #
-if [ "${clear_tmp_enable}" = "YES" ]; then
+case ${clear_tmp_enable} in
+[Yy][Ee][Ss])
 	echo clearing /tmp
-
 	# prune quickly with one rm, then use find to clean up /tmp/[lq]*
 	# (not needed with mfs /tmp, but doesn't hurt there...)
 	(cd /tmp && rm -rf [a-km-pr-zA-Z]* &&
-	    find -d . ! -name . ! -name lost+found ! -name quota.user \
-	    ! -name quota.group -exec rm -rf -- {} \;)
+		find -d . ! -name . ! -name lost+found ! -name quota.user \
+		! -name quota.group -exec rm -rf -- {} \;)
+	;;
+esac
 
-fi
-
-# Remove X lock files, since they will prevent you from restarting X11 
+# Remove X lock files, since they will prevent you from restarting X11
 # after a system crash.
+#
 rm -f /tmp/.X*-lock /tmp/.X11-unix/*
 
-# snapshot any kernel -c changes back to disk here <someday>
-# this has changed with ELF and /kernel.config.
+# Snapshot any kernel -c changes back to disk here <someday>.
+# This has changed with ELF and /kernel.config.
 
 echo -n 'additional daemons:'
-# start system logging and name service (named needs to start before syslogd
-# if you don't have a /etc/resolv.conf)
+
+# Start system logging and name service.  Named needs to start before syslogd
+# if you don't have a /etc/resolv.conf.
 #
-if [ "${syslogd_enable}" = "YES" ]; then
+case ${syslogd_enable} in
+[Yy][Ee][Ss])
 	# Transitional symlink (for the next couple of years :) until all
-	# binaries had a chance to move towards /var/run/log.
-	if [ ! -h /dev/log ] ; then
+	# binaries have had a chance to move towards /var/run/log.
+	if [ ! -h /dev/log ]; then
 		# might complain for r/o root f/s
 		ln -sf /var/run/log /dev/log
 	fi
 
 	rm -f /var/run/log
-	echo -n ' syslogd';		syslogd ${syslogd_flags}
-fi
+	echo -n ' syslogd';	syslogd ${syslogd_flags}
+	;;
+esac
+
 echo '.'
 
-# enable dumpdev so that savecore can see it
+# Enable dumpdev so that savecore can see it.
 # /var/crash should be a directory or a symbolic link
 # to the crash directory if core dumps are to be saved.
-if [ "${dumpdev}" != "NO" -a -e ${dumpdev} -a -d /var/crash ]; then
-	dumpon ${dumpdev}
-	echo -n checking for core dump...
-	savecore /var/crash
-fi
+#
+case ${dumpdev} in
+[Nn][Oo] | '')
+	;;
+*)
+	if [ -e "${dumpdev}" -a -d /var/crash ]; then
+		dumpon ${dumpdev}
+		echo -n checking for core dump...
+		savecore /var/crash
+	fi
+	;;
+esac
 
 if [ -n "${network_pass1_done}" ]; then
 	network_pass2
 fi
 
 # Enable/Check the quotas (must be after ypbind if using NIS)
-if [ "${enable_quotas}" = "YES" ]; then
+#
+case ${enable_quotas} in
+[Yy][Ee][Ss])
+	case ${check_quotas} in
+	[Yy][Ee][Ss])
+		echo -n 'checking quotas:'
+		quotacheck -a
+		echo ' done.'
+		;;
+	esac
 
-    # Only check quotas if they have been previously enabled, and requested
-    if [ "${check_quotas}" = "YES" ]; then
-            echo -n 'checking quotas:'
-            quotacheck -a
-            echo ' done.'
-    fi
-
-        echo -n 'enabling quotas:'
-        quotaon -a
-        echo ' done.'
-fi
+	echo -n 'enabling quotas:'
+	quotaon -a
+	echo ' done.'
+	;;
+esac
 
 if [ -n "${network_pass2_done}" ]; then
 	network_pass3
 fi
 
-
-# build ps databases
-kvm_mkdb 
+# Build ps databases
+#
+kvm_mkdb
 dev_mkdb
 
-# check the password temp/lock file
-if [ -f /etc/ptmp ]
-then
+# Check the password temp/lock file
+#
+if [ -e /etc/ptmp ]; then
 	logger -s -p auth.err \
 	"password file may be incorrect -- /etc/ptmp exists"
 fi
 
-if [ "${accounting_enable}" = "YES" -a -d /var/account ]; then
-	echo 'turning on accounting'
-	if [ ! -e /var/account/acct ]; then
-		touch /var/account/acct
+case ${accounting_enable} in
+[Yy][Ee][Ss])
+	if [ -d /var/account ]; then
+		echo 'turning on accounting'
+		if [ ! -e /var/account/acct ]; then
+			touch /var/account/acct
+		fi
+		accton /var/account/acct
 	fi
-	accton /var/account/acct
-fi
+	;;
+esac
 
 # Make shared lib searching a little faster.  Leave /usr/lib first if you
 # add your own entries or you may come to grief.
+#
 if [ -x /sbin/ldconfig ]; then
-	if [ "`/usr/bin/objformat`" = "elf" ]; then
+	case `/usr/bin/objformat` in
+	elf)
 		_LDC=/usr/lib
 		for i in ${ldconfig_paths}; do
-			if test -d ${i}; then
+			if [ -d "${i}" ]; then
 				_LDC="${_LDC} ${i}"
 			fi
 		done
 		echo 'setting ELF ldconfig path:' ${_LDC}
 		ldconfig -elf ${_LDC}
-	fi
+		;;
+	esac
 
 	# Legacy aout support for i386 only
-	if [ "`sysctl -n hw.machine`" = "i386" ]; then
+	case `sysctl -n hw.machine` in
+	i386)
 		# Default the a.out ldconfig path.
 		: ${ldconfig_paths_aout=${ldconfig_paths}}
 		_LDC=/usr/lib/aout
 		for i in ${ldconfig_paths_aout}; do
-			if test -d ${i}; then
+			if [ -d "${i}" ]; then
 				_LDC="${_LDC} ${i}"
 			fi
 		done
 		echo 'setting a.out ldconfig path:' ${_LDC}
 		ldconfig -aout ${_LDC}
-	fi
+		;;
+	esac
 fi
 
 # Now start up miscellaneous daemons that don't belong anywhere else
 #
 echo -n starting standard daemons:
-if [ "${inetd_enable}" != "NO" ]; then
+case ${inetd_enable} in
+[Nn][Oo])
+	;;
+*)
 	echo -n ' inetd';	inetd ${inetd_flags}
-fi
+	;;
+esac
 
-if [ "${cron_enable}" != "NO" ]; then
+case ${cron_enable} in
+[Nn][Oo])
+	;;
+*)
 	echo -n ' cron';	cron
-fi
+	;;
+esac
 
-if [ "${lpd_enable}" = "YES" ]; then
-	echo -n ' printer';		${lpd_program} ${lpd_flags}
-fi
+case ${lpd_enable} in
+[Yy][Ee][Ss])
+	echo -n ' printer';	${lpd_program:-/usr/sbin/lpd} ${lpd_flags}
+	;;
+esac
 
-if [ "${sendmail_enable}" = "YES" -a -r /etc/sendmail.cf ]; then
-	echo -n ' sendmail';	/usr/sbin/sendmail ${sendmail_flags}
-fi
+case ${sendmail_enable} in
+[Yy][Ee][Ss])
+	if [ -r /etc/sendmail.cf ]; then
+		echo -n ' sendmail';	/usr/sbin/sendmail ${sendmail_flags}
+	fi
+	;;
+esac
 
-if [ "${usbd_enable}" = "YES" ]; then
+case ${usbd_enable} in
+[Yy][Ee][Ss])
 	echo -n ' usbd';	/usr/sbin/usbd ${usbd_flags}
-fi
+	;;
+esac
 
 echo '.'
 
-# configure implementation specific stuff
+# Configure implementation specific stuff
+#
 arch=`uname -m`
-if [ -f /etc/rc.${arch} ]; then
+if [ -r /etc/rc.${arch} ]; then
 	. /etc/rc.${arch}
 fi
 
@@ -349,13 +423,13 @@ if [ "${vibackup}" != '/var/tmp/vi.recover/vi.*' ]; then
 	echo 'Recovering vi editor sessions'
 	for i in ${vibackup}; do
 		# Only test files that are readable.
-		if test ! -r ${i}; then
+		if [ ! -r "${i}" ]; then
 			continue
 		fi
 
 		# Unmodified nvi editor backup files either have the
 		# execute bit set or are zero length.  Delete them.
-		if test -x ${i} -o ! -s ${i}; then
+		if [ -x "${i}" -o ! -s "${i}" ]; then
 			rm -f ${i}
 		fi
 	done
@@ -366,7 +440,7 @@ if [ "${vibackup}" != '/var/tmp/vi.recover/vi.*' ]; then
 	if [ "${virecovery}" != "/var/tmp/vi.recover/recover.*" ]; then
 		for i in ${virecovery}; do
 			# Only test files that are readable.
-			if test ! -r ${i}; then
+			if [ ! -r "${i}" ]; then
 				continue
 			fi
 
@@ -374,7 +448,7 @@ if [ "${vibackup}" != '/var/tmp/vi.recover/vi.*' ]; then
 			# corrupted, or that have no corresponding backup file.
 			# Else send mail to the user.
 			recfile=`awk '/^X-vi-recover-path:/{print $2}' < ${i}`
-			if test -n "${recfile}" -a -s "${recfile}"; then
+			if [ -n "${recfile}" -a -s "${recfile}" ]; then
 				sendmail -t < ${i}
 			else
 				rm -f ${i}
@@ -383,26 +457,40 @@ if [ "${vibackup}" != '/var/tmp/vi.recover/vi.*' ]; then
 	fi
 fi
 
-# make a bounds file for msgs(1) if there isn't one already
-if [ -d /var/msgs -a  ! -f /var/msgs/bounds ]; then
+# Make a bounds file for msgs(1) if there isn't one already
+# "Delete important files with symlink" security hole?
+#
+if [ -d /var/msgs -a ! -f /var/msgs/bounds ]; then
 	echo 0 > /var/msgs/bounds
 fi
 
-# for each valid dir in $local_startup, search for init scripts matching *.sh
-if [ "${local_startup}" != "NO" ]; then
+# For each valid dir in $local_startup, search for init scripts matching *.sh
+#
+case ${local_startup} in
+[Nn][Oo] | '')
+	;;
+*)
 	echo -n 'Local package initialization:'
 	for dir in ${local_startup}; do
-		[ -d ${dir} ] && for script in ${dir}/*.sh; do
-			[ -x ${script} ] && \
-				(set -T ; trap 'exit 1' 2 ; ${script} start)
-		done
+		if [ -d "${dir}" ]; then
+			for script in ${dir}/*.sh; do
+				if [ -x "${script}" ]; then
+					(set -T
+					 trap 'exit 1' 2
+					 ${script} start)
+				fi
+			done
+		fi
 	done
 	echo .
-fi
+	;;
+esac
 
-if [ "${update_motd}" != "NO" ]; then
-	T=`mktemp /tmp/_motd.XXXXXX`
-	if [ $? -eq 0 ]; then
+case ${update_motd} in
+[Nn][Oo] | '')
+	;;
+*)
+	if T=`mktemp /tmp/_motd.XXXXXX`; then
 		uname -v | sed -e 's,^\([^#]*\) #\(.* [1-2][0-9][0-9][0-9]\).*/\([^\]*\) $,\1 (\3) #\2,' > ${T}
 		awk '{if (NR == 1) {if ($1 == "FreeBSD") {next} else {print "\n"$0}} else {print}}' < /etc/motd >> ${T}
 		cmp -s ${T} /etc/motd || {
@@ -411,10 +499,14 @@ if [ "${update_motd}" != "NO" ]; then
 		}
 		rm -f ${T}
 	fi
-fi
+	;;
+esac
 
-# Run rc.devfs if present to customize devfs
-[ -f /etc/rc.devfs ] && sh /etc/rc.devfs
+# Run rc.devfs if readable to customize devfs
+#
+if [ -r /etc/rc.devfs ]; then
+	sh /etc/rc.devfs
+fi
 
 # Do traditional (but rather obsolete) rc.local file if it exists.  If you
 # use this file and want to make it programmatic, source /etc/defaults/rc.conf
@@ -422,27 +514,31 @@ fi
 # shown below.  Please do not put local extensions into /etc/rc itself.
 # Use /etc/rc.local
 #
-# ---- rc.local  ----
-#     if [ -f /etc/defaults/rc.conf ]; then
-#             . /etc/defaults/rc.conf
-#     fi
-# 
-#     ... additional startup conditionals ...
-# ---- rc.local  ---- 
-# 
-if [ -f /etc/rc.local ]; then
+# ---- rc.local ----
+#	if [ -r /etc/defaults/rc.conf ]; then
+#		. /etc/defaults/rc.conf
+#	fi
+#
+#	... additional startup conditionals ...
+# ---- rc.local ----
+#
+if [ -r /etc/rc.local ]; then
 	echo -n 'starting local daemons:'
-        sh /etc/rc.local
+	sh /etc/rc.local
 	echo '.'
 fi
 
 # Raise kernel security level.  This should be done only after `fsck' has
 # repaired local file systems if you want the securelevel to be greater than 1.
-if [ "${kern_securelevel_enable}" = "YES" -a "${kern_securelevel}" -ge 0 ]; 
-then
-	echo 'Raising kernel security level'
-	sysctl -w kern.securelevel=${kern_securelevel}
-fi
+#
+case ${kern_securelevel_enable} in
+[Yy][Ee][Ss])
+	if [ "${kern_securelevel}" -ge 0 ]; then
+		echo 'Raising kernel security level'
+		sysctl -w kern.securelevel=${kern_securelevel}
+	fi
+	;;
+esac
 
 date
 exit 0

@@ -1,4 +1,6 @@
 #
+# $FreeBSD$
+#
 # /etc/rc.diskless - general BOOTP startup
 #
 #	BOOTP has mounted / for us.  Assume a read-only mount.  We must then
@@ -10,14 +12,14 @@
 #	set by the system operator on the server to be softlinks to
 #	/conf/ME/fstab and /conf/ME/rc.conf.local.  The system operator may
 #	choose to retarget other files as well.  The server itself boots
-#	properly with its default /conf/ME softlink pointing to 
-#	/conf/server.host.name.  
+#	properly with its default /conf/ME softlink pointing to
+#	/conf/server.host.name.
 #
 #	During a diskless boot, we retarget the /conf/ME softlink to point
 #	to /conf/DISKLESS.CLIENT.IP.ADDRESS.  Thus, various system config
 #	files that are softlinks through /conf/ME also get retargeted.
 #
-# SEE SAMPLE FILES IN /usr/share/examples/diskless. 
+# SEE SAMPLE FILES IN /usr/share/examples/diskless.
 
 # chkerr:
 #
@@ -25,27 +27,31 @@
 #
 #	checks error code and drops into shell on failure.
 #	if shell exits, terminates script as well as /etc/rc.
-
+#
 chkerr() {
-	if [ $1 != 0 ]; then
+	case $1 in
+	0)
+		;;
+	*)
 		echo "$2 failed: dropping into /bin/sh"
 		/bin/sh
 		# RESUME
-	fi
+		;;
+	esac
 }
 
 # DEBUGGING
 #
 set -v
 
-#  Figure out where the root mount is coming from, synthesize a mount
-#  for /usr and mount it.
+# Figure out where the root mount is coming from, synthesize a mount
+# for /usr and mount it.
 #
-#  e.g. nfs_root might wind up as "A.B.C.D:/"
+# e.g. nfs_root might wind up as "A.B.C.D:/"
 #
-#  NOTE! the /usr mount is only temporary so we can access commands necessary
-#  to retarget /conf/ME.  The actual /usr mount should be part of the
-#  retargeted /etc/fstab.  See instructions in /usr/share/examples/diskless.
+# NOTE! the /usr mount is only temporary so we can access commands necessary
+# to retarget /conf/ME.  The actual /usr mount should be part of the
+# retargeted /etc/fstab.  See instructions in /usr/share/examples/diskless.
 #
 set `/bin/df /`
 nfs_root=$8
@@ -53,7 +59,7 @@ mount_nfs -o ro ${nfs_root}/usr /usr
 
 chkerr $? "mount of /usr"
 
-#  Figure out our interface and IP.
+# Figure out our interface and IP.
 #
 
 bootp_ifc=`route -n get default | fgrep interface | awk '{ print $2; }'`
@@ -74,7 +80,7 @@ umount /usr
 #
 # WARNING! null mounts cannot handle mmap, and since many programs
 # use mmap (such as 'cp'), we have to copy.
-
+#
 mount_mfs -s 256 -T qp120at -o union dummy /conf
 chkerr $? "MFS mount on /conf"
 
@@ -91,7 +97,7 @@ sysctl -w kern.bootfile=/conf/ME/kernel
 # else.
 #
 # This script is responsible for setting up the
-# diskless mount environment.  This can be 
+# diskless mount environment.  This can be
 # overriden by /conf/ME/rc.conf.local if, for
 # example, you do not want to run the standard
 # system /etc/rc.diskless2

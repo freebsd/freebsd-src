@@ -2,15 +2,22 @@
 #	PC-card startup script
 # $FreeBSD$
 
-if [ "${pccard_enable}" = "YES" ] ; then
-	if [ "${pccard_mem}" != "DEFAULT" ] ; then
-		pccardc pccardmem ${pccard_mem}
-	else
+case ${pccard_enable} in
+[Yy][Ee][Ss])
+	case ${pccard_mem} in
+	[Dd][Ee][Ff][Aa][Uu][Ll][Tt])
 		pccardc pccardmem 0xd0000
-	fi
-	if [ -n "${pccard_conf}" ] ; then
+		;;
+	*)
+		pccardc pccardmem ${pccard_mem}
+		;;
+	esac
+
+	if [ -n "${pccard_conf}" ]; then
 		pccardd_flags="${pccardd_flags} -f ${pccard_conf}"
 	fi
-	echo -n "Enable PC-card." 
+
+	echo -n "Enable PC-card."
 	pccardd ${pccardd_flags} 2>&1 > /var/log/pccardd.debug
-fi
+	;;
+esac

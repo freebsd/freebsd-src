@@ -1,11 +1,14 @@
+#
+#$FreeBSD$
+#
 # rc.diskless2
 #
 
 # If there is a global system configuration file, suck it in.
 #
-if [ -f /etc/defaults/rc.conf ]; then
+if [ -r /etc/defaults/rc.conf ]; then
 	. /etc/defaults/rc.conf
-elif [ -f /etc/rc.conf ]; then
+elif [ -r /etc/rc.conf ]; then
 	. /etc/rc.conf
 fi
 
@@ -29,7 +32,6 @@ mkdir /var/spool/output/lpd
 chown -R root.daemon /var/spool/output
 chgrp daemon /var/spool/lpd
 
-( cd /; find -x dev | cpio -o -H newc ) > /tmp/dev.tmp
+(cd /; find -x dev | cpio -o -H newc) > /tmp/dev.tmp
 mount_mfs -s 4096 -i 512 -T qp120at dummy /dev
-( cd /; cpio -i -H newc -d < /tmp/dev.tmp )
-
+(cd /; cpio -i -H newc -d < /tmp/dev.tmp)
