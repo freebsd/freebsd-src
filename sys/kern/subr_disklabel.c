@@ -160,6 +160,104 @@ bufqdisksort(bufq, bp)
 }
 
 
+void
+bioqdisksort(bioq, bp)
+	struct bio_queue_head *bioq;
+	struct bio *bp;
+{
+	struct bio *bq;
+	struct bio *bn;
+	struct bio *be;
+	
+	be = TAILQ_LAST(&bioq->queue, bio_queue);
+	/*
+	 * If the queue is empty or we are an
+	 * ordered transaction, then it's easy.
+	 */
+	if ((bq = bioq_first(bioq)) == NULL
+	 || (bp->bio_flags & BIO_ORDERED) != 0) {
+		bioq_insert_tail(bioq, bp);
+		return;
+	} else if (bioq->insert_point != NULL) {
+
+		/*
+		 * A certain portion of the list is
+		 * "locked" to preserve ordering, so
+		 * we can only insert after the insert
+		 * point.
+		 */
+		bq = bioq->insert_point;
+	} else {
+
+		/*
+		 * If we lie before the last removed (currently active)
+		 * request, and are not inserting ourselves into the
+		 * "locked" portion of the list, then we must add ourselves
+		 * to the second request list.
+		 */
+		if (bp->bio_pblkno < bioq->last_pblkno) {
+
+			bq = bioq->switch_point;
+			/*
+			 * If we are starting a new secondary list,
+			 * then it's easy.
+			 */
+			if (bq == NULL) {
+				bioq->switch_point = bp;
+				bioq_insert_tail(bioq, bp);
+				return;
+			}
+			/*
+			 * If we lie ahead of the current switch point,
+			 * insert us before the switch point and move
+			 * the switch point.
+			 */
+			if (bp->bio_pblkno < bq->bio_pblkno) {
+				bioq->switch_point = bp;
+				TAILQ_INSERT_BEFORE(bq, bp, bio_queue);
+				return;
+			}
+		} else {
+			if (bioq->switch_point != NULL)
+				be = TAILQ_PREV(bioq->switch_point,
+						bio_queue, bio_queue);
+			/*
+			 * If we lie between last_pblkno and bq,
+			 * insert before bq.
+			 */
+			if (bp->bio_pblkno < bq->bio_pblkno) {
+				TAILQ_INSERT_BEFORE(bq, bp, bio_queue);
+				return;
+			}
+		}
+	}
+
+	/*
+	 * Request is at/after our current position in the list.
+	 * Optimize for sequential I/O by seeing if we go at the tail.
+	 */
+	if (bp->bio_pblkno > be->bio_pblkno) {
+		TAILQ_INSERT_AFTER(&bioq->queue, be, bp, bio_queue);
+		return;
+	}
+
+	/* Otherwise, insertion sort */
+	while ((bn = TAILQ_NEXT(bq, bio_queue)) != NULL) {
+		
+		/*
+		 * We want to go after the current request if it is the end
+		 * of the first request list, or if the next request is a
+		 * larger cylinder than our request.
+		 */
+		if (bn == bioq->switch_point
+		 || bp->bio_pblkno < bn->bio_pblkno)
+			break;
+		bq = bn;
+	}
+	TAILQ_INSERT_AFTER(&bioq->queue, bq, bp, bio_queue);
+}
+
+
 /*
  * Attempt to read a disk label from a device using the indicated strategy
  * routine.  The label must be partly set up before this: secpercyl, secsize

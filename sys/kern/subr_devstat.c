@@ -245,6 +245,23 @@ devstat_end_transaction_buf(struct devstat *ds, struct buf *bp)
 				DEVSTAT_TAG_ORDERED : DEVSTAT_TAG_SIMPLE, flg);
 }
 
+void
+devstat_end_transaction_bio(struct devstat *ds, struct bio *bp)
+{
+	devstat_trans_flags flg;
+
+	if (bp->bio_cmd == BIO_DELETE)
+		flg = DEVSTAT_FREE;
+	else if (bp->bio_cmd == BIO_READ)
+		flg = DEVSTAT_READ;
+	else
+		flg = DEVSTAT_WRITE;
+
+	devstat_end_transaction(ds, bp->bio_bcount - bp->bio_resid,
+				(bp->bio_flags & BIO_ORDERED) ?
+				DEVSTAT_TAG_ORDERED : DEVSTAT_TAG_SIMPLE, flg);
+}
+
 /*
  * This is the sysctl handler for the devstat package.  The data pushed out
  * on the kern.devstat.all sysctl variable consists of the current devstat
