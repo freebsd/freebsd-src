@@ -13,6 +13,7 @@ SRCS=	argv.c choose-temp.c concat.c cp-demangle.c cplus-dem.c \
 .if defined(BOOTSTRAPPING)
 SRCS+=	basename.c
 .endif
+WARNS=	1
 CFLAGS+=	-DHAVE_CONFIG_H
 NOPROFILE=	true
 NOPIC=		true

@@ -18,6 +18,7 @@ elf-hints.h:
 	ln -sf ${.CURDIR}/../../../../include/${.TARGET} .
 .endif
 
+WARNS=	1
 CFLAGS+= -DSCRIPTDIR=\"${TOOLS_PREFIX}/usr/libdata\"
 CFLAGS+= -DBFD_VERSION_STRING=\"${VERSION}\"
 CFLAGS+= -I${SRCDIR}/ld -I${SRCDIR}/bfd

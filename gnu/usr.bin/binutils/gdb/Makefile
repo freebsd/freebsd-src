@@ -33,6 +33,7 @@ SRCS+=	wait.h
 .include "${.CURDIR}/Makefile.${MACHINE_ARCH}"
 .endif
 
+WARNS=	0
 #CFLAGS+=	-I${.CURDIR}/${RELTOP}/libbinutils
 CFLAGS+=	-I${.CURDIR}/${MACHINE_ARCH}
 CFLAGS+=	-I${SRCDIR}/binutils

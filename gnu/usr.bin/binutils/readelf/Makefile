@@ -9,6 +9,7 @@ BINDIR=/usr/bin
 
 PROG=	readelf
 SRCS=	${PROG}.c
+WARNS=	2
 CFLAGS+= -I${.CURDIR}/${RELTOP}/libbinutils -I${SRCDIR}/binutils
 
 DPADD=	${RELTOP}/libbinutils/libbinutils.a

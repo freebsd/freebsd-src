@@ -13,6 +13,7 @@ SRCS+=	app.c as.c atof-generic.c atof-ieee.c bignum-copy.c \
 	input-scrub.c listing.c literal.c macro.c messages.c \
 	output-file.c read.c sb.c stabs.c \
 	subsegs.c symbols.c write.c depend.c ehopt.c
+WARNS=	2
 CFLAGS+= -I${SRCDIR}/gas -I${SRCDIR}/gas/config -I${SRCDIR} -I${.CURDIR}/..
 CFLAGS+= -DVERSION=\"${VERSION:C/[ ]?${VERSION_DATE}[ ]?//g}\" 
 CFLAGS+= -DBFD_VERSION_STRING=\"${VERSION}\"
