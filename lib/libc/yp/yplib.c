@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char *rcsid = "$Id: yplib.c,v 1.10.4.5 1996/06/05 02:52:10 jkh Exp $";
+static char *rcsid = "$Id: yplib.c,v 1.10.4.6 1996/06/25 17:53:33 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -373,7 +373,8 @@ static void
 _yp_unbind(ypb)
 struct dom_binding *ypb;
 {
-	clnt_destroy(ypb->dom_client);
+	if (ypb->dom_client != NULL)
+		clnt_destroy(ypb->dom_client);
 	ypb->dom_client = NULL;
 	ypb->dom_socket = -1;
 }
@@ -692,6 +693,17 @@ again:
 
 	r = clnt_call(ysd->dom_client, YPPROC_ORDER,
 		xdr_ypreq_nokey, &yprnk, xdr_ypresp_order, &ypro, tv);
+
+	/*
+	 * NIS+ in YP compat mode doesn't support the YPPROC_ORDER
+	 * procedure.
+	 */
+
+	if (r == RPC_PROCUNAVAIL) {
+		return(YPERR_YPERR);
+		goto bail;
+	}
+
 	if(r != RPC_SUCCESS) {
 		clnt_perror(ysd->dom_client, "yp_order: clnt_call");
 		ysd->dom_vers = -1;
@@ -700,6 +712,8 @@ again:
 
 	*outorder = ypro.ordernum;
 	xdr_free(xdr_ypresp_order, (char *)&ypro);
+
+bail:
 	_yp_unbind(ysd);
 	return ypprot_err(ypro.status);
 }
