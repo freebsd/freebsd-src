@@ -304,13 +304,9 @@ vop_rmdir {
 #% symlink	dvp	L L L
 #% symlink	vpp	- U -
 #
-# XXX - note that the return vnode has already been VRELE'ed
-#	by the filesystem layer.  To use it you must use vget,
-#	possibly with a further namei.
-#
 vop_symlink {
 	IN struct vnode *dvp;
-	OUT WILLRELE struct vnode **vpp;
+	OUT struct vnode **vpp;
 	IN struct componentname *cnp;
 	IN struct vattr *vap;
 	IN char *target;
