@@ -317,14 +317,14 @@ iso88025_output(ifp, m, dst, rt0)
 		splx(s);
 		senderr(ENOBUFS);
 	}
+	if (m->m_flags & M_MCAST)
+		ifp->if_omcasts++;
 	IF_ENQUEUE(&ifp->if_snd, m);
         /*printf("iso88025_output: packet queued.\n");*/
         if ((ifp->if_flags & IFF_OACTIVE) == 0)
 		(*ifp->if_start)(ifp);
 	splx(s);
 	ifp->if_obytes += len + ISO88025_HDR_LEN + 8;
-	if (m->m_flags & M_MCAST)
-		ifp->if_omcasts++;
 	return (error);
 
 bad:
