@@ -55,6 +55,11 @@
 
 #include <sys/queue.h>
 
+/*
+ * tun_list is protected by global tunmtx.  Other mutable fields are
+ * protected by tun->tun_mtx, or by their owning subsystem.  tun_dev is
+ * static for the duration of a tunnel interface.
+ */
 struct tun_softc {
 	TAILQ_ENTRY(tun_softc)	tun_list;
 	dev_t			tun_dev;
@@ -82,6 +87,7 @@ struct tun_softc {
 	struct	ifnet tun_if;		/* the interface */
 	struct  sigio *tun_sigio;	/* information for async I/O */
 	struct	selinfo	tun_rsel;	/* read select */
+	struct mtx	tun_mtx;	/* protect mutable softc fields */
 };
 
 #define TUNDEBUG	if (tundebug) if_printf
@@ -158,6 +164,7 @@ tun_destroy(struct tun_softc *tp)
 {
 	dev_t dev;
 
+	/* Unlocked read. */
 	KASSERT((tp->tun_flags & TUN_OPEN) == 0,
 	    ("tununits is out of sync - unit %d", tp->tun_if.if_dunit));
 
@@ -165,6 +172,7 @@ tun_destroy(struct tun_softc *tp)
 	bpfdetach(&tp->tun_if);
 	if_detach(&tp->tun_if);
 	destroy_dev(dev);
+	mtx_destroy(&tp->tun_mtx);
 	free(tp, M_TUN);
 }
 
@@ -213,12 +221,16 @@ tunstart(struct ifnet *ifp)
 {
 	struct tun_softc *tp = ifp->if_softc;
 
+	mtx_lock(&tp->tun_mtx);
 	if (tp->tun_flags & TUN_RWAIT) {
 		tp->tun_flags &= ~TUN_RWAIT;
 		wakeup(tp);
 	}
-	if (tp->tun_flags & TUN_ASYNC && tp->tun_sigio)
+	if (tp->tun_flags & TUN_ASYNC && tp->tun_sigio) {
+		mtx_unlock(&tp->tun_mtx);
 		pgsigio(&tp->tun_sigio, SIGIO, 0);
+	} else
+		mtx_unlock(&tp->tun_mtx);
 	selwakeuppri(&tp->tun_rsel, PZERO + 1);
 }
 
@@ -231,6 +243,7 @@ tuncreate(dev_t dev)
 	dev->si_flags &= ~SI_CHEAPCLONE;
 
 	MALLOC(sc, struct tun_softc *, sizeof(*sc), M_TUN, M_WAITOK | M_ZERO);
+	mtx_init(&sc->tun_mtx, "tun_mtx", NULL, MTX_DEF);
 	sc->tun_flags = TUN_INITED;
 	sc->tun_dev = dev;
 	mtx_lock(&tunmtx);
@@ -258,17 +271,31 @@ tunopen(dev_t dev, int flag, int mode, struct thread *td)
 	struct ifnet	*ifp;
 	struct tun_softc *tp;
 
+	/*
+	 * XXXRW: Non-atomic test and set of dev->si_drv1 requires
+	 * synchronization.
+	 */
 	tp = dev->si_drv1;
 	if (!tp) {
 		tuncreate(dev);
 		tp = dev->si_drv1;
 	}
 
-	if (tp->tun_pid != 0 && tp->tun_pid != td->td_proc->p_pid)
+	/*
+	 * XXXRW: This use of tun_pid is subject to error due to the
+	 * fact that a reference to the tunnel can live beyond the
+	 * death of the process that created it.  Can we replace this
+	 * with a simple busy flag?
+	 */
+	mtx_lock(&tp->tun_mtx);
+	if (tp->tun_pid != 0 && tp->tun_pid != td->td_proc->p_pid) {
+		mtx_unlock(&tp->tun_mtx);
 		return (EBUSY);
+	}
 	tp->tun_pid = td->td_proc->p_pid;
 
 	tp->tun_flags |= TUN_OPEN;
+	mtx_unlock(&tp->tun_mtx);
 	ifp = &tp->tun_if;
 	TUNDEBUG(ifp, "open\n");
 
@@ -289,8 +316,10 @@ tunclose(dev_t dev, int foo, int bar, struct thread *td)
 	tp = dev->si_drv1;
 	ifp = &tp->tun_if;
 
+	mtx_lock(&tp->tun_mtx);
 	tp->tun_flags &= ~TUN_OPEN;
 	tp->tun_pid = 0;
+	mtx_unlock(&tp->tun_mtx);
 
 	/*
 	 * junk all pending output
@@ -310,6 +339,7 @@ tunclose(dev_t dev, int foo, int bar, struct thread *td)
 		/* find internet addresses and delete routes */
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 			if (ifa->ifa_addr->sa_family == AF_INET)
+				/* Unlocked read. */
 				rtinit(ifa, (int)RTM_DELETE,
 				    tp->tun_flags & TUN_DSTADDR ? RTF_HOST : 0);
 		ifp->if_flags &= ~IFF_RUNNING;
@@ -345,12 +375,14 @@ tuninit(struct ifnet *ifp)
 			    struct sockaddr_in *si;
 
 			    si = (struct sockaddr_in *)ifa->ifa_addr;
+			    mtx_lock(&tp->tun_mtx);
 			    if (si->sin_addr.s_addr)
 				    tp->tun_flags |= TUN_IASET;
 
 			    si = (struct sockaddr_in *)ifa->ifa_dstaddr;
 			    if (si && si->sin_addr.s_addr)
 				    tp->tun_flags |= TUN_DSTADDR;
+			    mtx_unlock(&tp->tun_mtx);
 			}
 #endif
 		}
@@ -373,9 +405,11 @@ tunifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	switch(cmd) {
 	case SIOCGIFSTATUS:
 		ifs = (struct ifstat *)data;
+		mtx_lock(&tp->tun_mtx);
 		if (tp->tun_pid)
 			sprintf(ifs->ascii + strlen(ifs->ascii),
 			    "\tOpened by PID %d\n", tp->tun_pid);
+		mtx_unlock(&tp->tun_mtx);
 		break;
 	case SIOCSIFADDR:
 		error = tuninit(ifp);
@@ -411,6 +445,7 @@ tunoutput(
 	struct rtentry *rt)
 {
 	struct tun_softc *tp = ifp->if_softc;
+	u_short cached_tun_flags;
 #ifdef MAC
 	int error;
 #endif
@@ -425,7 +460,11 @@ tunoutput(
 	}
 #endif
 
-	if ((tp->tun_flags & TUN_READY) != TUN_READY) {
+	/* Could be unlocked read? */
+	mtx_lock(&tp->tun_mtx);
+	cached_tun_flags = tp->tun_flags;
+	mtx_unlock(&tp->tun_mtx);
+	if ((cached_tun_flags & TUN_READY) != TUN_READY) {
 		TUNDEBUG (ifp, "not ready 0%o\n", tp->tun_flags);
 		m_freem (m0);
 		return (EHOSTDOWN);
@@ -450,7 +489,7 @@ tunoutput(
 	}
 
 	/* prepend sockaddr? this may abort if the mbuf allocation fails */
-	if (tp->tun_flags & TUN_LMODE) {
+	if (cached_tun_flags & TUN_LMODE) {
 		/* allocate space for sockaddr */
 		M_PREPEND(m0, dst->sa_len, M_DONTWAIT);
 
@@ -464,7 +503,7 @@ tunoutput(
 		}
 	}
 
-	if (tp->tun_flags & TUN_IFHEAD) {
+	if (cached_tun_flags & TUN_IFHEAD) {
 		/* Prepend the address family */
 		M_PREPEND(m0, 4, M_DONTWAIT);
 
@@ -529,21 +568,28 @@ tunioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		*(int *)data = tundebug;
 		break;
 	case TUNSLMODE:
+		mtx_lock(&tp->tun_mtx);
 		if (*(int *)data) {
 			tp->tun_flags |= TUN_LMODE;
 			tp->tun_flags &= ~TUN_IFHEAD;
 		} else
 			tp->tun_flags &= ~TUN_LMODE;
+		mtx_unlock(&tp->tun_mtx);
 		break;
 	case TUNSIFHEAD:
+		mtx_lock(&tp->tun_mtx);
 		if (*(int *)data) {
 			tp->tun_flags |= TUN_IFHEAD;
 			tp->tun_flags &= ~TUN_LMODE;
 		} else
 			tp->tun_flags &= ~TUN_IFHEAD;
+		mtx_unlock(&tp->tun_mtx);
 		break;
 	case TUNGIFHEAD:
+		/* Could be unlocked read? */
+		mtx_lock(&tp->tun_mtx);
 		*(int *)data = (tp->tun_flags & TUN_IFHEAD) ? 1 : 0;
+		mtx_unlock(&tp->tun_mtx);
 		break;
 	case TUNSIFMODE:
 		/* deny this if UP */
@@ -562,15 +608,19 @@ tunioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		}
 		break;
 	case TUNSIFPID:
+		mtx_lock(&tp->tun_mtx);
 		tp->tun_pid = curthread->td_proc->p_pid;
+		mtx_unlock(&tp->tun_mtx);
 		break;
 	case FIONBIO:
 		break;
 	case FIOASYNC:
+		mtx_lock(&tp->tun_mtx);
 		if (*(int *)data)
 			tp->tun_flags |= TUN_ASYNC;
 		else
 			tp->tun_flags &= ~TUN_ASYNC;
+		mtx_unlock(&tp->tun_mtx);
 		break;
 	case FIONREAD:
 		s = splimp();
@@ -617,12 +667,15 @@ tunread(dev_t dev, struct uio *uio, int flag)
 	int		error=0, len, s;
 
 	TUNDEBUG (ifp, "read\n");
+	mtx_lock(&tp->tun_mtx);
 	if ((tp->tun_flags & TUN_READY) != TUN_READY) {
+		mtx_unlock(&tp->tun_mtx);
 		TUNDEBUG (ifp, "not ready 0%o\n", tp->tun_flags);
 		return (EHOSTDOWN);
 	}
 
 	tp->tun_flags &= ~TUN_RWAIT;
+	mtx_unlock(&tp->tun_mtx);
 
 	s = splimp();
 	do {
@@ -632,7 +685,9 @@ tunread(dev_t dev, struct uio *uio, int flag)
 				splx(s);
 				return (EWOULDBLOCK);
 			}
+			mtx_lock(&tp->tun_mtx);
 			tp->tun_flags |= TUN_RWAIT;
+			mtx_unlock(&tp->tun_mtx);
 			if((error = tsleep(tp, PCATCH | (PZERO + 1),
 					"tunread", 0)) != 0) {
 				splx(s);
@@ -719,14 +774,19 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
 	mac_create_mbuf_from_ifnet(ifp, top);
 #endif
 
+	/* Could be unlocked read? */
+	mtx_lock(&tp->tun_mtx);
 	if (tp->tun_flags & TUN_IFHEAD) {
+		mtx_unlock(&tp->tun_mtx);
 		if (top->m_len < sizeof(family) &&
 		    (top = m_pullup(top, sizeof(family))) == NULL)
 			return (ENOBUFS);
 		family = ntohl(*mtod(top, u_int32_t *));
 		m_adj(top, sizeof(family));
-	} else
+	} else {
+		mtx_unlock(&tp->tun_mtx);
 		family = AF_INET;
+	}
 
 	BPF_MTAP2(ifp, &family, sizeof(family), top);
 
