@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/* $Id: isp_pci.c,v 1.13 1998/09/08 01:24:58 mjacob Exp $ */
+/* $Id: isp_pci.c,v 1.4 1998/09/15 10:06:22 gibbs Exp $ */
 /*
  * PCI specific probe and attach routines for Qlogic ISP SCSI adapters.
  * FreeBSD Version.
@@ -135,18 +135,34 @@ static void isp_pci_attach __P((pcici_t config_d, int unit));
 /* This distinguishing define is not right, but it does work */
  
 #ifndef	SCSI_CAM
-#define	I386_BUS_SPACE_IO	0
-#define	I386_BUS_SPACE_MEM	1
+#define	IO_SPACE_MAPPING	0
+#define	MEM_SPACE_MAPPING	1
 typedef int bus_space_tag_t;
 typedef u_long bus_space_handle_t;
+#ifdef __alpha__
 #define	bus_space_read_2(st, sh, offset)	\
-	(st == I386_BUS_SPACE_IO)? \
-		inw((u_int16_t)sh + offset) : *((u_int16_t *)(uintptr_t)sh)
+	(st == IO_SPACE_MAPPING)? \
+		inw((pci_port_t)sh + offset) : readw((pci_port_t)sh + offset)
 #define	bus_space_write_2(st, sh, offset, val)	\
-	if (st == I386_BUS_SPACE_IO) outw((u_int16_t)sh + offset, val); else \
+	if (st == IO_SPACE_MAPPING) outw((pci_port_t)sh + offset, val); else \
+                writew((pci_port_t)sh + offset, val)
+#else
+#define	bus_space_read_2(st, sh, offset)	\
+	(st == IO_SPACE_MAPPING)? \
+		inw((pci_port_t)sh + offset) : *((u_int16_t *)(uintptr_t)sh)
+#define	bus_space_write_2(st, sh, offset, val)	\
+	if (st == IO_SPACE_MAPPING) outw((pci_port_t)sh + offset, val); else \
 		*((u_int16_t *)(uintptr_t)sh) = val
 #endif
-
+#else
+#ifdef __alpha__
+#define IO_SPACE_MAPPING	ALPHA_BUS_SPACE_IO
+#define MEM_SPACE_MAPPING	ALPHA_BUS_SPACE_MEM
+#else
+#define IO_SPACE_MAPPING	I386_BUS_SPACE_IO
+#define MEM_SPACE_MAPPING	I386_BUS_SPACE_MEM
+#endif
+#endif
 
 struct isp_pcisoftc {
 	struct ispsoftc			pci_isp;
@@ -214,7 +230,7 @@ isp_pci_attach(config_id, unit)
         int unit;
 {
 	int mapped;
-	u_int16_t io_port;
+	pci_port_t io_port;
 	u_int32_t data;
 	struct isp_pcisoftc *pcs;
 	struct ispsoftc *isp;
@@ -232,17 +248,17 @@ isp_pci_attach(config_id, unit)
 	vaddr = paddr = NULL;
 	mapped = 0;
 	data = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
-	if (mapped == 0 && (data & PCI_COMMAND_IO_ENABLE)) {
-		if (pci_map_port(config_id, PCI_MAP_REG_START, &io_port)) {
-			pcs->pci_st = I386_BUS_SPACE_IO;
-			pcs->pci_sh = io_port;
+	if (mapped == 0 && (data & PCI_COMMAND_MEM_ENABLE)) {
+		if (pci_map_mem(config_id, MEM_MAP_REG, &vaddr, &paddr)) {
+			pcs->pci_st = MEM_SPACE_MAPPING;
+			pcs->pci_sh = vaddr;
 			mapped++;
 		}
 	}
-	if (mapped == 0 && (data & PCI_COMMAND_MEM_ENABLE)) {
-		if (pci_map_mem(config_id, PCI_MAP_REG_START, &vaddr, &paddr)) {
-			pcs->pci_st = I386_BUS_SPACE_MEM;
-			pcs->pci_sh = vaddr;
+	if (mapped == 0 && (data & PCI_COMMAND_IO_ENABLE)) {
+		if (pci_map_port(config_id, PCI_MAP_REG_START, &io_port)) {
+			pcs->pci_st = IO_SPACE_MAPPING;
+			pcs->pci_sh = io_port;
 			mapped++;
 		}
 	}
@@ -252,7 +268,7 @@ isp_pci_attach(config_id, unit)
 		return;
 	}
 	printf("isp%d: using %s space register mapping\n", unit,
-	    pcs->pci_st == I386_BUS_SPACE_IO? "I/O" : "Memory");
+	    pcs->pci_st == IO_SPACE_MAPPING? "I/O" : "Memory");
 
 	isp = &pcs->pci_isp;
 	(void) sprintf(isp->isp_name, "isp%d", unit);
