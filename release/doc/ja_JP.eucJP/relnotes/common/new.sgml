@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.253
+    Original revision: 1.254
 -->
 
 <articleinfo>
@@ -98,28 +98,6 @@
       また, シグナルやプロセスの監視だけでなく,
       ソケット, パイプ, FIFO, ファイルの変更の監視にも対応しています. &merged;</para>
       
-    <para arch="i386">&os; ブートローダが
-      Intel Wired for Management 2.0 (PXE) に対応しました.
-      API が異なるため古いバージョンの PXE には対応していません.
-      これにより DHCP を使ったネットワーク経由の起動が可能になっています. &merged;</para>
-
-    <para arch="i386">&os; ブートローダに対して,
-      疑似フロッピの第一セクタに変更のできる有効な MS-DOS BPB を想定している
-      IBM BIOS での起動に対応するための修正が行なわれました.
-      <!-- hrs: need to be revised here --></para>
-
-    <para arch="i386">&os; ブートローダに, プローブの段階で
-      一行出力する毎にカーネルがちょっと止まるようにする
-      <option>-p</option> フラグが追加されました. &merged;</para>
-
-    <para arch="i386">&os; ブートローダは 16K ディスクブロックの
-      ファイルシステムからもブートできるようになりました (従来は 8K ま
-      ででした). &merged;</para>
-
-    <para arch="alpha">&os; ブートローダは 8K より大きなブロック
-      サイズのファイルシステムからもブートできるようになりました.
-      &merged;</para>
-
     <para>出荷時の状態で USB デバイスをサポートするため,
       <filename>GENERIC</filename> カーネルと
       インストールプログラムに USB デバイスのサポートが加えられました.
@@ -133,17 +111,6 @@
       &merged;</para>
 
     <para>AGP ハードウェア用ドライバ &man.agp.4; が追加されました.
-      &merged;</para>
-
-    <para>操作しやすくするため, カーネルとカーネルモジュールは
-      <filename>/boot/kernel</filename> ディレクトリに移動しました.
-      ブートローダには,
-      この変更を可能な限り意識しないで済むような更新がなされています.</para>
-
-    <para arch="i386">i386 ブートローダが
-      <literal>nullconsole</literal>
-      というコンソールタイプに対応しました.
-      これはビデオコンソールもシリアルポートもついていないシステム向けのものです.
       &merged;</para>
 
     <para><literal>PQ_*CACHE</literal> オプションが
@@ -377,27 +344,12 @@
       (ただし現時点で利用できるのは,
       一つのプロセスに対して一つのスレッドのみです).</para>
 
-    <para arch="i386">&man.loader.8; が
-      <application>bzip2</application> で圧縮されたカーネルと
-      モジュールのロードをオプションでサポートしました
-      (デフォルトはオフで, コンパイル時に有効にできます).
-      &merged;</para>
-
     <para>カーネルは複数の低レベルコンソールデバイスをサポートします.
       異なったコンソールを操作するには, 新しい &man.conscontrol.8;
       ユーティリティを使います.</para>
 
     <para arch="alpha">コンソールドライバは TGA ベースのディスプレイ
       アダプタに対応しました.</para>
-
-    <para arch="i386">新しい CDROM 用の <filename>cdboot</filename>
-      ブートストラップユーティリティは, El Torito ブータブル CDROM
-      標準に完全には準拠しないいくつかの BIOS 実装に対しても
-      うまく動作します.
-      このブートローダは <quote>エミュレーションではない</quote>
-      モードのブートをサポートするので, ブータブル CDROM において
-      エミュレートされたフロッピーディスクイメージは必要ありません.
-      &merged;</para>
 
     <para>インストール CD のカーネルは <filename>mfsroot</filename>
       イメージから分離しました.
@@ -515,6 +467,59 @@
         (<acronym>SSE</acronym>) が導入されました.
         SSE 対応をカーネルに組み込むかどうかの制御は
         <literal>CPU_ENABLE_SSE</literal> カーネルオプションで行なうことができます.</para>
+    </sect3>
+
+    <sect3>
+      <title>ブートローダの変更</title>
+
+      <para arch="i386">新しい CDROM 用の <filename>cdboot</filename>
+	ブートストラップユーティリティは, El Torito ブータブル CDROM
+	標準に完全には準拠しないいくつかの BIOS 実装に対してもうまく動作します.
+	このブートローダは <quote>エミュレーションではない</quote>
+	モードのブートをサポートするので, ブータブル CDROM において
+	エミュレートされたフロッピーディスクイメージは必要ありません.
+	&merged;</para>
+
+      <para arch="i386">i386 ブートローダが
+	<literal>nullconsole</literal> というコンソールタイプに対応しました.
+	これはビデオコンソールもシリアルポートもついていないシステム向けのものです.
+	&merged;</para>
+
+      <para arch="i386">&man.loader.8; が
+	<application>bzip2</application> で圧縮されたカーネルと
+	モジュールのロードをオプションでサポートしました
+	(デフォルトはオフで, コンパイル時に有効にできます).
+	&merged;</para>
+
+      <para arch="i386">&os; ブートローダが
+	Intel Wired for Management 2.0 (PXE) に対応しました.
+	API が異なるため古いバージョンの PXE には対応していません.
+	これにより DHCP を使ったネットワーク経由の起動が可能になってい
+	ます. &merged;</para>
+
+      <!-- Above this line, order bootloader changes by keyword-->
+
+      <para arch="i386">&os; ブートローダに対して,
+	疑似フロッピの第一セクタに変更のできる有効な MS-DOS BPB を想定している
+	IBM BIOS での起動に対応するための修正が行なわれました. &merged;
+	<!-- hrs: need to be revised here --></para>
+
+      <para arch="i386">&os; ブートローダに, プローブの段階で
+	一行出力する毎にカーネルがちょっと止まるようにする
+	<option>-p</option> フラグが追加されました. &merged;</para>
+
+      <para arch="i386">&os; ブートローダは 16K ディスクブロックの
+	ファイルシステムからもブートできるようになりました (従来は 8K ま
+	ででした). &merged;</para>
+
+      <para arch="alpha">&os; ブートローダは 8K より大きなブロック
+	サイズのファイルシステムからもブートできるようになりました.
+	&merged;</para>
+
+      <para>操作しやすくするため, カーネルとカーネルモジュールは
+	<filename>/boot/kernel</filename> ディレクトリに移動しました.
+	ブートローダには,
+	この変更を可能な限り意識しないで済むような更新がなされています.</para>
     </sect3>
 
     <sect3>
