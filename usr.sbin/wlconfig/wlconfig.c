@@ -152,7 +152,7 @@ print_psa(u_char *psa, int currnwid)
     printf("Soft MAC address      : %02x:%02x:%02x:%02x:%02x:%02x\n",
 	   psa[0x16],psa[0x17],psa[0x18],psa[0x19],psa[0x1a],psa[0x1b]);
     printf("Current MAC address   : %s\n",(psa[0x1c] & 0x1) ? "Soft" : "Default");
-    printf("Adapter compatability : ");
+    printf("Adapter compatibility : ");
     if (psa[0x1d] < 5) {
 	printf("%s\n",compat_type[psa[0x1d]]);
     } else {
