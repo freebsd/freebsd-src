@@ -212,8 +212,10 @@ smbfs_open(ap)
 			error = smbfs_smb_open(np, accmode, &scred);
 		}
 	}
-	if (error == 0)
+	if (error == 0) {
 		np->n_flag |= NOPEN;
+		vnode_create_vobject(ap->a_vp, vattr.va_size, ap->a_td);
+	}
 	smbfs_attr_cacheremove(vp);
 	return error;
 }
