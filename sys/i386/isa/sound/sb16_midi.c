@@ -1,10 +1,10 @@
 /*
  * sound/sb16_midi.c
- * 
+ *
  * The low level driver for the MPU-401 UART emulation of the SB16.
- * 
+ *
  * Copyright by Hannu Savolainen 1993
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met: 1. Redistributions of source code must retain the above copyright
@@ -12,7 +12,7 @@
  * Redistributions in binary form must reproduce the above copyright notice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -24,7 +24,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  */
 
 #include "sound_config.h"
@@ -33,9 +33,11 @@
 
 #if !defined(EXCLUDE_SB) && !defined(EXCLUDE_SB16) && !defined(EXCLUDE_MIDI)
 
-#define	DATAPORT   (sb16midi_base)	/* MPU-401 Data I/O Port on IBM */
-#define	COMDPORT   (sb16midi_base+1)	/* MPU-401 Command Port on IBM */
-#define	STATPORT   (sb16midi_base+1)	/* MPU-401 Status Port on IBM */
+#include "sb.h"
+
+#define	DATAPORT   (sb16midi_base)
+#define	COMDPORT   (sb16midi_base+1)
+#define	STATPORT   (sb16midi_base+1)
 
 #define sb16midi_status()		INB(STATPORT)
 #define input_avail()		(!(sb16midi_status()&INPUT_AVAIL))
@@ -44,16 +46,17 @@
 #define sb16midi_read()		INB(DATAPORT)
 #define sb16midi_write(byte)	OUTB(byte, DATAPORT)
 
-#define	OUTPUT_READY	0x40	/* Mask for Data Read Redy Bit */
-#define	INPUT_AVAIL	0x80	/* Mask for Data Send Ready Bit */
-#define	MPU_ACK		0xFE	/* MPU-401 Acknowledge Response */
-#define	MPU_RESET	0xFF	/* MPU-401 Total Reset Command */
-#define	UART_MODE_ON	0x3F	/* MPU-401 "Dumb UART Mode" */
+#define	OUTPUT_READY	0x40
+#define	INPUT_AVAIL	0x80
+#define	MPU_ACK		0xFE
+#define	MPU_RESET	0xFF
+#define	UART_MODE_ON	0x3F
 
 static int      sb16midi_opened = 0;
 static int      sb16midi_base = 0x330;
 static int      sb16midi_detected = 0;
 static int      my_dev;
+extern int      sbc_base;
 
 static int      reset_sb16midi (void);
 static void     (*midi_input_intr) (int dev, unsigned char data);
@@ -61,23 +64,13 @@ static void     (*midi_input_intr) (int dev, unsigned char data);
 static void
 sb16midi_input_loop (void)
 {
-  int             count;
+  while (input_avail ())
+    {
+      unsigned char   c = sb16midi_read ();
 
-  count = 10;
-
-  while (count)			/* Not timed out */
-    if (input_avail ())
-      {
-	unsigned char   c = sb16midi_read ();
-
-	count = 100;
-
-	if (sb16midi_opened & OPEN_READ)
-	  midi_input_intr (my_dev, c);
-      }
-    else
-      while (!input_avail () && count)
-	count--;
+      if (sb16midi_opened & OPEN_READ)
+	midi_input_intr (my_dev, c);
+    }
 }
 
 void
@@ -85,31 +78,6 @@ sb16midiintr (int unit)
 {
   if (input_avail ())
     sb16midi_input_loop ();
-}
-
-/*
- * It looks like there is no input interrupts in the UART mode. Let's try
- * polling.
- */
-
-static void
-poll_sb16midi (unsigned long dummy)
-{
-  unsigned long   flags;
-
-  DEFINE_TIMER (sb16midi_timer, poll_sb16midi);
-
-  if (!(sb16midi_opened & OPEN_READ))
-    return;			/* No longer required */
-
-  DISABLE_INTR (flags);
-
-  if (input_avail ())
-    sb16midi_input_loop ();
-
-  ACTIVATE_TIMER (sb16midi_timer, poll_sb16midi, 1);	/* Come back later */
-
-  RESTORE_INTR (flags);
 }
 
 static int
@@ -127,7 +95,6 @@ sb16midi_open (int dev, int mode,
 
   midi_input_intr = input;
   sb16midi_opened = mode;
-  poll_sb16midi (0);		/* Enable input polling */
 
   return 0;
 }
@@ -160,7 +127,9 @@ sb16midi_out (int dev, unsigned char midi_byte)
    * (After reset). Normally it takes just about 10 loops.
    */
 
-  for (timeout = 30000; timeout > 0 && !output_ready (); timeout--);	/* Wait */
+  for (timeout = 30000; timeout > 0 && !output_ready (); timeout--);	/*
+									 * Wait
+									 */
 
   if (!output_ready ())
     {
@@ -169,12 +138,6 @@ sb16midi_out (int dev, unsigned char midi_byte)
     }
 
   sb16midi_write (midi_byte);
-  return 1;
-}
-
-static int
-sb16midi_command (int dev, unsigned char midi_byte)
-{
   return 1;
 }
 
@@ -204,12 +167,19 @@ sb16midi_kick (int dev)
 static int
 sb16midi_buffer_status (int dev)
 {
-  return 0;			/* No data in buffers */
+  return 0;			/*
+				 * No data in buffers
+				 */
 }
+
+#define MIDI_SYNTH_NAME	"SoundBlaster 16 Midi"
+#define MIDI_SYNTH_CAPS	SYNTH_CAP_INPUT
+#include "midi_synth.h"
 
 static struct midi_operations sb16midi_operations =
 {
-  {"SoundBlaster MPU-401", 0, 0, SNDCARD_SB16MIDI},
+  {"SoundBlaster 16 Midi", 0, 0, SNDCARD_SB16MIDI},
+  &std_midi_synth,
   sb16midi_open,
   sb16midi_close,
   sb16midi_ioctl,
@@ -217,8 +187,9 @@ static struct midi_operations sb16midi_operations =
   sb16midi_start_read,
   sb16midi_end_read,
   sb16midi_kick,
-  sb16midi_command,
-  sb16midi_buffer_status
+  NULL,
+  sb16midi_buffer_status,
+  NULL
 };
 
 
@@ -234,7 +205,9 @@ attach_sb16midi (long mem_start, struct address_info *hw_config)
     return RET_ERROR (EIO);
 
   DISABLE_INTR (flags);
-  for (timeout = 30000; timeout < 0 && !output_ready (); timeout--);	/* Wait */
+  for (timeout = 30000; timeout < 0 && !output_ready (); timeout--);	/*
+									 * Wait
+									 */
   sb16midi_cmd (UART_MODE_ON);
 
   ok = 0;
@@ -245,9 +218,15 @@ attach_sb16midi (long mem_start, struct address_info *hw_config)
 
   RESTORE_INTR (flags);
 
-  printk ("snd7: <SoundBlaster MPU-401>");
+  if (num_midis >= MAX_MIDI_DEV)
+    {
+      printk ("Sound: Too many midi devices detected\n");
+      return mem_start;
+    }
 
-  my_dev = num_midis;
+  printk (" <SoundBlaster MPU-401>");
+
+  std_midi_synth.midi_dev = my_dev = num_midis;
   midi_devs[num_midis++] = &sb16midi_operations;
   return mem_start;
 }
@@ -268,8 +247,12 @@ reset_sb16midi (void)
 
   for (n = 0; n < 2 && !ok; n++)
     {
-      for (timeout = 30000; timeout < 0 && !output_ready (); timeout--);	/* Wait */
-      sb16midi_cmd (MPU_RESET);	/* Send MPU-401 RESET Command */
+      for (timeout = 30000; timeout < 0 && !output_ready (); timeout--);	/*
+										 * Wait
+										 */
+      sb16midi_cmd (MPU_RESET);	/*
+				 * Send MPU-401 RESET Command
+				 */
 
       /*
        * Wait at least 25 msec. This method is not accurate so let's make the
@@ -285,7 +268,9 @@ reset_sb16midi (void)
 
   sb16midi_opened = 0;
   if (ok)
-    sb16midi_input_loop ();	/* Flush input before enabling interrupts */
+    sb16midi_input_loop ();	/*
+				 * Flush input before enabling interrupts
+				 */
 
   RESTORE_INTR (flags);
 
@@ -297,6 +282,11 @@ int
 probe_sb16midi (struct address_info *hw_config)
 {
   int             ok = 0;
+  int             i;
+  extern int      sbc_major;
+
+  if (sbc_major < 4)
+    return 0;			/* Not a SB16 */
 
   sb16midi_base = hw_config->io_base;
 

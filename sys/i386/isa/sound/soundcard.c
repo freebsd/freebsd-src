@@ -3,8 +3,29 @@
  * 
  * Soundcard driver for 386BSD.
  * 
- * (C) 1992  Hannu Savolainen (hsavolai@cs.helsinki.fi)
- * See COPYING for further details. Should be distributed with this file.
+ * Copyright by Hannu Savolainen 1993
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
  */
 
 #include "sound_config.h"
@@ -13,34 +34,23 @@
 
 #include "dev_table.h"
 
-int	__timeout_val = 0;
-int   __process_aborting = 0;
-
 u_int	snd1mask;
 u_int	snd2mask;
 u_int	snd3mask;
 u_int	snd4mask;
 u_int	snd5mask;
-
-struct sbc_device
-{
-  int             usecount;
-};
+u_int	snd6mask;
+u_int	snd7mask;
+u_int	snd8mask;
+u_int	snd9mask;
 
 #define FIX_RETURN(ret) {if ((ret)<0) return -(ret); else return 0;}
 
-static struct sbc_device sbc_devices[SND_NDEVS];
 static int      timer_running = 0;
-
-static int      in_use = 0;	/* Total # of open device files (excluding
-				 * minor 0) */
 
 static int      soundcards_installed = 0;	/* Number of installed
 						 * soundcards */
 static int      soundcard_configured = 0;
-extern char    *snd_raw_buf[MAX_DSP_DEV][DSP_BUFFCOUNT];
-extern unsigned long snd_raw_buf_phys[MAX_DSP_DEV][DSP_BUFFCOUNT];
-extern int      snd_raw_count[MAX_DSP_DEV];
 
 static struct fileinfo files[SND_NDEVS];
 
@@ -54,14 +64,19 @@ int             sndwrite (int dev, struct uio *uio);
 int             sndselect (int dev, int rw);
 static void	sound_mem_init(void);
 
-int
-get_time()
+unsigned long
+get_time(void)
 {
-extern struct timeval time;
- 
-   return(time.tv_usec + (time.tv_sec*1000000));
+  extern struct timeval time;
+  struct timeval timecopy;
+  int x;
+  
+  x = splclock();
+  timecopy = time;
+  splx(x);
+  return timecopy.tv_usec/(1000000/HZ) +
+	  (unsigned long)timecopy.tv_sec*HZ;
 }
- 
 
 int
 sndread (int dev, struct uio *buf)
@@ -70,41 +85,7 @@ sndread (int dev, struct uio *buf)
 
   dev = minor (dev);
 
-  DEB (printk ("sound_read(dev=%d, count=%d)\n", dev, count));
-
-  switch (dev & 0xff) /* Changed to 0xff from 0x0f */
-    {
-    case SND_DEV_AUDIO:
-      FIX_RETURN (audio_read (dev, &files[dev], buf, count));
-      break;
-
-    case SND_DEV_DSP:
-    case SND_DEV_DSP16:
-      FIX_RETURN (dsp_read (dev, &files[dev], buf, count));
-      break;
-
-    case SND_DEV_SEQ:
-      FIX_RETURN (sequencer_read (dev, &files[dev], buf, count));
-      break;
-
-#ifndef EXCLUDE_CHIP_MIDI
-    case CMIDI_DEV_PRO: 
-      FIX_RETURN (CMIDI_read (dev, &files[dev], buf, count));
-  
-      break;
-#endif
-
-
-#ifndef EXCLUDE_MPU401
-    case SND_DEV_MIDIN:
-      FIX_RETURN (MIDIbuf_read (dev, &files[dev], buf, count));
-#endif
-
-    default:
-      ;
-    }
-
-  FIX_RETURN (-EPERM);
+  FIX_RETURN (sound_read_sw (dev, &files[dev], buf, count));
 }
 
 int
@@ -112,37 +93,9 @@ sndwrite (int dev, struct uio *buf)
 {
   int             count = buf->uio_resid;
 
-  DEB (printk ("sound_write(dev=%d, count=%d)\n", dev, count));
-
   dev = minor (dev);
 
-  switch (dev & 0xff) /* Changed to 0xff from 0x0f */ 
-    {
-
-    case SND_DEV_SEQ:
-      FIX_RETURN (sequencer_write (dev, &files[dev], buf, count));
-      break;
-
-    case SND_DEV_AUDIO:
-      FIX_RETURN (audio_write (dev, &files[dev], buf, count));
-      break;
-
-    case SND_DEV_DSP:
-    case SND_DEV_DSP16:
-      FIX_RETURN (dsp_write (dev, &files[dev], buf, count));
-      break;
-
-#ifndef EXCLUDE_CHIP_MIDI
-    case CMIDI_DEV_PRO: 
-      FIX_RETURN (CMIDI_write (dev, &files[dev], buf, count));
-      break;
-#endif
-      
-    default:
-      FIX_RETURN (-EPERM);
-    }
-
-  FIX_RETURN (count);
+  FIX_RETURN (sound_write_sw (dev, &files[dev], buf, count));
 }
 
 int
@@ -151,16 +104,6 @@ sndopen (dev_t dev, int flags)
   int             retval;
 
   dev = minor (dev);
-
- /* printf("SND: Minor number is now : %ld\n",dev); */
-
-  DEB (printk ("sound_open(dev=%d) : usecount=%d\n", dev, sbc_devices[dev].usecount));
-
-  if ((dev >= SND_NDEVS) || (dev < 0))
-    {
-      printk ("Invalid minor device %d\n", dev);
-      FIX_RETURN (-ENODEV);
-    }
 
   if (!soundcard_configured && dev)
     {
@@ -177,62 +120,7 @@ sndopen (dev_t dev, int flags)
   else if (flags & FWRITE)
     files[dev].mode = OPEN_WRITE;
 
-  switch (dev & 0xff) /* Changed to 0xff from 0x0f */ 
-    {
-    case SND_DEV_CTL:
-      if (!soundcards_installed)
-	if (soundcard_configured)
-	  {
-	    printk ("Soundcard not installed\n");
-	    FIX_RETURN (-ENODEV);
-	  }
-      break;
-
-    case SND_DEV_SEQ:
-      if ((retval = sequencer_open (dev, &files[dev])) < 0)
-	FIX_RETURN (retval);
-      break;
-
-/** UWM stuff **/
-
-#ifndef EXCLUDE_CHIP_MIDI
-    case CMIDI_DEV_PRO: 
-     	FIX_RETURN ( CMIDI_open (dev, &files[dev]) ); 
-  	break;	 
-#endif
-
-
-#ifndef EXCLUDE_MPU401
-    case SND_DEV_MIDIN:
-      if ((retval = MIDIbuf_open (dev, &files[dev])) < 0)
-	FIX_RETURN (retval);
-      break;
-#endif
-
-    case SND_DEV_AUDIO:
-      if ((retval = audio_open (dev, &files[dev])) < 0)
-	FIX_RETURN (retval);
-      break;
-
-    case SND_DEV_DSP:
-      if ((retval = dsp_open (dev, &files[dev], 8)) < 0)
-	FIX_RETURN (retval);
-      break;
-
-    case SND_DEV_DSP16:
-      if ((retval = dsp_open (dev, &files[dev], 16)) < 0)
-	FIX_RETURN (retval);
-      break;
-
-    default:
-      printk ("Invalid minor device %d\n", dev);
-      FIX_RETURN (-ENODEV);
-    }
-
-  sbc_devices[dev].usecount++;
-  in_use++;
-
-  FIX_RETURN (0);
+  FIX_RETURN(sound_open_sw (dev, &files[dev]));
 }
 
 int
@@ -241,41 +129,7 @@ sndclose (dev_t dev, int flags)
 
   dev = minor (dev);
 
-  DEB (printk ("sound_release(dev=%d)\n", dev));
-
-  switch (dev & 0xff) /* Changed to 0xff from 0x0f */
-    {
-    case SND_DEV_SEQ:
-      sequencer_release (dev, &files[dev]);
-      break;
-
-#ifndef EXCLUDE_CHIP_MIDI
-    case CMIDI_DEV_PRO: 
-      CMIDI_close (dev, &files[dev]);
-      break;
-#endif
-      
-#ifndef EXCLUDE_MPU401
-    case SND_DEV_MIDIN:
-      MIDIbuf_release (dev, &files[dev]);
-      break;
-#endif
-
-    case SND_DEV_AUDIO:
-      audio_release (dev, &files[dev]);
-      break;
-
-    case SND_DEV_DSP:
-    case SND_DEV_DSP16:
-      dsp_release (dev, &files[dev]);
-      break;
-
-    default:;
-    }
-
-  sbc_devices[dev].usecount--;
-  in_use--;			/* If not control port */
-
+  sound_release_sw(dev, &files[dev]);
   FIX_RETURN (0);
 }
 
@@ -284,46 +138,7 @@ sndioctl (dev_t dev, int cmd, caddr_t arg, int mode)
 {
   dev = minor (dev);
 
-  DEB (printk ("sound_ioctl(dev=%d, cmd=0x%x, arg=0x%x)\n", dev, cmd, arg));
-
-  switch (dev & 0x0f)
-    {
-
-    case SND_DEV_CTL:
-      if (!num_mixers)
-	FIX_RETURN (-ENODEV);
-
-      if (dev >= num_mixers)
-	FIX_RETURN (-ENODEV);
-
-      FIX_RETURN (mixer_devs[dev]->ioctl (dev, cmd, (unsigned int) arg));
-      break;
-
-    case SND_DEV_SEQ:
-      FIX_RETURN (sequencer_ioctl (dev, &files[dev], cmd, (unsigned int) arg));
-      break;
-
-    case SND_DEV_AUDIO:
-      FIX_RETURN (audio_ioctl (dev, &files[dev], cmd, (unsigned int) arg));
-      break;
-
-    case SND_DEV_DSP:
-    case SND_DEV_DSP16:
-      FIX_RETURN (dsp_ioctl (dev, &files[dev], cmd, (unsigned int) arg));
-      break;
-
-#ifndef EXCLUDE_MPU401
-    case SND_DEV_MIDIN:
-      FIX_RETURN (MIDIbuf_ioctl (dev, &files[dev], cmd, (unsigned int) arg));
-      break;
-#endif
-
-    default:
-      FIX_RETURN (-EPERM);
-      break;
-    }
-
-  FIX_RETURN (-EPERM);
+  FIX_RETURN (sound_ioctl_sw (dev, &files[dev], cmd, (unsigned int) arg));
 }
 
 int
@@ -337,7 +152,7 @@ sndselect (int dev, int rw)
 }
 
 static short
-ipri_to_irq (short ipri)
+ipri_to_irq (unsigned short ipri)
 {
   /*
    * Converts the ipri (bitmask) to the corresponding irq number
@@ -359,7 +174,6 @@ sndprobe (struct isa_device *dev)
   hw_config.io_base = dev->id_iobase;
   hw_config.irq = ipri_to_irq (dev->id_irq);
   hw_config.dma = dev->id_drq;
-
   
   return sndtable_probe (dev->id_unit, &hw_config);
 }
@@ -368,7 +182,6 @@ int
 sndattach (struct isa_device *dev)
 {
   int             i;
-  static int      dsp_initialized = 0;
   static int      midi_initialized = 0;
   static int      seq_initialized = 0;
   static int 	  generic_midi_initialized = 0; 
@@ -396,49 +209,29 @@ sndattach (struct isa_device *dev)
       return FALSE;		/* No cards detected */
     }
 
-#ifndef EXCLUDE_AUDIO
-  soundcard_configured = 1;
-  if (num_dspdevs)
-    sound_mem_init ();
-#endif
+  printf("\n");
 
-  if (num_dspdevs && !dsp_initialized)	/* Audio devices present */
+#ifndef EXCLUDE_AUDIO
+  if (num_audiodevs)	/* Audio devices present */
     {
-      dsp_initialized = 1;
       mem_start = DMAbuf_init (mem_start);
       mem_start = audio_init (mem_start);
-      mem_start = dsp_init (mem_start);
+      sound_mem_init ();
     }
 
-/** UWM stuff **/
+  soundcard_configured = 1;
+#endif
 
-#ifndef EXCLUDE_CHIP_MIDI
-
-     if (!generic_midi_initialized)
-     {
-	 generic_midi_initialized = 1;
-	 mem_start = CMIDI_init (mem_start);
-     } 
-
-#endif 
-
-#ifndef EXCLUDE_MPU401
   if (num_midis && !midi_initialized)
     {
       midi_initialized = 1;
       mem_start = MIDIbuf_init (mem_start);
     }
-#endif
 
   if ((num_midis + num_synths) && !seq_initialized)
     {
       seq_initialized = 1;
       mem_start = sequencer_init (mem_start);
-    }
-
-  for (i = 0; i < SND_NDEVS; i++)
-    {
-      sbc_devices[i].usecount = 0;
     }
 
   return TRUE;
@@ -452,14 +245,6 @@ tenmicrosec (void)
   for (i = 0; i < 16; i++)
     inb (0x80);
 }
-
-#ifdef EXCLUDE_GUS
-void
-gusintr (int unit)
-{
-  return (0);
-}
-#endif
 
 void
 request_sound_timer (int count)
@@ -503,7 +288,7 @@ sound_mem_init (void)
   unsigned long   dma_pagesize;
   static unsigned long dsp_init_mask = 0;
 
-  for (dev = 0; dev < num_dspdevs; dev++)	/* Enumerate devices */
+  for (dev = 0; dev < num_audiodevs; dev++)	/* Enumerate devices */
     if (!(dsp_init_mask & (1 << dev)))	/* Not already done */
       if (sound_buffcounts[dev] > 0 && sound_dsp_dmachan[dev] > 0)
 	{
@@ -514,6 +299,7 @@ sound_mem_init (void)
 	      sound_dma_automode[dev] = 0;	/* Not possible with 386BSD */
 	    }
 
+#if 0
 	  if (sound_buffcounts[dev] == 1)
 	    {
 	      sound_buffcounts[dev] = 2;
@@ -535,6 +321,11 @@ sound_mem_init (void)
 	  sound_buffsizes[dev] &= 0xfffff000;	/* Truncate to n*4k */
 	  if (sound_buffsizes[dev] < 4096)
 	    sound_buffsizes[dev] = 4096;
+#else
+	  dma_pagesize = 4096;
+	  sound_buffsizes[dev] = 4096;
+	  sound_buffcounts[dev] = 16;	/* 16*4k -> 64k */
+#endif
 
 	  /* Now allocate the buffers */
 
@@ -548,7 +339,7 @@ sound_mem_init (void)
 	       * This really needs some kind of finetuning.
 	       */
 	      char           *tmpbuf = malloc (2*sound_buffsizes[dev], M_DEVBUF, M_NOWAIT);
-	      unsigned long   addr, rounded;
+	      unsigned long   addr, rounded, start, end;
 
 	      if (tmpbuf == NULL)
 		{
@@ -559,9 +350,15 @@ sound_mem_init (void)
 
 	      addr = kvtop (tmpbuf);
 	      /*
-	       * Align the start address
+	       * Align the start address if required
 	       */
-	      rounded = (addr & ~(dma_pagesize - 1)) + dma_pagesize;
+	      start = (addr & ~(dma_pagesize - 1));
+	      end = ((addr+sound_buffsizes[dev]-1) & ~(dma_pagesize - 1));
+
+	      if (start != end)
+	         rounded = end;
+	      else
+                 rounded = addr;	/* Fits to the same DMA page */
 
 	      snd_raw_buf[dev][snd_raw_count[dev]] =
 		&tmpbuf[rounded - addr];	/* Compute offset */
@@ -588,6 +385,17 @@ snd_ioctl_return (int *addr, int value)
     return value;		/* Error */
   suword (addr, value);
   return 0;
+}
+
+int
+snd_set_irq_handler (int interrupt_level, void(*hndlr)(int))
+{
+  return 1;
+}
+
+void
+snd_release_irq(int vect)
+{
 }
 
 #endif
