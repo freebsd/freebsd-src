@@ -101,6 +101,7 @@ static void isp_fw_state __P((struct ispsoftc *));
 static void isp_dumpregs __P((struct ispsoftc *, const char *));
 static void isp_dumpxflist __P((struct ispsoftc *));
 static void isp_prtstst __P((ispstatusreq_t *));
+static char *isp2100_fw_statename __P((u_int8_t));
 static void isp_mboxcmd __P((struct ispsoftc *, mbreg_t *));
 
 static void isp_update  __P((struct ispsoftc *));
@@ -802,8 +803,9 @@ isp_fibre_init(isp)
 	for (count = 0; count < 12000; count++) {
 		isp_fw_state(isp);
 		if (lwfs != fcp->isp_fwstate) {
-			PRINTF("%s: Firmware State %s -> %s\n", isp->isp_name, 
-			    fw_statename(lwfs), fw_statename(fcp->isp_fwstate));
+			PRINTF("%s: Firmware State %s -> %s\n",
+			    isp->isp_name, isp2100_fw_statename(lwfs),
+			    isp2100_fw_statename(fcp->isp_fwstate));
 			lwfs = fcp->isp_fwstate;
 		}
 		if (fcp->isp_fwstate == FW_READY) {
@@ -2700,6 +2702,9 @@ isp_watch(arg)
 	RESTART_WATCHDOG(isp_watch, isp);
 }
 
+/*
+ * Miscellaneous debug statements.
+ */
 static void
 isp_prtstst(sp)
 	ispstatusreq_t *sp;
@@ -2738,6 +2743,23 @@ isp_prtstst(sp)
 	if (sp->req_status_flags & RQSTF_NEGOTIATION)
 		PRINTF("Negotiation ");
 	PRINTF("\n");
+}
+
+static char *
+isp2100_fw_statename(state)
+	u_int8_t state;
+{
+	switch(state) {
+	case FW_CONFIG_WAIT:	return "Config Wait";
+	case FW_WAIT_AL_PA:	return "Waiting for AL/PA";
+	case FW_WAIT_LOGIN:	return "Wait Login";
+	case FW_READY:		return "Ready";
+	case FW_LOSS_OF_SYNC:	return "Loss Of Sync";
+	case FW_ERROR:		return "Error";
+	case FW_REINIT:		return "Re-Init";
+	case FW_NON_PART:	return "Nonparticipating";
+	default:		return "eh?";
+	}
 }
 
 /*
