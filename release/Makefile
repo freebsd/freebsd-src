@@ -518,7 +518,8 @@ release.5:
 .endif
 	cd ${j}_crunch; ${WMAKE} -f ${j}_crunch.mk subclean
 	cd ${.CURDIR}/..; ${TMAKE} build-tools
-	cd ${j}_crunch; ${WMAKE} -f ${j}_crunch.mk all
+	cd ${j}_crunch; ${WMAKE} -f ${j}_crunch.mk \
+	    CFLAGS="-Os -pipe" -DNO_CPU_CFLAGS all
 	mv ${j}_crunch/${j}_crunch ${RD}/crunch/${j}
 .endfor
 	touch release.5
@@ -654,15 +655,15 @@ release.9:
 	    > ${RD}/mfsfd/stand/etc/services
 	ln ${RD}/mfsfd/stand/etc/services ${RD}/mfsfd/etc/services
 	ln ${RD}/mfsfd/stand/etc/netconfig ${RD}/mfsfd/etc/netconfig
-	gzip -9c ${RD}/trees/base/COPYRIGHT > ${RD}/mfsfd/stand/help/COPYRIGHT.hlp.gz
+	cp ${RD}/trees/base/COPYRIGHT ${RD}/mfsfd/stand/help/COPYRIGHT.hlp
 .if !defined(NODOC)
 	@for i in ${DIST_DOCS_ARCH_INDEP}; do \
-	  gzip -9c ${RND}/${RELNOTES_LANG}/$$i/article.txt > ${RD}/mfsfd/stand/help/`echo $${i} | tr 'a-z' 'A-Z'`.TXT.gz; \
+	  cp ${RND}/${RELNOTES_LANG}/$$i/article.txt ${RD}/mfsfd/stand/help/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
 	done
 	@for i in ${DIST_DOCS_ARCH_DEP}; do \
-	  gzip -9c ${RND}/${RELNOTES_LANG}/$$i/${TARGET}/article.txt > ${RD}/mfsfd/stand/help/`echo $${i} | tr 'a-z' 'A-Z'`.TXT.gz; \
+	  cp ${RND}/${RELNOTES_LANG}/$$i/${TARGET}/article.txt ${RD}/mfsfd/stand/help/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
 	done
-	@mv ${RD}/mfsfd/stand/help/INSTALLATION.TXT.gz ${RD}/mfsfd/stand/help/INSTALL.TXT.gz
+	@mv ${RD}/mfsfd/stand/help/INSTALLATION.TXT ${RD}/mfsfd/stand/help/INSTALL.TXT
 .endif
 	-test -f ${.CURDIR}/install.cfg && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
 	@mkdir -p ${RD}/mfsfd/boot
@@ -674,16 +675,23 @@ release.9:
 	@echo "Making the regular boot floppy."
 	@tar --exclude CVS -cf - -C ${.CURDIR}/../usr.sbin/sysinstall help | \
 		tar xf - -C ${RD}/mfsfd/stand
-	@echo "Compressing doc files..."
-	@gzip -9 ${RD}/mfsfd/stand/help/*.hlp
 .if ${TARGET_ARCH} == "alpha"
 	rm -rf ${RD}/mfsfd/stand/help/*
 .endif
 .if exists(${.CURDIR}/${TARGET}/drivers.conf)
 	@mkdir -p ${RD}/mfsfd/stand/modules
-	@awk -f  ${.CURDIR}/scripts/driver-copy2.awk \
+	@awk -f  ${.CURDIR}/scripts/driver-copy2.awk 2 \
 	    ${.CURDIR}/${TARGET}/drivers.conf \
 	    ${RD}/trees/base/boot/kernel ${RD}/mfsfd/stand/modules
+	-@rm -rf ${RD}/driversfd
+	@mkdir ${RD}/driversfd
+	@awk -f  ${.CURDIR}/scripts/driver-copy2.awk 3 \
+	    ${.CURDIR}/${TARGET}/drivers.conf \
+	    ${RD}/trees/base/boot/kernel ${RD}/driversfd
+	-@rmdir ${RD}/driversfd
+	[ -d ${RD}/driversfd ] && sh -e ${.CURDIR}/scripts/doFS.sh \
+	    ${RD}/floppies/drivers.flp ${RD} ${MNT} ${BOOTSIZE} \
+	    ${RD}/driversfd ${BOOTINODE} ${BOOTLABEL}
 .endif
 	sh -e ${.CURDIR}/scripts/doFS.sh -s mfsroot ${RD} ${MNT} \
 		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
@@ -963,7 +971,8 @@ doMFSKERN:
 	cd ${.CURDIR}/..; \
 	KERNEL_KO=BOOTMFS KODIR= \
 	    ${CROSSMAKE} ${KERNEL_FLAGS} -DNO_MODULES -DNO_KERNELCLEAN \
-	    KERNCONF=BOOTMFS buildkernel reinstallkernel \
+	    KERNCONF=BOOTMFS COPTFLAGS="-Os -pipe" -DNO_CPU_COPTFLAGS \
+	    buildkernel reinstallkernel \
 	    DESTDIR=${RD}/kernels
 	[ -r ${.CURDIR}/../sys/${TARGET}/conf/BOOTMFS.hints ] && \
 	cp ${.CURDIR}/../sys/${TARGET}/conf/BOOTMFS.hints ${RD}/kernels
@@ -995,6 +1004,7 @@ doMFSKERN:
 .endif
 	@echo "load -t mfs_root /mfsroot" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "set hint.acpi.0.disable=1" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
+	@echo "set module_path=\"/stand/modules;/dist\"" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "echo \\007\\007" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "autoboot 10" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 .if ${TARGET_ARCH} == "i386" && ${AUTO_KEYBOARD_DETECT}
