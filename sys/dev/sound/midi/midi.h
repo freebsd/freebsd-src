@@ -75,19 +75,6 @@
 
 /*#define MIDI_OUTOFGIANT*/
 
-#if defined(MIDI_OUTOFGIANT)
-#define MIDI_DROP_GIANT			DROP_GIANT
-#define MIDI_DROP_GIANT_NOSWITCH	DROP_GIANT_NOSWITCH
-#define MIDI_PICKUP_GIANT		PICKUP_GIANT
-#define MIDI_PARTIAL_PICKUP_GIANT	PARTIAL_PICKUP_GIANT
-#else
-#define MIDI_DROP_GIANT()
-#define MIDI_DROP_GIANT_NOSWITCH()
-#define MIDI_PICKUP_GIANT()
-#define MIDI_PARTIAL_PICKUP_GIANT()
-#endif /* MIDI_OUTOFGIANT */
-
-
 /*
  * The order of mutex lock (from the first to the last)
  *
