@@ -58,6 +58,12 @@
 #include <machine/clock.h>
 
 
+/* Miniumum timeout:
+ */
+#ifndef LABPC_MIN_TMO
+#define LABPC_MIN_TMO (hz)
+#endif
+
 #ifndef LABPC_DEFAULT_HERZ
 #define LABPC_DEFAULT_HERZ 500
 #endif
@@ -116,6 +122,8 @@ struct ctlr
 	u_char *data;
 	u_char *data_end;
 	long tmo;			/* Timeout in Herz */
+	long min_tmo;		/* Timeout in Herz */
+	int cleared_intr;
 
 	int gains[8];
 
@@ -154,7 +162,7 @@ struct ctlr **labpcs;	/* XXX: Should be dynamic */
  */
 #define CR_EXPR(LABPC, CR, EXPR) do { \
 	(LABPC)->cr_image[CR - 1] EXPR ; \
-	loutb((LABPC)->base + (CR == 4 ? 0x0F : CR - 1), (LABPC)->cr_image[(CR - 1)]); \
+	loutb(((LABPC)->base + ( (CR == 4) ? (0x0F) : (CR - 1))), ((LABPC)->cr_image[(CR - 1)])); \
 } while (0)
 
 #define CR_CLR(LABPC, CR) CR_EXPR(LABPC, CR, &=0)
@@ -267,9 +275,10 @@ struct isa_driver labpcdriver =
 static void
 bp_done(struct buf *bp, int err)
 {
-	if (err)
+	bp->b_error = err;
+
+	if (err || bp->b_resid)
 	{
-		bp->b_error = err;
 		bp->b_flags |= B_ERROR;
 	}
 
@@ -279,7 +288,7 @@ bp_done(struct buf *bp, int err)
 static void tmo_stop(void *p);
 
 static void
-done_and_dequeu(struct ctlr *ctlr, struct buf *bp, int err)
+done_and_start_next(struct ctlr *ctlr, struct buf *bp, int err)
 {
 	static void start(struct ctlr *ctlr);
 
@@ -479,6 +488,8 @@ int labpcattach(struct isa_device *dev)
 	reset(ctlr);
     labpc_registerdev(dev);
 
+	ctlr->min_tmo = LABPC_MIN_TMO;
+
 	ctlr->dcr_val = 0x80;
 	ctlr->dcr_is = 0x80;
 	loutb(DCR(ctlr), ctlr->dcr_val);
@@ -531,7 +542,8 @@ ad_start(struct ctlr *ctlr, long count)
 		trigger(ctlr);
 	}
 
-	ctlr->tmo = ((count + 16) * (long)ctlr->sample_us * hz) / 1000000 + 1;
+	ctlr->tmo = ((count + 16) * (long)ctlr->sample_us * hz) / 1000000 +
+		ctlr->min_tmo;
 }
 
 static void
@@ -576,7 +588,8 @@ ad_interval_start(struct ctlr *ctlr, long count)
 	 * the number of channels being sampled plus the sample period.
 	 */
 	ctlr->tmo = ((n_frames + 16) *
-	((long)ctlr->sample_us + (chan + 1 ) * 2 ) * hz) / 1000000 + 1;
+	((long)ctlr->sample_us + (chan + 1 ) * 2 ) * hz) / 1000000 +
+		ctlr->min_tmo;
 }
 
 static void
@@ -590,29 +603,32 @@ tmo_stop(void *p)
 {
 	struct ctlr *ctlr = (struct ctlr *)p;
 	struct buf *bp;
+
 	int s = spltty();
 
 	if (ctlr == 0)
 	{
 		printf("labpc?: Null ctlr struct?\n");
+		splx(s);
 		return;
 	}
 
-	printf("labpc%d: timeout\n", ctlr->unit);
+	printf("labpc%d: timeout", ctlr->unit);
 
 	(*ctlr->stop)(ctlr);
 
 	bp = ctlr->start_queue.b_actf;
 
 	if (bp == 0) {
-		printf("labpc%d timeout: Null bp.\n", ctlr->unit);
-
-		/* No more data being transferred.
-		 */
+		printf(", Null bp.\n");
+		splx(s);
 		return;
 	}
+
+	printf("\n");
 	
-	done_and_dequeu(ctlr, bp, ETIMEDOUT);
+	done_and_start_next(ctlr, bp, ETIMEDOUT);
+
 	splx(s);
 }
 
@@ -620,53 +636,69 @@ static void ad_intr(struct ctlr *ctlr)
 {
 	u_char status;
 
+	if (ctlr->cr_image[2] == 0)
+	{
+		if (ctlr->cleared_intr)
+		{
+			ctlr->cleared_intr = 0;
+			return;
+		}
+
+		printf("ad_intr (should not happen) interrupt with interrupts off\n");
+		printf("status %x, cr3 %x\n", inb(STATUS(ctlr)), ctlr->cr_image[2]);
+		return;
+	}
+
 	while ( (status = (inb(STATUS(ctlr)) & (DAVAIL|OVERRUN|OVERFLOW)) ) )
 	{
 		if ((status & (OVERRUN|OVERFLOW)))
 		{
 			struct buf *bp = ctlr->start_queue.b_actf;
 
-			printf("ad_intr: error: data %p, status %x",
-			ctlr->data, status);
+			printf("ad_intr: error: bp %0p, data %0p, status %x",
+			bp, ctlr->data, status);
 
 			if (status & OVERRUN)
-				printf(" OVERRUN");
+				printf(" Conversion overrun (multiple A-D trigger)");
 
 			if (status & OVERFLOW)
-				printf(" OVERFLOW");
+				printf(" FIFO overflow");
 
 			printf("\n");
 
-			(*ctlr->stop)(ctlr);
-
-			/* There may not be a bp if the interrupt went off between
-			 * frames, that is, when no process was ready to receive and
-			 * we are using a mode that is driven by the sample clock.
-			 */
 			if (bp)
 			{
-				done_and_dequeu(ctlr, bp, EIO);
+				done_and_start_next(ctlr, bp, EIO);
 				return;
 			}
 			else
+			{
+				printf("ad_intr: (should not happen) error between records\n");
 				ctlr->err = status;	/* Set overrun condition */
+				return;
+			}
 		}
 		else	/* FIFO interrupt */
 		{
+			struct buf *bp = ctlr->start_queue.b_actf;
+	
 			if (ctlr->data)
 			{
 				*ctlr->data++ = inb(ADFIFO(ctlr));
 				if (ctlr->data == ctlr->data_end)	/* Normal completion */
 				{
-					struct buf *bp = ctlr->start_queue.b_actf;
-	
-					done_and_dequeu(ctlr, bp, 0);
+					done_and_start_next(ctlr, bp, 0);
 					return;
 				}
 			}
 			else	/* Interrupt with no where to put the data.  */
 			{
+				printf("ad_intr: (should not happen) dropped input.\n");
 				(void)inb(ADFIFO(ctlr));
+
+				printf("bp %0p, status %x, cr3 %x\n", bp, status,
+				ctlr->cr_image[2]);
+
 				ctlr->err = DROPPED_INPUT;
 				return;
 			}
@@ -680,13 +712,13 @@ void labpcintr(int unit)
 	(*ctlr->intr)(ctlr);
 }
 
-/* mode_change_needed: Return whether or not we can open again, or
+/* lockout_multiple_opens: Return whether or not we can open again, or
  * if the new mode is inconsistent with an already opened mode.
  * We only permit multiple opens for digital I/O now.
  */
 
 static int
-mode_change_needed(dev_t current, dev_t next)
+lockout_multiple_open(dev_t current, dev_t next)
 {
 	return ! (DIGITAL(current) && DIGITAL(next));
 }
@@ -722,10 +754,8 @@ labpcopen(dev_t dev, int flags, int fmt, struct proc *p)
 		ctlr->intr = null_intr;
 		ctlr->starter = null_start;
 		ctlr->stop = null_stop;
-
-		CR_EXPR(ctlr, 3, |= ERRINTEN);
 	}
-	else if (mode_change_needed(ctlr->dev, dev))
+	else if (lockout_multiple_open(ctlr->dev, dev))
 		return EBUSY;
 
 	return 0;
@@ -757,7 +787,8 @@ start(struct ctlr *ctlr)
 		 * place to put the data.  We have to get back to
 		 * reading before the FIFO overflows.
 		 */
-		CR_EXPR(ctlr, 3, &= ~FIFOINTEN);
+		CR_EXPR(ctlr, 3, &= ~(FIFOINTEN|ERRINTEN));
+		ctlr->cleared_intr = 1;
 		ctlr->start_queue.b_active = 0;
 		return;
 	}
@@ -765,18 +796,31 @@ start(struct ctlr *ctlr)
 	ctlr->data = (u_char *)bp->b_un.b_addr;
 	ctlr->data_end = ctlr->data + bp->b_bcount;
 
-	if (!FIFOINTENABLED(ctlr))	/* We can store the data again */
+	if (ctlr->err)
 	{
-		if (ctlr->err)					/* Dropped input between records */
-		{
-			done_and_dequeu(ctlr, bp, ENOSPC);
-			return;
-		}
-		CR_EXPR(ctlr, 3, |= FIFOINTEN);
+		printf("labpc start: (should not happen) error between records.\n");
+		done_and_start_next(ctlr, bp, EIO);
+		return;
 	}
-	ctlr->err = 0;
+
+	if (ctlr->data == 0)
+	{
+		printf("labpc start: (should not happen) NULL data pointer.\n");
+		done_and_start_next(ctlr, bp, EIO);
+		return;
+	}
+
 
 	(*ctlr->starter)(ctlr, bp->b_bcount);
+
+	if (!FIFOINTENABLED(ctlr))	/* We can store the data again */
+	{
+		CR_EXPR(ctlr, 3, |= (FIFOINTEN|ERRINTEN));
+
+		/* Don't wait for the interrupts to fill things up.
+		 */
+		(*ctlr->intr)(ctlr);
+	}
 
 	timeout(tmo_stop, ctlr, ctlr->tmo);
 }
