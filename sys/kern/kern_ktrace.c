@@ -55,11 +55,11 @@
 static MALLOC_DEFINE(M_KTRACE, "KTRACE", "KTRACE");
 
 #ifdef KTRACE
-static struct ktr_header *ktrgetheader __P((int type));
-static void ktrwrite __P((struct vnode *, struct ktr_header *, struct uio *));
-static int ktrcanset __P((struct proc *,struct proc *));
-static int ktrsetchildren __P((struct proc *,struct proc *,int,int,struct vnode *));
-static int ktrops __P((struct proc *,struct proc *,int,int,struct vnode *));
+static struct ktr_header *ktrgetheader(int type);
+static void ktrwrite(struct vnode *, struct ktr_header *, struct uio *);
+static int ktrcanset(struct proc *,struct proc *);
+static int ktrsetchildren(struct proc *,struct proc *,int,int,struct vnode *);
+static int ktrops(struct proc *,struct proc *,int,int,struct vnode *);
 
 
 static struct ktr_header *

@@ -103,12 +103,12 @@ extern u_long	udp_recvspace;
 extern struct	udpstat udpstat;
 extern int	log_in_vain;
 
-void	udp_ctlinput __P((int, struct sockaddr *, void *));
-void	udp_init __P((void));
-void	udp_input __P((struct mbuf *, int));
+void	udp_ctlinput(int, struct sockaddr *, void *);
+void	udp_init(void);
+void	udp_input(struct mbuf *, int);
 
-void	udp_notify __P((struct inpcb *inp, int errno));
-int	udp_shutdown __P((struct socket *so));
+void	udp_notify(struct inpcb *inp, int errno);
+int	udp_shutdown(struct socket *so);
 #endif
 
 #endif

@@ -57,10 +57,10 @@ struct imgact_gzip {
 	u_long          virtual_offset, file_offset, file_end, bss_size;
 };
 
-static int exec_gzip_imgact __P((struct image_params *imgp));
-static int NextByte __P((void *vp));
-static int do_aout_hdr __P((struct imgact_gzip *));
-static int Flush __P((void *vp, u_char *, u_long siz));
+static int exec_gzip_imgact(struct image_params *imgp);
+static int NextByte(void *vp);
+static int do_aout_hdr(struct imgact_gzip *);
+static int Flush(void *vp, u_char *, u_long siz);
 
 static int
 exec_gzip_imgact(imgp)

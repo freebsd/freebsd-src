@@ -151,48 +151,48 @@ extern struct route ipforward_rt;		/* ip forwarding cached route */
 extern u_char	ip_protox[];
 extern struct socket *ip_rsvpd;	/* reservation protocol daemon */
 extern struct socket *ip_mrouter; /* multicast routing daemon */
-extern int	(*legal_vif_num) __P((int));
-extern u_long	(*ip_mcast_src) __P((int));
+extern int	(*legal_vif_num)(int);
+extern u_long	(*ip_mcast_src)(int);
 extern int rsvp_on;
 extern struct	pr_usrreqs rip_usrreqs;
 
-int	 ip_ctloutput __P((struct socket *, struct sockopt *sopt));
-void	 ip_drain __P((void));
-void	 ip_freemoptions __P((struct ip_moptions *));
-void	 ip_init __P((void));
-extern int	 (*ip_mforward) __P((struct ip *, struct ifnet *, struct mbuf *,
-			  struct ip_moptions *));
-int	 ip_output __P((struct mbuf *,
-	    struct mbuf *, struct route *, int, struct ip_moptions *));
+int	 ip_ctloutput(struct socket *, struct sockopt *sopt);
+void	 ip_drain(void);
+void	 ip_freemoptions(struct ip_moptions *);
+void	 ip_init(void);
+extern int	 (*ip_mforward)(struct ip *, struct ifnet *, struct mbuf *,
+			  struct ip_moptions *);
+int	 ip_output(struct mbuf *,
+	    struct mbuf *, struct route *, int, struct ip_moptions *);
 struct in_ifaddr *
-	 ip_rtaddr __P((struct in_addr, struct route *));
-void	 ip_savecontrol __P((struct inpcb *, struct mbuf **, struct ip *,
-		struct mbuf *));
-void	 ip_slowtimo __P((void));
+	 ip_rtaddr(struct in_addr, struct route *);
+void	 ip_savecontrol(struct inpcb *, struct mbuf **, struct ip *,
+		struct mbuf *);
+void	 ip_slowtimo(void);
 struct mbuf *
-	 ip_srcroute __P((void));
-void	 ip_stripoptions __P((struct mbuf *, struct mbuf *));
+	 ip_srcroute(void);
+void	 ip_stripoptions(struct mbuf *, struct mbuf *);
 #ifdef RANDOM_IP_ID
 u_int16_t	
-	 ip_randomid __P((void));
+	 ip_randomid(void);
 #endif
-int	 rip_ctloutput __P((struct socket *, struct sockopt *));
-void	 rip_ctlinput __P((int, struct sockaddr *, void *));
-void	 rip_init __P((void));
-void	 rip_input __P((struct mbuf *, int));
-int	 rip_output __P((struct mbuf *, struct socket *, u_long));
-void	ipip_input __P((struct mbuf *, int));
-void	rsvp_input __P((struct mbuf *, int));
-int	ip_rsvp_init __P((struct socket *));
-int	ip_rsvp_done __P((void));
-int	ip_rsvp_vif_init __P((struct socket *, struct sockopt *));
-int	ip_rsvp_vif_done __P((struct socket *, struct sockopt *));
-void	ip_rsvp_force_done __P((struct socket *));
+int	 rip_ctloutput(struct socket *, struct sockopt *);
+void	 rip_ctlinput(int, struct sockaddr *, void *);
+void	 rip_init(void);
+void	 rip_input(struct mbuf *, int);
+int	 rip_output(struct mbuf *, struct socket *, u_long);
+void	ipip_input(struct mbuf *, int);
+void	rsvp_input(struct mbuf *, int);
+int	ip_rsvp_init(struct socket *);
+int	ip_rsvp_done(void);
+int	ip_rsvp_vif_init(struct socket *, struct sockopt *);
+int	ip_rsvp_vif_done(struct socket *, struct sockopt *);
+void	ip_rsvp_force_done(struct socket *);
 
 #ifdef IPDIVERT
-void	div_init __P((void));
-void	div_input __P((struct mbuf *, int));
-void	divert_packet __P((struct mbuf *, int, int));
+void	div_init(void);
+void	div_input(struct mbuf *, int);
+void	divert_packet(struct mbuf *, int, int);
 extern struct pr_usrreqs div_usrreqs;
 extern u_int16_t ip_divert_cookie;
 #endif

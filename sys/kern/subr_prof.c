@@ -53,7 +53,7 @@
 
 static MALLOC_DEFINE(M_GPROF, "gprof", "kernel profiling buffer");
 
-static void kmstartup __P((void *));
+static void kmstartup(void *);
 SYSINIT(kmem, SI_SUB_KPROF, SI_ORDER_FIRST, kmstartup, NULL)
 
 struct gmonparam _gmonparam = { GMON_PROF_OFF };

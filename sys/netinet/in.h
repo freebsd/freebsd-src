@@ -488,11 +488,11 @@ struct ifnet; struct mbuf;	/* forward declarations for Standard C */
 
 #ifdef _KERNEL
 
-int	 in_broadcast __P((struct in_addr, struct ifnet *));
-int	 in_canforward __P((struct in_addr));
-int	 in_localaddr __P((struct in_addr));
-char 	*inet_ntoa __P((struct in_addr)); /* in libkern */
-char	*inet_ntoa_r __P((struct in_addr ina, char *buf)); /* in libkern */
+int	 in_broadcast(struct in_addr, struct ifnet *);
+int	 in_canforward(struct in_addr);
+int	 in_localaddr(struct in_addr);
+char 	*inet_ntoa(struct in_addr); /* in libkern */
+char	*inet_ntoa_r(struct in_addr ina, char *buf); /* in libkern */
 
 #define satosin(sa)	((struct sockaddr_in *)(sa))
 #define sintosa(sin)	((struct sockaddr *)(sin))
@@ -503,10 +503,10 @@ char	*inet_ntoa_r __P((struct in_addr ina, char *buf)); /* in libkern */
 #ifndef _BYTEORDER_PROTOTYPED
 #define	_BYTEORDER_PROTOTYPED
 __BEGIN_DECLS
-__uint32_t	htonl __P((__uint32_t));
-__uint16_t	htons __P((__uint16_t));
-__uint32_t	ntohl __P((__uint32_t));
-__uint16_t	ntohs __P((__uint16_t));
+__uint32_t	htonl(__uint32_t);
+__uint16_t	htons(__uint16_t);
+__uint32_t	ntohl(__uint32_t);
+__uint16_t	ntohs(__uint16_t);
 __END_DECLS
 #endif
 

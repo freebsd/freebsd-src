@@ -588,7 +588,7 @@ legacy_setsoftnet(void)
  * XXX: This should really be in the network code somewhere and installed
  * via a SI_SUB_SOFINTR, SI_ORDER_MIDDLE sysinit.
  */
-void	(*netisrs[32]) __P((void));
+void	(*netisrs[32])(void);
 volatile unsigned int	netisr;	/* scheduling bits for network */
 
 int

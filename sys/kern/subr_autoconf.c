@@ -60,7 +60,7 @@ static TAILQ_HEAD(, intr_config_hook) intr_config_hook_list =
 
 
 /* ARGSUSED */
-static void run_interrupt_driven_config_hooks __P((void *dummy));
+static void run_interrupt_driven_config_hooks(void *dummy);
 static void
 run_interrupt_driven_config_hooks(dummy)
 	void *dummy;

@@ -59,10 +59,10 @@
 
 static MALLOC_DEFINE(M_PTY, "ptys", "pty data structures");
 
-static void ptsstart __P((struct tty *tp));
-static void ptsstop __P((struct tty *tp, int rw));
-static void ptcwakeup __P((struct tty *tp, int flag));
-static dev_t ptyinit __P((dev_t cdev));
+static void ptsstart(struct tty *tp);
+static void ptsstop(struct tty *tp, int rw);
+static void ptcwakeup(struct tty *tp, int flag);
+static dev_t ptyinit(dev_t cdev);
 
 static	d_open_t	ptsopen;
 static	d_close_t	ptsclose;
@@ -818,9 +818,9 @@ ptyioctl(dev, cmd, data, flag, td)
 }
 
 
-static void ptc_drvinit __P((void *unused));
+static void ptc_drvinit(void *unused);
 
-static void pty_clone __P((void *arg, char *name, int namelen, dev_t *dev));
+static void pty_clone(void *arg, char *name, int namelen, dev_t *dev);
 
 static void
 pty_clone(arg, name, namelen, dev)

@@ -209,16 +209,16 @@ static	struct ip_srcrt {
 
 struct sockaddr_in *ip_fw_fwd_addr;
 
-static void	save_rte __P((u_char *, struct in_addr));
-static int	ip_dooptions __P((struct mbuf *, int));
-static void	ip_forward __P((struct mbuf *, int));
-static void	ip_freef __P((struct ipqhead *, struct ipq *));
+static void	save_rte(u_char *, struct in_addr);
+static int	ip_dooptions(struct mbuf *, int);
+static void	ip_forward(struct mbuf *, int);
+static void	ip_freef(struct ipqhead *, struct ipq *);
 #ifdef IPDIVERT
-static struct	mbuf *ip_reass __P((struct mbuf *, struct ipqhead *, struct ipq *, u_int32_t *, u_int16_t *));
+static struct	mbuf *ip_reass(struct mbuf *, struct ipqhead *, struct ipq *, u_int32_t *, u_int16_t *);
 #else
-static struct	mbuf *ip_reass __P((struct mbuf *, struct ipqhead *, struct ipq *));
+static struct	mbuf *ip_reass(struct mbuf *, struct ipqhead *, struct ipq *);
 #endif
-static void	ipintr __P((void));
+static void	ipintr(void);
 
 /*
  * IP initialization: fill in IP protocol switch table.

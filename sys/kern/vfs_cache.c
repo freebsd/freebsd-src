@@ -139,7 +139,7 @@ SYSCTL_OPAQUE(_vfs_cache, OID_AUTO, nchstats, CTLFLAG_RD, &nchstats,
 
 
 
-static void cache_zap __P((struct namecache *ncp));
+static void cache_zap(struct namecache *ncp);
 
 static MALLOC_DEFINE(M_VFSCACHE, "vfscache", "VFS name cache entries");
 

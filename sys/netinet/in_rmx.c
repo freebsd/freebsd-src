@@ -56,7 +56,7 @@
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
 
-extern int	in_inithead __P((void **head, int off));
+extern int	in_inithead(void **head, int off);
 
 #define RTPRF_OURS		RTF_PROTO3	/* set on routes we manage */
 

@@ -67,7 +67,7 @@
 
 #include <machine/cpu.h>
 
-static void sched_setup __P((void *dummy));
+static void sched_setup(void *dummy);
 SYSINIT(sched_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, sched_setup, NULL)
 
 int	hogticks;
@@ -90,10 +90,10 @@ static fixpt_t cexp[3] = {
 	0.9944598480048967 * FSCALE,	/* exp(-1/180) */
 };
 
-static void	endtsleep __P((void *));
-static void	loadav __P((void *arg));
-static void	roundrobin __P((void *arg));
-static void	schedcpu __P((void *arg));
+static void	endtsleep(void *);
+static void	loadav(void *arg);
+static void	roundrobin(void *arg);
+static void	schedcpu(void *arg);
 
 static int
 sysctl_kern_quantum(SYSCTL_HANDLER_ARGS)

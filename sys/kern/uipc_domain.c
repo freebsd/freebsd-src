@@ -56,14 +56,14 @@
  * See DOMAIN_SET(9) for details on its use.
  */
 
-static void domaininit __P((void *));
+static void domaininit(void *);
 SYSINIT(domain, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST, domaininit, NULL)
 
 static struct callout pffast_callout;
 static struct callout pfslow_callout;
 
-static void	pffasttimo __P((void *));
-static void	pfslowtimo __P((void *));
+static void	pffasttimo(void *);
+static void	pfslowtimo(void *);
 
 struct domain *domains;
 

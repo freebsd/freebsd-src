@@ -48,10 +48,10 @@
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
-static int ttcompatgetflags	__P((struct tty	*tp));
-static void ttcompatsetflags	__P((struct tty	*tp, struct termios *t));
-static void ttcompatsetlflags	__P((struct tty	*tp, struct termios *t));
-static int ttcompatspeedtab	__P((int speed, struct speedtab *table));
+static int ttcompatgetflags	(struct tty	*tp);
+static void ttcompatsetflags	(struct tty	*tp, struct termios *t);
+static void ttcompatsetlflags	(struct tty	*tp, struct termios *t);
+static int ttcompatspeedtab	(int speed, struct speedtab *table);
 
 static int ttydebug = 0;
 SYSCTL_INT(_debug, OID_AUTO, ttydebug, CTLFLAG_RW, &ttydebug, 0, "");

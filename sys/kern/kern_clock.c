@@ -74,7 +74,7 @@ extern void init_device_poll(void);
 extern void hardclock_device_poll(void);
 #endif /* DEVICE_POLLING */
 
-static void initclocks __P((void *dummy));
+static void initclocks(void *dummy);
 SYSINIT(clocks, SI_SUB_CLOCKS, SI_ORDER_FIRST, initclocks, NULL)
 
 /* Some of these don't belong here, but it's easiest to concentrate them. */

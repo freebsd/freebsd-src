@@ -79,21 +79,21 @@ static	struct unp_head unp_shead, unp_dhead;
 static struct	sockaddr sun_noname = { sizeof(sun_noname), AF_LOCAL };
 static ino_t	unp_ino;		/* prototype for fake inode numbers */
 
-static int     unp_attach __P((struct socket *));
-static void    unp_detach __P((struct unpcb *));
-static int     unp_bind __P((struct unpcb *,struct sockaddr *, struct thread *));
-static int     unp_connect __P((struct socket *,struct sockaddr *,
-				struct thread *));
-static void    unp_disconnect __P((struct unpcb *));
-static void    unp_shutdown __P((struct unpcb *));
-static void    unp_drop __P((struct unpcb *, int));
-static void    unp_gc __P((void));
-static void    unp_scan __P((struct mbuf *, void (*)(struct file *)));
-static void    unp_mark __P((struct file *));
-static void    unp_discard __P((struct file *));
-static void    unp_freerights __P((struct file **, int));
-static int     unp_internalize __P((struct mbuf **, struct thread *));
-static int     unp_listen __P((struct unpcb *, struct thread *));
+static int     unp_attach(struct socket *);
+static void    unp_detach(struct unpcb *);
+static int     unp_bind(struct unpcb *,struct sockaddr *, struct thread *);
+static int     unp_connect(struct socket *,struct sockaddr *,
+				struct thread *);
+static void    unp_disconnect(struct unpcb *);
+static void    unp_shutdown(struct unpcb *);
+static void    unp_drop(struct unpcb *, int);
+static void    unp_gc(void);
+static void    unp_scan(struct mbuf *, void (*)(struct file *));
+static void    unp_mark(struct file *);
+static void    unp_discard(struct file *);
+static void    unp_freerights(struct file **, int);
+static int     unp_internalize(struct mbuf **, struct thread *);
+static int     unp_listen(struct unpcb *, struct thread *);
 
 static int
 uipc_abort(struct socket *so)
@@ -1431,7 +1431,7 @@ unp_listen(unp, td)
 static void
 unp_scan(m0, op)
 	register struct mbuf *m0;
-	void (*op) __P((struct file *));
+	void (*op)(struct file *);
 {
 	struct mbuf *m;
 	struct file **rp;

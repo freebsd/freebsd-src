@@ -85,10 +85,10 @@ struct	tty *constty;			/* pointer to console "window" tty */
 static void (*v_putc)(int) = cnputc;	/* routine to putc on virtual console */
 static void  msglogchar(int c, int pri);
 static void  msgaddchar(int c, void *dummy);
-static void  putchar __P((int ch, void *arg));
-static char *ksprintn __P((char *nbuf, u_long num, int base, int *len));
-static char *ksprintqn __P((char *nbuf, u_quad_t num, int base, int *len));
-static void  snprintf_func __P((int ch, void *arg));
+static void  putchar(int ch, void *arg);
+static char *ksprintn(char *nbuf, u_long num, int base, int *len);
+static char *ksprintqn(char *nbuf, u_quad_t num, int base, int *len);
+static void  snprintf_func(int ch, void *arg);
 
 static int consintr = 1;		/* Ok to handle console interrupts? */
 static int msgbufmapped;		/* Set when safe to use msgbuf */
