@@ -61,7 +61,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Id: mrinfo.c,v 3.6 1995/06/25 19:05:34 fenner Exp $";
+    "@(#) $Id: mrinfo.c,v 1.6 1995/06/28 17:58:36 wollman Exp $";
 /*  original rcsid:
     "@(#) Header: mrinfo.c,v 1.6 93/04/08 15:14:16 van Exp (LBL)";
 */
@@ -461,6 +461,8 @@ main(argc, argv)
 				ask(target_addr);
 			else
 				ask2(target_addr);
+			gettimeofday(&et, 0);
+			et.tv_sec += timeout;
 			continue;
 		}
 		recvlen = recvfrom(igmp_socket, recv_buf, RECV_BUF_SIZE,
