@@ -50,11 +50,7 @@ __FBSDID("$FreeBSD$");
  *		save the output of the command in a region obtained
  *		via malloc, rather than doing a fork and reading the
  *		output of the command via a pipe.
- *	Our output routines may be smaller than the stdio routines.
  */
-
-#include <sys/types.h>        /* quad_t */
-#include <sys/ioctl.h>
 
 #include <stdio.h>	/* defines BUFSIZ */
 #include <string.h>
@@ -76,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #define MEM_OUT -3		/* output to dynamically allocated memory */
 #define OUTPUT_ERR 01		/* error occurred on output */
 
+static int doformat_wr(void *, const char *, int);
 
 struct output output = {NULL, 0, NULL, OUTBUFSIZ, 1, 0};
 struct output errout = {NULL, 0, NULL, 100, 2, 0};
@@ -266,203 +263,39 @@ void
 fmtstr(char *outbuf, int length, const char *fmt, ...)
 {
 	va_list ap;
-	struct output strout;
 
 	va_start(ap, fmt);
-	strout.nextc = outbuf;
-	strout.nleft = length;
-	strout.fd = BLOCK_OUT;
-	strout.flags = 0;
-	doformat(&strout, fmt, ap);
-	outc('\0', &strout);
-	if (strout.flags & OUTPUT_ERR)
-		outbuf[length - 1] = '\0';
+	snprintf(outbuf, length, fmt, ap);
+	va_end(ap);
 }
 
-/*
- * Formatted output.  This routine handles a subset of the printf formats:
- * - Formats supported: d, u, o, X, s, and c.
- * - The x format is also accepted but is treated like X.
- * - The l and q modifiers are accepted.
- * - The - and # flags are accepted; # only works with the o format.
- * - Width and precision may be specified with any format except c.
- * - An * may be given for the width or precision.
- * - The obsolete practice of preceding the width with a zero to get
- *   zero padding is not supported; use the precision field.
- * - A % may be printed by writing %% in the format string.
- */
+static int
+doformat_wr(void *cookie, const char *buf, int len)
+{
+	struct output *o;
+	int origlen;
+	unsigned char c;
 
-#define TEMPSIZE 24
+	o = (struct output *)cookie;
+	origlen = len;
+	while (len-- != 0) {
+		c = (unsigned char)*buf++;
+		outc(c, o);
+	}
 
-static const char digit[] = "0123456789ABCDEF";
-
+	return (origlen);
+}
 
 void
 doformat(struct output *dest, const char *f, va_list ap)
 {
-	char c;
-	char temp[TEMPSIZE];
-	int flushleft;
-	int sharp;
-	int width;
-	int prec;
-	int islong;
-	int isquad;
-	char *p;
-	int sign;
-	quad_t l;
-	u_quad_t num;
-	unsigned base;
-	int len;
-	int size;
-	int pad;
+	FILE *fp;
 
-	while ((c = *f++) != '\0') {
-		if (c != '%') {
-			outc(c, dest);
-			continue;
-		}
-		flushleft = 0;
-		sharp = 0;
-		width = 0;
-		prec = -1;
-		islong = 0;
-		isquad = 0;
-		for (;;) {
-			if (*f == '-')
-				flushleft++;
-			else if (*f == '#')
-				sharp++;
-			else
-				break;
-			f++;
-		}
-		if (*f == '*') {
-			width = va_arg(ap, int);
-			f++;
-		} else {
-			while (is_digit(*f)) {
-				width = 10 * width + digit_val(*f++);
-			}
-		}
-		if (*f == '.') {
-			if (*++f == '*') {
-				prec = va_arg(ap, int);
-				f++;
-			} else {
-				prec = 0;
-				while (is_digit(*f)) {
-					prec = 10 * prec + digit_val(*f++);
-				}
-			}
-		}
-		if (*f == 'l') {
-			islong++;
-			f++;
-		} else if (*f == 'q') {
-			isquad++;
-			f++;
-		}
-		switch (*f) {
-		case 'd':
-			if (isquad)
-				l = va_arg(ap, quad_t);
-			else if (islong)
-				l = va_arg(ap, long);
-			else
-				l = va_arg(ap, int);
-			sign = 0;
-			num = l;
-			if (l < 0) {
-				num = -l;
-				sign = 1;
-			}
-			base = 10;
-			goto number;
-		case 'u':
-			base = 10;
-			goto uns_number;
-		case 'o':
-			base = 8;
-			goto uns_number;
-		case 'x':
-			/* we don't implement 'x'; treat like 'X' */
-		case 'X':
-			base = 16;
-uns_number:	  /* an unsigned number */
-			sign = 0;
-			if (isquad)
-				num = va_arg(ap, u_quad_t);
-			else if (islong)
-				num = va_arg(ap, unsigned long);
-			else
-				num = va_arg(ap, unsigned int);
-number:		  /* process a number */
-			p = temp + TEMPSIZE - 1;
-			*p = '\0';
-			while (num) {
-				*--p = digit[num % base];
-				num /= base;
-			}
-			len = (temp + TEMPSIZE - 1) - p;
-			if (prec < 0)
-				prec = 1;
-			if (sharp && *f == 'o' && prec <= len)
-				prec = len + 1;
-			pad = 0;
-			if (width) {
-				size = len;
-				if (size < prec)
-					size = prec;
-				size += sign;
-				pad = width - size;
-				if (flushleft == 0) {
-					while (--pad >= 0)
-						outc(' ', dest);
-				}
-			}
-			if (sign)
-				outc('-', dest);
-			prec -= len;
-			while (--prec >= 0)
-				outc('0', dest);
-			while (*p)
-				outc(*p++, dest);
-			while (--pad >= 0)
-				outc(' ', dest);
-			break;
-		case 's':
-			p = va_arg(ap, char *);
-			pad = 0;
-			if (width) {
-				len = strlen(p);
-				if (prec >= 0 && len > prec)
-					len = prec;
-				pad = width - len;
-				if (flushleft == 0) {
-					while (--pad >= 0)
-						outc(' ', dest);
-				}
-			}
-			prec++;
-			while (--prec != 0 && *p)
-				outc(*p++, dest);
-			while (--pad >= 0)
-				outc(' ', dest);
-			break;
-		case 'c':
-			c = va_arg(ap, int);
-			outc(c, dest);
-			break;
-		default:
-			outc(*f, dest);
-			break;
-		}
-		f++;
+	if ((fp = fwopen(dest, doformat_wr)) != NULL) {
+		vfprintf(fp, f, ap);
+		fclose(fp);
 	}
 }
-
-
 
 /*
  * Version of write which resumes after a signal is caught.
