@@ -150,6 +150,7 @@ SUBDIR+=aac \
 	el \
 	em \
 	ep \
+	exca \
 	fe \
 	fpu \
 	gnufpu \
