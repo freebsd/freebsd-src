@@ -338,7 +338,6 @@ ffs_read(ap)
 	off_t bytesinfile;
 	long size, xfersize, blkoffset;
 	int error, orig_resid;
-	mode_t mode;
 	int seqcount;
 	int ioflag;
 	vm_object_t object;
@@ -366,7 +365,6 @@ ffs_read(ap)
 
 	seqcount = ap->a_ioflag >> 16;
 	ip = VTOI(vp);
-	mode = ip->i_mode;
 
 #ifdef DIAGNOSTIC
 	if (uio->uio_rw != UIO_READ)
@@ -794,7 +792,7 @@ ffs_getpages(ap)
 	int i, size, bsize;
 	struct vnode *dp, *vp;
 	vm_object_t obj;
-	vm_pindex_t pindex, firstindex;
+	vm_pindex_t pindex;
 	vm_page_t mreq;
 	int bbackwards, bforwards;
 	int pbackwards, pforwards;
@@ -809,7 +807,6 @@ ffs_getpages(ap)
 
 	pcount = round_page(ap->a_count) / PAGE_SIZE;
 	mreq = ap->a_m[ap->a_reqpage];
-	firstindex = ap->a_m[0]->pindex;
 
 	/*
 	 * if ANY DEV_BSIZE blocks are valid on a large filesystem block,
@@ -940,14 +937,12 @@ ffs_extread(struct vnode *vp, struct uio *uio, int ioflag)
 	off_t bytesinfile;
 	long size, xfersize, blkoffset;
 	int error, orig_resid;
-	mode_t mode;
 
 	GIANT_REQUIRED;
 
 	ip = VTOI(vp);
 	fs = ip->i_fs;
 	dp = ip->i_din2;
-	mode = ip->i_mode;
 
 #ifdef DIAGNOSTIC
 	if (uio->uio_rw != UIO_READ || fs->fs_magic != FS_UFS2_MAGIC)
@@ -1272,7 +1267,6 @@ static int
 ffs_rdextattr(u_char **p, struct vnode *vp, struct thread *td, int extra)
 {
 	struct inode *ip;
-	struct fs *fs;
 	struct ufs2_dinode *dp;
 	struct uio luio;
 	struct iovec liovec;
@@ -1280,7 +1274,6 @@ ffs_rdextattr(u_char **p, struct vnode *vp, struct thread *td, int extra)
 	u_char *eae;
 
 	ip = VTOI(vp);
-	fs = ip->i_fs;
 	dp = ip->i_din2;
 	easize = dp->di_extsize;
 
@@ -1309,12 +1302,10 @@ static int
 ffs_open_ea(struct vnode *vp, struct ucred *cred, struct thread *td)
 {
 	struct inode *ip;
-	struct fs *fs;
 	struct ufs2_dinode *dp;
 	int error;
 
 	ip = VTOI(vp);
-	fs = ip->i_fs;
 
 	if (ip->i_ea_area != NULL)
 		return (EBUSY);
@@ -1334,14 +1325,12 @@ static int
 ffs_close_ea(struct vnode *vp, int commit, struct ucred *cred, struct thread *td)
 {
 	struct inode *ip;
-	struct fs *fs;
 	struct uio luio;
 	struct iovec liovec;
 	int error;
 	struct ufs2_dinode *dp;
 
 	ip = VTOI(vp);
-	fs = ip->i_fs;
 	if (ip->i_ea_area == NULL)
 		return (EINVAL);
 	dp = ip->i_din2;
@@ -1471,7 +1460,6 @@ vop_getextattr {
 	struct inode *ip;
 	struct fs *fs;
 	u_char *eae, *p, *pe, *pn;
-	struct ufs2_dinode *dp;
 	unsigned easize;
 	uint32_t ul;
 	int error, ealen, stand_alone;
@@ -1495,7 +1483,6 @@ vop_getextattr {
 	} else {
 		stand_alone = 0;
 	}
-	dp = ip->i_din2;
 	eae = ip->i_ea_area;
 	easize = ip->i_ea_len;
 	if (strlen(ap->a_name) > 0) {
@@ -1556,10 +1543,8 @@ vop_setextattr {
 	struct inode *ip;
 	struct fs *fs;
 	uint32_t ealength, ul;
-	int ealen, olen, eacont, eapad1, eapad2, error, i, easize;
+	int ealen, olen, eapad1, eapad2, error, i, easize;
 	u_char *eae, *p;
-	struct ufs2_dinode *dp;
-	struct ucred *cred;
 	int stand_alone;
 
 	ip = VTOI(ap->a_vp);
@@ -1576,13 +1561,6 @@ vop_setextattr {
 		return (error);
 	}
 
-	if (ap->a_cred != NOCRED)
-		cred = ap->a_cred;
-	else
-		cred = ap->a_vp->v_mount->mnt_cred;
-
-	dp = ip->i_din2;
-
 	if (ip->i_ea_area == NULL) {
 		error = ffs_open_ea(ap->a_vp, ap->a_cred, ap->a_td);
 		if (error)
@@ -1595,14 +1573,13 @@ vop_setextattr {
 	/* Calculate the length of the EA entry */
 	if (ap->a_uio == NULL) {
 		/* delete */
-		ealength = eapad1 = ealen = eapad2 = eacont = 0;
+		ealength = eapad1 = ealen = eapad2 = 0;
 	} else {
 		ealen = ap->a_uio->uio_resid;
 		ealength = sizeof(uint32_t) + 3 + strlen(ap->a_name);
 		eapad1 = 8 - (ealength % 8);
 		if (eapad1 == 8)
 			eapad1 = 0;
-		eacont = ealength + eapad1;
 		eapad2 = 8 - (ealen % 8);
 		if (eapad2 == 8)
 			eapad2 = 0;
