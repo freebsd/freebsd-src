@@ -112,16 +112,17 @@ is 5000.
 .It Fl s Ar size
 Set the maximum number of bytes for the command line length provided to
 .Ar utility .
-The sum of the length of the utility name and the arguments passed to
+The sum of the length of the utility name, the arguments passed to
 .Ar utility
 (including
 .Dv NULL
-terminators) will be less than or equal to this number.
+terminators) and the current environment will be less than or equal to
+this number.
 The current default value for
 .Ar size
 is
 .Dv ARG_MAX
-- 2048.
+- 4096.
 .It Fl t
 Echo the command to be executed to standard error immediately before it
 is executed.
@@ -164,10 +165,19 @@ If any other error occurs,
 exits with a value of 1.
 .Sh SEE ALSO
 .Xr echo 1 ,
-.Xr find 1
+.Xr find 1 ,
+.Xr execvp 3
 .Sh STANDARDS
 The
 .Nm
 utility is expected to be
 .St -p1003.2
 compliant.
+.Sh BUGS
+If
+.Ar utility
+attempts to envoke another command such that the number of arguments or the
+size of the environment is increased, it risks
+.Xr execvp 3
+failing with
+.Dv E2BIG .
