@@ -1,12 +1,12 @@
 /*
 ** This file is in the public domain, so clarified as of
-** June 5, 1996 by Arthur David Olson (arthur_david_olson@nih.gov).
+** 1996-06-05 by Arthur David Olson (arthur_david_olson@nih.gov).
 */
 
 #include <sys/cdefs.h>
 #ifndef lint
 #ifndef NOID
-static char	elsieid[] __unused = "@(#)localtime.c	7.57";
+static char	elsieid[] __unused = "@(#)localtime.c	7.78";
 #endif /* !defined NOID */
 #endif /* !defined lint */
 __FBSDID("$FreeBSD$");
@@ -77,12 +77,23 @@ static char		wildabbr[] = "WILDABBR";
 
 static const char	gmt[] = "UTC";
 
+/*
+** The DST rules to use if TZ has no rules and we can't load TZDEFRULES.
+** We default to US rules as of 1999-08-17.
+** POSIX 1003.1 section 8.1.1 says that the default DST rules are
+** implementation dependent; for historical reasons, US rules are a
+** common default.
+*/
+#ifndef TZDEFRULESTRING
+#define TZDEFRULESTRING ",M4.1.0,M10.5.0"
+#endif /* !defined TZDEFDST */
+
 struct ttinfo {				/* time type information */
-	long		tt_gmtoff;	/* GMT offset in seconds */
+	long		tt_gmtoff;	/* UTC offset in seconds */
 	int		tt_isdst;	/* used to set tm_isdst */
 	int		tt_abbrind;	/* abbreviation list index */
 	int		tt_ttisstd;	/* TRUE if transition is std time */
-	int		tt_ttisgmt;	/* TRUE if transition is GMT */
+	int		tt_ttisgmt;	/* TRUE if transition is UTC */
 };
 
 struct lsinfo {				/* leap second information */
@@ -152,6 +163,10 @@ static time_t		time2(struct tm *tmp,
 				void(*funcp) (const time_t *,
 				long, struct tm*),
 				long offset, int * okayp);
+static time_t		time2sub(struct tm *tmp,
+				void(*funcp) (const time_t *,
+				long, struct tm*),
+				long offset, int * okayp, int do_norm_secs);
 static void		timesub(const time_t * timep, long offset,
 				const struct state * sp, struct tm * tmp);
 static int		tmcomp(const struct tm * atmp,
@@ -328,27 +343,23 @@ struct state * const	sp;
 	}
 	{
 		struct tzhead *	tzhp;
-		char		buf[sizeof *sp + sizeof *tzhp];
+		union {
+			struct tzhead	tzhead;
+			char		buf[sizeof *sp + sizeof *tzhp];
+		} u;
 		int		ttisstdcnt;
 		int		ttisgmtcnt;
 
-		i = _read(fid, buf, sizeof buf);
+		i = _read(fid, u.buf, sizeof u.buf);
 		if (_close(fid) != 0)
 			return -1;
-		p = buf;
-		p += (sizeof tzhp->tzh_magic) + (sizeof tzhp->tzh_reserved);
-		ttisstdcnt = (int) detzcode(p);
-		p += 4;
-		ttisgmtcnt = (int) detzcode(p);
-		p += 4;
-		sp->leapcnt = (int) detzcode(p);
-		p += 4;
-		sp->timecnt = (int) detzcode(p);
-		p += 4;
-		sp->typecnt = (int) detzcode(p);
-		p += 4;
-		sp->charcnt = (int) detzcode(p);
-		p += 4;
+		ttisstdcnt = (int) detzcode(u.tzhead.tzh_ttisstdcnt);
+		ttisgmtcnt = (int) detzcode(u.tzhead.tzh_ttisgmtcnt);
+		sp->leapcnt = (int) detzcode(u.tzhead.tzh_leapcnt);
+		sp->timecnt = (int) detzcode(u.tzhead.tzh_timecnt);
+		sp->typecnt = (int) detzcode(u.tzhead.tzh_typecnt);
+		sp->charcnt = (int) detzcode(u.tzhead.tzh_charcnt);
+		p = u.tzhead.tzh_charcnt + sizeof u.tzhead.tzh_charcnt;
 		if (sp->leapcnt < 0 || sp->leapcnt > TZ_MAX_LEAPS ||
 			sp->typecnt <= 0 || sp->typecnt > TZ_MAX_TYPES ||
 			sp->timecnt < 0 || sp->timecnt > TZ_MAX_TIMES ||
@@ -356,7 +367,7 @@ struct state * const	sp;
 			(ttisstdcnt != sp->typecnt && ttisstdcnt != 0) ||
 			(ttisgmtcnt != sp->typecnt && ttisgmtcnt != 0))
 				return -1;
-		if (i - (p - buf) < sp->timecnt * 4 +	/* ats */
+		if (i - (p - u.buf) < sp->timecnt * 4 +	/* ats */
 			sp->timecnt +			/* types */
 			sp->typecnt * (4 + 2) +		/* ttinfos */
 			sp->charcnt +			/* chars */
@@ -614,8 +625,8 @@ struct rule * const	rulep;
 }
 
 /*
-** Given the Epoch-relative time of January 1, 00:00:00 GMT, in a year, the
-** year, a rule, and the offset from GMT at the time that rule takes effect,
+** Given the Epoch-relative time of January 1, 00:00:00 UTC, in a year, the
+** year, a rule, and the offset from UTC at the time that rule takes effect,
 ** calculate the Epoch-relative time that rule takes effect.
 */
 
@@ -701,10 +712,10 @@ const long				offset;
 	}
 
 	/*
-	** "value" is the Epoch-relative time of 00:00:00 GMT on the day in
+	** "value" is the Epoch-relative time of 00:00:00 UTC on the day in
 	** question.  To get the Epoch-relative time of the specified local
 	** time on that day, add the transition time and the current offset
-	** from GMT.
+	** from UTC.
 	*/
 	return value + rulep->r_time + offset;
 }
@@ -766,6 +777,8 @@ const int			lastditch;
 			if (name == NULL)
 				return -1;
 		} else	dstoffset = stdoffset - SECSPERHOUR;
+		if (*name == '\0' && load_result != 0)
+			name = TZDEFRULESTRING;
 		if (*name == ',' || *name == ';') {
 			struct rule	start;
 			struct rule	end;
@@ -827,8 +840,6 @@ const int			lastditch;
 			int	j;
 
 			if (*name != '\0')
-				return -1;
-			if (load_result != 0)
 				return -1;
 			/*
 			** Initial values of theirstdoffset and theirdstoffset.
@@ -903,6 +914,7 @@ const int			lastditch;
 			sp->ttis[1].tt_gmtoff = -dstoffset;
 			sp->ttis[1].tt_isdst = TRUE;
 			sp->ttis[1].tt_abbrind = stdlen + 1;
+			sp->typecnt = 2;
 		}
 	} else {
 		dstlen = 0;
@@ -915,7 +927,7 @@ const int			lastditch;
 	sp->charcnt = stdlen + 1;
 	if (dstlen != 0)
 		sp->charcnt += dstlen + 1;
-	if (sp->charcnt > sizeof sp->chars)
+	if ((size_t) sp->charcnt > sizeof sp->chars)
 		return -1;
 	cp = sp->chars;
 	(void) strncpy(cp, stdname, stdlen);
@@ -976,9 +988,9 @@ tzset_basic(void)
 		return;
 	}
 
-	if (lcl_is_set > 0  &&  strcmp(lcl_TZname, name) == 0)
+	if (lcl_is_set > 0 && strcmp(lcl_TZname, name) == 0)
 		return;
-	lcl_is_set = (strlen(name) < sizeof(lcl_TZname));
+	lcl_is_set = strlen(name) < sizeof lcl_TZname;
 	if (lcl_is_set)
 		(void) strcpy(lcl_TZname, name);
 
@@ -997,6 +1009,8 @@ tzset_basic(void)
 		*/
 		lclptr->leapcnt = 0;		/* so, we're off a little */
 		lclptr->timecnt = 0;
+		lclptr->typecnt = 0;
+		lclptr->ttis[0].tt_isdst = 0;
 		lclptr->ttis[0].tt_gmtoff = 0;
 		lclptr->ttis[0].tt_abbrind = 0;
 		(void) strcpy(lclptr->chars, gmt);
@@ -1071,18 +1085,6 @@ struct tm * const	tmp;
 }
 
 struct tm *
-localtime_r(timep, p_tm)
-const time_t * const	timep;
-struct tm *p_tm;
-{
-	_MUTEX_LOCK(&lcl_mutex);
-	tzset_basic();
-	localsub(timep, 0L, p_tm);
-	_MUTEX_UNLOCK(&lcl_mutex);
-	return(p_tm);
-}
-
-struct tm *
 localtime(timep)
 const time_t * const	timep;
 {
@@ -1119,6 +1121,22 @@ const time_t * const	timep;
 }
 
 /*
+** Re-entrant version of localtime.
+*/
+
+struct tm *
+localtime_r(timep, tm)
+const time_t * const	timep;
+struct tm *		tm;
+{
+	_MUTEX_LOCK(&lcl_mutex);
+	tzset_basic();
+	localsub(timep, 0L, tm);
+	_MUTEX_UNLOCK(&lcl_mutex);
+	return tm;
+}
+
+/*
 ** gmtsub is to gmtime as localsub is to localtime.
 */
 
@@ -1142,7 +1160,7 @@ struct tm * const	tmp;
 #ifdef TM_ZONE
 	/*
 	** Could get fancy here and deliver something such as
-	** "GMT+xxxx" or "GMT-xxxx" if offset is non-zero,
+	** "UTC+xxxx" or "UTC-xxxx" if offset is non-zero,
 	** but this is no time for a treasure hunt.
 	*/
 	if (offset != 0)
@@ -1197,11 +1215,17 @@ const time_t * const	timep;
 	}
 }
 
+/*
+* Re-entrant version of gmtime.
+*/
+
 struct tm *
-gmtime_r(const time_t * timep, struct tm * tm)
+gmtime_r(timep, tm)
+const time_t * const	timep;
+struct tm *		tm;
 {
 	gmtsub(timep, 0L, tm);
-	return(tm);
+	return tm;
 }
 
 #ifdef STD_INSPIRED
@@ -1324,7 +1348,7 @@ const time_t * const	timep;
 {
 /*
 ** Section 4.12.3.2 of X3.159-1989 requires that
-**	The ctime funciton converts the calendar time pointed to by timer
+**	The ctime function converts the calendar time pointed to by timer
 **	to local time in the form of a string.  It is equivalent to
 **		asctime(localtime(timer))
 */
@@ -1334,9 +1358,10 @@ const time_t * const	timep;
 char *
 ctime_r(timep, buf)
 const time_t * const	timep;
-char *buf;
+char *			buf;
 {
-        struct tm tm;
+	struct tm	tm;
+
 	return asctime_r(localtime_r(timep, &tm), buf);
 }
 
@@ -1402,11 +1427,12 @@ const struct tm * const btmp;
 }
 
 static time_t
-time2(tmp, funcp, offset, okayp)
+time2sub(tmp, funcp, offset, okayp, do_norm_secs)
 struct tm * const	tmp;
 void (* const		funcp)(const time_t*, long, struct tm*);
 const long		offset;
 int * const		okayp;
+const int		do_norm_secs;
 {
 	const struct state *	sp;
 	int			dir;
@@ -1419,6 +1445,11 @@ int * const		okayp;
 
 	*okayp = FALSE;
 	yourtm = *tmp;
+	if (do_norm_secs) {
+		if (normalize_overflow(&yourtm.tm_min, &yourtm.tm_sec,
+			SECSPERMIN))
+				return WRONG;
+	}
 	if (normalize_overflow(&yourtm.tm_hour, &yourtm.tm_min, MINSPERHOUR))
 		return WRONG;
 	if (normalize_overflow(&yourtm.tm_mday, &yourtm.tm_hour, HOURSPERDAY))
@@ -1551,6 +1582,24 @@ label:
 }
 
 static time_t
+time2(tmp, funcp, offset, okayp)
+struct tm * const	tmp;
+void (* const		funcp)(const time_t*, long, struct tm*);
+const long		offset;
+int * const		okayp;
+{
+	time_t	t;
+
+	/*
+	** First try without normalization of seconds
+	** (in case tm_sec contains a value associated with a leap second).
+	** If that fails, try with normalization of seconds.
+	*/
+	t = time2sub(tmp, funcp, offset, okayp, FALSE);
+	return *okayp ? t : time2sub(tmp, funcp, offset, okayp, TRUE);
+}
+
+static time_t
 time1(tmp, funcp, offset)
 struct tm * const	tmp;
 void (* const		funcp)(const time_t *, long, struct tm *);
@@ -1559,6 +1608,11 @@ const long		offset;
 	time_t			t;
 	const struct state *	sp;
 	int			samei, otheri;
+	int			sameind, otherind;
+	int			i;
+	int			nseen;
+	int				seen[TZ_MAX_TYPES];
+	int				types[TZ_MAX_TYPES];
 	int				okay;
 
 	if (tmp->tm_isdst > 1)
@@ -1588,10 +1642,20 @@ const long		offset;
 	if (sp == NULL)
 		return WRONG;
 #endif /* defined ALL_STATE */
-	for (samei = sp->typecnt - 1; samei >= 0; --samei) {
+	for (i = 0; i < sp->typecnt; ++i)
+		seen[i] = FALSE;
+	nseen = 0;
+	for (i = sp->timecnt - 1; i >= 0; --i)
+		if (!seen[sp->types[i]]) {
+			seen[sp->types[i]] = TRUE;
+			types[nseen++] = sp->types[i];
+		}
+	for (sameind = 0; sameind < nseen; ++sameind) {
+		samei = types[sameind];
 		if (sp->ttis[samei].tt_isdst != tmp->tm_isdst)
 			continue;
-		for (otheri = sp->typecnt - 1; otheri >= 0; --otheri) {
+		for (otherind = 0; otherind < nseen; ++otherind) {
+			otheri = types[otherind];
 			if (sp->ttis[otheri].tt_isdst == tmp->tm_isdst)
 				continue;
 			tmp->tm_sec += sp->ttis[otheri].tt_gmtoff -
@@ -1677,7 +1741,7 @@ struct tm * const	tmp;
 
 /*
 ** IEEE Std 1003.1-1988 (POSIX) legislates that 536457599
-** shall correspond to "Wed Dec 31 23:59:59 GMT 1986", which
+** shall correspond to "Wed Dec 31 23:59:59 UTC 1986", which
 ** is not the case if we are accounting for leap seconds.
 ** So, we provide the following conversion routines for use
 ** when exchanging timestamps with POSIX conforming systems.

@@ -17,7 +17,7 @@
 
 #ifndef lint
 #ifndef NOID
-static const char	elsieid[] = "@(#)strftime.c	7.38";
+static const char	elsieid[] = "@(#)strftime.c	7.64";
 /*
 ** Based on the UCB version with the ID appearing below.
 ** This is ANSIish only when "multibyte character == plain character".
@@ -42,21 +42,49 @@ __FBSDID("$FreeBSD$");
 
 static char *	_add(const char *, char *, const char *);
 static char *	_conv(int, const char *, char *, const char *);
-static char *	_fmt(const char *, const struct tm *, char *, const char *);
+static char *	_fmt(const char *, const struct tm *, char *, const char *, int *);
 
 size_t strftime(char * __restrict, size_t, const char * __restrict,
     const struct tm * __restrict);
 
 extern char *	tzname[];
 
+#ifndef YEAR_2000_NAME
+#define YEAR_2000_NAME	"CHECK_STRFTIME_FORMATS_FOR_TWO_DIGIT_YEARS"
+#endif /* !defined YEAR_2000_NAME */
+
+
+#define IN_NONE	0
+#define IN_SOME	1
+#define IN_THIS	2
+#define IN_ALL	3
+
 size_t
 strftime(char * __restrict s, size_t maxsize, const char * __restrict format,
     const struct tm * __restrict t)
 {
-	char *p;
+	char *	p;
+	int	warn;
 
 	tzset();
-	p = _fmt(((format == NULL) ? "%c" : format), t, s, s + maxsize);
+	warn = IN_NONE;
+	p = _fmt(((format == NULL) ? "%c" : format), t, s, s + maxsize, &warn);
+#ifndef NO_RUN_TIME_WARNINGS_ABOUT_YEAR_2000_PROBLEMS_THANK_YOU
+	if (warn != IN_NONE && getenv(YEAR_2000_NAME) != NULL) {
+		(void) fprintf(stderr, "\n");
+		if (format == NULL)
+			(void) fprintf(stderr, "NULL strftime format ");
+		else	(void) fprintf(stderr, "strftime format \"%s\" ",
+				format);
+		(void) fprintf(stderr, "yields only two digits of years in ");
+		if (warn == IN_SOME)
+			(void) fprintf(stderr, "some locales");
+		else if (warn == IN_THIS)
+			(void) fprintf(stderr, "the current locale");
+		else	(void) fprintf(stderr, "all locales");
+		(void) fprintf(stderr, "\n");
+	}
+#endif /* !defined NO_RUN_TIME_WARNINGS_ABOUT_YEAR_2000_PROBLEMS_THANK_YOU */
 	if (p == s + maxsize)
 		return 0;
 	*p = '\0';
@@ -64,11 +92,12 @@ strftime(char * __restrict s, size_t maxsize, const char * __restrict format,
 }
 
 static char *
-_fmt(format, t, pt, ptlim)
-	const char *format;
-	const struct tm *const t;
-	char *pt;
-	const char *const ptlim;
+_fmt(format, t, pt, ptlim, warnp)
+const char *		format;
+const struct tm * const	t;
+char *			pt;
+const char * const	ptlim;
+int *			warnp;
 {
 	int Ealternative, Oalternative;
 	struct lc_time_T *tptr = __get_current_time_locale();
@@ -83,24 +112,28 @@ label:
 				--format;
 				break;
 			case 'A':
-				pt = _add((t->tm_wday < 0 || t->tm_wday > 6) ?
+				pt = _add((t->tm_wday < 0 ||
+					t->tm_wday >= DAYSPERWEEK) ?
 					"?" : tptr->weekday[t->tm_wday],
 					pt, ptlim);
 				continue;
 			case 'a':
-				pt = _add((t->tm_wday < 0 || t->tm_wday > 6) ?
+				pt = _add((t->tm_wday < 0 ||
+					t->tm_wday >= DAYSPERWEEK) ?
 					"?" : tptr->wday[t->tm_wday],
 					pt, ptlim);
 				continue;
 			case 'B':
-				pt = _add((t->tm_mon < 0 || t->tm_mon > 11) ? 
+				pt = _add((t->tm_mon < 0 ||
+					t->tm_mon >= MONSPERYEAR) ?
 					"?" : (Oalternative ? tptr->alt_month :
 					tptr->month)[t->tm_mon],
 					pt, ptlim);
 				continue;
 			case 'b':
 			case 'h':
-				pt = _add((t->tm_mon < 0 || t->tm_mon > 11) ?
+				pt = _add((t->tm_mon < 0 ||
+					t->tm_mon >= MONSPERYEAR) ?
 					"?" : tptr->mon[t->tm_mon],
 					pt, ptlim);
 				continue;
@@ -110,16 +143,24 @@ label:
 				**	_fmt("%a %b %e %X %Y", t);
 				** ...whereas now POSIX 1003.2 calls for
 				** something completely different.
-				** (ado, 5/24/93)
+				** (ado, 1993-05-24)
 				*/
 				pt = _conv((t->tm_year + TM_YEAR_BASE) / 100,
 					"%02d", pt, ptlim);
 				continue;
 			case 'c':
-				pt = _fmt(tptr->c_fmt, t, pt, ptlim);
+				{
+				int warn2 = IN_SOME;
+
+				pt = _fmt(tptr->c_fmt, t, pt, ptlim, warnp);
+				if (warn2 == IN_ALL)
+					warn2 = IN_THIS;
+				if (warn2 > *warnp)
+					*warnp = warn2;
+				}
 				continue;
 			case 'D':
-				pt = _fmt("%m/%d/%y", t, pt, ptlim);
+				pt = _fmt("%m/%d/%y", t, pt, ptlim, warnp);
 				continue;
 			case 'd':
 				pt = _conv(t->tm_mday, "%02d", pt, ptlim);
@@ -131,15 +172,13 @@ label:
 				goto label;
 			case 'O':
 				/*
-				** POSIX locale extensions, a la
-				** Arnold Robbins' strftime version 3.0.
+				** C99 locale modifiers.
 				** The sequences
-				**      %Ec %EC %Ex %EX %Ey %EY
+				**	%Ec %EC %Ex %EX %Ey %EY
 				**	%Od %oe %OH %OI %Om %OM
 				**	%OS %Ou %OU %OV %Ow %OW %Oy
 				** are supposed to provide alternate
 				** representations.
-				** (ado, 5/24/93)
 				**
 				** FreeBSD extension
 				**      %OB
@@ -152,7 +191,7 @@ label:
 				pt = _conv(t->tm_mday, "%2d", pt, ptlim);
 				continue;
 			case 'F':
-				pt = _fmt("%Y-%m-%d", t, pt, ptlim);
+				pt = _fmt("%Y-%m-%d", t, pt, ptlim, warnp);
 				continue;
 			case 'H':
 				pt = _conv(t->tm_hour, "%02d", pt, ptlim);
@@ -174,7 +213,7 @@ label:
 				** match SunOS 4.1.1 and Arnold Robbins'
 				** strftime version 3.0.  That is, "%k" and
 				** "%l" have been swapped.
-				** (ado, 5/24/93)
+				** (ado, 1993-05-24)
 				*/
 				pt = _conv(t->tm_hour, "%2d", pt, ptlim);
 				continue;
@@ -194,7 +233,7 @@ label:
 				** match SunOS 4.1.1 and Arnold Robbin's
 				** strftime version 3.0.  That is, "%k" and
 				** "%l" have been swapped.
-				** (ado, 5/24/93)
+				** (ado, 1993-05-24)
 				*/
 				pt = _conv((t->tm_hour % 12) ?
 					(t->tm_hour % 12) : 12,
@@ -210,16 +249,17 @@ label:
 				pt = _add("\n", pt, ptlim);
 				continue;
 			case 'p':
-				pt = _add((t->tm_hour >= 12) ?
+				pt = _add((t->tm_hour >= (HOURSPERDAY / 2)) ?
 					tptr->pm :
 					tptr->am,
 					pt, ptlim);
 				continue;
 			case 'R':
-				pt = _fmt("%H:%M", t, pt, ptlim);
+				pt = _fmt("%H:%M", t, pt, ptlim, warnp);
 				continue;
 			case 'r':
-				pt = _fmt(tptr->ampm_fmt, t, pt, ptlim);
+				pt = _fmt(tptr->ampm_fmt, t, pt, ptlim,
+					warnp);
 				continue;
 			case 'S':
 				pt = _conv(t->tm_sec, "%02d", pt, ptlim);
@@ -242,13 +282,14 @@ label:
 				}
 				continue;
 			case 'T':
-				pt = _fmt("%H:%M:%S", t, pt, ptlim);
+				pt = _fmt("%H:%M:%S", t, pt, ptlim, warnp);
 				continue;
 			case 't':
 				pt = _add("\t", pt, ptlim);
 				continue;
 			case 'U':
-				pt = _conv((t->tm_yday + 7 - t->tm_wday) / 7,
+				pt = _conv((t->tm_yday + DAYSPERWEEK -
+					t->tm_wday) / DAYSPERWEEK,
 					"%02d", pt, ptlim);
 				continue;
 			case 'u':
@@ -256,9 +297,10 @@ label:
 				** From Arnold Robbins' strftime version 3.0:
 				** "ISO 8601: Weekday as a decimal number
 				** [1 (Monday) - 7]"
-				** (ado, 5/24/93)
+				** (ado, 1993-05-24)
 				*/
-				pt = _conv((t->tm_wday == 0) ? 7 : t->tm_wday,
+				pt = _conv((t->tm_wday == 0) ?
+					DAYSPERWEEK : t->tm_wday,
 					"%d", pt, ptlim);
 				continue;
 			case 'V':	/* ISO 8601 week number */
@@ -340,6 +382,7 @@ label:
 						pt = _conv(w, "%02d",
 							pt, ptlim);
 					else if (*format == 'g') {
+						*warnp = IN_ALL;
 						pt = _conv(year % 100, "%02d",
 							pt, ptlim);
 					} else	pt = _conv(year, "%04d",
@@ -350,26 +393,36 @@ label:
 				/*
 				** From Arnold Robbins' strftime version 3.0:
 				** "date as dd-bbb-YYYY"
-				** (ado, 5/24/93)
+				** (ado, 1993-05-24)
 				*/
-				pt = _fmt("%e-%b-%Y", t, pt, ptlim);
+				pt = _fmt("%e-%b-%Y", t, pt, ptlim, warnp);
 				continue;
 			case 'W':
-				pt = _conv((t->tm_yday + 7 -
+				pt = _conv((t->tm_yday + DAYSPERWEEK -
 					(t->tm_wday ?
-					(t->tm_wday - 1) : 6)) / 7,
+					(t->tm_wday - 1) :
+					(DAYSPERWEEK - 1))) / DAYSPERWEEK,
 					"%02d", pt, ptlim);
 				continue;
 			case 'w':
 				pt = _conv(t->tm_wday, "%d", pt, ptlim);
 				continue;
 			case 'X':
-				pt = _fmt(tptr->X_fmt, t, pt, ptlim);
+				pt = _fmt(tptr->X_fmt, t, pt, ptlim, warnp);
 				continue;
 			case 'x':
-				pt = _fmt(tptr->x_fmt, t, pt, ptlim);
+				{
+				int	warn2 = IN_SOME;
+
+				pt = _fmt(tptr->x_fmt, t, pt, ptlim, &warn2);
+				if (warn2 == IN_ALL)
+					warn2 = IN_THIS;
+				if (warn2 > *warnp)
+					*warnp = warn2;
+				}
 				continue;
 			case 'y':
+				*warnp = IN_ALL;
 				pt = _conv((t->tm_year + TM_YEAR_BASE) % 100,
 					"%02d", pt, ptlim);
 				continue;
@@ -378,39 +431,82 @@ label:
 					pt, ptlim);
 				continue;
 			case 'Z':
-				if (t->tm_zone != NULL)
-					pt = _add(t->tm_zone, pt, ptlim);
+#ifdef TM_ZONE
+				if (t->TM_ZONE != NULL)
+					pt = _add(t->TM_ZONE, pt, ptlim);
 				else
-				if (t->tm_isdst == 0 || t->tm_isdst == 1) {
-					pt = _add(tzname[t->tm_isdst],
+#endif /* defined TM_ZONE */
+				if (t->tm_isdst >= 0)
+					pt = _add(tzname[t->tm_isdst != 0],
 						pt, ptlim);
-				} else  pt = _add("?", pt, ptlim);
+				/*
+				** C99 says that %Z must be replaced by the
+				** empty string if the time zone is not
+				** determinable.
+				*/
 				continue;
 			case 'z':
 				{
-					long absoff;
-					if (t->tm_gmtoff >= 0) {
-						absoff = t->tm_gmtoff;
-						pt = _add("+", pt, ptlim);
-					} else {
-						absoff = -t->tm_gmtoff;
-						pt = _add("-", pt, ptlim);
-					}
-					pt = _conv(absoff / 3600, "%02d",
-						pt, ptlim);
-					pt = _conv((absoff % 3600) / 60, "%02d",
-						pt, ptlim);
-				};
+				int		diff;
+				char const *	sign;
+
+				if (t->tm_isdst < 0)
+					continue;
+#ifdef TM_GMTOFF
+				diff = t->TM_GMTOFF;
+#else /* !defined TM_GMTOFF */
+				/*
+				** C99 says that the UTC offset must
+				** be computed by looking only at
+				** tm_isdst.  This requirement is
+				** incorrect, since it means the code
+				** must rely on magic (in this case
+				** altzone and timezone), and the
+				** magic might not have the correct
+				** offset.  Doing things correctly is
+				** tricky and requires disobeying C99;
+				** see GNU C strftime for details.
+				** For now, punt and conform to the
+				** standard, even though it's incorrect.
+				**
+				** C99 says that %z must be replaced by the
+				** empty string if the time zone is not
+				** determinable, so output nothing if the
+				** appropriate variables are not available.
+				*/
+				if (t->tm_isdst == 0)
+#ifdef USG_COMPAT
+					diff = -timezone;
+#else /* !defined USG_COMPAT */
+					continue;
+#endif /* !defined USG_COMPAT */
+				else
+#ifdef ALTZONE
+					diff = -altzone;
+#else /* !defined ALTZONE */
+					continue;
+#endif /* !defined ALTZONE */
+#endif /* !defined TM_GMTOFF */
+				if (diff < 0) {
+					sign = "-";
+					diff = -diff;
+				} else	sign = "+";
+				pt = _add(sign, pt, ptlim);
+				diff /= 60;
+				pt = _conv((diff/60)*100 + diff%60,
+					"%04d", pt, ptlim);
+				}
 				continue;
 			case '+':
-				pt = _fmt(tptr->date_fmt, t, pt, ptlim);
+				pt = _fmt(tptr->date_fmt, t, pt, ptlim,
+					warnp);
 				continue;
 			case '%':
 			/*
-			 * X311J/88-090 (4.12.3.5): if conversion char is
-			 * undefined, behavior is undefined.  Print out the
-			 * character itself as printf(3) also does.
-			 */
+			** X311J/88-090 (4.12.3.5): if conversion char is
+			** undefined, behavior is undefined.  Print out the
+			** character itself as printf(3) also does.
+			*/
 			default:
 				break;
 			}
@@ -424,10 +520,10 @@ label:
 
 static char *
 _conv(n, format, pt, ptlim)
-	const int n;
-	const char *const format;
-	char *const pt;
-	const char *const ptlim;
+const int		n;
+const char * const	format;
+char * const		pt;
+const char * const	ptlim;
 {
 	char	buf[INT_STRLEN_MAXIMUM(int) + 1];
 
@@ -437,9 +533,9 @@ _conv(n, format, pt, ptlim)
 
 static char *
 _add(str, pt, ptlim)
-	const char *str;
-	char *pt;
-	const char *const ptlim;
+const char *		str;
+char *			pt;
+const char * const	ptlim;
 {
 	while (pt < ptlim && (*pt = *str++) != '\0')
 		++pt;
