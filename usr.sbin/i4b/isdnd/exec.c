@@ -107,7 +107,7 @@ pid_t
 exec_prog(char *prog, char **arglist)
 {
 	char tmp[MAXPATHLEN];
-	char path[MAXPATHLEN+1];
+	char path[MAXPATHLEN];
 	pid_t pid;
 	int a;
 
