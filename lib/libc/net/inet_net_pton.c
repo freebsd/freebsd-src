@@ -17,7 +17,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char orig_rcsid[] = "From Id: inet_net_pton.c,v 1.8 1996/11/21 10:28:12 vixie Exp $";
-static const char rcsid[] = "$Id: inet_net_pton.c,v 1.3 1997/02/22 15:00:18 peter Exp $";
+static const char rcsid[] = "$Id: inet_net_pton.c,v 1.4 1998/06/11 09:02:33 peter Exp $";
 #endif
 
 #include <sys/types.h>
@@ -205,3 +205,10 @@ inet_net_pton_ipv4(src, dst, size)
 	errno = EMSGSIZE;
 	return (-1);
 }
+
+/*
+ * Weak aliases for applications that use certain private entry points,
+ * and fail to include <arpa/inet.h>.
+ */
+#undef inet_net_pton
+__weak_reference(__inet_net_pton, inet_net_pton);

@@ -56,3 +56,10 @@ inet_netof(in)
 	else
 		return (((i)&IN_CLASSC_NET) >> IN_CLASSC_NSHIFT);
 }
+
+/*
+ * Weak aliases for applications that use certain private entry points,
+ * and fail to include <arpa/inet.h>.
+ */
+#undef inet_netof
+__weak_reference(__inet_netof, inet_netof);

@@ -17,7 +17,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char orig_rcsid[] = "From Id: inet_neta.c,v 8.2 1996/08/08 06:54:44 vixie Exp";
-static const char rcsid[] = "$Id: inet_neta.c,v 1.3 1997/02/22 15:00:20 peter Exp $";
+static const char rcsid[] = "$Id: inet_neta.c,v 1.4 1998/02/20 08:13:51 jb Exp $";
 #endif
 
 #include <sys/types.h>
@@ -82,3 +82,10 @@ inet_neta(src, dst, size)
 	errno = EMSGSIZE;
 	return (NULL);
 }
+
+/*
+ * Weak aliases for applications that use certain private entry points,
+ * and fail to include <arpa/inet.h>.
+ */
+#undef inet_neta
+__weak_reference(__inet_neta, inet_neta);

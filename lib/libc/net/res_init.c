@@ -71,7 +71,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_init.c	8.1 (Berkeley) 6/7/93";
 static char orig_rcsid[] = "From: Id: res_init.c,v 8.7 1996/11/18 09:10:04 vixie Exp $";
-static char rcsid[] = "$Id: res_init.c,v 1.14 1997/09/01 01:19:20 brian Exp $";
+static char rcsid[] = "$Id: res_init.c,v 1.15 1998/06/11 09:02:54 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -478,3 +478,10 @@ res_randomid()
 	gettimeofday(&now, NULL);
 	return (0xffff & (now.tv_sec ^ now.tv_usec ^ getpid()));
 }
+
+/*
+ * Weak aliases for applications that use certain private entry points,
+ * and fail to include <resolv.h>.
+ */
+#undef res_init
+__weak_reference(__res_init, res_init);

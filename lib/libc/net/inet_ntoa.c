@@ -55,3 +55,10 @@ inet_ntoa(in)
 	(void) inet_ntop(AF_INET, &in, ret, sizeof ret);
 	return (ret);
 }
+
+/*
+ * Weak aliases for applications that use certain private entry points,
+ * and fail to include <arpa/inet.h>.
+ */
+#undef inet_ntoa
+__weak_reference(__inet_ntoa, inet_ntoa);

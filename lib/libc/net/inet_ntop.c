@@ -15,7 +15,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] = "$Id: inet_ntop.c,v 1.3 1997/02/22 15:00:21 peter Exp $";
+static char rcsid[] = "$Id: inet_ntop.c,v 1.4 1998/06/11 09:02:35 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -189,3 +189,10 @@ inet_ntop6(src, dst, size)
 	strcpy(dst, tmp);
 	return (dst);
 }
+
+/*
+ * Weak aliases for applications that use certain private entry points,
+ * and fail to include <arpa/inet.h>.
+ */
+#undef inet_ntop
+__weak_reference(__inet_ntop, inet_ntop);
