@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbinput - user front-end to the AML debugger
- *              $Revision: 81 $
+ *              $Revision: 86 $
  *
  ******************************************************************************/
 
@@ -116,10 +116,6 @@
 
 
 #include "acpi.h"
-#include "acparser.h"
-#include "actables.h"
-#include "acnamesp.h"
-#include "acinterp.h"
 #include "acdebug.h"
 
 
@@ -158,6 +154,7 @@ enum AcpiExDebuggerCommands
     CMD_HISTORY_EXE,
     CMD_HISTORY_LAST,
     CMD_INFORMATION,
+    CMD_INTEGRITY,
     CMD_INTO,
     CMD_LEVEL,
     CMD_LIST,
@@ -188,7 +185,7 @@ enum AcpiExDebuggerCommands
 #define CMD_FIRST_VALID     2
 
 
-const COMMAND_INFO          AcpiGbl_DbCommands[] =
+static const COMMAND_INFO       AcpiGbl_DbCommands[] =
 {
     {"<NOT FOUND>",  0},
     {"<NULL>",       0},
@@ -212,6 +209,7 @@ const COMMAND_INFO          AcpiGbl_DbCommands[] =
     {"!",            1},
     {"!!",           0},
     {"INFORMATION",  0},
+    {"INTEGRITY",    0},
     {"INTO",         0},
     {"LEVEL",        0},
     {"LIST",         0},
@@ -343,7 +341,7 @@ AcpiDbDisplayHelp (
         return;
 
     default:
-        AcpiOsPrintf ("Unrecognized Command Class: %x\n", HelpType);
+        AcpiOsPrintf ("Unrecognized Command Class: %X\n", HelpType);
         return;
     }
 }
@@ -618,7 +616,7 @@ AcpiDbCommandDispatch (
         break;
 
     case CMD_FIND:
-        AcpiDbFindNameInNamespace (AcpiGbl_DbArgs[1]);
+        Status = AcpiDbFindNameInNamespace (AcpiGbl_DbArgs[1]);
         break;
 
     case CMD_GO:
@@ -664,6 +662,10 @@ AcpiDbCommandDispatch (
 
     case CMD_INFORMATION:
         AcpiDbDisplayMethodInfo (Op);
+        break;
+
+    case CMD_INTEGRITY:
+        AcpiDbCheckIntegrity ();
         break;
 
     case CMD_INTO:
@@ -715,7 +717,7 @@ AcpiDbCommandDispatch (
         break;
 
     case CMD_METHODS:
-        AcpiDbDisplayObjects ("METHOD", AcpiGbl_DbArgs[1]);
+        Status = AcpiDbDisplayObjects ("METHOD", AcpiGbl_DbArgs[1]);
         break;
 
     case CMD_NAMESPACE:
@@ -728,7 +730,8 @@ AcpiDbCommandDispatch (
         break;
 
     case CMD_OBJECT:
-        AcpiDbDisplayObjects (ACPI_STRUPR (AcpiGbl_DbArgs[1]), AcpiGbl_DbArgs[2]);
+        ACPI_STRUPR (AcpiGbl_DbArgs[1]);
+        Status = AcpiDbDisplayObjects (AcpiGbl_DbArgs[1], AcpiGbl_DbArgs[2]);
         break;
 
     case CMD_OPEN:
@@ -760,11 +763,11 @@ AcpiDbCommandDispatch (
         break;
 
     case CMD_STATS:
-        AcpiDbDisplayStatistics (AcpiGbl_DbArgs[1]);
+        Status = AcpiDbDisplayStatistics (AcpiGbl_DbArgs[1]);
         break;
 
     case CMD_STOP:
-        return (AE_AML_ERROR);
+        return (AE_NOT_IMPLEMENTED);
 
     case CMD_TABLES:
         AcpiDbDisplayTableInfo (AcpiGbl_DbArgs[1]);
@@ -814,6 +817,7 @@ AcpiDbCommandDispatch (
         return (AE_CTRL_TERMINATE);
 
     case CMD_NOT_FOUND:
+    default:
         AcpiOsPrintf ("Unknown Command\n");
         return (AE_CTRL_TRUE);
     }
@@ -886,13 +890,11 @@ void
 AcpiDbSingleThread (
     void)
 {
-    ACPI_STATUS             Status;
-
 
     AcpiGbl_MethodExecuting = FALSE;
     AcpiGbl_StepToNextCall = FALSE;
 
-    Status = AcpiDbCommandDispatch (AcpiGbl_DbLineBuf, NULL, NULL);
+    (void) AcpiDbCommandDispatch (AcpiGbl_DbLineBuf, NULL, NULL);
 }
 
 
@@ -939,8 +941,7 @@ AcpiDbUserCommands (
 
         /* Get the user input line */
 
-        AcpiOsGetLine (AcpiGbl_DbLineBuf);
-
+        (void) AcpiOsGetLine (AcpiGbl_DbLineBuf);
 
         /* Check for single or multithreaded debug */
 
@@ -974,7 +975,7 @@ AcpiDbUserCommands (
      * Only this thread (the original thread) should actually terminate the subsystem,
      * because all the semaphores are deleted during termination
      */
-    AcpiTerminate ();
+    Status = AcpiTerminate ();
     return (Status);
 }
 

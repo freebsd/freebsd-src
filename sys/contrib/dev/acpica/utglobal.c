@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utglobal - Global variables for the ACPI subsystem
- *              $Revision: 155 $
+ *              $Revision: 162 $
  *
  *****************************************************************************/
 
@@ -118,11 +118,7 @@
 #define DEFINE_ACPI_GLOBALS
 
 #include "acpi.h"
-#include "acevents.h"
 #include "acnamesp.h"
-#include "acinterp.h"
-#include "amlcode.h"
-
 
 #define _COMPONENT          ACPI_UTILITIES
         ACPI_MODULE_NAME    ("utglobal")
@@ -280,15 +276,15 @@ const NATIVE_CHAR           *AcpiGbl_DbSleepStates[ACPI_NUM_SLEEP_STATES] = {
 
 const ACPI_PREDEFINED_NAMES     AcpiGbl_PreDefinedNames[] =
 {
-    {"_GPE",    INTERNAL_TYPE_DEF_ANY},
-    {"_PR_",    INTERNAL_TYPE_DEF_ANY},
-    {"_SB_",    ACPI_TYPE_DEVICE},
-    {"_SI_",    INTERNAL_TYPE_DEF_ANY},
-    {"_TZ_",    INTERNAL_TYPE_DEF_ANY},
+    {"_GPE",    INTERNAL_TYPE_DEF_ANY,      NULL},
+    {"_PR_",    INTERNAL_TYPE_DEF_ANY,      NULL},
+    {"_SB_",    ACPI_TYPE_DEVICE,           NULL},
+    {"_SI_",    INTERNAL_TYPE_DEF_ANY,      NULL},
+    {"_TZ_",    INTERNAL_TYPE_DEF_ANY,      NULL},
     {"_REV",    ACPI_TYPE_INTEGER,          "2"},
     {"_OS_",    ACPI_TYPE_STRING,           ACPI_OS_NAME},
     {"_GL_",    ACPI_TYPE_MUTEX,            "0"},
-    {NULL,      ACPI_TYPE_ANY}              /* Table terminator */
+    {NULL,      ACPI_TYPE_ANY,              NULL}              /* Table terminator */
 };
 
 
@@ -343,9 +339,9 @@ const UINT8                     AcpiGbl_NsProperties[] =
 
 /* Hex to ASCII conversion table */
 
-const NATIVE_CHAR           AcpiGbl_HexToAscii[] =
+static const NATIVE_CHAR    AcpiGbl_HexToAscii[] =
                                 {'0','1','2','3','4','5','6','7',
-                                '8','9','A','B','C','D','E','F'};
+                                 '8','9','A','B','C','D','E','F'};
 
 /*****************************************************************************
  *
@@ -361,7 +357,7 @@ const NATIVE_CHAR           AcpiGbl_HexToAscii[] =
  *
  ****************************************************************************/
 
-UINT8
+char
 AcpiUtHexToAsciiChar (
     ACPI_INTEGER            Integer,
     UINT32                  Position)
@@ -461,7 +457,7 @@ ACPI_FIXED_EVENT_INFO       AcpiGbl_FixedEventInfo[ACPI_NUM_FIXED_EVENTS] =
 
 /* Region type decoding */
 
-const NATIVE_CHAR *AcpiGbl_RegionTypes[ACPI_NUM_PREDEFINED_REGIONS] =
+static const NATIVE_CHAR *AcpiGbl_RegionTypes[ACPI_NUM_PREDEFINED_REGIONS] =
 {
     "SystemMemory",
     "SystemIO",
@@ -507,7 +503,7 @@ AcpiUtGetRegionName (
 
 /* Event type decoding */
 
-const NATIVE_CHAR *AcpiGbl_EventTypes[ACPI_NUM_FIXED_EVENTS] =
+static const NATIVE_CHAR *AcpiGbl_EventTypes[ACPI_NUM_FIXED_EVENTS] =
 {
     "PM_Timer",
     "GlobalLock",
@@ -531,7 +527,7 @@ AcpiUtGetEventName (
 }
 
 
-#ifdef ACPI_DEBUG
+#if defined(ACPI_DEBUG) || defined(ENABLE_DEBUGGER)
 
 /*
  * Strings and procedures used for debug only
@@ -645,16 +641,35 @@ AcpiUtGetTypeName (
 }
 
 
+NATIVE_CHAR *
+AcpiUtGetObjectTypeName (
+    ACPI_OPERAND_OBJECT     *ObjDesc)
+{
+
+    if (!ObjDesc)
+    {
+        return ("[NULL Object Descriptor]");
+    }
+
+    return (AcpiUtGetTypeName (ACPI_GET_OBJECT_TYPE (ObjDesc)));
+}
+
+
+/* Various strings for future use */
+
+#if 0
+#include "amlcode.h"
+
 /* Data used in keeping track of fields */
 
-const NATIVE_CHAR *AcpiGbl_FENames[NUM_FIELD_NAMES] =
+static const NATIVE_CHAR *AcpiGbl_FENames[NUM_FIELD_NAMES] =
 {
     "skip",
     "?access?"
 };              /* FE = Field Element */
 
 
-const NATIVE_CHAR *AcpiGbl_MatchOps[NUM_MATCH_OPS] =
+static const NATIVE_CHAR *AcpiGbl_MatchOps[NUM_MATCH_OPS] =
 {
     "Error",
     "MTR",
@@ -668,7 +683,7 @@ const NATIVE_CHAR *AcpiGbl_MatchOps[NUM_MATCH_OPS] =
 
 /* Access type decoding */
 
-const NATIVE_CHAR *AcpiGbl_AccessTypes[NUM_ACCESS_TYPES] =
+static const NATIVE_CHAR *AcpiGbl_AccessTypes[NUM_ACCESS_TYPES] =
 {
     "AnyAcc",
     "ByteAcc",
@@ -681,12 +696,13 @@ const NATIVE_CHAR *AcpiGbl_AccessTypes[NUM_ACCESS_TYPES] =
 
 /* Update rule decoding */
 
-const NATIVE_CHAR *AcpiGbl_UpdateRules[NUM_UPDATE_RULES] =
+static const NATIVE_CHAR *AcpiGbl_UpdateRules[NUM_UPDATE_RULES] =
 {
     "Preserve",
     "WriteAsOnes",
     "WriteAsZeros"
 };
+#endif /* Future use */
 
 #endif
 
@@ -770,6 +786,9 @@ AcpiUtAllocateOwnerId (
             AcpiGbl_NextMethodOwnerId = ACPI_FIRST_METHOD_ID;
         }
         break;
+
+    default:
+        break;
     }
 
     (void) AcpiUtReleaseMutex (ACPI_MTX_CACHES);
@@ -802,15 +821,15 @@ AcpiUtInitGlobals (
     ACPI_MEMSET (AcpiGbl_MemoryLists, 0, sizeof (ACPI_MEMORY_LIST) * ACPI_NUM_MEM_LISTS);
 
     AcpiGbl_MemoryLists[ACPI_MEM_LIST_STATE].LinkOffset         = (UINT16) ACPI_PTR_DIFF (&(((ACPI_GENERIC_STATE *) NULL)->Common.Next), NULL);
-    AcpiGbl_MemoryLists[ACPI_MEM_LIST_PSNODE].LinkOffset        = (UINT16) ACPI_PTR_DIFF (&(((ACPI_PARSE_OBJECT *) NULL)->Next), NULL);
-    AcpiGbl_MemoryLists[ACPI_MEM_LIST_PSNODE_EXT].LinkOffset    = (UINT16) ACPI_PTR_DIFF (&(((ACPI_PARSE2_OBJECT *) NULL)->Next), NULL);
+    AcpiGbl_MemoryLists[ACPI_MEM_LIST_PSNODE].LinkOffset        = (UINT16) ACPI_PTR_DIFF (&(((ACPI_PARSE_OBJECT *) NULL)->Common.Next), NULL);
+    AcpiGbl_MemoryLists[ACPI_MEM_LIST_PSNODE_EXT].LinkOffset    = (UINT16) ACPI_PTR_DIFF (&(((ACPI_PARSE_OBJECT *) NULL)->Common.Next), NULL);
     AcpiGbl_MemoryLists[ACPI_MEM_LIST_OPERAND].LinkOffset       = (UINT16) ACPI_PTR_DIFF (&(((ACPI_OPERAND_OBJECT *) NULL)->Cache.Next), NULL);
     AcpiGbl_MemoryLists[ACPI_MEM_LIST_WALK].LinkOffset          = (UINT16) ACPI_PTR_DIFF (&(((ACPI_WALK_STATE *) NULL)->Next), NULL);
 
     AcpiGbl_MemoryLists[ACPI_MEM_LIST_NSNODE].ObjectSize        = sizeof (ACPI_NAMESPACE_NODE);
     AcpiGbl_MemoryLists[ACPI_MEM_LIST_STATE].ObjectSize         = sizeof (ACPI_GENERIC_STATE);
-    AcpiGbl_MemoryLists[ACPI_MEM_LIST_PSNODE].ObjectSize        = sizeof (ACPI_PARSE_OBJECT);
-    AcpiGbl_MemoryLists[ACPI_MEM_LIST_PSNODE_EXT].ObjectSize    = sizeof (ACPI_PARSE2_OBJECT);
+    AcpiGbl_MemoryLists[ACPI_MEM_LIST_PSNODE].ObjectSize        = sizeof (ACPI_PARSE_OBJ_COMMON);
+    AcpiGbl_MemoryLists[ACPI_MEM_LIST_PSNODE_EXT].ObjectSize    = sizeof (ACPI_PARSE_OBJ_NAMED);
     AcpiGbl_MemoryLists[ACPI_MEM_LIST_OPERAND].ObjectSize       = sizeof (ACPI_OPERAND_OBJECT);
     AcpiGbl_MemoryLists[ACPI_MEM_LIST_WALK].ObjectSize          = sizeof (ACPI_WALK_STATE);
 
@@ -853,6 +872,7 @@ AcpiUtInitGlobals (
 
     AcpiGbl_SysNotify.Handler           = NULL;
     AcpiGbl_DrvNotify.Handler           = NULL;
+    AcpiGbl_InitHandler                 = NULL;
 
     /* Global "typed" ACPI table pointers */
 
@@ -902,7 +922,7 @@ AcpiUtInitGlobals (
 
 
 #ifdef ACPI_DEBUG
-    AcpiGbl_LowestStackPointer          = ACPI_UINT32_MAX;
+    AcpiGbl_LowestStackPointer          = ACPI_SIZE_MAX;
 #endif
 
     return_VOID;

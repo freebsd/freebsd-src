@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsmisc - Miscellaneous resource descriptors
- *              $Revision: 20 $
+ *              $Revision: 24 $
  *
  ******************************************************************************/
 
@@ -151,7 +151,7 @@ AcpiRsEndTagResource (
     UINT8                   **OutputBuffer,
     ACPI_SIZE               *StructureSize)
 {
-    ACPI_RESOURCE           *OutputStruct = (ACPI_RESOURCE *) *OutputBuffer;
+    ACPI_RESOURCE           *OutputStruct = (void *) *OutputBuffer;
     ACPI_SIZE               StructSize = ACPI_RESOURCE_LENGTH;
 
 
@@ -262,7 +262,7 @@ AcpiRsVendorResource (
     ACPI_SIZE               *StructureSize)
 {
     UINT8                   *Buffer = ByteStreamBuffer;
-    ACPI_RESOURCE           *OutputStruct = (ACPI_RESOURCE *) *OutputBuffer;
+    ACPI_RESOURCE           *OutputStruct = (void *) *OutputBuffer;
     UINT16                  Temp16 = 0;
     UINT8                   Temp8 = 0;
     UINT8                   Index;
@@ -290,7 +290,7 @@ AcpiRsVendorResource (
 
         /* Calculate bytes consumed */
 
-        *BytesConsumed = Temp16 + 3;
+        *BytesConsumed = (ACPI_SIZE) Temp16 + 3;
 
         /* Point to the first vendor byte */
 
@@ -305,7 +305,7 @@ AcpiRsVendorResource (
 
         /* Calculate bytes consumed */
 
-        *BytesConsumed = Temp16 + 1;
+        *BytesConsumed = (ACPI_SIZE) Temp16 + 1;
 
         /* Point to the first vendor byte */
 
@@ -331,7 +331,7 @@ AcpiRsVendorResource (
     /*
      * Set the Length parameter
      */
-    OutputStruct->Length = StructSize;
+    OutputStruct->Length = (UINT32) StructSize;
 
     /*
      * Return the final size of the structure
@@ -394,7 +394,7 @@ AcpiRsVendorStream (
          * Small Item, Set the descriptor field
          */
         Temp8 = 0x70;
-        Temp8 |= LinkedList->Data.VendorSpecific.Length;
+        Temp8 |= (UINT8) LinkedList->Data.VendorSpecific.Length;
 
         *Buffer = Temp8;
         Buffer += 1;
@@ -448,7 +448,7 @@ AcpiRsStartDependFnsResource (
     ACPI_SIZE               *StructureSize)
 {
     UINT8                   *Buffer = ByteStreamBuffer;
-    ACPI_RESOURCE           *OutputStruct = (ACPI_RESOURCE *) *OutputBuffer;
+    ACPI_RESOURCE           *OutputStruct = (void *) *OutputBuffer;
     UINT8                   Temp8 = 0;
     ACPI_SIZE               StructSize = ACPI_SIZEOF_RESOURCE (ACPI_RESOURCE_START_DPF);
 
@@ -480,7 +480,7 @@ AcpiRsStartDependFnsResource (
 
         if (3 == OutputStruct->Data.StartDpf.CompatibilityPriority)
         {
-            return_ACPI_STATUS (AE_AML_ERROR);
+            return_ACPI_STATUS (AE_AML_BAD_RESOURCE_VALUE);
         }
 
         /*
@@ -490,7 +490,7 @@ AcpiRsStartDependFnsResource (
 
         if (3 == OutputStruct->Data.StartDpf.PerformanceRobustness)
         {
-            return_ACPI_STATUS (AE_AML_ERROR);
+            return_ACPI_STATUS (AE_AML_BAD_RESOURCE_VALUE);
         }
     }
     else
@@ -505,7 +505,7 @@ AcpiRsStartDependFnsResource (
     /*
      * Set the Length parameter
      */
-    OutputStruct->Length = StructSize;
+    OutputStruct->Length = (UINT32) StructSize;
 
     /*
      * Return the final size of the structure
@@ -543,7 +543,7 @@ AcpiRsEndDependFnsResource (
     UINT8                   **OutputBuffer,
     ACPI_SIZE               *StructureSize)
 {
-    ACPI_RESOURCE           *OutputStruct = (ACPI_RESOURCE *) *OutputBuffer;
+    ACPI_RESOURCE           *OutputStruct = (void *) *OutputBuffer;
     ACPI_SIZE               StructSize = ACPI_RESOURCE_LENGTH;
 
 
@@ -563,7 +563,7 @@ AcpiRsEndDependFnsResource (
     /*
      * Set the Length parameter
      */
-    OutputStruct->Length = StructSize;
+    OutputStruct->Length = (UINT32) StructSize;
 
     /*
      * Return the final size of the structure

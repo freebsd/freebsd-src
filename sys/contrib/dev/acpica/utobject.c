@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utobject - ACPI object create/delete/size/cache routines
- *              $Revision: 68 $
+ *              $Revision: 76 $
  *
  *****************************************************************************/
 
@@ -117,9 +117,7 @@
 #define __UTOBJECT_C__
 
 #include "acpi.h"
-#include "acinterp.h"
 #include "acnamesp.h"
-#include "actables.h"
 #include "amlcode.h"
 
 
@@ -131,10 +129,9 @@
  *
  * FUNCTION:    AcpiUtCreateInternalObjectDbg
  *
- * PARAMETERS:  Address             - Address of the memory to deallocate
- *              Component           - Component type of caller
- *              Module              - Source file name of caller
- *              Line                - Line number of caller
+ * PARAMETERS:  ModuleName          - Source file name of caller
+ *              LineNumber          - Line number of caller
+ *              ComponentId         - Component type of caller
  *              Type                - ACPI Type of the new object
  *
  * RETURN:      Object              - The new object.  Null on failure
@@ -192,6 +189,10 @@ AcpiUtCreateInternalObjectDbg (
 
         Object->Common.NextObject = SecondObject;
         break;
+
+    default:
+        /* All others have no secondary object */
+        break;
     }
 
     /* Save the object type in the object descriptor */
@@ -212,7 +213,7 @@ AcpiUtCreateInternalObjectDbg (
  *
  * FUNCTION:    AcpiUtValidInternalObject
  *
- * PARAMETERS:  Operand             - Object to be validated
+ * PARAMETERS:  Object              - Object to be validated
  *
  * RETURN:      Validate a pointer to be an ACPI_OPERAND_OBJECT
  *
@@ -239,7 +240,7 @@ AcpiUtValidInternalObject (
 
     switch (ACPI_GET_DESCRIPTOR_TYPE (Object))
     {
-    case ACPI_DESC_TYPE_INTERNAL:
+    case ACPI_DESC_TYPE_OPERAND:
 
         /* The object appears to be a valid ACPI_OPERAND_OBJECT  */
 
@@ -275,7 +276,6 @@ AcpiUtValidInternalObject (
  * PARAMETERS:  ModuleName          - Caller's module name (for error output)
  *              LineNumber          - Caller's line number (for error output)
  *              ComponentId         - Caller's component ID (for error output)
- *              Message             - Error message to use on failure
  *
  * RETURN:      Pointer to newly allocated object descriptor.  Null on error
  *
@@ -305,13 +305,12 @@ AcpiUtAllocateObjectDescDbg (
         return_PTR (NULL);
     }
 
-
     /* Mark the descriptor type */
 
-    ACPI_SET_DESCRIPTOR_TYPE (Object, ACPI_DESC_TYPE_INTERNAL);
+    ACPI_SET_DESCRIPTOR_TYPE (Object, ACPI_DESC_TYPE_OPERAND);
 
     ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "%p Size %X\n",
-            Object, sizeof (ACPI_OPERAND_OBJECT)));
+            Object, (UINT32) sizeof (ACPI_OPERAND_OBJECT)));
 
     return_PTR (Object);
 }
@@ -321,7 +320,7 @@ AcpiUtAllocateObjectDescDbg (
  *
  * FUNCTION:    AcpiUtDeleteObjectDesc
  *
- * PARAMETERS:  Object          - Acpi internal object to be deleted
+ * PARAMETERS:  Object          - An Acpi internal object to be deleted
  *
  * RETURN:      None.
  *
@@ -338,7 +337,7 @@ AcpiUtDeleteObjectDesc (
 
     /* Object must be an ACPI_OPERAND_OBJECT  */
 
-    if (ACPI_GET_DESCRIPTOR_TYPE (Object) != ACPI_DESC_TYPE_INTERNAL)
+    if (ACPI_GET_DESCRIPTOR_TYPE (Object) != ACPI_DESC_TYPE_OPERAND)
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
             "Obj %p is not an ACPI object\n", Object));
@@ -357,7 +356,7 @@ AcpiUtDeleteObjectDesc (
  *
  * PARAMETERS:  None
  *
- * RETURN:      Status
+ * RETURN:      None
  *
  * DESCRIPTION: Purge the global state object cache.  Used during subsystem
  *              termination.
@@ -381,12 +380,12 @@ AcpiUtDeleteObjectCache (
  * FUNCTION:    AcpiUtGetSimpleObjectSize
  *
  * PARAMETERS:  *InternalObject     - Pointer to the object we are examining
- *              *RetLength          - Where the length is returned
+ *              *ObjLength          - Where the length is returned
  *
  * RETURN:      Status
  *
  * DESCRIPTION: This function is called to determine the space required to
- *              contain a simple object for return to an API user.
+ *              contain a simple object for return to an external user.
  *
  *              The length includes the object structure plus any additional
  *              needed space.
@@ -413,7 +412,6 @@ AcpiUtGetSimpleObjectSize (
         return_ACPI_STATUS (AE_OK);
     }
 
-
     /* Start with the length of the Acpi object */
 
     Length = sizeof (ACPI_OBJECT);
@@ -426,26 +424,23 @@ AcpiUtGetSimpleObjectSize (
         return_ACPI_STATUS (Status);
     }
 
-
     /*
      * The final length depends on the object type
      * Strings and Buffers are packed right up against the parent object and
      * must be accessed bytewise or there may be alignment problems on
      * certain processors
      */
-
-    switch (InternalObject->Common.Type)
+    switch (ACPI_GET_OBJECT_TYPE (InternalObject))
     {
-
     case ACPI_TYPE_STRING:
 
-        Length += InternalObject->String.Length + 1;
+        Length += (ACPI_SIZE) InternalObject->String.Length + 1;
         break;
 
 
     case ACPI_TYPE_BUFFER:
 
-        Length += InternalObject->Buffer.Length;
+        Length += (ACPI_SIZE) InternalObject->Buffer.Length;
         break;
 
 
@@ -463,15 +458,6 @@ AcpiUtGetSimpleObjectSize (
 
         switch (InternalObject->Reference.Opcode)
         {
-        case AML_ZERO_OP:
-        case AML_ONE_OP:
-        case AML_ONES_OP:
-        case AML_REVISION_OP:
-
-            /* These Constant opcodes will be resolved to Integers */
-
-            break;
-
         case AML_INT_NAMEPATH_OP:
 
             /*
@@ -485,7 +471,7 @@ AcpiUtGetSimpleObjectSize (
 
             /*
              * No other reference opcodes are supported.
-             * Notably, Locals and Args are not supported, by this may be
+             * Notably, Locals and Args are not supported, but this may be
              * required eventually.
              */
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
@@ -500,11 +486,10 @@ AcpiUtGetSimpleObjectSize (
     default:
 
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unsupported type=%X in object %p\n",
-            InternalObject->Common.Type, InternalObject));
+            ACPI_GET_OBJECT_TYPE (InternalObject), InternalObject));
         Status = AE_TYPE;
         break;
     }
-
 
     /*
      * Account for the space required by the object rounded up to the next
@@ -523,7 +508,7 @@ AcpiUtGetSimpleObjectSize (
  *
  * PARAMETERS:  ACPI_PKG_CALLBACK
  *
- * RETURN:      Status          - the status of the call
+ * RETURN:      Status
  *
  * DESCRIPTION: Get the length of one package element.
  *
@@ -566,6 +551,13 @@ AcpiUtGetElementLength (
         Info->NumPackages++;
         State->Pkg.ThisTargetObj = NULL;
         break;
+
+
+    default:
+
+        /* No other types allowed */
+
+        return (AE_BAD_PARAMETER);
     }
 
     return (Status);
@@ -577,12 +569,12 @@ AcpiUtGetElementLength (
  * FUNCTION:    AcpiUtGetPackageObjectSize
  *
  * PARAMETERS:  *InternalObject     - Pointer to the object we are examining
- *              *RetLength          - Where the length is returned
+ *              *ObjLength          - Where the length is returned
  *
  * RETURN:      Status
  *
  * DESCRIPTION: This function is called to determine the space required to
- *              contain a package object for return to an API user.
+ *              contain a package object for return to an external user.
  *
  *              This is moderately complex since a package contains other
  *              objects including packages.
@@ -618,7 +610,7 @@ AcpiUtGetPackageObjectSize (
      * Round up to the next machine word.
      */
     Info.Length += ACPI_ROUND_UP_TO_NATIVE_WORD (sizeof (ACPI_OBJECT)) *
-                    Info.NumPackages;
+                    (ACPI_SIZE) Info.NumPackages;
 
     /* Return the total package length */
 
@@ -632,7 +624,7 @@ AcpiUtGetPackageObjectSize (
  * FUNCTION:    AcpiUtGetObjectSize
  *
  * PARAMETERS:  *InternalObject     - Pointer to the object we are examining
- *              *RetLength          - Where the length will be returned
+ *              *ObjLength          - Where the length will be returned
  *
  * RETURN:      Status
  *
@@ -652,8 +644,8 @@ AcpiUtGetObjectSize(
     ACPI_FUNCTION_ENTRY ();
 
 
-    if ((ACPI_GET_DESCRIPTOR_TYPE (InternalObject) == ACPI_DESC_TYPE_INTERNAL) &&
-        (InternalObject->Common.Type == ACPI_TYPE_PACKAGE))
+    if ((ACPI_GET_DESCRIPTOR_TYPE (InternalObject) == ACPI_DESC_TYPE_OPERAND) &&
+        (ACPI_GET_OBJECT_TYPE (InternalObject) == ACPI_TYPE_PACKAGE))
     {
         Status = AcpiUtGetPackageObjectSize (InternalObject, ObjLength);
     }

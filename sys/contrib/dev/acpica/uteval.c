@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: uteval - Object evaluation
- *              $Revision: 38 $
+ *              $Revision: 40 $
  *
  *****************************************************************************/
 
@@ -163,12 +163,12 @@ AcpiUtEvaluateNumericObject (
         if (Status == AE_NOT_FOUND)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "%s on %4.4s was not found\n",
-                ObjectName, (char *) &DeviceNode->Name));
+                ObjectName, DeviceNode->Name.Ascii));
         }
         else
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "%s on %4.4s failed with status %s\n",
-                ObjectName, (char *) &DeviceNode->Name,
+                ObjectName, DeviceNode->Name.Ascii,
                 AcpiFormatException (Status)));
         }
 
@@ -187,12 +187,12 @@ AcpiUtEvaluateNumericObject (
 
     /* Is the return object of the correct type? */
 
-    if (ObjDesc->Common.Type != ACPI_TYPE_INTEGER)
+    if (ACPI_GET_OBJECT_TYPE (ObjDesc) != ACPI_TYPE_INTEGER)
     {
         Status = AE_TYPE;
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-            "Type returned from %s was not a number: %X \n",
-            ObjectName, ObjDesc->Common.Type));
+            "Type returned from %s was not an Integer: %X \n",
+            ObjectName, ACPI_GET_OBJECT_TYPE (ObjDesc)));
     }
     else
     {
@@ -248,12 +248,12 @@ AcpiUtExecute_HID (
         if (Status == AE_NOT_FOUND)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "_HID on %4.4s was not found\n",
-                (char *) &DeviceNode->Name));
+                DeviceNode->Name.Ascii));
         }
         else
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "_HID on %4.4s failed %s\n",
-                (char *) &DeviceNode->Name, AcpiFormatException (Status)));
+                DeviceNode->Name.Ascii, AcpiFormatException (Status)));
         }
 
         return_ACPI_STATUS (Status);
@@ -271,17 +271,18 @@ AcpiUtExecute_HID (
      *  A _HID can return either a Number (32 bit compressed EISA ID) or
      *  a string
      */
-    if ((ObjDesc->Common.Type != ACPI_TYPE_INTEGER) &&
-        (ObjDesc->Common.Type != ACPI_TYPE_STRING))
+    if ((ACPI_GET_OBJECT_TYPE (ObjDesc) != ACPI_TYPE_INTEGER) &&
+        (ACPI_GET_OBJECT_TYPE (ObjDesc) != ACPI_TYPE_STRING))
     {
         Status = AE_TYPE;
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
             "Type returned from _HID not a number or string: %s(%X) \n",
-            AcpiUtGetTypeName (ObjDesc->Common.Type), ObjDesc->Common.Type));
+            AcpiUtGetObjectTypeName (ObjDesc), 
+            ACPI_GET_OBJECT_TYPE (ObjDesc)));
     }
     else
     {
-        if (ObjDesc->Common.Type == ACPI_TYPE_INTEGER)
+        if (ACPI_GET_OBJECT_TYPE (ObjDesc) == ACPI_TYPE_INTEGER)
         {
             /* Convert the Numeric HID to string */
 
@@ -339,12 +340,12 @@ AcpiUtExecute_CID (
         if (Status == AE_NOT_FOUND)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "_CID on %4.4s was not found\n",
-                (char *)&DeviceNode->Name));
+                DeviceNode->Name.Ascii));
         }
         else
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "_CID on %4.4s failed %s\n",
-                (char *)&DeviceNode->Name, AcpiFormatException (Status)));
+                DeviceNode->Name.Ascii, AcpiFormatException (Status)));
         }
 
         return_ACPI_STATUS (Status);
@@ -363,7 +364,7 @@ AcpiUtExecute_CID (
      *  IDs.  Each compatible ID can be a Number (32 bit compressed EISA ID) or
      *  string (PCI ID format, e.g. "PCI\VEN_vvvv&DEV_dddd&SUBSYS_ssssssss").
      */
-    switch (ObjDesc->Common.Type)
+    switch (ACPI_GET_OBJECT_TYPE (ObjDesc))
     {
     case ACPI_TYPE_INTEGER:
 
@@ -389,7 +390,8 @@ AcpiUtExecute_CID (
         Status = AE_TYPE;
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
             "Type returned from _CID not a number, string, or package: %s(%X) \n",
-            AcpiUtGetTypeName (ObjDesc->Common.Type), ObjDesc->Common.Type));
+            AcpiUtGetObjectTypeName (ObjDesc), 
+            ACPI_GET_OBJECT_TYPE (ObjDesc)));
         break;
     }
 
@@ -438,13 +440,13 @@ AcpiUtExecute_UID (
         if (Status == AE_NOT_FOUND)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "_UID on %4.4s was not found\n",
-                (char *) &DeviceNode->Name));
+                DeviceNode->Name.Ascii));
         }
         else
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
                 "_UID on %4.4s failed %s\n",
-                (char *) &DeviceNode->Name, AcpiFormatException (Status)));
+                DeviceNode->Name.Ascii, AcpiFormatException (Status)));
         }
 
         return (Status);
@@ -462,17 +464,17 @@ AcpiUtExecute_UID (
      *  A _UID can return either a Number (32 bit compressed EISA ID) or
      *  a string
      */
-    if ((ObjDesc->Common.Type != ACPI_TYPE_INTEGER) &&
-        (ObjDesc->Common.Type != ACPI_TYPE_STRING))
+    if ((ACPI_GET_OBJECT_TYPE (ObjDesc) != ACPI_TYPE_INTEGER) &&
+        (ACPI_GET_OBJECT_TYPE (ObjDesc) != ACPI_TYPE_STRING))
     {
         Status = AE_TYPE;
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
             "Type returned from _UID was not a number or string: %X \n",
-            ObjDesc->Common.Type));
+            ACPI_GET_OBJECT_TYPE (ObjDesc)));
     }
     else
     {
-        if (ObjDesc->Common.Type == ACPI_TYPE_INTEGER)
+        if (ACPI_GET_OBJECT_TYPE (ObjDesc) == ACPI_TYPE_INTEGER)
         {
             /* Convert the Numeric UID to string */
 
@@ -531,7 +533,7 @@ AcpiUtExecute_STA (
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
             "_STA on %4.4s was not found, assuming present.\n",
-            (char *) &DeviceNode->Name));
+            DeviceNode->Name.Ascii));
 
         *Flags = 0x0F;
         Status = AE_OK;
@@ -540,7 +542,7 @@ AcpiUtExecute_STA (
     else if (ACPI_FAILURE (Status))
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "_STA on %4.4s failed %s\n",
-            (char *) &DeviceNode->Name,
+            DeviceNode->Name.Ascii,
             AcpiFormatException (Status)));
     }
 
@@ -556,12 +558,12 @@ AcpiUtExecute_STA (
 
         /* Is the return object of the correct type? */
 
-        if (ObjDesc->Common.Type != ACPI_TYPE_INTEGER)
+        if (ACPI_GET_OBJECT_TYPE (ObjDesc) != ACPI_TYPE_INTEGER)
         {
             Status = AE_TYPE;
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
                 "Type returned from _STA was not a number: %X \n",
-                ObjDesc->Common.Type));
+                ACPI_GET_OBJECT_TYPE (ObjDesc)));
         }
         else
         {
