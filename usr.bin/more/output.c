@@ -85,7 +85,7 @@ put_line()
 	column = 0;
 	for (p = line;  *p != '\0';  p++)
 	{
-		switch ((char)(c = *p & 0xff))
+		switch ((char)(c = (unsigned char)*p))
 		{
 		case UL_CHAR:
 			ul_enter();

@@ -96,7 +96,7 @@ static off_t last_piped_pos;
 #define	ch_get() \
 	((buf_head->block == ch_block && \
 	    ch_offset < buf_head->datasize) ? \
-	    buf_head->data[ch_offset] & 0xff : fch_get())
+	    (unsigned char)buf_head->data[ch_offset] : fch_get())
 
 static
 fch_get()
@@ -130,7 +130,7 @@ fch_get()
 			 * find it already buffered.
 			 */
 			if (ispipe)
-				return(bp->data[ch_offset] & 0xff);
+				return((unsigned char)bp->data[ch_offset]);
 			goto found;
 		}
 	/*
@@ -233,7 +233,7 @@ found:
 		 */
 		goto read_more;
 
-	return(bp->data[ch_offset] & 0xff);
+	return((unsigned char)bp->data[ch_offset]);
 }
 
 /*
