@@ -624,9 +624,7 @@ main(int argc, char *argv[])
 }
 
 int
-scan(fp, pw)
-	FILE *fp;
-	struct passwd *pw;
+scan(FILE * fp, struct passwd *pw)
 {
 	static int lcnt;
 	char *p;
@@ -672,9 +670,7 @@ fmt:		errno = EFTYPE;	/* XXX */
 }
 
 void                    
-cp(from, to, mode)              
-	char *from, *to;
-	mode_t mode;    
+cp(char *from, char *to, mode_t mode)              
 {               
 	static char buf[MAXBSIZE];
 	int from_fd, rcount, to_fd, wcount;
@@ -704,8 +700,7 @@ cp(from, to, mode)
 
 
 void
-mv(from, to)
-	char *from, *to;
+mv(char *from, char *to)
 {
 	char buf[MAXPATHLEN];
 
@@ -718,8 +713,7 @@ mv(from, to)
 }
 
 void
-error(name)
-	const char *name;
+error(const char *name)
 {
 
 	warn("%s", name);
@@ -728,7 +722,7 @@ error(name)
 }
 
 void
-cleanup()
+cleanup(void)
 {
 	char buf[MAXPATHLEN];
 
@@ -748,7 +742,7 @@ cleanup()
 }
 
 static void
-usage()
+usage(void)
 {
 
 	(void)fprintf(stderr,
