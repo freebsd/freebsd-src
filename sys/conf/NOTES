@@ -440,6 +440,16 @@ options 	NETGRAPH_UI
 options 	NETGRAPH_VJC
 options 	NETGRAPH_ATM_ATMPIF
 
+# NgBluetooth - Netgraph Bluetooth
+options 	NETGRAPH_BLUETOOTH		# Common parts
+options 	NETGRAPH_BLUETOOTH_BT3C		# 3COM Bluetooth PCCARD
+options 	NETGRAPH_BLUETOOTH_H4		# H4 line discipline
+options 	NETGRAPH_BLUETOOTH_UBT		# Bluetooth USB dongle
+options 	NETGRAPH_BLUETOOTH_UBTBCMFW	# Firmware driver for BCM2033
+options 	NETGRAPH_BLUETOOTH_HCI		# Bluetooth HCI layer
+options 	NETGRAPH_BLUETOOTH_L2CAP	# Bluetooth L2CAP layer
+options 	NETGRAPH_BLUETOOTH_SOCKET	# Bluetooth sockets layer
+
 # NgATM - Netgraph ATM
 options 	NGATM_ATM
 options 	NGATM_ATMBASE
