@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.57 1998/02/15 06:25:26 bde Exp $
+ *	$Id: npx.c,v 1.58 1998/04/06 15:50:29 peter Exp $
  */
 
 #include "npx.h"
@@ -103,9 +103,9 @@ int	i586_copyout __P((const void *kaddr, void *udaddr, size_t len));
 #define	fnclex()		__asm("fnclex")
 #define	fninit()		__asm("fninit")
 #define	fnop()			__asm("fnop")
-#define	fnsave(addr)		__asm("fnsave %0" : "=m" (*(addr)))
-#define	fnstcw(addr)		__asm("fnstcw %0" : "=m" (*(addr)))
-#define	fnstsw(addr)		__asm("fnstsw %0" : "=m" (*(addr)))
+#define	fnsave(addr)		__asm __volatile("fnsave %0" : "=m" (*(addr)))
+#define	fnstcw(addr)		__asm __volatile("fnstcw %0" : "=m" (*(addr)))
+#define	fnstsw(addr)		__asm __volatile("fnstsw %0" : "=m" (*(addr)))
 #define	fp_divide_by_0()	__asm("fldz; fld1; fdiv %st,%st(1); fnop")
 #define	frstor(addr)		__asm("frstor %0" : : "m" (*(addr)))
 #define	start_emulating()	__asm("smsw %%ax; orb %0,%%al; lmsw %%ax" \
@@ -164,7 +164,7 @@ static	volatile u_int		npx_traps_while_probing;
  */
 inthand_t probeintr;
 
-asm
+__asm
 ("
 	.text
 	.p2align 2,0x90
@@ -182,7 +182,7 @@ asm
 ");
 
 inthand_t probetrap;
-asm
+__asm
 ("
 	.text
 	.p2align 2,0x90
