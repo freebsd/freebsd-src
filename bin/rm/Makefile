@@ -2,11 +2,10 @@
 # $FreeBSD$
 
 PROG=	rm
-SRCS=   rm.c stat_flags.c
+SRCS=   rm.c
+LDADD=	-lutil
 
 LINKS=	${BINDIR}/rm ${BINDIR}/unlink
 MLINKS=	rm.1 unlink.1
-
-.PATH: ${.CURDIR}/../ls
 
 .include <bsd.prog.mk>

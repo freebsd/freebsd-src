@@ -1,10 +1,11 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
+# $FreeBSD$
 
 NOSHARED?=yes
 
 PROG=	chflags
 CFLAGS+=-Wall
-SRCS=	chflags.c stat_flags.c
-.PATH:	${.CURDIR}/../../bin/ls
+SRCS=	chflags.c
+LDADD=	-lutil
 
 .include <bsd.prog.mk>
