@@ -556,7 +556,7 @@ m_getclr(how, type)
  */
 static struct mbuf *mcl_pool;
 static int mcl_pool_now;
-static int mcl_pool_max;
+static int mcl_pool_max = 10;
  
 SYSCTL_INT(_kern_ipc, OID_AUTO, mcl_pool_max, CTLFLAG_RW, &mcl_pool_max, 0,
            "Maximum number of mbufs+cluster in free list");
