@@ -1845,6 +1845,7 @@ send_data(FILE *instr, FILE *outstr, off_t blksize, off_t filesize, int isreg)
 				}
 			}
 
+			transflag = 0;
 			reply(226, "Transfer complete.");
 			return (0);
 		}
