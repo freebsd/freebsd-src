@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.26 1996/03/11 15:13:33 davidg Exp $
+ *	$Id: tcp_subr.c,v 1.27 1996/03/22 18:11:25 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -236,7 +236,7 @@ tcp_respond(tp, ti, m, ack, seq, flags)
 		tcp_trace(TA_OUTPUT, 0, tp, ti, 0);
 #endif
 	(void) ip_output(m, NULL, ro, 0, NULL);
-	if (ro == &sro) {
+	if (ro == &sro && ro->ro_rt) {
 		RTFREE(ro->ro_rt);
 	}
 }
