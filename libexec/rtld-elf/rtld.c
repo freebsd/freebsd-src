@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.c,v 1.19 1999/04/07 02:48:43 jdp Exp $
+ *      $Id: rtld.c,v 1.20 1999/04/09 00:28:31 jdp Exp $
  */
 
 /*
@@ -659,10 +659,10 @@ find_library(const char *name, const Obj_Entry *refobj)
 
     dbg(" Searching for \"%s\"", name);
 
-    if ((pathname = search_library_path(name, ld_library_path)) != NULL ||
-      (pathname = search_library_path(name, gethints())) != NULL ||
-      (refobj != NULL &&
+    if ((refobj != NULL &&
       (pathname = search_library_path(name, refobj->rpath)) != NULL) ||
+      (pathname = search_library_path(name, ld_library_path)) != NULL ||
+      (pathname = search_library_path(name, gethints())) != NULL ||
       (pathname = search_library_path(name, STANDARD_LIBRARY_PATH)) != NULL)
 	return pathname;
 
