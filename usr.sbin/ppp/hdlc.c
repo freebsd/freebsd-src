@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.17 1997/08/25 00:29:13 brian Exp $
+ * $Id: hdlc.c,v 1.18 1997/09/10 21:33:32 brian Exp $
  *
  *	TODO:
  */
@@ -152,7 +152,7 @@ HdlcOutput(int pri, u_short proto, struct mbuf * bp)
 
   if ((proto & 0xfff1) == 0x21) {	/* Network Layer protocol */
     if (CcpFsm.state == ST_OPENED) {
-      if (CcpInfo.want_proto == PRED1) {
+      if (CcpInfo.want_proto == TY_PRED1) {
         Pred1Output(pri, proto, bp);
         return;
       }
