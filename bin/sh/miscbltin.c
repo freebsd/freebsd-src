@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <termios.h>
@@ -352,7 +353,7 @@ int
 ulimitcmd(int argc __unused, char **argv __unused)
 {
 	int	c;
-	quad_t val = 0;
+	rlim_t val = 0;
 	enum { SOFT = 0x1, HARD = 0x2 }
 			how = SOFT | HARD;
 	const struct limits	*l;
@@ -390,12 +391,12 @@ ulimitcmd(int argc __unused, char **argv __unused)
 		if (strcmp(p, "unlimited") == 0)
 			val = RLIM_INFINITY;
 		else {
-			val = (quad_t) 0;
+			val = 0;
 
 			while ((c = *p++) >= '0' && c <= '9')
 			{
 				val = (val * 10) + (long)(c - '0');
-				if (val < (quad_t) 0)
+				if (val < 0)
 					break;
 			}
 			if (c)
@@ -425,7 +426,7 @@ ulimitcmd(int argc __unused, char **argv __unused)
 			else
 			{
 				val /= l->factor;
-				out1fmt("%qd\n", (quad_t) val);
+				out1fmt("%jd\n", (intmax_t)val);
 			}
 		}
 		return 0;
@@ -451,7 +452,7 @@ ulimitcmd(int argc __unused, char **argv __unused)
 		else
 		{
 			val /= l->factor;
-			out1fmt("%qd\n", (quad_t) val);
+			out1fmt("%jd\n", (intmax_t)val);
 		}
 	}
 	return 0;
