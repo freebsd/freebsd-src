@@ -146,12 +146,12 @@ read_dir_file ()
 	strp[-1] = '\0';
       strp = buf;
       dev = atol (strp);
-      while (isdigit (*strp))
+      while (isdigit ((unsigned char) *strp))
 	strp++;
       ino = atol (strp);
-      while (isspace (*strp))
+      while (isspace ((unsigned char) *strp))
 	strp++;
-      while (isdigit (*strp))
+      while (isdigit ((unsigned char) *strp))
 	strp++;
       strp++;
       add_dir (un_quote_string (strp), dev, ino, (char *) 0);
