@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.18 1995/05/19 04:17:38 jkh Exp $
+ * $Id: system.c,v 1.19 1995/05/19 16:58:58 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -273,6 +273,7 @@ systemChangeScreenmap(const u_char newmap[])
 	if (ioctl(0, PIO_SCRNMAP, newmap) < 0)
 	    msgConfirm("Sorry!  Unable to load the screenmap for %s",
 		       getenv("LANG"));
+	dialog_clear();
     }
 }
 
