@@ -711,7 +711,7 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 		 * implicitly enforces a lock order of all sleep locks before
 		 * all spin locks.
 		 */
-		if (td->td_critnest != 0)
+		if (td->td_critnest != 0 && !kdb_active)
 			panic("blockable sleep lock (%s) %s @ %s:%d",
 			    class->lc_name, lock->lo_name, file, line);
 
