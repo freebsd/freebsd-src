@@ -534,7 +534,7 @@ cardbus_set_resource(device_t cbdev, device_t child, int type, int rid,
 		}
 	} else {
 		if (rle->res == NULL) {
-		} else if (rle->res->r_dev == cbdev &&
+		} else if (rman_get_device(rle->res) == cbdev &&
 		    (!(rman_get_flags(rle->res) & RF_ACTIVE))) {
 			int f;
 			f = rman_get_flags(rle->res);
@@ -595,7 +595,7 @@ cardbus_delete_resource(device_t cbdev, device_t child, int type, int rid)
 	rle = resource_list_find(rl, type, rid);
 	if (rle) {
 		if (rle->res) {
-			if (rle->res->r_dev != cbdev ||
+			if (rman_get_device(rle->res) != cbdev ||
 			    rman_get_flags(rle->res) & RF_ACTIVE) {
 				device_printf(cbdev, "delete_resource: "
 				    "Resource still owned by child, oops. "
@@ -652,16 +652,14 @@ cardbus_release_all_resources(device_t cbdev, struct cardbus_devinfo *dinfo)
 	/* Free all allocated resources */
 	SLIST_FOREACH(rle, &dinfo->pci.resources, link) {
 		if (rle->res) {
-			if (rle->res->r_dev != cbdev)
+			if (rman_get_device(rle->res) != cbdev)
 				device_printf(cbdev, "release_all_resource: "
 				    "Resource still owned by child, oops. "
 				    "(type=%d, rid=%d, addr=%lx)\n",
 				    rle->type, rle->rid,
 				    rman_get_start(rle->res));
 			BUS_RELEASE_RESOURCE(device_get_parent(cbdev),
-			    rle->res->r_dev,
-			    rle->type, rle->rid,
-			    rle->res);
+			    cbdev, rle->type, rle->rid, rle->res);
 			rle->res = NULL;
 			/*
 			 * zero out config so the card won't acknowledge
@@ -697,7 +695,7 @@ cardbus_alloc_resource(device_t cbdev, device_t child, int type,
 		return NULL;
 	} else {
 		/* Release the cardbus hold on the resource */
-		if (rle->res->r_dev != cbdev)
+		if (rman_get_device(rle->res) != cbdev)
 			return NULL;
 		bus_release_resource(cbdev, type, *rid, rle->res);
 		rle->res = NULL;
