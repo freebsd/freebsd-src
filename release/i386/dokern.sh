@@ -38,9 +38,6 @@ sed	\
 	-e '/	ulpt	/d' \
 	-e '/	urio	/d' \
 	-e '/	uscanner	/d' \
-	-e '/	ncv	/d' \
-	-e '/	nsp	/d' \
-	-e '/	stg	/d' \
 	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
 
 echo "options  NETGRAPH"
