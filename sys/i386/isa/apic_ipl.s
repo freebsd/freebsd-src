@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic_ipl.s,v 1.10 1997/07/24 23:49:44 fsmp Exp $
+ *	$Id: apic_ipl.s,v 1.11 1997/07/31 17:28:56 fsmp Exp $
  */
 
 
@@ -66,9 +66,27 @@ _vec:
 	.long	 vec8,  vec9, vec10, vec11, vec12, vec13, vec14, vec15
 	.long	vec16, vec17, vec18, vec19, vec20, vec21, vec22, vec23
 
+/* various simple locks */
 	.align 2				/* MUST be 32bit aligned */
+
+/* critical region around IO APIC */
 	.globl _imen_lock
 _imen_lock:
+	.long	0
+
+/* critical region around spl & cpl */
+	.globl _cpl_lock
+_cpl_lock:
+	.long	0
+
+/* critical region around FAST_INTR() routines */
+	.globl _fast_intr_lock
+_fast_intr_lock:
+	.long	0
+
+/* critical region around INTR() routines */
+	.globl _intr_lock
+_intr_lock:
 	.long	0
 
 /*

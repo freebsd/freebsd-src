@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.37 1997/08/10 20:59:06 fsmp Exp $
+ *	$Id: exception.s,v 1.38 1997/08/10 21:18:01 fsmp Exp $
  */
 
 #include "npx.h"				/* NNPX */
@@ -42,8 +42,12 @@
 
 #ifdef SMP
 
-#define	MP_INSTR_LOCK							\
-	lock					/* MP-safe */
+#define	MPLOCKED	lock ;
+
+#define FPU_LOCK	call	_get_fpu_lock
+#define ALIGN_LOCK	call	_get_align_lock
+#define SYSCALL_LOCK	call	_get_syscall_lock
+#define ALTSYSCALL_LOCK	call	_get_altsyscall_lock
 
 /* protects the IO APIC and apic_imen as a critical region */
 #define IMASK_LOCK							\
@@ -56,11 +60,25 @@
 	call	_s_unlock ;			/* MP-safe */		\
 	addl	$4,%esp
 
-#else
+/* protects cpl updates as a critical region */
+#define CPL_LOCK							\
+	pushl	$_cpl_lock ;			/* address of lock */	\
+	call	_s_lock ;			/* MP-safe */		\
+	addl	$4,%esp
 
-#define	MP_INSTR_LOCK				/* NOP */
-#define IMASK_LOCK				/* NOP */
-#define IMASK_UNLOCK				/* NOP */
+#define CPL_UNLOCK							\
+	pushl	$_cpl_lock ;			/* address of lock */	\
+	call	_s_unlock ;			/* MP-safe */		\
+	addl	$4,%esp
+
+#else  /* SMP */
+
+#define	MPLOCKED				/* NOP */
+
+#define FPU_LOCK				/* NOP */
+#define ALIGN_LOCK				/* NOP */
+#define SYSCALL_LOCK				/* NOP */
+#define ALTSYSCALL_LOCK				/* NOP */
 
 #endif  /* SMP */
 
@@ -160,10 +178,8 @@ IDTVEC(fpu)
 	movl	_cpl,%eax
 	pushl	%eax
 	pushl	$0			/* dummy unit to finish intr frame */
-#ifdef SMP
-	call	_get_fpu_lock
-#endif /* SMP */
-	incl	_cnt+V_TRAP
+	MPLOCKED incl _cnt+V_TRAP
+	FPU_LOCK
 	orl	$SWI_AST_MASK,%eax
 	movl	%eax,_cpl
 	call	_npxintr
@@ -188,11 +204,9 @@ alltraps_with_regs_pushed:
 	movl	%ax,%es
 	FAKE_MCOUNT(12*4(%esp))
 calltrap:
-#ifdef SMP
-	call	_get_align_lock
-#endif /* SMP */
+	ALIGN_LOCK
 	FAKE_MCOUNT(_btrap)		/* init "from" _btrap -> calltrap */
-	incl	_cnt+V_TRAP
+	MPLOCKED incl _cnt+V_TRAP
 	orl	$SWI_AST_MASK,_cpl
 	call	_trap
 
@@ -244,10 +258,8 @@ IDTVEC(syscall)
 	movl	%eax,TF_EFLAGS(%esp)
 	movl	$7,TF_ERR(%esp) 	/* sizeof "lcall 7,0" */
 	FAKE_MCOUNT(12*4(%esp))
-#ifdef SMP
-	call	_get_syscall_lock
-#endif /* SMP */
-	incl	_cnt+V_SYSCALL
+	SYSCALL_LOCK
+	MPLOCKED incl _cnt+V_SYSCALL
 	movl	$SWI_AST_MASK,_cpl
 	call	_syscall
 	/*
@@ -273,10 +285,8 @@ IDTVEC(int0x80_syscall)
 	movl	%ax,%es
 	movl	$2,TF_ERR(%esp)		/* sizeof "int 0x80" */
 	FAKE_MCOUNT(12*4(%esp))
-#ifdef SMP
-	call	_get_int0x80_syscall_lock
-#endif /* SMP */
-	incl	_cnt+V_SYSCALL
+	ALTSYSCALL_LOCK
+	MPLOCKED incl _cnt+V_SYSCALL
 	movl	$SWI_AST_MASK,_cpl
 	call	_syscall
 	/*

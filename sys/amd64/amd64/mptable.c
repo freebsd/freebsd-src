@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.40 1997/08/09 23:01:03 fsmp Exp $
+ *	$Id: mp_machdep.c,v 1.41 1997/08/10 19:32:38 fsmp Exp $
  */
 
 #include "opt_smp.h"
@@ -1418,6 +1418,10 @@ default_mp_table(int type)
 /*
  * initialize all the SMP locks
  */
+
+/* lock the com (tty) data structures */
+struct simplelock	com_lock;
+
 static void
 init_locks(void)
 {
@@ -1427,8 +1431,23 @@ init_locks(void)
 	 */
 	mp_lock = 0x00000001;
 
+	/* ISR uses its own "giant lock" */
+	isr_lock = 0x00000000;
+
+	/* serializes FAST_INTR() accesses */
+	s_lock_init((struct simplelock*)&fast_intr_lock);
+
+	/* serializes INTR() accesses */
+	s_lock_init((struct simplelock*)&intr_lock);
+
 	/* locks the IO APIC and apic_imen accesses */
 	s_lock_init((struct simplelock*)&imen_lock);
+
+	/* locks cpl accesses */
+	s_lock_init((struct simplelock*)&cpl_lock);
+
+	/* locks com (tty) data/hardware accesses: a FASTINTR() */
+	s_lock_init((struct simplelock*)&com_lock);
 }
 
 
