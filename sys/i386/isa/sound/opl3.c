@@ -25,11 +25,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * opl3.c,v 1.7 1994/10/01 02:16:50 swallace Exp
  */
 
 /*
  * Major improvements to the FM handling 30AUG92 by Rob Hooft,
+ */
+/*
  * hooft@chem.ruu.nl
  */
 
@@ -45,6 +46,7 @@
 				   * * OP4 * * begin here   */
 
 static int      opl3_enabled = 0;
+static int      opl4_enabled = 0;
 static int      left_address = 0x388, right_address = 0x388, both_address = 0;
 
 static int      nr_voices = 9;
@@ -188,7 +190,7 @@ opl3_detect (int ioaddr)
    * Note2! The chip is initialized if detected.
    */
 
-  unsigned char   stat1, stat2;
+  unsigned char   stat1, stat2, signature;
   int             i;
 
   if (already_initialized)
@@ -201,22 +203,13 @@ opl3_detect (int ioaddr)
   if (opl3_enabled)
     ioaddr = left_address;
 
-  opl3_command (ioaddr, TIMER_CONTROL_REGISTER, TIMER1_MASK | TIMER2_MASK);	/*
-										 * Reset
-										 * timers
-										 * 1
-										 * and
-										 * 2
-										 */
-  opl3_command (ioaddr, TIMER_CONTROL_REGISTER, IRQ_RESET);	/*
-								 * Reset the
-								 * IRQ of FM
-								 * * chicp
-								 */
+  /* Reset timers 1 and 2 */
+  opl3_command (ioaddr, TIMER_CONTROL_REGISTER, TIMER1_MASK | TIMER2_MASK);
 
-  stat1 = INB (ioaddr);		/*
-				 * Read status register
-				 */
+  /* Reset the IRQ of the FM chip */
+  opl3_command (ioaddr, TIMER_CONTROL_REGISTER, IRQ_RESET);
+
+  signature = stat1 = INB (ioaddr);	/* Status register */
 
   if ((stat1 & 0xE0) != 0x00)
     {
@@ -225,23 +218,19 @@ opl3_detect (int ioaddr)
 				 */
     }
 
-  opl3_command (ioaddr, TIMER1_REGISTER, 0xff);	/*
-							 * Set timer 1 to
-							 * 0xff
-							 */
+  opl3_command (ioaddr, TIMER1_REGISTER, 0xff);		/* Set timer1 to 0xff */
+
   opl3_command (ioaddr, TIMER_CONTROL_REGISTER,
 		TIMER2_MASK | TIMER1_START);	/*
 						 * Unmask and start timer 1
 						 */
 
   /*
-   * Now we have to delay at least 80 msec
+   * Now we have to delay at least 80 usec
    */
 
   for (i = 0; i < 50; i++)
-    tenmicrosec ();		/*
-				 * To be sure
-				 */
+    tenmicrosec ();
 
   stat2 = INB (ioaddr);		/*
 				 * Read status after timers have expired
@@ -251,18 +240,10 @@ opl3_detect (int ioaddr)
    * Stop the timers
    */
 
-  opl3_command (ioaddr, TIMER_CONTROL_REGISTER, TIMER1_MASK | TIMER2_MASK);	/*
-										 * Reset
-										 * timers
-										 * 1
-										 * and
-										 * 2
-										 */
-  opl3_command (ioaddr, TIMER_CONTROL_REGISTER, IRQ_RESET);	/*
-								 * Reset the
-								 * IRQ of FM
-								 * * chicp
-								 */
+  /* Reset timers 1 and 2 */
+  opl3_command (ioaddr, TIMER_CONTROL_REGISTER, TIMER1_MASK | TIMER2_MASK);
+  /* Reset the IRQ of the FM chip */
+  opl3_command (ioaddr, TIMER_CONTROL_REGISTER, IRQ_RESET);
 
   if ((stat2 & 0xE0) != 0xc0)
     {
@@ -272,8 +253,40 @@ opl3_detect (int ioaddr)
     }
 
   /*
-   * There is a FM chicp in this address. Now set some default values.
+   * There is a FM chicp in this address. Detect the type (OPL2 to OPL4)
    */
+
+  if (signature == 0x06)	/* OPL2 */
+    {
+      opl3_enabled = 0;
+    }
+  else if (signature == 0x00)	/* OPL3 or OPL4 */
+    {
+      unsigned char   tmp;
+
+      if (!opl3_enabled)	/* Was not already enabled */
+	{
+	  left_address = ioaddr;
+	  right_address = ioaddr + 2;
+	  opl3_enabled = 1;
+	}
+
+      /*
+       * Detect availability of OPL4 (_experimental_). Works propably
+       * only after a cold boot. In addition the OPL4 port
+       * of the chip may not be connected to the PC bus at all.
+       */
+
+      opl3_command (right_address, OPL3_MODE_REGISTER, 0x00);
+      opl3_command (right_address, OPL3_MODE_REGISTER, OPL3_ENABLE | OPL4_ENABLE);
+
+      if ((tmp = INB (ioaddr)) == 0x02)		/* Have a OPL4 */
+	{
+	  opl4_enabled = 1;
+	}
+      opl3_command (right_address, OPL3_MODE_REGISTER, 0);
+
+    }
 
   for (i = 0; i < 9; i++)
     opl3_command (ioaddr, KEYON_BLOCK + i, 0);	/*
@@ -373,14 +386,14 @@ char            fm_volume_table[128] =
  -11, -11, -10, -10, -10, -9, -9, -8,	/*
 					 * 24 -  31
 					 */
- -8, -8, -7, -7, -7, -6, -6, -6,/*
-					 * 32 -  39
+ -8, -8, -7, -7, -7, -6, -6, -6,	/*
+					   * 32 -  39
 					 */
- -5, -5, -5, -5, -4, -4, -4, -4,/*
-					 * 40 -  47
+ -5, -5, -5, -5, -4, -4, -4, -4,	/*
+					   * 40 -  47
 					 */
- -3, -3, -3, -3, -2, -2, -2, -2,/*
-					 * 48 -  55
+ -3, -3, -3, -3, -2, -2, -2, -2,	/*
+					   * 48 -  55
 					 */
  -2, -1, -1, -1, -1, 0, 0, 0,	/*
 				 * 56 -  63
@@ -472,13 +485,13 @@ set_voice_volume (int voice, int volume)
 	  calc_vol (&vol2, volume);
 	}
 
-      opl3_command (map->ioaddr, KSL_LEVEL + map->op[0], vol1);	/*
-									 * Modulator
-									 * volume
+      opl3_command (map->ioaddr, KSL_LEVEL + map->op[0], vol1);		/*
+									   * Modulator
+									   * volume
 									 */
-      opl3_command (map->ioaddr, KSL_LEVEL + map->op[1], vol2);	/*
-									 * Carrier
-									 * volume
+      opl3_command (map->ioaddr, KSL_LEVEL + map->op[1], vol2);		/*
+									   * Carrier
+									   * volume
 									 */
     }
   else
@@ -525,7 +538,7 @@ set_voice_volume (int voice, int volume)
 
 	default:		/*
 				 * Why ??
-	  	  	  	  	  	  	  	  	  	  	  	  	  	  	  	  				 */ ;
+				 */ ;
 	}
 
       opl3_command (map->ioaddr, KSL_LEVEL + map->op[0], vol1);
@@ -857,11 +870,22 @@ opl3_reset (int dev)
 static int
 opl3_open (int dev, int mode)
 {
+  int             i;
+
   if (!opl3_ok)
     return RET_ERROR (ENXIO);
   if (opl3_busy)
     return RET_ERROR (EBUSY);
   opl3_busy = 1;
+
+  voice_alloc->max_voice = nr_voices = opl3_enabled ? 18 : 9;
+  voice_alloc->timestamp = 0;
+
+  for (i = 0; i < 18; i++)
+    {
+      voice_alloc->map[i] = 0;
+      voice_alloc->alloc_times[i] = 0;
+    }
 
   connection_mask = 0x00;	/*
 				 * Just 2 OP voices
@@ -876,6 +900,7 @@ opl3_close (int dev)
 {
   opl3_busy = 0;
   voice_alloc->max_voice = nr_voices = opl3_enabled ? 18 : 9;
+
   fm_info.nr_drums = 0;
   fm_info.perc_mode = 0;
 
@@ -1075,7 +1100,7 @@ opl3_bender (int dev, int voice, int value)
 static int
 opl3_alloc_voice (int dev, int chn, int note, struct voice_alloc_info *alloc)
 {
-  int             i, p, avail_voices;
+  int             i, p, best, first, avail_voices, best_time = 0x7fffffff;
   struct sbi_instrument *instr;
   int             is4op;
   int             instr_no;
@@ -1096,21 +1121,22 @@ opl3_alloc_voice (int dev, int chn, int note, struct voice_alloc_info *alloc)
 
   if (is4op)
     {
-      p = 0;
+      first = p = 0;
       avail_voices = 6;
     }
   else
     {
       if (nr_voices == 12)	/* 4 OP mode. Use the '2 OP only' voices first */
-	p = 6;
+	first = p = 6;
       else
-	p = 0;
+	first = p = 0;
       avail_voices = nr_voices;
     }
 
   /*
- *    Now try to find a free voice
- */
+     *    Now try to find a free voice
+   */
+  best = first;
 
   for (i = 0; i < avail_voices; i++)
     {
@@ -1118,15 +1144,36 @@ opl3_alloc_voice (int dev, int chn, int note, struct voice_alloc_info *alloc)
 	{
 	  return p;
 	}
-      p = (p + 1) % nr_voices;
+      if (alloc->alloc_times[p] < best_time)	/* Find oldest playing note */
+	{
+	  best_time = alloc->alloc_times[p];
+	  best = p;
+	}
+      p = (p + 1) % avail_voices;
     }
 
   /*
- *    Insert some kind of priority mechanism here.
- */
+     *    Insert some kind of priority mechanism here.
+   */
 
-  printk ("OPL3: Out of free voices\n");
-  return 0;			/* All voices in use. Select the first one. */
+  if (best < 0)
+    best = 0;
+  if (best > nr_voices)
+    best -= nr_voices;
+
+  return best;			/* All voices in use. Select the first one. */
+}
+
+static void
+opl3_setup_voice (int dev, int voice, int chn)
+{
+  struct channel_info *info =
+  &synth_devs[dev]->chn_info[chn];
+
+  opl3_set_instr (dev, voice,
+		  info->pgm_num);
+
+  voices[voice].bender = info->bender_value;
 }
 
 static struct synth_operations opl3_operations =
@@ -1150,7 +1197,8 @@ static struct synth_operations opl3_operations =
   opl3_volume_method,
   opl3_patchmgr,
   opl3_bender,
-  opl3_alloc_voice
+  opl3_alloc_voice,
+  opl3_setup_voice
 };
 
 long
@@ -1174,18 +1222,22 @@ opl3_init (long mem_start)
   opl3_ok = 1;
   if (opl3_enabled)
     {
-#ifdef __FreeBSD__
-      printk ("opl0: <Yamaha OPL-3 FM>");
+      if (opl4_enabled)
+#if defined(__FreeBSD__)
+	printk ("opl0: <Yamaha OPL4/OPL3 FM>");
+      else
+	printk ("opl0: <Yamaha OPL-3 FM>");
 #else
-      printk (" <Yamaha OPL-3 FM>");
+	printk (" <Yamaha OPL4/OPL3 FM>");
+      else
+	printk (" <Yamaha OPL-3 FM>");
 #endif
+
       fm_model = 2;
       voice_alloc->max_voice = nr_voices = 18;
       fm_info.nr_drums = 0;
       fm_info.capabilities |= SYNTH_CAP_OPL3;
-#ifndef SCO
       strcpy (fm_info.name, "Yamaha OPL-3");
-#endif
 
       for (i = 0; i < 18; i++)
 	if (physical_voices[i].ioaddr == USE_LEFT)
@@ -1193,15 +1245,23 @@ opl3_init (long mem_start)
 	else
 	  physical_voices[i].ioaddr = right_address;
 
-      /* Enable OPL-3 mode */
-      opl3_command (right_address, OPL3_MODE_REGISTER, OPL3_ENABLE);
 
-      /* Select all 2-OP voices */
-      opl3_command (right_address, CONNECTION_SELECT_REGISTER, 0x00);
+      opl3_command (right_address, OPL3_MODE_REGISTER, OPL3_ENABLE);	/*
+									 * Enable
+									 * OPL-3
+									 * mode
+									 */
+      opl3_command (right_address, CONNECTION_SELECT_REGISTER, 0x00);	/*
+									 * Select
+									 * all
+									 * 2-OP
+									 * *
+									 * voices
+									 */
     }
   else
     {
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__)
       printk ("opl0: <Yamaha 2-OP FM>");
 #else
       printk (" <Yamaha 2-OP FM>");

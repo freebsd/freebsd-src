@@ -25,7 +25,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * midibuf.c,v 1.6 1994/10/01 02:16:48 swallace Exp
  */
 
 #include "sound_config.h"
@@ -121,7 +120,10 @@ midi_input_intr (int dev, unsigned char data)
       if (SOMEONE_WAITING (input_sleeper[dev], input_sleep_flag[dev]))
 	WAKE_UP (input_sleeper[dev], input_sleep_flag[dev]);
     }
-
+#if defined(__FreeBSD__)
+  if (selinfo[dev].si_pid)
+    selwakeup(&selinfo[dev]);
+#endif
 }
 
 static void
@@ -130,6 +132,10 @@ midi_output_intr (int dev)
   /*
    * Currently NOP
    */
+#if defined(__FreeBSD__)
+  if (selinfo[dev].si_pid)
+    selwakeup(&selinfo[dev]);
+#endif
 }
 
 static void
@@ -185,8 +191,8 @@ MIDIbuf_open (int dev, struct fileinfo *file)
     }
 
   /*
- *    Interrupts disabled. Be careful
- */
+     *    Interrupts disabled. Be careful
+   */
 
   DISABLE_INTR (flags);
   if ((err = midi_devs[dev]->open (dev, mode,
@@ -246,14 +252,14 @@ MIDIbuf_release (int dev, struct fileinfo *file)
   DISABLE_INTR (flags);
 
   /*
- * Wait until the queue is empty
- */
+     * Wait until the queue is empty
+   */
 
   if (mode != OPEN_READ)
     {
-      midi_devs[dev]->putc (dev, 0xfe);	/*
-						 * Active sensing to shut the
-						 * devices
+      midi_devs[dev]->putc (dev, 0xfe);		/*
+						   * Active sensing to shut the
+						   * devices
 						 */
 
       while (!PROCESS_ABORTING (midi_sleeper[dev], midi_sleep_flag[dev]) &&
@@ -380,22 +386,32 @@ MIDIbuf_ioctl (int dev, struct fileinfo *file,
 
   dev = dev >> 4;
 
-  switch (cmd)
+  if (((cmd >> 8) & 0xff) == 'C')
     {
+      if (midi_devs[dev]->coproc)	/* Coprocessor ioctl */
+	return midi_devs[dev]->coproc->ioctl (midi_devs[dev]->coproc->devc, cmd, arg, 0);
+      else
+	printk ("/dev/midi%d: No coprocessor for this device\n", dev);
 
-    case SNDCTL_MIDI_PRETIME:
-      val = IOCTL_IN (arg);
-      if (val < 0)
-	val = 0;
-
-      val = (HZ * val) / 10;
-      parms[dev].prech_timeout = val;
-      return IOCTL_OUT (arg, val);
-      break;
-
-    default:
-      return midi_devs[dev]->ioctl (dev, cmd, arg);
+      return RET_ERROR (EREMOTEIO);
     }
+  else
+    switch (cmd)
+      {
+
+      case SNDCTL_MIDI_PRETIME:
+	val = IOCTL_IN (arg);
+	if (val < 0)
+	  val = 0;
+
+	val = (HZ * val) / 10;
+	parms[dev].prech_timeout = val;
+	return IOCTL_OUT (arg, val);
+	break;
+
+      default:
+	return midi_devs[dev]->ioctl (dev, cmd, arg);
+      }
 }
 
 #ifdef ALLOW_SELECT
@@ -409,8 +425,12 @@ MIDIbuf_select (int dev, struct fileinfo *file, int sel_type, select_table * wai
     case SEL_IN:
       if (!DATA_AVAIL (midi_in_buf[dev]))
 	{
+#if defined(__FreeBSD__)
+	  selrecord(wait, &selinfo[dev]);
+#else
 	  input_sleep_flag[dev].mode = WK_SLEEP;
 	  select_wait (&input_sleeper[dev], wait);
+#endif
 	  return 0;
 	}
       return 1;
@@ -419,8 +439,12 @@ MIDIbuf_select (int dev, struct fileinfo *file, int sel_type, select_table * wai
     case SEL_OUT:
       if (SPACE_AVAIL (midi_out_buf[dev]))
 	{
+#if defined(__FreeBSD__)
+	  selrecord(wait, &selinfo[dev]);
+#else
 	  midi_sleep_flag[dev].mode = WK_SLEEP;
 	  select_wait (&midi_sleeper[dev], wait);
+#endif
 	  return 0;
 	}
       return 1;

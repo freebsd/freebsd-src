@@ -25,7 +25,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * gus_card.c,v 1.11 1994/10/14 09:04:19 jkh Exp
  */
 
 #include "sound_config.h"
@@ -44,13 +43,14 @@ attach_gus_card (long mem_start, struct address_info *hw_config)
 {
   int             io_addr;
 
-  snd_set_irq_handler (hw_config->irq, gusintr);
+  snd_set_irq_handler (hw_config->irq, gusintr, "Gravis Ultrasound");
 
   if (gus_wave_detect (hw_config->io_base))	/*
 						 * Try first the default
 						 */
     {
-      mem_start = gus_wave_init (mem_start, hw_config->irq, hw_config->dma);
+      mem_start = gus_wave_init (mem_start, hw_config->irq, hw_config->dma,
+				 hw_config->dma_read);
 #ifndef EXCLUDE_MIDI
       mem_start = gus_midi_init (mem_start);
 #endif
@@ -73,7 +73,8 @@ attach_gus_card (long mem_start, struct address_info *hw_config)
       if (gus_wave_detect (io_addr))
 	{
 	  printk (" WARNING! GUS found at %x, config was %x ", io_addr, hw_config->io_base);
-	  mem_start = gus_wave_init (mem_start, hw_config->irq, hw_config->dma);
+	  mem_start = gus_wave_init (mem_start, hw_config->irq, hw_config->dma,
+				     hw_config->dma_read);
 #ifndef EXCLUDE_MIDI
 	  mem_start = gus_midi_init (mem_start);
 #endif
@@ -117,7 +118,7 @@ probe_gus (struct address_info *hw_config)
 }
 
 void
-gusintr (int irq)
+gusintr (INT_HANDLER_PARMS (irq, dummy))
 {
   unsigned char   src;
 
@@ -127,7 +128,11 @@ gusintr (int irq)
 
 #ifndef EXCLUDE_GUSMAX
   if (have_gus_max)
-    adintr (irq);
+# if defined(__FreeBSD__)
+    ad1848_interrupt (INT_HANDLER_CALL (gus_irq));
+# else
+    ad1848_interrupt (INT_HANDLER_CALL (irq));
+# endif
 #endif
 
   while (1)
@@ -168,7 +173,7 @@ gusintr (int irq)
 /*
  * Some extra code for the 16 bit sampling option
  */
-#if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_GUS16) && !defined(EXCLUDE_GUS)
+#if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_GUS16)
 
 int
 probe_gus_db16 (struct address_info *hw_config)
@@ -182,7 +187,7 @@ attach_gus_db16 (long mem_start, struct address_info *hw_config)
   gus_pcm_volume = 100;
   gus_wave_volume = 90;
 
-  ad1848_init ("gusxvi0: <GUS 16 bit sampling>", hw_config->io_base,
+  ad1848_init ("GUS 16 bit sampling", hw_config->io_base,
 	       hw_config->irq,
 	       hw_config->dma,
 	       hw_config->dma);

@@ -25,7 +25,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * sound_switch.c,v 1.4 1994/10/01 02:17:12 swallace Exp
  */
 
 #include "sound_config.h"
@@ -116,7 +115,7 @@ init_status (void)
 
   status_ptr = 0;
 
-  put_status ("Sound Driver:" SOUND_VERSION_STRING
+  put_status ("VoxWare Sound Driver:" SOUND_VERSION_STRING
 	      " (" SOUND_CONFIG_DATE " " SOUND_CONFIG_BY "@"
 	      SOUND_CONFIG_HOST "." SOUND_CONFIG_DOMAIN ")"
 	      "\n");
@@ -185,7 +184,11 @@ init_status (void)
 	return;
     }
 
-  if (!put_status ("\nPCM devices:\n"))
+#ifdef EXCLUDE_AUDIO
+  if (!put_status ("\nAudio devices: NOT ENABLED IN CONFIG\n"))
+    return;
+#else
+  if (!put_status ("\nAudio devices:\n"))
     return;
 
   for (i = 0; i < num_audiodevs; i++)
@@ -199,7 +202,12 @@ init_status (void)
       if (!put_status ("\n"))
 	return;
     }
+#endif
 
+#ifdef EXCLUDE_SEQUENCER
+  if (!put_status ("\nSynth devices: NOT ENABLED IN CONFIG\n"))
+    return;
+#else
   if (!put_status ("\nSynth devices:\n"))
     return;
 
@@ -214,7 +222,12 @@ init_status (void)
       if (!put_status ("\n"))
 	return;
     }
+#endif
 
+#ifdef EXCLUDE_MIDI
+  if (!put_status ("\nMidi devices: NOT ENABLED IN CONFIG\n"))
+    return;
+#else
   if (!put_status ("\nMidi devices:\n"))
     return;
 
@@ -229,8 +242,9 @@ init_status (void)
       if (!put_status ("\n"))
 	return;
     }
+#endif
 
-  if (!put_status ("\nMIDI Timers:\n"))
+  if (!put_status ("\nTimers:\n"))
     return;
 
   for (i = 0; i < num_sound_timers; i++)
@@ -245,12 +259,20 @@ init_status (void)
 	return;
     }
 
-  if (!put_status ("\n"))
+  if (!put_status ("\nMixers:\n"))
     return;
-  if (!put_status_int (num_mixers, 10))
-    return;
-  if (!put_status (" mixer(s) installed\n"))
-    return;
+
+  for (i = 0; i < num_mixers; i++)
+    {
+      if (!put_status_int (i, 10))
+	return;
+      if (!put_status (": "))
+	return;
+      if (!put_status (mixer_devs[i]->name))
+	return;
+      if (!put_status ("\n"))
+	return;
+    }
 }
 
 static int
@@ -292,21 +314,14 @@ sound_read_sw (int dev, struct fileinfo *file, snd_rw_buf * buf, int count)
       return audio_read (dev, file, buf, count);
       break;
 
-#ifndef EXCLUDE_SEQUENCER
     case SND_DEV_SEQ:
     case SND_DEV_SEQ2:
       return sequencer_read (dev, file, buf, count);
       break;
-#endif
 
 #ifndef EXCLUDE_MIDI
     case SND_DEV_MIDIN:
       return MIDIbuf_read (dev, file, buf, count);
-#endif
-
-#ifndef EXCLUDE_PSS
-    case SND_DEV_PSS:
-      return pss_read (dev, file, buf, count);
 #endif
 
     default:
@@ -325,12 +340,10 @@ sound_write_sw (int dev, struct fileinfo *file, snd_rw_buf * buf, int count)
   switch (dev & 0x0f)
     {
 
-#ifndef EXCLUDE_SEQUENCER
     case SND_DEV_SEQ:
     case SND_DEV_SEQ2:
       return sequencer_write (dev, file, buf, count);
       break;
-#endif
 
     case SND_DEV_DSP:
     case SND_DEV_DSP16:
@@ -341,11 +354,6 @@ sound_write_sw (int dev, struct fileinfo *file, snd_rw_buf * buf, int count)
 #ifndef EXCLUDE_MIDI
     case SND_DEV_MIDIN:
       return MIDIbuf_write (dev, file, buf, count);
-#endif
-
-#ifndef EXCLUDE_PSS
-    case SND_DEV_PSS:
-      return pss_write (dev, file, buf, count);
 #endif
 
     default:
@@ -384,24 +392,15 @@ sound_open_sw (int dev, struct fileinfo *file)
       return 0;
       break;
 
-#ifndef EXCLUDE_SEQUENCER
     case SND_DEV_SEQ:
     case SND_DEV_SEQ2:
       if ((retval = sequencer_open (dev, file)) < 0)
 	return retval;
       break;
-#endif
 
 #ifndef EXCLUDE_MIDI
     case SND_DEV_MIDIN:
       if ((retval = MIDIbuf_open (dev, file)) < 0)
-	return retval;
-      break;
-#endif
-
-#ifndef EXCLUDE_PSS
-    case SND_DEV_PSS:
-      if ((retval = pss_open (dev, file)) < 0)
 	return retval;
       break;
 #endif
@@ -442,22 +441,14 @@ sound_release_sw (int dev, struct fileinfo *file)
     case SND_DEV_CTL:
       break;
 
-#ifndef EXCLUDE_SEQUENCER
     case SND_DEV_SEQ:
     case SND_DEV_SEQ2:
       sequencer_release (dev, file);
       break;
-#endif
 
 #ifndef EXCLUDE_MIDI
     case SND_DEV_MIDIN:
       MIDIbuf_release (dev, file);
-      break;
-#endif
-
-#ifndef EXCLUDE_PSS
-    case SND_DEV_PSS:
-      pss_release (dev, file);
       break;
 #endif
 
@@ -481,11 +472,27 @@ sound_ioctl_sw (int dev, struct fileinfo *file,
 {
   DEB (printk ("sound_ioctl_sw(dev=%d, cmd=0x%x, arg=0x%x)\n", dev, cmd, arg));
 
-  if ((dev & 0x0f) != SND_DEV_CTL && num_mixers > 0)
-    if ((cmd >> 8) & 0xff == 'M')	/*
-					 * Mixer ioctl
-					 */
-      return mixer_devs[0]->ioctl (0, cmd, arg);
+  if ((cmd >> 8) & 0xff == 'M' && num_mixers > 0)	/* Mixer ioctl */
+    if ((dev & 0x0f) != SND_DEV_CTL)
+      {
+	int             dtype = dev & 0x0f;
+	int             mixdev;
+
+	switch (dtype)
+	  {
+	  case SND_DEV_DSP:
+	  case SND_DEV_DSP16:
+	  case SND_DEV_AUDIO:
+	    mixdev = audio_devs[dev >> 4]->mixer_dev;
+	    if (mixdev < 0 || mixdev >= num_mixers)
+	      return RET_ERROR (ENXIO);
+	    return mixer_devs[mixdev]->ioctl (mixdev, cmd, arg);
+	    break;
+
+	  default:
+	    return mixer_devs[0]->ioctl (0, cmd, arg);
+	  }
+      }
 
   switch (dev & 0x0f)
     {
@@ -503,12 +510,10 @@ sound_ioctl_sw (int dev, struct fileinfo *file,
       return mixer_devs[dev]->ioctl (dev, cmd, arg);
       break;
 
-#ifndef EXCLUDE_SEQUENCER
     case SND_DEV_SEQ:
     case SND_DEV_SEQ2:
       return sequencer_ioctl (dev, file, cmd, arg);
       break;
-#endif
 
     case SND_DEV_DSP:
     case SND_DEV_DSP16:
@@ -519,12 +524,6 @@ sound_ioctl_sw (int dev, struct fileinfo *file,
 #ifndef EXCLUDE_MIDI
     case SND_DEV_MIDIN:
       return MIDIbuf_ioctl (dev, file, cmd, arg);
-      break;
-#endif
-
-#ifndef EXCLUDE_PSS
-    case SND_DEV_PSS:
-      return pss_ioctl (dev, file, cmd, arg);
       break;
 #endif
 
