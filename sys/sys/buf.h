@@ -403,8 +403,6 @@ struct cluster_save {
 
 #ifdef _KERNEL
 
-#define BUF_WRITE(bp)					\
-	(bp)->b_op->bop_write(bp)
 
 static __inline void
 buf_start(struct buf *bp)

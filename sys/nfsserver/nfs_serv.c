@@ -3719,7 +3719,7 @@ nfsrv_commit(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 				    B_DELWRI) {
 					bremfree(bp);
 					bp->b_flags &= ~B_ASYNC;
-					BUF_WRITE(bp);
+					bwrite(bp);
 					++nfs_commit_miss;
 				} else
 					BUF_UNLOCK(bp);

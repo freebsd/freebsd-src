@@ -805,7 +805,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 			 * can lead to deadlock if we also hold a lock on
 			 * the newly entered node.
 			 */
-			if ((error = BUF_WRITE(bp)))
+			if ((error = bwrite(bp)))
 				return (error);
 			if (tvp != NULL)
 				VOP_UNLOCK(tvp, 0, td);
@@ -818,7 +818,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 			bdwrite(bp);
 			return (UFS_UPDATE(dvp, 0));
 		}
-		error = BUF_WRITE(bp);
+		error = bwrite(bp);
 		ret = UFS_UPDATE(dvp, 1);
 		if (error == 0)
 			return (ret);
@@ -945,7 +945,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 			bdwrite(bp);
 			error = 0;
 		} else {
-			error = BUF_WRITE(bp);
+			error = bwrite(bp);
 		}
 	}
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
@@ -1046,7 +1046,7 @@ out:
 			softdep_setup_remove(bp, dp, ip, isrmdir);
 		}
 		if (softdep_slowdown(dvp)) {
-			error = BUF_WRITE(bp);
+			error = bwrite(bp);
 		} else {
 			bdwrite(bp);
 			error = 0;
@@ -1059,12 +1059,12 @@ out:
 			ip->i_flag |= IN_CHANGE;
 		}
 		if (flags & DOWHITEOUT)
-			error = BUF_WRITE(bp);
+			error = bwrite(bp);
 		else if (DOINGASYNC(dvp) && dp->i_count != 0) {
 			bdwrite(bp);
 			error = 0;
 		} else
-			error = BUF_WRITE(bp);
+			error = bwrite(bp);
 	}
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	/*
@@ -1115,7 +1115,7 @@ ufs_dirrewrite(dp, oip, newinum, newtype, isrmdir)
 			bdwrite(bp);
 			error = 0;
 		} else {
-			error = BUF_WRITE(bp);
+			error = bwrite(bp);
 		}
 	}
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;

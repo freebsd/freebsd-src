@@ -61,9 +61,11 @@ static MALLOC_DEFINE(M_BIOBUF, "BIO buffer", "BIO buffer");
 
 struct	bio_ops bioops;		/* I/O operation notification */
 
+static int ibwrite(struct buf *);
+
 struct	buf_ops buf_ops_bio = {
 	"buf_ops_bio",
-	bwrite
+	ibwrite
 };
 
 /*
@@ -760,9 +762,17 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
  * or in biodone() since the I/O is synchronous.  We put it
  * here.
  */
-
 int
 bwrite(struct buf * bp)
+{
+
+	KASSERT(bp->b_op != NULL && bp->b_op->bop_write != NULL,
+	    ("Martian buffer %p in bwrite: nobody to write it.", bp));
+	return (bp->b_op->bop_write(bp));
+}
+
+static int
+ibwrite(struct buf * bp)
 {
 	int oldflags, s;
 	struct buf *newbp;
@@ -775,7 +785,7 @@ bwrite(struct buf * bp)
 	oldflags = bp->b_flags;
 
 	if (BUF_REFCNT(bp) == 0)
-		panic("bwrite: buffer is not busy???");
+		panic("ibwrite: buffer is not busy???");
 	s = splbio();
 	/*
 	 * If a background write is already in progress, delay
@@ -793,7 +803,7 @@ bwrite(struct buf * bp)
 		bp->b_vflags |= BV_BKGRDWAIT;
 		msleep(&bp->b_xflags, VI_MTX(bp->b_vp), PRIBIO, "bwrbg", 0);
 		if (bp->b_vflags & BV_BKGRDINPROG)
-			panic("bwrite: still writing");
+			panic("ibwrite: still writing");
 	}
 	VI_UNLOCK(bp->b_vp);
 
@@ -814,7 +824,7 @@ bwrite(struct buf * bp)
 	    !buf_dirty_count_severe()) {
 		if (bp->b_iodone != NULL) {
 			printf("bp->b_iodone = %p\n", bp->b_iodone);
-			panic("bwrite: need chained iodone");
+			panic("ibwrite: need chained iodone");
 		}
 
 		/* get a new block */
@@ -1147,7 +1157,7 @@ void
 bawrite(struct buf * bp)
 {
 	bp->b_flags |= B_ASYNC;
-	(void) BUF_WRITE(bp);
+	(void) bwrite(bp);
 }
 
 /*
@@ -1710,7 +1720,7 @@ vfs_bio_awrite(struct buf * bp)
 	 * XXX returns b_bufsize instead of b_bcount for nwritten?
 	 */
 	nwritten = bp->b_bufsize;
-	(void) BUF_WRITE(bp);
+	(void) bwrite(bp);
 
 	return nwritten;
 }
@@ -2382,7 +2392,7 @@ vfs_setdirty(struct buf *bp)
  *	case it is returned with B_INVAL clear and B_CACHE set based on the
  *	backing VM.
  *
- *	getblk() also forces a BUF_WRITE() for any B_DELWRI buffer whos
+ *	getblk() also forces a bwrite() for any B_DELWRI buffer whos
  *	B_CACHE bit is clear.
  *	
  *	What this means, basically, is that the caller should use B_CACHE to
@@ -2474,7 +2484,7 @@ loop:
 			    (size > bp->b_kvasize)) {
 				if (bp->b_flags & B_DELWRI) {
 					bp->b_flags |= B_NOCACHE;
-					BUF_WRITE(bp);
+					bwrite(bp);
 				} else {
 					if ((bp->b_flags & B_VMIO) &&
 					   (LIST_FIRST(&bp->b_dep) == NULL)) {
@@ -2482,7 +2492,7 @@ loop:
 						brelse(bp);
 					} else {
 						bp->b_flags |= B_NOCACHE;
-						BUF_WRITE(bp);
+						bwrite(bp);
 					}
 				}
 				goto loop;
@@ -2531,7 +2541,7 @@ loop:
 
 		if ((bp->b_flags & (B_CACHE|B_DELWRI)) == B_DELWRI) {
 			bp->b_flags |= B_NOCACHE;
-			BUF_WRITE(bp);
+			bwrite(bp);
 			goto loop;
 		}
 

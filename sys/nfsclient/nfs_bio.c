@@ -967,7 +967,7 @@ again:
 
 		if (bp->b_dirtyend > 0 &&
 		    (on > bp->b_dirtyend || (on + n) < bp->b_dirtyoff)) {
-			if (BUF_WRITE(bp) == EINTR) {
+			if (bwrite(bp) == EINTR) {
 				error = EINTR;
 				break;
 			}
@@ -1014,7 +1014,7 @@ again:
 		if ((ioflag & IO_SYNC)) {
 			if (ioflag & IO_INVAL)
 				bp->b_flags |= B_NOCACHE;
-			error = BUF_WRITE(bp);
+			error = bwrite(bp);
 			if (error)
 				break;
 		} else if ((n + on) == biosize) {
