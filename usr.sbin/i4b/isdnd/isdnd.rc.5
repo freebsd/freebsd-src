@@ -22,12 +22,13 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: isdnd.rc.5,v 1.36 1999/07/28 14:17:45 hm Exp $ 
+.\"	$Id: isdnd.rc.5,v 1.5 1999/08/06 14:04:37 hm Exp $ 
 .\"
 .\"     last edit-date: [Wed Jul 28 15:57:02 1999]
 .\"
 .Dd May 20, 1999
-.Dt isdnd.rc 5
+.Dt ISDND.RC 5
+.Os
 .Sh NAME
 .Nm isdnd.rc
 .Nd isdn4bsd ISDN connection management daemon config file format
@@ -711,7 +712,6 @@ network will cause a new call to be placed.
 .El
 
 .Pp
-
 .Sh FILES
 .Bl -tag -width /etc/isdn/isdnd.rc -compact
 .It Pa /etc/isdn/isdnd.rc
@@ -719,17 +719,16 @@ The default configuration file for the
 .Nm isdnd
 ISDN daemon.
 .El
-
 .Sh SEE ALSO
-.Xr isdnd 8
+.Xr regex 3 ,
+.Xr re_format 7 ,
+.Xr isdnd 8 ,
 .Xr isdnmonitor 8
-.Xr regex 3
-.Xr re_format 7
-
-.Sh AUTHOR
+.Sh AUTHORS
 The 
 .Xr isdnd 8
-daemon and this manual page were written by Hellmuth Michaelis. 
-He can be reached at hm@kts.org.
+daemon and this manual page were written by
+.An Hellmuth Michaelis Aq hm@kts.org .
 .Pp
-Additions to this manual page by Barry Scott (barry@scottb.demon.co.uk).
+Additions to this manual page by
+.An Barry Scott Aq barry@scottb.demon.co.uk .
