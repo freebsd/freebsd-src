@@ -1,4 +1,4 @@
-.\"	$Id: comcontrol.8,v 1.12 1997/02/22 14:32:27 peter Exp $
+.\"	$Id: comcontrol.8,v 1.13 1998/03/19 07:46:39 charnier Exp $
 .Dd May 15, 1994
 .Dt COMCONTROL 8
 .Os FreeBSD
@@ -19,7 +19,7 @@ This usage requires only read access on the device.
 Only the superuser can change the settings.
 .Pp
 The following options are available:
-.Bl -tag -width Fl
+.Bl -tag -width indent
 .It Cm dtrwait Ar number
 Set the time to wait after dropping DTR
 to the given number.
@@ -27,8 +27,6 @@ The units are hundredths of a second.
 The default is 300 hundredths, i.e., 3 seconds.
 This option needed mainly to set proper recover time after
 modem reset.
-.El
-.Bl -tag -width Fl
 .It Cm drainwait Ar number
 Set the time to wait for output drain
 to the given number.
@@ -39,23 +37,23 @@ to prevent modem hanging.
 .El
 .Pp
 The standard way to use
-.Nm comcontrol
+.Nm
 is to put invocations of it in the
-.Ar /etc/rc.serial
+.Pa /etc/rc.serial
 startup script.
 .Sh SEE ALSO
 .Xr stty 1 ,
 .Xr sio 4
 .Sh FILES
-.Bl -tag -width Pa
+.Bl -tag -width /dev/ttyd? -compact
 .It Pa /dev/ttyd?
 dialin devices, hardwired terminals
 .It Pa /dev/cuaa?
-dialout devices.
+dialout devices
 .Sh AUTHORS
 .An Christopher G. Demetriou
 .Sh BUGS
-.Nm comcontrol
+.Nm Comcontrol
 should be named
 .Nm siocontrol .
 .Sh HISTORY
