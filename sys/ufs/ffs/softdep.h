@@ -84,20 +84,23 @@
  * discarded. The IOSTARTED flag prevents multiple calls to the I/O
  * start routine from doing multiple rollbacks. The SPACECOUNTED flag
  * says that the files space has been accounted to the pending free
- * space count. The ONWORKLIST flag shows whether the structure is
- * currently linked onto a worklist.
+ * space count. The NEWBLOCK flag marks pagedep structures that have
+ * just been allocated, so must be claimed by the inode before all
+ * dependencies are complete. The ONWORKLIST flag shows whether the
+ * structure is currently linked onto a worklist.
  */
 #define	ATTACHED	0x0001
 #define	UNDONE		0x0002
 #define	COMPLETE	0x0004
 #define	DEPCOMPLETE	0x0008
-#define MKDIR_PARENT	0x0010
-#define MKDIR_BODY	0x0020
-#define RMDIR		0x0040
-#define DIRCHG		0x0080
-#define GOINGAWAY	0x0100
-#define IOSTARTED	0x0200
-#define SPACECOUNTED	0x0400
+#define	MKDIR_PARENT	0x0010	/* diradd & mkdir only */
+#define	MKDIR_BODY	0x0020	/* diradd & mkdir only */
+#define	RMDIR		0x0040	/* dirrem only */
+#define	DIRCHG		0x0080	/* diradd & dirrem only */
+#define	GOINGAWAY	0x0100	/* indirdep only */
+#define	IOSTARTED	0x0200	/* inodedep & pagedep only */
+#define	SPACECOUNTED	0x0400	/* inodedep only */
+#define	NEWBLOCK	0x0800	/* pagedep only */
 #define ONWORKLIST	0x8000
 
 #define	ALLCOMPLETE	(ATTACHED | COMPLETE | DEPCOMPLETE)
@@ -142,6 +145,7 @@ struct worklist {
 #define WK_DIRADD(wk) ((struct diradd *)(wk))
 #define WK_MKDIR(wk) ((struct mkdir *)(wk))
 #define WK_DIRREM(wk) ((struct dirrem *)(wk))
+#define WK_NEWDIRBLK(wk) ((struct newdirblk *)(wk))
 
 /*
  * Various types of lists
@@ -302,7 +306,17 @@ struct bmsafemap {
  * be freed once the inode claiming the new block is written to disk.
  * This ad_fragfree request is attached to the id_inowait list of the
  * associated inodedep (pointed to by ad_inodedep) for processing after
- * the inode is written.
+ * the inode is written. When a block is allocated to a directory, an
+ * fsync of a file whose name is within that block must ensure not only
+ * that the block containing the file name has been written, but also
+ * that the on-disk inode references that block. When a new directory
+ * block is created, we allocate a newdirblk structure which is linked
+ * to the associated allocdirect (on its ad_newdirblk list). When the
+ * allocdirect has been satisfied, the newdirblk structure is moved to
+ * the inodedep id_bufwait list of its directory to await the inode
+ * being written. When the inode is written, the directory entries are
+ * fully committed and can be deleted from their pagedep->id_pendinghd
+ * and inodedep->id_pendinghd lists.
  */
 struct allocdirect {
 	struct	worklist ad_list;	/* buffer holding block */
@@ -317,6 +331,7 @@ struct allocdirect {
 	struct	buf *ad_buf;		/* cylgrp buffer (if pending) */
 	struct	inodedep *ad_inodedep;	/* associated inodedep */
 	struct	freefrag *ad_freefrag;	/* fragment to be freed (if any) */
+	struct	workhead ad_newdirblk;	/* dir block to notify when written */
 };
 
 /*
@@ -532,3 +547,27 @@ struct dirrem {
 };
 #define dm_pagedep dm_un.dmu_pagedep
 #define dm_dirinum dm_un.dmu_dirinum
+
+/*
+ * A "newdirblk" structure tracks the progress of a newly allocated
+ * directory block from its creation until it is claimed by its on-disk
+ * inode. When a block is allocated to a directory, an fsync of a file
+ * whose name is within that block must ensure not only that the block
+ * containing the file name has been written, but also that the on-disk
+ * inode references that block. When a new directory block is created,
+ * we allocate a newdirblk structure which is linked to the associated
+ * allocdirect (on its ad_newdirblk list). When the allocdirect has been
+ * satisfied, the newdirblk structure is moved to the inodedep id_bufwait
+ * list of its directory to await the inode being written. When the inode
+ * is written, the directory entries are fully committed and can be
+ * deleted from their pagedep->id_pendinghd and inodedep->id_pendinghd
+ * lists. Note that we could track directory blocks allocated to indirect
+ * blocks using a similar scheme with the allocindir structures. Rather
+ * than adding this level of complexity, we simply write those newly 
+ * allocated indirect blocks synchronously as such allocations are rare.
+ */
+struct newdirblk {
+	struct	worklist db_list;	/* id_inowait or pg_newdirblk */
+#	define	db_state db_list.wk_state /* unused */
+	struct	pagedep *db_pagedep;	/* associated pagedep */
+};
