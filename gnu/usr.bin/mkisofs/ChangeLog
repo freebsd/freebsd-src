@@ -1,4 +1,39 @@
-Wed Jan 11 13:46:50 1995  Eric Youngdale  (eric@localhost)
+Sun Feb 26 01:52:06 1995  Eric Youngdale  (eric@largo)
+
+	* Add patches from Ross Biro to allow you to merge arbitrary
+	trees into the image.  This is not compiled in by default but
+	you need to add -DADD_FILES when compiling.
+
+Fri Feb 17 02:29:03 1995  Paul Eggert  <eggert@twinsun.com>
+
+	* tree.c: Port to Solaris 2.4.  Prefer <sys/mkdev.h> if
+	HASMKDEV.  Cast unknown integer types to unsigned long and
+	print them with %lu or %lx.
+
+Thu Jan 26 15:25:00 1995  H. Peter Anvin  (hpa@yggdrasil.com)
+
+	* mkisofs.c: Substitute underscore for leading dot in non-Rock
+	Ridge filenames, since MS-DOS cannot read files whose names
+	begin with a period.
+
+Mon Jan 16 18:31:41 1995  Eric Youngdale  (eric@aib.com)
+
+	* rock.c (generate_rock_ridge_attributes): Only use ROOT
+	record for symlinks if we are at the start of the symlink.
+	Otherwise just generate an empty entry.
+
+Mon Jan 16 16:19:50 1995  Eric Youngdale  (eric@aib.com)
+
+	* diag/isodump.c: Use isonum_733 instead of trying to dereference
+	pointers when trying to decode 733 numbers in the iso9660 image.
+
+	* diag/isovfy.c: Likewise.
+
+	* write.c: Always assign an extent number, even for zero length
+	files.  A zero length file with a NULL extent is apparently dropped
+	by many readers.
+
+Wed Jan 11 13:46:50 1995  Eric Youngdale  (eric@aib.com)
 
 	* mkisofs.c: Modify extension record to conform to IEEE P1282
 	specifications.  This is commented out right now, but a trivial
