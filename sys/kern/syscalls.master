@@ -520,3 +520,5 @@
 			    int nchanges, struct kevent **changelist, \
 			    int nevents, struct kevent *eventlist, \
 			    struct timespec *timeout); }
+364	STD	BSD	{ int __cap_get_proc(struct cap *cap_p); }
+365	STD	BSD	{ int __cap_set_proc(struct cap *cap_p); }
