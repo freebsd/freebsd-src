@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vesa.c,v 1.15.2.1 1999/02/07 03:03:26 yokota Exp $
+ * $Id: vesa.c,v 1.15.2.2 1999/02/20 03:06:04 yokota Exp $
  */
 
 #include "vga.h"
@@ -151,6 +151,7 @@ static char *vesa_revstr = NULL;
 static int int10_set_mode(int mode);
 static int vesa_bios_get_mode(int mode, struct vesa_mode *vmode);
 static int vesa_bios_set_mode(int mode);
+static int vesa_bios_get_dac(void);
 static int vesa_bios_set_dac(int bits);
 static int vesa_bios_save_palette(int start, int colors, u_char *palette,
 				  int bits);
@@ -230,6 +231,21 @@ vesa_bios_set_mode(int mode)
 	vmf.vmf_ebx = mode;
 	err = vm86_intcall(0x10, &vmf);
 	return ((err != 0) || (vmf.vmf_eax != 0x4f));
+}
+
+static int
+vesa_bios_get_dac(void)
+{
+	struct vm86frame vmf;
+	int err;
+
+	bzero(&vmf, sizeof(vmf));
+	vmf.vmf_eax = 0x4f08;
+	vmf.vmf_ebx = 1;	/* get DAC width */
+	err = vm86_intcall(0x10, &vmf);
+	if ((err != 0) || (vmf.vmf_eax != 0x4f))
+		return 6;	/* XXX */
+	return ((vmf.vmf_ebx >> 8) & 0x00ff);
 }
 
 static int
@@ -835,12 +851,14 @@ vesa_save_palette(video_adapter_t *adp, u_char *palette)
 	int bits;
 	int error;
 
-	if ((adp == vesa_adp) && (vesa_adp_info->v_flags & V_DAC8) 
-	    && ((bits = vesa_bios_set_dac(8)) > 6)) {
+	if ((adp == vesa_adp) && (vesa_adp_info->v_flags & V_DAC8)
+	    && VESA_MODE(adp->va_mode)) {
+		bits = vesa_bios_get_dac();
 		error = vesa_bios_save_palette(0, 256, palette, bits);
-		vesa_bios_set_dac(6);
 		if (error == 0)
 			return 0;
+		if (bits != 6)
+			return error;
 	}
 
 	return (*prevvidsw->save_palette)(adp, palette);
@@ -849,16 +867,19 @@ vesa_save_palette(video_adapter_t *adp, u_char *palette)
 static int
 vesa_load_palette(video_adapter_t *adp, u_char *palette)
 {
+#if notyet
 	int bits;
 	int error;
 
 	if ((adp == vesa_adp) && (vesa_adp_info->v_flags & V_DAC8) 
-	    && ((bits = vesa_bios_set_dac(8)) > 6)) {
+	    && VESA_MODE(adp->va_mode) && ((bits = vesa_bios_set_dac(8)) > 6)) {
 		error = vesa_bios_load_palette(0, 256, palette, bits);
-		vesa_bios_set_dac(6);
 		if (error == 0)
 			return 0;
+		if (vesa_bios_set_dac(6) != 6)
+			return 1;
 	}
+#endif /* notyet */
 
 	return (*prevvidsw->load_palette)(adp, palette);
 }
@@ -1069,7 +1090,9 @@ vesa_load(void)
 static int
 vesa_unload(void)
 {
+	u_char palette[256*3];
 	int error;
+	int bits;
 	int s;
 
 	/* if the adapter is currently in a VESA mode, don't unload */
@@ -1083,8 +1106,16 @@ vesa_unload(void)
 	s = spltty();
 	if ((error = vesa_unload_ioctl()) == 0) {
 		if (vesa_adp != NULL) {
-			if (vesa_adp_info->v_flags & V_DAC8) 
-				vesa_bios_set_dac(6);
+			if (vesa_adp_info->v_flags & V_DAC8)  {
+				bits = vesa_bios_get_dac();
+				if (bits > 6) {
+					vesa_bios_save_palette(0, 256,
+							       palette, bits);
+					vesa_bios_set_dac(6);
+					vesa_bios_load_palette(0, 256,
+							       palette, 6);
+				}
+			}
 			vesa_adp->va_flags &= ~V_ADP_VESA;
 			vidsw[vesa_adp->va_index] = prevvidsw;
 		}
