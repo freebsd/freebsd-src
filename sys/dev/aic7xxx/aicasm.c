@@ -185,12 +185,14 @@ void output(FILE *fp)
 {
 	int i;
 
+	fprintf(fp, "unsigned char seqprog[] = {\n");
 	for (i = 0; i < LC; i++)
 		fprintf(fp, "\t0x%02x, 0x%02x, 0x%02x, 0x%02x,\n",
 			M[i][3],
 			M[i][2],
 			M[i][1],
 			M[i][0]);
+	fprintf(fp, "};\n");
 }
 
 char **getl(int *n)
