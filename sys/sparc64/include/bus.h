@@ -80,7 +80,6 @@
 #include <sys/ktr.h>
 #endif
 
-#include <machine/types.h>
 #include <machine/cpufunc.h>
 #include <machine/upa.h>
 
