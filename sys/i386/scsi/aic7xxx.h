@@ -20,7 +20,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7xxx.h,v 1.21 1996/01/30 22:56:41 mpp Exp $
+ *	$Id: aic7xxx.h,v 1.22 1996/03/10 07:11:44 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -115,7 +115,7 @@ struct scb {
 					 * selection
 					 */
 /*-----------------end of hardware supported fields----------------*/
-	struct scb *next;	/* in free list */
+	SLIST_ENTRY(scb)	next;	/* in free list */
 	struct scsi_xfer *xs;	/* the scsi_xfer for this cmd */
 	int	flags;
 #define	SCB_FREE		0x00
@@ -137,7 +137,7 @@ struct ahc_data {
 	ahc_flag flags;
 	u_long	baseport;
 	struct	scb *scbarray[AHC_SCB_MAX]; /* Mirror boards scbarray */
-	struct	scb *free_scb;
+	SLIST_HEAD(, scb) free_scb;
 	int	our_id;			/* our scsi id */
 	int	our_id_b;		/* B channel scsi id */
 	int	vect;
@@ -155,6 +155,7 @@ struct ahc_data {
 	int	numscbs;
 	int	activescbs;
 	u_char	maxscbs;
+	u_char	qcntmask;
 	u_char	unpause;
 	u_char	pause;
 	u_char	in_timeout;
@@ -170,32 +171,6 @@ struct ahc_data {
 /* #define AHC_DEBUG */
 
 extern int ahc_debug; /* Initialized in i386/scsi/aic7xxx.c */
-
-/*
- * Since the sequencer can disable pausing in a critical section, we
- * must loop until it actually stops.
- * XXX Should add a timeout in here??
- */
-#define PAUSE_SEQUENCER(ahc)      \
-        outb(HCNTRL + ahc->baseport, ahc->pause);   \
-				\
-        while ((inb(HCNTRL + ahc->baseport) & PAUSE) == 0)             \
-                        ;
-
-#define UNPAUSE_SEQUENCER(ahc)    \
-        outb( HCNTRL + ahc->baseport, ahc->unpause )
-
-/*
- * Restart the sequencer program from address zero
- */
-#define RESTART_SEQUENCER(ahc)    \
-                do {                                    \
-                        outb( SEQCTL + ahc->baseport, SEQRESET|FASTMODE );    \
-                } while (inb(SEQADDR0 + ahc->baseport) != 0 &&   \
-			 inb(SEQADDR1 + ahc->baseport != 0));     \
-                                                        \
-                UNPAUSE_SEQUENCER(ahc);
-
 
 void ahc_reset __P((u_long iobase));
 struct ahc_data *ahc_alloc __P((int unit, u_long io_base, ahc_type type, ahc_flag flags));
