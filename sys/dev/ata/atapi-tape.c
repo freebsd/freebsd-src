@@ -169,6 +169,7 @@ ast_detach(struct ata_device *atadev)
     mtx_lock(&stp->queue_mtx);
     bioq_flush(&stp->queue, NULL, ENXIO);
     mtx_unlock(&stp->queue_mtx);
+    mtx_destroy(&stp->queue_mtx);
     destroy_dev(stp->dev1);
     destroy_dev(stp->dev2);
     devstat_remove_entry(stp->stats);
