@@ -66,6 +66,7 @@
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
 #include <sys/bus.h>
+#include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <sys/timepps.h>
@@ -131,6 +132,11 @@
 #define	COM_FIFOSIZE(flags)	(((flags) & 0xff000000) >> 24)
 
 #define	com_scr		7	/* scratch register for 16450-16550 (R/W) */
+
+#define	sio_getreg(com, off) \
+	(bus_space_read_1((com)->bst, (com)->bsh, (off)))
+#define	sio_setreg(com, off, value) \
+	(bus_space_write_1((com)->bst, (com)->bsh, (off), (value)))
 
 /*
  * com state bits.
@@ -230,12 +236,14 @@ struct com_s {
 	struct lbq	obufq;	/* head of queue of output buffers */
 	struct lbq	obufs[2];	/* output buffers */
 
+	bus_space_tag_t		bst;
+	bus_space_handle_t	bsh;
+
 	Port_t	data_port;	/* i/o ports */
 #ifdef COM_ESP
 	Port_t	esp_port;
 #endif
 	Port_t	int_id_port;
-	Port_t	iobase;
 	Port_t	modem_ctl_port;
 	Port_t	line_status_port;
 	Port_t	modem_status_port;
@@ -514,10 +522,6 @@ sio_pccard_detach(dev)
 		device_printf(dev, "NULL com in siounload\n");
 		return (0);
 	}
-	if (com->iobase == 0) {
-		device_printf(dev, "already unloaded!\n");
-		return (0);
-	}
 	com->gone = 1;
 	if (com->irqres) {
 		bus_teardown_intr(dev, com->irqres, com->cookie);
@@ -630,6 +634,7 @@ sioprobe(dev)
 	static bool_t	already_init;
 	device_t	xdev;
 #endif
+	struct com_s	*com;
 	bool_t		failures[10];
 	int		fn;
 	device_t	idev;
@@ -648,6 +653,10 @@ sioprobe(dev)
 				  0, ~0, IO_COMSIZE, RF_ACTIVE);
 	if (!port)
 		return (ENXIO);
+
+	com = device_get_softc(dev);
+	com->bst = rman_get_bustag(port);
+	com->bsh = rman_get_bushandle(port);
 
 #if 0
 	/*
@@ -750,10 +759,10 @@ sioprobe(dev)
 	if (iobase == siocniobase)
 		DELAY((16 + 1) * 1000000 / (comdefaultrate / 10));
 	else {
-		outb(iobase + com_cfcr, CFCR_DLAB | CFCR_8BITS);
-		outb(iobase + com_dlbl, COMBRD(SIO_TEST_SPEED) & 0xff);
-		outb(iobase + com_dlbh, (u_int) COMBRD(SIO_TEST_SPEED) >> 8);
-		outb(iobase + com_cfcr, CFCR_8BITS);
+		sio_setreg(com, com_cfcr, CFCR_DLAB | CFCR_8BITS);
+		sio_setreg(com, com_dlbl, COMBRD(SIO_TEST_SPEED) & 0xff);
+		sio_setreg(com, com_dlbh, (u_int) COMBRD(SIO_TEST_SPEED) >> 8);
+		sio_setreg(com, com_cfcr, CFCR_8BITS);
 		DELAY((16 + 1) * 1000000 / (SIO_TEST_SPEED / 10));
 	}
 
@@ -763,8 +772,8 @@ sioprobe(dev)
 	 * guarantee an edge trigger if an interrupt can be generated.
 	 */
 /* EXTRA DELAY? */
-	outb(iobase + com_mcr, mcr_image);
-	outb(iobase + com_ier, 0);
+	sio_setreg(com, com_mcr, mcr_image);
+	sio_setreg(com, com_ier, 0);
 	DELAY(1000);		/* XXX */
 	irqmap[0] = isa_irq_pending();
 
@@ -773,7 +782,7 @@ sioprobe(dev)
 	 * without annoying any external device.
 	 */
 /* EXTRA DELAY? */
-	outb(iobase + com_mcr, mcr_image | MCR_LOOPBACK);
+	sio_setreg(com, com_mcr, mcr_image | MCR_LOOPBACK);
 
 	/*
 	 * Attempt to generate an output interrupt.  On 8250's, setting
@@ -783,7 +792,7 @@ sioprobe(dev)
 	 * current setting.  On 16550A's, setting IER_ETXRDY only
 	 * generates an interrupt when IER_ETXRDY is not already set.
 	 */
-	outb(iobase + com_ier, IER_ETXRDY);
+	sio_setreg(com, com_ier, IER_ETXRDY);
 
 	/*
 	 * On some 16x50 incompatibles, setting IER_ETXRDY doesn't generate
@@ -791,7 +800,7 @@ sioprobe(dev)
 	 * output.  Loopback may be broken on the same incompatibles but
 	 * it's unlikely to do more than allow the null byte out.
 	 */
-	outb(iobase + com_data, 0);
+	sio_setreg(com, com_data, 0);
 	DELAY((1 + 2) * 1000000 / (SIO_TEST_SPEED / 10));
 
 	/*
@@ -802,7 +811,7 @@ sioprobe(dev)
 	 * are disabled.
 	 */
 /* EXTRA DELAY? */
-	outb(iobase + com_mcr, mcr_image);
+	sio_setreg(com, com_mcr, mcr_image);
 
 	/*
 	 * Some pcmcia cards have the "TXRDY bug", so we check everyone
@@ -812,14 +821,14 @@ sioprobe(dev)
 		/* Reading IIR register twice */
 		for (fn = 0; fn < 2; fn ++) {
 			DELAY(10000);
-			failures[6] = inb(iobase + com_iir);
+			failures[6] = sio_getreg(com, com_iir);
 		}
 		/* Check IIR_TXRDY clear ? */
 		result = 0;
 		if (failures[6] & IIR_TXRDY) {
 			/* Nop, Double check with clearing IER */
-			outb(iobase + com_ier, 0);
-			if (inb(iobase + com_iir) & IIR_NOPEND) {
+			sio_setreg(com, com_ier, 0);
+			if (sio_getreg(com, com_iir) & IIR_NOPEND) {
 				/* Ok. we're familia this gang */
 				SET_FLAG(dev, COM_C_IIR_TXRDYBUG);
 			} else {
@@ -830,7 +839,7 @@ sioprobe(dev)
 			/* OK. this is well-known guys */
 			CLR_FLAG(dev, COM_C_IIR_TXRDYBUG);
 		}
-		outb(iobase + com_cfcr, CFCR_8BITS);
+		sio_setreg(com, com_cfcr, CFCR_8BITS);
 		enable_intr();
 		bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
 		return (iobase == siocniobase ? 0 : result);
@@ -845,15 +854,15 @@ sioprobe(dev)
 	 *	o the interrupt goes away when the IIR in the UART is read.
 	 */
 /* EXTRA DELAY? */
-	failures[0] = inb(iobase + com_cfcr) - CFCR_8BITS;
-	failures[1] = inb(iobase + com_ier) - IER_ETXRDY;
-	failures[2] = inb(iobase + com_mcr) - mcr_image;
+	failures[0] = sio_getreg(com, com_cfcr) - CFCR_8BITS;
+	failures[1] = sio_getreg(com, com_ier) - IER_ETXRDY;
+	failures[2] = sio_getreg(com, com_mcr) - mcr_image;
 	DELAY(10000);		/* Some internal modems need this time */
 	irqmap[1] = isa_irq_pending();
-	failures[4] = (inb(iobase + com_iir) & IIR_IMASK) - IIR_TXRDY;
+	failures[4] = (sio_getreg(com, com_iir) & IIR_IMASK) - IIR_TXRDY;
 	DELAY(1000);		/* XXX */
 	irqmap[2] = isa_irq_pending();
-	failures[6] = (inb(iobase + com_iir) & IIR_IMASK) - IIR_NOPEND;
+	failures[6] = (sio_getreg(com, com_iir) & IIR_IMASK) - IIR_NOPEND;
 
 	/*
 	 * Turn off all device interrupts and check that they go off properly.
@@ -864,12 +873,12 @@ sioprobe(dev)
 	 * (On the system that this was first tested on, the input floats high
 	 * and gives a (masked) interrupt as soon as the gate is closed.)
 	 */
-	outb(iobase + com_ier, 0);
-	outb(iobase + com_cfcr, CFCR_8BITS);	/* dummy to avoid bus echo */
-	failures[7] = inb(iobase + com_ier);
+	sio_setreg(com, com_ier, 0);
+	sio_setreg(com, com_cfcr, CFCR_8BITS);	/* dummy to avoid bus echo */
+	failures[7] = sio_getreg(com, com_ier);
 	DELAY(1000);		/* XXX */
 	irqmap[3] = isa_irq_pending();
-	failures[9] = (inb(iobase + com_iir) & IIR_IMASK) - IIR_NOPEND;
+	failures[9] = (sio_getreg(com, com_iir) & IIR_IMASK) - IIR_NOPEND;
 
 	enable_intr();
 
@@ -887,7 +896,7 @@ sioprobe(dev)
 	result = 0;
 	for (fn = 0; fn < sizeof failures; ++fn)
 		if (failures[fn]) {
-			outb(iobase + com_mcr, 0);
+			sio_setreg(com, com_mcr, 0);
 			result = ENXIO;
 			if (bootverbose) {
 				printf("sio%d: probe failed test(s):",
@@ -933,7 +942,7 @@ espattach(com, esp_port)
 	/*
 	 * Bits 0,1 of dips say which COM port we are.
 	 */
-	if (com->iobase == likely_com_ports[dips & 0x03])
+	if (rman_get_start(com->ioportres) == likely_com_ports[dips & 0x03])
 		printf(" : ESP");
 	else {
 		printf(" esp_port has com %d\n", dips & 0x03);
@@ -1018,6 +1027,8 @@ sioattach(dev)
 	bzero(com, sizeof *com);
 	com->unit = unit;
 	com->ioportres = port;
+	com->bst = rman_get_bustag(port);
+	com->bsh = rman_get_bushandle(port);
 	com->cfcr_image = CFCR_8BITS;
 	com->dtr_wait = 3 * hz;
 	com->loses_outints = COM_LOSESOUTINTS(flags) != 0;
@@ -1026,7 +1037,6 @@ sioattach(dev)
 	com->obufs[0].l_head = com->obuf1;
 	com->obufs[1].l_head = com->obuf2;
 
-	com->iobase = iobase;
 	com->data_port = iobase + com_data;
 	com->int_id_port = iobase + com_iir;
 	com->modem_ctl_port = iobase + com_mcr;
@@ -1084,18 +1094,18 @@ sioattach(dev)
 		u_char	scr1;
 		u_char	scr2;
 
-		scr = inb(iobase + com_scr);
-		outb(iobase + com_scr, 0xa5);
-		scr1 = inb(iobase + com_scr);
-		outb(iobase + com_scr, 0x5a);
-		scr2 = inb(iobase + com_scr);
-		outb(iobase + com_scr, scr);
+		scr = sio_getreg(com, com_scr);
+		sio_setreg(com, com_scr, 0xa5);
+		scr1 = sio_getreg(com, com_scr);
+		sio_setreg(com, com_scr, 0x5a);
+		scr2 = sio_getreg(com, com_scr);
+		sio_setreg(com, com_scr, scr);
 		if (scr1 != 0xa5 || scr2 != 0x5a) {
 			printf(" 8250");
 			goto determined_type;
 		}
 	}
-	outb(iobase + com_fifo, FIFO_ENABLE | FIFO_RX_HIGH);
+	sio_setreg(com, com_fifo, FIFO_ENABLE | FIFO_RX_HIGH);
 	DELAY(100);
 	com->st16650a = 0;
 	switch (inb(com->int_id_port) & IIR_FIFO_MASK) {
@@ -1165,7 +1175,7 @@ sioattach(dev)
 		outb(com->esp_port + ESP_CMD2, LOBYTE(512));
 	}
 #endif /* COM_ESP */
-	outb(iobase + com_fifo, 0);
+	sio_setreg(com, com_fifo, 0);
 determined_type: ;
 
 #ifdef COM_MULTIPORT
@@ -1239,7 +1249,6 @@ sioopen(dev, flag, mode, p)
 {
 	struct com_s	*com;
 	int		error;
-	Port_t		iobase;
 	int		mynor;
 	int		s;
 	struct tty	*tp;
@@ -1322,7 +1331,6 @@ open_top:
 		/*
 		 * XXX we should goto open_top if comparam() slept.
 		 */
-		iobase = com->iobase;
 		if (com->hasfifo) {
 			/*
 			 * (Re)enable and drain fifos.
@@ -1336,9 +1344,9 @@ open_top:
 			 * input.
 			 */
 			while (TRUE) {
-				outb(iobase + com_fifo,
-				     FIFO_RCV_RST | FIFO_XMT_RST
-				     | com->fifo_image);
+				sio_setreg(com, com_fifo,
+					   FIFO_RCV_RST | FIFO_XMT_RST
+					   | com->fifo_image);
 				/*
 				 * XXX the delays are for superstitious
 				 * historical reasons.  It must be less than
@@ -1353,7 +1361,7 @@ open_top:
 				DELAY(50);
 				if (!(inb(com->line_status_port) & LSR_RXRDY))
 					break;
-				outb(iobase + com_fifo, 0);
+				sio_setreg(com, com_fifo, 0);
 				DELAY(50);
 				(void) inb(com->data_port);
 			}
@@ -1456,22 +1464,20 @@ static void
 comhardclose(com)
 	struct com_s	*com;
 {
-	Port_t		iobase;
 	int		s;
 	struct tty	*tp;
 	int		unit;
 
 	unit = com->unit;
-	iobase = com->iobase;
 	s = spltty();
 	com->poll = FALSE;
 	com->poll_output = FALSE;
 	com->do_timestamp = FALSE;
 	com->do_dcd_timestamp = FALSE;
 	com->pps.ppsparam.mode = 0;
-	outb(iobase + com_cfcr, com->cfcr_image &= ~CFCR_SBREAK);
+	sio_setreg(com, com_cfcr, com->cfcr_image &= ~CFCR_SBREAK);
 	{
-		outb(iobase + com_ier, 0);
+		sio_setreg(com, com_ier, 0);
 		tp = com->tp;
 		if (tp->t_cflag & HUPCL
 		    /*
@@ -1498,7 +1504,7 @@ comhardclose(com)
 		 * reboots.  Some BIOSes fail to detect 16550s when the
 		 * fifos are enabled.
 		 */
-		outb(iobase + com_fifo, 0);
+		sio_setreg(com, com_fifo, 0);
 	}
 	com->active_out = FALSE;
 	wakeup(&com->active_out);
@@ -1919,7 +1925,6 @@ sioioctl(dev, cmd, data, flag, p)
 {
 	struct com_s	*com;
 	int		error;
-	Port_t		iobase;
 	int		mynor;
 	int		s;
 	struct tty	*tp;
@@ -1932,7 +1937,6 @@ sioioctl(dev, cmd, data, flag, p)
 	com = com_addr(MINOR_TO_UNIT(mynor));
 	if (com == NULL || com->gone)
 		return (ENODEV);
-	iobase = com->iobase;
 	if (mynor & CONTROL_MASK) {
 		struct termios	*ct;
 
@@ -2010,10 +2014,10 @@ sioioctl(dev, cmd, data, flag, p)
 	}
 	switch (cmd) {
 	case TIOCSBRK:
-		outb(iobase + com_cfcr, com->cfcr_image |= CFCR_SBREAK);
+		sio_setreg(com, com_cfcr, com->cfcr_image |= CFCR_SBREAK);
 		break;
 	case TIOCCBRK:
-		outb(iobase + com_cfcr, com->cfcr_image &= ~CFCR_SBREAK);
+		sio_setreg(com, com_cfcr, com->cfcr_image &= ~CFCR_SBREAK);
 		break;
 	case TIOCSDTR:
 		(void)commctl(com, TIOCM_DTR, DMBIS);
@@ -2150,7 +2154,6 @@ comparam(tp, t)
 	int		divisor;
 	u_char		dlbh;
 	u_char		dlbl;
-	Port_t		iobase;
 	int		s;
 	int		unit;
 
@@ -2168,7 +2171,6 @@ comparam(tp, t)
 	com = com_addr(unit);
 	if (com == NULL)
 		return (ENODEV);
-	iobase = com->iobase;
 	s = spltty();
 	if (divisor == 0)
 		(void)commctl(com, TIOCM_DTR, DMBIC);	/* hang up line */
@@ -2217,7 +2219,7 @@ comparam(tp, t)
 		if (com->esp)
 			com->fifo_image |= FIFO_DMA_MODE;
 #endif
-		outb(iobase + com_fifo, com->fifo_image);
+		sio_setreg(com, com_fifo, com->fifo_image);
 	}
 
 	/*
@@ -2228,7 +2230,7 @@ comparam(tp, t)
 	(void) siosetwater(com, t->c_ispeed);
 
 	if (divisor != 0) {
-		outb(iobase + com_cfcr, cfcr | CFCR_DLAB);
+		sio_setreg(com, com_cfcr, cfcr | CFCR_DLAB);
 		/*
 		 * Only set the divisor registers if they would change,
 		 * since on some 16550 incompatibles (UMC8669F), setting
@@ -2236,23 +2238,23 @@ comparam(tp, t)
 		 * data stops arriving.
 		 */
 		dlbl = divisor & 0xFF;
-		if (inb(iobase + com_dlbl) != dlbl)
-			outb(iobase + com_dlbl, dlbl);
+		if (sio_getreg(com, com_dlbl) != dlbl)
+			sio_setreg(com, com_dlbl, dlbl);
 		dlbh = (u_int) divisor >> 8;
-		if (inb(iobase + com_dlbh) != dlbh)
-			outb(iobase + com_dlbh, dlbh);
+		if (sio_getreg(com, com_dlbh) != dlbh)
+			sio_setreg(com, com_dlbh, dlbh);
 	}
 
-
-	outb(iobase + com_cfcr, com->cfcr_image = cfcr);
+	sio_setreg(com, com_cfcr, com->cfcr_image = cfcr);
 
 	if (!(tp->t_state & TS_TTSTOP))
 		com->state |= CS_TTGO;
 
 	if (cflag & CRTS_IFLOW) {
 		if (com->st16650a) {
-			outb(iobase + com_cfcr, 0xbf);
-			outb(iobase + com_fifo, inb(iobase + com_fifo) | 0x40);
+			sio_setreg(com, com_cfcr, 0xbf);
+			sio_setreg(com, com_fifo,
+				   sio_getreg(com, com_fifo) | 0x40);
 		}
 		com->state |= CS_RTS_IFLOW;
 		/*
@@ -2269,8 +2271,9 @@ comparam(tp, t)
 		 */
 		outb(com->modem_ctl_port, com->mcr_image |= MCR_RTS);
 		if (com->st16650a) {
-			outb(iobase + com_cfcr, 0xbf);
-			outb(iobase + com_fifo, inb(iobase + com_fifo) & ~0x40);
+			sio_setreg(com, com_cfcr, 0xbf);
+			sio_setreg(com, com_fifo,
+				   sio_getreg(com, com_fifo) & ~0x40);
 		}
 	}
 
@@ -2287,19 +2290,19 @@ comparam(tp, t)
 		if (!(com->last_modem_status & MSR_CTS))
 			com->state &= ~CS_ODEVREADY;
 		if (com->st16650a) {
-			outb(iobase + com_cfcr, 0xbf);
-			outb(iobase + com_fifo, inb(iobase + com_fifo) | 0x80);
+			sio_setreg(com, com_cfcr, 0xbf);
+			sio_setreg(com, com_fifo,
+				   sio_getreg(com, com_fifo) | 0x80);
 		}
 	} else {
 		if (com->st16650a) {
-			outb(iobase + com_cfcr, 0xbf);
-			outb(iobase + com_fifo, inb(iobase + com_fifo) & ~0x80);
+			sio_setreg(com, com_cfcr, 0xbf);
+			sio_setreg(com, com_fifo,
+				   sio_getreg(com, com_fifo) & ~0x80);
 		}
 	}
 
-
-	outb(iobase + com_cfcr, com->cfcr_image);
-
+	sio_setreg(com, com_cfcr, com->cfcr_image);
 
 	/* XXX shouldn't call functions while intrs are disabled. */
 	disc_optim(tp, t, com);
@@ -2494,8 +2497,8 @@ comstop(tp, rw)
 		    /* XXX avoid h/w bug. */
 		    if (!com->esp)
 #endif
-			outb(com->iobase + com_fifo,
-			     FIFO_XMT_RST | com->fifo_image);
+			sio_setreg(com, com_fifo,
+				   FIFO_XMT_RST | com->fifo_image);
 		com->obufs[0].l_queued = FALSE;
 		com->obufs[1].l_queued = FALSE;
 		if (com->state & CS_ODONE)
@@ -2509,8 +2512,8 @@ comstop(tp, rw)
 		    /* XXX avoid h/w bug. */
 		    if (!com->esp)
 #endif
-			outb(com->iobase + com_fifo,
-			     FIFO_RCV_RST | com->fifo_image);
+			sio_setreg(com, com_fifo,
+				   FIFO_RCV_RST | com->fifo_image);
 		com_events -= (com->iptr - com->ibuf);
 		com->iptr = com->ibuf;
 	}
