@@ -379,27 +379,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		sfp = (struct sigframe *)sp - 1;
 	PROC_UNLOCK(p);
 
-	/*
-	 * vm_map_growstack() will fail if *sfp does not fit inside the stack
-	 * and the stack can not be grown.
-	 * useracc() will return FALSE if access is denied.
-	 */
 	fp = (struct frame *)sfp - 1;
-	if (vm_map_growstack(p, (u_long)fp) != KERN_SUCCESS ||
-	    !useracc((caddr_t)fp, sizeof(*fp) + sizeof(*sfp), VM_PROT_WRITE)) {
-		/*
-		 * Process has trashed its stack; give it an illegal
-		 * instruction to halt it in its tracks.
-		 */
-		CTR2(KTR_SIG, "sendsig: trashed stack td=%p sfp=%p", td, sfp);
-		PROC_LOCK(p);
-		SIGACTION(p, SIGILL) = SIG_DFL;
-		SIGDELSET(p->p_sigignore, SIGILL);
-		SIGDELSET(p->p_sigcatch, SIGILL);
-		SIGDELSET(p->p_sigmask, SIGILL);
-		psignal(p, SIGILL);
-		return;
-	}
 
 	/* Translate the signal if appropriate. */
 	if (p->p_sysent->sv_sigtbl && sig <= p->p_sysent->sv_sigsize)
@@ -452,6 +432,8 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
  * Stub to satisfy the reference to osigreturn in the syscall table.  This
  * is needed even for newer arches that don't support old signals because
  * the syscall table is machine-independent.
+ *
+ * MPSAFE
  */
 int
 osigreturn(struct thread *td, struct osigreturn_args *uap)
@@ -466,6 +448,9 @@ struct sigreturn_args {
 };
 #endif
 
+/*
+ * MPSAFE
+ */
 int
 sigreturn(struct thread *td, struct sigreturn_args *uap)
 {
