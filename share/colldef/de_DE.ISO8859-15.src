@@ -2,7 +2,7 @@
 #
 # $FreeBSD$
 #
-charmap map.ISO_8859-15
+charmap map.ISO8859-15
 substitute <ss> with "ss"
 order \
 # controls
