@@ -6,5 +6,6 @@ MAINTAINER=	fanf@FreeBSD.org
 PROG=	unifdef
 SCRIPTS=unifdefall.sh
 MLINKS=	unifdef.1 unifdefall.1
+WARNS?=	5
 
 .include <bsd.prog.mk>
