@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.93 1998/07/06 05:00:52 julian Exp $
+ * $Id: ip_input.c,v 1.94 1998/07/06 09:06:58 julian Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -376,7 +376,7 @@ tooshort:
 		}
 #else	/* !DIVERT */
 		/*
-		 * If ipfw says divert, we have to just drop packet */
+		 * If ipfw says divert, we have to just drop packet 
 		 *  Use port as a dummy argument.
 		 */
 		port = 0;
