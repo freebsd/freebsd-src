@@ -234,7 +234,7 @@ no_poll(struct cdev *dev __unused, int events, struct thread *td __unused)
  * struct cdev * and u_dev_t primitives
  */
 
-int
+static int
 major(struct cdev *x)
 {
 	if (x == NULL)
