@@ -208,7 +208,7 @@ cardbus_attach_card(device_t cbdev)
 	static int curr_bus_number = 2; /* XXX EVILE BAD (see below) */
 	int bus, slot, func;
 
-	cardbus_detach_card(cbdev, DETACH_NOWARN); /* detach existing cards */
+	cardbus_detach_card(cbdev, 0); /* detach existing cards */
 
 	POWER_ENABLE_SOCKET(brdev, cbdev);
 	bus = pcib_get_bus(cbdev);
@@ -272,10 +272,9 @@ cardbus_detach_card(device_t cbdev, int flags)
 	device_get_children(cbdev, &devlist, &numdevs);
 
 	if (numdevs == 0) {
-		if (!(flags & DETACH_NOWARN)) {
+		if (bootverbose)
 			DEVPRINTF((cbdev, "detach_card: no card to detach!\n"));
-			POWER_DISABLE_SOCKET(device_get_parent(cbdev), cbdev);
-		}
+		POWER_DISABLE_SOCKET(device_get_parent(cbdev), cbdev);
 		free(devlist, M_TEMP);
 		return ENOENT;
 	}
