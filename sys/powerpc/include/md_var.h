@@ -56,4 +56,6 @@ void	swi_vm(void *);
 
 void	decr_init(void);
 
+void	cpu_setup(u_int);
+
 #endif /* !_MACHINE_MD_VAR_H_ */
