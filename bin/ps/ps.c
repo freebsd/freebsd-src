@@ -462,8 +462,11 @@ main(int argc, char *argv[])
 	what = showthreads != 0 ? KERN_PROC_ALL : KERN_PROC_PROC;
 	flag = 0;
 	if (nselectors == 1) {
-		/* XXX - Apparently there's no KERN_PROC_GID flag. */
-		if (pgrplist.count == 1) {
+		if (gidlist.count == 1) {
+			what = KERN_PROC_RGID | showthreads;
+			flag = *gidlist.l.gids;
+			nselectors = 0;
+		} else if (pgrplist.count == 1) {
 			what = KERN_PROC_PGRP | showthreads;
 			flag = *pgrplist.l.pids;
 			nselectors = 0;
@@ -475,16 +478,10 @@ main(int argc, char *argv[])
 			what = KERN_PROC_RUID | showthreads;
 			flag = *ruidlist.l.uids;
 			nselectors = 0;
-#if 0
-		/*-
-		 * XXX - KERN_PROC_SESSION causes error in kvm_getprocs?
-		 *	For now, always do sid-matching in this routine.
-		 */
 		} else if (sesslist.count == 1) {
 			what = KERN_PROC_SESSION | showthreads;
 			flag = *sesslist.l.pids;
 			nselectors = 0;
-#endif
 		} else if (ttylist.count == 1) {
 			what = KERN_PROC_TTY | showthreads;
 			flag = *ttylist.l.ttys;
