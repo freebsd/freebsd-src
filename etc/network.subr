@@ -300,7 +300,7 @@ list_net_interfaces()
 		return 0
 	fi
 
-	# Separate out dhcp and non-dhcp intefraces
+	# Separate out dhcp and non-dhcp interfaces
 	#
 	_aprefix=
 	_bprefix=
