@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_vrreg.h,v 1.8 1998/12/01 22:08:11 wpaul Exp $
+ *	$Id: if_vrreg.h,v 1.9 1999/01/10 18:06:10 wpaul Exp $
  */
 
 /*
@@ -311,6 +311,7 @@ struct vr_desc {
 #define VR_RXCTL_CHAIN		0x00008000
 #define VR_RXCTL_RX_INTR	0x00800000
 
+#define VR_RXCTL (VR_RXCTL_CHAIN|VR_RXCTL_RX_INTR)
 
 #define VR_TXSTAT_DEFER		0x00000001
 #define VR_TXSTAT_UNDERRUN	0x00000002
@@ -337,9 +338,9 @@ struct vr_desc {
 #define VR_TX_LIST_CNT		64
 #define VR_MIN_FRAMELEN		60
 #define VR_FRAMELEN		1536
+#define VR_RXLEN		1520
 
 #define VR_TXOWN(x)		x->vr_ptr->vr_status
-#define VR_UNSENT		0x12341234
 
 struct vr_list_data {
 	struct vr_desc		vr_rx_list[VR_RX_LIST_CNT];

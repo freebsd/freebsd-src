@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_vr.c,v 1.5 1998/12/24 18:03:17 wpaul Exp $
+ *	$Id: if_vr.c,v 1.16 1999/01/10 18:06:10 wpaul Exp $
  */
 
 /*
@@ -97,7 +97,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_vr.c,v 1.5 1998/12/24 18:03:17 wpaul Exp $";
+	"$Id: if_vr.c,v 1.16 1999/01/10 18:06:10 wpaul Exp $";
 #endif
 
 /*
@@ -1214,7 +1214,7 @@ static int vr_newbuf(sc, c)
 	c->vr_mbuf = m_new;
 	c->vr_ptr->vr_status = VR_RXSTAT;
 	c->vr_ptr->vr_data = vtophys(mtod(m_new, caddr_t));
-	c->vr_ptr->vr_ctl = VR_RXCTL_CHAIN | (MCLBYTES - 1);
+	c->vr_ptr->vr_ctl = VR_RXCTL | VR_RXLEN;
 
 	return(0);
 }
@@ -1276,8 +1276,7 @@ static void vr_rxeof(sc)
 				break;
 			}
 			cur_rx->vr_ptr->vr_status = VR_RXSTAT;
-			cur_rx->vr_ptr->vr_ctl =
-			VR_RXCTL_CHAIN | (MCLBYTES - 1);
+			cur_rx->vr_ptr->vr_ctl = VR_RXCTL|VR_RXLEN;
 			continue;
 		}
 
@@ -1304,8 +1303,7 @@ static void vr_rxeof(sc)
 		if (vr_newbuf(sc, cur_rx) == ENOBUFS) {
 			ifp->if_ierrors++;
 			cur_rx->vr_ptr->vr_status = VR_RXSTAT;
-			cur_rx->vr_ptr->vr_ctl =
-			VR_RXCTL_CHAIN | (MCLBYTES - 1);
+			cur_rx->vr_ptr->vr_ctl = VR_RXCTL|VR_RXLEN;
 			continue;
 		}
 
@@ -1383,7 +1381,7 @@ static void vr_txeof(sc)
 		cur_tx = sc->vr_cdata.vr_tx_head;
 		txstat = cur_tx->vr_ptr->vr_status;
 
-		if ((txstat & VR_TXSTAT_OWN) || txstat == VR_UNSENT)
+		if (txstat & VR_TXSTAT_OWN)
 			break;
 
 		if (txstat & VR_TXSTAT_ERRSUM) {
@@ -1429,12 +1427,6 @@ static void vr_txeoc(sc)
 		sc->vr_cdata.vr_tx_tail = NULL;
 		if (sc->vr_want_auto)
 			vr_autoneg_mii(sc, VR_FLAG_SCHEDDELAY, 1);
-	} else {
-		if (VR_TXOWN(sc->vr_cdata.vr_tx_head) == VR_UNSENT) {
-			VR_TXOWN(sc->vr_cdata.vr_tx_head) = VR_TXSTAT_OWN;
-			ifp->if_timer = 5;
-			VR_SETBIT16(sc, VR_COMMAND, VR_CMD_TX_ON|VR_CMD_TX_GO);
-		}
 	}
 
 	return;
@@ -1571,7 +1563,7 @@ static int vr_encap(sc, c, m_head)
 	}
 
 	c->vr_mbuf = m_head;
-	c->vr_ptr->vr_ctl |= VR_TXCTL_LASTFRAG;
+	c->vr_ptr->vr_ctl |= VR_TXCTL_LASTFRAG|VR_TXCTL_FINT;
 	c->vr_ptr->vr_next = vtophys(c->vr_nextdesc->vr_ptr);
 
 	return(0);
@@ -1632,6 +1624,8 @@ static void vr_start(ifp)
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, cur_tx->vr_mbuf);
 #endif
+		VR_TXOWN(cur_tx) = VR_TXSTAT_OWN;
+		VR_SETBIT16(sc, VR_COMMAND, VR_CMD_TX_ON|VR_CMD_TX_GO);
 	}
 
 	/*
@@ -1640,23 +1634,10 @@ static void vr_start(ifp)
 	if (cur_tx == NULL)
 		return;
 
-	/*
-	 * Place the request for the upload interrupt
-	 * in the last descriptor in the chain. This way, if
-	 * we're chaining several packets at once, we'll only
-	 * get an interupt once for the whole chain rather than
-	 * once for each packet.
-	 */
-	cur_tx->vr_ptr->vr_ctl |= VR_TXCTL_FINT;
 	sc->vr_cdata.vr_tx_tail = cur_tx;
 
-	if (sc->vr_cdata.vr_tx_head == NULL) {
+	if (sc->vr_cdata.vr_tx_head == NULL)
 		sc->vr_cdata.vr_tx_head = start_tx;
-		VR_TXOWN(start_tx) = VR_TXSTAT_OWN;
-		VR_SETBIT16(sc, VR_COMMAND, VR_CMD_TX_ON|VR_CMD_TX_GO);
-	} else {
-		VR_TXOWN(start_tx) = VR_UNSENT;
-	}
 
 	/*
 	 * Set a timeout in case the chip goes out to lunch.
