@@ -53,7 +53,9 @@ man page for further details.
 .Sh EXAMPLES
 .Ss "Setting up a Jail Directory Tree"
 This example shows how to setup a jail directory tree
-containing an entire FreeBSD distribution:
+containing an entire
+.Fx
+distribution:
 .Bd -literal
 D=/here/is/the/jail
 cd /usr/src
@@ -72,8 +74,12 @@ In the other extreme case a jail might contain only one singe file:
 the executable to be run in the jail.
 .Pp
 We recommend experimentation and caution that it is a lot easier to
-start with a ``fat'' jail and remove things until it stops working,
-than it is to start with a ``thin'' jail and add things until it works.
+start with a
+.Dq fat
+jail and remove things until it stops working,
+than it is to start with a
+.Dq thin
+jail and add things until it works.
 .Ss "Setting Up a Jail"
 Do what was described in
 .Sx "Setting Up a Jail Directory Tree"
