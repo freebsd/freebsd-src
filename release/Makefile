@@ -159,9 +159,8 @@ COMPAT_DISTS?=	compat1x compat20 compat21 compat22 compat3x compat4x
 COMPAT_DISTS?=	compat4x
 .endif
 OTHER_DISTS?=	catpages manpages games proflibs dict info doc
-CRYPTO_DISTS?=	crypto
 BASE_DISTS?=	base
-DISTRIBUTIONS?=	${BASE_DISTS} ${OTHER_DISTS} ${COMPAT_DISTS} ${CRYPTO_DISTS}
+DISTRIBUTIONS?=	${BASE_DISTS} ${OTHER_DISTS} ${COMPAT_DISTS}
 
 # mountpoint for filesystems.
 MNT=			/mnt
@@ -220,11 +219,6 @@ DISKLABEL?=		disklabel
 .endif
 
 ZIPNSPLIT=		gzip --no-name -9 -c | split -b 1392k -
-
-# Things that need to be compiled without crypto support in releases
-.if !defined(FIXCRYPTO) && !make(release) && !make(rerelease)
-FIXCRYPTO!=	cd ${.CURDIR}/../secure; ${MAKE} -V SPROGS
-.endif
 
 # Things which may get you into trouble if you change them
 MTREEFILES=		${.CURDIR}/../etc/mtree
@@ -440,7 +434,6 @@ release rerelease:
 	DOC_LANG \
 	DOMINIMALDOCPORTS \
 	EXTRA_SRC \
-	FIXCRYPTO \
 	FTP_PASSIVE_MODE \
 	FTP_PROXY \
 	HTTP_PROXY \
@@ -544,16 +537,6 @@ release.2:
 	cd ${.CURDIR}/.. && ${CROSSMAKE} distributeworld DISTDIR=${RD}/trees
 	touch ${.TARGET}
 
-# Build and install non-crypto versions of some tools.
-release.3:
-	# Handle some grief caused by the munition braindeadness.
-	cd ${.CURDIR}/..; \
-	${CROSSMAKE} ${WORLD_FLAGS} -DNOCRYPT \
-	    SUBDIR_OVERRIDE="${FIXCRYPTO}" \
-	    buildworld distributeworld DISTDIR=${RD}/trees
-	-chflags -R noschg ${RD}/trees
-	touch ${.TARGET}
-
 # Make and install the generic kernel(s).
 release.4:
 .for kernel in ${KERNELS}
@@ -609,7 +592,7 @@ release.6:
 
 	# Remove all the directories we don't need.
 	-cd ${RD}/trees && \
-		find ${OTHER_DISTS} ${COMPAT_DISTS} ${CRYPTO_DISTS} -depth -type d -print | xargs rmdir
+		find ${OTHER_DISTS} ${COMPAT_DISTS} -depth -type d -print | xargs rmdir
 	touch ${.TARGET}
 
 #
@@ -668,12 +651,6 @@ release.8:
 		fi && shift && shift ; \
 	done
 .endif
-	if [ -d ${RD}/dists/crypto ] ; then ( cd ${RD}/dists/src && \
-		if [ -f ssecure.aa ] ; then mv ssecure.* ../crypto ; fi && \
-		if [ -f scrypto.aa ] ; then mv scrypto.* ../crypto ; fi && \
-		if [ -f skrb5.aa ] ; then mv skrb5.* ../crypto ; fi ; \
-		cd ${RD}/dists/crypto; rm -f CHECKSUM.MD5; \
-		md5 * > CHECKSUM.MD5 ) ; fi
 	(cd ${RD}/dists/src; rm -f CHECKSUM.MD5; md5 * > CHECKSUM.MD5)
 	@echo "src distribution is finished."
 .endif
@@ -1029,7 +1006,7 @@ doTARBALL:
 		md5 * > CHECKSUM.MD5 ) \
 	)
 
-doRELEASE: release.1 release.2 release.3 ${DOCREL} release.4 release.5 \
+doRELEASE: release.1 release.2 ${DOCREL} release.4 release.5 \
     release.6 release.7 release.8 release.9 ${EXTRAS}
 	@echo "Release done"
 

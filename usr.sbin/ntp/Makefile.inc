@@ -10,7 +10,6 @@ CFLAGS+= ${NTPDEFS} ${DEFS_LOCAL} ${CLOCKDEFS}
 
 .if !defined(NOCRYPT) && !defined(NO_OPENSSL) && !defined(RELEASE_CRUNCH)
 CFLAGS+= -DOPENSSL
-DISTRIBUTION=	crypto
 .endif
 
 .if exists(${.OBJDIR}/../libparse)

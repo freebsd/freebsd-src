@@ -28,7 +28,6 @@ LIB=	pam_krb5
 SRCS=	pam_krb5.c
 MAN=	pam_krb5.8
 
-DISTRIBUTION= crypto
 DPADD=	${LIBKRB5} ${LIBASN1} ${LIBROKEN} ${LIBCOM_ERR} ${LIBCRYPT} ${LIBCRYPTO}
 LDADD=	-lkrb5 -lasn1 -lroken -lcom_err -lcrypt -lcrypto
 

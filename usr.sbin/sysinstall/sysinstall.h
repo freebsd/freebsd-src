@@ -108,7 +108,6 @@
 #define VAR_DISKINTERACTIVE		"diskInteractive"
 #define VAR_DISTS			"dists"
 #define VAR_DIST_MAIN			"distMain"
-#define VAR_DIST_CRYPTO			"distCRYPTO"
 #define VAR_DIST_SRC			"distSRC"
 #define VAR_DIST_X11			"distX11"
 #define VAR_DIST_XSERVER		"distXserver"
@@ -416,7 +415,6 @@ extern Boolean		OnVTY;			/* On a syscons VTY?				*/
 extern Variable		*VarHead;		/* The head of the variable chain		*/
 extern Device		*mediaDevice;		/* Where we're getting our distribution from	*/
 extern unsigned int	Dists;			/* Which distributions we want			*/
-extern unsigned int	CRYPTODists;		/* Which naughty distributions we want		*/
 extern unsigned int	SrcDists;		/* Which src distributions we want		*/
 extern unsigned int	XF86Dists;		/* Which XFree86 dists we want			*/
 extern unsigned int	XF86ServerDists;	/* The XFree86 servers we want			*/

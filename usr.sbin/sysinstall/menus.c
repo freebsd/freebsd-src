@@ -45,8 +45,6 @@ setSrc(dialogMenuItem *self)
 {
     Dists |= DIST_SRC;
     SrcDists = DIST_SRC_ALL;
-    CRYPTODists |= (DIST_CRYPTO_SCRYPTO | DIST_CRYPTO_SSECURE |
-	DIST_CRYPTO_SKERBEROS5);
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
@@ -55,8 +53,6 @@ clearSrc(dialogMenuItem *self)
 {
     Dists &= ~DIST_SRC;
     SrcDists = 0;
-    CRYPTODists &= ~(DIST_CRYPTO_SCRYPTO | DIST_CRYPTO_SSECURE |
-	DIST_CRYPTO_SKERBEROS5);
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
@@ -156,13 +152,13 @@ checkDistXUser(dialogMenuItem *self)
 static int
 checkDistMinimum(dialogMenuItem *self)
 {
-    return Dists == (DIST_BASE | DIST_CRYPTO);
+    return Dists == (DIST_BASE);
 }
 
 static int
 checkDistEverything(dialogMenuItem *self)
 {
-    return Dists == DIST_ALL && CRYPTODists == DIST_CRYPTO_ALL &&
+    return Dists == DIST_ALL &&
 	_IS_SET(SrcDists, DIST_SRC_ALL) &&
 	_IS_SET(XF86Dists, DIST_XF86_ALL) &&
 	_IS_SET(XF86ServerDists, DIST_XF86_SERVER_ALL) &&
@@ -976,8 +972,6 @@ DMenu MenuSubDistributions = {
       { " compat4x",	"FreeBSD 4.x binary compatibility",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_COMPAT4X },
 #endif
-      { " crypto",	"Basic encryption services",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_CRYPTO, },
       { " dict",	"Spelling checker dictionary files",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_DICT },
       { " doc",		"Miscellaneous FreeBSD online docs",
@@ -1022,6 +1016,8 @@ DMenu MenuSrcDistributions = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_BASE },
       { " contrib",	"/usr/src/contrib (contributed software)",
 	dmenuFlagCheck,	dmenuSetFlag,	NULL, &SrcDists, '[', 'X', ']', DIST_SRC_CONTRIB },
+      { " crypto",	"/usr/src/crypto (contrib encryption sources)",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_SCRYPTO },
       { " gnu",		"/usr/src/gnu (software from the GNU Project)",
 	dmenuFlagCheck,	dmenuSetFlag,	NULL, &SrcDists, '[', 'X', ']', DIST_SRC_GNU },
       { " etc",		"/usr/src/etc (miscellaneous system files)",
@@ -1030,6 +1026,8 @@ DMenu MenuSrcDistributions = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_GAMES },
       { " include",	"/usr/src/include (header files)",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_INCLUDE },
+      { " krb5",	"/usr/src/kerberos5 (sources for Kerberos5)",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_SKERBEROS5 },
       { " lib",		"/usr/src/lib (system libraries)",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_LIB },
       { " libexec",	"/usr/src/libexec (system programs)",
@@ -1040,14 +1038,10 @@ DMenu MenuSrcDistributions = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_BIN },
       { " sbin",	"/usr/src/sbin (system binaries)",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_SBIN },
-      { " scrypto",	"/usr/src/crypto (contrib encryption sources)",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_SCRYPTO },
+      { " secure",	"/usr/src/secure (BSD encryption sources)",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_SSECURE },
       { " share",	"/usr/src/share (documents and shared files)",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_SHARE },
-      { " skrb5",	"/usr/src/kerberos5 (sources for Kerberos5)",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_SKERBEROS5 },
-      { " ssecure",	"/usr/src/secure (BSD encryption sources)",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_SSECURE },
       { " sys",		"/usr/src/sys (FreeBSD kernel)",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_SYS },
       { " tools",	"/usr/src/tools (miscellaneous tools)",
