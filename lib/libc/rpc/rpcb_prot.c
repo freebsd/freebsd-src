@@ -34,7 +34,7 @@
 
 /* #ident	"@(#)rpcb_prot.c	1.13	94/04/24 SMI" */
 
-#if !defined(lint) && defined(SCCSIDS)
+#if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)rpcb_prot.c 1.9 89/04/21 Copyr 1984 Sun Micro";
 #endif
 #include <sys/cdefs.h>

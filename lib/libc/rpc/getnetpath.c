@@ -29,11 +29,10 @@
  * 2550 Garcia Avenue
  * Mountain View, California  94043
  */
-/*
-#ifndef lint
-static        char sccsid[] = "@(#)getnetpath.c	1.11 91/12/19 SMI";
+
+#if defined(LIBC_SCCS) && !defined(lint)
+static char sccsid[] = "@(#)getnetpath.c	1.11 91/12/19 SMI";
 #endif
-*/
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 

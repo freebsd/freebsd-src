@@ -32,9 +32,8 @@
  * Copyright (c) 1986-1991 by Sun Microsystems Inc. 
  */
 
-/* #ident	"@(#)svc_auth.c	1.16	94/04/24 SMI" */
-
-#if !defined(lint) && defined(SCCSIDS)
+#if defined(LIBC_SCCS) && !defined(lint)
+#ident	"@(#)svc_auth.c	1.16	94/04/24 SMI"
 static char sccsid[] = "@(#)svc_auth.c 1.26 89/02/07 Copyr 1984 Sun Micro";
 #endif
 #include <sys/cdefs.h>
