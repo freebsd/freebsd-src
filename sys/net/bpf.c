@@ -204,19 +204,17 @@ bpf_movein(uio, linktype, mp, sockp, datlen)
 	if ((unsigned)len > MCLBYTES)
 		return (EIO);
 
-	MGETHDR(m, M_TRYWAIT, MT_DATA);
-	if (m == 0)
-		return (ENOBUFS);
 	if (len > MHLEN) {
-		MCLGET(m, M_TRYWAIT);
-		if ((m->m_flags & M_EXT) == 0) {
-			error = ENOBUFS;
-			goto bad;
-		}
+		m = m_getcl(M_TRYWAIT, MT_DATA, M_PKTHDR);
+	} else {
+		MGETHDR(m, M_TRYWAIT, MT_DATA);
 	}
+	if (m == NULL)
+		return (ENOBUFS);
 	m->m_pkthdr.len = m->m_len = len;
 	m->m_pkthdr.rcvif = NULL;
 	*mp = m;
+
 	/*
 	 * Make room for link header.
 	 */
@@ -235,7 +233,7 @@ bpf_movein(uio, linktype, mp, sockp, datlen)
 	error = uiomove(mtod(m, caddr_t), len - hlen, uio);
 	if (!error)
 		return (0);
- bad:
+bad:
 	m_freem(m);
 	return (error);
 }
@@ -258,7 +256,7 @@ bpf_attachd(d, bp)
 	d->bd_next = bp->bif_dlist;
 	bp->bif_dlist = d;
 
-	bp->bif_ifp->if_bpf = bp;
+	*bp->bif_driverp = bp;
 	BPFIF_UNLOCK(bp);
 }
 
@@ -304,7 +302,7 @@ bpf_detachd(d)
 		/*
 		 * Let the driver know that there are no more listeners.
 		 */
-		d->bd_bif->bif_ifp->if_bpf = 0;
+		*d->bd_bif->bif_driverp = 0;
 	BPFIF_UNLOCK(bp);
 	d->bd_bif = 0;
 }
@@ -969,6 +967,9 @@ bpf_setif(d, ifr)
 
 		if (ifp == 0 || ifp != theywant)
 			continue;
+		/* skip additional entry */
+		if (bp->bif_driverp != (struct bpf_if **)&ifp->if_bpf)
+			continue;
 
 		mtx_unlock(&bpf_mtx);
 		/*
@@ -1058,16 +1059,14 @@ bpfpoll(dev, events, td)
  * buffer.
  */
 void
-bpf_tap(ifp, pkt, pktlen)
-	struct ifnet *ifp;
+bpf_tap(bp, pkt, pktlen)
+	struct bpf_if *bp;
 	register u_char *pkt;
 	register u_int pktlen;
 {
-	struct bpf_if *bp;
 	register struct bpf_d *d;
 	register u_int slen;
 
-	bp = ifp->if_bpf;
 	BPFIF_LOCK(bp);
 	for (d = bp->bif_dlist; d != 0; d = d->bd_next) {
 		BPFD_LOCK(d);
@@ -1075,7 +1074,7 @@ bpf_tap(ifp, pkt, pktlen)
 		slen = bpf_filter(d->bd_filter, pkt, pktlen, pktlen);
 		if (slen != 0) {
 #ifdef MAC
-			if (mac_check_bpfdesc_receive(d, ifp) == 0)
+			if (mac_check_bpfdesc_receive(d, bp->bif_ifp) == 0)
 #endif
 				catchpacket(d, pkt, pktlen, slen, bcopy);
 		}
@@ -1115,17 +1114,16 @@ bpf_mcopy(src_arg, dst_arg, len)
  * Incoming linkage from device drivers, when packet is in an mbuf chain.
  */
 void
-bpf_mtap(ifp, m)
-	struct ifnet *ifp;
+bpf_mtap(bp, m)
+	struct bpf_if *bp;
 	struct mbuf *m;
 {
-	struct bpf_if *bp = ifp->if_bpf;
 	struct bpf_d *d;
 	u_int pktlen, slen;
 
 	pktlen = m_length(m, NULL);
 	if (pktlen == m->m_len) {
-		bpf_tap(ifp, mtod(m, u_char *), pktlen);
+		bpf_tap(bp, mtod(m, u_char *), pktlen);
 		return;
 	}
 
@@ -1138,7 +1136,7 @@ bpf_mtap(ifp, m)
 		slen = bpf_filter(d->bd_filter, (u_char *)m, pktlen, 0);
 		if (slen != 0)
 #ifdef MAC
-			if (mac_check_bpfdesc_receive(d, ifp) == 0)
+			if (mac_check_bpfdesc_receive(d, bp->bif_ifp) == 0)
 #endif
 				catchpacket(d, (u_char *)m, pktlen, slen,
 				    bpf_mcopy);
@@ -1266,21 +1264,37 @@ bpf_freed(d)
 }
 
 /*
- * Attach an interface to bpf.  ifp is a pointer to the structure
- * defining the interface to be attached, dlt is the link layer type,
- * and hdrlen is the fixed size of the link header (variable length
- * headers are not yet supporrted).
+ * Attach an interface to bpf.  dlt is the link layer type; hdrlen is the
+ * fixed size of the link header (variable length headers not yet supported).
  */
 void
 bpfattach(ifp, dlt, hdrlen)
 	struct ifnet *ifp;
 	u_int dlt, hdrlen;
 {
+
+	bpfattach2(ifp, dlt, hdrlen, &ifp->if_bpf);
+}
+
+/*
+ * Attach an interface to bpf.  ifp is a pointer to the structure
+ * defining the interface to be attached, dlt is the link layer type,
+ * and hdrlen is the fixed size of the link header (variable length
+ * headers are not yet supporrted).
+ */
+void
+bpfattach2(ifp, dlt, hdrlen, driverp)
+	struct ifnet *ifp;
+	u_int dlt, hdrlen;
+	struct bpf_if **driverp;
+{
 	struct bpf_if *bp;
 	bp = (struct bpf_if *)malloc(sizeof(*bp), M_BPF, M_NOWAIT | M_ZERO);
 	if (bp == 0)
 		panic("bpfattach");
 
+	bp->bif_dlist = 0;
+	bp->bif_driverp = driverp;
 	bp->bif_ifp = ifp;
 	bp->bif_dlt = dlt;
 	mtx_init(&bp->bif_mtx, "bpf interface lock", NULL, MTX_DEF);
@@ -1290,7 +1304,7 @@ bpfattach(ifp, dlt, hdrlen)
 	bpf_iflist = bp;
 	mtx_unlock(&bpf_mtx);
 
-	bp->bif_ifp->if_bpf = 0;
+	*bp->bif_driverp = 0;
 
 	/*
 	 * Compute the length of the bpf header.  This is not necessarily
@@ -1301,7 +1315,7 @@ bpfattach(ifp, dlt, hdrlen)
 	bp->bif_hdrlen = BPF_WORDALIGN(hdrlen + SIZEOF_BPF_HDR) - hdrlen;
 
 	if (bootverbose)
-		printf("bpf: %s%d attached\n", ifp->if_name, ifp->if_unit);
+		if_printf(ifp, "bpf attached\n");
 }
 
 /*
