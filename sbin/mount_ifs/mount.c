@@ -140,7 +140,7 @@ ismounted(fs, mntbuf, mntsize)
 	int i;
 
 	if (fs->fs_file[0] == '/' && fs->fs_file[1] == '\0')
-		/* the root file system can always be remounted */
+		/* the root filesystem can always be remounted */
 		return (0);
 
 	for (i = mntsize - 1; i >= 0; --i)

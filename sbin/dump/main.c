@@ -292,7 +292,7 @@ main(int argc, char *argv[])
 	 *	disk can be either the full special file name,
 	 *	the suffix of the special file name,
 	 *	the special name missing the leading '/',
-	 *	the file system name with or without the leading '/'.
+	 *	the filesystem name with or without the leading '/'.
 	 */
 	dt = fstabsearch(disk);
 	if (dt != NULL) {
@@ -301,7 +301,7 @@ main(int argc, char *argv[])
 		(void)strncpy(spcl.c_filesys, dt->fs_file, NAMELEN);
 	} else {
 		(void)strncpy(spcl.c_dev, disk, NAMELEN);
-		(void)strncpy(spcl.c_filesys, "an unlisted file system",
+		(void)strncpy(spcl.c_filesys, "an unlisted filesystem",
 		    NAMELEN);
 	}
 	spcl.c_dev[NAMELEN-1]='\0';
@@ -340,7 +340,7 @@ main(int argc, char *argv[])
 	if (fstat(diskfd, &sb) != 0)
 		err(X_STARTUP, "%s: stat", disk);
 	if (S_ISDIR(sb.st_mode))
-		errx(X_STARTUP, "%s: unknown file system", disk);
+		errx(X_STARTUP, "%s: unknown filesystem", disk);
 	sync();
 	sblock = (struct fs *)sblock_buf;
 	bread(SBOFF, (char *) sblock, SBSIZE);

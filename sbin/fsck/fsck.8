@@ -33,7 +33,7 @@
 .Os
 .Sh NAME
 .Nm fsck
-.Nd file system consistency check and interactive repair
+.Nd filesystem consistency check and interactive repair
 .Sh SYNOPSIS
 .Nm
 .Op Fl dvplfyn
@@ -179,14 +179,14 @@ Causes
 to assume yes
 as the answer to all operator questions.
 .It Fl T Ar fstype : Ns Ar fsoptions
-List of comma separated file system specific options for the specified
-file system type, in the same format as
+List of comma separated filesystem specific options for the specified
+filesystem type, in the same format as
 .Xr mount 8 .
 .El
 .Sh FILES
 .Bl -tag -width /etc/fstab -compact
 .It Pa /etc/fstab
-file system table
+filesystem table
 .El
 .Sh SEE ALSO
 .Xr fstab 5 ,

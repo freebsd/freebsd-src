@@ -73,7 +73,7 @@ int checkfilesys(const char *);
 #define	FSERROR		8		/* Some unrecovered error remains */
 #define	FSFATAL		16		/* Some unrecoverable error occured */
 #define FSDIRTY		32		/* File system is dirty */
-#define FSFIXFAT	64		/* Fix file system FAT */
+#define FSFIXFAT	64		/* Fix filesystem FAT */
 
 /*
  * read a boot block in a machine independend fashion and translate
