@@ -1,3 +1,94 @@
+Thu Aug 22 23:47:38 1997  H.J. Lu  (hjl@gnu.ai.mit.edu)
+
+	* Version 2.7.2.3 released.
+
+Wed Aug 13 08:28:18 1997  H.J. Lu  (hjl@gnu.ai.mit.edu)
+
+	* INSTALL, install.texi: Update for m68k-*-linuxaout,
+	m68k-*-linux-gnulibc1 and m68k-*-linux.
+
+1997-08-12  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* config/m68k/t-linux: Define INSTALL_ASSERT_H and
+	TARGET_LIBGCC2_CFLAGS.
+	* config/m68k/t-linux-gnulibc1: New file.
+
+	* configure: Don't use GNU setup for *-*-linux-gnu*.
+	(m68k-*-linux*gnulibc1): New target.
+	(m68k-*-linux*): Set $extra_parts correctly.
+
+	* config/m68k/linux.h (STRICT_ALIGNMENT): Define to zero.
+	(CPP_SPEC, LIB_SPEC, LINK_SPEC): Add support for glibc 2.
+	(LIBGCC_SPEC): Always link in -lgcc independent of -shared.
+	(LIBCALL_VALUE): Use correct register for XFmode.
+	(LEGITIMATE_PIC_OPERAND_P): Reject CONST_DOUBLE with MEM with
+	invalid pic address.
+	(FINALIZE_TRAMPOLINE, CLEAR_INSN_CACHE): New.
+
+Mon Mar 17 17:03:55 1997  J.T. Conklin  <jtc@cygnus.com>
+
+	* m68k.md (beq0_di, bne0_di, bge0_di, blt0_di): Use cmpw #0
+ 	instead of tstl when testing address registers on the 68000.
+
+Fri Aug  8 08:15:55 1997  H.J. Lu  (hjl@gnu.ai.mit.edu)
+
+	* Makefile.in (INSTALL): Fix the rule.
+	(stamp-crtS): Depend on stamp-crt for parallel make.
+
+	* install1.texi: New.
+
+Mon Jul 21 22:47:13 1997  H.J. Lu  (hjl@gnu.ai.mit.edu)
+
+	* configure (gxx_include_dir): Set it to $prefix/include/g++
+	for Linux.
+
+Tue Jun 24 11:24:56 1997  H.J. Lu  (hjl@gnu.ai.mit.edu)
+
+	* INSTALL, install.texi: Refer Linux running libc 5.x.x as
+	i386-*-linux-gnulibc1.
+
+	* config/i386/linux.h, config.guess, config.sub, configure:
+	Correct support for glibc 2.
+
+	* config/t-linux: New, makefile fragment for Linux target with
+	glibc 2.
+
+	* config/t-linux-gnulibc1: New, makefile fragment for Linux
+	target with libc 5.x.x.
+
+	* config/t-linux-libc1: Removed.
+
+	* config.sub: Add support for i686.
+
+	* gcc.c (main): check and read ${libdir}/gcc-lib/specs to
+	override the default specs.
+
+Mon Jun 23 22:48:00 1997  Jim Wilson  <wilson@cygnus.com>
+ 
+	* unroll.c (find_splittable_givs): Set splittable_regs_updates
+	to biv_count for reduced givs.
+
+Tue Apr 16 16:59:49 1996  Richard Henderson  <rth@tamu.edu>
+
+ 	* function.c (expand_function_end): Allow TRAMPOLINE_TEMPLATE
+	to be omitted on systems for which it is not cost effective.
+	* varasm.c (assemble_trampoline_template): No such function
+	if no TRAMPOLINE_TEMPLATE.
+	* m68k.h: Greatly simplify the run-time trampoline code:
+	(TRAMPOLINE_TEMPLATE, TRANSFER_FROM_TRAMPOLINE): Delete define.
+	(TRAMPOLINE_SIZE, INITIALIZE_TRAMPOLINE): Changed.
+	(TRAMPOLINE_ALIGN): No point aligning to cache line.
+	(FINISH_INIT_TRAMPOLINE): New define.
+	* m68k/next.h: Instead of redefining INITIALIZE_TRAMPOLINE,
+	make use of the new FINISH_INIT_TRAMPOLINE.
+	* m68k/{m68k.h,next.h} (FINISH_INIT_TRAMPOLINE):
+	Rename to FINALIZE_TRAMPOLINE.
+
+Mon Apr 15 08:49:20 1996  Tom May  (ftom@netcom.com)
+
+	* cse.c (invalidate_skipped_set): Ignore CLOBBER after calling
+	note_mem_written, not before.
+
 Sat Jun 29 12:33:39 1996  Richard Kenner  <kenner@vlsi1.ultra.nyu.edu>
 
 	* Version 2.7.2.1 released.
