@@ -370,8 +370,9 @@ struct wi_ltv_ver {
 	u_int16_t		wi_len;
 	u_int16_t		wi_type;
 	u_int16_t		wi_ver[4];
-#define WI_NIC_LUCENT		0x0001	/* Emperically derived */
-#define WI_NIC_LUCENT_ALT	0x0005	/* Emperically derived */
+#define WI_NIC_LUCENT		0x0001
+#define WI_NIC_SONY		0x0002
+#define WI_NIC_LUCENT_EMBEDDED	0x0005
 #define WI_NIC_EVB2		0x8000
 #define WI_NIC_HWB3763		0x8001
 #define WI_NIC_HWB3163		0x8002
@@ -475,10 +476,8 @@ struct wi_ltv_macaddr {
 };
 
 /*
- * Station set identification (SSID).
+ * Station set identification (SSID). (0xFC02, 0xFC04)
  */
-#define WI_RID_DESIRED_SSID	0xFC02
-#define WI_RID_OWN_SSID		0xFC04
 struct wi_ltv_ssid {
 	u_int16_t		wi_len;
 	u_int16_t		wi_type;
@@ -486,73 +485,23 @@ struct wi_ltv_ssid {
 };
 
 /*
- * Set communications channel (radio frequency).
+ * Set our station name. (0xFC0E)
  */
-#define WI_RID_OWN_CHNL		0xFC03
-
-/*
- * Frame data size.
- */
-#define WI_RID_MAX_DATALEN	0xFC07
-
-/*
- * ESS power management enable
- */
-#define WI_RID_PM_ENABLED	0xFC09
-
-/*
- * ESS max PM sleep internal
- */
-#define WI_RID_MAX_SLEEP	0xFC0C
-
-/*
- * Set our station name.
- */
-#define WI_RID_NODENAME		0xFC0E
 struct wi_ltv_nodename {
 	u_int16_t		wi_len;
 	u_int16_t		wi_type;
 	u_int16_t		wi_nodename[17];
 };
 
-#define WI_RID_AUTH_CNTL	0xFC2A
-
 /*
  * Multicast addresses to be put in filter. We're
- * allowed up to 16 addresses in the filter.
+ * allowed up to 16 addresses in the filter. (0xFC80)
  */
-#define WI_RID_MCAST		0xFC80
 struct wi_ltv_mcast {
 	u_int16_t		wi_len;
 	u_int16_t		wi_type;
 	struct ether_addr	wi_mcast[16];
 };
-
-/*
- * Create IBSS.
- */
-#define WI_RID_CREATE_IBSS	0xFC81
-
-#define WI_RID_FRAG_THRESH	0xFC82
-#define WI_RID_RTS_THRESH	0xFC83
-
-/*
- * TX rate control
- * 0 == Fixed 1mbps
- * 1 == Fixed 2mbps
- * 2 == auto fallback
- */
-#define WI_RID_TX_RATE		0xFC84
-
-/*
- * promiscuous mode.
- */
-#define WI_RID_PROMISC		0xFC85
-
-/*
- * Auxiliary Timer tick interval
- */
-#define WI_RID_TICK_TIME	0xFCE0
 
 /*
  * Information frame types.
