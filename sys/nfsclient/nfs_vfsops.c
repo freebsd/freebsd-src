@@ -239,7 +239,6 @@ nfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 	struct mbuf *mreq, *mrep, *md, *mb;
 	struct nfsnode *np;
 	u_quad_t tquad;
-	int bsize;
 
 #ifndef nolint
 	sfp = NULL;
@@ -267,29 +266,17 @@ nfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 	sbp->f_flags = nmp->nm_flag;
 	sbp->f_iosize = nfs_iosize(nmp);
 	if (v3) {
-		for (bsize = NFS_FABLKSIZE; ; bsize *= 2) {
-			sbp->f_bsize = bsize;
-			tquad = fxdr_hyper(&sfp->sf_tbytes);
-			if (((long)(tquad / bsize) > LONG_MAX) ||
-			    ((long)(tquad / bsize) < LONG_MIN))
-				continue;
-			sbp->f_blocks = tquad / bsize;
-			tquad = fxdr_hyper(&sfp->sf_fbytes);
-			if (((long)(tquad / bsize) > LONG_MAX) ||
-			    ((long)(tquad / bsize) < LONG_MIN))
-				continue;
-			sbp->f_bfree = tquad / bsize;
-			tquad = fxdr_hyper(&sfp->sf_abytes);
-			if (((long)(tquad / bsize) > LONG_MAX) ||
-			    ((long)(tquad / bsize) < LONG_MIN))
-				continue;
-			sbp->f_bavail = tquad / bsize;
-			sbp->f_files = (fxdr_unsigned(int32_t,
-			    sfp->sf_tfiles.nfsuquad[1]) & 0x7fffffff);
-			sbp->f_ffree = (fxdr_unsigned(int32_t,
-			    sfp->sf_ffiles.nfsuquad[1]) & 0x7fffffff);
-			break;
-		}
+		sbp->f_bsize = NFS_FABLKSIZE;
+		tquad = fxdr_hyper(&sfp->sf_tbytes);
+		sbp->f_blocks = tquad / NFS_FABLKSIZE;
+		tquad = fxdr_hyper(&sfp->sf_fbytes);
+		sbp->f_bfree = tquad / NFS_FABLKSIZE;
+		tquad = fxdr_hyper(&sfp->sf_abytes);
+		sbp->f_bavail = tquad / NFS_FABLKSIZE;
+		sbp->f_files = (fxdr_unsigned(int32_t,
+		    sfp->sf_tfiles.nfsuquad[1]) & 0x7fffffff);
+		sbp->f_ffree = (fxdr_unsigned(int32_t,
+		    sfp->sf_ffiles.nfsuquad[1]) & 0x7fffffff);
 	} else {
 		sbp->f_bsize = fxdr_unsigned(int32_t, sfp->sf_bsize);
 		sbp->f_blocks = fxdr_unsigned(int32_t, sfp->sf_blocks);
