@@ -17,6 +17,8 @@
 #include <security/pam_appl.h>
 #endif
 
+#include <ttyent.h>
+
 #include "auth.h"
 #include "misc.h"
 #include "encrypt.h"
@@ -28,6 +30,8 @@ DesData ck;
 IdeaData ik;
 
 extern int auth_debug_mode;
+extern char *line;
+
 static sra_valid = 0;
 static passwd_sent = 0;
 
@@ -451,6 +455,26 @@ syslog(LOG_WARNING,"%s\n",save.pw_dir);
 	return (&save);
 }
 
+static int
+isroot(user)
+char *user;
+{
+	struct passwd *pw;
+
+	if ((pw=getpwnam(user))==NULL)
+		return 0;
+	return (!pw->pw_uid);
+}
+
+static int
+rootterm(ttyn)
+char *ttyn;
+{
+	struct ttyent *t;
+
+	return ((t = getttynam(ttyn)) && t->ty_status & TTY_SECURE);
+}
+
 #ifdef NOPAM
 char *crypt();
 
@@ -460,6 +484,12 @@ char *pass;
 {
 	register char *cp;
 	char *xpasswd, *salt;
+
+	if (isroot(name) && !rootterm(line))
+	{
+		crypt("AA","*"); /* Waste some time to simulate success */
+		return(0);
+	}
 
 	if (pw = sgetpwnam(name)) {
 		if (pw->pw_shell == NULL) {
@@ -585,7 +615,10 @@ int check_user(const char *name, const char *pass)
 		} else
 			syslog(LOG_ERR, "Couldn't get PAM_USER: %s",
 			pam_strerror(pamh, e));
-		rval = 1;
+		if (isroot(user) && !rootterm(line))
+			rval = 0;
+		else
+			rval = 1;
 		break;
 
 	case PAM_AUTH_ERR:
