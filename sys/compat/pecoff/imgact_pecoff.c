@@ -49,8 +49,8 @@
 #include <sys/imgact.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/mutex.h>
 #include <sys/mman.h>
+#include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
