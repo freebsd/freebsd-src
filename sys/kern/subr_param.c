@@ -150,8 +150,8 @@ init_param2(int physpages)
 	TUNABLE_INT_FETCH("kern.maxproc", &maxproc);
 	maxfiles = MAXFILES;
 	TUNABLE_INT_FETCH("kern.maxfiles", &maxfiles);
-	maxprocperuid = maxproc - 1;
-	maxfilesperproc = maxfiles;
+	maxprocperuid = (maxproc * 9) / 10;
+	maxfilesperproc = (maxfiles * 9) / 10;
 
 	/*
 	 * Cannot be changed after boot.
