@@ -9,7 +9,7 @@
 	which performs network address translation (or masquerading)
 	for IP packets (see related RFCs 1631 and 1918).
 	It is based on packet aliasing package (see README.alias)
-	written by Charles Mott (cmott@scientech.com).
+	written by Charles Mott <cm@linktel.net>.
 
 	This package works with any network interface (doesn't have
 	to be ppp). I run it on a computer having two ethernet cards,
@@ -36,7 +36,7 @@
 	at different times:
 
 	Archie Cobbs <archie@whistle.com>	Divert sockets
-	Charles Mott <cmott@scientech.com>	Packet aliasing engine
+	Charles Mott <cm@linktel.net>		Packet aliasing engine
 	Eivind Eklund <eivind@dimaga.com>	Packet aliasing engine
 	Ari Suutari <suutari@iki.fi>		Natd
 	Brian Somers <brian@awfulhak.org>	Manual page, glue and
