@@ -891,10 +891,6 @@ cdrom.1:
 	@echo 'mfsroot_name="/boot/mfsroot"' >> ${CD_DISC2}/boot/loader.conf
 	@cp -Rp ${CD_DISC2}/boot ${CD_DISC1}
 .endif
-.if ${TARGET} == "i386"
-	@mkdir -p ${CD_DISC2}/floppies
-	@cp ${CD_DISC1}/floppies/boot.flp ${CD_DISC2}/floppies
-.endif
 .if !defined(NOPORTS)
 	@mkdir -p ${CD_DISC1}/ports && \
 	  tar --exclude CVS --exclude 'ports/distfiles/*' -czf \
