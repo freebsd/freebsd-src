@@ -3099,7 +3099,7 @@ sppp_ipv6cp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 	ifidcount = 0;
 	for (rlen=0; len>1 && p[1]; len-=p[1], p+=p[1]) {
 		if (debug)
-			addlog(" %s", sppp_ipv6cp_opt_name(*p));
+			log(-1, " %s", sppp_ipv6cp_opt_name(*p));
 		switch (*p) {
 		case IPV6CP_OPT_IFID:
 			if (len >= 10 && p[1] == 10 && ifidcount == 0) {
@@ -3108,7 +3108,7 @@ sppp_ipv6cp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 				continue;
 			}
 			if (debug)
-				addlog(" [invalid]");
+				log(-1, " [invalid]");
 			break;
 #ifdef notyet
 		case IPV6CP_OPT_COMPRESSION:
@@ -3117,13 +3117,13 @@ sppp_ipv6cp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 				continue;
 			}
 			if (debug)
-				addlog(" [invalid]");
+				log(-1, " [invalid]");
 			break;
 #endif
 		default:
 			/* Others not supported. */
 			if (debug)
-				addlog(" [rej]");
+				log(-1, " [rej]");
 			break;
 		}
 		/* Add the option to rejected list. */
@@ -3133,11 +3133,11 @@ sppp_ipv6cp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 	}
 	if (rlen) {
 		if (debug)
-			addlog(" send conf-rej\n");
+			log(-1, " send conf-rej\n");
 		sppp_cp_send (sp, PPP_IPV6CP, CONF_REJ, h->ident, rlen, buf);
 		goto end;
 	} else if (debug)
-		addlog("\n");
+		log(-1, "\n");
 
 	/* pass 2: parse option values */
 	sppp_get_ip6_addrs(sp, &myaddr, 0, 0);
@@ -3149,7 +3149,7 @@ sppp_ipv6cp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 	type = CONF_ACK;
 	for (rlen=0; len>1 && p[1]; len-=p[1], p+=p[1]) {
 		if (debug)
-			addlog(" %s", sppp_ipv6cp_opt_name(*p));
+			log(-1, " %s", sppp_ipv6cp_opt_name(*p));
 		switch (*p) {
 #ifdef notyet
 		case IPV6CP_OPT_COMPRESSION:
@@ -3170,7 +3170,7 @@ sppp_ipv6cp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 				type = CONF_ACK;
 
 				if (debug) {
-					addlog(" %s [%s]",
+					log(-1, " %s [%s]",
 					       ip6_sprintf(&desiredaddr),
 					       sppp_cp_type_name(type));
 				}
@@ -3193,7 +3193,7 @@ sppp_ipv6cp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 				bcopy(&suggestaddr.s6_addr[8], &p[2], 8);
 			}
 			if (debug)
-				addlog(" %s [%s]", ip6_sprintf(&desiredaddr),
+				log(-1, " %s [%s]", ip6_sprintf(&desiredaddr),
 				       sppp_cp_type_name(type));
 			break;
 		}
@@ -3205,7 +3205,7 @@ sppp_ipv6cp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 
 	if (rlen == 0 && type == CONF_ACK) {
 		if (debug)
-			addlog(" send %s\n", sppp_cp_type_name(type));
+			log(-1, " send %s\n", sppp_cp_type_name(type));
 		sppp_cp_send (sp, PPP_IPV6CP, type, h->ident, origlen, h+1);
 	} else {
 #ifdef DIAGNOSTIC
@@ -3214,7 +3214,7 @@ sppp_ipv6cp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 #endif
 
 		if (debug) {
-			addlog(" send %s suggest %s\n",
+			log(-1, " send %s suggest %s\n",
 			       sppp_cp_type_name(type), ip6_sprintf(&suggestaddr));
 		}
 		sppp_cp_send (sp, PPP_IPV6CP, type, h->ident, rlen, buf);
@@ -3248,7 +3248,7 @@ sppp_ipv6cp_RCN_rej(struct sppp *sp, struct lcp_header *h, int len)
 	p = (void*) (h+1);
 	for (; len > 1 && p[1]; len -= p[1], p += p[1]) {
 		if (debug)
-			addlog(" %s", sppp_ipv6cp_opt_name(*p));
+			log(-1, " %s", sppp_ipv6cp_opt_name(*p));
 		switch (*p) {
 		case IPV6CP_OPT_IFID:
 			/*
@@ -3265,7 +3265,7 @@ sppp_ipv6cp_RCN_rej(struct sppp *sp, struct lcp_header *h, int len)
 		}
 	}
 	if (debug)
-		addlog("\n");
+		log(-1, "\n");
 	free (buf, M_TEMP);
 	return;
 }
@@ -3294,7 +3294,7 @@ sppp_ipv6cp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 	p = (void*) (h+1);
 	for (; len > 1 && p[1]; len -= p[1], p += p[1]) {
 		if (debug)
-			addlog(" %s", sppp_ipv6cp_opt_name(*p));
+			log(-1, " %s", sppp_ipv6cp_opt_name(*p));
 		switch (*p) {
 		case IPV6CP_OPT_IFID:
 			/*
@@ -3311,7 +3311,7 @@ sppp_ipv6cp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 
 			sp->ipv6cp.opts |= (1 << IPV6CP_OPT_IFID);
 			if (debug)
-				addlog(" [suggestaddr %s]",
+				log(-1, " [suggestaddr %s]",
 				       ip6_sprintf(&suggestaddr));
 #ifdef IPV6CP_MYIFID_DYN
 			/*
@@ -3330,12 +3330,12 @@ sppp_ipv6cp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 				if (IN6_ARE_ADDR_EQUAL(&suggestaddr,
 						       lastsuggest)) {
 					if (debug)
-						addlog(" [random]");
+						log(-1, " [random]");
 					sppp_gen_ip6_addr(sp, &suggestaddr);
 				}
 				sppp_set_ip6_addr(sp, &suggestaddr, 0);
 				if (debug)
-					addlog(" [agree]");
+					log(-1, " [agree]");
 				sp->ipv6cp.flags |= IPV6CP_MYIFID_SEEN;
 			}
 #else
@@ -3362,7 +3362,7 @@ sppp_ipv6cp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 		}
 	}
 	if (debug)
-		addlog("\n");
+		log(-1, "\n");
 	free (buf, M_TEMP);
 	return;
 }
