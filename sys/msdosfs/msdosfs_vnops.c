@@ -473,7 +473,7 @@ msdosfs_setattr(ap)
 		    (error = suser(cred, &ap->a_p->p_acflag)))
 			return error;
 		if (uid != pmp->pm_uid || gid != pmp->pm_gid)
-			return EOPNOTSUPP;
+			return EINVAL;
 	}
 
 	if (vap->va_size != VNOVAL) {
