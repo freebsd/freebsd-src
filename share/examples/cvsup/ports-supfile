@@ -1,4 +1,4 @@
-# $Id: ports-supfile,v 1.5 1996/11/10 21:51:25 jdp Exp $
+# $Id: ports-supfile,v 1.3.2.2 1996/11/11 22:36:57 phk Exp $
 #
 # This file contains all of the "CVSup collections" that comprise the FreeBSD
 # ports collection tree.  CVSup (CVS Update Protocol) allows you to download
@@ -41,21 +41,11 @@
 # collections, and the other is to use the "ports-all" mega-collection,
 # which includes everything except ports-distfiles.
 
-# ports-all.  Transfers everything except the distfiles.
+# ports-all.  Includes everything below.
 
 ports-all release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
 
-# ports-distfiles.  This collection is HUGE.  You will need a big disk
-# and a good network connection to keep up with it.
-#
-# Note that the line for the ports-distfiles collection deviates from
-# the pattern used for the other collections.  That is because the other
-# collections are taken from the CVS repository, whereas ports-distfiles
-# is not.  
-
-#ports-distfiles release=current host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
-
-# Individual collections.  See note on distfiles above.
+# Individual collections.
 
 #ports-base       release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
 #ports-archivers  release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
@@ -85,5 +75,6 @@ ports-all release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/us
 #ports-security   release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
 #ports-shells     release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
 #ports-sysutils   release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
+#ports-vietnamese   release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
 #ports-www        release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
 #ports-x11        release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
