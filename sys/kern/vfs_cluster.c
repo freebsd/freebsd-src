@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.9 1995/01/24 10:00:46 davidg Exp $
+ * $Id: vfs_cluster.c,v 1.10 1995/02/22 09:39:20 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -502,24 +502,40 @@ cluster_wbuild(vp, last_bp, size, start_lbn, len, lbn)
 		    size, vp->v_mount->mnt_stat.f_iosize);
 #endif
 redo:
-	while ((!incore(vp, start_lbn) || start_lbn == lbn) && len) {
-		++start_lbn;
-		--len;
+	if( (lbn != -1) || (last_bp == 0)) {
+		while ((!(tbp = incore(vp, start_lbn)) || (tbp->b_flags & B_BUSY)
+			|| (start_lbn == lbn)) && len) {
+			++start_lbn;
+			--len;
+		}
+
+		pb = (struct buf *) trypbuf();
+		/* Get more memory for current buffer */
+		if (len <= 1 || pb == 0) {
+			relpbuf(pb);
+			if (last_bp) {
+				bawrite(last_bp);
+			} else if (len) {
+				bp = getblk(vp, start_lbn, size, 0, 0);
+				bawrite(bp);
+			}
+			return;
+		}
+		tbp = getblk(vp, start_lbn, size, 0, 0);
+	} else {
+		tbp = last_bp;
+		if( tbp->b_flags & B_BUSY) {
+			printf("vfs_cluster: warning: buffer already busy\n");
+		}
+		tbp->b_flags |= B_BUSY;
+		last_bp = 0;
+		pb = (struct buf *) trypbuf();
+		if( pb == 0) {
+			bawrite(tbp);
+			return;
+		}
 	}
 
-	pb = (struct buf *) trypbuf();
-	/* Get more memory for current buffer */
-	if (len <= 1 || pb == 0) {
-		relpbuf(pb);
-		if (last_bp) {
-			bawrite(last_bp);
-		} else if (len) {
-			bp = getblk(vp, start_lbn, size, 0, 0);
-			bawrite(bp);
-		}
-		return;
-	}
-	tbp = getblk(vp, start_lbn, size, 0, 0);
 	if (!(tbp->b_flags & B_DELWRI)) {
 		relpbuf(pb);
 		++start_lbn;
@@ -572,6 +588,9 @@ redo:
 				break;
 
 			if ((tbp->b_flags & (B_INVAL | B_CLUSTEROK)) != B_CLUSTEROK)
+				break;
+
+			if ((tbp->b_npages + bp->b_npages) > (MAXPHYS / PAGE_SIZE))
 				break;
 
 			/*
