@@ -58,6 +58,7 @@ struct ddloc {
 	long	loc_index;	/* key associated with structure */
 	long	loc_seek;	/* magic cookie returned by getdirentries */
 	long	loc_loc;	/* offset of entry in buffer */
+	DIR*	loc_dirp;	/* directory which used this entry */
 };
 
 #define	NDIRHASH	32	/* Num of hash lists, must be a power of 2 */
@@ -82,6 +83,7 @@ telldir(dirp)
 	lp->loc_index = index;
 	lp->loc_seek = dirp->dd_seek;
 	lp->loc_loc = dirp->dd_loc;
+	lp->loc_dirp = dirp;
 	lp->loc_next = dd_hash[LOCHASH(index)];
 	dd_hash[LOCHASH(index)] = lp;
 	return (index);
@@ -125,4 +127,31 @@ found:
 	*prevlp = lp->loc_next;
 	free((caddr_t)lp);
 #endif
+}
+
+/*
+ * Reclaim memory for telldir cookies which weren't used.
+ */
+void
+_reclaim_telldir(dirp)
+	register DIR *dirp;
+{
+	register struct ddloc *lp;
+	register struct ddloc **prevlp;
+	int i;
+
+	for (i = 0; i < NDIRHASH; i++) {
+		prevlp = &dd_hash[i];
+		lp = *prevlp;
+		while (lp != NULL) {
+			if (lp->loc_dirp == dirp) {
+				*prevlp = lp->loc_next;
+				free((caddr_t)lp);
+				lp = *prevlp;
+				continue;
+			}
+			prevlp = &lp->loc_next;
+			lp = lp->loc_next;
+		}
+	}
 }
