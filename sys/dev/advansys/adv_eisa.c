@@ -177,7 +177,7 @@ adv_eisa_attach(device_t dev)
 					   /*highaddr*/BUS_SPACE_MAXADDR,
 					   /*filter*/NULL, /*filterarg*/NULL,
 					   /*maxsize*/BUS_SPACE_MAXSIZE_32BIT,
-					   /*nsegments*/BUS_SPACE_UNRESTRICTED,
+					   /*nsegments*/~0,
 					   /*maxsegsz*/ADV_EISA_MAX_DMA_COUNT,
 					   /*flags*/0,
 					   &adv_b->parent_dmat);
@@ -212,7 +212,7 @@ adv_eisa_attach(device_t dev)
 					   /*highaddr*/BUS_SPACE_MAXADDR,
 					   /*filter*/NULL, /*filterarg*/NULL,
 					   /*maxsize*/BUS_SPACE_MAXSIZE_32BIT,
-					   /*nsegments*/BUS_SPACE_UNRESTRICTED,
+					   /*nsegments*/~0,
 					   /*maxsegsz*/ADV_EISA_MAX_DMA_COUNT,
 					   /*flags*/0,
 					   &adv->parent_dmat);
