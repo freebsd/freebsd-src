@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biosdisk.c,v 1.18 1998/11/13 23:40:02 msmith Exp $
+ *	$Id: biosdisk.c,v 1.19 1999/01/09 02:36:19 msmith Exp $
  */
 
 /*
@@ -174,7 +174,6 @@ bd_init(void)
 	    /* XXX we need "disk aliases" to make this simpler */
 	    printf("BIOS drive %c: is disk%d\n", 
 		   (unit < 0x80) ? ('A' + unit) : ('C' + unit - 0x80), nbdinfo);
-	    bdinfo[nbdinfo].bd_unit = unit;
 	    nbdinfo++;
 	}
     }
