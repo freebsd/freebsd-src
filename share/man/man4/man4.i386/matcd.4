@@ -127,13 +127,13 @@ to support and delete the device entries that you don't want.
 
 In this file, you will find an entry like:
 
-	device  matcd0  at  isa?  port  ?  bio
+	device  matcd0  at  isa?  port  ?
 
 To support two host interfaces, change the file so it reads:
 
-	device  matcd0  at  isa?  port  ?  bio
+	device  matcd0  at  isa?  port  ?
 .br
-	device  matcd1  at  isa?  port  ?  bio
+	device  matcd1  at  isa?  port  ?
 .br
 
 (If you want to support up to three or four host interfaces, add
@@ -173,7 +173,7 @@ If you recompile the kernel, you can change the entry in the kernel
 configuration file to specify a specific address by changing an entry
 like this:
 
-	device  matcd0  at  isa?  port  0x230  bio
+	device  matcd0  at  isa?  port  0x230
 
 With this change, the
 .Nm matcd
