@@ -1,3 +1,5 @@
+# $Id$
+#
 # WARNING: spaces may be essential at the end of lines
 # WARNING: empty lines are essential too
 #
@@ -59,13 +61,13 @@
 #
 %d.%m.%y
 #
-# c_fmt (ctime)
+# c_fmt
 #
 %a %e %b %X %Y
 #
 # am
-#
-
+# (two spaces)
+  
 #
 # pm
 #
