@@ -1,14 +1,14 @@
 # Makefile for libmytinfo
 # Use 'make update_term_h' manually after changing internal
 # mytinfo structures
-# $Id: Makefile,v 1.14 1998/08/15 07:15:51 jb Exp $
+# $Id: Makefile,v 1.15 1998/09/02 15:22:11 bde Exp $
 
 LIB=    mytinfo
 SRCS=   addstr.c binorder.c buildpath.c caplist.c capsort.c compar.c\
 	fillterm.c findcap.c findterm.c getother.c gettbin.c\
 	gettcap.c gettinfo.c tcapconv.c tcapvars.c termcap.c\
 	terminfo.c tgoto.c tiget.c tmatch.c tparm.c tputs.c tty.c version.c
-CLEANFILES+= binorder.c caplist.c capsort.c mkbinorder mkcaplist \
+CLEANFILES=binorder.c caplist.c capsort.c mkbinorder mkcaplist \
 	mkcapsort mktermhead mkversion readcaps.o version.c
 
 CFLAGS+=-Wall -I${.CURDIR}
@@ -30,7 +30,7 @@ capsort.c: mkcapsort
 	./mkcapsort > capsort.c
 
 .for f in caplist capsort compar findcap
-CLANFILES+= cross-$f.o
+CLEANFILES+=cross-$f.o
 cross-$f.o: $f.c
 	${CC} ${CFLAGS} -c -o ${.TARGET} ${.ALLSRC}
 .endfor
