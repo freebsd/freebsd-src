@@ -68,6 +68,7 @@ static const char rcsid[] =
 #include "output.h"
 #include "memalloc.h"
 #include "error.h"
+#include "var.h"
 
 
 #define OUTBUFSIZ BUFSIZ
@@ -139,6 +140,12 @@ void
 outqstr(const char *p, struct output *file)
 {
 	char ch;
+
+	if (p[strcspn(p, "|&;<>()$`\\\"'")] == '\0' && (!ifsset() ||
+	    p[strcspn(p, ifsval())] == '\0')) {
+		outstr(p, file);
+		return;
+	}
 
 	out1c('\'');
 	while ((ch = *p++) != '\0') {
