@@ -1,5 +1,5 @@
 .\" from: des_crypt.3,v 4.3 89/01/23 17:08:59 steiner Exp $
-.\" $Id: des_crypt.3,v 1.2 1994/07/19 19:27:19 g89r4222 Exp $
+.\" $Id: des_crypt.3,v 1.1.1.1 1994/09/30 14:50:05 csgr Exp $
 .\" Copyright 1989 by the Massachusetts Institute of Technology.
 .\"
 .\" For copying and distribution information,
@@ -14,7 +14,7 @@ des_quad_cksum, \- (new) DES encryption
 .nf
 .nj
 .ft B
-#include <des.h>
+#include <kerberosIV/des.h>
 .PP
 .ft B
 .B int des_read_password(key,prompt,verify)
@@ -361,7 +361,7 @@ the computed checksum are written into the output.
 .PP
 .PP
 .SH FILES
-/usr/include/des.h
+/usr/include/kerberosIV/des.h
 .br
 /usr/lib/libdes.a
 .SH "SEE ALSO"

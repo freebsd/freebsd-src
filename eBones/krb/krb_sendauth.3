@@ -1,5 +1,5 @@
 .\" from: krb_sendauth.3,v 4.1 89/01/23 11:10:58 jtkohl Exp $
-.\" $Id: krb_sendauth.3,v 1.2 1994/07/19 19:27:47 g89r4222 Exp $
+.\" $Id: krb_sendauth.3,v 1.1.1.1 1994/09/30 14:50:07 csgr Exp $
 .\" Copyright 1988 by the Massachusetts Institute of Technology.
 .\"
 .\" For copying and distribution information,
@@ -13,8 +13,8 @@ Kerberos routines for sending authentication via network stream sockets
 .nf
 .nj
 .ft B
-#include <krb.h>
-#include <des.h>
+#include <kerberosIV/krb.h>
+#include <kerberosIV/des.h>
 #include <netinet/in.h>
 .PP
 .fi
@@ -295,7 +295,7 @@ function.
 If you set this argument to "",
 .I krb_rd_req
 looks for the service key in the file
-.IR /etc/srvtab.
+.IR /etc/kerberosIV/srvtab.
 
 If the client and server are performing mutual authenication,
 the
@@ -345,4 +345,4 @@ John T. Kohl, MIT Project Athena
 .SH RESTRICTIONS
 Copyright 1988, Massachusetts Instititute of Technology.
 For copying and distribution information,
-please see the file <mit-copyright.h>.
+please see the file <Copyright.h>.
