@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_linux.c,v 1.29 1998/08/16 01:21:50 bde Exp $
+ *	$Id: imgact_linux.c,v 1.30 1998/10/16 03:55:00 peter Exp $
  */
 
 #include <sys/param.h>
@@ -234,8 +234,8 @@ exec_linux_imgact(imgp)
 /*
  * Tell kern_execve.c about it, with a little help from the linker.
  * Since `const' objects end up in the text segment, TEXT_SET is the
- * correct directive to use.  Do not staticize; used by Linux LKM.
+ * correct directive to use.
  */
-const struct execsw linux_execsw = { exec_linux_imgact, "linux a.out" };
+static const struct execsw linux_execsw = { exec_linux_imgact, "linux a.out" };
 EXEC_SET(linuxaout, linux_execsw);
 
