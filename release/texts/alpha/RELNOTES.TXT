@@ -120,7 +120,7 @@ net.inet.tcp.newreno sysctl variable.
 TCP now uses a more aggressive timeout for initial SYN segments; this
 allows initial connection attempts to be dropped much faster.
 
-A new sysctl net.inet.ip.check_interface, which is on by default,
+A new sysctl net.inet.ip.check_interface, which is off by default,
 causes IP to verify that an incoming packet arrives on an interface
 that has an address matching the packet's destination address.
 
@@ -141,7 +141,7 @@ The ida disk driver now has crashdump support.
 
 AlphaServer 2100A ('Lynx') support has been added. 
 
-The if(4) and an(4) drivers now default to BSS (infrastructure) mode;
+The wi(4) and an(4) drivers now default to BSS (infrastructure) mode;
 previously the default was ad-hoc mode.
 
 The mly(4) driver has received some changes in queueing, concurrency
@@ -406,6 +406,20 @@ markup and in their content.
 The dreaded 'going nowhere without my init' bug that manifested itself
 while installing on hardware that had labeled disks connected (e.g.
 with Tru64 on it) has been fixed. 
+
+pkg_create(1) now records dependencies in dependency order rather than
+in the order specified on the command line.  This improves the
+functioning of "pkg_add -r".
+
+"lprm -" now works for remote printer queues.
+
+mergemaster(8) now sources an /etc/mergemaster.rc file and also
+prompts the user to run recommended commands (such as "newaliases") as
+needed.
+
+ftpd(8) now supports a -r flag for read-only mode and a -E flag to
+disable EPSV.  It also has some fixes to reduce information leakage
+and the ability to specify compile-time port ranges.
 
 
 2. Supported Configurations
@@ -743,7 +757,6 @@ Crystal Semiconductor CS461x/462x/428x
 ENSONIQ AudioPCI ES1370/1371
 ESS ES1868, ES1869, ES1879 and ES1888
 ESS Maestro-1, Maestro-2, and Maestro-2E
-ESS Maestro-3
 ForteMedia fm801
 Gravis UltraSound MAX/PnP
 MSS/WSS Compatible DSPs
