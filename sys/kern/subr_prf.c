@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.35 1996/05/02 09:34:45 phk Exp $
+ * $Id: subr_prf.c,v 1.36 1996/05/08 04:28:51 gpalmer Exp $
  */
 
 #include "opt_ddb.h"
@@ -408,7 +408,7 @@ ksprintn(ul, base, lenp)
  * the next characters (up to a control character, i.e. a character <= 32),
  * give the name of the register.  Thus:
  *
- *	kprintf("reg=%b\n", 3, "\10\2BITTWO\1BITONE\n");
+ *	kvprintf("reg=%b\n", 3, "\10\2BITTWO\1BITONE\n");
  *
  * would produce output:
  *
