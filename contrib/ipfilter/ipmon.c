@@ -8,7 +8,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipmon.c	1.21 6/5/96 (C)1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipmon.c,v 2.12.2.2 2000/07/15 14:50:06 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipmon.c,v 2.12.2.8 2001/01/10 06:18:08 darrenr Exp $";
 #endif
 
 #ifndef SOLARIS
@@ -92,6 +92,8 @@ struct	flags	tcpfl[] = {
 	{ TH_FIN, 'F' },
 	{ TH_URG, 'U' },
 	{ TH_PUSH,'P' },
+	{ TH_ECN, 'E' },
+	{ TH_CWR, 'C' },
 	{ 0, '\0' }
 };
 
@@ -145,6 +147,7 @@ static	char	**tcp_ports = NULL;
 #define	OPT_FILTER	0x200
 #define	OPT_PORTNUM	0x400
 #define	OPT_LOGALL	(OPT_NAT|OPT_STATE|OPT_FILTER)
+#define	OPT_LOGBODY	0x800
 
 #define	HOSTNAME_V4(a,b)	hostname((a), 4, (u_32_t *)&(b))
 
@@ -337,7 +340,7 @@ int	len;
 		t += 2;
 		if (!((j + 1) & 0xf)) {
 			s -= 15;
-			sprintf((char *)t, "        ");
+			sprintf((char *)t, "	");
 			t += 8;
 			for (k = 16; k; k--, s++)
 				*t++ = (isprint(*s) ? *s : '.');
@@ -402,6 +405,8 @@ int	blen;
 		strcpy(t, "NAT:RDR ");
 	else if (nl->nl_type == NL_EXPIRE)
 		strcpy(t, "NAT:EXPIRE ");
+	else if (nl->nl_type == NL_FLUSH)
+		strcpy(t, "NAT:FLUSH ");
 	else if (nl->nl_type == NL_NEWBIMAP)
 		strcpy(t, "NAT:BIMAP ");
 	else if (nl->nl_type == NL_NEWBLOCK)
@@ -582,6 +587,7 @@ int	blen;
 {
 	tcphdr_t	*tp;
 	struct	icmp	*ic;
+	struct	icmp	*icmp;
 	struct	tm	*tm;
 	char	*t, *proto;
 	int	i, v, lvl, res, len, off, plen, ipoff;
@@ -692,7 +698,7 @@ int	blen;
 		p = (u_short)ip->ip_p;
 		s = (u_32_t *)&ip->ip_src;
 		d = (u_32_t *)&ip->ip_dst;
-		plen = ntohs(ip->ip_len);
+		plen = ip->ip_len;
 	} else {
 		goto printipflog;
 	}
@@ -743,19 +749,56 @@ int	blen;
 		    ic->icmp_type == ICMP_REDIRECT ||
 		    ic->icmp_type == ICMP_TIMXCEED) {
 			ipc = &ic->icmp_ip;
-			tp = (tcphdr_t *)((char *)ipc + hl);
-
+			i = ntohs(ipc->ip_len);
+			ipoff = ntohs(ipc->ip_off);
 			proto = getproto(ipc->ip_p);
 
-			t += strlen(t);
-			(void) sprintf(t, " for %s,%s -",
-				HOSTNAME_V4(res, ipc->ip_src),
-				portname(res, proto, (u_int)tp->th_sport));
-			t += strlen(t);
-			(void) sprintf(t, " %s,%s PR %s len %hu %hu",
-				HOSTNAME_V4(res, ipc->ip_dst),
-				portname(res, proto, (u_int)tp->th_dport),
-				proto, ipc->ip_hl << 2, ipc->ip_len);
+			if (!(ipoff & IP_OFFMASK) &&
+			    ((ipc->ip_p == IPPROTO_TCP) ||
+			     (ipc->ip_p == IPPROTO_UDP))) {
+				tp = (tcphdr_t *)((char *)ipc + hl);
+				t += strlen(t);
+				(void) sprintf(t, " for %s,%s -",
+					HOSTNAME_V4(res, ipc->ip_src),
+					portname(res, proto,
+						 (u_int)tp->th_sport));
+				t += strlen(t);
+				(void) sprintf(t, " %s,%s PR %s len %hu %hu",
+					HOSTNAME_V4(res, ipc->ip_dst),
+					portname(res, proto,
+						 (u_int)tp->th_dport),
+					proto, ipc->ip_hl << 2, i);
+			} else if (!(ipoff & IP_OFFMASK) &&
+				   (ipc->ip_p == IPPROTO_ICMP)) {
+				icmp = (icmphdr_t *)((char *)ipc + hl);
+
+				t += strlen(t);
+				(void) sprintf(t, " for %s -",
+					HOSTNAME_V4(res, ipc->ip_src));
+				t += strlen(t);
+				(void) sprintf(t,
+					" %s PR icmp len %hu %hu icmp %d/%d",
+					HOSTNAME_V4(res, ipc->ip_dst),
+					ipc->ip_hl << 2, i,
+					icmp->icmp_type, icmp->icmp_code);
+
+			} else {
+				t += strlen(t);
+				(void) sprintf(t, " for %s -",
+						HOSTNAME_V4(res, ipc->ip_src));
+				t += strlen(t);
+				(void) sprintf(t, " %s PR %s len %hu (%hu)",
+					HOSTNAME_V4(res, ipc->ip_dst), proto,
+					ipc->ip_hl << 2, i);
+				t += strlen(t);
+				if (ipoff & IP_OFFMASK) {
+					(void) sprintf(t, " frag %s%s%hu@%hu",
+						ipoff & IP_MF ? "+" : "",
+						ipoff & IP_DF ? "-" : "",
+						i - (ipc->ip_hl<<2),
+						(ipoff & IP_OFFMASK) << 3);
+				}
+			}
 		}
 	} else {
 		(void) sprintf(t, "%s -> ", hostname(res, v, s));
@@ -797,6 +840,8 @@ printipflog:
 		dumphex(log, (u_char *)buf, sizeof(iplog_t) + sizeof(*ipf));
 	if (opts & OPT_HEXBODY)
 		dumphex(log, (u_char *)ip, ipf->fl_plen + ipf->fl_hlen);
+	else if ((opts & OPT_LOGBODY) && (ipf->fl_flags & FR_LOGBODY))
+		dumphex(log, (u_char *)ip + ipf->fl_hlen, ipf->fl_plen);
 }
 
 
@@ -908,7 +953,7 @@ char *argv[];
 	iplfile[1] = IPNAT_NAME;
 	iplfile[2] = IPSTATE_NAME;
 
-	while ((c = getopt(argc, argv, "?aDf:FhnN:o:O:pP:sS:tvxX")) != -1)
+	while ((c = getopt(argc, argv, "?abDf:FhnN:o:O:pP:sS:tvxX")) != -1)
 		switch (c)
 		{
 		case 'a' :
@@ -916,6 +961,9 @@ char *argv[];
 			fdt[0] = IPL_LOGIPF;
 			fdt[1] = IPL_LOGNAT;
 			fdt[2] = IPL_LOGSTATE;
+			break;
+		case 'b' :
+			opts |= OPT_LOGBODY;
 			break;
 		case 'D' :
 			make_daemon = 1;

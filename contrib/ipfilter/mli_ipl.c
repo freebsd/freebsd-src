@@ -49,7 +49,7 @@ unsigned IPL_EXTERN(devflag) = D_MP;
 char *IPL_EXTERN(mversion) = M_VERSION;
 #endif
 
-kmutex_t ipl_mutex, ipf_mutex, ipfi_mutex, ipf_rw, ipf_hostmap;
+kmutex_t ipl_mutex, ipf_mutex, ipfi_mutex, ipf_rw;
 kmutex_t ipf_frag, ipf_state, ipf_nat, ipf_natfrag, ipf_auth;
 
 int     (*fr_checkp) __P((struct ip *, int, void *, int, mb_t **));
@@ -539,7 +539,6 @@ IPL_EXTERN(unload)(void)
 	LOCK_DEALLOC(ipf_rw.l);
 	LOCK_DEALLOC(ipf_auth.l);
 	LOCK_DEALLOC(ipf_natfrag.l);
-	LOCK_DEALLOC(ipf_hostmap.l);
 	LOCK_DEALLOC(ipf_nat.l);
 	LOCK_DEALLOC(ipf_state.l);
 	LOCK_DEALLOC(ipf_frag.l);
@@ -562,7 +561,6 @@ IPL_EXTERN(init)(void)
 	ipf_frag.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
 	ipf_state.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
 	ipf_nat.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
-	ipf_hostmap.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
 	ipf_natfrag.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
 	ipf_auth.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
 	ipf_rw.l = LOCK_ALLOC((uchar_t)-1, IPF_LOCK_PL, (lkinfo_t *)-1, KM_NOSLEEP);
@@ -570,7 +568,7 @@ IPL_EXTERN(init)(void)
 
 	if (!ipfi_mutex.l || !ipf_mutex.l || !ipf_frag.l || !ipf_state.l ||
 	    !ipf_nat.l || !ipf_natfrag.l || !ipf_auth.l || !ipf_rw.l ||
-	    !ipl_mutex.l || !ipf_hostmap.l)
+	    !ipl_mutex.l)
 		panic("IP Filter: LOCK_ALLOC failed");
 
 #ifdef IPFILTER_LKM

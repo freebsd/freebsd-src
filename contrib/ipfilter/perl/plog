@@ -1,14 +1,15 @@
 #!/usr/bin/perl -wT
 #
 # Author: Jefferson Ogata (JO317) <jogata@pobox.com>
-# Date: 2000/04/10
-# Version: 0.8
+# Date: 2000/04/22
+# Version: 0.10
 #
 # Please feel free to use or redistribute this program if you find it useful.
 # If you have suggestions, or even better, bits of new code, send them to me
 # and I will add them when I have time. The current version of this script
 # can always be found at the URL:
 #
+#    http://www.antibozo.net/ogata/webtools/plog.pl
 #    http://pobox.com/~ogata/webtools/plog.txt
 #
 # Parse ipmon output into a coherent form. This program only handles the
@@ -18,10 +19,10 @@
 #
 # EXAMPLES
 #
-# plog -A block,log < /var/log/ipf
+# plog -AF block,log < /var/log/ipf
 #
 #    Generate source and destination reports of all packets logged with
-#    block or log actions.
+#    block or log actions, and report TCP flags and keep state actions.
 #
 # plog -S -s ./services www.example.com < /var/log/ipf
 #
@@ -34,6 +35,14 @@
 #    lookups. This is handy for an initial pass to identify portscans or
 #    other aggressive traffic.
 #
+# plog -SFp 192.168.0.0/24 www.example.com/24 < /var/log/ipf
+#
+#    Generate a source report of all packets whose source or destination
+#    address is either in 192.168.0.0/24 or an address associated with
+#    the host www.example.com, report packet flags and perform paranoid
+#    hostname lookups. This is a handy usage for examining traffic more
+#    closely after identifying a potential attack.
+#
 # TODO
 #
 # - Handle output from ipmon -v.
@@ -44,6 +53,14 @@
 #
 # CHANGES
 #
+# 2000/04/22 (0.10):
+# - Restructured host name and address caches. Hosts are now cached using
+#   packed addresses as keys. Conversion to IPv6 should be simple now.
+# - Added paranoid hostname lookups.
+# - Added netmask qualifications for address arguments.
+# - Tweaked usage info.
+# 2000/04/20:
+# - Added parsing and tracking of TCP and state flags.
 # 2000/04/12 (0.9):
 # - Wasn't handling underscore in hostname,servicename fields; these may be
 #   logged using ipmon -n. Observation by <ark@eltex.ru>.
@@ -58,8 +75,7 @@
 #   slightly) from Andy Kreiling <Andy@ntcs-inc.com> and John Ladwig
 #   <jladwig@nts.umn.edu>.
 # - Added fix to handle new Solaris log format, e.g.:
-#     Nov 30 04:49:37 raoul ipmon[121]: [ID 702911 local0.warning] 04:49:36.420
-541 hme0 @0:34 b 205.152.16.6,58596 -> 204.60.220.24,113 PR tcp len 20 44
+#     Nov 30 04:49:37 raoul ipmon[121]: [ID 702911 local0.warning] 04:49:36.420541 hme0 @0:34 b 205.152.16.6,58596 -> 204.60.220.24,113 PR tcp len 20 44
 #   Fix thanks to Taso N. Devetzis <devetzis@SNET.Net>.
 # - Added services map option.
 # - Added options for generating only source/destination tables.
@@ -141,220 +157,251 @@ $me =~ s/^.*\///;
 # Map of log codes for various actions. Not all of these can occur, but
 # I've included everything in print_ipflog() from ipmon.c.
 my %acts = (
-    'p' => 'pass',
-    'P' => 'pass',
-    'b' => 'block',
-    'B' => 'block',
-    'L' => 'log',
+    'p'	=> 'pass',
+    'P'	=> 'pass',
+    'b'	=> 'block',
+    'B'	=> 'block',
+    'L'	=> 'log',
     'S' => 'short',
     'n' => 'nomatch',
 );
 
 # Map of ICMP types and their relevant codes.
 my %icmpTypeMap = (
-    0   => +{
-        name    => 'echorep',
-        codes   => +{0  => undef},
+    0	=> +{
+	name	=> 'echorep',
+	codes	=> +{0	=> undef},
     },
-    3   => +{
-        name    => 'unreach',
-        codes   => +{
-            0   => 'net-unr',
-            1   => 'host-unr',
-            2   => 'proto-unr',
-            3   => 'port-unr',
-            4   => 'needfrag',
-            5   => 'srcfail',
-            6   => 'net-unk',
-            7   => 'host-unk',
-            8   => 'isolate',
-            9   => 'net-prohib',
-            10  => 'host-prohib',
-            11  => 'net-tos',
-            12  => 'host-tos',
-            13  => 'filter-prohib',
-            14  => 'host-preced',
-            15  => 'preced-cutoff',
-        },
+    3	=> +{
+	name	=> 'unreach',
+	codes	=> +{
+	    0	=> 'net-unr',
+	    1	=> 'host-unr',
+	    2	=> 'proto-unr',
+	    3	=> 'port-unr',
+	    4	=> 'needfrag',
+	    5	=> 'srcfail',
+	    6	=> 'net-unk',
+	    7	=> 'host-unk',
+	    8	=> 'isolate',
+	    9	=> 'net-prohib',
+	    10	=> 'host-prohib',
+	    11	=> 'net-tos',
+	    12	=> 'host-tos',
+	    13	=> 'filter-prohib',
+	    14	=> 'host-preced',
+	    15	=> 'preced-cutoff',
+	},
     },
-    4   => +{
-        name    => 'squench',
-        codes   => +{0  => undef},
+    4	=> +{
+	name	=> 'squench',
+	codes	=> +{0	=> undef},
     },
-    5   => +{
-        name    => 'redir',
-        codes   => +{
-            0   => 'net',
-            1   => 'host',
-            2   => 'tos',
-            3   => 'tos-host',
-        },
+    5	=> +{
+	name	=> 'redir',
+	codes	=> +{
+	    0	=> 'net',
+	    1	=> 'host',
+	    2	=> 'tos',
+	    3	=> 'tos-host',
+	},
     },
-    6   => +{
-        name    => 'alt-host-addr',
-        codes   => +{
-            0   => 'alt-addr'
-        },
+    6	=> +{
+	name	=> 'alt-host-addr',
+	codes	=> +{
+	    0	=> 'alt-addr'
+	},
     },
-    8   => +{
-        name    => 'echo',
-        codes   => +{0  => undef},
+    8	=> +{
+	name	=> 'echo',
+	codes	=> +{0	=> undef},
     },
-    9   => +{
-        name    => 'routerad',
-        codes   => +{0  => undef},
+    9	=> +{
+	name	=> 'routerad',
+	codes	=> +{0	=> undef},
     },
-    10  => +{
-        name    => 'routersol',
-        codes   => +{0  => undef},
+    10	=> +{
+	name	=> 'routersol',
+	codes	=> +{0	=> undef},
     },
-    11  => +{
-        name    => 'timex',
-        codes   => +{
-            0   => 'in-transit',
-            1   => 'frag-assy',
-        },
+    11	=> +{
+	name	=> 'timex',
+	codes	=> +{
+	    0	=> 'in-transit',
+	    1	=> 'frag-assy',
+	},
     },
-    12  => +{
-        name    => 'paramprob',
-        codes   => +{
-            0   => 'ptr-err',
-            1   => 'miss-opt',
-            2   => 'bad-len',
-        },
+    12	=> +{
+	name	=> 'paramprob',
+	codes	=> +{
+	    0	=> 'ptr-err',
+	    1	=> 'miss-opt',
+	    2	=> 'bad-len',
+	},
     },
-    13  => +{
-        name    => 'timest',
-        codes   => +{0  => undef},
+    13	=> +{
+	name	=> 'timest',
+	codes	=> +{0	=> undef},
     },
-    14  => +{
-        name    => 'timestrep',
-        codes   => +{0  => undef},
+    14	=> +{
+	name	=> 'timestrep',
+	codes	=> +{0	=> undef},
     },
-    15  => +{
-        name    => 'inforeq',
-        codes   => +{0  => undef},
+    15	=> +{
+	name	=> 'inforeq',
+	codes	=> +{0	=> undef},
     },
-    16  => +{
-        name    => 'inforep',
-        codes   => +{0  => undef},
+    16	=> +{
+	name	=> 'inforep',
+	codes	=> +{0	=> undef},
     },
-    17  => +{
-        name    => 'maskreq',
-        codes   => +{0  => undef},
+    17	=> +{
+	name	=> 'maskreq',
+	codes	=> +{0	=> undef},
     },
-    18  => +{
-        name    => 'maskrep',
-        codes   => +{0  => undef},
+    18	=> +{
+	name	=> 'maskrep',
+	codes	=> +{0	=> undef},
     },
-    30  => +{
-        name    => 'tracert',
-        codes   => +{ },
+    30	=> +{
+	name	=> 'tracert',
+	codes	=> +{ },
     },
-    31  => +{
-        name    => 'dgram-conv-err',
-        codes   => +{ },
+    31	=> +{
+	name	=> 'dgram-conv-err',
+	codes	=> +{ },
     },
-    32  => +{
-        name    => 'mbl-host-redir',
-        codes   => +{ },
+    32	=> +{
+	name	=> 'mbl-host-redir',
+	codes	=> +{ },
     },
-    33  => +{
-        name    => 'ipv6-whereru?',
-        codes   => +{ },
+    33	=> +{
+	name	=> 'ipv6-whereru?',
+	codes	=> +{ },
     },
-    34  => +{
-        name    => 'ipv6-iamhere',
-        codes   => +{ },
+    34	=> +{
+	name	=> 'ipv6-iamhere',
+	codes	=> +{ },
     },
-    35  => +{
-        name    => 'mbl-reg-req',
-        codes   => +{ },
+    35	=> +{
+	name	=> 'mbl-reg-req',
+	codes	=> +{ },
     },
-    36  => +{
-        name    => 'mbl-reg-rep',
-        codes   => +{ },
+    36	=> +{
+	name	=> 'mbl-reg-rep',
+	codes	=> +{ },
     },
 );
 
 # Arguments we will parse from argument list.
-my $numeric = 0;        # Don't lookup hostnames.
-my $verbosity = 0;      # Bla' bla' bla'.
-my $sTable = 0;         # Generate source table.
-my $dTable = 0;         # Generate destination table.
-my $services = undef;   # Preload services table.
-my %selectHosts;        # Limit report to these hosts.
-my %selectActs;         # Limit report to these actions.
+my $numeric = 0;	# Don't lookup hostnames.
+my $paranoid = 0;	# Do paranoid hostname lookups.
+my $verbosity = 0;	# Bla' bla' bla'.
+my $sTable = 0;		# Generate source table.
+my $dTable = 0;		# Generate destination table.
+my @services = ();	# Preload services tables.
+my $showFlags = 0;	# Show TCP flag combinations.
+my %selectAddrs;	# Limit report to these hosts.
+my %selectActs;		# Limit report to these actions.
 
 # Parse argument list.
 while (defined ($_ = shift))
 {
     if (s/^-//)
     {
-        while (s/^([nSD\?hsA])//)
-        {
-            my $flag = $1;
-            if ($flag eq 'v')
-            {
-                ++$verbosity;
-            }
-            elsif ($flag eq 'n')
-            {
-                $numeric = 1;
-            }
-            elsif ($flag eq 'S')
-            {
-                $sTable = 1;
-            }
-            elsif ($flag eq 'D')
-            {
-                $dTable = 1;
-            }
-            elsif (($flag eq '?') || ($flag eq 'h'))
-            {
-                &usage (0);
-            }
-            else
-            {
-                my $arg = shift;
-                defined ($arg) || &usage (1, qq{-$flag requires an argument});
-                if ($flag eq 's')
-                {
-                    defined ($services) && &usage (1, qq{too many service maps}
-);
-                    $services = $arg;
-                }
-                elsif ($flag eq 'A')
-                {
-                    my @acts = split (/,/, $arg);
-                    my $a;
-                    foreach $a (@acts)
-                    {
-                        my $aa;
-                        my $match = 0;
-                        foreach $aa (keys (%acts))
-                        {
-                            if ($acts{$aa} eq $a)
-                            {
-                                ++$match;
-                                $selectActs{$aa} = $a;
-                            }
-                        }
-                        $match || &usage (1, qq{unknown action $a});
-                    }
-                }
-            }
-        }
+	while (s/^([vnpSD\?hsAF])//)
+	{
+	    my $flag = $1;
+	    if ($flag eq 'v')
+	    {
+		++$verbosity;
+	    }
+	    elsif ($flag eq 'n')
+	    {
+		$numeric = 1;
+	    }
+	    elsif ($flag eq 'p')
+	    {
+		$paranoid = 1;
+	    }
+	    elsif ($flag eq 'S')
+	    {
+		$sTable = 1;
+	    }
+	    elsif ($flag eq 'D')
+	    {
+		$dTable = 1;
+	    }
+	    elsif ($flag eq 'F')
+	    {
+		$showFlags = 1;
+	    }
+	    elsif (($flag eq '?') || ($flag eq 'h'))
+	    {
+		&usage (0);
+	    }
+	    else
+	    {
+		my $arg = shift;
+		defined ($arg) || &usage (1, qq{-$flag requires an argument});
+		if ($flag eq 's')
+		{
+		    push (@services, $arg);
+		}
+		elsif ($flag eq 'A')
+		{
+		    my @acts = split (/,/, $arg);
+		    my $a;
+		    foreach $a (@acts)
+		    {
+			my $aa;
+			my $match = 0;
+			foreach $aa (keys (%acts))
+			{
+			    if ($acts{$aa} eq $a)
+			    {
+				++$match;
+				$selectActs{$aa} = $a;
+			    }
+			}
+			$match || &usage (1, qq{unknown action $a});
+		    }
+		}
+	    }
+	}
 
-        &usage (1, qq{unknown option: -$_}) if (length);
+	&usage (1, qq{unknown option: -$_}) if (length);
 
-        next;
+	next;
     }
 
     # Add host to hash of hosts we're interested in.
-    my $addr = &hostNumber ($_);
-    defined ($addr) || &usage (1, qq{cannot resolve hostname $_});
-    $selectHosts{$addr} = undef;
+    (/^(.+)\/([\d+\.]+)$/) || (/^(.+)$/) || &usage (1, qq{invalid CIDR address $_});
+    my ($addr, $mask) = ($1, $2);
+    my @addr = &hostAddrs ($addr);
+    (scalar (@addr)) || &usage (1, qq{cannot resolve hostname $_});
+    if (!defined ($mask))
+    {
+	$mask = (2 ** 32) - 1;
+    }
+    elsif (($mask =~ /^\d+$/) && ($mask <= 32))
+    {
+	$mask = (2 ** 32) - 1 - ((2 ** (32 - $mask)) - 1);
+    }
+    elsif (defined ($mask = &isDottedAddr ($mask)))
+    {
+	$mask = &integerAddr ($mask);
+    }
+    else
+    {
+	&usage (1, qq{invalid CIDR address $_});
+    }
+    foreach $addr (@addr)
+    {
+	# Save mask unless we already have a less specific one for this address.
+	my $a = &integerAddr ($addr) & $mask;
+	$selectAddrs{$a} = $mask unless (exists ($selectAddrs{$a}) && ($selectAddrs{$a} < $mask));
+    }
 }
 
 # Which tables will we generate?
@@ -364,7 +411,7 @@ push (@dirs, 'd') if ($dTable);
 push (@dirs, 's') if ($sTable);
 
 # Are we interested in specific hosts?
-my $selectHosts = scalar (keys (%selectHosts));
+my $selectAddrs = scalar (keys (%selectAddrs));
 
 # Are we interested in specific actions?
 if (scalar (keys (%selectActs)) == 0)
@@ -376,42 +423,45 @@ if (scalar (keys (%selectActs)) == 0)
 # Isn't it cool that we can use the same hash for both?
 my %pn;
 
-# Preload any services map.
-if (defined ($services))
+# Preload any services maps.
+my $sm;
+foreach $sm (@services)
 {
-    my $sf = new IO::File ($services, "r");
-    defined ($sf) || &quit (1, qq{cannot open services file $services});
+    my $sf = new IO::File ($sm, "r");
+    defined ($sf) || &quit (1, qq{cannot open services file $sm});
 
     while (defined ($_ = $sf->getline ()))
     {
-        my $text = $_;
-        chomp;
-        s/#.*$//;
-        s/\s+$//;
-        next unless (length);
-        my ($name, $spec, @aliases) = split (/\s+/);
-        ($spec =~ /^([\w\-]+)\/([\w\-]+)$/)
-            || &quit (1, qq{$services:$.: invalid definition: $text});
-        my ($pnum, $proto) = ($1, $2);
+	my $text = $_;
+	chomp;
+	s/#.*$//;
+	s/\s+$//;
+	next unless (length);
+	my ($name, $spec, @aliases) = split (/\s+/);
+	($spec =~ /^([\w\-]+)\/([\w\-]+)$/)
+	    || &quit (1, qq{$sm:$.: invalid definition: $text});
+	my ($pnum, $proto) = ($1, $2);
 
-        # Enter service definition in pn hash both forwards and backwards.
-        my $port;
-        my $pname;
-        foreach $port ($name, @aliases)
-        {
-            $pname = "$pnum/$proto";
-            $pn{$pname} = $port;
-        }
-        $pname = "$name/$proto";
-        $pn{$pname} = $pnum;
+	# Enter service definition in pn hash both forwards and backwards.
+	my $port;
+	my $pname;
+	foreach $port ($name, @aliases)
+	{
+	    $pname = "$pnum/$proto";
+	    $pn{$pname} = $port;
+	}
+	$pname = "$name/$proto";
+	$pn{$pname} = $pnum;
     }
 
     $sf->close ();
 }
 
-# Again, we can use the same hash for both host name -> IP mappings and
-# IP -> name mappings.
-my %ip;
+# Cache for host name -> addr mappings.
+my %ipAddr;
+
+# Cache for host addr -> name mappings.
+my %ipName;
 
 # Hash for protocol number <--> name mappings.
 my %pr;
@@ -433,19 +483,18 @@ while (<STDIN>)
     # dd/mm/yyyy (no y2k problem here!). Both formats then have a packet
     # timestamp and the log info.
     my ($log);
-    if (s/^\w+\s+\d+\s+\d+:\d+:\d+\s+(?:\d\w:)?[\w\.\-]+\s+\S*ipmon\[\d+\]:\s+(
-?:\[ID\s+\d+\s+[\w\.]+\]\s+)?\d+:\d+:\d+\.\d+\s+//)
+    if (s/^\w+\s+\d+\s+\d+:\d+:\d+\s+(?:\d\w:)?[\w\.\-]+\s+\S*ipmon\[\d+\]:\s+(?:\[ID\s+\d+\s+[\w\.]+\]\s+)?\d+:\d+:\d+\.\d+\s+//)
     {
-        $log = $_;
+	$log = $_;
     }
     elsif (s/^(?:\d+\/\d+\/\d+)\s+(?:\d+:\d+:\d+\.\d+)\s+//)
     {
-        $log = $_;
+	$log = $_;
     }
     else
     {
-        # It don't look like no ipmon output to me, baby.
-        next;
+	# It don't look like no ipmon output to me, baby.
+	next;
     }
     next unless (defined ($log));
 
@@ -457,15 +506,13 @@ while (<STDIN>)
     # number, "PR", a protocol name or number, "len", a header length, a
     # packet length (which will be in parentheses for protocols other than
     # TCP, UDP, or ICMP), and maybe some additional info.
-    my @fields = ($log =~ /^(?:(\d+)x)?\s*(\w+)\s+@(\d+):(\d+)\s+(\w)\s+([\w\-\
-..,]+)\s+->\s+([\w\-\.,]+)\s+PR\s+(\w+)\s+len\s+(\d+)\s+\(?(\d+)\)?\s*(.*)$/ox);
+    my @fields = ($log =~ /^(?:(\d+)x)?\s*(\w+)\s+@(\d+):(\d+)\s+(\w)\s+([\w\-\.,]+)\s+->\s+([\w\-\.,]+)\s+PR\s+(\w+)\s+len\s+(\d+)\s+\(?(\d+)\)?\s*(.*)$/ox);
     unless (scalar (@fields))
     {
-        print STDERR "$me:$.: cannot parse: $_\n";
-        next;
+	print STDERR "$me:$.: cannot parse: $_\n";
+	next;
     }
-    my ($count, $if, $group, $rule, $act, $src, $dest, $proto, $hlen, $len, $mo
-re) = @fields;
+    my ($count, $if, $group, $rule, $act, $src, $dest, $proto, $hlen, $len, $more) = @fields;
 
     # Skip actions we're not interested in.
     next unless (exists ($selectActs{$act}));
@@ -473,105 +520,131 @@ re) = @fields;
     # Packet count defaults to 1.
     $count = 1 unless (defined ($count));
 
-    my ($sport, $dport);
+    my ($sport, $dport, @flags);
 
     if ($proto eq 'icmp')
     {
-        if ($more =~ s/^icmp (\d+)\/(\d+)\s*//)
-        {
-            # We save icmp type and code in both sport and dport. This
-            # allows us to sort icmp packets using the normal port-sorting
-            # code.
-            $dport = $sport = "$1.$2";
-        }
-        else
-        {
-            $sport = '';
-            $dport = '';
-        }
+	if ($more =~ s/^icmp (\d+)\/(\d+)\s*//)
+	{
+	    # We save icmp type and code in both sport and dport. This
+	    # allows us to sort icmp packets using the normal port-sorting
+	    # code.
+	    $dport = $sport = "$1.$2";
+	}
+	else
+	{
+	    $sport = '';
+	    $dport = '';
+	}
     }
     else
     {
-        if ($src =~ s/,([\-\w]+)$//)
-        {
-            $sport = &portSimplify ($1, $proto);
-        }
-        else
-        {
-            $sport = '';
-        }
-        if ($dest =~ s/,([\-\w]+)$//)
-        {
-            $dport = &portSimplify ($1, $proto);
-        }
-        else
-        {
-            $dport = '';
-        }
+	if ($showFlags)
+	{
+	    if (($proto eq 'tcp') && ($more =~ s/^\-([A-Z]+)\s*//))
+	    {
+		push (@flags, $1);
+	    }
+	    if ($more =~ s/^K\-S\s*//)
+	    {
+		push (@flags, 'state');
+	    }
+	}
+	if ($src =~ s/,([\-\w]+)$//)
+	{
+	    $sport = &portSimplify ($1, $proto);
+	}
+	else
+	{
+	    $sport = '';
+	}
+	if ($dest =~ s/,([\-\w]+)$//)
+	{
+	    $dport = &portSimplify ($1, $proto);
+	}
+	else
+	{
+	    $dport = '';
+	}
     }
 
     # Make sure addresses are numeric at this point. We want to sort by
-    # IP address later. This has got to do some weird things, but if you
-    # want to use ipmon -n, be ready for weirdness.
+    # IP address later. If the hostname doesn't resolve, punt. If you
+    # must use ipmon -n, be ready for weirdness. Use only the first
+    # address returned.
     my $x;
-    $x = &hostNumber ($src);
+    $x = (&hostAddrs ($src))[0];
     unless (defined ($x))
     {
-        print STDERR "$me:$.: cannot resolve hostname $src\n";
-        next;
+	print STDERR "$me:$.: cannot resolve hostname $src\n";
+	next;
     }
     $src = $x;
-    $x = &hostNumber ($dest);
+    $x = (&hostAddrs ($dest))[0];
     unless (defined ($x))
     {
-        print STDERR "$me:$.: cannot resolve hostname $dest\n";
-        next;
+	print STDERR "$me:$.: cannot resolve hostname $dest\n";
+	next;
     }
     $dest = $x;
 
     # Skip hosts we're not interested in.
-    next if ($selectHosts && !(exists ($selectHosts{$src}) || exists ($selectHo
-sts{$dest})));
+    if ($selectAddrs)
+    {
+	my ($a, $m);
+	my $s = &integerAddr ($src);
+	my $d = &integerAddr ($dest);
+	my $cute = 0;
+	while (($a, $m) = each (%selectAddrs))
+	{
+	    if ((($s & $m) == $a) || (($d & $m) == $a))
+	    {
+		$cute = 1;
+		last;
+	    }
+	}
+	next unless ($cute);
+    }
 
     # Convert proto to proto number.
     $proto = &protoNumber ($proto);
 
     sub countPacket
     {
-        my ($host, $dir, $peer, $proto, $count, $packet) = @_;
+	my ($host, $dir, $peer, $proto, $count, $packet, @flags) = @_;
 
-        # Make sure host is in the hosts hash.
-        $hosts{$host} =
-            +{
-                'd'     => +{ },
-                's'     => +{ },
-            } unless (exists ($hosts{$host}));
+	# Make sure host is in the hosts hash.
+	$hosts{$host} =
+	    +{
+		'd'	=> +{ },
+		's'	=> +{ },
+	    } unless (exists ($hosts{$host}));
 
-        # Get the source/destination traffic hash for the host in question.
-        my $trafficHash = $hosts{$host}->{$dir};
+	# Get the source/destination traffic hash for the host in question.
+	my $trafficHash = $hosts{$host}->{$dir};
 
-        # Make sure there's a hash for the peer.
-        $trafficHash->{$peer} = +{ } unless (exists ($trafficHash->{$peer}));
+	# Make sure there's a hash for the peer.
+	$trafficHash->{$peer} = +{ } unless (exists ($trafficHash->{$peer}));
 
-        # Make sure the peer hash has a hash for the protocol number.
-        my $peerHash = $trafficHash->{$peer};
-        $peerHash->{$proto} = +{ } unless (exists ($peerHash->{$proto}));
+	# Make sure the peer hash has a hash for the protocol number.
+	my $peerHash = $trafficHash->{$peer};
+	$peerHash->{$proto} = +{ } unless (exists ($peerHash->{$proto}));
 
-        # Make sure there's a counter for this packet type in the proto hash.
-        my $protoHash = $peerHash->{$proto};
-        $protoHash->{$packet} = 0 unless (exists ($protoHash->{$packet}));
+	# Make sure there's a counter for this packet type in the proto hash.
+	my $protoHash = $peerHash->{$proto};
+	$protoHash->{$packet} = +{ '' => 0 } unless (exists ($protoHash->{$packet}));
 
-        # Increment the counter.
-        $protoHash->{$packet} += $count;
+	# Increment the counter and mark flags.
+	my $packetHash = $protoHash->{$packet};
+	$packetHash->{''} += $count;
+	map { $packetHash->{$_} = undef; } (@flags);
     }
 
     # Count the packet as outgoing traffic from the source address.
-    &countPacket ($src, 's', $dest, $proto, $count, "$sport:$dport:$if:$act") i
-f ($sTable);
+    &countPacket ($src, 's', $dest, $proto, $count, "$sport:$dport:$if:$act", @flags) if ($sTable);
 
     # Count the packet as incoming traffic to the destination address.
-    &countPacket ($dest, 'd', $src, $proto, $count, "$dport:$sport:$if:$act") i
-f ($dTable);
+    &countPacket ($dest, 'd', $src, $proto, $count, "$dport:$sport:$if:$act", @flags) if ($dTable);
 }
 
 my $dir;
@@ -586,73 +659,76 @@ foreach $dir (@dirs)
 
     sub ipSort
     {
-        my @a = split (/\./, $a);
-        my @b = split (/\./, $b);
-        $a[0] <=> $b[0] || $a[1] <=> $b[1] || $a[2] <=> $b[2] || $a[3] <=> $b[3
-];
+	&integerAddr ($a) <=> &integerAddr ($b);
     }
 
     sub packetSort
     {
-        my ($asport, $adport, $aif, $aact) = split (/:/, $a);
-        my ($bsport, $bdport, $bif, $bact) = split (/:/, $b);
-        $bact cmp $aact || $aif cmp $bif || $asport <=> $bsport || $adport <=> 
-$bdport;
+	my ($asport, $adport, $aif, $aact) = split (/:/, $a);
+	my ($bsport, $bdport, $bif, $bact) = split (/:/, $b);
+	$bact cmp $aact || $aif cmp $bif || $asport <=> $bsport || $adport <=> $bdport;
     }
 
     my $host;
     foreach $host (sort ipSort (keys %hosts))
     {
-        my $traffic = $hosts{$host}->{$dir};
+	my $traffic = $hosts{$host}->{$dir};
 
-        # Skip hosts with no traffic.
-        next unless (scalar (keys (%{$traffic})));
+	# Skip hosts with no traffic.
+	next unless (scalar (keys (%{$traffic})));
 
-        if ($numeric)
-        {
-            print "$host\n";
-        }
-        else
-        {
-            print &hostName ($host), " \[$host\]\n";
-        }
+	if ($numeric)
+	{
+	    print &dottedAddr ($host), "\n";
+	}
+	else
+	{
+	    print &hostName ($host), " \[", &dottedAddr ($host), "\]\n";
+	}
 
-        my $peer;
-        foreach $peer (sort ipSort (keys %{$traffic}))
-        {
-            my $peerHash = $traffic->{$peer};
-            my $peerName = &hostName ($peer);
-            my $proto;
-            foreach $proto (sort (keys (%{$peerHash})))
-            {
-                my $protoHash = $peerHash->{$proto};
-                my $protoName = &protoName ($proto);
+	my $peer;
+	foreach $peer (sort ipSort (keys %{$traffic}))
+	{
+	    my $peerHash = $traffic->{$peer};
+	    my $peerName = ($numeric ? &dottedAddr ($peer) : &hostName ($peer));
+	    my $proto;
+	    foreach $proto (sort (keys (%{$peerHash})))
+	    {
+		my $protoHash = $peerHash->{$proto};
+		my $protoName = &protoName ($proto);
 
-                my $packet;
-                foreach $packet (sort packetSort (keys %{$protoHash}))
-                {
-                    my ($sport, $dport, $if, $act) = split (/:/, $packet);
-                    my $count = $protoHash->{$packet};
-                    $act = '?' unless (defined ($act = $acts{$act}));
-                    if (($protoName eq 'tcp') || ($protoName eq 'udp'))
-                    {
-                        printf ("    %-6s %7s %4d %4s %16s %2s %s.%s\n", $if, $
-act, $count, $protoName, &portName ($sport, $protoName), $arrow, $peerName, &po
-rtName ($dport, $protoName));
-                    }
-                    elsif ($protoName eq 'icmp')
-                    {
-                        printf ("    %-6s %7s %4d %4s %16s %2s %s\n", $if, $act
-, $count, $protoName, &icmpType ($sport), $arrow, $peerName);
-                    }
-                    else
-                    {
-                        printf ("    %-6s %7s %4d %4s %16s %2s %s\n", $if, $act
-, $count, $protoName, '', $arrow, $peerName);
-                    }
-                }
-            }
-        }
+		my $packet;
+		foreach $packet (sort packetSort (keys %{$protoHash}))
+		{
+		    my ($sport, $dport, $if, $act) = split (/:/, $packet);
+		    my $packetHash = $protoHash->{$packet};
+		    my $count = $packetHash->{''};
+		    $act = '?' unless (defined ($act = $acts{$act}));
+		    if (($protoName eq 'tcp') || ($protoName eq 'udp'))
+		    {
+			printf ("    %-6s %7s %4d %4s %16s %2s %s.%s", $if, $act, $count, $protoName, &portName ($sport, $protoName), $arrow, $peerName, &portName ($dport, $protoName));
+		    }
+		    elsif ($protoName eq 'icmp')
+		    {
+			printf ("    %-6s %7s %4d %4s %16s %2s %s", $if, $act, $count, $protoName, &icmpType ($sport), $arrow, $peerName);
+		    }
+		    else
+		    {
+			printf ("    %-6s %7s %4d %4s %16s %2s %s", $if, $act, $count, $protoName, '', $arrow, $peerName);
+		    }
+		    if ($showFlags)
+		    {
+			my @flags = sort (keys (%{$packetHash}));
+			if (scalar (@flags))
+			{
+			    shift (@flags);
+			    print ' (', join (',', @flags), ')' if (scalar (@flags));
+			}
+		    }
+		    print "\n";
+		}
+	    }
+	}
     }
 
     print "\n";
@@ -671,9 +747,8 @@ sub portName
     my $pname = "$port/$proto";
     unless (exists ($pn{$pname}))
     {
-        my $name = getservbyport ($port, $proto);
-        $pn{$pname} = (defined ($name) ? $name : ($port <= 1023 ? $port : '<hig
-h>'));
+	my $name = getservbyport ($port, $proto);
+	$pn{$pname} = (defined ($name) ? $name : ($port <= 1023 ? $port : '<high>'));
     }
     return $pn{$pname};
 }
@@ -686,16 +761,16 @@ sub portNumber
     my $pname = "$port/$proto";
     unless (exists ($pn{$pname}))
     {
-        my $number = getservbyname ($port, $proto);
-        unless (defined ($number))
-        {
-            # I don't think we need to recover from this. How did the port
-            # name get into the log file if we can't find it? Log file from
-            # a different machine? Fix /etc/services on this one if that's
-            # your problem.
-            die ("Unrecognized port name \"$port\" at $.");
-        }
-        $pn{$pname} = $number;
+	my $number = getservbyname ($port, $proto);
+	unless (defined ($number))
+	{
+	    # I don't think we need to recover from this. How did the port
+	    # name get into the log file if we can't find it? Log file from
+	    # a different machine? Fix /etc/services on this one if that's
+	    # your problem.
+	    die ("Unrecognized port name \"$port\" at $.");
+	}
+	$pn{$pname} = $number;
     }
     return $pn{$pname};
 }
@@ -709,7 +784,7 @@ sub portSimplify
 
     # Make sure port is numeric.
     $port = &portNumber ($port, $proto)
-        unless ($port =~ /^\d+$/);
+	unless ($port =~ /^\d+$/);
 
     # Look up port name.
     my $portName = &portName ($port, $proto);
@@ -722,61 +797,130 @@ sub portSimplify
     return $port;
 }
 
-# Translates a dotted quad into a hostname. Don't pass names to this
-# function.
+# Translates a numeric address into a hostname. Pass only packed numeric
+# addresses to this routine.
 sub hostName
 {
     my $ip = shift;
-    return $ip if ($numeric);
-    unless (exists ($ip{$ip}))
-    {
-        my $addr = inet_aton ($ip);
-        my $name = gethostbyaddr ($addr, AF_INET);
-        if (defined ($name))
-        {
-            $ip{$ip} = $name;
+    return $ipName{$ip} if (exists ($ipName{$ip}));
 
-            # While we're at it, cache the forward lookup.
-            $ip{$name} = $ip;
-        }
-        else
-        {
-            # Just map the IP address to itself. There's no reverse.
-            $ip{$ip} = $ip;
-        }
+    # Do an inverse lookup on the address.
+    my $name = gethostbyaddr ($ip, AF_INET);
+    unless (defined ($name))
+    {
+	# Inverse lookup failed, so map the IP address to its dotted
+	# representation and cache that.
+	$ipName{$ip} = &dottedAddr ($ip);
+	return $ipName{$ip};
     }
-    return $ip{$ip};
+
+    # For paranoid hostname lookups.
+    if ($paranoid)
+    {
+	# If this address already matches, we're happy.
+	unless (exists ($ipName{$ip}) && (lc ($ipName{$ip}) eq lc ($name)))
+	{
+	    # Do a forward lookup on the resulting name.
+	    my @addr = &hostAddrs ($name);
+	    my $match = 0;
+
+	    # Cache the forward lookup results for future inverse lookups,
+	    # but don't stomp on inverses we've already cached, even if they
+	    # are questionable. We want to generate consistent output, and
+	    # the cache is growing incrementally.
+	    foreach (@addr)
+	    {
+		$ipName{$_} = $name unless (exists ($ipName{$_}));
+		$match = 1 if ($_ eq $ip);
+	    }
+
+	    # Was this one of the addresses? If not, tack on a ?.
+	    $name .= '?' unless ($match);
+	}
+    }
+    else
+    {
+	# Just believe it and cache it.
+	$ipName{$ip} = $name;
+    }
+
+    return $name;
 }
 
-# Translates a hostname or dotted quad into a dotted quad.
-sub hostNumber
+# Translates a hostname or dotted address into a list of packed numeric
+# addresses.
+sub hostAddrs
 {
     my $name = shift;
-    if ($name =~ /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
-    {
-        # Return original value for dotted quads.
-        my $or = int ($1) | int ($2) | int ($3) | int ($4);
-        return $name if ($or == ($or & 0xff));
-    }
-    unless (exists ($ip{$name}))
-    {
-        my $addr = inet_aton ($name);
-        unless (defined ($addr))
-        {
-            # Again, I don't think we need to recover from this. If we can't
-            # resolve a hostname that ended up in the log file, punt. We
-            # want to be able to sort hosts by IP address later, and letting
-            # hostnames through will snarl up that code. Users of ipmon -n
-            # will have to grin and bear it for now.
-            return undef;
-        }
-        my $ip = inet_ntoa ($addr);
-        $ip{$name} = $ip;
+    my $ip;
 
-        # While we're at it, cache the reverse lookup.
-        $ip{$ip} = $name;
+    # Check if it's a dotted representation.
+    return ($ip) if (defined ($ip = &isDottedAddr ($name)));
+
+    # Return result from cache.
+    $name = lc ($name);
+    return @{$ipAddr{$name}} if (exists ($ipAddr{$name}));
+
+    # Look up the addresses.
+    my @addr = gethostbyname ($name);
+    splice (@addr, 0, 4);
+
+    unless (scalar (@addr))
+    {
+	# Again, I don't think we need to recover from this gracefully.
+	# If we can't resolve a hostname that ended up in the log file,
+	# punt. We want to be able to sort hosts by IP address later,
+	# and letting hostnames through will snarl up that code. Users
+	# of ipmon -n will have to grin and bear it for now. The
+	# functions that get undef back should treat it as an error or
+	# as some default address, e.g. 0 just to make things work.
+	return ();
     }
-    return $ip{$name};
+
+    $ipAddr{$name} = [ @addr ];
+    return @{$ipAddr{$name}};
+}
+
+# If the argument is a valid dotted address, returns the corresponding
+# packed numeric address, otherwise returns undef.
+sub isDottedAddr
+{
+    my $addr = shift;
+    if ($addr =~ /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
+    {
+	my @a = (int ($1), int ($2), int ($3), int ($4));
+	foreach (@a)
+	{
+	    return undef if ($_ >= 256);
+	}
+	return pack ('C*', @a);
+    }
+    return undef;
+}
+
+# Unpacks a packed numeric address and returns an integer representation.
+sub integerAddr
+{
+    my $addr = shift;
+    return unpack ('N', $addr);
+
+    # The following is for generalized IPv4/IPv6 stuff. For now, it's a
+    # lot faster to assume IPv4.
+    my @a = unpack ('C*', $addr);
+    my $a = 0;
+    while (scalar (@a))
+    {
+	$a = ($a << 8) | shift (@a);
+    }
+    return $a;
+}
+
+# Unpacks a packed numeric address into a dotted representation.
+sub dottedAddr
+{
+    my $addr = shift;
+    my @a = unpack ('C*', $addr);
+    return join ('.', @a);
 }
 
 # Translates a protocol number into a protocol name, or a number if no name
@@ -787,15 +931,15 @@ sub protoName
     return $code if ($code !~ /^\d+$/);
     unless (exists ($pr{$code}))
     {
-        my $name = scalar (getprotobynumber ($code));
-        if (defined ($name))
-        {
-            $pr{$code} = $name;
-        }
-        else
-        {
-            $pr{$code} = $code;
-        }
+	my $name = scalar (getprotobynumber ($code));
+	if (defined ($name))
+	{
+	    $pr{$code} = $name;
+	}
+	else
+	{
+	    $pr{$code} = $code;
+	}
     }
     return $pr{$code};
 }
@@ -807,15 +951,15 @@ sub protoNumber
     return $name if ($name =~ /^\d+$/);
     unless (exists ($pr{$name}))
     {
-        my $code = scalar (getprotobyname ($name));
-        if (defined ($code))
-        {
-            $pr{$name} = $code;
-        }
-        else
-        {
-            $pr{$name} = $name;
-        }
+	my $code = scalar (getprotobyname ($name));
+	if (defined ($code))
+	{
+	    $pr{$name} = $code;
+	}
+	else
+	{
+	    $pr{$name} = $name;
+	}
     }
     return $pr{$name};
 }
@@ -835,12 +979,12 @@ sub icmpType
     my $codeName;
     if (exists ($info->{codes}->{$code}))
     {
-        $codeName = $info->{codes}->{$code};
-        $codeName = (defined ($codeName) ? "/$codeName" : '');
+	$codeName = $info->{codes}->{$code};
+	$codeName = (defined ($codeName) ? "/$codeName" : '');
     }
     else
     {
-        $codeName = "/$code";
+	$codeName = "/$code";
     }
     return "$typeName$codeName";
 }
@@ -861,11 +1005,11 @@ sub usage
 
     if (scalar (@msg))
     {
-        print STDERR "$me: ", join ("\n", @msg), "\n\n";
+	print STDERR "$me: ", join ("\n", @msg), "\n\n";
     }
 
-    print STDERR <<EOT;
-usage: $me [-n] [-S] [-D] [-s servicemap] [-A act1,...] host...
+    print <<EOT;
+usage: $me [-nSDF] [-s servicemap] [-A act1,...] [address...]
 
 Parses logging from ipmon and presents it in a comprehensible format. This
 program generates two reports: one organized by source address and another
@@ -876,24 +1020,26 @@ destination address and port are counted as a single entry. Any port number
 greater than 1023 that does not match an entry in the services table is treated
 as a "high" port; all high ports are coalesced into the same entry. The fields
 for the source address report are:
-    iface action packet-count proto src-port dest-ip dest-port
+    iface action packet-count proto src-port dest-host.dest-port \[\(flags\)\]
 The fields for the destination address report are:
-    iface action packet-count proto dest-port src-ip src-port
+    iface action packet-count proto dest-port src-host.src-port \[\(flags\)\]
 
 Options are:
 -n           Disable hostname lookups, and report only IP addresses.
+-p           Perform paranoid hostname lookups.
 -S           Generate a source address report.
 -D           Generate a destination address report.
+-F           Show all flag combinations associated with packets.
 -s map       Supply an alternate services map to be preloaded. The map should
-             be in the same format as /etc/services. Any service name not found
+	     be in the same format as /etc/services. Any service name not found
              in the map will be looked for in the system services file.
--A act1,...  Limit the report to the specified actions. The possible actions ar
-e
-             pass, block, log, short, and nomatch.
+-A act1,...  Limit the report to the specified actions. The possible actions
+	     are pass, block, log, short, and nomatch.
 
-If any hostnames are supplied on the command line, the report is limited to
-these hosts. If a host has multiple addresses, only the first address will be
-considered.
+If any addresses are supplied on the command line, the report is limited to
+these hosts. Addresses may be given as dotted IP addresses or hostnames, and
+may be qualified with netmasks in CIDR \(/24\) or dotted \(/255.255.255.0\) format.
+If a hostname resolves to multiple addresses, all addresses are used.
 
 If neither -S nor -D is given, both reports are generated.
 
@@ -912,6 +1058,4 @@ EOT
 
     exit ($ec);
 }
-
-
 

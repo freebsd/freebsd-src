@@ -21,7 +21,7 @@ main()
 	char yn[16];
 	int fd;
 
-	fd = open(IPL_NAME, O_RDWR);
+	fd = open(IPL_AUTH, O_RDWR);
 	while (ioctl(fd, SIOCAUTHW, &frap) == 0) {
 		if (fra.fra_info.fin_out)
 			fra.fra_pass = FR_OUTQUE;

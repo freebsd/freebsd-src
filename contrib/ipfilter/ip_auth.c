@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  */
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_auth.c,v 2.11.2.3 2000/06/17 06:24:31 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_auth.c,v 2.11.2.5 2001/01/10 06:18:35 darrenr Exp $";
 #endif
 
 #include <sys/errno.h>
@@ -46,7 +46,7 @@ static const char rcsid[] = "@(#)$Id: ip_auth.c,v 2.11.2.3 2000/06/17 06:24:31 d
 # include <sys/stream.h>
 # include <sys/kmem.h>
 #endif
-#if (_BSDI_VERSION >= 199802) || (__FreeBSD_Version >= 400000)
+#if (_BSDI_VERSION >= 199802) || (__FreeBSD_version >= 400000)
 # include <sys/queue.h>
 #endif
 #if defined(__NetBSD__) || defined(__OpenBSD__) || defined(bsdi)
@@ -352,7 +352,7 @@ fr_authioctlloop:
 		READ_ENTER(&ipf_auth);
 		if ((fr_authnext != fr_authend) && fr_authpkts[fr_authnext]) {
 			error = IWCOPYPTR((char *)&fr_auth[fr_authnext], data,
-					  sizeof(fr_info_t));
+					  sizeof(frauth_t));
 			RWLOCK_EXIT(&ipf_auth);
 			if (error)
 				break;

@@ -6,9 +6,11 @@
 # in providing a very available location for the IP Filter home page and
 # distribution center.
 #
-# Thanks to Tel.Net Media for allowing me to maintain and further develop
-# IP Filter as part of my job and supplying Sun equipment for testing the
-# move to 64bits and Gigabit Ethernet.
+# Thanks to Hewlett Packard for making it possible to port IP Filter to
+# HP-UX 11.00.
+#
+# Thanks to Tel.Net Media for supplying me with equipment to ensure that
+# IP Filter continues to work on Solaris/sparc64.
 #
 # Thanks to BSDI for providing object files for BSD/OS 3.1 and the means
 # to further support development of IP Filter under BSDI.
@@ -20,6 +22,114 @@
 # and especially those who have found the time to port IP Filter to new
 # platforms.
 #
+3.4.16	15/01/2001 - Released
+
+fix race condition in flushing of state entries that are timing out
+
+Add TCP ECN patches
+
+log all NAT entries created, not just those via rules
+
+3.4.15	17/12/2000 - Released
+
+add minimum ttl filtering (to be replaced later by return-icmp-as-dest
+for all ICMP packets matching state entries).
+
+fix NAT'ing of fragments
+
+fix sanity checks for ICMPV6
+
+fix up compiling on IRIX 6.2 with IDF/IDL installed
+
+3.4.14	02/11/2000 - Released
+
+cause flushing NAT table to generate log records the same as state flush
+does.
+
+fix ftp proxy port/pasv
+
+fix problem where nat_{in,out}lookup() would release a write lock when it
+didn't need to.
+
+add check for ipf6.conf in Solaris ipfboot
+
+3.4.13	28/10/2000 - Released
+
+fix introduced bug with ICMP packets being rejected when valid
+
+fix bug with proxy's that don't set fin_dlen correctly when calling
+fr_addstate()
+
+3.4.12	26/10/2000 - Released
+
+fix installing into FreeBSD-4.1
+
+fix FTP proxy bug where it'd hang and make NAT slightly more efficient
+
+fix general compiling errors/warnings on various platforms
+
+don't access ICMP data fields that aren't there
+
+3.4.11	09/10/2000 - Released
+
+return NULL for IPv6 access control lists if it is disabled rather than
+random garbage.
+
+fix for getting protocol & packet length for IPv6 packets for pullup.
+
+update plog script from version 0.8 to version 0.10
+
+patch from Frank Volf adding fix_datacksum() to NAT code, enhancing the
+capabilities for "fixing" checksums.
+
+3.4.10	03/09/2000 - Released
+
+merge patch from Frank Volf for ICMP nat handling of TCP/UDP data `errors'
+
+getline() adjusts linenum now
+
+add tcphalfclosed timeout
+
+fill in icmp_nextmtu field if it is defined on the platform
+
+RST generation fix from guido
+
+force 32bit compile for gcc on solaris if it can't generate 64bit code
+
+encase logging when fr_chksrc == 2 in #ifdef IPFILTER_LOG
+
+fix up line wrap problems in plog script
+
+fix ICMP packet handling to not drop valid ICMP errors
+
+freebsd 5.0 compat changes
+
+3.4.9	08/08/2000 - Released
+
+implement new aging mechanism in fr_tcp_age()
+
+fix icmp state checking bug
+
+revamp buildsunos script and build both sparcv7/sparcv9 for Solaris
+if on an Ultra with a 64bit system & compiler (Caseper Dik)
+
+open ipfilter device read only if we know we can
+
+print out better information for ICMP packets in ipmon
+
+move checking for source spoofed packets to a point where we can generate
+logs of them
+
+return EFAULT from ircopyptr/iwcopyptr
+
+don't do ioctl(SIOCGETFS) for auth stats
+
+fix up freeing mbufs for post-4.3BSD
+
+fix returning of inc from ftp proxy
+
+fix bugs with ipfs -R/-W (Caseper Dik)
+
 3.4.8	19/07/2000 - Released
 
 create fake opt_inet6.h for FreeBSD-4 compile as LKM

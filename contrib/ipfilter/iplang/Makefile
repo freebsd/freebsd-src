@@ -11,6 +11,9 @@ all: $(DESTDIR)/y.tab.o $(DESTDIR)/lex.yy.o
 $(DESTDIR)/y.tab.o: $(DESTDIR)/y.tab.c
 	$(CC) $(DEBUG) -I. -I.. -I$(DESTDIR) -I../ipsend $(CFLAGS) $(LINUX) -c $(DESTDIR)/y.tab.c -o $@
 
+$(DESTDIR)/$(OBJ)/y.tab.o: $(DESTDIR)/y.tab.c
+	$(CC) $(DEBUG) -I. -I.. -I$(DESTDIR) -I../ipsend $(CFLAGS) $(LINUX) -c $(DESTDIR)/y.tab.c -o $@
+
 $(DESTDIR)/lex.yy.o: $(DESTDIR)/lex.yy.c
 	$(CC) $(DEBUG) -I. -I.. -I$(DESTDIR) -I../ipsend $(CFLAGS) $(LINUX) -c $(DESTDIR)/lex.yy.c -o $@
 

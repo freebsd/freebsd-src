@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "%W% %G% (C)1995";
-static const char rcsid[] = "@(#)$Id: ip.c,v 2.1 1999/08/04 17:31:04 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip.c,v 2.1.4.1 2001/01/10 06:21:19 darrenr Exp $";
 #endif
 #include <errno.h>
 #include <stdio.h>
@@ -99,7 +99,15 @@ int	frag;
 	int	err, iplen;
 
 	if (!ipbuf)
+	  {
 		ipbuf = (char *)malloc(65536);
+		if(!ipbuf) 
+		  {
+			perror("malloc failed");
+			return -2;
+		  }
+	  }
+
 	eh = (ether_header_t *)ipbuf;
 
 	bzero((char *)A_A eh->ether_shost, sizeof(eh->ether_shost));

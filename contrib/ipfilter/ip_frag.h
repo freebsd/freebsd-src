@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_frag.h	1.5 3/24/96
- * $Id: ip_frag.h,v 2.4 2000/03/13 22:10:21 darrenr Exp $
+ * $Id: ip_frag.h,v 2.4.2.2 2000/11/10 13:10:54 darrenr Exp $
  */
 
 #ifndef	__IP_FRAG_H__
@@ -19,6 +19,7 @@ typedef	struct	ipfr	{
 	void	*ipfr_data;
 	struct	in_addr	ipfr_src;
 	struct	in_addr	ipfr_dst;
+	void	*ipfr_ifp;
 	u_short	ipfr_id;
 	u_char	ipfr_p;
 	u_char	ipfr_tos;
@@ -60,6 +61,6 @@ extern	void	ipfr_slowtimer __P((void *));
 # endif
 #else
 extern	int	ipfr_slowtimer __P((void));
-#endif
+#endif /* (BSD >= 199306) || SOLARIS */
 
 #endif	/* __IP_FIL_H__ */
