@@ -38,7 +38,7 @@
 The
 .Nm etf
 node type multiplexes and filters data between hooks on the basis
-of the ethertype found in an ethernet header, presumed to be in the
+of the ethertype found in an Ethernet header, presumed to be in the
 first 14 bytes of the data.
 Incoming Ethernet frames are accepted on the
 .Em downstream
@@ -116,7 +116,7 @@ ETHER_IF=lnc0
 MATCH1=0x834
 MATCH2=0x835
 cat <<DONE >/tmp/xwert
-# Make a new ethertype filter and attach to the ethernet lower hook.
+# Make a new ethertype filter and attach to the Ethernet lower hook.
 # first remove left over bits from last time.
 shutdown ${ETHER_IF}:lower
 mkpeer ${ETHER_IF}: etf lower downstream
