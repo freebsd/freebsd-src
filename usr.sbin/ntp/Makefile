@@ -1,7 +1,7 @@
 # Makefile for ntpd.
 # $FreeBSD$
 
-SUBDIR=	arlib libntp libparse ntpd ntpdc ntpq ntpdate ntptrace \
+SUBDIR=	libntp libparse ntpd ntpdc ntpq ntpdate ntptrace \
 	ntptime ntp-keygen sntp
 
 .if !defined(NOMAN)
