@@ -3,6 +3,18 @@ Updating Information for FreeBSD current users
 This file is maintained by imp@village.org.  Please send new entries
 directly to him.  See end of file for further details.
 
+19990427:
+	Massive changes to SMP went into the tree that should speed
+	things up.  However, if you experience problems with SMP 
+	machines, you can back off to the PRE_SMP_VMSHARE tag in the
+	CVS repository (or run an MP kernel).
+
+19990420:
+	Pccardd and the pccard bus in general seem to be broken or
+	most people.  Soren has patches to make it better for some,
+	but not all people.  Work is underway to make it better for
+	all people.
+
 19990416:
 	new bus changes integrated into -current.  Many problems were
 	initially reported, but most have been fixed.  You'll need a
@@ -247,4 +259,4 @@ version of FreeBSD, you are on your own to get to November 18, 1998.
 Please filter your entries through Warner (imp@village.org) so that
 the style, formatting, etc of this file can be maintained.
 
-$Id: UPDATING,v 1.29 1999/04/15 04:36:45 imp Exp $
+$Id: UPDATING,v 1.30 1999/04/21 06:57:35 imp Exp $
