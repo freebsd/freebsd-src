@@ -272,31 +272,6 @@ pcic_isa_check(device_t dev, u_int16_t addr)
 }
 #endif
 
-static void
-pcic_isa_identify(driver_t *driver, device_t parent)
-{
-#if 0
-	device_t child;
-	u_int16_t ioaddrs[] = { 0x3e0, 0x3e2, 0x3e4, 0x3e6, 0 };
-	u_int16_t ioaddr;
-	int i;
-
-	for (i = 0; ioaddrs[i]; i++) {
-		ioaddr = ioaddrs[i];
-		if (pcic_isa_check(parent, ioaddr)) {
-			child = BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, 
-			    "pcic", -1);
-			device_set_driver(child, driver);
-/* XXX */
-			bus_set_resource(child, SYS_RES_IRQ, 0, 10, 1);
-			bus_set_resource(child, SYS_RES_MEMORY, 0, 0xd0000, 1 << 12);
-			bus_set_resource(child, SYS_RES_IOPORT, 0, ioaddr,
-			    PCIC_IOSIZE);
-		}
-	}
-#endif
-}
-
 static int
 pcic_isa_probe(device_t dev)
 {
@@ -384,12 +359,12 @@ static int
 pcic_isa_detach(device_t dev)
 {
 	pcic_deactivate(dev);
+	pcic_detach(dev);
 	return 0;
 }
 
 static device_method_t pcic_isa_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,	pcic_isa_identify),
 	DEVMETHOD(device_probe,		pcic_isa_probe),
 	DEVMETHOD(device_attach,	pcic_isa_attach),
 	DEVMETHOD(device_detach,	pcic_isa_detach),
