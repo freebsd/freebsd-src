@@ -520,7 +520,7 @@ pe_patch_imports(imgbase, module, functbl)
 	fptr = (vm_offset_t *)pe_translate_addr(imgbase,
 	    imp_desc.iid_import_address_table_addr);
 
-	while (nptr != NULL && pe_translate_addr(imgbase, *nptr) != NULL) {
+	while (nptr != NULL && pe_translate_addr(imgbase, *nptr)) {
 		fname = (char *)pe_translate_addr(imgbase, (*nptr) + 2);
 		func = pe_functbl_match(functbl, fname);
 		if (func)
