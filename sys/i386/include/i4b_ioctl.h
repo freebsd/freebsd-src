@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_ioctl.h - messages kernel <--> userland
  *	-------------------------------------------
  *
- *	$Id: i4b_ioctl.h,v 1.196 2000/10/09 11:17:07 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Thu Oct 26 08:52:59 2000]
+ *      last edit-date: [Wed Jan 10 16:36:17 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -49,7 +47,7 @@
  *---------------------------------------------------------------------------*/
 #define	VERSION		0		/* version number	*/
 #define	REL		96		/* release number	*/
-#define STEP		1		/* release step		*/
+#define STEP		2		/* release step		*/
 
 /*---------------------------------------------------------------------------*
  * date/time format in i4b log messages
@@ -97,9 +95,10 @@
 #define L1DRVR_IHFC     3		/* ihfc - driver	*/
 #define L1DRVR_IFPNP    4		/* ifpnp - driver	*/
 #define L1DRVR_ICCHP	5		/* icchp - driver	*/
+#define L1DRVR_ITJC     6		/* itjc - driver	*/
 
 /* MAXL1DRVR MUST be updated when more passive drivers are added !!! */
-#define MAXL1DRVR       (L1DRVR_ICCHP + 1)
+#define MAXL1DRVR       (L1DRVR_ITJC + 1)
 
 /*---------------------------------------------------------------------------*
  *	card types for CTRL_PASSIVE 
@@ -134,6 +133,7 @@
 #define CARD_TYPEP_ACERP10	26	/* Acer ISDN P10 (HFC-S)	*/
 #define CARD_TYPEP_TELEINT_NO_1	27	/* TELEINT ISDN SPEED No. 1 (HFC-1) */
 #define CARD_TYPEP_CCD_HFCS_PCI	28	/* Cologne Chip HFC-S PCI based	*/
+#define	CARD_TYPEP_NETJET_S	29	/* Traverse NetJet-S (Tiger300) */
 
 /*
  * in case you add support for more cards, please update:
@@ -143,7 +143,7 @@
  * and adjust CARD_TYPEP_MAX below.
  */
 
-#define CARD_TYPEP_MAX		28	/* max type */
+#define CARD_TYPEP_MAX		29	/* max type */
 
 /*---------------------------------------------------------------------------*
  *	card types for CTRL_DAIC
