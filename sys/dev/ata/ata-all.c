@@ -51,8 +51,10 @@
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 #endif
+#if NISA > 0
 #include <isa/isavar.h>
 #include <isa/isareg.h>
+#endif
 #ifdef __alpha__
 #include <machine/md_var.h>
 #endif
@@ -551,7 +553,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	case ATA_IOADDR_RID:
 	    if (ATA_MASTERDEV(dev)) {
 		myrid = 0;
-		start = (channel == 0 ? IO_WD1 : IO_WD2);
+		start = (channel ? ATA_SECONDARY : ATA_PRIMARY);
 		end = start + ATA_IOSIZE - 1;
 		count = ATA_IOSIZE;
 		res = BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
@@ -569,7 +571,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	case ATA_ALTADDR_RID:
 	    if (ATA_MASTERDEV(dev)) {
 		myrid = 0;
-		start = (channel == 0 ? IO_WD1 : IO_WD2) + ATA_ALTOFFSET;
+		start = (channel ? ATA_SECONDARY : ATA_PRIMARY) + ATA_ALTOFFSET;
 		end = start + ATA_ALTIOSIZE - 1;
 		count = ATA_ALTIOSIZE;
 		res = BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
