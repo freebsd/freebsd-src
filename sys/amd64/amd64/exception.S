@@ -76,18 +76,6 @@
  * must restore them prior to calling 'iret'.  The cpu adjusts the %cs and
  * %ss segment registers, but does not mess with %ds, %es, or %fs.  Thus we
  * must load them with appropriate values for supervisor mode operation.
- *
- * On entry to a trap or interrupt WE DO NOT OWN THE MP LOCK.  This means
- * that we must be careful in regards to accessing global variables.  We
- * save (push) the current cpl (our software interrupt disable mask), call
- * the trap function, then call doreti to restore the cpl and deal with
- * ASTs (software interrupts).  doreti will determine if the restoration
- * of the cpl unmasked any pending interrupts and will issue those interrupts
- * synchronously prior to doing the iret.
- *
- * At the moment we must own the MP lock to do any cpl manipulation, which
- * means we must own it prior to  calling doreti.  The syscall case attempts
- * to avoid this by handling a reduced set of cases itself and iret'ing.
  */
 #define	IDTVEC(name)	ALIGN_TEXT; .globl __CONCAT(X,name); \
 			.type __CONCAT(X,name),@function; __CONCAT(X,name):
@@ -197,9 +185,6 @@ calltrap:
  * final spot. It has to be done this way because esp can't be just
  * temporarily altered for the pushfl - an interrupt might come in
  * and clobber the saved cs/eip.
- *
- * We do not obtain the MP lock, but the call to syscall might.  If it
- * does it will release the lock prior to returning.
  */
 	SUPERALIGN_TEXT
 IDTVEC(lcall_syscall)
@@ -214,9 +199,6 @@ IDTVEC(lcall_syscall)
  * Even though the name says 'int0x80', this is actually a TGT (trap gate)
  * rather then an IGT (interrupt gate).  Thus interrupts are enabled on
  * entry just as they are for a normal syscall.
- *
- * We do not obtain the MP lock, but the call to syscall might.  If it
- * does it will release the lock prior to returning.
  */
 	SUPERALIGN_TEXT
 IDTVEC(int0x80_syscall)
