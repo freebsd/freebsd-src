@@ -1,0 +1,3 @@
+# $Id$
+
+LIBCOMPATDIR?=	${LIBDIR}/compat
