@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.42 1996/03/14 18:24:07 nate Exp $
+#	$Id: sysconfig,v 1.43 1996/04/03 17:13:59 phk Exp $
 
 ######################### Start Of Local Configuration Section ###########
 
@@ -245,14 +245,14 @@ linux=NO
 
 # Set to a string representing the interrupts you are going to use
 #  for generating entropy in the kernel (or NO to ignore).
-#  The keyboard (IRQ 1) is good if it used a lot.
-#  If the machine is networked, the Ethernet card is good.
+#  If the machine is networked, the Ethernet card IRQ is good.
 #  The IRQ on an intelligent hard disk controller is good.
 #  The IRQ's on most sound devices are good.
 #
 #  The following choices are BAD:
-#  THe IRQ's on COM-ports (SIO devices), the IRQ used by an IDE
-#  disk or CDROM, and the IRQ on the system clock.
+#  The IRQ's on COM-ports (SIO devices), the IRQ used by a "classic"
+#  IDE disk or cdrom (Intelligent controllers seem to be OK), and
+#  the IRQ on the system clock.
 #
 # Experiment with the rest. The best interrupts are the ones that
 #  happen fairly irregularly, and never occur in very high-speed bursts.
@@ -261,4 +261,10 @@ linux=NO
 #  /dev/random, and no problems on your system, like slowdowns,
 #  Sluggish net/disk activity, perhaps even errors.
 
-rand_irqs="-s 1"
+# For example - if you have a sound blaster on IRQ5, an ethernet card
+# on IRQ10 and a SCSI controller on IRQ11 (eg ADAPTEC 1542) you might
+# try this:
+#
+#	rand_irqs="-s 5 -s 10 -s 11"
+
+rand_irqs="NO"
