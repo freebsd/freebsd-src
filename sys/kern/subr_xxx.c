@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_xxx.c	8.1 (Berkeley) 6/10/93
- * $Id: subr_xxx.c,v 1.9 1997/09/14 02:50:28 peter Exp $
+ * $Id: subr_xxx.c,v 1.10 1998/06/07 17:11:38 dfr Exp $
  */
 
 /*
@@ -207,81 +207,4 @@ nullclose(dev, flags, fmt, p)
 {
 
 	return (0);
-}
-
-/*
- * Unconfigured devswitch functions (for unconfigured drivers).
- * XXX may belong elsewhere.
- */
-
-int
-nxopen(dev, flags, fmt, p)
-	dev_t dev;
-	int flags;
-	int fmt;
-	struct proc *p;
-{
-
-	return (ENXIO);
-}
-
-/*
- * XXX all nx functions except nxopen() should probably go away.  They
- * probably can't be called for non-open devices.
- */
-
-int
-nxclose(dev, flags, fmt, p)
-	dev_t dev;
-	int flags;
-	int fmt;
-	struct proc *p;
-{
-
-	printf("nxclose(0x%x) called\n", dev);
-	return (ENXIO);
-}
-
-int
-nxread(dev, uio, ioflag)
-	dev_t dev;
-	struct uio *uio;
-	int ioflag;
-{
-
-	printf("nxread(0x%x) called\n", dev);
-	return (ENXIO);
-}
-
-int
-nxwrite(dev, uio, ioflag)
-	dev_t dev;
-	struct uio *uio;
-	int ioflag;
-{
-
-	printf("nxwrite(0x%x) called\n", dev);
-	return (ENXIO);
-}
-
-int
-nxioctl(dev, cmd, data, flags, p)
-	dev_t dev;
-	u_long cmd;
-	caddr_t data;
-	int flags;
-	struct proc *p;
-{
-
-	printf("nxioctl(0x%x) called\n", dev);
-	return (ENXIO);
-}
-
-int
-nxdump(dev)
-	dev_t dev;
-{
-
-	printf("nxdump(0x%x) called\n", dev);
-	return (ENXIO);
 }
