@@ -67,17 +67,9 @@
 
 #include <net/if_gif.h>	
 
-#include "gif.h"
-
-#include <machine/stdarg.h>
-
 #include <net/net_osdep.h>
 
-#if NGIF > 0
 int ip_gif_ttl = GIF_TTL;
-#else
-int ip_gif_ttl = 0;
-#endif
 SYSCTL_INT(_net_inet_ip, IPCTL_GIF_TTL, gifttl, CTLFLAG_RW,
 	&ip_gif_ttl,	0, "");
 
@@ -210,25 +202,15 @@ in_gif_output(ifp, family, m, rt)
 }
 
 void
-#if __STDC__
-in_gif_input(struct mbuf *m, ...)
-#else
-in_gif_input(m, va_alist)
+in_gif_input(m, off, proto)
 	struct mbuf *m;
-	va_dcl
-#endif
+	int off;
+	int proto;
 {
-	int off, proto;
 	struct ifnet *gifp = NULL;
 	struct ip *ip;
-	va_list ap;
 	int af;
 	u_int8_t otos;
-
-	va_start(ap, m);
-	off = va_arg(ap, int);
-	proto = va_arg(ap, int);
-	va_end(ap);
 
 	ip = mtod(m, struct ip *);
 

@@ -128,11 +128,6 @@
 
 #include <netinet6/ip6protosw.h>
 
-#include "gif.h"
-#if NGIF > 0
-#include <netinet6/in6_gif.h>
-#endif
-
 #include <net/net_osdep.h>
 
 /*
@@ -251,16 +246,6 @@ struct ip6protosw inet6sw[] = {
 },
 };
 
-#if NGIF > 0
-struct ip6protosw in6_gif_protosw =
-{ SOCK_RAW,	&inet6domain,	0/*IPPROTO_IPV[46]*/,	PR_ATOMIC|PR_ADDR,
-  in6_gif_input, rip6_output,	0,		rip6_ctloutput,
-  0,
-  0,            0,              0,              0,
-  &rip6_usrreqs
-};
-#endif /*NGIF*/
-
 extern int in6_inithead __P((void **, int));
 
 struct domain inet6domain =
@@ -299,11 +284,7 @@ int	ip6_hdrnestlimit = 50;	/* appropriate? */
 int	ip6_dad_count = 1;	/* DupAddrDetectionTransmits */
 u_int32_t ip6_flow_seq;
 int	ip6_auto_flowlabel = 1;
-#if NGIF > 0
-int	ip6_gif_hlim = GIF_HLIM;
-#else
 int	ip6_gif_hlim = 0;
-#endif
 int	ip6_use_deprecated = 1;	/* allow deprecated addr (RFC2462 5.5.4) */
 int	ip6_rr_prune = 5;	/* router renumbering prefix
 				 * walk list every 5 sec.    */
