@@ -37,7 +37,8 @@ utility implements a simple BOOTP gateway which can be used to forward
 requests and responses between clients on one subnet and a
 BOOTP server (i.e.\&
 .Nm )
-on another subnet. While either
+on another subnet.
+While either
 .Nm
 or
 .Nm bootpgw
@@ -61,9 +62,11 @@ This mode of operation is referred to as "inetd mode" and causes
 .Nm
 (or
 .Nm bootpgw )
-to be started only when a boot request arrives.  If it does not
+to be started only when a boot request arrives.
+If it does not
 receive another packet within fifteen minutes of the last one
-it received, it will exit to conserve system resources.  The
+it received, it will exit to conserve system resources.
+The
 .Fl t
 option controls this timeout (see OPTIONS).
 .Pp
@@ -124,13 +127,14 @@ or
 4 will set the debugging level to 4.
 For compatibility with older versions of
 .Nm ,
-omitting the numeric parameter (i.e. just
+omitting the numeric parameter (i.e., just
 .Fl d )
 will simply increment the debug level by one.
 .It Fl c Ar chdir-path
 Set the current directory used by
 .Nm
-while checking the existence and size of client boot files.  This is
+while checking the existence and size of client boot files.
+This is
 useful when client boot files are specified as relative pathnames, and
 .Nm
 needs to use the same current directory as the TFTP server
@@ -146,11 +150,13 @@ listens on the IP address corresponding to the machine's hostname, as
 returned by
 .Xr gethostname 3 .
 .It Fl i
-Force inetd mode.  This option is obsolete, but remains for
+Force inetd mode.
+This option is obsolete, but remains for
 compatibility with older versions of
 .Nm .
 .It Fl s
-Force standalone mode.  This option is obsolete, but remains for
+Force standalone mode.
+This option is obsolete, but remains for
 compatibility with older versions of
 .Nm .
 .It Ar bootptab
@@ -165,7 +171,8 @@ Specify the name of the file that
 will dump its internal database into when it receives a
 SIGUSR1 signal
 .No ( Nm
-only). This option is only recognized if
+only).
+This option is only recognized if
 .Nm
 was compiled with the -DDEBUG flag.
 .It Ar server
@@ -188,7 +195,8 @@ They differ in their handling of BOOTREQUEST packets.
 When
 .Nm bootpgw
 is started, it determines the address of a BOOTP server
-whose name is provided as a command line parameter.  When
+whose name is provided as a command line parameter.
+When
 .Nm bootpgw
 receives a BOOTREQUEST packet, it sets the "gateway address"
 and "hop count" fields in the packet and forwards the packet
@@ -201,7 +209,8 @@ When
 is started it reads a configuration file, (normally
 .Pa /etc/bootptab )
 that initializes the internal database of known clients and client
-options.  This internal database is reloaded
+options.
+This internal database is reloaded
 from the configuration file when
 .Nm
 receives a hangup signal (SIGHUP) or when it discovers that the

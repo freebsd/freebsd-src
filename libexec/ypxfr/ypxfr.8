@@ -57,7 +57,8 @@ from one
 .Tn NIS
 server to another using
 .Tn NIS
-services. In
+services.
+In
 .Fx ,
 .Nm
 is generally invoked by
@@ -68,7 +69,8 @@ The
 .Nm
 utility is used primarily in environments where several
 .Tn NIS
-servers are in use in a single domain. One server, the
+servers are in use in a single domain.
+One server, the
 .Tn NIS
 master, maintains
 the canonical copies of all
@@ -77,7 +79,7 @@ maps, and all the other servers,
 the
 .Tn NIS
 slaves, copy new versions of the maps from the master whenever
-any updates are made (i.e. when a user updates their password via
+any updates are made (i.e., when a user updates their password via
 .Xr yppasswd 1 ) .
 .Pp
 When run,
@@ -92,7 +94,8 @@ When the entire map has been transfered,
 .Nm
 deletes the original copy of
 .Ar mapname
-and moves the temporary copy into its place. When the transfer is
+and moves the temporary copy into its place.
+When the transfer is
 complete,
 .Nm
 will attempt to send a 'clear current map' request to the local
@@ -102,7 +105,8 @@ stale map.
 .Pp
 Note that all files created by
 .Nm
-are owner readable and writable only for security reasons. Since the
+are owner readable and writable only for security reasons.
+Since the
 .Tn NIS
 maps and the directory in which they reside are normally owned by
 root, this prevents non-privileged users from making unauthorized
@@ -114,14 +118,16 @@ servers,
 .Nm
 can be run periodically in a
 .Xr cron 8
-job. Maps which change infrequently
+job.
+Maps which change infrequently
 need only be updated once a day (preferably late at night when system
 usage is lowest), whereas those that are subject to frequent changes
 (such a
 .Pa passwd.byname
 and
 .Pa passwd.byuid )
-should be updated perhaps once every hour. Using
+should be updated perhaps once every hour.
+Using
 .Xr cron 8
 to automatically
 update the
@@ -140,7 +146,7 @@ servers to fall out of sync with each other.
 .Pp
 When
 .Nm
-is invoked without a controlling terminal, e.g. from inside
+is invoked without a controlling terminal, e.g.\& from inside
 .Xr ypserv 8 ,
 it logs all its output using the
 .Xr syslog 3
@@ -154,20 +160,23 @@ has support for a special map transfer protocol which works in
 conjunction with the
 .Fx
 .Xr rpc.ypxfrd 8
-server. This protocol allows it to transfer raw map database files from
+server.
+This protocol allows it to transfer raw map database files from
 the
 .Tn NIS
 master server and can be many times faster than the standard
 transfer method, particularly for very large
 .Tn NIS
-maps. The
+maps.
+The
 .Nm
 utility will check to see if the
 .Xr rpc.ypxfrd 8
 server is registered on the
 .Tn NIS
 master server and attempt to use
-it if it is present. If it isn't it will fall back to the standard
+it if it is present.
+If it isn't it will fall back to the standard
 transfer method, copying the map contents from
 .Xr ypserv 8
 and creating new maps instead.
@@ -193,7 +202,8 @@ The following options and flags are supported by
 .Nm :
 .Bl -tag -width indent
 .It Fl f
-Force a map transfer. Normally,
+Force a map transfer.
+Normally,
 .Nm
 will not transfer a map if it determines that the
 .Tn NIS
@@ -204,7 +214,8 @@ flag forces a transfer regardless of which server's version is more recent.
 .It Fl c
 Do not send a 'clear current map' request to the
 .Xr ypserv 8
-process running on the local host. This flag is normally used when
+process running on the local host.
+This flag is normally used when
 invoking
 .Nm
 manually on a machine that is not yet running
@@ -221,7 +232,8 @@ domain.
 .It Fl h Ar source host
 Specify the name of the host from which to copy the
 .Tn NIS
-maps. This option
+maps.
+This option
 is used to insure that
 .Nm
 only copies maps from the
@@ -235,7 +247,8 @@ domains.
 .It Fl p Ar path
 Specify the top level directory containing the
 .Tn NIS
-maps. By
+maps.
+By
 default, this path is
 .Pa /var/yp .
 The
@@ -243,7 +256,8 @@ The
 flag allows you to specify an alternate path should you wish to
 store your
 .Tn NIS
-maps in a different part of the file system. The
+maps in a different part of the file system.
+The
 .Tn NIS
 server,
 .Xr ypserv 8 ,
