@@ -1906,12 +1906,12 @@ ndis_init_event(event)
 	ndis_event		*event;
 {
 	/*
-	 * NDIS events are always synchronization
+	 * NDIS events are always notification
 	 * events, and should be initialized to the
 	 * not signaled state.
 	 */
  
-	ntoskrnl_init_event(&event->ne_event, EVENT_TYPE_SYNC, FALSE);
+	ntoskrnl_init_event(&event->ne_event, EVENT_TYPE_NOTIFY, FALSE);
 	return;
 }
 
