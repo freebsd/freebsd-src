@@ -1,7 +1,7 @@
 #
 # Makefile for the NIS databases
 #
-# $Id: Makefile.yp,v 1.10 1996/07/24 14:04:57 peter Exp $
+# $Id: Makefile.yp,v 1.11 1996/07/25 19:32:37 peter Exp $
 #
 # This Makefile should only be run on the NIS master server of a domain.
 # All updated maps will be pushed to all NIS slave servers listed in the
@@ -156,7 +156,7 @@ mail.aliases: $(ALIASES)
 	@echo "Updating $@..."
 	@echo $@.$$$$ > $(NFILE)
 	@$(NEWALIASES) -oA$(ALIASES)
-	$(MKDB) -u $(ALIASES).db \
+	@$(MKDB) -u $(ALIASES).db \
 		| $(DBLOAD) -i $(ALIASES) -o $(YPMAPDIR)/$@ - $(TMP)
 	@$(MV) $(TMP) $@
 	@$(DBLOAD) -c
