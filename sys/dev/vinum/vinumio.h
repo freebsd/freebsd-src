@@ -153,6 +153,6 @@ struct vinum_rename_msg {
 #define VINUM_FINDDAEMON	_IOC(0, L, 93, 0)	    /* check for presence of Vinum daemon */
 #define VINUM_SETDAEMON		_IOW(L, 94, int)	    /* set daemon flags */
 #define VINUM_GETDAEMON		_IOR(L, 95, int)	    /* get daemon flags */
-#define VINUM_CHECKPARITY	_IOWR(L, 96, struct _ioctl_reply) /* check RAID-5 parity */
-#define VINUM_REBUILDPARITY	_IOWR(L, 97, struct _ioctl_reply) /* rebuild RAID-5 parity */
+#define VINUM_CHECKPARITY	_IOWR(L, 96, struct _ioctl_reply) /* check RAID-4/5 parity */
+#define VINUM_REBUILDPARITY	_IOWR(L, 97, struct _ioctl_reply) /* rebuild RAID-4/5 parity */
 #define VINUM_MOVE		_IOWR(L, 98, struct _ioctl_reply) /* move an object */

@@ -47,7 +47,6 @@
 
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>
-#include <sys/sysproto.h>				    /* for sync(2) */
 
 #ifdef VINUMDEBUG
 #include <sys/reboot.h>
@@ -303,11 +302,11 @@ vinumioctl(dev_t dev,
 	    *(int *) data = daemon_options;
 	    return 0;
 
-	case VINUM_CHECKPARITY:				    /* check RAID-5 parity */
+	case VINUM_CHECKPARITY:				    /* check RAID-4/5 parity */
 	    parityops((struct vinum_ioctl_msg *) data, checkparity);
 	    return 0;
 
-	case VINUM_REBUILDPARITY:			    /* rebuild RAID-5 parity */
+	case VINUM_REBUILDPARITY:			    /* rebuild RAID-4/5 parity */
 	    parityops((struct vinum_ioctl_msg *) data, rebuildparity);
 	    return 0;
 
@@ -592,7 +591,7 @@ attachobject(struct vinum_ioctl_msg *msg)
 	     * number of subdisks, we have a lot of reshuffling
 	     * to do. XXX
 	     */
-	    if ((plex->organization != plex_concat)	    /* can't attach to striped and raid-5 */
+	    if ((plex->organization != plex_concat)	    /* can't attach to striped and RAID-4/5 */
 	    &&(!msg->force)) {				    /* without using force */
 		reply->error = EINVAL;			    /* no message, the user should check */
 		strcpy(reply->msg, "Can't attach to this plex organization");
@@ -702,8 +701,7 @@ detachobject(struct vinum_ioctl_msg *msg)
 		sd->name[MAXSDNAME - 1] = '\0';
 	    }
 	    update_plex_config(plex->plexno, 0);
-	    if ((plex->organization == plex_striped)	    /* we've just mutilated our plex, */
-	    ||(plex->organization == plex_raid5))	    /* the data no longer matches */
+	    if (isstriped(plex))			    /* we've just mutilated our plex, */
 		set_plex_state(plex->plexno,
 		    plex_down,
 		    setstate_force | setstate_configuring);
