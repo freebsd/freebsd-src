@@ -32,7 +32,6 @@
  * Implement IP packet firewall (new version)
  */
 
-#if !defined(KLD_MODULE)
 #include "opt_ipfw.h"
 #include "opt_ipdn.h"
 #include "opt_ipdivert.h"
@@ -41,7 +40,6 @@
 #ifndef INET
 #error IPFIREWALL requires INET.
 #endif /* INET */
-#endif
 
 #define IPFW2	1
 #if IPFW2
@@ -156,6 +154,9 @@ static int autoinc_step = 100; /* bounded to 1..1000 in add_rule() */
 
 #ifdef SYSCTL_NODE
 SYSCTL_NODE(_net_inet_ip, OID_AUTO, fw, CTLFLAG_RW, 0, "Firewall");
+SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, enable,
+    CTLFLAG_RW | CTLFLAG_SECURE3,
+    &fw_enable, 0, "Enable ipfw");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, autoinc_step, CTLFLAG_RW,
     &autoinc_step, 0, "Rule number autincrement step");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, one_pass,

@@ -26,14 +26,16 @@
  * $FreeBSD$
  */
 
-#if !defined(KLD_MODULE)
 #include "opt_ipfw.h"
 #include "opt_ipdn.h"
 #include "opt_ipdivert.h"
+#include "opt_pfil_hooks.h"
 #include "opt_inet.h"
 #ifndef INET
 #error IPFIREWALL requires INET.
 #endif /* INET */
+#if !defined(KLD_MODULE) && !defined(PFIL_HOOKS)
+#error IPFIREWALL requires PFIL_HOOKS.
 #endif
 
 #include <sys/param.h>
@@ -84,6 +86,9 @@ ipfw_check_in(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir)
 #endif
 
 	KASSERT(dir == PFIL_IN, ("ipfw_check_in wrong direction!"));
+
+	if (!fw_enable)
+		goto pass;
 
 	bzero(&args, sizeof(args));
 
@@ -163,6 +168,9 @@ ipfw_check_out(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir)
 #endif
 
 	KASSERT(dir == PFIL_OUT, ("ipfw_check_out wrong direction!"));
+
+	if (!fw_enable)
+		goto pass;
 
 	bzero(&args, sizeof(args));
 

@@ -1420,11 +1420,14 @@ tcp_mtudisc(inp, errno)
 	u_int romtu;
 	int mss;
 #ifdef INET6
-	int isipv6 = (tp->t_inpcb->inp_vflag & INP_IPV6) != 0;
+	int isipv6;
 #endif /* INET6 */
 	bzero(&tao, sizeof(tao));
 
 	if (tp != NULL) {
+#ifdef INET6
+		isipv6 = (tp->t_inpcb->inp_vflag & INP_IPV6) != 0;
+#endif
 		maxmtu = tcp_hc_getmtu(&inp->inp_inc); /* IPv4 and IPv6 */
 		romtu =
 #ifdef INET6
