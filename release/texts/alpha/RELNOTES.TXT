@@ -258,6 +258,8 @@ The API UP1100 mainboard has been verified to work OK.
 
 bridge(4) and dummynet(4) have received some enhancements and bugfixes.
 
+The API CS20 1U high server has been verified to work OK.
+
 
 1.2. SECURITY FIXES
 -------------------
