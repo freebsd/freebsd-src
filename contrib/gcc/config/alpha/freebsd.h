@@ -54,14 +54,11 @@ Boston, MA 02111-1307, USA.  */
       %{!dynamic-linker:-dynamic-linker /libexec/ld-elf.so.1}}		\
     %{static:-Bstatic}}"
 
-/* We now have to provide a STARTFILE_SPEC because of a moronic pigheaded
+/* Reset our STARTFILE_SPEC because of a moronic pigheaded
    Linuxism(glibc'ism) that was added to alpha/elf.h.  */
 
- #undef	 STARTFILE_SPEC
- #define STARTFILE_SPEC \
-   "%{!shared: \
-      %{pg:gcrt1.o%s} %{!pg:%{p:gcrt1.o%s} %{!p:crt1.o%s}}}\
-   crti.o%s %{shared:crtbeginS.o%s}%{!shared:crtbegin.o%s}"
+#undef STARTFILE_SPEC
+#define STARTFILE_SPEC FBSD_STARTFILE_SPEC
 
 
 /************************[  Target stuff  ]***********************************/
