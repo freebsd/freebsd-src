@@ -111,7 +111,6 @@ _gettemp(path, doopen, domkdir, slen)
 		return(0);
 	}
 
-	pid = getpid();
 	for (trv = path; *trv; ++trv)
 		;
 	trv -= slen;
@@ -121,6 +120,7 @@ _gettemp(path, doopen, domkdir, slen)
 		errno = EINVAL;
 		return (0);
 	}
+	pid = getpid();
 	while (*trv == 'X' && pid != 0) {
 		*trv-- = (pid % 10) + '0';
 		pid /= 10;
@@ -177,7 +177,7 @@ _gettemp(path, doopen, domkdir, slen)
 
 		/* tricky little algorithm for backward compatibility */
 		for (trv = start;;) {
-			if (!*trv)
+			if (*trv == '\0' || trv == suffp)
 				return(0);
 			if (*trv == 'Z')
 				*trv++ = 'a';
