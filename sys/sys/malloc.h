@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)malloc.h	8.3 (Berkeley) 1/12/94
- * $Id: malloc.h,v 1.9 1995/09/14 16:25:06 wollman Exp $
+ * $Id: malloc.h,v 1.10 1995/12/02 20:40:12 phk Exp $
  */
 
 #ifndef _SYS_MALLOC_H_
@@ -328,7 +328,12 @@ extern struct kmemstats kmemstats[];
 extern struct kmemusage *kmemusage;
 extern char *kmembase;
 extern struct kmembuckets bucket[];
-extern void *malloc __P((unsigned long size, int type, int flags));
-extern void free __P((void *addr, int type));
+
+void	*contigmalloc __P((unsigned long size, int type, int flags,
+			   unsigned long low, unsigned long high,
+			   unsigned long alignment, unsigned long boundary));
+void	free __P((void *addr, int type));
+void	*malloc __P((unsigned long size, int type, int flags));
 #endif /* KERNEL */
+
 #endif /* !_SYS_MALLOC_H_ */

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.45 1996/01/04 21:13:23 wollman Exp $
+ *	$Id: vm_page.c,v 1.46 1996/01/19 04:00:10 dyson Exp $
  */
 
 /*
@@ -71,6 +71,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/vmmeter.h>
@@ -686,31 +687,47 @@ vm_page_alloc(object, pindex, page_req)
 	return (m);
 }
 
-vm_offset_t
-vm_page_alloc_contig(size, low, high, alignment)
-	vm_offset_t size;
-	vm_offset_t low;
-	vm_offset_t high;
-	vm_offset_t alignment;
+/*
+ * This interface is for merging with malloc() someday.
+ * Even if we never implement compaction so that contiguous allocation
+ * works after initialization time, malloc()'s data structures are good
+ * for statistics and for allocations of less than a page.
+ */
+void *
+contigmalloc(size, type, flags, low, high, alignment, boundary)
+	unsigned long size;	/* should be size_t here and for malloc() */
+	int type;
+	int flags;
+	unsigned long low;
+	unsigned long high;
+	unsigned long alignment;
+	unsigned long boundary;
 {
 	int i, s, start;
 	vm_offset_t addr, phys, tmp_addr;
 	vm_page_t pga = vm_page_array;
 
+	size = round_page(size);
+	if (size == 0)
+		panic("vm_page_alloc_contig: size must not be 0");
 	if ((alignment & (alignment - 1)) != 0)
 		panic("vm_page_alloc_contig: alignment must be a power of 2");
+	if ((boundary & (boundary - 1)) != 0)
+		panic("vm_page_alloc_contig: boundary must be a power of 2");
 
 	start = 0;
 	s = splhigh();
 again:
 	/*
-	 * Find first page in array that is free, within range, and aligned.
+	 * Find first page in array that is free, within range, aligned, and
+	 * such that the boundary won't be crossed.
 	 */
 	for (i = start; i < cnt.v_page_count; i++) {
 		phys = VM_PAGE_TO_PHYS(&pga[i]);
 		if ((pga[i].queue == PQ_FREE) &&
 		    (phys >= low) && (phys < high) &&
-		    ((phys & (alignment - 1)) == 0))
+		    ((phys & (alignment - 1)) == 0) &&
+		    (((phys ^ (phys + size - 1)) & ~(boundary - 1)) == 0))
 			break;
 	}
 
@@ -742,6 +759,10 @@ again:
 	 * return kernel VM pointer.
 	 */
 	tmp_addr = addr = kmem_alloc_pageable(kernel_map, size);
+	if (addr == 0) {
+		splx(s);
+		return (NULL);
+	}
 
 	for (i = start; i < (start + size / PAGE_SIZE); i++) {
 		vm_page_t m = &pga[i];
@@ -763,7 +784,18 @@ again:
 	}
 
 	splx(s);
-	return (addr);
+	return ((void *)addr);
+}
+
+vm_offset_t
+vm_page_alloc_contig(size, low, high, alignment)
+	vm_offset_t size;
+	vm_offset_t low;
+	vm_offset_t high;
+	vm_offset_t alignment;
+{
+	return ((vm_offset_t)contigmalloc(size, M_DEVBUF, M_NOWAIT, low, high,
+					  alignment, 0ul));
 }
 
 /*
