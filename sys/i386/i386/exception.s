@@ -217,9 +217,6 @@ ENTRY(fork_trampoline)
 	pushl	%esp			/* trapframe pointer */
 	pushl	%ebx			/* arg1 */
 	pushl	%esi			/* function */
-	movl    PCPU(CURTHREAD),%ebx	/* setup critnest */
-	movl	$1,TD_CRITNEST(%ebx)
-	sti				/* enable interrupts */
 	call	fork_exit
 	addl	$12,%esp
 	/* cut from syscall */
