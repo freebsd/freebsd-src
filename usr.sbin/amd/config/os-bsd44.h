@@ -37,7 +37,7 @@
  *
  *	@(#)os-bsd44.h	8.1 (Berkeley) 6/6/93
  *
- * $Id: os-bsd44.h,v 1.3 1995/06/27 11:07:27 dfr Exp $
+ * $Id: os-bsd44.h,v 1.4 1996/01/09 08:49:21 graichen Exp $
  *
  * 4.4 BSD definitions for Amd (automounter)
  */
@@ -172,7 +172,7 @@ struct mntent {
  */
 #undef NFS_FH_TYPE
 #ifdef NFSv3
-#define NFS_FH_TYPE	fhandle_t *
+#define NFS_FH_TYPE	u_char *
 #else
 #define	NFS_FH_TYPE	nfsv2fh_t *
 #endif

@@ -37,7 +37,7 @@
  *
  *	@(#)amd.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: amd.c,v 1.1.1.1 1994/05/26 05:22:00 rgrimes Exp $
+ * $Id: amd.c,v 1.2 1995/08/24 10:22:06 dfr Exp $
  *
  */
 
@@ -55,6 +55,7 @@ static char copyright[] =
 #include <sys/signal.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include <setjmp.h>
 
 char pid_fsname[16 + MAXHOSTNAMELEN];	/* "kiska.southseas.nz:(pid%d)" */
