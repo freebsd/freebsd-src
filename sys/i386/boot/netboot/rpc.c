@@ -31,7 +31,7 @@ rpclookup(addr, prog, ver)
 		udp_transmit(arptable[addr].ipaddr, RPC_SOCKET,
 			SUNRPC, rpcptr - (char *)&buf, &buf);
 		if (await_reply(AWAIT_RPC, rpc_id, NULL)) {
-			rpc = (struct rpc_t *)&packet[ETHER_HDR_SIZE];
+			rpc = (struct rpc_t *)&packet[ETHER_HDR_LEN];
 			if (rpc->u.reply.rstatus == rpc->u.reply.verifier ==
 				rpc->u.reply.astatus == 0)
 				return(ntohl(rpc->u.reply.data[0]));
@@ -66,7 +66,7 @@ nfs_mount(server, port, path, fh)
 		udp_transmit(arptable[server].ipaddr, RPC_SOCKET,
 			port, rpcptr - (char *)&buf, &buf);
 		if (await_reply(AWAIT_RPC, rpc_id, NULL)) {
-			rpc = (struct rpc_t *)&packet[ETHER_HDR_SIZE];
+			rpc = (struct rpc_t *)&packet[ETHER_HDR_LEN];
 			if (rpc->u.reply.rstatus || rpc->u.reply.verifier ||
 				rpc->u.reply.astatus || rpc->u.reply.data[0]) {
 				rpc_err(rpc);
@@ -104,7 +104,7 @@ nfs_lookup(server, port, fh, path, file_fh)
 		udp_transmit(arptable[server].ipaddr, RPC_SOCKET,
 			port, rpcptr - (char *)&buf, &buf);
 		if (await_reply(AWAIT_RPC, rpc_id, NULL)) {
-			rpc = (struct rpc_t *)&packet[ETHER_HDR_SIZE];
+			rpc = (struct rpc_t *)&packet[ETHER_HDR_LEN];
 			if (rpc->u.reply.rstatus || rpc->u.reply.verifier ||
 				rpc->u.reply.astatus || rpc->u.reply.data[0]) {
 				rpc_err(rpc);
@@ -143,7 +143,7 @@ nfs_read(server, port, fh, offset, len, buffer)
 		udp_transmit(arptable[server].ipaddr, RPC_SOCKET,
 			port, rpcptr - (char *)&buf, &buf);
 		if (await_reply(AWAIT_RPC, rpc_id, NULL)) {
-			rpc = (struct rpc_t *)&packet[ETHER_HDR_SIZE];
+			rpc = (struct rpc_t *)&packet[ETHER_HDR_LEN];
 			if (rpc->u.reply.rstatus || rpc->u.reply.verifier ||
 				rpc->u.reply.astatus || rpc->u.reply.data[0]) {
 				rpc_err(rpc);

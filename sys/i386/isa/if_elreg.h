@@ -4,7 +4,7 @@
  * of the software, derivative works or modified versions, and any
  * portions thereof.
  *
- * $Id: if_elreg.h,v 1.2 1994/08/02 07:39:34 davidg Exp $
+ * $Id: if_elreg.h,v 1.3 1996/01/30 22:55:41 mpp Exp $
  */
 /* 3COM Etherlink 3C501 Register Definitions */
 
@@ -74,5 +74,3 @@
 
 /* Packet buffer size */
 #define EL_BUFSIZ	2048
-
-#define ETHER_ADDR_LEN	6

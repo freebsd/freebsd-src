@@ -68,10 +68,7 @@
 
 /* Some defines that should really be in generic locations */
 #define FCS_LEN 4
-#define ETHER_ADDR_LEN 6
-#define ETHER_HDR_LEN 14
 #define MULTICAST_FILTER_LEN 8
-#define ETHER_MIN_LEN 64
 
 #include <sys/param.h>
 #include <sys/systm.h>
