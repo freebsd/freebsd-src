@@ -46,13 +46,6 @@
 #ifndef _NETGRAPH_H4_H_
 #define _NETGRAPH_H4_H_
 
-/*
- * H4 line discipline 
- * XXX FIXME: does not belong here. Move to "ttycom.h" later
- */
-
-#define H4DISC			7
-
 /**************************************************************************
  **************************************************************************
  **     Netgraph node hook name, type name and type cookie and commands

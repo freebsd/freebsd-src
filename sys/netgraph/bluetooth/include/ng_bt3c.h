@@ -40,11 +40,6 @@
 #ifndef _NG_BT3C_H_
 #define _NG_BT3C_H_
 
-/* XXX FIME: does not belong here. Move to pccarddevs.h later */
-#define PCMCIA_PRODUCT_3COM_3CRWB609	0x0040
-#define PCMCIA_STR_3COM_3CRWB609	"3Com Bluetooth PC Card 3CRWB60-A"
-#define PCMCIA_CIS_3COM_3CRWB609	{ NULL, NULL, NULL, NULL }
-
 /**************************************************************************
  **************************************************************************
  **     Netgraph node hook name, type name and type cookie and commands 

@@ -204,7 +204,8 @@ struct accept_filter_arg {
 #define	AF_SLOW		33		/* 802.3ad slow protocol */
 #define	AF_SCLUSTER	34		/* Sitara cluster protocol */
 #define	AF_ARP		35
-#define	AF_MAX		36
+#define	AF_BLUETOOTH	36		/* Bluetooth sockets */
+#define	AF_MAX		37
 #endif
 
 /*
@@ -288,6 +289,7 @@ struct sockaddr_storage {
 #define	PF_SLOW		AF_SLOW
 #define PF_SCLUSTER	AF_SCLUSTER
 #define	PF_ARP		AF_ARP
+#define	PF_BLUETOOTH	AF_BLUETOOTH
 
 #define	PF_MAX		AF_MAX
 
