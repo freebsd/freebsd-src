@@ -1,4 +1,4 @@
-#	$Id: bsd.obj.mk,v 1.20 1997/04/30 17:04:11 bde Exp $
+#	$Id: bsd.obj.mk,v 1.21 1997/12/19 18:48:45 bde Exp $
 #
 # The include file <bsd.obj.mk> handles creating the 'obj' directory
 # and cleaning up object files, etc.
@@ -6,7 +6,9 @@
 #
 # +++ variables +++
 #
-# CLEANFILES	Additional files to remove for the clean and cleandir targets.
+# CLEANDIRS	Additional directories to remove for the clean target.
+#
+# CLEANFILES	Additional files to remove for the clean target.
 #
 # MAKEOBJDIR 	A pathname for the directory where the targets 
 #		are built.  Note: MAKEOBJDIR is an *enviroment* variable
@@ -32,7 +34,7 @@
 # +++ targets +++
 #
 #	clean:
-#		remove ${CLEANFILES} 
+#		remove ${CLEANFILES}; remove ${CLEANDIRS} and all contents.
 #
 #	cleandir:
 #		remove the build directory (and all its contents) created by obj
@@ -120,6 +122,9 @@ cleanobj:
 clean: _SUBDIR
 .if defined(CLEANFILES) && !empty(CLEANFILES)
 	rm -f ${CLEANFILES} 
+.endif
+.if defined(CLEANDIRS) && !empty(CLEANDIRS)
+	rm -rf ${CLEANDIRS}
 .endif
 .endif
 
