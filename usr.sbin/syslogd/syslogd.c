@@ -162,7 +162,7 @@ struct filed {
 	union {
 		char	f_uname[MAXUNAMES][UT_NAMESIZE+1];
 		struct {
-			char	f_hname[MAXHOSTNAMELEN+1];
+			char	f_hname[MAXHOSTNAMELEN];
 			struct addrinfo *f_addr;
 
 		} f_forw;		/* forwarding address */
@@ -174,7 +174,7 @@ struct filed {
 	} f_un;
 	char	f_prevline[MAXSVLINE];		/* last message logged */
 	char	f_lasttime[16];			/* time of last occurrence */
-	char	f_prevhost[MAXHOSTNAMELEN+1];	/* host from which recd. */
+	char	f_prevhost[MAXHOSTNAMELEN];	/* host from which recd. */
 	int	f_prevpri;			/* pri of f_prevline */
 	int	f_prevlen;			/* length of f_prevline */
 	int	f_prevcount;			/* repetition cnt of prevline */
@@ -257,7 +257,7 @@ struct	filed consfile;
 
 int	Debug;			/* debug flag */
 int	resolve = 1;		/* resolve hostname */
-char	LocalHostName[MAXHOSTNAMELEN+1];	/* our hostname */
+char	LocalHostName[MAXHOSTNAMELEN];	/* our hostname */
 char	*LocalDomain;		/* our local domain name */
 int	*finet = NULL;		/* Internet datagram socket */
 int	fklog = -1;		/* /dev/klog */
@@ -325,7 +325,7 @@ main(argc, argv)
 	pid_t ppid = 1;
 	socklen_t len;
 
-	while ((ch = getopt(argc, argv, "46Aa:df:kl:m:np:suv")) != -1)
+	while ((ch = getopt(argc, argv, "46Aa:df:kl:m:np:P:suv")) != -1)
 		switch (ch) {
 		case '4':
 			family = PF_INET;
@@ -366,6 +366,9 @@ main(argc, argv)
 			break;
 		case 'p':		/* path */
 			funixn[0] = optarg;
+			break;
+		case 'P':		/* path for alt. PID */
+			PidFile = optarg;
 			break;
 		case 's':		/* no network mode */
 			SecureMode++;
@@ -596,8 +599,8 @@ usage()
 
 	fprintf(stderr, "%s\n%s\n%s\n",
 		"usage: syslogd [-46Adnsuv] [-a allowed_peer] [-f config_file]",
-		"               [-m mark_interval] [-p log_socket]",
-		"               [-l log_socket]");
+		"               [-m mark_interval] [-l log_socket]",
+		"               [-p log_socket] [-P pid_file]");
 	exit(1);
 }
 
@@ -915,9 +918,9 @@ fprintlog(f, flags, msg)
 	  	static char fp_buf[30];	/* Hollow laugh */
 		int fac = f->f_prevpri & LOG_FACMASK;
 		int pri = LOG_PRI(f->f_prevpri);
-		char *f_s = 0;
+		const char *f_s = NULL;
 		char f_n[5];	/* Hollow laugh */
-		char *p_s = 0;
+		const char *p_s = NULL;
 		char p_n[5];	/* Hollow laugh */
 
 		if (LogFacPri > 1) {
@@ -1339,7 +1342,7 @@ init(signo)
 	char *p;
 	char cline[LINE_MAX];
  	char prog[NAME_MAX+1];
-	char host[MAXHOSTNAMELEN+1];
+	char host[MAXHOSTNAMELEN];
 
 	dprintf("init\n");
 
@@ -1416,7 +1419,7 @@ init(signo)
 			}
 			if (*p == '@')
 				p = LocalHostName;
-			for (i = 1; i < MAXHOSTNAMELEN; i++) {
+			for (i = 1; i < MAXHOSTNAMELEN - 1; i++) {
 				if (!isalnum(*p) && *p != '.' && *p != '-')
 					break;
 				host[i] = *p++;
