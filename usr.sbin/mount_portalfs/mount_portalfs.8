@@ -33,7 +33,7 @@
 .\"	@(#)mount_portal.8	8.3 (Berkeley) 3/27/94
 .\" $FreeBSD$
 .\"
-.Dd March 27, 1994
+.Dd March 10, 2005
 .Dt MOUNT_PORTALFS 8
 .Os
 .Sh NAME
@@ -86,10 +86,34 @@ By convention, the portal daemon divides the namespace into sub-namespaces,
 each of which handles objects of a particular type.
 .Pp
 The following sub-namespaces are currently implemented:
-.Pa tcplisten ,
-.Pa tcp
+.Pa fs ,
+.Pa pipe ,
+.Pa tcp ,
 and
-.Pa fs .
+.Pa tcplisten .
+.Pp
+The
+.Pa fs
+namespace opens the named file, starting back at the root directory.
+This can be used to provide a controlled escape path from
+a chrooted environment.
+.Pp
+The
+.Pa pipe
+namespace executes the named command, starting back at the root directory.
+The command's arguments can be provided after the command's name,
+by separating them with spaces or tabs.
+Files opened for reading in the
+.Pa pipe
+namespace will receive their input from the command's standard output;
+files opened for writing will send the data of write operations
+to the command's standard input.
+.Pp
+The
+.Pa tcp
+namespace takes a slash separated hostname and a port  and
+creates an open TCP/IP connection.
+.Pp
 The
 .Pa tcplisten
 namespace takes a slash separated hostname and port and creates a TCP/IP
@@ -103,15 +127,6 @@ discovered by calling
 with the returned file descriptor.
 Privileged ports can only be bound to
 by the super-user.
-The
-.Pa tcp
-namespace takes a hostname and a port (slash separated) and
-creates an open TCP/IP connection.
-The
-.Pa fs
-namespace opens the named file, starting back at the root directory.
-This can be used to provide a controlled escape path from
-a chrooted environment.
 .Sh "CONFIGURATION FILE"
 The configuration file contains a list of rules.
 Each rule takes one line and consists of two or more
@@ -130,11 +145,28 @@ Subsequent fields are passed to the creation function.
 tcplisten/	tcplisten tcplisten/
 tcp/		tcp tcp/
 fs/		file fs/
+pipe/		pipe pipe/
 .Ed
 .Sh FILES
 .Bl -tag -width /p/* -compact
 .It Pa /p/*
 .El
+.Sh EXAMPLES
+Display the greeting of the
+.Fx
+.Tn SMTP
+server.
+.Pp
+.Dl "head -1 /p/tcp/mx1.freebsd.org/smtp"
+.Pp
+Verify that two remote files are identical:
+.Pp
+.Bd -unfilled
+diff -q '/p/pipe/usr/bin/fetch -o - \\
+    ftp://ftp1.freebsd.org/pub/FreeBSD/README.TXT' \\
+    '/p/pipe/usr/bin/fetch -o - \\
+    ftp://ftp2.freebsd.org/pub/FreeBSD/README.TXT'
+.Ed
 .Sh SEE ALSO
 .Xr mount 2 ,
 .Xr unmount 2 ,
