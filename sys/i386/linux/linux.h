@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: linux.h,v 1.26.2.4 1999/08/17 21:06:04 marcel Exp $
+ *	$Id: linux.h,v 1.26.2.5 1999/08/18 07:52:35 marcel Exp $
  */
 
 #ifndef _I386_LINUX_LINUX_H_
@@ -56,6 +56,16 @@ typedef struct {
 	void (*sa_restorer)(void);
 } linux_sigaction_t;
 typedef int linux_key_t;
+
+typedef struct {
+	unsigned	long sig[2];
+} linux_new_sigset_t;
+typedef struct {
+	void		(*lsa_handler)(int);
+	unsigned	long lsa_flags;
+	void		(*lsa_restorer)(void);
+	linux_new_sigset_t lsa_mask;
+} linux_new_sigaction_t;
 
 /*
  * The Linux sigcontext, pretty much a standard 386 trapframe.
@@ -154,6 +164,9 @@ struct trapframe;
 
 /* sigaction flags */
 #define LINUX_SA_NOCLDSTOP	0x00000001
+#define LINUX_SA_NOCLDWAIT	0x00000002
+#define LINUX_SA_SIGINFO	0x00000004
+#define LINUX_SA_RESTORER	0x04000000
 #define LINUX_SA_ONSTACK	0x08000000
 #define LINUX_SA_RESTART	0x10000000
 #define LINUX_SA_INTERRUPT	0x20000000
