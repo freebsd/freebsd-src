@@ -22,7 +22,7 @@ CFLAGS+=	-mno-fp-regs
 CFLAGS+=	-mpreferred-stack-boundary=2
 .endif
 .if ${MACHINE_ARCH} == "powerpc"
-CFLAGS+=	-msoft-float
+CFLAGS+=	-msoft-float -D_STANDALONE
 .endif
 .if ${MACHINE_ARCH} == "amd64"
 CFLAGS+=	-m32
@@ -111,6 +111,12 @@ SRCS+=	bcmp.c bcopy.S bzero.S ffs.S index.c memccpy.c memchr.c memcmp.c \
 .PATH: ${.CURDIR}/../libc/ia64/gen
 SRCS+= __divdi3.S __divsi3.S __moddi3.S __modsi3.S
 SRCS+= __udivdi3.S __udivsi3.S __umoddi3.S __umodsi3.S
+.endif
+.if ${MACHINE_ARCH} == "powerpc"
+.PATH: ${.CURDIR}/../libc/quad
+SRCS+=	ashldi3.c ashrdi3.c
+.PATH: ${.CURDIR}/../libc/powerpc/gen
+SRCS+=	syncicache.c
 .endif
 
 # _setjmp/_longjmp
