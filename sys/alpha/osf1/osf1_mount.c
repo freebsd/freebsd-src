@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <nfs/xdr_subs.h>
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
+#include <rpc/rpcclnt.h>
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsmount.h>
 #include <nfsclient/nfsargs.h>
