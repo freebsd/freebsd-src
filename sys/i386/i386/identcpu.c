@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.57 1999/01/16 13:41:33 kato Exp $
+ *	$Id: identcpu.c,v 1.58 1999/02/04 16:48:25 kato Exp $
  */
 
 #include "opt_cpu.h"
@@ -547,7 +547,7 @@ printcpuinfo(void)
 			"\026<b21>"
 			"\027<b22>"
 			"\030MMX"
-			"\031<b24>"
+			"\031FXSR"
 			"\032<b25>"
 			"\033<b26>"
 			"\034<b27>"
