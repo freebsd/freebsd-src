@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.10 1995/04/24 17:06:59 bde Exp $
+ *	$Id: subr_diskslice.c,v 1.11 1995/04/30 15:16:02 bde Exp $
  */
 
 #include <sys/param.h>
@@ -385,20 +385,28 @@ dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
 		*sspp = NULL;
 		lp = malloc(sizeof *lp, M_DEVBUF, M_WAITOK);
 		*lp = *ssp->dss_slices[WHOLE_DISK_SLICE].ds_label;
-		error = dsopen(dname, dev, S_IFCHR, sspp, lp, strat, setgeom);
+		error = dsopen(dname, dev,
+			       ssp->dss_slices[WHOLE_DISK_SLICE].ds_copenmask
+			       & (1 << RAW_PART) ? S_IFCHR : S_IFBLK,
+			       sspp, lp, strat, setgeom);
 		if (error != 0) {
 			free(lp, M_DEVBUF);
 			*sspp = ssp;
 			return (error);
 		}
 
+		/*
+		 * Reopen everything.  This is a no-op except in the "force"
+		 * case and when the raw bdev and cdev are both open.  Abort
+		 * if anything fails.
+		 */
 		for (slice = 0; slice < ssp->dss_nslices; slice++) {
 			u_char	openmask;
 			int	part;
 
-			openmask = ssp->dss_slices[slice].ds_bopenmask;
-			for (part = 0; part < ssp->dss_nslices; part++) {
-				if (!(openmask & (1 << part)))
+			for (openmask = ssp->dss_slices[slice].ds_bopenmask,
+			     part = 0; openmask; openmask >>= 1, part++) {
+				if (!(openmask & 1))
 					continue;
 				error = dsopen(dname,
 					       dkmodslice(dkmodpart(dev, part),
@@ -411,9 +419,9 @@ dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
 					return (EBUSY);
 				}
 			}
-			openmask = ssp->dss_slices[slice].ds_copenmask;
-			for (part = 0; part < ssp->dss_nslices; part++) {
-				if (!(openmask & (1 << part)))
+			for (openmask = ssp->dss_slices[slice].ds_copenmask,
+			     part = 0; openmask; openmask >>= 1, part++) {
+				if (!(openmask & 1))
 					continue;
 				error = dsopen(dname,
 					       dkmodslice(dkmodpart(dev, part),
@@ -427,6 +435,7 @@ dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
 				}
 			}
 		}
+
 		free(lp, M_DEVBUF);
 		dsgone(&ssp);
 		return (0);
@@ -676,6 +685,34 @@ out:
 	}
 	sp->ds_openmask = sp->ds_bopenmask | sp->ds_copenmask;
 	return (0);
+}
+
+int
+dssize(dev, sspp, dopen, dclose)
+	dev_t	dev;
+	struct diskslices **sspp;
+	d_open_t dopen;
+	d_close_t dclose;
+{
+	struct disklabel *lp;
+	int	part;
+	int	slice;
+	struct diskslices *ssp;
+
+	slice = dkslice(dev);
+	part = dkpart(dev);
+	ssp = *sspp;
+	if (ssp == NULL || slice >= ssp->dss_nslices
+	    || !(ssp->dss_slices[slice].ds_bopenmask & (1 << part))) {
+		if (dopen(dev, FREAD, S_IFBLK, (struct proc *)NULL) != 0)
+			return (-1);
+		dclose(dev, FREAD, S_IFBLK, (struct proc *)NULL);
+		ssp = *sspp;
+	}
+	lp = ssp->dss_slices[slice].ds_label;
+	if (lp == NULL)
+		return (-1);
+	return ((int)lp->d_partitions[part].p_size);
 }
 
 static char *
