@@ -91,7 +91,7 @@ struct ngt_sc {
 	short	qlen;			/* Length of queue */
 	short	hotchar;		/* Hotchar, or -1 if none */
 	u_int	flags;			/* Flags */
-	struct	callout_handle chand;	/* See man timeout(9) */
+	struct	callout	chand;		/* See man timeout(9) */
 };
 typedef struct ngt_sc *sc_p;
 
@@ -137,7 +137,7 @@ static ng_disconnect_t	ngt_disconnect;
 static int	ngt_mod_event(module_t mod, int event, void *data);
 
 /* Other stuff */
-static void	ngt_timeout(void *arg);
+static void	ngt_timeout(node_p node, hook_p hook, void *arg1, int arg2);
 
 #define ERROUT(x)		do { error = (x); goto done; } while (0)
 
@@ -214,7 +214,7 @@ ngt_open(struct cdev *dev, struct tty *tp)
 	sc->hotchar = NG_TTY_DFL_HOTCHAR;
 	sc->qtail = &sc->qhead;
 	QUEUECHECK(sc);
-	callout_handle_init(&sc->chand);
+	ng_callout_init(&sc->chand);
 
 	/* Setup netgraph node */
 	ngt_nodeop_ok = 1;
@@ -273,7 +273,7 @@ ngt_close(struct tty *tp, int flag)
 	clist_free_cblocks(&tp->t_outq);
 	if (sc != NULL) {
 		if (sc->flags & FLG_TIMEOUT) {
-			untimeout(ngt_timeout, sc, sc->chand);
+			ng_uncallout(&sc->chand, sc->node);
 			sc->flags &= ~FLG_TIMEOUT;
 		}
 		ngt_nodeop_ok = 1;
@@ -456,7 +456,7 @@ ngt_start(struct tty *tp)
 	/* This timeout is needed for operation on a pseudo-tty, because the
 	 * pty code doesn't call pppstart after it has drained the t_outq. */
 	if (sc->qhead && (sc->flags & FLG_TIMEOUT) == 0) {
-		sc->chand = timeout(ngt_timeout, sc, 1);
+		ng_callout(&sc->chand, sc->node, NULL, 1, ngt_timeout, NULL, 0);
 		sc->flags |= FLG_TIMEOUT;
 	}
 	splx(s);
@@ -467,9 +467,9 @@ ngt_start(struct tty *tp)
  * We still have data to output to the device, so try sending more.
  */
 static void
-ngt_timeout(void *arg)
+ngt_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 {
-	const sc_p sc = (sc_p) arg;
+	const sc_p sc = NG_NODE_PRIVATE(node);
 	int s;
 
 	s = spltty();
