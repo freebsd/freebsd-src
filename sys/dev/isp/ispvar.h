@@ -507,6 +507,8 @@ typedef struct ispsoftc {
 #define	ISP_FW_MAJORX(xp)		(xp[0])
 #define	ISP_FW_MINORX(xp)		(xp[1])
 #define	ISP_FW_MICROX(xp)		(xp[2])
+#define	ISP_FW_NEWER_THAN(i, major, minor, micro)		\
+ (ISP_FW_REVX((i)->isp_fwrev) > ISP_FW_REV(major, minor, micro))
 
 /*
  * Bus (implementation) types
@@ -728,6 +730,7 @@ typedef enum {
 	ISPASYNC_CONF_CHANGE,		/* Platform Configuration Change */
 	ISPASYNC_UNHANDLED_RESPONSE,	/* Unhandled Response Entry */
 	ISPASYNC_FW_CRASH,		/* Firmware has crashed */
+	ISPASYNC_FW_DUMPED,		/* Firmware crashdump taken */
 	ISPASYNC_FW_RESTARTED		/* Firmware has been restarted */
 } ispasync_t;
 int isp_async(struct ispsoftc *, ispasync_t, void *);
