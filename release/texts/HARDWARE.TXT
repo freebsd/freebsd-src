@@ -568,7 +568,7 @@ WD8003EBT, WD8003W, WD8013W, WD8003S, WD8003SBT and WD8013EBT
 based clones.  SMC Elite Ultra is also supported.
 
 RealTek 8129/8139 fast ethernet NICs including the following:
-    Accton "Cheetah" EN1027D (MPX 5030/5038; RealTek 8139 clone?)
+    Accton "Cheetah" EN1207D (MPX 5030/5038; RealTek 8139 clone)
     Allied Telesyn AT2550
     Allied Telesyn AT2500TX
     Genius GF100TXR (RTL8139)
