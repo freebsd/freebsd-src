@@ -29,18 +29,20 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: talkd.c,v 1.4 1996/09/22 21:55:22 wosch Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)talkd.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -53,22 +55,22 @@ static char sccsid[] = "@(#)talkd.c	8.1 (Berkeley) 6/4/93";
 #include <sys/socket.h>
 #include <sys/param.h>
 #include <protocols/talkd.h>
-#include <signal.h>
-#include <syslog.h>
-#include <time.h>
+#include <err.h>
 #include <errno.h>
-#include <unistd.h>
+#include <paths.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <paths.h>
+#include <syslog.h>
+#include <time.h>
+#include <unistd.h>
 
 CTL_MSG		request;
 CTL_RESPONSE	response;
 
 int	sockt;
 int	debug = 0;
-void	timeout();
 long	lastmsgtime;
 
 char    hostname[MAXHOSTNAMELEN + 1];
@@ -76,6 +78,10 @@ char    hostname[MAXHOSTNAMELEN + 1];
 #define TIMEOUT 30
 #define MAXIDLE 120
 
+void process_request __P((CTL_MSG *, CTL_RESPONSE *));
+void timeout();
+
+int
 main(argc, argv)
 	int argc;
 	char *argv[];
@@ -83,10 +89,8 @@ main(argc, argv)
 	register CTL_MSG *mp = &request;
 	int cc;
 
-	if (getuid()) {
-		fprintf(stderr, "%s: getuid: not super-user\n", argv[0]);
-		exit(1);
-	}
+	if (getuid())
+		errx(1, "getuid: not super-user");
 	openlog("talkd", LOG_PID, LOG_DAEMON);
 	if (gethostname(hostname, sizeof (hostname) - 1) < 0) {
 		syslog(LOG_ERR, "gethostname: %m");
@@ -101,8 +105,6 @@ main(argc, argv)
 	signal(SIGALRM, timeout);
 	alarm(TIMEOUT);
 	for (;;) {
-		extern int errno;
-
 		cc = recv(0, (char *)mp, sizeof (*mp), 0);
 		if (cc != sizeof (*mp)) {
 			if (cc < 0 && errno != EINTR)

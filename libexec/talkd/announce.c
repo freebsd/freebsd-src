@@ -29,12 +29,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: announce.c,v 1.5 1996/09/22 21:55:15 wosch Exp $
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)announce.c	8.3 (Berkeley) 4/28/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -57,6 +59,9 @@ static char sccsid[] = "@(#)announce.c	8.3 (Berkeley) 4/28/95";
 
 extern char hostname[];
 
+int print_mesg __P((char *, FILE *, CTL_MSG *, char *));
+char *ttymsg __P((struct iovec *, int, char *, int));
+
 /*
  * Announce an invitation to talk.
  */
@@ -65,6 +70,7 @@ extern char hostname[];
  * See if the user is accepting messages. If so, announce that
  * a talk is requested.
  */
+int
 announce(request, remote_machine)
 	CTL_MSG *request;
 	char *remote_machine;
@@ -90,6 +96,7 @@ announce(request, remote_machine)
  * try to keep the message in one piece if the recipient
  * in in vi at the time
  */
+int
 print_mesg(tty, tf, request, remote_machine)
 	char *tty;
 	FILE *tf;
