@@ -87,7 +87,7 @@ extern struct nsp_softc *nspdata[];
 #include 	<pccard/cardinfo.h>
 #include	<pccard/slot.h>
 
-#define	PIO_MODE 1                 /* pd_flags */
+#define	PIO_MODE 0x100		/* pd_flags */
 
 static int nspprobe(DEVPORT_PDEVICE devi);
 static int nspattach(DEVPORT_PDEVICE devi);
