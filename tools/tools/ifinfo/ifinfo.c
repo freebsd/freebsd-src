@@ -160,9 +160,11 @@ printit(const struct ifmibdata *ifmd)
 	printf("\tinput queue drops: %lu\n", ifmd->ifmd_data.ifi_iqdrops);
 	printf("\tpackets for unknown protocol: %lu\n", 
 	       ifmd->ifmd_data.ifi_noproto);
+#ifdef notdef
 	printf("\treceive timing: %lu usec\n", ifmd->ifmd_data.ifi_recvtiming);
 	printf("\ttransmit timing: %lu usec\n", 
 	       ifmd->ifmd_data.ifi_xmittiming);
+#endif
 }
 
 static const char *const if_types[] = {
@@ -220,7 +222,10 @@ static const char *const if_types[] = {
 	"SONETVT",
 	"SMDS InterCarrier Interface",
 	"Proprietary virtual interface",
-	"Proprietary multiplexing"
+	"Proprietary multiplexing",
+	"Generic tunnel interface",
+	"IPv6-to-IPv4 TCP relay capturing interface",
+	"6to4 tunnel interface"
 };
 #define	NIFTYPES ((sizeof if_types)/(sizeof if_types[0]))
 
@@ -229,7 +234,7 @@ iftype(int type)
 {
 	static char buf[256];
 
-	if (type <= 0 || type > NIFTYPES) {
+	if (type <= 0 || type >= NIFTYPES) {
 		sprintf(buf, "unknown type %d", type);
 		return buf;
 	}
