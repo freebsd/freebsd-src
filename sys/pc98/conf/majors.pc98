@@ -1,4 +1,4 @@
-$Id: majors.pc98,v 1.50 1999/03/10 14:00:21 kato Exp $
+$Id: majors.pc98,v 1.51 1999/03/17 08:59:31 kato Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -111,7 +111,7 @@ chrdev	name		comments
 58	dgb		Digiboard PC/Xe
 59	OLDispy		ISDN system
 60	OLDnnic		ISDN system
-61	pt		SCSI "processor type"
+61	pt		SCSI "processor target"
 62	worm		SCSI "worm type"
 63	rc		Riscom/8 driver
 64	??		Talisman
@@ -169,5 +169,6 @@ chrdev	name		comments
 117	acd		ATAPI CDROM
 118	afd		ATAPI floppy
 119	ast		ATAPI tape
+120	aud		Audit Device <robert+freebsd@cyrus.watson.org>
 200	??		entries from 200-255 are reserved for local use
 255	??		entries from 200-255 are reserved for local use
