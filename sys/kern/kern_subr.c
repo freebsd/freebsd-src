@@ -78,8 +78,10 @@ uiomove(cp, n, uio)
 	    ("uiomove proc"));
 
 	if (td) {
+		mtx_lock_spin(&sched_lock);
 		save = td->td_flags & TDF_DEADLKTREAT;
 		td->td_flags |= TDF_DEADLKTREAT;
+		mtx_unlock_spin(&sched_lock);
 	}
 
 	while (n > 0 && uio->uio_resid) {
@@ -125,8 +127,11 @@ uiomove(cp, n, uio)
 	}
 	if (td != curthread) printf("uiomove: IT CHANGED!");
 	td = curthread;	/* Might things have changed in copyin/copyout? */
-	if (td)
+	if (td) {
+		mtx_lock_spin(&sched_lock);
 		td->td_flags = (td->td_flags & ~TDF_DEADLKTREAT) | save;
+		mtx_unlock_spin(&sched_lock);
+	}
 	return (error);
 }
 

@@ -263,14 +263,10 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 		 */
 		if (lkp->lk_lockholder != pid) {
 			lockflags = LK_HAVE_EXCL;
-			if (td) {
-				PROC_LOCK(td->td_proc);
-				if (!(td->td_flags & TDF_DEADLKTREAT)) {
-					lockflags |= LK_WANT_EXCL |
-					    LK_WANT_UPGRADE;
-				}
-				PROC_UNLOCK(td->td_proc);
-			}
+			mtx_lock_spin(&sched_lock);
+			if (td != NULL && !(td->td_flags & TDF_DEADLKTREAT))
+				lockflags |= LK_WANT_EXCL | LK_WANT_UPGRADE;
+			mtx_unlock_spin(&sched_lock);
 			error = acquire(lkp, extflags, lockflags);
 			if (error)
 				break;
