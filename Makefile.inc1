@@ -608,7 +608,7 @@ _perl=	gnu/usr.bin/perl
 
 build-tools:
 .for _tool in bin/csh bin/sh ${_games} gnu/usr.bin/cc/cc_tools ${_fortran} \
-    ${_libroken4} ${_libkrb5} lib/libncurses ${_share} ${_perl}
+    ${_libroken4} ${_libkrb5} lib/libncurses ${_share} ${_perl} usr.bin/file
 	cd ${.CURDIR}/${_tool}; ${MAKE} build-tools
 .endfor
 
