@@ -1257,7 +1257,7 @@ adv_attach(adv)
 	 */
 
 	/* DMA tag for mapping buffers into device visible space. */
-	if (bus_dma_tag_create(adv->parent_dmat, /*alignment*/0, /*boundary*/0,
+	if (bus_dma_tag_create(adv->parent_dmat, /*alignment*/1, /*boundary*/0,
 			       /*lowaddr*/BUS_SPACE_MAXADDR,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
@@ -1271,7 +1271,7 @@ adv_attach(adv)
 	adv->init_level++;
 
 	/* DMA tag for our sense buffers */
-	if (bus_dma_tag_create(adv->parent_dmat, /*alignment*/0, /*boundary*/0,
+	if (bus_dma_tag_create(adv->parent_dmat, /*alignment*/1, /*boundary*/0,
 			       /*lowaddr*/BUS_SPACE_MAXADDR,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
