@@ -47,56 +47,56 @@ __FBSDID("$FreeBSD$");
     Version 1.0 August, 1996  (cjm)
 
     Version 1.1 August 20, 1996  (cjm)
-        PPP host accepts incoming connections for ports 0 to 1023.
-        (Gary Roberts pointed out the need to handle incoming
-         connections.)
+	PPP host accepts incoming connections for ports 0 to 1023.
+	(Gary Roberts pointed out the need to handle incoming
+	 connections.)
 
     Version 1.2 September 7, 1996 (cjm)
-        Fragment handling error in alias_db.c corrected.
-        (Tom Torrance helped fix this problem.)
+	Fragment handling error in alias_db.c corrected.
+	(Tom Torrance helped fix this problem.)
 
     Version 1.4 September 16, 1996 (cjm)
-        - A more generalized method for handling incoming
-          connections, without the 0-1023 restriction, is
-          implemented in alias_db.c
-        - Improved ICMP support in alias.c.  Traceroute
-          packet streams can now be correctly aliased.
-        - TCP connection closing logic simplified in
-          alias.c and now allows for additional 1 minute
-          "grace period" after FIN or RST is observed.
+	- A more generalized method for handling incoming
+	  connections, without the 0-1023 restriction, is
+	  implemented in alias_db.c
+	- Improved ICMP support in alias.c.  Traceroute
+	  packet streams can now be correctly aliased.
+	- TCP connection closing logic simplified in
+	  alias.c and now allows for additional 1 minute
+	  "grace period" after FIN or RST is observed.
 
     Version 1.5 September 17, 1996 (cjm)
-        Corrected error in handling incoming UDP packets with 0 checksum.
-        (Tom Torrance helped fix this problem.)
+	Corrected error in handling incoming UDP packets with 0 checksum.
+	(Tom Torrance helped fix this problem.)
 
     Version 1.6 September 18, 1996 (cjm)
-        Simplified ICMP aliasing scheme.  Should now support
-        traceroute from Win95 as well as FreeBSD.
+	Simplified ICMP aliasing scheme.  Should now support
+	traceroute from Win95 as well as FreeBSD.
 
     Version 1.7 January 9, 1997 (cjm)
-        - Out-of-order fragment handling.
-        - IP checksum error fixed for ftp transfers
-          from aliasing host.
-        - Integer return codes added to all
-          aliasing/de-aliasing functions.
-        - Some obsolete comments cleaned up.
-        - Differential checksum computations for
-          IP header (TCP, UDP and ICMP were already
-          differential).
+	- Out-of-order fragment handling.
+	- IP checksum error fixed for ftp transfers
+	  from aliasing host.
+	- Integer return codes added to all
+	  aliasing/de-aliasing functions.
+	- Some obsolete comments cleaned up.
+	- Differential checksum computations for
+	  IP header (TCP, UDP and ICMP were already
+	  differential).
 
     Version 2.1 May 1997 (cjm)
-        - Added support for outgoing ICMP error
-          messages.
-        - Added two functions PacketAliasIn2()
-          and PacketAliasOut2() for dynamic address
-          control (e.g. round-robin allocation of
-          incoming packets).
+	- Added support for outgoing ICMP error
+	  messages.
+	- Added two functions PacketAliasIn2()
+	  and PacketAliasOut2() for dynamic address
+	  control (e.g. round-robin allocation of
+	  incoming packets).
 
     Version 2.2 July 1997 (cjm)
-        - Rationalized API function names to begin
-          with "PacketAlias..."
-        - Eliminated PacketAliasIn2() and
-          PacketAliasOut2() as poorly conceived.
+	- Rationalized API function names to begin
+	  with "PacketAlias..."
+	- Eliminated PacketAliasIn2() and
+	  PacketAliasOut2() as poorly conceived.
 
     Version 2.3 Dec 1998 (dillon)
 	- Major bounds checking additions, see FreeBSD/CVS
@@ -1079,12 +1079,12 @@ FragmentOut(struct libalias *la, struct ip *pip)
 
 /* Outside World Access
 
-        PacketAliasSaveFragment()
-        PacketAliasGetFragment()
-        PacketAliasFragmentIn()
-        PacketAliasIn()
-        PacketAliasOut()
-        PacketUnaliasOut()
+	PacketAliasSaveFragment()
+	PacketAliasGetFragment()
+	PacketAliasFragmentIn()
+	PacketAliasIn()
+	PacketAliasOut()
+	PacketUnaliasOut()
 
 (prototypes in alias.h)
 */

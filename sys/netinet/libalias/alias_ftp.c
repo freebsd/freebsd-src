@@ -50,17 +50,17 @@ __FBSDID("$FreeBSD$");
     Initial version:  August, 1996  (cjm)
 
     Version 1.6
-         Brian Somers and Martin Renters identified an IP checksum
-         error for modified IP packets.
+	 Brian Somers and Martin Renters identified an IP checksum
+	 error for modified IP packets.
 
     Version 1.7:  January 9, 1996 (cjm)
-         Differential checksum computation for change
-         in IP packet length.
+	 Differential checksum computation for change
+	 in IP packet length.
 
     Version 2.1:  May, 1997 (cjm)
-         Very minor changes to conform with
-         local/global/function naming conventions
-         within the packet aliasing module.
+	 Very minor changes to conform with
+	 local/global/function naming conventions
+	 within the packet aliasing module.
 
     Version 3.1:  May, 2000 (eds)
 	 Add support for passive mode, alias the 227 replies.
@@ -106,7 +106,7 @@ AliasHandleFtpOut(
     struct ip *pip,		/* IP packet to examine/patch */
     struct alias_link *link,	/* The link to go through (aliased port) */
     int maxpacketsize		/* The maximum size this packet can grow to
-        (including headers) */ )
+	(including headers) */ )
 {
 	int hlen, tlen, dlen, pflags;
 	char *sptr;

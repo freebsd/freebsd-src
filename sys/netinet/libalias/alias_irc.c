@@ -41,10 +41,10 @@ __FBSDID("$FreeBSD$");
 
 	 Initial version: Eivind Eklund <perhaps@yes.no> (ee) 97-01-29
 
-         Version 2.1:  May, 1997 (cjm)
-             Very minor changes to conform with
-             local/global/function naming conventions
-             withing the packet alising module.
+	 Version 2.1:  May, 1997 (cjm)
+	     Very minor changes to conform with
+	     local/global/function naming conventions
+	     withing the packet alising module.
 */
 
 /* Includes */
