@@ -116,7 +116,6 @@ struct g_mirror_disk {
 	uint32_t	 d_id;		/* Disk ID. */
 	struct g_consumer *d_consumer;	/* Consumer. */
 	struct g_mirror_softc	*d_softc; /* Back-pointer to softc. */
-	struct proc	*d_worker;
 	int		 d_state;	/* Disk state. */
 	u_int		 d_priority;	/* Disk priority. */
 	struct bintime	 d_delay;	/* Disk delay. */
