@@ -10,7 +10,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_dummynet.c,v 1.7.2.4 1999/05/04 07:47:44 luigi Exp $
+ *	$Id: ip_dummynet.c,v 1.7.2.5 1999/05/04 16:23:57 luigi Exp $
  */
 
 /*
@@ -273,8 +273,10 @@ dummynet(void * __unused unused)
     /*
      * finally, if some queue has data, restart the timer.
      */
+    s = splimp();
     dn_idle = 1;
     dn_restart();
+    splx(s);
 }
 
 /*
@@ -372,9 +374,9 @@ dummynet_io(int pipe_nr, int dir,
     if (pipe->r.head == pkt) {       /* process immediately */
         dn_move(pipe, 1);
     }
-    splx(s);
     if (dn_idle)
 	dn_restart();
+    splx(s);
     return 0;
 }
 
