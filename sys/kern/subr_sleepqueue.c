@@ -131,8 +131,8 @@ MALLOC_DEFINE(M_SLEEPQUEUE, "sleep queues", "sleep queues");
 static int	sleepq_check_timeout(void);
 static void	sleepq_switch(void *wchan);
 static void	sleepq_timeout(void *arg);
-static void	sleepq_wakeup_thread(struct sleepqueue *sq, struct thread *td,
-		    int pri);
+static void	sleepq_remove_thread(struct sleepqueue *sq, struct thread *td);
+static void	sleepq_resume_thread(struct thread *td, int pri);
 
 /*
  * Early initialization of sleep queues that is called from the sleepinit()
@@ -332,7 +332,7 @@ sleepq_catch_signals(void *wchan)
 	mtx_lock_spin(&sched_lock);
 	if (TD_ON_SLEEPQ(td) && (sig != 0 || do_upcall != 0)) {
 		mtx_unlock_spin(&sched_lock);
-		sleepq_wakeup_thread(sq, td, -1);
+		sleepq_remove_thread(sq, td);
 	} else
 		mtx_unlock_spin(&sched_lock);
 	return (sig);
@@ -533,10 +533,10 @@ sleepq_timedwait_sig(void *wchan, int signal_caught)
 }
 
 /*
- * Removes a thread from a sleep queue and resumes it.
+ * Removes a thread from a sleep queue.
  */
 static void
-sleepq_wakeup_thread(struct sleepqueue *sq, struct thread *td, int pri)
+sleepq_remove_thread(struct sleepqueue *sq, struct thread *td)
 {
 	struct sleepqueue_chain *sc;
 
@@ -563,14 +563,29 @@ sleepq_wakeup_thread(struct sleepqueue *sq, struct thread *td, int pri)
 		td->td_sleepqueue = LIST_FIRST(&sq->sq_free);
 	LIST_REMOVE(td->td_sleepqueue, sq_hash);
 
+	mtx_lock_spin(&sched_lock);
+	td->td_wmesg = NULL;
+	td->td_wchan = NULL;
+	mtx_unlock_spin(&sched_lock);
+}
+
+/*
+ * Resumes a thread that was asleep on a queue.
+ */
+static void
+sleepq_resume_thread(struct thread *td, int pri)
+{
+
 	/*
-	 * Finish resuming the thread.
+	 * Note that thread td might not be sleeping if it is running
+	 * sleepq_catch_signals() on another CPU or is blocked on
+	 * its proc lock to check signals.  It doesn't hurt to clear
+	 * the sleeping flag if it isn't set though, so we just always
+	 * do it.  However, we can't assert that it is set.
 	 */
 	mtx_lock_spin(&sched_lock);
 	CTR3(KTR_PROC, "sleepq_wakeup: thread %p (pid %d, %s)", td,
 	    td->td_proc->p_pid, td->td_proc->p_comm);
-	td->td_wmesg = NULL;
-	td->td_wchan = NULL;
 	TD_CLR_SLEEPING(td);
 
 	/* Adjust priority if requested. */
@@ -588,6 +603,7 @@ void
 sleepq_signal(void *wchan, int flags, int pri)
 {
 	struct sleepqueue *sq;
+	struct thread *td;
 
 	CTR2(KTR_PROC, "sleepq_signal(%p, %d)", wchan, flags);
 	KASSERT(wchan != NULL, ("%s: invalid NULL wait channel", __func__));
@@ -601,8 +617,12 @@ sleepq_signal(void *wchan, int flags, int pri)
 	/* XXX: Do for all sleep queues eventually. */
 	if (flags & SLEEPQ_CONDVAR)
 		mtx_assert(sq->sq_lock, MA_OWNED);
-	sleepq_wakeup_thread(sq, TAILQ_FIRST(&sq->sq_blocked), pri);
+
+	/* Remove first thread from queue and awaken it. */
+	td = TAILQ_FIRST(&sq->sq_blocked);
+	sleepq_remove_thread(sq, td);
 	sleepq_release(wchan);
+	sleepq_resume_thread(td, pri);
 }
 
 /*
@@ -611,7 +631,9 @@ sleepq_signal(void *wchan, int flags, int pri)
 void
 sleepq_broadcast(void *wchan, int flags, int pri)
 {
+	TAILQ_HEAD(, thread) list;
 	struct sleepqueue *sq;
+	struct thread *td;
 
 	CTR2(KTR_PROC, "sleepq_broadcast(%p, %d)", wchan, flags);
 	KASSERT(wchan != NULL, ("%s: invalid NULL wait channel", __func__));
@@ -625,9 +647,22 @@ sleepq_broadcast(void *wchan, int flags, int pri)
 	/* XXX: Do for all sleep queues eventually. */
 	if (flags & SLEEPQ_CONDVAR)
 		mtx_assert(sq->sq_lock, MA_OWNED);
-	while (!TAILQ_EMPTY(&sq->sq_blocked))
-		sleepq_wakeup_thread(sq, TAILQ_FIRST(&sq->sq_blocked), pri);
+
+	/* Move blocked threads from the sleep queue to a temporary list. */
+	TAILQ_INIT(&list);
+	while (!TAILQ_EMPTY(&sq->sq_blocked)) {
+		td = TAILQ_FIRST(&sq->sq_blocked);
+		sleepq_remove_thread(sq, td);
+		TAILQ_INSERT_TAIL(&list, td, td_slpq);
+	}
 	sleepq_release(wchan);
+
+	/* Resume all the threads on the temporary list. */
+	while (!TAILQ_EMPTY(&list)) {
+		td = TAILQ_FIRST(&list);
+		TAILQ_REMOVE(&list, td, td_slpq);
+		sleepq_resume_thread(td, pri);
+	}
 }
 
 /*
@@ -675,8 +710,9 @@ sleepq_timeout(void *arg)
 		MPASS(sq != NULL);
 		td->td_flags |= TDF_TIMEOUT;
 		mtx_unlock_spin(&sched_lock);
-		sleepq_wakeup_thread(sq, td, -1);
+		sleepq_remove_thread(sq, td);
 		sleepq_release(wchan);
+		sleepq_resume_thread(td, -1);
 		return;
 	} else if (wchan != NULL)
 		sleepq_release(wchan);
@@ -726,8 +762,9 @@ sleepq_remove(struct thread *td, void *wchan)
 	MPASS(sq != NULL);
 
 	/* Thread is asleep on sleep queue sq, so wake it up. */
-	sleepq_wakeup_thread(sq, td, -1);
+	sleepq_remove_thread(sq, td);
 	sleepq_release(wchan);
+	sleepq_resume_thread(td, -1);
 }
 
 /*
