@@ -145,6 +145,16 @@
       is no longer needed when only a USB keyboard is connected.
       &merged;</para>
 
+    <para arch="sparc64">A new OFW PCI framework, conditional on the
+      <literal>OFW_NEWPCI</literal> kernel configuration option, has
+      been added.  This addition improves the handling of PCI busses.
+      One user-visible change is that the enumeration of devices is
+      closer to &solaris; (as a result of this change, the numbering
+      of devices may change if more than one unit of a device type is
+      present).  The <literal>OFW_NEWPCI</literal> kernel
+      configuration is enabled by default in the
+      <filename>GENERIC</filename> kernel.</para>
+
     <para arch="amd64,alpha,i386,ia64,pc98">The &man.puc.4;, 
       PCI Universal Communications driver now supports
       to connect parallel ports to the &man.ppc.4; driver.</para>
@@ -221,8 +231,8 @@
         support IDT77252 based ATM interfaces.</para>
 
       <para>The &man.rl.4; driver now has support for the RealTek
-	8139C+ Fast Ethernet chipset and the RealTek 8169 Gigabit
-	Ethernet chip.</para>
+	8139C+ Fast Ethernet chip and the RealTek 8169 Gigabit
+	Ethernet chip. &merged;</para>
 
       <para>The suspend/resume support for the &man.wi.4; driver
         now works correctly when the device is configured down.
@@ -234,6 +244,10 @@
 
     <sect3 id="net-proto">
       <title>Network Protocols</title>
+
+      <para>An <literal>IP_ONESBCAST</literal> option has been added
+	to enable undirected &man.ip.4; broadcasts to be sent to
+	specific network interfaces.</para>
 
       <para>&man.ipfw.4; rules now support comma-separated address lists
         (such as <literal>1.2.3.4, 5.6.7.8/30, 9.10.11.12/22</literal>),
@@ -340,6 +354,9 @@
       and only sends DHCP requests on interfaces that are up.  The
       polling interval can be controlled with the <option>-i</option>
       option.</para>
+
+    <para>The &man.ffsinfo.8; utility has been updated to understand
+      UFS2 filesystems and has been re-enabled.</para>
 
     <para>The &man.iasl.8; utility, a compiler/decompiler for ACPI
       Source Language (ASL) and ACPI Machine language (AML), has been
