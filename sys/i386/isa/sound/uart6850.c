@@ -26,7 +26,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * uart6850.c,v 1.2 1994/10/01 02:17:17 swallace Exp
  */
 
 #include "sound_config.h"
@@ -94,9 +93,8 @@ uart6850_input_loop (void)
 }
 
 void
-m6850intr (int unit)
+m6850intr (INTR_HANDLER_PARMS (irq, dummy))
 {
-  printk ("M");
   if (input_avail ())
     uart6850_input_loop ();
 }
@@ -244,6 +242,7 @@ static struct midi_operations uart6850_operations =
 {
   {"6850 UART", 0, 0, SNDCARD_UART6850},
   &std_midi_synth,
+  {0},
   uart6850_open,
   uart6850_close,
   uart6850_ioctl,
@@ -285,7 +284,7 @@ attach_uart6850 (long mem_start, struct address_info *hw_config)
 
   RESTORE_INTR (flags);
 
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__)
   printk ("uart0: <6850 Midi Interface>");
 #else
   printk (" <6850 Midi Interface>");
@@ -314,7 +313,7 @@ probe_uart6850 (struct address_info *hw_config)
   uart6850_base = hw_config->io_base;
   uart6850_irq = hw_config->irq;
 
-  if (snd_set_irq_handler (uart6850_irq, m6850intr) < 0)
+  if (snd_set_irq_handler (uart6850_irq, m6850intr, "MIDI6850") < 0)
     return 0;
 
   ok = reset_uart6850 ();

@@ -2,7 +2,7 @@
  *	dev_table.h
  *
  *	Global definitions for device call tables
- *
+ * 
  * Copyright by Hannu Savolainen 1993
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,8 +26,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: dev_table.h,v 1.13 1995/03/28 07:56:11 bde Exp $
- */
+
+*/
 
 #ifndef _DEV_TABLE_H_
 #define _DEV_TABLE_H_
@@ -107,6 +107,20 @@ struct dma_buffparms {
 	int	 underrun_count;
 };
 
+/*
+ * Structure for use with various microcontrollers and DSP processors 
+ * in the recent soundcards.
+ */
+typedef struct coproc_operations {
+		char name[32];
+		int (*open) (void *devc, int sub_device);
+		void (*close) (void *devc, int sub_device);
+		int (*ioctl) (void *devc, unsigned int cmd, unsigned int arg, int local);
+		void (*reset) (void *devc);
+
+		void *devc;		/* Driver specific info */
+	} coproc_operations;
+
 struct audio_operations {
         char name[32];
 	int flags;
@@ -117,9 +131,9 @@ struct audio_operations {
 	void *devc;		/* Driver specific info */
 	int (*open) (int dev, int mode);
 	void (*close) (int dev);
-	void (*output_block) (int dev, unsigned long buf,
+	void (*output_block) (int dev, unsigned long buf, 
 			      int count, int intrflag, int dma_restart);
-	void (*start_input) (int dev, unsigned long buf,
+	void (*start_input) (int dev, unsigned long buf, 
 			     int count, int intrflag, int dma_restart);
 	int (*ioctl) (int dev, unsigned int cmd, unsigned int arg, int local);
 	int (*prepare_for_input) (int dev, int bufsize, int nbufs);
@@ -133,9 +147,12 @@ struct audio_operations {
 	long buffsize;
 	int dmachan;
 	struct dma_buffparms *dmap;
+	struct coproc_operations *coproc;
+	int mixer_dev;
 };
 
 struct mixer_operations {
+	char name[32];
 	int (*ioctl) (int dev, unsigned int cmd, unsigned int arg);
 };
 
@@ -162,14 +179,29 @@ struct synth_operations {
 	int (*pmgr_interface) (int dev, struct patmgr_info *info);
 	void (*bender) (int dev, int chn, int value);
 	int (*alloc_voice) (int dev, int chn, int note, struct voice_alloc_info *alloc);
+	void (*setup_voice) (int dev, int voice, int chn);
 
  	struct voice_alloc_info alloc;
  	struct channel_info chn_info[16];
 };
 
+struct midi_input_info { /* MIDI input scanner variables */
+#define MI_MAX	10
+    		int             m_busy;
+    		unsigned char   m_buf[MI_MAX];
+		unsigned char	m_prev_status;	/* For running status */
+    		int             m_ptr;
+#define MST_INIT			0
+#define MST_DATA			1
+#define MST_SYSEX			2
+    		int             m_state;
+    		int             m_left;
+	};
+
 struct midi_operations {
 	struct midi_info info;
 	struct synth_operations *converter;
+	struct midi_input_info in_info;
 	int (*open) (int dev, int mode,
 		void (*inputintr)(int dev, unsigned char data),
 		void (*outputintr)(int dev)
@@ -183,6 +215,7 @@ struct midi_operations {
 	int (*command) (int dev, unsigned char *data);
 	int (*buffer_status) (int dev);
 	int (*prefix_cmd) (int dev, unsigned char status);
+	struct coproc_operations *coproc;
 };
 
 struct sound_timer_operations {
@@ -197,7 +230,7 @@ struct sound_timer_operations {
 	void (*arm_timer)(int dev, long time);
 };
 
-#ifdef _DEV_TABLE_C_
+#ifdef _DEV_TABLE_C_   
 	struct audio_operations *audio_devs[MAX_AUDIO_DEV] = {NULL}; int num_audiodevs = 0;
 	struct mixer_operations *mixer_devs[MAX_MIXER_DEV] = {NULL}; int num_mixers = 0;
 	struct synth_operations *synth_devs[MAX_SYNTH_DEV+MAX_MIDI_DEV] = {NULL}; int num_synths = 0;
@@ -205,12 +238,12 @@ struct sound_timer_operations {
 
 #ifndef EXCLUDE_SEQUENCER
 	extern struct sound_timer_operations default_sound_timer;
-	struct sound_timer_operations *sound_timer_devs[MAX_TIMER_DEV] =
-		{&default_sound_timer, NULL};
+	struct sound_timer_operations *sound_timer_devs[MAX_TIMER_DEV] = 
+		{&default_sound_timer, NULL}; 
 	int num_sound_timers = 1;
 #else
-	struct sound_timer_operations *sound_timer_devs[MAX_TIMER_DEV] =
-		{NULL};
+	struct sound_timer_operations *sound_timer_devs[MAX_TIMER_DEV] = 
+		{NULL}; 
 	int num_sound_timers = 0;
 #endif
 
@@ -221,6 +254,12 @@ struct sound_timer_operations {
 	struct driver_info sound_drivers[] = {
 #ifndef EXCLUDE_PSS
 	  {SNDCARD_PSS, "Echo Personal Sound System PSS (ESC614)", attach_pss, probe_pss},
+#	ifdef PSS_MPU_BASE
+	  {SNDCARD_PSS_MPU, "PSS-MPU", attach_pss_mpu, probe_pss_mpu},
+#	endif
+#	ifdef PSS_MSS_BASE
+	  {SNDCARD_PSS_MSS, "PSS-MSS", attach_pss_mss, probe_pss_mss},
+#	endif
 #endif
 #ifndef EXCLUDE_YM3812
 		{SNDCARD_ADLIB,	"OPL-2/OPL-3 FM",		attach_adlib_card, probe_adlib},
@@ -237,11 +276,11 @@ struct sound_timer_operations {
 #ifndef EXCLUDE_SB
 		{SNDCARD_SB,	"SoundBlaster",		attach_sb_card, probe_sb},
 #endif
-#if !defined(EXCLUDE_SB) && !defined(EXCLUDE_SB16) && !defined(EXCLUDE_SBPRO)
+#if !defined(EXCLUDE_SB) && !defined(EXCLUDE_SB16)
 #ifndef EXCLUDE_AUDIO
 		{SNDCARD_SB16,	"SoundBlaster16",	sb16_dsp_init, sb16_dsp_detect},
 #endif
-#if !defined(EXCLUDE_MIDI) && !defined(EXCLUDE_SB16MIDI)
+#ifndef EXCLUDE_MIDI
 		{SNDCARD_SB16MIDI,"SB16 MIDI",	attach_sb16midi, probe_sb16midi},
 #endif
 #endif
@@ -254,9 +293,19 @@ struct sound_timer_operations {
 #ifndef EXCLUDE_GUS
 		{SNDCARD_GUS,	"Gravis Ultrasound",	attach_gus_card, probe_gus},
 #endif
+#ifndef EXCLUDE_SSCAPE
+		{SNDCARD_SSCAPE, "Ensoniq Soundscape",	attach_sscape, probe_sscape},
+		{SNDCARD_SSCAPE_MSS,	"MS Sound System (SoundScape)",	attach_ss_ms_sound, probe_ss_ms_sound},
+#endif
+#ifndef EXCLUDE_TRIX
+		{SNDCARD_TRXPRO, "MediaTriX AudioTriX Pro",	attach_trix_wss, probe_trix_wss},
+		{SNDCARD_TRXPRO_SB, "AudioTriX (SB mode)",	attach_trix_sb, probe_trix_sb},
+		{SNDCARD_TRXPRO_MPU, "AudioTriX MIDI",	attach_trix_mpu, probe_trix_mpu},
+#endif
 		{0,			"*?*",			NULL, NULL}
 	};
 
+#if defined(linux) || defined(__FreeBSD__)
 /*
  *	List of devices actually configured in the system.
  *
@@ -266,7 +315,42 @@ struct sound_timer_operations {
 	struct card_info snd_installed_cards[] = {
 #ifndef EXCLUDE_PSS
 	     {SNDCARD_PSS, {PSS_BASE, PSS_IRQ, PSS_DMA}, SND_DEFAULT_ENABLE},
+#	ifdef PSS_MPU_BASE
+	     {SNDCARD_PSS_MPU, {PSS_MPU_BASE, PSS_MPU_IRQ, 0}, SND_DEFAULT_ENABLE},
+#	endif
+#	ifdef PSS_MSS_BASE
+	     {SNDCARD_PSS_MSS, {PSS_MSS_BASE, PSS_MSS_IRQ, PSS_MSS_DMA}, SND_DEFAULT_ENABLE},
+#	endif
 #endif
+#ifndef EXCLUDE_TRIX
+	     {SNDCARD_TRXPRO, {TRIX_BASE, TRIX_IRQ, TRIX_DMA}, SND_DEFAULT_ENABLE},
+#	ifdef TRIX_SB_BASE
+	     {SNDCARD_TRXPRO_SB, {TRIX_SB_BASE, TRIX_SB_IRQ, TRIX_SB_DMA}, SND_DEFAULT_ENABLE},
+#	endif
+#	ifdef TRIX_MPU_BASE
+	     {SNDCARD_TRXPRO_MPU, {TRIX_MPU_BASE, TRIX_MPU_IRQ, 0}, SND_DEFAULT_ENABLE},
+#	endif
+#endif
+#ifndef EXCLUDE_SSCAPE
+	     {SNDCARD_SSCAPE, {SSCAPE_BASE, SSCAPE_IRQ, SSCAPE_DMA}, SND_DEFAULT_ENABLE},
+	     {SNDCARD_SSCAPE_MSS, {SSCAPE_MSS_BASE, SSCAPE_MSS_IRQ, SSCAPE_MSS_DMA}, SND_DEFAULT_ENABLE},
+#endif
+
+#ifndef EXCLUDE_MSS
+		{SNDCARD_MSS, {MSS_BASE, MSS_IRQ, MSS_DMA}, SND_DEFAULT_ENABLE},
+#	ifdef MSS2_BASE
+		{SNDCARD_MSS, {MSS2_BASE, MSS2_IRQ, MSS2_DMA}, SND_DEFAULT_ENABLE},
+#	endif
+#endif
+
+#ifndef EXCLUDE_PAS
+		{SNDCARD_PAS, {PAS_BASE, PAS_IRQ, PAS_DMA}, SND_DEFAULT_ENABLE},
+#endif
+
+#ifndef EXCLUDE_SB
+		{SNDCARD_SB, {SBC_BASE, SBC_IRQ, SBC_DMA}, SND_DEFAULT_ENABLE},
+#endif
+
 #if !defined(EXCLUDE_MPU401) && !defined(EXCLUDE_MIDI)
 		{SNDCARD_MPU401, {MPU_BASE, MPU_IRQ, 0}, SND_DEFAULT_ENABLE},
 #ifdef MPU2_BASE
@@ -276,23 +360,9 @@ struct sound_timer_operations {
 		{SNDCARD_MPU401, {MPU3_BASE, MPU2_IRQ, 0}, SND_DEFAULT_ENABLE},
 #endif
 #endif
-#ifndef EXCLUDE_MSS
-		{SNDCARD_MSS, {MSS_BASE, MSS_IRQ, MSS_DMA}, SND_DEFAULT_ENABLE},
-#	ifdef MSS2_BASE
-		{SNDCARD_MSS, {MSS2_BASE, MSS2_IRQ, MSS2_DMA}, SND_DEFAULT_ENABLE},
-#	endif
-#endif
 
 #if !defined(EXCLUDE_UART6850) && !defined(EXCLUDE_MIDI)
 		{SNDCARD_UART6850, {U6850_BASE, U6850_IRQ, 0}, SND_DEFAULT_ENABLE},
-#endif
-
-#ifndef EXCLUDE_PAS
-		{SNDCARD_PAS, {PAS_BASE, PAS_IRQ, PAS_DMA}, SND_DEFAULT_ENABLE},
-#endif
-
-#ifndef EXCLUDE_SB
-		{SNDCARD_SB, {SBC_BASE, SBC_IRQ, SBC_DMA}, SND_DEFAULT_ENABLE},
 #endif
 
 #if !defined(EXCLUDE_SB) && !defined(EXCLUDE_SB16)
@@ -306,9 +376,9 @@ struct sound_timer_operations {
 
 #ifndef EXCLUDE_GUS
 #ifndef EXCLUDE_GUS16
-		{SNDCARD_GUS16, {GUS16_BASE, GUS16_IRQ, GUS16_DMA}, SND_DEFAULT_ENABLE},
+		{SNDCARD_GUS16, {GUS16_BASE, GUS16_IRQ, GUS16_DMA, GUS_DMA_READ}, SND_DEFAULT_ENABLE},
 #endif
-		{SNDCARD_GUS, {GUS_BASE, GUS_IRQ, GUS_DMA}, SND_DEFAULT_ENABLE},
+		{SNDCARD_GUS, {GUS_BASE, GUS_IRQ, GUS_DMA, GUS_DMA_READ}, SND_DEFAULT_ENABLE},
 #endif
 
 #ifndef EXCLUDE_YM3812
@@ -317,11 +387,15 @@ struct sound_timer_operations {
 		{0, {0}, 0}
 	};
 
-	int num_sound_drivers =
-	    sizeof(sound_drivers) / sizeof (struct driver_info);
 	int num_sound_cards =
 	    sizeof(snd_installed_cards) / sizeof (struct card_info);
 
+#else
+	int num_sound_cards = 0;
+#endif	/* linux */
+
+	int num_sound_drivers =
+	    sizeof(sound_drivers) / sizeof (struct driver_info);
 
 #else
 	extern struct audio_operations * audio_devs[MAX_AUDIO_DEV]; int num_audiodevs;
@@ -335,9 +409,9 @@ struct sound_timer_operations {
 	extern struct card_info snd_installed_cards[];
 	extern int num_sound_cards;
 
-long sndtable_init(long mem_start);
 int sndtable_probe(int unit, struct address_info *hw_config);
 int sndtable_init_card(int unit, struct address_info *hw_config);
+long sndtable_init(long mem_start);
 int sndtable_get_cardcount (void);
 struct address_info *sound_getconf(int card_type);
 void sound_chconf(int card_type, int ioaddr, int irq, int dma);

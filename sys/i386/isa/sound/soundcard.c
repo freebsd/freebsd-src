@@ -1,8 +1,8 @@
 /*
  * sound/386bsd/soundcard.c
- *
+ * 
  * Soundcard driver for FreeBSD.
- *
+ * 
  * Copyright by Hannu Savolainen 1993
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.25 1995/05/11 19:26:24 rgrimes Exp $
+ * $Id: soundcard.c,v 1.24 1995/03/12 23:34:10 swallace Exp $
  */
 
 #include "sound_config.h"
@@ -78,6 +78,14 @@ struct isa_driver gusmaxdriver	= {sndprobe, sndattach, "gusmax"};
 struct isa_driver uartdriver	= {sndprobe, sndattach, "uart"};
 struct isa_driver mssdriver	= {sndprobe, sndattach, "mss"};
 
+void
+adintr(INT_HANDLER_PARMS(irq,dummy))
+{ 
+#ifndef EXCLUDE_AD1848
+	ad1848_interrupt(INT_HANDLER_CALL(irq));
+#endif
+}
+
 unsigned
 long
 get_time(void)
@@ -91,7 +99,7 @@ int x;
    return timecopy.tv_usec/(1000000/HZ) +
 	  (unsigned long)timecopy.tv_sec*HZ;
 }
-
+ 
 
 int
 sndread (int dev, struct uio *buf)
@@ -162,31 +170,40 @@ sndioctl (dev_t dev, int cmd, caddr_t arg, int mode)
 int
 sndselect (int dev, int rw, struct proc *p)
 {
-  int  r,s;
-
   dev = minor (dev);
 
-  DEB (printk ("sound_ioctl(dev=%d, cmd=0x%x, arg=0x%x)\n", dev, cmd, arg));
+  DEB (printk ("snd_select(dev=%d, rw=%d, pid=%d)\n", dev, rw, p->p_pid));
+#ifdef ALLOW_SELECT
+  switch (dev & 0x0f)
+    {
+#ifndef EXCLUDE_SEQUENCER
+    case SND_DEV_SEQ:
+    case SND_DEV_SEQ2:
+      return sequencer_select (dev, &files[dev], rw, p);
+      break;
+#endif
 
-  r = 0;
-  DISABLE_INTR(s);
-  switch (rw) {
-  case FREAD:	/* record */
-    if(DMAbuf_input_ready(dev >> 4))
-      r = 1;
-    else
-      selrecord(p, &selinfo[dev >> 4]);
-    break;
-  case FWRITE:	/* play */
-    if(DMAbuf_output_ready(dev >> 4))
-      r = 1;
-    else
-      selrecord(p, &selinfo[dev >> 4]);
-    break;
-  }
-  RESTORE_INTR(s);
+#ifndef EXCLUDE_MIDI
+    case SND_DEV_MIDIN:
+      return MIDIbuf_select (dev, &files[dev], rw, p);
+      break;
+#endif
 
-  return r;
+#ifndef EXCLUDE_AUDIO
+    case SND_DEV_DSP:
+    case SND_DEV_DSP16:
+    case SND_DEV_AUDIO:
+      return audio_select (dev, &files[dev], rw, p);
+      break;
+#endif
+
+    default:
+      return 0;
+    }
+
+#endif
+
+  return 0;
 }
 
 static unsigned short
@@ -243,7 +260,8 @@ sndprobe (struct isa_device *dev)
   hw_config.io_base = dev->id_iobase;
   hw_config.irq = ipri_to_irq (dev->id_irq);
   hw_config.dma = dev->id_drq;
-
+  hw_config.dma_read = dev->id_flags;	/* misuse the flags field for read dma*/
+  
   if(unit)
     return sndtable_probe (unit, &hw_config);
   else
@@ -256,7 +274,7 @@ sndattach (struct isa_device *dev)
   int             i, unit;
   static int      midi_initialized = 0;
   static int      seq_initialized = 0;
-  static int 	  generic_midi_initialized = 0;
+  static int 	  generic_midi_initialized = 0; 
   unsigned long	  mem_start = 0xefffffffUL;
   struct address_info hw_config;
 
@@ -264,6 +282,7 @@ sndattach (struct isa_device *dev)
   hw_config.io_base = dev->id_iobase;
   hw_config.irq = ipri_to_irq (dev->id_irq);
   hw_config.dma = dev->id_drq;
+  hw_config.dma_read = dev->id_flags;	/* misuse the flags field for read dma*/
 
   if(!unit)
     return FALSE;
@@ -400,7 +419,7 @@ sound_mem_init (void)
 
 	      if (tmpbuf == NULL)
 		{
-		  printk ("snd: Unable to allocate %ld bytes of buffer\n",
+		  printk ("snd: Unable to allocate %d bytes of buffer\n",
 			  audio_devs[dev]->buffsize);
 		  return;
 		}
@@ -429,10 +448,11 @@ snd_ioctl_return (int *addr, int value)
 }
 
 int
-snd_set_irq_handler (int interrupt_level, void(*hndlr)(int))
+snd_set_irq_handler (int interrupt_level, INT_HANDLER_PROTO(), char *name)
 {
   return 1;
 }
+
 
 void
 snd_release_irq(int vect)
