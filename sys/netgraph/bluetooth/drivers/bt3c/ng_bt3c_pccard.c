@@ -597,7 +597,7 @@ bt3c_pccard_match(device_t dev)
 	pp = pccard_product_lookup(dev, bt3c_pccard_products,
 			sizeof(bt3c_pccard_products[0]), NULL);
 	if (pp == NULL)
-		return (EIO);
+		return (ENXIO);
 
 	device_set_desc(dev, pp->pp_name);
 
