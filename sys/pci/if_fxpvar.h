@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxpvar.h,v 1.2 1997/09/21 22:02:09 gibbs Exp $
+ *	$Id: if_fxpvar.h,v 1.3 1997/09/29 11:27:43 davidg Exp $
  */
 
 /*
@@ -53,7 +53,6 @@ struct fxp_softc {
 	struct mbuf *rfa_headm;		/* first mbuf in receive frame area */
 	struct mbuf *rfa_tailm;		/* last mbuf in receive frame area */
 	struct fxp_stats *fxp_stats;	/* Pointer to interface stats */
-	struct callout_handle stat_ch;	/* Handle for canceling our stat timeout */
 	int tx_queued;			/* # of active TxCB's */
 	int promisc_mode;		/* promiscuous mode enabled */
 	int phy_primary_addr;		/* address of primary PHY */
