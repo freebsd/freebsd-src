@@ -200,6 +200,46 @@ WMAKEENV=	${CROSSENV} \
 		PATH=${TMPPATH}
 WMAKE=		${WMAKEENV} ${MAKE} -f Makefile.inc1 DESTDIR=${WORLDTMP}
 
+.if ${MACHINE_ARCH} == "amd64"
+# 32 bit world
+LIB32TMP=	${OBJTREE}${.CURDIR}/lib32
+
+LIB32PREFLAGS=	-m32 -march=athlon-xp -msse2 -mfancy-math-387 -DCOMPAT_32BIT
+LIB32POSTFLAGS=	-I${LIB32TMP}/usr/include \
+		-L${LIB32TMP}/usr/lib32 \
+		-B${LIB32TMP}/usr/lib32
+LIB32CC=	${LIB32PREFLAGS} \
+		${LIB32POSTFLAGS}
+LIB32CXX=	${LIB32PREFLAGS} -I${LIB32TMP}/usr/include/c++/3.4 \
+		${LIB32POSTFLAGS}
+LIB32OBJC=	${LIB32PREFLAGS} -I${LIB32TMP}/usr/include/objc \
+		${LIB32POSTFLAGS}
+
+# Yes, the flags are redundant.
+LIB32MAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
+		_SHLIBDIRPREFIX=${LIB32TMP} \
+		MACHINE_ARCH=i386 \
+		INSTALL="sh ${.CURDIR}/tools/install.sh" \
+		PATH=${TMPPATH} \
+		CC="cc ${LIB32CC}" \
+		CXX="c++ ${LIB32CXX}" \
+		OBJC="cc ${LIB32OBJC}" \
+		LD="ld -m elf_i386_fbsd -Y P,${LIB32TMP}/usr/lib32" \
+		AS="as --32" \
+		LIBDIR=/usr/lib32 \
+		SHLIBDIR=/usr/lib32
+
+LIB32MAKE=	${LIB32MAKEENV} ${MAKE} -DNO_CPU_CFLAGS -DCOMPAT_32BIT \
+		-DNO_BIND -DNOMAN -DNODOC -DNOINFO -DNOHTML \
+		CC="cc ${LIB32CC}" \
+		CXX="c++ ${LIB32CXX}" \
+		OBJC="cc ${LIB32OBJC}" \
+		LD="ld -m elf_i386_fbsd -Y P,${LIB32TMP}/usr/lib32" \
+		AS="as --32" \
+		LIBDIR=/usr/lib32 \
+		SHLIBDIR=/usr/lib32
+.endif
+
 # install stage
 .if empty(.MAKEFLAGS:M-n)
 IMAKEENV=	${CROSSENV} \
@@ -337,6 +377,53 @@ everything:
 	@echo ">>> stage 4.4: building everything"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${WMAKE} par-all
+.if ${MACHINE_ARCH} == "amd64"
+build32:
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo ">>> stage 5.1: building 32 bit shim libraries"
+	@echo "--------------------------------------------------------------"
+.for _dir in \
+    lib lib32 usr/bin usr/include usr/lib32 usr/libdata/ldscripts \
+    usr/libexec usr/sbin usr/share/misc \
+    usr/share/snmp/defs usr/share/snmp/mibs
+	mkdir -p ${LIB32TMP}/${_dir}
+.endfor
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
+	    -p ${LIB32TMP}/usr/include >/dev/null
+	ln -sf ${.CURDIR}/sys ${WORLDTMP}
+.for _t in obj includes
+	cd ${.CURDIR}/include; \
+	    ${LIB32MAKE} DESTDIR=${LIB32TMP} ${_t}
+	cd ${.CURDIR}/lib; \
+	    ${LIB32MAKE} DESTDIR=${LIB32TMP} ${_t}
+	cd ${.CURDIR}/gnu/lib; \
+	    ${LIB32MAKE} DESTDIR=${LIB32TMP} ${_t}
+.if !defined(NOCRYPT)
+	cd ${.CURDIR}/secure/lib; \
+	    ${LIB32MAKE} DESTDIR=${LIB32TMP} ${_t}
+.endif
+.endfor
+.for _dir in lib/libncurses lib/libmagic
+	cd ${.CURDIR}/${_dir}; \
+	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} build-tools
+.endfor
+	cd ${.CURDIR}; \
+	    ${LIB32MAKE} -f Makefile.inc1 DESTDIR=${LIB32TMP} libraries 
+.for _t in obj depend all
+	cd ${.CURDIR}/libexec/rtld-elf; \
+	    PROG=ld-elf32.so.1 ${LIB32MAKE} DESTDIR=${LIB32TMP} ${_t}
+.endfor
+
+install32:
+	mkdir -p ${DESTDIR}/usr/lib32	# XXX add to mtree
+	cd ${.CURDIR}/lib; ${LIB32MAKE} install
+	cd ${.CURDIR}/gnu/lib; ${LIB32MAKE} install
+.if !defined(NOCRYPT)
+	cd ${.CURDIR}/secure/lib; ${LIB32MAKE} install
+.endif
+	cd ${.CURDIR}/libexec/rtld-elf; PROG=ld-elf32.so.1 ${LIB32MAKE} install
+.endif
 
 
 WMAKE_TGTS=
@@ -348,6 +435,9 @@ WMAKE_TGTS+=	_cleanobj _obj _build-tools
 WMAKE_TGTS+=	_cross-tools
 .endif
 WMAKE_TGTS+=	_includes _libraries _depend everything
+.if ${MACHINE_ARCH} == "amd64" && defined(WITH_LIB32)
+WMAKE_TGTS+=	build32
+.endif
 
 buildworld: ${WMAKE_TGTS}
 .ORDER: ${WMAKE_TGTS}
@@ -478,6 +568,9 @@ reinstall: ${SPECIAL_INSTALLCHECKS}
 	@echo ">>> Installing everything"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install
+.if ${MACHINE_ARCH} == "amd64" && defined(WITH_LIB32)
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install32
+.endif
 
 redistribute:
 	@echo "--------------------------------------------------------------"
