@@ -113,7 +113,7 @@
 #define FDC_ERRMAX	100	/* do not log more */
 
 #ifdef PC98
-#define NUMTYPES 5
+#define NUMTYPES 12
 #define NUMDENS  NUMTYPES
 #else
 #define NUMTYPES 14
@@ -123,17 +123,6 @@
 /* These defines (-1) must match index for fd_types */
 #define F_TAPE_TYPE	0x020	/* bit for fd_types to indicate tape */
 #define NO_TYPE		0	/* must match NO_TYPE in ft.c */
-#ifdef PC98
-#define FDT_NONE	0 /* none present */
-#define FDT_12M		1 /* 1M/640K FDD */
-#define FDT_144M	2 /* 1.44M/1M/640K FDD */
-
-#define FD_1200         1
-#define FD_1232         2
-#define FD_720          3
-#define FD_640          4
-#define FD_1440         5
-#else
 #define FD_1720         1
 #define FD_1480         2
 #define FD_1440         3
@@ -143,6 +132,16 @@
 #define FD_720          7
 #define FD_360          8
 
+#ifdef PC98
+#define FD_640          9
+#define FD_1232         10
+#define FD_1280         11
+#define FD_1476         12
+
+#define FDT_NONE	0 /* none present */
+#define FDT_12M 	1 /* 1M/640K FDD */
+#define FDT_144M	2 /* 1.44M/1M/640K FDD */
+#else
 #define FD_1480in5_25   9
 #define FD_1440in5_25   10
 #define FD_820in5_25    11
@@ -155,11 +154,22 @@
 static struct fd_type fd_types[NUMTYPES] =
 {
 #ifdef PC98
-{ 15,2,0xFF,0x1B,80,2400,1,0,2,0x54,1 }, /* 1.2 meg HD floppy    */
-{  8,3,0xFF,0x35,77,1232,1,0,2,0x74,1 }, /* 1.2 meg HD floppy 1024/sec  */
-{  9,2,0xFF,0x20,80,1440,1,1,2,0x50,1 }, /* 720k floppy in 1.2meg drive */
-{  8,2,0xFF,0x2A,80,1280,1,1,2,0x50,1 }, /* 640k floppy in 1.2meg drive */
-{ 18,2,0xFF,0x1B,80,2880,1,2,2,0x54,1 }, /* 1.44 meg HD 3.5in floppy */
+{ 21,2,0xFF,0x04,82,3444,1,2,2,0x0C,2 }, /* 1.72M in 3mode */
+{ 18,2,0xFF,0x1B,82,2952,1,2,2,0x54,1 }, /* 1.48M in 3mode */
+{ 18,2,0xFF,0x1B,80,2880,1,2,2,0x54,1 }, /* 1.44M in 3mode */
+{ 15,2,0xFF,0x1B,80,2400,1,0,2,0x54,1 }, /* 1.2M */
+{ 10,2,0xFF,0x10,82,1640,1,1,2,0x30,1 }, /* 820K */
+{ 10,2,0xFF,0x10,80,1600,1,1,2,0x30,1 }, /* 800K */
+{  9,2,0xFF,0x20,80,1440,1,1,2,0x50,1 }, /* 720K */
+{  9,2,0xFF,0x20,40, 720,2,1,2,0x50,1 }, /* 360K */
+
+{  8,2,0xFF,0x2A,80,1280,1,1,2,0x50,1 }, /* 640K */
+{  8,3,0xFF,0x35,77,1232,1,0,2,0x74,1 }, /* 1.23M 1024/sec */
+{  8,3,0xFF,0x35,80,1280,1,0,2,0x74,1 }, /* 1.28M 1024/sec */
+{  9,3,0xFF,0x35,82,1476,1,0,2,0x47,1 }, /* 1.48M 1024/sec 9sec */
+#if 0
+{ 10,3,0xFF,0x1B,82,1640,1,2,2,0x54,1 }, /* 1.64M in 3mode - Reserve */
+#endif
 #else
 { 21,2,0xFF,0x04,82,3444,1,FDC_500KBPS,2,0x0C,2 }, /* 1.72M in HD 3.5in */
 { 18,2,0xFF,0x1B,82,2952,1,FDC_500KBPS,2,0x6C,1 }, /* 1.48M in HD 3.5in */
@@ -178,6 +188,17 @@ static struct fd_type fd_types[NUMTYPES] =
 {  9,2,0xFF,0x23,40, 720,2,FDC_300KBPS,2,0x50,1 }, /*  360K in HD 5.25in */
 #endif
 };
+
+#ifdef PC98	/* XXX Should be used PC/AT also */
+#ifdef DEVFS
+static int fd_typesizes[NUMDENS] = {
+	1720, 1480, 1440, 1200, 820, 800, 720, 360,
+#ifdef PC98
+	 640, 1232, 1280, 1476,
+#endif
+};
+#endif /* DEVFS */
+#endif
 
 #ifdef PC98
 #define DRVS_PER_CTLR 4		/* 4 floppies */
@@ -1011,24 +1032,31 @@ fdattach(struct isa_device *dev)
 
 		switch (fdt) {
 #ifdef PC98
+		case FDT_144M:
+			/* Check 3mode I/F */
+			fd->pc98_trans = 0;
+			outb(0x4be, (fdu << 5) | 0x10);
+			if (!(inb(0x4be) & 0x01)) {
+				printf("1.44M FDD\n");
+
+				fd->type = FD_1440;
+				break;
+			}
+
+			printf("Warning: can't control 3mode I/F, "
+				"fallback to 2mode.\n"
+				"fd%d: ", fdu);
+			/* FALLTHROUGH */
 		case FDT_12M:
 #ifdef EPSON_NRDISK
 			if (fdu == nrdu) {
 				printf("EPSON RAM DRIVE\n");
 				nrd_LED_off();
-			}
-			else printf("1M/640M FDD\n");
-#else /* !EPSON_NRDISK */
-			printf("1M/640K FDD\n");
+			} else
 #endif /* EPSON_NRDISK */
+				printf("1M/640K FDD\n");
 			fd->type = FD_1200;
 			fd->pc98_trans = 0;
-			break;
-		case FDT_144M:
-			printf("1.44M FDD\n");
-			fd->type = FD_1200;
-			fd->pc98_trans = 0;
-			outb(0x4be, (fdu << 5) | 0x10);
 			break;
 #else
 		case RTCFDT_12M:
@@ -1076,19 +1104,7 @@ fdattach(struct isa_device *dev)
 			 * data driven.
 			 */
 #ifdef PC98
-			switch (fdt) {
-			case FDT_12M:
-				if (i != FD_1200 && i != FD_1232
-				    && i != FD_720 && i != FD_640)
-					continue;
-				break;
-			case FDT_144M:
-				if (i != FD_1200 && i != FD_1232
-				    && i != FD_720 && i != FD_640
-				    && i != FD_1440)
-					continue;
-				break;
-			}
+			/* XXX any types are OK for PC-98 */
 #else
 			switch (fd->type) {
 			case FD_360:
@@ -1114,10 +1130,7 @@ fdattach(struct isa_device *dev)
 			}
 #endif
 #ifdef PC98
-			if (i == FD_1232)
-				typesize = fd_types[i - 1].size;
-			else
-				typesize = fd_types[i - 1].size / 2;
+			typesize = fd_typesizes[i - 1];
 #else
 			typesize = fd_types[i - 1].size / 2;
 			/*
@@ -1542,12 +1555,16 @@ Fdopen(dev_t dev, int flags, int mode, struct proc *p)
 	if (type > NUMDENS)
 		return(ENXIO);
 #ifdef PC98
+	if (type == 0)
+		type = FD_1200;		/* XXX backward compatibility */
+	else
+		;			/* XXX any types are OK for PC-98 */
+
 	if (pc98_fd_check_ready(fdu) == -1)
 		return(EIO);
-#endif
+#else
 	if (type == 0)
 		type = fd_data[fdu].type;
-#ifndef PC98
 	else {
 		/*
 		 * For each type of basic drive, make sure we are trying
@@ -1693,14 +1710,6 @@ fdstrategy(struct buf *bp)
 	blknum = (unsigned) bp->b_blkno * DEV_BSIZE/fdblk;
  	nblocks = fd->ft->size;
 	bp->b_resid = 0;
-#ifdef PC98
-#define B_XXX2 0x8000000
-		if (bp->b_flags & B_XXX2) {
-			blknum *= 2;
-			bp->b_blkno *= 2;
-			bp->b_flags &= ~B_XXX2;
-		}
-#endif
 	if (blknum + (bp->b_bcount / fdblk) > nblocks) {
 		if (blknum <= nblocks) {
 			cando = (nblocks - blknum) * fdblk;
@@ -1921,8 +1930,7 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 			pc98_trans_prev = pc98_trans;
 		}
 		if (pc98_trans != fd->pc98_trans) {
-			if (pc98_trans != 1 &&
-					(PC98_SYSTEM_PARAMETER(0x5ae) >> fdu) & 0x01) {
+			if (fd->type == FD_1440) {
 				outb(0x4be, (fdu << 5) | 0x10 | (pc98_trans >> 1));
 				outb(0x5f, 0);
 				outb(0x5f, 0);
@@ -2094,6 +2102,7 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 		head = sec / sectrac;
 		sec = sec % sectrac + 1;
 		fd->hddrv = ((head&1)<<2)+fdu;
+
 		if(format || !read)
 		{
 			/* make sure the drive is writable */
@@ -2612,7 +2621,7 @@ fdioctl(dev, cmd, addr, flag, p)
 	fdblk = 128 << fd->ft->secsize;
 
 #ifdef PC98
-	    pc98_fd_check_ready(fdu);
+	pc98_fd_check_ready(fdu);
 #endif	
 	switch (cmd)
 	{
