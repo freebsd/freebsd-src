@@ -48,7 +48,7 @@ struct ypalias {
 	{ "passwd", "passwd.byname" },
 	{ "group", "group.byname" },
 	{ "networks", "networks.byaddr" },
-	{ "hosts", "hosts.byaddr" },
+	{ "hosts", "hosts.byname" },
 	{ "protocols", "protocols.bynumber" },
 	{ "services", "services.byname" },
 	{ "aliases", "mail.aliases" },
