@@ -562,8 +562,7 @@ ia64_init()
 	}
 
 	/*
-	 * Initialize the virtual memory system, and set the
-	 * page table base register in proc 0's PCB.
+	 * Initialize the virtual memory system.
 	 */
 	pmap_bootstrap();
 
