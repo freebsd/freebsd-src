@@ -1,4 +1,4 @@
-#	$Id: bsd.obj.mk,v 1.21 1997/12/19 18:48:45 bde Exp $
+#	$Id: bsd.obj.mk,v 1.22 1998/02/25 02:48:28 bde Exp $
 #
 # The include file <bsd.obj.mk> handles creating the 'obj' directory
 # and cleaning up object files, etc.
@@ -133,17 +133,21 @@ checkdpadd: _SUBDIR
 .if (defined(DPADD) || defined(LDADD))
 checkdpadd:
 .if ${BINFORMAT} != aout
-	@if [ "${DPADD:S;^/usr/lib/lib;-l;S;.a$;;}" != "${LDADD}" ] ; then \
+	@ldadd=`echo \`for lib in ${DPADD} ; do \
+		echo $$lib | sed 's;^/usr/lib/lib\(.*\)\.a;-l\1;' ; \
+	done \`` ; \
+	ldadd1=`echo ${LDADD}` ; \
+	if [ "$$ldadd" != "$$ldadd1" ] ; then \
 		echo ${.CURDIR} ; \
-		echo "DPADD -> " ${DPADD:S;^/usr/lib/lib;-l;S;.a$;;} ; \
-		echo "LDADD =  " ${LDADD} ; \
+		echo "DPADD -> $$ldadd" ; \
+		echo "LDADD -> $$ldadd1" ; \
 	fi
 .else
 	@dpadd=`echo \`ld -Bstatic -f ${LDDESTDIR} ${LDADD}\`` ; \
 	if [ "$$dpadd" != "${DPADD}" ] ; then \
 		echo ${.CURDIR} ; \
-		echo "LDADD -> " $$dpadd ; \
-		echo "DPADD =  " ${DPADD} ; \
+		echo "LDADD -> $$dpadd" ; \
+		echo "DPADD =  ${DPADD}" ; \
 	fi
 .endif
 .endif
