@@ -20,7 +20,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.29 1996/01/27 02:33:37 bde Exp $
+ * $Id: wt.c,v 1.30 1996/02/22 00:31:48 joerg Exp $
  *
  */
 
@@ -285,7 +285,6 @@ static int
 wtattach (struct isa_device *id)
 {
 	wtinfo_t *t = wttab + id->id_unit;
-	char	name[32];
 
 	if (t->type == ARCHIVE) {
 		printf ("wt%d: type <Archive>\n", t->unit);
@@ -298,14 +297,12 @@ wtattach (struct isa_device *id)
 	isa_dmainit(t->chan, 1024);
 
 #ifdef DEVFS
-	sprintf(name,"rwt%d",id->id_unit);
-	t->devfs_token_r = devfs_add_devsw(
-			"/", name, &wt_cdevsw, id->id_unit,
-			DV_CHR, 0,  0, 0600);
-	sprintf(name,"wt%d",id->id_unit);
-	t->devfs_token = devfs_add_devsw(
-			"/", name, &wt_bdevsw, id->id_unit,
-			DV_BLK, 0,  0, 0600);
+	t->devfs_token_r = 
+		devfs_add_devswf(&wt_cdevsw, id->id_unit, DV_CHR, 0, 0, 
+				 0600, "rwt%d", id->id_unit);
+	t->devfs_token = 
+		devfs_add_devswf(&wt_bdevsw, id->id_unit, DV_BLK, 0, 0, 
+				 0600, "wt%d", id->id_unit);
 #endif
 	return (1);
 }

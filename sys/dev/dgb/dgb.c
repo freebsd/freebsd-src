@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.14 1995/12/17 21:14:29 phk Exp $
+ *  dgb.c $Id: dgb.c,v 1.15 1995/12/29 13:21:10 bde Exp $
  *
  *  Digiboard driver.
  *
@@ -457,7 +457,6 @@ dgbattach(dev)
 	ushort *pstat;
 	int lowwater;
 	int nports=0;
-	char	name[32];
 
 	if(sc->status!=ENABLED) {
 		DPRINT2("dbg%d: try to attach a disabled card\n",unit);
@@ -855,25 +854,29 @@ load_fep:
 		port->it_out = port->it_in;
 #ifdef	DEVFS
 /*XXX*/ /* fix the minor numbers */
-		sprintf(name,"dgb%d.%d",unit,i);
-		port->devfs_token.tty = devfs_add_devsw("/",name,
-			&dgb_cdevsw,(unit*32)+i,	/*mytical number */
-			DV_CHR, 0, 0, 0600);
+		port->devfs_token.tty = 
+			devfs_add_devswf(&dgb_cdevsw,
+					 (unit*32)+i,/*mytical number*/
+					 DV_CHR, 0, 0, 0600, "dgb%d.%d", unit, 
+					 i);
 
-		sprintf(name,"idgb%d.%d",unit,i);
-		port->devfs_token.tty = devfs_add_devsw("/",name,
-			&dgb_cdevsw,(unit*32)+i + 64,	/*mytical number */
-			DV_CHR, 0, 0, 0600);
+		port->devfs_token.tty = 
+			devfs_add_devswf(&dgb_cdevsw,
+					 (unit*32)+i+64,/*mytical number*/
+					 DV_CHR, 0, 0, 0600, idgb%d.%d", unit, 
+					 i);
 
-		sprintf(name,"ldgb%d.%d",unit,i);
-		port->devfs_token.tty = devfs_add_devsw("/",name,
-			&dgb_cdevsw,(unit*32)+i + 128,	/*mytical number */
-			DV_CHR, 0, 0, 0600);
+		port->devfs_token.tty = 
+			devfs_add_devswf(&dgb_cdevsw,
+					 (unit*32)+i+128,/*mytical number*/
+					 DV_CHR, 0, 0, 0600, "ldgb%d.%d", unit,
+					 i);
 
-		sprintf(name,"dgbcua%d.%d",unit,i);
-		port->devfs_token.tty = devfs_add_devsw("/",name,
-			&dgb_cdevsw,(unit*32)+i + 192,	/*mytical number */
-			DV_CHR, 0, 0, 0600);
+		port->devfs_token.tty = 
+			devfs_add_devswf(&dgb_cdevsw,
+					 (unit*32)+i+192,/*mytical number*/
+					 DV_CHR, 0, 0, 0600, "dgbcua%d.%d",
+					 unit, i);
 #endif
 	}
 

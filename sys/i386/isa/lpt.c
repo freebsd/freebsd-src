@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.49 1996/02/06 18:50:52 wollman Exp $
+ *	$Id: lpt.c,v 1.50 1996/03/04 15:58:25 phk Exp $
  */
 
 /*
@@ -453,7 +453,6 @@ lptattach(struct isa_device *isdp)
 {
 	struct	lpt_softc	*sc;
 	int	unit;
-	char	name[32];
 
 	unit = isdp->id_unit;
 	sc = lpt_sc + unit;
@@ -479,10 +478,9 @@ lptattach(struct isa_device *isdp)
 
 #ifdef DEVFS
 /* XXX */ /* what to do about the flags in the minor number? */
-	sprintf(name,"lpt%d",unit);
-			/*	path name devsw minor type  uid gid perm*/
-	sc->devfs_token = devfs_add_devsw( "/", name, &lpt_cdevsw, unit,
-					DV_CHR, 0, 0, 0600);
+	sc->devfs_token = 
+		devfs_add_devswf(&lpt_cdevsw, unit, DV_CHR, 0, 0, 0600, 
+				 "lpt%d", unit);
 #endif
 	return (1);
 }

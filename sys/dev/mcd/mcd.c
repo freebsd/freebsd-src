@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.73 1996/02/27 19:08:39 ache Exp $
+ *	$Id: mcd.c,v 1.74 1996/03/17 13:33:42 ache Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -275,7 +275,6 @@ int mcd_attach(struct isa_device *dev)
 {
 	int	unit = dev->id_unit;
 	struct mcd_data *cd = mcd_data + unit;
-	char	name[32];
 
 	cd->iobase = dev->id_iobase;
 	cd->flags |= MCDINIT;
@@ -291,25 +290,18 @@ int mcd_attach(struct isa_device *dev)
 #ifdef DEVFS
 #define MCD_UID 0
 #define MCD_GID 13
-	sprintf(name, "rmcd%da",unit);
-	cd->ra_devfs_token = devfs_add_devsw(
-		"/", name, &mcd_cdevsw, (unit * 8 ) + 0,
-		DV_CHR,	MCD_UID,  MCD_GID, 0600);
-
-	sprintf(name, "rmcd%dc",unit);
-	cd->rc_devfs_token = devfs_add_devsw(
-		"/", name, &mcd_cdevsw, (unit * 8 ) + RAW_PART,
-		DV_CHR,	MCD_UID,  MCD_GID, 0600);
-
-	sprintf(name, "mcd%da",unit);
-	cd->a_devfs_token = devfs_add_devsw(
-		"/", name, &mcd_bdevsw, (unit * 8 ) + 0,
-		DV_BLK,	MCD_UID,  MCD_GID, 0600);
-
-	sprintf(name, "mcd%dc",unit);
-	cd->c_devfs_token = devfs_add_devsw(
-		"/", name, &mcd_bdevsw, (unit * 8 ) + RAW_PART,
-		DV_BLK,	MCD_UID,  MCD_GID, 0600);
+	cd->ra_devfs_token = 
+		devfs_add_devswf(&mcd_cdevsw, (unit * 8 ) + 0, DV_CHR, MCD_UID,
+			 	 MCD_GID, 0600, "rmcd%da", unit);
+	cd->rc_devfs_token = 
+		devfs_add_devswf(&mcd_cdevsw, (unit * 8 ) + RAW_PART, DV_CHR,
+				 MCD_UID,  MCD_GID, 0600, "rmcd%dc", unit);
+	cd->a_devfs_token = 
+		devfs_add_devswf(&mcd_bdevsw, (unit * 8 ) + 0, DV_BLK, MCD_UID,
+				 MCD_GID, 0600, "mcd%da", unit);
+	cd->c_devfs_token = 
+		devfs_add_devswf(&mcd_bdevsw, (unit * 8 ) + RAW_PART, DV_BLK,
+				 MCD_UID,  MCD_GID, 0600, "mcd%dc", unit);
 #endif
 	return 1;
 }

@@ -1,6 +1,6 @@
-static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.18 1995/12/10 15:54:13 bde Exp $";
+static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.19 1995/12/17 21:17:47 phk Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.18 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.19 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -66,18 +66,17 @@ static void	*devfs_token_out[NITY];
 int
 ityattach(int ap)
 {
-	char	name[32];
 	if(next_if >= NITY)
 		return(-1);
 
 	applnr[next_if]= ap;
 #ifdef	DEVFS
-	sprintf(name,"ity%d",next_if);
-	devfs_token[next_if] = devfs_add_devsw("/isdn",name,
-		&ity_cdevsw,next_if, DV_CHR, 0, 0, 0600);
-	sprintf(name,"Oity%d",next_if); /* XXX find out real name */
-	devfs_token[next_if] = devfs_add_devsw("/isdn",name,
-		&ity_cdevsw,(next_if | 0x80), DV_CHR, 0, 0, 0600);
+	devfs_token[next_if] = 
+		devfs_add_devswf(&ity_cdevsw, next_if, DV_CHR, 0, 0, 
+				 0600, "isdn/ity%d", next_if);
+	devfs_token[next_if] = 
+		devfs_add_devswf(&ity_cdevsw,(next_if | 0x80), DV_CHR, 0, 0, 
+				 0600, "isdn/Oity%d", next_if);
 #endif
 	return(next_if++);
 }

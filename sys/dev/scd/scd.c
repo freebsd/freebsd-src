@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.16 1995/12/10 20:10:23 bde Exp $ */
+/* $Id: scd.c,v 1.17 1996/01/15 10:28:32 phk Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -232,7 +232,6 @@ int scd_attach(struct isa_device *dev)
 {
 	int	unit = dev->id_unit;
 	struct scd_data *cd = scd_data + unit;
-	char	name[32];
 
 	cd->iobase = dev->id_iobase;	/* Already set by probe, but ... */
 
@@ -249,25 +248,18 @@ int scd_attach(struct isa_device *dev)
 #ifdef DEVFS
 #define SCD_UID 0
 #define SCD_GID 13
-	sprintf(name, "rscd%da",unit);
-	cd->ra_devfs_token = devfs_add_devsw(
-		"/", name, &scd_cdevsw, (unit * 8 ) + 0,
-		DV_CHR,	SCD_UID,  SCD_GID, 0600);
-
-	sprintf(name, "rscd%dc",unit);
-	cd->rc_devfs_token = devfs_add_devsw(
-		"/", name, &scd_cdevsw, (unit * 8 ) + RAW_PART,
-		DV_CHR,	SCD_UID,  SCD_GID, 0600);
-
-	sprintf(name, "scd%da",unit);
-	cd->a_devfs_token = devfs_add_devsw(
-		"/", name, &scd_bdevsw, (unit * 8 ) + 0,
-		DV_BLK,	SCD_UID,  SCD_GID, 0600);
-
-	sprintf(name, "scd%dc",unit);
-	cd->c_devfs_token = devfs_add_devsw(
-		"/", name, &scd_bdevsw, (unit * 8 ) + RAW_PART,
-		DV_BLK,	SCD_UID,  SCD_GID, 0600);
+	cd->ra_devfs_token = 
+		devfs_add_devswf(&scd_cdevsw, (unit * 8 ) + 0, DV_CHR, SCD_UID,
+				 SCD_GID, 0600, "rscd%da", unit);
+	cd->rc_devfs_token = 
+		devfs_add_devswf(&scd_cdevsw, (unit * 8 ) + RAW_PART, DV_CHR,
+				 SCD_UID,  SCD_GID, 0600, "rscd%dc", unit);
+	cd->a_devfs_token = 
+		devfs_add_devswf(&scd_bdevsw, (unit * 8 ) + 0, DV_BLK, SCD_UID,
+				 SCD_GID, 0600, "scd%da", unit);
+	cd->c_devfs_token = 
+		devfs_add_devswf(&scd_bdevsw, (unit * 8 ) + RAW_PART, DV_BLK,
+				 SCD_UID,  SCD_GID, 0600, "scd%dc", unit);
 #endif
 	return 1;
 }

@@ -168,7 +168,6 @@ struct	spigot_softc	*ss=(struct spigot_softc *)&spigot_softc[devp->id_unit];
 static int
 spigot_attach(struct isa_device *devp)
 {
-	char	name[32];
 	int	unit;
 	struct	spigot_softc	*ss= &spigot_softc[unit = devp->id_unit];
 
@@ -177,11 +176,9 @@ spigot_attach(struct isa_device *devp)
 	ss->maddr = kvtop(devp->id_maddr);
 	ss->irq = devp->id_irq;
 #ifdef DEVFS
-	sprintf(name,"spigot%d",unit);
-/*	path	name	devsw		minor	type   uid gid perm*/
-	ss->devfs_token = devfs_add_devsw( "/", name,
-					&spigot_cdevsw, unit,
-					DV_CHR, 0, 0, 0644);
+	ss->devfs_token = 
+		devfs_add_devswf(&spigot_cdevsw, unit, DV_CHR, 0, 0, 0644,
+				 "spigot%d", unit);
 #endif
 
 	return 1;

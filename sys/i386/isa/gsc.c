@@ -522,22 +522,19 @@ gscattach(struct isa_device *isdp)
 #ifdef DEVFS
 #define GSC_UID 0
 #define GSC_GID 13
-    sprintf(name,"gsc%d",unit);
-/*            path      name  devsw    minor    type   uid gid perm*/
-   scu->devfs_gsc = devfs_add_devsw("/",   name,  &gsc_cdevsw, unit<<6,
-					DV_CHR, GSC_UID,  GSC_GID, 0666);
-    sprintf(name,"gsc%dp",unit);
-   scu->devfs_gscp = devfs_add_devsw("/",   name,  &gsc_cdevsw,
-					((unit<<6) + FRMT_PBM),
-					DV_CHR, GSC_UID,  GSC_GID, 0666);
-    sprintf(name,"gsc%dd",unit);
-   scu->devfs_gscd = devfs_add_devsw("/",   name,  &gsc_cdevsw,
-					((unit<<6) + DBUG_MASK),
-					DV_CHR, GSC_UID,  GSC_GID, 0666);
-    sprintf(name,"gsc%dpd",unit);
-   scu->devfs_gscpd = devfs_add_devsw("/",   name,  &gsc_cdevsw,
-					((unit<<6) + DBUG_MASK + FRMT_PBM),
-					DV_CHR, GSC_UID,  GSC_GID, 0666);
+    scu->devfs_gsc = 
+		devfs_add_devswf(&gsc_cdevsw, unit<<6, DV_CHR, GSC_UID, GSC_GID,
+				 0666, "gsc%d", unit);
+    scu->devfs_gscp = 
+		devfs_add_devswf(&gsc_cdevsw, ((unit<<6) + FRMT_PBM), DV_CHR, 
+				 GSC_UID,  GSC_GID, 0666, "gsc%dp", unit);
+    scu->devfs_gscd = 
+		devfs_add_devswf(&gsc_cdevsw, ((unit<<6) + DBUG_MASK), DV_CHR, 
+				 GSC_UID,  GSC_GID, 0666, "gsc%dd", unit);
+    scu->devfs_gscpd = 
+		devfs_add_devswf(&gsc_cdevsw, ((unit<<6) + DBUG_MASK+FRMT_PBM),
+				 DV_CHR, GSC_UID,  GSC_GID, 0666, "gsc%dpd", 
+				 unit);
 #endif /*DEVFS*/
 
   return ATTACH_SUCCESS;
