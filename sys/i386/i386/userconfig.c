@@ -38,7 +38,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.16 1994/11/27 13:43:37 joerg Exp $
+ *      $Id: userconfig.c,v 1.17 1995/02/06 02:48:38 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -80,7 +80,6 @@ static struct isa_device *search_devtable(struct isa_device *, char *, int);
 static void cngets(char *, int);
 static Cmd *parse_cmd(char *);
 static int parse_args(char *, CmdParm *);
-int strncmp(const char *, const char *, size_t);
 unsigned long strtoul(const char *, char **, int);
 
 static int list_devices(CmdParm *);
@@ -476,20 +475,6 @@ cngets(char *input, int maxin)
     }
 }
 
-int
-strncmp(const char *s1, const char *s2, size_t n)
-{
-
-    if (n == 0)
-	return (0);
-    do {
-	if (*s1 != *s2++)
-	    return (*(unsigned char *)s1 - *(unsigned char *)--s2);
-	if (*s1++ == 0)
-	    break;
-    } while (--n != 0);
-    return (0);
-}
 
 /*
  * Kludges to get the library sources of strtoul.c to work in our
