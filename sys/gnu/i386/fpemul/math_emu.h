@@ -1,3 +1,9 @@
+/*
+ *
+ *    $Id:$
+ *
+ */
+
 #ifndef _MATH_EMU_H
 #define _MATH_EMU_H
 
