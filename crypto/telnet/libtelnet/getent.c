@@ -40,11 +40,15 @@ static const char rcsid[] =
 #endif
 #endif /* not lint */
 
+#ifdef	HAS_CGETENT
+#include <stdlib.h>
+#endif
+
 static char *area;
 
 /*ARGSUSED*/
-getent(cp, name)
-char *cp, *name;
+int
+getent(char *cp, char *name)
 {
 #ifdef	HAS_CGETENT
 	char *dba[2];
@@ -60,8 +64,7 @@ char *cp, *name;
 #ifndef	SOLARIS
 /*ARGSUSED*/
 char *
-Getstr(id, cpp)
-char *id, **cpp;
+Getstr(char *id, char **cpp)
 {
 # ifdef	HAS_CGETENT
 	char *answer;

@@ -51,8 +51,8 @@ static const char rcsid[] =
  *
  */
 
-#include	<stdio.h>
 #include	<errno.h>
+#include	<stdio.h>
 #include	<string.h>
 
 #ifdef	size_t
@@ -105,9 +105,9 @@ static u_long ring_clock = 0;
 
 /* Buffer state transition routines */
 
-	int
-    ring_init(ring, buffer, count)
-Ring *ring;
+    int
+ring_init(ring, buffer, count)
+    Ring *ring;
     unsigned char *buffer;
     int count;
 {
@@ -302,7 +302,7 @@ ring_supply_data(ring, buffer, count)
 
     while (count) {
 	i = MIN(count, ring_empty_consecutive(ring));
-	memmove(ring->supply, buffer, i);
+	memcpy(ring->supply, buffer, i);
 	ring_supplied(ring, i);
 	count -= i;
 	buffer += i;
@@ -324,7 +324,7 @@ ring_consume_data(ring, buffer, count)
 
     while (count) {
 	i = MIN(count, ring_full_consecutive(ring));
-	memmove(buffer, ring->consume, i);
+	memcpy(buffer, ring->consume, i);
 	ring_consumed(ring, i);
 	count -= i;
 	buffer += i;

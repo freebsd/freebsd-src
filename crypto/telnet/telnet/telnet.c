@@ -53,9 +53,7 @@ static const char rcsid[] =
 #endif	/* defined(unix) */
 
 #include <arpa/telnet.h>
-
 #include <ctype.h>
-
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -126,7 +124,9 @@ int
 	clienteof = 0;
 
 char *prompt = 0;
+#ifdef ENCRYPTION
 char *line;		/* hack around breakage in sra.c :-( !! */
+#endif
 
 cc_t escape;
 cc_t rlogin;
@@ -643,7 +643,7 @@ mklist(buf, name)
 	register char c, *cp, **argvp, *cp2, **argv, **avt;
 
 	if (name) {
-		if ((int)strlen(name) > 40) {
+		if (strlen(name) > 40) {
 			name = 0;
 			unknown[0] = name_unknown;
 		} else {
@@ -802,7 +802,7 @@ gettermname()
 				(setupterm(tname, 1, &err) == 0)) {
 			tnamep = mklist(termbuf, tname);
 		} else {
-			if (tname && ((int)strlen(tname) <= 40)) {
+			if (tname && (strlen(tname) <= 40)) {
 				unknown[0] = tname;
 				upcase(tname);
 			} else
@@ -2452,7 +2452,7 @@ netclear()
 		next = nextitem(next);
 	    } while (wewant(next) && (nfrontp > next));
 	    length = next-thisitem;
-	    memmove(good, thisitem, length);
+	    memcpy(good, thisitem, length);
 	    good += length;
 	    thisitem = next;
 	} else {

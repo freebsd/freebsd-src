@@ -85,7 +85,7 @@ extern char *unptyip;  /* pointer to remaining characters in buffer */
 #endif
 
 extern int	pty, net;
-extern char	*line;
+extern char	line[16];
 extern int	SYNCHing;		/* we are in TELNET SYNCH mode */
 
 #ifndef	P

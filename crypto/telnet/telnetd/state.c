@@ -721,6 +721,7 @@ wontoption(option)
 			 */
 			if (lmodetype != REAL_LINEMODE)
 				break;
+			lmodetype = KLUDGE_LINEMODE;
 # endif	/* KLUDGELINEMODE */
 			clientstat(TELOPT_LINEMODE, WONT, 0);
 			break;
@@ -1551,10 +1552,14 @@ send_status()
 		if (my_want_state_is_will(i)) {
 			ADD(WILL);
 			ADD_DATA(i);
+			if (i == IAC)
+				ADD(IAC);
 		}
 		if (his_want_state_is_will(i)) {
 			ADD(DO);
 			ADD_DATA(i);
+			if (i == IAC)
+				ADD(IAC);
 		}
 	}
 
