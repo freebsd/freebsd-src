@@ -186,57 +186,51 @@ function requires trusting the entire DNS, which can be spoofed.
 .Pp
 The functions with an
 .Dq Li _af
-suffix or
+or
 .Dq Li _sa
 suffix, i.e.,
-.Fn rcmd_af,
+.Fn rcmd_af ,
 .Fn rresvport_af
 and
 .Fn iruserok_sa ,
-work the same as functions without an
-.Dq Li _af
-suffix nor
-.Dq Li _sa
+work the same as the corresponding functions without a
 suffix, except that they are capable of handling both IPv6 and IPv4 ports.
 .Pp
 The
 .Dq Li _af
-suffix means the function has an additional
+suffix means that the function has an additional
 .Fa af
-argument which is used to specify address family,
-such as
-.Dv AF_INET
-for IPv4, and
-.Dv AF_INET6
-for IPv6.
+argument which is used to specify the address family,
+(see below).
 The
 .Fa af
 argument extension is implemented for functions
-which have no binary address argument.
+that have no binary address argument.
 Instead, the
 .Fa af
 argument specifies which address family is desired.
 .Pp
 The
 .Dq Li _sa
-suffix means the function has general socket address and
-length arguments instead of protocol dependent address argument.
+suffix means that the function has general socket address and
+length arguments.
 As the socket address is a protocol independent data structure,
 IPv4 and IPv6 socket address can be passed as desired.
+The
 .Fa sa
 argument extension is implemented for functions
-which pass a protocol dependent binary address argument.
-The argument needs to be replaced with a more general format
+that pass a protocol dependent binary address argument.
+The argument needs to be replaced with a more general address structure
 to support multiple address families in a general way.
 .Pp
-The functions without an
+The functions with neither an
 .Dq Li _af
-suffix nor
+suffix nor an
 .Dq Li _sa
 suffix work for IPv4 only, except for
 .Fn ruserok
 which can handle both IPv6 and IPv4.
-.To switch the address family, the
+To switch the address family, the
 .Fa af
 argument must be filled with
 .Dv AF_INET ,
@@ -275,16 +269,16 @@ is overloaded to mean ``All network ports in use.''
 .Pp
 .Rs
 .%A W. Stevens and M. Thomas
-.%T ``Advanced Socket API for IPv6,''
-RFC2292,
+.%T "Advanced Socket API for IPv6"
+.%O RFC2292
 .Re
 .Rs
 .%A W. Stevens, M. Thomas and E. Nordmark
-.%T ``Advanced Socket API for IPv6,''
-draft-ietf-ipngwg-rfc2292bis-01.txt,
+.%T "Advanced Socket API for IPv6"
+.%O draft-ietf-ipngwg-rfc2292bis-01.txt
 .Re
 .Sh HISTORY
-These
+Most of these
 functions appeared in 
 .Bx 4.2 .
 .Fn rresvport_af
