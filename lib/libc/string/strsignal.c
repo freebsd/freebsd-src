@@ -37,38 +37,75 @@ static char sccsid[] = "@(#)strerror.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <stdio.h>
+#if defined(NLS)
+#include <limits.h>
+#include <nl_types.h>
+#endif
+
+#include <errno.h>
 #include <string.h>
 #include <signal.h>
 
+#define	UPREFIX		"Unknown signal"
+
+/* XXX: negative 'num' ? (REGR) */
 char *
-strsignal(num)
-	int num;
+strsignal(int num)
 {
-#define	UPREFIX	"Unknown signal: "
-	static char ebuf[40] = UPREFIX;		/* 64-bit number + slop */
-	unsigned int signum;
-	char *p, *t;
-	char tmp[40];
+	static char ebuf[NL_TEXTMAX];
+	char tmp[20];
+	int signum, n;
+	char *t, *p;
 
-	signum = num;				/* convert to unsigned */
-	if (signum < sys_nsig)
-		return ((char *)sys_siglist[signum]);
+#if defined(NLS)
+	int saved_errno = errno;
+	nl_catd catd;
+	catd = catopen("libc", NL_CAT_LOCALE);
+#endif
 
-	/* Do this by hand, so we don't link to stdio(3). */
-	t = tmp;
+	if (num > 0 && num < sys_nsig) {
+		strlcpy(ebuf,
+#if defined(NLS)
+			catgets(catd, 2, num, sys_siglist[num]),
+#else
+			sys_siglist[num],
+#endif
+			sizeof(ebuf));
+	} else {
+		n = strlcpy(ebuf,
+#if defined(NLS)
+			catgets(catd, 2, 0xffff, UPREFIX),
+#else
+			UPREFIX,
+#endif
+			sizeof(ebuf));
+	}
+
+	signum = num;
 	if (num < 0)
 		signum = -signum;
+
+	t = tmp;
 	do {
 		*t++ = "0123456789"[signum % 10];
 	} while (signum /= 10);
 	if (num < 0)
 		*t++ = '-';
-	for (p = ebuf + sizeof(UPREFIX) - 1;;) {
+
+	p = (ebuf + n);
+	*p++ = ':';
+	*p++ = ' ';
+
+	for (;;) {
 		*p++ = *--t;
 		if (t <= tmp)
 			break;
 	}
 	*p = '\0';
+
+#if defined(NLS)
+	catclose(catd);
+	errno = saved_errno;
+#endif
 	return (ebuf);
 }
