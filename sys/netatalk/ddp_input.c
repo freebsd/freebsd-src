@@ -56,7 +56,7 @@ at1intr(struct mbuf *m)
 	/*
 	 * Phase 1 packet handling 
 	 */
-	if (m->m_len < SZ_ELAPHDR && ((m = m_pullup(m, SZ_ELAPHDR)) == 0)) {
+	if (m->m_len < SZ_ELAPHDR && ((m = m_pullup(m, SZ_ELAPHDR)) == NULL)) {
 		ddpstat.ddps_tooshort++;
 		return;
 	}
@@ -105,7 +105,7 @@ ddp_input( m, ifp, elh, phase )
 	ddpstat.ddps_short++;
 
 	if ( m->m_len < sizeof( struct ddpshdr ) &&
-		(( m = m_pullup( m, sizeof( struct ddpshdr ))) == 0 )) {
+		(( m = m_pullup( m, sizeof( struct ddpshdr ))) == NULL )) {
 	    ddpstat.ddps_tooshort++;
 	    return;
 	}
@@ -151,7 +151,7 @@ ddp_input( m, ifp, elh, phase )
 	ddpstat.ddps_long++;
 
 	if ( m->m_len < sizeof( struct ddpehdr ) &&
-		(( m = m_pullup( m, sizeof( struct ddpehdr ))) == 0 )) {
+		(( m = m_pullup( m, sizeof( struct ddpehdr ))) == NULL )) {
 	    ddpstat.ddps_tooshort++;
 	    return;
 	}
@@ -280,7 +280,7 @@ ddp_input( m, ifp, elh, phase )
 	&& ( satosat(&forwro.ro_dst)->sat_addr.s_net != to.sat_addr.s_net
 	  || satosat(&forwro.ro_dst)->sat_addr.s_node != to.sat_addr.s_node )) {
 	    RTFREE( forwro.ro_rt );
-	    forwro.ro_rt = (struct rtentry *)0;
+	    forwro.ro_rt = NULL;
 	}
 
 	/*
@@ -288,8 +288,7 @@ ddp_input( m, ifp, elh, phase )
 	 * Then get a new route.
 	 * XXX this could cause a 'route leak'. check this!
 	 */
-	if ( forwro.ro_rt == (struct rtentry *)0
-	|| forwro.ro_rt->rt_ifp == (struct ifnet *)0 ) {
+	if ( forwro.ro_rt == NULL || forwro.ro_rt->rt_ifp == NULL ) {
 	    forwro.ro_dst.sa_len = sizeof( struct sockaddr_at );
 	    forwro.ro_dst.sa_family = AF_APPLETALK;
 	    satosat(&forwro.ro_dst)->sat_addr.s_net = to.sat_addr.s_net;
@@ -377,7 +376,7 @@ ddp_input( m, ifp, elh, phase )
      * If we found one, deliver th epacket to the socket
      */
     if ( sbappendaddr( &ddp->ddp_socket->so_rcv, (struct sockaddr *)&from,
-	    m, (struct mbuf *)0 ) == 0 ) {
+	    m, NULL ) == 0 ) {
 	/* 
 	 * If the socket is full (or similar error) dump the packet.
 	 */
