@@ -4,7 +4,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) Notifier.3 1.10 96/03/28 09:38:26
+'\" SCCS: @(#) Notifier.3 1.11 96/06/05 18:00:17
 '\" 
 .so man.macros
 .TH Tcl_CreateEventSource 3 7.5 Tcl "Tcl Library Procedures"
@@ -53,7 +53,9 @@ is NULL, it means there is no maximum wait time:  wait forever if
 necessary.
 .AP Tcl_Event *evPtr in
 An event to add to the event queue.  The storage for the event must
-have been allocated by the caller using \fBmalloc\fR or \fBckalloc\fR.
+.VS
+have been allocated by the caller using \fBTcl_Alloc\fR or \fBckalloc\fR.
+.VE
 .AP Tcl_QueuePosition position in
 Where to add the new event in the queue:  \fBTCL_QUEUE_TAIL\fR,
 \fBTCL_QUEUE_HEAD\fR, or \fBTCL_QUEUE_MARK\fR.
@@ -319,7 +321,9 @@ of window events.
 When \fIproc\fR returns 1, \fBTcl_DoOneEvent\fR will remove the
 event from the event queue and free its storage.
 Note that the storage for an event must be allocated by
-the event source (using \fBmalloc\fR or the Tcl macro \fBckalloc\fR)
+.VS
+the event source (using \fBTcl_Alloc\fR or the Tcl macro \fBckalloc\fR)
+.VE
 before calling \fBTcl_QueueEvent\fR, but it
 will be freed by \fBTcl_DoOneEvent\fR, not by the event source.
 

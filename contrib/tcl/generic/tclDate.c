@@ -1,8 +1,8 @@
 /* 
- * tclGetdate.c --
+ * tclDate.c --
  *
  *	This file is generated from a yacc grammar defined in
- *	the file tclGetdate.y
+ *	the file tclGetDate.y
  *
  * Copyright (c) 1992-1995 Karl Lehenbauer and Mark Diekhans.
  * Copyright (c) 1995-1996 Sun Microsystems, Inc.
@@ -10,7 +10,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * @(#) tclDate.c 1.24 96/04/18 16:53:56
+ * @(#) tclDate.c 1.25 96/07/23 16:10:50
  */
 
 #include "tclInt.h"
@@ -24,8 +24,6 @@
 #   define EPOCH           1970
 #   define START_OF_TIME   1902
 #   define END_OF_TIME     2037
-
-extern struct tm  *localtime();
 #endif
 
 #define HOUR(x)         ((int) (60 * x))
@@ -463,7 +461,7 @@ Convert(Month, Day, Year, Hours, Minutes, Seconds, Meridian, DSTmode, TimePtr)
         return -1;
     Julian += tod;
     if (DSTmode == DSTon
-     || (DSTmode == DSTmaybe && localtime(&Julian)->tm_isdst))
+     || (DSTmode == DSTmaybe && TclpGetDate(&Julian, 0)->tm_isdst))
         Julian -= 60 * 60;
     *TimePtr = Julian;
     return 0;
@@ -478,8 +476,8 @@ DSTcorrect(Start, Future)
     time_t      StartDay;
     time_t      FutureDay;
 
-    StartDay = (localtime(&Start)->tm_hour + 1) % 24;
-    FutureDay = (localtime(&Future)->tm_hour + 1) % 24;
+    StartDay = (TclpGetDate(&Start, 0)->tm_hour + 1) % 24;
+    FutureDay = (TclpGetDate(&Future, 0)->tm_hour + 1) % 24;
     return (Future - Start) + (StartDay - FutureDay) * 60L * 60L;
 }
 
@@ -494,7 +492,7 @@ RelativeDate(Start, DayOrdinal, DayNumber)
     time_t      now;
 
     now = Start;
-    tm = localtime(&now);
+    tm = TclpGetDate(&now, 0);
     now += SECSPERDAY * ((DayNumber - tm->tm_wday + 7) % 7);
     now += 7 * SECSPERDAY * (DayOrdinal <= 0 ? DayOrdinal : DayOrdinal - 1);
     return DSTcorrect(Start, now);
@@ -516,7 +514,7 @@ RelativeMonth(Start, RelMonth, TimePtr)
         *TimePtr = 0;
         return 0;
     }
-    tm = localtime(&Start);
+    tm = TclpGetDate(&Start, 0);
     Month = 12 * tm->tm_year + tm->tm_mon + RelMonth;
     Year = Month / 12;
     Month = Month % 12 + 1;
@@ -728,7 +726,7 @@ TclGetDate(p, now, zone, timePtr)
     time_t              tod;
 
     TclDateInput = p;
-    tm = localtime((time_t *) &now);
+    tm = TclpGetDate((time_t *) &now, 0);
     TclDateYear = tm->tm_year;
     TclDateMonth = tm->tm_mon + 1;
     TclDateDay = tm->tm_mday;

@@ -13,7 +13,7 @@
  * This code contributed by Karl Lehenbauer and Mark Diekhans
  *
  *
- * SCCS: @(#) tclCkalloc.c 1.17 96/03/14 13:05:56
+ * SCCS: @(#) tclCkalloc.c 1.20 96/06/06 13:48:27
  */
 
 #include "tclInt.h"
@@ -471,6 +471,50 @@ Tcl_DbCkrealloc(ptr, size, file, line)
     Tcl_DbCkfree(ptr, file, line);
     return(new);
 }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Tcl_Alloc, et al. --
+ *
+ *	These functions are defined in terms of the debugging versions
+ *	when TCL_MEM_DEBUG is set.
+ *
+ * Results:
+ *	Same as the debug versions.
+ *
+ * Side effects:
+ *	Same as the debug versions.
+ *
+ *----------------------------------------------------------------------
+ */
+
+#undef Tcl_Alloc
+#undef Tcl_Free
+#undef Tcl_Realloc
+
+char *
+Tcl_Alloc(size)
+    unsigned int size;
+{
+    return Tcl_DbCkalloc(size, "unknown", 0);
+}
+
+void
+Tcl_Free(ptr)
+    char *ptr;
+{
+    Tcl_DbCkfree(ptr, "unknown", 0);
+}
+
+char *
+Tcl_Realloc(ptr, size)
+    char *ptr;
+    unsigned int size;
+{
+    return Tcl_DbCkrealloc(ptr, size, "unknown", 0);
+}
 
 /*
  *----------------------------------------------------------------------
@@ -606,8 +650,8 @@ void
 Tcl_InitMemory(interp)
     Tcl_Interp *interp;
 {
-Tcl_CreateCommand (interp, "memory", MemoryCmd, (ClientData) NULL, 
-                  (Tcl_CmdDeleteProc *) NULL);
+    Tcl_CreateCommand (interp, "memory", MemoryCmd, (ClientData) NULL, 
+	    (Tcl_CmdDeleteProc *) NULL);
 }
 
 #else
@@ -616,14 +660,15 @@ Tcl_CreateCommand (interp, "memory", MemoryCmd, (ClientData) NULL,
 /*
  *----------------------------------------------------------------------
  *
- * Tcl_Ckalloc --
+ * Tcl_Alloc --
  *     Interface to malloc when TCL_MEM_DEBUG is disabled.  It does check
  *     that memory was actually allocated.
  *
  *----------------------------------------------------------------------
  */
-VOID *
-Tcl_Ckalloc (size)
+
+char *
+Tcl_Alloc (size)
     unsigned int size;
 {
         char *result;
@@ -633,7 +678,6 @@ Tcl_Ckalloc (size)
                 panic("unable to alloc %d bytes", size);
         return result;
 }
-
 
 char *
 Tcl_DbCkalloc(size, file, line)
@@ -650,6 +694,30 @@ Tcl_DbCkalloc(size, file, line)
         panic("unable to alloc %d bytes, %s line %d", size, file, 
               line);
     }
+    return result;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Tcl_Realloc --
+ *     Interface to realloc when TCL_MEM_DEBUG is disabled.  It does check
+ *     that memory was actually allocated.
+ *
+ *----------------------------------------------------------------------
+ */
+
+char *
+Tcl_Realloc(ptr, size)
+    char *ptr;
+    unsigned int size;
+{
+    char *result;
+
+    result = realloc(ptr, size);
+    if (result == NULL) 
+	panic("unable to realloc %d bytes", size);
     return result;
 }
 
@@ -671,18 +739,20 @@ Tcl_DbCkrealloc(ptr, size, file, line)
     }
     return result;
 }
+
 /*
  *----------------------------------------------------------------------
  *
- * TckCkfree --
+ * Tcl_Free --
  *     Interface to free when TCL_MEM_DEBUG is disabled.  Done here rather
  *     in the macro to keep some modules from being compiled with 
  *     TCL_MEM_DEBUG enabled and some with it disabled.
  *
  *----------------------------------------------------------------------
  */
+
 void
-Tcl_Ckfree (ptr)
+Tcl_Free (ptr)
     char *ptr;
 {
         free (ptr);

@@ -11,7 +11,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclCmdAH.c 1.107 96/04/09 17:14:39
+ * SCCS: @(#) tclCmdAH.c 1.111 96/07/30 09:33:59
  */
 
 #include "tclInt.h"
@@ -650,7 +650,30 @@ Tcl_FileCmd(dummy, interp, argc, argv)
 	    goto not3Args;
 	}
 
-	Tcl_SplitPath(argv[2], &pargc, &pargv);
+	fileName = argv[2];
+
+	/*
+	 * If there is only one element, and it starts with a tilde,
+	 * perform tilde substitution and resplit the path.
+	 */
+
+	Tcl_SplitPath(fileName, &pargc, &pargv);
+	if ((pargc == 1) && (*fileName == '~')) {
+	    ckfree((char*) pargv);
+	    fileName = Tcl_TranslateFileName(interp, fileName, &buffer);
+	    if (fileName == NULL) {
+		result = TCL_ERROR;
+		goto done;
+	    }
+	    Tcl_SplitPath(fileName, &pargc, &pargv);
+	    Tcl_DStringSetLength(&buffer, 0);
+	}
+
+	/*
+	 * Return the last component, unless it is the only component, and it
+	 * is the root of an absolute path.
+	 */
+
 	if (pargc > 0) {
 	    if ((pargc > 1)
 		    || (Tcl_GetPathType(pargv[0]) == TCL_PATH_RELATIVE)) {
@@ -727,7 +750,7 @@ Tcl_FileCmd(dummy, interp, argc, argv)
 	Tcl_DStringResult(interp, &buffer);
 	goto done;
     }
-
+    
     /*
      * Next, handle operations that can be satisfied with the "access"
      * kernel call.
@@ -1499,14 +1522,14 @@ Tcl_FormatCmd(dummy, interp, argc, argv)
 	    argIndex++;
 	    format++;
 	}
-	if (width > 1000) {
+	if (width > 100000) {
 	    /*
 	     * Don't allow arbitrarily large widths:  could cause core
 	     * dump when we try to allocate a zillion bytes of memory
 	     * below.
 	     */
 
-	    width = 1000;
+	    width = 100000;
 	} else if (width < 0) {
 	    width = 0;
 	}

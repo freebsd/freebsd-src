@@ -19,7 +19,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclUnixPort.h 1.33 96/03/25 17:15:21
+ * SCCS: @(#) tclUnixPort.h 1.34 96/07/23 16:17:47
  */
 
 #ifndef _TCLUNIXPORT
@@ -409,5 +409,13 @@ extern char **environ;
  */
 
 extern double strtod();
+
+/*
+ * The following macros define time related functions in terms of
+ * standard Unix routines.
+ */
+
+#define TclpGetDate(t,u) ((u) ? gmtime((t)) : localtime((t)))
+#define TclStrftime(s,m,f,t) (strftime((s),(m),(f),(t)))
 
 #endif /* _TCLUNIXPORT */

@@ -8,7 +8,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) clock.n 1.12 96/04/16 08:20:08
+'\" SCCS: @(#) clock.n 1.13 96/05/03 14:40:37
 '\" 
 .so man.macros
 .TH clock n 7.4 Tcl "Tcl Built-In Commands"
@@ -48,61 +48,68 @@ Valid field descriptors are:
 .IP \fB%%\fR
 Insert a %.
 .IP \fB%a\fR
-Abbreviated weekday name. (Mon, Tue, etc.)
+Abbreviated weekday name (Mon, Tue, etc.).
 .IP \fB%A\fR
-Full weekday name. (Monday, Tuesday, etc.)
+Full weekday name (Monday, Tuesday, etc.).
 .IP \fB%b\fR
-Abbreviated month name. (Jan, Feb, etc.)
+Abbreviated month name (Jan, Feb, etc.).
 .IP \fB%B\fR
 Full month name.
+.IP \fB%c\fR
+Locale specific date and time.
 .IP \fB%d\fR
 Day of month (01 - 31).
+.IP \fB%H\fR
+Hour in 24-hour format (00 - 23).
+.IP \fB%I\fR
+Hour in 12-hour format (00 - 12).
+.IP \fB%j\fR
+Day of year (001 - 366).
+.IP \fB%m\fR
+Month number (01 - 12).
+.IP \fB%M\fR
+Minute (00 - 59).
+.IP \fB%p\fR
+AM/PM indicator.
+.IP \fB%S\fR
+Seconds (00 - 59).
+.IP \fB%U\fR
+Week of year (01 - 52), Sunday is the first day of the week.
+.IP \fB%w\fR
+Weekday number (Sunday = 0).
+.IP \fB%W\fR
+Week of year (01 - 52), Monday is the first day of the week.
+.IP \fB%x\fR
+Locale specific date format.
+.IP \fB%X\fR
+Locale specific time format.
+.IP \fB%y\fR
+Year without century (00 - 99).
+.IP \fB%Y\fR
+Year with century (e.g. 1990)
+.IP \fB%Z\fR
+Time zone name.
+.RE
+.sp
+.RS
+In addition, the following field descriptors may be supported on some
+systems (e.g. Unix but not Windows):
 .IP \fB%D\fR
 Date as %m/%d/%y.
 .IP \fB%e\fR
 Day of month (1 - 31), no leading zeros.
 .IP \fB%h\fR
 Abbreviated month name.
-.IP \fB%H\fR
-Hour (00 - 23).
-.IP \fB%I\fR
-Hour (00 - 12).
-.IP \fB%j\fR
-Day number of year (001 - 366).
-.IP \fB%m\fR
-Month number (01 - 12).
-.IP \fB%M\fR
-Minute (00 - 59).
 .IP \fB%n\fR
 Insert a newline.
-.IP \fB%p\fR
-AM or PM.
 .IP \fB%r\fR
 Time as %I:%M:%S %p.
 .IP \fB%R\fR
 Time as %H:%M.
-.IP \fB%S\fR
-Seconds (00 - 59).
 .IP \fB%t\fR
 Insert a tab.
 .IP \fB%T\fR
 Time as %H:%M:%S.
-.IP \fB%U\fR
-Week number of year (01 - 52), Sunday is the first day of the week.
-.IP \fB%w\fR
-Weekday number (Sunday = 0).
-.IP \fB%W\fR
-Week number of year (01 - 52), Monday is the first day of the week.
-.IP \fB%x\fR
-Local specific date format.
-.IP \fB%X\fR
-Local specific time format.
-.IP \fB%y\fR
-Year within century (00 - 99).
-.IP \fB%Y\fR
-Year as ccyy (e.g. 1990)
-.IP \fB%Z\fR
-Time zone name.
 .RE
 .sp
 .RS

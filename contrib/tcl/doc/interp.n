@@ -4,7 +4,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) interp.n 1.15 96/03/25 20:17:28
+'\" SCCS: @(#) interp.n 1.19 96/05/10 16:36:44
 '\" 
 .so man.macros
 .TH interp n 7.5 Tcl "Tcl Built-In Commands"
@@ -305,18 +305,21 @@ A safe interpreter is created with exactly the following set of
 built-in commands:
 .DS
 .ta 1.2i 2.4i 3.6i
-\fBappend	array	break	case
-catch	clock	close	concat
-continue	eof	error	eval
-expr	fblocked	flush	for
-foreach	format	gets	global
-history	if	incr	info
-interp	join	lappend	lindex
-list	llength	lrange	lreplace
-pid	proc	puts	read
-regexp	regsub	rename	return
-scan	set	seek	split
-string	switch	tell	trace\fR
+\fBafter	append	array	break
+case	catch	clock	close
+concat	continue	eof	error
+eval	expr	fblocked	fileevent
+flush	for	foreach	format
+gets	global	history	if
+incr	info	interp	join
+lappend	lindex	linsert	list
+llength	lower	lrange	lreplace
+lsearch	lsort	package	pid
+proc	puts	read	rename
+return	scan	seek	set
+split	string	subst	switch
+tell	trace	unset	update
+uplevel	upvar	vwait	while\fR
 .DE
 All commands not on this list are removed from the interpreter by
 the \fBinterp create\fR command.  Of course, the missing commands
@@ -332,8 +335,8 @@ to untrusted code executing in a safe interpreter would incur a
 security risk.
 .PP
 If extensions are loaded into a safe interpreter, they may also restrict
-their own functionality to eliminate unsafe commands. The management of
-extensions for safety will be explained in the manual entries for the
+their own functionality to eliminate unsafe commands. For a discussion of
+management of extensions for safety see the manual entries for the
 \fBpackage\fR and \fBload\fR Tcl commands.
 .SH CREDITS
 .PP

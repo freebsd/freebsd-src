@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) lreplace.test 1.12 96/02/16 08:56:14
+# SCCS: @(#) lreplace.test 1.13 96/07/10 17:16:47
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -86,6 +86,9 @@ test lreplace-1.23 {lreplace command} {
 test lreplace-1.24 {lreplace command} {
     lreplace {1 2 3 4} end -1 z
 } {1 2 3 z 4}
+test lreplace-1.25 {lreplace command} {
+    concat \"[lreplace {\}\     hello} end end]\"
+} {"\}\ "}
 
 
 test lreplace-2.1 {lreplace errors} {

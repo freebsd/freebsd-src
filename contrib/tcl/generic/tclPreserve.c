@@ -12,7 +12,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclPreserve.c 1.14 96/03/20 08:24:37
+ * SCCS: @(#) tclPreserve.c 1.17 96/07/23 16:15:34
  */
 
 #include "tclInt.h"
@@ -148,6 +148,7 @@ Tcl_Preserve(clientData)
     refPtr->clientData = clientData;
     refPtr->refCount = 1;
     refPtr->mustFree = 0;
+    refPtr->freeProc = TCL_STATIC;
     inUse += 1;
 }
 
@@ -267,7 +268,8 @@ Tcl_EventuallyFree(clientData, freeProc)
      * No reference for this block.  Free it now.
      */
 
-    if ((freeProc == TCL_DYNAMIC) || (freeProc == (Tcl_FreeProc *) free)) {
+    if ((freeProc == TCL_DYNAMIC)
+	    || (freeProc == (Tcl_FreeProc *) free)) {
 	ckfree((char *) clientData);
     } else {
 	(*freeProc)((char *)clientData);

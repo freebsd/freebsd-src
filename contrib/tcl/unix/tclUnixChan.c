@@ -9,7 +9,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclUnixChan.c 1.161 96/04/18 08:28:54
+ * SCCS: @(#) tclUnixChan.c 1.172 96/06/11 10:14:51
  */
 
 #include	"tclInt.h"	/* Internal definitions for Tcl. */
@@ -26,6 +26,9 @@ typedef struct PipeState {
     int numPids;	/* How many processes are attached to this pipe? */
     int *pidPtr;	/* The process IDs themselves. Allocated by
                          * the creator of the pipe. */
+    int isNonBlocking;	/* Nonzero when the pipe is in nonblocking mode.
+                         * Used to decide whether to wait for the children
+                         * at close time. */
 } PipeState;
 
 /*
@@ -49,6 +52,15 @@ typedef struct TcpState {
 #define TCP_ASYNC_CONNECT	(1<<1)	/* Async connect in progress. */
 
 /*
+ * The following defines the maximum length of the listen queue. This is
+ * the number of outstanding yet-to-be-serviced requests for a connection
+ * on a server socket, more than this number of outstanding requests and
+ * the connection request will fail.
+ */
+
+#define TCL_LISTEN_LIMIT	100
+
+/*
  * The following defines how much buffer space the kernel should maintain
  * for a socket.
  */
@@ -59,15 +71,15 @@ typedef struct TcpState {
  * Static routines for this file:
  */
 
-static int		CommonBlockModeProc _ANSI_ARGS_((
-    			    ClientData instanceData, Tcl_File inFile,
-                            Tcl_File outFile, int mode));
 static TcpState *	CreateSocket _ANSI_ARGS_((Tcl_Interp *interp,
 			    int port, char *host, int server,
 			    char *myaddr, int myport, int async));
 static int		CreateSocketAddress _ANSI_ARGS_(
 			    (struct sockaddr_in *sockaddrPtr,
 			    char *host, int port));
+static int		FileBlockModeProc _ANSI_ARGS_((
+    			    ClientData instanceData, Tcl_File inFile,
+                            Tcl_File outFile, int mode));
 static int		FileCloseProc _ANSI_ARGS_((ClientData instanceData,
 			    Tcl_Interp *interp, Tcl_File inFile,
                             Tcl_File outFile));
@@ -80,6 +92,9 @@ static int		FilePipeOutputProc _ANSI_ARGS_((
 static int		FileSeekProc _ANSI_ARGS_((ClientData instanceData,
 			    Tcl_File inFile, Tcl_File outFile, long offset,
 			    int mode, int *errorCode));
+static int		PipeBlockModeProc _ANSI_ARGS_((
+    			    ClientData instanceData, Tcl_File inFile,
+                            Tcl_File outFile, int mode));
 static int		PipeCloseProc _ANSI_ARGS_((ClientData instanceData,
 			    Tcl_Interp *interp, Tcl_File inFile,
                             Tcl_File outFile));
@@ -106,7 +121,7 @@ static int		WaitForConnect _ANSI_ARGS_((TcpState *statePtr,
 
 static Tcl_ChannelType fileChannelType = {
     "file",				/* Type name. */
-    CommonBlockModeProc,		/* Set blocking/nonblocking mode.*/
+    FileBlockModeProc,			/* Set blocking/nonblocking mode.*/
     FileCloseProc,			/* Close proc. */
     FilePipeInputProc,			/* Input proc. */
     FilePipeOutputProc,			/* Output proc. */
@@ -122,7 +137,7 @@ static Tcl_ChannelType fileChannelType = {
 
 static Tcl_ChannelType pipeChannelType = {
     "pipe",				/* Type name. */
-    CommonBlockModeProc,		/* Set blocking/nonblocking mode.*/
+    PipeBlockModeProc,			/* Set blocking/nonblocking mode.*/
     PipeCloseProc,			/* Close proc. */
     FilePipeInputProc,			/* Input proc. */
     FilePipeOutputProc,			/* Output proc. */
@@ -150,7 +165,7 @@ static Tcl_ChannelType tcpChannelType = {
 /*
  *----------------------------------------------------------------------
  *
- * CommonBlockModeProc --
+ * FileBlockModeProc --
  *
  *	Helper procedure to set blocking and nonblocking modes on a
  *	channel. Invoked either by generic IO level code or by other
@@ -167,7 +182,7 @@ static Tcl_ChannelType tcpChannelType = {
 
 	/* ARGSUSED */
 static int
-CommonBlockModeProc(instanceData, inFile, outFile, mode)
+FileBlockModeProc(instanceData, inFile, outFile, mode)
     ClientData instanceData;		/* Unused. */
     Tcl_File inFile, outFile;		/* Input, output files for channel. */
     int mode;				/* The mode to set. Can be one of
@@ -203,6 +218,69 @@ CommonBlockModeProc(instanceData, inFile, outFile, mode)
         }
     }
 
+    return 0;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * PipeBlockModeProc --
+ *
+ *	Helper procedure to set blocking and nonblocking modes on a
+ *	channel. Invoked either by generic IO level code or by other
+ *	channel drivers after doing channel-type-specific inialization.
+ *
+ * Results:
+ *	0 if successful, errno when failed.
+ *
+ * Side effects:
+ *	Sets the device into blocking or non-blocking mode.
+ *
+ *----------------------------------------------------------------------
+ */
+
+	/* ARGSUSED */
+static int
+PipeBlockModeProc(instanceData, inFile, outFile, mode)
+    ClientData instanceData;		/* The pipe state. */
+    Tcl_File inFile, outFile;		/* Input, output files for channel. */
+    int mode;				/* The mode to set. Can be one of
+                                         * TCL_MODE_BLOCKING or
+                                         * TCL_MODE_NONBLOCKING. */
+{
+    PipeState *pipePtr;
+    int curStatus;
+    int fd;
+
+    if (inFile != NULL) {
+        fd = (int) Tcl_GetFileInfo(inFile, NULL);
+        curStatus = fcntl(fd, F_GETFL);
+        if (mode == TCL_MODE_BLOCKING) {
+            curStatus &= (~(O_NONBLOCK));
+        } else {
+            curStatus |= O_NONBLOCK;
+        }
+        if (fcntl(fd, F_SETFL, curStatus) < 0) {
+            return errno;
+        }
+        curStatus = fcntl(fd, F_GETFL);
+    }
+    if (outFile != NULL) {
+        fd = (int) Tcl_GetFileInfo(outFile, NULL);
+        curStatus = fcntl(fd, F_GETFL);
+        if (mode == TCL_MODE_BLOCKING) {
+            curStatus &= (~(O_NONBLOCK));
+        } else {
+            curStatus |= O_NONBLOCK;
+        }
+        if (fcntl(fd, F_SETFL, curStatus) < 0) {
+            return errno;
+        }
+    }
+
+    pipePtr = (PipeState *) instanceData;
+    pipePtr->isNonBlocking = (mode == TCL_MODE_NONBLOCKING) ? 1 : 0;
+    
     return 0;
 }
 
@@ -336,17 +414,29 @@ FileCloseProc(instanceData, interp, inFile, outFile)
         fd = (int) Tcl_GetFileInfo(inFile, NULL);
         Tcl_FreeFile(inFile);
 
-	if (close(fd) < 0) {
-	    errorCode = errno;
-	}
+        if (tclInInterpreterDeletion) {
+            if ((fd != 0) && (fd != 1) && (fd != 2)) {
+                if (close(fd) < 0) {
+                    errorCode = errno;
+                }
+            }
+        } else if (close(fd) < 0) {
+            errorCode = errno;
+        }
     }
 
     if (outFile != NULL) {
         fd = (int) Tcl_GetFileInfo(outFile, NULL);
         Tcl_FreeFile(outFile);        
-	if ((close(fd) < 0) && (errorCode == 0)) {
-	    errorCode = errno;
-	}
+        if (tclInInterpreterDeletion) {
+            if ((fd != 0) && (fd != 1) && (fd != 2)) {
+                if ((close(fd) < 0) && (errorCode == 0)) {
+                    errorCode = errno;
+                }
+            }
+        } else if ((close(fd) < 0) && (errorCode == 0)) {
+            errorCode = errno;
+        }
     }
     return errorCode;
 }
@@ -484,6 +574,7 @@ PipeCloseProc(instanceData, interp, inFile, outFile)
     int fd, errorCode, result;
 
     errorCode = 0;
+    result = 0;
     pipePtr = (PipeState *) instanceData;
     if (pipePtr->readFile != NULL) {
         fd = (int) Tcl_GetFileInfo(pipePtr->readFile, NULL);
@@ -499,20 +590,34 @@ PipeCloseProc(instanceData, interp, inFile, outFile)
 	    errorCode = errno;
 	}
     }
-    
-    /*
-     * Wrap the error file into a channel and give it to the cleanup
-     * routine.
-     */
 
-    if (pipePtr->errorFile != NULL) {
-	errChan = Tcl_CreateChannel(&fileChannelType, "pipeError",
-                pipePtr->errorFile, NULL, NULL);
+    if (pipePtr->isNonBlocking) {
+    
+	/*
+         * If the channel is non-blocking, just detach the children PIDs
+         * and discard the errorFile.
+         */
+        
+        Tcl_DetachPids(pipePtr->numPids, pipePtr->pidPtr);
+        if (pipePtr->errorFile != NULL) {
+            Tcl_FreeFile(pipePtr->errorFile);
+        }
     } else {
-	errChan = NULL;
+        
+	/*
+         * Wrap the error file into a channel and give it to the cleanup
+         * routine.
+         */
+
+        if (pipePtr->errorFile != NULL) {
+            errChan = Tcl_CreateChannel(&fileChannelType, "pipeError",
+                    pipePtr->errorFile, NULL, NULL);
+        } else {
+            errChan = NULL;
+        }
+        result = TclCleanupChildren(interp, pipePtr->numPids, pipePtr->pidPtr,
+                errChan);
     }
-    result = TclCleanupChildren(interp, pipePtr->numPids, pipePtr->pidPtr,
-            errChan);
     if (pipePtr->numPids != 0) {
         ckfree((char *) pipePtr->pidPtr);
     }
@@ -664,6 +769,8 @@ Tcl_MakeFileChannel(inFd, outFd, mode)
                                  * TCL_WRITABLE to indicate whether inFile
                                  * and/or outFile are valid. */
 {
+    Tcl_Channel chan;
+    int fileUsed;
     Tcl_File inFile, outFile;
     char channelName[20];
 
@@ -684,6 +791,25 @@ Tcl_MakeFileChannel(inFd, outFd, mode)
         outFile = Tcl_GetFile(outFd, TCL_UNIX_FD);
     }
 
+    /*
+     * Look to see if a channel with those two Tcl_Files already exists.
+     * If so, return it.
+     */
+    
+    chan = TclFindFileChannel(inFile, outFile, &fileUsed);
+    if (chan != (Tcl_Channel) NULL) {
+        return chan;
+    }
+
+    /*
+     * If one of the Tcl_Files is used in another channel, do not
+     * create a new channel containing it; this avoids core dumps
+     * later, when the Tcl_File would be freed twice.
+     */
+    
+    if (fileUsed) {
+        return (Tcl_Channel) NULL;
+    }
     return Tcl_CreateChannel(&fileChannelType, channelName, inFile, outFile,
             (ClientData) NULL);
 }
@@ -728,6 +854,7 @@ TclCreateCommandChannel(readFile, writeFile, errorFile, numPids, pidPtr)
     statePtr->errorFile = errorFile;
     statePtr->numPids = numPids;
     statePtr->pidPtr = pidPtr;
+    statePtr->isNonBlocking = 0;
 
     /*
      * Use one of the fds associated with the channel as the
@@ -857,7 +984,7 @@ TcpBlockModeProc(instanceData, inFile, outFile, mode)
     } else {
         statePtr->flags |= TCP_ASYNC_SOCKET;
     }
-    return CommonBlockModeProc(instanceData, inFile, outFile, mode);
+    return FileBlockModeProc(instanceData, inFile, outFile, mode);
 }
 
 /*
@@ -1271,7 +1398,7 @@ CreateSocket(interp, port, host, server, myaddr, myport, async)
 	status = bind(sock, (struct sockaddr *) &sockaddr,
                 sizeof(struct sockaddr));
 	if (status != -1) {
-	    status = listen(sock, 5);
+	    status = listen(sock, TCL_LISTEN_LIMIT);
 	} 
     } else {
 	if (myaddr != NULL || myport != 0) { 
@@ -1380,7 +1507,7 @@ CreateSocketAddress(sockaddrPtr, host, port)
 	addr.s_addr = INADDR_ANY;
     } else {
         addr.s_addr = inet_addr(host);
-        if (addr.s_addr == (unsigned long) -1) {
+        if (addr.s_addr == -1) {
             hostent = gethostbyname(host);
             if (hostent != NULL) {
                 memcpy((VOID *) &addr,
@@ -1664,27 +1791,34 @@ TclGetDefaultStdChannel(type)
     int mode = 0;		/* compiler warning (used before set). */
     char *bufMode = NULL;
 
-    /*
-     * If the channels were not created yet, create them now and
-     * store them in the static variables.
-     */
-
     switch (type) {
-	case TCL_STDIN:
+        case TCL_STDIN:
+            if ((lseek(0, (off_t) 0, SEEK_CUR) == -1) &&
+                    (errno == EBADF)) {
+                return (Tcl_Channel) NULL;
+            }
 	    fd = 0;
 	    mode = TCL_READABLE;
             bufMode = "line";
-	    break;
-	case TCL_STDOUT:
+            break;
+        case TCL_STDOUT:
+            if ((lseek(1, (off_t) 0, SEEK_CUR) == -1) &&
+                    (errno == EBADF)) {
+                return (Tcl_Channel) NULL;
+            }
 	    fd = 1;
 	    mode = TCL_WRITABLE;
             bufMode = "line";
-	    break;
-	case TCL_STDERR:
+            break;
+        case TCL_STDERR:
+            if ((lseek(2, (off_t) 0, SEEK_CUR) == -1) &&
+                    (errno == EBADF)) {
+                return (Tcl_Channel) NULL;
+            }
 	    fd = 2;
 	    mode = TCL_WRITABLE;
 	    bufMode = "none";
-	    break;
+            break;
 	default:
 	    panic("TclGetDefaultStdChannel: Unexpected channel type");
 	    break;
