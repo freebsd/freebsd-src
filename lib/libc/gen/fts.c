@@ -963,6 +963,24 @@ fts_palloc(sp, more)
 	return (sp->fts_path == NULL);
 }
 
+static void
+ADJUST(p, addr)
+	FTSENT *p;
+	void *addr;
+{
+	if ((p)->fts_accpath >= (p)->fts_path &&			
+	    (p)->fts_accpath < (p)->fts_path + (p)->fts_pathlen) {
+		if (p->fts_accpath != p->fts_path)
+			errx(1, "fts ADJUST: accpath %p path %p",
+			    p->fts_accpath, p->fts_path);
+		if (p->fts_level != 0)
+			errx(1, "fts ADJUST: level %d not 0", p->fts_level);
+		(p)->fts_accpath =					
+		    (char *)addr + ((p)->fts_accpath - (p)->fts_path);	
+	}
+	(p)->fts_path = addr;						
+}
+
 /*
  * When the path is realloc'd, have to fix all of the pointers in structures
  * already returned.
@@ -974,18 +992,18 @@ fts_padjust(sp, addr)
 {
 	FTSENT *p;
 
-#define	ADJUST(p) {							\
-	(p)->fts_accpath =						\
-	    (char *)addr + ((p)->fts_accpath - (p)->fts_path);		\
+#define	ADJUST1(p) {							\
+	if ((p)->fts_accpath == (p)->fts_path)				\
+		(p)->fts_accpath = (addr);				\
 	(p)->fts_path = addr;						\
 }
 	/* Adjust the current set of children. */
 	for (p = sp->fts_child; p; p = p->fts_link)
-		ADJUST(p);
+		ADJUST(p, addr);
 
 	/* Adjust the rest of the tree. */
 	for (p = sp->fts_cur; p->fts_level >= FTS_ROOTLEVEL;) {
-		ADJUST(p);
+		ADJUST(p, addr);
 		p = p->fts_link ? p->fts_link : p->fts_parent;
 	}
 }
