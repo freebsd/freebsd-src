@@ -1,5 +1,5 @@
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
-<!-- $Id: FAQ.sgml,v 1.36 1997/03/12 19:14:26 joerg Exp $ -->
+<!-- $Id: FAQ.sgml,v 1.37 1997/03/13 01:00:32 joerg Exp $ -->
 
   <article>
 
@@ -7,7 +7,7 @@
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
 
-<date>$Date: 1997/03/12 19:14:26 $
+<date>$Date: 1997/03/13 01:00:32 $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -2153,9 +2153,11 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
           now, working on their new ``scratch and sniff'' GUI.  It's a
           funny old business we're in!
 
-          Seriously, Linux uses the ``<tt/HALT/'' instruction when the
-          system is idle thus lowering its energy consumption and therefore
-          the heat it generates.
+          Seriously, both FreeBSD and Linux uses the ``<tt/HALT/''
+	  instruction when the system is idle thus lowering its energy
+	  consumption and therefore the heat it generates.  Also if you
+	  have APM (automatic power management) configured, then FreeBSD
+	  can also put the CPU into a low power mode.
 
       <sect1>
         <heading>Who's scratching in my memory banks??</heading>
