@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.354 1999/07/08 06:05:48 mckusick Exp $
+ *	$Id: machdep.c,v 1.355 1999/07/09 04:15:40 jlemon Exp $
  */
 
 #include "apm.h"
@@ -346,10 +346,10 @@ again:
 
 	if (nbuf == 0) {
 		nbuf = 30;
-		if( physmem > 1024)
+		if (physmem > 1024)
 			nbuf += min((physmem - 1024) / 8, 2048);
-		if( physmem > 65536)
-			nbuf += (physmem - 65536) / 20;
+		if (physmem > 16384)
+			nbuf += (physmem - 16384) / 20;
 	}
 	nswbuf = max(min(nbuf/4, 256), 16);
 
