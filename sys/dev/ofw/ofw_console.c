@@ -93,8 +93,9 @@ cn_drvinit(void *unused)
 		    OF_getprop(options, "output-device", output,
 		    sizeof(output)) == -1)
 			return;
-		make_dev(&ofw_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "ofwcons");
-		make_dev_alias(ofw_consdev.cn_dev, "%s", output);
+		make_dev(&ofw_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "%s",
+		    output);
+		make_dev_alias(ofw_consdev.cn_dev, "ofwcons");
 	}
 }
 
