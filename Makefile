@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.103 1996/09/21 06:06:41 ache Exp $
+#	$Id: Makefile,v 1.104 1996/10/04 08:48:27 peter Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -106,6 +106,9 @@ CLEANDIR=	clean
 CLEANDIR=	cleandir
 .endif
 .endif
+
+SUP?=           sup
+SUPFLAGS?=      -v
 
 #
 # While building tools for bootstrapping, we dont need to waste time on
@@ -274,12 +277,12 @@ update:
 	@echo "--------------------------------------------------------------"
 	@echo "Running sup"
 	@echo "--------------------------------------------------------------"
-	@sup -v ${SUPFILE}
+	@${SUP} ${SUPFLAGS} ${SUPFILE}
 .if defined(SUPFILE1)
-	@sup -v ${SUPFILE1}
+	@${SUP} ${SUPFLAGS} ${SUPFILE1}
 .endif
 .if defined(SUPFILE2)
-	@sup -v ${SUPFILE2}
+	@${SUP} ${SUPFLAGS} ${SUPFILE2}
 .endif
 .endif
 .if defined(CVS_UPDATE)
