@@ -77,25 +77,25 @@ struct lv {
 
 static int alldev = 0;
 
-void ccb_stat __P((int, char **));
-void debug  __P((int, char **));
-void dostat __P((void));
-int getnum __P((char *));
-int islevel __P((char *));
-int lvls2bits __P((char *));
-void mstate __P((int, char **));
-void nport __P((int, char **));
-void onoff __P((int, char **, int, char *, char *, int));
-int opencontrol __P((void));
-void prlevels __P((int));
-void prusage __P((int, int));
-void rxint  __P((int, char **));
-void tty_stat __P((int, char **));
-void txint  __P((int, char **));
+void ccb_stat(int, char **);
+void debug(int, char **);
+void dostat(void);
+int getnum(char *);
+int islevel(char *);
+int lvls2bits(char *);
+void mstate(int, char **);
+void nport(int, char **);
+void onoff(int, char **, int, char *, char *, int);
+int opencontrol(void);
+void prlevels(int);
+void prusage(int, int);
+void rxint(int, char **);
+void tty_stat(int, char **);
+void txint(int, char **);
 
 struct opt {
 	char	*o_name;
-	void	(*o_func)();
+	void	(*o_func)(int, char **);
 } opt[] = {
 	{"debug",		debug},
 	{"rxint_throttle",	rxint},
@@ -108,7 +108,7 @@ struct opt {
 };
 
 struct stat_list {
-	void (*st_func)();
+	void (*st_func)(int, char **);
 } stat_list[] = {
 	{mstate},
 	{0}
@@ -140,11 +140,10 @@ char *Devname;
 struct si_tcsi tc;
 
 int
-main(argc, argv)
-	char **argv;
+main(int argc, char **argv)
 {
 	struct opt *op;
-	void (*func)() = NULL;
+	void (*func)(int, char **) = NULL;
 
 	if (argc < 2)
 		prusage(U_ALL, 1);
@@ -190,7 +189,7 @@ main(argc, argv)
 }
 
 int
-opencontrol()
+opencontrol(void)
 {
 	int fd;
 
@@ -205,8 +204,7 @@ opencontrol()
  * Don't print the DEBUG usage string unless explicity requested.
  */
 void
-prusage(strn, eflag)
-	int strn, eflag;
+prusage(int strn, int eflag)
 {
 	char **cp;
 
@@ -227,7 +225,7 @@ prusage(strn, eflag)
 
 /* print port status */
 void
-dostat()
+dostat(void)
 {
 	char *av[1], *acp;
 	struct stat_list *stp;
@@ -255,8 +253,7 @@ dostat()
  * debug [[set|add|del debug_lvls] | [off]]
  */
 void
-debug(ac, av)
-	char **av;
+debug(int ac, char **av)
 {
 	int level;
 
@@ -303,8 +300,7 @@ debug(ac, av)
 }
 
 void
-rxint(ac, av)
-	char **av;
+rxint(int ac, char **av)
 {
 	tc.tc_port = 0;
 	switch (ac) {
@@ -329,8 +325,7 @@ rxint(ac, av)
 }
 
 void
-txint(ac, av)
-	char **av;
+txint(int ac, char **av)
 {
 
 	tc.tc_port = 0;
@@ -353,9 +348,7 @@ txint(ac, av)
 }
 
 void
-onoff(ac, av, cmd, cmdstr, prstr, usage)
-	char **av, *cmdstr, *prstr;
-	int ac, cmd, usage;
+onoff(int ac, char **av, int cmd, char *cmdstr, char *prstr, int usage)
 {
 	if (ac > 1)
 		prusage(usage, 1);
@@ -383,8 +376,7 @@ onoff(ac, av, cmd, cmdstr, prstr, usage)
 }
 
 void
-mstate(ac, av)
-	char **av;
+mstate(int ac, char **av)
 {
 	switch (ac) {
 	case 0:
@@ -404,8 +396,7 @@ mstate(ac, av)
 }
 
 void
-nport(ac, av)
-	char **av;
+nport(int ac, char **av)
 {
 	int ports;
 
@@ -417,8 +408,7 @@ nport(ac, av)
 }
 
 void
-ccb_stat(ac, av)
-char **av;
+ccb_stat(int ac, char **av)
 {
 	struct si_pstat sip;
 #define	CCB	sip.tc_ccb
@@ -470,8 +460,7 @@ char **av;
 }
 
 void
-tty_stat(ac, av)
-char **av;
+tty_stat(int ac, char **av)
 {
 	struct si_pstat sip;
 #define	TTY	sip.tc_tty
@@ -495,17 +484,16 @@ char **av;
 	printf("\tt_oflag 0x%x\n", TTY.t_oflag);	/* t_oflag */
 	printf("\tt_cflag 0x%x\n", TTY.t_cflag);	/* t_cflag */
 	printf("\tt_lflag 0x%x\n", TTY.t_lflag);	/* t_lflag */
-	printf("\tt_cc 0x%x\n", TTY.t_cc);		/* t_cc */
+	printf("\tt_cc %p\n", (void *)TTY.t_cc);	/* t_cc */
 	printf("\tt_termios.c_ispeed 0x%x\n", TTY.t_termios.c_ispeed);	/* t_termios.c_ispeed */
 	printf("\tt_termios.c_ospeed 0x%x\n", TTY.t_termios.c_ospeed);	/* t_termios.c_ospeed */
 }
 
 int
-islevel(tk)
-	char *tk;
+islevel(char *tk)
 {
-	register struct lv *lvp;
-	register char *acp;
+	struct lv *lvp;
+	char *acp;
 
 	for (acp = tk; *acp; acp++)
 		if (isupper(*acp))
@@ -521,8 +509,7 @@ islevel(tk)
  * or `|' into a bitfield - flag any unrecognised tokens.
  */
 int
-lvls2bits(str)
-	char *str;
+lvls2bits(char *str)
 {
 	int i, bits = 0;
 	int errflag = 0;
@@ -550,7 +537,7 @@ int
 getnum(char *str)
 {
 	int x;
-	register char *acp = str;
+	char *acp = str;
 
 	x = 0;
 	while (*acp) {
@@ -564,8 +551,7 @@ getnum(char *str)
 }
 
 void
-prlevels(x)
-	int x;
+prlevels(int x)
 {
 	struct lv *lvp;
 
@@ -583,4 +569,3 @@ prlevels(x)
 		printf("\n");
 	}
 }
-
