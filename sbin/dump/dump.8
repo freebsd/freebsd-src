@@ -139,7 +139,7 @@ Write the backup to
 .Ar file
 may be a special device file
 like
-.Pa /dev/rsa0
+.Pa /dev/sa0
 (a tape drive),
 .Pa /dev/fd1
 (a floppy disk drive),
@@ -317,7 +317,7 @@ to minimize the number of tapes follows:
 .It
 Always start with a level 0 backup, for example:
 .Bd -literal -offset indent
-/sbin/dump -0u -f /dev/nrsa0 /usr/src
+/sbin/dump -0u -f /dev/nsa0 /usr/src
 .Ed
 .Pp
 This should be done at set intervals, say once a month or once every two months,
@@ -349,7 +349,7 @@ will be used to determine the pathname of the remote
 program.
 .Sh FILES
 .Bl -tag -width /etc/dumpdates -compact
-.It Pa /dev/rsa0
+.It Pa /dev/sa0
 default tape unit to dump to
 .It Pa /etc/dumpdates
 dump date records
