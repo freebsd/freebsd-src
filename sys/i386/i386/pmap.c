@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.210 1998/10/21 11:38:14 dg Exp $
+ *	$Id: pmap.c,v 1.211 1998/10/28 13:36:57 dg Exp $
  */
 
 /*
@@ -459,7 +459,7 @@ getmtrr()
 {
 	int i;
 
-	if (cpu == CPU_686) {
+	if (cpu_class == CPUCLASS_686) {
 		for(i = 0; i < NPPROVMTRR; i++) {
 			PPro_vmtrr[i].base = rdmsr(PPRO_VMTRRphysBase0 + i * 2);
 			PPro_vmtrr[i].mask = rdmsr(PPRO_VMTRRphysMask0 + i * 2);
@@ -472,7 +472,7 @@ putmtrr()
 {
 	int i;
 
-	if (cpu == CPU_686) {
+	if (cpu_class == CPUCLASS_686) {
 		wbinvd();
 		for(i = 0; i < NPPROVMTRR; i++) {
 			wrmsr(PPRO_VMTRRphysBase0 + i * 2, PPro_vmtrr[i].base);
@@ -485,7 +485,7 @@ void
 pmap_setvidram(void)
 {
 #if 0
-	if (cpu == CPU_686) {
+	if (cpu_class == CPUCLASS_686) {
 		wbinvd();
 		/*
 		 * Set memory between 0-640K to be WB
@@ -508,7 +508,7 @@ pmap_setdevram(unsigned long long basea, vm_offset_t sizea)
 	unsigned long long base;
 	unsigned long long mask;
 
-	if (cpu != CPU_686)
+	if (cpu_class != CPUCLASS_686)
 		return;
 
 	free = -1;
@@ -2820,7 +2820,7 @@ pmap_zero_page(phys)
 	cpu_invlpg(&prv_CPAGE3);
 
 #if defined(I686_CPU)
-	if (cpu == CPU_686)
+	if (cpu_class == CPUCLASS_686)
 		i686_pagezero(&prv_CPAGE3);
 	else
 #endif
@@ -2841,7 +2841,7 @@ pmap_zero_page(phys)
 	}
 
 #if defined(I686_CPU)
-	if (cpu == CPU_686)
+	if (cpu_class == CPUCLASS_686)
 		i686_pagezero(CADDR2);
 	else
 #endif
