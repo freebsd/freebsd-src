@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.200 1995/09/08 03:20:07 julian Exp $
+#	$Id: LINT,v 1.201 1995/09/23 08:52:30 peter Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -184,6 +184,8 @@ options		HDLC			#X.25 link layer for serial lines
 # MROUTING enables the kernel multicast packet forwarder, which works
 # with mrouted(8).
 #
+# MTUDISC enables Path MTU Discovery kernel support, tunes MTU on the fly.
+#
 # IPFIREWALL enables support for IP firewall construction, in
 # conjunction with the `ipfw' program.  IPFIREWALL_VERBOSE does
 # the obvious thing.
@@ -196,6 +198,7 @@ options		HDLC			#X.25 link layer for serial lines
 options		"TCP_COMPAT_42"		#emulate 4.2BSD TCP bugs
 options		GATEWAY			#internetwork gateway
 options		MROUTING		# Multicast routing
+options		MTUDISC			#support Path MTU DIscovery
 options         IPFIREWALL              #firewall
 options         IPFIREWALL_VERBOSE      #print information about
 options		IPACCT			#ipaccounting
