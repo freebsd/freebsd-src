@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumvar.h,v 1.26 2001/01/09 06:37:42 grog Exp grog $
+ * $Id: vinumvar.h,v 1.24 2000/03/01 02:34:57 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -506,7 +506,6 @@ struct plex {
 struct rangelock {
     daddr_t stripe;					    /* address + 1 of the range being locked  */
     struct buf *bp;					    /* user's buffer pointer */
-    int plexno;						    /* and number of plex it affects */
 };
 
 struct volume {
