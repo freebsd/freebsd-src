@@ -39,39 +39,24 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.44 1996/07/31 09:26:31 davidg Exp $
+ * $Id: init_main.c,v 1.45 1996/08/22 17:37:02 wosch Exp $
  */
 
 #include "opt_rlimit.h"
 
 #include <sys/param.h>
 #include <sys/filedesc.h>
-#include <sys/errno.h>
-#include <sys/exec.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
-#ifdef GPROF
-#include <sys/gmon.h>
-#endif
-#include <sys/mount.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
 #include <sys/sysent.h>
-#include <sys/conf.h>
-#include <sys/buf.h>
-#include <sys/clist.h>
-#include <sys/msg.h>
-#include <sys/protosw.h>
 #include <sys/reboot.h>
-#include <sys/sem.h>
-#include <sys/shm.h>
 #include <sys/sysproto.h>
 #include <sys/vmmeter.h>
-
-#include <ufs/ufs/quota.h>
 
 #include <machine/cpu.h>
 
@@ -81,7 +66,6 @@
 #include <vm/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#include <vm/vm_extern.h>
 #include <sys/user.h>
 
 extern struct linker_set	sysinit_set;	/* XXX */
