@@ -257,16 +257,6 @@ initarm(void *arg, void *arg2)
 	valloc_pages(kernelstack, KSTACK_PAGES);
 
 
-#ifdef VERBOSE_INIT_ARM
-	printf("IRQ stack: p0x%08lx v0x%08lx\n", irqstack.pv_pa,
-	    irqstack.pv_va); 
-	printf("ABT stack: p0x%08lx v0x%08lx\n", abtstack.pv_pa,
-	    abtstack.pv_va); 
-	printf("UND stack: p0x%08lx v0x%08lx\n", undstack.pv_pa,
-	    undstack.pv_va); 
-	printf("SVC stack: p0x%08lx v0x%08lx\n", kernelstack.pv_pa,
-	    kernelstack.pv_va); 
-#endif
 	/*
 	 * Allocate memory for the l1 and l2 page tables. The scheme to avoid
 	 * wasting memory by allocating the l1pt on the first 16k memory was
@@ -285,10 +275,6 @@ initarm(void *arg, void *arg2)
 	l1pagetable = kernel_l1pt.pv_pa;
 
 
-	/* XXX bla **/
-#if 0
-	bcopy((void*)0xd0300000, &mfs_root, MD_ROOT_SIZE*1024);
-#endif
 	/* Map the L2 pages tables in the L1 page table */
 	pmap_link_l2pt(l1pagetable, 0x00000000,
 	    &kernel_pt_table[KERNEL_PT_SYS]);
@@ -349,7 +335,7 @@ initarm(void *arg, void *arg2)
 	cpu_tlb_flushID();
 	cpu_domains(DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2));
 
-		/*
+	/*
 	 * Pages were allocated during the secondary bootstrap for the
 	 * stacks for different CPU modes.
 	 * We must now set the r13 registers in the different CPU modes to
@@ -358,7 +344,6 @@ initarm(void *arg, void *arg2)
 	 * of the stack memory.
 	 */
 	printf("init subsystems: stacks\n");
-
 	set_stackptr(PSR_IRQ32_MODE,
 	    irqstack.pv_va + IRQ_STACK_SIZE * PAGE_SIZE);
 	set_stackptr(PSR_ABT32_MODE,
@@ -383,55 +368,7 @@ initarm(void *arg, void *arg2)
 
 	bootverbose = 1;
 
-#if 0
-	set_cpufuncs();
-#endif	
 	/* Set stack for exception handlers */
-	
-#if 0
-	printf("arm_init: physical_pages = %08x\n", physical_pages);
-	printf("arm_init: kernel_l1pt: pa = %08x, va = %08x\n",
-	    kernel_l1pt.pv_pa, kernel_l1pt.pv_va);
-	printf("arm_init: proc0_uarea: pa = %08x, va = %08x\n",
-	    proc0_uarea.pv_pa, proc0_uarea.pv_va);
-	printf("arm_init: proc0_kstack: pa = %08x, va = %08x\n",
-	    proc0_kstack.pv_pa, proc0_kstack.pv_va);
-#endif
-
-/*	printf("arm_init: physfree = %08x\n", physical_freestart);
-	printf("arm_init: first = %08x\n", first);
-	printf("arm_init: end = %08x\n", (uint32_t) &end);
-	
-	printf("arm_init: params = %08x\n", params);
-	printf("arm_init: params: page_size = %08x\n", params->u1.s.page_size);
-	printf("arm_init: params: nrpages = %08x\n", params->u1.s.nr_pages);
-	printf("arm_init: params: ramdisk_size = %08x\n", params->u1.s.ramdisk_size);
-	printf("arm_init: params: flags = %08x\n", params->u1.s.flags);
-	printf("arm_init: params: rootdev = %08x\n", params->u1.s.rootdev);
-	printf("arm_init: params: video_num_cols = %08x\n", params->u1.s.video_num_cols);
-	printf("arm_init: params: video_num_rows = %08x\n", params->u1.s.video_num_rows);
-	printf("arm_init: params: video_x = %08x\n", params->u1.s.video_x);
-	printf("arm_init: params: video_y = %08x\n", params->u1.s.video_y);
-	printf("arm_init: params: memc_control_reg = %08x\n", params->u1.s.memc_control_reg);
-	printf("arm_init: params: sounddefault = %02x\n", params->u1.s.sounddefault);
-	printf("arm_init: params: adfsdrives = %02x\n", params->u1.s.adfsdrives);
-	printf("arm_init: params: bytes_per_char_h = %02x\n", params->u1.s.bytes_per_char_h);
-	printf("arm_init: params: bytes_per_char_v = %02x\n", params->u1.s.bytes_per_char_v);
-	for(i = 0; i < 4; i++) {
-		printf("arm_init: params: pages_in_bank[%d] = %08x\n", i, params->u1.s.pages_in_bank[i]);
-	}
-	printf("arm_init: params: pages_in_vram = %08x\n", params->u1.s.pages_in_vram);
-	printf("arm_init: params: initrd_start = %08x\n", params->u1.s.initrd_start);
-	printf("arm_init: params: initrd_size = %08x\n", params->u1.s.initrd_size);
-	printf("arm_init: params: rd_start = %08x\n", params->u1.s.rd_start);
-	printf("arm_init: params: system_options = %08x\n", params->u1.s.system_options);
-	printf("arm_init: params: system_serial_num = %08x\n", params->u1.s.system_serial_num);
-	for(i = 0; i < 8; i++) {
-		printf("arm_init: params: paths[%d] = %s\n", i, (params->u2.paths[i][0]) ? params->u2.paths[i] : "(null)");
-	}
-	printf("arm_init: params: magic = %08x\n", params->u2.s.magic);
-	printf("arm_init: params: commandline = %s\n", (params->commandline[0]) ? params->commandline : "(null)");
-	printf("arm_init: params: bootsetting = %s\n", (params->bootsetting[0]) ? params->bootsetting : "(null)");*/
 	
 	proc_linkup(&proc0, &ksegrp0, &kse0, &thread0);
 	proc0.p_uarea = (struct user *) proc0_uarea.pv_va;
@@ -443,13 +380,6 @@ initarm(void *arg, void *arg2)
 	
 	
 	/* Enable MMU, I-cache, D-cache, write buffer. */
-#if 0
-	printf("it was %p\n", (void *)cpufunc_control(0,0));
-	printf("ca c fait\n");
-	printf("before\n");
-	printf("mmu enabled\n");
-	printf("now we have %p\n", (void*)cpufunc_control(0,0));
-#endif
 
 	cpufunc_control(0x337f, 0x107d);
 	got_mmu = 1;
@@ -463,35 +393,14 @@ initarm(void *arg, void *arg2)
 	mutex_init();
 	
 	
-#if 0
-	phys_avail[0] = 0x00000000;
-	phys_avail[1] = physmem;
-	phys_avail[2] = 0;
-#endif
-#if 0
-	phys_avail[1] = physical_start;
-	phys_avail[2] = physical_freestart;
-	phys_avail[3] = physmem;
-#endif
-#if 0
-	phys_avail[3] = 0;
-#endif
-#if 0
-	phys_avail[1] = 0x01000000 - 1;
-#endif
 	phys_avail[0] = round_page(freemempos);
 	phys_avail[1] = 0xc0000000 + 0x02000000 - 1;
 	phys_avail[2] = 0;
 	phys_avail[3] = 0;
-#if 0
-	phys_avail[4] = 0x00000000;
-	phys_avail[5] = 0x00000000;
-#endif
 	
 	/* Do basic tuning, hz etc */
 	init_param1();
 	init_param2(physmem);
-	printf("arm_init: done!\n");
 	avail_end = 0xc0000000 + 0x02000000 - 1;
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP));
 }
