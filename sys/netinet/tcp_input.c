@@ -888,7 +888,7 @@ findpcb:
 			if (thflags & TH_FIN || tlen != 0)
 				tp->t_flags |= (TF_DELACK | TF_NEEDSYN);
 			else 
-				tp->t_flags |= TF_ACKNOW;
+				tp->t_flags |= (TF_ACKNOW | TF_NEEDSYN);
 			tcpstat.tcps_connects++;
 			soisconnected(so);
 			goto trimthenstep6;
