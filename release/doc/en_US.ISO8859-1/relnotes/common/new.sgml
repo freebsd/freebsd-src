@@ -145,6 +145,13 @@
         has been fixed.  <command>kbdcontrol -k /dev/kbd1</command>
         is no longer needed when only a USB keyboard is connected.
         &merged;</para>
+
+      <para arch="i386">The &man.safe.4; driver has been added
+        to support SafeNet 1141, 1741-based crypto accelerators.
+
+        <note>
+          <para>The public key support is not implemented.</para>
+        </note></para>
     </sect3>
 
     <sect3 id="boot">
