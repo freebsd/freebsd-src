@@ -621,7 +621,6 @@ struct	isa_driver lorandriver = {
 };
 COMPAT_ISA_DRIVER(loran, lorandriver);
 
-#define CDEV_MAJOR 94
 static struct cdevsw loran_cdevsw = {
 	/* open */	loranopen,
 	/* close */	loranclose,
@@ -632,7 +631,7 @@ static struct cdevsw loran_cdevsw = {
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"loran",
-	/* maj */	CDEV_MAJOR,
+	/* maj */	MAJOR_AUTO,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
