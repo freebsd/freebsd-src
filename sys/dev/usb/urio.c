@@ -89,7 +89,7 @@ d_ioctl_t urioioctl;
 #define RIO_NODIR  2
 
 #if (__FreeBSD__ >= 4)
-static struct cdevsw urio_cdevsw = {
+Static struct cdevsw urio_cdevsw = {
 	urioopen,	urioclose,	urioread,	uriowrite,
  	urioioctl,	nopoll,		nommap,		nostrategy,
  	"urio",		URIO_CDEV_MAJOR,nodump,		nopsize,
@@ -99,7 +99,7 @@ static struct cdevsw urio_cdevsw = {
 		 	  ((UE_GET_DIR(p) == UE_DIR_OUT) ? RIO_OUT :\
 			    				   RIO_NODIR))
 #else
-static struct cdevsw urio_cdevsw = {
+Static struct cdevsw urio_cdevsw = {
 	urioopen,	urioclose,	urioread,	uriowrite,
 	urioioctl,	nostop,		nullreset,	nodevtotty,
 	seltrue,	nommap,		nostrat,
@@ -546,7 +546,7 @@ ret:
 
 
 #if defined(__FreeBSD__)
-static int
+Static int
 urio_detach(device_t self)
 {       
 	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));

@@ -59,7 +59,7 @@ extern int usbdebug;
 #define DPRINTFN(n,x)
 #endif
 
-static void hid_clear_local __P((struct hid_item *));
+Static void hid_clear_local __P((struct hid_item *));
 
 #define MAXUSAGE 100
 struct hid_data {
@@ -75,7 +75,7 @@ struct hid_data {
 	int kindset;
 };
 
-static void
+Static void
 hid_clear_local(c)
 	struct hid_item *c;
 {
