@@ -116,19 +116,19 @@ main(int argc, char *argv[])
 	int i, gflag = 0, uflag = 0;
 	char ch;
 
-	while ((ch = getopt(argc, argv, "ugvq")) != -1) {
+	while ((ch = getopt(argc, argv, "gquv")) != -1) {
 		switch(ch) {
 		case 'g':
 			gflag++;
+			break;
+		case 'q':
+			qflag++;
 			break;
 		case 'u':
 			uflag++;
 			break;
 		case 'v':
 			vflag++;
-			break;
-		case 'q':
-			qflag++;
 			break;
 		default:
 			usage();
@@ -180,9 +180,9 @@ usage(void)
 {
 
 	fprintf(stderr, "%s\n%s\n%s\n",
-		"usage: quota [-guqv]",
-		"       quota [-qv] -u username ...",
-		"       quota [-qv] -g groupname ...");
+	    "usage: quota [-gu] [-v | -q]",
+	    "       quota [-u] [-v | -q] user ...",
+	    "       quota -g [-v | -q] group ...");
 	exit(1);
 }
 
@@ -371,10 +371,10 @@ showquotas(int type, u_long id, const char *name)
 				, (msgb == (char *)0) ? ""
 				    :timeprt(qup->dqblk.dqb_btime));
 			printf("%8lu%c%7lu%8lu%8s\n"
-				, qup->dqblk.dqb_curinodes
+				, (u_long)qup->dqblk.dqb_curinodes
 				, (msgi == (char *)0) ? ' ' : '*'
-				, qup->dqblk.dqb_isoftlimit
-				, qup->dqblk.dqb_ihardlimit
+				, (u_long)qup->dqblk.dqb_isoftlimit
+				, (u_long)qup->dqblk.dqb_ihardlimit
 				, (msgi == (char *)0) ? ""
 				    : timeprt(qup->dqblk.dqb_itime)
 			);
@@ -424,14 +424,15 @@ timeprt(time_t seconds)
 	minutes = (seconds + 30) / 60;
 	hours = (minutes + 30) / 60;
 	if (hours >= 36) {
-		sprintf(buf, "%lddays", (hours + 12) / 24);
+		sprintf(buf, "%lddays", ((long)hours + 12) / 24);
 		return (buf);
 	}
 	if (minutes >= 60) {
-		sprintf(buf, "%2ld:%ld", minutes / 60, minutes % 60);
+		sprintf(buf, "%2ld:%ld", (long)minutes / 60,
+		    (long)minutes % 60);
 		return (buf);
 	}
-	sprintf(buf, "%2ld", minutes);
+	sprintf(buf, "%2ld", (long)minutes);
 	return (buf);
 }
 
@@ -441,7 +442,7 @@ timeprt(time_t seconds)
 static struct quotause *
 getprivs(long id, int quotatype)
 {
-	struct quotause *qup, *quptail;
+	struct quotause *qup, *quptail = NULL;
 	struct fstab *fs;
 	struct quotause *quphead;
 	struct statfs *fst;
@@ -607,8 +608,8 @@ getnfsquota(struct statfs *fst, struct quotause *qup, long id, int quotatype)
 	gq_args.gqa_pathp = cp + 1;
 	gq_args.gqa_uid = id;
 	if (callaurpc(fst->f_mntfromname, RQUOTAPROG, RQUOTAVERS,
-	    RQUOTAPROC_GETQUOTA, xdr_getquota_args, (char *)&gq_args,
-	    xdr_getquota_rslt, (char *)&gq_rslt) != 0) {
+	    RQUOTAPROC_GETQUOTA, (xdrproc_t)xdr_getquota_args, (char *)&gq_args,
+	    (xdrproc_t)xdr_getquota_rslt, (char *)&gq_rslt) != 0) {
 		*cp = ':';
 		return (0);
 	}
