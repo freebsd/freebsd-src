@@ -218,8 +218,18 @@ exit1(struct thread *td, int rv)
 	p->p_flag &= ~(P_TRACED | P_PPWAIT);
 	SIGEMPTYSET(p->p_siglist);
 	SIGEMPTYSET(td->td_siglist);
-	if (timevalisset(&p->p_realtimer.it_value))
-		callout_stop(&p->p_itcallout);
+
+	/*
+	 * Stop the real interval timer.  If the handler is currently
+	 * executing, prevent it from rearming itself and let it finish.
+	 */
+	if (timevalisset(&p->p_realtimer.it_value) &&
+	    callout_stop(&p->p_itcallout) == 0) {
+		timevalclear(&p->p_realtimer.it_interval);
+		msleep(&p->p_itcallout, &p->p_mtx, PWAIT, "ritwait", 0);
+		KASSERT(!timevalisset(&p->p_realtimer.it_value),
+		    ("realtime timer is still armed"));
+	}
 	PROC_UNLOCK(p);
 
 	/*
