@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installFinal.c,v 1.14 1995/11/03 12:02:34 jkh Exp $
+ * $Id: installFinal.c,v 1.15 1995/11/04 15:08:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard & Coranth Gryphon.  All rights reserved.
@@ -94,7 +94,7 @@ configAnonFTP(char *unused)
     char tbuf[256];
     int i = RET_SUCCESS;
 
-    tptr = msgGetInput("/u", "What directory should the anonymous ftp account point to?");
+    tptr = msgGetInput("/home/ftp", "What directory should the anonymous ftp account point to?");
     if (tptr && *tptr && (tptr[0] == '/')) {
 	int len = strlen(tbuf);
 
@@ -102,6 +102,7 @@ configAnonFTP(char *unused)
 	if (tbuf[len - 1] == '/')
 	    tbuf[len - 1] = '\0';
 
+	vsystem("mkdir -p %s; chmod 555 %s; chown root %s", tbuf, tbuf, tbuf);
 	if (vsystem("adduser -uid %d -home %s -shell date -dotdir no -batch %s %s \"%s\" ",
 		    FTP_UID, tbuf, FTP_NAME, FTP_GROUP, FTP_COMMENT)) {
 	    dialog_clear();
@@ -109,7 +110,6 @@ configAnonFTP(char *unused)
 	    i = RET_FAIL;
 	}
 	else {
-	    vsystem("mkdir -p %s; chmod 555 %s; chown root %s", tbuf, tbuf, tbuf);
 	    vsystem("mkdir %s/bin && chmod 555 %s/bin", tbuf, tbuf);
 	    vsystem("cp /bin/ls %s/bin && chmod 111 %s/bin/ls", tbuf, tbuf);
 	    vsystem("mkdir %s/etc && chmod 555 %s/etc", tbuf, tbuf);
