@@ -102,12 +102,13 @@ HIDENAME(tmpstk):
 	.globl	_boothowto,_bootdev
 
 	.globl	_cpu,_cpu_vendor,_cpu_id,_bootinfo
-	.globl	_cpu_high, _cpu_feature
+	.globl	_cpu_high, _cpu_feature, _cpu_procinfo
 
 _cpu:		.long	0			/* are we 386, 386sx, or 486 */
 _cpu_id:	.long	0			/* stepping ID */
 _cpu_high:	.long	0			/* highest arg to CPUID */
 _cpu_feature:	.long	0			/* features */
+_cpu_procinfo:	.long	0			/* brand index / HTT info */
 _cpu_vendor:	.space	20			/* CPU origin code */
 _bootinfo:	.space	BOOTINFO_SIZE		/* bootinfo that we can handle */
 
@@ -679,6 +680,7 @@ trycpuid:	/* Use the `cpuid' instruction. */
 	movl	$1,%eax
 	.byte	0x0f,0xa2			# cpuid 1
 	movl	%eax,R(_cpu_id)			# store cpu_id
+	movl	%ebx,R(_cpu_procinfo)		# store cpu_procinfo
 	movl	%edx,R(_cpu_feature)		# store cpu_feature
 	rorl	$8,%eax				# extract family type
 	andl	$15,%eax

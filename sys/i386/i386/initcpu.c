@@ -63,12 +63,10 @@ static void	init_6x86MX(void);
 static void	init_ppro(void);
 static void	init_mendocino(void);
 #endif
-void	enable_sse(void);
 
-int	hw_instruction_sse = 0;
+static int	hw_instruction_sse;
 SYSCTL_INT(_hw, OID_AUTO, instruction_sse, CTLFLAG_RD,
-	   &hw_instruction_sse, 0,
-	   "SIMD/MMX2 instructions available in CPU");
+    &hw_instruction_sse, 0, "SIMD/MMX2 instructions available in CPU");
 
 #ifdef CPU_ENABLE_SSE
 u_int	cpu_fxsr;		/* SSE enabled */

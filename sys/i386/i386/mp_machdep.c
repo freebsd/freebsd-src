@@ -2273,8 +2273,6 @@ start_ap(int logical_cpu, u_int boot_addr)
  *
  * XXX: Needs to handshake and wait for completion before proceding.
  */
-extern void	enable_sse(void);
-
 void
 smp_invltlb(void)
 {
