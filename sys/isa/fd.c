@@ -51,10 +51,7 @@
  *
  */
 
-#include "fd.h"
 #include "opt_fdc.h"
-
-#if NFDC > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -344,9 +341,6 @@ static int yeinit(struct pccard_devinfo *devi)
 {
 	fdc_p fdc = &fdc_data[devi->isahd.id_unit];
 
-	/* validate unit number. */
-	if (devi->isahd.id_unit >= NFDC)
-		return(ENODEV);
 	fdc->baseport = devi->isahd.id_iobase;
 	/*
 	 * reset controller
@@ -812,14 +806,6 @@ fdc_attach(device_t dev)
 	fdout_wr(fdc, ((fdc->fdout = 0)));
 	bufq_init(&fdc->head);
 
-#ifdef FIFO_BEFORE_MOTORON
-	/* Hmm, this doesn't work here - is set_motor() magic? -Peter */
-	if (fdc->fdct != FDC_NE765 && fdc->fdct != FDC_UNKNOWN
-	    && enable_fifo(fdc) == 0) {
-		device_print_prettyname(dev);
-		printf("FIFO enabled, %d bytes threshold\n", fifo_threshold);
-	}
-#endif
 	/*
 	 * Probe and attach any children as were configured above.
 	 */
@@ -874,9 +860,7 @@ fd_probe(device_t dev)
 	struct	fd_data *fd;
 	struct	fdc_data *fdc;
 	fdsu_t	fdsu;
-#ifndef FIFO_BEFORE_MOTORON
 	static int fd_fifo = 0;
-#endif
 
 	fdsu = *(int *)device_get_ivars(dev); /* xxx cheat a bit... */
 	fd = device_get_softc(dev);
@@ -916,14 +900,13 @@ fd_probe(device_t dev)
 	set_motor(fdc, fdsu, TURNON);
 	DELAY(1000000);	/* 1 sec */
 
-#ifndef FIFO_BEFORE_MOTORON
+	/* XXX This doesn't work before the first set_motor() */
 	if (fd_fifo == 0 && fdc->fdct != FDC_NE765 && fdc->fdct != FDC_UNKNOWN
 	    && enable_fifo(fdc) == 0) {
 		device_print_prettyname(device_get_parent(dev));
 		printf("FIFO enabled, %d bytes threshold\n", fifo_threshold);
 	}
 	fd_fifo = 1;
-#endif
 
 	if ((fd_cmd(fdc, 2, NE7CMD_SENSED, fdsu, 1, &st3) == 0)
 	    && (st3 & NE7_ST3_T0)) {
@@ -2355,8 +2338,6 @@ fdioctl(dev, cmd, addr, flag, p)
 	}
 	return (error);
 }
-
-#endif /* NFDC > 0 */
 
 /*
  * Hello emacs, these are the
