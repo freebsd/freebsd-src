@@ -31,19 +31,19 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static char copyright[] =
-"@(#) Copyright (c) 1980, 1988, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)tput.c	8.2 (Berkeley) 3/19/94";
+static const char copyright[] =
+"@(#) Copyright (c) 1980, 1988, 1993\n\
+	The Regents of the University of California.  All rights reserved.\n";
 #endif
-static char rcsid[] =
-"$FreeBSD$";
-#endif /* not lint */
+
+#ifndef lint
+static const char sccsid[] = "@(#)tput.c	8.2 (Berkeley) 3/19/94";
+#endif
 
 #include <termios.h>
 
@@ -59,7 +59,7 @@ static char rcsid[] =
 
 static void   prlongname __P((char *));
 static void   usage __P((void));
-static char **process __P((char *, char *, char **));
+static char **process __P((const char *, char *, char **));
 
 int
 main(argc, argv)
@@ -67,7 +67,8 @@ main(argc, argv)
 	char **argv;
 {
 	int ch, exitval, n;
-	char *cptr, *p, *term, buf[1024], tbuf[1024];
+	char *cptr, *term, buf[1024], tbuf[1024];
+	const char *p;
 
 	term = NULL;
 	while ((ch = getopt(argc, argv, "T:")) != -1)
@@ -134,7 +135,8 @@ prlongname(buf)
 
 static char **
 process(cap, str, argv)
-	char *cap, *str, **argv;
+	const char *cap;
+	char *str, **argv;
 {
 	static char errfew[] =
 	    "not enough arguments (%d) for capability `%s'";
