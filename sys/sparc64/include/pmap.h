@@ -42,9 +42,11 @@ struct	md_page {
 
 struct	pmap {
 	struct	stte pm_stte;
+	vm_object_t pm_object;
 	u_int	pm_active;
 	u_int	pm_context;
 	u_int	pm_count;
+	u_int	pm_pages;
 	struct	pmap_statistics pm_stats;
 };
 
