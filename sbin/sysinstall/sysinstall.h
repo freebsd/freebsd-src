@@ -22,6 +22,9 @@
 #define BOOT_MAGIC 0xAA55
 #define ACTIVE 0x80
 
+#define COPYRIGHT_FILE	"/COPYRIGHT"
+#define README_FILE	"/README"
+
 #define STATUSFILE "sysinstall.stat"
 #define NOT_INSTALLED 0
 #define DISK_READY 1
@@ -45,3 +48,8 @@ extern unsigned char *errmsg;
 extern int *avail_fds;
 extern struct disklabel *avail_disklabels;
 extern u_short dkcksum(struct disklabel *);
+
+void	TellEm __P((char *fmt, ...));
+void	stage0	__P((void));
+void	*Malloc __P((size_t size));
+
