@@ -54,7 +54,7 @@ PAGES?=		1-
 
 UNROFF?=	unroff
 HTML_SPLIT?=	yes
-UNROFFFLAGS?=	-ms -fhtml
+UNROFFFLAGS?=	-fhtml
 .if ${HTML_SPLIT} == "yes"
 UNROFFFLAGS+=	split=1
 .endif
@@ -123,7 +123,8 @@ SRCDIR?=	${.CURDIR}
 .if !target(${DFILE})
 .if ${PRINTERDEVICE} == "html"
 ${DFILE}:	${SRCS} ${EXTRA} ${OBJS}
-	cd ${SRCDIR}; ${UNROFF} ${UNROFFFLAGS} document=${DOC} ${.ALLSRC}
+	cd ${SRCDIR}; ${UNROFF} ${MACROS} ${UNROFFFLAGS} \
+		document=${DOC} ${SRCS}
 .else
 
 ${DFILE}::	${SRCS} ${EXTRA} ${OBJS}
