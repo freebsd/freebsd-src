@@ -36,9 +36,9 @@
 
 #ifndef lint
 #ifdef SMTP
-static char sccsid[] = "@(#)srvrsmtp.c	8.123 (Berkeley) 10/12/96 (with SMTP)";
+static char sccsid[] = "@(#)srvrsmtp.c	8.125 (Berkeley) 11/8/96 (with SMTP)";
 #else
-static char sccsid[] = "@(#)srvrsmtp.c	8.123 (Berkeley) 10/12/96 (without SMTP)";
+static char sccsid[] = "@(#)srvrsmtp.c	8.125 (Berkeley) 11/8/96 (without SMTP)";
 #endif
 #endif /* not lint */
 
@@ -1270,10 +1270,20 @@ runinchild(label, e)
 	char *label;
 	register ENVELOPE *e;
 {
-	int childpid;
+	pid_t childpid;
+	sigfunc_t chldsig;
 
 	if (!OneXact)
 	{
+		/*
+		**  Disable child process reaping, in case ETRN has preceeded
+		**  MAIL command.
+		*/
+
+#ifdef SIGCHLD
+		chldsig = setsignal(SIGCHLD, SIG_IGN);
+#endif
+
 		childpid = dofork();
 		if (childpid < 0)
 		{
@@ -1299,6 +1309,11 @@ runinchild(label, e)
 				disconnect(1, e);
 				finis();
 			}
+
+#ifdef SIGCHLD
+			/* restore the child signal */
+			(void) setsignal(SIGCHLD, chldsig);
+#endif
 
 			return (1);
 		}
