@@ -2327,7 +2327,7 @@ wderror(struct buf *bp, struct disk *du, char *mesg)
 	if (bp == NULL)
 		printf("wd%d: %s", du->dk_lunit, mesg);
 	else
-		diskerr(bp, "wd", mesg, LOG_PRINTF, du->dk_skip,
+		diskerr(bp, mesg, LOG_PRINTF, du->dk_skip,
 			dsgetlabel(bp->b_dev, du->dk_slices));
 	printf(" (status %b error %b)\n",
 	       du->dk_status, WDCS_BITS, du->dk_error, WDERR_BITS);
