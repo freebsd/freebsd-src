@@ -50,6 +50,7 @@
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/conf.h>
+#include <sys/disk.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
 #include <sys/fcntl.h>

@@ -13,6 +13,9 @@
 #ifndef _SYS_DISK_H_
 #define	_SYS_DISK_H_
 
+#include <sys/ioccom.h>
+
+#ifdef _KERNEL
 #ifndef _SYS_DISKSLICE_H_
 #include <sys/diskslice.h>
 #endif /* _SYS_DISKSLICE_H_ */
@@ -41,5 +44,13 @@ dev_t disk_create(int unit, struct disk *disk, int flags, struct cdevsw *cdevsw,
 void disk_destroy(dev_t dev);
 struct disk *disk_enumerate(struct disk *disk);
 void disk_invalidate(struct disk *disk);
+
+#endif
+
+#define DIOCGSECTORSIZE	_IOR('d', 128, u_int)	/* Get sector size in bytes */
+#define DIOCGMEDIASIZE	_IOR('d', 129, off_t)	/* Get media size in bytes */
+#define DIOCGFWSECTORS	_IOR('d', 130, u_int)	/* Get firmware sectorcount */
+#define DIOCGFWHEADS	_IOR('d', 131, u_int)	/* Get firmware headcount */
+#define DIOCGKERNELDUMP _IOW('d', 133, u_int)	/* Set/Clear kernel dumps */
 
 #endif /* _SYS_DISK_H_ */
