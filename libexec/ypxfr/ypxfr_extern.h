@@ -29,12 +29,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypxfr_extern.h,v 1.5 1995/12/24 04:37:22 wpaul Exp $
+ *	$Id: ypxfr_extern.h,v 1.7 1996/06/03 03:10:42 wpaul Exp $
  */
 #include <sys/types.h>
 #include <limits.h>
-#include <db.h>
 #include <paths.h>
+#include <db.h>
+
+extern HASHINFO	openinfo;
+extern BTREEINFO openinfo_b;
 
 #ifndef _PATH_YP
 #define _PATH_YP "/var/yp/"
@@ -42,16 +45,17 @@
 
 extern char	*yp_dir;
 extern int	debug;
-extern HASHINFO	openinfo;
 extern int	yp_errno;
 extern void	yp_error __P(( const char *, ... ));
 extern int	_yp_check __P(( char ** ));
 extern char	*ypxfrerr_string __P(( ypxfrstat ));
-extern DB	*yp_open_db_rw __P(( const char *, const char *));
-extern int	yp_put_record __P(( DB *, DBT *, DBT * ));
+extern DB	*yp_open_db_rw __P(( const char *, const char *, const int));
+extern void	yp_init_dbs __P(( void ));
+extern int	yp_put_record __P(( DB *, DBT *, DBT * , int ));
 extern int	yp_get_record __P(( const char *, const char *, const DBT *, DBT *, int ));
 extern int	ypxfr_get_map __P(( char *, char *, char *, int (*)() ));
 extern char	*ypxfr_get_master __P(( char *, char *, char *, const int ));
 extern unsigned	long ypxfr_get_order __P(( char *, char *, char *, const int ));
 extern char	*ypxfxerr_string __P(( ypxfrstat ));
+extern int	ypxfrd_get_map __P(( char  *, char *, char *, char *));
 extern int	callrpc __P(( char *, int, int, int, xdrproc_t, char *, xdrproc_t, char *));
