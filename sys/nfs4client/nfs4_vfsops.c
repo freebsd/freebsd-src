@@ -117,10 +117,11 @@ SYSCTL_STRUCT(_vfs_nfs4, NFS_NFSSTATS, nfsstats, CTLFLAG_RD,
 static void	nfs_decode_args(struct nfsmount *nmp, struct nfs_args *argp);
 static void	nfs4_daemon(void *arg);
 static int	mountnfs(struct nfs_args *, struct mount *,
-		    struct sockaddr *, char *, char *, struct vnode **,
+		    struct sockaddr *, char *, struct vnode **,
 		    struct ucred *cred);
 static int	nfs4_do_setclientid(struct nfsmount *nmp, struct ucred *cred);
-static vfs_omount_t nfs_omount;
+static vfs_mount_t nfs_mount;
+static vfs_cmount_t nfs_cmount;
 static vfs_unmount_t nfs_unmount;
 static vfs_root_t nfs_root;
 static vfs_statfs_t nfs_statfs;
@@ -131,7 +132,8 @@ static vfs_sync_t nfs_sync;
  */
 static struct vfsops nfs_vfsops = {
 	.vfs_init =		nfs4_init,
-	.vfs_omount =		nfs_omount,
+	.vfs_mount =		nfs_mount,
+	.vfs_cmount =		nfs_cmount,
 	.vfs_root =		nfs_root,
 	.vfs_statfs =		nfs_statfs,
 	.vfs_sync =		nfs_sync,
@@ -384,7 +386,24 @@ nfs_decode_args(struct nfsmount *nmp, struct nfs_args *argp)
  */
 /* ARGSUSED */
 static int
-nfs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
+nfs_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
+{
+	struct nfs_args args;
+	int error;
+
+	error = copyin(data, (caddr_t)&args, sizeof (struct nfs_args));
+	if (error)
+		return (error);
+
+	ma = mount_arg(ma, "nfs_args", &args, sizeof args);
+
+	error = kernel_mount(ma, flags);
+
+	 return (error);
+}
+
+static int
+nfs_mount(struct mount *mp, struct thread *td)
 {
 	int error;
 	struct nfs_args args;
@@ -397,9 +416,10 @@ nfs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
 		printf("NFSv4: nfs_mountroot not supported\n");
 		return EINVAL;
 	}
-	error = copyin(data, (caddr_t)&args, sizeof (struct nfs_args));
+	error = vfs_copyopt(mp->mnt_optnew, "nfs_args", &args, sizeof args);
 	if (error)
 		return (error);
+
 	if (args.version != NFS_ARGSVERSION)
 		return (EPROGMISMATCH);
 	if (mp->mnt_flag & MNT_UPDATE) {
@@ -429,7 +449,7 @@ nfs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
 	error = getsockaddr(&nam, (caddr_t)args.addr, args.addrlen);
 	if (error)
 		return (error);
-	error = mountnfs(&args, mp, nam, path, hst, &vp, td->td_ucred);
+	error = mountnfs(&args, mp, nam, hst, &vp, td->td_ucred);
 	return (error);
 }
 
@@ -517,7 +537,7 @@ nfs4_daemon(void *arg)
  */
 static int
 mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
-    char *pth, char *hst, struct vnode **vpp, struct ucred *cred)
+    char *hst, struct vnode **vpp, struct ucred *cred)
 {
 	struct nfsmount *nmp;
 	char *rpth, *cp1, *cp2;
@@ -553,8 +573,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	nmp->nm_numgrps = NFS_MAXGRPS;
 	nmp->nm_readahead = NFS_DEFRAHEAD;
 	nmp->nm_deadthresh = NFS_MAXDEADTHRESH;
-	bcopy(hst, mp->mnt_stat.f_mntfromname, MNAMELEN);
-	bcopy(pth, mp->mnt_stat.f_mntonname, MNAMELEN);
+	vfs_mountedfrom(mp, hst);
 	nmp->nm_nam = nam;
 	/* Set up the sockets and per-host congestion */
 	nmp->nm_sotype = argp->sotype;
