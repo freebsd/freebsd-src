@@ -518,7 +518,7 @@ vm_pageout_map_deactivate_pages(map, desired)
 	 */
 	tmpe = map->header.next;
 	while (tmpe != &map->header) {
-		if ((tmpe->is_sub_map == 0) && (tmpe->is_a_map == 0)) {
+		if ((tmpe->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP)) == 0) {
 			obj = tmpe->object.vm_object;
 			if ((obj != NULL) && (obj->shadow_count <= 1) &&
 				((bigobj == NULL) ||
@@ -540,7 +540,7 @@ vm_pageout_map_deactivate_pages(map, desired)
 	while (tmpe != &map->header) {
 		if (vm_map_pmap(map)->pm_stats.resident_count <= desired)
 			break;
-		if ((tmpe->is_sub_map == 0) && (tmpe->is_a_map == 0)) {
+		if ((tmpe->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP)) == 0) {
 			obj = tmpe->object.vm_object;
 			if (obj)
 				vm_pageout_object_deactivate_pages(map, obj, desired, 0);

@@ -197,7 +197,7 @@ RetryFault:;
 		return (result);
 	}
 
-	if (entry->nofault) {
+	if (entry->eflags & MAP_ENTRY_NOFAULT) {
 		panic("vm_fault: fault on nofault entry, addr: %lx",
 			vaddr);
 	}
@@ -209,7 +209,7 @@ RetryFault:;
 	 * to COW .text.  We simply keep .text from ever being COW'ed
 	 * and take the heat that one cannot debug wired .text sections.
 	 */
-	if ((change_wiring == VM_FAULT_USER_WIRE) && entry->needs_copy) {
+	if ((change_wiring == VM_FAULT_USER_WIRE) && (entry->eflags & MAP_ENTRY_NEEDS_COPY)) {
 		if(entry->protection & VM_PROT_WRITE) {
 			int tresult;
 			vm_map_lookup_done(map, entry);
