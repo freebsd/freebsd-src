@@ -57,14 +57,19 @@
 struct iovec;
 
 __BEGIN_DECLS
-int	extattrctl(const char *path, int cmd, const char *filename,
-	    int attrnamespace, const char *attrname);
-int	extattr_delete_file(const char *path, int attrnamespace,
-	    const char *attrname);
-int	extattr_get_file(const char *path, int attrnamespace,
-	    const char *attrname, struct iovec *iovp, unsigned iovcnt);
-int	extattr_set_file(const char *path, int attrnamespace,
-	    const char *attrname, struct iovec *iovp, unsigned iovcnt);
+int	extattrctl(const char *_path, int _cmd, const char *_filename,
+	    int _attrnamespace, const char *_attrname);
+int	extattr_delete_fd(int _fd, int _attrnamespace, const char *_attrname);
+int	extattr_delete_file(const char *_path, int _attrnamespace,
+	    const char *_attrname);
+int	extattr_get_fd(int _fd, int _attrnamespace, const char *_attrname,
+	    struct iovec *_iovp, unsigned _iovcnt);
+int	extattr_get_file(const char *_path, int _attrnamespace,
+	    const char *_attrname, struct iovec *_iovp, unsigned _iovcnt);
+int	extattr_set_fd(int _fd, int _attrnamespace, const char *_attrname,
+	    struct iovec *_iovp, unsigned _iovcnt);
+int	extattr_set_file(const char *_path, int _attrnamespace,
+	    const char *_attrname, struct iovec *_iovp, unsigned _iovcnt);
 __END_DECLS
 
 #endif /* !_KERNEL */
