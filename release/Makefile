@@ -153,14 +153,9 @@ DIST_DOCS_ARCH_DEP=	installation relnotes hardware
 # Things which without too much trouble can be considered variables
 # BASE_DISTS are special in that they get full /etc installation sets.
 #
-.if ${TARGET_ARCH} == "i386"
-COMPAT_DISTS?=	compat1x compat20 compat21 compat22 compat3x compat4x
-.elif ${TARGET_ARCH} == "alpha"
-COMPAT_DISTS?=	compat4x
-.endif
 OTHER_DISTS?=	catpages manpages games proflibs dict info doc
 BASE_DISTS?=	base
-DISTRIBUTIONS?=	${BASE_DISTS} ${OTHER_DISTS} ${COMPAT_DISTS}
+DISTRIBUTIONS?=	${BASE_DISTS} ${OTHER_DISTS}
 
 # mountpoint for filesystems.
 MNT=			/mnt
@@ -601,7 +596,7 @@ release.5:
 
 	# Remove all the directories we don't need.
 	-cd ${RD}/trees && \
-		find ${OTHER_DISTS} ${COMPAT_DISTS} -depth -type d -print | xargs rmdir
+		find ${OTHER_DISTS} -depth -type d -print | xargs rmdir
 	touch ${.TARGET}
 
 #
