@@ -85,6 +85,7 @@ union_mount(mp, ndp, td)
 	int op;
 	int len;
 	size_t size;
+	struct componentname fakecn;
 
 	UDEBUG(("union_mount(mp = %p)\n", (void *)mp));
 
@@ -230,7 +231,15 @@ union_mount(mp, ndp, td)
 	 * supports whiteout operations.
 	 */
 	if ((mp->mnt_flag & MNT_RDONLY) == 0) {
-		error = VOP_WHITEOUT(um->um_uppervp, NULL, LOOKUP);
+		/*
+		 * XXX Fake up a struct componentname with only cn_nameiop
+		 * and cn_thread valid; union_whiteout() needs to use the
+		 * thread pointer to lock the vnode.
+		 */
+		bzero(&fakecn, sizeof(fakecn));
+		fakecn.cn_nameiop = LOOKUP;
+		fakecn.cn_thread = td;
+		error = VOP_WHITEOUT(um->um_uppervp, &fakecn, LOOKUP);
 		if (error)
 			goto bad;
 	}
