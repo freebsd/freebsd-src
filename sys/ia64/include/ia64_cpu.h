@@ -183,6 +183,42 @@ ia64_tpa(u_int64_t va)
 }
 
 /*
+ * Generate a ptc.e instruction.
+ */
+static __inline void
+ia64_ptc_e(u_int64_t v)
+{
+	__asm __volatile("ptc.e %0;;" :: "r"(v));
+}
+
+/*
+ * Generate a ptc.g instruction.
+ */
+static __inline void
+ia64_ptc_g(u_int64_t va, u_int64_t log2size)
+{
+	__asm __volatile("ptc.g %0,%1;;" :: "r"(va), "r"(log2size));
+}
+
+/*
+ * Generate a ptc.ga instruction.
+ */
+static __inline void
+ia64_ptc_ga(u_int64_t va, u_int64_t log2size)
+{
+	__asm __volatile("ptc.ga %0,%1;;" :: "r"(va), "r"(log2size));
+}
+
+/*
+ * Generate a ptc.l instruction.
+ */
+static __inline void
+ia64_ptc_l(u_int64_t va, u_int64_t log2size)
+{
+	__asm __volatile("ptc.l %0,%1;;" :: "r"(va), "r"(log2size));
+}
+
+/*
  * Read the value of ar.k0.
  */
 static __inline u_int64_t

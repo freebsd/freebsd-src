@@ -54,6 +54,7 @@ struct globaldata {
 	int		gd_inside_intr;
 	u_int64_t	gd_idlepcbphys;		/* pa of gd_idlepcb */
 	u_int64_t	gd_pending_ipis;	/* pending IPI events */
+	struct pmap	*gd_current_pmap;	/* which pmap is active */
 	u_int32_t	gd_next_asn;		/* next ASN to allocate */
 	u_int32_t	gd_current_asngen;	/* ASN rollover check */
 	u_int32_t	gd_intr_nesting_level;  /* interrupt recursion */

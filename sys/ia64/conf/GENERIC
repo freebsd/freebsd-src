@@ -163,3 +163,5 @@ device		ums		# Mouse
 device		aue		# ADMtek USB ethernet
 device		cue		# CATC USB ethernet
 device		kue		# Kawasaki LSI USB ethernet
+
+options		DDB
