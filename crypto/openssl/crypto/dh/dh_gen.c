@@ -86,6 +86,9 @@
  * It's just as OK (and in some sense better) to use a generator of the
  * order-q subgroup.
  */
+
+#ifndef OPENSSL_FIPS
+
 DH *DH_generate_parameters(int prime_len, int generator,
 	     void (*callback)(int,int,void *), void *cb_arg)
 	{
@@ -167,3 +170,5 @@ err:
 		}
 	return(ret);
 	}
+
+#endif
