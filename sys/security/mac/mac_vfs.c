@@ -2623,6 +2623,18 @@ mac_check_socket_visible(struct ucred *cred, struct socket *socket)
 }
 
 int
+mac_check_sysarch_ioperm(struct ucred *cred)
+{
+	int error;
+
+	if (!mac_enforce_system)
+		return (0);
+
+	MAC_CHECK(check_sysarch_ioperm, cred);
+	return (error);
+}
+
+int
 mac_check_system_acct(struct ucred *cred, struct vnode *vp)
 {
 	int error;

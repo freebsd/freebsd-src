@@ -322,6 +322,7 @@ struct mac_policy_ops {
 		    struct socket *so, struct label *socketlabel);
 	int	(*mpo_check_socket_visible)(struct ucred *cred,
 		    struct socket *so, struct label *socketlabel);
+	int	(*mpo_check_sysarch_ioperm)(struct ucred *cred);
 	int	(*mpo_check_system_acct)(struct ucred *cred,
 		    struct vnode *vp, struct label *vlabel);
 	int	(*mpo_check_system_nfsd)(struct ucred *cred);

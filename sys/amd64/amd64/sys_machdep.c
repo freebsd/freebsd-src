@@ -36,10 +36,12 @@
  */
 
 #include "opt_kstack_pages.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -183,6 +185,10 @@ i386_set_ioperm(td, args)
 	if ((error = copyin(args, &ua, sizeof(struct i386_ioperm_args))) != 0)
 		return (error);
 
+#ifdef MAC
+	if ((error = mac_check_sysarch_ioperm(td->td_ucred)) != 0)
+		return (error);
+#endif
 	if ((error = suser(td)) != 0)
 		return (error);
 	if ((error = securelevel_gt(td->td_ucred, 0)) != 0)
