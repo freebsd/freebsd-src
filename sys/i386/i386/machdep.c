@@ -1479,7 +1479,7 @@ DB_SHOW_COMMAND(idt, db_show_idt)
 	uintptr_t func;
 
 	ip = idt;
-	db_setup_paging(db_simple_pager, &quit, DB_LINES_PER_PAGE);
+	db_setup_paging(db_simple_pager, &quit, db_lines_per_page);
 	for (idx = 0, quit = 0; idx < NIDT; idx++) {
 		func = (ip->gd_hioffset << 16 | ip->gd_looffset);
 		if (func != (uintptr_t)&IDTVEC(rsvd)) {
