@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.3 1999/02/18 18:56:58 obrien Exp $
 
 DIST_DIR= ${.CURDIR}/../../contrib/isc-dhcp
 
