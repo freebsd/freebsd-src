@@ -116,10 +116,6 @@ static int
 iic_probe(device_t dev)
 {
 	struct iic_softc *sc = (struct iic_softc *)device_get_softc(dev);
-	static int once;
-
-	if (!once++)
-                cdevsw_add(&iic_cdevsw);
 
 	sc->sc_addr = iicbus_get_addr(dev);
 
