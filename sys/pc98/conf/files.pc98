@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.81.2.3 1999/04/01 14:47:01 kato Exp $
+#	$Id: files.pc98,v 1.81.2.4 1999/05/04 13:42:06 kato Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -26,11 +26,22 @@ font8x16.o			optional	std8x16font		\
 	no-implicit-rule before-depend \
 	clean		"${STD8X16FONT}-8x16 font8x16.c" 
 #
+atkbdmap.h			optional	atkbd_dflt_keymap	\
+	compile-with	"kbdcontrol -L ${ATKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > atkbdmap.h"				\
+	no-obj no-implicit-rule before-depend				\
+	clean		"atkbdmap.h"
+#
+ukbdmap.h			optional	ukbd_dflt_keymap	\
+	compile-with	"kbdcontrol -L ${UKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > ukbdmap.h"				\
+	no-obj no-implicit-rule before-depend				\
+	clean		"ukbdmap.h"
+#
 dev/fb/fb.c			optional	fb	device-driver
 dev/fb/fb.c			optional	gdc	device-driver
 dev/fb/splash.c			optional	splash
-dev/kbd/kbd.c			optional	kbd	device-driver
 dev/kbd/kbd.c			optional	pckbd	device-driver
+dev/kbd/kbd.c			optional	kbd	device-driver
+dev/kbd/kbd.c			optional	ukbd	device-driver
 i386/apm/apm.c			optional	apm	device-driver
 i386/apm/apm_setup.s		optional	apm
 i386/eisa/dpt_eisa.c		optional	eisa dpt device-driver
@@ -156,12 +167,12 @@ i386/isa/matcd/matcd.c		optional	matcd	device-driver
 i386/isa/pcibus.c		optional	pci	device-driver
 i386/isa/pcicx.c		optional	ze	device-driver
 i386/isa/pcicx.c		optional	zp	device-driver
-#i386/isa/pcvt/pcvt_drv.c	optional	vt	device-driver
-#i386/isa/pcvt/pcvt_ext.c	optional	vt	device-driver
-#i386/isa/pcvt/pcvt_kbd.c	optional	vt	device-driver
-#i386/isa/pcvt/pcvt_out.c	optional	vt	device-driver
-#i386/isa/pcvt/pcvt_sup.c	optional	vt	device-driver
-#i386/isa/pcvt/pcvt_vtf.c	optional	vt	device-driver
+i386/isa/pcvt/pcvt_drv.c	optional	vt	device-driver
+i386/isa/pcvt/pcvt_ext.c	optional	vt	device-driver
+i386/isa/pcvt/pcvt_kbd.c	optional	vt	device-driver
+i386/isa/pcvt/pcvt_out.c	optional	vt	device-driver
+i386/isa/pcvt/pcvt_sup.c	optional	vt	device-driver
+i386/isa/pcvt/pcvt_vtf.c	optional	vt	device-driver
 i386/isa/pnp.c			optional	pnp	device-driver
 i386/isa/prof_machdep.c		optional	profiling-routine
 i386/isa/ppc.c			optional	ppc	device-driver
@@ -248,9 +259,6 @@ pc98/pc98/spkr.c		optional	speaker	device-driver
 i386/isa/stallion.c		optional	stl	device-driver
 pc98/pc98/syscons.c		optional	sc	device-driver
 pc98/pc98/scvidctl.c		optional	sc	device-driver
-#i386/isa/scvesactl.c		optional	sc	device-driver
-#i386/isa/videoio.c		optional	sc	device-driver
-#i386/isa/vesa.c			optional	sc	device-driver
 i386/isa/tw.c			optional	tw	device-driver
 pc98/pc98/wd.c			optional	wdc	device-driver
 pc98/pc98/wd.c			optional	wd	device-driver
