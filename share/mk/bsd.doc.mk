@@ -110,17 +110,6 @@ realinstall:
 		${DFILE} ${DESTDIR}${BINDIR}/${VOLUME}
 .endif
 
-install:	beforeinstall realinstall afterinstall
-
-.if !target(beforeinstall)
-beforeinstall:
-
-.endif
-.if !target(afterinstall)
-afterinstall:
-
-.endif
-
 spell: ${SRCS}
 	(cd ${.CURDIR};  spell ${SRCS} ) | sort | \
 		comm -23 - ${.CURDIR}/spell.ok > ${DOC}.spell
