@@ -46,8 +46,8 @@
 #include <netinet6/scope6_var.h>
 
 /*
- * The scope6_lock protects both the global sid default stored in
- * sid_default below, but also per-interface sid data.
+ * The scope6_lock protects the global sid default stored in
+ * sid_default below.
  */
 static struct mtx scope6_lock;
 #define	SCOPE6_LOCK_INIT()	mtx_init(&scope6_lock, "scope6_lock", NULL, MTX_DEF)
@@ -71,7 +71,6 @@ struct scope6_id *
 scope6_ifattach(ifp)
 	struct ifnet *ifp;
 {
-	int s = splnet();
 	struct scope6_id *sid;
 
 	sid = (struct scope6_id *)malloc(sizeof(*sid), M_IFADDR, M_WAITOK);
@@ -89,7 +88,6 @@ scope6_ifattach(ifp)
 	sid->s6id_list[IPV6_ADDR_SCOPE_ORGLOCAL] = 1;
 #endif
 
-	splx(s);
 	return sid;
 }
 
@@ -106,12 +104,17 @@ scope6_set(ifp, idlist)
 	struct ifnet *ifp;
 	struct scope6_id *idlist;
 {
-	int i, s;
+	int i;
 	int error = 0;
-	struct scope6_id *sid = SID(ifp);
+	struct scope6_id *sid = NULL;
 
-	if (!sid)	/* paranoid? */
+	IF_AFDATA_LOCK(ifp);
+	sid = SID(ifp);
+
+	if (!sid) {	/* paranoid? */
+		IF_AFDATA_UNLOCK(ifp);
 		return (EINVAL);
+	}
 
 	/*
 	 * XXX: We need more consistency checks of the relationship among
@@ -123,8 +126,6 @@ scope6_set(ifp, idlist)
 	 * interface addresses, routing table entries, PCB entries...
 	 */
 
-	s = splnet();
-
 	SCOPE6_LOCK();
 	for (i = 0; i < 16; i++) {
 		if (idlist->s6id_list[i] &&
@@ -135,7 +136,8 @@ scope6_set(ifp, idlist)
 			 */
 			if (i == IPV6_ADDR_SCOPE_INTFACELOCAL &&
 			    idlist->s6id_list[i] != ifp->if_index) {
-				splx(s);
+				IF_AFDATA_UNLOCK(ifp);
+				SCOPE6_UNLOCK();
 				return (EINVAL);
 			}
 
@@ -147,7 +149,8 @@ scope6_set(ifp, idlist)
 				 * IDs, but we check the consistency for
 				 * safety in later use.
 				 */
-				splx(s);
+				IF_AFDATA_UNLOCK(ifp);
+				SCOPE6_UNLOCK();
 				return (EINVAL);
 			}
 
@@ -160,7 +163,7 @@ scope6_set(ifp, idlist)
 		}
 	}
 	SCOPE6_UNLOCK();
-	splx(s);
+	IF_AFDATA_UNLOCK(ifp);
 
 	return (error);
 }
@@ -170,15 +173,20 @@ scope6_get(ifp, idlist)
 	struct ifnet *ifp;
 	struct scope6_id *idlist;
 {
+	/* We only need to lock the interface's afdata for SID() to work. */
+	IF_AFDATA_LOCK(ifp);
 	struct scope6_id *sid = SID(ifp);
 
-	if (sid == NULL)	/* paranoid? */
+	if (sid == NULL) {	/* paranoid? */
+		IF_AFDATA_UNLOCK(ifp);
 		return (EINVAL);
+	}
 
 	SCOPE6_LOCK();
 	*idlist = *sid;
 	SCOPE6_UNLOCK();
 
+	IF_AFDATA_UNLOCK(ifp);
 	return (0);
 }
 
@@ -259,7 +267,11 @@ in6_addr2zoneid(ifp, addr, ret_id)
 {
 	int scope;
 	u_int32_t zoneid = 0;
-	struct scope6_id *sid = SID(ifp);
+	struct scope6_id *sid = NULL;
+
+	IF_AFDATA_LOCK(ifp);
+
+	sid = SID(ifp);
 
 #ifdef DIAGNOSTIC
 	if (sid == NULL) { /* should not happen */
@@ -277,10 +289,12 @@ in6_addr2zoneid(ifp, addr, ret_id)
 	 * interface.
 	 */
 	if (IN6_IS_ADDR_LOOPBACK(addr)) {
-		if (!(ifp->if_flags & IFF_LOOPBACK))
+		if (!(ifp->if_flags & IFF_LOOPBACK)) {
+			IF_AFDATA_UNLOCK(ifp);
 			return (-1);
-		else {
+		} else {
 			*ret_id = 0; /* there's no ambiguity */
+			IF_AFDATA_UNLOCK(ifp);
 			return (0);
 		}
 	}
@@ -315,6 +329,9 @@ in6_addr2zoneid(ifp, addr, ret_id)
 	SCOPE6_UNLOCK();
 
 	*ret_id = zoneid;
+	
+	IF_AFDATA_UNLOCK(ifp);
+
 	return (0);
 }
 
@@ -323,7 +340,7 @@ scope6_setdefault(ifp)
 	struct ifnet *ifp;	/* note that this might be NULL */
 {
 	/*
-	 * Currently, this function just set the default "interfaces"
+	 * Currently, this function just sets the default "interfaces"
 	 * and "links" according to the given interface.
 	 * We might eventually have to separate the notion of "link" from
 	 * "interface" and provide a user interface to set the default.
