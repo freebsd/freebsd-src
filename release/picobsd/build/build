@@ -73,7 +73,7 @@ set_msgs() {
 }
 
 
-# Main build procedure. It calls another scripts (stage1)
+# Main build procedure. It calls another script (stage1)
 main() {
 
     if [ "X${TYPE}" = "X" ] ; then
