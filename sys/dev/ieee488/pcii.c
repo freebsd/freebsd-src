@@ -79,7 +79,7 @@ static device_method_t pcii_methods[] = {
 static driver_t pcii_driver = {
 	"pcii",
 	pcii_methods,
-	sizeof(struct pcii_softc *),
+	sizeof(struct pcii_softc),
 };
 
 static int
