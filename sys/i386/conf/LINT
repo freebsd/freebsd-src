@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.139 1995/02/12 09:29:59 jkh Exp $
+#	$Id: LINT,v 1.140 1995/02/14 21:15:12 ugen Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -490,6 +490,26 @@ device ep0 at isa? port 0x300 net irq 10 vector epintr
 device el0 at isa? port 0x300 net irq 9 vector elintr
 device le0 at isa? port 0x300 net irq 5 iomem 0xd0000 vector le_intr
 device ze0 at isa? port 0x300 net irq 5 iomem 0xd8000 vector zeintr
+
+# ISDN drivers - `isdn'.
+#
+# Uncomment one (and only one) of the following 4 drivers for the appropriate
+# ISDN device you have.  For more information on what's considered appropriate
+# for your given set of circumstances, please read
+# /usr/src/gnu/usr.sbin/docs/INSTALL.  It's a bit sparse at present, but it's
+# the best we have!
+device nic0 at isa? port "IO_COM3" iomem 0xe0000 tty irq 9 vector nicintr
+device nnic0 at isa? port 0x150 iomem 0xe0000 tty irq 12 vector nnicintr
+device snic0
+controller tel0 at isa? iomem 0xe0000 tty irq 9 vector telintr
+
+# These are non-optional for ISDN
+pseudo-device   isdn
+pseudo-device   ii      4
+pseudo-device   ity     4
+pseudo-device   itel    2       
+pseudo-device   ispy    1       
+
 
 #
 # Audio drivers: `snd', `pca'
