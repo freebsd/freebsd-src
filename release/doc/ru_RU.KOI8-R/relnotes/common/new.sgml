@@ -1,9 +1,9 @@
 <!--
      The FreeBSD Russian Documentation Project
 
-     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.6 2004/06/30 10:36:21 den Exp $
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.7 2004/06/30 14:03:59 den Exp $
 
-     Original revision: 1.732
+     Original revision: 1.745
 -->
 
 <articleinfo>
@@ -66,10 +66,10 @@
     информация по получению этого (или другого) &release.type;
     дистрибутива &os; может быть найдена в
     <ulink
-    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors.html"
+    url="http://www.FreeBSD.org/doc/ru_RU.KOI8-R/books/handbook/mirrors.html"
 >приложении
     <quote>Получение FreeBSD</quote></ulink> <ulink
-    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">Руководства
+    url="http://www.FreeBSD.org/doc/ru_RU.KOI8-R/books/handbook/">Руководства
     FreeBSD</ulink>.</para>
 
 ]]>
@@ -198,6 +198,32 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       адекватная проверка аутентификации между автономными realm.
       Более подробная информация находится в сообщении безопасности <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:08.heimdal.asc">FreeBSD-SA-04:08</ulink>. &merged;</para>
+
+    <para>Была исправлена программная ошибка в <application>CVS</application>,
+      позволявшая злонамеренному клиенту перезаписывать произвольные
+      участки памяти сервера.  За дальнейшей информацией обращайтесь к
+      сообщению безопасности <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:10.cvs.asc">FreeBSD-SA-04:10</ulink>. &merged;</para>
+
+    <para>Была исправлена потенциальная проблема с целостностью кэша в
+      реализации системного вызова &man.msync.2;, использующей
+      операцию <literal>MS_INVALIDATE</literal>.  Однако, в качестве
+      побочного эффекта исправления проблемы безопасности, флаг
+      <literal>MS_INVALIDATE</literal> более не гарантирует выгрузку
+      из памяти всех страниц.  Пользователи, которым требуется старая
+      семантика <literal>MS_INVALIDATE</literal>, могут установить
+      переменную sysctl <varname>vm.old_msync</varname>, если их
+      не беспокоит данная проблема безопасности.  За дальнейшей
+      информацией обращайтесь к сообщению безопасности <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:11.msync.asc">FreeBSD-SA-04:11</ulink>. &merged;</para>
+
+    <para>Была исправлена программная ошибка в системном вызове
+      &man.jail.2;, которая приводила к ошибке проверки
+      попытки манипулирования таблицами маршрутизации из
+      jail.  За дальнейшей информацией обращайтесь к сообщению
+      безопасности <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:12.jail.asc">FreeBSD-SA-04:12</ulink>. &merged;</para>
+
   </sect2>
 
   <sect2 id="kernel">
@@ -217,6 +243,12 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
     <para>Добавлен драйвер &man.acpi.video.4; для обеспечения управления
       переключением экранов и фоновой яркостью с использованием
       видео расширений ACPI.</para>
+
+    <para arch="i386">Драйвер &man.acpi.4; теперь поддерживает sysctl
+      на устройства (например,
+      <varname>dev.root0.nexus0.acpi0.acpi_lid0.wake</varname>), чтобы
+      пользователи могли управлять возможностью пробуждения системы с
+      данного устройства.</para>
 
     <para arch="i386">Был добавлен драйвер &man.ctau.4; для последовательных
       синхронных адаптеров Cronyx Tau.  Этот драйвер долгое время был известен
@@ -244,27 +276,57 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 
     <para arch="sparc64">Драйвер &man.hme.4; теперь поддерживает
       длинные фреймы, и может использоваться для &man.vlan.4; с полным
-      размером ethernet MTU.</para>
+      размером Ethernet MTU.</para>
 
-    <para>&man.jail.8; теперь поддерживает использование raw сокетов
+    <para>&man.jail.2; теперь поддерживает использование raw сокетов
       изнутри jail.  Эта возможность отключена по умолчанию и контролируется
       переменной sysctl
       <varname>security.jail.allow_raw_sockets</varname>.</para>
 
+    <para arch="amd64">Загружаемые модули ядра теперь работают и включаются
+      при загрузке amd64.</para>
+
     <para arch="i386">Драйвер loran (Loran-C receiver) был удален вследствие
       неработоспособности и отсутствии поддержки.</para>
+
+    <para>Был добавлен новый параметр ядра, <literal>MAC_STATIC</literal>,
+      который отключает внутреннюю синхронизацию MAC Framework, защищая
+      от динамической загрузки и выгрузки политик MAC.</para>
+
+    <para>mballoc был замещен на mbuma, Mbuf и Cluster аллокаторы
+      основаны на множестве расширений инфраструктуры UMA.
+      В связи с этим изменением, параметр ядра <varname>NMBCLUSTERS</varname>
+      более не используется.  Максимальное количество кластеров по прежнему
+      устанавливается в соответствии с <varname>maxusers</varname>,
+      но может быть сделано неограниченным путем установки
+      переменной загрузчика <varname>kern.ipc.nmbclusters</varname>
+      в нуль.</para>
+
+    <para>Был удален драйвер midi, поддерживавший последовательные порты и
+      несколько звуковых карт.</para>
 
     <para>Ошибка в &man.mmap.2;, вследствие которой страницы, помеченные как
       <literal>PROT_NONE</literal>, могли стать читаемыми при определенных
       условиях, была исправлена.  &merged;</para>
+
+    <para>&man.nmdm.4; был переписан для увеличения надежности.</para>
 
     <para>Драйвер raid(4), диск RAIDframe из NetBSD, был удален.  В настоящее
       время он не функционален, и потребует дополнительного объема работы,
       чтобы стать работоспособным под существующим &man.geom.4; API
       в 5-CURRENT.</para>
 
+    <para arch="sparc64">&man.sab.4; теперь поддерживает параметр ядра
+      <literal>BREAK_TO_DEBUGGER</literal>.</para>
+
     <para arch="i386,pc98">Добавлен драйвер sx, поддерживающий
       Specialix I/O8+ и I/O4+ intelligent multiport serial controllers.</para>
+
+    <para>В дерево dev sysctl был добавлен уровень devclass для поддержки
+      переменных по классам устройств, в дополнение к переменным по
+      устройствам.  Это означает, что  <varname>dev.foo0.bar</varname>
+      теперь называются <varname>dev.foo.0.bar</varname>, и возможно
+      также наличие <varname>dev.foo.bar</varname>.</para>
 
     <para arch="alpha,amd64,i386">Добавлены переменные окружения
       для <varname>hw.uart.console</varname> и
@@ -345,6 +407,11 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 	новым API в 5-CURRENT.  Поддержка пользовательских программ для
 	этих устройств &ndash; соответствующие ioctl и утилиты, включая
 	sasc и sgsc также были удалены.</para>
+
+      <para>Новая переменная sysctl,
+	<varname>kern.always_console_output</varname>, которая направляет
+	вывод ядра на консоль независимо от
+	<varname>TIOCCONS</varname>.</para>
     </sect3>
 
     <sect3 id="boot">
@@ -368,7 +435,7 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       <title>Поддержка сетевых интерфейсов</title>
 
       <para arch="i386">Добавлен драйвер &man.arl.4;, поддерживающий
-	беспроводные адаптеры Aironet Arlan 655.</para>
+	беспроводные адаптеры Aironet Arlan 655. &merged;</para>
 
       <para arch="sparc64">Драйвер &man.dc.4; теперь поддерживает карты
 	sparc64 Davicom, которые хранят свой MAC адрес в OpenFirmware.</para>
@@ -376,9 +443,24 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       <para>Было исправлено кратковременно отключение в драйвере &man.em.4;
 	во время перенастройки параметров.  &merged;</para>
 
+      <para>Был добавлен драйвер &man.fwip.4;, поддерживающий IP через
+	FireWire.  Обратите внимание, что на данный момент номер
+	широковещательного канала жестко установлен и MCAP для
+	широковещательного выделения каналов не поддерживается.
+	Этот драйвер предназначен для соответствия стандартам
+	RFC 2734 и RFC 3146 IP через FireWire и со временем заменит
+	драйвер &man.fwe.4;.</para>
+
       <para arch="i386,pc98">Драйвер hea (Efficient Networks, Inc. ENI-155p
 	ATM adapter) был удален вследствие неработоспособности.
 	Его функциональность была добавлена в драйвер &man.en.4;.</para>
+
+      <para>&man.fxp.4; теперь использует дерево устройств sysctl, например
+	<varname>dev.fxp0</varname>, и эти переменные sysctl могут быть
+	установлены для каждого устройства.</para>
+
+      <para>Был добавлен драйвер &man.ixgb.4;, поддерживающий карты
+        Intel PRO/10GBE 10 gigabit Ethernet. &merged;</para>
 
       <para arch="i386">Драйвер lmc (LAN Media Corp. PCI WAN adapter)
 	был удален вследствие неработоспособности и отсутствия
@@ -402,9 +484,17 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 	который поддерживает простую рассылку пакетов и работает как
 	концентратор Ethernet.  &merged;</para>
 
+      <para>Тип узла Netgraph &man.ng.rfc1490.4; теперь поддерживает
+	инкапсуляцию в стиле Cisco, которая часто используется
+	вместе с RFC 1490 в соединениях frame relay.</para>
+
       <para>Был добавлен тип узла Netgraph &man.ng.sppp.4;, являющийся
 	интерфейсом &man.netgraph.4; к оригинальному сетевому модулю
 	&man.sppp.4; для синхронных линий.</para>
+
+      <para>Новый метод Netgraph, позволяющий восстановление поведения,
+	потерянного при изменении стиля узлов Netgraph &man.ng.tee.4; с
+	4.x.</para>
 
       <para>Был добавлен тип узла Netgraph &man.ng.vlan.4;,
 	который поддерживает IEEE 802.1Q VLAN tagging.  &merged;</para>
@@ -476,6 +566,18 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 	<programlisting>ip verify unicast source reachable-via any</programlisting>
       </para>
 
+      <para>&man.ipfw.4; теперь поддерживает таблицы адресов (lookup tables),
+	полезные при обработке больших наборов разных адресов. &merged;</para>
+
+      <para>Новая переменная sysctl
+	<varname>net.inet.ip.process_options</varname> для контроля обработки
+	параметров IP.  При установке этой переменной в <literal>0</literal>
+	параметры IP игнорируются и передаются не измененными, при установке
+	в <literal>1</literal> все параметры IP обрабатываются (поведение
+	по умолчанию), а при установке в <literal>2</literal> все пакеты
+	с параметрами IP отбрасываются с сообщением ICMP filter
+	prohibited.</para>
+
       <para>Были исправлены некоторые ошибки в реализации IPsec от
 	KAME Project.  Эти ошибки были связаны с освобождением объектов
 	памяти перед тем, как все ссылки на эти объекты были удалены,
@@ -487,6 +589,9 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 	этого изменения это корректная работа
 	<application>IPFilter</application> при загрузке в качестве
 	модуля ядра.</para>
+
+      <para>В сокет маршрутизации была добавлена поддержка уведомления об
+	изменении состояния носителя ethernet.</para>
 
       <para>Следующие возможности TCP теперь включены по умолчанию:
 	RFC 3042 (Limited Retransmit), RFC 3390 (increased initial
@@ -526,6 +631,14 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 	включено по умолчанию и может быть отключено через переменную
 	sysctl <varname>net.inet.ip.portrange.randomized</varname>.
 	&merged;</para>
+
+      <para>Был добавлен TCP Selective Acknowledgements (SACK), как описано в
+	RFC 2018.  Это увеличивает производительность TCP через соединения с
+	большими потерями пакетов.  SACK может быть включен переменной
+	sysctl <varname>net.inet.tcp.sack.enable.</varname></para>
+
+      <para>Драйвер &man.udav.4; теперь поддерживает promiscuous mode.</para>
+
     </sect3>
 
     <sect3 id="disks">
@@ -564,6 +677,18 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 
       <para>Драйвер &man.umass.4; теперь поддерживает отсутствовавшие команды
 	ATAPI MMC и правильно обрабатывает задержки.  &merged;</para>
+
+      <para>Менеджер томов &man.vinum.4; был обновлен для использования
+        &man.geom.4;, инфраструктуры трансформирования дисковых запросов
+	ввода-вывода 5.x.  Была добавлена утилита пользователя
+	gvinum.</para>
+
+      <para arch="sparc64">Драйвер устройства &man.esp.4; был портирован
+	из NetBSD для поддержки SBus SCSI карт в компьютерах Sun Ultra
+        1e и 2.</para>
+
+      <para>Была добавлена поддержка LSI-type программного RAID.</para>
+
     </sect3>
 
     <sect3 id="fs">
@@ -579,9 +704,27 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       <para>Была исправлена ошибка в GEOM, которая могла приводить к
 	прерыванию ввода/вывода в некоторых редких случаях.</para>
 
-      <para>Был добавлен новый класс geom_concat для соединения нескольких
-	дисков в один.  Для настройки соединенных дисков
-	используется утилита &man.gconcat.8;.</para>
+      <para>Был добавлен новый класс <literal>GEOM_CONCAT</literal> для
+	соединения нескольких дисков в один.</para>
+
+      <para>Был добавлен новый класс <literal>GEOM_NOP</literal> для
+	различного тестирования.</para>
+
+      <para>Был добавлен новый класс <literal>GEOM_STRIPE</literal>,
+	который реализует преобразование RAID0.</para>
+
+      <para>Был добавлен GEOM Gate, который состоит из нового класса
+	<literal>GEOM_GATE</literal> и нескольких утилит пользователя
+	GEOM Gate (&man.ggatel.8;, &man.ggatec.8;,
+	and &man.ggated.8;).  Он поддерживает экспорт устройств,
+	включающих не приспособленные к GEOM через сеть.</para>
+
+      <para>Новый параметр ядра, <literal>GEOM_GPT</literal> поддерживающий
+	возможность создания большого количества разделов на одном диске,
+	был добавлен в <filename>GENERIC</filename> по умолчанию.</para>
+
+      <para>Был добавлен новый класс <literal>GEOM_VINUM</literal> для поддержки
+	взаимодействия между &man.vinum.4; и &man.geom.4;.</para>
 
       <para>Была исправлена паника в NFSv4 клиенте; она случалась при
 	попытке работы с поддерживающим только NFSv3/NFSv2
@@ -601,8 +744,27 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       <para>Драйвер meteor (видеозахват) был удален вследствие
 	неработоспособности и отсутствия поддержки.</para>
 
+      <para>Код Direct Rendering Manager (DRM) был обновлен из дерева CVS
+	DRI Project от 2004-05-26.  Это обновление включает новые
+	PCI ID и новый пакет для Radeon.</para>
+
     </sect3>
 
+    <sect3>
+      <title>Стороннее программное обеспечение</title>
+
+      <para><application>ALTQ framework</application>
+	была импортирована из снэпшота KAME от 20040607.
+	Этот импорт нарушает совместимость ABI в
+	<varname>struct ifnet</varname>.</para>
+
+      <para><application>IPFilter</application> был обновлен с
+	версии 3.4.31 до версии 3.4.35.</para>
+
+      <para arch="ia64">Был импортирован ia64 stack unwinder,
+	<application>Unwind Express (libuwx)</application>
+	от Hewlett-Packard для использования в ядре.</para>
+    </sect3>
   </sect2>
 
   <sect2 id="userland">
@@ -615,6 +777,14 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       <command>bthidd</command>, поддерживающие Bluetooth
       HID (Human Interface Device).</para>
 
+    <para>&man.conscontrol.8; теперь поддерживает команды
+      <literal>set</literal> и <literal>unset</literal>,
+      которые устанавливают/удаляют виртуальную консоль.
+      <literal>unset</literal> направляет вывод из системы,
+      например &man.printf.9; из ядра, на реальную основную
+      консоль.  Это интерфейс к tty ioctl
+      <varname>TIOCCONS</varname>.</para>
+
     <para>Даемон &man.cron.8; теперь принимает два параметра,
       <option>-j</option> и <option>-J</option>, включающие
       рассинхронизацию заданий, запускаемых непривилегированными
@@ -625,6 +795,9 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       уменьшения пиков нагрузки, появляющихся при выполнении большого
       количества задач, запланированных на определенный момент
       времени. &merged;</para>
+
+    <para>&man.daemon.8; теперь поддерживает параметр <option>-p</option>
+      для создания PID файла.</para>
 
     <para>&man.df.1; теперь поддерживает параметр <option>-c</option>
       для отображения полной статистики файловых систем.</para>
@@ -640,12 +813,29 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       Дополнительная информация находится на страницах справочника
       &man.dump.8; и &man.restore.8;.</para>
 
+    <para>Была добавлена утилита &man.eeprom.8; для отображения и
+      изменения настроек системы, сохраненных в EEPROM или NVRAM.
+      Существующая реализация поддерживает системы, поставляемые с
+      Open Firmware.</para>
+
     <para arch="pc98">Утилиты &man.fdcontrol.8;, &man.fdformat.1;, и
       &man.fdread.1; теперь работают в &os;/pc98.</para>
 
     <para>Утилита &man.find.1; теперь поддерживает параметр
       <option>-acl</option> в основном для поиска файлов с
       &man.acl.3;.</para>
+
+    <para>Утилита &man.find.1; теперь поддерживает новый основной
+      параметр <option>-depth <replaceable>n</replaceable></option>,
+      который проверяет, соответствует ли глубина вложения данного
+      файла относительно начальной точки поиска
+      <replaceable>n</replaceable>. &merged;</para>
+
+    <para>Была добавлена утилита &man.geom.8; для оперирования классами
+      GEOM из пространства пользователя.</para>
+
+    <para>&man.id.1; теперь поддерживает параметр <option>-M</option> для
+      вывода метки MAC текущего процесса.</para>
 
     <para>&man.indent.1; теперь поддерживает параметр <option>-ldi</option>
       для управления выравниванием локальных переменных.  В этой утилите
@@ -667,6 +857,10 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
     <para>&man.ipfw.8; теперь поддерживает параметр <option>-b</option>
       для вывода только действия и комментария каждого правила,
       исключая тело правила.</para>
+
+    <para>&man.jail.8; теперь поддерживает параметр <option>-U</option> для
+      запуска команды под пользователем, который существует только
+      внутри среды &man.jail.2;.</para>
 
     <para>&man.killall.1; теперь поддерживает флаг <option>-e</option>,
       с которым <option>-u</option> указывает на эффективный, а не реальный
@@ -716,8 +910,22 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       </note>
     </para>
 
+    <para>&man.ls.1; теперь обрабатывает имена файлов как мультибайтовые
+      последовательности символов, в соответствии с текущей
+      переменной <varname>LC_CTYPE</varname>, когда определяется
+      какие символы печатаемые.</para>
+
     <para>&man.make.1; теперь поддерживает новую директиву
       <literal>.warning</literal>.</para>
+
+    <para>&man.newsyslog.8; теперь позволяет пользователям устанавливать
+      параметр отладки через файл <filename>newsyslog.conf</filename>.</para>
+
+    <para>&man.newsyslog.8; теперь использует новый порядок при обработке
+      ротации файлов.  Сначала ротируются все файлы, которые необходимо
+      ротировать, затем посылается одиночный сигнал каждому процессу,
+      которому необходимо послать сигнал, и наконец все файлы, которые
+      были ротированы, сжимаются.</para>
 
     <para>Была добавлена первичная поддержка для UTF-8 версий всех
       поддерживаемых в настоящее время системных локалей.  Это сделано в
@@ -771,6 +979,10 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       и некоторые мелкие улучшения.  За дальнейшей информацией обращайтесь
       к &man.ps.1;.  &merged;</para>
 
+    <para>&man.ps.1; теперь поддерживает параметр форматирования
+      <option>-O emul</option>, при котором печатается имя эмулируемых
+      системных переменных окружения, в которых находится процесс.</para>
+
     <para>&man.pw.8; теперь поддерживает параметр <option>-H</option>, который
       принимает указатель на файл с зашифрованным паролем.  &merged;</para>
 
@@ -809,6 +1021,30 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
     <para>Был добавлен даемон &man.sdpd.8; Bluetooth Service Discovery
       Protocol.</para>
 
+    <para>Были добавлены утилиты &man.sha1.1; и &man.rmd160.1;.</para>
+
+    <para>Была добавлена небольшая утилита &man.smbmsg.8;, для
+      отправки/получения SMBus сообщений.</para>
+
+    <para arch="sparc64">&man.sunlabel.8; теперь поддерживает два новых
+      флага: <option>-c</option> для вычисления всех размеров разделов в
+      цилиндрах вместо секторов, и <option>-h</option> для печати метки в
+      удобном для чтения формате размер/смещения.</para>
+
+    <para>&man.talk.1; теперь использует <hostid>localhost</hostid>
+      в качестве компьютера по умолчанию в пакетах запроса
+      &man.talkd.8;, если назначение и источник локальны.
+      Это делает &man.talk.1; зависимым от правильно установленной
+      записи для <hostid>localhost</hostid> в <filename>/etc/hosts</filename>
+      или в DNS.</para>
+
+    <para>&man.tftpd.8; теперь поддерживает два новых параметра:
+      параметр <option>-w</option>, позволяющий создание новых файлов,
+      и параметр <option>-U</option>, позволяющий установку umask.</para>
+
+    <para arch="amd64">&man.truss.1; теперь включает раннюю поддержку
+      &os;/amd64.</para>
+
     <para>Многие утилиты пользователя в базовой системе (в основном
       предоставленные GNU утилиты) теперь используют системную
       версию &man.getopt.long.3;, вместо GNU версии.</para>
@@ -831,6 +1067,17 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 	Обратите внимание, что это делает невозможным восстановление дампов
 	ядра.</para>
 
+      <para>Были добавлены <varname>ip6addrctl_enable</varname> и
+	<varname>ip6addrctl_verbose</varname>.  Когда
+	<varname>ip6addrctl_enable</varname> установлена в
+	<literal>YES</literal>, политика выбора адреса загружается в
+	ядро.  Если существует <filename>/etc/ip6addrctl.conf</filename>,
+	он будет использован, иначе будет задействована политика по
+	умолчанию.  Применяется политика по умолчанию, описанная в RFC 3484,
+	если <varname>ipv6_enable</varname> установлена в
+	<literal>YES</literal>.  Иначе в качестве политики по умолчанию
+	будет использована политика приоритетов для адресов IPv4.</para>
+
       <para>Был добавлен скрипт <filename>mixer</filename>.  При завершении
 	работы сохраняет текущие настройки всех аудио микшеров, присутствующих
 	в системе, и восстанавливает их при загрузке.</para>
@@ -844,17 +1091,23 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
     <title>Стороннее программное обеспечение</title>
 
     <para>Код <application>ACPI-CA</application> был обновлен с
-      с снэпшота 20030619 до снэпшота 20040402.</para>
+      с снэпшота 20030619 до снэпшота 20040514.</para>
 
     <para><application>awk</application> от Bell Labs был обновлен с релиза
       от 29 июня 2003 года до релиза 7 февраля 2004 года.</para>
 
+    <para><application>Binutils</application> были обновлены до снэпшота от
+      23 мая 2004 из ветви FSF 2.15.</para>
+
     <para><application>CVS</application> был обновлен с версии
-      1.11.10 до версии 1.11.15.</para>
+      1.11.10 до версии 1.11.17.</para>
 
     <para><application>gdtoa</application> (библиотека, выполняющая
       преобразования чисел между бинарным и десятичным форматами)
       была обновлена с версии 20030324 до версии 20040118.</para>
+
+    <para><application>GDB</application> был обновлен до версии
+      6.1.1.</para>
 
     <para><application>GNU grep</application> был обновлен с
       2.4d до 2.4.2.</para>
@@ -876,6 +1129,9 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 
     <para><application>Heimdal Kerberos</application> был обновлен
       с 0.6 до 0.6.1.</para>
+
+    <para>Клиент <application>ISC DHCP</application> был обновлен до
+       3.0.1RC14.</para>
 
     <para><application>libpcap</application> была обновлена с версии
       0.7.1 до версии 0.8.3.</para>
@@ -903,7 +1159,7 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       0.9.7c до 0.9.7d.  &merged;</para>
 
     <para><application>pf</application>, пакетный фильтр OpenBSD
-      из OpenBSD&nbsp;3.4, был импортирован в дерево исходных текстов &os;,
+      из OpenBSD&nbsp;3.5, был импортирован в дерево исходных текстов &os;,
       и теперь установлен по умолчанию.  Добавлены также новый пользователь
       <username>proxy</username> и две новых группы
       <username>authpf</username> и <username>proxy</username>,
@@ -941,6 +1197,11 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 
     <para><application>tcpdump</application> был обновлен с версии
       3.7.1 до версии 3.8.3.</para>
+
+    <para>База данных временных зон была обновлена с
+      <filename>tzdata2003a</filename> до
+      <filename>tzdata2004a</filename>.</para>
+
   </sect2>
 
   <sect2 id="ports">
@@ -961,6 +1222,20 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       некоторые потенциально проблемные случаи, которые могут встретиться
       при обновлении определенных портов, по аналогии с
       <filename>src/UPDATING</filename> в базовой системе.</para>
+
+    <para>Код обработки версий в системных утилитах пакетов был переписан
+      для восстановления совместимости с 4.x и portupgrade.</para>
+
+    <para>Инструментарий пакетов теперь может искать совпадения с помощью
+      операторов отношения и выборов в стиле csh, например:</para>
+
+    <screen>&prompt.root; <userinput>pkg_info -I 'docbook>=3.0'</userinput></screen>
+
+    <para>отобразит (все) docbook DTD с версией как минимум 3.0.
+      Дополнительные параметры командной строки также были добавлены
+      для поддержки шаблонов.</para>
+
+    <para>Была улучшена обработка сбойных баз данных пакетов.</para>
 
   </sect2>
 
@@ -1003,7 +1278,13 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
     </para>
 
     <para>Поддерживаемый релиз <application>KDE</application> был
-      обновлен с 3.1.4 до 3.2.1.</para>
+      обновлен с 3.1.4 до 3.2.3.</para>
+
+    <para>Утилита <filename role="package">security/portaudit</filename>
+      теперь находится в коллекции портов.  Эта утилита читает базу данных,
+      содержащую известные уязвимости портов, и сообщает о них
+      администратору.</para>
+
   </sect2>
 
   <sect2 id="doc">
