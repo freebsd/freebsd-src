@@ -168,14 +168,13 @@ vinumstrategy(struct bio *biop)
 }
 
 /*
- * Start a transfer.  Return -1 on error,
- * 0 if OK, 1 if we need to retry.
- * Parameter reviveok is set when doing
- * transfers for revives: it allows transfers to
- * be started immediately when a revive is in
- * progress.  During revive, normal transfers
- * are queued if they share address space with
- * a currently active revive operation.
+ * Start a transfer.  Return -1 on error, 0 if OK,
+ * 1 if we need to retry.  Parameter reviveok is
+ * set when doing transfers for revives: it allows
+ * transfers to be started immediately when a
+ * revive is in progress.  During revive, normal
+ * transfers are queued if they share address
+ * space with a currently active revive operation.
  */
 int
 vinumstart(struct buf *bp, int reviveok)
@@ -209,7 +208,7 @@ vinumstart(struct buf *bp, int reviveok)
     /*
      * Note the volume ID.  This can be NULL, which
      * the request building functions use as an
-     * indication for single plex I/O
+     * indication for single plex I/O.
      */
     rq->bp = bp;					    /* and the user buffer struct */
 
@@ -269,9 +268,16 @@ vinumstart(struct buf *bp, int reviveok)
 	 * a RAID-4 or RAID-5 plex, we must also update the parity stripe.
 	 */
     {
-	if (vol != NULL)
-	    status = build_write_request(rq);		    /* Not all the subdisks are up */
-	else {						    /* plex I/O */
+	if (vol != NULL) {
+	    if ((vol->plexes > 0)			    /* multiple plex */
+	    ||(isparity((&PLEX[vol->plex[0]])))) {	    /* or RAID-[45], */
+		rq->save_data = bp->b_data;		    /* save the data buffer address */
+		bp->b_data = Malloc(bp->b_bufsize);
+		bcopy(rq->save_data, bp->b_data, bp->b_bufsize); /* make a copy */
+		rq->flags |= XFR_COPYBUF;		    /* and note that we did it */
+	    }
+	    status = build_write_request(rq);
+	} else {					    /* plex I/O */
 	    daddr_t diskstart;
 
 	    diskstart = bp->b_blkno;			    /* start offset of transfer */
@@ -284,6 +290,10 @@ vinumstart(struct buf *bp, int reviveok)
 	    if (status == REQUEST_DOWN) {		    /* not enough subdisks */
 		bp->b_error = EIO;			    /* I/O error */
 		bp->b_io.bio_flags |= BIO_ERROR;
+	    }
+	    if (rq->flags & XFR_COPYBUF) {
+		Free(bp->b_data);
+		bp->b_data = rq->save_data;
 	    }
 	    bufdone(bp);
 	    freerq(rq);
@@ -1005,7 +1015,7 @@ vinum_bounds_check(struct buf *bp, struct volume *vol)
 	&& bp->b_blkno + size > LABELSECTOR		    /* and finishes after */
 #endif
 	&& (!(vol->flags & VF_RAW))			    /* and it's not raw */
-&&(bp->b_iocmd == BIO_WRITE)				    /* and it's a write */
+	&&(bp->b_iocmd == BIO_WRITE)			    /* and it's a write */
 	&&(!vol->flags & (VF_WLABEL | VF_LABELLING))) {	    /* and we're not allowed to write the label */
 	bp->b_error = EROFS;				    /* read-only */
 	bp->b_io.bio_flags |= BIO_ERROR;
