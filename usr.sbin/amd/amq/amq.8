@@ -37,7 +37,7 @@
 .\"
 .\"     @(#)amq.8	8.3 (Berkeley) 4/18/94
 .\"
-.\" $Id: amq.8,v 1.1.1.1 1994/05/26 05:22:04 rgrimes Exp $
+.\" $Id: amq.8,v 1.2 1996/01/20 07:28:37 mpp Exp $
 .\"
 .Dd March 16, 1991
 .Dt AMQ 8
@@ -94,12 +94,12 @@ Request the automounter to unmount the named filesystems
 instead of providing information about them.  Unmounts are requested,
 not forced.  They merely cause the mounted filesystem to timeout,
 which will be picked up by
-.Xr amd Ns \'s
+.Nm amd Ns \'s
 main scheduler thus causing the normal timeout action to be taken.
 .It Fl v
 Request the automounter to provide version information.  This is a subset
 of the information provided by
-.Xr amd Ns \'s Fl v
+.Nm amd Ns \'s Fl v
 option.
 .It Fl M
 Request automounter to add the given map entry to the root map and then

@@ -85,6 +85,7 @@ is created when a user logs in, and the login terminal is setup
 to be the controlling terminal; all processes spawned from that
 login shell are in the same session, and inherit the controlling
 terminal.
+.Pp
 A job control shell
 operating interactively (that is, reading commands from a terminal)
 normally groups related processes together by placing them into the
@@ -199,7 +200,7 @@ the writing process is orphaned, and the writing process is not ignoring
 or blocking
 .Dv SIGTTOU ,
 the
-.Xr write
+.Xr write 2
 returns -1 with
 errno set to
 .Er Dv EIO
@@ -252,9 +253,9 @@ canonical or noncanonical mode.
 Another dependency is whether the
 .Dv O_NONBLOCK
 flag is set by
-.Xr open()
+.Xr open 2
 or
-.Xr fcntl() .
+.Xr fcntl 2 .
 If the
 .Dv O_NONBLOCK
 flag is clear, then the read request is
@@ -355,7 +356,7 @@ process the bytes received.
 .Dv MIN
 represents the minimum number of bytes that should be received when
 the
-.Xr read
+.Xr read 2
 function successfully returns.
 .Dv TIME
 is a timer of 0.1 second
@@ -402,8 +403,11 @@ and
 .Dv TIME
 mechanisms are
 activated by the receipt of the first byte, or a signal is received.  If
-data is in the buffer at the time of the read(), the result is as
-if data had been received immediately after the read().
+data is in the buffer at the time of the 
+.Fn read ,
+the result is as
+if data had been received immediately after the
+.Fn read .
 .Ss "Case B: MIN > 0, TIME = 0"
 In this case, since the value of
 .Dv TIME
@@ -451,7 +455,8 @@ field (see the
 .Sx "Output Modes
 section).  The
 implementation may provide a buffering mechanism; as such, when a call to
-write() completes, all of the bytes written have been scheduled for
+.Fn write
+completes, all of the bytes written have been scheduled for
 transmission to the device, but the transmission will not necessarily
 have been completed.
 .\" See also .Sx "6.4.2" for the effects of
@@ -532,7 +537,8 @@ is discarded.  Thus, if there are no bytes waiting (that
 is, the
 .Dv EOF
 occurred at the beginning of a line), a byte
-count of zero is returned from the read(),
+count of zero is returned from the 
+.Fn read ,
 representing an end-of-file indication.  If
 .Dv ICANON
 is
@@ -653,7 +659,9 @@ character, except that
 the
 .Dv SIGTSTP
 signal is delivered when one of the processes
-in the foreground process group issues a read() to the
+in the foreground process group issues a
+.Fn read
+to the
 controlling terminal.
 .It Dv LNEXT
 Special character on input and is recognized if the
@@ -712,7 +720,9 @@ the terminal, the
 signal is sent to the controlling
 process associated with the terminal.  Unless other arrangements have
 been made, this causes the controlling process to terminate.
-Any subsequent call to the read() function returns the value zero,
+Any subsequent call to the
+.Fn read
+function returns the value zero,
 indicating end of file.  Thus, processes that read a terminal
 file and test for end-of-file can terminate appropriately after a
 disconnect.
@@ -726,7 +736,9 @@ disconnect.
 .\" .Pf [ Dv EIO
 .\" ] is returned.
 Any
-subsequent write() to the terminal device returns -1, with
+subsequent
+.Fn write
+to the terminal device returns -1, with
 .Va errno
 set to
 .Er EIO ,
@@ -958,7 +970,9 @@ is set and the input queue is full, subsequent input shall cause an
 character to be transmitted to the
 the output queue.
 .Pp
-The initial input control value after open() is implementation defined.
+The initial input control value after 
+.Fn open
+is implementation defined.
 .Ss Output Modes
 Values of the
 .Fa c_oflag
@@ -1098,13 +1112,17 @@ status lines.  If
 is clear, the modem status lines are
 monitored.
 .Pp
-Under normal circumstances, a call to the open() function waits for
+Under normal circumstances, a call to the 
+.Fn open
+function waits for
 the modem connection to complete.  However, if the
 .Dv O_NONBLOCK
 flag is set
 or if
 .Dv CLOCAL
-has been set, the open() function returns
+has been set, the 
+.Fn open
+function returns
 immediately without waiting for the connection.
 .Pp
 The
@@ -1406,6 +1424,8 @@ entries of the
 array.
 .Pp
 The initial values of the flags and control characters
-after open() is set according to
+after 
+.Fn open
+is set according to
 the values in the header
 .Aq Pa sys/ttydefaults.h .

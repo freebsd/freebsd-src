@@ -25,7 +25,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: clocks.7,v 1.1 1996/04/05 08:51:22 joerg Exp $
+.\" $Id: clocks.7,v 1.2 1996/04/07 21:12:10 mpp Exp $
 .\" "
 .Dd April 1, 1996
 .Os
@@ -52,8 +52,11 @@ happens to be 128.  It isn't directly available to applications.
 The clock reported by
 .Xr clock 3 .
 This is a virtual clock with a frequency that happens to be 128.  It's
-actual frequency is given by the macro CLOCKS_PER_SEC.  Note that
-CLOCKS_PER_SEC may be floating point.  Don't use 
+actual frequency is given by the macro 
+.Dv CLOCKS_PER_SEC .  
+Note that
+.Dv CLOCKS_PER_SEC
+may be floating point.  Don't use 
 .Fn clock
 in new programs under FreeBSD.  It is feeble compared with
 .Xr getrusage 2 .
@@ -64,13 +67,15 @@ and throwing away information and resolution.
 The clock reported by
 .Xr times 3 .
 This is a virtual clock with a frequency that happens to be 128.  It's
-actual frequency is given by the macro CLK_TCK (deprecated; don't use)
-and by 
+actual frequency is given by the macro
+.Dv CLK_TCK
+(deprecated; don't use) and by 
 .Fn sysconf SC_CLK_TCK
 and by
 .Xr sysctl 3 .
-Note that its frequency may be different from CLOCKS_PER_SEC.  Don't
-use 
+Note that its frequency may be different from
+.Dv CLOCKS_PER_SEC .
+Don't use 
 .Xr times 3
 in new programs under FreeBSD.  It is feeble compared with
 .Xr gettimeofday 2

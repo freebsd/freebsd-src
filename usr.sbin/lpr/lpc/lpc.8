@@ -85,7 +85,7 @@ or, if no argument is given, a list of the recognized commands.
 .It Ic abort  No {\ all\ |\ printer\ }
 Terminate an active spooling daemon on the local host immediately and
 then disable printing (preventing new daemons from being started by
-.Xr lpr )
+.Xr lpr 1 )
 for the specified printers.
 .Pp
 .It Ic clean  No {\ all\ |\ printer\ }
@@ -96,7 +96,7 @@ from the specified printer queue(s) on the local machine.
 .It Ic disable  No {\ all\ |\ printer\ }
 Turn the specified printer queues off.  This prevents new
 printer jobs from being entered into the queue by
-.Xr lpr .
+.Xr lpr 1 .
 .Pp
 .It Ic down No {\ all\ |\ printer\ } message ...
 Turn the specified printer queue off, disable printing and put
@@ -122,7 +122,7 @@ Exit from lpc.
 Attempt to start a new printer daemon. 
 This is useful when some abnormal condition causes the daemon to
 die unexpectedly, leaving jobs in the queue.
-.Xr Lpq
+.Xr Lpq 1
 will report that there is no daemon present when this condition occurs. 
 If the user is the super-user,
 try to abort the current daemon first (i.e., kill and restart a stuck daemon).

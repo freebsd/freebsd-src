@@ -63,7 +63,8 @@ special-purpose applications.
 .Pp
 There are several
 .Tn IP-level
-.Xr setsockopt 2 / Ns
+.Xr setsockopt 2 
+and
 .Xr getsockopt 2
 options.
 .Dv IP_OPTIONS 
@@ -115,7 +116,7 @@ option is enabled on a
 .Dv SOCK_DGRAM 
 socket,
 the
-.Xr recvmsg
+.Xr recvmsg 2
 call will return the destination 
 .Tn IP 
 address for a 
@@ -296,9 +297,9 @@ Raw
 .Tn IP
 sockets are connectionless,
 and are normally used with the
-.Xr sendto
+.Xr sendto 2
 and
-.Xr recvfrom
+.Xr recvfrom 2
 calls, though the
 .Xr connect 2
 call may also be used to fix the destination for future

@@ -174,10 +174,10 @@ certain interfaces such as the loopback interface,
 do not.
 .Pp
 The following 
-.Xr ioctl
+.Xr ioctl 2
 calls may be used to manipulate network interfaces.
 The
-.Xr ioctl
+.Fn ioctl
 is made on a socket (typically of type
 .Dv SOCK_DGRAM )
 in the desired domain.
@@ -218,7 +218,7 @@ Set point to point address for protocol family and interface.
 Set broadcast address for protocol family and interface.
 .El
 .Pp
-.Xr Ioctl
+.Fn Ioctl
 requests to obtain addresses and requests both to set and
 retrieve other data are still fully supported
 and use the
@@ -263,9 +263,9 @@ to each family (replacing each sockaddr by one
 of the family-specific type).
 Where the sockaddr itself is larger than the
 default size, one needs to modify the
-.Xr ioctl
+.Fn ioctl
 identifier itself to include the total size, as described in
-.Xr ioctl .
+.Fn ioctl .
 .It Dv SIOCDIFADDR
 This requests deletes the specified address from the list
 associated with an interface.  It also uses the
