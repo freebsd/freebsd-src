@@ -1164,11 +1164,24 @@ pci_probe_nomatch(device_t dev, device_t child)
 {
 	struct pci_devinfo *dinfo;
 	pcicfgregs *cfg;
-        
+
+	/* a few 'known' devices */
+	if (pci_get_class(dev) == PCIC_SERIALBUS
+	    && pci_get_subclass(dev) == PCIS_SERIALBUS_USB) {
+		if (pci_get_progif(dev) == 0x00 /* UHCI */ ) {
+			device_printf(dev, "UHCI USB controller (vendor");
+		} else if (pci_get_progif(dev) == 0x10 /* OHCI */ ) {
+			device_printf(dev, "OHCI USB controller");
+		} else {
+			device_printf(dev, "USB controller");
+		}
+	} else {
+		device_printf(dev, "unknown card");
+	}
 	dinfo = device_get_ivars(child);
 	cfg = &dinfo->cfg;
 
-	device_printf(dev, "unknown card (vendor=0x%04x, dev=0x%04x) at %d.%d",
+	printf(" (vendor=0x%04x, dev=0x%04x) at %d.%d",
 		cfg->vendor,
 		cfg->device,
 		pci_get_slot(child),
