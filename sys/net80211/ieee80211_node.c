@@ -78,7 +78,7 @@ static void ieee80211_setup_node(struct ieee80211com *ic,
 static void _ieee80211_free_node(struct ieee80211com *,
 		struct ieee80211_node *);
 
-MALLOC_DEFINE(M_80211_NODE, "node", "802.11 node state");
+MALLOC_DEFINE(M_80211_NODE, "80211node", "802.11 node state");
 
 void
 ieee80211_node_attach(struct ifnet *ifp)
