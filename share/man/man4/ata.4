@@ -66,11 +66,11 @@ set to 1 for DMA access, 0 for PIO (default is DMA).
 .It Va hw.ata.atapi_dma
 set to 1 for DMA access, 0 for PIO (default is PIO).
 .It Va hw.ata.wc
-set to 1 to enable Write Caching, 0 to disable (default is disabled)
-(WARNING might cause data loss on power failures)
+set to 1 to enable Write Caching, 0 to disable (default is disabled).
+(WARNING: might cause data loss on power failures.)
 .It Va hw.ata.tags
-set to 1 to enable Tagged Queuing support, 0 to disable (default is disabled)
-(only IBM DPTA and DTLA drives support that)
+set to 1 to enable Tagged Queuing support, 0 to disable (default is disabled).
+(Only IBM DPTA and DTLA drives support that.)
 .El
 .Sh DESCRIPTION
 This driver provides access to disk drives, ATAPI CD-ROM and DVD drives,
