@@ -1725,7 +1725,7 @@ fdstrategy(struct bio *bp)
 		}
 		bp->bio_bcount = (nblocks - blknum) * fdblk;
 	}
- 	bp->bio_pblkno = bp->bio_blkno;
+ 	bp->bio_pblkno = blknum;
 	s = splbio();
 	bioqdisksort(&fdc->head, bp);
 	untimeout(fd_turnoff, fd, fd->toffhandle); /* a good idea */
