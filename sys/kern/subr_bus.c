@@ -248,7 +248,7 @@ struct dev_softc
 	struct cv cv;
 	struct selinfo sel;
 	struct devq devq;
-	d_thread_t *async_td;
+	struct proc *async_proc;
 } devsoftc;
 
 dev_t		devctl_dev;
@@ -271,7 +271,7 @@ devopen(dev_t dev, int oflags, int devtype, d_thread_t *td)
 	/* move to init */
 	devsoftc.inuse = 1;
 	devsoftc.nonblock = 0;
-	devsoftc.async_td = NULL;
+	devsoftc.async_proc = NULL;
 	return (0);
 }
 
@@ -337,9 +337,9 @@ devioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, d_thread_t *td)
 		return (0);
 	case FIOASYNC:
 		if (*(int*)data)
-			devsoftc.async_td = td;
+			devsoftc.async_proc = td->td_proc;
 		else
-			devsoftc.async_td = NULL;
+			devsoftc.async_proc = NULL;
 		return (0);
 
 		/* (un)Support for other fcntl() calls. */
@@ -428,8 +428,8 @@ devaddq(const char *type, const char *what, device_t dev)
 	cv_broadcast(&devsoftc.cv);
 	mtx_unlock(&devsoftc.mtx);
 	selwakeup(&devsoftc.sel);
-	if (devsoftc.async_td)
-		psignal(devsoftc.async_td->td_proc, SIGIO);
+	if (devsoftc.async_proc)
+		psignal(devsoftc.async_proc, SIGIO);
 	return;
 bad:;
 	free(data, M_BUS);
