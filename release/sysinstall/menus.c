@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.41.2.14 1995/06/04 01:57:21 jkh Exp $
+ * $Id: menus.c,v 1.41.2.15 1995/06/04 05:13:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -368,19 +368,18 @@ x11FlagCheck(DMenuItem *item)
 DMenu MenuDistributions = {
     DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
     "Select the distributions you wish to install.",
-    "Please check off the distributions you wish to install.  Some\n
-of the most generally useful distributions are already checked, and\n\
-selecting OK at this stage will chose them as defaults.\n\
-WARNING:  Do not export the DES distribution out of the U.S.!",
+    "Please check off the distributions you wish to install.  At the\n\
+very minimum, this should be \"bin\".  WARNING:  Do not export the\n\
+DES distribution out of the U.S.!  It is for U.S. customers only.",
     NULL,
     NULL,
     { { "bin", "Binary base distribution (required) [36MB]",
 	DMENU_SET_FLAG,	&Dists, DIST_BIN, 0, dmenuFlagCheck	},
       { "commercial", "Commercial demos and shareware [10MB]",
 	DMENU_SET_FLAG,	&Dists, DIST_COMMERCIAL, 0, dmenuFlagCheck	},
-      { "compat1x", "FreeBSD 1.x binary compatability package [2MB]",
+      { "compat1x", "FreeBSD 1.x binary compatibility package [2MB]",
 	DMENU_SET_FLAG,	&Dists, DIST_COMPAT1X, 0, dmenuFlagCheck	},
-      { "compat20", "FreeBSD 2.0 binary compatability package [2MB]",
+      { "compat20", "FreeBSD 2.0 binary compatibility package [2MB]",
 	DMENU_SET_FLAG,	&Dists, DIST_COMPAT20, 0, dmenuFlagCheck	},
       { "DES", "DES encryption code and sources [.3MB]",
 	DMENU_SET_FLAG,	&Dists, DIST_DES, 0, dmenuFlagCheck		},
@@ -396,7 +395,7 @@ WARNING:  Do not export the DES distribution out of the U.S.!",
 	DMENU_SET_FLAG,	&Dists, DIST_PROFLIBS, 0, dmenuFlagCheck	},
       { "src", "Sources for everything but DES [120MB]",
 	DMENU_CALL,	distSetSrc, 0, 0, srcFlagCheck			},
-      { "XFree86", "The XFree86 3.1.1L distribution [?]",
+      { "XFree86", "The XFree86 3.1.1u1 distribution [?]",
 	DMENU_CALL,	distSetXF86, 0, 0, x11FlagCheck			},
       { NULL } },
 };
@@ -617,7 +616,7 @@ be at various stages.",
 	DMENU_SET_FLAG,		&OptFlags, OPT_FTP_ACTIVE, 0, ftpFlagCheck	},
       { "FTP passive", "Use \"passive mode\" for firewalled FTP",
 	DMENU_SET_FLAG,		&OptFlags, OPT_FTP_PASSIVE, 0, ftpFlagCheck	},
-      { "Extra Debugging", "Toggle the extra debugging flag",
+      { "Debugging", "Turn on the extra debugging flag",
 	DMENU_SET_FLAG,		&OptFlags, OPT_DEBUG, 0, dmenuFlagCheck	},
       { "Yes To All", "Assume \"Yes\" answers to all non-critical dialogs",
 	DMENU_SET_FLAG,	&OptFlags, OPT_NO_CONFIRM, 0, dmenuFlagCheck	},
@@ -749,7 +748,9 @@ for public use around the Internet.  Please select one reasonably\n\
 close to you to have your system time syncronized accordingly.",
     "These are the primary open-access NTP servers",
     NULL,
-    { { "Australia",		"ntp.syd.dms.csiro.au (HP 5061 Cesium Beam)",
+    { { "Other",		"Select a site not on this list",
+	DMENU_CALL,		configNTP, 0, 0				},
+      { "Australia",		"ntp.syd.dms.csiro.au (HP 5061 Cesium Beam)",
 	DMENU_SET_VARIABLE,	"ntpdate=ntp.syd.dms.csiro.au", 0, 0	},
       { "Canada",		"tick.usask.ca (GOES clock)",
 	DMENU_SET_VARIABLE,	"ntpdate=tick.usask.ca", 0, 0		},
