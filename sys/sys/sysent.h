@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sysent.h,v 1.18 1998/06/07 17:13:03 dfr Exp $
+ *	$Id: sysent.h,v 1.19 1998/09/14 05:36:51 jdp Exp $
  */
 
 #ifndef _SYS_SYSENT_H_
@@ -76,6 +76,36 @@ struct sysentvec {
 #ifdef KERNEL
 extern struct sysentvec aout_sysvec;
 extern struct sysent sysent[];
-#endif
+
+#define NO_SYSCALL (-1)
+
+struct module;
+
+struct syscall_module_data {
+       int     (*chainevh)(struct module *, int, void *); /* next handler */
+       void    *chainarg;      /* arg for next event handler */
+       int     *offset;         /* offset into sysent */
+       struct  sysent *new_sysent; /* new sysent */
+       struct  sysent old_sysent; /* old sysent */
+};
+
+#define SYSCALL_MODULE(name, offset, new_sysent, evh, arg)     \
+static struct syscall_module_data name##_syscall_mod = {       \
+       evh, arg, offset, new_sysent                            \
+};                                                             \
+                                                               \
+static moduledata_t name##_mod = {                             \
+       #name,                                                  \
+       syscall_module_handler,                                 \
+       &name##_syscall_mod                                     \
+};                                                             \
+DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
+
+int    syscall_register __P((int *offset, struct sysent *new_sysent,
+                             struct sysent *old_sysent));
+int    syscall_deregister __P((int *offset, struct sysent *old_sysent));
+int    syscall_module_handler __P((struct module *mod, int what, void *arg));
+
+#endif /* KERNEL */
 
 #endif /* !_SYS_SYSENT_H_ */
