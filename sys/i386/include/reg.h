@@ -122,20 +122,17 @@ struct fpreg {
  * Register set accessible via /proc/$pid/dbregs.
  */
 struct dbreg {
-	unsigned int  dr0;	/* debug address register 0 */
-	unsigned int  dr1;	/* debug address register 1 */
-	unsigned int  dr2;	/* debug address register 2 */
-	unsigned int  dr3;	/* debug address register 3 */
-	unsigned int  dr4;	/* reserved */
-	unsigned int  dr5;	/* reserved */
-	unsigned int  dr6;	/* debug status register */
-	unsigned int  dr7;	/* debug control register */
+	unsigned int  dr[8];	/* debug registers */
+				/* Index 0-3: debug address registers */
+				/* Index 4-5: reserved */
+				/* Index 6: debug status */
+				/* Index 7: debug control */
 };
 
 #define DBREG_DR7_EXEC      0x00      /* break on execute       */
 #define DBREG_DR7_WRONLY    0x01      /* break on write         */
 #define DBREG_DR7_RDWR      0x03      /* break on read or write */
-#define DBREG_DRX(d,x) ((&d->dr0)[x]) /* reference dr0 - dr7 by
+#define DBREG_DRX(d,x) (d->dr[(x)]) /* reference dr0 - dr7 by
                                          register number */
 
 
