@@ -13,9 +13,12 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: conf.c,v 8.972.2.35 2003/03/28 05:46:09 ca Exp $")
+SM_RCSID("@(#)$Id: conf.c,v 8.972.2.50 2003/09/03 21:37:03 ca Exp $")
 
 #include <sendmail/pathnames.h>
+#if NEWDB
+# include "sm/bdb.h"
+#endif /* NEWDB */
 
 # include <sys/ioctl.h>
 # include <sys/param.h>
@@ -465,6 +468,19 @@ setupmaps()
 	register STAB *s;
 
 #if NEWDB
+# if DB_VERSION_MAJOR > 1
+	int major_v, minor_v, patch_v;
+
+	(void) db_version(&major_v, &minor_v, &patch_v);
+	if (major_v != DB_VERSION_MAJOR || minor_v != DB_VERSION_MINOR)
+	{
+		errno = 0;
+		syserr("Berkeley DB version mismatch: compiled against %d.%d.%d, run-time linked against %d.%d.%d",
+		  DB_VERSION_MAJOR, DB_VERSION_MINOR, DB_VERSION_PATCH,
+		  major_v, minor_v, patch_v);
+	}
+# endif /* DB_VERSION_MAJOR > 1 */
+
 	MAPDEF("hash", ".db", MCF_ALIASOK|MCF_REBUILDABLE,
 		map_parseargs, hash_map_open, db_map_close,
 		db_map_lookup, db_map_store);
@@ -2227,7 +2243,7 @@ refuseconnections(name, e, d, active)
 		sm_setproctitle(true, e, R_MSG_LA, name, CurrentLA);
 		if (LogLevel > 8)
 			sm_syslog(LOG_NOTICE, NOQID, R_MSG_LA, name, CurrentLA);
-#if _FFR_REJECT_LOG
+# if _FFR_REJECT_LOG
 		now = curtime();
 		if (firstrejtime[d] == 0)
 		{
@@ -2240,13 +2256,13 @@ refuseconnections(name, e, d, active)
 				  pintvl(now - firstrejtime[d], true));
 			nextlogtime[d] = now + RejectLogInterval;
 		}
-#endif /* _FFR_REJECT_LOG */
+# endif /* _FFR_REJECT_LOG */
 		return true;
 	}
-#if _FFR_REJECT_LOG
+# if _FFR_REJECT_LOG
 	else
 		firstrejtime[d] = 0;
-#endif /* _FFR_REJECT_LOG */
+# endif /* _FFR_REJECT_LOG */
 
 	if (DelayLA > 0 && CurrentLA >= DelayLA)
 	{
@@ -2428,12 +2444,12 @@ initsetproctitle(argc, argv, envp)
 	*/
 
 	align = -1;
-#if _FFR_SPT_ALIGN
-# ifdef SPT_ALIGN_SIZE
+# if _FFR_SPT_ALIGN
+#  ifdef SPT_ALIGN_SIZE
 	for (i = SPT_ALIGN_SIZE; i > 0; i >>= 1)
 		align++;
-# endif /* SPT_ALIGN_SIZE */
-#endif /* _FFR_SPT_ALIGN */
+#  endif /* SPT_ALIGN_SIZE */
+# endif /* _FFR_SPT_ALIGN */
 
 	for (i = 0; i < argc; i++)
 	{
@@ -2817,25 +2833,6 @@ uname(name)
 		if (name->nodename[0] != '\0')
 			return 0;
 	}
-
-#  if 0
-	/*
-	**  Popen is known to have security holes.
-	*/
-
-	/* try uuname -l to return local name */
-	if ((file = popen("uuname -l", "r")) != NULL)
-	{
-		(void) sm_io_fgets(file, SM_TIME_DEFAULT, name,
-				   NODE_LENGTH + 1);
-		(void) pclose(file);
-		n = strchr(name, '\n');
-		if (n != NULL)
-			*n = '\0';
-		if (name->nodename[0] != '\0')
-			return 0;
-	}
-#  endif /* 0 */
 
 	return -1;
 }
@@ -4733,7 +4730,7 @@ load_if_names()
 #  ifndef __hpux
 	lifc.lifc_family = AF_UNSPEC;
 	lifc.lifc_flags = 0;
-#  endif /* __hpux */
+#  endif /* ! __hpux */
 	if (ioctl(s, SIOCGLIFCONF, (char *)&lifc) < 0)
 	{
 		if (tTd(0, 4))
@@ -5678,6 +5675,9 @@ char	*OsCompileOptions[] =
 #if ADDRCONFIG_IS_BROKEN
 	"ADDRCONFIG_IS_BROKEN",
 #endif /* ADDRCONFIG_IS_BROKEN */
+#if ALLOW_255
+	"ALLOW_255",
+#endif /* ALLOW_255 */
 #ifdef AUTO_NETINFO_HOSTS
 	"AUTO_NETINFO_HOSTS",
 #endif /* AUTO_NETINFO_HOSTS */
@@ -5929,6 +5929,10 @@ char	*FFRCompileOptions[] =
 	/* Stricter checks about queue directory permissions. */
 	"_FFR_CHK_QUEUE",
 #endif /* _FFR_CHK_QUEUE */
+#if _FFR_CLIENT_SIZE
+	/* Don't try to send mail if its size exceeds SIZE= of server. */
+	"_FFR_CLIENT_SIZE",
+#endif /* _FFR_CLIENT_SIZE */
 #if _FFR_CONTROL_MSTAT
 	/* Extended daemon status. */
 	"_FFR_CONTROL_MSTAT",
@@ -5989,6 +5993,10 @@ char	*FFRCompileOptions[] =
 
 	"_FFR_DROP_TRUSTUSER_WARNING",
 #endif /* _FFR_DROP_TRUSTUSER_WARNING */
+#if _FFR_EXTRA_MAP_CHECK
+	/* perform extra checks on $( $) in R lines */
+	"_FFR_EXTRA_MAP_CHECK",
+#endif /* _FFR_EXTRA_MAP_CHECK */
 #if _FFR_FIX_DASHT
 	/*
 	**  If using -t, force not sending to argv recipients, even
@@ -6026,6 +6034,10 @@ char	*FFRCompileOptions[] =
 	/* Use nsswitch on HP-UX */
 	"_FFR_HPUX_NSSWITCH",
 #endif /* _FFR_HPUX_NSSWITCH */
+#if _FFR_IGNORE_BOGUS_ADDR
+	/* Ignore addresses for which prescan() failed */
+	"_FFR_IGNORE_BOGUS_ADDR",
+#endif /* _FFR_IGNORE_BOGUS_ADDR */
 #if _FFR_IGNORE_EXT_ON_HELO
 	/* Ignore extensions offered in response to HELO */
 	"_FFR_IGNORE_EXT_ON_HELO",
@@ -6049,12 +6061,16 @@ char	*FFRCompileOptions[] =
 /* Randall S. Winchester of the University of Maryland */
 	"_FFR_MAX_FORWARD_ENTRIES",
 #endif /* _FFR_MAX_FORWARD_ENTRIES */
+#if _FFR_MAX_SLEEP_TIME
+	/* Limit sleep(2) time in libsm/clock.c */
+	"_FFR_MAX_SLEEP_TIME",
+#endif /* _FFR_MAX_SLEEP_TIME */
 #if MILTER
 # if _FFR_MILTER_421
 	/* If a filter returns 421, close the SMTP connection */
 	"_FFR_MILTER_421",
 # endif /* _FFR_MILTER_421 */
-# if  _FFR_MILTER_PERDAEMON
+# if _FFR_MILTER_PERDAEMON
 	/* Per DaemonPortOptions InputMailFilter lists */
 	"_FFR_MILTER_PERDAEMON",
 # endif /* _FFR_MILTER_PERDAEMON */
@@ -6144,6 +6160,10 @@ char	*FFRCompileOptions[] =
 	/* Donated code (unused). */
 	"_FFR_SHM_STATUS",
 #endif /* _FFR_SHM_STATUS */
+#if _FFR_SLEEP_USE_SELECT
+	/* Use select(2) in libsm/clock.c to emulate sleep(2) */
+	"_FFR_SLEEP_USE_SELECT ",
+#endif /* _FFR_SLEEP_USE_SELECT */
 #if _FFR_SMFI_OPENSOCKET
 	/* libmilter: smfi_opensocket() to force the socket open early */
 	"_FFR_SMFI_OPENSOCKET",

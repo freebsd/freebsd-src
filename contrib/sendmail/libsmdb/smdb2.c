@@ -8,7 +8,7 @@
 */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: smdb2.c,v 8.72.2.6 2003/01/23 22:21:39 ca Exp $")
+SM_RCSID("@(#)$Id: smdb2.c,v 8.72.2.7 2003/06/24 17:16:10 ca Exp $")
 
 #include <fcntl.h>
 #include <stdlib.h>
@@ -578,12 +578,17 @@ smdb_db_open(database, db_name, mode, mode_mask, sff, type, user_info, db_params
 	int db_flags;
 	int lock_fd;
 	int db_fd;
+	int major_v, minor_v, patch_v;
 	SMDB_DATABASE *smdb_db;
 	SMDB_DB2_DATABASE *db2;
 	DB *db;
 	DBTYPE db_type;
 	struct stat stat_info;
 	char db_file_name[MAXPATHLEN];
+
+	(void) db_version(&major_v, &minor_v, &patch_v);
+	if (major_v != DB_VERSION_MAJOR || minor_v != DB_VERSION_MINOR)
+		return SMDBE_VERSION_MISMATCH;
 
 	*database = NULL;
 

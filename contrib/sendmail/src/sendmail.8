@@ -9,9 +9,9 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"     $Id: sendmail.8,v 8.51 2002/05/24 15:42:13 ca Exp $
+.\"     $Id: sendmail.8,v 8.51.2.1 2003/05/20 16:38:15 gshapiro Exp $
 .\"
-.TH SENDMAIL 8 "$Date: 2002/05/24 15:42:13 $"
+.TH SENDMAIL 8 "$Date: 2003/05/20 16:38:15 $"
 .SH NAME
 sendmail
 \- an electronic mail transport agent
@@ -295,21 +295,21 @@ Process jobs in queue group called
 .I name
 only.
 .TP
-\fB\-q\fR[\fI!\fR]I substr
+\fB\-q\fR[\fI!\fR]I\fIsubstr\fR
 Limit processed jobs to those containing
 .I substr
 as a substring of the queue id or not when
 .I !
 is specified.
 .TP
-\fB\-q\fR[\fI!\fR]R substr
+\fB\-q\fR[\fI!\fR]R\fIsubstr\fR
 Limit processed jobs to those containing
 .I substr
 as a substring of one of the recipients or not when
 .I !
 is specified.
 .TP
-\fB\-q\fR[\fI!\fR]S substr
+\fB\-q\fR[\fI!\fR]S\fIsubstr\fR
 Limit processed jobs to those containing
 .I substr
 as a substring of the sender or not when
