@@ -745,7 +745,7 @@ loop2:
 		if ((bp->b_vflags & BV_SCANNED) != 0)
 			continue;
 		bp->b_vflags |= BV_SCANNED;
-		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT))
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL))
 			continue;
 		VI_UNLOCK(vp);
 		if ((bp->b_flags & B_DELWRI) == 0)

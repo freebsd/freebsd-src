@@ -200,7 +200,7 @@ loop:
 		bp->b_vflags |= BV_SCANNED;
 		if ((skipmeta == 1 && bp->b_lblkno < 0))
 			continue;
-		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT))
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL))
 			continue;
 		if (!wait && LIST_FIRST(&bp->b_dep) != NULL &&
 		    (bp->b_flags & B_DEFERRED) == 0 &&

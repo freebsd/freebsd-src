@@ -327,7 +327,7 @@ interlocked_sleep(lk, op, ident, mtx, flags, wmesg, timo)
 		retval = msleep(ident, mtx, flags, wmesg, timo);
 		break;
 	case LOCKBUF:
-		retval = BUF_LOCK((struct buf *)ident, flags);
+		retval = BUF_LOCK((struct buf *)ident, flags, NULL);
 		break;
 	default:
 		panic("interlocked_sleep: unknown operation");
@@ -4890,11 +4890,11 @@ softdep_fsync_mountdev(vp)
 	VI_LOCK(vp);
 	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 		nbp = TAILQ_NEXT(bp, b_vnbufs);
-		VI_UNLOCK(vp);
 		/* 
 		 * If it is already scheduled, skip to the next buffer.
 		 */
-		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK,
+		    VI_MTX(vp))) {
 			VI_LOCK(vp);
 			continue;
 		}
@@ -5807,7 +5807,8 @@ getdirtybuf(bpp, waitfor)
 	for (;;) {
 		if ((bp = *bpp) == NULL)
 			return (0);
-		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT) == 0) {
+		/* XXX Probably needs interlock */
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL) == 0) {
 			if ((bp->b_xflags & BX_BKGRDINPROG) == 0)
 				break;
 			BUF_UNLOCK(bp);

@@ -814,7 +814,7 @@ build_rq_buffer(struct rqelement *rqe, struct plex *plex)
 	panic("build_rq_buffer: rqe already locked");	    /* XXX remove this when we're sure */
 #endif
     BUF_LOCKINIT(bp);					    /* get a lock for the buffer */
-    BUF_LOCK(bp, LK_EXCLUSIVE);				    /* and lock it */
+    BUF_LOCK(bp, LK_EXCLUSIVE, NULL);			    /* and lock it */
     BUF_KERNPROC(bp);
     rqe->flags |= XFR_BUFLOCKED;
     bp->b_iodone = complete_rqe;
@@ -949,7 +949,7 @@ sdio(struct buf *bp)
     sbp->b.b_blkno = bp->b_blkno + sd->driveoffset;
     sbp->b.b_iodone = sdio_done;			    /* come here on completion */
     BUF_LOCKINIT(&sbp->b);				    /* get a lock for the buffer */
-    BUF_LOCK(&sbp->b, LK_EXCLUSIVE);			    /* and lock it */
+    BUF_LOCK(&sbp->b, LK_EXCLUSIVE, NULL);		    /* and lock it */
     BUF_KERNPROC(&sbp->b);
     sbp->bp = bp;					    /* note the address of the original header */
     sbp->sdno = sd->sdno;				    /* note for statistics */

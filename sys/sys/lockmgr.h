@@ -149,6 +149,7 @@ struct lock {
 				    */
 #define LK_RETRY	0x00020000 /* vn_lock: retry until locked */
 #define	LK_THISLAYER	0x00040000 /* vn_lock: lock/unlock only current layer */
+#define	LK_INTERNAL	0x00080000/* The internal lock is already held */
 
 /*
  * Internal state flags corresponding to lk_sharecount, and lk_waitcount
