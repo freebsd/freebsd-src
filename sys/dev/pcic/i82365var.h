@@ -48,17 +48,17 @@ struct pcic_event {
 struct proc;
 
 struct pcic_handle {
-	struct pcic_softc *sc;
+	void *sc;
 	device_t dev;
 	bus_space_tag_t ph_bus_t;	/* I/O or MEM?  I don't mind */
 	bus_space_handle_t ph_bus_h;
-	u_int8_t (* ph_read)(struct pcic_handle*, int);
-	void (* ph_write)(struct pcic_handle *, int, u_int8_t);
+	u_int8_t (*ph_read)(struct pcic_handle*, int);
+	void (*ph_write)(struct pcic_handle *, int, u_int8_t);
 
 	int	vendor;
 	int	sock;
 	int	flags;
-	int laststate;
+	int	laststate;
 	int	memalloc;
 	struct pccard_mem_handle mem[PCIC_MEM_WINS];	/* XXX BAD XXX */
 	int	ioalloc;
