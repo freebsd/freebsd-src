@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: collate.c,v 1.8.2.3 1996/12/29 11:01:26 joerg Exp $
+ * $Id: collate.c,v 1.8.2.4 1997/02/05 23:20:45 joerg Exp $
  */
 
 #include <rune.h>
@@ -35,8 +35,8 @@
 #include <unistd.h>
 #include <sysexits.h>
 #include "collate.h"
+#include "setlocale.h"
 
-char *_PathLocale;
 int __collate_load_error = 1;
 char __collate_version[STR_LEN];
 u_char __collate_substitute_table[UCHAR_MAX + 1][STR_LEN];
