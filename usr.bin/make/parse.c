@@ -1823,7 +1823,6 @@ ParseTraditionalInclude (char *file)
     char          *fullname;	/* full pathname of file */
     IFile         *oldFile;	/* state associated with current file */
     char          *cp;		/* current position in file spec */
-    char	  *prefEnd;
 
     /*
      * Skip over whitespace
@@ -1855,42 +1854,12 @@ ParseTraditionalInclude (char *file)
 
     /*
      * Now we know the file's name, we attempt to find the durn thing.
-     * A return of NULL indicates the file don't exist.
-     *
-     * Include files are first searched for relative to the including
-     * file's location. We don't want to cd there, of course, so we
-     * just tack on the old file's leading path components and call
-     * Dir_FindFile to see if we can locate the beast.
-     * XXX - this *does* search in the current directory, right?
+     * Search for it first on the -I search path, then on the .PATH
+     * search path, if not found in a -I directory.
      */
-
-    prefEnd = strrchr (fname, '/');
-    if (prefEnd != (char *)NULL) {
-	char  	*newName;
-
-	*prefEnd = '\0';
-	newName = str_concat (fname, file, STR_ADDSLASH);
-	fullname = Dir_FindFile (newName, parseIncPath);
-	if (fullname == (char *)NULL) {
-	    fullname = Dir_FindFile(newName, dirSearchPath);
-	}
-	free (newName);
-	*prefEnd = '/';
-    } else {
-	fullname = (char *)NULL;
-    }
-
+    fullname = Dir_FindFile (file, parseIncPath);
     if (fullname == (char *)NULL) {
-	/*
-	 * System makefile or makefile wasn't found in same directory as
-	 * included makefile. Search for it first on the -I search path,
-	 * then on the .PATH search path, if not found in a -I directory.
-	 * XXX: Suffix specific?
-	 */
-	fullname = Dir_FindFile (file, parseIncPath);
-	if (fullname == (char *)NULL) {
-	    fullname = Dir_FindFile(file, dirSearchPath);
-	}
+        fullname = Dir_FindFile(file, dirSearchPath);
     }
 
     if (fullname == (char *)NULL) {
