@@ -726,9 +726,7 @@ rt_fixdelete(rn, vp)
  * network route and (cloned) host routes.  For this reason, a simple check
  * of rt->rt_parent is insufficient; each candidate route must be tested
  * against the (mask, value) of the new route (passed as before in vp)
- * to see if the new route matches it.  Unfortunately, this has the obnoxious
- * property of also triggering for insertion /above/ a pre-existing network
- * route and clones.  Sigh.  This may be fixed some day.
+ * to see if the new route matches it.
  *
  * XXX - it may be possible to do fixdelete() for changes and reserve this
  * routine just for adds.  I'm not sure why I thought it was necessary to do
@@ -747,8 +745,8 @@ rt_fixchange(rn, vp)
 	struct rtfc_arg *ap = vp;
 	struct rtentry *rt0 = ap->rt0;
 	struct radix_node_head *rnh = ap->rnh;
-	u_char *xk1, *xm1, *xk2;
-	int i, len;
+	u_char *xk1, *xm1, *xk2, *xmp;
+	int i, len, mlen;
 
 #ifdef DEBUG
 	if (rtfcdebug)
@@ -781,6 +779,28 @@ rt_fixchange(rn, vp)
 	xk1 = (u_char *)rt_key(rt0);
 	xm1 = (u_char *)rt_mask(rt0);
 	xk2 = (u_char *)rt_key(rt);
+
+	/* avoid applying a less specific route */
+	xmp = (u_char *)rt_mask(rt->rt_parent);
+	mlen = ((struct sockaddr *)rt_key(rt->rt_parent))->sa_len;
+	if (mlen > ((struct sockaddr *)rt_key(rt0))->sa_len) {
+#ifdef DEBUG
+		if (rtfcdebug)
+			printf("rt_fixchange: inserting a less "
+			       "specific route\n");
+#endif
+		return 0;
+	}
+	for (i = rnh->rnh_treetop->rn_offset; i < mlen; i++) {
+		if ((xmp[i] & ~(xmp[i] ^ xm1[i])) != xmp[i]) {
+#ifdef DEBUG
+			if (rtfcdebug)
+				printf("rt_fixchange: inserting a less "
+				       "specific route\n");
+#endif
+			return 0;
+		}
+	}
 
 	for (i = rnh->rnh_treetop->rn_offset; i < len; i++) {
 		if ((xk2[i] & xm1[i]) != xk1[i]) {
