@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.18 1996/04/28 03:27:21 jkh Exp $
+ * $Id: misc.c,v 1.12.2.13 1996/05/24 06:08:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -120,6 +120,16 @@ string_copy(char *s1, char *s2)
     else
 	strcpy(s1, s2);
     return s1;
+}
+
+/* convert an integer to a string, using a static buffer */
+char *
+itoa(int value)
+{
+    static char buf[13];
+
+    snprintf(buf, 12, "%d", value);
+    return buf;
 }
 
 Boolean
