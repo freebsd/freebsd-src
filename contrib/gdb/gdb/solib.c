@@ -170,7 +170,13 @@ static int
 symbol_add_stub PARAMS ((char *));
 
 static struct so_list *
-find_solib PARAMS ((struct so_list *));
+alloc_solib PARAMS ((struct link_map *));
+
+static void
+free_solib PARAMS ((struct so_list *));
+
+static struct so_list *
+find_solib PARAMS ((struct so_list *, int maybe_changed));
 
 static struct link_map *
 first_link_map_member PARAMS ((void));
@@ -845,11 +851,106 @@ first_link_map_member ()
 
 LOCAL FUNCTION
 
+	free_solib -- free a so_list structure
+
+SYNOPSIS
+
+	void free_solib (struct so_list *so_list_ptr)
+
+DESCRIPTION
+
+	Free the memory used by a struct so_list.
+
+ */
+
+void
+free_solib (so)
+     struct so_list *so;
+{
+  char *bfd_filename;
+  if (so -> sections)
+    {
+      free ((PTR)so -> sections);
+    }
+  if (so -> abfd)
+    {
+      bfd_filename = bfd_get_filename (so -> abfd);
+      if (!bfd_close (so -> abfd))
+	warning ("cannot close \"%s\": %s",
+		 bfd_filename, bfd_errmsg (bfd_get_error ()));
+    }
+  else
+    /* This happens for the executable on SVR4.  */
+    bfd_filename = NULL;
+      
+  if (bfd_filename)
+    free ((PTR)bfd_filename);
+  free ((PTR)so);
+}
+
+/*
+
+LOCAL FUNCTION
+
+	alloc_solib -- free a so_list structure
+
+SYNOPSIS
+
+	struct so_list *alloc_solib (struct link_map *lm)
+
+DESCRIPTION
+
+	Allocate the struct so_list to cache debugging information
+	for a struct link_map entry in the target.
+
+ */
+
+struct so_list *
+alloc_solib (lm)
+     struct link_map *lm;
+{
+  struct so_list *new;
+
+  /* Get next link map structure from inferior image and build a local
+	 abbreviated load_map structure */
+  new = (struct so_list *) xmalloc (sizeof (struct so_list));
+  memset ((char *) new, 0, sizeof (struct so_list));
+  new -> lmaddr = lm;
+
+  read_memory ((CORE_ADDR) lm, (char *) &(new -> lm),
+	       sizeof (struct link_map));
+  /* For SVR4 versions, the first entry in the link map is for the
+	 inferior executable, so we must ignore it.  For some versions of
+	 SVR4, it has no name.  For others (Solaris 2.3 for example), it
+	 does have a name, so we can no longer use a missing name to
+	 decide when to ignore it. */
+  if (!IGNORE_FIRST_LINK_MAP_ENTRY (new -> lm))
+    {
+      int errcode;
+      char *buffer;
+      target_read_string ((CORE_ADDR) LM_NAME (new), &buffer,
+			  MAX_PATH_SIZE - 1, &errcode);
+      if (errcode != 0)
+	error ("find_solib: Can't read pathname for load map: %s\n",
+	       safe_strerror (errcode));
+      strncpy (new -> so_name, buffer, MAX_PATH_SIZE - 1);
+      new -> so_name[MAX_PATH_SIZE - 1] = '\0';
+      free (buffer);
+      solib_map_sections (new);
+    }      
+
+  return new;
+}
+
+/*
+
+LOCAL FUNCTION
+
 	find_solib -- step through list of shared objects
 
 SYNOPSIS
 
-	struct so_list *find_solib (struct so_list *so_list_ptr)
+	struct so_list *find_solib (struct so_list *so_list_ptr, int maybe_changed)
 
 DESCRIPTION
 
@@ -862,95 +963,122 @@ DESCRIPTION
 
 	The arg and return value are "struct link_map" pointers, as defined
 	in <link.h>.
+
+	If it is expected that the contents of the shared library list has changed
+	(e.g. when the special shared library breakpoint is hit) then pass non-zero
+	for maybe_changed, otherwise zero.
  */
 
 static struct so_list *
-find_solib (so_list_ptr)
+find_solib (so_list_ptr, maybe_changed)
      struct so_list *so_list_ptr;	/* Last lm or NULL for first one */
+     int maybe_changed;			/* non-zero if shlib list might have changed */
 {
-  struct so_list *so_list_next = NULL;
   struct link_map *lm = NULL;
   struct so_list *new;
+  struct so_list *p, **prev;
   
   if (so_list_ptr == NULL)
     {
-      /* We are setting up for a new scan through the loaded images. */
-      if ((so_list_next = so_list_head) == NULL)
+      struct so_list **map;
+
+      /* If we have not already read in the dynamic linking structures
+	 from the inferior, lookup the address of the base structure. */
+      if (debug_base == 0)
+	debug_base = locate_base ();
+      if (debug_base != 0)
 	{
-	  /* We have not already read in the dynamic linking structures
-	     from the inferior, lookup the address of the base structure. */
-	  debug_base = locate_base ();
-	  if (debug_base != 0)
+	  /* Read the base structure in and find the address of the first
+	     link map list member. */
+	  lm = first_link_map_member ();
+	}
+      else
+	lm = NULL;
+
+      prev = &so_list_head;
+      so_list_ptr = so_list_head;
+    }
+  else
+    {
+      /* We have been called before, and are in the process of walking
+	 the shared library list.  Advance to the next shared object.
+
+	 Always read from the target to check to see if any were
+	 added, but be quiet if we can't read from the target any more. */
+      int status = target_read_memory ((CORE_ADDR) so_list_ptr -> lmaddr,
+				       (char *) &(so_list_ptr -> lm),
+				       sizeof (struct link_map));
+
+      if (status == 0)
+	{
+	  lm = LM_NEXT (so_list_ptr);
+	}
+      else
+	{
+	  lm = NULL;
+	}
+
+      prev = &so_list_ptr -> next;
+      so_list_ptr = so_list_ptr -> next;
+    }
+
+  /* If we don't believe that the list has changed, just return the cached copy. */
+  if (!maybe_changed)
+      return (so_list_ptr);
+
+  /* At this point, lm is the address of the next list element in the target and
+     so_list_ptr is our cached entry for it. */
+
+  if (lm != NULL)
+    {
+      if (so_list_ptr == NULL || so_list_ptr -> lmaddr != lm)
+	{
+	  /* We have detected a change in the list.  Check for a deletion by searching
+	     forward in the cached list */
+	  if (so_list_ptr)
 	    {
-	      /* Read the base structure in and find the address of the first
-		 link map list member. */
-	      lm = first_link_map_member ();
+	      for (p = so_list_ptr -> next; p; p = p -> next)
+		if (p -> lmaddr == lm)
+		  break;
+	    }
+	  else
+	    p = NULL;
+
+	  if (p)
+	    {
+	      /* This lib has been deleted */
+	      while (so_list_ptr != p)
+		{
+		  *prev = so_list_ptr -> next;
+		  free_solib (so_list_ptr);
+		  so_list_ptr = *prev;
+		}
+	    }
+	  else
+	    {
+	      /* A new lib has been inserted into the list */
+	      new = alloc_solib (lm);
+	      new -> next = so_list_ptr;
+	      *prev = new;
+	      so_list_ptr = new;
 	    }
 	}
     }
   else
     {
-      /* We have been called before, and are in the process of walking
-	 the shared library list.  Advance to the next shared object. */
-      if ((lm = LM_NEXT (so_list_ptr)) == NULL)
-	{
-	  /* We have hit the end of the list, so check to see if any were
-	     added, but be quiet if we can't read from the target any more. */
-	  int status = target_read_memory ((CORE_ADDR) so_list_ptr -> lmaddr,
-					   (char *) &(so_list_ptr -> lm),
-					   sizeof (struct link_map));
-	  if (status == 0)
-	    {
-	      lm = LM_NEXT (so_list_ptr);
-	    }
-	  else
-	    {
-	      lm = NULL;
-	    }
-	}
-      so_list_next = so_list_ptr -> next;
-    }
-  if ((so_list_next == NULL) && (lm != NULL))
-    {
-      /* Get next link map structure from inferior image and build a local
-	 abbreviated load_map structure */
-      new = (struct so_list *) xmalloc (sizeof (struct so_list));
-      memset ((char *) new, 0, sizeof (struct so_list));
-      new -> lmaddr = lm;
-      /* Add the new node as the next node in the list, or as the root
-	 node if this is the first one. */
       if (so_list_ptr != NULL)
 	{
-	  so_list_ptr -> next = new;
+	  /* Libs have been deleted from the end of the list */
+	  while (so_list_ptr != NULL)
+	    {
+	      *prev = so_list_ptr -> next;
+	      free_solib (so_list_ptr);
+	      so_list_ptr = *prev;
+	    }
 	}
-      else
-	{
-	  so_list_head = new;
-	}      
-      so_list_next = new;
-      read_memory ((CORE_ADDR) lm, (char *) &(new -> lm),
-		   sizeof (struct link_map));
-      /* For SVR4 versions, the first entry in the link map is for the
-	 inferior executable, so we must ignore it.  For some versions of
-	 SVR4, it has no name.  For others (Solaris 2.3 for example), it
-	 does have a name, so we can no longer use a missing name to
-	 decide when to ignore it. */
-      if (!IGNORE_FIRST_LINK_MAP_ENTRY (new -> lm))
-	{
-	  int errcode;
-	  char *buffer;
-	  target_read_string ((CORE_ADDR) LM_NAME (new), &buffer,
-			      MAX_PATH_SIZE - 1, &errcode);
-	  if (errcode != 0)
-	    error ("find_solib: Can't read pathname for load map: %s\n",
-		   safe_strerror (errcode));
-	  strncpy (new -> so_name, buffer, MAX_PATH_SIZE - 1);
-	  new -> so_name[MAX_PATH_SIZE - 1] = '\0';
-	  free (buffer);
-	  solib_map_sections (new);
-	}      
     }
-  return (so_list_next);
+
+  return (so_list_ptr);
 }
 
 /* A small stub to get us past the arg-passing pinhole of catch_errors.  */
@@ -1029,7 +1157,7 @@ solib_add (arg_string, from_tty, target)
       /* Count how many new section_table entries there are.  */
       so = NULL;
       count = 0;
-      while ((so = find_solib (so)) != NULL)
+      while ((so = find_solib (so, 1)) != NULL)
 	{
 	  if (so -> so_name[0] && !match_main (so -> so_name))
 	    {
@@ -1071,7 +1199,7 @@ solib_add (arg_string, from_tty, target)
 	    }
 
 	  /* Add these section table entries to the target's table.  */
-	  while ((so = find_solib (so)) != NULL)
+	  while ((so = find_solib (so, 1)) != NULL)
 	    {
 	      if (so -> so_name[0])
 		{
@@ -1086,7 +1214,7 @@ solib_add (arg_string, from_tty, target)
     }
   
   /* Now add the symbol files.  */
-  while ((so = find_solib (so)) != NULL)
+  while ((so = find_solib (so, 1)) != NULL)
     {
       if (so -> so_name[0] && re_exec (so -> so_name) && 
       !match_main (so -> so_name))
@@ -1148,7 +1276,7 @@ info_sharedlibrary_command (ignore, from_tty)
       printf_unfiltered ("No exec file.\n");
       return;
     }
-  while ((so = find_solib (so)) != NULL)
+  while ((so = find_solib (so, 0)) != NULL)
     {
       if (so -> so_name[0])
 	{
@@ -1206,7 +1334,7 @@ solib_address (address)
 {
   register struct so_list *so = 0;   	/* link map state variable */
   
-  while ((so = find_solib (so)) != NULL)
+  while ((so = find_solib (so, 0)) != NULL)
     {
       if (so -> so_name[0])
 	{
@@ -1224,29 +1352,11 @@ void
 clear_solib()
 {
   struct so_list *next;
-  char *bfd_filename;
   
   while (so_list_head)
     {
-      if (so_list_head -> sections)
-	{
-	  free ((PTR)so_list_head -> sections);
-	}
-      if (so_list_head -> abfd)
-	{
-	  bfd_filename = bfd_get_filename (so_list_head -> abfd);
-	  if (!bfd_close (so_list_head -> abfd))
-	    warning ("cannot close \"%s\": %s",
-		     bfd_filename, bfd_errmsg (bfd_get_error ()));
-	}
-      else
-	/* This happens for the executable on SVR4.  */
-	bfd_filename = NULL;
-      
       next = so_list_head -> next;
-      if (bfd_filename)
-	free ((PTR)bfd_filename);
-      free ((PTR)so_list_head);
+      free_solib (so_list_head);
       so_list_head = next;
     }
   debug_base = 0;
