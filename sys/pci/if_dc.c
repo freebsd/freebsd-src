@@ -2724,6 +2724,17 @@ static void dc_init(xsc)
 	DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_TX_ON);
 
 	/*
+	 * If this is an Intel 21143 and we're not using the
+	 * MII port, program the LED control pins so we get
+	 * link and activity indications.
+	 */
+	if (DC_IS_INTEL(sc) && sc->dc_pmode == DC_PMODE_SYM) {
+		CSR_WRITE_4(sc, DC_WATCHDOG,
+		    DC_WDOG_CTLWREN|DC_WDOG_LINK|DC_WDOG_ACTIVITY);   
+		CSR_WRITE_4(sc, DC_WATCHDOG, DC_WDOG_LINK|DC_WDOG_ACTIVITY);
+	}
+
+	/*
 	 * Load the RX/multicast filter. We do this sort of late
 	 * because the filter programming scheme on the 21143 and
 	 * some clones requires DMAing a setup frame via the TX
