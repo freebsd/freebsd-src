@@ -80,6 +80,8 @@
 #define SBP_ADDR2TRG(a)	(((a) >> 2) & 0x3f)
 #define SBP_ADDR2LUN(a)	(((a) >> 8) & 0xff)
 
+#define MAX_FREEZE	10
+
 #define ORB_NOTIFY	(1 << 31)
 #define	ORB_FMT_STD	(0 << 29)
 #define	ORB_FMT_VED	(2 << 29)
@@ -630,36 +632,6 @@ END_DEBUG
 	}
 }
 
-#if 0
-static void
-sbp_release_queue(void *arg)
-{
-	struct sbp_softc *sbp;
-
-SBP_DEBUG(0)
-	printf("sbp_release_queue\n");
-END_DEBUG
-	sbp = (struct sbp_softc *)arg;
-	xpt_release_simq(sbp->sim, 1);
-}
-
-static void
-sbp_release_devq(void *arg)
-{
-	struct sbp_dev *sdev;
-	int s;
-
-	sdev = (struct sbp_dev *)arg;
-SBP_DEBUG(0)
-	sbp_show_sdev_info(sdev, 2);
-	printf("sbp_release_devq\n");
-END_DEBUG
-	s = splcam();
-	xpt_release_devq(sdev->path, 1, TRUE);
-	splx(s);
-}
-#endif
-
 static void
 sbp_post_explore(void *arg)
 {
@@ -803,9 +775,10 @@ END_DEBUG
 	ccb->ccb_h.cbfcnp = sbp_cam_callback;
 	ccb->crcn.flags = CAM_FLAG_NONE;
 	ccb->ccb_h.ccb_sdev_ptr = sdev;
-	xpt_action(ccb);
 
 	/* The scan is in progress now. */
+	sdev->status = SBP_DEV_PROBE;
+	xpt_action(ccb);
 }
 
 
@@ -828,13 +801,13 @@ END_DEBUG
 		} else {
 			/* requeue */
 			xpt_action(ccb);
-			xpt_release_devq(sdev->path, 1, TRUE);
+			xpt_release_devq(sdev->path, MAX_FREEZE, TRUE);
 		}
 	} else {
 		free(ccb->csio.data_ptr, M_SBP);
 		free(ccb, M_SBP);
 		sdev->status = SBP_DEV_ATTACHED;
-		xpt_release_devq(sdev->path, 1, TRUE);
+		xpt_release_devq(sdev->path, MAX_FREEZE, TRUE);
 	}
 }
 
@@ -892,10 +865,7 @@ END_DEBUG
 	);
 	ccb->ccb_h.flags |= CAM_DEV_QFREEZE;
 	xpt_action(ccb);
-
-	if (sdev->status == SBP_DEV_RETRY)
-		/* freezed twice */
-		xpt_release_devq(sdev->path, 1, TRUE);
+	sdev->status = SBP_DEV_PROBE;
 }
 
 static void
@@ -914,14 +884,11 @@ END_DEBUG
 			cam_sim_path(sdev->target->sbp->sim),
 			sdev->target->target_id, sdev->lun_id);
 
-	if (sdev->status == SBP_DEV_RETRY) {
+	if (sdev->status == SBP_DEV_RETRY)
 		sbp_ping_unit(sdev);
-		sdev->status = SBP_DEV_PROBE;
-	} else {
-		sdev->status = SBP_DEV_PROBE;
+	else
 		sbp_cam_scan_lun(sdev);
-	}
-	xpt_release_devq(sdev->path, 1, TRUE);
+	xpt_release_devq(sdev->path, MAX_FREEZE, TRUE);
 	return;
 }
 
@@ -938,7 +905,7 @@ END_DEBUG
 	fw_xfer_free(xfer);
 	sbp_abort_all_ocbs(sdev, CAM_REQUEUE_REQ);
 	if (sdev->path)
-		xpt_release_devq(sdev->path, 1, TRUE);
+		xpt_release_devq(sdev->path, MAX_FREEZE, TRUE);
 }
 
 static void
@@ -1527,8 +1494,8 @@ printf("reconnect: len %d, ID %d, cmd %08x%08x\n", login_res->len, login_res->id
 END_DEBUG
 #if 1
 					sbp_ping_unit(sdev);
-					sdev->status = SBP_DEV_ATTACHED;
-					xpt_release_devq(sdev->path, 1, TRUE);
+					xpt_release_devq(sdev->path,
+							MAX_FREEZE, TRUE);
 #else
 					sdev->status = SBP_DEV_ATTACHED;
 					sbp_mgm_orb(sdev, ORB_FUN_ATS, 0, 0);
