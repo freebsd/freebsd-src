@@ -95,7 +95,7 @@ void ncvattachsubr(struct ncv_softc *);
 int ncvprint(void *, const char *);
 int ncvintr(void *);
 
-#if	defined(__i386__)
+#if	defined(__i386__) && 0
 #define	SOFT_INTR_REQUIRED(slp)	(softintr((slp)->sl_irq))
 #else	/* !__i386__ */
 #define	SOFT_INTR_REQUIRED(slp)
