@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_linux.c,v 1.2 1995/08/24 10:32:27 davidg Exp $
+ *	$Id: imgact_linux.c,v 1.3 1995/11/06 12:52:23 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -44,6 +44,10 @@
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 
+#include <i386/linux/sysproto.h>
+
+extern int	exec_linux_imgact __P((struct image_params *iparams));
+
 int
 exec_linux_imgact(imgp)
     struct image_params *imgp;
@@ -53,7 +57,6 @@ exec_linux_imgact(imgp)
     unsigned long vmaddr, virtual_offset, file_offset;
     unsigned long buffer, bss_size;
     int error;
-    extern struct sysentvec linux_sysvec;
 
     if (((a_out->a_magic >> 16) & 0xff) != 0x64)
 	return -1;

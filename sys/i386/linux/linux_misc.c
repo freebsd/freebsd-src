@@ -25,12 +25,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.2 1995/10/04 07:08:04 julian Exp $
+ *  $Id: linux_misc.c,v 1.3 1995/11/06 12:52:24 davidg Exp $
  */
 
-#include <i386/linux/linux.h>
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
+#include <sys/kernel.h>
 #include <sys/exec.h>
 #include <sys/mman.h>
 #include <sys/proc.h>
@@ -44,19 +45,19 @@
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
 #include <sys/stat.h>
-#include <sys/time.h>
+#include <sys/sysctl.h>
 #include <sys/times.h>
 #include <sys/utsname.h>
 #include <sys/vnode.h>
 #include <sys/wait.h>
 
-#include <machine/cpu.h>
-#include <machine/psl.h>
-#include <machine/reg.h>
-
-#include <vm/vm.h>
 #include <vm/vm_kern.h>
 
+#include <machine/cpu.h>
+#include <machine/psl.h>
+
+#include <i386/linux/linux.h>
+#include <i386/linux/sysproto.h>
 
 struct linux_alarm_args {
     unsigned int secs;
@@ -65,7 +66,6 @@ struct linux_alarm_args {
 int
 linux_alarm(struct proc *p, struct linux_alarm_args *args, int *retval)
 {
-    extern struct timeval time;
     struct itimerval it, old_it;
     int s;
 
@@ -111,7 +111,6 @@ linux_brk(struct proc *p, struct linux_brk_args *args, int *retval)
     struct vmspace *vm = p->p_vmspace;
     vm_offset_t new, old;
     int error;
-    extern int swap_pager_full;
 
     if ((vm_offset_t)args->dsend < (vm_offset_t)vm->vm_daddr)
 	return EINVAL;
@@ -513,7 +512,6 @@ struct linux_tms_args {
 int
 linux_times(struct proc *p, struct linux_tms_args *args, int *retval)
 {
-    extern int hz;
     struct timeval tv;
     struct linux_tms tms;
 
@@ -549,8 +547,6 @@ int
 linux_newuname(struct proc *p, struct linux_newuname_args *args, int *retval)
 {
     struct linux_newuname_t linux_newuname;
-    extern char ostype[], osrelease[], machine[];
-    extern char hostname[], domainname[];
 
 #ifdef DEBUG
     printf("Linux-emul(%d): newuname(*)\n", p->p_pid);

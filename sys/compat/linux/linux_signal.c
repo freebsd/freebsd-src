@@ -25,19 +25,19 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_signal.c,v 1.2 1995/06/07 21:27:57 sos Exp $
+ *  $Id: linux_signal.c,v 1.1 1995/06/25 17:32:40 sos Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/proc.h>
 #include <sys/exec.h>
 #include <sys/signal.h>
 #include <sys/signalvar.h>
 
-#include <vm/vm.h>
-
 #include <i386/linux/linux.h>
+#include <i386/linux/sysproto.h>
 
 #define DONTMASK    (sigmask(SIGKILL)|sigmask(SIGSTOP)|sigmask(SIGCHLD))
 
