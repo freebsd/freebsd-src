@@ -2623,6 +2623,16 @@ RunListCommand(struct cmdargs const *arg)
 {
   const char *cmd = arg->argc ? arg->argv[arg->argc - 1] : "???";
 
+#ifndef NONAT
+  if (arg->cmd->args == NatCommands &&
+      tolower(*arg->argv[arg->argn - 1]) == 'a') {
+    if (arg->prompt)
+      prompt_Printf(arg->prompt, "The alias command is depricated\n");
+    else
+      log_Printf(LogWARN, "The alias command is depricated\n");
+  }
+#endif
+
   if (arg->argc > arg->argn)
     FindExec(arg->bundle, arg->cmd->args, arg->argc, arg->argn, arg->argv,
              arg->prompt, arg->cx);
