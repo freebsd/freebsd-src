@@ -233,8 +233,6 @@
 
     &hwlist.isp;
 
-    <para arch="i386,amd64">DTC 3290 EISA SCSI controller in 1542 emulation mode.</para>
-
     &hwlist.amd;
 
     &hwlist.nsp;
