@@ -122,7 +122,7 @@ Boston, MA 02111-1307, USA.  */
 	`crtn.o'.  */
 
 #define FBSD_ENDFILE_SPEC \
-  "%{!shared:crtend.o%s} %{shared:crtendS.o%s} crtn.o%s"
+  " %{!shared:crtend.o%s} %{shared:crtendS.o%s} crtn.o%s "
 
 /* Provide a LIB_SPEC appropriate for FreeBSD as configured and as
    required by the user-land thread model.  Before __FreeBSD_version
