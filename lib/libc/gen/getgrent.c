@@ -500,7 +500,6 @@ files_group(void *retval, void *mdata, va_list ap)
 		if (rv & NS_TERMINATE)
 			break;
 	}
-fin:
 	if (!stayopen && st->fp != NULL) {
 		fclose(st->fp);
 		st->fp = NULL;
@@ -1083,7 +1082,7 @@ int
 __gr_parse_entry(char *line, size_t linesize, struct group *grp, char *membuf,
     size_t membufsize, int *errnop)
 {
-	char	       *s_gid, *s_mem, **members;
+	char	       *s_gid, *s_mem, *p, **members;
 	unsigned long	n;
 	int		maxmembers;
 
@@ -1104,13 +1103,12 @@ __gr_parse_entry(char *line, size_t linesize, struct group *grp, char *membuf,
 		return (NS_NOTFOUND);
 	grp->gr_gid = (gid_t)n;
 	grp->gr_mem = members;
-	if (s_mem[0] == '\0') {
-		*members = NULL;
-		return (NS_SUCCESS);
-	}
 	while (maxmembers > 1 && s_mem != NULL) {
-		*members++ = strsep(&s_mem, ",");
-		maxmembers--;
+		p = strsep(&s_mem, ",");
+		if (p != NULL && *p != '\0') {
+			*members++ = p;
+			maxmembers--;
+		}
 	}
 	*members = NULL;
 	if (s_mem == NULL)
