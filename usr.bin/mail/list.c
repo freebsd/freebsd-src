@@ -35,9 +35,9 @@
 #if 0
 static char sccsid[] = "@(#)list.c	8.4 (Berkeley) 5/1/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "rcv.h"
 #include <ctype.h>
@@ -273,7 +273,7 @@ number:
 		for (i = 1; i <= msgCount; i++) {
 			for (mc = 0, np = &namelist[0]; *np != NULL; np++)
 				if (**np == '/') {
-					if (matchsubj(*np, i)) {
+					if (matchfield(*np, i)) {
 						mc++;
 						break;
 					}
@@ -669,21 +669,14 @@ matchsender(str, mesg)
 	char *str;
 	int mesg;
 {
-	char *cp, *cp2, *backup;
+	char *cp;
 
-	if (*str == '\0')	/* null string matches nothing instead of everything */
+	/* null string matches nothing instead of everything */
+	if (*str == '\0')
 		return (0);
-	backup = cp2 = nameof(&message[mesg - 1], 0);
-	cp = str;
-	while (*cp2 != '\0') {
-		if (*cp == '\0')
-			return (1);
-		if (toupper((unsigned char)*cp++) != toupper((unsigned char)*cp2++)) {
-			cp2 = ++backup;
-			cp = str;
-		}
-	}
-	return (*cp == '\0');
+
+	cp = nameof(&message[mesg - 1], 0);
+	return (strcasestr(cp, str) != NULL);
 }
 
 /*
@@ -699,7 +692,7 @@ matchto(str, mesg)
 	int mesg;
 {
 	struct message *mp;
-	char *cp, *cp2, *backup, **to;
+	char *cp, **to;
 
 	str++;
 
@@ -710,41 +703,34 @@ matchto(str, mesg)
 	mp = &message[mesg - 1];
 
 	for (to = to_fields; *to != NULL; to++) {
-		cp = str;
-		cp2 = hfield(*to, mp);
-		if (cp2 != NULL) {
-			backup = cp2;
-			while (*cp2 != '\0') {
-				if (*cp == '\0')
-					return (1);
-				if (toupper((unsigned char)*cp++) != toupper((unsigned char)*cp2++)) {
-					cp2 = ++backup;
-					cp = str;
-				}
-			}
-			if (*cp == '\0')
-				return (1);
-		}
+		cp = hfield(*to, mp);
+		if (cp != NULL && strcasestr(cp, str) != NULL)
+			return (1);
 	}
 	return (0);
 }
 
 /*
- * See if the given string matches inside the subject field of the
- * given message.  For the purpose of the scan, we ignore case differences.
- * If it does, return true.  The string search argument is assumed to
- * have the form "/search-string."  If it is of the form "/," we use the
- * previous search string.
+ * See if the given substring is contained within the specified field. If
+ * 'searchheaders' is set, then the form '/x:y' will be accepted and matches
+ * any message with the substring 'y' in field 'x'. If 'x' is omitted or
+ * 'searchheaders' is not set, then the search matches any messages
+ * with the substring 'y' in the 'Subject'. The search is case insensitive.
+ *
+ * The form '/to:y' is a special case, and will match all messages
+ * containing the substring 'y' in the 'To', 'Cc', or 'Bcc' header
+ * fields. The search for 'to' is case sensitive, so that '/To:y' can
+ * be used to limit the search to just the 'To' field.
  */
 
 char lastscan[STRINGLEN];
 int
-matchsubj(str, mesg)
+matchfield(str, mesg)
 	char *str;
 	int mesg;
 {
 	struct message *mp;
-	char *cp, *cp2, *backup;
+	char *cp, *cp2;
 
 	str++;
 	if (*str == '\0')
@@ -758,29 +744,21 @@ matchsubj(str, mesg)
 	 */
 
 	if (value("searchheaders") && (cp = strchr(str, ':')) != NULL) {
-		/* Check for special case "/To:" */
-		if (strncasecmp(str, "To:", 3) == 0)
+		/* Check for special case "/to:" */
+		if (strncmp(str, "to:", 3) == 0)
 			return (matchto(cp, mesg));
 		*cp++ = '\0';
 		cp2 = hfield(*str != '\0' ? str : "subject", mp);
 		cp[-1] = ':';
 		str = cp;
-	} else {
-		cp = str;
-		cp2 = hfield("subject", mp);
-	}
-	if (cp2 == NULL)
+		cp = cp2;
+	} else
+		cp = hfield("subject", mp);
+
+	if (cp == NULL)
 		return (0);
-	backup = cp2;
-	while (*cp2 != '\0') {
-		if (*cp == '\0')
-			return (1);
-		if (toupper((unsigned char)*cp++) != toupper((unsigned char)*cp2++)) {
-			cp2 = ++backup;
-			cp = str;
-		}
-	}
-	return (*cp == 0);
+
+	return (strcasestr(cp, str) != NULL);
 }
 
 /*
