@@ -1070,7 +1070,7 @@ AAA
 					neg->pkt->pkt_header.ph.sid =
 					    htons(sp->Session_ID
 						= get_new_sid(node));
-				send_sessionid(sp);
+				/* send_sessionid(sp); */
 				neg->timeout = 0;
 				/*
 				 * start working out the tags to respond with.
@@ -1138,7 +1138,7 @@ AAA
 				    neg->timeout_handle);
 				neg->pkt->pkt_header.ph.sid = wh->ph.sid;
 				sp->Session_ID = ntohs(wh->ph.sid);
-				send_sessionid(sp);
+				/* send_sessionid(sp); */
 				neg->timeout = 0;
 				sp->state = PPPOE_CONNECTED;
 				/*
