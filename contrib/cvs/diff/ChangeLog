@@ -1,3 +1,38 @@
+2001-09-04  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated with automake 1.5.
+
+2001-08-09  Derek Price  <dprice@collab.net>
+
+	* system.h: Source some header files when present to eliminate warning
+	messages under Windows.
+	(Patch from "Manfred Klug" <manklu@web.de>.)
+
+2001-08-07  Derek Price  <dprice@collab.net>
+
+	* build_diff.com: Turn on verify to get a better trace of the DCL.
+	* diff3.c: Eliminate compiler warning.  The VMS read rval is ssize_t
+	(signed).  The VMS size_t appears to be unsigned.
+	* io.c: Eliminate compiler warning (ssize_t).
+	(Patch from Mike Marciniszyn <Mike.Marciniszyn@sanchez.com>.)
+
+2001-08-06  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated.
+
+2001-07-04  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated with new Automake release candidate 1.4h.
+
+2001-06-28  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated with new version of Automake.
+
+2001-05-07  Larry Jones  <larry.jones@sdrc.com>
+
+	* diff3.c (diff3_run): Put the name of the output file in the error
+	message instead of "could not open output file" to aid in debugging.
+
 2001-04-25  Derek Price  <dprice@collab.net>
 
 	* Makefile.in: Regenerated using AM 1.4e as of today at 18:10 -0400.

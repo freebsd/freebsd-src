@@ -60,9 +60,11 @@ if test x$acx_gssapi_withgssapi = xyes; then
     fi
     unset ac_cv_header_gssapi_h
     unset ac_cv_header_gssapi_gssapi_h
-    AC_CHECK_HEADERS([gssapi.h gssapi/gssapi.h])
-    if test "$ac_cv_header_gssapi_h" = "yes" ||
-        test "$ac_cv_header_gssapi_gssapi_h" = "yes"; then
+    unset ac_cv_header_krb5_h
+    AC_CHECK_HEADERS([gssapi.h gssapi/gssapi.h krb5.h])
+    if (test "$ac_cv_header_gssapi_h" = yes ||
+	  test "$ac_cv_header_gssapi_gssapi_h" = yes) &&
+	test "$ac_cv_header_krb5_h" = yes; then
       break
     fi
   done

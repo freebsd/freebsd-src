@@ -75,6 +75,7 @@ cvs_SOURCES = \
 	subr.c \
 	tag.c \
 	update.c \
+	version.c \
 	vers_ts.c \
 	watch.c \
 	wrapper.c \
@@ -89,15 +90,18 @@ cvs_SOURCES = \
 	hash.h \
 	myndbm.h \
 	rcs.h \
+	root.h \
 	server.h \
 	update.h \
+	version.h \
 	watch.h
+
+BUILT_SOURCES = version.h
+
 cvs_LDADD = \
 	../diff/libdiff.a \
 	../lib/libcvs.a \
-	../zlib/libz.a \
-	version.o
-cvs_EXTRA_DIST = version.c
+	../zlib/libz.a
 
 # extra clean targets
 # wish this could be distclean-hdr-local but it's not part of automake
@@ -105,18 +109,18 @@ DISTCLEANFILES = options.h-SAVED check.log check.plog
 
 # General
 EXTRA_DIST = \
-	$(cvs_EXTRA_DIST) \
 	.cvsignore \
 	ChangeLog-9194 \
 	ChangeLog-9395 \
 	ChangeLog-96 \
 	ChangeLog-97 \
 	build_src.com \
-	sanity.sh \
-	version.c \
-	version.c.in
+	sanity.sh
 
-check-local:
+check-local: localcheck remotecheck
+
+.PHONY: localcheck
+localcheck:
 	$(SHELL) $(srcdir)/sanity.sh `pwd`/cvs
 
 .PHONY: remotecheck
@@ -124,20 +128,6 @@ remotecheck: all
 	$(SHELL) $(srcdir)/sanity.sh -r `pwd`/cvs
 
 ## MAINTAINER Targets
-
-# version.c
-# - build this here so that we can distribute it
-# - version.c needs to be updated only once, since it depends on
-#   configure.in, not on the results of a 'configure' run.
-# - It is guaranteed (with GNU Make) that when the version in configure.in
-#   is changed, acversion.m4 is built only after the new version number is
-#   propagated to the Makefile.  (Libtool uses the same guarantee.)
-# - need the explicit version.o dependency or else make won't match
-#   $(srcdir)/version.c when looking for a dependency for version.c
-version.o: $(srcdir)/version.c
-$(srcdir)/version.c: $(srcdir)/version.c.in $(top_srcdir)/configure.in
-	sed 's,@VERSION\@,$(VERSION),g' $(srcdir)/version.c.in >$(srcdir)/version.tc
-	mv $(srcdir)/version.tc $(srcdir)/version.c
 
 # for backwards compatibility with the old makefiles
 .PHONY: realclean

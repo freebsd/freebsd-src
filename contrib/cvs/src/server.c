@@ -59,7 +59,10 @@ int cvs_gssapi_encrypt;
 #endif
 
 #ifdef HAVE_SYSLOG_H
-#include <syslog.h>
+# include <syslog.h>
+# ifndef LOG_DAEMON   /* for ancient syslogs */
+#  define LOG_DAEMON 0
+# endif
 #endif
 
 #ifdef HAVE_KERBEROS
@@ -159,7 +162,7 @@ static int fd_buffer_input PROTO((void *, char *, int, int, int *));
 static int fd_buffer_output PROTO((void *, const char *, int, int *));
 static int fd_buffer_flush PROTO((void *));
 static int fd_buffer_block PROTO((void *, int));
-static int fd_buffer_shutdown PROTO((void *));
+static int fd_buffer_shutdown PROTO((struct buffer *));
 
 /* Initialize a buffer built on a file descriptor.  FD is the file
    descriptor.  INPUT is nonzero if this is for input, zero if this is
@@ -321,10 +324,10 @@ fd_buffer_block (closure, block)
 /* The buffer shutdown function for a buffer built on a file descriptor.  */
 
 static int
-fd_buffer_shutdown (closure)
-     void *closure;
+fd_buffer_shutdown (buf)
+     struct buffer *buf;
 {
-    free (closure);
+    free (buf->closure);
     return 0;
 }
 
@@ -360,7 +363,7 @@ create_adm_p (base_dir, dir)
     if (tmp == NULL)
 	return ENOMEM;
 
-    
+
     /* We make several passes through this loop.  On the first pass,
        we simply create the CVSADM directory in the deepest directory.
        For each subsequent pass, we try to remove the last path
@@ -423,8 +426,7 @@ create_adm_p (base_dir, dir)
 		}
 		(void) umask (omask);
 	    }
-	    
-	    
+
 	    f = CVS_FOPEN (tmp, "w");
 	    if (f == NULL)
 	    {
@@ -731,7 +733,7 @@ serve_root (arg)
 {
     char *env;
     char *path;
-    
+
     if (error_pending()) return;
 
     if (!isabsolute (arg))
@@ -769,12 +771,11 @@ serve_root (arg)
 		sprintf (pending_error_text, "\
 E Protocol error: Root says \"%s\" but pserver says \"%s\"",
 			 arg, Pserver_Repos);
+	    return;
 	}
     }
 #endif
 
-    if (current_parsed_root != NULL)
-	free_cvsroot_t (current_parsed_root);
     current_parsed_root = local_cvsroot (arg);
 
     /* For pserver, this will already have happened, and the call will do
@@ -912,7 +913,7 @@ E protocol error: directory '%s' not within current directory",
     }
     return 0;
 }
-	
+
 /*
  * Add as many directories to the temp directory as the client tells us it
  * will use "..", so we never try to access something outside the temp
@@ -1001,7 +1002,7 @@ dirswitch (dir, repos)
 	pending_error = ENOMEM;
 	return;
     }
-    
+
     strcpy (dir_name, server_temp_dir);
     strcat (dir_name, "/");
     strcat (dir_name, dir);
@@ -2118,9 +2119,9 @@ serve_argument (arg)
      char *arg;
 {
     char *p;
-    
+
     if (error_pending()) return;
-    
+
     if (argument_vector_size <= argument_count)
     {
 	argument_vector_size *= 2;
@@ -2148,9 +2149,9 @@ serve_argumentx (arg)
      char *arg;
 {
     char *p;
-    
+
     if (error_pending()) return;
-    
+
     p = argument_vector[argument_count - 1];
     p = realloc (p, strlen (p) + 1 + strlen (arg) + 1);
     if (p == NULL)
@@ -2472,7 +2473,7 @@ check_command_legal_p (cmd_name)
          size_t flen;
          FILE *fp;
          int found_it = 0;
-         
+
          /* else */
          flen = strlen (current_parsed_root->directory)
                 + strlen (CVSROOTADM)
@@ -2564,7 +2565,7 @@ check_command_legal_p (cmd_name)
              /* Chop newline by hand, for strcmp()'s sake. */
              if (linebuf[num_red - 1] == '\n')
                  linebuf[num_red - 1] = '\0';
-           
+
              if (strcmp (linebuf, CVS_Username) == 0)
              {
                  found_it = 1;
@@ -2631,7 +2632,7 @@ do_cvs_command (cmd_name, command)
      * interleaved with data from stdout_pipe or stderr_pipe).
      */
     int protocol_pipe[2];
-    
+
     int dev_null_fd = -1;
 
     int errs;
@@ -3010,7 +3011,7 @@ error  \n");
 	    {
 		int status;
 		int count_read;
-		
+
 		status = buf_input_data (protocol_inbuf, &count_read);
 
 		if (status == -1)
@@ -3168,7 +3169,7 @@ error  \n");
 		 */
 		continue;
 	    }
-	    
+
 	    if (WIFEXITED (status))
 		errs += WEXITSTATUS (status);
 	    else
@@ -3295,7 +3296,7 @@ server_pause_check()
 	FD_ZERO (&fds);
 	FD_SET (flowcontrol_pipe[0], &fds);
 	numtocheck = flowcontrol_pipe[0] + 1;
-	
+
 	do {
 	    numfds = select (numtocheck, &fds, (fd_set *)0,
 			     (fd_set *)0, (struct timeval *)NULL);
@@ -3307,7 +3308,7 @@ server_pause_check()
 		return;
 	    }
 	} while (numfds < 0);
-	    
+
 	if (FD_ISSET (flowcontrol_pipe[0], &fds))
 	{
 	    int got;
@@ -3430,7 +3431,7 @@ server_register (name, version, timestamp, options, tag, date, conflict)
 	len += strlen (tag);
     if (date)
 	len += strlen (date);
-    
+
     entries_line = xmalloc (len);
     sprintf (entries_line, "/%s/%s/", name, version);
     if (conflict != NULL)
@@ -3665,7 +3666,7 @@ static void
 serve_tag (arg)
     char *arg;
 {
-    do_cvs_command ("cvstag", cvstag);
+    do_cvs_command ("tag", cvstag);
 }
 
 static void
@@ -3790,20 +3791,38 @@ static void
 serve_init (arg)
     char *arg;
 {
+    cvsroot_t *saved_parsed_root;
+
     if (!isabsolute (arg))
     {
 	if (alloc_pending (80 + strlen (arg)))
 	    sprintf (pending_error_text,
-		     "E Root %s must be an absolute pathname", arg);
-	/* Fall through to do_cvs_command which will return the
-	   actual error.  */
+		     "E init %s must be an absolute pathname", arg);
     }
+#ifdef AUTH_SERVER_SUPPORT
+    else if (Pserver_Repos != NULL)
+    {
+	if (strcmp (Pserver_Repos, arg) != 0)
+	{
+	    if (alloc_pending (80 + strlen (Pserver_Repos) + strlen (arg)))
+		/* The explicitness is to aid people who are writing clients.
+		   I don't see how this information could help an
+		   attacker.  */
+		sprintf (pending_error_text, "\
+E Protocol error: init says \"%s\" but pserver says \"%s\"",
+			 arg, Pserver_Repos);
+	}
+    }
+#endif
 
-    if (current_parsed_root != NULL)
-	free_cvsroot_t (current_parsed_root);
+    if (print_pending_error ())
+	return;
+
+    saved_parsed_root = current_parsed_root;
     current_parsed_root = local_cvsroot (arg);
-
     do_cvs_command ("init", init);
+    free_cvsroot_t (current_parsed_root);
+    current_parsed_root = saved_parsed_root;
 }
 
 static void serve_annotate PROTO ((char *));
@@ -4567,7 +4586,6 @@ serve_expand_modules (arg)
     DBM *db;
     err = 0;
 
-    server_expanding = 1;
     db = open_module ();
     for (i = 1; i < argument_count; i++)
 	err += do_module (db, argument_vector[i],
@@ -4575,7 +4593,6 @@ serve_expand_modules (arg)
 			  NULL, 0, 0, 0, 0,
 			  (char *) NULL);
     close_module (db);
-    server_expanding = 0;
     {
 	/* argument_vector[0] is a dummy argument, we don't mess with it.  */
 	char **cp;
@@ -4605,23 +4622,24 @@ server_prog (dir, name, which)
 {
     if (!supported_response ("Set-checkin-prog"))
     {
-	buf_output0 (buf_to_net, "E \
+	buf_output0 (protocol, "E \
 warning: this client does not support -i or -u flags in the modules file.\n");
 	return;
     }
     switch (which)
     {
 	case PROG_CHECKIN:
-	    buf_output0 (buf_to_net, "Set-checkin-prog ");
+	    buf_output0 (protocol, "Set-checkin-prog ");
 	    break;
 	case PROG_UPDATE:
-	    buf_output0 (buf_to_net, "Set-update-prog ");
+	    buf_output0 (protocol, "Set-update-prog ");
 	    break;
     }
-    buf_output0 (buf_to_net, dir);
-    buf_append_char (buf_to_net, '\n');
-    buf_output0 (buf_to_net, name);
-    buf_append_char (buf_to_net, '\n');
+    buf_output0 (protocol, dir);
+    buf_append_char (protocol, '\n');
+    buf_output0 (protocol, name);
+    buf_append_char (protocol, '\n');
+    buf_send_counted (protocol);
 }
 
 static void
@@ -4855,32 +4873,33 @@ server_cleanup (sig)
 
     if (buf_to_net != NULL)
     {
-	/* FIXME: If this is not the final call from server, this
-	   could deadlock, because the client might be blocked writing
-	   to us.  This should not be a problem in practice, because
-	   we do not generate much output when the client is not
-	   waiting for it.  */
+	/* Since we're done, go ahead and put BUF_TO_NET back into blocking
+	 * mode and send any pending output.  In the usual case there won't
+	 * won't be any, but there might be if an error occured.
+	 */
+
 	set_block (buf_to_net);
 	buf_flush (buf_to_net, 1);
 
-	/* The calls to buf_shutdown are currently only meaningful
-	   when we are using compression.  First we shut down
-	   BUF_FROM_NET.  That will pick up the checksum generated
-	   when the client shuts down its buffer.  Then, after we have
-	   generated any final output, we shut down BUF_TO_NET.  */
+	/* Next we shut down BUF_FROM_NET.  That will pick up the checksum
+	 * generated when the client shuts down its buffer.  Then, after we
+	 * have generated any final output, we shut down BUF_TO_NET.
+	 */
 
 	status = buf_shutdown (buf_from_net);
 	if (status != 0)
 	{
 	    error (0, status, "shutting down buffer from client");
-	    buf_flush (buf_to_net, 1);
 	}
     }
 
     if (dont_delete_temp)
     {
 	if (buf_to_net != NULL)
+	{
+	    (void) buf_flush (buf_to_net, 1);
 	    (void) buf_shutdown (buf_to_net);
+	}
 	return;
     }
 
@@ -4978,11 +4997,13 @@ server_cleanup (sig)
     noexec = save_noexec;
 
     if (buf_to_net != NULL)
+    {
+	(void) buf_flush (buf_to_net, 1);
 	(void) buf_shutdown (buf_to_net);
+    }
 }
 
 int server_active = 0;
-int server_expanding = 0;
 
 int
 server (argc, argv)
@@ -5003,7 +5024,7 @@ server (argc, argv)
 
     buf_to_net = fd_buffer_initialize (STDOUT_FILENO, 0,
 				       outbuf_memory_error);
-    buf_from_net = stdio_buffer_initialize (stdin, 1, outbuf_memory_error);
+    buf_from_net = stdio_buffer_initialize (stdin, 0, 1, outbuf_memory_error);
 
     saved_output = buf_nonio_initialize (outbuf_memory_error);
     saved_outerr = buf_nonio_initialize (outbuf_memory_error);
@@ -5183,7 +5204,7 @@ error ENOMEM Virtual memory exhausted.\n");
 	char *cmd, *orig_cmd;
 	struct request *rq;
 	int status;
-	
+
 	status = buf_read_line (buf_from_net, &cmd, (int *) NULL);
 	if (status == -2)
 	{
@@ -5320,7 +5341,7 @@ error 0 %s: no such user\n", username);
 	    error_exit ();
 	}
     }
-    
+
     if (setuid (pw->pw_uid) < 0)
     {
 	/* Note that this means that if run as a non-root user,
@@ -5344,12 +5365,12 @@ error 0 %s: no such user\n", username);
     if (CVS_Username == NULL)
 	CVS_Username = xstrdup (username);
 #endif
-      
+
 #if HAVE_PUTENV
     /* Set LOGNAME, USER and CVS_USER in the environment, in case they
        are already set to something else.  */
     {
-	char *env, *cvs_user;
+	char *env;
 
 	env = xmalloc (sizeof "LOGNAME=" + strlen (username));
 	(void) sprintf (env, "LOGNAME=%s", username);
@@ -5359,10 +5380,11 @@ error 0 %s: no such user\n", username);
 	(void) sprintf (env, "USER=%s", username);
 	(void) putenv (env);
 
-        cvs_user = NULL != CVS_Username ? CVS_Username : "";
-        env = xmalloc (sizeof "CVS_USER=" + strlen (cvs_user));
-        (void) sprintf (env, "CVS_USER=%s", cvs_user);
+#ifdef AUTH_SERVER_SUPPORT
+        env = xmalloc (sizeof "CVS_USER=" + strlen (CVS_Username));
+        (void) sprintf (env, "CVS_USER=%s", CVS_Username);
         (void) putenv (env);
+#endif
     }
 #endif /* HAVE_PUTENV */
 }
@@ -5373,7 +5395,7 @@ error 0 %s: no such user\n", username);
 extern char *crypt PROTO((const char *, const char *));
 
 
-/* 
+/*
  * 0 means no entry found for this user.
  * 1 means entry found and password matches (or found password is empty)
  * 2 means entry found, but password does not match.
@@ -5442,7 +5464,7 @@ check_repository_password (username, password, repository, host_user_ptr)
 	char *found_password, *host_user_tmp;
         char *non_cvsuser_portion;
 
-        /* We need to make sure lines such as 
+        /* We need to make sure lines such as
          *
          *    "username::sysuser\n"
          *    "username:\n"
@@ -5572,7 +5594,7 @@ check_password (username, password, repository)
 	{
 	    found_passwd = pw->pw_passwd;
 	}
-	
+
 	if (found_passwd == NULL)
 	{
 	    printf ("E Fatal error, aborting.\n\
@@ -5590,7 +5612,7 @@ error 0 %s: no such user\n", username);
 
 	    exit (EXIT_FAILURE);
 	}
-	
+
 	if (*found_passwd)
         {
 	    /* user exists and has a password */
@@ -5645,7 +5667,7 @@ error 0 %s: no such user\n", username);
 handle_return:
     if (host_user)
     {
-        /* Set CVS_Username here, in allocated space. 
+        /* Set CVS_Username here, in allocated space.
            It might or might not be the same as host_user. */
         CVS_Username = xmalloc (strlen (username) + 1);
         strcpy (CVS_Username, username);
@@ -5739,10 +5761,12 @@ pserver_authenticate_connection ()
 
     /* Make sure the protocol starts off on the right foot... */
     if (getline_safe (&tmp, &tmp_allocated, stdin, PATH_MAX) < 0)
-	/* FIXME: what?  We could try writing error/eof, but chances
-	   are the network connection is dead bidirectionally.  log it
-	   somewhere?  */
-	;
+	{
+#ifdef HAVE_SYSLOG_H
+	    syslog (LOG_DAEMON | LOG_NOTICE, "bad auth protocol start: EOF");
+#endif
+	    error (1, 0, "bad auth protocol start: EOF");
+	}
 
     if (strcmp (tmp, "BEGIN VERIFICATION REQUEST\n") == 0)
 	verify_and_exit = 1;
@@ -5773,7 +5797,7 @@ pserver_authenticate_connection ()
     getline_safe (&username, &username_allocated, stdin, PATH_MAX);
     getline_safe (&password, &password_allocated, stdin, PATH_MAX);
 
-    /* Make them pure. */ 
+    /* Make them pure. */
     strip_trailing_newlines (repository);
     strip_trailing_newlines (username);
     strip_trailing_newlines (password);
@@ -5807,8 +5831,6 @@ pserver_authenticate_connection ()
     /* We need the real cleartext before we hash it. */
     descrambled_password = descramble (password);
     host_user = check_password (username, descrambled_password, repository);
-    memset (descrambled_password, 0, strlen (descrambled_password));
-    free (descrambled_password);
     if (host_user == NULL)
     {
 #ifdef HAVE_SYSLOG_H
@@ -5818,6 +5840,8 @@ pserver_authenticate_connection ()
         	username, descrambled_password, repository);
 #endif
 #endif
+	memset (descrambled_password, 0, strlen (descrambled_password));
+	free (descrambled_password);
     i_hate_you:
 	printf ("I HATE YOU\n");
 	fflush (stdout);
@@ -5826,6 +5850,8 @@ pserver_authenticate_connection ()
 	   yet.  */
 	error_exit ();
     }
+    memset (descrambled_password, 0, strlen (descrambled_password));
+    free (descrambled_password);
 
     /* Don't go any farther if we're just responding to "cvs login". */
     if (verify_and_exit)
@@ -6511,7 +6537,7 @@ cvs_flusherr ()
     {
 	/* make sure stderr is flushed before we send the flush count on the
 	 * protocol pipe
-	 */ 
+	 */
 	fflush (stderr);
 	/* Send a special count to tell the parent to flush.  */
 	buf_send_special_count (protocol, -2);
@@ -6541,7 +6567,7 @@ cvs_flushout ()
 	   main.c, didn't get called in the server child process.  But
 	   in the future it is quite plausible that we'll want to make
 	   this case work analogously to cvs_flusherr.
-	 
+
 	   FIXME - DRP - I tried to implement this and triggered the following
 	   error: "Protocol error: uncounted data discarded".  I don't need
 	   this feature right now, so I'm not going to bother with it yet.

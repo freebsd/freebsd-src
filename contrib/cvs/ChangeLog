@@ -1,3 +1,296 @@
+2002-04-17  Derek Price  <oberon@umich.edu>
+
+	* configure.in: Update version number.
+	* configure: Regenerated.
+
+2002-04-03  Derek Price  <oberon@umich.edu>
+
+	* cvs.spec.in: Use a lowercase "cvshome.org".  Add some RedHat safety
+	features to avoid "rm -rf /".  No need to rebuild the docs in the
+	distribution.  Don't strip the binary.
+
+2002-03-26  Derek Price  <oberon@umich.edu>
+
+	* configure.in: Add a FIXME comment.
+
+2002-03-21  Derek Price  <oberon@umich.edu>
+
+	* aclocal.m4: Regenerate with recent version of Autoconf.  It looks
+	like things changed because of some RedHat patches or the like which
+	didn't change the Autoconf version number, but the differences look
+	like useful changes so I'm going to use them for consistency.
+	* config.h.in: Ditto.
+	* configure: Ditto.
+
+2002-03-19  Larry Jones  <larry.jones@sdrc.com>
+
+	* NEWS (Changes since 1.11.1p1): Note -S flag for [r]log.
+
+2002-02-08  Larry Jones  <larry.jones@sdrc.com>
+
+	* NEWS (Changes since 1.11.1p1): Note read-only tag fix.
+
+2002-02-01  Larry Jones  <larry.jones@sdrc.com>
+
+	* NEWS (Changes from 1.9 to 1.10): Note -t/-f wrappers disabled.
+
+2001-12-12  Larry Jones  <larry.jones@sdrc.com>
+
+	* NEWS (Changes from 1.10 to 1.11): Note update -C.
+
+2001-12-03  Larry Jones  <larry.jones@sdrc.com>
+
+	* TODO (206, 207): New items.
+
+	* NEWS (Changes since 1.11.1p1): Note -F flag for [r]annotate.
+	(Changes from 1.11 to 1.11.1): Note :: for log.
+
+2001-10-18  Derek Price  <dprice@collab.net>
+
+	* TESTS: Remove outdated note about tests that don't use the dotest
+	function and add some notes on writing tests.
+	* HACKING: Reference TESTS file in note about submitting test cases
+	with patches.
+
+2001-09-28  Larry Jones  <larry.jones@sdrc.com>
+
+	* noautomake.sh: Protect wildcards from shell expansion.
+	(Patch submitted by Stephen Cameron <smcameron@yahoo.com>.)
+
+2001-09-22  Derek Price  <dprice@collab.net>
+
+	* INSTALL (Building from source code under Unix): Continue
+	noautoconf.sh note, stressing source checked out from CVS.
+
+2001-09-22  Derek Price  <dprice@collab.net>
+
+	* noautomake.sh: Correct usage.
+
+2001-09-13  Derek Price  <dprice@collab.net>
+
+	* Makefile.am (AUTOMAKE_OPTIONS): Updated to require Automake 1.5.
+	* NEWS (Changes since 1.11.1p1): Added note about standardizing on
+	Automake 1.5.
+	* INSTALL (Building from source code under UNIX): It's Automake version
+	`1.5', not `2.5'.
+	(Detailed information about your interaction with "configure"): Added
+	note about using `configure --help'.
+	* README (Installation): Add noautoconf.sh to the list of build and
+	installation commands.
+
+	* Makefile.in: Regenerated.
+
+2001-09-04  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated with automake 1.5.
+	* aclocal.m4: Ditto.
+	* configure: Ditto.
+
+2001-09-04  Derek Price  <dprice@collab.net>
+
+	* INSTALL (Building from source code under UNIX): Add a comment about
+	the noautomake.sh script and autotool versions.
+
+2001-08-20  Derek Price  <dprice@collab.net>
+
+	* configure.in (AC_OUTPUT): Add src/version.h.
+	(Patch from Alexey Mahotkin <alexm@hsys.msk.ru>.)
+
+	* configure: Regenerated.
+
+2001-08-20  Derek Price  <dprice@collab.net>
+
+	* .cvsignore: Add cvs.spec.
+
+2001-08-14  Derek Price  <dprice@collab.net>
+
+	* configure.in (AC_OUTPUT): Add cvs.spec.
+	* Makefile.am (EXTRA_DIST): Remove cvs.spec.in and cvs.spec.
+	(Original patch from Alexey Mahotkin <alexm@hsys.msk.ru>.)
+
+	* cvs.spec.in: Use @PACKAGE@ from configure.
+	* cvs.spec: Remove this file.
+
+	* configure: Regenerated.
+	* Makefile.in: Ditto.
+
+2001-08-14  Derek Price  <dprice@collab.net>
+
+	* DEVEL-CVS: Update mailing list addresses.
+	* HACKING: Ditto.
+
+2001-08-09  Derek Price  <dprice@collab.net>
+
+	* cvsnt.mak: Add entry for annotate.c.
+
+2001-08-07  Derek Price  <dprice@collab.net>
+
+	* build.com: correct name of build .com for zlib.
+	(Patch from Mike Marciniszyn <Mike.Marciniszyn@sanchez.com>.)
+
+2001-08-06  Derek Price  <dprice@collab.net>
+
+	* configure.in: Remove some redundant macros (they appear to be run
+	automatically by AC_INIT).
+
+	* configure: Regenerated.
+
+2001-08-06  Derek Price  <dprice@collab.net>
+
+	* configure.in: Add AC_EXEEXT to get things right when under Windows.
+	(Report and patch from manklu@web.de.)
+
+	* configure.in: Reorder some macros to prevent Autoconf warnings.
+
+	* configure: Regenerated.
+	* Makefile.in: Ditto.
+
+2001-07-26  Larry Jones  <larry.jones@sdrc.com>
+
+	* NEWS: Fix format, add note about tag -B.
+
+2001-07-16  Derek Price  <dprice@collab.net>
+
+	* compile: New Automake file.
+	* configure.in: Add AM_PROG_CC_C_O to work around problems with some
+	compilers.
+
+	* aclocal.m4: Regenerated.
+	* Makefile.in: Ditto.
+	* config.h.in: Ditto.
+	* configure: Ditto.
+	(Thanks to Stephen Cameron <smcameron@yahoo.com> and
+	Tom Tromey <tromey@redhat.com>.)
+
+2001-07-04  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated with new Automake release candidate 1.4h.
+	* aclocal.m4: Ditto.
+
+2001-07-04  Derek Price  <dprice@collab.net>
+
+	* configure.in: Tidy and add some comments.
+
+	* configure: Regenerated.
+
+2001-07-03  Derek Price  <dprice@collab.net>
+
+	* HACKING (Source): Add a note about where to obtain the development
+	sources.
+	(Thanks to Bear Giles <bear@coyotesong.com>.)
+
+2001-07-03  Derek Price  <dprice@collab.net>
+
+	* configure.in: Test for mmap.
+
+	* configure: Regenerated.
+	* config.h.in: Ditto.
+
+2001-06-28  Derek Price  <dprice@collab.net>
+
+	* Makefile.in: Regenerated with new version of Automake.
+	* aclocal.m4: Ditto.
+	* configure: Regenerated.
+
+2001-06-28  Derek Price  <dprice@collab.net>
+
+	* mdate-sh: New file to support doc/version.texi.
+
+2001-06-27  Larry Jones  <larry.jones@sdrc.com>
+
+	* TESTS: Note environment variables to select certain tools,
+	potential problems with big environments.
+
+	* TODO: Add note about non-canonical paths.  Reformat long lines.
+
+	* NEWS (Changes since 1.11): Note new loginfo format string expansion.
+	Reformat some long lines.
+
+2001-06-11  Derek Price  <dprice@collab.net>
+
+	* cvsnt.dsp: Add src/annotate.c to source file list.
+	(Thanks to Jerzy Kaczorowski <kaczoroj@hotmail.com>.)
+
+2001-05-30  Derek Price  <dprice@collab.net>
+
+	* configure.in (AC_OUTPUT): Change contrib/pvcs2cvs to contrib/pvcs2rcs.
+
+	* configure: Regenerated.
+
+2001-05-29  Derek Price  <dprice@collab.net>
+
+	* configure.in (AC_OUTPUT): Add pvcs2cvs.
+
+	* configure: Regenerated.
+
+2001-05-21  Derek Price  <dprice@collab.net>
+
+	* NEWS (Changes since 1.11): It's "noautomake.sh", not "noautoconf.sh".
+	* Makefile.am (EXTRA_DIST): Include noautomake.sh.
+	(AUTOMAKE_OPTIONS): Update required Automake version to 1.4e.
+	(Reported by Alexey Mahotkin <alexm@hsys.msk.ru>).
+
+2001-05-21  Derek Price  <dprice@collab.net>
+
+	* Makefile.am (EXTRA_DIST): Add noautoconf.sh.
+
+2001-05-17  Larry Jones  <larry.jones@sdrc.com>
+
+	* depcomp: Yet another newer (unofficial) version from Automake.
+
+2001-05-10  Larry Jones  <larry.jones@sdrc.com>
+
+	* configure.in (AC_OUTPUT): Remove -f from chmod -- not portable.
+	* configure: Regenerated.
+
+2001-05-03  Derek Price  <dprice@collab.net>
+
+	* TODO (204): New item.
+
+2001-05-02  Derek Price  <dprice@collab.net>
+
+	* acinclude.m4 (ACX_WITH_GSSAPI): Make krb5.h a requirement for GSSAPI.
+	krb5.h shouldn't be required, but CVS's GSSAPI implementation is
+	broken.
+	(Reported by Stephen Rasku  <stephen@tgivan.com>.)
+
+	* aclocal.m4: Regenerated.
+	* configure: Ditto.
+
+2001-04-29  Derek Price  <dprice@collab.net>
+
+	* Makefile.am (distcheck-hook): Undo last change.
+	(localcheck): New target.
+
+	* Makefile.in: Regenerated.
+
+2001-04-29  Derek Price  <dprice@collab.net>
+
+	* Makefile.am: Add remotecheck to distcheck-hook.
+
+	* Makefile.in: Regenerated.
+
+2001-04-27  Derek Price  <dprice@collab.net>
+
+	* TODO (202): Remove my claim.
+	(203): New item.
+
+2001-04-27  Derek Price  <dprice@collab.net>
+
+	* configure.in: Update version number.
+
+	* configure: Regenerated.
+	* cvs.spec: Ditto.
+
+2001-04-27  Derek Price  <dprice@collab.net>
+
+	* configure.in: Update version number.
+	* NEWS (new since 1.11.1): Broke read-only fix.
+	(new since 1.11): Diff fix.
+
+	* configure: Regenerated.
+	* cvs.spec: Ditto.
+
 2001-04-26  Derek Price  <dprice@collab.net>
 
 	* cvs.spec.in: Don't include %{_infodir}/dir.
@@ -18,11 +311,11 @@
 
 	* NEWS: Correct punctuation.
 
-2001-04-25  Larry Jones  <larry.jones@sdr.com>
+2001-04-25  Larry Jones  <larry.jones@sdrc.com>
 
 	* depcomp (aix, sgi): Correct previous fixes.
 
-2001-04-24  Larry Jones  <larry.jones@sdr.com>
+2001-04-24  Larry Jones  <larry.jones@sdrc.com>
 
 	* depcomp (sgi): Remove stray HP-UX code.
 
@@ -32,23 +325,23 @@
 	prevent unecessary AUtomake rebuilds after updates.
 	* NEWS: Note this new scipt.
 
-2001-04-16  Larry Jones  <larry.jones@sdr.com>
+2001-04-16  Larry Jones  <larry.jones@sdrc.com>
 
 	* depcomp (aix): Remove stray HP-UX code.
 
-2001-04-12  Larry Jones  <larry.jones@sdr.com>
+2001-04-12  Larry Jones  <larry.jones@sdrc.com>
 
 	* mkinstalldirs: Newer version from Automake.
 
-2001-04-12  Larry Jones  <larry.jones@sdr.com>
+2001-04-12  Larry Jones  <larry.jones@sdrc.com>
 
 	* depcomp: Newer version from Automake.
 
-2001-04-04  Larry Jones  <larry.jones@sdr.com>
+2001-04-04  Larry Jones  <larry.jones@sdrc.com>
 
 	* depcomp: Don't count on $? being set in then or else clauses.
 
-2001-03-30  Larry Jones  <larry.jones@sdr.com>
+2001-03-30  Larry Jones  <larry.jones@sdrc.com>
 
 	* NEWS: Note new rlog and rannotate commands.
 

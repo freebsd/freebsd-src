@@ -101,7 +101,7 @@ sip (current, skip_test)
 #if HAVE_SETMODE
 	  int oldmode = setmode (current->desc, O_BINARY);
 #endif
-	  size_t n = read (current->desc, current->buffer, current->bufsize);
+	  ssize_t n = read (current->desc, current->buffer, current->bufsize);
 	  if (n == -1)
 	    pfatal_with_name (current->name);
 	  current->buffered_chars = n;
@@ -128,7 +128,7 @@ void
 slurp (current)
      struct file_data *current;
 {
-  size_t cc;
+  ssize_t cc;
 
   if (current->desc < 0)
     /* The file is nonexistent.  */
