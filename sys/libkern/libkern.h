@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)libkern.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: libkern.h,v 1.2 1994/08/02 07:44:03 davidg Exp $
  */
 
 #include <sys/types.h>
@@ -81,6 +81,19 @@ ulmax(a, b)
 static inline u_long
 ulmin(a, b)
 	u_long a, b;
+{
+	return (a < b ? a : b);
+}
+
+static inline quad_t
+qmax(a, b)
+	quad_t a, b;
+{
+	return (a > b ? a : b);
+}
+static inline quad_t
+qmin(a, b)
+	quad_t a, b;
 {
 	return (a < b ? a : b);
 }
