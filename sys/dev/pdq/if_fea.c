@@ -151,7 +151,7 @@ pdq_eisa_probe (dev)
 	device_set_desc(dev, desc);
 
 	iobase = eisa_get_slot(dev) * EISA_SLOT_SIZE;
-	pdq_eisa_subprobe(SYS_RES_IOPORT, iobase, &maddr, &msize, &irq);
+	pdq_eisa_subprobe((pdq_bus_t)SYS_RES_IOPORT, iobase, &maddr, &msize, &irq);
 
 	eisa_add_iospace(dev, iobase, 0x200, RESVADDR_NONE);
 	eisa_add_mspace(dev, maddr, msize, RESVADDR_NONE);
