@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: daemon_saver.c,v 1.7 1997/10/26 07:35:18 yokota Exp $
+ *	$Id: daemon_saver.c,v 1.8 1998/01/16 17:58:43 bde Exp $
  */
 
 #include <sys/param.h>
@@ -332,6 +332,9 @@ static int
 daemon_saver_load(struct lkm_table *lkmtp, int cmd)
 {
 	int err;
+
+	if (cur_console->mode >= M_VESA_BASE)
+		return ENODEV;
 
 	messagelen = strlen(hostname) + 3 + strlen(ostype) + 1 + 
 	    strlen(osrelease);
