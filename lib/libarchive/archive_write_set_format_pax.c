@@ -188,7 +188,7 @@ add_pax_attr_w(struct archive_string *as, const char *key, const wchar_t *wval)
 {
 	int	utf8len;
 	const wchar_t *wp;
-	wchar_t wc;
+	int wc;
 	char *utf8_value, *p;
 
 	utf8len = 0;
