@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.86 1999/05/30 16:52:25 phk Exp $
+ *	$Id: si.c,v 1.87 1999/05/31 11:26:28 phk Exp $
  */
 
 #ifndef lint
@@ -1188,8 +1188,8 @@ siopen(dev, flag, mode, p)
 	pp = sc->sc_ports + port;
 	tp = pp->sp_tty;			/* the "real" tty */
 	ccbp = pp->sp_ccb;			/* Find control block */
-	DPRINT((pp, DBG_ENTRY|DBG_OPEN, "siopen(%x,%x,%x,%x)\n",
-		dev, flag, mode, p));
+	DPRINT((pp, DBG_ENTRY|DBG_OPEN, "siopen(%s,%x,%x,%x)\n",
+		devtoname(dev), flag, mode, p));
 
 	oldspl = spltty();			/* Keep others out */
 	error = 0;
@@ -1321,8 +1321,8 @@ siclose(dev, flag, mode, p)
 	pp = MINOR2PP(mynor);
 	tp = pp->sp_tty;
 
-	DPRINT((pp, DBG_ENTRY|DBG_CLOSE, "siclose(%x,%x,%x,%x) sp_state:%x\n",
-		dev, flag, mode, p, pp->sp_state));
+	DPRINT((pp, DBG_ENTRY|DBG_CLOSE, "siclose(%s,%x,%x,%x) sp_state:%x\n",
+		devtoname(dev), flag, mode, p, pp->sp_state));
 
 	/* did we sleep and loose a race? */
 	if (pp->sp_state & SS_CLOSING) {
@@ -1436,7 +1436,7 @@ siread(dev, uio, flag)
 	}
 	tp = MINOR2TP(mynor);
 	DPRINT((TP2PP(tp), DBG_ENTRY|DBG_READ,
-		"siread(%x,%x,%x)\n", dev, uio, flag));
+		"siread(%s,%x,%x)\n", devtoname(dev), uio, flag));
 	return ((*linesw[tp->t_line].l_read)(tp, uio, flag));
 }
 
@@ -1459,7 +1459,7 @@ siwrite(dev, uio, flag)
 	}
 	pp = MINOR2PP(mynor);
 	tp = pp->sp_tty;
-	DPRINT((pp, DBG_WRITE, "siwrite(%x,%x,%x)\n", dev, uio, flag));
+	DPRINT((pp, DBG_WRITE, "siwrite(%s,%x,%x)\n", devtoname(dev), uio, flag));
 
 	oldspl = spltty();
 	/*
@@ -1523,8 +1523,8 @@ siioctl(dev, cmd, data, flag, p)
 	pp = MINOR2PP(mynor);
 	tp = pp->sp_tty;
 
-	DPRINT((pp, DBG_ENTRY|DBG_IOCTL, "siioctl(%x,%lx,%x,%x)\n",
-		dev, cmd, data, flag));
+	DPRINT((pp, DBG_ENTRY|DBG_IOCTL, "siioctl(%s,%lx,%x,%x)\n",
+		devtoname(dev), cmd, data, flag));
 	if (IS_STATE(mynor)) {
 		struct termios *ct;
 
@@ -1689,8 +1689,8 @@ si_Sioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	int card, port;
 	int mynor = minor(dev);
 
-	DPRINT((0, DBG_ENTRY|DBG_IOCTL, "si_Sioctl(%x,%lx,%x,%x)\n",
-		dev, cmd, data, flag));
+	DPRINT((0, DBG_ENTRY|DBG_IOCTL, "si_Sioctl(%s,%lx,%x,%x)\n",
+		devtoname(dev), cmd, data, flag));
 
 #if 1
 	DPRINT((0, DBG_IOCTL, "TCSI_PORT=%x\n", TCSI_PORT));
