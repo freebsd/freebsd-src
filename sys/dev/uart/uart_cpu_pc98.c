@@ -36,8 +36,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
 
-bus_space_tag_t uart_bus_space_io;
-bus_space_tag_t uart_bus_space_mem;
+bus_space_tag_t uart_bus_space_io = I386_BUS_SPACE_IO;
+bus_space_tag_t uart_bus_space_mem = I386_BUS_SPACE_MEM;
 
 int
 uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
@@ -56,11 +56,11 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		return (0);
 
 	/*
-	 * There are 2 built-in serial ports on pc98 hardware.  The 
-	 * first one is 8251 and the second one is I think an enhance
-	 * version of that.  However, for the sio driver, flags selected
-	 * which type of uart was in the sytem.  We use something similar
-	 * to sort things out.
+	 * There is a serial port on all pc98 hardware.  It is 8251 or
+	 * an enhance version of that.  Some pc98 have the second serial
+	 * port which is 16550A compatible.  However, for the sio driver,
+	 * flags selected which type of uart was in the sytem.  We use
+	 * something similar to sort things out.
 	 */
 	for (i = 0; i < 1; i++) {
 		if (resource_int_value("uart", i, "flags", &flags))
