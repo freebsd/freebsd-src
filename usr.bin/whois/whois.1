@@ -30,9 +30,9 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)whois.1	8.1 (Berkeley) 6/6/93
-.\"	$Id$
+.\"	$Id: whois.1,v 1.6 1999/02/02 01:49:14 ache Exp $
 .\"
-.Dd February 19, 1998
+.Dd February 1, 1999
 .Dt WHOIS 1
 .Os BSD 4.3
 .Sh NAME
@@ -40,7 +40,7 @@
 .Nd Internet domain name and network number directory service
 .Sh SYNOPSIS
 .Nm whois
-.Op Fl adpr
+.Op Fl adgprR
 .Op Fl h Ar host
 .Ar name ...
 .Sh DESCRIPTION
@@ -59,10 +59,13 @@ covered neither by
 .Tn APNIC nor by
 .Tn RIPE .
 .It Fl d
-Use the (US Military) Defense Data Network
-.Pq Tn DDN
+Use the US Department of Defense
 database.  It contains points of contact for subdomains of
 .Tn \&.MIL .
+.It Fl g
+Use the US non-military federal government database, which contains points of
+contact for subdomains of
+.Tn \&.GOV .
 .It Fl h Ar host
 Use the specified host instead of the default NIC
 (whois.internic.net).
@@ -77,6 +80,12 @@ Use the R\(aaeseaux IP Europ\(aaeens
 .Pq Tn RIPE
 database.  It contains network numbers and domain contact information
 for Europe.
+.It Fl R
+Use the Russia Network Information Center
+.Pq Tn RIPN
+database.  It contains network numbers and domain contact information
+for subdomains of
+.Tn \&.RU .
 .El
 .Pp
 The operands specified to
@@ -98,7 +107,13 @@ operands have special meaning, and how to guide the search, use
 the special name
 .Dq Ar help .
 .Sh SEE ALSO
-RFC 812: Nicname/Whois
+.Rs
+.%A Ken Harrenstien
+.%A Vic White
+.%T NICNAME/WHOIS
+.%D 1 March 1982
+.%O RFC 812
+.Re
 .Sh HISTORY
 The
 .Nm
