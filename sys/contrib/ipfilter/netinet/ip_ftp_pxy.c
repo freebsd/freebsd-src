@@ -20,17 +20,6 @@ int ippr_ftp_out __P((fr_info_t *, ip_t *, tcphdr_t *,
 u_short ipf_ftp_atoi __P((char **));
 
 
-int ippr_ftp_init __P((fr_info_t *, ip_t *, tcphdr_t *, ap_session_t *,
-    nat_t *));
-int ippr_ftp_in __P((fr_info_t *, ip_t *, tcphdr_t *, ap_session_t *,
-    nat_t *));
-int ippr_ftp_out __P((fr_info_t *, ip_t *, tcphdr_t *, ap_session_t *,
-    nat_t *));
-
-u_short ipf_ftp_atoi __P((char **));
-
-
-
 /*
  * FTP application proxy initialization.
  */
