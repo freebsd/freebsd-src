@@ -86,7 +86,7 @@ main(argc, argv)
 
 	cp = strrchr(argv[0], '/');
 	cp = (cp == NULL) ? argv[0] : cp+1;
-	if (strcmp(cp, "pftp") == 0)
+	if (getenv("FTP_PASSIVE_MODE") || strcmp(cp, "pftp") == 0)
 	    passivemode = 1;
 
 	while ((ch = getopt(argc, argv, "dginptvU")) != EOF) {
