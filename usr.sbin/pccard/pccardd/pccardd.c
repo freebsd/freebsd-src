@@ -37,7 +37,7 @@ static const char rcsid[] =
 #define EXTERN
 #include "cardd.h"
 
-char   *config_file = "/etc/pccard.conf";
+char   *config_file = "/etc/defaults/pccard.conf";
 
 /*
  *	mainline code for cardd
@@ -53,6 +53,7 @@ main(int argc, char *argv[])
 
 	debug_level = 0;
 	pccard_init_sleep = 5000000;
+	cards = last_card = 0;
 	while ((count = getopt(argc, argv, ":dvf:i:z")) != -1) {
 		switch (count) {
 		case 'd':
