@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_denode.c,v 1.42 1998/11/21 00:20:24 dt Exp $ */
+/*	$Id: msdosfs_denode.c,v 1.43 1998/12/07 21:58:34 archie Exp $ */
 /*	$NetBSD: msdosfs_denode.c,v 1.28 1998/02/10 14:10:00 mrg Exp $	*/
 
 /*-
@@ -72,7 +72,9 @@ static struct denode **dehashtbl;
 static u_long dehash;			/* size of hash table - 1 */
 #define	DEHASH(dev, dcl, doff)	(dehashtbl[((dev) + (dcl) + (doff) / 	\
 				sizeof(struct direntry)) & dehash])
+#ifndef NULL_SIMPLELOCKS
 static struct simplelock dehash_slock;
+#endif
 
 union _qcvt {
 	quad_t qcvt;
