@@ -32,6 +32,7 @@
 #define _FETCH_H_INCLUDED
 
 #include <sys/param.h>
+#include <stdio.h>
 
 #define _LIBFETCH_VER "libfetch/1.0"
 
