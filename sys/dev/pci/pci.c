@@ -1059,8 +1059,10 @@ pci_suspend(device_t dev)
 
 	/* Suspend devices before potentially powering them down. */
 	error = bus_generic_suspend(dev);
-	if (error)
+	if (error) {
+		free(devlist, M_TEMP);
 		return (error);
+	}
 
 	/*
 	 * Always set the device to D3.  If ACPI suggests a different
