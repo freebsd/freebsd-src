@@ -99,7 +99,6 @@ Atm_endpoint	ipatm_endpt = {
 };
 
 uma_zone_t	ipatm_vc_zone;
-uma_zone_t	ipatm_nif_zone;
 
 /*
  * Local functions
@@ -403,11 +402,6 @@ ipatm_start()
 	if (ipatm_vc_zone == NULL)
 		panic("ipatm_start: unable to create ipatm_vc_zone");
 		
-	ipatm_nif_zone = uma_zcreate("ipatm nif", sizeof(struct ip_nif), NULL,
-	    NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	if (ipatm_nif_zone == NULL)
-		panic("ipatm_start: unable to create ipatm_nif_zone");
-
 	/*
 	 * Register ourselves as a network convergence module
 	 */
@@ -597,7 +591,6 @@ ipatm_stop()
 	 * Free up our storage pools
 	 */
 	uma_zdestroy(ipatm_vc_zone);
-	uma_zdestroy(ipatm_nif_zone);
 done:
 	(void) splx(s);
 	return (err);
