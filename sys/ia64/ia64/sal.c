@@ -112,6 +112,7 @@ ia64_sal_init(struct sal_system_table *saltab)
 			struct sal_ap_wakeup_descriptor *dp;
 #ifdef SMP
 			struct ia64_sal_result result;
+			struct ia64_fdesc *fd;
 #endif
 
 			dp = (struct sal_ap_wakeup_descriptor*)p;
@@ -153,11 +154,10 @@ ia64_sal_init(struct sal_system_table *saltab)
 			setup_ipi_vectors(dp->sale_vector & 0xf0);
 
 #ifdef SMP
+			fd = (struct ia64_fdesc *) os_boot_rendez;
 			result = ia64_sal_entry(SAL_SET_VECTORS,
-			    SAL_OS_BOOT_RENDEZ,
-			    ia64_tpa(FDESC_FUNC(os_boot_rendez)),
-			    ia64_tpa(FDESC_GP(os_boot_rendez)),
-			    0, 0, 0, 0);
+			    SAL_OS_BOOT_RENDEZ, ia64_tpa(fd->func),
+			    ia64_tpa(fd->gp), 0, 0, 0, 0);
 #endif
 
 			break;
