@@ -2288,80 +2288,55 @@ Suff_Init(void)
 
 /********************* DEBUGGING FUNCTIONS **********************/
 
-static int
-SuffPrintName(void *s, void *dummy __unused)
-{
-
-	printf("`%s' ", ((Suff *)s)->name);
-	return (0);
-}
-
-static int
-SuffPrintSuff(void *sp, void *dummy __unused)
-{
-	Suff	*s = sp;
-	int	flags;
-	int	flag;
-
-	printf("# `%s' [%d] ", s->name, s->refCount);
-
-	flags = s->flags;
-	if (flags) {
-		fputs(" (", stdout);
-		while (flags) {
-			flag = 1 << (ffs(flags) - 1);
-			flags &= ~flag;
-			switch (flag) {
-			  case SUFF_NULL:
-				printf("NULL");
-				break;
-			  case SUFF_INCLUDE:
-				printf("INCLUDE");
-				break;
-			  case SUFF_LIBRARY:
-				printf("LIBRARY");
-				break;
-			  default:
-				break;
-			}
-			fputc(flags ? '|' : ')', stdout);
-		}
-	}
-	fputc('\n', stdout);
-	printf("#\tTo: ");
-	Lst_ForEach(&s->parents, SuffPrintName, (void *)NULL);
-	fputc('\n', stdout);
-	printf("#\tFrom: ");
-	Lst_ForEach(&s->children, SuffPrintName, (void *)NULL);
-	fputc('\n', stdout);
-	printf("#\tSearch Path: ");
-	Dir_PrintPath(&s->searchPath);
-	fputc('\n', stdout);
-	return (0);
-}
-
-static int
-SuffPrintTrans(void *tp, void *dummy __unused)
-{
-	GNode	*t = tp;
-
-	printf("%-16s: ", t->name);
-	Targ_PrintType(t->type);
-	fputc('\n', stdout);
-	Lst_ForEach(&t->commands, Targ_PrintCmd, (void *)NULL);
-	fputc('\n', stdout);
-	return (0);
-}
-
 void
 Suff_PrintAll(void)
 {
+	const LstNode	*ln;
+	const LstNode	*tln;
+	const GNode	*gn;
+	const Suff	*s;
+
+	static const struct flag2str suff_flags[] = {
+		{ SUFF_INCLUDE,	"INCLUDE" },
+		{ SUFF_LIBRARY,	"LIBRARY" },
+		{ SUFF_NULL,	"NULL" },
+		{ 0,		NULL }
+	};
 
 	printf("#*** Suffixes:\n");
-	Lst_ForEach(&sufflist, SuffPrintSuff, (void *)NULL);
+	LST_FOREACH(ln, &sufflist) {
+		s = Lst_Datum(ln);
+		printf("# `%s' [%d] ", s->name, s->refCount);
+
+		if (s->flags != 0) {
+			printf(" ");
+			print_flags(stdout, suff_flags, s->flags);
+		}
+
+		printf("\n#\tTo: ");
+		LST_FOREACH(tln, &s->parents)
+			printf("`%s' ", ((const Suff *)Lst_Datum(tln))->name);
+
+		printf("\n#\tFrom: ");
+		LST_FOREACH(tln, &s->children)
+			printf("`%s' ", ((const Suff *)Lst_Datum(tln))->name);
+
+		printf("\n#\tSearch Path: ");
+		Dir_PrintPath(&s->searchPath);
+
+		printf("\n");
+	}
 
 	printf("#*** Transformations:\n");
-	Lst_ForEach(&transforms, SuffPrintTrans, (void *)NULL);
+	LST_FOREACH(ln, &transforms) {
+		gn = Lst_Datum(ln);
+		printf("%-16s: ", gn->name);
+		Targ_PrintType(gn->type);
+		printf("\n");
+		LST_FOREACH(tln, &gn->commands)
+			printf("\t%s\n", (const char *)Lst_Datum(tln));
+		printf("\n");
+	}
 }
 
 #ifdef DEBUG_SRC
