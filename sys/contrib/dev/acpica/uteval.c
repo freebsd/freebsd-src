@@ -771,7 +771,7 @@ AcpiUtExecute_Sxds (
             {
                 ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
                     "%s on Device %4.4s, %s\n",
-                    (char *) (uintptr_t)AcpiGbl_HighestDstateNames[i],
+                    (char *) (uintptr_t) AcpiGbl_HighestDstateNames[i],
                     AcpiUtGetNodeName (DeviceNode),
                     AcpiFormatException (Status)));
 
