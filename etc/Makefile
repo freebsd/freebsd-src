@@ -17,7 +17,7 @@ BIN1=	aliases csh.cshrc csh.login csh.logout dm.conf \
 # -rw-rw-rw-
 BIN2=	motd
 
-# -rwxr-xr-x root.wheel, for the new f***ing cron root.wheel
+# -rwxr-xr-x root.wheel, for the new cron root.wheel
 BIN3=	daily weekly monthly
 
 CLEANFILES+= *.o *.lo *.c *.cache *.mk kcopy filesystem
@@ -85,7 +85,7 @@ CPIO_FILES=	${COPYRIGHT}
 CPIO_CPIO=	bin/dd bin/ps bin/pwd bin/stty
 CPIO_CPIO+=	etc/protocols etc/remote etc/services
 CPIO_CPIO+=	etc/termcap
-#CPIO_CPIO+=	sbin/dmesg
+CPIO_CPIO+=	sbin/dmesg
 CPIO_CPIO+=	sbin/ifconfig sbin/fsck sbin/mknod sbin/mount_isofs
 CPIO_CPIO+=	sbin/mount_procfs
 CPIO_CPIO+=	sbin/reboot sbin/route sbin/slattach
@@ -389,15 +389,23 @@ cpio.flp:
 	# This ugliness is because the default termcap file is simply too
 	# big and we don't need such a hugh one for the initial installation,
 	# yet we want the symlink in /etc to point to the right place so we
-	# need to install the smaller one in the same location.
+	# need to install the smaller one in the same location.  Same goes
+	# for the elvis hackery; just trying to bum as many bytes as we can
+	# here, and that's rarely a very pretty process.
 	mv ${DESTDIR}/usr/share/misc/termcap ${DESTDIR}/usr/share/misc/otermcap
 	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${.CURDIR}/termcap.small ${DESTDIR}/usr/share/misc/termcap
+	# Use cp so we don't destroy the links.
+	cp ${DESTDIR}/usr/bin/ex ${DESTDIR}/usr/bin/ex.bak
+	cp ${DESTDIR}/usr/bin/elvis ${DESTDIR}/usr/bin/ex
 	(cd ${DESTDIR}/; \
 	    (find ${CPIO_CPIO}; ls -d ${CPIO_CPIO_DIRS}) | \
 		cpio -H newc --block-size=16 -oav | \
 		gzip -9 >${MOUNT}/inst2.cpio.gz)
+	# cpio is done, put everything back in shape for the bindist.
 	mv ${DESTDIR}/usr/share/misc/otermcap ${DESTDIR}/usr/share/misc/termcap
+	cp ${DESTDIR}/usr/bin/ex.bak ${DESTDIR}/usr/bin/ex
+	rm ${DESTDIR}/usr/bin/ex.bak
 	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${.CURDIR}/etc.i386/cpio.rc ${MOUNT}/rc
 	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
