@@ -115,7 +115,7 @@ getvfsbytype(int type)
 	}
 
 	for(i = 0; i < _vfslistlen; i++) {
-		if(_vfslist[i].vfc_typenum == type)
+		if(_vfslist[i].vfc_index == type)
 			break;
 	}
 
