@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_pager.h>
-#include <sys/user.h>
 #include <sys/ptrace.h>
 #include <sys/cons.h>
 #include <machine/clock.h>
@@ -83,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 #include <alpha/alpha/db_instruction.h>
 #include <sys/vnode.h>
+#include <machine/pcb.h>
 
 #include <alpha/osf1/osf1_signal.h>
 #include <alpha/osf1/osf1_proto.h>

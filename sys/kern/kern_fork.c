@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktrace.h>
 #include <sys/unistd.h>	
 #include <sys/sx.h>
+#include <sys/signalvar.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -71,7 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 
-#include <sys/user.h>
 #include <machine/critical.h>
 
 #ifndef _SYS_SYSPROTO_H_

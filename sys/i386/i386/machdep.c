@@ -91,7 +91,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
 
-#include <sys/user.h>
 #include <sys/exec.h>
 #include <sys/cons.h>
 
@@ -114,7 +113,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/pc/bios.h>
-#include <machine/pcb_ext.h>		/* pcb.h included via sys/user.h */
+#include <machine/pcb.h>
+#include <machine/pcb_ext.h>
 #include <machine/proc.h>
 #ifdef PERFMON
 #include <machine/perfmon.h>

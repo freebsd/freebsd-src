@@ -36,12 +36,12 @@ __FBSDID("$FreeBSD$");
 
 
 #include <sys/proc.h>
-#include <sys/user.h>
 #include <sys/kdb.h>
 #include <machine/armreg.h>
 #include <machine/asm.h>
 #include <machine/cpufunc.h>
 #include <machine/db_machdep.h>
+#include <machine/pcb.h>
 #include <machine/vmparam.h>
 #include <ddb/ddb.h>
 #include <ddb/db_access.h>

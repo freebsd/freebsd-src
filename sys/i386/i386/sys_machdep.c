@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/smp.h>
 #include <sys/sysproto.h>
-#include <sys/user.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -52,7 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 
 #include <machine/cpu.h>
-#include <machine/pcb_ext.h>	/* pcb.h included by sys/user.h */
+#include <machine/pcb.h>
+#include <machine/pcb_ext.h>
 #include <machine/proc.h>
 #include <machine/sysarch.h>
 

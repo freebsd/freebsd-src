@@ -67,7 +67,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_pager.h>
-#include <sys/user.h>
 #include <sys/ptrace.h>
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -91,6 +90,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/efi.h>
 #include <machine/unwind.h>
 #include <i386/include/specialreg.h>
+#include <machine/pcb.h>
 
 u_int64_t processor_frequency;
 u_int64_t bus_frequency;

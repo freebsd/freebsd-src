@@ -82,6 +82,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/eventhandler.h>
 
+#include <machine/pcb.h>
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_kern.h>
@@ -91,7 +93,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
 
-#include <sys/user.h>
 #include <sys/exec.h>
 #include <sys/cons.h>
 
