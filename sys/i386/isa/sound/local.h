@@ -8,7 +8,7 @@
 #define SOUND_VERSION_STRING "2.90-2"
 #define SOUND_CONFIG_DATE "Sun Feb 5 14:38:12 EST 1995"
 #define SOUND_CONFIG_BY "freebsd-hackers"
-#define SOUND_CONFIG_HOST "freefall.cdrom.com"
+#define SOUND_CONFIG_HOST "freefall"
 #define SOUND_CONFIG_DOMAIN "cdrom.com"
 
 /* determine if sound code should be compiled */
