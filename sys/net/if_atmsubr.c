@@ -85,7 +85,7 @@ void	(*ng_atm_input_p)(struct ifnet *, struct mbuf **,
 	    struct atm_pseudohdr *, void *);
 void	(*ng_atm_input_orphan_p)(struct ifnet *, struct mbuf *,
 	    struct atm_pseudohdr *, void *);
-void	(*ng_atm_message_p)(struct ifnet *, u_int32_t, u_int32_t);
+void	(*ng_atm_event_p)(struct ifnet *, uint32_t, void *);
 
 /*
  * Harp pseudo interface hooks
@@ -94,6 +94,7 @@ void	(*atm_harp_input_p)(struct ifnet *ifp, struct mbuf **m,
 	    struct atm_pseudohdr *ah, void *rxhand);
 void	(*atm_harp_attach_p)(struct ifnet *);
 void	(*atm_harp_detach_p)(struct ifnet *);
+void	(*atm_harp_event_p)(struct ifnet *, uint32_t, void *);
 
 SYSCTL_NODE(_hw, OID_AUTO, atm, CTLFLAG_RW, 0, "ATM hardware");
 
@@ -459,6 +460,19 @@ atm_getvccs(struct atmio_vcc **table, u_int size, u_int start,
 		alloc *= 2;
 	}
 	return (vccs);
+}
+
+/*
+ * Driver or channel state has changed. Inform whoever is interested
+ * in these events.
+ */
+void
+atm_event(struct ifnet *ifp, u_int event, void *arg)
+{
+	if (ng_atm_event_p != NULL)
+		(*ng_atm_event_p)(ifp, event, arg);
+	if (atm_harp_event_p != NULL)
+		(*atm_harp_event_p)(ifp, event, arg);
 }
 
 static moduledata_t atm_mod = {
