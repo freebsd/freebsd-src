@@ -108,7 +108,6 @@ static const struct afd {
 };
 
 struct explore {
-	int e_af;
 	int e_socktype;
 	int e_protocol;
 	const char *e_protostr;
@@ -119,15 +118,10 @@ struct explore {
 };
 
 static const struct explore explore[] = {
-#ifdef INET6
-	{ PF_INET6, SOCK_DGRAM, IPPROTO_UDP, "udp", 0x07 },
-	{ PF_INET6, SOCK_STREAM, IPPROTO_TCP, "tcp", 0x07 },
-	{ PF_INET6, SOCK_RAW, ANY, NULL, 0x05 },
-#endif
-	{ PF_INET, SOCK_DGRAM, IPPROTO_UDP, "udp", 0x07 },
-	{ PF_INET, SOCK_STREAM, IPPROTO_TCP, "tcp", 0x07 },
-	{ PF_INET, SOCK_RAW, ANY, NULL, 0x05 },
-	{ -1, 0, 0, NULL, 0 },
+	{ SOCK_DGRAM, IPPROTO_UDP, "udp", 0x07 },
+	{ SOCK_STREAM, IPPROTO_TCP, "tcp", 0x07 },
+	{ SOCK_RAW, ANY, NULL, 0x05 },
+	{ 0, 0, NULL, 0 },
 };
 
 #ifdef INET6
@@ -136,7 +130,8 @@ static const struct explore explore[] = {
 #define	PTON_MAX	4
 #endif
 
-
+extern struct	hostent * _getipnodebyname_multi __P((const char *name,
+	int af, int flags, int *errp));
 static int str_isnumber __P((const char *));
 static int explore_fqdn __P((const struct addrinfo *, const char *,
 	const char *, struct addrinfo **));
@@ -307,9 +302,7 @@ getaddrinfo(hostname, servname, hints, res)
 		if (pai->ai_socktype != ANY && pai->ai_protocol != ANY) {
 			int matched = 0;
 
-			for (ex = explore; ex->e_af >= 0; ex++) {
-				if (pai->ai_family != ex->e_af)
-					continue;
+			for (ex = explore; ex->e_socktype; ex++) {
 				if (ex->e_socktype == ANY)
 					continue;
 				if (ex->e_protocol == ANY)
@@ -353,10 +346,12 @@ getaddrinfo(hostname, servname, hints, res)
 	}
 
 	/* NULL hostname, or numeric hostname */
-	for (ex = explore; ex->e_af >= 0; ex++) {
+	for (afd = afdl; afd->a_af; afd++)
+      {
+	for (ex = explore; ex->e_socktype; ex++) {
 		*pai = ai0;
 
-		if (!MATCH_FAMILY(pai->ai_family, ex->e_af, WILD_AF(ex)))
+		if (!MATCH_FAMILY(pai->ai_family, afd->a_af, WILD_AF(ex)))
 			continue;
 		if (!MATCH(pai->ai_socktype, ex->e_socktype, WILD_SOCKTYPE(ex)))
 			continue;
@@ -364,7 +359,7 @@ getaddrinfo(hostname, servname, hints, res)
 			continue;
 
 		if (pai->ai_family == PF_UNSPEC)
-			pai->ai_family = ex->e_af;
+			pai->ai_family = afd->a_af;
 		if (pai->ai_socktype == ANY && ex->e_socktype != ANY)
 			pai->ai_socktype = ex->e_socktype;
 		if (pai->ai_protocol == ANY && ex->e_protocol != ANY)
@@ -381,6 +376,7 @@ getaddrinfo(hostname, servname, hints, res)
 		while (cur && cur->ai_next)
 			cur = cur->ai_next;
 	}
+      }
 
 	/*
 	 * XXX
@@ -395,26 +391,11 @@ getaddrinfo(hostname, servname, hints, res)
 	if (hostname == NULL)
 		ERR(EAI_NONAME);
 
-	/*
-	 * hostname as alphabetical name.
-	 * we would like to prefer AF_INET6 than AF_INET, so we'll make a
-	 * outer loop by AFs.
-	 */
-	for (afd = afdl; afd->a_af; afd++) {
-		*pai = ai0;
-
-		if (!MATCH_FAMILY(pai->ai_family, afd->a_af, 1))
-			continue;
-
-		for (ex = explore; ex->e_af >= 0; ex++) {
+	/* hostname as alphabetical name. */
+	{
+		for (ex = explore; ex->e_socktype; ex++) {
 			*pai = ai0;
 
-			if (pai->ai_family == PF_UNSPEC)
-				pai->ai_family = afd->a_af;
-
-			if (!MATCH_FAMILY(pai->ai_family, ex->e_af,
-					  WILD_AF(ex)))
-				continue;
 			if (!MATCH(pai->ai_socktype, ex->e_socktype,
 					WILD_SOCKTYPE(ex))) {
 				continue;
@@ -424,8 +405,6 @@ getaddrinfo(hostname, servname, hints, res)
 				continue;
 			}
 
-			if (pai->ai_family == PF_UNSPEC)
-				pai->ai_family = ex->e_af;
 			if (pai->ai_socktype == ANY && ex->e_socktype != ANY)
 				pai->ai_socktype = ex->e_socktype;
 			if (pai->ai_protocol == ANY && ex->e_protocol != ANY)
@@ -485,12 +464,8 @@ explore_fqdn(pai, hostname, servname, res)
 	if (get_portmatch(pai, servname) != 0)
 		return 0;
 
-	afd = find_afd(pai->ai_family);
-	if (afd == NULL)
-		return 0;
-
-	hp = getipnodebyname(hostname, pai->ai_family, AI_ADDRCONFIG,
-			     &h_error);
+	hp = _getipnodebyname_multi(hostname, pai->ai_family, AI_ADDRCONFIG,
+				       &h_error);
 	if (hp == NULL) {
 		switch (h_error) {
 		case HOST_NOT_FOUND:
@@ -520,7 +495,11 @@ explore_fqdn(pai, hostname, servname, res)
 		af = hp->h_addrtype;
 		ap = hp->h_addr_list[i];
 
-		if (af != pai->ai_family)
+		if (pai->ai_family != AF_UNSPEC && af != pai->ai_family)
+			continue;
+
+		afd = find_afd(af);
+		if (afd == NULL)
 			continue;
 
 		GET_AI(cur->ai_next, afd, ap);
