@@ -1264,7 +1264,7 @@ build_pdu ( hdr, type )
 	    /* Error Index */
 	    *bp++ = ASN_INTEGER;
 	    *bp++ = 0x01;	/* length = 1 */
-	    *bp++ = erridx;	/* index - 0 if no error */
+	    *bp++ = erridx;	/* index == 0 if no error */
 	} else {
 		/* type == PDU_TYPE_TRAP */
 
