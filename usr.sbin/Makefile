@@ -47,6 +47,7 @@ SUBDIR=	IPXrouted \
 	kbdmap \
 	kernbb \
 	lastlogin \
+	mailwrapper \
 	manctl \
 	memcontrol \
 	mergemaster \
@@ -141,10 +142,6 @@ SUBDIR+=named \
 SUBDIR+=lpr
 .endif
 
-.if !defined(NO_MAILWRAPPER)
-SUBDIR+=mailwrapper
-.endif
-
 .if !defined(NO_SENDMAIL)
 SUBDIR+=mailstats \
 	makemap \
@@ -184,7 +181,7 @@ SUBDIR+=boot0cfg
 SUBDIR+=boot98cfg
 .endif
 
-.if exists(${.CURDIR}/../../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
+.if exists(${.CURDIR}/../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
 SUBDIR+=keyserv
 .endif
 
