@@ -48,6 +48,8 @@
 #include <net/raw_cb.h>
 #include <net/route.h>
 
+#include <netinet/in.h>
+
 MALLOC_DEFINE(M_RTABLE, "routetbl", "routing tables");
 
 /* NB: these are not modified */
@@ -287,6 +289,7 @@ route_output(struct mbuf *m, struct socket *so)
 	int len, error = 0;
 	struct ifnet *ifp = NULL;
 	struct ifaddr *ifa = NULL;
+	struct sockaddr_in jail;
 
 #define senderr(e) { error = e; goto flush;}
 	if (m == NULL || ((m->m_len < sizeof(long)) &&
@@ -400,8 +403,16 @@ route_output(struct mbuf *m, struct socket *so)
 				if (ifp) {
 					info.rti_info[RTAX_IFP] =
 					    ifaddr_byindex(ifp->if_index)->ifa_addr;
-					info.rti_info[RTAX_IFA] =
-						rt->rt_ifa->ifa_addr;
+					if (jailed(so->so_cred)) {
+						jail.sin_family = PF_INET;
+						jail.sin_len = sizeof(jail);
+						jail.sin_addr.s_addr =
+						htonl(prison_getip(so->so_cred));
+						info.rti_info[RTAX_IFA] =
+						(struct sockaddr *)&jail;
+					} else
+						info.rti_info[RTAX_IFA] =
+							rt->rt_ifa->ifa_addr;
 					if (ifp->if_flags & IFF_POINTOPOINT)
 						 info.rti_info[RTAX_BRD] =
 							rt->rt_ifa->ifa_dstaddr;
