@@ -14,7 +14,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: mci.c,v 8.211 2003/03/31 17:35:50 ca Exp $")
+SM_RCSID("@(#)$Id: mci.c,v 8.212 2004/08/04 21:11:31 ca Exp $")
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>
@@ -1046,7 +1046,7 @@ mci_store_persistent(mci)
 
 int
 mci_traverse_persistent(action, pathname)
-	int (*action)();
+	int (*action)__P((char *, char *));
 	char *pathname;
 {
 	struct stat statbuf;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2002, 2004 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1992 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1992, 1993
@@ -14,13 +14,13 @@
 #include <sm/gen.h>
 
 SM_IDSTR(copyright,
-"@(#) Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.\n\
+"@(#) Copyright (c) 1998-2002, 2004 Sendmail, Inc. and its suppliers.\n\
 	All rights reserved.\n\
      Copyright (c) 1992 Eric P. Allman.  All rights reserved.\n\
      Copyright (c) 1992, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n")
 
-SM_IDSTR(id, "@(#)$Id: makemap.c,v 8.176 2002/06/27 23:41:04 gshapiro Exp $")
+SM_IDSTR(id, "@(#)$Id: makemap.c,v 8.177 2004/08/03 23:57:24 ca Exp $")
 
 
 #include <sys/types.h>
@@ -51,6 +51,8 @@ BITMAP256 DontBlameSendmail;
 
 #define BUFSIZE		1024
 #define ISSEP(c) (sep == '\0' ? isascii(c) && isspace(c) : (c) == sep)
+
+static void usage __P((char *));
 
 static void
 usage(progname)
