@@ -66,7 +66,7 @@ static struct cdevsw g_dev_cdevsw = {
 	.d_strategy =	g_dev_strategy,
 	.d_name =	"g_dev",
 	.d_maj =	GEOM_MAJOR,
-	.d_flags =	D_DISK | D_TRACKCLOSE,
+	.d_flags =	D_DISK | D_TRACKCLOSE | D_NOGIANT,
 };
 
 static g_taste_t g_dev_taste;
@@ -195,14 +195,12 @@ g_dev_open(dev_t dev, int flags, int fmt, struct thread *td)
 #else
 	e = 0;
 #endif
-	DROP_GIANT();
 	g_topology_lock();
 	if (dev->si_devsw == NULL)
 		error = ENXIO;		/* We were orphaned */
 	else
 		error = g_access_rel(cp, r, w, e);
 	g_topology_unlock();
-	PICKUP_GIANT();
 	g_waitidle();
 	if (!error)
 		dev->si_bsize_phys = cp->provider->sectorsize;
@@ -229,7 +227,6 @@ g_dev_close(dev_t dev, int flags, int fmt, struct thread *td)
 #else
 	e = 0;
 #endif
-	DROP_GIANT();
 	g_topology_lock();
 	if (dev->si_devsw == NULL)
 		error = ENXIO;		/* We were orphaned */
@@ -250,7 +247,6 @@ g_dev_close(dev_t dev, int flags, int fmt, struct thread *td)
 		    "Completing close anyway, panic may happen later.");
 	}
 	g_topology_unlock();
-	PICKUP_GIANT();
 	g_waitidle();
 	return (error);
 }
@@ -278,7 +274,6 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 	error = 0;
 	KASSERT(cp->acr || cp->acw,
 	    ("Consumer with zero access count in g_dev_ioctl"));
-	DROP_GIANT();
 
 	gio = NULL;
 	i = IOCPARM_LEN(cmd);
@@ -337,7 +332,6 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 		break;
 	}
 
-	PICKUP_GIANT();
 	if (error == EDIRIOCTL) {
 		KASSERT(gio != NULL, ("NULL gio but EDIRIOCTL"));
 		KASSERT(gio->func != NULL, ("NULL function but EDIRIOCTL"));
@@ -383,9 +377,7 @@ g_dev_done(struct bio *bp2)
 	}
 	bp->bio_resid = bp->bio_bcount - bp2->bio_completed;
 	g_destroy_bio(bp2);
-	mtx_lock(&Giant);
 	biodone(bp);
-	mtx_unlock(&Giant);
 }
 
 static void
