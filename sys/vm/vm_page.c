@@ -245,6 +245,7 @@ vm_page_startup(vm_offset_t starta, vm_offset_t enda, vm_offset_t vaddr)
 	mapped = pmap_map(&vaddr, new_end, end,
 	    VM_PROT_READ | VM_PROT_WRITE);
 	vm_page_array = (vm_page_t) mapped;
+	phys_avail[biggestone + 1] = new_end;
 
 	/*
 	 * Clear all of the page structures
@@ -262,10 +263,7 @@ vm_page_startup(vm_offset_t starta, vm_offset_t enda, vm_offset_t vaddr)
 	cnt.v_free_count = 0;
 	for (i = 0; phys_avail[i + 1] && npages > 0; i += 2) {
 		pa = phys_avail[i];
-		if (i == biggestone)
-			last_pa = new_end;
-		else
-			last_pa = phys_avail[i + 1];
+		last_pa = phys_avail[i + 1];
 		while (pa < last_pa && npages-- > 0) {
 			vm_pageq_add_new_page(pa);
 			pa += PAGE_SIZE;
