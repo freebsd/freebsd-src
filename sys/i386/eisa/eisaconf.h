@@ -28,13 +28,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.h,v 1.16 1997/03/13 18:04:05 joerg Exp $
+ *	$Id: eisaconf.h,v 1.17 1997/09/21 21:35:23 gibbs Exp $
  */
 
 #ifndef _I386_EISA_EISACONF_H_
 #define _I386_EISA_EISACONF_H_ 1
-
-#include <sys/queue.h>
 
 #define EISA_SLOT_SIZE 0x1000
 
@@ -45,79 +43,46 @@
 #define EISA_PRODUCT_ID(ID)  (short)((ID>>4)  & 0xFFF)        /* Bits  4-15 */
 #define EISA_REVISION_ID(ID) (u_char)(ID & 0x0F)              /* Bits  0-3  */
 
-extern struct linker_set eisadriver_set;
 extern int num_eisa_slots;
 
 typedef u_int32_t eisa_id_t;
 
-typedef struct resvaddr {
-        u_long	addr;				/* start address */
-        u_long	size;				/* size of reserved area */
-	int	flags;
+enum eisa_device_ivars {
+    EISA_IVAR_SLOT,
+    EISA_IVAR_ID,
+    EISA_IVAR_IRQ
+};
+
+/*
+ * Simplified accessors for isa devices
+ */
+#define EISA_ACCESSOR(A, B, T)						 \
+									 \
+static __inline T eisa_get_ ## A(device_t dev)				 \
+{									 \
+	uintptr_t v;							 \
+	BUS_READ_IVAR(device_get_parent(dev), dev, EISA_IVAR_ ## B, &v); \
+	return (T) v;							 \
+}									 \
+									 \
+static __inline void eisa_set_ ## A(device_t dev, T t)			 \
+{									 \
+	u_long v = (u_long) t;						 \
+	BUS_WRITE_IVAR(device_get_parent(dev), dev, EISA_IVAR_ ## B, v); \
+}
+
+EISA_ACCESSOR(slot, SLOT, int)
+EISA_ACCESSOR(id, ID, eisa_id_t)
+EISA_ACCESSOR(irq, IRQ, eisa_id_t)
+
+int eisa_add_intr __P((device_t, int));
+
 #define		RESVADDR_NONE		0x00
 #define		RESVADDR_BITMASK	0x01	/* size is a mask of reserved 
 						 * bits at addr
 						 */
 #define		RESVADDR_RELOCATABLE	0x02
-	LIST_ENTRY(resvaddr) links;		/* List links */
-} resvaddr_t;
-
-LIST_HEAD(resvlist, resvaddr);
-
-struct irq_node {
-	int	irq_no;
-	void	*idesc;
-	TAILQ_ENTRY(irq_node) links;
-};
-
-TAILQ_HEAD(irqlist, irq_node);
-
-struct eisa_ioconf {
-	int		slot;
-	struct resvlist	ioaddrs;	/* list of reserved I/O ranges */
-	struct resvlist maddrs;		/* list of reserved memory ranges */
-	struct irqlist	irqs;		/* list of reserved irqs */
-};
-
-struct eisa_device;
-
-struct eisa_driver {
-	char*	name;			/* device name */
-	int	(*probe) __P((void));
-					/* test whether device is present */
-	int	(*attach) __P((struct eisa_device *));
-					/* setup driver for a device */
-	int	(*shutdown) __P((int));
-					/* Return the device to a safe
-					 * state before shutdown
-					 */
-	u_long  *unit;			/* Next available unit */
-};
-
-/* To be replaced by the "super device" generic device structure... */
-struct eisa_device {
-	eisa_id_t		id;
-	u_long			unit;
-	const char*		full_name; /* for use in the probe message */
-	struct eisa_ioconf	ioconf;
-	struct eisa_driver*	driver;
-};
-
-void eisa_configure __P((void));
-struct eisa_device *eisa_match_dev __P((struct eisa_device *,
-					const char * (*)(eisa_id_t)));
-
-void eisa_reg_start __P((struct eisa_device *));
-void eisa_reg_end __P((struct eisa_device *));
-int eisa_add_intr __P((struct eisa_device *, int));
-int eisa_reg_intr __P((struct eisa_device *, int, void (*)(void *),
-		       void *, u_int *, int));
-int eisa_release_intr __P((struct eisa_device *, int, void (*)(void *)));
-int eisa_enable_intr __P((struct eisa_device *, int));
-int eisa_add_iospace __P((struct eisa_device *, u_long, u_long, int));
-int eisa_reg_iospace __P((struct eisa_device *, resvaddr_t *));
-int eisa_add_mspace __P((struct eisa_device *, u_long, u_long, int));
-int eisa_reg_mspace __P((struct eisa_device *, resvaddr_t *));
-int eisa_registerdev __P((struct eisa_device *, struct eisa_driver *));
+int eisa_add_iospace __P((device_t, u_long, u_long, int));
+int eisa_add_mspace __P((device_t, u_long, u_long, int));
 
 #endif /* _I386_EISA_EISACONF_H_ */

@@ -23,11 +23,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa_compat.h,v 1.1 1999/04/16 21:22:23 peter Exp $
+ *	$Id: isa_compat.h,v 1.2 1999/04/17 19:38:38 peter Exp $
  */
 
 #include "vt.h"
-#include "bt.h"
 #include "adv.h"
 #include "aha.h"
 #include "wdc.h"
@@ -96,7 +95,6 @@ struct old_isa_driver {
 };
 
 extern struct isa_driver  vtdriver;
-extern struct isa_driver  btdriver;
 extern struct isa_driver advdriver;
 extern struct isa_driver ahadriver;
 extern struct isa_driver wdcdriver;
@@ -308,9 +306,6 @@ static struct old_isa_driver old_drivers[] = {
 
 /* CAM */
 
-#if NBT > 0
-	{ DRIVER_TYPE_CAM, &btdriver },
-#endif
 #if NADV > 0
 	{ DRIVER_TYPE_CAM, &advdriver },
 #endif

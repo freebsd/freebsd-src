@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bt_pci.c,v 1.3 1998/11/10 06:45:14 gibbs Exp $
+ *	$Id: bt_pci.c,v 1.4 1998/12/14 06:32:54 dillon Exp $
  */
 
 #include "pci.h"
@@ -34,6 +34,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/bus.h>
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
@@ -41,6 +42,8 @@
 #include <machine/bus_memio.h>
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/rman.h>
 
 #include <dev/buslogic/btreg.h>
 
@@ -51,72 +54,74 @@
 #define PCI_DEVICE_ID_BUSLOGIC_MULTIMASTER_NC	0x0140104Bul
 #define PCI_DEVICE_ID_BUSLOGIC_FLASHPOINT	0x8130104Bul
 
-static int btpcideterminebusspace(pcici_t config_id, bus_space_tag_t* tagp,
-				  bus_space_handle_t* bshp);
-static const char* bt_pci_probe(pcici_t tag, pcidi_t type);
-static void bt_pci_attach(pcici_t config_id, int unit);
-
-static struct  pci_device bt_pci_driver = {
-	"bt",
-        bt_pci_probe,
-        bt_pci_attach,
-        &bt_unit,
-	NULL
-};
-
-DATA_SET (pcidevice_set, bt_pci_driver);
-
 static int
-btpcideterminebusspace(pcici_t config_id, bus_space_tag_t* tagp,
-		       bus_space_handle_t* bshp)
+bt_pci_alloc_resources(device_t dev)
 {
-	vm_offset_t	vaddr;
-	vm_offset_t	paddr;
-	u_int16_t	io_port;
-	int		command;
+	int		command, type = 0, rid, zero;
+	struct resource *regs = 0;
+	struct resource *irq = 0;
 
-	vaddr = 0;
-	paddr = 0;
-	command = pci_cfgread(config_id, PCIR_COMMAND, /*bytes*/1);
-	/* XXX Memory Mapped I/O seems to cause problems */
+	command = pci_read_config(dev, PCIR_COMMAND, /*bytes*/1);
 #if 0
-	if ((command & PCIM_CMD_MEMEN) == 0
-	 || (pci_map_mem(config_id, BT_PCI_MEMADDR, &vaddr, &paddr)) == 0)
-#endif
-		if ((command & PCIM_CMD_PORTEN) == 0
-		 || (pci_map_port(config_id, BT_PCI_IOADDR, &io_port)) == 0)
-			return (-1);
-
-	if (vaddr != 0) {
-		*tagp = I386_BUS_SPACE_MEM;
-		*bshp = vaddr;
-	} else {
-		*tagp = I386_BUS_SPACE_IO;
-		*bshp = io_port;
+	/* XXX Memory Mapped I/O seems to cause problems */
+	if (command & PCIM_CMD_MEMEN) {
+		type = SYS_RES_MEMORY;
+		rid = BT_PCI_MEMADDR;
+		regs = bus_alloc_resource(dev, type, &rid,
+					  0, ~0, 1, RF_ACTIVE);
 	}
+#else
+	if (!regs && (command & PCIM_CMD_PORTEN)) {
+		type = SYS_RES_IOPORT;
+		rid = BT_PCI_IOADDR;
+		regs = bus_alloc_resource(dev, type, &rid,
+					  0, ~0, 1, RF_ACTIVE);
+	}
+#endif
+	if (!regs)
+		return (ENOMEM);
+	
+	zero = 0;
+	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &zero,
+				 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	if (!irq) {
+		bus_release_resource(dev, type, rid, regs);
+		return (ENOMEM);
+	}
+
+	bt_init_softc(dev, regs, irq, 0);
 
 	return (0);
 }
 
-static const char*
-bt_pci_probe (pcici_t config_id, pcidi_t type)
+static void
+bt_pci_release_resources(device_t dev)
 {
-	switch(type) {
+	struct bt_softc *bt = device_get_softc(dev);
+
+	if (bt->port)
+		/* XXX can't cope with memory registers anyway */
+		bus_release_resource(dev, SYS_RES_IOPORT,
+				     BT_PCI_IOADDR, bt->port);
+	if (bt->irq)
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, bt->irq);
+	bt_free_softc(dev);
+}
+
+static int
+bt_pci_probe(device_t dev)
+{
+	switch (pci_get_devid(dev)) {
 		case PCI_DEVICE_ID_BUSLOGIC_MULTIMASTER:
 		case PCI_DEVICE_ID_BUSLOGIC_MULTIMASTER_NC:
 		{
-			struct bt_softc   *bt;
-			bus_space_tag_t	   tag;
-		        bus_space_handle_t bsh;
+			struct bt_softc   *bt = device_get_softc(dev);
 			pci_info_data_t pci_info;
 			int error;
 
-			if (btpcideterminebusspace(config_id, &tag, &bsh) != 0)
-				break;
-
-			bt = bt_alloc(BT_TEMP_UNIT, tag, bsh);
-			if (bt == NULL)
-				break;
+			error = bt_pci_alloc_resources(dev);
+			if (error)
+				return (error);
 
 			/*
 			 * Determine if an ISA compatible I/O port has been
@@ -131,7 +136,7 @@ bt_pci_probe (pcici_t config_id, pcidi_t type)
 			if (error == 0
 			 && pci_info.io_port < BIO_DISABLED) {
 				bt_mark_probed_bio(pci_info.io_port);
-				if (bsh != bt_iop_from_bio(pci_info.io_port)) {
+				if (bt->bsh != bt_iop_from_bio(pci_info.io_port)) {
 					u_int8_t new_addr;
 
 					new_addr = BIO_DISABLED;
@@ -142,30 +147,30 @@ bt_pci_probe (pcici_t config_id, pcidi_t type)
 					       DEFAULT_CMD_TIMEOUT);
 				}
 			}
-			bt_free(bt);
-			return ("Buslogic Multi-Master SCSI Host Adapter");
-			break;
+			bt_pci_release_resources(dev);
+			device_set_desc(dev, "Buslogic Multi-Master SCSI Host Adapter");
+			return (0);
 		}
 		default:
 			break;
 	}
 
-	return (NULL);
+	return (ENXIO);
 }
 
-static void
-bt_pci_attach(pcici_t config_id, int unit)
+static int
+bt_pci_attach(device_t dev)
 {
-	struct bt_softc   *bt;
-	bus_space_tag_t	   tag;
-        bus_space_handle_t bsh;
+	struct bt_softc   *bt = device_get_softc(dev);
 	int		   opri;
+	int		   error;
 
-	if (btpcideterminebusspace(config_id, &tag, &bsh) != 0)
-		return;
-
-	if ((bt = bt_alloc(unit, tag, bsh)) == NULL)
-		return;  /* XXX PCI code should take return status */
+	/* Initialise softc */
+	error = bt_pci_alloc_resources(dev);
+	if (error) {
+		device_printf(dev, "can't allocate resources in bt_pci_attach\n");
+		return error;
+	}
 
 	/* Allocate a dmatag for our CCB DMA maps */
 	/* XXX Should be a child of the PCI bus dma tag */
@@ -177,14 +182,10 @@ bt_pci_attach(pcici_t config_id, int unit)
 			       /*nsegments*/BUS_SPACE_UNRESTRICTED,
 			       /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
 			       /*flags*/0, &bt->parent_dmat) != 0) {
-		bt_free(bt);
-		return;
+		bt_pci_release_resources(dev);
+		return (ENOMEM);
 	}
 
-	if ((pci_map_int(config_id, bt_intr, (void *)bt, &cam_imask)) == 0) {
-		bt_free(bt);
-		return;
-	}
 	/*
 	 * Protect ourself from spurrious interrupts during
 	 * intialization and attach.  We should really rely
@@ -195,16 +196,40 @@ bt_pci_attach(pcici_t config_id, int unit)
 	 */
 	opri = splcam();
 
-	if (bt_probe(bt) || bt_fetch_adapter_info(bt) || bt_init(bt)) {
-		bt_free(bt);
+	if (bt_probe(dev) || bt_fetch_adapter_info(dev) || bt_init(dev)) {
+		bt_pci_release_resources(dev);
 		splx(opri);
-		return; /* XXX PCI code should take return status */
+		return (ENXIO);
 	}
 
-	bt_attach(bt);
-
+	error = bt_attach(dev);
 	splx(opri);
-	return;
+
+	if (error) {
+		bt_pci_release_resources(dev);
+		return (error);
+	}
+
+	return (0);
 }
+
+static device_method_t bt_pci_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		bt_pci_probe),
+	DEVMETHOD(device_attach,	bt_pci_attach),
+
+	{ 0, 0 }
+};
+
+static driver_t bt_pci_driver = {
+	"bt",
+	bt_pci_methods,
+	DRIVER_TYPE_CAM,
+	sizeof(struct bt_softc),
+};
+
+static devclass_t bt_devclass;
+
+DRIVER_MODULE(bt, pci, bt_pci_driver, bt_devclass, 0, 0);
 
 #endif /* NPCI > 0 */

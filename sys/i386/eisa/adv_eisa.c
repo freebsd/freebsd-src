@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: adv_eisa.c,v 1.1 1998/09/15 07:05:39 gibbs Exp $
+ *	$Id: adv_eisa.c,v 1.2 1998/12/22 18:14:09 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -41,9 +41,13 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
+#include <sys/bus.h>
 
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/rman.h>
 
 #include <i386/eisa/eisaconf.h>
 
@@ -69,9 +73,6 @@
 #define	ADV_EISA_MAX_DMA_ADDR   (0x07FFFFFFL)
 #define	ADV_EISA_MAX_DMA_COUNT  (0x07FFFFFFL)
 
-static int	adveisaprobe(void);
-static int	adveisaattach(struct eisa_device *e_dev);
-
 /* 
  * The overrun buffer shared amongst all EISA adapters.
  */
@@ -80,22 +81,10 @@ static	bus_dma_tag_t	overrun_dmat;
 static	bus_dmamap_t	overrun_dmamap;
 static	bus_addr_t	overrun_physbase;
 
-static struct eisa_driver adv_eisa_driver =
-{
-	"adv",
-	adveisaprobe,
-	adveisaattach,
-	/*shutdown*/NULL,
-	&adv_unit
-};
-
-DATA_SET (eisadriver_set, adv_eisa_driver);
-
 static const char *adveisamatch(eisa_id_t type);
 
 static const char*
-adveisamatch(type)
-	eisa_id_t type;
+adveisamatch(eisa_id_t type)
 {
 	switch (type & ~0xF) {
 	case EISA_DEVICE_ID_ADVANSYS_740:
@@ -111,69 +100,78 @@ adveisamatch(type)
 }
 
 static int
-adveisaprobe(void)
+adveisaprobe(device_t dev)
 {
+	const char *desc;
 	u_int32_t iobase;
 	u_int8_t irq;
-	struct eisa_device *e_dev = NULL;
-	int count;
 
-	count = 0;
-	while ((e_dev = eisa_match_dev(e_dev, adveisamatch))) {
-		iobase = (e_dev->ioconf.slot * EISA_SLOT_SIZE)
-		       + ADV_EISA_SLOT_OFFSET;
+	desc = adveisamatch(eisa_get_id(dev));
+	if (!desc)
+		return (ENXIO);
+	device_set_desc(dev, desc);
 
-		eisa_add_iospace(e_dev, iobase, ADV_EISA_IOSIZE, RESVADDR_NONE);
-		irq = inb(iobase + ADV_EISA_IRQ_BURST_LEN_REG);
-		irq &= ADV_EISA_IRQ_MASK;
-		switch (irq) {
-			case 0:
-			case 1:
-			case 2:
-			case 4:
-			case 5:
-				break;
-			default:
-				printf("adv at slot %d: illegal "
-				       "irq setting %d\n", e_dev->ioconf.slot,
-					irq);
-				continue;
-		}
-		eisa_add_intr(e_dev, irq + 10);
-		eisa_registerdev(e_dev, &adv_eisa_driver);
-		count++;
+	iobase = (eisa_get_slot(dev) * EISA_SLOT_SIZE)
+	    + ADV_EISA_SLOT_OFFSET;
+
+	eisa_add_iospace(dev, iobase, ADV_EISA_IOSIZE, RESVADDR_NONE);
+	irq = inb(iobase + ADV_EISA_IRQ_BURST_LEN_REG);
+	irq &= ADV_EISA_IRQ_MASK;
+	switch (irq) {
+	case 0:
+	case 1:
+	case 2:
+	case 4:
+	case 5:
+	    break;
+	default:
+	    printf("adv at slot %d: illegal "
+		   "irq setting %d\n", eisa_get_slot(dev),
+		   irq);
+	    return ENXIO;
 	}
-	return count;
+	eisa_add_intr(dev, irq + 10);
+
+	return 0;
 }
 
 static int
-adveisaattach(struct eisa_device *e_dev)
+adveisaattach(device_t dev)
 {
 	struct adv_softc *adv;
 	struct adv_softc *adv_b;
-	resvaddr_t *iospace;
-	int unit;
-	int irq;
-	int error;
+	struct resource *io;
+	struct resource *irq;
+	int unit = device_get_unit(dev);
+	int rid, error;
+	void *ih;
 
 	adv_b = NULL;
-	unit = e_dev->unit;
-	iospace = e_dev->ioconf.ioaddrs.lh_first;
 
-	if (TAILQ_FIRST(&e_dev->ioconf.irqs) == NULL)
-		return (-1);
+	rid = 0;
+	io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+				0, ~0, 1, RF_ACTIVE);
+	if (!io) {
+		device_printf(dev, "No I/O space?!\n");
+		return ENOMEM;
+	}
 
-	irq = TAILQ_FIRST(&e_dev->ioconf.irqs)->irq_no;
+	rid = 0;
+	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
+				 0, ~0, 1, RF_SHAREABLE | RF_ACTIVE);
+	if (!irq) {
+		device_printf(dev, "No irq?!\n");
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, io);
+		return ENOMEM;
 
-	if (!iospace)
-		return (-1);
+	}
 
-	switch (e_dev->id & ~0xF) {
+	switch (eisa_get_id(dev) & ~0xF) {
 	case EISA_DEVICE_ID_ADVANSYS_750:
-		adv_b = adv_alloc(unit, I386_BUS_SPACE_IO,
-				  iospace->addr + ADV_EISA_OFFSET_CHAN2);
+		adv_b = adv_alloc(unit, rman_get_bustag(io),
+				  rman_get_bushandle(io) + ADV_EISA_OFFSET_CHAN2);
 		if (adv_b == NULL)
-			return (-1);
+			goto bad;
 		
 		/*
 		 * Allocate a parent dmatag for all tags created
@@ -195,19 +193,19 @@ adveisaattach(struct eisa_device *e_dev)
 			printf("%s: Could not allocate DMA tag - error %d\n",
 			       adv_name(adv_b), error);
 			adv_free(adv_b);
-			return (-1);
+			goto bad;
 		}
 
 		adv_b->init_level++;
 
 		/* FALLTHROUGH */
 	case EISA_DEVICE_ID_ADVANSYS_740:
-		adv = adv_alloc(unit, I386_BUS_SPACE_IO,
-				iospace->addr + ADV_EISA_OFFSET_CHAN1);
+		adv = adv_alloc(unit, rman_get_bustag(io),
+				rman_get_bushandle(io) + ADV_EISA_OFFSET_CHAN1);
 		if (adv == NULL) {
 			if (adv_b != NULL)
 				adv_free(adv_b);
-			return (-1);
+			goto bad;
 		}
 
 		/*
@@ -230,14 +228,14 @@ adveisaattach(struct eisa_device *e_dev)
 			printf("%s: Could not allocate DMA tag - error %d\n",
 			       adv_name(adv), error);
 			adv_free(adv);
-			return (-1);
+			goto bad;
 		}
 
 		adv->init_level++;
 		break;
 	default: 
 		printf("adveisaattach: Unknown device type!\n");
-		return (-1);
+		goto bad;
 		break;
 	}
 
@@ -256,7 +254,7 @@ adveisaattach(struct eisa_device *e_dev)
 				       /*flags*/0,
 				       &overrun_dmat) != 0) {
 			adv_free(adv);
-			return (-1);
+			goto bad;
        		}
 		if (bus_dmamem_alloc(overrun_dmat,
 				     (void **)&overrun_buf,
@@ -264,7 +262,7 @@ adveisaattach(struct eisa_device *e_dev)
 				     &overrun_dmamap) != 0) {
 			bus_dma_tag_destroy(overrun_dmat);
 			adv_free(adv);
-			return (-1);
+			goto bad;
 		}
 		/* And permanently map it in */  
 		bus_dmamap_load(overrun_dmat, overrun_dmamap,
@@ -273,23 +271,6 @@ adveisaattach(struct eisa_device *e_dev)
 				/*flags*/0);
 	}
 	
-	eisa_reg_start(e_dev);
-	if (eisa_reg_iospace(e_dev, iospace)) {
-		adv_free(adv);
-		if (adv_b != NULL)
-			adv_free(adv_b);
-		return (-1);
-	}
-
-	if (eisa_reg_intr(e_dev, irq, adv_intr, (void *)adv, &cam_imask,
-			 /*shared ==*/TRUE)) {
-		adv_free(adv);
-		if (adv_b != NULL)
-			adv_free(adv_b);
-		return (-1);
-	}
-	eisa_reg_end(e_dev);
-
 	/*
 	 * Now that we know we own the resources we need, do the 
 	 * card initialization.
@@ -301,7 +282,7 @@ adveisaattach(struct eisa_device *e_dev)
 	ADV_OUTB(adv, ADV_CHIP_CTRL, ADV_CC_HALT);
 	ADV_OUTW(adv, ADV_CHIP_STATUS, 0);
 
-	adv->chip_version = EISA_REVISION_ID(e_dev->id)
+	adv->chip_version = EISA_REVISION_ID(eisa_get_id(dev))
 			  + ADV_CHIP_MIN_VER_EISA - 1;
 
 	if (adv_init(adv) != 0) {
@@ -321,7 +302,7 @@ adveisaattach(struct eisa_device *e_dev)
 		ADV_OUTB(adv_b, ADV_CHIP_CTRL, ADV_CC_HALT);
 		ADV_OUTW(adv_b, ADV_CHIP_STATUS, 0);
 
-		adv_b->chip_version = EISA_REVISION_ID(e_dev->id)
+		adv_b->chip_version = EISA_REVISION_ID(eisa_get_id(dev))
 				    + ADV_CHIP_MIN_VER_EISA - 1;
 
 		if (adv_init(adv_b) != 0) {
@@ -335,13 +316,7 @@ adveisaattach(struct eisa_device *e_dev)
 	/*
 	 * Enable our interrupt handler.
 	 */
-	if (eisa_enable_intr(e_dev, irq)) {
-		adv_free(adv);
-		if (adv_b != NULL)
-			adv_free(adv_b);
-		eisa_release_intr(e_dev, irq, adv_intr);
-		return (-1);
-	}
+	bus_setup_intr(dev, irq, adv_intr, adv, &ih);
 
 	/* Attach sub-devices - always succeeds */
 	adv_attach(adv);
@@ -349,6 +324,30 @@ adveisaattach(struct eisa_device *e_dev)
 		adv_attach(adv_b);
 
 	return 0;
+
+ bad:
+	bus_release_resource(dev, SYS_RES_IOPORT, 0, io);
+	bus_release_resource(dev, SYS_RES_IRQ, 0, irq);
+	return -1;
 }
+
+static device_method_t adv_eisa_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		adveisaprobe),
+	DEVMETHOD(device_attach,	adveisaattach),
+
+	{ 0, 0 }
+};
+
+static driver_t adv_eisa_driver = {
+	"adv",
+	adv_eisa_methods,
+	DRIVER_TYPE_CAM,
+	1,			/* unused */
+};
+
+static devclass_t adv_devclass;
+
+DRIVER_MODULE(adv, eisa, adv_eisa_driver, adv_devclass, 0, 0);
 
 #endif /* NEISA > 0 */

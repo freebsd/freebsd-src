@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bt_eisa.c,v 1.2 1999/03/08 21:35:03 gibbs Exp $
+ *	$Id: bt_eisa.c,v 1.3 1999/03/23 07:27:38 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -35,9 +35,13 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
+#include <sys/bus.h>
 
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/rman.h>
 
 #include <i386/eisa/eisaconf.h>
 
@@ -99,20 +103,58 @@
 #define	AMI_MISC2_OPTIONS		0x49E
 #define		AMI_ENABLE_ISA_DMA	0x08
 
-static int	bt_eisa_probe(void);
-static int	bt_eisa_attach(struct eisa_device *e_dev);
-
-static struct eisa_driver bt_eisa_driver = {
-	"bt",
-	bt_eisa_probe,
-	bt_eisa_attach,
-	/*shutdown*/NULL,
-	&bt_unit
-};
-
-DATA_SET (eisadriver_set, bt_eisa_driver);
-
 static const char *bt_match(eisa_id_t type);
+
+static int
+bt_eisa_alloc_resources(device_t dev)
+{
+	struct	bt_softc *bt = device_get_softc(dev);
+	int rid;
+	struct resource *port;
+	struct resource *irq;
+	int shared;
+
+	/*
+	 * XXX assumes that the iospace ranges are sorted in increasing
+	 * order.
+	 */
+	rid = 1;
+	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+				  0, ~0, 1, RF_ACTIVE);
+	if (!port)
+		return (ENOMEM);
+
+	bt_init_softc(dev, port, 0, 0);
+
+	if (eisa_get_irq(dev) != -1) {
+		shared = bt->level_trigger_ints ? RF_SHAREABLE : 0;
+		rid = 0;
+		irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
+					 0, ~0, 1, shared | RF_ACTIVE);
+		if (!irq) {
+			if (port)
+				bus_release_resource(dev, SYS_RES_IOPORT,
+						     0, port);
+			return (ENOMEM);
+		}
+	} else
+		irq = 0;
+	bt->irq = irq;
+
+	return (0);
+}
+
+static void
+bt_eisa_release_resources(device_t dev)
+{
+	struct	bt_softc *bt = device_get_softc(dev);
+
+	if (bt->port)
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, bt->port);
+	if (bt->irq)
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, bt->irq);
+	bt_free_softc(dev);
+}
 
 static const char*
 bt_match(eisa_id_t type)
@@ -137,155 +179,119 @@ bt_match(eisa_id_t type)
 }
 
 static int
-bt_eisa_probe(void)
+bt_eisa_probe(device_t dev)
 {
+	const char *desc;
 	u_long iobase;
-	struct eisa_device *e_dev = NULL;
-	int count;
+	struct bt_probe_info info;
+	u_long port;
+	u_long iosize;
+	u_int  ioconf;
+	int    result;
 
-	count = 0;
-	while ((e_dev = eisa_match_dev(e_dev, bt_match))) {
-		struct bt_softc *bt;
-		struct bt_probe_info info;
-		u_long port;
-		u_long iosize;
-		u_int  ioconf;
+	desc = bt_match(eisa_get_id(dev));
+	if (!desc)
+		return (ENXIO);
+	device_set_desc(dev, desc);
 
-		iobase = (e_dev->ioconf.slot * EISA_SLOT_SIZE); 
-		if (e_dev->id == EISA_DEVICE_ID_AMI_4801) {
-			u_int ioconf1;
+	iobase = (eisa_get_slot(dev) * EISA_SLOT_SIZE); 
+	if (eisa_get_id(dev) == EISA_DEVICE_ID_AMI_4801) {
+		u_int ioconf1;
 
-			iobase += AMI_EISA_SLOT_OFFSET;
-			iosize = AMI_EISA_IOSIZE;
-			ioconf1 = inb(iobase + AMI_EISA_IOCONF1);
-			/* Determine "ISA" I/O port */
-			switch (ioconf1 & AMI_PORTADDR) {
-				case AMI_PORT_330:
-					port = 0x330;
-					break;
-				case AMI_PORT_334:
-					port = 0x334;
-					break;
-				case AMI_PORT_230:
-					port = 0x230;
-					break;
-				case AMI_PORT_234:
-					port = 0x234;
-					break;
-				case AMI_PORT_134:
-					port = 0x134;
-					break;
-				case AMI_PORT_130:
-					port = 0x130;
-					break;
-				default:
-					/* Disabled */
-					printf("bt: AMI EISA Adapter at "
-					       "slot %d has a disabled I/O "
-					       "port.  Cannot attach.\n",
-					       e_dev->ioconf.slot);
-					continue;
-			}
-		} else {
-			iobase += BT_EISA_SLOT_OFFSET;
-			iosize = BT_EISA_IOSIZE;
-
-			ioconf = inb(iobase + EISA_IOCONF);
-			/* Determine "ISA" I/O port */
-			switch (ioconf & PORTADDR) {
-				case PORT_330:
-					port = 0x330;
-					break;
-				case PORT_334:
-					port = 0x334;
-					break;
-				case PORT_230:
-					port = 0x230;
-					break;
-				case PORT_234:
-					port = 0x234;
-					break;
-				case PORT_130:
-					port = 0x130;
-					break;
-				case PORT_134:
-					port = 0x134;
-					break;
-				default:
-					/* Disabled */
-					printf("bt: Buslogic EISA Adapter at "
-					       "slot %d has a disabled I/O "
-					       "port.  Cannot attach.\n",
-					       e_dev->ioconf.slot);
-					continue;
-			}
+		iobase += AMI_EISA_SLOT_OFFSET;
+		iosize = AMI_EISA_IOSIZE;
+		ioconf1 = inb(iobase + AMI_EISA_IOCONF1);
+		/* Determine "ISA" I/O port */
+		switch (ioconf1 & AMI_PORTADDR) {
+		case AMI_PORT_330:
+			port = 0x330;
+			break;
+		case AMI_PORT_334:
+			port = 0x334;
+			break;
+		case AMI_PORT_230:
+			port = 0x230;
+			break;
+		case AMI_PORT_234:
+			port = 0x234;
+			break;
+		case AMI_PORT_134:
+			port = 0x134;
+			break;
+		case AMI_PORT_130:
+			port = 0x130;
+			break;
+		default:
+			/* Disabled */
+			printf("bt: AMI EISA Adapter at "
+			       "slot %d has a disabled I/O "
+			       "port.  Cannot attach.\n",
+			       eisa_get_slot(dev));
+			return (ENXIO);
 		}
-		bt_mark_probed_iop(port);
+	} else {
+		iobase += BT_EISA_SLOT_OFFSET;
+		iosize = BT_EISA_IOSIZE;
 
-		/* Allocate a softc for use during probing */
-		bt = bt_alloc(BT_TEMP_UNIT, I386_BUS_SPACE_IO, port);
-
-		if (bt == NULL) {
-			printf("bt_eisa_probe: Could not allocate softc for "
-			       "card at slot 0x%x\n", e_dev->ioconf.slot);
-			continue;
+		ioconf = inb(iobase + EISA_IOCONF);
+		/* Determine "ISA" I/O port */
+		switch (ioconf & PORTADDR) {
+		case PORT_330:
+			port = 0x330;
+			break;
+		case PORT_334:
+			port = 0x334;
+			break;
+		case PORT_230:
+			port = 0x230;
+			break;
+		case PORT_234:
+			port = 0x234;
+			break;
+		case PORT_130:
+			port = 0x130;
+			break;
+		case PORT_134:
+			port = 0x134;
+			break;
+		default:
+			/* Disabled */
+			printf("bt: Buslogic EISA Adapter at "
+			       "slot %d has a disabled I/O "
+			       "port.  Cannot attach.\n",
+			       eisa_get_slot(dev));
+			return (ENXIO);
 		}
-
-		if (bt_port_probe(bt, &info) != 0) {
-			printf("bt_eisa_probe: Probe failed for "
-			       "card at slot 0x%x\n", e_dev->ioconf.slot);
-		} else {
-			eisa_add_iospace(e_dev, iobase, iosize, RESVADDR_NONE);
-			eisa_add_iospace(e_dev, port, BT_IOSIZE, RESVADDR_NONE);
-			eisa_add_intr(e_dev, info.irq);
-
-			eisa_registerdev(e_dev, &bt_eisa_driver);
-
-			count++;
-		}
-		bt_free(bt);
 	}
-	return count;
+	bt_mark_probed_iop(port);
+
+	/* Tell parent where our resources are going to be */
+	eisa_add_iospace(dev, iobase, iosize, RESVADDR_NONE);
+	eisa_add_iospace(dev, port, BT_IOSIZE, RESVADDR_NONE);
+
+	/* And allocate them */
+	bt_eisa_alloc_resources(dev);
+
+	if (bt_port_probe(dev, &info) != 0) {
+		printf("bt_eisa_probe: Probe failed for "
+		       "card at slot 0x%x\n", eisa_get_slot(dev));
+		result = ENXIO;
+	} else {
+		eisa_add_intr(dev, info.irq);
+		result = 0;
+	}
+	bt_eisa_release_resources(dev);
+
+	return (result);
 }
 
 static int
-bt_eisa_attach(struct eisa_device *e_dev)
+bt_eisa_attach(device_t dev)
 {
-	struct bt_softc *bt;
-	int unit = e_dev->unit;
-	int irq;
-	resvaddr_t *ioport;
-	resvaddr_t *eisa_ioport;
+	struct bt_softc *bt = device_get_softc(dev);
 
-	if (TAILQ_FIRST(&e_dev->ioconf.irqs) == NULL)
-		return (-1);
-
-	irq = TAILQ_FIRST(&e_dev->ioconf.irqs)->irq_no;
-
-	/*
-	 * The addresses are sorted in increasing order
-	 * so we know the port to pass to the core bt
-	 * driver comes first.
-	 */
-	ioport = e_dev->ioconf.ioaddrs.lh_first;
-
-	if (ioport == NULL)
-		return -1;
-
-	eisa_ioport = ioport->links.le_next;
-
-	if (eisa_ioport == NULL)
-		return -1;
-
-	eisa_reg_start(e_dev);
-	if (eisa_reg_iospace(e_dev, ioport))
-		return -1;
-
-	if (eisa_reg_iospace(e_dev, eisa_ioport))
-		return -1;
-
-	if ((bt = bt_alloc(unit, I386_BUS_SPACE_IO, ioport->addr)) == NULL)
-		return -1;
+	/* Allocate resources */
+	bt_eisa_alloc_resources(dev);
 
 	/* Allocate a dmatag for our SCB DMA maps */
 	/* XXX Should be a child of the PCI bus dma tag */
@@ -297,42 +303,42 @@ bt_eisa_attach(struct eisa_device *e_dev)
 			       /*nsegments*/BUS_SPACE_UNRESTRICTED,
 			       /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
 			       /*flags*/0, &bt->parent_dmat) != 0) {
-		bt_free(bt);
+		bt_eisa_release_resources(dev);
 		return -1;
 	}
-
-	if (eisa_reg_intr(e_dev, irq, bt_intr, (void *)bt, &cam_imask,
-			  /*shared ==*/bt->level_trigger_ints ? 1 : 0)) {
-		bt_free(bt);
-		return -1;
-	}
-	eisa_reg_end(e_dev);
 
 	/*
 	 * Now that we know we own the resources we need, do the full
 	 * card initialization.
 	 */
-	if (bt_probe(bt) || bt_fetch_adapter_info(bt) || bt_init(bt)) {
-		bt_free(bt);
-		/*
-		 * The board's IRQ line will not be left enabled
-		 * if we can't intialize correctly, so its safe
-		 * to release the irq.
-		 */
-		eisa_release_intr(e_dev, irq, bt_intr);
+	if (bt_probe(dev) || bt_fetch_adapter_info(dev) || bt_init(dev)) {
+		bt_eisa_release_resources(dev);
 		return -1;
 	}
 
-	/* Attach sub-devices - always succeeds */
-	bt_attach(bt);
-
-	if (eisa_enable_intr(e_dev, irq)) {
-		bt_free(bt);
-		eisa_release_intr(e_dev, irq, bt_intr);
-		return -1;
-	}
+	/* Attach sub-devices - always succeeds (sets up intr) */
+	bt_attach(dev);
 
 	return 0;
 }
+
+static device_method_t bt_eisa_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		bt_eisa_probe),
+	DEVMETHOD(device_attach,	bt_eisa_attach),
+
+	{ 0, 0 }
+};
+
+static driver_t bt_eisa_driver = {
+	"bt",
+	bt_eisa_methods,
+	DRIVER_TYPE_CAM,
+	sizeof(struct bt_softc),
+};
+
+static devclass_t bt_devclass;
+
+DRIVER_MODULE(bt, eisa, bt_eisa_driver, bt_devclass, 0, 0);
 
 #endif /* NEISA > 0 */

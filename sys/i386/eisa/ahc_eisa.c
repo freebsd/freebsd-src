@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahc_eisa.c,v 1.4 1998/12/15 08:24:45 gibbs Exp $
+ *	$Id: ahc_eisa.c,v 1.5 1999/03/05 23:28:42 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -35,9 +35,13 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
+#include <sys/bus.h>
 
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/rman.h>
 
 #include <i386/eisa/eisaconf.h>
 
@@ -61,26 +65,12 @@
 #define AHC_EISA_IOSIZE		0x100
 #define INTDEF			0x5cul	/* Interrupt Definition Register */
 
-static int	aic7770probe(void);
-static int	aic7770_attach(struct eisa_device *e_dev);
 static void	aha2840_load_seeprom(struct ahc_softc *ahc);
-
-static struct eisa_driver ahc_eisa_driver =
-{
-	"ahc",
-	aic7770probe,
-	aic7770_attach,
-	/*shutdown*/NULL,
-	&ahc_unit
-};
-
-DATA_SET (eisadriver_set, ahc_eisa_driver);
 
 static const char *aic7770_match(eisa_id_t type);
 
 static const char*
-aic7770_match(type)
-	eisa_id_t type;
+aic7770_match(eisa_id_t type)
 {
 	switch (type) {
 	case EISA_DEVICE_ID_ADAPTEC_AIC7770:
@@ -100,75 +90,75 @@ aic7770_match(type)
 }
 
 static int
-aic7770probe(void)
+aic7770_probe(device_t dev)
 {
+	const char *desc;
 	u_int32_t iobase;
 	u_int32_t irq;
 	u_int8_t intdef;
 	u_int8_t hcntrl;
-	struct eisa_device *e_dev;
-	int count;
 
-	e_dev = NULL;
-	count = 0;
-	while ((e_dev = eisa_match_dev(e_dev, aic7770_match))) {
-		iobase = (e_dev->ioconf.slot * EISA_SLOT_SIZE)
-			 + AHC_EISA_SLOT_OFFSET;
+	desc = aic7770_match(eisa_get_id(dev));
+	if (!desc)
+		return (ENXIO);
+	device_set_desc(dev, desc);
+
+	iobase = (eisa_get_slot(dev) * EISA_SLOT_SIZE)
+	    + AHC_EISA_SLOT_OFFSET;
 
 		/* Pause the card preseving the IRQ type */
-		hcntrl = inb(iobase + HCNTRL) & IRQMS;
+	hcntrl = inb(iobase + HCNTRL) & IRQMS;
 
-		outb(iobase + HCNTRL, hcntrl | PAUSE);
+	outb(iobase + HCNTRL, hcntrl | PAUSE);
 
-		eisa_add_iospace(e_dev, iobase, AHC_EISA_IOSIZE, RESVADDR_NONE);
-		intdef = inb(INTDEF + iobase);
-		irq = intdef & 0xf;
-		switch (irq) {
-			case 9: 
-			case 10:
-			case 11:
-			case 12:
-			case 14:
-			case 15:
-				break;
-			default:
-				printf("aic7770 at slot %d: illegal "
-				       "irq setting %d\n", e_dev->ioconf.slot,
-					intdef);
-				irq = 0;
-				break;
-		}
-		if (irq == 0)
-			continue;
-		eisa_add_intr(e_dev, irq);
-		eisa_registerdev(e_dev, &ahc_eisa_driver);
-		count++;
+	eisa_add_iospace(dev, iobase, AHC_EISA_IOSIZE, RESVADDR_NONE);
+	intdef = inb(INTDEF + iobase);
+	irq = intdef & 0xf;
+	switch (irq) {
+	case 9: 
+	case 10:
+	case 11:
+	case 12:
+	case 14:
+	case 15:
+	    break;
+	default:
+	    printf("aic7770 at slot %d: illegal "
+		   "irq setting %d\n", eisa_get_slot(dev),
+		   intdef);
+	    irq = 0;
+	    break;
 	}
-	return count;
+	if (irq == 0)
+	    return ENXIO;
+
+	eisa_add_intr(dev, irq);
+
+	return 0;
 }
 
 static int
-aic7770_attach(struct eisa_device *e_dev)
+aic7770_attach(device_t dev)
 {
 	ahc_chip chip;
 
 	struct ahc_softc *ahc;
-	resvaddr_t *iospace;
-	int unit = e_dev->unit;
-	int irq;
-	int error;
+	struct resource *io = 0;
+	struct resource *irq = 0;
+	int unit = device_get_unit(dev);
+	int error, rid;
+	int shared;
+	void *ih;
 
-	if (TAILQ_FIRST(&e_dev->ioconf.irqs) == NULL)
-		return (-1);
+	rid = 0;
+	io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+				0, ~0, 1, RF_ACTIVE);
+	if (!io) {
+		device_printf(dev, "No I/O space?!\n");
+		return ENOMEM;
+	}
 
-	irq = TAILQ_FIRST(&e_dev->ioconf.irqs)->irq_no;
-
-	iospace = e_dev->ioconf.ioaddrs.lh_first;
-
-	if (!iospace)
-		return -1;
-
-	switch (e_dev->id) {
+	switch (eisa_get_id(dev)) {
 	case EISA_DEVICE_ID_ADAPTEC_274x:
 	case EISA_DEVICE_ID_ADAPTEC_AIC7770:
 		chip = AHC_AIC7770|AHC_EISA;
@@ -179,13 +169,12 @@ aic7770_attach(struct eisa_device *e_dev)
 		break;
 	default: 
 		printf("aic7770_attach: Unknown device type!\n");
-		return -1;
-		break;
+		goto bad;
 	}
 
-	if (!(ahc = ahc_alloc(unit, iospace->addr, NULL,
+	if (!(ahc = ahc_alloc(unit, rman_get_start(io), NULL,
 			      chip, AHC_AIC7770_FE, AHC_FNONE, NULL)))
-		return -1;
+		goto bad;
 
 	ahc->channel = 'A';
 	ahc->channel_b = 'B';
@@ -204,31 +193,27 @@ aic7770_attach(struct eisa_device *e_dev)
 		printf("%s: Could not allocate DMA tag - error %d\n",
 		       ahc_name(ahc), error);
 		ahc_free(ahc);
-		return -1;
+		goto bad;
 	}
 
-
-	eisa_reg_start(e_dev);
-	if (eisa_reg_iospace(e_dev, iospace)) {
-		ahc_free(ahc);
-		return -1;
-	}
 
 	if (ahc_reset(ahc) != 0) {
 		ahc_free(ahc);
-		return -1;
+		goto bad;
 	}
 
 	/*
 	 * The IRQMS bit enables level sensitive interrupts. Only allow
 	 * IRQ sharing if it's set.
 	 */
-	if (eisa_reg_intr(e_dev, irq, ahc_intr, (void *)ahc, &cam_imask,
-			 /*shared ==*/ahc->pause & IRQMS)) {
-		ahc_free(ahc);
-		return -1;
+	shared = (ahc->pause & IRQMS) ? RF_SHAREABLE : 0;
+	rid = 0;
+	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
+				 0, ~0, 1, shared  | RF_ACTIVE);
+	if (!irq) {
+		device_printf(dev, "Can't allocate interrupt\n");
+		goto bad;
 	}
-	eisa_reg_end(e_dev);
 
 	/*
 	 * Tell the user what type of interrupts we're using.
@@ -355,8 +340,7 @@ aic7770_attach(struct eisa_device *e_dev)
 		 * The board's IRQ line is not yet enabled so it's safe
 		 * to release the irq.
 		 */
-		eisa_release_intr(e_dev, irq, ahc_intr);
-		return -1;
+		goto bad;
 	}
 
 	/*
@@ -367,16 +351,20 @@ aic7770_attach(struct eisa_device *e_dev)
 	/*
 	 * Enable our interrupt handler.
 	 */
-	if (eisa_enable_intr(e_dev, irq)) {
-		ahc_free(ahc);
-		eisa_release_intr(e_dev, irq, ahc_intr);
-		return -1;
-	}
+	if (bus_setup_intr(dev, irq, ahc_intr, ahc, &ih))
+		goto bad;
 
 	/* Attach sub-devices - always succeeds */
 	ahc_attach(ahc);
 
 	return 0;
+
+ bad:
+	if (io)
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, io);
+	if (irq)
+		bus_release_resource(dev, SYS_RES_IRQ, 0, irq);
+	return -1;
 }
 
 /*
@@ -473,5 +461,24 @@ aha2840_load_seeprom(struct ahc_softc *ahc)
 			ahc->flags |= AHC_TERM_ENB_A;
 	}
 }
+
+static device_method_t ahc_eisa_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		aic7770_probe),
+	DEVMETHOD(device_attach,	aic7770_attach),
+
+	{ 0, 0 }
+};
+
+static driver_t ahc_eisa_driver = {
+	"ahc",
+	ahc_eisa_methods,
+	DRIVER_TYPE_CAM,
+	1,			/* unused */
+};
+
+static devclass_t ahc_devclass;
+
+DRIVER_MODULE(ahc, eisa, ahc_eisa_driver, ahc_devclass, 0, 0);
 
 #endif /* NEISA > 0 */

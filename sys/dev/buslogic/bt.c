@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bt.c,v 1.14 1999/03/08 21:36:33 gibbs Exp $
+ *      $Id: bt.c,v 1.15 1999/04/07 23:01:43 gibbs Exp $
  */
 
  /*
@@ -46,6 +46,7 @@
 #include <sys/buf.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/bus.h>
  
 /*
  * XXX It appears that BusLogic PCI adapters go out to lunch if you 
@@ -60,6 +61,7 @@
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/clock.h>
+#include <sys/rman.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -208,48 +210,29 @@ u_int16_t bt_board_ports[] =
 };
 
 /* Exported functions */
-struct bt_softc *
-bt_alloc(int unit, bus_space_tag_t tag, bus_space_handle_t bsh)
+void
+bt_init_softc(device_t dev, struct resource *port,
+	      struct resource *irq, struct resource *drq)
 {
-	struct  bt_softc *bt;  
+	struct bt_softc *bt = device_get_softc(dev);
 
-	if (unit != BT_TEMP_UNIT) {
-		if (unit >= NBT) {
-			printf("bt: unit number (%d) too high\n", unit);
-			return NULL;
-		}
-
-		/*
-		 * Allocate a storage area for us
-		 */
-		if (bt_softcs[unit]) {    
-			printf("bt%d: memory already allocated\n", unit);
-			return NULL;    
-		}
-	}
-
-	bt = malloc(sizeof(struct bt_softc), M_DEVBUF, M_NOWAIT);
-	if (!bt) {
-		printf("bt%d: cannot malloc!\n", unit);
-		return NULL;    
-	}
-	bzero(bt, sizeof(struct bt_softc));
 	SLIST_INIT(&bt->free_bt_ccbs);
 	LIST_INIT(&bt->pending_ccbs);
 	SLIST_INIT(&bt->sg_maps);
-	bt->unit = unit;
-	bt->tag = tag;
-	bt->bsh = bsh;
-
-	if (bt->unit != BT_TEMP_UNIT) {
-		bt_softcs[unit] = bt;
-	}
-	return (bt);
+	bt->dev = dev;
+	bt->unit = device_get_unit(dev);
+	bt->port = port;
+	bt->irq = irq;
+	bt->drq = drq;
+	bt->tag = rman_get_bustag(port);
+	bt->bsh = rman_get_bushandle(port);
 }
 
 void
-bt_free(struct bt_softc *bt)
+bt_free_softc(device_t dev)
 {
+	struct bt_softc *bt = device_get_softc(dev);
+
 	switch (bt->init_level) {
 	default:
 	case 11:
@@ -294,20 +277,17 @@ bt_free(struct bt_softc *bt)
 	case 0:
 		break;
 	}
-	if (bt->unit != BT_TEMP_UNIT) {
-		bt_softcs[bt->unit] = NULL;
-	}
-	free(bt, M_DEVBUF);
 }
 
 int
-bt_port_probe(struct bt_softc *bt, struct bt_probe_info *info)
+bt_port_probe(device_t dev, struct bt_probe_info *info)
 {
+	struct bt_softc *bt = device_get_softc(dev);
 	config_data_t config_data;
 	int error;
 
 	/* See if there is really a card present */
-	if (bt_probe(bt) || bt_fetch_adapter_info(bt))
+	if (bt_probe(dev) || bt_fetch_adapter_info(dev))
 		return(1);
 
 	/*
@@ -365,8 +345,9 @@ bt_port_probe(struct bt_softc *bt, struct bt_probe_info *info)
  * Probe the adapter and verify that the card is a BusLogic.
  */
 int
-bt_probe(struct bt_softc* bt)
+bt_probe(device_t dev)
 {
+	struct bt_softc *bt = device_get_softc(dev);
 	esetup_info_data_t esetup_info;
 	u_int	 status;
 	u_int	 intstat;
@@ -384,21 +365,21 @@ bt_probe(struct bt_softc* bt)
 	 || (status & (DIAG_ACTIVE|CMD_REG_BUSY|
 		       STATUS_REG_RSVD|CMD_INVALID)) != 0) {
 		if (bootverbose)
-			printf("%s: Failed Status Reg Test - %x\n", bt_name(bt),
+			device_printf(dev, "Failed Status Reg Test - %x\n",
 			       status);
 		return (ENXIO);
 	}
 
 	intstat = bt_inb(bt, INTSTAT_REG);
 	if ((intstat & INTSTAT_REG_RSVD) != 0) {
-		printf("%s: Failed Intstat Reg Test\n", bt_name(bt));
+		device_printf(dev, "Failed Intstat Reg Test\n");
 		return (ENXIO);
 	}
 
 	geometry = bt_inb(bt, GEOMETRY_REG);
 	if (geometry == 0xFF) {
 		if (bootverbose)
-			printf("%s: Failed Geometry Reg Test\n", bt_name(bt));
+			device_printf(dev, "Failed Geometry Reg Test\n");
 		return (ENXIO);
 	}
 
@@ -409,7 +390,7 @@ bt_probe(struct bt_softc* bt)
 	 */
 	if ((error = btreset(bt, /*hard_reset*/TRUE)) != 0) {
 		if (bootverbose)
-			printf("%s: Failed Reset\n", bt_name(bt));
+			device_printf(dev, "Failed Reset\n");
 		return (ENXIO);
 	}
 	
@@ -428,8 +409,9 @@ bt_probe(struct bt_softc* bt)
  * Pull the boards setup information and record it in our softc.
  */
 int
-bt_fetch_adapter_info(struct bt_softc *bt)
+bt_fetch_adapter_info(device_t dev)
 {
+	struct bt_softc *bt = device_get_softc(dev);
 	board_id_data_t	board_id;
 	esetup_info_data_t esetup_info;
 	config_data_t config_data;
@@ -441,8 +423,7 @@ bt_fetch_adapter_info(struct bt_softc *bt)
 		       (u_int8_t*)&board_id, sizeof(board_id),
 		       DEFAULT_CMD_TIMEOUT);
 	if (error != 0) {
-		printf("%s: bt_fetch_adapter_info - Failed Get Board Info\n",
-		       bt_name(bt));
+		device_printf(dev, "bt_fetch_adapter_info - Failed Get Board Info\n");
 		return (error);
 	}
 	bt->firmware_ver[0] = board_id.firmware_rev_major;
@@ -460,8 +441,9 @@ bt_fetch_adapter_info(struct bt_softc *bt)
 			       (u_int8_t*)&bt->firmware_ver[3], 1,
 			       DEFAULT_CMD_TIMEOUT);
 		if (error != 0) {
-			printf("%s: bt_fetch_adapter_info - Failed Get "
-			       "Firmware 3rd Digit\n", bt_name(bt));
+			device_printf(dev,
+				      "bt_fetch_adapter_info - Failed Get "
+				      "Firmware 3rd Digit\n");
 			return (error);
 		}
 		if (bt->firmware_ver[3] == ' ')
@@ -475,8 +457,9 @@ bt_fetch_adapter_info(struct bt_softc *bt)
 			       (u_int8_t*)&bt->firmware_ver[4], 1,
 			       DEFAULT_CMD_TIMEOUT);
 		if (error != 0) {
-			printf("%s: bt_fetch_adapter_info - Failed Get "
-			       "Firmware 4th Digit\n", bt_name(bt));
+			device_printf(dev,
+				      "bt_fetch_adapter_info - Failed Get "
+				      "Firmware 4th Digit\n");
 			return (error);
 		}
 		if (bt->firmware_ver[4] == ' ')
@@ -532,8 +515,9 @@ bt_fetch_adapter_info(struct bt_softc *bt)
 			       (u_int8_t*)&model_data, sizeof(model_data),
 			       DEFAULT_CMD_TIMEOUT);
 		if (error != 0) {
-			printf("%s: bt_fetch_adapter_info - Failed Inquire "
-			       "Model Number\n", bt_name(bt));
+			device_printf(dev,
+				      "bt_fetch_adapter_info - Failed Inquire "
+				      "Model Number\n");
 			return (error);
 		}
 		for (i = 0; i < sizeof(model_data.ascii_model); i++) {
@@ -617,8 +601,9 @@ bt_fetch_adapter_info(struct bt_softc *bt)
 			       sizeof(auto_scsi_data), DEFAULT_CMD_TIMEOUT);
 
 		if (error != 0) {
-			printf("%s: bt_fetch_adapter_info - Failed "
-			       "Get Auto SCSI Info\n", bt_name(bt));
+			device_printf(dev,
+				      "bt_fetch_adapter_info - Failed "
+				      "Get Auto SCSI Info\n");
 			return (error);
 		}
 
@@ -651,8 +636,9 @@ bt_fetch_adapter_info(struct bt_softc *bt)
 			       sizeof(setup_info), DEFAULT_CMD_TIMEOUT);
 
 		if (error != 0) {
-			printf("%s: bt_fetch_adapter_info - Failed "
-			       "Get Setup Info\n", bt_name(bt));
+			device_printf(dev,
+				      "bt_fetch_adapter_info - Failed "
+				      "Get Setup Info\n");
 			return (error);
 		}
 
@@ -678,8 +664,8 @@ bt_fetch_adapter_info(struct bt_softc *bt)
 		       (u_int8_t*)&config_data, sizeof(config_data),
 		       DEFAULT_CMD_TIMEOUT);
 	if (error != 0) {
-		printf("%s: bt_fetch_adapter_info - Failed Get Config\n",
-		       bt_name(bt));
+		device_printf(dev,
+			      "bt_fetch_adapter_info - Failed Get Config\n");
 		return (error);
 	}
 	bt->scsi_id = config_data.scsi_id;
@@ -691,11 +677,12 @@ bt_fetch_adapter_info(struct bt_softc *bt)
  * Start the board, ready for normal operation
  */
 int
-bt_init(struct bt_softc* bt)
+bt_init(device_t dev)
 {
+	struct bt_softc *bt = device_get_softc(dev);
+
 	/* Announce the Adapter */
-	printf("%s: BT-%s FW Rev. %s ", bt_name(bt),
-	       bt->model, bt->firmware_ver);
+	device_printf(dev, "BT-%s FW Rev. %s ", bt->model, bt->firmware_ver);
 
 	if (bt->ultra_scsi != 0)
 		printf("Ultra ");
@@ -818,8 +805,8 @@ bt_init(struct bt_softc* bt)
 	btallocccbs(bt);
 
 	if (bt->num_ccbs == 0) {
-		printf("%s: bt_init - Unable to allocate initial ccbs\n",
-		       bt_name(bt));
+		device_printf(dev,
+			      "bt_init - Unable to allocate initial ccbs\n");
 		goto error_exit;
 	}
 
@@ -834,8 +821,9 @@ error_exit:
 }
 
 int
-bt_attach(struct bt_softc *bt)
+bt_attach(device_t dev)
 {
+	struct bt_softc *bt = device_get_softc(dev);
 	int tagged_dev_openings;
 	struct cam_devq *devq;
 
@@ -878,16 +866,12 @@ bt_attach(struct bt_softc *bt)
 		return (ENXIO);
 	}
 		
+	/*
+	 * Setup interrupt.
+	 */
+	bus_setup_intr(dev, bt->irq, bt_intr, bt, &bt->ih);
+
 	return (0);
-}
-
-char *
-bt_name(struct bt_softc *bt)
-{
-	static char name[10];
-
-	snprintf(name, sizeof(name), "bt%d", bt->unit);
-	return (name);
 }
 
 int
@@ -1055,7 +1039,7 @@ btgetccb(struct bt_softc *bt)
 		btallocccbs(bt);
 		bccb = SLIST_FIRST(&bt->free_bt_ccbs);
 		if (bccb == NULL)
-			printf("%s: Can't malloc BCCB\n", bt_name(bt));
+			device_printf(bt->dev, "Can't malloc BCCB\n");
 		else {
 			SLIST_REMOVE_HEAD(&bt->free_bt_ccbs, links);
 			bt->active_ccbs++;
@@ -1388,8 +1372,9 @@ btexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 
 	if (error != 0) {
 		if (error != EFBIG)
-			printf("%s: Unexepected error 0x%x returned from "
-			       "bus_dmamap_load\n", bt_name(bt), error);
+			device_printf(bt->dev,
+				      "Unexepected error 0x%x returned from "
+				      "bus_dmamap_load\n", error);
 		if (ccb->ccb_h.status == CAM_REQ_INPROG) {
 			xpt_freeze_devq(ccb->ccb_h.path, /*count*/1);
 			ccb->ccb_h.status = CAM_REQ_TOO_BIG|CAM_DEV_QFRZN;
@@ -1470,9 +1455,10 @@ btexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		 * hung, one of the pending transactions will
 		 * timeout causing us to start recovery operations.
 		 */
-		printf("%s: Encountered busy mailbox with %d out of %d "
-		       "commands active!!!\n", bt_name(bt), bt->active_ccbs,
-		       bt->max_ccbs);
+		device_printf(bt->dev,
+			      "Encountered busy mailbox with %d out of %d "
+			      "commands active!!!\n", bt->active_ccbs,
+			      bt->max_ccbs);
 		untimeout(bttimeout, bccb, ccb->ccb_h.timeout_ch);
 		if (nseg != 0)
 			bus_dmamap_unload(bt->buffer_dmat, bccb->dmamap);
@@ -1531,8 +1517,9 @@ btdone(struct bt_softc *bt, struct bt_ccb *bccb, bt_mbi_comp_code_t comp_code)
 	csio = &bccb->ccb->csio;
 
 	if ((bccb->flags & BCCB_ACTIVE) == 0) {
-		printf("%s: btdone - Attempt to free non-active BCCB %p\n",
-		       bt_name(bt), (void *)bccb);
+		device_printf(bt->dev,
+			      "btdone - Attempt to free non-active BCCB %p\n",
+			      (void *)bccb);
 		return;
 	}
 
@@ -1586,7 +1573,7 @@ btdone(struct bt_softc *bt, struct bt_ccb *bccb, bt_mbi_comp_code_t comp_code)
 				ccb_h = LIST_NEXT(ccb_h, sim_links.le);
 			}
 		}
-		printf("%s: No longer in timeout\n", bt_name(bt));
+		device_printf(bt->dev, "No longer in timeout\n");
 		return;
 	}
 
@@ -1594,12 +1581,12 @@ btdone(struct bt_softc *bt, struct bt_ccb *bccb, bt_mbi_comp_code_t comp_code)
 
 	switch (comp_code) {
 	case BMBI_FREE:
-		printf("%s: btdone - CCB completed with free status!\n",
-		       bt_name(bt));
+		device_printf(bt->dev,
+			      "btdone - CCB completed with free status!\n");
 		break;
 	case BMBI_NOT_FOUND:
-		printf("%s: btdone - CCB Abort failed to find CCB\n",
-		       bt_name(bt));
+		device_printf(bt->dev,
+			      "btdone - CCB Abort failed to find CCB\n");
 		break;
 	case BMBI_ABORT:
 	case BMBI_ERROR:

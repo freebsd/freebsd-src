@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: 3c5x9.c,v 1.9 1997/02/22 09:31:52 peter Exp $
+ *	$Id: 3c5x9.c,v 1.10 1997/09/21 21:35:21 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -29,8 +29,13 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
+#include <sys/module.h>
+#include <sys/bus.h>
 
 #include <machine/clock.h>
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/rman.h>
 
 #include <net/if.h>
 
@@ -66,24 +71,10 @@
 #define			TRANS_AUI	0x4000
 #define			TRANS_BNC	0xc000
 
-static int	ep_eisa_probe __P((void));
-static int	ep_eisa_attach __P((struct eisa_device *e_dev));
-
-static struct eisa_driver ep_eisa_driver = {
-					"ep",
-					ep_eisa_probe,
-					ep_eisa_attach,
-					/*shutdown*/NULL,
-					&ep_unit
-				      };
-
-DATA_SET (eisadriver_set, ep_eisa_driver);
-
 static const char *ep_match __P((eisa_id_t type));
 
 static const char*
-ep_match(type)
-	eisa_id_t type;
+ep_match(eisa_id_t type)
 {
 	switch(type) {
 		case EISA_DEVICE_ID_3COM_3C509_TP:
@@ -111,122 +102,116 @@ ep_match(type)
 }
 
 static int
-ep_eisa_probe(void)
+ep_eisa_probe(device_t dev)
 {
+	const char *desc;
 	u_long iobase;
-	struct eisa_device *e_dev = NULL;
-	int count;
+	u_short conf;
+	u_long port;
+	int irq;
 
-	count = 0;
-	while ((e_dev = eisa_match_dev(e_dev, ep_match))) {
-		u_short conf;
-		u_long port;
-		int irq;
+	desc = ep_match(eisa_get_id(dev));
+	if (!desc)
+		return (ENXIO);
+	device_set_desc(dev, desc);
 
-		port = (e_dev->ioconf.slot * EISA_SLOT_SIZE);
-		iobase = port + EP_EISA_SLOT_OFFSET;
+	port = (eisa_get_slot(dev) * EISA_SLOT_SIZE);
+	iobase = port + EP_EISA_SLOT_OFFSET;
 
-		/* We must be in EISA configuration mode */
-		if ((inw(iobase + EP_W0_ADDRESS_CFG) & 0x1f) != 0x1f)
-                	continue;
+	/* We must be in EISA configuration mode */
+	if ((inw(iobase + EP_W0_ADDRESS_CFG) & 0x1f) != 0x1f)
+	    return ENXIO;
 
-		eisa_add_iospace(e_dev, iobase, EP_EISA_IOSIZE, RESVADDR_NONE);
-		eisa_add_iospace(e_dev, port, EP_IOSIZE, RESVADDR_NONE);
+	eisa_add_iospace(dev, iobase, EP_EISA_IOSIZE, RESVADDR_NONE);
+	eisa_add_iospace(dev, port, EP_IOSIZE, RESVADDR_NONE);
 
-		conf = inw(iobase + EISA_IOCONF);
-		/* Determine our IRQ */
-		switch (conf & IRQ_CHANNEL) {
-			case INT_3:
-				irq = 3;
-				break;
-			case INT_5:
-				irq = 5;
-				break;
-			case INT_7:
-				irq = 7;
-				break;
-			case INT_9:
-				irq = 9;
-				break;
-			case INT_10:
-				irq = 10;
-				break;
-			case INT_11:
-				irq = 11;
-				break;
-			case INT_12:
-				irq = 12;
-				break;
-			case INT_15:
-				irq = 15;
-				break;
-			default:
+	conf = inw(iobase + EISA_IOCONF);
+	/* Determine our IRQ */
+	switch (conf & IRQ_CHANNEL) {
+	case INT_3:
+	    irq = 3;
+	    break;
+	case INT_5:
+	    irq = 5;
+	    break;
+	case INT_7:
+	    irq = 7;
+	    break;
+	case INT_9:
+	    irq = 9;
+	    break;
+	case INT_10:
+	    irq = 10;
+	    break;
+	case INT_11:
+	    irq = 11;
+	    break;
+	case INT_12:
+	    irq = 12;
+	    break;
+	case INT_15:
+	    irq = 15;
+	    break;
+	default:
 				/* Disabled */
-				printf("ep: 3COM Network Adapter at "
-				       "slot %d has its IRQ disabled. "
-				       "Probe failed.\n", 
-					e_dev->ioconf.slot);
-				continue;
-		}
-		eisa_add_intr(e_dev, irq);
-		eisa_registerdev(e_dev, &ep_eisa_driver);
-		count++;
+	    printf("ep: 3COM Network Adapter at "
+		   "slot %d has its IRQ disabled. "
+		   "Probe failed.\n", 
+		   eisa_get_slot(dev));
+	    return ENXIO;
 	}
-	return count;
+	eisa_add_intr(dev, irq);
+
+	return 0;
 }
 
 static int
-ep_eisa_attach(e_dev)
-	struct eisa_device *e_dev;
+ep_eisa_attach(device_t dev)
 {
 	struct ep_softc *sc;
 	struct ep_board *epb;
-	int unit = e_dev->unit;
-	int irq;
-	resvaddr_t *ioport;
-	resvaddr_t *eisa_ioport;
+	struct resource *io = 0;
+	struct resource *eisa_io = 0;
+	struct resource *irq = 0;
+	int unit = device_get_unit(dev);
 	u_char level_intr;
-	int i;
+	int i, rid, shared;
+	void *ih;
 
-	if (TAILQ_FIRST(&e_dev->ioconf.irqs) == NULL)
-		return -1;
-
-	irq = TAILQ_FIRST(&e_dev->ioconf.irqs)->irq_no;
 	/*
 	 * The addresses are sorted in increasing order
 	 * so we know the port to pass to the core ep
 	 * driver comes first.
 	 */
-	ioport = e_dev->ioconf.ioaddrs.lh_first;
+	rid = 0;
+	io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+				0, ~0, 1, RF_ACTIVE);
+	if (!io) {
+		device_printf(dev, "No I/O space?!\n");
+		goto bad;
+	}
 
-	if(!ioport)
-		return -1;
-
-	eisa_ioport = ioport->links.le_next;
-
-	if(!eisa_ioport)
-		return -1;
-	
-	eisa_reg_start(e_dev);
-	if(eisa_reg_iospace(e_dev, ioport))
-		return -1;
-
-	if(eisa_reg_iospace(e_dev, eisa_ioport))
-		return -1;
+	rid = 1;
+	eisa_io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+				     0, ~0, 1, RF_ACTIVE);
+	if (!eisa_io) {
+		device_printf(dev, "No I/O space?!\n");
+		goto bad;
+	}
 
 	epb = &ep_board[ep_boards];
 
-	epb->epb_addr = ioport->addr;
+	epb->epb_addr = rman_get_start(io);
 	epb->epb_used = 1;
 
 	if(!(sc = ep_alloc(unit, epb)))
-		return -1;
+		goto bad;
 
 	ep_boards++;
 
 	sc->stat = 0;
 	level_intr = FALSE;
-	switch(e_dev->id) {
+	switch(eisa_get_id(dev)) {
 		case EISA_DEVICE_ID_3COM_3C509_TP:
 			sc->ep_connectors = UTP|AUI;
 			break;
@@ -255,45 +240,71 @@ ep_eisa_attach(e_dev)
 	/*
 	 * Set the eisa config selected media type
 	 */
-	sc->ep_connector = inw(eisa_ioport->addr + EISA_BPROM_MEDIA_CONF)
+	sc->ep_connector = inw(rman_get_start(eisa_io) + EISA_BPROM_MEDIA_CONF)
 			   >> ACF_CONNECTOR_BITS;
 
-	if(eisa_reg_intr(e_dev, irq, ep_intr, (void *)sc, &net_imask,
-			 /*shared ==*/level_intr)) {
-		ep_free(sc);
-		return -1;
+	shared = level_intr ? RF_SHAREABLE : 0;
+	rid = 0;
+	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
+				 0, ~0, 1, shared | RF_ACTIVE);
+	if (!irq) {
+		device_printf(dev, "No irq?!\n");
+		goto bad;
 	}
-	eisa_reg_end(e_dev);
 
 	/* Reset and Enable the card */
-	outb(eisa_ioport->addr + EP_W0_CONFIG_CTRL, W0_P4_CMD_RESET_ADAPTER);
+	outb(rman_get_start(eisa_io) + EP_W0_CONFIG_CTRL, W0_P4_CMD_RESET_ADAPTER);
 	DELAY(1000); /* we must wait at least 1 ms */
-	outb(eisa_ioport->addr + EP_W0_CONFIG_CTRL, W0_P4_CMD_ENABLE_ADAPTER);
+	outb(rman_get_start(eisa_io) + EP_W0_CONFIG_CTRL, W0_P4_CMD_ENABLE_ADAPTER);
 
 	/* Now the registers are availible through the lower ioport */
 
 	/*
 	 * Retrieve our ethernet address
 	 */
-	 GO_WINDOW(0);
+	GO_WINDOW(0);
 	for(i = 0; i < 3; i++)
 		sc->epb->eth_addr[i] = get_e(sc, i);
 
         /* Even we get irq number from board, we should tell him..
             Otherwise we never get a H/W interrupt anymore...*/
-        if ( irq == 9 )
-               irq = 2;
-        SET_IRQ(eisa_ioport->addr, irq);
+        if ( rman_get_start(irq) == 9 )
+               rman_get_start(irq) = 2;
+        SET_IRQ(rman_get_start(eisa_io), rman_get_start(irq));
 
 	ep_attach(sc);
 
-	if(eisa_enable_intr(e_dev, irq)) {
-		ep_free(sc);
-		eisa_release_intr(e_dev, irq, ep_intr);
-		return -1;
-	}
+	bus_setup_intr(dev, irq, ep_intr, sc, &ih);
 
 	return 0;
+
+ bad:
+	if (io)
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, io);
+	if (eisa_io)
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, eisa_io);
+	if (irq)
+		bus_release_resource(dev, SYS_RES_IRQ, 0, irq);
+	return -1;
 }
+
+static device_method_t ep_eisa_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ep_eisa_probe),
+	DEVMETHOD(device_attach,	ep_eisa_attach),
+
+	{ 0, 0 }
+};
+
+static driver_t ep_eisa_driver = {
+	"ep",
+	ep_eisa_methods,
+	DRIVER_TYPE_NET,
+	1,			/* unused */
+};
+
+static devclass_t ep_devclass;
+
+DRIVER_MODULE(ep, eisa, ep_eisa_driver, ep_devclass, 0, 0);
 
 #endif /* NEISA > 0 */
