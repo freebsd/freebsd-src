@@ -18,7 +18,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7770.c,v 1.4 1994/11/18 09:14:14 gibbs Exp $
+ *      $Id: aic7770.c,v 1.5 1994/11/18 20:34:30 gibbs Exp $
  */
 /*
  * TODO:
@@ -93,7 +93,7 @@ void    ahcminphys();
 struct  scb *ahc_scb_phys_kv();
 u_int32 ahc_adapter_info();
 
-#define MAX_SLOTS        8      /* XXX should this be 16?? Need EISA spec */
+#define MAX_SLOTS        16     /* max slots on the EISA bus */
 static  ahc_slot = 0;           /* slot last board was found in */
 static  ahc_unit = 0;
 
