@@ -35,7 +35,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/libkern.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
@@ -53,8 +52,8 @@
 
 #include <sys/rman.h>
 
-#include <dev/pci/pcireg.h>
-#include <dev/pci/pcivar.h>
+#include <pci/pcireg.h>
+#include <pci/pcivar.h>
 
 #include <opt_twa.h>
 #include <dev/twa/twa_reg.h>

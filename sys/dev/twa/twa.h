@@ -39,9 +39,9 @@
  * The scheme for the driver version is:
  * <major change>.<external release>.<3ware internal release>.<development release>
  */
-#define TWA_DRIVER_VERSION_STRING		"2.50.00.000"
+#define TWA_DRIVER_VERSION_STRING		"2.40.00.000"
 
-#define TWA_CDEV_MAJOR				MAJOR_AUTO
+#define TWA_CDEV_MAJOR				187
 
 #define TWA_REQUEST_TIMEOUT_PERIOD		60 /* seconds */
 #define TWA_MESSAGE_SOURCE_CONTROLLER_ERROR	3

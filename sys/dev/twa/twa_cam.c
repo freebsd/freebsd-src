@@ -393,10 +393,25 @@ twa_action(struct cam_sim *sim, union ccb *ccb)
 	}
 
 	case XPT_CALC_GEOMETRY:
+	{
+		struct ccb_calc_geometry	*geom;
+
 		twa_dbg_dprint(3, sc, "XPT_CALC_GEOMETRY request");
-		cam_calc_geometry(&ccb->ccg, 1/* extended */);
+		geom = &ccb->ccg;
+
+		if (geom->volume_size > 0x200000) /* 1 GB */ {
+			geom->heads = 255;
+			geom->secs_per_track = 63;
+		} else {
+			geom->heads = 64;
+			geom->secs_per_track = 32;
+		}
+		geom->cylinders = geom->volume_size /
+					(geom->heads * geom->secs_per_track);
+		ccb_h->status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;
+	}
 
 	case XPT_PATH_INQ:    /* Path inquiry -- get twa properties */
 	{

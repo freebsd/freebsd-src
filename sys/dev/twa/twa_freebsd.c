@@ -50,12 +50,19 @@ static	d_close_t		twa_close;
 static	d_ioctl_t		twa_ioctl_wrapper;
 
 static struct cdevsw twa_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
-	.d_open =	twa_open,
-	.d_close =	twa_close,
-	.d_ioctl =	twa_ioctl_wrapper,
-	.d_name =	"twa",
+	twa_open,
+	twa_close,
+	noread,
+	nowrite,
+	twa_ioctl_wrapper,
+	nopoll,
+	nommap,
+	nostrategy,
+	"twa",
+	TWA_CDEV_MAJOR,
+	nodump,
+	nopsize,
+	0
 };
 
 static devclass_t	twa_devclass;
@@ -591,8 +598,6 @@ twa_alloc_req_pkts(struct twa_softc *sc, int num_reqs)
 				TWA_MAX_SG_ELEMENTS,	/* nsegments */
 				BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
 				BUS_DMA_ALLOCNOW,	/* flags */
-				busdma_lock_mutex,	/* lockfunc */
-				&Giant,			/* lockfuncarg */
 				&sc->twa_dma_tag	/* tag */)) {
 		twa_printf(sc, "Can't allocate DMA tag.\n");
 		return(ENOMEM);
@@ -993,7 +998,7 @@ twa_print_request(struct twa_request *tr, int req_type)
 		if (tr->tr_cmd_pkt_type & TWA_CMD_PKT_TYPE_9K) {
 			cmd9k = &(cmdpkt->command.cmd_pkt_9k);
 			cmd_phys_addr = cmd9k->sg_list[0].address;
-			twa_printf(sc, "9K cmd = %x %x %x %x %x %x %x %x %jx\n",
+			twa_printf(sc, "9K cmd = %x %x %x %x %x %x %x %x %x\n",
 					cmd9k->command.opcode,
 					cmd9k->command.reserved,
 					cmd9k->unit,
@@ -1002,7 +1007,7 @@ twa_print_request(struct twa_request *tr, int req_type)
 					cmd9k->sgl_offset,
 					cmd9k->sgl_entries,
 					cmd_phys_addr,
-					(uintmax_t)cmd9k->sg_list[0].length);
+					cmd9k->sg_list[0].length);
 			cdb = (u_int8_t *)(cmdpkt->command.cmd_pkt_9k.cdb);
 			twa_printf(sc, "cdb = %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x\n",
 				cdb[0], cdb[1], cdb[2], cdb[3], cdb[4], cdb[5], cdb[6], cdb[7],
@@ -1022,8 +1027,8 @@ twa_print_request(struct twa_request *tr, int req_type)
 		}
 
 		cmd_phys_addr = (int)(tr->tr_cmd_phys);
-		twa_printf(sc, "cmdphys=0x%x data=%p length=0x%jx\n",
-				cmd_phys_addr, tr->tr_data, (uintmax_t)tr->tr_length);
+		twa_printf(sc, "cmdphys=0x%x data=%p length=0x%x\n",
+				cmd_phys_addr, tr->tr_data, tr->tr_length);
 		twa_printf(sc, "req_id=0x%x flags=0x%x callback=%p private=%p\n",
 					tr->tr_request_id, tr->tr_flags,
 					tr->tr_callback, tr->tr_private);

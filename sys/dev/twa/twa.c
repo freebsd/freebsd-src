@@ -806,7 +806,7 @@ fw_passthru_done:
 		struct twa_lock_packet	twa_lock;
 		u_int32_t		cur_time;
 
-		cur_time = time_second - (tz_minuteswest * 60) - 
+		cur_time = time_second - (tz.tz_minuteswest * 60) - 
 					(wall_cmos_clock ? adjkerntz : 0);
 		copyin(user_buf->pdata, &twa_lock,
 				sizeof(struct twa_lock_packet));
@@ -2010,7 +2010,7 @@ twa_enqueue_aen(struct twa_softc *sc, struct twa_command_header *cmd_hdr)
 	case TWA_AEN_SYNC_TIME_WITH_HOST:
 		twa_dbg_dprint(4, sc, "Received AEN_SYNC_TIME");
 		/* Calculate time (in seconds) since last Sunday 12.00 AM. */
-		local_time = time_second - (tz_minuteswest * 60) -
+		local_time = time_second - (tz.tz_minuteswest * 60) -
 					(wall_cmos_clock ? adjkerntz : 0);
 		sync_time = (local_time - (3 * 86400)) % 604800;
 		if (twa_set_param(sc, TWA_PARAM_TIME_TABLE,
@@ -2029,7 +2029,7 @@ twa_enqueue_aen(struct twa_softc *sc, struct twa_command_header *cmd_hdr)
 		if (event->retrieved == TWA_AEN_NOT_RETRIEVED)
 			sc->twa_aen_queue_overflow = TRUE;
 		event->severity = cmd_hdr->status_block.substatus_block.severity;
-		local_time = time_second - (tz_minuteswest * 60) -
+		local_time = time_second - (tz.tz_minuteswest * 60) -
 					(wall_cmos_clock ? adjkerntz : 0);
 		event->time_stamp_sec = local_time;
 		event->aen_code = aen_code;
@@ -2050,7 +2050,7 @@ twa_enqueue_aen(struct twa_softc *sc, struct twa_command_header *cmd_hdr)
 				event->parameter_len,
 				event->parameter_data);
 
-		twa_dbg_dprint(4, sc, "cmd_hdr = %x %lx %x %x %x %x %zx\n %s",
+		twa_dbg_dprint(4, sc, "cmd_hdr = %x %lx %x %x %x %x %x\n %s",
 				sc->twa_current_sequence_id,
 				local_time,
 				cmd_hdr->status_block.error,
