@@ -9,6 +9,7 @@
  * 
  * Created: Wed Apr 19 17:41:39 1995 ylo
  * 
+ * $FreeBSD$
  */
 
 #include "includes.h"
@@ -17,7 +18,7 @@ RCSID("$Id: cipher.c,v 1.19 2000/02/22 15:19:29 markus Exp $");
 #include "ssh.h"
 #include "cipher.h"
 
-#include <ssl/md5.h>
+#include <openssl/md5.h>
 
 /*
  * What kind of tripple DES are these 2 routines?

@@ -9,6 +9,7 @@
  * 
  * Created: Wed Apr 19 16:50:42 1995 ylo
  * 
+ * $FreeBSD$
  */
 
 /* RCSID("$Id: cipher.h,v 1.10 1999/11/24 19:53:46 markus Exp $"); */
@@ -16,8 +17,8 @@
 #ifndef CIPHER_H
 #define CIPHER_H
 
-#include <ssl/des.h>
-#include <ssl/blowfish.h>
+#include <openssl/des.h>
+#include <openssl/blowfish.h>
 
 /* Cipher types.  New types can be added, but old types should not be removed
    for compatibility.  The maximum allowed value is 31. */

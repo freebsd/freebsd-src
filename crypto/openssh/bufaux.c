@@ -12,13 +12,14 @@
  * Auxiliary functions for storing and retrieving various data types to/from
  * Buffers.
  *
+ * $FreeBSD$
  */
 
 #include "includes.h"
 RCSID("$Id: bufaux.c,v 1.7 1999/11/24 19:53:44 markus Exp $");
 
 #include "ssh.h"
-#include <ssl/bn.h>
+#include <openssl/bn.h>
 #include "bufaux.h"
 #include "xmalloc.h"
 #include "getput.h"
