@@ -48,8 +48,9 @@
 .Ft "char *"
 .Fn ipsec_dump_policy "char *buf" "char *delim"
 .Sh DESCRIPTION
+The
 .Fn ipsec_set_policy
-generates IPsec policy specification structure, namely
+function generates IPsec policy specification structure, namely
 .Li struct sadb_x_policy
 and/or
 .Li struct sadb_x_ipsecrequest
@@ -60,18 +61,21 @@ and length
 .Fa len
 of
 .Fa policy .
+The
 .Fn ipsec_set_policy
-will return the buffer of IPsec policy specification structure.
+function will return the buffer of IPsec policy specification structure.
 The buffer is dynamically allocated, and must be freed by the caller by calling
 .Xr free 3 .
 .Pp
 You may want the length of the generated buffer such when calling
 .Xr setsockopt 2 .
+The
 .Fn ipsec_get_policylen
-will return the length.
+function will return the length.
 .Pp
+The
 .Fn ipsec_dump_policy
-converts IPsec policy structure into readable form.
+function converts IPsec policy structure into readable form.
 Therefore,
 .Fn ipsec_dump_policy
 can be regarded as inverse conversion of
@@ -86,8 +90,9 @@ If you set
 to
 .Dv NULL ,
 single whitespace is assumed.
+The
 .Fn ipsec_dump_policy
-returns pointer to dynamically allocated string.
+function returns a pointer to dynamically allocated string.
 It is caller's responsibility to reclaim the region, by using
 .Xr free 3 .
 .Pp
@@ -253,8 +258,10 @@ in ipsec ipcomp/transport//use
         esp/transport//use
 .Ed
 .Sh RETURN VALUES
+The
 .Fn ipsec_set_policy
-returns a pointer to the allocated buffer of policy specification if successful; otherwise a NULL pointer is returned.
+function returns a pointer to the allocated buffer of policy specification if
+successful; otherwise a NULL pointer is returned.
 .Fn ipsec_get_policylen
 returns with positive value
 (meaning the buffer size)
