@@ -1,5 +1,5 @@
 /* File I/O for GNU DIFF.
-   Copyright (C) 1988, 1989, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1989, 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU DIFF.
 
@@ -26,51 +26,12 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* Given a hash value and a new character, return a new hash value. */
 #define HASH(h, c) ((c) + ROL (h, 7))
 
-int line_cmp ();
-
 /* Guess remaining number of lines from number N of lines so far,
    size S so far, and total size T.  */
 #define GUESS_LINES(n,s,t) (((t) - (s)) / ((n) < 10 ? 32 : (s) / ((n)-1)) + 5)
 
 /* Type used for fast prefix comparison in find_identical_ends.  */
-typedef long word;
-
-/* Character classes.  */
-const char textchar[] = {
-  /* ISO 8859 */
-  0, 0, 0, 0, 0, 0, 0, 0,
-  2, 2, 1, 2, 2, 2, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0,
-  2, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 0,
-  0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0,
-  2, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1
-};
+typedef int word;
 
 /* Lines are put into equivalence classes (of lines that match in line_cmp).
    Each equivalence class is represented by one of these structures,
@@ -80,8 +41,8 @@ struct equivclass
 {
   int next;	/* Next item in this bucket. */
   unsigned hash;	/* Hash of lines in this class.  */
-  const char *line;	/* A line that fits this class. */
-  int length;		/* The length of that line.  */
+  char const *line;	/* A line that fits this class. */
+  size_t length;	/* The length of that line.  */
 };
 
 /* Hash-table: array of buckets, each being a chain of equivalence classes.  */
@@ -100,6 +61,10 @@ static int equivs_index;
 
 /* Number of elements allocated in the array `equivs'.  */
 static int equivs_alloc;
+
+static void find_and_hash_each_line PARAMS((struct file_data *));
+static void find_identical_ends PARAMS((struct file_data[]));
+static void prepare_text_end PARAMS((struct file_data *));
 
 /* Check for binary files and compare them for exact identity.  */
 
@@ -121,38 +86,27 @@ sip (current, skip_test)
   if (current->desc < 0)
     {
       /* Leave room for a sentinel.  */
-      current->buffer = xmalloc (sizeof (word));
       current->bufsize = sizeof (word);
-      current->buffered_chars = 0;
+      current->buffer = xmalloc (current->bufsize);
     }
   else
     {
-      current->bufsize = current->buffered_chars
-	= STAT_BLOCKSIZE (current->stat);
-
-      if (S_ISREG (current->stat.st_mode))
-	/* Get the size out of the stat block.
-	   Allocate enough room for appended newline and sentinel.
-	   Allocate at least one block, to prevent overrunning the buffer
-	   when comparing growing binary files.  */
-	current->bufsize = max (current->bufsize,
-				current->stat.st_size + sizeof (word) + 1);
-
+      current->bufsize = STAT_BLOCKSIZE (current->stat);
       current->buffer = xmalloc (current->bufsize);
-      if (skip_test)
-	current->buffered_chars = 0;
-      else
+
+      if (! skip_test)
 	{
 	  /* Check first part of file to see if it's a binary file.  */
 	  current->buffered_chars = read (current->desc,
 					  current->buffer,
-					  current->buffered_chars);
-	  if (current->buffered_chars < 0)
+					  current->bufsize);
+	  if (current->buffered_chars == -1)
 	    pfatal_with_name (current->name);
 	  return binary_file_p (current->buffer, current->buffered_chars);
 	}
     }
   
+  current->buffered_chars = 0;
   return 0;
 }
 
@@ -162,7 +116,7 @@ void
 slurp (current)
      struct file_data *current;
 {
-  int cc;
+  size_t cc;
 
   if (current->desc < 0)
     /* The file is nonexistent.  */
@@ -170,13 +124,22 @@ slurp (current)
   else if (S_ISREG (current->stat.st_mode))
     {
       /* It's a regular file; slurp in the rest all at once.  */
-      cc = current->stat.st_size - current->buffered_chars;
-      if (cc)
+
+      /* Get the size out of the stat block.
+	 Allocate enough room for appended newline and sentinel.  */
+      cc = current->stat.st_size + 1 + sizeof (word);
+      if (current->bufsize < cc)
+	{
+	  current->bufsize = cc;
+	  current->buffer = xrealloc (current->buffer, cc);
+	}
+
+      if (current->buffered_chars < current->stat.st_size)
 	{
 	  cc = read (current->desc,
 		     current->buffer + current->buffered_chars,
-		     cc);
-	  if (cc < 0)
+		     current->stat.st_size - current->buffered_chars);
+	  if (cc == -1)
 	    pfatal_with_name (current->name);
 	  current->buffered_chars += cc;
 	}
@@ -189,21 +152,20 @@ slurp (current)
 	  if (current->buffered_chars == current->bufsize)
 	    {
 	      current->bufsize = current->bufsize * 2;
-	      current->buffer = (char *) xrealloc (current->buffer,
-						   current->bufsize);
+	      current->buffer = xrealloc (current->buffer, current->bufsize);
 	    }
 	  cc = read (current->desc,
 		     current->buffer + current->buffered_chars,
 		     current->bufsize - current->buffered_chars);
 	  if (cc == 0)
 	    break;
-	  if (cc < 0)
+	  if (cc == -1)
 	    pfatal_with_name (current->name);
 	  current->buffered_chars += cc;
 	}
       /* Allocate just enough room for appended newline and sentinel.  */
-      current->bufsize = current->buffered_chars + sizeof (word) + 1;
-      current->buffer = (char *) xrealloc (current->buffer, current->bufsize);
+      current->bufsize = current->buffered_chars + 1 + sizeof (word);
+      current->buffer = xrealloc (current->buffer, current->bufsize);
     }
 }
 
@@ -215,12 +177,13 @@ find_and_hash_each_line (current)
      struct file_data *current;
 {
   unsigned h;
-  const unsigned char *p = (const unsigned char *) current->prefix_end;
+  unsigned char const *p = (unsigned char const *) current->prefix_end;
   unsigned char c;
-  int i, length, *bucket;
+  int i, *bucket;
+  size_t length;
 
   /* Cache often-used quantities in local variables to help the compiler.  */
-  const char **linbuf = current->linbuf;
+  char const **linbuf = current->linbuf;
   int alloc_lines = current->alloc_lines;
   int line = 0;
   int linbuf_base = current->linbuf_base;
@@ -228,16 +191,16 @@ find_and_hash_each_line (current)
   struct equivclass *eqs = equivs;
   int eqs_index = equivs_index;
   int eqs_alloc = equivs_alloc;
-  const char *suffix_begin = current->suffix_begin;
-  const char *bufend = current->buffer + current->buffered_chars;
-  const char *incomplete_tail
+  char const *suffix_begin = current->suffix_begin;
+  char const *bufend = current->buffer + current->buffered_chars;
+  char const *incomplete_tail
     = current->missing_newline && ROBUST_OUTPUT_STYLE (output_style)
-      ? bufend : (const char *) 0;
+      ? bufend : (char const *) 0;
   int varies = length_varies;
 
-  while ((const char *) p < suffix_begin)
+  while ((char const *) p < suffix_begin)
     {
-      const char *ip = (const char *) p;
+      char const *ip = (char const *) p;
 
       /* Compute the equivalence class for this line.  */
 
@@ -249,18 +212,17 @@ find_and_hash_each_line (current)
 	  if (ignore_all_space_flag)
 	    while ((c = *p++) != '\n')
 	      {
-		if (! Is_space (c))
+		if (! isspace (c))
 		  h = HASH (h, isupper (c) ? tolower (c) : c);
 	      }
 	  else if (ignore_space_change_flag)
 	    while ((c = *p++) != '\n')
 	      {
-		if (c == ' ' || c == '\t')
+		if (isspace (c))
 		  {
-		    while ((c = *p++) == ' ' || c == '\t')
-		      ;
-		    if (c == '\n')
-		      break;
+		    while (isspace (c = *p++))
+		      if (c == '\n')
+			goto hashing_done;
 		    h = HASH (h, ' ');
 		  }
 		/* C is now the first non-space.  */
@@ -275,18 +237,17 @@ find_and_hash_each_line (current)
 	  if (ignore_all_space_flag)
 	    while ((c = *p++) != '\n')
 	      {
-		if (! Is_space (c))
+		if (! isspace (c))
 		  h = HASH (h, c);
 	      }
 	  else if (ignore_space_change_flag)
 	    while ((c = *p++) != '\n')
 	      {
-		if (c == ' ' || c == '\t')
+		if (isspace (c))
 		  {
-		    while ((c = *p++) == ' ' || c == '\t')
-		      ;
-		    if (c == '\n')
-		      break;
+		    while (isspace (c = *p++))
+		      if (c == '\n')
+			goto hashing_done;
 		    h = HASH (h, ' ');
 		  }
 		/* C is now the first non-space.  */
@@ -296,9 +257,10 @@ find_and_hash_each_line (current)
 	    while ((c = *p++) != '\n')
 	      h = HASH (h, c);
 	}
+   hashing_done:;
 
       bucket = &buckets[h % nbuckets];
-      length = (const char *) p - ip - ((const char *) p == incomplete_tail);
+      length = (char const *) p - ip - ((char const *) p == incomplete_tail);
       for (i = *bucket;  ;  i = eqs[i].next)
 	if (!i)
 	  {
@@ -326,7 +288,7 @@ find_and_hash_each_line (current)
 	  /* Double (alloc_lines - linbuf_base) by adding to alloc_lines.  */
 	  alloc_lines = 2 * alloc_lines - linbuf_base;
 	  cureqs = (int *) xrealloc (cureqs, alloc_lines * sizeof (*cureqs));
-	  linbuf = (const char **) xrealloc (linbuf + linbuf_base,
+	  linbuf = (char const **) xrealloc (linbuf + linbuf_base,
 					     (alloc_lines - linbuf_base)
 					     * sizeof (*linbuf))
 		   - linbuf_base;
@@ -347,16 +309,16 @@ find_and_hash_each_line (current)
 	{
 	  /* Double (alloc_lines - linbuf_base) by adding to alloc_lines.  */
 	  alloc_lines = 2 * alloc_lines - linbuf_base;
-	  linbuf = (const char **) xrealloc (linbuf + linbuf_base,
+	  linbuf = (char const **) xrealloc (linbuf + linbuf_base,
 					     (alloc_lines - linbuf_base)
 					     * sizeof (*linbuf))
 		   - linbuf_base;
 	}
-      linbuf[line] = (const char *) p;
+      linbuf[line] = (char const *) p;
     
-      if ((const char *) p == bufend)
+      if ((char const *) p == bufend)
 	{
-	  linbuf[line]  -=  (const char *) p == incomplete_tail;
+	  linbuf[line]  -=  (char const *) p == incomplete_tail;
 	  break;
 	}
 
@@ -387,7 +349,7 @@ static void
 prepare_text_end (current)
      struct file_data *current;
 {
-  int buffered_chars = current->buffered_chars;
+  size_t buffered_chars = current->buffered_chars;
   char *p = current->buffer;
 
   if (buffered_chars == 0 || p[buffered_chars - 1] == '\n')
@@ -413,12 +375,12 @@ find_identical_ends (filevec)
 {
   word *w0, *w1;
   char *p0, *p1, *buffer0, *buffer1;
-  const char *end0, *beg0;
-  const char **linbuf0, **linbuf1;
+  char const *end0, *beg0;
+  char const **linbuf0, **linbuf1;
   int i, lines;
-  int n0, n1, alloc_lines0, alloc_lines1;
+  size_t n0, n1, tem;
+  int alloc_lines0, alloc_lines1;
   int buffered_prefix, prefix_count, prefix_mask;
-  int tem;
 
   slurp (&filevec[0]);
   if (filevec[0].desc != filevec[1].desc)
@@ -564,7 +526,7 @@ find_identical_ends (filevec)
     }
 
   lines = 0;
-  linbuf0 = (const char **) xmalloc (alloc_lines0 * sizeof (*linbuf0));
+  linbuf0 = (char const **) xmalloc (alloc_lines0 * sizeof (*linbuf0));
 
   /* If the prefix is needed, find the prefix lines.  */
   if (! (no_diff_means_no_output
@@ -577,7 +539,7 @@ find_identical_ends (filevec)
 	{
 	  int l = lines++ & prefix_mask;
 	  if (l == alloc_lines0)
-	    linbuf0 = (const char **) xrealloc (linbuf0, (alloc_lines0 *= 2)
+	    linbuf0 = (char const **) xrealloc (linbuf0, (alloc_lines0 *= 2)
 							 * sizeof(*linbuf0));
 	  linbuf0[l] = p0;
 	  while (*p0++ != '\n')
@@ -593,7 +555,7 @@ find_identical_ends (filevec)
     = (buffered_prefix
        + GUESS_LINES (lines, filevec[1].prefix_end - buffer1, tem)
        + context);
-  linbuf1 = (const char **) xmalloc (alloc_lines1 * sizeof (*linbuf1));
+  linbuf1 = (char const **) xmalloc (alloc_lines1 * sizeof (*linbuf1));
 
   if (buffered_prefix != lines)
     {
@@ -621,7 +583,7 @@ find_identical_ends (filevec)
 /* Largest primes less than some power of two, for nbuckets.  Values range
    from useful to preposterous.  If one of these numbers isn't prime
    after all, don't blame it on me, blame it on primes (6) . . . */
-static const int primes[] =
+static int const primes[] =
 {
   509,
   1021,
@@ -630,6 +592,7 @@ static const int primes[] =
   8191,
   16381,
   32749,
+#if 32767 < INT_MAX
   65521,
   131071,
   262139,
@@ -646,20 +609,23 @@ static const int primes[] =
   536870909,
   1073741789,
   2147483647,
+#endif
   0
 };
 
 /* Given a vector of two file_data objects, read the file associated
    with each one, and build the table of equivalence classes.
-   Return 1 if either file appears to be a binary file.  */
+   Return 1 if either file appears to be a binary file.
+   If PRETEND_BINARY is nonzero, pretend they are binary regardless.  */
 
 int
-read_files (filevec)
+read_files (filevec, pretend_binary)
      struct file_data filevec[];
+     int pretend_binary;
 {
   int i;
-  int skip_test = always_text_flag | no_details_flag;
-  int appears_binary = no_details_flag | sip (&filevec[0], skip_test);
+  int skip_test = always_text_flag | pretend_binary;
+  int appears_binary = pretend_binary | sip (&filevec[0], skip_test);
 
   if (filevec[0].desc != filevec[1].desc)
     appears_binary |= sip (&filevec[1], skip_test | appears_binary);
