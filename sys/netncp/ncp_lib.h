@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, Boris Popov
+ * Copyright (c) 1999, 2000, 2001 Boris Popov
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,7 @@
 		   case 'N':case 'U':case 'R':case 'S':case 'T': \
 		   case 'W':case 'O':case 'P'
 
-#define STDPARAM_OPT	"A:BCI:M:N:O:P:U:R:S:T:W:"
+#define STDPARAM_OPT	"A:BCI:M:NO:P:U:R:S:T:W:"
 
 #ifndef min
 #define	min(a,b)	(((a)<(b)) ? (a) : (b))
