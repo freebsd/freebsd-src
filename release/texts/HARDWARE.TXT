@@ -485,11 +485,11 @@ chipsets, including the following:
     Alteon AceNIC (Tigon 1 and 2)
     Alteon AceNIC 1000baseT (Tigon 2)
     DEC/Compaq EtherWORKS 1000
+    Farallon PN9000SX
     NEC Gigabit Ethernet
     Netgear GA620 (Tigon 2)
     Netgear GA620T (Tigon 2, 1000baseT)
     Silicon Graphics Gigabit Ethernet
-    Farallon PN9000SX
 
 AMD PCnet/PCI (79c970 & 53c974 or 79c974)
 

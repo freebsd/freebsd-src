@@ -103,6 +103,9 @@ and reading new connections on listening sockets, has been added.
 
 The ata(4) driver now has support for ATA100 controllers. [MERGED]
 
+The ti(4) driver now supports the Alteon AceNIC 1000baseT Gigabit
+Ethernet and Netgear GA620T 1000baseT Gigabit cards. [MERGED]
+
 
 1.2. SECURITY FIXES
 -------------------
