@@ -46,6 +46,19 @@ typedef u_long	fptrdiff_t;
 #define	MCOUNT_ENTER(s)	s = rdpr(pil); wrpr(pil, 0, 14)
 #define	MCOUNT_EXIT(s)	wrpr(pil, 0, s)
 
+void bintr(void);
+void btrap(void);
+void eintr(void);
+void user(void);
+
+#define	MCOUNT_FROMPC_USER(pc)					\
+	((pc < (uintfptr_t)VM_MAXUSER_ADDRESS) ? (uintfptr_t)user : pc)
+
+#define	MCOUNT_FROMPC_INTR(pc)					\
+	((pc >= (uintfptr_t)btrap && pc < (uintfptr_t)eintr) ?	\
+	    ((pc >= (uintfptr_t)bintr) ? (uintfptr_t)bintr :	\
+		(uintfptr_t)btrap) : ~0UL)
+
 void	mcount(uintfptr_t frompc, uintfptr_t selfpc);
 
 #else /* !_KERNEL */
