@@ -26,10 +26,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Begemot: bsnmp/lib/bsnmpclient.3,v 1.7 2004/08/06 08:46:52 brandt Exp $
+.\" $Begemot: bsnmp/lib/bsnmpclient.3,v 1.8 2005/02/25 11:55:58 brandt_h Exp $
 .\"
 .Dd August 15, 2002
-.Dt bsnmpclient 3
+.Dt BSNMPCLIENT 3
 .Os
 .Sh NAME
 .Nm snmp_client ,
@@ -145,12 +145,12 @@ for applicable values. The default version is
 .Li SNMP_V2c .
 .It Va trans
 If this is
-.Dv SNMP_TRANS_LOC_DGRAM 
+.Dv SNMP_TRANS_LOC_DGRAM
 a local datagram socket is used.
 If it is
-.Dv SNMP_TRANS_LOC_STREAM 
+.Dv SNMP_TRANS_LOC_STREAM
 a local stream socket is used.
-For 
+For
 .Dv SNMP_TRANS_UDP
 a UDP socket is created.
 It uses the
@@ -237,9 +237,8 @@ application.
 .El
 .Pp
 In the current implementation there is a global variable
-.Bd -unfilled -offset indent
-.Vt extern struct snmp_client snmp_client ;
-.Ed
+.Pp
+.D1 Vt extern struct snmp_client snmp_client ;
 .Pp
 that is used by all the library functions. The first call into the library must
 be a call to
@@ -580,10 +579,10 @@ in the
 filed of
 .Va snmp_client .
 .Sh SEE ALSO
-.Xr snmpd 1 ,
 .Xr gensnmptree 1 ,
+.Xr snmpd 1 ,
+.Xr bsnmpagent 3 ,
 .Xr bsnmplib 3
-.Xr bsnmpagent 3
 .Sh STANDARDS
 This implementation conforms to the applicable IETF RFCs and ITU-T
 recommendations.

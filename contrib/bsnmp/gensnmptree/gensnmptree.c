@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/gensnmptree/gensnmptree.c,v 1.38 2004/08/06 08:46:46 brandt Exp $
+ * $Begemot: bsnmp/gensnmptree/gensnmptree.c,v 1.41 2005/02/25 11:51:12 brandt_h Exp $
  *
  * Generate OID table from table description.
  *
@@ -50,7 +50,7 @@
  *
  * elements := EMPTY | elements element
  *
- * element := tree | leaf
+ * element := tree | leaf | column
  *
  * index := TYPE | index TYPE
  *
@@ -560,9 +560,12 @@ gen_header(struct node *np, u_int oidlen, const char *func)
  	if((np->flags & (FL_GET|FL_SET)) == 0)
 		return;
 
-	if (np->type == NODE_COLUMN)
+	if (np->type == NODE_COLUMN) {
+		if (func == NULL)
+			errx(1, "column without function (%s) - probably "
+			    "outside of a table", np->name);
 		sprintf(f, "%s", func);
-	else
+	} else
 		sprintf(f, "%s", np->u.leaf.func);
 
 	LIST_FOREACH(ptr, &funcs, link)

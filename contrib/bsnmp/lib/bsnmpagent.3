@@ -26,13 +26,13 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Begemot: bsnmp/lib/bsnmpagent.3,v 1.6 2004/08/06 08:46:51 brandt Exp $
+.\" $Begemot: bsnmp/lib/bsnmpagent.3,v 1.7 2005/02/25 11:55:58 brandt_h Exp $
 .\"
 .Dd August 16, 2002
-.Dt bsnmpagent 3
+.Dt BSNMPAGENT 3
 .Os
 .Sh NAME
-.Nm bsnmpagent
+.Nm bsnmpagent ,
 .Nm snmp_depop_t ,
 .Nm snmp_op_t ,
 .Nm tree ,
@@ -200,7 +200,7 @@ Note, that one must be careful when changing the tree while executing a SET
 operation. Consult the sources for
 .Xr snmpd 1 .
 .Pp
-The global variable 
+The global variable
 .Va snmp_trace
 together with the function pointed to by
 .Va snmp_debug
@@ -309,7 +309,7 @@ interdependend table columns dependencies may be necessary.
 If the previous step fails at any point, the node's operation callback
 functions are called for all bindings for which SNMP_OP_SET was executed
 with SNMP_OP_ROLLBACK, in the opposite order. This allows all variables to
-undo the effect of the SET operation. After this all the dependencies 
+undo the effect of the SET operation. After this all the dependencies
 are freed
 and the finalizers are executed with a fail flag of 1. Then the function
 returns to the caller with an appropriate error indication.
@@ -345,7 +345,7 @@ two OIDs. In the table case, the first oid is typically the table's base OID
 and the second one the index. Both of these can easily be generated from the
 variables OID with
 .Fn asn_slice_oid .
-The function 
+The function
 .Fn snmp_dep_lookup
 tries to find a dependency based on these two OIDs and, if it cannot find one
 creates a new one. This means for the table example, that the function
@@ -399,10 +399,10 @@ If an error occures in any of the function an error indication as described
 above is returned. Additionally the functions may call snmp_error on unexected
 errors.
 .Sh SEE ALSO
-.Xr snmpd 1 ,
 .Xr gensnmptree 1 ,
-.Xr bsnmplib 3
+.Xr snmpd 1 ,
 .Xr bsnmpclient 3 ,
+.Xr bsnmplib 3 ,
 .Xr snmpmod 3
 .Sh STANDARDS
 This implementation conforms to the applicable IETF RFCs and ITU-T
