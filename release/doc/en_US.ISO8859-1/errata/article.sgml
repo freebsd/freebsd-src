@@ -151,6 +151,11 @@
       from a package or the Ports Collection, preferably before
       installing <filename role="package">net/gnomeicu</filename>.</para>
 
+    <para>The release notes for &os; &release.prev; incorrectly stated
+      that the <option>-J</option> option to &man.xargs.1; is
+      deprecated.  In fact, there are no plans to remove this
+      option.</para>
+
 ]]>
   </sect1>
 </article>
