@@ -46,6 +46,11 @@ INCLUDES+= -I$S/../include
 .else
 INCLUDES+= -I/usr/include
 .endif
+
+# This hack lets us use the ipfilter code without spamming a new
+# include path into 100+ source files.
+INCLUDES+= -I$S/contrib/ipfilter
+
 COPTS=	${INCLUDES} ${IDENT} -D_KERNEL -include opt_global.h
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
 
