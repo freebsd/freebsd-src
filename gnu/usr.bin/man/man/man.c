@@ -1108,16 +1108,28 @@ make_cat_file (path, man_file, cat_file)
 	fprintf (stderr, "\ntrying command: %s\n", command);
       else {
 
+#ifdef SETREUID
+	setreuid(-1, ruid);
+	setregid(-1, rgid);
+#endif
 	if ((pp = popen(command, "r")) == NULL) {
 	  s = errno;
 	  fprintf(stderr, "Failed.\n");
 	  errno = s;
 	  perror("popen");
+#ifdef SETREUID
+	  setreuid(-1, euid);
+	  setregid(-1, egid);
+#endif
 	  unlink(temp);
 	  restore_sigs();
 	  fclose(fp);
 	  return 0;
 	}
+#ifdef SETREUID
+	setreuid(-1, euid);
+	setregid(-1, egid);
+#endif
 
 	while ((s = getc(pp)) != EOF)
 	  putc(s, fp);
