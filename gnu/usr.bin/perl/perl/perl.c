@@ -1,4 +1,4 @@
-char rcsid[] = "$RCSfile: perl.c,v $$Revision: 1.7 $$Date: 1996/06/30 09:47:56 $\nPatch level: ###\n";
+char rcsid[] = "$RCSfile: perl.c,v $$Revision: 1.9 $$Date: 1998/03/10 19:43:27 $\nPatch level: ###\n";
 /*
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@ char rcsid[] = "$RCSfile: perl.c,v $$Revision: 1.7 $$Date: 1996/06/30 09:47:56 $
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: perl.c,v $
+ * Revision 1.7.2.1  1998/02/15 16:30:09  jkh
+ * MFC: security tweak, support for -T and -B flags.
+ *
  * Revision 1.7  1996/06/30 09:47:56  joerg
  * Back out Nate's changes from rev. 1.6; our Perl has not been
  * vulnerable since it used setreuid() as opposed to Posix saved IDs.
@@ -207,13 +210,17 @@ setuid perl scripts securely.\n");
 		fatal("No -e allowed in setuid scripts");
 #endif
 	    if (!e_fp) {
+		int fd;
+
 	        e_tmpname = savestr(TMPPATH);
-		(void)mktemp(e_tmpname);
-		if (!*e_tmpname)
-		    fatal("Can't mktemp()");
-		e_fp = fopen(e_tmpname,"w");
-		if (!e_fp)
+		fd = mkstemp(e_tmpname);
+		if (fd == -1)
+		    fatal("Can't mkstemp()");
+		e_fp = fdopen(fd,"w");
+		if (!e_fp) {
+		    close(fd);
 		    fatal("Cannot open temporary file");
+		}
 	    }
 	    if (argv[1]) {
 		fputs(argv[1],e_fp);
