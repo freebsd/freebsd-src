@@ -464,6 +464,8 @@ int getuserinfo(void)
 		if (cp == NULL)
 			cp = getenv("MAILPATH");
 		if (cp == NULL)
+			cp = getenv("MAILPATH");
+		if (cp == NULL)
 			cp = getenv("mail");
 		if (cp == NULL)
 			(void) sprintf(str, "/usr/spool/mail/%s", uinfo.username);
