@@ -34,7 +34,7 @@
 .\"	@(#)find.1	8.7 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd April 06, 2004
+.Dd May 16, 2004
 .Dt FIND 1
 .Os
 .Sh NAME
@@ -123,15 +123,15 @@ as an effective alternative.
 .It Fl d
 Cause
 .Nm
-to perform a depth\-first traversal, i.e., directories
-are visited in post\-order and all entries in a directory will be acted
+to perform a depth-first traversal, i.e., directories
+are visited in post-order and all entries in a directory will be acted
 on before the directory itself.
 By default,
 .Nm
-visits directories in pre\-order, i.e., before their contents.
+visits directories in pre-order, i.e., before their contents.
 Note, the default is
 .Em not
-a breadth\-first traversal.
+a breadth-first traversal.
 .Pp
 This option is equivalent to the deprecated
 .Ic -depth
@@ -183,9 +183,9 @@ Same as
 If no units are specified, this primary evaluates to
 true if the difference between the file last access time and the time
 .Nm
-was started, rounded up to the next full 24\-hour period, is
+was started, rounded up to the next full 24-hour period, is
 .Ar n
-24\-hour periods.
+24-hour periods.
 .Pp
 If units are specified, this primary evaluates to
 true if the difference between the file last access time and the time
@@ -232,9 +232,9 @@ If no units are specified, this primary evaluates to
 true if the difference between the time of last change of file status
 information and the time
 .Nm
-was started, rounded up to the next full 24\-hour period, is
+was started, rounded up to the next full 24-hour period, is
 .Ar n
-24\-hour periods.
+24-hour periods.
 .Pp
 If units are specified, this primary evaluates to
 true if the difference between the time of last change of file status
@@ -258,7 +258,7 @@ It will not attempt to delete a filename with a
 character in its pathname relative to
 .Dq Pa \&.
 for security reasons.
-Depth\-first traversal processing is implied by this option.
+Depth-first traversal processing is implied by this option.
 .It Ic -depth
 Always true;
 same as the
@@ -415,11 +415,11 @@ links.
 .It Ic -ls
 This primary always evaluates to true.
 The following information for the current file is written to standard output:
-its inode number, size in 512\-byte blocks, file permissions, number of hard
+its inode number, size in 512-byte blocks, file permissions, number of hard
 links, owner, group, size in bytes, last modification time, and pathname.
 If the file is a block or character special file, the major and minor numbers
 will be displayed instead of the size in bytes.
-If the file is a symbolic link, the pathname of the linked\-to file will be
+If the file is a symbolic link, the pathname of the linked-to file will be
 displayed preceded by
 .Dq Li -> .
 The format is identical to that produced by
@@ -458,9 +458,9 @@ Same as
 If no units are specified, this primary evaluates to
 true if the difference between the file last modification time and the time
 .Nm
-was started, rounded up to the next full 24\-hour period, is
+was started, rounded up to the next full 24-hour period, is
 .Ar n
-24\-hour periods.
+24-hour periods.
 .Pp
 If units are specified, this primary evaluates to
 true if the difference between the file last modification time and the time
@@ -640,7 +640,7 @@ but not
 or
 .Dq Li /foo/ .
 .It Ic -size Ar n Ns Op Cm c
-True if the file's size, rounded up, in 512\-byte blocks is
+True if the file's size, rounded up, in 512-byte blocks is
 .Ar n .
 If
 .Ar n
@@ -761,7 +761,7 @@ or that are newer than
 .It Li "find / -newerct '1 minute ago' -print"
 Print out a list of all the files whose inode change time is more
 recent than the current time minus one minute.
-.It Li "find / -type f -exec echo {} \e\;"
+.It Li "find / -type f -exec echo {} \e;"
 Use the
 .Xr echo 1
 command to print out a list of all the files.
