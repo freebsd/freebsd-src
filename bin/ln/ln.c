@@ -41,9 +41,9 @@ static char const copyright[] =
 #if 0
 static char sccsid[] = "@(#)ln.c	8.2 (Berkeley) 3/31/94";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -62,17 +62,14 @@ int	iflag;				/* Interactive mode. */
 int	sflag;				/* Symbolic, not hard, link. */
 int	vflag;				/* Verbose output. */
 					/* System link call. */
-int (*linkf) __P((const char *, const char *));
+int (*linkf)(const char *, const char *);
 char	linkch;
 
-int	linkit __P((const char *, const char *, int));
-int	main __P((int, char *[]));
-void	usage __P((void));
+int	linkit(const char *, const char *, int);
+void	usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct stat sb;
 	char *p, *sourcedir;
@@ -88,11 +85,14 @@ main(argc, argv)
 	else
 		++p;
 	if (strcmp(p, "link") == 0) {
-		if (argc == 3) {
-			linkf = link;
-			exit(linkit(argv[1], argv[2], 0));
-		} else
+		while (getopt(argc, argv, "") != -1)
 			usage();
+		argc -= optind;
+		argv += optind;
+		if (argc != 2)
+			usage();
+		linkf = link;
+		exit(linkit(argv[0], argv[1], 0));
 	}
 
 	while ((ch = getopt(argc, argv, "fhinsv")) != -1)
@@ -134,6 +134,8 @@ main(argc, argv)
 		exit(linkit(argv[0], ".", 1));
 	case 2:				/* ln target source */
 		exit(linkit(argv[0], argv[1], 0));
+	default:
+		;
 	}
 					/* ln target1 target2 directory */
 	sourcedir = argv[argc - 1];
@@ -155,9 +157,7 @@ main(argc, argv)
 }
 
 int
-linkit(target, source, isdir)
-	const char *target, *source;
-	int isdir;
+linkit(const char *target, const char *source, int isdir)
 {
 	struct stat sb;
 	const char *p;
@@ -189,7 +189,12 @@ linkit(target, source, isdir)
 			p = target;
 		else
 			++p;
-		(void)snprintf(path, sizeof(path), "%s/%s", source, p);
+		if (snprintf(path, sizeof(path), "%s/%s", source, p) >=
+		    sizeof(path)) {
+			errno = ENAMETOOLONG;
+			warn("%s", target);
+			return (1);
+		}
 		source = path;
 	}
 
@@ -232,7 +237,7 @@ linkit(target, source, isdir)
 }
 
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
 	    "usage: ln [-fhinsv] file1 file2",
