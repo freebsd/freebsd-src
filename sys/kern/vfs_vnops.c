@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.6 1994/10/05 09:48:26 davidg Exp $
+ * $Id: vfs_vnops.c,v 1.7 1995/01/09 16:04:55 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -53,6 +53,7 @@
 #include <sys/tty.h>
 
 #include <vm/vm.h>
+#include <vm/vnode_pager.h>
 
 struct 	fileops vnops =
 	{ vn_read, vn_write, vn_ioctl, vn_select, vn_closefile };
@@ -160,7 +161,8 @@ vn_open(ndp, fmode, cmode)
 		vm_pager_t pager;
 retry:
 		if( (vp->v_flag & VVMIO) == 0) {
-			pager = (vm_pager_t) vnode_pager_alloc(vp, 0, 0, 0);
+			pager = (vm_pager_t) vnode_pager_alloc(
+							(caddr_t) vp, 0, 0, 0);
 			object = (vm_object_t) vp->v_vmdata;
 			if( object->pager != pager)
 				panic("vn_open: pager/object mismatch");
