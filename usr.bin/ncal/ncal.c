@@ -205,7 +205,9 @@ main(int argc, char *argv[])
 	locale = setlocale(LC_TIME, NULL);
 	if (locale == NULL ||
 	    strcmp(locale, "C") == 0 ||
-	    strcmp(locale, "POSIX") == 0)
+	    strcmp(locale, "POSIX") == 0 ||
+	    strcmp(locale, "ASCII") == 0 ||
+	    strcmp(locale, "US-ASCII") == 0)
 		locale = "_US";
 	q = switches + sizeof(switches) / sizeof(struct djswitch);
 	for (p = switches; p != q; p++)
