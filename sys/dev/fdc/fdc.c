@@ -2561,6 +2561,7 @@ fdmisccmd(dev_t dev, u_int cmd, void *data)
 	struct fd_formb *finfo;
 	struct fdc_readid *idfield;
 	size_t fdblk;
+	int error;
 
  	fdu = FDUNIT(minor(dev));
 	fd = devclass_get_softc(fd_devclass, fdu);
@@ -2602,11 +2603,9 @@ fdmisccmd(dev_t dev, u_int cmd, void *data)
 	 * for the current context.
 	 */
 	fdstrategy(bp);
-	while ((bp->bio_flags & BIO_DONE) == 0)
-		tsleep(bp, PRIBIO, "fdcmd", 0);
-
+	error = biowait(bp, "fdcmd");
 	free(bp, M_TEMP);
-	return (bp->bio_flags & BIO_ERROR ? bp->bio_error : 0);
+	return (error);
 }
 
 static int
