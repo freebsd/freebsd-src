@@ -1037,7 +1037,7 @@ bdwrite(struct buf * bp)
 		TAILQ_FOREACH(nbp, &vp->v_dirtyblkhd, b_vnbufs) {
 			if ((nbp->b_xflags & BX_BKGRDINPROG) ||
 			    buf_countdeps(nbp, 0) ||
-			    BUF_LOCK(nbp, LK_EXCLUSIVE | LK_NOWAIT))
+			    BUF_LOCK(nbp, LK_EXCLUSIVE | LK_NOWAIT, NULL))
 				continue;
 			if (bp == nbp)
 				panic("bdwrite: found ourselves");
