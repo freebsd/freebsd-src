@@ -1830,6 +1830,10 @@ pci_cfg_restore(device_t dev, struct pci_devinfo *dinfo)
 	for (i = 0; i < dinfo->cfg.nummaps; i++)
 		pci_write_config(dev, PCIR_MAPS + i * 4, dinfo->cfg.bar[i], 4);
 	pci_write_config(dev, PCIR_BIOS, dinfo->cfg.bios, 4);
+	pci_write_config(dev, PCIR_SUBVEND_0, dinfo->cfg.subdevice, 2);
+	pci_write_config(dev, PCIR_SUBDEV_0, dinfo->cfg.subdevice, 2);
+	pci_write_config(dev, PCIR_VENDOR, dinfo->cfg.vendor, 2);
+	pci_write_config(dev, PCIR_DEVICE, dinfo->cfg.device, 2);
 	pci_write_config(dev, PCIR_COMMAND, dinfo->cfg.cmdreg, 2);
 	pci_write_config(dev, PCIR_INTLINE, dinfo->cfg.intline, 1);
 	pci_write_config(dev, PCIR_INTPIN, dinfo->cfg.intpin, 1);
@@ -1837,6 +1841,10 @@ pci_cfg_restore(device_t dev, struct pci_devinfo *dinfo)
 	pci_write_config(dev, PCIR_MAXLAT, dinfo->cfg.maxlat, 1);
 	pci_write_config(dev, PCIR_CACHELNSZ, dinfo->cfg.cachelnsz, 1);
 	pci_write_config(dev, PCIR_LATTIMER, dinfo->cfg.lattimer, 1);
+	pci_write_config(dev, PCIR_CLASS, dinfo->cfg.baseclass, 1);
+	pci_write_config(dev, PCIR_SUBCLASS, dinfo->cfg.subclass, 1);
+	pci_write_config(dev, PCIR_PROGIF, dinfo->cfg.progif, 1);
+	pci_write_config(dev, PCIR_REVID, dinfo->cfg.revid, 1);
 }
 
 static void
@@ -1869,6 +1877,10 @@ pci_cfg_save(device_t dev, struct pci_devinfo *dinfo, int setstate)
 	 * the PCI capability structures we know about, but apart from power
 	 * we don't know any that are writable.
 	 */
+	dinfo->cfg.subvendor = pci_read_config(dev, PCIR_SUBVEND_0, 2);
+	dinfo->cfg.subdevice = pci_read_config(dev, PCIR_SUBDEV_0, 2);
+	dinfo->cfg.vendor = pci_read_config(dev, PCIR_VENDOR, 2);
+	dinfo->cfg.device = pci_read_config(dev, PCIR_DEVICE, 2);
 	dinfo->cfg.cmdreg = pci_read_config(dev, PCIR_COMMAND, 2);
 	dinfo->cfg.intline = pci_read_config(dev, PCIR_INTLINE, 1);
 	dinfo->cfg.intpin = pci_read_config(dev, PCIR_INTPIN, 1);
@@ -1876,6 +1888,10 @@ pci_cfg_save(device_t dev, struct pci_devinfo *dinfo, int setstate)
 	dinfo->cfg.maxlat = pci_read_config(dev, PCIR_MAXLAT, 1);
 	dinfo->cfg.cachelnsz = pci_read_config(dev, PCIR_CACHELNSZ, 1);
 	dinfo->cfg.lattimer = pci_read_config(dev, PCIR_LATTIMER, 1);
+	dinfo->cfg.baseclass = pci_read_config(dev, PCIR_CLASS, 1);
+	dinfo->cfg.subclass = pci_read_config(dev, PCIR_SUBCLASS, 1);
+	dinfo->cfg.progif = pci_read_config(dev, PCIR_PROGIF, 1);
+	dinfo->cfg.revid = pci_read_config(dev, PCIR_REVID, 1);
 
 	/*
 	 * don't set the state for display devices and for memory devices
