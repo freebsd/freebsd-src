@@ -701,7 +701,7 @@ private el_action_t  el_map_vi_command[] = {
     /*  82 */	VI_REPLACE_MODE,	/* R */
     /*  83 */	VI_SUBSTITUTE_LINE,	/* S */
     /*  84 */	VI_TO_PREV_CHAR,	/* T */
-    /*  85 */	ED_UNASSIGNED,		/* U */
+    /*  85 */	VI_UNDO_LINE,		/* U */
     /*  86 */	ED_UNASSIGNED,		/* V */
     /*  87 */	VI_NEXT_SPACE_WORD,	/* W */
     /*  88 */	ED_DELETE_PREV_CHAR,	/* X */
