@@ -4,8 +4,8 @@
 PROG=	login
 SRCS=	login.c login_fbtab.c
 CFLAGS+=-DLOGALL
-DPADD=	${LIBUTIL} ${LIBCRYPT} ${LIBPAM}
-LDADD=	-lutil -lcrypt ${MINUSLPAM}
+DPADD=	${LIBUTIL} ${LIBPAM}
+LDADD=	-lutil ${MINUSLPAM}
 MAN=	login.1 login.access.5
 BINOWN=	root
 BINMODE=4555
