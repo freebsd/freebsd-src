@@ -49,7 +49,7 @@ struct disk {
 	size_t		bootmgr_size;
 #endif
 	u_char		*boot1;
-#if defined(__i386__)		/* the alpha only has one boot program */
+#if defined(__i386__)		/* the i386 needs extra help... */
 	u_char		*boot2;
 #endif
 	struct chunk	*chunks;
