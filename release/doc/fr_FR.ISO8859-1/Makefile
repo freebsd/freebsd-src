@@ -4,7 +4,7 @@
 #
 #      $Id$
 #      $FreeBSD$
-#      Original revision: 1.2
+#      Original revision: 1.3
 
 
 
@@ -14,7 +14,8 @@ SUBDIR = relnotes
 SUBDIR+= hardware
 #SUBDIR+= readme
 SUBDIR+= errata
-#SUBDIR+= installation
+SUBDIR+= installation
+SUBDIR+= early-adopter
 
 COMPAT_SYMLINK = fr
 
