@@ -28,7 +28,7 @@
 #
 
 # PROVIDE: resolv
-# REQUIRE: initdiskless rcconf
+# REQUIRE: rcconf
 # KEYWORD: nojail
 
 . /etc/rc.subr
