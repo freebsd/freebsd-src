@@ -27,40 +27,32 @@ provided "as is" without express or implied warranty.
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: newsyslog.c,v 1.20 1998/06/09 18:24:04 ache Exp $";
+	"$Id: newsyslog.c,v 1.21 1998/12/23 12:03:33 peter Exp $";
 #endif /* not lint */
 
-#ifndef CONF
-#define CONF "/etc/athena/newsyslog.conf" /* Configuration file */
-#endif
-#ifndef PIDFILE
-#define PIDFILE "/etc/syslog.pid"
-#endif
-#ifndef COMPRESS_PATH
-#define COMPRESS_PATH "/usr/ucb/compress" /* File compression program */
-#endif
-#ifndef COMPRESS_PROG
-#define COMPRESS_PROG "compress"
-#endif
+#define OSF
 #ifndef COMPRESS_POSTFIX
-#define COMPRESS_POSTFIX ".Z"
+#define COMPRESS_POSTFIX ".gz"
 #endif
 
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
 #include <grp.h>
+#include <paths.h>
 #include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/param.h>
 #include <sys/wait.h>
+
+#include "pathnames.h"
 
 #define kbytes(size)  (((size) + 1023) >> 10)
 #ifdef _IBMR2
@@ -71,6 +63,8 @@ static const char rcsid[] =
 #define CE_COMPACT 1            /* Compact the achived log files */
 #define CE_BINARY  2            /* Logfile is in binary, don't add */
                                 /* status messages */
+#define	CE_TRIMAT  4		/* trim at a specific time */
+
 #define NONE -1
         
 struct conf_entry {
@@ -81,6 +75,7 @@ struct conf_entry {
         int     numlogs;        /* Number of logs to keep */
         int     size;           /* Size cutoff to trigger trimming the log */
         int     hours;          /* Hours between log trimming */
+	time_t	trim_at;	/* Specific time to do trimming */
         int     permissions;    /* File permissions on the log */
         int     flags;          /* Flags (CE_COMPACT & CE_BINARY)  */
 	int     sig;            /* Signal to send */
@@ -91,16 +86,12 @@ int     verbose = 0;            /* Print out what's going on */
 int     needroot = 1;           /* Root privs are necessary */
 int     noaction = 0;           /* Don't do anything, just show it */
 int     force = 0;		/* Force the trim no matter what*/
-char    *conf = CONF;           /* Configuration file to use */
+char    *conf = _PATH_CONF;	/* Configuration file to use */
 time_t  timenow;
 #define MIN_PID         5
 #define MAX_PID		99999   /* was lower, see /usr/include/sys/proc.h */
 char    hostname[MAXHOSTNAMELEN+1]; /* hostname */
 char    *daytime;               /* timenow in human readable form */
-
-#ifndef OSF
-char *strdup(char *strp);
-#endif
 
 static struct conf_entry *parse_file();
 static char *sob(char *p);
@@ -115,6 +106,7 @@ static void compress_log(char *log);
 static int sizefile(char *file);
 static int age_old_log(char *file);
 static pid_t get_pid(char *pid_file);
+static	time_t parse8601(const char *s);
 
 int main(argc,argv)
         int argc;
@@ -155,11 +147,23 @@ static void do_entry(ent)
                 if (verbose)
                         printf("does not exist.\n");
         } else {
+		if (ent->flags & CE_TRIMAT) {
+			if (timenow < ent->trim_at
+			    || difftime(timenow, ent->trim_at) >= 60*60) {
+				if (verbose)
+					printf("--> will trim at %s",
+					       ctime(&ent->trim_at));
+				return;
+			} else if (verbose && ent->hours <= 0) {
+				printf("--> time is up\n");
+			}
+		}
                 if (verbose && (ent->size > 0))
                         printf("size (Kb): %d [%d] ", size, ent->size);
                 if (verbose && (ent->hours > 0))
                         printf(" age (hr): %d [%d] ", modtime, ent->hours);
                 if (force || ((ent->size > 0) && (size >= ent->size)) ||
+		    (ent->hours <= 0 && (ent->flags & CE_TRIMAT)) ||
                     ((ent->hours > 0) && ((modtime >= ent->hours)
                                         || (modtime < 0)))) {
                         if (verbose)
@@ -177,7 +181,7 @@ static void do_entry(ent)
 			} else {
 				/* Only try to notify syslog if we are root */
 				if (needroot)
-					pid_file = PIDFILE;
+					pid_file = _PATH_SYSLOGPID;
 				else
 					pid_file = NULL;
 			}
@@ -230,7 +234,7 @@ static void PRS(argc,argv)
                 default:
                         usage();
                 }
-        }
+}
 
 static void usage()
 {
@@ -341,14 +345,34 @@ static struct conf_entry *parse_file()
                 else
                         working->size = -1;
                 
+                working->flags = 0;
                 q = parse = missing_field(sob(++parse),errline);
                 parse = son(parse);
 		eol = !*parse;
                 *parse = '\0';
-                if (isdigit(*q))
-                        working->hours = atoi(q);
-                else
-                        working->hours = -1;
+		{
+			char	*ep;
+			u_long	ul;
+
+			ul = strtoul(q, &ep, 10);
+			if (ep == q)
+				working->hours = 0;
+			else if (*ep == '*')
+				working->hours = -1;
+			else if (ul > INT_MAX)
+				errx(1, "interval is too large:\n%s", errline);
+			else
+				working->hours = ul;
+
+			if (*ep != '\0' && *ep != '@' && *ep != '*')
+				errx(1, "malformed interval/at:\n%s", errline);
+			if (*ep == '@') {
+				if ((working->trim_at = parse8601(ep + 1))
+				    == (time_t)-1)
+					errx(1, "malformed at:\n%s", errline);
+				working->flags |= CE_TRIMAT;
+			}
+		}
 
 		if (eol)
 		  q = NULL;
@@ -360,7 +384,6 @@ static struct conf_entry *parse_file()
                   *parse = '\0';
 		}
 
-                working->flags = 0;
                 while (q && *q && !isspace(*q)) {
                         if ((*q == 'Z') || (*q == 'z'))
                                 working->flags |= CE_COMPACT;
@@ -517,7 +540,7 @@ static void dotrim(log,pid_file,numdays,flags,perm,owner_uid,group_gid,sig)
                              err(1, "can't add status message to log");
         }
         if (noaction)
-                printf("chmod %o %s...",perm,log);
+                printf("chmod %o %s...\n", perm, log);
         else
                 (void) chmod(log,perm);
 
@@ -583,8 +606,8 @@ static void compress_log(log)
         if (pid < 0)
                 err(1, "fork");
         else if (!pid) {
-		(void) execl(COMPRESS_PATH,COMPRESS_PROG,"-f",tmp,0);
-		err(1, COMPRESS_PATH);
+		(void) execl(_PATH_GZIP, _PATH_GZIP, "-f", tmp, 0);
+		err(1, _PATH_GZIP);
         }
 }
 
@@ -638,20 +661,6 @@ static pid_t get_pid(pid_file)
 	return pid;
 }
 
-#ifndef OSF
-/* Duplicate a string using malloc */
-
-char *strdup(strp)
-register char   *strp;
-{
-        register char *cp;
-
-        if ((cp = malloc((unsigned) strlen(strp) + 1)) == NULL)
-                abort();
-        return(strcpy (cp, strp));
-}
-#endif
-
 /* Skip Over Blanks */
 char *sob(p)
 	register char   *p;
@@ -669,3 +678,90 @@ char *son(p)
                 p++;
         return(p);
 }
+
+/*
+ * Parse a limited subset of ISO 8601.
+ * The specific format is as follows:
+ *
+ *	[CC[YY[MM[DD]]]][THH[MM[SS]]]	(where `T' is the literal letter)
+ *
+ * We don't accept a timezone specification; missing fields (including
+ * timezone) are defaulted to the current date but time zero.
+ */
+static time_t
+parse8601(const char *s)
+{
+	char		*t;
+	struct tm	tm, *tmp;
+	u_long		ul;
+
+	tmp = localtime(&timenow);
+	tm = *tmp;
+
+	tm.tm_hour = tm.tm_min = tm.tm_sec = 0;
+
+	ul = strtoul(s, &t, 10);
+	if (*t != '\0' && *t != 'T')
+		return -1;
+
+	/*
+	 * Now t points either to the end of the string (if no time
+	 * was provided) or to the letter `T' which separates date
+	 * and time in ISO 8601.  The pointer arithmetic is the same for
+	 * either case.
+	 */
+	switch (t - s) {
+	case 8:
+		tm.tm_year = ((ul / 1000000) - 19) * 100;
+		ul = ul % 1000000;
+	case 6:
+		tm.tm_year = tm.tm_year - (tm.tm_year % 100);
+		tm.tm_year += ul / 10000;
+		ul = ul % 10000;
+	case 4:
+		tm.tm_mon = (ul / 100) - 1;
+		ul = ul % 100;
+	case 2:
+		tm.tm_mday = ul;
+	case 0:
+		break;
+	default:
+		return -1;
+	}
+
+	/* sanity check */
+	if (tm.tm_year < 70 || tm.tm_mon < 0 || tm.tm_mon > 12
+	    || tm.tm_mday < 1 || tm.tm_mday > 31)
+		return -1;
+
+	if (*t != '\0') {
+		s = ++t;
+		ul = strtoul(s, &t, 10);
+		if (*t != '\0' && !isspace(*t))
+			return -1;
+
+		switch (t - s) {
+		case 6:
+			tm.tm_sec = ul % 100;
+			ul /= 100;
+		case 4:
+			tm.tm_min = ul % 100;
+			ul /= 100;
+		case 2:
+			tm.tm_hour = ul;
+		case 0:
+			break;
+		default:
+			return -1;
+		}
+
+		/* sanity check */
+		if (tm.tm_sec < 0 || tm.tm_sec > 60 || tm.tm_min < 0
+		    || tm.tm_min > 59 || tm.tm_hour < 0 || tm.tm_hour > 23)
+			return -1;
+	}
+
+	return mktime(&tm);
+}
+
+
