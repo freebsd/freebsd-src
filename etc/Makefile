@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.123 1995/10/26 10:05:55 ache Exp $
+#	$Id: Makefile,v 1.125 1995/10/28 02:01:34 ache Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -448,7 +448,9 @@ distrib-dirs:
 	then \
 		cd ${DESTDIR}/usr/share/locale;	\
 		for l in ${LATIN1LINKS}	; do \
-			[ -h $$l.ISO_8859-1 ] && rm $$l.ISO_8859-1; \
+			if [ -h $$l.ISO_8859-1 ]; then \
+				rm $$l.ISO_8859-1; \
+			fi ; \
 		done; \
 	fi
 	mtree -deU -f ${.CURDIR}/mtree/BSD.usr.dist -p ${DESTDIR}/usr
