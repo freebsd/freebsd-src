@@ -735,14 +735,14 @@ hpfs_strategy(ap)
 			printf("hpfs_strategy: hpfs_bpbmap FAILED %d\n", error);
 			bp->b_error = error;
 			bp->b_ioflags |= BIO_ERROR;
-			biodone(bp);
+			biodone(&bp->b_io);
 			return (error);
 		}
 		if ((long)bp->b_blkno == -1)
 			vfs_bio_clrbuf(bp);
 	}
 	if ((long)bp->b_blkno == -1) {
-		biodone(bp);
+		biodone(&bp->b_io);
 		return (0);
 	}
 	bp->b_dev = hp->h_devvp->v_rdev;
