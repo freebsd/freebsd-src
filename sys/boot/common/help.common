@@ -220,6 +220,14 @@
 		completely the value determined when the kernel was
 		compiled.
 
+	set machdep.pccard.pcic_irq=<value>
+
+		Overrides the IRQ normally assigned to a PCCARD controller.
+		Typically the first available interrupt will be allocated,
+		which may conflict with other hardware.  If this value is
+		set to 0, an interrupt will not be assigned and the
+		controller will operate in polled mode only.
+
 ################################################################################
 # Tshow DShow the values of variables
 
