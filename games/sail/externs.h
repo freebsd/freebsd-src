@@ -191,18 +191,18 @@ struct File {
 	char struck;			/* 66 */
 	struct ship *captured;		/* 68 */
 	short pcrew;			/* 70 */
-	char movebuf[10];		/* 72 */
-	char drift;			/* 82 */
+	char movebuf[60];		/* 72 */
+	char drift;			/* 132 */
 	short nfoul;
 	short ngrap;
-	struct snag foul[NSHIP];	/* 84 */
-	struct snag grap[NSHIP];	/* 124 */
-	char RH;			/* 224 */
-	char RG;			/* 226 */
-	char RR;			/* 228 */
-	char FS;			/* 230 */
-	char explode;			/* 232 */
-	char sink;			/* 234 */
+	struct snag foul[NSHIP];	/* 134 */
+	struct snag grap[NSHIP];	/* 144 */
+	char RH;			/* 274 */
+	char RG;			/* 276 */
+	char RR;			/* 278 */
+	char FS;			/* 280 */
+	char explode;			/* 282 */
+	char sink;			/* 284 */
 	char dir;
 	short col;
 	short row;
