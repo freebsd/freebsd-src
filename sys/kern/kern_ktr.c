@@ -42,7 +42,7 @@
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/libkern.h>
-#include <sys/pcpu.h>
+#include <sys/proc.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/time.h>
@@ -121,6 +121,7 @@ ktr_tracepoint(u_int mask, const char *format, u_long arg1, u_long arg2,
 	struct ktr_entry *entry;
 	int newindex, saveindex;
 	critical_t savecrit;
+	struct thread *td;
 #ifdef KTR_EXTEND
 	va_list ap;
 #endif
@@ -129,27 +130,23 @@ ktr_tracepoint(u_int mask, const char *format, u_long arg1, u_long arg2,
 		return;
 	if ((ktr_mask & mask) == 0)
 		return;
+	td = curthread;
+	if (td->td_inktr)
+		return;
 	savecrit = critical_enter();
 	if (((1 << KTR_CPU) & ktr_cpumask) == 0) {
 		critical_exit(savecrit);
 		return;
 	}
-	atomic_clear_int(&ktr_cpumask, 1 << KTR_CPU);
+	td->td_inktr++;
 	do {
 		saveindex = ktr_idx;
 		newindex = (saveindex + 1) & (KTR_ENTRIES - 1);
 	} while (atomic_cmpset_rel_int(&ktr_idx, saveindex, newindex) == 0);
 	entry = &ktr_buf[saveindex];
-	/*
-	 * XXX: The ktr_cpumask atomic ops should make this unnecessary.
-	 */
-	if ((ktr_mask & (KTR_LOCK | KTR_WITNESS)) != 0)
-		getnanotime(&entry->ktr_tv);
-	else
-		nanotime(&entry->ktr_tv);
-	atomic_set_int(&ktr_cpumask, 1 << KTR_CPU);
 	entry->ktr_cpu = KTR_CPU;
 	critical_exit(savecrit);
+	nanotime(&entry->ktr_tv);
 #ifdef KTR_EXTEND
 	entry->ktr_filename = filename;
 	entry->ktr_line = line;
@@ -176,6 +173,7 @@ ktr_tracepoint(u_int mask, const char *format, u_long arg1, u_long arg2,
 	entry->ktr_parm5 = arg5;
 	entry->ktr_parm6 = arg6;
 #endif
+	td->td_inktr--;
 }
 
 #ifdef DDB
