@@ -179,8 +179,9 @@ and
 .Pp
 The system imposes a limit on the number of file descriptors
 open simultaneously by one process.
-.Xr Getdtablesize 2
-returns the current system limit.
+The
+.Xr getdtablesize 2
+system call returns the current system limit.
 .Sh RETURN VALUES
 If successful,
 .Fn open
