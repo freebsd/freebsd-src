@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_dl.h>
 #include <net/route.h>
+#include <net/bpf.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netatm/port.h>
@@ -777,6 +778,13 @@ atm_nif_attach(nip)
 	if_attach(ifp);
 
 	/*
+	 * Add to BPF interface list
+	 * DLT_ATM_RFC_1483 cannot be used because both NULL and LLC/SNAP could
+	 * be provisioned
+	 */
+	bpfattach(ifp, DLT_ATM_CLIP, T_ATM_LLC_MAX_LEN);
+
+	/*
 	 * Add to physical interface list
 	 */
 	LINK2TAIL(nip, struct atm_nif, pip->pif_nif, nif_pnext);
@@ -837,6 +845,11 @@ atm_nif_detach(nip)
 	for (ncp = atm_netconv_head; ncp; ncp = ncp->ncm_next) {
 		(void) (*ncp->ncm_stat)(NCM_DETACH, nip, 0);
 	}
+
+	/*
+	 * Remove from BPF interface list
+	 */
+	bpfdetach(ifp);
 
 	/*
 	 * Mark interface down
