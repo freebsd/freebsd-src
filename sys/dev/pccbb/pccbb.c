@@ -618,7 +618,6 @@ pccbb_attach(device_t brdev)
 			cv_destroy(&sc->cv);
 			return (ENOMEM);
 		}
-#endif
 	}
 
 	sc->bst = rman_get_bustag(sc->base_res);
