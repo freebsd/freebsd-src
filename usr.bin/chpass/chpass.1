@@ -44,14 +44,14 @@
 .Nm ypchsh
 .Nd add or change user database information
 .Sh SYNOPSIS
-.Nm chpass
+.Nm
 .Op Fl a Ar list
 .Op Fl p Ar encpass
 .Op Fl e Ar expiretime
 .Op Fl s Ar newshell
 .Op user
 .Pp
-.Nm chpass
+.Nm
 .Op Fl oly
 .Op Fl a Ar list
 .Op Fl p Ar encpass
@@ -363,7 +363,7 @@ will refuse to update the NIS maps.
 .Pp
 Exception: the super-user on the NIS master server is permitted to
 change a user's NIS password with
-.Nm Ns .
+.Nm .
 .El
 .Pp
 There are also a few extra option flags that are available when
@@ -472,11 +472,11 @@ The
 and
 .Xr ypchsh 1
 commands are really only links to
-.Nm Ns .
+.Nm .
 .Sh BUGS
 User information should (and eventually will) be stored elsewhere.
 .Sh HISTORY
 The
-.Nm chpass
+.Nm
 command appeared in 
 .Bx 4.3 Reno .

@@ -35,17 +35,17 @@
 .Nm getconf
 .Nd retrieve standard configuration variables
 .Sh SYNOPSIS
-.Nm getconf
+.Nm
 .Op Fl v Ar environment
 .Ar path_var
 .Ar file
 .Pp
-.Nm getconf
+.Nm
 .Op Fl v Ar environment
 .Ar system_var
 .Sh DESCRIPTION
 The
-.Nm getconf
+.Nm
 utility outputs the value of
 .Tn POSIX
 or
@@ -95,7 +95,7 @@ The
 option is not supported, but provided for compatibility purposes.
 .Sh DIAGNOSTICS
 The
-.Nm getconf
+.Nm
 utility exits 0 on success or >0 if an error occurred.
 Use of a
 .Ar system_var
@@ -134,12 +134,12 @@ directory.
 .Xr sysconf 3
 .Sh STANDARDS
 The
-.Nm getconf
+.Nm
 utility is expected to be compliant with
 .St -susv2 .
 .Sh HISTORY
 The
-.Nm getconf
+.Nm
 command first appeared in
 .Fx 5.0 .
 .Sh BUGS

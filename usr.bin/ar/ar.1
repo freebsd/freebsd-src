@@ -41,45 +41,45 @@
 .Nm ar
 .Nd create and maintain library archives
 .Sh SYNOPSIS
-.Nm ar
+.Nm
 .Fl d
 .Op Fl \Tv
 .Ar archive file ...
-.Nm ar
+.Nm
 .Fl m
 .Op Fl \Tv
 .Ar archive file ...
-.Nm ar
+.Nm
 .Fl m
 .Op Fl abiTv
 .Ar position archive file ...
-.Nm ar
+.Nm
 .Fl p
 .Op Fl \Tv
 .Ar archive [file ...]
-.Nm ar
+.Nm
 .Fl q
 .Op Fl cTv
 .Ar archive file ...
-.Nm ar
+.Nm
 .Fl r
 .Op Fl cuTv
 .Ar archive file ...
-.Nm ar
+.Nm
 .Fl r
 .Op Fl abciuTv
 .Ar position archive file ...
-.Nm ar
+.Nm
 .Fl t
 .Op Fl \Tv
 .Ar archive [file ...]
-.Nm ar
+.Nm
 .Fl x
 .Op Fl ouTv
 .Ar archive [file ...]
 .Sh DESCRIPTION
 The
-.Nm ar
+.Nm
 utility creates and maintains groups of files combined into an archive.
 Once an archive has been created, new files can be added and existing
 files can be extracted, deleted, or replaced.
@@ -98,7 +98,7 @@ on the command line to ``select'' archive files for an operation, only the
 file with a matching name will be selected.
 .Pp
 The normal use of
-.Nm ar
+.Nm
 is for the creation and maintenance of libraries suitable for use with
 the loader (see
 .Xr ld 1 )
@@ -131,7 +131,7 @@ is written to standard error.
 If the
 .Fl c
 option is specified,
-.Nm ar
+.Nm
 creates the archive silently.
 .It Fl d
 Delete the specified archive files.
@@ -218,14 +218,14 @@ When used with the
 or
 .Fl x
 options,
-.Nm ar
+.Nm
 gives a file-by-file description of the archive modification.
 This description consists of three, white-space separated fields: the
 option letter, a dash (``-'') and the file name.
 When used with the
 .Fl r
 option,
-.Nm ar
+.Nm
 displays the description as above, but the initial letter is an ``a'' if
 the file is added to the archive and an ``r'' if the file replaces a file
 already in the archive.
@@ -243,7 +243,7 @@ followed by two newline characters.
 When used with the
 .Fl t
 option,
-.Nm ar
+.Nm
 displays an ``ls -l'' style listing of information about the members of
 the archive.
 This listing consists of eight, white-space separated fields:
@@ -271,7 +271,7 @@ extracted file or the super-user.
 .El
 .Pp
 The
-.Nm ar
+.Nm
 utility exits 0 on success, and >0 if an error occurs.
 .Sh ENVIRONMENT
 .Bl -tag -width indent -compact
@@ -287,14 +287,14 @@ temporary file names
 .El
 .Sh COMPATIBILITY
 By default,
-.Nm ar
+.Nm
 writes archives that may be incompatible with historic archives, as
 the format used for storing archive members with names longer than
 fifteen characters has changed.
 This implementation of
-.Nm ar
+.Nm
 is backward compatible with previous versions of
-.Nm ar
+.Nm
 in that it can read and write (using the
 .Fl T
 option) historic archives.
@@ -307,7 +307,7 @@ See
 for more information.
 .Sh STANDARDS
 The
-.Nm ar
+.Nm
 utility is expected to offer a superset of the
 .St -p1003.2
 functionality.

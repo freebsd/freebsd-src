@@ -39,13 +39,13 @@
 .Nm finger
 .Nd user information lookup program
 .Sh SYNOPSIS
-.Nm finger
+.Nm
 .Op Fl lmpshoT
 .Op Ar user ...
 .Op Ar user@host ...
 .Sh DESCRIPTION
 The
-.Nm finger
+.Nm
 displays information about the system users.
 .Pp
 Options are:
@@ -124,7 +124,7 @@ Prevents
 the
 .Fl l
 option of
-.Nm finger
+.Nm
 from displaying the contents of the
 .Dq Pa .forward ,
 .Dq Pa .plan
@@ -141,7 +141,7 @@ users' real names, unless the
 .Fl m
 option is supplied.
 All name matching performed by
-.Nm finger
+.Nm
 is case insensitive.
 .Pp
 .It Fl T
@@ -150,7 +150,7 @@ This option is needed to finger hosts with a broken TCP implementation.
 .El
 .Pp
 If no options are specified,
-.Nm finger
+.Nm
 defaults to the
 .Fl l
 style output if operands are provided, otherwise to the
@@ -160,7 +160,7 @@ Note that some fields may be missing, in either format, if information
 is not available for them.
 .Pp
 If no arguments are specified,
-.Nm finger
+.Nm
 will print an entry for each user currently logged into the system.
 .Pp
 .Nm Finger
@@ -184,7 +184,7 @@ option is the only option that may be passed to a remote machine.
 If the file
 .Dq Pa .nofinger
 exists in the user's home directory,
-.Nm finger
+.Nm
 behaves as if the user in question does not exist.
 .Pp
 The optional
@@ -201,7 +201,7 @@ utilizes the following environment variable, if it exists:
 .Bl -tag -width Fl
 .It Ev FINGER
 This variable may be set with favored options to
-.Nm finger .
+.Nm .
 .El
 .Sh FILES
 .Bl -tag -width /var/log/lastlog -compact
@@ -224,7 +224,7 @@ last login data base
 .Re
 .Sh HISTORY
 The
-.Nm finger
+.Nm
 command appeared in
 .Bx 3.0 .
 .Sh BUGS
