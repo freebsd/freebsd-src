@@ -46,8 +46,8 @@ static const char sccsid[] = "@(#)fortune.c   8.1 (Berkeley) 5/31/93";
 
 # include	<sys/param.h>
 # include	<sys/stat.h>
-# include	<sys/dir.h>
 
+# include	<dirent.h>
 # include	<fcntl.h>
 # include	<assert.h>
 # include	<unistd.h>
@@ -693,11 +693,7 @@ add_dir(fp)
 register FILEDESC	*fp;
 {
 	register DIR		*dir;
-#ifdef SYSV
-	register struct dirent	*dirent;	/* NIH, of course! */
-#else
-	register struct direct	*dirent;
-#endif
+	register struct dirent	*dirent;
 	auto FILEDESC		*tailp;
 	auto char		*name;
 

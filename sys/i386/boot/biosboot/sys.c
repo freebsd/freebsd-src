@@ -24,11 +24,11 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:34  rpd
- *	$Id: sys.c,v 1.14 1996/09/11 19:23:11 phk Exp $
+ *	$Id: sys.c,v 1.15 1996/09/14 07:41:00 bde Exp $
  */
 
 #include "boot.h"
-#include <sys/dir.h>
+#include <sys/dirent.h>
 #include <sys/reboot.h>
 
 #ifdef 0
@@ -133,7 +133,7 @@ find(char *path)
 {
 	char *rest, ch;
 	int block, off, loc, ino = ROOTINO;
-	struct direct *dp;
+	struct dirent *dp;
 	char list_only;
 
 	list_only = (path[0] == '?' && path[1] == '\0');
@@ -165,12 +165,12 @@ loop:
 			devread(iobuf, fsbtodb(fs, block_map(block)) + boff,
 				blksize(fs, &inode, block));
 		}
-		dp = (struct direct *)(iobuf + off);
+		dp = (struct dirent *)(iobuf + off);
 		loc += dp->d_reclen;
-		if (dp->d_ino && list_only)
+		if (dp->d_fileno && list_only)
 			printf("%s ", dp->d_name);
-	} while (!dp->d_ino || strcmp(path, dp->d_name));
-	ino = dp->d_ino;
+	} while (!dp->d_fileno || strcmp(path, dp->d_name));
+	ino = dp->d_fileno;
 	*(path = rest) = ch;
 	goto loop;
 }

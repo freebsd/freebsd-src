@@ -42,9 +42,9 @@ static char sccsid[] = "@(#)rwho.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 #include <sys/param.h>
-#include <sys/dir.h>
 #include <sys/file.h>
 #include <protocols/rwhod.h>
+#include <dirent.h>
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
@@ -78,7 +78,7 @@ main(argc, argv)
 	extern char *optarg;
 	extern int optind;
 	int ch;
-	struct direct *dp;
+	struct dirent *dp;
 	int cc, width;
 	register struct whod *w = &wd;
 	register struct whoent *we;
