@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Gleb Smirnoff <glebius@FreeBSD.org>
+ * Copyright (c) 2004-2005 Gleb Smirnoff <glebius@FreeBSD.org>
  * Copyright (c) 2001-2003 Roman V. Palagin <romanp@unshadow.net>
  * All rights reserved.
  *
@@ -304,90 +304,6 @@ hash_insert(priv_p priv, int slot, struct flow_rec *r, int plen,
 	return (0);
 }
 
-static __inline int
-make_flow_rec(struct mbuf **m, int *plen, struct flow_rec *r,
-	uint8_t *tcp_flags, u_int16_t i_ifx)
-{
-	register struct ip *ip;
-	int hlen;
-	int error = 0;
-
-	ip = mtod(*m, struct ip*);
-
-	/* check version */
-	if (ip->ip_v != IPVERSION)
-		return (EINVAL);
-
-	/* verify min header length */
-	hlen = ip->ip_hl << 2;
-
-	if (hlen < sizeof(struct ip))
-		return (EINVAL);
-
-	r->r_src = ip->ip_src;
-	r->r_dst = ip->ip_dst;
-
-	/* save packet length */
-	*plen = ntohs(ip->ip_len);
-
-	r->r_ip_p = ip->ip_p;
-	r->r_tos = ip->ip_tos;
-
-	/* Configured in_ifx overrides mbuf's */
-	if (i_ifx == 0) {
-		if ((*m)->m_pkthdr.rcvif)
-			r->r_i_ifx = (*m)->m_pkthdr.rcvif->if_index;
-	} else
-		r->r_i_ifx = i_ifx;
-
-	/*
-	 * XXX NOTE: only first fragment of fragmented TCP, UDP and
-	 * ICMP packet will be recorded with proper s_port and d_port.
-	 * Following fragments will be recorded simply as IP packet with
-	 * ip_proto = ip->ip_p and s_port, d_port set to zero.
-	 * I know, it looks like bug. But I don't want to re-implement
-	 * ip packet assebmling here. Anyway, (in)famous trafd works this way -
-	 * and nobody complains yet :)
-	 */
-	if(ip->ip_off & htons(IP_OFFMASK))
-		return (0);
-
-	/* skip IP header */
-	m_adj(*m, hlen);
-
-	switch(r->r_ip_p) {
-	case IPPROTO_TCP:
-	{
-		register struct tcphdr *tcp;
-
-		/* verify that packet is not truncated */
-		if (CHECK_MLEN(*m, sizeof(struct tcphdr)))
-			ERROUT(EINVAL);
-
-		if (CHECK_PULLUP(*m, sizeof(struct tcphdr)))
-			ERROUT(ENOBUFS);
-
-		tcp = mtod(*m, struct tcphdr*);
-		r->r_sport = tcp->th_sport;
-		r->r_dport = tcp->th_dport;
-		*tcp_flags = tcp->th_flags;
-		break;
-	}
-	case IPPROTO_UDP:
-		/* verify that packet is not truncated */
-		if (CHECK_MLEN(*m, sizeof(struct udphdr)))
-			ERROUT(EINVAL);
-
-		if (CHECK_PULLUP(*m, sizeof(struct udphdr)))
-			ERROUT(ENOBUFS);
-
-		r->r_ports = *(mtod(*m, uint32_t *));
-		break;
-	}
-
-done:
-	return (error);
-}
 
 /*
  * Non-static functions called from ng_netflow.c
@@ -469,21 +385,73 @@ ng_netflow_cache_flush(priv_p priv)
 
 /* Insert packet from &m into flow cache. */
 int
-ng_netflow_flow_add(priv_p priv, struct mbuf **m, iface_p iface)
+ng_netflow_flow_add(priv_p priv, struct ip *ip, iface_p iface,
+	struct ifnet *ifp)
 {
 	struct flow_hash_entry		*h = priv->hash;
 	register struct flow_entry	*fle;
 	struct flow_rec		r;
-	int			plen;
-	int			error = 0;
+	int			hlen, plen;
 	uint32_t		slot;
 	uint8_t			tcp_flags = 0;
 
-	/* Try to fill *rec */
+	/* Try to fill flow_rec r */
 	bzero(&r, sizeof(r));
-	if ((error = make_flow_rec(m, &plen, &r, &tcp_flags,
-	    iface->info.ifinfo_index)))
-		return (error);
+	/* check version */
+	if (ip->ip_v != IPVERSION)
+		return (EINVAL);
+
+	/* verify min header length */
+	hlen = ip->ip_hl << 2;
+
+	if (hlen < sizeof(struct ip))
+		return (EINVAL);
+
+	r.r_src = ip->ip_src;
+	r.r_dst = ip->ip_dst;
+
+	/* save packet length */
+	plen = ntohs(ip->ip_len);
+
+	r.r_ip_p = ip->ip_p;
+	r.r_tos = ip->ip_tos;
+
+	/* Configured in_ifx overrides mbuf's */
+	if (iface->info.ifinfo_index == 0) {
+		if (ifp != NULL)
+			r.r_i_ifx = ifp->if_index;
+	} else
+		r.r_i_ifx = iface->info.ifinfo_index;
+
+	/*
+	 * XXX NOTE: only first fragment of fragmented TCP, UDP and
+	 * ICMP packet will be recorded with proper s_port and d_port.
+	 * Following fragments will be recorded simply as IP packet with
+	 * ip_proto = ip->ip_p and s_port, d_port set to zero.
+	 * I know, it looks like bug. But I don't want to re-implement
+	 * ip packet assebmling here. Anyway, (in)famous trafd works this way -
+	 * and nobody complains yet :)
+	 */
+	if(ip->ip_off & htons(IP_OFFMASK))
+		goto flow_rec_done;
+
+	switch(r.r_ip_p) {
+	case IPPROTO_TCP:
+	{
+		register struct tcphdr *tcp;
+
+		tcp = (struct tcphdr *)((caddr_t )ip + hlen);
+		r.r_sport = tcp->th_sport;
+		r.r_dport = tcp->th_dport;
+		tcp_flags = tcp->th_flags;
+		break;
+	}
+	case IPPROTO_UDP:
+		r.r_ports = *(uint32_t *)((caddr_t )ip + hlen);
+		break;
+	}
+
+flow_rec_done:
 
 	slot = ip_hash(&r);
 
