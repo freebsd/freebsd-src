@@ -393,7 +393,7 @@ main(argc, argv)
 		if (hp) {
 			to->sin_family = hp->h_addrtype;
 			bcopy(hp->h_addr, (caddr_t)&to->sin_addr, hp->h_length);
-			hostname = hp->h_name;
+			hostname = strdup(hp->h_name);
 		} else {
 			(void)fprintf(stderr,
 			    "traceroute: unknown host %s\n", *argv);
