@@ -470,11 +470,18 @@
       <para>The &man.fxp.4; driver now requires a <literal>device
       miibus</literal> entry in the kernel configuration file. &merged;</para>
 
+      <para>The &man.fxp.4; driver now contains a workaround for 
+      PCI protocol violations caused by defects in some systems based
+      on the Intel ICH2/ICH2-M chip.  The workaround is to rewrite the
+      EEPROM on the interface to disable Dynamic Standby Mode; once
+      the EEPROM is rewritten, the system needs to be rebooted for the
+      new settings to take effect. &merged;</para>
+
       <para>The &man.fxp.4; driver now supports Intel's loadable
       microcode to implement receive-side interrupt coalescing and
       packet bundling, on NICs that support these features.  This
       support can be activated by the use of the
-      <option>link0</option> option to &man.ifconfig.8;.</para>
+      <option>link0</option> option to &man.ifconfig.8;. &merged;</para>
 
       <para>The &man.gx.4; driver has been added to support NICs based
       on the Intel 82542 and 82543 Gigabit Ethernet controller chips.
@@ -1590,6 +1597,9 @@
 
     <para>&man.kenv.1;, a command to dump the kernel environment, has
     been added. &merged;</para>
+
+    <para>&man.keyinfo.1; is now a C program, rather than a Perl
+    script. &merged;</para>
 
     <para>&man.killall.1; is now a C program, rather than a Perl
     script.  As a result, its <option>-m</option> option now uses the
