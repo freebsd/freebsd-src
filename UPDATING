@@ -5,6 +5,12 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20000905:
+	This just in.  The boot loader has been updated.  The new
+	default kernel is /kernel.ko.  The new default module location
+	is /boot/modules.  You *MUST* upgrade your boot loader and
+	kernel at the same time.  Film at 11.
+
 20000904:
 	A new issue with the sendmail upgrade has come to light.
 	/etc/aliases has moved to /etc/mail/aliases.  Mergemaster will 
