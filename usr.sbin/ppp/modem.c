@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id:$
+ * $Id: modem.c,v 1.2 1995/02/26 12:17:45 amurai Exp $
  * 
  *  TODO:
  */
@@ -26,6 +26,7 @@
 #include <termios.h>
 #include <sys/ioctl.h>
 #include <sys/tty.h>
+#include <errno.h>
 #include "hdlc.h"
 #include "lcp.h"
 #include "modem.h"
@@ -43,7 +44,7 @@ static int mbits;			/* Current DCD status */
 static int connect_time;		/* connection time */
 static int connect_count;
 static struct pppTimer ModemTimer;
-static char *uucplock;
+static char uucplock[10];
 
 extern int uu_lock(), uu_unlock();
 extern void PacketMode();
@@ -142,7 +143,7 @@ static struct speeds{
 #ifdef B38400
   { 38400, B38400, },
 #endif
-#ifndef POSIX_SOURCE
+#ifndef _POSIX_SOURCE
 #ifdef B7200
   { 7200, B7200, },
 #endif
@@ -372,7 +373,7 @@ int mode;
       modem = open(ctermid(NULL), O_RDWR|O_NONBLOCK);
   } else if (modem == 0) {
     if (strncmp(VarDevice, "/dev", 4) == 0) {
-      uucplock = rindex(VarDevice, '/')+1;
+      strcpy(uucplock, rindex(VarDevice, '/')+1);
       if (uu_lock(uucplock) < 0) {
         fprintf(stderr, "modem is in use.\n");
         return(-1);
@@ -676,8 +677,10 @@ int fd;
 	logprintf(" mbfree\n");
 #endif
       }
-    } else if (nw < 0)
-      perror("modem write");
+    } else if (nw < 0) {
+      if (errno != EAGAIN)
+        perror("modem write");
+    }
   }
 }
 
