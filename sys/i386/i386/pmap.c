@@ -3323,23 +3323,31 @@ pmap_mincore(pmap, addr)
 		 */
 		if (pte & PG_M)
 			val |= MINCORE_MODIFIED|MINCORE_MODIFIED_OTHER;
-		/*
-		 * Modified by someone
-		 */
-		else if (m->dirty || pmap_is_modified(m))
-			val |= MINCORE_MODIFIED_OTHER;
+		else {
+			/*
+			 * Modified by someone else
+			 */
+			vm_page_lock_queues();
+			if (m->dirty || pmap_is_modified(m))
+				val |= MINCORE_MODIFIED_OTHER;
+			vm_page_unlock_queues();
+		}
 		/*
 		 * Referenced by us
 		 */
 		if (pte & PG_A)
 			val |= MINCORE_REFERENCED|MINCORE_REFERENCED_OTHER;
-
-		/*
-		 * Referenced by someone
-		 */
-		else if ((m->flags & PG_REFERENCED) || pmap_ts_referenced(m)) {
-			val |= MINCORE_REFERENCED_OTHER;
-			vm_page_flag_set(m, PG_REFERENCED);
+		else {
+			/*
+			 * Referenced by someone else
+			 */
+			vm_page_lock_queues();
+			if ((m->flags & PG_REFERENCED) ||
+			    pmap_ts_referenced(m)) {
+				val |= MINCORE_REFERENCED_OTHER;
+				vm_page_flag_set(m, PG_REFERENCED);
+			}
+			vm_page_unlock_queues();
 		}
 	} 
 	return val;
