@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.56 1996/03/28 21:17:42 wollman Exp $
+#	$Id: BSD.usr.dist,v 1.57 1996/04/21 19:40:20 pst Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -17,6 +17,8 @@
     ..
     libdata
 	lint
+	..
+	stallion
 	..
     ..
     libexec
