@@ -1614,18 +1614,32 @@ then these are the flags to pass to the
 daemon.
 .It Va dumpdev
 .Pq Vt str
-If not set to
-.Dq NO
-then point kernel crash-dumps at the swap device
-specified as
-.Em value .
-When the system restarts,
-a crash-dump found on the specified device
-will typically be stored in the
-.Pa /var/crash
-directory by the
+Indicates the device (usually a swap partition) to which a crash dump
+should be written in the event of a system crash.
+The value of this variable is passed as the argument to
+.Xr dumpon 8 .
+To disable crash dumps, set this variable to
+.Dq NO .
+.It Va dumpdir
+.Pq Vt str
+When the system reboots after a crash and a crash dump is found on the
+device specified by the
+.Va dumpdev
+variable,
 .Xr savecore 8
-program.
+will save that crash dump and a copy of the kernel to the directory
+specified by the
+.Va dumpdir
+variable.
+The default value is
+.Dq /var/crash .
+Set to
+.Dq NO
+to not run
+.Xr savecore 8
+at boot time when
+.Va dumpdir
+is set.
 .It Va enable_quotas
 .Pq Vt bool
 Set to
