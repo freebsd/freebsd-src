@@ -609,16 +609,14 @@ cs_attach(struct cs_softc *sc, int unit, int flags)
                 ifmedia_set(&sc->media, media);
 		cs_mediaset(sc, media);
 
-		if_attach(ifp);
 		cs_stop( sc );
-		ether_ifattach(ifp);
+		ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 	}
 
 	if (bootverbose)
 		printf(CS_NAME"%d: ethernet address %6D\n",
 		       ifp->if_unit, sc->arpcom.ac_enaddr, ":");
 
-	bpfattach(ifp, DLT_EN10MB, sizeof (struct ether_header));
 	return 1;
 }
 

@@ -1489,12 +1489,9 @@ static int xl_attach(dev)
 done:
 
 	/*
-	 * Call MI attach routines.
+	 * Call MI attach routine.
 	 */
-	if_attach(ifp);
-	ether_ifattach(ifp);
-
-	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
+	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 
 fail:
 	splx(s);
@@ -1515,7 +1512,7 @@ static int xl_detach(dev)
 
 	xl_reset(sc);
 	xl_stop(sc);
-	if_detach(ifp);
+	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
 
 	/* Delete any miibus and phy devices attached to this interface */
 	if (sc->xl_miibus != NULL) {

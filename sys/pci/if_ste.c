@@ -1066,13 +1066,9 @@ static int ste_attach(dev)
 	ifp->if_snd.ifq_maxlen = STE_TX_LIST_CNT - 1;
 
 	/*
-	 * Call MI attach routines.
+	 * Call MI attach routine.
 	 */
-
-	if_attach(ifp);
-	ether_ifattach(ifp);
-
-	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
+	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 
 fail:
 	splx(s);
@@ -1092,7 +1088,7 @@ static int ste_detach(dev)
 	ifp = &sc->arpcom.ac_if;
 
 	ste_stop(sc);
-	if_detach(ifp);
+	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
 
 	bus_generic_detach(dev);
 	device_delete_child(dev, sc->ste_miibus);

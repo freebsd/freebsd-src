@@ -1748,13 +1748,10 @@ static int dc_attach(dev)
 	}
 
 	/*
-	 * Call MI attach routines.
+	 * Call MI attach routine.
 	 */
-	if_attach(ifp);
-	ether_ifattach(ifp);
+	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 	callout_handle_init(&sc->dc_stat_ch);
-
-	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 
 #ifdef __alpha__
         sc->dc_srm_media = 0;
@@ -1802,7 +1799,7 @@ static int dc_detach(dev)
 	ifp = &sc->arpcom.ac_if;
 
 	dc_stop(sc);
-	if_detach(ifp);
+	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
 
 	bus_generic_detach(dev);
 	device_delete_child(dev, sc->dc_miibus);

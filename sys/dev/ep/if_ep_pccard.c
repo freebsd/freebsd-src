@@ -48,6 +48,7 @@
 #include <machine/resource.h>
 #include <sys/rman.h>
  
+#include <net/ethernet.h>
 #include <net/if.h> 
 #include <net/if_arp.h>
 #include <net/if_media.h>
@@ -227,7 +228,7 @@ ep_pccard_detach(device_t dev)
 		return (0);
 	}
 	sc->arpcom.ac_if.if_flags &= ~IFF_RUNNING; 
-	if_detach(&sc->arpcom.ac_if);
+	ether_ifdetach(&sc->arpcom.ac_if, ETHER_BPF_SUPPORTED);
 	sc->gone = 1;
 	bus_teardown_intr(dev, sc->irq, sc->ep_intrhand);
 	ep_free(dev);

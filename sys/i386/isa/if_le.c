@@ -352,10 +352,7 @@ le_attach(
     ifp->if_addrlen = 6;
     ifp->if_hdrlen = 14;
 
-    bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
-
-    if_attach(ifp);
-    ether_ifattach(ifp);
+    ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 
     return 1;
 }

@@ -1232,12 +1232,7 @@ lnc_attach_sc(struct lnc_softc *sc, int unit)
 	sc->arpcom.ac_if.if_hdrlen = ETHER_HDR_LEN;
 	sc->arpcom.ac_if.if_snd.ifq_maxlen = IFQ_MAXLEN;
 
-	/*
-	 * XXX -- should check return status of if_attach
-	 */
-
-	if_attach(&sc->arpcom.ac_if);
-	ether_ifattach(&sc->arpcom.ac_if);
+	ether_ifattach(&sc->arpcom.ac_if, ETHER_BPF_SUPPORTED);
 
 	printf("lnc%d: ", unit);
 	if (sc->nic.ic == LANCE || sc->nic.ic == C_LANCE)
@@ -1246,8 +1241,6 @@ lnc_attach_sc(struct lnc_softc *sc, int unit)
 	else
 		printf("%s", ic_ident[sc->nic.ic]);
 	printf(" address %6D\n", sc->arpcom.ac_enaddr, ":");
-
-	bpfattach(&sc->arpcom.ac_if, DLT_EN10MB, sizeof(struct ether_header));
 
 	return (1);
 }

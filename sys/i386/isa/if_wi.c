@@ -216,7 +216,7 @@ static int wi_pccard_detach(dev)
 	}
 
 	wi_stop(sc);
-	if_detach(ifp);
+	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
 	bus_teardown_intr(dev, sc->irq, sc->wi_intrhand);
 	wi_free(dev);
 	sc->wi_gone = 1;
@@ -326,12 +326,10 @@ static int wi_pccard_attach(device_t dev)
 	wi_stop(sc);
 
 	/*
-	 * Call MI attach routines.
+	 * Call MI attach routine.
 	 */
-	if_attach(ifp);
-	ether_ifattach(ifp);
+	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 	callout_handle_init(&sc->wi_stat_ch);
-	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 
 	return(0);
 }
