@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.3 1994/11/17 14:18:02 jkh Exp $
+# $Id: instdist.sh,v 1.4 1994/11/17 15:20:02 jkh Exp $
 
 if [ "$_INSTINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -101,10 +101,13 @@ in order to more evenly distribute network load and increase \n\
 its availability users who might be far from the main ftp sites \n\
 or unable to get a connection.  Please select the site closest \n\
 to you or select \"other\" if you'd like to specify your own \n\
-choice.\n\n" 20 76 7 \
-"Please select one of the following:" 20 76 6 \
+choice.  Also note that not all sites carry the optional package
+or XFree86 3.1 distributions!  These are only guaranteed to be
+available from the primary U.S. ftp site.\n\n" \
+"Please select one of the following:" 22 76 8 \
    "ftp://ftp.freebsd.org/pub/FreeBSD/${DISTNAME}" "Primary U.S. ftp site" \
    "ftp://ftp.dataplex.net/pub/FreeBSD/${DISTNAME}" "United States" \
+   "ftp://kryten.atinc.com/pub/FreeBSD/${DISTNAME}" "United States" \
    "ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/${DISTNAME}" "Taiwan" \
    "ftp://ftp.physics.usyd.edu.au/FreeBSD/${DISTNAME}" "Australia" \
    "ftp://ftp.ibp.fr/pub/freeBSD/${DISTNAME}" "France" \
