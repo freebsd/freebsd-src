@@ -191,8 +191,6 @@ trap(struct trapframe *frame)
 
 		case EXC_FPU:
 			if ((fputhread = PCPU_GET(fputhread)) != NULL) {
-				KASSERT(fputhread != td,
-				    ("floating-point already enabled"));
 				save_fpu(fputhread);
 			}
 			PCPU_SET(fputhread, td);
