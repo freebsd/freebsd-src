@@ -2835,7 +2835,8 @@ vm_uiomove(
 	boolean_t wired;
 	int tcnt, rv;
 	vm_offset_t uaddr, start, end, tend;
-	vm_pindex_t first_pindex, osize, oindex;
+	vm_pindex_t first_pindex, oindex;
+	vm_size_t osize;
 	off_t ooffset;
 	int cnt;
 
@@ -2874,7 +2875,7 @@ vm_uiomove(
 
 		oindex = OFF_TO_IDX(cp);
 		if (npages) {
-			vm_pindex_t idx;
+			vm_size_t idx;
 			for (idx = 0; idx < osize; idx++) {
 				vm_page_t m;
 				if ((m = vm_page_lookup(srcobject, oindex + idx)) == NULL) {
