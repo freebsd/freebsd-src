@@ -74,7 +74,7 @@ vwalk()
 	register FTS *t;
 	register FTSENT *p;
 	register NODE *ep, *level;
-	int ftsdepth, specdepth, rval;
+	int specdepth, rval;
 	char *argv[2];
 
 	argv[0] = ".";
@@ -82,15 +82,13 @@ vwalk()
 	if ((t = fts_open(argv, ftsoptions, NULL)) == NULL)
 		err("fts_open: %s", strerror(errno));
 	level = root;
-	ftsdepth = specdepth = rval = 0;
+	specdepth = rval = 0;
 	while ((p = fts_read(t))) {
 		switch(p->fts_info) {
 		case FTS_D:
-			++ftsdepth;
 			break;
 		case FTS_DP:
-			--ftsdepth;
-			if (specdepth > ftsdepth) {
+			if (specdepth > p->fts_level) {
 				for (level = level->parent; level->prev;
 				      level = level->prev);
 				--specdepth;
@@ -100,13 +98,15 @@ vwalk()
 		case FTS_ERR:
 		case FTS_NS:
 			(void)fprintf(stderr, "mtree: %s: %s\n",
-			    RP(p), strerror(errno));
+			    RP(p), strerror(p->fts_errno));
 			continue;
 		default:
 			if (dflag)
 				continue;
 		}
 
+		if (specdepth != p->fts_level)
+			goto extra;
 		for (ep = level; ep; ep = ep->next)
 			if ((ep->flags & F_MAGIC &&
 			    !fnmatch(ep->name, p->fts_name, FNM_PATHNAME)) ||
@@ -126,10 +126,12 @@ vwalk()
 
 		if (ep)
 			continue;
+extra:
 		if (!eflag) {
 			(void)printf("extra: %s", RP(p));
 			if (rflag) {
-				if (unlink(p->fts_accpath)) {
+				if ((S_ISDIR(p->fts_statp->st_mode)
+				    ? rmdir : unlink)(p->fts_accpath)) {
 					(void)printf(", not removed: %s",
 					    strerror(errno));
 				} else
