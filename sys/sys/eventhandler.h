@@ -75,7 +75,7 @@ struct __hack
 struct eventhandler_list Xeventhandler_list_ ## name = { #name };	\
 struct __hack
 
-#define EVENTHANDLER_FAST_INVOKE(name, args...)				\
+#define EVENTHANDLER_FAST_INVOKE(name, ...)				\
 do {									\
 	struct eventhandler_list *_el = &Xeventhandler_list_ ## name ;	\
 	struct eventhandler_entry *_ep, *_en;				\
@@ -87,7 +87,7 @@ do {									\
 		while (_ep != NULL) {					\
 			_en = TAILQ_NEXT(_ep, ee_link);			\
 			_t = (struct eventhandler_entry_ ## name *)_ep; \
-			_t->eh_func(_ep->ee_arg , ## args);		\
+			_t->eh_func(_ep->ee_arg , __VA_ARGS__);		\
 			_ep = _en;					\
 		}							\
 		EHE_UNLOCK(_el);					\
@@ -116,7 +116,7 @@ struct eventhandler_entry_ ## name 					\
 };									\
 struct __hack
 
-#define EVENTHANDLER_INVOKE(name, args...)				\
+#define EVENTHANDLER_INVOKE(name, ...)					\
 do {									\
 	struct eventhandler_list *_el;					\
 	struct eventhandler_entry *_ep, *_en;				\
@@ -129,7 +129,7 @@ do {									\
 		while (_ep != NULL) {					\
 			_en = TAILQ_NEXT(_ep, ee_link);			\
 			_t = (struct eventhandler_entry_ ## name *)_ep;	\
-			_t->eh_func(_ep->ee_arg , ## args); 		\
+			_t->eh_func(_ep->ee_arg , __VA_ARGS__);		\
 			_ep = _en;					\
 		}							\
 		EHE_UNLOCK(_el);					\
