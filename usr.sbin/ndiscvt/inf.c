@@ -184,6 +184,7 @@ dump_deviceids()
 	struct section *sec;
 	struct assign *assign;
 	char xpsec[256];
+	int found = 0;
 
 	/* Find manufacturer name */
 	manf = find_assign("Manufacturer", NULL);
@@ -202,6 +203,8 @@ dump_deviceids()
 
 	/* Emit start of device table */
 	fprintf (ofp, "#define NDIS_DEV_TABLE");
+
+retry:
 
 	/*
 	 * Now run through all the device names listed
@@ -222,7 +225,15 @@ dump_deviceids()
 #endif
 			/* Emit device description */
 			fprintf (ofp, "\t\\\n\t\"%s\" },", dev->vals[0]);
+			found++;
 		}
+	}
+
+	/* Someone tried to fool us. Shame on them. */
+	if (!found) {
+		found++;
+		sec = find_section(manf->vals[0]);
+		goto retry;
 	}
 
 	/* Emit end of table */
@@ -407,7 +418,7 @@ dump_regvals(void)
 	struct section *sec;
 	struct assign *assign;
 	char sname[256];
-	int i, is_winxp = 0, is_winnt = 0, devidx = 0;
+	int found = 0, i, is_winxp = 0, is_winnt = 0, devidx = 0;
 
 	/* Find signature to check for special case of WinNT. */
 	assign = find_assign("version", "signature");
@@ -433,8 +444,11 @@ dump_regvals(void)
 	/* Emit start of block */
 	fprintf (ofp, "ndis_cfg ndis_regvals[] = {");
 
+retry:
+
 	TAILQ_FOREACH(assign, &ah, link) {
 		if (assign->section == sec) {
+			found++;
 			/*
 			 * Find all the AddReg sections.
 			 * Look for section names with .NT, unless
@@ -462,6 +476,13 @@ dump_regvals(void)
 			}
 			devidx++;
 		}
+	}
+
+	if (!found) {
+		sec = find_section(manf->vals[0]);
+		is_winxp = 0;
+		found++;
+		goto retry;
 	}
 
 	fprintf(ofp, "\n\t{ NULL, NULL, { 0 }, 0 }\n};\n\n");
