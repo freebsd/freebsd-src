@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdi.h,v 1.48 2001/01/21 19:00:06 augustss Exp $	*/
+/*	$NetBSD: usbdi.h,v 1.49 2001/01/23 17:04:30 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -184,13 +184,15 @@ usbd_status usbd_reload_device_desc(usbd_device_handle);
  * perform (short) tasks that must have a process context.
  */
 struct usb_task {
-	SIMPLEQ_ENTRY(usb_task) next;
+	TAILQ_ENTRY(usb_task) next;
 	void (*fun)(void *);
 	void *arg;
 	char onqueue;
 };
 
 void usb_add_task(usbd_device_handle dev, struct usb_task *task);
+void usb_rem_task(usbd_device_handle dev, struct usb_task *task);
+#define usb_init_task(t, f, a) ((t)->fun = (f), (t)->arg = (a), (t)->onqueue = 0)
 
 struct usb_devno {
 	u_int16_t ud_vendor;

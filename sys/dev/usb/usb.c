@@ -1,4 +1,4 @@
-/*	$NetBSD: usb.c,v 1.52 2001/01/21 19:00:29 augustss Exp $	*/
+/*	$NetBSD: usb.c,v 1.53 2001/01/23 17:04:30 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -117,7 +117,7 @@ struct usb_softc {
 	usbd_bus_handle sc_bus;		/* USB controller */
 	struct usbd_port sc_port;	/* dummy port for root hub */
 
-	SIMPLEQ_HEAD(, usb_task) sc_tasks;
+	TAILQ_HEAD(, usb_task) sc_tasks;
 	struct proc    *sc_event_thread;
 
 	struct usb_task sc_exp_task;
@@ -213,10 +213,9 @@ USB_ATTACH(usb)
 	sc->sc_bus = aux;
 	sc->sc_bus->usbctl = sc;
 	sc->sc_port.power = USB_MAX_POWER;
-	SIMPLEQ_INIT(&sc->sc_tasks);
+	TAILQ_INIT(&sc->sc_tasks);
 
-	sc->sc_exp_task.fun = usb_discover;
-	sc->sc_exp_task.arg = sc;
+	usb_init_task(&sc->sc_exp_task, usb_discover, sc);
 
 #if defined(__FreeBSD__)
 	printf("%s", USBDEVNAME(sc->sc_dev));
@@ -331,11 +330,25 @@ usb_add_task(usbd_device_handle dev, struct usb_task *task)
 	s = splusb();
 	if (!task->onqueue) {
 		DPRINTFN(2,("usb_add_task: sc=%p task=%p\n", sc, task));
-		SIMPLEQ_INSERT_TAIL(&sc->sc_tasks, task, next);
+		TAILQ_INSERT_TAIL(&sc->sc_tasks, task, next);
 		task->onqueue = 1;
 	} else
 		DPRINTFN(3,("usb_add_task: sc=%p task=%p on q\n", sc, task));
 	wakeup(&sc->sc_tasks);
+	splx(s);
+}
+
+void
+usb_rem_task(usbd_device_handle dev, struct usb_task *task)
+{
+	struct usb_softc *sc = dev->bus->usbctl;
+	int s;
+
+	s = splusb();
+	if (task->onqueue) {
+		TAILQ_REMOVE(&sc->sc_tasks, task, next);
+		task->onqueue = 0;
+	}
 	splx(s);
 }
 
@@ -359,14 +372,14 @@ usb_event_thread(void *arg)
 
 	while (!sc->sc_dying) {
 		s = splusb();
-		task = SIMPLEQ_FIRST(&sc->sc_tasks);
+		task = TAILQ_FIRST(&sc->sc_tasks);
 		if (task == NULL) {
 			tsleep(&sc->sc_tasks, PWAIT, "usbevt", 0);
-			task = SIMPLEQ_FIRST(&sc->sc_tasks);
+			task = TAILQ_FIRST(&sc->sc_tasks);
 		}
 		DPRINTFN(2,("usb_event_thread: woke up task=%p\n", task));
 		if (task != NULL && !sc->sc_dying) {
-			SIMPLEQ_REMOVE_HEAD(&sc->sc_tasks, task, next);
+			TAILQ_REMOVE(&sc->sc_tasks, task, next);
 			task->onqueue = 0;
 			splx(s);
 			task->fun(task->arg);
