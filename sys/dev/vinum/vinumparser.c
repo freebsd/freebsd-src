@@ -79,7 +79,7 @@
 #include <dev/vinum/vinumext.h>
 
 #ifdef KERNEL
-#define isspace(c) ((c == ' ') || (c == '\t'))		    /* check for white space */
+#define SPACETAB(c) ((c == ' ') || (c == '\t'))		    /* check for white space */
 #else /* get it from the headers */
 #include <ctype.h>
 #endif
@@ -184,7 +184,7 @@ tokenize(char *cptr, char *token[])
     tokennr = 0;					    /* none found yet */
 
     for (;;) {
-	while (isspace(*cptr))
+	while (SPACETAB(*cptr))
 	    cptr++;					    /* skip initial white space */
 	if ((*cptr == '\0') || (*cptr == '\n') || (*cptr == '#')) /* end of line */
 	    return tokennr;				    /* return number of tokens found */
@@ -197,14 +197,14 @@ tokenize(char *cptr, char *token[])
 		cptr++;
 		if ((*cptr == delim) && (cptr[-1] != '\\')) { /* found the partner */
 		    cptr++;				    /* move on past */
-		    if (!isspace(*cptr))		    /* error, no space after closing quote */
+		    if (!SPACETAB(*cptr))		    /* error, no space after closing quote */
 			return -1;
 		    *cptr++ = '\0';			    /* delimit */
 		} else if ((*cptr == '\0') || (*cptr == '\n')) /* end of line */
 		    return -1;
 	    }
 	} else {					    /* not quoted */
-	    while ((*cptr != '\0') && (!isspace(*cptr)) && (*cptr != '\n'))
+	    while ((*cptr != '\0') && (!SPACETAB(*cptr)) && (*cptr != '\n'))
 		cptr++;
 	    if (*cptr != '\0')				    /* not end of the line, */
 		*cptr++ = '\0';				    /* delimit and move to the next */

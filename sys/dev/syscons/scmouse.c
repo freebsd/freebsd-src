@@ -280,7 +280,7 @@ sc_remove_all_mouse(sc_softc_t *sc)
     }
 }
 
-#define isspace(c)	(((c) & 0xff) == ' ')
+#define IS_SPACE_CHAR(c)	(((c) & 0xff) == ' ')
 
 /* skip spaces to right */
 static int
@@ -291,7 +291,7 @@ skip_spc_right(scr_stat *scp, int p)
 
     for (i = p % scp->xsize; i < scp->xsize; ++i) {
 	c = sc_vtb_getc(&scp->vtb, p);
-	if (!isspace(c))
+	if (!IS_SPACE_CHAR(c))
 	    break;
 	++p;
     }
@@ -307,7 +307,7 @@ skip_spc_left(scr_stat *scp, int p)
 
     for (i = p-- % scp->xsize - 1; i >= 0; --i) {
 	c = sc_vtb_getc(&scp->vtb, p);
-	if (!isspace(c))
+	if (!IS_SPACE_CHAR(c))
 	    break;
 	--p;
     }
@@ -340,7 +340,7 @@ mouse_cut(scr_stat *scp)
     for (p = from, i = blank = 0; p <= to; ++p) {
 	cut_buffer[i] = sc_vtb_getc(&scp->vtb, p);
 	/* remember the position of the last non-space char */
-	if (!isspace(cut_buffer[i++]))
+	if (!IS_SPACE_CHAR(cut_buffer[i++]))
 	    blank = i;		/* the first space after the last non-space */
 	/* trim trailing blank when crossing lines */
 	if ((p % scp->xsize) == (scp->xsize - 1)) {
@@ -354,7 +354,7 @@ mouse_cut(scr_stat *scp)
     --p;
     for (i = p % scp->xsize; i < scp->xsize; ++i) {
 	c = sc_vtb_getc(&scp->vtb, p);
-	if (!isspace(c))
+	if (!IS_SPACE_CHAR(c))
 	    break;
 	++p;
     }
@@ -468,17 +468,17 @@ mouse_cut_word(scr_stat *scp)
 	sol = (scp->mouse_pos / scp->xsize) * scp->xsize;
 	eol = sol + scp->xsize;
 	c = sc_vtb_getc(&scp->vtb, scp->mouse_pos);
-	if (isspace(c)) {
+	if (IS_SPACE_CHAR(c)) {
 	    /* blank space */
 	    for (j = scp->mouse_pos; j >= sol; --j) {
 		c = sc_vtb_getc(&scp->vtb, j);
-	        if (!isspace(c))
+	        if (!IS_SPACE_CHAR(c))
 		    break;
 	    }
 	    start = ++j;
 	    for (j = scp->mouse_pos; j < eol; ++j) {
 		c = sc_vtb_getc(&scp->vtb, j);
-	        if (!isspace(c))
+	        if (!IS_SPACE_CHAR(c))
 		    break;
 	    }
 	    end = j - 1;
@@ -486,13 +486,13 @@ mouse_cut_word(scr_stat *scp)
 	    /* non-space word */
 	    for (j = scp->mouse_pos; j >= sol; --j) {
 		c = sc_vtb_getc(&scp->vtb, j);
-	        if (isspace(c))
+	        if (IS_SPACE_CHAR(c))
 		    break;
 	    }
 	    start = ++j;
 	    for (j = scp->mouse_pos; j < eol; ++j) {
 		c = sc_vtb_getc(&scp->vtb, j);
-	        if (isspace(c))
+	        if (IS_SPACE_CHAR(c))
 		    break;
 	    }
 	    end = j - 1;
