@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.63 1996/08/21 21:56:23 dyson Exp $
+ *	$Id: vnode_pager.c,v 1.64 1996/09/10 05:28:23 dyson Exp $
  */
 
 /*
@@ -614,6 +614,8 @@ vnode_pager_getpages(object, m, count, reqpage)
 {
 	int rtval;
 	struct vnode *vp;
+	if (object->flags & OBJ_VNODE_GONE)
+		return VM_PAGER_ERROR;
 	vp = object->handle;
 	rtval = VOP_GETPAGES(vp, m, count*PAGE_SIZE, reqpage, 0);
 	if (rtval == EOPNOTSUPP)
@@ -857,6 +859,10 @@ vnode_pager_putpages(object, m, count, sync, rtvals)
 {
 	int rtval;
 	struct vnode *vp;
+
+	if (object->flags & OBJ_VNODE_GONE)
+		return VM_PAGER_ERROR;
+
 	vp = object->handle;
 	rtval = VOP_PUTPAGES(vp, m, count*PAGE_SIZE, sync, rtvals, 0);
 	if (rtval == EOPNOTSUPP)
