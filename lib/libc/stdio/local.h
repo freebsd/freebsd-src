@@ -72,6 +72,7 @@ extern int	__swsetup(FILE *);
 extern int	__sflags(const char *, int *);
 extern int	__ungetc(int, FILE *);
 extern int	__vfprintf(FILE *, const char *, __va_list);
+extern int	__vfwprintf(FILE *, const wchar_t *, __va_list);
 
 extern int	__sdidinit;
 
