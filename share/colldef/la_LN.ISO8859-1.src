@@ -8,11 +8,13 @@ order \
 # digits
 	0;...;9;\
 # alphas
-	a;\xe0;...;\xe5;A;\xc0;...;\xc5;b;B;c;\xe7;C;\xc7;d;D;e;\xe8;...;\xeb;\
-	E;\xc8;...;\xcb;f;F;g;G;h;H;i;\xec;...;\xef;I;\xcc;...;\xcf;j;J;k;K;\
-	l;L;m;M;n;\xf1;N;\xd1;o;\xf2;...;\xf6;\xf8;O;\xd2;...;\xd6;\xd8;\
-	p;P;q;Q;r;R;s;S;t;T;u;\xf9;...;\xfc;U;\xd9;...;\xdc;v;V;w;W;x;X;y;\
-	\xfd;Y;\xdd;z;Z;\xf0;\xd0;\xfe;\xde;\xe6;\xc6;\xdf;\xff;\
+	A;\xc0;...;\xc5;a;\xe0;...;\xe5;B;b;C;\xc7;c;\xe7;D;d;\
+	E;\xc8;...;\xcb;e;\xe8;...;\xeb;F;f;G;g;H;h;\
+	I;\xcc;...;\xcf;i;\xec;...;\xef;J;j;K;k;L;l;M;m;\
+	N;\xd1;n;\xf1;O;\xd2;...;\xd6;\xd8;o;\xf2;...;\xf6;\xf8;\
+	P;p;Q;q;R;r;S;s;T;t;U;\xd9;...;\xdc;u;\xf9;...;\xfc;\
+	V;v;W;w;X;x;Y;\xdd;y;\xfd;Z;z;\
+	\xd0;\xf0;\xde;\xfe;\xc6;\xe6;\xff;\xdf;\
 # remains
 	\";...;&;\
 	\(;...;+;/;\<;...;\>;@;[;...;`;\{;...;~;\xa2;...;\xbe;\
