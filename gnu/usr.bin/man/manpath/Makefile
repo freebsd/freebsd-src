@@ -17,6 +17,6 @@ manpath.1: manpath.man
 	manpath.man > manpath.1
 
 afterinstall:
-	install -c -o bin -g bin -m 555 ${.CURDIR}/manpath.config ${manpath_config_file}
+	install -c -o bin -g bin -m 555 ${.CURDIR}/manpath.config ${DESTDIR}${manpath_config_file}
 
 .include <bsd.prog.mk>
