@@ -33,6 +33,11 @@
  *	across the network to save BandWidth
  *
  * $Log: supcdefs.h,v $
+ * Revision 1.1.1.1  1995/12/26 04:54:46  peter
+ * Import the unmodified version of the sup that we are using.
+ * The heritage of this version is not clear.  It appears to be NetBSD
+ * derived from some time ago.
+ *
  * Revision 1.3  1994/08/11  02:46:21  rich
  * Added extensions written by David Dawes.  From the man page:
  *
@@ -118,6 +123,7 @@ struct collstruct {			/* one per collection to be upgraded */
 	char *Clogin;			/* remote login name */
 	char *Cpswd;			/* remote password */
 	char *Ccrypt;			/* data encryption key */
+	char *Crenamelog;		/* Where to log files moved when busy */
 	int Ctimeout;			/* timeout for backoff */
 	int Cflags;			/* collection flags */
 	int Cnogood;			/* upgrade no good, "when" unchanged */
@@ -126,19 +132,20 @@ struct collstruct {			/* one per collection to be upgraded */
 };
 typedef struct collstruct COLLECTION;
 
-#define CFALL		00001
-#define CFBACKUP	00002
-#define CFDELETE	00004
-#define CFEXECUTE	00010
-#define CFLIST		00020
-#define CFLOCAL		00040
-#define CFMAIL		00100
-#define CFOLD		00200
-#define CFVERBOSE	00400
-#define CFKEEP		01000
-#define CFURELSUF	02000
-#define CFCOMPRESS	04000
-#define CFNOUPDATE     010000
+#define CFALL		0x0001
+#define CFBACKUP	0x0002
+#define CFDELETE	0x0004
+#define CFEXECUTE	0x0008
+#define CFLIST		0x0010
+#define CFLOCAL		0x0020
+#define CFMAIL		0x0040
+#define CFOLD		0x0080
+#define CFVERBOSE	0x0100
+#define CFKEEP		0x0200
+#define CFURELSUF	0x0400
+#define CFCOMPRESS	0x0800
+#define CFNOUPDATE	0x1000
+#define CFUNLINKBUSY	0x2000
 
 /*************************
  ***	M A C R O S    ***
@@ -149,7 +156,7 @@ typedef struct collstruct COLLECTION;
  * C prototypes
  */
 #if __STDC__
-void	done	__P((int value,char *fmt,...));
-void	goaway	__P((char *fmt,...));
-void	notify	__P((char *fmt,...));
+void  done    __P((int value,char *fmt,...));
+void  goaway  __P((char *fmt,...));
+void  notify  __P((char *fmt,...));
 #endif

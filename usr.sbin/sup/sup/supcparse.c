@@ -32,6 +32,11 @@
  *	across the network to save BandWidth
  *
  * $Log: supcparse.c,v $
+ * Revision 1.1.1.1  1995/12/26 04:54:46  peter
+ * Import the unmodified version of the sup that we are using.
+ * The heritage of this version is not clear.  It appears to be NetBSD
+ * derived from some time ago.
+ *
  * Revision 1.2  1994/08/11  02:46:25  rich
  * Added extensions written by David Dawes.  From the man page:
  *
@@ -82,11 +87,13 @@ static char _argbreak;
 extern char _argbreak;			/* break character from nxtarg */
 #endif
 
+char default_renamelog[] = RENAMELOG;
+
 typedef enum {				/* supfile options */
 	OHOST, OBASE, OHOSTBASE, OPREFIX, ORELEASE,
-	ONOTIFY, OLOGIN, OPASSWORD, OCRYPT,
+	ONOTIFY, OLOGIN, OPASSWORD, OCRYPT, ORENAMELOG,
 	OBACKUP, ODELETE, OEXECUTE, OOLD, OTIMEOUT, OKEEP, OURELSUF,
-	OCOMPRESS, ONOUPDATE
+	OCOMPRESS, ONOUPDATE, OUNLINKBUSY
 } OPTION;
 
 struct option {
@@ -102,6 +109,7 @@ struct option {
 	"login",	OLOGIN,
 	"password",	OPASSWORD,
 	"crypt",	OCRYPT,
+	"renamelog",	ORENAMELOG,
 	"backup",	OBACKUP,
 	"delete",	ODELETE,
 	"execute",	OEXECUTE,
@@ -110,7 +118,8 @@ struct option {
 	"keep",		OKEEP,
 	"use-rel-suffix", OURELSUF,
  	"compress", 	OCOMPRESS,
-	"noupdate",	ONOUPDATE
+	"noupdate",	ONOUPDATE,
+	"unlinkbusy",	OUNLINKBUSY,
 };
 
 passdelim (ptr,delim)		/* skip over delimiter */
@@ -143,6 +152,7 @@ char *collname,*args;
 	c->Clogin = NULL;
 	c->Cpswd = NULL;
 	c->Ccrypt = NULL;
+	c->Crenamelog = default_renamelog;
 	c->Ctimeout = 3*60*60;	/* default to 3 hours instead of no timeout */
 	c->Cflags = 0;
 	c->Cnogood = FALSE;
@@ -209,6 +219,11 @@ char *collname,*args;
 			arg = nxtarg (&args," \t");
 			c->Ccrypt = salloc (arg);
 			break;
+		case ORENAMELOG:
+			passdelim (&args,'=');
+			arg = nxtarg (&args," \t");
+			c->Crenamelog= salloc (arg);
+			break;
 		case OBACKUP:
 			c->Cflags |= CFBACKUP;
 			break;
@@ -232,6 +247,9 @@ char *collname,*args;
 			break;
 		case ONOUPDATE:
 			c->Cflags |= CFNOUPDATE;
+			break;
+		case OUNLINKBUSY:
+			c->Cflags |= CFUNLINKBUSY;
 			break;
 		case OTIMEOUT:
 			passdelim (&args,'=');

@@ -31,6 +31,11 @@
  *	across the network to save BandWidth
  *
  * $Log: supmsg.c,v $
+ * Revision 1.1.1.1  1995/12/26 04:54:47  peter
+ * Import the unmodified version of the sup that we are using.
+ * The heritage of this version is not clear.  It appears to be NetBSD
+ * derived from some time ago.
+ *
  * Revision 1.1.1.1  1993/08/21  00:46:35  jkh
  * Current sup with compression support.
  *
@@ -299,6 +304,7 @@ int msgrefuse ()
  * list files message
  */
 extern TREE	*listT;			/* tree of files to list */
+extern TREE     *renameT;               /* tree of rename target files */
 extern long	scantime;		/* time that collection was scanned */
 
 static int listone (t)
@@ -307,6 +313,8 @@ register TREE *t;
 	register int x;
 
 	x = writestring (t->Tname);
+	if ( protver > 8 )
+		if (x == SCMOK)  x = writestring (t->Tnewname);
 	if (x == SCMOK)  x = writeint ((int)t->Tmode);
 	if (x == SCMOK)  x = writeint ((int)t->Tflags);
 	if (x == SCMOK)  x = writeint (t->Tmtime);
@@ -323,19 +331,25 @@ int msglist ()
 		if (x == SCMOK)  x = writeint ((int)scantime);
 		if (x == SCMOK)  x = writemend ();
 	} else {
-		char *name;
+		char *name, *newname = NULL;
 		int mode,flags,mtime;
 		register TREE *t;
 		x = readmsg (MSGLIST);
 		if (x == SCMOK)  x = readstring (&name);
 		while (x == SCMOK) {
 			if (name == NULL)  break;
-			x = readint (&mode);
+			if (protver > 8){
+				x = readstring (&newname);
+				if (x == SCMOK)  x = readint (&mode);
+			}
+			else
+				x = readint (&mode);
 			if (x == SCMOK)  x = readint (&flags);
 			if (x == SCMOK)  x = readint (&mtime);
 			if (x != SCMOK)  break;
 			t = Tinsert (&listT,name,TRUE);
 			free (name);
+			t->Tnewname = newname;
 			t->Tmode = mode;
 			t->Tflags = flags;
 			t->Tmtime = mtime;
@@ -474,6 +488,8 @@ va_dcl
 			return (x);
 		}
 		if (x == SCMOK)  x = writestring (t->Tname);
+		if (protver > 8)
+			if (x == SCMOK)  x = writestring (t->Tnewname);
 		if (x == SCMOK)  x = writeint (t->Tmode);
 		if (t->Tmode == 0) {
 			if (x == SCMOK)  x = writemend ();
@@ -499,6 +515,8 @@ va_dcl
 			if (x == SCMOK)  x = (*xferfile) (NULL,args);
 			return (x);
 		}
+		if (protver > 8)
+			if (x == SCMOK)  x = readstring (&t->Tnewname);
 		if (x == SCMOK)  x = readint (&t->Tmode);
 		if (t->Tmode == 0) {
 			x = readmend ();

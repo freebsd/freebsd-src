@@ -28,6 +28,11 @@
  **********************************************************************
  * HISTORY
  * $Log: scan.c,v $
+ * Revision 1.1.1.1  1995/12/26 04:54:47  peter
+ * Import the unmodified version of the sup that we are using.
+ * The heritage of this version is not clear.  It appears to be NetBSD
+ * derived from some time ago.
+ *
  * Revision 1.1.1.1  1993/08/21  00:46:33  jkh
  * Current sup with compression support.
  *
@@ -122,13 +127,13 @@ static char *options[] = {
 typedef enum {			/* <collection>/list file lines */
 	LUPGRADE,	LOMIT,		LBACKUP,	LEXECUTE,
 	LINCLUDE,	LNOACCT,	LOMITANY,	LALWAYS,
-	LSYMLINK,	LRSYMLINK
+	LSYMLINK,	LRSYMLINK,	LRENAME
 } LISTTYPE;
 
 static char *ltname[] = {
 	"upgrade",	"omit",		"backup",	"execute",
 	"include",	"noaccount",	"omitany",	"always",
-	"symlink",	"rsymlink",
+	"symlink",	"rsymlink",	"rename",
 	0
 };
 
@@ -365,9 +370,11 @@ register TREE *t;
 
 	if (newonly && (t->Tflags&FNEW) == 0)
 		return (SCMOK);
-	newt = Tinsert (&listT,t->Tname,FALSE);
+	newt = Tinsert (&listT,t->Tname,t->Tflags&FRENAME ? TRUE : FALSE);
 	if (newt == NULL)
 		return (SCMOK);
+	if(t->Tnewname)
+	  newt->Tnewname = salloc(t->Tnewname);
 	newt->Tmode = t->Tmode;
 	newt->Tflags = t->Tflags;
 	newt->Tmtime = t->Tmtime;
@@ -473,6 +480,10 @@ char *fname;
 		case LUPGRADE:
 			t = &upgT;
 			break;
+		case LRENAME:
+			t = &flagsT;
+			flags = FRENAME;
+			break;
 		case LBACKUP:
 			t = &flagsT;
 			flags = FBACKUP;
@@ -522,7 +533,7 @@ char *fname;
 					if (*q == 0)
 						_argbreak = ')';
 					else
-						expTinsert (q,&execT,0,r);
+						expTinsert (q,&execT,0,r,NULL);
 				} while (_argbreak != ')');
 				continue;
 			}
@@ -533,22 +544,37 @@ char *fname;
 		while (*(q=nxtarg(&p," \t"))) {
 			if (lt == LOMITANY)
 				(void) Tinsert (t,q,FALSE);
+			else if( lt == LRENAME )
+				if(*(r=nxtarg(&p," \t")))
+				{
+					expTinsert (q,t,flags,(char *)NULL,r);
+					/*
+					 * Omit the file it is being
+					 * renamed to, to avoid confusion
+					 */
+					expTinsert (r,&omitT,0,
+						   (char *)NULL, (char *)NULL);
+				}
+				else
+					printf("Rename %s without destination "
+					       "file.  Skipping...\n", q);
 			else
-				expTinsert (q,t,flags,(char *)NULL);
+				expTinsert (q,t,flags,(char *)NULL,(char *)NULL);
 		}
 	}
 	(void) fclose (f);
 }
 
 static
-expTinsert (p,t,flags,exec)
+expTinsert (p,t,flags,exec, q)
 char *p;
+char *q;
 TREE **t;
 int flags;
 char *exec;
 {
 	register int n, i;
-	register TREE *newt;
+	register TREE *newt, *ts;
 	char *speclist[SPECNUMBER];
 	char buf[STRINGLENGTH];
 
@@ -557,18 +583,25 @@ char *exec;
 		newt = Tinsert (t,speclist[i],TRUE);
 		newt->Tflags |= flags;
 		if (exec) {
-			(void) sprintf (buf,exec,speclist[i]);
+			if((ts = Tsearch(flagsT, speclist[i])) 
+			   && ts->Tflags&FRENAME)
+				(void) sprintf (buf,exec,ts->Tnewname);
+			else
+				(void) sprintf (buf,exec,speclist[i]);
 			(void) Tinsert (&newt->Texec,buf,FALSE);
 		}
+		if (q)
+			newt->Tnewname = salloc(q);
 		free (speclist[i]);
 	}
 }
 
 static
-listone (t)		/* expand and add one name from upgrade list */
+listone(t)		/* expand and add one name from upgrade list */
 TREE *t;
 {
-	listentry(t->Tname,t->Tname,(char *)NULL,(t->Tflags&FALWAYS) != 0);
+	listentry(t->Tname,t->Tname,(char *)NULL,
+		  (t->Tflags&FALWAYS) != 0);
 	return (SCMOK);
 }
 
@@ -644,8 +677,11 @@ register struct stat *st;
 	t->Tctime = st->st_ctime;
 	t->Tmtime = st->st_mtime;
 	if (new)  t->Tflags |= FNEW;
-	if (ts = Tsearch (flagsT,name))
+	if (ts = Tsearch (flagsT,name)){
 		t->Tflags |= ts->Tflags;
+		if(t->Tflags&FRENAME)
+			t->Tnewname = salloc(ts->Tnewname);
+	}
 	if (ts = Tsearch (execT,name)) {
 		t->Texec = ts->Texec;
 		ts->Texec = NULL;
@@ -831,6 +867,10 @@ char *scanfile;
 			p++;
 			ts.Tflags |= FNOACCT;
 		}
+		if (*p == 'R') {
+			p++;
+			ts.Tflags |= FRENAME;
+		}
 		if ((q = index (p,' ')) == NULL)
 			goaway ("scanfile format inconsistant");
 		*q++ = '\0';
@@ -845,6 +885,15 @@ char *scanfile;
 			goaway ("scanfile format inconsistant");
 		*q++ = 0;
 		ts.Tmtime = atoi (p);
+		p = q;
+		ts.Tnewname = NULL;
+		if (ts.Tflags & FRENAME){
+			if ((q = index (p,' ')) == NULL)
+				goaway ("scanfile format inconsistant");
+			*q++ = '\0';
+			ts.Tnewname = salloc(q);
+			q = p;
+		}
 		if (ts.Tctime > lasttime)
 			ts.Tflags |= FNEW;
 		else if (newonly) {
@@ -863,6 +912,7 @@ char *scanfile;
 		t->Tflags = ts.Tflags;
 		t->Tctime = ts.Tctime;
 		t->Tmtime = ts.Tmtime;
+		t->Tnewname = ts.Tnewname;
 	}
 	(void) fclose (f);
 	return (TRUE);
@@ -925,8 +975,14 @@ FILE **scanF;
 
 	if (t->Tflags&FBACKUP)  fprintf (*scanF,"B");
 	if (t->Tflags&FNOACCT)  fprintf (*scanF,"N");
-	fprintf (*scanF,"%o %d %d %s\n",
+	if (t->Tflags&FRENAME)  fprintf (*scanF,"R");
+
+	fprintf (*scanF,"%o %d %d",
 		t->Tmode,t->Tctime,t->Tmtime,t->Tname);
+	if ( t->Tflags&FRENAME)
+		fprintf (*scanF," %s %s\n",t->Tname, t->Tnewname);
+	else
+		fprintf (*scanF," %s\n", t->Tname);
 	(void) Tprocess (t->Texec,recordexec,*scanF);
 	return (SCMOK);
 }
