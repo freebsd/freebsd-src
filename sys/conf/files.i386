@@ -137,6 +137,7 @@ crypto/des/des_ecb.c		optional crypto
 crypto/des/des_setkey.c		optional crypto
 dev/advansys/adv_isa.c		optional adv isa
 dev/aic/aic_isa.c		optional aic isa
+dev/arcmsr/arcmsr.c		optional arcmsr pci
 dev/ar/if_ar.c			optional ar
 dev/ar/if_ar_isa.c		optional ar isa
 dev/ar/if_ar_pci.c		optional ar pci
