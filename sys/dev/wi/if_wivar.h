@@ -96,6 +96,7 @@ struct wi_softc	{
 	bus_space_tag_t		wi_bmemtag;
 	void *			wi_intrhand;
 	int			wi_io_addr;
+	int			wi_cmd_count;
 
 	struct bpf_if		*sc_drvbpf;
 	int			sc_flags;
