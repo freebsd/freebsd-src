@@ -250,7 +250,8 @@ spanscls_start()
 
 	spanscls_zone = uma_zcreate("spanscls", sizeof(struct spanscls),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	uma_zone_set_max(spanscls_zone, 100);
+	if (spanscls_zone == NULL)
+		panic("spanscls_zone");
 
 	/*
 	 * Fill in union fields

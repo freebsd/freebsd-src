@@ -365,7 +365,8 @@ spansarp_start()
 
 	spansarp_zone = uma_zcreate("spansarp", sizeof(struct spansarp),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	uma_zone_set_max(spansarp_zone, 100);
+	if (spansarp_zone == NULL)
+		panic("spansarp_zone");
 }
 
 /*

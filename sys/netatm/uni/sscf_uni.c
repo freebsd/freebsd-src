@@ -117,8 +117,6 @@ sscf_uni_start()
 	if (sscf_uni_zone == NULL)
 		panic("sscf_uni_start: uma_zcreate");
 
-	uma_zone_set_max(sscf_uni_zone, 100);
-
 	/*
 	 * Register stack service
 	 */
