@@ -548,6 +548,12 @@ struct xl_mii_frame {
 #define XL_TYPE_905B	1
 #define XL_TYPE_90X	2
 
+#define XL_FLAG_FUNCREG			0x0001
+#define XL_FLAG_PHYOK			0x0002
+#define XL_FLAG_EEPROM_OFFSET_30	0x0004
+#define XL_FLAG_WEIRDRESET		0x0008
+#define XL_FLAG_8BITROM			0x0010
+
 struct xl_softc {
 	struct arpcom		arpcom;		/* interface info */
 	struct ifmedia		ifmedia;	/* media info */
@@ -569,6 +575,10 @@ struct xl_softc {
 	struct xl_list_data	*xl_ldata;
 	struct xl_chain_data	xl_cdata;
 	struct callout_handle	xl_stat_ch;
+	int			xl_flags;
+	struct resource		*xl_fres;
+	bus_space_handle_t	xl_fhandle;
+	bus_space_tag_t		xl_ftag;
 };
 
 #define xl_rx_goodframes(x) \
@@ -641,6 +651,8 @@ struct xl_stats {
 #define TC_DEVICEID_TORNADO_10_100BT_SERV	0x9805
 #define TC_DEVICEID_HURRICANE_SOHO100TX		0x7646
 #define TC_DEVICEID_TORNADO_HOMECONNECT		0x4500
+#define TC_DEVICEID_HURRICANE_556		0x6055
+#define TC_DEVICEID_HURRICANE_556B		0x6056
 
 /*
  * PCI low memory base and low I/O base register, and
@@ -657,6 +669,7 @@ struct xl_stats {
 #define XL_PCI_HEADER_TYPE	0x0E
 #define XL_PCI_LOIO		0x10
 #define XL_PCI_LOMEM		0x14
+#define XL_PCI_FUNCMEM		0x18
 #define XL_PCI_BIOSROM		0x30
 #define XL_PCI_INTLINE		0x3C
 #define XL_PCI_INTPIN		0x3D
