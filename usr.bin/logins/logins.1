@@ -44,7 +44,7 @@ The
 utility displays information about user and system accounts.
 .Pp
 The following options are available:
-.Bl -tag -width Fl
+.Bl -tag -width ".Fl g Ar groups"
 .It Fl a
 Display information about the password change and account expiration
 times for each account.
@@ -66,8 +66,8 @@ colon-separated fields.
 Select accounts with no password.
 .It Fl s
 Select system accounts.
-This is currently defined as accounts with UIDs below 1000, plus the
-.Dq nobody
+These are currently defined as accounts with UIDs below 1000, plus the
+.Dq Li nobody
 account (UID 65534).
 .It Fl t
 Sort selected accounts by name rather than by UID.
@@ -75,7 +75,7 @@ Sort selected accounts by name rather than by UID.
 Select user accounts.
 These are currently defined as accounts with UIDs above 1000, except
 the
-.Dq nobody
+.Dq Li nobody
 account (UID 65534).
 .It Fl x
 Display information about each account's home directory and shell.
@@ -84,7 +84,7 @@ Display information about each account's home directory and shell.
 If multiple selection options are specified, all accounts matching any
 of the selection criteria will be displayed.
 .Pp
-If no selection options are specified, all acounts will be displayed.
+If no selection options are specified, all accounts will be displayed.
 .Sh SEE ALSO
 .Xr getgrent 3 ,
 .Xr getpwent 3 ,
@@ -94,10 +94,9 @@ If no selection options are specified, all acounts will be displayed.
 .Sh HISTORY
 The
 .Nm
-command appeared in
+utility appeared in
 .Fx 4.10 .
 .Sh AUTHORS
-.An -nosplit
 The
 .Nm
 utility was written by
