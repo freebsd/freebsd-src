@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pk_subr.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: pk_subr.c,v 1.2 1994/08/02 07:47:41 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -486,7 +486,7 @@ register struct sockaddr_x25 *sa;
 	/*
 	 * Is the destination address known?
 	 */
-	if (!(rt = rtalloc1 ((struct sockaddr *)sa, 1)))
+	if (!(rt = rtalloc1 ((struct sockaddr *)sa, 1, 0UL)))
 		return (ENETUNREACH);
 
 	if (!(pkp = XTRACTPKP(rt)))
