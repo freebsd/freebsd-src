@@ -1,8 +1,8 @@
 /*
  * Low-level subroutines for Cronyx-Sigma adapter.
  *
- * Copyright (C) 1994 Cronyx Ltd.
- * Author: Serge Vakulenko, <vak@zebub.msk.su>
+ * Copyright (C) 1994-95 Cronyx Ltd.
+ * Author: Serge Vakulenko, <vak@cronyx.ru>
  *
  * This software is distributed with NO WARRANTIES, not even the implied
  * warranties for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
@@ -11,7 +11,7 @@
  * or modify this software as long as this message is kept with the software,
  * all derivative works or modified versions.
  *
- * Version 1.2, Mon Nov 28 16:12:18 MSK 1994
+ * Version 1.6, Wed May 31 16:03:20 MSD 1995
  */
 #if defined (MSDOS) || defined (__MSDOS__)
 #   include <string.h>
@@ -26,13 +26,15 @@
 #   include "cxreg.h"
 #else
 #   include <sys/param.h>
-#   include <sys/systm.h>
 #   include <sys/socket.h>
 #   include <net/if.h>
 #   include <vm/vm.h>
 #   ifdef __FreeBSD__
 #      if __FreeBSD__ < 2
 #         include <machine/pio.h>
+#      else
+#         include <machine/cpufunc.h>
+#         include <sys/libkern.h>
 #      endif
 #   else
 #      include <machine/inline.h>
@@ -368,6 +370,7 @@ void cx_init_board (cx_board_t *b, int num, int port, int irq, int dma,
 		c->num = i;
 		c->board = b;
 		c->chip = b->chip + i*NCHIP/NCHAN;
+		c->stat = b->stat + i;
 		c->type = T_NONE;
 	}
 
@@ -772,20 +775,26 @@ void cx_chan_dtr (cx_chan_t *c, int on)
 		/* Channels 4..7 and 12..15 in syncronous mode
 		 * have no DTR signal. */
 		break;
-	case 0: case 1: case 2:  case 3:
+
+	case 1: case 2:  case 3:
+		if (c->type == T_UNIV_RS232)
+			break;
+	case 0:
 		if (on)
 			c->board->bcr1 |= 0x100 << c->num;
 		else
 			c->board->bcr1 &= ~(0x100 << c->num);
-		outb (CAR(c->chip->port), c->num);
 		outw (BCR1(c->board->port), c->board->bcr1);
 		break;
-	case 8: case 9: case 10: case 11:
+
+	case 9: case 10: case 11:
+		if (c->type == T_UNIV_RS232)
+			break;
+	case 8:
 		if (on)
 			c->board->bcr1b |= 0x100 << (c->num & 3);
 		else
 			c->board->bcr1b &= ~(0x100 << (c->num & 3));
-		outb (CAR(c->chip->port), c->num & 3);
 		outw (BCR1(c->board->port+0x10), c->board->bcr1b);
 		break;
 	}
@@ -820,10 +829,18 @@ int cx_chan_dsr (cx_chan_t *c)
 	switch (c->num) {
 	default:
 		return (1);
-	case 0: case 1: case 2:  case 3:
+
+	case 1: case 2:  case 3:
+		if (c->type == T_UNIV_RS232)
+			return (1);
+	case 0:
 		sigval = inw (BSR(c->board->port)) >> 8;
 		break;
-	case 8: case 9: case 10: case 11:
+
+	case 9: case 10: case 11:
+		if (c->type == T_UNIV_RS232)
+			return (1);
+	case 8:
 		sigval = inw (BSR(c->board->port+0x10)) >> 8;
 		break;
 	}
@@ -848,10 +865,18 @@ int cx_chan_cd (cx_chan_t *c)
 	switch (c->num) {
 	default:
 		return (1);
-	case 0: case 1: case 2:  case 3:
+
+	case 1: case 2:  case 3:
+		if (c->type == T_UNIV_RS232)
+			return (1);
+	case 0:
 		sigval = inw (BSR(c->board->port)) >> 8;
 		break;
-	case 8: case 9: case 10: case 11:
+
+	case 9: case 10: case 11:
+		if (c->type == T_UNIV_RS232)
+			return (1);
+	case 8:
 		sigval = inw (BSR(c->board->port+0x10)) >> 8;
 		break;
 	}
