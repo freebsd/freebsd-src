@@ -750,7 +750,26 @@ typedef struct devobj_extension devobj_extension;
 #define METHOD_OUT_DIRECT		2
 #define METHOD_NEITHER			3
 
+/* File access types */
+
+#define FILE_ANY_ACCESS			0x0000
+#define FILE_SPECIAL_ACCESS		FILE_ANY_ACCESS
+#define FILE_READ_ACCESS		0x0001
+#define FILE_WRITE_ACCESS		0x0002
+
+/* Recover I/O access method from IOCTL code. */
+
 #define IO_METHOD(x)			((x) & 0xFFFFFFFC)
+
+/* Recover function code from IOCTL code */
+
+#define IO_FUNC(x)			(((x) & 0x7FFC) >> 2)
+
+/* Macro to construct an IOCTL code. */
+
+#define IOCTL_CODE(dev, func, iomethod, acc)	\
+	((dev) << 16) | (acc << 14) | (func << 2) | (iomethod))
+
 
 struct io_status_block {
 	union {
