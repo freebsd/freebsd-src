@@ -18,6 +18,8 @@
 #define DIST_COMPAT21		0x00400
 #define DIST_COMPAT22		0x00800
 #define DIST_COMPAT3X		0x01000
+#endif
+#if defined(__i386__) || defined(__alpha__)
 #define DIST_COMPAT4X		0x02000
 #endif
 #define DIST_XF86		0x04000
