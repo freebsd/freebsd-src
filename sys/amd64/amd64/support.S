@@ -354,8 +354,8 @@ bcopyw:
 	movl	20(%esp),%ecx
 	cmpl	%esi,%edi			/* potentially overlapping? */
 	jnb	1f
-	cld					/* nope, copy forwards */
 	shrl	$1,%ecx				/* copy by 16-bit words */
+	cld					/* nope, copy forwards */
 	rep
 	movsw
 	adc	%ecx,%ecx			/* any bytes left? */
@@ -369,10 +369,10 @@ bcopyw:
 1:
 	addl	%ecx,%edi			/* copy backwards */
 	addl	%ecx,%esi
-	std
 	andl	$1,%ecx				/* any fractional bytes? */
 	decl	%edi
 	decl	%esi
+	std
 	rep
 	movsb
 	movl	20(%esp),%ecx			/* copy remainder by 16-bit words */
@@ -408,8 +408,8 @@ bcopy:
 	movl	20(%esp),%ecx
 	cmpl	%esi,%edi			/* potentially overlapping? */
 	jnb	1f
-	cld					/* nope, copy forwards */
 	shrl	$2,%ecx				/* copy by 32-bit words */
+	cld					/* nope, copy forwards */
 	rep
 	movsl
 	movl	20(%esp),%ecx
@@ -424,10 +424,10 @@ bcopy:
 1:
 	addl	%ecx,%edi			/* copy backwards */
 	addl	%ecx,%esi
-	std
 	andl	$3,%ecx				/* any fractional bytes? */
 	decl	%edi
 	decl	%esi
+	std
 	rep
 	movsb
 	movl	20(%esp),%ecx			/* copy remainder by 32-bit words */
@@ -577,9 +577,9 @@ ENTRY(copyout)					/* copyout(from_kernel, to_user, len) */
 
 	/* bcopy(%esi, %edi, %ebx) */
 3:
-	cld
 	movl	%ebx,%ecx
 	shrl	$2,%ecx
+	cld
 	rep
 	movsl
 	movb	%bl,%cl
@@ -835,6 +835,7 @@ ENTRY(copyoutstr)
 	movl	12(%esp),%esi			/* %esi = from */
 	movl	16(%esp),%edi			/* %edi = to */
 	movl	20(%esp),%edx			/* %edx = maxlen */
+	cld
 
 #if defined(I386_CPU)
 
@@ -864,6 +865,7 @@ ENTRY(copyoutstr)
 	pushl	%edx
 	pushl	%edi
 	call	_trapwrite
+	cld
 	popl	%edi
 	popl	%edx
 	orl	%eax,%eax
@@ -949,7 +951,7 @@ ENTRY(copyinstr)
 	movl	16(%esp),%edi			/* %edi = to */
 	movl	20(%esp),%edx			/* %edx = maxlen */
 	incl	%edx
-
+	cld
 1:
 	decl	%edx
 	jz	4f
@@ -998,7 +1000,7 @@ ENTRY(copystr)
 	movl	16(%esp),%edi			/* %edi = to */
 	movl	20(%esp),%edx			/* %edx = maxlen */
 	incl	%edx
-
+	cld
 1:
 	decl	%edx
 	jz	4f
@@ -1097,15 +1099,6 @@ ENTRY(ssdtosd)
 	popl	%ebx
 	ret
 
-#if 0
-/* tlbflush() */
-ENTRY(tlbflush)
-	movl	%cr3,%eax
-	orl	$I386_CR3PAT,%eax
-	movl	%eax,%cr3
-	ret
-#endif
-
 /* load_cr0(cr0) */
 ENTRY(load_cr0)
 	movl	4(%esp),%eax
@@ -1115,11 +1108,6 @@ ENTRY(load_cr0)
 /* rcr0() */
 ENTRY(rcr0)
 	movl	%cr0,%eax
-	ret
-
-/* rcr2() */
-ENTRY(rcr2)
-	movl	%cr2,%eax
 	ret
 
 /* rcr3() */
