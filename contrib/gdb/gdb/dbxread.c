@@ -313,6 +313,9 @@ static void
 add_this_object_header_file (i)
      int i;
 {
+  if (!n_allocated_this_object_header_files)
+	init_header_files ();  
+
   if (n_this_object_header_files == n_allocated_this_object_header_files)
     {
       n_allocated_this_object_header_files *= 2;
@@ -2082,8 +2085,15 @@ process_one_symbol (type, desc, valu, name, section_offsets, objfile)
 	      patch_subfile_names (current_subfile, name);
 	      break;		/* Ignore repeated SOs */
 	    }
+#ifdef THIS_CODE_IS_BROKEN
+	  /* XXX
+	   * doing this causes the "subfiles" which are allocated for
+	   * header files to be freed twice, and otherwise corrupts
+	   * gdb's memory & causes it to crash-n-burn -- gallatin
+	   */
 	  end_symtab (valu, objfile, SECT_OFF_TEXT);
 	  end_stabs ();
+#endif
 	}
 
       /* Null name means this just marks the end of text for this .o file.
