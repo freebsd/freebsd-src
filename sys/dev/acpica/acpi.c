@@ -1080,10 +1080,10 @@ acpi_bus_alloc_gas(device_t dev, int *type, int *rid, ACPI_GENERIC_ADDRESS *gas,
     int error, res_type;
 
     error = ENOMEM;
-    if (type == NULL || rid == NULL || gas == NULL || res == NULL ||
-	!ACPI_VALID_ADDRESS(gas->Address) || gas->RegisterBitWidth < 8)
+    if (type == NULL || rid == NULL || gas == NULL || res == NULL)
 	return (EINVAL);
 
+    /* We only support memory and IO spaces. */
     switch (gas->AddressSpaceId) {
     case ACPI_ADR_SPACE_SYSTEM_MEMORY:
 	res_type = SYS_RES_MEMORY;
@@ -1094,6 +1094,10 @@ acpi_bus_alloc_gas(device_t dev, int *type, int *rid, ACPI_GENERIC_ADDRESS *gas,
     default:
 	return (EOPNOTSUPP);
     }
+
+    /* Validate the address after we're sure we support the space. */
+    if (!ACPI_VALID_ADDRESS(gas->Address) || gas->RegisterBitWidth < 8)
+	return (EINVAL);
 
     bus_set_resource(dev, res_type, *rid, gas->Address,
 	gas->RegisterBitWidth / 8);
