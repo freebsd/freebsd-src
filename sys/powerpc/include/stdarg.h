@@ -50,6 +50,9 @@ typedef	__va_list	va_list;
 #if __ISO_C_VISIBLE >= 1999
 #define	va_copy(dest, src) \
 	__builtin_va_copy((dest), (src))
+
+#define	__va_copy(dest, src) \
+	va_copy((dest), (src))
 #endif
 
 #define	va_end(ap) \
