@@ -1600,8 +1600,8 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		if ((kg->kg_completed == NULL) &&
 		    (td->td_upcall->ku_flags & KUF_DOUPCALL) == 0) {
 			thread_update_usr_ticks(td, 0);
-			if (kg->kg_completed ||
-			    (td->td_upcall->ku_flags & KUF_DOUPCALL)) {
+			if (!(kg->kg_completed ||
+			    (td->td_upcall->ku_flags & KUF_DOUPCALL))) {
 				td->td_mailbox = NULL;
 				return (0);
 			}
