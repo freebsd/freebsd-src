@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.46.4.7 1995/11/19 01:42:34 davidg Exp $
+ * $Id: vfs_bio.c,v 1.46.4.8 1996/01/07 00:03:00 davidg Exp $
  */
 
 /*
@@ -490,6 +490,7 @@ brelse(struct buf * bp)
 						}
 					}
 				}
+				bp->b_pages[i] = 0;
 			}
 			bufspace -= bp->b_bufsize;
 			pmap_qremove(trunc_page((vm_offset_t) bp->b_data), bp->b_npages);
@@ -1378,8 +1379,8 @@ vfs_busy_pages(struct buf * bp, int clear_modify)
 				resid = iocount;
 			obj->paging_in_progress++;
 			m->busy++;
+			vm_page_protect(m, VM_PROT_NONE);
 			if (clear_modify) {
-				vm_page_protect(m, VM_PROT_READ);
 				vm_page_set_valid(m,
 					foff & (PAGE_SIZE-1), resid);
 				vm_page_set_clean(m,
