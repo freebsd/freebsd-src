@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: keyword.c,v 1.14 1997/03/04 00:33:56 ache Exp $
+ *	$Id: keyword.c,v 1.15 1997/04/29 05:26:04 jkh Exp $
  */
 
 #ifndef lint
@@ -386,8 +386,7 @@ findvar(p)
 	if (!v) {
 		warnx("%s: keyword not found", p);
 		eval = 1;
-	}
-	if (hp)
+	} else if (hp)
 		v->header = hp;
 	return (v);
 }
