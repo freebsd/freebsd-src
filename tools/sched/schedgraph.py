@@ -30,6 +30,17 @@ import sys
 import re
 from Tkinter import *
 
+# To use:
+# - Install the ports/x11-toolkits/py-tkinter package.
+# - Add KTR_SCHED to KTR_COMPILE and KTR_MASK in your KERNCONF
+# - It is encouraged to increase KTR_ENTRIES size to 32768 to gather
+#    enough information for analysis.
+# - Rebuild kernel with proper changes to KERNCONF.
+# - Run ktrace(1) with whatever workload you wish to use.
+# - Dump the trace to a file: 'ktrdump -ct > ktr.out'
+# - Run the python script: 'python schedgraph.py ktr.out'
+#
+# To do:
 # 1)  Add a per-thread summary display
 # 2)  Add bounding box style zoom.
 # 3)  Click to center.
