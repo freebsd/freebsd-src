@@ -50,11 +50,11 @@
 
 #include <machine/console.h>
 
-#include <i386/linux/linux.h>
-#include <i386/linux/linux_ioctl.h>
-#include <i386/linux/linux_mib.h>
-#include <i386/linux/linux_proto.h>
-#include <i386/linux/linux_util.h>
+#include <machine/../linux/linux.h>
+#include <machine/../linux/linux_proto.h>
+#include <compat/linux/linux_ioctl.h>
+#include <compat/linux/linux_mib.h>
+#include <compat/linux/linux_util.h>
 
 static linux_ioctl_function_t linux_ioctl_cdrom;
 static linux_ioctl_function_t linux_ioctl_console;
