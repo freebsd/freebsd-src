@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pnpcfg.c,v 1.6 1996/05/06 02:08:25 smpatel Exp smpatel $
+ *      $Id: pnp.c,v 1.1 1997/09/09 12:31:57 jmg Exp $
  */
 
 #include <sys/param.h>
@@ -47,7 +47,7 @@ pnp_id pnp_devices[MAX_PNP_CARDS];
  * which is not a supported value.
  */
 
-struct pnp_cinfo pnp_ldn_overrides[MAX_PNP_LDN] = { 0 };
+struct pnp_cinfo pnp_ldn_overrides[MAX_PNP_LDN] = { { 0 } };
 /*
  * the following is a flag which tells if the data is valid.
  */
@@ -80,7 +80,7 @@ static char*
 nullpnp_probe(u_long tag, u_long type)
 {
     if (bootverbose)
-	    printf("Called nullpnp_probe with tag 0x%08x, type 0x%08x\n",
+	    printf("Called nullpnp_probe with tag 0x%08lx, type 0x%08lx\n",
 		    tag, type);
     return NULL;
 }
@@ -89,7 +89,7 @@ static void
 nullpnp_attach(u_long csn, u_long vend_id, char *name,
 	struct isa_device *dev)
 {
-    printf("nullpnp_attach: csn %d, vend_id 0x%08x name %s unit %d\n",
+    printf("nullpnp_attach: csn %ld, vend_id 0x%08lx name %s unit %d\n",
 	    csn, vend_id, name, dev->id_unit);
     return;
 }
@@ -224,11 +224,12 @@ read_pnp_parms(struct pnp_cinfo *d, int ldn)
 	    break ;
 	}
     }
-    printf("port 0x%04x 0x%04x 0x%04x 0x%04x irq %d:%d drq %d:%d en %d\n",
-	d->port[0], d->port[1], d->port[2], d->port[3],
-	d->irq[0], d->irq[1],
-	d->drq[0], d->drq[1],
-	d->enable);
+    if (bootverbose)
+	printf("port 0x%04x 0x%04x 0x%04x 0x%04x irq %d:%d drq %d:%d en %d\n",
+	    d->port[0], d->port[1], d->port[2], d->port[3],
+	    d->irq[0], d->irq[1],
+	    d->drq[0], d->drq[1],
+	    d->enable);
     return 1 ; /* success */
 }
 
@@ -328,7 +329,6 @@ enable_pnp_card()
 void
 config_pnp_device(pnp_id *p, int csn)
 {
-    struct pnp_cinfo *ci;
     int i;
     u_char *data = (u_char *)p;
 
@@ -336,7 +336,7 @@ config_pnp_device(pnp_id *p, int csn)
     struct pnp_device *dvp, **dvpp;
     char *name ;
 
-    printf("CSN %d Vendor ID: %c%c%c%02x%02x [0x%08x] Serial 0x%08x\n",
+    printf("CSN %d Vendor ID: %c%c%c%02x%02x [0x%08lx] Serial 0x%08lx\n",
 	    csn,
 	    ((data[0] & 0x7c) >> 2) + 64,
 	    (((data[0] & 0x03) << 3) | ((data[1] & 0xe0) >> 5)) + 64,
@@ -376,9 +376,9 @@ config_pnp_device(pnp_id *p, int csn)
 
     /* lookup device in ioconfiguration */
     dvpp = (struct pnp_device **)pnpdevice_set.ls_items;
-    while (dvp = *dvpp++) {
+    while ((dvp = *dvpp++)) {
 	if (dvp->pd_probe) {
-	    if (name = (*dvp->pd_probe)(csn, p->vendor_id))
+	    if ((name = (*dvp->pd_probe)(csn, p->vendor_id)))
 		break;
 	}
     }
@@ -409,7 +409,7 @@ config_pnp_device(pnp_id *p, int csn)
 		dvp->imask, dvp->dev.id_unit);
 	    INTREN(dvp->dev.id_irq);
 	}
-	printf("%s%d (%s <%s> sn 0x%08x) at 0x%x "
+	printf("%s%d (%s <%s> sn 0x%08lx) at 0x%x "
 	    "irq %d drq %d flags 0x%x id %d\n",
 		dvp->dev.id_driver && dvp->dev.id_driver->name ?
 		    dvp->dev.id_driver->name : "unknown",
@@ -439,7 +439,7 @@ config_pnp_device(pnp_id *p, int csn)
 int
 pnp_isolation_protocol()
 {
-    int i, csn;
+    int csn;
 
     pnp_send_Initiation_LFSR();
 
