@@ -39,13 +39,13 @@ typedef unsigned int	u32;
 
 /*  The structure for key information */
 typedef struct {
-	int	decrypt;
+	int	enc_only;		/* context contains only encrypt schedule */
 	int	Nr;			/* key-length-dependent number of rounds */
 	u32	ek[4*(MAXNR + 1)];	/* encrypt key schedule */
 	u32	dk[4*(MAXNR + 1)];	/* decrypt key schedule */
 } rijndael_ctx;
 
-void	 rijndael_set_key(rijndael_ctx *, u_char *, int, int);
+void	 rijndael_set_key(rijndael_ctx *, u_char *, int);
 void	 rijndael_decrypt(rijndael_ctx *, u_char *, u_char *);
 void	 rijndael_encrypt(rijndael_ctx *, u_char *, u_char *);
 
