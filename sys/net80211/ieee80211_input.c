@@ -595,7 +595,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0, int subtype,
 			}
 			frm += frm[1] + 2;
 		}
-		IEEE80211_VERIFY_ELEMENT(rates, IEEE80211_RATE_SIZE);
+		IEEE80211_VERIFY_ELEMENT(rates, IEEE80211_RATE_MAXSIZE);
 		IEEE80211_VERIFY_ELEMENT(ssid, IEEE80211_NWID_LEN);
 		if (
 #if IEEE80211_CHAN_MAX < 255
@@ -716,7 +716,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0, int subtype,
 			}
 			frm += frm[1] + 2;
 		}
-		IEEE80211_VERIFY_ELEMENT(rates, IEEE80211_RATE_SIZE);
+		IEEE80211_VERIFY_ELEMENT(rates, IEEE80211_RATE_MAXSIZE);
 		IEEE80211_VERIFY_ELEMENT(ssid, IEEE80211_NWID_LEN);
 		if (ssid[1] != 0 &&
 		    (ssid[1] != ic->ic_bss->ni_esslen ||
@@ -889,7 +889,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0, int subtype,
 			}
 			frm += frm[1] + 2;
 		}
-		IEEE80211_VERIFY_ELEMENT(rates, IEEE80211_RATE_SIZE);
+		IEEE80211_VERIFY_ELEMENT(rates, IEEE80211_RATE_MAXSIZE);
 		IEEE80211_VERIFY_ELEMENT(ssid, IEEE80211_NWID_LEN);
 		if (ssid[1] != ic->ic_bss->ni_esslen ||
 		    memcmp(ssid + 2, ic->ic_bss->ni_essid, ssid[1]) != 0) {
@@ -1017,7 +1017,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0, int subtype,
 			frm += frm[1] + 2;
 		}
 
-		IEEE80211_VERIFY_ELEMENT(rates, IEEE80211_RATE_SIZE);
+		IEEE80211_VERIFY_ELEMENT(rates, IEEE80211_RATE_MAXSIZE);
 		ieee80211_setup_rates(ic, ni, rates, xrates,
 				IEEE80211_F_DOSORT | IEEE80211_F_DOFRATE |
 				IEEE80211_F_DONEGO | IEEE80211_F_DODEL);
