@@ -1,7 +1,5 @@
-#
-#
-#
+# Texinfo defaults.
+# $Id$
 
-
-INFODIR= /usr/share/info
+INFODIR?= /usr/share/info
 
