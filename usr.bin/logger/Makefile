@@ -2,6 +2,6 @@
 # $FreeBSD$
 
 PROG=	logger
-COPTS+=	-DINET6
+CFLAGS+=-DINET6
 
 .include <bsd.prog.mk>

@@ -8,8 +8,8 @@ SRCS=	inetd.c builtins.c
 MAN=	inetd.8
 MLINKS=	inetd.8 inetd.conf.5
 
-COPTS+=	-DLOGIN_CAP
-#COPTS+=	-DSANITY_CHECK
+CFLAGS+= -DLOGIN_CAP
+#CFLAGS+= -DSANITY_CHECK
 
 DPADD+=	${LIBUTIL} ${LIBWRAP}
 LDADD+=	-lutil -lwrap

@@ -22,11 +22,11 @@ LINKS+=	${BINDIR}/chpass ${BINDIR}/ypchsh
 MLINKS=	chpass.1 chfn.1 chpass.1 chsh.1
 MLINKS+= chpass.1 ypchpass.1 chpass.1 ypchfn.1 chpass.1 ypchsh.1
 
-COPTS+=	-DYP -I. -I${.CURDIR}/../../libexec/ypxfr \
+CFLAGS+=-DYP -I. -I${.CURDIR}/../../libexec/ypxfr \
 	-I${.CURDIR}/../../usr.sbin/rpc.yppasswdd -Dyp_error=warnx
 
 #Some people need this, uncomment to activate
-#COPTS+= -DRESTRICT_FULLNAME_CHANGE
+#CFLAGS+=-DRESTRICT_FULLNAME_CHANGE
 
 DPADD=	${LIBRPCSVC} ${LIBCRYPT} ${LIBMD}
 LDADD+=	-lrpcsvc -lcrypt -lmd

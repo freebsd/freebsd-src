@@ -28,7 +28,7 @@ DPADD=	${LIBIPX}
 LDADD=	-lipx
 .endif
 
-COPTS=	-DNS -Wall -Wmissing-prototypes -Wcast-qual -Wwrite-strings \
+CFLAGS+=-DNS -Wall -Wmissing-prototypes -Wcast-qual -Wwrite-strings \
 	-Wnested-externs -I..
 
 .include <bsd.prog.mk>
