@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=	cdboot dosboot kzipboot netboot rawboot
+SUBDIR=	cdboot dosboot kzipboot rawboot
 
 .include <bsd.subdir.mk>
