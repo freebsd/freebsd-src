@@ -475,6 +475,8 @@ icmp6_input(mp, offp, proto)
 		if (code != 0)
 			goto badcode;
 
+		/* validation is made in icmp6_mtudisc_update */
+
 		code = PRC_MSGSIZE;
 
 		/*
@@ -1140,7 +1142,7 @@ icmp6_mtudisc_update(ip6cp, validated)
 		    htons(m->m_pkthdr.rcvif->if_index);
 	}
 
-	if (mtu >= IPV6_MMTU) {
+	if (mtu < tcp_maxmtu6(&inc)) {
 		tcp_hc_updatemtu(&inc, mtu);
 		icmp6stat.icp6s_pmtuchg++;
 	}
