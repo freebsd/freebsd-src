@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.38 1997/04/26 19:26:37 peter Exp $
+ *	$Id: isa_device.h,v 1.39 1997/04/27 21:18:58 fsmp Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
@@ -171,13 +171,14 @@ void	isa_dmastart __P((int flags, caddr_t addr, u_int nbytes, int chan));
 int	isa_dma_acquire __P((int chan));
 void	isa_dma_release __P((int chan));
 int	isa_irq_pending __P((struct isa_device *dvp));
-/* this functions ONLY exists in an SMP/APIC_IO kernel: */
+/* this function ONLY exists in an SMP/APIC_IO kernel: */
 int	icu_irq_pending __P((struct isa_device *dvp));
 int	isa_nmi __P((int cd));
 void	reconfig_isadev __P((struct isa_device *isdp, u_int *mp));
-int	register_intr __P((int intr, int device_id, u_int flags,
-			   inthand2_t *handler, u_int *maskptr, int unit));
-int	unregister_intr __P((int intr, inthand2_t *handler));
+void	update_intrname __P((int intr, int device_id));
+int	icu_setup __P((int intr, inthand2_t *func, void *arg, 
+		       u_int *maskptr, int flags));
+int	icu_unset __P((int intr, inthand2_t *handler));
 int	update_intr_masks __P((void));
 
 #endif /* KERNEL */
