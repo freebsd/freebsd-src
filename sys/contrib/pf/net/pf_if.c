@@ -182,11 +182,12 @@ pfi_cleanup(void)
 	struct ifnet *ifp;
 
 	PF_ASSERT(MA_OWNED);
-	PF_UNLOCK();
 
+	PF_UNLOCK();
 	EVENTHANDLER_DEREGISTER(ifnet_arrival_event, pfi_attach_cookie);
 	EVENTHANDLER_DEREGISTER(ifnet_departure_event, pfi_detach_cookie);
 	EVENTHANDLER_DEREGISTER(if_clone_event, pfi_clone_cookie);
+	PF_LOCK();
 
 	IFNET_RLOCK();
 	/* release PFI_IFLAG_INSTANCE */
@@ -194,14 +195,13 @@ pfi_cleanup(void)
 		strlcpy(key.pfik_name, ifp->if_xname, sizeof(key.pfik_name));
 		p = RB_FIND(pfi_ifhead, &pfi_ifs, &key);
 		if (p != NULL) {
-			PF_LOCK();
+			IFNET_RUNLOCK();
 			pfi_detach_ifnet(ifp);
-			PF_UNLOCK();
+			IFNET_RLOCK();
 		}
 	}
 	IFNET_RUNLOCK();
 
-	PF_LOCK();
 	/* XXX clear all other interface group */
 	while ((p = RB_MIN(pfi_ifhead, &pfi_ifs))) {
 		RB_REMOVE(pfi_ifhead, &pfi_ifs, p);
