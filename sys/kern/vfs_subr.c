@@ -2286,8 +2286,10 @@ vgonel(struct vnode *vp, struct thread *td)
 	 * wait until it is done and return.
 	 */
 	ASSERT_VI_LOCKED(vp, "vgonel");
-	if (vx_waitl(vp))
+	if (vx_waitl(vp)) {
+		VI_UNLOCK(vp);
 		return;
+	}
 
 	vx_lock(vp);
 
