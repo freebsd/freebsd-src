@@ -29,6 +29,29 @@
  * $FreeBSD$
  */
 
+int DRM(irq_by_busid)( DRM_IOCTL_ARGS )
+{
+	DRM_DEVICE;
+	drm_irq_busid_t irq;
+
+	DRM_COPY_FROM_USER_IOCTL(irq, (drm_irq_busid_t *)data, sizeof(irq));
+
+	if ((irq.busnum >> 8) != dev->pci_domain ||
+	    (irq.busnum & 0xff) != dev->pci_bus ||
+	    irq.devnum != dev->pci_slot ||
+	    irq.funcnum != dev->pci_func)
+		return EINVAL;
+
+	irq.irq = dev->irq;
+
+	DRM_DEBUG("%d:%d:%d => IRQ %d\n",
+		  irq.busnum, irq.devnum, irq.funcnum, irq.irq);
+
+	DRM_COPY_TO_USER_IOCTL( (drm_irq_busid_t *)data, irq, sizeof(irq) );
+
+	return 0;
+}
+
 #if defined(__FreeBSD__) && __FreeBSD_version >= 500000
 static irqreturn_t
 DRM(irq_handler_wrap)(DRM_IRQ_ARGS)
@@ -41,22 +64,22 @@ DRM(irq_handler_wrap)(DRM_IRQ_ARGS)
 }
 #endif
 
-int DRM(irq_install)( drm_device_t *dev, int irq )
+int DRM(irq_install)(drm_device_t *dev)
 {
 	int retcode;
 
-	if ( irq == 0 || dev->dev_private == NULL)
+	if (dev->irq == 0 || dev->dev_private == NULL)
 		return DRM_ERR(EINVAL);
 
 	DRM_LOCK();
-	if ( dev->irq ) {
+	if (dev->irq_enabled) {
 		DRM_UNLOCK();
 		return DRM_ERR(EBUSY);
 	}
-	dev->irq = irq;
+	dev->irq_enabled = 1;
 	DRM_UNLOCK();
 
-	DRM_DEBUG( "%s: irq=%d\n", __FUNCTION__, irq );
+	DRM_DEBUG( "%s: irq=%d\n", __FUNCTION__, dev->irq );
 
 	dev->context_flag = 0;
 
@@ -69,31 +92,18 @@ int DRM(irq_install)( drm_device_t *dev, int irq )
 
 	DRM_SPININIT(dev->irq_lock, "DRM IRQ lock");
 
-#if __HAVE_VBL_IRQ && 0 /* disabled */
-	TAILQ_INIT( &dev->vbl_sig_list );
-#endif
-
 				/* Before installing handler */
 	DRM(driver_irq_preinstall)( dev );
 
 				/* Install handler */
-	dev->irqrid = 0;
 #ifdef __FreeBSD__
+	dev->irqrid = 0;
 	dev->irqr = bus_alloc_resource(dev->device, SYS_RES_IRQ, &dev->irqrid,
 				      0, ~0, 1, RF_SHAREABLE);
 	if (!dev->irqr) {
-#elif defined(__NetBSD__)
-	if (pci_intr_map(&dev->pa, &dev->ih) != 0) {
-#endif
-		DRM_LOCK();
-		DRM_SPINUNINIT(dev->irq_lock);
-		dev->irq = 0;
-		dev->irqrid = 0;
-		DRM_UNLOCK();
-		return ENOENT;
+		retcode = ENOENT;
+		goto err;
 	}
-	
-#ifdef __FreeBSD__
 #if __FreeBSD_version < 500000
 	retcode = bus_setup_intr(dev->device, dev->irqr, INTR_TYPE_TTY,
 				 DRM(irq_handler), dev, &dev->irqh);
@@ -101,45 +111,55 @@ int DRM(irq_install)( drm_device_t *dev, int irq )
 	retcode = bus_setup_intr(dev->device, dev->irqr, INTR_TYPE_TTY | INTR_MPSAFE,
 				 DRM(irq_handler_wrap), dev, &dev->irqh);
 #endif
-	if ( retcode ) {
+	if (retcode != 0)
+		goto err;
 #elif defined(__NetBSD__)
+	if (pci_intr_map(&dev->pa, &dev->ih) != 0) {
+		retcode = ENOENT;
+		goto err;
+	}
 	dev->irqh = pci_intr_establish(&dev->pa.pa_pc, dev->ih, IPL_TTY,
 	    (irqreturn_t (*)(DRM_IRQ_ARGS))DRM(irq_handler), dev);
-	if ( !dev->irqh ) {
-#endif
-		DRM_LOCK();
-#ifdef __FreeBSD__
-		bus_release_resource(dev->device, SYS_RES_IRQ, dev->irqrid, dev->irqr);
-#endif
-		DRM_SPINUNINIT(dev->irq_lock);
-		dev->irq = 0;
-		dev->irqrid = 0;
-		DRM_UNLOCK();
-		return retcode;
+	if (!dev->irqh) {
+		retcode = ENOENT;
+		goto err;
 	}
+#endif
 
 				/* After installing handler */
 	DRM(driver_irq_postinstall)( dev );
 
 	return 0;
+err:
+	DRM_LOCK();
+	dev->irq_enabled = 0;
+#ifdef ___FreeBSD__
+	if (dev->irqrid != 0) {
+		bus_release_resource(dev->device, SYS_RES_IRQ, dev->irqrid,
+		    dev->irqr);
+		dev->irqrid = 0;
+	}
+#endif
+	DRM_SPINUNINIT(dev->irq_lock);
+	DRM_UNLOCK();
+	return retcode;
 }
 
+/* XXX: This function needs to be called with the device lock held.  In some
+ * cases it isn't, so far.
+ */
 int DRM(irq_uninstall)( drm_device_t *dev )
 {
-	int irq;
 	int irqrid;
-	
-	DRM_LOCK();
-	irq = dev->irq;
-	irqrid = dev->irqrid;
-	dev->irq = 0;
-	dev->irqrid = 0;
-	DRM_UNLOCK();
 
-	if ( !irq )
+	if (!dev->irq_enabled)
 		return DRM_ERR(EINVAL);
 
-	DRM_DEBUG( "%s: irq=%d\n", __FUNCTION__, irq );
+	dev->irq_enabled = 0;
+	irqrid = dev->irqrid;
+	dev->irqrid = 0;
+
+	DRM_DEBUG( "%s: irq=%d\n", __FUNCTION__, dev->irq );
 
 	DRM(driver_irq_uninstall)( dev );
 
@@ -158,14 +178,21 @@ int DRM(control)( DRM_IOCTL_ARGS )
 {
 	DRM_DEVICE;
 	drm_control_t ctl;
+	int err;
 
 	DRM_COPY_FROM_USER_IOCTL( ctl, (drm_control_t *) data, sizeof(ctl) );
 
 	switch ( ctl.func ) {
 	case DRM_INST_HANDLER:
-		return DRM(irq_install)( dev, ctl.irq );
+		if (dev->if_version < DRM_IF_VERSION(1, 2) &&
+		    ctl.irq != dev->irq)
+			return DRM_ERR(EINVAL);
+		return DRM(irq_install)(dev);
 	case DRM_UNINST_HANDLER:
-		return DRM(irq_uninstall)( dev );
+		DRM_LOCK();
+		err = DRM(irq_uninstall)( dev );
+		DRM_UNLOCK();
+		return err;
 	default:
 		return DRM_ERR(EINVAL);
 	}
@@ -179,7 +206,7 @@ int DRM(wait_vblank)( DRM_IOCTL_ARGS )
 	struct timeval now;
 	int ret;
 
-	if (!dev->irq)
+	if (!dev->irq_enabled)
 		return DRM_ERR(EINVAL);
 
 	DRM_COPY_FROM_USER_IOCTL( vblwait, (drm_wait_vblank_t *)data,

@@ -119,6 +119,8 @@ typedef struct drm_file drm_file_t;
 #define DRM_MIN(a,b) ((a)<(b)?(a):(b))
 #define DRM_MAX(a,b) ((a)>(b)?(a):(b))
 
+#define DRM_IF_VERSION(maj, min) (maj << 16 | min)
+
 #define DRM_GET_PRIV_SAREA(_dev, _ctx, _map) do {	\
 	(_map) = (_dev)->context_sareas[_ctx];		\
 } while(0)
@@ -211,6 +213,9 @@ struct drm_file {
 	drm_magic_t	  magic;
 	unsigned long	  ioctl_count;
 	struct drm_device *devXX;
+#ifdef DRIVER_FILE_FIELDS
+	DRIVER_FILE_FIELDS;
+#endif
 };
 
 typedef struct drm_lock_data {
@@ -314,6 +319,7 @@ struct drm_device {
 	device_t	  device;	/* Device instance from newbus     */
 #endif
 	dev_t		  devnode;	/* Device number for mknod	   */
+	int		  if_version;	/* Highest interface version set */
 
 	int		  flags;	/* Flags to open(2)		   */
 
@@ -330,7 +336,6 @@ struct drm_device {
 				/* Usage Counters */
 	int		  open_count;	/* Outstanding files open	   */
 	int		  buf_use;	/* Buffers in use -- cannot alloc  */
-	int		  buf_alloc;	/* Buffer allocation in progress   */
 
 				/* Performance counters */
 	unsigned long     counters;
@@ -354,14 +359,21 @@ struct drm_device {
 
 				/* Context support */
 	int		  irq;		/* Interrupt used by board	   */
-	int		  irqrid;		/* Interrupt used by board	   */
+	int		  irq_enabled;	/* True if the irq handler is enabled */
 #ifdef __FreeBSD__
+	int		  irqrid;	/* Interrupt used by board */
 	struct resource   *irqr;	/* Resource for interrupt used by board	   */
 #elif defined(__NetBSD__)
 	struct pci_attach_args  pa;
 	pci_intr_handle_t	ih;
 #endif
 	void		  *irqh;	/* Handle from bus_setup_intr      */
+
+	int		  pci_domain;
+	int		  pci_bus;
+	int		  pci_slot;
+	int		  pci_func;
+
 	atomic_t	  context_flag;	/* Context swapping flag	   */
 	int		  last_context;	/* Last current context		   */
 #if __FreeBSD_version >= 400005
@@ -444,7 +456,7 @@ extern void	     DRM(reclaim_buffers)(drm_device_t *dev, DRMFILE filp);
 
 #if __HAVE_IRQ
 				/* IRQ support (drm_irq.h) */
-extern int           DRM(irq_install)( drm_device_t *dev, int irq );
+extern int	     DRM(irq_install)(drm_device_t *dev);
 extern int           DRM(irq_uninstall)( drm_device_t *dev );
 extern irqreturn_t   DRM(irq_handler)( DRM_IRQ_ARGS );
 extern void          DRM(driver_irq_preinstall)( drm_device_t *dev );
@@ -493,7 +505,7 @@ extern int		DRM(version)( DRM_IOCTL_ARGS );
 extern int		DRM(setversion)( DRM_IOCTL_ARGS );
 
 /* Misc. IOCTL support (drm_ioctl.h) */
-extern int		DRM(irq_busid)(DRM_IOCTL_ARGS);
+extern int		DRM(irq_by_busid)(DRM_IOCTL_ARGS);
 extern int		DRM(getunique)(DRM_IOCTL_ARGS);
 extern int		DRM(setunique)(DRM_IOCTL_ARGS);
 extern int		DRM(getmap)(DRM_IOCTL_ARGS);
