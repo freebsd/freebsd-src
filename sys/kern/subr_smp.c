@@ -45,6 +45,8 @@
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 
+#include <machine/smp.h>
+
 volatile u_int stopped_cpus;
 volatile u_int started_cpus;
 

@@ -50,6 +50,7 @@
 #include <machine/rpb.h>
 #include <machine/clock.h>
 #include <machine/prom.h>
+#include <machine/smp.h>
 
 /* Set to 1 once we're ready to let the APs out of the pen. */
 static volatile int aps_ready = 0;

@@ -66,6 +66,7 @@
 
 #include <machine/pcb.h>
 #include <machine/md_var.h>
+#include <machine/smp.h>
 
 #include <sys/signalvar.h>
 #ifdef DDB
