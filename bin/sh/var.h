@@ -71,9 +71,6 @@ struct localvar {
 
 struct localvar *localvars;
 
-#if ATTY
-extern struct var vatty;
-#endif
 extern struct var vifs;
 extern struct var vmail;
 extern struct var vmpath;
@@ -81,9 +78,6 @@ extern struct var vpath;
 extern struct var vppid;
 extern struct var vps1;
 extern struct var vps2;
-#if ATTY
-extern struct var vterm;
-#endif
 #ifndef NO_HISTORY
 extern struct var vhistsize;
 #endif
@@ -101,17 +95,11 @@ extern struct var vhistsize;
 #define pathval()	(vpath.text + 5)
 #define ps1val()	(vps1.text + 4)
 #define ps2val()	(vps2.text + 4)
-#if ATTY
-#define termval()	(vterm.text + 5)
-#endif
 #define optindval()	(voptind.text + 7)
 #ifndef NO_HISTORY
 #define histsizeval()	(vhistsize.text + 9)
 #endif
 
-#if ATTY
-#define attyset()	((vatty.flags & VUNSET) == 0)
-#endif
 #define mpathset()	((vmpath.flags & VUNSET) == 0)
 
 void initvar(void);
