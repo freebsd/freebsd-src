@@ -113,7 +113,8 @@ SUBDIR+=aac \
 	streams \
 	svr4 \
 	vesa \
-	wi
+	wi \
+	xe
 .endif
 
 .if ${MACHINE} == "pc98"
