@@ -13,11 +13,13 @@
  * 
  * ISBN 3-924521-59-X
  * 
- * $Id: calendar.geschichte,v 1.1 1996/01/29 00:34:13 wosch Exp $
+ * $Id: calendar.geschichte,v 1.2 1996/02/02 06:05:15 wosch Exp $
  */
 
 #ifndef _de_DE_ISO_8859_1_geschichte_
 #define _de_DE_ISO_8859_1_geschichte_
+
+LANG=de_DE.ISO_8859-1
 
 /* 1800-1933 */
 07/11 	Gründung der Rheinbundes, 1806
