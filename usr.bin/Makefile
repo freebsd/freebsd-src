@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.88 1997/08/18 18:51:46 jlemon Exp $
+#	$Id: Makefile,v 1.89 1997/09/17 20:46:58 joerg Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct units xsend
@@ -33,14 +33,9 @@ SUBDIR+=gprof4
 SUBDIR+=tclsh
 .endif
 
-.if !exists(${.CURDIR}/../eBones) || defined(NOSECURE) || !defined(MAKE_EBONES)
-SUBDIR+=telnet
-.else
-.if defined(RELEASEDIR)
+.if defined(RELEASEDIR) || !exists(${.CURDIR}/../kerberosIV) || defined(NOCRYPT) || !defined(MAKE_KERBEROS4)
 # releases do need both
 SUBDIR+=telnet
-.endif
-SUBDIR+= ../eBones/usr.bin/telnet
 .endif
 
 # Cmp, look and tail all use mmap, so new-VM only.
