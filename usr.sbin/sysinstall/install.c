@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.183 1997/05/05 05:16:02 pst Exp $
+ * $Id: install.c,v 1.184 1997/05/05 06:32:43 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -536,10 +536,6 @@ installNovice(dialogMenuItem *self)
 	variable_set2("nfs_client", "YES");
 
     dialog_clear_norefresh();
-    if (!msgYesNo("Do you want to configure this machine as a WEB server?"))
-	configApache(self);
-
-    dialog_clear_norefresh();
     if (!msgYesNo("Would you like to customize your system console settings?")) {
 	WINDOW *w = savescr();
 
@@ -980,7 +976,6 @@ installVarDefaults(dialogMenuItem *self)
     variable_set2(VAR_FTP_STATE,		"passive");
     variable_set2(VAR_NFS_SECURE,		"YES");
     variable_set2(VAR_PKG_TMPDIR,		"/usr/tmp");
-    variable_set2(VAR_APACHE_PKG,		PACKAGE_APACHE);
     variable_set2(VAR_SAMBA_PKG,		PACKAGE_SAMBA);
     variable_set2(VAR_GATED_PKG,		PACKAGE_GATED);
     variable_set2(VAR_PCNFSD_PKG,		PACKAGE_PCNFSD);

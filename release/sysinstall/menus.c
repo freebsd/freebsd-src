@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.131 1997/04/20 16:46:32 jkh Exp $
+ * $Id: menus.c,v 1.132 1997/05/14 07:12:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -285,7 +285,6 @@ DMenu MenuIndex = {
       { "Upgrade",		"Upgrade an existing system.",		NULL, installUpgrade },
       { "Usage",		"Quick start - How to use this menu system.",	NULL, dmenuDisplayFile, NULL, "usage" },
       { "User Management",	"Add user and group information.",	NULL, dmenuSubmenu, NULL, &MenuUsermgmt },
-      { "WEB Server",		"Configure host as a WWW server.",	dmenuVarCheck, configApache, NULL, "apache_httpd" },
 #ifndef USE_XIG_ENVIRONMENT
       { "XFree86, Fonts",	"XFree86 Font selection menu.",		NULL, dmenuSubmenu, NULL, &MenuXF86SelectFonts },
       { "XFree86, Server",	"XFree86 Server selection menu.",	NULL, dmenuSubmenu, NULL, &MenuXF86SelectServer },
@@ -1150,8 +1149,6 @@ DMenu MenuNetworking = {
 	dmenuVarCheck,	dmenuToggleVariable, NULL, "rwhod=YES" },
       { "Anon FTP",	"This machine wishes to allow anonymous FTP.",
 	dmenuVarCheck, configAnonFTP, NULL, "anon_ftp" },
-      { "WEB Server",	"This machine wishes to be a WWW server.",
-	dmenuVarCheck, configApache, NULL, "apache_httpd" },
       { "Samba",	"Install Samba for LanManager (NETBUI) access.",
 	dmenuVarCheck, configSamba, NULL, "samba" },
       { "PCNFSD",	"Run authentication server for clients with PC-NFS.",

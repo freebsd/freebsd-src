@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.127 1997/05/05 06:32:44 jkh Exp $
+ * $Id: sysinstall.h,v 1.128 1997/05/22 00:13:58 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -56,7 +56,6 @@
 
 /* Different packages we depend on - update this when package version change! */
 #define PACKAGE_GATED	"gated-3.5b3"
-#define PACKAGE_APACHE	"apache-1.2b10"
 #define PACKAGE_NETCON	"commerce/netcon/bsd61"
 #define PACKAGE_PCNFSD	"pcnfsd-93.02.16"
 #define PACKAGE_SAMBA	"samba-1.9.16p11"
@@ -90,7 +89,6 @@
 #define TCP_CONFIGURED			"_tcpConfigured"
 
 /* Ones that can be tweaked from config files */
-#define VAR_APACHE_PKG			"apache_pkg"
 #define VAR_BLANKTIME			"blanktime"
 #define VAR_BOOTMGR			"bootManager"
 #define VAR_BROWSER_BINARY		"browserBinary"
@@ -388,9 +386,6 @@ extern void display_helpfile(void);
 extern void display_helpline(WINDOW *w, int y, int width);
 
 /*** Prototypes ***/
-
-/* apache.c */
-extern int	configApache(dialogMenuItem *self);
 
 /* anonFTP.c */
 extern int	configAnonFTP(dialogMenuItem *self);
