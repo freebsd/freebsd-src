@@ -58,11 +58,11 @@ static const char rcsid[] =
 typedef struct _list {
 	struct _list *next;
 	int fd;
-	char *name;
+	const char *name;
 } LIST;
 LIST *head;
 
-void add __P((int, char *));
+void add __P((int, const char *));
 static void usage __P((void));
 
 int
@@ -134,7 +134,7 @@ usage()
 void
 add(fd, name)
 	int fd;
-	char *name;
+	const char *name;
 {
 	LIST *p;
 

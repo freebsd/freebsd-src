@@ -51,11 +51,12 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <vis.h>
 
-void process __P((FILE *, char *));
+void process __P((FILE *, const char *));
 static void usage __P((void));
 
 int
 main(argc, argv)
+	int argc;
 	char *argv[];
 {
 	FILE *fp;
@@ -93,7 +94,7 @@ usage()
 void
 process(fp, filename)
 	FILE *fp;
-	char *filename;
+	const char *filename;
 {
 	register int offset = 0, c, ret;
 	int state = 0;
