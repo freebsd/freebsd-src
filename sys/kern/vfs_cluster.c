@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id$
+ * $Id: vfs_cluster.c,v 1.3 1994/08/02 07:43:17 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -696,7 +696,7 @@ redo:
 
 		tbp->b_bufsize -= size;
 		tbp->b_flags &= ~(B_READ | B_DONE | B_ERROR | B_DELWRI);
-		tbp->b_flags |= (B_ASYNC | B_AGE);
+		tbp->b_flags |= B_ASYNC;
 		s = splbio();
 		reassignbuf(tbp, tbp->b_vp);		/* put on clean list */
 		++tbp->b_vp->v_numoutput;
