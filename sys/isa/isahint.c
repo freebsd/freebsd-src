@@ -57,14 +57,16 @@ isahint_add_device(device_t parent, const char *name, int unit)
 
 	start = 0;
 	count = 0;
-	if ((resource_int_value(name, unit, "port", &start) == 0 && start > 0)
-	    || (resource_int_value(name, unit, "portsize", &count) == 0 && count > 0))
+	resource_int_value(name, unit, "port", &start);
+	resource_int_value(name, unit, "portsize", &count);
+	if (start > 0 || count > 0)
 		bus_set_resource(child, SYS_RES_IOPORT, 0, start, count);
 
 	start = 0;
 	count = 0;
-	if ((resource_int_value(name, unit, "maddr", &start) == 0 && start > 0)
-	    || (resource_int_value(name, unit, "msize", &count) == 0 && count > 0))
+	resource_int_value(name, unit, "maddr", &start);
+	resource_int_value(name, unit, "msize", &count);
+	if (start > 0 || count > 0)
 		bus_set_resource(child, SYS_RES_MEMORY, 0, start, count);
 
 	if (resource_int_value(name, unit, "irq", &start) == 0 && start > 0)
