@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char *rcsid = "$Id: yplib.c,v 1.9 1995/05/03 18:33:10 wpaul Exp $";
+static char *rcsid = "$Id: yplib.c,v 1.10 1995/05/30 05:42:15 rgrimes Exp $";
 #endif
 
 #include <sys/param.h>
@@ -835,7 +835,7 @@ unsigned int incode;
 	case YP_NOMAP:
 		return YPERR_MAP;
 	case YP_NODOM:
-		return YPERR_NODOM;
+		return YPERR_DOMAIN;
 	case YP_NOKEY:
 		return YPERR_KEY;
 	case YP_BADOP:
