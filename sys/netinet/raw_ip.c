@@ -328,6 +328,16 @@ rip_output(m, so, dst)
 
 /*
  * Raw IP socket option processing.
+ *
+ * Note that access to all of the IP administrative functions here is
+ * implicitly protected by suser() as gaining access to a raw socket
+ * requires either that the thread pass a suser() check, or that it be
+ * passed a raw socket by another thread that has passed a suser() check.
+ * If FreeBSD moves to a more fine-grained access control mechanism,
+ * additional checks will need to be placed here if the raw IP attachment
+ * check is not equivilent the the check required for these
+ * administrative operations; in some cases, these checks are already
+ * present.
  */
 int
 rip_ctloutput(so, sopt)
