@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.12 1998/07/10 22:30:08 jkh Exp $
+	$Id: syscalls.master,v 1.13 1998/12/19 02:55:33 julian Exp $
 
 ;	@(#)syscalls.master	8.1 (Berkeley) 7/19/93
 ; System call name/number master file (or rather, slave, from LINUX).
@@ -239,7 +239,8 @@
 165	UNIMPL	LINUX	getresuid
 166	UNIMPL	LINUX	new_vm86
 167	UNIMPL	LINUX	query_module
-168	UNIMPL	LINUX	poll
+168	UNIMPL	LINUX	{ int poll(struct pollfd*, unsigned int nfds, \
+				   long timeout); }
 169	UNIMPL	LINUX	nfsservctl
 170	UNIMPL	LINUX	setresgid
 171	UNIMPL	LINUX	getresgid
