@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.89 1994/09/28 22:57:24 wollman Exp $
+#	$Id: LINT,v 1.90 1994/10/01 05:43:09 davidg Exp $
 #
 
 machine		"i386"
@@ -131,7 +131,7 @@ controller	isa0
 device		pci0
 
 #Driver for Advaced Power Management (also need options APM)
-device		apm0	isa?
+device		apm0	at isa?
 
 # driver for the Adaptec 154x SCSI cards.
 controller	aha0	at isa? port "IO_AHA0" bio irq 11 drq 5 vector ahaintr
