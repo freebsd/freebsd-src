@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 29, 1994
+.Dd November 8, 2003
 .Dt AIC 4 i386
 .Os
 .Sh NAME
@@ -39,12 +39,24 @@ In
 The
 .Nm
 driver provides support for the Adaptec AIC-6260 and AIC-6360 SCSI
-controller chips.  This includes the Adaptec 152x and the Creative
-Labs SoundBlaster SCSI host adapter.
+controller chips.
+This includes the Adaptec AHA-1510, AHA-152x, AHA-1535 and the
+Creative Labs SoundBlaster SCSI host adapter on the ISA bus.
+The AHA-1460, AHA-1460B, AHA-1460C and AHA-1460D PC Card cards are
+also supported by this driver.
 .Pp
 Many systems that use these controller chips do not have a boot ROM
 and therefore cannot be booted from.
+.Sh BUGS
+The driver does not work well with multiple devices on the SCSI bus.
+The driver works well with devices like CDROMs and Tape drives.
+The driver works not so well with disk drives.
+The PC Card version appears to work better than the ISA version, but
+that may be due to differing levels of testing of the devices.
 .Sh SEE ALSO
+.Xr aha 4 ,
+.Xr ahb 4 ,
+.Xr ahc 4 ,
 .Xr cd 4 ,
 .Xr ch 4 ,
 .Xr da 4 ,
