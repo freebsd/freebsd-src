@@ -2,7 +2,7 @@
  *
  * Module Name: evxfregn - External Interfaces, ACPI Operation Regions and
  *                         Address Spaces.
- *              $Revision: 24 $
+ *              $Revision: 26 $
  *
  *****************************************************************************/
 
@@ -10,8 +10,8 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, Intel Corp.  All rights
- * reserved.
+ * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * All rights reserved.
  *
  * 2. License
  *
@@ -464,7 +464,7 @@ AcpiRemoveAddressSpaceHandler (
                  *  The region is just inaccessible as indicated to
                  *  the _REG method
                  */
-                AcpiEvDisassociateRegionFromHandler(RegionObj);
+                AcpiEvDisassociateRegionFromHandler(RegionObj, FALSE);
 
                 /*
                  *  Walk the list, since we took the first region and it

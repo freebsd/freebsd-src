@@ -2,7 +2,7 @@
  *
  * Module Name: evevent - Fixed and General Purpose AcpiEvent
  *                          handling and dispatch
- *              $Revision: 30 $
+ *              $Revision: 32 $
  *
  *****************************************************************************/
 
@@ -10,8 +10,8 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, Intel Corp.  All rights
- * reserved.
+ * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * All rights reserved.
  *
  * 2. License
  *
@@ -504,10 +504,10 @@ AcpiEvGpeInitialize (void)
     for (i = 0; i < Gpe0RegisterCount; i++)
     {
         AcpiGbl_GpeRegisters[RegisterIndex].StatusAddr  =
-                    (UINT16) (AcpiGbl_FADT->XGpe0Blk.Address + i);
+                    (UINT16) (ACPI_GET_ADDRESS (AcpiGbl_FADT->XGpe0Blk.Address) + i);
 
         AcpiGbl_GpeRegisters[RegisterIndex].EnableAddr  =
-                    (UINT16) (AcpiGbl_FADT->XGpe0Blk.Address + i + Gpe0RegisterCount);
+                    (UINT16) (ACPI_GET_ADDRESS (AcpiGbl_FADT->XGpe0Blk.Address) + i + Gpe0RegisterCount);
 
         AcpiGbl_GpeRegisters[RegisterIndex].GpeBase     = (UINT8) MUL_8 (i);
 
@@ -533,10 +533,10 @@ AcpiEvGpeInitialize (void)
     for (i = 0; i < Gpe1RegisterCount; i++)
     {
         AcpiGbl_GpeRegisters[RegisterIndex].StatusAddr  =
-                    (UINT16) (AcpiGbl_FADT->XGpe1Blk.Address + i);
+                    (UINT16) (ACPI_GET_ADDRESS (AcpiGbl_FADT->XGpe1Blk.Address) + i);
 
         AcpiGbl_GpeRegisters[RegisterIndex].EnableAddr  =
-                    (UINT16) (AcpiGbl_FADT->XGpe1Blk.Address + i + Gpe1RegisterCount);
+                    (UINT16) (ACPI_GET_ADDRESS (AcpiGbl_FADT->XGpe1Blk.Address) + i + Gpe1RegisterCount);
 
         AcpiGbl_GpeRegisters[RegisterIndex].GpeBase     =
                     (UINT8) (AcpiGbl_FADT->Gpe1Base + MUL_8 (i));
@@ -812,8 +812,8 @@ AcpiEvAsynchExecuteGpeMethod (
 
     FUNCTION_TRACE ("EvAsynchExecuteGpeMethod");
 
-    /* 
-     * Take a snapshot of the GPE info for this level 
+    /*
+     * Take a snapshot of the GPE info for this level
      */
     AcpiCmAcquireMutex (ACPI_MTX_EVENTS);
     GpeInfo = AcpiGbl_GpeInfo [GpeNumber];
@@ -877,9 +877,9 @@ AcpiEvGpeDispatch (
 
     /*DEBUG_INCREMENT_EVENT_COUNT (EVENT_GENERAL);*/
 
-    /* 
+    /*
      * Valid GPE number?
-     */ 
+     */
     if (AcpiGbl_GpeValid[GpeNumber] == ACPI_GPE_INVALID)
     {
         DEBUG_PRINT (ACPI_ERROR, ("Invalid GPE bit [%X].\n", GpeNumber));
@@ -899,7 +899,7 @@ AcpiEvGpeDispatch (
          * If edge-triggered, clear the GPE status bit now.  Note that
          * level-triggered events are cleared after the GPE is serviced.
          */
-        if (GpeInfo.Type & ACPI_EVENT_EDGE_TRIGGERED) 
+        if (GpeInfo.Type & ACPI_EVENT_EDGE_TRIGGERED)
     {
                 AcpiHwClearGpe (GpeNumber);
         }
@@ -907,13 +907,13 @@ AcpiEvGpeDispatch (
         /*
          * Function Handler (e.g. EC)?
          */
-        if (GpeInfo.Handler) 
+        if (GpeInfo.Handler)
     {
                 /* Invoke function handler (at interrupt level). */
                 GpeInfo.Handler (GpeInfo.Context);
 
                 /* Level-Triggered? */
-                if (GpeInfo.Type & ACPI_EVENT_LEVEL_TRIGGERED) 
+                if (GpeInfo.Type & ACPI_EVENT_LEVEL_TRIGGERED)
         {
                         AcpiHwClearGpe (GpeNumber);
                 }
@@ -926,7 +926,7 @@ AcpiEvGpeDispatch (
          */
         else if (GpeInfo.MethodHandle)
     {
-                if (ACPI_FAILURE(AcpiOsQueueForExecution (OSD_PRIORITY_GPE, 
+                if (ACPI_FAILURE(AcpiOsQueueForExecution (OSD_PRIORITY_GPE,
             AcpiEvAsynchExecuteGpeMethod, (void*)(NATIVE_UINT)GpeNumber)))
                 {
                         /*
@@ -940,12 +940,12 @@ AcpiEvGpeDispatch (
         /*
          * No Handler? Report an error and leave the GPE disabled.
          */
-        else 
+        else
     {
                 REPORT_ERROR (("AcpiEvGpeDispatch: No installed handler for GPE [%X]\n", GpeNumber));
 
                 /* Level-Triggered? */
-                if (GpeInfo.Type & ACPI_EVENT_LEVEL_TRIGGERED) 
+                if (GpeInfo.Type & ACPI_EVENT_LEVEL_TRIGGERED)
         {
                         AcpiHwClearGpe (GpeNumber);
                 }

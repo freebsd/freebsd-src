@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: amprep - ACPI AML (p-code) execution - field prep utilities
- *              $Revision: 69 $
+ *              $Revision: 72 $
  *
  *****************************************************************************/
 
@@ -10,8 +10,8 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, Intel Corp.  All rights
- * reserved.
+ * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * All rights reserved.
  *
  * 2. License
  *
@@ -142,13 +142,29 @@
 
 static UINT32
 AcpiAmlDecodeFieldAccessType (
-    UINT32                  Access)
+    UINT32                  Access,
+    UINT16                  Length)
 {
 
     switch (Access)
     {
     case ACCESS_ANY_ACC:
-        return (8);
+        if (Length <= 8)
+        {
+            return (8);
+        }
+        else if (Length <= 16)
+        {
+            return (16);
+        }
+        else if (Length <= 32)
+        {
+            return (32);
+        }
+        else
+        {
+            return (8);
+        }
         break;
 
     case ACCESS_BYTE_ACC:
@@ -229,7 +245,7 @@ AcpiAmlPrepCommonFieldObject (
 
     /* Decode the access type so we can compute offsets */
 
-    Granularity = AcpiAmlDecodeFieldAccessType (ObjDesc->Field.Access);
+    Granularity = AcpiAmlDecodeFieldAccessType (ObjDesc->Field.Access, ObjDesc->Field.Length);
     if (!Granularity)
     {
         return_ACPI_STATUS (AE_AML_OPERAND_VALUE);

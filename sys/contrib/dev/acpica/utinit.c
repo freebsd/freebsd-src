@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: cminit - Common ACPI subsystem initialization
- *              $Revision: 89 $
+ *              $Revision: 91 $
  *
  *****************************************************************************/
 
@@ -9,8 +9,8 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, Intel Corp.  All rights
- * reserved.
+ * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * All rights reserved.
  *
  * 2. License
  *
@@ -146,7 +146,7 @@
 static ACPI_STATUS
 AcpiCmFadtRegisterError (
     NATIVE_CHAR             *RegisterName,
-    UINT64                  Value)
+    UINT32                  Value)
 {
 
     REPORT_ERROR (
@@ -191,28 +191,28 @@ AcpiCmValidateFadt (
     if (!AcpiGbl_FADT->Pm1CntLen)
     {
         Status = AcpiCmFadtRegisterError ("PM1_CNT_LEN",
-                        (UINT32) AcpiGbl_FADT->Pm1CntLen);
+                        0);
     }
 
-    if (!AcpiGbl_FADT->XPm1aEvtBlk.Address)
+    if (!ACPI_VALID_ADDRESS (AcpiGbl_FADT->XPm1aEvtBlk.Address))
     {
         Status = AcpiCmFadtRegisterError ("PM1a_EVT_BLK",
-                        AcpiGbl_FADT->XPm1aEvtBlk.Address);
+                        0);
     }
 
-    if (!AcpiGbl_FADT->XPm1aCntBlk.Address)
+    if (!ACPI_VALID_ADDRESS (AcpiGbl_FADT->XPm1aCntBlk.Address))
     {
         Status = AcpiCmFadtRegisterError ("PM1a_CNT_BLK",
-                        AcpiGbl_FADT->XPm1aCntBlk.Address);
+                        0);
     }
 
-    if (!AcpiGbl_FADT->XPmTmrBlk.Address)
+    if (!ACPI_VALID_ADDRESS (AcpiGbl_FADT->XPmTmrBlk.Address))
     {
         Status = AcpiCmFadtRegisterError ("PM_TMR_BLK",
-                        AcpiGbl_FADT->XPmTmrBlk.Address);
+                        0);
     }
 
-    if ((AcpiGbl_FADT->XPm2CntBlk.Address &&
+    if ((ACPI_VALID_ADDRESS (AcpiGbl_FADT->XPm2CntBlk.Address) &&
         !AcpiGbl_FADT->Pm2CntLen))
     {
         Status = AcpiCmFadtRegisterError ("PM2_CNT_LEN",
@@ -228,14 +228,14 @@ AcpiCmValidateFadt (
     /* length of GPE blocks must be a multiple of 2 */
 
 
-    if (AcpiGbl_FADT->XGpe0Blk.Address &&
+    if (ACPI_VALID_ADDRESS (AcpiGbl_FADT->XGpe0Blk.Address) &&
         (AcpiGbl_FADT->Gpe0BlkLen & 1))
     {
         Status = AcpiCmFadtRegisterError ("GPE0_BLK_LEN",
                         (UINT32) AcpiGbl_FADT->Gpe0BlkLen);
     }
 
-    if (AcpiGbl_FADT->XGpe1Blk.Address &&
+    if (ACPI_VALID_ADDRESS (AcpiGbl_FADT->XGpe1Blk.Address) &&
         (AcpiGbl_FADT->Gpe1BlkLen & 1))
     {
         Status = AcpiCmFadtRegisterError ("GPE1_BLK_LEN",

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dswstate - Dispatcher parse tree walk management routines
- *              $Revision: 35 $
+ *              $Revision: 36 $
  *
  *****************************************************************************/
 
@@ -9,8 +9,8 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, Intel Corp.  All rights
- * reserved.
+ * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * All rights reserved.
  *
  * 2. License
  *
@@ -210,7 +210,6 @@ AcpiDsResultInsert (
 
     return (AE_OK);
 }
-
 
 
 /*******************************************************************************
@@ -415,11 +414,10 @@ AcpiDsResultPopFromBottom (
         ("DsResultPopFromBottom: Obj=%p [%s], Results=%p State=%p\n",
         *Object, (*Object) ? AcpiCmGetTypeName ((*Object)->Common.Type) : "NULL",
         State, WalkState));
-    
-    
+
+
     return (AE_OK);
 }
-
 
 
 /*******************************************************************************
@@ -479,8 +477,6 @@ AcpiDsResultPush (
 }
 
 
-
-
 /*******************************************************************************
  *
  * FUNCTION:    AcpiDsResultStackPush
@@ -490,7 +486,7 @@ AcpiDsResultPush (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: 
+ * DESCRIPTION:
  *
  ******************************************************************************/
 
@@ -500,7 +496,7 @@ AcpiDsResultStackPush (
 {
     ACPI_GENERIC_STATE      *State;
 
-    
+
     State = AcpiCmCreateGenericState ();
     if (!State)
     {
@@ -508,7 +504,7 @@ AcpiDsResultStackPush (
     }
 
     AcpiCmPushGenericState (&WalkState->Results, State);
-    
+
     DEBUG_PRINT (TRACE_EXEC,
         ("DsResultStackPush: Results=%p State=%p\n",
         State, WalkState));
@@ -525,7 +521,7 @@ AcpiDsResultStackPush (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: 
+ * DESCRIPTION:
  *
  ******************************************************************************/
 
@@ -557,8 +553,6 @@ AcpiDsResultStackPop (
 
     return (AE_OK);
 }
-
-
 
 
 /*******************************************************************************
@@ -1093,7 +1087,6 @@ AcpiDsDeleteWalkState (
 
         AcpiCmDeleteGenericState (State);
     }
-
 
 
     /* If walk cache is full, just free this wallkstate object */

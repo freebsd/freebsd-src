@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psargs - Parse AML opcode arguments
- *              $Revision: 40 $
+ *              $Revision: 42 $
  *
  *****************************************************************************/
 
@@ -9,8 +9,8 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, Intel Corp.  All rights
- * reserved.
+ * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * All rights reserved.
  *
  * 2. License
  *
@@ -528,7 +528,7 @@ AcpiPsGetNextNamepath (
     /*
      * Either we didn't find the object in the namespace, or the object is
      * something other than a control method.  Just initialize the Op with the
-     * pathname
+     * pathname.
      */
 
     AcpiPsInitOp (Arg, AML_NAMEPATH_OP);
