@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.2 1998/03/06 00:28:04 jdp Exp $
+# $Id: Makefile,v 1.3 1998/03/12 02:55:43 jdp Exp $
 #
 
 .include "../Makefile.inc0"
@@ -13,6 +13,9 @@ CFLAGS+=	-I${SRCDIR}/binutils
 LDADD+=		-L${RELTOP}/libbinutils -lbinutils
 LDADD+=		-L${RELTOP}/libbfd -lbfd
 LDADD+=		-L${RELTOP}/libiberty -liberty
+DPADD+=		${RELTOP}/libbinutils/libbinutils.a
+DPADD+=		${RELTOP}/libbfd/libbfd.a
+DPADD+=		${RELTOP}/libiberty/libiberty.a
 CLEANFILES+=	maybe_stripped
 
 all: maybe_stripped
