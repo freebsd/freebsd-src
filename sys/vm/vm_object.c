@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.25 1995/02/21 01:22:47 davidg Exp $
+ * $Id: vm_object.c,v 1.26 1995/02/22 09:15:28 davidg Exp $
  */
 
 /*
@@ -471,7 +471,6 @@ vm_object_terminate(object)
  *
  *	The object must be locked.
  */
-#if 1
 boolean_t
 vm_object_page_clean(object, start, end, syncio, de_queue)
 	register vm_object_t object;
@@ -526,145 +525,6 @@ again:
 	wakeup((caddr_t) object);
 	return 1;
 }
-#endif
-/*
- *	vm_object_page_clean
- *
- *	Clean all dirty pages in the specified range of object.
- *	If syncio is TRUE, page cleaning is done synchronously.
- *	If de_queue is TRUE, pages are removed from any paging queue
- *	they were on, otherwise they are left on whatever queue they
- *	were on before the cleaning operation began.
- *
- *	Odd semantics: if start == end, we clean everything.
- *
- *	The object must be locked.
- *
- *	Returns TRUE if all was well, FALSE if there was a pager error
- *	somewhere.  We attempt to clean (and dequeue) all pages regardless
- *	of where an error occurs.
- */
-#if 0
-boolean_t
-vm_object_page_clean(object, start, end, syncio, de_queue)
-	register vm_object_t object;
-	register vm_offset_t start;
-	register vm_offset_t end;
-	boolean_t syncio;
-	boolean_t de_queue;
-{
-	register vm_page_t p;
-	int onqueue;
-	boolean_t noerror = TRUE;
-
-	if (object == NULL)
-		return (TRUE);
-
-	/*
-	 * If it is an internal object and there is no pager, attempt to
-	 * allocate one.  Note that vm_object_collapse may relocate one from a
-	 * collapsed object so we must recheck afterward.
-	 */
-	if ((object->flags & OBJ_INTERNAL) && object->pager == NULL) {
-		vm_object_collapse(object);
-		if (object->pager == NULL) {
-			vm_pager_t pager;
-
-			vm_object_unlock(object);
-			pager = vm_pager_allocate(PG_DFLT, (caddr_t) 0,
-			    object->size, VM_PROT_ALL,
-			    (vm_offset_t) 0);
-			if (pager)
-				vm_object_setpager(object, pager, 0, FALSE);
-			vm_object_lock(object);
-		}
-	}
-	if (object->pager == NULL)
-		return (FALSE);
-
-again:
-	/*
-	 * Wait until the pageout daemon is through with the object.
-	 */
-	while (object->paging_in_progress) {
-		vm_object_sleep((int) object, object, FALSE);
-		vm_object_lock(object);
-	}
-	/*
-	 * Loop through the object page list cleaning as necessary.
-	 */
-	for (p = object->memq.tqh_first; p != NULL; p = p->listq.tqe_next) {
-		onqueue = 0;
-		if ((start == end || p->offset >= start && p->offset < end) &&
-		    !(p->flags & PG_FICTITIOUS)) {
-			vm_page_test_dirty(p);
-			/*
-			 * Remove the page from any paging queue. This needs
-			 * to be done if either we have been explicitly asked
-			 * to do so or it is about to be cleaned (see comment
-			 * below).
-			 */
-			if (de_queue || (p->dirty & p->valid)) {
-				vm_page_lock_queues();
-				if (p->flags & PG_ACTIVE) {
-					TAILQ_REMOVE(&vm_page_queue_active,
-					    p, pageq);
-					p->flags &= ~PG_ACTIVE;
-					cnt.v_active_count--;
-					onqueue = 1;
-				} else if (p->flags & PG_INACTIVE) {
-					TAILQ_REMOVE(&vm_page_queue_inactive,
-					    p, pageq);
-					p->flags &= ~PG_INACTIVE;
-					cnt.v_inactive_count--;
-					onqueue = -1;
-				} else
-					onqueue = 0;
-				vm_page_unlock_queues();
-			}
-			/*
-			 * To ensure the state of the page doesn't change
-			 * during the clean operation we do two things. First
-			 * we set the busy bit and write-protect all mappings
-			 * to ensure that write accesses to the page block (in
-			 * vm_fault).  Second, we remove the page from any
-			 * paging queue to foil the pageout daemon
-			 * (vm_pageout_scan).
-			 */
-			pmap_page_protect(VM_PAGE_TO_PHYS(p), VM_PROT_READ);
-			if (p->dirty & p->valid) {
-				p->flags |= PG_BUSY;
-				object->paging_in_progress++;
-				vm_object_unlock(object);
-				/*
-				 * XXX if put fails we mark the page as clean
-				 * to avoid an infinite loop. Will loose
-				 * changes to the page.
-				 */
-				if (vm_pager_put(object->pager, p, syncio)) {
-					printf("%s: pager_put error\n",
-					    "vm_object_page_clean");
-					p->dirty = 0;
-					noerror = FALSE;
-				}
-				vm_object_lock(object);
-				object->paging_in_progress--;
-				if (!de_queue && onqueue) {
-					vm_page_lock_queues();
-					if (onqueue > 0)
-						vm_page_activate(p);
-					else
-						vm_page_deactivate(p);
-					vm_page_unlock_queues();
-				}
-				PAGE_WAKEUP(p);
-				goto again;
-			}
-		}
-	}
-	return (noerror);
-}
-#endif
 
 /*
  *	vm_object_deactivate_pages
@@ -1462,10 +1322,6 @@ vm_object_collapse(object)
 				    object, reverse_shadow_list);
 
 			object->shadow_offset += backing_object->shadow_offset;
-			if (object->shadow != NULL &&
-			    object->shadow->copy != NULL) {
-				panic("vm_object_collapse: we collapsed a copy-object!");
-			}
 			/*
 			 * Discard backing_object.
 			 * 
