@@ -240,6 +240,7 @@ static device_method_t isp_pci_methods[] = {
 	DEVMETHOD(device_attach,	isp_pci_attach),
 	{ 0, 0 }
 };
+static void isp_pci_intr __P((void *));
 
 static driver_t isp_pci_driver = {
 	"isp", isp_pci_methods, sizeof (struct isp_pcisoftc)
@@ -576,11 +577,26 @@ isp_pci_attach(device_t dev)
 	}
 	isp_debug = 0;
 	(void) getenv_int("isp_debug", &isp_debug);
-	if (bus_setup_intr(dev, irq, INTR_TYPE_CAM, (void (*)(void *))isp_intr,
-	    isp, &pcs->ih)) {
+
+#ifdef	ISP_SMPLOCK
+	/* Make sure the lock is set up. */
+	mtx_init(&isp->isp_osinfo.lock, "isp", MTX_DEF);
+	locksetup++;
+#endif
+
+#ifdef	ISP_SMPLOCK
+	if (bus_setup_intr(dev, irq, INTR_TYPE_CAM | INTR_MPSAFE,
+	    isp_pci_intr, isp, &pcs->ih)) {
 		device_printf(dev, "could not setup interrupt\n");
 		goto bad;
 	}
+#else
+	if (bus_setup_intr(dev, irq, INTR_TYPE_CAM,
+	    isp_pci_intr, isp, &pcs->ih)) {
+		device_printf(dev, "could not setup interrupt\n");
+		goto bad;
+	}
+#endif
 
 	/*
 	 * Set up logging levels.
@@ -592,12 +608,6 @@ isp_pci_attach(device_t dev)
 	}
 	if (bootverbose)
 		isp->isp_dblev |= ISP_LOGCONFIG|ISP_LOGINFO;
-
-#ifdef	ISP_SMPLOCK
-	/* Make sure the lock is set up. */
-	mtx_init(&isp->isp_osinfo.lock, "isp", MTX_DEF);
-	locksetup++;
-#endif
 
 	/*
 	 * Make sure we're in reset state.
@@ -666,6 +676,15 @@ bad:
 	 * XXXX: (or decrease the reference count to it).
 	 */
 	return (ENXIO);
+}
+
+static void
+isp_pci_intr(void *arg)
+{
+	struct ispsoftc *isp = arg;
+	ISP_LOCK(isp);
+	(void) isp_intr(isp);
+	ISP_UNLOCK(isp);
 }
 
 static u_int16_t
