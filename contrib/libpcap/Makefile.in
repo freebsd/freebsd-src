@@ -17,7 +17,7 @@
 #  WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 #  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-# @(#) $Header: Makefile.in,v 1.67 96/07/23 22:59:40 leres Exp $ (LBL)
+# @(#) $Header: Makefile.in,v 1.68 96/09/26 21:53:37 leres Exp $ (LBL)
 
 #
 # Various configurable paths (remember to edit Makefile.in, not Makefile)
@@ -32,6 +32,10 @@ INCLDEST = @includedir@
 LIBDEST =  @libdir@
 # Pathname of directory to install the man page
 MANDEST = @mandir@
+
+# VPATH
+srcdir = @srcdir@
+VPATH = @srcdir@
 
 #
 # You shouldn't need to edit anything below.
@@ -61,7 +65,7 @@ YACC = @V_YACC@
 # problem if you don't own the file but can write to the directory.
 .c.o:
 	@rm -f $@
-	$(CC) $(CFLAGS) -c $*.c
+	$(CC) $(CFLAGS) -c $(srcdir)/$*.c
 
 PSRC =	pcap-@V_PCAP@.c
 CSRC =	pcap.c inet.c gencode.c optimize.c nametoaddr.c \
@@ -87,37 +91,37 @@ TAGFILES = \
 CLEANFILES = $(OBJ) libpcap.a $(GENSRC) $(GENHDR) lex.yy.c
 
 libpcap.a: $(OBJ)
-	rm -f libpcap.a
+	@rm -f $@
 	ar rc $@ $(OBJ)
 	$(RANLIB) $@
 
-scanner.c: scanner.l
-	rm -f $@; $(LEX) -t $< > $$$$.$@; mv $$$$.$@ $@
+scanner.c: $(srcdir)/scanner.l
+	@rm -f $@
+	$(LEX) -t $< > $$$$.$@; mv $$$$.$@ $@
 
 scanner.o: scanner.c tokdefs.h
-	rm -f $@; $(CC) $(CFLAGS) -c $*.c
-
 tokdefs.h: grammar.c
-grammar.c: grammar.y
-	rm -f grammar.c tokdefs.h
+grammar.c: $(srcdir)/grammar.y
+	@rm -f grammar.c tokdefs.h
 	$(YACC) -d $<
 	mv y.tab.c grammar.c
 	mv y.tab.h tokdefs.h
 
 grammar.o: grammar.c
-	$(CC) -c $(CFLAGS) -Dyylval=pcap_lval grammar.c
+	@rm -f $@
+	$(CC) $(CFLAGS) -Dyylval=pcap_lval -c grammar.c
 
 install: force
 	$(INSTALL) -m 444 -o bin -g bin libpcap.a $(DESTDIR)$(LIBDEST)
 	$(RANLIB) $(DESTDIR)$(LIBDEST)/libpcap.a
 
 install-incl: force
-	$(INSTALL) -m 444 -o bin -g bin pcap.h $(DESTDIR)$(INCLDEST)
-	$(INSTALL) -m 444 -o bin -g bin pcap-namedb.h $(DESTDIR)$(INCLDEST)
-	$(INSTALL) -m 444 -o bin -g bin net/bpf.h $(DESTDIR)$(INCLDEST)/net
+	$(INSTALL) -m 444 -o bin -g bin $(srcdir)/pcap.h $(DESTDIR)$(INCLDEST)
+	$(INSTALL) -m 444 -o bin -g bin $(srcdir)/pcap-namedb.h $(DESTDIR)$(INCLDEST)
+	$(INSTALL) -m 444 -o bin -g bin $(srcdir)/net/bpf.h $(DESTDIR)$(INCLDEST)/net
 
 install-man: force
-	$(INSTALL) -m 444 -o bin -g bin pcap.3 $(DESTDIR)$(MANDEST)/man3
+	$(INSTALL) -m 444 -o bin -g bin $(srcdir)/pcap.3 $(DESTDIR)$(MANDEST)/man3
 
 clean:
 	rm -f $(CLEANFILES)

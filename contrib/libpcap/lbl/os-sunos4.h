@@ -18,12 +18,8 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: os-sunos4.h,v 1.31 96/06/24 02:39:07 leres Exp $ (LBL)
+ * @(#) $Header: os-sunos4.h,v 1.32 96/11/29 15:18:18 leres Exp $ (LBL)
  */
-
-#define SIGRET void
-#define SIGRETVAL
-#define WAITSTATUS int
 
 /* Prototypes missing in SunOS 4 */
 #ifdef FILE
@@ -201,14 +197,6 @@ int	wait(int *);
 pid_t	wait3(int *, int, struct rusage *);
 #endif
 
-extern	int opterr, optind, optopt;
-extern	char *optarg;
-
-/* Map protocol types */
-#define ETHERPUP_IPTYPE ETHERTYPE_IP
-#define ETHERPUP_REVARPTYPE ETHERTYPE_REVARP
-#define ETHERPUP_ARPTYPE ETHERTYPE_ARP
-
 /* Ugly signal hacking */
 #ifdef SIG_ERR
 #undef SIG_ERR
@@ -224,14 +212,4 @@ extern	char *optarg;
 #endif
 #undef SIG_HOLD
 #define SIG_HOLD	(void (*)(int))3
-#endif
-
-#ifndef S_ISTXT
-#define S_ISTXT S_ISVTX
-#endif
-
-#ifndef S_IRWXU
-#define S_IRWXU 0000700			/* RWX mask for owner */
-#define S_IRWXG 0000070			/* RWX mask for group */
-#define S_IRWXO 0000007			/* RWX mask for other */
 #endif

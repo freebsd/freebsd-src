@@ -17,17 +17,16 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- */
-#ifndef lint
-static  char rcsid[] =
-    "@(#)$Header: pcap-snit.c,v 1.42 96/07/15 00:48:51 leres Exp $ (LBL)";
-#endif
-
-/*
+ *
  * Modifications made to accommodate the new SunOS4.0 NIT facility by
  * Micky Liu, micky@cunixc.cc.columbia.edu, Columbia University in May, 1989.
  * This module now handles the STREAMS based NIT.
  */
+
+#ifndef lint
+static const char rcsid[] =
+    "@(#) $Header: pcap-snit.c,v 1.45 96/12/10 23:15:01 leres Exp $ (LBL)";
+#endif
 
 #include <sys/types.h>
 #include <sys/time.h>
