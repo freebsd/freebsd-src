@@ -40,9 +40,9 @@
 %#ifndef lint
 %/*static char sccsid[] = "from: @(#)klm_prot.x 1.7 87/07/08 Copyr 1987 Sun Micro";*/
 %/*static char sccsid[] = "from: @(#)klm_prot.x	2.1 88/08/01 4.0 RPCSRC";*/
-%static const char rcsid[] =
-%  "$FreeBSD$";
 %#endif /* not lint */
+%#include <sys/cdefs.h>
+%__FBSDID("$FreeBSD$");
 #endif
 
 const	LM_MAXSTRLEN = 1024;

@@ -38,10 +38,8 @@
 /* From: %#pragma ident	"@(#)nis_callback.x	1.7	94/05/03 SMI" */
 
 #ifndef RPC_HDR
-%#ifndef lint
-%static const char rcsid[] =
-%  "$FreeBSD$";
-%#endif /* not lint */
+%#include <sys/cdefs.h>
+%__FBSDID("$FreeBSD$");
 #endif
 
 /*

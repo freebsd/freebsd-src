@@ -25,8 +25,6 @@
 % * Sun Microsystems, Inc.
 % * 2550 Garcia Avenue
 % * Mountain View, California  94043
-% *
-% * $FreeBSD$
 % */
 %/*
 % * Copyright (c) 1984,1989 by Sun Microsystems, Inc.
@@ -37,6 +35,8 @@
 #ifdef RPC_HDR
 %
 %#pragma ident	"@(#)pmap_prot.x	1.6	94/04/29 SMI"
+%#include <sys/cdefs.h>
+%__FBSDID("$FreeBSD$");
 %
 %#ifndef _KERNEL
 %
