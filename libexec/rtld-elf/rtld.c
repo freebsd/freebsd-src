@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.c,v 1.14 1999/03/24 23:37:35 nate Exp $
+ *      $Id: rtld.c,v 1.15 1999/03/24 23:47:29 nate Exp $
  */
 
 /*
@@ -260,7 +260,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	obj_main = digest_phdr(phdr, phnum, entry);
     }
 
-    obj_main->path = xstrdup(argv[0]);
+    obj_main->path = xstrdup(argv[0] ? argv[0] : "(null)");
     obj_main->mainprog = true;
     digest_dynamic(obj_main);
 
