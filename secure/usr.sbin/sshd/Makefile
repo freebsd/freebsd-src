@@ -16,6 +16,9 @@ SRCS=	sshd.c auth-rhosts.c auth-passwd.c auth-rsa.c auth-rh-rsa.c \
 MAN=	sshd.8 sshd_config.5
 CFLAGS+=-I${SSHDIR}
 
+DPADD=	${LIBSSH} ${LIBUTIL} ${LIBZ} ${LIBWRAP} ${LIBPAM}
+LDADD=	-lssh -lutil -lz -lwrap ${MINUSLPAM}
+
 .if !defined(NO_KERBEROS)
 CFLAGS+= -DGSSAPI -DKRB5 -DHEIMDAL
 DPADD+=	 ${LIBGSSAPI} ${LIBKRB5} ${LIBASN1} ${LIBCOM_ERR} ${LIBMD} ${LIBROKEN}
@@ -29,8 +32,8 @@ LDADD+=	-lopie -lmd
 CFLAGS+= -DXAUTH_PATH=\"${X11BASE}/bin/xauth\"
 .endif
 
-DPADD+=	${LIBSSH} ${LIBCRYPT} ${LIBCRYPTO} ${LIBUTIL} ${LIBZ} ${LIBWRAP} ${LIBPAM}
-LDADD+=	-lssh -lcrypt -lcrypto -lutil -lz -lwrap ${MINUSLPAM}
+DPADD+=	${LIBCRYPT} ${LIBCRYPTO}
+LDADD+=	-lcrypt -lcrypto
 
 .if defined(OPENSSH_USE_POSIX_THREADS) && !defined(NOLIBC_R)
 CFLAGS+=-DUSE_POSIX_THREADS
