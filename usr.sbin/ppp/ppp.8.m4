@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.170 1999/06/01 08:46:53 brian Exp $
+.\" $Id: ppp.8,v 1.171 1999/06/02 00:46:55 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -275,7 +275,7 @@ will bring the link back up any time it's dropped for any reason.
 This is a no-op, and gives the same behaviour as if none of the above
 flags have been specified.
 .Nm
-loads any systems specified on the command line then provides an
+loads any sections specified on the command line then provides an
 interactive prompt.
 .It Fl alias
 This flag doesn't control
@@ -297,11 +297,9 @@ LAN.  Refer to
 for details.
 .El
 .Pp
-Additionally, one or more systems may be specified on the command line.
-A
-.Sq system
-is a configuration entry in
-.Pa /etc/ppp/ppp.conf .
+Additionally, one or more configuration entries
+.Pq as specified in Pa /etc/ppp/ppp.conf
+may be specified on the command line.
 .Nm
 will read the
 .Dq default
@@ -702,8 +700,27 @@ load a section from the
 .Pa /etc/ppp/ppp.conf
 file:
 .Bd -literal -offset indent
-PPP ON awfulhak> load MyISP
+ppp ON awfulhak> load MyISP
 .Ed
+.Pp
+Note, no action is taken by
+.Nm
+after a section is loaded, whether it's the result of passing a label on
+the command line or using the
+.Dq load
+command.  Only the commands specified for that label in the configuration
+file are executed.  However, when invoking
+.Nm
+with the
+.Fl background ,
+.Fl ddial ,
+or
+.Fl dedicated
+switches, the link mode tells
+.Nm
+to establish a connection.  Refer to the
+.Dq set mode
+command below for further details.
 .Pp
 Once the connection is made, the
 .Sq ppp
@@ -3006,14 +3023,14 @@ command is used
 .Pq note the trailing Dq \&! ,
 .Nm
 will not complain if the route does not already exist.
-.It dial|call Op Ar label
-When used with no argument, this command is the same as the
-.Dq open
-command.  When one or more
-.Ar label
-is specified, a
-.Dq load
-will be done first.
+.It dial|call Op Ar label Ns Xo
+.No ...
+.Xc
+This command is the equivalent of
+.Dq load label
+followed by
+.Dq open ,
+and is provided for backwards compatibility.
 .It down Op Ar lcp|ccp
 Bring the relevant layer down ungracefully, as if the underlying layer
 had become unavailable.  It's not considered polite to use this command on
@@ -3136,7 +3153,7 @@ is executed on all links.
 .No ...
 .Xc
 Load the given
-.Ar label(s)
+.Ar label Ns No (s)
 from the
 .Pa ppp.conf
 file.  If
@@ -3144,22 +3161,29 @@ file.  If
 is not given, the
 .Ar default
 label is used.
+.Pp
+Unless the
+.Ar label
+section uses the
+.Dq set mode ,
+.Dq open
+or
+.Dq dial
+commands,
+.Nm
+will not attempt to make an immediate connection.
 .It open Op lcp|ccp|ipcp
 This is the opposite of the
 .Dq close
-command.  Using
-.Dq open
-with no arguments is the same as using
-.Dq dial
-with no arguments, where all closed links are brought up (some auto
-links may not come up based on the
+command.  All closed links are immediately brought up (although some auto
+links may not come up depending on what
 .Dq set autoload
-command) using the current configuration.
+command has been used).
 .Pp
 If the
 .Dq lcp
-while the LCP layer is already open, LCP will be renegotiated.  This
-allows various LCP options to be changed, after which
+argument is used while the LCP layer is already open, LCP will be
+renegotiated.  This allows various LCP options to be changed, after which
 .Dq open lcp
 can be used to put them into effect.  After renegotiating LCP,
 any agreed authentication will also take place.
