@@ -616,7 +616,7 @@ ugenclose(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 
 		if (sce->bulkreq.buf != NULL)
 			free(sce->bulkreq.buf, M_USBDEV);
-			if (sce->bulkreq.xfer != NULL) {
+		if (sce->bulkreq.xfer != NULL) {
 			ugen_rdcb(sce->bulkreq.xfer, sce, USBD_INTERRUPTED);
 			usbd_free_xfer(sce->bulkreq.xfer);
 			sce->bulkreq.xfer = NULL;
