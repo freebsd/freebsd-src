@@ -542,15 +542,9 @@ literal:
 
 		case CT_INT:
 			/* scan an integer as if by the conversion function */
-#ifdef hardway
-			if (width == 0 || width > sizeof(buf) - 1)
-				width = sizeof(buf) - 1;
-#else
-			/* size_t is unsigned, hence this optimisation */
-			if (--width > sizeof(buf) - 2)
-				width = sizeof(buf) - 2;
-			width++;
-#endif
+			if (width == 0 || width > sizeof(buf) /
+			    sizeof(*buf) - 1)
+				width = sizeof(buf) / sizeof(*buf) - 1;
 			flags |= SIGNOK | NDIGITS | NZDIGITS;
 			for (p = buf; width; width--) {
 				c = __fgetwc(fp);
@@ -692,8 +686,9 @@ literal:
 #ifdef FLOATING_POINT
 		case CT_FLOAT:
 			/* scan a floating point number as if by strtod */
-			if (width == 0 || width > sizeof(buf) - 1)
-				width = sizeof(buf) - 1;
+			if (width == 0 || width > sizeof(buf) /
+			    sizeof(*buf) - 1)
+				width = sizeof(buf) / sizeof(*buf) - 1;
 			if ((width = parsefloat(fp, buf, buf + width)) == 0)
 				goto match_failure;
 			if ((flags & SUPPRESS) == 0) {
