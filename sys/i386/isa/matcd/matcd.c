@@ -496,7 +496,7 @@ struct matcd_read2 {
 static	int	matcd_probe(struct isa_device *dev);
 static	int	matcd_attach(struct isa_device *dev);
 struct	isa_driver	matcddriver={matcd_probe, matcd_attach,
-				     "matcdc"};
+				     "matcd"};
 
 
 static d_open_t		matcdopen;
@@ -1197,7 +1197,7 @@ matcd_probe(struct isa_device *dev)
 		cdevsw_add(&matcd_cdevsw);
 	cdrive=nextcontroller;		/*Controller defined by pass for now*/
 	if (nextcontroller==NUMCTRLRS) {
-		printf("matcdc%d: - Too many interfaces specified in config\n",
+		printf("matcd%d: - Too many interfaces specified in config\n",
 		       nextcontroller);
 		return(0);
 	}
@@ -1214,7 +1214,7 @@ matcd_probe(struct isa_device *dev)
 	}
 
 #ifdef DEBUGPROBE
-	printf("matcdc%d: In probe i %d y %d port %x\n",
+	printf("matcd%d: In probe i %d y %d port %x\n",
 	       nextcontroller,i,y,port);
 #endif /*DEBUGPROBE*/
 #ifdef AUTOHUNT
@@ -1226,7 +1226,7 @@ matcd_probe(struct isa_device *dev)
 		for(i=0;i<(sizeof(port_hints)/sizeof(short));i++) {
 			port=port_hints[i];
 #ifdef DEBUGPROBE
-	printf("matcdc%d: Port hint %x\n",nextcontroller,port);
+	printf("matcd%d: Port hint %x\n",nextcontroller,port);
 #endif /*DEBUGPROBE*/
 			if (port==-1) {
 				dev->id_iobase=-1;	/*Put port ? back*/
@@ -1255,7 +1255,7 @@ matcd_probe(struct isa_device *dev)
 	}
 #else /*AUTOHUNT*/
 	if (port==-1) {
-		printf("matcdc%d: AUTOHUNT disabled but port? specified in config\n",
+		printf("matcd%d: AUTOHUNT disabled but port? specified in config\n",
 		       nextcontroller);
 		return(0);
 	}
@@ -1305,7 +1305,7 @@ int doprobe(int port,int cdrive)
 			inb(port+CMD);	/*<20>Read status byte*/
 		}
 #ifdef DEBUGPROBE
-		printf("matcdc%d: Probe found something\n",nextcontroller);
+		printf("matcd%d: Probe found something\n",nextcontroller);
 #endif /*DEBUGPROBE*/
 /*------Don't change anything below this line - see license -----------------*/
 		if (drivepresent==0) {	/*Don't change*/
@@ -1320,7 +1320,7 @@ int doprobe(int port,int cdrive)
 		return(0);		/*Drive 0 detected*/
 	}
 #ifdef DEBUGPROBE
-	printf("matcdc%d: Probe DID NOT find something\n",nextcontroller);
+	printf("matcd%d: Probe DID NOT find something\n",nextcontroller);
 #endif /*DEBUGPROBE*/
 	return(1);
 }
@@ -1346,10 +1346,10 @@ matcd_attach(struct isa_device *dev)
 	int port = dev->id_iobase;	/*Take port ID selected in probe()*/
 
 #ifdef DEBUGPROBE
-	printf("matcdc: Attach dev %x id_unit %d\n",
+	printf("matcd: Attach dev %x id_unit %d\n",
 	       (unsigned int)dev,dev->id_unit);
 #endif /*DEBUGPROBE*/
-	printf("matcdc%d Host interface type %d\n",
+	printf("matcd%d Host interface type %d\n",
 		nextcontroller,iftype);
 	bufq_init(&request_head[nextcontroller]);
 	for (cdrive=0; cdrive<4; cdrive++) {	/*We're hunting drives...*/
