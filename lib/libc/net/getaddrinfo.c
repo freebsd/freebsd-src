@@ -217,14 +217,14 @@ static int get_port(struct addrinfo *, const char *, int);
 static const struct afd *find_afd(int);
 static int addrconfig(struct addrinfo *);
 #ifdef INET6
-static int ip6_str2scopeid(char *, struct sockaddr_in6 *);
+static int ip6_str2scopeid(char *, struct sockaddr_in6 *, u_int32_t *);
 #endif
 
 static struct addrinfo *getanswer(const querybuf *, int, const char *, int,
 	const struct addrinfo *);
+static int _dns_getaddrinfo(void *, void *, va_list);
 static void _sethtent(void);
 static void _endhtent(void);
-static int _dns_getaddrinfo(void *, void *, va_list);
 static struct addrinfo *_gethtent(const char *, const struct addrinfo *);
 static int _files_getaddrinfo(void *, void *, va_list);
 #ifdef YP
@@ -346,8 +346,9 @@ str_isnumber(p)
 	if (*p == '\0')
 		return NO;
 	ep = NULL;
+	errno = 0;
 	(void)strtoul(p, &ep, 10);
-	if (ep && *ep == '\0')
+	if (errno == 0 && ep && *ep == '\0')
 		return YES;
 	else
 		return NO;
@@ -822,13 +823,13 @@ explore_numeric_scope(pai, hostname, servname, res)
 
 	error = explore_numeric(pai, addr, servname, res);
 	if (error == 0) {
-		int scopeid;
+		u_int32_t scopeid;
 
 		for (cur = *res; cur; cur = cur->ai_next) {
 			if (cur->ai_family != AF_INET6)
 				continue;
 			sin6 = (struct sockaddr_in6 *)(void *)cur->ai_addr;
-			if ((scopeid = ip6_str2scopeid(scope, sin6)) == -1) {
+			if (ip6_str2scopeid(scope, sin6, &scopeid) == -1) {
 				free(hostname2);
 				return(EAI_NODATA); /* XXX: is return OK? */
 			}
@@ -1080,13 +1081,16 @@ addrconfig(pai)
 #ifdef INET6
 /* convert a string to a scope identifier. XXX: IPv6 specific */
 static int
-ip6_str2scopeid(scope, sin6)
+ip6_str2scopeid(scope, sin6, scopeid)
 	char *scope;
 	struct sockaddr_in6 *sin6;
+	u_int32_t *scopeid;
 {
-	int scopeid;
-	struct in6_addr *a6 = &sin6->sin6_addr;
+	u_long lscopeid;
+	struct in6_addr *a6;
 	char *ep;
+
+	a6 = &sin6->sin6_addr;
 
 	/* empty scopeid portion is invalid */
 	if (*scope == '\0')
@@ -1098,10 +1102,10 @@ ip6_str2scopeid(scope, sin6)
 		 * and interfaces, so we simply use interface indices for
 		 * like-local scopes.
 		 */
-		scopeid = if_nametoindex(scope);
-		if (scopeid == 0)
+		*scopeid = if_nametoindex(scope);
+		if (*scopeid == 0)
 			goto trynumeric;
-		return(scopeid);
+		return 0;
 	}
 
 	/* still unclear about literal, allow numeric only - placeholder */
@@ -1114,9 +1118,11 @@ ip6_str2scopeid(scope, sin6)
 
 	/* try to convert to a numeric id as a last resort */
   trynumeric:
-	scopeid = (int)strtoul(scope, &ep, 10);
-	if (*ep == '\0')
-		return scopeid;
+	errno = 0;
+	lscopeid = strtoul(scope, &ep, 10);
+	*scopeid = (u_int32_t)(lscopeid & 0xffffffffUL);
+	if (errno == 0 && ep && *ep == '\0' && *scopeid == lscopeid)
+		return 0;
 	else
 		return -1;
 }
@@ -1447,6 +1453,7 @@ _dns_getaddrinfo(rv, cb_data, ap)
 		q.answer = buf->buf;
 		q.anslen = sizeof(buf->buf);
 		q.next = &q2;
+		q2.name = name;
 		q2.qclass = C_IN;
 		q2.qtype = T_A;
 		q2.answer = buf2->buf;
