@@ -1,4 +1,4 @@
-/* ntpq.h,v 3.1 1993/07/06 01:09:30 jbj Exp
+/*
  * ntpq.h - definitions of interest to ntpq
  */
 #include "ntp_fp.h"
@@ -28,9 +28,9 @@
  */
 typedef union {
 	char *string;
-	LONG ival;
-	U_LONG uval;
-	U_LONG netnum;
+	long ival;
+	u_long uval;
+	u_long netnum;
 } arg_v;
 
 /*
@@ -84,14 +84,14 @@ struct ctl_var {
 };
 
 extern	void	asciize		P((int, char *, FILE *));
-extern	int	getnetnum	P((char *, U_LONG *, char *));
+extern	int	getnetnum	P((char *, u_long *, char *));
 extern	void	sortassoc	P((void));
 extern	int	doquery		P((int, int, int, int, char *, u_short *, int *, char **));
-extern	char *	nntohost	P((U_LONG));
+extern	char *	nntohost	P((u_long));
 extern	int	decodets	P((char *, l_fp *));
-extern	int	decodeuint	P((char *, U_LONG *));
+extern	int	decodeuint	P((char *, u_long *));
 extern	int	nextvar		P((int *, char **, char **, char **));
 extern	int	decodetime	P((char *, l_fp *));
 extern	void	printvars	P((int, char *, int, int, FILE *));
-extern	int	decodeint	P((char *, LONG *));
+extern	int	decodeint	P((char *, long *));
 extern	int	findvar		P((char *, struct ctl_var *));

@@ -1,4 +1,4 @@
-/* auth12crypt.c,v 3.1 1993/07/06 01:07:43 jbj Exp
+/*
  * auth12crypt.c - routines to support two stage NTP encryption
  */
 #include "ntp_stdlib.h"
@@ -21,7 +21,7 @@
 /*
  * Imported from the key data base module
  */
-extern U_LONG cache_keyid;	/* cached key ID */
+extern u_long cache_keyid;	/* cached key ID */
 extern u_char DEScache_ekeys[];	/* cached decryption keys */
 extern u_char DESzeroekeys[];	/* zero key decryption keys */
 
@@ -38,7 +38,7 @@ extern U_LONG authnokey;
  */
 void
 DESauth1crypt(keyno, pkt, length)
-	U_LONG keyno;
+	u_long keyno;
 	U_LONG *pkt;
 	int length;	/* length of all encrypted data */
 {
@@ -91,7 +91,7 @@ DESauth1crypt(keyno, pkt, length)
  */
 int
 DESauth2crypt(keyno, pkt, length)
-	U_LONG keyno;
+	u_long keyno;
 	U_LONG *pkt;
 	int length;	/* total length of encrypted area */
 {

@@ -1,4 +1,4 @@
-/* emalloc.c,v 3.1 1993/07/06 01:08:15 jbj Exp
+/*
  * emalloc - return new memory obtained from the system.  Belch if none.
  */
 #include "ntp_types.h"
@@ -8,7 +8,7 @@
 
 char *
 emalloc(size)
-	unsigned int size;
+	u_int size;
 {
 	char *mem;
 

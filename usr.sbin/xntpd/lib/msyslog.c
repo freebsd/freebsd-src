@@ -1,4 +1,4 @@
-/* msyslog.c,v 3.1 1993/07/06 01:08:36 jbj Exp
+/*
  * msyslog - either send a message to the terminal or print it on
  *	     the standard output.
  *

@@ -1,4 +1,4 @@
-/* ntp_stdlib.h,v 3.1 1993/07/06 01:06:58 jbj Exp
+/*
  * ntp_stdlib.h - Prototypes for XNTP lib.
  */
 #include <sys/types.h>
@@ -24,28 +24,28 @@ extern	void	msyslog		P((int, char *, ...));
 extern	void	msyslog		P(());
 #endif
 
-extern	void	auth_des	P((U_LONG *, u_char *));
+extern	void	auth_des	P((u_long *, u_char *));
 extern	void	auth_delkeys	P((void));
-extern	int	auth_havekey	P((U_LONG));
-extern	int	auth_parity	P((U_LONG *));
-extern	void	auth_setkey	P((U_LONG, U_LONG *));
-extern	void	auth_subkeys	P((U_LONG *, u_char *, u_char *));
-extern	int	authistrusted	P((U_LONG));
-extern	int	authusekey	P((U_LONG, int, const char *));
+extern	int	auth_havekey	P((u_long));
+extern	int	auth_parity	P((u_long *));
+extern	void	auth_setkey	P((u_long, u_long *));
+extern	void	auth_subkeys	P((u_long *, u_char *, u_char *));
+extern	int	authistrusted	P((u_long));
+extern	int	authusekey	P((u_long, int, const char *));
 
 extern	void	auth_delkeys	P((void));
 
-extern	void	auth1crypt	P((U_LONG, U_LONG *, int));
-extern	int	auth2crypt	P((U_LONG, U_LONG *, int));
-extern	int	authdecrypt	P((U_LONG, U_LONG *, int));
-extern	int	authencrypt	P((U_LONG, U_LONG *, int));
-extern	int	authhavekey	P((U_LONG));
+extern	void	auth1crypt	P((u_long, U_LONG *, int));
+extern	int	auth2crypt	P((u_long, U_LONG *, int));
+extern	int	authdecrypt	P((u_long, U_LONG *, int));
+extern	int	authencrypt	P((u_long, U_LONG *, int));
+extern	int	authhavekey	P((u_long));
 extern	int	authreadkeys	P((const char *));
-extern	void	authtrust	P((U_LONG, int));
-extern	void	calleapwhen	P((U_LONG, U_LONG *, U_LONG *));
-extern	U_LONG	calyearstart	P((U_LONG));
+extern	void	authtrust	P((u_long, int));
+extern	void	calleapwhen	P((u_long, u_long *, u_long *));
+extern	u_long	calyearstart	P((u_long));
 extern	const char *clockname	P((int));
-extern	int	clocktime	P((int, int, int, int, int, U_LONG, U_LONG *, U_LONG *));
+extern	int	clocktime	P((int, int, int, int, int, u_long, u_long *, U_LONG *));
 extern	char *	emalloc		P((u_int));
 extern	int	ntp_getopt	P((int, char **, char *));
 extern	void	init_auth	P((void));
@@ -53,41 +53,41 @@ extern	void	init_lib	P((void));
 extern	void	init_random	P((void));
 
 #ifdef	DES
-extern	void	DESauth1crypt	P((U_LONG, U_LONG *, int));
-extern	int	DESauth2crypt	P((U_LONG, U_LONG *, int));
-extern	int	DESauthdecrypt	P((U_LONG, const U_LONG *, int));
-extern	int	DESauthencrypt	P((U_LONG, U_LONG *, int));
-extern	void	DESauth_setkey	P((U_LONG, const U_LONG *));
+extern	void	DESauth1crypt	P((u_long, U_LONG *, int));
+extern	int	DESauth2crypt	P((u_long, U_LONG *, int));
+extern	int	DESauthdecrypt	P((u_long, const U_LONG *, int));
+extern	int	DESauthencrypt	P((u_long, U_LONG *, int));
+extern	void	DESauth_setkey	P((u_long, const U_LONG *));
 extern	void	DESauth_subkeys	P((const U_LONG *, u_char *, u_char *));
 extern	void	DESauth_des	P((U_LONG *, u_char *));
 extern	int	DESauth_parity	P((U_LONG *));
 #endif	/* DES */
 
 #ifdef	MD5
-extern	void	MD5auth1crypt	P((U_LONG, U_LONG *, int));
-extern	int	MD5auth2crypt	P((U_LONG, U_LONG *, int));
-extern	int	MD5authdecrypt	P((U_LONG, const U_LONG *, int));
-extern	int	MD5authencrypt	P((U_LONG, U_LONG *, int));
-extern	void	MD5auth_setkey	P((U_LONG, const U_LONG *));
+extern	void	MD5auth1crypt	P((u_long, U_LONG *, int));
+extern	int	MD5auth2crypt	P((u_long, U_LONG *, int));
+extern	int	MD5authdecrypt	P((u_long, const U_LONG *, int));
+extern	int	MD5authencrypt	P((u_long, U_LONG *, int));
+extern	void	MD5auth_setkey	P((u_long, const U_LONG *));
 #endif	/* MD5 */
 
-extern	int	atoint		P((const char *, LONG *));
-extern	int	atouint		P((const char *, U_LONG *));
-extern	int	hextoint	P((const char *, U_LONG *));
-extern	char *	humandate	P((U_LONG));
-extern	char *	inttoa		P((LONG));
-extern	char *	mfptoa		P((U_LONG, U_LONG, int));
-extern	char *	mfptoms		P((U_LONG, U_LONG, int));
+extern	int	atoint		P((const char *, long *));
+extern	int	atouint		P((const char *, u_long *));
+extern	int	hextoint	P((const char *, u_long *));
+extern	char *	humandate	P((u_long));
+extern	char *	inttoa		P((long));
+extern	char *	mfptoa		P((u_long, u_long, int));
+extern	char *	mfptoms		P((u_long, u_long, int));
 extern	char *	modetoa		P((int));
-extern	U_LONG	netof		P((U_LONG));
-extern	char *	numtoa		P((U_LONG));
-extern	char *	numtohost	P((U_LONG));
-extern	int	octtoint	P((const char *, U_LONG *));
-extern	U_LONG	ranp2		P((int));
-extern	char *	refnumtoa	P((U_LONG));
-extern	int	tsftomsu	P((U_LONG, int));
-extern	char *	uinttoa		P((U_LONG));
+extern	u_long	netof		P((u_long));
+extern	char *	numtoa		P((u_long));
+extern	char *	numtohost	P((u_long));
+extern	int	octtoint	P((const char *, u_long *));
+extern	u_long	ranp2		P((int));
+extern	char *	refnumtoa	P((u_long));
+extern	int	tsftomsu	P((u_long, int));
+extern	char *	uinttoa		P((u_long));
 
-extern	int	decodenetnum	P((const char *, U_LONG *));
+extern	int	decodenetnum	P((const char *, u_long *));
 
 extern RETSIGTYPE signal_no_reset P((int, RETSIGTYPE (*func)()));

@@ -1,4 +1,4 @@
-/* ntpdate.h,v 3.1 1993/07/06 01:09:23 jbj Exp
+/*
  * ntpdate.h - declarations for the ntpdate program
  */
 
@@ -21,7 +21,7 @@ struct server {
 	u_fp rootdispersion;		/* peer clock dispersion */
 	U_LONG refid;			/* peer reference ID */
 	l_fp reftime;			/* time of peer's last update */
-	U_LONG event_time;		/* time for next timeout */
+	u_long event_time;		/* time for next timeout */
 	u_short xmtcnt;			/* number of packets transmitted */
 	u_short filter_nextpt;		/* index into filter shift register */
 	s_fp filter_delay[NTP_SHIFT];	/* delay part of shift register */
@@ -50,7 +50,7 @@ struct server {
 #define TIMER_HZ	(5)		/* 5 per second */
 
 /*
- * ntpdate will make a LONG adjustment using adjtime() if the times
+ * ntpdate will make a long adjustment using adjtime() if the times
  * are close, or step the time if the times are farther apart.  The
  * following defines what is "close".
  */
@@ -87,4 +87,3 @@ struct server {
  */
 #define	DEFTIMEOUT	5		/* 5 timer increments */
 #define	DEFSAMPLES	4		/* get 4 samples per server */
-#define	DEFPRECISION	(-5)		/* the precision we claim */

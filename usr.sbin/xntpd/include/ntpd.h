@@ -63,10 +63,10 @@ extern  void    input_handler   P((l_fp *));
 extern	void	io_clr_stats	P((void));
 extern	void	io_setbclient	P((void));
 extern	void	io_unsetbclient	P((void));
-extern	void	io_multicast_add P((U_LONG));
-extern	void	io_multicast_del P((U_LONG));
+extern	void	io_multicast_add P((u_long));
+extern	void	io_multicast_del P((u_long));
 
-extern	void	sendpkt		P((struct sockaddr_in *, struct interface *, struct pkt *, int));
+extern	void	sendpkt		P((struct sockaddr_in *, struct interface *, int, struct pkt *, int));
 #ifdef HAVE_SIGNALED_IO
 extern  void	wait_for_signal P((void));
 extern  void    unblock_io_and_alarm P((void));
@@ -88,6 +88,7 @@ extern	int	leap_actual	P((int));
 /* ntp_loopfilter.c */
 extern	void	init_loopfilter	P((void));
 extern	int	local_clock	P((l_fp *, struct peer *));
+extern	void	adj_frequency	P((s_fp));
 extern	void	adj_host_clock	P((void));
 extern	void	loop_config	P((int, l_fp *, int));
 #if defined(PPS) || defined(PPSPPS) || defined(PPSCD)
@@ -103,12 +104,12 @@ extern	void	monitor		P((struct recvbuf *));
 /* ntp_peer.c */
 extern	void	init_peer	P((void));
 extern	struct peer *findexistingpeer P((struct sockaddr_in *, struct peer *));
-extern	struct peer *findpeer	P((struct sockaddr_in *, struct interface *));
+extern	struct peer *findpeer	P((struct sockaddr_in *, struct interface *, int));
 extern	struct peer *findpeerbyassoc P((int));
-extern	struct peer *newpeer	P((struct sockaddr_in *, struct interface *, int, int, int, int, int, U_LONG));
+extern	struct peer *newpeer	P((struct sockaddr_in *, struct interface *, int, int, int, int, int, u_long));
 extern	void	peer_all_reset	P((void));
 extern	void	peer_clr_stats	P((void));
-extern	struct peer *peer_config P((struct sockaddr_in *, struct interface *, int, int, int, int, int, int, U_LONG));
+extern	struct peer *peer_config P((struct sockaddr_in *, struct interface *, int, int, int, int, int, int, u_long));
 extern	void	peer_reset	P((struct peer *));
 extern	int	peer_unconfig	P((struct sockaddr_in *, struct interface *));
 extern	void	unpeer		P((struct peer *));
@@ -134,7 +135,7 @@ extern	void	clock_select	P((void));
 extern	void	clock_combine	P((struct peer **, int));
 extern	void	fast_xmit	P((struct recvbuf *, int, int));
 extern	void	init_proto	P((void));
-extern	void	proto_config	P((int, U_LONG));
+extern	void	proto_config	P((int, u_long));
 extern	void	proto_clr_stats	P((void));
 
 #ifdef	REFCLOCK
@@ -168,7 +169,7 @@ extern	void	init_util	P((void));
 extern	void	hourly_stats	P((void));
 extern	void	stats_config	P((int, char *));
 extern	void	record_peer_stats P((struct sockaddr_in *, int, l_fp *, s_fp, u_fp));
-extern	void	record_loop_stats P((l_fp *, s_fp *, int));
+extern	void	record_loop_stats P((l_fp *, s_fp, int));
 extern	void	record_clock_stats P((struct sockaddr_in *, char *));
 extern	void	getauthkeys	P((char *));
 extern	void	rereadkeys	P((void));

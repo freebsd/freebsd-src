@@ -1,4 +1,4 @@
-/* authreadkeys.c,v 3.1 1993/07/06 01:07:57 jbj Exp
+/*
  * authreadkeys.c - routines to support the reading of the key file
  */
 #include <stdio.h>
@@ -80,7 +80,7 @@ authreadkeys(file)
 	FILE *fp;
 	char *line;
 	char *token;
-	U_LONG keyno;
+	u_long keyno;
 	int keytype;
 	char buf[512];		/* lots of room for line? */
 extern	FILE *	fopen		P((const char *filename, const char *type));
@@ -111,7 +111,7 @@ extern	int	fclose		P((FILE *stream));
 		/*
 		 * First is key number.  See if it is okay.
 		 */
-		keyno = (U_LONG)atoi(token);
+		keyno = atoi(token);
 		if (keyno == 0) {
 			syslog(LOG_ERR,
 			    "cannot change keyid 0, key entry `%s' ignored",
@@ -125,7 +125,7 @@ extern	int	fclose		P((FILE *stream));
 		token = nexttok(&line);
 		if (token == 0) {
 			syslog(LOG_ERR,
-			    "no key type for key number %d, entry ignored",
+			    "no key type for key number %ld, entry ignored",
 			    keyno);
 			continue;
 		}
@@ -150,7 +150,7 @@ extern	int	fclose		P((FILE *stream));
 #endif
 		default:
 		    syslog(LOG_ERR,
-			   "invalid key type for key number %d, entry ignored",
+			   "invalid key type for key number %ld, entry ignored",
 			   keyno);
 		    continue;
 		}
@@ -161,7 +161,7 @@ extern	int	fclose		P((FILE *stream));
 		token = nexttok(&line);
 		if (token == 0) {
 			syslog(LOG_ERR,
-			    "no key for number %d entry, entry ignored",
+			    "no key for number %ld entry, entry ignored",
 			    keyno);
 		} else {
 		    switch(keytype) {
@@ -171,7 +171,7 @@ extern	int	fclose		P((FILE *stream));
 		    case KEY_TYPE_ASCII:
 			if (!authusekey(keyno, keytype, token))
 			    syslog(LOG_ERR,
-				 "format/parity error for DES key %d, not used",
+				 "format/parity error for DES key %ld, not used",
 				   keyno);
 			break;
 #endif
@@ -179,7 +179,7 @@ extern	int	fclose		P((FILE *stream));
 		    case KEY_TYPE_MD5:
 			if (!authusekey(keyno, keytype, token))
 			    syslog(LOG_ERR,
-				 "format/parity error for MD5 key %d, not used",
+				 "format/parity error for MD5 key %ld, not used",
 				   keyno);
 			break;
 #endif

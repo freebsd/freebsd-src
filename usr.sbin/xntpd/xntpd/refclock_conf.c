@@ -15,93 +15,135 @@ static struct refclock refclock_none = {
 };
 
 #ifdef	LOCAL_CLOCK
-extern	struct refclock		refclock_local;
+extern	struct refclock	refclock_local;
 #else
 #define	refclock_local	refclock_none
 #endif
 
 #if defined(TRAK) || defined(TRAKCLK) || defined(TRAKPPS)
-extern	struct refclock		refclock_trak;
+extern	struct refclock	refclock_trak;
 #else
 #define	refclock_trak	refclock_none
 #endif
 
-#if defined(PST) || defined(PSTCLK) || defined(PSTPPS)
-extern	struct refclock		refclock_pst;
+#if defined(PST)
+extern	struct refclock	refclock_pst;
 #else
 #define	refclock_pst	refclock_none
 #endif
 
-#if defined(CHU) || defined(CHUCLK) || defined(CHUPPS)
-extern	struct refclock		refclock_chu;
+#if defined(CHU)
+extern	struct refclock	refclock_chu;
 #else
 #define	refclock_chu	refclock_none
 #endif
 
 #if defined(GOES) || defined(GOESCLK) || defined(GOESPPS)
-extern	struct refclock		refclock_goes;
+extern	struct refclock	refclock_goes;
 #else
 #define	refclock_goes	refclock_none
 #endif
 
-#if defined(WWVB) || defined(WWVBCLK) || defined(WWVBPPS)
-extern	struct refclock		refclock_wwvb;
+#if defined(WWVB)
+extern	struct refclock	refclock_wwvb;
 #else
 #define	refclock_wwvb	refclock_none
 #endif
 
 #if defined(PARSE) || defined(PARSEPPS)
-extern	struct refclock		refclock_parse;
+extern	struct refclock	refclock_parse;
 #else
 #define	refclock_parse	refclock_none
 #endif
 
-#if defined(MX4200) || defined(MX4200CLK) || defined(MX4200PPS)
-extern	struct refclock		refclock_mx4200;
+#if defined(PPS) && (defined(MX4200) || defined(MX4200CLK) || defined(MX4200PPS))
+extern	struct refclock	refclock_mx4200;
 #else
 #define	refclock_mx4200	refclock_none
 #endif
 
-#if defined(AS2201) || defined(AS2201CLK) || defined(AS2201PPS)
-extern	struct refclock		refclock_as2201;
+#if defined(AS2201)
+extern	struct refclock	refclock_as2201;
 #else
 #define	refclock_as2201	refclock_none
 #endif
 
 #if defined(OMEGA) || defined(OMEGACLK) || defined(OMEGAPPS)
-extern	struct refclock		refclock_omega;
+extern	struct refclock	refclock_omega;
 #else
 #define	refclock_omega	refclock_none
 #endif
 
-#ifdef TPRO
-extern	struct refclock		refclock_tpro;
+#if defined(TPRO) && defined(sun)	/* XXX sun only */
+extern	struct refclock	refclock_tpro;
 #else
 #define	refclock_tpro	refclock_none
 #endif
 
 #if defined(LEITCH) || defined(LEITCHCLK) || defined(LEITCHPPS)
-extern	struct refclock		refclock_leitch;
+extern	struct refclock	refclock_leitch;
 #else
 #define	refclock_leitch	refclock_none
 #endif
 
-#ifdef IRIG
-extern	struct refclock		refclock_irig;
+#if defined(IRIG) && defined(sun)	/* XXX sun only */
+extern	struct refclock	refclock_irig;
 #else
 #define refclock_irig	refclock_none
 #endif
 
 #if defined(MSFEESPPS)
-extern	struct refclock		refclock_msfees;
+extern	struct refclock	refclock_msfees;
 #else
 #define refclock_msfees	refclock_none
 #endif
 
 #if defined(GPSTM) || defined(GPSTMCLK) || defined(GPSTMPPS)
-extern	struct refclock		refclock_gpstm;
+extern	struct refclock	refclock_gpstm;
 #else
 #define	refclock_gpstm	refclock_none
+#endif
+
+#if defined(BANC) || defined(BANCCLK) || defined(BANCPPS)
+extern	struct refclock	refclock_bancomm;
+#else
+#define refclock_bancomm refclock_none
+#endif
+
+#ifdef DATUM
+extern	struct refclock	refclock_datum;
+#else
+#define refclock_datum	refclock_none
+#endif
+
+#ifdef ACTS
+extern	struct refclock	refclock_acts;
+#else
+#define refclock_acts	refclock_none
+#endif
+
+#ifdef HEATH
+extern	struct refclock	refclock_heath;
+#else
+#define refclock_heath	refclock_none
+#endif
+
+#ifdef NMEA
+extern	struct refclock refclock_nmea;
+#else
+#define	refclock_nmea	refclock_none
+#endif
+
+#ifdef MOTO
+extern	struct refclock	refclock_moto;
+#else
+#define	refclock_moto	refclock_none
+#endif
+
+#ifdef ATOM
+extern	struct refclock	refclock_atom;
+#else
+#define refclock_atom	refclock_none
 #endif
 
 /*
@@ -127,6 +169,15 @@ struct refclock *refclock_conf[] = {
 	&refclock_leitch,	/* 13 REFCLK_ATOM_LEITCH */
 	&refclock_msfees,	/* 14 REFCLK_MSF_EES */
 	&refclock_gpstm,	/* 15 REFCLK_GPSTM_TRUETIME */
+	&refclock_bancomm,	/* 16 REFCLK_IRIG_BANCOMM */
+	&refclock_datum,	/* 17 REFCLK_GPS_DATUM */
+	&refclock_acts,		/* 18 REFCLK_NIST_ACTS */
+	&refclock_heath,	/* 19 REFCLK_WWV_HEATH */
+	&refclock_nmea,		/* 20 REFCLK_GPS_NMEA */
+	&refclock_moto,		/* 21 REFCLK_GPS_MOTO */
+	&refclock_atom,		/* 22 REFCLK_ATOM_PPS */
+	&refclock_none,		/* 23 reserved */
+	&refclock_none,		/* 24 reserved */
 };
 
 u_char num_refclock_conf = sizeof(refclock_conf)/sizeof(struct refclock *);

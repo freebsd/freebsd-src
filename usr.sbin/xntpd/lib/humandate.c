@@ -1,4 +1,4 @@
-/* humandate.c,v 3.1 1993/07/06 01:08:24 jbj Exp
+/*
  * humandate - convert an NTP (or the current) time to something readable
  */
 #include <stdio.h>
@@ -22,16 +22,16 @@ static char *days[] = {
 
 char *
 humandate(ntptime)
-	U_LONG ntptime;
+	u_long ntptime;
 {
 	char *bp;
 	struct tm *tm;
-	U_LONG sec;
+	time_t sec;
 
 	LIB_GETBUF(bp);
 	
 	sec = ntptime - JAN_1970;
-	tm = localtime((LONG *)&sec);
+	tm = localtime(&sec);
 
 	(void) sprintf(bp, "%s, %s %2d %4d %2d:%02d:%02d",
 	    days[tm->tm_wday], months[tm->tm_mon], tm->tm_mday,

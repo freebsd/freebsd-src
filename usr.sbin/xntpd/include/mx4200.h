@@ -1,5 +1,3 @@
-/* @(#) mx4200.h,v 3.1 1993/07/06 01:06:46 jbj Exp */
-
 
 /* records transmitted from extern CDU to MX 4200 */
 #define PMVXG_S_INITMODEA	0	/* initialization/mode part A */

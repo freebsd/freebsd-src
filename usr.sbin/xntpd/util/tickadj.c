@@ -7,8 +7,12 @@
  */
 #include <stdio.h>
 
+#if !defined(SYS_VAX) && !defined(SYS_BSD)
+#include <unistd.h>
+#endif /* SYS_VAX */
+
 #ifdef SYS_LINUX
-#include <sys/timex.h>
+#include "sys/timex.h"
 
 struct timex txc;
 
@@ -42,7 +46,9 @@ main(int argc, char ** argv)
 #else /* not Linux... kmem tweaking: */
 
 #include <sys/types.h>
+#ifndef SYS_BSD
 #include <sys/file.h>
+#endif
 #include <sys/stat.h>
 
 #if defined(SYS_AUX3) || defined(SYS_AUX2)
@@ -69,7 +75,7 @@ main(int argc, char ** argv)
 #endif
 #endif
 
-#ifdef SYS_PTX
+#if defined(SYS_PTX) || defined(SYS_IX86OSF1)
 #define L_SET SEEK_SET
 #endif
 
@@ -557,7 +563,7 @@ readvar(fd, off, var)
 	}
 	if (i != sizeof(int)) {
 		(void) fprintf(stderr, "%s: read expected %d, got %d\n",
-		    progname, sizeof(int), i);
+		    progname, (int)sizeof(int), i);
 		exit(1);
 	}
 }

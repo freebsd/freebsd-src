@@ -87,7 +87,7 @@
  * or 9.5uS/S then 3990.5uS at a 7min re-sync,
  * at which point it may loose the "00" second time stamp.
  * I assume that the most accurate time is just AFTER the re-sync.
- * Hence remember the last cycle interval, 
+ * Hence remember the last cycle interval,
  *
  * Can run in any one of:
  *
@@ -308,6 +308,8 @@ static l_fp onesec; /* = { 1, 0 }; */
 /* Imported from the timer module */
 extern u_long current_time;
 
+extern s_char sys_precision;
+
 #ifdef	DEBUG
 static int debug;
 #endif
@@ -328,33 +330,6 @@ static int debug;
 #define	USECS	1000000
 #define	MINSTEP	5	/* some systems increment uS on each call */
 #define	MAXLOOPS (USECS/9)
-static int ees_get_precision()
-{
-	struct timeval tp;
-	struct timezone tzp;
-	long last;
-	int i;
-	long diff;
-	long val;
-	gettimeofday(&tp, &tzp);
-
-	last = tp.tv_usec;
-	for (i=0; i< 100000; i++) {
-		gettimeofday(&tp, &tzp);
-		diff = tp.tv_usec - last;
-		if (diff < 0) diff += USECS;
-		if (diff > MINSTEP) break;
-		last = tp.tv_usec;
-	}
-	syslog(LOG_INFO,
-		"I: ees: precision calculation given %duS after %d loop%s",
-		diff, i, (i==1) ? "" : "s");
-
-	if (i == 0)		return -20 /* assume 1uS */;
-	if (i >= MAXLOOPS)	return EESPRECISION /* Lies ! */;
-	for (i=0, val=USECS; val > 0; i--, val /= 2) if (diff > val) return i;
-	return EESPRECISION /* Lies ! */;
-}
 
 static void dump_buf(coffs, from, to, text)
 l_fp *coffs;
@@ -407,18 +382,20 @@ static void msfees_init()
 
 /* msfees_start - open the EES devices and initialize data for processing */
 static int msfees_start(unit, peer)
-	u_int unit;
+	int unit;
 	struct peer *peer;
 {
 	register struct eesunit *ees;
 	register int i;
 	int fd232 = -1;
 	char eesdev[20];
-    	struct termios ttyb, *ttyp;
+	struct termios ttyb, *ttyp;
 	static void ees_receive();
 	extern int io_addclock();
 	extern void io_closeclock();
 	extern char *emalloc();
+	struct refclockproc *pp;
+	pp = peer->procptr;
 
 	if (unit >= MAXUNITS) {
 		syslog(LOG_ERR, "ees clock: unit number %d invalid (max %d)",
@@ -462,24 +439,24 @@ static int msfees_start(unit, peer)
 
 	ttyp = &ttyb;
 	if (tcgetattr(fd232, ttyp) < 0) {
-                syslog(LOG_ERR, "msfees_start: tcgetattr(%s): %m", eesdev);
-                goto screwed;
-        }
+		syslog(LOG_ERR, "msfees_start: tcgetattr(%s): %m", eesdev);
+		goto screwed;
+	}
 
-        ttyp->c_iflag = IGNBRK|IGNPAR|ICRNL;
-        ttyp->c_cflag = SPEED232|CS8|CLOCAL|CREAD;
-        ttyp->c_oflag = 0;
-        ttyp->c_lflag = ICANON;
+	ttyp->c_iflag = IGNBRK|IGNPAR|ICRNL;
+	ttyp->c_cflag = SPEED232|CS8|CLOCAL|CREAD;
+	ttyp->c_oflag = 0;
+	ttyp->c_lflag = ICANON;
 	ttyp->c_cc[VERASE] = ttyp->c_cc[VKILL] = '\0';
-        if (tcsetattr(fd232, TCSANOW, ttyp) < 0) {
-                syslog(LOG_ERR, "msfees_start: tcsetattr(%s): %m", eesdev);
-                goto screwed;
-        }
+	if (tcsetattr(fd232, TCSANOW, ttyp) < 0) {
+		syslog(LOG_ERR, "msfees_start: tcsetattr(%s): %m", eesdev);
+		goto screwed;
+	}
 
-        if (tcflush(fd232, TCIOFLUSH) < 0) {
-                syslog(LOG_ERR, "msfees_start: tcflush(%s): %m", eesdev);
-                goto screwed;
-        }
+	if (tcflush(fd232, TCIOFLUSH) < 0) {
+		syslog(LOG_ERR, "msfees_start: tcflush(%s): %m", eesdev);
+		goto screwed;
+	}
 
 	inherent_delay[unit].l_uf = INH_DELAY_PPS;
 
@@ -524,7 +501,7 @@ static int msfees_start(unit, peer)
 	 * receiving stuff.
 	 */
 
-        {
+	{
 	    int rc1;
 	    /* Pop any existing onews first ... */
 	    while (ioctl(fd232, I_POP, 0 ) >= 0) ;
@@ -554,18 +531,21 @@ static int msfees_start(unit, peer)
 
 	/* All done.  Initialize a few random peer variables, then
 	 * return success. */
-	peer->precision	= ees_get_precision();
+	peer->precision	= sys_precision;
 	peer->stratum	= stratumtouse[unit];
 	peer->rootdelay	= 0;	/* ++++ */
 	peer->rootdispersion = 0;	/* ++++ */
 	if (stratumtouse[unit] <= 1) {
-		memmove((char *)&peer->refid, EESREFID, 4);
+		memcpy((char *)&pp->refid, EESREFID, 4);
 		if (unit > 0 && unit < 10)
-			((char *)&peer->refid)[3] = '0' + unit;
+			((char *)&pp->refid)[3] = '0' + unit;
 	} else {
 		peer->refid = htonl(EESHSREFID);
 	}
 	unitinuse[unit] = 1;
+	pp->unitptr = (caddr_t) &eesunits[unit];
+	pp->clockdesc = EESDESCRIPTION;
+	pp->nstages = MAXSTAGE;
 	syslog(LOG_ERR, "ees clock: %s OK on %d", eesdev, unit);
 	return (1);
 
@@ -577,8 +557,9 @@ screwed:
 
 
 /* msfees_shutdown - shut down a EES clock */
-static void msfees_shutdown(unit)
+static void msfees_shutdown(unit, peer)
 	int unit;
+	struct peer *peer;
 {
 	register struct eesunit *ees;
 	extern void io_closeclock();
@@ -709,7 +690,7 @@ static void ees_receive(rbufp)
 		 * continue on. */
 		cp = ees->lastcode;
 		break;
-	
+
 	default:
 		syslog(LOG_ERR, "ees clock: INTERNAL ERROR: %d state %d",
 				ees->unit, ees->codestate);
@@ -818,7 +799,7 @@ static void ees_receive(rbufp)
 	ees->tz      = istrue(cp[EESM_BST]) ? -1 : 0;
 
 	if (ees->day > 366 || ees->day < 1 ||
-            ees->hour > 23 || ees->minute > 59 || ees->second > 59) {
+	    ees->hour > 23 || ees->minute > 59 || ees->second > 59) {
 		ees->baddata++;
 		ees->reason = CODEREASON + 12;
 		ees_event(ees, CEVNT_BADDATE);
@@ -861,11 +842,11 @@ static void ees_receive(rbufp)
 	/* Number of seconds since the last step */
 	sincelast = this_uisec - ees->last_step;
 
-	memset(&ppsclockev, 0, sizeof ppsclockev);
+	memset((char *) &ppsclockev, 0, sizeof ppsclockev);
 
 	rc = ioctl(ees->io.fd, CIOGETEV, (char *) &ppsclockev);
 	if (debug & DB_PRINT_EV) fprintf(stderr,
-	    "[%x] CIOGETEV u%d %d (%x %d) gave %d (%d): %08x %08x %d\n",
+	    "[%x] CIOGETEV u%d %d (%lx %d) gave %d (%d): %08lx %08lx %ld\n",
 	    DB_PRINT_EV, ees->unit, ees->io.fd, CIOGETEV, is_pps(ees),
 	    rc, errno, ptr[0], ptr[1], ptr[2]);
 
@@ -881,7 +862,7 @@ static void ees_receive(rbufp)
 
 		/* allow for single loss of PPS only */
 		if (pps_step != 1 && pps_step != 2)
-			fprintf(stderr, "PPS step: %d too far off %d (%d)\n",
+			fprintf(stderr, "PPS step: %d too far off %ld (%d)\n",
 			ppsclockev.serial, ees->last_pps_no, pps_step);
 		else if (!buftvtots((char *) &(ppsclockev.tv), &pps_arrvstamp))
 			fprintf(stderr, "buftvtots failed\n");
@@ -892,7 +873,7 @@ static void ees_receive(rbufp)
 			diff = pps_arrvstamp;
 			conv = 0;
 			L_SUB(&diff, &ees->arrvtime);
-if (debug & DB_PRINT_CDT) printf("[%x] Have %x.%08x and %x.%08x -> %x.%08x @ %s",
+if (debug & DB_PRINT_CDT) printf("[%x] Have %lx.%08lx and %lx.%08lx -> %lx.%08lx @ %s",
 	DB_PRINT_CDT, ees->arrvtime.l_ui, ees->arrvtime.l_uf,
 	pps_arrvstamp.l_ui, pps_arrvstamp.l_uf,
 	diff.l_ui, diff.l_uf,
@@ -929,7 +910,7 @@ syslog(LOG_ERR, "Have sec==1 slip %ds a=%08x-p=%08x -> %x.%08x (u=%d) %s",
 		}
 		ees->last_pps_no = ppsclockev.serial;
 		if (debug & DB_PRINT_CDTC) printf(
-			"[%x] %08x %08x %d u%d (%d %d)\n",
+			"[%x] %08lx %08lx %d u%d (%d %d)\n",
 			DB_PRINT_CDTC, pps_arrvstamp.l_ui,
 			pps_arrvstamp.l_uf, conv, ees->unit,
 			call_pps_sample, pps_step);
@@ -951,7 +932,7 @@ syslog(LOG_ERR, "Have sec==1 slip %ds a=%08x-p=%08x -> %x.%08x (u=%d) %s",
 
 		/* Dump the deltas each minute */
 		if (debug & DB_DUMP_DELTAS)
-		{	if (0 <= ees->second &&
+		{	if (/*0 <= ees->second && */
 				ees->second < ((sizeof deltas) / (sizeof deltas[0]))) deltas[ees->second] = delta_sfsec;
 			/* Dump on second 1, as second 0 sometimes missed */
 			if (ees->second == 1) {
@@ -964,8 +945,8 @@ syslog(LOG_ERR, "Have sec==1 slip %ds a=%08x-p=%08x -> %x.%08x (u=%d) %s",
 					while (*ptr) ptr++;
 				}
 				syslog(LOG_ERR, "Deltas: %d.%04d<->%d.%04d: %s",
-					msec(EES_STEP_F - EES_STEP_F_GRACE), subms(EES_STEP_F - EES_STEP_F_GRACE), 
-					msec(EES_STEP_F + EES_STEP_F_GRACE), subms(EES_STEP_F + EES_STEP_F_GRACE), 
+					msec(EES_STEP_F - EES_STEP_F_GRACE), subms(EES_STEP_F - EES_STEP_F_GRACE),
+					msec(EES_STEP_F + EES_STEP_F_GRACE), subms(EES_STEP_F + EES_STEP_F_GRACE),
 					text+1);
 				for (i=0; i<((sizeof deltas) / (sizeof deltas[0])); i++) deltas[i] = 0;
 			}
@@ -1056,7 +1037,7 @@ printf("MSF%d: steps %d: %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n",
 				sum = 4 * 60;
 			}
 			ees->last_step = this_uisec;
-printf("MSF%d: d=%3d.%04d@%d :%d:%d:$%d:%d:%d\n",
+printf("MSF%d: d=%3ld.%04ld@%d :%d:%d:$%d:%d:%d\n",
 ees->unit, msec(delta_sfsec), subms(delta_sfsec), ees->second, old_sincelast, ees->last_step_late, count, sum, ees->last_step_secs);
 syslog(LOG_ERR, "MSF%d: d=%3d.%04d@%d :%d:%d:%d:%d:%d",
 ees->unit, msec(delta_sfsec), subms(delta_sfsec), ees->second, old_sincelast, ees->last_step_late, count, sum, ees->last_step_secs);
@@ -1065,7 +1046,7 @@ ees->unit, msec(delta_sfsec), subms(delta_sfsec), ees->second, old_sincelast, ee
 		/* OK, so not a 4ms step at a minute boundry */
 		else {
 		     if (suspect_4ms_step) syslog(LOG_ERR,
-		    	 "MSF%d: suspect = %x, but delta of %d.%04d [%d.%04d<%d.%04d<%d.%04d: %d %d]",
+			 "MSF%d: suspect = %x, but delta of %d.%04d [%d.%04d<%d.%04d<%d.%04d: %d %d]",
 				ees->unit, suspect_4ms_step, msec(delta_sfsec), subms(delta_sfsec),
 				msec(EES_STEP_F - EES_STEP_F_GRACE),
 				subms(EES_STEP_F - EES_STEP_F_GRACE),
@@ -1079,7 +1060,7 @@ ees->unit, msec(delta_sfsec), subms(delta_sfsec), ees->second, old_sincelast, ee
 			static ees_step_notes = EES_STEP_NOTES;
 			if (ees_step_notes > 0) {
 				ees_step_notes--;
-printf("MSF%d: D=%3d.%04d@%02d :%d%s\n",
+printf("MSF%d: D=%3ld.%04ld@%02d :%d%s\n",
 ees->unit, msec(delta_sfsec), subms(delta_sfsec), ees->second, sincelast, ees_step_notes ? "" : " -- NO MORE !");
 syslog(LOG_ERR, "MSF%d: D=%3d.%04d@%02d :%d%s",
 ees->unit, msec(delta_sfsec), subms(delta_sfsec), ees->second, (ees->last_step) ? sincelast : -1, ees_step_notes ? "" : " -- NO MORE !");
@@ -1114,7 +1095,7 @@ ees->unit, msec(delta_sfsec), subms(delta_sfsec), ees->second, (ees->last_step) 
 			ees->unit, sec_of_ramp, ees->last_step_secs, fsecs,
 			pps_arrvstamp.l_f, pps_arrvstamp.l_f + fsecs);
 		if (debug & DB_PRINT_DELTAS) printf(
-			"MSF%d: %3d/%03d -> d=%11d (%d|%d)\n",
+			"MSF%d: %3ld/%03d -> d=%11ld (%ld|%ld)\n",
 			ees->unit, sec_of_ramp, ees->last_step_secs, fsecs,
 			pps_arrvstamp.l_f, pps_arrvstamp.l_f + fsecs);
 
@@ -1150,7 +1131,7 @@ ees->unit, msec(delta_sfsec), subms(delta_sfsec), ees->second, (ees->last_step) 
 	L_SUB(&ees->arrvtime, &offset_fudge[ees->unit]);
 	L_SUB(&pps_arrvstamp, &offset_fudge[ees->unit]);
 
-	if (call_pps_sample && !(debug & DB_NO_PPS)) {	
+	if (call_pps_sample && !(debug & DB_NO_PPS)) {
 		/* Sigh -- it expects its args negated */
 		L_NEG(&pps_arrvstamp);
 		(void) pps_sample(&pps_arrvstamp);
@@ -1202,7 +1183,7 @@ static void ees_process(ees)
 	u_fp dispersion;	/* ++++ */
 	int lostsync, isinsync;
 	int samples = ees->nsamples;
-	int samplelog;
+	int samplelog = 0;	/* keep "gcc -Wall" happy ! */
 	int samplereduce = (samples + 1) / 2;
 
 	/* Reset things to zero so we don't have to worry later */
@@ -1238,7 +1219,7 @@ static void ees_process(ees)
 		 * from the median.  We work this out by doubling
 		 * the median, subtracting off the end samples, and
 		 * looking at the sign of the answer, using the
-	         * identity (c-b)-(b-a) == 2*b-a-c
+		 * identity (c-b)-(b-a) == 2*b-a-c
 		 */
 		tmp = coffs[(noff + i)/2];
 		L_ADD(&tmp, &tmp);
@@ -1262,7 +1243,7 @@ static void ees_process(ees)
 			L_RSHIFTU(&offset);
 	}
 	else offset = coffs[i+BESTSAMPLE];
-	
+
 	/* Compute the dispersion as the difference between the
 	 * lowest and highest offsets that remain in the
 	 * consideration list.
@@ -1416,7 +1397,7 @@ static void msfees_leap()
 
 /* msfees_control - set fudge factors, return statistics */
 static void msfees_control(unit, in, out)
-	u_int unit;
+	int unit;
 	struct refclockstat *in;
 	struct refclockstat *out;
 {
@@ -1443,19 +1424,20 @@ static void msfees_control(unit, in, out)
 				 * will wait for the next timecode
 				 */
 				struct peer *peer = ees->peer;
+				struct refclockproc *pp = peer->procptr;
 				peer->stratum = stratumtouse[unit];
 				if (stratumtouse[unit] <= 1) {
-					memmove((char *)&peer->refid,
+					memmove((char *)&pp->refid,
 						EESREFID, 4);
 					if (unit>0 && unit<10)
-						((char *)&peer->refid)[3] =
+						((char *)&pp->refid)[3] =
 							'0' + unit;
 				}
 				else	peer->refid = htonl(EESHSREFID);
 			}
 		}
 		if (in->haveflags & CLK_HAVEVAL2) {
-			printf("Debug: %x -> %x\n", debug, in->fudgeval2);
+			printf("Debug: %x -> %lx\n", debug, in->fudgeval2);
 			syslog(LOG_ERR, "MSF%d: debug %x -> %x",
 				unit, debug, in->fudgeval2);
 			debug = in->fudgeval2;
@@ -1478,14 +1460,17 @@ static void msfees_control(unit, in, out)
 	}
 
 	if (out != 0) {
+		struct peer *peer = ees->peer;
+		struct refclockproc *pp = peer->procptr;
 		out->type	= REFCLK_MSF_EES;
 		out->haveflags
 		    = CLK_HAVETIME1|CLK_HAVETIME2|CLK_HAVEVAL1|CLK_HAVEVAL2|CLK_HAVEFLAG1|CLK_HAVEFLAG3|CLK_HAVEFLAG4;
-		out->clockdesc	= EESDESCRIPTION;
+		out->clockdesc	= pp->clockdesc;
 		out->fudgetime1	= fudgefactor[unit];
 		out->fudgetime2	= os_delay[unit];
 		out->fudgeval1	= (long)stratumtouse[unit];
-		out->fudgeval2	= debug;
+		/*out->fudgeval2= debug*/;
+		memmove((char *)&out->fudgeval2, (char *)&pp->refid, 4);
 		out->flags	= sloppyclockflag[unit];
 		if (unitinuse[unit]) {
 			out->flags     |= ees->dump_vals | ees->usealldata;

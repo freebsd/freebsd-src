@@ -1,4 +1,4 @@
-/* calyearstart.c,v 3.1 1993/07/06 01:08:06 jbj Exp
+/*
  * calyearstart - determine the NTP time at midnight of January 1 in
  *		  the year of the given date.
  */
@@ -11,19 +11,19 @@
 /*
  * calyeartab - year start offsets from the beginning of a cycle
  */
-U_LONG calyeartab[YEARSPERCYCLE] = {
+u_long calyeartab[YEARSPERCYCLE] = {
 	(SECSPERLEAPYEAR-JANFEBLEAP),
 	(SECSPERLEAPYEAR-JANFEBLEAP) + SECSPERYEAR,
 	(SECSPERLEAPYEAR-JANFEBLEAP) + 2*SECSPERYEAR,
 	(SECSPERLEAPYEAR-JANFEBLEAP) + 3*SECSPERYEAR
 };
 
-U_LONG
+u_long
 calyearstart(dateinyear)
-	register U_LONG dateinyear;
+	register u_long dateinyear;
 {
-	register U_LONG cyclestart;
-	register U_LONG nextyear, lastyear;
+	register u_long cyclestart;
+	register u_long nextyear, lastyear;
 	register int i;
 
 	/*

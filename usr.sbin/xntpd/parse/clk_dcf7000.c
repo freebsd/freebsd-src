@@ -1,8 +1,8 @@
 #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS)) && defined(CLOCK_DCF7000)
 /*
- * /src/NTP/REPOSITORY/v3/parse/clk_dcf7000.c,v 3.11 1994/02/02 17:45:14 kardel Exp
+ * /src/NTP/REPOSITORY/v3/parse/clk_dcf7000.c,v 3.12 1994/05/30 10:19:57 kardel Exp
  *  
- * clk_dcf7000.c,v 3.11 1994/02/02 17:45:14 kardel Exp
+ * clk_dcf7000.c,v 3.12 1994/05/30 10:19:57 kardel Exp
  *
  * ELV DCF7000 module
  *
@@ -35,18 +35,20 @@ static struct format dcf7000_fmt =
   0
 };    
 
-static unsigned LONG cvt_dcf7000();
+static u_long cvt_dcf7000();
 
 clockformat_t clock_dcf7000 =
 {
+  (unsigned LONG (*)())0,	/* no input handling */
   cvt_dcf7000,			/* ELV DCF77 conversion */
   syn_simple,			/* easy time stamps */
-  (unsigned LONG (*)())0,	/* no direct PPS monitoring */
-  (unsigned LONG (*)())0,	/* no time code synthesizer monitoring */
+  (u_long (*)())0,		/* no direct PPS monitoring */
+  (u_long (*)())0,		/* no time code synthesizer monitoring */
   (void *)&dcf7000_fmt,		/* conversion configuration */
   "ELV DCF7000",		/* ELV clock */
   24,				/* string buffer */
   F_END|SYNC_END,		/* END packet delimiter / synchronisation */
+  0,				/* no private data (complete pakets) */
   { 0, 0},
   '\0',
   '\r',
@@ -58,7 +60,7 @@ clockformat_t clock_dcf7000 =
  *
  * convert dcf7000 type format
  */
-static unsigned LONG
+static u_long
 cvt_dcf7000(buffer, size, format, clock)
   register char          *buffer;
   register int            size;
@@ -89,7 +91,7 @@ cvt_dcf7000(buffer, size, format, clock)
       else
 	{
 	  char *f = &buffer[format->field_offsets[O_FLAGS].offset];
-	  LONG flags;
+	  long flags;
 	  
 	  clock->flags = 0;
 	  clock->usecond = 0;
@@ -121,6 +123,9 @@ cvt_dcf7000(buffer, size, format, clock)
  * History:
  *
  * clk_dcf7000.c,v
+ * Revision 3.12  1994/05/30  10:19:57  kardel
+ * LONG cleanup
+ *
  * Revision 3.11  1994/02/02  17:45:14  kardel
  * rcs ids fixed
  *

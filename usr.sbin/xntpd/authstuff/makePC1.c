@@ -1,4 +1,4 @@
-/* makePC1.c,v 3.1 1993/07/06 01:04:59 jbj Exp
+/*
  * makePC1 - build custom permutted choice 1 tables
  */
 
@@ -12,7 +12,7 @@
 char *progname;
 int debug;
 
-static	void	permute	P((u_char *, U_LONG *, U_LONG *));
+static	void	permute	P((u_char *, u_long *, u_long *));
 static	void	doit	P((void));
 
 /*
@@ -74,11 +74,11 @@ static u_char PC1_D[28] = {
 static void
 permute(bits, cp, dp)
 	u_char *bits;
-	U_LONG *cp;
-	U_LONG *dp;
+	u_long *cp;
+	u_long *dp;
 {
 	register int i;
-	register U_LONG mask;
+	register u_long mask;
 	u_char c[28];
 	u_char d[28];
 
@@ -122,10 +122,10 @@ static	int	rc4[4] = { 32, 40, 48, 56 };
  */
 static	int	rd3[4] = { 36, 44, 52, 60 };
 
-static	U_LONG	PC_CL[8];
-static	U_LONG	PC_DL[16];
-static	U_LONG	PC_CR[16];
-static	U_LONG	PC_DR[8];
+static	u_long	PC_CL[8];
+static	u_long	PC_DL[16];
+static	u_long	PC_CR[16];
+static	u_long	PC_DR[8];
 
 
 /*
@@ -136,13 +136,13 @@ doit()
 {
 	int i;
 	int comb;
-	U_LONG c;
-	U_LONG d;
+	u_long c;
+	u_long d;
 	u_char bits[64];
 
 	memset((char *)bits, 0, sizeof bits);
 
-	printf("static U_LONG PC1_CL[8] = {");
+	printf("static u_long PC1_CL[8] = {");
 	for (i = 0; i < 4; i++) {
 		for (comb = 0; comb < 8; comb++) {
 			if (comb & 0x4)
@@ -176,7 +176,7 @@ doit()
 		}
 	}
 
-	printf("static U_LONG PC1_DL[16] = {");
+	printf("static u_long PC1_DL[16] = {");
 	for (i = 0; i < 4; i++) {
 		for (comb = 0; comb < 16; comb++) {
 			if (comb & 0x8)
@@ -213,7 +213,7 @@ doit()
 		}
 	}
 
-	printf("static U_LONG PC1_CR[16] = {");
+	printf("static u_long PC1_CR[16] = {");
 	for (i = 0; i < 4; i++) {
 		for (comb = 0; comb < 16; comb++) {
 			if (comb & 0x8)
@@ -250,7 +250,7 @@ doit()
 		}
 	}
 
-	printf("static U_LONG PC1_DR[8] = {");
+	printf("static u_long PC1_DR[8] = {");
 	for (i = 0; i < 4; i++) {
 		for (comb = 0; comb < 8; comb++) {
 			if (comb & 0x4)

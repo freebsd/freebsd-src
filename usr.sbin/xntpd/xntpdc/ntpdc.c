@@ -1,4 +1,4 @@
-/* ntpdc.c,v 3.1 1993/07/06 01:11:59 jbj Exp
+/*
  * xntpdc - control and monitor your xntpd daemon
  */
 #include <stdio.h>
@@ -26,7 +26,7 @@ static	char *	prompt = "xntpdc> ";	/* prompt to ask him about */
 /*
  * Keyid used for authenticated requests.  Obtained on the fly.
  */
-static	U_LONG	info_auth_keyid;
+static	u_long	info_auth_keyid;
 
 /*
  * Type of key md5 or des
@@ -51,7 +51,7 @@ static	void	docmd		P((char *));
 static	void	tokenize	P((char *, char **, int *));
 static	int	findcmd		P((char *, struct xcmd *, struct xcmd *, struct xcmd **));
 static	int	getarg		P((char *, int, arg_v *));
-static	int	getnetnum	P((char *, U_LONG *, char *));
+static	int	getnetnum	P((char *, u_long *, char *));
 static	void	help		P((struct parse *, FILE *));
 #if defined(sgi) || defined(SYS_BSDI) || defined(__STDC__)
 static	int	helpsort	P((const void *, const void *));
@@ -62,7 +62,6 @@ static	void	printusage	P((struct xcmd *, FILE *));
 static	void	timeout		P((struct parse *, FILE *));
 static	void	delay		P((struct parse *, FILE *));
 static	void	host		P((struct parse *, FILE *));
-static	void	ntp_poll	P((struct parse *, FILE *));
 static	void	keyid		P((struct parse *, FILE *));
 static	void	keytype		P((struct parse *, FILE *));
 static	void	passwd		P((struct parse *, FILE *));
@@ -72,17 +71,17 @@ static	void	quit		P((struct parse *, FILE *));
 static	void	version		P((struct parse *, FILE *));
 static	void	warning		P((char *, char *, char *));
 static	void	error		P((char *, char *, char *));
-static	U_LONG	getkeyid	P((char *));
+static	u_long	getkeyid	P((char *));
 
 
 /*
  * Built-in commands we understand
  */
 static	struct xcmd builtins[] = {
-	{ "?",		help,		{  OPT|STR, NO, NO, NO },
+	{ "?",		help,		{  OPT|NTP_STR, NO, NO, NO },
 					{ "command", "", "", "" },
 			"tell the use and syntax of commands" },
-	{ "help",	help,		{  OPT|STR, NO, NO, NO },
+	{ "help",	help,		{  OPT|NTP_STR, NO, NO, NO },
 					{ "command", "", "", "" },
 			"tell the use and syntax of commands" },
 	{ "timeout",	timeout,	{ OPT|UINT, NO, NO, NO },
@@ -91,19 +90,16 @@ static	struct xcmd builtins[] = {
 	{ "delay",	delay,		{ OPT|INT, NO, NO, NO },
 					{ "msec", "", "", "" },
 			"set the delay added to encryption time stamps" },
-	{ "host",	host,		{ OPT|STR, NO, NO, NO },
+	{ "host",	host,		{ OPT|NTP_STR, NO, NO, NO },
 					{ "hostname", "", "", "" },
 			"specify the host whose NTP server we talk to" },
-	{ "poll",	ntp_poll,	{ OPT|UINT, OPT|STR, NO, NO },
-					{ "n", "verbose", "", "" },
-			"poll an NTP server in client mode `n' times" },
-	{ "passwd",	passwd,		{ NO, NO, NO, NO },
+	{ "passwd",	passwd,		{ OPT|NTP_STR, NO, NO, NO },
 					{ "", "", "", "" },
 			"specify a password to use for authenticated requests"},
-	{ "hostnames",	hostnames,	{ OPT|STR, NO, NO, NO },
+	{ "hostnames",	hostnames,	{ OPT|NTP_STR, NO, NO, NO },
 					{ "yes|no", "", "", "" },
 			"specify whether hostnames or net numbers are printed"},
-	{ "debug",	setdebug,	{ OPT|STR, NO, NO, NO },
+	{ "debug",	setdebug,	{ OPT|NTP_STR, NO, NO, NO },
 					{ "no|more|less", "", "", "" },
 			"set/change debugging level" },
 	{ "quit",	quit,		{ NO, NO, NO, NO },
@@ -112,7 +108,7 @@ static	struct xcmd builtins[] = {
 	{ "keyid",	keyid,		{ OPT|UINT, NO, NO, NO },
 					{ "key#", "", "", "" },
 			"set keyid to use for authenticated requests" },
-	{ "keytype",	keytype,	{ STR, NO, NO, NO },
+	{ "keytype",	keytype,	{ NTP_STR, NO, NO, NO },
 					{ "key type (md5|des)", "", "", "" },
 			"set key type to use for authenticated requests (des|md5)" },
 	{ "version",	version,	{ NO, NO, NO, NO },
@@ -130,7 +126,7 @@ static	struct xcmd builtins[] = {
 #define	DEFSTIMEOUT	(2)		/* 2 second time out after first */
 #define	DEFDELAY	0x51EB852	/* 20 milliseconds, l_fp fraction */
 #define	DEFHOST		"localhost"	/* default host name */
-#define	LENHOSTNAME	256		/* host name is 256 characters LONG */
+#define	LENHOSTNAME	256		/* host name is 256 characters long */
 #define	MAXCMDS		100		/* maximum commands on cmd line */
 #define	MAXHOSTS	100		/* maximum hosts on cmd line */
 #define	MAXLINE		512		/* maximum line length */
@@ -313,7 +309,7 @@ static int
 openhost(hname)
 	char *hname;
 {
-	U_LONG netnum;
+	u_long netnum;
 	char temphost[LENHOSTNAME];
 
 	if (server_entry == NULL) {
@@ -429,9 +425,9 @@ getresponse(implcode, reqcode, ritems, rsize, rdata)
 	/*
 	 * This is pretty tricky.  We may get between 1 and many packets
 	 * back in response to the request.  We peel the data out of
-	 * each packet and collect it in one LONG block.  When the last
+	 * each packet and collect it in one long block.  When the last
 	 * packet in the sequence is received we'll know how many we
-	 * should have had.  Note we use one LONG time out, should reconsider.
+	 * should have had.  Note we use one long time out, should reconsider.
 	 */
 	*ritems = 0;
 	*rsize = 0;
@@ -702,7 +698,8 @@ sendrequest(implcode, reqcode, auth, qitems, qsize, qdata)
  * doquery - send a request and process the response
  */
 int
-doquery(implcode, reqcode, auth, qitems, qsize, qdata, ritems, rsize, rdata)
+doquery(implcode, reqcode, auth, qitems, qsize, qdata, ritems, rsize, rdata,
+	quiet_mask)
 	int implcode;
 	int reqcode;
 	int auth;
@@ -712,6 +709,7 @@ doquery(implcode, reqcode, auth, qitems, qsize, qdata, ritems, rsize, rdata)
 	int *ritems;
 	int *rsize;
 	char **rdata;
+ 	int quiet_mask;
 {
 	int res;
 	char junk[512];
@@ -755,7 +753,8 @@ doquery(implcode, reqcode, auth, qitems, qsize, qdata, ritems, rsize, rdata)
 	 */
 	res = getresponse(implcode, reqcode, ritems, rsize, rdata);
 
-	if (res > 0) {
+ 	/* log error message if not told to be quiet */
+ 	if ((res > 0) && (((1 << res) & quiet_mask) == 0)) {
 		switch(res) {
 		case INFO_ERR_IMPL:
 			(void) fprintf(stderr,
@@ -764,6 +763,7 @@ doquery(implcode, reqcode, auth, qitems, qsize, qdata, ritems, rsize, rdata)
 		case INFO_ERR_REQ:
 			(void) fprintf(stderr,
 			     "***Server doesn't implement this request\n");
+			break;
 		case INFO_ERR_FMT:
 			(void) fprintf(stderr,
 "***Server reports a format error in the received packet (shouldn't happen)\n");
@@ -1030,7 +1030,7 @@ getarg(str, code, argp)
 	static char *digits = "0123456789";
 
 	switch (code & ~OPT) {
-	case STR:
+	case NTP_STR:
 		argp->string = str;
 		break;
 	case ADD:
@@ -1081,7 +1081,7 @@ getarg(str, code, argp)
 static int
 getnetnum(host, num, fullhost)
 	char *host;
-	U_LONG *num;
+	u_long *num;
 	char *fullhost;
 {
 	struct hostent *hp;
@@ -1089,13 +1089,13 @@ getnetnum(host, num, fullhost)
 	if (decodenetnum(host, num)) {
 		if (fullhost != 0) {
 			(void) sprintf(fullhost,
-			    "%d.%d.%d.%d", ((htonl(*num)>>24)&0xff),
-			    ((htonl(*num)>>16)&0xff), ((htonl(*num)>>8)&0xff),
-			    (htonl(*num)&0xff));
+			    "%u.%u.%u.%u", (u_int)((htonl(*num)>>24)&0xff),
+			    (u_int)((htonl(*num)>>16)&0xff), (u_int)((htonl(*num)>>8)&0xff),
+			    (u_int)(htonl(*num)&0xff));
 		}
 		return 1;
 	} else if ((hp = gethostbyname(host)) != 0) {
-		memmove((char *)num, hp->h_addr, sizeof(U_LONG));
+		memmove((char *)num, hp->h_addr, sizeof(u_long));
 		if (fullhost != 0)
 			(void) strcpy(fullhost, hp->h_name);
 		return 1;
@@ -1112,7 +1112,7 @@ getnetnum(host, num, fullhost)
  */
 char *
 nntohost(netnum)
-	U_LONG netnum;
+	u_long netnum;
 {
 	if (!showhostnames)
 		return numtoa(netnum);
@@ -1267,18 +1267,18 @@ delay(pcmd, fp)
 	FILE *fp;
 {
 	int isneg;
-	U_LONG val;
+	u_long val;
 
 	if (pcmd->nargs == 0) {
 		val = delay_time.l_ui * 1000 + delay_time.l_uf / 4294967;
-		(void) fprintf(fp, "delay %d ms\n", val);
+		(void) fprintf(fp, "delay %lu ms\n", val);
 	} else {
 		if (pcmd->argval[0].ival < 0) {
 			isneg = 1;
-			val = (U_LONG)(-pcmd->argval[0].ival);
+			val = (u_long)(-pcmd->argval[0].ival);
 		} else {
 			isneg = 0;
-			val = (U_LONG)pcmd->argval[0].ival;
+			val = (u_long)pcmd->argval[0].ival;
 		}
 
 		delay_time.l_ui = val / 1000;
@@ -1317,19 +1317,6 @@ host(pcmd, fp)
 
 
 /*
- * poll - do one (or more) polls of the host via NTP
- */
-/*ARGSUSED*/
-static void
-ntp_poll(pcmd, fp)
-	struct parse *pcmd;
-	FILE *fp;
-{
-	(void) fprintf(fp, "poll not implemented yet\n");
-}
-
-
-/*
  * keyid - get a keyid to use for authenticating requests
  */
 static void
@@ -1341,7 +1328,7 @@ keyid(pcmd, fp)
 		if (info_auth_keyid == 0)
 			(void) fprintf(fp, "no keyid defined\n");
 		else
-			(void) fprintf(fp, "keyid is %u\n", info_auth_keyid);
+			(void) fprintf(fp, "keyid is %lu\n", info_auth_keyid);
 	} else {
 		info_auth_keyid = pcmd->argval[0].uval;
 	}
@@ -1396,11 +1383,16 @@ passwd(pcmd, fp)
 			return;
 		}
 	}
-	pass = getpass("Password: ");
-	if (*pass == '\0')
-		(void) fprintf(fp, "Password unchanged\n");
-	else
-		authusekey(info_auth_keyid, info_auth_keytype, pass);
+	if (!interactive) {
+		authusekey(info_auth_keyid, info_auth_keytype,
+		    pcmd->argval[0].string);
+	} else {
+		pass = getpass("Password: ");
+		if (*pass == '\0')
+			(void) fprintf(fp, "Password unchanged\n");
+		else
+			authusekey(info_auth_keyid, info_auth_keytype, pass);
+	}
 }
 
 
@@ -1515,7 +1507,7 @@ error(fmt, st1, st2)
 /*
  * getkeyid - prompt the user for a keyid to use
  */
-static U_LONG
+static u_long
 getkeyid(prompt)
 char *prompt;
 {
@@ -1536,5 +1528,5 @@ char *prompt;
 	*p = '\0';
 	if (fi != stdin)
 		fclose(fi);
-	return (U_LONG)atoi(pbuf);
+	return (u_long)atoi(pbuf);
 }

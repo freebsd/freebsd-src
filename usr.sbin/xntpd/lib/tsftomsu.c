@@ -1,4 +1,4 @@
-/* tsftomsu.c,v 3.1 1993/07/06 01:08:47 jbj Exp
+/*
  * tsftomsu - convert from a time stamp fraction to milliseconds
  */
 #include "ntp_fp.h"
@@ -6,11 +6,11 @@
 
 int
 tsftomsu(tsf, round)
-	U_LONG tsf;
+	u_long tsf;
 	int round;
 {
-	register U_LONG val_ui, val_uf;
-	register U_LONG tmp_ui, tmp_uf;
+	register long val_ui, val_uf;
+	register long tmp_ui, tmp_uf;
 	register int i;
 
 	/*

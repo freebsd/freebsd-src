@@ -80,6 +80,7 @@ extern	int	link		P((const char *, const char *));
 extern  int	fclose		P((FILE *));
 extern	int	fflush		P((FILE *));
 extern  int	fprintf		P((FILE *, char *, ...));
+extern	int	fscanf		P((FILE *, char *, ...));
 extern  int	fputs		P((char *, FILE *));
 extern	int	fputc		P((char, FILE *));
 extern	int	fread		P((char *, int, int, FILE *));
@@ -87,6 +88,7 @@ extern  int	printf		P((char *, ...));
 extern	int	setbuf		P((FILE *, char *));
 extern  int     setvbuf		P((FILE *, char *, int, int));
 extern	int	scanf		P((char *, ...));
+extern  int	sscanf		P((char *, char *, ...));
 extern  int	vsprintf	P((char *, char *, ...));
 extern  int	_flsbuf		P((int, FILE *));
 extern  int	_filbuf		P((FILE *));
@@ -151,7 +153,43 @@ extern int 	nlist		P((char *, struct nlist *));
 #endif /* SYS_SUNOS4 */
 
 /*
- * Unprototyped  library functions for ULTRIX.
+ * Unprototyped library functions for DEC OSF/1
+ */
+#ifdef SYS_DECOSF1
+#ifndef _MACHINE_ENDIAN_H_
+#define _MACHINE_ENDIAN_H_
+extern u_short	htons		P((u_short));
+extern u_short	ntohs		P((u_short));
+extern U_LONG	htonl		P((U_LONG));
+extern U_LONG	ntohl		P((U_LONG));
+#endif /* _MACHINE_ENDIAN_H_ */
+
+/*
+extern	char *	getpass		P((char *));
+*/
+extern	char *	mktemp		P((char *));
+#ifndef SYS_IX86OSF1
+extern	int	ioctl		P((int, u_long, char *));
+extern	void	bzero		P((char *, int));
+#endif
+
+#ifdef SOCK_DGRAM
+extern	int	bind		P((int, const struct sockaddr *, int));
+extern	int	connect		P((int, const struct sockaddr *, int));
+extern	int	socket		P((int, int, int));
+extern	int	sendto		P((int, const void *, int, int, const struct sockaddr *, int));
+extern	int	setsockopt	P((int, int, int, const void *, int));
+extern	int	recvfrom	P((int, void *, int, int, struct sockaddr *, int *));
+#endif /* SOCK_STREAM */
+
+#ifdef _ntp_select_h
+extern	int	select		P((int, fd_set *, fd_set *, fd_set *, struct timeval *));
+#endif
+
+#endif /* DECOSF1 */
+
+/*
+ * Unprototyped library functions for Ultrix
  */
 #ifdef SYS_ULTRIX
 extern	int	close		P((int));
@@ -162,14 +200,12 @@ extern  char   *mktemp		P((char *));
 extern	int	unlink		P((const char *));
 extern	int	link		P((const char *, const char *));
 
-#if defined(LOG_DEBUG)
 extern	void	closelog	P((void));
 extern	void	syslog		P((int, char *, ...));
 #ifndef LOG_DAEMON
 extern	void	openlog		P((char *, int));
 #else
 extern	void	openlog		P((char *, int, int));
-#endif
 #endif
 
 extern  int	setpriority	P((int ,int ,int ));
@@ -184,13 +220,21 @@ extern  int	recvfrom	P((int, char *, int, int, struct sockaddr *, int *));
 #endif /* SOCK_STREAM */
 
 #ifdef _TIME_H_
-extern  int	adjtime		P((struct timeval *, struct timeval *));
+extern	int	gettimeofday	P((struct timeval *, struct timezone *));
+extern	int	settimeofday	P((struct timeval *, struct timezone *));
+extern	int	adjtime		P((struct timeval *, struct timeval *));
 extern	int	select		P((int, fd_set *, fd_set *, fd_set *, struct timeval *));
 extern  int	setitimer	P((int , struct itimerval *, struct itimerval *));
 #endif /* _TIME_H_ */
 
 #ifdef  N_UNDF
 extern int 	nlist		P((char *, struct nlist *));
+#endif
+
+#ifndef bzero                   /* XXX macro prototyping clash */
+extern	void	bzero		P((char *, int));
+extern	int	bcmp		P((char *, char *, int));
+extern	void	bcopy		P((char *, char *, int));
 #endif
 
 #ifndef NTP_POSIX_SOURCE
@@ -204,15 +248,17 @@ extern  int	getdtablesize	P((void));
 extern	int	ran		P((void));
 extern	int	rand		P((void));
 extern  void	srand		P((unsigned int));
-#if defined(_STDIO_H_)
-extern	int	setlinebuf	P((FILE *));
-#endif
 #ifdef _TIME_H_
 extern  int	gettimeofday    P((struct timeval *, struct timezone *));
+extern	int	settimeofday	P((struct timeval *, struct timezone *));
 #endif
 #endif
 
-#endif /* SYS_ULTIRX */
+#ifdef _RESOURCE_H_
+extern	int	getrusage	P((int, struct rusage *));
+#endif
+
+#endif /* SYS_ULTRIX */
 
 #if defined(__convex__)
 extern  char *	getpass		P((char *));
@@ -229,6 +275,10 @@ extern	char *	getpass		P((char *));
 #ifdef SYS_DOMAINOS
 extern	char *	getpass		P((char *));
 #endif /* SYS_DOMAINOS */
+
+#ifdef SYS_BSD
+#define    IN_CLASSD(i)            (((long)(i) & 0xf0000000) == 0xe0000000)
+#endif
 
 #endif /* l_stdlib_h */
 

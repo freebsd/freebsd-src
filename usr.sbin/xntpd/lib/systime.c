@@ -1,15 +1,16 @@
-/* systime.c,v 3.1 1993/07/06 01:08:46 jbj Exp
+/*
  * systime -- routines to fiddle a UNIX clock.
  */
+#include <stdio.h>
 #include <sys/types.h>
 #include <sys/time.h>
-#if defined(SYS_HPUX) || defined(sgi) || defined(SYS_BSDI)
+#if defined(SYS_HPUX) || defined(sgi) || defined(SYS_BSDI) || defined(SYS_44BSD)
 #include <sys/param.h>
 #include <utmp.h>
 #endif
 
 #ifdef SYS_LINUX
-#include <sys/timex.h>
+#include "sys/timex.h"
 #endif
 
 #include "ntp_fp.h"
@@ -47,12 +48,12 @@ extern int debug;
  * We also remember the clock precision we computed from the kernel in
  * case someone asks us.
  */
-	LONG sys_clock;
+	long sys_clock;
 
-	LONG adj_precision;	/* adj precision in usec (tickadj) */
-	LONG tvu_maxslew;	/* maximum adjust doable in 1<<CLOCK_ADJ sec (usec) */
+	long adj_precision;	/* adj precision in usec (tickadj) */
+	long tvu_maxslew;	/* maximum adjust doable in 1<<CLOCK_ADJ sec (usec) */
 
-	U_LONG tsf_maxslew;	/* same as above, as LONG format */
+	u_long tsf_maxslew;	/* same as above, as long format */
 
 	l_fp sys_clock_offset;	/* correction for current system time */
 
@@ -83,7 +84,7 @@ get_systime(ts)
 	TVTOTS(&tv, ts);
 	L_ADD(ts, &sys_clock_offset);
 	if (ts->l_uf & TS_ROUNDBIT)
-		L_ADDUF(ts, (unsigned LONG) TS_ROUNDBIT);
+		L_ADDUF(ts, TS_ROUNDBIT);
 #endif	/* !defined(SLEWALWAYS) */
 	ts->l_ui += JAN_1970;
 	ts->l_uf &= TS_MASK;
@@ -101,8 +102,8 @@ step_systime(ts)
 {
 #ifdef SLEWALWAYS 
 #ifdef STEP_SLEW
-	register U_LONG tmp_ui;
-	register U_LONG tmp_uf;
+	register u_long tmp_ui;
+	register u_long tmp_uf;
 	int isneg;
 	int n;
 
@@ -148,13 +149,13 @@ int
 adj_systime(ts)
 	l_fp *ts;
 {
-	register unsigned LONG offset_i, offset_f;
-	register LONG temp;
-	register unsigned LONG residual;
+	register u_long offset_i, offset_f;
+	register long temp;
+	register u_long residual;
 	register int isneg = 0;
 	struct timeval adjtv, oadjtv;
 	l_fp oadjts;
-	LONG adj = ts->l_f;
+	long adj = ts->l_f;
 	int rval;
 
 	adjtv.tv_sec = adjtv.tv_usec = 0;
@@ -199,8 +200,7 @@ adj_systime(ts)
 
 #ifdef DEBUG
 		if (debug > 4)
-			syslog(LOG_DEBUG,
-			    "maximum slew: %s%s, remainder = %s\n",
+			printf("systime: maximum slew: %s%s, remainder = %s\n",
 			    isneg?"-":"", umfptoa(0, tsf_maxslew, 9),
 			    mfptoa(offset_i, offset_f, 9));
 #endif
@@ -232,8 +232,8 @@ adj_systime(ts)
 		}
 #ifdef DEBUG
 		if (debug > 4)
-			syslog(LOG_DEBUG,
-		"slew adjtv = %s, adjts = %s, sys_clock_offset = %s\n",
+			printf(
+		"systime: adjtv = %s, adjts = %s, sys_clock_offset = %s\n",
 			    tvtoa(&adjtv), umfptoa(0, residual, 9),
 			    mfptoa(offset_i, offset_f, 9));
 #endif

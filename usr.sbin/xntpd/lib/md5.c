@@ -1,4 +1,4 @@
-/* md5.c,v 3.1 1993/07/06 01:08:29 jbj Exp
+/*
  ***********************************************************************
  ** md5.c -- the source code for MD5 routines                         **
  ** RSA Data Security, Inc. MD5 Message-Digest Algorithm              **
