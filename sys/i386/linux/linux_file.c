@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_file.c,v 1.18 1998/01/05 01:05:15 jmb Exp $
+ *  $Id: linux_file.c,v 1.19 1998/01/05 01:17:42 jmb Exp $
  */
 
 #include "opt_compat.h"
@@ -666,6 +666,27 @@ linux_chown(struct proc *p, struct linux_chown_args *args)
 	bsd.gid = args->gid;
 
 	return chown(p, &bsd);
+}
+
+int
+linux_lchown(struct proc *p, struct linux_lchown_args *args)
+{
+	struct lchown_args bsd;
+	caddr_t sg;
+
+	sg = stackgap_init();
+	CHECKALTEXIST(p, &sg, args->path);
+
+#ifdef DEBUG
+        printf("Linux-emul(%d): lchown(%s, %d, %d)\n", 
+	    p->p_pid, args->path, args->uid, args->gid);
+#endif
+	bsd.path = args->path;
+	/* XXX size casts here */
+	bsd.uid = args->uid;
+	bsd.gid = args->gid;
+
+	return lchown(p, &bsd);
 }
 
 int
