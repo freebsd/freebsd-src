@@ -965,9 +965,10 @@ void
 notealias(const char *addr, int param, int s, const struct afswtch *afp)
 {
 	if (setaddr && doalias == 0 && param < 0)
-		bcopy((caddr_t)rqtosa(af_addreq),
-		      (caddr_t)rqtosa(af_ridreq),
-		      rqtosa(af_addreq)->sa_len);
+		if (afp->af_addreq != NULL && afp->af_ridreq != NULL)
+			bcopy((caddr_t)rqtosa(af_addreq),
+			      (caddr_t)rqtosa(af_ridreq),
+			      rqtosa(af_addreq)->sa_len);
 	doalias = param;
 	if (param < 0) {
 		clearaddr = 1;
