@@ -226,21 +226,8 @@ pmc_isa_detach(device_t dev)
 	return 0;
 }
 
-#ifdef KLD_MODULE
-static void
-pmc_isa_identify(driver_t *drv, device_t dev)
-{
-	if (BUS_ADD_CHILD(dev, ISA_ORDER_SPECULATIVE, "pmc", 0) == NULL) {
-		printf("failed to add pmc driver\n");
-	}
-}
-#endif
-
 static device_method_t pmc_isa_methods[] = {
 	/* Device interface */
-#ifdef KLD_MODULE
-	DEVMETHOD(device_identify,	pmc_isa_identify),
-#endif
 	DEVMETHOD(device_probe,		pmc_isa_probe),
 	DEVMETHOD(device_attach,	pmc_isa_attach),
 	DEVMETHOD(device_detach,	pmc_isa_detach),
