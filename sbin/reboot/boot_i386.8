@@ -4,6 +4,8 @@
 .\" This code is derived from software written and contributed
 .\" to Berkeley by William Jolitz.
 .\"
+.\" Almost completely rewritten for FreeBSD 2.1 by Joerg Wunsch.
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -34,6 +36,8 @@
 .\"
 .\"     @(#)boot_i386.8	8.2 (Berkeley) 4/19/94
 .\"
+.\" $Id: boot_i386.8,v 1.3 1995/10/07 12:05:00 joerg Exp $
+.\"
 .Dd April 19, 1994
 .Dt BOOT 8 i386
 .Os
@@ -48,79 +52,118 @@ An automatic consistency check of the file systems will be performed,
 and unless this fails, the system will resume multi-user operations.
 .Pp
 .Sy Cold starts.
-The 386
+Most 386
 .Tn "PC AT"
-clones attempt to boot the floppy disk drive A (otherwise known as drive
-0) first, and failing that, attempt to boot the hard disk C (otherwise
-known as hard disk controller 1, drive 0).
-The automatic boot will attempt to load
-.Pa kernel
-from partition A of either the floppy or the hard disk.
-This boot may be aborted by typing any character on the keyboard repeatedly
-(four or five times at least) during the operating system load phase, after
-which the bootstrap will prompt for the file that you wish to load instead.
+clones attempt to boot the floppy disk drive 0 (otherwise known as
+drive A:) first, and failing that, attempt to boot the hard disk
+controller 1, drive 0 (otherwise known as drive C:, or drive 0x80 in
+the BIOS).  The automatic boot will attempt to load
+.Pa /kernel
+from partition
+.Ql a
+of either the floppy or the hard disk.
+This boot may be aborted by typing any character on the keyboard
+at the
+.Ql Boot:
+prompt.  At this time, the following input will be accepted:
+.Bl -tag -offset indent -width 10x
+.It \&?
+Give a short listing of the files in the root directory of the default
+boot device, as a hint about available boot files.
+.It Op ctrlr(unit,part) Op /filename Op Fl abcCdhrsv
+Specify boot file and flags.
+.Bl -tag -offset indent -width 10x -compact
+.It ctrlr
+The controller to boot from.  Note that the controller is required
+to have BIOS support since the BIOS services are used to load the
+boot file image.
 .Pp
-One exception to this is the
-.Ql d
-key, which will not abort the load but instead silently force the
-.Dv DEBUG
-boot flags.
-The boot flags for an autoboot are 0, and 3 for the successive boot after
-an aborted autoboot sequence.
-No other provison is made for setting boot flags (yet).
-A specific device or bootstrap file may be used; for example,
-.Pp
-The file specifications used for the boostrap
-when loaded with the
-.Dq askme
-flag
-(e.g. an aborted autoboot)
-are of the form:
-.Pp
-.Dl device unit partition:
-.Pp
-where
-.Ar device
-is the type of the device, assumed to be on the ISA bus, to be searched,
-.Ar unit
-is the unit number of the disk or tape,
-and
-.Ar partition
-is the disk partition or tape file number.
-Normal line editing characters can be used when typing the file specification.
-The following list of supported devices may vary from installation to
-installation:
-.Bd -unfilled -offset indent
-wd	ST506, IDE, ESDI, RLL disks on a WD100[2367] or lookalike
-	controller
-fd	5 1/4" or 3 1/2" High density floppies
-.Ed
-.Pp
-For example,
-to boot from a file system which starts at cylinder 0
-of unit 0 of an IDE disk, type
-.Dq Li wd0a:kernel
-to the boot prompt;
-.Dq Li fd0a:kernel
-would specify a 3 1/2" floppy drive 0 .
-.Pp
-In an emergency, the bootstrap methods described in the paper
-.%T "Installing and Operating 4.3 BSD-Reno UNIX on the AT/386"
-can be used
-to boot from a distribution tape.
+Common controller names are:
+.Bl -tag -offset indent -width "wdXX" -compact
+.It wd
+ST506, IDE, ESDI, RLL disks on a WD100[2367] or lookalike
+controller
+.It fd
+5 1/4" or 3 1/2" High density floppies
+.It sd
+SCSI disk on any supported SCSI controller
+.It cd
+boot from CDROM
+.It hd
+Pseudo-controller, must be used to specify that unit number
+1 (known to the BIOS as drive 0x81) is on a different controller
+than unit number 0.  This can happen for the wd vs. sd case.
+.El
+.It unit
+The unit number of the drive on the controller being used.  Either 0
+or 1 for the wd and fd and most sd controllers, between 0 and 6 for
+some newer sd controllers.
+.It part
+The partition letter inside the BSD portion of the disk.  See
+.Xr disklabel 8  .
+By convention, only partition
+.Ql a
+contains a bootable image.  If sliced disks are used
+.Pq Dq fdisk partitions ,
+only the first BSD slice can be used to boot from.  The partition
+letter does always refer to this slice then.
+.It /filename
+The pathname of the file to boot; must be inside the root directory
+of the specified partition.  Defaults to
+.Pa /kernel .
+Symbolic links are not supported (hard links are).
+.It Fl abcCdhrsv
+Boot flags:
+.Bl -tag -offset indent -width "-CXX" -compact
+.It Fl a
+ask for the device to install as root file system during kernel
+initialisation
+.It Fl b
+do not automatically reboot after shutdown or crash
+.It Fl c
+run UserConfig to modify hardware parameters for the loaded
+kernel
+.It Fl C
+boot from CDROM
+.It Fl d
+enter the DDB kernel debugger
+.Pq see Xr ddb 4
+before configuring any device (except the system's console)
+.It Fl h
+toggle serial/graphics console
+.It Fl r
+do not establish the root directory of the file system
+hierarchy on the device where the boot file is being loaded
+from
+.It Fl s
+boot into single-user mode; if the console is marked as
+.Dq insecure
+.Pq see Xr ttys 5 ,
+the root password must be entered
+.It Fl v
+be verbose during device probing
+.El
+.El
+.El
 .Sh FILES
 .Bl -tag -width /kernelxx -compact
 .It Pa /kernel
 system code
-.It Pa /boot
-system bootstrap
+.\" .It Pa /boot
+.\" system bootstrap
 .El
 .Sh SEE ALSO
+.Xr ddb 4 ,
+.Xr ttys 5 ,
 .Xr halt 8 ,
 .Xr reboot 8 ,
-.Xr shutdown 8
+.Xr shutdown 8 ,
+.Xr disklabel 8 .
 .Sh BUGS
 The disklabel format used by this version of
 .Bx
 is quite
 different from that of other architectures.
+.Pp
+The boot flags are not very self-explanatory, and the alphabet has
+too few characters to implement every potentially useful boot option.
