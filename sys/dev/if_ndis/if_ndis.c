@@ -512,11 +512,17 @@ ndis_attach(dev)
 		}
 #undef SETRATE
 #undef INCRATE
+		/*
+		 * The Microsoft API has no support for getting/setting
+		 * channels, so we lie like a rug here. If you wan to
+		 * select a channel, use the sysctl/registry interface.
+		 */
 		for (i = 1; i < 11; i++) {
 			ic->ic_channels[i].ic_freq =
 			    ieee80211_ieee2mhz(i, IEEE80211_CHAN_B);
 			ic->ic_channels[i].ic_flags = IEEE80211_CHAN_B;
 		}
+
 		i = sizeof(arg);
 		r = ndis_get_info(sc, OID_802_11_WEP_STATUS, &arg, &i);
 		if (arg != NDIS_80211_WEPSTAT_NOTSUPPORTED)
@@ -524,7 +530,8 @@ ndis_attach(dev)
 		ieee80211_node_attach(ifp);
 		ieee80211_media_init(ifp, ieee80211_media_change,
 		    ieee80211_media_status);
-		/*ic->ic_bss->ni_rates = ic->ic_sup_rates[IEEE80211_MODE_11G];*/
+		ic->ic_ibss_chan = &ic->ic_channels[1];
+		ic->ic_bss->ni_chan = &ic->ic_channels[1];
 	} else {
 		ifmedia_init(&sc->ifmedia, IFM_IMASK, ndis_ifmedia_upd,
 		    ndis_ifmedia_sts);
@@ -568,7 +575,7 @@ static int
 ndis_detach(dev)
 	device_t		dev;
 {
-	struct ndis_softc		*sc;
+	struct ndis_softc	*sc;
 	struct ifnet		*ifp;
 
 	sc = device_get_softc(dev);
@@ -747,7 +754,7 @@ static void
 ndis_intr(arg)
 	void			*arg;
 {
-	struct ndis_softc		*sc;
+	struct ndis_softc	*sc;
 	struct ifnet		*ifp;
 	int			is_our_intr = 0;
 	int			call_isr = 0;
@@ -779,7 +786,7 @@ static void
 ndis_tick(xsc)
 	void			*xsc;
 {
-	struct ndis_softc		*sc;
+	struct ndis_softc	*sc;
 	__stdcall ndis_checkforhang_handler hangfunc;
 	uint8_t			rval;
 	ndis_media_state	linkstate;

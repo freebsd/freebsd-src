@@ -822,7 +822,7 @@ ndis_vtophys_load(adapter, buf, mapreg, writedev, addrarray, arraysize)
 	nma.nma_fraglist = addrarray;
 
 	error = bus_dmamap_load(sc->ndis_mtag, map,
-	    buf->nb_mappedsystemva, buf->nb_bytecount, ndis_map_cb,
+	    MDL_VA(buf), buf->nb_bytecount, ndis_map_cb,
 	    (void *)&nma, BUS_DMA_NOWAIT);
 
 	if (error)
@@ -1612,9 +1612,7 @@ ndis_alloc_buf(status, buffer, pool, vaddr, len)
 	/* Save pointer to the pool. */
 	buf->nb_process = head;
 
-	buf->nb_mappedsystemva = vaddr;
-	buf->nb_size = len;
-	buf->nb_next = NULL;
+	MDL_INIT(buf, vaddr, len);
 
 	*buffer = buf;
 
@@ -1654,7 +1652,7 @@ ndis_query_buf(buf, vaddr, len)
 	uint32_t		*len;
 {
 	if (vaddr != NULL)
-		*vaddr = buf->nb_mappedsystemva;
+		*vaddr = MDL_VA(buf);
 	*len = buf->nb_bytecount;
 
 	return;
@@ -1670,7 +1668,7 @@ ndis_query_buf_safe(buf, vaddr, len, prio)
 	uint32_t		prio;
 {
 	if (vaddr != NULL)
-		*vaddr = buf->nb_mappedsystemva;
+		*vaddr = MDL_VA(buf);
 	*len = buf->nb_bytecount;
 
 	return;
@@ -1876,9 +1874,11 @@ __stdcall static uint32_t
 ndis_numpages(buf)
 	ndis_buffer		*buf;
 {
+	if (buf == NULL)
+		return(0);
 	if (buf->nb_bytecount == 0)
 		return(1);
-	return(SPAN_PAGES(buf->nb_mappedsystemva, buf->nb_bytecount));
+	return(SPAN_PAGES(MDL_VA(buf), buf->nb_bytecount));
 }
 
 __stdcall static void
@@ -1886,6 +1886,9 @@ ndis_buf_physpages(buf, pages)
 	ndis_buffer		*buf;
 	uint32_t		*pages;
 {
+	if (buf == NULL)
+		return;
+
 	*pages = ndis_numpages(buf);
 	return;
 }
@@ -1896,7 +1899,10 @@ ndis_query_bufoffset(buf, off, len)
 	uint32_t		*off;
 	uint32_t		*len;
 {
-	*off = (uint32_t)buf->nb_mappedsystemva & (PAGE_SIZE - 1);
+	if (buf == NULL)
+		return;
+
+	*off = buf->nb_byteoffset;
 	*len = buf->nb_bytecount;
 
 	return;
@@ -2149,7 +2155,7 @@ ndis_firstbuf(packet, buf, firstva, firstlen, totlen)
 		*firstva = NULL;
 		*firstlen = *totlen = 0;
 	} else {
-		*firstva = tmp->nb_mappedsystemva;
+		*firstva = MDL_VA(tmp);
 		*firstlen = *totlen = tmp->nb_bytecount;
 		for (tmp = tmp->nb_next; tmp != NULL; tmp = tmp->nb_next)
 			*totlen += tmp->nb_bytecount;
