@@ -37,13 +37,14 @@ static const char copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)uudecode.c	8.2 (Berkeley) 4/2/94";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * uudecode [file ...]
@@ -132,7 +133,7 @@ main(int argc, char *argv[])
 }
 
 int
-decode ()
+decode(void)
 {
 	int flag;
 
@@ -151,8 +152,7 @@ decode ()
 }
 
 int
-decode2(flag)
-	int flag;
+decode2(int flag)
 {
 	struct passwd *pw;
 	register int n;
@@ -334,8 +334,7 @@ if (!ignore) \
 }
 
 void
-base64_decode(stream)
-	const char *stream;
+base64_decode(const char *stream)
 {
 	unsigned char out[MAXPATHLEN * 4];
 	int rv;
@@ -351,7 +350,7 @@ base64_decode(stream)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: uudecode [-cips] [file ...]\n");
 	(void)fprintf(stderr, "usage: uudecode [-i] -o output_file [file]\n");
