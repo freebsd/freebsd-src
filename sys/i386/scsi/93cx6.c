@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *      $Id: 93cx6.c,v 1.2 1995/09/05 23:51:58 gibbs Exp $
+ *      $Id: 93cx6.c,v 1.3 1995/11/14 09:58:47 phk Exp $
  */
 
 /*
@@ -92,7 +92,6 @@ int read_seeprom (u_long   offset,
 		  u_short  MS    /* mode select */)
 {
 	int i = 0, k = 0;
-	int wait;
 	unsigned char temp;
 
 	/*

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_xxx.c	8.2 (Berkeley) 11/14/93
- * $Id: kern_xxx.c,v 1.18 1995/11/12 07:04:30 bde Exp $
+ * $Id: kern_xxx.c,v 1.19 1995/11/14 09:10:45 phk Exp $
  */
 
 #include <sys/param.h>
@@ -208,7 +208,7 @@ uname(p, uap, retval)
 	struct uname_args *uap;
 	int *retval;
 {
-	int name[2], len, rtval, junk;
+	int name[2], len, rtval;
 	char *s, *us;
 
 	name[0] = CTL_KERN;
