@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.13.2.22 1998/01/04 09:51:30 kato Exp $
+ *  $Id: syscons.c,v 1.13.2.23 1998/01/06 13:52:31 kato Exp $
  */
 
 #include "sc.h"
@@ -443,23 +443,17 @@ move_crsr(scr_stat *scp, int x, int y)
 static int
 scprobe(struct isa_device *dev)
 {
-#ifdef PC98
-    sc_port = dev->id_iobase;
-    sc_kbdc = kbdc_open(sc_port);
-    return(16);
-
     if (!scvidprobe(dev->id_unit, dev->id_flags)) {
 	if (bootverbose)
 	    printf("sc%d: no video adapter is found.\n", dev->id_unit);
 	return (0);
     }
-#else
+
     sc_port = dev->id_iobase;
     if (sckbdprobe(dev->id_unit, dev->id_flags))
 	return (IO_KBDSIZE);
     else
         return ((dev->id_flags & DETECT_KBD) ? 0 : IO_KBDSIZE);
-#endif
 }
 
 /* probe video adapters, return TRUE if found */ 
@@ -559,7 +553,6 @@ scvidprobe(int unit, int flags)
     return TRUE;
 }
 
-#ifndef	PC98
 /* probe the keyboard, return TRUE if found */
 static int
 sckbdprobe(int unit, int flags)
@@ -569,7 +562,7 @@ sckbdprobe(int unit, int flags)
     int m;
 
     sc_kbdc = kbdc_open(sc_port);
-
+#ifndef	PC98
     if (!kbdc_lock(sc_kbdc, TRUE)) {
 	/* driver error? */
 	printf("sc%d: unable to lock the controller.\n", unit);
@@ -707,8 +700,9 @@ sckbdprobe(int unit, int flags)
 succeed: 
     kbdc_set_device_mask(sc_kbdc, m | KBD_KBD_CONTROL_BITS),
     kbdc_lock(sc_kbdc, FALSE);
+#endif	/* !PC98 */
     return TRUE;
-
+#ifndef	PC98
 fail:
     if (c != -1)
         /* try to restore the command byte as before, if possible */
@@ -717,8 +711,8 @@ fail:
         (flags & DETECT_KBD) ? m : m | KBD_KBD_CONTROL_BITS);
     kbdc_lock(sc_kbdc, FALSE);
     return FALSE;
-}
 #endif	/* !PC98 */
+}
 
 #if NAPM > 0
 static int

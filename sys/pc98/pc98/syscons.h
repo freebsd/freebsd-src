@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.7.2.6 1998/01/04 09:51:33 kato Exp $
+ *	$Id: syscons.h,v 1.7.2.7 1998/01/06 13:52:33 kato Exp $
  */
 
 #ifndef _PC98_PC98_SYSCONS_H_
@@ -192,7 +192,9 @@ typedef struct scr_stat {
 	short		mouse_xpos;		/* mouse x coordinate */
 	short		mouse_ypos;		/* mouse y coordinate */
 	short		mouse_buttons;		/* mouse buttons */
+#ifndef	PC98
 	u_char		mouse_cursor[128];	/* mouse cursor bitmap store */
+#endif
 	u_short		*mouse_cut_start;	/* mouse cut start pos */
 	u_short		*mouse_cut_end;		/* mouse cut end pos */
 	struct proc 	*mouse_proc;		/* proc* of controlling proc */
