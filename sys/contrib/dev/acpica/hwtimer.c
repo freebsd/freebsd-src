@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: hwtimer.c - ACPI Power Management Timer Interface
- *              $Revision: 11 $
+ *              $Revision: 12 $
  *
  *****************************************************************************/
 
@@ -192,7 +192,7 @@ AcpiGetTimer (
 
     FUNCTION_TRACE ("AcpiGetTimer");
 
-    
+
     /* Ensure that ACPI has been initialized */
 
     ACPI_IS_INITIALIZATION_COMPLETE (Status);
@@ -206,7 +206,7 @@ AcpiGetTimer (
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
-    AcpiOsReadPort ((ACPI_IO_ADDRESS) 
+    AcpiOsReadPort ((ACPI_IO_ADDRESS)
         ACPI_GET_ADDRESS (AcpiGbl_FADT->XPmTmrBlk.Address), Ticks, 32);
 
     return_ACPI_STATUS (AE_OK);

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsaccess - Top-level functions for accessing ACPI namespace
- *              $Revision: 130 $
+ *              $Revision: 133 $
  *
  ******************************************************************************/
 
@@ -145,7 +145,7 @@ ACPI_STATUS
 AcpiNsRootInitialize (void)
 {
     ACPI_STATUS             Status = AE_OK;
-    PREDEFINED_NAMES        *InitVal = NULL;
+    const PREDEFINED_NAMES  *InitVal = NULL;
     ACPI_NAMESPACE_NODE     *NewNode;
     ACPI_OPERAND_OBJECT     *ObjDesc;
 
@@ -159,7 +159,6 @@ AcpiNsRootInitialize (void)
      * The global root ptr is initially NULL, so a non-NULL value indicates
      * that AcpiNsRootInitialize() has already been called; just return.
      */
-
     if (AcpiGbl_RootNode)
     {
         Status = AE_OK;
@@ -171,7 +170,6 @@ AcpiNsRootInitialize (void)
      * Tell the rest of the subsystem that the root is initialized
      * (This is OK because the namespace is locked)
      */
-
     AcpiGbl_RootNode = &AcpiGbl_RootNodeStruct;
 
 
@@ -187,7 +185,7 @@ AcpiNsRootInitialize (void)
 
         if (ACPI_FAILURE (Status) || (!NewNode)) /* Must be on same line for code converter */
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, 
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
                 "Could not create predefined name %s, %s\n",
                 InitVal->Name, AcpiFormatException (Status)));
         }
@@ -197,14 +195,12 @@ AcpiNsRootInitialize (void)
          * If entry in PreDefinedNames[] specifies an
          * initial value, create the initial value.
          */
-
         if (InitVal->Val)
         {
             /*
              * Entry requests an initial value, allocate a
              * descriptor for it.
              */
-
             ObjDesc = AcpiUtCreateInternalObject (InitVal->Type);
             if (!ObjDesc)
             {
@@ -257,11 +253,11 @@ AcpiNsRootInitialize (void)
                     {
                         goto UnlockAndExit;
                     }
+
                     /*
                      * We just created the mutex for the
                      * global lock, save it
                      */
-
                     AcpiGbl_GlobalLockSemaphore = ObjDesc->Mutex.Semaphore;
                 }
 
@@ -372,7 +368,6 @@ AcpiNsLookup (
      * Get the prefix scope.
      * A null scope means use the root scope
      */
-
     if ((!ScopeInfo) ||
         (!ScopeInfo->Scope.Node))
     {
@@ -394,7 +389,6 @@ AcpiNsLookup (
      * but the BankFieldDefn may also check for a Field definition as well
      * as an OperationRegion.
      */
-
     if (INTERNAL_TYPE_FIELD_DEFN == Type)
     {
         /* DefFieldDefn defines fields in a Region */
@@ -451,7 +445,6 @@ AcpiNsLookup (
          *  - A MultiNamePrefixOp, followed by a byte indicating the
          *    number of segments and the segments themselves.
          */
-
         if (*Pathname == AML_ROOT_PREFIX)
         {
             /* Pathname is fully qualified, look in root name table */
@@ -462,7 +455,7 @@ AcpiNsLookup (
 
             Pathname++;
 
-            ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "Searching from root [%p]\n", 
+            ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "Searching from root [%p]\n",
                 CurrentNode));
 
             /* Direct reference to root, "\" */
@@ -487,7 +480,6 @@ AcpiNsLookup (
              * Handle up-prefix (carat).  More than one prefix
              * is supported
              */
-
             while (*Pathname == AML_PARENT_PREFIX)
             {
                 /* Point to segment part or next ParentPrefix */
@@ -515,7 +507,6 @@ AcpiNsLookup (
          * Examine the name prefix opcode, if any,
          * to determine the number of segments
          */
-
         if (*Pathname == AML_DUAL_NAME_PREFIX)
         {
             NumSegments = 2;
@@ -574,8 +565,6 @@ AcpiNsLookup (
      * Search namespace for each segment of the name.
      * Loop through and verify/add each name segment.
      */
-
-
     while (NumSegments-- && CurrentNode)
     {
         /*
@@ -608,7 +597,7 @@ AcpiNsLookup (
             {
                 /* Name not found in ACPI namespace  */
 
-                ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, 
+                ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
                     "Name [%4.4s] not found in scope %X\n",
                     &SimpleName, CurrentNode));
             }
@@ -651,7 +640,6 @@ AcpiNsLookup (
          * specific type, but the type of found object is known, use that type
          * to see if it opens a scope.
          */
-
         if ((0 == NumSegments) && (ACPI_TYPE_ANY == Type))
         {
             Type = ThisNode->Type;
@@ -664,7 +652,6 @@ AcpiNsLookup (
              * More segments or the type implies enclosed scope,
              * and the next scope has not been allocated.
              */
-
             ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Load mode=%X  ThisNode=%X\n",
                 InterpreterMode, ThisNode));
         }
@@ -680,7 +667,6 @@ AcpiNsLookup (
     /*
      * Always check if we need to open a new scope
      */
-
 CheckForNewScopeAndExit:
 
     if (!(Flags & NS_DONT_OPEN_SCOPE) && (WalkState))
@@ -689,7 +675,6 @@ CheckForNewScopeAndExit:
          * If entry is a type which opens a scope,
          * push the new scope on the scope stack.
          */
-
         if (AcpiNsOpensScope (TypeToCheckFor))
         {
             /*  8-12-98 ASL Grammar Update supports null NamePath   */

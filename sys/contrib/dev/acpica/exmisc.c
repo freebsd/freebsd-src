@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exmisc - ACPI AML (p-code) execution - specific opcodes
- *              $Revision: 80 $
+ *              $Revision: 83 $
  *
  *****************************************************************************/
 
@@ -129,88 +129,6 @@
         MODULE_NAME         ("exmisc")
 
 
-/*******************************************************************************
- *
- * FUNCTION:    AcpiExFatal
- *
- * PARAMETERS:  none
- *
- * RETURN:      Status.  If the OS returns from the OSD call, we just keep
- *              on going.
- *
- * DESCRIPTION: Execute Fatal operator
- *
- * ACPI SPECIFICATION REFERENCES:
- *  DefFatal    :=  FatalOp FatalType   FatalCode   FatalArg
- *  FatalType   :=  ByteData
- *  FatalCode   :=  DWordData
- *  FatalArg    :=  TermArg=>Integer
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiExFatal (
-    ACPI_WALK_STATE         *WalkState)
-{
-    ACPI_OPERAND_OBJECT     *TypeDesc;
-    ACPI_OPERAND_OBJECT     *CodeDesc;
-    ACPI_OPERAND_OBJECT     *ArgDesc;
-    ACPI_STATUS             Status;
-
-
-    FUNCTION_TRACE ("ExFatal");
-
-
-    /* Resolve operands */
-
-    Status = AcpiExResolveOperands (AML_FATAL_OP, WALK_OPERANDS, WalkState);
-    DUMP_OPERANDS (WALK_OPERANDS, IMODE_EXECUTE,
-                    AcpiPsGetOpcodeName (AML_FATAL_OP),
-                    3, "after AcpiExResolveOperands");
-
-    /* Get operands */
-
-    Status |= AcpiDsObjStackPopObject (&ArgDesc, WalkState);
-    Status |= AcpiDsObjStackPopObject (&CodeDesc, WalkState);
-    Status |= AcpiDsObjStackPopObject (&TypeDesc, WalkState);
-    if (ACPI_FAILURE (Status))
-    {
-        /* Invalid parameters on object stack  */
-
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "bad operand(s) (Status=%X)\n",
-            Status));
-        goto Cleanup;
-    }
-
-
-    /* DefFatal    :=  FatalOp FatalType   FatalCode   FatalArg    */
-
-    ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-        "Type %x Code %x Arg %x <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n",
-        TypeDesc->Integer.Value, CodeDesc->Integer.Value, ArgDesc->Integer.Value));
-
-
-    /*
-     * TBD: [Unhandled] call OSD interface to notify OS of fatal error
-     * requiring shutdown!
-     */
-
-
-Cleanup:
-
-    /* Free the operands */
-
-    AcpiUtRemoveReference (ArgDesc);
-    AcpiUtRemoveReference (CodeDesc);
-    AcpiUtRemoveReference (TypeDesc);
-
-
-    /* If we get back from the OS call, we might as well keep going. */
-
-    REPORT_WARNING (("An AML \"Fatal\" Opcode (FatalOp) was executed\n"));
-    return_ACPI_STATUS (AE_OK);
-}
-
 
 /*******************************************************************************
  *
@@ -234,41 +152,19 @@ AcpiExTriadic (
     ACPI_WALK_STATE         *WalkState,
     ACPI_OPERAND_OBJECT     **ReturnDesc)
 {
-    ACPI_OPERAND_OBJECT     *ObjDesc1;
-    ACPI_OPERAND_OBJECT     *ObjDesc2;
-    ACPI_OPERAND_OBJECT     *ResDesc;
+    ACPI_OPERAND_OBJECT     **Operand = &WalkState->Operands[0];
     ACPI_OPERAND_OBJECT     *RetDesc = NULL;
     ACPI_OPERAND_OBJECT     *TmpDesc;
     ACPI_SIGNAL_FATAL_INFO  *Fatal;
-    ACPI_STATUS             Status;
-
+    ACPI_STATUS             Status = AE_OK;
 
 
     FUNCTION_TRACE ("ExTriadic");
 
 
-    /* Resolve operands */
-    /* First operand can be either a package or a buffer */
-
-    Status = AcpiExResolveOperands (AML_INDEX_OP, WALK_OPERANDS, WalkState);
-    DUMP_OPERANDS (WALK_OPERANDS, IMODE_EXECUTE,
-                    AcpiPsGetOpcodeName (AML_INDEX_OP),
-                    3, "after AcpiExResolveOperands");
-
-    /* Get all operands */
-
-    Status |= AcpiDsObjStackPopObject (&ResDesc, WalkState);
-    Status |= AcpiDsObjStackPopObject (&ObjDesc2, WalkState);
-    Status |= AcpiDsObjStackPopObject (&ObjDesc1, WalkState);
-    if (ACPI_FAILURE (Status))
-    {
-        /* Invalid parameters on object stack  */
-
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "bad operand(s) (Status=%X)\n",
-            Status));
-        goto Cleanup;
-    }
-
+#define ObjDesc1            Operand[0]
+#define ObjDesc2            Operand[1]
+#define ResDesc             Operand[2]
 
 
     switch (Opcode)
@@ -280,7 +176,7 @@ AcpiExTriadic (
 
         ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
             "FatalOp: Type %x Code %x Arg %x <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n",
-            (UINT32) ObjDesc1->Integer.Value, (UINT32) ObjDesc2->Integer.Value, 
+            (UINT32) ObjDesc1->Integer.Value, (UINT32) ObjDesc2->Integer.Value,
             (UINT32) ResDesc->Integer.Value));
 
 
@@ -301,7 +197,6 @@ AcpiExTriadic (
 
         ACPI_MEM_FREE (Fatal);
         break;
-
 
 
     case AML_MID_OP:
@@ -325,6 +220,7 @@ AcpiExTriadic (
             Status = AE_NO_MEMORY;
             goto Cleanup;
         }
+
         /*
          * At this point, the ObjDesc1 operand is either a Package or a Buffer
          */
@@ -396,7 +292,6 @@ AcpiExTriadic (
     }
 
 
-
 Cleanup:
 
     /* Always delete operands */
@@ -444,45 +339,22 @@ AcpiExHexadic (
     ACPI_WALK_STATE         *WalkState,
     ACPI_OPERAND_OBJECT     **ReturnDesc)
 {
-    ACPI_OPERAND_OBJECT     *PkgDesc;
-    ACPI_OPERAND_OBJECT     *Op1Desc;
-    ACPI_OPERAND_OBJECT     *V1Desc;
-    ACPI_OPERAND_OBJECT     *Op2Desc;
-    ACPI_OPERAND_OBJECT     *V2Desc;
-    ACPI_OPERAND_OBJECT     *StartDesc;
+    ACPI_OPERAND_OBJECT     **Operand = &WalkState->Operands[0];
     ACPI_OPERAND_OBJECT     *RetDesc = NULL;
-    ACPI_STATUS             Status;
+    ACPI_STATUS             Status = AE_OK;
     UINT32                  Index;
     UINT32                  MatchValue = (UINT32) -1;
 
 
     FUNCTION_TRACE ("ExHexadic");
 
+#define PkgDesc             Operand[0]
+#define Op1Desc             Operand[1]
+#define V1Desc              Operand[2]
+#define Op2Desc             Operand[3]
+#define V2Desc              Operand[4]
+#define StartDesc           Operand[5]
 
-    /* Resolve all operands */
-
-    Status = AcpiExResolveOperands (AML_MATCH_OP, WALK_OPERANDS, WalkState);
-    DUMP_OPERANDS (WALK_OPERANDS, IMODE_EXECUTE,
-                    AcpiPsGetOpcodeName (AML_MATCH_OP),
-                    6, "after AcpiExResolveOperands");
-
-    /* Get all operands */
-
-    Status |= AcpiDsObjStackPopObject (&StartDesc, WalkState);
-    Status |= AcpiDsObjStackPopObject (&V2Desc, WalkState);
-    Status |= AcpiDsObjStackPopObject (&Op2Desc, WalkState);
-    Status |= AcpiDsObjStackPopObject (&V1Desc, WalkState);
-    Status |= AcpiDsObjStackPopObject (&Op1Desc, WalkState);
-    Status |= AcpiDsObjStackPopObject (&PkgDesc, WalkState);
-
-    if (ACPI_FAILURE (Status))
-    {
-        /* Invalid parameters on object stack  */
-
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "bad operand(s) (Status=%X)\n",
-            Status));
-        goto Cleanup;
-    }
 
 
     switch (Opcode)
@@ -525,7 +397,6 @@ AcpiExHexadic (
          * (its initial value) indicating that no match was found.  When
          * returned as a Number, this will produce the Ones value as specified.
          */
-
         for ( ; Index < PkgDesc->Package.Count; ++Index)
         {
             /*
@@ -684,7 +555,6 @@ AcpiExHexadic (
         break;
 
     }
-
 
 
 Cleanup:

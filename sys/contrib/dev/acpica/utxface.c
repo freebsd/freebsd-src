@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utxface - External interfaces for "global" ACPI functions
- *              $Revision: 77 $
+ *              $Revision: 80 $
  *
  *****************************************************************************/
 
@@ -153,6 +153,9 @@ AcpiInitializeSubsystem (
     FUNCTION_TRACE ("AcpiInitializeSubsystem");
 
 
+    DEBUG_EXEC(AcpiUtInitStackPtrTrace ());
+
+
     /* Initialize all globals used by the subsystem */
 
     AcpiUtInitGlobals ();
@@ -235,7 +238,6 @@ AcpiEnableSubsystem (
      * installed unless other handlers have already been
      * installed via the InstallAddressSpaceHandler interface
      */
-
     if (!(Flags & ACPI_NO_ADDRESS_SPACE_INIT))
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[Init] Installing default address space handlers\n"));
@@ -250,7 +252,6 @@ AcpiEnableSubsystem (
     /*
      * We must initialize the hardware before we can enable ACPI.
      */
-
     if (!(Flags & ACPI_NO_HARDWARE_INIT))
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[Init] Initializing ACPI hardware\n"));
@@ -265,7 +266,6 @@ AcpiEnableSubsystem (
     /*
      * Enable ACPI on this platform
      */
-
     if (!(Flags & ACPI_NO_ACPI_ENABLE))
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[Init] Going into ACPI mode\n"));
@@ -284,7 +284,6 @@ AcpiEnableSubsystem (
      * ANY control methods SAFELY.  Any control method can require ACPI hardware
      * support, so the hardware MUST be initialized before execution!
      */
-
     if (!(Flags & ACPI_NO_EVENT_INIT))
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[Init] Initializing ACPI events\n"));
@@ -301,7 +300,6 @@ AcpiEnableSubsystem (
      * Initialize all device objects in the namespace
      * This runs the _STA and _INI methods.
      */
-
     if (!(Flags & ACPI_NO_DEVICE_INIT))
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[Init] Initializing ACPI Devices\n"));
@@ -319,7 +317,6 @@ AcpiEnableSubsystem (
      * runs the executable AML that is part of the declaration of OpRegions
      * and Fields.
      */
-
     if (!(Flags & ACPI_NO_OBJECT_INIT))
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[Init] Initializing ACPI Objects\n"));

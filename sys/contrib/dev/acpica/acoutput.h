@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acoutput.h -- debug output
- *       $Revision: 81 $
+ *       $Revision: 84 $
  *
  *****************************************************************************/
 
@@ -170,37 +170,44 @@
 #define ACPI_LV_ALL_EXCEPTIONS      0x0000003F
 
 
-/* Trace level -- also used in the global "DebugLevel" */
+/* Trace verbosity level 1 [Standard Trace Level] */
 
-#define ACPI_LV_THREADS             0x00000080
-#define ACPI_LV_PARSE               0x00000100
-#define ACPI_LV_DISPATCH            0x00000200
-#define ACPI_LV_LOAD                0x00000400
-#define ACPI_LV_EXEC                0x00000800
-#define ACPI_LV_NAMES               0x00001000
-#define ACPI_LV_OPREGION            0x00002000
-#define ACPI_LV_BFIELD              0x00004000
-#define ACPI_LV_TRASH               0x00008000
-#define ACPI_LV_TABLES              0x00010000
-#define ACPI_LV_FUNCTIONS           0x00020000
-#define ACPI_LV_VALUES              0x00040000
-#define ACPI_LV_OBJECTS             0x00080000
+#define ACPI_LV_PARSE               0x00000040
+#define ACPI_LV_LOAD                0x00000080
+#define ACPI_LV_DISPATCH            0x00000100
+#define ACPI_LV_EXEC                0x00000200
+#define ACPI_LV_NAMES               0x00000400
+#define ACPI_LV_OPREGION            0x00000800
+#define ACPI_LV_BFIELD              0x00001000
+#define ACPI_LV_TABLES              0x00002000
+#define ACPI_LV_VALUES              0x00004000
+#define ACPI_LV_OBJECTS             0x00008000
+#define ACPI_LV_RESOURCES           0x00010000
+#define ACPI_LV_USER_REQUESTS       0x00020000
+#define ACPI_LV_PACKAGE             0x00040000
+#define ACPI_LV_INIT                0x00080000
+#define ACPI_LV_VERBOSITY1          0x000FFF40 | ACPI_LV_ALL_EXCEPTIONS
+
+/* Trace verbosity level 2 [Function tracing and memory allocation] */
+
 #define ACPI_LV_ALLOCATIONS         0x00100000
-#define ACPI_LV_RESOURCES           0x00200000
-#define ACPI_LV_IO                  0x00400000
-#define ACPI_LV_INTERRUPTS          0x00800000
-#define ACPI_LV_USER_REQUESTS       0x01000000
-#define ACPI_LV_PACKAGE             0x02000000
-#define ACPI_LV_MUTEX               0x04000000
-#define ACPI_LV_INIT                0x08000000
-#define ACPI_LV_ALL                 0x0FFFFF80
+#define ACPI_LV_FUNCTIONS           0x00200000
+#define ACPI_LV_VERBOSITY2          0x00300000 | ACPI_LV_VERBOSITY1
+#define ACPI_LV_ALL                 ACPI_LV_VERBOSITY2
 
+/* Trace verbosity level 3 [Threading, I/O, and Interrupts] */
+
+#define ACPI_LV_MUTEX               0x01000000
+#define ACPI_LV_THREADS             0x02000000
+#define ACPI_LV_IO                  0x04000000
+#define ACPI_LV_INTERRUPTS          0x08000000
+#define ACPI_LV_VERBOSITY3          0x0F000000 | ACPI_LV_VERBOSITY2
 
 /*
  * Debug level macros that are used in the DEBUG_PRINT macros
  */
 
-#define ACPI_DEBUG_LEVEL(val)       val,_COMPONENT,_ProcName,_THIS_MODULE,__LINE__
+#define ACPI_DEBUG_LEVEL(dl)       dl,__LINE__,&_Dbg
 
 /* Exception level -- used in the global "DebugLevel" */
 
@@ -223,7 +230,6 @@
 #define ACPI_DB_NAMES               ACPI_DEBUG_LEVEL (ACPI_LV_NAMES)
 #define ACPI_DB_OPREGION            ACPI_DEBUG_LEVEL (ACPI_LV_OPREGION)
 #define ACPI_DB_BFIELD              ACPI_DEBUG_LEVEL (ACPI_LV_BFIELD)
-#define ACPI_DB_TRASH               ACPI_DEBUG_LEVEL (ACPI_LV_TRASH)
 #define ACPI_DB_TABLES              ACPI_DEBUG_LEVEL (ACPI_LV_TABLES)
 #define ACPI_DB_FUNCTIONS           ACPI_DEBUG_LEVEL (ACPI_LV_FUNCTIONS)
 #define ACPI_DB_VALUES              ACPI_DEBUG_LEVEL (ACPI_LV_VALUES)

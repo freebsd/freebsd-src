@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbxfroot - Find the root ACPI table (RSDT)
- *              $Revision: 47 $
+ *              $Revision: 49 $
  *
  *****************************************************************************/
 
@@ -191,6 +191,7 @@ AcpiTbScanMemoryForRsdp (
 
     FUNCTION_TRACE ("TbScanMemoryForRsdp");
 
+
     /* Search from given start addr for the requested length  */
 
     for (Offset = 0, MemRover = StartAddress;
@@ -213,6 +214,7 @@ AcpiTbScanMemoryForRsdp (
     }
 
     /* Searched entire block, no RSDP was found */
+
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,"Searched entire block, no RSDP was found.\n"));
 
     return_PTR (NULL);
@@ -252,7 +254,7 @@ AcpiTbFindRsdp (
     FUNCTION_TRACE ("TbFindRsdp");
 
 
-    /* 
+    /*
      * Scan supports either 1) Logical addressing or 2) Physical addressing
      */
     if ((Flags & ACPI_MEMORY_MODE) == ACPI_LOGICAL_ADDRESSING)
@@ -281,7 +283,7 @@ AcpiTbFindRsdp (
 
             return_ACPI_STATUS (AE_OK);
         }
-    
+
         /*
          * 2) Search upper memory: 16-byte boundaries in E0000h-F0000h
          */
@@ -317,7 +319,7 @@ AcpiTbFindRsdp (
         /*
          * 1) Search EBDA (low memory) paragraphs
          */
-        MemRover = AcpiTbScanMemoryForRsdp ((UINT8 *) LO_RSDP_WINDOW_BASE, 
+        MemRover = AcpiTbScanMemoryForRsdp ((UINT8 *) LO_RSDP_WINDOW_BASE,
                         LO_RSDP_WINDOW_SIZE);
         if (MemRover)
         {
@@ -330,7 +332,7 @@ AcpiTbFindRsdp (
         /*
          * 2) Search upper memory: 16-byte boundaries in E0000h-F0000h
          */
-        MemRover = AcpiTbScanMemoryForRsdp ((UINT8 *) HI_RSDP_WINDOW_BASE, 
+        MemRover = AcpiTbScanMemoryForRsdp ((UINT8 *) HI_RSDP_WINDOW_BASE,
                         HI_RSDP_WINDOW_SIZE);
         if (MemRover)
         {
@@ -391,11 +393,10 @@ AcpiGetFirmwareTable (
     FUNCTION_TRACE ("AcpiGetFirmwareTable");
 
 
-    /* 
+    /*
      * Ensure that at least the table manager is initialized.  We don't
      * require that the entire ACPI subsystem is up for this interface
      */
-
 
     /*
      *  If we have a buffer, we must have a length too
@@ -446,7 +447,7 @@ AcpiGetFirmwareTable (
 
 
     /*
-     * Search the RSDT/XSDT for the correct instance of the 
+     * Search the RSDT/XSDT for the correct instance of the
      * requested table
      */
     for (i = 0, j = 0; i < TableCount; i++)

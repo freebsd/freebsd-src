@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsnames - Name manipulation and search
- *              $Revision: 61 $
+ *              $Revision: 63 $
  *
  ******************************************************************************/
 
@@ -151,7 +151,7 @@ AcpiNsGetTablePathname (
     ACPI_NAMESPACE_NODE     *ParentNode;
 
 
-    FUNCTION_TRACE_PTR ("AcpiNsGetTablePathname", Node);
+    FUNCTION_TRACE_PTR ("NsGetTablePathname", Node);
 
 
     if (!AcpiGbl_RootNode || !Node)
@@ -235,6 +235,10 @@ AcpiNsGetPathnameLength (
     UINT32                  Size;
     ACPI_NAMESPACE_NODE     *NextNode;
 
+
+    FUNCTION_ENTRY ();
+
+
     /*
      * Compute length of pathname as 5 * number of name segments.
      * Go back up the parent tree to the root
@@ -287,6 +291,7 @@ AcpiNsHandleToPathname (
     ACPI_NAME               Name;
     UINT32                  Size;
 
+
     FUNCTION_TRACE_PTR ("NsHandleToPathname", TargetHandle);
 
 
@@ -296,7 +301,6 @@ AcpiNsHandleToPathname (
          * If the name space has not been initialized,
          * this function should not have been called.
          */
-
         return_ACPI_STATUS (AE_NO_NAMESPACE);
     }
 
@@ -351,7 +355,6 @@ AcpiNsHandleToPathname (
      * Overlay the "." preceding the first segment with
      * the root name "\"
      */
-
     UserBuffer[Size] = '\\';
 
     ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Len=%X, %s \n", PathLength, UserBuffer));

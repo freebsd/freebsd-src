@@ -2,7 +2,7 @@
  *
  * Module Name: dbfileio - Debugger file I/O commands.  These can't usually
  *              be used when running the debugger in Ring 0 (Kernel mode)
- *              $Revision: 44 $
+ *              $Revision: 47 $
  *
  ******************************************************************************/
 
@@ -129,11 +129,9 @@
         MODULE_NAME         ("dbfileio")
 
 
-ACPI_PARSE_OBJECT           *root;
-
 #ifdef ACPI_APPLICATION
 #include <stdio.h>
-FILE                        *DebugFile = NULL;
+FILE                        *AcpiGbl_DebugFile = NULL;
 #endif
 
 
@@ -201,12 +199,12 @@ AcpiDbCloseDebugFile (
 
 #ifdef ACPI_APPLICATION
 
-    if (DebugFile)
+    if (AcpiGbl_DebugFile)
     {
-       fclose (DebugFile);
-       DebugFile = NULL;
-       OutputToFile = FALSE;
-       AcpiOsPrintf ("Debug output file %s closed\n", DebugFilename);
+       fclose (AcpiGbl_DebugFile);
+       AcpiGbl_DebugFile = NULL;
+       AcpiGbl_DbOutputToFile = FALSE;
+       AcpiOsPrintf ("Debug output file %s closed\n", AcpiGbl_DbDebugFilename);
     }
 #endif
 
@@ -233,12 +231,12 @@ AcpiDbOpenDebugFile (
 #ifdef ACPI_APPLICATION
 
     AcpiDbCloseDebugFile ();
-    DebugFile = fopen (Name, "w+");
-    if (DebugFile)
+    AcpiGbl_DebugFile = fopen (Name, "w+");
+    if (AcpiGbl_DebugFile)
     {
         AcpiOsPrintf ("Debug output file %s opened\n", Name);
-        STRCPY (DebugFilename, Name);
-        OutputToFile = TRUE;
+        STRCPY (AcpiGbl_DbDebugFilename, Name);
+        AcpiGbl_DbOutputToFile = TRUE;
     }
     else
     {
@@ -314,7 +312,7 @@ AcpiDbLoadTable(
     *TablePtr = ACPI_MEM_ALLOCATE ((size_t) *TableLength);
     if (!*TablePtr)
     {
-        AcpiOsPrintf ("Could not allocate memory for ACPI table %4.4s (size=%X)\n", 
+        AcpiOsPrintf ("Could not allocate memory for ACPI table %4.4s (size=%X)\n",
                     TableHeader.Signature, TableHeader.Length);
         return (AE_NO_MEMORY);
     }

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: pswalk - Parser routines to walk parsed op tree(s)
- *              $Revision: 55 $
+ *              $Revision: 56 $
  *
  *****************************************************************************/
 
@@ -178,7 +178,6 @@ AcpiPsGetNextWalkOp (
          * No more children, this Op is complete.  Save Next and Parent
          * in case the Op object gets deleted by the callback routine
          */
-
         Next    = Op->Next;
         Parent  = Op->Parent;
 
@@ -201,7 +200,6 @@ AcpiPsGetNextWalkOp (
          * Check for a sibling to the current op.  A sibling means
          * we are still going "downward" in the tree.
          */
-
         if (Next)
         {
             /* There is a sibling, it will be next */
@@ -215,7 +213,6 @@ AcpiPsGetNextWalkOp (
             return_ACPI_STATUS (Status);
         }
 
-
         /*
          * Drop into the loop below because we are moving upwards in
          * the tree
@@ -228,7 +225,6 @@ AcpiPsGetNextWalkOp (
          * We are resuming a walk, and we were (are) going upward in the tree.
          * So, we want to drop into the parent loop below.
          */
-
         Parent = Op;
     }
 

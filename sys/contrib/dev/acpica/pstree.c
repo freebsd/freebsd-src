@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: pstree - Parser op tree manipulation/traversal/search
- *              $Revision: 30 $
+ *              $Revision: 32 $
  *
  *****************************************************************************/
 
@@ -144,7 +144,10 @@ AcpiPsGetArg (
     UINT32                  Argn)
 {
     ACPI_PARSE_OBJECT       *Arg = NULL;
-    ACPI_OPCODE_INFO        *OpInfo;
+    const ACPI_OPCODE_INFO  *OpInfo;
+
+
+    FUNCTION_ENTRY ();
 
 
     /* Get the info structure for this opcode */
@@ -198,7 +201,10 @@ AcpiPsAppendArg (
     ACPI_PARSE_OBJECT       *Arg)
 {
     ACPI_PARSE_OBJECT       *PrevArg;
-    ACPI_OPCODE_INFO        *OpInfo;
+    const ACPI_OPCODE_INFO  *OpInfo;
+
+
+    FUNCTION_ENTRY ();
 
 
     if (!Op)
@@ -277,6 +283,9 @@ AcpiPsGetChild (
     ACPI_PARSE_OBJECT       *Child = NULL;
 
 
+    FUNCTION_ENTRY ();
+
+
     switch (Op->Opcode)
     {
     case AML_SCOPE_OP:
@@ -341,6 +350,9 @@ AcpiPsGetDepthNext (
     ACPI_PARSE_OBJECT       *Next = NULL;
     ACPI_PARSE_OBJECT       *Parent;
     ACPI_PARSE_OBJECT       *Arg;
+
+
+    FUNCTION_ENTRY ();
 
 
     if (!Op)

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exmutex - ASL Mutex Acquire/Release functions
- *              $Revision: 5 $
+ *              $Revision: 7 $
  *
  *****************************************************************************/
 
@@ -214,7 +214,7 @@ AcpiExAcquireMutex (
     ACPI_STATUS             Status;
 
 
-    FUNCTION_TRACE_PTR ("AcpiExAcquireMutex", ObjDesc);
+    FUNCTION_TRACE_PTR ("ExAcquireMutex", ObjDesc);
 
     if (!ObjDesc)
     {
@@ -285,7 +285,7 @@ AcpiExReleaseMutex (
     ACPI_STATUS             Status;
 
 
-    FUNCTION_TRACE ("AcpiExReleaseMutex");
+    FUNCTION_TRACE ("ExReleaseMutex");
 
 
     if (!ObjDesc)
@@ -293,7 +293,7 @@ AcpiExReleaseMutex (
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
-    /*  The mutex must have been previously acquired in order to release it */
+    /* The mutex must have been previously acquired in order to release it */
 
     if (!ObjDesc->Mutex.Owner)
     {
@@ -363,6 +363,9 @@ AcpiExReleaseAllMutexes (
 {
     ACPI_OPERAND_OBJECT     *Next = ListHead->Mutex.Next;
     ACPI_OPERAND_OBJECT     *This;
+
+
+    FUNCTION_ENTRY ();
 
 
     /*

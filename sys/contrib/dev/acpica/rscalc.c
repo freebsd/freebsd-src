@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rscalc - Calculate stream and list lengths
- *              $Revision: 30 $
+ *              $Revision: 32 $
  *
  ******************************************************************************/
 
@@ -327,7 +327,7 @@ AcpiRsCalculateByteStreamLength (
              * Index + the length of the null terminated string
              * Resource Source + 1 for the null.
              */
-            SegmentSize = 9 + 
+            SegmentSize = 9 +
                 ((LinkedList->Data.ExtendedIrq.NumberOfInterrupts - 1) * 4);
 
             if (NULL != ExIrq->ResourceSource.StringPtr)
@@ -355,7 +355,7 @@ AcpiRsCalculateByteStreamLength (
         /*
          * Point to the next object
          */
-        LinkedList = POINTER_ADD (ACPI_RESOURCE, 
+        LinkedList = POINTER_ADD (ACPI_RESOURCE,
                         LinkedList, LinkedList->Length);
     }
 
@@ -608,7 +608,7 @@ AcpiRsCalculateListLength (
             Temp8 = *Buffer;
 
             /*
-             * To compensate for multiple interrupt numbers, add 4 bytes for 
+             * To compensate for multiple interrupt numbers, add 4 bytes for
              * each additional interrupts greater than 1
              */
             AdditionalBytes = (UINT8) ((Temp8 - 1) * 4);
@@ -859,7 +859,7 @@ AcpiRsCalculatePciRoutingTableLength (
     UINT32                  TableIndex;
 
 
-    FUNCTION_TRACE ("AcpiRsCalculatePciRoutingTableLength");
+    FUNCTION_TRACE ("RsCalculatePciRoutingTableLength");
 
 
     NumberOfElements = PackageObject->Package.Count;

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbdisply - debug display commands
- *              $Revision: 47 $
+ *              $Revision: 50 $
  *
  ******************************************************************************/
 
@@ -191,7 +191,7 @@ void
 AcpiDbDumpParserDescriptor (
     ACPI_PARSE_OBJECT       *Op)
 {
-    ACPI_OPCODE_INFO        *Info;
+    const ACPI_OPCODE_INFO  *Info;
 
 
     Info = AcpiPsGetOpcodeInfo (Op->Opcode);
@@ -413,7 +413,7 @@ AcpiDbDecodeInternalObject (
     {
     case ACPI_TYPE_INTEGER:
 
-        AcpiOsPrintf (" %.8X%.8X", HIDWORD (ObjDesc->Integer.Value), 
+        AcpiOsPrintf (" %.8X%.8X", HIDWORD (ObjDesc->Integer.Value),
                                    LODWORD (ObjDesc->Integer.Value));
         break;
 
@@ -425,7 +425,7 @@ AcpiDbDecodeInternalObject (
 
         if (ObjDesc->String.Length > 24)
         {
-            AcpiOsPrintf ("...");     
+            AcpiOsPrintf ("...");
         }
         else
         {
@@ -597,7 +597,7 @@ AcpiDbDisplayMethodInfo (
     ACPI_NAMESPACE_NODE     *Node;
     ACPI_PARSE_OBJECT       *RootOp;
     ACPI_PARSE_OBJECT       *Op;
-    ACPI_OPCODE_INFO        *OpInfo;
+    const ACPI_OPCODE_INFO  *OpInfo;
     UINT32                  NumOps = 0;
     UINT32                  NumOperands = 0;
     UINT32                  NumOperators = 0;
@@ -898,7 +898,6 @@ AcpiDbDisplayResultObject (
      * For now, only display if single stepping
      * however, this output is very useful in other contexts also
      */
-
     if (!AcpiGbl_CmSingleStep)
     {
         return;

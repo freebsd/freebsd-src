@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbconvrt - ACPI Table conversion utilities
- *              $Revision: 25 $
+ *              $Revision: 27 $
  *
  *****************************************************************************/
 
@@ -134,7 +134,7 @@
  *
  * RETURN:
  *
- * DESCRIPTION:
+ * DESCRIPTION: Calculate the number of tables
  *
  ******************************************************************************/
 
@@ -145,6 +145,8 @@ AcpiTbGetTableCount (
 {
     UINT32                  PointerSize;
 
+
+    FUNCTION_ENTRY ();
 
 
 #ifndef _IA64
@@ -166,7 +168,6 @@ AcpiTbGetTableCount (
      * pointers contained within the RSDT/XSDT.  The size of the pointers
      * is architecture-dependent.
      */
-
     return ((RSDT->Length - sizeof (ACPI_TABLE_HEADER)) / PointerSize);
 }
 
@@ -179,7 +180,7 @@ AcpiTbGetTableCount (
  *
  * RETURN:
  *
- * DESCRIPTION:
+ * DESCRIPTION: Convert an RSDT to an XSDT (internal common format)
  *
  ******************************************************************************/
 
@@ -191,6 +192,9 @@ AcpiTbConvertToXsdt (
     UINT32                  TableSize;
     UINT32                  i;
     XSDT_DESCRIPTOR         *NewTable;
+
+
+    FUNCTION_ENTRY ();
 
 
     *NumberOfTables = AcpiTbGetTableCount (AcpiGbl_RSDP, TableInfo->Pointer);
@@ -289,7 +293,7 @@ AcpiTbConvertTableFadt (void)
     ACPI_TABLE_DESC        *TableDesc;
 
 
-    FUNCTION_TRACE ("AcpiTbConvertTableFadt");
+    FUNCTION_TRACE ("TbConvertTableFadt");
 
 
     /* AcpiGbl_FADT is valid */
@@ -483,7 +487,6 @@ AcpiTbConvertTableFadt (void)
          * entire 1.0 table can be copied first, then expand some
          * fields to 64 bits.
          */
-
         MEMCPY (FADT2, FADT1, sizeof (FADT_DESCRIPTOR_REV1));
 
 
@@ -609,7 +612,7 @@ AcpiTbBuildCommonFacs (
     FACS_DESCRIPTOR_REV2    *FACS2;
 
 
-    FUNCTION_TRACE ("AcpiTbBuildCommonFacs");
+    FUNCTION_TRACE ("TbBuildCommonFacs");
 
 
     /* Allocate a common FACS */

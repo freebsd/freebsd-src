@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psxface - Parser external interfaces
- *              $Revision: 46 $
+ *              $Revision: 47 $
  *
  *****************************************************************************/
 
@@ -188,7 +188,6 @@ AcpiPsxExecute (
          * The caller "owns" the parameters, so give each one an extra
          * reference
          */
-
         for (i = 0; Params[i]; i++)
         {
             AcpiUtAddReference (Params[i]);
