@@ -24,9 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.\" Note: The date here should be updated whenever a non-trivial
-.\" change is made to the manual page.
-.Dd March 14, 1999
+.Dd January 27, 2004
 .Dt LOADER 8
 .Os
 .Sh NAME
@@ -444,7 +442,7 @@ Set the number of mbuf clusters to be allocated.
 The value cannot be set below the default
 determined when the kernel was compiled.
 Modifies
-.Va NMBCLUSTERS .
+.Dv NMBCLUSTERS .
 .It Va kern.ipc.nsfbufs
 Set the number of
 .Xr sendfile 2
@@ -468,9 +466,9 @@ Only mess around with
 this parameter if you need to greatly extend the
 KVM reservation for other resources such as the
 buffer cache or
-.Va NMBCLUSTERS .
+.Dv NMBCLUSTERS .
 Modifies
-.Va VM_SWZONE_SIZE_MAX .
+.Dv VM_SWZONE_SIZE_MAX .
 .It Va kern.maxbcache
 Limits the amount of KVM reserved for use by the
 buffer cache, specified in bytes.
@@ -481,23 +479,23 @@ KVM in large-memory machine configurations.
 Only mess around with this parameter if you need to
 greatly extend the KVM reservation for other resources
 such as the swap zone or
-.Va NMBCLUSTERS .
+.Dv NMBCLUSTERS .
 Note that
 the NBUF parameter will override this limit.
 Modifies
-.Va VM_BCACHE_SIZE_MAX .
+.Dv VM_BCACHE_SIZE_MAX .
 .It Va machdep.disable_mtrrs
 Disable the use of i686 MTRRs (x86 only).
 .It Va net.inet.tcp.tcbhashsize
 Overrides the compile-time set value of
-.Va TCBHASHSIZE
+.Dv TCBHASHSIZE
 or the preset default of 512.
 Must be a power of 2.
 .It Va vm.kmem_size
 Sets the size of kernel memory (bytes).
 This overrides the value determined when the kernel was compiled.
 Modifies
-.Va VM_KMEM_SIZE .
+.Dv VM_KMEM_SIZE .
 .El
 .Ss BUILTIN PARSER
 When a builtin command is executed, the rest of the line is taken
