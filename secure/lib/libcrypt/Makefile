@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.3 1994/08/09 18:52:52 csgr Exp $
+# $Id: Makefile,v 1.4 1994/08/12 21:02:31 csgr Exp $
 #
 
 LCRYPTBASE=     libcrypt
@@ -18,25 +18,33 @@ SRCS=	crypt.c
 
 
 
-.include <bsd.lib.mk>
 
 test:
 	cd test ; make test ; make clean
 
 
+.include <bsd.lib.mk>
+
 # We only install the links if they do not already exist.
 # This may have to be revised
 afterinstall:
-.if defined(SHLIB_MAJOR) && ! defined(NOSHARED)
-	@if [ ! -e $(LCRYPTSO) ]; then \
-	cd  $(DESTDIR)/$(LIBDIR); \
+.if !defined(NOPIC) && defined(SHLIB_MAJOR)
+	@cd $(DESTDIR)/$(LIBDIR); \
+	if [ ! -e $(LCRYPTSO) ]; then \
 	rm -f $(LCRYPTSO); \
 	ln -s $(LDCRYPTSO) $(LCRYPTSO); \
 	fi
 .endif
-	@if [ ! -e $(LCRYPTBASE).a ]; then \
-	cd  $(DESTDIR)/$(LIBDIR); \
-	rm -f $(LCRYPTBASE).a $(LCRYPTBASE)_p.a; \
+	@cd  $(DESTDIR)/$(LIBDIR); \
+	if [ ! -e $(LCRYPTBASE).a ]; then \
+	rm -f $(LCRYPTBASE).a; \
 	ln -s $(LDCRYPTBASE).a libcrypt.a; \
+	fi
+.if !defined(NOPROFILE)
+	@cd  $(DESTDIR)/$(LIBDIR); \
+	if [ ! -e $(LCRYPTBASE)_p.a ]; then \
+	rm -f $(LCRYPTBASE)_p.a; \
 	ln -s $(LDCRYPTBASE)_p.a libcrypt_p.a; \
 	fi
+.endif
+
