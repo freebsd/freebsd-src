@@ -375,7 +375,7 @@ cisco_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 		goto out;
 	}
 	h = mtod(m, struct cisco_header *);
-	h->address = CISCO_MULTICAST;		/* broadcast address */
+	h->address = CISCO_UNICAST;
 	h->control = 0;
 
 	switch (pep->af) {
