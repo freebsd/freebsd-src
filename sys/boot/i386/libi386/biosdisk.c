@@ -614,7 +614,10 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 	    DEBUG("warning, partition marked as unused");
 #endif
 	
-	od->od_boff = lp->d_partitions[dev->d_kind.biosdisk.partition].p_offset;
+	od->od_boff = 
+		lp->d_partitions[dev->d_kind.biosdisk.partition].p_offset -
+		lp->d_partitions[RAW_PART].p_offset +
+		sector;
     }
     
  out:
