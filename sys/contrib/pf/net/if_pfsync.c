@@ -62,6 +62,9 @@
 #endif
 
 #include <net/if.h>
+#if defined(__FreeBSD__)
+#include <net/if_clone.h>
+#endif
 #include <net/if_types.h>
 #include <net/route.h>
 #include <net/bpf.h>
@@ -148,8 +151,7 @@ extern int hz;
 #ifdef __FreeBSD__
 static MALLOC_DEFINE(M_PFSYNC, PFSYNCNAME, "Packet Filter State Sync. Interface");
 static LIST_HEAD(pfsync_list, pfsync_softc) pfsync_list;
-struct if_clone pfsync_cloner = IF_CLONE_INITIALIZER(PFSYNCNAME,
-	pfsync_clone_create, pfsync_clone_destroy, 1, IF_MAXUNIT);
+IFC_SIMPLE_DECLARE(pfsync, 1);
 
 static void
 pfsync_clone_destroy(struct ifnet *ifp)

@@ -56,6 +56,7 @@
 
 #include <net/if.h>
 #include <net/if_arp.h>
+#include <net/if_clone.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/if_var.h>
@@ -90,8 +91,6 @@ static void	if_slowtimo(void *);
 static void	if_unroute(struct ifnet *, int flag, int fam);
 static void	link_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
 static int	if_rtdel(struct radix_node *, void *);
-static struct	if_clone *if_clone_lookup(const char *, int *);
-static int	if_clone_list(struct if_clonereq *);
 static int	ifhwioctl(u_long, struct ifnet *, caddr_t, struct thread *);
 #ifdef INET6
 /*
@@ -106,8 +105,6 @@ struct	ifindex_entry *ifindex_table = NULL;
 int	ifqmaxlen = IFQ_MAXLEN;
 struct	ifnethead ifnet;	/* depend on static init XXX */
 struct	mtx ifnet_lock;
-static int	if_cloners_count;
-LIST_HEAD(, if_clone) if_cloners = LIST_HEAD_INITIALIZER(if_cloners);
 
 static int	if_indexlim = 8;
 static struct	klist ifklist;
@@ -126,7 +123,6 @@ SYSINIT(interface_check, SI_SUB_PROTO_IF, SI_ORDER_FIRST, if_check, NULL)
 
 MALLOC_DEFINE(M_IFADDR, "ifaddr", "interface address");
 MALLOC_DEFINE(M_IFMADDR, "ether_multi", "link-level multicast address");
-MALLOC_DEFINE(M_CLONE, "clone", "interface cloning framework");
 
 static d_open_t		netopen;
 static d_close_t	netclose;
@@ -263,6 +259,7 @@ if_init(void *dummy __unused)
 	if_grow();				/* create initial table */
 	ifdev_byindex(0) = make_dev(&net_cdevsw, 0,
 	    UID_ROOT, GID_WHEEL, 0600, "network");
+	if_clone_init();
 }
 
 static void
@@ -666,243 +663,6 @@ if_rtdel(struct radix_node *rn, void *arg)
 	}
 
 	return (0);
-}
-
-/*
- * Create a clone network interface.
- */
-int
-if_clone_create(char *name, int len)
-{
-	struct if_clone *ifc;
-	char *dp;
-	int wildcard, bytoff, bitoff;
-	int unit;
-	int err;
-
-	ifc = if_clone_lookup(name, &unit);
-	if (ifc == NULL)
-		return (EINVAL);
-
-	if (ifunit(name) != NULL)
-		return (EEXIST);
-
-	bytoff = bitoff = 0;
-	wildcard = (unit < 0);
-	/*
-	 * Find a free unit if none was given.
-	 */
-	if (wildcard) {
-		while ((bytoff < ifc->ifc_bmlen)
-		    && (ifc->ifc_units[bytoff] == 0xff))
-			bytoff++;
-		if (bytoff >= ifc->ifc_bmlen)
-			return (ENOSPC);
-		while ((ifc->ifc_units[bytoff] & (1 << bitoff)) != 0)
-			bitoff++;
-		unit = (bytoff << 3) + bitoff;
-	}
-
-	if (unit > ifc->ifc_maxunit)
-		return (ENXIO);
-
-	err = (*ifc->ifc_create)(ifc, unit);
-	if (err != 0)
-		return (err);
-
-	if (!wildcard) {
-		bytoff = unit >> 3;
-		bitoff = unit - (bytoff << 3);
-	}
-
-	/*
-	 * Allocate the unit in the bitmap.
-	 */
-	KASSERT((ifc->ifc_units[bytoff] & (1 << bitoff)) == 0,
-	    ("%s: bit is already set", __func__));
-	ifc->ifc_units[bytoff] |= (1 << bitoff);
-
-	/* In the wildcard case, we need to update the name. */
-	if (wildcard) {
-		for (dp = name; *dp != '\0'; dp++);
-		if (snprintf(dp, len - (dp-name), "%d", unit) >
-		    len - (dp-name) - 1) {
-			/*
-			 * This can only be a programmer error and
-			 * there's no straightforward way to recover if
-			 * it happens.
-			 */
-			panic("if_clone_create(): interface name too long");
-		}
-
-	}
-
-	return (0);
-}
-
-/*
- * Destroy a clone network interface.
- */
-int
-if_clone_destroy(const char *name)
-{
-	struct if_clone *ifc;
-	struct ifnet *ifp;
-	int bytoff, bitoff;
-	int unit;
-
-	ifp = ifunit(name);
-	if (ifp == NULL)
-		return (ENXIO);
-
-	unit = ifp->if_dunit;
-
-	ifc = if_clone_lookup(ifp->if_dname, NULL);
-	if (ifc == NULL)
-		return (EINVAL);
-
-	if (ifc->ifc_destroy == NULL)
-		return (EOPNOTSUPP);
-
-	(*ifc->ifc_destroy)(ifp);
-
-	/*
-	 * Compute offset in the bitmap and deallocate the unit.
-	 */
-	bytoff = unit >> 3;
-	bitoff = unit - (bytoff << 3);
-	KASSERT((ifc->ifc_units[bytoff] & (1 << bitoff)) != 0,
-	    ("%s: bit is already cleared", __func__));
-	ifc->ifc_units[bytoff] &= ~(1 << bitoff);
-	return (0);
-}
-
-/*
- * Look up a network interface cloner.
- */
-static struct if_clone *
-if_clone_lookup(const char *name, int *unitp)
-{
-	struct if_clone *ifc;
-	const char *cp;
-	int i;
-
-	for (ifc = LIST_FIRST(&if_cloners); ifc != NULL;) {
-		for (cp = name, i = 0; i < ifc->ifc_namelen; i++, cp++) {
-			if (ifc->ifc_name[i] != *cp)
-				goto next_ifc;
-		}
-		goto found_name;
- next_ifc:
-		ifc = LIST_NEXT(ifc, ifc_list);
-	}
-
-	/* No match. */
-	return ((struct if_clone *)NULL);
-
- found_name:
-	if (*cp == '\0') {
-		i = -1;
-	} else {
-		for (i = 0; *cp != '\0'; cp++) {
-			if (*cp < '0' || *cp > '9') {
-				/* Bogus unit number. */
-				return (NULL);
-			}
-			i = (i * 10) + (*cp - '0');
-		}
-	}
-
-	if (unitp != NULL)
-		*unitp = i;
-	return (ifc);
-}
-
-/*
- * Register a network interface cloner.
- */
-void
-if_clone_attach(struct if_clone *ifc)
-{
-	int bytoff, bitoff;
-	int err;
-	int len, maxclone;
-	int unit;
-
-	KASSERT(ifc->ifc_minifs - 1 <= ifc->ifc_maxunit,
-	    ("%s: %s requested more units then allowed (%d > %d)",
-	    __func__, ifc->ifc_name, ifc->ifc_minifs,
-	    ifc->ifc_maxunit + 1));
-	/*
-	 * Compute bitmap size and allocate it.
-	 */
-	maxclone = ifc->ifc_maxunit + 1;
-	len = maxclone >> 3;
-	if ((len << 3) < maxclone)
-		len++;
-	ifc->ifc_units = malloc(len, M_CLONE, M_WAITOK | M_ZERO);
-	ifc->ifc_bmlen = len;
-
-	LIST_INSERT_HEAD(&if_cloners, ifc, ifc_list);
-	if_cloners_count++;
-
-	for (unit = 0; unit < ifc->ifc_minifs; unit++) {
-		err = (*ifc->ifc_create)(ifc, unit);
-		KASSERT(err == 0,
-		    ("%s: failed to create required interface %s%d",
-		    __func__, ifc->ifc_name, unit));
-
-		/* Allocate the unit in the bitmap. */
-		bytoff = unit >> 3;
-		bitoff = unit - (bytoff << 3);
-		ifc->ifc_units[bytoff] |= (1 << bitoff);
-	}
-	EVENTHANDLER_INVOKE(if_clone_event, ifc);
-}
-
-/*
- * Unregister a network interface cloner.
- */
-void
-if_clone_detach(struct if_clone *ifc)
-{
-
-	LIST_REMOVE(ifc, ifc_list);
-	free(ifc->ifc_units, M_CLONE);
-	if_cloners_count--;
-}
-
-/*
- * Provide list of interface cloners to userspace.
- */
-static int
-if_clone_list(struct if_clonereq *ifcr)
-{
-	char outbuf[IFNAMSIZ], *dst;
-	struct if_clone *ifc;
-	int count, error = 0;
-
-	ifcr->ifcr_total = if_cloners_count;
-	if ((dst = ifcr->ifcr_buffer) == NULL) {
-		/* Just asking how many there are. */
-		return (0);
-	}
-
-	if (ifcr->ifcr_count < 0)
-		return (EINVAL);
-
-	count = (if_cloners_count < ifcr->ifcr_count) ?
-	    if_cloners_count : ifcr->ifcr_count;
-
-	for (ifc = LIST_FIRST(&if_cloners); ifc != NULL && count != 0;
-	     ifc = LIST_NEXT(ifc, ifc_list), count--, dst += IFNAMSIZ) {
-		strlcpy(outbuf, ifc->ifc_name, IFNAMSIZ);
-		error = copyout(outbuf, dst, IFNAMSIZ);
-		if (error)
-			break;
-	}
-
-	return (error);
 }
 
 #define	equal(a1, a2)	(bcmp((a1), (a2), ((a1))->sa_len) == 0)

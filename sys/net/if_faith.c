@@ -56,6 +56,7 @@
 #include <sys/malloc.h>
 
 #include <net/if.h>
+#include <net/if_clone.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
 #include <net/route.h>
@@ -104,8 +105,7 @@ static int	faith_clone_create(struct if_clone *, int);
 static void	faith_clone_destroy(struct ifnet *);
 static void	faith_destroy(struct faith_softc *);
 
-struct if_clone faith_cloner = IF_CLONE_INITIALIZER(FAITHNAME,
-    faith_clone_create, faith_clone_destroy, 0, IF_MAXUNIT);
+IFC_SIMPLE_DECLARE(faith, 0);
 
 #define	FAITHMTU	1500
 
