@@ -92,6 +92,22 @@ the life of the sleep.
 An in-kernel linker is implemented and intended to replace the lkm system
 with the bogosity that goes with it.
 
+All supported network protocols have been updated to avoid the ``big
+switch'' pr_usrreq(), and to pass a process pointer down to each user
+request that might need process credentials or want to sleep,
+replacing the previous hodgepodge of inspecting curproc (which only
+occasionally did the right thing) and the SS_PRIV socket state flag.
+The latter has now been eliminated, along with the SO_PRIVSTATE socket
+option which cleared it.  Protocols are now also given the opportunity
+to override the generic send, receive, and poll routines, which will
+make it possible for a more efficient, protocol-specific
+implementation of these entry points in later releases.  Finally, many
+parts of the network code have been modified to cease storing socket
+addresses and other metainformation in mbufs, in preparation for the
+eventual elimination thereof.  The mechanism by which socket addresses
+are now returned is still highly subject to change as we experiment to
+discover the most efficient method.
+
 SECURITY CHANGES:
 
 7/29	Lots of lpr/lpd security fixes merged from OpenBSD.
