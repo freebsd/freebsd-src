@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso.h	8.2 (Berkeley) 1/23/94
- * $Id: iso.h,v 1.8 1995/11/09 08:13:35 bde Exp $
+ * $Id: iso.h,v 1.9 1995/11/21 12:53:41 bde Exp $
  */
 
 #define ISODCL(from, to) (to - from + 1)
@@ -171,6 +171,8 @@ struct iso_extended_attributes {
 	unsigned char len_au		[ISODCL (247, 250)]; /* 723 */
 };
 
+#ifdef KERNEL
+
 /* CD-ROM Format type */
 enum ISO_FTYPE	{ ISO_FTYPE_DEFAULT, ISO_FTYPE_9660, ISO_FTYPE_RRIP,
 		  ISO_FTYPE_ECMA, ISO_FTYPE_HIGH_SIERRA };
@@ -224,6 +226,17 @@ int iso_iunlock __P((struct iso_node *ip));
 int cd9660_mountroot __P((void));
 
 extern vop_t **cd9660_vnodeop_p;
+
+int isofncmp __P((unsigned char *, int, unsigned char *, int));
+void isofntrans __P((unsigned char *, int, unsigned char *, unsigned short *,
+		     int, int));
+
+#endif /* KERNEL */
+
+/*
+ * The isonum_xxx functions are inlined anyway, and could come handy even
+ * outside the kernel.  Thus we don't hide them here.
+ */
 
 static int isonum_711 __P((unsigned char *p));
 static int isonum_712 __P((char *p));
@@ -289,10 +302,6 @@ isonum_733(p)
 {
 	return isonum_731(p);
 }
-
-int isofncmp __P((unsigned char *, int, unsigned char *, int));
-void isofntrans __P((unsigned char *, int, unsigned char *, unsigned short *,
-		     int, int));
 
 /*
  * Associated files have a leading '='.
