@@ -70,14 +70,14 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/proc.h>
 #include <sys/vmmeter.h>
 #include <sys/mman.h>
 #include <sys/vnode.h>
 #include <sys/resourcevar.h>
 #include <sys/file.h>
-#include <sys/kernel.h>
-#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
