@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)route.c	8.3 (Berkeley) 3/19/94";
 */
 static const char rcsid[] =
-	"$Id: route.c,v 1.16.2.4 1997/04/02 17:06:20 phk Exp $";
+	"$Id: route.c,v 1.16.2.5 1997/07/18 09:14:10 julian Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -138,7 +138,7 @@ main(argc, argv)
 	if (argc < 2)
 		usage((char *)NULL);
 
-	while ((ch = getopt(argc, argv, "nqdtv")) != EOF)
+	while ((ch = getopt(argc, argv, "nqdtv")) !=  -1)
 		switch(ch) {
 		case 'n':
 			nflag = 1;

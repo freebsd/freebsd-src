@@ -103,7 +103,7 @@ main(argc, argv)
 #define	MAXNFSDCNT      20
 #define	DEFNFSDCNT       1
 	num_servers = DEFNFSDCNT;
-	while ((ch = getopt(argc, argv, "n:")) != EOF)
+	while ((ch = getopt(argc, argv, "n:")) !=  -1)
 		switch (ch) {
 		case 'n':
 			num_servers = atoi(optarg);

@@ -143,7 +143,7 @@ main(argc, argv)
 		opstring += 2;
 
 	debug = lfs = segsize = 0;
-	while ((ch = getopt(argc, argv, opstring)) != EOF)
+	while ((ch = getopt(argc, argv, opstring)) !=  -1)
 		switch(ch) {
 		case 'B':	/* LFS segment size */
 			if ((segsize = atoi(optarg)) < LFS_MINSEGSIZE)

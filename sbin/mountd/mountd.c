@@ -43,7 +43,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)mountd.c	8.8 (Berkeley) 2/20/94";*/
 static const char rcsid[] =
-	"$Id: mountd.c,v 1.11.2.7 1997/08/29 19:23:39 guido Exp $";
+	"$Id: mountd.c,v 1.11.2.8 1997/09/30 13:25:35 jlemon Exp $";
 #endif /*not lint*/
 
 #include <sys/param.h>
@@ -268,7 +268,7 @@ main(argc, argv)
 	}
 #endif	/* __FreeBSD__ */
 
-	while ((c = getopt(argc, argv, "2dnr")) != EOF)
+	while ((c = getopt(argc, argv, "2dnr")) !=  -1)
 		switch (c) {
 		case '2':
 			force_v2 = 1;

@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)mount_lfs.c	8.3 (Berkeley) 3/27/94";
 */
 static const char rcsid[] =
-	"$Id: mount_ext2fs.c,v 1.3 1996/07/23 19:29:27 peter Exp $";
+	"$Id: mount_ext2fs.c,v 1.4 1996/09/14 02:57:56 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -77,7 +77,7 @@ main(argc, argv)
 
 	options = NULL;
 	mntflags = 0;
-	while ((ch = getopt(argc, argv, "o:")) != EOF)
+	while ((ch = getopt(argc, argv, "o:")) !=  -1)
 		switch (ch) {
 		case 'o':
 			getmntopts(optarg, mopts, &mntflags, 0);

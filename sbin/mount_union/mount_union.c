@@ -78,7 +78,7 @@ main(argc, argv)
 
 	mntflags = 0;
 	args.mntflags = UNMNT_ABOVE;
-	while ((ch = getopt(argc, argv, "bo:r")) != EOF)
+	while ((ch = getopt(argc, argv, "bo:r")) !=  -1)
 		switch (ch) {
 		case 'b':
 			args.mntflags &= ~UNMNT_OPMASK;

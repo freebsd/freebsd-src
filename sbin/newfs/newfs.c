@@ -234,7 +234,7 @@ main(argc, argv)
 	opstring = mfs ?
 	    "NF:T:a:b:c:d:e:f:i:m:o:s:" :
 	    "NOS:T:a:b:c:d:e:f:i:k:l:m:n:o:p:r:s:t:u:x:";
-	while ((ch = getopt(argc, argv, opstring)) != EOF)
+	while ((ch = getopt(argc, argv, opstring)) !=  -1)
 		switch (ch) {
 		case 'N':
 			Nflag = 1;
