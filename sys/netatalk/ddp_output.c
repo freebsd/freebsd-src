@@ -56,6 +56,8 @@ ddp_output( struct mbuf *m, struct socket *so)
 #endif
 
     M_PREPEND( m, sizeof( struct ddpehdr ), M_TRYWAIT );
+    if ( m == NULL )
+	return( ENOBUFS );
 
     deh = mtod( m, struct ddpehdr *);
     deh->deh_pad = 0;
