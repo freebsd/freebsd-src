@@ -790,14 +790,15 @@ ccdstrategy(bp)
 		printf("ccdstrategy(%p): unit %d\n", bp, unit);
 #endif
 	if ((cs->sc_flags & CCDF_INITED) == 0) {
-		bp->bio_error = ENXIO;
-		bp->bio_flags |= BIO_ERROR;
-		goto done;
+		biofinish(bp, NULL, ENXIO);
+		return;
 	}
 
 	/* If it's a nil transfer, wake up the top half now. */
-	if (bp->bio_bcount == 0)
-		goto done;
+	if (bp->bio_bcount == 0) {
+		biodone(bp);
+		return;
+	}
 
 	lp = &cs->sc_label;
 
@@ -807,8 +808,10 @@ ccdstrategy(bp)
 	 */
 	wlabel = cs->sc_flags & (CCDF_WLABEL|CCDF_LABELLING);
 	if (ccdpart(bp->bio_dev) != RAW_PART) {
-		if (bounds_check_with_label(bp, lp, wlabel) <= 0)
-			goto done;
+		if (bounds_check_with_label(bp, lp, wlabel) <= 0) {
+			biodone(bp);
+			return;
+		}
 	} else {
 		int pbn;        /* in sc_secsize chunks */
 		long sz;        /* in sc_secsize chunks */
@@ -823,11 +826,11 @@ ccdstrategy(bp)
 
 		if (pbn < 0 || pbn >= cs->sc_size) {
 			bp->bio_resid = bp->bio_bcount;
-			if (pbn != cs->sc_size) {
-				bp->bio_error = EINVAL;
-				bp->bio_flags |= BIO_ERROR;
-			}
-			goto done;
+			if (pbn != cs->sc_size)
+				biofinish(bp, NULL, EINVAL);
+			else
+				biodone(bp);
+			return;
 		}
 
 		/*
@@ -848,8 +851,6 @@ ccdstrategy(bp)
 	ccdstart(cs, bp);
 	splx(s);
 	return;
-done:
-	biodone(bp);
 }
 
 static void
