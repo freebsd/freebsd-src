@@ -337,7 +337,7 @@ forward_statclock(int pscnt)
 	
 	map = 0;
 	for (id = 0; id < mp_ncpus; id++) {
-		if (id == cpuid)
+		if (id == PCPU_GET(cpuid))
 			continue;
 		if (((1 << id) & checkstate_probed_cpus) == 0)
 			continue;
@@ -415,7 +415,7 @@ forward_hardclock(int pscnt)
 	
 	map = 0;
 	for (id = 0; id < mp_ncpus; id++) {
-		if (id == cpuid)
+		if (id == PCPU_GET(cpuid))
 			continue;
 		if (((1 << id) & checkstate_probed_cpus) == 0)
 			continue;
@@ -741,7 +741,7 @@ smp_handle_ipi(struct trapframe *frame)
 
 	do {
 		ipis = PCPU_GET(pending_ipis);
-	} while (atomic_cmpset_64(&PCPU_GET(pending_ipis), ipis, 0));
+	} while (atomic_cmpset_64(PCPU_PTR(pending_ipis), ipis, 0));
 
 	CTR1(KTR_SMP, "smp_handle_ipi(), ipis=%lx", ipis);
 	while (ipis) {

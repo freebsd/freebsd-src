@@ -160,7 +160,7 @@ hardclock(frame)
 	int need_softclock = 0;
 
 	p = curproc;
-	if (p != idleproc) {
+	if (p != PCPU_GET(idleproc)) {
 		register struct pstats *pstats;
 
 		/*
@@ -400,7 +400,7 @@ statclock(frame)
 			cp_time[CP_INTR]++;
 		} else {
 			p->p_sticks++;
-			if (p != idleproc)
+			if (p != PCPU_GET(idleproc))
 				cp_time[CP_SYS]++;
 			else
 				cp_time[CP_IDLE]++;

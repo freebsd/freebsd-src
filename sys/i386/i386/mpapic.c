@@ -62,7 +62,7 @@ apic_initialize(void)
 	/* setup LVT1 as ExtINT */
 	temp = lapic.lvt_lint0;
 	temp &= ~(APIC_LVT_M | APIC_LVT_TM | APIC_LVT_IIPP | APIC_LVT_DM);
-	if (cpuid == 0)
+	if (PCPU_GET(cpuid) == 0)
 		temp |= 0x00000700;	/* process ExtInts */
 	else
 		temp |= 0x00010700;	/* mask ExtInts */
@@ -94,7 +94,7 @@ apic_initialize(void)
 	temp |= (XSPURIOUSINT_OFFSET & APIC_SVR_VEC_PROG);
 
 #if defined(TEST_TEST1)
-	if (cpuid == GUARD_CPU) {
+	if (PCPU_GET(cpuid) == GUARD_CPU) {
 		temp &= ~APIC_SVR_SWEN;	/* software DISABLE APIC */
 	}
 #endif  /** TEST_TEST1 */
@@ -112,7 +112,7 @@ apic_initialize(void)
 void
 apic_dump(char* str)
 {
-	printf("SMP: CPU%d %s:\n", cpuid, str);
+	printf("SMP: CPU%d %s:\n", PCPU_GET(cpuid), str);
 	printf("     lint0: 0x%08x lint1: 0x%08x TPR: 0x%08x SVR: 0x%08x\n",
 		lapic.lvt_lint0, lapic.lvt_lint1, lapic.tpr, lapic.svr);
 }

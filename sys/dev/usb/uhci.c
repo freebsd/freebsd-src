@@ -1610,7 +1610,7 @@ uhci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 		timeout(uhci_abort_xfer_end, xfer, hz / USB_FRAMES_PER_SECOND);
 	} else {
 #if defined(DIAGNOSTIC) && defined(__i386__) && defined(__FreeBSD__)
-		KASSERT(intr_nesting_level == 0,
+		KASSERT(PCPU_GET(intr_nesting_level) == 0,
 	        	("ohci_abort_req in interrupt context"));
 #endif
 		usb_delay_ms(xfer->pipe->device->bus, 1);

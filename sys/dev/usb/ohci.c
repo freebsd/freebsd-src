@@ -1889,7 +1889,7 @@ ohci_abort_xfer(xfer, status)
 		timeout(ohci_abort_xfer_end, xfer, hz / USB_FRAMES_PER_SECOND);
 	} else {
 #if defined(DIAGNOSTIC) && defined(__i386__) && defined(__FreeBSD__)
-		KASSERT(intr_nesting_level == 0,
+		KASSERT(PCPU_GET(intr_nesting_level) == 0,
 	        	("ohci_abort_req in interrupt context"));
 #endif
 		usb_delay_ms(opipe->pipe.device->bus, 1);

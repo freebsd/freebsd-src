@@ -209,7 +209,7 @@ boot(int howto)
 
 #ifdef SMP
 	if (smp_active)
-		printf("boot() called on cpu#%d\n", cpuid);
+		printf("boot() called on cpu#%d\n", PCPU_GET(cpuid));
 #endif
 	/*
 	 * Do any callouts that should be done BEFORE syncing the filesystems.
@@ -557,7 +557,7 @@ panic(const char *fmt, ...)
 	printf("panic: %s\n", buf);
 #ifdef SMP
 	/* two seperate prints in case of an unmapped page and trap */
-	printf("cpuid = %d; ", cpuid);
+	printf("cpuid = %d; ", PCPU_GET(cpuid));
 #ifdef APIC_IO
 	printf("lapic.id = %08x\n", lapic.id);
 #endif

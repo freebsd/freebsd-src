@@ -113,7 +113,7 @@ uprintf(const char *fmt, ...)
 	struct putchar_arg pca;
 	int retval = 0;
 
-	if (p && p != idleproc && p->p_flag & P_CONTROLT &&
+	if (p && p != PCPU_GET(idleproc) && p->p_flag & P_CONTROLT &&
 	    p->p_session->s_ttyvp) {
 		va_start(ap, fmt);
 		pca.tty = p->p_session->s_ttyp;

@@ -147,7 +147,7 @@ malloc(size, type, flags)
 
 #if defined(INVARIANTS) && defined(__i386__)
 	if (flags == M_WAITOK)
-		KASSERT(intr_nesting_level == 0,
+		KASSERT(PCPU_GET(intr_nesting_level) == 0,
 		   ("malloc(M_WAITOK) in interrupt context"));
 #endif
 	indx = BUCKETINDX(size);

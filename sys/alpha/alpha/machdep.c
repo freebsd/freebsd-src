@@ -2068,7 +2068,7 @@ alpha_fpstate_check(struct proc *p)
 	 */
 #ifndef SMP
 	if (p->p_addr->u_pcb.pcb_hw.apcb_flags & ALPHA_PCB_FLAGS_FEN)
-		if (p != fpcurproc)
+		if (p != PCPU_GET(fpcurproc))
 			panic("alpha_check_fpcurproc: bogus");
 #endif
 }
@@ -2089,7 +2089,7 @@ alpha_fpstate_check(struct proc *p)
 void
 alpha_fpstate_save(struct proc *p, int write)
 {
-	if (p == fpcurproc) {
+	if (p == PCPU_GET(fpcurproc)) {
 		/*
 		 * If curproc != fpcurproc, then we need to enable FEN 
 		 * so that we can dump the fp state.
@@ -2107,11 +2107,11 @@ alpha_fpstate_save(struct proc *p, int write)
 			 * PALcode to disable FEN, otherwise we must
 			 * clear the FEN bit in fpcurproc's pcb.
 			 */
-			if (fpcurproc == curproc)
+			if (PCPU_GET(fpcurproc) == curproc)
 				alpha_pal_wrfen(0);
 			else
-				CLEAR_FEN(fpcurproc);
-			fpcurproc = NULL;
+				CLEAR_FEN(PCPU_GET(fpcurproc));
+			PCPU_SET(fpcurproc, NULL);
 		} else {
 			/*
 			 * Make sure that we leave FEN enabled if
@@ -2119,7 +2119,7 @@ alpha_fpstate_save(struct proc *p, int write)
 			 * one process with FEN enabled. Note that FEN 
 			 * must already be set in fpcurproc's pcb.
 			 */
-			if (curproc != fpcurproc)
+			if (curproc != PCPU_GET(fpcurproc))
 				alpha_pal_wrfen(0);
 		}
 	}
@@ -2133,7 +2133,7 @@ alpha_fpstate_save(struct proc *p, int write)
 void
 alpha_fpstate_drop(struct proc *p)
 {
-	if (p == fpcurproc) {
+	if (p == PCPU_GET(fpcurproc)) {
 		if (p == curproc) {
 			/*
 			 * Disable FEN via the PALcode. This will
@@ -2146,7 +2146,7 @@ alpha_fpstate_drop(struct proc *p)
 			 */
 			CLEAR_FEN(p);
 		}
-		fpcurproc = NULL;
+		PCPU_SET(fpcurproc, NULL);
 	}
 }
 
@@ -2161,19 +2161,19 @@ alpha_fpstate_switch(struct proc *p)
 	 * Enable FEN so that we can access the fp registers.
 	 */
 	alpha_pal_wrfen(1);
-	if (fpcurproc) {
+	if (PCPU_GET(fpcurproc)) {
 		/*
 		 * Dump the old fp state if its valid.
 		 */
-		savefpstate(&fpcurproc->p_addr->u_pcb.pcb_fp);
-		CLEAR_FEN(fpcurproc);
+		savefpstate(&PCPU_GET(fpcurproc)->p_addr->u_pcb.pcb_fp);
+		CLEAR_FEN(PCPU_GET(fpcurproc));
 	}
 
 	/*
 	 * Remember the new FP owner and reload its state.
 	 */
-	fpcurproc = p;
-	restorefpstate(&fpcurproc->p_addr->u_pcb.pcb_fp);
+	PCPU_SET(fpcurproc, p);
+	restorefpstate(&PCPU_GET(fpcurproc)->p_addr->u_pcb.pcb_fp);
 
 	/*
 	 * If the new owner is curproc, leave FEN enabled, otherwise

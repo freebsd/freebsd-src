@@ -453,7 +453,7 @@ pmap_set_opt(void)
 {
 	if (pseflag && (cpu_feature & CPUID_PSE)) {
 		load_cr4(rcr4() | CR4_PSE);
-		if (pdir4mb && cpuid == 0) {	/* only on BSP */
+		if (pdir4mb && PCPU_GET(cpuid) == 0) {	/* only on BSP */
 			kernel_pmap->pm_pdir[KPTDI] =
 			    PTD[KPTDI] = (pd_entry_t)pdir4mb;
 			cpu_invltlb();
@@ -581,9 +581,9 @@ static __inline void
 pmap_TLB_invalidate(pmap_t pmap, vm_offset_t va)
 {
 #if defined(SMP)
-	if (pmap->pm_active & (1 << cpuid))
+	if (pmap->pm_active & (1 << PCPU_GET(cpuid)))
 		cpu_invlpg((void *)va);
-	if (pmap->pm_active & other_cpus)
+	if (pmap->pm_active & PCPU_GET(other_cpus))
 		smp_invltlb();
 #else
 	if (pmap->pm_active)
@@ -595,9 +595,9 @@ static __inline void
 pmap_TLB_invalidate_all(pmap_t pmap)
 {
 #if defined(SMP)
-	if (pmap->pm_active & (1 << cpuid))
+	if (pmap->pm_active & (1 << PCPU_GET(cpuid)))
 		cpu_invltlb();
-	if (pmap->pm_active & other_cpus)
+	if (pmap->pm_active & PCPU_GET(other_cpus))
 		smp_invltlb();
 #else
 	if (pmap->pm_active)
@@ -652,11 +652,11 @@ pmap_pte_quick(pmap, va)
 		}
 		newpf = pde & PG_FRAME;
 #ifdef SMP
-		if ( ((* (unsigned *) prv_PMAP1) & PG_FRAME) != newpf) {
-			* (unsigned *) prv_PMAP1 = newpf | PG_RW | PG_V;
-			cpu_invlpg(prv_PADDR1);
+		if ( ((* (unsigned *) PCPU_GET(prv_PMAP1)) & PG_FRAME) != newpf) {
+			* (unsigned *) PCPU_GET(prv_PMAP1) = newpf | PG_RW | PG_V;
+			cpu_invlpg(PCPU_GET(prv_PADDR1));
 		}
-		return (unsigned *)(prv_PADDR1 + (index & (NPTEPG - 1)));
+		return (unsigned *)(PCPU_GET(prv_PADDR1) + (index & (NPTEPG - 1)));
 #else
 		if ( ((* (unsigned *) PMAP1) & PG_FRAME) != newpf) {
 			* (unsigned *) PMAP1 = newpf | PG_RW | PG_V;
@@ -1985,11 +1985,11 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 				pmap->pm_pdir[PTDPTDI], origpte, va);
 		}
 		if (smp_active) {
-			pdeaddr = (vm_offset_t *) IdlePTDS[cpuid];
+			pdeaddr = (vm_offset_t *) IdlePTDS[PCPU_GET(cpuid)];
 			if (((newpte = pdeaddr[va >> PDRSHIFT]) & PG_V) == 0) {
 				if ((vm_offset_t) my_idlePTD != (vm_offset_t) vtophys(pdeaddr))
 					printf("pde mismatch: %x, %x\n", my_idlePTD, pdeaddr);
-				printf("cpuid: %d, pdeaddr: 0x%x\n", cpuid, pdeaddr);
+				printf("cpuid: %d, pdeaddr: 0x%x\n", PCPU_GET(cpuid), pdeaddr);
 				panic("pmap_enter: invalid kernel page table page(1), pdir=%p, npde=%p, pde=%p, va=%p\n",
 					pmap->pm_pdir[PTDPTDI], newpte, origpte, va);
 			}
@@ -2048,7 +2048,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 				*pte |= PG_RW;
 #ifdef SMP
 				cpu_invlpg((void *)va);
-				if (pmap->pm_active & other_cpus)
+				if (pmap->pm_active & PCPU_GET(other_cpus))
 					smp_invltlb();
 #else
 				invltlb_1pg(va);
@@ -2122,7 +2122,7 @@ validate:
 		/*if (origpte)*/ {
 #ifdef SMP
 			cpu_invlpg((void *)va);
-			if (pmap->pm_active & other_cpus)
+			if (pmap->pm_active & PCPU_GET(other_cpus))
 				smp_invltlb();
 #else
 			invltlb_1pg(va);
@@ -2666,20 +2666,20 @@ pmap_zero_page(phys)
 	vm_offset_t phys;
 {
 #ifdef SMP
-	if (*(int *) prv_CMAP3)
+	if (*(int *) PCPU_GET(prv_CMAP3))
 		panic("pmap_zero_page: prv_CMAP3 busy");
 
-	*(int *) prv_CMAP3 = PG_V | PG_RW | (phys & PG_FRAME) | PG_A | PG_M;
-	cpu_invlpg(prv_CADDR3);
+	*(int *) PCPU_GET(prv_CMAP3) = PG_V | PG_RW | (phys & PG_FRAME) | PG_A | PG_M;
+	cpu_invlpg(PCPU_GET(prv_CADDR3));
 
 #if defined(I686_CPU)
 	if (cpu_class == CPUCLASS_686)
-		i686_pagezero(prv_CADDR3);
+		i686_pagezero(PCPU_GET(prv_CADDR3));
 	else
 #endif
-		bzero(prv_CADDR3, PAGE_SIZE);
+		bzero(PCPU_GET(prv_CADDR3), PAGE_SIZE);
 
-	*(int *) prv_CMAP3 = 0;
+	*(int *) PCPU_GET(prv_CMAP3) = 0;
 #else
 	if (*(int *) CMAP2)
 		panic("pmap_zero_page: CMAP2 busy");
@@ -2710,20 +2710,20 @@ pmap_zero_page_area(phys, off, size)
 	int size;
 {
 #ifdef SMP
-	if (*(int *) prv_CMAP3)
+	if (*(int *) PCPU_GET(prv_CMAP3))
 		panic("pmap_zero_page: prv_CMAP3 busy");
 
-	*(int *) prv_CMAP3 = PG_V | PG_RW | (phys & PG_FRAME) | PG_A | PG_M;
-	cpu_invlpg(prv_CADDR3);
+	*(int *) PCPU_GET(prv_CMAP3) = PG_V | PG_RW | (phys & PG_FRAME) | PG_A | PG_M;
+	cpu_invlpg(PCPU_GET(prv_CADDR3));
 
 #if defined(I686_CPU)
 	if (cpu_class == CPUCLASS_686 && off == 0 && size == PAGE_SIZE)
-		i686_pagezero(prv_CADDR3);
+		i686_pagezero(PCPU_GET(prv_CADDR3));
 	else
 #endif
-		bzero((char *)prv_CADDR3 + off, size);
+		bzero((char *)PCPU_GET(prv_CADDR3) + off, size);
 
-	*(int *) prv_CMAP3 = 0;
+	*(int *) PCPU_GET(prv_CMAP3) = 0;
 #else
 	if (*(int *) CMAP2)
 		panic("pmap_zero_page: CMAP2 busy");
@@ -2753,21 +2753,22 @@ pmap_copy_page(src, dst)
 	vm_offset_t dst;
 {
 #ifdef SMP
-	if (*(int *) prv_CMAP1)
+	if (*(int *) PCPU_GET(prv_CMAP1))
 		panic("pmap_copy_page: prv_CMAP1 busy");
-	if (*(int *) prv_CMAP2)
+	if (*(int *) PCPU_GET(prv_CMAP2))
 		panic("pmap_copy_page: prv_CMAP2 busy");
 
-	*(int *) prv_CMAP1 = PG_V | (src & PG_FRAME) | PG_A;
-	*(int *) prv_CMAP2 = PG_V | PG_RW | (dst & PG_FRAME) | PG_A | PG_M;
+	*(int *) PCPU_GET(prv_CMAP1) = PG_V | (src & PG_FRAME) | PG_A;
+	*(int *) PCPU_GET(prv_CMAP2) = PG_V | PG_RW | (dst & PG_FRAME) | PG_A | PG_M;
 
-	cpu_invlpg(prv_CADDR1);
-	cpu_invlpg(prv_CADDR2);
+	cpu_invlpg(PCPU_GET(prv_CADDR1));
+	cpu_invlpg(PCPU_GET(prv_CADDR2));
 
-	bcopy(prv_CADDR1, prv_CADDR2, PAGE_SIZE);
+	bcopy(PCPU_GET(prv_CADDR1), PCPU_GET(prv_CADDR2), PAGE_SIZE);
 
-	*(int *) prv_CMAP1 = 0;
-	*(int *) prv_CMAP2 = 0;
+	*(int *) PCPU_GET(prv_CMAP1) = 0;
+	*(int *) PCPU_GET(prv_CMAP2) = 0;
+
 #else
 	if (*(int *) CMAP1 || *(int *) CMAP2)
 		panic("pmap_copy_page: CMAP busy");
@@ -3294,7 +3295,7 @@ pmap_activate(struct proc *p)
 
 	pmap = vmspace_pmap(p->p_vmspace);
 #if defined(SMP)
-	pmap->pm_active |= 1 << cpuid;
+	pmap->pm_active |= 1 << PCPU_GET(cpuid);
 #else
 	pmap->pm_active |= 1;
 #endif

@@ -142,7 +142,7 @@ maybe_resched(chk)
 	 * standard process becomes runaway cpu-bound, the system can lockup
 	 * due to idle-scheduler processes in wakeup never getting any cpu.
 	 */
-	if (p == idleproc) {
+	if (p == PCPU_GET(idleproc)) {
 #if 0
 		need_resched();
 #endif
@@ -176,7 +176,7 @@ roundrobin(arg)
 	need_resched();
 	forward_roundrobin();
 #else 
- 	if (p == idleproc || RTP_PRIO_NEED_RR(p->p_rtprio.type))
+ 	if (p == PCPU_GET(idleproc) || RTP_PRIO_NEED_RR(p->p_rtprio.type))
  		need_resched();
 #endif
 
@@ -925,14 +925,15 @@ mi_switch()
 	 * process was running, and add that to its total so far.
 	 */
 	microuptime(&new_switchtime);
-	if (timevalcmp(&new_switchtime, &switchtime, <)) {
+	if (timevalcmp(&new_switchtime, PCPU_PTR(switchtime), <)) {
 		printf("microuptime() went backwards (%ld.%06ld -> %ld.%06ld)\n",
-		    switchtime.tv_sec, switchtime.tv_usec,
+		    PCPU_GET(switchtime.tv_sec), PCPU_GET(switchtime.tv_usec),
 		    new_switchtime.tv_sec, new_switchtime.tv_usec);
-		new_switchtime = switchtime;
+		new_switchtime = PCPU_GET(switchtime);
 	} else {
-		p->p_runtime += (new_switchtime.tv_usec - switchtime.tv_usec) +
-		    (new_switchtime.tv_sec - switchtime.tv_sec) * (int64_t)1000000;
+		p->p_runtime += (new_switchtime.tv_usec - PCPU_GET(switchtime.tv_usec)) +
+		    (new_switchtime.tv_sec - PCPU_GET(switchtime.tv_sec)) *
+		    (int64_t)1000000;
 	}
 
 	/*
@@ -959,15 +960,15 @@ mi_switch()
 	 * Pick a new current process and record its start time.
 	 */
 	cnt.v_swtch++;
-	switchtime = new_switchtime;
+	PCPU_SET(switchtime, new_switchtime);
 	CTR4(KTR_PROC, "mi_switch: old proc %p (pid %d, %s), schedlock %p",
 		p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
 	cpu_switch();
 	CTR4(KTR_PROC, "mi_switch: new proc %p (pid %d, %s), schedlock %p",
 		p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
-	if (switchtime.tv_sec == 0)
-		microuptime(&switchtime);
-	switchticks = ticks;
+	if (PCPU_GET(switchtime.tv_sec) == 0)
+		microuptime(PCPU_PTR(switchtime));
+	PCPU_SET(switchticks, ticks);
 	splx(x);
 }
 
