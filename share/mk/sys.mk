@@ -108,10 +108,6 @@ YFLAGS		?=	-d
 # as an i386 architecture.
 MACHINE_ARCH	?=	i386
 
-# For tags rule.
-GTAGSFLAGS=	-o
-HTAGSFLAGS=
-
 .if defined(%POSIX)
 # Posix 1003.2 mandated rules
 #
