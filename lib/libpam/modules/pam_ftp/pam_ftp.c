@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#define	PROMPT		"OINK Password required for %s."
-#define	GUEST_PROMPT	"TWEET Guest login ok, send your e-mail address as password."
+#define	PROMPT		"Password required for %s."
+#define	GUEST_PROMPT	"Guest login ok, send your e-mail address as password."
 
 #include <security/_pam_aconf.h>
 
@@ -44,57 +44,46 @@
 
 #include <security/_pam_macros.h>
 
-enum { PAM_OPT_NO_ANON=PAM_OPT_STD_MAX, PAM_OPT_IGNORE };
+enum { PAM_OPT_NO_ANON=PAM_OPT_STD_MAX, PAM_OPT_IGNORE, PAM_OPT_USERS };
 
 static struct opttab other_options[] = {
 	{ "no_anon",	PAM_OPT_NO_ANON },
 	{ "ignore",	PAM_OPT_IGNORE },
+	{ "users",	PAM_OPT_USERS },
 	{ NULL, 0 }
 };
 
-static int 
-converse(pam_handle_t *pamh, int nargs, struct pam_message **message,
-    struct pam_response **response)
-{
-	struct pam_conv *conv;
-	int retval;
-
-	retval = pam_get_item(pamh, PAM_CONV, (const void **)&conv);
-	if (retval == PAM_SUCCESS)
-		retval = conv->conv(nargs, (const struct pam_message **)message,
-			response, conv->appdata_ptr);
-	return retval;
-}
-
 static const char *anonusers[] = {"ftp", "anonymous", NULL};
 
-/* Check if name is in list or default list.
- * Place user's name in *user
+/* Check if *user is in supplied *list or *anonusers[] list.
+ * Place username in *userret
  * Return 1 if listed 0 otherwise
  */
 static int 
-lookup(const char *name, char *list, const char **user)
+lookup(const char *user, char *list, const char **userret)
 {
 	int anon, i;
 	char *item, *context, *locallist;
 
 	anon = 0;
-	*user = name;		/* this is the default */
+	*userret = user;		/* this is the default */
 	if (list) {
+		*userret = NULL;
 		locallist = list;
 		while ((item = strtok_r(locallist, ",", &context))) {
-			locallist = NULL;
-			if (strcmp(name, item) == 0) {
-				*user = item;
+			if (*userret == NULL)
+				*userret = item;
+			if (strcmp(user, item) == 0) {
 				anon = 1;
 				break;
 			}
+			locallist = NULL;
 		}
 	}
 	else {
 		for (i = 0; anonusers[i] != NULL; i++) {
-			if (strcmp(anonusers[i], name) == 0) {
-				*user = anonusers[0];
+			if (strcmp(anonusers[i], user) == 0) {
+				*userret = anonusers[0];
 				anon = 1;
 				break;
 			}
@@ -111,13 +100,9 @@ PAM_EXTERN int
 pam_sm_authenticate(pam_handle_t * pamh, int flags, int argc, const char **argv)
 {
 	struct options options;
-	struct pam_message msg[1], *mesg[1];
-	struct pam_response *resp;
 	int retval, anon;
-	char *users, *context, *prompt;
-	const char *user, *token;
-
-	users = prompt = NULL;
+	char *users, *context, *prompt, *token, *p;
+	const char *user;
 
 	pam_std_option(&options, other_options, argc, argv);
 
@@ -127,77 +112,69 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags, int argc, const char **argv)
 	if (retval != PAM_SUCCESS || user == NULL)
 		PAM_RETURN(PAM_USER_UNKNOWN);
 
+	PAM_LOG("Got user: %s", user);
+
+	users = NULL;
+	if (pam_test_option(&options, PAM_OPT_USERS, &users))
+		PAM_LOG("Got extra anonymous users: %s", users);
+
 	anon = 0;
 	if (!pam_test_option(&options, PAM_OPT_NO_ANON, NULL))
 		anon = lookup(user, users, &user);
 
+	PAM_LOG("Done user: %s", user);
+
 	if (anon) {
 		retval = pam_set_item(pamh, PAM_USER, (const void *)user);
-		if (retval != PAM_SUCCESS || user == NULL)
-			PAM_RETURN(PAM_USER_UNKNOWN);
+		if (retval != PAM_SUCCESS)
+			PAM_RETURN(retval);
+		prompt = GUEST_PROMPT;
+		PAM_LOG("Doing anonymous");
+	}
+	else {
+		prompt = PROMPT;
+		PAM_LOG("Doing non-anonymous");
 	}
 
-	PAM_LOG("Got user: %s", user);
-
-	/* Require an email address for user's password. */
-	if (!anon) {
-		prompt = malloc(strlen(PROMPT) + strlen(user));
-		if (prompt == NULL)
-			PAM_RETURN(PAM_BUF_ERR);
-		else {
-			sprintf(prompt, PROMPT, user);
-			msg[0].msg = prompt;
-		}
-	}
-	else
-		msg[0].msg = GUEST_PROMPT;
-	msg[0].msg_style = PAM_PROMPT_ECHO_OFF;
-	mesg[0] = &msg[0];
-
-	PAM_LOG("Sent prompt");
-
-	resp = NULL;
-	retval = converse(pamh, 1, mesg, &resp);
-	if (prompt) {
-		_pam_overwrite(prompt);
-		_pam_drop(prompt);
-	}
-
-	PAM_LOG("Done conversation 1");
-
-	if (retval != PAM_SUCCESS) {
-		if (resp != NULL)
-			_pam_drop_reply(resp, 1);
+	retval = pam_prompt(pamh, PAM_PROMPT_ECHO_OFF, prompt, &token);
+	if (retval != PAM_SUCCESS)
 		PAM_RETURN(retval == PAM_CONV_AGAIN
 			? PAM_INCOMPLETE : PAM_AUTHINFO_UNAVAIL);
-	}
 
-	PAM_LOG("Done conversation 2");
+	PAM_LOG("Got password");
 
 	if (anon) {
 		if (!pam_test_option(&options, PAM_OPT_IGNORE, NULL)) {
-			token = strtok_r(resp->resp, "@", &context);
-			pam_set_item(pamh, PAM_RUSER, token);
-
-			if ((token) && (retval == PAM_SUCCESS)) {
-				token = strtok_r(NULL, "@", &context);
-				pam_set_item(pamh, PAM_RHOST, token);
+			p = strtok_r(token, "@", &context);
+			if (p != NULL) {
+				pam_set_item(pamh, PAM_RUSER, p);
+				PAM_LOG("Got ruser: %s", p);
+				if (retval == PAM_SUCCESS) {
+					p = strtok_r(NULL, "@", &context);
+					if (p != NULL) {
+						pam_set_item(pamh, PAM_RHOST, p);
+						PAM_LOG("Got rhost: %s", p);
+					}
+				}
 			}
 		}
-		retval = PAM_SUCCESS;
+		else
+			PAM_LOG("Ignoring supplied password structure");
 
 		PAM_LOG("Done anonymous");
 
+		retval = PAM_SUCCESS;
+
 	}
 	else {
-		pam_set_item(pamh, PAM_AUTHTOK, resp->resp);
-		retval = PAM_AUTH_ERR;
+		pam_set_item(pamh, PAM_AUTHTOK, token);
+
+		PAM_VERBOSE_ERROR("Anonymous module reject");
 
 		PAM_LOG("Done non-anonymous");
-	}
 
-	if (resp)
-		_pam_drop_reply(resp, 1);
+		retval = PAM_AUTH_ERR;
+	}
 
 	PAM_RETURN(retval);
 }
@@ -205,7 +182,13 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags, int argc, const char **argv)
 PAM_EXTERN int 
 pam_sm_setcred(pam_handle_t * pamh, int flags, int argc, const char **argv)
 {
-	return PAM_IGNORE;
+	struct options options;
+
+	pam_std_option(&options, other_options, argc, argv);
+
+	PAM_LOG("Options processed");
+
+	PAM_RETURN(PAM_SUCCESS);
 }
 
 PAM_MODULE_ENTRY("pam_ftp");
