@@ -134,3 +134,78 @@ command_quit(int argc, char *argv[])
 	exit(0);
 	return (CMD_OK);
 }
+
+COMMAND_SET(memmap, "memmap", "print memory map", command_memmap);
+
+static int
+command_memmap(int argc, char *argv[])
+{
+	UINTN sz;
+	EFI_MEMORY_DESCRIPTOR *map, *p;
+	UINTN key, dsz;
+	UINT32 dver;
+	EFI_STATUS status;
+	int i, ndesc;
+	static char *types[] = {
+	    "Reserved",
+	    "LoaderCode",
+	    "LoaderData",
+	    "BootServicesCode",
+	    "BootServicesData",
+	    "RuntimeServicesCode",
+	    "RuntimeServicesData",
+	    "ConventionalMemory",
+	    "ACPIReclaimMemory",
+	    "ACPIMemoryNVS",
+	    "MemoryMappedIO",
+	    "MemoryMappedIOPortSpace",
+	    "PalCode"
+	};
+
+	sz = 0;
+	status = BS->GetMemoryMap(&sz, 0, &key, &dsz, &dver);
+	if (status != EFI_BUFFER_TOO_SMALL) {
+		printf("Can't determine memory map size\n");
+		return;
+	}
+	map = malloc(sz);
+	status = BS->GetMemoryMap(&sz, map, &key, &dsz, &dver);
+	if (EFI_ERROR(status)) {
+		printf("Can't read memory map\n");
+		return;
+	}
+
+	ndesc = sz / dsz;
+	printf("%20s %12s %12s %8s %4s\n",
+	       "Type", "Physical", "Virtual", "#Pages", "Attr");
+	       
+	for (i = 0, p = map; i < ndesc;
+	     i++, p = NextMemoryDescriptor(p, dsz)) {
+	    printf("%20s %012lx %012lx %08lx ",
+		   types[p->Type],
+		   p->PhysicalStart,
+		   p->VirtualStart,
+		   p->NumberOfPages);
+	    if (p->Attribute & EFI_MEMORY_UC)
+		printf("UC ");
+	    if (p->Attribute & EFI_MEMORY_WC)
+		printf("WC ");
+	    if (p->Attribute & EFI_MEMORY_WT)
+		printf("WT ");
+	    if (p->Attribute & EFI_MEMORY_WB)
+		printf("WB ");
+	    if (p->Attribute & EFI_MEMORY_UCE)
+		printf("UCE ");
+	    if (p->Attribute & EFI_MEMORY_WP)
+		printf("WP ");
+	    if (p->Attribute & EFI_MEMORY_RP)
+		printf("RP ");
+	    if (p->Attribute & EFI_MEMORY_XP)
+		printf("XP ");
+	    if (p->Attribute & EFI_MEMORY_RUNTIME)
+		printf("RUNTIME");
+	    printf("\n");
+	}
+
+	return (CMD_OK);
+}
