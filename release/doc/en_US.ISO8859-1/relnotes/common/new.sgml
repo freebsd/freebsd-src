@@ -1916,7 +1916,7 @@ hw.pcic.irq="0"</programlisting>
       <para>The &man.csh.1; shell has been replaced by &man.tcsh.1;,
       although it can still be run as <command>csh</command>.
       <application>tcsh</application> has been updated to version
-      6.10. &merged;</para>
+      6.11.</para>
 
       <para>&man.traceroute.8; now takes its default maximum TTL value
       from the <varname>net.inet.ip.ttl</varname> sysctl
