@@ -40,35 +40,33 @@
 The
 .Fn pthread_attr_setcreatesuspend_np
 instructs
-.Fn pthread_create
-that thread created with attribute
+.Xr pthread_create 3
+that the thread created with the
 .Fa attr
-should be created and left in suspended state until explicit resume call (by
+attribute
+should be created and left in a suspended state until explicitly resumed
+by the call to
 .Fn pthread_resume_np
 or
-.Fn pthread_resume_all_np
-function.)
+.Fn pthread_resume_all_np .
 .Sh RETURN VALUES
 .Rv -std pthread_attr_setcreatesuspend_np
 .Sh ERRORS
 The
 .Fn pthread_attr_setcreatesuspend_np
 function will fail if:
-.Bl -tag -witdh Er
+.Bl -tag -width Er
 .It Bq Er EINVAL
 The value specified by
 .Fa attr
-is invalid
+is invalid.
 .El
 .Sh SEE ALSO
-.Xr pthread_attr_init 3 ,
 .Xr pthread_attr_destroy 3 ,
+.Xr pthread_attr_init 3 ,
 .Xr pthread_create 3 ,
 .Xr pthread_resume_all_np 3 ,
 .Xr pthread_resume_np 3
 .Sh AUTHORS
-The
-.Nm
-manpage was written by
-.An Alexey Zelkin
-.Aq phantom@FreeBSD.org
+This manual page was written by
+.An Alexey Zelkin Aq phantom@FreeBSD.org .

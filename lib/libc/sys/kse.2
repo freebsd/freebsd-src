@@ -172,7 +172,8 @@ and any KSE in a KSE group may be assigned by the kernel to any runnable
 (in the kernel) thread associated with that KSE group.
 In practice, the kernel attempts to preserve the affinity between threads
 and actual CPUs to optimize cache behavior, but this is invisible to the
-user process. (Affinity is not yet implemented).
+user process.
+(Affinity is not yet implemented.)
 .Pp
 Each KSE has a unique
 .Sy "KSE mailbox"
@@ -268,7 +269,7 @@ instead, the KSE just looses the association with its mailbox and
 .Fn kse_exit
 returns normally.
 This returns the process to its original, unthreaded state.
-(this is not yet implemented).
+(This is not yet implemented.)
 .Pp
 The
 .Fn kse_release
@@ -324,7 +325,7 @@ When a process has at least one KSE with an associated mailbox, then
 signals might no longer be delivered on the process stack.
 Instead, signals may be delivered via upcalls.
 Multiple signals may be delivered with one upcall.
-(This feature is not yet coded).
+(This feature is not yet coded.)
 .Pp
 If there are multiple KSE groups in the process, which KSE group is
 chosen to deliver the signal is indeterminate.
@@ -436,7 +437,8 @@ contains the list of signals caught by this process since the previous
 upcall to any KSE in the process.
 As long as there exists one or more KSEs with an associated mailbox in
 the user process, signals are delivered this way rather than the
-traditional way. (This has not bein implemented and may change).
+traditional way.
+(This has not been implemented and may change.)
 .Pp
 .Va km_timeofday
 is set by the kernel to the current system time before performing
@@ -521,7 +523,6 @@ system calls
 do not return if successful.
 .Pp
 All of these system calls return a non-zero error code in case of an error.
-.Pp
 .Sh ERRORS
 The
 .Fn kse_create

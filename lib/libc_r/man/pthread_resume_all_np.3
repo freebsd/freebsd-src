@@ -35,21 +35,17 @@
 .Sh SYNOPSIS
 .In pthread_np.h
 .Ft void
-.Fn pthread_resume_all_np "void"
+.Fn pthread_resume_all_np void
 .Sh DESCRIPTION
 The
 .Fn pthread_resume_all_np
-function call causes all active thread to be scanned
-and resume those which were suspended previously.
+function causes all active threads to be scanned
+and resumes those which were previously suspended.
 .Sh SEE ALSO
 .Xr pthread_attr_setcreatesuspend_np 3 ,
 .Xr pthread_resume_np 3 ,
 .Xr pthread_suspend_all_np 3 ,
 .Xr pthread_suspend_np 3
 .Sh AUTHORS
-The
-.Nm
-manpage was written by
-.An Alexey Zelkin
-.Aq phantom@FreeBSD.org
-
+This manual page was written by
+.An Alexey Zelkin Aq phantom@FreeBSD.org .

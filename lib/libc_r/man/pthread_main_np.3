@@ -35,33 +35,26 @@
 .Sh SYNOPSIS
 .In pthread_np.h
 .Ft int
-.Fn pthread_main_np "void"
+.Fn pthread_main_np void
 .Sh DESCRIPTION
 The
 .Fn pthread_main_np
-is used in userland threads environment to identify initial thread.
-Its semantics is similar to Solaris's
+function
+is used in userland threads environment to identify the initial thread.
+Its semantics is similar to the Solaris's
 .Fn thr_main
 function.
 .Sh RETURN VALUES
 The
 .Fn pthread_main_np
-function returns one of the following:
-.Bl -tag
-.It 1
-if the calling thread is the initial thread
-.It 0
-if the calling thread is not the initial thread
-.It -1
-if threads initialization has not completed
-.El
+function returns
+1 if the calling thread is the initial thread,
+0 if the calling thread is not the initial thread,
+and \-1 if the thread's initialization has not yet completed.
 .Sh SEE ALSO
 .Xr pthread_create 3 ,
 .Xr pthread_equal 3 ,
 .Xr pthread_self 3
 .Sh AUTHORS
-The
-.Nm
-manpage was written by
-.An Alexey Zelkin
-.Aq phantom@FreeBSD.org
+This manual page was written by
+.An Alexey Zelkin Aq phantom@FreeBSD.org .

@@ -24,7 +24,7 @@
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.\" "
+.\"
 .Dd December 17, 1998
 .Os
 .Dt SLEEP 9
@@ -54,14 +54,14 @@ and
 handle event-based process blocking.
 If a process must wait for an
 external event, it is put on sleep by
-.Nm tsleep .
+.Fn tsleep .
 The parameter
 .Ar ident
 is an arbitrary address that uniquely identifies the event on which
 the process is being asleep.  All processes sleeping on a single
 .Ar ident
 are woken up later by
-.Nm wakeup ,
+.Fn wakeup ,
 often called from inside an interrupt routine, to indicate that the
 resource the process was blocking on is available now.
 .Pp
@@ -83,7 +83,7 @@ but only one of them can actually do any useful work when made
 runnable.
 .Pp
 The
-.Nm tsleep
+.Fn tsleep
 function is the general sleep call.
 Suspends the current process until a wakeup is
 performed on the specified identifier.
@@ -113,12 +113,12 @@ is returned if the system call should be interrupted by the signal
 .Er EINTR ) .
 .Pp
 The
-.Nm msleep
+.Fn msleep
 function is a variation on tsleep.
 The parameter
 .Ar mtx
 is a mutex, which will be exited before sleeping, and entered before
-.Nm msleep
+.Fn msleep
 returns.
 If
 .Ar pri
@@ -144,12 +144,12 @@ appeared in a very early version of
 .Ux .
 .Pp
 The
-.Nm tsleep
+.Fn tsleep
 function appeared in
 .Bx 4.4 .
 .Pp
 The
-.Nm
+.Fn sleep
 function used to be the traditional form.
 It does not let you specify a timeout or a
 .Ar wmesg ,

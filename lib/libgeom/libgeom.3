@@ -44,14 +44,14 @@
 .Lb libgeom
 .Sh SYNOPSIS
 .In libgeom.h
-.Ss "Statistics functions"
+.Ss "Statistics Functions"
 .Ft void
 .Fn geom_stats_close void
 .Ft int
 .Fn geom_stats_open void
 .Ft void
 .Fn geom_stats_resync void
-.Ft void *
+.Ft "void *"
 .Fn geom_stats_snapshot_get void
 .Ft void
 .Fn geom_stats_snapshot_free "void *arg"
@@ -59,26 +59,30 @@
 .Fn geom_stats_snapshot_timestamp "void *arg" "struct timespec *tp"
 .Ft void
 .Fn geom_stats_snapshot_reset "void *arg"
-.Ft struct g_stat *
+.Ft "struct g_stat *"
 .Fn geom_stats_snapshot_next "void *arg"
 .Sh DESCRIPTION
-.Nm Libgeom
-is the library which contains the official and publicized API for
+The
+.Nm geom
+library contains the official and publicized API for
 interacting with the GEOM subsystem in the kernel.
-.Ss "Statistics functions"
+.Ss "Statistics Functions"
 GEOM collects statistics data for all consumers and providers, but does
 not perform any normalization or presentation on the raw data, this is
 left as an excercize for user-land presentation utilities.
 .Pp
 The
 .Fn geom_stats_open
-and 
+and
 .Fn geom_stats_close
-functions opens and closes the necessary pathways to access the raw 
-statistics information in the kernel.  These functions are likely to
-open one or more files and cache the filedescriptors locally.
+functions open and close the necessary pathways to access the raw
+statistics information in the kernel.
+These functions are likely to
+open one or more files and cache the file descriptors locally.
 .Fn geom_stats_open
-returns zero on success, and sets errno if not.
+returns zero on success, and sets
+.Va errno
+if not.
 .Pp
 The
 .Fn geom_stats_resync
@@ -88,30 +92,45 @@ added in the kernel since
 or the previous call to
 .Fn geom_stats_resync .
 .Pp
+The
 .Fn geom_stats_snapshot_get
-will aquire a snapshot of the raw data from the kernel and while a
+function
+will acquire a snapshot of the raw data from the kernel, and while a
 reasonable effort is made to make this snapshot as atomic and consistent
 as possible, no guarantee is given that it will actually be so.
 The snapshot must be freed again using the
 .Fn geom_stats_snapshot_free
 function.
 .Fn geom_stats_snapshot_get
-returns NULL on failure.
+returns
+.Dv NULL
+on failure.
 .Pp
+The
 .Fn geom_stats_snapshot_timestamp
-provides access to the timestamp aquired in the snapshot.
+function
+provides access to the timestamp acquired in the snapshot.
 .Pp
+The
 .Fn geom_stats_snapshot_reset
 and
 .Fn geom_stats_snapshot_next
-provides an iterator over the statistics slots in the snapshot.
+functions
+provide an iterator over the statistics slots in the snapshot.
+The
 .Fn geom_stats_snapshot_reset
+function
 forces the internal pointer in the snapshot back to before the first item.
+The
 .Fn geom_stats_snapshot_next
-returns the next item and NULL if there are no more items in the snapshot.
+function
+returns the next item, and
+.Dv NULL
+if there are no more items in the snapshot.
 .Sh AUTHORS
 .An Poul-Henning Kamp Aq phk@FreeBSD.org
 .Sh HISTORY
+The
 .Nm geom
-library appeard in
+library appeared in
 .Fx 5.1 .

@@ -30,7 +30,7 @@
 .Sh NAME
 .Nm pthread_mutexattr_getkind_np ,
 .Nm pthread_mutexattr_setkind_np
-.Nd mutex attribute operations (LEGACY)
+.Nd mutex attribute operations (legacy)
 .Sh LIBRARY
 .Lb libc_r
 .Sh SYNOPSIS
@@ -40,45 +40,42 @@
 .Ft int
 .Fn pthread_mutexattr_setkind_np "pthread_mutexattr_t *attr" "int kind"
 .Sh DESCRIPTION
-These functions are DEPRECATED and NON-PORTABLE implementation of mutex types
-manipulation.
+.Bf -symbolic
+These functions are deprecated and non-portable implementation of
+the mutex type manipulation.
+.Ef
 .Pp
-It's recomended to use
-.Fn pthread_mutexattr_gettype
+It is recommended to use the
+.Xr pthread_mutexattr_gettype 3
 and
-.Fn pthread_mutexattr_settype
+.Xr pthread_mutexattr_settype 3
 functions instead.
 .Sh RETURN VALUES
 The
 .Fn pthread_mutexattr_getkind_np
-function returns positive value representing
-.Ft kind
-of mutex attribute
+function returns a positive value representing the
+.Dq kind
+of the mutex attribute
 .Fa attr
-if successful; otherwise the value -1 is returned and the global variable
-.Fa errno
+if successful; otherwise the value \-1 is returned and the global variable
+.Va errno
 is set to indicate the error.
 .Pp
-The
-.Fn pthread_mutexattr_settype
-function returns the value 0 if successful; otherwise
-the value -1 is returned and the global variable
-.Fa errno
-is set to indicate the error.
+.Rv -std pthread_mutexattr_setkind_np
 .Sh ERRORS
 The
 .Fn pthread_mutexattr_getkind_np
 and
 .Fn pthread_mutexattr_setkind_np
 functions will fail if:
-.Bl -tag -witdh Er
+.Bl -tag -width Er
 .It Bq Er EINVAL
 The value specified by
 .Fa attr
-is invalid
+is invalid.
 .El
 .Sh SEE ALSO
-.Xr pthread_mutex_create 3 ,
-.Xr pthread_mutex_destroy 3 ,
 .Xr pthread_mutexattr_gettype 3 ,
-.Xr pthread_mutexattr_settype 3
+.Xr pthread_mutexattr_settype 3 ,
+.Xr pthread_mutex_create 3 ,
+.Xr pthread_mutex_destroy 3
