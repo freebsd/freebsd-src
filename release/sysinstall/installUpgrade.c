@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.33.2.9 1997/03/07 16:16:56 jkh Exp $
+ * $Id: installUpgrade.c,v 1.33.2.10 1997/04/02 11:57:35 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -99,6 +99,7 @@ static HitList etc_files [] = {
    { JUST_COPY,		"protocols",		TRUE, NULL },
    { JUST_COPY,		"pwd.db",		TRUE, NULL },
    { JUST_COPY,		"rc.local",		TRUE, NULL },
+   { JUST_COPY,		"rc.conf",		FALSE, NULL },
    { JUST_COPY,		"remote",		TRUE, NULL },
    { JUST_COPY,		"resolv.conf",		TRUE, NULL },
    { JUST_COPY,		"rmt",			TRUE, NULL },
@@ -109,7 +110,6 @@ static HitList etc_files [] = {
    { JUST_COPY,		"skeykeys",		TRUE, NULL },
    { JUST_COPY,		"spwd.db",		TRUE, NULL },
    { JUST_COPY,		"supfile",		TRUE, NULL },
-   { JUST_COPY,		"sysconfig",		FALSE, NULL },
    { JUST_COPY,		"syslog.conf",		TRUE, NULL },
    { JUST_COPY,		"termcap",		TRUE, NULL },
    { JUST_COPY,		"ttys",			TRUE, NULL },

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.66.2.9 1997/04/28 06:22:15 jkh Exp $
+ * $Id: system.c,v 1.66.2.10 1997/04/28 09:17:33 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -118,9 +118,9 @@ systemShutdown(int status)
     if (status >=0 && mediaDevice)
 	mediaDevice->shutdown(mediaDevice);
 
-    /* write out any changes to sysconfig .. */
-    if (!status)
-	configSysconfig("/etc/sysconfig");
+    /* write out any changes to rc.conf .. */
+    if (status)
+	configRC_conf("/etc/rc.conf");
 
     /* Shut down the dialog library */
     if (DialogActive) {
