@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.23 1995/02/25 20:51:12 phk Exp $
+#	$Id: bsd.lib.mk,v 1.24 1995/03/28 17:54:11 nate Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -199,7 +199,7 @@ lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}: ${SOBJS}
 	@rm -f lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
 	@${LD} -Bshareable \
 	    -o lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
-	    ${SOBJS} ${LDDESTDIR} ${LDADD}
+	    `lorder ${SOBJS} | tsort` ${LDDESTDIR} ${LDADD}
 
 lib${LIB}_pic.a:: ${SOBJS}
 	@${ECHO} building special pic ${LIB} library
