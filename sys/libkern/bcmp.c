@@ -135,12 +135,12 @@ bcmp(b1, b2, length)
 			 & ((1L << (len << 3)) - 1)) != 0);
 	}
 #else
-	register char *p1, *p2;
+	const char *p1, *p2;
 
 	if (length == 0)
 		return(0);
-	p1 = (char *)b1;
-	p2 = (char *)b2;
+	p1 = b1;
+	p2 = b2;
 	do
 		if (*p1++ != *p2++)
 			break;
