@@ -1,4 +1,4 @@
-/* $Id: brooktree848.c,v 1.65 1999/02/08 11:53:05 roger Exp $ */
+/* $Id: brooktree848.c,v 1.66 1999/02/11 10:22:30 roger Exp $ */
 /* BT848 Driver for Brooktree's Bt848, Bt849, Bt878 and Bt 879 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
@@ -319,34 +319,40 @@ They are unrelated to Revision Control numbering of FreeBSD or any other system.
                            PAL/SECAM boards will use PLL mode.
 			   Added to card probe. Thanks to Ken and Fred.
 
-1.56          21 Jan 1999  Roger Hardiman <roger@cs.strath.ac.uk>
-                           Added detection of Hauppauge IR remote control.
-			   and MSP34xx Audio chip. Fixed i2c read error.
-                           Hauppauge supplied details of new Tuner Types.
-                           Danny Braniss <danny@cs.huji.ac.il> submitted Bt878
-                           AverMedia detection with PCI subsystem vendor id.
+1.56    21 Jan 1999 Roger Hardiman <roger@cs.strath.ac.uk>
+                    Added detection of Hauppauge IR remote control.
+                    and MSP34xx Audio chip. Fixed i2c read error.
+                    Hauppauge supplied details of new Tuner Types.
+                    Danny Braniss <danny@cs.huji.ac.il> submitted Bt878
+                    AverMedia detection with PCI subsystem vendor id.
 
-1.57          26 Jan 1999  Roger Hardiman <roger@cs.strath.ac.uk>
-                           Support for MSP3410D / MSP3415D Stereo/Mono audio
-                           using the audio format Auto Detection Mode.
-                           Nicolas Souchu <nsouch@freebsd.org> ported the
-                           msp_read/write/reset functions to smbus/iicbus.
-                           METEOR_INPUT_DEV2 now selects a composite camera on
-                           the SVIDEO port for Johan Larsson<gozer@ludd.luth.se>
-                           For true SVIDEO, use METEOR_INPUT_DEV_SVIDEO
+1.57    26 Jan 1999 Roger Hardiman <roger@cs.strath.ac.uk>
+                    Support for MSP3410D / MSP3415D Stereo/Mono audio
+                    using the audio format Auto Detection Mode.
+                    Nicolas Souchu <nsouch@freebsd.org> ported the
+                    msp_read/write/reset functions to smbus/iicbus.
+                    METEOR_INPUT_DEV2 now selects a composite camera on
+                    the SVIDEO port for Johan Larsson<gozer@ludd.luth.se>
+                    For true SVIDEO, use METEOR_INPUT_DEV_SVIDEO
 
-1.58           8 Feb 1999  Roger Hardiman <roger@cs.strath.ac.uk>
-                           Added check to bktr_mmap from OpenBSD driver.
-                           Improved MSP34xx reset for bt848 Hauppauge boards.
-                           Added detection for Bt848a.
-                           Vsevolod Lobko<seva@sevasoft.alex-ua.com> added
-                           more XUSSR channels.
+1.58     8 Feb 1999 Roger Hardiman <roger@cs.strath.ac.uk>
+                    Added check to bktr_mmap from OpenBSD driver.
+                    Improved MSP34xx reset for bt848 Hauppauge boards.
+                    Added detection for Bt848a.
+                    Vsevolod Lobko<seva@sevasoft.alex-ua.com> added
+                    more XUSSR channels.
 
-1.59           9 Feb 1999  Added ioctl REMOTE_GETKEY for Hauppauge Infra-Red
-                           Remote Control. Submitted by Roger Hardiman.
-                           Added ioctl TVTUNER_GETCHANSET and
-                           BT848_GPIO_SET_EN,BT848_GPIO_SET_DATA (and GETs)
-                           Submitted by Vsevolod Lobko <seva@alex-ua.com>
+1.59     9 Feb 1999 Added ioctl REMOTE_GETKEY for Hauppauge Infra-Red
+                    Remote Control. Submitted by Roger Hardiman.
+                    Added ioctl TVTUNER_GETCHANSET and
+                    BT848_GPIO_SET_EN,BT848_GPIO_SET_DATA (and GETs)
+                    Submitted by Vsevolod Lobko <seva@alex-ua.com>
+
+1.60    23 Feb 1999 Roger Hardiman <roger@freebsd.org>
+                    Corrected Mute on Hauppauge Radio cards.
+                    Autodetect MMAC Osprey by looking for "MMAC" in the EEPROM.
+                    Added for Jan Schmidt <mmedia@rz.uni-greifswald.de>
+                    Added ALPS Tuner Type from Hiroki Mori <mori@infocity.co.jp>
 
 */
 
@@ -756,6 +762,9 @@ static struct {
 				 TSA552x_CB_RSA |	\
 				 TSA552x_CB_RSB)
 
+/* The control value for the ALPS TSCH5 Tuner */
+#define TSCH5_FCONTROL          0x82
+
 /* sync detect threshold */
 #if 0
 #define SYNC_LEVEL		(BT848_ADC_RESERVED |	\
@@ -793,7 +802,8 @@ static struct {
 #define PHILIPS_FR1236_NTSC     9
 #define PHILIPS_FR1216_PAL	10
 #define PHILIPS_FR1236_SECAM    11
-#define Bt848_MAX_TUNER         12
+#define	ALPS_TSCH5		12
+#define Bt848_MAX_TUNER         13
 
 /* XXX FIXME: this list is incomplete */
 
@@ -936,6 +946,16 @@ static const struct TUNER tuners[] = {
 	     TSA552x_RADIO },
 	   { 0x00, 0x00 },			/* band-switch crosspoints */
 	   { 0xa0, 0x90, 0x30, 0xa4 } },	/* the band-switch values */
+
+        /* ALPS TSCH5 NTSC */
+        { "ALPS TSCH5",                         /* the 'name' */
+           TTYPE_NTSC,                          /* input type */
+           { TSCH5_FCONTROL,                    /* control byte for PLL */
+             TSCH5_FCONTROL,
+             TSCH5_FCONTROL,
+             0x00 },
+           { 0x00, 0x00 },                      /* band-switch crosspoints */
+           { 0x14, 0x12, 0x11, 0x00 } }         /* the band-switch values */
 };
 
 /******************************************************************************
@@ -959,8 +979,9 @@ static const struct TUNER tuners[] = {
 #define	CARD_STB		3
 #define	CARD_INTEL		4
 #define	CARD_IMS_TURBO		5
-#define CARD_AVER_MEDIA		6
-#define Bt848_MAX_CARD          7
+#define	CARD_AVER_MEDIA		6
+#define	CARD_OSPREY		7
+#define Bt848_MAX_CARD          8
 
 /*
  * the data for each type of card
@@ -998,7 +1019,7 @@ static const struct CARDTYPE cards[] = {
 	   0,
 	   PFC8582_WADDR,			/* EEProm type */
 	   (u_char)(256 / EEPROMBLOCKSIZE),	/* 256 bytes */
-	   { 0x00, 0x02, 0x01, 0x01, 1 } },	/* audio MUX values */
+	   { 0x00, 0x02, 0x01, 0x04, 1 } },	/* audio MUX values */
 
 	{  CARD_STB,				/* the card id */
 	  "STB TV/PCI",				/* the 'name' */
@@ -1036,8 +1057,18 @@ static const struct CARDTYPE cards[] = {
 	   0,					/* the tuner i2c address */
            0,                                   /* dbx is optional */
            0,
-           0,                                   /* EEProm type */
            0,                                   /* EEProm size */
+           0,                                   /* EEProm size */
+           { 0x0c, 0x00, 0x0b, 0x0b, 1 } },     /* audio MUX values */
+
+        {  CARD_OSPREY,			/* the card id */
+          "MMAC Osprey",                   /* the 'name' */
+           NULL,                                /* the tuner */
+	   0,					/* the tuner i2c address */
+           0,                                   /* dbx is optional */
+           0,
+	   PFC8582_WADDR,			/* EEProm type */
+	   (u_char)(256 / EEPROMBLOCKSIZE),	/* 256 bytes */
            { 0x0c, 0x00, 0x0b, 0x0b, 1 } },     /* audio MUX values */
 
 };
@@ -3001,7 +3032,7 @@ common_ioctl( bktr_ptr_t bktr, bt848_ptr_t bt848, int cmd, caddr_t arg )
 		/* On the original bt848 boards, */
 		/*   Tuner is MUX0, RCA is MUX1, S-Video is MUX2 */
 		/* On the Hauppauge bt878 boards, */
-		/*   Tuner is MUX0, RCA is MUX4 */
+		/*   Tuner is MUX0, RCA is MUX3 */
 		/* Unfortunatly Meteor driver codes DEV_RCA as DEV_0, so we */
 		/* stick with this system in our Meteor Emulation */
 
@@ -4931,9 +4962,9 @@ static int locate_tuner_address( bktr_ptr_t bktr) {
  * 2) If it is a BT848, 848A or 849, continue on:
  *   3) Some cards have no I2C devices. Check if the i2c bus is empty
  *      and if so, our detection job is nearly over.
- *   4) Check I2C address 0xa0. If present this will be a Hauppauge card.
- *      Use the Hauppauge EEPROM to determine on board tuner type and other
- *       features. 
+ *   4) Check I2C address 0xa0. If present this will be a Hauppauge card
+ *      or an Osprey card. The Hauppauge EEPROM can determine on board tuner
+ *      type and other features. 
  *   4) Check I2C address 0xa8. If present this is a STB card.
  *      Still have to guess on the tuner type.
  *   5) Otherwise we are in the dark. Miro cards have the tuner type
@@ -4972,6 +5003,20 @@ probeCard( bktr_ptr_t bktr, int verbose )
 	bt848->gpio_out_en = 0;
 	if (bootverbose)
 	    printf("bktr: GPIO is 0x%08x\n", bt848->gpio_data);
+
+#ifdef HAUPPAUGE_MSP_RESET
+	/* Reset the MSP34xx audio chip. This resolves bootup card
+	 * detection problems with old Bt848 based Hauppauge cards with
+	 * MSP34xx stereo audio chips. This must be user enabled because
+	 * at this point the probe function does not know the card type. */
+        bt848->gpio_out_en = bt848->gpio_out_en | (1<<5);
+        bt848->gpio_data   = bt848->gpio_data | (1<<5);  /* write '1' */
+        DELAY(2500); /* wait 2.5ms */
+        bt848->gpio_data   = bt848->gpio_data & ~(1<<5); /* write '0' */
+        DELAY(2500); /* wait 2.5ms */
+        bt848->gpio_data   = bt848->gpio_data | (1<<5);  /* write '1' */
+        DELAY(2500); /* wait 2.5ms */
+#endif
 
 	/* Check for a user specified override on the card selection */
 #if defined( OVERRIDE_CARD )
@@ -5025,16 +5070,36 @@ probeCard( bktr_ptr_t bktr, int verbose )
 	}
 
 
-        /* Look for Hauppauge and STB cards by the presence of an EEPROM */
+        /* Look for Hauppauge, STB and Osprey cards by the presence */
+	/* of an EEPROM */
         /* Note: Bt878 based cards also use EEPROMs so we can only do this */
         /* test on BT848/848a and 849 based cards. */
 	if ((bktr->id==BROOKTREE_848)  ||
 	    (bktr->id==BROOKTREE_848A) ||
 	    (bktr->id==BROOKTREE_849)) {
-            /* look for a hauppauge card */
+
+            /* At i2c address 0xa0, look for Hauppauge and Osprey cards */
             if ( (status = i2cRead( bktr, PFC8582_RADDR )) != ABSENT ) {
-                    bktr->card = cards[ (card = CARD_HAUPPAUGE) ];
-                    goto checkTuner;
+
+		    /* Read the eeprom contents */
+		    bktr->card.eepromAddr = PFC8582_WADDR;
+		    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
+	            readEEProm(bktr, 0, 128, (u_char *) &probe_eeprom );
+
+		    /* For Hauppauge, check the EEPROM begins with 0x84 */
+		    if (probe_eeprom[0] == 0x84) {
+                            bktr->card = cards[ (card = CARD_HAUPPAUGE) ];
+                            goto checkTuner;
+		    }
+
+		    /* For Osprey, check the EEPROM begins with "MMAC" */
+		    if (  (probe_eeprom[0] == 'M') &&(probe_eeprom[1] == 'M')
+			&&(probe_eeprom[2] == 'A') &&(probe_eeprom[3] == 'C')) {
+                            bktr->card = cards[ (card = CARD_OSPREY) ];
+                            goto checkTuner;
+		    }
+		    printf("Warning: Unknown card type. EEPROM data not recognised\n");
+		    printf("%x %x %x %x\n",probe_eeprom[0],probe_eeprom[1],probe_eeprom[2],probe_eeprom[3]);
             }
 
             /* look for an STB card */
@@ -5082,7 +5147,6 @@ checkTuner:
 	/* look for a tuner */
 	tuner_i2c_address = locate_tuner_address( bktr );
 	if ( tuner_i2c_address == -1 ) {
-		bktr->card = cards[ (card = CARD_INTEL) ];
 		bktr->card.tuner = &tuners[ NO_TUNER ];
 		goto checkDBX;
 	}
@@ -5307,12 +5371,19 @@ checkMSPEnd:
 	bktr->xtal_pll_mode = BT848_USE_PLL;
 	goto checkPLLEnd;
 #endif
-	/* Enable PLL mode for PAL/SECAM users on Hauppauge 878 cards */
+	/* Default is to use XTALS and not PLL mode */
 	bktr->xtal_pll_mode = BT848_USE_XTALS;
 
+	/* Enable PLL mode for PAL/SECAM users on Hauppauge 878 cards */
 	if ((card == CARD_HAUPPAUGE) &&
 	   (bktr->id==BROOKTREE_878 || bktr->id==BROOKTREE_879) )
 		bktr->xtal_pll_mode = BT848_USE_PLL;
+
+
+	/* Enable PLL mode for OSPREY users */
+	if (card == CARD_OSPREY)
+		bktr->xtal_pll_mode = BT848_USE_PLL;
+
 #if defined( BKTR_USE_PLL )
 checkPLLEnd:
 #endif
