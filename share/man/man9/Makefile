@@ -54,7 +54,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	physio.9 posix4.9 printf.9 psignal.9 \
 	random.9 resettodr.9 resource_int_value.9 resource_query_string.9 \
 	rtalloc.9 rtentry.9 runqueue.9 \
-	sbuf.9 scheduler.9 sleep.9 sleepqueue.9 spl.9 store.9 \
+	sbuf.9 scheduler.9 sema.9 sleep.9 sleepqueue.9 spl.9 store.9 \
 	style.9 suser.9 swi.9 sx.9 sysctl_add_oid.9 sysctl_ctx_init.9 \
 	taskqueue.9 time.9 timeout.9 tvtohz.9 \
 	ucred.9 uidinfo.9 uio.9 \
@@ -155,6 +155,13 @@ MLINKS+=sleep.9 asleep.9 sleep.9 await.9 sleep.9 msleep.9
 MLINKS+=sleepqueue.9 endtsleep.9 sleepqueue.9 sleepinit.9
 MLINKS+=sleepqueue.9 unsleep.9
 MLINKS+=buf.9 bp.9
+MLINKS+=sema.9 sema_init.9
+MLINKS+=sema.9 sema_destroy.9
+MLINKS+=sema.9 sema_post.9
+MLINKS+=sema.9 sema_wait.9
+MLINKS+=sema.9 sema_timedwait.9
+MLINKS+=sema.9 sema_trywait.9
+MLINKS+=sema.9 sema_value.9
 MLINKS+=spl.9 spl0.9
 MLINKS+=spl.9 splbio.9 spl.9 splclock.9 spl.9 splhigh.9 spl.9 splimp.9
 MLINKS+=spl.9 splnet.9 spl.9 splsoftclock.9 spl.9 splsofttty.9
