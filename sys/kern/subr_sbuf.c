@@ -426,7 +426,7 @@ sbuf_vprintf(struct sbuf *s, const char *fmt, va_list ap)
 	 * given sufficient space, hence the min() calculation below.
 	 */
 	s->s_len += min(len, SBUF_FREESPACE(s));
-	if (!SBUF_HASROOM(s))
+	if (!SBUF_HASROOM(s) && !SBUF_CANEXTEND(s))
 		SBUF_SETFLAG(s, SBUF_OVERFLOWED);
 
 	KASSERT(s->s_len < s->s_size,
