@@ -1,4 +1,4 @@
-/*	$Id: sysv_shm.c,v 1.2 1994/09/16 17:43:22 dfr Exp $ */
+/*	$Id: sysv_shm.c,v 1.3 1994/10/02 17:35:28 phk Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*
@@ -127,7 +127,7 @@ shm_deallocate_segment(shmseg)
 
 	shm_handle = shmseg->shm_internal;
 	size = (shmseg->shm_segsz + CLOFSET) & ~CLOFSET;
-	vm_deallocate(sysvshm_map, shm_handle->kva, size);
+	(void) vm_map_remove(sysvshm_map, shm_handle->kva, shm_handle->kva + size);
 	free((caddr_t)shm_handle, M_SHM);
 	shmseg->shm_internal = NULL;
 	shm_committed -= btoc(size);
@@ -147,7 +147,7 @@ shm_delete_mapping(p, shmmap_s)
 	segnum = IPCID_TO_IX(shmmap_s->shmid);
 	shmseg = &shmsegs[segnum];
 	size = (shmseg->shm_segsz + CLOFSET) & ~CLOFSET;
-	result = vm_deallocate(&p->p_vmspace->vm_map, shmmap_s->va, size);
+	result = vm_map_remove(&p->p_vmspace->vm_map, shmmap_s->va, shmmap_s->va + size);
 	if (result != KERN_SUCCESS)
 		return EINVAL;
 	shmmap_s->shmid = -1;

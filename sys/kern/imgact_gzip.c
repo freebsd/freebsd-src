@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: imgact_gzip.c,v 1.10 1994/10/22 11:55:16 phk Exp $
+ * $Id: imgact_gzip.c,v 1.11 1995/02/13 07:40:33 phk Exp $
  *
  * This module handles execution of a.out files which have been run through
  * "gzip".  This saves diskspace, but wastes cpu-cycles and VM.
@@ -109,8 +109,8 @@ exec_gzip_imgact(iparams)
 
 	if (igz.inbuf) {
 		error2 =
-			vm_deallocate(kernel_map, (vm_offset_t) igz.inbuf,
-				PAGE_SIZE);
+			vm_map_remove(kernel_map, (vm_offset_t) igz.inbuf,
+			    (vm_offset_t) igz.inbuf + PAGE_SIZE);
 	}
 	if (igz.error || error || error2) {
 		printf("Output=%lu ", igz.output);
@@ -243,16 +243,18 @@ do_aout_hdr(struct imgact_gzip * gz)
 		gz->where = __LINE__;
 		return (error);
 	}
-	/*
-	 * Allocate demand-zeroed area for uninitialized data "bss" = 'block
-	 * started by symbol' - named after the IBM 7090 instruction of the
-	 * same name.
-	 */
-	vmaddr = gz->virtual_offset + gz->a_out.a_text + gz->a_out.a_data;
-	error = vm_allocate(&vmspace->vm_map, &vmaddr, gz->bss_size, FALSE);
-	if (error) {
-		gz->where = __LINE__;
-		return (error);
+	if (gz->bss_size != 0) {
+		/*
+		 * Allocate demand-zeroed area for uninitialized data "bss" = 'block
+		 * started by symbol' - named after the IBM 7090 instruction of the
+		 * same name.
+		 */
+		vmaddr = gz->virtual_offset + gz->a_out.a_text + gz->a_out.a_data;
+		error = vm_map_find(&vmspace->vm_map, NULL, 0, &vmaddr, gz->bss_size, FALSE);
+		if (error) {
+			gz->where = __LINE__;
+			return (error);
+		}
 	}
 	/* Fill in process VM information */
 	vmspace->vm_tsize = gz->a_out.a_text >> PAGE_SHIFT;
@@ -283,8 +285,8 @@ NextByte(void *vp)
 		return igz->inbuf[(igz->idx++) - igz->offset];
 	}
 	if (igz->inbuf) {
-		error = vm_deallocate(kernel_map,
-				      (vm_offset_t) igz->inbuf, PAGE_SIZE);
+		error = vm_map_remove(kernel_map, (vm_offset_t) igz->inbuf,
+			    (vm_offset_t) igz->inbuf + PAGE_SIZE);
 		if (error) {
 			igz->where = __LINE__;
 			igz->error = error;
