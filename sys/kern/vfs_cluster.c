@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.13 1995/03/16 18:12:48 bde Exp $
+ * $Id: vfs_cluster.c,v 1.14 1995/03/19 13:28:54 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -439,6 +439,7 @@ cluster_write(bp, filesize)
 		 * existing cluster.
 		 */
 		if ((lbn + 1) * lblocksize != filesize &&
+		    (bp->b_blkno == bp->b_lblkno) &&
 		    (VOP_BMAP(vp, lbn, NULL, &bp->b_blkno, &maxclen) ||
 			bp->b_blkno == -1)) {
 			bawrite(bp);
