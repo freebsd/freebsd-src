@@ -270,7 +270,7 @@ s/\$//g
 		mpsafe = "SYF_MPSAFE | "
 	}
 	$2 == "STD" || $2 == "NODEF" || $2 == "NOARGS"  || $2 == "NOPROTO" \
-	    || $2 == "NOIMPL" {
+	    || $2 == "NOIMPL" || $2 == "NOSTD" {
 		parseline()
 		if ((!nosys || funcname != "nosys") && \
 		    (funcname != "lkmnosys")) {
@@ -298,13 +298,16 @@ s/\$//g
 			lkmnosys = 1
 		printf("\t{ %s%s, (sy_call_t *)", mpsafe, argssize) > sysent
 		column = 8 + 2 + length(mpsafe) + length(argssize) + 15
-	 	if ($2 != "NOIMPL") {
-			printf("%s },", funcname) > sysent
-			column = column + length(funcname) + 3
-		} else {
+		if ($2 == "NOIMPL") {
 			printf("%s },", "nosys") > sysent
 			column = column + length("nosys") + 3
-		}
+		} else if ($2 == "NOSTD") {
+			printf("%s },", "lkmnosys") > sysent
+			column = column + length("lkmnosys") + 3
+		} else {
+			printf("%s },", funcname) > sysent
+			column = column + length(funcname) + 3
+		} 
 		align_sysent_comment(column)
 		printf("/* %d = %s */\n", syscall, funcalias) > sysent
 		printf("\t\"%s\",\t\t\t/* %d = %s */\n",
