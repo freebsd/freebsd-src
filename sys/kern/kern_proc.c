@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.4 (Berkeley) 1/4/94
- * $Id: kern_proc.c,v 1.7 1994/10/02 04:45:48 davidg Exp $
+ * $Id: kern_proc.c,v 1.8 1994/10/09 07:34:57 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -58,7 +58,6 @@ volatile struct proc *allproc;	/* all processes */
 struct proc *zombproc;		/* just zombies */
 
 void pgdelete	__P((struct pgrp *));
-void fixjobc	__P((struct proc *, struct pgrp *, int));
 
 /*
  * Structure associated with user cacheing.
