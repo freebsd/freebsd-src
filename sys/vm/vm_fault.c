@@ -866,6 +866,7 @@ readrest:
 	if (((fault_flags & VM_FAULT_WIRE_MASK) == 0) && (wired == 0)) {
 		pmap_prefault(fs.map->pmap, vaddr, fs.entry);
 	}
+	vm_page_lock_queues();
 	vm_page_flag_clear(fs.m, PG_ZERO);
 	vm_page_flag_set(fs.m, PG_MAPPED|PG_REFERENCED);
 
@@ -881,7 +882,7 @@ readrest:
 	} else {
 		vm_page_activate(fs.m);
 	}
-
+	vm_page_unlock_queues();
 	mtx_lock_spin(&sched_lock);
 	if (curproc && (curproc->p_sflag & PS_INMEM) && curproc->p_stats) {
 		if (hardfault) {
@@ -1004,7 +1005,9 @@ vm_fault_unwire(map, start, end)
 		pa = pmap_extract(pmap, va);
 		if (pa != (vm_offset_t) 0) {
 			pmap_change_wiring(pmap, va, FALSE);
+			vm_page_lock_queues();
 			vm_page_unwire(PHYS_TO_VM_PAGE(pa), 1);
+			vm_page_unlock_queues();
 		}
 	}
 	mtx_unlock(&Giant);

@@ -266,11 +266,13 @@ vm_proc_dispose(struct proc *p)
 	upobj = p->p_upages_obj;
 	if (upobj->resident_page_count != UAREA_PAGES)
 		panic("vm_proc_dispose: incorrect number of pages in upobj");
+	vm_page_lock_queues();
 	while ((m = TAILQ_FIRST(&upobj->memq)) != NULL) {
 		vm_page_busy(m);
 		vm_page_unwire(m, 0);
 		vm_page_free(m);
 	}
+	vm_page_unlock_queues();
 	up = (vm_offset_t)p->p_uarea;
 	pmap_qremove(up, UAREA_PAGES);
 	kmem_free(kernel_map, up, UAREA_PAGES * PAGE_SIZE);
@@ -291,10 +293,12 @@ vm_proc_swapout(struct proc *p)
 	upobj = p->p_upages_obj;
 	if (upobj->resident_page_count != UAREA_PAGES)
 		panic("vm_proc_dispose: incorrect number of pages in upobj");
+	vm_page_lock_queues();
 	TAILQ_FOREACH(m, &upobj->memq, listq) {
 		vm_page_dirty(m);
 		vm_page_unwire(m, 0);
 	}
+	vm_page_unlock_queues();
 	up = (vm_offset_t)p->p_uarea;
 	pmap_qremove(up, UAREA_PAGES);
 }
