@@ -226,6 +226,23 @@ They have been provided return values primarily to distinguish
 implementations where hardware support is provided but not
 available or where the DES encryption is not available due to the
 usual political silliness.
+.Pp
+Use of
+.Fn crypt
+requires linking with the
+.Nm libcrypt
+library.  The 
+.Fn setkey ,
+.Fn encrypt ,
+.Fn des_setkey
+and
+.Fn des_cipher
+can be found in the
+.Nm libcipher
+library (the standard C library,
+.Nm libc ,
+only contains stubs to these routines).
+
 .Sh SEE ALSO
 .Xr login 1 ,
 .Xr passwd 1 ,
