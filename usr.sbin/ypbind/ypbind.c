@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char rcsid[] = "$Id: ypbind.c,v 1.17 1995/07/20 22:32:59 wpaul Exp $";
+static char rcsid[] = "$Id: ypbind.c,v 1.18 1995/12/15 03:39:25 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -322,7 +322,7 @@ register SVCXPRT *transp;
 		return;
 	}
 	bzero((char *)&argument, sizeof(argument));
-	if (!svc_getargs(transp, xdr_argument, &argument)) {
+	if (!svc_getargs(transp, xdr_argument, (caddr_t)&argument)) {
 		svcerr_decode(transp);
 		return;
 	}
