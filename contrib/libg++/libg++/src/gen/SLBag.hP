@@ -1,0 +1,96 @@
+// This may look like C code, but it is really -*- C++ -*-
+/* 
+Copyright (C) 1988 Free Software Foundation
+    written by Doug Lea (dl@rocky.oswego.edu)
+
+This file is part of the GNU C++ Library.  This library is free
+software; you can redistribute it and/or modify it under the terms of
+the GNU Library General Public License as published by the Free
+Software Foundation; either version 2 of the License, or (at your
+option) any later version.  This library is distributed in the hope
+that it will be useful, but WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.  See the GNU Library General Public License for more details.
+You should have received a copy of the GNU Library General Public
+License along with this library; if not, write to the Free Software
+Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*/
+
+
+#ifndef _<T>SLBag_h
+#ifdef __GNUG__
+#pragma interface
+#endif
+#define _<T>SLBag_h 1
+
+#include "<T>.Bag.h"
+#include "<T>.SLList.h"
+
+class <T>SLBag : public <T>Bag
+{
+protected:
+  <T>SLList     p;
+
+public:
+                <T>SLBag();
+                <T>SLBag(const <T>SLBag&);
+
+  inline Pix           add(<T&> item);
+  void          del(<T&> item);
+  void          remove(<T&>item);
+  inline int           contains(<T&> item);
+  int           nof(<T&> item);
+
+  inline void          clear();
+
+  inline Pix           first();
+  inline void          next(Pix& i);
+  inline <T>&          operator () (Pix i);
+  inline int           owns(Pix i);
+  Pix           seek(<T&> item, Pix from = 0);
+
+  int           OK();
+};
+
+
+inline <T>SLBag::<T>SLBag() : p() { count = 0; }
+
+inline <T>SLBag::<T>SLBag(const <T>SLBag& s) : p(s.p) { count = s.count; }
+
+inline Pix <T>SLBag::first()
+{
+  return p.first();
+}
+
+inline void <T>SLBag::next(Pix  & idx)
+{
+  p.next(idx);
+}
+
+inline <T>& <T>SLBag::operator ()(Pix   idx)
+{
+  return p(idx);
+}
+
+inline void <T>SLBag::clear()
+{
+  count = 0;  p.clear();
+}
+
+inline int <T>SLBag::owns (Pix   idx)
+{
+  return p.owns(idx);
+}
+
+inline Pix <T>SLBag::add(<T&> item)
+{
+  ++count;
+  return p.append(item);
+}
+
+inline int <T>SLBag::contains(<T&> item)
+{
+  return seek(item) != 0;
+}
+
+#endif

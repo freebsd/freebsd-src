@@ -1,0 +1,115 @@
+// This may look like C code, but it is really -*- C++ -*-
+/* 
+Copyright (C) 1988 Free Software Foundation
+    written by Doug Lea (dl@rocky.oswego.edu)
+    based on code by Marc Shapiro (shapiro@sor.inria.fr)
+
+This file is part of the GNU C++ Library.  This library is free
+software; you can redistribute it and/or modify it under the terms of
+the GNU Library General Public License as published by the Free
+Software Foundation; either version 2 of the License, or (at your
+option) any later version.  This library is distributed in the hope
+that it will be useful, but WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.  See the GNU Library General Public License for more details.
+You should have received a copy of the GNU Library General Public
+License along with this library; if not, write to the Free Software
+Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*/
+
+
+#ifndef _<T>XPStack_h
+#ifdef __GNUG__
+#pragma interface
+#endif
+#define _<T>XPStack_h
+
+#include "<T>.XPlex.h"
+#include "<T>.Stack.h"
+
+class <T>XPStack : public <T>Stack
+{
+  <T>XPlex      p;
+
+public:
+                <T>XPStack(int chunksize = DEFAULT_INITIAL_CAPACITY);
+                <T>XPStack(const <T>XPStack& s);
+  inline               ~<T>XPStack();
+
+  void          operator = (const <T>XPStack&);
+
+  inline void          push(<T&> item);
+  inline <T>           pop();
+  inline <T>&          top();               
+  inline void          del_top();
+
+  inline int           empty();
+  inline int           full();
+  inline int           length();
+
+  inline void          clear();
+
+  inline int           OK();
+
+};
+
+
+inline <T>XPStack::<T>XPStack(int chunksize) 
+     : p(chunksize) {}
+inline <T>XPStack::<T>XPStack(const <T>XPStack& s) : p(s.p) {}
+
+inline <T>XPStack::~<T>XPStack() {}
+
+inline void <T>XPStack::push(<T&>item)
+{
+  p.add_high(item);
+}
+
+inline <T> <T>XPStack::pop()
+{
+  <T> res = p.high_element();
+  p.del_high();
+  return res;
+}
+
+inline <T>& <T>XPStack::top()
+{
+  return p.high_element();
+}
+
+inline void <T>XPStack::del_top()
+{
+  p.del_high();
+}
+
+inline void <T>XPStack::operator =(const <T>XPStack& s)
+{
+  p.operator = (s.p);
+}
+
+inline int <T>XPStack::empty() 
+{
+  return p.empty();
+}
+
+inline int <T>XPStack::full() 
+{
+  return p.full();
+}
+
+inline int <T>XPStack::length() 
+{
+  return p.length();
+}
+
+inline int <T>XPStack::OK() 
+{
+  return p.OK();
+}
+
+inline void <T>XPStack::clear() 
+{
+  p.clear();
+}
+
+#endif

@@ -1,0 +1,45 @@
+# This file is a shell script fragment that supplies the information
+# necessary to tailor a template configure script into the configure
+# script appropriate for this directory.  For more information, check
+# any existing configure script.
+
+configdirs=""
+srctrigger=Integer.cc
+srcname="main libio sources files"
+
+target_makefile_frag=../target-mkfrag
+package_makefile_frag=Make.pack
+
+# per-host:
+
+# per-target:
+
+LIBDIR=yes
+TOLIBGXX=../
+ALL='$(OBJS)'
+EXTRA_DISTCLEAN=rx.h
+MOSTLYCLEAN='*.o pic stamp-picdir core libgxx.list'
+XCINCLUDES='-I../../libio'
+
+(. ${srcdir}/../config.shared) >${package_makefile_frag}
+
+files=../../librx/rx.h
+links=rx.h
+
+# post-target:
+
+rm -f ${package_makefile_frag}
+
+# We need multilib support.
+case ${srcdir} in
+.)
+  if [ "${with_target_subdir}" != "." ] ; then
+    . ${srcdir}/${with_multisrctop}../../../config-ml.in
+  else
+    . ${srcdir}/${with_multisrctop}../../config-ml.in
+  fi
+  ;;
+*)
+  . ${srcdir}/../../config-ml.in
+  ;;
+esac
