@@ -54,11 +54,6 @@
  * if there are any other waiters.  If it is the only thread blocked on the
  * lock, then it reclaims the turnstile associated with the lock and removes
  * it from the hash table.
- *
- * XXX: We should probably implement some sort of sleep queue that condition
- * variables and sleepqueue's share.  On Solaris condition variables are
- * implemented using a hash table of sleep queues similar to our current
- * sleep queues.  We might want to investigate doing that ourselves.
  */
 
 #include <sys/cdefs.h>
