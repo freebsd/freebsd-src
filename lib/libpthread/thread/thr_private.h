@@ -521,9 +521,9 @@ struct pthread_rwlockattr {
 
 struct pthread_rwlock {
 	pthread_mutex_t	lock;	/* monitor lock */
-	int		state;	/* 0 = idle  >0 = # of readers  -1 = writer */
 	pthread_cond_t	read_signal;
 	pthread_cond_t	write_signal;
+	int		state;	/* 0 = idle  >0 = # of readers  -1 = writer */
 	int		blocked_writers;
 };
 
@@ -788,6 +788,9 @@ struct pthread {
 
 	/* Number of priority ceiling or protection mutexes owned. */
 	int			priority_mutex_count;
+
+	/* Number rwlocks rdlocks held. */
+	int			rdlock_count;
 
 	/*
 	 * Queue of currently owned mutexes.
