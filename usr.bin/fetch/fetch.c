@@ -291,6 +291,8 @@ fetch(char *URL, const char *path)
 	/* common flags */
 	if (v_level > 1)
 		strcat(flags, "v");
+	if (v_level > 2)
+		fetchDebug = 1;
 	switch (family) {
 	case PF_INET:
 		strcat(flags, "4");
