@@ -116,7 +116,7 @@ if [ "X${allscreens_flags}" != X"" ] ; then
 	echo -n ' allscreens'
 	for ttyv in /dev/ttyv*
 	do
-		vidcontrol <$ttyv ${allscreens_flags}
+		vidcontrol ${allscreens_flags} <${ttyv} >${ttyv} 2>&1
 	done
 fi
 echo '.'
