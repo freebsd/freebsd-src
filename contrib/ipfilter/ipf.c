@@ -43,7 +43,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipf.c	1.23 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipf.c,v 2.10.2.1 2000/07/08 02:19:46 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipf.c,v 2.10.2.3 2000/08/07 14:54:05 darrenr Exp $";
 #endif
 
 #if	SOLARIS
@@ -558,13 +558,21 @@ static void showversion()
 	struct friostat *fiop=&fio;
 	u_32_t flags;
 	char *s;
+	int vfd;
 
 	printf("ipf: %s (%d)\n", IPL_VERSION, (int)sizeof(frentry_t));
 
-	if (opendevice(ipfname) != -2 && ioctl(fd, SIOCGETFS, &fiop)) {
-		perror("ioctl(SIOCGETFS");
+	if ((vfd = open(ipfname, O_RDONLY)) == -1) {
+		perror("open device");
 		return;
 	}
+
+	if (ioctl(vfd, SIOCGETFS, &fiop)) {
+		perror("ioctl(SIOCGETFS");
+		close(vfd);
+		return;
+	}
+	close(vfd);
 	flags = get_flags();
 
 	printf("Kernel: %-*.*s\n", (int)sizeof(fio.f_version),

@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  */
 /* #pragma ident   "@(#)solaris.c	1.12 6/5/96 (C) 1995 Darren Reed"*/
-#pragma ident "@(#)$Id: solaris.c,v 2.15.2.6 2000/07/18 13:56:33 darrenr Exp $"
+#pragma ident "@(#)$Id: solaris.c,v 2.15.2.7 2000/08/05 14:50:30 darrenr Exp $"
 
 #include <sys/systm.h>
 #include <sys/types.h>
@@ -51,6 +51,7 @@
 #include "ipl.h"
 #include "ip_fil.h"
 #include "ip_nat.h"
+#include "ip_state.h"
 
 
 char	_depends_on[] = "drv/ip";
@@ -683,7 +684,7 @@ fixalign:
 				s = m->b_rptr;
 		}
 		*mp = m2;
-		MTYPE(m2) = MTYPE(mt);
+		MTYPE(m2) = M_DATA;
 		freemsg(mt);
 		mt = m2;
 
