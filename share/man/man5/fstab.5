@@ -152,6 +152,11 @@ userquota=/var/quotas/tmp.user
 .Pp
 If the option ``noauto'' is specified, the filesystem will not be automatically
 mounted at system startup.
+This is recommended for all remote filesystems other than NFS,
+since only NFS mounts are delayed until after network initialization
+by the
+.Xr rc
+startup scripts.
 .Pp
 The type of the mount is extracted from the
 .Fa fs_mntops
