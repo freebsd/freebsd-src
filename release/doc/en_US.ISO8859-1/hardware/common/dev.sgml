@@ -1787,6 +1787,19 @@
   </sect2>
 
   <sect2>
+    <title>Miscellaneous Networks</title>
+
+    <para arch="i386">Granch SBNI12 point-to-point communications
+    adapters (sbni driver)
+      <itemizedlist>
+        <listitem>
+	  <para>SBNI12-XX and SBNI12D-XX ISA and PCI</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+  </sect2>
+
+  <sect2>
     <title>ISDN Interfaces</title>
     <para arch="i386">AcerISDN P10 ISA PnP (experimental)</para>
     <para arch="i386">Asuscom ISDNlink 128K ISA</para>
