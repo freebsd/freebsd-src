@@ -143,9 +143,8 @@ reboot(struct proc *p, struct reboot_args *uap)
 	int error;
 
 	mtx_lock(&Giant);
-	if ((error = suser(p)) == 0) {
+	if ((error = suser(p)) == 0)
 		boot(uap->opt);
-	}
 	mtx_unlock(&Giant);
 	return (error);
 }
@@ -563,14 +562,6 @@ dumpstatus(vm_offset_t addr, long count)
 static u_int panic_cpu = NOCPU;
 #endif
 
-/* This had probably better not go into a release. */
-static const char *face[4] = {
-	"\\|/ ____ \\|/",
-	"\"@'/ .. \\`@\"",
-	"/_| \\__/ |_\\",
-	"   \\__U_/   "
-};
-
 /*
  * Panic is called on unresolvable fatal errors.  It prints "panic: mesg",
  * and then reboots.  If we are called twice, then we avoid trying to sync
@@ -581,22 +572,9 @@ static const char *face[4] = {
 void
 panic(const char *fmt, ...)
 {
-	int bootopt, i, offset;
-#if defined(DDB) && defined(RESTARTABLE_PANICS)
-	int holding_giant = 0;
-#endif
+	int bootopt;
 	va_list ap;
 	static char buf[256];
-
-#if 0
-	/*
-	 * We must hold Giant when entering a panic
-	 */
-	if (!mtx_owned(&Giant)) {
-		mtx_lock(&Giant);
-		holding_giant = 1;
-	}
-#endif
 
 #ifdef SMP
 	/*
@@ -605,13 +583,11 @@ panic(const char *fmt, ...)
 	 * panic_cpu if we are spinning in case the panic on the first
 	 * CPU is canceled.
 	 */
-	if (panic_cpu != PCPU_GET(cpuid)) {
+	if (panic_cpu != PCPU_GET(cpuid))
 		while (atomic_cmpset_int(&panic_cpu, NOCPU,
-		    PCPU_GET(cpuid)) == 0) {
+		    PCPU_GET(cpuid)) == 0)
 			while (panic_cpu != NOCPU)
 				; /* nothing */
-		}
-	}
 #endif
 
 	bootopt = RB_AUTOBOOT | RB_DUMP;
@@ -619,11 +595,6 @@ panic(const char *fmt, ...)
 		bootopt |= RB_NOSYNC;
 	else
 		panicstr = fmt;
-
-	/* Test that the console is still working. */
-	offset = (60 + strlen(face[0])) / 2;
-	for (i = 0; i < 4; i++)
-		printf("%*s\n", offset, face[i]);
 
 	va_start(ap, fmt);
 	(void)vsnprintf(buf, sizeof(buf), fmt, ap);
@@ -648,8 +619,6 @@ panic(const char *fmt, ...)
 #ifdef SMP
 		atomic_store_rel_int(&panic_cpu, NOCPU);
 #endif
-		if (holding_giant)
-			mtx_unlock(&Giant);
 		return;
 	}
 #endif
