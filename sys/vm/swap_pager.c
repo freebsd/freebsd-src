@@ -241,7 +241,6 @@ struct pagerops swappagerops = {
 
 static struct buf *getchainbuf(struct bio *bp, struct vnode *vp, int flags);
 static void flushchainbuf(struct buf *nbp);
-static void waitchainbuf(struct bio *bp, int count, int done);
 
 /*
  * dmmax is in page-sized chunks with the new swap system.  It was
@@ -605,7 +604,7 @@ swp_pager_getswapspace(npages)
 }
 
 static struct swdevt *
-swap_pager_find_dev(daddr_t blk, int npages)
+swp_pager_find_dev(daddr_t blk, int npages)
 {
 	struct swdevt *sp;
 
@@ -643,7 +642,7 @@ swp_pager_freeswapspace(daddr_t blk, int npages)
 
 	GIANT_REQUIRED;
 
-	sp = swap_pager_find_dev(blk, npages);
+	sp = swp_pager_find_dev(blk, npages);
 	
 	/* per-swap area stats */
 	sp->sw_used -= npages;
@@ -988,7 +987,7 @@ swap_pager_strategy(vm_object_t object, struct bio *bp)
 	bp->bio_error = 0;
 	bp->bio_flags &= ~BIO_ERROR;
 	bp->bio_resid = bp->bio_bcount;
-	*(u_int *) &bp->bio_driver1 = 0;
+	bp->bio_children = 0;
 
 	start = bp->bio_pblkno;
 	count = howmany(bp->bio_bcount, PAGE_SIZE);
@@ -1106,7 +1105,15 @@ swap_pager_strategy(vm_object_t object, struct bio *bp)
 	/*
 	 * Wait for completion.
 	 */
-	waitchainbuf(bp, 0, 1);
+	while (bp->bio_children > 0) {
+		bp->bio_flags |= BIO_FLAG1;
+		tsleep(bp, PRIBIO + 4, "bpchain", 0);
+	}
+	if (bp->bio_resid != 0 && !(bp->bio_flags & BIO_ERROR)) {
+		bp->bio_flags |= BIO_ERROR;
+		bp->bio_error = EINVAL;
+	}
+	biodone(bp);
 }
 
 /*
@@ -1800,7 +1807,7 @@ swap_pager_isswapped(vm_object_t object, struct swdevt *sp)
 				daddr_t v = swap->swb_pages[i];
 				if (v == SWAPBLK_NONE)
 					continue;
-				if (swap_pager_find_dev(v, 1) == sp)
+				if (swp_pager_find_dev(v, 1) == sp)
 					return 1;
 			}
 		}
@@ -1901,7 +1908,7 @@ restart:
                         for (j = 0; j < SWAP_META_PAGES; ++j) {
                                 v = swap->swb_pages[j];
                                 if (v != SWAPBLK_NONE &&
-				    swap_pager_find_dev(v, 1) == sp)
+				    swp_pager_find_dev(v, 1) == sp)
                                         break;
                         }
 			if (j < SWAP_META_PAGES) {
@@ -2220,10 +2227,8 @@ static void
 vm_pager_chain_iodone(struct buf *nbp)
 {
 	struct bio *bp;
-	u_int *count;
 
 	bp = nbp->b_caller1;
-	count = (u_int *)&(bp->bio_driver1);
 	if (bp != NULL) {
 		if (nbp->b_ioflags & BIO_ERROR) {
 			bp->bio_flags |= BIO_ERROR;
@@ -2235,7 +2240,7 @@ vm_pager_chain_iodone(struct buf *nbp)
 			bp->bio_resid -= nbp->b_bcount;
 		}
 		nbp->b_caller1 = NULL;
-		--(*count);
+		bp->bio_children--;
 		if (bp->bio_flags & BIO_FLAG1) {
 			bp->bio_flags &= ~BIO_FLAG1;
 			wakeup(bp);
@@ -2257,17 +2262,17 @@ static struct buf *
 getchainbuf(struct bio *bp, struct vnode *vp, int flags)
 {
 	struct buf *nbp;
-	u_int *count;
 
 	GIANT_REQUIRED;
 	nbp = getpbuf(NULL);
-	count = (u_int *)&(bp->bio_driver1);
 
 	nbp->b_caller1 = bp;
-	++(*count);
+	bp->bio_children++;
 
-	if (*count > 4)
-		waitchainbuf(bp, 4, 0);
+	while (bp->bio_children > 4) {
+		bp->bio_flags |= BIO_FLAG1;
+		tsleep(bp, PRIBIO + 4, "bpchain", 0);
+	}
 
 	nbp->b_iocmd = bp->bio_cmd;
 	nbp->b_ioflags = 0;
@@ -2296,28 +2301,6 @@ flushchainbuf(struct buf *nbp)
 	}
 }
 
-static void
-waitchainbuf(struct bio *bp, int limit, int done)
-{
- 	int s;
-	u_int *count;
-
-	GIANT_REQUIRED;
-	count = (u_int *)&(bp->bio_driver1);
-	s = splbio();
-	while (*count > limit) {
-		bp->bio_flags |= BIO_FLAG1;
-		tsleep(bp, PRIBIO + 4, "bpchain", 0);
-	}
-	if (done) {
-		if (bp->bio_resid != 0 && !(bp->bio_flags & BIO_ERROR)) {
-			bp->bio_flags |= BIO_ERROR;
-			bp->bio_error = EINVAL;
-		}
-		biodone(bp);
-	}
-	splx(s);
-}
 
 /*
  *	swapdev_strategy:
@@ -2349,7 +2332,7 @@ swapdev_strategy(ap)
 	 * the block size is left in PAGE_SIZE'd chunks (for the newswap)
 	 * here.
 	 */
-	sp = swap_pager_find_dev(bp->b_blkno, sz);
+	sp = swp_pager_find_dev(bp->b_blkno, sz);
 	bp->b_dev = sp->sw_device;
 	/*
 	 * Convert from PAGE_SIZE'd to DEV_BSIZE'd chunks for the actual I/O
