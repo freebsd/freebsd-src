@@ -229,7 +229,7 @@ ngt_open(dev_t dev, struct tty *tp)
 		FREE(sc, M_NETGRAPH);
 		goto done;
 	}
-	sprintf(name, "%s%d", typestruct.name, ngt_unit++);
+	snprintf(name, sizeof(name), "%s%d", typestruct.name, ngt_unit++);
 
 	/* Set back pointers */
 	sc->node->private = sc;
