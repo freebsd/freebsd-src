@@ -134,6 +134,12 @@ pass2()
 	dp = &dino;
 	inpend = &inpsort[inplast];
 	for (inpp = inpsort; inpp < inpend; inpp++) {
+		if (got_siginfo) {
+			printf("%s: phase 2: dir %d of %d (%d%%)\n", cdevname,
+			    inpp - inpsort, inplast, (inpp - inpsort) * 100 /
+			    inplast);
+			got_siginfo = 0;
+		}
 		inp = *inpp;
 		if (inp->i_isize == 0)
 			continue;
