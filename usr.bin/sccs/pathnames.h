@@ -47,6 +47,6 @@
 #define	_PATH_SCCSPRT	"/usr/local/bin/prt"
 #define	_PATH_SCCSRMDEL	"/usr/local/bin/rmdel"
 #define	_PATH_SCCSVAL	"/usr/local/bin/val"
-#define	_PATH_SCCSWHAT	"/usr/local/bin/what"
+#define	_PATH_SCCSWHAT	"/usr/bin/what"
 #undef _PATH_TMP
 #define	_PATH_TMP	"/tmp/sccsXXXXX"
