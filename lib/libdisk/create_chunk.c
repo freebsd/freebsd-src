@@ -255,8 +255,6 @@ MakeDev(struct chunk *c1, const char *path)
 	bmaj = 0, cmaj = 3, p += 2;
     else if (!strncmp(p, "ad", 2))	/* XXX change if "ad' moves */
 	bmaj = 0, cmaj = 3, p += 2;
-    else if (!strncmp(p, "sd", 2))
-	bmaj = 4, cmaj = 13, p += 2;
     else if (!strncmp(p, "wfd", 3))
 	bmaj = 1, cmaj = 87, p += 3;
     else if (!strncmp(p, "fla", 3))
