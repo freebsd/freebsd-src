@@ -23,28 +23,8 @@ system:	root
 toor:	root
 uucp:	root
 
-# Well-known aliases
-root:
-manager:
-dumper:
-operator:
-
-# OFFICIAL CSRG/BUG ADDRESSES
-
-# FTP BUG ADDRESS
-ftp-bugs: bigbug@ucbvax.berkeley.edu
-
-# DISTRIBUTION PERSON
-bsd-dist: bsd-dist@ucbvax.berkeley.edu
-
-# FORTUNE
-fortune: fortune@ucbvax.berkeley.edu
-
-# TERMCAP
-termcap: bigbug@ucbvax.berkeley.edu
-
-# BUG PERSON
-ucb-fixes: bigbug@ucbvax.berkeley.edu
-ucb-fixes-request: bigbug@ucbvax.berkeley.edu
-bugs: bugs@ucbvax.berkeley.edu
-# END OFFICIAL BUG ADDRESSES
+# Well-known aliases -- these should be filled in!
+# root:
+# manager:
+# dumper:
+# operator:
