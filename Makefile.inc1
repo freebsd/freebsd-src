@@ -50,6 +50,10 @@ SUBDIR+= include
 SUBDIR+= lib
 .endif
 
+.if exists(${.CURDIR}/rescue) && !defined(NO_RESCUE)
+SUBDIR+= rescue
+.endif
+
 .if exists(${.CURDIR}/bin)
 SUBDIR+= bin
 .endif
@@ -732,15 +736,12 @@ _kgzip=	usr.sbin/kgzip
 _elf2aout=	usr.bin/elf2aout
 .endif
 
-.if defined(RELEASEDIR)
-_crunchide=	usr.sbin/crunch/crunchide
-.endif
-
 _xlint=	usr.bin/xlint/lint1 usr.bin/xlint/lint2 usr.bin/xlint/xlint
 
 cross-tools:
 .for _tool in ${_btxld} ${_elf2aout} ${_elf2exe} \
-    gnu/usr.bin/binutils ${_crunchide} \
+    gnu/usr.bin/binutils \
+    usr.sbin/crunch/crunchgen usr.sbin/crunch/crunchide \
     gnu/usr.bin/cc ${_xlint} ${_kgzip}
 	@${ECHODIR} "===> ${_tool}"; \
 		cd ${.CURDIR}/${_tool}; \
