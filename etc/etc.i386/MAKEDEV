@@ -46,7 +46,6 @@
 #	matcd*	"Matsushita (Panasonic) CD-ROM disks"
 #	acd*	"ATAPI CD-ROM disks"
 #	vn*	"vnode disks"
-#	od*	"optical disks"
 #	fla*	"M-Systems DiskOnChip"
 #
 # Console ports:
@@ -216,7 +215,6 @@ all)
 	sh MAKEDEV std					# standard
 	sh MAKEDEV fd0 fd1				# bdev, floppy disk
 	sh MAKEDEV da0 da1 da2 da3 wd0 wd1 wd2 wd3	# bdev, ordinary disk
-	sh MAKEDEV od0					# bdev, optical disk
 	sh MAKEDEV wfd0					# bdev, LS-120 floppy
 	sh MAKEDEV vn0					# bdev, virtual disk
 	sh MAKEDEV cd0 matcd0 mcd0 scd0 acd0		# bdev, cdrom
@@ -299,11 +297,10 @@ wt*)
 	;;
 
 # Individual slices.
-od*s*|sd*s*|da*s*|vn*s*|wd*s*|wfd*s*|fla*s*)
+sd*s*|da*s*|vn*s*|wd*s*|wfd*s*|fla*s*)
 	umask $disk_umask
 	case $i in
 	fla*s*) name=fla; blk=28; chr=102;;
-	od*s*) name=od; blk=4;  chr=13;;
 	sd*s*) name=sd; blk=4;  chr=13;;
 	da*s*) name=da; blk=4;  chr=13;;
 	vn*s*) name=vn; blk=15; chr=43;;
