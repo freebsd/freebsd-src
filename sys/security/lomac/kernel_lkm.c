@@ -83,20 +83,18 @@ static dev_t lomac_dev = NULL;
 int
 lomac_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td) {
 	struct nameidata nd;
-	struct proc *p;
 	struct proc *targp;
 	struct lomac_fioctl *fio;
 	lomac_object_t lobj;
 	lattr_t lattr;
 	int error;
 
-	p = td->td_proc;
 	switch (cmd) {
 	case LIOGETPLEVEL:
 		targp = pfind(*(int *)data);
 		if (targp == NULL)
 			return (ESRCH);
-		if (p_cansee(p, targp) != 0) {
+		if (p_cansee(td, targp) != 0) {
 			PROC_UNLOCK(targp);
 			return (ESRCH);
 		}
@@ -138,7 +136,7 @@ lomac_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td) {
 	case LIOPMAKELOWLEVEL:
 		lattr.level = LOMAC_LOWEST_LEVEL;
 		lattr.flags = 0;
-		set_subject_lattr(p, lattr);
+		set_subject_lattr(td->td_proc, lattr);
 		return (0);
 	default:
 		return (ENOTTY);

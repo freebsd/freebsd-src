@@ -673,7 +673,7 @@ linprocfs_doproccmdline(PFS_FILL_ARGS)
 	 */
 
 	PROC_LOCK(p);
-	if (p->p_args && (ps_argsopen || !p_cansee(td->td_proc, p))) {
+	if (p->p_args && (ps_argsopen || !p_cansee(td, p))) {
 		sbuf_bcpy(sb, p->p_args->ar_args, p->p_args->ar_length);
 		PROC_UNLOCK(p);
 	} else if (p != td->td_proc) {
