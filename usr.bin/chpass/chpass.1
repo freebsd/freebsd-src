@@ -254,8 +254,9 @@ for an explanation of the impact of setting the
 .Ev PW_SCAN_BIG_IDS
 environment variable.
 .Sh NIS INTERACTION
-.Nm Chpass
-can also be used in conjunction with NIS, however some restrictions
+The
+.Nm
+utility can also be used in conjunction with NIS, however some restrictions
 apply.
 Currently,
 .Nm
@@ -311,8 +312,9 @@ change any field.
 .Pp
 .It
 .Em "Password authentication is required" .
-.Nm Chpass
-will prompt for the user's NIS password before effecting
+The
+.Nm
+utility will prompt for the user's NIS password before effecting
 any changes.
 If the password is invalid, all changes will be
 discarded.
@@ -325,8 +327,9 @@ choose to turn off this feature using the
 flag, described below.)
 .It
 .Em "Adding new records to the local password database is discouraged" .
-.Nm Chpass
-will allow the administrator to add new records to the
+The
+.Nm
+utility will allow the administrator to add new records to the
 local password database while NIS is enabled, but this can lead to
 some confusion since the new records are appended to the end of
 the master password file, usually after the special NIS '+' entries.
@@ -341,8 +344,9 @@ to the NIS password maps, provided the
 server has been started with the
 .Fl a
 flag to permitted additions (it refuses them by default).
-.Nm Chpass
-tries to update the local password database by default; to update the
+The
+.Nm
+utility tries to update the local password database by default; to update the
 NIS maps instead, invoke chpass with the
 .Fl y
 flag.
@@ -386,8 +390,9 @@ This flag is largely redundant since
 operates on NIS entries by default if NIS is enabled.
 .It Fl d Ar domain
 Specify a particular NIS domain.
-.Nm Chpass
-uses the system domain name by default, as set by the
+The
+.Nm
+utility uses the system domain name by default, as set by the
 .Xr domainname 1
 command.
 The
