@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_socket.c	8.1 (Berkeley) 6/10/93
- * $Id: sys_socket.c,v 1.20 1999/01/30 06:25:00 newton Exp $
+ * $Id: sys_socket.c,v 1.21 1999/01/31 03:15:13 newton Exp $
  */
 
 #include <sys/param.h>
@@ -50,10 +50,8 @@
 #include <net/route.h>
 
 /* soo_{read,write,close} non-static for SysVR4 "streams" pseudo-device */
-int soo_read __P((struct file *fp, struct uio *uio, 
-		struct ucred *cred));
-int soo_write __P((struct file *fp, struct uio *uio, 
-		struct ucred *cred));
+int soo_read __P((struct file *fp, struct uio *uio, struct ucred *cred));
+int soo_write __P((struct file *fp, struct uio *uio, struct ucred *cred));
 int soo_close __P((struct file *fp, struct proc *p));
 
 struct	fileops socketops =
