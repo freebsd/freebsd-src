@@ -618,6 +618,8 @@ COMMON ITEMS:
 	---------------------
 	make world
 
+	Except when it doesn't work.
+
 	To update from 3.x to 4.0 stable
 	--------------------------------
 	cd /usr/src
@@ -629,7 +631,7 @@ COMMON ITEMS:
 	reboot
 	<in single user>
 	cd /usr/src
-	make -k installworld
+	make -DNOINFO installworld
 	make installworld
 
 	[*] You may need to switch from wd to ad ala 19991210
