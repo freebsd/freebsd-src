@@ -72,19 +72,17 @@ available to the system for swap allocation.
 .Xr swapon 2 ,
 .Xr fstab 5 ,
 .Xr init 8 ,
+.Xr mdconfig 8 ,
 .Xr pstat 8 ,
-.Xr rc 8 ,
-.Xr vnconfig 8
+.Xr rc 8
 .Sh FILES
-.Bl -tag -width "/dev/{wd,da}?s?b" -compact
-.It Pa /dev/{wd,da}?s?b
+.Bl -tag -width "/dev/{ad,da}?s?b" -compact
+.It Pa /dev/{ad,da}?s?b
 standard paging devices
-.It Pa /dev/vn0b
-vnode disk paging device
+.It Pa /dev/md?
+memory disk devices
 .It Pa /etc/fstab
 ASCII filesystem description table
-.It Pa /etc/vntab
-ASCII vnode file table
 .El
 .Sh BUGS
 There is no way to stop paging and swapping on a device.
