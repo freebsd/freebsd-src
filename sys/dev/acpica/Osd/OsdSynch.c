@@ -79,8 +79,9 @@ struct acpi_semaphore {
 #endif
 static int	acpi_semaphore_debug = 0;
 TUNABLE_INT("debug.acpi_semaphore_debug", &acpi_semaphore_debug);
-SYSCTL_INT(_debug, OID_AUTO, acpi_semaphore_debug, CTLFLAG_RW,
-    &acpi_semaphore_debug, 0, "");
+SYSCTL_DECL(_debug_acpi);
+SYSCTL_INT(_debug_acpi, OID_AUTO, semaphore_debug, CTLFLAG_RW,
+	   &acpi_semaphore_debug, 0, "Enable ACPI semaphore debug messages");
 #endif
 
 ACPI_STATUS

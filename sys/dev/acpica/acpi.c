@@ -157,13 +157,10 @@ static devclass_t acpi_devclass;
 DRIVER_MODULE(acpi, nexus, acpi_driver, acpi_devclass, acpi_modevent, 0);
 MODULE_VERSION(acpi, 100);
 
-SYSCTL_INT(_debug, OID_AUTO, acpi_debug_layer, CTLFLAG_RW, &AcpiDbgLayer, 0,
-	   "");
-SYSCTL_INT(_debug, OID_AUTO, acpi_debug_level, CTLFLAG_RW, &AcpiDbgLevel, 0,
-	   "");
-static int acpi_ca_version = ACPI_CA_VERSION;
-SYSCTL_INT(_debug, OID_AUTO, acpi_ca_version, CTLFLAG_RD, &acpi_ca_version, 0,
-	   "");
+SYSCTL_NODE(_debug, OID_AUTO, acpi, CTLFLAG_RW, NULL, "ACPI debugging");
+static char acpi_ca_version[12];
+SYSCTL_STRING(_debug_acpi, OID_AUTO, acpi_ca_version, CTLFLAG_RD,
+	      acpi_ca_version, 0, "Version of Intel ACPI-CA");
 
 /*
  * ACPI can only be loaded as a module by the loader; activating it after
@@ -211,6 +208,9 @@ acpi_identify(driver_t *driver, device_t parent)
     /* Check that we haven't been disabled with a hint. */
     if (resource_disabled("acpi", 0))
 	return_VOID;
+
+    snprintf(acpi_ca_version, sizeof(acpi_ca_version), "0x%x",
+	     ACPI_CA_VERSION);
 
     /* Make sure we're not being doubly invoked. */
     if (device_find_child(parent, "acpi", 0) != NULL)
@@ -2187,11 +2187,11 @@ acpi_set_debugging(void *junk)
 {
     char	*cp;
 
-    if (!cold)
-	return;
+    if (cold) {
+	AcpiDbgLayer = 0;
+	AcpiDbgLevel = 0;
+    }
 
-    AcpiDbgLayer = 0;
-    AcpiDbgLevel = 0;
     if ((cp = getenv("debug.acpi.layer")) != NULL) {
 	acpi_parse_debug(cp, &dbg_layer[0], &AcpiDbgLayer);
 	freeenv(cp);
@@ -2201,11 +2201,61 @@ acpi_set_debugging(void *junk)
 	freeenv(cp);
     }
 
-    printf("ACPI debug layer 0x%x debug level 0x%x\n", AcpiDbgLayer,
-	   AcpiDbgLevel);
+    if (cold) {
+	printf("ACPI debug layer 0x%x debug level 0x%x\n",
+	       AcpiDbgLayer, AcpiDbgLevel);
+    }
 }
 SYSINIT(acpi_debugging, SI_SUB_TUNABLES, SI_ORDER_ANY, acpi_set_debugging,
 	NULL);
+
+static int
+acpi_debug_sysctl(SYSCTL_HANDLER_ARGS)
+{
+    char	*options;
+    int		 error, len, *dbg;
+    struct	 debugtag *tag;
+
+    len = 512;
+    MALLOC(options, char *, len, M_TEMP, M_WAITOK);
+    options[0] = '\0';
+
+    if (strcmp(oidp->oid_arg1, "debug.acpi.layer") == 0) {
+	tag = &dbg_layer[0];
+	dbg = &AcpiDbgLayer;
+    } else {
+	tag = &dbg_level[0];
+	dbg = &AcpiDbgLevel;
+    }
+
+    /* Get old values if this is a get request. */
+    if (*dbg == 0) {
+	strlcpy(options, "NONE", sizeof(options));
+    } else if (req->newptr == NULL) {
+	for (; tag->name != NULL; tag++) {
+	    if ((*dbg & tag->value) == tag->value) {
+		strlcat(options, tag->name, len);
+		strlcat(options, " ", len); /* XXX */
+	    }
+	}
+    }
+
+    error = sysctl_handle_string(oidp, options, len, req);
+
+    /* If the user is setting a string, parse it. */
+    if (error == 0 && req->newptr != NULL) {
+	*dbg = 0;
+	setenv((char *)oidp->oid_arg1, (char *)req->newptr);
+	acpi_set_debugging(NULL);
+    }
+    FREE(options, M_TEMP);
+
+    return (error);
+}
+SYSCTL_PROC(_debug_acpi, OID_AUTO, layer, CTLFLAG_RW | CTLTYPE_STRING,
+	    "debug.acpi.layer", 0, acpi_debug_sysctl, "A", "");
+SYSCTL_PROC(_debug_acpi, OID_AUTO, level, CTLFLAG_RW | CTLTYPE_STRING,
+	    "debug.acpi.level", 0, acpi_debug_sysctl, "A", "");
 #endif
 
 static int
