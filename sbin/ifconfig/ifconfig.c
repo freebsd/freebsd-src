@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ifconfig.c	8.2 (Berkeley) 2/16/94";
 */
 static const char rcsid[] =
-	"$Id: ifconfig.c,v 1.32 1997/10/27 03:28:44 steve Exp $";
+	"$Id: ifconfig.c,v 1.33 1997/12/24 00:57:41 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -1035,7 +1035,8 @@ in_getaddr(s, which)
 	if (inet_aton(s, &sin->sin_addr))
 		return;
 	if ((hp = gethostbyname(s)) != 0)
-		bcopy(hp->h_addr, (char *)&sin->sin_addr, MIN(hp->h_length, sizeof(sin->sin_addr)));
+		bcopy(hp->h_addr, (char *)&sin->sin_addr, 
+		    MIN(hp->h_length, sizeof(sin->sin_addr)));
 	else if ((np = getnetbyname(s)) != 0)
 		sin->sin_addr = inet_makeaddr(np->n_net, INADDR_ANY);
 	else
