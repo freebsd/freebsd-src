@@ -638,7 +638,7 @@ input_interactive() {
 					read -r upass
 					echo''
 					echo -n "Enter password again: "
-					read _passconfirm
+					read -r _passconfirm
 					echo ''
 					stty echo
 					# if user entered a blank password
