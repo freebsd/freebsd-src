@@ -32,8 +32,10 @@ __FBSDID("$FreeBSD$");
 #ifdef DMALLOC
 #include <dmalloc.h>
 #endif
+#include <err.h>
 #include <errno.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -55,19 +57,43 @@ struct cpio_header {
 	char	c_filesize[11];
 };
 
+struct links_entry {
+        struct links_entry      *next;
+        struct links_entry      *previous;
+        int                      links;
+        dev_t                    dev;
+        ino_t                    ino;
+        char                    *name;
+};
+
+#define CPIO_MAGIC   0x13141516
+struct cpio {
+	int magic;
+	struct links_entry	*links_head;
+};
+
 static int64_t	atol8(const char *, unsigned);
 static int	archive_read_format_cpio_bid(struct archive *);
+static int	archive_read_format_cpio_cleanup(struct archive *);
 static int	archive_read_format_cpio_read_header(struct archive *,
 		    struct archive_entry *);
+static void	record_hardlink(struct cpio *cpio, struct archive_entry *entry,
+		    const struct stat *st);
 
 int
 archive_read_support_format_cpio(struct archive *a)
 {
+	struct cpio *cpio;
+
+	cpio = malloc(sizeof(*cpio));
+	memset(cpio, 0, sizeof(*cpio));
+	cpio->magic = CPIO_MAGIC;
+
 	return (__archive_read_register_format(a,
-	    NULL,
+	    cpio,
 	    archive_read_format_cpio_bid,
 	    archive_read_format_cpio_read_header,
-	    NULL));
+	    archive_read_format_cpio_cleanup));
 }
 
 
@@ -100,6 +126,7 @@ archive_read_format_cpio_read_header(struct archive *a,
     struct archive_entry *entry)
 {
 	struct stat st;
+	struct cpio *cpio;
 	size_t bytes;
 	const struct cpio_header *header;
 	const void *h;
@@ -107,6 +134,9 @@ archive_read_format_cpio_read_header(struct archive *a,
 
 	a->archive_format = ARCHIVE_FORMAT_CPIO;
 	a->archive_format_name = "POSIX octet-oriented cpio";
+	cpio = *(a->pformat_data);
+	if (cpio->magic != CPIO_MAGIC)
+		errx(1, "CPIO data lost? This can't happen.\n");
 
 	/* Read fixed-size portion of header. */
 	bytes = (a->compression_read_ahead)(a, &h, sizeof(struct cpio_header));
@@ -114,7 +144,7 @@ archive_read_format_cpio_read_header(struct archive *a,
 	    return (ARCHIVE_FATAL);
 	(a->compression_read_consume)(a, sizeof(struct cpio_header));
 
-	/* Parse out octal fields into struct stat */
+	/* Parse out octal fields into struct stat. */
 	memset(&st, 0, sizeof(st));
 	header = h;
 
@@ -130,7 +160,7 @@ archive_read_format_cpio_read_header(struct archive *a,
 
 	/*
 	 * Note: entry_bytes_remaining is at least 64 bits and
-	 * therefore gauranteed to be big enough for a 33-bite file
+	 * therefore gauranteed to be big enough for a 33-bit file
 	 * size.  struct stat.st_size may only be 32 bits, so
 	 * assigning there first could lose information.
 	 */
@@ -169,11 +199,36 @@ archive_read_format_cpio_read_header(struct archive *a,
 	    return (ARCHIVE_EOF);
 	}
 
+	/* Detect and record hardlinks to previously-extracted entries. */
+	record_hardlink(cpio, entry, &st);
+
+	return (ARCHIVE_OK);
+}
+
+static int
+archive_read_format_cpio_cleanup(struct archive *a)
+{
+	struct cpio *cpio;
+
+	cpio = *(a->pformat_data);
+        /* Free inode->name map */
+        while (cpio->links_head != NULL) {
+                struct links_entry *lp = cpio->links_head->next;
+
+                if (cpio->links_head->name)
+                        free(cpio->links_head->name);
+                free(cpio->links_head);
+                cpio->links_head = lp;
+        }
+
+	free(cpio);
+	*(a->pformat_data) = NULL;
 	return (ARCHIVE_OK);
 }
 
 
-/* Note that this implementation does not (and should not!) obey
+/*
+ * Note that this implementation does not (and should not!) obey
  * locale settings; you cannot simply substitute strtol here, since
  * it does obey locale.
  */
@@ -198,4 +253,44 @@ atol8(const char *p, unsigned char_cnt)
 		digit = *++p - '0';
 	}
 	return (l);
+}
+
+static void
+record_hardlink(struct cpio *cpio, struct archive_entry *entry,
+    const struct stat *st)
+{
+        struct links_entry      *le;
+
+        /*
+         * First look in the list of multiply-linked files.  If we've
+         * already dumped it, convert this entry to a hard link entry.
+         */
+        for (le = cpio->links_head; le; le = le->next) {
+                if (le->dev == st->st_dev && le->ino == st->st_ino) {
+                        archive_entry_set_hardlink(entry, le->name);
+
+                        if (--le->links <= 0) {
+                                if (le->previous != NULL)
+                                        le->previous->next = le->next;
+                                if (le->next != NULL)
+                                        le->next->previous = le->previous;
+                                if (cpio->links_head == le)
+                                        cpio->links_head = le->next;
+                                free(le);
+                        }
+
+                        return;
+                }
+        }
+
+        le = malloc(sizeof(struct links_entry));
+        if (cpio->links_head != NULL)
+                cpio->links_head->previous = le;
+        le->next = cpio->links_head;
+        le->previous = NULL;
+        cpio->links_head = le;
+        le->dev = st->st_dev;
+        le->ino = st->st_ino;
+        le->links = st->st_nlink - 1;
+        le->name = strdup(archive_entry_pathname(entry));
 }
