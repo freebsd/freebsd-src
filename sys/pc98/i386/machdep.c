@@ -167,7 +167,7 @@ int	need_post_dma_flush;	/* If 1, use invd after DMA transfer. */
 #endif
 
 int	_udatasel, _ucodesel;
-u_int	atdevbase, basemem;
+u_int	basemem;
 
 #ifdef PC98
 static int	ispc98 = 1;
@@ -2013,7 +2013,6 @@ init386(first)
 	thread0.td_kstack = proc0kstack;
 	thread0.td_pcb = (struct pcb *)
 	   (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
-	atdevbase = ISA_HOLE_START + KERNBASE;
 
 	/*
  	 * This may be done better later if it gets more high level

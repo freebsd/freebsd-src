@@ -42,7 +42,6 @@ extern	int	(*copyin_vector)(const void *udaddr, void *kaddr, size_t len);
 extern	int	(*copyout_vector)(const void *kaddr, void *udaddr, size_t len);
 
 extern	long	Maxmem;
-extern	u_int	atdevbase;	/* offset in virtual memory of ISA io mem */
 extern	u_int	basemem;	/* PA of original top of base memory */
 extern	int	busdma_swi_pending;
 extern	u_int	cpu_exthigh;

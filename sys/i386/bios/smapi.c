@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 /* And all this for BIOS_PADDRTOVADDR() */
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <machine/md_var.h>
 #include <machine/pc/bios.h>
