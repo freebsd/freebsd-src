@@ -85,7 +85,7 @@ CFLAGS+=	-elf
 
 vers.o:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
-	${CC} -c vers.c
+	${CC} ${CFLAGS} -c vers.c
 
 ${PROG}: ${PROG}.bin ${BTXLDR} ${BTXKERN} ${BTXCRT}
 	btxld -v -f aout -e ${LOADER_ADDRESS} -o ${.TARGET} -l ${BTXLDR} \

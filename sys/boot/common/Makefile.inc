@@ -34,7 +34,3 @@ MAN+=	../forth/loader.4th.8
 .endif
 
 MAN+=	loader.8
-
-.if ${MACHINE_ARCH} == "amd64"
-CFLAGS+= -m32
-.endif
