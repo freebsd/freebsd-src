@@ -37,10 +37,12 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/select.h>
+#include <sys/interrupt.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 #include <machine/clock.h>
+#include <machine/ipl.h>
 
 #include <i386/isa/icu.h>
 #include <i386/isa/isa_device.h>
