@@ -91,11 +91,11 @@ void _msgout(char* msg)
 {
 	if (debug) {
 		if (_rpcpmstart)
-			syslog(LOG_ERR, msg);
+			syslog(LOG_ERR, "%s", msg);
 		else
 			warnx("%s", msg);
 	} else
-		syslog(LOG_ERR, msg);
+		syslog(LOG_ERR, "%s", msg);
 }
 
 pid_t	yp_pid;
