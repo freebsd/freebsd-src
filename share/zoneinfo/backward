@@ -1,9 +1,15 @@
-# @(#)backward	7.6
+# @(#)backward	7.13
 
-# This file provides links between late-1993-vintage names for time zones
-# and their previous names.
+# This file provides links between current names for time zones
+# and their old names.  Many names changed in late 1993.
 
+Link	America/Adak		America/Atka
+Link	America/Indianapolis	America/Fort_Wayne
+Link	America/Indiana/Knox	America/Knox_IN
+Link	America/St_Thomas	America/Virgin
+Link	Asia/Jerusalem		Asia/Tel_Aviv
 Link	Australia/Sydney	Australia/ACT
+Link	Australia/Sydney	Australia/Canberra
 Link	Australia/Lord_Howe	Australia/LHI
 Link	Australia/Sydney	Australia/NSW
 Link	Australia/Darwin	Australia/North
@@ -40,7 +46,7 @@ Link	Etc/Greenwich		Greenwich
 Link	Asia/Hong_Kong		Hongkong
 Link	Atlantic/Reykjavik	Iceland
 Link	Asia/Tehran		Iran
-Link	Asia/Tel_Aviv		Israel
+Link	Asia/Jerusalem		Israel
 Link	America/Jamaica		Jamaica
 Link	Asia/Tokyo		Japan
 Link	Pacific/Kwajalein	Kwajalein
@@ -48,8 +54,10 @@ Link	Africa/Tripoli		Libya
 Link	America/Tijuana		Mexico/BajaNorte
 Link	America/Mazatlan	Mexico/BajaSur
 Link	America/Mexico_City	Mexico/General
+Link	America/Denver		Navajo
 Link	Pacific/Auckland	NZ
 Link	Pacific/Chatham		NZ-CHAT
+Link	Pacific/Pago_Pago	Pacific/Samoa
 Link	Asia/Shanghai		PRC
 Link	Europe/Warsaw		Poland
 Link	Europe/Lisbon		Portugal
@@ -59,17 +67,18 @@ Link	Asia/Singapore		Singapore
 Link	Europe/Istanbul		Turkey
 Link	Etc/UCT			UCT
 Link	America/Anchorage	US/Alaska
-Link	America/Atka		US/Aleutian
+Link	America/Adak		US/Aleutian
 Link	America/Phoenix		US/Arizona
 Link	America/Chicago		US/Central
-Link	America/Fort_Wayne	US/East-Indiana
+Link	America/Indianapolis	US/East-Indiana
 Link	America/New_York	US/Eastern
 Link	Pacific/Honolulu	US/Hawaii
-Link	America/Knox_IN		US/Indiana-Starke
+Link	America/Indiana/Knox	US/Indiana-Starke
 Link	America/Detroit		US/Michigan
 Link	America/Denver		US/Mountain
 Link	America/Los_Angeles	US/Pacific
-Link	Pacific/Samoa		US/Samoa
+Link	Pacific/Pago_Pago	US/Samoa
 Link	Etc/UTC			UTC
 Link	Etc/Universal		Universal
+Link	Europe/Moscow		W-SU
 Link	Etc/Zulu		Zulu
