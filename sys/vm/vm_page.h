@@ -209,7 +209,6 @@ struct vm_page {
 
 #define PQ_L2_MASK (PQ_L2_SIZE - 1)
 
-#if 1
 #define PQ_NONE 0
 #define PQ_FREE	1
 #define PQ_INACTIVE (1 + 1*PQ_L2_SIZE)
@@ -217,14 +216,6 @@ struct vm_page {
 #define PQ_CACHE (3 + 1*PQ_L2_SIZE)
 #define PQ_HOLD  (3 + 2*PQ_L2_SIZE)
 #define PQ_COUNT (4 + 2*PQ_L2_SIZE)
-#else
-#define PQ_NONE		PQ_COUNT
-#define PQ_FREE		0
-#define PQ_INACTIVE	PQ_L2_SIZE
-#define PQ_ACTIVE	(1 +   PQ_L2_SIZE)
-#define PQ_CACHE	(2 +   PQ_L2_SIZE)
-#define PQ_COUNT	(2 + 2*PQ_L2_SIZE)
-#endif
 
 struct vpgqueues {
 	struct pglist pl;
