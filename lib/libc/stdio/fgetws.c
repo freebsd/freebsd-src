@@ -74,7 +74,8 @@ fgetws(wchar_t * __restrict ws, int n, FILE * __restrict fp)
 			 * after the null.
 			 */
 			nconv++;
-			src = memchr(fp->_p, '\0', fp->_r) + 1;
+			src = memchr(fp->_p, '\0', fp->_r);
+			src++;
 		}
 		fp->_r -= (unsigned char *)src - fp->_p;
 		fp->_p = (unsigned char *)src;
