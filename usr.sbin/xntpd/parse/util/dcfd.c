@@ -68,7 +68,7 @@ MUST DEFINE ONE OF "HAVE_TERMIOS" or "HAVE_TERMIO"
 #endif
 
 #ifndef dysize
-#define dysize(_x_) (((_x_) % 4) ? 365 : (((_x_) % 400) ? 365 : 366))
+#define dysize(_x_) (((_x_) % 4) ? 365 : (((_x_) % 100) ? 366 : ((_x_) % 400 ? 365 : 366 )))
 #endif
 
 #define timernormalize(_a_) \
@@ -761,7 +761,8 @@ dcf_to_unixtime(clock, cvtrtc)
    */
   t =  (clock->year - 1970) * 365;
   t += (clock->year >> 2) - (1970 >> 2);
-  t -= clock->year / 400 - 1970 / 400;
+  t -= clock->year / 100 - 1970 / 100;
+  t += clock->year / 400 - 1970 / 400;
 
   				/* month */
   if (clock->month <= 0 || clock->month > 12)
@@ -1587,9 +1588,10 @@ main(argc, argv)
 		    -tt.tv_usec;
 
 		  /*
-		   * output interpreted DCF77 data
+		   * output interpreted DCF77 data.  DCF77 gives us a YY year
+		   * but dcf_to_unixtime() adds the century, so print YYYY.
 		   */
-		  PRINTF(offsets ? "%s, %2d:%02d:%02d, %d.%02d.%02d, <%s%s%s%s> (%c%d.%06ds)" :
+		  PRINTF(offsets ? "%s, %2d:%02d:%02d, %d.%02d.%4d, <%s%s%s%s> (%c%d.%06ds)" :
 			 "%s, %2d:%02d:%02d, %d.%02d.%02d, <%s%s%s%s>",
 			 wday[clock.wday],
 			 clock.hour, clock.minute, i, clock.day, clock.month,
