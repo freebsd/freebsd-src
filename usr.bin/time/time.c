@@ -225,7 +225,8 @@ main(argc, argv)
 static void
 usage()
 {
-	fprintf(stderr, "usage: time [-al] [-h|-p] [-o file] command\n");
+	fprintf(stderr,
+	    "usage: time [-al] [-h|-p] [-o file] utility [argument ...]\n");
 	exit(1);
 }
 
