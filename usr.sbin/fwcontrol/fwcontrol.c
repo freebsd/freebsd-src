@@ -326,6 +326,10 @@ show_crom(u_int32_t *crom_buf)
 
 	crom_init_context(&cc, crom_buf);
 	dir = cc.stack[0].dir;
+	if (!dir) {
+		printf("no root directory - giving up\n");
+		return;
+	}
 	printf("root_directory: len=0x%04x(%d) crc=0x%04x",
 			dir->crc_len, dir->crc_len, dir->crc);
 	crc = crom_crc((u_int32_t *)&dir->entry[0], dir->crc_len);
