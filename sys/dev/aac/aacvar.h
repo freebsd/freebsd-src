@@ -336,13 +336,6 @@ struct aac_code_lookup {
     u_int32_t	code;
 };
 
-/*
- * Borrowed from <struct.h>
- */
-/* Offset of the field in the structure. */
-#define fldoff(name, field) \
-        ((int)&(((struct name *)0)->field))
-
 /********************************************************************************
  * Queue primitives
  *

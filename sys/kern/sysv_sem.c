@@ -106,10 +106,6 @@ struct sem_undo {
  * SEMUSZ is properly aligned.
  */
 
-#ifndef offsetof
-#define	offsetof(type, member)	((size_t)(&((type *)0)->member))
-#endif
-
 #define SEM_ALIGN(bytes) (((bytes) + (sizeof(long) - 1)) & ~(sizeof(long) - 1))
 
 /* actual size of an undo structure */

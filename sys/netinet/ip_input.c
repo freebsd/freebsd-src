@@ -45,8 +45,6 @@
 #include "opt_ipsec.h"
 #include "opt_pfil_hooks.h"
 
-#include <stddef.h>
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>

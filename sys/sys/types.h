@@ -93,14 +93,13 @@ typedef	u_int32_t	uid_t;		/* user id */
 typedef	int		boolean_t;
 typedef	u_int64_t	uoff_t;
 typedef	struct vm_page	*vm_page_t;
-#endif
-
-#ifdef _KERNEL
 
 struct specinfo;
 
 typedef	u_int32_t	udev_t;		/* device number */
 typedef struct specinfo	*dev_t;
+
+#define offsetof(type, field) __offsetof(type, field)
 
 #else /* !_KERNEL */
 

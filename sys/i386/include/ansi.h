@@ -93,6 +93,11 @@
 #define	_BSD_CLOCKS_PER_SEC_	128
 
 /*
+ * We define this here since both <stddef.h> and <sys/types.h> needs it.
+ */
+#define __offsetof(type, field) ((size_t)(&((type *)0)->field))
+
+/*
  * Typedefs for especially magic types.  #define's wouldn't work in the
  * __GNUC__ case, since __attribute__(()) only works in certain contexts.
  * This is not in <machine/types.h>, since that has too much namespace

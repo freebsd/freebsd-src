@@ -54,8 +54,6 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 
-#include <stddef.h>	/* For offsetof */
-
 #include <sys/bus.h>
 
 #include <machine/bus_memio.h>

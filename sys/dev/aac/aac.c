@@ -1124,12 +1124,12 @@ aac_init(struct aac_softc *sc)
     ip = &sc->aac_common->ac_init;
     ip->InitStructRevision = AAC_INIT_STRUCT_REVISION;
 
-    ip->AdapterFibsPhysicalAddress = sc->aac_common_busaddr + fldoff(aac_common, ac_fibs);
+    ip->AdapterFibsPhysicalAddress = sc->aac_common_busaddr + offsetof(struct aac_common, ac_fibs);
     ip->AdapterFibsVirtualAddress = &sc->aac_common->ac_fibs[0];
     ip->AdapterFibsSize = AAC_ADAPTER_FIBS * sizeof(struct aac_fib);
     ip->AdapterFibAlign = sizeof(struct aac_fib);
 
-    ip->PrintfBufferAddress = sc->aac_common_busaddr + fldoff(aac_common, ac_printf);
+    ip->PrintfBufferAddress = sc->aac_common_busaddr + offsetof(struct aac_common, ac_printf);
     ip->PrintfBufferSize = AAC_PRINTF_BUFSIZE;
 
     ip->HostPhysMemPages = 0;			/* not used? */
@@ -1191,7 +1191,7 @@ aac_init(struct aac_softc *sc)
      * Give the init structure to the controller.
      */
     if (aac_sync_command(sc, AAC_MONKER_INITSTRUCT, 
-			  sc->aac_common_busaddr + fldoff(aac_common, ac_init),
+			  sc->aac_common_busaddr + offsetof(struct aac_common, ac_init),
 			  0, 0, 0, NULL)) {
 	device_printf(sc->aac_dev, "error establishing init structure\n");
 	return(EIO);
@@ -1266,7 +1266,7 @@ aac_sync_fib(struct aac_softc *sc, u_int32_t command, u_int32_t xferstate,
     fib->Header.Size = sizeof(struct aac_fib) + datasize;
     fib->Header.SenderSize = sizeof(struct aac_fib);
     fib->Header.SenderFibAddress = (u_int32_t)fib;
-    fib->Header.ReceiverFibAddress = sc->aac_common_busaddr + fldoff(aac_common, ac_sync_fib);
+    fib->Header.ReceiverFibAddress = sc->aac_common_busaddr + offsetof(struct aac_common, ac_sync_fib);
 
     /*
      * Copy in data.
