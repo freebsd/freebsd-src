@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 Doug Rabson
+ * Copyright (c) 2001 Doug Rabson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,33 +26,23 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_INTR_H_
-#define _MACHINE_INTR_H_
+#ifndef _MACHINE_SAPICREG_H_
+#define _MACHINE_SAPICREG_H_
 
 /*
- * Layout of the Processor Interrupt Block.
+ * Offsets from the SAPIC base in memory. Most registers are accessed
+ * by indexing using the SAPIC_IO_SELECT register.
  */
-struct ia64_interrupt_block
-{
-	u_int64_t	ib_ipi[0x20000];	/* 1Mb of IPI interrupts */
-	u_int8_t	ib_reserved1[0xe0000];
-	u_int8_t	ib_inta;		/* Generate INTA cycle */
-	u_int8_t	ib_reserved2[7];
-	u_int8_t	ib_xtp;			/* XTP cycle */
-	u_int8_t	ib_reserved3[7];
-	u_int8_t	ib_reserved4[0x1fff0];
-};
+#define SAPIC_IO_SELECT		0x00
+#define SAPIC_IO_WINDOW		0x10
+#define SAPIC_APIC_EOI		0x40
 
-#define IA64_INTERRUPT_BLOCK	\
-	(struct ia64_interrupt_block *)IA64_PHYS_TO_RR6(0xfee00000)
+/*
+ * Indexed registers.
+ */
+#define SAPIC_ID		0x00
+#define SAPIC_VERSION		0x01
+#define SAPIC_ARBITRATION_ID	0x02
+#define SAPIC_RTE_BASE		0x10
 
-struct sapic;
-
-void ia64_add_sapic(struct sapic *sa);
-int ia64_setup_intr(const char *name, int irq, driver_intr_t handler,
-		    void *arg, enum intr_type flags, void **cookiep,
-		    volatile long *cntp);
-int ia64_teardown_intr(void *cookie);
-void ia64_dispatch_intr(void *frame, unsigned long vector);
-
-#endif /* !_MACHINE_INTR_H_ */
+#endif /* ! _MACHINE_SAPICREG_H_ */
