@@ -43,7 +43,6 @@ struct psycho_softc {
 	 * PSYCHO register.  we record the base physical address of these
 	 * also as it is the base of the entire PSYCHO
 	 */
-	struct psychoreg		*sc_regs;
 	vm_offset_t			sc_basepaddr;
 
 	/* Interrupt Group Number for this device */
@@ -53,6 +52,8 @@ struct psycho_softc {
 	bus_space_tag_t			sc_bustag;
 	bus_space_handle_t		sc_bushandle;
 	bus_dma_tag_t			sc_dmatag;
+
+	bus_addr_t			sc_pcictl;
 
 	int				sc_clockfreq;
 	phandle_t			sc_node;	/* prom node */
