@@ -38,7 +38,10 @@ fsysdep_make_dirs (zfile, fpublic)
 	      ubuffree (zcopy);
 	      return FALSE;
 	    }
-	  *z = '/';
+	  *z = '/';     /* replace '/' in its place */
+          		/* now skips over multiple '/' in name */
+          while ( (*(z + 1)) && (*(z + 1)) == '/')
+              z++;
 	}
     }
 
