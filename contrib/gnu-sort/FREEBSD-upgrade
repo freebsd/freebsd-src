@@ -12,6 +12,3 @@ Imported by:
 	 cvs import \
 		-m "Virgin import (trimmed) of GNU Sort, coreutils 5.2.1" \
 		src/contrib/gnu-sort FSF SORT_v5_2_1
-
-ache@FreeBSD.org
-30 Aug 2003
