@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	script
-WARNS?=	2
 LDADD=	-lutil
 DPADD=	${LIBUTIL}
 
