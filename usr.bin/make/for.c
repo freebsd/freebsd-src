@@ -175,7 +175,7 @@ For_Eval(char *line)
 #define	ADDWORD() \
 	Buf_AddBytes(buf, ptr - wrd, (Byte *)wrd), \
 	Buf_AddByte(buf, (Byte)'\0'), \
-	Lst_AtFront(forLst, (void *)Buf_GetAll(buf, &varlen)), \
+	Lst_AtFront(forLst, Buf_GetAll(buf, &varlen)), \
 	Buf_Destroy(buf, FALSE)
 
 	for (ptr = sub; *ptr && isspace((unsigned char)*ptr); ptr++)
@@ -246,9 +246,10 @@ For_Eval(char *line)
 static int
 ForExec(void *namep, void *argp)
 {
-    char *name = (char *) namep;
-    For *arg = (For *) argp;
+    char *name = namep;
+    For *arg = argp;
     int len;
+
     Var_Set(arg->var, name, VAR_GLOBAL);
     DEBUGF(FOR, ("--- %s = %s\n", arg->var, name));
     Parse_FromString(Var_Subst(arg->var, (char *)Buf_GetAll(arg->buf, &len),
@@ -286,7 +287,7 @@ For_Run(int lineno)
     forBuf = NULL;
     forLst = NULL;
 
-    Lst_ForEach(arg.lst, ForExec, (void *)&arg);
+    Lst_ForEach(arg.lst, ForExec, &arg);
 
     free(arg.var);
     Lst_Destroy(arg.lst, free);

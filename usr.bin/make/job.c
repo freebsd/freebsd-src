@@ -328,7 +328,7 @@ JobCatchSig(int signo)
 static int
 JobCondPassSig(void *jobp, void *signop)
 {
-    Job	*job = (Job *)jobp;
+    Job	*job = jobp;
     int	signo = *(int *)signop;
 
     DEBUGF(JOB, ("JobCondPassSig passing signal %d to child %d.\n",
@@ -362,7 +362,7 @@ JobPassSig(int signo)
     sigprocmask(SIG_SETMASK, &nmask, &omask);
 
     DEBUGF(JOB, ("JobPassSig(%d) called.\n", signo));
-    Lst_ForEach(jobs, JobCondPassSig, (void *)&signo);
+    Lst_ForEach(jobs, JobCondPassSig, &signo);
 
     /*
      * Deal with proper cleanup based on the signal received. We only run
@@ -401,7 +401,7 @@ JobPassSig(int signo)
     KILL(getpid(), signo);
 
     signo = SIGCONT;
-    Lst_ForEach(jobs, JobCondPassSig, (void *)&signo);
+    Lst_ForEach(jobs, JobCondPassSig, &signo);
 
     sigprocmask(SIG_SETMASK, &omask, NULL);
     sigprocmask(SIG_SETMASK, &omask, NULL);
@@ -426,6 +426,7 @@ JobPassSig(int signo)
 static int
 JobCmpPid(void *job, void *pid)
 {
+
     return (*(int *)pid - ((Job *)job)->pid);
 }
 
@@ -471,16 +472,15 @@ JobPrintCommand(void *cmdp, void *jobp)
 				     * command */
     char    	  *cmdStart;	    /* Start of expanded command */
     LstNode 	  cmdNode;  	    /* Node for replacing the command */
-    char     	  *cmd = (char *)cmdp;
-    Job           *job = (Job *)jobp;
+    char     	  *cmd = cmdp;
+    Job           *job = jobp;
 
     noSpecials = (noExecute && !(job->node->type & OP_MAKE));
 
     if (strcmp(cmd, "...") == 0) {
 	job->node->type |= OP_SAVE_CMDS;
 	if ((job->flags & JOB_IGNDOTS) == 0) {
-	    job->tailCmds = Lst_Succ(Lst_Member(job->node->commands,
-						(void *)cmd));
+	    job->tailCmds = Lst_Succ(Lst_Member(job->node->commands, cmd));
 	    return (1);
 	}
 	return (0);
@@ -497,9 +497,9 @@ JobPrintCommand(void *cmdp, void *jobp)
      * For debugging, we replace each command with the result of expanding
      * the variables in the command.
      */
-    cmdNode = Lst_Member(job->node->commands, (void *)cmd);
+    cmdNode = Lst_Member(job->node->commands, cmd);
     cmdStart = cmd = Var_Subst(NULL, cmd, job->node, FALSE);
-    Lst_Replace(cmdNode, (void *)cmdStart);
+    Lst_Replace(cmdNode, cmdStart);
 
     cmdTemplate = "%s\n";
 
@@ -604,7 +604,7 @@ JobPrintCommand(void *cmdp, void *jobp)
 	 * echoOff command. Otherwise we issue it and pretend it was on
 	 * for the whole command...
 	 */
-	if (!shutUp && !(job->flags & JOB_SILENT) && commandShell->hasEchoCtl){
+	if (!shutUp && !(job->flags & JOB_SILENT) && commandShell->hasEchoCtl) {
 	    DBPRINTF("%s\n", commandShell->echoOff);
 	    shutUp = TRUE;
 	}
@@ -634,7 +634,7 @@ static int
 JobSaveCommand(void *cmd, void *gn)
 {
 
-    cmd = (void *)Var_Subst(NULL, (char *)cmd, (GNode *)gn, FALSE);
+    cmd = Var_Subst(NULL, cmd, gn, FALSE);
     Lst_AtEnd(postCommands->commands, cmd);
     return (0);
 }
@@ -791,7 +791,7 @@ JobFinish(Job *job, int *status)
 	    fprintf(out, "*** Stopped -- signal %d\n",
 		WSTOPSIG(*status));
 	    job->flags |= JOB_RESUME;
-	    Lst_AtEnd(stoppedJobs, (void *)job);
+	    Lst_AtEnd(stoppedJobs, job);
 	    fflush(out);
 	    return;
 	} else if (WTERMSIG(*status) == SIGCONT) {
@@ -820,7 +820,7 @@ JobFinish(Job *job, int *status)
 #endif
 	    }
 	    job->flags &= ~JOB_CONTINUING;
- 	    Lst_AtEnd(jobs, (void *)job);
+ 	    Lst_AtEnd(jobs, job);
 	    nJobs += 1;
 	    DEBUGF(JOB, ("Process %d is continuing locally.\n", job->pid));
 	    if (nJobs == maxJobs) {
@@ -886,8 +886,7 @@ JobFinish(Job *job, int *status)
 	 */
 	if (job->tailCmds != NULL) {
 	    Lst_ForEachFrom(job->node->commands, job->tailCmds,
-			     JobSaveCommand,
-			    (void *)job->node);
+		JobSaveCommand, job->node);
 	}
 	job->node->made = MADE;
 	Make_Update(job->node);
@@ -938,7 +937,7 @@ Job_Touch(GNode *gn, Boolean silent)
     int		  streamID;   	/* ID of stream opened to do the touch */
     struct utimbuf times;	/* Times for utime() call */
 
-    if (gn->type & (OP_JOIN|OP_USE|OP_EXEC|OP_OPTIONAL)) {
+    if (gn->type & (OP_JOIN | OP_USE | OP_EXEC | OP_OPTIONAL)) {
 	/*
 	 * .JOIN, .USE, .ZEROTIME and .OPTIONAL targets are "virtual" targets
 	 * and, as such, shouldn't really be created.
@@ -1197,7 +1196,7 @@ JobExec(Job *job, char **argv)
      * Now the job is actually running, add it to the table.
      */
     nJobs += 1;
-    Lst_AtEnd(jobs, (void *)job);
+    Lst_AtEnd(jobs, job);
     if (nJobs == maxJobs) {
 	jobFull = TRUE;
     }
@@ -1388,7 +1387,7 @@ JobStart(GNode *gn, int flags, Job *previous)
 	previous->flags &= ~(JOB_FIRST|JOB_IGNERR|JOB_SILENT);
 	job = previous;
     } else {
-	job = (Job *)emalloc(sizeof(Job));
+	job = emalloc(sizeof(Job));
 	flags |= JOB_FIRST;
     }
 
@@ -1469,8 +1468,7 @@ JobStart(GNode *gn, int flags, Job *previous)
 		LstNode	ln = Lst_Next(gn->commands);
 
 		if ((ln == NULL) ||
-		    JobPrintCommand((void *)Lst_Datum(ln),
-				    (void *)job))
+		    JobPrintCommand(Lst_Datum(ln), job))
 		{
 		    noExec = TRUE;
 		    Lst_Close(gn->commands);
@@ -1495,7 +1493,7 @@ JobStart(GNode *gn, int flags, Job *previous)
 	     * We can do all the commands at once. hooray for sanity
 	     */
 	    numCommands = 0;
-	    Lst_ForEach(gn->commands, JobPrintCommand, (void *)job);
+	    Lst_ForEach(gn->commands, JobPrintCommand, job);
 
 	    /*
 	     * If we didn't print out any commands to the shell script,
@@ -1521,7 +1519,7 @@ JobStart(GNode *gn, int flags, Job *previous)
 	 * doesn't do any harm in this case and may do some good.
 	 */
 	if (cmdsOK) {
-	    Lst_ForEach(gn->commands, JobPrintCommand, (void *)job);
+	    Lst_ForEach(gn->commands, JobPrintCommand, job);
 	}
 	/*
 	 * Don't execute the shell, thank you.
@@ -1535,7 +1533,7 @@ JobStart(GNode *gn, int flags, Job *previous)
 	 * up the graph.
 	 */
 	job->cmdFILE = stdout;
-    	Job_Touch(gn, job->flags&JOB_SILENT);
+    	Job_Touch(gn, job->flags & JOB_SILENT);
 	noExec = TRUE;
     }
 
@@ -1561,8 +1559,7 @@ JobStart(GNode *gn, int flags, Job *previous)
 	    if (aborting == 0) {
 		if (job->tailCmds != NULL) {
 		    Lst_ForEachFrom(job->node->commands, job->tailCmds,
-				    JobSaveCommand,
-				   (void *)job->node);
+			JobSaveCommand, job->node);
 		}
 		job->node->made = MADE;
 		Make_Update(job->node);
@@ -1619,7 +1616,7 @@ JobStart(GNode *gn, int flags, Job *previous)
 
 	DEBUGF(JOB, ("Can only run job locally.\n"));
 	job->flags |= JOB_RESTART;
-	Lst_AtEnd(stoppedJobs, (void *)job);
+	Lst_AtEnd(stoppedJobs, job);
     } else {
 	if (nJobs >= maxJobs) {
 	    /*
@@ -1716,7 +1713,6 @@ JobDoOutput(Job *job, Boolean finish)
 
     FILE      	  *oFILE;	  /* Stream pointer to shell's output file */
     char          inLine[132];
-
 
     if (usePipes) {
 	/*
@@ -1854,8 +1850,8 @@ end_loop:
 	 */
 	oFILE = fopen(job->outFile, "r");
 	if (oFILE != NULL) {
-	     fprintf(stdout, "Results of making %s:\n", job->node->name);
-	     fflush(stdout);
+	    fprintf(stdout, "Results of making %s:\n", job->node->name);
+	    fflush(stdout);
 	    while (fgets(inLine, sizeof(inLine), oFILE) != NULL) {
 		char	*cp, *endp, *oendp;
 
@@ -1878,8 +1874,8 @@ end_loop:
 		     fflush(stdout);
 		}
 	    }
-	     fclose(oFILE);
-	     eunlink(job->outFile);
+	    fclose(oFILE);
+	    eunlink(job->outFile);
 	}
     }
 }
@@ -1924,23 +1920,23 @@ Job_CatchChildren(Boolean block)
 	    break;
 	DEBUGF(JOB, ("Process %d exited or stopped.\n", pid));
 
-	jnode = Lst_Find(jobs, (void *)&pid, JobCmpPid);
+	jnode = Lst_Find(jobs, &pid, JobCmpPid);
 
 	if (jnode == NULL) {
 	    if (WIFSIGNALED(status) && (WTERMSIG(status) == SIGCONT)) {
-		jnode = Lst_Find(stoppedJobs, (void *)&pid, JobCmpPid);
+		jnode = Lst_Find(stoppedJobs, &pid, JobCmpPid);
 		if (jnode == NULL) {
 		    Error("Resumed child (%d) not in table", pid);
 		    continue;
 		}
-		job = (Job *)Lst_Datum(jnode);
+		job = Lst_Datum(jnode);
 		Lst_Remove(stoppedJobs, jnode);
 	    } else {
 		Error("Child (%d) not in table?", pid);
 		continue;
 	    }
 	} else {
-	    job = (Job *)Lst_Datum(jnode);
+	    job = Lst_Datum(jnode);
 	    Lst_Remove(jobs, jnode);
 	    nJobs -= 1;
 	    if (fifoFd >= 0 && maxJobs > 1) {
@@ -2026,8 +2022,8 @@ Job_CatchOutput(int flag)
 	if (flag && jobFull && fifoFd >= 0)
 	    FD_SET(fifoFd, &readfds);
 
-	nfds = select(FD_SETSIZE, &readfds, (fd_set *) 0,
-			   (fd_set *) 0, &timeout);
+	nfds = select(FD_SETSIZE, &readfds, (fd_set *)NULL,
+			   (fd_set *)NULL, &timeout);
 	if (nfds <= 0) {
 	    if (interrupted)
 		JobPassSig(interrupted);
@@ -2041,7 +2037,7 @@ Job_CatchOutput(int flag)
 	    Punt("Cannot open job table");
 	}
 	while (nfds && (ln = Lst_Next(jobs)) != NULL) {
-	    job = (Job *)Lst_Datum(ln);
+	    job = Lst_Datum(ln);
 	    if (FD_ISSET(job->inPipe, &readfds)) {
 		JobDoOutput(job, FALSE);
 		nfds -= 1;
@@ -2211,7 +2207,7 @@ Job_Init(int maxproc)
 	        while (maxproc-- > 0) {
 		    write(fifoFd, "+", 1);
 		}
-		/*The master make does not get a magic token */
+		/* The master make does not get a magic token */
                 jobFull = TRUE;
 		maxJobs = 0;
 	    } else {
@@ -2310,7 +2306,7 @@ Job_Init(int maxproc)
     begin = Targ_FindNode(".BEGIN", TARG_NOCREATE);
 
     if (begin != NULL) {
-	JobStart(begin, JOB_SPECIAL, (Job *)0);
+	JobStart(begin, JOB_SPECIAL, (Job *)NULL);
 	while (nJobs) {
 	    Job_CatchOutput(0);
 	    Job_CatchChildren(!usePipes);
@@ -2643,7 +2639,7 @@ JobInterrupt(int runINTERRUPT, int signo)
 
     Lst_Open(jobs);
     while ((ln = Lst_Next(jobs)) != NULL) {
-	job = (Job *)Lst_Datum(ln);
+	job = Lst_Datum(ln);
 
 	if (!Targ_Precious(job->node)) {
 	    char *file = (job->node->path == NULL ?
@@ -2669,7 +2665,7 @@ JobInterrupt(int runINTERRUPT, int signo)
 	if (interrupt != NULL) {
 	    ignoreErrors = FALSE;
 
-	    JobStart(interrupt, JOB_IGNDOTS, (Job *)0);
+	    JobStart(interrupt, JOB_IGNDOTS, (Job *)NULL);
 	    while (nJobs) {
 		Job_CatchOutput(0);
 		Job_CatchChildren(!usePipes);
@@ -2763,10 +2759,9 @@ Job_AbortAll(void)
     aborting = ABORT_ERROR;
 
     if (nJobs) {
-
 	Lst_Open(jobs);
 	while ((ln = Lst_Next(jobs)) != NULL) {
-	    job = (Job *)Lst_Datum(ln);
+	    job = Lst_Datum(ln);
 
 	    /*
 	     * kill the child process with increasingly drastic signals to make
@@ -2804,6 +2799,6 @@ JobRestartJobs(void)
 {
     while (!jobFull && !Lst_IsEmpty(stoppedJobs)) {
 	DEBUGF(JOB, ("Job queue is not full. Restarting a stopped job.\n"));
-	JobRestart((Job *)Lst_DeQueue(stoppedJobs));
+	JobRestart(Lst_DeQueue(stoppedJobs));
     }
 }

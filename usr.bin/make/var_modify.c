@@ -148,11 +148,11 @@ VarSuffix(const char *word, Boolean addSpace, Buffer buf, void *dummy __unused)
     const char *dot;
 
     dot = strrchr(word, '.');
-    if (dot++ != (char *)NULL) {
+    if (dot++ != NULL) {
 	if (addSpace) {
 	    Buf_AddByte(buf, (Byte)' ');
 	}
-	Buf_AddBytes(buf, strlen (dot), (Byte *)dot);
+	Buf_AddBytes(buf, strlen(dot), (Byte *)dot);
 	addSpace = TRUE;
     }
     return (addSpace);
@@ -256,7 +256,7 @@ VarSYSVMatch(const char *word, Boolean addSpace, Buffer buf, void *patp)
     if ((ptr = Str_SYSVMatch(word, pat->lhs, &len)) != NULL)
 	Str_SYSVSubst(buf, pat->rhs, ptr, len);
     else
-	Buf_AddBytes(buf, strlen(word), (Byte *) word);
+	Buf_AddBytes(buf, strlen(word), (Byte *)word);
 
     return (addSpace);
 }
@@ -313,7 +313,7 @@ VarSubstitute(const char *word, Boolean addSpace, Buffer buf, void *patternp)
 {
     int		  	wordLen;    /* Length of word */
     const char	 	*cp;	    /* General pointer */
-    VarPattern	*pattern = (VarPattern *)patternp;
+    VarPattern	*pattern = patternp;
 
     wordLen = strlen(word);
     if (1) { /* substitute in each word of the variable */
@@ -414,7 +414,7 @@ VarSubstitute(const char *word, Boolean addSpace, Buffer buf, void *patternp)
 	    origSize = Buf_Size(buf);
 	    while (!done) {
 		cp = strstr(word, pattern->lhs);
-		if (cp != (char *)NULL) {
+		if (cp != NULL) {
 		    if (addSpace && (((cp - word) + pattern->rightLen) != 0)){
 			Buf_AddByte(buf, (Byte)' ');
 			addSpace = FALSE;
@@ -481,17 +481,17 @@ VarRESubstitute(const char *word, Boolean addSpace, Buffer buf, void *patternp)
     int added;
     int flags = 0;
 
-#define	MAYBE_ADD_SPACE()		\
-	if (addSpace && !added)		\
-	    Buf_AddByte(buf, ' ');	\
+#define	MAYBE_ADD_SPACE()			\
+	if (addSpace && !added)			\
+	    Buf_AddByte(buf, (Byte)' ');	\
 	added = 1
 
     added = 0;
     wp = word;
     pat = patternp;
 
-    if ((pat->flags & (VAR_SUB_ONE|VAR_SUB_MATCHED)) ==
-	(VAR_SUB_ONE|VAR_SUB_MATCHED))
+    if ((pat->flags & (VAR_SUB_ONE | VAR_SUB_MATCHED)) ==
+	(VAR_SUB_ONE | VAR_SUB_MATCHED))
 	xrv = REG_NOMATCH;
     else {
     tryagain:
@@ -503,13 +503,13 @@ VarRESubstitute(const char *word, Boolean addSpace, Buffer buf, void *patternp)
 	pat->flags |= VAR_SUB_MATCHED;
 	if (pat->matches[0].rm_so > 0) {
 	    MAYBE_ADD_SPACE();
-	    Buf_AddBytes(buf, pat->matches[0].rm_so, wp);
+	    Buf_AddBytes(buf, pat->matches[0].rm_so, (Byte *)wp);
 	}
 
 	for (rp = pat->replace; *rp; rp++) {
 	    if ((*rp == '\\') && ((rp[1] == '&') || (rp[1] == '\\'))) {
 		MAYBE_ADD_SPACE();
-		Buf_AddByte(buf,rp[1]);
+		Buf_AddByte(buf, (Byte)rp[1]);
 		rp++;
 	    }
 	    else if ((*rp == '&') ||
@@ -547,11 +547,11 @@ VarRESubstitute(const char *word, Boolean addSpace, Buffer buf, void *patternp)
 
 		if (sublen > 0) {
 		    MAYBE_ADD_SPACE();
-		    Buf_AddBytes(buf, sublen, subbuf);
+		    Buf_AddBytes(buf, sublen, (Byte *)subbuf);
 		}
 	    } else {
 		MAYBE_ADD_SPACE();
-		Buf_AddByte(buf, *rp);
+		Buf_AddByte(buf, (Byte)*rp);
 	    }
 	}
 	wp += pat->matches[0].rm_eo;
@@ -559,7 +559,7 @@ VarRESubstitute(const char *word, Boolean addSpace, Buffer buf, void *patternp)
 	    flags |= REG_NOTBOL;
 	    if (pat->matches[0].rm_so == 0 && pat->matches[0].rm_eo == 0) {
 		MAYBE_ADD_SPACE();
-		Buf_AddByte(buf, *wp);
+		Buf_AddByte(buf, (Byte)*wp);
 		wp++;
 
 	    }
@@ -568,7 +568,7 @@ VarRESubstitute(const char *word, Boolean addSpace, Buffer buf, void *patternp)
 	}
 	if (*wp) {
 	    MAYBE_ADD_SPACE();
-	    Buf_AddBytes(buf, strlen(wp), wp);
+	    Buf_AddBytes(buf, strlen(wp), (Byte *)wp);
 	}
 	break;
     default:
@@ -577,9 +577,9 @@ VarRESubstitute(const char *word, Boolean addSpace, Buffer buf, void *patternp)
     case REG_NOMATCH:
 	if (*wp) {
 	    MAYBE_ADD_SPACE();
-	    Buf_AddBytes(buf,strlen(wp),wp);
+	    Buf_AddBytes(buf, strlen(wp), (Byte *)wp);
 	}
 	break;
     }
-    return (addSpace||added);
+    return (addSpace || added);
 }
