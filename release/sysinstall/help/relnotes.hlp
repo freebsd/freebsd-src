@@ -175,6 +175,8 @@ o EISA Shared interrupts are now supported, working with the framework
 
 o Support for the Comtrol Rocketport card.
 
+o IPFW's packet and byte counters have been expanded from 32 to 64 bits.
+
 o New Plug and Play (PnP) support that allows you to (re)configure PnP
   devices.  Also support modems being detected by the PnP part and
   automatically attached.
@@ -300,6 +302,9 @@ ppp(8) supports many additional features including the PPP Multilink
 Protocol (rfc1990), PPP Callback (with CBCP extensions) and client
 side DNS negotiation.  Refer to the README.changes file in the source
 directory for details of possible configuration conflicts.
+
+Pthread read/write locks as defined by the Single UNIX Specification,
+Version 2, have been added to the POSIX threads library, libc_r.
 
 
 2. Supported Configurations
