@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: SMP-GENERIC,v 1.4 1997/06/22 16:02:57 peter Exp $
+#	$Id: SMP-GENERIC,v 1.5 1997/07/18 22:00:17 fsmp Exp $
 
 machine		"i386"
 # SMP does NOT support 386/486 CPUs.
@@ -33,6 +33,11 @@ options		APIC_IO			# Symmetric (APIC) I/O
 #options		NAPIC=1			# number of IO APICs
 #options		NINTR=24		# number of INTs
 
+#
+# HEADS UP: SMP_TIMER_NC currently not usable,
+#	     following comments will be removed shortly.
+#
+
 # Tyan Tomcat II:
 #options                SMP_TIMER_NC            # 8254 NOT connected to APIC
 
@@ -40,10 +45,11 @@ options		APIC_IO			# Symmetric (APIC) I/O
 #options                SMP_TIMER_NC            # 8254 NOT connected to APIC
 
 # Lets always enable the kernel debugger for SMP.
-#
 options		DDB
 
-options		MATH_EMULATE		#Support for x87 emulation
+# SMP shouldn't need x87 emulation, disable by default.
+#options		MATH_EMULATE		#Support for x87 emulation
+
 options		INET			#InterNETworking
 options		FFS			#Berkeley Fast Filesystem
 options		NFS			#Network Filesystem
