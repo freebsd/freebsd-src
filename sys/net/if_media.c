@@ -294,9 +294,12 @@ ifmedia_ioctl(ifp, ifr, ifm, cmd)
 
 		/*
 		 * Don't allow the user to ask for too many
+		 * or a negative number.
 		 */
 		if (ifmr->ifm_count > usermax)
 			ifmr->ifm_count = usermax;
+		else if (ifmr->ifm_count < 0)
+			return (EINVAL);
 
 		if (ifmr->ifm_count != 0) {
 			kptr = (int *)malloc(ifmr->ifm_count * sizeof(int),
