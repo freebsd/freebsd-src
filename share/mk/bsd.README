@@ -213,6 +213,7 @@ DPADD		Additional dependencies for the program.  Usually used for
 			LIBCRYPT	/usr/lib/libcrypt.a
 			LIBCURSES	/usr/lib/libcurses.a
 			LIBDES		/usr/lib/libdes.a
+			LIBDIALOG	/usr/lib/libdialog.a
 			LIBEDIT		/usr/lib/libedit.a
 			LIBGCC		/usr/lib/libgcc.a
 			LIBGNUMALLOC	/usr/lib/libgnumalloc.a
