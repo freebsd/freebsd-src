@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -95,7 +97,7 @@ raw_popen(const char *program, char * const *argv, const char *type)
 			(void)close(pdes[1]);
 		}
 		if (argv == NULL)
-			execl(_PATH_BSHELL, "sh", "-c", program, NULL);
+			execl(_PATH_BSHELL, "sh", "-c", program, (char *)NULL);
 		else
 			execvp(program, argv);
 		_exit(127);
@@ -129,8 +131,7 @@ int
 raw_pclose(FILE *iop)
 {
 	register struct pid *cur, *last;
-	int omask;
-	union wait pstat;
+	int omask, pstat;
 	pid_t pid;
 
 	(void)fclose(iop);
@@ -156,5 +157,5 @@ raw_pclose(FILE *iop)
 		last->next = cur->next;
 	free(cur);
 
-	return (pid == -1 ? -1 : pstat.w_status);
+	return (pid == -1 ? -1 : pstat);
 }
