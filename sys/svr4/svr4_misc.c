@@ -37,6 +37,7 @@
 #include <sys/systm.h>
 #include <sys/namei.h>
 #include <sys/dirent.h>
+#include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/file.h>
 #include <sys/stat.h>
@@ -44,7 +45,6 @@
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
@@ -97,9 +97,6 @@
 #endif
 
 #define	BSD_DIRENT(cp)		((struct dirent *)(cp))
-
-extern void *M_ZOMBIE;
-extern void *M_SUBPROC;
 
 extern int bsd_to_svr4_sig[];
 static int svr4_mknod __P((struct proc *, register_t *, char *,
