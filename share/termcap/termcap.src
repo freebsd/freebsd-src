@@ -3250,7 +3250,8 @@ lpr|printer|print|printing|line printer:\
 	:do=^J:le=^H:bs:co#132:hc:os:
 plugboard|patch|patchboard:\
 	:tc=unknown:
-dumb|un|unknown:\
+# See login.c for "su"
+dumb|su|un|unknown:\
 	:am:co#80:do=^J:
 switch|intelligent switch:\
 	:tc=unknown:
