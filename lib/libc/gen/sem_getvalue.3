@@ -37,7 +37,7 @@
 .Sh SYNOPSIS
 .In semaphore.h
 .Ft int
-.Fn sem_getvalue "sem_t *sem" "int *sval"
+.Fn sem_getvalue "sem_t * restrict sem" "int * restrict sval"
 .Sh DESCRIPTION
 The
 .Fn sem_getvalue
