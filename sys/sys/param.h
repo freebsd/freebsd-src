@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.h	8.3 (Berkeley) 4/4/95
- * $Id: param.h,v 1.24 1997/03/03 08:05:03 ache Exp $
+ * $Id: param.h,v 1.25 1997/03/03 08:34:08 ache Exp $
  */
 
 #ifndef _SYS_PARAM_H_
@@ -59,13 +59,13 @@
  * Redefined constants are from POSIX 1003.1 limits file.
  *
  * MAXCOMLEN should be >= sizeof(ac_comm) (see <acct.h>)
- * MAXLOGNAME should be >= UT_NAMESIZE+1 (see <utmp.h>)
+ * MAXLOGNAME should be == UT_NAMESIZE+1 (see <utmp.h>)
  */
 #include <sys/syslimits.h>
 
 #define	MAXCOMLEN	16		/* max command name remembered */
 #define	MAXINTERP	32		/* max interpreter file name length */
-#define	MAXLOGNAME	20		/* max login name length (incl. NUL) */
+#define	MAXLOGNAME	17		/* max login name length (incl. NUL) */
 #define	MAXUPRC		CHILD_MAX	/* max simultaneous processes */
 #define	NCARGS		ARG_MAX		/* max bytes for an exec function */
 #define	NGROUPS		NGROUPS_MAX	/* max number groups */
