@@ -313,7 +313,6 @@ extern struct radix_node_head *rt_tables[AF_MAX+1];
 
 struct ifmultiaddr;
 
-void	 route_init(void);
 int	 rt_getifa(struct rt_addrinfo *);
 void	 rt_ifannouncemsg(struct ifnet *, int);
 void	 rt_ifmsg(struct ifnet *);
