@@ -319,7 +319,6 @@ struct nfs_public {
  * type of filesystem supported by the kernel. These are searched at
  * mount time to identify the requested filesystem.
  */
-#ifdef _KERNEL
 struct vfsconf {
 	struct	vfsops *vfc_vfsops;	/* filesystem operations vector */
 	char	vfc_name[MFSNAMELEN];	/* filesystem type name */
@@ -329,7 +328,6 @@ struct vfsconf {
 	struct	vfsoptdecl *vfc_opts;	/* mount options */
 	struct	vfsconf *vfc_next;	/* next in list */
 };
-#endif /* _KERNEL */
 
 /* Userland version of the struct vfsconf. */
 struct xvfsconf {
