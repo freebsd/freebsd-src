@@ -111,7 +111,9 @@ otherwise 0.
 .Pp
 Parentheses are used for grouping in the usual manner.
 .Pp
-This version of
+Unless the
+.Ev EXPR_COMPAT
+variable is defined in the process environment, this version of
 .Nm
 adheres to the
 .Tn POSIX
@@ -141,6 +143,15 @@ The syntax of the
 command in general is historic and inconvenient.
 New applications are advised to use shell arithmetic rather than
 .Nm .
+.Sh ENVIRONMENT
+.Bl -tag -compact -width EXPR_COMPAT
+.It Ev EXPR_COMPAT
+If set,
+.Nm
+will emulate historic
+.Nm
+implementations which did not obey the Utility Syntax Guidelines.
+.El
 .Sh EXAMPLES
 .Bl -bullet
 .It
@@ -216,7 +227,10 @@ the expression is invalid.
 The
 .Nm
 utility conforms to
-.St -p1003.1-2001 .
+.St -p1003.1-2001 ,
+provided that the
+.Ev EXPR_COMPAT
+environment variable is not defined.
 .Tn POSIX
 does not specify whether arithmetic overflow is detected, nor does it specify
 the possible range of integer arguments to
