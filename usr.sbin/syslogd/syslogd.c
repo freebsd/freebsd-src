@@ -1338,7 +1338,12 @@ static void
 logerror(const char *type)
 {
 	char buf[512];
+	static int recursed = 0;
 
+	/* If there's an error while trying to log an error, give up. */
+	if (recursed)
+		return;
+	recursed++;
 	if (errno)
 		(void)snprintf(buf,
 		    sizeof buf, "syslogd: %s: %s", type, strerror(errno));
@@ -1347,6 +1352,7 @@ logerror(const char *type)
 	errno = 0;
 	dprintf("%s\n", buf);
 	logmsg(LOG_SYSLOG|LOG_ERR, buf, LocalHostName, ADDDATE);
+	recursed--;
 }
 
 static void
