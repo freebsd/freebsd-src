@@ -39,9 +39,7 @@ main(argc, argv)
 	dap = NULL;
 	if (argc > 1) {
 		dap = &dst_addr;
-		if (isdigit(argv[1][0]))
-			dst_addr.s_addr = inet_addr(argv[1]);
-		else {
+		if (inet_aton(argv[1], &dst_addr) == 0) {
 			hep = gethostbyname(argv[1]);
 			if (!hep) {
 				printf("gethostbyname(%s)\n", argv[1]);
