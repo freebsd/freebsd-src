@@ -80,6 +80,7 @@ static device_method_t iicbb_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe,		iicbb_probe),
 	DEVMETHOD(device_attach,	iicbb_attach),
+	DEVMETHOD(device_detach,	bus_generic_detach),
 
 	/* bus interface */
 	DEVMETHOD(bus_print_child,	iicbb_print_child),
