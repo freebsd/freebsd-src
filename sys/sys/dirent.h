@@ -37,7 +37,7 @@
 #ifndef	_SYS_DIRENT_H_
 #define	_SYS_DIRENT_H_
 
-#include <machine/ansi.h>
+#include <sys/_types.h>
 
 /*
  * The dirent structure defines the format of directory entries returned by

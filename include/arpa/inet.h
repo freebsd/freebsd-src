@@ -59,7 +59,7 @@
 /* External definitions for functions in inet(3), addr2ascii(3) */
 
 #include <sys/cdefs.h>
-#include <machine/ansi.h>
+#include <sys/_types.h>
 
 /* Required for byteorder(3) functions. */
 #include <machine/endian.h>
@@ -88,9 +88,9 @@ typedef	uint16_t	in_port_t;
 #endif
 
 #if __BSD_VISIBLE
-#ifdef _BSD_SIZE_T_
-typedef	_BSD_SIZE_T_	size_t;
-#undef _BSD_SIZE_T_
+#ifndef _SIZE_T_DECLARED
+typedef	__size_t	size_t;
+#define	_SIZE_T_DECLARED
 #endif
 #endif
 
@@ -98,9 +98,9 @@ typedef	_BSD_SIZE_T_	size_t;
  * XXX socklen_t is used by a POSIX.1-2001 interface, but not required by
  * POSIX.1-2001.
  */
-#ifdef _BSD_SOCKLEN_T_
-typedef	_BSD_SOCKLEN_T_	socklen_t;
-#undef _BSD_SOCKLEN_T_
+#ifndef _SOCKLEN_T_DECLARED
+typedef	__socklen_t	socklen_t;
+#define	_SOCKLEN_T_DECLARED
 #endif
 
 #ifndef _STRUCT_IN_ADDR_DECLARED

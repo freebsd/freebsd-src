@@ -386,8 +386,8 @@ curses.head:	curses.h.in
 	    -e "s%@cf_cv_type_of_bool@%${TYPE_OF_BOOL}%g" \
 	    -e "s%@cf_cv_typeof_chtype@%${TYPEOF_CHTYPE}%g" \
 	    -e "s%@cf_cv_widec_shift@%${WIDEC_SHIFT}%g" \
-	    -e "s/ _WCHAR_T/ _BSD_WCHAR_T_/g" \
-	    -e "s/ _WINT_T/ _BSD_WINT_T_/g" \
+	    -e "s/ _WCHAR_T/ __wchar_t/g" \
+	    -e "s/ _WINT_T/ __wint_t/g" \
 
 unctrl.h:	unctrl.h.in
 	sed <${NCURSES}/include/$@.in >$@ \

@@ -46,6 +46,8 @@
 #define	_TIME_H_
 
 #include <sys/cdefs.h>
+#include <sys/_types.h>
+
 #include <machine/ansi.h>
 
 #if __POSIX_VISIBLE > 0 && __POSIX_VISIBLE < 200112 || __BSD_VISIBLE
@@ -63,33 +65,33 @@
 #define	NULL	0
 #endif
 
-#ifdef	_BSD_CLOCK_T_
-typedef	_BSD_CLOCK_T_	clock_t;
-#undef	_BSD_CLOCK_T_
+#ifndef _CLOCK_T_DECLARED
+typedef	__clock_t	clock_t;
+#define	_CLOCK_T_DECLARED
 #endif
 
-#ifdef	_BSD_TIME_T_
-typedef	_BSD_TIME_T_	time_t;
-#undef	_BSD_TIME_T_
+#ifndef _TIME_T_DECLARED
+typedef	__time_t	time_t;
+#define	_TIME_T_DECLARED
 #endif
 
-#ifdef	_BSD_SIZE_T_
-typedef	_BSD_SIZE_T_	size_t;
-#undef	_BSD_SIZE_T_
+#ifndef _SIZE_T_DECLARED
+typedef	__size_t	size_t;
+#define	_SIZE_T_DECLARED
 #endif
 
 #if __POSIX_VISIBLE >= 199309
 /*
  * New in POSIX 1003.1b-1993.
  */
-#ifdef	_BSD_CLOCKID_T_
-typedef	_BSD_CLOCKID_T_	clockid_t;
-#undef	_BSD_CLOCKID_T_
+#ifndef _CLOCKID_T_DECLARED
+typedef	__clockid_t	clockid_t;
+#define	_CLOCKID_T_DECLARED
 #endif
 
-#ifdef	_BSD_TIMER_T_
-typedef	_BSD_TIMER_T_	timer_t;
-#undef	_BSD_TIMER_T_
+#ifndef _TIMER_T_DECLARED
+typedef	__timer_t	timer_t;
+#define	_TIMER_T_DECLARED
 #endif
 
 #include <sys/timespec.h>

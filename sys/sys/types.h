@@ -45,9 +45,7 @@
 #include <sys/cdefs.h>
 
 /* Machine type dependent parameters. */
-#include <machine/ansi.h>
 #include <machine/endian.h>
-#include <machine/types.h>
 #include <sys/_types.h>
 
 #ifndef _POSIX_SOURCE
@@ -126,36 +124,42 @@ typedef	quad_t *	qaddr_t;
 typedef	char *		caddr_t;	/* core address */
 typedef	__const char *	c_caddr_t;	/* core address, pointer to const */
 typedef	__volatile char *v_caddr_t;	/* core address, pointer to volatile */
+typedef	__critical_t	critical_t;	/* Critical section value */
 typedef	int64_t		daddr_t;	/* disk address */
 typedef	u_int32_t	fixpt_t;	/* fixed point number */
 
-#ifdef _BSD_GID_T_
-typedef	_BSD_GID_T_	gid_t;		/* group id */
-#undef _BSD_GID_T_
+#ifndef _GID_T_DECLARED
+typedef	__gid_t		gid_t;		/* group id */
+#define	_GID_T_DECLARED
 #endif
 
 typedef	u_int32_t	ino_t;		/* inode number */
+typedef	__intrmask_t	intrmask_t;	/* Interrupt mask (spl, xxx_imask...) */
 typedef	long		key_t;		/* IPC key (for Sys V IPC) */
 typedef	u_int16_t	mode_t;		/* permissions */
 typedef	u_int16_t	nlink_t;	/* link count */
-typedef	_BSD_OFF_T_	off_t;		/* file offset */
-typedef	_BSD_PID_T_	pid_t;		/* process id */
+typedef	__off_t		off_t;		/* file offset */
+typedef	__pid_t		pid_t;		/* process id */
+typedef	__register_t	register_t;
 typedef	quad_t		rlim_t;		/* resource limit */
-
-#ifdef _BSD_SEGSZ_T_
-typedef	_BSD_SEGSZ_T_	segsz_t;	/* segment size (in pages) */
-#undef _BSD_SEGSZ_T_
-#endif
-
+typedef	__segsz_t	segsz_t;	/* segment size (in pages) */
 typedef	int32_t		swblk_t;	/* swap offset */
+typedef	__u_register_t	u_register_t;
 
-#ifdef _BSD_UID_T_
-typedef	_BSD_UID_T_	uid_t;		/* user id */
-#undef _BSD_UID_T_
+#ifndef _UID_T_DECLARED
+typedef	__uid_t		uid_t;		/* user id */
+#define	_UID_T_DECLARED
 #endif
+
+typedef	__vm_offset_t	vm_offset_t;
+typedef	__vm_ooffset_t	vm_ooffset_t;
+typedef	__vm_pindex_t	vm_pindex_t;
+typedef	__vm_size_t	vm_size_t;
 
 #ifdef _KERNEL
 typedef	int		boolean_t;
+typedef	__intfptr_t	intfptr_t;
+typedef	__uintfptr_t	uintfptr_t;
 typedef	u_int64_t	uoff_t;
 typedef	struct vm_page	*vm_page_t;
 
@@ -186,45 +190,45 @@ typedef	u_int32_t	dev_t;		/* device number */
 
 #endif /* !_KERNEL */
 
-#ifdef _BSD_CLOCK_T_
-typedef	_BSD_CLOCK_T_	clock_t;
-#undef _BSD_CLOCK_T_
+#ifndef _CLOCK_T_DECLARED
+typedef	__clock_t	clock_t;
+#define	_CLOCK_T_DECLARED
 #endif
 
-#ifdef _BSD_CLOCKID_T_
-typedef	_BSD_CLOCKID_T_	clockid_t;
-#undef _BSD_CLOCKID_T_
+#ifndef _CLOCKID_T_DECLARED
+typedef	__clockid_t	clockid_t;
+#define	_CLOCKID_T_DECLARED
 #endif
 
-#ifdef _BSD_FFLAGS_T_
-typedef	_BSD_FFLAGS_T_	fflags_t;	/* file flags */
-#undef _BSD_FFLAGS_T_
+#ifndef _FFLAGS_T_DECLARED
+typedef	__fflags_t	fflags_t;	/* file flags */
+#define	_FFLAGS_T_DECLARED
 #endif
 
 #ifndef _FSBLKCNT_T_DECLARED		/* for statvfs() */
-typedef _BSD_FSBLKCNT_T_ fsblkcnt_t;
-typedef _BSD_FSFILCNT_T_ fsfilcnt_t;
-#define _FSBLKCNT_T_DECLARED
+typedef	__fsblkcnt_t	fsblkcnt_t;
+typedef	__fsfilcnt_t	fsfilcnt_t;
+#define	_FSBLKCNT_T_DECLARED
 #endif
 
-#ifdef _BSD_SIZE_T_
-typedef	_BSD_SIZE_T_	size_t;
-#undef _BSD_SIZE_T_
+#ifndef _SIZE_T_DECLARED
+typedef	__size_t	size_t;
+#define	_SIZE_T_DECLARED
 #endif
 
-#ifdef _BSD_SSIZE_T_
-typedef	_BSD_SSIZE_T_	ssize_t;
-#undef _BSD_SSIZE_T_
+#ifndef _SSIZE_T_DECLARED
+typedef	__ssize_t	ssize_t;
+#define	_SSIZE_T_DECLARED
 #endif
 
-#ifdef _BSD_TIME_T_
-typedef	_BSD_TIME_T_	time_t;
-#undef _BSD_TIME_T_
+#ifndef _TIME_T_DECLARED
+typedef	__time_t	time_t;
+#define	_TIME_T_DECLARED
 #endif
 
-#ifdef _BSD_TIMER_T_
-typedef	_BSD_TIMER_T_	timer_t;
-#undef _BSD_TIMER_T_
+#ifndef _TIMER_T_DECLARED
+typedef	__timer_t	timer_t;
+#define	_TIMER_T_DECLARED
 #endif
 
 #if __BSD_VISIBLE
