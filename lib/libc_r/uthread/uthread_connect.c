@@ -38,7 +38,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-__weak_reference(_connect, connect);
+__weak_reference(__connect, connect);
 
 int
 _connect(int fd, const struct sockaddr * name, socklen_t namelen)
@@ -76,4 +76,16 @@ _connect(int fd, const struct sockaddr * name, socklen_t namelen)
 		_FD_UNLOCK(fd, FD_RDWR);
 	}
 	return (ret);
+}
+
+int
+__connect(int fd, const struct sockaddr * name, socklen_t namelen)
+{
+	int ret;
+
+	_thread_enter_cancellation_point();
+	ret = _connect(fd, name, namelen);
+	_thread_leave_cancellation_point();
+
+ 	return (ret);
 }
