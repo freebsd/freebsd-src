@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.112 1995/04/12 20:48:07 wollman Exp $
+ *  $Id: syscons.c,v 1.113 1995/04/23 10:15:42 bde Exp $
  */
 
 #include "sc.h"
@@ -2487,6 +2487,7 @@ next_code:
 			    cur_console->status &= ~BUFFER_SAVED;
 			    cur_console->history_head=cur_console->history_save;
 			    cur_console->status |= CURSOR_ENABLED;
+			    mark_all(cur_console);
 			}
 			scstart(VIRTUAL_TTY(get_scr_num()));
 		    } 
