@@ -342,6 +342,7 @@ gv_rm_drive(struct gv_softc *sc, struct gctl_req *req, struct gv_drive *d, int f
 	}
 	LIST_REMOVE(d, drive);
 
+	gv_kill_drive_thread(d);
 	gp = d->geom;
 	d->geom = NULL;
 	g_free(d->hdr);
