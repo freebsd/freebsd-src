@@ -304,7 +304,7 @@ installFixitCDROM(dialogMenuItem *self)
 
     /* Yet more iggly hardcoded pathnames. */
     Mkdir("/usr/libexec");
-    if (!file_readable("/usr/libexec/ld.so")) {
+    if (!file_readable("/usr/libexec/ld.so") && file_readable("/mnt2/usr/libexec/ld.so")) {
 	if (symlink("/mnt2/usr/libexec/ld.so", "/usr/libexec/ld.so"))
 	    msgDebug("Couldn't link to ld.so - not necessarily a problem for ELF\n");
     }
@@ -537,11 +537,12 @@ nodisks:
 	dialog_clear_norefresh();
     }
 
-    if (!msgYesNo("Will this machine be an IP gateway (e.g. will it forward packets\n"
+    if (msgYesNo("Will this machine be a leaf node (e.g. will not forward packets)\n"
 		  "between interfaces)?"))
 	variable_set2("gateway_enable", "YES", 1);
 
-    if (!msgYesNo("Do you want to allow anonymous FTP connections to this machine?"))
+    if (!msgYesNo("Do you want to grant only normal users FTP access to this\n"
+	           "host (e.g. no anonymous FTP connections)?"))
 	configAnonFTP(self);
 
     if (!msgYesNo("Do you want to configure this machine as an NFS server?"))
