@@ -279,7 +279,7 @@ Features:
 	  uses ECC 
 - 2x 16550A serial ports, 1x parallel port, floppy interface
 - 1x embedded 21040 based 10Mbit Ethernet, AUI or 10base2 connector
-- expansion: 1 32 bit PCI slot, 2x PCMCIA slot
+- expansion: 1 32 bit PCI slot, 2 PCMCIA slots
 - onboard Crystal CS4231 sound chip
 - embedded Fast SCSI using a NCR/Symbios 53C810 chip on the PCI riser card
 
@@ -291,14 +291,11 @@ Expansion:
 Multia has only one 32 bit PCI slot for expansion, and it is only 
 suitable for a small form factor PCI card too. In sacrificing the PCI slot
 space you can mount a 3.5" hard disk drive. Mounting stuff may have come
-with your Multia. There are also models that do have the riser card, but
-lack the actual PCI connector. This allows fitting a 3.5" SCSI disk inside
-the case at the expense of the PCI expansion. This is not a recommended
-upgrade due to the limited power rating of the power supply and the marginal
-cooling of the system box.
+with your Multia. Adding a 3.5" disk is not a recommended upgrade due to 
+the limited power rating of the power supply and the extremely marginal
+cooling of the system box. Don't!
 
-In addition to the  PCI slot Multia has 2 PCMCIA slots. These are currently
-unsupported.
+Multia also has 2 PCMCIA expansion slots. These are currently unsupported.
 
 CPU:
 The CPU might or might not be socketed, check before considering CPU upgrade 
@@ -307,7 +304,11 @@ hacks. The low-end Multias have a soldered-in CPU.
 Graphics: 
 It comes with a TGA based graphics on-board. Which is not suitable for
 console use with FreeBSD. Which means you will have to run it using a 
-serial console.
+serial console. Note that the boot of the installation disk will appear
+to work fine using the TGA console, but then switches to using the 
+serial port. This is even mentioned during by installer (but never read
+by the human doing the install..). Your keyboard appears dead from that point
+on.
 
 Serial:
 Multia has 2 serial ports but routes both of them to the outside world
@@ -319,6 +320,15 @@ Although the Multia SRM supports booting from floppy this is problematic.
 Typical errors look like "*** Soft Error - Error #10 - FDC: Data overrun or
 underrun". This is not a FreeBSD problem, it is a SRM problem. The best 
 available workaround to install FreeBSD is to boot from a SCSI CDROM.
+
+Sound:
+Works fine using pcm driver and a line in the kernel configuration file as
+follows:
+
+	device pcm0 at isa? port 0x530  irq 9 drq 3 flags 0x15
+
+While verifying playback I was reminded of the lack of CPU power of the 166MHz
+CPU: MP3 only plays acceptable using 22kHz downsampling.
 
 Hot:
 Multias are somewhat notorious for dying of heat strokes. The very compact
@@ -336,11 +346,11 @@ than the standard SCSI flat cables. Otherwise it would not fit on the 2.5"
 drives. There are also riser cards that have a standard-pitch SCSI cable
 attached to it, which will fit an ordinary SCSI disk.
 
-I recommend against trying to cram a replacement hard disk inside. Use the
-external SCSI connector and put your disk in an external enclosure. Multias run
-hot enough as-is. In most cases you will have the external high density 
-50pin SCSI connector but some Multia models came without disk and may lack
-the connector. Something to check before buying one.
+Again, I recommend against trying to cram a replacement hard disk inside. Use 
+the external SCSI connector and put your disk in an external enclosure. 
+Multias run hot enough as-is. In most cases you will have the external high 
+density 50pin SCSI connector but some Multia models came without disk and 
+may lack the connector. Something to check before buying one.
 
 The kernel configuration file for a Multia kernel must contain:
         options         DEC_AXPPCI_33
