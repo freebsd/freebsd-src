@@ -113,7 +113,7 @@ static void
 feepout(char *msg)
 {
     beep();
-    msgConfirm(msg);
+    msgConfirm("%s", msg);
 }
 
 /* Verify IP address integrity */

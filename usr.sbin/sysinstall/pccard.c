@@ -285,6 +285,6 @@ pccardInitialize(void)
     variable_set2("pccardd_flags", card_irq, 1);
     variable_set2("pccard_enable", "YES", 1);
 
-    vsystem(pccardd_cmd);
+    vsystem("%s", pccardd_cmd);
     restorescr(w);
 }
