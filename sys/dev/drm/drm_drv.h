@@ -1098,7 +1098,7 @@ int DRM( close)(dev_t kdev, int flags, int fmt, DRM_OS_STRUCTPROC *p)
 	DRM(fasync)( -1, filp, 0 );
 #endif /* __linux__ */
 #ifdef __FreeBSD__
-	funsetown(dev->buf_sigio);
+	funsetown(&dev->buf_sigio);
 #endif /* __FreeBSD__ */
 
 	DRM_OS_LOCK;

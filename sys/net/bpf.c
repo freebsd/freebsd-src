@@ -368,7 +368,7 @@ bpfclose(dev, flags, fmt, td)
 		callout_stop(&d->bd_callout);
 	d->bd_state = BPF_IDLE;
 	BPFD_UNLOCK(d);
-	funsetown(d->bd_sigio);
+	funsetown(&d->bd_sigio);
 	mtx_lock(&bpf_mtx);
 	if (d->bd_bif)
 		bpf_detachd(d);

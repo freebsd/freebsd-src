@@ -246,7 +246,7 @@ ttyclose(tp)
 {
 	int s;
 
-	funsetown(tp->t_sigio);
+	funsetown(&tp->t_sigio);
 	s = spltty();
 	if (constty == tp)
 		constty = NULL;
