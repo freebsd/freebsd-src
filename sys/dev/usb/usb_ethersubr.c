@@ -73,13 +73,8 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
-static struct ifqueue usbq;
-struct usb_ifent {
-	struct ifnet		*ifp;
-	LIST_ENTRY(usb_ifent)	list;
-};
-static LIST_HEAD(, usb_ifent) usb_iflisthead;
-static int usb_inited = 0;
+static struct ifqueue usbq_rx;
+static struct ifqueue usbq_tx;
 
 static void usbintr		__P((void));
 
@@ -89,14 +84,13 @@ static void usbintr()
 	struct mbuf		*m;
 	struct usb_qdat		*q;
 	struct ifnet		*ifp;
-	struct usb_ifent	*e;
 	int			s;
 
 	s = splimp();
 
 	/* Check the RX queue */
 	while(1) {
-		IF_DEQUEUE(&usbq, m);
+		IF_DEQUEUE(&usbq_rx, m);
 		if (m == NULL)
 			break;
 		eh = mtod(m, struct ether_header *);
@@ -131,13 +125,14 @@ done:
 	}
 
 	/* Check the TX queue */
-	while (usb_iflisthead.lh_first != NULL) {
-		e = usb_iflisthead.lh_first;
-		ifp = e->ifp;
+	while(1) {
+		IF_DEQUEUE(&usbq_tx, m);
+		if (m == NULL)
+			break;
+		ifp = m->m_pkthdr.rcvif;
+		m_freem(m);
 		if (ifp->if_snd.ifq_head != NULL)
 			(*ifp->if_start)(ifp);
-		LIST_REMOVE(e, list);
-		free(e, M_USBDEV);
 	}
 
 	splx(s);
@@ -147,12 +142,7 @@ done:
 
 void usb_register_netisr()
 {
-	if (usb_inited == 0) {
-		register_netisr(NETISR_USB, usbintr);
-		LIST_INIT(&usb_iflisthead);
-		usb_inited++;
-	}
-
+	register_netisr(NETISR_USB, usbintr);
 	return;
 }
 
@@ -165,31 +155,19 @@ void usb_ether_input(m)
 {
 	int			s;
 	s = splimp();
-	IF_ENQUEUE(&usbq, m);
+	IF_ENQUEUE(&usbq_rx, m);
 	schednetisr(NETISR_USB);
 	splx(s);
 	return;
 }
 
-void usb_tx_done(ifp)
-	struct ifnet		*ifp;
+void usb_tx_done(m)
+	struct mbuf		*m;
 {
-	struct usb_ifent	*e;
-
-	/* See if this if is already scheduled. */
-	for (e = usb_iflisthead.lh_first; e != NULL; e = e->list.le_next) {
-		if (ifp == e->ifp)
-			return;
-	}
-		
-	e = malloc(sizeof(struct usb_ifent), M_USB, M_NOWAIT);
-	if (e == NULL)
-		return;
-
-	e->ifp = ifp;
-
-	LIST_INSERT_HEAD(&usb_iflisthead, e, list);
+	int			s;
+	s = splimp();
+	IF_ENQUEUE(&usbq_tx, m);
 	schednetisr(NETISR_USB);
-
+	splx(s);
 	return;
 }
