@@ -92,6 +92,7 @@ SC_NORM_REV_ATTR	opt_syscons.h
 SC_PIXEL_MODE		opt_syscons.h
 SC_RENDER_DEBUG		opt_syscons.h
 SC_TWOBUTTON_MOUSE	opt_syscons.h
+SC_NO_SUSPEND_VTYSWITCH	opt_syscons.h
 
 GDC			opt_gdc.h
 
