@@ -129,10 +129,9 @@ pc98_getmemsize(unsigned int *base, unsigned int *ext)
 	under16 = PC98_SYSTEM_PARAMETER(0x401) * 128 + 1024;
 #ifdef EPSON_MEMWIN
 	if (pc98_machine_type & M_EPSON_PC98) {
-		if (under16 > (15 * 1024)) {
+		if (under16 > (15 * 1024))
 			/* chop under16 memory to 15MB */
 			under16 = 15 * 1024;
-		}
 		init_epson_memwin();
 	}
 #endif
@@ -141,13 +140,12 @@ pc98_getmemsize(unsigned int *base, unsigned int *ext)
 	over16  = PC98_SYSTEM_PARAMETER(0x594);
 	over16 += PC98_SYSTEM_PARAMETER(0x595) * 256;
 
-	if (over16 > 0) {
+	if (over16 > 0)
 		*ext = (16 + over16) * 1024 - 1024;
-	} else {
+	else
 		*ext = under16 - 1024;
-	}
 
-	return under16;
+	return (under16);
 }
 
 /*
@@ -161,11 +159,8 @@ scsi_da_bios_params(struct ccb_calc_geometry *ccg)
 {
 	u_char *tmp;
 	int	target;
-	int	bus;
 
 	target = ccg->ccb_h.target_id;
-	bus    = 0;  /* If your really need to know, send a PathInq CCB */
-
 	tmp = (u_char *)&PC98_SYSTEM_PARAMETER(0x460 + target*4);
 	if ((PC98_SYSTEM_PARAMETER(0x482) & ((1 << target)&0xff)) != 0) {
 		ccg->secs_per_track = *tmp;
@@ -194,8 +189,8 @@ scsi_da_bios_params(struct ccb_calc_geometry *ccg)
 		} else {
 			ccg->heads = *(tmp+1);
 		}
-		return 1;
+		return (1);
 	}
 
-	return 0;
+	return (0);
 }
