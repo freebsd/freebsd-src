@@ -410,8 +410,6 @@ NON_GPROF_ENTRY(prepare_usermode)
 	ret					/* goto user! */
 
 
-#define LCALL(x,y)	.byte 0x9a ; .long y ; .word x
-
 /*
  * Signal trampoline, copied to top of user stack
  */
@@ -421,9 +419,13 @@ NON_GPROF_ENTRY(sigcode)
 						/* copy at 8(%esp)) */
 	pushl	%eax
 	pushl	%eax				/* junk to fake return address */
+	testl	$PSL_VM,SC_PS(%eax)
+	jne	1f
+	movl	SC_GS(%eax),%gs			/* restore %gs */
+1:
 	movl	$SYS_sigreturn,%eax		/* sigreturn() */
-	LCALL(0x7,0)				/* enter kernel with args on stack */
-	hlt					/* never gets here */
+	int	$0x80				/* enter kernel with args on stack */
+2:	jmp	2b
 	ALIGN_TEXT
 _esigcode:
 
