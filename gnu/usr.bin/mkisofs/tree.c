@@ -61,6 +61,9 @@ extern char * strdup(const char *);
 extern char * strdup(const char *);
 #endif
 
+/*  WALNUT CREEK CDROM HACK  -- rab 950126 */
+static const char trans_tbl[] = "00_TRANS.TBL";
+
 static unsigned char symlink_buff[256];
 
 extern int verbose;
@@ -181,7 +184,7 @@ void FDECL1(sort_n_finish, struct directory *, this_dir)
 	  s_entry = s_entry->next;
   };
 
-  if(generate_tables && !find_file_hash("TRANS.TBL") && (reloc_dir != this_dir)){
+  if(generate_tables && !find_file_hash(trans_tbl) && (reloc_dir != this_dir)){
 	  /* First we need to figure out how big this table is */
 	  for (s_entry = this_dir->contents; s_entry; s_entry = s_entry->next){
 		  if(strcmp(s_entry->name, ".") == 0  ||
@@ -208,13 +211,17 @@ void FDECL1(sort_n_finish, struct directory *, this_dir)
 	table->name = strdup("<translation table>");
 	table->table = (char *) e_malloc(ROUND_UP(tablesize));
 	memset(table->table, 0, ROUND_UP(tablesize));
-	iso9660_file_length  ("TRANS.TBL", table, 1);
+#if 1	  /* WALNUT CREEK -- 950126 */
+	iso9660_file_length  (trans_tbl, table, 0);
+#else	  
+	iso9660_file_length  (trans_tbl, table, 1);
+#endif	  
 		
 	if(use_RockRidge){
 		fstatbuf.st_mode = 0444 | S_IFREG;
 		fstatbuf.st_nlink = 1;
 		generate_rock_ridge_attributes("",
-					       "TRANS.TBL", table,
+					       trans_tbl, table,
 					       &fstatbuf, &fstatbuf, 0);
 	};
   };

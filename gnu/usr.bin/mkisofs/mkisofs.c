@@ -22,6 +22,8 @@
 
 #include "mkisofs.h"
 
+#include <assert.h>
+
 #ifdef linux
 #include <getopt.h>
 #endif
@@ -322,8 +324,45 @@ int FDECL3(iso9660_file_length,const char*, name, struct directory_entry *, sres
       extra += 2;
     }
   };
-		    
   if(result) *result++ = 0;
+
+#if 1  /* WALNUT CREEK HACKS -- rab 950126 */
+{
+  int i, c, len;
+  char *r;
+
+  assert(result);
+  assert(omit_version_number);
+  assert(omit_period);
+  assert(extra == 0);
+  r = sresult->isorec.name;
+  len = strlen(r);
+  if (r[len - 1] == '.') {
+      assert(seen_dot && chars_after_dot == 0);
+      r[--len] = '\0';
+      seen_dot = 0;
+  }
+  for (i = 0; i < len; ++i) {
+      c = r[i];
+      if (c == '.') {
+	  if (dirflag) {
+	      fprintf(stderr, "changing DIR %s to ", r);
+	      r[i] = '\0';
+	      fprintf(stderr, "%s\n", r);
+	      chars_after_dot = 0;
+	      seen_dot = 0;
+	      extra = 0;
+	      break;
+	  }
+      } else if (!isalnum(c) && c != '_') {
+	  fprintf(stderr, "changing %s to ", r);
+	  r[i] = '_';
+	  fprintf(stderr, "%s\n", r);
+      }
+  }
+}
+#endif
+
   sresult->priority = priority;
   return chars_before_dot + chars_after_dot + seen_dot + extra;
 }
