@@ -1,6 +1,6 @@
 <!-- $FreeBSD$ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.206 -->
+<!-- Original revision: 1.209 -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
      in sync with the list of FreeBSD Developers -->
@@ -31,7 +31,8 @@
 	<item>&a.phk;
 	<item>&a.rich;
 	<item>&a.gpalmer;
-	<item>&a.jmb;
+	<item>&a.jdp;
+	<item>&a.guido;
 	<item>&a.sos;
 	<item>&a.peter;
 	<item>&a.wollman;
@@ -106,7 +107,6 @@
         <item>&a.brian; 
         <item>&a.karl;
         <item>&a.pst;
-        <item>&a.guido;
         <item>&a.swallace;
         <item>&a.nate;
 	<item>&a.yokota;
@@ -126,7 +126,7 @@
         <tag/ハンドブックおよび FAQ 編集担当/ &a.pds
         <tag/ドキュメント構築環境の技術責任者/ &a.paul; <p><em>副責任者</em> &a.dave
         <tag/Mirror 担当/ &a.ulf; <p><em>副担当</em>&a.john
-        <tag/ニュースフラッシュ編集担当/ &a.john; <p><em>副担当</em>&a.nsj;
+        <tag/ニュースフラッシュ編集担当/ &a.nsj; <p><em>副担当</em>&a.john;
         <tag/FreeBSD ギャラリーおよび商用ベンダ情報ページ担当/ &a.ricardag; <p><em>副担当</em>&a.cawimm
         <tag/WEB ページデザイン等の美術担当/ &a.dave; <p><em>副担当</em>&a.opsys
         <tag/データベース技術担当/ &a.mayo; <p><em>副担当</em>&a.cracauer
@@ -143,7 +143,7 @@
         <tag/ネットワーク/ &a.wollman 
         <tag/ポストマスタ/ &a.jmb; 
         <tag/リリースコーディネータ/ &a.jkh 
-	<tag/セキュリティ担当/ &a.pst; and &a.guido
+	<tag/セキュリティ担当/ &a.guido
         <tag/CVS ツリー管理者/ &a.peter 
         <tag/ports コレクション担当/ &a.asami 
         <tag/XFree86 Project, Inc. との渉外担当/ &a.rich 
@@ -287,6 +287,7 @@
 	  <item>Janusz Kokot &lt;janek@gaja.ipan.lublin.pl&gt;
 	  <item>Jason Thorpe &lt;thorpej@nas.nasa.gov&gt;
 	  <item>Javier Martin Rueda &lt;jmrueda@diatel.upm.es&gt;
+	  <item>Jeffrey Wheat &lt;jeff@cetlink.net&gt;
 	  <item>Jian-Da Li &lt;jdli@csie.NCTU.edu.tw&gt;
 	  <item>Jim Lowe &lt;james@cs.uwm.edu&gt;
 	  <item>Jim Wilson &lt;wilson@moria.cygnus.com&gt;
@@ -347,6 +348,7 @@
 	  <item>Paul Fox &lt;pgf@foxharp.boston.ma.us&gt;
 	  <item>Paul Kranenburg &lt;pk@cs.few.eur.nl&gt;
 	  <item>Paul Mackerras &lt;paulus@cs.anu.edu.au&gt;
+	  <item>Paulo Menezes &lt;paulo@isr.uc.pt&gt;
 	  <item>Pedro Giffuni &lt;pgiffuni@fps.biblos.unal.edu.co&gt;
 	  <item>Peter Stubbs &lt;PETERS@staidan.qld.edu.au&gt;
 	  <item>Philippe Charnier &lt;charnier@lirmm.fr&gt;
