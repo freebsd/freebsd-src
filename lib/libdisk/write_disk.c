@@ -153,6 +153,7 @@ Write_Extended(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 	return 0;
 }
 
+#ifndef PC98
 static void
 Write_Int32(u_int32_t *p, u_int32_t v)
 {
@@ -162,6 +163,7 @@ Write_Int32(u_int32_t *p, u_int32_t v)
     bp[2] = (v >> 16) & 0xff;
     bp[3] = (v >> 24) & 0xff;
 }
+#endif
 
 int
 Write_Disk(struct disk *d1)
