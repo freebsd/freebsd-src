@@ -160,6 +160,9 @@ trusted users; and the MSA port (587) is turned on by default.  See
 awk has been upgraded from gawk-3.0.4 to gawk-3.0.6.  This fixes a number
 of non-critical bugs and includes a few performance tweaks.
 
+GDB now supports hardware watchpoints (using the kernel's debug register
+support that has been introduced in FreeBSD 4.0). [MERGED]
+
 
 2. Supported Configurations
 ---------------------------
