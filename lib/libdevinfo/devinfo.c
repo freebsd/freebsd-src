@@ -29,7 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * An interface to the FreeBSD kernel's bus/devce information interface.
+ * An interface to the FreeBSD kernel's bus/device information interface.
  *
  * This interface is implemented with the
  *
