@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 4, 2003
+.Dd September 4, 2004
 .Dt RE 4
 .Os
 .Sh NAME
@@ -43,23 +43,7 @@
 The
 .Nm
 driver provides support for various NICs based on the RealTek RTL8139C+,
-RTL8169, RTL8169S and RTL8110S PCI Ethernet controllers, including
-the following:
-.Pp
-.Bl -bullet -compact
-.It
-Alloy Computer Products EtherGOLD 1439E 10/100 (8139C+)
-.It
-Compaq Evo N1015v Integrated Ethernet (8139C+)
-.It
-Corega CG-LAPCIGT Gigabit Ethernet(8169S)
-.It
-Gigabyte 7N400 Pro2 Integrated Gigabit Ethernet (8110S)
-.It
-PLANEX COMMUNICATIONS Inc.\& GN-1200TC (8169S)
-.It
-Xterasys XN-152 10/100/1000 NIC (8169)
-.El
+RTL8169, RTL8169S and RTL8110S PCI Ethernet controllers.
 .Pp
 NICs based on the 8139C+ are capable of 10 and 100Mbps speeds over CAT5
 cable.
@@ -143,6 +127,26 @@ Force half duplex operation.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports RealTek RTL8139C+, RTL8169, RTL8169S and RTL8110S
+based Fast Ethernet and Gigabit Ethernet adapters including:
+.Pp
+.Bl -bullet -compact
+.It
+Alloy Computer Products EtherGOLD 1439E 10/100 (8139C+)
+.It
+Compaq Evo N1015v Integrated Ethernet (8139C+)
+.It
+Corega CG-LAPCIGT Gigabit Ethernet (8169S)
+.It
+Gigabyte 7N400 Pro2 Integrated Gigabit Ethernet (8110S)
+.It
+PLANEX COMMUNICATIONS Inc.\& GN-1200TC (8169S)
+.It
+Xterasys XN-152 10/100/1000 NIC (8169)
+.El
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "re%d: couldn't map memory"
