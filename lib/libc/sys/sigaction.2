@@ -29,7 +29,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)sigaction.2	8.2 (Berkeley) 4/3/94
+.\"	From: @(#)sigaction.2	8.2 (Berkeley) 4/3/94
+.\"	$Id$
 .\"
 .Dd April 3, 1994
 .Dt SIGACTION 2
@@ -163,9 +164,10 @@ of the signal are ignored and discarded.
 .Pp
 Options may be specified by setting
 .Em sa_flags .
-If the
-.Dv SA_NOCLDSTOP
-bit is set when installing a catching function
+The meaning of the various bits is as follows:
+.Bl -tag -offset indent -width SA_RESETHANDXX
+.It Dv SA_NOCLDSTOP
+If this bit is set when installing a catching function
 for the
 .Dv SIGCHLD
 signal,
@@ -173,23 +175,34 @@ the
 .Dv SIGCHLD
 signal will be generated only when a child process exits,
 not when a child process stops.
-Further, if the
-.Dv SA_ONSTACK
-bit is set in
-.Em sa_flags ,
-the system will deliver the signal to the process on a
+.It Dv SA_NOCLDWAIT
+If this bit is set when calling
+.Fn sigaction
+for the
+.Dv SIGCHLD
+signal, the system will not create zombie processes when children of
+the calling process exit.  If the calling process subsequently issues
+a
+.Xr wait 2
+(or equivalent), it blocks until all of the calling process's child
+processes terminate, and then returns a value of -1 with errno set to
+.Dv ECHILD .
+.It Dv SA_ONSTACK
+If this bit is set, the system will deliver the signal to the process
+on a
 .Em "signal stack" ,
 specified with
 .Xr sigaltstack 2 .
-If the
-.Dv SA_NODEFER
-bit is set, further occurrences of the delivered signal are not
-masked during the execution of the handler.
-If the
-.Dv SA_RESETHAND
-bit is set, the handler is reset back to
+.It Dv SA_NODEFER
+If this bit is set, further occurrences of the delivered signal are
+not masked during the execution of the handler.
+.It Dv SA_RESETHAND
+If this bit is set, the handler is reset back to
 .Dv SIG_DFL
 at the moment the signal is delivered.
+.\" Still missing:
+.\" .It Dv SA_SIGINFO
+.El
 .Pp
 If a signal is caught during the system calls listed below,
 the call may be forced to terminate
@@ -369,7 +382,14 @@ The
 .Dv SA_NODEFER
 and
 .Dv SA_RESETHAND
-are intended for backwards compatability with other operating systems.
+flags are intended for backwards compatability with other operating
+systems.  The
+.Dv SA_NOCLDSTOP ,
+and
+.Dv SA_NOCLDWAIT
+.\" and
+.\" SA_SIGINFO
+flags are featuring options commonly found in other operating systems.
 .Sh SEE ALSO
 .Xr kill 1 ,
 .Xr kill 2 ,
@@ -382,6 +402,7 @@ are intended for backwards compatability with other operating systems.
 .Xr sigsetmask 2 ,
 .Xr sigsuspend 2 ,
 .Xr sigvec 2 ,
+.Xr wait 2 ,
 .Xr setjmp 3 ,
 .Xr siginterrupt 3 ,
 .Xr sigsetops 3 ,
