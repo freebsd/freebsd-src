@@ -172,9 +172,9 @@ static struct	lock_list_entry *witness_lock_list_get(void);
 static void	witness_lock_list_free(struct lock_list_entry *lle);
 static struct	lock_instance *find_instance(struct lock_list_entry *lock_list,
 					     struct lock_object *lock);
-static int	witness_list(struct thread *td);
 static void	witness_list_lock(struct lock_instance *instance);
 #if defined(DDB)
+static void	witness_list(struct thread *td);
 static void	witness_display_list(void(*prnt)(const char *fmt, ...),
 				     struct witness_list *list);
 static void	witness_display(void(*)(const char *fmt, ...));
@@ -1435,46 +1435,6 @@ witness_list_locks(struct lock_list_entry **lock_list)
 	return (nheld);
 }
 
-/*
- * Calling this on td != curthread is bad unless we are in ddb.
- */
-static int
-witness_list(struct thread *td)
-{
-	int nheld;
-
-	KASSERT(!witness_cold, ("%s: witness_cold", __func__));
-#ifdef DDB
-	KASSERT(td == curthread || db_active,
-	    ("%s: td != curthread and we aren't in the debugger", __func__));
-	if (!db_active && witness_dead)
-		return (0);
-#else
-	KASSERT(td == curthread, ("%s: p != curthread", __func__));
-	if (witness_dead)
-		return (0);
-#endif
-	nheld = witness_list_locks(&td->td_sleeplocks);
-
-	/*
-	 * We only handle spinlocks if td == curthread.  This is somewhat broken
-	 * if td is currently executing on some other CPU and holds spin locks
-	 * as we won't display those locks.  If we had a MI way of getting
-	 * the per-cpu data for a given cpu then we could use
-	 * td->td_kse->ke_oncpu to get the list of spinlocks for this thread
-	 * and "fix" this.
-	 *
-	 * That still wouldn't really fix this unless we locked sched_lock
-	 * or stopped the other CPU to make sure it wasn't changing the list
-	 * out from under us.  It is probably best to just not try to handle
-	 * threads on other CPU's for now.
-	 */
-	if (td == curthread && PCPU_GET(spinlocks) != NULL)
-		nheld += witness_list_locks(PCPU_PTR(spinlocks));
-
-	return (nheld);
-}
-
 void
 witness_save(struct lock_object *lock, const char **filep, int *linep)
 {
@@ -1577,6 +1537,34 @@ witness_assert(struct lock_object *lock, int flags, const char *file, int line)
 }
 
 #ifdef DDB
+static void
+witness_list(struct thread *td)
+{
+
+	KASSERT(!witness_cold, ("%s: witness_cold", __func__));
+	KASSERT(db_active, ("%s: not in the debugger", __func__));
+
+	if (witness_dead)
+		return;
+
+	witness_list_locks(&td->td_sleeplocks);
+
+	/*
+	 * We only handle spinlocks if td == curthread.  This is somewhat broken
+	 * if td is currently executing on some other CPU and holds spin locks
+	 * as we won't display those locks.  If we had a MI way of getting
+	 * the per-cpu data for a given cpu then we could use
+	 * td->td_kse->ke_oncpu to get the list of spinlocks for this thread
+	 * and "fix" this.
+	 *
+	 * That still wouldn't really fix this unless we locked sched_lock
+	 * or stopped the other CPU to make sure it wasn't changing the list
+	 * out from under us.  It is probably best to just not try to handle
+	 * threads on other CPU's for now.
+	 */
+	if (td == curthread && PCPU_GET(spinlocks) != NULL)
+		witness_list_locks(PCPU_PTR(spinlocks));
+}
 
 DB_SHOW_COMMAND(locks, db_witness_list)
 {
