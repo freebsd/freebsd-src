@@ -99,7 +99,7 @@ void vslock __P((caddr_t, u_int));
 void vsunlock __P((caddr_t, u_int, int));
 void vm_object_print __P((/* db_expr_t */ long, boolean_t, /* db_expr_t */ long,
 			  char *));
-void vm_fault_quick __P((caddr_t v, int prot));
+int vm_fault_quick __P((caddr_t v, int prot));
 
 #endif				/* KERNEL */
 
