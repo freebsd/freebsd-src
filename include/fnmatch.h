@@ -42,8 +42,8 @@
 #define	FNM_PATHNAME	0x02	/* Slash must be matched by slash. */
 #define	FNM_PERIOD	0x04	/* Period must be matched by period. */
 #ifndef _POSIX_SOURCE
-#define FNM_LEADING_DIR 0x08    /* Ignore "/*" after match */
-#define FNM_CASEFOLD    0x10    /* Case insensitive search */
+#define	FNM_LEADING_DIR	0x08	/* Ignore "/*" after match. */
+#define	FNM_CASEFOLD	0x10	/* Case insensitive search. */
 #endif
 
 #include <sys/cdefs.h>
