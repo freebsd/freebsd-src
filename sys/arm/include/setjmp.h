@@ -5,6 +5,8 @@
  * machine/setjmp.h: machine dependent setjmp-related information.
  */
 
+#ifndef _MACHINE_SETJMP_H_
+#define _MACHINE_SETJMP_H_
 #ifdef __ELF__
 #define	_JBLEN	64		/* size, in longs, of a jmp_buf */
 #else
@@ -91,3 +93,4 @@ typedef struct _sigjmp_buf { int _sjb[_JBLEN + 1]; } sigjmp_buf[1];
 
 typedef struct _jmp_buf { int _jb[_JBLEN + 1]; } jmp_buf[1];
 
+#endif /* !_MACHINE_SETJMP_H_ */
