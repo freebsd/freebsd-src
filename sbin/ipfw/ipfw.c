@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.34.2.8 1998/01/03 05:21:50 jdp Exp $
+ * $Id: ipfw.c,v 1.34.2.9 1998/01/06 00:17:55 alex Exp $
  *
  */
 
@@ -430,8 +430,8 @@ show_usage(const char *fmt, ...)
 "    flush\n"
 "    add [number] rule\n"
 "    delete number ...\n"
-"    list [number]\n"
-"    show [number]\n"
+"    list\n"
+"    show\n"
 "    zero [number ...]\n"
 "  rule:  action proto src dst extras...\n"
 "    action:\n"
