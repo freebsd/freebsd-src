@@ -118,7 +118,7 @@ _thread_dump_info(void)
 				_thread_sys_write(fd, s, strlen(s));
 				break;
 			case PS_SIGWAIT:
-				sprintf(s, "sigmask 0x%08lx\n", pthread->sigmask);
+				sprintf(s, "sigmask 0x%08lx\n", (unsigned long)pthread->sigmask);
 				_thread_sys_write(fd, s, strlen(s));
 				break;
 
