@@ -1,4 +1,4 @@
-<!-- $Id: kernelconfig.sgml,v 1.4 1995/12/04 17:58:41 jfieber Exp $ -->
+<!-- $Id: kernelconfig.sgml,v 1.5 1995/12/19 17:02:49 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 <!-- <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'> -->
   <chapt><heading>Configuring the FreeBSD Kernel<label id="kernelconfig"></heading>
@@ -89,8 +89,8 @@
 	you're just starting out, the only editor available will
 	probably be <tt>vi</tt>, which is too complex to explain
 	here, but is covered well in many books in the <ref
-	id="bibliography" name="bibliography">.  Feel free to change the comment
-	lines at the top to reflect your configuration or the
+	id="bibliography" name="bibliography">.  Feel free to change the
+	comment	lines at the top to reflect your configuration or the
 	changes you've made to differentiate it from GENERIC.
 
 	If you've build a kernel under SunOS or some other BSD
@@ -137,9 +137,10 @@
 	GENERIC, although some related keywords have been grouped
 	together in a single section (such as Networking) even
 	though they are actually scattered throughout the GENERIC
-	file.  An exhaustive list of options is present in the
-	LINT configuration file, located in the same directory as
-	GENERIC.
+	file.  An exhaustive list of options and more detailed explanations
+	of the device lines is present in the LINT configuration file,
+	located in the same directory as GENERIC.  If you are in doubt as to
+	the purpose or necessity of a line, check first in LINT.
 
       <sect1><heading>Mandatory Keywords</heading>
 
@@ -494,11 +495,9 @@
 
 	    <tag>device npx0 at isa? port ``IO_NPX'' irq 13 vector npxintr</tag>
 
-	    <p><tt>npx0</tt> is the interface to the math coprocessor.
-	      If you have a math coprocessor, either an external
-	      80387 or 80487, or a cpu one built in such as an 80486DX or 
-	      Pentium, then you do <em>not</em> need the <ref
-	      id="kernelconfig:mathemu" name="MATH_EMULATE"> option above.
+	    <p><tt>npx0</tt> is the interface to the floating point math
+	      unit in FreeBSD, either the hardware co-processor or the
+	      software math emulator.  It is <em/NOT/ optional.
 
 	    <tag>device wt0 at isa? port 0x300 bio irq 5 drq 1 vector wtintr</tag>
 
