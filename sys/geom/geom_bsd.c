@@ -849,7 +849,7 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		break;
 	} while (0);
 
-	/* Success of failure, we can close our provider now. */
+	/* Success or failure, we can close our provider now. */
 	g_topology_lock();
 	error = g_access_rel(cp, -1, 0, 0);
 
