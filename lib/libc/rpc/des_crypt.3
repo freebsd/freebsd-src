@@ -54,7 +54,8 @@ mode, which chains together
 successive blocks.
 .SM CBC
 mode protects against insertions, deletions and
-substitutions of blocks. Also, regularities in the clear text will
+substitutions of blocks.
+Also, regularities in the clear text will
 not appear in the cipher text.
 .LP
 Here is how to use these routines.  The first parameter,
@@ -66,7 +67,8 @@ is in the low bit of each byte, use
 .IR des_setparity .
 The second parameter,
 .IR data ,
-contains the data to be encrypted or decrypted. The
+contains the data to be encrypted or decrypted.
+The
 third parameter,
 .IR datalen ,
 is the length in bytes of

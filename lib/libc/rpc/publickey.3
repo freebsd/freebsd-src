@@ -31,7 +31,8 @@ which is used to decrypt the encrypted secret key stored in the database.
 Both routines return 1 if they are successful in finding the key, 0 otherwise.
 The keys are returned as
 .SM NULL\s0-terminated,
-hexadecimal strings. If the password supplied to
+hexadecimal strings.
+If the password supplied to
 .B getsecretkey(\|)
 fails to decrypt the secret key, the routine will return 1 but the
 .I secretkey

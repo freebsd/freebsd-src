@@ -45,12 +45,14 @@ The
 .Fn pthread_exit
 function terminates the calling thread and makes the value
 .Fa value_ptr
-available to any successful join with the terminating thread. Any
+available to any successful join with the terminating thread.
+Any
 cancellation cleanup handlers that have been pushed and are not yet popped
 are popped in the reverse order that they were pushed and then executed.
 After all cancellation handlers have been executed, if the thread has any
 thread-specific data, appropriate destructor functions are called in an
-unspecified order. Thread termination does not release any application
+unspecified order.
+Thread termination does not release any application
 visible process resources, including, but not limited to, mutexes and
 file descriptors, nor does it perform any process level cleanup
 actions, including, but not limited to, calling
@@ -71,14 +73,16 @@ that was invoked as the result of an implicit or explicit call to
 .Fn pthread_exit .
 .Pp
 After a thread has terminated, the result of access to local (auto) 
-variables of the thread is undefined. Thus, references to local variables
+variables of the thread is undefined.
+Thus, references to local variables
 of the exiting thread should not be used for the
 .Fn pthread_exit
 .Fa value_ptr
 parameter value.
 .Pp
 The process will exit with an exit status of 0 after the last thread has
-been terminated. The behavior is as if the implementation called
+been terminated.
+The behavior is as if the implementation called
 .Fn exit
 with a zero argument at thread termination time.
 .Pp

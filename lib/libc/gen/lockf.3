@@ -96,7 +96,8 @@ detects if a lock by another process is present on the specified section.
 The
 .Fa size
 argument is the number of contiguous bytes to be locked or
-unlocked. The section to be locked or unlocked starts at the current
+unlocked.
+The section to be locked or unlocked starts at the current
 offset in the file and extends forward for a positive size or backward
 for a negative size (the preceding bytes up to but not including the
 current offset). However, it is not permitted to lock a section that
@@ -112,9 +113,11 @@ The sections locked with
 or
 .Dv F_TLOCK
 may, in whole or in part, contain or be contained by a previously
-locked section for the same process. When this occurs, or if adjacent
+locked section for the same process.
+When this occurs, or if adjacent
 locked sections would occur, the sections are combined into a single
-locked section. If the request would cause the number of locks to
+locked section.
+If the request would cause the number of locks to
 exceed a system-imposed limit, the request will fail.
 .Pp
 .Dv F_LOCK
@@ -133,15 +136,18 @@ file descriptor for the file.
 .Pp
 .Dv F_ULOCK
 requests release (wholly or in part) one or more locked sections
-controlled by the process. Locked sections will be unlocked starting
+controlled by the process.
+Locked sections will be unlocked starting
 at the current file offset through
 .Fa size
 bytes or to the end of file if size is 0. When all of a locked section
 is not released (that is, when the beginning or end of the area to be
 unlocked falls within a locked section), the remaining portions of
-that section are still locked by the process. Releasing the center
+that section are still locked by the process.
+Releasing the center
 portion of a locked section will cause the remaining locked beginning
-and end portions to become two separate locked sections. If the
+and end portions to become two separate locked sections.
+If the
 request would cause the number of locks in the system to exceed a
 system-imposed limit, the request will fail.
 .Pp

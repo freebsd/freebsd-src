@@ -83,7 +83,8 @@ will be received.
 .El
 .Pp
 .Fa msgsz
-specifies the maximum length of the requested message. If the received
+specifies the maximum length of the requested message.
+If the received
 message has a length greater than
 .Fa msgsz
 it will be silently truncated if the
@@ -100,7 +101,8 @@ depends on whether the
 .Dv IPC_NOWAIT
 flag is set in
 .Fa msgflg
-or not. If
+or not.
+If
 .Dv IPC_NOWAIT
 is set,
 .Fn msgrcv

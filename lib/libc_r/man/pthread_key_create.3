@@ -44,9 +44,11 @@
 The
 .Fn pthread_key_create
 function creates a thread-specific data key visible to all threads in the
-process. Key values provided by
+process.
+Key values provided by
 .Fn pthread_key_create
-are opaque objects used to locate thread-specific data. Although the same
+are opaque objects used to locate thread-specific data.
+Although the same
 key value may be used by different threads, the values bound to the key
 by
 .Fn pthread_setspecific
@@ -54,19 +56,23 @@ are maintained on a per-thread basis and persist for the life of the calling
 thread.
 .Pp
 Upon key creation, the value NULL is associated with the new key in all
-active threads. Upon thread creation, the value NULL is associated with all
+active threads.
+Upon thread creation, the value NULL is associated with all
 defined keys in the new thread.
 .Pp
-An optional destructor function may be associated with each key value. At
+An optional destructor function may be associated with each key value.
+At
 thread exit, if a key value has a non-NULL destructor pointer, and the
 thread has a non-NULL value associated with the key, the function pointed
-to is called with the current associated value as its sole argument. The
+to is called with the current associated value as its sole argument.
+The
 order of destructor calls is unspecified if more than one destructor exists
 for a thread when it exits.
 .Pp
 If, after all the destructors have been called for all non-NULL values
 with associated destructors, there are still some non-NULL values with
-associated destructors, then the process is repeated. If, after at least
+associated destructors, then the process is repeated.
+If, after at least
 [PTHREAD_DESTRUCTOR_ITERATIONS] iterations of destructor calls for
 outstanding non-NULL values, there are still some non-NULL values with
 associated destructors, the implementation stops calling destructors.
@@ -75,7 +81,8 @@ If successful, the
 .Fn pthread_key_create
 function will store the newly created key value at the location specified by
 .Fa key
-and returns zero. Otherwise an error number will be returned to indicate
+and returns zero.
+Otherwise an error number will be returned to indicate
 the error.
 .Sh ERRORS
 .Fn pthread_key_create

@@ -25,7 +25,8 @@ struct pointed to by
 .IR timep .
 Normally, the
 .SM UDP
-protocol is used when consulting the Time Server. The
+protocol is used when consulting the Time Server.
+The
 .I timeout
 parameter specifies how long the
 routine should wait before giving
@@ -37,7 +38,8 @@ however, the routine will instead use
 .SM TCP
 and block until a reply is received from the time server.
 .LP
-The routine returns 0 if it is successful. Otherwise,
+The routine returns 0 if it is successful.
+Otherwise,
 it returns \-1 and
 .B errno
 is set to reflect the cause of the error.

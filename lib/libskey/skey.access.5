@@ -33,12 +33,15 @@ where
 .I permit
 and
 .I deny
-may be followed by zero or more conditions. Comments begin with a `#\'
+may be followed by zero or more conditions.
+Comments begin with a `#\'
 character, and extend through the end of the line.  Empty lines or
 lines with only comments are ignored.
 .PP
-A rule is matched when all conditions are satisfied. A rule without
-conditions is always satisfied. For example, the last entry could
+A rule is matched when all conditions are satisfied.
+A rule without
+conditions is always satisfied.
+For example, the last entry could
 be a line with just the word
 .I deny
 on it.
@@ -102,7 +105,8 @@ use network software that discards source routing information (e.g.
 a tcp wrapper).
 .PP
 Almost every network server must look up the client host name using the
-client network address. The next obvious attack therefore is:
+client network address.
+The next obvious attack therefore is:
 .IP "Host name spoofing (bad PTR record)"
 An intruder manipulates the name server system so that the client
 network address resolves to the name of a trusted host.  Given the
@@ -115,7 +119,8 @@ network software that verifies that the hostname resolves to the client
 network address (e.g. a tcp wrapper).
 .PP
 Some applications, such as the UNIX login program, must look up the
-client network address using the client host name. In addition to the
+client network address using the client host name.
+In addition to the
 previous two attacks, this opens up yet another possibility:
 .IP "Host address spoofing (extra A record)"
 An intruder manipulates the name server system so that the client host
@@ -125,7 +130,8 @@ Remedies: (1)  do not permit UNIX passwords with network logins; (2)
 the skeyaccess() routines ignore network addresses that appear to
 belong to someone else.
 .SH DIAGNOSTICS
-Syntax errors are reported to the syslogd. When an error is found
+Syntax errors are reported to the syslogd.
+When an error is found
 the rule is skipped.
 .SH FILES
 /etc/skey.access, password control table

@@ -142,7 +142,8 @@ for read and write, then calls
 .Fn _thread_sys_write .
 If the call to
 .Fn _thread_sys_write
-would block, a context switch is performed. Before returning,
+would block, a context switch is performed.
+Before returning,
 .Fn write
 unlocks
 .Va d .
@@ -165,7 +166,8 @@ for read and write, then calls
 .Fn _thread_sys_writev .
 If the call to
 .Fn _thread_sys_writev
-would block, a context switch is performed. Before returning,
+would block, a context switch is performed.
+Before returning,
 .Fn writev
 unlocks
 .Va d .
