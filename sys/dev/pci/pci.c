@@ -354,7 +354,7 @@ pci_read_device(device_t pcib, int b, int s, int f, size_t size)
 		cfg->subclass		= REG(PCIR_SUBCLASS, 1);
 		cfg->progif		= REG(PCIR_PROGIF, 1);
 		cfg->revid		= REG(PCIR_REVID, 1);
-		cfg->hdrtype		= REG(PCIR_HEADERTYPE, 1);
+		cfg->hdrtype		= REG(PCIR_HDRTYPE, 1);
 		cfg->cachelnsz		= REG(PCIR_CACHELNSZ, 1);
 		cfg->lattimer		= REG(PCIR_LATTIMER, 1);
 		cfg->intpin		= REG(PCIR_INTPIN, 1);
@@ -834,8 +834,8 @@ pci_add_children(device_t dev, int busno, size_t dinfo_size)
 	for (s = 0; s <= maxslots; s++) {
 		pcifunchigh = 0;
 		f = 0;
-		hdrtype = REG(PCIR_HEADERTYPE, 1);
-		if ((hdrtype & ~PCIM_MFDEV) > PCI_MAXHDRTYPE)
+		hdrtype = REG(PCIR_HDRTYPE, 1);
+		if ((hdrtype & PCIM_HDRTYPE) > PCI_MAXHDRTYPE)
 			continue;
 		if (hdrtype & PCIM_MFDEV)
 			pcifunchigh = PCI_FUNCMAX;
