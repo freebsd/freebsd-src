@@ -347,7 +347,7 @@ typedef struct {
     int numpages;		/* Number of display pages */
     int vrescode;		/* 0 = 200, 1 = 350, 2 = 400, 3 = 480 */
     u_int32_t vmemaddr;		/* Video memory address */
-    char *fontname;		/* Font name */
+    const char *fontname;	/* Font name */
 } vmode_t;
 
 /* Types. 'NOMODE' is one of the 'forbidden' internal modes. */

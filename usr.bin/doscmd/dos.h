@@ -374,7 +374,7 @@ to_dos_attr(int mode)
 
 /* prototypes */
 
-extern char		*dos_return[];	/* names of DOS return codes */
+extern const char	*dos_return[];	/* names of DOS return codes */
 extern const int	dos_ret_size;	/* length of above */
 extern char		*InDOS;
 extern int		diskdrive;	/* current drive */

@@ -31,7 +31,7 @@ int redirect0;
 int redirect1; 
 int redirect2;
 extern int kbd_fd;
-extern char *xfont;
+extern const char *xfont;
 
 int	KbdEmpty(void);
 u_short	KbdPeek(void);

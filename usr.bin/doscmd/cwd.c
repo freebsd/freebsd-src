@@ -835,7 +835,7 @@ to_dos_fcb(u_char *p, u_char *expr)
 ** We allocate a single search structure, and recycle it if find_first()
 ** is called before a search ends.
 */
-static search_t dir_search = {dp : NULL};
+static search_t dir_search;
 
 /*
  * Find the first file on drive which matches the path with the given
