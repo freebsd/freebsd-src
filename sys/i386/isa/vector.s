@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: vector.s,v 1.4 1993/10/16 13:46:28 rgrimes Exp $
+ *	$Id: vector.s,v 1.5 1993/12/20 15:08:33 wollman Exp $
  */
 
 #include "i386/isa/icu.h"
@@ -263,7 +263,7 @@ IDTVEC(intrdefault)
  * work with vmstat.
  */
 	.data
-Vresume:	.space	16 * 4	/* where to resume intr handler after unpend */
+Vresume:        .space  32 * 4  /* where to resume intr handler after unpend */
 	.globl	_intrcnt
 _intrcnt:			/* used by vmstat to calc size of table */
 	.globl	_intrcnt_bad7
