@@ -276,23 +276,15 @@ struct xsocket {
 					sofree(so);	\
 			} while(0)
 
-#define	sorwakeup_locked(so)	do {					\
-					if (sb_notify(&(so)->so_rcv))	\
-						sowakeup((so), &(so)->so_rcv); \
-				} while (0)
+#define	sorwakeup(so)	do {					\
+				if (sb_notify(&(so)->so_rcv))	\
+					sowakeup((so), &(so)->so_rcv); \
+			} while (0)
 
-#define	sorwakeup(so)		do {					\
-					sorwakeup_locked(so);		\
-				} while (0)
-
-#define	sowwakeup_locked(so)	do {					\
-					if (sb_notify(&(so)->so_snd))	\
-						sowakeup((so), &(so)->so_snd); \
-				} while (0)
-
-#define	sowwakeup(so)		do {					\
-					sowwakeup_locked(so);		\
-				} while (0)
+#define	sowwakeup(so)	do {					\
+				if (sb_notify(&(so)->so_snd))	\
+					sowakeup((so), &(so)->so_snd); \
+			} while (0)
 
 #ifdef _KERNEL
 
@@ -402,14 +394,12 @@ int	soconnect2(struct socket *so1, struct socket *so2);
 int	socreate(int dom, struct socket **aso, int type, int proto,
 	    struct ucred *cred, struct thread *td);
 int	sodisconnect(struct socket *so);
-void	soisconnected_locked(struct socket *so);
 void	sofree(struct socket *so);
 int	sogetopt(struct socket *so, struct sockopt *sopt);
 void	sohasoutofband(struct socket *so);
 void	soisconnected(struct socket *so);
 void	soisconnecting(struct socket *so);
 void	soisdisconnected(struct socket *so);
-void	soisdisconnected_locked(struct socket *so);
 void	soisdisconnecting(struct socket *so);
 int	solisten(struct socket *so, int backlog, struct thread *td);
 struct socket *

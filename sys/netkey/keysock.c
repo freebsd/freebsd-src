@@ -427,7 +427,7 @@ key_attach(struct socket *so, int proto, struct thread *td)
 	key_cb.any_count++;
 	kp->kp_raw.rcb_laddr = &key_src;
 	kp->kp_raw.rcb_faddr = &key_dst;
-	soisconnected_locked(so);
+	soisconnected(so);
 	so->so_options |= SO_USELOOPBACK;
 
 	splx(s);
