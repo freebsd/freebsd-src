@@ -200,7 +200,6 @@ in_control(so, cmd, data, ifp, p)
 	struct in_aliasreq *ifra = (struct in_aliasreq *)data;
 	struct sockaddr_in oldaddr;
 	int error, hostIsNew, maskIsNew, s;
-	u_long i;
 
 	switch (cmd) {
 	case SIOCALIFADDR:
@@ -286,6 +285,7 @@ in_control(so, cmd, data, ifp, p)
 			ifa->ifa_dstaddr = (struct sockaddr *)&ia->ia_dstaddr;
 			ifa->ifa_netmask = (struct sockaddr *)&ia->ia_sockmask;
 			ia->ia_sockmask.sin_len = 8;
+			ia->ia_sockmask.sin_family = AF_INET;
 			if (ifp->if_flags & IFF_BROADCAST) {
 				ia->ia_broadaddr.sin_len = sizeof(ia->ia_addr);
 				ia->ia_broadaddr.sin_family = AF_INET;
@@ -362,8 +362,8 @@ in_control(so, cmd, data, ifp, p)
 		    (struct sockaddr_in *) &ifr->ifr_addr, 1));
 
 	case SIOCSIFNETMASK:
-		i = ifra->ifra_addr.sin_addr.s_addr;
-		ia->ia_subnetmask = ntohl(ia->ia_sockmask.sin_addr.s_addr = i);
+		ia->ia_sockmask.sin_addr = ifra->ifra_addr.sin_addr;
+		ia->ia_subnetmask = ntohl(ia->ia_sockmask.sin_addr.s_addr);
 		break;
 
 	case SIOCAIFADDR:
@@ -381,6 +381,7 @@ in_control(so, cmd, data, ifp, p)
 		if (ifra->ifra_mask.sin_len) {
 			in_ifscrub(ifp, ia);
 			ia->ia_sockmask = ifra->ifra_mask;
+			ia->ia_sockmask.sin_family = AF_INET;
 			ia->ia_subnetmask =
 			     ntohl(ia->ia_sockmask.sin_addr.s_addr);
 			maskIsNew = 1;
