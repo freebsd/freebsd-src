@@ -419,6 +419,8 @@ device		vt0	at isa? port "IO_KBD" tty irq 1 vector pcrint
 options		"PCVT_FREEBSD=210"	# pcvt running on FreeBSD 2.0.5
 options		XSERVER			# include code for XFree86
 options		FAT_CURSOR		# start with block cursor
+# This PCVT option is for keyboards such as those used on IBM ThinkPad laptops
+options		"PCVT_SCANSET=2" 	# IBM keyboards are non-std
 
 # The syscons console driver (sco color console compatible) - default.
 device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
