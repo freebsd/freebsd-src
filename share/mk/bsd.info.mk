@@ -1,9 +1,8 @@
-# $Id: bsd.info.mk,v 1.19.2.1 1997/04/11 16:58:44 asami Exp $
+#	$Id$
 #
 # The include file <bsd.info.mk> handles installing GNU (tech)info files.
 # Texinfo is a documentation system that uses a single source
 # file to produce both on-line information and printed output.
-# <bsd.info.mk> includes the files <bsd.dep.mk> and <bsd.obj.mk>.
 #
 #
 # +++ variables +++
@@ -14,10 +13,21 @@
 #
 # DISTRIBUTION	Name of distribution. [info]
 #
+# DVIPS		A program which convert a TeX DVI file to PostScript [dvips]
+#
+# DVIPS2ASCII	A program to convert a PostScript file which was prior
+#		converted from a TeX DVI file to ascii/latin1 [dvips2ascii]
+#
+# FORMATS 	Indicates which output formats will be generated
+#               (info, dvi, latin1, ps, html).  [info]
+#
 # ICOMPRESS_CMD	Program to compress info files. Output is to
 #		stdout. [${COMPRESS_CMD}]
 #
-# INFO		???
+# INFO		texinfo files, without suffix.  [set in Makefile] 
+#
+# INFO2HTML	A program for converting GNU info files into HTML files
+#		[info2html]
 #
 # INFODIR	Base path for GNU's hypertext system
 #		called Info (see info(1)). [${SHAREDIR}/info]
@@ -48,11 +58,10 @@
 # NOINFOCOMPRESS	If you do not want info files be
 #			compressed when they are installed. [not set]
 #
+# TEX		A program for converting tex files into dvi files [tex]
+#
 #
 # +++ targets +++
-#
-#	clean:
-#		remove *.info* Errs errs mklog ${CLEANFILES}
 #
 #	depend:
 #		Dummy target, do nothing.
@@ -83,28 +92,56 @@ INSTALLINFO?=   install-info
 INFOSECTION?=   Miscellaneous
 ICOMPRESS_CMD?=	${COMPRESS_CMD}
 ICOMPRESS_EXT?=	${COMPRESS_EXT}
+FORMATS?=	info
+INFO2HTML?=	info2html
+TEX?=		tex
+DVIPS?=		dvips
+DVIPS2ASCII?=	dvips2ascii
 
 .MAIN: all
 
-.SUFFIXES: ${ICOMPRESS_EXT} .info .texi .texinfo
+.SUFFIXES: ${ICOMPRESS_EXT} .info .texi .texinfo .dvi .ps .latin1 .html
 
-.texi.info:
+.texi.info .texinfo.info:
 	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} -I ${SRCDIR} ${.IMPSRC} \
-		-o ${.TARGET}.new
+		-o ${.TARGET}
+
+.texi.dvi .texinfo.dvi:
+	env TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
+		${TEX} ${.IMPSRC} </dev/null
+# Run again to reolve cross references.
+	env TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
+		${TEX} ${.IMPSRC} </dev/null
+
+.texinfo.latin1 .texi.latin1:
+	perl -npe 's/(^\s*\\input\s+texinfo\s+)/$$1\n@tex\n\\global\\hsize=120mm\n@end tex\n\n/' ${.IMPSRC} >> ${.IMPSRC:T:R}-la.texi
+	env TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
+		${TEX} ${.IMPSRC:T:R}-la.texi </dev/null
+# Run again to reolve cross references.
+	env TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
+		${TEX} ${.IMPSRC:T:R}-la.texi </dev/null
+	${DVIPS} -o /dev/stdout ${.IMPSRC:T:R}-la.dvi | \
+		${DVIPS2ASCII} > ${.TARGET}.new
 	mv -f ${.TARGET}.new ${.TARGET}
 
-.texinfo.info:
-	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} -I ${SRCDIR} ${.IMPSRC} \
-		-o ${.TARGET}.new
-	mv -f ${.TARGET}.new ${.TARGET}
+.dvi.ps:
+	${DVIPS} -o ${.TARGET} ${.IMPSRC} 	
+
+.info.html:
+	${INFO2HTML} ${.IMPSRC}
+	ln -f ${.TARGET:R}.info.Top.html ${.TARGET} 
 
 .PATH: ${.CURDIR} ${SRCDIR}
 
-IFILENS= ${INFO:S/$/.info/g}
+.for _f in ${FORMATS}
+IFILENS+=	${INFO:S/$/.${_f}/}
+.endfor
 
 .if !defined(NOINFO)
+CLEANFILES+=	${IFILENS}
 .if !defined(NOINFOCOMPRESS)
-IFILES=	${INFO:S/$/.info${ICOMPRESS_EXT}/g}
+CLEANFILES+=	${IFILENS:S/$/${ICOMPRESS_EXT}/}
+IFILES=	${IFILENS:S/$/${ICOMPRESS_EXT}/:S/.html${ICOMPRESS_EXT}/.html/}
 all: ${IFILES} _SUBDIR
 .else
 IFILES=	${IFILENS}
@@ -114,14 +151,10 @@ all: ${IFILES} _SUBDIR
 all:
 .endif
 
-.for x in ${INFO:S/$/.info/g}
+.for x in ${IFILENS}
 ${x:S/$/${ICOMPRESS_EXT}/}:	${x}
 	${ICOMPRESS_CMD} ${.ALLSRC} > ${.TARGET}
 .endfor
-
-# What to do if there's no dir file there.  This is really gross!!!
-${DESTDIR}${INFODIR}/${INFODIRFILE}:
-	cd /usr/src/share/info; ${MAKE} install
 
 .for x in ${INFO}
 INSTALLINFODIRS+= ${x:S/$/-install/}
@@ -133,11 +166,7 @@ ${x:S/$/-install/}: ${DESTDIR}${INFODIR}/${INFODIRFILE}
 
 .PHONY: ${INSTALLINFODIRS}
 
-# The default is "info" and it can never be "bin"
-DISTRIBUTION?=	info
-.if ${DISTRIBUTION} == "bin"
-DISTRIBUTION=	info
-.endif
+DISTRIBUTION?=	bin
 
 .if !target(distribute)
 distribute: _SUBDIR
@@ -147,22 +176,35 @@ distribute: _SUBDIR
 .endif
 
 .if defined(SRCS)
-${INFO}.info: ${SRCS}
-	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} -I ${SRCDIR} \
-		${SRCS:S/^/${SRCDIR}\//g} -o ${INFO}.info.new
-	mv -f ${INFO}.info.new ${INFO}.info
+CLEANFILES+=	${INFO}.texi
+${INFO}.texi: ${SRCS}
+	cat ${.ALLSRC} > ${.TARGET}
 .endif
 
 depend: _SUBDIR
-	@echo -n
 
-clean: _SUBDIR
-	rm -f ${INFO:S/$/.info*/g} Errs errs mklog ${CLEANFILES}
+# tex garbage
+.if ${FORMATS:Mps} || ${FORMATS:Mdvi} || ${FORMATS:Mlatin1}
+.for _f in aux cp fn ky log out pg toc tp vr dvi
+CLEANFILES+=	${INFO:S/$/.${_f}/} ${INFO:S/$/-la.${_f}/}
+.endfor
+CLEANFILES+=	${INFO:S/$/-la.texi/}
+.endif
+
+.if ${FORMATS:Mhtml}
+CLEANFILES+=	${INFO:S/$/.info.*.html/} ${INFO:S/$/.info/}
+.endif
 
 .if !defined(NOINFO) && defined(INFO)
 install: ${INSTALLINFODIRS} _SUBDIR
+.if ${IFILES:N*.html}
 	${INSTALL} ${COPY} -o ${INFOOWN} -g ${INFOGRP} -m ${INFOMODE} \
-		${IFILES} ${DESTDIR}${INFODIR}
+		${IFILES:N*.html} ${DESTDIR}${INFODIR}
+.endif
+.if ${FORMATS:Mhtml}
+	${INSTALL} ${COPY} -o ${INFOOWN} -g ${INFOGRP} -m ${INFOMODE} \
+		${INFO:S/$/.info.*.html/} ${DESTDIR}${INFODIR}
+.endif
 .else
 install:
 .endif

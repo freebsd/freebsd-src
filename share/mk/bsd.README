@@ -1,16 +1,34 @@
 #	@(#)bsd.README	8.2 (Berkeley) 4/2/94
+#	$Id$
 
 XXX This document is seriously out of date, it is currenly being revised.
 
-				Rod Grimes <rgrimes@freebsd.org>
-
 This is the README file for the new make "include" files for the BSD
-source tree.  The files are installed in /usr/share/mk, and are, by
-convention, named with the suffix ".mk".  Each ".mk" file has a
-corresponding ".rd" file which is an explanation of the ".mk" file.
+source tree. The files are installed in /usr/share/mk, and are, by
+convention, named with the suffix ".mk".
+
+bsd.dep.mk		- handle Makefile dependencies
+bsd.doc.mk		- building troff system documents
+bsd.info.mk		- building GNU Info hypertext system
+bsd.kern.mk		- define warning flags for compiling the kernel
+bsd.kmod.mk		- building loadable kernel modules
+bsd.lib.mk		- support for building libraries
+bsd.libnames.mk		- define library names
+bsd.man.mk		- installing manual pages and their links
+bsd.obj.mk		- creating 'obj' directories and cleaning up
+bsd.own.mk		- define common variables
+bsd.port.mk		- building ports
+bsd.port.subdir.mk	- targets for building subdirectories for ports
+bsd.prog.mk		- building programs from source files
+bsd.sgml.mk		- building SGML documents
+bsd.subdir.mk		- targets for building subdirectories
+
 
 Note, this file is not intended to replace reading through the .mk
 files for anything tricky.
+
+See also make(1), mkdep(1) and `PMake - A Tutorial', 
+located in /usr/share/doc/psd/12.make.
 
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 

@@ -1,4 +1,4 @@
-#	$Id: bsd.own.mk,v 1.7 1996/06/24 04:24:08 jkh Exp $
+#	$Id: bsd.own.mk,v 1.7.2.1 1997/04/11 16:58:45 asami Exp $
 #
 # The include file <bsd.own.mk> set common variables for owner,
 # group, mode, and directories. Defaults are in brackets.
@@ -40,6 +40,10 @@
 #
 #
 # LIBDIR	Base path for libraries. [/usr/lib]
+#
+# LIBCOMPATDIR	Base path for compat libraries. [/usr/lib/compat]
+#
+# LIBDATADIR	Base path for misc. utility data files. [/usr/libdata]
 #
 # LINTLIBDIR	Base path for lint libraries. [/usr/libdata/lint]
 #
@@ -110,7 +114,7 @@
 #
 # NLSMODE	National Language Support files mode. [${NONBINMODE}]
 #
-
+# INCLUDEDIR	Base path for standard C include files [/usr/include]
 
 # Binaries
 BINOWN?=	bin
@@ -119,6 +123,8 @@ BINMODE?=	555
 NOBINMODE?=	444
 
 LIBDIR?=	/usr/lib
+LIBCOMPATDIR?=	/usr/lib/compat
+LIBDATADIR?=	/usr/libdata
 LINTLIBDIR?=	/usr/libdata/lint
 SHLIBDIR?=	${LIBDIR}
 LIBOWN?=	${BINOWN}
@@ -156,6 +162,8 @@ NLSDIR?=	${SHAREDIR}/nls
 NLSGRP?=	${SHAREOWN}
 NLSOWN?=	${SHAREGRP}
 NLSMODE?=	${NONBINMODE}
+
+INCLUDEDIR?=	/usr/include
 
 # Common variables
 .if !defined(DEBUG_FLAGS)
