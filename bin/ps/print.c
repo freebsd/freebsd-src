@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: print.c,v 1.9 1995/09/04 01:22:41 peter Exp $
+ *	$Id: print.c,v 1.10 1995/09/26 17:48:59 peter Exp $
  */
 
 #ifndef lint
@@ -49,6 +49,7 @@ static char sccsid[] = "@(#)print.c	8.6 (Berkeley) 4/16/94";
 
 #ifdef NEWVM
 #include <sys/ucred.h>
+#include <sys/user.h>
 #include <sys/sysctl.h>
 #include <vm/vm.h>
 #else

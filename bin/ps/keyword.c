@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: keyword.c,v 1.6 1995/09/04 01:22:40 peter Exp $
+ *	$Id: keyword.c,v 1.7 1995/09/26 17:48:58 peter Exp $
  */
 
 #ifndef lint
@@ -57,6 +57,7 @@ static char sccsid[] = "@(#)keyword.c	8.5 (Berkeley) 4/2/94";
 
 #ifdef NEWVM
 #include <sys/ucred.h>
+#include <sys/user.h>
 #include <sys/sysctl.h>
 #endif
 
