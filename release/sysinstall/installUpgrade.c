@@ -167,7 +167,7 @@ installUpgrade(dialogMenuItem *self)
 		   "to select those portions of the new system you wish to install on top of\n"
 		   "the old.");
 	if (!dmenuOpenSimple(&MenuDistributions, FALSE) || !Dists)
-	    return DITEM_FAILURE | DITEM_RECREATE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
 	dialog_clear_norefresh();
     }
     else if (!(Dists & DIST_BIN)) {	    /* No bin selected?  Not much of an upgrade.. */
@@ -176,7 +176,7 @@ installUpgrade(dialogMenuItem *self)
 		     "want to select the bin distribution?  Chose No to bring up the Distributions\n"
 		     "menu.") != 0) {
 	    if (!dmenuOpenSimple(&MenuDistributions, FALSE))
-		return DITEM_FAILURE | DITEM_RECREATE;
+		return DITEM_FAILURE | DITEM_RESTORE;
 	    dialog_clear_norefresh();
 	}
     }
@@ -189,7 +189,7 @@ installUpgrade(dialogMenuItem *self)
 	msgConfirm("Now you must specify an installation medium for the upgrade.");
 media:
 	if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
-	    return DITEM_FAILURE | DITEM_RECREATE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
     }
 
     if (!mediaDevice->init(mediaDevice)) {
@@ -232,7 +232,7 @@ media:
 	if (DITEM_STATUS(diskLabelEditor(self)) == DITEM_FAILURE) {
 	    msgConfirm("The disk label editor returned an error status.  Upgrade operation\n"
 		       "aborted.");
-	    return DITEM_FAILURE | DITEM_RECREATE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
 
 	/* Don't write out MBR info */
@@ -241,14 +241,14 @@ media:
 	    msgConfirm("Not all file systems were properly mounted.  Upgrade operation\n"
 		       "aborted.");
 	    variable_unset(DISK_PARTITIONED);
-	    return DITEM_FAILURE | DITEM_RECREATE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
 
 	if (DITEM_STATUS(chroot("/mnt")) == DITEM_FAILURE) {
 	    msgConfirm("Unable to chroot to /mnt - something is wrong with the\n"
 		       "root partition or the way it's mounted if this doesn't work.");
 	    variable_unset(DISK_PARTITIONED);
-	    return DITEM_FAILURE | DITEM_RECREATE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
 	chdir("/");
 	systemCreateHoloshell();
@@ -272,7 +272,7 @@ media:
 	    if (vsystem("tar -cf - -C /etc . | tar -xpf - -C %s", saved_etc))
 		if (msgYesNo("Unable to backup your /etc into %s.\n"
 			     "Do you want to continue anyway?", saved_etc) != 0)
-		    return DITEM_FAILURE | DITEM_RECREATE;
+		    return DITEM_FAILURE | DITEM_RESTORE;
 	}
 	if (file_readable("/kernel")) {
 	    msgNotify("Moving old kernel to /kernel.prev");
