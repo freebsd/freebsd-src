@@ -1,7 +1,7 @@
 /* Mapper for connections between MRouteD multicast routers.
  * Written by Pavel Curtis <Pavel@PARC.Xerox.Com>
  *
- * $Id: mapper.c,v 3.8 1995/11/29 22:36:57 fenner Rel $
+ * $Id: mapper.c,v 1.6 1996/01/06 21:09:53 peter Exp $
  */
 
 /*
@@ -844,12 +844,15 @@ int main(argc, argv)
 {
     int flood = FALSE, graph = FALSE;
     
-    setlinebuf(stderr);
-
     if (geteuid() != 0) {
-	fprintf(stderr, "must be root\n");
+	fprintf(stderr, "map-mbone: must be root\n");
 	exit(1);
     }
+
+    init_igmp();
+    setuid(getuid());
+
+    setlinebuf(stderr);
 
     argv++, argc--;
     while (argc > 0 && argv[0][0] == '-') {
@@ -898,8 +901,6 @@ int main(argc, argv)
 
     if (debug)
 	fprintf(stderr, "Debug level %u\n", debug);
-
-    init_igmp();
 
     {				/* Find a good local address for us. */
 	int udp;

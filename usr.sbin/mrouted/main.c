@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: main.c,v 3.8 1995/11/29 22:36:34 fenner Rel $
+ * $Id: main.c,v 1.7 1996/01/06 21:09:51 peter Exp $
  */
 
 /*
@@ -34,7 +34,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"@(#) $Id: main.c,v 3.8 1995/11/29 22:36:34 fenner Rel $";
+	"@(#) $Id: main.c,v 1.7 1996/01/06 21:09:51 peter Exp $";
 #endif
 
 extern char *configfilename;
@@ -116,7 +116,7 @@ main(argc, argv)
     setlinebuf(stderr);
 
     if (geteuid() != 0) {
-	fprintf(stderr, "must be root\n");
+	fprintf(stderr, "mrouted: must be root\n");
 	exit(1);
     }
 
