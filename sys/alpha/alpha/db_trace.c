@@ -60,6 +60,11 @@
 #include <ddb/db_output.h>
 #include <alpha/alpha/db_instruction.h>
 
+struct trace_request {
+	register_t ksp;
+	register_t pc;
+};
+
 /*
  * Information about the `standard' Alpha function prologue.
  */
@@ -260,8 +265,16 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *m
 			frame = addr;
 		}
 	} else {
-		db_printf("alpha trace requires known PC =eject=\n");
-		return;
+		struct trace_request *tr;
+
+		tr = (struct trace_request *)addr;
+		if (tr->ksp >= KERNBASE && tr->pc >= KERNBASE) {
+			db_printf("alpha trace requires known PC =eject=\n");
+			return;
+		}
+		callpc = tr->pc;
+		addr = tr->ksp;
+		frame = addr;
 	}
 
 	while (count--) {
@@ -377,7 +390,17 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *m
 	}
 }
 
+void
+db_stack_trace_cmd(void)
+{
+	struct trace_request tr;
 
+	__asm __volatile(
+		"	stq sp,%0 \n"
+		"	stq pc,%1 \n"
+		: "=r" (tr.ksp), "=r" (tr.pc));
+	db_stack_trace_cmd(&tr, 1, -1, NULL);
+}
 
 int
 db_md_set_watchpoint(addr, size)
