@@ -61,7 +61,7 @@ usage(void)
 	fprintf(stderr,
 		"fwcontrol [-u bus_num] [-rt] [-g gap_count] [-o node] "
 		    "[-b pri_req] [-c node] [-d node] [-l file] "
-		    "[-R file] [-S file]\n"
+		    "[-R file] [-S file] [-m target]\n"
 		"\t-u: specify bus number\n"
 		"\t-g: broadcast gap_count by phy_config packet\n"
 		"\t-o: send link-on packet to the node\n"
@@ -73,7 +73,8 @@ usage(void)
 		"\t-d: hex dump of configuration ROM\n"
 		"\t-l: load and parse hex dump file of configuration ROM\n"
 		"\t-R: Receive DV stream\n"
-		"\t-S: Send DV stream\n");
+		"\t-S: Send DV stream\n"
+		"\t-m: set fwmem target\n");
 	exit(0);
 }
 
