@@ -12,6 +12,8 @@
 .\" The University of Texas at Austin
 .\" Austin, Texas  78712
 .\"
+.\" $FreeBSD$
+.\"
 .Dd Jan 5, 1991
 .Dt MAN 1
 .Os
@@ -128,6 +130,17 @@ the man page.  By default,
 .Nm %pager%
 is used.
 .El
+.Sh EXAMPLES
+.Pp
+Normally, to look at the relevant manpage information for getopt,
+one would use:
+.Dl man getopt
+.Pp
+However, when referred to a specific section of the manual,
+such as
+.Xr getopt 3 ,
+one would use:
+.Dl man 3 getopt
 .Sh SEE ALSO
 .Xr apropos 1 ,
 .Xr groff 1 ,
