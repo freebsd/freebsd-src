@@ -1114,29 +1114,10 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	bp->b_saveaddr = bp->b_data;
 	bp->b_data = (void *)(uintptr_t)cb->aio_buf;
 	bp->b_blkno = btodb(cb->aio_offset);
-
-	if (cb->aio_lio_opcode == LIO_WRITE) {
-		bp->b_iocmd = BIO_WRITE;
-		if (!useracc(bp->b_data, bp->b_bufsize, VM_PROT_READ)) {
-			error = EFAULT;
-			goto doerror;
-		}
-	} else {
-		bp->b_iocmd = BIO_READ;
-		if (!useracc(bp->b_data, bp->b_bufsize, VM_PROT_WRITE)) {
-			error = EFAULT;
-			goto doerror;
-		}
-	}
+	bp->b_iocmd = cb->aio_lio_opcode == LIO_WRITE ? BIO_WRITE : BIO_READ;
 
 	/*
 	 * Bring buffer into kernel space.
-	 *
-	 * Note that useracc() alone is not a 
-	 * sufficient test.  vmapbuf() can still fail
-	 * due to a smaller file mapped into a larger
-	 * area of VM, or if userland races against
-	 * vmapbuf() after the useracc() check.
 	 */
 	if (vmapbuf(bp) < 0) {
 		error = EFAULT;
