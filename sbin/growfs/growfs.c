@@ -447,22 +447,30 @@ initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
 			setbit(cg_inosused(&acg), i);
 			acg.cg_cs.cs_nifree--;
 		}
-	bzero(iobuf, sblock.fs_bsize);
-	for (i = 0; i < sblock.fs_ipg / INOPF(&sblock); i += sblock.fs_frag) {
-		dp1 = (struct ufs1_dinode *)iobuf;
-		dp2 = (struct ufs2_dinode *)iobuf;
+	/*
+	 * XXX Newfs writes out two blocks of initialized inodes
+	 *     unconditionally.  Should we check here to make sure that they
+	 *     were actually written?
+	 */
+	if (sblock.fs_magic == FS_UFS1_MAGIC) {
+		bzero(iobuf, sblock.fs_bsize);
+		for (i = 2 * sblock.fs_frag; i < sblock.fs_ipg / INOPF(&sblock);
+		     i += sblock.fs_frag) {
+			dp1 = (struct ufs1_dinode *)iobuf;
+			dp2 = (struct ufs2_dinode *)iobuf;
 #ifdef FSIRAND
-		for (j = 0; j < INOPB(&sblock); j++)
-			if (sblock.fs_magic == FS_UFS1_MAGIC) {
-				dp1->di_gen = random();
-				dp1++;
-			} else {
-				dp2->di_gen = random();
-				dp2++;
-			}
+			for (j = 0; j < INOPB(&sblock); j++)
+				if (sblock.fs_magic == FS_UFS1_MAGIC) {
+					dp1->di_gen = random();
+					dp1++;
+				} else {
+					dp2->di_gen = random();
+					dp2++;
+				}
 #endif
-		wtfs(fsbtodb(&sblock, cgimin(&sblock, cylno) + i),
-		    sblock.fs_bsize, iobuf, fso, Nflag);
+			wtfs(fsbtodb(&sblock, cgimin(&sblock, cylno) + i),
+			    sblock.fs_bsize, iobuf, fso, Nflag);
+		}
 	}
 	if (cylno > 0) {
 		/*
@@ -1493,7 +1501,7 @@ updcsloc(time_t utime, int fsi, int fso, unsigned int Nflag)
 		for(cylno=0; cylno<osblock.fs_ncg; cylno++) {
 			DBG_PRINT1("scg doing cg (%d)\n",
 			    cylno);
-			for(inc=osblock.fs_ipg-1 ; inc>=0 ; inc--) {
+			for(inc=osblock.fs_ipg-1 ; inc>0 ; inc--) {
 				updrefs(cylno, (ino_t)inc, bp, fsi, fso, Nflag);
 			}
 		}
@@ -1549,6 +1557,9 @@ rdfs(ufs2_daddr_t bno, size_t size, void *bf, int fsi)
 
 	DBG_ENTER;
 
+	if (bno < 0) {
+		err(32, "rdfs: attempting to read negative block number\n");
+	}
 	if (lseek(fsi, (off_t)bno * DEV_BSIZE, 0) < 0) {
 		err(33, "rdfs: seek error: %jd", (intmax_t)bno);
 	}
@@ -1846,12 +1857,24 @@ ginode(ino_t inumber, int fsi, int cg)
 
 	DBG_ENTER;
 
-	inumber += (cg * sblock.fs_ipg);
+	/*
+	 * The inumber passed in is relative to the cg, so use it here to see
+	 * if the inode has been allocated yet.
+	 */
 	if (isclr(cg_inosused(&aocg), inumber)) {
 		DBG_LEAVE;
 		return NULL;
 	}
-	if (inumber < ROOTINO || inumber > maxino)
+	/*
+	 * Now make the inumber relative to the entire inode space so it can
+	 * be sanity checked.
+	 */
+	inumber += (cg * sblock.fs_ipg);
+	if (inumber < ROOTINO) {
+		DBG_LEAVE;
+		return NULL;
+	}
+	if (inumber > maxino)
 		errx(8, "bad inode number %d to ginode", inumber);
 	if (startinum == 0 ||
 	    inumber < startinum || inumber >= startinum + INOPB(&sblock)) {
@@ -2385,10 +2408,6 @@ updrefs(int cg, ino_t in, struct gfs_bpp *bp, int fsi, int fso, unsigned int
 
 	DBG_ENTER;
 
-	/*
-	 * XXX We should skip unused inodes even from being read from disk
-	 *     here by using the bitmap.
-	 */
 	ino = ginode(in, fsi, cg);
 	if (ino == NULL) {
 		DBG_LEAVE;
@@ -2399,7 +2418,8 @@ updrefs(int cg, ino_t in, struct gfs_bpp *bp, int fsi, int fso, unsigned int
 		DBG_LEAVE;
 		return; /* only check DIR, FILE, LINK */
 	}
-	if (mode == IFLNK && DIP(ino, di_size) < (u_int64_t) sblock.fs_maxsymlinklen) {
+	if (mode == IFLNK && 
+	    DIP(ino, di_size) < (u_int64_t) sblock.fs_maxsymlinklen) {
 		DBG_LEAVE;
 		return;	/* skip short symlinks */
 	}
