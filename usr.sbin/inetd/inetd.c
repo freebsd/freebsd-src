@@ -252,7 +252,7 @@ int	deny_severity;
 int	wrap_ex = 0;
 int	wrap_bi = 0;
 int	debug = 0;
-int	log = 0;
+int	dolog = 0;
 int	maxsock;			/* highest-numbered descriptor */
 fd_set	allsock;
 int	options;
@@ -359,7 +359,7 @@ main(int argc, char **argv)
 			options |= SO_DEBUG;
 			break;
 		case 'l':
-			log = 1;
+			dolog = 1;
 			break;
 		case 'R':
 			getvalue(optarg, &toomany,
@@ -647,7 +647,7 @@ main(int argc, char **argv)
 			    }
 		    } else
 			    ctrl = sep->se_fd;
-		    if (log && !ISWRAP(sep)) {
+		    if (dolog && !ISWRAP(sep)) {
 			    char pname[INET6_ADDRSTRLEN] = "unknown";
 			    socklen_t sl;
 			    sl = sizeof peermax;
@@ -766,7 +766,7 @@ main(int argc, char **argv)
 					_exit(0);
 				    }
 				}
-				if (log) {
+				if (dolog) {
 				    syslog(allow_severity,
 				        "connection from %.500s, service %s (%s%s)",
 					eval_client(&req), service, sep->se_proto,
