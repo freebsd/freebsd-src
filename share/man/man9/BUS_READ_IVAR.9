@@ -44,7 +44,8 @@
 .Fn BUS_WRITE_IVAR "device_t dev" "device_t child" "int index" "uintptr_t value"
 .Sh DESCRIPTION
 These two methods manage a bus specific set of instance variables of
-a child device.  The intention is that each different type of bus
+a child device.
+The intention is that each different type of bus
 defines a set of appropriate instance variables (such as ports and
 irqs for ISA bus etc.)
 .Pp
