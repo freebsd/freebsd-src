@@ -288,6 +288,7 @@ pci/if_pdq.c		optional fea device-driver
 pci/pdq.c		optional fea device-driver
 pci/if_pdq.c		optional fpa device-driver
 pci/pdq.c		optional fpa device-driver
+pci/meteor.c		optional meteor device-driver
 scsi/cd.c		optional cd
 scsi/ch.c		optional ch
 scsi/scsi_base.c	optional scbus
