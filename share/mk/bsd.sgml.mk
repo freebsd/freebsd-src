@@ -1,7 +1,7 @@
 #       bsd.sgml.mk - 8 Sep 1995 John Fieber
 #       This file is in the public domain.
 #
-#	$Id: bsd.sgml.mk,v 1.11 1996/10/06 21:55:18 wosch Exp $
+#	$Id: bsd.sgml.mk,v 1.12 1996/10/08 13:45:06 jfieber Exp $
 #
 # The include file <bsd.sgml.mk> handles installing sgml documents.
 # <bsd.prog.mk> includes the file named "../Makefile.inc" if it exists,
@@ -90,7 +90,9 @@ spell: ${SRCS}
 
 .if !target(distribute)
 distribute:
-	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${DISTRIBUTION} SHARED=copies
+.for dist in ${DISTRIBUTION}
+	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${dist} SHARED=copies
+.endfor
 .endif
 
 # For each FORMATS type, define a build, install, clean and print target.
