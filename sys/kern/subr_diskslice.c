@@ -365,6 +365,12 @@ dsioctl(dev, cmd, data, flags, sspp)
 	lp = sp->ds_label;
 	switch (cmd) {
 
+	case DIOCGDINFO:
+		if (lp == NULL)
+			return (EINVAL);
+		*(struct disklabel *)data = *lp;
+		return (0);
+
 	case DIOCGDVIRGIN:
 		lp = (struct disklabel *)data;
 		if (ssp->dss_slices[WHOLE_DISK_SLICE].ds_label) {
@@ -398,23 +404,17 @@ dsioctl(dev, cmd, data, flags, sspp)
 		lp->d_checksum = dkcksum(lp);
 		return (0);
 
-	case DIOCGDINFO:
+	case DIOCGMEDIASIZE:
 		if (lp == NULL)
-			return (EINVAL);
-		*(struct disklabel *)data = *lp;
+			*(off_t *)data = (off_t)sp->ds_size * ssp->dss_secsize;
+		else
+			*(off_t *)data =
+			    (off_t)lp->d_partitions[dkpart(dev)].p_size *
+			    lp->d_secsize;
 		return (0);
 
 	case DIOCGSECTORSIZE:
-		if (lp == NULL)
-			return (EINVAL);
-		*(u_int *)data = lp->d_secsize;
-		return (0);
-
-	case DIOCGMEDIASIZE:
-		if (lp == NULL)
-			return (EINVAL);
-		*(off_t *)data = (off_t)lp->d_partitions[dkpart(dev)].p_size *
-		    lp->d_secsize;
+		*(u_int *)data = ssp->dss_secsize;
 		return (0);
 
 	case DIOCGSLICEINFO:
