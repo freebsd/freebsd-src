@@ -105,7 +105,7 @@ static char *parse(hp)
 
 extern struct hostent *__dns_getanswer __P((char *, int, char *, int));
 
-static CIRCLEQ_HEAD(dns_qhead, circleq_dnsentry) qhead;
+static TAILQ_HEAD(dns_qhead, circleq_dnsentry) qhead;
 
 struct circleq_dnsentry {
 	SVCXPRT *xprt;
@@ -119,14 +119,14 @@ struct circleq_dnsentry {
 	char **domain;
 	char *name;
 	struct in_addr addr;
-	CIRCLEQ_ENTRY(circleq_dnsentry) links;
+	TAILQ_ENTRY(circleq_dnsentry) links;
 };
 
 static int pending = 0;
 
 int yp_init_resolver()
 {
-	CIRCLEQ_INIT(&qhead);
+	TAILQ_INIT(&qhead);
 	if (!(_res.options & RES_INIT) && res_init() == -1) {
 		yp_error("res_init failed");
 		return(1);
@@ -201,7 +201,7 @@ static struct circleq_dnsentry *yp_find_dnsqent(id, type)
 {
 	register struct circleq_dnsentry *q;
 
-	for (q = qhead.cqh_first; q != (void *)&qhead; q = q->links.cqe_next) {
+	TAILQ_FOREACH(q, &qhead, links) {
 		switch(type) {
 		case BY_RPC_XID:
 			if (id == q->xid)
@@ -318,12 +318,12 @@ void yp_prune_dnsq()
 {
 	register struct circleq_dnsentry *q, *n;
 
-	q = qhead.cqh_first;
-	while(q != (void *)&qhead) {
+	q = TAILQ_FIRST(&qhead);
+	while(q != NULL) {
 		q->ttl--;
-		n = q->links.cqe_next;
+		n = TAILQ_NEXT(q, links);
 		if (!q->ttl) {
-			CIRCLEQ_REMOVE(&qhead, q, links);
+			TAILQ_REMOVE(&qhead, q, links);
 			free(q->name);
 			free(q);
 			pending--;
@@ -412,7 +412,7 @@ void yp_run_dnsq()
 	/* Got an answer ready for a client -- send it off. */
 	yp_send_dns_reply(q, parse(hent));
 	pending--;
-	CIRCLEQ_REMOVE(&qhead, q, links);
+	TAILQ_REMOVE(&qhead, q, links);
 	free(q->name);
 	free(q);
 
@@ -466,7 +466,7 @@ ypstat yp_async_lookup_name(rqstp, name)
 	}
 
 	q->name = strdup(name);
-	CIRCLEQ_INSERT_HEAD(&qhead, q, links);
+	TAILQ_INSERT_HEAD(&qhead, q, links);
 	pending++;
 
 	if (debug)
@@ -531,7 +531,7 @@ ypstat yp_async_lookup_addr(rqstp, addr)
 
 	inet_aton(addr, &q->addr);
 	q->name = strdup(buf);
-	CIRCLEQ_INSERT_HEAD(&qhead, q, links);
+	TAILQ_INSERT_HEAD(&qhead, q, links);
 	pending++;
 
 	if (debug)
