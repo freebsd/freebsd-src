@@ -396,6 +396,8 @@ Compaq Netelligent 10, 10/100, 10/100 Proliant, 10/100 Dual-Port
 Compaq Netelligent 10/100 TX Embedded UTP, 10 T PCI UTP/Coax, 10/100 TX UTP
 Compaq NetFlex 3P, 3P Integrated, 3P w/ BNC
 Olicom OC-2135/2138, OC-2325, OC-2326 10/100 TX UTP
+Racore 8165 10/100baseTX
+Racore 8148 10baseT/100baseTX/100baseFX multi-personality
 
 DEC EtherWORKS III NICs (DE203, DE204, and DE205)
 DEC EtherWORKS II NICs (DE200, DE201, DE202, and DE422)
