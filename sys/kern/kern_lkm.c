@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.15 1995/09/08 11:08:34 bde Exp $
+ * $Id: kern_lkm.c,v 1.16 1995/10/04 03:42:39 julian Exp $
  */
 
 /*
@@ -489,7 +489,7 @@ lkmenodev(dev, flags, fmt, p)
 	struct proc *p;
 {
 
-	return(enodev());
+	return(ENODEV);
 }
 
 int

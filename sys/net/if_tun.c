@@ -76,17 +76,18 @@ int	tunoutput __P((struct ifnet *, struct mbuf *, struct sockaddr *,
 	    struct rtentry *rt));
 int	tunifioctl __P((struct ifnet *, int, caddr_t));
 
-static struct cdevsw tuncdevsw =
-{ tunopen,      tunclose,       tunread,        tunwrite,
-  tunioctl,     (d_stop_t *)enodev, (d_reset_t *)nullop, (d_ttycv_t *)enodev,
-  tunselect,    (d_mmap_t *)enodev,         NULL };
+static struct cdevsw tuncdevsw = {
+	tunopen,	tunclose,	tunread,	tunwrite,
+	tunioctl,	nullstop,	noreset,	nodevtotty,
+	tunselect,	nommap,		nostrategy
+};
 extern dev_t tuncdev;
 
 static int tuninit __P((int));
 
 static void
-tunattach(udata)
-	void *udata;
+tunattach(dummy)
+	void *dummy;
 {
 	register int i;
 	struct ifnet *ifp;

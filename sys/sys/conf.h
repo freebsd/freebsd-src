@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.3 (Berkeley) 1/21/94
- * $Id: conf.h,v 1.20 1995/11/05 09:37:28 peter Exp $
+ * $Id: conf.h,v 1.21 1995/11/05 20:25:59 bde Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -63,7 +63,8 @@ typedef int d_read_t __P((dev_t, struct uio *, int));
 typedef int d_write_t __P((dev_t, struct uio *, int));
 typedef int d_rdwr_t __P((dev_t, struct uio *, int));
 typedef void d_stop_t __P((struct tty *, int));
-typedef int d_reset_t __P((int));
+typedef int d_reset_t __P((dev_t));
+typedef struct tty *d_devtotty_t __P((dev_t));
 typedef int d_select_t __P((dev_t, int, struct proc *));
 typedef int d_mmap_t __P((dev_t, int, int));
 typedef	struct tty * d_ttycv_t __P((dev_t));
@@ -99,7 +100,7 @@ struct cdevsw {
 	d_rdwr_t	*d_write;
 	d_ioctl_t	*d_ioctl;
 	d_stop_t	*d_stop;
-	d_reset_t	*d_reset;
+	d_reset_t	*d_reset;	/* XXX not used */
 	d_ttycv_t	*d_devtotty;
 	d_select_t	*d_select;
 	d_mmap_t	*d_mmap;
@@ -108,10 +109,6 @@ struct cdevsw {
 
 #ifdef KERNEL
 extern struct cdevsw cdevsw[];
-
-/* symbolic sleep message strings */
-extern char devopn[], devio[], devwait[], devin[], devout[];
-extern char devioc[], devcls[];
 #endif
 
 struct linesw {
@@ -145,19 +142,48 @@ struct swdevt {
 #define sw_freed	sw_flags	/* XXX compat */
 
 #ifdef KERNEL
+d_open_t	noopen;
+d_close_t	noclose;
+d_read_t	noread;
+d_write_t	nowrite;
+d_ioctl_t	noioctl;
+d_stop_t	nostop;
 d_reset_t	noreset;
+d_devtotty_t	nodevtotty;
+d_select_t	noselect;
 d_mmap_t	nommap;
-d_strategy_t	nostrategy;
+
+/*
+ * XXX d_strategy seems to be unused for cdevs that aren't associated with
+ * bdevs and called without checking for it being non-NULL for bdevs.
+ */
+#define	nostrategy	((d_strategy_t *)NULL)
+
+d_dump_t	nodump;
+
+/*
+ * nopsize is little used, so not worth having dummy functions for.
+ */
+#define	nopsize	((d_psize_t *)NULL)
 
 d_open_t	nullopen;
 d_close_t	nullclose;
-d_stop_t	nullstop;
-d_reset_t	nullreset;
-/*
- * XXX d_strategy seems to be unused for cdevs and called without checking
- * for it being non-NULL for bdevs.
- */
-#define	nullstrategy	((d_strategy *)NULL)
+#define	nullstop nostop		/* one void return is as good as another */
+#define	nullreset noreset	/* one unused function is as good as another */
+
+d_open_t	nxopen;
+d_close_t	nxclose;
+d_read_t	nxread;
+d_write_t	nxwrite;
+d_ioctl_t	nxioctl;
+#define	nxstop	nostop		/* one void return is as good as another */
+#define	nxreset	noreset		/* one unused function is as good as another */
+#define	nxdevtotty nodevtotty	/* one NULL return is as good as another */
+d_select_t	nxselect;
+#define	nxmmap	nommap		/* one -1 return is as good as another */
+#define	nxstrategy nostrategy	/* one NULL value is as good as another */
+d_dump_t	nxdump;
+#define	nxpsize	nopsize		/* one NULL value is as good as another */
 
 l_read_t	l_noread;
 l_write_t	l_nowrite;

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsnode.h	8.4 (Berkeley) 2/13/94
- * $Id: nfsnode.h,v 1.11 1995/07/29 11:42:23 bde Exp $
+ * $Id: nfsnode.h,v 1.12 1995/10/29 15:33:19 phk Exp $
  */
 
 #ifndef _NFS_NFSNODE_H_
@@ -169,8 +169,6 @@ int	nfs_write __P((struct vop_write_args *));
 #define nqnfs_lease_check	lease_check
 #endif
 #endif
-#define nfs_ioctl ((int (*) __P((struct  vop_ioctl_args *)))enoioctl)
-#define nfs_select ((int (*) __P((struct  vop_select_args *)))seltrue)
 #ifdef HAS_VOPREVOKE
 #define nfs_revoke vop_revoke
 #endif
