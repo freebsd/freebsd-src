@@ -31,7 +31,7 @@
 
  */
 /*
- *  $Id: if_epreg.h,v 1.16 1996/08/06 21:14:06 phk Exp $
+ *  $Id: if_epreg.h,v 1.17 1996/09/08 10:44:10 phk Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -54,7 +54,7 @@
  */
 struct ep_softc {
     struct arpcom arpcom;	/* Ethernet common part		 */
-    short ep_io_addr;		/* i/o bus address		 */
+    int ep_io_addr;		/* i/o bus address		 */
 #define MAX_MBS  8		/* # of mbufs we keep around	 */
     struct mbuf *mb[MAX_MBS];	/* spare mbuf storage.		 */
     int next_mb;		/* Which mbuf to use next. 	 */
