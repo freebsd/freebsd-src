@@ -37,7 +37,7 @@
 #include <rpc/rpc.h>
 #include <syslog.h>
 #include <rpcsvc/sm_inter.h>	/* protocol to talk to rpc.statd	*/
-#include <rpcsvc/nlm_prot.h>	/* The protocol we are implementing	*/
+#include "nlm_prot.h"		/* The protocol we are implementing	*/
 
 
 /* global variables ------------------------------------------------------- */
