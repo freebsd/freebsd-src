@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.124 1995/08/16 22:36:43 nate Exp $
+ *  $Id: syscons.c,v 1.125 1995/09/10 21:35:12 bde Exp $
  */
 
 #include "sc.h"
@@ -116,8 +116,9 @@ static  u_short mouse_or_mask[16] = {
 	0x0c00, 0x0c00, 0x0600, 0x0600, 0x0000, 0x0000, 0x0000, 0x0000
 };
 
+extern	void    none_saver(int blank);
 void    none_saver(int blank) { }
-void    (*current_saver)() = none_saver;
+void    (*current_saver) __P((int blank)) = none_saver;
 
 /* OS specific stuff */
 #ifdef not_yet_done
@@ -839,6 +840,9 @@ set_mouse_pos:
 	return 0;
 
     case KDENABIO:      	/* allow io operations */
+	error = suser(p->p_ucred, &p->p_acflag);
+	if (error != 0)
+	    return error;
 	fp = (struct trapframe *)p->p_md.md_regs;
 	fp->tf_eflags |= PSL_IOPL;
 	return 0;
