@@ -47,6 +47,7 @@
 #include <sys/buf.h>
 #include <sys/malloc.h>
 #include <sys/devicestat.h>
+#include <sys/sysctl.h>
 #include <machine/stdarg.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -784,7 +785,6 @@ ataintr(void *data)
 			   intr_count, scp->status);
 	}
 #endif
-	/* return; SOS XXX */
     }
     scp->active = ATA_IDLE;
     scp->running = NULL;
@@ -799,6 +799,7 @@ ata_start(struct ata_softc *scp)
 
     if (scp->active != ATA_IDLE)
 	return;
+    scp->active = ATA_ACTIVE;
 
 #if NATADISK > 0
     /* find & call the responsible driver if anything on the ATA queue */
@@ -853,6 +854,7 @@ ata_start(struct ata_softc *scp)
 	return;
     }
 #endif
+    scp->active = ATA_IDLE;
 }
 
 void
@@ -1062,6 +1064,7 @@ int8_t *
 ata_mode2str(int32_t mode)
 {
     switch (mode) {
+    case ATA_PIO: return "BIOSPIO";
     case ATA_PIO0: return "PIO0";
     case ATA_PIO1: return "PIO1";
     case ATA_PIO2: return "PIO2";
@@ -1070,7 +1073,7 @@ ata_mode2str(int32_t mode)
     case ATA_WDMA2: return "WDMA2";
     case ATA_UDMA2: return "UDMA33";
     case ATA_UDMA4: return "UDMA66";
-    case ATA_DMA: return "DMA";
+    case ATA_DMA: return "BIOSDMA";
     default: return "???";
     }
 }
@@ -1205,3 +1208,68 @@ ata_printf(struct ata_softc *scp, int32_t device, const char * fmt, ...)
     va_end(ap);
     return ret;
 }
+
+static char ata_conf[1024];
+ 
+static void
+ata_change_mode(struct ata_softc *scp, int32_t device, int32_t mode)
+{
+    int32_t s = splbio();
+
+    while (scp->active != ATA_IDLE)
+	tsleep((caddr_t)&s, PRIBIO, "atachm", hz/4);
+    scp->active = ATA_REINITING;
+    ata_dmainit(scp, device, ata_pmode(ATA_PARAM(scp, device)), 
+		mode < ATA_DMA ?  -1 : ata_wmode(ATA_PARAM(scp, device)),
+		mode < ATA_DMA ?  -1 : ata_umode(ATA_PARAM(scp, device)));
+    scp->active = ATA_IDLE;
+    ata_start(scp);
+    splx(s);
+}
+
+static int
+sysctl_hw_ata SYSCTL_HANDLER_ARGS
+{
+    int error, i;
+
+    /* readout internal state */
+    bzero(ata_conf, sizeof(ata_conf));
+    for (i = 0; i < (atanlun << 1); i++) {
+	if (!atadevices[i >> 1] || !atadevices[ i >> 1]->dev_softc[i & 1])
+	    strcat(ata_conf, "---,");
+	else if (atadevices[i >> 1]->mode[i & 1] >= ATA_DMA)
+	    strcat(ata_conf, "dma,");
+	else
+	    strcat(ata_conf, "pio,");
+    }
+    error = sysctl_handle_string(oidp, ata_conf, sizeof(ata_conf), req);   
+    if (error == 0 && req->newptr != NULL) {
+	char *ptr = ata_conf;
+
+        /* update internal state */
+	i = 0;
+        while (*ptr) {
+	    if (!strncmp(ptr, "pio", 3) || !strncmp(ptr, "PIO", 3)) {
+		if (atadevices[i >> 1]->dev_softc[i & 1] &&
+		    atadevices[i >>1 ]->mode[i & 1] >= ATA_DMA)
+		    ata_change_mode(atadevices[i >> 1], 
+				    (i & 1) ? ATA_SLAVE : ATA_MASTER, ATA_PIO);
+	    }
+	    else if (!strncmp(ptr, "dma", 3) || !strncmp(ptr, "DMA", 3)) {
+		if (atadevices[i >> 1]->dev_softc[i & 1] &&
+		    atadevices[i >> 1]->mode[i & 1] < ATA_DMA)
+		    ata_change_mode(atadevices[i >> 1], 
+				    (i & 1) ? ATA_SLAVE : ATA_MASTER, ATA_DMA);
+	    }
+	    else if (strncmp(ptr, "---", 3))
+		break;
+	    ptr+=3;
+	    if (*ptr++ != ',' || ++i > (atanlun << 1))
+		break; 
+        }
+    }
+    return error;
+}
+ 
+SYSCTL_PROC(_hw, OID_AUTO, atamodes, CTLTYPE_STRING | CTLFLAG_RW,
+            0, sizeof(ata_conf), sysctl_hw_ata, "A", "");

@@ -260,7 +260,8 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 		error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				    ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
 		if (bootverbose)
-		    ata_printf(scp, device, "%s setting up UDMA4 mode on VIA chip\n",
+		    ata_printf(scp, device, 
+		    	       "%s setting up UDMA4 mode on VIA chip\n",
 			       (error) ? "failed" : "success");
 		if (!error) {
 	            pci_write_config(scp->dev, 0x53 - devno, 0xe8, 1);
@@ -418,11 +419,9 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 		       "%s setting up PIO%d mode on Promise chip\n",
 		       (error) ? "failed" : "success",
 		       (apiomode >= 0) ? apiomode : 0);
-	if (!error) {
-	    promise_timing(scp, devno, ata_pio2mode(apiomode));
-	    return 0;
-	}
-	break;
+	promise_timing(scp, devno, ata_pio2mode(apiomode));
+	scp->mode[ATA_DEV(device)] = ata_pio2mode(apiomode);
+	return -1;
     
     case 0x00041103:	/* HighPoint HPT366 controller */
 	/* no ATAPI devices for now */
@@ -476,11 +475,9 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	    ata_printf(scp, device, "%s setting up PIO%d mode on HPT366 chip\n",
 		       (error) ? "failed" : "success",
 		       (apiomode >= 0) ? apiomode : 0);
-	if (!error) {
-	    hpt366_timing(scp, devno, ata_pio2mode(apiomode));
-	    return 0;
-	}
-	break;
+	hpt366_timing(scp, devno, ata_pio2mode(apiomode));
+	scp->mode[ATA_DEV(device)] = ata_pio2mode(apiomode);
+	return -1;
 
     default:		/* unknown controller chip */
 	/* better not try generic DMA on ATAPI devices it almost never works */
@@ -490,11 +487,6 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 
 	/* well, we have no support for this, but try anyways */
 	if ((wdmamode >= 2 && apiomode >= 4) && scp->bmaddr) {
-#if MAYBE_NOT
-	    && (inb(scp->bmaddr + ATA_BMSTAT_PORT) & 
-		((device == ATA_MASTER) ? 
-		 ATA_BMSTAT_DMA_MASTER : ATA_BMSTAT_DMA_SLAVE))) {
-#endif
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
@@ -512,8 +504,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
     if (bootverbose)
 	ata_printf(scp, device, "%s setting up PIO%d mode on generic chip\n",
 		   (error) ? "failed" : "success",(apiomode>=0) ? apiomode : 0);
-    if (!error)
-	scp->mode[ATA_DEV(device)] = ata_pio2mode(apiomode);
+    scp->mode[ATA_DEV(device)] = ata_pio2mode(apiomode);
     return -1;
 }
 

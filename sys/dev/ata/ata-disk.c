@@ -152,9 +152,8 @@ ad_attach(struct ata_softc *scp, int32_t device)
 	printf("ad%d: enabling write cache failed\n", adp->lun);
 
     /* use DMA if drive & controller supports it */
-    if (!ata_dmainit(adp->controller, adp->unit, ata_pmode(AD_PARAM),
-		     ata_wmode(AD_PARAM), ata_umode(AD_PARAM)))
-	adp->flags |= AD_F_DMA_ENABLED;
+    ata_dmainit(adp->controller, adp->unit, ata_pmode(AD_PARAM),
+		ata_wmode(AD_PARAM), ata_umode(AD_PARAM));
 
     /* use tagged queueing if supported (not yet) */
     if ((adp->num_tags = (AD_PARAM->queuelen & 0x1f) + 1))
@@ -257,8 +256,9 @@ addump(dev_t dev)
     if (!adp)
 	return ENXIO;
 
+    /* force PIO mode for dumps */
+    adp->controller->mode[ATA_DEV(adp->unit)] = ATA_PIO;
     ata_reinit(adp->controller);
-    adp->flags &= ~AD_F_DMA_ENABLED;
 
     while (count > 0) {
 	DELAY(1000);
@@ -386,7 +386,7 @@ ad_transfer(struct ad_request *request)
 
 	/* does this drive & transfer work with DMA ? */
 	request->flags &= ~AR_F_DMA_USED;
-	if ((adp->flags & AD_F_DMA_ENABLED) &&
+	if ((adp->controller->mode[ATA_DEV(adp->unit)] >= ATA_DMA) &&
 	    !ata_dmasetup(adp->controller, adp->unit, 
 			  (void *)request->data, request->bytecount,
 			  (request->flags & AR_F_READ))) {
@@ -394,23 +394,26 @@ ad_transfer(struct ad_request *request)
 	    cmd = request->flags & AR_F_READ ? ATA_C_READ_DMA : ATA_C_WRITE_DMA;
 	    request->currentsize = request->bytecount;
 	}
+
 	/* does this drive support multi sector transfers ? */
 	else if (request->currentsize > DEV_BSIZE)
 	    cmd = request->flags & AR_F_READ?ATA_C_READ_MULTI:ATA_C_WRITE_MULTI;
+
 	/* just plain old single sector transfer */
 	else
 	    cmd = request->flags & AR_F_READ ? ATA_C_READ : ATA_C_WRITE;
 
 	if (ata_command(adp->controller, adp->unit, cmd, 
-			cylinder, head, sector, count, 0, ATA_IMMEDIATE))
+			cylinder, head, sector, count, 0, ATA_IMMEDIATE)) {
 	    printf("ad%d: wouldn't take transfer command\n", adp->lun);
+	    return;
+	}
 
 	/* if this is a DMA transfer, start it, return and wait for interrupt */
 	if (request->flags & AR_F_DMA_USED) {
 	    ata_dmastart(adp->controller);
 	    return;
 	}
-
     }
    
     /* calculate this transfer length */
@@ -473,7 +476,6 @@ oops:
 	    else {
 		ata_dmainit(adp->controller, adp->unit, 
 			    ata_pmode(AD_PARAM), -1, -1);
-		adp->flags &= ~AD_F_DMA_ENABLED;
 		printf(" falling back to PIO mode\n");
 	    }
 	    TAILQ_INSERT_HEAD(&adp->controller->ata_queue, request, chain);
@@ -485,7 +487,6 @@ oops:
 	    untimeout((timeout_t *)ad_timeout, request,request->timeout_handle);
 	    ata_dmainit(adp->controller, adp->unit, ata_pmode(AD_PARAM), -1,-1);
 	    request->flags |= AR_F_FORCE_PIO;
-	    adp->flags &= ~AD_F_DMA_ENABLED;
 	    TAILQ_INSERT_HEAD(&adp->controller->ata_queue, request, chain);
 	    return ATA_OP_FINISHED;
 	}
@@ -558,7 +559,7 @@ ad_reinit(struct ad_softc *adp)
     /* reinit disk parameters */
     ata_command(adp->controller, adp->unit, ATA_C_SET_MULTI, 0, 0, 0,
 		adp->transfersize / DEV_BSIZE, 0, ATA_WAIT_READY);
-    if (adp->flags & AD_F_DMA_ENABLED)
+    if (adp->controller->mode[ATA_DEV(adp->unit)] >= ATA_DMA)
 	ata_dmainit(adp->controller, adp->unit, ata_pmode(AD_PARAM),
 		    ata_wmode(AD_PARAM), ata_umode(AD_PARAM));
     else
@@ -578,7 +579,6 @@ ad_timeout(struct ad_request *request)
 	ata_dmadone(adp->controller);
         if (request->retries == AD_MAX_RETRIES) {
 	    ata_dmainit(adp->controller, adp->unit, ata_pmode(AD_PARAM), -1,-1);
-	    adp->flags &= ~AD_F_DMA_ENABLED;
 	    printf("ad%d: ad_timeout: trying fallback to PIO mode\n", adp->lun);
 	    request->retries = 0;
 	}

@@ -260,15 +260,16 @@ struct ata_softc {
     void			*dev_softc[2];	/* ptr to devices softc's */
     struct ata_dmaentry		*dmatab[2];	/* DMA transfer tables */
     int32_t 			mode[2];	/* transfer mode for devices */
+#define 	ATA_PIO			0x00
 #define 	ATA_PIO0		0x08
 #define		ATA_PIO1		0x09
 #define		ATA_PIO2		0x0a
 #define		ATA_PIO3		0x0b
 #define		ATA_PIO4		0x0c
+#define		ATA_DMA			0x10
 #define		ATA_WDMA2		0x22
 #define		ATA_UDMA2		0x42
 #define		ATA_UDMA4		0x44
-#define		ATA_DMA			0xff
 
     int32_t			flags;		/* controller flags */
 #define		ATA_DMA_ACTIVE		0x01
@@ -288,9 +289,10 @@ struct ata_softc {
 #define		ATA_IMMEDIATE		0x1
 #define		ATA_WAIT_INTR		0x2
 #define		ATA_WAIT_READY		0x3
-#define		ATA_ACTIVE_ATA		0x4
-#define		ATA_ACTIVE_ATAPI	0x5
-#define		ATA_REINITING		0x6
+#define		ATA_ACTIVE		0x4
+#define		ATA_ACTIVE_ATA		0x5
+#define		ATA_ACTIVE_ATAPI	0x6
+#define		ATA_REINITING		0x7
 
     TAILQ_HEAD(, ad_request)	ata_queue;	/* head of ATA queue */
     TAILQ_HEAD(, atapi_request) atapi_queue;	/* head of ATAPI queue */
