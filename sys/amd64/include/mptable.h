@@ -33,7 +33,9 @@ __FBSDID("$FreeBSD$");
 #ifdef SMP
 #include <machine/smptests.h>
 #else
+#if !defined(lint)
 #error
+#endif
 #endif
 
 #include <sys/param.h>
