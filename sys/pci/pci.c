@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.87 1998/09/15 08:21:08 gibbs Exp $
+ * $Id: pci.c,v 1.88 1998/09/15 22:05:37 gibbs Exp $
  *
  */
 
@@ -453,6 +453,8 @@ pci_addcfg(struct pci_devinfo *dinfo)
 		printf("\tclass=%02x-%02x-%02x, hdrtype=0x%02x, mfdev=%d\n",
 		       cfg->baseclass, cfg->subclass, cfg->progif,
 		       cfg->hdrtype, cfg->mfdev);
+		printf("\tsubordinatebus=%x \tsecondarybus=%x\n",
+		       cfg->subordinatebus, cfg->secondarybus);
 #ifdef PCI_DEBUG
 		printf("\tcmdreg=0x%04x, statreg=0x%04x, cachelnsz=%d (dwords)\n", 
 		       cfg->cmdreg, cfg->statreg, cfg->cachelnsz);
@@ -519,6 +521,8 @@ pci_probebus(int bus)
 
 				if (bushigh < dinfo->cfg.subordinatebus)
 					bushigh = dinfo->cfg.subordinatebus;
+				if (bushigh < dinfo->cfg.secondarybus)
+					bushigh = dinfo->cfg.secondarybus;
 
 				/* XXX KDM */
 				/* cfg = NULL; we don't own this anymore ... */
@@ -760,9 +764,9 @@ pci_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 			 */
 			if ((error = useracc((caddr_t)cio->patterns,
 			                     cio->pat_buf_len, B_READ)) != 1){
-				printf("pci_ioctl: pattern buffer %#x, "
+				printf("pci_ioctl: pattern buffer %#p, "
 				       "length %u isn't user accessible for"
-				       " READ\n", (intptr_t)cio->patterns,
+				       " READ\n", cio->patterns,
 				       cio->pat_buf_len);
 				error = EACCES;
 				break;
@@ -796,9 +800,9 @@ pci_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		 */
 		if ((error = useracc((caddr_t)cio->matches, cio->match_buf_len,
 				     B_WRITE)) != 1) {
-			printf("pci_ioctl: match buffer %#x, length %u "
+			printf("pci_ioctl: match buffer %#p, length %u "
 			       "isn't user accessible for WRITE\n",
-			       (intptr_t)cio->matches, cio->match_buf_len);
+			       cio->matches, cio->match_buf_len);
 			error = EACCES;
 			break;
 		}
