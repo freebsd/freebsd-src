@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/kernel.h>
 #include <sys/signalvar.h>
+#include <sys/malloc.h>
 #include <sys/mman.h>
 #include <sys/poll.h>
 #if __FreeBSD_version >= 500014
@@ -547,9 +548,11 @@ get_bktr_mem( int unit, unsigned size )
 {
 	vm_offset_t	addr = 0;
 
-	addr = vm_page_alloc_contig(size, 0, 0xffffffff, 1<<24);
+	addr = (vm_offset_t)contigmalloc(size, M_DEVBUF, M_NOWAIT, 0,
+	    0xffffffff, 1<<24, 0);
 	if (addr == 0)
-		addr = vm_page_alloc_contig(size, 0, 0xffffffff, PAGE_SIZE);
+		addr = (vm_offset_t)contigmalloc(size, M_DEVBUF, M_NOWAIT, 0,
+		    0xffffffff, PAGE_SIZE, 0);
 	if (addr == 0) {
 		printf("bktr%d: Unable to allocate %d bytes of memory.\n",
 			unit, size);
