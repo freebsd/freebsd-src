@@ -71,10 +71,15 @@ main(argc, argv)
 	if (argc != 1 && argc != 2)
 		usage();
 
+	if (!*argv[0]) {
+		printf("\n");
+		exit(0);
+	}
 	if ((p = basename(argv[0])) == NULL)
 		err(1, "%s", argv[0]);
-	if (*++argv && (q = strstr(p, *argv)) && strcmp(q, *argv) == 0)
-		*q = '\0';
+	if (*++argv && (q = strchr(p, '\0') - strlen(*argv)) > p &&
+	    strcmp(*argv, q) == 0)
+			*q = '\0';
 	(void)printf("%s\n", p);
 	exit(0);
 }
