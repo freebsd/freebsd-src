@@ -30,36 +30,42 @@ LDADD=	-ldialog -lncurses -lutil -ldisk -lftpio
 CLEANFILES=	makedevs.c rtermcap
 CLEANFILES+=	keymap.tmp keymap.h
 
+.if exists(${.CURDIR}/../../share/termcap/termcap.src)
+RTERMCAP=	TERMCAP=${.CURDIR}/../../share/termcap/termcap.src ./rtermcap
+.else
+RTERMCAP=	./rtermcap
+.endif
+
 makedevs.c:	Makefile rtermcap
 	echo '#include <sys/types.h>' > makedevs.c
-	./rtermcap ansi | \
+	${RTERMCAP} ansi | \
 		file2c 'const char termcap_ansi[] = {' ',0};' \
 		>> makedevs.c
-	./rtermcap cons25w | \
+	${RTERMCAP} cons25w | \
 		file2c 'const char termcap_cons25w[] = {' ',0};' \
 		>> makedevs.c
-	./rtermcap cons25 | \
+	${RTERMCAP} cons25 | \
 		file2c 'const char termcap_cons25[] = {' ',0};' \
 		>> makedevs.c
-	./rtermcap cons25-m | \
+	${RTERMCAP} cons25-m | \
 		file2c 'const char termcap_cons25_m[] = {' ',0};' \
 		>> makedevs.c
-	./rtermcap cons25r | \
+	${RTERMCAP} cons25r | \
 		file2c 'const char termcap_cons25r[] = {' ',0};' \
 		>> makedevs.c
-	./rtermcap cons25r-m | \
+	${RTERMCAP} cons25r-m | \
 		file2c 'const char termcap_cons25r_m[] = {' ',0};' \
 		>> makedevs.c
-	./rtermcap cons25l1 | \
+	${RTERMCAP} cons25l1 | \
 		file2c 'const char termcap_cons25l1[] = {' ',0};' \
 		>> makedevs.c
-	./rtermcap cons25l1-m | \
+	${RTERMCAP} cons25l1-m | \
 		file2c 'const char termcap_cons25l1_m[] = {' ',0};' \
 		>> makedevs.c
-	./rtermcap vt100 | \
+	${RTERMCAP} vt100 | \
 		file2c 'const char termcap_vt100[] = {' ',0};' \
 		>> makedevs.c
-	./rtermcap xterm | \
+	${RTERMCAP} xterm | \
 		file2c 'const char termcap_xterm[] = {' ',0};' \
 		>> makedevs.c
 
