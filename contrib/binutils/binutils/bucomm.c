@@ -25,6 +25,7 @@
 #include "bfd.h"
 #include "libiberty.h"
 #include "bucomm.h"
+#include "filenames.h"
 
 #include <sys/stat.h>
 #include <time.h>		/* ctime, maybe time_t */
@@ -214,9 +215,15 @@ make_tempname (filename)
   char *tmpname;
   char *slash = strrchr (filename, '/');
 
-#if defined (__DJGPP__) || defined (__GO32__) || defined (_WIN32)
-  if (slash == NULL)
-    slash = strrchr (filename, '\\');
+#ifdef HAVE_DOS_BASED_FILE_SYSTEM
+  {
+    /* We could have foo/bar\\baz, or foo\\bar, or d:bar.  */
+    char *bslash = strrchr (filename, '\\');
+    if (bslash > slash)
+      slash = bslash;
+    if (slash == NULL && filename[0] != '\0' && filename[1] == ':')
+      slash = filename + 1;
+  }
 #endif
 
   if (slash != (char *) NULL)
@@ -225,8 +232,15 @@ make_tempname (filename)
 
       c = *slash;
       *slash = 0;
-      tmpname = xmalloc (strlen (filename) + sizeof (template) + 1);
+      tmpname = xmalloc (strlen (filename) + sizeof (template) + 2);
       strcpy (tmpname, filename);
+#ifdef HAVE_DOS_BASED_FILE_SYSTEM
+      /* If tmpname is "X:", appending a slash will make it a root
+	 directory on drive X, which is NOT the same as the current
+	 directory on drive X.  */
+      if (tmpname[1] == ':' && tmpname[2] == '\0')
+	strcat (tmpname, ".");
+#endif
       strcat (tmpname, "/");
       strcat (tmpname, template);
       mktemp (tmpname);

@@ -1,3 +1,23 @@
+2000-05-02  H.J. Lu  <hjl@gnu.org>
+
+	* common.h (ELFOSABI_NONE): Renamed from ELFOSABI_SYSV.
+	(ELFOSABI_MODESTO): Defined.
+	(ELFOSABI_OPENBSD): Likewise.
+
+2000-04-14  H.J. Lu  <hjl@gnu.org>
+
+	* common.h (ELFOSABI_TRUE64): Renamed to ELFOSABI_TRU64.
+
+2000-04-14  H.J. Lu  <hjl@gnu.org>
+
+	* common.h (ELFOSABI_NETBSD): Defined.
+	(ELFOSABI_HURD): Likewise.
+	(ELFOSABI_SOLARIS): Likewise.
+	(ELFOSABI_MONTEREY): Likewise.
+	(ELFOSABI_IRIX): Likewise.
+	(ELFOSABI_FREEBSD): Likewise.
+	(ELFOSABI_TRUE64): Likewise.
+
 2000-03-27  Denis Chertykov  <denisc@overta.ru>
 
 	* avr.h: New file.  AVR ELF support for BFD.

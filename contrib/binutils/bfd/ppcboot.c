@@ -64,7 +64,11 @@ typedef struct ppcboot_hdr {
   bfd_byte		os_id;			/* OS_ID */
   char			partition_name[32];	/* partition name */
   bfd_byte		reserved1[470];		/* reserved */
-} ppcboot_hdr_t;
+}
+#ifdef __GNUC__
+  __attribute__ ((packed))
+#endif
+ppcboot_hdr_t;
 
 /* Signature bytes for last 2 bytes of the 512 byte record */
 #define SIGNATURE0 0x55

@@ -1,5 +1,5 @@
 /* BFD back-end for archive files (libraries).
-   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 98, 1999
+   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 98, 99, 2000
    Free Software Foundation, Inc.
    Written by Cygnus Support.  Mostly Gumby Henkel-Wallace's fault.
 
@@ -1183,6 +1183,17 @@ normalize (abfd, file)
 {
   const char *filename = strrchr (file, '/');
 
+
+#ifdef HAVE_DOS_BASED_FILE_SYSTEM
+  {
+    /* We could have foo/bar\\baz, or foo\\bar, or d:bar.  */
+    char *bslash = strrchr (file, '\\');
+    if (bslash > filename)
+      filename = bslash;
+    if (filename == NULL && file[0] != '\0' && file[1] == ':')
+      filename = file + 1;
+  }
+#endif
   if (filename != (char *) NULL)
     filename++;
   else
@@ -1515,6 +1526,17 @@ bfd_bsd_truncate_arname (abfd, pathname, arhdr)
   CONST char *filename = strrchr (pathname, '/');
   int maxlen = ar_maxnamelen (abfd);
 
+#ifdef HAVE_DOS_BASED_FILE_SYSTEM
+  {
+    /* We could have foo/bar\\baz, or foo\\bar, or d:bar.  */
+    char *bslash = strrchr (pathname, '\\');
+    if (bslash > filename)
+      filename = bslash;
+    if (filename == NULL && pathname[0] != '\0' && pathname[1] == ':')
+      filename = pathname + 1;
+  }
+#endif
+
   if (filename == NULL)
     filename = pathname;
   else
@@ -1554,6 +1576,17 @@ bfd_gnu_truncate_arname (abfd, pathname, arhdr)
   int length;
   CONST char *filename = strrchr (pathname, '/');
   int maxlen = ar_maxnamelen (abfd);
+
+#ifdef HAVE_DOS_BASED_FILE_SYSTEM
+  {
+    /* We could have foo/bar\\baz, or foo\\bar, or d:bar.  */
+    char *bslash = strrchr (pathname, '\\');
+    if (bslash > filename)
+      filename = bslash;
+    if (filename == NULL && pathname[0] != '\0' && pathname[1] == ':')
+      filename = pathname + 1;
+  }
+#endif
 
   if (filename == NULL)
     filename = pathname;

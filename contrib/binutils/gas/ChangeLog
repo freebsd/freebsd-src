@@ -1,3 +1,92 @@
+2000-06-09  Nick Clifton  <nickc@cygnus.com>
+
+	* config/tc-arm.c (cons_fix_new_arm): Assign correct reloc value
+	for size 1 fixes.
+
+2000-06-01  Scott Bambrough <scottb@netwinder.org>
+
+	* config/tc-arm.c (do_mrs): Allow SPSR_BIT to be set correctly.
+
+2000-05-22  David O'Brien  <obrien@FreeBSD.org>
+
+	* configure.in: Recognize alpha-*-freebsd*.
+	* configure: Regenerate.
+
+2000-05-26  Scott Bambrough <scottb@netwinder.org>
+
+	Port of patch to mainline by Nick Clifton <nickc@cygnus.com>:
+	* config/tc-arm.c (struct asm_psr): Add boolean field
+	distinguishing between CSPR and SPSR.  Rename 'number' field
+	to 'field'.
+	(psrs): Rearrange contents to match new asm_psr structure.
+	(arm_psr_parse): Move next to psr_required_here.  Make it
+	return an asm_psr structure.
+	(psr_required_here): Use asm_psr structure returned by
+	arm_psr_parse.
+	(do_msr): Reorganise to allow psr_required_here to be called
+	only once.
+	(md_undefined_name): Mark 'name' parameter as unused, since
+	the COFF target does not use it.
+	
+	Port of patch to mainline by Nick Clifton <nickc@cygnus.com>:
+	* testsuite/gas/arm/arch4t.s: Add tests of new fields
+	to msr instruction.
+
+	* NEWS: Mention change in behaviour when assembling msr 
+	instruction.
+
+2000-04-24  Nick Clifton  <nickc@cygnus.com>
+
+	* doc/c-arm.texi (ARM Directives): Document behaviour of .align 0.
+	* doc/as.texinfo (Align): Include arm and strongarm in list of
+	targets that have the second form of the behaviour of the .align
+	directive. 
+
+2000-05-29  Philip Blundell  <philb@gnu.org>
+
+	* doc/as.texinfo: Update copyright dates.
+	(Local Labels): Delete misplaced mention of ARM.
+	* NEWS: Mention ARM ELF support.
+
+Tue May 23 00:57:05 2000  Hans-Peter Nilsson  <hp@axis.com>
+
+	* configure.in (i386-*-freebsd a.out entry): Quote properly.
+	* configure: Regenerate.
+
+2000-05-23  Philip Blundell  <pb@futuretv.com>
+
+	* configure.in: Set version to 2.10.
+	* configure: Regenerate.
+
+2000-05-23  Alan Modra  <alan@linuxcare.com.au>
+
+	* config/tc-i386.c (md_assemble): Pass jump reloc in fr_var...
+	(md_estimate_size_before_relax): so we can use it here instead of
+	old kludges.  Localise vars to blocks.  Comment.
+
+	* frags.c (frag_new): Update fr_var comments.
+	* frags.h (struct frag): Ditto.
+
+	* config/tc-i386.c (tc_i386_fix_adjustable): Prevent adjustment
+	for OBJ_MAYBE_ELF too.  Use S_IS_EXTERNAL instead of S_IS_EXTERN.
+	(md_estimate_size_before_relax): Ensure jumps to weak and
+	externally visible symbols are relocatable.
+
+2000-05-14  David O'Brien  <obrien@FreeBSD.org>
+
+	* config/te-freebsd.h: New file.
+
+	* doc/as.1: Fix unbalanced brackets.
+
+	* config/tc-i386.c (comment_chars): Don't use '/' as comment start if
+	TE_FreeBSD.
+	(line_comment_chars): Set to '/' if TE_FreeBSD.
+
+1999-07-03  Joel Sherrill <joel@OARcorp.com>
+
+	* configure.in (*rtems except sh): Move RTEMS targets to elf.
+	* configure: Regenerate.
+
 2000-05-08  Alan Modra  <alan@linuxcare.com.au>
 
 	* as.h: #include "file", not <file> on files from ../include.

@@ -382,39 +382,50 @@ static CONST struct asm_flg cplong_flag[] =
 struct asm_psr
 {
   CONST char *  template;
-  unsigned long number;
+  boolean       cpsr;
+  unsigned long field;
 };
 
-#define PSR_FIELD_MASK  0x000f0000
+#define SPSR_BIT   (1 << 22)  /* The bit that distnguishes CPSR and SPSR.  */
+#define PSR_SHIFT  16  /* How many bits to shift the PSR_xxx bits up by.  */
 
-#define PSR_FLAGS	0x00080000
-#define PSR_CONTROL	0x00010000 /* Undocumented instruction, its use is discouraged by ARM */
-#define PSR_ALL		0x00090000
-
-#define CPSR_ALL	0
-#define SPSR_ALL	1
-#define CPSR_FLG	2
-#define SPSR_FLG	3
-#define CPSR_CTL	4
-#define SPSR_CTL	5
+#define PSR_c   (1 << 0)
+#define PSR_x   (1 << 1)
+#define PSR_s   (1 << 2)
+#define PSR_f   (1 << 3)
 
 static CONST struct asm_psr psrs[] =
 {
-  /* Valid <psr>'s */
-  {"cpsr",	CPSR_ALL},
-  {"cpsr_all",	CPSR_ALL},
-  {"spsr",	SPSR_ALL},
-  {"spsr_all",	SPSR_ALL},
-
-  /* Valid <psrf>'s */
-  {"cpsr_flg",	CPSR_FLG},
-  {"spsr_flg",	SPSR_FLG},
-  
-  /* Valid <psrc>'s */
-  {"cpsr_c",	CPSR_CTL},
-  {"cpsr_ctl",	CPSR_CTL},
-  {"spsr_c",	SPSR_CTL},
-  {"spsr_ctl",	SPSR_CTL}
+  {"CPSR",	true,  PSR_c | PSR_f},
+  {"CPSR_all",	true,  PSR_c | PSR_f},
+  {"SPSR",	false, PSR_c | PSR_f},
+  {"SPSR_all",	false, PSR_c | PSR_f},
+  {"CPSR_flg",	true,  PSR_f},
+  {"CPSR_f",    true,  PSR_f},
+  {"SPSR_flg",	false, PSR_f},
+  {"SPSR_f",    false, PSR_f}, 
+  {"CPSR_c",	true,  PSR_c},
+  {"CPSR_ctl",	true,  PSR_c},
+  {"SPSR_c",	false, PSR_c},
+  {"SPSR_ctl",	false, PSR_c},
+  {"CPSR_x",    true,  PSR_x},
+  {"CPSR_s",    true,  PSR_s},
+  {"SPSR_x",    false, PSR_x},
+  {"SPSR_s",    false, PSR_s},
+  /* For backwards compatability with older toolchain we also
+     support lower case versions of some of these flags.  */
+  {"cpsr",	true,  PSR_c | PSR_f},
+  {"cpsr_all",	true,  PSR_c | PSR_f},
+  {"spsr",	false, PSR_c | PSR_f},
+  {"spsr_all",	false, PSR_c | PSR_f},
+  {"cpsr_flg",	true,  PSR_f},
+  {"cpsr_f",    true,  PSR_f},
+  {"spsr_flg",	false, PSR_f},
+  {"spsr_f",    false, PSR_f}, 
+  {"cpsr_c",	true,  PSR_c},
+  {"cpsr_ctl",	true,  PSR_c},
+  {"spsr_c",	false, PSR_c},
+  {"spsr_ctl",	false, PSR_c}
 };
 
 /* Functions called by parser.  */
@@ -459,7 +470,7 @@ static void do_fp_to_reg	PARAMS ((char *, unsigned long));
 
 static void fix_new_arm		PARAMS ((fragS *, int, short, expressionS *, int, int));
 static int arm_reg_parse	PARAMS ((char **));
-static int arm_psr_parse	PARAMS ((char **));
+static CONST struct asm_psr * arm_psr_parse PARAMS ((char **));
 static void symbol_locate	PARAMS ((symbolS *, CONST char *, segT, valueT, fragS *));
 static int add_to_lit_pool	PARAMS ((void));
 static unsigned validate_immediate PARAMS ((unsigned));
@@ -468,7 +479,7 @@ static int validate_offset_imm	PARAMS ((unsigned int, int));
 static void opcode_select	PARAMS ((int));
 static void end_of_line		PARAMS ((char *));
 static int reg_required_here	PARAMS ((char **, int));
-static int psr_required_here	PARAMS ((char **, int, int));
+static int psr_required_here	PARAMS ((char **));
 static int co_proc_number	PARAMS ((char **));
 static int cp_opc_expr		PARAMS ((char **, int, int));
 static int cp_reg_required_here	PARAMS ((char **, int));
@@ -570,8 +581,8 @@ static CONST struct asm_opcode insns[] =
   {"mrs",   0x010f0000, NULL,   NULL,        ARM_6UP,      do_mrs},
   {"msr",   0x0120f000, NULL,   NULL,        ARM_6UP,      do_msr},
 /* ScottB: our code uses 0x0128f000 for msr.
-   NickC:  but this is wrong because the bits 16 and 19 are handled
-           by the PSR_xxx defines above.  */
+   NickC:  but this is wrong because the bits 16 through 19 are
+           handled by the PSR_xxx defines above.  */
 
 /* ARM 7M long multiplies - need signed/unsigned flags! */
   {"smull", 0x00c00090, NULL,   s_flag,      ARM_LONGMUL,  do_mull},
@@ -1563,27 +1574,65 @@ reg_required_here (str, shift)
   return FAIL;
 }
 
-static int
-psr_required_here (str, cpsr, spsr)
-     char ** str;
-     int     cpsr;
-     int     spsr;
+static CONST struct asm_psr *
+arm_psr_parse (ccp)
+     register char ** ccp;
 {
-  int    psr;
-  char * start = *str;
-  psr = arm_psr_parse (str);
-  
-  if  (psr == cpsr || psr == spsr)
+  char * start = * ccp;
+  char   c;
+  char * p;
+  CONST struct asm_psr * psr;
+
+  p = start;
+
+  /* Skip to the end of the next word in the input stream.  */
+  do
     {
-      if (psr == spsr)
-	inst.instruction |= 1 << 22;
+      c = *p++;
+    }
+  while (isalpha (c) || c == '_');
+
+  /* Terminate the word.  */
+  *--p = 0;
+
+  /* Now locate the word in the psr hash table.  */
+  psr = (CONST struct asm_psr *) hash_find (arm_psr_hsh, start);
+
+  /* Restore the input stream.  */
+  *p = c;
+
+  /* If we found a valid match, advance the
+     stream pointer past the end of the word.  */
+  *ccp = p;
+
+  return psr;
+}
+
+/* Parse the input looking for a PSR flag.  */
+static int
+psr_required_here (str)
+     char ** str;
+{
+  char * start = *str;
+  CONST struct asm_psr * psr;
+  
+  psr = arm_psr_parse (str);
+
+  if (psr)
+    {
+      /* If this is the SPSR that is being modified, set the R bit.  */
+      if (! psr->cpsr)
+	inst.instruction |= SPSR_BIT;
+
+      /* Set the psr flags in the MSR instruction.  */
+      inst.instruction |= psr->field << PSR_SHIFT;
       
       return SUCCESS;
     }
 
-  /* In the few cases where we might be able to accept something else
-     this error can be overridden.  */
-  inst.error = _("<psr(f)> expected");
+  /* In the few cases where we might be able to accept
+     something else this error can be overridden.  */
+  inst.error = _("flag for {c}psr instruction expected");
 
   /* Restore the start point.  */
   *str = start;
@@ -1866,6 +1915,8 @@ do_mrs (str, flags)
      char *str;
      unsigned long flags;
 {
+  int skip = 0;
+  
   /* Only one syntax.  */
   skip_whitespace (str);
 
@@ -1875,104 +1926,111 @@ do_mrs (str, flags)
       return;
     }
 
-  if (skip_past_comma (&str) == FAIL
-      || psr_required_here (& str, CPSR_ALL, SPSR_ALL) == FAIL)
+  if (skip_past_comma (&str) == FAIL)
     {
-      inst.error = _("<psr> expected");
+      inst.error = _("comma expected after register name");
       return;
     }
 
+  skip_whitespace (str);
+
+  if (   strcmp (str, "CPSR") == 0
+      || strcmp (str, "SPSR") == 0
+	 /* Lower case versions for backwards compatability.  */
+      || strcmp (str, "cpsr") == 0
+      || strcmp (str, "spsr") == 0)
+    skip = 4;
+  /* This is for backwards compatability with older toolchains.  */
+  else if (strcmp (str, "cpsr_all") == 0
+	   || strcmp (str, "spsr_all") == 0)
+    skip = 7;
+  else
+    {
+      inst.error = _("{C|S}PSR expected");
+      return;
+    }
+
+  if (* str == 's' || * str == 'S')
+    inst.instruction |= SPSR_BIT;
+  str += skip;
+  
   inst.instruction |= flags;
   end_of_line (str);
-  return;
 }
 
-/* Three possible forms: "<psr>, Rm", "<psrf>, Rm", "<psrf>, #expression".  */
+/* Two possible forms:
+      "{C|S}PSR_<field>, Rm",
+      "{C|S}PSR_f, #expression".  */
 static void
 do_msr (str, flags)
      char * str;
      unsigned long flags;
 {
-  int reg;
+  skip_whitespace (str);
+
+  if (psr_required_here (& str) == FAIL)
+    return;
+    
+  if (skip_past_comma (& str) == FAIL)
+    {
+      inst.error = _("comma missing after psr flags");
+      return;
+    }
 
   skip_whitespace (str);
 
-  if (psr_required_here (&str, CPSR_ALL, SPSR_ALL) == SUCCESS)
+  if (reg_required_here (& str, 0) != FAIL)
     {
-      inst.instruction |= PSR_ALL;
+      inst.error = NULL; 
+      inst.instruction |= flags;
+      end_of_line (str);
+      return;
+    }
 
-      /* Sytax should be "<psr>, Rm" */
-      if (skip_past_comma (&str) == FAIL
-	  || (reg = reg_required_here (&str, 0)) == FAIL)
-	{
-	  inst.error = BAD_ARGS;
-	  return;
-	}
+  if (! is_immediate_prefix (* str))
+    {
+      inst.error = _("only a register or immediate value can follow a psr flag");
+      return;
+    }
+
+  str ++;
+  inst.error = NULL;
+  
+  if (my_get_expression (& inst.reloc.exp, & str))
+    {
+      inst.error = _("only a register or immediate value can follow a psr flag");
+      return;
+    }
+  
+  if (inst.instruction & ((PSR_c | PSR_x | PSR_s) << PSR_SHIFT))
+    {
+      inst.error = _("can only set flag field with immediate value");
+      return;
+    }
+  
+  flags |= INST_IMMEDIATE;
+	  
+  if (inst.reloc.exp.X_add_symbol)
+    {
+      inst.reloc.type = BFD_RELOC_ARM_IMMEDIATE;
+      inst.reloc.pc_rel = 0;
     }
   else
     {
-      if (psr_required_here (& str, CPSR_FLG, SPSR_FLG) == SUCCESS)
-	inst.instruction |= PSR_FLAGS;
-      else if (psr_required_here (& str, CPSR_CTL, SPSR_CTL) == SUCCESS)
-	inst.instruction |= PSR_CONTROL;
-      else
+      unsigned value = validate_immediate (inst.reloc.exp.X_add_number);
+      
+      if (value == (unsigned) FAIL)
 	{
-	  inst.error = BAD_ARGS;
+	  inst.error = _("Invalid constant");
 	  return;
 	}
       
-      if (skip_past_comma (&str) == FAIL)
-	{
-	  inst.error = BAD_ARGS;
-	  return;
-	}
-      
-      /* Syntax could be "<psrf>, rm", "<psrf>, #expression" */
-      
-      if ((reg = reg_required_here (& str, 0)) != FAIL)
-	;
-      /* Immediate expression.  */
-      else if (is_immediate_prefix (* str))
-	{
-	  str ++;
-	  inst.error = NULL;
-	  
-	  if (my_get_expression (& inst.reloc.exp, & str))
-	    {
-	      inst.error = _("Register or shift expression expected");
-	      return;
-	    }
-
-	  if (inst.reloc.exp.X_add_symbol)
-	    {
-	      inst.reloc.type = BFD_RELOC_ARM_IMMEDIATE;
-	      inst.reloc.pc_rel = 0;
-	    }
-	  else
-	    {
-	      unsigned value = validate_immediate (inst.reloc.exp.X_add_number);
-	      if (value == (unsigned) FAIL)
-		{
-		  inst.error = _("Invalid constant");
-		  return;
-		}
-
-	      inst.instruction |= value;
-	    }
-
-	  flags |= INST_IMMEDIATE;
-	}
-      else
-	{
-	  inst.error = _("Error: unrecognised syntax for second argument to msr instruction");
-	  return;
-	}
+      inst.instruction |= value;
     }
 
   inst.error = NULL; 
   inst.instruction |= flags;
   end_of_line (str);
-  return;
 }
 
 /* Long Multiply Parser
@@ -5242,7 +5300,7 @@ md_section_align (segment, size)
 /* ARGSUSED */
 symbolS *
 md_undefined_symbol (name)
-     char * name;
+     char * name ATTRIBUTE_UNUSED;
 {
 #ifdef OBJ_ELF
   if (name[0] == '_' && name[1] == 'G'
@@ -5302,33 +5360,6 @@ arm_reg_parse (ccp)
     {
       *ccp = p;
       return reg->number;
-    }
-
-  return FAIL;
-}
-
-static int
-arm_psr_parse (ccp)
-     register char ** ccp;
-{
-  char * start = * ccp;
-  char   c;
-  char * p;
-  CONST struct asm_psr * psr;
-
-  p = start;
-  c = *p++;
-  while (isalpha (c) || c == '_')
-    c = *p++;
-
-  *--p = 0;  
-  psr = (CONST struct asm_psr *) hash_find (arm_psr_hsh, start);
-  *p = c;
-
-  if (psr)
-    {
-      *ccp = p;
-      return psr->number;
     }
 
   return FAIL;
@@ -6390,7 +6421,7 @@ _("Warning: Use of the 'nv' conditional is deprecated\n"));
  *            -m[arm]8[10]            Arm 8 processors
  *            -m[arm]9[20][tdmi]      Arm 9 processors
  *            -mstrongarm[110[0]]     StrongARM processors
- *            -m[arm]v[2345]	      Arm architectures
+ *            -m[arm]v[2345[t]]       Arm architectures
  *            -mall                   All (except the ARM1)
  *    FP variants:
  *            -mfpa10, -mfpa11        FPA10 and 11 co-processor instructions
@@ -6847,12 +6878,13 @@ cons_fix_new_arm (frag, where, size, exp)
   bfd_reloc_code_real_type type;
   int pcrel = 0;
   
-  /* Pick a reloc ...
-   *
-   * @@ Should look at CPU word size.
-   */
+  /* Pick a reloc.
+     FIXME: @@ Should look at CPU word size.  */
   switch (size) 
     {
+    case 1:
+      type = BFD_RELOC_8;
+      break;
     case 2:
       type = BFD_RELOC_16;
       break;

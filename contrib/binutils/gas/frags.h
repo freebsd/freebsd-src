@@ -1,5 +1,5 @@
 /* frags.h - Header file for the frag concept.
-   Copyright (C) 1987, 92, 93, 94, 95, 97, 98, 1999
+   Copyright (C) 1987, 92, 93, 94, 95, 97, 98, 99, 2000
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -51,7 +51,8 @@ struct frag
 
   /* (Fixed) number of octets we know we have.  May be 0. */
   offsetT fr_fix;
-  /* (Variable) number of octets after above.  May be 0. */
+  /* May be used for (Variable) number of octets after above.
+     The generic frag handling code no longer makes any use of fr_var.  */
   offsetT fr_var;
   /* For variable-length tail. */
   symbolS *fr_symbol;
