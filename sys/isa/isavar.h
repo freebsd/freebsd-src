@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isavar.h,v 1.2 1998/11/15 18:25:17 dfr Exp $
+ *	$Id: isavar.h,v 1.3 1999/04/16 21:22:34 peter Exp $
  */
 
 #define	ISA_NPORT_IVARS	2
@@ -53,8 +53,8 @@ enum isa_device_ivars {
 	ISA_IVAR_DRQ_1
 };
 
-extern int isa_irq_pending(void);
-extern int isa_irq_mask(void);
+extern intrmask_t isa_irq_pending(void);
+extern intrmask_t isa_irq_mask(void);
 
 /*
  * Simplified accessors for isa devices
