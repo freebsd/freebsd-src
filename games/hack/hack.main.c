@@ -116,6 +116,7 @@ char *argv[];
 	 */
 	gettty();
 	setbuf(stdout,obuf);
+	umask(007);
 	setrandom();
 	startup();
 	cls();
@@ -458,8 +459,9 @@ boolean wr;
 	       && strcmp(dir, HACKDIR)		/* and not the default? */
 #endif
 		) {
-		(void) setuid(getuid());		/* Ron Wessels */
-		(void) setgid(getgid());
+		/* revoke */
+		setegid(getgid());
+		setgid(getgid());
 	}
 #endif
 

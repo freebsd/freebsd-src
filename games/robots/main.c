@@ -56,6 +56,10 @@ char	**av;
 	extern int	Max_per_uid;
 	void quit();
 
+	/* revoke */
+	setegid(getgid());
+	setgid(getgid());
+
 	show_only = FALSE;
 	if (ac > 1) {
 		bad_arg = FALSE;
@@ -64,8 +68,6 @@ char	**av;
 				if (isdigit(av[0][0]))
 					Max_per_uid = atoi(av[0]);
 				else {
-					setuid(getuid());
-					setgid(getgid());
 					Scorefile = av[0];
 # ifdef	FANCY
 					sp = rindex(Scorefile, '/');

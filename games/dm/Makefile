@@ -4,7 +4,7 @@
 PROG=	dm
 MAN8=	dm.8
 MAN5=	dm.conf.5
-BINMODE=4555
-BINOWN=	games
+BINGRP= games
+BINMODE=2555
 
 .include <bsd.prog.mk>

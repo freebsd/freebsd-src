@@ -161,6 +161,8 @@ char	**argv;
 	register char		**av;
 	struct	sgttyb		argp;
 
+	setgid(getgid());
+
 	av = argv;
 	ac = argc;
 	av++;

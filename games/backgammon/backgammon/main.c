@@ -110,6 +110,10 @@ char	**argv;
 	uid = getuid();
 	setreuid (uid,uid);
 
+	/* revoke privs */
+	setegid(getgid());
+	setgid(getgid());
+
 	/* initialization */
 	bflag = 2;					/* default no board */
 	acnt = 1;                                       /* Nuber of args */

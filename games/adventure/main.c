@@ -64,6 +64,9 @@ char **argv;
 	struct text *kk;
 	extern trapdel();
 
+	egid = getegid();
+	setegid(getgid());
+
 	init();         /* Initialize everything */
 	signal(2,trapdel);
 
@@ -117,7 +120,7 @@ char **argv;
 		if (loc==33 && pct(25)&&!closng) rspeak(8);
 		if (!dark(0))
 		{       abb[loc]++;
-			for (i=atloc[loc]; i!=0; i=link[i])     /*2004  */
+			for (i=atloc[loc]; i!=0; i=linkx[i])     /*2004  */
 			{       obj=i;
 				if (obj>100) obj -= 100;
 				if (obj==steps && toting(nugget)) continue;
@@ -261,7 +264,7 @@ char **argv;
 	l4080:
 		switch(verb)
 		{   case 1:                     /* take = 8010          */
-			if (atloc[loc]==0||link[atloc[loc]]!=0) goto l8000;
+			if (atloc[loc]==0||linkx[atloc[loc]]!=0) goto l8000;
 			for (i=1; i<=5; i++)
 				if (dloc[i]==loc&&dflag>=2) goto l8000;
 			obj=atloc[loc];
