@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: amconfig - Namespace reconfiguration (Load/Unload opcodes)
- *              $Revision: 24 $
+ *              $Revision: 25 $
  *
  *****************************************************************************/
 
@@ -144,7 +144,7 @@
  *
  ****************************************************************************/
 
-ACPI_STATUS
+static ACPI_STATUS
 AcpiAmlExecLoadTable (
     ACPI_OPERAND_OBJECT     *RgnDesc,
     ACPI_HANDLE             *DdbHandle)
@@ -290,7 +290,7 @@ Cleanup:
  *
  ****************************************************************************/
 
-ACPI_STATUS
+static ACPI_STATUS
 AcpiAmlExecUnloadTable (
     ACPI_HANDLE             DdbHandle)
 {

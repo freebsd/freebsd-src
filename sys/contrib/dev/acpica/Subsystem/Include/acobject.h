@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: acobject.h - Definition of ACPI_OPERAND_OBJECT  (Internal object only)
- *       $Revision: 74 $
+ *       $Revision: 75 $
  *
  *****************************************************************************/
 
@@ -310,7 +310,7 @@ typedef struct /* REGION */
 
     UINT8                       SpaceId;
     UINT32                      Length;
-    ACPI_INTEGER                Address;
+    ACPI_PHYSICAL_ADDRESS       Address;
     union acpi_operand_obj      *Extra;             /* Pointer to executable AML (in region definition) */
 
     union acpi_operand_obj      *AddrHandler;       /* Handler for system notifies */

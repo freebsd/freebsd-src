@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: ammonad - ACPI AML (p-code) execution for monadic operators
- *              $Revision: 81 $
+ *              $Revision: 83 $
  *
  *****************************************************************************/
 
@@ -143,7 +143,7 @@
  *
  ******************************************************************************/
 
-ACPI_STATUS
+static ACPI_STATUS
 AcpiAmlGetObjectReference (
     ACPI_OPERAND_OBJECT     *ObjDesc,
     ACPI_OPERAND_OBJECT     **RetDesc,
@@ -461,6 +461,8 @@ AcpiAmlExecMonadic2R (
 
     case AML_FROM_BCD_OP:
 
+        /* TBD: for ACPI 2.0, expand to 64 bits */
+
         d0 = (UINT32) (ObjDesc->Number.Value & 15);
         d1 = (UINT32) (ObjDesc->Number.Value >> 4 & 15);
         d2 = (UINT32) (ObjDesc->Number.Value >> 8 & 15);
@@ -483,6 +485,7 @@ AcpiAmlExecMonadic2R (
 
     case AML_TO_BCD_OP:
 
+        /* TBD: for ACPI 2.0, expand to 64 bits */
 
         if (ObjDesc->Number.Value > 9999)
         {
@@ -493,10 +496,10 @@ AcpiAmlExecMonadic2R (
         }
 
         RetDesc->Number.Value
-            = ObjDesc->Number.Value % 10
-            + (ObjDesc->Number.Value / 10 % 10 << 4)
-            + (ObjDesc->Number.Value / 100 % 10 << 8)
-            + (ObjDesc->Number.Value / 1000 % 10 << 12);
+            = ACPI_MODULO (ObjDesc->Number.Value, 10)
+            + (ACPI_MODULO (ACPI_DIVIDE (ObjDesc->Number.Value, 10), 10) << 4)
+            + (ACPI_MODULO (ACPI_DIVIDE (ObjDesc->Number.Value, 100), 10) << 8)
+            + (ACPI_MODULO (ACPI_DIVIDE (ObjDesc->Number.Value, 1000), 10) << 12);
 
         break;
 

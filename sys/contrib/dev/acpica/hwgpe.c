@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: hwgpe - Low level GPE enable/disable/clear functions
- *              $Revision: 22 $
+ *              $Revision: 25 $
  *
  *****************************************************************************/
 
@@ -123,9 +123,6 @@
         MODULE_NAME         ("hwgpe")
 
 
-UINT8 DecodeTo8bit [8] = {1,2,4,8,16,32,64,128};
-
-
 /******************************************************************************
  *
  * FUNCTION:    AcpiHwEnableGpe
@@ -154,7 +151,7 @@ AcpiHwEnableGpe (
     /*
      * Figure out the bit offset for this GPE within the target register.
      */
-    BitMask = DecodeTo8bit [MOD_8 (GpeNumber)];
+    BitMask = AcpiGbl_DecodeTo8bit [MOD_8 (GpeNumber)];
 
     /*
      * Read the current value of the register, set the appropriate bit
@@ -194,7 +191,7 @@ AcpiHwDisableGpe (
     /*
      * Figure out the bit offset for this GPE within the target register.
      */
-    BitMask = DecodeTo8bit [MOD_8 (GpeNumber)];
+    BitMask = AcpiGbl_DecodeTo8bit [MOD_8 (GpeNumber)];
 
     /*
      * Read the current value of the register, clear the appropriate bit,
@@ -233,7 +230,7 @@ AcpiHwClearGpe (
     /*
      * Figure out the bit offset for this GPE within the target register.
      */
-    BitMask = DecodeTo8bit [MOD_8 (GpeNumber)];
+    BitMask = AcpiGbl_DecodeTo8bit [MOD_8 (GpeNumber)];
 
     /*
      * Write a one to the appropriate bit in the status register to
@@ -279,7 +276,7 @@ AcpiHwGetGpeStatus (
     /*
      * Figure out the bit offset for this GPE within the target register.
      */
-    BitMask = DecodeTo8bit [MOD_8 (GpeNumber)];
+    BitMask = AcpiGbl_DecodeTo8bit [MOD_8 (GpeNumber)];
 
     /*
      * Enabled?:

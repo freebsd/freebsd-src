@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: hwxface.c - Hardware access external interfaces
- *              $Revision: 32 $
+ *              $Revision: 36 $
  *
  *****************************************************************************/
 
@@ -160,7 +160,7 @@ AcpiGetProcessorThrottlingInfo (
     NATIVE_UINT             NumThrottleStates;
     NATIVE_UINT             BufferSpaceNeeded;
     NATIVE_UINT             i;
-    UINT8                   DutyWidth = 0;
+    UINT8                   DutyWidth;
     ACPI_NAMESPACE_NODE     *CpuNode;
     ACPI_OPERAND_OBJECT     *CpuObj;
     ACPI_CPU_THROTTLING_STATE *StatePtr;
@@ -197,12 +197,10 @@ AcpiGetProcessorThrottlingInfo (
         return_ACPI_STATUS (AE_NOT_FOUND);
     }
 
-#ifndef _IA64
     /*
-     * No Duty fields in IA64 tables
+     * (Duty Width on IA-64 is zero)
      */
-    DutyWidth  = AcpiGbl_FACP->DutyWidth;
-#endif
+    DutyWidth  = AcpiGbl_FADT->DutyWidth;
 
     /*
      *  P0 must always have a P_BLK all others may be null
@@ -277,8 +275,8 @@ AcpiGetProcessorThrottlingState (
     ACPI_OPERAND_OBJECT     *CpuObj;
     UINT32                  NumThrottleStates;
     UINT32                  DutyCycle;
-    UINT8                   DutyOffset = 0;
-    UINT8                   DutyWidth = 0;
+    UINT8                   DutyOffset;
+    UINT8                   DutyWidth;
 
 
     FUNCTION_TRACE ("AcpiGetProcessorThrottlingState");
@@ -300,13 +298,11 @@ AcpiGetProcessorThrottlingState (
         return_ACPI_STATUS (AE_NOT_FOUND);
     }
 
-#ifndef _IA64
     /*
      * No Duty fields in IA64 tables
      */
-    DutyOffset = AcpiGbl_FACP->DutyOffset;
-    DutyWidth  = AcpiGbl_FACP->DutyWidth;
-#endif
+    DutyOffset = AcpiGbl_FADT->DutyOffset;
+    DutyWidth  = AcpiGbl_FADT->DutyWidth;
 
     /*
      *  Must have a valid P_BLK P0 must have a P_BLK all others may be null
@@ -370,8 +366,8 @@ AcpiSetProcessorThrottlingState (
     ACPI_NAMESPACE_NODE    *CpuNode;
     ACPI_OPERAND_OBJECT    *CpuObj;
     UINT32                  NumThrottleStates = 0;
-    UINT8                   DutyOffset = 0;
-    UINT8                   DutyWidth = 0;
+    UINT8                   DutyOffset;
+    UINT8                   DutyWidth;
     UINT32                  DutyCycle = 0;
 
 
@@ -394,13 +390,11 @@ AcpiSetProcessorThrottlingState (
         return_ACPI_STATUS (AE_NOT_FOUND);
     }
 
-#ifndef _IA64
     /*
      * No Duty fields in IA64 tables
      */
-    DutyOffset = AcpiGbl_FACP->DutyOffset;
-    DutyWidth  = AcpiGbl_FACP->DutyWidth;
-#endif
+    DutyOffset = AcpiGbl_FADT->DutyOffset;
+    DutyWidth  = AcpiGbl_FADT->DutyWidth;
 
     /*
      *  Must have a valid P_BLK P0 must have a P_BLK all others may be null
@@ -427,7 +421,7 @@ AcpiSetProcessorThrottlingState (
         return_ACPI_STATUS (AE_SUPPORT);
     }
 
-    NumThrottleStates = (int) AcpiHwLocalPow (2,DutyWidth);
+    NumThrottleStates = (UINT32) AcpiHwLocalPow (2,DutyWidth);
 
     /*
      * Convert throttling state to duty cycle (invert).
@@ -664,8 +658,9 @@ AcpiGetTimer (
 
 ACPI_STATUS
 AcpiSetFirmwareWakingVector (
-    void                    *PhysicalAddress)
+    ACPI_PHYSICAL_ADDRESS PhysicalAddress)
 {
+
     FUNCTION_TRACE ("AcpiSetFirmwareWakingVector");
 
 
@@ -678,7 +673,14 @@ AcpiSetFirmwareWakingVector (
 
     /* Set the vector */
 
-    * ((void **) AcpiGbl_FACS->FirmwareWakingVector) = PhysicalAddress;
+    if (AcpiGbl_FACS->VectorWidth == 32)
+    {
+        * (UINT32 *) AcpiGbl_FACS->FirmwareWakingVector = (UINT32) PhysicalAddress;
+    }
+    else
+    {
+        *AcpiGbl_FACS->FirmwareWakingVector = PhysicalAddress;
+    }
 
     return_ACPI_STATUS (AE_OK);
 }
@@ -689,7 +691,7 @@ AcpiSetFirmwareWakingVector (
  * FUNCTION:    AcpiGetFirmwareWakingVector
  *
  * PARAMETERS:  *PhysicalAddress    - Output buffer where contents of
- *                                    the dFirmwareWakingVector field of
+ *                                    the FirmwareWakingVector field of
  *                                    the FACS will be stored.
  *
  * RETURN:      Status
@@ -700,8 +702,9 @@ AcpiSetFirmwareWakingVector (
 
 ACPI_STATUS
 AcpiGetFirmwareWakingVector (
-    void                    **PhysicalAddress)
+    ACPI_PHYSICAL_ADDRESS *PhysicalAddress)
 {
+
     FUNCTION_TRACE ("AcpiGetFirmwareWakingVector");
 
 
@@ -719,8 +722,14 @@ AcpiGetFirmwareWakingVector (
 
     /* Get the vector */
 
-    *PhysicalAddress = * ((void **) AcpiGbl_FACS->FirmwareWakingVector);
-
+    if (AcpiGbl_FACS->VectorWidth == 32)
+    {
+        *PhysicalAddress = * (UINT32 *) AcpiGbl_FACS->FirmwareWakingVector;
+    }
+    else
+    {
+        *PhysicalAddress = *AcpiGbl_FACS->FirmwareWakingVector;
+    }
 
     return_ACPI_STATUS (AE_OK);
 }

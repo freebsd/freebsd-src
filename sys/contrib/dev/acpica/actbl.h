@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actbl.h - Table data structures defined in ACPI specification
- *       $Revision: 35 $
+ *       $Revision: 43 $
  *
  *****************************************************************************/
 
@@ -122,31 +122,45 @@
  *  Values for description table header signatures
  */
 
-#define RSDP_SIG            "RSD PTR "              /* RSDT Pointer signature */
-#define APIC_SIG            "APIC"                  /* Multiple APIC Description Table */
-#define DSDT_SIG            "DSDT"                  /* Differentiated System Description Table */
-#define FACP_SIG            "FACP"                  /* Fixed ACPI Description Table */
-#define FACS_SIG            "FACS"                  /* Firmware ACPI Control Structure */
-#define PSDT_SIG            "PSDT"                  /* Persistent System Description Table */
-#define RSDT_SIG            "RSDT"                  /* Root System Description Table */
-#define SSDT_SIG            "SSDT"                  /* Secondary System Description Table */
-#define SBST_SIG            "SBST"                  /* Smart Battery Specification Table */
-#define SPIC_SIG            "SPIC"                  /* iosapic table */
-#define BOOT_SIG            "BOOT"                  /* Boot table */
+#define RSDP_NAME               "RSDP"
+#define RSDP_SIG                "RSD PTR "  /* RSDT Pointer signature */
+#define APIC_SIG                "APIC"      /* Multiple APIC Description Table */
+#define DSDT_SIG                "DSDT"      /* Differentiated System Description Table */
+#define FADT_SIG                "FACP"      /* Fixed ACPI Description Table */
+#define FACS_SIG                "FACS"      /* Firmware ACPI Control Structure */
+#define PSDT_SIG                "PSDT"      /* Persistent System Description Table */
+#define RSDT_SIG                "RSDT"      /* Root System Description Table */
+#define XSDT_SIG                "XSDT"      /* Extended  System Description Table */
+#define SSDT_SIG                "SSDT"      /* Secondary System Description Table */
+#define SBST_SIG                "SBST"      /* Smart Battery Specification Table */
+#define SPIC_SIG                "SPIC"      /* iosapic table */
+#define BOOT_SIG                "BOOT"      /* Boot table */
 
 
-#define GL_OWNED            0x02                    /* Ownership of global lock is bit 1 */
+#define GL_OWNED                0x02        /* Ownership of global lock is bit 1 */
 
 /* values of Mapic.Model */
 
-#define DUAL_PIC            0
-#define MULTIPLE_APIC       1
+#define DUAL_PIC                0
+#define MULTIPLE_APIC           1
 
 /* values of Type in APIC_HEADER */
 
-#define APIC_PROC           0
-#define APIC_IO             1
+#define APIC_PROC               0
+#define APIC_IO                 1
 
+
+/*
+ * Common table types.  The base code can remain
+ * constant if the underlying tables are changed
+ */
+#define RSDT_DESCRIPTOR         RSDT_DESCRIPTOR_REV2
+#define XSDT_DESCRIPTOR         XSDT_DESCRIPTOR_REV2
+#define FACS_DESCRIPTOR         FACS_DESCRIPTOR_REV2
+#define FADT_DESCRIPTOR         FADT_DESCRIPTOR_REV2
+
+
+#pragma pack(1)
 
 /*
  * Architecture-independent tables
@@ -158,10 +172,14 @@ typedef struct  /* Root System Descriptor Pointer */
     NATIVE_CHAR             Signature [8];          /* contains "RSD PTR " */
     UINT8                   Checksum;               /* to make sum of struct == 0 */
     NATIVE_CHAR             OemId [6];              /* OEM identification */
-    UINT8                   Reserved;               /* reserved - must be zero */
-    UINT32                  RsdtPhysicalAddress;    /* physical address of RSDT */
+    UINT8                   Revision;               /* Must be 0 for 1.0, 2 for 2.0 */
+    UINT32                  RsdtPhysicalAddress;    /* 32-bit physical address of RSDT */
+    UINT32                  Length;                 /* XSDT Length in bytes including hdr */
+    UINT64                  XsdtPhysicalAddress;    /* 64-bit physical address of XSDT */
+    UINT8                   ExtendedChecksum;       /* Checksum of entire table */
+    NATIVE_CHAR             Reserved [3];           /* reserved field must be 0 */
 
-} ROOT_SYSTEM_DESCRIPTOR_POINTER;
+} RSDP_DESCRIPTOR;
 
 
 typedef struct  /* ACPI common table header */
@@ -178,6 +196,15 @@ typedef struct  /* ACPI common table header */
     UINT32                  AslCompilerRevision;    /* ASL compiler revision number */
 
 } ACPI_TABLE_HEADER;
+
+
+typedef struct  /* Common FACS for internal use */
+{
+    UINT32                  *GlobalLock;
+    UINT64                  *FirmwareWakingVector;
+    UINT8                   VectorWidth;
+
+} ACPI_COMMON_FACS;
 
 
 typedef struct  /* APIC Table */
@@ -238,6 +265,9 @@ typedef struct  /* Smart Battery Description Table */
 } SMART_BATTERY_DESCRIPTION_TABLE;
 
 
+#pragma pack()
+
+
 /*
  * ACPI Table information.  We save the table address, length,
  * and type of memory allocation (mapped or allocated) for each
@@ -267,16 +297,12 @@ typedef struct _AcpiTableSupport
 
 } ACPI_TABLE_SUPPORT;
 
-
 /*
  * Get the architecture-specific tables
  */
 
-#ifdef IA64
-#include "actbl64.h"
-#else
-#include "actbl32.h"
-#endif
-
+#include "actbl1.h"   /* Acpi 1.0 table defintions */
+#include "actbl71.h"  /* Acpi 0.71 IA-64 Extension table defintions */
+#include "actbl2.h"   /* Acpi 2.0 table definitions */
 
 #endif /* __ACTBL_H__ */

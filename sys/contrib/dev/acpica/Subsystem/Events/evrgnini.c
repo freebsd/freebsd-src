@@ -1,7 +1,7 @@
 /******************************************************************************
  *
- * Module Name: evrgnini- ACPI AddressSpace / OpRegion init
- *              $Revision: 27 $
+ * Module Name: evrgnini- ACPI AddressSpace (OpRegion) init
+ *              $Revision: 29 $
  *
  *****************************************************************************/
 
@@ -329,16 +329,16 @@ AcpiEvPciConfigRegionSetup (
         while (Node != AcpiGbl_RootNode)
         {
             Status = AcpiCmExecute_HID(Node, &ObjectHID);
-            
+
             if (ACPI_SUCCESS (Status))
             {
-                if (!(STRNCMP(ObjectHID.Buffer, PCI_ROOT_HID_STRING, 
+                if (!(STRNCMP(ObjectHID.Buffer, PCI_ROOT_HID_STRING,
                                     sizeof (PCI_ROOT_HID_STRING))))
                 {
                     AcpiInstallAddressSpaceHandler(Node,
                                         ADDRESS_SPACE_PCI_CONFIG,
                                         ACPI_DEFAULT_HANDLER, NULL, NULL);
-                    
+
                     break;
                 }
             }
@@ -350,7 +350,7 @@ AcpiEvPciConfigRegionSetup (
     {
         Node = HandlerObj->AddrHandler.Node;
     }
-    
+
     Status = AcpiCmEvaluateNumericObject (METHOD_NAME__SEG, Node, &Temp);
     if (ACPI_SUCCESS (Status))
     {

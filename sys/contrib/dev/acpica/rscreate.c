@@ -3,7 +3,7 @@
  * Module Name: rscreate - AcpiRsCreateResourceList
  *                         AcpiRsCreatePciRoutingTable
  *                         AcpiRsCreateByteStream
- *              $Revision: 19 $
+ *              $Revision: 21 $
  *
  ******************************************************************************/
 
@@ -303,6 +303,9 @@ AcpiRsCreatePciRoutingTable (
         NumberOfElements    = PackageObject->Package.Count;
         UserPrt             = (PCI_ROUTING_TABLE *) Buffer;
 
+
+        Buffer = ROUND_PTR_UP_TO_8 (Buffer, UINT8);
+
         for (Index = 0; Index < NumberOfElements; Index++)
         {
             /*
@@ -312,8 +315,8 @@ AcpiRsCreatePciRoutingTable (
              * be zero because we cleared the return buffer earlier
              */
             Buffer += UserPrt->Length;
-            Buffer = ROUND_PTR_UP_TO_4 (Buffer, UINT8);
             UserPrt = (PCI_ROUTING_TABLE *) Buffer;
+
 
             /*
              * Fill in the Length field with the information we
@@ -405,7 +408,7 @@ AcpiRsCreatePciRoutingTable (
 
             /* Now align the current length */
 
-            UserPrt->Length = ROUND_UP_TO_32BITS (UserPrt->Length);
+            UserPrt->Length = ROUND_UP_TO_64BITS (UserPrt->Length);
 
             /*
              * Dereference the Source Index
