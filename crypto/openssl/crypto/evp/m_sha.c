@@ -56,27 +56,39 @@
  * [including the GNU Public Licence.]
  */
 
-#ifndef NO_SHA
+#ifndef OPENSSL_NO_SHA
 #include <stdio.h>
 #include "cryptlib.h"
 #include <openssl/evp.h>
 #include <openssl/objects.h>
 #include <openssl/x509.h>
 
-static EVP_MD sha_md=
+static int init(EVP_MD_CTX *ctx)
+	{ return SHA_Init(ctx->md_data); }
+
+static int update(EVP_MD_CTX *ctx,const void *data,unsigned long count)
+	{ return SHA_Update(ctx->md_data,data,count); }
+
+static int final(EVP_MD_CTX *ctx,unsigned char *md)
+	{ return SHA_Final(md,ctx->md_data); }
+
+static const EVP_MD sha_md=
 	{
 	NID_sha,
 	NID_shaWithRSAEncryption,
 	SHA_DIGEST_LENGTH,
-	SHA_Init,
-	SHA_Update,
-	SHA_Final,
+	0,
+	init,
+	update,
+	final,
+	NULL,
+	NULL,
 	EVP_PKEY_RSA_method,
 	SHA_CBLOCK,
 	sizeof(EVP_MD *)+sizeof(SHA_CTX),
 	};
 
-EVP_MD *EVP_sha(void)
+const EVP_MD *EVP_sha(void)
 	{
 	return(&sha_md);
 	}

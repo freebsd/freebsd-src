@@ -96,7 +96,7 @@ static int md_new(BIO *bi)
 	{
 	EVP_MD_CTX *ctx;
 
-	ctx=(EVP_MD_CTX *)OPENSSL_malloc(sizeof(EVP_MD_CTX));
+	ctx=EVP_MD_CTX_create();
 	if (ctx == NULL) return(0);
 
 	bi->init=0;
@@ -108,7 +108,7 @@ static int md_new(BIO *bi)
 static int md_free(BIO *a)
 	{
 	if (a == NULL) return(0);
-	OPENSSL_free(a->ptr);
+	EVP_MD_CTX_destroy(a->ptr);
 	a->ptr=NULL;
 	a->init=0;
 	a->flags=0;
@@ -121,7 +121,7 @@ static int md_read(BIO *b, char *out, int outl)
 	EVP_MD_CTX *ctx;
 
 	if (out == NULL) return(0);
-	ctx=(EVP_MD_CTX *)b->ptr;
+	ctx=b->ptr;
 
 	if ((ctx == NULL) || (b->next_bio == NULL)) return(0);
 
@@ -145,7 +145,7 @@ static int md_write(BIO *b, const char *in, int inl)
 	EVP_MD_CTX *ctx;
 
 	if ((in == NULL) || (inl <= 0)) return(0);
-	ctx=(EVP_MD_CTX *)b->ptr;
+	ctx=b->ptr;
 
 	if ((ctx != NULL) && (b->next_bio != NULL))
 		ret=BIO_write(b->next_bio,in,inl);
@@ -170,13 +170,13 @@ static long md_ctrl(BIO *b, int cmd, long num, void *ptr)
 	long ret=1;
 	BIO *dbio;
 
-	ctx=(EVP_MD_CTX *)b->ptr;
+	ctx=b->ptr;
 
 	switch (cmd)
 		{
 	case BIO_CTRL_RESET:
 		if (b->init)
-			EVP_DigestInit(ctx,ctx->digest);
+			EVP_DigestInit_ex(ctx,ctx->digest, NULL);
 		else
 			ret=0;
 		ret=BIO_ctrl(b->next_bio,cmd,num,ptr);
@@ -184,7 +184,7 @@ static long md_ctrl(BIO *b, int cmd, long num, void *ptr)
 	case BIO_C_GET_MD:
 		if (b->init)
 			{
-			ppmd=(const EVP_MD **)ptr;
+			ppmd=ptr;
 			*ppmd=ctx->digest;
 			}
 		else
@@ -193,7 +193,7 @@ static long md_ctrl(BIO *b, int cmd, long num, void *ptr)
 	case BIO_C_GET_MD_CTX:
 		if (b->init)
 			{
-			pctx=(EVP_MD_CTX **)ptr;
+			pctx=ptr;
 			*pctx=ctx;
 			}
 		else
@@ -206,14 +206,14 @@ static long md_ctrl(BIO *b, int cmd, long num, void *ptr)
 		break;
 
 	case BIO_C_SET_MD:
-		md=(EVP_MD *)ptr;
-		EVP_DigestInit(ctx,md);
+		md=ptr;
+		EVP_DigestInit_ex(ctx,md, NULL);
 		b->init=1;
 		break;
 	case BIO_CTRL_DUP:
-		dbio=(BIO *)ptr;
-		dctx=(EVP_MD_CTX *)dbio->ptr;
-		memcpy(dctx,ctx,sizeof(ctx));
+		dbio=ptr;
+		dctx=dbio->ptr;
+		EVP_MD_CTX_copy_ex(dctx,ctx);
 		b->init=1;
 		break;
 	default:
@@ -243,10 +243,10 @@ static int md_gets(BIO *bp, char *buf, int size)
 	unsigned int ret;
 
 
-	ctx=(EVP_MD_CTX *)bp->ptr;
+	ctx=bp->ptr;
 	if (size < ctx->digest->md_size)
 		return(0);
-	EVP_DigestFinal(ctx,(unsigned char *)buf,&ret);
+	EVP_DigestFinal_ex(ctx,(unsigned char *)buf,&ret);
 	return((int)ret);
 	}
 

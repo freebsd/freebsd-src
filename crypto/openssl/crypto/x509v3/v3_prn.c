@@ -64,6 +64,8 @@
 
 /* Extension printing routines */
 
+static int unknown_ext_print(BIO *out, X509_EXTENSION *ext, unsigned long flag, int indent, int supported);
+
 /* Print out a name+value stack */
 
 void X509V3_EXT_val_prn(BIO *out, STACK_OF(CONF_VALUE) *val, int indent, int ml)
@@ -103,16 +105,22 @@ void X509V3_EXT_val_prn(BIO *out, STACK_OF(CONF_VALUE) *val, int indent, int ml)
 
 /* Main routine: print out a general extension */
 
-int X509V3_EXT_print(BIO *out, X509_EXTENSION *ext, int flag, int indent)
+int X509V3_EXT_print(BIO *out, X509_EXTENSION *ext, unsigned long flag, int indent)
 {
-	char *ext_str = NULL, *value = NULL;
+	void *ext_str = NULL;
+	char *value = NULL;
 	unsigned char *p;
 	X509V3_EXT_METHOD *method;	
 	STACK_OF(CONF_VALUE) *nval = NULL;
 	int ok = 1;
-	if(!(method = X509V3_EXT_get(ext))) return 0;
+	if(!(method = X509V3_EXT_get(ext)))
+		return unknown_ext_print(out, ext, flag, indent, 0);
 	p = ext->value->data;
-	if(!(ext_str = method->d2i(NULL, &p, ext->value->length))) return 0;
+	if(method->it) ext_str = ASN1_item_d2i(NULL, &p, ext->value->length, ASN1_ITEM_ptr(method->it));
+	else ext_str = method->d2i(NULL, &p, ext->value->length);
+
+	if(!ext_str) return unknown_ext_print(out, ext, flag, indent, 1);
+
 	if(method->i2s) {
 		if(!(value = method->i2s(method, ext_str))) {
 			ok = 0;
@@ -148,11 +156,71 @@ int X509V3_EXT_print(BIO *out, X509_EXTENSION *ext, int flag, int indent)
 	err:
 		sk_CONF_VALUE_pop_free(nval, X509V3_conf_free);
 		if(value) OPENSSL_free(value);
-		method->ext_free(ext_str);
+		if(method->it) ASN1_item_free(ext_str, ASN1_ITEM_ptr(method->it));
+		else method->ext_free(ext_str);
 		return ok;
 }
 
-#ifndef NO_FP_API
+int X509V3_extensions_print(BIO *bp, char *title, STACK_OF(X509_EXTENSION) *exts, unsigned long flag, int indent)
+{
+	int i, j;
+
+	if(sk_X509_EXTENSION_num(exts) <= 0) return 1;
+
+	if(title) 
+		{
+		BIO_printf(bp,"%*s%s:\n",indent, "", title);
+		indent += 4;
+		}
+
+	for (i=0; i<sk_X509_EXTENSION_num(exts); i++)
+		{
+		ASN1_OBJECT *obj;
+		X509_EXTENSION *ex;
+		ex=sk_X509_EXTENSION_value(exts, i);
+		if (BIO_printf(bp,"%*s",indent, "") <= 0) return 0;
+		obj=X509_EXTENSION_get_object(ex);
+		i2a_ASN1_OBJECT(bp,obj);
+		j=X509_EXTENSION_get_critical(ex);
+		if (BIO_printf(bp,": %s\n",j?"critical":"","") <= 0)
+			return 0;
+		if(!X509V3_EXT_print(bp, ex, flag, 12))
+			{
+			BIO_printf(bp, "%*s", indent + 4, "");
+			M_ASN1_OCTET_STRING_print(bp,ex->value);
+			}
+		if (BIO_write(bp,"\n",1) <= 0) return 0;
+		}
+	return 1;
+}
+
+static int unknown_ext_print(BIO *out, X509_EXTENSION *ext, unsigned long flag, int indent, int supported)
+{
+	switch(flag & X509V3_EXT_UNKNOWN_MASK) {
+
+		case X509V3_EXT_DEFAULT:
+		return 0;
+
+		case X509V3_EXT_ERROR_UNKNOWN:
+		if(supported)
+			BIO_printf(out, "%*s<Parse Error>", indent, "");
+		else
+			BIO_printf(out, "%*s<Not Supported>", indent, "");
+		return 1;
+
+		case X509V3_EXT_PARSE_UNKNOWN:
+			return ASN1_parse_dump(out,
+				ext->value->data, ext->value->length, indent, -1);
+		case X509V3_EXT_DUMP_UNKNOWN:
+			return BIO_dump_indent(out, (char *)ext->value->data, ext->value->length, indent);
+
+		default:
+		return 1;
+	}
+}
+	
+
+#ifndef OPENSSL_NO_FP_API
 int X509V3_EXT_print_fp(FILE *fp, X509_EXTENSION *ext, int flag, int indent)
 {
 	BIO *bio_tmp;

@@ -55,6 +55,62 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
  */
+/* ====================================================================
+ * Copyright (c) 1998-2000 The OpenSSL Project.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer. 
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * 3. All advertising materials mentioning features or use of this
+ *    software must display the following acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+ *
+ * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+ *    endorse or promote products derived from this software without
+ *    prior written permission. For written permission, please contact
+ *    openssl-core@openssl.org.
+ *
+ * 5. Products derived from this software may not be called "OpenSSL"
+ *    nor may "OpenSSL" appear in their names without prior written
+ *    permission of the OpenSSL Project.
+ *
+ * 6. Redistributions of any form whatsoever must retain the following
+ *    acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+ * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+ * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
+ * ====================================================================
+ *
+ * This product includes cryptographic software written by Eric Young
+ * (eay@cryptsoft.com).  This product includes software written by Tim
+ * Hudson (tjh@cryptsoft.com).
+ *
+ */
+
+#define _BSD_SOURCE 1		/* Or gethostname won't be declared properly
+				   on Linux and GNU platforms. */
 
 #include <assert.h>
 #include <errno.h>
@@ -64,33 +120,57 @@
 #include <string.h>
 #include <time.h>
 
-#include "openssl/e_os.h"
+#define USE_SOCKETS
+#include "e_os.h"
 
 #include <openssl/bio.h>
 #include <openssl/crypto.h>
 #include <openssl/evp.h>
 #include <openssl/x509.h>
 #include <openssl/ssl.h>
+#include <openssl/engine.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
-#ifdef WINDOWS
+
+#define _XOPEN_SOURCE_EXTENDED	1 /* Or gethostname won't be declared properly
+				     on Compaq platforms (at least with DEC C).
+				     Do not try to put it earlier, or IPv6 includes
+				     get screwed...
+				  */
+
+#ifdef OPENSSL_SYS_WINDOWS
+#include <winsock.h>
 #include "../crypto/bio/bss_file.c"
+#else
+#include OPENSSL_UNISTD
 #endif
 
-#ifdef VMS
+#ifdef OPENSSL_SYS_VMS
 #  define TEST_SERVER_CERT "SYS$DISK:[-.APPS]SERVER.PEM"
 #  define TEST_CLIENT_CERT "SYS$DISK:[-.APPS]CLIENT.PEM"
+#elif defined(OPENSSL_SYS_WINCE)
+#  define TEST_SERVER_CERT "\\OpenSSL\\server.pem"
+#  define TEST_CLIENT_CERT "\\OpenSSL\\client.pem"
 #else
 #  define TEST_SERVER_CERT "../apps/server.pem"
 #  define TEST_CLIENT_CERT "../apps/client.pem"
 #endif
 
+/* There is really no standard for this, so let's assign some tentative
+   numbers.  In any case, these numbers are only for this test */
+#define COMP_RLE	1
+#define COMP_ZLIB	2
+
 static int MS_CALLBACK verify_callback(int ok, X509_STORE_CTX *ctx);
-#ifndef NO_RSA
+#ifndef OPENSSL_NO_RSA
 static RSA MS_CALLBACK *tmp_rsa_cb(SSL *s, int is_export,int keylength);
 static void free_tmp_rsa(void);
 #endif
-#ifndef NO_DH
+static int MS_CALLBACK app_verify_callback(X509_STORE_CTX *ctx, void *arg);
+#define APP_CALLBACK "Test Callback Argument"
+static char *app_verify_arg = APP_CALLBACK;
+
+#ifndef OPENSSL_NO_DH
 static DH *get_dh512(void);
 static DH *get_dh1024(void);
 static DH *get_dh1024dsa(void);
@@ -124,18 +204,18 @@ static void sv_usage(void)
 	fprintf(stderr," -reuse        - use session-id reuse\n");
 	fprintf(stderr," -num <val>    - number of connections to perform\n");
 	fprintf(stderr," -bytes <val>  - number of bytes to swap between client/server\n");
-#ifndef NO_DH
+#ifndef OPENSSL_NO_DH
 	fprintf(stderr," -dhe1024      - use 1024 bit key (safe prime) for DHE\n");
 	fprintf(stderr," -dhe1024dsa   - use 1024 bit key (with 160-bit subprime) for DHE\n");
 	fprintf(stderr," -no_dhe       - disable DHE\n");
 #endif
-#ifndef NO_SSL2
+#ifndef OPENSSL_NO_SSL2
 	fprintf(stderr," -ssl2         - use SSLv2\n");
 #endif
-#ifndef NO_SSL3
+#ifndef OPENSSL_NO_SSL3
 	fprintf(stderr," -ssl3         - use SSLv3\n");
 #endif
-#ifndef NO_TLS1
+#ifndef OPENSSL_NO_TLS1
 	fprintf(stderr," -tls1         - use TLSv1\n");
 #endif
 	fprintf(stderr," -CApath arg   - PEM format directory of CA's\n");
@@ -148,6 +228,8 @@ static void sv_usage(void)
 	fprintf(stderr," -bio_pair     - Use BIO pairs\n");
 	fprintf(stderr," -f            - Test even cases that can't work\n");
 	fprintf(stderr," -time         - measure processor time used by client and server\n");
+	fprintf(stderr," -zlib         - use zlib compression\n");
+	fprintf(stderr," -time         - use rle compression\n");
 	}
 
 static void print_details(SSL *c_ssl, const char *prefix)
@@ -169,7 +251,7 @@ static void print_details(SSL *c_ssl, const char *prefix)
 			{
 			if (0) 
 				;
-#ifndef NO_RSA
+#ifndef OPENSSL_NO_RSA
 			else if (pkey->type == EVP_PKEY_RSA && pkey->pkey.rsa != NULL
 				&& pkey->pkey.rsa->n != NULL)
 				{
@@ -177,7 +259,7 @@ static void print_details(SSL *c_ssl, const char *prefix)
 					BN_num_bits(pkey->pkey.rsa->n));
 				}
 #endif
-#ifndef NO_DSA
+#ifndef OPENSSL_NO_DSA
 			else if (pkey->type == EVP_PKEY_DSA && pkey->pkey.dsa != NULL
 				&& pkey->pkey.dsa->p != NULL)
 				{
@@ -194,6 +276,69 @@ static void print_details(SSL *c_ssl, const char *prefix)
 	BIO_printf(bio_stdout,"\n");
 	}
 
+static void lock_dbg_cb(int mode, int type, const char *file, int line)
+	{
+	static int modes[CRYPTO_NUM_LOCKS]; /* = {0, 0, ... } */
+	const char *errstr = NULL;
+	int rw;
+	
+	rw = mode & (CRYPTO_READ|CRYPTO_WRITE);
+	if (!((rw == CRYPTO_READ) || (rw == CRYPTO_WRITE)))
+		{
+		errstr = "invalid mode";
+		goto err;
+		}
+
+	if (type < 0 || type > CRYPTO_NUM_LOCKS)
+		{
+		errstr = "type out of bounds";
+		goto err;
+		}
+
+	if (mode & CRYPTO_LOCK)
+		{
+		if (modes[type])
+			{
+			errstr = "already locked";
+			/* must not happen in a single-threaded program
+			 * (would deadlock) */
+			goto err;
+			}
+
+		modes[type] = rw;
+		}
+	else if (mode & CRYPTO_UNLOCK)
+		{
+		if (!modes[type])
+			{
+			errstr = "not locked";
+			goto err;
+			}
+		
+		if (modes[type] != rw)
+			{
+			errstr = (rw == CRYPTO_READ) ?
+				"CRYPTO_r_unlock on write lock" :
+				"CRYPTO_w_unlock on read lock";
+			}
+
+		modes[type] = 0;
+		}
+	else
+		{
+		errstr = "invalid mode";
+		goto err;
+		}
+
+ err:
+	if (errstr)
+		{
+		/* we cannot use bio_err here */
+		fprintf(stderr, "openssl (lock_dbg_cb): %s (mode=%d, type=%d) at %s:%d\n",
+			errstr, mode, type, file, line);
+		}
+	}
+
 int main(int argc, char *argv[])
 	{
 	char *CApath=NULL,*CAfile=NULL;
@@ -203,6 +348,7 @@ int main(int argc, char *argv[])
 	int tls1=0,ssl2=0,ssl3=0,ret=1;
 	int client_auth=0;
 	int server_auth=0,i;
+	int app_verify=0;
 	char *server_cert=TEST_SERVER_CERT;
 	char *server_key=NULL;
 	char *client_cert=TEST_CLIENT_CERT;
@@ -213,23 +359,39 @@ int main(int argc, char *argv[])
 	SSL *c_ssl,*s_ssl;
 	int number=1,reuse=0;
 	long bytes=1L;
-#ifndef NO_DH
+#ifndef OPENSSL_NO_DH
 	DH *dh;
 	int dhe1024 = 0, dhe1024dsa = 0;
 #endif
 	int no_dhe = 0;
 	int print_time = 0;
 	clock_t s_time = 0, c_time = 0;
+	int comp = 0;
+	COMP_METHOD *cm = NULL;
 
 	verbose = 0;
 	debug = 0;
 	cipher = 0;
-	
+
+	bio_err=BIO_new_fp(stderr,BIO_NOCLOSE);	
+
+	CRYPTO_set_locking_callback(lock_dbg_cb);
+
+	/* enable memory leak checking unless explicitly disabled */
+	if (!((getenv("OPENSSL_DEBUG_MEMORY") != NULL) && (0 == strcmp(getenv("OPENSSL_DEBUG_MEMORY"), "off"))))
+		{
+		CRYPTO_malloc_debug_init();
+		CRYPTO_set_mem_debug_options(V_CRYPTO_MDEBUG_ALL);
+		}
+	else
+		{
+		/* OPENSSL_DEBUG_MEMORY=off */
+		CRYPTO_set_mem_debug_functions(0, 0, 0, 0, 0);
+		}
 	CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_ON);
 
 	RAND_seed(rnd_seed, sizeof rnd_seed);
 
-	bio_err=BIO_new_fp(stderr,BIO_NOCLOSE);
 	bio_stdout=BIO_new_fp(stdout,BIO_NOCLOSE);
 
 	argc--;
@@ -247,12 +409,22 @@ int main(int argc, char *argv[])
 			debug=1;
 		else if	(strcmp(*argv,"-reuse") == 0)
 			reuse=1;
-#ifndef NO_DH
 		else if	(strcmp(*argv,"-dhe1024") == 0)
+			{
+#ifndef OPENSSL_NO_DH
 			dhe1024=1;
-		else if	(strcmp(*argv,"-dhe1024dsa") == 0)
-			dhe1024dsa=1;
+#else
+			fprintf(stderr,"ignoring -dhe1024, since I'm compiled without DH\n");
 #endif
+			}
+		else if	(strcmp(*argv,"-dhe1024dsa") == 0)
+			{
+#ifndef OPENSSL_NO_DH
+			dhe1024dsa=1;
+#else
+			fprintf(stderr,"ignoring -dhe1024, since I'm compiled without DH\n");
+#endif
+			}
 		else if	(strcmp(*argv,"-no_dhe") == 0)
 			no_dhe=1;
 		else if	(strcmp(*argv,"-ssl2") == 0)
@@ -333,6 +505,18 @@ int main(int argc, char *argv[])
 			{
 			print_time = 1;
 			}
+		else if	(strcmp(*argv,"-zlib") == 0)
+			{
+			comp = COMP_ZLIB;
+			}
+		else if	(strcmp(*argv,"-rle") == 0)
+			{
+			comp = COMP_RLE;
+			}
+		else if	(strcmp(*argv,"-app_verify") == 0)
+			{
+			app_verify = 1;
+			}
 		else
 			{
 			fprintf(stderr,"unknown option %s\n",*argv);
@@ -355,7 +539,7 @@ bad:
 			"the test anyway (and\n-d to see what happens), "
 			"or add one of -ssl2, -ssl3, -tls1, -reuse\n"
 			"to avoid protocol mismatch.\n");
-		exit(1);
+		EXIT(1);
 		}
 
 	if (print_time)
@@ -374,7 +558,24 @@ bad:
 	SSL_library_init();
 	SSL_load_error_strings();
 
-#if !defined(NO_SSL2) && !defined(NO_SSL3)
+	if (comp == COMP_ZLIB) cm = COMP_zlib();
+	if (comp == COMP_RLE) cm = COMP_rle();
+	if (cm != NULL)
+		{
+		if (cm->type != NID_undef)
+			SSL_COMP_add_compression_method(comp, cm);
+		else
+			{
+			fprintf(stderr,
+				"Warning: %s compression not supported\n",
+				(comp == COMP_RLE ? "rle" :
+					(comp == COMP_ZLIB ? "zlib" :
+						"unknown")));
+			ERR_print_errors_fp(stderr);
+			}
+		}
+
+#if !defined(OPENSSL_NO_SSL2) && !defined(OPENSSL_NO_SSL3)
 	if (ssl2)
 		meth=SSLv2_method();
 	else 
@@ -386,7 +587,7 @@ bad:
 	else
 		meth=SSLv23_method();
 #else
-#ifdef NO_SSL2
+#ifdef OPENSSL_NO_SSL2
 	meth=SSLv3_method();
 #else
 	meth=SSLv2_method();
@@ -407,7 +608,7 @@ bad:
 		SSL_CTX_set_cipher_list(s_ctx,cipher);
 		}
 
-#ifndef NO_DH
+#ifndef OPENSSL_NO_DH
 	if (!no_dhe)
 		{
 		if (dhe1024dsa)
@@ -427,7 +628,7 @@ bad:
 	(void)no_dhe;
 #endif
 
-#ifndef NO_RSA
+#ifndef OPENSSL_NO_RSA
 	SSL_CTX_set_tmp_rsa_callback(s_ctx,tmp_rsa_cb);
 #endif
 
@@ -467,12 +668,20 @@ bad:
 		SSL_CTX_set_verify(s_ctx,
 			SSL_VERIFY_PEER|SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
 			verify_callback);
+		if (app_verify) 
+			{
+			SSL_CTX_set_cert_verify_callback(s_ctx, app_verify_callback, app_verify_arg);
+			}
 		}
 	if (server_auth)
 		{
 		BIO_printf(bio_err,"server authentication\n");
 		SSL_CTX_set_verify(c_ctx,SSL_VERIFY_PEER,
 			verify_callback);
+		if (app_verify) 
+			{
+			SSL_CTX_set_cert_verify_callback(s_ctx, app_verify_callback, app_verify_arg);
+			}
 		}
 	
 	{
@@ -482,6 +691,25 @@ bad:
 
 	c_ssl=SSL_new(c_ctx);
 	s_ssl=SSL_new(s_ctx);
+
+#ifndef OPENSSL_NO_KRB5
+	if (c_ssl  &&  c_ssl->kssl_ctx)
+                {
+                char	localhost[MAXHOSTNAMELEN+2];
+
+		if (gethostname(localhost, sizeof localhost-1) == 0)
+                        {
+			localhost[sizeof localhost-1]='\0';
+			if(strlen(localhost) == sizeof localhost-1)
+				{
+				BIO_printf(bio_err,"localhost name too long\n");
+				goto end;
+				}
+			kssl_ctx_setstring(c_ssl->kssl_ctx, KSSL_SERVER,
+                                localhost);
+			}
+		}
+#endif    /* OPENSSL_NO_KRB5  */
 
 	for (i=0; i<number; i++)
 		{
@@ -529,9 +757,11 @@ end:
 
 	if (bio_stdout != NULL) BIO_free(bio_stdout);
 
-#ifndef NO_RSA
+#ifndef OPENSSL_NO_RSA
 	free_tmp_rsa();
 #endif
+	ENGINE_cleanup();
+	CRYPTO_cleanup_all_ex_data();
 	ERR_free_strings();
 	ERR_remove_state(0);
 	EVP_cleanup();
@@ -620,6 +850,8 @@ int doit_biopair(SSL *s_ssl, SSL *c_ssl, long count,
 			int i, r;
 			clock_t c_clock = clock();
 
+			memset(cbuf, 0, sizeof(cbuf));
+
 			if (debug)
 				if (SSL_in_init(c_ssl))
 					printf("client waiting in SSL_connect - %s\n",
@@ -703,6 +935,8 @@ int doit_biopair(SSL *s_ssl, SSL *c_ssl, long count,
 			MS_STATIC char sbuf[1024*8];
 			int i, r;
 			clock_t s_clock = clock();
+
+			memset(sbuf, 0, sizeof(sbuf));
 
 			if (debug)
 				if (SSL_in_init(s_ssl))
@@ -946,6 +1180,9 @@ int doit(SSL *s_ssl, SSL *c_ssl, long count)
 	int done=0;
 	int c_write,s_write;
 	int do_server=0,do_client=0;
+
+	memset(cbuf,0,sizeof(cbuf));
+	memset(sbuf,0,sizeof(sbuf));
 
 	c_to_s=BIO_new(BIO_s_mem());
 	s_to_c=BIO_new(BIO_s_mem());
@@ -1228,7 +1465,8 @@ static int MS_CALLBACK verify_callback(int ok, X509_STORE_CTX *ctx)
 	{
 	char *s,buf[256];
 
-	s=X509_NAME_oneline(X509_get_subject_name(ctx->current_cert),buf,256);
+	s=X509_NAME_oneline(X509_get_subject_name(ctx->current_cert),buf,
+			    sizeof buf);
 	if (s != NULL)
 		{
 		if (ok)
@@ -1252,7 +1490,26 @@ static int MS_CALLBACK verify_callback(int ok, X509_STORE_CTX *ctx)
 	return(ok);
 	}
 
-#ifndef NO_RSA
+static int MS_CALLBACK app_verify_callback(X509_STORE_CTX *ctx, void *arg)
+	{
+	char *s = NULL,buf[256];
+	int ok=1;
+
+	fprintf(stderr, "In app_verify_callback, allowing cert. ");
+	fprintf(stderr, "Arg is: %s\n", (char *)arg);
+	fprintf(stderr, "Finished printing do we have a context? 0x%x a cert? 0x%x\n",
+			(unsigned int)ctx, (unsigned int)ctx->cert);
+	if (ctx->cert)
+		s=X509_NAME_oneline(X509_get_subject_name(ctx->cert),buf,256);
+	if (s != NULL)
+		{
+			fprintf(stderr,"cert depth=%d %s\n",ctx->error_depth,buf);
+		}
+
+	return(ok);
+	}
+
+#ifndef OPENSSL_NO_RSA
 static RSA *rsa_tmp=NULL;
 
 static RSA MS_CALLBACK *tmp_rsa_cb(SSL *s, int is_export, int keylength)
@@ -1278,14 +1535,14 @@ static void free_tmp_rsa(void)
 	}
 #endif
 
-#ifndef NO_DH
+#ifndef OPENSSL_NO_DH
 /* These DH parameters have been generated as follows:
  *    $ openssl dhparam -C -noout 512
  *    $ openssl dhparam -C -noout 1024
  *    $ openssl dhparam -C -noout -dsaparam 1024
  * (The third function has been renamed to avoid name conflicts.)
  */
-DH *get_dh512()
+static DH *get_dh512()
 	{
 	static unsigned char dh512_p[]={
 		0xCB,0xC8,0xE1,0x86,0xD0,0x1F,0x94,0x17,0xA6,0x99,0xF0,0xC6,
@@ -1308,7 +1565,7 @@ DH *get_dh512()
 	return(dh);
 	}
 
-DH *get_dh1024()
+static DH *get_dh1024()
 	{
 	static unsigned char dh1024_p[]={
 		0xF8,0x81,0x89,0x7D,0x14,0x24,0xC5,0xD1,0xE6,0xF7,0xBF,0x3A,
@@ -1336,7 +1593,7 @@ DH *get_dh1024()
 	return(dh);
 	}
 
-DH *get_dh1024dsa()
+static DH *get_dh1024dsa()
 	{
 	static unsigned char dh1024_p[]={
 		0xC8,0x00,0xF7,0x08,0x07,0x89,0x4D,0x90,0x53,0xF3,0xD5,0x00,

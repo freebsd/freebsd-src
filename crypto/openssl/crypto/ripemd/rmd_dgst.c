@@ -69,7 +69,7 @@ const char *RMD160_version="RIPE-MD160" OPENSSL_VERSION_PTEXT;
      void ripemd160_block(RIPEMD160_CTX *c, unsigned long *p,int num);
 #  endif
 
-void RIPEMD160_Init(RIPEMD160_CTX *c)
+int RIPEMD160_Init(RIPEMD160_CTX *c)
 	{
 	c->A=RIPEMD160_A;
 	c->B=RIPEMD160_B;
@@ -79,6 +79,7 @@ void RIPEMD160_Init(RIPEMD160_CTX *c)
 	c->Nl=0;
 	c->Nh=0;
 	c->num=0;
+	return 1;
 	}
 
 #ifndef ripemd160_block_host_order
@@ -89,8 +90,8 @@ void RIPEMD160_Init(RIPEMD160_CTX *c)
 void ripemd160_block_host_order (RIPEMD160_CTX *ctx, const void *p, int num)
 	{
 	const RIPEMD160_LONG *XX=p;
-	register unsigned long A,B,C,D,E;
-	register unsigned long a,b,c,d,e;
+	register unsigned MD32_REG_T A,B,C,D,E;
+	register unsigned MD32_REG_T a,b,c,d,e;
 
 	for (;num--;XX+=HASH_LBLOCK)
 		{
@@ -289,12 +290,12 @@ void ripemd160_block_host_order (RIPEMD160_CTX *ctx, const void *p, int num)
 void ripemd160_block_data_order (RIPEMD160_CTX *ctx, const void *p, int num)
 	{
 	const unsigned char *data=p;
-	register unsigned long A,B,C,D,E;
-	unsigned long a,b,c,d,e,l;
+	register unsigned MD32_REG_T A,B,C,D,E;
+	unsigned MD32_REG_T a,b,c,d,e,l;
 #ifndef MD32_XARRAY
 	/* See comment in crypto/sha/sha_locl.h for details. */
-	unsigned long	XX0, XX1, XX2, XX3, XX4, XX5, XX6, XX7,
-			XX8, XX9,XX10,XX11,XX12,XX13,XX14,XX15;
+	unsigned MD32_REG_T	XX0, XX1, XX2, XX3, XX4, XX5, XX6, XX7,
+				XX8, XX9,XX10,XX11,XX12,XX13,XX14,XX15;
 # define X(i)	XX##i
 #else
 	RIPEMD160_LONG	XX[16];

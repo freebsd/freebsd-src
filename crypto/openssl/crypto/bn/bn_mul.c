@@ -608,7 +608,7 @@ void bn_mul_high(BN_ULONG *r, BN_ULONG *a, BN_ULONG *b, BN_ULONG *l, int n2,
 	}
 #endif /* BN_RECURSION */
 
-int BN_mul(BIGNUM *r, BIGNUM *a, BIGNUM *b, BN_CTX *ctx)
+int BN_mul(BIGNUM *r, const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx)
 	{
 	int top,al,bl;
 	BIGNUM *rr;
@@ -675,16 +675,20 @@ int BN_mul(BIGNUM *r, BIGNUM *a, BIGNUM *b, BN_CTX *ctx)
 #ifdef BN_RECURSION
 	if ((al >= BN_MULL_SIZE_NORMAL) && (bl >= BN_MULL_SIZE_NORMAL))
 		{
-		if (i == 1 && !BN_get_flags(b,BN_FLG_STATIC_DATA))
+		if (i == 1 && !BN_get_flags(b,BN_FLG_STATIC_DATA) && bl<b->dmax)
 			{
+#if 0	/* tribute to const-ification, bl<b->dmax above covers for this */
 			if (bn_wexpand(b,al) == NULL) goto err;
+#endif
 			b->d[bl]=0;
 			bl++;
 			i--;
 			}
-		else if (i == -1 && !BN_get_flags(a,BN_FLG_STATIC_DATA))
+		else if (i == -1 && !BN_get_flags(a,BN_FLG_STATIC_DATA) && al<a->dmax)
 			{
+#if 0	/* tribute to const-ification, al<a->dmax above covers for this */
 			if (bn_wexpand(a,bl) == NULL) goto err;
+#endif
 			a->d[al]=0;
 			al++;
 			i++;
@@ -702,7 +706,10 @@ int BN_mul(BIGNUM *r, BIGNUM *a, BIGNUM *b, BN_CTX *ctx)
 				if (bn_wexpand(t,k*2) == NULL) goto err;
 				if (bn_wexpand(rr,k*2) == NULL) goto err;
 				bn_mul_recursive(rr->d,a->d,b->d,al,t->d);
+				rr->top=top;
+				goto end;
 				}
+#if 0	/* tribute to const-ification, rsa/dsa performance is not affected */
 			else
 				{
 				if (bn_wexpand(a,k) == NULL ) goto err;
@@ -717,6 +724,7 @@ int BN_mul(BIGNUM *r, BIGNUM *a, BIGNUM *b, BN_CTX *ctx)
 				}
 			rr->top=top;
 			goto end;
+#endif
 			}
 		}
 #endif /* BN_RECURSION */

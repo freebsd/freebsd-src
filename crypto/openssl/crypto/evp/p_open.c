@@ -56,14 +56,14 @@
  * [including the GNU Public Licence.]
  */
 
-#ifndef NO_RSA
+#ifndef OPENSSL_NO_RSA
 #include <stdio.h>
 #include "cryptlib.h"
 #include <openssl/evp.h>
 #include <openssl/objects.h>
 #include <openssl/x509.h>
 
-int EVP_OpenInit(EVP_CIPHER_CTX *ctx, EVP_CIPHER *type, unsigned char *ek,
+int EVP_OpenInit(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *type, unsigned char *ek,
 	     int ekl, unsigned char *iv, EVP_PKEY *priv)
 	{
 	unsigned char *key=NULL;
@@ -71,7 +71,7 @@ int EVP_OpenInit(EVP_CIPHER_CTX *ctx, EVP_CIPHER *type, unsigned char *ek,
 
 	if(type) {	
 		EVP_CIPHER_CTX_init(ctx);
-		if(!EVP_DecryptInit(ctx,type,NULL,NULL)) return 0;
+		if(!EVP_DecryptInit_ex(ctx,type,NULL, NULL,NULL)) return 0;
 	}
 
 	if(!priv) return 1;
@@ -97,11 +97,11 @@ int EVP_OpenInit(EVP_CIPHER_CTX *ctx, EVP_CIPHER *type, unsigned char *ek,
 		/* ERROR */
 		goto err;
 		}
-	if(!EVP_DecryptInit(ctx,NULL,key,iv)) goto err;
+	if(!EVP_DecryptInit_ex(ctx,NULL,NULL,key,iv)) goto err;
 
 	ret=1;
 err:
-	if (key != NULL) memset(key,0,size);
+	if (key != NULL) OPENSSL_cleanse(key,size);
 	OPENSSL_free(key);
 	return(ret);
 	}
@@ -110,11 +110,11 @@ int EVP_OpenFinal(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl)
 	{
 	int i;
 
-	i=EVP_DecryptFinal(ctx,out,outl);
-	EVP_DecryptInit(ctx,NULL,NULL,NULL);
+	i=EVP_DecryptFinal_ex(ctx,out,outl);
+	EVP_DecryptInit_ex(ctx,NULL,NULL,NULL,NULL);
 	return(i);
 	}
-#else /* !NO_RSA */
+#else /* !OPENSSL_NO_RSA */
 
 # ifdef PEDANTIC
 static void *dummy=&dummy;

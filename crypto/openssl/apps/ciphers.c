@@ -59,7 +59,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef NO_STDIO
+#ifdef OPENSSL_NO_STDIO
 #define APPS_WIN16
 #endif
 #include "apps.h"
@@ -95,11 +95,11 @@ int MAIN(int argc, char **argv)
 	char buf[512];
 	BIO *STDout=NULL;
 
-#if !defined(NO_SSL2) && !defined(NO_SSL3)
+#if !defined(OPENSSL_NO_SSL2) && !defined(OPENSSL_NO_SSL3)
 	meth=SSLv23_server_method();
-#elif !defined(NO_SSL3)
+#elif !defined(OPENSSL_NO_SSL3)
 	meth=SSLv3_server_method();
-#elif !defined(NO_SSL2)
+#elif !defined(OPENSSL_NO_SSL2)
 	meth=SSLv2_server_method();
 #endif
 
@@ -108,7 +108,7 @@ int MAIN(int argc, char **argv)
 	if (bio_err == NULL)
 		bio_err=BIO_new_fp(stderr,BIO_NOCLOSE);
 	STDout=BIO_new_fp(stdout,BIO_NOCLOSE);
-#ifdef VMS
+#ifdef OPENSSL_SYS_VMS
 	{
 	BIO *tmpbio = BIO_new(BIO_f_linebuffer());
 	STDout = BIO_push(tmpbio, STDout);
@@ -121,15 +121,15 @@ int MAIN(int argc, char **argv)
 		{
 		if (strcmp(*argv,"-v") == 0)
 			verbose=1;
-#ifndef NO_SSL2
+#ifndef OPENSSL_NO_SSL2
 		else if (strcmp(*argv,"-ssl2") == 0)
 			meth=SSLv2_client_method();
 #endif
-#ifndef NO_SSL3
+#ifndef OPENSSL_NO_SSL3
 		else if (strcmp(*argv,"-ssl3") == 0)
 			meth=SSLv3_client_method();
 #endif
-#ifndef NO_TLS1
+#ifndef OPENSSL_NO_TLS1
 		else if (strcmp(*argv,"-tls1") == 0)
 			meth=TLSv1_client_method();
 #endif
@@ -150,7 +150,7 @@ int MAIN(int argc, char **argv)
 	if (badops)
 		{
 		for (pp=ciphers_usage; (*pp != NULL); pp++)
-			BIO_printf(bio_err,*pp);
+			BIO_printf(bio_err,"%s",*pp);
 		goto end;
 		}
 
@@ -187,7 +187,7 @@ int MAIN(int argc, char **argv)
 			{
 			BIO_puts(STDout,SSL_CIPHER_description(
 				sk_SSL_CIPHER_value(sk,i),
-				buf,512));
+				buf,sizeof buf));
 			}
 		}
 
@@ -202,6 +202,7 @@ end:
 	if (ctx != NULL) SSL_CTX_free(ctx);
 	if (ssl != NULL) SSL_free(ssl);
 	if (STDout != NULL) BIO_free_all(STDout);
-	EXIT(ret);
+	apps_shutdown();
+	OPENSSL_EXIT(ret);
 	}
 

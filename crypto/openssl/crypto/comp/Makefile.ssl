@@ -5,13 +5,14 @@
 DIR=	comp
 TOP=	../..
 CC=	cc
-INCLUDES= -I.. -I../../include
+INCLUDES= -I.. -I$(TOP) -I../../include
 CFLAG=-g
 INSTALL_PREFIX=
 OPENSSLDIR=     /usr/local/ssl
 INSTALLTOP=/usr/local/ssl
 MAKE=		make -f Makefile.ssl
-MAKEDEPEND=	$(TOP)/util/domd $(TOP)
+MAKEDEPPROG=	makedepend
+MAKEDEPEND=	$(TOP)/util/domd $(TOP) -MD $(MAKEDEPPROG)
 MAKEFILE=	Makefile.ssl
 AR=		ar r
 
@@ -42,8 +43,7 @@ all:	lib
 
 lib:	$(LIBOBJ)
 	$(AR) $(LIB) $(LIBOBJ)
-	@echo You may get an error following this line.  Please ignore.
-	- $(RANLIB) $(LIB)
+	$(RANLIB) $(LIB) || echo Never mind.
 	@touch lib
 
 files:
@@ -71,7 +71,7 @@ lint:
 	lint -DLINT $(INCLUDES) $(SRC)>fluff
 
 depend:
-	$(MAKEDEPEND) $(INCLUDES) $(DEPFLAG) $(LIBSRC)
+	$(MAKEDEPEND) -- $(CFLAG) $(INCLUDES) $(DEPFLAG) -- $(LIBSRC)
 
 dclean:
 	$(PERL) -pe 'if (/^# DO NOT DELETE THIS LINE/) {print; exit(0);}' $(MAKEFILE) >Makefile.new
@@ -84,24 +84,31 @@ clean:
 
 c_rle.o: ../../include/openssl/asn1.h ../../include/openssl/bio.h
 c_rle.o: ../../include/openssl/bn.h ../../include/openssl/comp.h
-c_rle.o: ../../include/openssl/crypto.h ../../include/openssl/obj_mac.h
-c_rle.o: ../../include/openssl/objects.h ../../include/openssl/opensslconf.h
-c_rle.o: ../../include/openssl/opensslv.h ../../include/openssl/safestack.h
-c_rle.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
+c_rle.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h
+c_rle.o: ../../include/openssl/obj_mac.h ../../include/openssl/objects.h
+c_rle.o: ../../include/openssl/opensslconf.h ../../include/openssl/opensslv.h
+c_rle.o: ../../include/openssl/ossl_typ.h ../../include/openssl/safestack.h
+c_rle.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h c_rle.c
 c_zlib.o: ../../include/openssl/asn1.h ../../include/openssl/bio.h
 c_zlib.o: ../../include/openssl/bn.h ../../include/openssl/comp.h
-c_zlib.o: ../../include/openssl/crypto.h ../../include/openssl/obj_mac.h
-c_zlib.o: ../../include/openssl/objects.h ../../include/openssl/opensslconf.h
-c_zlib.o: ../../include/openssl/opensslv.h ../../include/openssl/safestack.h
+c_zlib.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h
+c_zlib.o: ../../include/openssl/obj_mac.h ../../include/openssl/objects.h
+c_zlib.o: ../../include/openssl/opensslconf.h ../../include/openssl/opensslv.h
+c_zlib.o: ../../include/openssl/ossl_typ.h ../../include/openssl/safestack.h
 c_zlib.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
+c_zlib.o: c_zlib.c
 comp_err.o: ../../include/openssl/bio.h ../../include/openssl/comp.h
-comp_err.o: ../../include/openssl/crypto.h ../../include/openssl/err.h
-comp_err.o: ../../include/openssl/lhash.h ../../include/openssl/opensslv.h
-comp_err.o: ../../include/openssl/safestack.h ../../include/openssl/stack.h
-comp_err.o: ../../include/openssl/symhacks.h
+comp_err.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h
+comp_err.o: ../../include/openssl/err.h ../../include/openssl/lhash.h
+comp_err.o: ../../include/openssl/opensslconf.h
+comp_err.o: ../../include/openssl/opensslv.h ../../include/openssl/safestack.h
+comp_err.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
+comp_err.o: comp_err.c
 comp_lib.o: ../../include/openssl/asn1.h ../../include/openssl/bio.h
 comp_lib.o: ../../include/openssl/bn.h ../../include/openssl/comp.h
-comp_lib.o: ../../include/openssl/crypto.h ../../include/openssl/obj_mac.h
-comp_lib.o: ../../include/openssl/objects.h ../../include/openssl/opensslconf.h
-comp_lib.o: ../../include/openssl/opensslv.h ../../include/openssl/safestack.h
-comp_lib.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
+comp_lib.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h
+comp_lib.o: ../../include/openssl/obj_mac.h ../../include/openssl/objects.h
+comp_lib.o: ../../include/openssl/opensslconf.h
+comp_lib.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
+comp_lib.o: ../../include/openssl/safestack.h ../../include/openssl/stack.h
+comp_lib.o: ../../include/openssl/symhacks.h comp_lib.c

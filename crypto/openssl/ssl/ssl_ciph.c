@@ -68,7 +68,9 @@
 #define SSL_ENC_IDEA_IDX	4
 #define SSL_ENC_eFZA_IDX	5
 #define SSL_ENC_NULL_IDX	6
-#define SSL_ENC_NUM_IDX		7
+#define SSL_ENC_AES128_IDX	7
+#define SSL_ENC_AES256_IDX	8
+#define SSL_ENC_NUM_IDX		9
 
 static const EVP_CIPHER *ssl_cipher_methods[SSL_ENC_NUM_IDX]={
 	NULL,NULL,NULL,NULL,NULL,NULL,
@@ -98,8 +100,11 @@ typedef struct cipher_order_st
 	} CIPHER_ORDER;
 
 static const SSL_CIPHER cipher_aliases[]={
-	/* Don't include eNULL unless specifically enabled */
+	/* Don't include eNULL unless specifically enabled. */
 	{0,SSL_TXT_ALL, 0,SSL_ALL & ~SSL_eNULL, SSL_ALL ,0,0,0,SSL_ALL,SSL_ALL}, /* must be first */
+        {0,SSL_TXT_CMPALL,0,SSL_eNULL,0,0,0,0,SSL_ENC_MASK,0},  /* COMPLEMENT OF ALL */
+	{0,SSL_TXT_CMPDEF,0,SSL_ADH, 0,0,0,0,SSL_AUTH_MASK,0},
+        {0,SSL_TXT_kKRB5,0,SSL_kKRB5,0,0,0,0,SSL_MKEY_MASK,0},  /* VRS Kerberos5 */
 	{0,SSL_TXT_kRSA,0,SSL_kRSA,  0,0,0,0,SSL_MKEY_MASK,0},
 	{0,SSL_TXT_kDHr,0,SSL_kDHr,  0,0,0,0,SSL_MKEY_MASK,0},
 	{0,SSL_TXT_kDHd,0,SSL_kDHd,  0,0,0,0,SSL_MKEY_MASK,0},
@@ -108,6 +113,7 @@ static const SSL_CIPHER cipher_aliases[]={
 	{0,SSL_TXT_DH,	0,SSL_DH,    0,0,0,0,SSL_MKEY_MASK,0},
 	{0,SSL_TXT_EDH,	0,SSL_EDH,   0,0,0,0,SSL_MKEY_MASK|SSL_AUTH_MASK,0},
 
+	{0,SSL_TXT_aKRB5,0,SSL_aKRB5,0,0,0,0,SSL_AUTH_MASK,0},  /* VRS Kerberos5 */
 	{0,SSL_TXT_aRSA,0,SSL_aRSA,  0,0,0,0,SSL_AUTH_MASK,0},
 	{0,SSL_TXT_aDSS,0,SSL_aDSS,  0,0,0,0,SSL_AUTH_MASK,0},
 	{0,SSL_TXT_aFZA,0,SSL_aFZA,  0,0,0,0,SSL_AUTH_MASK,0},
@@ -122,12 +128,14 @@ static const SSL_CIPHER cipher_aliases[]={
 	{0,SSL_TXT_IDEA,0,SSL_IDEA,  0,0,0,0,SSL_ENC_MASK,0},
 	{0,SSL_TXT_eNULL,0,SSL_eNULL,0,0,0,0,SSL_ENC_MASK,0},
 	{0,SSL_TXT_eFZA,0,SSL_eFZA,  0,0,0,0,SSL_ENC_MASK,0},
+	{0,SSL_TXT_AES,	0,SSL_AES,   0,0,0,0,SSL_ENC_MASK,0},
 
 	{0,SSL_TXT_MD5,	0,SSL_MD5,   0,0,0,0,SSL_MAC_MASK,0},
 	{0,SSL_TXT_SHA1,0,SSL_SHA1,  0,0,0,0,SSL_MAC_MASK,0},
 	{0,SSL_TXT_SHA,	0,SSL_SHA,   0,0,0,0,SSL_MAC_MASK,0},
 
 	{0,SSL_TXT_NULL,0,SSL_NULL,  0,0,0,0,SSL_ENC_MASK,0},
+	{0,SSL_TXT_KRB5,0,SSL_KRB5,  0,0,0,0,SSL_AUTH_MASK|SSL_MKEY_MASK,0},
 	{0,SSL_TXT_RSA,	0,SSL_RSA,   0,0,0,0,SSL_AUTH_MASK|SSL_MKEY_MASK,0},
 	{0,SSL_TXT_ADH,	0,SSL_ADH,   0,0,0,0,SSL_AUTH_MASK|SSL_MKEY_MASK,0},
 	{0,SSL_TXT_FZA,	0,SSL_FZA,   0,0,0,0,SSL_AUTH_MASK|SSL_MKEY_MASK|SSL_ENC_MASK,0},
@@ -160,6 +168,10 @@ static void load_ciphers(void)
 		EVP_get_cipherbyname(SN_rc2_cbc);
 	ssl_cipher_methods[SSL_ENC_IDEA_IDX]= 
 		EVP_get_cipherbyname(SN_idea_cbc);
+	ssl_cipher_methods[SSL_ENC_AES128_IDX]=
+	  EVP_get_cipherbyname(SN_aes_128_cbc);
+	ssl_cipher_methods[SSL_ENC_AES256_IDX]=
+	  EVP_get_cipherbyname(SN_aes_256_cbc);
 
 	ssl_digest_methods[SSL_MD_MD5_IDX]=
 		EVP_get_digestbyname(SN_md5);
@@ -219,6 +231,14 @@ int ssl_cipher_get_evp(SSL_SESSION *s, const EVP_CIPHER **enc,
 		break;
 	case SSL_eNULL:
 		i=SSL_ENC_NULL_IDX;
+		break;
+	case SSL_AES:
+		switch(c->alg_bits)
+			{
+		case 128: i=SSL_ENC_AES128_IDX; break;
+		case 256: i=SSL_ENC_AES256_IDX; break;
+		default: i=-1; break;
+			}
 		break;
 	default:
 		i= -1;
@@ -282,14 +302,17 @@ static unsigned long ssl_cipher_get_disabled(void)
 	unsigned long mask;
 
 	mask = SSL_kFZA;
-#ifdef NO_RSA
+#ifdef OPENSSL_NO_RSA
 	mask |= SSL_aRSA|SSL_kRSA;
 #endif
-#ifdef NO_DSA
+#ifdef OPENSSL_NO_DSA
 	mask |= SSL_aDSS;
 #endif
-#ifdef NO_DH
+#ifdef OPENSSL_NO_DH
 	mask |= SSL_kDHr|SSL_kDHd|SSL_kEDH|SSL_aDH;
+#endif
+#ifdef OPENSSL_NO_KRB5
+	mask |= SSL_kKRB5|SSL_aKRB5;
 #endif
 
 #ifdef SSL_FORBID_ENULL
@@ -302,6 +325,7 @@ static unsigned long ssl_cipher_get_disabled(void)
 	mask |= (ssl_cipher_methods[SSL_ENC_RC2_IDX ] == NULL) ? SSL_RC2 :0;
 	mask |= (ssl_cipher_methods[SSL_ENC_IDEA_IDX] == NULL) ? SSL_IDEA:0;
 	mask |= (ssl_cipher_methods[SSL_ENC_eFZA_IDX] == NULL) ? SSL_eFZA:0;
+	mask |= (ssl_cipher_methods[SSL_ENC_AES128_IDX] == NULL) ? SSL_AES:0;
 
 	mask |= (ssl_digest_methods[SSL_MD_MD5_IDX ] == NULL) ? SSL_MD5 :0;
 	mask |= (ssl_digest_methods[SSL_MD_SHA1_IDX] == NULL) ? SSL_SHA1:0;
@@ -336,6 +360,9 @@ static void ssl_cipher_collect_ciphers(const SSL_METHOD *ssl_method,
 			list[list_num].prev = NULL;
 			list[list_num].active = 0;
 			list_num++;
+#ifdef KSSL_DEBUG
+			printf("\t%d: %s %lx %lx\n",i,c->name,c->id,c->algorithms);
+#endif	/* KSSL_DEBUG */
 			/*
 			if (!sk_push(ca_list,(char *)c)) goto err;
 			*/
@@ -724,7 +751,12 @@ STACK_OF(SSL_CIPHER) *ssl_create_cipher_list(const SSL_METHOD *ssl_method,
 	 */
 	if (rule_str == NULL) return(NULL);
 
-	if (init_ciphers) load_ciphers();
+	if (init_ciphers)
+		{
+		CRYPTO_w_lock(CRYPTO_LOCK_SSL);
+		if (init_ciphers) load_ciphers();
+		CRYPTO_w_unlock(CRYPTO_LOCK_SSL);
+		}
 
 	/*
 	 * To reduce the work to do we only want to process the compiled
@@ -738,6 +770,9 @@ STACK_OF(SSL_CIPHER) *ssl_create_cipher_list(const SSL_METHOD *ssl_method,
 	 * it is used for allocation.
 	 */
 	num_of_ciphers = ssl_method->num_ciphers();
+#ifdef KSSL_DEBUG
+	printf("ssl_create_cipher_list() for %d ciphers\n", num_of_ciphers);
+#endif    /* KSSL_DEBUG */
 	list = (CIPHER_ORDER *)OPENSSL_malloc(sizeof(CIPHER_ORDER) * num_of_ciphers);
 	if (list == NULL)
 		{
@@ -872,8 +907,12 @@ char *SSL_CIPHER_description(SSL_CIPHER *cipher, char *buf, int len)
 	char *ver,*exp;
 	char *kx,*au,*enc,*mac;
 	unsigned long alg,alg2,alg_s;
+#ifdef KSSL_DEBUG
+	static char *format="%-23s %s Kx=%-8s Au=%-4s Enc=%-9s Mac=%-4s%s AL=%lx\n";
+#else
 	static char *format="%-23s %s Kx=%-8s Au=%-4s Enc=%-9s Mac=%-4s%s\n";
-	
+#endif /* KSSL_DEBUG */
+
 	alg=cipher->algorithms;
 	alg_s=cipher->algo_strength;
 	alg2=cipher->algorithm2;
@@ -901,6 +940,10 @@ char *SSL_CIPHER_description(SSL_CIPHER *cipher, char *buf, int len)
 	case SSL_kDHd:
 		kx="DH/DSS";
 		break;
+        case SSL_kKRB5:         /* VRS */
+        case SSL_KRB5:          /* VRS */
+            kx="KRB5";
+            break;
 	case SSL_kFZA:
 		kx="Fortezza";
 		break;
@@ -922,6 +965,10 @@ char *SSL_CIPHER_description(SSL_CIPHER *cipher, char *buf, int len)
 	case SSL_aDH:
 		au="DH";
 		break;
+        case SSL_aKRB5:         /* VRS */
+        case SSL_KRB5:          /* VRS */
+            au="KRB5";
+            break;
 	case SSL_aFZA:
 	case SSL_aNULL:
 		au="None";
@@ -955,6 +1002,15 @@ char *SSL_CIPHER_description(SSL_CIPHER *cipher, char *buf, int len)
 	case SSL_eNULL:
 		enc="None";
 		break;
+	case SSL_AES:
+		switch(cipher->strength_bits)
+			{
+		case 128: enc="AES(128)"; break;
+		case 192: enc="AES(192)"; break;
+		case 256: enc="AES(256)"; break;
+		default: enc="AES(?""?""?)"; break;
+			}
+		break;
 	default:
 		enc="unknown";
 		break;
@@ -982,7 +1038,11 @@ char *SSL_CIPHER_description(SSL_CIPHER *cipher, char *buf, int len)
 	else if (len < 128)
 		return("Buffer too small");
 
+#ifdef KSSL_DEBUG
+	BIO_snprintf(buf,len,format,cipher->name,ver,kx,au,enc,mac,exp,alg);
+#else
 	BIO_snprintf(buf,len,format,cipher->name,ver,kx,au,enc,mac,exp);
+#endif /* KSSL_DEBUG */
 	return(buf);
 	}
 
@@ -1053,6 +1113,10 @@ int SSL_COMP_add_compression_method(int id, COMP_METHOD *cm)
 	SSL_COMP *comp;
 	STACK_OF(SSL_COMP) *sk;
 
+        if (cm == NULL || cm->type == NID_undef)
+                return 1;
+
+	MemCheck_off();
 	comp=(SSL_COMP *)OPENSSL_malloc(sizeof(SSL_COMP));
 	comp->id=id;
 	comp->method=cm;
@@ -1062,10 +1126,13 @@ int SSL_COMP_add_compression_method(int id, COMP_METHOD *cm)
 		sk=ssl_comp_methods;
 	if ((sk == NULL) || !sk_SSL_COMP_push(sk,comp))
 		{
+		MemCheck_on();
 		SSLerr(SSL_F_SSL_COMP_ADD_COMPRESSION_METHOD,ERR_R_MALLOC_FAILURE);
 		return(0);
 		}
 	else
+		{
+		MemCheck_on();
 		return(1);
+		}
 	}
-

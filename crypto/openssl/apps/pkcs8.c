@@ -63,13 +63,13 @@
 #include <openssl/evp.h>
 #include <openssl/pkcs12.h>
 
-#include "apps.h"
 #define PROG pkcs8_main
 
 int MAIN(int, char **);
 
 int MAIN(int argc, char **argv)
 {
+	ENGINE *e = NULL;
 	char **args, *infile = NULL, *outfile = NULL;
 	char *passargin = NULL, *passargout = NULL;
 	BIO *in = NULL, *out = NULL;
@@ -82,12 +82,19 @@ int MAIN(int argc, char **argv)
 	int nocrypt = 0;
 	X509_SIG *p8;
 	PKCS8_PRIV_KEY_INFO *p8inf;
-	EVP_PKEY *pkey;
+	EVP_PKEY *pkey=NULL;
 	char pass[50], *passin = NULL, *passout = NULL, *p8pass = NULL;
 	int badarg = 0;
+	char *engine=NULL;
+
 	if (bio_err == NULL) bio_err = BIO_new_fp (stderr, BIO_NOCLOSE);
+
+	if (!load_config(bio_err, NULL))
+		goto end;
+
 	informat=FORMAT_PEM;
 	outformat=FORMAT_PEM;
+
 	ERR_load_crypto_strings();
 	OpenSSL_add_all_algorithms();
 	args = argv + 1;
@@ -138,6 +145,11 @@ int MAIN(int argc, char **argv)
 			if (!args[1]) goto bad;
 			passargout= *(++args);
 			}
+		else if (strcmp(*args,"-engine") == 0)
+			{
+			if (!args[1]) goto bad;
+			engine= *(++args);
+			}
 		else if (!strcmp (*args, "-in")) {
 			if (args[1]) {
 				args++;
@@ -170,8 +182,11 @@ int MAIN(int argc, char **argv)
 		BIO_printf(bio_err, "-nocrypt        use or expect unencrypted private key\n");
 		BIO_printf(bio_err, "-v2 alg         use PKCS#5 v2.0 and cipher \"alg\"\n");
 		BIO_printf(bio_err, "-v1 obj         use PKCS#5 v1.5 and cipher \"alg\"\n");
+		BIO_printf(bio_err," -engine e       use engine e, possibly a hardware device.\n");
 		return (1);
 	}
+
+        e = setup_engine(bio_err, engine, 0);
 
 	if(!app_passwd(bio_err, passargin, passargout, &passin, &passout)) {
 		BIO_printf(bio_err, "Error getting passwords\n");
@@ -196,28 +211,21 @@ int MAIN(int argc, char **argv)
 		}
 	} else {
 		out = BIO_new_fp (stdout, BIO_NOCLOSE);
-#ifdef VMS
+#ifdef OPENSSL_SYS_VMS
 		{
 			BIO *tmpbio = BIO_new(BIO_f_linebuffer());
 			out = BIO_push(tmpbio, out);
 		}
 #endif
 	}
-	if (topk8) {
-		if(informat == FORMAT_PEM)
-			pkey = PEM_read_bio_PrivateKey(in, NULL, NULL, passin);
-		else if(informat == FORMAT_ASN1)
-			pkey = d2i_PrivateKey_bio(in, NULL);
-		else {
-			BIO_printf(bio_err, "Bad format specified for key\n");
-			return (1);
-		}
+	if (topk8)
+		{
+		BIO_free(in); /* Not needed in this section */
+		pkey = load_key(bio_err, infile, informat, 1,
+			passin, e, "key");
 		if (!pkey) {
-			BIO_printf(bio_err, "Error reading key\n", outfile);
-			ERR_print_errors(bio_err);
 			return (1);
 		}
-		BIO_free(in);
 		if (!(p8inf = EVP_PKEY2PKCS8_broken(pkey, p8_broken))) {
 			BIO_printf(bio_err, "Error converting key\n", outfile);
 			ERR_print_errors(bio_err);
@@ -236,7 +244,8 @@ int MAIN(int argc, char **argv)
 			if(passout) p8pass = passout;
 			else {
 				p8pass = pass;
-				EVP_read_pw_string(pass, 50, "Enter Encryption Password:", 1);
+				if (EVP_read_pw_string(pass, sizeof pass, "Enter Encryption Password:", 1))
+					return (1);
 			}
 			app_RAND_load_file(NULL, bio_err, 0);
 			if (!(p8 = PKCS8_encrypt(pbe_nid, cipher,
@@ -293,9 +302,9 @@ int MAIN(int argc, char **argv)
 		if(passin) p8pass = passin;
 		else {
 			p8pass = pass;
-			EVP_read_pw_string(pass, 50, "Enter Password:", 0);
+			EVP_read_pw_string(pass, sizeof pass, "Enter Password:", 0);
 		}
-		p8inf = M_PKCS8_decrypt(p8, p8pass, strlen(p8pass));
+		p8inf = PKCS8_decrypt(p8, p8pass, strlen(p8pass));
 		X509_SIG_free(p8);
 	}
 
@@ -342,6 +351,7 @@ int MAIN(int argc, char **argv)
 			return (1);
 	}
 
+	end:
 	EVP_PKEY_free(pkey);
 	BIO_free_all(out);
 	BIO_free(in);

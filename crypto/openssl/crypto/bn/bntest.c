@@ -60,7 +60,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "openssl/e_os.h"
+#include "e_os.h"
 
 #include <openssl/bio.h>
 #include <openssl/bn.h>
@@ -68,7 +68,7 @@
 #include <openssl/x509.h>
 #include <openssl/err.h>
 
-#ifdef WINDOWS
+#ifdef OPENSSL_SYS_WINDOWS
 #include "../bio/bss_file.c"
 #endif
 
@@ -91,10 +91,12 @@ int test_mod(BIO *bp,BN_CTX *ctx);
 int test_mod_mul(BIO *bp,BN_CTX *ctx);
 int test_mod_exp(BIO *bp,BN_CTX *ctx);
 int test_exp(BIO *bp,BN_CTX *ctx);
+int test_kron(BIO *bp,BN_CTX *ctx);
+int test_sqrt(BIO *bp,BN_CTX *ctx);
 int rand_neg(void);
 static int results=0;
 
-#ifdef NO_STDIO
+#ifdef OPENSSL_NO_STDIO
 #define APPS_WIN16
 #include "bss_file.c"
 #endif
@@ -139,10 +141,10 @@ int main(int argc, char *argv[])
 
 
 	ctx=BN_CTX_new();
-	if (ctx == NULL) exit(1);
+	if (ctx == NULL) EXIT(1);
 
 	out=BIO_new(BIO_s_file());
-	if (out == NULL) exit(1);
+	if (out == NULL) EXIT(1);
 	if (outfile == NULL)
 		{
 		BIO_set_fp(out,stdout,BIO_NOCLOSE);
@@ -152,7 +154,7 @@ int main(int argc, char *argv[])
 		if (!BIO_write_filename(out,outfile))
 			{
 			perror(outfile);
-			exit(1);
+			EXIT(1);
 			}
 		}
 
@@ -224,18 +226,26 @@ int main(int argc, char *argv[])
 	if (!test_exp(out,ctx)) goto err;
 	BIO_flush(out);
 
+	message(out,"BN_kronecker");
+	if (!test_kron(out,ctx)) goto err;
+	BIO_flush(out);
+
+	message(out,"BN_mod_sqrt");
+	if (!test_sqrt(out,ctx)) goto err;
+	BIO_flush(out);
+
 	BN_CTX_free(ctx);
 	BIO_free(out);
 
 /**/
-	exit(0);
+	EXIT(0);
 err:
 	BIO_puts(out,"1\n"); /* make sure the Perl script fed by bc notices
 	                      * the failure, see test_bn in test/Makefile.ssl*/
 	BIO_flush(out);
 	ERR_load_crypto_strings();
 	ERR_print_errors_fp(stderr);
-	exit(1);
+	EXIT(1);
 	return(1);
 	}
 
@@ -243,7 +253,6 @@ int test_add(BIO *bp)
 	{
 	BIGNUM a,b,c;
 	int i;
-	int j;
 
 	BN_init(&a);
 	BN_init(&b);
@@ -255,9 +264,6 @@ int test_add(BIO *bp)
 		BN_bntest_rand(&b,450+i,0,0);
 		a.neg=rand_neg();
 		b.neg=rand_neg();
-		if (bp == NULL)
-			for (j=0; j<10000; j++)
-				BN_add(&c,&a,&b);
 		BN_add(&c,&a,&b);
 		if (bp != NULL)
 			{
@@ -291,7 +297,6 @@ int test_sub(BIO *bp)
 	{
 	BIGNUM a,b,c;
 	int i;
-	int j;
 
 	BN_init(&a);
 	BN_init(&b);
@@ -312,9 +317,6 @@ int test_sub(BIO *bp)
 			a.neg=rand_neg();
 			b.neg=rand_neg();
 			}
-		if (bp == NULL)
-			for (j=0; j<10000; j++)
-				BN_sub(&c,&a,&b);
 		BN_sub(&c,&a,&b);
 		if (bp != NULL)
 			{
@@ -346,7 +348,6 @@ int test_div(BIO *bp, BN_CTX *ctx)
 	{
 	BIGNUM a,b,c,d,e;
 	int i;
-	int j;
 
 	BN_init(&a);
 	BN_init(&b);
@@ -367,9 +368,6 @@ int test_div(BIO *bp, BN_CTX *ctx)
 			BN_bntest_rand(&b,50+3*(i-num1),0,0);
 		a.neg=rand_neg();
 		b.neg=rand_neg();
-		if (bp == NULL)
-			for (j=0; j<100; j++)
-				BN_div(&d,&c,&a,&b,ctx);
 		BN_div(&d,&c,&a,&b,ctx);
 		if (bp != NULL)
 			{
@@ -415,7 +413,6 @@ int test_div_recp(BIO *bp, BN_CTX *ctx)
 	BIGNUM a,b,c,d,e;
 	BN_RECP_CTX recp;
 	int i;
-	int j;
 
 	BN_RECP_CTX_init(&recp);
 	BN_init(&a);
@@ -438,9 +435,6 @@ int test_div_recp(BIO *bp, BN_CTX *ctx)
 		a.neg=rand_neg();
 		b.neg=rand_neg();
 		BN_RECP_CTX_set(&recp,&b,ctx);
-		if (bp == NULL)
-			for (j=0; j<100; j++)
-				BN_div_recp(&d,&c,&a,&recp,ctx);
 		BN_div_recp(&d,&c,&a,&recp,ctx);
 		if (bp != NULL)
 			{
@@ -491,10 +485,11 @@ int test_mul(BIO *bp)
 	{
 	BIGNUM a,b,c,d,e;
 	int i;
-	int j;
-	BN_CTX ctx;
+	BN_CTX *ctx;
 
-	BN_CTX_init(&ctx);
+	ctx = BN_CTX_new();
+	if (ctx == NULL) EXIT(1);
+	
 	BN_init(&a);
 	BN_init(&b);
 	BN_init(&c);
@@ -512,10 +507,7 @@ int test_mul(BIO *bp)
 			BN_bntest_rand(&b,i-num1,0,0);
 		a.neg=rand_neg();
 		b.neg=rand_neg();
-		if (bp == NULL)
-			for (j=0; j<100; j++)
-				BN_mul(&c,&a,&b,&ctx);
-		BN_mul(&c,&a,&b,&ctx);
+		BN_mul(&c,&a,&b,ctx);
 		if (bp != NULL)
 			{
 			if (!results)
@@ -528,7 +520,7 @@ int test_mul(BIO *bp)
 			BN_print(bp,&c);
 			BIO_puts(bp,"\n");
 			}
-		BN_div(&d,&e,&c,&a,&ctx);
+		BN_div(&d,&e,&c,&a,ctx);
 		BN_sub(&d,&d,&b);
 		if(!BN_is_zero(&d) || !BN_is_zero(&e))
 		    {
@@ -541,7 +533,7 @@ int test_mul(BIO *bp)
 	BN_free(&c);
 	BN_free(&d);
 	BN_free(&e);
-	BN_CTX_free(&ctx);
+	BN_CTX_free(ctx);
 	return(1);
 	}
 
@@ -549,7 +541,6 @@ int test_sqr(BIO *bp, BN_CTX *ctx)
 	{
 	BIGNUM a,c,d,e;
 	int i;
-	int j;
 
 	BN_init(&a);
 	BN_init(&c);
@@ -560,9 +551,6 @@ int test_sqr(BIO *bp, BN_CTX *ctx)
 		{
 		BN_bntest_rand(&a,40+i*10,0,0);
 		a.neg=rand_neg();
-		if (bp == NULL)
-			for (j=0; j<100; j++)
-				BN_sqr(&c,&a,ctx);
 		BN_sqr(&c,&a,ctx);
 		if (bp != NULL)
 			{
@@ -596,7 +584,6 @@ int test_mont(BIO *bp, BN_CTX *ctx)
 	BIGNUM a,b,c,d,A,B;
 	BIGNUM n;
 	int i;
-	int j;
 	BN_MONT_CTX *mont;
 
 	BN_init(&a);
@@ -620,12 +607,12 @@ int test_mont(BIO *bp, BN_CTX *ctx)
 		BN_bntest_rand(&n,bits,0,1);
 		BN_MONT_CTX_set(mont,&n,ctx);
 
+		BN_nnmod(&a,&a,&n,ctx);
+		BN_nnmod(&b,&b,&n,ctx);
+
 		BN_to_montgomery(&A,&a,mont,ctx);
 		BN_to_montgomery(&B,&b,mont,ctx);
 
-		if (bp == NULL)
-			for (j=0; j<100; j++)
-				BN_mod_mul_montgomery(&c,&A,&B,mont,ctx);/**/
 		BN_mod_mul_montgomery(&c,&A,&B,mont,ctx);/**/
 		BN_from_montgomery(&A,&c,mont,ctx);/**/
 		if (bp != NULL)
@@ -671,7 +658,6 @@ int test_mod(BIO *bp, BN_CTX *ctx)
 	{
 	BIGNUM *a,*b,*c,*d,*e;
 	int i;
-	int j;
 
 	a=BN_new();
 	b=BN_new();
@@ -685,9 +671,6 @@ int test_mod(BIO *bp, BN_CTX *ctx)
 		BN_bntest_rand(b,450+i*10,0,0); /**/
 		a->neg=rand_neg();
 		b->neg=rand_neg();
-		if (bp == NULL)
-			for (j=0; j<100; j++)
-				BN_mod(c,a,b,ctx);/**/
 		BN_mod(c,a,b,ctx);/**/
 		if (bp != NULL)
 			{
@@ -720,7 +703,7 @@ int test_mod(BIO *bp, BN_CTX *ctx)
 int test_mod_mul(BIO *bp, BN_CTX *ctx)
 	{
 	BIGNUM *a,*b,*c,*d,*e;
-	int i;
+	int i,j;
 
 	a=BN_new();
 	b=BN_new();
@@ -728,6 +711,7 @@ int test_mod_mul(BIO *bp, BN_CTX *ctx)
 	d=BN_new();
 	e=BN_new();
 
+	for (j=0; j<3; j++) {
 	BN_bntest_rand(c,1024,0,0); /**/
 	for (i=0; i<num0; i++)
 		{
@@ -735,10 +719,6 @@ int test_mod_mul(BIO *bp, BN_CTX *ctx)
 		BN_bntest_rand(b,425+i*11,0,0); /**/
 		a->neg=rand_neg();
 		b->neg=rand_neg();
-	/*	if (bp == NULL)
-			for (j=0; j<100; j++)
-				BN_mod_mul(d,a,b,c,ctx);*/ /**/
-
 		if (!BN_mod_mul(e,a,b,c,ctx))
 			{
 			unsigned long l;
@@ -746,7 +726,7 @@ int test_mod_mul(BIO *bp, BN_CTX *ctx)
 			while ((l=ERR_get_error()))
 				fprintf(stderr,"ERROR:%s\n",
 					ERR_error_string(l,NULL));
-			exit(1);
+			EXIT(1);
 			}
 		if (bp != NULL)
 			{
@@ -757,6 +737,16 @@ int test_mod_mul(BIO *bp, BN_CTX *ctx)
 				BN_print(bp,b);
 				BIO_puts(bp," % ");
 				BN_print(bp,c);
+				if ((a->neg ^ b->neg) && !BN_is_zero(e))
+					{
+					/* If  (a*b) % c  is negative,  c  must be added
+					 * in order to obtain the normalized remainder
+					 * (new with OpenSSL 0.9.7, previous versions of
+					 * BN_mod_mul could generate negative results)
+					 */
+					BIO_puts(bp," + ");
+					BN_print(bp,c);
+					}
 				BIO_puts(bp," - ");
 				}
 			BN_print(bp,e);
@@ -768,9 +758,11 @@ int test_mod_mul(BIO *bp, BN_CTX *ctx)
 		if(!BN_is_zero(b))
 		    {
 		    fprintf(stderr,"Modulo multiply test failed!\n");
+		    ERR_print_errors_fp(stderr);
 		    return 0;
 		    }
 		}
+	}
 	BN_free(a);
 	BN_free(b);
 	BN_free(c);
@@ -878,6 +870,183 @@ int test_exp(BIO *bp, BN_CTX *ctx)
 	BN_free(e);
 	BN_free(one);
 	return(1);
+	}
+
+static void genprime_cb(int p, int n, void *arg)
+	{
+	char c='*';
+
+	if (p == 0) c='.';
+	if (p == 1) c='+';
+	if (p == 2) c='*';
+	if (p == 3) c='\n';
+	putc(c, stderr);
+	fflush(stderr);
+	(void)n;
+	(void)arg;
+	}
+
+int test_kron(BIO *bp, BN_CTX *ctx)
+	{
+	BIGNUM *a,*b,*r,*t;
+	int i;
+	int legendre, kronecker;
+	int ret = 0;
+
+	a = BN_new();
+	b = BN_new();
+	r = BN_new();
+	t = BN_new();
+	if (a == NULL || b == NULL || r == NULL || t == NULL) goto err;
+	
+	/* We test BN_kronecker(a, b, ctx) just for  b  odd (Jacobi symbol).
+	 * In this case we know that if  b  is prime, then BN_kronecker(a, b, ctx)
+	 * is congruent to $a^{(b-1)/2}$, modulo $b$ (Legendre symbol).
+	 * So we generate a random prime  b  and compare these values
+	 * for a number of random  a's.  (That is, we run the Solovay-Strassen
+	 * primality test to confirm that  b  is prime, except that we
+	 * don't want to test whether  b  is prime but whether BN_kronecker
+	 * works.) */
+
+	if (!BN_generate_prime(b, 512, 0, NULL, NULL, genprime_cb, NULL)) goto err;
+	b->neg = rand_neg();
+	putc('\n', stderr);
+
+	for (i = 0; i < num0; i++)
+		{
+		if (!BN_bntest_rand(a, 512, 0, 0)) goto err;
+		a->neg = rand_neg();
+
+		/* t := (|b|-1)/2  (note that b is odd) */
+		if (!BN_copy(t, b)) goto err;
+		t->neg = 0;
+		if (!BN_sub_word(t, 1)) goto err;
+		if (!BN_rshift1(t, t)) goto err;
+		/* r := a^t mod b */
+		b->neg=0;
+		
+		if (!BN_mod_exp_recp(r, a, t, b, ctx)) goto err;
+		b->neg=1;
+
+		if (BN_is_word(r, 1))
+			legendre = 1;
+		else if (BN_is_zero(r))
+			legendre = 0;
+		else
+			{
+			if (!BN_add_word(r, 1)) goto err;
+			if (0 != BN_ucmp(r, b))
+				{
+				fprintf(stderr, "Legendre symbol computation failed\n");
+				goto err;
+				}
+			legendre = -1;
+			}
+		
+		kronecker = BN_kronecker(a, b, ctx);
+		if (kronecker < -1) goto err;
+		/* we actually need BN_kronecker(a, |b|) */
+		if (a->neg && b->neg)
+			kronecker = -kronecker;
+		
+		if (legendre != kronecker)
+			{
+			fprintf(stderr, "legendre != kronecker; a = ");
+			BN_print_fp(stderr, a);
+			fprintf(stderr, ", b = ");
+			BN_print_fp(stderr, b);
+			fprintf(stderr, "\n");
+			goto err;
+			}
+
+		putc('.', stderr);
+		fflush(stderr);
+		}
+
+	putc('\n', stderr);
+	fflush(stderr);
+	ret = 1;
+ err:
+	if (a != NULL) BN_free(a);
+	if (b != NULL) BN_free(b);
+	if (r != NULL) BN_free(r);
+	if (t != NULL) BN_free(t);
+	return ret;
+	}
+
+int test_sqrt(BIO *bp, BN_CTX *ctx)
+	{
+	BIGNUM *a,*p,*r;
+	int i, j;
+	int ret = 0;
+
+	a = BN_new();
+	p = BN_new();
+	r = BN_new();
+	if (a == NULL || p == NULL || r == NULL) goto err;
+	
+	for (i = 0; i < 16; i++)
+		{
+		if (i < 8)
+			{
+			unsigned primes[8] = { 2, 3, 5, 7, 11, 13, 17, 19 };
+			
+			if (!BN_set_word(p, primes[i])) goto err;
+			}
+		else
+			{
+			if (!BN_set_word(a, 32)) goto err;
+			if (!BN_set_word(r, 2*i + 1)) goto err;
+		
+			if (!BN_generate_prime(p, 256, 0, a, r, genprime_cb, NULL)) goto err;
+			putc('\n', stderr);
+			}
+		p->neg = rand_neg();
+
+		for (j = 0; j < num2; j++)
+			{
+			/* construct 'a' such that it is a square modulo p,
+			 * but in general not a proper square and not reduced modulo p */
+			if (!BN_bntest_rand(r, 256, 0, 3)) goto err;
+			if (!BN_nnmod(r, r, p, ctx)) goto err;
+			if (!BN_mod_sqr(r, r, p, ctx)) goto err;
+			if (!BN_bntest_rand(a, 256, 0, 3)) goto err;
+			if (!BN_nnmod(a, a, p, ctx)) goto err;
+			if (!BN_mod_sqr(a, a, p, ctx)) goto err;
+			if (!BN_mul(a, a, r, ctx)) goto err;
+			if (rand_neg())
+				if (!BN_sub(a, a, p)) goto err;
+
+			if (!BN_mod_sqrt(r, a, p, ctx)) goto err;
+			if (!BN_mod_sqr(r, r, p, ctx)) goto err;
+
+			if (!BN_nnmod(a, a, p, ctx)) goto err;
+
+			if (BN_cmp(a, r) != 0)
+				{
+				fprintf(stderr, "BN_mod_sqrt failed: a = ");
+				BN_print_fp(stderr, a);
+				fprintf(stderr, ", r = ");
+				BN_print_fp(stderr, r);
+				fprintf(stderr, ", p = ");
+				BN_print_fp(stderr, p);
+				fprintf(stderr, "\n");
+				goto err;
+				}
+
+			putc('.', stderr);
+			fflush(stderr);
+			}
+		
+		putc('\n', stderr);
+		fflush(stderr);
+		}
+	ret = 1;
+ err:
+	if (a != NULL) BN_free(a);
+	if (p != NULL) BN_free(p);
+	if (r != NULL) BN_free(r);
+	return ret;
 	}
 
 int test_lshift(BIO *bp,BN_CTX *ctx,BIGNUM *a_)
@@ -1052,7 +1221,7 @@ int test_rshift1(BIO *bp)
 			}
 		BN_sub(c,a,b);
 		BN_sub(c,c,b);
-		if(!BN_is_zero(c) && !BN_is_one(c))
+		if(!BN_is_zero(c) && !BN_abs_is_word(c, 1))
 		    {
 		    fprintf(stderr,"Right shift one test failed!\n");
 		    return 0;

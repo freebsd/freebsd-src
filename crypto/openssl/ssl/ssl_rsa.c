@@ -57,12 +57,12 @@
  */
 
 #include <stdio.h>
+#include "ssl_locl.h"
 #include <openssl/bio.h>
 #include <openssl/objects.h>
 #include <openssl/evp.h>
 #include <openssl/x509.h>
 #include <openssl/pem.h>
-#include "ssl_locl.h"
 
 static int ssl_set_cert(CERT *c, X509 *x509);
 static int ssl_set_pkey(CERT *c, EVP_PKEY *pkey);
@@ -81,7 +81,7 @@ int SSL_use_certificate(SSL *ssl, X509 *x)
 	return(ssl_set_cert(ssl->cert,x));
 	}
 
-#ifndef NO_STDIO
+#ifndef OPENSSL_NO_STDIO
 int SSL_use_certificate_file(SSL *ssl, const char *file, int type)
 	{
 	int j;
@@ -148,7 +148,7 @@ int SSL_use_certificate_ASN1(SSL *ssl, unsigned char *d, int len)
 	return(ret);
 	}
 
-#ifndef NO_RSA
+#ifndef OPENSSL_NO_RSA
 int SSL_use_RSAPrivateKey(SSL *ssl, RSA *rsa)
 	{
 	EVP_PKEY *pkey;
@@ -170,7 +170,7 @@ int SSL_use_RSAPrivateKey(SSL *ssl, RSA *rsa)
 		return(0);
 		}
 
-	CRYPTO_add(&rsa->references,1,CRYPTO_LOCK_RSA);
+	RSA_up_ref(rsa);
 	EVP_PKEY_assign_RSA(pkey,rsa);
 
 	ret=ssl_set_pkey(ssl->cert,pkey);
@@ -198,7 +198,7 @@ static int ssl_set_pkey(CERT *c, EVP_PKEY *pkey)
 		EVP_PKEY_free(pktmp);
 		ERR_clear_error();
 
-#ifndef NO_RSA
+#ifndef OPENSSL_NO_RSA
 		/* Don't check the public/private key, this is mostly
 		 * for smart cards. */
 		if ((pkey->type == EVP_PKEY_RSA) &&
@@ -251,8 +251,8 @@ static int ssl_set_pkey(CERT *c, EVP_PKEY *pkey)
 	return(1);
 	}
 
-#ifndef NO_RSA
-#ifndef NO_STDIO
+#ifndef OPENSSL_NO_RSA
+#ifndef OPENSSL_NO_STDIO
 int SSL_use_RSAPrivateKey_file(SSL *ssl, const char *file, int type)
 	{
 	int j,ret=0;
@@ -303,7 +303,7 @@ end:
 int SSL_use_RSAPrivateKey_ASN1(SSL *ssl, unsigned char *d, long len)
 	{
 	int ret;
-	unsigned char *p;
+	const unsigned char *p;
 	RSA *rsa;
 
 	p=d;
@@ -317,7 +317,7 @@ int SSL_use_RSAPrivateKey_ASN1(SSL *ssl, unsigned char *d, long len)
 	RSA_free(rsa);
 	return(ret);
 	}
-#endif /* !NO_RSA */
+#endif /* !OPENSSL_NO_RSA */
 
 int SSL_use_PrivateKey(SSL *ssl, EVP_PKEY *pkey)
 	{
@@ -337,7 +337,7 @@ int SSL_use_PrivateKey(SSL *ssl, EVP_PKEY *pkey)
 	return(ret);
 	}
 
-#ifndef NO_STDIO
+#ifndef OPENSSL_NO_STDIO
 int SSL_use_PrivateKey_file(SSL *ssl, const char *file, int type)
 	{
 	int j,ret=0;
@@ -438,7 +438,7 @@ static int ssl_set_cert(CERT *c, X509 *x)
 		EVP_PKEY_copy_parameters(pkey,c->pkeys[i].privatekey);
 		ERR_clear_error();
 
-#ifndef NO_RSA
+#ifndef OPENSSL_NO_RSA
 		/* Don't check the public/private key, this is mostly
 		 * for smart cards. */
 		if ((c->pkeys[i].privatekey->type == EVP_PKEY_RSA) &&
@@ -471,7 +471,7 @@ static int ssl_set_cert(CERT *c, X509 *x)
 			}
 		else
 			ok=1;
-		} /* NO_RSA */
+		} /* OPENSSL_NO_RSA */
 		}
 	else
 		ok=1;
@@ -493,7 +493,7 @@ static int ssl_set_cert(CERT *c, X509 *x)
 	return(1);
 	}
 
-#ifndef NO_STDIO
+#ifndef OPENSSL_NO_STDIO
 int SSL_CTX_use_certificate_file(SSL_CTX *ctx, const char *file, int type)
 	{
 	int j;
@@ -560,7 +560,7 @@ int SSL_CTX_use_certificate_ASN1(SSL_CTX *ctx, int len, unsigned char *d)
 	return(ret);
 	}
 
-#ifndef NO_RSA
+#ifndef OPENSSL_NO_RSA
 int SSL_CTX_use_RSAPrivateKey(SSL_CTX *ctx, RSA *rsa)
 	{
 	int ret;
@@ -582,7 +582,7 @@ int SSL_CTX_use_RSAPrivateKey(SSL_CTX *ctx, RSA *rsa)
 		return(0);
 		}
 
-	CRYPTO_add(&rsa->references,1,CRYPTO_LOCK_RSA);
+	RSA_up_ref(rsa);
 	EVP_PKEY_assign_RSA(pkey,rsa);
 
 	ret=ssl_set_pkey(ctx->cert, pkey);
@@ -590,7 +590,7 @@ int SSL_CTX_use_RSAPrivateKey(SSL_CTX *ctx, RSA *rsa)
 	return(ret);
 	}
 
-#ifndef NO_STDIO
+#ifndef OPENSSL_NO_STDIO
 int SSL_CTX_use_RSAPrivateKey_file(SSL_CTX *ctx, const char *file, int type)
 	{
 	int j,ret=0;
@@ -641,7 +641,7 @@ end:
 int SSL_CTX_use_RSAPrivateKey_ASN1(SSL_CTX *ctx, unsigned char *d, long len)
 	{
 	int ret;
-	unsigned char *p;
+	const unsigned char *p;
 	RSA *rsa;
 
 	p=d;
@@ -655,7 +655,7 @@ int SSL_CTX_use_RSAPrivateKey_ASN1(SSL_CTX *ctx, unsigned char *d, long len)
 	RSA_free(rsa);
 	return(ret);
 	}
-#endif /* !NO_RSA */
+#endif /* !OPENSSL_NO_RSA */
 
 int SSL_CTX_use_PrivateKey(SSL_CTX *ctx, EVP_PKEY *pkey)
 	{
@@ -672,7 +672,7 @@ int SSL_CTX_use_PrivateKey(SSL_CTX *ctx, EVP_PKEY *pkey)
 	return(ssl_set_pkey(ctx->cert,pkey));
 	}
 
-#ifndef NO_STDIO
+#ifndef OPENSSL_NO_STDIO
 int SSL_CTX_use_PrivateKey_file(SSL_CTX *ctx, const char *file, int type)
 	{
 	int j,ret=0;
@@ -735,7 +735,7 @@ int SSL_CTX_use_PrivateKey_ASN1(int type, SSL_CTX *ctx, unsigned char *d,
 	}
 
 
-#ifndef NO_STDIO
+#ifndef OPENSSL_NO_STDIO
 /* Read a file that contains our certificate in "PEM" format,
  * possibly followed by a sequence of CA certificates that should be
  * sent to the peer in the Certificate message.
@@ -800,9 +800,9 @@ int SSL_CTX_use_certificate_chain_file(SSL_CTX *ctx, const char *file)
 			 * by SSL_CTX_use_certificate). */
 			}
 		/* When the while loop ends, it's usually just EOF. */
-		err = ERR_peek_error();
+		err = ERR_peek_last_error();
 		if (ERR_GET_LIB(err) == ERR_LIB_PEM && ERR_GET_REASON(err) == PEM_R_NO_START_LINE)
-			(void) ERR_get_error();
+			(void)ERR_get_error();
 		else 
 			ret = 0; /* some real error */
 		}

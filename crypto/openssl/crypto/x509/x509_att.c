@@ -149,8 +149,8 @@ err2:
 }
 
 STACK_OF(X509_ATTRIBUTE) *X509at_add1_attr_by_OBJ(STACK_OF(X509_ATTRIBUTE) **x,
-			ASN1_OBJECT *obj, int type,
-			unsigned char *bytes, int len)
+			const ASN1_OBJECT *obj, int type,
+			const unsigned char *bytes, int len)
 {
 	X509_ATTRIBUTE *attr;
 	STACK_OF(X509_ATTRIBUTE) *ret;
@@ -163,7 +163,7 @@ STACK_OF(X509_ATTRIBUTE) *X509at_add1_attr_by_OBJ(STACK_OF(X509_ATTRIBUTE) **x,
 
 STACK_OF(X509_ATTRIBUTE) *X509at_add1_attr_by_NID(STACK_OF(X509_ATTRIBUTE) **x,
 			int nid, int type,
-			unsigned char *bytes, int len)
+			const unsigned char *bytes, int len)
 {
 	X509_ATTRIBUTE *attr;
 	STACK_OF(X509_ATTRIBUTE) *ret;
@@ -175,8 +175,8 @@ STACK_OF(X509_ATTRIBUTE) *X509at_add1_attr_by_NID(STACK_OF(X509_ATTRIBUTE) **x,
 }
 
 STACK_OF(X509_ATTRIBUTE) *X509at_add1_attr_by_txt(STACK_OF(X509_ATTRIBUTE) **x,
-			char *attrname, int type,
-			unsigned char *bytes, int len)
+			const char *attrname, int type,
+			const unsigned char *bytes, int len)
 {
 	X509_ATTRIBUTE *attr;
 	STACK_OF(X509_ATTRIBUTE) *ret;
@@ -188,7 +188,7 @@ STACK_OF(X509_ATTRIBUTE) *X509at_add1_attr_by_txt(STACK_OF(X509_ATTRIBUTE) **x,
 }
 
 X509_ATTRIBUTE *X509_ATTRIBUTE_create_by_NID(X509_ATTRIBUTE **attr, int nid,
-	     int atrtype, void *data, int len)
+	     int atrtype, const void *data, int len)
 {
 	ASN1_OBJECT *obj;
 	X509_ATTRIBUTE *ret;
@@ -205,7 +205,7 @@ X509_ATTRIBUTE *X509_ATTRIBUTE_create_by_NID(X509_ATTRIBUTE **attr, int nid,
 }
 
 X509_ATTRIBUTE *X509_ATTRIBUTE_create_by_OBJ(X509_ATTRIBUTE **attr,
-	     ASN1_OBJECT *obj, int atrtype, void *data, int len)
+	     const ASN1_OBJECT *obj, int atrtype, const void *data, int len)
 {
 	X509_ATTRIBUTE *ret;
 
@@ -234,7 +234,7 @@ err:
 }
 
 X509_ATTRIBUTE *X509_ATTRIBUTE_create_by_txt(X509_ATTRIBUTE **attr,
-		char *atrname, int type, unsigned char *bytes, int len)
+		const char *atrname, int type, const unsigned char *bytes, int len)
 	{
 	ASN1_OBJECT *obj;
 	X509_ATTRIBUTE *nattr;
@@ -252,7 +252,7 @@ X509_ATTRIBUTE *X509_ATTRIBUTE_create_by_txt(X509_ATTRIBUTE **attr,
 	return nattr;
 	}
 
-int X509_ATTRIBUTE_set1_object(X509_ATTRIBUTE *attr, ASN1_OBJECT *obj)
+int X509_ATTRIBUTE_set1_object(X509_ATTRIBUTE *attr, const ASN1_OBJECT *obj)
 {
 	if ((attr == NULL) || (obj == NULL))
 		return(0);
@@ -261,7 +261,7 @@ int X509_ATTRIBUTE_set1_object(X509_ATTRIBUTE *attr, ASN1_OBJECT *obj)
 	return(1);
 }
 
-int X509_ATTRIBUTE_set1_data(X509_ATTRIBUTE *attr, int attrtype, void *data, int len)
+int X509_ATTRIBUTE_set1_data(X509_ATTRIBUTE *attr, int attrtype, const void *data, int len)
 {
 	ASN1_TYPE *ttmp;
 	ASN1_STRING *stmp;
@@ -283,7 +283,7 @@ int X509_ATTRIBUTE_set1_data(X509_ATTRIBUTE *attr, int attrtype, void *data, int
 	if(!(attr->value.set = sk_ASN1_TYPE_new_null())) goto err;
 	if(!(ttmp = ASN1_TYPE_new())) goto err;
 	if(!sk_ASN1_TYPE_push(attr->value.set, ttmp)) goto err;
-	attr->set = 1;
+	attr->single = 0;
 	ASN1_TYPE_set(ttmp, atype, stmp);
 	return 1;
 	err:
@@ -293,7 +293,7 @@ int X509_ATTRIBUTE_set1_data(X509_ATTRIBUTE *attr, int attrtype, void *data, int
 
 int X509_ATTRIBUTE_count(X509_ATTRIBUTE *attr)
 {
-	if(attr->set) return sk_ASN1_TYPE_num(attr->value.set);
+	if(!attr->single) return sk_ASN1_TYPE_num(attr->value.set);
 	if(attr->value.single) return 1;
 	return 0;
 }
@@ -321,6 +321,6 @@ ASN1_TYPE *X509_ATTRIBUTE_get0_type(X509_ATTRIBUTE *attr, int idx)
 {
 	if (attr == NULL) return(NULL);
 	if(idx >= X509_ATTRIBUTE_count(attr)) return NULL;
-	if(attr->set) return sk_ASN1_TYPE_value(attr->value.set, idx);
+	if(!attr->single) return sk_ASN1_TYPE_value(attr->value.set, idx);
 	else return attr->value.single;
 }

@@ -63,7 +63,7 @@
 #include <openssl/evp.h>
 
 /* BEGIN ERROR CODES */
-#ifndef NO_ERR
+#ifndef OPENSSL_NO_ERR
 static ERR_STRING_DATA EVP_str_functs[]=
 	{
 {ERR_PACK(0,EVP_F_D2I_PKEY,0),	"D2I_PKEY"},
@@ -71,6 +71,8 @@ static ERR_STRING_DATA EVP_str_functs[]=
 {ERR_PACK(0,EVP_F_EVP_CIPHER_CTX_CTRL,0),	"EVP_CIPHER_CTX_ctrl"},
 {ERR_PACK(0,EVP_F_EVP_CIPHER_CTX_SET_KEY_LENGTH,0),	"EVP_CIPHER_CTX_set_key_length"},
 {ERR_PACK(0,EVP_F_EVP_DECRYPTFINAL,0),	"EVP_DecryptFinal"},
+{ERR_PACK(0,EVP_F_EVP_DIGESTINIT,0),	"EVP_DigestInit"},
+{ERR_PACK(0,EVP_F_EVP_ENCRYPTFINAL,0),	"EVP_EncryptFinal"},
 {ERR_PACK(0,EVP_F_EVP_MD_CTX_COPY,0),	"EVP_MD_CTX_copy"},
 {ERR_PACK(0,EVP_F_EVP_OPENINIT,0),	"EVP_OpenInit"},
 {ERR_PACK(0,EVP_F_EVP_PBE_ALG_ADD,0),	"EVP_PBE_alg_add"},
@@ -85,6 +87,7 @@ static ERR_STRING_DATA EVP_str_functs[]=
 {ERR_PACK(0,EVP_F_EVP_PKEY_GET1_DSA,0),	"EVP_PKEY_get1_DSA"},
 {ERR_PACK(0,EVP_F_EVP_PKEY_GET1_RSA,0),	"EVP_PKEY_get1_RSA"},
 {ERR_PACK(0,EVP_F_EVP_PKEY_NEW,0),	"EVP_PKEY_new"},
+{ERR_PACK(0,EVP_F_EVP_RIJNDAEL,0),	"EVP_RIJNDAEL"},
 {ERR_PACK(0,EVP_F_EVP_SIGNFINAL,0),	"EVP_SignFinal"},
 {ERR_PACK(0,EVP_F_EVP_VERIFYFINAL,0),	"EVP_VerifyFinal"},
 {ERR_PACK(0,EVP_F_PKCS5_PBE_KEYIVGEN,0),	"PKCS5_PBE_keyivgen"},
@@ -96,12 +99,15 @@ static ERR_STRING_DATA EVP_str_functs[]=
 
 static ERR_STRING_DATA EVP_str_reasons[]=
 	{
+{EVP_R_BAD_BLOCK_LENGTH                  ,"bad block length"},
 {EVP_R_BAD_DECRYPT                       ,"bad decrypt"},
+{EVP_R_BAD_KEY_LENGTH                    ,"bad key length"},
 {EVP_R_BN_DECODE_ERROR                   ,"bn decode error"},
 {EVP_R_BN_PUBKEY_ERROR                   ,"bn pubkey error"},
 {EVP_R_CIPHER_PARAMETER_ERROR            ,"cipher parameter error"},
 {EVP_R_CTRL_NOT_IMPLEMENTED              ,"ctrl not implemented"},
 {EVP_R_CTRL_OPERATION_NOT_IMPLEMENTED    ,"ctrl operation not implemented"},
+{EVP_R_DATA_NOT_MULTIPLE_OF_BLOCK_LENGTH ,"data not multiple of block length"},
 {EVP_R_DECODE_ERROR                      ,"decode error"},
 {EVP_R_DIFFERENT_KEY_TYPES               ,"different key types"},
 {EVP_R_ENCODE_ERROR                      ,"encode error"},
@@ -116,6 +122,7 @@ static ERR_STRING_DATA EVP_str_reasons[]=
 {EVP_R_KEYGEN_FAILURE                    ,"keygen failure"},
 {EVP_R_MISSING_PARAMETERS                ,"missing parameters"},
 {EVP_R_NO_CIPHER_SET                     ,"no cipher set"},
+{EVP_R_NO_DIGEST_SET                     ,"no digest set"},
 {EVP_R_NO_DSA_PARAMETERS                 ,"no dsa parameters"},
 {EVP_R_NO_SIGN_FUNCTION_CONFIGURED       ,"no sign function configured"},
 {EVP_R_NO_VERIFY_FUNCTION_CONFIGURED     ,"no verify function configured"},
@@ -144,7 +151,7 @@ void ERR_load_EVP_strings(void)
 	if (init)
 		{
 		init=0;
-#ifndef NO_ERR
+#ifndef OPENSSL_NO_ERR
 		ERR_load_strings(ERR_LIB_EVP,EVP_str_functs);
 		ERR_load_strings(ERR_LIB_EVP,EVP_str_reasons);
 #endif
