@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.7 1998/10/07 03:09:19 imp Exp $
+ *      $Id: scsi_da.c,v 1.8 1998/10/08 05:46:38 ken Exp $
  */
 
 #include "opt_hw_wdog.h"
@@ -121,13 +121,23 @@ struct da_quirk_entry {
 static struct da_quirk_entry da_quirk_table[] =
 {
 	{
-		/* 
-		 * XXX This is just a placeholder quirk entry.  It should
-		 * be removed once we get the inquiry info for a drive that
-		 * doesn't support synchronize cache properly.
+		/*
+		 * This particular Fujitsu drive doesn't like the
+		 * synchronize cache command.
+		 * Reported by: Tom Jackson <toj@gorilla.net>
 		 */
-		{T_ANY, SIP_MEDIA_REMOVABLE|SIP_MEDIA_FIXED, "*", "*", "*"},
-		/*quirks*/ DA_Q_NONE
+		{T_DIRECT, SIP_MEDIA_FIXED, "FUJITSU", "M2954*", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	
+	},
+	{
+		/*
+		 * This drive doesn't like the synchronize cache command
+		 * either.  Reported by: Matthew Jacob <mjacob@feral.com>
+		 * in NetBSD PR kern/6027, August 24, 1998.
+		 */
+		{T_DIRECT, SIP_MEDIA_FIXED, "MICROP", "2217*", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	}
 };
 
@@ -1497,10 +1507,18 @@ dashutdown(int howto, void *arg)
 		xpt_polled_action(&ccb);
 
 		if ((ccb.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-			if ((ccb.ccb_h.status & CAM_STATUS_MASK) ==
+			if (((ccb.ccb_h.status & CAM_STATUS_MASK) ==
 			     CAM_SCSI_STATUS_ERROR)
-				scsi_sense_print(&ccb.csio);
-			else {
+			 && (ccb.csio.scsi_status == SCSI_STATUS_CHECK_COND)){
+				int error_code, sense_key, asc, ascq;
+
+				scsi_extract_sense(&ccb.csio.sense_data,
+						   &error_code, &sense_key,
+						   &asc, &ascq);
+
+				if (sense_key != SSD_KEY_ILLEGAL_REQUEST)
+					scsi_sense_print(&ccb.csio);
+			} else {
 				xpt_print_path(periph->path);
 				printf("Synchronize cache failed, status "
 				       "== 0x%x, scsi status == 0x%x\n",
