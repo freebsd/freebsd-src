@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.25 1997/05/30 09:57:09 kato Exp $
+ *	$Id: sio.c,v 1.26 1997/06/02 10:51:34 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -129,6 +129,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
+#include <sys/sysctl.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif
@@ -440,7 +441,7 @@ static struct cdevsw sio_cdevsw = {
 };
 
 static	int	comconsole = -1;
-static	volatile speed_t	comdefaultrate = CONSPEED;
+static	volatile speed_t	comdefaultrate = TTYDEF_SPEED;
 static	u_int	com_events;	/* input chars + weighted output completions */
 static	Port_t	siocniobase;
 static	int	sio_timeout;
@@ -616,6 +617,66 @@ static	struct speedtab comspeedtab[] = {
 static	Port_t	likely_com_ports[] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8, };
 static	Port_t	likely_esp_ports[] = { 0x140, 0x180, 0x280, 0 };
 #endif
+
+/*
+ * handle sysctl read/write requests for console speed
+ * 
+ * In addition to setting comdefaultrate for I/O through /dev/console,
+ * also set the initial and lock values for the /dev/ttyXX device
+ * if there is one associated with the console.  Finally, if the /dev/tty
+ * device has already been open, change the speed on the open running port
+ * itself.
+ */
+
+static int
+sysctl_machdep_comdefaultrate SYSCTL_HANDLER_ARGS
+{
+	int error, s;
+	speed_t newspeed;
+	struct com_s *com;
+	struct tty *tp;
+
+	newspeed = comdefaultrate;
+
+	error = sysctl_handle_opaque(oidp, &newspeed, sizeof newspeed, req);
+	if (error || !req->newptr)
+		return (error);
+
+	comdefaultrate = newspeed;
+
+	if (comconsole < 0)		/* serial console not selected? */
+		return (0);
+
+	com = com_addr(comconsole);
+	if (!com)
+		return (ENXIO);
+
+	/*
+	 * set the initial and lock rates for /dev/ttydXX and /dev/cuaXX
+	 * (note, the lock rates really are boolean -- if non-zero, disallow
+	 *  speed changes)
+	 */
+	com->it_in.c_ispeed  = com->it_in.c_ospeed =
+	com->lt_in.c_ispeed  = com->lt_in.c_ospeed =
+	com->it_out.c_ispeed = com->it_out.c_ospeed =
+	com->lt_out.c_ispeed = com->lt_out.c_ospeed = comdefaultrate;
+
+	/*
+	 * if we're open, change the running rate too
+	 */
+	tp = com->tp;
+	if (tp && (tp->t_state & TS_ISOPEN)) {
+		tp->t_termios.c_ispeed =
+		tp->t_termios.c_ospeed = comdefaultrate;
+		s = spltty();
+		error = comparam(tp, &tp->t_termios);
+		splx(s);
+	}
+	return error;
+}
+
+SYSCTL_PROC(_machdep, OID_AUTO, conspeed, CTLTYPE_INT | CTLFLAG_RW,
+	    0, 0, sysctl_machdep_comdefaultrate, "I", "");
 
 #if NCRD > 0
 /*
@@ -902,10 +963,10 @@ sioprobe(dev)
 		DELAY((16 + 1) * 1000000 / (comdefaultrate / 10));
 	else {
 		outb(iobase + com_cfcr, CFCR_DLAB | CFCR_8BITS);
-		outb(iobase + com_dlbl, COMBRD(9600) & 0xff);
-		outb(iobase + com_dlbh, (u_int) COMBRD(9600) >> 8);
+		outb(iobase + com_dlbl, COMBRD(SIO_TEST_SPEED) & 0xff);
+		outb(iobase + com_dlbh, (u_int) COMBRD(SIO_TEST_SPEED) >> 8);
 		outb(iobase + com_cfcr, CFCR_8BITS);
-		DELAY((16 + 1) * 1000000 / (9600 / 10));
+		DELAY((16 + 1) * 1000000 / (SIO_TEST_SPEED / 10));
 	}
 
 	/*
@@ -941,7 +1002,7 @@ sioprobe(dev)
 	 * it's unlikely to do more than allow the null byte out.
 	 */
 	outb(iobase + com_data, 0);
-	DELAY((1 + 2) * 1000000 / (9600 / 10));
+	DELAY((1 + 2) * 1000000 / (SIO_TEST_SPEED / 10));
 
 	/*
 	 * Turn off loopback mode so that the interrupt gate works again
@@ -1157,6 +1218,8 @@ sioattach(isdp)
 		com->it_in.c_cflag = TTYDEF_CFLAG | CLOCAL;
 		com->it_in.c_lflag = TTYDEF_LFLAG;
 		com->lt_out.c_cflag = com->lt_in.c_cflag = CLOCAL;
+		com->lt_out.c_ispeed = com->lt_out.c_ospeed =
+		com->lt_in.c_ispeed = com->lt_in.c_ospeed =
 		com->it_in.c_ispeed = com->it_in.c_ospeed = comdefaultrate;
 	} else
 		com->it_in.c_ispeed = com->it_in.c_ospeed = TTYDEF_SPEED;
@@ -1300,6 +1363,8 @@ determined_type: ;
 #ifdef PC98
 	}
 #endif
+	if (unit == comconsole)
+		printf(", console");
 	printf("\n");
 
 	s = spltty();
@@ -3122,6 +3187,7 @@ struct siocnstate {
 	u_char	mcr;
 };
 
+static speed_t siocngetspeed __P((Port_t, struct speedtab *));
 static void siocnclose	__P((struct siocnstate *sp));
 static void siocnopen	__P((struct siocnstate *sp));
 static void siocntxwait	__P((void));
@@ -3140,6 +3206,42 @@ siocntxwait()
 	while ((inb(siocniobase + com_lsr) & (LSR_TSRE | LSR_TXRDY))
 	       != (LSR_TSRE | LSR_TXRDY) && --timo != 0)
 		;
+}
+
+/*
+ * Read the serial port specified and try to figure out what speed
+ * it's currently running at.  We're assuming the serial port has
+ * been initialized and is basicly idle.  This routine is only intended
+ * to be run at system startup.
+ *
+ * If the value read from the serial port doesn't make sense, return 0.
+ */
+
+static speed_t
+siocngetspeed(iobase, table)
+	Port_t iobase;
+	struct speedtab *table;
+{
+	int	code;
+	u_char	dlbh;
+	u_char	dlbl;
+	u_char  cfcr;
+
+	cfcr = inb(iobase + com_cfcr);
+	outb(iobase + com_cfcr, CFCR_DLAB | cfcr);
+
+	dlbl = inb(iobase + com_dlbl);
+	dlbh = inb(iobase + com_dlbh);
+
+	outb(iobase + com_cfcr, cfcr);
+
+	code = dlbh << 8 | dlbl;
+
+	for ( ; table->sp_speed != -1; table++)
+		if (table->sp_code == code)
+			return (table->sp_speed);
+
+	return 0;	/* didn't match anything sane */
 }
 
 static void
@@ -3216,8 +3318,9 @@ siocnprobe(cp)
 	struct consdev	*cp;
 {
 	struct isa_device	*dvp;
-	int	s;
+	int			s;
 	struct siocnstate	sp;
+	speed_t			boot_speed;
 
 	/*
 	 * Find our first enabled console, if any.  If it is a high-level
@@ -3239,6 +3342,12 @@ siocnprobe(cp)
 		    && COM_CONSOLE(dvp)) {
 			siocniobase = dvp->id_iobase;
 			s = spltty();
+			if (boothowto & RB_SERIAL) {
+				boot_speed = siocngetspeed(siocniobase,
+							   comspeedtab);
+				if (boot_speed)
+					comdefaultrate = boot_speed;
+			}
 			siocnopen(&sp);
 			splx(s);
 			if (!COM_LLCONSOLE(dvp)) {
