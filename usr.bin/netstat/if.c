@@ -472,9 +472,10 @@ intpr(interval, ifnetaddr, pfunc)
 							 ntop_buf,
 							 sizeof(ntop_buf)),
 					       ifma.ifma_refcount);
+					break;
 #endif /* INET6 */
 				case AF_LINK:
-					switch (ifnet.if_type) {
+					switch (msa.dl.sdl_type) {
 					case IFT_ETHER:
 					case IFT_FDDI:
 						fmt = ether_ntoa(
