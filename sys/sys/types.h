@@ -36,13 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.6 (Berkeley) 2/19/95
- * $Id: types.h,v 1.9 1996/03/11 02:19:02 hsu Exp $
+ * $Id: types.h,v 1.10 1996/04/30 12:54:27 phk Exp $
  */
 
 #ifndef _SYS_TYPES_H_
 #define	_SYS_TYPES_H_
-
-#include <sys/cdefs.h>
 
 /* Machine type dependent parameters. */
 #include <machine/ansi.h>
@@ -62,7 +60,6 @@ typedef	int64_t		quad_t;
 typedef	quad_t *	qaddr_t;
 
 typedef	char *		caddr_t;	/* core address */
-
 typedef	int32_t		daddr_t;	/* disk address */
 typedef	u_int32_t	dev_t;		/* device number */
 typedef u_int32_t	fixpt_t;	/* fixed point number */
@@ -78,9 +75,8 @@ typedef	int32_t		swblk_t;	/* swap offset */
 typedef	u_int32_t	uid_t;		/* user id */
 
 #ifdef KERNEL
-typedef int		boolean_t;
-struct vm_page;
-typedef struct vm_page	*vm_page_t;
+typedef	int		boolean_t;
+typedef	struct vm_page	*vm_page_t;
 #endif
 
 /*
@@ -89,6 +85,7 @@ typedef struct vm_page	*vm_page_t;
  * version of lseek.
  */
 #ifndef KERNEL
+#include <sys/cdefs.h>
 __BEGIN_DECLS
 off_t	 lseek __P((int, off_t, int));
 __END_DECLS
