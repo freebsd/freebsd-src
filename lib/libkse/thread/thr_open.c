@@ -45,11 +45,12 @@ __weak_reference(__open, open);
 int
 __open(const char *path, int flags,...)
 {
+	struct pthread *curthread = _get_curthread();
 	int	ret;
 	int	mode = 0;
 	va_list	ap;
 
-	_thread_enter_cancellation_point();
+	_thr_enter_cancellation_point(curthread);
 	
 	/* Check if the file is being created: */
 	if (flags & O_CREAT) {
@@ -60,7 +61,7 @@ __open(const char *path, int flags,...)
 	}
 	
 	ret = __sys_open(path, flags, mode);
-	_thread_leave_cancellation_point();
+	_thr_leave_cancellation_point(curthread);
 
 	return ret;
 }

@@ -50,8 +50,8 @@ _sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 		errno = EINVAL;
 		ret = -1;
 	} else {
-		if (_thread_initial == NULL)
-			_thread_init();
+		if (_thr_initial == NULL)
+			_libpthread_init(NULL);
 
 		/*
 		 * Check if the existing signal action structure contents are
@@ -76,14 +76,9 @@ _sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 		 * Check if the kernel needs to be advised of a change
 		 * in signal action:
 		 */
-		if (act != NULL && sig != SIGCHLD) {
-			/*
-			 * Ensure the signal handler cannot be interrupted
-			 * by other signals.  Always request the POSIX signal
-			 * handler arguments.
-			 */
-			sigfillset(&gact.sa_mask);
-			gact.sa_flags = SA_SIGINFO | SA_ONSTACK;
+		if (act != NULL && sig != SIGINFO) {
+			gact.sa_mask = act->sa_mask;
+			gact.sa_flags = SA_SIGINFO | act->sa_flags;
 
 			/*
 			 * Check if the signal handler is being set to
@@ -98,10 +93,10 @@ _sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 				 * Specify the thread kernel signal
 				 * handler:
 				 */
-				gact.sa_handler = (void (*) ()) _thread_sig_handler;
+				gact.sa_handler = (void (*) ())_thr_sig_handler;
 
 			/* Change the signal action in the kernel: */
-		    	if (__sys_sigaction(sig,&gact,NULL) != 0)
+		    	if (__sys_sigaction(sig, &gact, NULL) != 0)
 				ret = -1;
 		}
 	}

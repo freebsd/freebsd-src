@@ -49,11 +49,12 @@ int
 __select(int numfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
 	struct timeval *timeout)
 {
+	struct pthread *curthread = _get_curthread();
 	int ret;
 
-	_thread_enter_cancellation_point();
+	_thr_enter_cancellation_point(curthread);
 	ret = __sys_select(numfds, readfds, writefds, exceptfds, timeout);
-	_thread_leave_cancellation_point();
+	_thr_leave_cancellation_point(curthread);
 
 	return ret;
 }

@@ -16,6 +16,7 @@ __weak_reference(__msync, msync);
 int
 __msync(void *addr, size_t len, int flags)
 {
+	struct pthread *curthread = _get_curthread();
 	int	ret;
 
 	/*
@@ -24,9 +25,9 @@ __msync(void *addr, size_t len, int flags)
 	 * write. The only real use of this wrapper is to guarantee
 	 * a cancellation point, as per the standard. sigh.
 	 */
-	_thread_enter_cancellation_point();
+	_thr_enter_cancellation_point(curthread);
 	ret = __sys_msync(addr, len, flags);
-	_thread_leave_cancellation_point();
+	_thr_leave_cancellation_point(curthread);
 
 	return ret;
 }

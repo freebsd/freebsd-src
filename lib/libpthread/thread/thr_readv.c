@@ -45,11 +45,12 @@ __weak_reference(__readv, readv);
 ssize_t
 __readv(int fd, const struct iovec *iov, int iovcnt)
 {
+	struct pthread *curthread = _get_curthread();
 	ssize_t ret;
 
-	_thread_enter_cancellation_point();
+	_thr_enter_cancellation_point(curthread);
 	ret = __sys_readv(fd, iov, iovcnt);
-	_thread_leave_cancellation_point();
+	_thr_leave_cancellation_point(curthread);
 
 	return ret;
 }

@@ -50,102 +50,150 @@ int _thread_next_offset			= OFF(tle.tqe_next);
 int _thread_uniqueid_offset		= OFF(uniqueid);
 int _thread_state_offset		= OFF(state);
 int _thread_name_offset			= OFF(name);
-int _thread_ctx_offset			= OFF(mailbox.tm_context);
+int _thread_ctx_offset			= OFF(tmbx.tm_context);
 #undef OFF
 
 int _thread_PS_RUNNING_value		= PS_RUNNING;
 int _thread_PS_DEAD_value		= PS_DEAD;
 
+static int  create_stack(struct pthread_attr *pattr);
+static void thread_start(struct pthread *curthread,
+		void *(*start_routine) (void *), void *arg);
+
 __weak_reference(_pthread_create, pthread_create);
 
+/*
+ * Some notes on new thread creation and first time initializion
+ * to enable multi-threading.
+ *
+ * There are basically two things that need to be done.
+ *
+ *   1) The internal library variables must be initialized.
+ *   2) Upcalls need to be enabled to allow multiple threads
+ *      to be run.
+ *
+ * The first may be done as a result of other pthread functions
+ * being called.  When _thr_initial is null, _libpthread_init is
+ * called to initialize the internal variables; this also creates
+ * or sets the initial thread.  It'd be nice to automatically
+ * have _libpthread_init called on program execution so we don't
+ * have to have checks throughout the library.
+ *
+ * The second part is only triggered by the creation of the first
+ * thread (other than the initial/main thread).  If the thread
+ * being created is a scope system thread, then a new KSE/KSEG
+ * pair needs to be allocated.  Also, if upcalls haven't been
+ * enabled on the initial thread's KSE, they must be now that
+ * there is more than one thread; this could be delayed until
+ * the initial KSEG has more than one thread.
+ */
 int
 _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	       void *(*start_routine) (void *), void *arg)
 {
-	struct pthread	*curthread = _get_curthread();
-	struct itimerval itimer;
-	int		f_gc = 0;
-	int             ret = 0;
-	pthread_t       gc_thread;
-	pthread_t       new_thread;
-	pthread_attr_t	pattr;
-	void           *stack;
+	struct kse *curkse;
+	struct pthread *curthread, *new_thread;
+	struct kse *kse = NULL;
+	struct kse_group *kseg = NULL;
+	kse_critical_t crit;
+	int i;
+	int ret = 0;
 
-	/*
-	 * Locking functions in libc are required when there are
-	 * threads other than the initial thread.
-	 */
-	__isthreaded = 1;
+	if (_thr_initial == NULL)
+		_libpthread_init(NULL);
+
+	crit = _kse_critical_enter();
+	curthread = _get_curthread();
+	curkse = curthread->kse;
 
 	/* Allocate memory for the thread structure: */
-	if ((new_thread = (pthread_t) malloc(sizeof(struct pthread))) == NULL) {
+	if ((new_thread = _thr_alloc(curkse)) == NULL) {
 		/* Insufficient memory to create a thread: */
 		ret = EAGAIN;
 	} else {
+		/* Initialize the thread structure: */
+		memset(new_thread, 0, sizeof(struct pthread));
+
 		/* Check if default thread attributes are required: */
-		if (attr == NULL || *attr == NULL) {
+		if (attr == NULL || *attr == NULL)
 			/* Use the default thread attributes: */
-			pattr = &pthread_attr_default;
-		} else {
-			pattr = *attr;
+			new_thread->attr = _pthread_attr_default;
+		else
+			new_thread->attr = *(*attr);
+
+		if (create_stack(&new_thread->attr) != 0) {
+			/* Insufficient memory to create a stack: */
+			ret = EAGAIN;
+			_thr_free(curkse, new_thread);
 		}
-		/* Check if a stack was specified in the thread attributes: */
-		if ((stack = pattr->stackaddr_attr) != NULL) {
-		}
-		/* Allocate a stack: */
-		else {
-			stack = _thread_stack_alloc(pattr->stacksize_attr,
-			    pattr->guardsize_attr);
-			if (stack == NULL) {
-				ret = EAGAIN;
-				free(new_thread);
+		else if (((new_thread->attr.flags & PTHREAD_SCOPE_SYSTEM) != 0) &&
+		    (((kse = _kse_alloc(curkse)) == NULL)
+		    || ((kseg = _kseg_alloc(curkse)) == NULL))) {
+			/* Insufficient memory to create a new KSE/KSEG: */
+			ret = EAGAIN;
+			if (kse != NULL)
+				_kse_free(curkse, kse);
+			if ((new_thread->attr.flags & THR_STACK_USER) == 0) {
+				KSE_LOCK_ACQUIRE(curkse, &_thread_list_lock);
+				_thr_stack_free(&new_thread->attr);
+				KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
 			}
+			_thr_free(curkse, new_thread);
 		}
-
-		/* Check for errors: */
-		if (ret != 0) {
-		} else {
-			/* Initialise the thread structure: */
-			memset(new_thread, 0, sizeof(struct pthread));
-			new_thread->slice_usec = -1;
-			new_thread->stack = stack;
-			new_thread->start_routine = start_routine;
-			new_thread->arg = arg;
-
-			new_thread->cancelflags = PTHREAD_CANCEL_ENABLE |
-			    PTHREAD_CANCEL_DEFERRED;
-
+		else {
+			if (kseg != NULL) {
+				/* Add the KSE to the KSEG's list of KSEs. */
+				TAILQ_INSERT_HEAD(&kseg->kg_kseq, kse, k_qe);
+				kse->k_kseg = kseg;
+				kse->k_schedq = &kseg->kg_schedq;
+			}
 			/*
 			 * Write a magic value to the thread structure
 			 * to help identify valid ones:
 			 */
-			new_thread->magic = PTHREAD_MAGIC;
+			new_thread->magic = THR_MAGIC;
 
-			/* Initialise the machine context: */
-			getcontext(&new_thread->mailbox.tm_context);
-			new_thread->mailbox.tm_context.uc_stack.ss_sp =
-			    new_thread->stack;
-			new_thread->mailbox.tm_context.uc_stack.ss_size =
-			    pattr->stacksize_attr;
-			makecontext(&new_thread->mailbox.tm_context,
-			    _thread_start, 1);
-			new_thread->mailbox.tm_udata = (void *)new_thread;
+			new_thread->slice_usec = -1;
+			new_thread->start_routine = start_routine;
+			new_thread->arg = arg;
+			new_thread->cancelflags = PTHREAD_CANCEL_ENABLE |
+			    PTHREAD_CANCEL_DEFERRED;
 
-			/* Copy the thread attributes: */
-			memcpy(&new_thread->attr, pattr, sizeof(struct pthread_attr));
+			/* Initialize the thread for signals: */
+			new_thread->sigmask = curthread->sigmask;
+
+			/* No thread is wanting to join to this one: */
+			new_thread->joiner = NULL;
+
+			/* Initialize the signal frame: */
+			new_thread->curframe = NULL;
+
+			/* Initialize the machine context: */
+			THR_GETCONTEXT(&new_thread->tmbx.tm_context);
+			new_thread->tmbx.tm_udata = new_thread;
+			new_thread->tmbx.tm_context.uc_sigmask =
+			    new_thread->sigmask;
+			new_thread->tmbx.tm_context.uc_stack.ss_size =
+			    new_thread->attr.stacksize_attr;
+			new_thread->tmbx.tm_context.uc_stack.ss_sp =
+			    new_thread->attr.stackaddr_attr;
+
+			makecontext(&new_thread->tmbx.tm_context,
+			    (void (*)(void))thread_start, 4, new_thread,
+			    start_routine, arg);
 
 			/*
 			 * Check if this thread is to inherit the scheduling
 			 * attributes from its parent:
 			 */
-			if (new_thread->attr.flags & PTHREAD_INHERIT_SCHED) {
+			if ((new_thread->attr.flags & PTHREAD_INHERIT_SCHED) != 0) {
 				/* Copy the scheduling attributes: */
 				new_thread->base_priority =
 				    curthread->base_priority &
-				    ~PTHREAD_SIGNAL_PRIORITY;
+				    ~THR_SIGNAL_PRIORITY;
 				new_thread->attr.prio =
 				    curthread->base_priority &
-				    ~PTHREAD_SIGNAL_PRIORITY;
+				    ~THR_SIGNAL_PRIORITY;
 				new_thread->attr.sched_policy =
 				    curthread->attr.sched_policy;
 			} else {
@@ -160,11 +208,19 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			new_thread->active_priority = new_thread->base_priority;
 			new_thread->inherited_priority = 0;
 
-			/* Initialize joiner to NULL (no joiner): */
-			new_thread->joiner = NULL;
-
 			/* Initialize the mutex queue: */
 			TAILQ_INIT(&new_thread->mutexq);
+
+			/* Initialize thread locking. */
+			if (_lock_init(&new_thread->lock, LCK_ADAPTIVE,
+			    _thr_lock_wait, _thr_lock_wakeup) != 0)
+				PANIC("Cannot initialize thread lock");
+			for (i = 0; i < MAX_THR_LOCKLEVEL; i++) {
+				_lockuser_init(&new_thread->lockusers[i],
+				    (void *)new_thread);
+				_LCK_SET_PRIVATE2(&new_thread->lockusers[i],
+				    (void *)new_thread);
+			}
 
 			/* Initialise hooks in the thread structure: */
 			new_thread->specific = NULL;
@@ -172,11 +228,29 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			new_thread->flags = 0;
 			new_thread->continuation = NULL;
 
+			if (new_thread->attr.suspend == THR_CREATE_SUSPENDED)
+				new_thread->state = PS_SUSPENDED;
+			else
+				new_thread->state = PS_RUNNING;
+
 			/*
-			 * Defer signals to protect the scheduling queues
-			 * from access by the signal handler:
+			 * System scope threads have their own kse and
+			 * kseg.  Process scope threads are all hung
+			 * off the main process kseg.
 			 */
-			_thread_kern_sig_defer();
+			if ((new_thread->attr.flags & PTHREAD_SCOPE_SYSTEM) == 0) {
+				new_thread->kseg = _kse_initial->k_kseg;
+				new_thread->kse = _kse_initial;
+			}
+			else {
+				kse->k_curthread = NULL;
+				kse->k_kseg->kg_flags |= KGF_SINGLE_THREAD;
+				new_thread->kse = kse;
+				new_thread->kseg = kse->k_kseg;
+				kse->k_mbx.km_udata = kse;
+				kse->k_mbx.km_curthread = NULL;
+			}
+			KSE_LOCK_ACQUIRE(curthread->kse, &_thread_list_lock);
 
 			/*
 			 * Initialise the unique id which GDB uses to
@@ -184,57 +258,53 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			 */
 			new_thread->uniqueid = next_uniqueid++;
 
-			/*
-			 * Check if the garbage collector thread
-			 * needs to be started.
-			 */
-			f_gc = (TAILQ_FIRST(&_thread_list) == _thread_initial);
-
 			/* Add the thread to the linked list of all threads: */
-			TAILQ_INSERT_HEAD(&_thread_list, new_thread, tle);
+			THR_LIST_ADD(new_thread);
 
-			if (pattr->suspend == PTHREAD_CREATE_SUSPENDED) {
-				new_thread->flags |= PTHREAD_FLAGS_SUSPENDED;
-				new_thread->state = PS_SUSPENDED;
-			} else {
-				new_thread->state = PS_RUNNING;
-				PTHREAD_PRIOQ_INSERT_TAIL(new_thread);
-			}
+			KSE_LOCK_RELEASE(curthread->kse, &_thread_list_lock);
 
 			/*
-			 * Undefer and handle pending signals, yielding
-			 * if necessary.
+			 * Schedule the new thread starting a new KSEG/KSE
+			 * pair if necessary.
 			 */
-			_thread_kern_sig_undefer();
+			_thr_schedule_add(curthread, new_thread);
 
 			/* Return a pointer to the thread structure: */
 			(*thread) = new_thread;
-
-			/* Schedule the new user thread: */
-			_thread_kern_sched();
-
-			/*
-			 * Start a garbage collector thread
-			 * if necessary.
-			 */
-			if (f_gc && pthread_create(&gc_thread,NULL,
-				    _thread_gc,NULL) != 0)
-				PANIC("Can't create gc thread");
-
 		}
 	}
+	_kse_critical_leave(crit);
+
+	if ((ret == 0) && (_kse_isthreaded() == 0))
+		_kse_setthreaded(1);
 
 	/* Return the status: */
 	return (ret);
 }
 
-void
-_thread_start(void)
+static int
+create_stack(struct pthread_attr *pattr)
 {
-	struct pthread	*curthread = _get_curthread();
+	int ret;
 
+	/* Check if a stack was specified in the thread attributes: */
+	if ((pattr->stackaddr_attr) != NULL) {
+		pattr->guardsize_attr = 0;
+		pattr->flags = THR_STACK_USER;
+		ret = 0;
+	}
+	else
+		ret = _thr_stack_alloc(pattr);
+	return (ret);
+}
+
+
+static void
+thread_start(struct pthread *curthread, void *(*start_routine) (void *),
+    void *arg)
+{
 	/* Run the current thread's start routine with argument: */
-	pthread_exit(curthread->start_routine(curthread->arg));
+	pthread_exit(start_routine(arg));
 
 	/* This point should never be reached. */
 	PANIC("Thread has resumed after exit");

@@ -42,47 +42,40 @@ static void pq_insert_prio_list(pq_queue_t *pq, int prio);
 
 #if defined(_PTHREADS_INVARIANTS)
 
-static int _pq_active = 0;
+#define PQ_IN_SCHEDQ	(THR_FLAGS_IN_RUNQ | THR_FLAGS_IN_WAITQ)
 
-#define _PQ_IN_SCHEDQ	(PTHREAD_FLAGS_IN_PRIOQ | PTHREAD_FLAGS_IN_WAITQ | PTHREAD_FLAGS_IN_WORKQ)
-
-#define _PQ_SET_ACTIVE()		_pq_active = 1
-#define _PQ_CLEAR_ACTIVE()		_pq_active = 0
-#define _PQ_ASSERT_ACTIVE(msg)		do {		\
-	if (_pq_active == 0)				\
+#define PQ_SET_ACTIVE(pq)		(pq)->pq_flags |= PQF_ACTIVE
+#define PQ_CLEAR_ACTIVE(pq)		(pq)->pq_flags &= ~PQF_ACTIVE
+#define PQ_ASSERT_ACTIVE(pq, msg)	do {		\
+	if (((pq)->pq_flags & PQF_ACTIVE) == 0)		\
 		PANIC(msg);				\
 } while (0)
-#define _PQ_ASSERT_INACTIVE(msg)	do {		\
-	if (_pq_active != 0)				\
+#define PQ_ASSERT_INACTIVE(pq, msg)	do {		\
+	if (((pq)->pq_flags & PQF_ACTIVE) != 0)		\
 		PANIC(msg);				\
 } while (0)
-#define _PQ_ASSERT_IN_WAITQ(thrd, msg)	do {		\
-	if (((thrd)->flags & PTHREAD_FLAGS_IN_WAITQ) == 0) \
+#define PQ_ASSERT_IN_WAITQ(thrd, msg)	do {		\
+	if (((thrd)->flags & THR_FLAGS_IN_WAITQ) == 0) \
 		PANIC(msg);				\
 } while (0)
-#define _PQ_ASSERT_IN_PRIOQ(thrd, msg)	do {		\
-	if (((thrd)->flags & PTHREAD_FLAGS_IN_PRIOQ) == 0) \
+#define PQ_ASSERT_IN_RUNQ(thrd, msg)	do {		\
+	if (((thrd)->flags & THR_FLAGS_IN_RUNQ) == 0) \
 		PANIC(msg);				\
 } while (0)
-#define _PQ_ASSERT_NOT_QUEUED(thrd, msg) do {		\
-	if (((thrd)->flags & _PQ_IN_SCHEDQ) != 0)	\
+#define PQ_ASSERT_NOT_QUEUED(thrd, msg) do {		\
+	if (((thrd)->flags & PQ_IN_SCHEDQ) != 0)	\
 		PANIC(msg);				\
 } while (0)
-#define _PQ_ASSERT_PROTECTED(msg)					       \
-	PTHREAD_ASSERT((_thread_kern_kse_mailbox.km_curthread == NULL) ||      \
-	    ((_get_curthread())->sig_defer_count > 0),			       \
-	    msg);
 
 #else
 
-#define _PQ_SET_ACTIVE()
-#define _PQ_CLEAR_ACTIVE()
-#define _PQ_ASSERT_ACTIVE(msg)
-#define _PQ_ASSERT_INACTIVE(msg)
-#define _PQ_ASSERT_IN_WAITQ(thrd, msg)
-#define _PQ_ASSERT_IN_PRIOQ(thrd, msg)
-#define _PQ_ASSERT_NOT_QUEUED(thrd, msg)
-#define _PQ_ASSERT_PROTECTED(msg)
+#define PQ_SET_ACTIVE(pq)
+#define PQ_CLEAR_ACTIVE(pq)
+#define PQ_ASSERT_ACTIVE(pq, msg)
+#define PQ_ASSERT_INACTIVE(pq, msg)
+#define PQ_ASSERT_IN_WAITQ(thrd, msg)
+#define PQ_ASSERT_IN_RUNQ(thrd, msg)
+#define PQ_ASSERT_NOT_QUEUED(thrd, msg)
 
 #endif
 
@@ -123,10 +116,9 @@ _pq_init(pq_queue_t *pq)
 			pq->pq_lists[i].pl_prio = i;
 			pq->pq_lists[i].pl_queued = 0;
 		}
-
 		/* Initialize the priority queue: */
 		TAILQ_INIT(&pq->pq_queue);
-		_PQ_CLEAR_ACTIVE();
+		pq->pq_flags = 0;
 	}
 	return (ret);
 }
@@ -139,10 +131,9 @@ _pq_remove(pq_queue_t *pq, pthread_t pthread)
 	/*
 	 * Make some assertions when debugging is enabled:
 	 */
-	_PQ_ASSERT_INACTIVE("_pq_remove: pq_active");
-	_PQ_SET_ACTIVE();
-	_PQ_ASSERT_IN_PRIOQ(pthread, "_pq_remove: Not in priority queue");
-	_PQ_ASSERT_PROTECTED("_pq_remove: prioq not protected!");
+	PQ_ASSERT_INACTIVE(pq, "_pq_remove: pq_active");
+	PQ_SET_ACTIVE(pq);
+	PQ_ASSERT_IN_RUNQ(pthread, "_pq_remove: Not in priority queue");
 
 	/*
 	 * Remove this thread from priority list.  Note that if
@@ -155,9 +146,9 @@ _pq_remove(pq_queue_t *pq, pthread_t pthread)
 	TAILQ_REMOVE(&pq->pq_lists[prio].pl_head, pthread, pqe);
 
 	/* This thread is now longer in the priority queue. */
-	pthread->flags &= ~PTHREAD_FLAGS_IN_PRIOQ;
+	pthread->flags &= ~THR_FLAGS_IN_RUNQ;
 
-	_PQ_CLEAR_ACTIVE();
+	PQ_CLEAR_ACTIVE(pq);
 }
 
 
@@ -167,34 +158,23 @@ _pq_insert_head(pq_queue_t *pq, pthread_t pthread)
 	int prio;
 
 	/*
-	 * Don't insert suspended threads into the priority queue.
-	 * The caller is responsible for setting the threads state.
+	 * Make some assertions when debugging is enabled:
 	 */
-	if ((pthread->flags & PTHREAD_FLAGS_SUSPENDED) != 0) {
-		/* Make sure the threads state is suspended. */
-		if (pthread->state != PS_SUSPENDED)
-			PTHREAD_SET_STATE(pthread, PS_SUSPENDED);
-	} else {
-		/*
-		 * Make some assertions when debugging is enabled:
-		 */
-		_PQ_ASSERT_INACTIVE("_pq_insert_head: pq_active");
-		_PQ_SET_ACTIVE();
-		_PQ_ASSERT_NOT_QUEUED(pthread,
-		    "_pq_insert_head: Already in priority queue");
-		_PQ_ASSERT_PROTECTED("_pq_insert_head: prioq not protected!");
+	PQ_ASSERT_INACTIVE(pq, "_pq_insert_head: pq_active");
+	PQ_SET_ACTIVE(pq);
+	PQ_ASSERT_NOT_QUEUED(pthread,
+	    "_pq_insert_head: Already in priority queue");
 
-		prio = pthread->active_priority;
-		TAILQ_INSERT_HEAD(&pq->pq_lists[prio].pl_head, pthread, pqe);
-		if (pq->pq_lists[prio].pl_queued == 0)
-			/* Insert the list into the priority queue: */
-			pq_insert_prio_list(pq, prio);
+	prio = pthread->active_priority;
+	TAILQ_INSERT_HEAD(&pq->pq_lists[prio].pl_head, pthread, pqe);
+	if (pq->pq_lists[prio].pl_queued == 0)
+		/* Insert the list into the priority queue: */
+		pq_insert_prio_list(pq, prio);
 
-		/* Mark this thread as being in the priority queue. */
-		pthread->flags |= PTHREAD_FLAGS_IN_PRIOQ;
+	/* Mark this thread as being in the priority queue. */
+	pthread->flags |= THR_FLAGS_IN_RUNQ;
 
-		_PQ_CLEAR_ACTIVE();
-	}
+	PQ_CLEAR_ACTIVE(pq);
 }
 
 
@@ -204,34 +184,23 @@ _pq_insert_tail(pq_queue_t *pq, pthread_t pthread)
 	int prio;
 
 	/*
-	 * Don't insert suspended threads into the priority queue.
-	 * The caller is responsible for setting the threads state.
+	 * Make some assertions when debugging is enabled:
 	 */
-	if ((pthread->flags & PTHREAD_FLAGS_SUSPENDED) != 0) {
-		/* Make sure the threads state is suspended. */
-		if (pthread->state != PS_SUSPENDED)
-			PTHREAD_SET_STATE(pthread, PS_SUSPENDED);
-	} else {
-		/*
-		 * Make some assertions when debugging is enabled:
-		 */
-		_PQ_ASSERT_INACTIVE("_pq_insert_tail: pq_active");
-		_PQ_SET_ACTIVE();
-		_PQ_ASSERT_NOT_QUEUED(pthread,
-		    "_pq_insert_tail: Already in priority queue");
-		_PQ_ASSERT_PROTECTED("_pq_insert_tail: prioq not protected!");
+	PQ_ASSERT_INACTIVE(pq, "_pq_insert_tail: pq_active");
+	PQ_SET_ACTIVE(pq);
+	PQ_ASSERT_NOT_QUEUED(pthread,
+	    "_pq_insert_tail: Already in priority queue");
 
-		prio = pthread->active_priority;
-		TAILQ_INSERT_TAIL(&pq->pq_lists[prio].pl_head, pthread, pqe);
-		if (pq->pq_lists[prio].pl_queued == 0)
-			/* Insert the list into the priority queue: */
-			pq_insert_prio_list(pq, prio);
+	prio = pthread->active_priority;
+	TAILQ_INSERT_TAIL(&pq->pq_lists[prio].pl_head, pthread, pqe);
+	if (pq->pq_lists[prio].pl_queued == 0)
+		/* Insert the list into the priority queue: */
+		pq_insert_prio_list(pq, prio);
 
-		/* Mark this thread as being in the priority queue. */
-		pthread->flags |= PTHREAD_FLAGS_IN_PRIOQ;
+	/* Mark this thread as being in the priority queue. */
+	pthread->flags |= THR_FLAGS_IN_RUNQ;
 
-		_PQ_CLEAR_ACTIVE();
-	}
+	PQ_CLEAR_ACTIVE(pq);
 }
 
 
@@ -244,9 +213,8 @@ _pq_first(pq_queue_t *pq)
 	/*
 	 * Make some assertions when debugging is enabled:
 	 */
-	_PQ_ASSERT_INACTIVE("_pq_first: pq_active");
-	_PQ_SET_ACTIVE();
-	_PQ_ASSERT_PROTECTED("_pq_first: prioq not protected!");
+	PQ_ASSERT_INACTIVE(pq, "_pq_first: pq_active");
+	PQ_SET_ACTIVE(pq);
 
 	while (((pql = TAILQ_FIRST(&pq->pq_queue)) != NULL) &&
 	    (pthread == NULL)) {
@@ -259,21 +227,10 @@ _pq_first(pq_queue_t *pq)
 
 			/* Mark the list as not being in the queue: */
 			pql->pl_queued = 0;
-		} else if ((pthread->flags & PTHREAD_FLAGS_SUSPENDED) != 0) {
-			/*
-			 * This thread is suspended; remove it from the
-			 * list and ensure its state is suspended.
-			 */
-			TAILQ_REMOVE(&pql->pl_head, pthread, pqe);
-			PTHREAD_SET_STATE(pthread, PS_SUSPENDED);
-
-			/* This thread is now longer in the priority queue. */
-			pthread->flags &= ~PTHREAD_FLAGS_IN_PRIOQ;
-			pthread = NULL;
 		}
 	}
 
-	_PQ_CLEAR_ACTIVE();
+	PQ_CLEAR_ACTIVE(pq);
 	return (pthread);
 }
 
@@ -286,8 +243,7 @@ pq_insert_prio_list(pq_queue_t *pq, int prio)
 	/*
 	 * Make some assertions when debugging is enabled:
 	 */
-	_PQ_ASSERT_ACTIVE("pq_insert_prio_list: pq_active");
-	_PQ_ASSERT_PROTECTED("_pq_insert_prio_list: prioq not protected!");
+	PQ_ASSERT_ACTIVE(pq, "pq_insert_prio_list: pq_active");
 
 	/*
 	 * The priority queue is in descending priority order.  Start at
@@ -306,65 +262,4 @@ pq_insert_prio_list(pq_queue_t *pq, int prio)
 
 	/* Mark this list as being in the queue: */
 	pq->pq_lists[prio].pl_queued = 1;
-}
-
-void
-_waitq_insert(pthread_t pthread)
-{
-	pthread_t	tid;
-
-	/*
-	 * Make some assertions when debugging is enabled:
-	 */
-	_PQ_ASSERT_INACTIVE("_waitq_insert: pq_active");
-	_PQ_SET_ACTIVE();
-	_PQ_ASSERT_NOT_QUEUED(pthread, "_waitq_insert: Already in queue");
-
-	if (pthread->wakeup_time.tv_sec == -1)
-		TAILQ_INSERT_TAIL(&_waitingq, pthread, pqe);
-	else {
-		tid = TAILQ_FIRST(&_waitingq);
-		while ((tid != NULL) && (tid->wakeup_time.tv_sec != -1) &&
-		    ((tid->wakeup_time.tv_sec < pthread->wakeup_time.tv_sec) ||
-		    ((tid->wakeup_time.tv_sec == pthread->wakeup_time.tv_sec) &&
-		    (tid->wakeup_time.tv_nsec <= pthread->wakeup_time.tv_nsec))))
-			tid = TAILQ_NEXT(tid, pqe);
-		if (tid == NULL)
-			TAILQ_INSERT_TAIL(&_waitingq, pthread, pqe);
-		else
-			TAILQ_INSERT_BEFORE(tid, pthread, pqe);
-	}
-	pthread->flags |= PTHREAD_FLAGS_IN_WAITQ;
-
-	_PQ_CLEAR_ACTIVE();
-}
-
-void
-_waitq_remove(pthread_t pthread)
-{
-	/*
-	 * Make some assertions when debugging is enabled:
-	 */
-	_PQ_ASSERT_INACTIVE("_waitq_remove: pq_active");
-	_PQ_SET_ACTIVE();
-	_PQ_ASSERT_IN_WAITQ(pthread, "_waitq_remove: Not in queue");
-
-	TAILQ_REMOVE(&_waitingq, pthread, pqe);
-	pthread->flags &= ~PTHREAD_FLAGS_IN_WAITQ;
-
-	_PQ_CLEAR_ACTIVE();
-}
-
-void
-_waitq_setactive(void)
-{
-	_PQ_ASSERT_INACTIVE("_waitq_setactive: pq_active");
-	_PQ_SET_ACTIVE();
-} 
-
-void
-_waitq_clearactive(void)
-{
-	_PQ_ASSERT_ACTIVE("_waitq_clearactive: ! pq_active");
-	_PQ_CLEAR_ACTIVE();
 }

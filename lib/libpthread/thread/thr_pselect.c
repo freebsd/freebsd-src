@@ -44,11 +44,12 @@ int
 pselect(int count, fd_set *rfds, fd_set *wfds, fd_set *efds, 
 	const struct timespec *timo, const sigset_t *mask)
 {
+	struct pthread *curthread = _get_curthread();
 	int ret;
 
-	_thread_enter_cancellation_point();
+	_thr_enter_cancellation_point(curthread);
 	ret = __pselect(count, rfds, wfds, efds, timo, mask);
-	_thread_leave_cancellation_point();
+	_thr_leave_cancellation_point(curthread);
 
 	return (ret);
 }

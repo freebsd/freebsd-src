@@ -40,8 +40,8 @@ int
 _pthread_main_np()
 {
 
-	if (!_thread_initial)
+	if (!_thr_initial)
 		return (-1);
 	else
-		return (pthread_equal(pthread_self(), _thread_initial) ? 1 : 0);
+		return (pthread_equal(pthread_self(), _thr_initial) ? 1 : 0);
 }

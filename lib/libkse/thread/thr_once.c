@@ -31,23 +31,25 @@
  *
  * $FreeBSD$
  */
+#include "namespace.h"
 #include <pthread.h>
+#include "un-namespace.h"
 #include "thr_private.h"
 
 __weak_reference(_pthread_once, pthread_once);
 
 int
-_pthread_once(pthread_once_t * once_control, void (*init_routine) (void))
+_pthread_once(pthread_once_t *once_control, void (*init_routine) (void))
 {
 	if (once_control->state == PTHREAD_NEEDS_INIT) {
-		if (_thread_initial == NULL)
-			_thread_init();
-		pthread_mutex_lock(&(once_control->mutex));
+		if (_thr_initial == NULL)
+			_libpthread_init(NULL);
+		_pthread_mutex_lock(&(once_control->mutex));
 		if (once_control->state == PTHREAD_NEEDS_INIT) {
 			init_routine();
 			once_control->state = PTHREAD_DONE_INIT;
 		}
-		pthread_mutex_unlock(&(once_control->mutex));
+		_pthread_mutex_unlock(&(once_control->mutex));
 	}
 	return (0);
 }
