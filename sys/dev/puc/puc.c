@@ -140,7 +140,7 @@ puc_probe_ilr(struct puc_softc *sc, struct resource *res)
 	case PUC_ILR_TYPE_DIGI:
 		sc->ilr_st = rman_get_bustag(res);
 		sc->ilr_sh = rman_get_bushandle(res);
-		for (i = 0; i < 2; i++) {
+		for (i = 0; i < 2 && sc->sc_desc->ilr_offset[i] != 0; i++) {
 			t1 = bus_space_read_1(sc->ilr_st, sc->ilr_sh,
 			    sc->sc_desc->ilr_offset[i]);
 			t1 = ~t1;
@@ -353,7 +353,7 @@ puc_ilr_read(struct puc_softc *sc)
 	mask = 0;
 	switch (sc->sc_desc->ilr_type) {
 	case PUC_ILR_TYPE_DIGI:
-		for (i = 1; i >= 0; i--) {
+		for (i = 1; i >= 0 && sc->sc_desc->ilr_offset[i] != 0; i--) {
 			mask = (mask << 8) | (bus_space_read_1(sc->ilr_st,
 			    sc->ilr_sh, sc->sc_desc->ilr_offset[i]) & 0xff);
 		}
