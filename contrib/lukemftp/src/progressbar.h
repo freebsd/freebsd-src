@@ -1,6 +1,7 @@
-/*	$NetBSD: version.h,v 1.31 2003/06/15 13:49:46 lukem Exp $	*/
+/*	$NetBSD: progressbar.h,v 1.3 2003/02/28 09:53:49 lukem Exp $	*/
+
 /*-
- * Copyright (c) 1999-2003 The NetBSD Foundation, Inc.
+ * Copyright (c) 1996-2003 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -35,10 +36,64 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef FTP_PRODUCT
-#define	FTP_PRODUCT	"NetBSD-ftp"
+#ifndef STANDALONE_PROGRESS
+#include <setjmp.h>
+#endif	/* !STANDALONE_PROGRESS */
+
+#ifndef	GLOBAL
+#define	GLOBAL	extern
 #endif
 
-#ifndef FTP_VERSION
-#define	FTP_VERSION	"20030615"
+
+#define	STALLTIME	5	/* # of seconds of no xfer before "stalling" */
+
+typedef void (*sigfunc)(int);
+
+
+GLOBAL	FILE   *ttyout;		/* stdout, or stderr if retrieving to stdout */
+
+GLOBAL	int	progress;	/* display transfer progress bar */
+GLOBAL	int	ttywidth;	/* width of tty */
+
+GLOBAL	off_t	bytes;		/* current # of bytes read */
+GLOBAL	off_t	filesize;	/* size of file being transferred */
+GLOBAL	off_t	restart_point;	/* offset to restart transfer */
+
+
+#ifndef	STANDALONE_PROGRESS
+GLOBAL	int	fromatty;	/* input is from a terminal */
+GLOBAL	int	verbose;	/* print messages coming back from server */
+GLOBAL	int	quit_time;	/* maximum time to wait if stalled */
+
+GLOBAL	char   *direction;	/* direction transfer is occurring */
+
+GLOBAL	sigjmp_buf toplevel;	/* non-local goto stuff for cmd scanner */
+#endif	/* !STANDALONE_PROGRESS */
+
+int	foregroundproc(void);
+void	alarmtimer(int);
+void	progressmeter(int);
+sigfunc	xsignal(int, sigfunc);
+sigfunc	xsignal_restart(int, sigfunc, int);
+
+#ifndef STANDALONE_PROGRESS
+void	psummary(int);
+void	ptransfer(int);
+#endif	/* !STANDALONE_PROGRESS */
+
+
+#ifdef NO_LONG_LONG
+# define LLF		"%ld"
+# define LLFP(x)	"%" x "ld"
+# define LLT		long
+# define ULLF		"%lu"
+# define ULLFP(x)	"%" x "lu"
+# define ULLT		unsigned long
+#else
+# define LLF		"%lld"
+# define LLFP(x)	"%" x "lld"
+# define LLT		long long
+# define ULLF		"%llu"
+# define ULLFP(x)	"%" x "llu"
+# define ULLT		unsigned long long
 #endif

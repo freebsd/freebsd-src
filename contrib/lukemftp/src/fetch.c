@@ -1,7 +1,7 @@
-/*	$NetBSD: fetch.c,v 1.136 2002/06/05 10:20:48 lukem Exp $	*/
+/*	$NetBSD: fetch.c,v 1.141 2003/05/14 14:31:00 wiz Exp $	*/
 
 /*-
- * Copyright (c) 1997-2002 The NetBSD Foundation, Inc.
+ * Copyright (c) 1997-2003 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -39,11 +39,37 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+#ifndef lint
+__RCSID("$NetBSD: fetch.c,v 1.141 2003/05/14 14:31:00 wiz Exp $");
+#endif /* not lint */
+
 /*
  * FTP User Program -- Command line file retrieval
  */
 
-#include "lukemftp.h"
+#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+
+#include <netinet/in.h>
+
+#include <arpa/ftp.h>
+#include <arpa/inet.h>
+
+#include <ctype.h>
+#include <err.h>
+#include <errno.h>
+#include <netdb.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <time.h>
+#include <libutil.h>
 
 #include "ftp_var.h"
 #include "version.h"
@@ -155,7 +181,7 @@ auth_url(const char *challenge, char **response, const char *guser,
 	*response = (char *)xmalloc(rlen);
 	(void)strlcpy(*response, scheme, rlen);
 	len = strlcat(*response, " ", rlen);
-	base64_encode(clear, clen, *response + len);
+	base64_encode(clear, clen, (u_char *)*response + len);
 	memset(clear, 0, clen);
 	rval = 0;
 
@@ -235,12 +261,12 @@ url_decode(char *url)
  * XXX: this is not totally RFC 1738 compliant; <path> will have the
  * leading `/' unless it's an ftp:// URL, as this makes things easier
  * for file:// and http:// URLs. ftp:// URLs have the `/' between the
- * host and the url-path removed, but any additional leading slashes
- * in the url-path are retained (because they imply that we should
+ * host and the URL-path removed, but any additional leading slashes
+ * in the URL-path are retained (because they imply that we should
  * later do "CWD" with a null argument).
  *
  * Examples:
- *	 input url			 output path
+ *	 input URL			 output path
  *	 ---------			 -----------
  *	"ftp://host"			NULL
  *	"http://host/"			NULL
@@ -484,7 +510,8 @@ fetch_url(const char *url, const char *proxyenv, char *proxyauth, char *wwwauth)
 			rval = fetch_ftp(url);
 			goto cleanup_fetch_url;
 		}
-		warnx("Invalid URL (no file after directory) `%s'", url);
+		warnx("no file after directory (you must specify an "
+		    "output file) `%s'", url);
 		goto cleanup_fetch_url;
 	} else {
 		if (debug)
@@ -1741,7 +1768,7 @@ auto_put(int argc, char **argv, const char *uploadserver)
 		}
 	}
 	if (debug)
-		fprintf(ttyout, "auto_put: url `%s' argv[2] `%s'\n",
+		fprintf(ttyout, "auto_put: URL `%s' argv[2] `%s'\n",
 		    path, uargv[2] ? uargv[2] : "<null>");
 		
 			/* connect and cwd */		 

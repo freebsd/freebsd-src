@@ -1,7 +1,7 @@
-/*	$NetBSD: ftp_var.h,v 1.62 2001/12/26 09:40:16 lukem Exp $	*/
+/*	$NetBSD: ftp_var.h,v 1.64 2003/01/21 16:08:07 jhawk Exp $	*/
 
 /*-
- * Copyright (c) 1996-2001 The NetBSD Foundation, Inc.
+ * Copyright (c) 1996-2003 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -111,14 +111,20 @@
 #define	NO_PROGRESS
 #endif
 
+#include <sys/param.h>
+
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+#include <setjmp.h>
+#include <stringlist.h>
+
 #ifndef NO_EDITCOMPLETE
 #include <histedit.h>
 #endif /* !NO_EDITCOMPLETE */
 
-typedef void (*sigfunc)(int);
-
 #include "extern.h"
-
+#include "progressbar.h"
 
 /*
  * Format of command table.
@@ -175,7 +181,6 @@ enum {
 
 #define	HASHBYTES	1024	/* default mark for `hash' command */
 #define	DEFAULTINCR	1024	/* default increment for `rate' command */
-#define	STALLTIME	5	/* # of seconds of no xfer before "stalling" */
 
 #define	FTP_PORT	21	/* default if ! getservbyname("ftp/tcp") */
 #define	HTTP_PORT	80	/* default if ! getservbyname("http/tcp") */
@@ -204,9 +209,7 @@ GLOBAL	int	trace;		/* trace packets exchanged */
 GLOBAL	int	hash;		/* print # for each buffer transferred */
 GLOBAL	int	mark;		/* number of bytes between hashes */
 GLOBAL	int	sendport;	/* use PORT/LPRT cmd for each data connection */
-GLOBAL	int	verbose;	/* print messages coming back from server */
 GLOBAL	int	connected;	/* 1 = connected to server, -1 = logged in */
-GLOBAL	int	fromatty;	/* input is from a terminal */
 GLOBAL	int	interactive;	/* interactively prompt on m* cmds */
 GLOBAL	int	confirmrest;	/* confirm rest of current m* cmd */
 GLOBAL	int	debug;		/* debugging level */
@@ -223,7 +226,6 @@ GLOBAL	int	mcase;		/* map upper to lower case for mget names */
 GLOBAL	int	ntflag;		/* use ntin ntout tables for name translation */
 GLOBAL	int	mapflag;	/* use mapin mapout templates on file names */
 GLOBAL	int	preserve;	/* preserve modification time on files */
-GLOBAL	int	progress;	/* display transfer progress bar */
 GLOBAL	int	code;		/* return/reply code for ftp command */
 GLOBAL	int	crflag;		/* if 1, strip car. rets. on ascii gets */
 GLOBAL	int	passivemode;	/* passive mode enabled */
@@ -252,9 +254,7 @@ GLOBAL	int	rate_get_incr;	/* increment for get xfer rate */
 GLOBAL	int	rate_put;	/* maximum put xfer rate */
 GLOBAL	int	rate_put_incr;	/* increment for put xfer rate */
 GLOBAL	int	retry_connect;	/* seconds between retrying connection */
-GLOBAL	int	ttywidth;	/* width of tty */
 GLOBAL	char   *tmpdir;		/* temporary directory */
-GLOBAL	FILE   *ttyout;		/* stdout, or stderr if retrieving to stdout */
 GLOBAL	int	epsv4;		/* use EPSV/EPRT on IPv4 connections */
 GLOBAL	int	epsv4bad;	/* EPSV doesn't work on the current server */
 GLOBAL	int	editing;	/* command line editing enabled */
@@ -268,10 +268,7 @@ GLOBAL	size_t	  cursor_argc;	/* location of cursor in margv */
 GLOBAL	size_t	  cursor_argo;	/* offset of cursor in margv[cursor_argc] */
 #endif /* !NO_EDITCOMPLETE */
 
-GLOBAL	off_t	bytes;		/* current # of bytes read */
-GLOBAL	off_t	filesize;	/* size of file being transferred */
 GLOBAL	char   *direction;	/* direction transfer is occurring */
-GLOBAL	off_t	restart_point;	/* offset to restart transfer */
 
 GLOBAL	char   *hostname;	/* name of host connected to */
 GLOBAL	int	unix_server;	/* server is unix, can use binary for ascii */
@@ -286,8 +283,6 @@ GLOBAL	char	*gateport;	/* port number to use for gateftp connections */
 
 GLOBAL	char   *outfile;	/* filename to output URLs to */
 GLOBAL	int	restartautofetch; /* restart auto-fetch */
-
-GLOBAL	sigjmp_buf toplevel;	/* non-local goto stuff for cmd scanner */
 
 GLOBAL	char	line[FTPBUFLEN]; /* input line buffer */
 GLOBAL	char	*stringbase;	/* current scan point in line buffer */
@@ -336,29 +331,7 @@ extern	struct option	optiontab[];
 #endif
 
 #ifdef NO_LONG_LONG
-# define LLF		"%ld"
-# define LLFP(x)	"%" x "ld"
-# define LLT		long
-# define ULLF		"%lu"
-# define ULLFP(x)	"%" x "lu"
-# define ULLT		unsigned long
 # define STRTOLL(x,y,z)	strtol(x,y,z)
 #else
-#if HAVE_PRINTF_QD
-# define LLF		"%qd"
-# define LLFP(x)	"%" x "qd"
-# define LLT		long long
-# define ULLF		"%qu"
-# define ULLFP(x)	"%" x "qu"
-# define ULLT		unsigned long long
 # define STRTOLL(x,y,z)	strtoll(x,y,z)
-#else
-# define LLF		"%lld"
-# define LLFP(x)	"%" x "lld"
-# define LLT		long long
-# define ULLF		"%llu"
-# define ULLFP(x)	"%" x "llu"
-# define ULLT		unsigned long long
-# define STRTOLL(x,y,z)	strtoll(x,y,z)
-#endif
 #endif

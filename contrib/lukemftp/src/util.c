@@ -1,7 +1,7 @@
-/*	$NetBSD: util.c,v 1.107 2002/06/05 10:20:50 lukem Exp $	*/
+/*	$NetBSD: util.c,v 1.112 2003/06/15 13:49:46 lukem Exp $	*/
 
 /*-
- * Copyright (c) 1997-2002 The NetBSD Foundation, Inc.
+ * Copyright (c) 1997-2003 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -73,13 +73,39 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+#ifndef lint
+__RCSID("$NetBSD: util.c,v 1.112 2003/06/15 13:49:46 lukem Exp $");
+#endif /* not lint */
+
 /*
  * FTP User Program -- Misc support routines
  */
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <sys/time.h>
+#include <netinet/in.h>
+#include <arpa/ftp.h>
 
-#include "lukemftp.h"
+#include <ctype.h>
+#include <err.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <glob.h>
+#include <signal.h>
+#include <limits.h>
+#include <netdb.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <termios.h>
+#include <time.h>
+#include <unistd.h>
 
 #include "ftp_var.h"
+
+#define TM_YEAR_BASE	1900
 
 /*
  * Connect to peer server and auto-login, if possible.
@@ -775,303 +801,6 @@ updateremotepwd(void)
 	code = ocode;
 }
 
-#ifndef	NO_PROGRESS
-
-/*
- * return non-zero if we're the current foreground process
- */
-int
-foregroundproc(void)
-{
-	static pid_t pgrp = -1;
-
-	if (pgrp == -1)
-#if GETPGRP_VOID
-		pgrp = getpgrp();
-#else /* ! GETPGRP_VOID */
-		pgrp = getpgrp(0);
-#endif /* ! GETPGRP_VOID */
-
-	return (tcgetpgrp(fileno(ttyout)) == pgrp);
-}
-
-
-static void updateprogressmeter(int);
-
-/*
- * SIGALRM handler to update the progress meter
- */
-static void
-updateprogressmeter(int dummy)
-{
-	int oerrno = errno;
-
-	progressmeter(0);
-	errno = oerrno;
-}
-#endif	/* NO_PROGRESS */
-
-
-/*
- * List of order of magnitude prefixes.
- * The last is `P', as 2^64 = 16384 Petabytes
- */
-static const char prefixes[] = " KMGTP";
-
-/*
- * Display a transfer progress bar if progress is non-zero.
- * SIGALRM is hijacked for use by this function.
- * - Before the transfer, set filesize to size of file (or -1 if unknown),
- *   and call with flag = -1. This starts the once per second timer,
- *   and a call to updateprogressmeter() upon SIGALRM.
- * - During the transfer, updateprogressmeter will call progressmeter
- *   with flag = 0
- * - After the transfer, call with flag = 1
- */
-static struct timeval start;
-static struct timeval lastupdate;
-
-#define	BUFLEFT	(sizeof(buf) - len)
-
-void
-progressmeter(int flag)
-{
-	static off_t lastsize;
-#ifndef NO_PROGRESS
-	struct timeval now, td, wait;
-	off_t cursize, abbrevsize, bytespersec;
-	double elapsed;
-	int ratio, barlength, i, len, remaining;
-
-			/*
-			 * Work variables for progress bar.
-			 *
-			 * XXX:	if the format of the progress bar changes
-			 *	(especially the number of characters in the
-			 *	`static' portion of it), be sure to update
-			 *	these appropriately.
-			 */
-	char		buf[256];	/* workspace for progress bar */
-#define	BAROVERHEAD	43		/* non `*' portion of progress bar */
-					/*
-					 * stars should contain at least
-					 * sizeof(buf) - BAROVERHEAD entries
-					 */
-	const char	stars[] =
-"*****************************************************************************"
-"*****************************************************************************"
-"*****************************************************************************";
-
-#endif
-
-	if (flag == -1) {
-		(void)gettimeofday(&start, NULL);
-		lastupdate = start;
-		lastsize = restart_point;
-	}
-#ifndef NO_PROGRESS
-	if (!progress)
-		return;
-	len = 0;
-
-	/*
-	 * print progress bar only if we are foreground process.
-	 */
-	if (! foregroundproc())
-		return;
-
-	(void)gettimeofday(&now, NULL);
-	cursize = bytes + restart_point;
-	timersub(&now, &lastupdate, &wait);
-	if (cursize > lastsize) {
-		lastupdate = now;
-		lastsize = cursize;
-		wait.tv_sec = 0;
-	}
-
-	len += snprintf(buf + len, BUFLEFT, "\r");
-	if (filesize > 0) {
-		ratio = (int)((double)cursize * 100.0 / (double)filesize);
-		ratio = MAX(ratio, 0);
-		ratio = MIN(ratio, 100);
-		len += snprintf(buf + len, BUFLEFT, "%3d%% ", ratio);
-
-			/*
-			 * calculate the length of the `*' bar, ensuring that
-			 * the number of stars won't exceed the buffer size 
-			 */
-		barlength = MIN(sizeof(buf) - 1, ttywidth) - BAROVERHEAD;
-		if (barlength > 0) {
-			i = barlength * ratio / 100;
-			len += snprintf(buf + len, BUFLEFT,
-			    "|%.*s%*s|", i, stars, barlength - i, "");
-		}
-	}
-
-	abbrevsize = cursize;
-	for (i = 0; abbrevsize >= 100000 && i < sizeof(prefixes); i++)
-		abbrevsize >>= 10;
-	len += snprintf(buf + len, BUFLEFT, " " LLFP("5") " %c%c ",
-	    (LLT)abbrevsize,
-	    prefixes[i],
-	    i == 0 ? ' ' : 'B');
-
-	timersub(&now, &start, &td);
-	elapsed = td.tv_sec + (td.tv_usec / 1000000.0);
-
-	bytespersec = 0;
-	if (bytes > 0) {
-		bytespersec = bytes;
-		if (elapsed > 0.0)
-			bytespersec /= elapsed;
-	}
-	for (i = 1; bytespersec >= 1024000 && i < sizeof(prefixes); i++)
-		bytespersec >>= 10;
-	len += snprintf(buf + len, BUFLEFT,
-	    " " LLFP("3") ".%02d %cB/s ",
-	    (LLT)(bytespersec / 1024),
-	    (int)((bytespersec % 1024) * 100 / 1024),
-	    prefixes[i]);
-
-	if (filesize > 0) {
-		if (bytes <= 0 || elapsed <= 0.0 || cursize > filesize) {
-			len += snprintf(buf + len, BUFLEFT, "   --:-- ETA");
-		} else if (flag == 1) {
-			i = elapsed / SECSPERHOUR;
-			if (i)
-				len += snprintf(buf + len, BUFLEFT, "%2d:", i);
-			else
-				len += snprintf(buf + len, BUFLEFT, "   ");
-			i = (int)elapsed % SECSPERHOUR;
-			len += snprintf(buf + len, BUFLEFT,
-			    "%02d:%02d    ", i / 60, i % 60);
-		} else if (wait.tv_sec >= STALLTIME) {
-			len += snprintf(buf + len, BUFLEFT, " - stalled -");
-		} else {
-			remaining = (int)
-			    ((filesize - restart_point) / (bytes / elapsed) -
-			    elapsed);
-			if (remaining >= 100 * SECSPERHOUR)
-				len += snprintf(buf + len, BUFLEFT,
-				    "   --:-- ETA");
-			else {
-				i = remaining / SECSPERHOUR;
-				if (i)
-					len += snprintf(buf + len, BUFLEFT,
-					    "%2d:", i);
-				else
-					len += snprintf(buf + len, BUFLEFT,
-					    "   ");
-				i = remaining % SECSPERHOUR;
-				len += snprintf(buf + len, BUFLEFT,
-				    "%02d:%02d ETA", i / 60, i % 60);
-			}
-		}
-	}
-	if (flag == 1)
-		len += snprintf(buf + len, BUFLEFT, "\n");
-	(void)write(fileno(ttyout), buf, len);
-
-	if (flag == -1) {
-		(void)xsignal_restart(SIGALRM, updateprogressmeter, 1);
-		alarmtimer(1);		/* set alarm timer for 1 Hz */
-	} else if (flag == 1) {
-		(void)xsignal(SIGALRM, SIG_DFL);
-		alarmtimer(0);
-	}
-#endif	/* !NO_PROGRESS */
-}
-
-/*
- * Display transfer statistics.
- * Requires start to be initialised by progressmeter(-1),
- * direction to be defined by xfer routines, and filesize and bytes
- * to be updated by xfer routines
- * If siginfo is nonzero, an ETA is displayed, and the output goes to stderr
- * instead of ttyout.
- */
-void
-ptransfer(int siginfo)
-{
-	struct timeval now, td, wait;
-	double elapsed;
-	off_t bytespersec;
-	int remaining, hh, i, len;
-
-	char buf[256];		/* Work variable for transfer status. */
-
-	if (!verbose && !progress && !siginfo)
-		return;
-
-	(void)gettimeofday(&now, NULL);
-	timersub(&now, &start, &td);
-	elapsed = td.tv_sec + (td.tv_usec / 1000000.0);
-	bytespersec = 0;
-	if (bytes > 0) {
-		bytespersec = bytes;
-		if (elapsed > 0.0)
-			bytespersec /= elapsed;
-	}
-	len = 0;
-	len += snprintf(buf + len, BUFLEFT, LLF " byte%s %s in ",
-	    (LLT)bytes, bytes == 1 ? "" : "s", direction);
-	remaining = (int)elapsed;
-	if (remaining > SECSPERDAY) {
-		int days;
-
-		days = remaining / SECSPERDAY;
-		remaining %= SECSPERDAY;
-		len += snprintf(buf + len, BUFLEFT,
-		    "%d day%s ", days, days == 1 ? "" : "s");
-	}
-	hh = remaining / SECSPERHOUR;
-	remaining %= SECSPERHOUR;
-	if (hh)
-		len += snprintf(buf + len, BUFLEFT, "%2d:", hh);
-	len += snprintf(buf + len, BUFLEFT,
-	    "%02d:%02d ", remaining / 60, remaining % 60);
-
-	for (i = 1; bytespersec >= 1024000 && i < sizeof(prefixes); i++)
-		bytespersec >>= 10;
-	len += snprintf(buf + len, BUFLEFT, "(" LLF ".%02d %cB/s)",
-	    (LLT)(bytespersec / 1024),
-	    (int)((bytespersec % 1024) * 100 / 1024),
-	    prefixes[i]);
-
-	if (siginfo && bytes > 0 && elapsed > 0.0 && filesize >= 0
-	    && bytes + restart_point <= filesize) {
-		remaining = (int)((filesize - restart_point) /
-				  (bytes / elapsed) - elapsed);
-		hh = remaining / SECSPERHOUR;
-		remaining %= SECSPERHOUR;
-		len += snprintf(buf + len, BUFLEFT, "  ETA: ");
-		if (hh)
-			len += snprintf(buf + len, BUFLEFT, "%2d:", hh);
-		len += snprintf(buf + len, BUFLEFT, "%02d:%02d",
-		    remaining / 60, remaining % 60);
-		timersub(&now, &lastupdate, &wait);
-		if (wait.tv_sec >= STALLTIME)
-			len += snprintf(buf + len, BUFLEFT, "  (stalled)");
-	}
-	len += snprintf(buf + len, BUFLEFT, "\n");
-	(void)write(siginfo ? STDERR_FILENO : fileno(ttyout), buf, len);
-}
-
-/*
- * SIG{INFO,QUIT} handler to print transfer stats if a transfer is in progress
- */
-void
-psummary(int notused)
-{
-	int oerrno = errno;
-
-	if (bytes > 0) {
-		if (fromatty)
-			write(fileno(ttyout), "\n", 1);
-		ptransfer(1);
-	}
-	errno = oerrno;
-}
 
 /*
  * List words in stringlist, vertically arranged
@@ -1156,20 +885,6 @@ crankrate(int sig)
 	}
 }
 
-
-/*
- * Set the SIGALRM interval timer for wait seconds, 0 to disable.
- */
-void
-alarmtimer(int wait)
-{
-	struct itimerval itv;
-
-	itv.it_value.tv_sec = wait;
-	itv.it_value.tv_usec = 0;
-	itv.it_interval = itv.it_value;
-	setitimer(ITIMER_REAL, &itv, NULL);
-}
 
 /*
  * Setup or cleanup EditLine structures
@@ -1389,7 +1104,8 @@ formatbuf(char *buf, size_t len, const char *src)
 
 		case 'M':
 		case 'm':
-			for (p2 = connected ? hostname : "-"; *p2; p2++) {
+			for (p2 = connected && username ? username : "-";
+			    *p2 ; p2++) {
 				if (op == 'm' && *p2 == '.')
 					break;
 				ADDBUF(*p2);
@@ -1552,85 +1268,4 @@ xstrdup(const char *str)
 	if (s == NULL)
 		err(1, "Unable to allocate memory for string copy");
 	return (s);
-}
-
-/*
- * Install a POSIX signal handler, allowing the invoker to set whether
- * the signal should be restartable or not
- */
-sigfunc
-xsignal_restart(int sig, sigfunc func, int restartable)
-{
-#ifdef ultrix	/* XXX: this is lame - how do we test sigvec vs. sigaction? */
-	struct sigvec vec, ovec;
-
-	vec.sv_handler = func;
-	sigemptyset(&vec.sv_mask);
-	vec.sv_flags = 0;
-	if (sigvec(sig, &vec, &ovec) < 0)
-		return (SIG_ERR);
-	return (ovec.sv_handler);
-#else	/* ! ultrix */
-	struct sigaction act, oact;
-	act.sa_handler = func;
-
-	sigemptyset(&act.sa_mask);
-#if defined(SA_RESTART)			/* 4.4BSD, Posix(?), SVR4 */
-	act.sa_flags = restartable ? SA_RESTART : 0;
-#elif defined(SA_INTERRUPT)		/* SunOS 4.x */
-	act.sa_flags = restartable ? 0 : SA_INTERRUPT;
-#else
-#error "system must have SA_RESTART or SA_INTERRUPT"
-#endif
-	if (sigaction(sig, &act, &oact) < 0)
-		return (SIG_ERR);
-	return (oact.sa_handler);
-#endif	/* ! ultrix */
-}
-
-/*
- * Install a signal handler with the `restartable' flag set dependent upon
- * which signal is being set. (This is a wrapper to xsignal_restart())
- */
-sigfunc
-xsignal(int sig, sigfunc func)
-{
-	int restartable;
-
-	/*
-	 * Some signals print output or change the state of the process.
-	 * There should be restartable, so that reads and writes are
-	 * not affected.  Some signals should cause program flow to change;
-	 * these signals should not be restartable, so that the system call
-	 * will return with EINTR, and the program will go do something
-	 * different.  If the signal handler calls longjmp() or siglongjmp(),
-	 * it doesn't matter if it's restartable.
-	 */
-
-	switch(sig) {
-#ifdef SIGINFO
-	case SIGINFO:
-#endif
-	case SIGQUIT:
-	case SIGUSR1:
-	case SIGUSR2:
-	case SIGWINCH:
-		restartable = 1;
-		break;
-
-	case SIGALRM:
-	case SIGINT:
-	case SIGPIPE:
-		restartable = 0;
-		break;
-
-	default:
-		/*
-		 * This is unpleasant, but I don't know what would be better.
-		 * Right now, this "can't happen"
-		 */
-		errx(1, "xsignal_restart called with signal %d", sig);
-	}
-
-	return(xsignal_restart(sig, func, restartable));
 }

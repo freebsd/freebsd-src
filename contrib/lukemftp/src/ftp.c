@@ -98,9 +98,40 @@
  * SUCH DAMAGE.
  */
 
-#include "lukemftp.h"
+#include <sys/cdefs.h>
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)ftp.c	8.6 (Berkeley) 10/27/94";
+#else
+__RCSID("$NetBSD: ftp.c,v 1.120 2002/06/05 10:20:49 lukem Exp $");
+#endif
+#endif /* not lint */
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <arpa/inet.h>
+#include <arpa/ftp.h>
 #include <arpa/telnet.h>
+
+#include <ctype.h>
+#include <err.h>
+#include <errno.h>
+#include <netdb.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
+#include <stdarg.h>
+#ifndef USE_SELECT
+#include <poll.h>
+#endif
 
 #include "ftp_var.h"
 
