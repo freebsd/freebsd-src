@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: prune.c,v 3.5 1995/05/09 01:00:39 fenner Exp $
+ * $Id: prune.c,v 1.6 1995/06/13 18:04:57 wollman Exp $
  */
 
 
@@ -1212,6 +1212,7 @@ accept_prune(src, dst, p, datalen)
 	((char *)&prun_grp)[i] = *p++;
     for (i = 0; i< 4; i++)
 	((char *)&prun_tmr)[i] = *p++;
+    prun_tmr = ntohl(prun_tmr);
     
     log(LOG_DEBUG, 0, "%s on vif %d prunes (%s %s)/%d",
 	inet_fmt(src, s1), vifi,
