@@ -1257,12 +1257,10 @@ ipsecsetup(sep)
 		if (buf != NULL) {
 			if (setsockopt(sep->se_fd, level, opt,
 					buf, ipsec_get_policylen(buf)) < 0 &&
-			    debug != 0) {
-				syslog(LOG_ERR,
-					"%s/%s: ipsec initialization failed; %s",
-					sep->se_service, sep->se_proto,
-					policy_in);
-			}
+			    debug != 0)
+				warnx("%s/%s: ipsec initialization failed; %s",
+				      sep->se_service, sep->se_proto,
+				      policy_in);
 			free(buf);
 		} else
 			syslog(LOG_ERR, "invalid security policy \"%s\"",
@@ -1273,12 +1271,10 @@ ipsecsetup(sep)
 		if (buf != NULL) {
 			if (setsockopt(sep->se_fd, level, opt,
 					buf, ipsec_get_policylen(buf)) < 0 &&
-			    debug != 0) {
-				syslog(LOG_ERR,
-					"%s/%s: ipsec initialization failed; %s",
-					sep->se_service, sep->se_proto,
-					policy_out);
-			}
+			    debug != 0)
+				warnx("%s/%s: ipsec initialization failed; %s",
+				      sep->se_service, sep->se_proto,
+				      policy_out);
 			free(buf);
 		} else
 			syslog(LOG_ERR, "invalid security policy \"%s\"",
