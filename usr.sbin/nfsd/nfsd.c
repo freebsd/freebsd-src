@@ -657,5 +657,6 @@ setproctitle(a)
 	cp += strlen(cp);
 	while (cp < LastArg)
 		*cp++ = '\0';
+	Argv[1] = NULL;
 }
 #endif	/* __FreeBSD__ */
