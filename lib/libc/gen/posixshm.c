@@ -46,16 +46,16 @@ shm_open(const char *path, int flags, mode_t mode)
 	if ((flags & O_ACCMODE) == O_WRONLY)
 		return (EINVAL);
 
-	fd = open(path, flags, mode);
+	fd = _open(path, flags, mode);
 	if (fd != -1) {
 		if (fstat(fd, &stab) != 0 || !S_ISREG(stab.st_mode)) {
-			close(fd);
+			_close(fd);
 			errno = EINVAL;
 			return (-1);
 		}
 
-		if (fcntl(fd, F_SETFL, (int)FPOSIXSHM) != 0) {
-			close(fd);
+		if (_fcntl(fd, F_SETFL, (int)FPOSIXSHM) != 0) {
+			_close(fd);
 			return (-1);
 		}
 	}
