@@ -74,7 +74,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 
 	user = NULL;
 	if (pam_test_option(&options, PAM_OPT_AUTH_AS_SELF, NULL)) {
-		pwd = getpwuid(getuid());
+		pwd = getpwnam(getlogin());
 		user = pwd->pw_name;
 	}
 	else {
