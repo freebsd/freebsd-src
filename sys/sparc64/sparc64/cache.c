@@ -164,21 +164,19 @@
 #include <machine/pcb.h>
 #include <machine/pmap.h>
 #include <machine/tte.h>
+#include <machine/ver.h>
 #include <machine/vmparam.h>
 
 static struct cacheinfo cache;
+extern vm_offset_t cache_tmp_va;
 
-#define	CDIAG_CLR(asi, addr) \
-	__asm __volatile("stxa %%g0, [%0] %1" : : "r" (addr), "I" (asi))
 /* Read to %g0, needed for E$ access. */
-#define	CDIAG_RDG0(asi, addr) \
+#define	CDIAG_RDG0(asi, addr)						\
 	__asm __volatile("ldxa [%0] %1, %%g0" : : "r" (addr), "I" (asi))
-#define	CDIAG_RD(asi, addr, r) \
-	__asm __volatile("ldxa [%1] %2, %0" : "=r" (r) : "r" (addr), "I" (asi))
 /* Sigh. I$ diagnostic registers want ldda. */
-#define	ICDIAG_RD(asi, addr, r) \
-	__asm __volatile("ldda [%1] %2, %%o4; mov %%o5, %0" : "=r" (r) : \
-	    "r" (addr), "I" (asi) : "%o4", "%o5");
+#define	ICDIAG_RD(asi, addr, r)						\
+	__asm __volatile("ldda [%1] %2, %%o4; mov %%o5, %0" : "=r" (r) :\
+	"r" (addr), "I" (asi) :	"%o4", "%o5");
 
 #define	OF_GET(h, n, v)	OF_getprop((h), (n), &(v), sizeof(v))
 
@@ -201,9 +199,9 @@ cache_init(phandle_t node)
 	    OF_GET(node, "ecache-associativity", cache.ec_assoc) == -1)
 		panic("cache_init: could not retrieve cache parameters");
 
-	set = cache.ic_size / cache.ic_assoc;
-	cache.ic_l2set = ffs(set) - 1;
-	if ((set & ~(1UL << cache.ic_l2set)) != 0)
+	cache.ic_set = cache.ic_size / cache.ic_assoc;
+	cache.ic_l2set = ffs(cache.ic_set) - 1;
+	if ((cache.ic_set & ~(1UL << cache.ic_l2set)) != 0)
 		panic("cache_init: I$ set size not a power of 2");
 	cache.dc_l2size = ffs(cache.dc_size) - 1;
 	if ((cache.dc_size & ~(1UL << cache.dc_l2size)) != 0)
@@ -254,11 +252,12 @@ icache_inval_phys(vm_offset_t start, vm_offset_t end)
 	for (addr = start & ~(cache.ic_linesize - 1); addr <= end;
 	     addr += cache.ic_linesize) {
 		for (j = 0; j < 2; j++) {
-			ica = (addr & (cache.ic_size - 1)) | ICDA_SET(j);
+			ica = (addr & (cache.ic_set - 1)) | ICDA_SET(j);
 			ICDIAG_RD(ASI_ICACHE_TAG, ica, tag);
-			if (ICDT_TAG(tag) != addr >> cache.ic_l2set)
+			if ((tag & ICDT_VALID) == 0 ||
+			    ICDT_TAG(tag) != addr >> cache.ic_l2set)
 				continue;
-			CDIAG_CLR(ASI_ICACHE_TAG, ica);
+			stxa_sync(ica, ASI_ICACHE_TAG, 0);
 		}
 	}
 }
@@ -313,10 +312,10 @@ dcache_inval(pmap_t pmap, vm_offset_t start, vm_offset_t end)
 		     offs < ulmin(PAGE_SIZE_MIN, end - va + 1);
 		     offs += cache.dc_linesize) {
 			dca = (va + offs) & (cache.dc_size - 1);
-			CDIAG_RD(ASI_DCACHE_TAG, dca, tag);
+			tag = ldxa(dca, ASI_DCACHE_TAG);
 			if (DCDT_TAG(tag) != (pa + offs) >> PAGE_SHIFT_MIN)
 				continue;
-			CDIAG_CLR(ASI_DCACHE_TAG, dca);
+			stxa_sync(dca, ASI_DCACHE_TAG, 0);
 		}
 	}
 }
@@ -338,9 +337,9 @@ dcache_inval_phys(vm_offset_t start, vm_offset_t end)
 	    pa += cache.dc_linesize) {
 		for (color = 0; color < ncolors; color++) {
 			dca = (color << PAGE_SHIFT_MIN) | (pa & PAGE_MASK_MIN);
-			CDIAG_RD(ASI_DCACHE_TAG, dca, tag);
+			tag = ldxa(dca, ASI_DCACHE_TAG);
 			if (DCDT_TAG(tag) == pa >> PAGE_SHIFT_MIN) {
-				CDIAG_CLR(ASI_DCACHE_TAG, dca);
+				stxa_sync(dca, ASI_DCACHE_TAG, 0);
 				break;
 			}
 		}
@@ -356,7 +355,7 @@ dcache_blast()
 	if (!cache.c_enabled)
 		return;
 	for (dca = 0; dca < cache.dc_size; dca += cache.dc_linesize)
-		CDIAG_CLR(ASI_DCACHE_TAG, dca);
+		stxa_sync(dca, ASI_DCACHE_TAG, 0);
 }
 
 /* Flush a E$ physical range using block commit stores. */
@@ -415,15 +414,15 @@ ecache_inval_phys(vm_offset_t start, vm_offset_t end)
 			 * data register (ASI_ECACHE_TAG_DATA, VA 0).
 			 */
 			CDIAG_RDG0(ASI_ECACHE_R, ECDA_TAG | eca);
-			CDIAG_RD(ASI_ECACHE_TAG_DATA, 0, tag);
+			tag = ldxa(0, ASI_ECACHE_TAG_DATA);
 			if ((addr & ~cache.ec_size) >> cache.ec_l2set ==
 			    (tag & ECDT_TAG_MASK)) {
 				/*
 				 * Clear. Works like retrieving the tag, but
 				 * the other way round.
 				 */
-				CDIAG_CLR(ASI_ECACHE_TAG_DATA, 0);
-				CDIAG_CLR(ASI_ECACHE_W, ECDA_TAG | eca);
+				stxa_sync(0, ASI_ECACHE_TAG_DATA, 0);
+				stxa_sync(ECDA_TAG | eca, ASI_ECACHE_W, 0);
 			}
 		}
 	}
