@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.9 1998/11/04 00:32:08 msmith Exp $
+# $Id: Makefile,v 1.10 1998/11/04 07:39:53 msmith Exp $
 #
 # Originally from	$NetBSD: Makefile,v 1.21 1997/10/26 22:08:38 lukem Exp $
 #
@@ -95,7 +95,6 @@ SRCS+=	inet_ntoa.c inet_addr.c
 SRCS+=	_setjmp.S
 # really only required for i386
 CFLAGS+=-I${.CURDIR}/../libc/${MACHINE_ARCH}
-.endif
 
 # decompression functionality from libz
 .PATH:	${.CURDIR}/../libz
