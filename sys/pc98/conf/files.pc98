@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.9.2.1 1996/11/09 21:12:45 phk Exp $
+#	$Id: files.pc98,v 1.9.2.2 1996/11/12 09:09:36 phk Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/aic7xxx_asm.c"			   \
@@ -84,11 +84,10 @@ i386/ibcs2/ibcs2_sysent.c	optional 	ibcs2
 i386/ibcs2/ibcs2_sysvec.c	optional 	ibcs2
 i386/ibcs2/imgact_coff.c	optional	ibcs2
 pc98/pc98/pc98_machdep.c	standard
-pc98/pc98/bs/bs.c		optional	bs	device-driver
-pc98/pc98/bs/bsfunc.c		optional	bs	device-driver
-pc98/pc98/bs/bshw.c		optional	bs	device-driver
-pc98/pc98/bs/bsif.c		optional	bs	device-driver
-pc98/pc98/sbic55.c		optional	sbic	device-driver
+i386/isa/bs/bs.c		optional	bs	device-driver
+i386/isa/bs/bsfunc.c		optional	bs	device-driver
+i386/isa/bs/bshw.c		optional	bs	device-driver
+i386/isa/bs/bsif.c		optional	bs	device-driver
 #i386/pc98/aha1542.c		optional	aha	device-driver
 i386/isa/aic6360.c		optional	aic	device-driver
 pc98/pc98/b004.c		optional	bqu	device-driver
@@ -124,6 +123,8 @@ i386/isa/if_zp.c		optional	zp	device-driver
 pc98/pc98/pc98.c		optional	isa	device-driver
 pc98/isa/istallion.c		optional	stli	device-driver
 pc98/isa/joy.c			optional        joy     device-driver
+i386/isa/kbdio.c		optional        psm     device-driver
+i386/isa/kbdio.c		optional        sc      device-driver
 pc98/pc98/labpc.c		optional	labpc	device-driver
 pc98/pc98/lpt.c			optional	lpt	device-driver
 pc98/pc98/mcd.c			optional	mcd	device-driver
@@ -198,6 +199,7 @@ i386/isa/sound/midi_synth.c	optional	uart	device-driver
 i386/isa/sound/midibuf.c	optional	uart	device-driver
 i386/isa/sound/trix.c		optional	trix	device-driver
 i386/isa/sound/sscape.c		optional	sscape	device-driver
+i386/isa/sound/awe_wave.c	optional	awe	device-driver
 pc98/isa/spigot.c		optional	spigot	device-driver
 pc98/pc98/spkr.c		optional	speaker	device-driver
 pc98/isa/stallion.c		optional	stl	device-driver

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.13.2.1 1996/11/09 21:14:27 phk Exp $
+ *  $Id: syscons.c,v 1.13.2.2 1996/11/12 09:09:52 phk Exp $
  */
 
 #include "sc.h"
@@ -71,12 +71,14 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/timerreg.h>
 #include <i386/isa/kbdtables.h>
+#include <i386/isa/kbdio.h>
 #include <pc98/pc98/syscons.h>
 #else
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/timerreg.h>
 #include <i386/isa/kbdtables.h>
+#include <i386/isa/kbdio.h>
 #include <i386/isa/syscons.h>
 #endif
 
@@ -121,6 +123,7 @@ static  scr_stat    	*new_scp, *old_scp;
 static  term_stat   	kernel_console;
 static  default_attr    *current_default;
 static  int     	flags = 0;
+static  int		sc_port = IO_KBD;
 static  char        	init_done = COLD;
 static  u_short		sc_buffer[ROW*COL];
 static  char        	switch_in_progress = FALSE;
@@ -229,8 +232,6 @@ static void history_to_screen(scr_stat *scp);
 static int history_up_line(scr_stat *scp);
 static int history_down_line(scr_stat *scp);
 static int mask2attr(struct term_stat *term);
-static void kbd_wait(void);
-static void kbd_cmd(u_char command);
 static void update_leds(int which);
 static void set_vgaregs(char *modetable);
 static void set_font_mode(void);
@@ -391,67 +392,110 @@ static int
 scprobe(struct isa_device *dev)
 {
 #ifdef PC98
+    sc_port = dev->id_iobase;
     return(16);
 #else
-    int i, j, retries = 5;
-    u_char val;
+    int c;
 
-    /* Enable interrupts and keyboard controller */
-    kbd_wait();
-    outb(KB_STAT, KB_WRITE);
-    kbd_wait();
-    outb(KB_DATA, KB_MODE);
+    sc_port = dev->id_iobase;
 
-    /* flush any noise in the buffer */
-    while (inb(KB_STAT) & KB_BUF_FULL) {
-	DELAY(100);
-	(void) inb(KB_DATA);
-    }
+    /* discard anything left after UserConfig */
+    empty_both_buffers(sc_port, 10);
 
-    /* Reset keyboard hardware */
-    while (retries--) {
-	kbd_wait();
-	outb(KB_DATA, KB_RESET);
-	for (i=0; i<10000; i++) {
-	    DELAY(100);
-	    val = inb(KB_DATA);
-	    if (val == KB_ACK || val == KB_ECHO)
-		goto gotres;
-	    if (val == KB_RESEND)
-		break;
-	}
-    }
-gotres:
-    if (retries < 0) {
-	printf("scprobe: keyboard won't accept RESET command\n");
+    /* save the current keyboard controller command byte */
+    c = -1;
+    if (!write_controller_command(sc_port, KBDC_GET_COMMAND_BYTE)) {
+	/* CONTROLLER ERROR */
+	printf("sc%d: unable to get the current command byte value.\n",
+	    dev->id_unit);
 	goto fail;
-    } else {
-	i = 10;			/* At most 10 retries. */
-gotack:
-	DELAY(100);
-	j = 1000;		/* Wait at most 1 s. */
-	while ((inb(KB_STAT) & KB_BUF_FULL) == 0 && --j > 0) DELAY(1000);
-	DELAY(1000);
-	val = inb(KB_DATA);
-	if (val == KB_ACK && --i > 0)
-	    goto gotack;
-	if (val != KB_RESET_DONE) {
-	    printf("scprobe: keyboard RESET failed (result = 0x%02x)\n", val);
+    }
+    c = read_controller_data(sc_port);
+    if (c == -1) {
+	/* CONTROLLER ERROR */
+	printf("sc%d: unable to get the current command byte value.\n",
+	    dev->id_unit);
+	goto fail;
+    }
+#if 0
+    /* override the keyboard lock switch */
+    c |= KBD_OVERRIDE_KBD_LOCK;
+#endif
+
+    /*
+     * enable the keyboard port, but disable the keyboard intr. 
+     * the aux port (mouse port) is disabled too.
+     */
+    if (!set_controller_command_byte(sc_port,
+            c & ~(KBD_KBD_CONTROL_BITS | KBD_AUX_CONTROL_BITS),
+            KBD_ENABLE_KBD_PORT | KBD_DISABLE_KBD_INT
+            | KBD_DISABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
+	/* CONTROLLER ERROR 
+	 * there is very little we can do...
+	 */
+	printf("sc%d: unable to set the command byte.\n", dev->id_unit);
+	goto fail;
+     }
+ 
+     /* reset keyboard hardware */
+     if (!reset_kbd(sc_port)) {
+        /* KEYBOARD ERROR
+	 * Keyboard reset may fail either because the keyboard doen't exist,
+         * or because the keyboard doesn't pass the self-test, or the keyboard 
+         * controller on the motherboard and the keyboard somehow fail to 
+         * shake hands. It is just possible, particularly in the last case,
+         * that the keyoard controller may be left in a hung state. 
+         * test_controller() and test_kbd_port() appear to bring the keyboard
+         * controller back (I don't know why and how, though.)
+	 */
+	empty_both_buffers(sc_port, 10);
+	test_controller(sc_port);
+	test_kbd_port(sc_port);
+	/* We could disable the keyboard port and interrupt... but, 
+	 * the keyboard may still exist (see above). 
+	 */
+	if (bootverbose)
+	    printf("sc%d: failed to reset the keyboard.\n", dev->id_unit);
+	goto fail;
+    }
+
+    /*
+     * Allow us to set the XT_KEYBD flag in UserConfig so that keyboards
+     * such as those on the IBM ThinkPad laptop computers can be used
+     * with the standard console driver.
+     */
+    if (dev->id_flags & XT_KEYBD) {
+	if (send_kbd_command_and_data(
+	        sc_port, KBDC_SET_SCAN_CODESET, 1) == KBD_ACK) {
+	    /* XT kbd doesn't need scan code translation */
+	    c &= ~KBD_TRANSLATION;
+	} else {
+	    /* KEYBOARD ERROR 
+	     * The XT kbd isn't usable unless the proper scan code set
+	     * is selected. 
+	     */
+	    printf("sc%d: unable to set the XT keyboard mode.\n", dev->id_unit);
 	    goto fail;
 	}
     }
-#ifdef XT_KEYBOARD
-    kbd_wait();
-    outb(KB_DATA, 0xF0);
-    kbd_wait();
-    outb(KB_DATA, 1);
-    kbd_wait();
-#endif /* XT_KEYBOARD */
+    /* enable the keyboard port and intr. */
+    if (!set_controller_command_byte(sc_port, c & ~KBD_KBD_CONTROL_BITS,
+				KBD_ENABLE_KBD_PORT | KBD_ENABLE_KBD_INT)) {
+	/* CONTROLLER ERROR 
+	 * This is serious; we are left with the disabled keyboard intr. 
+	 */
+	printf("sc%d: unable to enable the keyboard port and intr.\n", 
+	    dev->id_unit);
+	goto fail;
+    }
 
-  succeed: 
+succeed: 
     return (IO_KBDSIZE);
 
-  fail:
+fail:
+    if (c != -1)
+	/* try to restore the command byte as before, if possible */
+	set_controller_command_byte(sc_port, c, 0);
     return ((dev->id_flags & DETECT_KBD) ? 0 : IO_KBDSIZE);
 #endif
 }
@@ -660,8 +704,10 @@ scclose(dev_t dev, int flag, int mode, struct proc *p)
 	scp->smode.mode = VT_AUTO;
 #endif
     }
+    spltty();
     (*linesw[tp->t_line].l_close)(tp, flag);
     ttyclose(tp);
+    spl0();
     return(0);
 }
 
@@ -709,7 +755,7 @@ scintr(int unit)
 	cur_tty = VIRTUAL_TTY(get_scr_num());
 	if (!(cur_tty->t_state & TS_ISOPEN))
 	    if (!((cur_tty = CONSOLE_TTY)->t_state & TS_ISOPEN))
-		return;
+		continue;
 
 	switch (c & 0xff00) {
 	case 0x0000: /* normal key */
@@ -720,7 +766,7 @@ scintr(int unit)
 	    	while (len-- >  0)
 		    (*linesw[cur_tty->t_line].l_rint)(*cp++ & 0xFF, cur_tty);
 	    }
-	break;
+	    break;
 	case MKEY:  /* meta is active, prepend ESC */
 	    (*linesw[cur_tty->t_line].l_rint)(0x1b, cur_tty);
 	    (*linesw[cur_tty->t_line].l_rint)(c & 0xFF, cur_tty);
@@ -1236,6 +1282,8 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	error = suser(p->p_ucred, &p->p_acflag);
 	if (error != 0)
 	    return error;
+	if (securelevel > 0)
+	    return EPERM;
 	fp = (struct trapframe *)p->p_md.md_regs;
 	fp->tf_eflags |= PSL_IOPL;
 	return 0;
@@ -1317,8 +1365,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	if (*data & 0x80)
 	    return EINVAL;
 	i = spltty();
-	kbd_cmd(KB_SETRAD);
-	kbd_cmd(*data);
+	send_kbd_command_and_data(sc_port, KBDC_SET_TYPEMATIC, *data);
 	splx(i);
 #endif
 	return 0;
@@ -1609,7 +1656,7 @@ sccnputc(dev_t dev, int c)
 
     scp->term = kernel_console;
     current_default = &kernel_default;
-    if (!(scp->status & UNKNOWN_MODE))
+    if (scp == cur_console && !(scp->status & UNKNOWN_MODE))
 	remove_cursor_image(scp);
     buf[0] = c;
     ansi_put(scp, buf, 1);
@@ -1684,12 +1731,12 @@ scrn_timer()
 
     /* 
      * With release 2.1 of the Xaccel server, the keyboard is left
-     * hanging pretty often. Apparently the interrupt from the
+     * hanging pretty often. Apparently an interrupt from the
      * keyboard is lost, and I don't know why (yet).
-     * This Ugly hack calls scintr if input is ready and
-     * conveniently hides the problem.			XXX
+     * This ugly hack calls scintr if input is ready for the keyboard
+     * and conveniently hides the problem.			XXX
      */
-    if (inb(KB_STAT) & KB_BUF_FULL)
+    if ((inb(sc_port+KBD_STATUS_PORT)&KBDS_BUFFER_FULL) == KBDS_KBD_BUFFER_FULL)
 	scintr(0);
 
     /* should we just return ? */
@@ -3063,6 +3110,13 @@ scinit(void)
     outb(crtc_addr, 15);
     hw_cursor |= inb(crtc_addr + 1);
 
+    /*
+     * Validate cursor location.  It may be off the screen.  Then we must
+     * not use it for the initial buffer offset.
+     */
+    if (hw_cursor >= ROW * COL)
+	hw_cursor = (ROW - 1) * COL;
+
     /* move hardware cursor out of the way */
     outb(crtc_addr, 14);
     outb(crtc_addr + 1, 0xff);
@@ -3292,22 +3346,25 @@ history_down_line(scr_stat *scp)
 static u_int
 scgetc(u_int flags)
 {
+    struct key_t *key;
     u_char scancode, keycode;
     u_int state, action;
-    struct key_t *key;
+    int c;
     static u_char esc_flag = 0, compose = 0;
     static u_int chr = 0;
 
 next_code:
-    /* check if there is anything in the keyboard buffer */
-    if (inb(KB_STAT) & KB_BUF_FULL) {
-	DELAY(25);
-	scancode = inb(KB_DATA);
+    /* first see if there is something in the keyboard port */
+    if (flags & SCGETC_NONBLOCK) {
+	c = read_kbd_data_no_wait(sc_port);
+	if (c == -1)
+	    return(NOKEY);
+    } else {
+	do {
+	    c = read_kbd_data(sc_port);
+	} while(c == -1);
     }
-    else if (flags & SCGETC_NONBLOCK)
-	return(NOKEY);
-    else
-	goto next_code;
+    scancode = (u_char)c;
 
     /* do the /dev/random device a favour */
     if (!(flags & SCGETC_CN))
@@ -3867,46 +3924,6 @@ mask2attr(struct term_stat *term)
 }
 
 static void
-kbd_wait(void)
-{
-#ifdef PC98
-	DELAY(30);
-#else
-    int i = 500;
-
-    while (i--) {
-	if ((inb(KB_STAT) & KB_READY) == 0)
-	    break;
-	DELAY (25);
-    }
-#endif
-}
-
-#ifndef PC98
-static void
-kbd_cmd(u_char command)
-{
-    int i, retry = 5;
-    do {
-	kbd_wait();
-	outb(KB_DATA, command);
-	i = 50000;
-	while (i--) {
-	    if (inb(KB_STAT) & KB_BUF_FULL) {
-		int val;
-		DELAY(25);
-		val = inb(KB_DATA);
-		if (val == KB_ACK)
-		    return;
-		if (val == KB_RESEND)
-		    break;
-	    }
-	}
-    } while (retry--);
-}
-#endif
-
-static void
 update_leds(int which)
 {
 #ifndef PC98
@@ -3920,9 +3937,10 @@ update_leds(int which)
 	else
 	    which &= ~CLKED;
     }
+
     s = spltty();
-    kbd_cmd(KB_SETLEDS);
-    kbd_cmd(xlate_leds[which & LED_MASK]);
+    send_kbd_command_and_data(sc_port, KBDC_SET_LEDS,
+			      xlate_leds[which & LED_MASK]);
     splx(s);
 #endif
 }

@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.10 1996/10/30 22:39:56 asami Exp $
+ * $Id: if_fe.c,v 1.10.2.1 1996/11/16 21:18:37 phk Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 2.x
@@ -75,7 +75,9 @@
  *  o   To test IPX codes.
  */
 
+#include "isa.h"
 #include "fe.h"
+#include "crd.h"
 #include "bpfilter.h"
 
 #include <sys/param.h>
@@ -126,11 +128,11 @@
 
 #include <machine/clock.h>
 
+#include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
 
 /* PCCARD suport */
-#include "crd.h"
 #if NCRD > 0
 #include <sys/select.h>
 #include <pccard/card.h>
@@ -184,7 +186,7 @@
 #define FE_FLAGS_OVERRIDE_DLCR6	0x0080
 
 /* Shouldn't these be defined somewhere else such as isa_device.h?  */
-#define NO_IOADDR	0xFFFFFFFF
+#define NO_IOADDR	(-1)
 #define NO_IRQ		0
 
 /*
@@ -231,6 +233,9 @@ static struct fe_softc {
 	u_char txb_count;	/* number of packets in TX buffer  */
 	u_char txb_sched;	/* number of scheduled packets  */
 
+	/* Excessive collision counter (see fe_tint() for details.  */
+	u_char tx_excolls;	/* # of excessive collisions.  */
+
 	/* Multicast address filter management.  */
 	u_char filter_change;	/* MARs must be changed ASAP. */
 	struct fe_filter filter;/* new filter value.  */
@@ -257,14 +262,20 @@ static int	fe_probe_re1000p( DEVICE *, struct fe_softc * );
 #else
 static int	fe_probe_fmv	( DEVICE *, struct fe_softc * );
 static int	fe_probe_ati	( DEVICE *, struct fe_softc * );
+static void	fe_init_ati	( struct fe_softc * );
+static int	fe_probe_gwy	( DEVICE *, struct fe_softc * );
+#if NCRD > 0
 static int	fe_probe_mbh	( DEVICE *, struct fe_softc * );
 static void	fe_init_mbh	( struct fe_softc * );
+static int	fe_probe_tdk	( DEVICE *, struct fe_softc * );
+#endif
 #endif
 static int	fe_get_packet	( struct fe_softc *, u_short );
 static void	fe_stop		( int );
 static void	fe_tint		( struct fe_softc *, u_char );
 static void	fe_rint		( struct fe_softc *, u_char );
 static void	fe_xmit		( struct fe_softc * );
+static void	fe_emptybuffer	( struct fe_softc * );
 static void	fe_write_mbufs	( struct fe_softc *, struct mbuf * );
 static struct fe_filter
 		fe_mcaf		( struct fe_softc * );
@@ -368,6 +379,7 @@ static int
 feinit(struct pccard_dev *dp, int first)
 {
 	/* validate unit number. */
+        struct fe_softc *sc;
 	if (first) {
 		if (dp->isahd.id_unit >= NFE)
 			return (ENODEV);
@@ -378,6 +390,8 @@ feinit(struct pccard_dev *dp, int first)
 #if FE_DEBUG >= 2
 		printf("Start Probe\n");
 #endif
+		sc = &fe_softc[dp->isahd.id_unit];
+		memcpy( sc->sc_enaddr, dp->misc, ETHER_ADDR_LEN );
 		if (fe_probe(&dp->isahd) == 0)
 			return (ENXIO);
 #if FE_DEBUG >= 2
@@ -408,6 +422,7 @@ feinit(struct pccard_dev *dp, int first)
 static void
 feunload(struct pccard_dev *dp)
 {
+	struct fe_softc *sc = &fe_softc[dp->isahd.id_unit];
 	printf("fe%d: unload\n", dp->isahd.id_unit);
 	fe_stop(dp->isahd.id_unit);
 }
@@ -458,7 +473,10 @@ static struct fe_probe_list const fe_probe_list [] =
 #else
 	{ fe_probe_fmv, fe_fmv_addr },
 	{ fe_probe_ati, fe_ati_addr },
+#if NCRD > 0
 	{ fe_probe_mbh, NULL },  /* PCMCIAs cannot be auto-detected.  */
+	{ fe_probe_tdk, NULL },
+#endif
 #endif
 	{ NULL, NULL }
 };
@@ -998,7 +1016,15 @@ fe_probe_fmv ( DEVICE * dev, struct fe_softc * sc )
 	/* Check if our I/O address matches config info. on EEPROM.  */
 	n = ( inb( sc->ioaddr[ FE_FMV2 ] ) & FE_FMV2_IOS )
 	    >> FE_FMV2_IOS_SHIFT;
-	if ( baseaddr[ n ] != sc->iobase ) return 0;
+	if ( baseaddr[ n ] != sc->iobase ) {
+#if 0
+	    /* May not work on some revisions of the cards... FIXME.  */
+	    return 0;
+#else
+	    /* Just log the fact and see what happens... FIXME.  */
+	    log( LOG_WARNING, "fe%d: strange I/O config?n", sc->sc_unit );
+#endif
+	}
 
 	/* Find the "hardware revision."  */
 	revision = inb( sc->ioaddr[ FE_FMV1 ] ) & FE_FMV1_REV;
@@ -1013,6 +1039,9 @@ fe_probe_fmv ( DEVICE * dev, struct fe_softc * sc )
 		switch ( revision ) {
 		  case 8:
 		    sc->typestr = "FMV-183";
+		    break;
+		  case 12:
+		    sc->typestr = "FMV-183 (on-board)";
 		    break;
 		}
 		break;
@@ -1333,6 +1362,9 @@ fe_probe_ati ( DEVICE * dev, struct fe_softc * sc )
 	fe_dump( LOG_INFO, sc, "ATI found" );
 #endif
 
+	/* Setup hooks.  This may solves a nasty bug.  FIXME.  */
+	sc->init = fe_init_ati;
+
 	/* Initialize 86965.  */
 	DELAY( 200 );
 	outb( sc->ioaddr[ FE_DLCR6 ], sc->proto_dlcr6 | FE_D6_DLC_DISABLE );
@@ -1365,36 +1397,132 @@ fe_probe_ati ( DEVICE * dev, struct fe_softc * sc )
 	return ( 0 );
 }
 
+/* ATI specific initialization routine.  */
+static void
+fe_init_ati ( struct fe_softc * sc )
+{
 /*
- * Probe and initialization for Fujitsu MBH10302 PCMCIA Ethernet interface.
+	 * I've told that the following operation "Resets" the chip.
+	 * Hope this solve a bug which hangs up the driver under
+	 * heavy load...  FIXME.
+	 */
+
+	/* Minimal initialization of 86965.  */
+	DELAY( 200 );
+	outb( sc->ioaddr[ FE_DLCR6 ], sc->proto_dlcr6 | FE_D6_DLC_DISABLE );
+	DELAY( 200 );
+
+	/* "Reset" by wrting into an undocument register location.  */
+	outb( sc->ioaddr[ 0x1F ], 0 );
+
+	/* How long do we have to wait after the reset?  FIXME.  */
+	DELAY( 300 );
+}
+
+/*
+ * Probe and initialization for Gateway Communications' old cards.
  */
 static int
-fe_probe_mbh ( DEVICE * dev, struct fe_softc * sc )
+fe_probe_gwy ( DEVICE * dev, struct fe_softc * sc )
 {
-	int i;
+	int i,type;
 
 	static struct fe_simple_probe_struct probe_table [] = {
 		{ FE_DLCR2, 0x70, 0x00 },
 		{ FE_DLCR4, 0x08, 0x00 },
-	    /*	{ FE_DLCR5, 0x80, 0x00 },	Does not work well.  */
-#if 0
+		{ FE_DLCR7, 0xC0, 0x00 },
 	/*
-	 * Test *vendor* part of the address for Fujitsu.
-	 * The test will gain reliability of probe process, but
-	 * it rejects clones by other vendors, or OEM product
-	 * supplied by retailer other than Fujitsu.
+		 * Test *vendor* part of the address for Gateway.
+		 * This test is essential to identify Gateway's cards.
+		 * We shuld define some symbolic names for the
+		 * following offsets.  FIXME.
+		 */
+		{ 0x18, 0xFF, 0x00 },
+		{ 0x19, 0xFF, 0x00 },
+		{ 0x1A, 0xFF, 0x61 },
+		{ 0 }
+	};
+
+	/*
+	 * We need explicit IRQ and supported address.
+	 * I'm not sure which address and IRQ is possible for Gateway
+	 * Ethernet family.  The following accepts everything.  FIXME.
 	 */
-		{ FE_MBH10, 0xFF, 0x00 },
-		{ FE_MBH11, 0xFF, 0x00 },
-		{ FE_MBH12, 0xFF, 0x0E },
-#else
+	if ( dev->id_irq == NO_IRQ || ( sc->iobase & ~0x3E0 ) != 0 ) {
+		return ( 0 );
+	}
+
+#if FE_DEBUG >= 3
+	fe_dump( LOG_INFO, sc, "top of probe" );
+#endif
+
+	/* Setup an I/O address mapping table.  */
+	for ( i = 0; i < MAXREGISTERS; i++ ) {
+		sc->ioaddr[ i ] = sc->iobase + i;
+	}
+
+	/* See if the card is on its address.  */
+	if ( !fe_simple_probe( sc, probe_table ) ) {
+		return 0;
+	}
+
+	/* Determine the card type.  */
+	sc->typestr = "Gateway Ethernet w/ Fujitsu chipset";
+
+	/* Get our station address from EEPROM. */
+	inblk( sc, 0x18, sc->sc_enaddr, ETHER_ADDR_LEN );
+
 	/*
+	 * Program the 86960 as follows:
+	 *	SRAM: 16KB, 100ns, byte-wide access.
+	 *	Transmission buffer: 2KB x 2.
+	 *	System bus interface: 16 bits.
+	 * Make sure to clear out ID bits in DLCR7
+	 * (They actually are Encoder/Decoder control in NICE.)
+	 */
+	sc->proto_dlcr4 = FE_D4_LBC_DISABLE | FE_D4_CNTRL;
+	sc->proto_dlcr5 = 0;
+	sc->proto_dlcr6 = FE_D6_BUFSIZ_16KB | FE_D6_TXBSIZ_2x2KB
+		| FE_D6_BBW_BYTE | FE_D6_SBW_WORD | FE_D6_SRAM_100ns;
+	sc->proto_dlcr7 = FE_D7_BYTSWP_LH;
+	sc->proto_bmpr13 = 0;
+
+	/* Minimal initialization of 86960.  */
+	DELAY( 200 );
+	outb( sc->ioaddr[ FE_DLCR6 ], sc->proto_dlcr6 | FE_D6_DLC_DISABLE );
+	DELAY( 200 );
+
+	/* Disable all interrupts.  */
+	outb( sc->ioaddr[ FE_DLCR2 ], 0 );
+	outb( sc->ioaddr[ FE_DLCR3 ], 0 );
+
+	/* That's all.  The card occupies 32 I/O addresses, as always.  */
+	return 32;
+}
+
+#if NCRD > 0
+	/*
+ * Probe and initialization for Fujitsu MBH10302 PCMCIA Ethernet interface.
+ * Note that this is for 10302 only; MBH10304 is handled by fe_probe_tdk().
+ */
+static int
+fe_probe_mbh ( DEVICE * dev, struct fe_softc * sc )
+{
+	int i,type;
+
+	static struct fe_simple_probe_struct probe_table [] = {
+		{ FE_DLCR0, 0x09, 0x00 },
+		{ FE_DLCR2, 0x79, 0x00 },
+		{ FE_DLCR4, 0x08, 0x00 },
+		{ FE_DLCR6, 0xFF, 0xB6 },
+	/*
+	 * The following location has the first byte of the card's
+	 * Ethernet (MAC) address.
 	 * We can always verify the *first* 2 bits (in Ethernet
-	 * bit order) are "global" and "unicast" even for
-	 * unknown vendors.
+	 * bit order) are "global" and "unicast" for any vendors'.
 	 */
 		{ FE_MBH10, 0x03, 0x00 },
-#endif
+
         /* Just a gap?  Seems reliable, anyway.  */
 		{ 0x12, 0xFF, 0x00 },
 		{ 0x13, 0xFF, 0x00 },
@@ -1405,7 +1533,7 @@ fe_probe_mbh ( DEVICE * dev, struct fe_softc * sc )
 #if 0
 		{ 0x18, 0xFF, 0xFF },
 		{ 0x19, 0xFF, 0xFF },
-#endif /* 0 */
+#endif
 
 		{ 0 }
 	};
@@ -1443,10 +1571,9 @@ fe_probe_mbh ( DEVICE * dev, struct fe_softc * sc )
 	inblk( sc, FE_MBH10, sc->sc_enaddr, ETHER_ADDR_LEN );
 
 	/* Make sure we got a valid station address.  */
-	if ( ( sc->sc_enaddr[ 0 ] & 0x03 ) != 0x00
-	  || ( sc->sc_enaddr[ 0 ] == 0x00
+	if ( sc->sc_enaddr[ 0 ] == 0x00
 	    && sc->sc_enaddr[ 1 ] == 0x00
-	    && sc->sc_enaddr[ 2 ] == 0x00 ) ) return 0;
+	  && sc->sc_enaddr[ 2 ] == 0x00 ) return 0;
 
 	/*
 	 * Program the 86960 as follows:
@@ -1505,6 +1632,92 @@ fe_init_mbh ( struct fe_softc * sc )
 	outb( sc->ioaddr[ FE_MBH0 ], FE_MBH0_MAGIC | FE_MBH0_INTR_ENABLE );
 }
 #endif	/* PC98 */
+
+#endif /* NCRD > 0 */
+
+#if NCRD > 0
+/*
+ * Probe and initialization for TDK/CONTEC PCMCIA Ethernet interface.
+ * by MASUI Kenji <masui@cs.titech.ac.jp>
+ *
+ * (Contec uses TDK Ethenet chip -- hosokawa)
+ *
+ * This version of fe_probe_tdk has been rewrote to handle
+ * *generic* PC card implementation of Fujitsu MB8696x family.  The
+ * name _tdk is just for a historical reason. :-)
+ */
+static int
+fe_probe_tdk ( DEVICE * dev, struct fe_softc * sc )
+{
+        int i;
+
+        static struct fe_simple_probe_struct probe_table [] = {
+                { FE_DLCR2, 0x70, 0x00 },
+                { FE_DLCR4, 0x08, 0x00 },
+            /*  { FE_DLCR5, 0x80, 0x00 },       Does not work well.  */
+                { 0 }
+        };
+
+        if ( dev->id_irq == NO_IRQ ) {
+                return ( 0 );
+        }
+
+        /* Setup an I/O address mapping table.  */
+        for ( i = 0; i < MAXREGISTERS; i++ ) {
+                sc->ioaddr[ i ] = sc->iobase + i;
+        }
+
+        /*
+         * See if C-NET(PC)C is on its address.
+         */
+
+        if ( !fe_simple_probe( sc, probe_table ) ) return 0;
+
+        /* Determine the card type.  */
+        sc->typestr = "Generic MB8696x Ethernet (PCMCIA)";
+
+        /*
+         * Initialize constants in the per-line structure.
+         */
+
+        /* The station address *must*be* already in sc_enaddr;
+           Make sure we got a valid station address.  */
+        if ( ( sc->sc_enaddr[ 0 ] & 0x03 ) != 0x00
+          || ( sc->sc_enaddr[ 0 ] == 0x00
+            && sc->sc_enaddr[ 1 ] == 0x00
+            && sc->sc_enaddr[ 2 ] == 0x00 ) ) return 0;
+
+        /*
+         * Program the 86965 as follows:
+         *      SRAM: 32KB, 100ns, byte-wide access.
+         *      Transmission buffer: 4KB x 2.
+         *      System bus interface: 16 bits.
+	 * XXX: Should we remove IDENT_NICE from DLCR7?  Or,
+	 *	even add IDENT_EC instead?  FIXME.
+         */
+        sc->proto_dlcr4 = FE_D4_LBC_DISABLE | FE_D4_CNTRL;
+        sc->proto_dlcr5 = 0;
+        sc->proto_dlcr6 = FE_D6_BUFSIZ_32KB | FE_D6_TXBSIZ_2x4KB
+                | FE_D6_BBW_BYTE | FE_D6_SBW_WORD | FE_D6_SRAM_100ns;
+        sc->proto_dlcr7 = FE_D7_BYTSWP_LH | FE_D7_IDENT_NICE;
+        sc->proto_bmpr13 = FE_B13_TPTYPE_UTP | FE_B13_PORT_AUTO;
+
+        /* Minimul initialization of 86960.  */
+        DELAY( 200 );
+        outb( sc->ioaddr[ FE_DLCR6 ], sc->proto_dlcr6 | FE_D6_DLC_DISABLE );
+        DELAY( 200 );
+
+        /* Disable all interrupts.  */
+        outb( sc->ioaddr[ FE_DLCR2 ], 0 );
+        outb( sc->ioaddr[ FE_DLCR3 ], 0 );
+
+        /*
+         * That's all.  C-NET(PC)C occupies 16 I/O addresses.
+	 * XXX: Are there any card with 32 I/O addresses?  FIXME.
+         */
+        return 16;
+}
+#endif
 
 /*
  * Install interface into kernel networking data structures
@@ -1719,13 +1932,11 @@ fe_watchdog ( struct ifnet *ifp )
 	log( LOG_ERR, "fe%d: transmission timeout (%d+%d)%s\n",
 		ifp->if_unit, sc->txb_sched, sc->txb_count,
 		( ifp->if_flags & IFF_UP ) ? "" : " when down" );
-#endif
-
-	/* Suggest users a possible cause.  */
-	if ( ifp->if_oerrors > 0 ) {
-		log( LOG_WARNING, "fe%d: wrong IRQ setting in config?",
+	if ( sc->sc_if.if_opackets == 0 && sc->sc_if.if_ipackets == 0 ) {
+		log( LOG_WARNING, "fe%d: wrong IRQ setting in config?\n",
 		    ifp->if_unit );
 	}
+#endif
 
 #if FE_DEBUG >= 3
 	fe_dump( LOG_INFO, sc, NULL );
@@ -1847,11 +2058,12 @@ fe_init ( int unit )
 #if FE_DEBUG >= 3
 	fe_dump( LOG_INFO, sc, "just after enabling DLC" );
 #endif
+
 	/*
 	 * Make sure to empty the receive buffer.
 	 *
 	 * This may be redundant, but *if* the receive buffer were full
-	 * at this point, the driver would hang.  I have experienced
+	 * at this point, then the driver would hang.  I have experienced
 	 * some strange hang-up just after UP.  I hope the following
 	 * code solve the problem.
 	 *
@@ -1859,29 +2071,24 @@ fe_init ( int unit )
 	 * I think the receive buffer cannot have any packets at this
 	 * point in this version.  The following code *must* be
 	 * redundant now.  FIXME.
+	 *
+	 * I've heard a rumore that on some PC card implementation of
+	 * 8696x, the receive buffer can have some data at this point.
+	 * The following message helps discovering the fact.  FIXME.
 	 */
-	for ( i = 0; i < FE_MAX_RECV_COUNT; i++ ) {
-		if ( inb( sc->ioaddr[ FE_DLCR5 ] ) & FE_D5_BUFEMP ) break;
-		outb( sc->ioaddr[ FE_BMPR14 ], FE_B14_SKIP );
-	}
-#if FE_DEBUG >= 1
-	if ( i >= FE_MAX_RECV_COUNT ) {
-		log( LOG_ERR, "fe%d: cannot empty receive buffer\n",
+	if ( !( inb( sc->ioaddr[ FE_DLCR5 ] ) & FE_D5_BUFEMP ) ) {
+		log( LOG_WARNING,
+			"fe%d: receive buffer has some data after reset\n",
 			sc->sc_unit );
+		
+		fe_emptybuffer( sc );
 	}
-#endif
-#if FE_DEBUG >= 3
-	if ( i < FE_MAX_RECV_COUNT ) {
-		log( LOG_INFO, "fe%d: receive buffer emptied (%d)\n",
-			sc->sc_unit, i );
-	}
-#endif
 
 #if FE_DEBUG >= 3
 	fe_dump( LOG_INFO, sc, "after ERB loop" );
 #endif
 
-	/* Do we need this here?  FIXME.  */
+	/* Do we need this here?  Actually, no.  I must be paranoia.  */
 	outb( sc->ioaddr[ FE_DLCR0 ], 0xFF );	/* Clear all bits.  */
 	outb( sc->ioaddr[ FE_DLCR1 ], 0xFF );	/* ditto.  */
 
@@ -1931,6 +2138,7 @@ fe_xmit ( struct fe_softc * sc )
 	sc->txb_sched = sc->txb_count;
 	sc->txb_count = 0;
 	sc->txb_free = sc->txb_size;
+	sc->tx_excolls = 0;
 
 	/* Start transmitter, passing packets in TX buffer.  */
 	outb( sc->ioaddr[ FE_BMPR10 ], sc->txb_sched | FE_B10_START );
@@ -2028,7 +2236,8 @@ fe_start ( struct ifnet *ifp )
 		 * (i.e., minimum packet sized) packets rapidly.  An 8KB
 		 * buffer can hold 130 blocks of 62 bytes long...
 		 */
-		if ( sc->txb_free < ETHER_MAX_LEN - ETHER_CRC_LEN + FE_DATA_LEN_LEN ) {
+		if ( sc->txb_free
+		    < ETHER_MAX_LEN - ETHER_CRC_LEN + FE_DATA_LEN_LEN ) {
 			/* No room.  */
 			goto indicate_active;
 		}
@@ -2056,7 +2265,9 @@ fe_start ( struct ifnet *ifp )
 		fe_write_mbufs( sc, m );
 
 		/* Start transmitter if it's idle.  */
-		if ( sc->txb_sched == 0 ) fe_xmit( sc );
+		if ( ( sc->txb_count > 0 ) && ( sc->txb_sched == 0 ) ) {
+			fe_xmit( sc );
+		}
 
 		/*
 		 * Tap off here if there is a bpf listener,
@@ -2101,9 +2312,69 @@ fe_start ( struct ifnet *ifp )
  * Drop (skip) a packet from receive buffer in 86960 memory.
  */
 static void
-fe_droppacket ( struct fe_softc * sc )
+fe_droppacket ( struct fe_softc * sc, int len )
 {
+	int i;
+
+	/*
+	 * 86960 manual says that we have to read 8 bytes from the buffer
+	 * before skip the packets and that there must be more than 8 bytes
+	 * remaining in the buffer when issue a skip command.
+	 * Remember, we have already read 4 bytes before come here.
+	 */
+	if ( len > 12 ) {
+		/* Read 4 more bytes, and skip the rest of the packet.  */
+		( void )inw( sc->ioaddr[ FE_BMPR8 ] );
+		( void )inw( sc->ioaddr[ FE_BMPR8 ] );
 	outb( sc->ioaddr[ FE_BMPR14 ], FE_B14_SKIP );
+	} else {
+		/* We should not come here unless receiving RUNTs.  */
+		for ( i = 0; i < len; i += 2 ) {
+			( void )inw( sc->ioaddr[ FE_BMPR8 ] );
+		}
+	}
+}
+
+/*
+ * Empty receiving buffer.
+ */
+static void
+fe_emptybuffer ( struct fe_softc * sc )
+{
+	int i;
+	u_char saved_dlcr5;
+
+#if FE_DEBUG >= 1
+	log( LOG_WARNING, "fe%d: emptying receive buffer", sc->sc_unit );
+#endif
+	/*
+	 * Stop receiving packets, temporarily.
+	 */
+	saved_dlcr5 = inb( sc->ioaddr[ FE_DLCR5 ] );
+	outb( sc->ioaddr[ FE_DLCR5 ], sc->proto_dlcr5 );
+
+	/*
+	 * When we come here, the receive buffer management should
+	 * have been broken.  So, we cannot use skip operation.
+	 */
+	for ( i = 0; i < sc->txb_size; i += 2 ) {
+		if ( inb( sc->ioaddr[ FE_DLCR5 ] ) & FE_D5_BUFEMP ) break;
+		( void )inw( sc->ioaddr[ FE_BMPR8 ] );
+	}
+
+	/*
+	 * Double check.
+	 */
+	if ( inb( sc->ioaddr[ FE_DLCR5 ] ) & FE_D5_BUFEMP ) {
+		log( LOG_ERR, "fe%d: could not empty receive buffer\n",
+			sc->sc_unit );
+		/* Hmm.  What should I do if this happens?  FIXME.  */
+	}
+
+	/*
+	 * Restart receiving packets.
+	 */
+	outb( sc->ioaddr[ FE_DLCR5 ], saved_dlcr5 );
 }
 
 /*
@@ -2136,15 +2407,8 @@ fe_tint ( struct fe_softc * sc, u_char tstat )
 #endif
 
 		/*
-		 * Update statistics.
-		 */
-		sc->sc_if.if_collisions += 16;
-		sc->sc_if.if_oerrors++;
-		sc->sc_if.if_opackets += sc->txb_sched - left;
-
-		/*
-		 * Collision statistics has been updated.
-		 * Clear the collision flag on 86960 now to avoid confusion.
+		 * Clear the collision flag (in 86960) here
+		 * to avoid confusing statistics.
 		 */
 		outb( sc->ioaddr[ FE_DLCR0 ], FE_D0_COLLID );
 
@@ -2163,7 +2427,9 @@ fe_tint ( struct fe_softc * sc, u_char tstat )
 		 */
 		outb( sc->ioaddr[ FE_BMPR11 ],
 			FE_B11_CTRL_SKIP | FE_B11_MODE1 );
-		sc->txb_sched = left - 1;
+
+		/* Update statistics.  */
+		sc->tx_excolls++;
 	}
 
 	/*
@@ -2219,10 +2485,12 @@ fe_tint ( struct fe_softc * sc, u_char tstat )
 		}
 
 		/*
-		 * Update total number of successfully
-		 * transmitted packets.
+		 * Update transmission statistics.
+		 * Be sure to reflect number of excessive collisions.
 		 */
-		sc->sc_if.if_opackets += sc->txb_sched;
+		sc->sc_if.if_opackets += sc->txb_sched - sc->tx_excolls;
+		sc->sc_if.if_oerrors += sc->tx_excolls;
+		sc->sc_if.if_collisions += sc->tx_excolls * 16;
 		sc->txb_sched = 0;
 
 		/*
@@ -2298,19 +2566,6 @@ fe_rint ( struct fe_softc * sc, u_char rstat )
 #endif
 
 		/*
-		 * If there was an error, update statistics and drop
-		 * the packet, unless the interface is in promiscuous
-		 * mode.
-		 */
-		if ( ( status & 0xF0 ) != 0x20 ) {
-			if ( !( sc->sc_if.if_flags & IFF_PROMISC ) ) {
-				sc->sc_if.if_ierrors++;
-				fe_droppacket(sc);
-				continue;
-			}
-		}
-
-		/*
 		 * Extract the packet length.
 		 * It is a sum of a header (14 bytes) and a payload.
 		 * CRC has been stripped off by the 86960.
@@ -2318,41 +2573,43 @@ fe_rint ( struct fe_softc * sc, u_char rstat )
 		len = inw( sc->ioaddr[ FE_BMPR8 ] );
 
 		/*
-		 * MB86965 checks the packet length and drop big packet
+		 * If there was an error, update statistics and drop
+		 * the packet, unless the interface is in promiscuous
+		 * mode.
+		 */
+		if ( ( status & 0xF0 ) != 0x20 ) {
+			if ( !( sc->sc_if.if_flags & IFF_PROMISC ) ) {
+				sc->sc_if.if_ierrors++;
+				fe_droppacket( sc, len );
+				continue;
+			}
+		}
+
+		/*
+		 * MB86960 checks the packet length and drop big packet
 		 * before passing it to us.  There are no chance we can
 		 * get big packets through it, even if they are actually
 		 * sent over a line.  Hence, if the length exceeds
 		 * the specified limit, it means some serious failure,
 		 * such as out-of-sync on receive buffer management.
 		 *
-		 * Is this statement true?  FIXME.
+		 * Same for short packets, since we have programmed
+		 * 86960 to drop short packets.
 		 */
-		if ( len > ETHER_MAX_LEN - ETHER_CRC_LEN  || len < ETHER_MIN_LEN- ETHER_CRC_LEN ) {
-#if FE_DEBUG >= 2
+		if ( len > ETHER_MAX_LEN - ETHER_CRC_LEN
+		  || len < ETHER_MIN_LEN - ETHER_CRC_LEN ) {
+#if FE_DEBUG >= 1
 			log( LOG_WARNING,
 				"fe%d: received a %s packet? (%u bytes)\n",
 				sc->sc_unit,
-				len < ETHER_MIN_SIZE- ETHER_CRC_SIZE ? "partial" : "big",
+				len < ETHER_MIN_LEN - ETHER_CRC_LEN
+					? "partial" : "big",
 				len );
 #endif
 			sc->sc_if.if_ierrors++;
-			fe_droppacket( sc );
+			fe_emptybuffer( sc );
 			continue;
 		}
-
-		/*
-		 * Check for a short (RUNT) packet.  We *do* check
-		 * but do nothing other than print a message.
-		 * Short packets are illegal, but does nothing bad
-		 * if it carries data for upper layer.
-		 */
-#if FE_DEBUG >= 2
-		if ( len < ETHER_MIN_LEN - ETHER_CRC_LEN) {
-			log( LOG_WARNING,
-			     "fe%d: received a short packet? (%u bytes)\n",
-			     sc->sc_unit, len );
-		}
-#endif
 
 		/*
 		 * Go get a packet.
@@ -2365,7 +2622,7 @@ fe_rint ( struct fe_softc * sc, u_char rstat )
 			    sc->sc_unit, len );
 #endif
 			sc->sc_if.if_ierrors++;
-			fe_droppacket( sc );
+			fe_droppacket( sc, len );
 
 			/*
 			 * We stop receiving packets, even if there are
@@ -2854,7 +3111,8 @@ fe_write_mbufs ( struct fe_softc *sc, struct mbuf *m )
 	 * it should be a bug of upper layer.  We just ignore it.
 	 * ... Partial (too short) packets, neither.
 	 */
-	if ( ! ETHER_IS_VALID_LEN(length + ETHER_CRC_LEN)) {
+	if ( length < ETHER_HDR_LEN
+	  || length > ETHER_MAX_LEN - ETHER_CRC_LEN ) {
 		log( LOG_ERR,
 			"fe%d: got an out-of-spec packet (%u bytes) to send\n",
 			sc->sc_unit, length );

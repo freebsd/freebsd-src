@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: console.h,v 1.26 1996/11/14 22:18:31 sos Exp $
+ *	$Id: console.h,v 1.25.2.1 1996/11/19 17:25:20 nate Exp $
  */
 
 #ifndef	_MACHINE_CONSOLE_H_
@@ -271,14 +271,6 @@ typedef struct ssaver ssaver_t;
 #define FKEY		0x200		/* function key marker 		*/
 #define MKEY		0x400		/* meta key marker (prepend ESC)*/
 #define BKEY		0x800		/* backtab (ESC [ Z)		*/
-
-#ifdef PC98
-#define	KB_DATA		0x41		/* kbd data port 		*/
-#define	KB_STAT		0x43		/* kbd status port 		*/
-#define	KB_BUF_FULL	0x02		/* kbd has char pending 	*/
-#define	KB_READY	0x02		/* kbd ready for command 	*/
-#define KB_WRITE	0x43		/* kbd write command 		*/
-#endif
 
 /* video mode definitions */
 #ifdef PC98

@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:26  rpd
- *	$Id: bios.S,v 1.1.1.1 1996/06/14 10:04:37 asami Exp $
+ *	$Id: bios.S,v 1.1.1.1.2.1 1996/11/09 21:11:36 phk Exp $
  */
 
 /*
@@ -79,6 +79,8 @@ ENTRY(biosread)
 	mov	%esp, %ebp
 
 	push	%ebx
+	push	%esi
+	push	%edi
 	push	%ecx
 	push	%edx
 	push	%es
@@ -132,6 +134,8 @@ ENTRY(biosread)
 	pop	%es
 	pop	%edx
 	pop	%ecx
+	pop	%edi
+	pop	%esi
 	pop	%ebx
 	pop	%ebp
 
@@ -150,6 +154,8 @@ ENTRY(getc)
 	push	%ebp
 	mov	%esp, %ebp
 	push	%ebx			/* save %ebx */
+	push    %esi
+	push    %edi
 
 	call	EXT(prot_to_real)
 
@@ -164,6 +170,8 @@ ENTRY(getc)
 	xor	%eax, %eax
 	movb	%bl, %al
 
+	pop	%edi
+	pop	%esi
 	pop	%ebx
 	pop	%ebp
 	ret
@@ -184,6 +192,8 @@ ENTRY(ischar)
 	push	%ebp
 	mov	%esp, %ebp
 	push	%ebx
+	push    %esi
+	push    %edi
 
 	call	EXT(prot_to_real)	/* enter real mode */
 
@@ -202,6 +212,8 @@ nochar:
 	xor	%eax, %eax
 	movb	%bl, %al
 
+	pop	%edi
+	pop	%esi
 	pop	%ebx
 	pop	%ebp
 	ret
@@ -218,6 +230,8 @@ ENTRY(get_diskinfo)
 	mov	%esp, %ebp
 	push	%es
 	push	%ebx
+	push	%esi
+	push    %edi
 	push	%ecx
 	push	%edx
 
@@ -269,6 +283,8 @@ ok:
 
 	pop	%edx
 	pop	%ecx
+	pop	%edi
+	pop	%esi
 	pop	%ebx
 	pop	%es
 	pop	%ebp
@@ -286,6 +302,10 @@ ENTRY(memsize)
 	push	%ebp
 	mov	%esp, %ebp
 	push	%ebx
+	push    %esi
+	push    %edi
+	push    %esi
+	push    %edi
 
 	mov	8(%ebp), %ebx
 
@@ -308,6 +328,8 @@ memcnv:
 	shll	$7, %eax
 
 xdone:
+	pop	%edi
+	pop	%esi
 	pop	%ebx
 	pop	%ebp
 	ret

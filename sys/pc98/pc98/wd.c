@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.9 1996/10/23 07:25:35 asami Exp $
+ *	$Id: wd.c,v 1.9.2.1 1996/11/09 21:14:40 phk Exp $
  */
 
 /* TODO:
@@ -173,7 +173,7 @@ struct disk {
 	u_char	dk_status;	/* copy of status reg. */
 	u_char	dk_error;	/* copy of error reg. */
 	u_char	dk_timeout;	/* countdown to next timeout */
-	short	dk_port;	/* i/o port base */
+	int	dk_port;	/* i/o port base */
 #ifdef	DEVFS
 	void	*dk_bdev;	/* devfs token for whole disk */
 	void	*dk_cdev;	/* devfs token for raw whole disk */
@@ -599,7 +599,7 @@ wdstrategy(register struct buf *bp)
 #endif
 
 	/*
-	 * Do bounds checking, adjust transfer, set b_cylin and b_pbklno.
+	 * Do bounds checking, adjust transfer, and set b_pblkno.
 	 */
 	if (dscheck(bp, du->dk_slices) <= 0)
 		goto done;
