@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.54 1995/03/26 23:42:07 davidg Exp $
+ *	$Id: pmap.c,v 1.55 1995/03/30 08:55:39 davidg Exp $
  */
 
 /*
@@ -1270,7 +1270,6 @@ validate:
 	if (pa == opa)
 		(int) npte |= (int) *pte & (PG_M | PG_U);
 
-
 	if (wired)
 		(int) npte |= PG_W;
 	if (va < UPT_MIN_ADDRESS)
@@ -1598,7 +1597,7 @@ pmap_prefault(pmap, addra, entry, object)
 		if (((m->flags & (PG_CACHE | PG_ACTIVE | PG_INACTIVE)) != 0) &&
 		    ((m->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
 		    (m->busy == 0) &&
-			(m->bmapped == 0) &&
+		    (m->bmapped == 0) &&
 		    (m->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
 			/*
 			 * test results show that the system is faster when
