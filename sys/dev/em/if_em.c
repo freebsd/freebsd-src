@@ -55,7 +55,7 @@ struct adapter *em_adapter_list = NULL;
  *  Driver version
  *********************************************************************/
 
-char em_driver_version[] = "1.0.6";
+char em_driver_version[] = "1.0.7";
 
 
 /*********************************************************************
@@ -1142,12 +1142,8 @@ em_identify_hardware(struct adapter * Adapter)
 
    /* Make sure our PCI config space has the necessary stuff set */
    Adapter->PciCommandWord = pci_read_config(dev, PCIR_COMMAND, 2);
-   if (!(Adapter->PciCommandWord & (PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN))) {
-      printf("em%d: Memory Access or Bus Master bits were not set!", 
-             Adapter->unit);
-      Adapter->PciCommandWord |= (PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN);
-      pci_write_config(dev, PCIR_COMMAND, Adapter->PciCommandWord, 2);
-   }
+   Adapter->PciCommandWord |= (PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN);
+   pci_write_config(dev, PCIR_COMMAND, Adapter->PciCommandWord, 2);
 
    /* Save off the information about this board */
    Adapter->VendorId = pci_get_vendor(dev);
