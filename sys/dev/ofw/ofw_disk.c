@@ -45,12 +45,9 @@
 struct ofwd_softc
 {
 	device_t	ofwd_dev;
-	dev_t		ofwd_dev_t;
 	struct		disk ofwd_disk;
 	phandle_t	ofwd_package;
 	ihandle_t	ofwd_instance;
-	u_int		ofwd_flags;
-#define	OFWD_OPEN	(1<<0)
 };
 
 /*
@@ -80,72 +77,7 @@ DRIVER_MODULE(ofwd, nexus, ofwd_driver, ofwd_devclass, 0, 0);
 /*
  * Disk device control interface.
  */
-static d_open_t		ofwd_open;
-static d_close_t	ofwd_close;
-static d_strategy_t	ofwd_strategy;
-
-#define	OFWD_CDEV_MAJOR	169
-
-static struct cdevsw ofwd_cdevsw = {
-	ofwd_open,
-	ofwd_close,
-	physread,
-	physwrite,
-	noioctl,
-	nopoll,
-	nommap,
-	ofwd_strategy,
-	"ofwd",
-	OFWD_CDEV_MAJOR,
-	nodump,
-	nopsize,
-	D_DISK
-};
-
-static struct cdevsw	ofwddisk_cdevsw;
-
-/*
- * Handle open from generic layer.
- *
- * This is typically only called by the diskslice code and not for opens on
- * subdevices.
- */
-static int
-ofwd_open(dev_t dev, int flags, int fmt, struct thread *td)
-{
-	struct	ofwd_softc *sc;
-
-	sc = (struct ofwd_softc *)dev->si_drv1;
-	if (sc == NULL)
-		return (ENXIO);
-
-	sc->ofwd_disk.d_sectorsize = OFWD_BLOCKSIZE;
-	sc->ofwd_disk.d_mediasize = (off_t)33554432 * OFWD_BLOCKSIZE;
-	/* XXX: probably don't need the next two */
-	sc->ofwd_disk.d_fwsectors = 33554432;
-	sc->ofwd_disk.d_fwheads = 1;
-
-	sc->ofwd_flags |= OFWD_OPEN;
-	return (0);
-}
-
-/*
- * Handle last close of the disk device.
- */
-static int
-ofwd_close(dev_t dev, int flags, int fmt, struct thread *td)
-{
-	struct	ofwd_softc *sc;
-
-	sc = (struct ofwd_softc *)dev->si_drv1;
-
-	if (sc == NULL)
-		return (ENXIO);
-
-	sc->ofwd_flags &= ~OFWD_OPEN;
-
-	return (0);
-}
+static disk_strategy_t	ofwd_strategy;
 
 /*
  * Handle an I/O request.
@@ -156,13 +88,11 @@ ofwd_strategy(struct bio *bp)
 	struct	ofwd_softc *sc;
 	long	r;
 
-	sc = (struct ofwd_softc *)bp->bio_dev->si_drv1;
+	sc = (struct ofwd_softc *)bp->bio_disk->d_drv1;
 
 	if (sc == NULL) {
-		bp->bio_error = EINVAL;
-		bp->bio_flags |= BIO_ERROR;
 		printf("ofwd: bio for invalid disk!\n");
-		biodone(bp);
+		biofinish(bp, NULL, EINVAL);
 		return;
 	}
 
@@ -170,10 +100,8 @@ ofwd_strategy(struct bio *bp)
 	    (u_quad_t)(bp->bio_blkno * OFWD_BLOCKSIZE));
 	if (r == -1) {
 		bp->bio_resid = bp->bio_bcount;
-		bp->bio_error = EIO;
-		bp->bio_flags |= BIO_ERROR;
 		device_printf(sc->ofwd_dev, "seek failed\n");
-		biodone(bp);
+		biofinish(bp, NULL, EIO);
 		return;
 	}
 
@@ -185,19 +113,24 @@ ofwd_strategy(struct bio *bp)
 			    bp->bio_bcount);
 	}
 
+	if (r > bp->bio_bcount)
+		panic("ofwd: more bytes read/written than requested");
+	if (r == -1) {
+		device_printf(sc->ofwd_dev, "r (%ld) < bp->bio_bcount (%ld)\n",
+		    r, bp->bio_bcount);
+		biofinish(bp, NULL, EIO);
+		return;
+	}
+
+	bp->bio_resid -= r;
+	
 	if (r < bp->bio_bcount) {
 		device_printf(sc->ofwd_dev, "r (%ld) < bp->bio_bcount (%ld)\n",
 		    r, bp->bio_bcount);
-		if (r != -1)
-			bp->bio_resid = bp->bio_bcount - r;
-		bp->bio_error = EIO;
-		bp->bio_flags |= BIO_ERROR;
-	} else if (r > bp->bio_bcount)
-		panic("ofwd: more bytes read/written than requested");
-
-	bp->bio_resid -= r;
-	biodone(bp);
-
+		biofinish(bp, NULL, EIO);	/* XXX: probably not an error */
+		return;
+	} 
+	biofinish(bp, NULL, 0);
 	return;
 }
 
@@ -237,12 +170,15 @@ ofwd_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	dsk = disk_create(device_get_unit(dev), &sc->ofwd_disk, 0,
-	    &ofwd_cdevsw, &ofwddisk_cdevsw);
-	dsk->si_drv1 = sc;
-	sc->ofwd_dev_t = dsk;
-
-	dsk->si_iosize_max = PAGE_SIZE;
+	sc->ofwd_disk.d_strategy = ofwd_strategy;
+	sc->ofwd_disk.d_name = "ofwd";
+	sc->ofwd_disk.d_sectorsize = OFWD_BLOCKSIZE;
+	sc->ofwd_disk.d_mediasize = (off_t)33554432 * OFWD_BLOCKSIZE;
+	sc->ofwd_disk.d_fwsectors = 0;
+	sc->ofwd_disk.d_fwheads = 0;
+	sc->ofwd_disk.d_drv1 = sc;
+	sc->ofwd_disk.d_maxsize = PAGE_SIZE;
+	disk_create(device_get_unit(dev), &sc->ofwd_disk, 0, NULL, NULL);
 
 	return (0);
 }
