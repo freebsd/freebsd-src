@@ -282,21 +282,121 @@ cpio-floppy:
 
 bin-tarball:
 	(cd ${DESTDIR}; \
-		tar cf - . | gzip --no-name -9 -c | \
-			split -b 240640 - \
-			${RELEASEDIR}/tarballs/bin_tgz.)
+		tar cf - . | \
+		gzip --no-name -9 -c | \
+		split -b 240640 - \
+		${RELEASEDIR}/tarballs/bin_tgz.)
 
-src-tarball:
+srcbase-tarball:
 	(cd ${DESTDIR}; \
-		tar --exclude usr/src/${CRYPT_LIB} -cf - usr/src | gzip --no-name -9 -c | \
-			split -b 240640 - \
-			${RELEASEDIR}/tarballs/src_tgz.)
+		tar -cf - usr/src/[A-Z]* | \
+		gzip --no-name -9 -c | \
+		split -b 240640 - \
+		${RELEASEDIR}/tarballs/srcbase_tgz.)
 
-ssrc-tarball:
+srcbin-tarball:
 	(cd ${DESTDIR}; \
-		tar -cf - usr/src/${CRYPT_LIB} | gzip --no-name -9 -c | \
-			split -b 240640 - \
-			${RELEASEDIR}/tarballs/ssrc_tgz.)
+		tar -cf - usr/src/bin | \
+		gzip --no-name -9 -c | \
+		split -b 240640 - \
+		${RELEASEDIR}/tarballs/srcbin_tgz.)
+
+srccontrib-tarball:
+	(cd ${DESTDIR}; \
+		tar -cf - usr/src/contrib | \
+		gzip --no-name -9 -c | \
+		split -b 240640 - \
+		${RELEASEDIR}/tarballs/srccontrib_tgz.)
+
+srcetc-tarball:
+	(cd ${DESTDIR}; \
+		tar -cf - usr/src/etc | \
+		gzip --no-name -9 -c | \
+		split -b 240640 - \
+		${RELEASEDIR}/tarballs/srcetc_tgz.)
+
+srcgames-tarball:
+	(cd ${DESTDIR}; \
+		tar -cf - usr/src/games | \
+		gzip --no-name -9 -c | \
+		split -b 240640 - \
+		${RELEASEDIR}/tarballs/srcgames_tgz.)
+
+srcgnu-tarball:
+	(cd ${DESTDIR}; \
+		tar -cf - usr/src/gnu | \
+		gzip --no-name -9 -c | \
+		split -b 240640 - \
+		${RELEASEDIR}/tarballs/srcgnu_tgz.)
+
+srcinclude-tarball:
+	(cd ${DESTDIR}; \
+		tar -cf - usr/src/include | \
+		gzip --no-name -9 -c | \
+		split -b 240640 - \
+		${RELEASEDIR}/tarballs/srcinclude_tgz.)
+
+srclib-tarball:
+	(cd ${DESTDIR}; \
+		tar --exclude usr/src/${CRYPT_LIB} -cf - usr/src/lib | \
+		gzip --no-name -9 -c | \
+		split -b 240640 - \
+		${RELEASEDIR}/tarballs/srclib_tgz.)
+
+srclibcrypt-tarball:
+	(cd ${DESTDIR}; \
+		tar -cf - usr/src/${CRYPT_LIB} | \
+		gzip --no-name -9 -c | \
+		split -b 240640 - \
+		${RELEASEDIR}/tarballs/srclibcrypt_tgz.)
+
+srclibexec-tarball:
+	(cd ${DESTDIR}; \
+		tar -cf - usr/src/libexec | \
+		gzip --no-name -9 -c | \
+		split -b 240640 - \
+		${RELEASEDIR}/tarballs/srclibexec_tgz.)
+
+srcsbin-tarball:
+	(cd ${DESTDIR}; \
+		tar -cf - usr/src/sbin | \
+		gzip --no-name -9 -c | \
+		split -b 240640 - \
+		${RELEASEDIR}/tarballs/srcsbin_tgz.)
+
+srcshare-tarball:
+	(cd ${DESTDIR}; \
+		tar -cf - usr/src/share | \
+		gzip --no-name -9 -c | \
+		split -b 240640 - \
+		${RELEASEDIR}/tarballs/srcshare_tgz.)
+
+srcsys-tarball:
+	(cd ${DESTDIR}; \
+		tar -cf - usr/src/sys | \
+		gzip --no-name -9 -c | \
+		split -b 240640 - \
+		${RELEASEDIR}/tarballs/srcsys_tgz.)
+
+srcusrbin-tarball:
+	(cd ${DESTDIR}; \
+		tar -cf - usr/src/usr.bin | \
+		gzip --no-name -9 -c | \
+		split -b 240640 - \
+		${RELEASEDIR}/tarballs/srcusrbin_tgz.)
+
+srcusrsbin-tarball:
+	(cd ${DESTDIR}; \
+		tar -cf - usr/src/usr.sbin | \
+		gzip --no-name -9 -c | \
+		split -b 240640 - \
+		${RELEASEDIR}/tarballs/srcusrsbin_tgz.)
+
+src-tarball: srcbase-tarball srcbin-tarball srccontrib-tarball srcetc-tarball \
+	srcgames-tarball srcgnu-tarball srcinclude-tarball srclib-tarball \
+	srclibcrypt-tarball srclibexec-tarball srcsbin-tarball \
+	srcshare-tarball srcsys-tarball srcusrbin-tarball \
+	srcusrsbin-tarball
 
 des-tarball:
 	rm -rf ${RELEASEDIR}/tmpdes
@@ -325,7 +425,8 @@ des-tarball:
 		${MAKE} cleandir obj depend all install; \
 	done
 	(cd ${RELEASEDIR}/tmpdes; \
-		tar cf - . | gzip --no-name -9 -c | \
+		tar cf - . | \
+			gzip --no-name -9 -c | \
 			split -b 240640 - \
 			${RELEASEDIR}/tarballs/des_tgz.)
 	rm -rf ${RELEASEDIR}/tmpdes
