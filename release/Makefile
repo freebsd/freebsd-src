@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.194 1995/07/25 19:13:20 jkh Exp $
+#	$Id: Makefile,v 1.195 1995/12/07 10:32:51 peter Exp $
 #
 # How to roll a release:
 #
@@ -11,10 +11,10 @@
 # that on a 14.4 line just yet...
 #
 # SET THIS !!!
-BUILDNAME=2.1.0-RELEASE
-CHROOTDIR=/a/release
+BUILDNAME=2.2-current
+#CHROOTDIR=/a/release
 # If this is a RELEASE, then set
-RELEASETAG=RELENG_2_1_0
+#RELEASETAG=RELENG_2_1_0
 
 # Things which without too much trouble can be considered variables
 
@@ -70,9 +70,9 @@ release:
 .endif
 .if exists(${CHROOTDIR})
 	chflags -R noschg ${CHROOTDIR}/.
-	rm -rf ${CHROOTDIR}
+	-rm -rf ${CHROOTDIR}
 .endif
-	mkdir -p ${CHROOTDIR}
+	-mkdir -p ${CHROOTDIR}
 	cd ${.CURDIR}/../etc ; ${MAKE} distrib-dirs DESTDIR=${CHROOTDIR}
 	cd ${.CURDIR}/../etc ; ${MAKE} distribution DESTDIR=${CHROOTDIR}
 	cd ${.CURDIR}/.. ; ${MAKE} install DESTDIR=${CHROOTDIR}
