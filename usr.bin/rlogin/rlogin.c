@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <libutil.h>
 #include <netdb.h>
+#include <paths.h>
 #include <pwd.h>
 #include <setjmp.h>
 #include <sgtty.h>
