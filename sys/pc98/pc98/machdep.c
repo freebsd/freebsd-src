@@ -196,9 +196,6 @@ static void freebsd4_sendsig(sig_t catcher, int sig, sigset_t *mask,
 #endif
 
 long Maxmem = 0;
-#ifdef PC98
-int Maxmem_under16M = 0;
-#endif
 
 vm_paddr_t phys_avail[10];
 
@@ -1827,15 +1824,7 @@ next_run: ;
 	physmap[physmap_idx] = 0x100000;
 	physmap[physmap_idx + 1] = physmap[physmap_idx] + extmem * 1024;
 
-#ifdef PC98
-        if ((under16 != 16 * 1024) && (extmem > 15 * 1024)) {
-		/* 15M - 16M region is cut off, so need to divide chunk */
-                physmap[physmap_idx + 1] = under16 * 1024;
-                physmap_idx += 2;
-                physmap[physmap_idx] = 0x1000000;
-                physmap[physmap_idx + 1] = physmap[2] + extmem * 1024;
-        }
-#else
+#ifndef PC98
 physmap_done:
 #endif
 	/*
@@ -1903,6 +1892,22 @@ physmap_done:
 	 */ 
 	if (atop(physmap[physmap_idx + 1]) < Maxmem)
 		physmap[physmap_idx + 1] = ptoa((vm_paddr_t)Maxmem);
+
+#ifdef PC98
+	/*
+	 * We need to divide chunk if Maxmem is larger than 16MB and
+	 * under 16MB area is not full of memory.
+	 * (1) system area (15-16MB region) is cut off
+	 * (2) extended memory is only over 16MB area (ex. Melco "HYPERMEMORY")
+	 */
+	if ((under16 != 16 * 1024) && (extmem > 15 * 1024)) {
+		/* 15M - 16M region is cut off, so need to divide chunk */
+		physmap[physmap_idx + 1] = under16 * 1024;
+		physmap_idx += 2;
+		physmap[physmap_idx] = 0x1000000;
+		physmap[physmap_idx + 1] = physmap[2] + extmem * 1024;
+	}
+#endif
 
 	/* call pmap initialization to make new kernel address space */
 	pmap_bootstrap(first, 0);
