@@ -165,7 +165,7 @@ joyread(dev_t dev, struct uio *uio, int flag)
 	int state = 0;
 	struct timespec x, y;
 	struct joystick c;
-#ifndef i386
+#ifndef __i386__
 	int s;
 
 	s = splhigh();
@@ -192,7 +192,7 @@ joyread(dev_t dev, struct uio *uio, int flag)
 		if (timespecisset(&x) && timespecisset(&y))
 			break;
 	}
-#ifndef i386
+#ifndef __i386__
 	splx(s);
 #else
 	enable_intr ();
