@@ -458,7 +458,7 @@ SendReadRepl(rconn)
 	 *  Position read head on file according to info in request packet.
 	 */
 	GETWORD(req->r_rrq.rmp_offset, size);
-	if (lseek(oldconn->bootfd, (off_t)size, L_SET) < 0) {
+	if (lseek(oldconn->bootfd, (off_t)size, SEEK_SET) < 0) {
 		syslog(LOG_ERR, "SendReadRepl: lseek: %m (%s)",
 		       EnetStr(rconn));
 		rpl->r_rrpl.rmp_retcode = RMP_E_ABORT;
