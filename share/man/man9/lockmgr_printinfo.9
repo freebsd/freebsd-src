@@ -31,29 +31,30 @@
 .Os
 .Sh NAME
 .Nm lockmgr_printinfo
-.Nd "Prints information about the lock."
+.Nd "prints information about the lock"
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/lockmgr.h>
+.In sys/types.h
+.In sys/lockmgr.h
 .Ft void
 .Fn lockmgr_printinfo "struct lock *lkp"
 .Sh DESCRIPTION
 The
-.Nm
+.Fn lockmgr_printinfo
 function prints information about the lock including the lock
 time and the wait count.
 .Pp
-Its arguments are:
-.Bl -tag
-.It Ar lkp
+Its argument is:
+.Bl -tag -xwidth ".Fa lkp"
+.It Fa lkp
 The lock to print.
 .El
 .Sh NOTES
 This function seems to only exist for debugging purposes.
 .Sh SEE ALSO
-.Xr lockmgr 9
-.Xr lockcount 9
-.Xr lockdestroy 9
+.Xr lockcount 9 ,
+.Xr lockdestroy 9 ,
+.Xr lockmgr 9 ,
 .Xr lockstatus 9
 .Sh AUTHORS
-This man page was written by Chad David.
+This man page was written by
+.An Chad David .

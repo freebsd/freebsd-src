@@ -31,25 +31,27 @@
 .Os
 .Sh NAME
 .Nm minor
-.Nd "Returns the minor number for the device"
+.Nd "returns the minor number for the device"
 .Sh SYNOPSIS
-.Fd #include <sys/systm.h>
+.In sys/systm.h
 .Ft int
-.Fo minor
-.Fa "dev_t dev"
-.Fc
+.Fn minor "dev_t dev"
 .Sh DESCRIPTION
 The
-.Nm
+.Fn minor
 function returns the minor device number for the given device.
 .Pp
-Its argument is: 
-.Bl -tag
-.It Ar dev
+Its argument is:
+.Bl -tag -xwidth ".Fa dev"
+.It Fa dev
 The device whose minor device number should be returned.
+.El
 .Sh RETURN VALUES
-An integer greater than zero, or NOUDEV if the device is invalid.
+An integer greater than zero, or
+.Dv NOUDEV
+if the device is invalid.
 .Sh SEE ALSO
 .Xr major 9
 .Sh AUTHORS
-This man page was written by Chad David.
+This man page was written by
+.An Chad David .

@@ -31,25 +31,38 @@
 .Os
 .Sh NAME
 .Nm devsw
-.Nd "Checks if the vnode represents a disk"
+.Nd "checks if the vnode represents a disk"
 .Sh SYNOPSIS
-.Fd #include <sys/conf.h>
-.Ft struct cdevsw *
+.In sys/conf.h
+.Ft "struct cdevsw *"
 .Fn devsw "dev_t dev"
 .Sh DESCRIPTION
 The
-.Nm
-function returns a pointer to the cdevsw structure associated
-with this character device id.  If dev->si_cdevsw is set it is
+.Fn devsw
+function returns a pointer to the
+.Vt cdevsw
+structure associated
+with this character device ID.
+If
+.Fa dev->si_cdevsw
+is set it is
 returned; otherwise, the
-.Ar major(9)
-offset into the cdevsw array is returned.
+.Xr major 9
+offset into the
+.Va cdevsw
+array is returned.
 .Pp
-Its argument is: 
-.Bl -tag
-.It Ar dev
-The device whose cdevsw entry should be returned.
+Its argument is:
+.Bl -tag -xwidth ".Fa dev"
+.It Fa dev
+The device whose
+.Vt cdevsw
+entry should be returned.
+.El
 .Sh RETURN VALUES
-A pointer to a cdevsw structure.
+A pointer to a
+.Vt cdevsw
+structure.
 .Sh AUTHORS
-This man page was written by Chad David.
+This man page was written by
+.An Chad David .

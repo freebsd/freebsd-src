@@ -31,33 +31,36 @@
 .Os
 .Sh NAME
 .Nm vfs_unbusy
-.Nd "Unbusy a mount point.
+.Nd "unbusy a mount point"
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/mount.h>
+.In sys/param.h
+.In sys/mount.h
 .Ft void
 .Fn vfs_unbusy "struct mount *mp" "struct proc *p"
 .Sh DESCRIPTION
 The
-.Nm
-function unbusys (unlocks) a mount point by unlocking
-mp->mnt_lock.  The lock is typically aquired by calling
-vfs_busy() prior to this call.
+.Fn vfs_unbusy
+function unbusies (unlocks) a mount point by unlocking
+.Fa mp->mnt_lock .
+The lock is typically aquired by calling
+.Xr vfs_busy 9
+prior to this call.
 .Pp
 Its arguments are:
-.Bl -tag -width uap
-.It Ar mp
+.Bl -tag -xwidth ".Fa mp"
+.It Fa mp
 The mount point to unbusy (unlock).
-.It Ar p
+.It Fa p
 The process responsible for this call.
 .El
 .Sh LOCKS
-.Ar mnt_lock
+.Va mnt_lock
 must be locked in
-.Ar mp
+.Fa mp
 prior to calling
 this function, and it will be unlocked upon return.
 .Sh SEE ALSO
 .Xr vfs_busy 9
 .Sh AUTHORS
-This man page was written by Chad David.
+This man page was written by
+.An Chad David .
