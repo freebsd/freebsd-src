@@ -1,4 +1,6 @@
 /*
+ * $FreeBSD$
+ *
  * Copyright (c) 1999 Roger Hardiman
  * Copyright (c) 1998 Amancio Hasty
  * Copyright (c) 1995 Mark Tinguely and Jim Lowe
@@ -30,8 +32,17 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
  */
+
+#ifdef __FreeBSD__
+#if (__FreeBSD_version >= 310000)
+#include <sys/bus.h>
+#include "smbus.h"
+#else
+#define NSMBUS 0
+#endif
+#endif
+
 #ifndef PCI_LATENCY_TIMER
 #define	PCI_LATENCY_TIMER		0x0c	/* pci timer register */
 #endif
@@ -582,6 +593,7 @@ struct bktr_softc {
     int                 xtal_pll_mode;	/* Use XTAL or PLL mode for PAL/SECAM */    int                 remote_control;      /* remote control detected */
     int                 remote_control_addr;   /* remote control i2c address */
     char		msp_version_string[9]; /* MSP version string 34xxx-xx */
+    int			msp_addr;	       /* MSP i2c address */
 
 
 };
