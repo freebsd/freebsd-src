@@ -2698,8 +2698,10 @@ allocbuf(struct buf *bp, int size)
 						VM_WAIT;
 						vm_pageout_deficit += desiredpages - bp->b_npages;
 					} else {
+						vm_page_lock_queues();
 						vm_page_wire(m);
 						vm_page_wakeup(m);
+						vm_page_unlock_queues();
 						bp->b_flags &= ~B_CACHE;
 						bp->b_pages[bp->b_npages] = m;
 						++bp->b_npages;
@@ -2732,8 +2734,10 @@ allocbuf(struct buf *bp, int size)
 					(cnt.v_free_min + cnt.v_cache_min))) {
 					pagedaemon_wakeup();
 				}
+				vm_page_lock_queues();
 				vm_page_flag_clear(m, PG_ZERO);
 				vm_page_wire(m);
+				vm_page_unlock_queues();
 				bp->b_pages[bp->b_npages] = m;
 				++bp->b_npages;
 			}
@@ -3354,9 +3358,11 @@ tryagain:
 			VM_WAIT;
 			goto tryagain;
 		}
+		vm_page_lock_queues();
 		vm_page_wire(p);
 		p->valid = VM_PAGE_BITS_ALL;
 		vm_page_flag_clear(p, PG_ZERO);
+		vm_page_unlock_queues();
 		pmap_qenter(pg, &p, 1);
 		bp->b_pages[index] = p;
 		vm_page_wakeup(p);
