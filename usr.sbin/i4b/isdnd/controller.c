@@ -31,7 +31,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Oct  9 14:37:34 2000]
+ *      last edit-date: [Thu Oct 26 08:39:21 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -74,6 +74,7 @@ name_of_controller(int ctrl_type, int card_type)
 		"Teles S0/16.3c PnP",
 		"AcerISDN P10 PnP",
 		"TELEINT ISDN SPEED No. 1"
+		"Cologne Chip HFC-S PCI based"
 	};
 
 	static char *daic_card[] = {
