@@ -63,6 +63,11 @@ void	sched_rem(struct kse *ke);
 struct kse *sched_choose(void);
 
 /*
+ * and they use up cpu time.
+ */
+fixpt_t	sched_pctcpu(struct kse *ke);
+
+/*
  * These procedures tell the process data structure allocation code how
  * many bytes to actually allocate.
  */
