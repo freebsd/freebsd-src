@@ -833,7 +833,6 @@ main(int argc, char **argv)
 			poll_hz = strtoul(optarg, NULL, 0);
 			if (poll_hz == 0)
 				poll_hz = DCONS_POLL_HZ;
-			printf("poll_hz = %d\n", poll_hz);
 			break;
 		case 'r':
 			dc->flags |= F_REPLAY;
