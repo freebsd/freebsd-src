@@ -1,5 +1,5 @@
 /* search.c - searching subroutines using dfa, kwset and regex for grep.
-   Copyright (C) 1992 Free Software Foundation, Inc.
+   Copyright (C) 1992, 1998 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,80 +13,38 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.  */
 
-   Written August 1992 by Mike Haertel. */
+/* Written August 1992 by Mike Haertel. */
 
-#include <ctype.h>
-
-#ifdef STDC_HEADERS
-#include <limits.h>
-#include <stdlib.h>
-#else
-#define UCHAR_MAX 255
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
 #include <sys/types.h>
-extern char *malloc();
-#endif
-
-#ifdef HAVE_MEMCHR
-#include <string.h>
-#ifdef NEED_MEMORY_H
-#include <memory.h>
-#endif
-#else
-#ifdef __STDC__
-extern void *memchr();
-#else
-extern char *memchr();
-#endif
-#endif
-
-#if defined(HAVE_STRING_H) || defined(STDC_HEADERS)
-#undef bcopy
-#define bcopy(s, d, n) memcpy((d), (s), (n))
-#endif
-
-#ifdef isascii
-#define ISALNUM(C) (isascii(C) && isalnum(C))
-#define ISUPPER(C) (isascii(C) && isupper(C))
-#else
-#define ISALNUM(C) isalnum(C)
-#define ISUPPER(C) isupper(C)
-#endif
-
-#define TOLOWER(C) (ISUPPER(C) ? tolower(C) : (C))
-
+#include "system.h"
 #include "grep.h"
+#include "regex.h"
 #include "dfa.h"
 #include "kwset.h"
-#include "regex.h"
 
 #define NCHAR (UCHAR_MAX + 1)
 
-#if __STDC__
-static void Gcompile(char *, size_t);
-static void Ecompile(char *, size_t);
-static char *EGexecute(char *, size_t, char **);
-static void Fcompile(char *, size_t);
-static char *Fexecute(char *, size_t, char **);
-#else
-static void Gcompile();
-static void Ecompile();
-static char *EGexecute();
-static void Fcompile();
-static char *Fexecute();
-#endif
+static void Gcompile PARAMS((char *, size_t));
+static void Ecompile PARAMS((char *, size_t));
+static char *EGexecute PARAMS((char *, size_t, char **));
+static void Fcompile PARAMS((char *, size_t));
+static char *Fexecute PARAMS((char *, size_t, char **));
+static void kwsinit PARAMS((void));
 
 /* Here is the matchers vector for the main program. */
 struct matcher matchers[] = {
   { "default", Gcompile, EGexecute },
   { "grep", Gcompile, EGexecute },
-  { "ggrep", Gcompile, EGexecute },
   { "egrep", Ecompile, EGexecute },
   { "posix-egrep", Ecompile, EGexecute },
-  { "gegrep", Ecompile, EGexecute },
+  { "awk", Ecompile, EGexecute },
   { "fgrep", Fcompile, Fexecute },
-  { "gfgrep", Fcompile, Fexecute },
   { 0, 0, 0 },
 };
 
@@ -111,7 +69,7 @@ static int lastexact;
 
 void
 dfaerror(mesg)
-     char *mesg;
+  const char *mesg;
 {
   fatal(mesg, 0);
 }
@@ -128,7 +86,7 @@ kwsinit()
 
   if (!(kwset = kwsalloc(match_icase ? trans : (char *) 0)))
     fatal("memory exhausted", 0);
-}  
+}
 
 /* If the DFA turns out to have some set of fixed strings one of
    which must occur in the match, then we build a kwset matcher
@@ -173,18 +131,13 @@ Gcompile(pattern, size)
      char *pattern;
      size_t size;
 {
-#ifdef __STDC__
-  const
-#endif
-  char *err;
+  const char *err;
 
   re_set_syntax(RE_SYNTAX_GREP | RE_HAT_LISTS_NOT_NEWLINE);
   dfasyntax(RE_SYNTAX_GREP | RE_HAT_LISTS_NOT_NEWLINE, match_icase);
 
   if ((err = re_compile_pattern(pattern, size, &regex)) != 0)
     fatal(err, 0);
-
-  dfainit(&dfa);
 
   /* In the match_words and match_lines cases, we use a different pattern
      for the DFA matcher that will quickly throw out cases that won't work.
@@ -209,7 +162,7 @@ Gcompile(pattern, size)
 	strcpy(n, "\\(^\\|[^0-9A-Za-z_]\\)\\(");
 
       i = strlen(n);
-      bcopy(pattern, n + i, size);
+      memcpy(n + i, pattern, size);
       i += size;
 
       if (match_words)
@@ -231,15 +184,17 @@ Ecompile(pattern, size)
      char *pattern;
      size_t size;
 {
-#ifdef __STDC__
-  const
-#endif
-  char *err;
+  const char *err;
 
   if (strcmp(matcher, "posix-egrep") == 0)
     {
       re_set_syntax(RE_SYNTAX_POSIX_EGREP);
       dfasyntax(RE_SYNTAX_POSIX_EGREP, match_icase);
+    }
+  else if (strcmp(matcher, "awk") == 0)
+    {
+      re_set_syntax(RE_SYNTAX_AWK);
+      dfasyntax(RE_SYNTAX_AWK, match_icase);
     }
   else
     {
@@ -249,8 +204,6 @@ Ecompile(pattern, size)
 
   if ((err = re_compile_pattern(pattern, size, &regex)) != 0)
     fatal(err, 0);
-
-  dfainit(&dfa);
 
   /* In the match_words and match_lines cases, we use a different pattern
      for the DFA matcher that will quickly throw out cases that won't work.
@@ -275,7 +228,7 @@ Ecompile(pattern, size)
 	strcpy(n, "(^|[^0-9A-Za-z_])(");
 
       i = strlen(n);
-      bcopy(pattern, n + i, size);
+      memcpy(n + i, pattern, size);
       i += size;
 
       if (match_words)
@@ -358,7 +311,8 @@ EGexecute(buf, size, endp)
       if ((start = re_search(&regex, beg, end - beg, 0, end - beg, &regs)) >= 0)
 	{
 	  len = regs.end[0] - start;
-	  if (!match_lines && !match_words || match_lines && len == end - beg)
+	  if ((!match_lines && !match_words)
+	      || (match_lines && len == end - beg))
 	    goto success;
 	  /* If -w, check if the match aligns with word boundaries.
 	     We do this iteratively because:
@@ -369,8 +323,9 @@ EGexecute(buf, size, endp)
 	  if (match_words)
 	    while (start >= 0)
 	      {
-		if ((start == 0 || !WCHAR(beg[start - 1]))
-		    && (len == end - beg || !WCHAR(beg[start + len])))
+		if ((start == 0 || !WCHAR ((unsigned char) beg[start - 1]))
+		    && (len == end - beg
+			|| !WCHAR ((unsigned char) beg[start + len])))
 		  goto success;
 		if (len > 0)
 		  {
