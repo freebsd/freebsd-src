@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.29.2.4 1995/06/01 09:42:31 jkh Exp $
+ * $Id: tcpip.c,v 1.29.2.5 1995/06/02 00:52:25 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -392,6 +392,7 @@ tcpOpenDialog(Device *devp)
     if (!cancel) {
 	DevInfo *di;
 	char temp[512], ifn[64];
+	char *ifaces;
 
 	variable_set2(VAR_HOSTNAME, hostname);
 	variable_set2(VAR_DOMAINNAME, domainname);
@@ -410,10 +411,14 @@ tcpOpenDialog(Device *devp)
 	sprintf(temp, "inet %s %s netmask %s", ipaddr, extras, netmask);
 	sprintf(ifn, "%s%s", VAR_IFCONFIG, devp->name);
 	variable_set2(ifn, temp);
-	if (!getenv(VAR_INTERFACES))
-	    variable_set2(VAR_INTERFACES, "lo0");
-	sprintf(ifn, "%s %s", devp->name, getenv(VAR_INTERFACES));
-	variable_set2(VAR_INTERFACES, ifn);
+	ifaces = getenv(VAR_INTERFACES);
+	if (!ifaces)
+	    variable_set2(VAR_INTERFACES, ifaces = "lo0");
+	/* Only add it if it's not there already */
+	if (!strstr(ifaces, devp->name)) {
+	    sprintf(ifn, "%s %s", devp->name, ifaces);
+	    variable_set2(VAR_INTERFACES, ifn);
+	}
 	if (ipaddr[0])
 	    variable_set2(VAR_IPADDR, ipaddr);
 	return 0;

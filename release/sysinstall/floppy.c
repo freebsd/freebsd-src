@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.6.2.5 1995/06/01 23:19:14 jkh Exp $
+ * $Id: floppy.c,v 1.6.2.6 1995/06/02 00:03:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -127,7 +127,7 @@ mediaInitFloppy(Device *dev)
 	msgConfirm("Unable to make directory mountpoint for %s!", dev->devname);
 	return FALSE;
     }
-    msgConfirm("Please insert media into %s and press return", dev->description);
+    msgConfirm("Please insert next floppy into %s and press return", dev->description);
     memset(&dosargs, 0, sizeof dosargs);
     dosargs.fspec = dev->devname;
     dosargs.uid = dosargs.gid = 0;
@@ -142,11 +142,19 @@ mediaInitFloppy(Device *dev)
 }
 
 int
-mediaGetFloppy(char *file)
+mediaGetFloppy(Device *dev, char *file)
 {
     char		buf[PATH_MAX];
 
     snprintf(buf, PATH_MAX, "/mnt/%s", file);
+    if (!access(buf, R_OK))
+	return open(buf, O_RDONLY);
+    else if (dev->flags & OPT_EXPLORATORY_GET)
+	return -1;
+    else while (access(buf, R_OK) != 0) {
+	mediaShutdownFloppy(mediaDevice);
+	mediaInitFloppy(mediaDevice);
+    }
     return open(buf, O_RDONLY);
 }
 
@@ -154,7 +162,7 @@ void
 mediaShutdownFloppy(Device *dev)
 {
     if (floppyMounted) {
-	if (unmount("/mnt", 0) != 0)
+	if (unmount("/mnt", MNT_FORCE) != 0)
 	    msgDebug("Umount of floppy on /mnt failed: %s (%d)\n", strerror(errno), errno);
 	else {
 	    floppyMounted = FALSE;

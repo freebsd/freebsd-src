@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.35.2.12 1995/06/03 10:04:59 jkh Exp $
+ * $Id: dist.c,v 1.35.2.13 1995/06/03 23:44:02 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -170,6 +170,14 @@ distSetXDeveloper(char *str)
 }
 
 int
+distSetKernDeveloper(char *str)
+{
+    Dists = _DIST_DEVELOPER;
+    SrcDists = DIST_SRC_SYS;
+    return 0;
+}
+
+int
 distSetUser(char *str)
 {
     Dists = _DIST_USER;
@@ -233,7 +241,6 @@ distExtract(char *parent, Distribution *me)
     char *path, *dist, buf[10240];
     const char *tmp;
     Attribs *dist_attr;
-    unsigned int oldOpts;
 
     status = TRUE;
     if (isDebug())
@@ -258,10 +265,11 @@ distExtract(char *parent, Distribution *me)
 
 	/* First try to get the distribution as a single file */
         snprintf(buf, 512, "%s/%s.tgz", path, dist);
-	oldOpts = OptFlags;
-	OptFlags |= OPT_FTP_ABORT;
-	fd = (*mediaDevice->get)(buf);
-	OptFlags = oldOpts;
+
+	/* Set it as an "exploratory get" so that we don't loop unnecessarily on it */
+	mediaDevice.flags |= OPT_EXPLORATORY_GET;
+	fd = (*mediaDevice->get)(mediaDevice, buf);
+	mediaDevice.flags &= ~OPT_EXPLORATORY_GET;
 	if (fd >= 0) {
 	    msgNotify("Extracting %s into %s directory...", me[i].my_name, me[i].my_dir);
 	    status = mediaExtractDist(me[i].my_dir, fd);

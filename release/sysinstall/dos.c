@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: dos.c,v 1.5 1995/05/30 08:28:34 rgrimes Exp $
+ * $Id: dos.c,v 1.5.2.1 1995/06/01 21:37:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -82,13 +82,13 @@ mediaInitDOS(Device *dev)
 }
 
 int
-mediaGetDOS(char *file)
+mediaGetDOS(Device *dev, char *file)
 {
     char		buf[PATH_MAX];
 
     snprintf(buf, PATH_MAX, "/dos/freebsd/%s", file);
     if (!access(buf, R_OK))
-	    return open(buf, O_RDONLY);
+	return open(buf, O_RDONLY);
     snprintf(buf, PATH_MAX, "/dos/freebsd/dists/%s", file);
     return open(buf, O_RDONLY);
 }
@@ -99,7 +99,7 @@ mediaShutdownDOS(Device *dev)
     if (!DOSMounted)
 	return;
     msgDebug("Unmounting /dos\n");
-    if (unmount("/dos", 0) != 0)
+    if (unmount("/dos", MNT_FORCE) != 0)
 	msgConfirm("Could not unmount the DOS partition: %s\n", strerror(errno));
     if (isDebug())
 	msgDebug("Unmount returned\n");

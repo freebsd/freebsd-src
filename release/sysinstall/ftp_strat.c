@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.6.2.12 1995/06/03 09:49:43 jkh Exp $
+ * $Id: ftp_strat.c,v 1.6.2.13 1995/06/03 23:23:38 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -166,8 +166,7 @@ retry:
 	goto retry;
     }
 
-    if (OptFlags & OPT_FTP_PASSIVE)
-	FtpPassive(ftp, 1);
+    FtpPassive(ftp, (OptFlags & OPT_FTP_PASSIVE) ? 1 : 0);
     FtpBinary(ftp, 1);
     if (dir && *dir != '\0') {
 	msgNotify("CD to distribution in ~ftp/%s", dir);
@@ -187,13 +186,13 @@ retry:
 }
 
 int
-mediaGetFTP(char *file)
+mediaGetFTP(Device *dev, char *file)
 {
     int fd;
     int nretries = 0, max_retries = MAX_FTP_RETRIES;
     Boolean boing = TRUE;
 
-    if (OptFlags & (OPT_FTP_RESELECT + OPT_FTP_ABORT))
+    if (OptFlags & (OPT_FTP_RESELECT + OPT_FTP_ABORT) || dev->flags & OPT_EXPLORATORY_GET)
 	max_retries = 0;
 evil_goto:
     fd = FtpGet(ftp, file);
