@@ -35,7 +35,7 @@
  *
  */
 
-/* $Id: vext.h,v 1.11 1999/03/02 04:10:00 grog Exp grog $ */
+/* $Id: vext.h,v 1.12 1999/07/03 05:51:19 grog Exp grog $ */
 
 #define MAXARGS 64					    /* maximum number of args on a line */
 #define PLEXINITSIZE 61440				    /* this is what the system does somewhere */
@@ -47,13 +47,7 @@ enum {
     GIGABYTE = 1073741824
 };
 
-#if RAID5
-#define VINUMMOD "Vinum"
-#define WRONGMOD "vinum"				    /* don't want this one */
-#else
 #define VINUMMOD "vinum"
-#define WRONGMOD "Vinum"				    /* don't want this one */
-#endif
 
 #define DEFAULT_HISTORYFILE "/var/tmp/vinum_history"	    /* default name for history stuff */
 
@@ -81,6 +75,8 @@ void vinum_makedev(int argc, char *argv[], char *arg0[]);
 void vinum_help(int argc, char *argv[], char *arg0[]);
 void vinum_quit(int argc, char *argv[], char *arg0[]);
 void vinum_setdaemon(int argc, char *argv[], char *arg0[]);
+void vinum_replace(int argc, char *argv[], char *arg0[]);
+void vinum_readpol(int argc, char *argv[], char *arg0[]);
 void reset_volume_stats(int volno, int recurse);
 void reset_plex_stats(int plexno, int recurse);
 void reset_sd_stats(int sdno, int recurse);
@@ -110,6 +106,10 @@ void vinum_debug(int argc, char *argv[], char *arg0[]);
 #endif
 struct drive *find_drive_by_devname(char *name);
 void make_devices(void);
+void make_vol_dev(int, int);
+void make_plex_dev(int, int);
+void make_sd_dev(int);
+void list_defective_objects();
 void get_drive_info(struct drive *drive, int index);
 void get_sd_info(struct sd *sd, int index);
 void get_plex_sd_info(struct sd *sd, int plexno, int sdno);
