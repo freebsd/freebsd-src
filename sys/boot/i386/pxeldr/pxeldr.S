@@ -110,12 +110,12 @@ start:		cld				# string ops inc
 		orb $KARGS_FLAGS_PXE, 0x8(%bx)	# kargs->bootflags |=
 						#  KARGS_FLAGS_PXE
 		popl 0xc(%bx)			# kargs->pxeinfo = *PXENV+
-ifdef(`ALWAYS_SERIAL',`
+#ifdef ALWAYS_SERIAL
 #
 # set the RBX_SERIAL bit in the howto byte.
 		orl $RB_SERIAL, (%bx)		# enable serial console
-')
-ifdef(`PROBE_KEYBOARD',`
+#endif
+#ifdef PROBE_KEYBOARD
 #
 # Look at the BIOS data area to see if we have an enhanced keyboard.  If not,
 # set the RBX_SERIAL bit in the howto byte.
@@ -123,7 +123,7 @@ ifdef(`PROBE_KEYBOARD',`
 		jnz keyb			# yes, so skip
 		orl $RB_SERIAL, (%bx)		# enable serial console
 keyb:
-')
+#endif
 #
 # Turn on the A20 address line
 #
