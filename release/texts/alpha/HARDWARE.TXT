@@ -868,7 +868,9 @@ ones. The CPU is on a daughter card, and the type of CPU (EV4 or EV5) must
 match the mainboard in use. AlphaServer 800 is a much smaller mini tower
 case, it lacks the StorageWorks SCSI hot-plug chassis. The main difference
 between AS1000 and AS1000A is that AS1000A has 7 PCI slots whereas AS1000
-only has 3 PCI slots and has EISA slots instead.
+only has 3 PCI slots and has EISA slots instead. AS800 with an EV5/400 MHz
+CPU was later rebranded as a DIGITAL Server 3300[R], AS800 with an EV5/500 MHz
+CPU was later rebranded as a DIGITAL Server 3305[R].
 
 Features:
 - 21064 EV4 CPU at 200, 233 or 266 MHz
