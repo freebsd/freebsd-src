@@ -274,16 +274,6 @@
       <quote>C</quote>, <quote>S</quote>, and <quote>A</quote> Series
       Host Adapters (&man.bt.4; driver)
 
-      <note arch="i386,amd64">
-	<para>BusLogic/Mylex <quote>Flashpoint</quote> adapters are not yet
-	  supported.</para>
-      </note>
-
-      <note arch="i386,amd64">
-	<para>AMI FastDisk controllers that are true BusLogic
-	  MultiMaster clones are also supported.</para>
-      </note>
-   
       <note arch="i386">
         <para>The Buslogic/Bustek BT-640 and Storage Dimensions
 	  SDC3211B and SDC3211F Microchannel (MCA) bus adapters are
@@ -336,11 +326,6 @@
 
     <para arch="i386,amd64">Mylex AcceleRAID/eXtremeRAID family PCI to SCSI RAID controllers with 6.x firmware
     (&man.mly.4; driver)
-
-      <note>
-	<para>Compatible Mylex controllers not listed should work, but
-	have not been verified.</para>
-      </note>
     </para>
 
     <para arch="i386">3ware Escalade ATA RAID controllers (&man.twe.4; driver)
@@ -793,7 +778,7 @@
     (&man.ste.4; driver)
     </para>
 
-    <para arch="i386,pc98,alpha,amd64">SysKonnect SK-984x PCI Gigabit Ethernet cards (&man.sk.4; drivers)
+    <para arch="i386,pc98,alpha,amd64">SysKonnect SK-984x PCI Gigabit Ethernet cards (&man.sk.4; driver)
     </para>
 
     <para arch="i386,pc98,alpha,amd64">Texas Instruments ThunderLAN PCI NICs (&man.tl.4; driver)</para>
@@ -919,16 +904,6 @@
     drivers), plus NICs supported by the Intel 82540EM, 82544,
     82545EM, and 82546EB
     controller chips (&man.em.4; driver only)
-      <itemizedlist>
-	<listitem>
-	  <para>Intel PRO/1000 Gigabit Ethernet</para>
-	</listitem>
-      </itemizedlist>
-
-      <note>
-        <para>The &man.em.4; driver is officially supported by Intel,
-        but is only supported on the i386.</para>
-      </note>
     </para>
 
     <para arch="sparc64">Sun HME and QFE Ethernet NICs (&man.hme.4; driver)</para>
@@ -1173,14 +1148,6 @@
     <para arch="i386">STB 4 port card using shared IRQ</para>
 
     <para arch="i386">DigiBoard intelligent serial cards (&man.dgb.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>DigiBoard PC/Xe series</para>
-	</listitem>
-        <listitem>
-	  <para>DigiBoard PC/Xi series</para>
-	</listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386,ia64,amd64">PCI-Based multi-port serial boards (&man.puc.4;
@@ -1271,23 +1238,7 @@
     </para>
 
     <para arch="i386">Stallion Technologies multiport serial boards
-      <itemizedlist>
-        <listitem>
-	  <para>EasyIO (&man.stl.4; driver)</para>
-	</listitem>
-        <listitem>
-	  <para>EasyConnection 8/32 (&man.stl.4; driver)</para>
-	</listitem>
-	<listitem>
-	  <para>EasyConnection 8/64 (&man.stli.4; driver)</para>
-	</listitem>
-        <listitem>
-	  <para>ONboard 4/16 (&man.stli.4; driver)</para>
-	</listitem>
-        <listitem>
-	  <para>Brumby (&man.stli.4; driver)</para>
-	</listitem>
-      </itemizedlist>
+      (&man.stl.4; and &man.stli.4; drivers)
     </para>
 
     <para arch="i386,amd64">Specialix SI/XIO/SX multiport serial cards, with both the
@@ -1807,44 +1758,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,amd64">Audio Devices (uaudio driver)
-      <itemizedlist>
-        <listitem>
-	  <para>Audio-Technica USB Digital Headphone ATC-HA4USB</para>
-	</listitem>
-
-        <listitem>
-	  <para>Ergo Systems AUDIOTRAK OPTOPlay USB</para>
-	</listitem>
-
-        <listitem>
-	  <para>KENWOOD MD Personal Stereo System MDX-G7</para>
-	</listitem>
-
-        <listitem>
-	  <para>KENWOOD/SOTEC VH-7PC</para>
-	</listitem>
-
-        <listitem>
-	  <para>I-O DATA Analog to Digital USB Audio Adapter DAVOX</para>
-	</listitem>
-
-        <listitem>
-	  <para>ONKYO PC Speaker GX-R5U(W)</para>
-	</listitem>
-
-        <listitem>
-	  <para>ONKYO USB Digital Audio Processor SE-U55X(S)</para>
-	</listitem>
-
-        <listitem>
-	  <para>Roland UA-5 USB Audio Interface <quote>Audio Capture</quote></para>
-	</listitem>
-
-        <listitem>
-	  <para>Sony PC Active Speaker System SRS-T100PC</para>
-	</listitem>
-      </itemizedlist>
+    <para arch="i386,pc98,amd64">Audio Devices (&man.uaudio.4; driver)
     </para>
 
     <para arch="i386,pc98,amd64">Handspring Visor and other PalmOS
