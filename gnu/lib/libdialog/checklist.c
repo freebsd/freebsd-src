@@ -22,7 +22,8 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$FreeBSD$";
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif
 
 #include <dialog.h>
@@ -40,10 +41,10 @@ int
 dialog_checklist(unsigned char *title, unsigned char *prompt, int height, int width,
 		 int list_height, int cnt, void *it, unsigned char *result)
 {
-    int i, j, x, y, cur_x, cur_y, box_x, box_y, key = 0, button, choice,
-	l, k, scroll, max_choice, item_no = 0, *status;
+    int i, j, x, y, cur_x, cur_y, old_x, old_y, box_x, box_y, key = 0, button,
+	choice, l, k, scroll, max_choice, item_no = 0, *status;
     int redraw_menu = FALSE;
-    int rval = 0;
+    int rval = 0, onlist = 1, ok_space, cancel_space;
     char okButton, cancelButton;
     WINDOW *dialog, *list;
     unsigned char **items = NULL;
@@ -186,11 +187,9 @@ draw:
      */
     if (ditems && result) {
 	cancelButton = toupper(ditems[CANCEL_BUTTON].prompt[0]);
-	print_button(dialog, ditems[CANCEL_BUTTON].prompt, y, x + strlen(ditems[OK_BUTTON].prompt) + 5,
-		     ditems[CANCEL_BUTTON].checked ? ditems[CANCEL_BUTTON].checked(&ditems[CANCEL_BUTTON]) : FALSE);
+	print_button(dialog, ditems[CANCEL_BUTTON].prompt, y, x + strlen(ditems[OK_BUTTON].prompt) + 5, ditems[CANCEL_BUTTON].checked ? ditems[CANCEL_BUTTON].checked(&ditems[CANCEL_BUTTON]) : FALSE);
 	okButton = toupper(ditems[OK_BUTTON].prompt[0]);
-	print_button(dialog, ditems[OK_BUTTON].prompt, y, x,
-		     ditems[OK_BUTTON].checked ? ditems[OK_BUTTON].checked(&ditems[OK_BUTTON]) : TRUE);
+	print_button(dialog, ditems[OK_BUTTON].prompt, y, x, ditems[OK_BUTTON].checked ? ditems[OK_BUTTON].checked(&ditems[OK_BUTTON]) : TRUE);
     }
     else {
 	cancelButton = 'C';
@@ -198,7 +197,9 @@ draw:
 	okButton = 'O';
 	print_button(dialog, "  OK  ", y, x, TRUE);
     }
-    wrefresh(dialog);
+    wnoutrefresh(dialog);
+    wmove(list, choice, check_x+1);
+    wrefresh(list);
     
     while (key != ESC) {
 	key = wgetch(dialog);
@@ -259,7 +260,26 @@ draw:
 		break;
 
 	if (i < max_choice || (key >= '1' && key <= MIN('9', '0'+max_choice)) ||
-	    KEY_IS_UP(key) || KEY_IS_DOWN(key) || key == ' ') {
+	    KEY_IS_UP(key) || KEY_IS_DOWN(key) || ((key == ' ' || key == '\n' ||
+	    key == '\r') && onlist)) {
+
+	    /* if moving from buttons to the list, reset and redraw buttons */
+	    if (!onlist) {
+		onlist = 1;
+		button = 0;
+
+	        if (ditems && result) {
+		    print_button(dialog, ditems[CANCEL_BUTTON].prompt, y, x + strlen(ditems[OK_BUTTON].prompt) + 5, ditems[CANCEL_BUTTON].checked ? ditems[CANCEL_BUTTON].checked(&ditems[CANCEL_BUTTON]) : button);
+		    print_button(dialog, ditems[OK_BUTTON].prompt, y, x, ditems[OK_BUTTON].checked ? ditems[OK_BUTTON].checked(&ditems[OK_BUTTON]) : !button);
+		}
+		else {
+		    print_button(dialog, "Cancel", y, x + 14, button);
+		    print_button(dialog, "  OK  ", y, x, !button);
+		}
+		wmove(list, choice, check_x+1);
+		wnoutrefresh(dialog);
+		wrefresh(list);
+	    }
 
 	    if (key >= '1' && key <= MIN('9', '0'+max_choice))
 		i = key - '1';
@@ -318,8 +338,10 @@ draw:
 		else
 		    i = choice + 1;
 	    }
-	    else if (key == ' ') {    /* Toggle item status */
+	    else if ((key == ' ' || key == '\n' || key == '\r') && onlist) {    /* Toggle item status */
 		char lbra = 0, rbra = 0, mark = 0;
+
+		getyx(list, old_y, old_x);    /* Save cursor position */
 		
 		if (ditems) {
 		    if (ditems[scroll + choice].fire) {
@@ -367,7 +389,6 @@ draw:
 		}
 		else
 		    status[scroll + choice] = !status[scroll + choice];
-		getyx(dialog, cur_y, cur_x);    /* Save cursor position */
 		wmove(list, choice, check_x);
 		wattrset(list, check_selected_attr);
 		if (!lbra)
@@ -377,9 +398,8 @@ draw:
 		if (!mark)
 		    mark = 'X';
 		wprintw(list, "%c%c%c", lbra, status[scroll + choice] ? mark : ' ', rbra);
-		wnoutrefresh(list);
-		wmove(dialog, cur_y, cur_x);  /* Restore cursor to previous position */
-		wrefresh(dialog);
+		wmove(list, old_y, old_x);  /* Restore cursor to previous position */
+		wrefresh(list);
 		continue;    /* wait for another key press */
 	    }
 	    
@@ -392,9 +412,8 @@ draw:
 		/* Highlight new item */
 		choice = i;
 		print_item(list, items[(scroll + choice) * 3], items[(scroll + choice) * 3 + 1], status[scroll + choice], choice, TRUE, DREF(ditems, scroll + choice), list_width, item_x, check_x);
-		wnoutrefresh(list);
-		wmove(dialog, cur_y, cur_x);  /* Restore cursor to previous position */
-		wrefresh(dialog);
+		wmove(list, choice, check_x+1);	  /* Restore cursor to previous position */
+		wrefresh(list);
 	    }
 	    continue;    /* wait for another key press */
 	}
@@ -406,6 +425,10 @@ draw:
 	    else
 		scroll = 0;
 	    redraw_menu = TRUE;
+	    if (!onlist) {
+		onlist = 1;
+		button = 0;
+	    }
 	    break;
 	    
 	case KEY_NPAGE:      /* can we go down a full page? */
@@ -417,12 +440,17 @@ draw:
 	    else
 		scroll += list_height;
 	    redraw_menu = TRUE;
+	    if (!onlist) {
+ 		onlist = 1;
+		button = 0;
+	    }
 	    break;
 	    
 	case KEY_HOME:      /* go to the top */
 	    scroll = 0;
 	    choice = 0;
 	    redraw_menu = TRUE;
+	    onlist = 1;
 	    break;
 	    
 	case KEY_END:      /* Go to the bottom */
@@ -431,57 +459,96 @@ draw:
 		scroll = 0;
 	    choice = max_choice - 1;
 	    redraw_menu = TRUE;
+	    onlist = 1;
 	    break;
 	    
-	    /* swap the selection of OK/Cancel buttons */
 	case TAB:
 	case KEY_BTAB:
+	    /* move to next component */
+	    if (onlist) {       /* on list, next is ok button */
+		onlist = 0;
+		if (ditems && result) {
+		    print_button(dialog, ditems[CANCEL_BUTTON].prompt, y, x + strlen(ditems[OK_BUTTON].prompt) + 5, ditems[CANCEL_BUTTON].checked ? ditems[CANCEL_BUTTON].checked(&ditems[CANCEL_BUTTON]) : button);
+		    print_button(dialog, ditems[OK_BUTTON].prompt, y, x, ditems[OK_BUTTON].checked ? ditems[OK_BUTTON].checked(&ditems[OK_BUTTON]) : !button);
+		    ok_space = 1;
+		    cancel_space = strlen(ditems[OK_BUTTON].prompt) + 6;
+		}
+		else {
+		    print_button(dialog, "Cancel", y, x + 14, button);
+		    print_button(dialog, "  OK  ", y, x, !button);
+		    ok_space = 3;
+		    cancel_space = 15;
+		}
+		if (button)
+		    wmove(dialog, y, x + cancel_space);
+		else
+		    wmove(dialog, y, x + ok_space);
+		wrefresh(dialog);
+		break;
+	    }
+	    else if (button) {     /* on cancel button, next is list */
+		button = 0;
+		onlist = 1;
+		redraw_menu = TRUE;
+		break; 
+	    }
+	    /* on ok button, next is cancel button, same as left/right case */
+
 	case KEY_LEFT:
 	case KEY_RIGHT:
+	    onlist = 0;
 	    button = !button;
 	    if (ditems && result) {
-		print_button(dialog, ditems[CANCEL_BUTTON].prompt, y, x + strlen(ditems[OK_BUTTON].prompt) + 5,
-			     ditems[CANCEL_BUTTON].checked ? ditems[CANCEL_BUTTON].checked(&ditems[CANCEL_BUTTON]) : button);
-		print_button(dialog, ditems[OK_BUTTON].prompt, y, x,
-			     ditems[OK_BUTTON].checked ? ditems[OK_BUTTON].checked(&ditems[OK_BUTTON]) : !button);
+		print_button(dialog, ditems[CANCEL_BUTTON].prompt, y, x + strlen(ditems[OK_BUTTON].prompt) + 5, ditems[CANCEL_BUTTON].checked ? ditems[CANCEL_BUTTON].checked(&ditems[CANCEL_BUTTON]) : button);
+		print_button(dialog, ditems[OK_BUTTON].prompt, y, x, ditems[OK_BUTTON].checked ?  ditems[OK_BUTTON].checked(&ditems[OK_BUTTON]) : !button);
+		ok_space = 1;
+		cancel_space = strlen(ditems[OK_BUTTON].prompt) + 6;
 	    }
 	    else {
 		print_button(dialog, "Cancel", y, x + 14, button);
 		print_button(dialog, "  OK  ", y, x, !button);
+		ok_space = 3;
+		cancel_space = 15;
 	    }
+	    if (button)
+		wmove(dialog, y, x + cancel_space);
+	    else
+		wmove(dialog, y, x + ok_space);
 	    wrefresh(dialog);
 	    break;
-	    
-	    /* Select either the OK or Cancel button */
+
+	case ' ':
 	case '\n':
 	case '\r':
-	    if (ditems) {
-		if (result && ditems[button ? CANCEL_BUTTON : OK_BUTTON].fire) {
-		    int st;
-		    WINDOW *save = dupwin(newscr);
+	    if (!onlist) {
+		if (ditems) {
+		    if (result && ditems[button ? CANCEL_BUTTON : OK_BUTTON].fire) {
+			int st;
+			WINDOW *save = dupwin(newscr);
 
-		    st = ditems[button ? CANCEL_BUTTON : OK_BUTTON].fire(&ditems[button ? CANCEL_BUTTON : OK_BUTTON]);
-		    if (st & DITEM_RESTORE) {
-			touchwin(save);
-			wrefresh(save);
-		    }
-		    delwin(save);
-		    if (st == DITEM_FAILURE)
+			st = ditems[button ? CANCEL_BUTTON : OK_BUTTON].fire(&ditems[button ? CANCEL_BUTTON : OK_BUTTON]);
+			if (st & DITEM_RESTORE) {
+			    touchwin(save);
+			    wrefresh(save);
+			}
+			delwin(save);
+			if (st == DITEM_FAILURE)
 			continue;
-		}
-	    }
-	    else if (result) {
-		*result = '\0';
-		for (i = 0; i < item_no; i++) {
-		    if (status[i]) {
-			strcat(result, items[i*3]);
-			strcat(result, "\n");
 		    }
 		}
+		else if (result) {
+		    *result = '\0';
+		    for (i = 0; i < item_no; i++) {
+			if (status[i]) {
+			    strcat(result, items[i*3]);
+			    strcat(result, "\n");
+			}
+		    }
+		}
+		rval = button;
+		key = ESC;	/* Bail out! */
+		break;
 	    }
-	    rval = button;
-	    key = ESC;	/* Bail out! */
-	    break;
 	    
 	    /* Let me outta here! */
 	case ESC:
@@ -496,13 +563,24 @@ draw:
 	}
 	
 	if (redraw_menu) {
+	    getyx(list, old_y, old_x);
 	    wclear(list);
 	    for (i = 0; i < max_choice; i++)
-		print_item(list, items[(scroll + i) * 3], items[(scroll + i) * 3 + 1], status[scroll + i],
-			   i, i == choice, DREF(ditems, scroll + i), list_width, item_x, check_x);
-	    wnoutrefresh(list);
+		print_item(list, items[(scroll + i) * 3], items[(scroll + i) * 3 + 1], status[scroll + i], i, i == choice, DREF(ditems, scroll + i), list_width, item_x, check_x);
 	    print_arrows(dialog, scroll, list_height, item_no, box_x, box_y, check_x + 4, cur_x, cur_y);
-	    wrefresh(dialog);
+
+	    /* redraw buttons to fix highlighting */
+	    if (ditems && result) {
+		print_button(dialog, ditems[CANCEL_BUTTON].prompt, y, x + strlen(ditems[OK_BUTTON].prompt) + 5, ditems[CANCEL_BUTTON].checked ? ditems[CANCEL_BUTTON].checked(&ditems[CANCEL_BUTTON]) : button);
+		print_button(dialog, ditems[OK_BUTTON].prompt, y, x, ditems[OK_BUTTON].checked ? ditems[OK_BUTTON].checked(&ditems[OK_BUTTON]) : !button);
+	    }
+	    else {
+		print_button(dialog, "Cancel", y, x + 14, button);
+		print_button(dialog, "  OK  ", y, x, !button);
+	    }
+	    wnoutrefresh(dialog);
+	    wmove(list, old_y, old_x);
+	    wrefresh(list);
 	    redraw_menu = FALSE;
 	}
     }

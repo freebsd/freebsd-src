@@ -21,7 +21,8 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$FreeBSD$";
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif
 
 #include <dialog.h>
@@ -41,7 +42,7 @@ dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, 
     int i, j, x, y, cur_x, cur_y, box_x, box_y, key = 0, button, choice,
 	l, k, scroll, max_choice, item_no, redraw_menu = FALSE;
     char okButton, cancelButton;
-    int rval = 0;
+    int rval = 0, ok_space, cancel_space;
     WINDOW *dialog, *menu;
     unsigned char **items = NULL;
     dialogMenuItem *ditems;
@@ -172,11 +173,9 @@ draw:
     
     if (ditems && result) {
 	cancelButton = toupper(ditems[CANCEL_BUTTON].prompt[0]);
-	print_button(dialog, ditems[CANCEL_BUTTON].prompt, y, x + strlen(ditems[OK_BUTTON].prompt) + 5,
-		     ditems[CANCEL_BUTTON].checked ? ditems[CANCEL_BUTTON].checked(&ditems[CANCEL_BUTTON]) : FALSE);
+	print_button(dialog, ditems[CANCEL_BUTTON].prompt, y, x + strlen(ditems[OK_BUTTON].prompt) + 5, ditems[CANCEL_BUTTON].checked ? ditems[CANCEL_BUTTON].checked(&ditems[CANCEL_BUTTON]) : FALSE);
 	okButton = toupper(ditems[OK_BUTTON].prompt[0]);
-	print_button(dialog, ditems[OK_BUTTON].prompt, y, x,
-		     ditems[OK_BUTTON].checked ? ditems[OK_BUTTON].checked(&ditems[OK_BUTTON]) : TRUE);
+	print_button(dialog, ditems[OK_BUTTON].prompt, y, x, ditems[OK_BUTTON].checked ? ditems[OK_BUTTON].checked(&ditems[OK_BUTTON]) : TRUE);
     }
     else {
 	cancelButton = 'C';
@@ -346,15 +345,21 @@ draw:
 	case KEY_RIGHT:
 	    button = !button;
 	    if (ditems && result) {
-		print_button(dialog, ditems[CANCEL_BUTTON].prompt, y, x + strlen(ditems[OK_BUTTON].prompt) + 5,
-			     ditems[CANCEL_BUTTON].checked ? ditems[CANCEL_BUTTON].checked(&ditems[CANCEL_BUTTON]) : button);
-		print_button(dialog, ditems[OK_BUTTON].prompt, y, x,
-			     ditems[OK_BUTTON].checked ? ditems[OK_BUTTON].checked(&ditems[OK_BUTTON]) : !button);
+		print_button(dialog, ditems[CANCEL_BUTTON].prompt, y, x + strlen(ditems[OK_BUTTON].prompt) + 5, ditems[CANCEL_BUTTON].checked ? ditems[CANCEL_BUTTON].checked(&ditems[CANCEL_BUTTON]) : button);
+		print_button(dialog, ditems[OK_BUTTON].prompt, y, x, ditems[OK_BUTTON].checked ? ditems[OK_BUTTON].checked(&ditems[OK_BUTTON]) : !button);
+		ok_space = 1;
+		cancel_space = strlen(ditems[OK_BUTTON].prompt) + 6;
 	    }
 	    else {
 		print_button(dialog, "Cancel", y, x + 14, button);
 		print_button(dialog, "  OK  ", y, x, !button);
+		ok_space = 3;
+		cancel_space = 15;
 	    }
+	    if (button)
+		wmove(dialog, y, x+cancel_space);
+	    else
+		wmove(dialog, y, x+ok_space);
 	    wrefresh(dialog);
 	    break;
 	    
