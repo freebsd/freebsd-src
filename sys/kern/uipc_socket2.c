@@ -737,7 +737,7 @@ sbinsertoob(sb, m0)
 int
 sbappendaddr(sb, asa, m0, control)
 	struct sockbuf *sb;
-	struct sockaddr *asa;
+	const struct sockaddr *asa;
 	struct mbuf *m0, *control;
 {
 	struct mbuf *m, *n, *nlast;

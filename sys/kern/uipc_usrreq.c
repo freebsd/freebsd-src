@@ -78,7 +78,7 @@ static	struct unp_head unp_shead, unp_dhead;
  *	need a proper out-of-band
  *	lock pushdown
  */
-static struct	sockaddr sun_noname = { sizeof(sun_noname), AF_LOCAL };
+static const struct	sockaddr sun_noname = { sizeof(sun_noname), AF_LOCAL };
 static ino_t	unp_ino;		/* prototype for fake inode numbers */
 
 static int     unp_attach(struct socket *);
@@ -127,7 +127,7 @@ uipc_accept(struct socket *so, struct sockaddr **nam)
 		*nam = sodupsockaddr(
 		    (struct sockaddr *)unp->unp_conn->unp_addr, M_WAITOK);
 	} else {
-		*nam = sodupsockaddr((struct sockaddr *)&sun_noname,
+		*nam = sodupsockaddr((const struct sockaddr *)&sun_noname,
 		    M_WAITOK);
 	}
 	return (0);
@@ -226,7 +226,7 @@ uipc_peeraddr(struct socket *so, struct sockaddr **nam)
 		 * connection is established.  So, this else clause is
 		 * added as workaround to return PF_LOCAL sockaddr.
 		 */
-		*nam = sodupsockaddr((struct sockaddr *)&sun_noname,
+		*nam = sodupsockaddr((const struct sockaddr *)&sun_noname,
 		    M_WAITOK);
 	}
 	return (0);
@@ -296,7 +296,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	switch (so->so_type) {
 	case SOCK_DGRAM:
 	{
-		struct sockaddr *from;
+		const struct sockaddr *from;
 
 		if (nam != NULL) {
 			if (unp->unp_conn != NULL) {
@@ -443,7 +443,7 @@ uipc_sockaddr(struct socket *so, struct sockaddr **nam)
 		*nam = sodupsockaddr((struct sockaddr *)unp->unp_addr,
 		    M_WAITOK);
 	else
-		*nam = sodupsockaddr((struct sockaddr *)&sun_noname,
+		*nam = sodupsockaddr((const struct sockaddr *)&sun_noname,
 		    M_WAITOK);
 	return (0);
 }
