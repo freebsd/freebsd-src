@@ -160,18 +160,20 @@ READ_REG_1(struct hifn_softc *sc, bus_size_t reg)
 }
 #define	WRITE_REG_1(sc, reg, val)	hifn_write_reg_1(sc, reg, val)
 
+SYSCTL_NODE(_hw, OID_AUTO, hifn, CTLFLAG_RD, 0, "Hifn driver parameters");
+
 #ifdef HIFN_DEBUG
 static	int hifn_debug = 0;
-SYSCTL_INT(_debug, OID_AUTO, hifn, CTLFLAG_RW, &hifn_debug,
-	    0, "Hifn driver debugging printfs");
+SYSCTL_INT(_hw_hifn, OID_AUTO, debug, CTLFLAG_RW, &hifn_debug,
+	    0, "control debugging msgs");
 #endif
 
 static	struct hifn_stats hifnstats;
-SYSCTL_STRUCT(_kern, OID_AUTO, hifn_stats, CTLFLAG_RD, &hifnstats,
-	    hifn_stats, "Hifn driver statistics");
-static	int hifn_maxbatch = 2;		/* XXX tune based on part+sys speed */
-SYSCTL_INT(_kern, OID_AUTO, hifn_maxbatch, CTLFLAG_RW, &hifn_maxbatch,
-	    0, "Hifn driver: max ops to batch w/o interrupt");
+SYSCTL_STRUCT(_hw_hifn, OID_AUTO, stats, CTLFLAG_RD, &hifnstats,
+	    hifn_stats, "driver statistics");
+static	int hifn_maxbatch = 1;
+SYSCTL_INT(_hw_hifn, OID_AUTO, maxbatch, CTLFLAG_RW, &hifn_maxbatch,
+	    0, "max ops to batch w/o interrupt");
 
 /*
  * Probe for a supported device.  The PCI vendor and device
