@@ -1,3 +1,0 @@
- -nbad -nbap -nbbb -nbc -br -bli4 -c33 -cd33  -cdb  -ce -ci4
- -cli0 -cp1 -d0 -di0 -nfc1 -nfca -i4 -ip4 -l75 -lp -npcs
- -psl -sc -nsob -nss -ts4
