@@ -2333,12 +2333,14 @@ common_ioctl( bktr_ptr_t bktr, ioctl_cmd_t cmd, caddr_t arg )
 
 #if defined( STATUS_SUM )
 	case BT848_GSTATUS:	/* reap status */
-		disable_intr();
+		{int s;
+		s = DISABLE_INTR;
 		temp = status_sum;
 		status_sum = 0;
-		enable_intr();
+		ENABLE_INTR(s);
 		*(u_int*)arg = temp;
 		break;
+		}
 #endif /* STATUS_SUM */
 
 	default:
