@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.18 1997/04/01 10:41:48 bde Exp $
+ *	$Id: imgact_elf.c,v 1.19 1997/04/13 01:48:21 dyson Exp $
  */
 
 #include "opt_rlimit.h"
@@ -338,11 +338,8 @@ elf_load_file(struct proc *p, char *file, u_long *addr, u_long *entry)
 
         NDINIT(&nd, LOOKUP, LOCKLEAF|FOLLOW, UIO_SYSSPACE, file, p);   
 			 
-	if (error = namei(&nd))
-                goto fail;
-
-	if (nd.ni_vp == NULL) {
-		error = ENOEXEC;
+	if (error = namei(&nd)) {
+		nd.ni_vp = NULL;
 		goto fail;
 	}
 
@@ -460,6 +457,8 @@ fail:
 		unmap_pages((vm_offset_t)phdr, header_size);
 	if (hdr)
 		unmap_pages((vm_offset_t)hdr, sizeof(hdr));
+	if (nd.ni_vp)
+		vrele(nd.ni_vp);
 
 	return error;
 }
