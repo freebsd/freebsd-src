@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.148 1995/11/04 16:00:22 markm Exp $
+ *	$Id: machdep.c,v 1.149 1995/11/10 09:53:50 phk Exp $
  */
 
 #include "npx.h"
@@ -207,7 +207,7 @@ cpu_startup(dummy)
 	register caddr_t v;
 	vm_offset_t maxaddr;
 	vm_size_t size = 0;
-	int firstaddr, indx;
+	int firstaddr;
 	vm_offset_t minaddr;
 
 	if (boothowto & RB_VERBOSE)
@@ -1037,8 +1037,8 @@ sysctl_machdep_adjkerntz SYSCTL_HANDLER_ARGS
 {
 	int error;
 	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2,
-		oldp, oldlenp, newp, newlen);
-	if (!error && newp)
+		req);
+	if (!error && req->newptr)
 		resettodr();
 	return (error);
 }
@@ -1051,8 +1051,7 @@ sysctl_machdep_consdev SYSCTL_HANDLER_ARGS
 {
 	dev_t consdev;
 	consdev = (cn_tty == NULL ? NODEV : cn_tty->t_dev);
-	return (sysctl_handle_opaque(oidp, &consdev, sizeof consdev,
-		oldp, oldlenp, newp, newlen));
+	return (sysctl_handle_opaque(oidp, &consdev, sizeof consdev, req));
 }
 
 SYSCTL_PROC(_machdep, CPU_CONSDEV, consdev,

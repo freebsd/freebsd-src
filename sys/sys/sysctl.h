@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.30 1995/11/09 20:20:03 phk Exp $
+ * $Id: sysctl.h,v 1.31 1995/11/10 10:14:55 phk Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -78,8 +78,28 @@ struct ctlname {
 
 #ifdef KERNEL
 #define SYSCTL_HANDLER_ARGS (struct sysctl_oid *oidp, void *arg1, int arg2, \
-	void *oldp, size_t *oldlenp, void *newp, size_t newlen )
+	struct sysctl_req *req)
 
+/*
+ * This describes the access space for a sysctl request.  This is needed
+ * so that we can use the interface from the kernel or from user-space.
+ */
+struct sysctl_req {
+	struct proc	*p;
+	void		*oldptr;
+	int		oldlen;
+	int		oldidx;
+	int		(*oldfunc)(struct sysctl_req *, void *, int);
+	void		*newptr;
+	int		newlen;
+	int		newidx;
+	int		(*newfunc)(struct sysctl_req *, void *, int);
+};
+
+/*
+ * This describes one "oid" in the MIB tree.  Potentially more nodes can
+ * be hidden behind it, expanded by the handler.
+ */
 struct sysctl_oid {
 	int		oid_number;
 	int		oid_kind;
@@ -88,6 +108,9 @@ struct sysctl_oid {
 	char		*oid_name;
 	int 		(*oid_handler) SYSCTL_HANDLER_ARGS;
 };
+
+#define SYSCTL_IN(r, p, l) (r->newfunc)(r, p, l)
+#define SYSCTL_OUT(r, p, l) (r->oldfunc)(r, p, l)
 
 int sysctl_handle_int SYSCTL_HANDLER_ARGS;
 int sysctl_handle_string SYSCTL_HANDLER_ARGS;

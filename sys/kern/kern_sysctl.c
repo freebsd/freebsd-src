@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.36 1995/11/11 00:09:21 bde Exp $
+ * $Id: kern_sysctl.c,v 1.37 1995/11/12 06:43:01 bde Exp $
  */
 
 /*
@@ -61,23 +61,23 @@
 extern struct linker_set sysctl_;
 
 /* BEGIN_MIB */
-SYSCTL_NODE(, 0,	  sysctl, CTLFLAG_RW, 0, 
+SYSCTL_NODE(, 0,	  sysctl, CTLFLAG_RW, 0,
 	"Sysctl internal magic");
-SYSCTL_NODE(, CTL_KERN,	  kern,   CTLFLAG_RW, 0, 
+SYSCTL_NODE(, CTL_KERN,	  kern,   CTLFLAG_RW, 0,
 	"High kernel, proc, limits &c");
-SYSCTL_NODE(, CTL_VM,	  vm,     CTLFLAG_RW, 0, 
+SYSCTL_NODE(, CTL_VM,	  vm,     CTLFLAG_RW, 0,
 	"Virtual memory");
-SYSCTL_NODE(, CTL_FS,	  fs,     CTLFLAG_RW, 0, 
+SYSCTL_NODE(, CTL_FS,	  fs,     CTLFLAG_RW, 0,
 	"File system");
-SYSCTL_NODE(, CTL_NET,	  net,    CTLFLAG_RW, 0, 
+SYSCTL_NODE(, CTL_NET,	  net,    CTLFLAG_RW, 0,
 	"Network, (see socket.h)");
-SYSCTL_NODE(, CTL_DEBUG,  debug,  CTLFLAG_RW, 0, 
+SYSCTL_NODE(, CTL_DEBUG,  debug,  CTLFLAG_RW, 0,
 	"Debugging");
-SYSCTL_NODE(, CTL_HW,	  hw,     CTLFLAG_RW, 0, 
+SYSCTL_NODE(, CTL_HW,	  hw,     CTLFLAG_RW, 0,
 	"hardware");
-SYSCTL_NODE(, CTL_MACHDEP, machdep, CTLFLAG_RW, 0, 
+SYSCTL_NODE(, CTL_MACHDEP, machdep, CTLFLAG_RW, 0,
 	"machine dependent");
-SYSCTL_NODE(, CTL_USER,	  user,   CTLFLAG_RW, 0, 
+SYSCTL_NODE(, CTL_USER,	  user,   CTLFLAG_RW, 0,
 	"user-level");
 
 SYSCTL_STRING(_kern, KERN_OSRELEASE, osrelease, CTLFLAG_RD, osrelease, 0, "");
@@ -113,7 +113,7 @@ SYSCTL_INT(_kern, KERN_MAXFILES, maxfiles, CTLFLAG_RW, &maxfiles, 0, "");
 
 #ifdef _POSIX_SAVED_IDS
 SYSCTL_INT(_kern, KERN_SAVED_IDS, saved_ids, CTLFLAG_RD, 0, 1, "");
-#else 
+#else
 SYSCTL_INT(_kern, KERN_SAVED_IDS, saved_ids, CTLFLAG_RD, 0, 0, "");
 #endif
 
@@ -143,8 +143,7 @@ static int
 sysctl_kern_updateinterval SYSCTL_HANDLER_ARGS
 {
 	int error = sysctl_handle_int(oidp,
-		oidp->oid_arg1, oidp->oid_arg2,
-		oldp, oldlenp, newp, newlen);
+		oidp->oid_arg1, oidp->oid_arg2, req);
 	if (!error)
 		wakeup(&vfs_update_wakeup);
 	return error;
@@ -160,10 +159,9 @@ static int
 sysctl_kern_hostname SYSCTL_HANDLER_ARGS
 {
 	int error = sysctl_handle_string(oidp,
-		oidp->oid_arg1, oidp->oid_arg2,
-		oldp, oldlenp, newp, newlen);
-	if (newp && (error == 0 || error == ENOMEM))
-		hostnamelen = newlen;
+		oidp->oid_arg1, oidp->oid_arg2, req);
+	if (req->newptr && (error == 0 || error == ENOMEM))
+		hostnamelen = req->newlen;
 	return error;
 }
 
@@ -200,7 +198,7 @@ sysctl_order(void *arg)
 			*oidpp = 0;
 			continue;
 		}
-		if (((*oidpp)->oid_kind & CTLTYPE) == CTLTYPE_NODE) 
+		if (((*oidpp)->oid_kind & CTLTYPE) == CTLTYPE_NODE)
 			if (!(*oidpp)->oid_handler)
 				sysctl_order((*oidpp)->oid_arg1);
 	}
@@ -208,12 +206,12 @@ sysctl_order(void *arg)
 		sysctl_order_cmp);
 }
 
-SYSINIT(sysctl,SI_SUB_KMEM,SI_ORDER_ANY,sysctl_order,&sysctl_);
+SYSINIT(sysctl, SI_SUB_KMEM, SI_ORDER_ANY, sysctl_order, &sysctl_);
 
 static void
-sysctl_sysctl_debug_dump_node(struct linker_set *l,int i)
+sysctl_sysctl_debug_dump_node(struct linker_set *l, int i)
 {
-	int j,k;
+	int j, k;
 	struct sysctl_oid **oidpp;
 
 	j = l->ls_length;
@@ -241,13 +239,13 @@ sysctl_sysctl_debug_dump_node(struct linker_set *l,int i)
 			(*oidpp)->oid_kind & CTLFLAG_WR ? 'W':' ');
 
 		switch ((*oidpp)->oid_kind & CTLTYPE) {
-			case CTLTYPE_NODE:   
+			case CTLTYPE_NODE:
 				if ((*oidpp)->oid_handler) {
-					printf(" Node(proc)\n"); 
+					printf(" Node(proc)\n");
 				} else {
-					printf(" Node\n"); 
+					printf(" Node\n");
 					sysctl_sysctl_debug_dump_node(
-						(*oidpp)->oid_arg1,i+2);
+						(*oidpp)->oid_arg1, i+2);
 				}
 				break;
 			case CTLTYPE_INT:    printf(" Int\n"); break;
@@ -264,7 +262,7 @@ sysctl_sysctl_debug_dump_node(struct linker_set *l,int i)
 static int
 sysctl_sysctl_debug SYSCTL_HANDLER_ARGS
 {
-	sysctl_sysctl_debug_dump_node(&sysctl_,0);
+	sysctl_sysctl_debug_dump_node(&sysctl_, 0);
 	return ENOENT;
 }
 
@@ -277,10 +275,9 @@ static int
 sysctl_kern_domainname SYSCTL_HANDLER_ARGS
 {
 	int error = sysctl_handle_string(oidp,
-		oidp->oid_arg1, oidp->oid_arg2,
-		oldp, oldlenp, newp, newlen);
-	if (newp && (error == 0 || error == ENOMEM))
-		domainnamelen = newlen;
+		oidp->oid_arg1, oidp->oid_arg2, req);
+	if (req->newptr && (error == 0 || error == ENOMEM))
+		domainnamelen = req->newlen;
 	return error;
 }
 
@@ -291,75 +288,133 @@ long hostid;
 /* Some trouble here, if sizeof (int) != sizeof (long) */
 SYSCTL_INT(_kern, KERN_HOSTID, hostid, CTLFLAG_RW, &hostid, 0, "");
 
+/*
+ * Handle an integer, signed or unsigned.
+ * Two cases:
+ *     a variable:  point arg1 at it.
+ *     a constant:  pass it in arg2.
+ */
+
 int
 sysctl_handle_int SYSCTL_HANDLER_ARGS
 {
-	/* If there isn't sufficient space to return */
-	if (oldp && *oldlenp < sizeof(int))
-		return (ENOMEM);
+	int error = 0;
 
-	/* If it is a constant, don't write */
-	if (newp && !arg1)
-		return (EPERM);
+	if (arg1)
+		error = SYSCTL_OUT(req, arg1, sizeof(int));
+	else if (arg2)
+		error = SYSCTL_OUT(req, &arg2, sizeof(int));
 
-	/* If we get more than an int */
-	if (newp && newlen != sizeof(int))
-		return (EINVAL);
+	if (error || !req->newptr)
+		return (error);
 
-	*oldlenp = sizeof(int);
-	if (oldp && arg1 )
-		bcopy(arg1, oldp, sizeof(int));
-	else if (oldp)
-		bcopy(&arg2, oldp, sizeof(int));
-	if (newp)
-		bcopy(newp, arg1, sizeof(int));
-	return (0);
+	if (!arg1)
+		error = EPERM;
+	else
+		error = SYSCTL_IN(req, arg1, sizeof(int));
+	return (error);
 }
+
+/*
+ * Handle our generic '\0' terminated 'C' string.
+ * Two cases:
+ * 	a variable string:  point arg1 at it, arg2 is max length.
+ * 	a constant string:  point arg1 at it, arg2 is zero.
+ */
 
 int
 sysctl_handle_string SYSCTL_HANDLER_ARGS
 {
-	int len, error=0;
-	char *str = (char *)arg1;
+	int error=0;
 
-	len = strlen(str) + 1;
+	if (arg2)
+		error = SYSCTL_OUT(req, arg1, arg2);
+	else
+		error = SYSCTL_OUT(req, arg1, strlen((char *)arg1)+1);
 
-	if (oldp && *oldlenp < len) {
-		len = *oldlenp;
-		error=ENOMEM;
+	if (error || !req->newptr)
+		return (error);
+
+	if ((req->newlen - req->newidx) > arg2) {
+		error = E2BIG;
+	} else {
+		arg2 = (req->newlen - req->newidx);
+		error = SYSCTL_IN(req, arg1, arg2);
+		((char *)arg1)[arg2] = '\0';
 	}
 
-	if (newp && newlen >= arg2)
-		return (EINVAL);
-
-	if (oldp) {
-		*oldlenp = len;
-		bcopy(str, oldp, len);
-	}
-
-	if (newp) {
-		bcopy(newp, str, newlen);
-		str[newlen] = 0;
-	}
 	return (error);
 }
+
+/*
+ * Handle any kind of opaque data.
+ * arg1 points to it, arg2 is the size.
+ */
 
 int
 sysctl_handle_opaque SYSCTL_HANDLER_ARGS
 {
-	if (oldp && *oldlenp < arg2) 
-		return (ENOMEM);
+	int error;
 
-	if (newp && newlen != arg2)
-		return (EINVAL);
+	error = SYSCTL_OUT(req, arg1, arg2);
 
-	if (oldp) {
-		*oldlenp = arg2;
-		bcopy(arg1, oldp, arg2);
+	if (error || !req->newptr)
+		return (error);
+
+	error = SYSCTL_IN(req, arg1, arg2);
+
+	return (error);
+}
+
+int
+sysctl_old_kernel(struct sysctl_req *req, void *p, int l)
+{
+	int i = min(req->oldlen - req->oldidx, l);
+	if (i) {
+		bcopy(p, req->oldptr + req->oldidx, i);
+		req->oldidx += i;
 	}
-	if (newp) 
-		bcopy(newp, arg1, arg2);
+	if (i != l)
+		return (ENOMEM);
+	else
+		return (0);
+
+}
+
+int
+sysctl_new_kernel(struct sysctl_req *req, void *p, int l)
+{
+	int i = req->newlen - req->newidx;
+	if (i < l)
+		return (EINVAL);
+	bcopy(req->newptr + req->newidx, p, l);
+	req->newidx += l;
 	return (0);
+}
+
+int
+sysctl_old_user(struct sysctl_req *req, void *p, int l)
+{
+	int error , i = min(req->oldlen - req->oldidx, l);
+
+	error  = copyout(p, req->oldptr + req->oldidx, i);
+	req->oldidx += i;
+	if (error)
+		return (error);
+	if (i < l)
+		return (ENOMEM);
+	return (error);
+}
+
+int
+sysctl_new_user(struct sysctl_req *req, void *p, int l)
+{
+	int error, i = req->newlen - req->newidx;
+	if (i < l)
+		return (EINVAL);
+	error = copyin(req->newptr + req->newidx, p, l);
+	req->newidx += l;
+	return (error);
 }
 
 #ifdef DEBUG
@@ -403,13 +458,13 @@ sysctl_root SYSCTL_HANDLER_ARGS
 			if (((*oidpp)->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
 				if ((*oidpp)->oid_handler)
 					goto found;
-				if (indx == namelen) 
+				if (indx == namelen)
 					return ENOENT;
 				lsp = (struct linker_set*)(*oidpp)->oid_arg1;
 				j = lsp->ls_length;
 				oidpp = (struct sysctl_oid **)lsp->ls_items;
 			} else {
-				if (indx != namelen) 
+				if (indx != namelen)
 					return EISDIR;
 				goto found;
 			}
@@ -421,20 +476,20 @@ sysctl_root SYSCTL_HANDLER_ARGS
 found:
 
 	/* If writing isn't allowed */
-	if (newp && !((*oidpp)->oid_kind & CTLFLAG_WR))
+	if (req->newptr && !((*oidpp)->oid_kind & CTLFLAG_WR))
 		return (EPERM);
 
-	if (!(*oidpp)->oid_handler) 
+	if (!(*oidpp)->oid_handler)
 		return EINVAL;
 
 	if (((*oidpp)->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
 		i = ((*oidpp)->oid_handler) (*oidpp,
 					name + indx, namelen - indx,
-					oldp, oldlenp, newp, newlen);
+					req);
 	} else {
 		i = ((*oidpp)->oid_handler) (*oidpp,
 					(*oidpp)->oid_arg1, (*oidpp)->oid_arg2,
-					oldp, oldlenp, newp, newlen);
+					req);
 	}
 	return (i);
 }
@@ -479,69 +534,61 @@ static sysctlfn kern_sysctl;
 int
 userland_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *oldlenp, int inkernel, void *new, size_t newlen, int *retval)
 {
-	int error = 0, dolock = 1, i;
-	u_int savelen = 0, oldlen = 0;
+	int error = 0, dolock = 1, i, oldlen = 0;
+	u_int savelen = 0;
 	sysctlfn *fn;
-	void *oldp = 0;
-	void *newp = 0;
+	struct sysctl_req req;
+
+	bzero(&req, sizeof req);
 
 	if (new != NULL && (error = suser(p->p_ucred, &p->p_acflag)))
 		return (error);
 
 	if (oldlenp) {
 		if (inkernel) {
-			oldlen = *oldlenp;
+			req.oldlen = *oldlenp;
 		} else {
-			error = copyin(oldlenp, &oldlen, sizeof(oldlen));
+			error = copyin(oldlenp, &req.oldlen,
+				sizeof(req.oldlen));
 			if (error)
 				return (error);
 		}
+		oldlen = req.oldlen;
 	}
 
-	if (old) 
-		oldp = malloc(oldlen, M_TEMP, M_WAITOK);
+	if (old) {
+		if (!useracc(old, req.oldlen, B_WRITE))
+			return (EFAULT);
+		req.oldptr= old;
+	}
 
 	if (newlen) {
-		newp = malloc(newlen, M_TEMP, M_WAITOK);
-		error = copyin(new, newp, newlen);
-	}
-	if (error) {
-		if (oldp)
-			free(oldp, M_TEMP);
-		if (newp)
-			free(newp, M_TEMP);
-		return error;
+		if (!useracc(new, req.newlen, B_READ))
+			return (EFAULT);
+		req.newlen = newlen;
+		req.newptr = new;
 	}
 
-	error = sysctl_root(0, name, namelen, oldp, &oldlen, newp, newlen);
+	req.oldfunc = sysctl_old_user;
+	req.newfunc = sysctl_new_user;
+
+	error = sysctl_root(0, name, namelen, &req);
 
         if (!error || error == ENOMEM) {
 		if (retval)
-			*retval = oldlen;
+			*retval = req.oldlen;
 		if (oldlenp) {
 			if (inkernel) {
-				*oldlenp = oldlen;
+				*oldlenp = req.oldlen;
 			} else {
-				i = copyout(&oldlen, oldlenp, sizeof(oldlen));
+				i = copyout(&req.oldlen, oldlenp,
+					sizeof(req.oldlen));
 				if (i)
 					error = i;
 			}
 		}
-		if ((error == ENOMEM || !error ) && oldp) {
-			i = copyout(oldp, old, oldlen);
-			if (i)
-				error = i;
-			free(oldp, M_TEMP);
-		}
-		if (newp)
-			free(newp, M_TEMP);
 		return (error);
 	}
-
-	if (oldp)
-		free(oldp, M_TEMP);
-	if (newp)
-		free(newp, M_TEMP);
 
 	switch (name[0]) {
 	case CTL_KERN:
