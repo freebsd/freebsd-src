@@ -1,4 +1,4 @@
-/*	$NetBSD: conf.c,v 1.41 2001/04/25 01:46:25 lukem Exp $	*/
+/*	$NetBSD: conf.c,v 1.46 2001/12/04 13:54:12 lukem Exp $	*/
 
 /*-
  * Copyright (c) 1997-2001 The NetBSD Foundation, Inc.
@@ -93,8 +93,10 @@ init_curclass(void)
 	curclass.umask =	DEFAULT_UMASK;
 
 	CURCLASS_FLAGS_SET(checkportcmd);
+	CURCLASS_FLAGS_CLR(denyquick);
 	CURCLASS_FLAGS_SET(modify);
 	CURCLASS_FLAGS_SET(passive);
+	CURCLASS_FLAGS_CLR(private);
 	CURCLASS_FLAGS_CLR(sanenames);
 	CURCLASS_FLAGS_SET(upload);
 }
@@ -180,7 +182,8 @@ parse_conf(const char *findclass)
 		if (0)  {
 			/* no-op */
 
-		} else if (strcasecmp(word, "advertise") == 0) {
+		} else if ((strcasecmp(word, "advertise") == 0)
+			|| (strcasecmp(word, "advertize") == 0)) {
 			struct addrinfo	hints, *res;
 			int		error;
 
@@ -301,6 +304,9 @@ parse_conf(const char *findclass)
 			REASSIGN(conv->disable, disable);
 			REASSIGN(conv->command, convcmd);
 
+		} else if (strcasecmp(word, "denyquick") == 0) {
+			CONF_FLAG(denyquick);
+
 		} else if (strcasecmp(word, "display") == 0) {
 			CONF_STRING(display);
 
@@ -417,6 +423,9 @@ parse_conf(const char *findclass)
 			curclass.portmin = minport;
 			curclass.portmax = maxport;
 
+		} else if (strcasecmp(word, "private") == 0) {
+			CONF_FLAG(private);
+
 		} else if (strcasecmp(word, "rateget") == 0) {
 			curclass.maxrateget = 0;
 			curclass.rateget = 0;
@@ -482,19 +491,19 @@ parse_conf(const char *findclass)
 			REASSIGN(template, EMPTYSTR(arg) ? NULL : xstrdup(arg));
 
 		} else if (strcasecmp(word, "umask") == 0) {
-			mode_t umask;
+			mode_t fumask;
 
 			curclass.umask = DEFAULT_UMASK;
 			if (none || EMPTYSTR(arg))
 				continue;
-			umask = (mode_t)strtoul(arg, &endp, 8);
-			if (*endp != 0 || umask > 0777) {
+			fumask = (mode_t)strtoul(arg, &endp, 8);
+			if (*endp != 0 || fumask > 0777) {
 				syslog(LOG_WARNING,
 				    "%s line %d: invalid umask %s",
 				    infile, (int)line, arg);
 				continue;
 			}
-			curclass.umask = umask;
+			curclass.umask = fumask;
 
 		} else if (strcasecmp(word, "upload") == 0) {
 			CONF_FLAG(upload);
@@ -528,7 +537,7 @@ show_chdir_messages(int code)
 	glob_t	 gl;
 	time_t	 now, then;
 	int	 age;
-	char	 cwd[MAXPATHLEN];
+	char	 curwd[MAXPATHLEN];
 	char	*cp, **rlist;
 
 	if (code == -1) {
@@ -550,14 +559,14 @@ show_chdir_messages(int code)
 	}
 
 		/* Check if this directory has already been visited */
-	if (getcwd(cwd, sizeof(cwd) - 1) == NULL) {
+	if (getcwd(curwd, sizeof(curwd) - 1) == NULL) {
 		syslog(LOG_WARNING, "can't getcwd: %s", strerror(errno));
 		return;
 	}
-	if (sl_find(slist, cwd) != NULL)
+	if (sl_find(slist, curwd) != NULL)
 		return;	
 
-	cp = xstrdup(cwd);
+	cp = xstrdup(curwd);
 	if (sl_add(slist, cp) == -1)
 		syslog(LOG_WARNING, "can't add `%s' to stringlist", cp);
 
@@ -568,7 +577,7 @@ show_chdir_messages(int code)
 	if (EMPTYSTR(curclass.notify))
 		return;
 
-	gl.gl_offs = 0;
+	memset(&gl, 0, sizeof(gl));
 	if (glob(curclass.notify, GLOB_LIMIT, NULL, &gl) != 0
 	    || gl.gl_matchc == 0) {
 		globfree(&gl);
@@ -600,7 +609,8 @@ int
 display_file(const char *file, int code)
 {
 	FILE   *f;
-	char   *buf, *p, *cwd;
+	char   *buf, *p;
+	char	curwd[MAXPATHLEN];
 	size_t	len;
 	off_t	lastnum;
 	time_t	now;
@@ -634,13 +644,14 @@ display_file(const char *file, int code)
 					break;
 
 				case 'C':
-					if (getcwd(cwd, sizeof(cwd)-1) == NULL){
+					if (getcwd(curwd, sizeof(curwd)-1)
+					    == NULL){
 						syslog(LOG_WARNING,
 						    "can't getcwd: %s",
 						    strerror(errno));
 						continue;
 					}
-					cprintf(stdout, "%s", cwd);
+					cprintf(stdout, "%s", curwd);
 					break;
 
 				case 'E':
@@ -771,7 +782,7 @@ strend(const char *s1, char *s2)
 	l1 = strlen(s1);
 	l2 = strlen(s2);
 
-	if (l2 >= l1)
+	if (l2 >= l1 || l1 >= sizeof(buf))
 		return(NULL);
 	
 	strlcpy(buf, s1, sizeof(buf));
