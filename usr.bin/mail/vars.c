@@ -53,15 +53,15 @@ static const char rcsid[] =
  */
 void
 assign(name, value)
-	char name[], value[];
+	const char *name, *value;
 {
-	register struct var *vp;
-	register int h;
+	struct var *vp;
+	int h;
 
 	h = hash(name);
 	vp = lookup(name);
-	if (vp == NOVAR) {
-		vp = (struct var *) calloc(sizeof *vp, 1);
+	if (vp == NULL) {
+		vp = calloc(sizeof(*vp), 1);
 		vp->v_name = vcopy(name);
 		vp->v_link = variables[h];
 		variables[h] = vp;
@@ -80,8 +80,8 @@ void
 vfree(cp)
 	char *cp;
 {
-	if (*cp)
-		free(cp);
+	if (*cp != '\0')
+		(void)free(cp);
 }
 
 /*
@@ -91,18 +91,18 @@ vfree(cp)
 
 char *
 vcopy(str)
-	char str[];
+	const char *str;
 {
 	char *new;
 	unsigned len;
 
 	if (*str == '\0')
-		return "";
+		return ("");
 	len = strlen(str) + 1;
 	if ((new = malloc(len)) == NULL)
 		err(1, "Out of memory");
-	bcopy(str, new, (int) len);
-	return new;
+	bcopy(str, new, (int)len);
+	return (new);
 }
 
 /*
@@ -112,13 +112,13 @@ vcopy(str)
 
 char *
 value(name)
-	char name[];
+	const char *name;
 {
-	register struct var *vp;
+	struct var *vp;
 
-	if ((vp = lookup(name)) == NOVAR)
-		return(getenv(name));
-	return(vp->v_value);
+	if ((vp = lookup(name)) == NULL)
+		return (getenv(name));
+	return (vp->v_value);
 }
 
 /*
@@ -128,14 +128,14 @@ value(name)
 
 struct var *
 lookup(name)
-	register char name[];
+	const char *name;
 {
-	register struct var *vp;
+	struct var *vp;
 
-	for (vp = variables[hash(name)]; vp != NOVAR; vp = vp->v_link)
+	for (vp = variables[hash(name)]; vp != NULL; vp = vp->v_link)
 		if (*vp->v_name == *name && equal(vp->v_name, name))
-			return(vp);
-	return(NOVAR);
+			return (vp);
+	return (NULL);
 }
 
 /*
@@ -144,14 +144,14 @@ lookup(name)
 
 struct grouphead *
 findgroup(name)
-	register char name[];
+	char name[];
 {
-	register struct grouphead *gh;
+	struct grouphead *gh;
 
-	for (gh = groups[hash(name)]; gh != NOGRP; gh = gh->g_link)
+	for (gh = groups[hash(name)]; gh != NULL; gh = gh->g_link)
 		if (*gh->g_name == *name && equal(gh->g_name, name))
-			return(gh);
-	return(NOGRP);
+			return (gh);
+	return (NULL);
 }
 
 /*
@@ -161,17 +161,17 @@ void
 printgroup(name)
 	char name[];
 {
-	register struct grouphead *gh;
-	register struct group *gp;
+	struct grouphead *gh;
+	struct group *gp;
 
-	if ((gh = findgroup(name)) == NOGRP) {
+	if ((gh = findgroup(name)) == NULL) {
 		printf("\"%s\": not a group\n", name);
 		return;
 	}
 	printf("%s\t", gh->g_name);
-	for (gp = gh->g_list; gp != NOGE; gp = gp->ge_link)
+	for (gp = gh->g_list; gp != NULL; gp = gp->ge_link)
 		printf(" %s", gp->ge_name);
-	putchar('\n');
+	printf("\n");
 }
 
 /*
@@ -180,11 +180,11 @@ printgroup(name)
  */
 int
 hash(name)
-	register char *name;
+	const char *name;
 {
-	register h = 0;
+	int h = 0;
 
-	while (*name) {
+	while (*name != '\0') {
 		h <<= 2;
 		h += *name++;
 	}

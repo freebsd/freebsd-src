@@ -43,16 +43,18 @@
 
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 
-#include <signal.h>
-#include <termios.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <ctype.h>
 #include <err.h>
+#include <paths.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <termios.h>
+#include <time.h>
+#include <unistd.h>
+
 #include "pathnames.h"
 
 #define	APPEND				/* New mail goes to end of mailbox */
@@ -62,9 +64,8 @@
 #define	PATHSIZE	MAXPATHLEN	/* Size of pathnames throughout */
 #define	HSHSIZE		59		/* Hash size for aliases and vars */
 #define	LINESIZE	BUFSIZ		/* max readable line width */
-#define	STRINGSIZE	((unsigned) 128)/* Dynamic allocation units */
+#define	STRINGSIZE	((unsigned)128)	/* Dynamic allocation units */
 #define	MAXARGC		1024		/* Maximum list of raw strings */
-#define	NOSTR		((char *) 0)	/* Null string pointer */
 #define	MAXEXP		25		/* Maximum expansion of aliases */
 
 #define	equal(a, b)	(strcmp(a,b)==0)/* A nice function to string compare */
@@ -96,8 +97,8 @@ struct message {
 /*
  * Given a file address, determine the block number it represents.
  */
-#define blockof(off)			((int) ((off) / 4096))
-#define boffsetof(off)			((int) ((off) % 4096))
+#define blockof(off)			((int)((off) / 4096))
+#define boffsetof(off)			((int)((off) % 4096))
 #define positionof(block, offset)	((off_t)(block) * 4096 + (offset))
 
 /*
@@ -106,7 +107,7 @@ struct message {
  * in lex.c
  */
 struct cmd {
-	char	*c_name;		/* Name of command */
+	const	char *c_name;		/* Name of command */
 	int	(*c_func)();		/* Implementor of the command */
 	short	c_argtype;		/* Type of arglist (see below) */
 	short	c_msgflag;		/* Required flags of messages */
@@ -173,13 +174,13 @@ struct headline {
  */
 
 struct header {
-	struct name *h_to;		/* Dynamic "To:" string */
-	char *h_subject;		/* Subject string */
-	struct name *h_cc;		/* Carbon copies string */
-	struct name *h_bcc;		/* Blind carbon copies */
-	char *h_replyto;		/* Reply address */
-	char *h_inreplyto;		/* Reference */
-	struct name *h_smopts;		/* Sendmail options */
+	struct	name *h_bcc;		/* Blind carbon copies */
+	struct	name *h_cc;		/* Carbon copies string */
+	struct	name *h_smopts;		/* Sendmail options */
+	struct	name *h_to;		/* Dynamic "To:" string */
+	char	*h_inreplyto;		/* Reference */
+	char	*h_replyto;		/* Reply address */
+	char	*h_subject;		/* Subject string */
 };
 
 /*
@@ -218,20 +219,14 @@ struct grouphead {
 	struct	group *g_list;		/* Users in group. */
 };
 
-#define	NIL	((struct name *) 0)	/* The nil pointer for namelists */
-#define	NONE	((struct cmd *) 0)	/* The nil pointer to command tab */
-#define	NOVAR	((struct var *) 0)	/* The nil pointer to variables */
-#define	NOGRP	((struct grouphead *) 0)/* The nil grouphead pointer */
-#define	NOGE	((struct group *) 0)	/* The nil group pointer */
-
 /*
  * Structure of the hash table of ignored header fields
  */
 struct ignoretab {
-	int i_count;			/* Number of entries */
-	struct ignore {
-		struct ignore *i_link;	/* Next ignored field in bucket */
-		char *i_field;		/* This ignored field */
+	int	i_count;			/* Number of entries */
+	struct	ignore {
+		struct	ignore *i_link;	/* Next ignored field in bucket */
+		char	*i_field;	/* This ignored field */
 	} *i_head[HSHSIZE];
 };
 
@@ -279,5 +274,5 @@ struct ignoretab {
  */
 #define trunc(stream) {							\
 	(void)fflush(stream); 						\
-	(void)ftruncate(fileno(stream), (long)ftell(stream));		\
+	(void)ftruncate(fileno(stream), (off_t)ftell(stream));		\
 }
