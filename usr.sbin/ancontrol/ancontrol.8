@@ -37,65 +37,65 @@
 .Nm ancontrol
 .Nd configure Aironet 4500/4800 devices
 .Sh SYNOPSIS
-.Nm ancontrol
+.Nm
 .Fl i Ar iface Fl A
-.Nm ancontrol
+.Nm
 .Fl i Ar iface Fl N
-.Nm ancontrol
+.Nm
 .Fl i Ar iface Fl S
-.Nm ancontrol
+.Nm
 .Fl i Ar iface Fl I
-.Nm ancontrol
+.Nm
 .Fl i Ar iface Fl T
-.Nm ancontrol
+.Nm
 .Fl i Ar iface Fl C
-.Nm ancontrol
+.Nm
 .Fl i Ar iface Fl t Ar 0|1|2|3|4
-.Nm ancontrol
+.Nm
 .Fl i Ar iface Fl s Ar 0|1|2|3
-.Nm ancontrol
+.Nm
 .Fl i Ar iface 
 .Op Fl v Ar 1|2|3|4
 .Fl a Ar AP
-.Nm ancontrol
+.Nm
 .Fl i Ar iface Fl b Ar beacon period
-.Nm ancontrol
+.Nm
 .Fl i Ar iface 
 .Op Fl v Ar 0|1
 .Fl d Ar 0|1|2|3
-.Nm ancontrol
+.Nm
 .Fl i Ar iface Fl e Ar 0|1|2|4
-.Nm ancontrol
+.Nm
 .Fl i Ar iface 
 .Op Fl v Ar 0|1|2|3|4|5|6|7
 .Fl k Ar key
-.Nm ancontrol
+.Nm
 .Fl i Ar iface 
 .Fl K Ar mode
-.Nm ancontrol
+.Nm
 .Fl i Ar iface 
 .Fl W Ar mode
-.Nm ancontrol
+.Nm
 .Fl i Ar iface Fl j Ar netjoin timeout
-.Nm ancontrol
+.Nm
 .Fl i Ar iface Fl l Ar station name
-.Nm ancontrol
+.Nm
 .Fl i Ar iface Fl m Ar mac address
-.Nm ancontrol
+.Nm
 .Fl i Ar iface 
 .Op Fl v Ar 1|2|3
 .Fl n Ar SSID
-.Nm ancontrol
+.Nm
 .Fl i Ar iface Fl o Ar 0|1
-.Nm ancontrol
+.Nm
 .Fl i Ar iface Fl p Ar tx power
-.Nm ancontrol
+.Nm
 .Fl i Ar iface Fl c Ar channel number
-.Nm ancontrol
+.Nm
 .Fl i Ar iface Fl f Ar fragmentation threshold
-.Nm ancontrol
+.Nm
 .Fl i Ar iface Fl r Ar RTS threshold
-.Nm ancontrol
+.Nm
 .Fl h
 .Sh DESCRIPTION
 The
@@ -120,13 +120,13 @@ The
 argument given to
 .Nm
 should be the logical interface name associated with the Aironet
-device (an0, an1, etc...). If one isn't specified the device an0 will
-be assumed.
+device (an0, an1, etc...).
+If one isn't specified the device an0 will be assumed.
 .Pp
 The
 .Nm
 command is not designed to support the combination of arguments from different
-.Sy SYNOPSIS
+.Sx SYNOPSIS
 lines in a single
 .Nm
 invocation, and such combinations are not recommended.
@@ -208,11 +208,11 @@ Valid selections are as follows:
 Note that for IBSS (ad-hoc) mode, only PSP mode is supported, and only
 if the ATIM window is non-zero.
 .It Xo
-.Fl i Ar iface [
-.Fl v Ar 1|2|3|4 ]
+.Fl i Ar iface
+.Op Fl v Ar 1|2|3|4
 .Fl a Ar AP
 .Xc
-Set prefered access point.
+Set preferred access point.
 The
 .Ar AP
 is specified as a MAC address consisting of 6 hexadecimal values
@@ -233,8 +233,8 @@ The becon period is specified in
 milliseconds.
 The default is 100ms.
 .It Xo
-.Fl i Ar iface [
-.Fl v Ar 0|1 ]
+.Fl i Ar iface
+.Op Fl v Ar 0|1
 .Fl d Ar 0|1|2|3
 .Xc
 Select the antenna diversity.
@@ -267,13 +267,15 @@ Note that until this command is issued, the device will use the
 last key programmed.  The transmit key is stored in NVRAM.  Currently
 set transmit key can be checked via "-C" option.
 .It Xo
-.Fl i Ar iface [
-.Fl v Ar 0|1|2|3|4|5|6|7 ]
+.Fl i Ar iface
+.Op Fl v Ar 0|1|2|3|4|5|6|7
 .Fl k Ar key
 .Xc
-Set a WEP key. For 40 bit prefix 10 hex character with 0x.
-For 128 bit prefix 26 hex character with 0x. Use "" as the key 
-to erase the key. Supports 4 keys; even numbers are for permanent keys
+Set a WEP key.
+For 40 bit prefix 10 hex character with 0x.
+For 128 bit prefix 26 hex character with 0x.
+Use "" as the key to erase the key.
+Supports 4 keys; even numbers are for permanent keys
 and odd number are for temporary keys.
 For example, "-v 1" sets the first temporary key.
 (A "permanent" key is stored in NVRAM; a "temporary" key is not.)
@@ -281,10 +283,11 @@ Note that the device will use the most recently-programmed key by default.
 Currently set keys can be checked via "-C" option, only the sizes of the
 keys are returned.
 .It Fl i Ar iface Fl K Ar 0|1|2
-Set authorization type. Use 0 for none, 1 for "Open", 
-2 for "Shared Key".
+Set authorization type.
+Use 0 for none, 1 for "Open", 2 for "Shared Key".
 .It Fl i Ar iface Fl W Ar 0|1|2
-Enable WEP. Use 0 for no WEP, 1 to enable full WEP, 2 for mixed cell.
+Enable WEP.
+Use 0 for no WEP, 1 to enable full WEP, 2 for mixed cell.
 .It Fl i Ar iface Fl j Ar netjoin timeout
 Set the ad-hoc network join timeout.
 When a station is first activated
@@ -313,11 +316,12 @@ e.g.: 00:60:1d:12:34:56.
 This programs the new address into the card
 and updates the interface as well.
 .It Xo
-.Fl i Ar iface [
-.Fl v Ar 1|2|3 ]
+.Fl i Ar iface
+.Op Fl v Ar 1|2|3
 .Fl n Ar SSID
 .Xc
-Set the desired SSID (network name). There are three SSIDs which allows
+Set the desired SSID (network name).
+There are three SSIDs which allows
 the NIC to work with access points at several locations without needing
 to be reconfigured.
 The NIC checks each SSID in sequence when searching
@@ -382,7 +386,8 @@ in the table are specified in Mhz.
 If an illegal channel is specified, the
 NIC will revert to its default channel.
 For NICs sold in the United States
-and Europe, the default channel is 3. For NICs sold in France, the default
+and Europe, the default channel is 3.
+For NICs sold in France, the default
 channel is 11.
 For NICs sold in Japan, the only available channel is 14.
 Note that two stations must be set to the same channel in order to
@@ -424,11 +429,12 @@ Devices may alternate among all of the configured WEP keys when
 tranmitting packets.
 Therefore, all configured keys (up to four) must agree.
 .Sh EXAMPLES
-.Pp
-.Dl ancontrol -i an0 -v 0 -k 0x12345678901234567890123456
-.Dl ancontrol -i an0 -K 2
-.Dl ancontrol -i an0 -W 1
-.Dl ancontrol -i an0 -e 0
+.Bd -literal -offset indent
+ancontrol -i an0 -v 0 -k 0x12345678901234567890123456
+ancontrol -i an0 -K 2
+ancontrol -i an0 -W 1
+ancontrol -i an0 -e 0
+.Ed
 .Pp
 Sets a WEP key 0, enables "Shared Key" authentication, enables full WEP 
 and uses transmit key 0.
