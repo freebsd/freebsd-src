@@ -26,8 +26,8 @@
  * improvements or extensions that  they  make,  and  to  grant  Carnegie
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
- *  	@(#) src/sys/cfs/cfs_vnodeops.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: cfs_vnodeops.c,v 1.2 1998/09/02 19:09:53 rvb Exp $
+ *  	@(#) src/sys/coda/coda_vnops.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
+ *  $Id: coda_vnops.c,v 1.3 1998/09/11 18:50:17 rvb Exp $
  * 
  */
 
@@ -47,7 +47,11 @@
 
 /*
  * HISTORY
- * $Log: cfs_vnodeops.c,v $
+ * $Log: coda_vnops.c,v $
+ * Revision 1.3  1998/09/11 18:50:17  rvb
+ * All the references to cfs, in symbols, structs, and strings
+ * have been changed to coda.  (Same for CFS.)
+ *
  * Revision 1.2  1998/09/02 19:09:53  rvb
  * Pass2 complete
  *
@@ -240,14 +244,14 @@
 #include <vm/vm_extern.h>
 #include <vm/vm_zone.h>
 
-#include <cfs/coda.h>
-#include <cfs/cnode.h>
-#include <cfs/cfs_vnodeops.h>
-#include <cfs/cfs_venus.h>
-#include <cfs/coda_opstats.h>
-#include <cfs/cfs_subr.h>
-#include <cfs/cfsnc.h>
-#include <cfs/pioctl.h>
+#include <coda/coda.h>
+#include <coda/cnode.h>
+#include <coda/coda_vnops.h>
+#include <coda/coda_venus.h>
+#include <coda/coda_opstats.h>
+#include <coda/coda_subr.h>
+#include <coda/coda_namecache.h>
+#include <coda/coda_pioctl.h>
 
 /* 
  * These flags select various performance enhancements.

@@ -26,8 +26,8 @@
  * improvements or extensions that  they  make,  and  to  grant  Carnegie
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
- * 	@(#) src/sys/cfs/cfs_psdev.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: cfs_psdev.c,v 1.2 1998/09/02 19:09:53 rvb Exp $
+ * 	@(#) src/sys/coda/coda_psdev.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
+ *  $Id: coda_psdev.c,v 1.3 1998/09/11 18:50:17 rvb Exp $
  * 
  */
 
@@ -52,7 +52,11 @@
 
 /*
  * HISTORY
- * $Log: cfs_psdev.c,v $
+ * $Log: coda_psdev.c,v $
+ * Revision 1.3  1998/09/11 18:50:17  rvb
+ * All the references to cfs, in symbols, structs, and strings
+ * have been changed to coda.  (Same for CFS.)
+ *
  * Revision 1.2  1998/09/02 19:09:53  rvb
  * Pass2 complete
  *
@@ -167,10 +171,10 @@ extern int coda_nc_initialized;    /* Set if cache has been initialized */
 #include <sys/poll.h>
 #include <sys/conf.h>
 
-#include <cfs/coda.h>
-#include <cfs/cnode.h>
-#include <cfs/cfsnc.h>
-#include <cfs/cfsio.h>
+#include <coda/coda.h>
+#include <coda/cnode.h>
+#include <coda/coda_namecache.h>
+#include <coda/coda_io.h>
 
 #define CTL_C
 

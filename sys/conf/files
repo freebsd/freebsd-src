@@ -43,13 +43,13 @@ bus_if.h			standard				\
 	compile-with	"sh $S/kern/makedevops.sh -h $S/kern/bus_if.m"	\
 	no-obj no-implicit-rule before-depend				\
 	clean		"bus_if.h"
-cfs/cfs_namecache.c	optional vcoda
-cfs/cfs_fbsd.c		optional vcoda
-cfs/cfs_psdev.c		optional vcoda
-cfs/cfs_subr.c		optional vcoda
-cfs/cfs_venus.c		optional vcoda
-cfs/cfs_vfsops.c	optional vcoda
-cfs/cfs_vnodeops.c	optional vcoda
+coda/coda_namecache.c	optional vcoda
+coda/coda_fbsd.c	optional vcoda
+coda/coda_psdev.c	optional vcoda
+coda/coda_subr.c	optional vcoda
+coda/coda_venus.c	optional vcoda
+coda/coda_vfsops.c	optional vcoda
+coda/coda_vnops.c	optional vcoda
 ddb/db_access.c		optional ddb
 ddb/db_kld.c		optional ddb db_kld_symbols
 ddb/db_elf.c		optional ddb db_elf_symbols
