@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.2 (Berkeley) 4/4/94
- *	$Id: extern.h,v 1.9 1997/04/26 12:12:10 davidn Exp $
+ *	$Id: extern.h,v 1.10 1997/09/05 11:17:22 tg Exp $
  */
 
 void	blkfree __P((char **));
@@ -40,6 +40,7 @@ void	cwd __P((char *));
 void	delete __P((char *));
 void	dologout __P((int));
 void	fatal __P((char *));
+void    ftpd_logwtmp __P((char *, char *, char *));
 int	ftpd_pclose __P((FILE *));
 FILE   *ftpd_popen __P((char *, char *));
 char   *getline __P((char *, int, FILE *));
