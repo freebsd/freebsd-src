@@ -79,7 +79,6 @@ struct tcpcb {
 	struct	tsegqe_head t_segq;	/* segment reassembly queue */
 	int	t_segqlen;		/* segment reassembly queue length */
 	int	t_dupacks;		/* consecutive dup acks recd */
-	struct	tcptemp	*unused;	/* unused */
 
 	struct	callout *tt_rexmt;	/* retransmit timer */
 	struct	callout *tt_persist;	/* retransmit persistence */
