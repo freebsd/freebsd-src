@@ -134,8 +134,8 @@ static	int vlan_clone_match(struct if_clone *, const char *);
 static	int vlan_clone_create(struct if_clone *, char *, size_t);
 static	int vlan_clone_destroy(struct if_clone *, struct ifnet *);
 
-struct if_clone vlan_cloner = IFC_CLONE_INITIALIZER(VLANNAME, NULL, IF_MAXUNIT,
-    NULL, vlan_clone_match, vlan_clone_create, vlan_clone_destroy);
+static	struct if_clone vlan_cloner = IFC_CLONE_INITIALIZER(VLANNAME, NULL,
+    IF_MAXUNIT, NULL, vlan_clone_match, vlan_clone_create, vlan_clone_destroy);
 
 /*
  * Program our multicast filter. What we're actually doing is
