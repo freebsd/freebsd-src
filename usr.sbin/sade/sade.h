@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.21 1995/05/20 00:13:14 jkh Exp $
+ * $Id: sysinstall.h,v 1.22 1995/05/20 03:49:10 gpalmer Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -231,6 +231,10 @@ extern DMenu	*deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)());
 extern void	deviceGetAll(void);
 extern Device	**deviceFind(char *name, DeviceType type);
 extern int	deviceCount(Device **devs);
+extern Device	*new_device(char *name);
+extern Device	*deviceRegister(char *name, char *desc, char *devname, DeviceType type, Boolean enabled,
+				Boolean (*init)(Device *mediadev), Boolean (*get)(char *distname),
+				void (*close)(Device *mediadev), void *private);
 
 /* disks.c */
 extern int	diskPartitionEditor(char *unused);
@@ -303,15 +307,18 @@ extern void	mediaClose(void);
 extern Boolean	mediaInitUFS(Device *dev);
 extern Boolean	mediaGetUFS(char *dist);
 extern Boolean	mediaInitCDROM(Device *dev);
+extern Boolean	mediaInitDOS(Device *dev);
 extern Boolean	mediaGetFloppy(char *dist);
 extern Boolean	mediaInitFloppy(Device *dev);
 extern Boolean	mediaGetCDROM(char *dist);
+extern Boolean	mediaGetDOS(char *dist);
 extern Boolean	mediaInitTape(Device *dev);
 extern Boolean	mediaGetTape(char *dist);
 extern Boolean	mediaInitNetwork(Device *dev);
 extern Boolean	mediaGetNetwork(char *dist);
 extern void	mediaCloseTape(Device *dev);
 extern void	mediaCloseCDROM(Device *dev);
+extern void	mediaCloseDOS(Device *dev);
 extern void	mediaCloseNetwork(Device *dev);
 extern void	mediaCloseFloppy(Device *dev);
 
