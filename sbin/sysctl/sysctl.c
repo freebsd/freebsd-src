@@ -169,7 +169,8 @@ parse(char *string)
 	u_int kind;
 
 	bufp = buf;
-	snprintf(buf, BUFSIZ, "%s", string);
+	if (snprintf(buf, BUFSIZ, "%s", string) >= BUFSIZ)
+		errx(1, "oid too long: '%s'", string);
 	if ((cp = strchr(string, '=')) != NULL) {
 		*strchr(buf, '=') = '\0';
 		*cp++ = '\0';
