@@ -1,7 +1,7 @@
 #
 # SYSCONS -- Generic machine with WD/AHx family disks and syscons
 #
-#	$Id: SYSCONS,v 1.7 1993/09/25 15:50:43 jkh Exp $
+#	$Id: SYSCONS,v 1.8 1993/10/01 04:20:18 rgrimes Exp $
 #
 
 machine		"i386"
@@ -46,8 +46,7 @@ device		sd3
 device		st0
 device		st1
 
-device		cd0
-device		cd1
+device		cd0	#Only need one of these, the code dynamically grows
 
 device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
 device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
