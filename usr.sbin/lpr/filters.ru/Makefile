@@ -1,6 +1,6 @@
 PROG=   koi2alt
 NOMAN=	noman
-BINDIR= ${DESTDIR}/usr/libexec/lpr/ru
+BINDIR= /usr/libexec/lpr/ru
 
 SAMPLES=bjc-240.sh.sample
 
