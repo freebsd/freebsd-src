@@ -653,7 +653,7 @@ compile_text()
 		}
 		if (asize - size < _POSIX2_LINE_MAX + 1) {
 			asize *= 2;
-			text = xmalloc(asize);
+			text = xrealloc(text, asize);
 		}
 	}
 	text[size] = '\0';
