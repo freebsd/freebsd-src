@@ -9,10 +9,7 @@ DEVGENFILES=	generate/Makefile generate/afmname generate/dingbatsmap \
 		generate/symbolchars generate/symbolsl.afm generate/textmap
 PSFILES=	prologue symbolsl.pfa zapfdr.pfa
 
-NOOBJ=		noobj
-
-clean cleandir:
-	rm -f DESC ${PSFILES}
+CLEANFILES+=	DESC ${PSFILES}
 
 DESC: DESC.in
 	-rm -f DESC
