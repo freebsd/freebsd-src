@@ -487,7 +487,7 @@ iso_mountfs(devvp, mp, p, argp)
 	/* Decide whether to use the Joliet descriptor */
 
 	if (isomp->iso_ftype != ISO_FTYPE_RRIP && joliet_level) {
-		log(LOG_INFO, "cd9660: Joliet Extension\n");
+		log(LOG_INFO, "cd9660: Joliet Extension (Level %d)\n", joliet_level);
 		rootp = (struct iso_directory_record *)
 			sup->root_directory_record;
 		bcopy (rootp, isomp->root, sizeof isomp->root);
