@@ -44,11 +44,11 @@
 This reads the target pathname of a symbolic link
 .Bl -tag -width uio
 .It Fa vp
-the vnode of the symlink
+The vnode of the symlink.
 .It Fa uio
-the location of the data to be read or written
+The location of the data to be read or written.
 .It Fa cred
-the credentials of the caller
+The credentials of the caller.
 .El
 .Sh LOCKS
 The vnode should be locked on entry and will still be locked on exit.
