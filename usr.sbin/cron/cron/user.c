@@ -17,7 +17,7 @@
 
 #if !defined(lint) && !defined(LINT)
 static const char rcsid[] =
-	"$Id: user.c,v 1.2 1995/05/30 03:47:01 rgrimes Exp $";
+	"$Id: user.c,v 1.2.6.1 1997/09/16 07:01:48 charnier Exp $";
 #endif
 
 /* vix 26jan87 [log is in RCS file]
@@ -26,6 +26,7 @@ static const char rcsid[] =
 
 #include "cron.h"
 
+static char *User_name;
 
 void
 free_user(u)
@@ -41,6 +42,12 @@ free_user(u)
 	free(u);
 }
 
+static void
+log_error(msg)
+	char	*msg;
+{
+	log_it(User_name, getpid(), "PARSE", msg);
+}
 
 user *
 load_user(crontab_fd, pw, name)
@@ -53,7 +60,7 @@ load_user(crontab_fd, pw, name)
 	user	*u;
 	entry	*e;
 	int	status;
-	char	**envp;
+	char	**envp, **tenvp;
 
 	if (!(file = fdopen(crontab_fd, "r"))) {
 		warn("fdopen on crontab_fd in load_user");
@@ -64,14 +71,25 @@ load_user(crontab_fd, pw, name)
 
 	/* file is open.  build user entry, then read the crontab file.
 	 */
-	u = (user *) malloc(sizeof(user));
-	u->name = strdup(name);
+	if ((u = (user *) malloc(sizeof(user))) == NULL) {
+		errno = ENOMEM;
+		return NULL;
+	}
+	if ((u->name = strdup(name)) == NULL) {
+		free(u);
+		errno = ENOMEM;
+		return NULL;
+	}
 	u->crontab = NULL;
 
-	/*
+	/* 
 	 * init environment.  this will be copied/augmented for each entry.
 	 */
-	envp = env_init();
+	if ((envp = env_init()) == NULL) {
+		free(u->name);
+		free(u);
+		return NULL;
+	}
 
 	/*
 	 * load the crontab
@@ -83,14 +101,21 @@ load_user(crontab_fd, pw, name)
 			u = NULL;
 			goto done;
 		case FALSE:
-			e = load_entry(file, NULL, pw, envp);
+			User_name = u->name;    /* for log_error */
+			e = load_entry(file, log_error, pw, envp);
 			if (e) {
 				e->next = u->crontab;
 				u->crontab = e;
 			}
 			break;
 		case TRUE:
-			envp = env_set(envp, envstr);
+			if ((tenvp = env_set(envp, envstr))) {
+				envp = tenvp;
+			} else {
+				free_user(u);
+				u = NULL;
+				goto done;
+			}
 			break;
 		}
 	}

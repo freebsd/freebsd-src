@@ -17,7 +17,7 @@
 
 #if !defined(lint) && !defined(LINT)
 static const char rcsid[] =
-	"$Id: cron.c,v 1.2.2.1 1997/08/29 05:15:05 imp Exp $";
+	"$Id: cron.c,v 1.2.2.2 1997/09/16 07:01:31 charnier Exp $";
 #endif
 
 #define	MAIN_PROGRAM
@@ -297,7 +297,7 @@ parse_args(argc, argv)
 {
 	int	argch;
 
-	while (-1 != (argch = getopt(argc, argv, "x:"))) {
+	while ((argch = getopt(argc, argv, "x:")) != -1) {
 		switch (argch) {
 		case 'x':
 			if (!set_debug_flags(optarg))

@@ -17,7 +17,7 @@
 
 #if !defined(lint) && !defined(LINT)
 static const char rcsid[] =
-	"$Id: env.c,v 1.1.1.1.8.1 1996/12/22 15:28:04 joerg Exp $";
+	"$Id: env.c,v 1.1.1.1.8.2 1997/09/16 07:02:29 charnier Exp $";
 #endif
 
 
@@ -29,7 +29,8 @@ env_init()
 {
 	register char	**p = (char **) malloc(sizeof(char **));
 
-	p[0] = NULL;
+	if (p)
+		p[0] = NULL;
 	return (p);
 }
 
@@ -56,8 +57,18 @@ env_copy(envp)
 	for (count = 0;  envp[count] != NULL;  count++)
 		;
 	p = (char **) malloc((count+1) * sizeof(char *));  /* 1 for the NULL */
+	if (p == NULL) {
+		errno = ENOMEM;
+		return NULL;
+	}
 	for (i = 0;  i < count;  i++)
-		p[i] = strdup(envp[i]);
+		if ((p[i] = strdup(envp[i])) == NULL) {
+			while (--i >= 0)
+				(void) free(p[i]);
+			free(p);
+			errno = ENOMEM;
+			return NULL;
+		}
 	p[count] = NULL;
 	return (p);
 }
@@ -88,7 +99,11 @@ env_set(envp, envstr)
 		 * save our new one there, and return the existing array.
 		 */
 		free(envp[found]);
-		envp[found] = strdup(envstr);
+		if ((envp[found] = strdup(envstr)) == NULL) {
+			envp[found] = "";
+			errno = ENOMEM;
+			return NULL;
+		}
 		return (envp);
 	}
 
@@ -99,8 +114,15 @@ env_set(envp, envstr)
 	 */
 	p = (char **) realloc((void *) envp,
 			      (unsigned) ((count+1) * sizeof(char **)));
+	if (p == NULL) 	{
+		errno = ENOMEM;
+		return NULL;
+	}
 	p[count] = p[count-1];
-	p[count-1] = strdup(envstr);
+	if ((p[count-1] = strdup(envstr)) == NULL) {
+		errno = ENOMEM;
+		return NULL;
+	}
 	return (p);
 }
 
@@ -155,6 +177,8 @@ load_env(envstr, f)
 		}
 	}
 
+	if (strlen(name) + 1 + strlen(val) >= MAX_ENVSTR-1)
+		return (FALSE);
 	(void) sprintf(envstr, "%s=%s", name, val);
 	Debug(DPARS, ("load_env, <%s> <%s> -> <%s>\n", name, val, envstr))
 	return (TRUE);

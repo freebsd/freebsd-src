@@ -28,13 +28,14 @@
 static char sccsid[] = "@(#)popen.c	5.7 (Berkeley) 2/14/89";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: popen.c,v 1.1.1.1.8.1 1997/09/16 07:01:46 charnier Exp $";
 #endif /* not lint */
 
 #include "cron.h"
 #include <sys/signal.h>
 
 
+#define MAX_ARGS 100
 #define WANT_GLOBBING 0
 
 /*
@@ -53,7 +54,7 @@ cron_popen(program, type)
 	FILE *iop;
 	int argc, pdes[2];
 	PID_T pid;
-	char *argv[100];
+	char *argv[MAX_ARGS + 1];
 #if WANT_GLOBBING
 	char **pop, *vv[2];
 	int gargc;
@@ -75,7 +76,7 @@ cron_popen(program, type)
 		return(NULL);
 
 	/* break up string into pieces */
-	for (argc = 0, cp = program;; cp = NULL)
+	for (argc = 0, cp = program; argc < MAX_ARGS; cp = NULL)
 		if (!(argv[argc++] = strtok(cp, " \t\n")))
 			break;
 

@@ -18,7 +18,7 @@
 
 #if !defined(lint) && !defined(LINT)
 static const char rcsid[] =
-	"$Id: crontab.c,v 1.6.2.1 1997/08/29 05:15:06 imp Exp $";
+	"$Id: crontab.c,v 1.6.2.2 1997/09/16 07:02:14 charnier Exp $";
 #endif
 
 /* crontab - install and manage per-user crontab files
@@ -135,11 +135,12 @@ parse_args(argc, argv)
 
 	if (!(pw = getpwuid(getuid())))
 		errx(ERROR_EXIT, "your UID isn't in the passwd file, bailing out");
-	strcpy(User, pw->pw_name);
+	(void) strncpy(User, pw->pw_name, (sizeof User)-1);
+	User[(sizeof User)-1] = '\0';
 	strcpy(RealUser, User);
 	Filename[0] = '\0';
 	Option = opt_unknown;
-	while (-1 != (argch = getopt(argc, argv, "u:lerx:"))) {
+	while ((argch = getopt(argc, argv, "u:lerx:")) != -1) {
 		switch (argch) {
 		case 'x':
 			if (!set_debug_flags(optarg))
@@ -150,7 +151,8 @@ parse_args(argc, argv)
 				errx(ERROR_EXIT, "must be privileged to use -u");
 			if (!(pw = getpwnam(optarg)))
 				errx(ERROR_EXIT, "user `%s' unknown", optarg);
-			(void) snprintf(User, sizeof(user), "%s", optarg);
+			(void) strncpy(User, pw->pw_name, (sizeof User)-1);
+			User[(sizeof User)-1] = '\0';
 			break;
 		case 'l':
 			if (Option != opt_unknown)
@@ -181,8 +183,9 @@ parse_args(argc, argv)
 	} else {
 		if (argv[optind] != NULL) {
 			Option = opt_replace;
-			(void) snprintf(Filename, sizeof(Filename), "%s",
-					argv[optind]);
+			(void) strncpy (Filename, argv[optind], (sizeof Filename)-1);
+			Filename[(sizeof Filename)-1] = '\0';
+
 		} else {
 			usage("file name must be specified for replace");
 		}
@@ -276,6 +279,7 @@ edit_cmd() {
 	time_t		mtime;
 	WAIT_T		waiter;
 	PID_T		pid, xpid;
+	mode_t		um;
 
 	log_it(RealUser, Pid, "BEGIN EDIT", User);
 	(void) sprintf(n, CRON_TAB(User));
@@ -287,11 +291,14 @@ edit_cmd() {
 			err(ERROR_EXIT, "/dev/null");
 	}
 
-	(void) sprintf(Filename, "/tmp/crontab.%d", Pid);
-	if (-1 == (t = open(Filename, O_CREAT|O_EXCL|O_RDWR, 0600))) {
+	um = umask(077);
+	(void) sprintf(Filename, "/tmp/crontab.XXXXXXXXXX");
+	if ((t = mkstemp(Filename)) == -1) {
 		warn("%s", Filename);
+		(void) umask(um);
 		goto fatal;
 	}
+	(void) umask(um);
 #ifdef HAS_FCHOWN
 	if (fchown(t, getuid(), getgid()) < 0) {
 #else
@@ -457,6 +464,11 @@ replace_cmd() {
 	entry	*e;
 	time_t	now = time(NULL);
 	char	**envp = env_init();
+
+	if (envp == NULL) {
+		warnx("cannot allocate memory");
+		return (-2);
+	}
 
 	(void) sprintf(n, "tmp.%d", Pid);
 	(void) sprintf(tn, CRON_TAB(n));

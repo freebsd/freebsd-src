@@ -15,7 +15,7 @@
 .\" * Paul Vixie          <paul@vix.com>          uunet!decwrl!vixie!paul
 .\" */
 .\"
-.\" $Id: crontab.5,v 1.1.1.1.8.1 1997/02/13 07:18:39 mpp Exp $
+.\" $Id: crontab.5,v 1.1.1.1.8.2 1997/09/16 07:02:11 charnier Exp $
 .\" 
 .Dd January 24, 1994
 .Dt CRONTAB 5
@@ -114,7 +114,9 @@ usually doesn't read its mail.
 .Pp
 The format of a cron command is very much the V7 standard, with a number of
 upward-compatible extensions.  Each line has five time and date fields,
-followed by a user name if this is the system crontab file,
+followed by a user name
+(with optional ``:<group>'' and ``/<login-class>'' suffixes)
+if this is the system crontab file,
 followed by a command.  Commands are executed by
 .Xr cron 8
 when the minute, hour, and month of year fields match the current time,
@@ -198,8 +200,8 @@ MAILTO=paul
 5 4 * * sun     echo "run at 5 after 4 every sunday"
 .Ed
 .Sh SEE ALSO
-.Xr cron 8 ,
-.Xr crontab 1
+.Xr crontab 1 ,
+.Xr cron 8
 .Sh EXTENSIONS
 When specifying day of week, both day 0 and day 7 will be considered Sunday.
 BSD and ATT seem to disagree about this.

@@ -17,7 +17,7 @@
 
 #if !defined(lint) && !defined(LINT)
 static const char rcsid[] =
-	"$Id: entry.c,v 1.4 1995/08/28 21:30:46 mpp Exp $";
+	"$Id: entry.c,v 1.4.2.1 1997/09/16 07:02:25 charnier Exp $";
 #endif
 
 /* vix 26jan87 [RCS'd; rest of log is in RCS file]
@@ -28,11 +28,17 @@ static const char rcsid[] =
 
 
 #include "cron.h"
-
+#include <grp.h>
+#ifdef LOGIN_CAP
+#include <login_cap.h>
+#endif
 
 typedef	enum ecode {
 	e_none, e_minute, e_hour, e_dom, e_month, e_dow,
-	e_cmd, e_timespec, e_username
+	e_cmd, e_timespec, e_username, e_group
+#ifdef LOGIN_CAP
+	, e_class
+#endif
 } ecode_e;
 
 static char	get_list __P((bitstr_t *, int, int, char *[], int, FILE *)),
@@ -51,6 +57,10 @@ static char *ecodes[] =
 		"bad command",
 		"bad time specifier",
 		"bad username",
+		"bad group name",
+#ifdef LOGIN_CAP
+		"bad class name",
+#endif
 	};
 
 
@@ -58,6 +68,10 @@ void
 free_entry(e)
 	entry	*e;
 {
+#ifdef LOGIN_CAP
+	if (e->class != NULL)
+		free(e->class);
+#endif
 	free(e->cmd);
 	env_free(e->envp);
 	free(e);
@@ -224,6 +238,8 @@ load_entry(file, error_func, pw, envp)
 
 	if (!pw) {
 		char		*username = cmd;	/* temp buffer */
+		char            *s, *group;
+		struct group    *grp;
 
 		Debug(DPARS, ("load_entry()...about to parse username\n"))
 		ch = get_string(username, MAX_COMMAND, file, " \t");
@@ -234,12 +250,37 @@ load_entry(file, error_func, pw, envp)
 			goto eof;
 		}
 
+#ifdef LOGIN_CAP
+		if ((s = strrchr(username, '/')) != NULL) {
+			*s = '\0';
+			e->class = strdup(s + 1);
+		} else
+			e->class = strdup(RESOURCE_RC);
+		if (login_getclass(e->class) == NULL) {
+			ecode = e_class;
+			goto eof;
+		}
+#endif
+		grp = NULL;
+		if ((s = strrchr(username, ':')) != NULL) {
+			*s = '\0';
+			if ((grp = getgrnam(s + 1)) == NULL) {
+				ecode = e_group;
+				goto eof;
+			}
+		}
+
 		pw = getpwnam(username);
 		if (pw == NULL) {
 			ecode = e_username;
 			goto eof;
 		}
-		Debug(DPARS, ("load_entry()...uid %d, gid %d\n",e->uid,e->gid))
+		if (grp != NULL)
+			pw->pw_gid = grp->gr_gid;
+		Debug(DPARS, ("load_entry()...uid %d, gid %d\n",pw->pw_uid,pw->pw_gid))
+#ifdef LOGIN_CAP
+		Debug(DPARS, ("load_entry()...class %s\n",e->class))
+#endif
 	}
 
 	if (pw->pw_expire && time(NULL) >= pw->pw_expire) {

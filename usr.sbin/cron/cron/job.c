@@ -17,7 +17,7 @@
 
 #if !defined(lint) && !defined(LINT)
 static const char rcsid[] =
-	"$Id: job.c,v 1.1.1.1 1994/08/27 13:43:03 jkh Exp $";
+	"$Id: job.c,v 1.1.1.1.8.1 1997/09/16 07:01:44 charnier Exp $";
 #endif
 
 
@@ -46,7 +46,8 @@ job_add(e, u)
 		if (j->e == e && j->u == u) { return; }
 
 	/* build a job queue element */
-	j = (job*)malloc(sizeof(job));
+	if ((j = (job*)malloc(sizeof(job))) == NULL)
+		return;
 	j->next = (job*) NULL;
 	j->e = e;
 	j->u = u;
