@@ -152,7 +152,7 @@ mk_fn(int cflag, const char *f1, const char *f2, char *fn[])
 	if ((fd = mkstemp(tname)) == -1)
 	    err(1, NULL);
 	close(fd);
-	fn[i++] = (char *)tname;
+	fn[i++] = tname;
     }
     if (!(fn[i] = (char *)f2)) {
 	p = (p = strrchr(f1, '/')) ? p + 1 : f1;
