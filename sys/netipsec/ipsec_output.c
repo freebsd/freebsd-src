@@ -469,7 +469,7 @@ ipsec6_splithdr(struct mbuf *m)
 	ip6 = mtod(m, struct ip6_hdr *);
 	hlen = sizeof(struct ip6_hdr);
 	if (m->m_len > hlen) {
-		MGETHDR(mh, M_NOWAIT, MT_HEADER);
+		MGETHDR(mh, M_DONTWAIT, MT_HEADER);
 		if (!mh) {
 			m_freem(m);
 			return NULL;
@@ -580,7 +580,7 @@ ipsec6_encapsulate(struct mbuf *m, struct secasvar *sav)
 	plen = m->m_pkthdr.len;
 	if (M_LEADINGSPACE(m->m_next) < sizeof(struct ip6_hdr)) {
 		struct mbuf *n;
-		MGET(n, M_NOWAIT, MT_DATA);
+		MGET(n, M_DONTWAIT, MT_DATA);
 		if (!n) {
 			m_freem(m);
 			return ENOBUFS;

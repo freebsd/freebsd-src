@@ -131,7 +131,7 @@ ktrace_init(void *dummy)
 	STAILQ_INIT(&ktr_todo);
 	STAILQ_INIT(&ktr_free);
 	for (i = 0; i < ktr_requestpool; i++) {
-		req = malloc(sizeof(struct ktr_request), M_KTRACE, 0);
+		req = malloc(sizeof(struct ktr_request), M_KTRACE, M_WAITOK);
 		STAILQ_INSERT_HEAD(&ktr_free, req, ktr_list);
 	}
 	kthread_create(ktr_loop, NULL, NULL, RFHIGHPID, 0, "ktrace");
@@ -199,7 +199,7 @@ ktrace_resize_pool(uint newsize)
 		while (ktr_requestpool < newsize) {
 			mtx_unlock(&ktrace_mtx);
 			req = malloc(sizeof(struct ktr_request), M_KTRACE,
-			    0);
+			    M_WAITOK);
 			mtx_lock(&ktrace_mtx);
 			STAILQ_INSERT_HEAD(&ktr_free, req, ktr_list);
 			ktr_requestpool++;
@@ -321,7 +321,7 @@ ktrsyscall(code, narg, args)
 
 	buflen = sizeof(register_t) * narg;
 	if (buflen > 0) {
-		buf = malloc(buflen, M_KTRACE, 0);
+		buf = malloc(buflen, M_KTRACE, M_WAITOK);
 		bcopy(args, buf, buflen);
 	}
 	req = ktr_getrequest(KTR_SYSCALL);
@@ -371,7 +371,7 @@ ktrnamei(path)
 
 	namelen = strlen(path);
 	if (namelen > 0) {
-		buf = malloc(namelen, M_KTRACE, 0);
+		buf = malloc(namelen, M_KTRACE, M_WAITOK);
 		bcopy(path, buf, namelen);
 	}
 	req = ktr_getrequest(KTR_NAMEI);
@@ -413,7 +413,7 @@ ktrgenio(fd, rw, uio, error)
 	uio->uio_offset = 0;
 	uio->uio_rw = UIO_WRITE;
 	datalen = imin(uio->uio_resid, ktr_geniosize);
-	buf = malloc(datalen, M_KTRACE, 0);
+	buf = malloc(datalen, M_KTRACE, M_WAITOK);
 	if (uiomove(buf, datalen, uio)) {
 		free(buf, M_KTRACE);
 		return;
@@ -625,7 +625,7 @@ utrace(td, uap)
 		return (0);
 	if (uap->len > KTR_USER_MAXLEN)
 		return (EINVAL);
-	cp = malloc(uap->len, M_KTRACE, 0);
+	cp = malloc(uap->len, M_KTRACE, M_WAITOK);
 	error = copyin(uap->addr, cp, uap->len);
 	if (error) {
 		free(cp, M_KTRACE);

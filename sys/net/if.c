@@ -280,7 +280,7 @@ if_grow(void)
 
 	if_indexlim <<= 1;
 	n = if_indexlim * sizeof(*e);
-	e = malloc(n, M_IFADDR, M_ZERO);
+	e = malloc(n, M_IFADDR, M_WAITOK | M_ZERO);
 	if (ifindex_table != NULL) {
 		memcpy((caddr_t)e, (caddr_t)ifindex_table, n/2);
 		free((caddr_t)ifindex_table, M_IFADDR);
@@ -429,7 +429,7 @@ if_attach(ifp)
 		socksize = sizeof(*sdl);
 	socksize = ROUNDUP(socksize);
 	ifasize = sizeof(*ifa) + 2 * socksize;
-	ifa = (struct ifaddr *)malloc(ifasize, M_IFADDR, M_ZERO);
+	ifa = (struct ifaddr *)malloc(ifasize, M_IFADDR, M_WAITOK | M_ZERO);
 	if (ifa) {
 		IFA_LOCK_INIT(ifa);
 		sdl = (struct sockaddr_dl *)(ifa + 1);
@@ -775,7 +775,7 @@ if_clone_attach(ifc)
 	len = maxclone >> 3;
 	if ((len << 3) < maxclone)
 		len++;
-	ifc->ifc_units = malloc(len, M_CLONE, M_ZERO);
+	ifc->ifc_units = malloc(len, M_CLONE, M_WAITOK | M_ZERO);
 	ifc->ifc_bmlen = len;
 
 	LIST_INSERT_HEAD(&if_cloners, ifc, ifc_list);
@@ -1797,8 +1797,8 @@ if_addmulti(ifp, sa, retifma)
 		llsa = 0;
 	}
 
-	MALLOC(ifma, struct ifmultiaddr *, sizeof *ifma, M_IFMADDR, 0);
-	MALLOC(dupsa, struct sockaddr *, sa->sa_len, M_IFMADDR, 0);
+	MALLOC(ifma, struct ifmultiaddr *, sizeof *ifma, M_IFMADDR, M_WAITOK);
+	MALLOC(dupsa, struct sockaddr *, sa->sa_len, M_IFMADDR, M_WAITOK);
 	bcopy(sa, dupsa, sa->sa_len);
 
 	ifma->ifma_addr = dupsa;
@@ -1827,9 +1827,9 @@ if_addmulti(ifp, sa, retifma)
 			ifma->ifma_refcount++;
 		} else {
 			MALLOC(ifma, struct ifmultiaddr *, sizeof *ifma,
-			       M_IFMADDR, 0);
+			       M_IFMADDR, M_WAITOK);
 			MALLOC(dupsa, struct sockaddr *, llsa->sa_len,
-			       M_IFMADDR, 0);
+			       M_IFMADDR, M_WAITOK);
 			bcopy(llsa, dupsa, llsa->sa_len);
 			ifma->ifma_addr = dupsa;
 			ifma->ifma_ifp = ifp;

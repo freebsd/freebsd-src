@@ -337,7 +337,7 @@ swap_pager_swap_init()
 	 */
 	for (n = 1; n < n2 / 8; n *= 2)
 		;
-	swhash = malloc(sizeof(struct swblock *) * n, M_VMPGDATA, M_ZERO);
+	swhash = malloc(sizeof(struct swblock *) * n, M_VMPGDATA, M_WAITOK | M_ZERO);
 	swhash_mask = n - 1;
 }
 

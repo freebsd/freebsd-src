@@ -899,7 +899,7 @@ thread_reap(void)
 struct ksegrp *
 ksegrp_alloc(void)
 {
-	return (uma_zalloc(ksegrp_zone, 0));
+	return (uma_zalloc(ksegrp_zone, M_WAITOK));
 }
 
 /*
@@ -908,7 +908,7 @@ ksegrp_alloc(void)
 struct kse *
 kse_alloc(void)
 {
-	return (uma_zalloc(kse_zone, 0));
+	return (uma_zalloc(kse_zone, M_WAITOK));
 }
 
 /*
@@ -918,7 +918,7 @@ struct thread *
 thread_alloc(void)
 {
 	thread_reap(); /* check if any zombies to get */
-	return (uma_zalloc(thread_zone, 0));
+	return (uma_zalloc(thread_zone, M_WAITOK));
 }
 
 /*

@@ -139,7 +139,7 @@ raw_bind(so, nam)
 	if (ifnet == 0)
 		return (EADDRNOTAVAIL);
 	rp = sotorawcb(so);
-	nam = m_copym(nam, 0, M_COPYALL, 0);
+	nam = m_copym(nam, 0, M_COPYALL, M_TRYWAIT);
 	rp->rcb_laddr = mtod(nam, struct sockaddr *);
 	return (0);
 }

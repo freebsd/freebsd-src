@@ -605,7 +605,7 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 
 	*retdirp = NULL;
 	cnp->cn_flags |= NOMACCHECK;
-	cnp->cn_pnbuf = uma_zalloc(namei_zone, 0);
+	cnp->cn_pnbuf = uma_zalloc(namei_zone, M_WAITOK);
 
 	/*
 	 * Copy the name from the mbuf list to ndp->ni_pnbuf
@@ -670,7 +670,7 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 		 * Oh joy. For WebNFS, handle those pesky '%' escapes,
 		 * and the 'native path' indicator.
 		 */
-		cp = uma_zalloc(namei_zone, 0);
+		cp = uma_zalloc(namei_zone, M_WAITOK);
 		fromcp = cnp->cn_pnbuf;
 		tocp = cp;
 		if ((unsigned char)*fromcp >= WEBNFS_SPECCHAR_START) {
@@ -779,7 +779,7 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 			goto badlink2;
 		}
 		if (ndp->ni_pathlen > 1)
-			cp = uma_zalloc(namei_zone, 0);
+			cp = uma_zalloc(namei_zone, M_WAITOK);
 		else
 			cp = cnp->cn_pnbuf;
 		aiov.iov_base = cp;
@@ -1287,8 +1287,8 @@ nfsm_clget_xx(u_int32_t **tl, struct mbuf *mb, struct mbuf **mp,
 	if (*bp >= *be) {
 		if (*mp == mb)
 			(*mp)->m_len += *bp - bpos;
-		MGET(nmp, 0, MT_DATA);
-		MCLGET(nmp, 0);
+		MGET(nmp, M_TRYWAIT, MT_DATA);
+		MCLGET(nmp, M_TRYWAIT);
 		nmp->m_len = NFSMSIZ(nmp);
 		(*mp)->m_next = nmp;
 		*mp = nmp;

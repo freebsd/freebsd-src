@@ -228,7 +228,7 @@ cryptof_ioctl(
 			}
 
 			MALLOC(crie.cri_key, u_int8_t *,
-			    crie.cri_klen / 8, M_XDATA, 0);
+			    crie.cri_klen / 8, M_XDATA, M_WAITOK);
 			if ((error = copyin(sop->key, crie.cri_key,
 			    crie.cri_klen / 8)))
 				goto bail;
@@ -246,7 +246,7 @@ cryptof_ioctl(
 
 			if (cria.cri_klen) {
 				MALLOC(cria.cri_key, u_int8_t *,
-				    cria.cri_klen / 8, M_XDATA, 0);
+				    cria.cri_klen / 8, M_XDATA, M_WAITOK);
 				if ((error = copyin(sop->mackey, cria.cri_key,
 				    cria.cri_klen / 8)))
 					goto bail;
@@ -332,7 +332,7 @@ cryptodev_op(
 	cse->uio.uio_iov = cse->iovec;
 	bzero(&cse->iovec, sizeof(cse->iovec));
 	cse->uio.uio_iov[0].iov_len = cop->len;
-	cse->uio.uio_iov[0].iov_base = malloc(cop->len, M_XDATA, 0);
+	cse->uio.uio_iov[0].iov_base = malloc(cop->len, M_XDATA, M_WAITOK);
 	for (i = 0; i < cse->uio.uio_iovcnt; i++)
 		cse->uio.uio_resid += cse->uio.uio_iov[0].iov_len;
 
@@ -512,7 +512,7 @@ cryptodev_key(struct crypt_kop *kop)
 		return (EINVAL);
 	}
 
-	krp = (struct cryptkop *)malloc(sizeof *krp, M_XDATA, 0);
+	krp = (struct cryptkop *)malloc(sizeof *krp, M_XDATA, M_WAITOK);
 	if (!krp)
 		return (ENOMEM);
 	bzero(krp, sizeof *krp);
@@ -529,7 +529,7 @@ cryptodev_key(struct crypt_kop *kop)
 		size = (krp->krp_param[i].crp_nbits + 7) / 8;
 		if (size == 0)
 			continue;
-		MALLOC(krp->krp_param[i].crp_p, caddr_t, size, M_XDATA, 0);
+		MALLOC(krp->krp_param[i].crp_p, caddr_t, size, M_XDATA, M_WAITOK);
 		if (i >= krp->krp_iparams)
 			continue;
 		error = copyin(kop->crk_param[i].crp_p, krp->krp_param[i].crp_p, size);
@@ -719,7 +719,7 @@ cryptoioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	switch (cmd) {
 	case CRIOGET:
 		MALLOC(fcr, struct fcrypt *,
-		    sizeof(struct fcrypt), M_XDATA, 0);
+		    sizeof(struct fcrypt), M_XDATA, M_WAITOK);
 		TAILQ_INIT(&fcr->csessions);
 		fcr->sesn = 0;
 

@@ -248,12 +248,12 @@ z_compress(arg, mret, mp, orig_len, maxolen)
     /* Allocate one mbuf initially. */
     if (maxolen > orig_len)
 	maxolen = orig_len;
-    MGET(m, M_NOWAIT, MT_DATA);
+    MGET(m, M_DONTWAIT, MT_DATA);
     *mret = m;
     if (m != NULL) {
 	m->m_len = 0;
 	if (maxolen + state->hdrlen > MLEN)
-	    MCLGET(m, M_NOWAIT);
+	    MCLGET(m, M_DONTWAIT);
 	wspace = M_TRAILINGSPACE(m);
 	if (state->hdrlen + PPP_HDRLEN + 2 < wspace) {
 	    m->m_data += state->hdrlen;
@@ -308,12 +308,12 @@ z_compress(arg, mret, mp, orig_len, maxolen)
 	    if (m != NULL) {
 		m->m_len = wspace;
 		olen += wspace;
-		MGET(m->m_next, M_NOWAIT, MT_DATA);
+		MGET(m->m_next, M_DONTWAIT, MT_DATA);
 		m = m->m_next;
 		if (m != NULL) {
 		    m->m_len = 0;
 		    if (maxolen - olen > MLEN)
-			MCLGET(m, M_NOWAIT);
+			MCLGET(m, M_DONTWAIT);
 		    state->strm.next_out = mtod(m, u_char *);
 		    state->strm.avail_out = wspace = M_TRAILINGSPACE(m);
 		}
@@ -507,13 +507,13 @@ z_decompress(arg, mi, mop)
     ++state->seqno;
 
     /* Allocate an output mbuf. */
-    MGETHDR(mo, M_NOWAIT, MT_DATA);
+    MGETHDR(mo, M_DONTWAIT, MT_DATA);
     if (mo == NULL)
 	return DECOMP_ERROR;
     mo_head = mo;
     mo->m_len = 0;
     mo->m_next = NULL;
-    MCLGET(mo, M_NOWAIT);
+    MCLGET(mo, M_DONTWAIT);
     ospace = M_TRAILINGSPACE(mo);
     if (state->hdrlen + PPP_HDRLEN < ospace) {
 	mo->m_data += state->hdrlen;
@@ -582,13 +582,13 @@ z_decompress(arg, mi, mop)
 	    } else {
 		mo->m_len = ospace;
 		olen += ospace;
-		MGET(mo->m_next, M_NOWAIT, MT_DATA);
+		MGET(mo->m_next, M_DONTWAIT, MT_DATA);
 		mo = mo->m_next;
 		if (mo == NULL) {
 		    m_freem(mo_head);
 		    return DECOMP_ERROR;
 		}
-		MCLGET(mo, M_NOWAIT);
+		MCLGET(mo, M_DONTWAIT);
 		state->strm.next_out = mtod(mo, u_char *);
 		state->strm.avail_out = ospace = M_TRAILINGSPACE(mo);
 	    }

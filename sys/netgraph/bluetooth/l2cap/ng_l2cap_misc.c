@@ -432,7 +432,7 @@ ng_l2cap_queue_command_timeout(void *context)
 struct mbuf *
 ng_l2cap_prepend(struct mbuf *m, int size)
 {
-	M_PREPEND(m, size, M_NOWAIT);
+	M_PREPEND(m, size, M_DONTWAIT);
 	if (m == NULL || (m->m_len < size && (m = m_pullup(m, size)) == NULL))
 		return (NULL);
 

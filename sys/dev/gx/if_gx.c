@@ -1068,13 +1068,13 @@ gx_newbuf(struct gx_softc *gx, int idx, struct mbuf *m)
 	struct gx_rx_desc *r;
 
 	if (m == NULL) {
-		MGETHDR(m_new, M_NOWAIT, MT_DATA);
+		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 		if (m_new == NULL) {
 			device_printf(gx->gx_dev, 
 			    "mbuf allocation failed -- packet dropped\n");
 			return (ENOBUFS);
 		}
-		MCLGET(m_new, M_NOWAIT);
+		MCLGET(m_new, M_DONTWAIT);
 		if ((m_new->m_flags & M_EXT) == 0) {
 			device_printf(gx->gx_dev, 
 			    "cluster allocation failed -- packet dropped\n");

@@ -546,12 +546,12 @@ digi_init(struct digi_softc *sc)
 	if (sc->ports)
 		free(sc->ports, M_TTYS);
 	sc->ports = malloc(sizeof(struct digi_p) * sc->numports,
-	    M_TTYS, M_ZERO);
+	    M_TTYS, M_WAITOK | M_ZERO);
 
 	if (sc->ttys)
 		free(sc->ttys, M_TTYS);
 	sc->ttys = malloc(sizeof(struct tty) * sc->numports,
-	    M_TTYS, M_ZERO);
+	    M_TTYS, M_WAITOK | M_ZERO);
 
 	/*
 	 * XXX Should read port 0xc90 for an array of 2byte values, 1 per
@@ -1035,7 +1035,7 @@ digi_loadmoduledata(struct digi_softc *sc)
 	KASSERT(sc->module != NULL, ("Uninitialised module name"));
 
 	modlen = strlen(sc->module);
-	modfile = malloc(modlen + 6, M_TEMP, 0);
+	modfile = malloc(modlen + 6, M_TEMP, M_WAITOK);
 	snprintf(modfile, modlen + 6, "digi_%s", sc->module);
 	if ((res = linker_reference_module(modfile, NULL, &lf)) != 0) {
 		if (res == ENOENT && rootdev == NODEV)
@@ -1049,7 +1049,7 @@ digi_loadmoduledata(struct digi_softc *sc)
 	if (res != 0)
 		return (res);
 
-	sym = malloc(modlen + 10, M_TEMP, 0);
+	sym = malloc(modlen + 10, M_TEMP, M_WAITOK);
 	snprintf(sym, modlen + 10, "digi_mod_%s", sc->module);
 	if ((symptr = linker_file_lookup_symbol(lf, sym, 0)) == NULL)
 		printf("digi_%s.ko: Symbol `%s' not found\n", sc->module, sym);
@@ -1065,19 +1065,19 @@ digi_loadmoduledata(struct digi_softc *sc)
 
 	sc->bios.size = digi_mod->dm_bios.size;
 	if (sc->bios.size != 0 && digi_mod->dm_bios.data != NULL) {
-		sc->bios.data = malloc(sc->bios.size, M_TTYS, 0);
+		sc->bios.data = malloc(sc->bios.size, M_TTYS, M_WAITOK);
 		bcopy(digi_mod->dm_bios.data, sc->bios.data, sc->bios.size);
 	}
 
 	sc->fep.size = digi_mod->dm_fep.size;
 	if (sc->fep.size != 0 && digi_mod->dm_fep.data != NULL) {
-		sc->fep.data = malloc(sc->fep.size, M_TTYS, 0);
+		sc->fep.data = malloc(sc->fep.size, M_TTYS, M_WAITOK);
 		bcopy(digi_mod->dm_fep.data, sc->fep.data, sc->fep.size);
 	}
 
 	sc->link.size = digi_mod->dm_link.size;
 	if (sc->link.size != 0 && digi_mod->dm_link.data != NULL) {
-		sc->link.data = malloc(sc->link.size, M_TTYS, 0);
+		sc->link.data = malloc(sc->link.size, M_TTYS, M_WAITOK);
 		bcopy(digi_mod->dm_link.data, sc->link.data, sc->link.size);
 	}
 

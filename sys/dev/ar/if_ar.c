@@ -1078,7 +1078,7 @@ arc_init(struct ar_hardc *hc)
 	u_char isr, mar;
 
 	MALLOC(sc, struct ar_softc *, hc->numports * sizeof(struct ar_softc),
-		M_DEVBUF, M_ZERO);
+		M_DEVBUF, M_WAITOK | M_ZERO);
 	if (sc == NULL)
 		return;
 	hc->sc = sc;
@@ -1678,7 +1678,7 @@ ar_get_packets(struct ar_softc *sc)
 	while(ar_packet_avail(sc, &len, &rxstat)) {
 		TRC(printf("apa: len %d, rxstat %x\n", len, rxstat));
 		if(((rxstat & SCA_DESC_ERRORS) == 0) && (len < MCLBYTES)) {
-			MGETHDR(m, M_NOWAIT, MT_DATA);
+			MGETHDR(m, M_DONTWAIT, MT_DATA);
 			if(m == NULL) {
 				/* eat packet if get mbuf fail!! */
 				ar_eat_packet(sc, 1);
@@ -1693,7 +1693,7 @@ ar_get_packets(struct ar_softc *sc)
 #endif	/* NETGRAPH */
 			m->m_pkthdr.len = m->m_len = len;
 			if(len > MHLEN) {
-				MCLGET(m, M_NOWAIT);
+				MCLGET(m, M_DONTWAIT);
 				if((m->m_flags & M_EXT) == 0) {
 					m_freem(m);
 					ar_eat_packet(sc, 1);

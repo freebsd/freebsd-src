@@ -209,7 +209,7 @@ void uma_zdestroy(uma_zone_t zone);
  *
  * Returns:
  *	A non null pointer to an initialized element from the zone is
- *	garanteed if the wait flag is not M_NOWAIT, otherwise null may be
+ *	garanteed if the wait flag is M_WAITOK, otherwise a null pointer may be
  *	returned if the zone is empty or the ctor failed.
  */
 

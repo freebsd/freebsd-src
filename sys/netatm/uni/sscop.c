@@ -258,7 +258,7 @@ sscop_inst(ssp, cvp)
 	/*
 	 * Allocate our control block
 	 */
-	sop = uma_zalloc(sscop_zone, 0);
+	sop = uma_zalloc(sscop_zone, M_WAITOK);
 	if (sop == NULL)
 		return (ENOMEM);
 

@@ -582,7 +582,7 @@ daopen(dev_t dev, int flags __unused, int fmt __unused, struct thread *td __unus
 	/* Do a read capacity */
 	rcap = (struct scsi_read_capacity_data *)malloc(sizeof(*rcap),
 							M_TEMP,
-							0);
+							M_WAITOK);
 		
 	ccb = cam_periph_getccb(periph, /*priority*/1);
 	scsi_read_capacity(&ccb->csio,

@@ -195,7 +195,7 @@ tulip_txprobe(
      * either is connected so the transmit is the only way
      * to verify the connectivity.
      */
-    MGETHDR(m, M_NOWAIT, MT_DATA);
+    MGETHDR(m, M_DONTWAIT, MT_DATA);
     if (m == NULL)
 	return 0;
     /*
@@ -3545,12 +3545,12 @@ tulip_rx_intr(
 	 */
 	if (accept || ms == NULL) {
 	    struct mbuf *m0;
-	    MGETHDR(m0, M_NOWAIT, MT_DATA);
+	    MGETHDR(m0, M_DONTWAIT, MT_DATA);
 	    if (m0 != NULL) {
 #if defined(TULIP_COPY_RXDATA)
 		if (!accept || total_len >= (MHLEN - 2)) {
 #endif
-		    MCLGET(m0, M_NOWAIT);
+		    MCLGET(m0, M_DONTWAIT);
 		    if ((m0->m_flags & M_EXT) == 0) {
 			m_freem(m0);
 			m0 = NULL;
@@ -4061,10 +4061,10 @@ tulip_mbuf_compress(
 {
     struct mbuf *m0;
 #if MCLBYTES >= ETHERMTU + 18 && !defined(BIG_PACKET)
-    MGETHDR(m0, M_NOWAIT, MT_DATA);
+    MGETHDR(m0, M_DONTWAIT, MT_DATA);
     if (m0 != NULL) {
 	if (m->m_pkthdr.len > MHLEN) {
-	    MCLGET(m0, M_NOWAIT);
+	    MCLGET(m0, M_DONTWAIT);
 	    if ((m0->m_flags & M_EXT) == 0) {
 		m_freem(m);
 		m_freem(m0);
@@ -4081,9 +4081,9 @@ tulip_mbuf_compress(
 
     while (len > 0) {
 	if (mlen == MHLEN) {
-	    MGETHDR(*mp, M_NOWAIT, MT_DATA);
+	    MGETHDR(*mp, M_DONTWAIT, MT_DATA);
 	} else {
-	    MGET(*mp, M_NOWAIT, MT_DATA);
+	    MGET(*mp, M_DONTWAIT, MT_DATA);
 	}
 	if (*mp == NULL) {
 	    m_freem(m0);
@@ -4091,7 +4091,7 @@ tulip_mbuf_compress(
 	    break;
 	}
 	if (len > MLEN) {
-	    MCLGET(*mp, M_NOWAIT);
+	    MCLGET(*mp, M_DONTWAIT);
 	    if (((*mp)->m_flags & M_EXT) == 0) {
 		m_freem(m0);
 		m0 = NULL;

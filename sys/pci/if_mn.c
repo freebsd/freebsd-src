@@ -695,7 +695,7 @@ ngmn_connect(hook_p hook)
 	/* Setup a transmit chain with one descriptor */
 	/* XXX: we actually send a 1 byte packet */
 	dp = mn_alloc_desc();
-	MGETHDR(m, 0, MT_DATA);
+	MGETHDR(m, M_TRYWAIT, MT_DATA);
 	if (m == NULL)
 		return ENOBUFS;
 	m->m_pkthdr.len = 0;
@@ -712,12 +712,12 @@ ngmn_connect(hook_p hook)
 
 	dp = mn_alloc_desc();
 	m = NULL;
-	MGETHDR(m, 0, MT_DATA);
+	MGETHDR(m, M_TRYWAIT, MT_DATA);
 	if (m == NULL) {
 		mn_free_desc(dp);
 		return (ENOBUFS);
 	}
-	MCLGET(m, 0);
+	MCLGET(m, M_TRYWAIT);
 	if ((m->m_flags & M_EXT) == 0) {
 		mn_free_desc(dp);
 		m_freem(m);
@@ -735,13 +735,13 @@ ngmn_connect(hook_p hook)
 		dp2 = dp;
 		dp = mn_alloc_desc();
 		m = NULL;
-		MGETHDR(m, 0, MT_DATA);
+		MGETHDR(m, M_TRYWAIT, MT_DATA);
 		if (m == NULL) {
 			mn_free_desc(dp);
 			m_freem(m);
 			return (ENOBUFS);
 		}
-		MCLGET(m, 0);
+		MCLGET(m, M_TRYWAIT);
 		if ((m->m_flags & M_EXT) == 0) {
 			mn_free_desc(dp);
 			m_freem(m);
@@ -839,7 +839,7 @@ mn_create_channel(struct mn_softc *sc, int chan)
 	struct schan *sch;
 
 	sch = sc->ch[chan] = (struct schan *)malloc(sizeof *sc->ch[chan], 
-	    M_MN, M_ZERO);
+	    M_MN, M_WAITOK | M_ZERO);
 	sch->sc = sc;
 	sch->state = DOWN;
 	sch->chan = chan;
@@ -1183,12 +1183,12 @@ mn_rx_intr(struct mn_softc *sc, u_int32_t vector)
 
 		/* Replenish desc + mbuf supplies */
 		if (!m) {
-			MGETHDR(m, M_NOWAIT, MT_DATA);
+			MGETHDR(m, M_DONTWAIT, MT_DATA);
 			if (m == NULL) {
 				mn_free_desc(dp);
 				return; /* ENOBUFS */
 			}
-			MCLGET(m, M_NOWAIT);
+			MCLGET(m, M_DONTWAIT);
 			if((m->m_flags & M_EXT) == 0) {
 				mn_free_desc(dp);
 				m_freem(m);
@@ -1340,7 +1340,7 @@ mn_attach (device_t self)
 		once++;
 	}
 
-	sc = (struct mn_softc *)malloc(sizeof *sc, M_MN, M_ZERO);
+	sc = (struct mn_softc *)malloc(sizeof *sc, M_MN, M_WAITOK | M_ZERO);
 	device_set_softc(self, sc);
 
 	sc->dev = self;

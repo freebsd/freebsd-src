@@ -124,7 +124,7 @@ sc_alloc_history_buffer(scr_stat *scp, int lines, int prev_ysize, int wait)
 	/* allocate a new buffer */
 	history = (sc_vtb_t *)malloc(sizeof(*history),
 				     M_DEVBUF,
-				     (wait) ? 0 : M_NOWAIT);
+				     (wait) ? M_WAITOK : M_NOWAIT);
 	if (history != NULL) {
 		if (lines > min_lines)
 			extra_history_size -= lines - min_lines;

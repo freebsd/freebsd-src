@@ -120,7 +120,7 @@ osf1_emul_find(td, sgp, prefix, path, pbuf, cflag)
         struct vattr		vat;
         struct vattr		vatroot;
 
-	buf = (char *) malloc(MAXPATHLEN, M_TEMP, 0);
+	buf = (char *) malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
 	*pbuf = path;
 
 	for (ptr = buf; (*ptr = *prefix) != '\0'; ptr++, prefix++)
@@ -1180,8 +1180,8 @@ osf1_readv(td, uap)
 	osize = uap->iovcnt * sizeof (struct osf1_iovec);
 	nsize = uap->iovcnt * sizeof (struct iovec);
 
-	oio = malloc(osize, M_TEMP, 0);
-	nio = malloc(nsize, M_TEMP, 0);
+	oio = malloc(osize, M_TEMP, M_WAITOK);
+	nio = malloc(nsize, M_TEMP, M_WAITOK);
 
 	error = 0;
 	if ((error = copyin(uap->iovp, oio, osize)))
@@ -1229,8 +1229,8 @@ osf1_writev(td, uap)
 	osize = uap->iovcnt * sizeof (struct osf1_iovec);
 	nsize = uap->iovcnt * sizeof (struct iovec);
 
-	oio = malloc(osize, M_TEMP, 0);
-	nio = malloc(nsize, M_TEMP, 0);
+	oio = malloc(osize, M_TEMP, M_WAITOK);
+	nio = malloc(nsize, M_TEMP, M_WAITOK);
 
 	error = 0;
 	if ((error = copyin(uap->iovp, oio, osize)))

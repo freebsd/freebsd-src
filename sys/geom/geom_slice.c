@@ -71,10 +71,10 @@ g_slice_init(unsigned nslice, unsigned scsize)
 {
 	struct g_slicer *gsp;
 
-	gsp = g_malloc(sizeof *gsp, M_ZERO);
-	gsp->softc = g_malloc(scsize, M_ZERO);
+	gsp = g_malloc(sizeof *gsp, M_WAITOK | M_ZERO);
+	gsp->softc = g_malloc(scsize, M_WAITOK | M_ZERO);
 	gsp->slices = g_malloc(nslice * sizeof(struct g_slice),
-	    M_ZERO);
+	    M_WAITOK | M_ZERO);
 	gsp->nslice = nslice;
 	return (gsp);
 }
@@ -377,7 +377,7 @@ g_slice_conf_hot(struct g_geom *gp, u_int idx, off_t offset, off_t length)
 	gsp = gp->softc;
 	gsl = gsp->hot;
 	if(idx >= gsp->nhot) {
-		gsl2 = g_malloc((idx + 1) * sizeof *gsl2, M_ZERO);
+		gsl2 = g_malloc((idx + 1) * sizeof *gsl2, M_WAITOK | M_ZERO);
 		if (gsp->hot != NULL)
 			bcopy(gsp->hot, gsl2, gsp->nhot * sizeof *gsl2);
 		gsp->hot = gsl2;

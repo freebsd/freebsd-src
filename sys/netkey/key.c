@@ -1662,7 +1662,7 @@ key_gather_mbuf(m, mhp, ndeep, nitem, va_alist)
 			if (len > MHLEN)
 				panic("assumption failed");
 #endif
-			MGETHDR(n, M_NOWAIT, MT_DATA);
+			MGETHDR(n, M_DONTWAIT, MT_DATA);
 			if (!n)
 				goto fail;
 			n->m_len = len;
@@ -1681,7 +1681,7 @@ key_gather_mbuf(m, mhp, ndeep, nitem, va_alist)
 			    mtod(n, caddr_t));
 		} else {
 			n = m_copym(m, mhp->extoff[idx], mhp->extlen[idx],
-			    M_NOWAIT);
+			    M_DONTWAIT);
 		}
 		if (n == NULL)
 			goto fail;
@@ -2117,9 +2117,9 @@ key_spddelete2(so, m, mhp)
 
 	if (len > MCLBYTES)
 		return key_senderror(so, m, ENOBUFS);
-	MGETHDR(n, M_NOWAIT, MT_DATA);
+	MGETHDR(n, M_DONTWAIT, MT_DATA);
 	if (n && len > MHLEN) {
-		MCLGET(n, M_NOWAIT);
+		MCLGET(n, M_DONTWAIT);
 		if ((n->m_flags & M_EXT) == 0) {
 			m_freem(n);
 			n = NULL;
@@ -2141,7 +2141,7 @@ key_spddelete2(so, m, mhp)
 #endif
 
 	n->m_next = m_copym(m, mhp->extoff[SADB_X_EXT_POLICY],
-	    mhp->extlen[SADB_X_EXT_POLICY], M_NOWAIT);
+	    mhp->extlen[SADB_X_EXT_POLICY], M_DONTWAIT);
 	if (!n->m_next) {
 		m_freem(n);
 		return key_senderror(so, m, ENOBUFS);
@@ -3488,7 +3488,7 @@ key_setdumpsa(sav, type, satype, seq, pid)
 		if ((!m && !p) || (m && p))
 			goto fail;
 		if (p && tres) {
-			M_PREPEND(tres, l, M_NOWAIT);
+			M_PREPEND(tres, l, M_DONTWAIT);
 			if (!tres)
 				goto fail;
 			bcopy(p, mtod(tres, caddr_t), l);
@@ -3547,9 +3547,9 @@ key_setsadbmsg(type, tlen, satype, seq, pid, reserved)
 	len = PFKEY_ALIGN8(sizeof(struct sadb_msg));
 	if (len > MCLBYTES)
 		return NULL;
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m && len > MHLEN) {
-		MCLGET(m, M_NOWAIT);
+		MCLGET(m, M_DONTWAIT);
 		if ((m->m_flags & M_EXT) == 0) {
 			m_freem(m);
 			m = NULL;
@@ -4682,9 +4682,9 @@ key_getspi(so, m, mhp)
 	if (len > MCLBYTES)
 		return key_senderror(so, m, ENOBUFS);
 
-	MGETHDR(n, M_NOWAIT, MT_DATA);
+	MGETHDR(n, M_DONTWAIT, MT_DATA);
 	if (len > MHLEN) {
-		MCLGET(n, M_NOWAIT);
+		MCLGET(n, M_DONTWAIT);
 		if ((n->m_flags & M_EXT) == 0) {
 			m_freem(n);
 			n = NULL;
@@ -5573,7 +5573,7 @@ key_getcomb_esp()
 			if (l > MLEN)
 				panic("assumption failed in key_getcomb_esp");
 #endif
-			MGET(m, M_NOWAIT, MT_DATA);
+			MGET(m, M_DONTWAIT, MT_DATA);
 			if (m) {
 				M_ALIGN(m, l);
 				m->m_len = l;
@@ -5657,14 +5657,14 @@ key_getcomb_ah()
 			if (l > MLEN)
 				panic("assumption failed in key_getcomb_ah");
 #endif
-			MGET(m, M_NOWAIT, MT_DATA);
+			MGET(m, M_DONTWAIT, MT_DATA);
 			if (m) {
 				M_ALIGN(m, l);
 				m->m_len = l;
 				m->m_next = NULL;
 			}
 		} else
-			M_PREPEND(m, l, M_NOWAIT);
+			M_PREPEND(m, l, M_DONTWAIT);
 		if (!m)
 			return NULL;
 
@@ -5703,14 +5703,14 @@ key_getcomb_ipcomp()
 			if (l > MLEN)
 				panic("assumption failed in key_getcomb_ipcomp");
 #endif
-			MGET(m, M_NOWAIT, MT_DATA);
+			MGET(m, M_DONTWAIT, MT_DATA);
 			if (m) {
 				M_ALIGN(m, l);
 				m->m_len = l;
 				m->m_next = NULL;
 			}
 		} else
-			M_PREPEND(m, l, M_NOWAIT);
+			M_PREPEND(m, l, M_DONTWAIT);
 		if (!m)
 			return NULL;
 
@@ -5756,7 +5756,7 @@ key_getprop(saidx)
 
 	if (!m)
 		return NULL;
-	M_PREPEND(m, l, M_NOWAIT);
+	M_PREPEND(m, l, M_DONTWAIT);
 	if (!m)
 		return NULL;
 
@@ -6273,9 +6273,9 @@ key_register(so, m, mhp)
 	if (len > MCLBYTES)
 		return key_senderror(so, m, ENOBUFS);
 
-	MGETHDR(n, M_NOWAIT, MT_DATA);
+	MGETHDR(n, M_DONTWAIT, MT_DATA);
 	if (len > MHLEN) {
-		MCLGET(n, M_NOWAIT);
+		MCLGET(n, M_DONTWAIT);
 		if ((n->m_flags & M_EXT) == 0) {
 			m_freem(n);
 			n = NULL;
@@ -6847,9 +6847,9 @@ key_parse(m, so)
 	if (m->m_next) {
 		struct mbuf *n;
 
-		MGETHDR(n, M_NOWAIT, MT_DATA);
+		MGETHDR(n, M_DONTWAIT, MT_DATA);
 		if (n && m->m_pkthdr.len > MHLEN) {
-			MCLGET(n, M_NOWAIT);
+			MCLGET(n, M_DONTWAIT);
 			if ((n->m_flags & M_EXT) == 0) {
 				m_free(n);
 				n = NULL;
@@ -7474,9 +7474,9 @@ key_alloc_mbuf(l)
 
 	len = l;
 	while (len > 0) {
-		MGET(n, M_NOWAIT, MT_DATA);
+		MGET(n, M_DONTWAIT, MT_DATA);
 		if (n && len > MLEN)
-			MCLGET(n, M_NOWAIT);
+			MCLGET(n, M_DONTWAIT);
 		if (!n) {
 			m_freem(m);
 			return NULL;

@@ -122,7 +122,7 @@ vchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c,
 	struct pcm_channel *parent = devinfo;
 
 	KASSERT(dir == PCMDIR_PLAY, ("vchan_init: bad direction"));
-	ch = malloc(sizeof(*ch), M_DEVBUF, M_ZERO);
+	ch = malloc(sizeof(*ch), M_DEVBUF, M_WAITOK | M_ZERO);
 	ch->parent = parent;
 	ch->channel = c;
 	ch->fmt = AFMT_U8;
@@ -235,7 +235,7 @@ vchan_create(struct pcm_channel *parent)
 	struct pcm_channel *child;
 	int err, first;
 
-	pce = malloc(sizeof(*pce), M_DEVBUF, M_ZERO);
+	pce = malloc(sizeof(*pce), M_DEVBUF, M_WAITOK | M_ZERO);
 	if (!pce) {
 		return ENOMEM;
 	}

@@ -1130,11 +1130,11 @@ ti_newbuf_std(sc, i, m)
 	struct ti_rx_desc	*r;
 
 	if (m == NULL) {
-		MGETHDR(m_new, M_NOWAIT, MT_DATA);
+		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 		if (m_new == NULL)
 			return(ENOBUFS);
 
-		MCLGET(m_new, M_NOWAIT);
+		MCLGET(m_new, M_DONTWAIT);
 		if (!(m_new->m_flags & M_EXT)) {
 			m_freem(m_new);
 			return(ENOBUFS);
@@ -1174,7 +1174,7 @@ ti_newbuf_mini(sc, i, m)
 	struct ti_rx_desc	*r;
 
 	if (m == NULL) {
-		MGETHDR(m_new, M_NOWAIT, MT_DATA);
+		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 		if (m_new == NULL) {
 			return(ENOBUFS);
 		}
@@ -1218,7 +1218,7 @@ ti_newbuf_jumbo(sc, i, m)
 		caddr_t			*buf = NULL;
 
 		/* Allocate the mbuf. */
-		MGETHDR(m_new, M_NOWAIT, MT_DATA);
+		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 		if (m_new == NULL) {
 			return(ENOBUFS);
 		}
@@ -1300,19 +1300,19 @@ ti_newbuf_jumbo(sc, idx, m_old)
 		}
 	} else {
 		/* Allocate the mbufs. */
-		MGETHDR(m_new, M_NOWAIT, MT_DATA);
+		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 		if (m_new == NULL) {
 			printf("ti%d: mbuf allocation failed "
    			       "-- packet dropped!\n", sc->ti_unit);
 			goto nobufs;
 		}
-		MGET(m[NPAYLOAD], M_NOWAIT, MT_DATA);
+		MGET(m[NPAYLOAD], M_DONTWAIT, MT_DATA);
 		if (m[NPAYLOAD] == NULL) {
 			printf("ti%d: cluster mbuf allocation failed "
 			       "-- packet dropped!\n", sc->ti_unit);
 			goto nobufs;
 		}
-		MCLGET(m[NPAYLOAD], M_NOWAIT);
+		MCLGET(m[NPAYLOAD], M_DONTWAIT);
 		if ((m[NPAYLOAD]->m_flags & M_EXT) == 0) {
 			printf("ti%d: mbuf allocation failed "
 			       "-- packet dropped!\n", sc->ti_unit);
@@ -1321,7 +1321,7 @@ ti_newbuf_jumbo(sc, idx, m_old)
 		m[NPAYLOAD]->m_len = MCLBYTES;
 
 		for (i = 0; i < NPAYLOAD; i++){
-			MGET(m[i], M_NOWAIT, MT_DATA);
+			MGET(m[i], M_DONTWAIT, MT_DATA);
 			if (m[i] == NULL) {
 				printf("ti%d: mbuf allocation failed "
 				       "-- packet dropped!\n", sc->ti_unit);

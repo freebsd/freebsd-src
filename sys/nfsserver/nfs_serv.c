@@ -656,8 +656,8 @@ nfsrv_readlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	len = 0;
 	i = 0;
 	while (len < NFS_MAXPATHLEN) {
-		MGET(nmp, 0, MT_DATA);
-		MCLGET(nmp, 0);
+		MGET(nmp, M_TRYWAIT, MT_DATA);
+		MCLGET(nmp, M_TRYWAIT);
 		nmp->m_len = NFSMSIZ(nmp);
 		if (len == 0)
 			mp3 = mp = nmp;
@@ -899,15 +899,15 @@ nfsrv_read(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 				i++;
 			}
 			if (left > 0) {
-				MGET(m, 0, MT_DATA);
-				MCLGET(m, 0);
+				MGET(m, M_TRYWAIT, MT_DATA);
+				MCLGET(m, M_TRYWAIT);
 				m->m_len = 0;
 				m2->m_next = m;
 				m2 = m;
 			}
 		}
 		MALLOC(iv, struct iovec *, i * sizeof (struct iovec),
-		       M_TEMP, 0);
+		       M_TEMP, M_WAITOK);
 		uiop->uio_iov = iv2 = iv;
 		m = mb;
 		left = len;
@@ -1107,7 +1107,7 @@ nfsrv_write(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 
 	if (len > 0) {
 	    MALLOC(ivp, struct iovec *, cnt * sizeof (struct iovec), M_TEMP,
-		0);
+		M_WAITOK);
 	    uiop->uio_iov = iv = ivp;
 	    uiop->uio_iovcnt = cnt;
 	    mp = mrep;
@@ -1404,7 +1404,7 @@ loop1:
 		    }
 		    uiop->uio_iovcnt = i;
 		    MALLOC(iov, struct iovec *, i * sizeof (struct iovec),
-			M_TEMP, 0);
+			M_TEMP, M_WAITOK);
 		    uiop->uio_iov = ivp = iov;
 		    mp = mrep;
 		    while (mp) {
@@ -2551,7 +2551,7 @@ nfsrv_symlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	if (v3)
 		nfsm_srvsattr(vap);
 	nfsm_srvpathsiz(len2);
-	MALLOC(pathcp, caddr_t, len2 + 1, M_TEMP, 0);
+	MALLOC(pathcp, caddr_t, len2 + 1, M_TEMP, M_WAITOK);
 	iv.iov_base = pathcp;
 	iv.iov_len = len2;
 	io.uio_resid = len2;
@@ -3059,7 +3059,7 @@ nfsrv_readdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	/*
 	 * end section.  Allocate rbuf and continue
 	 */
-	MALLOC(rbuf, caddr_t, siz, M_TEMP, 0);
+	MALLOC(rbuf, caddr_t, siz, M_TEMP, M_WAITOK);
 again:
 	iv.iov_base = rbuf;
 	iv.iov_len = fullsiz;
@@ -3337,7 +3337,7 @@ nfsrv_readdirplus(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		goto nfsmout;
 	}
 	VOP_UNLOCK(vp, 0, td);
-	MALLOC(rbuf, caddr_t, siz, M_TEMP, 0);
+	MALLOC(rbuf, caddr_t, siz, M_TEMP, M_WAITOK);
 again:
 	iv.iov_base = rbuf;
 	iv.iov_len = fullsiz;

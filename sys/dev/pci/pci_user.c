@@ -307,7 +307,7 @@ pci_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 			 * Allocate a buffer to hold the patterns.
 			 */
 			pattern_buf = malloc(cio->pat_buf_len, M_TEMP,
-					     0);
+					     M_WAITOK);
 			error = copyin(cio->patterns, pattern_buf,
 				       cio->pat_buf_len);
 			if (error != 0)

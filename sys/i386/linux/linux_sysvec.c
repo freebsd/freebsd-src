@@ -731,7 +731,7 @@ linux_aout_coredump(struct thread *td, struct vnode *vp, off_t limit)
 	    vm->vm_dsize + vm->vm_ssize) >= limit)
 		return (EFAULT);
 	tempuser = malloc(ctob(uarea_pages + kstack_pages), M_TEMP,
-	    M_ZERO);
+	    M_WAITOK | M_ZERO);
 	if (tempuser == NULL)
 		return (ENOMEM);
 	PROC_LOCK(p);

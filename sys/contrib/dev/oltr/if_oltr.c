@@ -1404,14 +1404,14 @@ DriverReceiveFrameCompleted(void *DriverHandle, int ByteCount, int FragmentCount
 	
 	if (sc->state > OL_CLOSED) {
 		if (ReceiveStatus == TRLLD_RCV_OK) {
-			MGETHDR(m0, M_NOWAIT, MT_DATA);
+			MGETHDR(m0, M_DONTWAIT, MT_DATA);
 			mbuf_size = MHLEN - 2;
 			if (!m0) {
 				ifp->if_ierrors++;
 				goto dropped;
 			}
 			if (ByteCount + 2 > MHLEN) {
-				MCLGET(m0, M_NOWAIT);
+				MCLGET(m0, M_DONTWAIT);
 				mbuf_size = MCLBYTES - 2;
 				if (!(m0->m_flags & M_EXT)) {
 					m_freem(m0);
@@ -1446,7 +1446,7 @@ DriverReceiveFrameCompleted(void *DriverHandle, int ByteCount, int FragmentCount
 					frag_offset = 0;
 				}
 				if ((mbuf_offset == mbuf_size) && (frame_len > 0)) {
-					MGET(m1, M_NOWAIT, MT_DATA);
+					MGET(m1, M_DONTWAIT, MT_DATA);
 					mbuf_size = MHLEN;
 					if (!m1) {
 						ifp->if_ierrors++;
@@ -1454,7 +1454,7 @@ DriverReceiveFrameCompleted(void *DriverHandle, int ByteCount, int FragmentCount
 						goto dropped;
 					}
 					if (frame_len > MHLEN) {
-						MCLGET(m1, M_NOWAIT);
+						MCLGET(m1, M_DONTWAIT);
 						mbuf_size = MCLBYTES;
 						if (!(m1->m_flags & M_EXT)) {
 							m_freem(m0);

@@ -404,7 +404,7 @@ nfs_access(struct vop_access_args *ap)
 				error = nfs_readrpc(vp, &auio, ap->a_cred);
 			else if (vp->v_type == VDIR) {
 				char* bp;
-				bp = malloc(NFS_DIRBLKSIZ, M_TEMP, 0);
+				bp = malloc(NFS_DIRBLKSIZ, M_TEMP, M_WAITOK);
 				aiov.iov_base = bp;
 				aiov.iov_len = auio.uio_resid = NFS_DIRBLKSIZ;
 				error = nfs_readdirrpc(vp, &auio, ap->a_cred);
@@ -2370,7 +2370,7 @@ nfs_sillyrename(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
 		panic("nfs: sillyrename dir");
 #endif
 	MALLOC(sp, struct sillyrename *, sizeof (struct sillyrename),
-		M_NFSREQ, 0);
+		M_NFSREQ, M_WAITOK);
 	sp->s_cred = crhold(cnp->cn_cred);
 	sp->s_dvp = dvp;
 	VREF(dvp);
@@ -2438,7 +2438,7 @@ nfs_lookitup(struct vnode *dvp, const char *name, int len, struct ucred *cred,
 			free((caddr_t)np->n_fhp, M_NFSBIGFH);
 			np->n_fhp = &np->n_fh;
 		    } else if (np->n_fhsize <= NFS_SMALLFH && fhlen>NFS_SMALLFH)
-			np->n_fhp =(nfsfh_t *)malloc(fhlen, M_NFSBIGFH, 0);
+			np->n_fhp =(nfsfh_t *)malloc(fhlen, M_NFSBIGFH, M_WAITOK);
 		    bcopy((caddr_t)nfhp, (caddr_t)np->n_fhp, fhlen);
 		    np->n_fhsize = fhlen;
 		    newvp = NFSTOV(np);

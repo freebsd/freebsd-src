@@ -788,7 +788,7 @@ noreplaycheck:
 			 */
 			struct mbuf *n;
 
-			n = m_split(m, off, M_NOWAIT);
+			n = m_split(m, off, M_DONTWAIT);
 			if (n == NULL) {
 				/* m is retained by m_split */
 				goto bad;
@@ -810,12 +810,12 @@ noreplaycheck:
 			struct mbuf *n = NULL;
 			int maxlen;
 
-			MGETHDR(n, M_NOWAIT, MT_HEADER);
+			MGETHDR(n, M_DONTWAIT, MT_HEADER);
 			maxlen = MHLEN;
 			if (n)
 				M_MOVE_PKTHDR(n, m);
 			if (n && n->m_pkthdr.len > maxlen) {
-				MCLGET(n, M_NOWAIT);
+				MCLGET(n, M_DONTWAIT);
 				maxlen = MCLBYTES;
 				if ((n->m_flags & M_EXT) == 0) {
 					m_free(n);

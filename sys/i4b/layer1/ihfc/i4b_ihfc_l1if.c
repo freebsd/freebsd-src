@@ -121,7 +121,7 @@ ihfc_ph_data_req(int unit, struct mbuf *m, int freeflag)
 
 	/* "Allow" I-frames (-hp) */
 
-	if (freeflag == MBUF_DONTFREE)	m = m_copypacket(m, M_NOWAIT);
+	if (freeflag == MBUF_DONTFREE)	m = m_copypacket(m, M_DONTWAIT);
 
 	if (!_IF_QFULL(&S_IFQUEUE) && m)
 	{

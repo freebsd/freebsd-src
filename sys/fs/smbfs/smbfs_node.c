@@ -114,7 +114,7 @@ smbfs_name_alloc(const u_char *name, int nmlen)
 
 	nmlen++;
 #ifdef SMBFS_NAME_DEBUG
-	cp = malloc(nmlen + 2 + sizeof(int), M_SMBNODENAME, 0);
+	cp = malloc(nmlen + 2 + sizeof(int), M_SMBNODENAME, M_WAITOK);
 	*(int*)cp = nmlen;
 	cp += sizeof(int);
 	cp[0] = 0xfc;
@@ -122,7 +122,7 @@ smbfs_name_alloc(const u_char *name, int nmlen)
 	bcopy(name, cp, nmlen - 1);
 	cp[nmlen] = 0xfe;
 #else
-	cp = malloc(nmlen, M_SMBNODENAME, 0);
+	cp = malloc(nmlen, M_SMBNODENAME, M_WAITOK);
 	bcopy(name, cp, nmlen - 1);
 #endif
 	cp[nmlen - 1] = 0;
@@ -219,7 +219,7 @@ loop:
 	if (fap == NULL)
 		return ENOENT;
 
-	MALLOC(np, struct smbnode *, sizeof *np, M_SMBNODE, 0);
+	MALLOC(np, struct smbnode *, sizeof *np, M_SMBNODE, M_WAITOK);
 	error = getnewvnode("smbfs", mp, smbfs_vnodeop_p, &vp);
 	if (error) {
 		FREE(np, M_SMBNODE);

@@ -194,7 +194,7 @@ ng_UI_rcvdata(hook_p hook, item_p item)
 		m_adj(m, ptr - start);
 		NG_FWD_NEW_DATA(error, item, priv->uplink, m);	/* m -> NULL */
 	} else if (hook == priv->uplink) {
-		M_PREPEND(m, 1, M_NOWAIT);	/* Prepend IP NLPID */
+		M_PREPEND(m, 1, M_DONTWAIT);	/* Prepend IP NLPID */
 		if (!m)
 			ERROUT(ENOBUFS);
 		mtod(m, u_char *)[0] = HDLC_UI;

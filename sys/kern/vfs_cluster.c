@@ -1001,7 +1001,7 @@ cluster_collectbufs(vp, last_bp)
 
 	len = vp->v_lastw - vp->v_cstart + 1;
 	buflist = malloc(sizeof(struct buf *) * (len + 1) + sizeof(*buflist),
-	    M_SEGMENT, 0);
+	    M_SEGMENT, M_WAITOK);
 	buflist->bs_nchildren = 0;
 	buflist->bs_children = (struct buf **) (buflist + 1);
 	for (lbn = vp->v_cstart, i = 0; i < len; lbn++, i++) {

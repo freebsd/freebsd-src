@@ -133,7 +133,7 @@ nmdminit(n)
 	if (n & ~0xff)
 		return;
 
-	pt = malloc(sizeof(*pt), M_NLMDM, 0);
+	pt = malloc(sizeof(*pt), M_NLMDM, M_WAITOK);
 	bzero(pt, sizeof(*pt));
 	pt->part1.dev = dev1 = make_dev(&nmdm_cdevsw, n+n,
 	    0, 0, 0666, "nmdm%dA", n);

@@ -265,7 +265,7 @@ mmioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 		if (nd > 0) {
 			md = (struct mem_range_desc *)
 				malloc(nd * sizeof(struct mem_range_desc),
-				       M_MEMDESC, 0);
+				       M_MEMDESC, M_WAITOK);
 			error = mem_range_attr_get(md, &nd);
 			if (!error)
 				error = copyout(md, mo->mo_desc, 
@@ -279,7 +279,7 @@ mmioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 		
 	case MEMRANGE_SET:
 		md = (struct mem_range_desc *)malloc(sizeof(struct mem_range_desc),
-						    M_MEMDESC, 0);
+						    M_MEMDESC, M_WAITOK);
 		error = copyin(mo->mo_desc, md, sizeof(struct mem_range_desc));
 		/* clamp description string */
 		md->mr_owner[sizeof(md->mr_owner) - 1] = 0;

@@ -141,16 +141,16 @@ msginit()
 	msginfo.msgmax = msginfo.msgseg * msginfo.msgssz;
 	TUNABLE_INT_FETCH("kern.ipc.msgmni", &msginfo.msgmni);
 
-	msgpool = malloc(msginfo.msgmax, M_MSG, 0);
+	msgpool = malloc(msginfo.msgmax, M_MSG, M_WAITOK);
 	if (msgpool == NULL)
 		panic("msgpool is NULL");
-	msgmaps = malloc(sizeof(struct msgmap) * msginfo.msgseg, M_MSG, 0);
+	msgmaps = malloc(sizeof(struct msgmap) * msginfo.msgseg, M_MSG, M_WAITOK);
 	if (msgmaps == NULL)
 		panic("msgmaps is NULL");
-	msghdrs = malloc(sizeof(struct msg) * msginfo.msgtql, M_MSG, 0);
+	msghdrs = malloc(sizeof(struct msg) * msginfo.msgtql, M_MSG, M_WAITOK);
 	if (msghdrs == NULL)
 		panic("msghdrs is NULL");
-	msqids = malloc(sizeof(struct msqid_ds) * msginfo.msgmni, M_MSG, 0);
+	msqids = malloc(sizeof(struct msqid_ds) * msginfo.msgmni, M_MSG, M_WAITOK);
 	if (msqids == NULL)
 		panic("msqids is NULL");
 

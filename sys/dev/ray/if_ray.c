@@ -1782,14 +1782,14 @@ ray_rx(struct ray_softc *sc, size_t rcs)
 		goto skip_read;
 	}
 
-	MGETHDR(m0, M_NOWAIT, MT_DATA);
+	MGETHDR(m0, M_DONTWAIT, MT_DATA);
 	if (m0 == NULL) {
 		RAY_RECERR(sc, "MGETHDR failed");
 		ifp->if_ierrors++;
 		goto skip_read;
 	}
 	if (pktlen > MHLEN) {
-		MCLGET(m0, M_NOWAIT);
+		MCLGET(m0, M_DONTWAIT);
 		if (!(m0->m_flags & M_EXT)) {
 			RAY_RECERR(sc, "MCLGET failed");
 			ifp->if_ierrors++;
@@ -3155,7 +3155,7 @@ ray_com_malloc(ray_comqfn_t function, int flags, char *mesg)
 	struct ray_comq_entry *com;
 
 	MALLOC(com, struct ray_comq_entry *,
-	    sizeof(struct ray_comq_entry), M_RAYCOM, 0);
+	    sizeof(struct ray_comq_entry), M_RAYCOM, M_WAITOK);
     
 	return (ray_com_init(com, function, flags, mesg));
 }

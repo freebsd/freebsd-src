@@ -207,9 +207,9 @@ bpf_movein(uio, linktype, mp, sockp, datlen)
 		return (EIO);
 
 	if (len > MHLEN) {
-		m = m_getcl(0, MT_DATA, M_PKTHDR);
+		m = m_getcl(M_TRYWAIT, MT_DATA, M_PKTHDR);
 	} else {
-		MGETHDR(m, 0, MT_DATA);
+		MGETHDR(m, M_TRYWAIT, MT_DATA);
 	}
 	if (m == NULL)
 		return (ENOBUFS);
@@ -340,7 +340,7 @@ bpfopen(dev, flags, fmt, td)
 	if ((dev->si_flags & SI_NAMED) == 0)
 		make_dev(&bpf_cdevsw, minor(dev), UID_ROOT, GID_WHEEL, 0600,
 		    "bpf%d", dev2unit(dev));
-	MALLOC(d, struct bpf_d *, sizeof(*d), M_BPF, M_ZERO);
+	MALLOC(d, struct bpf_d *, sizeof(*d), M_BPF, M_WAITOK | M_ZERO);
 	dev->si_drv1 = d;
 	d->bd_bufsize = bpf_bufsize;
 	d->bd_sig = SIGIO;
@@ -947,7 +947,7 @@ bpf_setf(d, fp)
 		return (EINVAL);
 
 	size = flen * sizeof(*fp->bf_insns);
-	fcode = (struct bpf_insn *)malloc(size, M_BPF, 0);
+	fcode = (struct bpf_insn *)malloc(size, M_BPF, M_WAITOK);
 	if (copyin((caddr_t)fp->bf_insns, (caddr_t)fcode, size) == 0 &&
 	    bpf_validate(fcode, (int)flen)) {
 		BPFD_LOCK(d);
@@ -1247,11 +1247,11 @@ static int
 bpf_allocbufs(d)
 	register struct bpf_d *d;
 {
-	d->bd_fbuf = (caddr_t)malloc(d->bd_bufsize, M_BPF, 0);
+	d->bd_fbuf = (caddr_t)malloc(d->bd_bufsize, M_BPF, M_WAITOK);
 	if (d->bd_fbuf == 0)
 		return (ENOBUFS);
 
-	d->bd_sbuf = (caddr_t)malloc(d->bd_bufsize, M_BPF, 0);
+	d->bd_sbuf = (caddr_t)malloc(d->bd_bufsize, M_BPF, M_WAITOK);
 	if (d->bd_sbuf == 0) {
 		free(d->bd_fbuf, M_BPF);
 		return (ENOBUFS);

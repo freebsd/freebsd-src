@@ -248,7 +248,7 @@ readv(td, uap)
 			error = EINVAL;
 			goto done;
 		}
-		MALLOC(iov, struct iovec *, iovlen, M_IOV, 0);
+		MALLOC(iov, struct iovec *, iovlen, M_IOV, M_WAITOK);
 		needfree = iov;
 	} else
 		iov = aiov;
@@ -274,7 +274,7 @@ readv(td, uap)
 	 * if tracing, save a copy of iovec
 	 */
 	if (KTRPOINT(td, KTR_GENIO))  {
-		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, 0);
+		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
 		bcopy(auio.uio_iov, ktriov, iovlen);
 		ktruio = auio;
 	}
@@ -480,7 +480,7 @@ writev(td, uap)
 			error = EINVAL;
 			goto done;
 		}
-		MALLOC(iov, struct iovec *, iovlen, M_IOV, 0);
+		MALLOC(iov, struct iovec *, iovlen, M_IOV, M_WAITOK);
 		needfree = iov;
 	} else {
 		iov = aiov;
@@ -508,7 +508,7 @@ writev(td, uap)
 	 * if tracing, save a copy of iovec and uio
 	 */
 	if (KTRPOINT(td, KTR_GENIO))  {
-		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, 0);
+		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
 		bcopy(auio.uio_iov, ktriov, iovlen);
 		ktruio = auio;
 	}
@@ -618,7 +618,7 @@ ioctl(td, uap)
 
 	memp = NULL;
 	if (size > sizeof (ubuf.stkbuf)) {
-		memp = malloc((u_long)size, M_IOCTLOPS, 0);
+		memp = malloc((u_long)size, M_IOCTLOPS, M_WAITOK);
 		data = memp;
 	} else {
 		data = ubuf.stkbuf;
@@ -768,7 +768,7 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	if (nbufbytes <= sizeof s_selbits)
 		selbits = &s_selbits[0];
 	else
-		selbits = malloc(nbufbytes, M_SELECT, 0);
+		selbits = malloc(nbufbytes, M_SELECT, M_WAITOK);
 
 	/*
 	 * Assign pointers into the bit buffers and fetch the input bits.
@@ -968,7 +968,7 @@ poll(td, uap)
 	}
 	ni = nfds * sizeof(struct pollfd);
 	if (ni > sizeof(smallbits))
-		bits = malloc(ni, M_TEMP, 0);
+		bits = malloc(ni, M_TEMP, M_WAITOK);
 	else
 		bits = smallbits;
 	error = copyin(uap->fds, bits, ni);

@@ -1544,7 +1544,7 @@ sis_newbuf(sc, c, m)
 		return(EINVAL);
 
 	if (m == NULL) {
-		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+		m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 		if (m == NULL)
 			return(ENOBUFS);
 	} else

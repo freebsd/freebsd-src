@@ -233,7 +233,7 @@ frag6_input(mp, offp, proto)
 			goto dropfrag;
 		frag6_nfragpackets++;
 		q6 = (struct ip6q *)malloc(sizeof(struct ip6q), M_FTABLE,
-			M_NOWAIT);
+			M_DONTWAIT);
 		if (q6 == NULL)
 			goto dropfrag;
 		bzero(q6, sizeof(*q6));
@@ -325,7 +325,7 @@ frag6_input(mp, offp, proto)
 	}
 
 	ip6af = (struct ip6asfrag *)malloc(sizeof(struct ip6asfrag), M_FTABLE,
-	    M_NOWAIT);
+	    M_DONTWAIT);
 	if (ip6af == NULL)
 		goto dropfrag;
 	bzero(ip6af, sizeof(*ip6af));
@@ -489,7 +489,7 @@ insert:
 		m->m_len -= sizeof(struct ip6_frag);
 	} else {
 		/* this comes with no copy if the boundary is on cluster */
-		if ((t = m_split(m, offset, M_NOWAIT)) == NULL) {
+		if ((t = m_split(m, offset, M_DONTWAIT)) == NULL) {
 			frag6_remque(q6);
 			free(q6, M_FTABLE);
 			frag6_nfragpackets--;

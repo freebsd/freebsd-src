@@ -68,7 +68,7 @@ svr4_sys_poll(td, uap)
      pa.timeout = uap->timeout;
 
      siz = uap->nfds * sizeof(struct pollfd);
-     pfd = (struct pollfd *)malloc(siz, M_TEMP, 0);
+     pfd = (struct pollfd *)malloc(siz, M_TEMP, M_WAITOK);
 
      error = poll(td, (struct poll_args *)uap);
 

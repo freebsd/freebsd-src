@@ -646,10 +646,10 @@ i4bioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 			}
 
 			prots = malloc(r->numprotos * sizeof(struct isdn_dr_prot),
-					M_DEVBUF, 0);
+					M_DEVBUF, M_WAITOK);
 
 			prots2 = malloc(r->numprotos * sizeof(struct isdn_dr_prot),
-					M_DEVBUF, 0);
+					M_DEVBUF, M_WAITOK);
 
 			if(!prots || !prots2)
 			{
@@ -661,7 +661,7 @@ i4bioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 
 			for(i = 0; i < r->numprotos; i++)
 			{
-				prots2[i].microcode = malloc(prots[i].bytecount, M_DEVBUF, 0);
+				prots2[i].microcode = malloc(prots[i].bytecount, M_DEVBUF, M_WAITOK);
 				copyin(prots[i].microcode, prots2[i].microcode, prots[i].bytecount);
 				prots2[i].bytecount = prots[i].bytecount; 
 			}
@@ -721,7 +721,7 @@ download_done:
 				    	goto diag_done;
 				}	
 
-				req.in_param = malloc(r->in_param_len, M_DEVBUF, 0);
+				req.in_param = malloc(r->in_param_len, M_DEVBUF, M_WAITOK);
 
 				if(!req.in_param)
 				{
@@ -735,7 +735,7 @@ download_done:
 
 			if(req.out_param_len)
 			{
-				req.out_param = malloc(r->out_param_len, M_DEVBUF, 0);
+				req.out_param = malloc(r->out_param_len, M_DEVBUF, M_WAITOK);
 
 				if(!req.out_param)
 				{

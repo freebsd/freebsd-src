@@ -171,7 +171,7 @@ m_pulldown(struct mbuf *m, int off, int len, int *offp)
 	 * chop the current mbuf into two pieces, set off to 0.
 	 */
 	if (len <= n->m_len - off) {
-		o = m_dup1(n, off, n->m_len - off, M_NOWAIT);
+		o = m_dup1(n, off, n->m_len - off, M_DONTWAIT);
 		if (o == NULL) {
 			m_freem(m);
 			return NULL;	/* ENOBUFS */
@@ -230,9 +230,9 @@ m_pulldown(struct mbuf *m, int off, int len, int *offp)
 	 * now, we need to do the hard way.  don't m_copy as there's no room
 	 * on both end.
 	 */
-	MGET(o, M_NOWAIT, m->m_type);
+	MGET(o, M_DONTWAIT, m->m_type);
 	if (o && len > MLEN) {
-		MCLGET(o, M_NOWAIT);
+		MCLGET(o, M_DONTWAIT);
 		if ((o->m_flags & M_EXT) == 0) {
 			m_free(o);
 			o = NULL;

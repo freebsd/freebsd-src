@@ -212,7 +212,7 @@ svr4_sendit(td, s, mp, flags)
 	if (KTRPOINT(td, KTR_GENIO)) {
 		int iovlen = auio.uio_iovcnt * sizeof (struct iovec);
 
-		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, 0);
+		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
 		bcopy((caddr_t)auio.uio_iov, (caddr_t)ktriov, iovlen);
 		ktruio = auio;
 	}
@@ -297,7 +297,7 @@ svr4_recvit(td, s, mp, namelenp)
 	if (KTRPOINT(td, KTR_GENIO)) {
 		int iovlen = auio.uio_iovcnt * sizeof (struct iovec);
 
-		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, 0);
+		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
 		bcopy((caddr_t)auio.uio_iov, (caddr_t)ktriov, iovlen);
 		ktruio = auio;
 	}
@@ -405,7 +405,7 @@ show_ioc(str, ioc)
 	const char		*str;
 	struct svr4_strioctl	*ioc;
 {
-	u_char *ptr = (u_char *) malloc(ioc->len, M_TEMP, 0);
+	u_char *ptr = (u_char *) malloc(ioc->len, M_TEMP, M_WAITOK);
 	int error;
 
 	uprintf("%s cmd = %ld, timeout = %d, len = %d, buf = %p { ",
@@ -441,7 +441,7 @@ show_strbuf(str)
 		len = maxlen;
 
 	if (len > 0) {
-	    ptr = (u_char *) malloc(len, M_TEMP, 0);
+	    ptr = (u_char *) malloc(len, M_TEMP, M_WAITOK);
 
 	    if ((error = copyin(str->buf, ptr, len)) != 0) {
 		    free((char *) ptr, M_TEMP);

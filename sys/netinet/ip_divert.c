@@ -489,7 +489,7 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 	if (error)
 		return error;
 
-	inp_list = malloc(n * sizeof *inp_list, M_TEMP, 0);
+	inp_list = malloc(n * sizeof *inp_list, M_TEMP, M_WAITOK);
 	if (inp_list == 0)
 		return ENOMEM;
 	

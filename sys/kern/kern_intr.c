@@ -177,7 +177,7 @@ ithread_create(struct ithd **ithread, int vector, int flags,
 	if ((flags & ~IT_SOFT) != 0)
 		return (EINVAL);
 
-	ithd = malloc(sizeof(struct ithd), M_ITHREAD, M_ZERO);
+	ithd = malloc(sizeof(struct ithd), M_ITHREAD, M_WAITOK | M_ZERO);
 	ithd->it_vector = vector;
 	ithd->it_disable = disable;
 	ithd->it_enable = enable;
@@ -249,7 +249,7 @@ ithread_add_handler(struct ithd* ithread, const char *name,
 	if ((flags & INTR_FAST) !=0)
 		flags |= INTR_EXCL;
 
-	ih = malloc(sizeof(struct intrhand), M_ITHREAD, M_ZERO);
+	ih = malloc(sizeof(struct intrhand), M_ITHREAD, M_WAITOK | M_ZERO);
 	ih->ih_handler = handler;
 	ih->ih_argument = arg;
 	ih->ih_name = name;

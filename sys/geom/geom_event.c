@@ -266,7 +266,7 @@ g_post_event(enum g_events ev, struct g_class *mp, struct g_geom *gp, struct g_p
 	g_trace(G_T_TOPOLOGY, "g_post_event(%d, %p, %p, %p, %p)",
 	    ev, mp, gp, pp, cp);
 	g_topology_assert();
-	ep = g_malloc(sizeof *ep, M_ZERO);
+	ep = g_malloc(sizeof *ep, M_WAITOK | M_ZERO);
 	ep->event = ev;
 	if (mp != NULL) {
 		ep->class = mp;

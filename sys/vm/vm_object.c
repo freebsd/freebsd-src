@@ -353,7 +353,7 @@ vm_object_allocate_wait(objtype_t type, vm_pindex_t size, int flags)
 vm_object_t
 vm_object_allocate(objtype_t type, vm_pindex_t size)
 {
-	return(vm_object_allocate_wait(type, size, 0));
+	return(vm_object_allocate_wait(type, size, M_WAITOK));
 }
 
 

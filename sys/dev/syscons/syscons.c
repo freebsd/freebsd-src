@@ -318,7 +318,7 @@ sc_attach_unit(int unit, int flags)
 	    /* assert(sc_console->ts != NULL); */
 	    kernel_console_ts = sc_console->ts;
 	    sc_console->ts = malloc(sc_console->tsw->te_size,
-				    M_DEVBUF, 0);
+				    M_DEVBUF, M_WAITOK);
 	    bcopy(kernel_console_ts, sc_console->ts, sc_console->tsw->te_size);
     	    (*sc_console->tsw->te_default_attr)(sc_console,
 						user_default.std_color,
@@ -2674,9 +2674,9 @@ scinit(int unit, int flags)
 	    sc->font_16 = font_16;
 	} else if (sc->font_8 == NULL) {
 	    /* assert(sc_malloc) */
-	    sc->font_8 = malloc(sizeof(font_8), M_DEVBUF, 0);
-	    sc->font_14 = malloc(sizeof(font_14), M_DEVBUF, 0);
-	    sc->font_16 = malloc(sizeof(font_16), M_DEVBUF, 0);
+	    sc->font_8 = malloc(sizeof(font_8), M_DEVBUF, M_WAITOK);
+	    sc->font_14 = malloc(sizeof(font_14), M_DEVBUF, M_WAITOK);
+	    sc->font_16 = malloc(sizeof(font_16), M_DEVBUF, M_WAITOK);
 	}
 #endif
 
@@ -2703,7 +2703,7 @@ scinit(int unit, int flags)
 					 kernel_default.rev_color);
 	} else {
 	    /* assert(sc_malloc) */
-	    sc->dev = malloc(sizeof(dev_t)*sc->vtys, M_DEVBUF, M_ZERO);
+	    sc->dev = malloc(sizeof(dev_t)*sc->vtys, M_DEVBUF, M_WAITOK|M_ZERO);
 	    sc->dev[0] = makedev(CDEV_MAJOR, unit*MAXCONS);
 	    sc->dev[0]->si_tty = ttymalloc(sc->dev[0]->si_tty);
 	    scp = alloc_scp(sc, sc->first_vty);
@@ -2928,7 +2928,7 @@ static scr_stat
 
     /* assert(sc_malloc) */
 
-    scp = (scr_stat *)malloc(sizeof(scr_stat), M_DEVBUF, 0);
+    scp = (scr_stat *)malloc(sizeof(scr_stat), M_DEVBUF, M_WAITOK);
     init_scp(sc, vty, scp);
 
     sc_alloc_scr_buffer(scp, TRUE, TRUE);

@@ -220,7 +220,7 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist)
 			ent = (void*)(buf + i * hdr->hdr_entsz);
 			if (!memcmp(&ent->ent_type, &unused, sizeof(unused)))
 				continue;
-			gs->part[i] = g_malloc(hdr->hdr_entsz, 0);
+			gs->part[i] = g_malloc(hdr->hdr_entsz, M_WAITOK);
 			if (gs->part[i] == NULL)
 				break;
 			bcopy(ent, gs->part[i], hdr->hdr_entsz);

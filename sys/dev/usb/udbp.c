@@ -326,11 +326,11 @@ USB_ATTACH(udbp)
 	if (!sc->sc_bulkout_xfer) {
 		goto bad;
 	}
-	sc->sc_bulkin_buffer = malloc(UDBP_BUFFERSIZE, M_USBDEV, 0);
+	sc->sc_bulkin_buffer = malloc(UDBP_BUFFERSIZE, M_USBDEV, M_WAITOK);
 	if (!sc->sc_bulkin_buffer) {
 		goto bad;
 	}
-	sc->sc_bulkout_buffer = malloc(UDBP_BUFFERSIZE, M_USBDEV, 0);
+	sc->sc_bulkout_buffer = malloc(UDBP_BUFFERSIZE, M_USBDEV, M_WAITOK);
 	if (!sc->sc_bulkout_xfer || !sc->sc_bulkout_buffer) {
 		goto bad;
 	}

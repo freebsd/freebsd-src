@@ -174,7 +174,7 @@ g_ctl_ioctl_configgeom(dev_t dev, u_long cmd, caddr_t data, int fflag, struct th
 	else if (gcp->len == 0) {
 		ga.ptr = NULL;
 	} else {
-		ga.ptr = g_malloc(gcp->len, 0);
+		ga.ptr = g_malloc(gcp->len, M_WAITOK);
 		error = copyin(gcp->ptr, ga.ptr, gcp->len);
 		if (error) {
 			g_free(ga.ptr);

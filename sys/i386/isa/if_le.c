@@ -386,7 +386,7 @@ le_input(
     struct ifnet *ifp = &sc->le_if;
     struct mbuf *m;
 
-    MGETHDR(m, M_NOWAIT, MT_DATA);
+    MGETHDR(m, M_DONTWAIT, MT_DATA);
     if (m == NULL) {
 	ifp->if_ierrors++;
 	return;
@@ -394,14 +394,14 @@ le_input(
     m->m_pkthdr.len = total_len;
     m->m_pkthdr.rcvif = ifp;
     if (total_len + LE_XTRA > MHLEN /* >= MINCLSIZE */) {
-	MCLGET(m, M_NOWAIT);
+	MCLGET(m, M_DONTWAIT);
 	if ((m->m_flags & M_EXT) == 0) {
 	    m_free(m);
 	    ifp->if_ierrors++;
 	    return;
 	}
     } else if (total_len + LE_XTRA > MHLEN && MINCLSIZE == (MHLEN+MLEN)) {
-	MGET(m->m_next, M_NOWAIT, MT_DATA);
+	MGET(m->m_next, M_DONTWAIT, MT_DATA);
 	if (m->m_next == NULL) {
 	    m_free(m);
 	    ifp->if_ierrors++;

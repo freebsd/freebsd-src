@@ -343,7 +343,7 @@ lpioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 	    }
 
 	    sc->sc_ifbuf = malloc(sc->sc_if.if_mtu + MLPIPHDRLEN,
-				  M_DEVBUF, 0);
+				  M_DEVBUF, M_WAITOK);
 	    if (!sc->sc_ifbuf) {
 		ppb_release_bus(ppbus, dev);
 		return ENOBUFS;

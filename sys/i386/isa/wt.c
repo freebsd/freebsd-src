@@ -343,7 +343,7 @@ wtopen (dev_t dev, int flag, int fmt, struct thread *td)
 		return (ENXIO);
 
 	t->bsize = (minor (dev) & WT_BSIZE) ? 1024 : 512;
-	t->buf = malloc (t->bsize, M_TEMP, 0);
+	t->buf = malloc (t->bsize, M_TEMP, M_WAITOK);
 	if (! t->buf)
 		return (EAGAIN);
 

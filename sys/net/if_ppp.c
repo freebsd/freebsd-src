@@ -199,7 +199,7 @@ ppp_clone_create(struct if_clone *ifc, int unit)
 {
 	struct ppp_softc	*sc;
 
-	sc = malloc(sizeof(struct ppp_softc), M_PPP, M_ZERO);
+	sc = malloc(sizeof(struct ppp_softc), M_PPP, M_WAITOK | M_ZERO);
 	sc->sc_if.if_softc = sc;
 	sc->sc_if.if_name = PPPNAME;
 	sc->sc_if.if_unit = unit;
@@ -572,7 +572,7 @@ pppioctl(sc, cmd, data, flag, td)
 	}
 	newcodelen = nbp->bf_len * sizeof(struct bpf_insn);
 	if (newcodelen != 0) {
-	    MALLOC(newcode, struct bpf_insn *, newcodelen, M_DEVBUF, 0);
+	    MALLOC(newcode, struct bpf_insn *, newcodelen, M_DEVBUF, M_WAITOK);
 	    if (newcode == 0) {
 		error = EINVAL;		/* or sumpin */
 		break;
@@ -831,7 +831,7 @@ pppoutput(ifp, m0, dst, rtp)
      * (This assumes M_LEADINGSPACE is always 0 for a cluster mbuf.)
      */
     if (M_LEADINGSPACE(m0) < PPP_HDRLEN) {
-	m0 = m_prepend(m0, PPP_HDRLEN, M_NOWAIT);
+	m0 = m_prepend(m0, PPP_HDRLEN, M_DONTWAIT);
 	if (m0 == 0) {
 	    error = ENOBUFS;
 	    goto bad;
@@ -1411,13 +1411,13 @@ ppp_inproc(sc, m)
 	}
 
 	/* Copy the PPP and IP headers into a new mbuf. */
-	MGETHDR(mp, M_NOWAIT, MT_DATA);
+	MGETHDR(mp, M_DONTWAIT, MT_DATA);
 	if (mp == NULL)
 	    goto bad;
 	mp->m_len = 0;
 	mp->m_next = NULL;
 	if (hlen + PPP_HDRLEN > MHLEN) {
-	    MCLGET(mp, M_NOWAIT);
+	    MCLGET(mp, M_DONTWAIT);
 	    if (M_TRAILINGSPACE(mp) < hlen + PPP_HDRLEN) {
 		m_freem(mp);
 		goto bad;	/* lose if big headers and no clusters */
@@ -1475,7 +1475,7 @@ ppp_inproc(sc, m)
      * whole cluster on it.
      */
     if (ilen <= MHLEN && M_IS_CLUSTER(m)) {
-	MGETHDR(mp, M_NOWAIT, MT_DATA);
+	MGETHDR(mp, M_DONTWAIT, MT_DATA);
 	if (mp != NULL) {
 #ifdef MAC
 	    mac_create_mbuf_from_mbuf(m, mp);

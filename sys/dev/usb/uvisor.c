@@ -233,7 +233,7 @@ USB_ATTACH(uvisor)
 	usbd_status err;
 	struct ucom_softc *ucom;
 
-	devinfo = malloc(1024, M_USBDEV, 0);
+	devinfo = malloc(1024, M_USBDEV, M_WAITOK);
 	ucom = &sc->sc_ucom;
 
 	bzero(sc, sizeof (struct uvisor_softc));

@@ -1100,7 +1100,7 @@ chgetelemstatus(struct cam_periph *periph,
 	 * we can allocate enough storage for all of them.  We assume
 	 * that the first one can fit into 1k.
 	 */
-	data = (caddr_t)malloc(1024, M_DEVBUF, 0);
+	data = (caddr_t)malloc(1024, M_DEVBUF, M_WAITOK);
 
 	ccb = cam_periph_getccb(periph, /*priority*/ 1);
 
@@ -1137,7 +1137,7 @@ chgetelemstatus(struct cam_periph *periph,
 	 * device.
 	 */
 	free(data, M_DEVBUF);
-	data = (caddr_t)malloc(size, M_DEVBUF, 0);
+	data = (caddr_t)malloc(size, M_DEVBUF, M_WAITOK);
 
 	scsi_read_element_status(&ccb->csio,
 				 /* retries */ 1,
@@ -1172,7 +1172,7 @@ chgetelemstatus(struct cam_periph *periph,
 
 	user_data = (struct changer_element_status *)
 		malloc(avail * sizeof(struct changer_element_status),
-		       M_DEVBUF, M_ZERO);
+		       M_DEVBUF, M_WAITOK | M_ZERO);
 
 	desc = (struct read_element_status_descriptor *)((uintptr_t)data +
 		sizeof(struct read_element_status_header) +

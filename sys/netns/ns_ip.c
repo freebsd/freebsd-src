@@ -168,7 +168,7 @@ idpip_input(m, ifp)
 		if (nsip_lastin) {
 			m_freem(nsip_lastin);
 		}
-		nsip_lastin = m_copym(m, 0, (int)M_COPYALL, M_NOWAIT);
+		nsip_lastin = m_copym(m, 0, (int)M_COPYALL, M_DONTWAIT);
 	}
 	/*
 	 * Get IP and IDP header together in first mbuf.
@@ -251,7 +251,7 @@ nsipoutput(ifn, m, dst)
 	/* following clause not necessary on vax */
 	if (3 & (int)m->m_data) {
 		/* force longword alignment of ip hdr */
-		struct mbuf *m0 = m_gethdr(MT_HEADER, M_NOWAIT);
+		struct mbuf *m0 = m_gethdr(MT_HEADER, M_DONTWAIT);
 		if (m0 == 0) {
 			m_freem(m);
 			return (ENOBUFS);
@@ -263,7 +263,7 @@ nsipoutput(ifn, m, dst)
 		m0->m_pkthdr.len = m0->m_len + m->m_len;
 		m->m_flags &= ~M_PKTHDR;
 	} else {
-		M_PREPEND(m, sizeof (struct ip), M_NOWAIT);
+		M_PREPEND(m, sizeof (struct ip), M_DONTWAIT);
 		if (m == 0)
 			return (ENOBUFS);
 	}

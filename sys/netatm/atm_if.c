@@ -496,7 +496,7 @@ atm_physif_ioctl(code, data, arg)
 		 */
 		for ( count = 0; count < asr->asr_nif_cnt; count++ )
 		{
-			nip = uma_zalloc(cup->cu_nif_zone, M_ZERO);
+			nip = uma_zalloc(cup->cu_nif_zone, M_WAITOK | M_ZERO);
 			if ( nip == NULL )
 			{
 				/*

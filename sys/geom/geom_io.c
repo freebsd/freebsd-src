@@ -493,7 +493,7 @@ g_read_data(struct g_consumer *cp, off_t offset, off_t length, int *error)
 	bp->bio_done = NULL;
 	bp->bio_offset = offset;
 	bp->bio_length = length;
-	ptr = g_malloc(length, 0);
+	ptr = g_malloc(length, M_WAITOK);
 	bp->bio_data = ptr;
 	g_io_request(bp, cp);
 	errorc = biowait(bp, "gread");
