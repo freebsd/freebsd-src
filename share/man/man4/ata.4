@@ -69,13 +69,13 @@ For PCI based ATA/ATAPI support:
 To support ATA compliant disk drives:
 .Cd device atadisk
 .Pp
-To support ATA software RAID's
+To support ATA software RAID's:
 .Cd device ataraid
 .Pp
-To support ATAPI CDROM, DVD and CD/DVD burner drives,
+To support ATAPI CDROM, DVD and CD/DVD burner drives:
 .Cd device atapicd
 .Pp
-To support ATAPI floppy drives,
+To support ATAPI floppy drives:
 .Cd device atapifd
 .Pp
 To support ATAPI tape drives:
@@ -89,14 +89,15 @@ set to 1 for DMA access, 0 for PIO (default is DMA).
 set to 1 for DMA access, 0 for PIO (default is PIO).
 .It Va hw.ata.wc
 set to 1 to enable Write Caching, 0 to disable (default is enabled).
-(WARNING: can cause data loss on power failures.)
+.Em WARNING :
+can cause data loss on power failures.
 .El
 .Sh DESCRIPTION
 The
 .Nm
 driver provides access to ATA (IDE) and SerialATA disk drives,
 ATAPI CDROM/DVD drives, ZIP/LS120 ATAPI drives and ATAPI tape drives
-connected to controllers according to the ATA/ATAPI standards.
+connected to controllers according to the ATA/ATAPI standards. 
 .Pp
 The currently supported ATA/SATA controller chips are:
 .Pp
@@ -133,35 +134,35 @@ SIS5513, SIS530, SIS540, SIS550, SIS620, SIS630, SIS630S, SIS633, SIS635, SIS730
 VT82C586, VT82C586B, VT82C596, VT82C596B, VT82C686, VT82C686A, VT82C686B, VT8231, VT8233, VT8233A, VT8233C, VT8235, VT8237.
 .El
 .Pp
-Unknown ATA chipsets are supported in PIO modes, and if the standard
-busmaster DMA registers are present and contains valid setup, DMA is
-also enabled, however the max mode is limitted to UDMA33, as it is
+Unknown ATA chipsets are supported in PIO modes, and if the standard 
+busmaster DMA registers are present and contain valid setup, DMA is
+also enabled, although the max mode is limitted to UDMA33, as it is
 not known what the chipset can do and how to program it.
 .Pp
 The
 .Nm
 driver can change the transfer mode and various other parameters
-when the system is up and running, see
+when the system is up and running.
+See
 .Xr atacontrol 8 .
 .Pp
 The
-.Nm
+.nm
 driver sets the maximum transfer mode supported by the hardware as default.
 However the
 .Nm
 driver sometimes warns:
-.Dq Sy "DMA limited to UDMA33, non-ATA66 cable or device"
+.Dq Sy "DMA limited to UDMA33, non-ATA66 cable or device".
 This means that
 the
 .Nm
-driver has detected that the needed 80 conductor cable is not present or
-at least could not be deteceted properly.
-If the cable is 80 conductor,
-it can also be because one of the devices on the channel only accepts up
+driver has detected that the required 80 conductor cable is not present
+or could not be detected properly,
+or that one of the devices on the channel only accepts up 
 to UDMA2/ATA33.
 .Pp
-ATAPI devices are default set to PIO mode because severe DMA problems are
-common even if the device capabilities shows that it supports it.
+ATAPI devices are set to PIO mode by default because severe DMA problems are
+common even if the device capabilities indicate support.
 You can always try to set DMA mode on an ATAPI device using
 .Xr atacontrol 8 ,
 but be aware that your hardware might
@@ -190,10 +191,10 @@ based systems
 Please remember that in order to use UDMA4/ATA66 and above modes you
 .Em must
 use 80 conductor cables.
-Please assure that ribbon cables are no longer than 45cm's.
-In case of rounded ATA cables the length depends on the
+Please assure that ribbon cables are no longer than 45cm.
+In case of rounded ATA cables, the length depends on the
 quality of the cables.
-SATA cables can be up to 1m long according to spec.
+SATA cables can be up to 1m long according to the specification.
 .Pp
 Static device numbering
 (enabled with the
@@ -202,11 +203,10 @@ kernel option)
 reserves a number for each possibly connected disk,
 even when not present.
 This is usefull in hotswap senarios
-where disks always will show up as the same numbered device,
+where disks should always show up as the same numbered device,
 and not depend on attach order.
 .Pp
 .Sh SEE ALSO
-.Xr atapicam 4 ,
 .Xr atacontrol 8 ,
 .Xr burncd 8
 .Sh HISTORY
@@ -214,7 +214,6 @@ The
 .Nm
 driver first appeared in
 .Fx 4.0 .
-.Sh AUTHOR
+.Sh AUTHORS
 .An S\(/oren Schmidt
 .Aq sos@FreeBSD.org .
-.Pp
