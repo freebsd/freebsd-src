@@ -44,6 +44,8 @@ static char sccsid[] = "@(#)mkfs.c	8.3 (Berkeley) 2/3/94";
 #include <ufs/ufs/dir.h>
 #include <ufs/ffs/fs.h>
 #include <sys/disklabel.h>
+#include <sys/file.h>
+#include <sys/mman.h>
 
 #ifndef STANDALONE
 #include <a.out.h>
@@ -100,6 +102,7 @@ extern int	sbsize;		/* superblock size */
 extern u_long	memleft;	/* virtual memory available */
 extern caddr_t	membase;	/* start address of memory based filesystem */
 extern caddr_t	malloc(), calloc();
+extern char *	filename;
 
 union {
 	struct fs fs;
@@ -129,7 +132,7 @@ mkfs(pp, fsys, fi, fo)
 	long used, mincpgcnt, bpcg;
 	long mapcramped, inodecramped;
 	long postblsize, rotblsize, totalsbsize;
-	int ppid, status;
+	int ppid, status, fd;
 	time_t utime;
 	quad_t sizepb;
 	void started();
@@ -151,10 +154,41 @@ mkfs(pp, fsys, fi, fo)
 			/* NOTREACHED */
 		}
 		(void)malloc(0);
-		if (fssize * sectorsize > memleft)
-			fssize = (memleft - 16384) / sectorsize;
-		if ((membase = malloc(fssize * sectorsize)) == 0)
-			exit(12);
+		if(filename) {
+			unsigned char buf[BUFSIZ];
+			unsigned long l,l1;
+			fd = open(filename,O_RDWR|O_TRUNC|O_CREAT,0644);
+			if(fd < 0) {
+				perror(filename);
+				exit(12);
+			}
+			for(l=0;l< fssize * sectorsize;l += l1) {
+				l1 = fssize * sectorsize;
+				if (BUFSIZ < l1)
+					l1 = BUFSIZ;
+				if (l1 != write(fd,buf,l1)) {
+					perror(filename);
+					exit(12);
+				}
+			}
+			membase = mmap(
+				0,
+				fssize * sectorsize,
+				PROT_READ|PROT_WRITE,
+				MAP_SHARED,
+				fd,
+				0);
+			if((int)membase == -1) {
+				perror("mmap");
+				exit(12);
+			}
+			close(fd);
+		} else {
+			if (fssize * sectorsize > memleft)
+				fssize = (memleft - 16384) / sectorsize;
+			if ((membase = malloc(fssize * sectorsize)) == 0)
+				exit(12);
+		}
 	}
 	fsi = fi;
 	fso = fo;
