@@ -142,7 +142,7 @@ g_bsd_modify(struct g_geom *gp, u_char *label)
 			rawoffset = 0;
 	}
 	
-	if ((off_t)rawoffset * dl.d_secsize != ms->mbroffset)
+	if (rawoffset != 0 && (off_t)rawoffset * dl.d_secsize != ms->mbroffset)
 		printf("WARNING: Expected rawoffset %jd, found %jd\n",
 		    (intmax_t)ms->mbroffset/dl.d_secsize,
 		    (intmax_t)ms->rawoffset);
