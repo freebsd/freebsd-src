@@ -820,7 +820,7 @@ register cset *cs;
 	register char *u;
 	register char c;
 
-	while (MORE() && isalpha(PEEK()))
+	while (MORE() && isalpha((unsigned char)PEEK()))
 		NEXT();
 	len = p->next - sp;
 	for (cp = cclasses; cp->name != NULL; cp++)
@@ -913,6 +913,7 @@ static char			/* if no counterpart, return ch */
 othercase(ch)
 int ch;
 {
+	ch = (unsigned char)ch;
 	assert(isalpha(ch));
 	if (isupper(ch))
 		return(tolower(ch));
@@ -937,6 +938,7 @@ int ch;
 	register char *oldend = p->end;
 	char bracket[3];
 
+	ch = (unsigned char)ch;
 	assert(othercase(ch) != ch);	/* p_bracket() would recurse */
 	p->next = bracket;
 	p->end = bracket+2;
@@ -960,7 +962,7 @@ register int ch;
 {
 	register cat_t *cap = p->g->categories;
 
-	if ((p->g->cflags&REG_ICASE) && isalpha(ch) && othercase(ch) != ch)
+	if ((p->g->cflags&REG_ICASE) && isalpha((unsigned char)ch) && othercase(ch) != ch)
 		bothcases(p, ch);
 	else {
 		EMIT(OCHAR, (unsigned char)ch);
@@ -1211,7 +1213,7 @@ register cset *cs;
 
 	for (i = 0; i < css; i++)
 		if (CHIN(cs, i))
-			return((char)i);
+			return((unsigned char)i);
 	assert(never);
 	return(0);		/* arbitrary */
 }
