@@ -109,10 +109,6 @@
  */
 
 
-#ifndef XE_DEBUG
-#define XE_DEBUG 2	/* Increase for more voluminous output! */
-#endif
-
 #include <sys/param.h>
 #include <sys/cdefs.h>
 #include <sys/errno.h>
