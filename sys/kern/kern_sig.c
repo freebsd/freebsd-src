@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.40 1998/03/03 20:55:26 tegge Exp $
+ * $Id: kern_sig.c,v 1.41 1998/06/07 17:11:35 dfr Exp $
  */
 
 #include "opt_compat.h"
@@ -44,6 +44,7 @@
 
 #define	SIGPROP		/* include signal properties table */
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/sysproto.h>
 #include <sys/signalvar.h>
 #include <sys/resourcevar.h>
@@ -59,6 +60,7 @@
 #include <sys/syslog.h>
 #include <sys/stat.h>
 #include <sys/sysent.h>
+#include <sys/sysctl.h>
 
 #include <machine/cpu.h>
 #ifdef SMP
@@ -88,6 +90,9 @@ static void stop	__P((struct proc *));
 	    (pc)->p_ruid == (q)->p_ucred->cr_uid || \
 	    (pc)->pc_ucred->cr_uid == (q)->p_ucred->cr_uid || \
 	    ((signum) == SIGCONT && (q)->p_session == (p)->p_session))
+
+static int sugid_coredump;
+SYSCTL_INT(_kern, OID_AUTO, sugid_coredump, CTLFLAG_RW, &sugid_coredump, 0, "");
 
 #ifndef _SYS_SYSPROTO_H_
 struct sigaction_args {
@@ -1259,7 +1264,7 @@ coredump(p)
 
 	STOPEVENT(p, S_CORE, 0);
 
-	if (p->p_flag & P_SUGID)
+	if (sugid_coredump == 0 && p->p_flag & P_SUGID)
 		return (EFAULT);
 	if (ctob(UPAGES + vm->vm_dsize + vm->vm_ssize) >=
 	    p->p_rlimit[RLIMIT_CORE].rlim_cur)
