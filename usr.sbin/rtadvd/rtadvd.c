@@ -138,7 +138,7 @@ static int nd6_options __P((struct nd_opt_hdr *, int,
 static void free_ndopts __P((union nd_opts *));
 static void ra_output __P((struct rainfo *));
 static void rtmsg_input __P((void));
-static void rtadvd_set_dump_file __P((void));
+static void rtadvd_set_dump_file __P((int));
 
 int
 main(argc, argv)
@@ -258,8 +258,8 @@ main(argc, argv)
 	if (rtsock >= 0)
 		FD_SET(rtsock, fdsetp);
 
-	signal(SIGTERM, (void *)set_die);
-	signal(SIGUSR1, (void *)rtadvd_set_dump_file);
+	signal(SIGTERM, set_die);
+	signal(SIGUSR1, rtadvd_set_dump_file);
 
 	while (1) {
 		memcpy(selectfdp, fdsetp, fdmasks); /* reinitialize */
@@ -308,7 +308,8 @@ main(argc, argv)
 }
 
 static void
-rtadvd_set_dump_file()
+rtadvd_set_dump_file(sig)
+	int sig;
 {
 	do_dump = 1;
 }
