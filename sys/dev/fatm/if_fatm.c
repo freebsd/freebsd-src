@@ -113,6 +113,8 @@ static const struct utopia_methods fatm_utopia_methods = {
 	(((VPI) & ~((1 << (SC)->ifatm.mib.vpi_bits) - 1)) == 0 &&	\
 	 (VCI) != 0 && ((VCI) & ~((1 << (SC)->ifatm.mib.vci_bits) - 1)) == 0)
 
+static int fatm_load_vc(struct fatm_softc *sc, struct card_vcc *vc);
+
 /*
  * Probing is easy: step trough the list of known vendor and device
  * ids and compare. If one is found - it's our.
@@ -449,7 +451,7 @@ fatm_reset(struct fatm_softc *sc)
 
 /*
  * Stop the card. Must be called WITH the lock held
- * Reset, free transmit and receive buffers. Wakeup everybody that may sleep.
+ * Reset, free transmit and receive buffers. Wakeup everybody who may sleep.
  */
 static void
 fatm_stop(struct fatm_softc *sc)
@@ -522,14 +524,21 @@ fatm_stop(struct fatm_softc *sc)
 
 	/* Reset vcc info */
 	if (sc->vccs != NULL) {
-		for (i = 0; i < FORE_MAX_VCC + 1; i++)
+		sc->open_vccs = 0;
+		for (i = 0; i < FORE_MAX_VCC + 1; i++) {
 			if (sc->vccs[i] != NULL) {
-				uma_zfree(sc->vcc_zone, sc->vccs[i]);
-				sc->vccs[i] = NULL;
+				if ((sc->vccs[i]->vflags & (FATM_VCC_OPEN |
+				    FATM_VCC_TRY_OPEN)) == 0) {
+					uma_zfree(sc->vcc_zone, sc->vccs[i]);
+					sc->vccs[i] = NULL;
+				} else {
+					sc->vccs[i]->vflags = 0;
+					sc->open_vccs++;
+				}
 			}
+		}
 	}
 
-	sc->open_vccs = 0;
 }
 
 /*
@@ -1242,7 +1251,7 @@ static void
 fatm_init_locked(struct fatm_softc *sc)
 {
 	struct rxqueue *q;
-	int i, c;
+	int i, c, error;
 	uint32_t start;
 
 	DBG(sc, INIT, ("initialize"));
@@ -1334,6 +1343,18 @@ fatm_init_locked(struct fatm_softc *sc)
 
 	ATMEV_SEND_IFSTATE_CHANGED(&sc->ifatm,
 	    sc->utopia.carrier == UTP_CARR_OK);
+
+	/* start all channels */
+	for (i = 0; i < FORE_MAX_VCC + 1; i++)
+		if (sc->vccs[i] != NULL) {
+			sc->vccs[i]->vflags |= FATM_VCC_REOPEN;
+			error = fatm_load_vc(sc, sc->vccs[i]);
+			if (error != 0) {
+				if_printf(&sc->ifatm.ifnet, "reopening %u "
+				    "failed: %d\n", i, error);
+				sc->vccs[i]->vflags &= ~FATM_VCC_REOPEN;
+			}
+		}
 
 	DBG(sc, INIT, ("done"));
 }
@@ -2144,6 +2165,11 @@ fatm_open_finish(struct fatm_softc *sc, struct card_vcc *vc)
 	vc->vflags &= ~FATM_VCC_TRY_OPEN;
 	vc->vflags |= FATM_VCC_OPEN;
 
+	if (vc->vflags & FATM_VCC_REOPEN) {
+		vc->vflags &= ~FATM_VCC_REOPEN;
+		return;
+	}
+
 	/* inform management if this is not an NG
 	 * VCC or it's an NG PVC. */
 	if (!(vc->param.flags & ATMIO_FLAG_NG) ||
@@ -2197,9 +2223,7 @@ fatm_waitvcc(struct fatm_softc *sc, struct cmdqueue *q)
 static int
 fatm_open_vcc(struct fatm_softc *sc, struct atmio_openvcc *op)
 {
-	uint32_t cmd;
 	int error;
-	struct cmdqueue *q;
 	struct card_vcc *vc;
 
 	/*
@@ -2248,38 +2272,19 @@ fatm_open_vcc(struct fatm_softc *sc, struct atmio_openvcc *op)
 	  default:
 		error = EINVAL;
 		goto done;
-		return (EINVAL);
 	}
 	vc->ibytes = vc->obytes = 0;
 	vc->ipackets = vc->opackets = 0;
-
-	/* Command and buffer strategy */
-	cmd = FATM_OP_ACTIVATE_VCIN | FATM_OP_INTERRUPT_SEL | (0 << 16);
-	if (op->param.aal == ATMIO_AAL_0)
-		cmd |= (0 << 8);
-	else
-		cmd |= (5 << 8);
-
-	q = fatm_start_vcc(sc, op->param.vpi, op->param.vci, cmd, 1,
-	    (op->param.flags & ATMIO_FLAG_ASYNC) ?
-	    fatm_open_complete : fatm_cmd_complete);
-	if (q == NULL) {
-		error = EIO;
-		goto done;
-	}
 
 	vc->vflags = FATM_VCC_TRY_OPEN;
 	sc->vccs[op->param.vci] = vc;
 	sc->open_vccs++;
 
-	if (!(op->param.flags & ATMIO_FLAG_ASYNC)) {
-		error = fatm_waitvcc(sc, q);
-		if (error != 0) {
-			sc->vccs[op->param.vci] = NULL;
-			sc->open_vccs--;
-			goto done;
-		}
-		fatm_open_finish(sc, vc);
+	error = fatm_load_vc(sc, vc);
+	if (error != NULL) {
+		sc->vccs[op->param.vci] = NULL;
+		sc->open_vccs--;
+		goto done;
 	}
 
 	/* don't free below */
@@ -2290,6 +2295,38 @@ fatm_open_vcc(struct fatm_softc *sc, struct atmio_openvcc *op)
 	if (vc != NULL)
 		uma_zfree(sc->vcc_zone, vc);
 	return (error);
+}
+
+/*
+ * Try to initialize the given VC
+ */
+static int
+fatm_load_vc(struct fatm_softc *sc, struct card_vcc *vc)
+{
+	uint32_t cmd;
+	struct cmdqueue *q;
+	int error;
+
+	/* Command and buffer strategy */
+	cmd = FATM_OP_ACTIVATE_VCIN | FATM_OP_INTERRUPT_SEL | (0 << 16);
+	if (vc->param.aal == ATMIO_AAL_0)
+		cmd |= (0 << 8);
+	else
+		cmd |= (5 << 8);
+
+	q = fatm_start_vcc(sc, vc->param.vpi, vc->param.vci, cmd, 1,
+	    (vc->param.flags & ATMIO_FLAG_ASYNC) ?
+	    fatm_open_complete : fatm_cmd_complete);
+	if (q == NULL)
+		return (EIO);
+
+	if (!(vc->param.flags & ATMIO_FLAG_ASYNC)) {
+		error = fatm_waitvcc(sc, q);
+		if (error != 0)
+			return (error);
+		fatm_open_finish(sc, vc);
+	}
+	return (0);
 }
 
 /*
@@ -2523,8 +2560,14 @@ fatm_detach(device_t dev)
 
 	if (sc->rbufs != NULL)
 		free(sc->rbufs, M_DEVBUF);
-	if (sc->vccs != NULL)
+	if (sc->vccs != NULL) {
+		for (i = 0; i < FORE_MAX_VCC + 1; i++)
+			if (sc->vccs[i] != NULL) {
+				uma_zfree(sc->vcc_zone, sc->vccs[i]);
+				sc->vccs[i] = NULL;
+			}
 		free(sc->vccs, M_DEVBUF);
+	}
 	if (sc->vcc_zone != NULL)
 		uma_zdestroy(sc->vcc_zone);
 
