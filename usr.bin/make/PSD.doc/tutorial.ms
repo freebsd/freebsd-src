@@ -37,6 +37,7 @@
 .\"	@(#)tutorial.ms	8.1 (Berkeley) 8/18/93
 .\" $FreeBSD$
 .\"
+.so stubs
 .EH 'PSD:12-%''PMake \*- A Tutorial'
 .OH 'PMake \*- A Tutorial''PSD:12-%'
 .\" xH is a macro to provide numbered headers that are automatically stuffed
@@ -59,22 +60,15 @@
 .XE
 .nr PD .3v
 ..
+.ig
 .\" CW is used to place a string in fixed-width or switch to a
 .\" fixed-width font.
 .\" C is a typewriter font for a laserwriter. Use something else if
 .\" you don't have one...
-.ie n \{\
 .de CW
-.ie !\\n(.$ .ft R
-.el \&\\$3\fR\\$1\fP\\$2
+.ie !\\n(.$ .ft S
+.el \&\\$3\fS\\$1\fP\\$2
 ..
-.\}
-.el \{\
-.de CW
-.ie !\\n(.$ .ft C
-.el \&\\$3\fC\\$1\fP\\$2
-..
-.\}
 .\" Anything I put in a display I want to be in fixed-width
 .am DS
 .CW
