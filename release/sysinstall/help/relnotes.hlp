@@ -243,7 +243,8 @@ AST 4 port serial card using shared IRQ.
 ARNET 8 port serial card using shared IRQ.
 ARNET (now Digiboard) Sync 570/i high-speed serial.
 
-BOCA ATIO66 6 and 16 port serial card using shared IRQ.
+BOCA ATIO66 4, 6, 8 and 16 port serial cards using shared IRQ
+(BB1004 - BB2016).
 
 Cyclades Cyclom-y Serial Board.
 
@@ -516,4 +517,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.20 1996/11/14 14:50:29 jkh Exp $
+$Id: relnotes.hlp,v 1.21 1996/11/14 14:51:16 jkh Exp $
