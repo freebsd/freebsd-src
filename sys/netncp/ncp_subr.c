@@ -82,8 +82,8 @@ ncp_at_exit(struct proc *p) {
 	if (ncp_conn_putprochandles(p) == 0) return;
 
 	ncp_conn_locklist(LK_EXCLUSIVE, p);
-	for (ncp = conn_list.slh_first; ncp; ncp = nncp) {
-		nncp = ncp->nc_next.sle_next;
+	for (ncp = SLIST_FIRST(&conn_list); ncp; ncp = nncp) {
+		nncp = SLIST_NEXT(ncp, nc_next);
 		if (ncp->ref_cnt != 0) continue;
 		if (ncp_conn_lock(ncp, p, p->p_ucred,NCPM_READ|NCPM_EXECUTE|NCPM_WRITE))
 			continue;
@@ -113,8 +113,8 @@ ncp_done(void) {
 	untimeout(ncp_timer,NULL,ncp_timer_handle);
 	rm_at_exit(ncp_at_exit);
 	ncp_conn_locklist(LK_EXCLUSIVE, p);
-	for (ncp = conn_list.slh_first; ncp; ncp = nncp) {
-		nncp = ncp->nc_next.sle_next;
+	for (ncp = SLIST_FIRST(&conn_list); ncp; ncp = nncp) {
+		nncp = SLIST_NEXT(ncp, nc_next);
 		ncp->ref_cnt = 0;
 		if (ncp_conn_lock(ncp, p, p->p_ucred,NCPM_READ|NCPM_EXECUTE|NCPM_WRITE)) {
 			NCPFATAL("Can't lock connection !\n");
