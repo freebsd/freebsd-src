@@ -40,9 +40,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <sys/timepps.h>
 
+#include <dev/pccard/pccard_cis.h>
+#include <dev/pccard/pccarddevs.h>
 #include <dev/pccard/pccardreg.h>
 #include <dev/pccard/pccardvar.h>
-#include <dev/pccard/pccarddevs.h>
 
 #include <dev/sio/siovar.h>
 

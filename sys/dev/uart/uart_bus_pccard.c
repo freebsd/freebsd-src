@@ -35,9 +35,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/resource.h>
 
+#include <dev/pccard/pccard_cis.h>
+#include <dev/pccard/pccarddevs.h>
 #include <dev/pccard/pccardreg.h>
 #include <dev/pccard/pccardvar.h>
-#include <dev/pccard/pccarddevs.h>
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_bus.h>
