@@ -212,7 +212,7 @@
                         /* RAY_DBG_IOCTL	| */	\
                         /* RAY_DBG_MBUF		| */ 	\
                         /* RAY_DBG_RX		| */	\
-                        /* RAY_DBG_CM		| */ 	\
+                        /* RAY_DBG_CM		| */  	\
                         /* RAY_DBG_COM		| */  	\
                         /* RAY_DBG_STOP		| */	\
                         /* RAY_DBG_CTL		| */	\
@@ -225,10 +225,12 @@
 /*
  * XXX build options - move to LINT
  */
-#define RAY_CM_RID		2	/* pccardd abuses windows 0 and 1 */
+#define RAY_CM_RID		0	/* pccardd abuses windows 0 and 1 */
 #define RAY_AM_RID		3	/* pccardd abuses windows 0 and 1 */
 #define RAY_COM_TIMEOUT		(hz/2)	/* Timeout for CCS commands */
 #define RAY_TX_TIMEOUT		(hz/2)	/* Timeout for rescheduling TX */
+#define RAY_ECF_SPIN_DELAY	1000	/* Wait 1ms before checking ECF ready */
+#define RAY_ECF_SPIN_TRIES	10	/* Wait this many times for ECF ready */
 /*
  * XXX build options - move to LINT
  */
@@ -244,6 +246,7 @@
 
 #include <machine/bus.h>
 #include <machine/resource.h>
+#include <machine/clock.h>
 #include <sys/bus.h>
 #include <sys/rman.h>
 
@@ -256,13 +259,13 @@
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
+#include <net/if_ieee80211.h>
 
 #include <machine/limits.h>
 
 #include <dev/pccard/pccardvar.h>
 #include "card_if.h"
 
-#include <net/if_ieee80211.h>
 #include <dev/ray/if_rayreg.h>
 #include <dev/ray/if_raymib.h>
 #include <dev/ray/if_raydbg.h>
@@ -299,7 +302,7 @@ static void	ray_init_mcast		(struct ray_softc *sc, struct ray_comq_entry *com);
 static void	ray_init_sj		(struct ray_softc *sc, struct ray_comq_entry *com);
 static void	ray_init_sj_done	(struct ray_softc *sc, size_t ccs);
 static void	ray_intr		(void *xsc);
-static void	ray_intr_ccs		(struct ray_softc *sc, u_int8_t cmd, size_t ccs);
+static void	ray_intr_ccs		(struct ray_softc *sc, u_int8_t cmd, u_int8_t status, size_t ccs);
 static void	ray_intr_rcs		(struct ray_softc *sc, u_int8_t cmd, size_t ccs);
 static void	ray_intr_updt_errcntrs	(struct ray_softc *sc);
 static int	ray_ioctl		(struct ifnet *ifp, u_long command, caddr_t data);
@@ -385,6 +388,11 @@ ray_probe(device_t dev)
 	error = ray_res_alloc_cm(sc);
 	if (error)
 		return (error);
+	error = ray_res_alloc_am(sc);
+	if (error) {
+		ray_res_release(sc);
+		return (error);
+	}
 	RAY_MAP_CM(sc);
 	SRAM_READ_REGION(sc, RAY_ECF_TO_HOST_BASE, ep,
 	    sizeof(sc->sc_ecf_startup));
@@ -405,7 +413,7 @@ ray_probe(device_t dev)
 		return (ENXIO);
 	}
 	RAY_DPRINTF(sc, RAY_DBG_BOOTPARAM, "found a card");
-	sc->gone = 0;
+	sc->sc_gone = 0;
 
 	/*
 	 * Fixup tib size to be correct - on build 4 it is garbage
@@ -430,7 +438,7 @@ ray_attach(device_t dev)
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 
-	if ((sc == NULL) || (sc->gone))
+	if ((sc == NULL) || (sc->sc_gone))
 		return (ENXIO);
 
 	/*
@@ -566,7 +574,7 @@ ray_detach(device_t dev)
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_STOP, "");
 
-	if ((sc == NULL) || (sc->gone))
+	if ((sc == NULL) || (sc->sc_gone))
 		return (0);
 
 	/*
@@ -575,7 +583,7 @@ ray_detach(device_t dev)
 	 * N.B. if_detach can trigger ioctls so we do it first and
 	 * then clean the runq.
 	 */
-	sc->gone = 1;
+	sc->sc_gone = 1;
 	sc->sc_havenet = 0;
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
 	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
@@ -623,7 +631,7 @@ ray_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_IOCTL, "");
 
-	if ((sc == NULL) || (sc->gone))
+	if ((sc == NULL) || (sc->sc_gone))
 		return (ENXIO);
 
 	error = error2 = 0;
@@ -1271,7 +1279,7 @@ ray_watchdog(struct ifnet *ifp)
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 	RAY_MAP_CM(sc);
 
-	if ((sc == NULL) || (sc->gone))
+	if ((sc == NULL) || (sc->sc_gone))
 		return;
 
 	RAY_PRINTF(sc, "watchdog timeout");
@@ -1324,7 +1332,7 @@ ray_tx(struct ifnet *ifp)
 	/*
 	 * Some simple checks first - some are overkill
 	 */
-	if ((sc == NULL) || (sc->gone))
+	if ((sc == NULL) || (sc->sc_gone))
 		return;
 	if (!(ifp->if_flags & IFF_RUNNING)) {
 		RAY_RECERR(sc, "cannot transmit - not running");
@@ -1430,7 +1438,7 @@ ray_tx(struct ifnet *ifp)
 
 	}
 	if (m0 == NULL) {
-		RAY_RECERR(sc, "could not translate packet");
+		RAY_RECERR(sc, "could not frame packet");
 		RAY_CCS_FREE(sc, ccs);
 		ifp->if_oerrors++;
 		return;
@@ -1439,7 +1447,7 @@ ray_tx(struct ifnet *ifp)
 	/*
 	 * Copy the mbuf to the buffer in common memory
 	 *
-	 * We panic and don't bother wrapping as ethernet packets are 1518
+	 * We drop and don't bother wrapping as Ethernet packets are 1518
 	 * bytes, we checked the mbuf earlier, and our TX buffers are 2048
 	 * bytes. We don't have 530 bytes of headers etc. so something
 	 * must be fubar.
@@ -1451,11 +1459,15 @@ ray_tx(struct ifnet *ifp)
 			continue;
 		if ((bufp + len) < RAY_TX_END)
 			SRAM_WRITE_REGION(sc, bufp, mtod(m, u_int8_t *), len);
-		else 
-			RAY_PANIC(sc, "tx buffer overflow");
+		else {
+			RAY_RECERR(sc, "tx buffer overflow");
+			RAY_CCS_FREE(sc, ccs);
+			ifp->if_oerrors++;
+			m_freem(m0);
+			return;
+		}
 		bufp += len;
 	}
-	RAY_MBUF_DUMP(sc, RAY_DBG_TX, m0, "ray_tx");
 
 	/*
 	 * Send it off
@@ -1521,18 +1533,22 @@ ray_tx_wrhdr(struct ray_softc *sc, size_t bufp, u_int8_t type, u_int8_t fc1, u_i
 static int
 ray_tx_send(struct ray_softc *sc, size_t ccs, int pktlen, u_int8_t *dst)
 {
+	int i = 0;
+
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_TX, "");
 	RAY_MAP_CM(sc);
 
-	if (!RAY_ECF_READY(sc)) {
-		/*
-		 * XXX If this can really happen perhaps we need to save
-		 * XXX the chain and use it later.
-		 */
-		RAY_RECERR(sc, "ECF busy, dropping packet");
-		RAY_CCS_FREE(sc, ccs);
-		return (1);
+	while (!RAY_ECF_READY(sc)) {
+	    	DELAY(RAY_ECF_SPIN_DELAY);
+		if (++i > RAY_ECF_SPIN_TRIES) {
+			RAY_RECERR(sc, "ECF busy, dropping packet");
+			RAY_CCS_FREE(sc, ccs);
+			return (1);
+		}
 	}
+	if (i != 0)
+		RAY_RECERR(sc, "spun %d times", i);
+
 	SRAM_WRITE_FIELD_2(sc, ccs, ray_cmd_tx, c_len, pktlen);
 	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_antenna,
 	    ray_tx_best_antenna(sc, dst));
@@ -1683,10 +1699,6 @@ ray_rx(struct ray_softc *sc, size_t rcs)
 		ni = SRAM_READ_FIELD_1(sc, rcs, ray_cmd_rx, c_nextfrag);
 		bufp = SRAM_READ_FIELD_2(sc, rcs, ray_cmd_rx, c_bufp);
 		fraglen = SRAM_READ_FIELD_2(sc, rcs, ray_cmd_rx, c_len);
-		RAY_DPRINTF(sc, RAY_DBG_RX,
-		    "frag index %d len %d bufp 0x%x ni %d",
-		    i, fraglen, (int)bufp, ni);
-
 		if (fraglen + readlen > pktlen) {
 			RAY_RECERR(sc, "bad length current 0x%x pktlen 0x%x",
 			    fraglen + readlen, pktlen);
@@ -1776,7 +1788,7 @@ ray_rx_data(struct ray_softc *sc, struct mbuf *m0, u_int8_t siglev, u_int8_t ant
 	struct ether_header *eh;
 	u_int8_t *sa, *da, *ra, *ta;
 
-	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_MGT, "");
+	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_RX, "");
 
 	/*
 	 * Check the the data packet subtype, some packets have
@@ -1929,14 +1941,11 @@ ray_rx_mgt(struct ray_softc *sc, struct mbuf *m0)
  	 *  JPJ	IEEE80211_FC0_SUBTYPE_REASSOC_RESP
  	 * +EEE	IEEE80211_FC0_SUBTYPE_ATIM
 	 */
-	RAY_MBUF_DUMP(sc, RAY_DBG_RX, m0, "MGT packet");
+	RAY_MBUF_DUMP(sc, RAY_DBG_MGT, m0, "MGT packet");
 	switch (header->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK) {
 
  	case IEEE80211_FC0_SUBTYPE_BEACON:
 		RAY_DPRINTF(sc, RAY_DBG_MGT, "BEACON MGT packet");
-		/* XXX furtle anything interesting out */
-		/* XXX Note that there are rules governing what beacons to
-		   read, see 8802 S7.2.3, S11.1.2.3 */
 		break;
 
  	case IEEE80211_FC0_SUBTYPE_AUTH:
@@ -1952,23 +1961,23 @@ ray_rx_mgt(struct ray_softc *sc, struct mbuf *m0)
 	case IEEE80211_FC0_SUBTYPE_ASSOC_REQ:
 	case IEEE80211_FC0_SUBTYPE_REASSOC_REQ:
 		RAY_DPRINTF(sc, RAY_DBG_MGT, "(RE)ASSOC_REQ MGT packet");
-		if ((sc->sc_d.np_net_type == RAY_MIB_NET_TYPE_INFRA) &&
+		if ((sc->sc_c.np_net_type == RAY_MIB_NET_TYPE_INFRA) &&
 		    (sc->sc_c.np_ap_status == RAY_MIB_AP_STATUS_AP))
-			RAY_PANIC(sc, "can't be an AP yet"); /* XXX_ACTING_AP */
+			RAY_RECERR(sc, "can't be an AP yet"); /* XXX_ACTING_AP */
 		break;
 			
  	case IEEE80211_FC0_SUBTYPE_ASSOC_RESP:
 	case IEEE80211_FC0_SUBTYPE_REASSOC_RESP:
 		RAY_DPRINTF(sc, RAY_DBG_MGT, "(RE)ASSOC_RESP MGT packet");
-		if ((sc->sc_d.np_net_type == RAY_MIB_NET_TYPE_INFRA) &&
+		if ((sc->sc_c.np_net_type == RAY_MIB_NET_TYPE_INFRA) &&
 		    (sc->sc_c.np_ap_status == RAY_MIB_AP_STATUS_TERMINAL))
-			RAY_PANIC(sc, "can't be in INFRA yet"); /* XXX_INFRA */
+			RAY_RECERR(sc, "can't be in INFRA yet"); /* XXX_INFRA */
 		break;
 
 	case IEEE80211_FC0_SUBTYPE_DISASSOC:
 		RAY_DPRINTF(sc, RAY_DBG_MGT, "DISASSOC MGT packet");
-		if (sc->sc_d.np_net_type == RAY_MIB_NET_TYPE_INFRA)
-			RAY_PANIC(sc, "can't be in INFRA yet"); /* XXX_INFRA */
+		if (sc->sc_c.np_net_type == RAY_MIB_NET_TYPE_INFRA)
+			RAY_RECERR(sc, "can't be in INFRA yet"); /* XXX_INFRA */
 		break;
 
  	case IEEE80211_FC0_SUBTYPE_PROBE_REQ:
@@ -2097,7 +2106,7 @@ ray_rx_ctl(struct ray_softc *sc, struct mbuf *m0)
 		RAY_DPRINTF(sc, RAY_DBG_CTL, "PS_POLL CTL packet");
 		if ((sc->sc_d.np_net_type == RAY_MIB_NET_TYPE_INFRA) &&
 		    (sc->sc_c.np_ap_status == RAY_MIB_AP_STATUS_AP))
-			RAY_PANIC(sc, "can't be an AP yet"); /* XXX_ACTING_AP */
+			RAY_RECERR(sc, "can't be an AP yet"); /* XXX_ACTING_AP */
 		break;
 
 	case IEEE80211_FC0_SUBTYPE_RTS:
@@ -2176,13 +2185,13 @@ ray_intr(void *xsc)
 	struct ray_softc *sc = (struct ray_softc *)xsc;
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 	size_t ccs;
-	u_int8_t cmd;
+	u_int8_t cmd, status;
 	int ccsi;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 	RAY_MAP_CM(sc);
 
-	if ((sc == NULL) || (sc->gone))
+	if ((sc == NULL) || (sc->sc_gone))
 		return;
 
 	/*
@@ -2193,14 +2202,14 @@ ray_intr(void *xsc)
 		ccsi = SRAM_READ_1(sc, RAY_SCB_RCSI);
 		ccs = RAY_CCS_ADDRESS(ccsi);
 		cmd = SRAM_READ_FIELD_1(sc, ccs, ray_cmd, c_cmd);
+		status = SRAM_READ_FIELD_1(sc, ccs, ray_cmd, c_status);
 		if (ccsi <= RAY_CCS_LAST)
-			ray_intr_ccs(sc, cmd, ccs);
+			ray_intr_ccs(sc, cmd, status, ccs);
 		else if (ccsi <= RAY_RCS_LAST)
 			ray_intr_rcs(sc, cmd, ccs);
 		else
 		    RAY_RECERR(sc, "bad ccs index 0x%x", ccsi);
 		RAY_HCS_CLEAR_INTR(sc);
-		RAY_DPRINTF(sc, RAY_DBG_RX, "interrupt was handled");
 	}
 
 	/* Send any packets lying around and update error counters */
@@ -2253,7 +2262,7 @@ ray_intr_updt_errcntrs(struct ray_softc *sc)
  * Process CCS command completion
  */
 static void
-ray_intr_ccs(struct ray_softc *sc, u_int8_t cmd, size_t ccs)
+ray_intr_ccs(struct ray_softc *sc, u_int8_t cmd, u_int8_t status, size_t ccs)
 {
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 
@@ -2400,7 +2409,7 @@ ray_mcast(struct ray_softc *sc, struct ray_comq_entry *com)
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 	struct ifmultiaddr *ifma;
 	size_t bufp;
-	int count;
+	int count = 0;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 	RAY_MAP_CM(sc);
@@ -2418,8 +2427,9 @@ ray_mcast(struct ray_softc *sc, struct ray_comq_entry *com)
 	 * The multicast list is only 16 items long so use promiscuous
 	 * mode and don't bother updating the multicast list.
 	 */
-	for (ifma = ifp->if_multiaddrs.lh_first, count = 0; ifma != NULL;
-	    ifma = ifma->ifma_link.le_next, count++)
+	for (ifma = ifp->if_multiaddrs.lh_first; ifma != NULL;
+	    ifma = ifma->ifma_link.le_next)
+		count++;
 	if (count == 0) {
 		ray_com_runq_done(sc);
 		return;
@@ -3026,21 +3036,18 @@ ray_com_runq_done(struct ray_softc *sc)
 static void
 ray_com_ecf(struct ray_softc *sc, struct ray_comq_entry *com)
 {
-	u_int i;
+	int i = 0;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_COM, "");
 	RAY_MAP_CM(sc);
 
-	/*
-	 * XXX we probably want to call a timeout on ourself here...
-	 * XXX why isn't this processed like the TX case
-	 */
-	i = 0;
-	while (!RAY_ECF_READY(sc))
-		if (++i > 50)
+	while (!RAY_ECF_READY(sc)) {
+		DELAY(RAY_ECF_SPIN_DELAY);
+		if (++i > RAY_ECF_SPIN_TRIES)
 			RAY_PANIC(sc, "spun too long");
-		else if (i == 1)
-			RAY_RECERR(sc, "spinning");
+	}
+	if (i != 0)
+		RAY_RECERR(sc, "spun %d times", i);
 
 	RAY_DPRINTF(sc, RAY_DBG_COM, "sending %p", com);
 	RAY_DCOM(sc, RAY_DBG_DCOM, com, "sending");
@@ -3069,7 +3076,7 @@ ray_com_ecf_timo(void *xsc)
 {
 	struct ray_softc *sc = (struct ray_softc *)xsc;
     	struct ray_comq_entry *com;
-	u_int8_t cmd;
+	u_int8_t cmd, status;
 	int s;
 
 	s = splnet();
@@ -3080,11 +3087,12 @@ ray_com_ecf_timo(void *xsc)
 	com = TAILQ_FIRST(&sc->sc_comq);
 
 	cmd = SRAM_READ_FIELD_1(sc, com->c_ccs, ray_cmd, c_cmd);
-	switch (SRAM_READ_FIELD_1(sc, com->c_ccs, ray_cmd, c_status)) {
+	status = SRAM_READ_FIELD_1(sc, com->c_ccs, ray_cmd, c_status);
+	switch (status) {
 
 	case RAY_CCS_STATUS_COMPLETE:
 	case RAY_CCS_STATUS_FREE:			/* Buggy firmware */
-		ray_intr_ccs(sc, cmd, com->c_ccs);
+		ray_intr_ccs(sc, cmd, status, com->c_ccs);
 		break;
 
 	case RAY_CCS_STATUS_BUSY:
@@ -3098,7 +3106,7 @@ ray_com_ecf_timo(void *xsc)
 			sc->com_timerh = timeout(ray_com_ecf_timo, sc,
 			    RAY_COM_TIMEOUT);
 		} else
-			ray_intr_ccs(sc, cmd, com->c_ccs);
+			ray_intr_ccs(sc, cmd, status, com->c_ccs);
 		break;
 
 	}
@@ -3176,7 +3184,7 @@ ray_ccs_alloc(struct ray_softc *sc, size_t *ccsp, char *wmesg)
 			RAY_DPRINTF(sc, RAY_DBG_CCS, "sleeping");
 			error = tsleep(ray_ccs_alloc, PCATCH | PRIBIO,
 			    wmesg, 0);
-			if ((sc == NULL) || (sc->gone))
+			if ((sc == NULL) || (sc->sc_gone))
 				return (ENXIO);
 			RAY_DPRINTF(sc, RAY_DBG_CCS,
 			    "awakened, tsleep returned 0x%x", error);
@@ -3226,7 +3234,7 @@ ray_ccs_free(struct ray_softc *sc, size_t ccs)
 	if (!sc->sc_ccsinuse[RAY_CCS_INDEX(ccs)])
 		RAY_RECERR(sc, "freeing free ccs 0x%02x", RAY_CCS_INDEX(ccs));
 #endif /* RAY_DEBUG & RAY_DBG_CCS */
-	if (!sc->gone)
+	if (!sc->sc_gone)
 		RAY_CCS_FREE(sc, ccs);
 	sc->sc_ccsinuse[RAY_CCS_INDEX(ccs)] = 0;
 	RAY_DPRINTF(sc, RAY_DBG_CCS, "freed 0x%02x", RAY_CCS_INDEX(ccs));
@@ -3284,7 +3292,7 @@ ray_ccs_tx(struct ray_softc *sc, size_t *ccsp, size_t *bufpp)
 	SRAM_WRITE_FIELD_2(sc, ccs, ray_cmd_tx, c_bufp, bufp);
 	SRAM_WRITE_FIELD_1(sc,
 	    ccs, ray_cmd_tx, c_tx_rate, sc->sc_c.np_def_txrate);
-	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_apm_mode, 0); /* XXX */
+	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_tx, c_apm_mode, 0); /* XXX_APM */
 	bufp += sizeof(struct ray_tx_phy_header);
 
 	*ccsp = ccs;
@@ -3299,86 +3307,59 @@ ray_ccs_tx(struct ray_softc *sc, size_t *ccsp, size_t *bufpp)
 /*
  * Allocate the attribute memory on the card
  *
- * A lot of this is hacking around pccardd brokeness
+ * The attribute memory space is abused by these devices as IO space. As such
+ * the OS card services don't have a chance of knowing that they need to keep
+ * the attribute space mapped. We have to do it manually.
  */
 static int
 ray_res_alloc_am(struct ray_softc *sc)
 {
-	u_long start, count, flags;
-	u_int32_t offset;
 	int error;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_CM, "");
 
 	sc->am_rid = RAY_AM_RID;
-	start = bus_get_resource_start(sc->dev, SYS_RES_MEMORY, sc->am_rid);
-	count = bus_get_resource_count(sc->dev, SYS_RES_MEMORY, sc->am_rid);
-	error = CARD_GET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
-	    SYS_RES_MEMORY, sc->am_rid, &flags);
-	if (error) {
-		RAY_PRINTF(sc, "CARD_GET_RES_FLAGS returned 0x%0x", error);
-		return (error);
-	}
-	error = CARD_GET_MEMORY_OFFSET(device_get_parent(sc->dev), sc->dev,
-	    sc->am_rid, &offset);
-	if (error) {
-		RAY_PRINTF(sc, "CARD_GET_MEMORY_OFFSET returned 0x%0x", error);
-		return (error);
-	}
-
-	RAY_DPRINTF(sc, RAY_DBG_CM | RAY_DBG_BOOTPARAM,
-	    "attribute start 0x%0lx count 0x%0lx flags 0x%0lx offset 0x%0x",
-	    start, count, flags, offset);
-
-	if (start == 0x0) {
-		RAY_PRINTF(sc, "fixing up AM map");
-	}
-	if (count != 0x1000) {
-		RAY_PRINTF(sc, "fixing up AM size from 0x%lx to 0x1000",
-		    count);
-		count = 0x1000;
-	}
 	sc->am_res = bus_alloc_resource(sc->dev, SYS_RES_MEMORY,
-	    &sc->am_rid, start, ~0, count, RF_ACTIVE);
+	    &sc->am_rid, 0UL, ~0UL, 0x1000, RF_ACTIVE);
 	if (!sc->am_res) {
 		RAY_PRINTF(sc, "Cannot allocate attribute memory");
 		return (ENOMEM);
 	}
+	error = CARD_SET_MEMORY_OFFSET(device_get_parent(sc->dev), sc->dev,
+	    sc->am_rid, 0);
+	if (error) {
+		RAY_PRINTF(sc, "CARD_SET_MEMORY_OFFSET returned 0x%0x", error);
+		return (error);
+	}
+	error = CARD_SET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
+	    SYS_RES_MEMORY, sc->am_rid, PCCARD_A_MEM_ATTR);
+	if (error) {
+		RAY_PRINTF(sc, "CARD_SET_RES_FLAGS returned 0x%0x", error);
+		return (error);
+	}
+	error = CARD_SET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
+	    SYS_RES_MEMORY, sc->am_rid, PCCARD_A_MEM_8BIT);
+	if (error) {
+		RAY_PRINTF(sc, "CARD_SET_RES_FLAGS returned 0x%0x", error);
+		return (error);
+	}
 	sc->am_bsh = rman_get_bushandle(sc->am_res);
 	sc->am_bst = rman_get_bustag(sc->am_res);
-	if (offset != 0) {
-		RAY_PRINTF(sc, "fixing up AM card address from 0x%x to 0x0",
-		    offset);
-		error = CARD_SET_MEMORY_OFFSET(device_get_parent(sc->dev),
-		    sc->dev, sc->am_rid, 0);
-		if (error) {
-			RAY_PRINTF(sc, "CARD_SET_MEMORY_OFFSET returned 0x%0x",
-			    error);
-			return (error);
-		}
-	}
-	if (!(flags & 0x10) /* XXX MDF_ATTR */) {
-		RAY_PRINTF(sc, "fixing up AM flags from 0x%lx to 0x50",
-		    flags);
-		error = CARD_SET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
-		    SYS_RES_MEMORY, sc->am_rid, PCCARD_A_MEM_ATTR);
-		if (error) {
-			RAY_PRINTF(sc, "CARD_SET_RES_FLAGS returned 0x%0x",
-			    error);
-			return (error);
-		}
-	}
 
 #if RAY_DEBUG & (RAY_DBG_CM | RAY_DBG_BOOTPARAM)
+{
+	u_long flags;
+	u_int32_t offset;
 	CARD_GET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
 	    SYS_RES_MEMORY, sc->am_rid, &flags);
 	CARD_GET_MEMORY_OFFSET(device_get_parent(sc->dev), sc->dev,
-	    sc->cm_rid, &offset);
+	    sc->am_rid, &offset);
 	RAY_PRINTF(sc, "allocated attribute memory:\n"
 	    ".  start 0x%0lx count 0x%0lx flags 0x%0lx offset 0x%0x",
 	    bus_get_resource_start(sc->dev, SYS_RES_MEMORY, sc->am_rid),
 	    bus_get_resource_count(sc->dev, SYS_RES_MEMORY, sc->am_rid),
 	    flags, offset);
+}
 #endif /* RAY_DEBUG & (RAY_DBG_CM | RAY_DBG_BOOTPARAM) */
 
 	return (0);
@@ -3387,77 +3368,58 @@ ray_res_alloc_am(struct ray_softc *sc)
 /*
  * Allocate the common memory on the card
  *
- * A lot of this is hacking around pccardd brokeness
+ * As this memory is described in the CIS, the OS card services should
+ * have set the map up okay, but the card uses 8 bit RAM. This is not
+ * described in the CIS.
  */
 static int
 ray_res_alloc_cm(struct ray_softc *sc)
 {
-	u_long start, count, flags;
-	u_int32_t offset;
+	u_long start, count, end;
 	int error;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_CM, "");
 
+	RAY_DPRINTF(sc,RAY_DBG_CM | RAY_DBG_BOOTPARAM,
+	    "cm start 0x%0lx count 0x%0lx",
+	    bus_get_resource_start(sc->dev, SYS_RES_MEMORY, RAY_CM_RID),
+	    bus_get_resource_count(sc->dev, SYS_RES_MEMORY, RAY_CM_RID));
+
 	sc->cm_rid = RAY_CM_RID;
 	start = bus_get_resource_start(sc->dev, SYS_RES_MEMORY, sc->cm_rid);
 	count = bus_get_resource_count(sc->dev, SYS_RES_MEMORY, sc->cm_rid);
-	error = CARD_GET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
-	    SYS_RES_MEMORY, sc->cm_rid, &flags);
-	if (error) {
-		RAY_PRINTF(sc, "CARD_GET_RES_FLAGS returned 0x%0x", error);
-		return (error);
-	}
-	error = CARD_GET_MEMORY_OFFSET(device_get_parent(sc->dev), sc->dev,
-	    sc->cm_rid, &offset);
-	if (error) {
-		RAY_PRINTF(sc, "CARD_GET_MEMORY_OFFSET returned 0x%0x", error);
-		return (error);
-	}
-
-	RAY_DPRINTF(sc, RAY_DBG_CM | RAY_DBG_BOOTPARAM,
-	    "memory start 0x%0lx count 0x%0lx flags 0x%0lx offset 0x%0x",
-	    start, count, flags, offset);
-
-	if (start == 0x0) {
-		RAY_PRINTF(sc, "fixing up CM map");
-	}
-	if (count != 0xc000) {
-		RAY_PRINTF(sc, "fixing up CM size from 0x%lx to 0xc000",
-		    count);
-		count = 0xc000;
-	}
+	end = start + count - 1;
 	sc->cm_res = bus_alloc_resource(sc->dev, SYS_RES_MEMORY,
-	    &sc->cm_rid, start, ~0, count, RF_ACTIVE);
+	    &sc->cm_rid, start, end, count, RF_ACTIVE);
 	if (!sc->cm_res) {
 		RAY_PRINTF(sc, "Cannot allocate common memory");
 		return (ENOMEM);
 	}
+	error = CARD_SET_MEMORY_OFFSET(device_get_parent(sc->dev), sc->dev,
+	    sc->cm_rid, 0);
+	if (error) {
+		RAY_PRINTF(sc, "CARD_SET_MEMORY_OFFSET returned 0x%0x", error);
+		return (error);
+	}
+	error = CARD_SET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
+	    SYS_RES_MEMORY, sc->cm_rid, PCCARD_A_MEM_COM);
+	if (error) {
+		RAY_PRINTF(sc, "CARD_SET_RES_FLAGS returned 0x%0x", error);
+		return (error);
+	}
+	error = CARD_SET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
+	    SYS_RES_MEMORY, sc->cm_rid, PCCARD_A_MEM_8BIT);
+	if (error) {
+		RAY_PRINTF(sc, "CARD_SET_RES_FLAGS returned 0x%0x", error);
+		return (error);
+	}
 	sc->cm_bsh = rman_get_bushandle(sc->cm_res);
 	sc->cm_bst = rman_get_bustag(sc->cm_res);
-	if (offset != 0) {
-		RAY_PRINTF(sc, "fixing up CM card address from 0x%x to 0x0",
-		    offset);
-		error = CARD_SET_MEMORY_OFFSET(device_get_parent(sc->dev),
-		    sc->dev, sc->cm_rid, 0);
-		if (error) {
-			RAY_PRINTF(sc, "CARD_SET_MEMORY_OFFSET returned 0x%0x",
-			    error);
-			return (error);
-		}
-	}
-	if (flags != 0x40 /* XXX MDF_ACTIVE */) {
-		RAY_PRINTF(sc, "fixing up CM flags from 0x%lx to 0x40",
-		    flags);
-		error = CARD_SET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
-		    SYS_RES_MEMORY, sc->cm_rid, 2);
-		if (error) {
-			RAY_PRINTF(sc, "CARD_SET_RES_FLAGS returned 0x%0x",
-			    error);
-			return (error);
-		}
-	}
 
 #if RAY_DEBUG & (RAY_DBG_CM | RAY_DBG_BOOTPARAM)
+{
+	u_long flags;
+	u_int32_t offset;
 	CARD_GET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
 	    SYS_RES_MEMORY, sc->cm_rid, &flags);
 	CARD_GET_MEMORY_OFFSET(device_get_parent(sc->dev), sc->dev,
@@ -3467,6 +3429,7 @@ ray_res_alloc_cm(struct ray_softc *sc)
 	    bus_get_resource_start(sc->dev, SYS_RES_MEMORY, sc->cm_rid),
 	    bus_get_resource_count(sc->dev, SYS_RES_MEMORY, sc->cm_rid),
 	    flags, offset);
+}
 #endif /* RAY_DEBUG & (RAY_DBG_CM | RAY_DBG_BOOTPARAM) */
 
 	return (0);
@@ -3543,6 +3506,8 @@ ray_dump_mbuf(struct ray_softc *sc, struct mbuf *m, char *s)
 	char p[17];
 
 	RAY_PRINTF(sc, "%s", s);
+	RAY_PRINTF(sc, "\nm0->data\t0x%p\nm_pkthdr.len\t%d\nm_len\t%d",
+	    mtod(m, u_int8_t *), m->m_pkthdr.len, m->m_len);
 	i = 0;
 	bzero(p, 17);
 	for (; m; m = m->m_next) {
