@@ -184,7 +184,7 @@ dofileread(td, fp, fd, buf, nbyte, offset, flags)
 	/*
 	 * if tracing, save a copy of iovec
 	 */
-	if (KTRPOINT(td->td_proc, KTR_GENIO)) {
+	if (KTRPOINT(td, KTR_GENIO)) {
 		ktriov = aiov;
 		ktruio = auio;
 		didktr = 1;
@@ -202,7 +202,7 @@ dofileread(td, fp, fd, buf, nbyte, offset, flags)
 	if (didktr && error == 0) {
 		ktruio.uio_iov = &ktriov;
 		ktruio.uio_resid = cnt;
-		ktrgenio(td->td_proc->p_tracep, fd, UIO_READ, &ktruio, error);
+		ktrgenio(fd, UIO_READ, &ktruio, error);
 	}
 #endif
 	td->td_retval[0] = cnt;
@@ -275,7 +275,7 @@ readv(td, uap)
 	/*
 	 * if tracing, save a copy of iovec
 	 */
-	if (KTRPOINT(td->td_proc, KTR_GENIO))  {
+	if (KTRPOINT(td, KTR_GENIO))  {
 		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
 		bcopy((caddr_t)auio.uio_iov, (caddr_t)ktriov, iovlen);
 		ktruio = auio;
@@ -293,8 +293,7 @@ readv(td, uap)
 		if (error == 0) {
 			ktruio.uio_iov = ktriov;
 			ktruio.uio_resid = cnt;
-			ktrgenio(td->td_proc->p_tracep, uap->fd, UIO_READ, &ktruio,
-			    error);
+			ktrgenio(uap->fd, UIO_READ, &ktruio, error);
 		}
 		FREE(ktriov, M_TEMP);
 	}
@@ -408,7 +407,7 @@ dofilewrite(td, fp, fd, buf, nbyte, offset, flags)
 	/*
 	 * if tracing, save a copy of iovec and uio
 	 */
-	if (KTRPOINT(td->td_proc, KTR_GENIO)) {
+	if (KTRPOINT(td, KTR_GENIO)) {
 		ktriov = aiov;
 		ktruio = auio;
 		didktr = 1;
@@ -432,7 +431,7 @@ dofilewrite(td, fp, fd, buf, nbyte, offset, flags)
 	if (didktr && error == 0) {
 		ktruio.uio_iov = &ktriov;
 		ktruio.uio_resid = cnt;
-		ktrgenio(td->td_proc->p_tracep, fd, UIO_WRITE, &ktruio, error);
+		ktrgenio(fd, UIO_WRITE, &ktruio, error);
 	}
 #endif
 	td->td_retval[0] = cnt;
@@ -509,7 +508,7 @@ writev(td, uap)
 	/*
 	 * if tracing, save a copy of iovec and uio
 	 */
-	if (KTRPOINT(td->td_proc, KTR_GENIO))  {
+	if (KTRPOINT(td, KTR_GENIO))  {
 		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
 		bcopy((caddr_t)auio.uio_iov, (caddr_t)ktriov, iovlen);
 		ktruio = auio;
@@ -534,8 +533,7 @@ writev(td, uap)
 		if (error == 0) {
 			ktruio.uio_iov = ktriov;
 			ktruio.uio_resid = cnt;
-			ktrgenio(td->td_proc->p_tracep, uap->fd, UIO_WRITE, &ktruio,
-			    error);
+			ktrgenio(uap->fd, UIO_WRITE, &ktruio, error);
 		}
 		FREE(ktriov, M_TEMP);
 	}
