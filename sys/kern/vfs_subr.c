@@ -1756,8 +1756,9 @@ bdevvp(dev, vpp)
 		*vpp = NULLVP;
 		return (ENXIO);
 	}
-	if (vfinddev(dev, VCHR, vpp))
+	if (vfinddev(dev, vpp))
 		return (0);
+
 	error = getnewvnode("none", (struct mount *)0, spec_vnodeop_p, &nvp);
 	if (error) {
 		*vpp = NULLVP;
@@ -1813,7 +1814,7 @@ addaliasu(nvp, nvp_rdev)
 	 * discard the newly created vnode rather than leaving the
 	 * bdevvp vnode lying around with no associated filesystem.
 	 */
-	if (vfinddev(dev, nvp->v_type, &ovp) == 0 || ovp->v_data != NULL) {
+	if (vfinddev(dev, &ovp) == 0 || ovp->v_data != NULL) {
 		addalias(nvp, dev);
 		return (nvp);
 	}
@@ -2626,20 +2627,17 @@ vgonel(vp, td)
  * Lookup a vnode by device number.
  */
 int
-vfinddev(dev, type, vpp)
+vfinddev(dev, vpp)
 	dev_t dev;
-	enum vtype type;
 	struct vnode **vpp;
 {
 	struct vnode *vp;
 
 	mtx_lock(&spechash_mtx);
 	SLIST_FOREACH(vp, &dev->si_hlist, v_specnext) {
-		if (type == vp->v_type) {
-			*vpp = vp;
-			mtx_unlock(&spechash_mtx);
-			return (1);
-		}
+		*vpp = vp;
+		mtx_unlock(&spechash_mtx);
+		return (1);
 	}
 	mtx_unlock(&spechash_mtx);
 	return (0);
