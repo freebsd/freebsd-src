@@ -109,6 +109,17 @@ interfaces with dynamically-changing IP addresses.
 
 TCP has received some bug fixes for its delayed ACK behavior.
 
+TCP now supports the NewReno modification to the TCP Fast Recovery
+algorithm.  This behavior can be controlled via the
+net.inet.tcp.newreno sysctl variable.
+
+TCP now uses a more aggressive timeout for initial SYN segments; this
+allows initial connection attempts to be dropped much faster.
+
+A new sysctl net.inet.ip.check_interface, which is on by default,
+causes IP to verify that an incoming packet arrives on an interface
+that has an address matching the packet's destination address.
+
 The ata(4) driver has been updated.
 
 kqueue(2) has been extended to the device layer, and has also received
@@ -312,6 +323,9 @@ Boot-time syscons configuration was moved to a machine-independent
 rc.syscons.
 
 login(1) now exports environment variables set by PAM modules.
+
+ipfstat(8) now supports the -t option to turn on a top(1)-like
+display.
 
 
 2. Supported Configurations
