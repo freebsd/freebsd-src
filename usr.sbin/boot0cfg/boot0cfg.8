@@ -103,10 +103,11 @@ specified (with
 prepended as necessary):
 .Bl -tag -width indent
 .It packet
-Use the disk packet (BIOS Int 0x13 extensions) interface rather than
-the conventional (CHS) interface, when accessing disk-related BIOS
-services.  The default is
-.Sq nopacket .
+Permit use of the disk packet (BIOS Int 0x13 extensions) interface
+in addition to the conventional (CHS) interface, as necessary, when
+accessing disk-related BIOS services.  This is the default; a
+.Sq nopacket
+option prevents use of the Int 0x13 extensions.
 .It setdrv
 Forces the drive containing the disk to be referenced using drive
 number definable by means of the -d option.  The default is
