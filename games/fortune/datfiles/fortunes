@@ -721,8 +721,8 @@ an electronic calculator, and then say, "We're expecting a shipment of
 these sometime around the middle of next week".
 		-- Dave Barry, "The Taming of the Screw"
 %
-	How many seconds are there in a year?  If I tell you there  are
-3.155  x  10^7, you won't even try to remember it.  On the other hand,
+	How many seconds are there in a year?  If I tell you there are
+3.155 x 10^7, you won't even try to remember it.  On the other hand,
 who could forget that, to within half a percent, pi seconds is a
 nanocentury.
 		-- Tom Duff, Bell Labs
@@ -1865,7 +1865,7 @@ favored by God with an extraordinary genius for swathing the bitter
 facts of life in bandages of self-illusion.
 		-- H. L. Mencken
 %
-A general leading the State Department resembles  a dragon commanding
+A general leading the State Department resembles a dragon commanding
 ducks.
 		-- New York Times, Jan. 20, 1981
 %
@@ -1926,7 +1926,7 @@ M is for Maud who was swept out to sea, N is for Nevil who died of enui.
 O is for Olive, run through with an awl, P is for Prue, trampled flat in a brawl
 Q is for Quinton who sank in a mire, R is for Rhoda, consumed by a fire.
 S is for Susan who parished of fits, T is for Titas who flew into bits.
-U is for Una  who slipped down a drain, V is for Victor, squashed under a train.
+U is for Una who slipped down a drain, V is for Victor, squashed under a train.
 W is for Winie, embedded in ice, X is for Xercies, devoured by mice.
 Y is for Yoric whose head was bashed in, Z is for Zilla who drank too much gin.
 		-- Edward Gorey "The Gastly Crumb Tines"
@@ -2419,8 +2419,7 @@ then at least be aseptic.
 After a few boring years, socially meaningful rock 'n' roll died out.
 It was replaced by disco, which offers no guidance to any form of life
 more advanced than the lichen family.
-		-- Dave Barry, "Kids Today: They Don't Know Dum Diddly
-		   Do"
+		-- Dave Barry, "Kids Today: They Don't Know Dum Diddly Do"
 %
 After a number of decimal places, nobody gives a damn.
 %
@@ -2855,8 +2854,7 @@ Another possible source of guidance for teenagers is television, but
 television's message has always been that the need for truth, wisdom
 and world peace pales by comparison with the need for a toothpaste that
 offers whiter teeth *___and* fresher breath.
-		-- Dave Barry, "Kids Today: They Don't Know Dum Diddly
-		   Do"
+		-- Dave Barry, "Kids Today: They Don't Know Dum Diddly Do"
 %
 Anthony's Law of Force:
 	Don't force it; get a larger hammer.
@@ -4420,7 +4418,7 @@ come of nothing: speak again." -- King Lear.
 		-- Stan Kelly-Bootle, "The Devil's DP Dictionary"
 %
 #define BITCOUNT(x)	(((BX_(x)+(BX_(x)>>4)) & 0x0F0F0F0F) % 255)
-#define  BX_(x)		((x) - (((x)>>1)&0x77777777)			\
+#define BX_(x)		((x) - (((x)>>1)&0x77777777)			\
 			     - (((x)>>2)&0x33333333)			\
 			     - (((x)>>3)&0x11111111))
 
@@ -4479,7 +4477,7 @@ Result is demagogism, license, agitation, discontent, anarchy.
 		   since withdrawn.
 %
 Demographic polls show that you have lost credibility across the
-board.  Especially with  those 14 year-old Valley girls.
+board.  Especially with those 14 year-old Valley girls.
 %
 Dentist, n.:
 	A Prestidigitator who, putting metal in one's mouth, pulls
@@ -4928,7 +4926,7 @@ exactly, make people laugh.  That's why they were called "wise men."
 All the other prehistoric people were out puncturing each other with
 spears, and the wise men were back in the cave saying: "How about:
 Would you please take my wife?  No.  How about: Here is my wife, please
-take her right now.  No How about:  Would you like to take something?
+take her right now.  No.  How about:  Would you like to take something?
 My wife is available.  No.  How about ..."
 		-- Dave Barry, "Why Humor is Funny"
 %
@@ -8506,8 +8504,7 @@ Curiously enough, the dolphins had long known of the impending
 destruction of the of the planet Earth and had made many attempts to
 alert mankind to the danger; but most of their communications were
 misinterpreted ...
-		-- Douglas Admas "The Hitch-Hikers' Guide To The
-		   Galaxy"
+		-- Douglas Admas "The Hitch-Hiker's Guide To The Galaxy"
 %
 It is better for civilization to be going down the drain than to be
 coming up it.
@@ -9026,8 +9023,7 @@ original tree, you would see the primate parents yelling at the primate
 teenager for sitting around and sulking all day instead of hunting for
 grubs and berries like dad primate.  Then you'd see the primate
 teenager stomp up to his branch and slam the leaves.
-		-- Dave Barry, "Kids Today: They Don't Know Dum Diddly
-		   Do"
+		-- Dave Barry, "Kids Today: They Don't Know Dum Diddly Do"
 %
 Kin, n.:
 	An affliction of the blood
@@ -9615,7 +9611,7 @@ is an enemy.
 		-- Albert Einstein
 %
 Mandrell: "You know what I think?"
-Doctor:   "Ah, ah that's a catch question. With a brain your size you
+Doctor:   "Ah, ah that's a catch question.  With a brain your size you
 	  don't think, right?"
 		-- Dr. Who
 %
@@ -12883,7 +12879,7 @@ Lover's Patties would be compressed into wads and sold as "Nuggets."
 The best book on programming for the layman is "Alice in Wonderland";
 but that's because it's the best book on anything for the layman.
 %
-The best cure for insomnia is to get a  lot of sleep.
+The best cure for insomnia is to get a lot of sleep.
 		-- W. C. Fields
 %
 The best defense against logic is ignorance.
@@ -13844,7 +13840,7 @@ The shortest distance between two points is under construction.
 %
 The Sixth Commandment of Frisbee:
 	The greatest single aid to distance is for the disc to be going
-in a direction you did not want.   (Goes the wrong way = Goes a long
+in a direction you did not want.  (Goes the wrong way = Goes a long
 way.)
 		-- Dan Roddick
 %
@@ -14261,7 +14257,7 @@ There is no time like the present for postponing what you ought to be
 doing.
 %
 There is no TRUTH.  There is no REALITY.  There is no CONSISTENCY.
-There are no ABSOLUTE STATEMENTS   I'm very probably wrong.
+There are no ABSOLUTE STATEMENTS.  I'm very probably wrong.
 %
 "There is nothing which cannot be answered by means of my doctrine,"
 said a monk, coming into a teahouse where Nasrudin sat.  "And yet just
@@ -16469,7 +16465,7 @@ another $2 if he claims it will be His Pleasure to serve you and
 another $2 for each "special" he describes involving confusing terms
 such as "shallots," and $4 if the menu contains the word "fixin's."  In
 many restaurants, this means the waiter will actually owe you money.
-If you are traveling with a child  aged six months to three years, you
+If you are traveling with a child aged six months to three years, you
 should leave an additional amount equal to twice the bill to compensate
 for the fact that they will have to take the banquette out and burn it
 because the cracks are wedged solid with gobbets made of partially
