@@ -48,7 +48,9 @@
 #include <sys/queue.h>
 #include <sys/rtprio.h>			/* For struct rtprio. */
 #include <sys/signal.h>
-#ifndef _KERNEL
+#ifdef _KERNEL
+#include <machine/frame.h>
+#else
 #include <sys/time.h>			/* For structs itimerval, timeval. */
 #endif
 #include <sys/ucred.h>
@@ -158,7 +160,8 @@ struct	proc {
 #define	p_ucred		p_cred->pc_ucred
 #define	p_rlimit	p_limit->pl_rlimit
 
-	int	p_flag;			/* (c/j) P_* flags. */
+	int	p_flag;			/* (c) P_* flags. */
+	int	p_sflag;		/* (j) PS_* flags. */
 	int	p_intr_nesting_level;	/* (n) Interrupt recursion. */
 	char	p_stat;			/* (j) S* process status. */
 	char	p_pad1[3];
@@ -189,10 +192,10 @@ struct	proc {
 
 	struct	callout p_itcallout;	/* (h) Interval timer callout. */
 	struct	itimerval p_realtimer;	/* (h?/k?) Alarm timer. */
-	u_int64_t p_runtime;	/* (c) Real time in microsec. */
-	u_int64_t p_uu;		/* (c) Previous user time in microsec. */
-	u_int64_t p_su;		/* (c) Previous system time in microsec. */
-	u_int64_t p_iu;		/* (c) Previous interrupt time in microsec. */
+	u_int64_t p_runtime;	/* (j) Real time in microsec. */
+	u_int64_t p_uu;		/* (j) Previous user time in microsec. */
+	u_int64_t p_su;		/* (j) Previous system time in microsec. */
+	u_int64_t p_iu;		/* (j) Previous interrupt time in microsec. */
 	u_int64_t p_uticks;	/* (j) Statclock hits in user mode. */
 	u_int64_t p_sticks;	/* (j) Statclock hits in system mode. */
 	u_int64_t p_iticks;	/* (j) Statclock hits processing intr. */
@@ -223,7 +226,7 @@ struct	proc {
 	sigset_t p_oldsigmask;	/* (c) Saved mask from before sigpause. */
 	int	p_sig;			/* (n) For core dump/debugger XXX. */
 	u_long	p_code;			/* (n) For core dump/debugger XXX. */
-	struct	klist p_klist;	/* (c?) Knotes attached to this process. */
+	struct	klist p_klist;	/* (c) Knotes attached to this process. */
 	LIST_HEAD(, mtx) p_heldmtx;	/* (j) For debugging code. */
 	struct mtx *p_blocked;		/* (j) Mutex process is blocked on. */
 	const char *p_mtxname;		/* (j) Name of mutex blocked on. */
@@ -242,7 +245,7 @@ struct	proc {
 	u_char	p_priority;	/* (j) Process priority. */
 	u_char	p_usrpri; /* (j) User priority based on p_cpu and p_nice. */
 	u_char	p_nativepri;	/* (j) Priority before propagation. */
-	char	p_nice;		/* (j/k?) Process "nice" value. */
+	char	p_nice;		/* (j?/k?) Process "nice" value. */
 	char	p_comm[MAXCOMLEN + 1];	/* (b) Process name. */
 
 	struct 	pgrp *p_pgrp;	/* (e?/c?) Pointer to process group. */
@@ -284,27 +287,19 @@ struct	proc {
 /* These flags are kept in p_flag. */
 #define	P_ADVLOCK	0x00001	/* Process may hold a POSIX advisory lock. */
 #define	P_CONTROLT	0x00002	/* Has a controlling terminal. */
-#define	P_INMEM		0x00004	/* Loaded into memory. */
+#define	P_KTHREAD	0x00004 /* Kernel thread. */
 #define	P_NOLOAD	0x00008	/* Ignore during load avg calculations. */
 #define	P_PPWAIT	0x00010	/* Parent is waiting for child to exec/exit. */
-#define	P_PROFIL	0x00020	/* Has started profiling. */
 #define	P_SELECT	0x00040	/* Selecting; wakeup/waiting danger. */
-#define	P_SINTR		0x00080	/* Sleep is interruptible. */
 #define	P_SUGID		0x00100	/* Had set id privileges since last exec. */
 #define	P_SYSTEM	0x00200	/* System proc: no sigs, stats or swapping. */
-#define	P_TIMEOUT	0x00400	/* Timing out during sleep. */
 #define	P_TRACED	0x00800	/* Debugged process being traced. */
 #define	P_WAITED	0x01000	/* Debugging process has waited for child. */
 #define	P_WEXIT		0x02000	/* Working on exiting. */
 #define	P_EXEC		0x04000	/* Process called exec. */
-#define	P_ALRMPEND	0x08000 /* Pending SIGVTALRM needs to be posted. */
-#define	P_PROFPEND	0x10000 /* Pending SIGPROF needs to be posted. */
 
 /* Should be moved to machine-dependent areas. */
-#define	P_OWEUPC	0x20000	/* Owe process an addupc() call at next ast. */
 
-#define	P_SWAPPING	0x40000	/* Process is being swapped. */
-#define	P_SWAPINREQ	0x80000	/* Swapin request due to wakeup. */
 #define	P_BUFEXHAUST	0x100000 /* Dirty buffers flush is in progress. */
 #define	P_COWINPROGRESS	0x400000 /* Snapshot copy-on-write in progress. */
 
@@ -314,7 +309,17 @@ struct	proc {
 #define	P_OLDMASK	0x2000000 /* Need to restore mask after suspend. */
 #define	P_ALTSTACK	0x4000000 /* Have alternate signal stack. */
 
-#define	P_CVWAITQ	0x8000000 /* proces is on a cv_waitq (not slpq) */
+/* These flags are kept in p_sflag and are protected with sched_lock. */
+#define	PS_INMEM	0x00001	/* Loaded into memory. */
+#define	PS_OWEUPC	0x00002	/* Owe process an addupc() call at next ast. */
+#define	PS_PROFIL	0x00004	/* Has started profiling. */
+#define	PS_SINTR	0x00008	/* Sleep is interruptible. */
+#define	PS_TIMEOUT	0x00010	/* Timing out during sleep. */
+#define	PS_ALRMPEND	0x00020 /* Pending SIGVTALRM needs to be posted. */
+#define	PS_PROFPEND	0x00040 /* Pending SIGPROF needs to be posted. */
+#define	PS_CVWAITQ	0x00080 /* Proces is on a cv_waitq (not slpq). */
+#define	PS_SWAPINREQ	0x00100	/* Swapin request due to wakeup. */
+#define	PS_SWAPPING	0x00200	/* Process is being swapped. */
 
 #define	P_MAGIC		0xbeefface
 
@@ -399,11 +404,11 @@ sigonstack(size_t sp)
 
 /* STOPEVENT() is MP safe. */
 #define	STOPEVENT(p, e, v) do {						\
+	PROC_LOCK(p);							\
 	if ((p)->p_stops & (e)) {					\
-		mtx_enter(&Giant, MTX_DEF);				\
 		stopevent((p), (e), (v));				\
-		mtx_exit(&Giant, MTX_DEF);				\
 	}								\
+	PROC_UNLOCK(p);							\
 } while (0)
 
 /* Lock and unlock a process. */
@@ -432,12 +437,11 @@ sigonstack(size_t sp)
 /* Hold process U-area in memory, normally for ptrace/procfs work. */
 #define PHOLD(p) do {							\
 	PROC_LOCK(p);							\
-	if ((p)->p_lock++ == 0 && ((p)->p_flag & P_INMEM) == 0) {	\
-		PROC_UNLOCK(p);						\
+	if ((p)->p_lock++ == 0)						\
 		faultin(p);						\
-	} else								\
-		PROC_UNLOCK(p);						\
+	PROC_UNLOCK(p);							\
 } while (0)
+
 #define	PRELE(p) do {							\
 	PROC_LOCK(p);							\
 	(--(p)->p_lock);						\
@@ -495,12 +499,16 @@ struct mtx;
 
 struct	proc *pfind __P((pid_t));	/* Find process by id. */
 struct	pgrp *pgfind __P((pid_t));	/* Find process group by id. */
+struct	proc *zpfind __P((pid_t));	/* Find zombie process by id. */
 
 struct	proc *chooseproc __P((void));
 int	enterpgrp __P((struct proc *p, pid_t pgid, int mksess));
 void	faultin __P((struct proc *p));
 void	fixjobc __P((struct proc *p, struct pgrp *pgrp, int entering));
 int	fork1 __P((struct proc *, int, struct proc **));
+void	fork_exit __P((void *(void *, struct trapframe *), void *,
+	    struct trapframe));
+void	fork_return __P((struct proc *, struct trapframe *));
 int	inferior __P((struct proc *p));
 int	leavepgrp __P((struct proc *p));
 void	mi_switch __P((void));
@@ -524,6 +532,7 @@ void	cpu_switch __P((void));
 void	cpu_throw __P((void)) __dead2;
 void	unsleep __P((struct proc *));
 void	updatepri __P((struct proc *));
+void	userret __P((struct proc *, struct trapframe *, u_quad_t));
 void	maybe_resched __P((struct proc *));
 
 void	cpu_exit __P((struct proc *)) __dead2;
