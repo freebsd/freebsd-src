@@ -716,7 +716,7 @@ sb_attach(device_t dev)
 		goto no;
     	if (mixer_init(dev, (sb->bd_id < 0x300)? &sbmix_mixer_class : &sbpromix_mixer_class, sb))
 		goto no;
-	if (snd_setup_intr(dev, sb->irq, INTR_MPSAFE, sb_intr, sb, &sb->ih))
+	if (snd_setup_intr(dev, sb->irq, 0, sb_intr, sb, &sb->ih))
 		goto no;
 
 	pcm_setflags(dev, pcm_getflags(dev) | SD_F_SIMPLEX);

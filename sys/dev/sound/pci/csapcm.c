@@ -795,7 +795,7 @@ pcmcsa_attach(device_t dev)
 			rman_get_start(resp->irq),PCM_KLDSTRING(snd_csa));
 
 	/* Enable interrupt. */
-	if (snd_setup_intr(dev, resp->irq, INTR_MPSAFE, csa_intr, csa, &csa->ih)) {
+	if (snd_setup_intr(dev, resp->irq, 0, csa_intr, csa, &csa->ih)) {
 		ac97_destroy(codec);
 		csa_releaseres(csa, dev);
 		return (ENXIO);

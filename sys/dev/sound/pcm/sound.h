@@ -77,17 +77,12 @@
 
 #define USING_MUTEX
 #define USING_DEVFS
+#else
+#define	INTR_TYPE_AV	INTR_TYPE_TTY
+#define	INTR_MPSAFE	0
 #endif
 
 #define SND_DYNSYSCTL
-
-#ifndef	INTR_MPSAFE
-#define	INTR_TYPE_AV	INTR_TYPE_TTY
-#endif
-
-#ifndef	INTR_MPSAFE
-#define	INTR_MPSAFE	0
-#endif
 
 struct pcm_channel;
 struct pcm_feeder;

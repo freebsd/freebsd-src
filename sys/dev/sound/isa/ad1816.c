@@ -604,7 +604,7 @@ ad1816_attach(device_t dev)
     	ad1816_init(ad1816, dev);
     	if (mixer_init(dev, &ad1816mixer_class, ad1816)) goto no;
 
-	snd_setup_intr(dev, ad1816->irq, INTR_MPSAFE, ad1816_intr, ad1816, &ad1816->ih);
+	snd_setup_intr(dev, ad1816->irq, 0, ad1816_intr, ad1816, &ad1816->ih);
     	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
 			/*lowaddr*/BUS_SPACE_MAXADDR_24BIT,
 			/*highaddr*/BUS_SPACE_MAXADDR,
