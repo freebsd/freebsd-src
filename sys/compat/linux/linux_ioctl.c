@@ -1711,6 +1711,10 @@ linux_ioctl_sound(struct thread *td, struct linux_ioctl_args *args)
 		args->cmd = SOUND_MIXER_READ_STEREODEVS;
 		return (ioctl(td, (struct ioctl_args *)args));
 
+	case LINUX_SOUND_MIXER_READ_RECMASK:
+		args->cmd = SOUND_MIXER_READ_RECMASK;
+		return (ioctl(td, (struct ioctl_args *)args));
+
 	case LINUX_SOUND_MIXER_READ_DEVMASK:
 		args->cmd = SOUND_MIXER_READ_DEVMASK;
 		return (ioctl(td, (struct ioctl_args *)args));
