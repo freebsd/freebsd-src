@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)queue.3	8.2 (Berkeley) 1/24/94
-.\"	$Id: queue.3,v 1.10 1997/03/07 03:27:54 jmg Exp $
+.\"	$Id: queue.3,v 1.11 1997/03/09 00:49:00 mpp Exp $
 .\"
 .Dd January 24, 1994
 .Dt QUEUE 3
@@ -103,7 +103,7 @@ lists, tail queues, and circular queues
 .Fn STAILQ_INSERT_AFTER "STAILQ_HEAD *head" "TYPE *listelm" "TYPE *elm" "STAILQ_ENTRY NAME"
 .Fn STAILQ_INSERT_HEAD "STAILQ_HEAD *head" "TYPE *elm" "STAILQ_ENTRY NAME"
 .Fn STAILQ_INSERT_TAIL "STAILQ_HEAD *head" "TYPE *elm" "STAILQ_ENTRY NAME"
-.Fn STAILQ_REMOVE_HEAD "STAILQ_HEAD *head" "TYPE *elm" "STAILQ_ENTRY NAME"
+.Fn STAILQ_REMOVE_HEAD "STAILQ_HEAD *head" "STAILQ_ENTRY NAME"
 .Fn STAILQ_REMOVE "STAILQ_HEAD *head" "TYPE *elm" "TYPE" "STAILQ_ENTRY NAME"
 .\"
 .Fn LIST_ENTRY "TYPE"
