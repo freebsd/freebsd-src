@@ -186,6 +186,8 @@ ata_attach(device_t dev)
      * otherwise attach what the probe has found in ch->devices.
      */
     if (!ata_delayed_attach) {
+	int s = splbio();
+
 	if (ch->devices & ATA_ATA_SLAVE)
 	    if (ata_getparam(&ch->device[SLAVE], ATA_C_ATA_IDENTIFY))
 		ch->devices &= ~ATA_ATA_SLAVE;
@@ -210,6 +212,7 @@ ata_attach(device_t dev)
 	if (ch->devices & ATA_ATAPI_SLAVE)
 	    atapi_attach(&ch->device[SLAVE]);
 #endif
+	splx(s);
     }
     return 0;
 }
@@ -469,13 +472,14 @@ static void
 ata_boot_attach(void)
 {
     struct ata_channel *ch;
-    int ctlr;
+    int ctlr, s;
 
     if (ata_delayed_attach) {
 	config_intrhook_disestablish(ata_delayed_attach);
 	free(ata_delayed_attach, M_TEMP);
 	ata_delayed_attach = NULL;
     }
+    s = splbio();
 
     /*
      * run through all ata devices and look for real ATA & ATAPI devices
@@ -522,6 +526,7 @@ ata_boot_attach(void)
 	    atapi_attach(&ch->device[SLAVE]);
     }
 #endif
+    splx(s);
 }
 
 static void
