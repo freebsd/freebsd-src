@@ -576,6 +576,25 @@ pci_print_route_table(struct PIR_table *prt, int size)
 }
 
 /*
+ * See if any interrupts for a given PCI bus are routed in the PIR.  Don't
+ * even bother looking if the BIOS doesn't support routing anyways.
+ */
+int
+pci_probe_route_table(int bus)
+{
+	int i;
+	u_int16_t v;
+
+	v = pcibios_get_version();
+	if (v < 0x0210)
+		return (0);
+	for (i = 0; i < pci_route_count; i++)
+		if (pci_route_table->pt_entry[i].pe_bus == bus)
+			return (1);
+	return (0);
+}
+
+/*
  * Config space access using BIOS functions 
  */
 static int
