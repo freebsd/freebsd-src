@@ -160,17 +160,18 @@ INSTALLTMP!=	/usr/bin/mktemp -d -u -t install
 # Building a world goes through the following stages
 #
 # 1. libbuild stage [BMAKE]
-#	This stage is responsible for creating compatibility shims that are
-#	needed by the bootstrap-tool, build-tool and cross-tool stages.
-# 1. bootstrap-tool stage [BMAKE]
+#	This stage is responsible for creating compatibility
+#	shims that are needed by the bootstrap-tools,
+#	build-tools and cross-tools stages.
+# 1. bootstrap-tools stage [BMAKE]
 #	This stage is responsible for creating programs that
 #	are needed for backward compatibility reasons. They
 #	are not built as cross-tools.
-# 2. build-tool stage [TMAKE]
+# 2. build-tools stage [TMAKE]
 #	This stage is responsible for creating the object
 #	tree and building any tools that are needed during
 #	the build process.
-# 3. cross-tool stage [XMAKE]
+# 3. cross-tools stage [XMAKE]
 #	This stage is responsible for creating any tools that
 #	are needed for cross-builds. A cross-compiler is one
 #	of them.
@@ -189,7 +190,7 @@ CROSSENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
 		GROFF_FONT_PATH=${WORLDTMP}/usr/share/groff_font \
 		GROFF_TMAC_PATH=${WORLDTMP}/usr/share/tmac
 
-# bootstrap-tool stage
+# bootstrap-tools stage
 BMAKEENV=	DESTDIR= \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		__MAKE_CONF=${.CURDIR}/tools/build/Makefile.boot \
@@ -201,12 +202,12 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		-DNOHTML -DNOINFO -DNOMAN -DNOPIC -DNOPROFILE -DNOSHARED \
 		-DNO_CPU_CFLAGS -DNO_WARNS
 
-# build-tool stage
+# build-tools stage
 TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
 		${BMAKEENV} ${MAKE} -f Makefile.inc1 \
 		BOOTSTRAPPING=${OSRELDATE} -DNO_CPU_CFLAGS -DNO_WARNS
 
-# cross-tool stage
+# cross-tools stage
 XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} -DNO_FORTRAN -DNO_GDB
 
 # world stage
@@ -279,7 +280,7 @@ _worldtmp:
 	mkdir -p ${WORLDTMP}/usr/include/${_dir}
 .endfor
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
-.for _dir in lib include include/sys
+.for _dir in lib include/sys
 	mkdir -p ${WORLDTMP}/build/usr/${_dir}
 .endfor
 _libbuild:
