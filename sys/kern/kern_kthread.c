@@ -55,7 +55,7 @@ kproc_start(udata)
 	int error;
 
 	error = kthread_create((void (*)(void *))kp->func, NULL,
-		    kp->global_procpp, 0, kp->arg0);
+		    kp->global_procpp, 0, "%s", kp->arg0);
 	if (error)
 		panic("kproc_start: %s: error %d", kp->arg0, error);
 }
