@@ -103,6 +103,7 @@
 #include <machine/cpu.h>
 #include <machine/md_var.h>
 #include <machine/vmparam.h>
+#include <machine/ipl.h>
 #include <vm/pmap.h>
 #include <sys/proc.h>
 
