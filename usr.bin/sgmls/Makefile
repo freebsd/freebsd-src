@@ -1,9 +1,9 @@
 #
 # Bmake file for sgmls
-# $Id: Makefile,v 1.1.1.1 1995/04/27 16:03:39 jfieber Exp $
+# $Id: Makefile,v 1.2 1996/09/08 02:00:37 jfieber Exp $
 #
 
-SUBDIR= libsgmls sgmls instant sgmlsasp rast
+SUBDIR= libsgmls sgmls instant
 
 .include <bsd.subdir.mk>
 
