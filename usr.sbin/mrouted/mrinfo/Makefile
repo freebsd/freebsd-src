@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1994/09/08 02:51:34 wollman Exp $
+#	$Id: Makefile,v 1.3 1995/06/21 18:30:10 wollman Exp $
 
 PROG=	mrinfo
 
@@ -16,5 +16,7 @@ DPADD+=		$S/common/libmrouted.a
 
 SRCS=	mrinfo.c
 MAN8=	${.CURDIR}/../mrinfo.8
+BINOWN=	root
+BINMODE=4755
 
 .include <bsd.prog.mk>
