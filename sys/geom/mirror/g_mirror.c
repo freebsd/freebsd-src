@@ -315,7 +315,7 @@ g_mirror_is_busy(struct g_mirror_softc *sc, struct g_consumer *cp)
 }
 
 static void
-g_mirror_destroy_consumer(void *arg, int flags)
+g_mirror_destroy_consumer(void *arg, int flags __unused)
 {
 	struct g_consumer *cp;
 
@@ -344,7 +344,8 @@ g_mirror_kill_consumer(struct g_mirror_softc *sc, struct g_consumer *cp)
 	}
 	G_MIRROR_DEBUG(2, "Access %s r%dw%de%d = %d", pp->name, -cp->acr,
 	    -cp->acw, -cp->ace, 0);
-	g_access(cp, -cp->acr, -cp->acw, -cp->ace);
+	if (cp->acr > 0 || cp->acw > 0 || cp->ace > 0)
+		g_access(cp, -cp->acr, -cp->acw, -cp->ace);
 	if (retaste_wait) {
 		/*
 		 * After retaste event was send (inside g_access()), we can send
