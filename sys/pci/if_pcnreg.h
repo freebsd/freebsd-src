@@ -206,6 +206,9 @@
 #define PCN_MODE_RXNOBROAD	0x4000
 #define PCN_MODE_PROMISC	0x8000
 
+/* Settings for PCN_MODE_PORTSEL when ASEL (BCR2[1] is 0 */
+#define PCN_PORT_AUI		0x0000
+#define PCN_PORT_10BASET	0x0080
 #define PCN_PORT_GPSI		0x0100
 #define PCN_PORT_MII		0x0180
 
@@ -236,6 +239,8 @@
 /*
  * BCR (bus control) registers
  */
+#define	PCN_BCR_MMRA		0x00	/* Master Mode Read Active */
+#define	PCN_BCR_MMW		0x01	/* Master Mode Write Active */
 #define PCN_BCR_MISCCFG		0x02
 #define PCN_BCR_LED0		0x04
 #define PCN_BCR_LED1		0x05
@@ -270,9 +275,22 @@
 #define PCN_BCR_PHYSEL		0x31
 
 /*
+ * Miscellaneous Configuration (BCR2)
+ */
+#define PCN_MISC_TMAULOOP	1<<14	/* T-MAU Loopback packet enable. */
+#define PCN_MISC_LEDPE		1<<12	/* LED Program Enable */
+#define PCN_MISC_APROMWE	1<<8	/* Address PROM Write Enable */
+#define PCN_MISC_INTLEVEL	1<<7	/* Interrupt level */
+#define PCN_MISC_EADISEL	1<<3	/* EADI Select */
+#define PCN_MISC_AWAKE		1<<2	/* Power saving mode select */
+#define PCN_MISC_ASEL		1<<1	/* Auto Select */
+#define PCN_MISC_XMAUSEL	1<<0	/* Reserved. */
+
+/*
  * Full duplex control (BCR9)
  */
 #define PCN_DUPLEX_FDEN		0x0001	/* Full-duplex enable */
+#define	PCN_DUPLEX_AUI		0x0002	/* AUI full-duplex */
 #define PCN_DUPLEX_FDRPAD	0x0004	/* Full-duplex runt pkt accept dis. */
 
 /*
@@ -496,7 +514,7 @@ struct pcn_softc {
 #define PCN_PCI_INTLINE		0x3C
 #define PCN_PCI_INTPIN		0x3D
 #define PCN_PCI_MINGNT		0x3E
-#define PCN_PCI_MINLAT		0x0F
+#define PCN_PCI_MINLAT		0x3F
 #define PCN_PCI_RESETOPT	0x48
 #define PCN_PCI_EEPROM_DATA	0x4C
 
