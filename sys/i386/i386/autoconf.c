@@ -290,31 +290,32 @@ hwaddr_to_sockaddr(char *ev, struct sockaddr_dl *sa)
 static int
 decode_nfshandle(char *ev, u_char *fh) 
 {
-	u_char	*cp;
+	u_char	*cp, *ep;
 	int	len, val;
 
-	if ((cp = getenv(ev)) == NULL)
+	ep = cp = getenv(ev);
+	if (cp == NULL)
 		return(0);
 	if ((strlen(cp) < 2) || (*cp != 'X')) {
-		freeenv(cp);
+		freeenv(ep);
 		return (0);
 	}
 	len = 0;
 	cp++;
 	for (;;) {
 		if (*cp == 'X') {
-			freeenv(cp);
+			freeenv(ep);
 			return(len);
 		}
 		if ((sscanf(cp, "%2x", &val) != 1) || (val > 0xff)) {
-			freeenv(cp);
+			freeenv(ep);
 			return(0);
 		}
 		*(fh++) = val;
 		len++;
 		cp += 2;
 		if (len > NFSX_V2FH) {
-		    freeenv(cp);
+		    freeenv(ep);
 		    return(0);
 		}
 	}
