@@ -54,7 +54,6 @@ struct snapdata;
 
 struct cdev {
 	u_int		si_flags;
-#define SI_STASHED	0x0001	/* created in stashed storage */
 #define SI_ALIAS	0x0002	/* carrier of alias name */
 #define SI_NAMED	0x0004	/* make_dev{_alias} has been called */
 #define SI_CHEAPCLONE	0x0008	/* can be removed_dev'ed when vnode reclaims */
