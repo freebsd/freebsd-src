@@ -284,7 +284,7 @@ main(int argc, char *argv[])
 		if (!S_ISREG(st.st_mode))
 			errx(1, "%s: not a regular file", path);
 		vmcore = strdup(path);
-	} else if (remote != NULL) {
+	} else if (remote != NULL && remote[0] != ':' && remote[0] != '|') {
 		if (stat(remote, &st) != 0) {
 			snprintf(path, sizeof(path), "/dev/%s", remote);
 			if (stat(path, &st) != 0) {
