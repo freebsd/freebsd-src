@@ -1640,7 +1640,6 @@ lseek(p, uap)
 		error = VOP_GETATTR(vp, &vattr, cred, p);
 		if (error)
 			return (error);
-		/* 'vattr.va_size' is always >= 0 */
 		if (noneg &&
 		    ((offset > 0 && vattr.va_size > OFF_MAX - offset) ||
 		     (offset < 0 && vattr.va_size + offset > OFF_MAX)))
