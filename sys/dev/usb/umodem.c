@@ -1,4 +1,4 @@
-/*	$NetBSD: umodem.c,v 1.1 1998/12/03 19:58:09 augustss Exp $	*/
+/*	$NetBSD: umodem.c,v 1.4 1998/12/30 17:46:20 augustss Exp $	*/
 /*	FreeBSD $Id$ */
 
 /*
@@ -38,8 +38,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <dev/usb/usb_port.h>
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -65,7 +63,6 @@
 #include <dev/usb/usbhid.h>
 
 #include <dev/usb/usbdi.h>
-#include <dev/usb/usbdivar.h>
 #include <dev/usb/usbdi_util.h>
 #include <dev/usb/usbdevs.h>
 #include <dev/usb/usb_quirks.h>
@@ -85,85 +82,31 @@ struct umodem_softc {
 	usbd_interface_handle sc_iface;	/* interface */
 };
 
-#if defined(__NetBSD__)
-int umodem_match __P((struct device *, struct cfdata *, void *));
-void umodem_attach __P((struct device *, struct device *, void *));
-#elif defined(__FreeBSD__)
-static device_probe_t umodem_match;
-static device_attach_t umodem_attach;
-static device_detach_t umodem_detach;
-#endif
-
 void umodem_intr __P((usbd_request_handle, usbd_private_handle, usbd_status));
 void umodem_disco __P((void *));
 
-#if defined(__NetBSD__)
-extern struct cfdriver umodem_cd;
+USB_DECLARE_DRIVER(umodem);
 
-struct cfattach umodem_ca = {
-	sizeof(struct umodem_softc), umodem_match, umodem_attach
-};
-#elif defined(__FreeBSD__)
-static devclass_t umodem_devclass;
-
-static device_method_t umodem_methods[] = {
-	DEVMETHOD(device_probe, umodem_match),
-	DEVMETHOD(device_attach, umodem_attach),
-	DEVMETHOD(device_detach, umodem_detach),
-	{0,0}
-};
-
-static driver_t umodem_driver = {
-	"umodem",
-	umodem_methods,
-	DRIVER_TYPE_MISC,
-	sizeof(struct umodem_softc)
-};
-#endif
-
-#if defined(__NetBSD__)
-int
-umodem_match(parent, match, aux)
-	struct device *parent;
-	struct cfdata *match;
-	void *aux;
+USB_MATCH(umodem)
 {
-	struct usb_attach_arg *uaa = aux;
-#elif defined(__FreeBSD__)
-static int
-umodem_match(device_t device)
-{
-	struct usb_attach_arg *uaa = device_get_ivars(device);
-#endif
+	USB_MATCH_START(umodem, uaa);
 
 	usb_interface_descriptor_t *id;
 	
 	if (!uaa->iface)
 		return (UMATCH_NONE);
 	id = usbd_get_interface_descriptor(uaa->iface);
-	if (id->bInterfaceClass != UCLASS_CDC ||
-	    id->bInterfaceSubClass != USUBCLASS_MODEM)
+	if (!id ||
+	    id->bInterfaceClass != UCLASS_CDC ||
+	    id->bInterfaceSubClass != USUBCLASS_ABSTRACT_CONTROL_MODEL ||
+	    id->bInterfaceProtocol != UPROTO_CDC_AT)
 		return (UMATCH_NONE);
-	return (UMATCH_IFACECLASS_IFACESUBCLASS);
+	return (UMATCH_IFACECLASS_IFACESUBCLASS_IFACEPROTO);
 }
 
-#if defined(__NetBSD__)
-void
-umodem_attach(parent, self, aux)
-	struct device *parent;
-	struct device *self;
-	void *aux;
+USB_ATTACH(umodem)
 {
-	struct umodem_softc *sc = (struct umodem_softc *)self;
-	struct usb_attach_arg *uaa = aux;
-#elif defined(__FreeBSD__)
-static int
-umodem_attach(device_t self)
-{
-	struct umodem_softc *sc = device_get_softc(self);
-	struct usb_attach_arg *uaa = device_get_ivars(self);
-#endif
-
+	USB_ATTACH_START(umodem, sc, uaa);
 	usbd_interface_handle iface = uaa->iface;
 	usb_interface_descriptor_t *id;
 	char devinfo[1024];
@@ -171,15 +114,11 @@ umodem_attach(device_t self)
 	sc->sc_iface = iface;
 	id = usbd_get_interface_descriptor(iface);
 	usbd_devinfo(uaa->device, 0, devinfo);
-#if defined(__FreeBSD__)
-        usb_device_set_desc(self, devinfo);
-        printf("%s%d", device_get_name(self), device_get_unit(self));
-#endif
-	sc->sc_dev = self;
+	USB_ATTACH_SETUP;
+	printf("%s: %s, iclass %d/%d\n", USBDEVNAME(sc->sc_dev),
+	       devinfo, id->bInterfaceClass, id->bInterfaceSubClass);
 
-	printf(": %s, iclass %d/%d\n", devinfo, id->bInterfaceClass, id->bInterfaceSubClass);
-
-	ATTACH_SUCCESS_RETURN;
+	USB_ATTACH_SUCCESS_RETURN;
 }
 
 #if defined(__FreeBSD__)
@@ -192,13 +131,12 @@ umodem_detach(device_t self)
 	if (devinfo) {
 		device_set_desc(self, NULL);
 		free(devinfo, M_USB);
-	}
+}
 
 	return 0;
 }
 #endif
 
 #if defined(__FreeBSD__)
-DRIVER_MODULE(umodem, usb, umodem_driver, umodem_devclass, usb_driver_load, 0);
+DRIVER_MODULE(umodem, usb, umodem_driver, umodem_devclass, usbd_driver_load, 0);
 #endif
-

@@ -1,12 +1,13 @@
-/*	$NetBSD: ulpt.c,v 1.2 1998/07/25 15:19:09 augustss Exp $	*/
+/*	$NetBSD: ulpt.c,v 1.9 1998/12/30 17:46:20 augustss Exp $	*/
 /*	FreeBSD $Id$ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
- * Author: Lennart Augustsson <augustss@carlstedt.se>
- *         Carlstedt Research & Technology
+ * This code is derived from software contributed to The NetBSD Foundation
+ * by Lennart Augustsson (augustss@carlstedt.se) at
+ * Carlstedt Research & Technology.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,14 +38,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <dev/usb/usb_port.h>
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
-#if defined(__NetBSD__)
-#include <sys/user.h>
-#endif
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #if defined(__NetBSD__)
@@ -61,7 +57,6 @@
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
-#include <dev/usb/usbdivar.h>
 #include <dev/usb/usbdi_util.h>
 #include <dev/usb/usbdevs.h>
 #include <dev/usb/usb_quirks.h>
@@ -108,14 +103,6 @@ struct ulpt_softc {
 	u_char sc_laststatus;
 };
 
-#if defined(__NetBSD__)
-int ulpt_match __P((struct device *, struct cfdata *, void *));
-void ulpt_attach __P((struct device *, struct device *, void *));
-#elif defined(__FreeBSD__)
-static device_probe_t ulpt_match;
-static device_attach_t ulpt_attach;
-#endif
-
 int ulptopen __P((dev_t, int, int, struct proc *));
 int ulptclose __P((dev_t, int, int, struct proc *p));
 int ulptwrite __P((dev_t, struct uio *uio, int));
@@ -129,51 +116,19 @@ int ulpt_statusmsg __P((u_char, struct ulpt_softc *));
 #define	ULPTUNIT(s)	(minor(s) & 0x1f)
 #define	ULPTFLAGS(s)	(minor(s) & 0xe0)
 
-#if defined(__NetBSD__)
-extern struct cfdriver ulpt_cd;
+USB_DECLARE_DRIVER(ulpt);
 
-struct cfattach ulpt_ca = {
-	sizeof(struct ulpt_softc), ulpt_match, ulpt_attach
-};
-#elif defined(__FreeBSD__)
-static devclass_t ulpt_devclass;
-
-static device_method_t ulpt_methods[] = {
-        DEVMETHOD(device_probe, ulpt_match),
-        DEVMETHOD(device_attach, ulpt_attach),
-        {0,0}
-};
-
-static driver_t ulpt_driver = {
-        "ulpt",
-        ulpt_methods,
-        DRIVER_TYPE_MISC,
-        sizeof(struct ulpt_softc)
-};
-#endif
-
-
-#if defined(__NetBSD__)
-int
-ulpt_match(parent, match, aux)
-	struct device *parent;
-	struct cfdata *match;
-	void *aux;
+USB_MATCH(ulpt)
 {
-	struct usb_attach_arg *uaa = aux;
-#elif defined(__FreeBSD__)
-static int
-ulpt_match(device_t device)
-{
-	struct usb_attach_arg *uaa = device_get_ivars(device);
-#endif
+	USB_MATCH_START(ulpt, uaa);
 	usb_interface_descriptor_t *id;
 	
 	DPRINTFN(10,("ulpt_match\n"));
 	if (!uaa->iface)
 		return (UMATCH_NONE);
 	id = usbd_get_interface_descriptor(uaa->iface);
-	if (id->bInterfaceClass == UCLASS_PRINTER &&
+	if (id &&
+	    id->bInterfaceClass == UCLASS_PRINTER &&
 	    id->bInterfaceSubClass == USUBCLASS_PRINTER &&
 	    (id->bInterfaceProtocol == UPROTO_PRINTER_UNI ||
 	     id->bInterfaceProtocol == UPROTO_PRINTER_BI))
@@ -181,22 +136,9 @@ ulpt_match(device_t device)
 	return (UMATCH_NONE);
 }
 
-#if defined(__NetBSD__)
-void
-ulpt_attach(parent, self, aux)
-	struct device *parent;
-	struct device *self;
-	void *aux;
+USB_ATTACH(ulpt)
 {
-	struct ulpt_softc *sc = (struct ulpt_softc *)self;
-	struct usb_attach_arg *uaa = aux;
-#elif defined(__FreeBSD__)
-static int
-ulpt_attach(device_t self)
-{
-	struct ulpt_softc *sc = device_get_softc(self);
-	struct usb_attach_arg *uaa = device_get_ivars(self);
-#endif
+	USB_ATTACH_START(ulpt, sc, uaa);
 	usbd_device_handle dev = uaa->device;
 	usbd_interface_handle iface = uaa->iface;
 	usb_interface_descriptor_t *id = usbd_get_interface_descriptor(iface);
@@ -210,13 +152,9 @@ ulpt_attach(device_t self)
 	
 	DPRINTFN(10,("ulpt_attach: sc=%p\n", sc));
 	usbd_devinfo(dev, 0, devinfo);
-#if defined(__FreeBSD__)
-	usb_device_set_desc(self, devinfo);
-	printf("%s%d", device_get_name(self), device_get_unit(self));
-#endif
-	printf(": %s (interface class %d/%d)\n", devinfo,
-	       id->bInterfaceClass, id->bInterfaceSubClass);
-	sc->sc_dev = self;
+	USB_ATTACH_SETUP;
+	printf("%s: %s, iclass %d/%d\n", USBDEVNAME(sc->sc_dev),
+	       devinfo, id->bInterfaceClass, id->bInterfaceSubClass);
 
 	/* Figure out which endpoint is the bulk out endpoint. */
 	ed = usbd_interface2endpoint_descriptor(iface, 0);
@@ -238,7 +176,7 @@ ulpt_attach(device_t self)
 	sc->sc_iface = iface;
 	r = usbd_interface2device_handle(iface, &sc->sc_udev);
 	if (r != USBD_NORMAL_COMPLETION)
-		ATTACH_ERROR_RETURN;
+		USB_ATTACH_ERROR_RETURN;
 	sc->sc_ifaceno = id->bInterfaceNumber;
 
 #if 0
@@ -257,18 +195,17 @@ is unknown.  usbd_do_request() returns error on a short transfer.
 		/* devinfo now contains an IEEE-1284 device ID */
 		idstr = devinfo+2;
 		idstr[len] = 0;
-		DEVICE_ERROR(sc->sc_dev, ("device id <%s>\n", idstr));
+		printf("%s: device id <%s>\n", USBDEVNAME(sc->sc_dev), idstr);
 	} else {
-		printf("%s: \n", sc->sc_dev.dv_xname);
-		DEVICE_ERROR(sc->sc_dev, ("cannot get device id"));
+		printf("%s: cannot get device id\n", USBDEVNAME(sc->sc_dev));
 	}
 #endif
 
-	ATTACH_SUCCESS_RETURN;
+	USB_ATTACH_SUCCESS_RETURN;
 
  nobulk:
-	DEVICE_ERROR(sc->sc_dev, ("could not find bulk endpoint\n"));
-	ATTACH_ERROR_RETURN;
+	printf("%s: could not find bulk endpoint\n", USBDEVNAME(sc->sc_dev));
+	USB_ATTACH_ERROR_RETURN;
 }
 
 int
@@ -320,16 +257,7 @@ ulptopen(dev, flag, mode, p)
 	u_char flags = ULPTFLAGS(dev);
 	usbd_status r;
 	int spin, error;
-#if defined(__NetBSD__)
-	int unit = ULPTUNIT(dev);
-	struct ulpt_softc *sc;
-
-	if (unit >= ulpt_cd.cd_ndevs)
-		return ENXIO;
-	sc = ulpt_cd.cd_devs[unit];
-#elif defined(__FreeBSD__)
-	struct ulpt_softc *sc = devclass_get_softc(ulpt_devclass, ULPTUNIT(dev));
-#endif
+	USB_GET_SC_OPEN(ulpt, ULPTUNIT(dev), sc);
 
 	if (!sc || !sc->sc_iface)
 		return ENXIO;
@@ -381,26 +309,12 @@ ulpt_statusmsg(status, sc)
 	new = status & ~sc->sc_laststatus;
 	sc->sc_laststatus = status;
 
-/* XXX should be tidied up into one block and a definition in usb_ports.h
- */
-#if defined(__NetBSD__)
 	if (new & LPS_SELECT)
-		log(LOG_NOTICE, "%s: offline\n", sc->sc_dev.dv_xname);
+		log(LOG_NOTICE, "%s: offline\n", USBDEVNAME(sc->sc_dev));
 	else if (new & LPS_NOPAPER)
-		log(LOG_NOTICE, "%s: out of paper\n", sc->sc_dev.dv_xname);
+		log(LOG_NOTICE, "%s: out of paper\n", USBDEVNAME(sc->sc_dev));
 	else if (new & LPS_NERR)
-		log(LOG_NOTICE, "%s: output error\n", sc->sc_dev.dv_xname);
-#elif defined(__FreeBSD__)
-	if (new & LPS_SELECT)
-		log(LOG_NOTICE, "%s%d: offline\n",
-			device_get_name(sc->sc_dev), device_get_unit(sc->sc_dev));
-	else if (new & LPS_NOPAPER)
-		log(LOG_NOTICE, "%s%d: out of paper\n",
-			device_get_name(sc->sc_dev), device_get_unit(sc->sc_dev));
-	else if (new & LPS_NERR)
-		log(LOG_NOTICE, "%s%d: output error\n", 
-			device_get_name(sc->sc_dev), device_get_unit(sc->sc_dev));
-#endif
+		log(LOG_NOTICE, "%s: output error\n", USBDEVNAME(sc->sc_dev));
 
 	return status;
 }
@@ -412,16 +326,7 @@ ulptclose(dev, flag, mode, p)
 	int mode;
 	struct proc *p;
 {
-#if defined(__NetBSD__)
-	int unit = ULPTUNIT(dev);
-	struct ulpt_softc *sc;
-
-	if (unit >= ulpt_cd.cd_ndevs)
-		return (ENXIO);
-	sc = ulpt_cd.cd_devs[unit];
-#elif defined(__FreeBSD__)
-	struct ulpt_softc *sc = devclass_get_softc(ulpt_devclass, ULPTUNIT(dev));
-#endif
+	USB_GET_SC(ulpt, ULPTUNIT(dev), sc);
 
 	usbd_close_pipe(sc->sc_bulkpipe);
 
@@ -442,24 +347,17 @@ ulptwrite(dev, uio, flags)
 	char buf[ULPT_BSIZE];
 	usbd_request_handle reqh;
 	usbd_status r;
-#if defined(__NetBSD__)
-	int unit = ULPTUNIT(dev);
-	struct ulpt_softc *sc;
-
-	if (unit >= ulpt_cd.cd_ndevs)
-		return (ENXIO);
-	sc = ulpt_cd.cd_devs[unit];
-#elif defined(__FreeBSD__)
-	struct ulpt_softc *sc = devclass_get_softc(ulpt_devclass, ULPTUNIT(dev));
-#endif
+	USB_GET_SC(ulpt, ULPTUNIT(dev), sc);
 
 	DPRINTF(("ulptwrite\n"));
 	reqh = usbd_alloc_request();
 	if (reqh == 0)
-		return (EIO);
+		return (ENOMEM);
 	while ((n = min(ULPT_BSIZE, uio->uio_resid)) != 0) {
 		ulpt_statusmsg(ulpt_status(sc), sc);
-		uiomove(buf, n, uio);
+		error = uiomove(buf, n, uio);
+		if (error)
+			break;
 		/* XXX use callback to enable interrupt? */
 		r = usbd_setup_request(reqh, sc->sc_bulkpipe, 0, buf, n,
 				       0, USBD_NO_TIMEOUT, 0);
@@ -499,5 +397,18 @@ ulptioctl(dev, cmd, data, flag, p)
 }
 
 #if defined(__FreeBSD__)
-DRIVER_MODULE(ulpt, usb, ulpt_driver, ulpt_devclass, usb_driver_load, 0);
+static int
+ulpt_detach(device_t self)
+{       
+        struct ulpt_softc *sc = device_get_softc(self);
+	char *devinfo = (char *) device_get_desc(self);
+
+	if (devinfo) {
+		device_set_desc(self, NULL);
+		free(devinfo, M_USB);
+	}
+	return 0;
+}
+
+DRIVER_MODULE(ulpt, usb, ulpt_driver, ulpt_devclass, usbd_driver_load, 0);
 #endif

@@ -1,19 +1,21 @@
-/*	$NetBSD: usbdevs_data.h,v 1.6 1998/10/05 02:31:14 mark Exp $	*/
-/*	FreeBSD $Id$ */
+/*	$NetBSD$	*/
+
+/*	FreeBSD $Id$	*/
 
 /*
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	NetBSD: usbdevs,v 1.5 1998/10/05 02:30:17 mark Exp 
+ *	NetBSD: usbdevs,v 1.14 1998/12/30 03:52:30 augustss Exp 
  */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
- * Author: Lennart Augustsson <augustss@carlstedt.se>
- *         Carlstedt Research & Technology
+ * This code is derived from software contributed to The NetBSD Foundation
+ * by Lennart Augustsson (augustss@carlstedt.se) at
+ * Carlstedt Research & Technology.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -52,10 +54,22 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "hub",
 	},
 	{
+	    USB_VENDOR_NEC, USB_PRODUCT_NEC_HUB_B,
+	    0,
+	    "NEC",
+	    "hub",
+	},
+	{
 	    USB_VENDOR_KODAK, USB_PRODUCT_KODAK_DC260,
 	    0,
 	    "Eastman Kodak",
 	    "Digital Science DC260",
+	},
+	{
+	    USB_VENDOR_CATC, USB_PRODUCT_CATC_ANDROMEDA,
+	    0,
+	    "CATC",
+	    "Andromeda hub",
 	},
 	{
 	    USB_VENDOR_NANAO, USB_PRODUCT_NANAO_HUB,
@@ -88,6 +102,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "Flight 2000 joystick",
 	},
 	{
+	    USB_VENDOR_MICROSOFT, USB_PRODUCT_MICROSOFT_INTELLIMOUSE,
+	    0,
+	    "Microsoft",
+	    "IntelliMouse",
+	},
+	{
 	    USB_VENDOR_CHERRY, USB_PRODUCT_CHERRY_MY3000KBD,
 	    0,
 	    "Cherry",
@@ -98,6 +118,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    0,
 	    "Cherry",
 	    "My3000 hub",
+	},
+	{
+	    USB_VENDOR_BTC, USB_PRODUCT_BTC_BTC7932,
+	    0,
+	    "BTC",
+	    "Keyboard with mouse port",
 	},
 	{
 	    USB_VENDOR_PHILIPS, USB_PRODUCT_PHILIPS_DSS,
@@ -120,14 +146,38 @@ struct usb_knowndev usb_knowndevs[] = {
 	{
 	    USB_VENDOR_CYPRESS, USB_PRODUCT_CYPRESS_MOUSE,
 	    0,
-	    "Cypress Semicondutor",
+	    "Cypress Semiconductor",
 	    "mouse",
 	},
 	{
-	    USB_VENDOR_BELKIN, USB_PRODUCT_BELKIN_F5U002,
+	    USB_VENDOR_3COM, USB_PRODUCT_3COM_USR56K,
 	    0,
-	    "Belkin",
+	    "3Com",
+	    "U.S.Robotics 56000 Voice USB Modem",
+	},
+	{
+	    USB_VENDOR_SHUTTLE, USB_PRODUCT_SHUTTLE_EUSB,
+	    0,
+	    "Shuttle Technology",
+	    "E-USB Bridge",
+	},
+	{
+	    USB_VENDOR_JAZZ, USB_PRODUCT_JAZZ_J6502,
+	    0,
+	    "Jazz",
+	    "J-6502 speakers",
+	},
+	{
+	    USB_VENDOR_ATEN, USB_PRODUCT_ATEN_UC1284,
+	    0,
+	    "ATen",
 	    "Parallel printer adapter",
+	},
+	{
+	    USB_VENDOR_PERACOM, USB_PRODUCT_PERACOM_SERIAL1,
+	    0,
+	    "Peracom",
+	    "Serial Converter",
 	},
 	{
 	    USB_VENDOR_EIZO, USB_PRODUCT_EIZO_HUB,
@@ -140,6 +190,30 @@ struct usb_knowndev usb_knowndevs[] = {
 	    0,
 	    "EIZO",
 	    "monitor",
+	},
+	{
+	    USB_VENDOR_AGILER, USB_PRODUCT_AGILER_MOUSE29UO,
+	    0,
+	    "Agiler",
+	    "mouse 29UO",
+	},
+	{
+	    USB_VENDOR_BELKIN, USB_PRODUCT_BELKIN_F5U002,
+	    0,
+	    "Belkin",
+	    "Parallel printer adapter",
+	},
+	{
+	    USB_VENDOR_LOGITECH, USB_PRODUCT_LOGITECH_M2452,
+	    0,
+	    "Logitech",
+	    "M2452 keyboard",
+	},
+	{
+	    USB_VENDOR_LOGITECH, USB_PRODUCT_LOGITECH_M4848,
+	    0,
+	    "Logitech",
+	    "M4848 mouse",
 	},
 	{
 	    USB_VENDOR_EIZONANAO, USB_PRODUCT_EIZONANAO_HUB,
@@ -158,6 +232,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    0,
 	    "Chic Technology",
 	    "mouse",
+	},
+	{
+	    USB_VENDOR_ADS, USB_PRODUCT_ADS_ENET,
+	    0,
+	    "ADS Technologies",
+	    "Ethernet adapter",
 	},
 	{
 	    USB_VENDOR_PLX, USB_PRODUCT_PLX_TESTBOARD,
@@ -190,6 +270,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    NULL,
 	},
 	{
+	    USB_VENDOR_CATC, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "CATC",
+	    NULL,
+	},
+	{
 	    USB_VENDOR_NANAO, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "Nanao",
@@ -208,9 +294,21 @@ struct usb_knowndev usb_knowndevs[] = {
 	    NULL,
 	},
 	{
+	    USB_VENDOR_MICROSOFT, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Microsoft",
+	    NULL,
+	},
+	{
 	    USB_VENDOR_CHERRY, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "Cherry",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_BTC, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "BTC",
 	    NULL,
 	},
 	{
@@ -228,7 +326,37 @@ struct usb_knowndev usb_knowndevs[] = {
 	{
 	    USB_VENDOR_CYPRESS, 0,
 	    USB_KNOWNDEV_NOPROD,
-	    "Cypress Semicondutor",
+	    "Cypress Semiconductor",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_3COM, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "3Com",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_SHUTTLE, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Shuttle Technology",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_JAZZ, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Jazz",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_ATEN, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "ATen",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_PERACOM, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Peracom",
 	    NULL,
 	},
 	{
@@ -238,9 +366,21 @@ struct usb_knowndev usb_knowndevs[] = {
 	    NULL,
 	},
 	{
+	    USB_VENDOR_AGILER, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Agiler",
+	    NULL,
+	},
+	{
 	    USB_VENDOR_BELKIN, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "Belkin",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_LOGITECH, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Logitech",
 	    NULL,
 	},
 	{
@@ -253,6 +393,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    USB_VENDOR_CHIC, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "Chic Technology",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_ADS, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "ADS Technologies",
 	    NULL,
 	},
 	{

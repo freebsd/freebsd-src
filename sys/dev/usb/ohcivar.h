@@ -1,4 +1,4 @@
-/*	$NetBSD: ohcivar.h,v 1.3 1998/11/25 22:32:04 augustss Exp $	*/
+/*	$NetBSD: ohcivar.h,v 1.4 1998/12/26 12:53:01 augustss Exp $	*/
 /*	FreeBSD $Id$ */
 
 /*
@@ -74,13 +74,9 @@ typedef struct ohci_softc {
 #elif defined(__FreeBSD__)
         int             sc_iobase;
 	int             unit;
-#endif
+#endif /* __FreeBSD__ */
 
-#if defined(__NetBSD__)
 	usb_dma_t sc_hccadma;
-#elif defined(__FreeBSD__)
-	void 	  *sc_hccadma;
-#endif
 	struct ohci_hcca *sc_hcca;
 	ohci_soft_ed_t *sc_eds[OHCI_NO_EDS];
 	u_int sc_bws[OHCI_NO_INTRS];
@@ -112,7 +108,7 @@ int		ohci_intr __P((void *));
 #ifdef USB_DEBUG
 #define DPRINTF(x)	if (ohcidebug) printf x
 #define DPRINTFN(n,x)	if (ohcidebug>(n)) printf x
-int ohcidebug;
+extern int ohcidebug;
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)

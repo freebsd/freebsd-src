@@ -1,12 +1,13 @@
-/*	$NetBSD: hid.c,v 1.2 1998/07/24 20:57:46 augustss Exp $	*/
-/*	FreeBSD $Id: hid.c,v 1.2 1998/12/14 09:32:23 n_hibma Exp $ */
+/*	$NetBSD: hid.c,v 1.5 1998/12/26 12:53:00 augustss Exp $	*/
+/*	FreeBSD $Id$ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
- * Author: Lennart Augustsson <augustss@carlstedt.se>
- *         Carlstedt Research & Technology
+ * This code is derived from software contributed to The NetBSD Foundation
+ * by Lennart Augustsson (augustss@carlstedt.se) at
+ * Carlstedt Research & Technology.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,12 +38,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <dev/usb/usb_port.h>
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#if defined(__FreeBSD__)
+#include <sys/bus.h>
+#endif
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbhid.h>
@@ -442,8 +444,8 @@ hid_get_data(buf, loc)
 	hsize = 32 - hsize;
 	/* Sign extend */
 	data = ((int32_t)data << hsize) >> hsize;
-	DPRINTFN(10, ("hid_get_data: loc %d/%d = %lu\n", 
-		 loc->pos, loc->size, (long)data));
+	DPRINTFN(10,("hid_get_data: loc %d/%d = %lu\n", 
+		    loc->pos, loc->size, (long)data));
 	return (data);
 }
 
