@@ -9,9 +9,9 @@ BINOWN=	root
 BINMODE=555
 MAN8=	sshd.8
 
-SRCS=	sshd.c auth-rhosts.c auth-passwd.c auth-rsa.c auth-rh-rsa.c \
-	pty.c log-server.c login.c servconf.c serverloop.c \
-	login_access.c
+SRCS=	auth-passwd.c auth-rh-rsa.c auth-rhosts.c auth-rsa.c \
+	key.c log-server.c login.c login_access.c pty.c servconf.c \
+	serverloop.c sshd.c \
 
 CFLAGS+= -DLIBWRAP -DLOGIN_ACCESS -I${LOGINSRC}
 

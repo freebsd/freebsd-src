@@ -10,7 +10,7 @@ MAN1=	ssh.1
 LINKS=	${BINDIR}/ssh ${BINDIR}/slogin
 MLINKS=	ssh.1 slogin.1
 
-SRCS=	ssh.c sshconnect.c log-client.c readconf.c clientloop.c
+SRCS=	clientloop.c key.c log-client.c readconf.c ssh.c sshconnect.c
 
 .include <bsd.own.mk>
 
