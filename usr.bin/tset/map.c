@@ -42,7 +42,8 @@ static char sccsid[] = "@(#)map.c	8.1 (Berkeley) 6/9/93";
 #include <string.h>
 #include "extern.h"
 
-int	baudrate __P((char *));
+extern speed_t Ospeed;
+speed_t	baudrate __P((char *));
 
 /* Baud rate conditionals for mapping. */
 #define	GT		0x01
@@ -57,7 +58,7 @@ typedef struct map {
 	char *porttype;		/* Port type, or "" for any. */
 	char *type;		/* Terminal type to select. */
 	int conditional;	/* Baud rate conditionals bitmask. */
-	int speed;		/* Baud rate to compare against. */
+	speed_t	speed;		/* Baud	rate to	compare	against. */
 } MAP;
 
 MAP *cur, *maplist;
@@ -195,19 +196,19 @@ mapped(type)
 				match = 1;
 				break;
 			case EQ:
-				match = (ospeed == mapp->speed);
+				match =	(Ospeed	== mapp->speed);
 				break;
 			case GE:
-				match = (ospeed >= mapp->speed);
+				match =	(Ospeed	>= mapp->speed);
 				break;
 			case GT:
-				match = (ospeed > mapp->speed);
+				match =	(Ospeed	> mapp->speed);
 				break;
 			case LE:
-				match = (ospeed <= mapp->speed);
+				match =	(Ospeed	<= mapp->speed);
 				break;
 			case LT:
-				match = (ospeed < mapp->speed);
+				match =	(Ospeed	< mapp->speed);
 				break;
 			}
 			if (match)
@@ -219,7 +220,7 @@ mapped(type)
 
 typedef struct speeds {
 	char	*string;
-	int	speed;
+	speed_t	speed;
 } SPEEDS;
 
 SPEEDS speeds[] = {
@@ -242,10 +243,16 @@ SPEEDS speeds[] = {
 	"38400",	B38400,
 	"exta",		B19200,
 	"extb",		B38400,
+#ifdef B57600
+	"57600",	B57600,
+#endif
+#ifdef B115200
+	"115200",	B115200,
+#endif
 	NULL
 };
 
-int
+speed_t
 baudrate(rate)
 	char *rate;
 {
