@@ -44,6 +44,8 @@
 #include <i386/isa/bs/bsif.h>
 #endif	/* __FreeBSD__ */
 
+#include <sys/bio.h>
+#include <sys/buf.h>
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
 #include <cam/cam_sim.h>
