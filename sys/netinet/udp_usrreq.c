@@ -225,9 +225,12 @@ udp_input(m, off)
 				    m->m_pkthdr.csum_data + IPPROTO_UDP));
 			uh->uh_sum ^= 0xffff;
 		} else {
+			char b[9];
+			bcopy(((struct ipovly *)ip)->ih_x1, b, 9);
 			bzero(((struct ipovly *)ip)->ih_x1, 9);
 			((struct ipovly *)ip)->ih_len = uh->uh_ulen;
 			uh->uh_sum = in_cksum(m, len + sizeof (struct ip));
+			bcopy(b, ((struct ipovly *)ip)->ih_x1, 9);
 		}
 		if (uh->uh_sum) {
 			udpstat.udps_badsum++;
