@@ -258,7 +258,7 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 			lockflags = LK_HAVE_EXCL;
 			if (p) {
 				PROC_LOCK(p);
-				if (!p->p_flag & P_DEADLKTREAT) {
+				if (!(p->p_flag & P_DEADLKTREAT)) {
 					lockflags |= LK_WANT_EXCL |
 					    LK_WANT_UPGRADE;
 				}
