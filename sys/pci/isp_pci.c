@@ -905,7 +905,7 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	if (bus_dmamem_alloc(pci->cntrol_dmat, (void **)&base,
 	    BUS_DMA_NOWAIT, &pci->cntrol_dmap) != 0) {
 		isp_prt(isp, ISP_LOGERR,
-		    "cannot allocate %d bytes of CCB memory");
+		    "cannot allocate %d bytes of CCB memory", len);
 		free(isp->isp_xflist, M_DEVBUF);
 		free(pci->dmaps, M_DEVBUF);
 		return (1);
