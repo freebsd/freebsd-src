@@ -82,12 +82,16 @@ SUBDIR=	adjkerntz \
 	umount \
 	vinum
 
-.if ${MACHINE_ARCH} == i386
-SUBDIR+=	kget mount_nwfs
+.if ${MACHINE_ARCH} == "i386"
+SUBDIR+=cxconfig \
+	fdisk \
+	kget \
+	mount_nwfs \
+	nextboot
 .endif
 
-.if exists(${.CURDIR}/${MACHINE})
-SUBDIR+= ${MACHINE}
+.if ${MACHINE_ARCH} == "ia64"
+SUBDIR+=fdisk
 .endif
 
 .include <bsd.subdir.mk>
