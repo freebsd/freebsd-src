@@ -113,7 +113,7 @@ myfork()
 static void
 run_file(const char *filename, uid_t uid, gid_t gid)
 {
-/* Run a file by by spawning off a process which redirects I/O,
+/* Run a file by spawning off a process which redirects I/O,
  * spawns a subshell, then waits for it to complete and sends
  * mail to the user.
  */
