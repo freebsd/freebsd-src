@@ -1,9 +1,0 @@
-  av.c	
-
-  Mandatory Warnings ALL TODO
-  ------------------
-  av_reify called on tied array		[av_reify]
-
-  Attempt to clear deleted array	[av_clear]
-  
-__END__
