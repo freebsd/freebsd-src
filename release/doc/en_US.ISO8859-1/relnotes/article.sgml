@@ -1610,9 +1610,9 @@
     only) are used together. &merged;</para>
 
     <para>&man.whois.1; now directs queries for IP addresses to
-    ARIN. &merged;  If a query to ARIN references APNIC or RIPE, the
+    ARIN.  If a query to ARIN references APNIC or RIPE, the
     appropriate server will also be queried, provided that the
-    <option>-Q</option> is not specified.</para>
+    <option>-Q</option> option is not specified. &merged;</para>
 
     <para>A new utility &man.diskcheckd.8; has been added; it is a
     daemon which runs in the background, reading entire disks to find
