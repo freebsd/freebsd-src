@@ -292,7 +292,7 @@ ktrace(curp, uap)
 	 * Clear all uses of the tracefile
 	 */
 	if (ops == KTROP_CLEARFILE) {
-		for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
+		LIST_FOREACH(p, &allproc, p_list) {
 			if (p->p_tracep == vp) {
 				if (ktrcanset(curp, p)) {
 					p->p_tracep = NULL;
@@ -324,7 +324,7 @@ ktrace(curp, uap)
 			error = ESRCH;
 			goto done;
 		}
-		for (p = pg->pg_members.lh_first; p != 0; p = p->p_pglist.le_next)
+		LIST_FOREACH(p, &pg->pg_members, p_pglist)
 			if (descend)
 				ret |= ktrsetchildren(curp, p, ops, facs, vp);
 			else
@@ -445,13 +445,13 @@ ktrsetchildren(curp, top, ops, facs, vp)
 		 * otherwise do any siblings, and if done with this level,
 		 * follow back up the tree (but not past top).
 		 */
-		if (p->p_children.lh_first)
-			p = p->p_children.lh_first;
+		if (!LIST_EMPTY(&p->p_children))
+			p = LIST_FIRST(&p->p_children);
 		else for (;;) {
 			if (p == top)
 				return (ret);
-			if (p->p_sibling.le_next) {
-				p = p->p_sibling.le_next;
+			if (LIST_NEXT(p, p_sibling)) {
+				p = LIST_NEXT(p, p_sibling);
 				break;
 			}
 			p = p->p_pptr;
@@ -497,7 +497,7 @@ ktrwrite(vp, kth)
 	 */
 	log(LOG_NOTICE, "ktrace write failed, errno %d, tracing stopped\n",
 	    error);
-	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
+	LIST_FOREACH(p, &allproc, p_list) {
 		if (p->p_tracep == vp) {
 			p->p_tracep = NULL;
 			p->p_traceflag = 0;

@@ -510,8 +510,8 @@ unp_detach(unp)
 	}
 	if (unp->unp_conn)
 		unp_disconnect(unp);
-	while (unp->unp_refs.lh_first)
-		unp_drop(unp->unp_refs.lh_first, ECONNRESET);
+	while (!LIST_EMPTY(&unp->unp_refs))
+		unp_drop(LIST_FIRST(&unp->unp_refs), ECONNRESET);
 	soisdisconnected(unp->unp_socket);
 	unp->unp_socket->so_pcb = 0;
 	if (unp_rights) {
@@ -762,8 +762,8 @@ unp_pcblist SYSCTL_HANDLER_ARGS
 	if (unp_list == 0)
 		return ENOMEM;
 	
-	for (unp = head->lh_first, i = 0; unp && i < n;
-	     unp = unp->unp_link.le_next) {
+	for (unp = LIST_FIRST(head), i = 0; unp && i < n;
+	     unp = LIST_NEXT(unp, unp_link)) {
 		if (unp->unp_gencnt <= gencnt && !prison_unpcb(req->p, unp))
 			unp_list[i++] = unp;
 	}
@@ -990,10 +990,10 @@ unp_gc()
 	 * before going through all this, set all FDs to 
 	 * be NOT defered and NOT externally accessible
 	 */
-	for (fp = filehead.lh_first; fp != 0; fp = fp->f_list.le_next)
+	LIST_FOREACH(fp, &filehead, f_list)
 		fp->f_flag &= ~(FMARK|FDEFER);
 	do {
-		for (fp = filehead.lh_first; fp != 0; fp = fp->f_list.le_next) {
+		LIST_FOREACH(fp, &filehead, f_list) {
 			/*
 			 * If the file is not open, skip it
 			 */
@@ -1104,9 +1104,9 @@ unp_gc()
 	 * 91/09/19, bsy@cs.cmu.edu
 	 */
 	extra_ref = malloc(nfiles * sizeof(struct file *), M_FILE, M_WAITOK);
-	for (nunref = 0, fp = filehead.lh_first, fpp = extra_ref; fp != 0;
+	for (nunref = 0, fp = LIST_FIRST(&filehead), fpp = extra_ref; fp != 0;
 	    fp = nextfp) {
-		nextfp = fp->f_list.le_next;
+		nextfp = LIST_NEXT(fp, f_list);
 		/* 
 		 * If it's not open, skip it
 		 */

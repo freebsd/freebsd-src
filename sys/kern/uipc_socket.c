@@ -182,7 +182,7 @@ solisten(so, backlog, p)
 		splx(s);
 		return (error);
 	}
-	if (so->so_comp.tqh_first == NULL)
+	if (TAILQ_EMPTY(&so->so_comp))
 		so->so_options |= SO_ACCEPTCONN;
 	if (backlog < 0 || backlog > somaxconn)
 		backlog = somaxconn;
@@ -239,12 +239,13 @@ soclose(so)
 	if (so->so_options & SO_ACCEPTCONN) {
 		struct socket *sp, *sonext;
 
-		for (sp = so->so_incomp.tqh_first; sp != NULL; sp = sonext) {
-			sonext = sp->so_list.tqe_next;
+		sp = TAILQ_FIRST(&so->so_incomp);
+		for (; sp != NULL; sp = sonext) {
+			sonext = TAILQ_NEXT(sp, so_list);
 			(void) soabort(sp);
 		}
-		for (sp = so->so_comp.tqh_first; sp != NULL; sp = sonext) {
-			sonext = sp->so_list.tqe_next;
+		for (sp = TAILQ_FIRST(&so->so_comp); sp != NULL; sp = sonext) {
+			sonext = TAILQ_NEXT(sp, so_list);
 			/* Dequeue from so_comp since sofree() won't do it */
 			TAILQ_REMOVE(&so->so_comp, sp, so_list);
 			so->so_qlen--;

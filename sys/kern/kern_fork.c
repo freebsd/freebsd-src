@@ -274,9 +274,9 @@ retry:
 		 * is in use.  Remember the lowest pid that's greater
 		 * than nextpid, so we can avoid checking for a while.
 		 */
-		p2 = allproc.lh_first;
+		p2 = LIST_FIRST(&allproc);
 again:
-		for (; p2 != 0; p2 = p2->p_list.le_next) {
+		for (; p2 != 0; p2 = LIST_NEXT(p2, p_list)) {
 			while (p2->p_pid == nextpid ||
 			    p2->p_pgrp->pg_id == nextpid ||
 			    p2->p_session->s_sid == nextpid) {
@@ -295,7 +295,7 @@ again:
 		}
 		if (!doingzomb) {
 			doingzomb = 1;
-			p2 = zombproc.lh_first;
+			p2 = LIST_FIRST(&zombproc);
 			goto again;
 		}
 	}
