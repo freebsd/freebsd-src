@@ -30,14 +30,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.2 1995/10/02 10:15:40 julian Exp $
+ * $Id: kern_conf.c,v 1.3 1995/10/04 08:58:00 julian Exp $
  */
 
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
-extern d_open_t lkmenodev;
 
 /*
  * (re)place an entry in the bdevsw or cdevsw table
@@ -54,8 +53,8 @@ int TTYPE##_add(dev_t *descrip,						\
 		 * Search the table looking for a slot...		\
 		 */							\
 		for (i = 0; i < NXXXDEV; i++)				\
-			if (TTYPE[i].d_open == lkmenodev)		\
-				break;		/* found it! */		\
+			if (TTYPE[i].d_open == NULL)			\
+				break;		/* found one! */	\
 		/* out of allocable slots? */				\
 		if (i == NXXXDEV) {					\
 			return ENFILE;					\
