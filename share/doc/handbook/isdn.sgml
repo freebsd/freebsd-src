@@ -1,21 +1,220 @@
-<!-- $Id: isdn.sgml,v 1.2 1996/07/03 22:24:52 wosch Exp $ -->
+<!-- $Id$-->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>ISDN<label id="isdn"></heading>
 
-<p><em>Contributed by &a.hm;.</em>
+<p><em>Last modicified by <htmlurl url="mailto:wlloyd@mpd.ca"
+name="&lt;wlloyd@mpd.ca&gt;"></em>.
 
-There is the bisdn ISDN package available from 
-<htmlurl url="ftp://ftp.muc.ditec.de/isdn" name="ftp.muc.ditec.de">
+<p>ISDN for FreeBSD is still largely under developement.  Specifically,
+there are a lack of drivers for PC ISDN cards.
+
+<p>A good resource for information on ISDN technology and hardware is
+<url url="http://alumni.caltech.edu/~dank/isdn/" name="Dan Kegel's
+ISDN Page">.
+
+A quick simple roadmap to ISDN follows:
+<itemize>
+<item>If you live in Europe I suggest you investigate the ISDN card
+section.
+
+<item>If you are planning to use ISDN primarily to connect to the
+internet with an Internet Provider on a dialup non-dedicated basis, I
+suggest you look into Terminal Adapters.  This will give you the most
+flexibility, with the fewest problems, if you change providers.
+
+<item>If you are conecting two lans together, or connecting to the
+internet with a dedicated ISDN connection, I suggest you consider the
+Standalone router/bridge option.
+</itemize>
+
+<p>Cost is a significant factor in determining what solution you will
+choose.  The following options are listed from least expensive to most
+expensive.
+
+<sect1><heading>ISDN Cards</heading>
+
+<p><em>Originally Contribution by &a.hm;.</em>
+
+<p>This section is really only relevant to European ISDN users.  The
+cards supported are not yet(?) availible for North American ISDN
+standards.
+  
+<p>PC ISDN cards support the full bandwidth of ISDN, 128Kbs.  These
+cards are often the least expensive type of ISDN equipment.  
+
+<p>There is the bisdn ISDN package available from 
+<url url="ftp://ftp.muc.ditec.de/isdn" name="ftp.muc.ditec.de">
 supporting FreeBSD 2.1R, FreeBSD-current and NetBSD.
-
-Currently all (passive) Teles cards and their clones are supported for the
-EuroISDN (DSS1) and 1TR6 protocols.
-
 The latest source can be found on the above mentioned ftp server under
-directory isdn as file bisdn-096.tar.gz.
+directory isdn as file bisdn-097.tar.gz.
+
+There are drivers for the following cards:
+<itemize>
+<item>Currently all (passive) Teles cards and their clones are supported
+for the EuroISDN (DSS1) and 1TR6 protocols.
+<item>Dr. Neuhaus - Niccy 1016
+</itemize>
+
+There are several limitations with the bisdn stuff.
+Specifically the following features usually associated with ISDN are not
+supported.
+<itemize>
+<item>No PPP support, only raw hdlc.  This means you cannot connect to a
+some standalone routers, such as a Cisco unit.
+<item>Bridging Control Protocol not supported.
+<item>Multiple cards are not supported.
+<item>No bandwidth on demand.
+<item>No channel bundling.
+</itemize>
 
 A majordomo maintained mailing list is available, to subscribe, send the
 usual majordomo requests to 
 <htmlurl url="mailto:isdn-request@muc.ditec.de"
 name="isdn-request@muc.ditec.de">.
+
+<sect1><heading>ISDN Terminal Adapters</heading>
+
+<p>Terminal adapters(TA), are to ISDN what modems are to regular phone
+lines.
+<p>Most TA's use the standard hayes modem AT command set, and can be
+used as a drop in replacement for a modem.
+
+A TA will operate basically the same as a modem except connection and
+throughput speeds will be much faster than your old modem.  You will
+need to configure <ref id="ppp" name="PPP"> exactly the same as for a
+modem setup.  Make sure you set your serial speed as high as possible.
+
+The main advantage of using a TA to connect to an Internet Provider is
+that you can do Dynamic PPP.  As IP address space becomes more and more
+scarce, most providers are not willing to provide you with a static IP
+anymore.  Most standalone routers are not able to accomidate dynamic IP
+allocation.
+
+TA's completely rely on the PPP daemon that you are running for their
+features and stabiliy of connection.  This allows you to upgrade easily
+from using a modem to ISDN on a FreeBSD machine, if you already have PPP
+setup.  However, at the same time any problems you experienced with the
+PPP program and are going to persist.
+
+If you want maximum stability, use the kernel  <ref id="ppp" name="PPP">
+option, not the user-land <ref id="userppp" name="iijPPP">.  
+<p>The following TA's are know to work with FreeBSD.
+
+<itemize>
+<item>Motorola BitSurfer and Bitsurfer Pro
+<item>Adtran
+</itemize>
+
+Most other TA's will probably work as well, TA vendors try to make sure
+their product can accept most of the standard modem AT command set.
+
+The real problam with external TA's is like modems you need a good
+serial card in your computer.  
+
+You should read the <ref id="uart" name="serial ports"> section in the
+handbook for a detailed understanding of serial devices, and the
+differences between asynchronous and synchronous serial ports.
+
+A TA running off a standard PC serial port (asynchronous) limits you to
+115.2Kbs, even though you have a 128Kbs connection.  To fully utilize
+the 128Kbs that ISDN is capable of, you must move the TA to a
+synchronous serial card. 
+
+Do not be fooled into buying an internal TA and thinking you have
+avoided the synchronous/asynchronous issue.  Internal TA's simply have a
+standard PC serial port chip built into them.  All this will do, is save
+you having to buy another serial cable, and find another empty
+electrical socket.
+
+A synchronous card with a TA is at least as fast as a standalone router,
+and with a simple 386 FreeBSD box driving it, probably more flexible.
+
+The choice of sync/TA vs standalone router is largely a religious
+issue.  There has been some discussion of this in the mailing lists.  I
+suggest you search the <url url="http://www.freebsd.org/search.html"
+name="archives"> for the complete discussion.
+
+<sect1><heading>Standalone ISDN Bridges/Routers</heading>
+
+<p>ISDN bridges or routers are not at all specific to FreeBSD or any
+other operating system.  For a more complete description of routing and
+bridging technology, please refer to a Networking reference book.
+
+In the context of this page, I will use router and bridge
+interchangeably.
+
+<p>As the cost of low end ISDN routers/bridges comes down, it will
+likely become a more and more popular choice.  An ISDN router is a small
+box that plugs directly into your local ethernet network(or card), and
+manages it's own connection to the other bridge/router.  It has all the
+software to do PPP and other protocols built in.
+
+A router will allow you much faster thoughput that a standard TA, since
+it will be using a full synchronous ISDN connection.
+
+The main problem with ISDN routers and bridges is that interoperability
+between manufacturers can still be a problem.  If you are planning to
+connect to an Internet provider, I recommend that you discuss your needs
+with them.
+
+<p>If you are planning to connect two lan segments together, ie: home
+lan to the office lan, this is the simplest lowest maintenance
+solution.  Since you are buying the equipment for both sides of the
+connection you can be assured that the link will work.
+
+For example to connect a home computer or branch office network to a
+head office network the following setup could be used.
+
+<em>Branch office or Home network</em>
+
+Network is 10 Base T ethernet.  Connect router to network cable with
+AUI/10bT transciever if necessary.
+
+<verb>
+---Sun workstation     
+|
+---FreeBSD box
+|
+---Windows 95 (Don't admit to owning it)
+|
+Standalone router
+   |
+ISDN BRI line
+</verb>
+If your home/branch office is only one computer you can use a twisted
+pair crossover cable to connect to the standalone router directly.
+
+<em>Head office or other lan</em> 
+
+Network is Twisted Pair ethernet.
+<verb>
+    -------Novell Server
+    | H	|
+    |	---Sun      
+    |	|
+    | U	---FreeBSD
+    |	|
+    |	---Windows 95
+    | B	|
+    |___---Standalone router
+		|
+       	ISDN BRI line
+</verb> 
+
+One large advantage of most routers/bridges is that they allow you to
+have 2 SEPERATE INDEPENDANT PPP connections to 2 seperate sites at the
+SAME time.  This is not supported on most TA's, except for
+specific(expensive) models that have two serial ports.  Do not confuse
+this with channel bonding.
+
+This is a very usefull feature for example if you have an dedicated
+internet ISDN connection at your office and would like to tap into it,
+but don't want to get another ISDN line at work.  A router at the office
+location can manage a dedicated B channel connection (64Kbs) to the
+internet as well as a use the other B channel for anything else,
+including dialin or dialout to another location or dynamically bonding
+it with the internet connection for more bandwidth.
+
+An alternate use of this is to connect to 2 different branch offices at
+the same time from the same ISDN line at your central office.
