@@ -79,11 +79,10 @@ Installation
 		DESTETC			configuration file
 		DESTRUN			PID file location
 
-	These variables may be specified on the command line of the 'make'
-	or in the Makefile.set for your port (e.g. if you use Solaris, in
-	src/port/solaris/Makefile.set).
+	These variables should be specified in the Makefile.set for your
+	port (e.g. if you use Solaris, in src/port/solaris/Makefile.set).
 
-	Before doing 'make install' using either method, you must
+	Before doing 'make install', you must
 
 		rm .settings
 
@@ -117,9 +116,27 @@ Using BIND 8 Library Routines
 
 Operating System Notes
 
-	SunOS 4.1.4
+	AIX
 
-		An ANSI/ISO C compiler is required; we used gcc 2.7.2.1.
+		Build problems have been reported with the AIX "make".
+		We recommend using GNU "make" instead.
+
+	Linux
+
+		"make links" and "make stdlinks" cause problems on
+		some Linux kernels because there are too many levels of
+		symbolic links.
+
+	QNX
+
+		Read src/port/qnx/README before trying to build.
+
+	SCO 5.0.x
+
+		To build using gcc, copy "port/sco50/Makefile.set.gcc" to
+		"port/sco50/Makefile.set".  To go back to using SCO's
+		compilers, copy "port/sco50/Makefile.set.sco" to
+		"port/sco50/Makefile.set".
 
 	Solaris
 
@@ -136,17 +153,16 @@ Operating System Notes
 		suitably large number) before execing "named".  On Solaris
 		2.5 and later, the server will do this itself.
 
+	SunOS 4.1.4
+
+		An ANSI/ISO C compiler is required; we used gcc 2.7.2.1.
+
 	Certain older versions of FreeBSD, NetBSD and BSD/OS
 
 		These systems have a /bin/sh based on "ash", which doesn't
 		handle POSIX-style quoting correctly.  Using "bash" will fix
 		the problem.  Either run make with "SH=bash" on the command
 		line, or edit src/Makefile and change "SH=sh" to "SH=bash".
-
-	QNX
-
-		Read src/port/qnx/README before trying to build.
-
 
 FD_SETSIZE
 

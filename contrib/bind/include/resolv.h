@@ -50,7 +50,7 @@
 
 /*
  *	@(#)resolv.h	8.1 (Berkeley) 6/2/93
- *	$Id: resolv.h,v 8.11 1998/01/26 23:09:53 halley Exp $
+ *	$Id: resolv.h,v 8.12 1998/04/28 19:36:46 halley Exp $
  */
 
 #ifndef _RESOLV_H_
@@ -297,7 +297,7 @@ const char *	p_section __P((int section, int opcode));
 int		res_update __P((ns_updrec *));
 int		res_mkupdate __P((ns_updrec *, u_char *, int));
 ns_updrec *	res_mkupdrec __P((int, const char *, u_int, u_int, u_long));
-void		res_freeupdrec(ns_updrec *rrecp);
+void		res_freeupdrec __P((ns_updrec *));
 __END_DECLS
 
 #endif /* !_RESOLV_H_ */

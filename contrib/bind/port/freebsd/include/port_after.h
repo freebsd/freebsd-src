@@ -7,6 +7,7 @@
 #define HAVE_FCHMOD
 #define NEED_PSELECT
 #define HAVE_SA_LEN
+#define HAVE_MINIMUM_IFREQ
 #define USE_LOG_CONS
 #define HAVE_CHROOT
 #define CAN_CHANGE_ID

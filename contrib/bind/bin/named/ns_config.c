@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static char rcsid[] = "$Id: ns_config.c,v 8.34 1998/03/27 00:19:47 halley Exp $";
+static char rcsid[] = "$Id: ns_config.c,v 8.35 1998/05/05 19:44:48 halley Exp $";
 #endif /* not lint */
 
 /*
@@ -2322,6 +2322,8 @@ load_configuration(const char *filename) {
 
 	ns_debug(ns_log_config, 3, "load configuration %s", filename);
 
+	loading = 1;
+
 	/*
 	 * Clean up any previous configuration and initialize
 	 * global data structures we'll be updating.
@@ -2363,4 +2365,5 @@ load_configuration(const char *filename) {
 	opensocket_f();
 
 	initial_configuration = 0;
+	loading = 0;
 }

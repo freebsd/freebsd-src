@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_maint.c	4.39 (Berkeley) 3/2/91";
-static char rcsid[] = "$Id: ns_maint.c,v 8.38 1998/03/16 19:40:25 halley Exp $";
+static char rcsid[] = "$Id: ns_maint.c,v 8.39 1998/04/14 00:34:39 halley Exp $";
 #endif /* not lint */
 
 /*
@@ -174,6 +174,7 @@ zone_maint(struct zoneinfo *zp) {
 		if (zp->z_serial != 0 &&
 		    ((zp->z_lastupdate+zp->z_expire) < (u_int32_t)tt.tv_sec)) {
 			zp->z_serial = 0;
+			/* XXX should we clear Z_AUTH here? */
 		}
 		if (zp->z_flags & (Z_NEED_RELOAD|Z_NEED_XFER|Z_QSERIAL)) {
 			ns_retrytime(zp, tt.tv_sec);
