@@ -40,11 +40,6 @@
  */
 #define	TULIP_HDR_DATA
 
-#ifdef __NetBSD__
-#include "opt_inet.h"
-#include "opt_ns.h"
-#endif
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -54,20 +49,11 @@
 #include <sys/kernel.h>
 #if defined(__FreeBSD__)
 #include <machine/clock.h>
-#elif defined(__NetBSD__)
-#include <sys/device.h>
 #endif
 
 #if defined(__FreeBSD__)
 #include "opt_inet.h"
 #include "opt_ipx.h"
-#endif
-
-#if defined(__NetBSD__)
-#include "rnd.h"
-#if NRND > 0
-#include <sys/rnd.h>
-#endif
 #endif
 
 #include <net/if.h>
@@ -112,19 +98,6 @@
 #include <net/bridge.h>
 #endif
 #endif /* __FreeBSD__ */
-
-#if defined(__NetBSD__)
-#include <net/if_ether.h>
-#if defined(INET)
-#include <netinet/if_inarp.h>
-#endif
-#include <machine/bus.h>
-#include <machine/intr.h>
-#include <dev/pci/pcireg.h>
-#include <dev/pci/pcivar.h>
-#include <dev/ic/dc21040reg.h>
-#define	DEVAR_INCLUDE	"dev/pci/if_devar.h"
-#endif /* __NetBSD__ */
 
 /*
  * Intel CPUs should use I/O mapped access.
@@ -3695,12 +3668,8 @@ tulip_rx_intr(
 #if !defined(TULIP_COPY_RXDATA)
 		ms->m_pkthdr.len = total_len;
 		ms->m_pkthdr.rcvif = ifp;
-#if defined(__NetBSD__)
-		(*ifp->if_input)(ifp, ms);
-#else
 		m_adj(ms, sizeof(struct ether_header));
 		ether_input(ifp, &eh, ms);
-#endif /* __NetBSD__ */
 #else
 #ifdef BIG_PACKET
 #error BIG_PACKET is incompatible with TULIP_COPY_RXDATA
@@ -3709,12 +3678,8 @@ tulip_rx_intr(
 		m_copydata(ms, 0, total_len, mtod(m0, caddr_t));
 		m0->m_len = m0->m_pkthdr.len = total_len;
 		m0->m_pkthdr.rcvif = ifp;
-#if defined(__NetBSD__)
-		(*ifp->if_input)(ifp, m0);
-#else
-		m_adj(m0, sizeof(struct ether_header);
+		m_adj(m0, sizeof(struct ether_header));
 		ether_input(ifp, &eh, m0);
-#endif /* __NetBSD__ */
 		m0 = ms;
 #endif /* ! TULIP_COPY_RXDATA */
 	    }
@@ -3965,22 +3930,8 @@ tulip_intr_handler(
 {
     TULIP_PERFSTART(intr)
     u_int32_t csr;
-#if defined(__NetBSD__) && !defined(TULIP_USE_SOFTINTR)
-    int only_once;
-
-    only_once = 1;
-#endif
 
     while ((csr = TULIP_CSR_READ(sc, csr_status)) & sc->tulip_intrmask) {
-#if defined(__NetBSD__) && !defined(TULIP_USE_SOFTINTR)
-        if (only_once == 1) {
-#if NRND > 0
-	    rnd_add_uint32(&sc->tulip_rndsource, csr);
-#endif
-	    only_once = 0;
-	}
-#endif
-
 	*progress_p = 1;
 	TULIP_CSR_WRITE(sc, csr_status, csr);
 
@@ -4103,15 +4054,6 @@ tulip_hardintr_handler(
      * mark it as needing a software interrupt
      */
     tulip_softintr_mask |= (1U << sc->tulip_unit);
-
-#if defined(__NetBSD__) && NRND > 0
-    /*
-     * This isn't all that random (the value we feed in) but it is
-     * better than a constant probably.  It isn't used in entropy
-     * calculation anyway, just to add something to the pool.
-     */
-    rnd_add_uint32(&sc->tulip_rndsource, sc->tulip_flags);
-#endif
 }
 
 static void
@@ -5059,9 +5001,7 @@ tulip_attach(
     ifp->if_start = tulip_ifstart;
     ifp->if_watchdog = tulip_ifwatchdog;
     ifp->if_timer = 1;
-#if !defined(__NetBSD__)
     ifp->if_output = ether_output;
-#endif
   
     printf(
 	   TULIP_PRINTF_FMT ": %s%s pass %d.%d%s\n",
@@ -5120,17 +5060,10 @@ tulip_attach(
 #if defined(__FreeBSD__)
     ifp->if_snd.ifq_maxlen = ifqmaxlen;
 #endif
-#if defined(__NetBSD__) || (defined(__FreeBSD__) && BSD >= 199506)
     TULIP_ETHER_IFATTACH(sc);
-#endif
 
 #if NBPF > 0
     TULIP_BPF_ATTACH(sc);
-#endif
-
-#if defined(__NetBSD__) && NRND > 0
-    rnd_attach_source(&sc->tulip_rndsource, sc->tulip_dev.dv_xname,
-		      RND_TYPE_NET, 0);
 #endif
 }
 
@@ -5390,36 +5323,6 @@ static struct pci_device dedevice = {
 COMPAT_PCI_DRIVER(de, dedevice);
 #endif /* __FreeBSD__ */
 
-#if defined(__NetBSD__)
-#define	TULIP_PCI_ATTACH_ARGS	struct device * const parent, struct device * const self, void * const aux
-#define	TULIP_SHUTDOWN_ARGS	void *arg
-static int
-tulip_pci_probe(
-    struct device *parent,
-    struct cfdata *match,
-    void *aux)
-{
-    struct pci_attach_args *pa = (struct pci_attach_args *) aux;
-
-    if (PCI_VENDORID(pa->pa_id) != DEC_VENDORID)
-	return 0;
-    if (PCI_CHIPID(pa->pa_id) == CHIPID_21040
-	    || PCI_CHIPID(pa->pa_id) == CHIPID_21041
-	    || PCI_CHIPID(pa->pa_id) == CHIPID_21140
-	    || PCI_CHIPID(pa->pa_id) == CHIPID_21142)
-	return 1;
-
-    return 0;
-}
-
-static void tulip_pci_attach(TULIP_PCI_ATTACH_ARGS);
-
-struct cfattach de_ca = {
-    sizeof(tulip_softc_t), tulip_pci_probe, tulip_pci_attach
-};
-
-#endif /* __NetBSD__ */
-
 static void
 tulip_shutdown(
     TULIP_SHUTDOWN_ARGS)
@@ -5442,17 +5345,6 @@ tulip_pci_attach(
 #define	PCI_GETBUSDEVINFO(sc)	((void)((sc)->tulip_pci_busno = (config_id->bus), /* XXX */ \
 					(sc)->tulip_pci_devno = (config_id->slot))) /* XXX */
 #endif
-#if defined(__NetBSD__)
-    tulip_softc_t * const sc = (tulip_softc_t *) self;
-    struct pci_attach_args * const pa = (struct pci_attach_args *) aux;
-    const int unit = sc->tulip_dev.dv_unit;
-#define	PCI_CONF_WRITE(r, v)	pci_conf_write(pa->pa_pc, pa->pa_tag, (r), (v))
-#define	PCI_CONF_READ(r)	pci_conf_read(pa->pa_pc, pa->pa_tag, (r))
-#define	PCI_GETBUSDEVINFO(sc)	do { \
-	(sc)->tulip_pci_busno = parent; \
-	(sc)->tulip_pci_devno = pa->pa_device; \
-    } while (0)
-#endif /* __NetBSD__ */
 #if defined(__alpha__)
     tulip_media_t media = TULIP_MEDIA_UNKNOWN;
 #endif
@@ -5560,17 +5452,8 @@ tulip_pci_attach(
     }
 #endif
 
-#if defined(__NetBSD__)
-    bcopy(self->dv_xname, sc->tulip_if.if_xname, IFNAMSIZ);
-    sc->tulip_if.if_softc = sc;
-    sc->tulip_pc = pa->pa_pc;
-#if defined(TULIP_BUS_DMA)
-    sc->tulip_dmatag = pa->pa_dmat;
-#endif
-#else
     sc->tulip_unit = unit;
     sc->tulip_name = "de";
-#endif
     sc->tulip_revinfo = revinfo;
 #if defined(__FreeBSD__)
 #if BSD >= 199506
@@ -5587,38 +5470,6 @@ tulip_pci_attach(
     }
     tulips[unit] = sc;
 #endif /* __FreeBSD__ */
-
-#if defined(__NetBSD__)
-    csr_base = 0;
-    {
-	bus_space_tag_t iot, memt;
-	bus_space_handle_t ioh, memh;
-	int ioh_valid, memh_valid;
-
-	ioh_valid = (pci_mapreg_map(pa, PCI_CBIO, PCI_MAPREG_TYPE_IO, 0,
-				    &iot, &ioh, NULL, NULL) == 0);
-	memh_valid = (pci_mapreg_map(pa, PCI_CBMA,
-				     PCI_MAPREG_TYPE_MEM |
-				     PCI_MAPREG_MEM_TYPE_32BIT,
-				     0, &memt, &memh, NULL, NULL) == 0);
-	if (memh_valid) {
-	    sc->tulip_bustag = memt;
-	    sc->tulip_bushandle = memh;
-	} else if (ioh_valid) {
-	    sc->tulip_bustag = iot;
-	    sc->tulip_bushandle = ioh;
-	} else {
-	    printf(": unable to map device registers\n");
-	    return;
-	}
-
-	/* Make sure bus mastering is enabled. */
-	pci_conf_write(pa->pa_pc, pa->pa_tag, PCI_COMMAND_STATUS_REG,
-		       pci_conf_read(pa->pa_pc, pa->pa_tag,
-				     PCI_COMMAND_STATUS_REG) |
-		       PCI_COMMAND_MASTER_ENABLE);
-    }
-#endif /* __NetBSD__ */
 
     tulip_initcsrs(sc, csr_base + csroffset, csrsize);
 
@@ -5677,36 +5528,6 @@ tulip_pci_attach(
 	if (sc->tulip_features & TULIP_HAVE_SHAREDINTR)
 	    intr_rtn = tulip_intr_shared;
 
-#if defined(__NetBSD__)
-	if ((sc->tulip_features & TULIP_HAVE_SLAVEDINTR) == 0) {
-	    pci_intr_handle_t intrhandle;
-	    const char *intrstr;
-
-	    printf("\n");
-
-	    if (pci_intr_map(pa->pa_pc, pa->pa_intrtag, pa->pa_intrpin,
-			     pa->pa_intrline, &intrhandle)) {
-		printf("%s: couldn't map interrupt\n", sc->tulip_dev.dv_xname);
-		return;
-	    }
-	    intrstr = pci_intr_string(pa->pa_pc, intrhandle);
-	    sc->tulip_ih = pci_intr_establish(pa->pa_pc, intrhandle, IPL_NET,
-					      intr_rtn, sc);
-	    if (sc->tulip_ih == NULL) {
-		printf("%s: couldn't establish interrupt",
-		       sc->tulip_dev.dv_xname);
-		if (intrstr != NULL)
-		    printf(" at %s", intrstr);
-		printf("\n");
-		return;
-	    }
-	    printf("%s: interrupting at %s\n", sc->tulip_dev.dv_xname, intrstr);
-	}
-	sc->tulip_ats = shutdownhook_establish(tulip_shutdown, sc);
-	if (sc->tulip_ats == NULL)
-	    printf("%s: warning: couldn't establish shutdown hook\n",
-		   sc->tulip_xname);
-#endif
 #if defined(__FreeBSD__)
 	if ((sc->tulip_features & TULIP_HAVE_SLAVEDINTR) == 0) {
 	    if (!pci_map_int (config_id, intr_rtn, (void*) sc, &net_imask)) {
