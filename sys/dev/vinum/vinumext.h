@@ -41,7 +41,7 @@
 extern struct _vinum_conf vinum_conf;			    /* configuration information */
 
 #ifdef VINUMDEBUG
-extern debug;						    /* debug flags */
+extern int debug;					    /* debug flags */
 #endif
 
 #define CHECKALLOC(ptr, msg) \

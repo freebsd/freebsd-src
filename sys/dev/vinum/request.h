@@ -213,6 +213,7 @@ union daemoninfo {					    /* and the request information */
     struct request *rq;					    /* for daemonrq_ioerror */
     struct sd *sd;					    /* for daemonrq_revive */
     struct plex *plex;					    /* for daemonrq_init */
+    int nothing;					    /* for passing NULL */
 };
 
 struct daemonq {
