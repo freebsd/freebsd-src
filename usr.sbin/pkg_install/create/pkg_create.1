@@ -15,7 +15,7 @@
 .\"
 .\"
 .\"     @(#)pkg_create.8
-.\"	$Id: pkg_create.1,v 1.11 1995/01/05 10:22:51 jkh Exp $	
+.\"	$Id: pkg_create.1,v 1.12 1995/01/05 10:37:09 jkh Exp $	
 .\" hacked up by John Kohl for NetBSD--fixed a few bugs, extended keywords,
 .\" added dependency tracking, etc.
 .\"
@@ -28,6 +28,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl YNhv
+.Op Fl P Ar pkgs
 .Op Fl p Ar prefix
 .Op Fl f Ar contents
 .Op Fl i Ar iscript
@@ -98,6 +99,14 @@ Sets
 to be the install procedure for the package.  This can be any
 executable program (or shell script).  It will be invoked automatically
 when the package is later installed.
+.Em "Optional."
+.It Fl P Ar pkgs
+Sets the initial package dependency list to
+.Ar pkgs.
+This is assumed to be a whitespace separated list of package names
+and is meant as a convenient shorthand for specifying multiple
+.Cm @pkgdep
+directives in the packing list (see PACKING LIST DETAILS section below).
 .Em "Optional."
 .It Fl p Ar prefix
 Sets

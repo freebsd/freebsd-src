@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.13 1994/11/17 10:54:11 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.14 1994/12/06 00:51:37 jkh Exp $";
 #endif
 
 /*
@@ -61,6 +61,14 @@ pkg_perform(char **pkgs)
     }
     else
 	suffix = "tgz";
+
+    /* Stick the dependencies, if any, at the top */
+    while (Pkgdeps) {
+	cp = strsep(&Pkgdeps, " \t\n");
+        if (*cp) {
+	    add_plist(&plist, PLIST_PKGDEP, cp);
+	}
+    }
 
     /* Slurp in the packing list */
     read_plist(&plist, pkg_in);
