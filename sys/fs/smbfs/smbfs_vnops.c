@@ -624,8 +624,10 @@ smbfs_rename(ap)
 		flags |= 2;
 	} else if (fvp->v_type == VREG) {
 		flags |= 1;
-	} else
-		return EINVAL;
+	} else {
+		error = EINVAL;
+		goto out;
+	}
 	smb_makescred(&scred, tcnp->cn_thread, tcnp->cn_cred);
 	/*
 	 * It seems that Samba doesn't implement SMB_COM_MOVE call...
@@ -643,7 +645,7 @@ smbfs_rename(ap)
 		if (tvp && tvp != fvp) {
 			error = smbfs_smb_delete(VTOSMB(tvp), &scred);
 			if (error)
-				goto out;
+				goto out_cacherem;
 		}
 		error = smbfs_smb_rename(VTOSMB(fvp), VTOSMB(tdvp),
 		    tcnp->cn_nameptr, tcnp->cn_namelen, &scred);
@@ -654,6 +656,10 @@ smbfs_rename(ap)
 			cache_purge(tdvp);
 		cache_purge(fdvp);
 	}
+
+out_cacherem:
+	smbfs_attr_cacheremove(fdvp);
+	smbfs_attr_cacheremove(tdvp);
 out:
 	if (tdvp == tvp)
 		vrele(tdvp);
@@ -663,8 +669,6 @@ out:
 		vput(tvp);
 	vrele(fdvp);
 	vrele(fvp);
-	smbfs_attr_cacheremove(fdvp);
-	smbfs_attr_cacheremove(tdvp);
 #ifdef possible_mistake
 	vgone(fvp);
 	if (tvp)
