@@ -61,7 +61,8 @@ DotCmd(int ac, char **av)
 	struct ng_mesg *const nlresp = (struct ng_mesg *)nlrbuf;
 	struct namelist *const nlist = (struct namelist *)nlresp->data;
 	FILE *f = stdout;
-	int ch, i;
+	int ch;
+	u_int i;
 
 	/* Get options */
 	optind = 1;
@@ -129,7 +130,7 @@ DotCmd(int ac, char **av)
 		struct hooklist *const hlist = (struct hooklist *)hlresp->data;
 		struct nodeinfo *const ninfo = &hlist->nodeinfo;
 		char path[NG_PATHSIZ];
-		int j;
+		u_int j;
 
 		(void)snprintf(path, sizeof(path), "[%jx]:",
 		    (uintmax_t)nlist->nodeinfo[i].id);

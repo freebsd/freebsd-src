@@ -58,7 +58,8 @@ ListCmd(int ac, char **av)
 	struct ng_mesg *const resp = (struct ng_mesg *) rbuf;
 	struct namelist *const nlist = (struct namelist *) resp->data;
 	int named_only = 0;
-	int k, ch, rtn = CMDRTN_OK;
+	int ch, rtn = CMDRTN_OK;
+	u_int k;
 
 	/* Get options */
 	optind = 1;
@@ -100,11 +101,11 @@ ListCmd(int ac, char **av)
 	    nlist->numnames, named_only ? "named " : "");
 	for (k = 0; k < nlist->numnames; k++) {
 		char	path[NG_PATHSIZ];
-		char	*av[3] = { "list", "-n", path };
+		char	*argv[3] = { "list", "-n", path };
 
 		snprintf(path, sizeof(path),
 		    "[%lx]:", (u_long) nlist->nodeinfo[k].id);
-		if ((rtn = (*show_cmd.func)(3, av)) != CMDRTN_OK)
+		if ((rtn = (*show_cmd.func)(3, argv)) != CMDRTN_OK)
 			break;
 	}
 
