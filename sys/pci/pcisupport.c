@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.97 1999/04/17 19:48:45 dfr Exp $
+**  $Id: pcisupport.c,v 1.98 1999/04/18 15:50:35 peter Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -1041,6 +1041,12 @@ chip_match(device_t dev)
 		return ("Intel 82443BX host to AGP bridge");
 	case 0x71928086:
 		return ("Intel 82443BX host to PCI bridge (AGP disabled)");
+ 	case 0x71a08086:
+ 		return ("Intel 82443GX host to PCI bridge");
+ 	case 0x71a18086:
+ 		return ("Intel 82443GX host to AGP bridge");
+ 	case 0x71a28086:
+ 		return ("Intel 82443GX host to PCI bridge (AGP disabled)");
 	case 0x84c48086:
 		fixbushigh_orion(dev);
 		return ("Intel 82454KX/GX (Orion) host to PCI bridge");
