@@ -833,8 +833,10 @@ restart:
 	}
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_dvp);
-	if (error)
+	if (error) {
+		vn_finished_write(mp);
 		goto done;
+	}
 	vp = nd.ni_vp;
 	ASSERT_VOP_LOCKED(vp, "unp_bind");
 	soun = (struct sockaddr_un *)sodupsockaddr(nam, M_WAITOK);
