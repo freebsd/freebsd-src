@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.43 1995/03/06 13:32:58 se Exp $
+#	$Id: Makefile,v 1.44 1995/03/14 21:32:46 roberto Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
@@ -17,6 +17,11 @@
 # Put initial settings here.
 SUBDIR=
 
+# do include first.
+.if exists(include)
+SUBDIR+= include
+.endif
+
 .if exists(bin)
 SUBDIR+= bin
 .endif
@@ -28,9 +33,6 @@ SUBDIR+= games
 .endif
 .if exists(gnu)
 SUBDIR+= gnu
-.endif
-.if exists(include)
-SUBDIR+= include
 .endif
 .if exists(lib)
 SUBDIR+= lib
