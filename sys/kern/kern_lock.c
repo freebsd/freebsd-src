@@ -66,6 +66,8 @@ __FBSDID("$FreeBSD$");
 #define LOCK_INLINE __inline
 #endif
 
+#define	COUNT(td, x)	if ((td)) (td)->td_locks += (x)
+
 #define LK_ALL (LK_HAVE_EXCL | LK_WANT_EXCL | LK_WANT_UPGRADE | \
 	LK_SHARE_NONZERO | LK_WAIT_NONZERO)
 
@@ -88,16 +90,18 @@ lockmgr_init(void *dummy __unused)
 SYSINIT(lmgrinit, SI_SUB_LOCKMGR, SI_ORDER_FIRST, lockmgr_init, NULL)
 
 static LOCK_INLINE void
-sharelock(struct lock *lkp, int incr) {
+sharelock(struct thread *td, struct lock *lkp, int incr) {
 	lkp->lk_flags |= LK_SHARE_NONZERO;
 	lkp->lk_sharecount += incr;
+	COUNT(td, incr);
 }
 
 static LOCK_INLINE void
-shareunlock(struct lock *lkp, int decr) {
+shareunlock(struct thread *td, struct lock *lkp, int decr) {
 
 	KASSERT(lkp->lk_sharecount >= decr, ("shareunlock: count < decr"));
 
+	COUNT(td, -decr);
 	if (lkp->lk_sharecount == decr) {
 		lkp->lk_flags &= ~LK_SHARE_NONZERO;
 		if (lkp->lk_flags & (LK_WANT_UPGRADE | LK_WANT_EXCL)) {
@@ -269,9 +273,7 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 			error = acquire(&lkp, extflags, lockflags);
 			if (error)
 				break;
-			if (td != NULL)
-				td->td_locks++;
-			sharelock(lkp, 1);
+			sharelock(td, lkp, 1);
 #if defined(DEBUG_LOCKS)
 			lkp->lk_slockholder = thr;
 			lkp->lk_sfilename = file;
@@ -284,7 +286,7 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 		 * We hold an exclusive lock, so downgrade it to shared.
 		 * An alternative would be to fail with EDEADLK.
 		 */
-		sharelock(lkp, 1);
+		sharelock(td, lkp, 1);
 		/* FALLTHROUGH downgrade */
 
 	case LK_DOWNGRADE:
@@ -292,7 +294,8 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 			("lockmgr: not holding exclusive lock "
 			"(owner thread (%p) != thread (%p), exlcnt (%d) != 0",
 			lkp->lk_lockholder, thr, lkp->lk_exclusivecount));
-		sharelock(lkp, lkp->lk_exclusivecount);
+		sharelock(td, lkp, lkp->lk_exclusivecount);
+		COUNT(td, -lkp->lk_exclusivecount);
 		lkp->lk_exclusivecount = 0;
 		lkp->lk_flags &= ~LK_HAVE_EXCL;
 		lkp->lk_lockholder = LK_NOPROC;
@@ -307,7 +310,7 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 		 * exclusive access.
 		 */
 		if (lkp->lk_flags & LK_WANT_UPGRADE) {
-			shareunlock(lkp, 1);
+			shareunlock(td, lkp, 1);
 			error = EBUSY;
 			break;
 		}
@@ -324,7 +327,7 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 		 */
 		if ((lkp->lk_lockholder == thr) || (lkp->lk_sharecount <= 0))
 			panic("lockmgr: upgrade exclusive lock");
-		shareunlock(lkp, 1);
+		shareunlock(td, lkp, 1);
 		/*
 		 * If we are just polling, check to see if we will block.
 		 */
@@ -354,6 +357,7 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 			lkp->lk_flags |= LK_HAVE_EXCL;
 			lkp->lk_lockholder = thr;
 			lkp->lk_exclusivecount = 1;
+			COUNT(td, 1);
 #if defined(DEBUG_LOCKS)
 			lkp->lk_filename = file;
 			lkp->lk_lineno = line;
@@ -379,9 +383,8 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 			if ((extflags & (LK_NOWAIT | LK_CANRECURSE)) == 0)
 				panic("lockmgr: locking against myself");
 			if ((extflags & LK_CANRECURSE) != 0) {
-				if (td != NULL)
-					td->td_locks++;
 				lkp->lk_exclusivecount++;
+				COUNT(td, 1);
 				break;
 			}
 		}
@@ -415,8 +418,7 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 		if (lkp->lk_exclusivecount != 0)
 			panic("lockmgr: non-zero exclusive count");
 		lkp->lk_exclusivecount = 1;
-		if (td != NULL)
-			td->td_locks++;
+		COUNT(td, 1);
 #if defined(DEBUG_LOCKS)
 			lkp->lk_filename = file;
 			lkp->lk_lineno = line;
@@ -425,9 +427,6 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 		break;
 
 	case LK_RELEASE:
-		if (td != NULL && lkp->lk_lockholder != LK_KERNPROC &&
-		    lkp->lk_exclusivecount + lkp->lk_sharecount != 0)
-			td->td_locks--;
 		if (lkp->lk_exclusivecount != 0) {
 			if (lkp->lk_lockholder != thr &&
 			    lkp->lk_lockholder != LK_KERNPROC) {
@@ -435,6 +434,8 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 				    thr, "exclusive lock holder",
 				    lkp->lk_lockholder);
 			}
+			if (lkp->lk_lockholder != LK_KERNPROC)
+				COUNT(td, -1);
 			if (lkp->lk_exclusivecount == 1) {
 				lkp->lk_flags &= ~LK_HAVE_EXCL;
 				lkp->lk_lockholder = LK_NOPROC;
@@ -443,7 +444,7 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 				lkp->lk_exclusivecount--;
 			}
 		} else if (lkp->lk_flags & LK_SHARE_NONZERO)
-			shareunlock(lkp, 1);
+			shareunlock(td, lkp, 1);
 		if (lkp->lk_flags & LK_WAIT_NONZERO)
 			wakeup((void *)lkp);
 		break;
@@ -464,6 +465,7 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 		lkp->lk_flags |= LK_DRAINING | LK_HAVE_EXCL;
 		lkp->lk_lockholder = thr;
 		lkp->lk_exclusivecount = 1;
+		COUNT(td, 1);
 		if (td != NULL)
 			td->td_locks++;
 #if defined(DEBUG_LOCKS)
