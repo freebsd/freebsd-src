@@ -1086,7 +1086,7 @@ makeFloppySet:
 	    ${RD}/floppyset/${FLOPPYBASE} ${FLPSPLITSIZE} "${FLOPPYDESC}"
 	( splitfile=${SPLITDIR}/`basename ${SPLITFILE}`.split ; \
 	lines=`cat $${splitfile} | wc -l`; \
-	lines=$$((lines - 1)) ; \
+	lines=$$(($$lines - 1)) ; \
 	for line in `jot $$lines`; do \
 		file=`head -n $$(($${line} + 1)) $${splitfile} | tail -1 | cut -f 1 -d ' '` ; \
 		sh -e ${DOFS_SH} ${RD}/floppies/${FLOPPYBASE}$${line}.flp \
