@@ -18,13 +18,18 @@ You should have received a copy of the GNU General Public License along
 with groff; see the file COPYING.  If not, write to the Free Software
 Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
+/* $FreeBSD$ */
+
 #include <ctype.h>
+#ifdef __FreeBSD__
+#include <locale.h>
+#endif
 #include "cmap.h"
 
 cmap cmlower(CMAP_BUILTIN);
 cmap cmupper(CMAP_BUILTIN);
 
-#ifdef isascii
+#if defined(isascii) && !defined(__FreeBSD__)
 #define ISASCII(c) isascii(c)
 #else
 #define ISASCII(c) (1)
@@ -49,6 +54,9 @@ cmap_init::cmap_init()
   if (initialised)
     return;
   initialised = 1;
+#ifdef __FreeBSD__
+  (void) setlocale(LC_CTYPE, "");
+#endif
   for (int i = 0; i <= UCHAR_MAX; i++) {
     cmupper.v[i] = ISASCII(i) && islower(i) ? toupper(i) : i;
     cmlower.v[i] = ISASCII(i) && isupper(i) ? tolower(i) : i;
