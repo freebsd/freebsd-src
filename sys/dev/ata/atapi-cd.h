@@ -293,6 +293,11 @@ struct acd_track_info {
     u_int	track_length;		/* length of this track */
 };
 
+struct acd_devlist {
+    dev_t	dev;
+    TAILQ_ENTRY(acd_devlist)	chain;		/* list management */  
+};
+
 /* Structure describing an ATAPI CDROM device */
 struct acd_softc {
     struct atapi_softc		*atp;		/* controller structure */
@@ -301,6 +306,7 @@ struct acd_softc {
 #define 	F_LOCKED		0x0001	/* this unit is locked */
 
     struct bio_queue_head	queue;		/* queue of i/o requests */
+    TAILQ_HEAD(, acd_devlist)   dev_list;	/* list of "track" devices */
     struct toc			toc;		/* table of disc contents */
     struct {
 	u_int32_t	volsize;		/* volume size in blocks */
