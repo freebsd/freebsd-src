@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_lnc.c,v 1.46 1998/09/17 13:09:16 jkh Exp $
+ * $Id: if_lnc.c,v 1.47 1998/10/22 05:58:39 bde Exp $
  */
 
 /*
@@ -560,13 +560,14 @@ lnc_rint(struct lnc_softc *sc)
 					log(LOG_ERR, "lnc%d: Receive overflow error \n", unit);
 				}
 			} else if (flags & ENP) {
+			    if ((sc->arpcom.ac_if.if_flags & IFF_PROMISC)==0) {
 				/*
 				 * FRAM and CRC are valid only if ENP
 				 * is set and OFLO is not.
 				 */
 				if (flags & FRAM) {
 					LNCSTATS(fram)
-					log(LOG_ERR, "lnc%d: Framming error\n", unit);
+					log(LOG_ERR, "lnc%d: Framing error\n", unit);
 					/*
 					 * FRAM is only set if there's a CRC
 					 * error so avoid multiple messages
@@ -575,6 +576,7 @@ lnc_rint(struct lnc_softc *sc)
 					LNCSTATS(crc)
 					log(LOG_ERR, "lnc%d: Receive CRC error\n", unit);
 				}
+			    }
 			}
 
 			/* Drop packet */
