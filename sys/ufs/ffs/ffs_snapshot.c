@@ -397,11 +397,10 @@ loop:
 			goto loop;
 		nvp = TAILQ_NEXT(xvp, v_nmntvnodes);
 		mtx_unlock(&mntvnode_mtx);
-		mtx_lock(&xvp->v_interlock);
-		if (xvp->v_usecount == 0 || xvp->v_type == VNON ||
+		mp_fixme("Unlocked GETATTR.");
+		if (vrefcnt(xvp) == 0 || xvp->v_type == VNON ||
 		    (VOP_GETATTR(xvp, &vat, td->td_proc->p_ucred, td) == 0 &&
 		    vat.va_nlink > 0)) {
-			mtx_unlock(&xvp->v_interlock);
 			mtx_lock(&mntvnode_mtx);
 			continue;
 		}
