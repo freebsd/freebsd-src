@@ -43,33 +43,33 @@
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/sysproto.h>
 #include <sys/systm.h>
 #include <sys/signalvar.h>
-#include <sys/namei.h>
 #include <sys/vnode.h>
-#include <sys/event.h>
-#include <sys/proc.h>
-#include <sys/pioctl.h>
 #include <sys/acct.h>
-#include <sys/fcntl.h>
 #include <sys/condvar.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/wait.h>
+#include <sys/event.h>
+#include <sys/fcntl.h>
+#include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/ktrace.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
+#include <sys/namei.h>
+#include <sys/proc.h>
+#include <sys/pioctl.h>
 #include <sys/resourcevar.h>
 #include <sys/smp.h>
 #include <sys/stat.h>
 #include <sys/sx.h>
 #include <sys/syscallsubr.h>
-#include <sys/syslog.h>
-#include <sys/sysent.h>
 #include <sys/sysctl.h>
-#include <sys/malloc.h>
+#include <sys/sysent.h>
+#include <sys/syslog.h>
+#include <sys/sysproto.h>
 #include <sys/unistd.h>
+#include <sys/wait.h>
 
 #include <machine/cpu.h>
 
