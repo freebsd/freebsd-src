@@ -315,9 +315,9 @@
 .	if "\\$3"" \{\
 .		\" Volume Title if none given
 .		if \\$2>=1 .if \\$2<=8 \{\
-.			ds vT UNIX Reference Manual
-.			if \\$2>1 .if \\$2<6 .ds vT UNIX Programmer's Manual
-.			if "\\$2"8" .ds vT UNIX System Manager's Manual
+.			ds vT FreeBSD Reference Manual
+.			if \\$2>1 .if \\$2<6 .ds vT FreeBSD Programmer's Manual
+.			if "\\$2"8" .ds vT FreeBSD System Manager's Manual
 .		\}
 .		if "\\$2"unass"  .ds vT DRAFT
 .		if "\\$2"draft"  .ds vT DRAFT
