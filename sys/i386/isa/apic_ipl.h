@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1997, by Steve Passe
  * All rights reserved.
  *
@@ -22,13 +22,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: apic_ipl.h,v 1.1 1997/05/31 08:49:08 peter Exp $
  */
 
-#ifndef _ISA_APIC_IPL_H_
-#define _ISA_APIC_IPL_H_
+#ifndef _I386_ISA_APIC_IPL_H_
+#define	_I386_ISA_APIC_IPL_H_
 
 #define	NHWI		24		/* number of h/w interrupts */
 #define	HWI_MASK	0x00ffffff	/* bits for h/w interrupts */
 
-#endif /* _ISA_APIC_IPL_H_ */
+#endif /* !_I386_ISA_APIC_IPL_H_ */
