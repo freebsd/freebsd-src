@@ -166,9 +166,11 @@ MALLOC_DEFINE(M_MACTEMP, "mactemp", "MAC temporary label storage");
  * exclusive consumers that they should try to acquire the lock if a
  * first attempt at exclusive access fails.
  */
+#ifndef MAC_STATIC
 static struct mtx mac_policy_mtx;
 static struct cv mac_policy_cv;
 static int mac_policy_count;
+#endif
 struct mac_policy_list_head mac_policy_list;
 struct mac_policy_list_head mac_static_policy_list;
 
@@ -185,44 +187,53 @@ void
 mac_policy_grab_exclusive(void)
 {
 
+#ifndef MAC_STATIC
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
  	    "mac_policy_grab_exclusive() at %s:%d", __FILE__, __LINE__);
 	mtx_lock(&mac_policy_mtx);
 	while (mac_policy_count != 0)
 		cv_wait(&mac_policy_cv, &mac_policy_mtx);
+#endif
 }
 
 void
 mac_policy_assert_exclusive(void)
 {
 
+#ifndef MAC_STATIC
 	mtx_assert(&mac_policy_mtx, MA_OWNED);
 	KASSERT(mac_policy_count == 0,
 	    ("mac_policy_assert_exclusive(): not exclusive"));
+#endif
 }
 
 void
 mac_policy_release_exclusive(void)
 {
 
+#ifndef MAC_STATIC
 	KASSERT(mac_policy_count == 0,
 	    ("mac_policy_release_exclusive(): not exclusive"));
 	mtx_unlock(&mac_policy_mtx);
 	cv_signal(&mac_policy_cv);
+#endif
 }
 
 void
 mac_policy_list_busy(void)
 {
 
+#ifndef MAC_STATIC
 	mtx_lock(&mac_policy_mtx);
 	mac_policy_count++;
 	mtx_unlock(&mac_policy_mtx);
+#endif
 }
 
 int
 mac_policy_list_conditional_busy(void)
 {
+#ifndef MAC_STATIC
 	int ret;
 
 	mtx_lock(&mac_policy_mtx);
@@ -233,18 +244,23 @@ mac_policy_list_conditional_busy(void)
 		ret = 0;
 	mtx_unlock(&mac_policy_mtx);
 	return (ret);
+#else
+	return (1);
+#endif
 }
 
 void
 mac_policy_list_unbusy(void)
 {
 
+#ifndef MAC_STATIC
 	mtx_lock(&mac_policy_mtx);
 	mac_policy_count--;
 	KASSERT(mac_policy_count >= 0, ("MAC_POLICY_LIST_LOCK"));
 	if (mac_policy_count == 0)
 		cv_signal(&mac_policy_cv);
 	mtx_unlock(&mac_policy_mtx);
+#endif
 }
 
 /*
@@ -258,8 +274,10 @@ mac_init(void)
 	LIST_INIT(&mac_policy_list);
 	mac_labelzone_init();
 
+#ifndef MAC_STATIC
 	mtx_init(&mac_policy_mtx, "mac_policy_mtx", NULL, MTX_DEF);
 	cv_init(&mac_policy_cv, "mac_policy_cv");
+#endif
 }
 
 /*
@@ -313,6 +331,13 @@ mac_policy_modevent(module_t mod, int type, void *data)
 
 	error = 0;
 	mpc = (struct mac_policy_conf *) data;
+
+#ifdef MAC_STATIC
+	if (mac_late) {
+		printf("mac_policy_modevent: MAC_STATIC and late\n");
+		return (EBUSY);
+	}
+#endif
 
 	switch (type) {
 	case MOD_LOAD:
