@@ -520,17 +520,6 @@ mdnew(int unit)
 }
 
 static void
-mddelete(struct md_s *sc)
-{
-
-	devstat_remove_entry(&sc->stats);
-	/* XXX: LOCK(unique unit numbers) */
-	LIST_REMOVE(sc, list);
-	/* XXX: UNLOCK(unique unit numbers) */
-	FREE(sc, M_MD);
-}
-
-static void
 mdinit(struct md_s *sc)
 {
 
@@ -721,8 +710,10 @@ mddestroy(struct md_s *sc, struct md_ioctl *mdio, struct proc *p)
 {
 	unsigned u;
 
-	if (sc->dev != NULL)
+	if (sc->dev != NULL) {
+		devstat_remove_entry(&sc->stats);
 		disk_destroy(sc->dev);
+	}
 	if (sc->vnode != NULL)
 		(void)vn_close(sc->vnode, sc->flags & MD_READONLY ?  FREAD : (FREAD|FWRITE), sc->cred, p);
 	if (sc->cred != NULL)
@@ -735,7 +726,11 @@ mddestroy(struct md_s *sc, struct md_ioctl *mdio, struct proc *p)
 				FREE(sc->secp[u], M_MDSECT);
 		FREE(sc->secp, M_MD);
 	}
-	mddelete(sc);
+
+	/* XXX: LOCK(unique unit numbers) */
+	LIST_REMOVE(sc, list);
+	/* XXX: UNLOCK(unique unit numbers) */
+	FREE(sc, M_MD);
 	return (0);
 }
 
@@ -761,8 +756,10 @@ mdcreate_swap(struct md_ioctl *mdio, struct proc *p)
 	 * size of a page.  Then round to a page.
 	 */
 
-	if (mdio->md_size == 0)
+	if (mdio->md_size == 0) {
+		mddestroy(sc, mdio, p);
 		return(EDOM);
+	}
 
 	/*
 	 * Allocate an OBJT_SWAP object.
@@ -780,6 +777,7 @@ mdcreate_swap(struct md_ioctl *mdio, struct proc *p)
 		if (swap_pager_reserve(sc->object, 0, sc->nsect) < 0) {
 			vm_pager_deallocate(sc->object);
 			sc->object = NULL;
+			mddestroy(sc, mdio, p);
 			return(EDOM);
 		}
 	}
