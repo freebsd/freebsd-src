@@ -100,7 +100,7 @@ protopr(u_long proto,		/* for sysctl version we pass proto # */
 	int istcp;
 	static int first = 1;
 	char *buf;
-	const char *mibvar;
+	const char *mibvar, *vchar;
 	struct tcpcb *tp = NULL;
 	struct inpcb *inp;
 	struct xinpgen *xig, *oxig;
@@ -215,8 +215,8 @@ protopr(u_long proto,		/* for sysctl version we pass proto # */
 			if (Aflag)
 				printf("%-8.8s ", "Socket");
 			if (Lflag)
-				printf("%-14.14s %-22.22s\n",
-					"Listen", "Local Address");
+				printf("%-5.5s %-14.14s %-22.22s\n",
+					"Proto", "Listen", "Local Address");
 			else
 				printf((Aflag && !Wflag) ?
 		"%-5.5s %-6.6s %-6.6s  %-18.18s %-18.18s %s\n" :
@@ -226,34 +226,31 @@ protopr(u_long proto,		/* for sysctl version we pass proto # */
 					"(state)");
 			first = 0;
 		}
+		if (Lflag && so->so_qlimit == 0)
+			continue;
 		if (Aflag) {
 			if (istcp)
 				printf("%8lx ", (u_long)inp->inp_ppcb);
 			else
 				printf("%8lx ", (u_long)so->so_pcb);
 		}
-		if (Lflag)
-			if (so->so_qlimit) {
-				char buf[15];
-
-				snprintf(buf, 15, "%d/%d/%d", so->so_qlen,
-					 so->so_incqlen, so->so_qlimit);
-				printf("%-14.14s ", buf);
-			} else
-				continue;
-		else {
-			const char *vchar;
-
 #ifdef INET6
-			if ((inp->inp_vflag & INP_IPV6) != 0)
-				vchar = ((inp->inp_vflag & INP_IPV4) != 0)
-					? "46" : "6 ";
-			else
-#endif
+		if ((inp->inp_vflag & INP_IPV6) != 0)
 			vchar = ((inp->inp_vflag & INP_IPV4) != 0)
-					? "4 " : "  ";
+				? "46" : "6 ";
+		else
+#endif
+		vchar = ((inp->inp_vflag & INP_IPV4) != 0)
+				? "4 " : "  ";
+		printf("%-3.3s%-2.2s ", name, vchar);
+		if (Lflag) {
+			char buf[15];
 
-			printf("%-3.3s%-2.2s %6ld %6ld  ", name, vchar,
+			snprintf(buf, 15, "%d/%d/%d", so->so_qlen,
+				 so->so_incqlen, so->so_qlimit);
+			printf("%-14.14s ", buf);
+		} else {
+			printf("%6ld %6ld  ",
 			       so->so_rcv.sb_cc,
 			       so->so_snd.sb_cc);
 		}
