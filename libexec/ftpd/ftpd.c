@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftpd.c,v 1.11 1995/08/05 19:12:05 pst Exp $
+ *	$Id: ftpd.c,v 1.12 1995/08/28 21:30:49 mpp Exp $
  */
 
 #ifndef lint
@@ -922,9 +922,17 @@ dataconn(name, size, mode)
 	if (pdata >= 0) {
 		struct sockaddr_in from;
 		int s, fromlen = sizeof(from);
+		struct timeval timeout;
+		fd_set set;
 
-		s = accept(pdata, (struct sockaddr *)&from, &fromlen);
-		if (s < 0) {
+		FD_ZERO(&set);
+		FD_SET(pdata, &set);
+
+		timeout.tv_usec = 0;
+		timeout.tv_sec = 120;
+
+		if (select(pdata+1, &set, (fd_set *) 0, (fd_set *) 0, &timeout) == 0 ||
+		    (s = accept(pdata, (struct sockaddr *) &from, &fromlen)) < 0) {
 			reply(425, "Can't open data connection.");
 			(void) close(pdata);
 			pdata = -1;
