@@ -54,7 +54,7 @@ case "$daily_status_security_chksetuid_enable" in
 	        find $mount -xdev -type f \
 			\( -perm -u+x -or -perm -g+x -or -perm -o+x \) \
 			\( -perm -u+s -or -perm -g+s \) -print0
-	    done | xargs -0 -n 20 ls -liTd | sed 's/^ *//' | sort +10 > ${TMP}
+	    done | xargs -0 -n 20 ls -liTd | sed 's/^ *//' | sort -k 11 > ${TMP}
 	fi
 
 	if [ ! -f ${LOG}/setuid.today ]; then
