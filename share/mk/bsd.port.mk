@@ -1,7 +1,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.17 1994/08/25 13:53:02 jkh Exp $
+# $Id: bsd.port.mk,v 1.18 1994/08/25 13:56:08 jkh Exp $
 
 #
 # Supported Variables and their behaviors:
@@ -176,7 +176,7 @@ ${CONFIGURE_COOKIE}:
 	@(cd ${WRKSRC}; ./configure ${CONFIGURE_ARGS})
 .endif
 .if defined(USE_IMAKE)
-	@(cd ${WRKSRC}; xmkmf)
+	@(cd ${WRKSRC}; xmkmf && make Makefiles)
 .endif
 	@if [ -f ${SCRIPTDIR}/post-configure ]; then \
 	   sh ${SCRIPTDIR}/post-configure ${PORTSDIR} ${.CURDIR} ${WRKSRC}; \
