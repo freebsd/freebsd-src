@@ -134,16 +134,16 @@ options 	ROOTDEVNAME=\"ufs:da0s2e\"
 #####################################################################
 # Scheduler options:
 #
-# Specifying one of SCHED_4BSD or SCHED_ULE is manditory.  These options
+# Specifying one of SCHED_4BSD or SCHED_ULE is mandatory.  These options
 # select which scheduler is compiled in.
 #
 # SCHED_4BSD is the historical, proven, BSD scheduler.  It has a global run
 # queue and no cpu affinity which makes it suboptimal for SMP.  It has very
 # good interactivity and priority selection.
 #
-# SCHED_ULE is a new experimental scheduler that has been designed for SMP
-# although it will work just fine on UP.  Users of this scheduler should
-# expect some hicups and be prepaired to provide feedback.
+# SCHED_ULE is a new experimental scheduler that has been designed for SMP,
+# but will work just fine on UP too.  Users of this scheduler should expect
+# some hicups and be prepaired to provide feedback.
 #
 options		SCHED_4BSD
 #options	SCHED_ULE
