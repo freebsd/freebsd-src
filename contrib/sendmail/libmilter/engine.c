@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: engine.c,v 8.109.2.4 2002/12/03 17:27:32 ca Exp $")
+SM_RCSID("@(#)$Id: engine.c,v 8.109.2.5 2003/08/04 18:14:33 ca Exp $")
 
 #include "libmilter.h"
 
@@ -605,7 +605,7 @@ st_connectinfo(g)
 	/* Move past trailing \0 in host string */
 	i++;
 	family = s[i++];
-	memset(&sockaddr, '\0', sizeof sockaddr);
+	(void) memset(&sockaddr, '\0', sizeof sockaddr);
 	if (family != SMFIA_UNKNOWN)
 	{
 		(void) memcpy((void *) &port, (void *) (s + i),
@@ -869,6 +869,7 @@ st_macros(g)
 **		noreply
 */
 
+/* ARGSUSED */
 static int
 st_quit(g)
 	genarg *g;
