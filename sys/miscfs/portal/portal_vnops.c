@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vnops.c	8.14 (Berkeley) 5/21/95
  *
- * $Id: portal_vnops.c,v 1.30 1998/03/26 20:52:31 phk Exp $
+ * $Id: portal_vnops.c,v 1.31 1998/05/17 09:37:39 sos Exp $
  */
 
 /*
@@ -496,6 +496,9 @@ portal_setattr(ap)
 	 */
 	if (ap->a_vp->v_flag & VROOT)
 		return (EACCES);
+
+	if (vap->va_flags != VNOVAL)
+		return (EOPNOTSUPP);
 
 	return (0);
 }

@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.33 1997/10/27 13:33:38 bde Exp $
+ * $Id: fdesc_vnops.c,v 1.34 1998/02/09 06:09:42 eivind Exp $
  */
 
 /*
@@ -512,6 +512,8 @@ fdesc_setattr(ap)
 		break;
 
 	case Fctty:
+		if (vap->va_flags != VNOVAL)
+			return (EOPNOTSUPP);
 		return (0);
 
 	default:
@@ -528,12 +530,16 @@ fdesc_setattr(ap)
 	 */
 	switch (fp->f_type) {
 	case DTYPE_FIFO:
+	case DTYPE_PIPE:
 	case DTYPE_VNODE:
 		error = VOP_SETATTR((struct vnode *) fp->f_data, ap->a_vap, ap->a_cred, ap->a_p);
 		break;
 
 	case DTYPE_SOCKET:
-		error = 0;
+		if (vap->va_flags != VNOVAL)
+			error = ENOPNOTSUPP;
+		else
+			error = 0;
 		break;
 
 	default:
