@@ -3,7 +3,6 @@
 
 PROG=	strip
 MAN=	strip.1aout
-WARNS?=	2
 BINDIR= /usr/libexec/aout
 CLEANFILES += maybe_stripped
 
