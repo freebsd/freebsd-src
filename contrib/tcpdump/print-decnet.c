@@ -20,8 +20,8 @@
  */
 
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Header: print-decnet.c,v 1.22 96/07/23 14:17:22 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: print-decnet.c,v 1.24 96/11/05 13:30:38 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -733,7 +733,7 @@ char *
 dnnum_string(u_short dnaddr)
 {
 	char *str;
-	int area = (dnaddr & AREAMASK) >> AREASHIFT;
+	int area = (u_short)(dnaddr & AREAMASK) >> AREASHIFT;
 	int node = dnaddr & NODEMASK;
 
 	str = (char *)malloc(sizeof("00.0000"));

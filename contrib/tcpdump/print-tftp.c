@@ -22,8 +22,8 @@
  */
 
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Header: print-tftp.c,v 1.27 96/07/23 14:17:28 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: print-tftp.c,v 1.28 96/09/26 23:36:50 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>

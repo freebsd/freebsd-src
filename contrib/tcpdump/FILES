@@ -4,7 +4,7 @@ INSTALL
 Makefile.in
 README
 VERSION
-aclocal.m4
+acsite.m4
 addrtoname.c
 addrtoname.h
 appletalk.h
@@ -26,6 +26,19 @@ ipx.h
 lbl/gnuc.h
 lbl/os-solaris2.h
 lbl/os-sunos4.h
+lbl/os-ultrix4.h
+linux-include/net/slcompress.h
+linux-include/net/slip.h
+linux-include/netinet/if_ether.h
+linux-include/netinet/in_systm.h
+linux-include/netinet/ip.h
+linux-include/netinet/ip_icmp.h
+linux-include/netinet/ip_var.h
+linux-include/netinet/tcp.h
+linux-include/netinet/tcp_var.h
+linux-include/netinet/tcpip.h
+linux-include/netinet/udp.h
+linux-include/netinet/udp_var.h
 llc.h
 machdep.c
 machdep.h
@@ -49,6 +62,7 @@ print-dvmrp.c
 print-egp.c
 print-ether.c
 print-fddi.c
+print-gre.c
 print-icmp.c
 print-igrp.c
 print-ip.c

@@ -20,11 +20,11 @@
  */
 
 #ifndef lint
-char copyright[] =
+static const char copyright[] =
     "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996\n\
 The Regents of the University of California.  All rights reserved.\n";
-static  char rcsid[] =
-    "@(#)$Header: tcpdump.c,v 1.114 96/07/17 00:12:40 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: tcpdump.c,v 1.118 96/12/10 23:22:27 leres Exp $ (LBL)";
 #endif
 
 /*
@@ -142,7 +142,7 @@ main(int argc, char **argv)
 		program_name = argv[0];
 
 	if (abort_on_misalignment(ebuf) < 0)
-		error(ebuf);
+		error("%s", ebuf);
 
 	opterr = 0;
 	while ((op = getopt(argc, argv, "c:defF:i:lnNOpqr:s:StT:vw:xY")) != EOF)
@@ -272,7 +272,7 @@ main(int argc, char **argv)
 
 		pd = pcap_open_offline(RFileName, ebuf);
 		if (pd == NULL)
-			error(ebuf);
+			error("%s", ebuf);
 		localnet = 0;
 		netmask = 0;
 		if (fflag != 0)
@@ -281,18 +281,18 @@ main(int argc, char **argv)
 		if (device == NULL) {
 			device = pcap_lookupdev(ebuf);
 			if (device == NULL)
-				error(ebuf);
+				error("%s", ebuf);
 		}
 		pd = pcap_open_live(device, snaplen, !pflag, 1000, ebuf);
 		if (pd == NULL)
-			error(ebuf);
+			error("%s", ebuf);
 		i = pcap_snapshot(pd);
 		if (snaplen < i) {
 			warning("snaplen raised from %d to %d", snaplen, i);
 			snaplen = i;
 		}
 		if (pcap_lookupnet(device, &localnet, &netmask, ebuf) < 0)
-			error(ebuf);
+			error("%s", ebuf);
 		/*
 		 * Let user own process after socket has been opened.
 		 */
@@ -304,7 +304,7 @@ main(int argc, char **argv)
 		cmdbuf = copy_argv(&argv[optind]);
 
 	if (pcap_compile(pd, &fcode, cmdbuf, Oflag, netmask) < 0)
-		error(pcap_geterr(pd));
+		error("%s", pcap_geterr(pd));
 	if (dflag) {
 		bpf_dump(&fcode, dflag);
 		exit(0);
@@ -316,11 +316,11 @@ main(int argc, char **argv)
 	(void)signal(SIGHUP, cleanup);
 
 	if (pcap_setfilter(pd, &fcode) < 0)
-		error(pcap_geterr(pd));
+		error("%s", pcap_geterr(pd));
 	if (WFileName) {
 		pcap_dumper_t *p = pcap_dump_open(pd, WFileName);
 		if (p == NULL)
-			error(pcap_geterr(pd));
+			error("%s", pcap_geterr(pd));
 		printer = pcap_dump;
 		pcap_userdata = (u_char *)p;
 	} else {
@@ -413,7 +413,7 @@ default_print(register const u_char *bp, register u_int length)
 }
 
 __dead void
-usage()
+usage(void)
 {
 	extern char version[];
 
