@@ -50,7 +50,7 @@ kstack:	.space KSTACK_PAGES * PAGE_SIZE
  * The EFI loader passes the physical address of the bootinfo block in
  * register r8.
  */
-ENTRY(__start, 1)
+ENTRY_NOPROFILE(__start, 1)
 	.prologue
 	.save	rp,r0
 	.body
@@ -155,7 +155,7 @@ END(fork_trampoline)
  * and issuing the EOI to the local SAPIC.
  */
 	.align	32
-ENTRY(os_boot_rendez,0)
+ENTRY_NOPROFILE(os_boot_rendez,0)
 	mov	r16=cr.ivr	// clear IRR bit
 	;;
 	srlz.d
