@@ -52,12 +52,15 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
+int	bflag;
 int	cflag;
 char	dchar;
 int	dflag;
 int	fflag;
+int	nflag;
 int	sflag;
 
+void	b_n_cut(FILE *, const char *);
 void	c_cut(FILE *, const char *);
 void	f_cut(FILE *, const char *);
 void	get_list(char *);
@@ -79,11 +82,17 @@ main(argc, argv)
 	fcn = NULL;
 	dchar = '\t';			/* default delimiter is \t */
 
-	/* Since we don't support multi-byte characters, the -c and -b 
-	   options are equivalent, and the -n option is meaningless. */
+	/*
+	 * Since we don't support multi-byte characters, the -c and -b
+	 * options are equivalent.
+	 */
 	while ((ch = getopt(argc, argv, "b:c:d:f:sn")) != -1)
 		switch(ch) {
 		case 'b':
+			fcn = c_cut;
+			get_list(optarg);
+			bflag = 1;
+			break;
 		case 'c':
 			fcn = c_cut;
 			get_list(optarg);
@@ -102,6 +111,7 @@ main(argc, argv)
 			sflag = 1;
 			break;
 		case 'n':
+			nflag = 1;
 			break;
 		case '?':
 		default:
@@ -111,10 +121,15 @@ main(argc, argv)
 	argv += optind;
 
 	if (fflag) {
-		if (cflag)
+		if (bflag || cflag || nflag)
 			usage();
-	} else if (!cflag || dflag || sflag)
+	} else if (!(bflag || cflag) || dflag || sflag)
 		usage();
+	else if (!bflag && nflag)
+		usage();
+
+	if (nflag)
+		fcn = b_n_cut;
 
 	rval = 0;
 	if (*argv)
@@ -214,6 +229,71 @@ needpos(size_t n)
 		if ((positions = realloc(positions, npos)) == NULL)
 			err(1, "realloc");
 		memset((char *)positions + oldnpos, 0, npos - oldnpos);
+	}
+}
+
+/*
+ * Cut based on byte positions, taking care not to split multibyte characters.
+ * Although this function also handles the case where -n is not specified,
+ * c_cut() ought to be much faster.
+ */
+void
+b_n_cut(fp, fname)
+	FILE *fp;
+	const char *fname;
+{
+	size_t col, i, lbuflen;
+	char *lbuf;
+	int canwrite, clen, warned;
+
+	warned = 0;
+	while ((lbuf = fgetln(fp, &lbuflen)) != NULL) {
+		for (col = 0; lbuflen > 0; col += clen) {
+			if ((clen = mblen(lbuf, lbuflen)) < 0) {
+				if (!warned) {
+					warn("%s", fname);
+					warned = 1;
+				}
+				clen = 1;
+			}
+			if (clen == 0 || *lbuf == '\n')
+				break;
+			if (col < maxval && !positions[1 + col]) {
+				/*
+				 * Print the character if (1) after an initial
+				 * segment of un-selected bytes, the rest of
+				 * it is selected, and (2) the last byte is
+				 * selected.
+				 */
+				i = col;
+				while (i < col + clen && i < maxval &&
+				    !positions[1 + i])
+					i++;
+				canwrite = i < col + clen;
+				for (; i < col + clen && i < maxval; i++)
+					canwrite &= positions[1 + i];
+				if (canwrite)
+					fwrite(lbuf, 1, clen, stdout);
+			} else {
+				/*
+				 * Print the character if all of it has
+				 * been selected.
+				 */
+				canwrite = 1;
+				for (i = col; i < col + clen; i++)
+					if ((i >= maxval && !autostop) ||
+					    (i < maxval && !positions[1 + i])) {
+						canwrite = 0;
+						break;
+					}
+				if (canwrite)
+					fwrite(lbuf, 1, clen, stdout);
+			}
+			lbuf += clen;
+			lbuflen -= clen;
+		}
+		if (lbuflen > 0)
+			putchar('\n');
 	}
 }
 
