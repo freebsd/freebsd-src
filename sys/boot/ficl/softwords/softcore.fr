@@ -45,8 +45,8 @@ decimal 32 constant bl
 \ ** CORE EXT
 0  constant false 
 -1 constant true 
-: <>   = invert ; 
-: 0<>  0= invert ; 
+: <>   = 0= ; 
+: 0<>  0= 0= ; 
 : compile,  , ; 
 : erase   ( addr u -- )    0 fill ; 
 : nip     ( y x -- x )     swap drop ; 
