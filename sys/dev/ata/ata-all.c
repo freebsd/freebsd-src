@@ -418,31 +418,27 @@ ata_getparam(struct ata_device *atadev, u_int8_t command)
     struct ata_params *ata_parm;
     int retry = 0;
 
+    if (!(ata_parm = malloc(sizeof(struct ata_params), M_ATA, M_NOWAIT))) {
+	ata_prtdev(atadev, "malloc for identify data failed\n");
+	return -1;
+    }
+
     /* apparently some devices needs this repeated */
     do {
 	if (ata_command(atadev, command, 0, 0, 0, ATA_WAIT_INTR)) {
 	    ata_prtdev(atadev, "%s identify failed\n",
 		       command == ATA_C_ATAPI_IDENTIFY ? "ATAPI" : "ATA");
+	    free(ata_parm, M_ATA);
 	    return -1;
 	}
 	if (retry++ > 4) {
 	    ata_prtdev(atadev, "%s identify retries exceeded\n",
 		       command == ATA_C_ATAPI_IDENTIFY ? "ATAPI" : "ATA");
+	    free(ata_parm, M_ATA);
 	    return -1;
 	}
     } while (ata_wait(atadev, ((command == ATA_C_ATAPI_IDENTIFY) ?
 			       ATA_S_DRQ : (ATA_S_READY|ATA_S_DSC|ATA_S_DRQ))));
-
-    ata_parm = malloc(sizeof(struct ata_params), M_ATA, M_NOWAIT);
-    if (!ata_parm) {
-	int i;
-
-	for (i = 0; i < sizeof(struct ata_params)/sizeof(int16_t); i++)
-	    ATA_INW(atadev->channel->r_io, ATA_DATA);
-	ata_prtdev(atadev, "malloc for identify data failed\n");
-	return -1;
-    }
-
     ATA_INSW(atadev->channel->r_io, ATA_DATA, (int16_t *)ata_parm,
 	     sizeof(struct ata_params)/sizeof(int16_t));
 

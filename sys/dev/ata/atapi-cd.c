@@ -113,7 +113,7 @@ acdattach(struct ata_device *atadev)
 
     if ((cdp = acd_init_lun(atadev, NULL)) == NULL) {
 	ata_prtdev(atadev, "acd: out of memory\n");
-	return -1;
+	return 0;
     }
 
     ata_set_name(atadev, "acd", cdp->lun);
@@ -129,7 +129,7 @@ acdattach(struct ata_device *atadev)
 	if (chp == NULL) {
 	    ata_prtdev(atadev, "out of memory\n");
 	    free(cdp, M_ACD);
-	    return -1;
+	    return 0;
 	}
 	if (!atapi_queue_cmd(cdp->device, ccb, (caddr_t)chp, 
 			     sizeof(struct changer),
@@ -145,7 +145,7 @@ acdattach(struct ata_device *atadev)
 		ata_prtdev(atadev, "out of memory\n");
 		free(chp, M_ACD);
 		free(cdp, M_ACD);
-		return -1;
+		return 0;
 	    }
 	    for (count = 0; count < chp->slots; count++) {
 		if (count > 0) {
@@ -181,7 +181,7 @@ acdattach(struct ata_device *atadev)
     }
     acd_describe(cdp);
     atadev->driver = cdp;
-    return 0;
+    return 1;
 }
 
 void
