@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.266 1997/09/25 15:49:37 davidg Exp $
+ *	$Id: machdep.c,v 1.267 1997/10/10 09:44:02 peter Exp $
  */
 
 #include "apm.h"
@@ -106,6 +106,7 @@
 #include <machine/cons.h>
 #include <machine/bootinfo.h>
 #include <machine/md_var.h>
+#include <machine/pcb_ext.h>		/* pcb.h included via sys/user.h */
 #ifdef SMP
 #include <machine/smp.h>
 #endif
