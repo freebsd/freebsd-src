@@ -1,12 +1,12 @@
 #
-# $Id$
+# $Id: Makefile,v 1.11 1998/09/14 18:34:19 markm Exp $
 #
 
 PROG=	perl
 NOMAN=	true
 CFLAGS+=-I${PERL5SRC} -I${.OBJDIR}
 SRCS=	perlmain.c config.h
-# NOSHARED= no
+NOSHARED= no
 DPADD=	lib/auto/DynaLoader/DynaLoader.a ${LIBPERL} ${LIBM} ${LIBCRYPT}
 LDADD=	lib/auto/DynaLoader/DynaLoader.a -lperl -lm -lcrypt
 LINKS=	${BINDIR}/${PROG} ${BINDIR}/perl5 \
@@ -38,7 +38,7 @@ ${PROG}: lib/auto/DynaLoader/DynaLoader.a
 config.h: config_h.sh config.sh
 	sh config_h.sh
 
-config.sh: ${.CURDIR}/../libperl/config.SH-${OBJFORMAT}
+config.sh: ${.CURDIR}/../libperl/config.SH-${OBJFORMAT}.${MACHINE_ARCH}
 	cp ${.OODATE} ${.TARGET}
 
 config_h.sh: config_h.SH

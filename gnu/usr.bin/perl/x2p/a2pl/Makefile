@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.4 1998/09/12 19:16:33 markm Exp $
 #
 
 PROG=	a2p
@@ -25,7 +25,7 @@ CLEANFILES+= config.h config_h.sh config.sh ${PROG}.1
 config.h: config_h.sh config.sh
 	sh config_h.sh
 
-config.sh: ${.CURDIR}/../../libperl/config.SH-${OBJFORMAT}
+config.sh: ${.CURDIR}/../../libperl/config.SH-${OBJFORMAT}.${MACHINE_ARCH}
 	@ln -sf ${.OODATE} ${.TARGET}
 
 config_h.sh: ${PERL5SRC}/config_h.SH
