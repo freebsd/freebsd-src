@@ -27,7 +27,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: pw_user.c,v 1.27 1999/02/23 07:15:10 davidn Exp $";
+	"$Id: pw_user.c,v 1.28 1999/03/02 00:53:33 davidn Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -54,7 +54,7 @@ static const char rcsid[] =
 #define LOGNAMESIZE (MAXLOGNAME-1)
 #endif
 
-static          randinit;
+static          int randinit;
 
 static int      print_user(struct passwd * pwd, int pretty, int v7);
 static uid_t    pw_uidpolicy(struct userconf * cnf, struct cargs * args);
@@ -122,6 +122,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		"",
 		"User &",
 		"/bin/sh",
+		0,
 		0,
 		0
 	};
