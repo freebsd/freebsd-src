@@ -213,6 +213,12 @@ static int needsbuffer;
 static struct mtx nblock;
 
 /*
+ * Lock that protects against bwait()/bdone()/B_DONE races.
+ */
+
+static struct mtx bdonelock;
+
+/*
  * Definitions for the buffer free lists.
  */
 #define BUFFER_QUEUES	6	/* number of free buffer queues */
@@ -484,6 +490,7 @@ bufinit(void)
 	mtx_init(&rbreqlock, "runningbufspace lock", NULL, MTX_DEF);
 	mtx_init(&nblock, "needsbuffer lock", NULL, MTX_DEF);
 	mtx_init(&bdlock, "buffer daemon lock", NULL, MTX_DEF);
+	mtx_init(&bdonelock, "bdone lock", NULL, MTX_DEF);
 
 	/* next, make a null set of free lists */
 	for (i = 0; i < BUFFER_QUEUES; i++)
@@ -2925,11 +2932,13 @@ allocbuf(struct buf *bp, int size)
 void
 biodone(struct bio *bp)
 {
+	mtx_lock(&bdonelock);
 	bp->bio_flags |= BIO_DONE;
+	if (bp->bio_done == NULL)
+		wakeup(bp);
+	mtx_unlock(&bdonelock);
 	if (bp->bio_done != NULL)
 		bp->bio_done(bp);
-	else
-		wakeup(bp);
 }
 
 /*
@@ -2942,8 +2951,10 @@ int
 biowait(struct bio *bp, const char *wchan)
 {
 
+	mtx_lock(&bdonelock);
 	while ((bp->bio_flags & BIO_DONE) == 0)
-		msleep(bp, NULL, PRIBIO, wchan, hz / 10);
+		msleep(bp, &bdonelock, PRIBIO, wchan, hz / 10);
+	mtx_unlock(&bdonelock);
 	if (bp->bio_error != 0)
 		return (bp->bio_error);
 	if (!(bp->bio_flags & BIO_ERROR))
@@ -3002,12 +3013,10 @@ bufwait(register struct buf * bp)
 	int s;
 
 	s = splbio();
-	while ((bp->b_flags & B_DONE) == 0) {
-		if (bp->b_iocmd == BIO_READ)
-			tsleep(bp, PRIBIO, "biord", 0);
-		else
-			tsleep(bp, PRIBIO, "biowr", 0);
-	}
+	if (bp->b_iocmd == BIO_READ)
+		bwait(bp, PRIBIO, "biord");
+	else
+		bwait(bp, PRIBIO, "biowr");
 	splx(s);
 	if (bp->b_flags & B_EINTR) {
 		bp->b_flags &= ~B_EINTR;
@@ -3214,7 +3223,7 @@ bufdone(struct buf *bp)
 		else
 			bqrelse(bp);
 	} else {
-		wakeup(bp);
+		bdone(bp);
 	}
 	splx(s);
 }
@@ -3695,6 +3704,24 @@ vunmapbuf(struct buf *bp)
 	vm_page_unlock_queues();
 
 	bp->b_data = bp->b_saveaddr;
+}
+
+void
+bdone(struct buf *bp)
+{
+	mtx_lock(&bdonelock);
+	bp->b_flags |= B_DONE;
+	wakeup(bp);
+	mtx_unlock(&bdonelock);
+}
+
+void
+bwait(struct buf *bp, u_char pri, const char *wchan)
+{
+	mtx_lock(&bdonelock);
+	while ((bp->b_flags & B_DONE) == 0)
+		msleep(bp, &bdonelock, pri, wchan, 0);
+	mtx_unlock(&bdonelock);
 }
 
 #include "opt_ddb.h"

@@ -123,8 +123,6 @@ spec_vnoperate(ap)
 	return (VOCALL(spec_vnodeop_p, ap->a_desc->vdesc_offset, ap));
 }
 
-static void spec_getpages_iodone(struct buf *bp);
-
 /*
  * Open a special file.
  */
@@ -689,15 +687,6 @@ spec_advlock(ap)
 	return (ap->a_flags & F_FLOCK ? EOPNOTSUPP : EINVAL);
 }
 
-static void
-spec_getpages_iodone(bp)
-	struct buf *bp;
-{
-
-	bp->b_flags |= B_DONE;
-	wakeup(bp);
-}
-
 static int
 spec_getpages(ap)
 	struct vop_getpages_args *ap;
@@ -755,7 +744,7 @@ spec_getpages(ap)
 
 	/* Build a minimal buffer header. */
 	bp->b_iocmd = BIO_READ;
-	bp->b_iodone = spec_getpages_iodone;
+	bp->b_iodone = bdone;
 
 	/* B_PHYS is not set, but it is nice to fill this in. */
 	KASSERT(bp->b_rcred == NOCRED, ("leaking read ucred"));
@@ -778,11 +767,7 @@ spec_getpages(ap)
 	spec_xstrategy(bp->b_vp, bp);
 
 	s = splbio();
-
-	/* We definitely need to be at splbio here. */
-	while ((bp->b_flags & B_DONE) == 0)
-		tsleep(bp, PVM, "spread", 0);
-
+	bwait(bp, PVM, "spread");
 	splx(s);
 
 	if ((bp->b_ioflags & BIO_ERROR) != 0) {

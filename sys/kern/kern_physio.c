@@ -30,12 +30,6 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
-static void
-physwakeup(struct buf *bp)
-{
-	wakeup(bp);
-}
-
 int
 physio(dev_t dev, struct uio *uio, int ioflag)
 {
@@ -68,7 +62,7 @@ physio(dev_t dev, struct uio *uio, int ioflag)
 			else 
 				bp->b_iocmd = BIO_WRITE;
 			bp->b_dev = dev;
-			bp->b_iodone = physwakeup;
+			bp->b_iodone = bdone;
 			bp->b_data = uio->uio_iov[i].iov_base;
 			bp->b_bcount = uio->uio_iov[i].iov_len;
 			bp->b_offset = uio->uio_offset;
@@ -116,8 +110,10 @@ physio(dev_t dev, struct uio *uio, int ioflag)
 
 			DEV_STRATEGY(bp);
 			spl = splbio();
-			while ((bp->b_flags & B_DONE) == 0)
-				tsleep(bp, PRIBIO, "physstr", 0);
+			if (uio->uio_rw == UIO_READ)
+				bwait(bp, PRIBIO, "physrd");
+			else
+				bwait(bp, PRIBIO, "physwr");
 			splx(spl);
 
 			if (uio->uio_segflg == UIO_USERSPACE)
