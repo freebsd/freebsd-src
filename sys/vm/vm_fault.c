@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id$
+ * $Id: vm_fault.c,v 1.66 1997/02/22 09:48:15 peter Exp $
  */
 
 /*
@@ -123,11 +123,11 @@ int vm_fault_additional_pages __P((vm_page_t, int, int, vm_page_t *, int *));
  *	Caller may hold no locks.
  */
 int
-vm_fault(map, vaddr, fault_type, change_wiring)
+vm_fault(map, vaddr, fault_type, fault_flags)
 	vm_map_t map;
 	vm_offset_t vaddr;
 	vm_prot_t fault_type;
-	boolean_t change_wiring;
+	int fault_flags;
 {
 	vm_object_t first_object;
 	vm_pindex_t first_pindex;
@@ -210,7 +210,7 @@ RetryFault:;
 	 * to COW .text.  We simply keep .text from ever being COW'ed
 	 * and take the heat that one cannot debug wired .text sections.
 	 */
-	if ((change_wiring == VM_FAULT_USER_WIRE) && (entry->eflags & MAP_ENTRY_NEEDS_COPY)) {
+	if (((fault_flags & VM_FAULT_WIRE_MASK) == VM_FAULT_USER_WIRE) && (entry->eflags & MAP_ENTRY_NEEDS_COPY)) {
 		if(entry->protection & VM_PROT_WRITE) {
 			int tresult;
 			vm_map_lookup_done(map, entry);
@@ -333,7 +333,7 @@ RetryFault:;
 			}
 			break;
 		}
-		if (((object->type != OBJT_DEFAULT) && (!change_wiring || wired))
+		if (((object->type != OBJT_DEFAULT) && (((fault_flags & VM_FAULT_WIRE_MASK) == 0) || wired))
 		    || (object == first_object)) {
 
 			if (pindex >= object->size) {
@@ -354,7 +354,7 @@ RetryFault:;
 			}
 		}
 readrest:
-		if (object->type != OBJT_DEFAULT && (!change_wiring || wired)) {
+		if (object->type != OBJT_DEFAULT && (((fault_flags & VM_FAULT_WIRE_MASK) == 0) || wired)) {
 			int rv;
 			int faultcount;
 			int reqpage;
@@ -788,7 +788,7 @@ readrest:
 		 * written NOW. This will save on the pmap_is_modified() calls
 		 * later.
 		 */
-		if (fault_type & VM_PROT_WRITE) {
+		if (fault_flags & VM_FAULT_DIRTY) {
 			m->dirty = VM_PAGE_BITS_ALL;
 		}
 	}
@@ -798,16 +798,18 @@ readrest:
 	m->flags &= ~PG_ZERO;
 
 	pmap_enter(map->pmap, vaddr, VM_PAGE_TO_PHYS(m), prot, wired);
-	if ((change_wiring == 0) && (wired == 0))
+	if (((fault_flags & VM_FAULT_WIRE_MASK) == 0) && (wired == 0))
 		pmap_prefault(map->pmap, vaddr, entry, first_object);
 
 	m->flags |= PG_MAPPED|PG_REFERENCED;
+	if (fault_flags & VM_FAULT_HOLD)
+		vm_page_hold(m);
 
 	/*
 	 * If the page is not wired down, then put it where the pageout daemon
 	 * can find it.
 	 */
-	if (change_wiring) {
+	if (fault_flags & VM_FAULT_WIRE_MASK) {
 		if (wired)
 			vm_page_wire(m);
 		else
