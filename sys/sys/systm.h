@@ -132,12 +132,10 @@ void	*hashinit(int count, struct malloc_type *type, u_long *hashmask);
 void	*phashinit(int count, struct malloc_type *type, u_long *nentries);
 
 #ifdef RESTARTABLE_PANICS
-void	__panic(const char *file, int line, const char *, ...) __printflike(3, 4);
+void	panic(const char *, ...) __printflike(1, 2);
 #else
-void	__panic(const char *file, int line, const char *, ...) __dead2 __printflike(3, 4);
+void	panic(const char *, ...) __dead2 __printflike(1, 2);
 #endif
-
-#define panic(...) __panic(__FILE__, __LINE__, __VA_ARGS__)
 
 void	backtrace(void);
 void	cpu_boot(int);

@@ -65,14 +65,10 @@ AST_ALIGNMENT_FAULT_LOCALS
  */
 ASENTRY_NP(reset_entry)
 	adr	r0, Lreset_panicmsg
-	adr	r1, Lfile
-	mov	r2, #__LINE__
-	bl	_C_LABEL(__panic)
+	bl	_C_LABEL(panic)
 	/* NOTREACHED */
 Lreset_panicmsg:
 	.asciz	"Reset vector called, LR = 0x%08x"
-Lfile:
-	.asciz  __FILE__
 	.balign	4
 
 /*
@@ -122,12 +118,7 @@ _C_LABEL(prefetch_abort_handler_address):
 	.text
 abortprefetch:
         adr     r0, abortprefetchmsg
-	adr	r1, filee
-	mov	r2, #__LINE__
-	b	_C_LABEL(__panic)
-
-filee:
-	.asciz  __FILE__
+	b	_C_LABEL(panic)
 
 abortprefetchmsg:
         .asciz  "abortprefetch"
@@ -164,14 +155,10 @@ _C_LABEL(data_abort_handler_address):
 	.text
 abortdata:
         adr     r0, abortdatamsg
-	adr	r1, file
-	mov	r2, #__LINE__
-	b	_C_LABEL(__panic)
+	b	_C_LABEL(panic)
 
 abortdatamsg:
         .asciz  "abortdata"
-file:
-	.asciz	__FILE__
         .align  0
 
 /*

@@ -153,9 +153,7 @@ mmu_done:
 	bl	_C_LABEL(mi_startup)		/* call mi_startup()! */
 
 	adr	r0, .Lmainreturned
-	adr	r1, .LFile
-	mov	r2, #__LINE__
-	b	_C_LABEL(__panic)
+	b	_C_LABEL(panic)
 	/* NOTEACHED */
 #ifdef STARTUP_PAGETABLE_ADDR
 #define MMU_INIT(va,pa,n_sec,attr) \
@@ -181,8 +179,6 @@ mmu_init_table2:
 	.word	_end
 	.word	svcstk + INIT_ARM_STACK_SIZE
 
-.LFile:
-	.asciz	__FILE__
 .Lmainreturned:
 	.asciz	"main() returned"
 	.align	0
