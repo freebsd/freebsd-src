@@ -23,7 +23,7 @@ open OUT, ">$file" or die "Can't create $file: $!";
 
 # extract patchlevel.h information
 
-open PATCH_LEVEL, "<../patchlevel.h" or die "Can't open patchlevel.h: $!";
+open PATCH_LEVEL, "<../patchlevel.h" or open PATCH_LEVEL, "<patchlevel.h" or die "Can't open patchlevel.h: $!";
 
 my $patchlevel_date = (stat PATCH_LEVEL)[9];
 

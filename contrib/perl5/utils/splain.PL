@@ -21,7 +21,12 @@ $file .= '.com' if $^O eq 'VMS';
 
 # Open input file before creating output file.
 $IN = '../lib/diagnostics.pm';
-open IN or die "Can't open $IN: $!\n";
+$in = open IN;
+if (!$in) {
+	$inmsg = "Can't open $IN: $!\n";
+	$IN = 'diagnostics.pm';
+	$in = open IN or die $inmsg, "Can't open $IN: $!\n";
+}
 
 # Create output file.
 open OUT,">$file" or die "Can't create $file: $!";
