@@ -201,6 +201,24 @@ ipsec4_common_input(struct mbuf *m, ...)
 				  AF_INET, nxt);
 }
 
+void
+ah4_input(struct mbuf *m, int off)
+{
+	ipsec4_common_input(m, off, IPPROTO_AH);
+}
+
+void
+esp4_input(struct mbuf *m, int off)
+{
+	ipsec4_common_input(m, off, IPPROTO_ESP);
+}
+
+void
+ipcomp4_input(struct mbuf *m, int off)
+{
+	ipsec4_common_input(m, off, IPPROTO_IPCOMP);
+}
+
 /*
  * IPsec input callback for INET protocols.
  * This routine is called as the transform callback.
