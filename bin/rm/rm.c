@@ -384,7 +384,7 @@ rm_overwrite(char *file, struct stat *sbp)
 		goto err;
 	bsize = MAX(fsb.f_iosize, 1024);
 	if ((buf = malloc(bsize)) == NULL)
-		err(1, "malloc");
+		err(1, "%s: malloc", file);
 
 #define	PASS(byte) {							\
 	memset(buf, byte, bsize);					\
@@ -409,6 +409,8 @@ rm_overwrite(char *file, struct stat *sbp)
 err:	eval = 1;
 	if (buf)
 		free(buf);
+	if (fd != -1)
+		close(fd);
 	warn("%s", file);
 }
 
