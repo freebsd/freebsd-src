@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.alpha,v 1.8 1998/09/07 07:29:30 dfr Exp $
+#	$Id: files.alpha,v 1.9 1998/09/16 08:22:09 dfr Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -138,4 +138,6 @@ isa/sio.c			optional	sio device-driver
 isa/kbdio.c			optional        psm     device-driver
 isa/psm.c			optional	psm	device-driver
 isa/kbdio.c			optional        sc      device-driver
+isa/videoio.c			optional	sc	device-driver
 isa/syscons.c			optional	sc	device-driver
+isa/scvidctl.c			optional	sc	device-driver
