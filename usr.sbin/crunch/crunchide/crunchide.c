@@ -130,7 +130,7 @@ char **argv;
 void usage(void)
 {
     fprintf(stderr,
-	    "Usage: %s [-k <symbol-name>] [-f <keep-list-file>] <files> ...\n",
+	    "usage: %s [-k <symbol-name>] [-f <keep-list-file>] <files> ...\n",
 	    pname);
     exit(1);
 }

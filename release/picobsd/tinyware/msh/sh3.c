@@ -818,7 +818,7 @@ struct op *t;
 	register int  nl = 0;
 
 	if (t->words[1] == NULL) {
-		err("Usage: read name ...");
+		err("usage: read name ...");
 		return(1);
 	}
 	for (wp = t->words+1; *wp; wp++) {

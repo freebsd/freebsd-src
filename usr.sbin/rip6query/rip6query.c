@@ -181,7 +181,7 @@ main(argc, argv)
 static void
 usage()
 {
-	fprintf(stderr, "Usage: rip6query [-I iface] address\n");
+	fprintf(stderr, "usage: rip6query [-I iface] address\n");
 }
 
 /* getnameinfo() is preferred as we may be able to show ifindex as ifname */

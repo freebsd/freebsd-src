@@ -308,7 +308,7 @@ main(int argc, char **argv)
 	setbuf(stdout, NULL);
 	setbuf(stderr, NULL);
 	if (argc != 3)
-		errx(1, "Usage: %s file1 file2", argv[0]);
+		errx(1, "usage: %s file1 file2", argv[0]);
 
 	t1 = dofile(argv[1]);
 	if (t1 == NULL)

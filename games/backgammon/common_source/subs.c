@@ -52,7 +52,7 @@ static const char	plwhite[] = "Player is white, computer is red.";
 static const char	nocomp[] = "(No computer play.)";
 
 const char  *const descr[] = {
-	"Usage:  backgammon [-h n r w b pr pw pb tterm sfile]\n",
+	"usage: backgammon [-h n r w b pr pw pb tterm sfile]\n",
 	"\t-h\tgets this list\n\t-n\tdon't ask for rules or instructions",
 	"\t-r\tplayer is red (implies -n)\n\t-w\tplayer is white (implies -n)",
 	"\t-b\ttwo players, red and white (implies -n)",

@@ -182,7 +182,7 @@ usage()
 {
         int i;
 
-        fprintf(stderr,"Usage: %s [-cil] [keyname string keyname string...]\n\n",prog);
+        fprintf(stderr,"usage: %s [-cil] [keyname string keyname string...]\n\n",prog);
         fprintf(stderr,"The following options are available\n");
         fprintf(stderr,"\t-c\tclears keys first\n");
         fprintf(stderr,"\t-l\t[sets then] locks further setting\n");

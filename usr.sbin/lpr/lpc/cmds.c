@@ -106,7 +106,7 @@ generic(void (*specificrtn)(struct printer *_pp),
 	char **targv;
 
 	if (argc == 1) {
-		printf("Usage: %s {all | printer ...}\n", argv[0]);
+		printf("usage: %s {all | printer ...}\n", argv[0]);
 		return;
 	}
 
@@ -796,7 +796,7 @@ down(int argc, char *argv[])
 	struct printer myprinter, *pp = &myprinter;
 
 	if (argc == 1) {
-		printf("Usage: down {all | printer} [message ...]\n");
+		printf("usage: down {all | printer} [message ...]\n");
 		return;
 	}
 	if (!strcmp(argv[1], "all")) {
@@ -1080,7 +1080,7 @@ topq(int argc, char *argv[])
 	struct printer myprinter, *pp = &myprinter;
 
 	if (argc < 3) {
-		printf("Usage: topq printer [jobnum ...] [user ...]\n");
+		printf("usage: topq printer [jobnum ...] [user ...]\n");
 		return;
 	}
 

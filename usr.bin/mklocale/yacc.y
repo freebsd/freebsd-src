@@ -211,7 +211,7 @@ main(ac, av)
 	    break;
 	default:
 	usage:
-	    fprintf(stderr, "Usage: mklocale [-d] [-o output] [source]\n");
+	    fprintf(stderr, "usage: mklocale [-d] [-o output] [source]\n");
 	    exit(1);
 	}
     }

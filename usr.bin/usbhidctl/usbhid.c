@@ -93,7 +93,7 @@ usage(void)
 {
 	extern char *__progname;
 
-	fprintf(stderr, "Usage: %s -f device [-l] [-n] [-r] [-t tablefile] [-v] name ...\n", __progname);
+	fprintf(stderr, "usage: %s -f device [-l] [-n] [-r] [-t tablefile] [-v] name ...\n", __progname);
 	fprintf(stderr, "       %s -f device [-l] [-n] [-r] [-t tablefile] [-v] -a\n", __progname);
 	exit(1);
 }

@@ -88,7 +88,7 @@ int main __P((int, char *argv[]));
 static void
 usage()
 {
-    fprintf(stderr, "Usage: %s [-a|-d] [-v|-r|-z] [-c count] [-w wait] [interface]\n",
+    fprintf(stderr, "usage: %s [-a|-d] [-v|-r|-z] [-c count] [-w wait] [interface]\n",
 	    progname);
     exit(1);
 }

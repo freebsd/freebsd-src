@@ -62,7 +62,7 @@ pusage()
     /*
      * Avoid gratuitously loading stdio.
      */
-    write(STDERR_FILENO, "Usage: ", 7);
+    write(STDERR_FILENO, "usage: ", 7);
     write(STDERR_FILENO, O_name, strlen(O_name));
     write(STDERR_FILENO, " ", 1);
     write(STDERR_FILENO, O_usage, strlen(O_usage));

@@ -373,7 +373,7 @@ getoptscmd(int argc, char **argv)
 	char **optbase = NULL;
 
 	if (argc < 3)
-		error("Usage: getopts optstring var [arg]");
+		error("usage: getopts optstring var [arg]");
 	else if (argc == 3)
 		optbase = shellparam.p;
 	else

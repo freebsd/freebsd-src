@@ -57,7 +57,7 @@ static char	*yp_host;
 static void
 usage(void)
 {
-	fprintf(stderr, "Usage: passwd [-ly] [-d domain] [-h host] [user]\n");
+	fprintf(stderr, "usage: passwd [-ly] [-d domain] [-h host] [user]\n");
 	exit(1);
 }
 

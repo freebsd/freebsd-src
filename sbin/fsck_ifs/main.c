@@ -398,7 +398,7 @@ static void
 usage(void)
 {
         (void) fprintf(stderr,
-            "Usage: %s [-dfnpy] [-B be|le] [-b block] [-c level] [-m mode] "
+            "usage: %s [-dfnpy] [-B be|le] [-b block] [-c level] [-m mode] "
                         "filesystem ...\n",
             getprogname());
         exit(1);
