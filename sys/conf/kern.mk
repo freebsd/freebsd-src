@@ -44,6 +44,15 @@ CFLAGS+=	-ffixed-r13 -mfixed-range=f32-f127 -mno-sdata
 .endif
 
 #
+# For sparc64 we want medlow code model, and we tell gcc to use floating
+# point emulation.  This avoids using floating point registers for integer
+# operations which it has a tendency to do.
+#
+.if ${MACHINE_ARCH} == "sparc64"
+CFLAGS+=	-mcmodel=medlow -msoft-float
+.endif
+
+#
 # GCC 3.0 and above like to do certain optimizations based on the
 # assumption that the program is linked against libc.  Stop this.
 #
