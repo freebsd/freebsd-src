@@ -33,7 +33,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGES.
  *
- * $Id: ah_osdep.c,v 1.21 2003/06/25 05:49:14 sam Exp $
+ * $Id: ah_osdep.c,v 1.22 2003/07/26 14:58:00 sam Exp $
  */
 #include "opt_ah.h"
 
@@ -43,6 +43,7 @@
 #include <sys/sysctl.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 
 #include <machine/stdarg.h>
 
@@ -207,6 +208,7 @@ ath_hal_setlogging(int enable)
 		error = suser(curthread);
 		if (error == 0) {
 			error = alq_open(&ath_hal_alq, ath_hal_logfile,
+				curthread->td_ucred,
 				sizeof (struct athregrec), ath_hal_alq_qsize);
 			ath_hal_alq_lost = 0;
 			ath_hal_alq_emitdev = 1;
