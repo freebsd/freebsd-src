@@ -725,7 +725,7 @@ ng_ksocket_rcvmsg(node_p node, struct ng_mesg *msg,
 			sopt.sopt_dir = SOPT_GET;
 			sopt.sopt_level = ksopt->level;
 			sopt.sopt_name = ksopt->name;
-			sopt.sopt_p = p;
+			sopt.sopt_p = NULL;
 			sopt.sopt_valsize = NG_KSOCKET_MAX_OPTLEN;
 			ksopt = (struct ng_ksocket_sockopt *)resp->data;
 			sopt.sopt_val = ksopt->value;
@@ -759,7 +759,7 @@ ng_ksocket_rcvmsg(node_p node, struct ng_mesg *msg,
 			sopt.sopt_name = ksopt->name;
 			sopt.sopt_val = ksopt->value;
 			sopt.sopt_valsize = valsize;
-			sopt.sopt_p = p;
+			sopt.sopt_p = NULL;
 			error = sosetopt(so, &sopt);
 			break;
 		    }
