@@ -50,8 +50,6 @@
 #include <machine/md_var.h>
 #include <machine/stdarg.h>
 
-#include <net/netisr.h>		/* prototype for legacy_setsoftnet */
-
 struct	int_entropy {
 	struct	proc *proc;
 	int	vector;
