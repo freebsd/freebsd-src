@@ -185,14 +185,14 @@ fill_default_server_options(ServerOptions *options)
 	if (options->kerberos_authentication == -1)
 		options->kerberos_authentication =
 		    (access(KEYFILE, R_OK) == 0 ||
-		    (access(krb5_defkeyname, R_OK) == 0);
+		    (access(krb5_defkeyname, R_OK) == 0));
 #elif defined(KRB4)
 	if (options->kerberos_authentication == -1)
 		options->kerberos_authentication = (access(KEYFILE, R_OK) == 0);
 #elif defined(KRB5)
 	if (options->kerberos_authentication == -1)
 		options->kerberos_authentication =
-		    (access(krb5_defkeyname, R_OK) == 0));
+		    (access(krb5_defkeyname, R_OK) == 0);
 #endif
 #if defined(KRB4) || defined(KRB5)
 	if (options->kerberos_or_local_passwd == -1)
