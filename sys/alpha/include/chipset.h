@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chipset.h,v 1.2 1998/07/12 16:16:22 dfr Exp $
+ *	$Id: chipset.h,v 1.3 1998/07/22 08:25:39 dfr Exp $
  */
 
 #ifndef _MACHINE_CHIPSET_H_
@@ -88,11 +88,11 @@ typedef struct alpha_chipset {
     alpha_chipset_cfgwritel_t*	cfgwritel;
 
     /*
-     * PCI bridge device.
+     * PCI interrupt device.
      * (XXX hack until I change pci code to use new
      * device framework.)
      */
-    void*			bridge;
+    void*			intrdev;
 } alpha_chipset_t;
 
 extern alpha_chipset_t chipset;

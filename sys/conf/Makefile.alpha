@@ -1,7 +1,7 @@
 # Makefile.alpha -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.alpha	7.1 5/10/91
-#	$Id: Makefile.alpha,v 1.5 1998/07/22 08:23:26 dfr Exp $
+#	$Id: Makefile.alpha,v 1.6 1998/07/30 08:12:14 dfr Exp $
 #
 # Makefile for FreeBSD
 #
@@ -79,7 +79,7 @@ SYSTEM_LD_HEAD= @echo loading $@; rm -f $@
 .if ${BINFORMAT} == elf
 SYSTEM_OBJS= locore.o setdef0.o vnode_if.o \
 	${OBJS} ioconf.o param.o config.o \
-	setdef1.o
+	setdef1.o hack.so
 SYSTEM_LD= @${LD} --export-dynamic -T$S/alpha/conf/kernel.script -e locorestart \
 	-o $@ -X ${SYSTEM_OBJS} vers.o
 SYSTEM_LD_TAIL= @${SIZE} $@; chmod 755 $@
@@ -118,6 +118,11 @@ symbols.sort: ${ALPHA}/alpha/symbols.raw
 
 locore.o: ${ALPHA}/alpha/locore.s assym.s
 	${NORMAL_S}
+
+hack.so: Makefile
+	echo "void __elf_kld_hack() {}" > hack.c
+	${CC} -shared -nostdlib hack.c -o hack.so
+	rm -f hack.c
 
 setdef0.o: ${ALPHA}/alpha/setdef0.c setdefs.h
 	${NORMAL_C}

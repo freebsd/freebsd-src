@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: locore.s,v 1.1 1998/06/10 10:52:50 dfr Exp $
+ *	$Id: locore.s,v 1.2 1998/06/10 19:59:40 dfr Exp $
  */
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
@@ -78,8 +78,6 @@
 	call_pal PAL_OSF1_swpctx
 	
 	.text
-	EXPORT(kernel_text)
-kernel_text:	
 
 	NESTED(locorestart, 1, 0, ra, 0, 0)
 

@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.alpha,v 1.3 1998/07/12 16:26:52 dfr Exp $
+#	$Id: files.alpha,v 1.4 1998/07/22 08:24:39 dfr Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -19,6 +19,9 @@ alpha/alpha/cpuconf.c		standard
 alpha/alpha/dec_kn8ae.c		optional	dec_kn8ae
 alpha/alpha/dec_eb164.c		optional	dec_eb164
 alpha/alpha/dec_kn20aa.c	optional	dec_kn20aa
+alpha/alpha/dec_2100_a50.c	optional	dec_2100_a50
+alpha/alpha/dec_st550.c		optional	dec_st550
+alpha/alpha/dec_axppci_33.c	optional	dec_axppci_33
 alpha/alpha/mountroot.c		optional	slice
 alpha/alpha/ipl_funcs.c		standard
 alpha/alpha/pal.s		standard
@@ -79,6 +82,8 @@ mcclock_if.h			standard					\
 alpha/pci/cia.c			optional	cia
 alpha/pci/pci_eb164_intr.s	optional	cia
 alpha/isa/mcclock_isa.c		optional	cia
+alpha/pci/apecs.c		optional	apecs
+alpha/pci/lca.c			optional	lca
 alpha/pci/pcibus.c		optional	pci
 alpha/isa/isa.c			optional	isa
 kern/link_elf.c			standard

@@ -1,4 +1,4 @@
-/* $Id: interrupt.c,v 1.3 1998/07/05 12:22:56 dfr Exp $ */
+/* $Id: interrupt.c,v 1.4 1998/07/12 16:09:27 dfr Exp $ */
 /* $NetBSD: interrupt.c,v 1.23 1998/02/24 07:38:01 thorpej Exp $ */
 
 /*
@@ -71,7 +71,7 @@ interrupt(a0, a1, a2, framep)
 		struct proc* p = curproc;
 		if (!p) p = &proc0;
 		if ((caddr_t) framep < (caddr_t) p->p_addr + 1024)
-			printf("possible stack overflow\n");
+			panic("possible stack overflow\n");
 	}
 
 	switch (a0) {
@@ -307,7 +307,7 @@ alpha_connect_intr(struct alpha_intr *i)
 }
 
 void
-alpha_dispatch_intr(int vector)
+alpha_dispatch_intr(void *frame, unsigned long vector)
 {
 	struct alpha_intr *i;
 	int h = HASHVEC(vector);
