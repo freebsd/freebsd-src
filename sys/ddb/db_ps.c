@@ -181,8 +181,11 @@ dumpthread(volatile struct proc *p, volatile struct thread *td)
 	case TDS_RUNNING:
 		db_printf("[CPU %d]", td->td_oncpu);
 		break;
+	case TDS_INACTIVE:
+		db_printf("[INACTIVE]");
+		break;
 	default:
-		panic("unknown thread state");
+		db_printf("[UNK: %#x]", td->td_state);
 	}
 	if (p->p_flag & P_THREADED) {
 		if (td->td_kse)
