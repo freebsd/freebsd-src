@@ -62,6 +62,8 @@ int osf1_ioctl_t	__P((struct proc *p, struct ioctl_args *nuap,
 			    int cmd, int dir, int len));
 int osf1_ioctl_f	__P((struct proc *p, struct ioctl_args *nuap,
 			    int cmd, int dir, int len));
+int osf1_ioctl_m	__P((struct proc *p, struct ioctl_args *nuap,
+			    int cmd, int dir, int len));
 
 int
 osf1_ioctl(p, uap)
@@ -125,6 +127,8 @@ osf1_ioctl(p, uap)
 		return osf1_ioctl_t(p, &a, cmd, dir, len);
 	case 'f':
 		return osf1_ioctl_f(p, &a, cmd, dir, len);
+	case 'm':
+		return osf1_ioctl_m(p, &a, cmd, dir, len);
 	case 'S':
 		/*
 		 * XXX SVR4 Streams IOCTLs are all unimpl.
@@ -288,7 +292,7 @@ osf1_ioctl_t(p, uap, cmd, dir, len)
 	case 111:			/* OSF/1 TIOCSTOP */
 	case 118:			/* OSF/1 TIOCGPGRP */
 	case 119:			/* OSF/1 TIOCGPGRP */
-		/* same as in NetBSD */
+		/* same as in FreeBSD */
 		break;
 
 
@@ -305,6 +309,10 @@ osf1_ioctl_t(p, uap, cmd, dir, len)
 #endif
 	return retval;
 }
+
+/*
+ * file locking ioctl's
+ */
 
 int
 osf1_ioctl_f(p, uap, cmd, dir, len)
@@ -332,6 +340,37 @@ osf1_ioctl_f(p, uap, cmd, dir, len)
 		
 	default:
 		printf("osf1_ioctl_f: cmd = %d\n", cmd);
+		return (ENOTTY);
+	}
+
+	return ioctl(p, uap);
+}
+
+/*
+ * mag tape ioctl's
+ */
+
+int
+osf1_ioctl_m(p, uap, cmd, dir, len)
+	struct proc *p;
+	struct ioctl_args /* {
+		syscallarg(int) fd;
+		syscallarg(int) com;
+		syscallarg(caddr_t) data;
+	} */ *uap;
+	int cmd;
+	int dir;
+	int len;
+{
+
+	switch (cmd) {
+	case 1:				/* OSF/1 MTIOCTOP (XXX) */
+	case 2:				/* OSF/1 MTIOCGET (XXX) */
+		/* same as in FreeBSD */
+		break;
+		
+	default:
+		printf("osf1_ioctl_m: cmd = %d\n", cmd);
 		return (ENOTTY);
 	}
 
