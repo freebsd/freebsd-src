@@ -226,6 +226,9 @@ configFstab(dialogMenuItem *self)
     
     /* Go for the burn */
     msgDebug("Generating /etc/fstab file\n");
+    fprintf(fstab, "# See the fstab(5) manual page for important information on automatic mounts\n");
+    fprintf(fstab, "# of network filesystems before modifying this file.\n");
+    fprintf(fstab, "#\n");
     fprintf(fstab, "# Device\t\tMountpoint\tFStype\tOptions\t\tDump\tPass#\n");
     for (i = 0; i < nchunks; i++)
 	fprintf(fstab, "/dev/%s\t\t%s\t\t%s\t%s\t\t%d\t%d\n", name_of(chunk_list[i]), mount_point(chunk_list[i]),
