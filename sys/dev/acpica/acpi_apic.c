@@ -73,6 +73,10 @@ DRIVER_MODULE(acpi_apic, acpi, acpi_apic_driver, acpi_apic_devclass, 0, 0);
 static void
 acpi_apic_identify(driver_t *driver, device_t bus)
 {
+#if 1
+
+    return;
+#else /* broken by new ACPICA update that doesn't support the APIC table */
     ACPI_BUFFER		buf;
     ACPI_STATUS		status;
     APIC_HEADER		*hdr;
@@ -81,10 +85,6 @@ acpi_apic_identify(driver_t *driver, device_t bus)
     int			len;
     void		*private;
 
-#if 1
-    return;
-#else /* broken by new ACPICA update that doesn't support the APIC table */
-    
     /*
      * Perform the tedious double-get to fetch the actual table.
      */
