@@ -714,7 +714,7 @@ index_extract(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
 			msgConfirm("Loading of dependent package %s failed", cp);
 		}
 	    }
-	    else if (!package_exists(cp)) {
+	    else if (!package_installed(cp)) {
 		if (variable_get(VAR_NO_CONFIRM))
 		    msgNotify("Warning: %s is a required package but was not found.", cp);
 		else
