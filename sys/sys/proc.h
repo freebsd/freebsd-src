@@ -506,6 +506,7 @@ struct	proc *pfind __P((pid_t));	/* Find process by id. */
 struct	pgrp *pgfind __P((pid_t));	/* Find process group by id. */
 struct	proc *zpfind __P((pid_t));	/* Find zombie process by id. */
 
+void	ast __P((struct trapframe *framep));
 struct	proc *chooseproc __P((void));
 int	enterpgrp __P((struct proc *p, pid_t pgid, int mksess));
 void	faultin __P((struct proc *p));
