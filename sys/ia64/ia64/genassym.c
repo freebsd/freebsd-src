@@ -68,6 +68,7 @@ ASSYM(PC_IDLETHREAD,	offsetof(struct pcpu, pc_idlethread));
 ASSYM(PC_FPCURTHREAD,	offsetof(struct pcpu, pc_fpcurthread));
 ASSYM(PC_CURPCB,	offsetof(struct pcpu, pc_curpcb));
 ASSYM(PC_CPUID,		offsetof(struct pcpu, pc_cpuid));
+ASSYM(PC_CURRENT_PMAP,	offsetof(struct pcpu, pc_current_pmap));
 
 ASSYM(MTX_LOCK,		offsetof(struct mtx, mtx_lock));
 ASSYM(MTX_RECURSE,	offsetof(struct mtx, mtx_recurse));
@@ -130,6 +131,7 @@ ASSYM(PCB_BSPSTORE,	offsetof(struct pcb, pcb_bspstore));
 ASSYM(PCB_UNAT,		offsetof(struct pcb, pcb_unat));
 ASSYM(PCB_RNAT,		offsetof(struct pcb, pcb_rnat));
 ASSYM(PCB_PR,		offsetof(struct pcb, pcb_pr));
+ASSYM(PCB_PMAP,		offsetof(struct pcb, pcb_pmap));
 
 ASSYM(PCB_ONFAULT,	offsetof(struct pcb, pcb_onfault));
 
