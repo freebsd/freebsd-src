@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.61 1996/12/02 05:01:00 jkh Exp $
+ * $Id: config.c,v 1.62 1996/12/09 08:22:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -467,7 +467,7 @@ configPackages(dialogMenuItem *self)
     static PkgNode top, plist;
     static Boolean index_initted = FALSE;
     PkgNodePtr tmp;
-    int fd;
+    FILE *fp;
 
     if (!mediaVerify())
 	return DITEM_FAILURE;
@@ -477,8 +477,8 @@ configPackages(dialogMenuItem *self)
 
     if (!index_initted) {
 	msgNotify("Attempting to fetch packages/INDEX file from selected media.");
-	fd = mediaDevice->get(mediaDevice, "packages/INDEX", TRUE);
-	if (fd < 0) {
+	fp = mediaDevice->get(mediaDevice, "packages/INDEX", TRUE);
+	if (!fp) {
 	    dialog_clear_norefresh();
 	    msgConfirm("Unable to get packages/INDEX file from selected media.\n"
 		       "This may be because the packages collection is not available at\n"
@@ -491,13 +491,13 @@ configPackages(dialogMenuItem *self)
 	}
 	msgNotify("Got INDEX successfully, now building packages menu..");
 	index_init(&top, &plist);
-	if (index_read(fd, &top)) {
+	if (index_read(fp, &top)) {
 	    msgConfirm("I/O or format error on packages/INDEX file.\n"
 		       "Please verify media (or path to media) and try again.");
-	    mediaDevice->close(mediaDevice, fd);
+	    fclose(fp);
 	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
-	mediaDevice->close(mediaDevice, fd);
+	fclose(fp);
 	index_sort(&top);
 	index_initted = TRUE;
     }
