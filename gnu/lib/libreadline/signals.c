@@ -227,18 +227,18 @@ rl_set_signals ()
 {
   old_int = (SigHandler *)rl_set_sighandler (SIGINT, rl_signal_handler);
   if (old_int == (SigHandler *)SIG_IGN)
-    signal (SIGINT, SIG_IGN);
+    rl_set_sighandler (SIGINT, SIG_IGN);
 
   old_alrm = (SigHandler *)rl_set_sighandler (SIGALRM, rl_signal_handler);
   if (old_alrm == (SigHandler *)SIG_IGN)
-    signal (SIGALRM, SIG_IGN);
+    rl_set_sighandler (SIGALRM, SIG_IGN);
 
 #if !defined (SHELL)
 
 #if defined (SIGTSTP)
   old_tstp = (SigHandler *)rl_set_sighandler (SIGTSTP, rl_signal_handler);
   if (old_tstp == (SigHandler *)SIG_IGN)
-    signal (SIGTSTP, SIG_IGN);
+    rl_set_sighandler (SIGTSTP, SIG_IGN);
 #endif /* SIGTSTP */
 #if defined (SIGTTOU)
   old_ttou = (SigHandler *)rl_set_sighandler (SIGTTOU, rl_signal_handler);
@@ -246,8 +246,8 @@ rl_set_signals ()
 
   if (old_tstp == (SigHandler *)SIG_IGN)
     {
-      signal (SIGTTOU, SIG_IGN);
-      signal (SIGTTIN, SIG_IGN);
+      rl_set_sighandler (SIGTTOU, SIG_IGN);
+      rl_set_sighandler (SIGTTIN, SIG_IGN);
     }
 #endif /* SIGTTOU */
 
