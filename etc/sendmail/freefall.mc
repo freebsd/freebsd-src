@@ -34,7 +34,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`@(#)freefall.mc	$Revision: 1.9 $')
+VERSIONID(`@(#)freefall.mc	$Revision: 1.10 $')
 OSTYPE(bsd4.4)dnl
 DOMAIN(generic)dnl
 MAILER(local)dnl
@@ -56,9 +56,13 @@ define(`confTO_RCPT', `10m')dnl
 define(`confTO_DATABLOCK', `10m')dnl
 define(`confTO_DATAFINAL', `10m')dnl
 define(`confTO_COMMAND', `10m')dnl
+define(`confTO_HOSTSTATUS', `30m')dnl
 define(`confMIN_QUEUE_AGE', `30m')dnl
 define(`confNO_RCPT_ACTION', `add-to-undisclosed')dnl
-define(`confTRUSTED_USERS', `majordom')
+define(`confTRUSTED_USERS', `majordom')dnl
 define(`confRECEIVED_HEADER', `$?sfrom $s $.$?_($?s$|from $.$_)$.
           by $j ($v/$Z)$?r with $r$. id $i$?u$|;$.
-          $?ufor $u; $.$b')
+          $?ufor $u; $.$b')dnl
+define(`confHOST_STATUS_DIRECTORY', `.hoststat')dnl
+define(`confMAX_DAEMON_CHILDREN', `8')dnl
+define(`confCONNECTION_THROTTLE_RATE', `1')dnl
