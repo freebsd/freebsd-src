@@ -13,9 +13,9 @@ Field field2 {
 }
 
 Field field3 {
-	width = 30
+	width = 10
 	default = "This is a default entry"
-	limit = 10
+	limit = 30
 }
 
 Field field4 {
@@ -60,12 +60,12 @@ Link input2 as field5 {
 }
 
 Link menu1 as field7 {
-	next = exit
+	next = quit
 	up = input2
-	down = exit
+	down = quit
 }
 
-Link exit as field8 {
+Link quit as field8 {
 	up = menu1
 	right = cancel
 }
@@ -73,7 +73,7 @@ Link exit as field8 {
 Link cancel as field9 {
 	up = input1
 	down = input1
-	left = exit
+	left = quit
 	right = input1
 }
 
@@ -81,7 +81,7 @@ Form example at 0,0 {
 	height = 24
 	width = 80
 
-	Field Title  at  0,15
+	Field Title  at  0,30
 
 	Field field1 at  3,23
 	Field field2 at  7, 2
@@ -91,6 +91,6 @@ Form example at 0,0 {
 	Field input1 at  7,45
 	Field input2 at 11,45
 	Field menu1  at 15,45
-	Field exit   at 20,20
+	Field quit   at 20,20
 	Field cancel at 20,43
 }
