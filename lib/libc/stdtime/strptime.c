@@ -141,7 +141,6 @@ label:
 			break;
 
 		case 'c':
-			/* NOTE: c_fmt is hardcoded in timelocal.c */
 			buf = _strptime(buf, tptr->c_fmt, tm);
 			if (buf == 0)
 				return 0;
@@ -166,10 +165,22 @@ label:
 			goto label;
 
 		case 'F':
+			if (!Ealternative)
+				buf = _strptime(buf, "%Y-%m-%d", tm);
+			else
+				buf = _strptime(buf,
+						*(tptr->md_order) == 'd' ?
+						"%e %B" : "%B %e", tm);
+			if (buf == 0)
+				return 0;
+			break;
+
 		case 'f':
 			if (!Ealternative)
 				break;
-			buf = _strptime(buf, (c == 'f') ? tptr->Ef_fmt : tptr->EF_fmt, tm);
+			buf = _strptime(buf,
+				 *(tptr->md_order) == 'd' ? "%e %b" : "%b %e",
+				 tm);
 			if (buf == 0)
 				return 0;
 			break;

@@ -45,8 +45,7 @@ struct lc_time_T {
 	const char *	pm;
 	const char *	date_fmt;
 	const char *	alt_month[12];
-	const char *	Ef_fmt;
-	const char *	EF_fmt;
+	const char *	md_order;
 	const char *	ampm_fmt;
 };
 
