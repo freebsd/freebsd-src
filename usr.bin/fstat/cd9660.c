@@ -69,7 +69,7 @@ isofs_filestat(vp, fsp)
 		    (void *)VTOI(vp), Pid);
 		return 0;
 	}
-	fsp->fsid = dev2udev(isonode.i_dev) & 0xffff;
+	fsp->fsid = dev2udev(isonode.i_dev);
 	fsp->mode = (mode_t)isonode.inode.iso_mode;
 	fsp->rdev = isonode.i_dev;
 
