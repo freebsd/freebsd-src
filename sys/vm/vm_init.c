@@ -172,7 +172,7 @@ again:
 	 * End of first pass, size has been calculated so allocate memory
 	 */
 	if (firstaddr == 0) {
-		size = (vm_size_t)((char *)v - firstaddr);
+		size = (vm_size_t)v;
 		firstaddr = kmem_alloc(kernel_map, round_page(size));
 		if (firstaddr == 0)
 			panic("startup: no room for tables");
