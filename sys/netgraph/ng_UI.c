@@ -77,7 +77,7 @@ static ng_disconnect_t	ng_UI_disconnect;
 
 /* Node type descriptor */
 static struct ng_type typestruct = {
-	NG_VERSION,
+	NG_ABI_VERSION,
 	NG_UI_NODE_TYPE,
 	NULL,
 	ng_UI_constructor,

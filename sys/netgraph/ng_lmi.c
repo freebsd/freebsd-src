@@ -98,7 +98,7 @@ static ng_disconnect_t	nglmi_disconnect;
 static int	nglmi_checkdata(hook_p hook, struct mbuf *m, meta_p meta);
 
 static struct ng_type typestruct = {
-	NG_VERSION,
+	NG_ABI_VERSION,
 	NG_LMI_NODE_TYPE,
 	NULL,
 	nglmi_constructor,
@@ -450,10 +450,11 @@ ngauto_state_machine(sc_p sc)
  */
 static int
 nglmi_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
-	     struct ng_mesg **resp, hook_p lasthook)
+	     struct ng_mesg **rptr, hook_p lasthook)
 {
-	int     error = 0;
 	sc_p    sc = node->private;
+	struct ng_mesg *resp = NULL;
+	int     error = 0;
 
 	switch (msg->header.typecookie) {
 	case NGM_GENERIC_COOKIE:
@@ -463,12 +464,12 @@ nglmi_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
 			char   *arg;
 			int     pos, count;
 
-			NG_MKRESPONSE(*resp, msg, NG_TEXTRESPONSE, M_NOWAIT);
-			if (*resp == NULL) {
+			NG_MKRESPONSE(resp, msg, NG_TEXTRESPONSE, M_NOWAIT);
+			if (resp == NULL) {
 				error = ENOMEM;
 				break;
 			}
-			arg = (*resp)->data;
+			arg = resp->data;
 			pos = sprintf(arg, "protocol %s ", sc->protoname);
 			if (sc->flags & SCF_FIXED)
 				pos += sprintf(arg + pos, "fixed\n");
@@ -494,7 +495,7 @@ nglmi_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
 					== DLCI_UP) ? "up" : "down");
 				}
 			}
-			(*resp)->header.arglen = pos + 1;
+			resp->header.arglen = pos + 1;
 			break;
 		    }
 		default:
@@ -509,12 +510,12 @@ nglmi_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
 			struct nglmistat *stat;
 			int k;
 
-			NG_MKRESPONSE(*resp, msg, sizeof(*stat), M_NOWAIT);
-			if (!*resp) {
+			NG_MKRESPONSE(resp, msg, sizeof(*stat), M_NOWAIT);
+			if (!resp) {
 				error = ENOMEM;
 				break;
 			}
-			stat = (struct nglmistat *) (*resp)->data;
+			stat = (struct nglmistat *) resp->data;
 			strncpy(stat->proto,
 			     sc->protoname, sizeof(stat->proto) - 1);
 			strncpy(stat->hook,
@@ -542,6 +543,12 @@ nglmi_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
 		error = EINVAL;
 		break;
 	}
+
+	if (rptr)
+		*rptr = resp;
+	else if (resp != NULL)
+		FREE(resp, M_NETGRAPH);
+
 	FREE(msg, M_NETGRAPH);
 	return (error);
 }

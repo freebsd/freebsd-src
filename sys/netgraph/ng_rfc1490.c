@@ -96,7 +96,7 @@ static ng_disconnect_t	ng_rfc1490_disconnect;
 
 /* Node type descriptor */
 static struct ng_type typestruct = {
-	NG_VERSION,
+	NG_ABI_VERSION,
 	NG_RFC1490_NODE_TYPE,
 	NULL,
 	ng_rfc1490_constructor,

@@ -57,7 +57,7 @@ static ng_rcvdata_t	ngh_rcvdata;
 static ng_disconnect_t	ngh_disconnect;
 
 static struct ng_type typestruct = {
-	NG_VERSION,
+	NG_ABI_VERSION,
 	NG_HOLE_NODE_TYPE,
 	NULL,
 	NULL,

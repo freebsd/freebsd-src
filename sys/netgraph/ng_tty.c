@@ -159,7 +159,7 @@ static struct linesw ngt_disc = {
 
 /* Netgraph node type descriptor */
 static struct ng_type typestruct = {
-	NG_VERSION,
+	NG_ABI_VERSION,
 	NG_TTY_NODE_TYPE,
 	ngt_mod_event,
 	ngt_constructor,

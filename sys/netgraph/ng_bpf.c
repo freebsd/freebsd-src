@@ -186,7 +186,7 @@ static const struct ng_cmdlist ng_bpf_cmdlist[] = {
 
 /* Netgraph type descriptor */
 static struct ng_type typestruct = {
-	NG_VERSION,
+	NG_ABI_VERSION,
 	NG_BPF_NODE_TYPE,
 	NULL,
 	ng_bpf_constructor,

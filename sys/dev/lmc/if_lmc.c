@@ -174,7 +174,7 @@ static const struct ng_cmdlist ng_lmc_cmdlist[] = {
 };
 
 static struct ng_type typestruct = {
-        NG_VERSION,
+        NG_ABI_VERSION,
         NG_LMC_NODE_TYPE,
         NULL,
         ng_lmc_constructor,
@@ -1341,9 +1341,9 @@ ng_lmc_rcvmsg(node_p node, struct ng_mesg *msg,
 		case NGM_TEXT_STATUS: {
 			char        *arg;
 			int pos = 0;
+
 			int resplen = sizeof(struct ng_mesg) + 512;
-			MALLOC(resp, struct ng_mesg *, resplen, M_NETGRAPH,
-			       M_NOWAIT | M_ZERO);
+			NG_MKRESPONSE(resp, msg, resplen, M_NOWAIT);
 			if (resp == NULL) {
 				error = ENOMEM;
 				break;
@@ -1363,15 +1363,9 @@ ng_lmc_rcvmsg(node_p node, struct ng_mesg *msg,
 			pos += sprintf(arg + pos, "%ld input errors\n",
 			               sc->lmc_ierrors);
 
-			resp->header.version = NG_VERSION;
-			resp->header.arglen = strlen(arg) + 1;
-			resp->header.token = msg->header.token;
-			resp->header.typecookie = NG_LMC_COOKIE;
-			resp->header.cmd = msg->header.cmd;
-			strncpy(resp->header.cmdstr, "status",
-			        NG_CMDSTRLEN);
-			}
+			resp->header.arglen = pos + 1;
 			break;
+		      }
 		default:
 			error = EINVAL;
 			break;

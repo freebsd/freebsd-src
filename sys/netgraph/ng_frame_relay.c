@@ -137,7 +137,7 @@ static int ngfrm_allocate_CTX(sc_p sc, int dlci);
 
 /* Netgraph type */
 static struct ng_type typestruct = {
-	NG_VERSION,
+	NG_ABI_VERSION,
 	NG_FRAMERELAY_NODE_TYPE,
 	NULL,
 	ngfrm_constructor,

@@ -625,7 +625,7 @@ struct ng_cmdlist {
 };
 
 struct ng_type {
-  u_int32_t version;                    /* Must equal NG_VERSION */
+  u_int32_t version;                    /* Must equal NG_ABI_VERSION */
   const  char *name;                    /* Unique type name */
 
   /* Module event handler */
@@ -678,7 +678,8 @@ struct ng_mesg {
   char  data[0];                /* Start of cmd/resp data */
 };
 
-#define NG_VERSION      3               /* Netgraph version */
+#define NG_ABI_VERSION  5               /* Netgraph kernel ABI version */
+#define NG_VERSION      4               /* Netgraph message version */
 #define NGF_ORIG        0x0000          /* Command */
 #define NGF_RESP        0x0001          /* Response */
 .Ed
@@ -688,7 +689,7 @@ variable length data section which depends on the type cookie
 and the command. Each field is explained below:
 .Bl -tag -width xxx
 .It Dv version
-Indicates the version of netgraph itself. The current version is
+Indicates the version of the netgraph message protocol itself. The current version is
 .Dv NG_VERSION .
 .It Dv arglen
 This is the length of any extra arguments, which begin at

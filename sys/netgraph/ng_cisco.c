@@ -171,7 +171,7 @@ static const struct ng_cmdlist ng_cisco_cmdlist[] = {
 
 /* Node type */
 static struct ng_type typestruct = {
-	NG_VERSION,
+	NG_ABI_VERSION,
 	NG_CISCO_NODE_TYPE,
 	NULL,
 	cisco_constructor,

@@ -375,7 +375,7 @@ static ng_rcvdata_t	ngsr_rcvdata;
 static ng_disconnect_t	ngsr_disconnect;
 
 static struct ng_type typestruct = {
-	NG_VERSION,
+	NG_ABI_VERSION,
 	NG_SR_NODE_TYPE,
 	NULL,
 	ngsr_constructor,
@@ -3170,41 +3170,38 @@ ngsr_newhook(node_p node, hook_p hook, const char *name)
  */
 static	int
 ngsr_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
-				struct ng_mesg **resp, hook_p lasthook)
+				struct ng_mesg **rptr, hook_p lasthook)
 {
 	struct sr_softc *	sc;
+	struct ng_mesg *resp = NULL;
 	int error = 0;
 
 	sc = node->private;
 	switch (msg->header.typecookie) {
-	    case	NG_SR_COOKIE: 
+	case	NG_SR_COOKIE: 
 		error = EINVAL;
 		break;
-	    case	NGM_GENERIC_COOKIE: 
+	case	NGM_GENERIC_COOKIE: 
 		switch(msg->header.cmd) {
-		    case NGM_TEXT_STATUS: {
-			    char	*arg;
-			    int pos = 0;
-			    int resplen = sizeof(struct ng_mesg) + 512;
-			    MALLOC(*resp, struct ng_mesg *, resplen,
-					M_NETGRAPH, M_NOWAIT | M_ZERO);
-			    if (*resp == NULL) { 
+		case NGM_TEXT_STATUS: {
+			char        *arg;
+			int pos = 0;
+
+			int resplen = sizeof(struct ng_mesg) + 512;
+			NG_MKRESPONSE(resp, msg, resplen, M_NOWAIT);
+			if (resp == NULL) {
 				error = ENOMEM;
 				break;
-			    }       
-			    arg = (*resp)->data;
-
-			    /*
-			     * Put in the throughput information.
-			     */
-			    pos = sprintf(arg, "%ld bytes in, %ld bytes out\n"
+			}
+			arg = (resp)->data;
+			pos = sprintf(arg, "%ld bytes in, %ld bytes out\n"
 			    "highest rate seen: %ld B/S in, %ld B/S out\n",
-			    sc->inbytes, sc->outbytes,
-			    sc->inrate, sc->outrate);
-			    pos += sprintf(arg + pos,
+			sc->inbytes, sc->outbytes,
+			sc->inrate, sc->outrate);
+			pos += sprintf(arg + pos,
 				"%ld output errors\n",
 			    	sc->oerrors);
-			    pos += sprintf(arg + pos,
+			pos += sprintf(arg + pos,
 				"ierrors = %ld, %ld, %ld, %ld, %ld, %ld\n",
 			    	sc->ierrors[0],
 			    	sc->ierrors[1],
@@ -3213,24 +3210,24 @@ ngsr_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
 			    	sc->ierrors[4],
 			    	sc->ierrors[5]);
 
-			    (*resp)->header.version = NG_VERSION;
-			    (*resp)->header.arglen = strlen(arg) + 1;
-			    (*resp)->header.token = msg->header.token;
-			    (*resp)->header.typecookie = NG_SR_COOKIE;
-			    (*resp)->header.cmd = msg->header.cmd;
-			    strncpy((*resp)->header.cmdstr, "status",
-					NG_CMDSTRLEN);
-			}
+			resp->header.arglen = pos + 1;
 			break;
-	    	    default:
+		      }
+	    	default:
 		 	error = EINVAL;
 		 	break;
-		    }
+		}
 		break;
-	    default:
+	default:
 		error = EINVAL;
 		break;
 	}
+	/* Take care of synchronous response, if any */
+	if (rptr)
+		*rptr = resp;
+	else if (resp)
+		FREE(resp, M_NETGRAPH);
+
 	free(msg, M_NETGRAPH);
 	return (error);
 }
