@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)db_load.c	4.38 (Berkeley) 3/2/91";
-static char rcsid[] = "$Id: db_load.c,v 1.4 1995/08/20 21:18:22 peter Exp $";
+static char rcsid[] = "$Id: db_load.c,v 1.5 1996/01/07 05:48:25 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -65,7 +65,9 @@ static char rcsid[] = "$Id: db_load.c,v 1.4 1995/08/20 21:18:22 peter Exp $";
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <netinet/in.h>
+#ifdef ISO
 #include <netiso/iso.h>
+#endif
 #include <arpa/nameser.h>
 #include <arpa/inet.h>
 #include <stdio.h>
@@ -182,7 +184,9 @@ db_load(filename, in_origin, zp, def_domain)
 	int c, class, type, dbflags, dataflags, multiline;
 	u_int32_t ttl;
 	struct databuf *dp;
+#ifdef ISO
 	struct iso_addr *isoa;
+#endif
 	FILE *fp;
 	int slineno, i, errs, didinclude;
 	register u_int32_t n;
@@ -681,6 +685,7 @@ db_load(filename, in_origin, zp, def_domain)
 				endline(fp);
 				break;
 
+#ifdef ISO
 			case T_NSAP:
 				isoa = iso_addr(buf);
 				if (!isoa)
@@ -689,6 +694,7 @@ db_load(filename, in_origin, zp, def_domain)
 				bcopy(isoa->isoa_genaddr, data, n);
   				endline(fp);
   				break;
+#endif
 #ifdef LOC_RR
 			case T_LOC:
                                 cp = buf + (n = strlen(buf));

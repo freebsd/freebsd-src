@@ -29,9 +29,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
+.\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
+.\"	$Id$
 .\"
-.Dd January 5, 1994
+.Dd February 6, 1996
 .Dt IFCONFIG 8
 .Os BSD 4.2
 .Sh NAME
@@ -93,12 +94,12 @@ are specified in hexadecimal.
 The host number may be omitted on 10Mb/s Ethernet interfaces,
 which use the hardware physical address,
 and on interfaces other than the first.
-For the
-.Tn ISO
-family, addresses are specified as a long hexadecimal string,
-as in the Xerox family.  However, two consecutive dots imply a zero
-byte, and the dots are optional, if the user wishes to (carefully)
-count out long strings of digits in network byte order.
+.\" For the
+.\" .Tn ISO
+.\" family, addresses are specified as a long hexadecimal string,
+.\" as in the Xerox family.  However, two consecutive dots imply a zero
+.\" byte, and the dots are optional, if the user wishes to (carefully)
+.\" count out long strings of digits in network byte order.
 .It Ar address_family
 Specifies the
 .Ar address family
@@ -108,7 +109,8 @@ with different naming schemes, specifying the address family is recommended.
 The address or protocol families currently
 supported are
 .Dq inet ,
-.Dq iso ,
+.\" .Dq iso ,
+.Dq ipx ,
 and
 .Dq ns .
 .It Ar Interface
@@ -189,7 +191,8 @@ interface.
 Not all interfaces support setting the mtu, and some interfaces have
 range restrictions.
 .It Cm netmask Ar mask
-(Inet and ISO)
+.\" (Inet and ISO)
+(Inet only)
 Specify how much of the address to reserve for subdividing
 networks into sub-networks.
 The mask includes the network part of the local address
@@ -206,54 +209,36 @@ and the subnet field should be contiguous with the network
 portion.
 .\" see 
 .\" Xr eon 5 .
-.It Cm nsellength Ar n
-.Pf ( Tn ISO
-only)
-This specifies a trailing number of bytes for a received
-.Tn NSAP
-used for local identification, the remaining leading part of which is
-taken to be the
-.Tn NET
-(Network Entity Title).
-The default value is 1, which is conformant to US
-.Tn GOSIP .
-When an ISO address is set in an ifconfig command,
-it is really the
-.Tn NSAP
-which is being specified.
-For example, in
-.Tn US GOSIP ,
-20 hex digits should be
-specified in the
-.Tn ISO NSAP
-to be assigned to the interface.
-There is some evidence that a number different from 1 may be useful
-for
-.Tn AFI
-37 type addresses.
-.It Cm trailers
-Request the use of a ``trailer'' link level encapsulation when
-sending (default).
-If a network interface supports
-.Cm trailers ,
-the system will, when possible, encapsulate outgoing
-messages in a manner which minimizes the number of
-memory to memory copy operations performed by the receiver.
-On networks that support the Address Resolution Protocol (see
-.Xr arp 4 ;
-currently, only 10 Mb/s Ethernet),
-this flag indicates that the system should request that other
-systems use trailers when sending to this host.
-Similarly, trailer encapsulations will be sent to other
-hosts that have made such requests.
-Currently used by Internet protocols only.
-.It Fl trailers
-Disable the use of a ``trailer'' link level encapsulation.
+.\" .It Cm nsellength Ar n
+.\" .Pf ( Tn ISO
+.\" only)
+.\" This specifies a trailing number of bytes for a received
+.\" .Tn NSAP
+.\" used for local identification, the remaining leading part of which is
+.\" taken to be the
+.\" .Tn NET
+.\" (Network Entity Title).
+.\" The default value is 1, which is conformant to US
+.\" .Tn GOSIP .
+.\" When an ISO address is set in an ifconfig command,
+.\" it is really the
+.\" .Tn NSAP
+.\" which is being specified.
+.\" For example, in
+.\" .Tn US GOSIP ,
+.\" 20 hex digits should be
+.\" specified in the
+.\" .Tn ISO NSAP
+.\" to be assigned to the interface.
+.\" There is some evidence that a number different from 1 may be useful
+.\" for
+.\" .Tn AFI
+.\" 37 type addresses.
 .It Cm link[0-2]
 Enable special processing of the link level of the interface.
 These three options are interface specific in actual effect, however,
 they are in general used to select special modes of operation. An example
-of this is to enable SLIP compression. Currently, only used by SLIP.
+of this is to enable SLIP compression.
 .It Fl link[0-2]
 Disable special processing at the link level with the specified interface.
 .It Cm up
@@ -266,26 +251,29 @@ the hardware will be re-initialized.
 .Pp
 .Pp
 .Nm Ifconfig
-.Ar -a
+.Fl a
 displays information on all interfaces.  When followed by a configuration
 parameter, it will also set the configuration on all interfaces.
 .Pp
 .Nm Ifconfig
-.Ar -au
+.Fl au
 is similar to
 .Nm ifconfig
-.Ar -a ,
+.Fl a ,
 except it only affects interfaces that are currently marked as up.
-Conversely,
+Similarly,
 .Nm ifconfig
-.Ar -ad
+.Fl ad
 affects only interfaces that are marked down.
 .Pp
-.Nm Ifconfig
+The
+.Nm
+program
 displays the current configuration for a network interface
 when no optional parameters are supplied.
 If a protocol family is specified,
-Ifconfig will report only the details specific to that protocol family.
+.Nm ifconfig
+will report only the details specific to that protocol family.
 .Pp
 Only the super-user may modify the configuration of a network interface.
 .Sh DIAGNOSTICS
