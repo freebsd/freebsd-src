@@ -1,4 +1,6 @@
-/* This file is SYSV-ism (for compatibility only) */
+#if __GNUC__
+#warning "this file includes <values.h> which is obsoleted, use <limits.h> or <float.h> instead"
+#endif
 
 /* 
 Copyright (C) 1988 Free Software Foundation
