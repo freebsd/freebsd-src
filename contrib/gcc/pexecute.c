@@ -1,6 +1,6 @@
 /* Utilities to execute a program in a subprocess (possibly linked by pipes
    with other subprocesses), and wait for it.
-   Copyright (C) 1996, 1997, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1996-2000 Free Software Foundation, Inc.
 
 This file is part of the libiberty library.
 Libiberty is free software; you can redistribute it and/or
@@ -18,12 +18,12 @@ License along with libiberty; see the file COPYING.LIB.  If not,
 write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 /* This file exports two functions: pexecute and pwait.  */
 
 /* This file lives in at least two places: libiberty and gcc.
    Don't change one without the other.  */
-
-/* $FreeBSD$ */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -31,28 +31,24 @@ Boston, MA 02111-1307, USA.  */
 
 #include <stdio.h>
 #include <errno.h>
+#ifdef NEED_DECLARATION_ERRNO
+extern int errno;
+#endif
+#ifdef HAVE_STRING_H
+#include <string.h>
+#endif
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#define ISSPACE (x) isspace(x)
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
 #endif
 
-#ifdef vfork /* Autoconf may define this to fork for us. */
-# define VFORK_STRING "fork"
-#else
-# define VFORK_STRING "vfork"
-#endif
-#ifdef HAVE_VFORK_H
-#include <vfork.h>
-#endif
-#ifdef VMS
-#define vfork() (decc$$alloc_vfork_blocks() >= 0 ? \
-               lib$get_current_invo_context(decc$$get_vfork_jmpbuf()) : -1)
-#endif /* VMS */
-
 #include "libiberty.h"
+#include "safe-ctype.h"
 
 /* stdin file number.  */
 #define STDIN_FILE_NO 0
@@ -70,53 +66,66 @@ static char *install_error_msg = "installation problem, cannot exec `%s'";
 
 /* pexecute: execute a program.
 
-   PROGRAM and ARGV are the arguments to execv/execvp.
+@deftypefn Extension int pexecute (const char *@var{program}, char * const *@var{argv}, const char *@var{this_pname}, const char *@var{temp_base}, char **@var{errmsg_fmt}, char **@var{errmsg_arg}, int flags)
 
-   THIS_PNAME is name of the calling program (i.e. argv[0]).
+Executes a program.
 
-   TEMP_BASE is the path name, sans suffix, of a temporary file to use
-   if needed.  This is currently only needed for MSDOS ports that don't use
-   GO32 (do any still exist?).  Ports that don't need it can pass NULL.
+@var{program} and @var{argv} are the arguments to
+@code{execv}/@code{execvp}.
 
-   (FLAGS & PEXECUTE_SEARCH) is non-zero if $PATH should be searched
-   (??? It's not clear that GCC passes this flag correctly).
-   (FLAGS & PEXECUTE_FIRST) is nonzero for the first process in chain.
-   (FLAGS & PEXECUTE_FIRST) is nonzero for the last process in chain.
-   FIRST_LAST could be simplified to only mark the last of a chain of processes
-   but that requires the caller to always mark the last one (and not give up
-   early if some error occurs).  It's more robust to require the caller to
-   mark both ends of the chain.
+@var{this_pname} is name of the calling program (i.e., @code{argv[0]}).
 
-   The result is the pid on systems like Unix where we fork/exec and on systems
-   like WIN32 and OS2 where we use spawn.  It is up to the caller to wait for
-   the child.
+@var{temp_base} is the path name, sans suffix, of a temporary file to
+use if needed.  This is currently only needed for MS-DOS ports that
+don't use @code{go32} (do any still exist?).  Ports that don't need it
+can pass @code{NULL}.
 
-   The result is the WEXITSTATUS on systems like MSDOS where we spawn and wait
-   for the child here.
+(@code{@var{flags} & PEXECUTE_SEARCH}) is non-zero if @env{PATH} should be searched
+(??? It's not clear that GCC passes this flag correctly).  (@code{@var{flags} &
+PEXECUTE_FIRST}) is nonzero for the first process in chain.
+(@code{@var{flags} & PEXECUTE_FIRST}) is nonzero for the last process
+in chain.  The first/last flags could be simplified to only mark the
+last of a chain of processes but that requires the caller to always
+mark the last one (and not give up early if some error occurs).
+It's more robust to require the caller to mark both ends of the chain.
 
-   Upon failure, ERRMSG_FMT and ERRMSG_ARG are set to the text of the error
-   message with an optional argument (if not needed, ERRMSG_ARG is set to
-   NULL), and -1 is returned.  `errno' is available to the caller to use.
+The result is the pid on systems like Unix where we
+@code{fork}/@code{exec} and on systems like WIN32 and OS/2 where we
+use @code{spawn}.  It is up to the caller to wait for the child.
 
-   pwait: cover function for wait.
+The result is the @code{WEXITSTATUS} on systems like MS-DOS where we
+@code{spawn} and wait for the child here.
 
-   PID is the process id of the task to wait for.
-   STATUS is the `status' argument to wait.
-   FLAGS is currently unused (allows future enhancement without breaking
-   upward compatibility).  Pass 0 for now.
+Upon failure, @var{errmsg_fmt} and @var{errmsg_arg} are set to the
+text of the error message with an optional argument (if not needed,
+@var{errmsg_arg} is set to @code{NULL}), and @minus{}1 is returned.
+@code{errno} is available to the caller to use.
 
-   The result is the pid of the child reaped,
-   or -1 for failure (errno says why).
+@end deftypefn
 
-   On systems that don't support waiting for a particular child, PID is
-   ignored.  On systems like MSDOS that don't really multitask pwait
-   is just a mechanism to provide a consistent interface for the caller.
+@deftypefn Extension int pwait (int @var{pid}, int *@var{status}, int @var{flags})
+
+Waits for a program started by @code{pexecute} to finish.
+
+@var{pid} is the process id of the task to wait for. @var{status} is
+the `status' argument to wait. @var{flags} is currently unused (allows
+future enhancement without breaking upward compatibility).  Pass 0 for now.
+
+The result is the pid of the child reaped, or -1 for failure
+(@code{errno} says why).
+
+On systems that don't support waiting for a particular child, @var{pid} is
+ignored.  On systems like MS-DOS that don't really multitask @code{pwait}
+is just a mechanism to provide a consistent interface for the caller.
+
+@end deftypefn
+
+@undocumented pfinish
 
    pfinish: finish generation of script
 
    pfinish is necessary for systems like MPW where a script is generated that
-   runs the requested programs.
-*/
+   runs the requested programs.  */
 
 #ifdef __MSDOS__
 
@@ -150,14 +159,16 @@ pexecute (program, argv, this_pname, temp_base, errmsg_fmt, errmsg_arg, flags)
   if ((flags & PEXECUTE_ONE) != PEXECUTE_ONE)
     abort ();
 
-#ifdef __GO32__
+#ifdef __DJGPP__
   /* ??? What are the possible return values from spawnv?  */
-  rc = (flags & PEXECUTE_SEARCH ? spawnvp : spawnv) (1, program, argv);
+  rc = (flags & PEXECUTE_SEARCH ? spawnvp : spawnv) (P_WAIT, program, argv);
 #else
   char *scmd, *rf;
   FILE *argfile;
   int i, el = flags & PEXECUTE_SEARCH ? 4 : 0;
 
+  if (temp_base == 0)
+    temp_base = choose_temp_base ();
   scmd = (char *) xmalloc (strlen (program) + strlen (temp_base) + 6 + el);
   rf = scmd + strlen(program) + 2 + el;
   sprintf (scmd, "%s%s @%s.gp", program,
@@ -199,7 +210,7 @@ pexecute (program, argv, this_pname, temp_base, errmsg_fmt, errmsg_arg, flags)
   if (rc == -1)
     {
       *errmsg_fmt = install_error_msg;
-      *errmsg_arg = program;
+      *errmsg_arg = (char *)program;
       return -1;
     }
 
@@ -207,6 +218,13 @@ pexecute (program, argv, this_pname, temp_base, errmsg_fmt, errmsg_arg, flags)
   last_status = rc << 8;
   return last_pid;
 }
+
+/* Use ECHILD if available, otherwise use EINVAL.  */
+#ifdef ECHILD
+#define PWAIT_ERROR ECHILD
+#else
+#define PWAIT_ERROR EINVAL
+#endif
 
 int
 pwait (pid, status, flags)
@@ -219,13 +237,16 @@ pwait (pid, status, flags)
       /* Called twice for the same child?  */
       || pid == last_reaped)
     {
-      /* ??? ECHILD would be a better choice.  Can we use it here?  */
-      errno = EINVAL;
+      errno = PWAIT_ERROR;
       return -1;
     }
   /* ??? Here's an opportunity to canonicalize the values in STATUS.
      Needed?  */
+#ifdef __DJGPP__
+  *status = (last_status >> 8);
+#else
   *status = last_status;
+#endif
   last_reaped = last_pid;
   return last_pid;
 }
@@ -248,7 +269,7 @@ extern int _spawnvp ();
 /* This is a kludge to get around the Microsoft C spawn functions' propensity
    to remove the outermost set of double quotes from all arguments.  */
 
-const char * const *
+static const char * const *
 fix_argv (argvec)
      char **argvec;
 {
@@ -278,6 +299,45 @@ fix_argv (argvec)
 
         argvec[i] = temp;
       }
+
+  for (i = 0; argvec[i] != 0; i++)
+    {
+      if (strpbrk (argvec[i], " \t"))
+        {
+	  int len, trailing_backslash;
+	  char *temp;
+
+	  len = strlen (argvec[i]);
+	  trailing_backslash = 0;
+
+	  /* There is an added complication when an arg with embedded white
+	     space ends in a backslash (such as in the case of -iprefix arg
+	     passed to cpp). The resulting quoted strings gets misinterpreted
+	     by the command interpreter -- it thinks that the ending quote
+	     is escaped by the trailing backslash and things get confused. 
+	     We handle this case by escaping the trailing backslash, provided
+	     it was not escaped in the first place.  */
+	  if (len > 1 
+	      && argvec[i][len-1] == '\\' 
+	      && argvec[i][len-2] != '\\')
+	    {
+	      trailing_backslash = 1;
+	      ++len;			/* to escape the final backslash. */
+	    }
+
+	  len += 2;			/* and for the enclosing quotes. */
+
+	  temp = xmalloc (len + 1);
+	  temp[0] = '"';
+	  strcpy (temp + 1, argvec[i]);
+	  if (trailing_backslash)
+	    temp[len-2] = '\\';
+	  temp[len-1] = '"';
+	  temp[len] = '\0';
+
+	  argvec[i] = temp;
+	}
+    }
 
   return (const char * const *) argvec;
 }
@@ -614,7 +674,7 @@ pexecute (program, argv, this_pname, temp_base, errmsg_fmt, errmsg_arg, flags)
      const char *program;
      char * const *argv;
      const char *this_pname;
-     const char *temp_base;
+     const char *temp_base ATTRIBUTE_UNUSED;
      char **errmsg_fmt, **errmsg_arg;
      int flags;
 {
@@ -656,9 +716,10 @@ pexecute (program, argv, this_pname, temp_base, errmsg_fmt, errmsg_arg, flags)
 
   /* Fork a subprocess; wait and retry if it fails.  */
   sleep_interval = 1;
+  pid = -1;
   for (retries = 0; retries < 4; retries++)
     {
-      pid = vfork ();
+      pid = fork ();
       if (pid >= 0)
 	break;
       sleep (sleep_interval);
@@ -668,11 +729,9 @@ pexecute (program, argv, this_pname, temp_base, errmsg_fmt, errmsg_arg, flags)
   switch (pid)
     {
     case -1:
-      {
-	*errmsg_fmt = VFORK_STRING;
-	*errmsg_arg = NULL;
-	return -1;
-      }
+      *errmsg_fmt = "fork";
+      *errmsg_arg = NULL;
+      return -1;
 
     case 0: /* child */
       /* Move the input and output pipes into place, if necessary.  */
@@ -696,11 +755,10 @@ pexecute (program, argv, this_pname, temp_base, errmsg_fmt, errmsg_arg, flags)
       /* Exec the program.  */
       (*func) (program, argv);
 
-      /* Note: Calling fprintf and exit here doesn't seem right for vfork.  */
       fprintf (stderr, "%s: ", this_pname);
       fprintf (stderr, install_error_msg, program);
       fprintf (stderr, ": %s\n", xstrerror (errno));
-      _exit (1);
+      _exit (-1);
       /* NOTREACHED */
       return 0;
 
@@ -721,7 +779,7 @@ int
 pwait (pid, status, flags)
      int pid;
      int *status;
-     int flags;
+     int flags ATTRIBUTE_UNUSED;
 {
   /* ??? Here's an opportunity to canonicalize the values in STATUS.
      Needed?  */
