@@ -36,8 +36,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.34 1995/11/19 19:46:23 dyson Exp $
+ * $Id: ufs_vnops.c,v 1.35 1995/12/11 04:57:49 dyson Exp $
  */
+
+#include "opt_quota.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -36,8 +36,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_inode.c	8.4 (Berkeley) 1/21/94
- * $Id: ufs_inode.c,v 1.6 1995/01/04 23:48:04 gibbs Exp $
+ * $Id: ufs_inode.c,v 1.7 1995/11/05 23:35:57 dyson Exp $
  */
+
+#include "opt_quota.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
