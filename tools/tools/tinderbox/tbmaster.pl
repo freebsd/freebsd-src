@@ -34,7 +34,7 @@ use strict;
 use POSIX qw(tzset);
 use Sys::Hostname;
 
-my %CONFIGS	= (
+my %SETUPS	= (
     # Global settings
     'global' => {
 	'SANDBOX'	=> '/home/des/tinderbox',
@@ -43,7 +43,6 @@ my %CONFIGS	= (
 	'SENDER'	=> 'Tinderbox <des+tinderbox@freebsd.org>',
 	'RECIPIENT'	=> 'des+%%arch%%-%%branch%%@freebsd.org',
 	'SUBJECT'	=> '[%%COMMENT%%] failure on %%arch%%/%%machine%%',
-
 	'ENV'		=> { },
     },
 
@@ -95,12 +94,14 @@ my %CONFIGS	= (
 	'ARCHES'	=> {
 	    'i386'	=> [ 'i386' ],
 	},
-	'ENV'		=> {
-	    'NOLIBC_R'		=> 'YES',
-	    'NOPROFILE'		=> 'YES',
-	    'NO_BIND'		=> 'YES',
-	    'NO_FORTRAN'	=> 'YES',
-	    'NO_SENDMAIL'	=> 'YES',
+    },
+
+    'dsa' => {
+	'COMMENT'	=> "Tinderbox development",
+	'BRANCHES'	=> [ 'CURRENT' ],
+	'TARGETS'	=> [ 'update', 'world', 'lint', 'release' ],
+	'ARCHES'	=> {
+	    'alpha'	=> [ 'alpha' ],
 	},
     },
 
@@ -110,14 +111,6 @@ my %CONFIGS	= (
 	'TARGETS'	=> [ 'update', 'world', 'lint', 'release' ],
 	'ARCHES'	=> {
 	    'i386'	=> [ 'i386' ],
-	},
-	'ENV'		=> {
-	    'NOCRYPT'		=> 'YES',
-	    'NOLIBC_R'		=> 'YES',
-	    'NOPROFILE'		=> 'YES',
-	    'NO_BIND'		=> 'YES',
-	    'NO_FORTRAN'	=> 'YES',
-	    'NO_SENDMAIL'	=> 'YES',
 	},
     },
 );
@@ -139,7 +132,6 @@ sub report($$$$) {
 	print(PIPE "Subject: $subject\n");
 	print(PIPE "\n");
 	print(PIPE "$message\n");
-	print(STDERR "mailed report to $recipient\n");
 	close(PIPE);
     } else {
 	print(STDERR "[failed to send report by email]\n\n");
@@ -258,23 +250,26 @@ sub tinderbox($$$) {
 	$summary .= join('', @lines);
 	print(BRIEF join('', @lines));
     }
-    close(BRIEF);
-    close(FULL);
 
     # Done...
     if (waitpid($pid, 0) == -1) {
 	warn("waitpid(): $!\n");
     } elsif ($? & 0xff) {
-	warn("tinderbox caught signal ", $? & 0x7f, "\n");
+	my $msg = "tinderbox caught signal " . ($? & 0x7f) . "\n";
+	print(BRIEF $msg);
+	print(FULL $msg);
 	$error = 1;
     } elsif ($? >> 8) {
-	warn("tinderbox returned exit code ", $? >> 8, "\n");
+	my $msg = "tinderbox returned exit code " . ($? >> 8) . "\n";
+	print(BRIEF $msg);
+	print(FULL $msg);
 	$error = 1;
     }
+    close(BRIEF);
+    close(FULL);
 
     # Mail out error reports
     if ($error) {
-	warn("$branch tinderbox failed for $arch/$machine\n");
 	my $sender = expand($CONFIG{'SENDER'});
 	my $recipient = expand($CONFIG{'RECIPIENT'});
 	my $subject = expand($CONFIG{'SUBJECT'});
@@ -288,7 +283,7 @@ sub tinderbox($$$) {
 sub usage() {
 
     my @configs = ();
-    foreach my $config (sort(keys(%CONFIGS))) {
+    foreach my $config (sort(keys(%SETUPS))) {
 	push(@configs, $config)
 	    unless ($config eq 'global');
     }
@@ -304,10 +299,10 @@ MAIN:{
 	$config =~ s/\..*//;
     }
     usage()
-	unless (exists($CONFIGS{$config}) && $config ne 'global');
-    %CONFIG = %{$CONFIGS{$config}};
-    foreach my $key (keys(%{$CONFIGS{'global'}})) {
-	$CONFIG{$key} = $CONFIGS{'global'}->{$key}
+	unless (exists($SETUPS{$config}) && $config ne 'global');
+    %CONFIG = %{$SETUPS{$config}};
+    foreach my $key (keys(%{$SETUPS{'global'}})) {
+	$CONFIG{$key} = $SETUPS{'global'}->{$key}
 	    unless (exists($CONFIG{$key}));
     }
 
