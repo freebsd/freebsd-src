@@ -106,12 +106,12 @@
 /* bits to save after open */
 #define	FMASK		(FREAD|FWRITE|FAPPEND|FASYNC|FFSYNC|FNONBLOCK)
 /* bits settable by fcntl(F_SETFL, ...) */
-#define	FCNTLFLAGS	(FAPPEND|FASYNC|FFSYNC|FNONBLOCK)
+#define	FCNTLFLAGS	(FAPPEND|FASYNC|FFSYNC|FNONBLOCK|FPOSIXSHM)
 #endif
 
 /*
  * The O_* flags used to have only F* names, which were used in the kernel
- * and by fcntl.  We retain the F* names for the kernel f_flags field
+ * and by fcntl.  We retain the F* names for the kernel f_flag field
  * and for backward compatibility for fcntl.
  */
 #ifndef _POSIX_SOURCE
@@ -121,6 +121,22 @@
 #define	FNONBLOCK	O_NONBLOCK	/* kernel */
 #define	FNDELAY		O_NONBLOCK	/* compat */
 #define	O_NDELAY	O_NONBLOCK	/* compat */
+#endif
+
+/*
+ * We are out of bits in f_flag (which is a short).  However,
+ * the flag bits not set in FMASK are only meaningful in the
+ * initial open syscall.  Those bits can thus be given a
+ * different meaning for fcntl(2).
+ */
+#ifndef _POSIX_SOURCE
+
+/*
+ * Set by shm_open(3) to get automatic MAP_ASYNC behavior
+ * for POSIX shared memory objects (which are otherwise
+ * implemented as plain files).
+ */
+#define	FPOSIXSHM	O_NOFOLLOW
 #endif
 
 /*
