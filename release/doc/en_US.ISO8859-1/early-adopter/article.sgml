@@ -102,8 +102,8 @@
       CVS repository.</para>
 
     <para>The past two stable branches (3-STABLE and 4-STABLE) were
-      created very soon after their respective <quote>dot-oh</quote>
-      releases (their branchpoints were 3.1 and 4.0, respectively).  In hindsight, this
+      created very early in their development cycles
+      (their branchpoints were 3.1 and 4.0, respectively).  In hindsight, this
       practice did not give sufficient time for either CURRENT
       to stabilize before the new branches were
       created.  This in turn resulted in wasted effort porting bug
@@ -120,7 +120,7 @@
     <para>Unlike prior <quote>STABLE</quote> branches, the
       <quote>5-STABLE</quote> branch in CVS (with the branch tag
       <literal>RELENG_5</literal>) was created
-      almost a year after the first &release.5x; release
+      more than a year after the first &release.5x; release
       (specifically, during the 5.3 release cycle).  This delay gave
       time for the development team to complete needed architectural
       changes, stabilize the system, finalize various interfaces, and
