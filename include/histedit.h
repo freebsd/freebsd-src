@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/*	$NetBSD: histedit.h,v 1.5 1997/04/11 17:52:45 christos Exp $	*/
+/*	$NetBSD: histedit.h,v 1.15 2000/02/28 17:41:05 chopps Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -76,11 +76,12 @@ typedef struct lineinfo {
 #define	CC_ERROR	6
 #define CC_FATAL	7
 #define CC_REDISPLAY	8
+#define	CC_REFRESH_BEEP	9
 
 /*
  * Initialization, cleanup, and resetting
  */
-EditLine	*el_init	__P((const char *, FILE *, FILE *));
+EditLine	*el_init	__P((const char *, FILE *, FILE *, FILE *));
 void		 el_reset	__P((EditLine *));
 void		 el_end		__P((EditLine *));
 
@@ -93,6 +94,11 @@ int		 el_getc	__P((EditLine *, char *));
 void		 el_push	__P((EditLine *, const char *));
 
 /*
+ * Beep!
+ */
+void		 el_beep(EditLine *);
+
+/*
  * High level function internals control
  * Parses argc, argv array and executes builtin editline commands
  */
@@ -102,6 +108,7 @@ int		 el_parse	__P((EditLine *, int, char **));
  * Low level editline access function
  */
 int 		 el_set		__P((EditLine *, int, ...));
+int		 el_get		__P((EditLine *, int, void *));
 
 /*
  * el_set/el_get parameters
@@ -118,6 +125,8 @@ int 		 el_set		__P((EditLine *, int, ...));
 #define	EL_ADDFN	9	/* , const char *, const char *	*/
 				/* , el_func_t);		*/
 #define EL_HIST		10	/* , hist_fun_t, const char *);	*/
+#define	EL_EDITMODE	11	/* , int);			*/
+#define	EL_RPROMPT	12	/* , el_pfunc_t);		*/
 
 /*
  * Source named file or $PWD/.editrc or $HOME/.editrc
@@ -131,15 +140,12 @@ int		el_source	__P((EditLine *, const char *));
  */
 void		 el_resize	__P((EditLine *));
 
-void		 el_data_set	__P((EditLine *, void *));
-void *		 el_data_get	__P((EditLine *));
-
 
 /*
  * User-defined function interface.
  */
 const LineInfo *el_line	__P((EditLine *));
-int   		  el_insertstr	__P((EditLine *, char *));
+int   		  el_insertstr	__P((EditLine *, const char *));
 void		  el_deletestr	__P((EditLine *, int));
 
 /*
@@ -159,24 +165,28 @@ typedef struct HistEvent {
 History *		history_init	__P((void));
 void 			history_end	__P((History *));
 
-const HistEvent *	history		__P((History *, int, ...));
+int			history		__P((History *, HistEvent *, int, ...));
 
 #define H_FUNC		 0	/* , UTSL		*/
+#define	H_SETSIZE	 1	/* , const int);	*/
 #define H_EVENT		 1	/* , const int);	*/
-#define H_FIRST		 2	/* , void);		*/
-#define H_LAST		 3	/* , void);		*/
-#define H_PREV		 4	/* , void);		*/
-#define H_NEXT		 5	/* , void);		*/
-#define H_CURR		 6	/* , void);		*/
-#define H_ADD		 7	/* , const char*);	*/
-#define H_ENTER		 8	/* , const char*);	*/
-#define H_END		 9	/* , void);		*/
-#define H_NEXT_STR	10	/* , const char*);	*/
-#define H_PREV_STR	11	/* , const char*);	*/
-#define H_NEXT_EVENT	12	/* , const int);	*/
-#define H_PREV_EVENT	13	/* , const int);	*/
-#define H_LOAD		14	/* , const char *);	*/
-#define H_SAVE		15	/* , const char *);	*/
-#define H_CLEAR		16	/* , void);		*/
+#define	H_GETSIZE	 2	/* , void);		*/
+#define	H_FIRST		 3	/* , void);		*/
+#define	H_LAST		 4	/* , void);		*/
+#define	H_PREV		 5	/* , void);		*/
+#define	H_NEXT		 6	/* , void);		*/
+#define	H_CURR		 8	/* , const int);	*/
+#define	H_SET		 7	/* , void);		*/
+#define	H_ADD		 9	/* , const char *);	*/
+#define	H_ENTER		10	/* , const char *);	*/
+#define	H_APPEND	11	/* , const char *);	*/
+#define	H_END		12	/* , void);		*/
+#define	H_NEXT_STR	13	/* , const char *);	*/
+#define	H_PREV_STR	14	/* , const char *);	*/
+#define	H_NEXT_EVENT	15	/* , const int);	*/
+#define	H_PREV_EVENT	16	/* , const int);	*/
+#define	H_LOAD		17	/* , const char *);	*/
+#define	H_SAVE		18	/* , const char *);	*/
+#define	H_CLEAR		19	/* , void);		*/
 
 #endif /* _h_editline */
