@@ -389,148 +389,146 @@ static void
 ipfw_report(struct ip_fw *f, struct ip *ip,
 	struct ifnet *rif, struct ifnet *oif)
 {
-    if (ip) {
-	struct tcphdr *const tcp = (struct tcphdr *) ((u_int32_t *) ip+ ip->ip_hl);
-	struct udphdr *const udp = (struct udphdr *) ((u_int32_t *) ip+ ip->ip_hl);
-	struct icmp *const icmp = (struct icmp *) ((u_int32_t *) ip + ip->ip_hl);
-	u_int64_t count;
-	char *action;
-	char action2[32], proto[47], name[18], fragment[17];
-	int len;
+    struct tcphdr *const tcp = (struct tcphdr *) ((u_int32_t *) ip+ ip->ip_hl);
+    struct udphdr *const udp = (struct udphdr *) ((u_int32_t *) ip+ ip->ip_hl);
+    struct icmp *const icmp = (struct icmp *) ((u_int32_t *) ip + ip->ip_hl);
+    u_int64_t count;
+    char *action;
+    char action2[32], proto[47], name[18], fragment[17];
+    int len;
 
-	count = f ? f->fw_pcnt : ++counter;
-	if ((f == NULL && fw_verbose_limit != 0 && count > fw_verbose_limit) ||
-	    (f && f->fw_logamount != 0 && count > f->fw_loghighest))
-		return;
+    count = f ? f->fw_pcnt : ++counter;
+    if ((f == NULL && fw_verbose_limit != 0 && count > fw_verbose_limit) ||
+	(f && f->fw_logamount != 0 && count > f->fw_loghighest))
+	    return;
 
-	/* Print command name */
-	snprintf(SNPARGS(name, 0), "ipfw: %d", f ? f->fw_number : -1);
+    /* Print command name */
+    snprintf(SNPARGS(name, 0), "ipfw: %d", f ? f->fw_number : -1);
 
-	action = action2;
-	if (!f)
-		action = "Refuse";
-	else {
-		switch (f->fw_flg & IP_FW_F_COMMAND) {
-		case IP_FW_F_DENY:
-			action = "Deny";
-			break;
-		case IP_FW_F_REJECT:
-			if (f->fw_reject_code == IP_FW_REJECT_RST)
-				action = "Reset";
-			else
-				action = "Unreach";
-			break;
-		case IP_FW_F_ACCEPT:
-			action = "Accept";
-			break;
-		case IP_FW_F_COUNT:
-			action = "Count";
-			break;
+    action = action2;
+    if (!f)
+	    action = "Refuse";
+    else {
+	    switch (f->fw_flg & IP_FW_F_COMMAND) {
+	    case IP_FW_F_DENY:
+		    action = "Deny";
+		    break;
+	    case IP_FW_F_REJECT:
+		    if (f->fw_reject_code == IP_FW_REJECT_RST)
+			    action = "Reset";
+		    else
+			    action = "Unreach";
+		    break;
+	    case IP_FW_F_ACCEPT:
+		    action = "Accept";
+		    break;
+	    case IP_FW_F_COUNT:
+		    action = "Count";
+		    break;
 #ifdef IPDIVERT
-		case IP_FW_F_DIVERT:
-			snprintf(SNPARGS(action2, 0), "Divert %d",
-			    f->fw_divert_port);
-			break;
-		case IP_FW_F_TEE:
-			snprintf(SNPARGS(action2, 0), "Tee %d",
-			    f->fw_divert_port);
-			break;
+	    case IP_FW_F_DIVERT:
+		    snprintf(SNPARGS(action2, 0), "Divert %d",
+			f->fw_divert_port);
+		    break;
+	    case IP_FW_F_TEE:
+		    snprintf(SNPARGS(action2, 0), "Tee %d",
+			f->fw_divert_port);
+		    break;
 #endif
-		case IP_FW_F_SKIPTO:
-			snprintf(SNPARGS(action2, 0), "SkipTo %d",
-			    f->fw_skipto_rule);
-			break;
+	    case IP_FW_F_SKIPTO:
+		    snprintf(SNPARGS(action2, 0), "SkipTo %d",
+			f->fw_skipto_rule);
+		    break;
 #ifdef DUMMYNET
-		case IP_FW_F_PIPE:
-			snprintf(SNPARGS(action2, 0), "Pipe %d",
-			    f->fw_skipto_rule);
-			break;
+	    case IP_FW_F_PIPE:
+		    snprintf(SNPARGS(action2, 0), "Pipe %d",
+			f->fw_skipto_rule);
+		    break;
 #endif
 #ifdef IPFIREWALL_FORWARD
-		case IP_FW_F_FWD:
-			if (f->fw_fwd_ip.sin_port)
-				snprintf(SNPARGS(action2, 0),
-				    "Forward to %s:%d",
-				    inet_ntoa(f->fw_fwd_ip.sin_addr),
-				    f->fw_fwd_ip.sin_port);
-			else
-				snprintf(SNPARGS(action2, 0), "Forward to %s",
-				    inet_ntoa(f->fw_fwd_ip.sin_addr));
-			break;
+	    case IP_FW_F_FWD:
+		    if (f->fw_fwd_ip.sin_port)
+			    snprintf(SNPARGS(action2, 0),
+				"Forward to %s:%d",
+				inet_ntoa(f->fw_fwd_ip.sin_addr),
+				f->fw_fwd_ip.sin_port);
+		    else
+			    snprintf(SNPARGS(action2, 0), "Forward to %s",
+				inet_ntoa(f->fw_fwd_ip.sin_addr));
+		    break;
 #endif
-		default:	
-			action = "UNKNOWN";
-			break;
-		}
-	}
-
-	switch (ip->ip_p) {
-	case IPPROTO_TCP:
-		len = snprintf(SNPARGS(proto, 0), "TCP %s",
-		    inet_ntoa(ip->ip_src));
-		if ((ip->ip_off & IP_OFFMASK) == 0)
-			len += snprintf(SNPARGS(proto, len), ":%d ",
-			    ntohs(tcp->th_sport));
-		else
-			len += snprintf(SNPARGS(proto, len), " ");
-		len += snprintf(SNPARGS(proto, len), "%s",
-		    inet_ntoa(ip->ip_dst));
-		if ((ip->ip_off & IP_OFFMASK) == 0)
-			snprintf(SNPARGS(proto, len), ":%d",
-			    ntohs(tcp->th_dport));
-		break;
-	case IPPROTO_UDP:
-		len = snprintf(SNPARGS(proto, 0), "UDP %s",
-		    inet_ntoa(ip->ip_src));
-		if ((ip->ip_off & IP_OFFMASK) == 0)
-			len += snprintf(SNPARGS(proto, len), ":%d ",
-			    ntohs(udp->uh_sport));
-		else
-			len += snprintf(SNPARGS(proto, len), " ");
-		len += snprintf(SNPARGS(proto, len), "%s",
-		    inet_ntoa(ip->ip_dst));
-		if ((ip->ip_off & IP_OFFMASK) == 0)
-			snprintf(SNPARGS(proto, len), ":%d",
-			    ntohs(udp->uh_dport));
-		break;
-	case IPPROTO_ICMP:
-		if ((ip->ip_off & IP_OFFMASK) == 0)
-			len = snprintf(SNPARGS(proto, 0), "ICMP:%u.%u ",
-			    icmp->icmp_type, icmp->icmp_code);
-		else
-			len = snprintf(SNPARGS(proto, 0), "ICMP ");
-		len += snprintf(SNPARGS(proto, len), "%s",
-		    inet_ntoa(ip->ip_src));
-		snprintf(SNPARGS(proto, len), " %s", inet_ntoa(ip->ip_dst));
-		break;
-	default:
-		len = snprintf(SNPARGS(proto, 0), "P:%d %s", ip->ip_p,
-		    inet_ntoa(ip->ip_src));
-		snprintf(SNPARGS(proto, len), " %s", inet_ntoa(ip->ip_dst));
-		break;
-	}
-
-	if ((ip->ip_off & IP_OFFMASK))
-		snprintf(SNPARGS(fragment, 0), " Fragment = %d",
-		    ip->ip_off & IP_OFFMASK);
-	else
-		fragment[0] = '\0';
-	if (oif)
-		log(LOG_SECURITY | LOG_INFO, "%s %s %s out via %s%d%s\n",
-		    name, action, proto, oif->if_name, oif->if_unit, fragment);
-	else if (rif)
-		log(LOG_SECURITY | LOG_INFO, "%s %s %s in via %s%d%s\n", name,
-		    action, proto, rif->if_name, rif->if_unit, fragment);
-	else
-		log(LOG_SECURITY | LOG_INFO, "%s %s %s%s\n", name, action,
-		    proto, fragment);
-	if ((f ? f->fw_logamount != 0 : 1) &&
-	    count == (f ? f->fw_loghighest : fw_verbose_limit))
-		log(LOG_SECURITY | LOG_NOTICE,
-		    "ipfw: limit %d reached on entry %d\n",
-		    f ? f->fw_logamount : fw_verbose_limit,
-		    f ? f->fw_number : -1);
+	    default:	
+		    action = "UNKNOWN";
+		    break;
+	    }
     }
+
+    switch (ip->ip_p) {
+    case IPPROTO_TCP:
+	    len = snprintf(SNPARGS(proto, 0), "TCP %s",
+		inet_ntoa(ip->ip_src));
+	    if ((ip->ip_off & IP_OFFMASK) == 0)
+		    len += snprintf(SNPARGS(proto, len), ":%d ",
+			ntohs(tcp->th_sport));
+	    else
+		    len += snprintf(SNPARGS(proto, len), " ");
+	    len += snprintf(SNPARGS(proto, len), "%s",
+		inet_ntoa(ip->ip_dst));
+	    if ((ip->ip_off & IP_OFFMASK) == 0)
+		    snprintf(SNPARGS(proto, len), ":%d",
+			ntohs(tcp->th_dport));
+	    break;
+    case IPPROTO_UDP:
+	    len = snprintf(SNPARGS(proto, 0), "UDP %s",
+		inet_ntoa(ip->ip_src));
+	    if ((ip->ip_off & IP_OFFMASK) == 0)
+		    len += snprintf(SNPARGS(proto, len), ":%d ",
+			ntohs(udp->uh_sport));
+	    else
+		    len += snprintf(SNPARGS(proto, len), " ");
+	    len += snprintf(SNPARGS(proto, len), "%s",
+		inet_ntoa(ip->ip_dst));
+	    if ((ip->ip_off & IP_OFFMASK) == 0)
+		    snprintf(SNPARGS(proto, len), ":%d",
+			ntohs(udp->uh_dport));
+	    break;
+    case IPPROTO_ICMP:
+	    if ((ip->ip_off & IP_OFFMASK) == 0)
+		    len = snprintf(SNPARGS(proto, 0), "ICMP:%u.%u ",
+			icmp->icmp_type, icmp->icmp_code);
+	    else
+		    len = snprintf(SNPARGS(proto, 0), "ICMP ");
+	    len += snprintf(SNPARGS(proto, len), "%s",
+		inet_ntoa(ip->ip_src));
+	    snprintf(SNPARGS(proto, len), " %s", inet_ntoa(ip->ip_dst));
+	    break;
+    default:
+	    len = snprintf(SNPARGS(proto, 0), "P:%d %s", ip->ip_p,
+		inet_ntoa(ip->ip_src));
+	    snprintf(SNPARGS(proto, len), " %s", inet_ntoa(ip->ip_dst));
+	    break;
+    }
+
+    if ((ip->ip_off & IP_OFFMASK))
+	    snprintf(SNPARGS(fragment, 0), " Fragment = %d",
+		ip->ip_off & IP_OFFMASK);
+    else
+	    fragment[0] = '\0';
+    if (oif)
+	    log(LOG_SECURITY | LOG_INFO, "%s %s %s out via %s%d%s\n",
+		name, action, proto, oif->if_name, oif->if_unit, fragment);
+    else if (rif)
+	    log(LOG_SECURITY | LOG_INFO, "%s %s %s in via %s%d%s\n", name,
+		action, proto, rif->if_name, rif->if_unit, fragment);
+    else
+	    log(LOG_SECURITY | LOG_INFO, "%s %s %s%s\n", name, action,
+		proto, fragment);
+    if ((f ? f->fw_logamount != 0 : 1) &&
+	count == (f ? f->fw_loghighest : fw_verbose_limit))
+	    log(LOG_SECURITY | LOG_NOTICE,
+		"ipfw: limit %d reached on entry %d\n",
+		f ? f->fw_logamount : fw_verbose_limit,
+		f ? f->fw_number : -1);
 }
 
 #if STATEFUL
@@ -744,7 +742,7 @@ add_dyn_rule(struct ipfw_flow_id *id, struct ipfw_flow_id *mask,
  * Type 0 (default) is a bidirectional rule
  */
 static void
-install_state(struct ip_fw_chain *chain, struct ip **pip, struct ip *ip)
+install_state(struct ip_fw_chain *chain)
 {
     struct ipfw_dyn_rule *q ;
     u_long type = ((struct ip_fw_ext *)chain->rule)->dyn_type ;
@@ -801,14 +799,11 @@ lookup_next_rule(struct ip_fw_chain *me)
  * Parameters:
  *
  *	pip	Pointer to packet header (struct ip **)
- *      bridge_ipfw extension: pip = NULL means a complete ethernet packet
- *      including ethernet header in the mbuf. Other fields
- *      are ignored/invalid.
- *
  *	hlen	Packet header length
  *	oif	Outgoing interface, or NULL if packet is incoming
  *	*cookie Skip up to the first rule past this rule number;
- *		upon return, non-zero port number for divert or tee
+ *		upon return, non-zero port number for divert or tee.
+ *		Special case: cookie == NULL on input for bridging.
  *	*m	The packet; we set to NULL when/if we nuke it.
  *	*flow_id pointer to the last matching rule (in/out)
  *	*next_hop socket we are forwarding to (in/out).
@@ -835,72 +830,45 @@ ip_fw_chk(struct ip **pip, int hlen,
 {
 	struct ip_fw_chain *chain;
 	struct ip_fw *f = NULL, *rule = NULL;
-	struct ip *ip = NULL ;
+	struct ip *ip = *pip;
 	struct ifnet *const rif = (*m)->m_pkthdr.rcvif;
 	u_short offset = 0 ;
 	u_short src_port = 0, dst_port = 0;
 	struct in_addr src_ip, dst_ip; /* XXX */
 	u_int8_t proto= 0, flags = 0 ; /* XXX */
-	u_int16_t skipto;
+	u_int16_t skipto, bridgeCookie;
 
 #if STATEFUL
 	int dyn_checked = 0 ; /* set after dyn.rules have been checked. */
 	int direction = MATCH_FORWARD ; /* dirty trick... */
 	struct ipfw_dyn_rule *q = NULL ;
 #endif
+
+	/* Special hack for bridging (as usual) */
+	if (cookie == NULL) {
+		bridgeCookie = 0;
+		cookie = &bridgeCookie;
+	}
+
 	/* Grab and reset cookie */
 	skipto = *cookie;
 	*cookie = 0;
 
-/*
- * here, pip==NULL for bridged pkts -- they include the ethernet
- * header so i have to adjust lengths accordingly
- */
-#define PULLUP_TO(l)	do {						\
-			    int len = (pip ? (l) : (l) + 14 );		\
-			    if ((*m)->m_len < (len) ) {                 \
-				if ( (*m = m_pullup(*m, (len))) == 0)   \
-				    goto bogusfrag;                     \
-				ip = mtod(*m, struct ip *);             \
-				if (pip)                                \
-				    *pip = ip ;                         \
-				else                                    \
-				    ip = (struct ip *)((char *)ip + 14);\
-				offset = (ip->ip_off & IP_OFFMASK);     \
-			    }                                           \
+#define PULLUP_TO(len)	do {						\
+			    if ((*m)->m_len < (len)) {			\
+				if ((*m = m_pullup(*m, (len))) == 0)	\
+				    goto bogusfrag;			\
+				ip = mtod(*m, struct ip *);		\
+				*pip = ip;				\
+				offset = (ip->ip_off & IP_OFFMASK);	\
+			    }						\
 			} while (0)
 
-	if (pip) { /* normal ip packet */
-	    ip = *pip;
-	    offset = (ip->ip_off & IP_OFFMASK);
-	} else { /* bridged or non-ip packet */
-	    struct ether_header *eh = mtod(*m, struct ether_header *);
-	    switch (ntohs(eh->ether_type)) {
-	    case ETHERTYPE_IP :
-		if ((*m)->m_len<sizeof(struct ether_header) + sizeof(struct ip))
-		    goto non_ip ;
-		ip = (struct ip *)(eh + 1 );
-		if (ip->ip_v != IPVERSION)
-		    goto non_ip ;
-		hlen = ip->ip_hl << 2;
-		if (hlen < sizeof(struct ip)) /* minimum header length */
-		    goto non_ip ;
-		if ((*m)->m_len < 14 + hlen + 14) {
-		    printf("-- m_len %d, need more...\n", (*m)->m_len);
-		    goto non_ip ;
-		}
-		offset = (ip->ip_off & IP_OFFMASK);
-		break ;
-	    default :
-non_ip:         ip = NULL ;
-		break ;
-	    }
-	}
-
 	/*
-	 * collect parameters into local variables for faster matching.
+	 * Collect parameters into local variables for faster matching.
 	 */
-	if (ip) {
+	offset = (ip->ip_off & IP_OFFMASK);
+	{
 	    struct tcphdr *tcp;
 	    struct udphdr *udp;
 
@@ -991,8 +959,7 @@ again:
 		if (f->fw_flg & (IP_FW_F_KEEP_S|IP_FW_F_CHECK_S) &&
 			 dyn_checked == 0 ) {
 		    dyn_checked = 1 ;
-		    if (ip)
-			q = lookup_dyn_rule(&last_pkt, &direction);
+		    q = lookup_dyn_rule(&last_pkt, &direction);
 		    if (q != NULL) {
 			DEB(printf("-- dynamic match 0x%08x %d %s 0x%08x %d\n",
 			    (q->id.src_ip), (q->id.src_port),
@@ -1001,8 +968,7 @@ again:
 			chain = q->chain ;
 			f = chain->rule ;
 			q->pcnt++ ;
-			if (ip)
-			    q->bcnt += ip->ip_len;
+			q->bcnt += ip->ip_len;
 			goto got_match ; /* random not allowed here */
 		    }
 		    /* if this was a check-only rule, continue with next */
@@ -1010,12 +976,10 @@ again:
 			continue ;
 		}
 #endif /* stateful ipfw */
-		/*
-		 * Rule only valid for bridged packets, skip if this
-		 * is not one of those (pip != NULL)
-		 */
-		if (pip != NULL && f->fw_flg & IP_FW_BRIDGED )
-			continue ;
+
+		/* Check if rule only valid for bridged packets */
+		if ((f->fw_flg & IP_FW_BRIDGED) != 0 && cookie != &bridgeCookie)
+			continue;
 
 		if (oif) {
 			/* Check direction outbound */
@@ -1025,34 +989,6 @@ again:
 			/* Check direction inbound */
 			if (!(f->fw_flg & IP_FW_F_IN))
 				continue;
-		}
-		if (ip == NULL ) {
-		    /*
-		     * do relevant checks for non-ip packets:
-		     * after this, only goto got_match or continue
-		     */
-		    struct ether_header *eh = mtod(*m, struct ether_header *);
-		    /*
-		     * temporary hack: 
-		     *   udp from 0.0.0.0 means this rule applies.
-		     *   1 src port is match ether type
-		     *   2 src ports (interval) is match ether type
-		     *   3 src ports is match ether address
-		     */
-		    if ( f->fw_src.s_addr != 0 || f->fw_prot != IPPROTO_UDP
-			|| f->fw_smsk.s_addr != 0xffffffff )
-			continue;
-		    switch (IP_FW_GETNSRCP(f)) {
-		    case 1: /* match one type */
-			if (  /* ( (f->fw_flg & IP_FW_F_INVSRC) != 0) ^ */
-				( f->fw_uar.fw_pts[0] == ntohs(eh->ether_type) )  ) {
-			    goto got_match ;
-			}
-			break ;
-		    default:
-			break ;
-		    }
-		    continue ;
 		}
 
 		/* Fragments */
@@ -1255,14 +1191,12 @@ got_match:
 		 * a new dynamic entry.
 		 */
 		if (q == NULL && f->fw_flg & IP_FW_F_KEEP_S)
-		    install_state(chain, pip, ip);
+		    install_state(chain);
 #endif
 		*flow_id = chain ; /* XXX set flow id */
 		/* Update statistics */
 		f->fw_pcnt += 1;
-		if (ip) {
-		    f->fw_bcnt += ip->ip_len;
-		}
+		f->fw_bcnt += ip->ip_len;
 		f->timestamp = time_second;
 
 		/* Log to console if desired */
@@ -1319,11 +1253,8 @@ got_match:
 
 	}
 
-#ifdef DIAGNOSTIC
-	/* Rule IPFW_DEFAULT_RULE should always be there and should always match */
-	if (!chain)
-		panic("ip_fw: chain");
-#endif
+	/* Rule IPFW_DEFAULT_RULE should always be there and match */
+	KASSERT(chain != NULL, ("ip_fw: no chain"));
 
 	/*
 	 * At this point, we're going to drop the packet.
@@ -1334,7 +1265,6 @@ got_match:
 	 * - The packet is not a multicast or broadcast packet
 	 */
 	if ((rule->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_REJECT
-	    && ip
 	    && (ip->ip_p != IPPROTO_ICMP || is_icmp_query(ip))
 	    && !((*m)->m_flags & (M_BCAST|M_MCAST))
 	    && !IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {

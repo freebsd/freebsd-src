@@ -1096,26 +1096,6 @@ read_another:
 	}
 	++sc->arpcom.ac_if.if_ipackets;
 
-	if (sc->arpcom.ac_if.if_bpf)
-	{
-		bpf_mtap(&sc->arpcom.ac_if, m);
-
-		/*
-		 * Note that the interface cannot be in promiscuous mode if
-		 * there are no BPF listeners.  And if we are in promiscuous
-		 * mode, we have to check if this packet is really ours.
-		 */
-		if ((sc->arpcom.ac_if.if_flags & IFF_PROMISC) &&
-		    (eh->ether_dhost[0] & 1) == 0 &&
-		    bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
-			 sizeof(eh->ether_dhost)) != 0 &&
-		    bcmp(eh->ether_dhost, etherbroadcastaddr,
-			 sizeof(eh->ether_dhost)) != 0) {
-			m_freem(m);
-			goto out;
-		}
-	}
-
 	/*
 	 * Remove link layer addresses and whatnot.
 	 */
