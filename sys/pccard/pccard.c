@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pccard.c,v 1.70 1999/01/27 23:45:40 dillon Exp $
+ *	$Id: pccard.c,v 1.71 1999/02/13 11:31:59 kuriyama Exp $
  */
 
 #include "opt_devfs.h"
@@ -430,6 +430,7 @@ slot_resume(void *arg)
 		slt->laststate = suspend;
 		slt->state = empty;
 		slt->insert_seq = 1;
+		untimeout(inserted, (void *)slt, slt->insert_ch);
 		slt->insert_ch = timeout(inserted, (void *)slt, hz/4);
 		selwakeup(&slt->selp);
 	}
