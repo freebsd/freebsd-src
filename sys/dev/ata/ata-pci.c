@@ -164,8 +164,7 @@ ata_pci_attach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     u_int32_t cmd;
-    u_int8_t progif;
-    int unit, prisec = 0;
+    int unit;
 
     /* do chipset specific setups only needed once */
     if (ata_legacy(dev) || pci_read_config(dev, 0x18, 4) & IOMASK)
@@ -175,10 +174,6 @@ ata_pci_attach(device_t dev)
     ctlr->allocate = ata_pci_allocate;
     ctlr->dmainit = ata_pci_dmainit;
     ctlr->locking = ata_pci_locknoop;
-
-    progif = pci_read_config(dev, PCIR_PROGIF, 1);
-    if ((progif & 0x80))
-	prisec = 1;
 
     /* if needed try to enable busmastering */
     cmd = pci_read_config(dev, PCIR_COMMAND, 2);
@@ -199,7 +194,7 @@ ata_pci_attach(device_t dev)
 
     /* attach all channels on this controller */
     for (unit = 0; unit < ctlr->channels; unit++)
-	device_add_child(dev, "ata", prisec ?
+	device_add_child(dev, "ata", (pci_get_progif(dev) & 0x85) == 0x80 ?
 			 unit : devclass_find_free_unit(ata_devclass, 2));
 
     return bus_generic_attach(dev);
