@@ -31,10 +31,13 @@
  * Code for dealing with the BIOS in x86 PC systems.
  */
 
+#include "opt_pnp.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/bus.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <machine/md_var.h>
@@ -43,6 +46,8 @@
 #include <machine/vmparam.h>
 #include <machine/pc/bios.h>
 #include <isa/pnpreg.h>
+#include <isa/pnpvar.h>
+#include <isa/isavar.h>
 
 #define BIOS_START	0xe0000
 #define BIOS_SIZE	0x20000
@@ -56,10 +61,6 @@ static u_int			bios32_SDCI = 0;
 /* start fairly early */
 static void			bios32_init(void *junk);
 SYSINIT(bios32, SI_SUB_CPU, SI_ORDER_ANY, bios32_init, NULL);
-
-static void	pnpbios_scan(void);
-static char 	*pnp_eisaformat(u_int8_t *data);
-
 
 /*
  * bios32_init
@@ -127,7 +128,6 @@ bios32_init(void *junk)
 		    printf("pnpbios: OEM ID %x\n", pt->oemdevid);
 		
 	    }
-	    pnpbios_scan();
 	} else {
 	    printf("pnpbios: Bad PnP BIOS data checksum\n");
 	}
@@ -450,6 +450,8 @@ bios16(struct bios_args *args, char *fmt, ...)
     return (i);
 }
 
+#ifdef PNPBIOS			/* remove conditional later */
+
 /*
  * PnP BIOS interface; enumerate devices only known to the system
  * BIOS and save information about them for later use.
@@ -484,10 +486,19 @@ struct pnp_sysdevargs
 };
 
 /*
+ * This function is called after the bus has assigned resource
+ * locations for a logical device.
+ */
+static void
+pnpbios_set_config(void *arg, struct isa_config *config, int enable)
+{
+}
+
+/*
  * Quiz the PnP BIOS, build a list of PNP IDs and resource data.
  */
 static void
-pnpbios_scan(void)
+pnpbios_identify(driver_t *driver, device_t parent)
 {
     struct PnPBIOS_table	*pt = PnPBIOStable;
     struct bios_args		args;
@@ -498,6 +509,7 @@ pnpbios_scan(void)
     u_int8_t			*devnodebuf, tag;
     u_int32_t			*devid, *compid;
     int				idx, left;
+    device_t			dev;
         
     /* no PnP BIOS information */
     if (pt == NULL)
@@ -542,6 +554,16 @@ pnpbios_scan(void)
 	    break;
 	}
 	
+	/* Add the device and parse its resources */
+	dev = BUS_ADD_CHILD(parent, ISA_ORDER_PNP, NULL, -1);
+	isa_set_vendorid(dev, pd->devid);
+	isa_set_logicalid(dev, pd->devid);
+	ISA_SET_CONFIG_CALLBACK(parent, dev, pnpbios_set_config, 0);
+	pnp_parse_resources(dev, &pd->devdata[0],
+			    pd->size - sizeof(struct pnp_sysdev));
+	if (!device_get_desc(dev))
+	    device_set_desc_copy(dev, pnp_eisaformat(pd->devid));
+
 	/* Find device IDs */
 	devid = &pd->devid;
 	compid = NULL;
@@ -572,29 +594,30 @@ pnpbios_scan(void)
 	}
 	if (bootverbose) {
 	    printf("pnpbios: handle %d device ID %s (%08x)", 
-		   pd->handle, pnp_eisaformat((u_int8_t *)devid), *devid);
+		   pd->handle, pnp_eisaformat(*devid), *devid);
 	    if (compid != NULL)
 		printf(" compat ID %s (%08x)",
-		       pnp_eisaformat((u_int8_t *)compid), *compid);
+		       pnp_eisaformat(*compid), *compid);
 	    printf("\n");
 	}
     }
 }
 
-/* XXX should be somewhere else */
-static char *
-pnp_eisaformat(u_int8_t *data)
-{
-    static char idbuf[8];
-    const char  hextoascii[] = "0123456789abcdef";
+static device_method_t pnpbios_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_identify,	pnpbios_identify),
 
-    idbuf[0] = '@' + ((data[0] & 0x7c) >> 2);
-    idbuf[1] = '@' + (((data[0] & 0x3) << 3) + ((data[1] & 0xe0) >> 5));
-    idbuf[2] = '@' + (data[1] & 0x1f);
-    idbuf[3] = hextoascii[(data[2] >> 4)];
-    idbuf[4] = hextoascii[(data[2] & 0xf)];
-    idbuf[5] = hextoascii[(data[3] >> 4)];
-    idbuf[6] = hextoascii[(data[3] & 0xf)];
-    idbuf[7] = 0;
-    return(idbuf);
-}
+	{ 0, 0 }
+};
+
+static driver_t pnpbios_driver = {
+	"pnpbios",
+	pnpbios_methods,
+	1,			/* no softc */
+};
+
+static devclass_t pnpbios_devclass;
+
+DRIVER_MODULE(pnpbios, isa, pnpbios_driver, pnpbios_devclass, 0, 0);
+
+#endif /* PNPBIOS */
