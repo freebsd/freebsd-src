@@ -33,6 +33,8 @@ MINIMALDOCPORTS= \
 	ports/devel/imake-4 \
 	ports/devel/libtool13 \
 	ports/devel/libtool15 \
+	ports/devel/p5-File-Spec \
+	ports/devel/p5-File-Temp \
 	ports/devel/pkgconfig \
 	ports/graphics/gd \
 	ports/graphics/jbigkit \
