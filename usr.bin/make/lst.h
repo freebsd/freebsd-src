@@ -120,7 +120,7 @@ ReturnStatus	Lst_Append(Lst *, LstNode *, void *);
 /* Place an element at the end of a lst. */
 #define	Lst_AtEnd(LST, D) 	(Lst_Append((LST), Lst_Last(LST), (D)))
 /* Remove an element */
-ReturnStatus	Lst_Remove(Lst *, LstNode *);
+void		Lst_Remove(Lst *, LstNode *);
 /* Replace a node with a new value */
 #define	Lst_Replace(NODE, D)	(((NODE) == NULL) ? FAILURE : \
 				    (((NODE)->datum = (D)), SUCCESS))
