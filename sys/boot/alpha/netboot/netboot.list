@@ -1,0 +1,1177 @@
+Archive member included       because of file (symbol)
+
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(nfs.o)
+                              conf.o (nfs_fsops)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bootparam.o)
+                              dev_net.o (bp_whoami)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(rarp.o)
+                              dev_net.o (rarp_getipaddress)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bootp.o)
+                              dev_net.o (bootp)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(rpc.o)
+                              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(nfs.o) (rpc_port)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(stat.o)
+                              ls.o (stat)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(dev.o)
+                              dev_net.o (noioctl)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strncpy.o)
+                              boot.o (strncpy)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strcat.o)
+                              misc.o (strcat)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(pager.o)
+                              commands.o (pager_open)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(getopt.o)
+                              ls.o (optind)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(environment.o)
+                              commands.o (environ)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strtol.o)
+                              boot.o (strtol)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strchr.o)
+                              boot.o (strchr)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strerror.o)
+                              commands.o (strerror)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strdup.o)
+                              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(environment.o) (strdup)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(gets.o)
+                              interp.o (ngets)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(zipfs.o)
+                              conf.o (zipfs_fsops)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(read.o)
+                              ls.o (read)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(open.o)
+                              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(read.o) (files)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(close.o)
+                              interp.o (close)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(fstat.o)
+                              ls.o (fstat)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(nullfs.o)
+                              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(zipfs.o) (null_write)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(inflate.o)
+                              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(zipfs.o) (inflateEnd)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(infblock.o)
+                              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(inflate.o) (inflate_blocks_reset)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(adler32.o)
+                              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(inflate.o) (adler32)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strrchr.o)
+                              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(zipfs.o) (strrchr)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strcmp.o)
+                              console.o (strcmp)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(twiddle.o)
+                              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(nfs.o) (twiddle)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(zutil.o)
+                              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(inflate.o) (zcalloc)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(inftrees.o)
+                              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(infblock.o) (inflate_trees_bits)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(infcodes.o)
+                              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(infblock.o) (inflate_codes_new)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(alloc.o)
+                              main.o (setheap)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(inffast.o)
+                              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(infcodes.o) (inflate_fast)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(infutil.o)
+                              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(infblock.o) (inflate_mask)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(net.o)
+                              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bootp.o) (sendudp)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(in_cksum.o)
+                              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(net.o) (in_cksum)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(arp.o)
+                              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(net.o) (arpwhohas)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(ntohl.o)
+                              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(nfs.o) (ntohl)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(htonl.o)
+                              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(nfs.o) (htonl)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(ether.o)
+                              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(rarp.o) (sendether)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(ntohs.o)
+                              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bootparam.o) (ntohs)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(htons.o)
+                              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(nfs.o) (htons)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bcopy.o)
+                              interp.o (bcopy)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bcmp.o)
+                              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(rarp.o) (bcmp)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(globals.o)
+                              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(rarp.o) (bcea)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(netif.o)
+                              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(ether.o) (netif_get)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bzero.o)
+                              start.o (bzero)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(printf.o)
+                              main.o (printf)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(__remqu.o)
+                              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strtol.o) (__remqu)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(__divqu.o)
+                              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strtol.o) (__divqu)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strlen.o)
+                              boot.o (strlen)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bcd.o)
+                              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(printf.o) (hex2ascii_data)
+/mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(srmnet.o)
+                              conf.o (srmnet)
+/mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(devicename.o)
+                              main.o (alpha_getdev)
+/mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(alpha_module.o)
+                              main.o (alpha_boot)
+/mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(time.o)
+                              boot.o (time)
+/mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(delay.o)
+                              main.o (delay)
+/mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(reboot.o)
+                              main.o (reboot)
+/mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(elf_freebsd.o)
+                              conf.o (alpha_elf)
+/mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(OSFpal.o)
+                              main.o (OSFpal)
+/mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(getsecs.o)
+                              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bootp.o) (getsecs)
+/mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(pal.o)
+                              /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(delay.o) (alpha_rpcc)
+/mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(prom_swpal.o)
+                              /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(OSFpal.o) (switch_palcode)
+/mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(prom.o)
+                              conf.o (promconsole)
+/mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(prom_disp.o)
+                              /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(prom.o) (prom_dispatch_v)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(lseek.o)
+                              /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(elf_freebsd.o) (lseek)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(closeall.o)
+                              /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(elf_freebsd.o) (closeall)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strncmp.o)
+                              /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(devicename.o) (strncmp)
+/home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strcpy.o)
+                              /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(devicename.o) (strcpy)
+
+Allocating common symbols
+Common symbol       size              file
+
+servip              0x4               /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bootp.o)
+domainname          0x80              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(globals.o)
+nameip              0x4               /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(globals.o)
+hostnamelen         0x4               /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(globals.o)
+command_errmsg      0x8               commands.o
+rpc_pmap_list       0x80              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(rpc.o)
+errno               0x4               /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(globals.o)
+bp_server_addr      0x4               /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bootparam.o)
+ffp_save            0x8               /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(elf_freebsd.o)
+swapip              0x4               /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(globals.o)
+rootip              0x4               /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(globals.o)
+optarg              0x8               /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(getopt.o)
+rpc_xid             0x4               /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(rpc.o)
+myip                0x4               /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(globals.o)
+hostname            0x80              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(globals.o)
+archsw              0x18              main.o
+ssym                0x8               /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(elf_freebsd.o)
+console             0x4               /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(prom.o)
+command_errbuf      0x100             commands.o
+currdev             0x18              main.o
+dhcp_serverip       0x4               /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bootp.o)
+bootfile            0x80              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(globals.o)
+ptbr_save           0x8               /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(elf_freebsd.o)
+gateip              0x4               /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(globals.o)
+sockets             0x140             /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(netif.o)
+files               0x180             /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(open.o)
+bp_server_port      0x2               /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bootparam.o)
+prom_stats          0x1c              /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(srmnet.o)
+ifname              0x10              /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(globals.o)
+domainnamelen       0x4               /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(globals.o)
+optreset            0x4               /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(getopt.o)
+rpc_pmap_num        0x4               /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(rpc.o)
+broken_firmware     0x4               /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(srmnet.o)
+optopt              0x4               /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(getopt.o)
+prom_dispatch_v     0x10              /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(prom_disp.o)
+esym                0x8               /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(elf_freebsd.o)
+
+Memory Configuration
+
+Name             Origin             Length            
+*default*        0x0000000000000000 0xffffffffffffffff
+
+Linker script and memory map
+
+Address of section .text set to 0x20000000
+LOAD start.o
+LOAD setdef0.o
+LOAD main.o
+LOAD conf.o
+LOAD dev_net.o
+LOAD boot.o
+LOAD commands.o
+LOAD console.o
+LOAD devopen.o
+LOAD interp.o
+LOAD ls.o
+LOAD misc.o
+LOAD module.o
+LOAD panic.o
+LOAD setdef1.o
+LOAD vers.o
+LOAD /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a
+LOAD /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a
+LOAD /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a
+                0x00000001200000b0                .=(0x120000000+SIZEOF_HEADERS)
+
+.interp
+ *(.interp)
+
+.hash
+ *(.hash)
+
+.dynsym
+ *(.dynsym)
+
+.dynstr
+ *(.dynstr)
+
+.gnu.version
+ *(.gnu.version)
+
+.gnu.version_d
+ *(.gnu.version_d)
+
+.gnu.version_r
+ *(.gnu.version_r)
+
+.rel.text
+ *(.rel.text)
+ *(.rel.gnu.linkonce.t*)
+
+.rela.text
+ *(.rela.text)
+ *(.rela.gnu.linkonce.t*)
+
+.rel.data
+ *(.rel.data)
+ *(.rel.gnu.linkonce.d*)
+
+.rela.data      0x00000001200000b0        0x0
+ *(.rela.data)
+ *(.rela.gnu.linkonce.d*)
+
+.rela.set.Xcommand_set
+                0x00000001200000b0        0x0
+
+.rel.rodata
+ *(.rel.rodata)
+ *(.rel.gnu.linkonce.r*)
+
+.rela.rodata
+ *(.rela.rodata)
+ *(.rela.gnu.linkonce.r*)
+
+.rel.got
+ *(.rel.got)
+
+.rela.got
+ *(.rela.got)
+
+.rel.ctors
+ *(.rel.ctors)
+
+.rela.ctors
+ *(.rela.ctors)
+
+.rel.dtors
+ *(.rel.dtors)
+
+.rela.dtors
+ *(.rela.dtors)
+
+.rel.init
+ *(.rel.init)
+
+.rela.init
+ *(.rela.init)
+
+.rel.fini
+ *(.rel.fini)
+
+.rela.fini
+ *(.rela.fini)
+
+.rel.bss
+ *(.rel.bss)
+
+.rela.bss
+ *(.rela.bss)
+
+.rel.plt
+ *(.rel.plt)
+
+.rela.plt
+ *(.rela.plt)
+
+.init
+ *(.init)
+
+.text           0x0000000020000000    0x12660
+ *(.text)
+ .text          0x0000000020000000       0x48 start.o
+                0x000000002000003c                __main
+                0x0000000020000038                _rtt
+                0x0000000020000040                cpu_number
+                0x0000000020000038                halt
+                0x0000000020000000                start
+ *fill*         0x0000000020000048       0x18 1207895071
+ .text          0x0000000020000060      0x3e0 main.o
+                0x0000000020000060                memsize
+                0x00000000200000c8                main
+ .text          0x0000000020000440      0x400 dev_net.o
+ .text          0x0000000020000840      0x580 boot.o
+                0x0000000020000ae8                autoboot
+ .text          0x0000000020000dc0      0x3e0 commands.o
+ .text          0x00000000200011a0      0x480 console.o
+                0x00000000200013f8                putchar
+                0x00000000200011a0                cons_probe
+                0x0000000020001368                ischar
+                0x00000000200012a8                getchar
+ .text          0x0000000020001620       0xf0 devopen.o
+                0x00000000200016d0                devclose
+                0x0000000020001620                devopen
+ *fill*         0x0000000020001710       0x10 1207895071
+ .text          0x0000000020001720      0x5c0 interp.o
+                0x00000000200019e8                interact
+                0x0000000020001b00                source
+ .text          0x0000000020001ce0      0x480 ls.o
+ .text          0x0000000020002160      0x140 misc.o
+                0x0000000020002160                unargv
+ .text          0x00000000200022a0      0x3a0 module.o
+                0x0000000020002578                mod_findmodule
+                0x00000000200023d0                mod_load
+ .text          0x0000000020002640       0xf0 panic.o
+                0x0000000020002640                panic
+ *fill*         0x0000000020002730       0x10 1207895071
+ .text          0x0000000020002740      0xe20 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(nfs.o)
+                0x0000000020002740                nfs_getrootfh
+                0x0000000020002c00                nfs_readdata
+                0x0000000020002dd0                nfs_open
+                0x00000000200028d0                nfs_lookupfh
+                0x0000000020002aa0                nfs_readlink
+ .text          0x0000000020003560      0x890 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bootparam.o)
+                0x0000000020003560                bp_whoami
+                0x0000000020003848                bp_getfile
+                0x0000000020003b08                xdr_string_decode
+                0x0000000020003bd0                xdr_inaddr_encode
+                0x0000000020003a60                xdr_string_encode
+                0x0000000020003cb8                xdr_inaddr_decode
+ .text          0x0000000020003df0      0x420 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(rarp.o)
+                0x0000000020003df0                rarp_getipaddress
+ *fill*         0x0000000020004210       0x10 1207895071
+ .text          0x0000000020004220      0x960 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bootp.o)
+                0x0000000020004220                bootp
+ .text          0x0000000020004b80      0x660 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(rpc.o)
+                0x0000000020004f18                rpc_fromaddr
+                0x0000000020004f58                rpc_pmap_getcache
+                0x0000000020004b80                rpc_call
+                0x0000000020004ff8                rpc_pmap_putcache
+ .text          0x00000000200051e0       0x90 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(stat.o)
+                0x00000000200051e0                stat
+ .text          0x0000000020005270       0x18 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(dev.o)
+                0x0000000020005270                nodev
+                0x0000000020005280                noioctl
+                0x0000000020005278                nullsys
+ *fill*         0x0000000020005288       0x18 1207895071
+ .text          0x00000000200052a0       0xa0 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strncpy.o)
+                0x00000000200052a0                strncpy
+ .text          0x0000000020005340       0x80 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strcat.o)
+                0x0000000020005340                strcat
+ .text          0x00000000200053c0      0x380 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(pager.o)
+                0x0000000020005468                pager_output
+                0x0000000020005450                pager_close
+                0x0000000020005618                pager_file
+                0x00000000200053c0                pager_open
+ .text          0x0000000020005740      0x310 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(getopt.o)
+                0x0000000020005740                getopt
+ *fill*         0x0000000020005a50       0x10 1207895071
+ .text          0x0000000020005a60      0x4a0 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(environment.o)
+                0x0000000020005dc8                unsetenv
+                0x0000000020005ef0                env_nounset
+                0x0000000020005cc0                getenv
+                0x0000000020005d68                putenv
+                0x0000000020005ee8                env_noset
+                0x0000000020005d00                setenv
+                0x0000000020005a60                env_getenv
+                0x0000000020005ae0                env_setenv
+ .text          0x0000000020005f00      0x260 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strtol.o)
+                0x0000000020005f00                strtol
+ .text          0x0000000020006160       0x60 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strchr.o)
+                0x0000000020006160                strchr
+ .text          0x00000000200061c0       0xa0 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strerror.o)
+                0x00000000200061c0                strerror
+ .text          0x0000000020006260       0xa0 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strdup.o)
+                0x0000000020006260                strdup
+ .text          0x0000000020006300      0x340 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(gets.o)
+                0x0000000020006530                fgetstr
+                0x0000000020006300                ngets
+ .text          0x0000000020006640      0x8e0 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(zipfs.o)
+                0x0000000020006640                calloc
+ .text          0x0000000020006f20      0x150 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(read.o)
+                0x0000000020006f20                read
+ *fill*         0x0000000020007070       0x10 1207895071
+ .text          0x0000000020007080      0x220 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(open.o)
+                0x00000000200070c8                open
+ .text          0x00000000200072a0      0x130 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(close.o)
+                0x00000000200072a0                close
+ .text          0x00000000200073d0       0xa0 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(fstat.o)
+                0x00000000200073d0                fstat
+ .text          0x0000000020007470       0xa8 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(nullfs.o)
+                0x00000000200074b8                null_write
+                0x00000000200074f8                null_stat
+                0x0000000020007490                null_close
+                0x0000000020007498                null_read
+                0x0000000020007470                null_open
+                0x00000000200074d8                null_seek
+ *fill*         0x0000000020007518        0x8 1207895071
+ .text          0x0000000020007520      0xc00 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(inflate.o)
+                0x00000000200077d0                inflate
+                0x00000000200080b0                inflateSyncPoint
+                0x00000000200077a0                inflateInit_
+                0x0000000020007520                inflateReset
+                0x0000000020007f18                inflateSync
+                0x0000000020007e10                inflateSetDictionary
+                0x00000000200075a0                inflateEnd
+                0x0000000020007630                inflateInit2_
+ .text          0x0000000020008120     0x1400 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(infblock.o)
+                0x0000000020009428                inflate_blocks_free
+                0x0000000020008310                inflate_blocks
+                0x0000000020008120                inflate_blocks_reset
+                0x0000000020009510                inflate_blocks_sync_point
+                0x00000000200094b0                inflate_set_dictionary
+                0x00000000200081f0                inflate_blocks_new
+ .text          0x0000000020009520      0x240 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(adler32.o)
+                0x0000000020009520                adler32
+ .text          0x0000000020009760       0x60 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strrchr.o)
+                0x0000000020009760                strrchr
+ .text          0x00000000200097c0       0xa0 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strcmp.o)
+                0x00000000200097c0                strcmp
+ .text          0x0000000020009860       0x70 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(twiddle.o)
+                0x0000000020009860                twiddle
+ .text          0x00000000200098d0       0x98 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(zutil.o)
+                0x00000000200098d0                zlibVersion
+                0x0000000020009938                zcfree
+                0x00000000200098e0                zError
+                0x0000000020009900                zcalloc
+ *fill*         0x0000000020009968       0x18 1207895071
+ .text          0x0000000020009980      0xd40 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(inftrees.o)
+                0x000000002000a3d8                inflate_trees_fixed
+                0x000000002000a0b8                inflate_trees_bits
+                0x000000002000a1e0                inflate_trees_dynamic
+ .text          0x000000002000a6c0      0xc40 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(infcodes.o)
+                0x000000002000a6c0                inflate_codes_new
+                0x000000002000a768                inflate_codes
+                0x000000002000b2c0                inflate_codes_free
+ .text          0x000000002000b300      0x1e0 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(alloc.o)
+                0x000000002000b300                setheap
+                0x000000002000b328                malloc
+                0x000000002000b4b8                sbrk
+                0x000000002000b420                free
+ .text          0x000000002000b4e0      0x540 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(inffast.o)
+                0x000000002000b4e0                inflate_fast
+ .text          0x000000002000ba20      0x1e0 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(infutil.o)
+                0x000000002000ba20                inflate_flush
+ .text          0x000000002000bc00      0xe00 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(net.o)
+                0x000000002000c6e0                intoa
+                0x000000002000c8a0                ip_convertaddr
+                0x000000002000c518                inet_addr
+                0x000000002000c358                sendrecv
+                0x000000002000bc00                sendudp
+                0x000000002000c6b0                inet_ntoa
+                0x000000002000bf90                readudp
+ .text          0x000000002000ca00      0x120 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(in_cksum.o)
+                0x000000002000ca00                in_cksum
+ .text          0x000000002000cb20      0x6c0 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(arp.o)
+                0x000000002000cfd0                arp_reply
+                0x000000002000cb20                arpwhohas
+ .text          0x000000002000d1e0       0x2c /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(ntohl.o)
+                0x000000002000d1e0                ntohl
+ .text          0x000000002000d20c       0x2c /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(htonl.o)
+                0x000000002000d20c                htonl
+ *fill*         0x000000002000d238        0x8 1207895071
+ .text          0x000000002000d240      0x2e0 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(ether.o)
+                0x000000002000d460                ether_sprintf
+                0x000000002000d240                sendether
+                0x000000002000d358                readether
+ .text          0x000000002000d520       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(ntohs.o)
+                0x000000002000d520                ntohs
+ .text          0x000000002000d534       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(htons.o)
+                0x000000002000d534                htons
+ .text          0x000000002000d548      0x25c /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bcopy.o)
+                0x000000002000d548                bcopy
+ *fill*         0x000000002000d7a4       0x1c 1207895071
+ .text          0x000000002000d7c0       0x60 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bcmp.o)
+                0x000000002000d7c0                bcmp
+ .text          0x000000002000d820      0x8c0 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(netif.o)
+                0x000000002000dbb0                netif_probe
+                0x000000002000df48                netif_open
+                0x000000002000d8e0                netif_match
+                0x000000002000dce8                netif_detach
+                0x000000002000de38                netif_put
+                0x000000002000dc30                netif_attach
+                0x000000002000df08                socktodesc
+                0x000000002000d910                netif_select
+                0x000000002000dd58                netif_get
+                0x000000002000d820                netif_init
+                0x000000002000e070                netif_close
+ .text          0x000000002000e0e0       0xb0 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bzero.o)
+                0x000000002000e0e0                bzero
+ *fill*         0x000000002000e190       0x10 1207895071
+ .text          0x000000002000e1a0     0x11c0 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(printf.o)
+                0x000000002000e1a0                printf
+                0x000000002000e220                vprintf
+                0x000000002000e260                sprintf
+ .text          0x000000002000f360       0xe4 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(__remqu.o)
+                0x000000002000f360                __remqu
+ .text          0x000000002000f444       0xdc /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(__divqu.o)
+                0x000000002000f444                __divqu
+ .text          0x000000002000f520       0x40 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strlen.o)
+                0x000000002000f520                strlen
+ .text          0x000000002000f560      0xa70 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(srmnet.o)
+                0x000000002000f650                prom_get
+                0x000000002000f560                prom_match
+                0x000000002000f598                prom_probe
+                0x000000002000f810                prom_init
+                0x000000002000f5d0                prom_put
+                0x000000002000ff28                prom_end
+ .text          0x000000002000ffd0      0x8e0 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(devicename.o)
+                0x0000000020010638                alpha_fmtdev
+                0x000000002000ffd0                alpha_getdev
+                0x00000000200107e8                alpha_setcurrdev
+ .text          0x00000000200108b0      0x138 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(alpha_module.o)
+                0x00000000200108b0                alpha_boot
+                0x00000000200109b8                alpha_autoload
+ .text          0x00000000200109e8       0x68 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(time.o)
+                0x00000000200109e8                time
+ .text          0x0000000020010a50       0xb0 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(delay.o)
+                0x0000000020010a50                delay
+ .text          0x0000000020010b00      0x120 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(reboot.o)
+                0x0000000020010b00                reboot
+                0x0000000020010b88                exit
+ .text          0x0000000020010c20      0xdd0 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(elf_freebsd.o)
+ .text          0x00000000200119f0      0x120 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(OSFpal.o)
+                0x00000000200119f0                OSFpal
+ .text          0x0000000020011b10      0x1c8 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(getsecs.o)
+                0x0000000020011b10                getsecs
+ .text          0x0000000020011cd8       0xcc /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(pal.o)
+                0x0000000020011ce0                alpha_mb
+                0x0000000020011d54                alpha_pal_tbi
+                0x0000000020011d8c                alpha_pal_wrmces
+                0x0000000020011d94                alpha_pal_wrval
+                0x0000000020011d84                alpha_pal_wrvptptr
+                0x0000000020011d00                alpha_pal_imb
+                0x0000000020011d74                alpha_pal_wripir
+                0x0000000020011d7c                alpha_pal_wrusp
+                0x0000000020011d3c                alpha_pal_rdval
+                0x0000000020011d9c                alpha_pal_swpctx
+                0x0000000020011d08                alpha_pal_cflush
+                0x0000000020011d4c                _alpha_pal_swpipl
+                0x0000000020011cd8                alpha_rpcc
+                0x0000000020011cf0                alpha_amask
+                0x0000000020011d18                alpha_pal_halt
+                0x0000000020011d64                alpha_pal_wrent
+                0x0000000020011d34                alpha_pal_rdusp
+                0x0000000020011d2c                alpha_pal_rdps
+                0x0000000020011cf8                alpha_implver
+                0x0000000020011d24                alpha_pal_rdmces
+                0x0000000020011d44                alpha_pal_swpipl
+                0x0000000020011d5c                alpha_pal_whami
+                0x0000000020011ce8                alpha_wmb
+                0x0000000020011d10                alpha_pal_draina
+                0x0000000020011d6c                alpha_pal_wrfen
+ *fill*         0x0000000020011da4        0xc 1207895071
+ .text          0x0000000020011db0       0xc0 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(prom_swpal.o)
+                0x0000000020011db0                switch_palcode
+ .text          0x0000000020011e70      0x4e8 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(prom.o)
+                0x0000000020011e70                init_prom_calls
+                0x00000000200121e0                prom_getenv
+                0x0000000020011f98                prom_putchar
+                0x0000000020012040                prom_getchar
+                0x00000000200122c0                prom_open
+ *fill*         0x0000000020012358        0x8 1207895071
+ .text          0x0000000020012360       0x70 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(prom_disp.o)
+                0x0000000020012360                prom_dispatch
+ .text          0x00000000200123d0       0xe0 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(lseek.o)
+                0x00000000200123d0                lseek
+ *fill*         0x00000000200124b0       0x10 1207895071
+ .text          0x00000000200124c0       0x80 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(closeall.o)
+                0x00000000200124c0                closeall
+ .text          0x0000000020012540       0xa0 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strncmp.o)
+                0x0000000020012540                strncmp
+ .text          0x00000000200125e0       0x80 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strcpy.o)
+                0x00000000200125e0                strcpy
+ *(.gnu.warning)
+ *(.gnu.linkonce.t*)
+                0x0000000020012660                _etext=.
+                0x0000000020012660                PROVIDE (etext, .)
+
+.fini
+ *(.fini)
+
+.rodata         0x0000000020012660     0x1e88
+ *(.rodata)
+ .rodata        0x0000000020012660      0x128 main.o
+ .rodata        0x0000000020012788      0x1f0 dev_net.o
+ .rodata        0x0000000020012978      0x188 boot.o
+ .rodata        0x0000000020012b00      0x168 commands.o
+ .rodata        0x0000000020012c68       0x30 console.o
+ .rodata        0x0000000020012c98       0xa0 interp.o
+ .rodata        0x0000000020012d38       0xa8 ls.o
+ .rodata        0x0000000020012de0       0x18 misc.o
+ .rodata        0x0000000020012df8       0xb8 module.o
+ .rodata        0x0000000020012eb0       0x28 panic.o
+ .rodata        0x0000000020012ed8       0x48 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(nfs.o)
+ .rodata        0x0000000020012f20       0x50 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bootparam.o)
+ .rodata        0x0000000020012f70       0x38 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(rarp.o)
+ .rodata        0x0000000020012fa8       0x70 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bootp.o)
+ .rodata        0x0000000020013018       0x50 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(rpc.o)
+ .rodata        0x0000000020013068       0xa8 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(pager.o)
+ .rodata        0x0000000020013110       0x48 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(getopt.o)
+ .rodata        0x0000000020013158        0x8 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(environment.o)
+ .rodata        0x0000000020013160        0x8 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strtol.o)
+ .rodata        0x0000000020013168      0x2a0 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strerror.o)
+ .rodata        0x0000000020013408       0xc0 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(zipfs.o)
+ .rodata        0x00000000200134c8       0xb8 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(inflate.o)
+ .rodata        0x0000000020013580       0xf8 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(infblock.o)
+ .rodata        0x0000000020013678        0x8 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(adler32.o)
+ .rodata        0x0000000020013680        0x8 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(twiddle.o)
+ .rodata        0x0000000020013688       0xa0 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(zutil.o)
+ .rodata        0x0000000020013728      0x318 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(inftrees.o)
+                0x0000000020013728                inflate_copyright
+ .rodata        0x0000000020013a40       0x60 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(infcodes.o)
+ .rodata        0x0000000020013aa0       0x60 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(alloc.o)
+ .rodata        0x0000000020013b00       0x38 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(inffast.o)
+ .rodata        0x0000000020013b38       0x70 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(net.o)
+ .rodata        0x0000000020013ba8       0x48 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(arp.o)
+ .rodata        0x0000000020013bf0      0x168 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(netif.o)
+ .rodata        0x0000000020013d58      0x170 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(printf.o)
+ .rodata        0x0000000020013ec8      0x130 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bcd.o)
+                0x0000000020013fd0                hex2ascii_data
+                0x0000000020013ec8                bcd2bin_data
+                0x0000000020013f68                bin2bcd_data
+ .rodata        0x0000000020013ff8      0x250 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(srmnet.o)
+ .rodata        0x0000000020014248       0x40 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(devicename.o)
+ .rodata        0x0000000020014288        0x8 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(delay.o)
+ .rodata        0x0000000020014290      0x198 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(elf_freebsd.o)
+ .rodata        0x0000000020014428       0x98 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(OSFpal.o)
+ .rodata        0x00000000200144c0        0x8 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(getsecs.o)
+ .rodata        0x00000000200144c8       0x20 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(prom.o)
+ *(.gnu.linkonce.r*)
+
+.rodata1
+ *(.rodata1)
+
+.reginfo
+ *(.reginfo)
+                0x00000000200144e8                .=.
+
+.data           0x00000000200144e8      0x810
+ *(.data)
+ .data          0x00000000200144e8       0x48 main.o
+ .data          0x0000000020014530       0x58 conf.o
+                0x0000000020014568                module_formats
+                0x0000000020014558                netif_drivers
+                0x0000000020014540                file_system
+                0x0000000020014578                consoles
+                0x0000000020014530                devsw
+ .data          0x0000000020014588       0x48 dev_net.o
+                0x0000000020014590                netdev
+                0x0000000020014588                debug
+                0x00000000200145c8                try_bootp
+ .data          0x00000000200145d0       0x40 boot.o
+ .data          0x0000000020014610       0x90 commands.o
+ .data          0x00000000200146a0       0x18 interp.o
+ .data          0x00000000200146b8       0x28 ls.o
+ .data          0x00000000200146e0       0x40 module.o
+                0x00000000200146e8                loaded_modules
+ .data          0x0000000020014720       0x68 vers.o
+                0x0000000020014740                bootprog_rev
+                0x0000000020014748                bootprog_date
+                0x0000000020014768                bootprog_maker
+                0x0000000020014720                bootprog_name
+ .data          0x0000000020014788       0x58 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(nfs.o)
+                0x00000000200147c0                nfs_stat_types
+                0x0000000020014788                nfs_fsops
+ .data          0x00000000200147e0        0x8 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bootp.o)
+ .data          0x00000000200147e8        0x4 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(rpc.o)
+                0x00000000200147e8                rpc_port
+ *fill*         0x00000000200147ec        0x4
+ .data          0x00000000200147f0       0x18 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(pager.o)
+ .data          0x0000000020014808       0x10 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(getopt.o)
+                0x0000000020014808                opterr
+                0x000000002001480c                optind
+ .data          0x0000000020014818        0x8 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(environment.o)
+                0x0000000020014818                environ
+ .data          0x0000000020014820      0x1d0 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strerror.o)
+ .data          0x00000000200149f0       0x40 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(zipfs.o)
+                0x00000000200149f0                zipfs_fsops
+ .data          0x0000000020014a30       0x50 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(zutil.o)
+                0x0000000020014a30                z_errmsg
+ .data          0x0000000020014a80        0x4 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(inftrees.o)
+ *fill*         0x0000000020014a84        0x4
+ .data          0x0000000020014a88        0x8 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(alloc.o)
+                0x0000000020014a88                freelist
+ .data          0x0000000020014a90       0x44 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(infutil.o)
+                0x0000000020014a90                inflate_mask
+ .data          0x0000000020014ad4       0x64 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(arp.o)
+                0x0000000020014b34                arp_num
+                0x0000000020014ad4                arp_list
+ .data          0x0000000020014b38       0x18 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(ether.o)
+ .data          0x0000000020014b50       0x90 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(globals.o)
+                0x0000000020014b58                rootpath
+                0x0000000020014bd8                netmask
+                0x0000000020014b50                bcea
+ .data          0x0000000020014be0        0x4 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(netif.o)
+                0x0000000020014be0                netif_debug
+ *fill*         0x0000000020014be4        0x4
+ .data          0x0000000020014be8       0xb0 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(srmnet.o)
+                0x0000000020014c08                netbbinfo
+                0x0000000020014c90                netfd
+                0x0000000020014be8                prom_ifs
+                0x0000000020014c48                srmnet
+ .data          0x0000000020014c98       0x18 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(elf_freebsd.o)
+                0x0000000020014c98                alpha_elf
+ .data          0x0000000020014cb0       0x48 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(prom.o)
+                0x0000000020014cb0                promconsole
+ *(.gnu.linkonce.d*)
+
+.set.Xcommand_set
+                0x0000000020014cf8       0x88
+ .set.Xcommand_set
+                0x0000000020014cf8        0x8 setdef0.o
+                0x0000000020014cf8                Xcommand_set
+ .set.Xcommand_set
+                0x0000000020014d00       0x18 main.o
+ .set.Xcommand_set
+                0x0000000020014d18       0x10 boot.o
+ .set.Xcommand_set
+                0x0000000020014d28       0x30 commands.o
+ .set.Xcommand_set
+                0x0000000020014d58        0x8 interp.o
+ .set.Xcommand_set
+                0x0000000020014d60        0x8 ls.o
+ .set.Xcommand_set
+                0x0000000020014d68       0x10 module.o
+ .set.Xcommand_set
+                0x0000000020014d78        0x8 setdef1.o
+
+.data1
+ *(.data1)
+
+.ctors
+ *(.ctors)
+
+.dtors
+ *(.dtors)
+
+.plt
+ *(.plt)
+
+.got            0x0000000020014d80      0xeb8
+ *(.got.plt)
+ *(.got)
+ .got           0x0000000020014d80      0xeb8 start.o
+
+.dynamic
+ *(.dynamic)
+
+.sdata
+ *(.sdata)
+                0x0000000020015c38                _edata=.
+                0x0000000020015c38                PROVIDE (edata, .)
+                0x0000000020015c38                __bss_start=.
+
+.sbss
+ *(.sbss)
+ *(.scommon)
+
+.bss            0x0000000020015c40     0x24f0
+ *(.dynbss)
+ *(.bss)
+ .bss           0x0000000020015c40        0x4 dev_net.o
+ *fill*         0x0000000020015c44        0x4
+ .bss           0x0000000020015c48       0xb0 interp.o
+ .bss           0x0000000020015cf8       0x78 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(nfs.o)
+ .bss           0x0000000020015d70       0x10 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bootp.o)
+ .bss           0x0000000020015d80        0x4 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(pager.o)
+ .bss           0x0000000020015d84       0x20 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strerror.o)
+ *fill*         0x0000000020015da4        0x4
+ .bss           0x0000000020015da8        0x8 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(zipfs.o)
+ .bss           0x0000000020015db0        0x4 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(twiddle.o)
+ *fill*         0x0000000020015db4        0x4
+ .bss           0x0000000020015db8     0x1a98 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(inftrees.o)
+ .bss           0x0000000020017850       0x18 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(alloc.o)
+ .bss           0x0000000020017868       0x11 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(net.o)
+ .bss           0x0000000020017879       0x12 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(ether.o)
+ *fill*         0x000000002001788b        0x5
+ .bss           0x0000000020017890       0x18 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(netif.o)
+ .bss           0x00000000200178a8       0x17 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(printf.o)
+ .bss           0x00000000200178bf       0x80 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(devicename.o)
+ *fill*         0x000000002001793f        0x1
+ .bss           0x0000000020017940      0x100 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(elf_freebsd.o)
+ .bss           0x0000000020017a40       0x18 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(getsecs.o)
+ *(COMMON)
+ COMMON         0x0000000020017a58       0x30 main.o
+                0x0000000020017a58                archsw
+                0x0000000020017a70                currdev
+ *fill*         0x0000000020017a88        0x8
+ COMMON         0x0000000020017a90      0x110 commands.o
+                0x0000000020017a90                command_errmsg
+                0x0000000020017aa0                command_errbuf
+ COMMON         0x0000000020017ba0        0x6 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bootparam.o)
+                0x0000000020017ba0                bp_server_addr
+                0x0000000020017ba4                bp_server_port
+ *fill*         0x0000000020017ba6        0x2
+ COMMON         0x0000000020017ba8        0x8 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bootp.o)
+                0x0000000020017ba8                servip
+                0x0000000020017bac                dhcp_serverip
+ COMMON         0x0000000020017bb0       0x88 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(rpc.o)
+                0x0000000020017bb0                rpc_pmap_list
+                0x0000000020017c30                rpc_xid
+                0x0000000020017c34                rpc_pmap_num
+ COMMON         0x0000000020017c38       0x10 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(getopt.o)
+                0x0000000020017c38                optarg
+                0x0000000020017c40                optreset
+                0x0000000020017c44                optopt
+ COMMON         0x0000000020017c48      0x180 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(open.o)
+                0x0000000020017c48                files
+ *fill*         0x0000000020017dc8        0x8
+ COMMON         0x0000000020017dd0      0x1c4 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(globals.o)
+                0x0000000020017dd0                domainname
+                0x0000000020017e50                nameip
+                0x0000000020017e54                hostnamelen
+                0x0000000020017e58                errno
+                0x0000000020017e5c                swapip
+                0x0000000020017e60                rootip
+                0x0000000020017e64                myip
+                0x0000000020017e70                hostname
+                0x0000000020017ef0                bootfile
+                0x0000000020017f70                gateip
+                0x0000000020017f80                ifname
+                0x0000000020017f90                domainnamelen
+ *fill*         0x0000000020017f94        0x4
+ COMMON         0x0000000020017f98      0x140 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(netif.o)
+                0x0000000020017f98                sockets
+ COMMON         0x00000000200180d8       0x20 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(srmnet.o)
+                0x00000000200180d8                prom_stats
+                0x00000000200180f4                broken_firmware
+ COMMON         0x00000000200180f8       0x20 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(elf_freebsd.o)
+                0x00000000200180f8                ffp_save
+                0x0000000020018100                ssym
+                0x0000000020018108                ptbr_save
+                0x0000000020018110                esym
+ COMMON         0x0000000020018118        0x4 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(prom.o)
+                0x0000000020018118                console
+ *fill*         0x000000002001811c        0x4
+ COMMON         0x0000000020018120       0x10 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(prom_disp.o)
+                0x0000000020018120                prom_dispatch_v
+                0x0000000020018130                _end=.
+                0x0000000020018130                PROVIDE (end, .)
+
+.stab
+ *(.stab)
+
+.stabstr
+ *(.stabstr)
+
+.stab.excl
+ *(.stab.excl)
+
+.stab.exclstr
+ *(.stab.exclstr)
+
+.stab.index
+ *(.stab.index)
+
+.stab.indexstr
+ *(.stab.indexstr)
+
+.comment        0x0000000000000000      0x5c8
+ *(.comment)
+ .comment       0x0000000000000000       0x14 setdef0.o
+ .comment       0x0000000000000014       0x14 main.o
+ .comment       0x0000000000000028       0x14 conf.o
+ .comment       0x000000000000003c       0x14 dev_net.o
+ .comment       0x0000000000000050       0x14 boot.o
+ .comment       0x0000000000000064       0x14 commands.o
+ .comment       0x0000000000000078       0x14 console.o
+ .comment       0x000000000000008c       0x14 devopen.o
+ .comment       0x00000000000000a0       0x14 interp.o
+ .comment       0x00000000000000b4       0x14 ls.o
+ .comment       0x00000000000000c8       0x14 misc.o
+ .comment       0x00000000000000dc       0x14 module.o
+ .comment       0x00000000000000f0       0x14 panic.o
+ .comment       0x0000000000000104       0x14 setdef1.o
+ .comment       0x0000000000000118       0x14 vers.o
+ .comment       0x000000000000012c       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(nfs.o)
+ .comment       0x0000000000000140       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bootparam.o)
+ .comment       0x0000000000000154       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(rarp.o)
+ .comment       0x0000000000000168       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bootp.o)
+ .comment       0x000000000000017c       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(rpc.o)
+ .comment       0x0000000000000190       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(stat.o)
+ .comment       0x00000000000001a4       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(dev.o)
+ .comment       0x00000000000001b8       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strncpy.o)
+ .comment       0x00000000000001cc       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strcat.o)
+ .comment       0x00000000000001e0       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(pager.o)
+ .comment       0x00000000000001f4       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(getopt.o)
+ .comment       0x0000000000000208       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(environment.o)
+ .comment       0x000000000000021c       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strtol.o)
+ .comment       0x0000000000000230       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strchr.o)
+ .comment       0x0000000000000244       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strerror.o)
+ .comment       0x0000000000000258       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strdup.o)
+ .comment       0x000000000000026c       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(gets.o)
+ .comment       0x0000000000000280       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(zipfs.o)
+ .comment       0x0000000000000294       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(read.o)
+ .comment       0x00000000000002a8       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(open.o)
+ .comment       0x00000000000002bc       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(close.o)
+ .comment       0x00000000000002d0       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(fstat.o)
+ .comment       0x00000000000002e4       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(nullfs.o)
+ .comment       0x00000000000002f8       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(inflate.o)
+ .comment       0x000000000000030c       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(infblock.o)
+ .comment       0x0000000000000320       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(adler32.o)
+ .comment       0x0000000000000334       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strrchr.o)
+ .comment       0x0000000000000348       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strcmp.o)
+ .comment       0x000000000000035c       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(twiddle.o)
+ .comment       0x0000000000000370       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(zutil.o)
+ .comment       0x0000000000000384       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(inftrees.o)
+ .comment       0x0000000000000398       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(infcodes.o)
+ .comment       0x00000000000003ac       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(alloc.o)
+ .comment       0x00000000000003c0       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(inffast.o)
+ .comment       0x00000000000003d4       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(infutil.o)
+ .comment       0x00000000000003e8       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(net.o)
+ .comment       0x00000000000003fc       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(in_cksum.o)
+ .comment       0x0000000000000410       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(arp.o)
+ .comment       0x0000000000000424       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(ether.o)
+ .comment       0x0000000000000438       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bcmp.o)
+ .comment       0x000000000000044c       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(globals.o)
+ .comment       0x0000000000000460       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(netif.o)
+ .comment       0x0000000000000474       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(printf.o)
+ .comment       0x0000000000000488       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strlen.o)
+ .comment       0x000000000000049c       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bcd.o)
+ .comment       0x00000000000004b0       0x14 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(srmnet.o)
+ .comment       0x00000000000004c4       0x14 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(devicename.o)
+ .comment       0x00000000000004d8       0x14 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(alpha_module.o)
+ .comment       0x00000000000004ec       0x14 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(time.o)
+ .comment       0x0000000000000500       0x14 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(delay.o)
+ .comment       0x0000000000000514       0x14 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(reboot.o)
+ .comment       0x0000000000000528       0x14 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(elf_freebsd.o)
+ .comment       0x000000000000053c       0x14 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(OSFpal.o)
+ .comment       0x0000000000000550       0x14 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(getsecs.o)
+ .comment       0x0000000000000564       0x14 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(prom.o)
+ .comment       0x0000000000000578       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(lseek.o)
+ .comment       0x000000000000058c       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(closeall.o)
+ .comment       0x00000000000005a0       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strncmp.o)
+ .comment       0x00000000000005b4       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strcpy.o)
+
+.debug
+ *(.debug)
+
+.line
+ *(.line)
+
+.debug_srcinfo
+ *(.debug_srcinfo)
+
+.debug_sfnames
+ *(.debug_sfnames)
+
+.debug_aranges
+ *(.debug_aranges)
+
+.debug_pubnames
+ *(.debug_pubnames)
+
+.debug_info
+ *(.debug_info)
+
+.debug_abbrev
+ *(.debug_abbrev)
+
+.debug_line
+ *(.debug_line)
+
+.debug_frame
+ *(.debug_frame)
+
+.debug_str
+ *(.debug_str)
+
+.debug_loc
+ *(.debug_loc)
+
+.debug_macinfo
+ *(.debug_macinfo)
+
+.debug_weaknames
+ *(.debug_weaknames)
+
+.debug_funcnames
+ *(.debug_funcnames)
+
+.debug_typenames
+ *(.debug_typenames)
+
+.debug_varnames
+ *(.debug_varnames)
+OUTPUT(netboot.sym elf64-alpha)
+
+.mdebug         0x00000000000005c8    0x10ef0
+ .mdebug        0x00000000000005c8      0x858 start.o
+ .mdebug        0x0000000000000e20      0x1e0 setdef0.o
+ .mdebug        0x0000000000001000      0xab8 main.o
+ .mdebug        0x0000000000001ab8      0x330 conf.o
+ .mdebug        0x0000000000001de8      0xa28 dev_net.o
+ .mdebug        0x0000000000002810      0x8c0 boot.o
+ .mdebug        0x00000000000030d0      0xb00 commands.o
+ .mdebug        0x0000000000003bd0      0x788 console.o
+ .mdebug        0x0000000000004358      0x3d0 devopen.o
+ .mdebug        0x0000000000004728      0x968 interp.o
+ .mdebug        0x0000000000005090      0x540 ls.o
+ .mdebug        0x00000000000055d0      0x330 misc.o
+ .mdebug        0x0000000000005900      0x790 module.o
+ .mdebug        0x0000000000006090      0x310 panic.o
+ .mdebug        0x00000000000063a0      0x1b8 setdef1.o
+ .mdebug        0x0000000000006558      0x248 vers.o
+ .mdebug        0x00000000000067a0      0xd00 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(nfs.o)
+ .mdebug        0x00000000000074a0      0xa40 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bootparam.o)
+ .mdebug        0x0000000000007ee0      0x620 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(rarp.o)
+ .mdebug        0x0000000000008500      0x960 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bootp.o)
+ .mdebug        0x0000000000008e60      0x908 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(rpc.o)
+ .mdebug        0x0000000000009768      0x308 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(stat.o)
+ .mdebug        0x0000000000009a70      0x418 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(dev.o)
+ .mdebug        0x0000000000009e88      0x288 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strncpy.o)
+ .mdebug        0x000000000000a110      0x288 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strcat.o)
+ .mdebug        0x000000000000a398      0x7a0 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(pager.o)
+ .mdebug        0x000000000000ab38      0x3d0 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(getopt.o)
+ .mdebug        0x000000000000af08      0xa30 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(environment.o)
+ .mdebug        0x000000000000b938      0x318 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strtol.o)
+ .mdebug        0x000000000000bc50      0x288 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strchr.o)
+ .mdebug        0x000000000000bed8      0x350 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strerror.o)
+ .mdebug        0x000000000000c228      0x318 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strdup.o)
+ .mdebug        0x000000000000c540      0x3e0 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(gets.o)
+ .mdebug        0x000000000000c920      0xc28 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(zipfs.o)
+ .mdebug        0x000000000000d548      0x308 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(read.o)
+ .mdebug        0x000000000000d850      0x430 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(open.o)
+ .mdebug        0x000000000000dc80      0x310 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(close.o)
+ .mdebug        0x000000000000df90      0x2f0 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(fstat.o)
+ .mdebug        0x000000000000e280      0x720 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(nullfs.o)
+ .mdebug        0x000000000000e9a0      0xac8 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(inflate.o)
+ .mdebug        0x000000000000f468      0x9a0 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(infblock.o)
+ .mdebug        0x000000000000fe08      0x2c0 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(adler32.o)
+ .mdebug        0x00000000000100c8      0x288 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strrchr.o)
+ .mdebug        0x0000000000010350      0x288 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strcmp.o)
+ .mdebug        0x00000000000105d8      0x318 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(twiddle.o)
+ .mdebug        0x00000000000108f0      0x590 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(zutil.o)
+ .mdebug        0x0000000000010e80      0x830 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(inftrees.o)
+ .mdebug        0x00000000000116b0      0x538 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(infcodes.o)
+ .mdebug        0x0000000000011be8      0x618 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(alloc.o)
+ .mdebug        0x0000000000012200      0x2f8 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(inffast.o)
+ .mdebug        0x00000000000124f8      0x320 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(infutil.o)
+ .mdebug        0x0000000000012818      0xad8 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(net.o)
+ .mdebug        0x00000000000132f0      0x290 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(in_cksum.o)
+ .mdebug        0x0000000000013580      0x6f0 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(arp.o)
+ .mdebug        0x0000000000013c70      0x888 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(ntohl.o)
+ .mdebug        0x00000000000144f8      0x888 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(htonl.o)
+ .mdebug        0x0000000000014d80      0x5d8 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(ether.o)
+ .mdebug        0x0000000000015358      0x880 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(ntohs.o)
+ .mdebug        0x0000000000015bd8      0x880 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(htons.o)
+ .mdebug        0x0000000000016458      0xbc0 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bcopy.o)
+ .mdebug        0x0000000000017018      0x278 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bcmp.o)
+ .mdebug        0x0000000000017290      0x3a0 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(globals.o)
+ .mdebug        0x0000000000017630      0xc98 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(netif.o)
+ .mdebug        0x00000000000182c8      0x828 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bzero.o)
+ .mdebug        0x0000000000018af0      0x6e0 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(printf.o)
+ .mdebug        0x00000000000191d0      0x708 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(__remqu.o)
+ .mdebug        0x00000000000198d8      0x700 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(__divqu.o)
+ .mdebug        0x0000000000019fd8      0x288 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strlen.o)
+ .mdebug        0x000000000001a260      0x228 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bcd.o)
+ .mdebug        0x000000000001a488      0x9b0 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(srmnet.o)
+ .mdebug        0x000000000001ae38      0x740 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(devicename.o)
+ .mdebug        0x000000000001b578      0x408 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(alpha_module.o)
+ .mdebug        0x000000000001b980      0x2d0 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(time.o)
+ .mdebug        0x000000000001bc50      0x2d8 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(delay.o)
+ .mdebug        0x000000000001bf28      0x3a0 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(reboot.o)
+ .mdebug        0x000000000001c2c8      0x770 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(elf_freebsd.o)
+ .mdebug        0x000000000001ca38      0x320 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(OSFpal.o)
+ .mdebug        0x000000000001cd58      0x3b8 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(getsecs.o)
+ .mdebug        0x000000000001d110     0x18b8 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(pal.o)
+ .mdebug        0x000000000001e9c8      0xae0 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(prom_swpal.o)
+ .mdebug        0x000000000001f4a8      0x9b8 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(prom.o)
+ .mdebug        0x000000000001fe60      0xaa0 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(prom_disp.o)
+ .mdebug        0x0000000000020900      0x2f0 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(lseek.o)
+ .mdebug        0x0000000000020bf0      0x2f8 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(closeall.o)
+ .mdebug        0x0000000000020ee8      0x288 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strncmp.o)
+ .mdebug        0x0000000000021170      0x288 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strcpy.o)
+
+.note           0x00000000000213f8      0x5c8
+ .note          0x00000000000213f8       0x14 setdef0.o
+ .note          0x000000000002140c       0x14 main.o
+ .note          0x0000000000021420       0x14 conf.o
+ .note          0x0000000000021434       0x14 dev_net.o
+ .note          0x0000000000021448       0x14 boot.o
+ .note          0x000000000002145c       0x14 commands.o
+ .note          0x0000000000021470       0x14 console.o
+ .note          0x0000000000021484       0x14 devopen.o
+ .note          0x0000000000021498       0x14 interp.o
+ .note          0x00000000000214ac       0x14 ls.o
+ .note          0x00000000000214c0       0x14 misc.o
+ .note          0x00000000000214d4       0x14 module.o
+ .note          0x00000000000214e8       0x14 panic.o
+ .note          0x00000000000214fc       0x14 setdef1.o
+ .note          0x0000000000021510       0x14 vers.o
+ .note          0x0000000000021524       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(nfs.o)
+ .note          0x0000000000021538       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bootparam.o)
+ .note          0x000000000002154c       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(rarp.o)
+ .note          0x0000000000021560       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bootp.o)
+ .note          0x0000000000021574       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(rpc.o)
+ .note          0x0000000000021588       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(stat.o)
+ .note          0x000000000002159c       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(dev.o)
+ .note          0x00000000000215b0       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strncpy.o)
+ .note          0x00000000000215c4       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strcat.o)
+ .note          0x00000000000215d8       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(pager.o)
+ .note          0x00000000000215ec       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(getopt.o)
+ .note          0x0000000000021600       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(environment.o)
+ .note          0x0000000000021614       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strtol.o)
+ .note          0x0000000000021628       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strchr.o)
+ .note          0x000000000002163c       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strerror.o)
+ .note          0x0000000000021650       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strdup.o)
+ .note          0x0000000000021664       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(gets.o)
+ .note          0x0000000000021678       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(zipfs.o)
+ .note          0x000000000002168c       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(read.o)
+ .note          0x00000000000216a0       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(open.o)
+ .note          0x00000000000216b4       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(close.o)
+ .note          0x00000000000216c8       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(fstat.o)
+ .note          0x00000000000216dc       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(nullfs.o)
+ .note          0x00000000000216f0       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(inflate.o)
+ .note          0x0000000000021704       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(infblock.o)
+ .note          0x0000000000021718       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(adler32.o)
+ .note          0x000000000002172c       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strrchr.o)
+ .note          0x0000000000021740       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strcmp.o)
+ .note          0x0000000000021754       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(twiddle.o)
+ .note          0x0000000000021768       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(zutil.o)
+ .note          0x000000000002177c       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(inftrees.o)
+ .note          0x0000000000021790       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(infcodes.o)
+ .note          0x00000000000217a4       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(alloc.o)
+ .note          0x00000000000217b8       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(inffast.o)
+ .note          0x00000000000217cc       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(infutil.o)
+ .note          0x00000000000217e0       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(net.o)
+ .note          0x00000000000217f4       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(in_cksum.o)
+ .note          0x0000000000021808       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(arp.o)
+ .note          0x000000000002181c       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(ether.o)
+ .note          0x0000000000021830       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bcmp.o)
+ .note          0x0000000000021844       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(globals.o)
+ .note          0x0000000000021858       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(netif.o)
+ .note          0x000000000002186c       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(printf.o)
+ .note          0x0000000000021880       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strlen.o)
+ .note          0x0000000000021894       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(bcd.o)
+ .note          0x00000000000218a8       0x14 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(srmnet.o)
+ .note          0x00000000000218bc       0x14 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(devicename.o)
+ .note          0x00000000000218d0       0x14 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(alpha_module.o)
+ .note          0x00000000000218e4       0x14 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(time.o)
+ .note          0x00000000000218f8       0x14 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(delay.o)
+ .note          0x000000000002190c       0x14 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(reboot.o)
+ .note          0x0000000000021920       0x14 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(elf_freebsd.o)
+ .note          0x0000000000021934       0x14 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(OSFpal.o)
+ .note          0x0000000000021948       0x14 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(getsecs.o)
+ .note          0x000000000002195c       0x14 /mnt/herring/b/dfr/FreeBSD/boot/newboot/alpha/netboot/../libalpha/obj/libalpha.a(prom.o)
+ .note          0x0000000000021970       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(lseek.o)
+ .note          0x0000000000021984       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(closeall.o)
+ .note          0x0000000000021998       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strncmp.o)
+ .note          0x00000000000219ac       0x14 /home/dfr/FreeBSD/alpha/src/lib/libstand/obj/libstand.a(strcpy.o)
