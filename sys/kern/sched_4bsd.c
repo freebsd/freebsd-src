@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/sx.h>
+#include <machine/smp.h>
 
 /*
  * INVERSE_ESTCPU_WEIGHT is only suitable for statclock() frequencies in
