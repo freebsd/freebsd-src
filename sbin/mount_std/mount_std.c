@@ -43,7 +43,7 @@ char copyright[] =
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mount_std.c,v 1.5 1997/02/22 14:32:59 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -72,7 +72,8 @@ main(argc, argv)
 	char *argv[];
 {
 	int ch, mntflags;
-	struct vfsconf *vfc;
+	struct vfsconf vfc;
+	int error;
 
 	/*
 	 * XXX
@@ -106,18 +107,17 @@ main(argc, argv)
 	if (argc != 2)
 		usage();
 
-	vfc = getvfsbyname(fsname);
-	if(!vfc && vfsisloadable(fsname)) {
-		if(vfsload(fsname)) {
+	error = getvfsbyname(fsname, &vfc);
+	if (error && vfsisloadable(fsname)) {
+		if(vfsload(fsname))
 			err(EX_OSERR, "vfsload(%s)", fsname);
-		}
 		endvfsent();
-		vfc = getvfsbyname(fsname);
+		error = getvfsbyname(fsname, &vfc);
 	}
-	if (!vfc)
+	if (error)
 		errx(EX_OSERR, "%s filesystem not available", fsname);
 
-	if (mount(vfc->vfc_index, argv[1], mntflags, NULL))
+	if (mount(vfc.vfc_name, argv[1], mntflags, NULL))
 		err(EX_OSERR, NULL);
 	exit(0);
 }
