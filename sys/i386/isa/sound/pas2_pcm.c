@@ -34,9 +34,9 @@
 
 #include "pas.h"
 
-extern int pcm_set_bits __P((int arg));
-extern int pcm_set_channels __P((int arg));
-extern int pcm_set_speed __P((int arg));
+static int pcm_set_bits __P((int arg));
+static int pcm_set_channels __P((int arg));
+static int pcm_set_speed __P((int arg));
 
 #if !defined(EXCLUDE_PAS) && !defined(EXCLUDE_AUDIO)
 
@@ -61,7 +61,7 @@ static unsigned long pcm_count = 0;
 static unsigned short pcm_bitsok = 8;	/* mask of OK bits */
 static int      my_devnum = 0;
 
-int
+static int
 pcm_set_speed (int arg)
 {
   int             foo, tmp;
@@ -120,7 +120,7 @@ pcm_set_speed (int arg)
   return pcm_speed;
 }
 
-int
+static int
 pcm_set_channels (int arg)
 {
 
@@ -140,7 +140,7 @@ pcm_set_channels (int arg)
   return pcm_channels;
 }
 
-int
+static int
 pcm_set_bits (int arg)
 {
   if ((arg & pcm_bitsok) != arg)

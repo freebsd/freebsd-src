@@ -36,8 +36,8 @@
 #include "pas.h"
 
 extern void mix_write __P((unsigned char data, int ioaddr));
-extern int pas_mixer_ioctl __P((int dev, unsigned int cmd, unsigned int arg));
-extern void set_mode __P((int new_mode));
+static int pas_mixer_ioctl __P((int dev, unsigned int cmd, unsigned int arg));
+static void set_mode __P((int new_mode));
 
 #define TRACE(what)		/* (what) */
 
@@ -126,7 +126,7 @@ mixer_output (int right_vol, int left_vol, int div, int bits,
   return (left_vol | (right_vol << 8));
 }
 
-void
+static void
 set_mode (int new_mode)
 {
   mix_write (P_M_MV508_ADDRESS | P_M_MV508_MODE, PARALLEL_MIXER);
