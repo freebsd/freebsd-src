@@ -44,9 +44,9 @@
 
 #include <machine/resource.h>
 
-#include <pci/pcivar.h>
-#include <pci/pcireg.h>
-#include <pci/pcib_private.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcib_private.h>
 
 #include "pcib_if.h"
 

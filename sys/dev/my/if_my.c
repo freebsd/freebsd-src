@@ -64,8 +64,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/rman.h>
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
@@ -91,7 +91,7 @@ static int      MY_USEIOSPACE = 1;
 
 #ifndef lint
 static          const char rcsid[] =
-"$Id: if_my.c,v 1.50 2001/12/03 04:15:33 <yen_cw@myson.com.tw> wpaul Exp $";
+"$Id: if_my.c,v 1.16 2003/04/15 06:37:25 mdodd Exp $";
 #endif
 
 /*

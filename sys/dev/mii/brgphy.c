@@ -58,8 +58,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <dev/bge/if_bgereg.h>
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include "miibus_if.h"
 
