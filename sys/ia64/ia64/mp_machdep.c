@@ -159,7 +159,7 @@ cpu_mp_probe()
 }
 
 void
-cpu_mp_add(uint acpiid, uint apicid, uint apiceid)
+cpu_mp_add(u_int acpiid, u_int apicid, u_int apiceid)
 {
 	struct pcpu *pc;
 	u_int64_t lid;

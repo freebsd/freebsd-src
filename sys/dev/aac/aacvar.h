@@ -314,7 +314,7 @@ struct aac_softc
 	/* command/fib resources */
 	bus_dma_tag_t		aac_fib_dmat;	/* DMA tag for allocing FIBs */
 	TAILQ_HEAD(,aac_fibmap)	aac_fibmap_tqh;
-	uint			total_fibs;
+	u_int			total_fibs;
 	struct aac_command	*aac_commands;
 
 	/* command management */

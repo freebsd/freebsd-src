@@ -187,10 +187,10 @@ struct ppb_device {
 
 	const char *name;		/* name of the device */
 
-	ushort mode;			/* current mode of the device */
-	ushort avm;			/* available IEEE1284 modes of 
+	u_short mode;			/* current mode of the device */
+	u_short avm;			/* available IEEE1284 modes of 
 					 * the device */
-	uint flags;			/* flags */
+	u_int flags;			/* flags */
 
 	struct ppb_context ctx;		/* context of the device */
 

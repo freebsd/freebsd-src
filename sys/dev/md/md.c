@@ -132,9 +132,9 @@ static int nshift;
 
 struct indir {
 	uintptr_t	*array;
-	uint		total;
-	uint		used;
-	uint		shift;
+	u_int		total;
+	u_int		used;
+	u_int		shift;
 };
 
 struct md_s {
@@ -174,7 +174,7 @@ struct md_s {
 static int mddestroy(struct md_s *sc, struct thread *td);
 
 static struct indir *
-new_indir(uint shift)
+new_indir(u_int shift)
 {
 	struct indir *ip;
 

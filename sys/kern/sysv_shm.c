@@ -402,8 +402,8 @@ shmat(td, uap)
 struct oshmid_ds {
 	struct	ipc_perm shm_perm;	/* operation perms */
 	int	shm_segsz;		/* size of segment (bytes) */
-	ushort	shm_cpid;		/* pid, creator */
-	ushort	shm_lpid;		/* pid, last operation */
+	u_short	shm_cpid;		/* pid, creator */
+	u_short	shm_lpid;		/* pid, last operation */
 	short	shm_nattch;		/* no. of current attaches */
 	time_t	shm_atime;		/* last attach time */
 	time_t	shm_dtime;		/* last detach time */

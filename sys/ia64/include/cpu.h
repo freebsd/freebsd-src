@@ -120,7 +120,7 @@ int	ia64_count_cpus(void);
 void	map_gateway_page(void);
 void	map_pal_code(void);
 void	map_port_space(void);
-void	cpu_mp_add(uint, uint, uint);
+void	cpu_mp_add(u_int, u_int, u_int);
 
 /*
  * Return contents of in-cpu fast counter as a sort of "bogo-time"

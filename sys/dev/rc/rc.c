@@ -1012,7 +1012,7 @@ rc_hardclose(struct rc_chans *rc)
 
 /* Reset the bastard */
 static void
-rc_hwreset(struct rc_softc *sc, uint chipid)
+rc_hwreset(struct rc_softc *sc, u_int chipid)
 {
 	CCRCMD(sc, -1, CCR_HWRESET);            /* Hardware reset */
 	DELAY(20000);
