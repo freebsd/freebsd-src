@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.43 1998/09/23 14:50:26 jkh Exp $
+ *  $Id: linux_misc.c,v 1.44 1998/09/24 13:25:43 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -745,7 +745,7 @@ linux_newuname(struct proc *p, struct linux_newuname_args *args)
 #ifdef DEBUG
     printf("Linux-emul(%d): newuname(*)\n", p->p_pid);
 #endif
-    bzero(&linux_newuname, sizeof(struct linux_newuname_args));
+    bzero(&linux_newuname, sizeof(struct linux_newuname_t));
     strncpy(linux_newuname.sysname, ostype, 64);
     strncpy(linux_newuname.nodename, hostname, 64);
     strncpy(linux_newuname.release, osrelease, 64);
