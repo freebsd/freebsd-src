@@ -88,12 +88,11 @@ ENTRY(cpu_switch)
 	stw	%r16,PCB_USR(%r3)
 	stw	%r1,PCB_SP(%r3)		/* Save the stack pointer */
 
-#if 0
-	lwz	%r29,PCB_FLAGS(%r3)
-	andi.	%r9, %r29, 1		/* XXX - don't hard code */
+	lwz	%r5,PCB_FLAGS(%r3)	/* Save FPU context if needed */
+	andi.	%r5, %r5, PCB_FPU
 	beq	.L1
+	mr	%r3,%r15
 	bl	save_fpu
-#endif
 
 .L1:
 	bl	choosethread		/* Find a new thread to run */
@@ -111,16 +110,14 @@ ENTRY(cpu_switch)
 	mfsprg	%r4,0			/* Get the pcpu pointer */
 	stw	%r16,PC_CURTHREAD(%r4)	/* Store new current thread */
 	mr	%r3,%r16		/*   and save in r3 */
-	lwz	%r16,TD_PCB(%r16)	/* Store new current PCB */
-	stw	%r16,PC_CURPCB(%r4)
+	lwz	%r17,TD_PCB(%r16)	/* Store new current PCB */
+	stw	%r17,PC_CURPCB(%r4)
 
-#if 0
-	lwz	%r29, PCB_FLAGS(%r4)	/* Restore FPU regs if needed */
-	andi.	%r9, %r29, 1
+	lwz	%r5, PCB_FLAGS(%r17)	/* Restore FPU context if needed */
+	andi.	%r5, %r5, PCB_FPU
 	beq	.L2
-	mr	%r3, %r4
 	bl	enable_fpu
-#endif
+	mr	%r3,%r16		/* Recover new curthread */
 
 	/* thread to restore is in r3 */
 .L2:
