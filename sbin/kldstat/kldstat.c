@@ -91,11 +91,14 @@ main(int argc, char** argv)
     int verbose = 0;
     int fileid = 0;
     char* filename = NULL;
+    char* p;
 
     while ((c = getopt(argc, argv, "i:n:v")) != -1)
 	switch (c) {
 	case 'i':
-	    fileid = atoi(optarg);
+	    fileid = (int)strtoul(optarg, &p, 10);
+	    if (*p != '\0')
+		usage();
 	    break;
 	case 'n':
 	    filename = optarg;
