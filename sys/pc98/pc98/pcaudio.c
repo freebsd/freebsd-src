@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.18 1998/09/16 08:38:50 kato Exp $
+ *	$Id: pcaudio.c,v 1.19 1998/12/14 08:58:56 kato Exp $
  */
 
 #include "pca.h"
@@ -51,11 +51,6 @@
 #endif
 #include <i386/isa/isa_device.h>
 #include <i386/isa/timerreg.h>
-
-#define	DSP_ULAW_NOT_WANTED
-#include <i386/isa/sound/ulaw.h>
-#define	LINEAR_ALAW_NOT_WANTED
-#include <i386/isa/sound/alaw.h>
 
 #ifdef DEVFS
 #include <sys/devfsext.h>
@@ -88,6 +83,44 @@ static char buffer1[BUF_SIZE];
 static char buffer2[BUF_SIZE];
 static char buffer3[BUF_SIZE];
 static char volume_table[256];
+
+#define	DSP_ULAW_NOT_WANTED
+#include <i386/isa/snd/ulaw.h>
+
+static unsigned char alaw_linear[] = {
+	45, 	214, 	122, 	133, 	0, 		255, 	107, 	149, 
+	86, 	171, 	126, 	129, 	0, 		255, 	117, 	138, 
+	13, 	246, 	120, 	135, 	0, 		255, 	99, 	157, 
+	70, 	187, 	124, 	131, 	0, 		255, 	113, 	142, 
+	61, 	198, 	123, 	132,  	0, 		255, 	111, 	145, 
+	94, 	163, 	127, 	128, 	0, 		255, 	119, 	136, 
+	29, 	230, 	121, 	134, 	0, 		255, 	103, 	153, 
+	78, 	179, 	125, 	130, 	0, 		255, 	115, 	140, 
+	37, 	222, 	122, 	133, 	0, 		255, 	105, 	151, 
+	82, 	175, 	126, 	129, 	0, 		255, 	116, 	139, 
+	5, 	254, 	120, 	135, 	0, 		255, 	97, 	159, 
+	66, 	191, 	124, 	131, 	0, 		255, 	112,	143, 
+	53, 	206, 	123, 	132, 	0, 		255, 	109, 	147, 
+	90, 	167, 	127, 	128, 	0, 		255,	118, 	137, 
+	21, 	238, 	121, 	134, 	0, 		255, 	101,	155, 
+	74, 	183, 	125, 	130, 	0, 		255, 	114, 	141, 
+	49, 	210, 	123, 	133, 	0, 		255, 	108, 	148, 
+	88, 	169, 	127, 	129, 	0, 		255, 	118, 	138, 
+	17, 	242, 	121, 	135, 	0, 		255, 	100, 	156, 
+	72, 	185, 	125, 	131, 	0, 		255, 	114, 	142, 
+	64, 	194, 	124, 	132, 	0, 		255, 	112, 	144, 
+	96, 	161, 	128, 	128, 	1, 		255, 	120, 	136, 
+	33, 	226, 	122, 	134, 	0, 		255, 	104, 	152, 
+	80, 	177, 	126, 	130, 	0, 		255, 	116, 	140, 
+	41, 	218, 	122, 	133, 	0, 		255, 	106, 	150, 
+	84, 	173, 	126, 	129, 	0, 		255, 	117, 	139, 
+	9, 	250, 	120, 	135, 	0, 		255, 	98, 	158, 
+	68, 	189, 	124, 	131, 	0, 		255, 	113, 	143, 
+	57, 	202, 	123, 	132, 	0, 		255, 	110, 	146, 
+	92, 	165, 	127, 	128, 	0, 		255, 	119, 	137, 
+	25, 	234, 	121, 	134, 	0, 		255, 	102, 	154, 
+	76, 	181, 	125, 	130, 	0, 		255, 	115, 	141, 
+};
 
 #ifdef DEVFS
 static	void	*pca_devfs_token;
@@ -568,6 +601,5 @@ static void 	pca_drvinit(void *unused)
 }
 
 SYSINIT(pcadev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,pca_drvinit,NULL)
-
 
 #endif
