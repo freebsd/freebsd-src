@@ -1235,10 +1235,9 @@ modifier_C(const char mod[], char value[], Var *v, VarParser *vp, size_t *consum
  * XXXHB update this comment or remove it and point to the man page.
  */
 static char *
-ParseModifier(const char input[], const char tstr[],
-	char startc, char endc, Boolean dynamic, Var *v,
-	VarParser *vp, size_t *lengthPtr, Boolean *freePtr)
+ParseModifier(VarParser *vp, char startc, char endc, Boolean dynamic, Var *v, size_t *lengthPtr, Boolean *freePtr)
 {
+	const char	*tstr = vp->ptr;
 	char		*value;
 	size_t		used;
 
@@ -1365,7 +1364,7 @@ ParseModifier(const char input[], const char tstr[],
 
 						delim = '=';
 						if ((pattern.lhs = VarGetPattern(vp, &cp, delim, &pattern.flags, &pattern.leftLen, NULL)) == NULL) {
-							*lengthPtr = cp - input + 1;
+							*lengthPtr = cp - vp->input + 1;
 							if (*freePtr)
 								free(value);
 							if (delim != '\0')
@@ -1377,7 +1376,7 @@ ParseModifier(const char input[], const char tstr[],
 
 						pattern.rhs = VarGetPattern(vp, &cp, delim, NULL, &pattern.rightLen, &pattern);
 						if (pattern.rhs == NULL) {
-							*lengthPtr = cp - input + 1;
+							*lengthPtr = cp - vp->input + 1;
 							if (*freePtr)
 								free(value);
 							if (delim != '\0')
@@ -1475,7 +1474,7 @@ ParseModifier(const char input[], const char tstr[],
 
 						delim = '=';
 						if ((pattern.lhs = VarGetPattern(vp, &cp, delim, &pattern.flags, &pattern.leftLen, NULL)) == NULL) {
-							*lengthPtr = cp - input + 1;
+							*lengthPtr = cp - vp->input + 1;
 							if (*freePtr)
 								free(value);
 							if (delim != '\0')
@@ -1487,7 +1486,7 @@ ParseModifier(const char input[], const char tstr[],
 
 						pattern.rhs = VarGetPattern(vp, &cp, delim, NULL, &pattern.rightLen, &pattern);
 						if (pattern.rhs == NULL) {
-							*lengthPtr = cp - input + 1;
+							*lengthPtr = cp - vp->input + 1;
 							if (*freePtr)
 								free(value);
 							if (delim != '\0')
@@ -1539,7 +1538,7 @@ ParseModifier(const char input[], const char tstr[],
 		}
 	}
 
-	used = tstr - input + 1;
+	used = tstr - vp->input + 1;
 	*lengthPtr = used;
 
 	if (v->flags & VAR_FROM_ENV) {
@@ -1564,7 +1563,7 @@ ParseModifier(const char input[], const char tstr[],
 
 			VarDestroy(v, TRUE);
 			result = emalloc(used + 1);
-			strncpy(result, input, used);
+			strncpy(result, vp->input, used);
 			result[used] = '\0';
 
 			*freePtr = TRUE;
@@ -1581,7 +1580,7 @@ ParseModifier(const char input[], const char tstr[],
 }
 
 static char *
-ParseRestModifier(const char input[], const char ptr[], char startc, char endc, Buffer *buf, VarParser *vp, size_t *lengthPtr, Boolean *freePtr)
+ParseRestModifier(VarParser *vp, char startc, char endc, Buffer *buf, size_t *lengthPtr, Boolean *freePtr)
 {
 	const char	*vname;
 	size_t		vlen;
@@ -1597,9 +1596,7 @@ ParseRestModifier(const char input[], const char ptr[], char startc, char endc, 
 
 	v = VarFind(vname, vp->ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
 	if (v != NULL) {
-		return (ParseModifier(input, ptr,
-				startc, endc, dynamic, v,
-				vp, lengthPtr, freePtr));
+		return (ParseModifier(vp, startc, endc, dynamic, v, lengthPtr, freePtr));
 	}
 
 	if ((vp->ctxt == VAR_CMD) || (vp->ctxt == VAR_GLOBAL)) {
@@ -1635,9 +1632,7 @@ ParseRestModifier(const char input[], const char ptr[], char startc, char endc, 
 		 * the modifications
 		 */
 		v = VarCreate(vname, NULL, VAR_JUNK);
-		return (ParseModifier(input, ptr,
-				startc, endc, dynamic, v,
-				vp, lengthPtr, freePtr));
+		return (ParseModifier(vp, startc, endc, dynamic, v, lengthPtr, freePtr));
 	} else {
 		/*
 		 * Check for D and F forms of local variables since we're in
@@ -1656,9 +1651,7 @@ ParseRestModifier(const char input[], const char ptr[], char startc, char endc, 
 
 			v = VarFind(name, vp->ctxt, 0);
 			if (v != NULL) {
-				return (ParseModifier(input, ptr,
-						startc, endc, dynamic, v,
-						vp, lengthPtr, freePtr));
+				return (ParseModifier(vp, startc, endc, dynamic, v, lengthPtr, freePtr));
 			}
 		}
 
@@ -1668,20 +1661,18 @@ ParseRestModifier(const char input[], const char ptr[], char startc, char endc, 
 		 * the modifications
 		 */
 		v = VarCreate(vname, NULL, VAR_JUNK);
-		return (ParseModifier(input, ptr,
-				startc, endc, dynamic, v,
-				vp, lengthPtr, freePtr));
+		return (ParseModifier(vp, startc, endc, dynamic, v, lengthPtr, freePtr));
 	}
 }
 
 static char *
-ParseRestEnd(const char input[], Buffer *buf,
-	VarParser *vp, size_t *consumed, Boolean *freePtr)
+ParseRestEnd(VarParser *vp, Buffer *buf, Boolean *freePtr)
 {
 	const char	*vname;
 	size_t		vlen;
 	Var		*v;
 	char		*value;
+	size_t		consumed = vp->ptr - vp->input;
 
 	vname = Buf_GetAll(buf, &vlen);
 
@@ -1711,9 +1702,9 @@ ParseRestEnd(const char input[], Buffer *buf,
 		if (((vlen == 1)) ||
 		    ((vlen == 2) && (vname[1] == 'F' || vname[1] == 'D'))) {
 			if (strchr("!%*@", vname[0]) != NULL) {
-				value = emalloc(*consumed + 1);
-				strncpy(value, input, *consumed);
-				value[*consumed] = '\0';
+				value = emalloc(consumed + 1);
+				strncpy(value, vp->input, consumed);
+				value[consumed] = '\0';
 
 				*freePtr = TRUE;
 				return (value);
@@ -1726,9 +1717,9 @@ ParseRestEnd(const char input[], Buffer *buf,
 			    (strncmp(vname, ".ARCHIVE", vlen - 1) == 0) ||
 			    (strncmp(vname, ".PREFIX", vlen - 1) == 0) ||
 			    (strncmp(vname, ".MEMBER", vlen - 1) == 0)) {
-				value = emalloc(*consumed + 1);
-				strncpy(value, input, *consumed);
-				value[*consumed] = '\0';
+				value = emalloc(consumed + 1);
+				strncpy(value, vp->input, consumed);
+				value[consumed] = '\0';
 
 				*freePtr = TRUE;
 				return (value);
@@ -1782,13 +1773,11 @@ ParseRestEnd(const char input[], Buffer *buf,
  * Parse a multi letter variable name, and return it's value.
  */
 static char *
-VarParseLong(const char input[], VarParser *vp,
-	size_t *consumed, Boolean *freePtr)
+VarParseLong(VarParser *vp, size_t *consumed, Boolean *freePtr)
 {
 	Buffer		*buf;
 	char		startc;
 	char		endc;
-	const char	*ptr;
 	char		*result;
 
 	buf = Buf_Init(MAKE_BSIZE);
@@ -1797,39 +1786,32 @@ VarParseLong(const char input[], VarParser *vp,
 	 * Process characters until we reach an end character or a
 	 * colon, replacing embedded variables as we go.
 	 */
-	startc = input[0];
+	startc = vp->ptr[0];
 	endc = (startc == OPEN_PAREN) ? CLOSE_PAREN : CLOSE_BRACE;
 
-	*consumed += 1;	/* consume opening paren or brace */
-	input++;
+	vp->ptr += 1;	/* consume opening paren or brace */
 
-	ptr = input;
-	while (*ptr != endc) {
-		if (*ptr == '\0') {
-			/*
-			 * If we did not find the end character,
-			 * return var_Error right now, setting the
-			 * length to be the distance to the end of
-			 * the string, since that's what make does.
-			 */
+	while (*vp->ptr != '\0') {
+		if (*vp->ptr == endc) {
+			vp->ptr++;	/* consume closing paren or brace */
+			result = ParseRestEnd(vp, buf, freePtr);
 			Buf_Destroy(buf, TRUE);
-			*freePtr = FALSE;
-			return (var_Error);
+			*consumed = vp->ptr - vp->input;
+			return (result);
 
-		} else if (*ptr == ':') {
-			result = ParseRestModifier(input - 2, ptr,
-				     startc, endc, buf,
-				     vp, consumed, freePtr);
+		} else if (*vp->ptr == ':') {
+			*consumed += 1;
+			result = ParseRestModifier(vp, startc, endc, buf, consumed, freePtr);
 			Buf_Destroy(buf, TRUE);
 			return (result);
 
-		} else if (*ptr == '$') {
+		} else if (*vp->ptr == '$') {
 			size_t	rlen;
 			Boolean	rfree;
 			char	*rval;
 
 			rlen = 0;
-			rval = Var_Parse(ptr, vp->ctxt, vp->err, &rlen, &rfree);
+			rval = Var_Parse(vp->ptr, vp->ctxt, vp->err, &rlen, &rfree);
 			if (rval == var_Error) {
 				Fatal("Error expanding embedded variable.");
 			}
@@ -1837,38 +1819,41 @@ VarParseLong(const char input[], VarParser *vp,
 			if (rfree)
 				free(rval);
 			*consumed += rlen;
-			ptr += rlen;
+			vp->ptr += rlen;
 
 		} else {
-			Buf_AddByte(buf, (Byte)*ptr);
+			Buf_AddByte(buf, (Byte)*vp->ptr);
 			*consumed += 1;
-			ptr++;
+			vp->ptr++;
 		}
 	}
 
-	*consumed += 1;	/* consume closing paren or brace */
-
-	result = ParseRestEnd(input - 2, buf, vp, consumed, freePtr);
-
+	/*
+	 * If we did not find the end character,
+	 * return var_Error right now, setting the
+	 * length to be the distance to the end of
+	 * the string, since that's what make does.
+	 */
 	Buf_Destroy(buf, TRUE);
-	return (result);
+	*freePtr = FALSE;
+	*consumed = vp->ptr - vp->input;
+	return (var_Error);
 }
 
 /**
  * Parse a single letter variable name, and return it's value.
  */
 static char *
-VarParseShort(const char input[], VarParser *vp,
-	size_t *consumed, Boolean *freeResult)
+VarParseShort(VarParser *vp, Boolean *freeResult)
 {
 	char	vname[2];
 	Var	*v;
 	char	*value;
 
-	vname[0] = input[0];
+	vname[0] = vp->ptr[0];
 	vname[1] = '\0';
 
-	*consumed += 1;	/* consume single letter */
+	vp->ptr++;	/* consume single letter */
 
 	v = VarFind(vname, vp->ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
 	if (v != NULL) {
@@ -1926,23 +1911,23 @@ VarParse(VarParser *vp, size_t *consumed, Boolean *freeResult)
 
 	/* assert(vp->ptr[0] == '$'); */
 
-	vp->ptr += 1;	/* consume '$' */
+	vp->ptr++;	/* consume '$' */
 
 	if (vp->ptr[0] == '\0') {
-		*consumed += 1;	/* consume '$' */
 		/* Error, there is only a dollar sign in the input string. */
 		*freeResult = FALSE;
 		value = vp->err ? var_Error : varNoError;
+		*consumed += vp->ptr - vp->input;
 
 	} else if (vp->ptr[0] == OPEN_PAREN || vp->ptr[0] == OPEN_BRACE) {
 		*consumed += 1;	/* consume '$' */
 		/* multi letter variable name */
-		value = VarParseLong(vp->ptr, vp, consumed, freeResult);
+		value = VarParseLong(vp, consumed, freeResult);
 
 	} else {
-		*consumed += 1;	/* consume '$' */
 		/* single letter variable name */
-		value = VarParseShort(vp->ptr, vp, consumed, freeResult);
+		value = VarParseShort(vp, freeResult);
+		*consumed += vp->ptr - vp->input;
 	}
 	return (value);
 }
@@ -1981,8 +1966,10 @@ Var_Parse(const char input[], GNode *ctxt, Boolean err,
 		ctxt,
 		err
 	};
+	char		*value;
 
-	return VarParse(&vp, consumed, freeResult);
+	value = VarParse(&vp, consumed, freeResult);
+	return (value);
 }
 
 /*-
