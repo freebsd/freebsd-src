@@ -56,13 +56,14 @@ phys_pager_init(void)
 	mtx_init(&phys_pager_mtx, "phys_pager list", NULL, MTX_DEF);
 }
 
+/*
+ * MPSAFE
+ */
 static vm_object_t
 phys_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		 vm_ooffset_t foff)
 {
 	vm_object_t object;
-
-	GIANT_REQUIRED;
 
 	/*
 	 * Offset should be page aligned.
@@ -73,6 +74,7 @@ phys_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	size = round_page(size);
 
 	if (handle != NULL) {
+		mtx_lock(&Giant);
 		/*
 		 * Lock to prevent object creation race condition.
 		 */
@@ -108,7 +110,7 @@ phys_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		if (phys_pager_alloc_lock == -1)
 			wakeup(&phys_pager_alloc_lock);
 		phys_pager_alloc_lock = 0;
-
+		mtx_unlock(&Giant);
 	} else {
 		object = vm_object_allocate(OBJT_PHYS,
 			OFF_TO_IDX(foff + size));
@@ -117,6 +119,9 @@ phys_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	return (object);
 }
 
+/*
+ * MPSAFE
+ */
 static void
 phys_pager_dealloc(vm_object_t object)
 {
