@@ -38,7 +38,7 @@ extern struct passwd *pw;
 extern int doall;
 extern struct iovec header[];
 extern struct tm *tp;
-extern char *calendarFile;
+extern const char *calendarFile;
 extern char *optarg;
 
 void	 cal __P((void));
