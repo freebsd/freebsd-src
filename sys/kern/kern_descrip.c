@@ -1092,13 +1092,7 @@ fdalloc(td, want, result)
 		while (nfiles < want)
 			nfiles <<= 1;
 		FILEDESC_UNLOCK(fdp);
-		/*
-		 * XXX malloc() calls uma_large_malloc() for sizes larger
-		 * than KMEM_ZMAX bytes. uma_large_malloc() requires Giant.
-		 */
-		mtx_lock(&Giant);
 		newofile = malloc(nfiles * OFILESIZE, M_FILEDESC, M_WAITOK);
-		mtx_unlock(&Giant);
 
 		/*
 		 * Deal with file-table extend race that might have
