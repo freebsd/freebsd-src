@@ -325,7 +325,7 @@ setmediamode(const char *val, int d, int s, const struct afswtch *afp)
 	free(mwords);
 
 	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
-	ifr.ifr_media = (ifmr.ifm_current & ~IFM_MMASK) | IFM_MAKEMODE(mode);
+	ifr.ifr_media = (ifmr.ifm_current & ~IFM_MMASK) | mode;
 
 	if (ioctl(s, SIOCSIFMEDIA, (caddr_t)&ifr) < 0)
 		err(1, "SIOCSIFMEDIA (mode)");
