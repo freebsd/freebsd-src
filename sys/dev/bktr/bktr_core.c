@@ -920,7 +920,7 @@ video_open( bktr_ptr_t bktr )
 	else
 		OUTB(bktr, BKTR_IFORM, INB(bktr, BKTR_IFORM) | BT848_IFORM_M_MUX1);
 
-	OUTL(bktr, BKTR_ADELAY, format_params[bktr->format_params].adelay);
+	OUTB(bktr, BKTR_ADELAY, format_params[bktr->format_params].adelay);
 	OUTB(bktr, BKTR_BDELAY, format_params[bktr->format_params].bdelay);
 	frame_rate    = format_params[bktr->format_params].frame_rate;
 
@@ -1292,7 +1292,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, ioctl_cmd_t cmd, caddr_t arg, struct pro
 		case BT848_IFORM_F_NTSCJ:
 			bktr->flags = (bktr->flags & ~METEOR_FORM_MASK) |
 				METEOR_NTSC;
-			OUTL(bktr, BKTR_ADELAY, format_params[temp].adelay);
+			OUTB(bktr, BKTR_ADELAY, format_params[temp].adelay);
 			OUTB(bktr, BKTR_BDELAY, format_params[temp].bdelay);
 			bktr->format_params = temp;
 			break;
@@ -1304,7 +1304,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, ioctl_cmd_t cmd, caddr_t arg, struct pro
 		case BT848_IFORM_F_PALM:
 			bktr->flags = (bktr->flags & ~METEOR_FORM_MASK) |
 				METEOR_PAL;
-			OUTL(bktr, BKTR_ADELAY, format_params[temp].adelay);
+			OUTB(bktr, BKTR_ADELAY, format_params[temp].adelay);
 			OUTB(bktr, BKTR_BDELAY, format_params[temp].bdelay);
 			bktr->format_params = temp;
 			break;
@@ -1324,7 +1324,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, ioctl_cmd_t cmd, caddr_t arg, struct pro
 				METEOR_NTSC;
 			OUTB(bktr, BKTR_IFORM, temp_iform | BT848_IFORM_F_NTSCM | 
 		                         format_params[BT848_IFORM_F_NTSCM].iform_xtsel);
-			OUTL(bktr, BKTR_ADELAY, format_params[BT848_IFORM_F_NTSCM].adelay);
+			OUTB(bktr, BKTR_ADELAY, format_params[BT848_IFORM_F_NTSCM].adelay);
 			OUTB(bktr, BKTR_BDELAY, format_params[BT848_IFORM_F_NTSCM].bdelay);
 			bktr->format_params = BT848_IFORM_F_NTSCM;
 			break;
@@ -1334,7 +1334,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, ioctl_cmd_t cmd, caddr_t arg, struct pro
 				METEOR_PAL;
 			OUTB(bktr, BKTR_IFORM, temp_iform | BT848_IFORM_F_PALBDGHI |
 		                         format_params[BT848_IFORM_F_PALBDGHI].iform_xtsel);
-			OUTL(bktr, BKTR_ADELAY, format_params[BT848_IFORM_F_PALBDGHI].adelay);
+			OUTB(bktr, BKTR_ADELAY, format_params[BT848_IFORM_F_PALBDGHI].adelay);
 			OUTB(bktr, BKTR_BDELAY, format_params[BT848_IFORM_F_PALBDGHI].bdelay);
 			bktr->format_params = BT848_IFORM_F_PALBDGHI;
 			break;
@@ -2333,8 +2333,9 @@ common_ioctl( bktr_ptr_t bktr, ioctl_cmd_t cmd, caddr_t arg )
 
 #if defined( STATUS_SUM )
 	case BT848_GSTATUS:	/* reap status */
-		{int s;
-		s = DISABLE_INTR;
+		{
+                DECLARE_INTR_MASK(s);
+		DISABLE_INTR(s);
 		temp = status_sum;
 		status_sum = 0;
 		ENABLE_INTR(s);

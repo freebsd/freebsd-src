@@ -708,9 +708,9 @@ bktr_mmap( dev_t dev, vm_offset_t offset, int nprot )
 int bktr_poll( dev_t dev, int events, struct proc *p)
 {
 	int		unit;
-	int		s;
 	bktr_ptr_t	bktr;
 	int revents = 0; 
+	DECLARE_INTR_MASK(s);
 
 	unit = UNIT(minor(dev));
 
@@ -721,7 +721,7 @@ int bktr_poll( dev_t dev, int events, struct proc *p)
 		return (ENXIO);
 	}
 
-	s = DISABLE_INTR;
+	DISABLE_INTR(s);
 
 	if (events & (POLLIN | POLLRDNORM)) {
 
