@@ -115,11 +115,6 @@ for i in ${bootp_ipbca} ${bootp_ipa} ; do
 	fi
 done
 
-# Since we are starting with a very fresh /etc on an MFS:
-if [ -d /conf/default/etc ]; then
-	newaliases
-if
-
 # Tell /etc/rc to run the specified script after it does its mounts but
 # before it does anything else.
 #
