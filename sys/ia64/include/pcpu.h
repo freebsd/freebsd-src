@@ -51,7 +51,6 @@ struct globaldata {
 	int		gd_switchticks;
 	u_int		gd_cpuno;		/* this cpu number */
 	u_int		gd_other_cpus;		/* all other cpus */
-	int		gd_inside_intr;
 	u_int64_t	gd_idlepcbphys;		/* pa of gd_idlepcb */
 	u_int64_t	gd_pending_ipis;	/* pending IPI events */
 	struct pmap	*gd_current_pmap;	/* which pmap is active */
