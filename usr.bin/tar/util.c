@@ -45,27 +45,33 @@ void
 safe_fprintf(FILE *f, const char *fmt, ...)
 {
 	char *buff;
-	char *buffheap;
-	char buffstack[256];
-	int bufflength;
+	char *buff_heap;
+	int buff_length;
 	int length;
 	va_list ap;
 	char *p;
+	char buff_stack[256];
 
-	/* Use a stack-allocated buffer if we can. */
-	buffheap = NULL;
-	bufflength = 256;
-	buff = buffstack;
+	/* Use a stack-allocated buffer if we can, for speed and safety. */
+	buff_heap = NULL;
+	buff_length = sizeof(buff_stack);
+	buff = buff_stack;
 
 	va_start(ap, fmt);
-	length = vsnprintf(buff, bufflength, fmt, ap);
-	/* If the result is too large, allocate a buffer on the heap. */
-	if (length >= bufflength) {
-		bufflength = length+1;
-		buff = buffheap = malloc(bufflength);
-		length = vsnprintf(buff, bufflength, fmt, ap);
-	}
+	length = vsnprintf(buff, buff_length, fmt, ap);
 	va_end(ap);
+	/* If the result is too large, allocate a buffer on the heap. */
+	if (length >= buff_length) {
+		buff_length = length+1;
+		buff_heap = malloc(buff_length);
+		/* Failsafe: use the truncated string if malloc fails. */
+		if (buff_heap != NULL) {
+			buff = buff_heap;
+			va_start(ap, fmt);
+			length = vsnprintf(buff, buff_length, fmt, ap);
+			va_end(ap);
+		}
+	}
 
 	for (p=buff; *p != '\0'; p++) {
 		unsigned char c = *p;
@@ -89,8 +95,8 @@ safe_fprintf(FILE *f, const char *fmt, ...)
 			}
 	}
 	/* If we allocated a heap-based buffer, free it now. */
-	if (buffheap != NULL)
-		free(buffheap);
+	if (buff_heap != NULL)
+		free(buff_heap);
 }
 
 static void
