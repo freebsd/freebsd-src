@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-all.h,v 1.6 1999/04/18 20:48:15 sos Exp $
+ *	$Id: ata-all.h,v 1.7 1999/06/25 09:02:57 sos Exp $
  */
 
 /* ATA register defines */
@@ -87,12 +87,6 @@
 #define ATA_OP_FINISHED			0x00
 #define ATA_OP_CONTINUES		0x01
 
-/* devices types */
-#define ATA_ATA_MASTER			0x01
-#define ATA_ATA_SLAVE			0x02
-#define ATA_ATAPI_MASTER		0x04
-#define ATA_ATAPI_SLAVE			0x08
-
 /* busmaster DMA related defines */
 #define ATA_BM_OFFSET1			0x08
 #define ATA_DMA_ENTRIES			256
@@ -132,6 +126,11 @@ struct ata_softc {
     struct ata_dmaentry		*dmatab[2];	/* DMA transfer tables */
     int32_t			flags;		/* controller flags */
     int32_t			devices;	/* what is present */
+#define		ATA_ATA_MASTER		0x01
+#define 	ATA_ATA_SLAVE		0x02
+#define 	ATA_ATAPI_MASTER	0x04
+#define 	ATA_ATAPI_SLAVE		0x08
+
     u_int8_t			status;		/* last controller status */
     u_int8_t			error;		/* last controller error */
     int32_t			active;		/* active processing request */

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-disk.c,v 1.14 1999/06/25 09:02:59 sos Exp $
+ *	$Id: ata-disk.c,v 1.15 1999/07/17 17:55:53 phk Exp $
  */
 
 #include "ata.h"
@@ -540,6 +540,10 @@ ad_transfer(struct ad_request *request)
 
 	/* setup transfer parameters */
 	count = howmany(request->bytecount, DEV_BSIZE);
+	if (count > 256) {
+	    count = 256;
+            printf("ad_transfer: count=%d not supported\n", count);
+	}
 
 	if (adp->flags & AD_F_LBA_ENABLED) {
 	    sector = (blkno >> 0) & 0xff; 
@@ -745,7 +749,7 @@ ad_drvinit(void)
 
     if (!ad_devsw_installed) {
 	if (!ad_cdevsw.d_maxio)
-	    ad_cdevsw.d_maxio = 254 * DEV_BSIZE;
+	    ad_cdevsw.d_maxio = 256 * DEV_BSIZE;
         cdevsw_add(&ad_cdevsw);
 	fakewd_cdevsw = ad_cdevsw;
 	fakewd_cdevsw.d_maj = 3;

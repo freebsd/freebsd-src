@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-dma.c,v 1.8 1999/05/26 23:01:57 gallatin Exp $
+ *	$Id: ata-dma.c,v 1.9 1999/08/06 17:39:38 sos Exp $
  */
 
 #include "ata.h"
@@ -169,6 +169,11 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 
     case 0x4d33105a:	/* Promise Ultra/33 / FastTrack controllers */
     case 0x4d38105a:	/* Promise Ultra/66 controllers */
+	/* the promise seems to have trouble with DMA on ATAPI devices */
+	if ((device == ATA_MASTER && scp->devices & ATA_ATAPI_MASTER) ||
+	    (device == ATA_SLAVE && scp->devices & ATA_ATAPI_SLAVE))
+	    break;
+
 	devno = (scp->unit << 1) + (device ? 1 : 0);
 	if (udmamode >=2) {
 	    printf("ata%d: %s: setting up UDMA2 mode on Promise chip ",
