@@ -236,20 +236,19 @@ lockrange(daddr_t stripe, struct buf *bp, struct plex *plex)
 		 * conflict would be an additional
 		 * schedule and time through this loop.
 		 */
-		while (lock->stripe) {			    /* wait for it to become free */
 #ifdef VINUMDEBUG
-		    if (debug & DEBUG_LASTREQS) {
-			struct rangelock info;
+		if (debug & DEBUG_LASTREQS) {
+		    struct rangelock info;
 
-			info.stripe = stripe;
-			info.bp = bp;
-			info.plexno = plex->plexno;
-			logrq(loginfo_lockwait, (union rqinfou) &info, bp);
-		    }
-#endif
-		    tsleep((void *) lock->stripe, PRIBIO | PCATCH, "vrlock", 2 * hz);
-		    plex->lockwaits++;			    /* waited one more time */
+		    info.stripe = stripe;
+		    info.bp = bp;
+		    info.plexno = plex->plexno;
+		    logrq(loginfo_lockwait, (union rqinfou) &info, bp);
 		}
+#endif
+		plex->lockwaits++;			    /* waited one more time */
+		while (lock->stripe)			    /* wait for it to become free */
+		    tsleep((void *) lock->stripe, PRIBIO | PCATCH, "vrlock", 2 * hz);
 		break;					    /* out of the inner level loop */
 	    }
 	} else {
