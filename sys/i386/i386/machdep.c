@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.329 1999/04/16 21:22:13 peter Exp $
+ *	$Id: machdep.c,v 1.330 1999/04/19 14:14:12 peter Exp $
  */
 
 #include "apm.h"
@@ -101,14 +101,7 @@
 
 #include <ddb/ddb.h>
 
-#if defined(INET) || defined(IPX) || defined(NATM) || defined(NETATALK) \
-    || NETHER > 0 || defined(NS)
-#define NETISR
-#endif
-
-#ifdef NETISR
 #include <net/netisr.h>
-#endif
 
 #include <machine/cpu.h>
 #include <machine/reg.h>
@@ -253,16 +246,9 @@ vm_offset_t phys_avail[10];
 /* must be 2 less so 0 0 can signal end of chunks */
 #define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(vm_offset_t)) - 2)
 
-#ifdef NETISR
-static void setup_netisrs __P((struct linker_set *));
-#endif
-
 static vm_offset_t buffer_sva, buffer_eva;
 vm_offset_t clean_sva, clean_eva;
 static vm_offset_t pager_sva, pager_eva;
-#ifdef NETISR
-extern struct linker_set netisr_set;
-#endif
 #if NNPX > 0
 extern struct isa_driver npxdriver;
 #endif
@@ -310,13 +296,6 @@ cpu_startup(dummy)
 			    size1 / PAGE_SIZE);
 		}
 	}
-
-#ifdef NETISR
-	/*
-	 * Quickly wire in netisrs.
-	 */
-	setup_netisrs(&netisr_set);
-#endif
 
 	/*
 	 * Calculate callout wheel size
@@ -466,7 +445,6 @@ again:
 #endif  /* SMP */
 }
 
-#ifdef NETISR
 int
 register_netisr(num, handler)
 	int num;
@@ -481,19 +459,15 @@ register_netisr(num, handler)
 	return (0);
 }
 
-static void
-setup_netisrs(ls)
-	struct linker_set *ls;
+void
+netisr_sysinit(data)
+	void *data;
 {
-	int i;
 	const struct netisrtab *nit;
 
-	for(i = 0; ls->ls_items[i]; i++) {
-		nit = (const struct netisrtab *)ls->ls_items[i];
-		register_netisr(nit->nit_num, nit->nit_isr);
-	}
+	nit = (const struct netisrtab *)data;
+	register_netisr(nit->nit_num, nit->nit_isr);
 }
-#endif /* NETISR */
 
 /*
  * Send an interrupt to process.
