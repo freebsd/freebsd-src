@@ -46,13 +46,12 @@
 informs the system whether you want to be notified when mail arrives
 during the current terminal session.
 .Pp
-Options supported by
-.Nm :
-.Bl -tag -width 4n
+The following options are available:
+.Bl -tag -width indent
 .It Cm n
-Disables notification.
+Disable notification.
 .It Cm y
-Enables notification.
+Enable notification.
 .El
 .Pp
 When mail notification is enabled, the header and first few lines of
@@ -68,11 +67,11 @@ to be executed at each login.
 .Nm Biff
 operates asynchronously.
 For synchronous notification use the
-.Ar MAIL
+.Ev MAIL
 variable of
 .Xr sh 1
 or the
-.Ar mail
+.Ev mail
 variable of
 .Xr csh 1 .
 .Sh SEE ALSO
