@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_conf.c	8.8 (Berkeley) 3/31/94
- * $Id: vfs_conf.c,v 1.22 1998/03/11 00:10:31 msmith Exp $
+ * $Id: vfs_conf.c,v 1.23 1998/04/19 23:31:57 julian Exp $
  */
 
 /*
@@ -51,6 +51,7 @@
  *		as an aid to conversion for kernel multithreading
  *		on SMP reentrancy
  */
+#include "opt_devfs.h" /* for SLICE */
 #include "opt_bootp.h"
 
 #include <sys/param.h>		/* dev_t (types.h)*/

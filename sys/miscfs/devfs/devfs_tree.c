@@ -24,14 +24,18 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_tree.c,v 1.51 1998/04/17 22:36:53 des Exp $
+ *	$Id: devfs_tree.c,v 1.52 1998/04/19 23:32:09 julian Exp $
  */
 
 
-#define SPLIT_DEVS 1
-/*#define SPLIT_DEVS 1*/
+/* SPLIT_DEVS means each devfs uses a different vnode for the same device */
+/* Otherwise the same device always ends up at the same vnode even if  */
+/* reached througgh a different devfs instance. The practical difference */
+/* is that with the same vnode, chmods and chowns show up on all instances of */
+/* a device. (etc) */
 
-#include "opt_devfs.h"
+#define SPLIT_DEVS 1 /* maybe make this an option */
+/*#define SPLIT_DEVS 1*/
 
 #include <sys/param.h>
 #include <sys/systm.h>
