@@ -39,6 +39,8 @@
 #include <sys/ipl.h>
 #include <sys/reboot.h>
 #include <sys/kernel.h>
+#include <net/radix.h>
+#include <sys/socket.h>
 #include <sys/mount.h>
 #include <sys/sysctl.h>
 #include <sys/bus.h>
