@@ -26,8 +26,8 @@
  * improvements or extensions that  they  make,  and  to  grant  Carnegie
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
- * 	@(#) src/sys/cfs/pioctl.h,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $ 
- *  $Id: pioctl.h,v 1.2 1998/09/02 19:09:53 rvb Exp $
+ * 	@(#) src/sys/coda/coda_pioctl.h,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $ 
+ *  $Id: coda_pioctl.h,v 1.3 1998/09/11 18:50:17 rvb Exp $
  * 
  */
 
@@ -42,7 +42,11 @@
 
 /*
  * HISTORY
- * $Log: pioctl.h,v $
+ * $Log: coda_pioctl.h,v $
+ * Revision 1.3  1998/09/11 18:50:17  rvb
+ * All the references to cfs, in symbols, structs, and strings
+ * have been changed to coda.  (Same for CFS.)
+ *
  * Revision 1.2  1998/09/02 19:09:53  rvb
  * Pass2 complete
  *

@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/cfs/coda_venus.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_venus.c,v 1.2 1998/09/02 19:09:53 rvb Exp $
+ *  $Id: coda_venus.c,v 1.3 1998/09/11 18:50:17 rvb Exp $
  * 
  */
 
@@ -39,10 +39,10 @@
 #include <sys/ioccom.h>
 #include <sys/fcntl.h>
 
-#include <cfs/coda.h>
-#include <cfs/cnode.h>
-#include <cfs/cfs_venus.h>
-#include <cfs/pioctl.h>
+#include <coda/coda.h>
+#include <coda/cnode.h>
+#include <coda/coda_venus.h>
+#include <coda/coda_pioctl.h>
 
 #define DECL_NO_IN(name) 				\
     struct coda_in_hdr *inp;				\
