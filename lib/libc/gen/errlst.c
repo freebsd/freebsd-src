@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -143,6 +145,7 @@ const char *const sys_errlist[] = {
 	"Value too large to be stored in data type", /* 84 - EOVERFLOW */
 	"Operation canceled",			/* 85 - ECANCELED */
 	"Illegal byte sequence",		/* 86 - EILSEQ */
+	"Attribute not found",			/* 87 - ENOATTR */
 };
 int errno;
 const int sys_nerr = sizeof(sys_errlist) / sizeof(sys_errlist[0]);
