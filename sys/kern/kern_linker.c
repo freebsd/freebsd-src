@@ -698,10 +698,10 @@ kldload(struct thread *td, struct kldload_args *uap)
 
 	td->td_retval[0] = -1;
 
-	if (securelevel > 0)	/* redundant, but that's OK */
-		return (EPERM);
-
 	mtx_lock(&Giant);
+
+	if ((error = securelevel_gt(td->td_ucred, 0)) != 0)
+		goto out;
 
 	if ((error = suser_xxx(td->td_ucred, NULL, 0)) != 0)
 		goto out;
@@ -745,10 +745,10 @@ kldunload(struct thread *td, struct kldunload_args *uap)
 	linker_file_t lf;
 	int error = 0;
 
-	if (securelevel > 0)	/* redundant, but that's OK */
-		return (EPERM);
-
 	mtx_lock(&Giant);
+
+	if ((error = securelevel_gt(td->td_ucred, 0)) != 0)
+		goto out;
 
 	if ((error = suser_xxx(td->td_ucred, NULL, 0)) != 0)
 		goto out;

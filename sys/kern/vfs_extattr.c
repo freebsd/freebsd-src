@@ -307,6 +307,11 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 			vput(vp);
 			return error;
 		}
+		error = securelevel_gt(td->td_ucred, 0);
+		if (error != 0) {
+			vput(vp);
+			return (EPERM);
+		}
 		error = linker_load_file(fstype, &lf);
 		if (error || lf == NULL) {
 			vput(vp);
