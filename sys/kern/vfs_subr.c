@@ -835,10 +835,14 @@ getnewvnode(tag, mp, vops, vpp)
 		vp->v_socket = 0;
 		lockdestroy(vp->v_vnlock);
 		lockinit(vp->v_vnlock, PVFS, tag, VLKTIMEOUT, LK_NOPAUSE);
-		KASSERT(bo->bo_clean.bv_cnt == 0, ("cleanbufcnt not 0"));
-		KASSERT(bo->bo_clean.bv_root == NULL, ("cleanblkroot not NULL"));
-		KASSERT(bo->bo_dirty.bv_cnt == 0, ("dirtybufcnt not 0"));
-		KASSERT(bo->bo_dirty.bv_root == NULL, ("dirtyblkroot not NULL"));
+		VNASSERT(bo->bo_clean.bv_cnt == 0, vp,
+		    ("cleanbufcnt not 0"));
+		VNASSERT(bo->bo_clean.bv_root == NULL, vp,
+		    ("cleanblkroot not NULL"));
+		VNASSERT(bo->bo_dirty.bv_cnt == 0, vp,
+		    ("dirtybufcnt not 0"));
+		VNASSERT(bo->bo_dirty.bv_root == NULL, vp,
+		    ("dirtyblkroot not NULL"));
 	} else {
 		numvnodes++;
 		mtx_unlock(&vnode_free_list_mtx);
@@ -900,7 +904,7 @@ delmntque(struct vnode *vp)
 	mp = vp->v_mount;
 	MNT_ILOCK(mp);
 	vp->v_mount = NULL;
-	KASSERT(mp->mnt_nvnodelistsize > 0,
+	VNASSERT(mp->mnt_nvnodelistsize > 0, vp,
 		("bad mount point vnode list size"));
 	TAILQ_REMOVE(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
 	mp->mnt_nvnodelistsize--;
@@ -915,7 +919,7 @@ insmntque(struct vnode *vp, struct mount *mp)
 {
 
 	vp->v_mount = mp;
-	KASSERT(mp != NULL, ("Don't call insmntque(foo, NULL)"));
+	VNASSERT(mp != NULL, vp, ("Don't call insmntque(foo, NULL)"));
 	MNT_ILOCK(vp->v_mount);
 	TAILQ_INSERT_TAIL(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
 	mp->mnt_nvnodelistsize++;
@@ -1164,7 +1168,7 @@ restartsync:
 			    VI_MTX(vp)) == ENOLCK) {
 				goto restart;
 			}
-			KASSERT((bp->b_flags & B_DELWRI),
+			VNASSERT((bp->b_flags & B_DELWRI), vp,
 			    ("buf(%p) on dirty queue without DELWRI", bp));
 
 			bremfree(bp);
@@ -1362,10 +1366,11 @@ gbincore(struct bufobj *bo, daddr_t lblkno)
 void
 bgetvp(struct vnode *vp, struct buf *bp)
 {
-	KASSERT(bp->b_vp == NULL, ("bgetvp: not free"));
+
+	VNASSERT(bp->b_vp == NULL, bp->b_vp, ("bgetvp: not free"));
 
 	CTR3(KTR_BUF, "bgetvp(%p) vp %p flags %X", bp, vp, bp->b_flags);
-	KASSERT((bp->b_xflags & (BX_VNDIRTY|BX_VNCLEAN)) == 0,
+	VNASSERT((bp->b_xflags & (BX_VNDIRTY|BX_VNCLEAN)) == 0, vp,
 	    ("bgetvp: bp already attached! %p", bp));
 
 	ASSERT_VI_LOCKED(vp, "bgetvp");
@@ -1875,7 +1880,7 @@ vrele(vp)
 	VI_LOCK(vp);
 
 	/* Skip this v_writecount check if we're going to panic below. */
-	KASSERT(vp->v_writecount < vp->v_usecount || vp->v_usecount < 1,
+	VNASSERT(vp->v_writecount < vp->v_usecount || vp->v_usecount < 1, vp,
 	    ("vrele: missed vn_close"));
 
 	if (vp->v_usecount > 1 || ((vp->v_iflag & VI_DOINGINACT) &&
@@ -1894,13 +1899,13 @@ vrele(vp)
 		 */
 		if (vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK, td) == 0) {
 			VI_LOCK(vp);
-			KASSERT((vp->v_iflag & VI_DOINGINACT) == 0,
+			VNASSERT((vp->v_iflag & VI_DOINGINACT) == 0, vp,
 			    ("vrele: recursed on VI_DOINGINACT"));
 			vp->v_iflag |= VI_DOINGINACT;
 			VI_UNLOCK(vp);
 			VOP_INACTIVE(vp, td);
 			VI_LOCK(vp);
-			KASSERT(vp->v_iflag & VI_DOINGINACT,
+			VNASSERT(vp->v_iflag & VI_DOINGINACT, vp,
 			    ("vrele: lost VI_DOINGINACT"));
 			vp->v_iflag &= ~VI_DOINGINACT;
 		} else
@@ -1934,7 +1939,7 @@ vput(vp)
 	KASSERT(vp != NULL, ("vput: null vp"));
 	VI_LOCK(vp);
 	/* Skip this v_writecount check if we're going to panic below. */
-	KASSERT(vp->v_writecount < vp->v_usecount || vp->v_usecount < 1,
+	VNASSERT(vp->v_writecount < vp->v_usecount || vp->v_usecount < 1, vp,
 	    ("vput: missed vn_close"));
 
 	if (vp->v_usecount > 1 || ((vp->v_iflag & VI_DOINGINACT) &&
@@ -1951,13 +1956,13 @@ vput(vp)
 		 * we just need to release the vnode mutex. Mark as
 		 * as VI_DOINGINACT to avoid recursion.
 		 */
-		KASSERT((vp->v_iflag & VI_DOINGINACT) == 0,
+		VNASSERT((vp->v_iflag & VI_DOINGINACT) == 0, vp,
 		    ("vput: recursed on VI_DOINGINACT"));
 		vp->v_iflag |= VI_DOINGINACT;
 		VI_UNLOCK(vp);
 		VOP_INACTIVE(vp, td);
 		VI_LOCK(vp);
-		KASSERT(vp->v_iflag & VI_DOINGINACT,
+		VNASSERT(vp->v_iflag & VI_DOINGINACT, vp,
 		    ("vput: lost VI_DOINGINACT"));
 		vp->v_iflag &= ~VI_DOINGINACT;
 		if (VSHOULDFREE(vp))
@@ -2125,7 +2130,7 @@ loop:
 		 * all other files, just kill them.
 		 */
 		if (flags & FORCECLOSE) {
-			KASSERT(vp->v_type != VCHR && vp->v_type != VBLK,
+			VNASSERT(vp->v_type != VCHR && vp->v_type != VBLK, vp,
 			    ("device VNODE %p is FORCECLOSED", vp));
 			vgonel(vp, td);
 			MNT_ILOCK(mp);
@@ -2147,7 +2152,7 @@ loop:
 		 */
 		VI_LOCK(rootvp);
 		KASSERT(busy > 0, ("vflush: not busy"));
-		KASSERT(rootvp->v_usecount >= rootrefs,
+		VNASSERT(rootvp->v_usecount >= rootrefs, rootvp,
 		    ("vflush: usecount %d < rootrefs %d",
 		     rootvp->v_usecount, rootrefs));
 		if (busy == 1 && rootvp->v_usecount == rootrefs) {
@@ -2302,7 +2307,7 @@ vgonel(struct vnode *vp, struct thread *td)
 		VOP_CLOSE(vp, FNONBLOCK, NOCRED, td);
 		VI_LOCK(vp);
 		if ((vp->v_iflag & VI_DOINGINACT) == 0) {
-			KASSERT((vp->v_iflag & VI_DOINGINACT) == 0,
+			VNASSERT((vp->v_iflag & VI_DOINGINACT) == 0, vp,
 			    ("vclean: recursed on VI_DOINGINACT"));
 			vp->v_iflag |= VI_DOINGINACT;
 			VI_UNLOCK(vp);
@@ -2310,7 +2315,7 @@ vgonel(struct vnode *vp, struct thread *td)
 				panic("vclean: cannot relock.");
 			VOP_INACTIVE(vp, td);
 			VI_LOCK(vp);
-			KASSERT(vp->v_iflag & VI_DOINGINACT,
+			VNASSERT(vp->v_iflag & VI_DOINGINACT, vp,
 			    ("vclean: lost VI_DOINGINACT"));
 			vp->v_iflag &= ~VI_DOINGINACT;
 		}
@@ -2322,7 +2327,7 @@ vgonel(struct vnode *vp, struct thread *td)
 	if (VOP_RECLAIM(vp, td))
 		panic("vclean: cannot reclaim");
 
-	KASSERT(vp->v_object == NULL,
+	VNASSERT(vp->v_object == NULL, vp,
 	    ("vop_reclaim left v_object vp=%p, tag=%s", vp, vp->v_tag));
 
 	if (active) {
@@ -2835,7 +2840,7 @@ vfree(struct vnode *vp)
 
 	ASSERT_VI_LOCKED(vp, "vfree");
 	mtx_lock(&vnode_free_list_mtx);
-	KASSERT((vp->v_iflag & VI_FREE) == 0, ("vnode already free"));
+	VNASSERT((vp->v_iflag & VI_FREE) == 0, vp, ("vnode already free"));
 	if (vp->v_iflag & VI_AGE) {
 		TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
 	} else {
@@ -2855,7 +2860,7 @@ vbusy(struct vnode *vp)
 {
 
 	ASSERT_VI_LOCKED(vp, "vbusy");
-	KASSERT((vp->v_iflag & VI_FREE) != 0, ("vnode not free"));
+	VNASSERT((vp->v_iflag & VI_FREE) != 0, vp, ("vnode not free"));
 
 	mtx_lock(&vnode_free_list_mtx);
 	TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
