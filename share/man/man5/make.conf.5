@@ -542,8 +542,10 @@ This variable is undocumented.
 .Pq Vt int
 Causes the system compiler to be built such that it forces high optimization
 levels to a lower one.
-GCC -O2 and above is known to trigger known optimizer bugs at various
-times -- this is worse on the Alpha platform.
+.Xr gcc 1
+.Fl O2
+and above is known to trigger known optimizer bugs at various
+times \(em this is worse on the Alpha platform.
 The value assigned is the highest optimization value used.
 .El
 .Pp
