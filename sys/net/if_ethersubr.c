@@ -672,18 +672,21 @@ ether_demux(ifp, eh, m)
 	if (rule)	/* packet was already bridged */
 		goto post_stats;
 
-    if (! (BDG_ACTIVE(ifp) ) )
-	/* Discard packet if upper layers shouldn't see it because it was
-	   unicast to a different Ethernet address. If the driver is working
-	   properly, then this situation can only happen when the interface
-	   is in promiscuous mode. */
-	if ((ifp->if_flags & IFF_PROMISC) != 0
-	    && (eh->ether_dhost[0] & 1) == 0
-	    && bcmp(eh->ether_dhost,
-	      IFP2AC(ifp)->ac_enaddr, ETHER_ADDR_LEN) != 0
-	    && (ifp->if_flags & IFF_PPROMISC) == 0) {
-		m_freem(m);
-		return;
+	if (!(BDG_ACTIVE(ifp))) {
+		/*
+		 * Discard packet if upper layers shouldn't see it because it
+		 * was unicast to a different Ethernet address. If the driver
+		 * is working properly, then this situation can only happen 
+		 * when the interface is in promiscuous mode.
+		 */
+		if ((ifp->if_flags & IFF_PROMISC) != 0
+		    && (eh->ether_dhost[0] & 1) == 0
+		    && bcmp(eh->ether_dhost,
+		      IFP2AC(ifp)->ac_enaddr, ETHER_ADDR_LEN) != 0
+		    && (ifp->if_flags & IFF_PPROMISC) == 0) {
+			    m_freem(m);
+			    return;
+		}
 	}
 
 	/* Discard packet if interface is not up */
