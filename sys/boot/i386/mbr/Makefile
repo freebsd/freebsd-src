@@ -6,8 +6,6 @@ STRIP=
 BINDIR?=	/boot
 BINMODE=	444
 
-M4?=	m4
-
 ORG=	0x600
 
 mbr: mbr.o
@@ -18,10 +16,6 @@ mbr: mbr.o
 	${LD} -N -e start -Ttext ${ORG} -o mbr.out mbr.o
 	objcopy -S -O binary mbr.out ${.TARGET}
 .endif
-
-mbr.o: mbr.m4 mbr.s
-	(cd ${.CURDIR}; ${M4} mbr.m4 mbr.s) | \
-		${AS} ${AFLAGS} -o ${.TARGET}
 
 CLEANFILES+= mbr.out mbr.o
 
