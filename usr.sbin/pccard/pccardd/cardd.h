@@ -53,11 +53,20 @@ struct card_config {
 	char    inuse;
 };
 
+struct ether {
+	struct ether *next;
+	int	type;
+	int	value;
+};
+
+#define	ETHTYPE_GENERIC		0
+#define	ETHTYPE_ATTR2		1
+
 struct card {
 	struct card *next;
 	char   *manuf;
 	char   *version;
-	int     ether;			/* For net cards, ether at offset */
+	struct ether *ether;		/* For net cards, ether at offset */
 	int     reset_time;		/* Reset time */
 	int	iosize;			/* I/O window size (ignore location) */
 	struct card_config *config;	/* List of configs */

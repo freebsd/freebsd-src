@@ -35,6 +35,7 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <ctype.h>
 #include <sys/ioctl.h>
 #include "cardd.h"
 
@@ -45,6 +46,7 @@ static void		 card_inserted(struct slot *);
 static void		 card_removed(struct slot *);
 static void		 pr_cmd(struct cmd *);
 static void		 read_ether(struct slot *);
+static void		 read_ether_attr2(struct slot *sp);
 
 /*
  *	Dump configuration file data.
@@ -228,8 +230,18 @@ card_inserted(struct slot *sp)
 			sp->cis->manuf, sp->cis->vers);
 		return;
 	}
-	if (cp->ether)
-		read_ether(sp);
+	if (cp->ether) {
+		struct ether *e = 0;
+		e = cp->ether;
+		switch (e->type) {
+		case ETHTYPE_ATTR2:
+			read_ether_attr2(sp);
+			break;
+		default:
+			read_ether(sp);
+			break;
+		}
+	}
 	if ((sp->config = assign_driver(cp)) == NULL) 
 		return;
 	if (assign_io(sp)) {
@@ -259,7 +271,7 @@ read_ether(struct slot *sp)
 {
 	unsigned char net_addr[12];
 
-	lseek(sp->fd, (off_t)sp->card->ether, SEEK_SET);
+	lseek(sp->fd, (off_t)sp->card->ether->value, SEEK_SET);
 	if (read(sp->fd, net_addr, sizeof(net_addr)) != sizeof(net_addr)) {
 		logerr("read err on net addr");
 		return;
@@ -274,6 +286,44 @@ read_ether(struct slot *sp)
 	    sp->eaddr[0], sp->eaddr[1], sp->eaddr[2],
 	    sp->eaddr[3], sp->eaddr[4], sp->eaddr[5]);
 }
+
+/*
+ *      Megahertz X-Jack Ethernet uses unique way to get/set MAC
+ *      address of the card.
+ */
+static void
+read_ether_attr2(struct slot *sp)
+{
+	int	i;
+	char	*hexaddr;
+
+	hexaddr = sp->cis->add_info2;
+	for (i = 0; i < 6; i++)
+		sp->eaddr[i] = 0;
+	if (!hexaddr)
+		return;
+	if (strlen(hexaddr) != 12)
+		return;
+	for (i = 0; i < 12; i++)
+		if (!isxdigit(hexaddr[i]))
+			return;
+	for (i = 0; i < 6; i++) {
+		u_int	d;
+		char	s[3];
+		s[0] = hexaddr[i * 2];
+		s[1] = hexaddr[i * 2 + 1];
+		s[2] = '\0';
+		if (!sscanf(s, "%x", &d)) {
+			int	j;
+			for (j = 0; j < 6; j++)
+				sp->eaddr[j] = 0;
+			return;
+		}
+		sp->eaddr[i] = (u_char)d;
+	}
+	sp->flags |= EADDR_CONFIGED;
+}
+
 
 /*
  *	assign_driver - Assign driver to card.
