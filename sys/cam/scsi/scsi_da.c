@@ -1785,6 +1785,8 @@ dagetcapacity(struct cam_periph *periph)
 	int error;
 
 	softc = (struct da_softc *)periph->softc;
+	block_len = 0;
+	maxsector = 0;
 	error = 0;
 
 	/* Do a read capacity */
