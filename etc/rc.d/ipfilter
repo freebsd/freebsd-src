@@ -40,7 +40,7 @@ case ${OSTYPE} in
 FreeBSD)
 	# load ipfilter kernel module if needed
 	if ! sysctl net.inet.ipf.fr_pass > /dev/null 2>&1; then
-		if kldload ipl ; then
+		if kldload ipl; then
 			echo 'IP-filter module loaded.'
 		else
 			warn 'IP-filter module failed to load.'
@@ -79,7 +79,7 @@ ipfilter_start()
 	case ${OSTYPE} in
 	FreeBSD)
 		${ipfilter_program:-/sbin/ipf} -Fa -f \
-	    	    "${ipfilter_rules}" ${ipfilter_flags}
+		    "${ipfilter_rules}" ${ipfilter_flags}
 		;;
 	NetBSD)
 		/sbin/ipf -E -Fa
@@ -115,7 +115,7 @@ ipfilter_reload()
 	case ${OSTYPE} in
 	FreeBSD)
 		${ipfilter_program:-/sbin/ipf} -I -Fa -f \
-	    	    "${ipfilter_rules}" ${ipfilter_flags}
+		    "${ipfilter_rules}" ${ipfilter_flags}
 		;;
 	NetBSD)
 		/sbin/ipf -I -Fa

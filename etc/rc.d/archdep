@@ -17,7 +17,7 @@ load_rc_config $name
 #
 unaligned_warnings()
 {
-	if ! checkyesno unaligned_print ; then
+	if ! checkyesno unaligned_print; then
 		sysctl machdep.unaligned_print=0
 	fi
 }
@@ -26,7 +26,7 @@ unaligned_warnings()
 #
 osf1_compat()
 {
-	if checkyesno osf1_enable ; then
+	if checkyesno osf1_enable; then
 		echo -n ' OSF/1'
 		if ! kldstat -v | grep osf1_ecoff > /dev/null; then
 			kldload osf1 > /dev/null 2>&1
@@ -38,7 +38,7 @@ osf1_compat()
 #
 ibcs2_compat()
 {
-	if checkyesno ibcs2_enable ; then
+	if checkyesno ibcs2_enable; then
 		echo -n ' ibcs2'
 		kldload ibcs2 > /dev/null 2>&1
 		case ${ibcs2_loaders} in
@@ -57,7 +57,7 @@ ibcs2_compat()
 #
 x10_daemon()
 {
-	if checkyesno xtend_enable ; then
+	if checkyesno xtend_enable; then
 		echo -n ' xtend'
 		/usr/libexec/xtend
 	fi

@@ -9,9 +9,9 @@
 
 # Build device name databases if we are not using DEVFS
 #
-if sysctl vfs.devfs.generation > /dev/null 2>&1 ; then
-        rm -f /var/run/dev.db
+if sysctl vfs.devfs.generation > /dev/null 2>&1; then
+	rm -f /var/run/dev.db
 else
-        dev_mkdb
+	dev_mkdb
 fi
 

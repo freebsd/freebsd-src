@@ -200,14 +200,14 @@ network6_stf_setup()
 network6_static_routes_setup()
 {
 	# Set up any static routes.
-        case ${ipv6_defaultrouter} in
-        [Nn][Oo] | '')
-                ;;
-        *)
-                ipv6_static_routes="default ${ipv6_static_routes}"
-                ipv6_route_default="default ${ipv6_defaultrouter}"
-                ;;
-        esac
+	case ${ipv6_defaultrouter} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		ipv6_static_routes="default ${ipv6_static_routes}"
+		ipv6_route_default="default ${ipv6_defaultrouter}"
+		;;
+	esac
 	case ${ipv6_static_routes} in
 	[Nn][Oo] | '')
 		;;
@@ -343,7 +343,7 @@ network_ipv6_start()
 		;;
 	esac
 
-	if checkyesno ipv6_gateway_enable ; then
+	if checkyesno ipv6_gateway_enable; then
 		# act as a router
 		${SYSCTL_W} net.inet6.ip6.forwarding=1
 		${SYSCTL_W} net.inet6.ip6.accept_rtadv=0
@@ -371,7 +371,7 @@ network_ipv6_start()
 	fi
 
 	# Filter out interfaces on which IPv6 initialization failed.
-	if checkyesno ipv6_gateway_enable ; then
+	if checkyesno ipv6_gateway_enable; then
 		ipv6_working_interfaces=""
 		for i in ${ipv6_network_interfaces}; do
 			laddr=`network6_getladdr $i exclude_tentative`
@@ -401,7 +401,7 @@ network_ipv6_start()
 	network6_faith_setup
 
 	# Support for IPv4 address tacked onto an IPv6 address
-	if checkyesno ipv6_ipv4mapping ; then
+	if checkyesno ipv6_ipv4mapping; then
 		echo 'IPv4 mapped IPv6 address support=YES'
 		${SYSCTL_W} net.inet6.ip6.v6only=0 >/dev/null
 	else

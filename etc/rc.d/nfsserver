@@ -18,12 +18,12 @@ stop_cmd=":"
 nfsserver_start()
 {
 	if ! sysctl vfs.nfsrv >/dev/null 2>&1; then
-		if ! kldload nfsserver ; then
+		if ! kldload nfsserver; then
 			warn 'Could not load NFS server module'
 			return 1
 		fi
 	fi
-        return 0
+	return 0
 }
 
 load_rc_config $name

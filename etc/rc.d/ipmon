@@ -26,10 +26,10 @@ esac
 
 ipmon_precmd()
 {
-        # Make sure ipfilter is loaded before continuing
-        if ! sysctl net.inet.ipf.fr_pass >/dev/null 2>&1 ; then
-                return 1
-        fi
+	# Make sure ipfilter is loaded before continuing
+	if ! sysctl net.inet.ipf.fr_pass >/dev/null 2>&1; then
+		return 1
+	fi
 	return 0
 }
 

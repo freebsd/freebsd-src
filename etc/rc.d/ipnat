@@ -35,7 +35,7 @@ extra_commands="reload"
 ipnat_precmd()
 {
 	# Make sure ipfilter is loaded before continuing
-	if ! ${SYSCTL} net.inet.ipf.fr_pass >/dev/null 2>&1 ; then
+	if ! ${SYSCTL} net.inet.ipf.fr_pass >/dev/null 2>&1; then
 		err 'ipnat requires ipfilter be loaded'
 		return 1
 	fi
@@ -56,7 +56,7 @@ ipnat_start()
 		echo '.'
 
 		# restore filter/NAT state tables after loading the rules
-		if checkyesno ipfs_enable ; then
+		if checkyesno ipfs_enable; then
 			if [ -r "/var/db/ipf/ipstate.ipf" ]; then
 				echo -n ' ipfs'
 				${ipfs_program:-/sbin/ipfs} -R ${ipfs_flags}

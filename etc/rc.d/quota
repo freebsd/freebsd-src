@@ -20,7 +20,7 @@ stop_cmd="/usr/sbin/quotaoff -a"
 
 quota_start()
 {
-	if checkyesno check_quotas ; then 
+	if checkyesno check_quotas; then
 		echo -n 'Checking quotas:'
 		quotacheck -a
 		echo ' done.'

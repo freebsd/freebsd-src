@@ -32,7 +32,7 @@ bootconf_start()
 		case $name in
 		current|default|\*)
 			continue
-			;;	
+			;;
 		*)
 			if [ "$name" = "$default" ]; then
 				echo -n "${spc}[${name}]"
@@ -53,7 +53,7 @@ bootconf_start()
 		(sleep 30 && kill -ALRM $master) >/dev/null 2>&1 &
 		read conf
 		trap : ALRM
-		if [ -z $conf ] ; then
+		if [ -z $conf ]; then
 			conf=$default
 		fi
 		if [ ! -d /etc/etc.$conf/. ]; then
@@ -70,7 +70,7 @@ bootconf_start()
 		;;
 	esac
 
-	if [ -f /etc/rc.conf ] ; then
+	if [ -f /etc/rc.conf ]; then
 		. /etc/rc.conf
 	fi
 }

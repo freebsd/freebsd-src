@@ -52,18 +52,18 @@ chroot_autoupdate()
 		cp -p /usr/libexec/named-xfer "${named_chrootdir}/usr/libexec"
 	fi
 
-        # Copy /dev/null over, if neccessary. Preserve everything (perms,
-        # ownership, mod times).
-        #
-        if [ ! -c "${named_chrootdir}/dev/null" ]; then
-        rm -f "${named_chrootdir}/dev/null"
-                ( cd /dev ; /bin/pax -rw -pe null "${named_chrootdir}/dev" )
-        fi
+	# Copy /dev/null over, if neccessary. Preserve everything (perms,
+	# ownership, mod times).
+	#
+	if [ ! -c "${named_chrootdir}/dev/null" ]; then
+	rm -f "${named_chrootdir}/dev/null"
+		( cd /dev ; /bin/pax -rw -pe null "${named_chrootdir}/dev" )
+	fi
 
-        # Copy local timezone information if it's not up-to-date.
-        #
-        if [ -f /etc/localtime ]; then
-                cmp -s /etc/localtime "${named_chrootdir}/etc/localtime" || \
+	# Copy local timezone information if it's not up-to-date.
+	#
+	if [ -f /etc/localtime ]; then
+		cmp -s /etc/localtime "${named_chrootdir}/etc/localtime" || \
 		cp -p /etc/localtime "${named_chrootdir}/etc/localtime"
 	fi
 }

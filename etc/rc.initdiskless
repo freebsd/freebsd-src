@@ -81,19 +81,19 @@ bootp_ipa=""
 bootp_ipbca=""
 iflist=`ifconfig -l`
 for i in ${iflist} ; do
-    set `ifconfig ${i}`
-    while [ $# -ge 1 ] ; do
-        if [ "${bootp_ifc}" = "" -a "$1" = "inet" ] ; then
-            bootp_ifc=${i} ; bootp_ipa=${2} ; shift
-        fi
-        if [ "${bootp_ipbca}" = "" -a "$1" = "broadcast" ] ; then
-            bootp_ipbca=$2; shift
-        fi
-        shift
-    done
-    if [ "${bootp_ifc}" != "" ] ; then
-        break
-    fi
+	set `ifconfig ${i}`
+	while [ $# -ge 1 ] ; do
+		if [ "${bootp_ifc}" = "" -a "$1" = "inet" ]; then
+			bootp_ifc=${i} ; bootp_ipa=${2} ; shift
+		fi
+		if [ "${bootp_ipbca}" = "" -a "$1" = "broadcast" ]; then
+			bootp_ipbca=$2; shift
+		fi
+		shift
+	done
+	if [ "${bootp_ifc}" != "" ]; then
+		break
+	fi
 done
 echo "Interface ${bootp_ifc} IP-Address ${bootp_ipa} Broadcast ${bootp_ipbca}"
 

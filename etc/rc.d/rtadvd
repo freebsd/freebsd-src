@@ -27,25 +27,25 @@ esac
 
 rtadvd_precmd()
 {
-	if ! ${IS_GATEWAY} ; then
+	if ! ${IS_GATEWAY}; then
 		warn \
 		  "${name} cannot be used on IPv6 host, only on an IPv6 router."
 		return 1
 	fi
 
-        # This should be enabled with a great care.
-        # You may want to fine-tune /etc/rtadvd.conf.
-        #
-        # And if you wish your rtadvd to receive and process
-        # router renumbering messages, specify your Router Renumbering
-        # security policy by -R option.
-        #
-        # See `man 3 ipsec_set_policy` for IPsec policy specification
-        # details.
-        # (CAUTION: This enables your routers prefix renumbering
-        # from another machine, so if you enable this, do it with
-        # enough care.)
-        #
+	# This should be enabled with a great care.
+	# You may want to fine-tune /etc/rtadvd.conf.
+	#
+	# And if you wish your rtadvd to receive and process
+	# router renumbering messages, specify your Router Renumbering
+	# security policy by -R option.
+	#
+	# See `man 3 ipsec_set_policy` for IPsec policy specification
+	# details.
+	# (CAUTION: This enables your routers prefix renumbering
+	# from another machine, so if you enable this, do it with
+	# enough care.)
+	#
 	case ${OSTYPE} in
 	FreeBSD)
 		# If specific interfaces haven't been specified,
