@@ -1,0 +1,346 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+<HEAD>
+  <TITLE>BIND logging Statement</TITLE>
+</HEAD>
+
+<BODY>
+<H2>BIND Configuration File Guide -- <CODE>logging</CODE> Statement</H2>
+
+<HR>
+
+<A NAME="Syntax"><H3>Syntax</H3></A>
+
+<PRE>
+logging {
+  [ channel <VAR>channel_name</VAR> {
+    ( file <VAR><A HREF="docdef.html">path_name</A></VAR>
+       [ versions ( <VAR>number</VAR> | unlimited ) ]
+       [ size <VAR><A HREF="docdef.html">size_spec</A></VAR> ]
+     | syslog ( kern | user | mail | daemon | auth | syslog | lpr |
+                news | uucp | cron | authpriv | ftp |
+                local0 | local1 | local2 | local3 |
+                local4 | local5 | local6 | local7 )
+     | null );
+
+    [ severity ( critical | error | warning | notice |
+                 info  | debug [ <VAR>level</VAR> ] | dynamic ); ]
+    [ print-category <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
+    [ print-severity <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
+    [ print-time <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
+  }; ]
+
+  [ category <VAR>category_name</VAR> {
+    <VAR>channel_name</VAR>; [ <VAR>channel_name</VAR>; ... ]
+  }; ]
+  ...
+};
+</PRE>
+
+<A NAME="Usage"><H3>Definition and Usage</H3></A>
+
+<P>The <CODE>logging</CODE> statement configures a wide variety of
+logging options for the nameserver.  Its <CODE>channel</CODE> phrase
+associates output methods, format options and severity levels with
+a name that can then be used with the <CODE>category</CODE> phrase to
+select how various classes of messages are logged.</P>
+
+<P>Only one <CODE>logging</CODE> statement is used to define as many
+channels and categories as are wanted.  If there are multiple logging
+statements in a configuration, the first defined determines the logging,
+and warnings are issued for the others.  If there is no logging statement,
+the logging configuration will be:</P>
+
+<PRE>
+    logging {
+        category default { default_syslog; default_debug; };
+        category panic { default_syslog; default_stderr; };
+        category packet { default_debug; };
+        category eventlib { default_debug; };
+    };
+</PRE>
+
+<H4>The <CODE>channel</CODE> phrase</H4>
+
+<P>All log output goes to one or more "channels"; you can make as many
+of them as you want.</P>
+
+<P>Every channel definition must include a clause that says whether
+messages selected for the channel go to a file, to a particular syslog
+facility, or are discarded.  It can optionally also limit the message
+severity level that will be accepted by the channel (default is
+"info"), and whether to include a <CODE>named</CODE>-generated time
+stamp, the category name and/or severity level (default is not to
+include any).</P>
+
+<P>The word <CODE>null</CODE> as the destination option for the
+channel will cause all messages sent to it to be discarded; other
+options for the channel are meaningless.</P>
+
+<P>The <CODE>file</CODE> clause can include limitations both on how
+large the file is allowed to become, and how many versions of the file
+will be saved each time the file is opened.  
+
+<P>The <CODE>size</CODE> option for files is simply a hard ceiling on
+log growth.  If the file ever exceeds the size, then
+<CODE>named</CODE> will just not write anything more to it until the
+file is reopened; exceeding the size does not automatically trigger a
+reopen.  The default behavior is to not limit the size of the file.</P>
+
+<P>If you use the <CODE>version</CODE> logfile option, then
+<CODE>named</CODE> will retain that many backup versions of the file
+by renaming them when opening.  For example, if you choose to keep 3
+old versions of the file "lamers.log" then just before it is opened
+lamers.log.1 is renamed to lames.log.2, lamers.log.0 is renamed to
+lamers.log.1, and lamers.log is renamed to lamers.log.0.  No rolled
+versions are kept by default.  The <CODE>unlimited</CODE> keyword is
+synonymous with <CODE>99</CODE> in current BIND releases.</P>
+
+<P>The argument for the <CODE>syslog</CODE> clause is a syslog
+facility as described in the <CODE>syslog</CODE> manual page.  How
+<CODE>syslogd</CODE> will handle messages sent to this facility is
+described in the <CODE>syslog.conf</CODE> manual page.  If you have a
+system which uses a very old version of <CODE>syslog</CODE> that only
+uses two arguments to the <CODE>openlog()</CODE> function, then this
+clause is silently ignored.</P>
+
+<P>The <CODE>severity</CODE> clause works like <CODE>syslog</CODE>'s
+"priorities", except that they can also be used if you are writing
+straight to a file rather than using <CODE>syslog</CODE>.  Messages
+which are not at least of the severity level given will not be
+selected for the channel; messages of higher severity levels will be
+accepted.</P>
+
+<P>If you are using <CODE>syslog</CODE>, then the
+<CODE>syslog.conf</CODE> priorities will also determine what
+eventually passes through.  For example, defining a channel facility
+and severity as <CODE>daemon</CODE> and <CODE>debug</CODE> but only
+logging <CODE>daemon.warning</CODE> via <CODE>syslog.conf</CODE> will
+cause messages of severity <CODE>info</CODE> and <CODE>notice</CODE>
+to be dropped.  If the situation were reversed, with
+<CODE>named</CODE> writing messages of only <CODE>warning</CODE> or
+higher, then <CODE>syslogd</CODE> would print all messages it received
+from the channel.</P>
+
+<P>The server can supply extensive debugging information when it is in
+debugging mode.  If the server's global debug level is greater than
+zero, then debugging mode will be active.  The global debug level is
+set either by starting the server with the "-d" flag followed by a
+positive integer, or by sending the server the SIGUSR1 signal (for
+example, by using "ndc trace").  The global debug level can be set to
+zero, and debugging mode turned off, by sending the server the SIGUSR2
+signal ("ndc notrace".  All debugging messages in the server have a
+debug level, and higher debug levels give more more detailed output.
+Channels that specify a specific debug severity, e.g.
+
+<PRE>
+    channel specific_debug_level {
+        file "foo";
+        severity debug 3;
+    };
+</PRE>
+
+<P>will get debugging output of level 3 or less any time the
+server is in debugging mode, regardless of the global debugging level.
+Channels with <code>dynamic</code> severity use the server's global
+level to determine what messages to print.
+
+<P>If <CODE>print-time</CODE> has been turned on, then the date and
+time will be logged.  <CODE>print-time</CODE> may be specified for a
+syslog channel, but is usually pointless since syslog also prints the
+date and time.  If <CODE>print-category</CODE> is requested,
+then the category of the message will be logged as well.  Finally, if
+<CODE>print-severity</CODE> is on, then the severity level of the
+message will be logged.  The <CODE>print-</CODE> options may be used
+in any combination, and will always be printed in the following order:
+time, category, severity.  Here is an example where all three
+<CODE>print-</CODE> options are on:
+
+<PRE>
+    28-Apr-1997 15:05:32.863 default: notice: Ready to answer queries.
+</PRE>
+
+<P>There are four predefined channels that are used for
+<CODE>named</CODE>'s default logging as follows.  How they are used
+used is described in the next section, The <CODE>category</CODE> phrase.
+
+<PRE>
+    channel default_syslog {
+        syslog daemon;        # send to syslog's daemon facility
+        severity info;        # only send priority info and higher
+    };
+
+    channel default_debug {
+        file "named.run";     # write to named.run in the working directory
+        severity dynamic;     # log at the server's current debug level
+    };
+
+    channel default_stderr {  # writes to stderr
+        file "&lt;stderr&gt;";      # this is illustrative only; there's currently
+                              # no way of specifying an internal file
+                              # descriptor in the configuration language.
+        severity info;        # only send priority info and higher
+    };
+
+    channel null {            
+        null;                 # toss anything sent to this channel
+    };
+</PRE>
+
+<P>Once a channel is defined, it cannot be redefined.  Thus you cannot
+alter the built-in channels directly, but you can modify the default
+logging by pointing categories at channels you have defined.</P>
+
+<H4>The <CODE>category</CODE> phrase</H4>
+
+<P>There are many categories, so you can send the logs you want to see
+wherever you want, without seeing logs you don't want.  If you don't specify
+a list of channels for a category, then log messages in that category will
+be sent to the <CODE>default</CODE> category instead.  If you don't specify
+a default category, the following "default default" is used:
+
+<PRE>
+    category default { default_syslog; default_debug; };
+</PRE>
+
+<P>As an example, let's say you want to log security events to a file,
+but you also want keep the default logging behavior.  You'd specify the
+following:
+
+<PRE>
+    channel my_security_channel {
+        file "my_security_file";
+        severity info;
+    };
+    category security { my_security_channel; default_syslog; default_debug; };
+</PRE>
+
+<P>To discard all messages in a category, specify the
+<CODE>null</CODE> channel:
+
+<PRE>
+    category lame-servers { null; };
+    category cname { null; };
+</PRE>
+
+<P>The following
+categories are available:</P>
+
+<DL>
+<DT><CODE>default</CODE>
+<DD>
+The catch-all.  Many things still aren't classified into categories,
+and they all end up here.  Also, if you don't specify any channels for
+a category, the default category is used instead.  If you do not
+define the default category, the following definition is used:
+<CODE>category default { default_syslog; default_debug; };</CODE>
+
+<DT><CODE>config</CODE>
+<DD>  
+High-level configuration file processing.
+
+<DT><CODE>parser</CODE>
+<DD>
+Low-level configuration file processing.
+
+<DT><CODE>queries</CODE>
+<DD>
+A short log message is generated for every query the server receives.
+
+<DT><CODE>lame-servers</CODE>
+<DD>
+Messages like "Lame server on ..."
+
+<DT><CODE>statistics</CODE>
+<DD>
+Statistics.
+
+<DT><CODE>panic</CODE>
+<DD>
+If the server has to shut itself down due to an internal problem, it
+will log the problem in this category as well as in the problem's native
+category.  If you do not define the panic category, the following definition
+is used: <CODE>category panic { default_syslog; default_stderr; };</CODE>
+
+<DT><CODE>update</CODE>
+<DD>
+Dynamic updates.
+
+<DT><CODE>ncache</CODE>
+<DD>
+Negative caching.
+
+<DT><CODE>xfer-in</CODE>
+<DD>
+Zone transfers the server is receiving.
+
+<DT><CODE>xfer-out</CODE>
+<DD>
+Zone transfers the server is sending.
+
+<DT><CODE>db</CODE>
+<DD>
+All database operations.
+
+<DT><CODE>eventlib</CODE>
+<DD>
+Debugging info from the event system.  Only one channel may be specified for
+this category, and it must be a file channel.  If you do not define the
+eventlib category, the following definition is used: <CODE>category eventlib
+{ default_debug; };</CODE>
+
+<DT><CODE>packet</CODE>
+<DD>
+Dumps of packets received and sent.  Only one channel may be specified for
+this category, and it must be a file channel.  If you do not define the
+packet category, the following definition is used: <CODE>category packet
+{ default_debug; };</CODE>
+
+<DT><CODE>notify</CODE>
+<DD>
+The NOTIFY protocol.
+
+<DT><CODE>cname</CODE>
+<DD>
+Messages like "... points to a CNAME".
+
+<DT><CODE>security</CODE>
+<DD>
+Approved/unapproved requests.
+
+<DT><CODE>os</CODE>
+<DD>
+Operating system problems.
+
+<DT><CODE>insist</CODE>
+<DD>
+Internal consistency check failures.
+
+<DT><CODE>maintenance</CODE>
+<DD>
+Periodic maintenance events.
+
+<DT><CODE>load</CODE>
+<DD>
+Zone loading messages.
+
+<DT><CODE>response-checks</CODE>
+<DD>
+Messages arising from response checking, such as
+"Malformed response ...", "wrong ans. name ...",
+"unrelated additional info ...", "invalid RR type ...", and "bad referral ...".
+
+</DL>
+
+<HR>
+
+<CENTER><P>[ <A HREF="config.html">BIND Config. File</A>
+| <A HREF="http://www.vix.com/isc/bind.html">BIND Home</A>
+| <A HREF="http://www.isc.org">ISC</A> ]</P></CENTER>
+
+<HR>
+<ADDRESS>
+Last Updated: $Id: logging.html,v 1.6 1998/03/21 01:03:13 halley Exp $
+</ADDRESS>
+</BODY>
+</HTML>

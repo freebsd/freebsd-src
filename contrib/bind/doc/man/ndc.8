@@ -1,0 +1,142 @@
+.\" Copyright (c) 1994
+.\"    The Regents of the University of California.  All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\" 	This product includes software developed by the University of
+.\" 	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd November 27, 1994
+.Dt @INDOT_U@NDC @SYS_OPS_EXT_U@ 
+.Os BSD 4
+.Sh NAME
+.Nm @INDOT@ndc 
+.Nd name daemon control interface
+.Sh SYNOPSIS
+.Nm @INDOT@ndc
+.Ar directive
+.Op Ar ... 
+.Sh DESCRIPTION
+This command allows the name server administrator to send various signals
+to the name server, or to restart it.  Zero or more directives may be given,
+from the following list:
+.Bl -tag -width "querylog"
+.It Ic status
+Displays the current status of
+.Xr @INDOT@named @SYS_OPS_EXT@
+as shown by
+.Xr ps @CMD_EXT@ .
+.It Ic dumpdb
+Causes
+.Ic @INDOT@named
+to dump its database and cache to
+.Pa /var/tmp/named_dump.db
+(uses the 
+.Dv INT 
+signal.)
+.It Ic reload
+Causes
+.Ic @INDOT@named
+to check the serial numbers of all primary and secondary zones
+and to reload those that have changed (uses the 
+.Dv HUP 
+signal.)
+.It Ic stats
+Causes
+.Ic @INDOT@named
+to dump its statistics to
+.Pa /var/tmp/named.stats
+(uses the 
+.Dv IOT 
+or 
+.Dv ABRT 
+signal.)
+.It Ic trace
+Causes
+.Ic @INDOT@named
+to increment its 
+.Dq tracing level 
+by one.  Whenever the tracing level
+is nonzero, trace information will be written to
+.Pa /var/tmp/named.run .
+Higher tracing levels result in more detailed information.
+(Uses the 
+.Dv USR1 
+signal.)
+.It Ic notrace
+Causes
+.Ic @INDOT@named
+to set its 
+.Dq tracing level 
+to zero, closing 
+.Pa /var/tmp/named.run , 
+if it is open (uses the 
+.Dv USR2 
+signal.)
+.It Ic querylog
+Causes
+.Ic @INDOT@named
+to toggle the 
+.Dq query logging 
+feature, which while on will result in a
+.Xr syslog @SYSCALL_EXT@
+of each incoming query (uses the 
+.Dv WINCH 
+signal.)  Note that query logging
+consumes quite a lot of log file space.  This directive may also be given as
+.Ic qrylog .
+.It Ic start
+Causes
+.Ic @INDOT@named
+to be started, as long as it isn't already running.
+.It Ic stop
+Causes
+.Ic @INDOT@named
+to be stopped, if it is running.
+.It Ic restart
+Causes
+.Ic @INDOT@named
+to be killed and restarted.
+.El
+.Sh BUGS
+Arguments to
+.Ic @INDOT@named
+are not preserved by
+.Ic restart ,
+or known by
+.Ic start .
+.Pp
+Some mechanism for controlling the parameters and environment should exist.
+.Pp
+Implemented as a
+.Xr sh @CMD_EXT@
+script.
+.Sh AUTHOR
+Paul Vixie (Internet Software Consortium)
+.Sh SEE ALSO
+.Xr @INDOT@named @SYS_OPS_EXT@ ,
+.Xr @INDOT@named.reload @SYS_OPS_EXT@ ,
+.Xr @INDOT@named.restart @SYS_OPS_EXT@ .

@@ -62,9 +62,6 @@ ME=	-me
 NROFF=	nroff -rb3
 PRINTER= -Pdp
 TBL=	dtbl $(PRINTER)
-# For Linux:
-#PRINTER=
-#TBL=   tbl $(PRINTER)
 TROFF= ditroff $(PRINTER)
 GROFF= groff -Tps -t $(ME)
 
@@ -84,7 +81,6 @@ cat: $(FILES)
 
 clean:
 	rm -f *.psf *.lst *.BAK *.CKP *~ *.orig
-	rm -f file
 
 spell: $(FILES)
 	@for i in $(FILES); do \
