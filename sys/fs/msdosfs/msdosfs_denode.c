@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_denode.c,v 1.22 1997/02/22 09:40:46 peter Exp $ */
+/*	$Id: msdosfs_denode.c,v 1.23 1997/02/26 14:23:11 bde Exp $ */
 /*	$NetBSD: msdosfs_denode.c,v 1.9 1994/08/21 18:44:00 ws Exp $	*/
 
 /*-
@@ -750,7 +750,9 @@ out:
 	printf("msdosfs_inactive(): v_usecount %d, de_Name[0] %x\n", vp->v_usecount,
 	       dep->de_Name[0]);
 #endif
+
 	if (dep->de_Name[0] == SLOT_DELETED)
-		vrecycle(vp, (struct simplelock *)0, p);
+		vp->v_flag |= VAGE;
+
 	return error;
 }

@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.70 1997/03/08 04:33:47 dyson Exp $
+ *	$Id: vnode_pager.c,v 1.71 1997/05/19 14:36:56 dfr Exp $
  */
 
 /*
@@ -199,7 +199,6 @@ vnode_pager_dealloc(object)
 
 	vp->v_object = NULL;
 	vp->v_flag &= ~(VTEXT | VVMIO);
-	vp->v_flag |= VAGE;
 	vrele(vp);
 }
 
