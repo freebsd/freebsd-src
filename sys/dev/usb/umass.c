@@ -272,7 +272,8 @@ struct umass_softc {
 	unsigned char		drive;
 #	define DRIVE_GENERIC		0	/* use defaults for this one */
 #	define ZIP_100			1	/* to be used for quirks */
-#	define SHUTTLE_EUSB		2
+#	define ZIP_250			2	/* to be used for quirks */
+#	define SHUTTLE_EUSB		3
 
 	unsigned char		quirks;
 	/* The drive does not support Test Unit Ready. Convert to
