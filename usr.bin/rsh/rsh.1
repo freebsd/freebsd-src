@@ -38,7 +38,7 @@
 .Nm rsh
 .Nd remote shell
 .Sh SYNOPSIS
-.Nm rsh
+.Nm
 .Op Fl Kdnx
 .Op Fl t Ar timeout
 .Op Fl k Ar realm
@@ -58,27 +58,21 @@ output of the remote command to its standard output, and the
 standard error of the remote command to its standard error.
 Interrupt, quit and terminate signals are propagated to the remote
 command;
-.Nm rsh
+.Nm
 normally terminates when the remote command does.
 The options are as follows:
 .Bl -tag -width flag
 .It Fl K
-The
-.Fl K
-option turns off all Kerberos authentication.
+Turn off all Kerberos authentication.
 .It Fl d
-The
-.Fl d
-option turns on socket debugging (using
+Turn on socket debugging (using
 .Xr setsockopt  2  )
 on the
 .Tn TCP
 sockets used for communication with the remote host.
 .It Fl k
-The
-.Fl k
-option causes
-.Nm rsh
+Cause
+.Nm
 to obtain tickets for the remote host in
 .Ar realm
 instead of the remote host's realm as determined by
@@ -92,24 +86,18 @@ Kerberos authentication is used, and authorization is determined
 as in
 .Xr rlogin  1  .
 .It Fl n
-The
-.Fl n
-option redirects input from the special device
+Redirect input from the special device
 .Pa /dev/null
 (see the
 .Sx BUGS
 section of this manual page).
 .It Fl x
-The
-.Fl x
-option turns on
+Turn on
 .Tn DES
 encryption for all data exchange.
 This may introduce a significant delay in response time.
 .It Fl t
-The
-.Fl t
-option allows a timeout to be specified (in seconds).  If no
+Allow a timeout to be specified (in seconds).  If no
 data is sent or received in this time, rsh will exit.
 .El
 .Pp
@@ -158,18 +146,18 @@ to
 .Xr rshd 8
 .Sh HISTORY
 The
-.Nm rsh
+.Nm
 command appeared in
 .Bx 4.2 .
 .Sh BUGS
 If you are using
 .Xr csh  1
 and put a
-.Nm rsh
+.Nm
 in the background without redirecting its input away from the terminal,
 it will block even if no reads are posted by the remote command.
 If no input is desired you should redirect the input of
-.Nm rsh
+.Nm
 to
 .Pa /dev/null
 using the
@@ -182,12 +170,12 @@ You cannot run an interactive command
 or
 .Xr vi  1  )
 using
-.Nm rsh  ;
+.Nm rsh ;
 use
-.Xr rlogin  1
+.Xr rlogin 1
 instead.
 .Pp
 Stop signals stop the local
-.Nm rsh
+.Nm
 process only; this is arguably wrong, but currently hard to fix for reasons
 too complicated to explain here.
