@@ -5835,7 +5835,7 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0)
 {
 	u_short		   action, reason = 0, log = 0;
 	struct mbuf	  *m = *m0;
-	struct ip6_hdr	  *h;
+	struct ip6_hdr	  *h = NULL;		/* make the compiler happy */
 	struct pf_rule	  *a = NULL, *r = &pf_default_rule, *tr;
 	struct pf_state	  *s = NULL;
 	struct pf_ruleset *ruleset = NULL;

@@ -128,6 +128,9 @@ extern struct timeout	 pf_expire_to;
 #endif
 
 struct pf_rule		 pf_default_rule;
+#ifdef ALTQ
+static int		 pfaltq_running;
+#endif
 
 #define	TAGID_MAX	 50000
 TAILQ_HEAD(pf_tags, pf_tagname)	pf_tags = TAILQ_HEAD_INITIALIZER(pf_tags);
@@ -229,26 +232,12 @@ void
 init_pf_mutex(void)
 {
 	mtx_init(&pf_task_mtx, "pf task mtx", NULL, MTX_DEF);
-/*
- * pf_altq_mtx is initialized at altq_subr.c.
- *
- * #if defined(ALTQ) && !defined(ALTQ3_COMPAT)
- *	mtx_init(&pf_altq_mtx, "pf altq mtx", NULL, MTX_DEF);
- * #endif
- */
 }
 
 void
 destroy_pf_mutex(void)
 {
 	mtx_destroy(&pf_task_mtx);
-/*
- * pf_altq_mtx is initialized at altq_subr.c.
- *
- * #if defined(ALTQ) && !defined(ALTQ3_COMPAT)
- * 	mtx_destroy(&pf_altq_mtx);
- * #endif
- */
 }
 
 void
@@ -1771,16 +1760,8 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 					break;
 			}
 		}
-#ifdef __FreeBSD__
-		if (error == 0) {
-			mtx_lock(&pf_altq_mtx);
-			pfaltq_running = 1;
-			mtx_unlock(&pf_altq_mtx);
-		}
-#else
 		if (error == 0)
 			pfaltq_running = 1;
-#endif
 		splx(s);
 		DPFPRINTF(PF_DEBUG_MISC, ("altq: started\n"));
 		break;
@@ -1812,16 +1793,8 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 					error = err;
 			}
 		}
-#ifdef __FreeBSD__
-		if (error == 0) {
-			mtx_lock(&pf_altq_mtx);
-			pfaltq_running = 0;
-			mtx_unlock(&pf_altq_mtx);
-		}
-#else
 		if (error == 0)
 			pfaltq_running = 0;
-#endif
 		splx(s);
 		DPFPRINTF(PF_DEBUG_MISC, ("altq: stopped\n"));
 		break;
@@ -2807,16 +2780,8 @@ pf_stopaltq(void)
 					error = err;
 			}
 		}
-#ifdef __FreeBSD__
-		if (error == 0) {
-			mtx_lock(&pf_altq_mtx);
-			pfaltq_running = 0;
-			mtx_unlock(&pf_altq_mtx);
-		}
-#else
 		if (error == 0)
 			pfaltq_running = 0;
-#endif
 		splx(s);
 	} while (0);
 
@@ -3210,11 +3175,6 @@ pf_load(void)
 		destroy_pf_mutex();
 		return (ENOMEM);
 	}
-#ifdef ALTQ
-	mtx_lock(&pf_altq_mtx);
-	++pfaltq_ref;
-	mtx_unlock(&pf_altq_mtx);
-#endif
 	return (0);
 }
 
@@ -3240,11 +3200,6 @@ pf_unload(void)
 	cleanup_pf_zone();
 	pf_osfp_cleanup();
 	destroy_dev(pf_dev);
-#ifdef ALTQ
-	mtx_lock(&pf_altq_mtx);
-	--pfaltq_ref;
-	mtx_unlock(&pf_altq_mtx);
-#endif
 	destroy_pf_mutex();
 	return error;
 }
@@ -3278,8 +3233,5 @@ static moduledata_t pf_mod = {
 DECLARE_MODULE(pf, pf_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_DEPEND(pf, pflog, PFLOG_MINVER, PFLOG_PREFVER, PFLOG_MAXVER);
 MODULE_DEPEND(pf, pfsync, PFSYNC_MINVER, PFSYNC_PREFVER, PFSYNC_MAXVER);
-#ifdef ALTQ
-MODULE_DEPEND(pf, pfaltq, PFALTQ_MINVER, PFALTQ_PREFVER, PFALTQ_MAXVER);
-#endif
 MODULE_VERSION(pf, PF_MODVER);
 #endif	/* __FreeBSD__ */

@@ -175,10 +175,6 @@ struct pf_addr_dyn {
 		if(var) uma_zdestroy(var)
 
 extern struct mtx pf_task_mtx;
-#ifdef ALTQ
-extern struct mtx pf_altq_mtx;
-extern int pfaltq_ref;
-#endif
 
 #define	PF_ASSERT(h) mtx_assert(&pf_task_mtx, (h))
 
