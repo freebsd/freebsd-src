@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscall.h>
 #include <sys/sysent.h>
 
+#include <machine/sysarch.h>
+
 #ifndef _SYS_SYSPROTO_H_
 struct sysarch_args {
 	int op;
@@ -50,11 +52,55 @@ struct sysarch_args {
 };
 #endif
 
+/* Prototypes */
+static int arm32_sync_icache (struct thread *, void *);
+static int arm32_drain_writebuf(struct thread *, void *);
+
+static int
+arm32_sync_icache(struct thread *td, void *args)
+{
+	struct arm_sync_icache_args ua;
+	int error;
+
+	if ((error = copyin(args, &ua, sizeof(ua))) != 0)
+		return (error);
+
+	cpu_icache_sync_range(ua.addr, ua.len);
+
+	td->td_retval[0] = 0;
+	return(0);
+}
+
+static int
+arm32_drain_writebuf(struct thread *td, void *args)
+{
+	/* No args. */
+
+	td->td_retval[0] = 0;
+	cpu_drain_writebuf();
+	return(0);
+}
+
 int
 sysarch(td, uap)
 	struct thread *td;
 	register struct sysarch_args *uap;
 {
-	return (0);
+	int error;
+
+	switch (uap->op) {
+	case ARM_SYNC_ICACHE : 
+		error = arm32_sync_icache(td, uap->parms);
+		break;
+		
+	case ARM_DRAIN_WRITEBUF : 
+		error = arm32_drain_writebuf(td, uap->parms);
+		break;
+		
+	default:
+		error = EINVAL;
+		break;
+	}
+	return (error);
 }
 
