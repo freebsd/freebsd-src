@@ -1933,9 +1933,19 @@ deallocate_dependencies(bp, inodedep)
 					    &dirrem->dm_list);
 			}
 			if ((pagedep->pd_state & NEWBLOCK) != 0) {
-				FREE_LOCK(&lk);
-				panic("deallocate_dependencies: "
-				      "active pagedep");
+				LIST_FOREACH(wk, &inodedep->id_bufwait, wk_list)
+					if (wk->wk_type == D_NEWDIRBLK &&
+					    WK_NEWDIRBLK(wk)->db_pagedep ==
+					      pagedep)
+						break;
+				if (wk != NULL) {
+					WORKLIST_REMOVE(wk);
+					free_newdirblk(WK_NEWDIRBLK(wk));
+				} else {
+					FREE_LOCK(&lk);
+					panic("deallocate_dependencies: "
+					      "lost pagedep");
+				}
 			}
 			WORKLIST_REMOVE(&pagedep->pd_list);
 			LIST_REMOVE(pagedep, pd_hash);
@@ -3930,17 +3940,15 @@ handle_written_filepage(pagedep, bp)
 		return (1);
 	}
 	/*
-	 * If no dependencies remain, the pagedep will be freed.
-	 * Otherwise it will remain to update the page before it
-	 * is written back to disk.
+	 * If no dependencies remain and we are not waiting for a
+	 * new directory block to be claimed by its inode, then the
+	 * pagedep will be freed. Otherwise it will remain to track
+	 * any new entries on the page in case they are fsync'ed.
 	 */
-	if (LIST_FIRST(&pagedep->pd_pendinghd) == 0) {
-		if ((pagedep->pd_state & NEWBLOCK) != 0) {
-			printf("handle_written_filepage: active pagedep\n");
-		} else {
-			LIST_REMOVE(pagedep, pd_hash);
-			WORKITEM_FREE(pagedep, D_PAGEDEP);
-		}
+	if (LIST_FIRST(&pagedep->pd_pendinghd) == 0 &&
+	    (pagedep->pd_state & NEWBLOCK) == 0) {
+		LIST_REMOVE(pagedep, pd_hash);
+		WORKITEM_FREE(pagedep, D_PAGEDEP);
 	}
 	return (0);
 }
