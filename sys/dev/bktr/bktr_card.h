@@ -77,7 +77,8 @@
 #define CARD_LEADTEK		15
 #define CARD_TERRATVPLUS	16
 #define CARD_IO_BCTV3		17
-#define Bt848_MAX_CARD		18
+#define CARD_AOPEN_VA1000	18
+#define Bt848_MAX_CARD		19
 
 #define CARD_IO_GV		CARD_IO_BCTV2
 
