@@ -36,6 +36,7 @@
 #include "opt_ipsec.h"
 #include "opt_mac.h"
 #include "opt_tcpdebug.h"
+#include "opt_tcp_sack.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -201,6 +202,17 @@ static int	tcp_inflight_stab = 20;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, inflight_stab, CTLFLAG_RW,
     &tcp_inflight_stab, 0, "Inflight Algorithm Stabilization 20 = 2 packets");
 
+
+int tcp_do_sack = 1;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, do_sack, CTLFLAG_RW,
+    &tcp_do_sack, 0, "Enable/Disable TCP SACK support");
+
+int tcp_sackhole_limit = 10 * 1024; /* Arbitrarily set */
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, sackhole_limit, CTLFLAG_RW,
+	   &tcp_sackhole_limit, 0, "Limit on the total SACK scoreboard elements");
+
+uma_zone_t sack_hole_zone;
+
 static struct inpcb *tcp_notify(struct inpcb *, int);
 static void	tcp_discardcb(struct tcpcb *);
 static void	tcp_isn_tick(void *);
@@ -292,6 +304,8 @@ tcp_init()
 	tcp_isn_tick(NULL);
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, tcp_fini, NULL,
 		SHUTDOWN_PRI_DEFAULT);
+	sack_hole_zone = uma_zcreate("sackhole", sizeof(struct sackhole), 
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 }
 
 void
@@ -606,6 +620,7 @@ tcp_newtcpcb(inp)
 		tp->t_flags = (TF_REQ_SCALE|TF_REQ_TSTMP);
 	if (tcp_do_rfc1644)
 		tp->t_flags |= TF_REQ_CC;
+	tp->sack_enable = tcp_do_sack;
 	tp->t_inpcb = inp;	/* XXX */
 	/*
 	 * Init srtt to TCPTV_SRTTBASE (0), so we can tell that we have no
@@ -739,6 +754,7 @@ tcp_discardcb(tp)
 		tp->t_segqlen--;
 		tcp_reass_qsize--;
 	}
+	tcp_free_sackholes(tp);
 	inp->inp_ppcb = NULL;
 	tp->t_inpcb = NULL;
 	uma_zfree(tcpcb_zone, tp);

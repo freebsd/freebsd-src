@@ -37,6 +37,7 @@
 #include "opt_mac.h"
 #include "opt_tcpdebug.h"
 #include "opt_tcp_input.h"
+#include "opt_tcp_sack.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -159,7 +160,9 @@ struct inpcbhead tcb;
 struct inpcbinfo tcbinfo;
 struct mtx	*tcbinfo_mtx;
 
-static void	 tcp_dooptions(struct tcpopt *, u_char *, int, int);
+static void	 tcp_dooptions(struct tcpcb *, struct tcpopt *, u_char *,
+		     int, int, struct tcphdr *);
+
 static void	 tcp_pulloutofband(struct socket *,
 		     struct tcphdr *, struct mbuf *, int);
 static int	 tcp_reass(struct tcpcb *, struct tcphdr *, int *,
@@ -724,7 +727,7 @@ findpcb:
 		 * present in a SYN segment.  See tcp_timewait().
 		 */
 		if (thflags & TH_SYN)
-			tcp_dooptions(&to, optp, optlen, 1);
+			tcp_dooptions((struct tcpcb *)NULL, &to, optp, optlen, 1, th);
 		if (tcp_timewait((struct tcptw *)inp->inp_ppcb,
 		    &to, th, m, tlen))
 			goto findpcb;
@@ -938,7 +941,7 @@ findpcb:
 				tcp_trace(TA_INPUT, ostate, tp,
 				    (void *)tcp_saveipgen, &tcp_savetcp, 0);
 #endif
-			tcp_dooptions(&to, optp, optlen, 1);
+			tcp_dooptions(tp, &to, optp, optlen, 1, th);
 			if (!syncache_add(&inc, &to, th, &so, m))
 				goto drop;
 			if (so == NULL) {
@@ -1054,7 +1057,7 @@ after_listen:
 	 * for incoming connections is handled in tcp_syncache.
 	 * XXX this is traditional behavior, may need to be cleaned up.
 	 */
-	tcp_dooptions(&to, optp, optlen, thflags & TH_SYN);
+	tcp_dooptions(tp,&to, optp, optlen, thflags & TH_SYN,th);
 	if (thflags & TH_SYN) {
 		if (to.to_flags & TOF_SCALE) {
 			tp->t_flags |= TF_RCVD_SCALE;
@@ -1069,6 +1072,20 @@ after_listen:
 			tp->t_flags |= TF_RCVD_CC;
 		if (to.to_flags & TOF_MSS)
 			tcp_mss(tp, to.to_mss);
+		if (tp->sack_enable) {
+			if (!(to.to_flags & TOF_SACK))
+				tp->sack_enable = 0;
+			else
+				tp->t_flags |= TF_SACK_PERMIT;
+		}
+
+	}
+
+	if (tp->sack_enable) {
+		/* Delete stale (cumulatively acked) SACK holes */
+		tcp_del_sackholes(tp, th);
+		tp->rcv_laststart = th->th_seq; /* last rec'vd segment*/
+		tp->rcv_lastend = th->th_seq + tlen;
 	}
 
 	/*
@@ -1120,9 +1137,10 @@ after_listen:
 			if (SEQ_GT(th->th_ack, tp->snd_una) &&
 			    SEQ_LEQ(th->th_ack, tp->snd_max) &&
 			    tp->snd_cwnd >= tp->snd_wnd &&
-			    ((!tcp_do_newreno &&
+			    ((!tcp_do_newreno && !tp->sack_enable &&
 			      tp->t_dupacks < tcprexmtthresh) ||
-			     (tcp_do_newreno && !IN_FASTRECOVERY(tp)))) {
+			     ((tcp_do_newreno || tp->sack_enable) && 
+			      !IN_FASTRECOVERY(tp)))) {
 				KASSERT(headlocked, ("headlocked"));
 				INP_INFO_WUNLOCK(&tcbinfo);
 				/*
@@ -1218,6 +1236,9 @@ after_listen:
 			 * with nothing on the reassembly queue and
 			 * we have enough buffer space to take it.
 			 */
+			/* Clean receiver SACK report if present */
+			if (tp->sack_enable && tp->rcv_numsacks)
+				tcp_clean_sackreport(tp);
 			++tcpstat.tcps_preddat;
 			tp->rcv_nxt += tlen;
 			/*
@@ -1898,7 +1919,7 @@ trimthenstep6:
 				    th->th_ack != tp->snd_una)
 					tp->t_dupacks = 0;
 				else if (++tp->t_dupacks > tcprexmtthresh ||
-					 (tcp_do_newreno &&
+					 ((tcp_do_newreno || tp->sack_enable) &&
 					  IN_FASTRECOVERY(tp))) {
 					tp->snd_cwnd += tp->t_maxseg;
 					(void) tcp_output(tp);
@@ -1906,7 +1927,8 @@ trimthenstep6:
 				} else if (tp->t_dupacks == tcprexmtthresh) {
 					tcp_seq onxt = tp->snd_nxt;
 					u_int win;
-					if (tcp_do_newreno &&
+					if ((tcp_do_newreno || 
+					    tp->sack_enable) &&
 					    SEQ_LEQ(th->th_ack,
 					            tp->snd_recover)) {
 						tp->t_dupacks = 0;
@@ -1921,6 +1943,17 @@ trimthenstep6:
 					tp->snd_recover = tp->snd_max;
 					callout_stop(tp->tt_rexmt);
 					tp->t_rtttime = 0;
+					if (tp->sack_enable) {
+						tcpstat.tcps_sack_recovery_episode++;
+						tp->snd_cwnd = 
+						    tp->t_maxseg * 
+						    tp->t_dupacks;
+						(void) tcp_output(tp);
+						tp->snd_cwnd = 
+						    tp->snd_ssthresh;
+						goto drop;
+					}
+
 					tp->snd_nxt = th->th_ack;
 					tp->snd_cwnd = tp->t_maxseg;
 					(void) tcp_output(tp);
@@ -1971,12 +2004,16 @@ trimthenstep6:
 		 * If the congestion window was inflated to account
 		 * for the other side's cached packets, retract it.
 		 */
-		if (tcp_do_newreno) {
+		if (tcp_do_newreno || tp->sack_enable) {
 			if (IN_FASTRECOVERY(tp)) {
 				if (SEQ_LT(th->th_ack, tp->snd_recover)) {
-					tcp_newreno_partial_ack(tp, th);
+					if (tp->sack_enable)
+						tcp_sack_partialack(tp, th);
+					else
+						tcp_newreno_partial_ack(tp, th);
 				} else {
 					/*
+					 * Out of fast recovery.
 					 * Window inflation should have left us
 					 * with approximately snd_ssthresh
 					 * outstanding data.
@@ -2098,7 +2135,8 @@ process_ACK:
 		 * Otherwise open linearly: maxseg per window
 		 * (maxseg^2 / cwnd per packet).
 		 */
-		if (!tcp_do_newreno || !IN_FASTRECOVERY(tp)) {
+		if ((!tcp_do_newreno && !tp->sack_enable) || 
+		    !IN_FASTRECOVERY(tp)) {
 			register u_int cw = tp->snd_cwnd;
 			register u_int incr = tp->t_maxseg;
 			if (cw > tp->snd_ssthresh)
@@ -2116,14 +2154,20 @@ process_ACK:
 		}
 		sowwakeup(so);
 		/* detect una wraparound */
-		if (tcp_do_newreno && !IN_FASTRECOVERY(tp) &&
+		if ((tcp_do_newreno || tp->sack_enable) && 
+		    !IN_FASTRECOVERY(tp) &&
 		    SEQ_GT(tp->snd_una, tp->snd_recover) &&
 		    SEQ_LEQ(th->th_ack, tp->snd_recover))
 			tp->snd_recover = th->th_ack - 1;
-		if (tcp_do_newreno && IN_FASTRECOVERY(tp) &&
+		if ((tcp_do_newreno || tp->sack_enable) && 
+		    IN_FASTRECOVERY(tp) &&
 		    SEQ_GEQ(th->th_ack, tp->snd_recover))
 			EXIT_FASTRECOVERY(tp);
 		tp->snd_una = th->th_ack;
+		if (tp->sack_enable) {
+			if (SEQ_GT(tp->snd_una, tp->snd_recover))
+				tp->snd_recover = tp->snd_una;
+		} 
 		if (SEQ_LT(tp->snd_nxt, tp->snd_una))
 			tp->snd_nxt = tp->snd_una;
 
@@ -2327,7 +2371,8 @@ dodata:							/* XXX */
 			thflags = tcp_reass(tp, th, &tlen, m);
 			tp->t_flags |= TF_ACKNOW;
 		}
-
+			if (tp->sack_enable)
+				tcp_update_sack_list(tp);
 		/*
 		 * Note the amount of data that peer has sent into
 		 * our window, in order to estimate the sender's
@@ -2530,11 +2575,13 @@ drop:
  * Parse TCP options and place in tcpopt.
  */
 static void
-tcp_dooptions(to, cp, cnt, is_syn)
+tcp_dooptions(tp, to, cp, cnt, is_syn, th)
+	struct tcpcb *tp;
 	struct tcpopt *to;
-	u_char *cp;
+	u_char *cp;   
 	int cnt;
 	int is_syn;
+	struct tcphdr *th;
 {
 	int opt, optlen;
 
@@ -2623,6 +2670,20 @@ tcp_dooptions(to, cp, cnt, is_syn)
 			to->to_flags |= (TOF_SIGNATURE | TOF_SIGLEN);
 			break;
 #endif
+		case TCPOPT_SACK_PERMITTED:
+			if (!tcp_do_sack ||
+			    optlen != TCPOLEN_SACK_PERMITTED)
+				continue;
+			if (is_syn) {
+				/* MUST only be set on SYN */   
+				to->to_flags |= TOF_SACK;
+			}
+			break;
+
+		case TCPOPT_SACK:
+			if (!tp || tcp_sack_option(tp, th, cp, optlen))
+				continue;
+			break;
 		default:
 			continue;
 		}

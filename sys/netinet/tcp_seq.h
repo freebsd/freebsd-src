@@ -42,6 +42,9 @@
 #define	SEQ_GT(a,b)	((int)((a)-(b)) > 0)
 #define	SEQ_GEQ(a,b)	((int)((a)-(b)) >= 0)
 
+#define	SEQ_MIN(a, b)	((SEQ_LT(a, b)) ? (a) : (b))
+#define	SEQ_MAX(a, b)	((SEQ_GT(a, b)) ? (a) : (b))
+
 /* for modulo comparisons of timestamps */
 #define TSTMP_LT(a,b)	((int)((a)-(b)) < 0)
 #define TSTMP_GEQ(a,b)	((int)((a)-(b)) >= 0)
