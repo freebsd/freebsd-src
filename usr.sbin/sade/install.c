@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.57 1995/05/26 08:58:32 jkh Exp $
+ * $Id: install.c,v 1.58 1995/05/26 10:20:46 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -227,6 +227,7 @@ installFinal(void)
     configSysconfig();
     configResolv();
     alreadyDone = TRUE;
+    msgConfirm("Installation completed successfully.\nHit return now to go back to the main menu.");
     SystemWasInstalled = TRUE;
 }
 
