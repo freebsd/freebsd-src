@@ -1,5 +1,5 @@
 #	from: @(#)sys.mk	8.2 (Berkeley) 3/21/94
-#	$Id: sys.mk,v 1.39 1998/08/03 08:28:14 bde Exp $
+#	$Id: sys.mk,v 1.40 1998/08/08 02:08:37 jb Exp $
 
 unix		?=	We run FreeBSD, not UNIX.
 
@@ -239,5 +239,10 @@ HTAGSFLAGS=
 .if exists(/etc/make.conf)
 .include </etc/make.conf>
 .endif
+
+.if exists(/etc/make.conf.local)
+.include </etc/make.conf.local>
+.endif
+
 
 .include <bsd.own.mk>
