@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.5 1993/11/01 11:51:29 chmr Exp $
+ *	$Id: trap.c,v 1.6 1993/11/04 15:05:41 davidg Exp $
  */
 
 /*
@@ -84,6 +84,38 @@ int	nsysent;
 int dostacklimits;
 unsigned rcr2();
 extern short cpl;
+
+#define MAX_TRAP_MSG		27
+char *trap_msg[] = {
+	"reserved addressing fault",		/*  0 T_RESADFLT */
+	"privileged instruction fault",		/*  1 T_PRIVINFLT */
+	"reserved operand fault",		/*  2 T_RESOPFLT */
+	"breakpoint instruction fault",		/*  3 T_BPTFLT */
+	"",					/*  4 unused */
+	"system call trap",			/*  5 T_SYSCALL */
+	"arithmetic trap",			/*  6 T_ARITHTRAP */
+	"system forced exception",		/*  7 T_ASTFLT */
+	"segmentation (limit) fault",		/*  8 T_SEGFLT */
+	"protection fault",			/*  9 T_PROTFLT */
+	"trace trap",				/* 10 T_TRCTRAP */
+	"",					/* 11 unused */
+	"page fault",				/* 12 T_PAGEFLT */
+	"page table fault",			/* 13 T_TABLEFLT */
+	"alignment fault",			/* 14 T_ALIGNFLT */
+	"kernel stack pointer not valid",	/* 15 T_KSPNOTVAL */
+	"bus error",				/* 16 T_BUSERR */
+	"kernel debugger fault",		/* 17 T_KDBTRAP */
+	"integer divide fault",			/* 18 T_DIVIDE */
+	"non-maskable interrupt trap",		/* 19 T_NMI */
+	"overflow trap",			/* 20 T_OFLOW */
+	"FPU bounds check fault",		/* 21 T_BOUND */
+	"FPU device not available",		/* 22 T_DNA */
+	"double fault",				/* 23 T_DOUBLEFLT */
+	"FPU operand fetch fault",		/* 24 T_FPOPFLT */
+	"invalid TSS fault",			/* 25 T_TSSFLT */
+	"segment not present fault",		/* 26 T_SEGNPFLT */
+	"stack fault",				/* 27 T_STKFLT */
+};
 
 
 /*
@@ -165,13 +197,23 @@ copyfault:
 			return;
 #endif
 
-		printf("trap type %d code = %x eip = %x cs = %x eflags = %x ",
+		if ((type & ~T_USER) <= MAX_TRAP_MSG)
+			printf("\n\nFatal trap %d: %s while in %s mode\n",
+				type & ~T_USER, trap_msg[type & ~T_USER],
+				(type & T_USER) ? "user" : "kernel");
+			
+		printf("trap type = %d, code = %x\n     eip = %x, cs = %x, eflags = %x, ",
 			frame.tf_trapno, frame.tf_err, frame.tf_eip,
 			frame.tf_cs, frame.tf_eflags);
-	eva = rcr2();
-		printf("cr2 %x cpl %x\n", eva, cpl);
-		/* type &= ~T_USER; */ /* XXX what the hell is this */
-		panic("trap");
+		eva = rcr2();
+		printf("cr2 = %x, current priority = %x\n", eva, cpl);
+
+		type &= ~T_USER;
+		if (type <= MAX_TRAP_MSG)
+			panic(trap_msg[type]);
+		else
+			panic("unknown/reserved trap");
+
 		/*NOTREACHED*/
 
 	case T_SEGNPFLT|T_USER:

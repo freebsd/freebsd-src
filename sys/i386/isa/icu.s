@@ -36,7 +36,7 @@
  *
  *	@(#)icu.s	7.2 (Berkeley) 5/21/91
  *
- *	$Id$
+ *	$Id: icu.s,v 1.3 1993/09/06 16:12:03 rgrimes Exp $
  */
 
 /*
@@ -55,20 +55,28 @@
 #define	SOFTCLOCKMASK	0x8000
 
 	.data
+
 	.globl	_cpl
-_cpl:	.long	0xffff			# current priority (all off)
+_cpl:	.long	0xffff			/* current priority (all off) */
+
 	.globl	_imen
-_imen:	.long	0xffff			# interrupt mask enable (all off)
+_imen:	.long	0xffff			/* interrupt mask enable (all off) */
+
 /* 	.globl	_highmask	*/
 _highmask:	.long	HIGHMASK
-	.globl	_ttymask
+
+	.globl	_ttymask, _biomask, _netmask
 _ttymask:	.long	0
-	.globl	_biomask
 _biomask:	.long	0
-	.globl	_netmask
 _netmask:	.long	0
-	.globl	_ipending
+
+	.globl	_ipending, _astpending
 _ipending:	.long	0
+_astpending:	.long	0		/* tells us an AST needs to be taken */
+
+	.globl	_netisr
+_netisr:	.long	0		/* set with bits for which queue to service */
+
 vec:
 	.long	vec0, vec1, vec2, vec3, vec4, vec5, vec6, vec7
 	.long	vec8, vec9, vec10, vec11, vec12, vec13, vec14, vec15

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.6 1993/10/12 15:09:37 rgrimes Exp $
+ *	$Id: pmap.c,v 1.7 1993/10/15 10:34:25 rgrimes Exp $
  */
 
 /*
@@ -229,7 +229,7 @@ extern int IdlePTD;
 	avail_end -= i386_round_page(sizeof(struct msgbuf));
 
 	mem_size = physmem << PG_SHIFT;
-	virtual_avail = (vm_offset_t)atdevbase + 0x100000 - 0xa0000 + 10*NBPG;
+	virtual_avail = (vm_offset_t)KERNBASE + avail_start;
 	virtual_end = VM_MAX_KERNEL_ADDRESS;
 	i386pagesperpage = PAGE_SIZE / NBPG;
 
@@ -332,10 +332,10 @@ pmap_init(phys_start, phys_end)
 	(void) vm_map_find(kernel_map, NULL, (vm_offset_t) 0,
 			   &addr, (0x100000-0xa0000), FALSE);
 
-	addr = (vm_offset_t) KERNBASE + KPTphys/* *NBPG */;
+	addr = (vm_offset_t) KERNBASE + IdlePTD;
 	vm_object_reference(kernel_object);
 	(void) vm_map_find(kernel_map, kernel_object, addr,
-			   &addr, 2*NBPG, FALSE);
+			   &addr, (NKPDE+4)*NBPG, FALSE);
 
 	/*
 	 * Allocate memory for random pmap data structures.  Includes the
