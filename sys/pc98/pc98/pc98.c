@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.10.2.11 1998/01/25 01:42:53 kato Exp $
+ *	$Id: pc98.c,v 1.10.2.12 1998/05/27 16:49:14 kato Exp $
  */
 
 /*
@@ -1152,18 +1152,18 @@ struct isa_device *find_isadev(table, driverp, unit)
 }
 
 /*
- * Return nonzero if a (masked) irq is pending for a given device.
+ * Return a bitmap of the current interrupt requests.  This is 8259-specific
+ * and is only suitable for use at probe time.
  */
-int
-isa_irq_pending(dvp)
-	struct isa_device *dvp;
+u_int
+isa_irq_pending()
 {
-	unsigned id_irq;
+	u_char irr1;
+	u_char irr2;
 
-	id_irq = dvp->id_irq;
-	if (id_irq & 0xff)
-		return (inb(IO_ICU1) & id_irq);
-	return (inb(IO_ICU2) & (id_irq >> 8));
+	irr1 = inb(IO_ICU1);
+	irr2 = inb(IO_ICU2);
+	return ((irr2 << 8) | irr1);
 }
 
 int

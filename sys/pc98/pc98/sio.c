@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.8.2.17 1998/04/18 23:27:06 nate Exp $
+ *	$Id: sio.c,v 1.8.2.18 1998/05/06 19:12:03 gibbs Exp $
  */
 
 #include "opt_comconsole.h"
@@ -199,7 +199,6 @@
 
 #define	COM_LOSESOUTINTS(dev)	((dev)->id_flags & 0x08)
 #define	COM_NOFIFO(dev)		((dev)->id_flags & 0x02)
-#define	COM_VERBOSE(dev)	((dev)->id_flags & 0x80)
 
 #ifndef PC98
 #define	com_scr		7	/* scratch register for 16450-16550 (R/W) */
@@ -442,6 +441,7 @@ static struct cdevsw sio_cdevsw = {
 static	int	comconsole = -1;
 static	speed_t	comdefaultrate = CONSPEED;
 static	u_int	com_events;	/* input chars + weighted output completions */
+static	Port_t	siocniobase;
 static	int	sio_timeout;
 static	int	sio_timeouts_until_log;
 #if 0 /* XXX */
@@ -720,6 +720,8 @@ sioprobe(dev)
 	int		fn;
 	struct isa_device	*idev;
 	Port_t		iobase;
+	u_int		irqmap[4];
+	u_int		irqs;
 	u_char		mcr_image;
 	int		result;
 #ifdef PC98
@@ -781,7 +783,7 @@ sioprobe(dev)
 			tmp = ( inb( iod.ctrl ) & ~(IEN_Rx|IEN_TxEMP|IEN_Tx));
 			outb( iod.ctrl, tmp|IEN_TxEMP );
 			DELAY(10);
-			ret = isa_irq_pending(dev) ? 4 : 0;
+			ret = isa_irq_pending() ? 4 : 0;
 			outb( iod.ctrl, tmp );
 			COM_INT_ENABLE
 			break;
@@ -816,7 +818,8 @@ sioprobe(dev)
 		if (idev == NULL) {
 			printf("sio%d: master device %d not configured\n",
 			       dev->id_unit, COM_MPMASTER(dev));
-			return (0);
+			dev->id_irq = 0;
+			idev = dev;
 		}
 #ifndef PC98
 		if (!COM_NOTAST4(dev)) {
@@ -878,6 +881,8 @@ sioprobe(dev)
 /* EXTRA DELAY? */
 	outb(iobase + com_mcr, mcr_image);
 	outb(iobase + com_ier, 0);
+	DELAY(1000);		/* XXX */
+	irqmap[0] = isa_irq_pending();
 
 	/*
 	 * Attempt to set loopback mode so that we can send a null byte
@@ -928,12 +933,10 @@ sioprobe(dev)
 	failures[1] = inb(iobase + com_ier) - IER_ETXRDY;
 	failures[2] = inb(iobase + com_mcr) - mcr_image;
 	DELAY(10000);		/* Some internal modems need this time */
-	if (idev->id_irq != 0)
-		failures[3] = isa_irq_pending(idev) ? 0 : 1;
+	irqmap[1] = isa_irq_pending();
 	failures[4] = (inb(iobase + com_iir) & IIR_IMASK) - IIR_TXRDY;
 	DELAY(1000);		/* XXX */
-	if (idev->id_irq != 0)
-		failures[5] = isa_irq_pending(idev) ? 1	: 0;
+	irqmap[2] = isa_irq_pending();
 	failures[6] = (inb(iobase + com_iir) & IIR_IMASK) - IIR_NOPEND;
 
 	/*
@@ -949,22 +952,36 @@ sioprobe(dev)
 	outb(iobase + com_cfcr, CFCR_8BITS);	/* dummy to avoid bus echo */
 	failures[7] = inb(iobase + com_ier);
 	DELAY(1000);		/* XXX */
-	if (idev->id_irq != 0)
-		failures[8] = isa_irq_pending(idev) ? 1	: 0;
+	irqmap[3] = isa_irq_pending();
 	failures[9] = (inb(iobase + com_iir) & IIR_IMASK) - IIR_NOPEND;
 
 	enable_intr();
+
+	irqs = irqmap[1] & ~irqmap[0];
+	if (idev->id_irq != 0 && (idev->id_irq & irqs) == 0)
+		printf(
+		"sio%d: configured irq %d not in bitmap of probed irqs %#x\n",
+		    dev->id_unit, ffs(idev->id_irq) - 1, irqs);
+	if (bootverbose)
+		printf("sio%d: irq maps: %#x %#x %#x %#x\n",
+		    dev->id_unit, irqmap[0], irqmap[1], irqmap[2], irqmap[3]);
 
 	result = IO_COMSIZE;
 	for (fn = 0; fn < sizeof failures; ++fn)
 		if (failures[fn]) {
 			outb(iobase + com_mcr, 0);
 			result = 0;
-			if (COM_VERBOSE(dev))
-				printf("sio%d: probe test %d failed\n",
-				       dev->id_unit, fn);
+			if (bootverbose) {
+				printf("sio%d: probe failed test(s):",
+				    dev->id_unit);
+				for (fn = 0; fn < sizeof failures; ++fn)
+					if (failures[fn])
+						printf(" %d", fn);
+				printf("\n");
+			}
+			break;
 		}
-	return (result);
+	return (iobase == siocniobase ? IO_COMSIZE : result);
 }
 
 #ifdef COM_ESP
@@ -2285,14 +2302,11 @@ repeat:
 		com = com_addr(unit);
 		if (com == NULL)
 			continue;
-		if (com->gone)
-			continue;
 		tp = com->tp;
-		if (tp == NULL) {
+		if (tp == NULL || com->gone) {
 			/*
-			 * XXX forget any events related to closed devices
-			 * (actually never opened devices) so that we don't
-			 * loop.
+			 * Discard any events related to never-opened or
+			 * going-away devices.
 			 */
 			disable_intr();
 			incc = com->iptr - com->ibuf;
@@ -2303,10 +2317,6 @@ repeat:
 			}
 			com_events -= incc;
 			enable_intr();
-			if (incc != 0)
-				log(LOG_DEBUG,
-				    "sio%d: %d events for device with no tp\n",
-				    unit, incc);
 			continue;
 		}
 
@@ -3114,8 +3124,6 @@ struct siocnstate {
 	u_char	cfcr;
 	u_char	mcr;
 };
-
-static	Port_t	siocniobase;
 
 static void siocnclose	__P((struct siocnstate *sp));
 static void siocnopen	__P((struct siocnstate *sp));
