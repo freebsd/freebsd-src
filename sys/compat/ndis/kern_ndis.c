@@ -853,7 +853,8 @@ ndis_convert_res(arg)
 	rl->cprl_count = sc->ndis_rescnt;
 	prd = rl->cprl_partial_descs;
 
-	brl = BUS_GET_RESOURCE_LIST(device_get_parent(dev), dev);
+	brl = BUS_GET_RESOURCE_LIST(dev, dev);
+
 	if (brl != NULL) {
 
 		/*
