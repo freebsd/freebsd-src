@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: dumpcis.c,v 1.3 1996/04/10 05:45:30 nate Exp $
+ * $Id: dumpcis.c,v 1.4 1996/04/18 04:24:52 nate Exp $
  */
 #include <stdio.h>
 #include <unistd.h>
@@ -47,7 +47,7 @@ scan(slot)
 	struct cis *cp;
 	struct slotstate st;
 
-	sprintf(name, "/dev/card%d", slot);
+	sprintf(name, CARD_DEVICE, slot);
 	fd = open(name, 0);
 	if (fd < 0)
 		return;

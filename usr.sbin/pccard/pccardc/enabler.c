@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: enabler.c,v 1.4 1996/04/18 04:24:53 nate Exp $
  */
 #include <stdio.h>
 #include <unistd.h>
@@ -97,7 +97,7 @@ enabler_main(argc, argv)
 	printf("drv %s%d, mem 0x%lx, size %d, io %d, irq 0x%x, flags 0x%x\n",
 		drv.name, drv.unit, drv.mem, drv.memsize, drv.iobase,
 		drv.irqmask, drv.flags);
-	sprintf(name, "/dev/card%d", slot);
+	sprintf(name, CARD_DEVICE, slot);
 	fd = open(name, 2);
 	if (fd < 0) {
 		perror(name);
