@@ -127,11 +127,14 @@ Attempts to change the time by more than this will log the message
 .It Ic 3
 Network secure mode \- same as highly secure mode, plus
 IP packet filter rules (see
-.Xr ipfw 8
+.Xr ipfw 8 ,
+.Xr ipfirewall 4
 and
-.Xr ipfirewall 4 )
+.Xr pfctl 8 )
 cannot be changed and
 .Xr dummynet 4
+or
+.Xr pf 4
 configuration cannot be adjusted.
 .El
 .Pp
@@ -392,12 +395,14 @@ system shutdown commands
 .Xr dummynet 4 ,
 .Xr ipfirewall 4 ,
 .Xr kld 4 ,
+.Xr pf 4 ,
 .Xr ttys 5 ,
 .Xr crash 8 ,
 .Xr getty 8 ,
 .Xr halt 8 ,
 .Xr ipfw 8 ,
 .Xr jail 8 ,
+.Xr pfctl 8 ,
 .Xr rc 8 ,
 .Xr reboot 8 ,
 .Xr shutdown 8 ,
