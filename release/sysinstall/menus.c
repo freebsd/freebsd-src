@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.180.2.1 1999/02/04 13:47:07 jkh Exp $
+ * $Id: menus.c,v 1.180.2.2 1999/02/05 09:55:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -243,6 +243,7 @@ DMenu MenuIndex = {
       { "Fdisk",		"The disk Partition Editor",		NULL, diskPartitionEditor },
       { "Fixit",		"Repair mode with CDROM or fixit floppy.",	NULL, dmenuSubmenu, NULL, &MenuFixit },
       { "FTP sites",		"The FTP mirror site listing.",		NULL, dmenuSubmenu, NULL, &MenuMediaFTP },
+      { "Dump Vars",		"(debugging) dump out internal variables.", NULL, dump_variables },
       { "Gateway",		"Set flag to route packets between interfaces.", dmenuVarCheck, dmenuToggleVariable, NULL, "gateway=YES" },
       { "HTML Docs",		"The HTML documentation menu",		NULL, docBrowser },
       { "Install, Novice",	"A novice system installation.",	NULL, installNovice },
