@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.6 1994/08/13 22:47:28 jkh Exp $
+#	$Id: Makefile,v 1.7 1994/08/14 16:52:44 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
@@ -142,7 +142,7 @@ includes:
 .endif
 	cd ${.CURDIR}/include &&		${MAKE} install
 #XXX	cd ${.CURDIR}/gnu/lib/libg++ &&		${MAKE} beforeinstall
-	cd ${.CURDIR}/gnu/usr.bin/cc/libobjc &&	${MAKE} beforeinstall
+	cd ${.CURDIR}/gnu/usr.bin/cc26/libobjc &&	${MAKE} beforeinstall
 .if !defined(NOCRYPT)
 	cd ${.CURDIR}/kerberosIV/include &&	${MAKE} install
 .endif
@@ -169,7 +169,7 @@ libraries:
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/gnu/lib/libregex && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/gnu/usr.bin/cc/libgcc && \
+	cd ${.CURDIR}/gnu/usr.bin/cc26/libgcc && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/lib && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
@@ -193,7 +193,7 @@ tools:
 	@echo " Rebuilding ${DESTDIR} Compiler and Make"
 	@echo "--------------------------------------------------------------"
 	@echo
-	cd ${.CURDIR}/gnu/usr.bin/cc && \
+	cd ${.CURDIR}/gnu/usr.bin/cc26 && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/make && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
