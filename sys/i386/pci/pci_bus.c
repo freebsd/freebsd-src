@@ -420,7 +420,7 @@ legacy_pcib_probe(device_t dev)
 
 	if (pci_cfgregopen() == 0)
 		return ENXIO;
-	return 0;
+	return -100;
 }
 
 int
