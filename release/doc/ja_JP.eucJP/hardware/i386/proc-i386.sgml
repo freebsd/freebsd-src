@@ -1,6 +1,6 @@
 <!--
     $FreeBSD$
-    Original revision: 1.5
+    Original revision: 1.9
 -->
 <sect1 id="proc">
   <title>対応プロセッサおよびマザーボード</title>
@@ -31,6 +31,30 @@
   <para>&os; は対称型マルチプロセッサ (SMP) システムに対応していますが、
     BIOS やマザーボードのバグにより、問題が出るケースがあります。
     対処方法については &a.smp; を熟読するようにしてください。</para>
+
+  <para>&os; は、Intel の CPU に搭載されている
+    HyperThreading (HTT) 機能に対応しています。
+    <literal>options&nbsp;SMP</literal> 機能を有効にしているカーネルは
+    論理プロセッサを自動的に検出し、有効にします。
+    &os; のデフォルトのスケジューラは、この論理 CPU
+    を追加された物理 CPU と同等に扱います。つまり、
+    同じ CPU 内の論理プロセッサ間で共有されている資源に対して、
+    スケジューリング決定を最適化しません。
+    このスケジューリング方法では最適な性能を得ることができないため、
+    デフォルトでは、起動時に論理 CPU を停止させています。
+    論理 CPU は <varname>machdep.hlt_logical_cpus</varname>
+    sysctl 変数で有効にすることができます。また、
+    <varname>machdep.hlt_cpus</varname> sysctl 変数を使って、
+    CPU をアイドルループにすることも可能です。
+    詳しくは、&man.smp.4; のマニュアルページをご覧ください。</para>
+
+  <para>&os; は、Physical Address Extensions (PAE) 機能を搭載した
+    CPU に対応しています。
+    <literal>PAE</literal> 機能を有効にしたカーネルは、4GB
+    以上のメモリを検出し、システムから利用できるようにします。
+    この機能を有効にすると、利用できるデバイスドライバや他の &os;
+    の機能が制限されます。詳しくは、&man.pae.4;
+    のマニュアルページをご覧ください。</para>
 
   <para>&os; は i386 ベースのラップトップでも動作しますが、
     サウンド、グラフィックス、電源管理、PCCARD
