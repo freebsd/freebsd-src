@@ -58,6 +58,7 @@ FONT:en:cp437-8x16.fnt
 FONT:de,fr,es,is,it,sv,da,fi,nl,no,pt:iso-8x16.fnt
 FONT:ru:koi8-r-8x16.fnt
 FONT:hr,hu,pl,cs:iso02-8x16.fnt
+FONT:lt:iso04-8x16.fnt
 #
 cp437-8x14.fnt:en:Codepage 437 English, 8x14
 cp437-8x14.fnt:de:Codeseite 437 Englisch, 8x14
@@ -200,6 +201,12 @@ iso02-8x14.fnt:es:ISO-8859-2 centroeuropeo, 8x14
 iso02-8x8.fnt:en:ISO-8859-2 Central European, 8x8
 iso02-8x8.fnt:de:ISO-8859-2 Mitteleuropa, 8x8
 iso02-8x8.fnt:es:ISO-8859-2 centroeuropeo, 8x8
+
+iso04-8x16.fnt:en:ISO-8859-4 Baltic, 8x16
+
+iso04-8x14.fnt:en:ISO-8859-4 Baltic, 8x14
+
+iso04-8x8.fnt:en:ISO-8859-4 Baltic, 8x8
 
 koi8-r-8x14.fnt:en:Russian koi8-r, 8x14
 koi8-r-8x14.fnt:de:Russisch koi8-r, 8x14
