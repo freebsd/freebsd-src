@@ -543,21 +543,24 @@ static int
 pfs_iterate(struct thread *td, pid_t pid, struct pfs_node *pd,
 	    struct pfs_node **pn, struct proc **p)
 {
-	if ((*pn) == NULL)
-		*pn = pd->pn_nodes;
-	else
+	mtx_assert(&allproc, MA_OWNED);
  again:
-	if ((*pn)->pn_type != pfstype_procdir)
+	if (*pn == NULL) {
+		/* first node */
+		*pn = pd->pn_nodes;
+	} else if ((*pn)->pn_type != pfstype_procdir) {
+		/* next node */
 		*pn = (*pn)->pn_next;
-
-	while (*pn != NULL && (*pn)->pn_type == pfstype_procdir) {
+	}
+	if (*pn != NULL && (*pn)->pn_type == pfstype_procdir) {
+		/* next process */
 		if (*p == NULL)
 			*p = LIST_FIRST(&allproc);
 		else
 			*p = LIST_NEXT(*p, p_list);
-		if (*p != NULL)
-			break;
-		*pn = (*pn)->pn_next;
+		/* out of processes: next node */
+		if (*p == NULL)
+			*pn = (*pn)->pn_next;
 	}
 
 	if ((*pn) == NULL)
