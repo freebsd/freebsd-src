@@ -1,3 +1,4 @@
+/* $Id$
  # Alpha 21064 __mpn_mul_1 -- Multiply a limb vector with a limb and store
  # the result in a second limb vector.
 
@@ -37,6 +38,7 @@
  # between RES_PTR and S1_PTR.  Maybe we can simply divide the current
  # loop into an inner and outer loop, having the inner loop handle
  # exactly one prefetch block?
+*/
 
 	.set	noreorder
 	.set	noat
