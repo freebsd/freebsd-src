@@ -1,4 +1,4 @@
-/*	$NetBSD: uhub.c,v 1.56 2001/11/20 13:48:03 augustss Exp $	*/
+/*	$NetBSD: uhub.c,v 1.57 2001/11/20 16:08:37 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -282,6 +282,7 @@ USB_ATTACH(uhub)
 	 *  For all ports
 	 *     get port status
 	 *     if device connected
+	 *        wait 100 ms
 	 *        turn on reset
 	 *        wait
 	 *        clear C_PORT_RESET
