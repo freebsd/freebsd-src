@@ -972,6 +972,7 @@ ip_fw_chk(struct ip **pip, int hlen,
 
 #define PULLUP_TO(len)	do {						\
 			    if ((*m)->m_len < (len)) {			\
+				ip = NULL ;				\
 				if ((*m = m_pullup(*m, (len))) == 0)	\
 				    goto bogusfrag;			\
 				ip = mtod(*m, struct ip *);		\
@@ -1310,7 +1311,7 @@ check_ports:
 			break;
 
 bogusfrag:
-		if (fw_verbose)
+		if (fw_verbose && ip != NULL)
 			ipfw_report(NULL, ip, offset, rif, oif);
 		goto dropit;
 
