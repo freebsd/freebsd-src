@@ -66,7 +66,7 @@ extern sigset_t s_mask;
  * the user: list, append, read ...
  */
 
-static char hdbuf[BLKMULT];             /* space for archive header on read */
+static char hdbuf[BLKMULT];		/* space for archive header on read */
 u_long flcnt;				/* number of files processed */
 
 /*
@@ -1016,7 +1016,7 @@ next_head(arcn)
 			if (!in_resync) {
 				if (act == APPND) {
 					paxwarn(1,
-				          "Archive I/O error, cannot continue");
+					  "Archive I/O error, cannot continue");
 					return(-1);
 				}
 				paxwarn(1,"Archive I/O error. Trying to recover.");

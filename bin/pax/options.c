@@ -187,7 +187,7 @@ pax_options(argc, argv)
 	unsigned int flg = 0;
 	unsigned int bflg = 0;
 	register char *pt;
-        FSUB tmp;
+	FSUB tmp;
 
 	/*
 	 * process option flags
@@ -840,11 +840,11 @@ c_frmt(const void *a, const void *b)
 #else
 static int
 c_frmt(a, b)
-        void *a;
-        void *b;
+	void *a;
+	void *b;
 #endif
 {
-        return(strcmp(((FSUB *)a)->name, ((FSUB *)b)->name));
+	return(strcmp(((FSUB *)a)->name, ((FSUB *)b)->name));
 }
 
 /*
@@ -1077,27 +1077,27 @@ pax_usage()
 {
 	(void)fputs("usage: pax [-cdnv] [-E limit] [-f archive] ", stderr);
 	(void)fputs("[-s replstr] ... [-U user] ...", stderr);
-	(void)fputs("\n           [-G group] ... ", stderr);
+	(void)fputs("\n	   [-G group] ... ", stderr);
 	(void)fputs("[-T [from_date][,to_date]] ... ", stderr);
 	(void)fputs("[pattern ...]\n", stderr);
 	(void)fputs("       pax -r [-cdiknuvDYZ] [-E limit] ", stderr);
 	(void)fputs("[-f archive] [-o options] ... \n", stderr);
-	(void)fputs("           [-p string] ... [-s replstr] ... ", stderr);
-	(void)fputs("[-U user] ... [-G group] ...\n           ", stderr);
+	(void)fputs("	   [-p string] ... [-s replstr] ... ", stderr);
+	(void)fputs("[-U user] ... [-G group] ...\n	   ", stderr);
 	(void)fputs("[-T [from_date][,to_date]] ... ", stderr);
 	(void)fputs(" [pattern ...]\n", stderr);
 	(void)fputs("       pax -w [-dituvHLPX] [-b blocksize] ", stderr);
 	(void)fputs("[ [-a] [-f archive] ] [-x format] \n", stderr);
-	(void)fputs("           [-B bytes] [-s replstr] ... ", stderr);
+	(void)fputs("	   [-B bytes] [-s replstr] ... ", stderr);
 	(void)fputs("[-o options] ... [-U user] ...", stderr);
-	(void)fputs("\n           [-G group] ... ", stderr);
+	(void)fputs("\n	   [-G group] ... ", stderr);
 	(void)fputs("[-T [from_date][,to_date][/[c][m]]] ... ", stderr);
 	(void)fputs("[file ...]\n", stderr);
 	(void)fputs("       pax -r -w [-diklntuvDHLPXYZ] ", stderr);
 	(void)fputs("[-p string] ... [-s replstr] ...", stderr);
-	(void)fputs("\n           [-U user] ... [-G group] ... ", stderr);
+	(void)fputs("\n	   [-U user] ... [-G group] ... ", stderr);
 	(void)fputs("[-T [from_date][,to_date][/[c][m]]] ... ", stderr);
-	(void)fputs("\n           [file ...] directory\n", stderr);
+	(void)fputs("\n	   [file ...] directory\n", stderr);
 	exit(1);
 }
 

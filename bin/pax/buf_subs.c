@@ -57,7 +57,7 @@ static const char rcsid[] =
  */
 
 #define MINFBSZ		512		/* default block size for hole detect */
-#define MAXFLT          10              /* default media read error limit */
+#define MAXFLT		10		/* default media read error limit */
 
 /*
  * Need to change bufmem to dynamic allocation when the upper
@@ -68,8 +68,8 @@ static char bufmem[MAXBLK+BLKMULT];	/* i/o buffer + pushback id space */
 static char *buf;			/* normal start of i/o buffer */
 static char *bufend;			/* end or last char in i/o buffer */
 static char *bufpt;			/* read/write point in i/o buffer */
-int blksz = MAXBLK;                    	/* block input/output size in bytes */
-int wrblksz;                      	/* user spec output size in bytes */
+int blksz = MAXBLK;			/* block input/output size in bytes */
+int wrblksz;				/* user spec output size in bytes */
 int maxflt = MAXFLT;			/* MAX consecutive media errors */
 int rdblksz;				/* first read blksize (tapes only) */
 off_t wrlimit;				/* # of bytes written per archive vol */
@@ -311,7 +311,7 @@ appnd_start(skcnt)
 	paxwarn(1, "Unable to rewrite archive trailer, cannot append.");
 	return(-1);
 }
-
+	
 /*
  * rd_sync()
  *	A read error occurred on this archive volume. Resync the buffer and
@@ -756,11 +756,11 @@ rd_wrfile(arcn, ofd, left)
 	 * pass the blocksize of the file being written to the write routine,
 	 * if the size is zero, use the default MINFBSZ
 	 */
-        if (fstat(ofd, &sb) == 0) {
+	if (fstat(ofd, &sb) == 0) {
 		if (sb.st_blksize > 0)
 			sz = (int)sb.st_blksize;
-        } else
-                syswarn(0,errno,"Unable to obtain block size for file %s",fnm);
+	} else
+		syswarn(0,errno,"Unable to obtain block size for file %s",fnm);
 	rem = sz;
 	*left = 0L;
 
@@ -859,11 +859,11 @@ cp_file(arcn, fd1, fd2)
 	 * pass the blocksize of the file being written to the write routine,
 	 * if the size is zero, use the default MINFBSZ
 	 */
-        if (fstat(fd2, &sb) == 0) {
+	if (fstat(fd2, &sb) == 0) {
 		if (sb.st_blksize > 0)
 			sz = sb.st_blksize;
-        } else
-                syswarn(0,errno,"Unable to obtain block size for file %s",fnm);
+	} else
+		syswarn(0,errno,"Unable to obtain block size for file %s",fnm);
 	rem = sz;
 
 	/*
