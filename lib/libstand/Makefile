@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.4 1998/09/26 01:42:39 msmith Exp $
+# $Id: Makefile,v 1.5 1998/10/04 08:10:29 msmith Exp $
 #
 # Originally from	$NetBSD: Makefile,v 1.21 1997/10/26 22:08:38 lukem Exp $
 #
@@ -24,19 +24,21 @@ SRCS+=	__main.c bcd.c bswap.c environment.c getopt.c gets.c globals.c \
 	pager.c printf.c strdup.c strerror.c strtol.c random.c sbrk.c \
 	twiddle.c zalloc.c zalloc_malloc.c
 
+# private (pruned) versions of libc string functions
+SRCS+=	strcasecmp.c
 
 # string functions from libc
 .PATH:	${.CURDIR}/../libc/string
 .if ${MACHINE_ARCH} == "i386"
 SRCS+=	bcmp.c bcopy.c bzero.c ffs.c index.c memccpy.c memchr.c memcmp.c \
-        memcpy.c memmove.c memset.c rindex.c strcasecmp.c strcat.c strchr.c \
+        memcpy.c memmove.c memset.c rindex.c strcat.c strchr.c \
         strcmp.c strcpy.c strcspn.c strlen.c strncat.c strncmp.c strncpy.c \
 	strpbrk.c strrchr.c strsep.c strspn.c strstr.c strtok.c swab.c
 .endif
 .if ${MACHINE_ARCH} == "alpha"
 .PATH: ${.CURDIR}/../libc/alpha/string
 SRCS+=	bcmp.c bcopy.S bzero.S ffs.S index.c memccpy.c memchr.c memcmp.c \
-	memcpy.S memmove.S memset.c rindex.c strcasecmp.c strcat.c strchr.c \
+	memcpy.S memmove.S memset.c rindex.c strcat.c strchr.c \
 	strcmp.c strcpy.c strcspn.c strlen.c \
 	strncat.c strncmp.c strncpy.c strpbrk.c strrchr.c strsep.c \
 	strspn.c strstr.c strtok.c swab.c
@@ -107,8 +109,7 @@ SRCS+=	bootp.c rarp.c bootparam.c
 # boot filesystems
 SRCS+=	ufs.c nfs.c cd9660.c tftp.c zipfs.c
 SRCS+=	netif.c nfs.c
-# needs "open directory" support
-#SRCS+=	dosfs.c
+SRCS+=	dosfs.c
 
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/stand.h \
