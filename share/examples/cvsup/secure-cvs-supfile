@@ -1,4 +1,4 @@
-# $Id$
+# $Id: secure-cvs-supfile,v 1.5 1997/02/22 13:55:46 peter Exp $
 #
 # This file contains all of the "CVSup collections" that make up the CVS
 # development tree of the FreeBSD international secure distribution.  If
@@ -49,5 +49,6 @@
 *default compress
 
 ## The international secure collections.
+src-contrib-crypto
 src-eBones
 src-secure
