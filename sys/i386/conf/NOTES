@@ -961,13 +961,6 @@ device		"i4bcapi"
 #
 #---------------------------------------------------------------------------
 
-#####################################################################
-# Firewire support
-
-device		firewire	# Firewire bus code
-device		sbp		# SCSI over Firewire (Requires scbus and da)
-device		fwe		# Ethernet over Firewire (non-standard!)
-
 #
 # Set the number of PV entries per process.  Increasing this can
 # stop panics related to heavy use of shared memory. However, that can
