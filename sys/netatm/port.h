@@ -39,25 +39,6 @@
 #define	_NETATM_PORT_H
 
 /*
- * Try to ensure that this system is supported
- */
-#if (defined(BSD) && (BSD >= 199103))
-
-	/* 4.3 BSD Net2 based */
-
-#elif defined(sun)
-
-	/* SunOS4.x */
-
-#else
-
-	/* Ooops */
-	#error "Undefined/unsupported system type"
-
-#endif
-
-
-/*
  * User-space memory management
  *
  * UM_ALLOC(size)	Returns an allocated kernel memory chunk of size bytes.
@@ -73,11 +54,6 @@
 #define	UM_COPY(from, to, len)	bcopy((void *)(from), (void *)(to),\
 						(size_t)(len))
 #define	UM_ZERO(addr, len)	bzero((void *)(addr), (size_t)(len))
-#elif defined(sun)
-#define	UM_ALLOC(size)		malloc(size)
-#define	UM_FREE(addr)		free((char *)(addr))
-#define	UM_COPY(from, to, len)	bcopy((char *)(from), (char *)(to), (len))
-#define	UM_ZERO(addr, len)	bzero((char *)(addr), (len))
 #endif
 
 
@@ -483,8 +459,6 @@ typedef int	KTimeout_ret;
 #endif
 #if (defined(BSD) && (BSD >= 199103))
 #define	KT_TIME(t)	microtime(&t)
-#elif defined(sun)
-#define	KT_TIME(t)	uniqtime(&t)
 #else
 #define	KT_TIME(t)	((t) = time)
 #endif
