@@ -1,4 +1,4 @@
-/*	$NetBSD: lint.h,v 1.3 2002/01/31 22:44:00 tv Exp $	*/
+/*	$NetBSD: lint.h,v 1.5 2002/03/07 18:29:56 tv Exp $	*/
 
 /*
  * Copyright (c) 1994, 1995 Jochen Pohl
