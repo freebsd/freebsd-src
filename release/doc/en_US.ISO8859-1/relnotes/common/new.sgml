@@ -340,6 +340,10 @@
     <varname>MAXSSIZ</varname>, and <varname>SGROWSIZ</varname> are
     all loader tunables. &merged;</para>
 
+    <para>The system load average computation now adds some jitter to
+    the timing of samples, in order to avoid synchronization with
+    processes that run periodically. &merged;</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
@@ -487,7 +491,7 @@
       on the Intel 82542 and 82543 Gigabit Ethernet controller chips.
       Both fiber and copper variants of the cards are supported.  Both
       boards support VLAN tagging/insertion, and the 82543 additionally
-      supports TCP/IP checksum offload.</para>
+      supports TCP/IP checksum offload. &merged;</para>
 
       <para>The &man.lge.4; driver has been added to support the Level
       1 LXT1001 NetCellerator Gigabit Ethernet controller chip. This
@@ -1410,7 +1414,7 @@
 
     <para>&man.edquota.8; now takes a <option>-f</option> option to
     allow limiting the prototype quota distribution (specified with
-    <option>-p</option>) to a single filesystem.</para>
+    <option>-p</option>) to a single filesystem. &merged;</para>
 
     <para>&man.fbtab.5; now accepts glob matching patterns for target
     devices, not just individual devices and directories.</para>
@@ -1783,6 +1787,9 @@
     <option>-c</option>.  Formerly, the default was fixed at 16.  This
     change leads to better &man.fsck.8; performance and reduced
     fragmentation. &merged;</para>
+
+    <para>&man.newsyslog.8; now has the ability to ability to compress
+    log files using &man.bzip2.1;. &merged;</para>
 
     <para><application>NFS</application> now works over IPv6.</para>
 
