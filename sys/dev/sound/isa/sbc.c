@@ -224,6 +224,7 @@ static struct isa_pnp_id sbc_ids[] = {
 	{0x68187316, "ESS ES1868"},			/* ESS1868 */
 	{0x03007316, "ESS ES1869"},			/* ESS1869 */
 	{0x69187316, "ESS ES1869"},			/* ESS1869 */
+	{0xabb0110e, "ESS ES1869 (Compaq OEM)"},	/* CPQb0ab */
 	{0xacb0110e, "ESS ES1869 (Compaq OEM)"},	/* CPQb0ac */
 	{0x78187316, "ESS ES1878"},			/* ESS1878 */
 	{0x79187316, "ESS ES1879"},			/* ESS1879 */
