@@ -1,0 +1,83 @@
+.\" Copyright (c) 2002 Marcel Moolenaar
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 26, 2002
+.Dt UUIDGEN 2
+.Os
+.Sh NAME
+.Nm uuidgen
+.Nd generate universally unique identifiers
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/uuid.h
+.Ft int
+.Fn uuidgen "uuid_t *store" "int count"
+.Sh DESCRIPTION
+The
+.Nm
+system call generates
+.Fa count
+universally unique identifiers (UUIDs) and writes them to the buffer
+pointed to by
+.Fa store .
+The identifiers are generated according to the syntax and semantics of the
+DCE version 1 variant of universally unique identifiers. When no IEEE 802
+address is available for the node field a random multicast address is
+generated for each call.
+.Pp
+When multiple identifiers are requested, the
+.Nm
+system call will generate identifiers that are adjacent in time.
+.Pp
+Universally unique identifiers, also known as globally unique identifiers,
+are normally represented as:
+.Bd -literal -offset indent
+63d81915-7140-11d6-903d-00022d09712b
+.Ed
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The
+.Nm
+system call can fail with:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+The buffer pointed to by
+.Fa store
+could not be written to for any or all identifiers.
+.It Bq Er EINVAL
+The
+.Fa count
+parameter is less than 1 or larger than the hard upper limit of 2048.
+.El
+.Sh SEE ALSO
+.Xr uuidgen 1
+.Sh HISTORY
+The
+.Nm
+system call first appeared in
+.Fx 5.0 .
