@@ -34,6 +34,7 @@
 #include <sys/ctype.h>
 #include <sys/dirent.h>
 #include <sys/mount.h>
+#include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
