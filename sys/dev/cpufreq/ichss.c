@@ -305,6 +305,7 @@ ichss_set(device_t dev, const struct cf_setting *set)
 	struct ichss_softc *sc;
 	uint8_t bmval, new_val, old_val, req_val;
 	uint64_t rate;
+	register_t regs;
 
 	/* Look up appropriate bit value based on frequency. */
 	sc = device_get_softc(dev);
@@ -317,7 +318,7 @@ ichss_set(device_t dev, const struct cf_setting *set)
 	DPRINT("ichss: requested setting %d\n", req_val);
 
 	/* Disable interrupts and get the other register contents. */
-	disable_intr();
+	regs = intr_disable();
 	old_val = ICH_GET_REG(sc->ctrl_reg) & ~ICHSS_CTRL_BIT;
 
 	/*
@@ -331,7 +332,7 @@ ichss_set(device_t dev, const struct cf_setting *set)
 
 	/* Get the new value and re-enable interrupts. */
 	new_val = ICH_GET_REG(sc->ctrl_reg);
-	enable_intr();
+	intr_restore(regs);
 
 	/* Check if the desired state was indeed selected. */
 	if (req_val != (new_val & ICHSS_CTRL_BIT)) {
