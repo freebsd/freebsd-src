@@ -21,6 +21,7 @@
 #include <sys/ioctl.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
+#include <paths.h>
 #include "libdisk.h"
 
 #define DOSPTYP_EXTENDED        5
@@ -75,7 +76,7 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 #endif
 		if (j < 0 || j >= MAXPARTITIONS || j == RAW_PART) {
 #ifdef DEBUG
-			warn("Weird parititon letter %c",c2->name[strlen(new->name) + 2]);
+			warn("weird partition letter %c",c2->name[strlen(new->name) + 2]);
 #endif
 			continue;
 		}
@@ -181,7 +182,7 @@ Write_Disk(struct disk *d1)
 	int one = 1;
 	int zero = 0;
 
-	strcpy(device,"/dev/r");
+	strcpy(device,_PATH_DEV"r");
         strcat(device,d1->name);
 
 #ifdef PC98
