@@ -1,4 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/icmp6.h,v 1.4 2000/12/17 23:13:32 guy Exp $ (LBL) */
+/* @(#) $Header: /tcpdump/master/tcpdump/icmp6.h,v 1.11 2001/06/01 23:01:04 itojun Exp $ (LBL) */
 /*	$NetBSD: icmp6.h,v 1.13 2000/08/03 16:30:37 itojun Exp $	*/
 /*	$KAME: icmp6.h,v 1.22 2000/08/03 15:25:16 jinmei Exp $	*/
 
@@ -198,6 +198,19 @@ struct nd_router_advert {	/* router advertisement */
 #define nd_ra_flags_reserved	nd_ra_hdr.icmp6_data8[1]
 #define ND_RA_FLAG_MANAGED	0x80
 #define ND_RA_FLAG_OTHER	0x40
+#define ND_RA_FLAG_HOME_AGENT	0x20
+
+/*
+ * Router preference values based on draft-draves-ipngwg-router-selection-01.
+ * These are non-standard definitions.
+ */
+#define ND_RA_FLAG_RTPREF_MASK	0x18 /* 00011000 */
+
+#define ND_RA_FLAG_RTPREF_HIGH	0x08 /* 00001000 */
+#define ND_RA_FLAG_RTPREF_MEDIUM	0x00 /* 00000000 */
+#define ND_RA_FLAG_RTPREF_LOW	0x18 /* 00011000 */
+#define ND_RA_FLAG_RTPREF_RSV	0x10 /* 00010000 */
+
 #define nd_ra_router_lifetime	nd_ra_hdr.icmp6_data16[1]
 
 struct nd_neighbor_solicit {	/* neighbor solicitation */
@@ -249,7 +262,10 @@ struct nd_opt_hdr {		/* Neighbor discovery option header */
 #define ND_OPT_PREFIX_INFORMATION	3
 #define ND_OPT_REDIRECTED_HEADER	4
 #define ND_OPT_MTU			5
-#define ND_OPT_ADVINT			7
+#define ND_OPT_ADVINTERVAL		7
+#define ND_OPT_HOMEAGENT_INFO		8
+#define ND_OPT_ROUTE_INFO		9	/* draft-ietf-ipngwg-router-preference, not officially assigned yet */
+
 
 struct nd_opt_prefix_info {	/* prefix information */
 	u_int8_t	nd_opt_pi_type;
@@ -281,11 +297,28 @@ struct nd_opt_mtu {		/* MTU option */
 	u_int32_t	nd_opt_mtu_mtu;
 };
 
-struct nd_opt_advint {		/* Advertisement interval option */
-	u_int8_t	nd_opt_advint_type;
-	u_int8_t	nd_opt_advint_len;
-	u_int16_t	nd_opt_advint_reserved;
-	u_int32_t	nd_opt_advint_advint;
+struct nd_opt_advinterval {	/* Advertisement interval option */
+	u_int8_t	nd_opt_adv_type;
+	u_int8_t	nd_opt_adv_len;
+	u_int16_t	nd_opt_adv_reserved;
+	u_int32_t	nd_opt_adv_interval;
+};
+
+struct nd_opt_homeagent_info {	/* Home Agent info */
+	u_int8_t	nd_opt_hai_type;
+	u_int8_t	nd_opt_hai_len;
+	u_int16_t	nd_opt_hai_reserved;
+	int16_t		nd_opt_hai_preference;
+	u_int16_t	nd_opt_hai_lifetime;
+};
+
+struct nd_opt_route_info {	/* route info */
+	u_int8_t	nd_opt_rti_type;
+	u_int8_t	nd_opt_rti_len;
+	u_int8_t	nd_opt_rti_prefixlen;
+	u_int8_t	nd_opt_rti_flags;
+	u_int32_t	nd_opt_rti_lifetime;
+	/* prefix follows */
 };
 
 /*
@@ -356,7 +389,7 @@ struct icmp6_router_renum {	/* router renumbering header */
 };
 #define ICMP6_RR_FLAGS_TEST		0x80
 #define ICMP6_RR_FLAGS_REQRESULT	0x40
-#define ICMP6_RR_FLAGS_ALLIF		0x20
+#define ICMP6_RR_FLAGS_FORCEAPPLY	0x20
 #define ICMP6_RR_FLAGS_SPECSITE		0x10
 #define ICMP6_RR_FLAGS_PREVDONE		0x08
 

@@ -1,4 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/dhcp6.h,v 1.4 2000/12/17 23:07:48 guy Exp $ (LBL) */
+/* @(#) $Header: /tcpdump/master/tcpdump/Attic/dhcp6.h,v 1.4 2000/12/17 23:07:48 guy Exp $ (LBL) */
 /*
  * Copyright (C) 1998 and 1999 WIDE Project.
  * All rights reserved.

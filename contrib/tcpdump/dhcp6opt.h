@@ -1,4 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/dhcp6opt.h,v 1.3 2000/12/17 23:07:49 guy Exp $ (LBL) */
+/* @(#) $Header: /tcpdump/master/tcpdump/Attic/dhcp6opt.h,v 1.4 2001/09/17 21:57:51 fenner Exp $ (LBL) */
 /*
  * Copyright (C) 1998 and 1999 WIDE Project.
  * All rights reserved.
@@ -47,7 +47,7 @@
 struct dhcp6_opt {
 	u_int code;
 	int len;
-	char *name;
+	const char *name;
 	int type;
 };
 
