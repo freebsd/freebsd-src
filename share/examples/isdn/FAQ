@@ -3,7 +3,7 @@
                    ISDN4BSD Frequently Asked Questions
                    ===================================
 
-                last edit-date: [Mon May 10 11:40:48 1999]
+                last edit-date: [Fri Jul 30 08:49:21 1999]
 
 --------------------------------------------------------------------------------
 
@@ -25,6 +25,14 @@ Contents:
 	12. NL: i'm getting CAUSE 100 or CAUSE 101 when dialling out
 	14. I'm using sPPP. I can connect to my ISP but no TCP/IP services work. HELP!
 	15. i4b 0.80.00: problems with AVM Fritz PCI
+	16. How do i setup logfile rotation for isdnd ?
+	17. How do i setup dialin from Windows NT RAS to i4b ?
+	18. How can I convert my old .g711a files to the new format?
+	19. I have lots of old .g711a files to convert what can I do?
+	20. How can I convert the .al files to Sun/NeXT .au/.snd/.vox files?
+	21. Help, isdn4bsd 0.82 fails to probe my Elsa PCC-16!
+	22. How do i enable and configure userland PPP with i4b ?
+	23. What is the procedure to install a new i4b on FreeBSD 3.x ?
 
 
 1. How do I get started with synchronous PPP (sPPP) ?
@@ -607,6 +615,7 @@ Bart
 
 			(from Bart van Leeuwen bart@ixori.demon.nl)
 
+
 14. I'm using sPPP. I can connect to my ISP but no TCP/IP services work. HELP!
 ==============================================================================
 
@@ -645,6 +654,7 @@ should start to blame the vendors...
 	(by Gary Jennejohn, garyj@muc.de, with additions from 
 	 Harold Gutch <logix@foobar.franken.de> and 
 	 Martin Husemann <martin@rumolt.teuto.de>).
+
 
 15. i4b 0.80.00: problems with AVM Fritz PCI
 ==============================================================================
@@ -693,3 +703,234 @@ kernel to compile cleanly.
 
 
 (from Rich Wood, rich@dynamite.org)
+
+
+16. How do i setup logfile rotation for isdnd ?
+==============================================================================
+
+For syslog-based logging:
+-------------------------
+
+man newsyslog (on FreeBSD)
+
+You just add a line to /etc/newsyslog.conf:
+/var/log/isdnd.log      664     7       100     *       Z
+and you are all done...
+
+(From: Andreas Haakh <ah@alvman.RoBIN.de>)
+
+
+For logfile-based logging:
+--------------------------
+
+I suggest using newsyslog(8). Adding a line like:
+
+/var/log/isdn.log               664  100   *    168   Z  /var/run/isdnd.pid
+
+to /etc/newsyslog.conf will do the job (here: once a week, for the next 
+100 weeks) with compression of the old log. 
+
+This is the standard method for other daemons (apache, etc.).
+
+(From: Udo Schweigert <ust@cert.siemens.de>)
+
+
+17. How do i setup dialin from Windows NT RAS to i4b ?
+==============================================================================
+
+> > I need to be able to dial in from a WNT box, equipped with TELES h/w and
+> > s/w, to a FreeBSD machine. I don't have a clue what RAS is using.
+> > I've tried
+> > ipr and isp. The latter seems to work but is hanging on authentication. Is
+> > there somebody who has done this before and is able to give me some hints?
+>
+> RAS is using PPP, so you should be able to get the isp interface working. I
+> haven't done it so I can't give you concrete hints, but setting the isp
+> interface to debug mode and posting the log (with passwords cut out or with
+> test passwords) could help us to debug your setup.
+
+I have several customers using sPPP do dial in from their W95/W98/WNT.
+
+If You use FreeBSD_3.2-BETA with i4b-071 or older then you have to apply
+the attached patch to /sys/net/if_spppsubr.c (patch -p0 <patchfile).
+
+You need to configure isp0. See the manpages or the supplied templates in
+the i4b-distribution. I would suggest to supply an ip-number for the
+isp0-interface and force the clients to accept this value.
+Don't forget to supply the relevant parameters to sppconfig_isp0 in
+/etc/rc.conf...
+
+On WNT you have to install the CAPI-2.0-drivers and Dialin-network.
+
+Create a new entry and check the following box:
+* Connection to internet
+select the appropriate ISDN-device for dialout, insert a phone-number
+and that's it.
+You are asked for username & password. Supply the values You did define in
+spppconfig_isp0 and dial...
+
+Patch for i4b version 0.71 or older:
+------------------------------------
+
+*** /sys/net/if_spppsubr.c	Sun Dec 27 22:30:44 1998
+--- /sys/net/if_spppsubr.c.orig	Sat May  8 10:54:14 1999
+***************
+*** 2056,2062 ****
+  			if (debug)
+  				addlog("[non-empty] ");
+  			/* suggest a zero one */
+! 			p[2] = p[3] = p[4] = p[5] = 0;
+  			break;
+  
+  		case LCP_OPT_MRU:
+--- 2056,2062 ----
+  			if (debug)
+  				addlog("[non-empty] ");
+  			/* suggest a zero one */
+! 			/* p[2] = p[3] = p[4] = p[5] = 0; */
+  			break;
+  
+  		case LCP_OPT_MRU:
+***************
+*** 2668,2678 ****
+  					addlog("%s [not agreed] ",
+  						sppp_dotted_quad(desiredaddr));
+  
+- 				p[2] = hisaddr >> 24;
+- 				p[3] = hisaddr >> 16;
+- 				p[4] = hisaddr >> 8;
+- 				p[5] = hisaddr;
+  			}
+  			break;
+  		}
+  		/* Add the option to nak'ed list. */
+--- 2668,2678 ----
+  					addlog("%s [not agreed] ",
+  						sppp_dotted_quad(desiredaddr));
+  
+  			}
++ 			p[2] = hisaddr >> 24;
++ 			p[3] = hisaddr >> 16;
++ 			p[4] = hisaddr >> 8;
++ 			p[5] = hisaddr;
+  			break;
+  		}
+  		/* Add the option to nak'ed list. */
+
+(From: Andreas Haakh <ah@alvman.RoBIN.de>)
+
+
+18. How can I convert my old .g711a files to the new format?
+================================================================================
+I got the best results with:
+cat /some/path/dwhello.g711a | alaw2ulaw | g711conv -u > /tmp/newhello.al
+
+(From: David Wetzel <dave@turbocat.de>)
+
+
+19. I have lots of old .g711a files to convert what can I do?
+================================================================================
+
+Create a shell script (/tmp/csnd.sh) with this contents:
+#!/bin/sh
+
+OLDFILES=`ls *.g711a`
+#echo $OLDFILES
+
+for THEFILE in $OLDFILES
+do
+(
+        echo -n "converting $THEFILE..."
+        BASENAME=`basename $THEFILE .g711a`
+
+        /bin/cat $THEFILE | alaw2ulaw | g711conv -u > $BASENAME.al
+        echo "done"
+)
+
+done
+###### END
+
+then type "chmod a+x /tmp/csnd.sh" in you shell.
+cd /usr/local/lib/isdn (or where your old sounds live)
+/tmp/csnd.sh
+Optional:
+rm *.g711a (you should know what you do here :-)
+
+(From: David Wetzel <dave@turbocat.de>)
+
+
+20. How can I convert the .al files to Sun/NeXT .au/.snd/.vox files?
+================================================================================
+
+/bin/cat /some/path/old.al | sox -t raw -A -b -r 8000 - -t .au /some/path/new.snd
+
+
+(From: David Wetzel <dave@turbocat.de>)
+
+
+21. Help, isdn4bsd 0.82 fails to probe my Elsa PCC-16!
+================================================================================
+
+>Isdn4bsd 0.82 fails to probe my Elsa PCC-16. It just can't find isic0.
+
+flags have changed from 19 to 20.
+
+
+(From: "Frank J. Beckmann" <frank@vogon.agala.harz.de>)
+
+
+22. How do i enable and configure userland PPP with i4b ?
+================================================================================
+
+NOTE: this is the procedure used as of end of July 1999, it may change in
+      the near future!
+
+Get the current ppp sources from 
+
+	http://www.freebsd.org/~brian
+
+unpack them and apply the patch
+
+	ftp://ftp6.uk.freebsd.org/pub/PPPoISDN/pppcommit.patch
+
+to the ppp directory (where you just unpacked the above mentioned ppp source).
+Make and install the result.
+
+Have a look at the user-ppp directory and the end of etc-isdn/isdnd.rc.sample
+for ppp and i4b sample configurations to get things up and running.
+
+More information to ppp setup can be found at 
+
+	http://www.Awfulhak.org/ppp.html
+	http://www.freebsd.org/handbook/ppp-and-slip.html
+	http://www.freebsd.org/FAQ/userppp.html
+
+and in the directory "user-ppp" of the isdn4bsd distribution.
+
+
+23. What is the procedure to install a new i4b on FreeBSD 3.x ?
+================================================================================
+
+cd /usr/src
+mkdir i4b
+cd i4b
+tar xvzf i4b-00.82.00-beta-140799.tar.gz
+cd FreeBSD
+sh overuninstall.sh
+sh overinstall.sh
+cd ..
+make cleandir
+make depend
+make
+make install
+cd /sys/i386/conf
+config <YOURKERNEL>
+cd ../../compile/<YOURKERNEL>
+make clean
+make depend
+make
+make install
+shutdown -r now
+
+
+(From: Luke Roberts <luke@roberts.nl>)

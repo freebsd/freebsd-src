@@ -27,9 +27,9 @@
  *	i4b_iframe.c - i frame handling routines
  *	------------------------------------------
  *
- *	$Id: i4b_iframe.c,v 1.19 1999/04/21 07:36:32 hm Exp $ 
+ *	$Id: i4b_iframe.c,v 1.20 1999/05/28 15:03:32 hm Exp $ 
  *
- *      last edit-date: [Wed Apr 21 09:24:34 1999]
+ *      last edit-date: [Fri May 28 15:52:41 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -100,6 +100,8 @@ i4b_rxd_i_frame(int unit, struct mbuf *m)
 	}
 
 	CRIT_BEG;
+
+	l2sc->stat.rx_i++;		/* update frame count */
 	
 	nr = GETINR(*(ptr + OFF_INR));
 	ns = GETINS(*(ptr + OFF_INS));
@@ -261,6 +263,8 @@ i4b_i_frame_queued_up(l2_softc_t *l2sc)
 	*(ptr + OFF_INS) = (l2sc->vs << 1) & 0xfe; /* bit 0 = 0 */
 	*(ptr + OFF_INR) = (l2sc->vr << 1) & 0xfe; /* P bit = 0 */
 
+	l2sc->stat.tx_i++;	/* update frame counter */
+	
 	PH_Data_Req(l2sc->unit, m, MBUF_DONTFREE); /* free'd when ack'd ! */
 
 	l2sc->iframe_sent = 1;		/* in case we ack an I frame with another I frame */

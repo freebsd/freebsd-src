@@ -27,9 +27,9 @@
  *	i4b_tei.c - tei handling procedures
  *	-----------------------------------
  *
- *	$Id: i4b_tei.c,v 1.14 1999/02/14 09:45:00 hm Exp $ 
+ *	$Id: i4b_tei.c,v 1.15 1999/05/28 15:03:32 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:32:12 1999]
+ *      last edit-date: [Fri May 28 16:14:14 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -213,6 +213,7 @@ build_tei_mgmt_frame(l2_softc_t *l2sc, unsigned char type)
 			panic("build_tei_mgmt_frame: invalid type");
 			break;
 	}
+	l2sc->stat.tx_tei++;
 	return(m);
 }
 

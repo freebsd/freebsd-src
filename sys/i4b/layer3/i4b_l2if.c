@@ -27,9 +27,9 @@
  *	i4b_l2if.c - Layer 3 interface to Layer 2
  *	-------------------------------------------
  *
- *	$Id: i4b_l2if.c,v 1.15 1999/02/14 09:45:01 hm Exp $ 
+ *	$Id: i4b_l2if.c,v 1.16 1999/05/25 10:05:40 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:33:13 1999]
+ *      last edit-date: [Tue May 25 11:55:15 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -570,7 +570,7 @@ i4b_l3_tx_status(call_desc_t *cd, u_char q850cause)
 	*ptr++ = IEI_CAUSE;		/* cause ie */
 	*ptr++ = CAUSE_LEN;
 	*ptr++ = CAUSE_STD_LOC_OUT;
-	*ptr++ = q850cause;
+	*ptr++ = q850cause | EXT_LAST;
 
 	*ptr++ = IEI_CALLSTATE;		/* call state ie */
 	*ptr++ = CALLSTATE_LEN;

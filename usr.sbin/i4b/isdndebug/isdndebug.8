@@ -22,19 +22,15 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: isdndebug.8,v 1.7 1999/05/03 08:48:25 hm Exp $
+.\"	$Id: isdndebug.8,v 1.8 1999/05/29 09:05:30 hm Exp $
 .\"
-.\"	last edit-date: [Mon Feb 15 17:05:41 1999]
+.\"	last edit-date: [Sat May 29 11:03:15 1999]
 .\"
-.\"	-hm	writing manual pages
-.\"	-hm	getting uptodate
-.\"
-.\"
-.Dd July 9, 1998
+.Dd May, 29, 1999
 .Dt isdndebug 8
 .Sh NAME
 .Nm isdndebug
-.Nd control debugging handling inside isdn4bsd kernel
+.Nd display and control isdn4bsd kernel variables and statistics
 .Sh SYNOPSIS
 .Nm
 .Op Fl e
@@ -42,20 +38,27 @@
 .Op Fl h
 .Op Fl l Ar layer
 .Op Fl m
+.Op Fl q
 .Op Fl r
 .Op Fl s Ar value
 .Op Fl u Ar unit
 .Op Fl z
 .Op Fl H
+.Op Fl Q
 .Sh DESCRIPTION
 .Nm isdndebug
-is part of the isdn4bsd package and is used to control debugging output
-of the isdn4bsd kernel part. Every layer of the isdn4bsd kernel uses a
-debugging mask which can be manipulated using this utility.
+is part of the isdn4bsd package and is used to control the level of 
+debugging output of the isdn4bsd kernel part.
+Every layer of the isdn4bsd kernel uses a debugging mask which can be
+manipulated using this utility.
 .Pp
 A second usage of
 .Nm
-is to display and reset the HSCX error counters.
+is to display and reset the HSCX (the HSCX is the chip responsible for 
+the B-channel handling in the
+.Xr isic 4
+driver) error counters and and to display and reset the D-channel layer 2
+(Q.921 LAPD protocol) statistics and error counters.
 .Pp
 The following options are available:
 .Bl -tag -width Ds
@@ -70,6 +73,8 @@ Specify the layer for which a command applies. Default is all layers.
 .It Fl m
 Set debugging mask for the selected layer(s) to display all possible
 debugging messages (maximum output).
+.It Fl q
+Display the Q.921 (D-channel layer 2) frame receive/transmit statistics.
 .It Fl r
 Set debugging mask for the selected layer(s) to the compiled in default
 (reset).
@@ -78,11 +83,13 @@ Set debugging mask for the selected layer(s) to value. Value can be
 specified in any number base supported by
 .Xr sscanf 3 .
 .It Fl u
-Set the unit numbers for the -h and -H flags.
+Set the unit numbers for the -h, -q, -H and -Q flags.
 .It Fl z
 Set debugging mask for the selected layer(s) to no output at all (zero).
 .It Fl H
 Reset the HSCX error counters to zero.
+.It Fl Q
+Reset the Q.921 (D-channel layer 2) frame receive/transmit statistics to zero.
 .El
 .Pp
 .Sh FILES

@@ -27,9 +27,9 @@
  *	i4b_ipr.c - isdn4bsd IP over raw HDLC ISDN network driver
  *	---------------------------------------------------------
  *
- *	$Id: i4b_ipr.c,v 1.4 1999/05/20 10:08:58 hm Exp $
+ *	$Id: i4b_ipr.c,v 1.53 1999/07/22 18:30:15 hm Exp $
  *
- *	last edit-date: [Thu May  6 10:09:20 1999]
+ *	last edit-date: [Thu Jul 22 19:46:53 1999]
  *
  *---------------------------------------------------------------------------*
  *
@@ -110,8 +110,12 @@
 				/* undef to uncompress in the mbuf itself    */
 #endif /* IPR_VJ */
 
+#if defined(__FreeBSD_version) &&  __FreeBSD_version >= 400008
 #include "bpf.h"
-#if NBPF > 0
+#else
+#include "bpfilter.h"
+#endif
+#if NBPFILTER > 0 || NBPF > 0
 #include <sys/time.h>
 #include <net/bpf.h>
 #endif
@@ -350,7 +354,7 @@ i4biprattach()
 		
 		if_attach(&sc->sc_if);
 
-#if NBPF > 0
+#if NBPFILTER > 0 || NBPF > 0
 #ifdef __FreeBSD__
 		bpfattach(&sc->sc_if, DLT_NULL, sizeof(u_int));
 #else
@@ -994,7 +998,7 @@ error:
 	sc->sc_inb += m->m_pkthdr.len;
 #endif
 
-#if NBPF > 0
+#if NBPFILTER > 0 || NBPF > 0
 	if(sc->sc_if.if_bpf)
 	{
 		/* prepend the address family as a four byte field */		
@@ -1010,7 +1014,7 @@ error:
 		bpf_mtap(sc->sc_if.if_bpf, &mm);
 #endif
 	}
-#endif /* NBPF > 0 */
+#endif /* NBPFILTER > 0  || NBPF > 0 */
 
 	if(IF_QFULL(&ipintrq))
 	{
@@ -1062,7 +1066,7 @@ ipr_tx_queue_empty(int unit)
 
 		microtime(&sc->sc_if.if_lastchange);
 		
-#if NBPF > 0
+#if NBPFILTER > 0 || NBPF > 0
 		if(sc->sc_if.if_bpf)
 		{
 			/* prepend the address family as a four byte field */
@@ -1079,7 +1083,7 @@ ipr_tx_queue_empty(int unit)
 			bpf_mtap(sc->sc_if.if_bpf, &mm);
 #endif
 		}
-#endif /* NBPF */
+#endif /* NBPFILTER */
 	
 #if I4BIPRACCT
 		sc->sc_outb += m->m_pkthdr.len;	/* size before compression */

@@ -27,9 +27,9 @@
  *	i4btrc - device driver for trace data read device
  *	---------------------------------------------------
  *
- *	$Id: i4b_trace.c,v 1.3 1999/05/20 10:09:05 hm Exp $
+ *	$Id: i4b_trace.c,v 1.20 1999/06/01 10:23:58 hm Exp $
  *
- *	last edit-date: [Wed Apr 28 10:21:09 1999]
+ *	last edit-date: [Tue Jun  1 12:15:40 1999]
  *
  *	NOTE: the code assumes that SPLI4B >= splimp !
  *
@@ -125,6 +125,7 @@ static d_open_t	i4btrcopen;
 static d_close_t i4btrcclose;
 static d_read_t i4btrcread;
 static d_ioctl_t i4btrcioctl;
+
 #ifdef OS_USES_POLL
 static d_poll_t i4btrcpoll;
 #define POLLFIELD i4btrcpoll
@@ -133,6 +134,8 @@ static d_poll_t i4btrcpoll;
 #endif
 
 #define CDEV_MAJOR 59
+
+#if defined (__FreeBSD_version) && __FreeBSD_version >= 400006
 static struct cdevsw i4btrc_cdevsw = {
 	/* open */	i4btrcopen,
 	/* close */	i4btrcclose,
@@ -154,6 +157,13 @@ static struct cdevsw i4btrc_cdevsw = {
 	/* maxio */	0,
 	/* bmaj */	-1
 };
+#else
+static struct cdevsw i4btrc_cdevsw = {
+	i4btrcopen,	i4btrcclose,	i4btrcread,	nowrite,
+  	i4btrcioctl,	nostop,		noreset,	nodevtotty,
+	POLLFIELD,	nommap, 	NULL, "i4btrc", NULL, -1
+};
+#endif
 
 /*---------------------------------------------------------------------------*
  *	interface init routine
@@ -161,8 +171,12 @@ static struct cdevsw i4btrc_cdevsw = {
 static
 void i4btrcinit(void *unused)
 {
-
-    cdevsw_add(&i4btrc_cdevsw);
+#if defined (__FreeBSD_version) && __FreeBSD_version >= 400006
+	cdevsw_add(&i4btrc_cdevsw);
+#else
+	dev_t dev = makedev(CDEV_MAJOR, 0);
+	cdevsw_add(&dev, &i4btrc_cdevsw, NULL);
+#endif
 }
 
 SYSINIT(i4btrcdev, SI_SUB_DRIVERS,

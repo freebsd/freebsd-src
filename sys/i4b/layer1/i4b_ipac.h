@@ -27,9 +27,9 @@
  *	i4b_ipac.h - definitions for the Siemens IPAC PSB2115 chip
  *	==========================================================
  *
- *	$Id: i4b_ipac.h,v 1.5 1999/02/14 09:44:59 hm Exp $
+ *	$Id: i4b_ipac.h,v 1.6 1999/06/08 08:13:00 hm Exp $
  *
- *      last edit-date: [Sun Feb 14 10:27:03 1999]
+ *      last edit-date: [Tue Jun  8 09:53:26 1999]
  *
  *---------------------------------------------------------------------------
  */
@@ -43,6 +43,10 @@
 #define IPAC_HSCXB_OFF	0x40
 #define IPAC_ISAC_OFF	0x80
 #define IPAC_IPAC_OFF	0xc0
+
+/* chip version */
+
+#define	IPAC_V11	0x01	/* IPAC Version 1.1 */
 
 /*
  * definitions of registers and bits for the IPAC ISDN chip.

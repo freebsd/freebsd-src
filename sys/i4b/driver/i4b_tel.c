@@ -27,9 +27,9 @@
  *	i4b_tel.c - device driver for ISDN telephony
  *	--------------------------------------------
  *
- *	$Id: i4b_tel.c,v 1.3 1999/05/20 10:09:03 hm Exp $
+ *	$Id: i4b_tel.c,v 1.43 1999/07/09 06:44:00 hm Exp $
  *
- *	last edit-date: [Thu May  6 09:30:13 1999]
+ *	last edit-date: [Fri Jul  9 08:35:30 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -183,6 +183,7 @@ PDEVSTATIC d_close_t i4btelclose;
 PDEVSTATIC d_read_t i4btelread;
 PDEVSTATIC d_read_t i4btelwrite;
 PDEVSTATIC d_ioctl_t i4btelioctl;
+
 #ifdef OS_USES_POLL
 PDEVSTATIC d_poll_t i4btelpoll;
 #define POLLFIELD i4btelpoll
@@ -192,6 +193,8 @@ PDEVSTATIC d_select_t i4btelsel;
 #endif
 
 #define CDEV_MAJOR 56
+
+#if defined (__FreeBSD_version) && __FreeBSD_version >= 400006
 static struct cdevsw i4btel_cdevsw = {
 	/* open */	i4btelopen,
 	/* close */	i4btelclose,
@@ -213,6 +216,13 @@ static struct cdevsw i4btel_cdevsw = {
 	/* maxio */	0,
 	/* bmaj */	-1
 };
+#else
+static struct cdevsw i4btel_cdevsw = {
+	i4btelopen,	i4btelclose,	i4btelread,	i4btelwrite,
+  	i4btelioctl,	nostop,		noreset,	nodevtotty,
+	POLLFIELD,	nommap, 	NULL, "i4btel", NULL, -1
+};
+#endif
 
 PDEVSTATIC void i4btelinit(void *unused);
 PDEVSTATIC void i4btelattach(void *);
@@ -229,8 +239,12 @@ PSEUDO_SET(i4btelattach, i4b_tel);
 PDEVSTATIC void
 i4btelinit(void *unused)
 {
-    
-    cdevsw_add(&i4btel_cdevsw);
+#if defined (__FreeBSD_version) && __FreeBSD_version >= 400006    
+	cdevsw_add(&i4btel_cdevsw);
+#else
+	dev_t dev = makedev(CDEV_MAJOR, 0);
+	cdevsw_add(&dev, &i4btel_cdevsw, NULL);
+#endif
 }
 
 SYSINIT(i4bteldev, SI_SUB_DRIVERS,
@@ -441,6 +455,18 @@ i4btelioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 				}
 				splx(s);
 				break;
+
+			case I4B_TEL_VR_REQ:
+                	{
+				msg_vr_req_t *mvr;
+
+				mvr = (msg_vr_req_t *)data;
+
+				mvr->version = VERSION;
+				mvr->release = REL;
+				mvr->step = STEP;			
+				break;
+			}
 	
 			default:
 				error = ENOTTY;
