@@ -740,7 +740,8 @@ skip_ipsec:
 				    (ro_fwd->ro_rt->rt_flags & RTF_BROADCAST);
 			else
 				isbroadcast = in_broadcast(dst->sin_addr, ifp);
-			RTFREE(ro->ro_rt);
+			if (ro->ro_rt)
+				RTFREE(ro->ro_rt);
 			ro->ro_rt = ro_fwd->ro_rt;
 			dst = (struct sockaddr_in *)&ro_fwd->ro_dst;
 
