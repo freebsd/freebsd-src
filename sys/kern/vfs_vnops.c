@@ -808,8 +808,8 @@ vn_kqfilter(struct file *fp, struct knote *kn)
  * Set IO_NODELOCKED in ioflg if the vnode is already locked.
  */
 int
-vn_extattr_get(struct vnode *vp, int ioflg, const char *attrname, int *buflen,
-    char *buf, struct proc *p)
+vn_extattr_get(struct vnode *vp, int ioflg, int namespace,
+    const char *attrname, int *buflen, char *buf, struct proc *p)
 {
 	struct uio	auio;
 	struct iovec	iov;
@@ -830,7 +830,7 @@ vn_extattr_get(struct vnode *vp, int ioflg, const char *attrname, int *buflen,
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 
 	/* authorize attribute retrieval as kernel */
-	error = VOP_GETEXTATTR(vp, attrname, &auio, NULL, p);
+	error = VOP_GETEXTATTR(vp, namespace, attrname, &auio, NULL, p);
 
 	if ((ioflg & IO_NODELOCKED) == 0)
 		VOP_UNLOCK(vp, 0, p);
@@ -846,8 +846,8 @@ vn_extattr_get(struct vnode *vp, int ioflg, const char *attrname, int *buflen,
  * XXX failure mode if partially written?
  */
 int
-vn_extattr_set(struct vnode *vp, int ioflg, const char *attrname, int buflen,
-    char *buf, struct proc *p)
+vn_extattr_set(struct vnode *vp, int ioflg, int namespace,
+    const char *attrname, int buflen, char *buf, struct proc *p)
 {
 	struct uio	auio;
 	struct iovec	iov;
@@ -872,7 +872,7 @@ vn_extattr_set(struct vnode *vp, int ioflg, const char *attrname, int buflen,
 	}
 
 	/* authorize attribute setting as kernel */
-	error = VOP_SETEXTATTR(vp, attrname, &auio, NULL, p);
+	error = VOP_SETEXTATTR(vp, namespace, attrname, &auio, NULL, p);
 
 	if ((ioflg & IO_NODELOCKED) == 0) {
 		vn_finished_write(mp);
@@ -883,7 +883,8 @@ vn_extattr_set(struct vnode *vp, int ioflg, const char *attrname, int buflen,
 }
 
 int
-vn_extattr_rm(struct vnode *vp, int ioflg, const char *attrname, struct proc *p)
+vn_extattr_rm(struct vnode *vp, int ioflg, int namespace, const char *attrname,
+    struct proc *p)
 {
 	struct mount	*mp;
 	int	error;
@@ -895,7 +896,7 @@ vn_extattr_rm(struct vnode *vp, int ioflg, const char *attrname, struct proc *p)
 	}
 
 	/* authorize attribute removal as kernel */
-	error = VOP_SETEXTATTR(vp, attrname, NULL, NULL, p);
+	error = VOP_SETEXTATTR(vp, namespace, attrname, NULL, NULL, p);
 
 	if ((ioflg & IO_NODELOCKED) == 0) {
 		vn_finished_write(mp);

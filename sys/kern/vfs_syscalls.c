@@ -3681,20 +3681,65 @@ extattrctl(p, uap)
 	struct proc *p;
 	struct extattrctl_args *uap;
 {
+	struct vnode *filename_vp;
 	struct nameidata nd;
 	struct mount *mp;
+	char attrname[EXTATTR_MAXNAMELEN];
 	int error;
 
+	/*
+	 * SCARG(uap, attrname) not always defined.  We check again later
+	 * when we invoke the VFS call so as to pass in NULL there if needed.
+	 */
+	if (SCARG(uap, attrname) != NULL) {
+		error = copyinstr(SCARG(uap, attrname), attrname,
+		    EXTATTR_MAXNAMELEN, NULL);
+		if (error)
+			return (error);
+	}
+
+	/*
+	 * SCARG(uap, filename) not always defined.  If it is, grab
+	 * a vnode lock, which VFS_EXTATTRCTL() will later release.
+	 */
+	filename_vp = NULL;
+	if (SCARG(uap, filename) != NULL) {
+		NDINIT(&nd, LOOKUP | LOCKLEAF, FOLLOW, UIO_USERSPACE,
+		    SCARG(uap, filename), p);
+		if ((error = namei(&nd)) != 0)
+			return (error);
+		filename_vp = nd.ni_vp;
+		NDFREE(&nd, NDF_NO_VP_RELE | NDF_NO_VP_UNLOCK);
+	}
+
+	/* SCARG(uap, path) always defined. */
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), p);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	error = vn_start_write(nd.ni_vp, &mp, V_WAIT | PCATCH);
 	NDFREE(&nd, 0);
-	if (error)
+	if (error) {
+		if (filename_vp)
+			vrele(filename_vp);
 		return (error);
-	error = VFS_EXTATTRCTL(mp, SCARG(uap, cmd), SCARG(uap, attrname),
-	    SCARG(uap, arg), p);
+	}
+
+	if (SCARG(uap, attrname) != NULL) {
+		error = VFS_EXTATTRCTL(mp, SCARG(uap, cmd), filename_vp,
+		    SCARG(uap, namespace), attrname, p);
+	} else {
+		error = VFS_EXTATTRCTL(mp, SCARG(uap, cmd), filename_vp,
+		    SCARG(uap, namespace), NULL, p);
+	}
+
 	vn_finished_write(mp);
+	/*
+	 * VFS_EXTATTRCTL will have unlocked, but not de-ref'd,
+	 * filename_vp, so vrele it if it is defined.
+	 */
+	if (filename_vp != NULL)
+		vrele(filename_vp);
+
 	return (error);
 }
 
@@ -3756,8 +3801,8 @@ extattr_set_file(p, uap)
 		iov++;
 	}
 	cnt = auio.uio_resid;
-	error = VOP_SETEXTATTR(nd.ni_vp, attrname, &auio, p->p_cred->pc_ucred,
-	    p);
+	error = VOP_SETEXTATTR(nd.ni_vp, SCARG(uap, namespace), attrname,
+	    &auio, p->p_cred->pc_ucred, p);
 	cnt -= auio.uio_resid;
 	p->p_retval[0] = cnt;
 done:
@@ -3823,8 +3868,8 @@ extattr_get_file(p, uap)
 		iov++;
 	}
 	cnt = auio.uio_resid;
-	error = VOP_GETEXTATTR(nd.ni_vp, attrname, &auio, p->p_cred->pc_ucred,
-	    p);
+	error = VOP_GETEXTATTR(nd.ni_vp, SCARG(uap, namespace), attrname,
+	    &auio, p->p_cred->pc_ucred, p);
 	cnt -= auio.uio_resid;
 	p->p_retval[0] = cnt;
 done:
@@ -3859,8 +3904,8 @@ extattr_delete_file(p, uap)
 		NDFREE(&nd, 0);
 		return (error);
 	}
-	error = VOP_SETEXTATTR(nd.ni_vp, attrname, NULL, p->p_cred->pc_ucred,
-	    p);
+	error = VOP_SETEXTATTR(nd.ni_vp, SCARG(uap, namespace), attrname,
+	    NULL, p->p_cred->pc_ucred, p);
 	NDFREE(&nd, 0);
 	vn_finished_write(mp);
 	return(error);

@@ -40,6 +40,7 @@
 #include <sys/mount.h>
 #include <sys/lock.h>
 #include <sys/dirent.h>
+#include <sys/extattr.h>
 
 #include <vm/vm_zone.h>
 
@@ -52,6 +53,8 @@
 
 #include "opt_ffs.h"
 
+#ifdef FFS_EXTATTR
+
 #define	MIN(a,b) (((a)<(b))?(a):(b))
 
 static MALLOC_DEFINE(M_UFS_EXTATTR, "ufs_extattr", "ufs extended attribute");
@@ -60,16 +63,18 @@ static int	ufs_extattr_valid_attrname(const char *attrname);
 static int	ufs_extattr_credcheck(struct vnode *vp,
     struct ufs_extattr_list_entry *uele, struct ucred *cred, struct proc *p,
     int access);
-static int	ufs_extattr_enable(struct ufsmount *ump, const char *attrname,
-    struct vnode *backing_vnode, struct proc *p);
-static int	ufs_extattr_disable(struct ufsmount *ump, const char *attrname,
-    struct proc *p);
-static int	ufs_extattr_get(struct vnode *vp, const char *name,
-    struct uio *uio, struct ucred *cred, struct proc *p);
-static int	ufs_extattr_set(struct vnode *vp, const char *name,
-    struct uio *uio, struct ucred *cred, struct proc *p);
-static int	ufs_extattr_rm(struct vnode *vp, const char *name,
-    struct ucred *cred, struct proc *p);
+static int	ufs_extattr_enable_with_open(struct ufsmount *ump,
+    struct vnode *vp, int namespace, const char *attrname, struct proc *p);
+static int	ufs_extattr_enable(struct ufsmount *ump, int namespace,
+    const char *attrname, struct vnode *backing_vnode, struct proc *p);
+static int	ufs_extattr_disable(struct ufsmount *ump, int namespace,
+    const char *attrname, struct proc *p);
+static int	ufs_extattr_get(struct vnode *vp, int namespace,
+    const char *name, struct uio *uio, struct ucred *cred, struct proc *p);
+static int	ufs_extattr_set(struct vnode *vp, int namespace,
+    const char *name, struct uio *uio, struct ucred *cred, struct proc *p);
+static int	ufs_extattr_rm(struct vnode *vp, int namespace,
+    const char *name, struct ucred *cred, struct proc *p);
 
 /*
  * Per-FS attribute lock protecting attribute operations.
@@ -119,7 +124,8 @@ ufs_extattr_valid_attrname(const char *attrname)
  * Must be holding uepm lock for the mount point.
  */
 static struct ufs_extattr_list_entry *
-ufs_extattr_find_attr(struct ufsmount *ump, const char *attrname)
+ufs_extattr_find_attr(struct ufsmount *ump, int namespace,
+    const char *attrname)
 {
 	struct ufs_extattr_list_entry	*search_attribute;
 
@@ -127,7 +133,8 @@ ufs_extattr_find_attr(struct ufsmount *ump, const char *attrname)
 	    search_attribute;
 	    search_attribute = LIST_NEXT(search_attribute, uele_entries)) {
 		if (!(strncmp(attrname, search_attribute->uele_attrname,
-		    UFS_EXTATTR_MAXEXTATTRNAME))) {
+		    UFS_EXTATTR_MAXEXTATTRNAME)) &&
+		    (namespace == search_attribute->uele_namespace)) {
 			return (search_attribute);
 		}
 	}
@@ -291,17 +298,18 @@ ufs_extattr_lookup(struct vnode *start_dvp, int lockparent, char *dirname,
 	*vp = target_vp;
 	return (0);
 }
+#endif /* !FFS_EXTATTR_AUTOSTART */
 
 /*
  * Enable an EA using the passed file system, backing vnode, attribute name,
- * and proc.  Will perform a VOP_OPEN() on the vp, so expects vp to be locked
- * when passed in.  Will unlock vp, and grab its own reference, so the caller
- * needs to vrele(), just not vput().  If the call fails, the lock is not
- * released.
+ * namespace, and proc.  Will perform a VOP_OPEN() on the vp, so expects vp
+ * to be locked when passed in.  Will unlock vp, and grab its own reference,
+ * so the caller needs to vrele(), just not vput().  The unlock the vnode
+ * regardless of call success or failure.
  */
 static int
 ufs_extattr_enable_with_open(struct ufsmount *ump, struct vnode *vp,
-    char *attrname, struct proc *p)
+    int namespace, const char *attrname, struct proc *p)
 {
 	int error;
 
@@ -309,6 +317,7 @@ ufs_extattr_enable_with_open(struct ufsmount *ump, struct vnode *vp,
 	if (error) {
 		printf("ufs_extattr_enable_with_open.VOP_OPEN(): failed "
 		    "with %d\n", error);
+		VOP_UNLOCK(vp, 0, p);
 		return (error);
 	}
 
@@ -322,6 +331,7 @@ ufs_extattr_enable_with_open(struct ufsmount *ump, struct vnode *vp,
 			 * XXX: bug replicated from vn_open(): should
 			 * VOP_CLOSE() here.
 			 */
+			VOP_UNLOCK(vp, 0, p);
 			return (error);
 		}
 
@@ -331,9 +341,10 @@ ufs_extattr_enable_with_open(struct ufsmount *ump, struct vnode *vp,
 
 	VOP_UNLOCK(vp, 0, p);
 
-	return (ufs_extattr_enable(ump, attrname, vp, p));
+	return (ufs_extattr_enable(ump, namespace, attrname, vp, p));
 }
 
+#ifdef FFS_EXTATTR_AUTOSTART
 /*
  * Given a locked directory vnode, iterate over the names in the directory
  * and use ufs_extattr_lookup() to retrieve locked vnodes of potential
@@ -344,7 +355,7 @@ ufs_extattr_enable_with_open(struct ufsmount *ump, struct vnode *vp,
  */
 static int
 ufs_extattr_iterate_directory(struct ufsmount *ump, struct vnode *dvp,
-    struct proc *p)
+    int namespace, struct proc *p)
 {
 	struct vop_readdir_args vargs;
 	struct dirent *dp, *edp;
@@ -412,19 +423,18 @@ ufs_extattr_iterate_directory(struct ufsmount *ump, struct vnode *dvp,
 				vput(attr_vp);
 			} else {
 				error = ufs_extattr_enable_with_open(ump,
-				    attr_vp, dp->d_name, p);
+				    attr_vp, namespace, dp->d_name, p);
+				vrele(attr_vp);
 				if (error) {
 					printf("ufs_extattr_iterate_directory: "
 					    "enable %s %d\n", dp->d_name,
 					    error);
-					vput(attr_vp);
 				} else {
 /*
  * While it's nice to have some visual output here, skip for the time-being.
  * Probably should be enabled by -v at boot.
 					printf("Autostarted %s\n", dp->d_name);
  */
-					vrele(attr_vp);
 				}
 			}
 			dp = (struct dirent *) ((char *)dp + dp->d_reclen);
@@ -448,8 +458,8 @@ ufs_extattr_autostart(struct mount *mp, struct proc *p)
 	int error;
 
 	/*
-	 * Does ".attribute" exist off the file system root?  If so,
-	 * automatically start EA's.
+	 * Does UFS_EXTATTR_FSROOTSUBDIR exist off the file system root?
+	 * If so, automatically start EA's.
 	 */
 	error = VFS_ROOT(mp, &rvp);
 	if (error) {
@@ -458,7 +468,7 @@ ufs_extattr_autostart(struct mount *mp, struct proc *p)
 	}
 
 	error = ufs_extattr_lookup(rvp, UE_GETDIR_LOCKPARENT_DONT,
-	    ".attribute", &attr_dvp, p);
+	    UFS_EXTATTR_FSROOTSUBDIR, &attr_dvp, p);
 	if (error) {
 		/* rvp ref'd but now unlocked */
 		vrele(rvp);
@@ -473,7 +483,8 @@ ufs_extattr_autostart(struct mount *mp, struct proc *p)
 	vrele(rvp);
 
 	if (attr_dvp->v_type != VDIR) {
-		printf("ufs_extattr_autostart: .attribute != VDIR\n");
+		printf("ufs_extattr_autostart: %s != VDIR\n",
+		    UFS_EXTATTR_FSROOTSUBDIR);
 		goto return_vput;
 	}
 
@@ -485,10 +496,15 @@ ufs_extattr_autostart(struct mount *mp, struct proc *p)
 	}
 
 	/*
-	 * Iterate over the directory.  Eventually we may lookup sub-directories
-	 * and iterate over them independently.
+	 * Iterate over the directory.  Eventually we will lookup sub-
+	 * directories and iterate over them independently with different
+	 * EA namespaces.
+	 *
+	 * XXX: Right now, assert that all attributes are in the system
+	 * namespace.
 	 */
-	error = ufs_extattr_iterate_directory(VFSTOUFS(mp), attr_dvp, p);
+	error = ufs_extattr_iterate_directory(VFSTOUFS(mp), attr_dvp,
+	    EXTATTR_NAMESPACE_SYSTEM, p);
 	if (error)
 		printf("ufs_extattr_iterate_directory returned %d\n", error);
 
@@ -521,7 +537,8 @@ ufs_extattr_stop(struct mount *mp, struct proc *p)
 
 	while (LIST_FIRST(&ump->um_extattr.uepm_list) != NULL) {
 		uele = LIST_FIRST(&ump->um_extattr.uepm_list);
-		ufs_extattr_disable(ump, uele->uele_attrname, p);
+		ufs_extattr_disable(ump, uele->uele_namespace,
+		    uele->uele_attrname, p);
 	}
 
 	ump->um_extattr.uepm_flags &= ~UFS_EXTATTR_UEPM_STARTED;
@@ -536,11 +553,11 @@ unlock:
 }
 
 /*
- * Enable a named attribute on the specified file system; provide a
- * backing vnode to hold the attribute data.
+ * Enable a named attribute on the specified file system; provide an
+ * unlocked backing vnode to hold the attribute data.
  */
 static int
-ufs_extattr_enable(struct ufsmount *ump, const char *attrname,
+ufs_extattr_enable(struct ufsmount *ump, int namespace, const char *attrname,
     struct vnode *backing_vnode, struct proc *p)
 {
 	struct ufs_extattr_list_entry	*attribute;
@@ -563,12 +580,13 @@ ufs_extattr_enable(struct ufsmount *ump, const char *attrname,
 		goto free_exit;
 	}
 
-	if (ufs_extattr_find_attr(ump, attrname)) {
+	if (ufs_extattr_find_attr(ump, namespace, attrname)) {
 		error = EEXIST;
 		goto free_exit;
 	}
 
 	strncpy(attribute->uele_attrname, attrname, UFS_EXTATTR_MAXEXTATTRNAME);
+	attribute->uele_namespace = namespace;
 	bzero(&attribute->uele_fileheader,
 	    sizeof(struct ufs_extattr_fileheader));
 	
@@ -590,9 +608,8 @@ ufs_extattr_enable(struct ufsmount *ump, const char *attrname,
 	    ump->um_extattr.uepm_ucred);
 	VOP_UNLOCK(backing_vnode, 0, p);
 
-	if (error) {
+	if (error)
 		goto free_exit;
-	}
 
 	if (auio.uio_resid != 0) {
 		printf("ufs_extattr_enable: malformed attribute header\n");
@@ -627,7 +644,8 @@ free_exit:
  * Disable extended attribute support on an FS.
  */
 static int
-ufs_extattr_disable(struct ufsmount *ump, const char *attrname, struct proc *p)
+ufs_extattr_disable(struct ufsmount *ump, int namespace, const char *attrname,
+    struct proc *p)
 {
 	struct ufs_extattr_list_entry	*uele;
 	int	error = 0;
@@ -635,7 +653,7 @@ ufs_extattr_disable(struct ufsmount *ump, const char *attrname, struct proc *p)
 	if (!ufs_extattr_valid_attrname(attrname))
 		return (EINVAL);
 
-	uele = ufs_extattr_find_attr(ump, attrname);
+	uele = ufs_extattr_find_attr(ump, namespace, attrname);
 	if (!uele)
 		return (ENOENT);
 
@@ -650,65 +668,83 @@ ufs_extattr_disable(struct ufsmount *ump, const char *attrname, struct proc *p)
 }
 
 /*
- * VFS call to manage extended attributes in UFS.
- * attrname, arg are userspace pointers from the syscall.
+ * VFS call to manage extended attributes in UFS.  If filename_vp is
+ * non-NULL, it must be passed in locked, and regardless of errors in
+ * processing, will be unlocked.
  */
 int
-ufs_extattrctl(struct mount *mp, int cmd, const char *attrname,
-    caddr_t arg, struct proc *p)
+ufs_extattrctl(struct mount *mp, int cmd, struct vnode *filename_vp,
+    int namespace, const char *attrname, struct proc *p)
 {
-	struct nameidata	nd;
 	struct ufsmount	*ump = VFSTOUFS(mp);
-	struct vnode	*vp;
-	char	local_attrname[UFS_EXTATTR_MAXEXTATTRNAME]; /* Incl. null. */
-	char	*filename;
-	int	error, flags;
-	size_t	len;
+	int	error;
 
 	/*
 	 * Processes with privilege, but in jail, are not allowed to
 	 * configure extended attributes.
 	 */
-	if ((error = suser_xxx(p->p_cred->pc_ucred, p, 0)))
+	if ((error = suser_xxx(p->p_cred->pc_ucred, p, 0))) {
+		if (filename_vp != NULL)
+			VOP_UNLOCK(filename_vp, 0, p);
 		return (error);
+	}
 
 	switch(cmd) {
 	case UFS_EXTATTR_CMD_START:
+		if (filename_vp != NULL) {
+			VOP_UNLOCK(filename_vp, 0, p);
+			return (EINVAL);
+		}
+		if (attrname != NULL)
+			return (EINVAL);
+
 		error = ufs_extattr_start(mp, p);
 
 		return (error);
 		
 	case UFS_EXTATTR_CMD_STOP:
-		return (ufs_extattr_stop(mp, p));
+		if (filename_vp != NULL) {
+			VOP_UNLOCK(filename_vp, 0, p);
+			return (EINVAL);
+		}
+		if (attrname != NULL)
+			return (EINVAL);
+
+		error = ufs_extattr_stop(mp, p);
+
+		return (error);
 
 	case UFS_EXTATTR_CMD_ENABLE:
-		error = copyinstr(attrname, local_attrname,
-		    UFS_EXTATTR_MAXEXTATTRNAME, &len);
-		if (error)
-			return (error);
 
-		filename = (char *) arg;
-		NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, filename, p);
-		flags = FREAD | FWRITE;
-		error = vn_open(&nd, &flags, 0);
-		if (error)
-			return (error);
+		if (filename_vp == NULL)
+			return (EINVAL);
+		if (attrname == NULL) {
+			VOP_UNLOCK(filename_vp, 0, p);
+			return (EINVAL);
+		}
 
-		vp = nd.ni_vp;
-		VOP_UNLOCK(vp, 0, p);
-		
+		/*
+		 * ufs_extattr_enable_with_open() will always unlock the
+		 * vnode, regardless of failure.
+		 */
 		ufs_extattr_uepm_lock(ump, p);
-		error = ufs_extattr_enable(ump, local_attrname, vp, p);
+		error = ufs_extattr_enable_with_open(ump, filename_vp,
+		    namespace, attrname, p);
 		ufs_extattr_uepm_unlock(ump, p);
 
 		return (error);
 
 	case UFS_EXTATTR_CMD_DISABLE:
-		error = copyinstr(attrname, local_attrname,
-		    UFS_EXTATTR_MAXEXTATTRNAME, &len);
+
+		if (filename_vp != NULL) {
+			VOP_UNLOCK(filename_vp, 0, p);
+			return (EINVAL);
+		}
+		if (attrname == NULL)
+			return (EINVAL);
 
 		ufs_extattr_uepm_lock(ump, p);
-		error = ufs_extattr_disable(ump, local_attrname, p);
+		error = ufs_extattr_disable(ump, namespace, attrname, p);
 		ufs_extattr_uepm_unlock(ump, p);
 
 		return (error);
@@ -726,10 +762,6 @@ static int
 ufs_extattr_credcheck(struct vnode *vp, struct ufs_extattr_list_entry *uele,
     struct ucred *cred, struct proc *p, int access)
 {
-	int	system_namespace;
-
-	system_namespace = (strlen(uele->uele_attrname) >= 1 &&
-	    uele->uele_attrname[0] == '$');
 
 	/*
 	 * Kernel-invoked always succeeds.
@@ -744,10 +776,14 @@ ufs_extattr_credcheck(struct vnode *vp, struct ufs_extattr_list_entry *uele,
 	 * XXX What capability should apply here?
 	 * Probably CAP_SYS_SETFFLAG.
 	 */
-	if (system_namespace)
+	switch (uele->uele_namespace) {
+	case EXTATTR_NAMESPACE_SYSTEM:
 		return (suser_xxx(cred, p, 0));
-	else
+	case EXTATTR_NAMESPACE_USER:
 		return (VOP_ACCESS(vp, access, cred, p));
+	default:
+		return (EPERM);
+	}
 }
 
 /*
@@ -758,6 +794,7 @@ ufs_vop_getextattr(struct vop_getextattr_args *ap)
 /*
 vop_getextattr {
 	IN struct vnode *a_vp;
+	IN int a_namespace;
 	IN const char *a_name;
 	INOUT struct uio *a_uio;
 	IN struct ucred *a_cred;
@@ -771,8 +808,8 @@ vop_getextattr {
 
 	ufs_extattr_uepm_lock(ump, ap->a_p);
 
-	error = ufs_extattr_get(ap->a_vp, ap->a_name, ap->a_uio, ap->a_cred,
-	    ap->a_p);
+	error = ufs_extattr_get(ap->a_vp, ap->a_namespace, ap->a_name,
+	    ap->a_uio, ap->a_cred, ap->a_p);
 
 	ufs_extattr_uepm_unlock(ump, ap->a_p);
 
@@ -784,8 +821,8 @@ vop_getextattr {
  * the attribute lock has already been grabbed.
  */
 static int
-ufs_extattr_get(struct vnode *vp, const char *name, struct uio *uio,
-    struct ucred *cred, struct proc *p)
+ufs_extattr_get(struct vnode *vp, int namespace, const char *name,
+    struct uio *uio, struct ucred *cred, struct proc *p)
 {
 	struct ufs_extattr_list_entry	*attribute;
 	struct ufs_extattr_header	ueh;
@@ -801,12 +838,13 @@ ufs_extattr_get(struct vnode *vp, const char *name, struct uio *uio,
 	if (!(ump->um_extattr.uepm_flags & UFS_EXTATTR_UEPM_STARTED))
 		return (EOPNOTSUPP);
 
-	if (strlen(name) == 0 || (strlen(name) == 1 && name[0] == '$')) {
+	if (strlen(name) == 0) {
 		/* XXX retrieve attribute lists. */
+		/* XXX should probably be checking for name == NULL? */
 		return (EINVAL);
 	}
 
-	attribute = ufs_extattr_find_attr(ump, name);
+	attribute = ufs_extattr_find_attr(ump, namespace, name);
 	if (!attribute)
 		return (ENOENT);
 
@@ -923,6 +961,7 @@ ufs_vop_setextattr(struct vop_setextattr_args *ap)
 /*
 vop_setextattr {
 	IN struct vnode *a_vp;
+	IN int a_namespace;
 	IN const char *a_name;
 	INOUT struct uio *a_uio;
 	IN struct ucred *a_cred;
@@ -938,11 +977,11 @@ vop_setextattr {
 	ufs_extattr_uepm_lock(ump, ap->a_p);
 
 	if (ap->a_uio != NULL)
-		error = ufs_extattr_set(ap->a_vp, ap->a_name, ap->a_uio,
-		    ap->a_cred, ap->a_p);
+		error = ufs_extattr_set(ap->a_vp, ap->a_namespace, ap->a_name,
+		    ap->a_uio, ap->a_cred, ap->a_p);
 	else
-		error = ufs_extattr_rm(ap->a_vp, ap->a_name, ap->a_cred,
-		    ap->a_p);
+		error = ufs_extattr_rm(ap->a_vp, ap->a_namespace, ap->a_name,
+		    ap->a_cred, ap->a_p);
 
 	ufs_extattr_uepm_unlock(ump, ap->a_p);
 
@@ -954,8 +993,8 @@ vop_setextattr {
  * assumes that the attribute lock has already been grabbed.
  */
 static int
-ufs_extattr_set(struct vnode *vp, const char *name, struct uio *uio,
-    struct ucred *cred, struct proc *p)
+ufs_extattr_set(struct vnode *vp, int namespace, const char *name,
+    struct uio *uio, struct ucred *cred, struct proc *p)
 {
 	struct ufs_extattr_list_entry	*attribute;
 	struct ufs_extattr_header	ueh;
@@ -974,7 +1013,7 @@ ufs_extattr_set(struct vnode *vp, const char *name, struct uio *uio,
 	if (!ufs_extattr_valid_attrname(name))
 		return (EINVAL);
 
-	attribute = ufs_extattr_find_attr(ump, name);
+	attribute = ufs_extattr_find_attr(ump, namespace, name);
 	if (!attribute)
 		return (ENOENT);
 
@@ -1059,8 +1098,8 @@ vopunlock_exit:
  * Assumes the attribute lock has already been grabbed.
  */
 static int
-ufs_extattr_rm(struct vnode *vp, const char *name, struct ucred *cred,
-    struct proc *p)
+ufs_extattr_rm(struct vnode *vp, int namespace, const char *name,
+    struct ucred *cred, struct proc *p)
 {
 	struct ufs_extattr_list_entry	*attribute;
 	struct ufs_extattr_header	ueh;
@@ -1079,7 +1118,7 @@ ufs_extattr_rm(struct vnode *vp, const char *name, struct ucred *cred,
 	if (!ufs_extattr_valid_attrname(name))
 		return (EINVAL);
 
-	attribute = ufs_extattr_find_attr(ump, name);
+	attribute = ufs_extattr_find_attr(ump, namespace, name);
 	if (!attribute)
 		return (ENOENT);
 
@@ -1191,7 +1230,10 @@ ufs_extattr_vnode_inactive(struct vnode *vp, struct proc *p)
 	}
 
 	LIST_FOREACH(uele, &ump->um_extattr.uepm_list, uele_entries)
-		ufs_extattr_rm(vp, uele->uele_attrname, NULL, p);
+		ufs_extattr_rm(vp, uele->uele_namespace, uele->uele_attrname,
+		    NULL, p);
 
 	ufs_extattr_uepm_unlock(ump, p);
 }
+
+#endif /* !FFS_EXTATTR */
