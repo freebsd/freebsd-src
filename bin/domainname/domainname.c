@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)hostname.c	8.1 (Berkeley) 5/31/93"; */
 static const char rcsid[] =
-	"$Id: domainname.c,v 1.4 1994/09/26 02:14:27 wollman Exp $";
+	"$Id: domainname.c,v 1.5 1995/03/19 13:28:17 joerg Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -51,14 +51,26 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
+void usage __P((void));
+
 int
 main(argc,argv)
 	int argc;
 	char *argv[];
 {
+	int ch;
 	char domainname[MAXHOSTNAMELEN];
 
-	argc--, argv++;
+	while ((ch = getopt(argc, argv, "")) != -1)
+		switch (ch) {
+		default:
+			usage();
+		}
+	argc -= optind;
+	argv += optind;
+
+	if (argc > 1)
+		usage();
 
 	if (*argv) {
 		if (setdomainname(*argv, strlen(*argv)))
@@ -69,4 +81,11 @@ main(argc,argv)
 		(void)printf("%s\n", domainname);
 	}
 	exit(0);
+}
+
+void
+usage()
+{
+	(void)fprintf(stderr, "usage: domainname [ypdomain]\n");
+	exit(1);
 }
