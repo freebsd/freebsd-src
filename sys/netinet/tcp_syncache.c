@@ -1142,16 +1142,14 @@ syncache_respond(sc, m)
 		ip->ip_tos = sc->sc_tp->t_inpcb->inp_ip_tos;   /* XXX */
 
 		/*
-		 * See if we should do MTU discovery.  Route lookups are expensive,
-		 * so we will only unset the DF bit if:
+		 * See if we should do MTU discovery.  Route lookups are
+		 * expensive, so we will only unset the DF bit if:
 		 *
 		 *	1) path_mtu_discovery is disabled
 		 *	2) the SCF_UNREACH flag has been set
 		 */
-		if (path_mtu_discovery
-		    && ((sc->sc_flags & SCF_UNREACH) == 0)) {
+		if (path_mtu_discovery && ((sc->sc_flags & SCF_UNREACH) == 0))
 		       ip->ip_off |= IP_DF;
-		}
 
 		th = (struct tcphdr *)(ip + 1);
 	}
@@ -1167,44 +1165,43 @@ syncache_respond(sc, m)
 	th->th_urp = 0;
 
 	/* Tack on the TCP options. */
-	if (optlen == 0)
-		goto no_options;
-	optp = (u_int8_t *)(th + 1);
-	*optp++ = TCPOPT_MAXSEG;
-	*optp++ = TCPOLEN_MAXSEG;
-	*optp++ = (mssopt >> 8) & 0xff;
-	*optp++ = mssopt & 0xff;
+	if (optlen != 0) {
+		optp = (u_int8_t *)(th + 1);
+		*optp++ = TCPOPT_MAXSEG;
+		*optp++ = TCPOLEN_MAXSEG;
+		*optp++ = (mssopt >> 8) & 0xff;
+		*optp++ = mssopt & 0xff;
 
-	if (sc->sc_flags & SCF_WINSCALE) {
-		*((u_int32_t *)optp) = htonl(TCPOPT_NOP << 24 |
-		    TCPOPT_WINDOW << 16 | TCPOLEN_WINDOW << 8 |
-		    sc->sc_request_r_scale);
-		optp += 4;
+		if (sc->sc_flags & SCF_WINSCALE) {
+			*((u_int32_t *)optp) = htonl(TCPOPT_NOP << 24 |
+			    TCPOPT_WINDOW << 16 | TCPOLEN_WINDOW << 8 |
+			    sc->sc_request_r_scale);
+			optp += 4;
+		}
+
+		if (sc->sc_flags & SCF_TIMESTAMP) {
+			u_int32_t *lp = (u_int32_t *)(optp);
+
+			/* Form timestamp option per appendix A of RFC 1323. */
+			*lp++ = htonl(TCPOPT_TSTAMP_HDR);
+			*lp++ = htonl(ticks);
+			*lp   = htonl(sc->sc_tsrecent);
+			optp += TCPOLEN_TSTAMP_APPA;
+		}
+
+		/*
+		 * Send CC and CC.echo if we received CC from our peer.
+		 */
+		if (sc->sc_flags & SCF_CC) {
+			u_int32_t *lp = (u_int32_t *)(optp);
+
+			*lp++ = htonl(TCPOPT_CC_HDR(TCPOPT_CC));
+			*lp++ = htonl(sc->sc_cc_send);
+			*lp++ = htonl(TCPOPT_CC_HDR(TCPOPT_CCECHO));
+			*lp   = htonl(sc->sc_cc_recv);
+			optp += TCPOLEN_CC_APPA * 2;
+		}
 	}
-
-	if (sc->sc_flags & SCF_TIMESTAMP) {
-		u_int32_t *lp = (u_int32_t *)(optp);
-
-		/* Form timestamp option as shown in appendix A of RFC 1323. */
-		*lp++ = htonl(TCPOPT_TSTAMP_HDR);
-		*lp++ = htonl(ticks);
-		*lp   = htonl(sc->sc_tsrecent);
-		optp += TCPOLEN_TSTAMP_APPA;
-	}
-
-	/*
-         * Send CC and CC.echo if we received CC from our peer.
-         */
-        if (sc->sc_flags & SCF_CC) {
-		u_int32_t *lp = (u_int32_t *)(optp);
-
-		*lp++ = htonl(TCPOPT_CC_HDR(TCPOPT_CC));
-		*lp++ = htonl(sc->sc_cc_send);
-		*lp++ = htonl(TCPOPT_CC_HDR(TCPOPT_CCECHO));
-		*lp   = htonl(sc->sc_cc_recv);
-		optp += TCPOLEN_CC_APPA * 2;
-	}
-no_options:
 
 #ifdef INET6
 	if (sc->sc_inc.inc_isipv6) {
