@@ -18,6 +18,4 @@ CFLAGS+=-DDOSOCKET -DIPL_NAME=\"/dev/ipl\" \
 DPADD=	${LIBL}
 LDADD=	-ll
 
-CLEANFILES+=	y.tab.h
-
 .include <bsd.prog.mk>
