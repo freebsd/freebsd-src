@@ -43,6 +43,7 @@
  */
 
 #include "opt_rootdevname.h"
+#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -60,6 +61,11 @@
 #include "opt_ddb.h"
 #ifdef DDB
 #include <ddb/ddb.h>
+#endif
+
+#ifdef DEVFS
+#include <sys/eventhandler.h>
+#include <fs/devfs/devfs.h>
 #endif
 
 MALLOC_DEFINE(M_MOUNT, "mount", "vfs mount structure");
@@ -320,6 +326,19 @@ gets(char *cp)
  */
 dev_t
 getdiskbyname(char *name) {
+#ifdef DEVFS
+	char *cp;
+	dev_t dev;
+
+	cp = name;
+	if (!bcmp(cp, "/dev/", 5))
+		cp += 5;
+
+	dev = NODEV;
+	EVENTHANDLER_INVOKE(devfs_clone, cp, strlen(cp), &dev);
+	return (dev);
+
+#else
 	char *cp;
 	int cd, unit, slice, part;
 	dev_t dev;
@@ -367,6 +386,7 @@ gotit:
 		return (NODEV);
 	}
 	return (makedev(cd, dkmakeminor(unit, slice, part)));
+#endif
 }
 
 /*

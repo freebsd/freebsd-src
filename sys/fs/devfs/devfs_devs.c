@@ -57,29 +57,46 @@ devfs_newdirent(char *name, int namelen)
 	de->de_dirent->d_reclen = GENERIC_DIRSIZ(&d);
 	bcopy(name, de->de_dirent->d_name, namelen + 1);
 	nanotime(&de->de_ctime);
+	de->de_mtime = de->de_atime = de->de_ctime;
+	de->de_links = 1;
 	return (de);
 }
 
-struct devfs_dir *
-devfs_vmkdir(void)
+struct devfs_dirent *
+devfs_vmkdir(char *name, int namelen, struct devfs_dirent *dotdot)
 {
-	struct devfs_dir *dd;
+	struct devfs_dirent *dd;
 	struct devfs_dirent *de;
 
-	MALLOC(dd, struct devfs_dir *, sizeof(*dd), M_DEVFS, M_WAITOK);
-	bzero(dd, sizeof(*dd));
-	TAILQ_INIT(&dd->dd_list);
+	dd = devfs_newdirent(name, namelen);
+
+	TAILQ_INIT(&dd->de_dlist);
+
+	dd->de_dirent->d_type = DT_DIR;
+	dd->de_mode = 0755;
+	dd->de_links = 2;
+	dd->de_dir = dd;
 
 	de = devfs_newdirent(".", 1);
 	de->de_dirent->d_type = DT_DIR;
-	TAILQ_INSERT_TAIL(&dd->dd_list, de, de_list);
-	de = TAILQ_FIRST(&dd->dd_list);
-	de->de_mode = 0755;
+	de->de_dir = dd;
+	de->de_flags |= DE_DOT;
+	TAILQ_INSERT_TAIL(&dd->de_dlist, de, de_list);
+
+	de = devfs_newdirent("..", 2);
+	de->de_dirent->d_type = DT_DIR;
+	if (dotdot == NULL)
+		de->de_dir = dd;
+	else
+		de->de_dir = dotdot;
+	de->de_flags |= DE_DOTDOT;
+	TAILQ_INSERT_TAIL(&dd->de_dlist, de, de_list);
+
 	return (dd);
 }
 
-void
-devfs_delete(struct devfs_dir *dd, struct devfs_dirent *de)
+static void
+devfs_delete(struct devfs_dirent *dd, struct devfs_dirent *de)
 {
 
 	if (de->de_symlink) {
@@ -90,17 +107,17 @@ devfs_delete(struct devfs_dir *dd, struct devfs_dirent *de)
 		de->de_vnode->v_data = NULL;
 		vdrop(de->de_vnode);
 	}
-	TAILQ_REMOVE(&dd->dd_list, de, de_list);
+	TAILQ_REMOVE(&dd->de_dlist, de, de_list);
 	FREE(de, M_DEVFS);
 }
 
 void
-devfs_purge(struct devfs_dir *dd)
+devfs_purge(struct devfs_dirent *dd)
 {
 	struct devfs_dirent *de;
 
 	for (;;) {
-		de = TAILQ_FIRST(&dd->dd_list);
+		de = TAILQ_FIRST(&dd->de_dlist);
 		if (de == NULL)
 			break;
 		devfs_delete(dd, de);
@@ -114,7 +131,7 @@ devfs_populate(struct devfs_mount *dm)
 {
 	int i, j;
 	dev_t dev, pdev;
-	struct devfs_dir *dd;
+	struct devfs_dirent *dd;
 	struct devfs_dirent *de;
 	char *q, *s;
 
@@ -123,13 +140,14 @@ devfs_populate(struct devfs_mount *dm)
 		for (i = 0; i < NDEVINO; i++) {
 			dev = devfs_inot[i];
 			de = dm->dm_dirent[i];
+			if (dev == NULL && de == DE_DELETED) {
+				dm->dm_dirent[i] = NULL;
+				continue;
+			}
 			if (dev == NULL && de != NULL) {
-#if 0
-				printf("Del ino%d %s\n", i, de->de_dirent->d_name);
-#endif
 				dd = de->de_dir;
 				dm->dm_dirent[i] = NULL;
-				TAILQ_REMOVE(&dd->dd_list, de, de_list);
+				TAILQ_REMOVE(&dd->de_dlist, de, de_list);
 				if (de->de_vnode) {
 					de->de_vnode->v_data = NULL;
 					vdrop(de->de_vnode);
@@ -143,17 +161,32 @@ devfs_populate(struct devfs_mount *dm)
 				continue;
 			dd = dm->dm_basedir;
 			s = dev->si_name;
+		nextdir:
 			for (q = s; *q != '/' && *q != '\0'; q++)
 				continue;
 			if (*q == '/') {
-				continue;
+				TAILQ_FOREACH(de, &dd->de_dlist, de_list) {
+					if (de->de_dirent->d_namlen != q - s)
+						continue;
+					if (bcmp(de->de_dirent->d_name, s, q - s))
+						continue;
+					goto fdir;
+				}
+				de = devfs_vmkdir(s, q - s, dd);
+				de->de_inode = dm->dm_inode++;
+				TAILQ_INSERT_TAIL(&dd->de_dlist, de, de_list);
+				dd->de_links++;
+			fdir:
+				s = q + 1;
+				dd = de;
+				goto nextdir;
 			}
 			de = devfs_newdirent(s, q - s);
 			if (dev->si_flags & SI_ALIAS) {
 				de->de_inode = dm->dm_inode++;
 				de->de_uid = 0;
 				de->de_gid = 0;
-				de->de_mode = 0642;
+				de->de_mode = 0666;
 				de->de_dirent->d_type = DT_LNK;
 				pdev = dev->si_drv1;
 				j = strlen(pdev->si_name) + 1;
@@ -165,9 +198,9 @@ devfs_populate(struct devfs_mount *dm)
 				de->de_gid = dev->si_gid;
 				de->de_mode = dev->si_mode;
 				de->de_dirent->d_type = DT_CHR;
-				dm->dm_dirent[i] = de;
 			}
-			TAILQ_INSERT_TAIL(&dd->dd_list, de, de_list);
+			dm->dm_dirent[i] = de;
+			TAILQ_INSERT_TAIL(&dd->de_dlist, de, de_list);
 #if 0
 			printf("Add ino%d %s\n", i, dev->si_name);
 #endif
