@@ -953,16 +953,19 @@ svr4_pfind(pid)
 {
 	struct proc *p;
 
+	ALLPROC_LOCK(AP_SHARED);
 	/* look in the live processes */
 	if ((p = pfind(pid)) != NULL)
-		return p;
+		goto out;
 
 	/* look in the zombies */
 	for (p = zombproc.lh_first; p != 0; p = p->p_list.le_next)
 		if (p->p_pid == pid)
-			return p;
+			break;
+out:
+	ALLPROC_LOCK(AP_RELEASE);
 
-	return NULL;
+	return p;
 }
 
 
@@ -1253,7 +1256,9 @@ loop:
 			 */
 			leavepgrp(q);
 
+			ALLPROC_LOCK(AP_EXCLUSIVE);
 			LIST_REMOVE(q, p_list); /* off zombproc */
+			ALLPROC_LOCK(AP_RELEASE);
 
 			LIST_REMOVE(q, p_sibling);
 

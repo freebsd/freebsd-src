@@ -278,7 +278,7 @@ ktrace(curp, uap)
 	 * Clear all uses of the tracefile
 	 */
 	if (ops == KTROP_CLEARFILE) {
-		lockmgr(&allproc_lock, LK_SHARED, NULL, CURPROC);
+		ALLPROC_LOCK(AP_SHARED);
 		LIST_FOREACH(p, &allproc, p_list) {
 			if (p->p_tracep == vp) {
 				if (ktrcanset(curp, p)) {
@@ -290,7 +290,7 @@ ktrace(curp, uap)
 					error = EPERM;
 			}
 		}
-		lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
+		ALLPROC_LOCK(AP_RELEASE);
 		goto done;
 	}
 	/*
@@ -496,7 +496,7 @@ ktrwrite(vp, kth, uio)
 	 */
 	log(LOG_NOTICE, "ktrace write failed, errno %d, tracing stopped\n",
 	    error);
-	lockmgr(&allproc_lock, LK_SHARED, NULL, CURPROC);
+	ALLPROC_LOCK(AP_SHARED);
 	LIST_FOREACH(p, &allproc, p_list) {
 		if (p->p_tracep == vp) {
 			p->p_tracep = NULL;
@@ -504,7 +504,7 @@ ktrwrite(vp, kth, uio)
 			vrele(vp);
 		}
 	}
-	lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
+	ALLPROC_LOCK(AP_RELEASE);
 }
 
 /*

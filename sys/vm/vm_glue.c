@@ -360,7 +360,7 @@ loop:
 
 	pp = NULL;
 	ppri = INT_MIN;
-	lockmgr(&allproc_lock, LK_SHARED, NULL, CURPROC);
+	ALLPROC_LOCK(AP_SHARED);
 	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 		mtx_enter(&sched_lock, MTX_SPIN);
 		if (p->p_stat == SRUN &&
@@ -383,7 +383,7 @@ loop:
 		}
 		mtx_exit(&sched_lock, MTX_SPIN);
 	}
-	lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
+	ALLPROC_LOCK(AP_RELEASE);
 
 	/*
 	 * Nothing to do, back to sleep.
@@ -443,7 +443,7 @@ int action;
 
 	outp = outp2 = NULL;
 	outpri = outpri2 = INT_MIN;
-	lockmgr(&allproc_lock, LK_SHARED, NULL, CURPROC);
+	ALLPROC_LOCK(AP_SHARED);
 retry:
 	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 		struct vmspace *vm;
@@ -516,7 +516,7 @@ retry:
 			}
 		}
 	}
-	lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
+	ALLPROC_LOCK(AP_RELEASE);
 	/*
 	 * If we swapped something out, and another process needed memory,
 	 * then wakeup the sched process.

@@ -864,7 +864,7 @@ killpg1(cp, sig, pgid, all)
 		/*
 		 * broadcast
 		 */
-		lockmgr(&allproc_lock, LK_SHARED, NULL, CURPROC);
+		ALLPROC_LOCK(AP_SHARED);
 		LIST_FOREACH(p, &allproc, p_list) {
 			if (p->p_pid <= 1 || p->p_flag & P_SYSTEM ||
 			    p == cp || !CANSIGNAL(cp, p, sig))
@@ -873,7 +873,7 @@ killpg1(cp, sig, pgid, all)
 			if (sig)
 				psignal(p, sig);
 		}
-		lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
+		ALLPROC_LOCK(AP_RELEASE);
 	} else {
 		if (pgid == 0)
 			/*
