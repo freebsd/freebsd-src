@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.10 1998/10/13 08:24:29 dg Exp $
+ *      $Id: scsi_da.c,v 1.11 1998/10/13 23:34:54 ken Exp $
  */
 
 #include "opt_hw_wdog.h"
@@ -163,6 +163,7 @@ static	void		daasync(void *callback_arg, u_int32_t code,
 static	periph_ctor_t	daregister;
 static	periph_dtor_t	dacleanup;
 static	periph_start_t	dastart;
+static	periph_oninv_t	daoninvalidate;
 static	void		dadone(struct cam_periph *periph,
 			       union ccb *done_ccb);
 static  int		daerror(union ccb *ccb, u_int32_t cam_flags,
@@ -244,6 +245,7 @@ daopen(dev_t dev, int flags, int fmt, struct proc *p)
 	int unit;
 	int part;
 	int error;
+	int s;
 
 	unit = dkunit(dev);
 	part = dkpart(dev);
@@ -267,12 +269,14 @@ daopen(dev_t dev, int flags, int fmt, struct proc *p)
 		softc->flags |= DA_FLAG_OPEN;
 	}
 
+	s = splsoftcam();
 	if ((softc->flags & DA_FLAG_PACK_INVALID) != 0) {
 		/*
 		 * If any partition is open, although the disk has
 		 * been invalidated, disallow further opens.
 		 */
 		if (dsisopen(softc->dk_slices)) {
+			splx(s);
 			cam_periph_unlock(periph);
 			return (ENXIO);
 		}
@@ -281,6 +285,7 @@ daopen(dev_t dev, int flags, int fmt, struct proc *p)
 		dsgone(&softc->dk_slices);
 		softc->flags &= ~DA_FLAG_PACK_INVALID;
 	}
+	splx(s);
 
 	/* Do a read capacity */
 	{
@@ -789,12 +794,67 @@ dainit(void)
 }
 
 static void
+daoninvalidate(struct cam_periph *periph)
+{
+	int s;
+	struct da_softc *softc;
+	struct buf *q_bp;
+	struct ccb_setasync csa;
+
+	softc = (struct da_softc *)periph->softc;
+
+	/*
+	 * De-register any async callbacks.
+	 */
+	xpt_setup_ccb(&csa.ccb_h, periph->path,
+		      /* priority */ 5);
+	csa.ccb_h.func_code = XPT_SASYNC_CB;
+	csa.event_enable = 0;
+	csa.callback = daasync;
+	csa.callback_arg = periph;
+	xpt_action((union ccb *)&csa);
+
+	softc->flags |= DA_FLAG_PACK_INVALID;
+
+	/*
+	 * Although the oninvalidate() routines are always called at
+	 * splsoftcam, we need to be at splbio() here to keep the buffer
+	 * queue from being modified while we traverse it.
+	 */
+	s = splbio();
+
+	/*
+	 * Return all queued I/O with ENXIO.
+	 * XXX Handle any transactions queued to the card
+	 *     with XPT_ABORT_CCB.
+	 */
+	while ((q_bp = bufq_first(&softc->buf_queue)) != NULL){
+		bufq_remove(&softc->buf_queue, q_bp);
+		q_bp->b_resid = q_bp->b_bcount;
+		q_bp->b_error = ENXIO;
+		q_bp->b_flags |= B_ERROR;
+		biodone(q_bp);
+	}
+	splx(s);
+
+	SLIST_REMOVE(&softc_list, softc, da_softc, links);
+
+	xpt_print_path(periph->path);
+	printf("lost device\n");
+}
+
+static void
 dacleanup(struct cam_periph *periph)
 {
+	struct da_softc *softc;
+
+	softc = (struct da_softc *)periph->softc;
+
+	devstat_remove_entry(&softc->device_stats);
 	cam_extend_release(daperiphs, periph->unit_number);
 	xpt_print_path(periph->path);
 	printf("removing device entry\n");
-	free(periph->softc, M_DEVBUF);
+	free(softc, M_DEVBUF);
 }
 
 static void
@@ -820,9 +880,11 @@ daasync(void *callback_arg, u_int32_t code,
 		 * this device and start the probe
 		 * process.
 		 */
-		status = cam_periph_alloc(daregister, dacleanup, dastart,
-					  "da", CAM_PERIPH_BIO, cgd->ccb_h.path,
-					  daasync, AC_FOUND_DEVICE, cgd);
+		status = cam_periph_alloc(daregister, daoninvalidate,
+					  dacleanup, dastart,
+					  "da", CAM_PERIPH_BIO,
+					  cgd->ccb_h.path, daasync,
+					  AC_FOUND_DEVICE, cgd);
 
 		if (status != CAM_REQ_CMP
 		 && status != CAM_REQ_INPROG)
@@ -831,57 +893,8 @@ daasync(void *callback_arg, u_int32_t code,
 		break;
 	}
 	case AC_LOST_DEVICE:
-	{
-		int s;
-		struct da_softc *softc;
-		struct buf *q_bp;
-		struct ccb_setasync csa;
-
-		softc = (struct da_softc *)periph->softc;
-
-		/*
-		 * Insure that no other async callbacks that
-		 * might affect this peripheral can come through.
-		 */
-		s = splcam();
-
-		/*
-		 * De-register any async callbacks.
-		 */
-		xpt_setup_ccb(&csa.ccb_h, periph->path,
-			      /* priority */ 5);
-		csa.ccb_h.func_code = XPT_SASYNC_CB;
-		csa.event_enable = 0;
-		csa.callback = daasync;
-		csa.callback_arg = periph;
-		xpt_action((union ccb *)&csa);
-
-		softc->flags |= DA_FLAG_PACK_INVALID;
-
-		/*
-		 * Return all queued I/O with ENXIO.
-		 * XXX Handle any transactions queued to the card
-		 *     with XPT_ABORT_CCB.
-		 */
-		while ((q_bp = bufq_first(&softc->buf_queue)) != NULL){
-			bufq_remove(&softc->buf_queue, q_bp);
-			q_bp->b_resid = q_bp->b_bcount;
-			q_bp->b_error = ENXIO;
-			q_bp->b_flags |= B_ERROR;
-			biodone(q_bp);
-		}
-		devstat_remove_entry(&softc->device_stats);
-
-		SLIST_REMOVE(&softc_list, softc, da_softc, links);
-
-		xpt_print_path(periph->path);
-		printf("lost device\n");
-
-		splx(s);
-
 		cam_periph_invalidate(periph);
 		break;
-	}
 	case AC_SENT_BDR:
 	case AC_BUS_RESET:
 	{
@@ -1331,7 +1344,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 
 					xpt_print_path(periph->path);
 					printf("fatal error, failed" 
-					       " to attach to device");
+					       " to attach to device\n");
 
 					/*
 					 * Free up resources.

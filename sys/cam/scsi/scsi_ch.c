@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_ch.c,v 1.3 1998/10/02 21:20:21 ken Exp $
+ *      $Id: scsi_ch.c,v 1.4 1998/10/15 17:46:26 ken Exp $
  */
 /*
  * Derived from the NetBSD SCSI changer driver.
@@ -183,6 +183,7 @@ static	d_close_t	chclose;
 static	d_ioctl_t	chioctl;
 static	periph_init_t	chinit;
 static  periph_ctor_t	chregister;
+static	periph_oninv_t	choninvalidate;
 static  periph_dtor_t   chcleanup;
 static  periph_start_t  chstart;
 static	void		chasync(void *callback_arg, u_int32_t code,
@@ -286,13 +287,43 @@ chinit(void)
 }
 
 static void
+choninvalidate(struct cam_periph *periph)
+{
+	struct ch_softc *softc;
+	struct ccb_setasync csa;
+
+	softc = (struct ch_softc *)periph->softc;
+
+	/*
+	 * De-register any async callbacks.
+	 */
+	xpt_setup_ccb(&csa.ccb_h, periph->path,
+		      /* priority */ 5);
+	csa.ccb_h.func_code = XPT_SASYNC_CB;
+	csa.event_enable = 0;
+	csa.callback = chasync;
+	csa.callback_arg = periph;
+	xpt_action((union ccb *)&csa);
+
+	softc->flags |= CH_FLAG_INVALID;
+
+	xpt_print_path(periph->path);
+	printf("lost device\n");
+
+}
+
+static void
 chcleanup(struct cam_periph *periph)
 {
+	struct ch_softc *softc;
 
-        cam_extend_release(chperiphs, periph->unit_number);
-        xpt_print_path(periph->path);
-        printf("removing device entry\n");
-        free(periph->softc, M_DEVBUF);
+	softc = (struct ch_softc *)periph->softc;
+
+	devstat_remove_entry(&softc->device_stats);
+	cam_extend_release(chperiphs, periph->unit_number);
+	xpt_print_path(periph->path);
+	printf("removing device entry\n");
+	free(softc, M_DEVBUF);
 }
 
 static void
@@ -318,8 +349,9 @@ chasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 		 * this device and start the probe
 		 * process.
 		 */
-		status = cam_periph_alloc(chregister, chcleanup, chstart,
-					  "ch", CAM_PERIPH_BIO, cgd->ccb_h.path,
+		status = cam_periph_alloc(chregister, choninvalidate,
+					  chcleanup, chstart, "ch",
+					  CAM_PERIPH_BIO, cgd->ccb_h.path,
 					  chasync, AC_FOUND_DEVICE, cgd);
 
 		if (status != CAM_REQ_CMP
@@ -331,42 +363,8 @@ chasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 
 	}
 	case AC_LOST_DEVICE:
-	{
-		int s;
-		struct ch_softc *softc;
-		struct ccb_setasync csa;
-
-		softc = (struct ch_softc *)periph->softc;
-
-		/*
-		 * Insure that no other async callbacks that
-		 * might affect this peripheral can come through.
-		 */
-		s = splcam();
-
-		/*
-		 * De-register any async callbacks.
-		 */
-		xpt_setup_ccb(&csa.ccb_h, periph->path,
-			      /* priority */ 5);
-		csa.ccb_h.func_code = XPT_SASYNC_CB;
-		csa.event_enable = 0;
-		csa.callback = chasync;
-		csa.callback_arg = periph;
-		xpt_action((union ccb *)&csa);
-
-		softc->flags |= CH_FLAG_INVALID;
-
-		devstat_remove_entry(&softc->device_stats);
-
-		xpt_print_path(periph->path);
-		printf("lost device\n");
-
-		splx(s);
-
 		cam_periph_invalidate(periph);
 		break;
-	}
 	case AC_TRANSFER_NEG:
 	case AC_SENT_BDR:
 	case AC_SCSI_AEN:
@@ -445,6 +443,7 @@ chopen(dev_t dev, int flags, int fmt, struct proc *p)
 	struct cam_periph *periph;
 	struct ch_softc *softc;
 	int unit, error;
+	int s;
 
 	unit = CHUNIT(dev);
 	periph = cam_extend_get(chperiphs, unit);
@@ -454,8 +453,12 @@ chopen(dev_t dev, int flags, int fmt, struct proc *p)
 
 	softc = (struct ch_softc *)periph->softc;
 
-	if (softc->flags & CH_FLAG_INVALID)
+	s = splsoftcam();
+	if (softc->flags & CH_FLAG_INVALID) {
+		splx(s);
 		return(ENXIO);
+	}
+	splx(s);
 
 	if ((error = cam_periph_lock(periph, PRIBIO | PCATCH)) != 0)
 		return (error);

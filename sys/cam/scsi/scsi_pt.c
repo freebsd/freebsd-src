@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_pt.c,v 1.1 1998/09/15 06:36:34 gibbs Exp $
+ *      $Id: scsi_pt.c,v 1.2 1998/10/15 17:46:26 ken Exp $
  */
 
 #include <sys/param.h>
@@ -90,6 +90,7 @@ static	periph_init_t	ptinit;
 static	void		ptasync(void *callback_arg, u_int32_t code,
 				struct cam_path *path, void *arg);
 static	periph_ctor_t	ptctor;
+static	periph_oninv_t	ptoninvalidate;
 static	periph_dtor_t	ptdtor;
 static	periph_start_t	ptstart;
 static	void		ptdone(struct cam_periph *periph,
@@ -145,6 +146,7 @@ ptopen(dev_t dev, int flags, int fmt, struct proc *p)
 	struct pt_softc *softc;
 	int unit;
 	int error;
+	int s;
 
 	unit = minor(dev);
 	periph = cam_extend_get(ptperiphs, unit);
@@ -152,6 +154,13 @@ ptopen(dev_t dev, int flags, int fmt, struct proc *p)
 		return (ENXIO);	
 
 	softc = (struct pt_softc *)periph->softc;
+
+	s = splsoftcam();
+	if (softc->flags & PT_FLAG_DEVICE_INVALID) {
+		splx(s);
+		return(ENXIO);
+	}
+	splx(s);
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE,
 	    ("ptopen: dev=0x%x (unit %d)\n", dev, unit));
@@ -384,12 +393,67 @@ ptctor(struct cam_periph *periph, void *arg)
 }
 
 static void
+ptoninvalidate(struct cam_periph *periph)
+{
+	int s;
+	struct pt_softc *softc;
+	struct buf *q_bp;
+	struct ccb_setasync csa;
+
+	softc = (struct pt_softc *)periph->softc;
+
+	/*
+	 * De-register any async callbacks.
+	 */
+	xpt_setup_ccb(&csa.ccb_h, periph->path,
+		      /* priority */ 5);
+	csa.ccb_h.func_code = XPT_SASYNC_CB;
+	csa.event_enable = 0;
+	csa.callback = ptasync;
+	csa.callback_arg = periph;
+	xpt_action((union ccb *)&csa);
+
+	softc->flags |= PT_FLAG_DEVICE_INVALID;
+
+	/*
+	 * Although the oninvalidate() routines are always called at
+	 * splsoftcam, we need to be at splbio() here to keep the buffer
+	 * queue from being modified while we traverse it.
+	 */
+	s = splbio();
+
+	/*
+	 * Return all queued I/O with ENXIO.
+	 * XXX Handle any transactions queued to the card
+	 *     with XPT_ABORT_CCB.
+	 */
+	while ((q_bp = bufq_first(&softc->buf_queue)) != NULL){
+		bufq_remove(&softc->buf_queue, q_bp);
+		q_bp->b_resid = q_bp->b_bcount;
+		q_bp->b_error = ENXIO;
+		q_bp->b_flags |= B_ERROR;
+		biodone(q_bp);
+	}
+
+	splx(s);
+
+	xpt_print_path(periph->path);
+	printf("lost device\n");
+}
+
+static void
 ptdtor(struct cam_periph *periph)
 {
+	struct pt_softc *softc;
+
+	softc = (struct pt_softc *)periph->softc;
+
+	devstat_remove_entry(&softc->device_stats);
+
 	cam_extend_release(ptperiphs, periph->unit_number);
 	xpt_print_path(periph->path);
 	printf("removing device entry\n");
-	free(periph->softc, M_DEVBUF);
+	free(softc, M_DEVBUF);
 }
 
 static void
@@ -414,9 +478,10 @@ ptasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 		 * this device and start the probe
 		 * process.
 		 */
-		status = cam_periph_alloc(ptctor, ptdtor, ptstart,
-					  "pt", CAM_PERIPH_BIO, cgd->ccb_h.path,
-					  ptasync, AC_FOUND_DEVICE, cgd);
+		status = cam_periph_alloc(ptctor, ptoninvalidate, ptdtor,
+					  ptstart, "pt", CAM_PERIPH_BIO,
+					  cgd->ccb_h.path, ptasync,
+					  AC_FOUND_DEVICE, cgd);
 
 		if (status != CAM_REQ_CMP
 		 && status != CAM_REQ_INPROG)
@@ -426,51 +491,6 @@ ptasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 	}
 	case AC_LOST_DEVICE:
 	{
-		int s;
-		struct pt_softc *softc;
-		struct buf *q_bp;
-		struct ccb_setasync csa;
-
-		softc = (struct pt_softc *)periph->softc;
-
-		/*
-		 * Insure that no other async callbacks that
-		 * might affect this peripheral can come through.
-		 */
-		s = splcam();
-
-		/*
-		 * De-register any async callbacks.
-		 */
-		xpt_setup_ccb(&csa.ccb_h, periph->path,
-			      /* priority */ 5);
-		csa.ccb_h.func_code = XPT_SASYNC_CB;
-		csa.event_enable = 0;
-		csa.callback = ptasync;
-		csa.callback_arg = periph;
-		xpt_action((union ccb *)&csa);
-
-		softc->flags |= PT_FLAG_DEVICE_INVALID;
-
-		/*
-		 * Return all queued I/O with ENXIO.
-		 * XXX Handle any transactions queued to the card
-		 *     with XPT_ABORT_CCB.
-		 */
-		while ((q_bp = bufq_first(&softc->buf_queue)) != NULL){
-			bufq_remove(&softc->buf_queue, q_bp);
-			q_bp->b_resid = q_bp->b_bcount;
-			q_bp->b_error = ENXIO;
-			q_bp->b_flags |= B_ERROR;
-			biodone(q_bp);
-		}
-		devstat_remove_entry(&softc->device_stats);
-
-		xpt_print_path(periph->path);
-		printf("lost device\n");
-
-		splx(s);
-
 		cam_periph_invalidate(periph);
 		break;
 	}

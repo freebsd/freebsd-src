@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_sa.c,v 1.2 1998/10/02 05:15:27 ken Exp $
+ *      $Id: scsi_sa.c,v 1.3 1998/10/15 17:46:26 ken Exp $
  */
 
 #include <sys/param.h>
@@ -172,6 +172,7 @@ static	d_strategy_t	sastrategy;
 static	d_ioctl_t	saioctl;
 static	periph_init_t	sainit;
 static	periph_ctor_t	saregister;
+static	periph_oninv_t	saoninvalidate;
 static	periph_dtor_t	sacleanup;
 static	periph_start_t	sastart;
 static	void		saasync(void *callback_arg, u_int32_t code,
@@ -263,6 +264,7 @@ saopen(dev_t dev, int flags, int fmt, struct proc *p)
 	int mode;
 	int density;
 	int error;
+	int s;
 
 	unit = SAUNIT(dev);
 	mode = SAMODE(dev);
@@ -278,8 +280,12 @@ saopen(dev_t dev, int flags, int fmt, struct proc *p)
 	    ("saaopen: dev=0x%x (unit %d , mode %d, density %d)\n", dev,
 	     unit, mode, density));
 
-	if (softc->flags & SA_FLAG_INVALID)
+	s = splsoftcam();
+	if (softc->flags & SA_FLAG_INVALID) {
+		splx(s);
 		return(ENXIO);
+	}
+	splx(s);
 
 	if ((error = cam_periph_lock(periph, PRIBIO|PCATCH)) != 0) {
 		return (error); /* error code from tsleep */
@@ -397,6 +403,16 @@ sastrategy(struct buf *bp)
 		goto bad;
 	}
 	softc = (struct sa_softc *)periph->softc;
+
+	s = splsoftcam();
+
+	if (softc->flags & SA_FLAG_INVALID) {
+		splx(s);
+		bp->b_error = ENXIO;
+		goto bad;
+	}
+
+	splx(s);
 
 	/*
 	 * If it's a null transfer, return immediatly
@@ -707,12 +723,66 @@ sainit(void)
 }
 
 static void
+saoninvalidate(struct cam_periph *periph)
+{
+	struct sa_softc *softc;
+	struct buf *q_bp;
+	struct ccb_setasync csa;
+	int s;
+
+	softc = (struct sa_softc *)periph->softc;
+
+	/*
+	 * De-register any async callbacks.
+	 */
+	xpt_setup_ccb(&csa.ccb_h, periph->path,
+		      /* priority */ 5);
+	csa.ccb_h.func_code = XPT_SASYNC_CB;
+	csa.event_enable = 0;
+	csa.callback = saasync;
+	csa.callback_arg = periph;
+	xpt_action((union ccb *)&csa);
+
+	softc->flags |= SA_FLAG_INVALID;
+
+	/*
+	 * Although the oninvalidate() routines are always called at
+	 * splsoftcam, we need to be at splbio() here to keep the buffer
+	 * queue from being modified while we traverse it.
+	 */
+	s = splbio();
+
+	/*
+	 * Return all queued I/O with ENXIO.
+	 * XXX Handle any transactions queued to the card
+	 *     with XPT_ABORT_CCB.
+	 */
+	while ((q_bp = bufq_first(&softc->buf_queue)) != NULL){
+		bufq_remove(&softc->buf_queue, q_bp);
+		q_bp->b_resid = q_bp->b_bcount;
+		q_bp->b_error = ENXIO;
+		q_bp->b_flags |= B_ERROR;
+		biodone(q_bp);
+	}
+	splx(s);
+
+	xpt_print_path(periph->path);
+	printf("lost device\n");
+
+}
+
+static void
 sacleanup(struct cam_periph *periph)
 {
+	struct sa_softc *softc;
+
+	softc = (struct sa_softc *)periph->softc;
+
+	devstat_remove_entry(&softc->device_stats);
 	cam_extend_release(saperiphs, periph->unit_number);
 	xpt_print_path(periph->path);
 	printf("removing device entry\n");
-	free(periph->softc, M_DEVBUF);
+	free(softc, M_DEVBUF);
 }
 
 static void
@@ -738,7 +808,8 @@ saasync(void *callback_arg, u_int32_t code,
 		 * this device and start the probe
 		 * process.
 		 */
-		status = cam_periph_alloc(saregister, sacleanup, sastart,
+		status = cam_periph_alloc(saregister, saoninvalidate,
+					  sacleanup, sastart,
 					  "sa", CAM_PERIPH_BIO, cgd->ccb_h.path,
 					  saasync, AC_FOUND_DEVICE, cgd);
 
@@ -749,54 +820,8 @@ saasync(void *callback_arg, u_int32_t code,
 		break;
 	}
 	case AC_LOST_DEVICE:
-	{
-		int s;
-		struct sa_softc *softc;
-		struct buf *q_bp;
-		struct ccb_setasync csa;
-
-		softc = (struct sa_softc *)periph->softc;
-
-		/*
-		 * Insure that no other async callbacks that
-		 * might affect this peripheral can come through.
-		 */
-		s = splcam();
-
-		/*
-		 * De-register any async callbacks.
-		 */
-		xpt_setup_ccb(&csa.ccb_h, periph->path,
-			      /* priority */ 5);
-		csa.ccb_h.func_code = XPT_SASYNC_CB;
-		csa.event_enable = 0;
-		csa.callback = saasync;
-		csa.callback_arg = periph;
-		xpt_action((union ccb *)&csa);
-
-		softc->flags |= SA_FLAG_INVALID;
-
-		/*
-		 * Return all queued I/O with ENXIO.
-		 * XXX Handle any transactions queued to the card
-		 *     with XPT_ABORT_CCB.
-		 */
-		while ((q_bp = bufq_first(&softc->buf_queue)) != NULL){
-			bufq_remove(&softc->buf_queue, q_bp);
-			q_bp->b_resid = q_bp->b_bcount;
-			q_bp->b_error = ENXIO;
-			q_bp->b_flags |= B_ERROR;
-			biodone(q_bp);
-		}
-		devstat_remove_entry(&softc->device_stats);
-
-		xpt_print_path(periph->path);
-		printf("lost device\n");
-
-		splx(s);
-
 		cam_periph_invalidate(periph);
-	}
+		break;
 	case AC_TRANSFER_NEG:
 	case AC_SENT_BDR:
 	case AC_SCSI_AEN:

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.23 1998/10/15 17:46:18 ken Exp $
+ *      $Id: cam_xpt.c,v 1.24 1998/10/15 19:08:52 ken Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -1161,7 +1161,7 @@ xpt_init()
 		return;
 	}
 
-	cam_periph_alloc(xptregister, NULL, NULL, "xpt", CAM_PERIPH_BIO,
+	cam_periph_alloc(xptregister, NULL, NULL, NULL, "xpt", CAM_PERIPH_BIO,
 			 path, NULL, 0, NULL);
 	xpt_free_path(path);
 
@@ -4777,7 +4777,7 @@ xpt_scan_lun(struct cam_periph *periph, struct cam_path *path,
 		TAILQ_INSERT_TAIL(&softc->request_ccbs, &request_ccb->ccb_h,
 				  periph_links.tqe);
 	} else {
-		status = cam_periph_alloc(proberegister, probecleanup,
+		status = cam_periph_alloc(proberegister, NULL, probecleanup,
 					  probestart, "probe",
 					  CAM_PERIPH_BIO,
 					  request_ccb->ccb_h.path, NULL, 0,

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_periph.c,v 1.4 1998/10/13 21:41:32 ken Exp $
+ *      $Id: cam_periph.c,v 1.5 1998/10/15 17:46:18 ken Exp $
  */
 
 #include <sys/param.h>
@@ -62,10 +62,11 @@ static	void		camperiphdone(struct cam_periph *periph,
 static  void		camperiphfree(struct cam_periph *periph);
 
 cam_status
-cam_periph_alloc(periph_ctor_t *periph_ctor, periph_dtor_t *periph_dtor,
-		 periph_start_t *periph_start, char *name, cam_periph_type type,
-		 struct cam_path *path, ac_callback_t *ac_callback,
-		 ac_code code, void *arg)
+cam_periph_alloc(periph_ctor_t *periph_ctor,
+		 periph_oninv_t *periph_oninvalidate,
+		 periph_dtor_t *periph_dtor, periph_start_t *periph_start,
+		 char *name, cam_periph_type type, struct cam_path *path,
+		 ac_callback_t *ac_callback, ac_code code, void *arg)
 {
 	struct		periph_driver **p_drv;
 	struct		cam_periph *periph;
@@ -122,6 +123,7 @@ cam_periph_alloc(periph_ctor_t *periph_ctor, periph_dtor_t *periph_dtor,
 	cam_init_pinfo(&periph->pinfo);
 	periph->periph_start = periph_start;
 	periph->periph_dtor = periph_dtor;
+	periph->periph_oninval = periph_oninvalidate;
 	periph->type = type;
 	periph->periph_name = name;
 	periph->unit_number = camperiphunit(*p_drv, path_id, target_id, lun_id);
@@ -372,10 +374,19 @@ cam_periph_invalidate(struct cam_periph *periph)
 {
 	int s;
 
+	s = splsoftcam();
+	/*
+	 * We only call this routine the first time a peripheral is
+	 * invalidated.  The oninvalidate() routine is always called at
+	 * splsoftcam().
+	 */
+	if (((periph->flags & CAM_PERIPH_INVALID) == 0)
+	 && (periph->periph_oninval != NULL))
+		periph->periph_oninval(periph);
+
 	periph->flags |= CAM_PERIPH_INVALID;
 	periph->flags &= ~CAM_PERIPH_NEW_DEV_FOUND;
 
-	s = splsoftcam();
 	if (periph->refcount == 0)
 		camperiphfree(periph);
 	else if (periph->refcount < 0)
