@@ -178,7 +178,7 @@ setttyent()
 {
 
 	if (tf) {
-		(void)rewind(tf);
+		rewind(tf);
 		return (1);
 	} else if (tf = fopen(_PATH_TTYS, "r"))
 		return (1);
