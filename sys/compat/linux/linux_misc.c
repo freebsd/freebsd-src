@@ -302,6 +302,10 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	if (error)
 		goto cleanup;
 
+	/*
+	 * XXX: This should use vn_open() so that it is properly authorized,
+	 * and to reduce code redundancy all over the place here.
+	 */
 	error = VOP_OPEN(vp, FREAD, td->td_ucred, td);
 	if (error)
 		goto cleanup;
