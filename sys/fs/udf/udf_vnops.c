@@ -802,6 +802,7 @@ udf_bmap(struct vop_bmap_args *a)
 {
 	struct udf_node *node;
 	uint32_t max_size;
+	daddr64_t lsector;
 	int error;
 
 	node = VTON(a->a_vp);
@@ -813,10 +814,13 @@ udf_bmap(struct vop_bmap_args *a)
 	if (a->a_runb)
 		*a->a_runb = 0;
 
-	error = udf_bmap_internal(node, a->a_bn * node->udfmp->bsize, a->a_bnp,
+	error = udf_bmap_internal(node, a->a_bn * node->udfmp->bsize, &lsector,
 	    &max_size);
 	if (error > 0)
 		return (error);
+
+	/* Translate logical to physical sector number */
+	*a->a_bnp = lsector << (node->udfmp->bshift - DEV_BSHIFT);
 
 	/* Punt on read-ahead for now */
 	if (a->a_runp)
