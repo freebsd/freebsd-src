@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mktemp.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id: mktemp.c,v 1.9 1998/03/03 14:38:36 bde Exp $";
+		"$Id: mktemp.c,v 1.10 1998/04/14 07:25:05 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -56,23 +56,39 @@ int
 mkstemp(path)
 	char *path;
 {
-	int fd;
+	int fd, rval;
+	mode_t oldumask;
 
-	return (_gettemp(path, &fd, 0) ? fd : -1);
+	oldumask = umask(077);
+	rval = (_gettemp(path, &fd, 0) ? fd : -1);
+	umask(oldumask);
+	return rval;
 }
 
 char *
 mkdtemp(path)
 	char *path;
 {
-	return(_gettemp(path, (int *)NULL, 1) ? path : (char *)NULL);
+	char *rval;
+	mode_t oldumask;
+
+	oldumask = umask(077);
+	rval = (_gettemp(path, (int *)NULL, 1) ? path : (char *)NULL);
+	umask(oldumask);
+	return rval;
 }
 
 char *
 _mktemp(path)
 	char *path;
 {
-	return(_gettemp(path, (int *)NULL, 0) ? path : (char *)NULL);
+	char *rval;
+	mode_t oldumask;
+
+	oldumask = umask(077);
+	rval = (_gettemp(path, (int *)NULL, 0) ? path : (char *)NULL);
+	umask(oldumask);
+	return rval;
 }
 
 #ifdef UNSAFE_WARN
