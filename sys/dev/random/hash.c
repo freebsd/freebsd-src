@@ -49,8 +49,7 @@ yarrow_hash_iterate(struct yarrowhash *context, void *data, size_t size)
 }
 
 /* Conclude by returning the hash in the supplied /buf/ which must be
- * KEYSIZE bytes long. Trailing data (less than KEYSIZE bytes) are
- * not forgotten.
+ * KEYSIZE bytes long.
  */
 void
 yarrow_hash_finish(struct yarrowhash *context, void *buf)
@@ -59,7 +58,7 @@ yarrow_hash_finish(struct yarrowhash *context, void *buf)
 }
 
 /* Initialise the encryption routine by setting up the key schedule
- * from the supplied /key/ which must be KEYSIZE bytes of binary
+ * from the supplied /data/ which must be KEYSIZE bytes of binary
  * data.
  */
 void
@@ -76,5 +75,5 @@ void
 yarrow_encrypt(struct yarrowkey *context, void *d_in, void *d_out)
 {
 	rijndael_blockEncrypt(&context->cipher, &context->key, d_in,
-		KEYSIZE*8, d_out);
+	    KEYSIZE*8, d_out);
 }
