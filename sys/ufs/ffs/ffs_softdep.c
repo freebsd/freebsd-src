@@ -844,7 +844,7 @@ softdep_flushworklist(oldmnt, countp, td)
 	while ((count = softdep_process_worklist(oldmnt)) > 0) {
 		*countp += count;
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
-		error = VOP_FSYNC(devvp, td->td_ucred, MNT_WAIT, td);
+		error = VOP_FSYNC(devvp, MNT_WAIT, td);
 		VOP_UNLOCK(devvp, 0, td);
 		if (error)
 			break;
@@ -4882,7 +4882,7 @@ softdep_fsync(vp)
 				return (error);
 			}
 			if ((pagedep->pd_state & NEWBLOCK) &&
-			    (error = VOP_FSYNC(pvp, td->td_ucred, MNT_WAIT, td))) {
+			    (error = VOP_FSYNC(pvp, MNT_WAIT, td))) {
 				vput(pvp);
 				return (error);
 			}
@@ -5362,8 +5362,8 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 			FREE_LOCK(&lk);
 			if ((error = VFS_VGET(mp, inum, LK_EXCLUSIVE, &vp)))
 				break;
-			if ((error=VOP_FSYNC(vp, td->td_ucred, MNT_NOWAIT, td)) ||
-			    (error=VOP_FSYNC(vp, td->td_ucred, MNT_NOWAIT, td))) {
+			if ((error=VOP_FSYNC(vp, MNT_NOWAIT, td)) ||
+			    (error=VOP_FSYNC(vp, MNT_NOWAIT, td))) {
 				vput(vp);
 				break;
 			}
@@ -5641,7 +5641,7 @@ clear_remove(td)
 				vn_finished_write(mp);
 				return;
 			}
-			if ((error = VOP_FSYNC(vp, td->td_ucred, MNT_NOWAIT, td)))
+			if ((error = VOP_FSYNC(vp, MNT_NOWAIT, td)))
 				softdep_error("clear_remove: fsync", error);
 			VI_LOCK(vp);
 			drain_output(vp, 0);
@@ -5717,10 +5717,10 @@ clear_inodedeps(td)
 			return;
 		}
 		if (ino == lastino) {
-			if ((error = VOP_FSYNC(vp, td->td_ucred, MNT_WAIT, td)))
+			if ((error = VOP_FSYNC(vp, MNT_WAIT, td)))
 				softdep_error("clear_inodedeps: fsync1", error);
 		} else {
-			if ((error = VOP_FSYNC(vp, td->td_ucred, MNT_NOWAIT, td)))
+			if ((error = VOP_FSYNC(vp, MNT_NOWAIT, td)))
 				softdep_error("clear_inodedeps: fsync2", error);
 			VI_LOCK(vp);
 			drain_output(vp, 0);

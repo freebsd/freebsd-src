@@ -99,7 +99,7 @@ __FBSDID("$FreeBSD$");
 static vop_read_t	nfsfifo_read;
 static vop_write_t	nfsfifo_write;
 static vop_close_t	nfsfifo_close;
-static int	nfs_flush(struct vnode *, struct ucred *, int, struct thread *,
+static int	nfs_flush(struct vnode *, int, struct thread *,
 		    int);
 static int	nfs_setattrrpc(struct vnode *, struct vattr *, struct ucred *,
 		    struct thread *);
@@ -534,7 +534,7 @@ nfs_close(struct vop_close_args *ap)
 		     * cannot clear it if we don't commit.
 		     */
 		    int cm = nfsv3_commit_on_close ? 1 : 0;
-		    error = nfs_flush(vp, ap->a_cred, MNT_WAIT, ap->a_td, cm);
+		    error = nfs_flush(vp, MNT_WAIT, ap->a_td, cm);
 		    /* np->n_flag &= ~NMODIFIED; */
 		} else {
 		    error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred, ap->a_td, 1);
@@ -1585,10 +1585,10 @@ nfs_rename(struct vop_rename_args *ap)
 	 * that was written back to our cache earlier. Not checking for
 	 * this condition can result in potential (silent) data loss.
 	 */
-	error = VOP_FSYNC(fvp, fcnp->cn_cred, MNT_WAIT, fcnp->cn_thread);
+	error = VOP_FSYNC(fvp, MNT_WAIT, fcnp->cn_thread);
 	VOP_UNLOCK(fvp, 0, fcnp->cn_thread);
 	if (!error && tvp)
-		error = VOP_FSYNC(tvp, tcnp->cn_cred, MNT_WAIT, tcnp->cn_thread);
+		error = VOP_FSYNC(tvp, MNT_WAIT, tcnp->cn_thread);
 	if (error)
 		goto out;
 
@@ -1704,7 +1704,7 @@ nfs_link(struct vop_link_args *ap)
 	 * doesn't get "out of sync" with the server.
 	 * XXX There should be a better way!
 	 */
-	VOP_FSYNC(vp, cnp->cn_cred, MNT_WAIT, cnp->cn_thread);
+	VOP_FSYNC(vp, MNT_WAIT, cnp->cn_thread);
 
 	v3 = NFS_ISV3(vp);
 	nfsstats.rpccnt[NFSPROC_LINK]++;
@@ -2661,7 +2661,7 @@ static int
 nfs_fsync(struct vop_fsync_args *ap)
 {
 
-	return (nfs_flush(ap->a_vp, ap->a_cred, ap->a_waitfor, ap->a_td, 1));
+	return (nfs_flush(ap->a_vp, ap->a_waitfor, ap->a_td, 1));
 }
 
 /*
@@ -2670,7 +2670,7 @@ nfs_fsync(struct vop_fsync_args *ap)
  *	associated with the vnode.
  */
 static int
-nfs_flush(struct vnode *vp, struct ucred *cred, int waitfor, struct thread *td,
+nfs_flush(struct vnode *vp, int waitfor, struct thread *td,
     int commit)
 {
 	struct nfsnode *np = VTONFS(vp);

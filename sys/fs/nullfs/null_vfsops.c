@@ -296,10 +296,9 @@ nullfs_statfs(mp, sbp, td)
 }
 
 static int
-nullfs_sync(mp, waitfor, cred, td)
+nullfs_sync(mp, waitfor, td)
 	struct mount *mp;
 	int waitfor;
-	struct ucred *cred;
 	struct thread *td;
 {
 	/*

@@ -152,7 +152,7 @@ ext2_mount(mp, td)
 		error = 0;
 		if (fs->s_rd_only == 0 &&
 		    vfs_flagopt(opts, "ro", NULL, 0)) {
-			error = VFS_SYNC(mp, MNT_WAIT, td->td_ucred, td);
+			error = VFS_SYNC(mp, MNT_WAIT, td);
 			if (error)
 				return (error);
 			flags = WRITECLOSE;
@@ -837,10 +837,9 @@ ext2_statfs(mp, sbp, td)
  * Note: we are always called with the filesystem marked `MPBUSY'.
  */
 static int
-ext2_sync(mp, waitfor, cred, td)
+ext2_sync(mp, waitfor, td)
 	struct mount *mp;
 	int waitfor;
-	struct ucred *cred;
 	struct thread *td;
 {
 	struct vnode *nvp, *vp;
@@ -882,7 +881,7 @@ loop:
 				goto loop;
 			continue;
 		}
-		if ((error = VOP_FSYNC(vp, cred, waitfor, td)) != 0)
+		if ((error = VOP_FSYNC(vp, waitfor, td)) != 0)
 			allerror = error;
 		VOP_UNLOCK(vp, 0, td);
 		vrele(vp);
@@ -894,7 +893,7 @@ loop:
 	 */
 	if (waitfor != MNT_LAZY) {
 		vn_lock(ump->um_devvp, LK_EXCLUSIVE | LK_RETRY, td);
-		if ((error = VOP_FSYNC(ump->um_devvp, cred, waitfor, td)) != 0)
+		if ((error = VOP_FSYNC(ump->um_devvp, waitfor, td)) != 0)
 			allerror = error;
 		VOP_UNLOCK(ump->um_devvp, 0, td);
 	}

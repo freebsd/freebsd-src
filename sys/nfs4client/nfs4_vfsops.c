@@ -733,7 +733,7 @@ nfs_root(struct mount *mp, struct vnode **vpp, struct thread *td)
  */
 /* ARGSUSED */
 static int
-nfs_sync(struct mount *mp, int waitfor, struct ucred *cred, struct thread *td)
+nfs_sync(struct mount *mp, int waitfor, struct thread *td)
 {
 	struct vnode *vp, *nvp;
 	int error, allerror = 0;
@@ -756,7 +756,7 @@ loop:
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td)) {
 			goto loop;
 		}
-		error = VOP_FSYNC(vp, cred, waitfor, td);
+		error = VOP_FSYNC(vp, waitfor, td);
 		if (error)
 			allerror = error;
 		VOP_UNLOCK(vp, 0, td);
