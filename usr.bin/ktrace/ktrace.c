@@ -131,7 +131,7 @@ main(argc, argv)
 			trpoints = ALL_POINTS;
 			pid = 1;
 		} else
-			ops |= pid ? KTROP_CLEAR : KTROP_CLEARFILE;
+			ops |= pidset ? KTROP_CLEAR : KTROP_CLEARFILE;
 
 		if (ktrace(tracefile, ops, trpoints, pid) < 0)
 			err(1, "%s", tracefile);
@@ -186,8 +186,8 @@ void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n",
-"usage: ktrace [-aCcid] [-f trfile] [-g pgid] [-p pid] [-t [cnisuv]",
-"       ktrace [-aCcid] [-f trfile] [-t [cnisuw] command");
+"usage: ktrace [-aCcdi] [-f trfile] [-g pgrp | -p pid] [-t cnisuw]",
+"       ktrace [-adi] [-f trfile] [-t cnisuw] command");
 	exit(1);
 }
 
