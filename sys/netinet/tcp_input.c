@@ -31,10 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.80 1998/08/24 07:47:39 dfr Exp $
+ *	$Id: tcp_input.c,v 1.81 1998/09/11 16:04:03 wollman Exp $
  */
 
-#include "opt_ipfw.h"	/* for ipfw_fwd */
+#include "opt_ipfw.h"		/* for ipfw_fwd		*/
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
@@ -57,8 +57,10 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <netinet/ip_icmp.h>	/* for ICMP_BANDLIM		*/
 #include <netinet/in_pcb.h>
 #include <netinet/ip_var.h>
+#include <netinet/icmp_var.h>	/* for ICMP_BANDLIM		*/
 #include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
@@ -397,6 +399,10 @@ findpcb:
 			    buf, ntohs(ti->ti_dport), inet_ntoa(ti->ti_src),
 			    ntohs(ti->ti_sport));
 		}
+#ifdef ICMP_BANDLIM
+		if (badport_bandlim(1) < 0)
+			goto drop;
+#endif
 		goto dropwithreset;
 	}
 	tp = intotcpcb(inp);

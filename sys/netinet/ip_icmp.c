@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
- *	$Id: ip_icmp.c,v 1.30 1998/05/26 11:34:30 dg Exp $
+ *	$Id: ip_icmp.c,v 1.31 1998/09/15 10:49:03 jkoshy Exp $
  */
 
 #include <sys/param.h>
@@ -69,9 +69,22 @@ static int	icmpmaskrepl = 0;
 SYSCTL_INT(_net_inet_icmp, ICMPCTL_MASKREPL, maskrepl, CTLFLAG_RW,
 	&icmpmaskrepl, 0, "");
 
+#ifdef ICMP_BANDLIM 
+ 
+ /*    
+  * ICMP error-response bandwidth limiting
+  */     
+    
+static int      icmplim = 100;
+SYSCTL_INT(_net_inet_icmp, ICMPCTL_ICMPLIM, icmplim, CTLFLAG_RW,
+	&icmplim, 0, "");
+	     
+#endif 
+
 static int	icmpbmcastecho = 0;
 SYSCTL_INT(_net_inet_icmp, OID_AUTO, bmcastecho, CTLFLAG_RW, &icmpbmcastecho,
 	   0, "");
+
 
 #ifdef ICMPPRINTFS
 int	icmpprintfs = 0;
@@ -704,3 +717,69 @@ ip_next_mtu(mtu, dir)
 	}
 }
 #endif
+
+#ifdef ICMP_BANDLIM
+
+/*
+ * badport_bandlim() - check for ICMP bandwidth limit
+ *
+ *	Return 0 if it is ok to send an ICMP error response, -1 if we have
+ *	hit our bandwidth limit and it is not ok.  
+ *
+ *	If icmplim is <= 0, the feature is disabled and 0 is returned.
+ *
+ *	For now we separate the TCP and UDP subsystems w/ different 'which'
+ *	values.  We may eventually remove this separation (and simplify the
+ *	code further).
+ *
+ *	Note that the printing of the error message is delayed so we can
+ *	properly print the icmp error rate that the system was trying to do
+ *	(i.e. 22000/100 pps, etc...).  This can cause long delays in printing
+ *	the 'final' error, but it doesn't make sense to solve the printing 
+ *	delay with more complex code.
+ */
+
+int
+badport_bandlim(int which)
+{
+	static int lticks[2];
+	static int lpackets[2];
+	int dticks;
+
+	/*
+	 * Return ok status if feature disabled or argument out of
+	 * ranage.
+	 */
+
+	if (icmplim <= 0 || which >= 2 || which < 0)
+		return(0);
+	dticks = ticks - lticks[which];
+
+	/*
+	 * reset stats when cumulative dt exceeds one second.
+	 */
+
+	if ((unsigned int)dticks > hz) {
+		if (lpackets[which] > icmplim) {
+			printf("icmp-response bandwidth limit %d/%d pps\n",
+				lpackets[which],
+				icmplim
+			);
+		}
+		lticks[which] = ticks;
+		lpackets[which] = 0;
+	}
+
+	/*
+	 * bump packet count
+	 */
+
+	if (++lpackets[which] > icmplim) {
+		return(-1);
+	}
+	return(0);
+}
+
+#endif
+
+
