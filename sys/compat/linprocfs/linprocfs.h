@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2001 Jonathan Lemon <jlemon@freebsd.org>
  * Copyright (c) 2000 Dag-Erling Coïdan Smørgrav
  * Copyright (c) 1999 Pierre Beyssac
  * Copyright (c) 1993 Jan-Simon Pendry
@@ -41,37 +42,36 @@
  * $FreeBSD$
  */
 
+struct pfsnode;
+
+typedef int	node_action_t __P((struct proc *curp, struct proc *p,
+		    struct pfsnode *pfs, struct uio *uio));
+
+struct node_data {
+	char		*nd_name;
+	u_char		nd_namlen;
+	u_char		nd_type;
+	u_short		nd_mode;
+	int		nd_flags;
+	node_action_t	*nd_action;
+};
+
 /*
- * The different types of node in a procfs filesystem
+ * flag bits for nd_flags.
  */
-typedef enum {
-	Proot,		/* the filesystem root */
-	Pself,		/* symbolic link for curproc */
-	Pproc,		/* a process-specific sub-directory */
-	Pexe,		/* the executable file */
-	Pmem,		/* the process's memory image */
-	Pcmdline,	/* command line */
-	Pprocstat,	/* the process's status */
-	Pprocstatus,	/* the process's status (again) */
-	Pmeminfo,	/* memory system statistics */
-	Pcpuinfo,	/* CPU model, speed and features */
-	Pstat,	        /* kernel/system statistics */
-	Puptime,	/* system uptime */
-	Pversion,	/* system version */
-} pfstype;
+#define PDEP	0x01			/* entry is process-dependent */
 
 /*
  * control data for the proc file system.
  */
 struct pfsnode {
-	struct pfsnode	*pfs_next;	/* next on list */
-	struct vnode	*pfs_vnode;	/* vnode associated with this pfsnode */
-	pfstype		pfs_type;	/* type of procfs node */
-	pid_t		pfs_pid;	/* associated process */
-	u_short		pfs_mode;	/* mode bits for stat() */
-	u_long		pfs_flags;	/* open flags */
-	u_long		pfs_fileno;	/* unique file id */
-	pid_t		pfs_lockowner;	/* pfs lock owner */
+	struct 	pfsnode	*pfs_next;	/* next on list */
+	struct 	vnode *pfs_vnode;	/* vnode associated with this pfsnode */
+	struct 	node_data *pfs_nd;	/* static initializer */
+	pid_t	pfs_pid;		/* associated process */
+	u_long	pfs_flags;		/* open flags */
+	u_long	pfs_fileno;		/* unique file id */
+	pid_t	pfs_lockowner;		/* pfs lock owner */
 };
 
 #define PROCFS_NAMELEN 	8	/* max length of a filename component */
@@ -80,16 +80,12 @@ struct pfsnode {
  * Kernel stuff follows
  */
 #ifdef _KERNEL
-#define CNEQ(cnp, s, len) \
-	 ((cnp)->cn_namelen == (len) && \
-	  (bcmp((s), (cnp)->cn_nameptr, (len)) == 0))
-
 #define KMEM_GROUP 2
 
-#define PROCFS_FILENO(pid, type) \
-	(((type) < Pproc) ? \
-			((type) + 2) : \
-			((((pid)+1) << 4) + ((int) (type))))
+#define PROCFS_FILENO(nd, pid) 						\
+	((nd)->nd_flags & PDEP) ?					\
+	    (((pid) + 1) << 4) | ((((u_long)(nd)) >> 3) & 0x0f) :	\
+	    (u_long)((nd)->nd_action)
 
 /*
  * Convert between pfsnode vnode
@@ -113,26 +109,28 @@ struct dbreg;
 
 #define PFIND(pid) ((pid) ? pfind(pid) : &proc0)
 
-void linprocfs_exit __P((struct proc *));
-int linprocfs_freevp __P((struct vnode *));
-int linprocfs_allocvp __P((struct mount *, struct vnode **, long, pfstype));
-int linprocfs_sstep __P((struct proc *));
-void linprocfs_fix_sstep __P((struct proc *));
-#if 0
-int linprocfs_read_regs __P((struct proc *, struct reg *));
-int linprocfs_write_regs __P((struct proc *, struct reg *));
-int linprocfs_read_fpregs __P((struct proc *, struct fpreg *));
-int linprocfs_write_fpregs __P((struct proc *, struct fpreg *));
-int linprocfs_read_dbregs __P((struct proc *, struct dbreg *));
-int linprocfs_write_dbregs __P((struct proc *, struct dbreg *));
-#endif
-int linprocfs_domeminfo __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
-int linprocfs_docpuinfo __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
-int linprocfs_dostat __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
-int linprocfs_douptime __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
-int linprocfs_doversion __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
-int linprocfs_doprocstat __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
-int linprocfs_doprocstatus __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
+void 	linprocfs_exit __P((struct proc *));
+int 	linprocfs_freevp __P((struct vnode *));
+int 	linprocfs_allocvp __P((struct mount *, struct vnode **, long, 
+	    struct node_data *));
+
+node_action_t	linprocfs_docmdline;
+node_action_t	linprocfs_docpuinfo;
+node_action_t	linprocfs_dodevices;
+node_action_t	linprocfs_doexelink;
+node_action_t	linprocfs_domeminfo;
+node_action_t	linprocfs_donetdev;
+node_action_t	linprocfs_doprocstat;
+node_action_t	linprocfs_doprocstatus;
+node_action_t	linprocfs_doselflink;
+node_action_t	linprocfs_dostat;
+node_action_t	linprocfs_douptime;
+node_action_t	linprocfs_doversion;
+
+extern node_action_t procfs_domem;
+extern node_action_t procfs_docmdline;
+
+extern struct node_data root_dir[];
 
 /* functions to check whether or not files should be displayed */
 int linprocfs_validfile __P((struct proc *));
