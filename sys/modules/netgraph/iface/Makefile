@@ -3,7 +3,7 @@
 
 KMOD=		ng_iface
 SRCS= 		ng_iface.c bpfilter.h opt_inet.h opt_atalk.h opt_ipx.h
-MAN8=		ng_iface.8
+MAN4=		ng_iface.4
 KMODDEPS=	netgraph
 
 IFACE_FILTER?=		0	# 0/1 - requires bpf configured in kernel

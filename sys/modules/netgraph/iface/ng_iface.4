@@ -47,55 +47,39 @@
 An
 .Nm iface
 node is both a netgraph node and a system networking interface.  When an
-.Nm iface
-node is created, a new interface appears which is accessible via
+.Nm
+node is created, a new point-to-point interface appears which is accessible via
 .Xr ifconfig 8 .
-.Nm Iface
-node interfaces are named
+The new interfaces are named
 .Dv ng0 ,
 .Dv ng1 ,
-etc.
-When a node is shutdown, the corresponding interface is removed
-and the interface name becomes available for reuse by future
-.Nm iface
-nodes; new nodes always take the first unused interface.
-The node itself is assigned the same name as its interface, unless the name
+etc.  The node is assigned the same name as its interface, unless the name
 already exists, in which case the node remains unnamed.
 .Pp
 An
-.Nm iface
+.Nm
 node has a single hook corresponding to each supported protocol.
 Packets transmitted via the interface flow out the corresponding
 protocol-specific hook.
 Similarly, packets received on a hook appear on the interface as 
-packets received into the corresponding protocol stack.
-The currently supported protocols are IP, IPv6, AppleTalk, IPX, ATM,
-NATM, and NS.
+packets received in the corresponding protocol.
+.Pp
+The currently supported protocols are IP, IPX, AppleTalk, and NS.
+In the KLD module, only support for IP is compiled in by default.
 .Pp
 An
-.Nm iface
-node be configured as a point-to-point interface or a broadcast interface.
-The configuration can only be changed when the interface is down.
-The default mode is point-to-point.
-.Pp
-.Nm Iface
-nodes support the Berkeley Packet Filter (BPF). 
+.Nm
+node supports the Berkeley Packet Filter (BPF). 
 .Sh HOOKS
 This node type supports the following hooks:
 .Pp
 .Bl -tag -width foobar
 .It Dv inet
 Transmission and reception of IP packets.
-.It Dv inet6
-Transmission and reception of IPv6 packets.
-.It Dv atalk
-Transmission and reception of AppleTalk packets.
 .It Dv ipx
 Transmission and reception of IPX packets.
-.It Dv atm
-Transmission and reception of ATM packets.
-.It Dv natm
-Transmission and reception of NATM packets.
+.It Dv atalk
+Transmission and reception of AppleTalk packets.
 .It Dv ns
 Transmission and reception of NS packets.
 .El
@@ -110,12 +94,11 @@ struct ng_iface_ifname {
   char  ngif_name[NG_IFACE_IFACE_NAME_MAX + 1];
 };
 .Ed
-.It Dv NGM_IFACE_POINT2POINT
-Set the interface to point-to-point mode.
-The interface must not currently be up.
-.It Dv NGM_IFACE_BROADCAST
-Set the interface to broadcast mode.
-The interface must not currently be up.
+.It Dv NGM_IFACE_GET_IFADDRS
+Returns the list of addresses associated with this interface.
+The list is returned in the same format as the
+.Dv SIOCGIFCONF
+.Fn ioctl .
 .It Dv NGM_CISCO_GET_IPADDR
 This message is defined by the
 .Xr ng_cisco 4
@@ -124,20 +107,16 @@ node type; see
 for a description.
 .El
 .Sh SHUTDOWN
-This node shuts down upon receipt of a
+Because it is currently not possible to remove a system networking
+interface in
+.Fx ,
+.Nm
+nodes are
+.Em persistent.
+That is, once created they are never destroyed.
+The receipt of a
 .Dv NGM_SHUTDOWN
-control message.  The associated interface is removed and becomes available
-for use by future
-.Nm iface
-nodes.
-.Pp
-Unlike most other node types, an
-.Nm iface
-node does
-.Em not
-go away when all hooks have been disconnected; rather, and explicit
-.Dv NGM_SHUTDOWN
-control message is required.
+control message disconnects all hooks but does not remove the node.
 .Sh SEE ALSO
 .Xr bpf 4 ,
 .Xr netgraph 4 ,
@@ -146,8 +125,8 @@ control message is required.
 .Xr ngctl 8
 .Sh HISTORY
 The
-.Nm iface
+.Nm
 node type was implemented in
 .Fx 4.0 .
-.Sh AUTHOR
+.Sh AUTHORS
 .An Archie Cobbs Aq archie@whistle.com
