@@ -727,8 +727,9 @@ kinfo_vnodes(avnodes)
 	bp = vbuf;
 	evbuf = vbuf + (numvnodes + 20) * (VPTRSZ + VNODESZ);
 	KGET(V_MOUNTLIST, mountlist);
-	for (num = 0, mp = mountlist.tqh_first;
-	    mp != NULL; mp = mp->mnt_list.tqe_next) {
+	for (num = 0, mp = mountlist.cqh_first;
+	    mp != NULL && !(num && mp == mountlist.cqh_first);
+	    mp = mp->mnt_list.cqe_next) {
 		KGET2(mp, &mount, sizeof(mount), "mount entry");
 		for (vp = mount.mnt_vnodelist.lh_first;
 		    vp != NULL; vp = vp->v_mntvnodes.le_next) {
