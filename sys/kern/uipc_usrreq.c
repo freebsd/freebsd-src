@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- * $Id: uipc_usrreq.c,v 1.5 1994/10/02 17:35:36 phk Exp $
+ * $Id: uipc_usrreq.c,v 1.6 1995/02/07 02:01:16 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -216,12 +216,19 @@ uipc_usrreq(so, req, m, nam, control)
 			/* Connect if not connected yet. */
 			/*
 			 * Note: A better implementation would complain
-			 * if already connected, nam non-zero and not
-			 * equal to the peer's address.
+			 * if not equal to the peer's address.
 			 */
-			if ((so->so_state & SS_ISCONNECTED) == 0 &&
-			    (error = unp_connect(so, nam, p)) != 0)
-				break;	/* XXX */
+			if ((so->so_state & SS_ISCONNECTED) == 0) {
+				if (nam) {
+		    			error = unp_connect(so, nam, p);
+					if (error)
+						break;	/* XXX */
+				} else {
+					error = ENOTCONN;
+					break;
+				}
+			}
+				
 			if (so->so_state & SS_CANTSENDMORE) {
 				error = EPIPE;
 				break;
