@@ -104,7 +104,6 @@ static struct proc *random_kthread_proc;
 
 /* For use with make_dev(9)/destroy_dev(9). */
 static dev_t	random_dev;
-static dev_t	urandom_dev;
 
 /* ARGSUSED */
 static int
@@ -266,7 +265,7 @@ random_modevent(module_t mod __unused, int type, void *data __unused)
 			printf("random: <entropy source>\n");
 		random_dev = make_dev(&random_cdevsw, RANDOM_MINOR, UID_ROOT,
 			GID_WHEEL, 0666, "random");
-		urandom_dev = make_dev_alias(random_dev, "urandom");
+		make_dev_alias(random_dev, "urandom");
 
 		/* Start the hash/reseed thread */
 		error = kthread_create(random_kthread, NULL,
@@ -309,7 +308,6 @@ random_modevent(module_t mod __unused, int type, void *data __unused)
 		random_deinit();
 
 		destroy_dev(random_dev);
-		destroy_dev(urandom_dev);
 		return 0;
 
 	case MOD_SHUTDOWN:
