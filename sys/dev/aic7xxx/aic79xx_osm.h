@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/aic79xx_osm.h#14 $
+ * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/aic79xx_osm.h#19 $
  *
  * $FreeBSD$
  */
@@ -222,6 +222,7 @@ typedef struct callout ahd_timer_t;
 #include <dev/aic7xxx/aic79xx.h>
 
 /***************************** Timer Facilities *******************************/
+timeout_t ahd_timeout;
 #if __FreeBSD_version >= 500000
 #define ahd_timer_init(timer) callout_init(timer, /*mpsafe*/0)
 #else
@@ -230,9 +231,17 @@ typedef struct callout ahd_timer_t;
 #define ahd_timer_stop callout_stop
 
 static __inline void
-ahd_timer_reset(ahd_timer_t *timer, int usec, ahd_callback_t *func, void *arg)
+ahd_timer_reset(ahd_timer_t *timer, u_int usec, ahd_callback_t *func, void *arg)
 {
 	callout_reset(timer, (usec * hz)/1000000, func, arg);
+}
+
+static __inline void
+ahd_scb_timer_reset(struct scb *scb, u_int usec)
+{
+	untimeout(ahd_timeout, (caddr_t)scb, scb->io_ctx->ccb_h.timeout_ch);
+	scb->io_ctx->ccb_h.timeout_ch =
+	    timeout(ahd_timeout, scb, (usec * hz)/1000000);
 }
 
 /*************************** Device Access ************************************/
@@ -580,6 +589,8 @@ int	  ahd_map_int(struct ahd_softc *ahd);
 int	  ahd_attach(struct ahd_softc *);
 int	  ahd_softc_comp(struct ahd_softc *lahd, struct ahd_softc *rahd);
 int	  ahd_detach(device_t);
+#define	ahd_platform_init(arg)
+
 
 /****************************** Interrupts ************************************/
 void			ahd_platform_intr(void *);
@@ -590,7 +601,6 @@ ahd_platform_flushwork(struct ahd_softc *ahd)
 }
 
 /************************ Misc Function Declarations **************************/
-timeout_t ahd_timeout;
 void	  ahd_done(struct ahd_softc *ahd, struct scb *scb);
 void	  ahd_send_async(struct ahd_softc *, char /*channel*/,
 			 u_int /*target*/, u_int /*lun*/, ac_code, void *arg);

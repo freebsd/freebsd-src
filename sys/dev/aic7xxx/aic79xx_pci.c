@@ -38,7 +38,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx_pci.c#44 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx_pci.c#61 $
  *
  * $FreeBSD$
  */
@@ -69,21 +69,26 @@ ahd_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 #define ID_9005_GENERIC_MASK		0xFFF0FFFF00000000ull
 
 #define ID_AIC7901			0x800F9005FFFF9005ull
-#define ID_AIC7901_IROC			0x80089005FFFF9005ull
 #define ID_AIC7901A			0x801E9005FFFF9005ull
+#define ID_AIC7901A_IROC		0x809E9005FFFF9005ull
 #define ID_AHA_29320A			0x8000900500609005ull
+#define ID_AHA_29320LP			0x8014900500449005ull
+#define ID_AHA_29320LP_IROC		0x8094900500449005ull
 
 #define ID_AIC7902			0x801F9005FFFF9005ull
-#define ID_AIC7902_IROC			0x80189005FFFF9005ull
+#define ID_AIC7902_IROC			0x809F9005FFFF9005ull
+#define ID_AIC7902_B			0x801D9005FFFF9005ull
+#define ID_AIC7902_B_IROC		0x809D9005FFFF9005ull
 #define ID_AHA_39320			0x8010900500409005ull
 #define ID_AHA_39320D			0x8011900500419005ull
-#define ID_AHA_39320D_CPQ		0x8011900500AC0E11ull
+#define ID_AHA_39320D_B			0x801C900500419005ull
+#define ID_AHA_39320D_HP		0x8011900500AC0E11ull
+#define ID_AHA_39320D_B_HP		0x801C900500AC0E11ull
 #define ID_AHA_29320			0x8012900500429005ull
 #define ID_AHA_29320B			0x8013900500439005ull
-#define ID_AHA_29320LP			0x8014900500449005ull
 #define ID_AIC7902_PCI_REV_A4		0x3
 #define ID_AIC7902_PCI_REV_B0		0x10
-#define SUBID_CPQ			0x0E11
+#define SUBID_HP			0x0E11
 
 #define DEVID_9005_TYPE(id) ((id) & 0xF)
 #define		DEVID_9005_TYPE_HBA		0x0	/* Standard Card */
@@ -107,18 +112,23 @@ ahd_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 #define		SUBID_9005_SEEPTYPE_NONE	0x0
 #define		SUBID_9005_SEEPTYPE_4K		0x1
 
-static ahd_device_setup_t ahd_aic7901_setup;
-static ahd_device_setup_t ahd_aic7902_setup;
 static ahd_device_setup_t ahd_aic7901A_setup;
+static ahd_device_setup_t ahd_aic7902_setup;
 
 struct ahd_pci_identity ahd_pci_ident_table [] =
 {
-	/* aic7901 based controllers */
+	/* aic7901A based controllers */
+	{
+		ID_AHA_29320LP,
+		ID_ALL_MASK,
+		"Adaptec 29320LP Ultra320 SCSI adapter",
+		ahd_aic7901A_setup
+	},
 	{
 		ID_AHA_29320A,
 		ID_ALL_MASK,
 		"Adaptec 29320A Ultra320 SCSI adapter",
-		ahd_aic7901_setup
+		ahd_aic7901A_setup
 	},
 	/* aic7902 based controllers */	
 	{
@@ -134,9 +144,21 @@ struct ahd_pci_identity ahd_pci_ident_table [] =
 		ahd_aic7902_setup
 	},
 	{
-		ID_AHA_39320D_CPQ,
+		ID_AHA_39320D_HP,
 		ID_ALL_MASK,
-		"Adaptec (Compaq OEM) 39320D Ultra320 SCSI adapter",
+		"Adaptec (HP OEM) 39320D Ultra320 SCSI adapter",
+		ahd_aic7902_setup
+	},
+	{
+		ID_AHA_39320D_B,
+		ID_ALL_MASK,
+		"Adaptec 39320D Ultra320 SCSI adapter",
+		ahd_aic7902_setup
+	},
+	{
+		ID_AHA_39320D_B_HP,
+		ID_ALL_MASK,
+		"Adaptec (HP OEM) 39320D Ultra320 SCSI adapter",
 		ahd_aic7902_setup
 	},
 	{
@@ -151,29 +173,17 @@ struct ahd_pci_identity ahd_pci_ident_table [] =
 		"Adaptec 29320B Ultra320 SCSI adapter",
 		ahd_aic7902_setup
 	},
-	{
-		ID_AHA_29320LP,
-		ID_ALL_MASK,
-		"Adaptec 29320LP Ultra320 SCSI adapter",
-		ahd_aic7902_setup
-	},
-	{
-		ID_AIC7901A & ID_9005_GENERIC_MASK,
-		ID_9005_GENERIC_MASK,
-		"Adaptec 7901A Ultra320 SCSI adapter",
-		ahd_aic7901A_setup
-	},
 	/* Generic chip probes for devices we don't know 'exactly' */
 	{
-		ID_AIC7901 & ID_9005_GENERIC_MASK,
-		ID_9005_GENERIC_MASK,
-		"Adaptec aic7901 Ultra320 SCSI adapter",
-		ahd_aic7901_setup
+		ID_AIC7901A & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
+		"Adaptec AIC7901A Ultra320 SCSI adapter",
+		ahd_aic7901A_setup
 	},
 	{
 		ID_AIC7902 & ID_9005_GENERIC_MASK,
 		ID_9005_GENERIC_MASK,
-		"Adaptec aic7902 Ultra320 SCSI adapter",
+		"Adaptec AIC7902 Ultra320 SCSI adapter",
 		ahd_aic7902_setup
 	}
 };
@@ -266,11 +276,19 @@ ahd_pci_config(struct ahd_softc *ahd, struct ahd_pci_identity *entry)
 	int		 error;
 
 	shared_scb_data = NULL;
+	ahd->description = entry->name;
+	/*
+	 * Record if this is an HP board.
+	 */
+	subvendor = ahd_pci_read_config(ahd->dev_softc,
+					PCIR_SUBVEND_0, /*bytes*/2);
+	if (subvendor == SUBID_HP)
+		ahd->flags |= AHD_HP_BOARD;
+
 	error = entry->setup(ahd);
 	if (error != 0)
 		return (error);
 	
-	ahd->description = entry->name;
 	devconfig = ahd_pci_read_config(ahd->dev_softc, DEVCONFIG, /*bytes*/4);
 	if ((devconfig & PCIXINITPAT) == PCIXINIT_PCI33_66) {
 		ahd->chip |= AHD_PCI;
@@ -280,14 +298,6 @@ ahd_pci_config(struct ahd_softc *ahd, struct ahd_pci_identity *entry)
 		ahd->chip |= AHD_PCIX;
 	}
 	ahd->bus_description = pci_bus_modes[PCI_BUS_MODES_INDEX(devconfig)];
-
-	/*
-	 * Record if this is a Compaq board.
-	 */
-	subvendor = ahd_pci_read_config(ahd->dev_softc,
-					PCIR_SUBVEND_0, /*bytes*/2);
-	if (subvendor == SUBID_CPQ)
-		ahd->flags |= AHD_CPQ_BOARD;
 
 	ahd_power_state_change(ahd, AHD_POWER_STATE_D0);
 
@@ -359,6 +369,90 @@ ahd_pci_config(struct ahd_softc *ahd, struct ahd_pci_identity *entry)
 	ahd_softc_insert(ahd);
 	ahd_list_unlock(&l);
 	return (0);
+}
+
+/*
+ * Perform some simple tests that should catch situations where
+ * our registers are invalidly mapped.
+ */
+int
+ahd_pci_test_register_access(struct ahd_softc *ahd)
+{
+	ahd_mode_state	saved_modes;
+	uint32_t	cmd;
+	int		error;
+	uint8_t		hcntrl;
+
+	saved_modes = ahd_save_modes(ahd);
+	error = EIO;
+
+	/*
+	 * Enable PCI error interrupt status, but suppress NMIs
+	 * generated by SERR raised due to target aborts.
+	 */
+	cmd = ahd_pci_read_config(ahd->dev_softc, PCIR_COMMAND, /*bytes*/2);
+	ahd_pci_write_config(ahd->dev_softc, PCIR_COMMAND,
+			     cmd & ~PCIM_CMD_SERRESPEN, /*bytes*/2);
+
+	/*
+	 * First a simple test to see if any
+	 * registers can be read.  Reading
+	 * HCNTRL has no side effects and has
+	 * at least one bit that is guaranteed to
+	 * be zero so it is a good register to
+	 * use for this test.
+	 */
+	hcntrl = ahd_inb(ahd, HCNTRL);
+	if (hcntrl == 0xFF)
+		goto fail;
+
+	/*
+	 * Next create a situation where write combining
+	 * or read prefetching could be initiated by the
+	 * CPU or host bridge.  Our device does not support
+	 * either, so look for data corruption and/or flaged
+	 * PCI errors.
+	 */
+	ahd_outb(ahd, HCNTRL, hcntrl|PAUSE);
+	while (ahd_is_paused(ahd) == 0)
+		;
+	ahd_outb(ahd, SEQCTL0, PERRORDIS);
+	ahd_outl(ahd, SRAM_BASE, 0x5aa555aa);
+	if (ahd_inl(ahd, SRAM_BASE) != 0x5aa555aa)
+		goto fail;
+
+	if ((ahd_inb(ahd, INTSTAT) & PCIINT) != 0) {
+		u_int targpcistat;
+
+		ahd_set_modes(ahd, AHD_MODE_CFG, AHD_MODE_CFG);
+		targpcistat = ahd_inb(ahd, TARGPCISTAT);
+		if ((targpcistat & STA) != 0)
+			goto fail;
+	}
+
+	error = 0;
+
+fail:
+	if ((ahd_inb(ahd, INTSTAT) & PCIINT) != 0) {
+		u_int targpcistat;
+		u_int pci_status1;
+
+		ahd_set_modes(ahd, AHD_MODE_CFG, AHD_MODE_CFG);
+		targpcistat = ahd_inb(ahd, TARGPCISTAT);
+
+		/* Silently clear any latched errors. */
+		ahd_outb(ahd, TARGPCISTAT, targpcistat);
+		pci_status1 = ahd_pci_read_config(ahd->dev_softc,
+						  PCIR_STATUS + 1, /*bytes*/1);
+		ahd_pci_write_config(ahd->dev_softc, PCIR_STATUS + 1,
+				     pci_status1, /*bytes*/1);
+		ahd_outb(ahd, CLRINT, CLRPCIINT);
+	}
+
+	ahd_restore_modes(ahd, saved_modes);
+	ahd_outb(ahd, SEQCTL0, PERRORDIS|FAILDIS);
+	ahd_pci_write_config(ahd->dev_softc, PCIR_COMMAND, cmd, /*bytes*/2);
+	return (error);
 }
 
 /*
@@ -663,7 +757,7 @@ ahd_pci_intr(struct ahd_softc *ahd)
 
 				s = pci_status_strings[bit];
 				if (i == 7/*TARG*/ && bit == 3)
-					s = "%s: Signal Target Abort\n";
+					s = "%s: Signaled Target Abort\n";
 				printf(s, ahd_name(ahd), pci_status_source[i]);
 			}
 		}	
@@ -673,6 +767,7 @@ ahd_pci_intr(struct ahd_softc *ahd)
 	ahd_pci_write_config(ahd->dev_softc, PCIR_STATUS + 1,
 			     pci_status1, /*bytes*/1);
 	ahd_restore_modes(ahd, saved_modes);
+	ahd_outb(ahd, CLRINT, CLRPCIINT);
 	ahd_unpause(ahd);
 }
 
@@ -742,64 +837,8 @@ ahd_pci_split_intr(struct ahd_softc *ahd, u_int intstat)
 	 */
 	ahd_pci_write_config(ahd->dev_softc, PCIXR_STATUS,
 			     pcix_status, /*bytes*/2);
+	ahd_outb(ahd, CLRINT, CLRSPLTINT);
 	ahd_restore_modes(ahd, saved_modes);
-}
-
-static int
-ahd_aic7901_setup(struct ahd_softc *ahd)
-{
-	ahd_dev_softc_t pci;
-	
-	pci = ahd->dev_softc;
-	ahd->channel = 'A';
-	ahd->chip = AHD_AIC7901;
-	ahd->features = AHD_AIC7901_FE;
-	return (0);
-}
-
-static int
-ahd_aic7902_setup(struct ahd_softc *ahd)
-{
-	ahd_dev_softc_t pci;
-	u_int rev;
-	u_int devconfig1;
-
-	pci = ahd->dev_softc;
-	rev = ahd_pci_read_config(pci, PCIR_REVID, /*bytes*/1);
-	if (rev < ID_AIC7902_PCI_REV_A4) {
-		printf("%s: Unable to attach to unsupported chip revision %d\n",
-		       ahd_name(ahd), rev);
-		ahd_pci_write_config(pci, PCIR_COMMAND, 0, /*bytes*/1);
-		return (ENXIO);
-	}
-	if (rev < ID_AIC7902_PCI_REV_B0) {
-		/*
-		 * Pending request assertion does not work on the A if we have
-		 * DMA requests outstanding on both channels.  See H2A3 Razors
-		 * #327 and #365.
-		 */
-		devconfig1 = ahd_pci_read_config(pci, DEVCONFIG1, /*bytes*/1);
-		ahd_pci_write_config(pci, DEVCONFIG1,
-				     devconfig1|PREQDIS, /*bytes*/1);
-		devconfig1 = ahd_pci_read_config(pci, DEVCONFIG1, /*bytes*/1);
-		/*
-		 * Enable A series workarounds.
-		 */
-		ahd->bugs |= AHD_SENT_SCB_UPDATE_BUG|AHD_ABORT_LQI_BUG
-			  |  AHD_PKT_BITBUCKET_BUG|AHD_LONG_SETIMO_BUG
-			  |  AHD_NLQICRC_DELAYED_BUG|AHD_SCSIRST_BUG
-			  |  AHD_LQO_ATNO_BUG|AHD_AUTOFLUSH_BUG
-			  |  AHD_CLRLQO_AUTOCLR_BUG|AHD_PCIX_MMAPIO_BUG
-			  |  AHD_PCIX_CHIPRST_BUG|AHD_PKTIZED_STATUS_BUG
-			  |  AHD_PKT_LUN_BUG|AHD_MDFF_WSCBPTR_BUG
-			  |  AHD_REG_SLOW_SETTLE_BUG|AHD_SET_MODE_BUG
-			  |  AHD_BUSFREEREV_BUG;
-	}
-
-	ahd->channel = ahd_get_pci_function(pci) + 'A';
-	ahd->chip = AHD_AIC7902;
-	ahd->features = AHD_AIC7902_FE;
-	return (0);
 }
 
 static int
@@ -814,3 +853,71 @@ ahd_aic7901A_setup(struct ahd_softc *ahd)
 	return (0);
 }
 
+static int
+ahd_aic7902_setup(struct ahd_softc *ahd)
+{
+	ahd_dev_softc_t pci;
+	u_int rev;
+
+	pci = ahd->dev_softc;
+	rev = ahd_pci_read_config(pci, PCIR_REVID, /*bytes*/1);
+	if (rev < ID_AIC7902_PCI_REV_A4) {
+		printf("%s: Unable to attach to unsupported chip revision %d\n",
+		       ahd_name(ahd), rev);
+		ahd_pci_write_config(pci, PCIR_COMMAND, 0, /*bytes*/1);
+		return (ENXIO);
+	}
+	ahd->channel = ahd_get_pci_function(pci) + 'A';
+	ahd->chip = AHD_AIC7902;
+	ahd->features = AHD_AIC7902_FE;
+	if (rev < ID_AIC7902_PCI_REV_B0) {
+		/*
+		 * Enable A series workarounds.
+		 */
+		ahd->bugs |= AHD_SENT_SCB_UPDATE_BUG|AHD_ABORT_LQI_BUG
+			  |  AHD_PKT_BITBUCKET_BUG|AHD_LONG_SETIMO_BUG
+			  |  AHD_NLQICRC_DELAYED_BUG|AHD_SCSIRST_BUG
+			  |  AHD_LQO_ATNO_BUG|AHD_AUTOFLUSH_BUG
+			  |  AHD_CLRLQO_AUTOCLR_BUG|AHD_PCIX_MMAPIO_BUG
+			  |  AHD_PCIX_CHIPRST_BUG|AHD_PKTIZED_STATUS_BUG
+			  |  AHD_PKT_LUN_BUG|AHD_MDFF_WSCBPTR_BUG
+			  |  AHD_REG_SLOW_SETTLE_BUG|AHD_SET_MODE_BUG
+			  |  AHD_BUSFREEREV_BUG|AHD_NONPACKFIFO_BUG
+			  |  AHD_PACED_NEGTABLE_BUG;
+
+		/*
+		 * IO Cell paramter setup.
+		 */
+		AHD_SET_PRECOMP(ahd, AHD_PRECOMP_CUTBACK_29);
+
+		if ((ahd->flags & AHD_HP_BOARD) == 0)
+			AHD_SET_SLEWRATE(ahd, AHD_SLEWRATE_DEF_REVA);
+	} else {
+		u_int devconfig1;
+
+		ahd->features |= AHD_RTI|AHD_NEW_IOCELL_OPTS
+			      |  AHD_NEW_DFCNTRL_OPTS;
+		ahd->bugs |= AHD_LQOOVERRUN_BUG|AHD_ABORT_LQI_BUG
+			  |  AHD_INTCOLLISION_BUG;
+
+		/*
+		 * IO Cell paramter setup.
+		 */
+		AHD_SET_PRECOMP(ahd, AHD_PRECOMP_CUTBACK_29);
+		AHD_SET_SLEWRATE(ahd, AHD_SLEWRATE_DEF_REVB);
+		AHD_SET_AMPLITUDE(ahd, AHD_AMPLITUDE_DEF);
+
+		/*
+		 * Set the PREQDIS bit for H2B which disables some workaround
+		 * that doesn't work on regular PCI busses.
+		 * XXX - Find out exactly what this does from the hardware
+		 * 	 folks!
+		 */
+		devconfig1 = ahd_pci_read_config(pci, DEVCONFIG1, /*bytes*/1);
+		ahd_pci_write_config(pci, DEVCONFIG1,
+				     devconfig1|PREQDIS, /*bytes*/1);
+		devconfig1 = ahd_pci_read_config(pci, DEVCONFIG1, /*bytes*/1);
+	}
+
+	return (0);
+}

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/aic79xx_osm.c#22 $
+ * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/aic79xx_osm.c#25 $
  *
  * $FreeBSD$
  */
@@ -465,6 +465,7 @@ ahd_action(struct cam_sim *sim, union ccb *ccb)
 			hscb->cdb_len = 0;
 			scb->flags |= SCB_DEVICE_RESET;
 			hscb->control |= MK_MESSAGE;
+			hscb->task_management = SIU_TASKMGMT_LUN_RESET;
 			ahd_execute_scb(scb, NULL, 0, 0);
 		} else {
 #ifdef AHD_TARGET_MODE
@@ -488,6 +489,7 @@ ahd_action(struct cam_sim *sim, union ccb *ccb)
 				    ahd_htole16(ccb->csio.tag_id);
 			}
 #endif
+			hscb->task_management = 0;
 			if (ccb->ccb_h.flags & CAM_TAG_ACTION_VALID)
 				hscb->control |= ccb->csio.tag_action;
 			
@@ -1112,8 +1114,11 @@ ahd_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 	 && (ccb->ccb_h.flags & CAM_DIS_DISCONNECT) == 0)
 		scb->hscb->control |= DISCENB;
 
-	if ((tinfo->curr.ppr_options & MSG_EXT_PPR_IU_REQ) != 0)
+	if ((tinfo->curr.ppr_options & MSG_EXT_PPR_IU_REQ) != 0) {
 		scb->flags |= SCB_PACKETIZED;
+		if (scb->hscb->task_management != 0)
+			scb->hscb->control &= ~MK_MESSAGE;
+	}
 
 	if ((ccb->ccb_h.flags & CAM_NEGOTIATE) != 0
 	 && (tinfo->goal.width != 0
@@ -1927,7 +1932,7 @@ DB_COMMAND(ahd_in, ahd_ddb_in)
 	if (count <= 0)
 		count = 1;
 	while (--count >= 0) {
-		db_printf("%04x (M)%x: \t", addr,
+		db_printf("%04lx (M)%x: \t", (u_long)addr,
 			  ahd_inb(ahd_ddb_softc, MODE_PTR));
 		switch (size) {
 		case 1:
@@ -1986,9 +1991,9 @@ DB_SET(ahd_out, ahd_ddb_out, db_cmd_set, CS_MORE, NULL)
 			ahd_outl(ahd_ddb_softc, addr, new_value);
 			break;
 		}
-		db_printf("%04x (M)%x: \t0x%x\t=\t0x%x",
-			  addr, ahd_inb(ahd_ddb_softc, MODE_PTR),
-			  old_value, new_value);
+		db_printf("%04lx (M)%x: \t0x%lx\t=\t0x%lx",
+			  (u_long)addr, ahd_inb(ahd_ddb_softc, MODE_PTR),
+			  (u_long)old_value, (u_long)new_value);
 		addr += size;
 	}
 	db_skip_to_eol();

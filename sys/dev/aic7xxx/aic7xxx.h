@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.h#51 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.h#70 $
  *
  * $FreeBSD$
  */
@@ -98,6 +98,14 @@ struct seeprom_descriptor;
 	(SCB_GET_TARGET(ahc, scb) + (SCB_IS_SCSIBUS_B(ahc, scb) ? 8 : 0))
 #define SCB_GET_TARGET_MASK(ahc, scb) \
 	(0x01 << (SCB_GET_TARGET_OFFSET(ahc, scb)))
+#ifdef AHC_DEBUG
+#define SCB_IS_SILENT(scb)					\
+	((ahc_debug & AHC_SHOW_MASKED_ERRORS) == 0		\
+      && (((scb)->flags & SCB_SILENT) != 0))
+#else
+#define SCB_IS_SILENT(scb)					\
+	(((scb)->flags & SCB_SILENT) != 0)
+#endif
 #define TCL_TARGET_OFFSET(tcl) \
 	((((tcl) >> 4) & TID) >> 4)
 #define TCL_LUN(tcl) \
@@ -310,11 +318,11 @@ typedef enum {
  */
 typedef enum {
 	AHC_FNONE	      = 0x000,
-	AHC_PRIMARY_CHANNEL   = 0x003,/*
+	AHC_PRIMARY_CHANNEL   = 0x003,  /*
 					 * The channel that should
 					 * be probed first.
 					 */
-	AHC_USEDEFAULTS	      = 0x004,/*
+	AHC_USEDEFAULTS	      = 0x004,  /*
 					 * For cards without an seeprom
 					 * or a BIOS to initialize the chip's
 					 * SRAM, we use the default target
@@ -322,29 +330,29 @@ typedef enum {
 					 */
 	AHC_SEQUENCER_DEBUG   = 0x008,
 	AHC_SHARED_SRAM	      = 0x010,
-	AHC_LARGE_SEEPROM     = 0x020,/* Uses C56_66 not C46 */
+	AHC_LARGE_SEEPROM     = 0x020,  /* Uses C56_66 not C46 */
 	AHC_RESET_BUS_A	      = 0x040,
 	AHC_RESET_BUS_B	      = 0x080,
 	AHC_EXTENDED_TRANS_A  = 0x100,
 	AHC_EXTENDED_TRANS_B  = 0x200,
 	AHC_TERM_ENB_A	      = 0x400,
 	AHC_TERM_ENB_B	      = 0x800,
-	AHC_INITIATORROLE     = 0x1000,/*
+	AHC_INITIATORROLE     = 0x1000,  /*
 					  * Allow initiator operations on
 					  * this controller.
 					  */
-	AHC_TARGETROLE	      = 0x2000,/*
+	AHC_TARGETROLE	      = 0x2000,  /*
 					  * Allow target operations on this
 					  * controller.
 					  */
 	AHC_NEWEEPROM_FMT     = 0x4000,
 	AHC_RESOURCE_SHORTAGE = 0x8000,
-	AHC_TQINFIFO_BLOCKED  = 0x10000,/* Blocked waiting for ATIOs */
-	AHC_INT50_SPEEDFLEX   = 0x20000,/*
+	AHC_TQINFIFO_BLOCKED  = 0x10000,  /* Blocked waiting for ATIOs */
+	AHC_INT50_SPEEDFLEX   = 0x20000,  /*
 					   * Internal 50pin connector
 					   * sits behind an aic3860
 					   */
-	AHC_SCB_BTT	      = 0x40000,/*
+	AHC_SCB_BTT	      = 0x40000,  /*
 					   * The busy targets table is
 					   * stored in SCB space rather
 					   * than SRAM.
@@ -355,7 +363,9 @@ typedef enum {
 	AHC_EDGE_INTERRUPT    = 0x800000,  /* Device uses edge triggered ints */
 	AHC_39BIT_ADDRESSING  = 0x1000000, /* Use 39 bit addressing scheme. */
 	AHC_LSCBS_ENABLED     = 0x2000000, /* 64Byte SCBs enabled */
-	AHC_SCB_CONFIG_USED   = 0x4000000  /* No SEEPROM but SCB2 had info. */
+	AHC_SCB_CONFIG_USED   = 0x4000000, /* No SEEPROM but SCB2 had info. */
+	AHC_NO_BIOS_INIT      = 0x8000000, /* No BIOS left over settings. */
+	AHC_DISABLE_PCI_PERR  = 0x10000000
 } ahc_flag;
 
 /************************* Hardware  SCB Definition ***************************/
@@ -534,10 +544,27 @@ typedef enum {
 	SCB_RECOVERY_SCB	= 0x0020,
 	SCB_AUTO_NEGOTIATE	= 0x0040,/* Negotiate to achieve goal. */
 	SCB_NEGOTIATE		= 0x0080,/* Negotiation forced for command. */
-	SCB_ABORT		= 0x1000,
-	SCB_UNTAGGEDQ		= 0x2000,
-	SCB_ACTIVE		= 0x4000,
-	SCB_TARGET_IMMEDIATE	= 0x8000
+	SCB_ABORT		= 0x0100,
+	SCB_UNTAGGEDQ		= 0x0200,
+	SCB_ACTIVE		= 0x0400,
+	SCB_TARGET_IMMEDIATE	= 0x0800,
+	SCB_TRANSMISSION_ERROR	= 0x1000,/*
+					  * We detected a parity or CRC
+					  * error that has effected the
+					  * payload of the command.  This
+					  * flag is checked when normal
+					  * status is returned to catch
+					  * the case of a target not
+					  * responding to our attempt
+					  * to report the error.
+					  */
+	SCB_TARGET_SCB		= 0x2000,
+	SCB_SILENT		= 0x4000 /*
+					  * Be quiet about transmission type
+					  * errors.  They are expected and we
+					  * don't want to upset the user.  This
+					  * flag is typically used during DV.
+					  */
 } scb_flag;
 
 struct scb {
@@ -662,6 +689,11 @@ struct ahc_tmode_lstate;
 #define AHC_TRANS_GOAL		0x04	/* Modify negotiation goal */
 #define AHC_TRANS_USER		0x08	/* Modify user negotiation settings */
 
+#define AHC_WIDTH_UNKNOWN	0xFF
+#define AHC_PERIOD_UNKNOWN	0xFF
+#define AHC_OFFSET_UNKNOWN	0x0
+#define AHC_PPR_OPTS_UNKNOWN	0xFF
+
 /*
  * Transfer Negotiation Information.
  */
@@ -716,6 +748,10 @@ struct ahc_syncrate {
 	char *rate;
 };
 
+/* Safe and valid period for async negotiations. */
+#define	AHC_ASYNC_XFER_PERIOD 0x45
+#define	AHC_ULTRA2_XFER_PERIOD 0x0a
+
 /*
  * Indexes into our table of syncronous transfer rates.
  */
@@ -723,6 +759,8 @@ struct ahc_syncrate {
 #define AHC_SYNCRATE_ULTRA2	1
 #define AHC_SYNCRATE_ULTRA	3
 #define AHC_SYNCRATE_FAST	6
+#define AHC_SYNCRATE_MAX	AHC_SYNCRATE_DT
+#define	AHC_SYNCRATE_MIN	13
 
 /***************************** Lookup Tables **********************************/
 /*
@@ -797,7 +835,7 @@ struct seeprom_config {
 #define		CFSEAUTOTERM	0x0400	/* Ultra2 Perform secondary Auto Term*/
 #define		CFSELOWTERM	0x0800	/* Ultra2 secondary low term */
 #define		CFSEHIGHTERM	0x1000	/* Ultra2 secondary high term */
-#define		CFDOMAINVAL	0x4000	/* Perform Domain Validation*/
+#define		CFENABLEDV	0x4000	/* Perform Domain Validation*/
 
 /*
  * Bus Release Time, Host Adapter ID
@@ -864,6 +902,7 @@ struct ahc_suspend_state {
 };
 
 typedef void (*ahc_bus_intr_t)(struct ahc_softc *);
+typedef void ahc_callback_t (void *);
 
 struct ahc_softc {
 	bus_space_tag_t           tag;
@@ -1016,6 +1055,8 @@ struct ahc_softc {
 	/* PCI cacheline size. */
 	u_int			  pci_cachesize;
 
+	u_int			  stack_size;
+
 	/* Per-Unit descriptive information */
 	const char		 *description;
 	char			 *name;
@@ -1088,6 +1129,7 @@ void			ahc_busy_tcl(struct ahc_softc *ahc,
 struct ahc_pci_identity	*ahc_find_pci_device(ahc_dev_softc_t);
 int			 ahc_pci_config(struct ahc_softc *,
 					struct ahc_pci_identity *);
+int			 ahc_pci_test_register_access(struct ahc_softc *);
 
 /*************************** EISA/VL Front End ********************************/
 struct aic7770_identity *aic7770_find_device(uint32_t);
@@ -1186,11 +1228,20 @@ void			ahc_validate_width(struct ahc_softc *ahc,
 					   struct ahc_initiator_tinfo *tinfo,
 					   u_int *bus_width,
 					   role_t role);
+/*
+ * Negotiation types.  These are used to qualify if we should renegotiate
+ * even if our goal and current transport parameters are identical.
+ */
+typedef enum {
+	AHC_NEG_TO_GOAL,	/* Renegotiate only if goal and curr differ. */
+	AHC_NEG_IF_NON_ASYNC,	/* Renegotiate so long as goal is non-async. */
+	AHC_NEG_ALWAYS		/* Renegotiat even if goal is async. */
+} ahc_neg_type;
 int			ahc_update_neg_request(struct ahc_softc*,
 					       struct ahc_devinfo*,
 					       struct ahc_tmode_tstate*,
 					       struct ahc_initiator_tinfo*,
-					       int /*force*/);
+					       ahc_neg_type);
 void			ahc_set_width(struct ahc_softc *ahc,
 				      struct ahc_devinfo *devinfo,
 				      u_int width, u_int type, int paused);
@@ -1234,13 +1285,17 @@ extern uint32_t ahc_debug;
 #define AHC_SHOW_TERMCTL	0x0008
 #define AHC_SHOW_MEMORY		0x0010
 #define AHC_SHOW_MESSAGES	0x0020
+#define	AHC_SHOW_DV		0x0040
 #define AHC_SHOW_SELTO		0x0080
 #define AHC_SHOW_QFULL		0x0200
 #define AHC_SHOW_QUEUE		0x0400
 #define AHC_SHOW_TQIN		0x0800
-#define AHC_DEBUG_SEQUENCER	0x1000
+#define AHC_SHOW_MASKED_ERRORS	0x1000
+#define AHC_DEBUG_SEQUENCER	0x2000
 #endif
 void			ahc_print_scb(struct scb *scb);
+void			ahc_print_devinfo(struct ahc_softc *ahc,
+					  struct ahc_devinfo *dev);
 void			ahc_dump_card_state(struct ahc_softc *ahc);
 int			ahc_print_register(ahc_reg_parse_entry_t *table,
 					   u_int num_entries,

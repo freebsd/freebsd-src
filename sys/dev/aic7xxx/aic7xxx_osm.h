@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/aic7xxx_osm.h#11 $
+ * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/aic7xxx_osm.h#14 $
  *
  * $FreeBSD$
  */
@@ -58,9 +58,7 @@
 
 #if NPCI > 0
 #define AHC_PCI_CONFIG 1
-#ifdef AHC_ALLOW_MEMIO
 #include <machine/bus_memio.h>
-#endif
 #endif
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
@@ -223,6 +221,9 @@ struct scb_platform_data {
 #define ahc_le64toh(x) (x)
 #endif
 
+/************************** Timer DataStructures ******************************/
+typedef struct callout ahc_timer_t;
+
 /***************************** Core Includes **********************************/
 #if AHC_REG_PRETTY_PRINT
 #define AIC_DEBUG_REGISTERS 1
@@ -230,6 +231,30 @@ struct scb_platform_data {
 #define AIC_DEBUG_REGISTERS 0
 #endif
 #include <dev/aic7xxx/aic7xxx.h>
+
+/***************************** Timer Facilities *******************************/
+timeout_t ahc_timeout;
+
+#if __FreeBSD_version >= 500000
+#define ahc_timer_init(timer) callout_init(timer, /*mpsafe*/0)
+#else
+#define ahc_timer_init callout_init
+#endif
+#define ahc_timer_stop callout_stop
+
+static __inline void
+ahc_timer_reset(ahc_timer_t *timer, u_int usec, ahc_callback_t *func, void *arg)
+{
+	callout_reset(timer, (usec * hz)/1000000, func, arg);
+}
+
+static __inline void
+ahc_scb_timer_reset(struct scb *scb, u_int usec)
+{
+	untimeout(ahc_timeout, (caddr_t)scb, scb->io_ctx->ccb_h.timeout_ch);
+	scb->io_ctx->ccb_h.timeout_ch =
+	    timeout(ahc_timeout, scb, (usec * hz)/1000000);
+}
 
 /*************************** Device Access ************************************/
 #define ahc_inb(ahc, port)				\
@@ -557,7 +582,6 @@ ahc_platform_flushwork(struct ahc_softc *ahc)
 }
 
 /************************ Misc Function Declarations **************************/
-timeout_t ahc_timeout;
 void	  ahc_done(struct ahc_softc *ahc, struct scb *scb);
 void	  ahc_send_async(struct ahc_softc *, char /*channel*/,
 			 u_int /*target*/, u_int /*lun*/, ac_code, void *arg);
