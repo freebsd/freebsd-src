@@ -68,10 +68,12 @@ struct clist {
 struct tty;
 struct pps_state;
 struct cdev;
+struct cdevsw;
 
 typedef int t_open_t(struct tty *, struct cdev *);
 typedef void t_close_t(struct tty *);
 typedef void t_oproc_t(struct tty *);
+typedef void t_purge_t(struct tty *);
 typedef void t_stop_t(struct tty *, int);
 typedef int t_param_t(struct tty *, struct termios *);
 typedef int t_modem_t(struct tty *, int, int);
@@ -99,6 +101,7 @@ struct tty {
 	long	t_outcc;		/* Output queue statistics. */
 	int	t_line;			/* Interface to device drivers. */
 	struct cdev *t_dev;		/* Device. */
+	struct cdev *t_mdev;		/* Device. */
 	int	t_state;		/* Device and driver (TS*) state. */
 	int	t_flags;		/* Tty flags. */
 	int     t_timeout;              /* Timeout for ttywait() */
@@ -145,6 +148,7 @@ struct tty {
 	t_break_t *t_break;		/* Set break state (optional). */
 	t_ioctl_t *t_ioctl;		/* Set ioctl handling (optional). */
 	t_open_t *t_open;		/* First open */
+	t_purge_t *t_purge;		/* Purge threads */
 	t_close_t *t_close;		/* Last close */
 	__d_ioctl_t *t_cioctl;		/* Ioctl on control devices */
 };
@@ -343,10 +347,13 @@ struct tty *ttyalloc(void);
 void	 ttyblock(struct tty *tp);
 void	 ttychars(struct tty *tp);
 int	 ttycheckoutq(struct tty *tp, int wait);
+void	 ttyconsolemode(struct tty *tp, int speed);
 int	 tty_close(struct tty *tp);
+int	 ttycreate(struct tty *tp, struct cdevsw *, int unit, int flags, const char *fmt, ...) __printflike(5, 6);
 int	 ttydtrwaitsleep(struct tty *tp);
 void	 ttydtrwaitstart(struct tty *tp);
 void	 ttyflush(struct tty *tp, int rw);
+void	 ttyfree(struct tty *tp);
 void	 ttygone(struct tty *tp);
 void	 ttyinfo(struct tty *tp);
 int	 ttyinput(int c, struct tty *tp);
