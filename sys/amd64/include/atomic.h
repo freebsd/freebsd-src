@@ -74,16 +74,18 @@ u_##TYPE	atomic_load_acq_##TYPE(volatile u_##TYPE *p);	\
 void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v);
 
 #else /* !KLD_MODULE */
+
 #if defined(SMP)
 #if defined(LOCORE)
 #define	MPLOCKED	lock ;
-#else
+#else /* !LOCORE */
 #define MPLOCKED	"lock ; "
-#endif
-#else
+#endif /* LOCORE */
+#else /* !SMP */
 #define MPLOCKED
-#endif
+#endif /* SMP */
 
+#if !defined(LOCORE)
 /*
  * The assembly is volatilized to demark potential before-and-after side
  * effects if an interrupt or SMP collision were to occur.
@@ -201,8 +203,10 @@ atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 	: : "memory");				 	\
 }
 #endif	/* defined(I386_CPU) */
+#endif	/* !defined(LOCORE) */
 #endif /* KLD_MODULE */
 
+#if !defined(LOCORE)
 ATOMIC_ASM(set,	     char,  "orb %b2,%0",   v)
 ATOMIC_ASM(clear,    char,  "andb %b2,%0", ~v)
 ATOMIC_ASM(add,	     char,  "addb %b2,%0",  v)
@@ -401,4 +405,5 @@ atomic_readandclear_long(volatile u_long *addr)
 	return (result);
 }
 #endif	/* !defined(WANT_FUNCTIONS) */
+#endif	/* !defined(LOCORE) */
 #endif /* ! _MACHINE_ATOMIC_H_ */
