@@ -145,6 +145,29 @@ ufs_extattr_uepm_init(struct ufs_extattr_per_mount *uepm)
 }
 
 /*
+ * Destroy per-FS structures supporting extended attributes.  Assumes
+ * that EAs have already been stopped, and will panic if not.
+ */
+void
+ufs_extattr_uepm_destroy(struct ufs_extattr_per_mount *uepm)
+{
+
+	if (!(uepm->uepm_flags & UFS_EXTATTR_UEPM_INITIALIZED))
+		panic("ufs_extattr_uepm_destroy: not initialized");
+
+	if (!(uepm->uepm_flags & UFS_EXTATTR_UEPM_STARTED))
+		panic("ufs_extattr_uepm_destroy: called while still started");
+
+	/*
+	 * XXX: It's not clear that either order for the next two lines is
+	 * ideal, and it should never be a problem if this is only called
+	 * during unmount, and with vfs_busy().
+	 */
+	uepm->uepm_flags &= ~UFS_EXTATTR_UEPM_INITIALIZED;
+	lockdestroy(&uepm->uepm_lock);
+}
+
+/*
  * Start extended attribute support on an FS
  */
 int
@@ -855,5 +878,4 @@ ufs_extattr_vnode_inactive(struct vnode *vp, struct proc *p)
 		ufs_extattr_rm(vp, uele->uele_attrname, 0, p);
 
 	ufs_extattr_uepm_unlock(ump, p);
-	lockdestroy(&ump->um_extattr.uepm_lock);
 }
