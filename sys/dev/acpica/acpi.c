@@ -52,6 +52,7 @@
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <isa/isavar.h>
+#include <isa/pnpvar.h>
 
 #include "acpi.h"
 #include <dev/acpica/acpivar.h>
@@ -969,19 +970,7 @@ acpi_bus_alloc_gas(device_t dev, int *rid, ACPI_GENERIC_ADDRESS *gas)
     return (bus_alloc_resource_any(dev, type, rid, RF_ACTIVE));
 }
 
-/*
- * Handle ISA-like devices probing for a PnP ID to match.
- */
-#define PNP_EISAID(s)				\
-	((((s[0] - '@') & 0x1f) << 2)		\
-	 | (((s[1] - '@') & 0x18) >> 3)		\
-	 | (((s[1] - '@') & 0x07) << 13)	\
-	 | (((s[2] - '@') & 0x1f) << 8)		\
-	 | (PNP_HEXTONUM(s[4]) << 16)		\
-	 | (PNP_HEXTONUM(s[3]) << 20)		\
-	 | (PNP_HEXTONUM(s[6]) << 24)		\
-	 | (PNP_HEXTONUM(s[5]) << 28))
-
+/* Probe _HID and _CID for compatible ISA PNP ids. */
 static uint32_t
 acpi_isa_get_logicalid(device_t dev)
 {
