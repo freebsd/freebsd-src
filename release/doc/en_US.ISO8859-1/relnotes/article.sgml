@@ -657,12 +657,46 @@
       unless UFS1 is specifically requested with the
       <option>-O1</option> option.</para>
 
-    <para>&man.newsyslog.8; now supports a <literal>W</literal> flag
-      to force previously-started compression jobs for an entry (or
+    <para>&man.newsyslog.8; has a number of new features.  Among them:
+
+      <itemizedlist>
+        <listitem>
+      <para>A <literal>W</literal> flag
+      forces previously-started compression jobs for an entry (or
       group of entries specified with the <literal>G</literal> flag)
       to finish before beginning a new one.  This feature is designed
       to prevent system overloads caused by starting several
       compression jobs on big files simultaneously. &merged;</para>
+	</listitem>
+
+	<listitem>
+	  <para>A <quote>default rotate action</quote>, to be used for
+	    files specified for rotation but not specified in the
+	    configuration file. &merged;</para>
+	</listitem>
+
+	<listitem>
+	  <para>A <option>-s</option> command-line flag to disable
+	    sending signals to processes when rotating
+	    files. &merged;</para>
+	</listitem>
+
+	<listitem>
+	  <para>A <literal>N</literal> configuration file flag to
+	    indicate that no process needs to be signaled when
+	    rotating a file. &merged;</para>
+	</listitem>
+
+	<listitem>
+	  <para>A <literal>U</literal> configuration file flag to
+	    specify that a process group (rather than a single
+	    process) should be signaled when rotating
+	    files. &merged;</para>
+	</listitem>
+
+      </itemizedlist>
+
+      </para>
 
     <para>&man.nsdispatch.3; is now thread-safe and implements support
       for Name Service Switch (NSS) modules.  NSS modules may be
