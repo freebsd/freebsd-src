@@ -30,7 +30,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)getrpcent.c 1.14 91/03/11 Copyr 1984 Sun Micro";*/
-static char *rcsid = "$Id: getrpcent.c,v 1.2 1995/05/30 05:41:21 rgrimes Exp $";
+static char *rcsid = "$Id: getrpcent.c,v 1.3 1995/10/22 14:51:24 phk Exp $";
 #endif
 
 /*
@@ -66,6 +66,7 @@ struct rpcdata {
 
 #ifdef	YP
 static int	__yp_nomap = 0;
+extern int _yp_check(char **);
 #endif	/* YP */
 
 static	struct rpcent *interpret();
@@ -123,7 +124,7 @@ getrpcbynumber(number)
 no_yp:
 #endif	/* YP */
 	setrpcent(0);
-	while (p = getrpcent()) {
+	while ((p = getrpcent())) {
 		if (p->r_number == number)
 			break;
 	}
@@ -139,7 +140,7 @@ getrpcbyname(name)
 	char **rp;
 
 	setrpcent(0);
-	while (rpc = getrpcent()) {
+	while ((rpc = getrpcent())) {
 		if (strcmp(rpc->r_name, name) == 0)
 			return (rpc);
 		for (rp = rpc->r_aliases; *rp != NULL; rp++) {

@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)clnt_simple.c 1.35 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)clnt_simple.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: clnt_simple.c,v 1.2 1995/05/30 05:41:17 rgrimes Exp $";
+static char *rcsid = "$Id: clnt_simple.c,v 1.3 1995/10/22 14:51:17 phk Exp $";
 #endif
 
 /*
@@ -55,8 +55,9 @@ static struct callrpc_private {
 	char	*oldhost;
 } *callrpc_private;
 
-callrpc(host, prognum, versnum, procnum, inproc, in, outproc, out)
+int callrpc(host, prognum, versnum, procnum, inproc, in, outproc, out)
 	char *host;
+	int prognum, versnum, procnum;
 	xdrproc_t inproc, outproc;
 	char *in, *out;
 {
