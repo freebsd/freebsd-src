@@ -3436,9 +3436,9 @@ softdep_disk_prewrite(struct vnode *vp, struct buf *bp)
 	    vp->v_rdev->si_copyonwrite &&
 	    (error = (*vp->v_rdev->si_copyonwrite)(vp, bp)) != 0 &&
 	    error != EOPNOTSUPP) {
-		bp->b_io.bio_error = error;
-		bp->b_io.bio_flags |= BIO_ERROR;
-		biodone(&bp->b_io);
+		bp->b_error = error;
+		bp->b_ioflags |= BIO_ERROR;
+		bufdone(bp);
 		return (1);
 	}
 	return (0);

@@ -495,9 +495,9 @@ spec_xstrategy(struct vnode *vp, struct buf *bp)
 	}
 	dsw = devsw(bp->b_dev);
 	if (dsw == NULL) {
-		bp->b_io.bio_error = ENXIO;
-		bp->b_io.bio_flags |= BIO_ERROR;
-		biodone(&bp->b_io);
+		bp->b_error = ENXIO;
+		bp->b_ioflags |= BIO_ERROR;
+		bufdone(bp);
 		return (0);
 	}
 	KASSERT(dsw->d_strategy != NULL,
