@@ -206,7 +206,10 @@ mkfs(pp, fsys, fi, fo)
 			}
 			close(fd);
 		} else {
-			if (fssize * sectorsize > memleft)
+#ifndef STANDALONE
+			get_memleft();
+#endif
+			if (fssize * sectorsize > (memleft - 16384))
 				fssize = (memleft - 16384) / sectorsize;
 			if ((membase = malloc(fssize * sectorsize)) == 0) {
 				perror("malloc");
@@ -1210,6 +1213,19 @@ raise_data_limit()
 		perror("setrlimit");
 }
 
+get_memleft()
+{
+	char *base;
+	static u_long pgsz, i;
+	struct rlimit rlp;
+
+	base = sbrk(0);
+	pgsz = getpagesize() - 1;
+	i = ((u_long)(base + pgsz) &~ pgsz);
+	if (getrlimit(RLIMIT_DATA, &rlp) < 0)
+		perror("getrlimit");
+	memleft = rlp.rlim_cur - (u_long)base - i;
+}
 #endif  /* STANDALONE */
 
 /*
