@@ -94,14 +94,12 @@ ed_cbus_probe(device_t dev)
 #endif
 
 	/* If the card had a PnP ID that didn't match any we know about */
-	if (error == ENXIO) {
+	if (error == ENXIO)
 		goto end;
-	}
 
 	/* If we had some other problem. */
-	if (!(error == 0 || error == ENOENT)) {
+	if (!(error == 0 || error == ENOENT))
 		goto end;
-	}
 
 	/* Heuristic probes */
 #ifdef ED_DEBUG
@@ -118,9 +116,8 @@ ed_cbus_probe(device_t dev)
 		 * SMC EtherEZ98
 		 */
 		error = ed_probe_EZ98(dev, 0, flags);
-		if (error == 0) {
+		if (error == 0)
 			goto end;
-		}
 
 		ed_release_resources(dev);
 
@@ -128,10 +125,8 @@ ed_cbus_probe(device_t dev)
 		 * Allied Telesis CenterCom LA-98-T
 		 */
 		error = ed_probe_Novell(dev, 0, flags);
-		if (error == 0) {
+		if (error == 0)
 			goto end;
-		}
-
 		break;
 
 	/*
@@ -165,9 +160,7 @@ ed_cbus_probe(device_t dev)
 		/*
 		 * NextCom NC5098
 		 */
-
 		error = ed98_probe_Novell(dev, 0, flags);
-
 		break;
 
 	/*
@@ -178,7 +171,6 @@ ed_cbus_probe(device_t dev)
 		 * Allied Telesis SIC-98
 		 */
 		error = ed_probe_SIC98(dev, 0, flags);
-
 		break;
 
 	case ED_TYPE98_CNET98EL:
@@ -186,7 +178,6 @@ ed_cbus_probe(device_t dev)
 		 * Contec C-NET(98)E/L
 		 */
 		error = ed_probe_CNET98EL(dev, 0, flags);
-
 		break;
 
 	case ED_TYPE98_CNET98:
@@ -194,7 +185,6 @@ ed_cbus_probe(device_t dev)
 		 * Contec C-NET(98)
 		 */
 		error = ed_probe_CNET98(dev, 0, flags);
-
 		break;
 
 	case ED_TYPE98_LA98:
@@ -203,7 +193,6 @@ ed_cbus_probe(device_t dev)
 		 * NEC PC-9801-77,78
 		 */
 		error = ed_probe_NEC77(dev, 0, flags);
-
 		break;
 
 	case ED_TYPE98_NW98X:
@@ -211,7 +200,6 @@ ed_cbus_probe(device_t dev)
 		 * Networld EC/EP-98X
 		 */
 		error = ed_probe_NW98X(dev, 0, flags);
-
 		break;
 
 	case ED_TYPE98_SB98:
@@ -219,9 +207,7 @@ ed_cbus_probe(device_t dev)
 		 * Soliton SB-9801
 		 * Fujikura FN-9801
 		 */
-
 		error = ed_probe_SB98(dev, 0, flags);
-
 		break;
 	}
 
@@ -245,11 +231,10 @@ ed_cbus_attach(dev)
 	int error;
 
 	if (sc->port_used > 0) {
-		if (ED_TYPE98(flags) == ED_TYPE98_GENERIC) {
+		if (ED_TYPE98(flags) == ED_TYPE98_GENERIC)
 			ed_alloc_port(dev, sc->port_rid, sc->port_used);
-		} else {
+		else
 			ed98_alloc_port(dev, sc->port_rid);
-		}
 	}
 	if (sc->mem_used)
 		ed_alloc_memory(dev, sc->mem_rid, sc->mem_used);
@@ -257,7 +242,7 @@ ed_cbus_attach(dev)
 	ed_alloc_irq(dev, sc->irq_rid, 0);
 
 	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
-			       edintr, sc, &sc->irq_handle);
+	    edintr, sc, &sc->irq_handle);
 	if (error) {
 		ed_release_resources(dev);
 		return (error);
@@ -543,15 +528,13 @@ ed98_alloc_port(device_t dev, int rid)
 	}
 
 	bcopy(io_nic, io_res, sizeof(io_nic[0]) * ED_NOVELL_ASIC_OFFSET);
-	for (i = ED_NOVELL_ASIC_OFFSET; i < ED_NOVELL_IO_PORTS; i++) {
+	for (i = ED_NOVELL_ASIC_OFFSET; i < ED_NOVELL_IO_PORTS; i++)
 		io_res[i] = io_asic[i - ED_NOVELL_ASIC_OFFSET] + offset;
-	}
 
-	res = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &rid,
-				  io_res, n, RF_ACTIVE);
-	if (!res) {
+	res = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &rid, io_res, n,
+	    RF_ACTIVE);
+	if (!res)
 		return (ENOENT);
-	}
 
 	sc->port_rid = rid;
 	sc->port_res = res;
@@ -569,9 +552,8 @@ ed98_alloc_port(device_t dev, int rid)
 		adj = (rman_get_start(res) & 0xf000) / 2;
 		offset = (offset | adj) - rman_get_start(res);
 
-		for (n = ED_NOVELL_ASIC_OFFSET; n < ED_NOVELL_IO_PORTS; n++) {
+		for (n = ED_NOVELL_ASIC_OFFSET; n < ED_NOVELL_IO_PORTS; n++)
 			io_res[n] = io_asic[n - ED_NOVELL_ASIC_OFFSET] + offset;
-		}
 		break;
 
 	case ED_TYPE98_CNET98:
@@ -579,9 +561,8 @@ ed98_alloc_port(device_t dev, int rid)
 		offset = 1;
 
 		bcopy(io_nic, io_res, sizeof(io_nic[0]) * ED_NOVELL_ASIC_OFFSET);
-		for (n = ED_NOVELL_ASIC_OFFSET; n < ED_NOVELL_IO_PORTS; n++) {
+		for (n = ED_NOVELL_ASIC_OFFSET; n < ED_NOVELL_IO_PORTS; n++)
 			io_res[n] = io_asic[n - ED_NOVELL_ASIC_OFFSET] + offset;
-		}
 		break;
 
 	case ED_TYPE98_NC5098:
@@ -589,10 +570,9 @@ ed98_alloc_port(device_t dev, int rid)
 		break;
 	}
 
-	if (reset != ED_NOVELL_RESET) {
+	if (reset != ED_NOVELL_RESET)
 		io_res[ED_NOVELL_ASIC_OFFSET + ED_NOVELL_RESET] =
 			io_res[ED_NOVELL_ASIC_OFFSET + reset];
-	}
 	if (data  != ED_NOVELL_DATA) {
 		io_res[ED_NOVELL_ASIC_OFFSET + ED_NOVELL_DATA] =
 			io_res[ED_NOVELL_ASIC_OFFSET + data];
@@ -603,14 +583,12 @@ ed98_alloc_port(device_t dev, int rid)
 	}
 
 	error = isa_load_resourcev(res, io_res, n);
-	if (error != 0) {
+	if (error != 0)
 		return (ENOENT);
-	}
 #ifdef ED_DEBUG
 	device_printf(dev, "ed98_alloc_port: i/o ports = %d\n", n);
-	for (i = 0; i < n; i++) {
+	for (i = 0; i < n; i++)
 		printf("%x,", io_res[i]);
-	}
 	printf("\n");
 #endif
 	return (0);
@@ -625,20 +603,17 @@ ed98_alloc_memory(dev, rid)
 	int error;
 	u_long conf_maddr, conf_msize;
 
-	error = bus_get_resource(dev, SYS_RES_MEMORY, 0,
-				 &conf_maddr, &conf_msize);
-	if (error) {
+	error = bus_get_resource(dev, SYS_RES_MEMORY, 0, &conf_maddr,
+	    &conf_msize);
+	if (error)
 		return (error);
-	}
 
-	if ((conf_maddr == 0) || (conf_msize == 0)) {
+	if ((conf_maddr == 0) || (conf_msize == 0))
 		return (ENXIO);
-	}
 
 	error = ed_alloc_memory(dev, rid, (int) conf_msize);
-	if (error) {
+	if (error)
 		return (error);
-	}
 
 	sc->mem_start = (caddr_t) rman_get_virtual(sc->mem_res);
 	sc->mem_size  = conf_msize;
@@ -675,9 +650,8 @@ ed98_probe_generic8390(struct ed_softc *sc)
 	printf("ed?: inb(ED_P0_CR)=%x\n", tmp);
 #endif
 	if ((tmp & (ED_CR_RD2 | ED_CR_TXP | ED_CR_STA | ED_CR_STP)) !=
-	    (ED_CR_RD2 | ED_CR_STP)) {
+	    (ED_CR_RD2 | ED_CR_STP))
 		return (0);
-	}
 
 	(void) ed_nic_inb(sc, ED_P0_ISR);
 
@@ -696,9 +670,8 @@ ed98_probe_Novell(device_t dev, int port_rid, int flags)
 	device_printf(dev, "ed98_probe_Novell: start\n");
 #endif
 	error = ed98_alloc_port(dev, port_rid);
-	if (error) {
+	if (error)
 		return (error);
-	}
 
 	sc->asic_offset = ED_NOVELL_ASIC_OFFSET;
 	sc->nic_offset  = ED_NOVELL_NIC_OFFSET;
@@ -750,19 +723,17 @@ ed98_probe_Novell(device_t dev, int port_rid, int flags)
 	DELAY(5000);
 
 	/* Make sure that we really have an 8390 based board */
-	if (!ed98_probe_generic8390(sc)) {
+	if (!ed98_probe_generic8390(sc))
 		return (ENXIO);
-	}
 
 	/* Test memory via PIO */
 #ifdef ED_DEBUG
 	device_printf(dev, "ed98_probe_Novell: test memory\n");
 #endif
 	sc->cr_proto = ED_CR_RD2;
-	if (!ed_pio_testmem(sc,  8192, 0, flags)
-	&&  !ed_pio_testmem(sc, 16384, 1, flags)) {
+	if (!ed_pio_testmem(sc,  8192, 0, flags) &&
+	    !ed_pio_testmem(sc, 16384, 1, flags))
 		return (ENXIO);
-	}
 
 	/* Setup the board type */
 #ifdef ED_DEBUG
@@ -801,18 +772,16 @@ ed98_probe_Novell(device_t dev, int port_rid, int flags)
 	/* Get station address */
 	switch (sc->type) {
 	case ED_TYPE98_NC5098:
-		for (n = 0; n < ETHER_ADDR_LEN; n++) {
+		for (n = 0; n < ETHER_ADDR_LEN; n++)
 			sc->arpcom.ac_enaddr[n] =
 				ed_asic_inb(sc, ED_NC5098_ENADDR + n);
-		}
 		break;
 
 	default:
 		ed_pio_readmem(sc, 0, romdata, sizeof(romdata));
-		for (n = 0; n < ETHER_ADDR_LEN; n++) {
+		for (n = 0; n < ETHER_ADDR_LEN; n++)
 			sc->arpcom.ac_enaddr[n] =
 				romdata[n * (sc->isa16bit + 1)];
-		}
 		break;
 	}
 
@@ -838,17 +807,15 @@ ed_probe_SIC98(device_t dev, int port_rid, int flags)
 	 * Kernel Virtual to segment C0000-DFFFF????
 	 */
 	error = ed98_alloc_port(dev, port_rid);
-	if (error) {
+	if (error)
 		return (error);
-	}
 
 	sc->asic_offset = ED_SIC_ASIC_OFFSET;
 	sc->nic_offset  = ED_SIC_NIC_OFFSET;
 
 	error = ed98_alloc_memory(dev, 0);
-	if (error) {
+	if (error)
 		return (error);
-	}
 
 	/* Reset card to force it into a known state. */
 	ed_asic_outb(sc, 0, 0x00);
@@ -874,20 +841,17 @@ ed_probe_SIC98(device_t dev, int port_rid, int flags)
 	 * an SIC card.
 	 */
 	sum = sc->mem_start[6 * 2];
-	for (i = 0; i < ETHER_ADDR_LEN; i++) {
+	for (i = 0; i < ETHER_ADDR_LEN; i++)
 		sum ^= (sc->arpcom.ac_enaddr[i] = sc->mem_start[i * 2]);
-	}
 #ifdef ED_DEBUG
 	device_printf(dev, "ed_probe_sic98: got address %6D\n",
 		      sc->arpcom.ac_enaddr, ":");
 #endif
-	if (sum != 0) {
+	if (sum != 0)
 		return (ENXIO);
-	}
 	if ((sc->arpcom.ac_enaddr[0] | sc->arpcom.ac_enaddr[1] |
-	     sc->arpcom.ac_enaddr[2]) == 0) {
+	     sc->arpcom.ac_enaddr[2]) == 0)
 		return (ENXIO);
-	}
 
 	sc->vendor   = ED_VENDOR_SIC;
 	sc->type_str = "SIC98";
@@ -897,11 +861,10 @@ ed_probe_SIC98(device_t dev, int port_rid, int flags)
 	/*
 	 * SIC RAM page 0x0000-0x3fff(or 0x7fff)
 	 */
-	if (ED_TYPE98SUB(flags) == 0) {
+	if (ED_TYPE98SUB(flags) == 0)
 		ed_asic_outb(sc, 0, 0x90);
-	} else {
+	else
 		ed_asic_outb(sc, 0, 0x8e);
-	}
 	DELAY(100);
 
 	error = ed_clear_memory(dev);
@@ -914,11 +877,10 @@ ed_probe_SIC98(device_t dev, int port_rid, int flags)
 	/*
 	 * allocate one xmit buffer if < 16k, two buffers otherwise
 	 */
-	if ((sc->mem_size < 16384) || (flags & ED_FLAGS_NO_MULTI_BUFFERING)) {
+	if ((sc->mem_size < 16384) || (flags & ED_FLAGS_NO_MULTI_BUFFERING))
 		sc->txb_cnt = 1;
-	} else {
+	else
 		sc->txb_cnt = 2;
-	}
 	sc->tx_page_start = 0;
 
 	sc->rec_page_start = sc->tx_page_start + ED_TXBUF_SIZE * sc->txb_cnt;
@@ -1039,17 +1001,15 @@ ed_probe_CNET98(device_t dev, int port_rid, int flags)
 #endif
 
 	error = ed98_alloc_port(dev, port_rid);
-	if (error) {
+	if (error)
 		return (error);
-	}
 
 	sc->asic_offset = ED_NOVELL_ASIC_OFFSET;
 	sc->nic_offset  = ED_NOVELL_NIC_OFFSET;
 
 	error = ed98_alloc_memory(dev, 0);
-	if (error) {
+	if (error)
 		return (error);
-	}
 
 	/* Check I/O address. 0x[a-f]3d0 are allowed. */
 	if (((rman_get_start(sc->port_res) & 0x0fff) != 0x03d0)
@@ -1094,9 +1054,8 @@ ed_probe_CNET98(device_t dev, int port_rid, int flags)
 	DELAY(5000);
 
 	/* Make sure that we really have an 8390 based board */
-	if (!ed98_probe_generic8390(sc)) {
+	if (!ed98_probe_generic8390(sc))
 		return (ENXIO);
-	}
 
 	/*
 	 *  Set window ethernet address area
@@ -1138,8 +1097,7 @@ ed_probe_CNET98(device_t dev, int port_rid, int flags)
 	/*
 	 *   Set interrupt level
 	 */
-	error = bus_get_resource(dev, SYS_RES_IRQ, 0,
-				 &conf_irq, &junk);
+	error = bus_get_resource(dev, SYS_RES_IRQ, 0, &conf_irq, &junk);
 	if (error)
 		return (error);
 
@@ -1194,9 +1152,8 @@ ed_probe_CNET98EL(device_t dev, int port_rid, int flags)
 	u_long conf_irq, junk;
 
 	error = ed98_alloc_port(dev, port_rid);
-	if (error) {
+	if (error)
 		return (error);
-	}
 
 	sc->asic_offset = ED_NOVELL_ASIC_OFFSET;
 	sc->nic_offset  = ED_NOVELL_NIC_OFFSET;
@@ -1224,15 +1181,13 @@ ed_probe_CNET98EL(device_t dev, int port_rid, int flags)
 	DELAY(5000);
 
 	/* Make sure that we really have an 8390 based board */
-	if (!ed98_probe_generic8390(sc)) {
+	if (!ed98_probe_generic8390(sc))
 		return (ENXIO);
-	}
 
 	/* Test memory via PIO */
 	sc->cr_proto = ED_CR_RD2;
-	if (!ed_pio_testmem(sc, ED_CNET98EL_PAGE_OFFSET, 1, flags)) {
+	if (!ed_pio_testmem(sc, ED_CNET98EL_PAGE_OFFSET, 1, flags))
 		return (ENXIO);
-	}
 
 	/* This looks like a C-NET(98)E/L board. */
 	sc->type_str = "CNET98E/L";
@@ -1240,11 +1195,9 @@ ed_probe_CNET98EL(device_t dev, int port_rid, int flags)
 	/*
 	 * Set IRQ. C-NET(98)E/L only allows a choice of irq 3,5,6.
 	 */
-	error = bus_get_resource(dev, SYS_RES_IRQ, 0,
-				 &conf_irq, &junk);
-	if (error) {
+	error = bus_get_resource(dev, SYS_RES_IRQ, 0, &conf_irq, &junk);
+	if (error)
 		return (error);
-	}
 
 	switch (conf_irq) {
 	case 3:
@@ -1271,9 +1224,8 @@ ed_probe_CNET98EL(device_t dev, int port_rid, int flags)
 
 	/* Get station address from on-board ROM */
 	ed_pio_readmem(sc, 16384, romdata, sizeof(romdata));
-	for (i = 0; i < ETHER_ADDR_LEN; i++) {
+	for (i = 0; i < ETHER_ADDR_LEN; i++)
 		sc->arpcom.ac_enaddr[i] = romdata[i * 2];
-	}
 
 	/* clear any pending interrupts that might have occurred above */
 	ed_nic_outb(sc, ED_P0_ISR, 0xff);
@@ -1293,23 +1245,19 @@ ed_probe_NEC77(device_t dev, int port_rid, int flags)
 	u_long conf_irq, junk;
 
 	error = ed98_probe_Novell(dev, port_rid, flags);
-	if (error) {
+	if (error)
 		return (error);
-	}
 
 	/* LA/T-98 does not need IRQ setting. */
-	if (ED_TYPE98SUB(flags) == 0) {
+	if (ED_TYPE98SUB(flags) == 0)
 		return (0);
-	}
 
 	/*
 	 * Set IRQ. PC-9801-77 only allows a choice of irq 3,5,6,12,13.
 	 */
-	error = bus_get_resource(dev, SYS_RES_IRQ, 0,
-				 &conf_irq, &junk);
-	if (error) {
+	error = bus_get_resource(dev, SYS_RES_IRQ, 0, &conf_irq, &junk);
+	if (error)
 		return (error);
-	}
 
 	switch (conf_irq) {
 	case 3:
@@ -1349,23 +1297,19 @@ ed_probe_NW98X(device_t dev, int port_rid, int flags)
 	u_long conf_irq, junk;
 
 	error = ed98_probe_Novell(dev, port_rid, flags);
-	if (error) {
+	if (error)
 		return (error);
-	}
 
 	/* Networld 98X3 does not need IRQ setting. */
-	if (ED_TYPE98SUB(flags) == 0) {
+	if (ED_TYPE98SUB(flags) == 0)
 		return (0);
-	}
 
 	/*
 	 * Set IRQ. EC/EP-98X only allows a choice of irq 3,5,6,12,13.
 	 */
-	error = bus_get_resource(dev, SYS_RES_IRQ, 0,
-				 &conf_irq, &junk);
-	if (error) {
+	error = bus_get_resource(dev, SYS_RES_IRQ, 0, &conf_irq, &junk);
+	if (error)
 		return (error);
-	}
 
 	switch (conf_irq) {
 	case 3:
@@ -1477,9 +1421,8 @@ ed_probe_SB98(device_t dev, int port_rid, int flags)
 	u_long conf_irq, junk;
 
 	error = ed98_alloc_port(dev, port_rid);
-	if (error) {
+	if (error)
 		return (error);
-	}
 
 	sc->asic_offset = ED_NOVELL_ASIC_OFFSET;
 	sc->nic_offset  = ED_NOVELL_NIC_OFFSET;
@@ -1488,8 +1431,8 @@ ed_probe_SB98(device_t dev, int port_rid, int flags)
 	if ((rman_get_start(sc->port_res) & ~0x000e) != 0x00d0) {
 #ifdef DIAGNOSTIC
 		device_printf(dev, "Invalid i/o port configuration (0x%lx) "
-			"must be %s for %s\n", rman_get_start(sc->port_res),
-			"0xd?", "SB9801");
+		    "must be %s for %s\n", rman_get_start(sc->port_res),
+		    "0xd?", "SB9801");
 #endif
 		return (ENXIO);
 	}
@@ -1505,11 +1448,9 @@ ed_probe_SB98(device_t dev, int port_rid, int flags)
 	 * Check IRQ. Soliton SB-9801 only allows a choice of
 	 * irq 3,5,6,12
 	 */
-	error = bus_get_resource(dev, SYS_RES_IRQ, 0,
-				 &conf_irq, &junk);
-	if (error) {
+	error = bus_get_resource(dev, SYS_RES_IRQ, 0, &conf_irq, &junk);
+	if (error)
 		return (error);
-	}
 
 	switch (conf_irq) {
 	case 3:
@@ -1530,9 +1471,8 @@ ed_probe_SB98(device_t dev, int port_rid, int flags)
 		return (ENXIO);
 	}
 
-	if (flags & ED_FLAGS_DISABLE_TRANCEIVER) {
+	if (flags & ED_FLAGS_DISABLE_TRANCEIVER)
 		tmp |= ED_SB98_CFG_ALTPORT;
-	}
 	ed_asic_outb(sc, ED_SB98_CFG, ED_SB98_CFG_ENABLE | tmp);
 	ed_asic_outb(sc, ED_SB98_POLARITY, 0x01);
 
@@ -1552,9 +1492,8 @@ ed_probe_SB98(device_t dev, int port_rid, int flags)
 	DELAY(5000);
 
 	/* Make sure that we really have an 8390 based board */
-	if (!ed98_probe_generic8390(sc)) {
+	if (!ed98_probe_generic8390(sc))
 		return (ENXIO);
-	}
 
 	/* Test memory via PIO */
 	sc->cr_proto = ED_CR_RD2;
@@ -1609,7 +1548,7 @@ ed_pio_testmem(struct ed_softc *sc, int page_offset, int isa16bit, int flags)
 	ed_nic_outb(sc, ED_P0_PSTOP, (page_offset + memsize) / ED_PAGE_SIZE);
 #ifdef ED_DEBUG
 	printf("ed?: ed_pio_testmem: page start=%x, end=%lx",
-		      page_offset, page_offset + memsize);
+	    page_offset, page_offset + memsize);
 #endif
 
 	/*
@@ -1621,8 +1560,7 @@ ed_pio_testmem(struct ed_softc *sc, int page_offset, int isa16bit, int flags)
 
 	if (bcmp(test_pattern, test_buffer, sizeof(test_pattern))) {
 #ifdef ED_DEBUG
-		printf("ed?: ed_pio_testmem: bcmp(page %x) NG",
-			      page_offset);
+		printf("ed?: ed_pio_testmem: bcmp(page %x) NG", page_offset);
 #endif
 		return (0);
 	}
@@ -1635,8 +1573,7 @@ ed_pio_testmem(struct ed_softc *sc, int page_offset, int isa16bit, int flags)
 
 	if (bcmp(test_pattern, test_buffer, sizeof(test_pattern))) {
 #ifdef ED_DEBUG
-		printf("ed?: ed_pio_testmem: bcmp(page %x) NG",
-			      page_end);
+		printf("ed?: ed_pio_testmem: bcmp(page %x) NG", page_end);
 #endif
 		return (0);
 	}
@@ -1650,11 +1587,10 @@ ed_pio_testmem(struct ed_softc *sc, int page_offset, int isa16bit, int flags)
 	 * Use one xmit buffer if < 16k, two buffers otherwise (if not told
 	 * otherwise).
 	 */
-	if ((memsize < 16384) || (flags & ED_FLAGS_NO_MULTI_BUFFERING)) {
+	if ((memsize < 16384) || (flags & ED_FLAGS_NO_MULTI_BUFFERING))
 		sc->txb_cnt = 1;
-	} else {
+	else
 		sc->txb_cnt = 2;
-	}
 
 	sc->rec_page_start = sc->tx_page_start + sc->txb_cnt * ED_TXBUF_SIZE;
 	sc->rec_page_stop  = sc->tx_page_start + memsize / ED_PAGE_SIZE;
