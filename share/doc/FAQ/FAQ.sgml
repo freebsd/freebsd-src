@@ -1,10 +1,11 @@
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
+<!-- $Id$ -->
 
   <article>
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: FAQ.sgml,v 1.7 1996/10/06 12:36:30 jkh Exp $
+<date> $Id: FAQ.sgml,v 1.8 1996/10/06 12:46:42 jkh Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -1939,7 +1940,8 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
           leave a virtual terminal unused (or turned off).  For example, if
           you want to attach a virtual terminal to all of your twelve
           Alt-function keys, you can only attach virtual terminals to
-          eleven of them.  The last must be left unused, because X Windows
+          eleven of them.  The last must be left unused, because 
+	  X Window System
           will use it, and you will use the last Alt-function key to switch
           back to X Window (after you have switched from X Window to a
           virtual console via a Ctrl-Alt-function key).  The easiest way to

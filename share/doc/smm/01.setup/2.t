@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)2.t	8.1 (Berkeley) 7/27/93
-.\"	$Id$
+.\"	$Id: 2.t,v 1.3 1996/10/05 18:37:17 wosch Exp $
 .\"
 .ds lq ``
 .ds rq ''
@@ -1008,7 +1008,7 @@ DEC 5000:	setenv bootpath 5/rz?/kernel -a
 .IP 4)
 After booting UNIX, you will need to create
 .Pn /dev/mouse
-to run X windows as in the following example.
+to run X Window System as in the following example.
 .DS
 .ft CW
 rm /dev/mouse
