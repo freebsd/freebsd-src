@@ -611,6 +611,9 @@ DMenu MenuMediaFTP = {
       { " Ireland #3",	"ftp3.ie.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp3.ie.freebsd.org" },
 
+      { "Italy",	"ftp.it.freebsd.org", NULL, dmenuSetVariable, NULL,
+	VAR_FTP_PATH "=ftp://ftp.it.freebsd.org" },
+
       { "Japan",	"ftp.jp.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.jp.freebsd.org" },
       { " Japan #2",	"ftp2.jp.freebsd.org", NULL, dmenuSetVariable, NULL,
@@ -625,6 +628,10 @@ DMenu MenuMediaFTP = {
 	VAR_FTP_PATH "=ftp://ftp6.jp.freebsd.org" },
       { " Japan #7",	"ftp7.jp.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp7.jp.freebsd.org" },
+      { " Japan #8",	"ftp8.jp.freebsd.org", NULL, dmenuSetVariable, NULL,
+	VAR_FTP_PATH "=ftp://ftp8.jp.freebsd.org" },
+      { " Japan #9",	"ftp9.jp.freebsd.org", NULL, dmenuSetVariable, NULL,
+	VAR_FTP_PATH "=ftp://ftp9.jp.freebsd.org" },
 
       { "Korea",	"ftp.kr.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.kr.freebsd.org" },
@@ -648,6 +655,8 @@ DMenu MenuMediaFTP = {
 
       { "Poland",	"ftp.pl.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.pl.freebsd.org" },
+      { " Poland #2",	"ftp2.pl.freebsd.org", NULL, dmenuSetVariable, NULL,
+	VAR_FTP_PATH "=ftp://ftp2.pl.freebsd.org" },
 
       { "Portugal",	"ftp.pt.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.pt.freebsd.org" },
@@ -676,6 +685,8 @@ DMenu MenuMediaFTP = {
 
       { "Slovenia",	"ftp.si.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.si.freebsd.org" },
+      { " Slovenia #2",	"ftp2.si.freebsd.org", NULL, dmenuSetVariable, NULL,
+	VAR_FTP_PATH "=ftp://ftp2.si.freebsd.org" },
 
       { "South Africa",	"ftp.za.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.za.freebsd.org" },
@@ -717,6 +728,8 @@ DMenu MenuMediaFTP = {
 	VAR_FTP_PATH "=ftp://ftp4.tw.freebsd.org" },
       { " Taiwan #6",   "ftp6.tw.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp6.tw.freebsd.org" },
+      { " Taiwan #11",   "ftp11.tw.freebsd.org", NULL, dmenuSetVariable, NULL,
+	VAR_FTP_PATH "=ftp://ftp11.tw.freebsd.org" },
 
       { "UK",		"ftp.uk.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.uk.freebsd.org" },
@@ -737,6 +750,10 @@ DMenu MenuMediaFTP = {
 	VAR_FTP_PATH "=ftp://ftp2.ua.freebsd.org" },
       { " Ukraine #3",	"ftp3.ua.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp3.ua.freebsd.org" },
+      { " Ukraine #6",	"ftp6.ua.freebsd.org", NULL, dmenuSetVariable, NULL,
+	VAR_FTP_PATH "=ftp://ftp6.ua.freebsd.org" },
+      { " Ukraine #7",	"ftp7.ua.freebsd.org", NULL, dmenuSetVariable, NULL,
+	VAR_FTP_PATH "=ftp://ftp7.ua.freebsd.org" },
 
       { "USA #1",	"ftp1.us.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp1.us.freebsd.org" },
