@@ -163,6 +163,7 @@ NON_GPROF_ENTRY(btext)
 	movl	_nfs_diskless_size-KERNBASE,%ecx
 	movl	20(%esp),%esi
 	movl	$(_nfs_diskless-KERNBASE),%edi
+	cld
 	rep
 	movsb
 #endif
@@ -367,6 +368,7 @@ NON_GPROF_ENTRY(btext)
 	movl	$_gdt-KERNBASE,%edi
 	movl	%edi,2(%esp)
 	movl	$8*18/4,%ecx
+	cld
 	rep					/* copy gdt */
 	movsl
 	movl	$_gdt-KERNBASE,-8+2(%edi)	/* adjust gdt self-ptr */
@@ -388,6 +390,7 @@ NON_GPROF_ENTRY(btext)
 	movl	$_idt-KERNBASE,%edi
 	movl	%edi,6+2(%esp)
 	movl	$8*4/4,%ecx
+	cld
 	rep					/* copy idt */
 	movsl
 
