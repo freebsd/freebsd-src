@@ -400,6 +400,15 @@ vop_strategy {
 };
 
 #
+# specstrategy	vp	L L L
+#! specstrategy	pre	vop_strategy_pre
+#
+vop_specstrategy {
+	IN struct vnode *vp;
+	IN struct buf *bp;
+};
+
+#
 #% getwritemount vp	= = =
 #
 vop_getwritemount {

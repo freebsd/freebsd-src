@@ -164,7 +164,7 @@ swapdev_strategy(ap)
 	}
 	bp->b_vp = sp->sw_vp;
 	splx(s);
-	VOP_STRATEGY(bp->b_vp, bp);
+	VOP_SPECSTRATEGY(bp->b_vp, bp);
 	return 0;
 }
 

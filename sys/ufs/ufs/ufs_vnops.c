@@ -1968,7 +1968,7 @@ ufs_strategy(ap)
 	}
 	vp = ip->i_devvp;
 	bp->b_dev = vp->v_rdev;
-	VOP_STRATEGY(vp, bp);
+	VOP_SPECSTRATEGY(vp, bp);
 	return (0);
 }
 
