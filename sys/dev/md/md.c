@@ -490,8 +490,10 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 	auio.uio_segflg = UIO_SYSSPACE;
 	if(bp->bio_cmd == BIO_READ)
 		auio.uio_rw = UIO_READ;
-	else
+	else if(bp->bio_cmd == BIO_WRITE)
 		auio.uio_rw = UIO_WRITE;
+	else
+		panic("wrong BIO_OP in mdstart_vnode");
 	auio.uio_resid = bp->bio_bcount;
 	auio.uio_td = curthread;
 	/*
@@ -512,34 +514,68 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 	return (error);
 }
 
-static void
-mddone_swap(struct bio *bp)
-{
-
-	bp->bio_completed = bp->bio_length - bp->bio_resid;
-	g_std_done(bp);
-}
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
 
 static int
 mdstart_swap(struct md_s *sc, struct bio *bp)
 {
 	{
-	struct bio *bp2;
+		int i, o, rv;
+		vm_page_t m;
+		u_char *p;
+		vm_offset_t kva;
 
-	bp2 = g_clone_bio(bp);
-	bp2->bio_done = mddone_swap;
-	bp2->bio_blkno = bp2->bio_offset >> DEV_BSHIFT;
-	bp2->bio_pblkno = bp2->bio_offset / sc->secsize;
-	bp2->bio_bcount = bp2->bio_length;
-	bp = bp2;
+		p = bp->bio_data;
+		o = bp->bio_offset / sc->secsize;
+		mtx_lock(&Giant);
+		kva = kmem_alloc_nofault(kernel_map, sc->secsize);
+		
+		VM_OBJECT_LOCK(sc->object);
+		vm_object_pip_add(sc->object, 1);
+		for (i = 0; i < bp->bio_length / sc->secsize; i++) {
+			m = vm_page_grab(sc->object, i + o,
+			    VM_ALLOC_NORMAL|VM_ALLOC_RETRY);
+			pmap_qenter(kva, &m, 1);
+			if (bp->bio_cmd == BIO_READ) {
+				if (m->valid != VM_PAGE_BITS_ALL) {
+					rv = vm_pager_get_pages(sc->object,
+					    &m, 1, 0);
+				}
+				bcopy((void *)kva, p, sc->secsize);
+			} else if (bp->bio_cmd == BIO_WRITE) {
+				bcopy(p, (void *)kva, sc->secsize);
+				m->valid = VM_PAGE_BITS_ALL;
+#if 0
+			} else if (bp->bio_cmd == BIO_DELETE) {
+				bzero((void *)kva, sc->secsize);
+				vm_page_dirty(m);
+				m->valid = VM_PAGE_BITS_ALL;
+#endif
+			} 
+			pmap_qremove(kva, 1);
+			vm_page_lock_queues();
+			vm_page_wakeup(m);
+			vm_page_activate(m);
+			if (bp->bio_cmd == BIO_WRITE) {
+				vm_page_dirty(m);
+			}
+			vm_page_unlock_queues();
+			p += sc->secsize;
+#if 0
+if (bootverbose || o < 17)
+printf("wire_count %d busy %d flags %x hold_count %d act_count %d queue %d valid %d dirty %d @ %d\n",
+    m->wire_count, m->busy, 
+    m->flags, m->hold_count, m->act_count, m->queue, m->valid, m->dirty, o + i);
+#endif
+		}
+		vm_object_pip_subtract(sc->object, 1);
+		vm_object_set_writeable_dirty(sc->object);
+		VM_OBJECT_UNLOCK(sc->object);
+		kmem_free(kernel_map, kva, sc->secsize);
+		mtx_unlock(&Giant);
+		return (0);
 	}
-
-	bp->bio_resid = 0;
-	if ((bp->bio_cmd == BIO_DELETE) && (sc->flags & MD_RESERVE))
-		biodone(bp);
-	else
-		vm_pager_strategy(sc->object, bp);
-	return (-1);
 }
 
 static void
