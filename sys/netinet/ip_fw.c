@@ -665,9 +665,11 @@ found:
 	    q->expire = time_second + dyn_fin_lifetime ;
 	    break ;
 	default:
+#if 0
 	    /* reset or some invalid combination */
 	    if ( (q->state & ((TH_RST << 8)|TH_RST)) == 0)
 		printf("invalid state: 0x%x\n", q->state);
+#endif
 	    q->expire = time_second + dyn_rst_lifetime ;
 	    break ;
 	}
