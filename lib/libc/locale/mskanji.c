@@ -44,8 +44,8 @@ static char sccsid[] = "@(#)mskanji.c	1.0 (Phase One) 5/5/95";
 #include <stdio.h>
 #include <stdlib.h>
 
-rune_t	_MSKanji_sgetrune __P((const char *, size_t, char const **));
-int	_MSKanji_sputrune __P((rune_t, char *, size_t, char **));
+rune_t	_MSKanji_sgetrune(const char *, size_t, char const **);
+int	_MSKanji_sputrune(rune_t, char *, size_t, char **);
 
 int
 _MSKanji_init(rl)

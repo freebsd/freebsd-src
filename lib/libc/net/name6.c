@@ -1000,7 +1000,7 @@ getanswer(answer, anslen, qname, qtype, template, errp)
 	int haveanswer, had_error;
 	char tbuf[MAXDNAME];
 	const char *tname;
-	int (*name_ok) __P((const char *));
+	int (*name_ok)(const char *);
 	static char *h_addr_ptrs[MAXADDRS + 1];
 	static char *host_aliases[MAXALIASES];
 	static char hostbuf[8*1024];

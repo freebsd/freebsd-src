@@ -46,8 +46,8 @@ static char sccsid[] = "@(#)big5.c	8.1 (Berkeley) 6/4/93";
 #include <stdlib.h>
 #include <sys/types.h>
 
-rune_t	_BIG5_sgetrune __P((const char *, size_t, char const **));
-int	_BIG5_sputrune __P((rune_t, char *, size_t, char **));
+rune_t	_BIG5_sgetrune(const char *, size_t, char const **);
+int	_BIG5_sputrune(rune_t, char *, size_t, char **);
 
 int
 _BIG5_init(rl)

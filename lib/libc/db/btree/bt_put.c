@@ -37,6 +37,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)bt_put.c	8.8 (Berkeley) 7/26/94";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
@@ -48,7 +50,7 @@ static char sccsid[] = "@(#)bt_put.c	8.8 (Berkeley) 7/26/94";
 #include <db.h>
 #include "btree.h"
 
-static EPG *bt_fast __P((BTREE *, const DBT *, const DBT *, int *));
+static EPG *bt_fast(BTREE *, const DBT *, const DBT *, int *);
 
 /*
  * __BT_PUT -- Add a btree item to the tree.

@@ -77,7 +77,7 @@ static char sccsid[] = "@(#)rpcb_clnt.c 1.30 89/06/21 Copyr 1988 Sun Micro";
 static struct timeval tottimeout = { 60, 0 };
 static const struct timeval rmttimeout = { 3, 0 };
 
-extern bool_t xdr_wrapstring __P((XDR *, char **));
+extern bool_t xdr_wrapstring(XDR *, char **);
 
 static const char nullstring[] = "\000";
 
@@ -100,13 +100,13 @@ static int cachesize;
 
 extern int __rpc_lowvers;
 
-static struct address_cache *check_cache __P((const char *, const char *));
-static void delete_cache __P((struct netbuf *));
+static struct address_cache *check_cache(const char *, const char *);
+static void delete_cache(struct netbuf *);
 static void add_cache __P((const char *, const char *, struct netbuf *,
 			   char *));
 static CLIENT *getclnthandle __P((const char *, const struct netconfig *,
 				  char **));
-static CLIENT *local_rpcb __P((void));
+static CLIENT *local_rpcb(void);
 static struct netbuf *got_entry __P((rpcb_entry_list_ptr,
 				     const struct netconfig *));
 

@@ -96,7 +96,7 @@ typedef struct htab	 {		/* Memory resident data structure */
 	int		exsegs;		/* Number of extra allocated 
 					 * segments */
 	u_int32_t			/* Hash function */
-	    (*hash)__P((const void *, size_t));
+	    (*hash)(const void *, size_t);
 	int		flags;		/* Flag values */
 	int		fp;		/* File pointer */
 	char		*tmp_buf;	/* Temporary Buffer for BIG data */

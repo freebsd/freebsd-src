@@ -61,22 +61,22 @@ static const char rcsid[] =
 
 enum S { COMMAND, COMPARE, GET, PUT, REMOVE, SEQ, SEQFLAG, KEY, DATA };
 
-void	 compare __P((DBT *, DBT *));
-DBTYPE	 dbtype __P((char *));
-void	 dump __P((DB *, int));
+void	 compare(DBT *, DBT *);
+DBTYPE	 dbtype(char *);
+void	 dump(DB *, int);
 void	 err __P((const char *, ...)) __printflike(1, 2);
-void	 get __P((DB *, DBT *));
-void	 getdata __P((DB *, DBT *, DBT *));
-void	 put __P((DB *, DBT *, DBT *));
-void	 rem __P((DB *, DBT *));
-char	*sflags __P((int));
-void	 synk __P((DB *));
-void	*rfile __P((char *, size_t *));
-void	 seq __P((DB *, DBT *));
-u_int	 setflags __P((char *));
-void	*setinfo __P((DBTYPE, char *));
-void	 usage __P((void));
-void	*xmalloc __P((char *, size_t));
+void	 get(DB *, DBT *);
+void	 getdata(DB *, DBT *, DBT *);
+void	 put(DB *, DBT *, DBT *);
+void	 rem(DB *, DBT *);
+char	*sflags(int);
+void	 synk(DB *);
+void	*rfile(char *, size_t *);
+void	 seq(DB *, DBT *);
+u_int	 setflags(char *);
+void	*setinfo(DBTYPE, char *);
+void	 usage(void);
+void	*xmalloc(char *, size_t);
 
 DBTYPE type;				/* Database type. */
 void *infop;				/* Iflags. */

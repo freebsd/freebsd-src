@@ -50,7 +50,7 @@ static const char rcsid[] =
 __warn_references(tempnam,
     "warning: tempnam() possibly used unsafely; consider using mkstemp()");
 
-extern char *_mktemp __P((char *));
+extern char *_mktemp(char *);
 
 char *
 tempnam(dir, pfx)

@@ -64,8 +64,8 @@ typedef struct {
 } stack;
 
 static inline void simplesort
-	    __P((const u_char **, int, int, const u_char *, u_int));
-static void r_sort_a __P((const u_char **, int, int, const u_char *, u_int));
+(const u_char **, int, int, const u_char *, u_int);
+static void r_sort_a(const u_char **, int, int, const u_char *, u_int);
 static void r_sort_b __P((const u_char **,
 	    const u_char **, int, int, const u_char *, u_int));
 

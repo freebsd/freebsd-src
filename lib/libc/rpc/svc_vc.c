@@ -73,20 +73,20 @@ struct cmessage {
         struct cmsgcred cmcred;
 };
 
-static SVCXPRT *makefd_xprt __P((int, u_int, u_int));
-static bool_t rendezvous_request __P((SVCXPRT *, struct rpc_msg *));
-static enum xprt_stat rendezvous_stat __P((SVCXPRT *));
-static void svc_vc_destroy __P((SVCXPRT *));
-static int read_vc __P((caddr_t, caddr_t, int));
-static int write_vc __P((caddr_t, caddr_t, int));
-static enum xprt_stat svc_vc_stat __P((SVCXPRT *));
-static bool_t svc_vc_recv __P((SVCXPRT *, struct rpc_msg *));
-static bool_t svc_vc_getargs __P((SVCXPRT *, xdrproc_t, caddr_t));
-static bool_t svc_vc_freeargs __P((SVCXPRT *, xdrproc_t, caddr_t));
-static bool_t svc_vc_reply __P((SVCXPRT *, struct rpc_msg *));
-static void svc_vc_rendezvous_ops __P((SVCXPRT *));
-static void svc_vc_ops __P((SVCXPRT *));
-static bool_t svc_vc_control __P((SVCXPRT *xprt, const u_int rq, void *in));
+static SVCXPRT *makefd_xprt(int, u_int, u_int);
+static bool_t rendezvous_request(SVCXPRT *, struct rpc_msg *);
+static enum xprt_stat rendezvous_stat(SVCXPRT *);
+static void svc_vc_destroy(SVCXPRT *);
+static int read_vc(caddr_t, caddr_t, int);
+static int write_vc(caddr_t, caddr_t, int);
+static enum xprt_stat svc_vc_stat(SVCXPRT *);
+static bool_t svc_vc_recv(SVCXPRT *, struct rpc_msg *);
+static bool_t svc_vc_getargs(SVCXPRT *, xdrproc_t, caddr_t);
+static bool_t svc_vc_freeargs(SVCXPRT *, xdrproc_t, caddr_t);
+static bool_t svc_vc_reply(SVCXPRT *, struct rpc_msg *);
+static void svc_vc_rendezvous_ops(SVCXPRT *);
+static void svc_vc_ops(SVCXPRT *);
+static bool_t svc_vc_control(SVCXPRT *xprt, const u_int rq, void *in);
 static int __msgread_withcred(int, void *, size_t, struct cmessage *);
 static int __msgwrite(int, void *, size_t);
 

@@ -114,9 +114,9 @@ struct broadif {
 
 typedef TAILQ_HEAD(, broadif) broadlist_t;
 
-int __rpc_getbroadifs __P((int, int, int, broadlist_t *));
-void __rpc_freebroadifs __P((broadlist_t *));
-int __rpc_broadenable __P((int, int, struct broadif *));
+int __rpc_getbroadifs(int, int, int, broadlist_t *);
+void __rpc_freebroadifs(broadlist_t *);
+int __rpc_broadenable(int, int, struct broadif *);
 
 int __rpc_lowvers = 0;
 

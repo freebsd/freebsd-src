@@ -51,7 +51,7 @@ static const char rcsid[] =
 #include "libc_private.h"
 #include "local.h"
 
-static int lflush __P((FILE *));
+static int lflush(FILE *);
 
 static int
 lflush(FILE *fp)

@@ -38,4 +38,4 @@
 #define _PWSCAN_MASTER 0x01
 #define _PWSCAN_WARN   0x02
 
-extern int	__pw_scan __P((char *, struct passwd *, int));
+extern int	__pw_scan(char *, struct passwd *, int);
