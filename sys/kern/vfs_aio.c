@@ -61,6 +61,8 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_vfs_aio.h"
 
+NET_NEEDS_GIANT("aio");
+
 /*
  * Counter for allocating reference ids to new jobs.  Wrapped to 1 on
  * overflow.
