@@ -237,6 +237,7 @@ AcpiEnterSleepState (
     UINT8               TypeB;
     UINT16              PM1AControl;
     UINT16              PM1BControl;
+    UINT32              Retry;
 
 
     FUNCTION_TRACE ("AcpiEnterSleepState");
@@ -318,9 +319,16 @@ AcpiEnterSleepState (
 
     /* wait until we enter sleep state */
 
+    Retry = 1000;
     do 
     {
-        AcpiOsStall(10000);
+        /*
+         * Some BIOSes don't set WAK_STS at all,
+         * give up waiting for wakeup if we time out.
+         */
+         if (Retry-- == 0) {
+             break;             /* giving up */
+         }
     }
     while (!AcpiHwRegisterBitAccess (ACPI_READ, ACPI_MTX_LOCK, WAK_STS));
 
