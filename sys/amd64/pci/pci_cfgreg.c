@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcibus.c,v 1.36 1997/05/26 15:08:42 se Exp $
+ * $Id: pcibus.c,v 1.37 1997/05/26 21:11:05 se Exp $
  *
  */
 
@@ -59,7 +59,7 @@ pci_cfgenable(unsigned bus, unsigned slot, unsigned func, int reg, int bytes)
 	    && (reg & (bytes -1)) == 0) {
 		switch (cfgmech) {
 		case 1:
-			outl(CONF1_ADDR_PORT, 0x8000 |
+			outl(CONF1_ADDR_PORT, (1 << 31) |
 			     (bus << 16) | (slot << 11) | (func << 8) | reg);
 			dataport = CONF1_DATA_PORT;
 			break;
