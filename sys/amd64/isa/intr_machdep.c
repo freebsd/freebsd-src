@@ -701,7 +701,7 @@ inthand_remove(struct intrhand *idesc)
 		ithds[ithd->irq] = NULL;
 
 		if ((idesc->ih_flags & INTR_FAST) == 0) {
-			mtx_enter(&sched_lock, MTX_SPIN);
+			mtx_lock_spin(&sched_lock);
 			if (ithd->it_proc->p_stat == SWAIT) {
 				ithd->it_proc->p_intr_nesting_level = 0;
 				ithd->it_proc->p_stat = SRUN;
@@ -713,7 +713,7 @@ inthand_remove(struct intrhand *idesc)
 				 * XXX: should we lower the threads priority?
 				 */
 			}
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 		}
 	}
 	free(idesc->ih_name, M_DEVBUF);

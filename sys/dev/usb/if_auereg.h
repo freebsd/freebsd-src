@@ -249,8 +249,8 @@ struct aue_softc {
 	struct mtx		aue_mtx;
 };
 
-#define	AUE_LOCK(_sc)		mtx_enter(&(_sc)->aue_mtx, MTX_DEF)
-#define	AUE_UNLOCK(_sc)		mtx_exit(&(_sc)->aue_mtx, MTX_DEF)
+#define	AUE_LOCK(_sc)		mtx_lock(&(_sc)->aue_mtx)
+#define	AUE_UNLOCK(_sc)		mtx_unlock(&(_sc)->aue_mtx)
 
 #define AUE_TIMEOUT		1000
 #define ETHER_ALIGN		2

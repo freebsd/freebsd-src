@@ -144,11 +144,11 @@ apause(struct lock *lkp, int flags)
 		return 0;
 #ifdef SMP
 	for (lock_wait = LOCK_WAIT_TIME; lock_wait > 0; lock_wait--) {
-		mtx_exit(lkp->lk_interlock, MTX_DEF);
+		mtx_unlock(lkp->lk_interlock);
 		for (i = LOCK_SAMPLE_WAIT; i > 0; i--)
 			if ((lkp->lk_flags & flags) == 0)
 				break;
-		mtx_enter(lkp->lk_interlock, MTX_DEF);
+		mtx_lock(lkp->lk_interlock);
 		if ((lkp->lk_flags & flags) == 0)
 			return 0;
 	}
@@ -236,9 +236,9 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 	else
 		pid = p->p_pid;
 
-	mtx_enter(lkp->lk_interlock, MTX_DEF);
+	mtx_lock(lkp->lk_interlock);
 	if (flags & LK_INTERLOCK)
-		mtx_exit(interlkp, MTX_DEF);
+		mtx_unlock(interlkp);
 
 	extflags = (flags | lkp->lk_flags) & LK_EXTFLG_MASK;
 
@@ -451,7 +451,7 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 		break;
 
 	default:
-		mtx_exit(lkp->lk_interlock, MTX_DEF);
+		mtx_unlock(lkp->lk_interlock);
 		panic("lockmgr: unknown locktype request %d",
 		    flags & LK_TYPE_MASK);
 		/* NOTREACHED */
@@ -462,7 +462,7 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 		lkp->lk_flags &= ~LK_WAITDRAIN;
 		wakeup((void *)&lkp->lk_flags);
 	}
-	mtx_exit(lkp->lk_interlock, MTX_DEF);
+	mtx_unlock(lkp->lk_interlock);
 	return (error);
 }
 
@@ -506,12 +506,12 @@ lockinit(lkp, prio, wmesg, timo, flags)
 	    "timo == %d, flags = 0x%x\n", lkp, prio, wmesg, timo, flags);
 
 	if (lock_mtx_array != NULL) {
-		mtx_enter(&lock_mtx, MTX_DEF);
+		mtx_lock(&lock_mtx);
 		lkp->lk_interlock = &lock_mtx_array[lock_mtx_selector];
 		lock_mtx_selector++;
 		if (lock_mtx_selector == lock_nmtx)
 			lock_mtx_selector = 0;
-		mtx_exit(&lock_mtx, MTX_DEF);
+		mtx_unlock(&lock_mtx);
 	} else {
 		/*
 		 * Giving lockmgr locks that are initialized during boot a
@@ -561,7 +561,7 @@ lockstatus(lkp, p)
 {
 	int lock_type = 0;
 
-	mtx_enter(lkp->lk_interlock, MTX_DEF);
+	mtx_lock(lkp->lk_interlock);
 	if (lkp->lk_exclusivecount != 0) {
 		if (p == NULL || lkp->lk_lockholder == p->p_pid)
 			lock_type = LK_EXCLUSIVE;
@@ -569,7 +569,7 @@ lockstatus(lkp, p)
 			lock_type = LK_EXCLOTHER;
 	} else if (lkp->lk_sharecount != 0)
 		lock_type = LK_SHARED;
-	mtx_exit(lkp->lk_interlock, MTX_DEF);
+	mtx_unlock(lkp->lk_interlock);
 	return (lock_type);
 }
 
@@ -582,9 +582,9 @@ lockcount(lkp)
 {
 	int count;
 
-	mtx_enter(lkp->lk_interlock, MTX_DEF);
+	mtx_lock(lkp->lk_interlock);
 	count = lkp->lk_exclusivecount + lkp->lk_sharecount;
-	mtx_exit(lkp->lk_interlock, MTX_DEF);
+	mtx_unlock(lkp->lk_interlock);
 	return (count);
 }
 

@@ -130,21 +130,21 @@ msdosfs_hashget(dev, dirclust, diroff)
 	struct vnode *vp;
 
 loop:
-	mtx_enter(&dehash_mtx, MTX_DEF);
+	mtx_lock(&dehash_mtx);
 	for (dep = DEHASH(dev, dirclust, diroff); dep; dep = dep->de_next) {
 		if (dirclust == dep->de_dirclust
 		    && diroff == dep->de_diroffset
 		    && dev == dep->de_dev
 		    && dep->de_refcnt != 0) {
 			vp = DETOV(dep);
-			mtx_enter(&vp->v_interlock, MTX_DEF);
-			mtx_exit(&dehash_mtx, MTX_DEF);
+			mtx_lock(&vp->v_interlock);
+			mtx_unlock(&dehash_mtx);
 			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p))
 				goto loop;
 			return (dep);
 		}
 	}
-	mtx_exit(&dehash_mtx, MTX_DEF);
+	mtx_unlock(&dehash_mtx);
 	return (NULL);
 }
 
@@ -154,7 +154,7 @@ msdosfs_hashins(dep)
 {
 	struct denode **depp, *deq;
 
-	mtx_enter(&dehash_mtx, MTX_DEF);
+	mtx_lock(&dehash_mtx);
 	depp = &DEHASH(dep->de_dev, dep->de_dirclust, dep->de_diroffset);
 	deq = *depp;
 	if (deq)
@@ -162,7 +162,7 @@ msdosfs_hashins(dep)
 	dep->de_next = deq;
 	dep->de_prev = depp;
 	*depp = dep;
-	mtx_exit(&dehash_mtx, MTX_DEF);
+	mtx_unlock(&dehash_mtx);
 }
 
 static void
@@ -171,7 +171,7 @@ msdosfs_hashrem(dep)
 {
 	struct denode *deq;
 
-	mtx_enter(&dehash_mtx, MTX_DEF);
+	mtx_lock(&dehash_mtx);
 	deq = dep->de_next;
 	if (deq)
 		deq->de_prev = dep->de_prev;
@@ -180,7 +180,7 @@ msdosfs_hashrem(dep)
 	dep->de_next = NULL;
 	dep->de_prev = NULL;
 #endif
-	mtx_exit(&dehash_mtx, MTX_DEF);
+	mtx_unlock(&dehash_mtx);
 }
 
 /*

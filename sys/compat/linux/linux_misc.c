@@ -642,9 +642,9 @@ linux_times(struct proc *p, struct linux_times_args *args)
 #ifdef DEBUG
     printf("Linux-emul(%ld): times(*)\n", (long)p->p_pid);
 #endif
-    mtx_enter(&sched_lock, MTX_SPIN);
+    mtx_lock_spin(&sched_lock);
     calcru(p, &ru.ru_utime, &ru.ru_stime, NULL);
-    mtx_exit(&sched_lock, MTX_SPIN);
+    mtx_unlock_spin(&sched_lock);
 
     tms.tms_utime = CONVTCK(ru.ru_utime);
     tms.tms_stime = CONVTCK(ru.ru_stime);

@@ -128,8 +128,8 @@ struct wi_softc	{
 	int			wi_prism2;	/* set to 1 if it uses a Prism II chip */
 };
 
-#define	WI_LOCK(_sc)		mtx_enter(&(_sc)->wi_mtx, MTX_DEF)
-#define	WI_UNLOCK(_sc)		mtx_exit(&(_sc)->wi_mtx, MTX_DEF)
+#define	WI_LOCK(_sc)		mtx_lock(&(_sc)->wi_mtx)
+#define	WI_UNLOCK(_sc)		mtx_unlock(&(_sc)->wi_mtx)
 
 #define WI_TIMEOUT	65536
 

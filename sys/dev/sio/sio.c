@@ -856,7 +856,7 @@ sioprobe(dev, xrid)
 	 * but mask them in the processor as well in case there are some
 	 * (misconfigured) shared interrupts.
 	 */
-	mtx_enter(&sio_lock, MTX_SPIN);
+	mtx_lock_spin(&sio_lock);
 /* EXTRA DELAY? */
 
 	/*
@@ -953,7 +953,7 @@ sioprobe(dev, xrid)
 			CLR_FLAG(dev, COM_C_IIR_TXRDYBUG);
 		}
 		sio_setreg(com, com_cfcr, CFCR_8BITS);
-		mtx_exit(&sio_lock, MTX_SPIN);
+		mtx_unlock_spin(&sio_lock);
 		bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
 		return (iobase == siocniobase ? 0 : result);
 	}
@@ -993,7 +993,7 @@ sioprobe(dev, xrid)
 	irqmap[3] = isa_irq_pending();
 	failures[9] = (sio_getreg(com, com_iir) & IIR_IMASK) - IIR_NOPEND;
 
-	mtx_exit(&sio_lock, MTX_SPIN);
+	mtx_unlock_spin(&sio_lock);
 
 	irqs = irqmap[1] & ~irqmap[0];
 	if (bus_get_resource(idev, SYS_RES_IRQ, 0, &xirq, NULL) == 0 &&
@@ -1181,7 +1181,7 @@ sioattach(dev, xrid)
 	} else
 		com->it_in.c_ispeed = com->it_in.c_ospeed = TTYDEF_SPEED;
 	if (siosetwater(com, com->it_in.c_ispeed) != 0) {
-		mtx_exit(&sio_lock, MTX_SPIN);
+		mtx_unlock_spin(&sio_lock);
 		/*
 		 * Leave i/o resources allocated if this is a `cn'-level
 		 * console, so that other devices can't snarf them.
@@ -1190,7 +1190,7 @@ sioattach(dev, xrid)
 			bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
 		return (ENOMEM);
 	}
-	mtx_exit(&sio_lock, MTX_SPIN);
+	mtx_unlock_spin(&sio_lock);
 	termioschars(&com->it_in);
 	com->it_out = com->it_in;
 
@@ -1485,7 +1485,7 @@ open_top:
 			}
 		}
 
-		mtx_enter(&sio_lock, MTX_SPIN);
+		mtx_lock_spin(&sio_lock);
 		(void) inb(com->line_status_port);
 		(void) inb(com->data_port);
 		com->prev_modem_status = com->last_modem_status
@@ -1497,7 +1497,7 @@ open_top:
 			outb(com->intr_ctl_port, IER_ERXRDY | IER_ETXRDY
 						| IER_ERLS | IER_EMSC);
 		}
-		mtx_exit(&sio_lock, MTX_SPIN);
+		mtx_unlock_spin(&sio_lock);
 		/*
 		 * Handle initial DCD.  Callout devices get a fake initial
 		 * DCD (trapdoor DCD).  If we are callout, then any sleeping
@@ -1753,7 +1753,7 @@ sioinput(com)
 			 * semantics instead of the save-and-disable semantics
 			 * that are used everywhere else.
 			 */
-			mtx_exit(&sio_lock, MTX_SPIN);
+			mtx_unlock_spin(&sio_lock);
 			incc = com->iptr - buf;
 			if (tp->t_rawq.c_cc + incc > tp->t_ihiwat
 			    && (com->state & CS_RTS_IFLOW
@@ -1774,7 +1774,7 @@ sioinput(com)
 				tp->t_lflag &= ~FLUSHO;
 				comstart(tp);
 			}
-			mtx_enter(&sio_lock, MTX_SPIN);
+			mtx_lock_spin(&sio_lock);
 		} while (buf < com->iptr);
 	} else {
 		do {
@@ -1783,7 +1783,7 @@ sioinput(com)
 			 * semantics instead of the save-and-disable semantics
 			 * that are used everywhere else.
 			 */
-			mtx_exit(&sio_lock, MTX_SPIN);
+			mtx_unlock_spin(&sio_lock);
 			line_status = buf[com->ierroff];
 			recv_data = *buf++;
 			if (line_status
@@ -1798,7 +1798,7 @@ sioinput(com)
 					recv_data |= TTY_PE;
 			}
 			(*linesw[tp->t_line].l_rint)(recv_data, tp);
-			mtx_enter(&sio_lock, MTX_SPIN);
+			mtx_lock_spin(&sio_lock);
 		} while (buf < com->iptr);
 	}
 	com_events -= (com->iptr - com->ibuf);
@@ -1823,9 +1823,9 @@ siointr(arg)
 #ifndef COM_MULTIPORT
 	com = (struct com_s *)arg;
 
-	mtx_enter(&sio_lock, MTX_SPIN);
+	mtx_lock_spin(&sio_lock);
 	siointr1(com);
-	mtx_exit(&sio_lock, MTX_SPIN);
+	mtx_unlock_spin(&sio_lock);
 #else /* COM_MULTIPORT */
 	bool_t		possibly_more_intrs;
 	int		unit;
@@ -1837,7 +1837,7 @@ siointr(arg)
 	 * devices, then the edge from one may be lost because another is
 	 * on.
 	 */
-	mtx_enter(&sio_lock, MTX_SPIN);
+	mtx_lock_spin(&sio_lock);
 	do {
 		possibly_more_intrs = FALSE;
 		for (unit = 0; unit < sio_numunits; ++unit) {
@@ -1856,7 +1856,7 @@ siointr(arg)
 			/* XXX COM_UNLOCK(); */
 		}
 	} while (possibly_more_intrs);
-	mtx_exit(&sio_lock, MTX_SPIN);
+	mtx_unlock_spin(&sio_lock);
 #endif /* COM_MULTIPORT */
 }
 
@@ -2264,7 +2264,7 @@ repeat:
 			 * Discard any events related to never-opened or
 			 * going-away devices.
 			 */
-			mtx_enter(&sio_lock, MTX_SPIN);
+			mtx_lock_spin(&sio_lock);
 			incc = com->iptr - com->ibuf;
 			com->iptr = com->ibuf;
 			if (com->state & CS_CHECKMSR) {
@@ -2272,33 +2272,33 @@ repeat:
 				com->state &= ~CS_CHECKMSR;
 			}
 			com_events -= incc;
-			mtx_exit(&sio_lock, MTX_SPIN);
+			mtx_unlock_spin(&sio_lock);
 			continue;
 		}
 		if (com->iptr != com->ibuf) {
-			mtx_enter(&sio_lock, MTX_SPIN);
+			mtx_lock_spin(&sio_lock);
 			sioinput(com);
-			mtx_exit(&sio_lock, MTX_SPIN);
+			mtx_unlock_spin(&sio_lock);
 		}
 		if (com->state & CS_CHECKMSR) {
 			u_char	delta_modem_status;
 
-			mtx_enter(&sio_lock, MTX_SPIN);
+			mtx_lock_spin(&sio_lock);
 			delta_modem_status = com->last_modem_status
 					     ^ com->prev_modem_status;
 			com->prev_modem_status = com->last_modem_status;
 			com_events -= LOTS_OF_EVENTS;
 			com->state &= ~CS_CHECKMSR;
-			mtx_exit(&sio_lock, MTX_SPIN);
+			mtx_unlock_spin(&sio_lock);
 			if (delta_modem_status & MSR_DCD)
 				(*linesw[tp->t_line].l_modem)
 					(tp, com->prev_modem_status & MSR_DCD);
 		}
 		if (com->state & CS_ODONE) {
-			mtx_enter(&sio_lock, MTX_SPIN);
+			mtx_lock_spin(&sio_lock);
 			com_events -= LOTS_OF_EVENTS;
 			com->state &= ~CS_ODONE;
-			mtx_exit(&sio_lock, MTX_SPIN);
+			mtx_unlock_spin(&sio_lock);
 			if (!(com->state & CS_BUSY)
 			    && !(com->extra_state & CSE_BUSYCHECK)) {
 				timeout(siobusycheck, com, hz / 100);
@@ -2484,7 +2484,7 @@ comparam(tp, t)
 	if (com->state >= (CS_BUSY | CS_TTGO))
 		siointr1(com);
 
-	mtx_exit(&sio_lock, MTX_SPIN);
+	mtx_unlock_spin(&sio_lock);
 	splx(s);
 	comstart(tp);
 	if (com->ibufold != NULL) {
@@ -2518,7 +2518,7 @@ siosetwater(com, speed)
 	for (ibufsize = 128; ibufsize < cp4ticks;)
 		ibufsize <<= 1;
 	if (ibufsize == com->ibufsize) {
-		mtx_enter(&sio_lock, MTX_SPIN);
+		mtx_lock_spin(&sio_lock);
 		return (0);
 	}
 
@@ -2528,7 +2528,7 @@ siosetwater(com, speed)
 	 */
 	ibuf = malloc(2 * ibufsize, M_DEVBUF, M_NOWAIT);
 	if (ibuf == NULL) {
-		mtx_enter(&sio_lock, MTX_SPIN);
+		mtx_lock_spin(&sio_lock);
 		return (ENOMEM);
 	}
 
@@ -2546,7 +2546,7 @@ siosetwater(com, speed)
 	 * Read current input buffer, if any.  Continue with interrupts
 	 * disabled.
 	 */
-	mtx_enter(&sio_lock, MTX_SPIN);
+	mtx_lock_spin(&sio_lock);
 	if (com->iptr != com->ibuf)
 		sioinput(com);
 
@@ -2581,7 +2581,7 @@ comstart(tp)
 	if (com == NULL)
 		return;
 	s = spltty();
-	mtx_enter(&sio_lock, MTX_SPIN);
+	mtx_lock_spin(&sio_lock);
 	if (tp->t_state & TS_TTSTOP)
 		com->state &= ~CS_TTGO;
 	else
@@ -2594,7 +2594,7 @@ comstart(tp)
 		    && com->state & CS_RTS_IFLOW)
 			outb(com->modem_ctl_port, com->mcr_image |= MCR_RTS);
 	}
-	mtx_exit(&sio_lock, MTX_SPIN);
+	mtx_unlock_spin(&sio_lock);
 	if (tp->t_state & (TS_TIMEOUT | TS_TTSTOP)) {
 		ttwwakeup(tp);
 		splx(s);
@@ -2610,7 +2610,7 @@ comstart(tp)
 						  sizeof com->obuf1);
 			com->obufs[0].l_next = NULL;
 			com->obufs[0].l_queued = TRUE;
-			mtx_enter(&sio_lock, MTX_SPIN);
+			mtx_lock_spin(&sio_lock);
 			if (com->state & CS_BUSY) {
 				qp = com->obufq.l_next;
 				while ((next = qp->l_next) != NULL)
@@ -2622,7 +2622,7 @@ comstart(tp)
 				com->obufq.l_next = &com->obufs[0];
 				com->state |= CS_BUSY;
 			}
-			mtx_exit(&sio_lock, MTX_SPIN);
+			mtx_unlock_spin(&sio_lock);
 		}
 		if (tp->t_outq.c_cc != 0 && !com->obufs[1].l_queued) {
 			com->obufs[1].l_tail
@@ -2630,7 +2630,7 @@ comstart(tp)
 						  sizeof com->obuf2);
 			com->obufs[1].l_next = NULL;
 			com->obufs[1].l_queued = TRUE;
-			mtx_enter(&sio_lock, MTX_SPIN);
+			mtx_lock_spin(&sio_lock);
 			if (com->state & CS_BUSY) {
 				qp = com->obufq.l_next;
 				while ((next = qp->l_next) != NULL)
@@ -2642,14 +2642,14 @@ comstart(tp)
 				com->obufq.l_next = &com->obufs[1];
 				com->state |= CS_BUSY;
 			}
-			mtx_exit(&sio_lock, MTX_SPIN);
+			mtx_unlock_spin(&sio_lock);
 		}
 		tp->t_state |= TS_BUSY;
 	}
-	mtx_enter(&sio_lock, MTX_SPIN);
+	mtx_lock_spin(&sio_lock);
 	if (com->state >= (CS_BUSY | CS_TTGO))
 		siointr1(com);	/* fake interrupt to start output */
-	mtx_exit(&sio_lock, MTX_SPIN);
+	mtx_unlock_spin(&sio_lock);
 	ttwwakeup(tp);
 	splx(s);
 }
@@ -2664,7 +2664,7 @@ comstop(tp, rw)
 	com = com_addr(DEV_TO_UNIT(tp->t_dev));
 	if (com == NULL || com->gone)
 		return;
-	mtx_enter(&sio_lock, MTX_SPIN);
+	mtx_lock_spin(&sio_lock);
 	if (rw & FWRITE) {
 		if (com->hasfifo)
 #ifdef COM_ESP
@@ -2691,7 +2691,7 @@ comstop(tp, rw)
 		com_events -= (com->iptr - com->ibuf);
 		com->iptr = com->ibuf;
 	}
-	mtx_exit(&sio_lock, MTX_SPIN);
+	mtx_unlock_spin(&sio_lock);
 	comstart(tp);
 }
 
@@ -2734,7 +2734,7 @@ commctl(com, bits, how)
 		mcr |= MCR_RTS;
 	if (com->gone)
 		return(0);
-	mtx_enter(&sio_lock, MTX_SPIN);
+	mtx_lock_spin(&sio_lock);
 	switch (how) {
 	case DMSET:
 		outb(com->modem_ctl_port,
@@ -2747,7 +2747,7 @@ commctl(com, bits, how)
 		outb(com->modem_ctl_port, com->mcr_image &= ~mcr);
 		break;
 	}
-	mtx_exit(&sio_lock, MTX_SPIN);
+	mtx_unlock_spin(&sio_lock);
 	return (0);
 }
 
@@ -2806,9 +2806,9 @@ comwakeup(chan)
 		com = com_addr(unit);
 		if (com != NULL && !com->gone
 		    && (com->state >= (CS_BUSY | CS_TTGO) || com->poll)) {
-			mtx_enter(&sio_lock, MTX_SPIN);
+			mtx_lock_spin(&sio_lock);
 			siointr1(com);
-			mtx_exit(&sio_lock, MTX_SPIN);
+			mtx_unlock_spin(&sio_lock);
 		}
 	}
 
@@ -2830,10 +2830,10 @@ comwakeup(chan)
 			u_int	delta;
 			u_long	total;
 
-			mtx_enter(&sio_lock, MTX_SPIN);
+			mtx_lock_spin(&sio_lock);
 			delta = com->delta_error_counts[errnum];
 			com->delta_error_counts[errnum] = 0;
-			mtx_exit(&sio_lock, MTX_SPIN);
+			mtx_unlock_spin(&sio_lock);
 			if (delta == 0)
 				continue;
 			total = com->error_counts[errnum] += delta;

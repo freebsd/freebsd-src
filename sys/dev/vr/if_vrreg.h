@@ -414,8 +414,8 @@ struct vr_softc {
 	struct mtx		vr_mtx;
 };
 
-#define	VR_LOCK(_sc)		mtx_enter(&(_sc)->vr_mtx, MTX_DEF)
-#define	VR_UNLOCK(_sc)		mtx_exit(&(_sc)->vr_mtx, MTX_DEF)
+#define	VR_LOCK(_sc)		mtx_lock(&(_sc)->vr_mtx)
+#define	VR_UNLOCK(_sc)		mtx_unlock(&(_sc)->vr_mtx)
 
 /*
  * register space access macros

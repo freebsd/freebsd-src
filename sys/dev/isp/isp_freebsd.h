@@ -124,8 +124,8 @@ struct isposinfo {
  */
 
 #ifdef	ISP_SMPLOCK
-#define	ISP_LOCK(x)		mtx_enter(&(x)->isp_osinfo.lock, MTX_DEF)
-#define	ISP_UNLOCK(x)		mtx_exit(&(x)->isp_osinfo.lock, MTX_DEF)
+#define	ISP_LOCK(x)		mtx_lock(&(x)->isp_osinfo.lock)
+#define	ISP_UNLOCK(x)		mtx_unlock(&(x)->isp_osinfo.lock)
 #else
 #define	ISP_LOCK		isp_lock
 #define	ISP_UNLOCK		isp_unlock

@@ -154,7 +154,7 @@ malloc(size, type, flags)
 	indx = BUCKETINDX(size);
 	kbp = &bucket[indx];
 	s = splmem();
-	mtx_enter(&malloc_mtx, MTX_DEF);
+	mtx_lock(&malloc_mtx);
 	while (ksp->ks_memuse >= ksp->ks_limit) {
 		if (flags & M_ASLEEP) {
 			if (ksp->ks_limblocks < 65535)
@@ -163,7 +163,7 @@ malloc(size, type, flags)
 		}
 		if (flags & M_NOWAIT) {
 			splx(s);
-			mtx_exit(&malloc_mtx, MTX_DEF);
+			mtx_unlock(&malloc_mtx);
 			return ((void *) NULL);
 		}
 		if (ksp->ks_limblocks < 65535)
@@ -183,7 +183,7 @@ malloc(size, type, flags)
 			allocsize = 1 << indx;
 		npg = btoc(allocsize);
 
-		mtx_exit(&malloc_mtx, MTX_DEF);
+		mtx_unlock(&malloc_mtx);
 		va = (caddr_t) kmem_malloc(kmem_map, (vm_size_t)ctob(npg), flags);
 
 		if (va == NULL) {
@@ -194,7 +194,7 @@ malloc(size, type, flags)
 		 * Enter malloc_mtx after the error check to avoid having to
 		 * immediately exit it again if there is an error.
 		 */
-		mtx_enter(&malloc_mtx, MTX_DEF);
+		mtx_lock(&malloc_mtx);
 
 		kbp->kb_total += kbp->kb_elmpercl;
 		kup = btokup(va);
@@ -278,7 +278,7 @@ out:
 	if (ksp->ks_memuse > ksp->ks_maxused)
 		ksp->ks_maxused = ksp->ks_memuse;
 	splx(s);
-	mtx_exit(&malloc_mtx, MTX_DEF);
+	mtx_unlock(&malloc_mtx);
 	/* XXX: Do idle pre-zeroing.  */
 	if (va != NULL && (flags & M_ZERO))
 		bzero(va, size);
@@ -314,7 +314,7 @@ free(addr, type)
 	size = 1 << kup->ku_indx;
 	kbp = &bucket[kup->ku_indx];
 	s = splmem();
-	mtx_enter(&malloc_mtx, MTX_DEF);
+	mtx_lock(&malloc_mtx);
 #ifdef INVARIANTS
 	/*
 	 * Check for returns of data that do not point to the
@@ -329,9 +329,9 @@ free(addr, type)
 		    (void *)addr, size, type->ks_shortdesc, alloc);
 #endif /* INVARIANTS */
 	if (size > MAXALLOCSAVE) {
-		mtx_exit(&malloc_mtx, MTX_DEF);
+		mtx_unlock(&malloc_mtx);
 		kmem_free(kmem_map, (vm_offset_t)addr, ctob(kup->ku_pagecnt));
-		mtx_enter(&malloc_mtx, MTX_DEF);
+		mtx_lock(&malloc_mtx);
 
 		size = kup->ku_pagecnt << PAGE_SHIFT;
 		ksp->ks_memuse -= size;
@@ -343,7 +343,7 @@ free(addr, type)
 		ksp->ks_inuse--;
 		kbp->kb_total -= 1;
 		splx(s);
-		mtx_exit(&malloc_mtx, MTX_DEF);
+		mtx_unlock(&malloc_mtx);
 		return;
 	}
 	freep = (struct freelist *)addr;
@@ -410,7 +410,7 @@ free(addr, type)
 	}
 #endif
 	splx(s);
-	mtx_exit(&malloc_mtx, MTX_DEF);
+	mtx_unlock(&malloc_mtx);
 }
 
 /*
@@ -540,7 +540,7 @@ malloc_uninit(data)
 
 #ifdef INVARIANTS
 	s = splmem();
-	mtx_enter(&malloc_mtx, MTX_DEF);
+	mtx_lock(&malloc_mtx);
 	for (indx = 0; indx < MINBUCKET + 16; indx++) {
 		kbp = bucket + indx;
 		freep = (struct freelist*)kbp->kb_next;
@@ -551,7 +551,7 @@ malloc_uninit(data)
 		}
 	}
 	splx(s);
-	mtx_exit(&malloc_mtx, MTX_DEF);
+	mtx_unlock(&malloc_mtx);
 
 	if (type->ks_memuse != 0)
 		printf("malloc_uninit: %ld bytes of '%s' still allocated\n",

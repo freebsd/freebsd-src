@@ -419,8 +419,8 @@ sigonstack(size_t sp)
 } while (0)
 
 /* Lock and unlock a process. */
-#define PROC_LOCK(p)	mtx_enter(&(p)->p_mtx, MTX_DEF)
-#define PROC_UNLOCK(p)	mtx_exit(&(p)->p_mtx, MTX_DEF)
+#define PROC_LOCK(p)	mtx_lock(&(p)->p_mtx)
+#define PROC_UNLOCK(p)	mtx_unlock(&(p)->p_mtx)
 
 /* Lock and unlock the proc lists. */
 #define	ALLPROC_LOCK(how)						\

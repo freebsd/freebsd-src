@@ -168,7 +168,7 @@ sched_swi(struct intrhand *ih, int flag)
 	ih->ih_need = 1;
 	if (!(flag & SWI_DELAY)) {
 		it->it_need = 1;
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 		if (p->p_stat == SWAIT) { /* not on run queue */
 			CTR1(KTR_INTR, "sched_swi: setrunqueue %d", p->p_pid);
 /*			membar_lock(); */
@@ -180,7 +180,7 @@ sched_swi(struct intrhand *ih, int flag)
 			CTR3(KTR_INTR, "sched_swi %d: it_need %d, state %d",
 				p->p_pid, it->it_need, p->p_stat );
 		}
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		need_resched();
 	}
 }
@@ -223,10 +223,10 @@ sithd_loop(void *dummy)
 				    ih->ih_flags);
 
 				if ((ih->ih_flags & INTR_MPSAFE) == 0)
-					mtx_enter(&Giant, MTX_DEF);
+					mtx_lock(&Giant);
 				ih->ih_handler(ih->ih_argument);
 				if ((ih->ih_flags & INTR_MPSAFE) == 0)
-					mtx_exit(&Giant, MTX_DEF);
+					mtx_unlock(&Giant);
 			}
 		}
 
@@ -236,14 +236,14 @@ sithd_loop(void *dummy)
 		 * set again, so we have to check it again.
 		 */
 		mtx_assert(&Giant, MA_NOTOWNED);
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 		if (!it->it_need) {
 			p->p_stat = SWAIT; /* we're idle */
 			CTR1(KTR_INTR, "sithd_loop pid %d: done", p->p_pid);
 			mi_switch();
 			CTR1(KTR_INTR, "sithd_loop pid %d: resumed", p->p_pid);
 		}
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 	}
 }
 

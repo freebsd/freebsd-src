@@ -1147,8 +1147,8 @@ struct ti_softc {
 	struct mtx		ti_mtx;
 };
 
-#define	TI_LOCK(_sc)		mtx_enter(&(_sc)->ti_mtx, MTX_DEF)
-#define	TI_UNLOCK(_sc)		mtx_exit(&(_sc)->ti_mtx, MTX_DEF)
+#define	TI_LOCK(_sc)		mtx_lock(&(_sc)->ti_mtx)
+#define	TI_UNLOCK(_sc)		mtx_unlock(&(_sc)->ti_mtx)
 
 /*
  * Microchip Technology 24Cxx EEPROM control bytes

@@ -300,7 +300,7 @@ struct mcntfree_lst {
 #define _MEXT_ALLOC_CNT(m_cnt, how) do {				\
 	union mext_refcnt *__mcnt;					\
 									\
-	mtx_enter(&mcntfree.m_mtx, MTX_DEF);				\
+	mtx_lock(&mcntfree.m_mtx);				\
 	if (mcntfree.m_head == NULL)					\
 		m_alloc_ref(1, (how));					\
 	__mcnt = mcntfree.m_head;					\
@@ -309,18 +309,18 @@ struct mcntfree_lst {
 		mbstat.m_refree--;					\
 		__mcnt->refcnt = 0;					\
 	}								\
-	mtx_exit(&mcntfree.m_mtx, MTX_DEF);				\
+	mtx_unlock(&mcntfree.m_mtx);				\
 	(m_cnt) = __mcnt;						\
 } while (0)
 
 #define _MEXT_DEALLOC_CNT(m_cnt) do {					\
 	union mext_refcnt *__mcnt = (m_cnt);				\
 									\
-	mtx_enter(&mcntfree.m_mtx, MTX_DEF);				\
+	mtx_lock(&mcntfree.m_mtx);				\
 	__mcnt->next_ref = mcntfree.m_head;				\
 	mcntfree.m_head = __mcnt;					\
 	mbstat.m_refree++;						\
-	mtx_exit(&mcntfree.m_mtx, MTX_DEF);				\
+	mtx_unlock(&mcntfree.m_mtx);				\
 } while (0)
 
 #define MEXT_INIT_REF(m, how) do {					\
@@ -371,14 +371,14 @@ struct mcntfree_lst {
 	int _mhow = (how);						\
 	int _mtype = (type);						\
 									\
-	mtx_enter(&mmbfree.m_mtx, MTX_DEF);				\
+	mtx_lock(&mmbfree.m_mtx);				\
 	_MGET(_mm, _mhow);						\
 	if (_mm != NULL) {						\
 		mbtypes[_mtype]++;					\
-		mtx_exit(&mmbfree.m_mtx, MTX_DEF);			\
+		mtx_unlock(&mmbfree.m_mtx);			\
 		_MGET_SETUP(_mm, _mtype);				\
 	} else								\
-		mtx_exit(&mmbfree.m_mtx, MTX_DEF);			\
+		mtx_unlock(&mmbfree.m_mtx);			\
 	(m) = _mm;							\
 } while (0)
 
@@ -398,14 +398,14 @@ struct mcntfree_lst {
 	int _mhow = (how);						\
 	int _mtype = (type);						\
 									\
-	mtx_enter(&mmbfree.m_mtx, MTX_DEF);				\
+	mtx_lock(&mmbfree.m_mtx);				\
 	_MGET(_mm, _mhow);						\
 	if (_mm != NULL) {						\
 		mbtypes[_mtype]++;					\
-		mtx_exit(&mmbfree.m_mtx, MTX_DEF);			\
+		mtx_unlock(&mmbfree.m_mtx);			\
 		_MGETHDR_SETUP(_mm, _mtype);				\
 	} else								\
-		mtx_exit(&mmbfree.m_mtx, MTX_DEF);			\
+		mtx_unlock(&mmbfree.m_mtx);			\
 	(m) = _mm;							\
 } while (0)
 
@@ -437,9 +437,9 @@ struct mcntfree_lst {
 #define	MCLGET(m, how) do {						\
 	struct mbuf *_mm = (m);						\
 									\
-	mtx_enter(&mclfree.m_mtx, MTX_DEF);				\
+	mtx_lock(&mclfree.m_mtx);				\
 	_MCLALLOC(_mm->m_ext.ext_buf, (how));				\
-	mtx_exit(&mclfree.m_mtx, MTX_DEF);				\
+	mtx_unlock(&mclfree.m_mtx);				\
 	if (_mm->m_ext.ext_buf != NULL) {				\
 		MEXT_INIT_REF(_mm, (how));				\
 		if (_mm->m_ext.ref_cnt == NULL) {			\
@@ -474,12 +474,12 @@ struct mcntfree_lst {
 #define	_MCLFREE(p) do {						\
 	union mcluster *_mp = (union mcluster *)(p);			\
 									\
-	mtx_enter(&mclfree.m_mtx, MTX_DEF);				\
+	mtx_lock(&mclfree.m_mtx);				\
 	_mp->mcl_next = mclfree.m_head;					\
 	mclfree.m_head = _mp;						\
 	mbstat.m_clfree++;						\
 	MBWAKEUP(m_clalloc_wid);					\
-	mtx_exit(&mclfree.m_mtx, MTX_DEF); 				\
+	mtx_unlock(&mclfree.m_mtx); 				\
 } while (0)
 
 /* MEXTFREE:
@@ -514,7 +514,7 @@ struct mcntfree_lst {
 	KASSERT(_mm->m_type != MT_FREE, ("freeing free mbuf"));		\
 	if (_mm->m_flags & M_EXT)					\
 		MEXTFREE(_mm);						\
-	mtx_enter(&mmbfree.m_mtx, MTX_DEF);				\
+	mtx_lock(&mmbfree.m_mtx);				\
 	mbtypes[_mm->m_type]--;						\
 	_mm->m_type = MT_FREE;						\
 	mbtypes[MT_FREE]++;						\
@@ -522,7 +522,7 @@ struct mcntfree_lst {
 	_mm->m_next = mmbfree.m_head;					\
 	mmbfree.m_head = _mm;						\
 	MBWAKEUP(m_mballoc_wid);					\
-	mtx_exit(&mmbfree.m_mtx, MTX_DEF); 				\
+	mtx_unlock(&mmbfree.m_mtx); 				\
 } while (0)
 
 /*

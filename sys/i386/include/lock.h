@@ -39,8 +39,8 @@
 /*
  * Protects the IO APIC and apic_imen as a critical region.
  */
-#define IMASK_LOCK	MTX_ENTER(_imen_mtx, MTX_SPIN)
-#define IMASK_UNLOCK	MTX_EXIT(_imen_mtx, MTX_SPIN)
+#define IMASK_LOCK	MTX_LOCK_SPIN(_imen_mtx, 0)
+#define IMASK_UNLOCK	MTX_UNLOCK_SPIN(_imen_mtx)
 
 #else  /* SMP */
 
@@ -62,8 +62,8 @@
  * XXX should rc (RISCom/8) use this?
  */
 #ifdef USE_COMLOCK
-#define COM_LOCK() 	mtx_enter(&com_mtx, MTX_SPIN)
-#define COM_UNLOCK() 	mtx_exit(&com_mtx, MTX_SPIN)
+#define COM_LOCK() 	mtx_lock_spin(&com_mtx)
+#define COM_UNLOCK() 	mtx_unlock_spin(&com_mtx)
 #else
 #define COM_LOCK()
 #define COM_UNLOCK()

@@ -560,7 +560,7 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 		    "alpha_dispatch_intr: disabling vector 0x%x", i->vector);
 		i->disable(i->vector);
 	}
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	if (ithd->it_proc->p_stat == SWAIT) {
 		/* not on the run queue and not running */
 		CTR1(KTR_INTR, "alpha_dispatch_intr: setrunqueue %d",
@@ -587,7 +587,7 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 		    ithd->it_proc->p_pid, ithd->it_need, ithd->it_proc->p_stat);
 		need_resched();
 	}
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 }
  
 void
@@ -626,10 +626,10 @@ ithd_loop(void *dummy)
 				    ih->ih_flags);
 
 				if ((ih->ih_flags & INTR_MPSAFE) == 0)
-					mtx_enter(&Giant, MTX_DEF);
+					mtx_lock(&Giant);
 				ih->ih_handler(ih->ih_argument);
 				if ((ih->ih_flags & INTR_MPSAFE) == 0)
-					mtx_exit(&Giant, MTX_DEF);
+					mtx_unlock(&Giant);
 			}
 
 			/*
@@ -646,7 +646,7 @@ ithd_loop(void *dummy)
 		 * set again, so we have to check it again.
 		 */
 		mtx_assert(&Giant, MA_NOTOWNED);
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 		if (!ithd->it_need) {
 			ithd->it_proc->p_stat = SWAIT; /* we're idle */
 			CTR1(KTR_INTR, "ithd_loop pid %d: done",
@@ -655,7 +655,7 @@ ithd_loop(void *dummy)
 			CTR1(KTR_INTR, "ithd_loop pid %d: resumed",
 			    ithd->it_proc->p_pid);
 		}
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 	}
 }
 

@@ -295,7 +295,7 @@ schedcpu(arg)
 		if (p->p_stat == SWAIT)
 			continue;
 		 */
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 		p->p_swtime++;
 		if (p->p_stat == SSLEEP || p->p_stat == SSTOP)
 			p->p_slptime++;
@@ -305,7 +305,7 @@ schedcpu(arg)
 		 * stop recalculating its priority until it wakes up.
 		 */
 		if (p->p_slptime > 1) {
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			continue;
 		}
 
@@ -343,7 +343,7 @@ schedcpu(arg)
 			} else
 				p->p_priority = p->p_usrpri;
 		}
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		splx(s);
 	}
 	ALLPROC_LOCK(AP_RELEASE);
@@ -427,7 +427,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 		ktrcsw(p->p_tracep, 1, 0);
 #endif
 	WITNESS_SLEEP(0, mtx);
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	s = splhigh();
 	if (cold || panicstr) {
 		/*
@@ -437,8 +437,8 @@ msleep(ident, mtx, priority, wmesg, timo)
 		 * in case this is the idle process and already asleep.
 		 */
 		if (mtx != NULL && priority & PDROP)
-			mtx_exit(mtx, MTX_DEF | MTX_NOSWITCH);
-		mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_flags(mtx, MTX_NOSWITCH);
+		mtx_unlock_spin(&sched_lock);
 		splx(s);
 		return (0);
 	}
@@ -448,7 +448,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 	if (mtx != NULL) {
 		mtx_assert(mtx, MA_OWNED | MA_NOTRECURSED);
 		WITNESS_SAVE(mtx, mtx);
-		mtx_exit(mtx, MTX_DEF | MTX_NOSWITCH);
+		mtx_unlock_flags(mtx, MTX_NOSWITCH);
 		if (priority & PDROP)
 			mtx = NULL;
 	}
@@ -485,15 +485,15 @@ msleep(ident, mtx, priority, wmesg, timo)
 		        "msleep caught: proc %p (pid %d, %s), schedlock %p",
 			p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
 		p->p_sflag |= PS_SINTR;
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		if ((sig = CURSIG(p))) {
-			mtx_enter(&sched_lock, MTX_SPIN);
+			mtx_lock_spin(&sched_lock);
 			if (p->p_wchan)
 				unsleep(p);
 			p->p_stat = SRUN;
 			goto resume;
 		}
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 		if (p->p_wchan == NULL) {
 			catch = 0;
 			goto resume;
@@ -518,12 +518,12 @@ resume:
 				ktrcsw(p->p_tracep, 0, 0);
 #endif
 			rval = EWOULDBLOCK;
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			goto out;
 		}
 	} else if (timo)
 		callout_stop(&p->p_slpcallout);
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 
 	if (catch && (sig != 0 || (sig = CURSIG(p)))) {
 #ifdef KTRACE
@@ -543,7 +543,7 @@ out:
 #endif
 	PICKUP_GIANT();
 	if (mtx != NULL) {
-		mtx_enter(mtx, MTX_DEF);
+		mtx_lock(mtx);
 		WITNESS_RESTORE(mtx, mtx);
 	}
 	return (rval);
@@ -579,7 +579,7 @@ asleep(void *ident, int priority, const char *wmesg, int timo)
 	 */
 
 	s = splhigh();
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 
 	if (p->p_wchan != NULL)
 		unsleep(p);
@@ -593,7 +593,7 @@ asleep(void *ident, int priority, const char *wmesg, int timo)
 		TAILQ_INSERT_TAIL(&slpque[LOOKUP(ident)], p, p_slpq);
 	}
 
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 	splx(s);
 
 	return(0);
@@ -620,12 +620,12 @@ mawait(struct mtx *mtx, int priority, int timo)
 	WITNESS_SAVE_DECL(mtx);
 
 	WITNESS_SLEEP(0, mtx);
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	DROP_GIANT_NOSWITCH();
 	if (mtx != NULL) {
 		mtx_assert(mtx, MA_OWNED | MA_NOTRECURSED);
 		WITNESS_SAVE(mtx, mtx);
-		mtx_exit(mtx, MTX_DEF | MTX_NOSWITCH);
+		mtx_unlock_flags(mtx, MTX_NOSWITCH);
 		if (priority & PDROP)
 			mtx = NULL;
 	}
@@ -657,15 +657,15 @@ mawait(struct mtx *mtx, int priority, int timo)
 
 		if (catch) {
 			p->p_sflag |= PS_SINTR;
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			if ((sig = CURSIG(p))) {
-				mtx_enter(&sched_lock, MTX_SPIN);
+				mtx_lock_spin(&sched_lock);
 				if (p->p_wchan)
 					unsleep(p);
 				p->p_stat = SRUN;
 				goto resume;
 			}
-			mtx_enter(&sched_lock, MTX_SPIN);
+			mtx_lock_spin(&sched_lock);
 			if (p->p_wchan == NULL) {
 				catch = 0;
 				goto resume;
@@ -687,12 +687,12 @@ resume:
 					ktrcsw(p->p_tracep, 0, 0);
 #endif
 				rval = EWOULDBLOCK;
-				mtx_exit(&sched_lock, MTX_SPIN);
+				mtx_unlock_spin(&sched_lock);
 				goto out;
 			}
 		} else if (timo)
 			callout_stop(&p->p_slpcallout);
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 
 		if (catch && (sig != 0 || (sig = CURSIG(p)))) {
 #ifdef KTRACE
@@ -720,7 +720,7 @@ resume:
 			p->p_stats->p_ru.ru_nvcsw++;
 			mi_switch();
 		}
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		splx(s);
 	}
 
@@ -735,7 +735,7 @@ resume:
 out:
 	PICKUP_GIANT();
 	if (mtx != NULL) {
-		mtx_enter(mtx, MTX_DEF);
+		mtx_lock(mtx);
 		WITNESS_RESTORE(mtx, mtx);
 	}
 	return (rval);
@@ -761,7 +761,7 @@ endtsleep(arg)
 	        "endtsleep: proc %p (pid %d, %s), schedlock %p",
 		p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
 	s = splhigh();
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	if (p->p_wchan) {
 		if (p->p_stat == SSLEEP)
 			setrunnable(p);
@@ -769,7 +769,7 @@ endtsleep(arg)
 			unsleep(p);
 		p->p_sflag |= PS_TIMEOUT;
 	}
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 	splx(s);
 }
 
@@ -783,12 +783,12 @@ unsleep(p)
 	int s;
 
 	s = splhigh();
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	if (p->p_wchan) {
 		TAILQ_REMOVE(&slpque[LOOKUP(p->p_wchan)], p, p_slpq);
 		p->p_wchan = NULL;
 	}
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 	splx(s);
 }
 
@@ -804,7 +804,7 @@ wakeup(ident)
 	int s;
 
 	s = splhigh();
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	qp = &slpque[LOOKUP(ident)];
 restart:
 	TAILQ_FOREACH(p, qp, p_slpq) {
@@ -832,7 +832,7 @@ restart:
 			}
 		}
 	}
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 	splx(s);
 }
 
@@ -850,7 +850,7 @@ wakeup_one(ident)
 	int s;
 
 	s = splhigh();
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	qp = &slpque[LOOKUP(ident)];
 
 	TAILQ_FOREACH(p, qp, p_slpq) {
@@ -878,7 +878,7 @@ wakeup_one(ident)
 			}
 		}
 	}
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 	splx(s);
 }
 
@@ -947,13 +947,13 @@ mi_switch()
 	    p->p_runtime > p->p_limit->p_cpulimit) {
 		rlim = &p->p_rlimit[RLIMIT_CPU];
 		if (p->p_runtime / (rlim_t)1000000 >= rlim->rlim_max) {
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			killproc(p, "exceeded maximum CPU limit");
-			mtx_enter(&sched_lock, MTX_SPIN);
+			mtx_lock_spin(&sched_lock);
 		} else {
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			psignal(p, SIGXCPU);
-			mtx_enter(&sched_lock, MTX_SPIN);
+			mtx_lock_spin(&sched_lock);
 			if (rlim->rlim_cur < rlim->rlim_max) {
 				/* XXX: we should make a private copy */
 				rlim->rlim_cur += 5;
@@ -990,7 +990,7 @@ setrunnable(p)
 	register int s;
 
 	s = splhigh();
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	switch (p->p_stat) {
 	case 0:
 	case SRUN:
@@ -1022,7 +1022,7 @@ setrunnable(p)
 	}
 	else
 		maybe_resched(p);
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 }
 
 /*
@@ -1036,7 +1036,7 @@ resetpriority(p)
 {
 	register unsigned int newpriority;
 
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	if (p->p_rtprio.type == RTP_PRIO_NORMAL) {
 		newpriority = PUSER + p->p_estcpu / INVERSE_ESTCPU_WEIGHT +
 		    NICE_WEIGHT * (p->p_nice - PRIO_MIN);
@@ -1044,7 +1044,7 @@ resetpriority(p)
 		p->p_usrpri = newpriority;
 	}
 	maybe_resched(p);
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 }
 
 /* ARGSUSED */
@@ -1100,13 +1100,13 @@ yield(struct proc *p, struct yield_args *uap)
 	p->p_retval[0] = 0;
 
 	s = splhigh();
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	DROP_GIANT_NOSWITCH();
 	p->p_priority = MAXPRI;
 	setrunqueue(p);
 	p->p_stats->p_ru.ru_nvcsw++;
 	mi_switch();
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 	PICKUP_GIANT();
 	splx(s);
 

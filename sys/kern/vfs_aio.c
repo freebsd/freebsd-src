@@ -638,7 +638,7 @@ aio_daemon(void *uproc)
 	struct proc *curcp, *mycp, *userp;
 	struct vmspace *myvm, *tmpvm;
 
-	mtx_enter(&Giant, MTX_DEF);
+	mtx_lock(&Giant);
 	/*
 	 * Local copies of curproc (cp) and vmspace (myvm)
 	 */

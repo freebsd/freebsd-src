@@ -1141,7 +1141,7 @@ svr4_setinfo(p, st, s)
 
 	if (p) {
 		i.si_pid = p->p_pid;
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 		if (p->p_stat == SZOMB) {
 			i.si_stime = p->p_ru->ru_stime.tv_sec;
 			i.si_utime = p->p_ru->ru_utime.tv_sec;
@@ -1150,7 +1150,7 @@ svr4_setinfo(p, st, s)
 			i.si_stime = p->p_stats->p_ru.ru_stime.tv_sec;
 			i.si_utime = p->p_stats->p_ru.ru_utime.tv_sec;
 		}
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 	}
 
 	if (WIFEXITED(st)) {
@@ -1226,10 +1226,10 @@ loop:
 		}
 		nfound++;
 		PROC_LOCK(q);
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 		if (q->p_stat == SZOMB && 
 		    ((SCARG(uap, options) & (SVR4_WEXITED|SVR4_WTRAPPED)))) {
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			PROC_UNLOCK(q);
 			PROCTREE_LOCK(PT_RELEASE);
 			*retval = 0;
@@ -1357,7 +1357,7 @@ loop:
 		if (q->p_stat == SSTOP && (q->p_flag & P_WAITED) == 0 &&
 		    (q->p_flag & P_TRACED ||
 		     (SCARG(uap, options) & (SVR4_WSTOPPED|SVR4_WCONTINUED)))) {
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			DPRINTF(("jobcontrol %d\n", q->p_pid));
 		        if (((SCARG(uap, options) & SVR4_WNOWAIT)) == 0)
 				q->p_flag |= P_WAITED;
@@ -1366,7 +1366,7 @@ loop:
 			return svr4_setinfo(q, W_STOPCODE(q->p_xstat),
 					    SCARG(uap, info));
 		}
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(q);
 	}
 

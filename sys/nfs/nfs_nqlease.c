@@ -1194,7 +1194,7 @@ nqnfs_lease_updatetime(deltat)
 	 * Search the mount list for all nqnfs mounts and do their timer
 	 * queues.
 	 */
-	mtx_enter(&mountlist_mtx, MTX_DEF);
+	mtx_lock(&mountlist_mtx);
 	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nxtmp) {
 		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx, p)) {
 			nxtmp = TAILQ_NEXT(mp, mnt_list);
@@ -1208,11 +1208,11 @@ nqnfs_lease_updatetime(deltat)
 				}
 			}
 		}
-		mtx_enter(&mountlist_mtx, MTX_DEF);
+		mtx_lock(&mountlist_mtx);
 		nxtmp = TAILQ_NEXT(mp, mnt_list);
 		vfs_unbusy(mp, p);
 	}
-	mtx_exit(&mountlist_mtx, MTX_DEF);
+	mtx_unlock(&mountlist_mtx);
 }
 
 #ifndef NFS_NOSERVER 

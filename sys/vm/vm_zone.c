@@ -173,9 +173,9 @@ zinitna(vm_zone_t z, vm_object_t obj, char *name, int size,
 	/* our zone is good and ready, add it to the list */
 	if ((z->zflags & ZONE_BOOT) == 0) {
 		mtx_init(&(z)->zmtx, "zone", MTX_DEF);
-		mtx_enter(&zone_mtx, MTX_DEF);
+		mtx_lock(&zone_mtx);
 		SLIST_INSERT_HEAD(&zlist, z, zent);
-		mtx_exit(&zone_mtx, MTX_DEF);
+		mtx_unlock(&zone_mtx);
 	}
 	
 	return 1;
@@ -245,9 +245,9 @@ zbootinit(vm_zone_t z, char *name, int size, void *item, int nitems)
 	z->zmax = nitems;
 	z->ztotal = nitems;
 
-	mtx_enter(&zone_mtx, MTX_DEF);
+	mtx_lock(&zone_mtx);
 	SLIST_INSERT_HEAD(&zlist, z, zent);
-	mtx_exit(&zone_mtx, MTX_DEF);
+	mtx_unlock(&zone_mtx);
 }
 
 /*
@@ -300,15 +300,15 @@ _zget(vm_zone_t z)
 		 * map.
 		 */
 		if (lockstatus(&kernel_map->lock, NULL)) {
-			mtx_exit(&z->zmtx, MTX_DEF);
+			mtx_unlock(&z->zmtx);
 			item = (void *) kmem_malloc(kmem_map, nbytes, M_WAITOK);
-			mtx_enter(&z->zmtx, MTX_DEF);
+			mtx_lock(&z->zmtx);
 			if (item != NULL)
 				atomic_add_int(&zone_kmem_pages, z->zalloc);
 		} else {
-			mtx_exit(&z->zmtx, MTX_DEF);
+			mtx_unlock(&z->zmtx);
 			item = (void *) kmem_alloc(kernel_map, nbytes);
-			mtx_enter(&z->zmtx, MTX_DEF);
+			mtx_lock(&z->zmtx);
 			if (item != NULL)
 				atomic_add_int(&zone_kern_pages, z->zalloc);
 		}
@@ -363,11 +363,11 @@ zalloc(vm_zone_t z)
 	void *item;
 
 	KASSERT(z != NULL, ("invalid zone"));
-	mtx_enter(&z->zmtx, MTX_DEF);
+	mtx_lock(&z->zmtx);
 	
 	if (z->zfreecnt <= z->zfreemin) {
 		item = _zget(z);
-		mtx_exit(&z->zmtx, MTX_DEF);
+		mtx_unlock(&z->zmtx);
 		return item;
 	}
 
@@ -382,7 +382,7 @@ zalloc(vm_zone_t z)
 	z->zfreecnt--;
 	z->znalloc++;
 	
-	mtx_exit(&z->zmtx, MTX_DEF);
+	mtx_unlock(&z->zmtx);
 	return item;
 }
 
@@ -394,7 +394,7 @@ zfree(vm_zone_t z, void *item)
 {
 	KASSERT(z != NULL, ("invalid zone"));
 	KASSERT(item != NULL, ("invalid item"));
-	mtx_enter(&z->zmtx, MTX_DEF);
+	mtx_lock(&z->zmtx);
 	
 	((void **) item)[0] = z->zitems;
 #ifdef INVARIANTS
@@ -405,7 +405,7 @@ zfree(vm_zone_t z, void *item)
 	z->zitems = item;
 	z->zfreecnt++;
 
-	mtx_exit(&z->zmtx, MTX_DEF);
+	mtx_unlock(&z->zmtx);
 }
 
 /*
@@ -418,22 +418,22 @@ sysctl_vm_zone(SYSCTL_HANDLER_ARGS)
 	char tmpbuf[128];
 	vm_zone_t z;
 
-	mtx_enter(&zone_mtx, MTX_DEF);
+	mtx_lock(&zone_mtx);
 	len = snprintf(tmpbuf, sizeof(tmpbuf),
 	    "\nITEM            SIZE     LIMIT    USED    FREE  REQUESTS\n\n");
 	error = SYSCTL_OUT(req, tmpbuf, SLIST_EMPTY(&zlist) ? len-1 : len);
 	SLIST_FOREACH(z, &zlist, zent) {
-		mtx_enter(&z->zmtx, MTX_DEF);
+		mtx_lock(&z->zmtx);
 		len = snprintf(tmpbuf, sizeof(tmpbuf),
 		    "%-14.14s %6.6u, %8.8u, %6.6u, %6.6u, %8.8u\n",
 		    z->zname, z->zsize, z->zmax, (z->ztotal - z->zfreecnt),
 		    z->zfreecnt, z->znalloc);
-		mtx_exit(&z->zmtx, MTX_DEF);
+		mtx_unlock(&z->zmtx);
 		if (SLIST_NEXT(z, zent) == NULL)
 			tmpbuf[len - 1] = 0;
 		error = SYSCTL_OUT(req, tmpbuf, len);
 	}
-	mtx_exit(&zone_mtx, MTX_DEF);
+	mtx_unlock(&zone_mtx);
 	return (error);
 }
 

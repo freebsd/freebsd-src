@@ -176,17 +176,17 @@ restart:
 	 * case getnewvnode() or MALLOC() blocks, otherwise a duplicate
 	 * may occur!
 	 */
-	mtx_enter(&ifs_inode_hash_mtx, MTX_DEF);
+	mtx_lock(&ifs_inode_hash_mtx);
 	if (ifs_inode_hash_lock) {
 		while (ifs_inode_hash_lock) {
 			ifs_inode_hash_lock = -1;
 			msleep(&ifs_inode_hash_lock, &ifs_inode_hash_mtx, PVM, "ifsvgt", 0);
 		}
-		mtx_exit(&ifs_inode_hash_mtx, MTX_DEF);
+		mtx_unlock(&ifs_inode_hash_mtx);
 		goto restart;
 	}
 	ifs_inode_hash_lock = 1;
-	mtx_exit(&ifs_inode_hash_mtx, MTX_DEF);
+	mtx_unlock(&ifs_inode_hash_mtx);
 
 	/*
 	 * If this MALLOC() is performed after the getnewvnode()
@@ -206,10 +206,10 @@ restart:
 		 * otherwise the processes waken up immediately hit
 		 * themselves into the mutex.
 		 */
-		mtx_enter(&ifs_inode_hash_mtx, MTX_DEF);
+		mtx_lock(&ifs_inode_hash_mtx);
 		want_wakeup = ifs_inode_hash_lock < 0;
 		ifs_inode_hash_lock = 0;
-		mtx_exit(&ifs_inode_hash_mtx, MTX_DEF);
+		mtx_unlock(&ifs_inode_hash_mtx);
 		if (want_wakeup)
 			wakeup(&ifs_inode_hash_lock);
 		*vpp = NULL;
@@ -247,10 +247,10 @@ restart:
 	 * otherwise the processes waken up immediately hit
 	 * themselves into the mutex.
 	 */
-	mtx_enter(&ifs_inode_hash_mtx, MTX_DEF);
+	mtx_lock(&ifs_inode_hash_mtx);
 	want_wakeup = ifs_inode_hash_lock < 0;
 	ifs_inode_hash_lock = 0;
-	mtx_exit(&ifs_inode_hash_mtx, MTX_DEF);
+	mtx_unlock(&ifs_inode_hash_mtx);
 	if (want_wakeup)
 		wakeup(&ifs_inode_hash_lock);
 

@@ -132,7 +132,7 @@ lockrange(daddr_t stripe, struct buf *bp, struct plex *plex)
      * increment all addresses by 1.
      */
     stripe++;
-    mtx_enter(&plex->lockmtx, MTX_DEF);
+    mtx_lock(&plex->lockmtx);
 
     /* Wait here if the table is full */
     while (plex->usedlocks == PLEX_LOCKS)		    /* all in use */
@@ -187,7 +187,7 @@ lockrange(daddr_t stripe, struct buf *bp, struct plex *plex)
     pos->stripe = stripe;
     pos->bp = bp;
     plex->usedlocks++;					    /* one more lock */
-    mtx_exit(&plex->lockmtx, MTX_DEF);
+    mtx_unlock(&plex->lockmtx);
 #ifdef VINUMDEBUG
     if (debug & DEBUG_LASTREQS)
 	logrq(loginfo_lock, (union rqinfou) pos, bp);

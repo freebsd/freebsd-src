@@ -517,8 +517,8 @@ struct ste_softc {
 	struct mtx		ste_mtx;
 };
 
-#define	STE_LOCK(_sc)		mtx_enter(&(_sc)->ste_mtx, MTX_DEF)
-#define	STE_UNLOCK(_sc)		mtx_exit(&(_sc)->ste_mtx, MTX_DEF)
+#define	STE_LOCK(_sc)		mtx_lock(&(_sc)->ste_mtx)
+#define	STE_UNLOCK(_sc)		mtx_unlock(&(_sc)->ste_mtx)
 
 struct ste_mii_frame {
 	u_int8_t		mii_stdelim;

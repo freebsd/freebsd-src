@@ -153,10 +153,10 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 	LIST_FOREACH(p, &allproc, p_list) {
 		if (p->p_flag & P_SYSTEM)
 			continue;
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 		switch (p->p_stat) {
 		case 0:
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			continue;
 
 		case SMTX:
@@ -170,7 +170,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 			} else if (p->p_slptime < maxslp)
 				totalp->t_sw++;
 			if (p->p_slptime >= maxslp) {
-				mtx_exit(&sched_lock, MTX_SPIN);
+				mtx_unlock_spin(&sched_lock);
 				continue;
 			}
 			break;
@@ -186,12 +186,12 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 			else
 				totalp->t_sw++;
 			if (p->p_stat == SIDL) {
-				mtx_exit(&sched_lock, MTX_SPIN);
+				mtx_unlock_spin(&sched_lock);
 				continue;
 			}
 			break;
 		}
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		/*
 		 * Note active objects.
 		 */

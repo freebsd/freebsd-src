@@ -207,7 +207,7 @@ clkintr(struct clockframe frame)
 {
 
 	if (timecounter->tc_get_timecount == i8254_get_timecount) {
-		mtx_enter(&clock_lock, MTX_SPIN);
+		mtx_lock_spin(&clock_lock);
 		if (i8254_ticked)
 			i8254_ticked = 0;
 		else {
@@ -215,7 +215,7 @@ clkintr(struct clockframe frame)
 			i8254_lastcount = 0;
 		}
 		clkintr_pending = 0;
-		mtx_exit(&clock_lock, MTX_SPIN);
+		mtx_unlock_spin(&clock_lock);
 	}
 	timer_func(&frame);
 	switch (timer0_state) {
@@ -232,14 +232,14 @@ clkintr(struct clockframe frame)
 		break;
 
 	case ACQUIRE_PENDING:
-		mtx_enter(&clock_lock, MTX_SPIN);
+		mtx_lock_spin(&clock_lock);
 		i8254_offset = i8254_get_timecount(NULL);
 		i8254_lastcount = 0;
 		timer0_max_count = TIMER_DIV(new_rate);
 		outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
 		outb(TIMER_CNTR0, timer0_max_count & 0xff);
 		outb(TIMER_CNTR0, timer0_max_count >> 8);
-		mtx_exit(&clock_lock, MTX_SPIN);
+		mtx_unlock_spin(&clock_lock);
 		timer_func = new_function;
 		timer0_state = ACQUIRED;
 		break;
@@ -247,7 +247,7 @@ clkintr(struct clockframe frame)
 	case RELEASE_PENDING:
 		if ((timer0_prescaler_count += timer0_max_count)
 		    >= hardclock_max_count) {
-			mtx_enter(&clock_lock, MTX_SPIN);
+			mtx_lock_spin(&clock_lock);
 			i8254_offset = i8254_get_timecount(NULL);
 			i8254_lastcount = 0;
 			timer0_max_count = hardclock_max_count;
@@ -255,7 +255,7 @@ clkintr(struct clockframe frame)
 			     TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
 			outb(TIMER_CNTR0, timer0_max_count & 0xff);
 			outb(TIMER_CNTR0, timer0_max_count >> 8);
-			mtx_exit(&clock_lock, MTX_SPIN);
+			mtx_unlock_spin(&clock_lock);
 			timer0_prescaler_count = 0;
 			timer_func = hardclock;
 			timer0_state = RELEASED;
@@ -403,7 +403,7 @@ getit(void)
 {
 	int high, low;
 
-	mtx_enter(&clock_lock, MTX_SPIN);
+	mtx_lock_spin(&clock_lock);
 
 	/* Select timer0 and latch counter value. */
 	outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
@@ -411,7 +411,7 @@ getit(void)
 	low = inb(TIMER_CNTR0);
 	high = inb(TIMER_CNTR0);
 
-	mtx_exit(&clock_lock, MTX_SPIN);
+	mtx_unlock_spin(&clock_lock);
 	return ((high << 8) | low);
 }
 
@@ -525,10 +525,10 @@ sysbeep(int pitch, int period)
 			splx(x);
 			return (-1); /* XXX Should be EBUSY, but nobody cares anyway. */
 		}
-	mtx_enter(&clock_lock, MTX_SPIN);
+	mtx_lock_spin(&clock_lock);
 	outb(TIMER_CNTR2, pitch);
 	outb(TIMER_CNTR2, (pitch>>8));
-	mtx_exit(&clock_lock, MTX_SPIN);
+	mtx_unlock_spin(&clock_lock);
 	if (!beeping) {
 		/* enable counter2 output to speaker */
 		outb(IO_PPI, inb(IO_PPI) | 3);
@@ -679,7 +679,7 @@ set_timer_freq(u_int freq, int intr_freq)
 {
 	int new_timer0_max_count;
 
-	mtx_enter(&clock_lock, MTX_SPIN);
+	mtx_lock_spin(&clock_lock);
 	timer_freq = freq;
 	new_timer0_max_count = hardclock_max_count = TIMER_DIV(intr_freq);
 	if (new_timer0_max_count != timer0_max_count) {
@@ -688,7 +688,7 @@ set_timer_freq(u_int freq, int intr_freq)
 		outb(TIMER_CNTR0, timer0_max_count & 0xff);
 		outb(TIMER_CNTR0, timer0_max_count >> 8);
 	}
-	mtx_exit(&clock_lock, MTX_SPIN);
+	mtx_unlock_spin(&clock_lock);
 }
 
 /*
@@ -703,11 +703,11 @@ void
 i8254_restore(void)
 {
 
-	mtx_enter(&clock_lock, MTX_SPIN);
+	mtx_lock_spin(&clock_lock);
 	outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
 	outb(TIMER_CNTR0, timer0_max_count & 0xff);
 	outb(TIMER_CNTR0, timer0_max_count >> 8);
-	mtx_exit(&clock_lock, MTX_SPIN);
+	mtx_unlock_spin(&clock_lock);
 }
 
 /*
@@ -1194,7 +1194,7 @@ i8254_get_timecount(struct timecounter *tc)
 	u_int eflags;
 
 	eflags = read_eflags();
-	mtx_enter(&clock_lock, MTX_SPIN);
+	mtx_lock_spin(&clock_lock);
 
 	/* Select timer0 and latch counter value. */
 	outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
@@ -1218,7 +1218,7 @@ i8254_get_timecount(struct timecounter *tc)
 	}
 	i8254_lastcount = count;
 	count += i8254_offset;
-	mtx_exit(&clock_lock, MTX_SPIN);
+	mtx_unlock_spin(&clock_lock);
 	return (count);
 }
 

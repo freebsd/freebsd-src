@@ -92,11 +92,11 @@ hpfs_hphashlookup(dev, ino)
 {
 	struct hpfsnode *hp;
 
-	mtx_enter(&hpfs_hphash_mtx, MTX_DEF);
+	mtx_lock(&hpfs_hphash_mtx);
 	LIST_FOREACH(hp, HPNOHASH(dev, ino), h_hash)
 		if (ino == hp->h_no && dev == hp->h_dev)
 			break;
-	mtx_exit(&hpfs_hphash_mtx, MTX_DEF);
+	mtx_unlock(&hpfs_hphash_mtx);
 
 	return (hp);
 }
@@ -110,14 +110,14 @@ hpfs_hphashget(dev, ino)
 	struct hpfsnode *hp;
 
 loop:
-	mtx_enter(&hpfs_hphash_mtx, MTX_DEF);
+	mtx_lock(&hpfs_hphash_mtx);
 	LIST_FOREACH(hp, HPNOHASH(dev, ino), h_hash) {
 		if (ino == hp->h_no && dev == hp->h_dev) {
 			LOCKMGR(&hp->h_intlock, LK_EXCLUSIVE | LK_INTERLOCK, &hpfs_hphash_slock, NULL);
 			return (hp);
 		}
 	}
-	mtx_exit(&hpfs_hphash_mtx, MTX_DEF);
+	mtx_unlock(&hpfs_hphash_mtx);
 	return (hp);
 }
 #endif
@@ -132,18 +132,18 @@ hpfs_hphashvget(dev, ino, p)
 	struct vnode *vp;
 
 loop:
-	mtx_enter(&hpfs_hphash_mtx, MTX_DEF);
+	mtx_lock(&hpfs_hphash_mtx);
 	LIST_FOREACH(hp, HPNOHASH(dev, ino), h_hash) {
 		if (ino == hp->h_no && dev == hp->h_dev) {
 			vp = HPTOV(hp);
-			mtx_enter(&vp->v_interlock, MTX_DEF);
-			mtx_exit(&hpfs_hphash_mtx, MTX_DEF);
+			mtx_lock(&vp->v_interlock);
+			mtx_unlock(&hpfs_hphash_mtx);
 			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p))
 				goto loop;
 			return (vp);
 		}
 	}
-	mtx_exit(&hpfs_hphash_mtx, MTX_DEF);
+	mtx_unlock(&hpfs_hphash_mtx);
 	return (NULLVP);
 }
 
@@ -156,11 +156,11 @@ hpfs_hphashins(hp)
 {
 	struct hphashhead *hpp;
 
-	mtx_enter(&hpfs_hphash_mtx, MTX_DEF);
+	mtx_lock(&hpfs_hphash_mtx);
 	hpp = HPNOHASH(hp->h_dev, hp->h_no);
 	hp->h_flag |= H_HASHED;
 	LIST_INSERT_HEAD(hpp, hp, h_hash);
-	mtx_exit(&hpfs_hphash_mtx, MTX_DEF);
+	mtx_unlock(&hpfs_hphash_mtx);
 }
 
 /*
@@ -170,10 +170,10 @@ void
 hpfs_hphashrem(hp)
 	struct hpfsnode *hp;
 {
-	mtx_enter(&hpfs_hphash_mtx, MTX_DEF);
+	mtx_lock(&hpfs_hphash_mtx);
 	if (hp->h_flag & H_HASHED) {
 		hp->h_flag &= ~H_HASHED;
 		LIST_REMOVE(hp, h_hash);
 	}
-	mtx_exit(&hpfs_hphash_mtx, MTX_DEF);
+	mtx_unlock(&hpfs_hphash_mtx);
 }

@@ -105,8 +105,8 @@ idle_proc(void *dummy)
 #endif
 		}
 
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 		mi_switch();
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 	}
 }

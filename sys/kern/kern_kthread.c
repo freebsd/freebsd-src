@@ -103,13 +103,13 @@ kthread_create(void (*func)(void *), void *arg,
 	cpu_set_fork_handler(p2, func, arg);
 
 	/* Delay putting it on the run queue until now. */
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	p2->p_sflag |= PS_INMEM;
 	if (!(flags & RFSTOPPED)) {
 		p2->p_stat = SRUN;
 		setrunqueue(p2);
 	}
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 
 	return 0;
 }

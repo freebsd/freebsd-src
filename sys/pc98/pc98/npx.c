@@ -774,7 +774,7 @@ npx_intr(dummy)
 	u_short control;
 	struct intrframe *frame;
 
-	mtx_enter(&Giant, MTX_DEF);
+	mtx_lock(&Giant);
 	if (PCPU_GET(npxproc) == NULL || !npx_exists) {
 		printf("npxintr: npxproc = %p, curproc = %p, npx_exists = %d\n",
 		       PCPU_GET(npxproc), curproc, npx_exists);
@@ -837,7 +837,7 @@ npx_intr(dummy)
 		 */
 		psignal(curproc, SIGFPE);
 	}
-	mtx_exit(&Giant, MTX_DEF);
+	mtx_unlock(&Giant);
 }
 
 /*

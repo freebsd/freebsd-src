@@ -1992,9 +1992,9 @@ isp_done(struct ccb_scsiio *sccb)
 		XS_CMD_S_CLEAR(sccb);
 		ISP_UNLOCK(isp);
 #ifdef	ISP_SMPLOCK
-		mtx_enter(&Giant, MTX_DEF);
+		mtx_lock(&Giant);
 		xpt_done((union ccb *) sccb);
-		mtx_exit(&Giant, MTX_DEF);
+		mtx_unlock(&Giant);
 #else
 		xpt_done((union ccb *) sccb);
 #endif

@@ -39,26 +39,12 @@
 /*
  * Debugging
  */
-#ifdef MUTEX_DEBUG
-
-#ifdef _KERN_MUTEX_C_
-char STR_IEN[] = "ps & IPL == IPL_0";
-char STR_IDIS[] = "ps & IPL == IPL_HIGH";
-char STR_SIEN[] = "mpp->mtx_saveintr == IPL_0";
-#else	/* _KERN_MUTEX_C_ */
-extern char STR_IEN[];
-extern char STR_IDIS[];
-extern char STR_SIEN[];
-#endif	/* _KERN_MUTEX_C_ */
-
-#endif	/* MUTEX_DEBUG */
-
 #define	ASS_IEN		MPASS2((alpha_pal_rdps() & ALPHA_PSL_IPL_MASK)	\
-			       == ALPHA_PSL_IPL_0, STR_IEN)
+			       == ALPHA_PSL_IPL_0, "ps & IPL == IPL_0")
 #define	ASS_IDIS	MPASS2((alpha_pal_rdps() & ALPHA_PSL_IPL_MASK)	\
-			       == ALPHA_PSL_IPL_HIGH, STR_IDIS)
+			       == ALPHA_PSL_IPL_HIGH, "ps & IPL == IPL_HIGH")
 #define ASS_SIEN(mpp)	MPASS2((mpp)->mtx_saveintr \
-			       == ALPHA_PSL_IPL_0, STR_SIEN)
+			       == ALPHA_PSL_IPL_0, "mpp->mtx_saveintr == IPL_0")
 
 #define	mtx_legal2block()						\
 	((alpha_pal_rdps() & ALPHA_PSL_IPL_MASK) == ALPHA_PSL_IPL_0)
@@ -68,27 +54,22 @@ extern char STR_SIEN[];
  *--------------------------------------------------------------------------
  */
 
-#ifdef _KERN_MUTEX_C_
-
-#define	_V(x)	__STRING(x)
-
 /*
- * Get a spin lock, handle recusion inline (as the less common case)
+ * Get a spin lock, handle recusion inline.
  */
-
-#define	_getlock_spin_block(mp, tid, type) do {				\
+#define _get_spin_lock(mp, tid, opts) do {				\
 	u_int _ipl = alpha_pal_swpipl(ALPHA_PSL_IPL_HIGH);		\
-	if (!_obtain_lock(mp, tid))					\
-		mtx_enter_hard(mp, (type) & MTX_HARDOPTS, _ipl);	\
-	else {								\
+	if (!_obtain_lock((mp), (tid))) {				\
+		if ((mp)->mtx_lock == (uintptr_t)(tid))			\
+			(mp)->mtx_recurse++;				\
+		else							\
+			_mtx_lock_spin((mp), (opts), _ipl, __FILE__,	\
+			    __LINE__);					\
+	} else {							\
 		alpha_mb();						\
 		(mp)->mtx_saveintr = _ipl;				\
 	}								\
 } while (0)
-
-#undef _V
-
-#endif	/* _KERN_MUTEX_C_ */
 
 #endif	/* _KERNEL */
 
@@ -96,6 +77,10 @@ extern char STR_SIEN[];
 
 /*
  * Simple assembly macros to get and release non-recursive spin locks
+ *
+ * XXX: These are presently unused and cannot be used right now. Need to be
+ *	re-written (they are wrong). If you plan to use this and still see
+ *	this message, know not to unless you fix them first! :-)
  */
 #define MTX_ENTER(lck)				\
 	ldiq	a0, ALPHA_PSL_IPL_HIGH;		\

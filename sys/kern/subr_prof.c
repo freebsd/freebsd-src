@@ -444,12 +444,12 @@ addupc_task(p, pc, ticks)
 	u_short v;
 
 	/* Testing PS_PROFIL may be unnecessary, but is certainly safe. */
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	if ((p->p_sflag & PS_PROFIL) == 0 || ticks == 0) {
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		return;
 	}
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 
 	prof = &p->p_stats->p_prof;
 	if (pc < prof->pr_off ||
