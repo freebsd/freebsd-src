@@ -22,9 +22,7 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef _KERNEL
 #include <signal.h>
-#endif
 
 struct uwx_ttrace_info;
 

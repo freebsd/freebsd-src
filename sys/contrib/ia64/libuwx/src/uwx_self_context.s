@@ -1,24 +1,24 @@
-/*
- * Copyright (c) 2002,2003 Hewlett-Packard Company
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included
- * in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
- */
+// Copyright (c) 2003 Hewlett-Packard Development Company, L.P.
+// Permission is hereby granted, free of charge, to any person
+// obtaining a copy of this software and associated documentation
+// files (the "Software"), to deal in the Software without
+// restriction, including without limitation the rights to use,
+// copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the
+// Software is furnished to do so, subject to the following
+// conditions:
+// 
+// The above copyright notice and this permission notice shall be
+// included in all copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+// OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+// HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+// WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+// OTHER DEALINGS IN THE SOFTWARE.
 
 #ifdef _LP64
 #define SWIZZLE add
@@ -48,6 +48,21 @@ rTMP3	= r30
 rTMP4	= r31
 rTMP5	= r8
 
+VALID_IP     = 1
+VALID_SP     = 1 << 1
+VALID_BSP    = 1 << 2
+VALID_CFM    = 1 << 3
+VALID_PREDS  = 1 << 7
+VALID_RNAT   = 1 << 10
+VALID_UNAT   = 1 << 11
+VALID_FPSR   = 1 << 12
+VALID_LC     = 1 << 13
+VALID_GRS    = 0xf << 16
+VALID_BRS    = 0x1f << 20
+VALID_BASIC4 = VALID_IP | VALID_SP | VALID_BSP | VALID_CFM
+VALID_SPEC   = VALID_PREDS | VALID_RNAT | VALID_UNAT | VALID_FPSR | VALID_LC
+VALID_BITS   = (VALID_BASIC4 | VALID_SPEC | VALID_GRS | VALID_BRS) << 32
+
 	.text
 	.proc	uwx_self_init_context
 	.global uwx_self_init_context
@@ -63,40 +78,42 @@ uwx_self_init_context:
 	mov	rRP = b0
 	;;
 	mov	rRSC = ar.rsc
-	add	rENV1 = 120, rENV0	// rENV1 = &env->context.gr[0]
-	add	rENV2 = 128, rENV0	// rENV2 = &env->context.gr[1]
+	add	rENV1 = 136, rENV0	// rENV1 = &env->context.gr[0]
+	add	rENV2 = 144, rENV0	// rENV2 = &env->context.gr[1]
 	;;
 	and	rRSC0 = -4, rRSC	// clear ar.rsc.mode
 	adds	rNATP = 0x1f8, r0
 	mov	rTMP1 = b1
 	;;
-	st8.spill [rENV1] = r4, 16	// env+120: r4
-	st8.spill [rENV2] = r5, 16	// env+128: r5
+	st8.spill [rENV1] = r4, 16	// env+136: r4
+	st8.spill [rENV2] = r5, 16	// env+144: r5
 	mov	rTMP2 = b2
 	;;
-	st8.spill [rENV1] = r6, 16	// env+136: r6
-	st8.spill [rENV2] = r7, 16	// env+144: r7
+	st8.spill [rENV1] = r6, 16	// env+152: r6
+	st8.spill [rENV2] = r7, 16	// env+160: r7
 	mov	rTMP3 = b3
 	;;
-	st8	[rENV1] = rTMP1, 16	// env+152: b1
-	st8	[rENV2] = rTMP2, 16	// env+160: b2
+	st8	[rENV1] = rTMP1, 16	// env+168: b1
+	st8	[rENV2] = rTMP2, 16	// env+176: b2
 	mov	rTMP1 = b4
 	;;
-	st8	[rENV1] = rTMP3, 16	// env+168: b3
-	st8	[rENV2] = rTMP1, 16	// env+176: b4
+	st8	[rENV1] = rTMP3, 16	// env+184: b3
+	st8	[rENV2] = rTMP1, 16	// env+192: b4
 	mov	rTMP2 = b5
 	;;
-	st8	[rENV1] = rTMP2		// env+184: b5
+	st8	[rENV1] = rTMP2		// env+200: b5
 	mov	ar.rsc = rRSC0		// enforced lazy mode
 	add	rENV1 = 8, rENV0
 	;;
 	mov	rRNAT = ar.rnat		// get copy of ar.rnat
-	movl	rTMP1 = 0x7fec8f00000000 // valid_regs: ip, sp, bsp, cfm,
-					// preds, rnat, unat, lc, grs, brs
+	movl	rTMP1 = VALID_BITS	// valid_regs: ip, sp, bsp, cfm,
+					// preds, rnat, unat, fpsr,
+					// lc, grs, brs
+					// = 0x1ff3c8f00000000 
 	;;
 	mov	ar.rsc = rRSC		// restore ar.rsc
 	mov	rBSP = ar.bsp
-	add	rTMP3 = 120, rENV0	// spill_loc = &env->context.gr[0]
+	add	rTMP3 = 136, rENV0	// spill_loc = &env->context.gr[0]
 	;;
 	mov	rTMP2 = ar.unat
 	nop
@@ -143,7 +160,7 @@ uwx_self_init_context:
 	add	rENV2 = 320, rENV2	// rENV2 = &env->context.rstate
 	;;
 	st8	[rENV1] = rTMP1		// env+112: lc
-	STPTR	[rENV2] = r0		// env+512: env->rstate = 0
+	STPTR	[rENV2] = r0		// env+528: env->rstate = 0
 	nop
 	;;
 	mov	ar.unat = rUNAT
