@@ -98,6 +98,7 @@ static	int pc98_set_register_unit __P((struct ed_softc *sc, int type, int iobase
 #define	ED_TYPE98_CNET98	0x8a
 #define	ED_TYPE98_CNET98EL	0x8b
 #define	ED_TYPE98_UE2212	0x8c
+#define	ED_TYPE98_NW98X		0x8d
 
 #define	ED_TYPE98(x)	(((x & 0xffff0000) >> 20) | ED_TYPE98_BASE)
 #define	ED_TYPE98SUB(x)	((x & 0xf0000) >> 16)
@@ -337,6 +338,21 @@ static	int pc98_set_register_unit __P((struct ed_softc *sc, int type, int iobase
  *    Interrupt Status Register (offset from ASIC base).
  */
 #define	ED_CNET98EL_ISR         0x05
+ 
+/*
+ * Networld EC/EP-98X
+ */
+/*
+ * Interrupt Status Register (offset from ASIC base).
+ */
+#define	ED_NW98X_IRQ            0x1000
+
+#define	ED_NW98X_IRQ3           0x04
+#define	ED_NW98X_IRQ5           0x06
+#define	ED_NW98X_IRQ6           0x08
+#define	ED_NW98X_IRQ12          0x0a
+#define	ED_NW98X_IRQ13          0x02
+ 
 
 /* NE2000, LGY-98, ICM, LPC-T, C-NET(98)E/L */
 static	unsigned int edp_generic[16] = {
@@ -371,6 +387,12 @@ static	unsigned int edp_nec108[16] = {
 static	unsigned int edp_cnet98[16] = {
 	0x0000, 0x0002, 0x0004, 0x0006, 0x0008, 0x000a, 0x000c, 0x000e,
 	0x0400, 0x0402, 0x0404, 0x0406, 0x0408, 0x040a, 0x040c, 0x040e
+};
+ 
+/* Networld EC/EP-98X */
+static	unsigned int edp_nw98x[16] = {
+	0x0000, 0x0100, 0x0200, 0x0300, 0x0400, 0x0500, 0x0600, 0x0700,
+	0x0800, 0x0900, 0x0a00, 0x0b00, 0x0c00, 0x0d00, 0x0e00, 0x0f00
 };
 
 
@@ -491,6 +513,15 @@ pc98_set_register_unit(struct ed_softc *sc, int type, int iobase)
 		ED_NOVELL_DATA = 0;	/* dummy */
 		ED_NOVELL_RESET = 0;	/* dummy */
 		nports = 16;
+		break;
+
+	case ED_TYPE98_NW98X:
+		sc->edreg.port = edp_nw98x;
+		ED_NOVELL_NIC_OFFSET = 0x0000;
+		ED_NOVELL_ASIC_OFFSET = 0x1000;
+		ED_NOVELL_DATA = 0x0000;
+		ED_NOVELL_RESET = 0x0f00;
+		nports = 1;
 		break;
 	}
 	return nports;
