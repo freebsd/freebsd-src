@@ -17,6 +17,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 #include "bfd.h"
 #include "progress.h"
 #include "bucomm.h"
@@ -1262,7 +1264,7 @@ static void
 print_object_filename_bsd (filename)
      char *filename;
 {
-  if (filename_per_file)
+  if (filename_per_file && !filename_per_symbol)
     printf ("\n%s:\n", filename);
 }
 
