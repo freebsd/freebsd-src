@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)exec.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: exec.c,v 1.6 1997/10/14 07:23:16 bde Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -283,7 +283,7 @@ retry:		(void)execve(bp, argv, environ);
 			 * We hope that the race for a stat() is unimportant.
 			 */
 			save_errno = errno;
-			if (stat(argv[0], &sb) != 0)
+			if (stat(bp, &sb) != 0)
 				break;
 			if (save_errno == EACCES) {
 				eacces = 1;
