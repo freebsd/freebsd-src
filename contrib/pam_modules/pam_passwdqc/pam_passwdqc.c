@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000,2001 by Solar Designer. See LICENSE.
+ * Copyright (c) 2000-2002 by Solar Designer. See LICENSE.
  */
 
 #define _XOPEN_SOURCE 500
@@ -28,16 +28,17 @@
 #define PAM_EXTERN			extern
 #endif
 
-#if !defined(PAM_AUTHTOK_RECOVER_ERR) && defined(PAM_AUTHTOK_RECOVERY_ERR)
-#define PAM_AUTHTOK_RECOVER_ERR		PAM_AUTHTOK_RECOVERY_ERR
+#if !defined(PAM_AUTHTOK_RECOVERY_ERR) && defined(PAM_AUTHTOK_RECOVER_ERR)
+#define PAM_AUTHTOK_RECOVERY_ERR	PAM_AUTHTOK_RECOVER_ERR
 #endif
 
-#if defined(__sun__) && !defined(LINUX_PAM)
-#define linux_const			/* Sun's PAM doesn't use const here */
+#if defined(__sun__) && !defined(LINUX_PAM) && !defined(_OPENPAM)
+/* Sun's PAM doesn't use const here */
+#define lo_const
 #else
-#define linux_const			const
+#define lo_const			const
 #endif
-typedef linux_const void *pam_item_t;
+typedef lo_const void *pam_item_t;
 
 #include "passwdqc.h"
 
@@ -128,7 +129,7 @@ static params_t defaults = {
 #define MESSAGE_RETRY \
 	"Try again."
 
-static int converse(pam_handle_t *pamh, int style, char *text,
+static int converse(pam_handle_t *pamh, int style, lo_const char *text,
     struct pam_response **resp)
 {
 	struct pam_conv *conv;
@@ -144,7 +145,7 @@ static int converse(pam_handle_t *pamh, int style, char *text,
 	msg.msg = text;
 
 	*resp = NULL;
-	return conv->conv(1, (linux_const struct pam_message **)&pmsg, resp,
+	return conv->conv(1, (lo_const struct pam_message **)&pmsg, resp,
 	    conv->appdata_ptr);
 }
 
@@ -163,7 +164,7 @@ static int say(pam_handle_t *pamh, int style, const char *format, ...)
 	needed = vsnprintf(buffer, sizeof(buffer), format, args);
 	va_end(args);
 
-	if (needed > 0 && needed < sizeof(buffer)) {
+	if ((unsigned int)needed < sizeof(buffer)) {
 		status = converse(pamh, style, buffer, &resp);
 		_pam_overwrite(buffer);
 	} else {
@@ -174,9 +175,9 @@ static int say(pam_handle_t *pamh, int style, const char *format, ...)
 	return status;
 }
 
-static int check_max(params_t *params, pam_handle_t *pamh, char *newpass)
+static int check_max(params_t *params, pam_handle_t *pamh, const char *newpass)
 {
-	if (strlen(newpass) > params->qc.max) {
+	if ((int)strlen(newpass) > params->qc.max) {
 		if (params->qc.max != 8) {
 			say(pamh, PAM_ERROR_MSG, MESSAGE_TOOLONG);
 			return -1;
@@ -191,6 +192,7 @@ static int parse(params_t *params, pam_handle_t *pamh,
     int argc, const char **argv)
 {
 	const char *p;
+	char *e;
 	int i;
 	unsigned long v;
 
@@ -201,28 +203,30 @@ static int parse(params_t *params, pam_handle_t *pamh,
 				if (!strncmp(p, "disabled", 8)) {
 					v = INT_MAX;
 					p += 8;
-				} else
-					v = strtoul(p, (char **)&p, 10);
+				} else {
+					v = strtoul(p, &e, 10);
+					p = e;
+				}
 				if (i < 4 && *p++ != ',') break;
 				if (v > INT_MAX) break;
-				if (i && v > params->qc.min[i - 1]) break;
+				if (i && (int)v > params->qc.min[i - 1]) break;
 				params->qc.min[i] = v;
 			}
 			if (*p) break;
 		} else
 		if (!strncmp(*argv, "max=", 4)) {
-			v = strtoul(*argv + 4, (char **)&p, 10);
-			if (*p || v < 8 || v > INT_MAX) break;
+			v = strtoul(*argv + 4, &e, 10);
+			if (*e || v < 8 || v > INT_MAX) break;
 			params->qc.max = v;
 		} else
 		if (!strncmp(*argv, "passphrase=", 11)) {
-			v = strtoul(*argv + 11, (char **)&p, 10);
-			if (*p || v > INT_MAX) break;
+			v = strtoul(*argv + 11, &e, 10);
+			if (*e || v > INT_MAX) break;
 			params->qc.passphrase_words = v;
 		} else
 		if (!strncmp(*argv, "match=", 6)) {
-			v = strtoul(*argv + 6, (char **)&p, 10);
-			if (*p || v > INT_MAX) break;
+			v = strtoul(*argv + 6, &e, 10);
+			if (*e || v > INT_MAX) break;
 			params->qc.match_length = v;
 		} else
 		if (!strncmp(*argv, "similar=", 8)) {
@@ -235,12 +239,12 @@ static int parse(params_t *params, pam_handle_t *pamh,
 				break;
 		} else
 		if (!strncmp(*argv, "random=", 7)) {
-			v = strtoul(*argv + 7, (char **)&p, 10);
-			if (!strcmp(p, ",only")) {
-				p += 5;
+			v = strtoul(*argv + 7, &e, 10);
+			if (!strcmp(e, ",only")) {
+				e += 5;
 				params->qc.min[4] = INT_MAX;
 			}
-			if (*p || v > INT_MAX) break;
+			if (*e || v > INT_MAX) break;
 			params->qc.random_bits = v;
 		} else
 		if (!strncmp(*argv, "enforce=", 8)) {
@@ -259,8 +263,8 @@ static int parse(params_t *params, pam_handle_t *pamh,
 			params->flags |= F_NON_UNIX;
 		} else
 		if (!strncmp(*argv, "retry=", 6)) {
-			v = strtoul(*argv + 6, (char **)&p, 10);
-			if (*p || v > INT_MAX) break;
+			v = strtoul(*argv + 6, &e, 10);
+			if (*e || v > INT_MAX) break;
 			params->retry = v;
 		} else
 		if (!strncmp(*argv, "ask_oldauthtok", 14)) {
@@ -308,7 +312,7 @@ PAM_EXTERN int pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 	struct spwd *spw;
 #endif
 	char *user, *oldpass, *newpass, *randompass;
-	char *reason;
+	const char *reason;
 	int ask_oldauthtok;
 	int randomonly, enforce, retries_left, retry_wanted;
 	int status;
@@ -339,7 +343,7 @@ PAM_EXTERN int pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 				    PAM_OLDAUTHTOK, resp->resp);
 				_pam_drop_reply(resp, 1);
 			} else
-				status = PAM_AUTHTOK_RECOVER_ERR;
+				status = PAM_AUTHTOK_RECOVERY_ERR;
 		}
 
 		if (status != PAM_SUCCESS)
@@ -406,12 +410,12 @@ PAM_EXTERN int pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 		if (status != PAM_SUCCESS)
 			return status;
 		if (!newpass || (check_max(&params, pamh, newpass) && enforce))
-			return PAM_AUTHTOK_RECOVER_ERR;
+			return PAM_AUTHTOK_RECOVERY_ERR;
 		reason = _passwdqc_check(&params.qc, newpass, oldpass, pw);
 		if (reason) {
 			say(pamh, PAM_ERROR_MSG, MESSAGE_WEAKPASS, reason);
 			if (enforce)
-				status = PAM_AUTHTOK_RECOVER_ERR;
+				status = PAM_AUTHTOK_RECOVERY_ERR;
 		}
 		return status;
 	}
@@ -465,12 +469,12 @@ retry:
 	if (randomonly) {
 		say(pamh, PAM_ERROR_MSG, getuid() != 0 ?
 		    MESSAGE_MISCONFIGURED : MESSAGE_RANDOMFAILED);
-		return PAM_AUTHTOK_RECOVER_ERR;
+		return PAM_AUTHTOK_RECOVERY_ERR;
 	}
 
 	status = converse(pamh, PAM_PROMPT_ECHO_OFF, PROMPT_NEWPASS1, &resp);
 	if (status == PAM_SUCCESS && (!resp || !resp->resp))
-		status = PAM_AUTHTOK_RECOVER_ERR;
+		status = PAM_AUTHTOK_RECOVERY_ERR;
 
 	if (status != PAM_SUCCESS) {
 		if (randompass) _pam_overwrite(randompass);
@@ -483,11 +487,11 @@ retry:
 
 	if (!newpass) {
 		if (randompass) _pam_overwrite(randompass);
-		return PAM_AUTHTOK_RECOVER_ERR;
+		return PAM_AUTHTOK_RECOVERY_ERR;
 	}
 
 	if (check_max(&params, pamh, newpass) && enforce) {
-		status = PAM_AUTHTOK_RECOVER_ERR;
+		status = PAM_AUTHTOK_RECOVERY_ERR;
 		retry_wanted = 1;
 	}
 
@@ -501,7 +505,7 @@ retry:
 		else
 			say(pamh, PAM_ERROR_MSG, MESSAGE_WEAKPASS, reason);
 		if (enforce) {
-			status = PAM_AUTHTOK_RECOVER_ERR;
+			status = PAM_AUTHTOK_RECOVERY_ERR;
 			retry_wanted = 1;
 		}
 	}
@@ -515,13 +519,13 @@ retry:
 				status = say(pamh,
 				    PAM_ERROR_MSG, MESSAGE_MISTYPED);
 				if (status == PAM_SUCCESS) {
-					status = PAM_AUTHTOK_RECOVER_ERR;
+					status = PAM_AUTHTOK_RECOVERY_ERR;
 					retry_wanted = 1;
 				}
 			}
 			_pam_drop_reply(resp, 1);
 		} else
-			status = PAM_AUTHTOK_RECOVER_ERR;
+			status = PAM_AUTHTOK_RECOVERY_ERR;
 	}
 
 	if (status == PAM_SUCCESS)
@@ -540,7 +544,9 @@ retry:
 	return status;
 }
 
-#ifdef PAM_STATIC
+#ifdef PAM_MODULE_ENTRY
+PAM_MODULE_ENTRY("pam_passwdqc");
+#elif defined(PAM_STATIC)
 struct pam_module _pam_passwdqc_modstruct = {
 	"pam_passwdqc",
 	NULL,

@@ -1,7 +1,9 @@
-Summary: Pluggable password "quality check"
+# $Id: pam_passwdqc.spec,v 1.9 2002/02/06 22:36:40 mci Exp $
+
+Summary: Pluggable password "quality check".
 Name: pam_passwdqc
 Version: 0.4
-Release: 1owl
+Release: owl1
 License: relaxed BSD and (L)GPL-compatible
 Group: System Environment/Base
 Source: pam_passwdqc-%version.tar.gz
@@ -33,6 +35,9 @@ rm -rf $RPM_BUILD_ROOT
 /lib/security/pam_passwdqc.so
 
 %changelog
+* Thu Feb 07 2002 Michail Litvak <mci@owl.openwall.com>
+- Enforce our new spec file conventions.
+
 * Sun Nov 04 2001 Solar Designer <solar@owl.openwall.com>
 - Updated to 0.4:
 - Added "ask_oldauthtok" and "check_oldauthtok" as needed for stacking with
