@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.97 1997/11/06 08:29:50 joerg Exp $
+ *      $Id: scsiconf.c,v 1.98 1997/12/20 00:28:49 bde Exp $
  */
 
 #include "opt_scsi.h"
@@ -435,12 +435,15 @@ static struct scsidevs knowndevs[] =
 	 * The Plasmon's are dual-faced: they appear as T_WORM if the
 	 * drive is empty, or a CD-R medium is in the drive, and they
 	 * announce theirselves as T_READONLY if a CD-ROM (or fixated
-	 * CD-R) is there.  This record catches the latter case, while
-	 * the former one falls under the terms of the generic T_WORM
-	 * below.
+	 * CD-R) is there.  We need both entries here, so the worm_mode
+	 * hook will be properly filled in.
 	 */
 	{
 		T_READONLY, T_WORM, T_REMOV, "PLASMON", "RF41*", "*",
+		"worm", SC_ONE_LU, 0, &worm_mode_plasmon
+	},
+	{
+		T_WORM, T_WORM, T_REMOV, "PLASMON", "RF41*", "*",
 		"worm", SC_ONE_LU, 0, &worm_mode_plasmon
 	},
 #endif /* NWORM */
