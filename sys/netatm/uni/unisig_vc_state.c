@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: unisig_vc_state.c,v 1.2 1998/09/17 09:35:02 phk Exp $
+ *	@(#) $Id: unisig_vc_state.c,v 1.3 1998/10/31 20:07:01 phk Exp $
  *
  */
 
@@ -44,7 +44,7 @@
 #include <netatm/uni/unisig_decode.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: unisig_vc_state.c,v 1.2 1998/09/17 09:35:02 phk Exp $");
+__RCSID("@(#) $Id: unisig_vc_state.c,v 1.3 1998/10/31 20:07:01 phk Exp $");
 #endif
 
 
@@ -380,13 +380,22 @@ unisig_vc_act03(usp, uvp, msg)
 	struct unisig_vccb	*uvp;
 	struct unisig_msg	*msg;
 {
-	int	rc;
+	int	rc, cause;
+
+	/*
+	 * Set cause code
+	 */
+	if ((msg != NULL) && (msg->msg_ie_caus != NULL)) {
+		unisig_cause_attr_from_ie(&uvp->uv_connvc->cvc_attr,
+			msg->msg_ie_caus);
+		cause = T_ATM_ABSENT;
+	} else
+		cause = T_ATM_CAUSE_DESTINATION_OUT_OF_ORDER;
 
 	/*
 	 * Clear the VCCB
 	 */
-	rc = unisig_clear_vcc(usp, uvp,
-			T_ATM_CAUSE_DESTINATION_OUT_OF_ORDER);
+	rc = unisig_clear_vcc(usp, uvp, cause);
 
 	return(rc);
 }
@@ -813,7 +822,11 @@ unisig_vc_act07(usp, uvp, msg)
 	/*
 	 * Notify the user
 	 */
-	unisig_set_cause_attr(&uvp->uv_connvc->cvc_attr,
+	if ((msg != NULL) && (msg->msg_ie_caus != NULL))
+		unisig_cause_attr_from_ie(&uvp->uv_connvc->cvc_attr,
+			msg->msg_ie_caus);
+	else
+		unisig_cause_attr_from_user(&uvp->uv_connvc->cvc_attr,
 			T_ATM_CAUSE_NORMAL_CALL_CLEARING);
 	atm_cm_cleared(uvp->uv_connvc);
 
@@ -883,18 +896,6 @@ unisig_vc_act08(usp, uvp, msg)
 	if (!nip) {
 		cause = UNI_IE_CAUS_IECONTENT;
 		ATM_DEBUG0("unisig_vc_act08: bad selector byte\n");
-		goto response08;
-	}
-
-	/*
-	 * See if we can handle the specified encapsulation
-	 */
-	if (msg->msg_ie_blli->ie_blli_l2_id != UNI_IE_BLLI_L2P_LLC &&
-			(msg->msg_ie_blli->ie_blli_l2_id != 0 ||
-				msg->msg_ie_blli->ie_blli_l3_id !=
-				UNI_IE_BLLI_L3P_ISO9577)) {
-		cause = UNI_IE_CAUS_UNAVAIL;
-		ATM_DEBUG0("unisig_vc_act08: bad encapsulation\n");
 		goto response08;
 	}
 
@@ -1151,13 +1152,20 @@ unisig_vc_act11(usp, uvp, msg)
 	struct unisig_vccb	*uvp;
 	struct unisig_msg	*msg;
 {
-	int			rc;
+	int			rc, cause;
+
+	/*
+	 * Send generic cause code if one is not already set
+	 */
+	if (uvp->uv_connvc->cvc_attr.cause.tag == T_ATM_PRESENT)
+		cause = T_ATM_ABSENT;
+	else
+		cause = T_ATM_CAUSE_CALL_REJECTED;
 
 	/*
 	 * Send a RELEASE COMPLETE message
 	 */
-	rc = unisig_send_release_complete(usp, uvp, msg,
-			UNI_IE_CAUS_REJECT);
+	rc = unisig_send_release_complete(usp, uvp, msg, cause);
 
 	/*
 	 * Clear the call VCCB
@@ -1206,7 +1214,7 @@ unisig_vc_act12(usp, uvp, msg)
 	/*
 	 * Send the RELEASE message
 	 */
-	rc = unisig_vc_clear_call(usp, uvp, (struct unisig_msg *)0,
+	rc = unisig_vc_clear_call(usp, uvp, (struct unisig_msg *)NULL,
 			T_ATM_ABSENT);
 
 	return(rc);
@@ -1255,8 +1263,9 @@ unisig_vc_act13(usp, uvp, msg)
 	/*
 	 * Notify the user that the call is now closed
 	 */
-	unisig_set_cause_attr(&uvp->uv_connvc->cvc_attr,
-			T_ATM_CAUSE_NORMAL_CALL_CLEARING);
+	if (msg->msg_ie_caus != NULL)
+		unisig_cause_attr_from_ie(&uvp->uv_connvc->cvc_attr,
+			msg->msg_ie_caus);
 	atm_cm_cleared(uvp->uv_connvc);
 
 	return(0);
@@ -1395,8 +1404,12 @@ unisig_vc_act15(usp, uvp, msg)
 	/*
 	 * Notify the user that the call is cleared
 	 */
-	unisig_set_cause_attr(&uvp->uv_connvc->cvc_attr,
-			T_ATM_CAUSE_NORMAL_CALL_CLEARING);
+	if (msg->msg_ie_caus != NULL)
+		unisig_cause_attr_from_ie(&uvp->uv_connvc->cvc_attr,
+			msg->msg_ie_caus);
+	else
+		unisig_cause_attr_from_user(&uvp->uv_connvc->cvc_attr,
+			T_ATM_CAUSE_UNSPECIFIED_NORMAL);
 	atm_cm_cleared(uvp->uv_connvc);
 
 	return(rc);
@@ -1435,8 +1448,7 @@ unisig_vc_act16(usp, uvp, msg)
 	/*
 	 * Clear the VCCB
 	 */
-	rc = unisig_clear_vcc(usp, uvp,
-			T_ATM_CAUSE_NORMAL_CALL_CLEARING);
+	rc = unisig_clear_vcc(usp, uvp, T_ATM_ABSENT);
 
 	return(rc);
 }
@@ -1672,7 +1684,7 @@ unisig_vc_act21(usp, uvp, msg)
 			return(0);
 		}
 		rc = unisig_clear_vcc(usp, uvp,
-				T_ATM_CAUSE_NORMAL_CALL_CLEARING);
+			T_ATM_CAUSE_MESSAGE_INCOMPATIBLE_WITH_CALL_STATE);
 	}
 
 	/*
@@ -1688,8 +1700,7 @@ unisig_vc_act21(usp, uvp, msg)
 				cause,
 				msg->msg_ie_caus->ie_caus_diagnostic[0]);
 		if (uvp) {
-			(void)unisig_clear_vcc(usp, uvp,
-					T_ATM_CAUSE_INVALID_INFO_ELEMENT_CONTENTS);
+			(void)unisig_clear_vcc(usp, uvp, cause);
 		}
 	}
 
@@ -1958,8 +1969,10 @@ unisig_vc_act26(usp, uvp, msg)
 	/*
 	 * Notify the user
 	 */
-	unisig_set_cause_attr(&uvp->uv_connvc->cvc_attr,
+	if (uvp->uv_connvc->cvc_attr.cause.tag != T_ATM_PRESENT)
+		unisig_cause_attr_from_user(&uvp->uv_connvc->cvc_attr,
 			T_ATM_CAUSE_NORMAL_CALL_CLEARING);
+
 	atm_cm_cleared(uvp->uv_connvc);
 
 	return(0);
