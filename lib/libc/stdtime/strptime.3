@@ -94,41 +94,6 @@ function appeared in
 .Fx 3.0 .
 .Pp
 .Sh BUGS
-Both the
-.Fa %e
-and
-.Fa %l
-format specifiers may incorrectly scan one too many digits
-if the intended values comprise only a single digit
-and that digit is followed immediately by another digit.
-Both specifiers accept zero-padded values,
-even though they are both defined as taking unpadded values.
-.Pp
-The
-.Fa %p
-format specifier has no effect unless it is parsed
-.Em after
-hour-related specifiers.
-Specifying
-.Fa %l
-without
-.Fa %p
-will produce undefined results.
-Note that 12AM
-.Pq ante meridiem
-is taken as midnight
-and 12PM
-.Pq post meridiem
-is taken as noon.
-.Pp
-The
-.Fa %U
-and
-.Fa %W
-format specifiers accept any value within the range 00 to 53
-without validating against other values supplied (like month
-or day of the year, for example).
-.Pp
 The
 .Fa %Z
 format specifier only accepts time zone abbreviations of the local time zone,

@@ -90,7 +90,6 @@ _strptime(const char *buf, const char *fmt, struct tm *tm)
 	const char *ptr;
 	int	i,
 		len;
-	int Ealternative, Oalternative;
 
 	ptr = fmt;
 	while (*ptr != 0) {
@@ -108,9 +107,6 @@ _strptime(const char *buf, const char *fmt, struct tm *tm)
 			continue;
 		}
 
-		Ealternative = 0;
-		Oalternative = 0;
-label:
 		c = *ptr++;
 		switch (c) {
 		case 0:
@@ -119,58 +115,20 @@ label:
 				return 0;
 			break;
 
-		case '+':
+		case 'C':
 			buf = _strptime(buf, Locale->date_fmt, tm);
 			if (buf == 0)
 				return 0;
 			break;
 
-		case 'C':
-			if (!isdigit((unsigned char)*buf))
-				return 0;
-
-			/* XXX This will break for 3-digit centuries. */
-			len = 2;
-			for (i = 0; len && *buf != 0 && isdigit((unsigned char)*buf); buf++) {
-				i *= 10;
-				i += *buf - '0';
-				len--;
-			}
-			if (i < 19)
-				return 0;
-
-			tm->tm_year = i * 100 - 1900;
-			break;
-
 		case 'c':
-			buf = _strptime(buf, Locale->c_fmt, tm);
+			buf = _strptime(buf, "%x %X", tm);
 			if (buf == 0)
 				return 0;
 			break;
 
 		case 'D':
 			buf = _strptime(buf, "%m/%d/%y", tm);
-			if (buf == 0)
-				return 0;
-			break;
-
-		case 'E':
-			if (Ealternative || Oalternative)
-				break;
-			Ealternative++;
-			goto label;
-
-		case 'O':
-			if (Ealternative || Oalternative)
-				break;
-			Oalternative++;
-			goto label;
-
-		case 'F':
-		case 'f':
-			if (!Ealternative)
-				break;
-			buf = _strptime(buf, (c == 'f') ? Locale->Ef_fmt : Locale->EF_fmt, tm);
 			if (buf == 0)
 				return 0;
 			break;
@@ -209,16 +167,14 @@ label:
 			if (!isdigit((unsigned char)*buf))
 				return 0;
 
-			len = 3;
-			for (i = 0; len && *buf != 0 && isdigit((unsigned char)*buf); buf++) {
+			for (i = 0; *buf != 0 && isdigit((unsigned char)*buf); buf++) {
 				i *= 10;
 				i += *buf - '0';
-				len--;
 			}
-			if (i < 1 || i > 366)
+			if (i > 365)
 				return 0;
 
-			tm->tm_yday = i - 1;
+			tm->tm_yday = i;
 			break;
 
 		case 'M':
@@ -229,22 +185,17 @@ label:
 			if (!isdigit((unsigned char)*buf))
 				return 0;
 
-			len = 2;
-			for (i = 0; len && *buf != 0 && isdigit((unsigned char)*buf); buf++) {
+			for (i = 0; *buf != 0 && isdigit((unsigned char)*buf); buf++) {
 				i *= 10;
 				i += *buf - '0';
-				len--;
 			}
+			if (i > 59)
+				return 0;
 
-			if (c == 'M') {
-				if (i > 59)
-					return 0;
+			if (c == 'M')
 				tm->tm_min = i;
-			} else {
-				if (i > 60)
-					return 0;
+			else
 				tm->tm_sec = i;
-			}
 
 			if (*buf != 0 && isspace((unsigned char)*buf))
 				while (*ptr != 0 && !isspace((unsigned char)*ptr))
@@ -255,27 +206,17 @@ label:
 		case 'I':
 		case 'k':
 		case 'l':
-			/*
-			 * Of these, %l is the only specifier explicitly
-			 * documented as not being zero-padded.  However,
-			 * there is no harm in allowing zero-padding.
-			 *
-			 * XXX The %l specifier may gobble one too many
-			 * digits if used incorrectly.
-			 */
 			if (!isdigit((unsigned char)*buf))
 				return 0;
 
-			len = 2;
-			for (i = 0; len && *buf != 0 && isdigit((unsigned char)*buf); buf++) {
+			for (i = 0; *buf != 0 && isdigit((unsigned char)*buf); buf++) {
 				i *= 10;
 				i += *buf - '0';
-				len--;
 			}
 			if (c == 'H' || c == 'k') {
 				if (i > 23)
 					return 0;
-			} else if (i > 12)
+			} else if (i > 11)
 				return 0;
 
 			tm->tm_hour = i;
@@ -286,10 +227,6 @@ label:
 			break;
 
 		case 'p':
-			/*
-			 * XXX This is bogus if parsed before hour-related
-			 * specifiers.
-			 */
 			len = strlen(Locale->am);
 			if (strncasecmp(buf, Locale->am, len) == 0) {
 				if (tm->tm_hour > 12)
@@ -315,19 +252,17 @@ label:
 		case 'A':
 		case 'a':
 			for (i = 0; i < asizeof(Locale->weekday); i++) {
-				if (c == 'A') {
-					len = strlen(Locale->weekday[i]);
-					if (strncasecmp(buf,
-							Locale->weekday[i],
-							len) == 0)
-						break;
-				} else {
-					len = strlen(Locale->wday[i]);
-					if (strncasecmp(buf,
-							Locale->wday[i],
-							len) == 0)
-						break;
-				}
+				len = strlen(Locale->weekday[i]);
+				if (strncasecmp(buf,
+						Locale->weekday[i],
+						len) == 0)
+					break;
+
+				len = strlen(Locale->wday[i]);
+				if (strncasecmp(buf,
+						Locale->wday[i],
+						len) == 0)
+					break;
 			}
 			if (i == asizeof(Locale->weekday))
 				return 0;
@@ -336,64 +271,14 @@ label:
 			buf += len;
 			break;
 
-		case 'U':
-		case 'W':
-			/*
-			 * XXX This is bogus, as we can not assume any valid
-			 * information present in the tm structure at this
-			 * point to calculate a real value, so just check the
-			 * range for now.
-			 */
-			if (!isdigit((unsigned char)*buf))
-				return 0;
-
-			len = 2;
-			for (i = 0; len && *buf != 0 && isdigit((unsigned char)*buf); buf++) {
-				i *= 10;
-				i += *buf - '0';
-				len--;
-			}
-			if (i > 53)
-				return 0;
-
-			if (*buf != 0 && isspace((unsigned char)*buf))
-				while (*ptr != 0 && !isspace((unsigned char)*ptr))
-					ptr++;
-			break;
-
-		case 'w':
-			if (!isdigit((unsigned char)*buf))
-				return 0;
-
-			i = *buf - '0';
-			if (i > 6)
-				return 0;
-
-			tm->tm_wday = i;
-
-			if (*buf != 0 && isspace((unsigned char)*buf))
-				while (*ptr != 0 && !isspace((unsigned char)*ptr))
-					ptr++;
-			break;
-
 		case 'd':
 		case 'e':
-			/*
-			 * The %e specifier is explicitly documented as not
-			 * being zero-padded but there is no harm in allowing
-			 * such padding.
-			 *
-			 * XXX The %e specifier may gobble one too many
-			 * digits if used incorrectly.
-			 */
 			if (!isdigit((unsigned char)*buf))
 				return 0;
 
-			len = 2;
-			for (i = 0; len && *buf != 0 && isdigit((unsigned char)*buf); buf++) {
+			for (i = 0; *buf != 0 && isdigit((unsigned char)*buf); buf++) {
 				i *= 10;
 				i += *buf - '0';
-				len--;
 			}
 			if (i > 31)
 				return 0;
@@ -409,29 +294,17 @@ label:
 		case 'b':
 		case 'h':
 			for (i = 0; i < asizeof(Locale->month); i++) {
-				if (Oalternative) {
-					if (c == 'B') {
-						len = strlen(Locale->alt_month[i]);
-						if (strncasecmp(buf,
-								Locale->alt_month[i],
-								len) == 0)
-							break;
-					}
-				} else {
-					if (c == 'B') {
-						len = strlen(Locale->month[i]);
-						if (strncasecmp(buf,
-								Locale->month[i],
-								len) == 0)
-							break;
-					} else {
-						len = strlen(Locale->mon[i]);
-						if (strncasecmp(buf,
-								Locale->mon[i],
-								len) == 0)
-							break;
-					}
-				}
+				len = strlen(Locale->month[i]);
+				if (strncasecmp(buf,
+						Locale->month[i],
+						len) == 0)
+					break;
+
+				len = strlen(Locale->mon[i]);
+				if (strncasecmp(buf,
+						Locale->mon[i],
+						len) == 0)
+					break;
 			}
 			if (i == asizeof(Locale->month))
 				return 0;
@@ -444,11 +317,9 @@ label:
 			if (!isdigit((unsigned char)*buf))
 				return 0;
 
-			len = 2;
-			for (i = 0; len && *buf != 0 && isdigit((unsigned char)*buf); buf++) {
+			for (i = 0; *buf != 0 && isdigit((unsigned char)*buf); buf++) {
 				i *= 10;
 				i += *buf - '0';
-				len--;
 			}
 			if (i < 1 || i > 12)
 				return 0;
@@ -468,11 +339,9 @@ label:
 			if (!isdigit((unsigned char)*buf))
 				return 0;
 
-			len = (c == 'Y') ? 4 : 2;
-			for (i = 0; len && *buf != 0 && isdigit((unsigned char)*buf); buf++) {
+			for (i = 0; *buf != 0 && isdigit((unsigned char)*buf); buf++) {
 				i *= 10;
 				i += *buf - '0';
-				len--;
 			}
 			if (c == 'Y')
 				i -= 1900;
@@ -493,7 +362,7 @@ label:
 			const char *cp;
 			char *zonestr;
 
-			for (cp = buf; *cp && isupper((unsigned char)*cp); ++cp) {/*empty*/}
+			for (cp = buf; *cp && isupper(*cp); ++cp) {/*empty*/}
 			if (cp - buf) {
 				zonestr = alloca(cp - buf + 1);
 				strncpy(zonestr, buf, cp - buf);
@@ -514,6 +383,7 @@ label:
 			break;
 		}
 	}
+
 	return (char *)buf;
 }
 
