@@ -75,7 +75,7 @@ versions are not supported.  This allow network booting using DHCP. [MERGED]
 
 POSIX.1b Shared Memory Objects are now supported.  The implementation
 uses regular files, but automatically enables the MAP_NOSYNC flag
-when they are mmap(2)ed.
+when they are mmap(2)ed. [MERGED]
 
 Added support for PCI ethernet adapters based on the National Semiconductor
 DP83815 chipset, including the NetGear FA312-TX.
@@ -120,7 +120,7 @@ when creating and verifying prototypes.  This makes it easier to use
 mtree as a part of an intrusion-detection system.  [MERGED]
 
 OpenSSL has been upgraded to 0.9.5a, which includes numerous bugfixes
-and enhancements.
+and enhancements. [MERGED]
 
 The OPIE one-time-password suite has been updated to 2.32. [MERGED]
 
@@ -170,7 +170,7 @@ trusted users; and the MSA port (587) is turned on by default.  See
 awk has been upgraded from gawk-3.0.4 to gawk-3.0.6.  This fixes a number
 of non-critical bugs and includes a few performance tweaks.
 
-routed(8) has been updated to version 2.22.
+routed(8) has been updated to version 2.22. [MERGED]
 
 The truncate(1) utility, which truncates or extends the length
 of files, has been added.  [MERGED]
