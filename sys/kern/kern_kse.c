@@ -1241,18 +1241,6 @@ thread_userret(struct thread *td, struct trapframe *frame)
 	p = td->td_proc;
 
 	/*
-	 * We need to check to see if we have to exit or wait due to a
-	 * single threading requirement or some other STOP condition.
-	 * Don't bother doing all the work if the stop bits are not set
-	 * at this time.. If we miss it, we miss it.. no big deal.
-	 */
-	if (P_SHOULDSTOP(p)) {
-		PROC_LOCK(p);
-		thread_suspend_check(0);	/* Can suspend or kill */
-		PROC_UNLOCK(p);
-	}
-
-	/*
 	 * Originally bound threads never upcall but they may 
 	 * loan out their KSE at this point.
 	 * Upcalls imply bound.. They also may want to do some Philantropy.
