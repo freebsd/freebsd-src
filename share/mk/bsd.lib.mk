@@ -164,8 +164,6 @@ lib${LIB}.a: ${OBJS} ${STATICOBJS}
 	@${AR} cq ${.TARGET} `lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
 	${RANLIB} ${.TARGET}
 
-CLEANFILES+=	a.out ${OBJS} ${OBJS:S/$/.tmp/} ${STATICOBJS}
-
 .if !defined(INTERNALLIB)
 
 .if !defined(NOPROFILE)
@@ -177,13 +175,9 @@ lib${LIB}_p.a: ${POBJS}
 	@rm -f ${.TARGET}
 	@${AR} cq ${.TARGET} `lorder ${POBJS} | tsort -q` ${ARADD}
 	${RANLIB} ${.TARGET}
-
-CLEANFILES+=	${POBJS} ${POBJS:S/$/.tmp/}
 .endif
 
 SOBJS+=		${OBJS:.o=.So}
-
-CLEANFILES+=	${SOBJS} ${SOBJS:.So=.so} ${SOBJS:S/$/.tmp/}
 
 .if defined(SHLIB_NAME)
 _LIBS+=		${SHLIB_NAME}
@@ -203,8 +197,6 @@ ${SHLIB_NAME}: ${SOBJS}
 	    -o ${.TARGET} -Wl,-soname,${SONAME} \
 	    `lorder ${SOBJS} | tsort -q` ${LDADD}
 .endif
-
-CLEANFILES+=	${SHLIB_LINK} lib${LIB}.so.* lib${LIB}.so
 .endif
 
 .if defined(INSTALL_PIC_ARCHIVE)
@@ -226,19 +218,40 @@ ${LINTLIB}: ${LINTOBJS}
 	@${ECHO} building lint library ${.TARGET}
 	@rm -f ${.TARGET}
 	${LINT} ${LINTLIBFLAGS} ${CFLAGS:M-[DIU]*} ${.ALLSRC}
-
-CLEANFILES+=	${LINTOBJS}
 .endif
 
 .endif !defined(INTERNALLIB)
 
 all: ${_LIBS}
 
-CLEANFILES+=	${_LIBS}
 .endif defined(LIB) && !empty(LIB)
 
 .if !defined(NOMAN)
 all: _manpages
+.endif
+
+.if !target(clean)
+clean:
+	rm -f ${CLEANFILES}
+.if defined(LIB) && !empty(LIB)
+	rm -f a.out ${OBJS} ${OBJS:S/$/.tmp/} ${STATICOBJS}
+.if !defined(INTERNALLIB)
+.if !defined(NOPROFILE)
+	rm -f ${POBJS} ${POBJS:S/$/.tmp/}
+.endif
+	rm -f ${SOBJS} ${SOBJS:.So=.so} ${SOBJS:S/$/.tmp/}
+.if defined(SHLIB_NAME)
+	rm -f ${SHLIB_LINK} lib${LIB}.so.* lib${LIB}.so
+.endif
+.if defined(WANT_LINT)
+	rm -f ${LINTOBJS}
+.endif
+.endif !defined(INTERNALLIB)
+	rm -f ${_LIBS}
+.endif defined(LIB) && !empty(LIB)
+.if defined(CLEANDIRS) && !empty(CLEANDIRS)
+	rm -rf ${CLEANDIRS}
+.endif
 .endif
 
 _EXTRADEPEND:
