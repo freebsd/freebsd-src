@@ -899,9 +899,6 @@ static u_short
 ed_get_Linksys(sc)
 	struct ed_softc *sc;
 {
-	u_char LinksysOUI1[] = {0x00, 0xe0, 0x98};
-	u_char LinksysOUI2[] = {0x00, 0x80, 0xc8};
-	u_char LinksysOUI3[] = {0x00, 0xa0, 0xb0};
 	u_char sum;
 	int i;
 
@@ -919,11 +916,7 @@ ed_get_Linksys(sc)
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
 		sc->arpcom.ac_enaddr[i] = inb(sc->asic_addr + 0x04 + i);
 	}
-	if (bcmp(sc->arpcom.ac_enaddr, LinksysOUI1, sizeof(LinksysOUI1)) &&
-	    bcmp(sc->arpcom.ac_enaddr, LinksysOUI2, sizeof(LinksysOUI2)) &&
-	    bcmp(sc->arpcom.ac_enaddr, LinksysOUI3, sizeof(LinksysOUI3)))
-		return (0);
-	return (1);
+	return (0);
 }
 
 /*
