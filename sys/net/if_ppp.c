@@ -1579,6 +1579,7 @@ ppp_inproc(sc, m)
 	if (sc->sc_flags & SC_DEBUG)
 	    if_printf(ifp, "input queue full\n");
 	ifp->if_iqdrops++;
+	m = NULL;
 	goto bad;
     }
     ifp->if_ipackets++;
