@@ -1,4 +1,4 @@
-<!-- $Id: lists.sgml,v 1.4 1996/07/29 00:26:32 asami Exp $ -->
+<!-- $Id: lists.sgml,v 1.5 1996/09/22 15:40:20 wosch Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- 
@@ -9,7 +9,7 @@ note the use of single
 and double quotes.  
 -->
 
-<!ENTITY a.announce "FreeBSD announcments mailing list
+<!ENTITY a.announce "FreeBSD announcements mailing list
   <tt><htmlurl url='mailto:freebsd-announce@FreeBSD.ORG'
   name='&lt;freebsd-announce@FreeBSD.ORG&gt;'></tt>">
 

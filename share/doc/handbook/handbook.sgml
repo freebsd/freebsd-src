@@ -1,4 +1,4 @@
-<!-- $Id: handbook.sgml,v 1.56 1996/09/08 21:12:54 jfieber Exp $ -->
+<!-- $Id: handbook.sgml,v 1.57 1996/09/09 01:56:57 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
@@ -19,7 +19,7 @@
 <!ENTITY % sections SYSTEM "sections.sgml">
 %sections;
 
-<!-- The curerntly released version of FreeBSD -->
+<!-- The currently released version of FreeBSD -->
 <!ENTITY rel.current CDATA "2.1.5">
 
 ]>

@@ -1,7 +1,7 @@
 <!-- This is an SGML document in the linuxdoc DTD describing
      hardwired terminals with FreeBSD.  By Sean Kelly, (c) 1996.
 
-     $Id: term.sgml,v 1.1 1996/07/29 07:15:57 jkh Exp $
+     $Id: term.sgml,v 1.2 1996/08/28 00:44:00 asami Exp $
 
      The FreeBSD Documentation Project
 
@@ -239,7 +239,7 @@
 	    <tt>/dev/ttyd1</tt>, and so forth.
 
 	    Note that you may have to configure your kernel to support
-	    each serial port, especially if you have a mutliport
+	    each serial port, especially if you have a multiport
 	    serial card.  See <ref name="Configuring the FreeBSD
 	    Kernel" id="kernelconfig"> for more information.
 

@@ -1,4 +1,4 @@
-<!-- $Id: linuxemu.sgml,v 1.10 1996/08/21 07:28:52 asami Exp $ -->
+<!-- $Id: linuxemu.sgml,v 1.11 1996/08/28 00:43:59 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Linux Emulation<label id="linuxemu"></heading>
@@ -368,7 +368,7 @@ to recreate this file whenever you install additional shared
 libraries.
 
 On FreeBSD-stable do not install /compat/linux/etc/ld.so.cache or run
-ldconfig becuase in FreeBSD-stable the syscalls are implemented
+ldconfig because in FreeBSD-stable the syscalls are implemented
 differently and ldconfig is not needed or used.
 
 <p>You should now be set up for Linux binaries which only need a

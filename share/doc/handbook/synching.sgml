@@ -1,4 +1,4 @@
-<!-- $Id: synching.sgml,v 1.1 1996/02/11 00:16:20 jkh Exp $ -->
+<!-- $Id: synching.sgml,v 1.2 1996/08/29 04:26:42 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Synchronizing source trees over the Internet<label id="synching"></heading>
@@ -7,7 +7,7 @@
 
 <!--
 
-Last updated: $Date: 1996/02/11 00:16:20 $
+Last updated: $Date: 1996/08/29 04:26:42 $
 
 This document tries to describe the various ways in which a user may
 use the internet to keep development sources in synch.
@@ -22,7 +22,7 @@ services we offer are CTM, SUP and CVSup (<bf>new</bf>).
 true, in fact, because each tool was originally designed to serve a
 different constituency and, although they have both undergone significant
 improvement since first going into service, they take fundamentally
-different approaches in trying to solve the source syncronization problem.
+different approaches in trying to solve the source synchronization problem.
 SUP was originally designed to support those who had dedicated (or at
 least fast) Internet connections whereas CTM was originally aimed at
 supporting those who's access was limited to email only.
@@ -44,7 +44,7 @@ far more efficient than SUP, and places less strain on our server resources
 since it's a <em>push</em> rather than a <em>pull</em> model.
 
 <p>There are other trade-offs, of course.  With SUP, you can also
-inadvertantly wipe out portions of your archive and SUP will detect
+inadvertently wipe out portions of your archive and SUP will detect
 and rebuild the damaged portions for you.  CTM won't do this, and if
 you wipe some portion of your source tree out (and don't have it backed
 up) then you will have to start from scratch (from the most recent CVS
@@ -57,7 +57,7 @@ development from a single CVS repository (which, in turn, can also be
 transferred non-destructively with CVSup - any local developer work on
 independant branches is preserved).  It overcomes many of SUP's shortcomings
 and may be <htmlurl url="ftp://freefall.freebsd.org/pub/CVSup/"
-name="downloaded"> from our development server, where additonal documentation
+name="downloaded"> from our development server, where additional documentation
 is also provided.  Both the CVSup client and server are compatible with
 the sup and supfilesrv distribution file formats.
 

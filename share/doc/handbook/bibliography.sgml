@@ -1,4 +1,4 @@
-<!-- $Id: bibliography.sgml,v 1.12 1996/09/09 01:56:55 jkh Exp $ -->
+<!-- $Id: bibliography.sgml,v 1.13 1996/09/09 03:43:29 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
     <chapt>
@@ -110,7 +110,7 @@
 		<newline>ISBN 0-13-131509-9</item>
 
 	    <item>Stevens, W. Richard. <em>Advanced
-		Programming in the UNIX Enviroment</em>.
+		Programming in the UNIX Environment</em>.
 		Reading, Mass. : Addison-Wesley, 1992
 		<newline>ISBN 0-201-56317-7</item>
 
