@@ -219,6 +219,7 @@ MFSSIZE=		8192
 MFSSIZE=		4096
 MFSINODE=		8192
 MFSLABEL=		auto
+NO_FLOPPIES=
 .endif
 
 .if exists(/sbin/bsdlabel)
@@ -499,7 +500,9 @@ release.1:
 	-chflags -R noschg ${_R}/.
 	rm -rf ${_R}/*
 	mkdir ${RD}
+.if !defined(NO_FLOPPIES)
 	mkdir ${RD}/floppies
+.endif
 	mkdir ${RD}/trees
 	mkdir ${RD}/kernels
 	for i in ${DISTRIBUTIONS} ; do \
@@ -710,7 +713,7 @@ release.9:
 .if ${TARGET_ARCH} == "alpha" && !defined(NO_FLOPPIES)
 	rm -rf ${RD}/mfsfd/stand/help/*
 .endif
-.if defined(SMALLBOOTSIZE)
+.if defined(SMALLBOOTSIZE) && !defined(NO_FLOPPIES)
 .if exists(${.CURDIR}/${TARGET}/drivers-small.conf)
 	@rm -rf ${RD}/mfsfd/modules
 	@mkdir -p ${RD}/mfsfd/modules
@@ -731,6 +734,7 @@ release.9:
 	@awk -f  ${.CURDIR}/scripts/driver-copy2.awk 2 \
 	    ${.CURDIR}/${TARGET}/drivers.conf \
 	    ${RD}/trees/base/boot/kernel ${RD}/mfsfd/modules
+.if !defined(NO_FLOPPIES)
 	@rm -rf ${RD}/driversfd
 	@mkdir ${RD}/driversfd
 	@awk -f  ${.CURDIR}/scripts/driver-copy2.awk 3 \
@@ -744,6 +748,7 @@ release.9:
 	    cd ${RD}/driversfd && awk -f  ${.CURDIR}/scripts/driver-desc.awk \
 		*.dsc >> ${RD}/floppies/DRIVERS.TXT; \
 	fi
+.endif
 .endif
 	sh -e ${DOFS_SH} mfsroot ${RD} ${MNT} \
 		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
@@ -820,7 +825,9 @@ ftp.1:
 	@echo "Setting up FTP distribution area"
 	@mkdir -p ${FD}
 	-@ln -s . ${FD}/${BUILDNAME}
+.if !defined(NO_FLOPPIES)
 	@cd ${RD} && find floppies -print | cpio -dumpl ${FD}
+.endif
 	@cd ${RD}/dists && find . -print | cpio -dumpl ${FD}
 .if !defined(NODOC)
 	@for i in ${DIST_DOCS_ARCH_INDEP}; do \
@@ -850,7 +857,9 @@ cdrom.1:
 	@echo "Setting up CDROM distribution area"
 	@mkdir -p ${CD_DISC1} ${CD_DISC2}
 	-@ln -s . ${CD_DISC1}/${BUILDNAME}
+.if !defined(NO_FLOPPIES)
 	@cd ${RD} && find floppies -print | cpio -dumpl ${CD_DISC1}
+.endif
 	@cd ${RD}/dists && find . -print | cpio -dumpl ${CD_DISC1}
 	@for i in ${DISTRIBUTIONS} ; \
 	do \
@@ -888,7 +897,7 @@ cdrom.1:
 	@echo 'mfsroot_name="/boot/mfsroot"' >> ${CD_DISC2}/boot/loader.conf
 	@cp -Rp ${CD_DISC2}/boot ${CD_DISC1}
 .endif
-.if ${TARGET} == "i386"
+.if ${TARGET} == "i386" && !defined(NO_FLOPPIES)
 	# In case bootable ISO with floppy emulation is desired.
 	@mkdir -p ${CD_DISC2}/floppies
 	@cp ${CD_DISC1}/floppies/boot.flp ${CD_DISC2}/floppies
