@@ -307,7 +307,7 @@ http_request()
 	http_output(httpd_server_ident);
 	http_date();
 
-	sprintf(buff, "Content-length: %d\r\n", file_status.st_size);
+	sprintf(buff, "Content-length: %lld\r\n", file_status.st_size);
 
 	if (strstr(filename,".txt")) {
 	  strcpy(buff,"Content-type: text/plain\r\n");
