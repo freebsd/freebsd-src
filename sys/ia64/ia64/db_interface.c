@@ -67,12 +67,9 @@ extern jmp_buf	db_jmpbuf;
 
 extern void	gdb_handle_exception __P((db_regs_t *, int));
 
-#if 0
-extern char *trap_type[];
-extern int trap_types;
-#endif
-
 int	db_active;
+db_regs_t ddb_regs;
+
 static u_int64_t zero;
 static int db_get_rse_reg(struct db_variable *vp, db_expr_t *valuep, int op);
 static int db_get_pc_reg(struct db_variable *vp, db_expr_t *valuep, int op);
