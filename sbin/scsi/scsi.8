@@ -39,14 +39,14 @@
 .\" SUCH DAMAGE.
 .\" 
 .\"
-.\"	$Id: scsi.8,v 1.9 1997/02/22 14:33:15 peter Exp $
+.\"	$Id: scsi.8,v 1.10 1997/03/19 22:42:02 mpp Exp $
 .\"
 .Dd October 11, 1993
 .Dt SCSI 8
 .Os BSD 4
 .Sh NAME
 .Nm scsi
-.Nd program to assist with scsi devices.
+.Nd program to assist with scsi devices
 .Sh SYNOPSIS
 .Nm scsi
 .Fl f Ar device
@@ -70,7 +70,7 @@
 .Fl r
 .Op Fl b Ar bus
 .Op Fl t Ar targ
-.Op Fl l lun
+.Op Fl l Ar lun
 .Nm scsi
 .Fl f Ar device
 .Fl c Ar cmd_fmt
@@ -147,8 +147,12 @@ The
 option can be used against the "super scsi" device
 .Pa /dev/scsi/super
 to probe all devices with a given SCSI lun on a given SCSI bus.
-The bus can be selected with the -b option and the default is 0.
-The lun can be selected with the -l option and the default is 0.
+The bus can be selected with the
+.Fl b
+option and the default is 0.
+The lun can be selected with the
+.Fl l
+option and the default is 0.
 See
 .Xr scsi 4
 for a description of the "super scsi" device.
