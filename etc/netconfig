@@ -1,3 +1,5 @@
+# $FreeBSD$
+#
 # The network configuration file. This file is currently only used in
 # conjunction with the (TI-) RPC code in the C library, unlike its
 # use in SVR4.
