@@ -109,7 +109,7 @@ Julian Elischer <julian@dialix.oz.au>
 Julian Stacey <stacey@guug.de> <fallback: <julian@meepmeep.pcs.com>>
 Keith Bostic <bostic@toe.CS.Berkeley.EDU>
 Keith Moore <?>
-L Jonas Olsson <ljo@amcell2.caisr.cwru.edu>
+L Jonas Olsson <ljo@po.cwru.edu>
 Marc Frajola <marc@escargot.rain.com>
 Mark Tinguely <tinguely@plains.nodak.edu> <tinguely@hookie.cs.ndsu.NoDak.edu>
 Martin Birgmeier
@@ -225,4 +225,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.6 1995/02/09 11:11:39 jkh Exp $
+$Id: CONTRIB.FreeBSD,v 1.7 1995/02/09 12:45:42 jkh Exp $
