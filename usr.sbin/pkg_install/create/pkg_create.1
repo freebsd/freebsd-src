@@ -15,11 +15,15 @@
 .\"
 .\"
 .\"     @(#)pkg_create.8
-.\"	$Id: pkg_create.1,v 1.12 1995/01/05 10:37:09 jkh Exp $	
+.\"	$Id: pkg_create.1,v 1.13 1995/04/09 15:05:01 jkh Exp $	
+.\"
 .\" hacked up by John Kohl for NetBSD--fixed a few bugs, extended keywords,
 .\" added dependency tracking, etc.
 .\"
-.Dd November 25, 1994
+.\" [jkh] Took John's changes back and made some additional extensions for
+.\" better integration with FreeBSD's new ports collection.
+.\"
+.Dd April 21, 1995
 .Dt pkg_create 8
 .Os FreeBSD 2.0
 .Sh NAME
@@ -27,7 +31,7 @@
 .Nd a utility for creating software package distributions.
 .Sh SYNOPSIS
 .Nm
-.Op Fl YNhv
+.Op Fl YNOhv
 .Op Fl P Ar pkgs
 .Op Fl p Ar prefix
 .Op Fl f Ar contents
@@ -86,6 +90,12 @@ Assume a default answer of `Yes' for any questions asked.
 .Em "Optional."
 .It Fl N
 Assume a default answer of `No' for any questions asked.
+.It Fl O
+Go into a `packing list Only' mode.  This is a custom hack for the
+.Em "FreeBSD Ports Collection"
+and is used to do `fake pkg_add' operations when a port is installed.
+In such cases, it is necessary to know what the final, adjusted packing
+list will look like.
 .Em "Optional."
 .It Fl v
 Turns on verbose output.

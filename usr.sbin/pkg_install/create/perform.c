@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.15 1995/04/09 15:05:00 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.16 1995/04/10 08:01:52 jkh Exp $";
 #endif
 
 /*
@@ -41,7 +41,7 @@ pkg_perform(char **pkgs)
 
     /* Preliminary setup */
     sanity_check();
-    if (Verbose)
+    if (Verbose && !PlistOnly)
 	printf("Creating package %s\n", pkg);
     get_dash_string(&Comment);
     get_dash_string(&Desc);
@@ -91,6 +91,15 @@ pkg_perform(char **pkgs)
      */
     if (find_plist(&plist, PLIST_NAME) == NULL)
 	add_plist_top(&plist, PLIST_NAME, basename_of(pkg));
+
+    /*
+     * We're just here for to dump out a revised plist for the FreeBSD ports
+     * hack.  It's not a real create in progress.
+     */
+    if (PlistOnly) {
+	write_plist(&plist, stdout);
+	exit(0);
+    }
 
     /* Make a directory to stomp around in */
     home = make_playpen(PlayPen, 0);
