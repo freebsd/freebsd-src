@@ -27,8 +27,8 @@ LDADD= ${XLIBDIR} ${RESOLV}
 CLEANFILES+=vers.${PROG}.c vers.${PROG}.o version.amd
 CLEANFILES+=mount.h mount_xdr.c nfs_prot.h nfs_prot_xdr.c nfs_prot_svc.c
 RPCCOM = rpcgen
-MOUNT_X= ${.DESTDIR}/usr/include/rpcsvc/mount.x
-NFS_PROT_X= ${.DESTDIR}/usr/include/rpcsvc/nfs_prot.x
+MOUNT_X= ${DESTDIR}/usr/include/rpcsvc/mount.x
+NFS_PROT_X= ${DESTDIR}/usr/include/rpcsvc/nfs_prot.x
 DPSRCS= nfs_prot.h
 
 vers.${PROG}.c: ${SRCS:.c=.o}
