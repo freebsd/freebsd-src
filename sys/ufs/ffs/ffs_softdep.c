@@ -503,9 +503,10 @@ static int *stat_countp;	/* statistic to count in proc_waiting timeout */
 static struct callout_handle handle; /* handle on posted proc_waiting timeout */
 static struct thread *filesys_syncer; /* proc of filesystem syncer process */
 static int req_clear_inodedeps;	/* syncer process flush some inodedeps */
-#define FLUSH_INODES	1
+#define FLUSH_INODES		1
 static int req_clear_remove;	/* syncer process flush some freeblks */
-#define FLUSH_REMOVE	2
+#define FLUSH_REMOVE		2
+#define FLUSH_REMOVE_WAIT	3
 /*
  * runtime statistics
  */
@@ -695,7 +696,7 @@ process_worklist_item(matchmnt, flags)
 	}
 	if (wk == 0) {
 		FREE_LOCK(&lk);
-		return (0);
+		return (-1);
 	}
 	WORKLIST_REMOVE(wk);
 	num_on_worklist -= 1;
@@ -4825,6 +4826,41 @@ softdep_slowdown(vp)
 }
 
 /*
+ * Called by the allocation routines when they are about to fail
+ * in the hope that we can free up some disk space.
+ * 
+ * First check to see if the work list has anything on it. If it has,
+ * clean up entries until we successfully free some space. Because this
+ * process holds inodes locked, we cannot handle any remove requests
+ * that might block on a locked inode as that could lead to deadlock.
+ * If the worklist yields no free space, encourage the syncer daemon
+ * to help us. In no event will we try for longer than tickdelay seconds.
+ */
+int
+softdep_request_cleanup(fs, vp)
+	struct fs *fs;
+	struct vnode *vp;
+{
+	long starttime, needed;
+
+	needed = fs->fs_cstotal.cs_nbfree + fs->fs_contigsumsize;
+	starttime = time_second + tickdelay;
+	if (UFS_UPDATE(vp, 1) != 0)
+		return (0);
+	while (fs->fs_pendingblocks > 0 && fs->fs_cstotal.cs_nbfree <= needed) {
+		if (time_second > starttime)
+			return (0);
+		if (num_on_worklist > 0 &&
+		    process_worklist_item(NULL, LK_NOWAIT) != -1) {
+			stat_worklist_push += 1;
+			continue;
+		}
+		request_cleanup(FLUSH_REMOVE_WAIT, 0);
+	}
+	return (1);
+}
+
+/*
  * If memory utilization has gotten too high, deliberately slow things
  * down and speed up the I/O processing.
  */
@@ -4861,7 +4897,7 @@ request_cleanup(resource, islocked)
 	 * Next, we attempt to speed up the syncer process. If that
 	 * is successful, then we allow the process to continue.
 	 */
-	if (speedup_syncer())
+	if (speedup_syncer() && resource != FLUSH_REMOVE_WAIT)
 		return(0);
 	/*
 	 * If we are resource constrained on inode dependencies, try
@@ -4882,6 +4918,7 @@ request_cleanup(resource, islocked)
 		break;
 
 	case FLUSH_REMOVE:
+	case FLUSH_REMOVE_WAIT:
 		stat_blk_limit_push += 1;
 		req_clear_remove += 1;
 		stat_countp = &stat_blk_limit_hit;

@@ -109,6 +109,7 @@ int	softdep_flushfiles __P((struct mount *, int, struct thread *));
 void	softdep_update_inodeblock __P((struct inode *, struct buf *, int));
 void	softdep_load_inodeblock __P((struct inode *));
 void	softdep_freefile __P((struct vnode *, ino_t, int));
+int	softdep_request_cleanup __P((struct fs *, struct vnode *));
 void	softdep_setup_freeblocks __P((struct inode *, off_t));
 void	softdep_setup_inomapdep __P((struct buf *, struct inode *, ino_t));
 void	softdep_setup_blkmapdep __P((struct buf *, struct fs *, ufs_daddr_t));
