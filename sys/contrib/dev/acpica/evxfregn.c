@@ -2,7 +2,7 @@
  *
  * Module Name: evxfregn - External Interfaces, ACPI Operation Regions and
  *                         Address Spaces.
- *              $Revision: 56 $
+ *              $Revision: 59 $
  *
  *****************************************************************************/
 
@@ -255,7 +255,7 @@ AcpiInstallAddressSpaceHandler (
          * The attached device object already exists.
          * Make sure the handler is not already installed.
          */
-        HandlerObj = ObjDesc->Device.AddressSpace;
+        HandlerObj = ObjDesc->Device.Handler;
 
         /* Walk the handler list for this device */
 
@@ -331,7 +331,8 @@ AcpiInstallAddressSpaceHandler (
 
     ACPI_DEBUG_PRINT ((ACPI_DB_OPREGION,
         "Installing address handler for region %s(%X) on Device %4.4s %p(%p)\n",
-        AcpiUtGetRegionName (SpaceId), SpaceId, Node->Name.Ascii, Node, ObjDesc));
+        AcpiUtGetRegionName (SpaceId), SpaceId,
+        AcpiUtGetNodeName (Node), Node, ObjDesc));
 
     /*
      * Install the handler
@@ -359,13 +360,13 @@ AcpiInstallAddressSpaceHandler (
 
     /* Install at head of Device.AddressSpace list */
 
-    HandlerObj->AddressSpace.Next        = ObjDesc->Device.AddressSpace;
+    HandlerObj->AddressSpace.Next        = ObjDesc->Device.Handler;
 
     /*
      * The Device object is the first reference on the HandlerObj.
      * Each region that uses the handler adds a reference.
      */
-    ObjDesc->Device.AddressSpace = HandlerObj;
+    ObjDesc->Device.Handler = HandlerObj;
 
     /*
      * Walk the namespace finding all of the regions this
@@ -381,6 +382,17 @@ AcpiInstallAddressSpaceHandler (
      */
     Status = AcpiNsWalkNamespace (ACPI_TYPE_ANY, Device, ACPI_UINT32_MAX,
                     ACPI_NS_WALK_UNLOCK, AcpiEvInstallHandler,
+                    HandlerObj, NULL);
+
+    /* 
+     * Now we can run the _REG methods for all Regions for this
+     * space ID.  This is a separate walk in order to handle any
+     * interdependencies between regions and _REG methods.  (i.e. handlers
+     * must be installed for all regions of this Space ID before we
+     * can run any _REG methods.
+     */
+    Status = AcpiNsWalkNamespace (ACPI_TYPE_ANY, Device, ACPI_UINT32_MAX,
+                    ACPI_NS_WALK_UNLOCK, AcpiEvRegRun,
                     HandlerObj, NULL);
 
 UnlockAndExit:
@@ -453,8 +465,8 @@ AcpiRemoveAddressSpaceHandler (
 
     /* Find the address handler the user requested */
 
-    HandlerObj = ObjDesc->Device.AddressSpace;
-    LastObjPtr = &ObjDesc->Device.AddressSpace;
+    HandlerObj = ObjDesc->Device.Handler;
+    LastObjPtr = &ObjDesc->Device.Handler;
     while (HandlerObj)
     {
         /* We have a handler, see if user requested this one */

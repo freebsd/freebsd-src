@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actypes.h - Common data types for the entire ACPI subsystem
- *       $Revision: 261 $
+ *       $Revision: 262 $
  *
  *****************************************************************************/
 
@@ -281,6 +281,7 @@ typedef UINT32                          ACPI_SIZE;
 /*
  * Miscellaneous common types
  */
+typedef UINT16                          UINT16_BIT;
 typedef UINT32                          UINT32_BIT;
 typedef ACPI_NATIVE_UINT                ACPI_PTRDIFF;
 
