@@ -191,9 +191,9 @@ sub tinderbox($$$) {
     push(@args, "--arch=$arch");
     push(@args, "--machine=$machine");
     push(@args, "--date=" . expand('DATE'))
-	if (defined($CONFIG{'DATE'}));
+	if ($CONFIG{'DATE'});
     push(@args, "--patch=" . expand('PATCH'))
-	if (defined($CONFIG{'PATCH'}));
+	if ($CONFIG{'PATCH'});
     push(@args, @{$CONFIG{'TARGETS'}});
     push(@args, @{$CONFIG{'ENV'}});
     my $pid = fork();
