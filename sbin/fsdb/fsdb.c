@@ -832,8 +832,8 @@ badformat:
 	warnx("date/time out of range");
 	return 1;
     }
-    rts->ts_sec = sec;
-    rts->ts_nsec = nsec;
+    rts->tv_sec = sec;
+    rts->tv_nsec = nsec;
     return 0;
 }
 
