@@ -640,7 +640,7 @@ configXDesktop(dialogMenuItem *self)
 int
 configXSetup(dialogMenuItem *self)
 {
-    char *config, *execfile, *style;
+    char *config, *execfile, *execcmd, *style, *tmp;
     char *moused;
     WINDOW *w = savescr();
     
@@ -674,8 +674,20 @@ tryagain:
 	vsystem("ldconfig -aout /usr/lib/aout /usr/lib/compat/aout /usr/local/lib/aout /usr/X11R6/lib/aout");
 
     vsystem("/sbin/ifconfig lo0 127.0.0.1");
-    execfile = string_concat("/usr/X11R6/bin/", config);
+
+    /* 
+     * execcmd may have been passed in as a command name with
+     * arguments.  Therefore, before determining if it is suitable for
+     * execution, we must split off the filename component from the
+     * command line arguments.
+     */
+
+    execcmd = string_concat("/usr/X11R6/bin/", config);
+    execfile = strdup(execcmd);
+    if ((tmp = strchr(execfile, ' ')))
+	    *tmp = '\0';
     if (file_executable(execfile)) {
+	free(execfile);
 	moused = variable_get(VAR_MOUSED);
 	while (!moused || strcmp(moused, "YES")) {
 	    if (msgYesNo("The X server may access the mouse in two ways: direct access\n"
@@ -693,7 +705,7 @@ tryagain:
 	   	       "Choose \"/dev/sysmouse\" as the mouse port and \"SysMouse\" or\n"
 		       "\"MouseSystems\" as the mouse protocol in the X configuration\n"
 		       "utility.");
-	systemExecute(execfile);
+	systemExecute(execcmd);
 	if (!file_readable("/etc/XF86Config")) {
 	    if (!msgYesNo("The XFree86 configuration process seems to have\nfailed.  Would you like to try again?"))
 		goto tryagain;
@@ -708,6 +720,7 @@ config_desktop:
 	return DITEM_SUCCESS;
     }
     else {
+	free(execfile);
 	msgConfirm("The XFree86 setup utility you chose does not appear to be installed!\n"
 		   "Please install this before attempting to configure XFree86.");
 	restorescr(w);

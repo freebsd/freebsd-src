@@ -15,6 +15,7 @@ SRCS=	anonFTP.c cdrom.c command.c config.c devices.c dhcp.c kget.c \
 	variable.c wizard.c keymap.h
 
 CFLAGS+= -I${.CURDIR}/../../gnu/lib/libdialog -I.
+CFLAGS+= -DX_AS_PKG
 .if ${MACHINE} == "pc98"
 CFLAGS+= -DPC98
 .endif

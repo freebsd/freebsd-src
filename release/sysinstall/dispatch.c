@@ -84,7 +84,9 @@ static struct _word {
     { "installStandard",	installStandard		},
     { "installUpgrade",		installUpgrade		},
     { "installFixupBin",	installFixupBin		},
+#ifndef X_AS_PKG
     { "installFixupXFree",	installFixupXFree	},
+#endif
     { "installFixitHoloShell",	installFixitHoloShell	},
     { "installFixitCDROM",	installFixitCDROM	},
     { "installFixitFloppy",	installFixitFloppy	},
