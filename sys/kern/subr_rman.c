@@ -426,35 +426,25 @@ rman_activate_resource(struct resource *r)
 int
 rman_await_resource(struct resource *r, int pri, int timo)
 {
-	int	rv, s;
+	int	rv;
 	struct	resource *whohas;
 	struct	rman *rm;
 
 	rm = r->r_rm;
+	mtx_lock(rm->rm_mtx);
 	for (;;) {
-		mtx_lock(rm->rm_mtx);
 		rv = int_rman_activate_resource(rm, r, &whohas);
 		if (rv != EBUSY)
 			return (rv);	/* returns with mutex held */
 
 		if (r->r_sharehead == 0)
 			panic("rman_await_resource");
-		/*
-		 * splhigh hopefully will prevent a race between
-		 * mtx_unlock and tsleep where a process
-		 * could conceivably get in and release the resource
-		 * before we have a chance to sleep on it.
-		 */
-		s = splhigh();
 		whohas->r_flags |= RF_WANTED;
-		mtx_unlock(rm->rm_mtx);
-		rv = tsleep(r->r_sharehead, pri, "rmwait", timo);
+		rv = msleep(r->r_sharehead, rm->rm_mtx, pri, "rmwait", timo);
 		if (rv) {
-			splx(s);
-			return rv;
+			mtx_unlock(rm->rm_mtx);
+			return (rv);
 		}
-		mtx_lock(rm->rm_mtx);
-		splx(s);
 	}
 }
 
