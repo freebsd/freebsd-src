@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: vidcontrol.c,v 1.23 1998/09/24 01:36:36 gpalmer Exp $";
+	"$Id: vidcontrol.c,v 1.24 1998/10/01 11:40:22 yokota Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -431,7 +431,7 @@ static char
 void
 show_adapter_info(void)
 {
-	struct video_adapter ad;
+	struct video_adapter_info ad;
 
 	ad.va_index = 0;
 	if (ioctl(0, CONS_ADPINFO, &ad)) {
@@ -439,11 +439,11 @@ show_adapter_info(void)
 		return;
 	}
 
-	printf("adapter %d:\n", ad.va_index);
-	printf("    type:%s%s (%d), flags:0x%08x, CRTC:0x%x\n", 
+	printf("fb%d:\n", ad.va_index);
+	printf("    %.*s%d, type:%s%s (%d), flags:0x%x\n",
+	       (int)sizeof(ad.va_name), ad.va_name, ad.va_unit,
 	       (ad.va_flags & V_ADP_VESA) ? "VESA " : "",
-	       adapter_name(ad.va_type), ad.va_type, 
-	       ad.va_flags, ad.va_crtc_addr);
+	       adapter_name(ad.va_type), ad.va_type, ad.va_flags);
 	printf("    initial mode:%d, current mode:%d, BIOS mode:%d\n",
 	       ad.va_initial_mode, ad.va_mode, ad.va_initial_bios_mode);
 }
