@@ -403,9 +403,11 @@ fwohci_pci_resume(device_t dev)
 {
 	fwohci_softc_t *sc = device_get_softc(dev);
 
+#ifndef BURN_BRIDGES
 	device_printf(dev, "fwohci_pci_resume: power_state = 0x%08x\n",
 					pci_get_powerstate(dev));
 	pci_set_powerstate(dev, PCI_POWERSTATE_D0);
+#endif
 	fwohci_pci_init(dev);
 	fwohci_resume(sc, dev);
 	return 0;
