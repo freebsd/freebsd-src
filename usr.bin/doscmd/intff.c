@@ -29,7 +29,7 @@
  *
  *	BSDI intff.c,v 2.2 1996/04/08 19:32:56 bostic Exp
  *
- * $Id: intff.c,v 1.1 1997/08/09 01:42:51 dyson Exp $
+ * $Id: intff.c,v 1.2 1997/09/30 22:03:57 jlemon Exp $
  */
 
 #include "doscmd.h"
@@ -673,7 +673,7 @@ int2f11_validate(regcontext_t *REGS)
 	}
 
 	/* translate letter to drive number */
-	r_drive = toupper(path[0]) - 'A';
+	r_drive = drlton(path[0]);
     } else {
 	path = "(no path)";
     }
@@ -685,7 +685,7 @@ int2f11_validate(regcontext_t *REGS)
     }
     
     debug(D_REDIR,"%s -> drive %c func %x (%sus)\n",
-	  path, 'A'+r_drive, func, doit?"":"not ");
+	  path, drntol(r_drive), func, doit?"":"not ");
     
     /* so do we deal with this one? */
     return(doit);
@@ -749,7 +749,7 @@ install_drive(int drive, u_char *path)
     /* check that DOS considers this a valid drive */
     if (drive < 0 || drive >= lol->lastdrive) {
 	debug(D_REDIR, "Drive %c beyond limit of %c)\n",
-	      drive + 'A', lol->lastdrive - 1 + 'A');
+	      drntol(drive), drntol(lol->lastdrive - 1));
 	return;
     }
 
@@ -759,15 +759,15 @@ install_drive(int drive, u_char *path)
 
 #if 0	/* XXX looks OK to me - mjs */
     if (cds->flag & (CDS_remote | CDS_ready)) {
-	debug(D_REDIR, "Drive %c already installed\n", drive + 'A');
+	debug(D_REDIR, "Drive %c already installed\n", drntol(drive));
 	return;
     }
 #endif
 
-    debug(D_REDIR, "Installing %c: as %s\n", drive + 'A', path);
+    debug(D_REDIR, "Installing %c: as %s\n", drntol(drive), path);
 
     cds->flag |= CDS_remote | CDS_ready | CDS_notnet;
-    cds->path[0] = drive + 'A';
+    cds->path[0] = drntol(drive);
     cds->path[1] = ':';
     cds->path[2] = '\\';
     cds->path[3] = '\0';

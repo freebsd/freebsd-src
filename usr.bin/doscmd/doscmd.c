@@ -29,7 +29,7 @@
  *
  *	BSDI doscmd.c,v 2.3 1996/04/08 19:32:30 bostic Exp
  *
- * $Id: doscmd.c,v 1.3 1997/09/30 22:03:40 jlemon Exp $
+ * $Id: doscmd.c,v 1.4 1998/02/28 16:02:23 jraynard Exp $
  */
 
 #include <sys/types.h>
@@ -312,16 +312,12 @@ setup_boot(regcontext_t *REGS)
     }
 
     if (fd < 0) {			/* can we boot it? */
-	fprintf(stderr, "Cannot boot from %c: (can't open)\n",
-		booting + 'A');
-	quit(1);
+	errx(1, "Cannot boot from %c", drntol(booting));
     }
 
     /* read bootblock */
     if (read(fd, (char *)0x7c00, 512) != 512) {
-	fprintf(stderr, "Short read on boot block from %c:\n",
-		booting + 'A');
-	quit(1);
+        errx(1, "Short read on boot block from %c:", drntol(booting));
     }
 
     /* initialise registers for entry to bootblock */
@@ -370,13 +366,13 @@ setup_command(int argc, char *argv[], regcontext_t *REGS)
 	usage();
 
     /* look for a working directory  XXX ??? */
-    if (dos_getcwd('C' - 'A') == NULL) {
+    if (dos_getcwd(drlton('C')) == NULL) {
 	
 	/* try to get our current directory, use '/' if desperate */
 	p = getcwd(buffer, sizeof(buffer));
 	if (!p || !*p) p = getenv("PWD");
 	if (!p || !*p) p = "/";
-	init_path('C' - 'A', (u_char *)"/", (u_char *)p);
+	init_path(drlton('C'), (u_char *)"/", (u_char *)p);
 
 	/* look for PATH= already set, learn from it if possible */
 	for (i = 0; i < ecnt; ++i) {
@@ -388,8 +384,7 @@ setup_command(int argc, char *argv[], regcontext_t *REGS)
 	/* no PATH in DOS environment? put current directory there*/
 	if (i >= ecnt) {
 	    static char path[256];
-	    sprintf(path, "PATH=C:%s",
-		    dos_getcwd('C' - 'A'));
+	    sprintf(path, "PATH=C:%s", dos_getcwd(drlton('C')));
 	    put_dosenv(path);
 	    dos_path = envs[ecnt-1] + 5;
 	}
@@ -428,8 +423,8 @@ setup_command(int argc, char *argv[], regcontext_t *REGS)
     envs[ecnt] = 0;
 
     /* XXX ??? */
-    if (dos_getcwd('R' - 'A') == NULL)
-	init_path('R' - 'A', (u_char *)"/", 0);
+    if (dos_getcwd(drlton('R')) == NULL)
+	init_path(drlton('R'), (u_char *)"/", 0);
 
     /* get program name */
     strncpy(prog, *argv++, sizeof(prog) -1);
