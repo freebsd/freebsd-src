@@ -26,29 +26,39 @@
  * $FreeBSD$
  */
 
-#ifndef _PTHREAD_DB_H
-#define _PTHREAD_DB_H
+#ifndef _LIBPTHREAD_DB_H_
+#define	_LIBPTHREAD_DB_H_
 
 #include <sys/ucontext.h>
 #include <machine/reg.h>
 
 #include "thread_db_int.h"
 
-struct pt_thragent {
-	struct td_thragent		base;
-	struct ps_prochandle		*ph;
-	psaddr_t			libkse_debug_addr;
-	psaddr_t			thread_list_addr;
-	psaddr_t			thread_listgen_addr;
-	psaddr_t			thread_activated_addr;
-	psaddr_t			thread_active_threads_addr;
-	psaddr_t			thread_keytable_addr;
-	int				thread_activated;
-	struct pt_map			*map;
-	int				map_len;
+struct pt_map {
+	enum {
+		PT_NONE,
+		PT_USER,
+		PT_LWP
+	} type;
+
+	union {
+		lwpid_t		lwp;
+		psaddr_t	thr;
+	};
 };
 
-typedef struct pt_thragent pt_thragent_t;
+struct td_thragent {
+	TD_THRAGENT_FIELDS;
+	psaddr_t	libkse_debug_addr;
+	psaddr_t	thread_list_addr;
+	psaddr_t	thread_listgen_addr;
+	psaddr_t	thread_activated_addr;
+	psaddr_t	thread_active_threads_addr;
+	psaddr_t	thread_keytable_addr;
+	int		thread_activated;
+	struct pt_map	*map;
+	int		map_len;
+};
 
 void pt_md_init(void);
 void pt_reg_to_ucontext(const struct reg *, ucontext_t *);
@@ -57,4 +67,4 @@ void pt_fpreg_to_ucontext(const struct fpreg *, ucontext_t *);
 void pt_ucontext_to_fpreg(const ucontext_t *, struct fpreg *);
 int  pt_reg_sstep(struct reg *reg, int step);
 
-#endif
+#endif /* _LIBPTHREAD_DB_H_ */
