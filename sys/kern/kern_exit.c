@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.17 1995/10/08 00:06:03 swallace Exp $
+ * $Id: kern_exit.c,v 1.18 1995/10/23 15:42:09 bde Exp $
  */
 
 #include <sys/param.h>
@@ -283,7 +283,7 @@ done:
 	cpu_exit(p);
 }
 
-#if defined(COMPAT_43) || defined(COMPAT_IBCS2)
+#if defined(COMPAT_43)
 #if defined(hp300) || defined(luna68k)
 #include <machine/frame.h>
 #define GETPS(rp)	((struct frame *)(rp))->f_sr
@@ -317,7 +317,7 @@ owait(p, uap, retval)
 	w.status = NULL;
 	return (wait1(p, &w, retval, 1));
 }
-#endif /* defined(COMPAT_43) || defined(COMPAT_IBCS2) */
+#endif /* defined(COMPAT_43) */
 
 int
 wait4(p, uap, retval)
@@ -343,7 +343,7 @@ wait1(q, uap, retval, compat)
 {
 	register int nfound;
 	register struct proc *p, *t;
-	int status, error, sig;
+	int status, error;
 
 	if (uap->pid == 0)
 		uap->pid = -q->p_pgid;
@@ -358,15 +358,6 @@ loop:
 		    p->p_pid != uap->pid && p->p_pgid != -uap->pid)
 			continue;
 		nfound++;
-#if defined(COMPAT_43) || defined(COMPAT_IBCS2)
-		if (q->p_sysent->sv_sigtbl) {
-			if ((p->p_xstat & 0xff) < q->p_sysent->sv_sigsize)
-				sig = q->p_sysent->sv_sigtbl[p->p_xstat & 0xff];
-			else
-				sig = q->p_sysent->sv_sigsize + 1;
-		} else
-			sig = p->p_xstat;
-#endif
 		if (p->p_stat == SZOMB) {
 			/* charge childs scheduling cpu usage to parent */
 			if (curproc->p_pid != 1) {
@@ -375,9 +366,9 @@ loop:
 			}
 
 			retval[0] = p->p_pid;
-#if defined(COMPAT_43) || defined(COMPAT_IBCS2)
+#if defined(COMPAT_43)
 			if (compat)
-				retval[1] = sig;
+				retval[1] = p->p_xstat;
 			else
 #endif
 			if (uap->status) {
@@ -453,9 +444,9 @@ loop:
 		    (p->p_flag & P_TRACED || uap->options & WUNTRACED)) {
 			p->p_flag |= P_WAITED;
 			retval[0] = p->p_pid;
-#if defined(COMPAT_43) || defined(COMPAT_IBCS2)
+#if defined(COMPAT_43)
 			if (compat) {
-				retval[1] = W_STOPCODE(sig);
+				retval[1] = W_STOPCODE(p->p_xstat);
 				error = 0;
 			} else
 #endif
