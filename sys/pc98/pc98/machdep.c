@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.58 1997/09/26 09:47:04 kato Exp $
+ *	$Id: machdep.c,v 1.59 1997/10/12 11:58:09 kato Exp $
  */
 
 #include "apm.h"
@@ -158,6 +158,7 @@ int	msgbufmapped = 0;		/* set when safe to use msgbuf */
 int _udatasel, _ucodesel;
 u_int	atdevbase;
 
+static MALLOC_DEFINE(M_MBUF, "mbuf", "mbuf");
 
 int physmem = 0;
 int cold = 1;
