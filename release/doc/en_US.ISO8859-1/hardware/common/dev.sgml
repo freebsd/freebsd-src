@@ -46,12 +46,10 @@
   etc. can be found in the manual pages.</para>
 
   <note>
-    <para>Lists of specific, supported devices are gradually being
-      removed from this document in order to reduce the amount of
-      duplicated (and potentially out-of-date) information contained
-      within.  When this process is complete, the manual page for each
-      driver should be consulted for the authoritative list of devices
-      supported that particular driver.</para>
+    <para>The device lists in this document are being generated
+      automatically from &os; manual pages.  This means that some
+      devices, which are supported by multiple drivers, may appear
+      multiple times.</para>
   </note>
 
   <sect2 id="disk">
@@ -220,12 +218,9 @@
 
     &hwlist.twa;
 
-    <para arch="i386,pc98,alpha,sparc64,amd64">LSI/Symbios (formerly NCR)
-    53C8<replaceable>XX</replaceable> and 53C10<replaceable>XX</replaceable> PCI
-    SCSI controllers, either embedded on motherboard or on add-on
-    boards (&man.ncr.4; and &man.sym.4; drivers)
-    </para>      
-        
+    &hwlist.ncr;
+
+    &hwlist.sym;
 
     &hwlist.ncv;
 
@@ -1341,19 +1336,9 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para arch="i386,pc98,amd64">Modems (&man.umodem.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>3Com 5605</para>
-	</listitem>
-        <listitem>
-	  <para>Metricom Ricochet GS USB wireless modem</para>
-	</listitem>
-        <listitem>
-	  <para>Yamaha Broadband Wireless Router RTW65b</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+
+    &hwlist.umodem;
+
     <para arch="i386,pc98,alpha,amd64">Mice (&man.ums.4; driver)
     </para>
     <para arch="i386,pc98,alpha,amd64">Printers and parallel printer conversion cables (&man.ulpt.4; driver)
@@ -1388,8 +1373,9 @@
       &man.ubser.4;,
       &man.uftdi.4;, and &man.uplcom.4; drivers)
     </para>
-    <para arch="i386,pc98,amd64">Scanners (through <application>SANE</application>) (&man.uscanner.4; driver)
-    </para>
+
+    &hwlist.uscanner;
+
     <para arch="i386,pc98,alpha,amd64">Storage (&man.umass.4; driver)
       <itemizedlist>
         <listitem>
