@@ -431,8 +431,8 @@ long double	atan2l(long double, long double);
 long double	atanhl(long double);
 long double	atanl(long double);
 long double	cbrtl(long double);
-long double	ceill(long double);
 #endif
+long double	ceill(long double);
 long double	copysignl(long double, long double);
 #if 0
 long double	coshl(long double);
