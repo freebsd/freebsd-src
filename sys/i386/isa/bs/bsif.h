@@ -124,7 +124,6 @@
 #include <pc98/pc98/pc98.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
-#include <i386/isa/intr_machdep.h>
 #endif	/* __FreeBSD__ */
 
 /***************************************************
