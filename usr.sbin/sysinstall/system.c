@@ -253,7 +253,7 @@ systemShutdown(int status)
     if (RunningAsInit) {
 	/* Put the console back */
 	ioctl(0, VT_ACTIVATE, 2);
-#ifdef __alpha__
+#if defined(__alpha__) || defined(__sparc64__)
 	reboot(RB_HALT);
 #else
 	reboot(0);

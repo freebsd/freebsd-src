@@ -368,7 +368,7 @@ diskPartition(Device *dev)
 
 	case 'A':
 	case 'F':	/* Undocumented magic Dangerously Dedicated mode */
-#ifdef __alpha__
+#if defined(__alpha__) || defined(__sparc64__)
 	    rv = 1;
 #else	    /* The rest is only relevant on x86 */
 	    cp = variable_get(VAR_DEDICATE_DISK);
@@ -442,7 +442,7 @@ diskPartition(Device *dev)
 			    partitiontype = fat;
 			else
 			    partitiontype = unknown;
-#ifdef __alpha__
+#if defined(__alpha__) || defined(__sparc64__)
 			if (partitiontype == freebsd && size == chunk_info[current_chunk]->size)
 			    All_FreeBSD(d, 1);
 			else
@@ -816,20 +816,20 @@ diskPartitionWrite(dialogMenuItem *self)
     for (i = 0; devs[i]; i++) {
 	Disk *d = (Disk *)devs[i]->private;
 	static u_char *boot1;
-#ifndef __alpha__
+#if defined(__i386__) || defined(__ia64__)
 	static u_char *boot2;
 #endif
 
 	if (!devs[i]->enabled)
 	    continue;
 
-#ifdef __alpha__
-	if (!boot1) boot1 = bootalloc("boot1", NULL);
-	Set_Boot_Blocks(d, boot1, NULL);
-#else
+#if defined(__i386__) || defined(__ia64__)
 	if (!boot1) boot1 = bootalloc("boot1", NULL);
 	if (!boot2) boot2 = bootalloc("boot2", NULL);
 	Set_Boot_Blocks(d, boot1, boot2);
+#else
+	if (!boot1) boot1 = bootalloc("boot1", NULL);
+	Set_Boot_Blocks(d, boot1, NULL);
 #endif
 
 	msgNotify("Writing partition information to drive %s", d->name);

@@ -518,7 +518,7 @@ installExpress(dialogMenuItem *self)
 
     dialog_clear_norefresh();
     variable_set2(SYSTEM_STATE, "express", 0);
-#ifndef __alpha__
+#if defined(__i386__) || defined(__ia64__)
     if (DITEM_STATUS((i = diskPartitionEditor(self))) == DITEM_FAILURE)
 	return i;
 #endif
@@ -546,7 +546,7 @@ installStandard(dialogMenuItem *self)
 
     variable_set2(SYSTEM_STATE, "standard", 0);
     dialog_clear_norefresh();
-#ifndef __alpha__
+#if defined(__i386__) || defined(__ia64__)
     msgConfirm("In the next menu, you will need to set up a DOS-style (\"fdisk\") partitioning\n"
 	       "scheme for your hard disk.  If you simply wish to devote all disk space\n"
 	       "to FreeBSD (overwriting anything else that might be on the disk(s) selected)\n"
@@ -566,16 +566,16 @@ nodisks:
     }
 #endif
 
-#ifdef __alpha__
-    msgConfirm("Now you need to create BSD partitions on the disk which you are\n"
-	       "installing to.  If you have a reasonable amount of disk space (200MB or more)\n"
+#if defined(__i386__) || defined(__ia64__)
+    msgConfirm("Now you need to create BSD partitions inside of the fdisk partition(s)\n"
+	       "just created.  If you have a reasonable amount of disk space (200MB or more)\n"
 	       "and don't have any special requirements, simply use the (A)uto command to\n"
 	       "allocate space automatically.  If you have more specific needs or just don't\n"
 	       "care for the layout chosen by (A)uto, press F1 for more information on\n"
 	       "manual layout.");
 #else
-    msgConfirm("Now you need to create BSD partitions inside of the fdisk partition(s)\n"
-	       "just created.  If you have a reasonable amount of disk space (200MB or more)\n"
+    msgConfirm("Now you need to create BSD partitions on the disk which you are\n"
+	       "installing to.  If you have a reasonable amount of disk space (200MB or more)\n"
 	       "and don't have any special requirements, simply use the (A)uto command to\n"
 	       "allocate space automatically.  If you have more specific needs or just don't\n"
 	       "care for the layout chosen by (A)uto, press F1 for more information on\n"

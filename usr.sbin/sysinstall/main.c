@@ -162,7 +162,7 @@ main(int argc, char **argv)
 	choice = scroll = curr = max = 0;
 	dmenuOpen(&MenuInitial, &choice, &scroll, &curr, &max, TRUE);
 	if (getpid() != 1
-#ifdef __alpha__
+#if defined(__alpha__) || defined(__sparc64__)
 	    || !msgNoYes("Are you sure you wish to exit?  The system will halt.")
 #else
 	    || !msgNoYes("Are you sure you wish to exit?  The system will reboot\n"
