@@ -51,8 +51,6 @@ hid_get_report_desc(fd)
 	struct usb_ctl_report_desc rep;
 	report_desc_t r;
 
-	_DIAGASSERT(fd != -1);
-
 	rep.size = 0;
 	if (ioctl(fd, USB_GET_REPORT_DESC, &rep) < 0)
 		return (0);

@@ -41,9 +41,6 @@ hid_get_data(const void *p, const hid_item_t *h)
 	int data;
 	int i, end, offs;
 
-	_DIAGASSERT(p != NULL);
-	_DIAGASSERT(h != NULL);
-
 	buf = p;
 	hpos = h->pos;			/* bit position of data */
 	hsize = h->report_size;		/* bit length of data */
@@ -72,9 +69,6 @@ hid_set_data(void *p, const hid_item_t *h, int data)
 	unsigned int hpos;
 	unsigned int hsize;
 	int i, end, offs, mask;
-
-	_DIAGASSERT(p != NULL);
-	_DIAGASSERT(h != NULL);
 
 	buf = p;
 	hpos = h->pos;			/* bit position of data */
