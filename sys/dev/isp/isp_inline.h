@@ -275,11 +275,29 @@ isp_put_icb(struct ispsoftc *, isp_icb_t *, isp_icb_t *);
 static INLINE void
 isp_get_pdb(struct ispsoftc *, isp_pdb_t *, isp_pdb_t *);
 static INLINE void
+isp_get_ct_hdr(struct ispsoftc *isp, ct_hdr_t *, ct_hdr_t *);
+static INLINE void
 isp_put_sns_request(struct ispsoftc *, sns_screq_t *, sns_screq_t *);
+static INLINE void
+isp_put_gid_ft_request(struct ispsoftc *, sns_gid_ft_req_t *,
+    sns_gid_ft_req_t *);
+static INLINE void
+isp_put_gxn_id_request(struct ispsoftc *, sns_gxn_id_req_t *,
+    sns_gxn_id_req_t *);
 static INLINE void
 isp_get_sns_response(struct ispsoftc *, sns_scrsp_t *, sns_scrsp_t *, int);
 static INLINE void
-isp_get_gan_response(struct ispsoftc *, sns_ganrsp_t *, sns_ganrsp_t *);
+isp_get_gid_ft_response(struct ispsoftc *, sns_gid_ft_rsp_t *,
+    sns_gid_ft_rsp_t *, int);
+static INLINE void
+isp_get_gxn_id_response(struct ispsoftc *, sns_gxn_id_rsp_t *,
+    sns_gxn_id_rsp_t *);
+static INLINE void
+isp_get_gff_id_response(struct ispsoftc *, sns_gff_id_rsp_t *,
+    sns_gff_id_rsp_t *);
+static INLINE void
+isp_get_ga_nxt_response(struct ispsoftc *, sns_ga_nxt_rsp_t *,
+    sns_ga_nxt_rsp_t *);
 #ifdef	ISP_TARGET_MODE
 #ifndef	_ISP_TARGET_H
 #include "isp_target.h"
@@ -673,6 +691,35 @@ isp_get_pdb(struct ispsoftc *isp, isp_pdb_t *src, isp_pdb_t *dst)
 	ISP_IOXGET_16(isp, &src->pdb_sl_ptr, dst->pdb_sl_ptr);
 }
 
+
+/*
+ * CT_HDR canonicalization- only needed for SNS responses
+ */
+static INLINE void
+isp_get_ct_hdr(struct ispsoftc *isp, ct_hdr_t *src, ct_hdr_t *dst)
+{
+	ISP_IOXGET_8(isp, &src->ct_revision, dst->ct_revision);
+	ISP_IOXGET_8(isp, &src->ct_portid[0], dst->ct_portid[0]);
+	ISP_IOXGET_8(isp, &src->ct_portid[1], dst->ct_portid[1]);
+	ISP_IOXGET_8(isp, &src->ct_portid[2], dst->ct_portid[2]);
+	ISP_IOXGET_8(isp, &src->ct_fcs_type, dst->ct_fcs_type);
+	ISP_IOXGET_8(isp, &src->ct_fcs_subtype, dst->ct_fcs_subtype);
+	ISP_IOXGET_8(isp, &src->ct_options, dst->ct_options);
+	ISP_IOXGET_8(isp, &src->ct_res0, dst->ct_res0);
+	ISP_IOXGET_16(isp, &src->ct_response, dst->ct_response);
+	dst->ct_response = (dst->ct_response << 8) | (dst->ct_response >> 8);
+	ISP_IOXGET_16(isp, &src->ct_resid, dst->ct_resid);
+	dst->ct_resid = (dst->ct_resid << 8) | (dst->ct_resid >> 8);
+	ISP_IOXGET_8(isp, &src->ct_res1, dst->ct_res1);
+	ISP_IOXGET_8(isp, &src->ct_reason, dst->ct_reason);
+	ISP_IOXGET_8(isp, &src->ct_explanation, dst->ct_explanation);
+	ISP_IOXGET_8(isp, &src->ct_vunique, dst->ct_vunique);
+}
+
+/*
+ * Generic SNS request - not particularly useful since the per-command data
+ * isn't always 16 bit words.
+ */
 static INLINE void
 isp_put_sns_request(struct ispsoftc *isp, sns_screq_t *src, sns_screq_t *dst)
 {
@@ -689,13 +736,51 @@ isp_put_sns_request(struct ispsoftc *isp, sns_screq_t *src, sns_screq_t *dst)
 }
 
 static INLINE void
+isp_put_gid_ft_request(struct ispsoftc *isp, sns_gid_ft_req_t *src,
+    sns_gid_ft_req_t *dst)
+{
+	ISP_IOXPUT_16(isp, src->snscb_rblen, &dst->snscb_rblen);
+	ISP_IOXPUT_16(isp, src->snscb_res0, &dst->snscb_res0);
+	ISP_IOXPUT_16(isp, src->snscb_addr[0], &dst->snscb_addr[0]);
+	ISP_IOXPUT_16(isp, src->snscb_addr[1], &dst->snscb_addr[1]);
+	ISP_IOXPUT_16(isp, src->snscb_addr[2], &dst->snscb_addr[2]);
+	ISP_IOXPUT_16(isp, src->snscb_addr[3], &dst->snscb_addr[3]);
+	ISP_IOXPUT_16(isp, src->snscb_sblen, &dst->snscb_sblen);
+	ISP_IOXPUT_16(isp, src->snscb_res1, &dst->snscb_res1);
+	ISP_IOXPUT_16(isp, src->snscb_cmd, &dst->snscb_cmd);
+	ISP_IOXPUT_16(isp, src->snscb_mword_div_2, &dst->snscb_mword_div_2);
+	ISP_IOXPUT_32(isp, src->snscb_res3, &dst->snscb_res3);
+	ISP_IOXPUT_32(isp, src->snscb_fc4_type, &dst->snscb_fc4_type);
+}
+
+static INLINE void
+isp_put_gxn_id_request(struct ispsoftc *isp, sns_gxn_id_req_t *src,
+    sns_gxn_id_req_t *dst)
+{
+	ISP_IOXPUT_16(isp, src->snscb_rblen, &dst->snscb_rblen);
+	ISP_IOXPUT_16(isp, src->snscb_res0, &dst->snscb_res0);
+	ISP_IOXPUT_16(isp, src->snscb_addr[0], &dst->snscb_addr[0]);
+	ISP_IOXPUT_16(isp, src->snscb_addr[1], &dst->snscb_addr[1]);
+	ISP_IOXPUT_16(isp, src->snscb_addr[2], &dst->snscb_addr[2]);
+	ISP_IOXPUT_16(isp, src->snscb_addr[3], &dst->snscb_addr[3]);
+	ISP_IOXPUT_16(isp, src->snscb_sblen, &dst->snscb_sblen);
+	ISP_IOXPUT_16(isp, src->snscb_res1, &dst->snscb_res1);
+	ISP_IOXPUT_16(isp, src->snscb_cmd, &dst->snscb_cmd);
+	ISP_IOXPUT_16(isp, src->snscb_res2, &dst->snscb_res2);
+	ISP_IOXPUT_32(isp, src->snscb_res3, &dst->snscb_res3);
+	ISP_IOXPUT_32(isp, src->snscb_portid, &dst->snscb_portid);
+}
+
+/*
+ * Generic SNS response - not particularly useful since the per-command data
+ * isn't always 16 bit words.
+ */
+static INLINE void
 isp_get_sns_response(struct ispsoftc *isp, sns_scrsp_t *src,
     sns_scrsp_t *dst, int nwords)
 {
 	int i;
-	for (i = 0; i < 16; i++) {
-		ISP_IOXGET_8(isp, &src->snscb_cthdr[i], dst->snscb_cthdr[i]);
-	}
+	isp_get_ct_hdr(isp, &src->snscb_cthdr, &dst->snscb_cthdr);
 	ISP_IOXGET_8(isp, &src->snscb_port_type, dst->snscb_port_type);
 	for (i = 0; i < 3; i++) {
 		ISP_IOXGET_8(isp, &src->snscb_port_id[i],
@@ -711,12 +796,55 @@ isp_get_sns_response(struct ispsoftc *isp, sns_scrsp_t *src,
 }
 
 static INLINE void
-isp_get_gan_response(struct ispsoftc *isp, sns_ganrsp_t *src, sns_ganrsp_t *dst)
+isp_get_gid_ft_response(struct ispsoftc *isp, sns_gid_ft_rsp_t *src,
+    sns_gid_ft_rsp_t *dst, int nwords)
 {
 	int i;
-	for (i = 0; i < 16; i++) {
-		ISP_IOXGET_8(isp, &src->snscb_cthdr[i], dst->snscb_cthdr[i]);
+	isp_get_ct_hdr(isp, &src->snscb_cthdr, &dst->snscb_cthdr);
+	for (i = 0; i < nwords; i++) {
+		int j;
+		ISP_IOXGET_8(isp,
+		    &src->snscb_ports[i].control,
+		    dst->snscb_ports[i].control);
+		for (j = 0; j < 3; j++) {
+			ISP_IOXGET_8(isp,
+			    &src->snscb_ports[i].portid[j],
+			    dst->snscb_ports[i].portid[j]);
+		}
+		if (dst->snscb_ports[i].control & 0x80) {
+			break;
+		}
 	}
+}
+
+static INLINE void
+isp_get_gxn_id_response(struct ispsoftc *isp, sns_gxn_id_rsp_t *src,
+    sns_gxn_id_rsp_t *dst)
+{
+	int i;
+	isp_get_ct_hdr(isp, &src->snscb_cthdr, &dst->snscb_cthdr);
+	for (i = 0; i < 8; i++)
+		ISP_IOXGET_8(isp, &src->snscb_wwn[i], dst->snscb_wwn[i]);
+}
+
+static INLINE void
+isp_get_gff_id_response(struct ispsoftc *isp, sns_gff_id_rsp_t *src,
+    sns_gff_id_rsp_t *dst)
+{
+	int i;
+	isp_get_ct_hdr(isp, &src->snscb_cthdr, &dst->snscb_cthdr);
+	for (i = 0; i < 32; i++) {
+		ISP_IOXGET_32(isp, &src->snscb_fc4_features[i],
+		    dst->snscb_fc4_features[i]);
+	}
+}
+
+static INLINE void
+isp_get_ga_nxt_response(struct ispsoftc *isp, sns_ga_nxt_rsp_t *src,
+    sns_ga_nxt_rsp_t *dst)
+{
+	int i;
+	isp_get_ct_hdr(isp, &src->snscb_cthdr, &dst->snscb_cthdr);
 	ISP_IOXGET_8(isp, &src->snscb_port_type, dst->snscb_port_type);
 	for (i = 0; i < 3; i++) {
 		ISP_IOXGET_8(isp, &src->snscb_port_id[i],
