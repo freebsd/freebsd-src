@@ -1,3 +1,27 @@
+2001-09-24  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rcp.c: more va_* fixing; from Thomas Klausner
+
+2001-09-08  Assar Westerlund  <assar@sics.se>
+
+	* rcp.c (run_err): always match va_start and va_end
+
+2001-09-04  Assar Westerlund  <assar@sics.se>
+
+	* util.c (allocbuf): do not leak memory on failure and zero
+	re-used memory, from Markus Friedl <markus@openbsd.org>
+
+2001-07-19  Assar Westerlund  <assar@sics.se>
+
+	* rcp.c (main): add missing setprogname
+
+2001-06-14  Assar Westerlund  <assar@sics.se>
+
+	* rcp.c: add some const replace a few malloc/snprintf with
+	asprintf
+	* rcp.c (sizestr): remove and use snprintf to do this correctly
+	instead
+
 2001-04-21  Johan Danielsson  <joda@pdc.kth.se>
 
 	* rcp.c: convert to use getarg

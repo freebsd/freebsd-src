@@ -1,5 +1,5 @@
 # Make prototypes from .c files
-# $Id: make-proto.pl,v 1.11 1999/04/15 12:37:54 joda Exp $
+# $Id: make-proto.pl,v 1.12 2001/06/23 22:29:18 assar Exp $
 
 ##use Getopt::Std;
 require 'getopts.pl';
@@ -31,6 +31,9 @@ while(<>) {
 	next;
     }
     if(/\{/){
+	if (!/\}/) {
+	    $brace++;
+	}
 	$_ = $line;
 	while(s/\*\//\ca/){
 	    s/\/\*(.|\n)*\ca//;
@@ -77,7 +80,6 @@ while(<>) {
 	    }
 	}
 	$line = "";
-	$brace++;
     }
     if(/\}/){
 	$brace--;

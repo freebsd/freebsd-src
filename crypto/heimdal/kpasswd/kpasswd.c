@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
  */
 
 #include "kpasswd_locl.h"
-RCSID("$Id: kpasswd.c,v 1.23 2000/12/31 07:48:34 assar Exp $");
+RCSID("$Id: kpasswd.c,v 1.24 2001/09/27 01:29:40 assar Exp $");
 
 static int version_flag;
 static int help_flag;
@@ -131,7 +131,10 @@ main (int argc, char **argv)
     if (ret)
 	krb5_err (context, 1, ret, "krb5_change_password");
 
-    printf ("Reply from server: %.*s\n", (int)result_string.length,
+    printf ("%s%s%.*s\n", krb5_passwd_result_to_string(context,
+						       result_code),
+	    result_string.length > 0 ? " : " : "",
+	    (int)result_string.length,
 	    (char *)result_string.data);
 
     krb5_data_free (&result_code_string);

@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: parse_units.c,v 1.13 2001/03/26 00:47:06 assar Exp $");
+RCSID("$Id: parse_units.c,v 1.14 2001/09/04 09:56:00 assar Exp $");
 #endif
 
 #include <stdio.h>
@@ -190,7 +190,7 @@ parse_flags (const char *s, const struct units *units,
  * with maximum length `len'.  The actual length is the function value.
  */
 
-static size_t
+static int
 unparse_something (int num, const struct units *units, char *s, size_t len,
 		   int (*print) (char *s, size_t len, int div,
 				const char *name, int rem),
@@ -198,7 +198,7 @@ unparse_something (int num, const struct units *units, char *s, size_t len,
 		   const char *zero_string)
 {
     const struct units *u;
-    size_t ret = 0, tmp;
+    int ret = 0, tmp;
 
     if (num == 0)
 	return snprintf (s, len, "%s", zero_string);
@@ -210,6 +210,8 @@ unparse_something (int num, const struct units *units, char *s, size_t len,
 	if (div) {
 	    num = (*update) (num, u->mult);
 	    tmp = (*print) (s, len, div, u->name, num);
+	    if (tmp < 0)
+		return tmp;
 
 	    len -= tmp;
 	    s += tmp;
@@ -243,7 +245,7 @@ update_unit_approx (int in, unsigned mult)
 	return update_unit (in, mult);
 }
 
-size_t
+int
 unparse_units (int num, const struct units *units, char *s, size_t len)
 {
     return unparse_something (num, units, s, len,
@@ -252,7 +254,7 @@ unparse_units (int num, const struct units *units, char *s, size_t len)
 			      "0");
 }
 
-size_t
+int
 unparse_units_approx (int num, const struct units *units, char *s, size_t len)
 {
     return unparse_something (num, units, s, len,
@@ -306,7 +308,7 @@ update_flag (int in, unsigned mult)
     return in - mult;
 }
 
-size_t
+int
 unparse_flags (int num, const struct units *units, char *s, size_t len)
 {
     return unparse_something (num, units, s, len,

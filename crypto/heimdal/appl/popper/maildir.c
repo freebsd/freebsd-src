@@ -33,7 +33,7 @@
 
 #include <popper.h>
 #include <dirent.h>
-RCSID("$Id: maildir.c,v 1.5 1999/12/02 16:58:33 joda Exp $");
+RCSID("$Id: maildir.c,v 1.6 2001/09/10 11:56:53 joda Exp $");
 
 static void
 make_path(POP *p, MsgInfoList *mp, int new, char *buf, size_t len)
@@ -45,7 +45,7 @@ make_path(POP *p, MsgInfoList *mp, int new, char *buf, size_t len)
 static int
 scan_file(POP *p, MsgInfoList *mp)
 {
-    char path[MAXDROPLEN];
+    char path[MAXPATHLEN];
     FILE *f;
     char buf[1024];
     int eoh = 0;
@@ -80,7 +80,7 @@ scan_file(POP *p, MsgInfoList *mp)
 static int
 scan_dir(POP *p, int new)
 {
-    char tmp[MAXDROPLEN];
+    char tmp[MAXPATHLEN];
     DIR *dir;
     struct dirent *dent;
     MsgInfoList *mp = p->mlp;
@@ -145,7 +145,7 @@ int
 pop_maildir_update(POP *p)
 {
     int i;
-    char tmp1[MAXDROPLEN], tmp2[MAXDROPLEN];
+    char tmp1[MAXPATHLEN], tmp2[MAXPATHLEN];
     for(i = 0; i < p->msg_count; i++) {
 	make_path(p, &p->mlp[i], p->mlp[i].flags & NEW_FLAG, 
 		  tmp1, sizeof(tmp1));
@@ -205,7 +205,7 @@ pop_maildir_update(POP *p)
 int
 pop_maildir_open(POP *p, MsgInfoList *mp)
 {
-    char tmp[MAXDROPLEN];
+    char tmp[MAXPATHLEN];
     make_path(p, mp, mp->flags & NEW_FLAG, tmp, sizeof(tmp));
     if(p->drop)
 	fclose(p->drop);

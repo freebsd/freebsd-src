@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: getnameinfo.c,v 1.3 2001/02/09 14:45:30 assar Exp $");
+RCSID("$Id: getnameinfo.c,v 1.4 2001/07/09 15:14:19 assar Exp $");
 #endif
 
 #include "roken.h"
@@ -56,7 +56,7 @@ doit (int af,
 						addrlen,
 						af);
 	    if (he != NULL) {
-		strlcpy (host, he->h_name, hostlen);
+		strlcpy (host, hostent_find_fqdn(he), hostlen);
 		if (flags & NI_NOFQDN) {
 		    char *dot = strchr (host, '.');
 		    if (dot != NULL)

@@ -1,4 +1,4 @@
-.\"	$Id: kafs.3,v 1.4 2001/01/11 16:16:29 assar Exp $
+.\"	$Id: kafs.3,v 1.6 2001/11/22 08:07:50 joda Exp $
 .\"
 .Dd May 7, 1997
 .Os KTH-KRB
@@ -37,8 +37,8 @@
 .Sh DESCRIPTION
 .Fn k_hasafs
 initializes some library internal structures, and tests for the
-presense of AFS in the kernel, none of the other functions should be
-called before 
+presence of AFS in the kernel, none of the other functions should be
+called before
 .Fn k_hasafs
 is called, or if it fails.
 .Pp
@@ -141,7 +141,7 @@ if (k_hasafs()) {
 }
 .Ed
 .Sh ERRORS
-If any of these functions (appart from 
+If any of these functions (apart from 
 .Fn k_hasafs )
 is called without AFS beeing present in the kernel, the process will
 usually (depending on the operating system) receive a SIGSYS signal.

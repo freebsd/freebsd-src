@@ -1,5 +1,5 @@
 .\" Copyright (c) 2000 Kungliga Tekniska Högskolan
-.\" $Id: krb5_appdefault.3,v 1.4 2001/05/02 08:59:23 assar Exp $
+.\" $Id: krb5_appdefault.3,v 1.5 2001/06/23 22:35:19 assar Exp $
 .Dd July 25, 2000
 .Dt KRB5_APPDEFAULT 3
 .Os HEIMDAL
@@ -42,11 +42,14 @@ in order of descending importance.
 	}
 	option = value
 .Ed
-.Pp
-If the realm is omitted it will not be used for resolving values.  If
-no value can be found,
+.Fa appname
+is the name of the application, and
+.Fa realm
+is the realm name. If the realm is omitted it will not be used for
+resolving values. 
 .Fa def_val
-is returned instead.
+is the value to return if no value is found in
+.Xr krb5.conf 5 .
 .Sh SEE ALSO
 .Xr krb5_config 3 ,
 .Xr krb5.conf 5

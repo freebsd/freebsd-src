@@ -33,7 +33,7 @@
  *	@(#)externs.h	8.3 (Berkeley) 5/30/95
  */
 
-/* $Id: externs.h,v 1.21 2001/03/06 20:10:13 assar Exp $ */
+/* $Id: externs.h,v 1.24 2001/12/20 20:39:52 joda Exp $ */
 
 #ifndef	BSD
 # define BSD 43
@@ -66,6 +66,7 @@ extern int
     localchars,		/* we recognize interrupt/quit */
     donelclchars,	/* the user has set "localchars" */
     showoptions,
+    wantencryption,	/* User has requested encryption */
     net,		/* Network file descriptor */
     tin,		/* Terminal input file descriptor */
     tout,		/* Terminal output file descriptor */
@@ -81,6 +82,8 @@ extern int
     termdata,		/* Print out terminal data flow */
     debug;		/* Debug level */
 
+extern int intr_happened, intr_waiting;	/* for interrupt handling */
+
 extern cc_t escape;	/* Escape to command mode */
 extern cc_t rlogin;	/* Rlogin mode escape character */
 #ifdef	KLUDGELINEMODE
@@ -95,6 +98,8 @@ extern char
     dont[],
     will[],
     wont[],
+    do_dont_resp[],
+    will_wont_resp[],
     options[],		/* All the little options */
     *hostname;		/* Who are we connected to? */
 #if	defined(ENCRYPTION)
@@ -136,7 +141,7 @@ extern int (*decrypt_input) (int);
 #define	set_my_want_state_wont(opt)	{options[opt] &= ~MY_WANT_STATE_WILL;}
 
 /*
- * Make everything symetrical
+ * Make everything symmetrical
  */
 
 #define	HIS_STATE_WILL			MY_STATE_DO
@@ -433,3 +438,4 @@ extern int linemode;
 #ifdef KLUDGELINEMODE
 extern int kludgelinemode;
 #endif
+extern int want_status_response;

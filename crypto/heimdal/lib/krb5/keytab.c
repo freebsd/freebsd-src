@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: keytab.c,v 1.50 2001/05/14 06:14:48 assar Exp $");
+RCSID("$Id: keytab.c,v 1.52 2002/01/30 10:09:35 joda Exp $");
 
 /*
  * Register a new keytab in `ops'
@@ -88,7 +88,7 @@ krb5_kt_resolve(krb5_context context,
     }
     
     for(i = 0; i < context->num_kt_types; i++) {
-	if(strncmp(type, context->kt_types[i].prefix, type_len) == 0)
+	if(strncasecmp(type, context->kt_types[i].prefix, type_len) == 0)
 	    break;
     }
     if(i == context->num_kt_types) {
@@ -136,7 +136,23 @@ krb5_kt_default_name(krb5_context context, char *name, size_t namesize)
 krb5_error_code
 krb5_kt_default_modify_name(krb5_context context, char *name, size_t namesize)
 {
-    if (strlcpy (name, context->default_keytab_modify, namesize) >= namesize) {
+    const char *kt = NULL;
+    if(context->default_keytab_modify == NULL) {
+	if(strncasecmp(context->default_keytab, "ANY:", 4) != 0)
+	    kt = context->default_keytab;
+	else {
+	    size_t len = strcspn(context->default_keytab + 4, ",");
+	    if(len >= namesize) {
+		krb5_clear_error_string(context);
+		return KRB5_CONFIG_NOTENUFSPACE;
+	    }
+	    strlcpy(name, context->default_keytab + 4, namesize);
+	    name[len] = '\0';
+	    return 0;
+	}    
+    } else
+	kt = context->default_keytab_modify;
+    if (strlcpy (name, kt, namesize) >= namesize) {
 	krb5_clear_error_string (context);
 	return KRB5_CONFIG_NOTENUFSPACE;
     }

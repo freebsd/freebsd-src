@@ -32,7 +32,7 @@
  */
 
 #include "ftp_locl.h"
-RCSID ("$Id: ftp.c,v 1.69 2000/10/08 13:15:33 assar Exp $");
+RCSID ("$Id: ftp.c,v 1.70 2001/09/07 20:28:10 nectar Exp $");
 
 struct sockaddr_storage hisctladdr_ss;
 struct sockaddr *hisctladdr = (struct sockaddr *)&hisctladdr_ss;
@@ -284,6 +284,7 @@ command (char *fmt,...)
 	    printf("PASS XXXX");
 	else 
 	    vfprintf(stdout, fmt, ap);
+	va_end(ap);
 	va_start(ap, fmt);
     }
     sec_vfprintf(cout, fmt, ap);

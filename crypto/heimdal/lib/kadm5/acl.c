@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: acl.c,v 1.12 2000/08/10 19:24:08 assar Exp $");
+RCSID("$Id: acl.c,v 1.13 2001/08/24 04:01:42 assar Exp $");
 
 static struct units acl_units[] = {
     { "all",		KADM5_PRIV_ALL },
@@ -79,63 +79,64 @@ fetch_acl (kadm5_server_context *context,
 	   krb5_const_principal princ,
 	   unsigned *ret_flags)
 {
-    unsigned flags = -1;
-    FILE *f = fopen(context->config.acl_file, "r");
+    FILE *f;
     krb5_error_code ret = 0;
+    char buf[256];
 
-    if(f != NULL) {
-	char buf[256];
+    *ret_flags = 0;
 
-	while(fgets(buf, sizeof(buf), f) != NULL){
-	    char *foo = NULL, *p;
-	    krb5_principal this_princ;
+    /* no acl file -> no rights */
+    f = fopen(context->config.acl_file, "r");
+    if (f == NULL)
+	return 0;
 
-	    flags = -1;
-	    p = strtok_r(buf, " \t\n", &foo);
-	    if(p == NULL)
-		continue;
-	    ret = krb5_parse_name(context->context, p, &this_princ);
-	    if(ret)
-		continue;
-	    if(!krb5_principal_compare(context->context, 
-				       context->caller, this_princ)) {
-		krb5_free_principal(context->context, this_princ);
-		continue;
-	    }
+    while(fgets(buf, sizeof(buf), f) != NULL) {
+	char *foo = NULL, *p;
+	krb5_principal this_princ;
+	unsigned flags = 0;
+
+	p = strtok_r(buf, " \t\n", &foo);
+	if(p == NULL)
+	    continue;
+	if (*p == '#')		/* comment */
+	    continue;
+	ret = krb5_parse_name(context->context, p, &this_princ);
+	if(ret)
+	    break;
+	if(!krb5_principal_compare(context->context, 
+				   context->caller, this_princ)) {
 	    krb5_free_principal(context->context, this_princ);
-	    p = strtok_r(NULL, " \t\n", &foo);
-	    if(p == NULL)
-		continue;
-	    ret = _kadm5_string_to_privs(p, &flags);
+	    continue;
+	}
+	krb5_free_principal(context->context, this_princ);
+	p = strtok_r(NULL, " \t\n", &foo);
+	if(p == NULL)
+	    continue;
+	ret = _kadm5_string_to_privs(p, &flags);
+	if (ret)
+	    break;
+	p = strtok_r(NULL, "\n", &foo);
+	if (p == NULL) {
+	    *ret_flags = flags;
+	    break;
+	}
+	if (princ != NULL) {
+	    krb5_principal pattern_princ;
+	    krb5_boolean match;
+
+	    ret = krb5_parse_name (context->context, p, &pattern_princ);
 	    if (ret)
 		break;
-	    p = strtok_r(NULL, "\n", &foo);
-	    if (p == NULL) {
-		ret = 0;
+	    match = krb5_principal_match (context->context,
+					  princ, pattern_princ);
+	    krb5_free_principal (context->context, pattern_princ);
+	    if (match) {
+		*ret_flags = flags;
 		break;
 	    }
-	    if (princ != NULL) {
-		krb5_principal pattern_princ;
-		krb5_boolean tmp;
-
-		ret = krb5_parse_name (context->context, p, &pattern_princ);
-		if (ret)
-		    break;
-		tmp = krb5_principal_match (context->context,
-					    princ, pattern_princ);
-		krb5_free_principal (context->context, pattern_princ);
-		if (tmp) {
-		    ret = 0;
-		    break;
-		}
-	    }
 	}
-	fclose(f);
     }
-    if(flags == -1)
-	flags = 0;
-    if (ret == 0)
-	*ret_flags = flags;
+    fclose(f);
     return ret;
 }
 

@@ -1,3 +1,38 @@
+2002-02-07  Johan Danielsson  <joda@pdc.kth.se>
+
+	* telnet/telnet.c: print a more informative message than "done"
+	after negotiating encryption
+
+2001-09-17  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/telnetd.c: add a kludge to make it build on aix (that
+	defines NOERROR in both sys/stream.h and arpa/nameser.h and
+	considers that a fatal error)
+
+	* telnet/telnet.c: undef PUTSHORT to avoid conflict
+
+2001-08-26  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/Makefile.am: also link with the library for logout
+
+2001-08-22  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/sys_term.c: include libutil.h if it exists
+
+2001-08-10  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/sys_term.c (getpty): call openpty if it exists
+
+2001-07-19  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/global.c (output_data): make sure of not forwarding
+	`nfrontp' too far, thereby allowing writes after the end of
+	`netobuf'
+
+2001-06-18  Assar Westerlund  <assar@sics.se>
+
+	* libtelnet/kerberos5.c: update to new krb5_auth_con* names
+
 2001-04-25  Assar Westerlund  <assar@sics.se>
 
 	* telnetd/sys_term.c (start_login): give the correct error if exec

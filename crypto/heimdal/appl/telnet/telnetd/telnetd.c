@@ -33,7 +33,7 @@
 
 #include "telnetd.h"
 
-RCSID("$Id: telnetd.c,v 1.64 2001/02/08 16:06:27 assar Exp $");
+RCSID("$Id: telnetd.c,v 1.67 2001/09/17 02:08:29 assar Exp $");
 
 #ifdef _SC_CRAY_SECURE_SYS
 #include <sys/sysv.h>
@@ -54,6 +54,8 @@ int	auth_level = 0;
 extern	int utmp_len;
 int	registerd_host_only = 0;
 
+#undef NOERROR
+
 #ifdef	STREAMSPTY
 # include <stropts.h>
 # include <termios.h>
@@ -63,6 +65,7 @@ int	registerd_host_only = 0;
 #ifdef HAVE_SYS_STREAM_H
 #include <sys/stream.h>
 #endif
+
 #ifdef _AIX
 #include <sys/termio.h>
 #endif
@@ -138,6 +141,10 @@ char valid_opts[] = "Bd:hklnS:u:UL:y"
 
 static void doit(struct sockaddr*, int);
 
+#ifdef ENCRYPTION
+extern int des_check_key;
+#endif
+
 int
 main(int argc, char **argv)
 {
@@ -150,7 +157,6 @@ main(int argc, char **argv)
     int tos = -1;
 #endif
 #ifdef ENCRYPTION
-    extern int des_check_key;
     des_check_key = 1;	/* Kludge for Mac NCSA telnet 2.6 /bg */
 #endif
     pfrontp = pbackp = ptyobuf;

@@ -34,7 +34,7 @@
 #include "kadmin_locl.h"
 #include <kadm5/private.h>
 
-RCSID("$Id: load.c,v 1.41 2001/02/20 01:44:49 assar Exp $");
+RCSID("$Id: load.c,v 1.43 2001/08/10 13:52:22 joda Exp $");
 
 struct entry {
     char *principal;
@@ -47,7 +47,7 @@ struct entry {
     char *valid_end;
     char *pw_end;
     char *flags;
-    char *etypes;
+    char *generation;
 };
 
 static char *
@@ -282,24 +282,30 @@ parse_hdbflags2int(HDBFlags *f, const char *s)
     return ret;
 }
 
-#if 0
-static void
-parse_etypes(char *str, unsigned **val, unsigned *len)
+static int
+parse_generation(char *str, GENERATION **gen)
 {
-    unsigned v;
-    
-    *val = NULL;
-    *len = 0;
-    while(sscanf(str, "%u", &v) == 1) {
-	*val = realloc(*val, (*len+1) * sizeof(**val));
-	(*val)[(*len)++] = v;
-	str = strchr(str, ':');
-	if(str == NULL)
-	    break;
-	str++;
-    }
+    char *p;
+    int v;
+
+    if(strcmp(str, "-") == 0 || *str == '\0')
+	*gen = NULL;
+    *gen = calloc(1, sizeof(**gen));
+
+    p = strsep(&str, ":");
+    if(parse_time_string(&(*gen)->time, p) != 1)
+	return -1;
+    p = strsep(&str, ":");
+    if(sscanf(p, "%d", &v) != 1)
+	return -1;
+    (*gen)->usec = v;
+    p = strsep(&str, ":");
+    if(sscanf(p, "%d", &v) != 1)
+	return -1;
+    (*gen)->gen = v - 1; /* XXX gets bumped in _hdb_store */
+    return 0;
 }
-#endif
+
 
 /*
  * Parse the dump file in `filename' and create the database (merging
@@ -311,7 +317,7 @@ doit(const char *filename, int merge)
 {
     krb5_error_code ret;
     FILE *f;
-    char s[1024];
+    char s[8192]; /* XXX should fix this properly */
     char *p;
     int line;
     int flags = O_RDWR;
@@ -382,7 +388,7 @@ doit(const char *filename, int merge)
 	e.flags = p;
 	p = skip_next(p);
 
-	e.etypes = p;
+	e.generation = p;
 	p = skip_next(p);
 
 	memset(&ent, 0, sizeof(ent));
@@ -454,14 +460,13 @@ doit(const char *filename, int merge)
 	    hdb_free_entry (context, &ent);
 	    continue;
 	}
-#if 0
-	ALLOC(ent.etypes);
-	parse_etypes(e.etypes, &ent.etypes->val, &ent.etypes->len);
-	if(ent.etypes->len == 0) {
-	    free(ent.etypes);
-	    ent.etypes = NULL;
+
+	if(parse_generation(e.generation, &ent.generation) == -1) {
+	    fprintf (stderr, "%s:%d:error parsing generation (%s)\n",
+		     filename, line, e.generation);
+	    hdb_free_entry (context, &ent);
+	    continue;
 	}
-#endif
 
 	ret = db->store(context, db, HDB_F_REPLACE, &ent);
 	hdb_free_entry (context, &ent);

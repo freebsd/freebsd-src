@@ -1,6 +1,8 @@
-# $Id: Makefile.am,v 1.15 2000/11/15 22:51:13 assar Exp $
+# $Id: Makefile.am,v 1.16 2001/08/28 08:31:29 assar Exp $
 
 include $(top_srcdir)/Makefile.am.common
+
+INCLUDES += $(INCLUDE_des)
 
 man_MANS = kpasswd.1 kpasswdd.8
 

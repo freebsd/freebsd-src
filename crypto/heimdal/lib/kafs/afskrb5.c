@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -33,7 +33,7 @@
 
 #include "kafs_locl.h"
 
-RCSID("$Id: afskrb5.c,v 1.13 1999/12/02 16:58:39 joda Exp $");
+RCSID("$Id: afskrb5.c,v 1.14 2001/06/18 13:11:32 assar Exp $");
 
 struct krb5_kafs_data {
     krb5_context context;
@@ -65,7 +65,7 @@ get_cred(kafs_data *data, const char *name, const char *inst,
     krb5_free_principal(d->context, in_creds.client);
     if(ret)
 	return ret;
-    ret = krb524_convert_creds_kdc(d->context, d->id, out_creds, c);
+    ret = krb524_convert_creds_kdc_ccache(d->context, d->id, out_creds, c);
     krb5_free_creds(d->context, out_creds);
     return ret;
 }

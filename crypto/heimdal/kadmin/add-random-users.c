@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 2000 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,11 +33,13 @@
 
 #include "kadmin_locl.h"
 
-RCSID("$Id: add-random-users.c,v 1.3 2001/02/20 01:44:49 assar Exp $");
+RCSID("$Id: add-random-users.c,v 1.6 2001/09/20 09:17:33 assar Exp $");
 
 #define WORDS_FILENAME "/usr/share/dict/words"
 
 #define NUSERS 1000
+
+#define WORDBUF_SIZE 65535
 
 static unsigned
 read_words (const char *filename, char ***ret_w)
@@ -46,19 +48,29 @@ read_words (const char *filename, char ***ret_w)
     FILE *f;
     char buf[256];
     char **w = NULL;
+    char *wbuf = NULL, *wptr = NULL, *wend = NULL;
 
     f = fopen (filename, "r");
     if (f == NULL)
 	err (1, "cannot open %s", filename);
     alloc = n = 0;
     while (fgets (buf, sizeof(buf), f) != NULL) {
+	size_t len;
+
 	if (buf[strlen (buf) - 1] == '\n')
 	    buf[strlen (buf) - 1] = '\0';
 	if (n >= alloc) {
-	    alloc += 16;
+	    alloc = max(alloc + 16, alloc * 2);
 	    w = erealloc (w, alloc * sizeof(char **));
 	}
-	w[n++] = estrdup (buf);
+	len = strlen(buf);
+	if (wptr + len + 1 >= wend) {
+	    wptr = wbuf = emalloc (WORDBUF_SIZE);
+	    wend = wbuf + WORDBUF_SIZE;
+	}
+	memmove (wptr, buf, len + 1);
+	w[n++] = wptr;
+	wptr += len + 1;
     }
     *ret_w = w;
     return n;
@@ -94,7 +106,7 @@ add_user (krb5_context context, void *kadm_handle,
 }
 
 static void
-add_users (unsigned n)
+add_users (const char *filename, unsigned n)
 {
     krb5_error_code ret;
     int i;
@@ -115,7 +127,7 @@ add_users (unsigned n)
     if(ret)
 	krb5_err(context, 1, ret, "kadm5_init_with_password");
 
-    nwords = read_words (WORDS_FILENAME, &words);
+    nwords = read_words (filename, &words);
     
     for (i = 0; i < n; ++i)
 	add_user (context, kadm_handle, nwords, words);
@@ -137,7 +149,7 @@ usage (int ret)
     arg_printusage (args,
 		    sizeof(args)/sizeof(*args),
 		    NULL,
-		    NULL);
+		    "[filename [n]]");
     exit (ret);
 }
 
@@ -145,13 +157,28 @@ int
 main(int argc, char **argv)
 {
     int optind = 0;
+    int n = NUSERS;
+    const char *filename = WORDS_FILENAME;
 
     setprogname(argv[0]);
     if(getarg(args, sizeof(args) / sizeof(args[0]), argc, argv, &optind))
 	usage(1);
     if (help_flag)
 	usage (0);
+    if (version_flag) {
+	print_version(NULL);
+	return 0;
+    }
     srand (0);
-    add_users (NUSERS);
+    argc -= optind;
+    argv += optind;
+
+    if (argc > 0) {
+	if (argc > 1)
+	    n = atoi(argv[1]);
+	filename = argv[0];
+    }
+
+    add_users (filename, n);
     return 0;
 }

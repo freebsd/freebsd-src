@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: hstrerror.c,v 1.23 1999/12/05 13:18:55 assar Exp $");
+RCSID("$Id: hstrerror.c,v 1.24 2001/08/08 03:47:23 assar Exp $");
 #endif
 
 #ifndef HAVE_HSTRERROR
@@ -44,10 +44,6 @@ RCSID("$Id: hstrerror.c,v 1.23 1999/12/05 13:18:55 assar Exp $");
 #include "roken.h"
 #if (defined(SunOS) && (SunOS >= 50))
 #undef hstrerror
-#endif
-
-#ifndef HAVE_H_ERRNO
-int h_errno = -17; /* Some magic number */
 #endif
 
 #if !(defined(HAVE_H_ERRLIST) && defined(HAVE_H_NERR))
