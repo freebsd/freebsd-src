@@ -25,7 +25,6 @@
  * $FreeBSD$
  */
 
-#include "opt_smp.h"
 #include "opt_cpu.h"
 #include "opt_user_ldt.h"
 
@@ -257,8 +256,8 @@ vm_offset_t cpu_apic_address;
 vm_offset_t io_apic_address[NAPICID];	/* NAPICID is more than enough */
 extern	int nkpt;
 
-u_int32_t cpu_apic_versions[NCPU];
-u_int32_t io_apic_versions[NAPIC];
+u_int32_t cpu_apic_versions[MAXCPU];
+u_int32_t *io_apic_versions;
 
 #ifdef APIC_INTR_DIAGNOSTIC
 int apic_itrace_enter[32];
@@ -313,7 +312,7 @@ extern pt_entry_t *KPTphys;
 /* SMP page table page */
 extern pt_entry_t *SMPpt;
 
-struct pcb stoppcbs[NCPU];
+struct pcb stoppcbs[MAXCPU];
 
 int smp_started;		/* has the system started? */
 
@@ -330,7 +329,7 @@ static mpfps_t	mpfps;
 static int	search_for_sig(u_int32_t target, int count);
 static void	mp_enable(u_int boot_addr);
 
-static int	mptable_pass1(void);
+static void	mptable_pass1(void);
 static int	mptable_pass2(void);
 static void	default_mp_table(int type);
 static void	fix_mp_table(void);
@@ -398,8 +397,7 @@ mp_probe(void)
 found:
 	/* calculate needed resources */
 	mpfps = (mpfps_t)x;
-	if (mptable_pass1())
-		panic("you must reconfigure your kernel");
+	mptable_pass1();
 
 	/* flag fact that we are running multiple processors */
 	mp_capable = 1;
@@ -720,10 +718,10 @@ static int default_data[7][5] =
 
 
 /* the bus data */
-static bus_datum bus_data[NBUS];
+static bus_datum *bus_data;
 
 /* the IO INT data, one entry per possible APIC INTerrupt */
-static io_int  io_apic_ints[NINTR];
+static io_int  *io_apic_ints;
 
 static int nintrs;
 
@@ -748,7 +746,7 @@ static int lookup_bus_type	__P((char *name));
  *	mp_napics
  *	nintrs
  */
-static int
+static void
 mptable_pass1(void)
 {
 	int	x;
@@ -757,11 +755,8 @@ mptable_pass1(void)
 	void*	position;
 	int	count;
 	int	type;
-	int	mustpanic;
 
 	POSTCODE(MPTABLE_PASS1_POST);
-
-	mustpanic = 0;
 
 	/* clear various tables */
 	for (x = 0; x < NAPICID; ++x) {
@@ -832,22 +827,10 @@ mptable_pass1(void)
 	}
 
 	/* qualify the numbers */
-	if (mp_naps > NCPU) {
+	if (mp_naps > MAXCPU) {
 		printf("Warning: only using %d of %d available CPUs!\n",
-			NCPU, mp_naps);
-		mp_naps = NCPU;
-	}
-	if (mp_nbusses > NBUS) {
-		printf("found %d busses, increase NBUS\n", mp_nbusses);
-		mustpanic = 1;
-	}
-	if (mp_napics > NAPIC) {
-		printf("found %d apics, increase NAPIC\n", mp_napics);
-		mustpanic = 1;
-	}
-	if (nintrs > NINTR) {
-		printf("found %d intrs, increase NINTR\n", nintrs);
-		mustpanic = 1;
+			MAXCPU, mp_naps);
+		mp_naps = MAXCPU;
 	}
 
 	/*
@@ -857,8 +840,6 @@ mptable_pass1(void)
 	mp_ncpus = 1;
 
 	--mp_naps;	/* subtract the BSP */
-
-	return mustpanic;
 }
 
 
@@ -883,8 +864,45 @@ mptable_pass2(void)
 	int     count;
 	int     type;
 	int     apic, bus, cpu, intr;
+	int	i, j;
+	int	pgeflag;
 
 	POSTCODE(MPTABLE_PASS2_POST);
+
+	pgeflag = 0;		/* XXX - Not used under SMP yet.  */
+
+	MALLOC(io_apic_versions, u_int32_t *, sizeof(u_int32_t) * mp_napics,
+	    M_DEVBUF, M_WAITOK);
+	MALLOC(ioapic, volatile ioapic_t **, sizeof(ioapic_t *) * mp_napics,
+	    M_DEVBUF, M_WAITOK);
+	MALLOC(io_apic_ints, io_int *, sizeof(io_int) * nintrs,
+	    M_DEVBUF, M_WAITOK);
+	MALLOC(bus_data, bus_datum *, sizeof(bus_datum) * mp_nbusses,
+	    M_DEVBUF, M_WAITOK);
+
+	bzero(ioapic, sizeof(ioapic_t *) * mp_napics);
+
+	for (i = 0; i < mp_napics; i++) {
+		for (j = 0; j < mp_napics; j++) {
+			/* same page frame as a previous IO apic? */
+			if (((vm_offset_t)SMPpt[NPTEPG-2-j] & PG_FRAME) ==
+			    (io_apic_address[i] & PG_FRAME)) {
+				ioapic[i] = (ioapic_t *)((u_int)SMP_prvspace
+					+ (NPTEPG-2-j) * PAGE_SIZE
+					+ (io_apic_address[i] & PAGE_MASK));
+				break;
+			}
+			/* use this slot if available */
+			if (((vm_offset_t)SMPpt[NPTEPG-2-j] & PG_FRAME) == 0) {
+				SMPpt[NPTEPG-2-j] = (pt_entry_t)(PG_V | PG_RW |
+				    pgeflag | (io_apic_address[i] & PG_FRAME));
+				ioapic[i] = (ioapic_t *)((u_int)SMP_prvspace
+					+ (NPTEPG-2-j) * PAGE_SIZE
+					+ (io_apic_address[i] & PAGE_MASK));
+				break;
+			}
+		}
+	}
 
 	/* clear various tables */
 	for (x = 0; x < NAPICID; ++x) {
@@ -894,11 +912,11 @@ mptable_pass2(void)
 	}
 
 	/* clear bus data table */
-	for (x = 0; x < NBUS; ++x)
+	for (x = 0; x < mp_nbusses; ++x)
 		bus_data[x].bus_id = 0xff;
 
 	/* clear IO APIC INT table */
-	for (x = 0; x < NINTR; ++x) {
+	for (x = 0; x < nintrs; ++x) {
 		io_apic_ints[x].int_type = 0xff;
 		io_apic_ints[x].int_vector = 0xff;
 	}
@@ -1305,7 +1323,7 @@ processor_entry(proc_entry_ptr entry, int cpu)
 	}
 
 	/* add another AP to list, if less than max number of CPUs */
-	else if (cpu < NCPU) {
+	else if (cpu < MAXCPU) {
 		CPU_TO_ID(cpu) = entry->apic_id;
 		ID_TO_CPU(entry->apic_id) = cpu;
 		return 1;
@@ -2427,9 +2445,9 @@ ap_init(void)
 #define CHECKSTATE_INTR	2
 
 /* Do not staticize.  Used from apic_vector.s */
-struct proc*	checkstate_curproc[NCPU];
-int		checkstate_cpustate[NCPU];
-u_long		checkstate_pc[NCPU];
+struct proc*	checkstate_curproc[MAXCPU];
+int		checkstate_cpustate[MAXCPU];
+u_long		checkstate_pc[MAXCPU];
 
 #define PC_TO_INDEX(pc, prof)				\
         ((int)(((u_quad_t)((pc) - (prof)->pr_off) *	\

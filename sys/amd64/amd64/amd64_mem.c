@@ -26,8 +26,6 @@
  * $FreeBSD$
  */
 
-#include "opt_smp.h"
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
