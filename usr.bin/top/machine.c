@@ -28,7 +28,6 @@
 #include <sys/types.h>
 #include <sys/signal.h>
 #include <sys/param.h>
-#include <sys/lock.h>
 
 #include "os.h"
 #include <stdio.h>

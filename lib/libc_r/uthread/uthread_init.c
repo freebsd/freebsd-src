@@ -37,8 +37,6 @@
 
 #include "namespace.h"
 #include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/types.h>
 #include <machine/reg.h>
 

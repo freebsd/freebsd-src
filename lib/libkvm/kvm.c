@@ -45,8 +45,6 @@ static char sccsid[] = "@(#)kvm.c	8.2 (Berkeley) 2/13/94";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/user.h>
 #include <sys/proc.h>
 #include <sys/ioctl.h>

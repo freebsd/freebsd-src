@@ -34,8 +34,6 @@
 #include <unistd.h>
 #include <setjmp.h>
 #include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/user.h>
 #include <machine/reg.h>
 #include <pthread.h>
