@@ -3,7 +3,6 @@
 
 PROG=	rsh
 SRCS=	rsh.c
-CFLAGS+=-Wall
 CFLAGS+=-I${.CURDIR}/../../libexec/rlogind
 
 .if exists(${DESTDIR}${LIBDIR}/libkrb.a) && defined(MAKE_KERBEROS4) && !defined(NO_OPENSSL) && !defined(NOCRYPT)
