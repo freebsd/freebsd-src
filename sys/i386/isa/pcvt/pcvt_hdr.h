@@ -59,6 +59,7 @@
 #include <sys/uio.h>
 #include <sys/callout.h>
 #include <sys/kernel.h>
+#include <sys/random.h>
 #include <sys/syslog.h>
 #include <sys/malloc.h>
 #include <sys/time.h>
