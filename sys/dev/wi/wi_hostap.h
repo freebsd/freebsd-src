@@ -88,6 +88,7 @@ struct wihap_sta_info {
 	u_int8_t	rates;
 	u_int8_t	tx_curr_rate;
 	u_int8_t	tx_max_rate;
+	u_int32_t	*challenge;
 	struct callout_handle	tmo;
 };
 
