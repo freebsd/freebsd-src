@@ -1108,6 +1108,17 @@ probe_keyboard(KBDC kbdc, int flags)
 	test_kbd_port(kbdc);
 
 	err = get_kbd_echo(kbdc);
+
+	/*
+	 * Even if the keyboard doesn't seem to be present (err != 0),
+	 * we shall enable the keyboard port and interrupt so that
+	 * the driver will be operable when the keyboard is attached
+	 * to the system later.  It is NOT recommended to hot-plug
+	 * the AT keyboard, but many people do so...
+	 */
+	kbdc_set_device_mask(kbdc, m | KBD_KBD_CONTROL_BITS);
+	setup_kbd_port(kbdc, TRUE, TRUE);
+#if 0
 	if (err == 0) {
 		kbdc_set_device_mask(kbdc, m | KBD_KBD_CONTROL_BITS);
 	} else {
@@ -1115,6 +1126,7 @@ probe_keyboard(KBDC kbdc, int flags)
 		set_controller_command_byte(kbdc, 0xff, c);
 		kbdc_set_device_mask(kbdc, m);
 	}
+#endif
 
 	kbdc_lock(kbdc, FALSE);
 	return err;
