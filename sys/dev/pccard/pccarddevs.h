@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.78 2003/11/03 16:04:31 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.79 2003/11/03 16:09:17 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.186 2003/09/16 08:26:37 onoe Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -438,9 +438,9 @@
 #define	PCMCIA_CIS_INTEL_EEPRO100	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_INTEL_EEPRO100	0x010a
 #define	PCMCIA_STR_INTEL_EEPRO100	"Intel EtherExpress PRO/100"
-#define	PCMCIA_CIS_INTEL_ETHEREXP	{ NULL, NULL, NULL, NULL }
-#define	PCMCIA_PRODUCT_INTEL_ETHEREXP	0x0301
-#define	PCMCIA_STR_INTEL_ETHEREXP	"Intel EtherExpress PCMCIA Card"
+#define	PCMCIA_CIS_INTEL_ETHEREXPPRO	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_INTEL_ETHEREXPPRO	0x0301
+#define	PCMCIA_STR_INTEL_ETHEREXPPRO	"Intel EtherExpress Pro PCMCIA Card"
 
 /* Intersil */
 /* Note: The following likely is an OEM card under a different Intersil name */
