@@ -24,13 +24,6 @@ MDASM=
 MIASM=
 NOASM=
 
-# XXX Pull in contrib/netlib/gdtoa, but keep the filenames local to
-#     gdtoa out of libc.
-.PATH:	${.CURDIR}/../../contrib/netlib/gdtoa
-.include "${.CURDIR}/gdtoa/Makefile.inc"
-.PATH:
-.PATH: ${.CURDIR}/gdtoa
-
 #
 # If there is a machine dependent makefile, use it:
 #
@@ -40,6 +33,7 @@ NOASM=
 
 .include "${.CURDIR}/db/Makefile.inc"
 .include "${.CURDIR}/compat-43/Makefile.inc"
+.include "${.CURDIR}/gdtoa/Makefile.inc"
 .include "${.CURDIR}/gen/Makefile.inc"
 .if ${MACHINE_ARCH} != "powerpc"
 .include "${.CURDIR}/gmon/Makefile.inc"
