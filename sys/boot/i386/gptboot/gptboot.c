@@ -20,6 +20,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/disklabel.h>
 #include <sys/diskmbr.h>
 #include <sys/dirent.h>
+#include <sys/reboot.h>
+
 #include <machine/bootinfo.h>
 #include <machine/elf.h>
 
