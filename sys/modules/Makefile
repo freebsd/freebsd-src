@@ -202,6 +202,7 @@ SUBDIR+=aic \
 	bktr \
 	coff \
 	em \
+	ep \
 	fe \
 	fpu \
 	gnufpu \
@@ -216,6 +217,7 @@ SUBDIR+=aic \
 	netgraph \
 	oltr \
 	pecoff \
+	pccard \
 	pmc \
 	ray \
 	sbni \
