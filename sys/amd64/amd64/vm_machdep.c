@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.31 1995/01/21 15:34:03 bde Exp $
+ *	$Id: vm_machdep.c,v 1.32 1995/02/20 22:23:31 davidg Exp $
  */
 
 #include "npx.h"
@@ -524,14 +524,10 @@ vm_fault_quick( v, prot)
 	vm_offset_t v;
 	int prot;
 {
-	if( (cpu_class == CPUCLASS_386) &&
-		(prot & VM_PROT_WRITE))
-		vm_fault(&curproc->p_vmspace->vm_map, v,
-			VM_PROT_READ|VM_PROT_WRITE, FALSE);
-	else if( prot & VM_PROT_WRITE)
-		*(volatile char *)v += 0;
+	if (prot & VM_PROT_WRITE)
+		subyte((char *)v, fubyte((char *)v));
 	else
-		*(volatile char *)v;
+		(void) fubyte((char *)v);
 }
 
 
