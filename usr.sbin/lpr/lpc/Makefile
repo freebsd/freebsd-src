@@ -9,7 +9,7 @@ SRCS=	lpc.c cmds.c cmdtab.c
 BINGRP=	daemon
 BINMODE= 2555
 
-CFLAGS+= -I${.CURDIR}/../common_source ${CWARNFLAGS}
+CFLAGS+= -I${.CURDIR}/../common_source
 
 DPADD=	${LIBLPR} ${LIBEDIT} ${LIBTERMCAP}
 LDADD=	${LIBLPR} -ledit -ltermcap
