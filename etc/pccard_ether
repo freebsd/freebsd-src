@@ -134,8 +134,8 @@ case ${startstop} in
 	# IPv6 setup
 	case ${ipv6_enable} in
 	[Yy][Ee][Ss])
-		if [ -r /etc/rc.d/network_ipv6 ]; then
-			. /etc/rc.d/network_ipv6
+		if [ -r /etc/network.subr ]; then
+			. /etc/network.subr
 			network6_interface_setup ${interface}
 		fi
 		;;
