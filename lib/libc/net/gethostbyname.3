@@ -44,16 +44,16 @@
 .Nd get network host entry
 .Sh SYNOPSIS
 .Fd #include <netdb.h>
-.Fd extern struct h_errno;
+.Fd extern int h_errno;
 .Ft struct hostent *
-.Fn gethostbyname "char *name"
+.Fn gethostbyname "const char *name"
 .Ft struct hostent *
-.Fn gethostbyaddr "char *addr" "int len" "int type"
+.Fn gethostbyaddr "const char *addr" "int len" "int type"
 .Ft struct hostent *
 .Fn gethostent void
 .Fn sethostent "int stayopen"
 .Fn endhostent void
-.Fn herror "char *string"
+.Fn herror "const char *string"
 .Sh DESCRIPTION
 The
 .Fn gethostbyname
