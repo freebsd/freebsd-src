@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psutils - Parser miscellaneous utilities (Parser only)
- *              $Revision: 50 $
+ *              $Revision: 51 $
  *
  *****************************************************************************/
 
@@ -145,11 +145,11 @@ AcpiPsInitOp (
     ACPI_FUNCTION_ENTRY ();
 
 
-    Op->DataType = ACPI_DESC_TYPE_PARSER;
-    Op->Opcode = Opcode;
+    Op->Common.DataType = ACPI_DESC_TYPE_PARSER;
+    Op->Common.AmlOpcode = Opcode;
 
-    ACPI_DEBUG_ONLY_MEMBERS (ACPI_STRNCPY (Op->OpName,
-            (AcpiPsGetOpcodeInfo (Opcode))->Name, sizeof (Op->OpName)));
+    ACPI_DEBUG_ONLY_MEMBERS (ACPI_STRNCPY (Op->Common.AmlOpName,
+            (AcpiPsGetOpcodeInfo (Opcode))->Name, sizeof (Op->Common.AmlOpName)));
 }
 
 
@@ -186,26 +186,26 @@ AcpiPsAllocOp (
 
     if (OpInfo->Flags & AML_DEFER)
     {
-        Size = sizeof (ACPI_PARSE2_OBJECT);
+        Size = sizeof (ACPI_PARSE_OBJ_NAMED);
         Flags = ACPI_PARSEOP_DEFERRED;
     }
     else if (OpInfo->Flags & AML_NAMED)
     {
-        Size = sizeof (ACPI_PARSE2_OBJECT);
+        Size = sizeof (ACPI_PARSE_OBJ_NAMED);
         Flags = ACPI_PARSEOP_NAMED;
     }
     else if (Opcode == AML_INT_BYTELIST_OP)
     {
-        Size = sizeof (ACPI_PARSE2_OBJECT);
+        Size = sizeof (ACPI_PARSE_OBJ_NAMED);
         Flags = ACPI_PARSEOP_BYTELIST;
     }
     else
     {
-        Size = sizeof (ACPI_PARSE_OBJECT);
+        Size = sizeof (ACPI_PARSE_OBJ_COMMON);
         Flags = ACPI_PARSEOP_GENERIC;
     }
 
-    if (Size == sizeof (ACPI_PARSE_OBJECT))
+    if (Size == sizeof (ACPI_PARSE_OBJ_COMMON))
     {
         /*
          * The generic op is by far the most common (16 to 1)
@@ -222,7 +222,7 @@ AcpiPsAllocOp (
     if (Op)
     {
         AcpiPsInitOp (Op, Opcode);
-        Op->Flags = Flags;
+        Op->Common.Flags = Flags;
     }
 
     return (Op);
@@ -249,12 +249,12 @@ AcpiPsFreeOp (
     ACPI_FUNCTION_NAME ("PsFreeOp");
 
 
-    if (Op->Opcode == AML_INT_RETURN_VALUE_OP)
+    if (Op->Common.AmlOpcode == AML_INT_RETURN_VALUE_OP)
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "Free retval op: %p\n", Op));
     }
 
-    if (Op->Flags == ACPI_PARSEOP_GENERIC)
+    if (Op->Common.Flags == ACPI_PARSEOP_GENERIC)
     {
         AcpiUtReleaseToCache (ACPI_MEM_LIST_PSNODE, Op);
     }
@@ -332,14 +332,14 @@ AcpiPsGetName (
 
     /* The "generic" object has no name associated with it */
 
-    if (Op->Flags & ACPI_PARSEOP_GENERIC)
+    if (Op->Common.Flags & ACPI_PARSEOP_GENERIC)
     {
         return (0);
     }
 
     /* Only the "Extended" parse objects have a name */
 
-    return (((ACPI_PARSE2_OBJECT *) Op)->Name);
+    return (Op->Named.Name);
 }
 
 
@@ -354,11 +354,11 @@ AcpiPsSetName (
 
     /* The "generic" object has no name associated with it */
 
-    if (Op->Flags & ACPI_PARSEOP_GENERIC)
+    if (Op->Common.Flags & ACPI_PARSEOP_GENERIC)
     {
         return;
     }
 
-    ((ACPI_PARSE2_OBJECT *) Op)->Name = name;
+    Op->Named.Name = name;
 }
 

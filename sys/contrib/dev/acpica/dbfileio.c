@@ -2,7 +2,7 @@
  *
  * Module Name: dbfileio - Debugger file I/O commands.  These can't usually
  *              be used when running the debugger in Ring 0 (Kernel mode)
- *              $Revision: 60 $
+ *              $Revision: 63 $
  *
  ******************************************************************************/
 
@@ -119,8 +119,6 @@
 #include "acpi.h"
 #include "acdebug.h"
 #include "acnamesp.h"
-#include "acparser.h"
-#include "acevents.h"
 #include "actables.h"
 
 #ifdef ENABLE_DEBUGGER
@@ -264,7 +262,7 @@ AcpiDbOpenDebugFile (
  *
  ******************************************************************************/
 
-ACPI_STATUS
+static ACPI_STATUS
 AcpiDbLoadTable(
     FILE                    *fp,
     ACPI_TABLE_HEADER       **TablePtr,
@@ -389,7 +387,7 @@ AeLocalLoadTable (
 
     TableInfo.Pointer = TablePtr;
 
-    Status = AcpiTbInstallTable (NULL, &TableInfo);
+    Status = AcpiTbInstallTable (&TableInfo);
     if (ACPI_FAILURE (Status))
     {
         /* Free table allocated by AcpiTbGetTable */
@@ -483,7 +481,7 @@ AcpiDbLoadAcpiTable (
         if (Status == AE_ALREADY_EXISTS)
         {
             AcpiOsPrintf ("Table %4.4s is already installed\n",
-                            &AcpiGbl_DbTablePtr->Signature);
+                            AcpiGbl_DbTablePtr->Signature);
         }
         else
         {
@@ -495,7 +493,7 @@ AcpiDbLoadAcpiTable (
     }
 
     AcpiOsPrintf ("%4.4s at %p successfully installed and loaded\n",
-                                &AcpiGbl_DbTablePtr->Signature, AcpiGbl_DbTablePtr);
+                                AcpiGbl_DbTablePtr->Signature, AcpiGbl_DbTablePtr);
 
     AcpiGbl_AcpiHardwarePresent = FALSE;
 

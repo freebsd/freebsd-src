@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rscalc - Calculate stream and list lengths
- *              $Revision: 39 $
+ *              $Revision: 43 $
  *
  ******************************************************************************/
 
@@ -127,7 +127,7 @@
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiRsCalculateByteStreamLength
+ * FUNCTION:    AcpiRsGetByteStreamLength
  *
  * PARAMETERS:  LinkedList          - Pointer to the resource linked list
  *              SizeNeeded          - UINT32 pointer of the size buffer needed
@@ -142,7 +142,7 @@
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiRsCalculateByteStreamLength (
+AcpiRsGetByteStreamLength (
     ACPI_RESOURCE           *LinkedList,
     ACPI_SIZE               *SizeNeeded)
 {
@@ -152,7 +152,7 @@ AcpiRsCalculateByteStreamLength (
     BOOLEAN                 Done = FALSE;
 
 
-    ACPI_FUNCTION_TRACE ("RsCalculateByteStreamLength");
+    ACPI_FUNCTION_TRACE ("RsGetByteStreamLength");
 
 
     while (!Done)
@@ -276,10 +276,10 @@ AcpiRsCalculateByteStreamLength (
              */
             SegmentSize = 16;
 
-            if (NULL != LinkedList->Data.Address16.ResourceSource.StringPtr)
+            if (LinkedList->Data.Address16.ResourceSource.StringPtr)
             {
-                SegmentSize += (1 +
-                    LinkedList->Data.Address16.ResourceSource.StringLength);
+                SegmentSize += LinkedList->Data.Address16.ResourceSource.StringLength;
+                SegmentSize++;
             }
             break;
 
@@ -293,10 +293,10 @@ AcpiRsCalculateByteStreamLength (
              */
             SegmentSize = 26;
 
-            if (NULL != LinkedList->Data.Address32.ResourceSource.StringPtr)
+            if (LinkedList->Data.Address32.ResourceSource.StringPtr)
             {
-                SegmentSize += (1 +
-                    LinkedList->Data.Address32.ResourceSource.StringLength);
+                SegmentSize += LinkedList->Data.Address32.ResourceSource.StringLength;
+                SegmentSize++;
             }
             break;
 
@@ -310,10 +310,10 @@ AcpiRsCalculateByteStreamLength (
              */
             SegmentSize = 46;
 
-            if (NULL != LinkedList->Data.Address64.ResourceSource.StringPtr)
+            if (LinkedList->Data.Address64.ResourceSource.StringPtr)
             {
-                SegmentSize += (1 +
-                    LinkedList->Data.Address64.ResourceSource.StringLength);
+                SegmentSize += LinkedList->Data.Address64.ResourceSource.StringLength;
+                SegmentSize++;
             }
             break;
 
@@ -328,12 +328,12 @@ AcpiRsCalculateByteStreamLength (
              * Resource Source + 1 for the null.
              */
             SegmentSize = 9 +
-                ((LinkedList->Data.ExtendedIrq.NumberOfInterrupts - 1) * 4);
+                (((ACPI_SIZE) LinkedList->Data.ExtendedIrq.NumberOfInterrupts - 1) * 4);
 
-            if (NULL != ExIrq->ResourceSource.StringPtr)
+            if (ExIrq && ExIrq->ResourceSource.StringPtr)
             {
-                SegmentSize += (1 +
-                    LinkedList->Data.ExtendedIrq.ResourceSource.StringLength);
+                SegmentSize += LinkedList->Data.ExtendedIrq.ResourceSource.StringLength;
+                SegmentSize++;
             }
             break;
 
@@ -368,7 +368,7 @@ AcpiRsCalculateByteStreamLength (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiRsCalculateListLength
+ * FUNCTION:    AcpiRsGetListLength
  *
  * PARAMETERS:  ByteStreamBuffer        - Pointer to the resource byte stream
  *              ByteStreamBufferLength  - Size of ByteStreamBuffer
@@ -385,7 +385,7 @@ AcpiRsCalculateByteStreamLength (
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiRsCalculateListLength (
+AcpiRsGetListLength (
     UINT8                   *ByteStreamBuffer,
     UINT32                  ByteStreamBufferLength,
     ACPI_SIZE               *SizeNeeded)
@@ -404,7 +404,7 @@ AcpiRsCalculateListLength (
     UINT8                   AdditionalBytes;
 
 
-    ACPI_FUNCTION_TRACE ("RsCalculateListLength");
+    ACPI_FUNCTION_TRACE ("RsGetListLength");
 
 
     while (BytesParsed < ByteStreamBufferLength)
@@ -823,7 +823,7 @@ AcpiRsCalculateListLength (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiRsCalculatePciRoutingTableLength
+ * FUNCTION:    AcpiRsGetPciRoutingTableLength
  *
  * PARAMETERS:  PackageObject           - Pointer to the package object
  *              BufferSizeNeeded        - UINT32 pointer of the size buffer
@@ -839,12 +839,12 @@ AcpiRsCalculateListLength (
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiRsCalculatePciRoutingTableLength (
+AcpiRsGetPciRoutingTableLength (
     ACPI_OPERAND_OBJECT     *PackageObject,
     ACPI_SIZE               *BufferSizeNeeded)
 {
     UINT32                  NumberOfElements;
-    UINT32                  TempSizeNeeded = 0;
+    ACPI_SIZE               TempSizeNeeded = 0;
     ACPI_OPERAND_OBJECT     **TopObjectList;
     UINT32                  Index;
     ACPI_OPERAND_OBJECT     *PackageElement;
@@ -853,7 +853,7 @@ AcpiRsCalculatePciRoutingTableLength (
     UINT32                  TableIndex;
 
 
-    ACPI_FUNCTION_TRACE ("RsCalculatePciRoutingTableLength");
+    ACPI_FUNCTION_TRACE ("RsGetPciRoutingTableLength");
 
 
     NumberOfElements = PackageObject->Package.Count;
@@ -890,8 +890,8 @@ AcpiRsCalculatePciRoutingTableLength (
 
         for (TableIndex = 0; TableIndex < 4 && !NameFound; TableIndex++)
         {
-            if ((ACPI_TYPE_STRING == (*SubObjectList)->Common.Type) ||
-                ((INTERNAL_TYPE_REFERENCE == (*SubObjectList)->Common.Type) &&
+            if ((ACPI_TYPE_STRING == ACPI_GET_OBJECT_TYPE (*SubObjectList)) ||
+                ((INTERNAL_TYPE_REFERENCE == ACPI_GET_OBJECT_TYPE (*SubObjectList)) &&
                     ((*SubObjectList)->Reference.Opcode == AML_INT_NAMEPATH_OP)))
             {
                 NameFound = TRUE;
@@ -910,9 +910,9 @@ AcpiRsCalculatePciRoutingTableLength (
         /*
          * Was a String type found?
          */
-        if (TRUE == NameFound)
+        if (NameFound)
         {
-            if (ACPI_TYPE_STRING == (*SubObjectList)->Common.Type)
+            if (ACPI_GET_OBJECT_TYPE (*SubObjectList) == ACPI_TYPE_STRING)
             {
                 /*
                  * The length String.Length field includes the

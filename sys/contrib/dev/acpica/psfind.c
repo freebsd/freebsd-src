@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: psfind - Parse tree search routine
- *              $Revision: 37 $
+ *              $Revision: 40 $
  *
  *****************************************************************************/
 
@@ -149,7 +149,7 @@ AcpiPsGetParent (
 
     while (Parent)
     {
-        switch (Parent->Opcode)
+        switch (Parent->Common.AmlOpcode)
         {
         case AML_SCOPE_OP:
         case AML_PACKAGE_OP:
@@ -158,10 +158,13 @@ AcpiPsGetParent (
         case AML_POWER_RES_OP:
         case AML_THERMAL_ZONE_OP:
 
-            return (Parent->Parent);
+            return (Parent->Common.Parent);
+
+        default:
+            break;
         }
 
-        Parent = Parent->Parent;
+        Parent = Parent->Common.Parent;
     }
 
     return (Parent);
@@ -200,13 +203,13 @@ AcpiPsFindName (
 
     while (Op)
     {
-        OpInfo = AcpiPsGetOpcodeInfo (Op->Opcode);
+        OpInfo = AcpiPsGetOpcodeInfo (Op->Common.AmlOpcode);
 
         /* Check AML_CREATE first (since some opcodes have AML_FIELD set also )*/
 
         if (OpInfo->Flags & AML_CREATE)
         {
-            if (Op->Opcode == AML_CREATE_FIELD_OP)
+            if (Op->Common.AmlOpcode == AML_CREATE_FIELD_OP)
             {
                 Field = AcpiPsGetArg (Op, 3);
             }
@@ -218,8 +221,8 @@ AcpiPsFindName (
             }
 
             if ((Field) &&
-                (Field->Value.String) &&
-                (!ACPI_STRNCMP (Field->Value.String, (char *) &Name, ACPI_NAME_SIZE)))
+                (Field->Common.Value.String) &&
+                (!ACPI_STRNCMP (Field->Common.Value.String, (char *) &Name, ACPI_NAME_SIZE)))
             {
                 return (Op);
             }
@@ -231,26 +234,26 @@ AcpiPsFindName (
             Field = AcpiPsGetChild (Op);
             while (Field)
             {
-                OpInfo = AcpiPsGetOpcodeInfo (Field->Opcode);
+                OpInfo = AcpiPsGetOpcodeInfo (Field->Common.AmlOpcode);
 
                 if ((OpInfo->Flags & AML_NAMED) &&
                    AcpiPsGetName (Field) == Name &&
-                   (!Opcode || Field->Opcode == Opcode))
+                   (!Opcode || Field->Common.AmlOpcode == Opcode))
                 {
                     return (Field);
                 }
 
-                Field = Field->Next;
+                Field = Field->Common.Next;
             }
         }
         else if ((OpInfo->Flags & AML_NAMED) &&
                  (AcpiPsGetName (Op) == Name) &&
-                 (!Opcode || Op->Opcode == Opcode || Opcode == AML_SCOPE_OP))
+                 (!Opcode || Op->Common.AmlOpcode == Opcode || Opcode == AML_SCOPE_OP))
         {
             break;
         }
 
-        Op = Op->Next;
+        Op = Op->Common.Next;
     }
 
     return (Op);
@@ -308,9 +311,9 @@ AcpiPsFind (
 
             /* Could just use a global for "root scope" here */
 
-            while (Scope->Parent)
+            while (Scope->Common.Parent)
             {
-                Scope = Scope->Parent;
+                Scope = Scope->Common.Parent;
             }
             break;
 
@@ -323,6 +326,10 @@ AcpiPsFind (
             {
                 Scope = AcpiPsGetParent (Scope);
             }
+            break;
+
+        default:
+            /* Should not get here */
             break;
         }
 
@@ -369,7 +376,7 @@ AcpiPsFind (
     }
 
     ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
-        "Search scope %p Segs=%d Opcode=%4.4X Create=%d\n",
+        "Search scope %p Segs=%d Opcode=%4.4hX Create=%d\n",
         Scope, SegCount, Opcode, Create));
 
     /* match each name segment */
@@ -393,8 +400,8 @@ AcpiPsFind (
         if (Op)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
-                "[%4.4s] Found! Op=%p Opcode=%4.4X\n",
-                (char *) &Name, Op, Op->Opcode));
+                "[%4.4s] Found! Op=%p Opcode=%4.4hX\n",
+                (char *) &Name, Op, Op->Common.AmlOpcode));
         }
 
         if (!Op)
@@ -418,7 +425,7 @@ AcpiPsFind (
                     AcpiPsAppendArg (Scope, Op);
 
                     ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
-                        "[%4.4s] Not found, created Op=%p Opcode=%4.4X\n",
+                        "[%4.4s] Not found, created Op=%p Opcode=%4.4hX\n",
                         (char *) &Name, Op, Opcode));
                 }
             }
@@ -427,15 +434,15 @@ AcpiPsFind (
             {
                 /* Search higher scopes for unprefixed name */
 
-                while (!Op && Scope->Parent)
+                while (!Op && Scope->Common.Parent)
                 {
-                    Scope = Scope->Parent;
+                    Scope = Scope->Common.Parent;
                     Op = AcpiPsFindName (Scope, Name, Opcode);
                     if (Op)
                     {
                         ACPI_DEBUG_PRINT ((ACPI_DB_PARSE,
-                            "[%4.4s] Found in parent tree! Op=%p Opcode=%4.4X\n",
-                            (char *) &Name, Op, Op->Opcode));
+                            "[%4.4s] Found in parent tree! Op=%p Opcode=%4.4hX\n",
+                            (char *) &Name, Op, Op->Common.AmlOpcode));
                     }
                     else
                     {

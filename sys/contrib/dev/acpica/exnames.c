@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exnames - interpreter/scanner name load/execute
- *              $Revision: 90 $
+ *              $Revision: 91 $
  *
  *****************************************************************************/
 
@@ -120,7 +120,6 @@
 #include "acpi.h"
 #include "acinterp.h"
 #include "amlcode.h"
-#include "acnamesp.h"
 
 #define _COMPONENT          ACPI_EXECUTER
         ACPI_MODULE_NAME    ("exnames")
@@ -248,10 +247,10 @@ AcpiExNameSegment (
     UINT8                   **InAmlAddress,
     NATIVE_CHAR             *NameString)
 {
-    UINT8                   *AmlAddress = *InAmlAddress;
+    char                    *AmlAddress = (void *) *InAmlAddress;
     ACPI_STATUS             Status = AE_OK;
     UINT32                  Index;
-    NATIVE_CHAR             CharBuf[5];
+    char                    CharBuf[5];
 
 
     ACPI_FUNCTION_TRACE ("ExNameSegment");
@@ -271,18 +270,18 @@ AcpiExNameSegment (
 
     ACPI_DEBUG_PRINT ((ACPI_DB_LOAD, "Bytes from stream:\n"));
 
-    for (Index = 4;
-        (Index > 0) && (AcpiUtValidAcpiCharacter (*AmlAddress));
-        Index--)
+    for (Index = 0;
+        (Index < ACPI_NAME_SIZE) && (AcpiUtValidAcpiCharacter (*AmlAddress));
+        Index++)
     {
-        CharBuf[4 - Index] = *AmlAddress++;
-        ACPI_DEBUG_PRINT ((ACPI_DB_LOAD, "%c\n", CharBuf[4 - Index]));
+        CharBuf[Index] = *AmlAddress++;
+        ACPI_DEBUG_PRINT ((ACPI_DB_LOAD, "%c\n", CharBuf[Index]));
     }
 
 
     /* Valid name segment  */
 
-    if (0 == Index)
+    if (Index == 4)
     {
         /* Found 4 valid characters */
 
@@ -300,7 +299,7 @@ AcpiExNameSegment (
                 "No Name string - %s \n", CharBuf));
         }
     }
-    else if (4 == Index)
+    else if (Index == 0)
     {
         /*
          * First character was not a valid name character,
@@ -320,7 +319,7 @@ AcpiExNameSegment (
             *AmlAddress, AmlAddress));
     }
 
-    *InAmlAddress = AmlAddress;
+    *InAmlAddress = (UINT8 *) AmlAddress;
     return_ACPI_STATUS (Status);
 }
 

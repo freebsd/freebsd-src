@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbutils - AML debugger utilities
- *              $Revision: 52 $
+ *              $Revision: 55 $
  *
  ******************************************************************************/
 
@@ -119,9 +119,6 @@
 #include "acparser.h"
 #include "amlcode.h"
 #include "acnamesp.h"
-#include "acparser.h"
-#include "acevents.h"
-#include "acinterp.h"
 #include "acdebug.h"
 #include "acdispat.h"
 
@@ -362,7 +359,7 @@ AcpiDbSecondPassParse (
     ACPI_PARSE_OBJECT       *Root)
 {
     ACPI_PARSE_OBJECT       *Op = Root;
-    ACPI_PARSE2_OBJECT      *Method;
+    ACPI_PARSE_OBJECT       *Method;
     ACPI_PARSE_OBJECT       *SearchOp;
     ACPI_PARSE_OBJECT       *StartOp;
     ACPI_STATUS             Status = AE_OK;
@@ -375,12 +372,13 @@ AcpiDbSecondPassParse (
 
     AcpiOsPrintf ("Pass two parse ....\n");
 
-
     while (Op)
     {
-        if (Op->Opcode == AML_METHOD_OP)
+        if (Op->Common.AmlOpcode == AML_METHOD_OP)
         {
-            Method = (ACPI_PARSE2_OBJECT *) Op;
+            Method = Op;
+
+            /* Create a new walk state for the parse */
 
             WalkState = AcpiDsCreateWalkState (TABLE_ID_DSDT,
                                             NULL, NULL, NULL);
@@ -389,33 +387,33 @@ AcpiDbSecondPassParse (
                 return (AE_NO_MEMORY);
             }
 
+            /* Init the Walk State */
 
             WalkState->ParserState.Aml          =
-            WalkState->ParserState.AmlStart     = Method->Data;
+            WalkState->ParserState.AmlStart     = Method->Named.Data;
             WalkState->ParserState.AmlEnd       =
-            WalkState->ParserState.PkgEnd       = Method->Data + Method->Length;
+            WalkState->ParserState.PkgEnd       = Method->Named.Data + Method->Named.Length;
             WalkState->ParserState.StartScope   = Op;
 
             WalkState->DescendingCallback       = AcpiDsLoad1BeginOp;
             WalkState->AscendingCallback        = AcpiDsLoad1EndOp;
 
+            /* Perform the AML parse */
 
             Status = AcpiPsParseAml (WalkState);
 
-
-            BaseAmlOffset = (Method->Value.Arg)->AmlOffset + 1;
-            StartOp = (Method->Value.Arg)->Next;
+            BaseAmlOffset = (Method->Common.Value.Arg)->Common.AmlOffset + 1;
+            StartOp = (Method->Common.Value.Arg)->Common.Next;
             SearchOp = StartOp;
 
             while (SearchOp)
             {
-                SearchOp->AmlOffset += BaseAmlOffset;
+                SearchOp->Common.AmlOffset += BaseAmlOffset;
                 SearchOp = AcpiPsGetDepthNext (StartOp, SearchOp);
             }
-
         }
 
-        if (Op->Opcode == AML_REGION_OP)
+        if (Op->Common.AmlOpcode == AML_REGION_OP)
         {
             /* TBD: [Investigate] this isn't quite the right thing to do! */
             /*

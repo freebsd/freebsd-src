@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utxface - External interfaces for "global" ACPI functions
- *              $Revision: 92 $
+ *              $Revision: 96 $
  *
  *****************************************************************************/
 
@@ -119,15 +119,10 @@
 
 #include "acpi.h"
 #include "acevents.h"
-#include "achware.h"
 #include "acnamesp.h"
-#include "acinterp.h"
-#include "amlcode.h"
-#include "acdebug.h"
-#include "acexcep.h"
 #include "acparser.h"
 #include "acdispat.h"
-
+#include "acdebug.h"
 
 #define _COMPONENT          ACPI_UTILITIES
         ACPI_MODULE_NAME    ("utxface")
@@ -198,7 +193,7 @@ AcpiInitializeSubsystem (
 
     /* If configured, initialize the AML debugger */
 
-    ACPI_DEBUGGER_EXEC (AcpiDbInitialize ());
+    ACPI_DEBUGGER_EXEC (Status = AcpiDbInitialize ());
 
     return_ACPI_STATUS (Status);
 }
@@ -236,7 +231,7 @@ AcpiEnableSubsystem (
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[Init] Installing default address space handlers\n"));
 
-        Status = AcpiEvInstallDefaultAddressSpaceHandlers ();
+        Status = AcpiEvInitAddressSpaces ();
         if (ACPI_FAILURE (Status))
         {
             return_ACPI_STATUS (Status);
@@ -361,6 +356,9 @@ AcpiEnableSubsystem (
 ACPI_STATUS
 AcpiTerminate (void)
 {
+    ACPI_STATUS         Status;
+
+
     ACPI_FUNCTION_TRACE ("AcpiTerminate");
 
 
@@ -387,10 +385,8 @@ AcpiTerminate (void)
 
     /* Now we can shutdown the OS-dependent layer */
 
-    AcpiOsTerminate ();
-
-
-    return_ACPI_STATUS (AE_OK);
+    Status = AcpiOsTerminate ();
+    return_ACPI_STATUS (Status);
 }
 
 
@@ -514,6 +510,41 @@ AcpiGetSystemInfo (
     }
 
     return_ACPI_STATUS (AE_OK);
+}
+
+
+/*****************************************************************************
+ *
+ * FUNCTION:    AcpiInstallInitializationHandler
+ *
+ * PARAMETERS:  Handler             - Callback procedure
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Install an initialization handler
+ *
+ * TBD: When a second function is added, must save the Function also.
+ *
+ ****************************************************************************/
+
+ACPI_STATUS
+AcpiInstallInitializationHandler (
+    ACPI_INIT_HANDLER       Handler,
+    UINT32                  Function)
+{
+
+    if (!Handler)
+    {
+        return (AE_BAD_PARAMETER);
+    }
+
+    if (AcpiGbl_InitHandler)
+    {
+        return (AE_ALREADY_EXISTS);
+    }
+
+    AcpiGbl_InitHandler = Handler;
+    return AE_OK;
 }
 
 
