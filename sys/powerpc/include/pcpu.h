@@ -42,7 +42,7 @@ struct pmap;
         struct thread   *pc_fputhread;          /* current fpu user */  \
 	register_t	pc_tempsave[CPUSAVE_LEN];			\
 	register_t	pc_disisave[CPUSAVE_LEN];			\
-	register_t	pc_ddbsave[CPUSAVE_LEN];
+	register_t	pc_dbsave[CPUSAVE_LEN];
 
 /* Definitions for register offsets within the exception tmp save areas */
 #define	CPUSAVE_R28	0		/* where r28 gets saved */
