@@ -872,8 +872,15 @@ exec_setregs(td, entry, stack, ps_strings)
 	/* reset %gs as well */
 	if (pcb == PCPU_GET(curpcb))
 		load_gs(_udatasel);
-	else
-		pcb->pcb_gs = _udatasel;
+
+	/*
+	 * Always reset pcb->pcb_gs to udatasel, it will be loaded into gs
+	 * by cpu_switch_load_gs when this process returns from the system
+	 * call. Failing to reset pcb_gs here can cause cpu_switch_load_gs
+	 * to trigger a general protection fault if the parent process had
+	 * modified gs to point at a LDT entry.
+	 */
+	pcb->pcb_gs = _udatasel;
 
         /*
          * Reset the hardware debug registers if they were in use.
