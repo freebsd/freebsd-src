@@ -35,27 +35,39 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1989, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)mknod.c	8.1 (Berkeley) 6/5/93";
+#else
+static const char rcsid[] =
+    "$Id$";
+#endif
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <stdio.h>
 
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+int
 main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern int errno;
-	u_short mode;
-	u_int32_t major, minor;
+	dev_t dev;
 	char *endp;
+	long major, minor;
+	mode_t mode;
+	int range_error;
 
 	if (argc != 5) {
 		(void)fprintf(stderr,
@@ -70,24 +82,34 @@ main(argc, argv)
 		mode |= S_IFBLK;
 	else {
 		(void)fprintf(stderr,
-		    "mknod: node must be type 'b' or 'c'.\n");
+		    "mknod: node must be type 'b' or 'c'\n");
 		exit(1);
 	}
 
-	major = strtoul(argv[3], &endp, 0);
-	if (*endp != '\0' || major >= 256) {
+	errno = 0;
+	major = (long)strtoul(argv[3], &endp, 0);
+	if (endp == argv[3] || *endp != '\0') {
 		(void)fprintf(stderr,
-		    "mknod: bad major number.\n");
+		    "mknod: %s: non-numeric major number\n", argv[3]);
 		exit(1);
 	}
-	minor = strtoul(argv[4], &endp, 0);
-	if (*endp != '\0') {
+	range_error = errno;
+	errno = 0;
+	minor = (long)strtoul(argv[4], &endp, 0);
+	if (endp == argv[3] || *endp != '\0') {
 		(void)fprintf(stderr,
-		    "mknod: bad minor number.\n");
+		    "mknod: %s: non-numeric minor number\n", argv[4]);
+		exit(1);
+	}
+	range_error |= errno;
+	dev = makedev(major, minor);
+	if (range_error || major(dev) != major || minor(dev) != minor) {
+		(void)fprintf(stderr,
+		    "mknod: major or minor number too large\n");
 		exit(1);
 	}
 
-	if (mknod(argv[1], mode, makedev(major, minor)) < 0) {
+	if (mknod(argv[1], mode, dev) != 0) {
 		(void)fprintf(stderr,
 		    "mknod: %s: %s\n", argv[1], strerror(errno));
 		exit(1);
