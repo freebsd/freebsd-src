@@ -89,8 +89,9 @@ device		wst0		#IDE Tape (e.g. Travan)
 controller	ncr0		# NCR/Symbios Logic
 controller	ahb0		# EISA AHA1742 family
 controller	ahc0		# AHA2940 and onboard AIC7xxx devices
+controller	amd0		# AMD 53C974 (Teckram DC-390(T))
 controller	isp0		# Qlogic family
-controller      dpt0		# DPT Smartcache - See LINT for options!
+controller	dpt0		# DPT Smartcache - See LINT for options!
 
 controller	adv0	at isa? port ? irq ?
 controller	adw0
@@ -156,42 +157,43 @@ device		plip0		# TCP/IP over parallel
 device		ppi0		# Parallel port interface device
 #controller	vpo0		# Requires scbus and da0
 
-# MII bus support, required for some 10/100 NICs
-controller	miibus0
 
 # PCI Ethernet NICs.
-device		al0		# ADMtek AL981 (``Comet'')
 device		ax0		# ASIX AX88140A
 device		de0		# DEC/Intel DC21x4x (``Tulip'')
-device		dm0		# Davicom DM9100/DM9102
 device		fxp0		# Intel EtherExpress PRO/100B (82557, 82558)
-device		mx0		# Macronix 98713/98715/98725 (``PMAC'')
 device		pn0		# Lite-On 82c168/82c169 (``PNIC'')
+device		tx0		# SMC 9432TX (83c170 ``EPIC'')
+device		vx0		# 3Com 3c590, 3c595 (``Vortex'')
+
+# PCI Ethernet NICs that use the common MII bus controller code.
+controller	miibus0		# MII bus support
+device		al0		# ADMtek AL981/AN985 (``Comet''/``Centaur'')
+device		dm0		# Davicom DM9100/DM9102
+device		mx0		# Macronix 98713/98715/98725 (``PMAC'')
 device		rl0		# RealTek 8129/8139
 device		sf0		# Adaptec AIC-6915 (``Starfire'')
 device		sis0		# Silicon Integrated Systems SiS 900/SiS 7016
 device		ste0		# Sundance ST201 (D-Link DFE-550TX)
 device		tl0		# Texas Instruments ThunderLAN
-device		tx0		# SMC 9432TX (83c170 ``EPIC'')
 device		vr0		# VIA Rhine, Rhine II
-device		vx0		# 3Com 3c590, 3c595 (``Vortex'')
 device		wb0		# Winbond W89C840F
 device		xl0		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # ISA Ethernet NICs.
-# The probe order of these is presently determined by i386/isa/isa_compat.c.
 device		ed0	at isa? port 0x280 irq 10 iomem 0xd8000
-device		ie0	at isa? port 0x300 irq 10 iomem 0xd0000
+device		ex0	at isa? port? irq?
 # NOTE: This removes the isa attachment so that the pccard unit numbers
 # come out right.
 device		ep0
-device		ex0	at isa? port? irq?
+# The probe order of these is presently determined by i386/isa/isa_compat.c.
+device		ie0	at isa? port 0x300 irq 10 iomem 0xd0000
 device		fe0	at isa? port 0x300 irq ?
 device		le0	at isa? port 0x300 irq 5 iomem 0xd0000
 device		lnc0	at isa? port 0x280 irq 10 drq 0
 device		cs0	at isa? port 0x300 irq ?
 # requires PCCARD (PCMCIA) support to be activated
-#device		xe0	at isa? port? irq ?
+device		xe0	at isa? port? irq ?
 
 # PCCARD NIC drivers.
 # ze and zp take over the pcic and cannot coexist with generic pccard
