@@ -258,13 +258,6 @@ mac_biba_equal_single(struct mac_biba *a, struct mac_biba *b)
 }
 
 static int
-mac_biba_high_single(struct mac_biba *mac_biba)
-{
-
-	return (mac_biba->mb_single.mbe_type == MAC_BIBA_TYPE_HIGH);
-}
-
-static int
 mac_biba_valid(struct mac_biba *mac_biba)
 {
 
@@ -1246,11 +1239,6 @@ mac_biba_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifnet,
 
 	if ((new->mb_flags & MAC_BIBA_FLAGS_BOTH) != MAC_BIBA_FLAGS_BOTH)
 		return (EINVAL);
-
-	/*
-	 * XXX: Only Biba HIGH subjects may relabel interfaces. */
-	if (!mac_biba_high_single(subj))
-		return (EPERM);
 
 	return (suser_cred(cred, 0));
 }
