@@ -53,7 +53,7 @@
 	<itemize>
 	  <item>If you are using MS-DOS download 
 	    <url 
-url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/tools/dos-tools/rawrite.exe"
+url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/tools/rawrite.exe"
 	      name="rawrite.exe">, then run it:
 <tscreen><verb>
 C:\> rawrite
