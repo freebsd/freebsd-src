@@ -73,4 +73,19 @@ extern db_regs_t	ddb_regs;	/* register state */
 #define inst_load(ins)		0
 #define inst_store(ins)		0
 
+/*
+ * There no interesting addresses below _kstack = 0xefbfe000.  There
+ * are small absolute values for GUPROF, but we don't want to see them.
+ * Treat "negative" addresses below _kstack as non-small to allow for
+ * future reductions of _kstack and to avoid sign extension problems.
+ *
+ * There is one interesting symbol above -db_maxoff = 0xffff0000,
+ * namely _APTD = 0xfffff000.  Accepting this would mess up the
+ * printing of small negative offsets.  The next largest symbol is
+ * _APTmap = 0xffc00000.  Accepting this is OK (unless db_maxoff is
+ * set to >= 0x400000 - (max stack offset)).
+ */
+#define	DB_SMALL_VALUE_MAX	0x7fffffff
+#define	DB_SMALL_VALUE_MIN	(-0x400001)
+
 #endif /* !_MACHINE_DB_MACHDEP_H_ */
