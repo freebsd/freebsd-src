@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.89 1995/01/12 11:42:44 sos Exp $
+ *	$Id: syscons.c,v 1.90 1995/01/12 20:14:28 ache Exp $
  */
 
 #include "sc.h"
@@ -1842,7 +1842,7 @@ scan_esc(scr_stat *scp, u_char c)
 
 		case '`': 	/* move cursor to column n */
 			n = scp->term.param[0]; if (n < 1)  n = 1;
-			move_crsr(scp, n, scp->ypos);
+			move_crsr(scp, n - 1, scp->ypos);
 			break;
 
 		case 'a': 	/* move cursor n columns to the right */
@@ -1852,7 +1852,7 @@ scan_esc(scr_stat *scp, u_char c)
 
 		case 'd': 	/* move cursor to row n */
 			n = scp->term.param[0]; if (n < 1)  n = 1;
-			move_crsr(scp, scp->xpos, n);
+			move_crsr(scp, scp->xpos, n - 1);
 			break;
 
 		case 'e': 	/* move cursor n rows down */
