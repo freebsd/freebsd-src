@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bt.c,v 1.1 1998/09/15 07:32:48 gibbs Exp $
+ *      $Id: bt.c,v 1.2 1998/09/16 03:27:11 gibbs Exp $
  */
 
  /*
@@ -1392,8 +1392,8 @@ btdone(struct bt_softc *bt, struct bt_ccb *bccb, bt_mbi_comp_code_t comp_code)
 	csio = &bccb->ccb->csio;
 
 	if ((bccb->flags & BCCB_ACTIVE) == 0) {
-		printf("%s: btdone - Attempt to free non-active BCCB 0x%x\n",
-		       bt_name(bt), (intptr_t)bccb);
+		printf("%s: btdone - Attempt to free non-active BCCB %p\n",
+		       bt_name(bt), (void *)bccb);
 		return;
 	}
 
@@ -2060,14 +2060,14 @@ bttimeout(void *arg)
 	ccb = bccb->ccb;
 	bt = (struct bt_softc *)ccb->ccb_h.ccb_bt_ptr;
 	xpt_print_path(ccb->ccb_h.path);
-	printf("CCB 0x%x - timed out\n", (intptr_t)bccb);
+	printf("CCB %p - timed out\n", (void *)bccb);
 
 	s = splcam();
 
 	if ((bccb->flags & BCCB_ACTIVE) == 0) {
 		xpt_print_path(ccb->ccb_h.path);
-		printf("CCB 0x%x - timed out CCB already completed\n",
-		       (intptr_t)bccb);
+		printf("CCB %p - timed out CCB already completed\n",
+		       (void *)bccb);
 		splx(s);
 		return;
 	}

@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.126 1998/09/16 17:11:59 gibbs Exp $
+**  $Id: ncr.c,v 1.127 1998/09/16 22:46:04 gibbs Exp $
 **
 **  Device driver for the   NCR 53C8XX   PCI-SCSI-Controller Family.
 **
@@ -1288,7 +1288,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.126 1998/09/16 17:11:59 gibbs Exp $\n";
+	"\n$Id: ncr.c,v 1.127 1998/09/16 22:46:04 gibbs Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -5643,9 +5643,9 @@ static void ncr_int_ma (ncb_p np, u_char dstat)
 	}
 	if (cp != np->header.cp) {
 	    printf ("%s: SCSI phase error fixup: CCB address mismatch "
-		    "(0x%08x != 0x%08x) np->nccb = 0x%08x\n", 
-		    ncr_name (np), (intptr_t)cp, (intptr_t)np->header.cp,
-		    (intptr_t)np->link_nccb);
+		    "(%p != %p) np->nccb = %p\n", 
+		    ncr_name (np), (void *)cp, (void *)np->header.cp,
+		    (void *)np->link_nccb);
 /*	    return;*/
 	}
 
