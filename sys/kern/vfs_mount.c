@@ -701,6 +701,7 @@ update:
 #ifdef MAC
 			mac_destroy_mount(mp);
 #endif
+			crfree(mp->mnt_cred);
 			free(mp, M_MOUNT);
 		}
 		vrele(vp);
@@ -794,6 +795,7 @@ update:
 #ifdef MAC
 		mac_destroy_mount(mp);
 #endif
+		crfree(mp->mnt_cred);
 		free(mp, M_MOUNT);
 		vput(vp);
 		goto bad;
@@ -1064,6 +1066,7 @@ update:
 #ifdef MAC
 			mac_destroy_mount(mp);
 #endif
+			crfree(mp->mnt_cred);
 			free(mp, M_MOUNT);
 		}
 		vrele(vp);
@@ -1144,6 +1147,7 @@ update:
 #ifdef MAC
 		mac_destroy_mount(mp);
 #endif
+		crfree(mp->mnt_cred);
 		free(mp, M_MOUNT);
 		vput(vp);
 	}
@@ -1570,6 +1574,7 @@ done:
 #ifdef MAC
 			mac_destroy_mount(mp);
 #endif
+			crfree(mp->mnt_cred);
 			free(mp, M_MOUNT);
 		}
 		printf("Root mount failed: %d\n", error);
