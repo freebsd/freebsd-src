@@ -95,6 +95,15 @@ for any of the errors specified for the library routines
 .Xr malloc 3
 or
 .Xr sysctl 3 .
+.Sh SEE ALSO
+.Xr sysctl 3 ,
+.Xr networking 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Fn getifmaddrs
+function first appeared in
+.Fx 5.2 .
 .Sh BUGS
 If both
 .In net/if.h
@@ -105,12 +114,3 @@ are being included,
 .Em must
 be included before
 .In ifaddrs.h .
-.Sh SEE ALSO
-.Xr sysctl 3 ,
-.Xr networking 4 ,
-.Xr ifconfig 8
-.Sh HISTORY
-The
-.Fn getifmaddrs
-function first appeared in
-.Fx 5.2 .

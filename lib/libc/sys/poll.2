@@ -196,6 +196,13 @@ The specified time limit is negative.
 .Xr select 2 ,
 .Xr send 2 ,
 .Xr write 2
+.Sh HISTORY
+The
+.Fn poll
+function appeared in
+.At V .
+This manual page and the core of the implementation was taken from
+.Nx .
 .Sh BUGS
 The distinction between some of the fields in the
 .Fa events
@@ -204,10 +211,3 @@ and
 bitmasks is really not useful without STREAMS.
 The fields are
 defined for compatibility with existing software.
-.Sh HISTORY
-The
-.Fn poll
-function appeared in
-.At V .
-This manual page and the core of the implementation was taken from
-.Nx .

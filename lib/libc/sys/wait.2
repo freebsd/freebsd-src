@@ -297,6 +297,11 @@ or the signal did not have the
 .Dv SA_RESTART
 flag set.
 .El
+.Sh SEE ALSO
+.Xr _exit 2 ,
+.Xr ptrace 2 ,
+.Xr sigaction 2 ,
+.Xr exit 3
 .Sh STANDARDS
 The
 .Fn wait
@@ -313,11 +318,6 @@ macro
 and the ability to restart a pending
 .Fn wait
 call are extensions to the POSIX interface.
-.Sh SEE ALSO
-.Xr _exit 2 ,
-.Xr ptrace 2 ,
-.Xr sigaction 2 ,
-.Xr exit 3
 .Sh HISTORY
 The
 .Fn wait

@@ -54,17 +54,6 @@ or to the
 category
 .Dv LC_ALL ,
 may overwrite buffer pointed by the return value.
-.Sh EXAMPLES
-For example:
-.Pp
-.Dl nl_langinfo(ABDAY_1)
-.Pp
-would return a pointer to the string
-.Qq Li Dom
-if the identified language was
-Portuguese, and
-.Qq Li Sun
-if the identified language was English.
 .Sh RETURN VALUES
 In a locale where langinfo data is not defined,
 .Fn nl_langinfo
@@ -76,6 +65,17 @@ In all locales,
 returns a pointer to an empty string if
 .Fa item
 contains an invalid setting.
+.Sh EXAMPLES
+For example:
+.Pp
+.Dl nl_langinfo(ABDAY_1)
+.Pp
+would return a pointer to the string
+.Qq Li Dom
+if the identified language was
+Portuguese, and
+.Qq Li Sun
+if the identified language was English.
 .Sh SEE ALSO
 .Xr setlocale 3
 .Sh STANDARDS

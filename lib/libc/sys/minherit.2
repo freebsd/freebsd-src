@@ -119,13 +119,6 @@ and
 .Fa len
 arguments.
 .El
-.Sh BUGS
-Once you set inheritance to
-.Dv MAP_PRIVATE
-or
-.Dv MAP_SHARED ,
-there is no way to recover the original copy-on-write semantics
-short of unmapping and remapping the area.
 .Sh SEE ALSO
 .Xr fork 2 ,
 .Xr madvise 2 ,
@@ -139,3 +132,10 @@ The
 .Fn minherit
 system call first appeared in
 .Ox .
+.Sh BUGS
+Once you set inheritance to
+.Dv MAP_PRIVATE
+or
+.Dv MAP_SHARED ,
+there is no way to recover the original copy-on-write semantics
+short of unmapping and remapping the area.

@@ -445,21 +445,6 @@ Inexact is signaled only when
 .Xc
 greater range or precision would be needed to represent the exact result.
 .El
-.Sh BUGS
-Several functions required by
-.St -isoC-99
-are missing, and many functions are not available in their
-.Vt "long double"
-variants.
-.Pp
-On some architectures, trigonometric argument reduction is not
-performed accurately, resulting in errors greater than 1
-.Em ulp
-for large arguments to
-.Fn cos ,
-.Fn sin ,
-and
-.Fn tan .
 .Sh SEE ALSO
 .Xr fenv 3 ,
 .Xr ieee 3
@@ -487,3 +472,18 @@ or IEEE 754 floating-point.
 Most of this library was replaced with FDLIBM, developed at Sun
 Microsystems, in
 .Fx 1.1.5 .
+.Sh BUGS
+Several functions required by
+.St -isoC-99
+are missing, and many functions are not available in their
+.Vt "long double"
+variants.
+.Pp
+On some architectures, trigonometric argument reduction is not
+performed accurately, resulting in errors greater than 1
+.Em ulp
+for large arguments to
+.Fn cos ,
+.Fn sin ,
+and
+.Fn tan .

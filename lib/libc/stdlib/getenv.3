@@ -142,6 +142,17 @@ The
 .Fn getenv
 function conforms to
 .St -isoC .
+.Sh HISTORY
+The functions
+.Fn setenv
+and
+.Fn unsetenv
+appeared in
+.At v7 .
+The
+.Fn putenv
+function appeared in
+.Bx 4.3 Reno .
 .Sh BUGS
 Successive calls to
 .Fn setenv
@@ -161,14 +172,3 @@ are copied and that old values remain accessible indefinitely) make this
 bug unavoidable.
 Future versions may eliminate one or both of these
 semantic guarantees in order to fix the bug.
-.Sh HISTORY
-The functions
-.Fn setenv
-and
-.Fn unsetenv
-appeared in
-.At v7 .
-The
-.Fn putenv
-function appeared in
-.Bx 4.3 Reno .

@@ -262,29 +262,6 @@ and
 options are intended for testing and debugging.
 An application which changes its behavior when these options are used
 is flawed.
-.Sh EXAMPLES
-To set a systemwide reduction of cache size, and to dump core whenever
-a problem occurs:
-.Pp
-.Bd -literal -offset indent
-ln -s 'A<' /etc/malloc.conf
-.Ed
-.Pp
-To specify in the source that a program does no return value checking
-on calls to these functions:
-.Bd -literal -offset indent
-_malloc_options = "X";
-.Ed
-.Sh ENVIRONMENT
-The following environment variables affect the execution of the allocation
-functions:
-.Bl -tag -width ".Ev MALLOC_OPTIONS"
-.It Ev MALLOC_OPTIONS
-If the environment variable
-.Ev MALLOC_OPTIONS
-is set, the characters it contains will be interpreted as flags to the
-allocation functions.
-.El
 .Sh RETURN VALUES
 The
 .Fn malloc
@@ -464,6 +441,29 @@ Even with the
 .Dq A
 option set, this warning is still only a warning.
 .El
+.Sh ENVIRONMENT
+The following environment variables affect the execution of the allocation
+functions:
+.Bl -tag -width ".Ev MALLOC_OPTIONS"
+.It Ev MALLOC_OPTIONS
+If the environment variable
+.Ev MALLOC_OPTIONS
+is set, the characters it contains will be interpreted as flags to the
+allocation functions.
+.El
+.Sh EXAMPLES
+To set a systemwide reduction of cache size, and to dump core whenever
+a problem occurs:
+.Pp
+.Bd -literal -offset indent
+ln -s 'A<' /etc/malloc.conf
+.Ed
+.Pp
+To specify in the source that a program does no return value checking
+on calls to these functions:
+.Bd -literal -offset indent
+_malloc_options = "X";
+.Ed
 .Sh SEE ALSO
 .Xr brk 2 ,
 .Xr mmap 2 ,

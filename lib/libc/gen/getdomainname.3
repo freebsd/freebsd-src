@@ -91,14 +91,14 @@ The caller tried to set the hostname and was not the super-user.
 .Xr gethostid 3 ,
 .Xr gethostname 3 ,
 .Xr sysctl 3
+.Sh HISTORY
+The
+.Fn getdomainname
+function appeared in
+.Bx 4.2 .
 .Sh BUGS
 Domain names are limited to
 .Dv MAXHOSTNAMELEN
 (from
 .In sys/param.h )
 characters, currently 256.
-.Sh HISTORY
-The
-.Fn getdomainname
-function appeared in
-.Bx 4.2 .

@@ -134,6 +134,11 @@ The behavior of some of these calls is influenced by the configuration
 settings found in
 .Xr mac.conf 5 ,
 the MAC library run-time configuration file.
+.Sh IMPLEMENTATION NOTES
+.Fx Ns 's
+support for POSIX.1e interfaces and features
+is
+.Ud .
 .Sh FILES
 .Bl -tag -width ".Pa /etc/mac.conf" -compact
 .It Pa /etc/mac.conf
@@ -142,11 +147,6 @@ MAC library configuration file, documented in
 Provides default behavior for applications aware of MAC labels on
 system objects, but without policy-specific knowledge.
 .El
-.Sh IMPLEMENTATION NOTES
-.Fx Ns 's
-support for POSIX.1e interfaces and features
-is
-.Ud .
 .Sh SEE ALSO
 .Xr mac_free 3 ,
 .Xr mac_get 3 ,

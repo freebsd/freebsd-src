@@ -187,6 +187,13 @@ Refer to
 .Xr getaddrinfo 3
 for the notation.
 .\"
+.Sh FILES
+.Bl -tag -width /etc/nsswitch.conf -compact
+.It Pa /etc/hosts
+.It Pa /etc/nsswitch.conf
+.It Pa /etc/resolv.conf
+.El
+.\"
 .Sh EXAMPLES
 The following code tries to get numeric hostname, and service name,
 for given socket address.
@@ -215,13 +222,6 @@ if (getnameinfo(sa, sa->sa_len, hbuf, sizeof(hbuf), NULL, 0,
 }
 printf("host=%s\\n", hbuf);
 .Ed
-.\"
-.Sh FILES
-.Bl -tag -width /etc/nsswitch.conf -compact
-.It Pa /etc/hosts
-.It Pa /etc/nsswitch.conf
-.It Pa /etc/resolv.conf
-.El
 .\"
 .Sh DIAGNOSTICS
 The function indicates successful completion by a zero return value;
@@ -284,9 +284,6 @@ The error code can be found in errno.
 .%D June 2000
 .Re
 .\"
-.Sh HISTORY
-The implementation first appeared in WIDE Hydrangea IPv6 protocol stack kit.
-.\"
 .Sh STANDARDS
 The
 .Fn getaddrinfo
@@ -295,6 +292,9 @@ function is defined in
 and documented in
 .Dq Basic Socket Interface Extensions for IPv6
 (RFC2553).
+.\"
+.Sh HISTORY
+The implementation first appeared in WIDE Hydrangea IPv6 protocol stack kit.
 .\"
 .Sh BUGS
 Though the current implementation should be thread-safe, using

@@ -107,10 +107,6 @@ and a diagnostic message is printed on the standard error.
 .Xr socketpair 2 ,
 .Xr rcmd 3 ,
 .Xr rshd 8
-.Sh BUGS
-If
-.Xr rsh 1
-encounters an error, a file descriptor is still returned instead of \-1.
 .Sh HISTORY
 The
 .Fn rcmdsh
@@ -118,3 +114,7 @@ function first appeared in
 .Ox 2.0 ,
 and made its way into
 .Fx 4.6 .
+.Sh BUGS
+If
+.Xr rsh 1
+encounters an error, a file descriptor is still returned instead of \-1.

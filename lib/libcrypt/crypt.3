@@ -263,21 +263,6 @@ Otherwise, a value of 0 is returned.
 .Xr getpass 3 ,
 .Xr auth.conf 5 ,
 .Xr passwd 5
-.Sh BUGS
-The
-.Fn crypt
-function returns a pointer to static data, and subsequent calls to
-.Fn crypt
-will modify the same data.
-Likewise,
-.Fn crypt_set_format
-modifies static data.
-.Pp
-The NT-hash scheme does not use a salt,
-and is not hard
-for a competent attacker
-to break.
-Its use is not recommended.
 .Sh HISTORY
 A rotor-based
 .Fn crypt
@@ -307,3 +292,18 @@ later additions and changes by
 .An Paul Herman
 and
 .An Niels Provos .
+.Sh BUGS
+The
+.Fn crypt
+function returns a pointer to static data, and subsequent calls to
+.Fn crypt
+will modify the same data.
+Likewise,
+.Fn crypt_set_format
+modifies static data.
+.Pp
+The NT-hash scheme does not use a salt,
+and is not hard
+for a competent attacker
+to break.
+Its use is not recommended.

@@ -268,6 +268,39 @@ flag is not available in
 hence it should not be used if backward compatibility is needed.
 .Sh RETURN VALUES
 .Rv -std sigvec
+.Sh EXAMPLES
+On the
+.Tn VAX\-11
+The handler routine can be declared:
+.Bd -literal -offset indent
+void handler(sig, code, scp)
+int sig, code;
+struct sigcontext *scp;
+.Ed
+.Pp
+Here
+.Fa sig
+is the signal number, into which the hardware faults and traps are
+mapped as defined below.
+The
+.Fa code
+argument
+is either a constant
+as given below or, for compatibility mode faults, the code provided by
+the hardware (Compatibility mode faults are distinguished from the
+other
+.Dv SIGILL
+traps by having
+.Dv PSL_CM
+set in the psl).
+The
+.Fa scp
+argument
+is a pointer to the
+.Fa sigcontext
+structure (defined in
+.In signal.h ) ,
+used to restore the context from before the signal.
 .Sh ERRORS
 The
 .Fn sigvec
@@ -309,38 +342,5 @@ or
 .Xr signal 3 ,
 .Xr sigsetops 3 ,
 .Xr tty 4
-.Sh EXAMPLES
-On the
-.Tn VAX\-11
-The handler routine can be declared:
-.Bd -literal -offset indent
-void handler(sig, code, scp)
-int sig, code;
-struct sigcontext *scp;
-.Ed
-.Pp
-Here
-.Fa sig
-is the signal number, into which the hardware faults and traps are
-mapped as defined below.
-The
-.Fa code
-argument
-is either a constant
-as given below or, for compatibility mode faults, the code provided by
-the hardware (Compatibility mode faults are distinguished from the
-other
-.Dv SIGILL
-traps by having
-.Dv PSL_CM
-set in the psl).
-The
-.Fa scp
-argument
-is a pointer to the
-.Fa sigcontext
-structure (defined in
-.In signal.h ) ,
-used to restore the context from before the signal.
 .Sh BUGS
 This manual page is still confusing.

@@ -223,14 +223,14 @@ The call was privileged and the caller was not the super-user.
 .Xr quotacheck 8 ,
 .Xr quotaon 8 ,
 .Xr repquota 8
+.Sh HISTORY
+The
+.Fn quotactl
+system call appeared in
+.Bx 4.3 Reno .
 .Sh BUGS
 There should be some way to integrate this call with the resource
 limit interface provided by
 .Xr setrlimit 2
 and
 .Xr getrlimit 2 .
-.Sh HISTORY
-The
-.Fn quotactl
-system call appeared in
-.Bx 4.3 Reno .

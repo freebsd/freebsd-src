@@ -209,6 +209,12 @@ functions
 return no value.
 .Pp
 .Rv -std heapsort mergesort
+.Sh COMPATIBILITY
+Previous versions of
+.Fn qsort
+did not permit the comparison routine itself to call
+.Fn qsort 3 .
+This is no longer true.
 .Sh ERRORS
 The
 .Fn heapsort
@@ -234,12 +240,6 @@ or
 functions
 were unable to allocate memory.
 .El
-.Sh COMPATIBILITY
-Previous versions of
-.Fn qsort
-did not permit the comparison routine itself to call
-.Fn qsort 3 .
-This is no longer true.
 .Sh SEE ALSO
 .Xr sort 1 ,
 .Xr radixsort 3

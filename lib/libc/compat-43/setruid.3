@@ -56,6 +56,9 @@ sets the real user ID (group ID) of the
 current process.
 .Sh RETURN VALUES
 .Rv -std
+.Sh COMPATIBILITY
+The use of these calls is not portable.
+Their use is discouraged; they will be removed in the future.
 .Sh ERRORS
 The functions fail if:
 .Bl -tag -width Er
@@ -63,9 +66,6 @@ The functions fail if:
 The user is not the super user and the ID
 specified is not the real or effective ID.
 .El
-.Sh COMPATIBILITY
-The use of these calls is not portable.
-Their use is discouraged; they will be removed in the future.
 .Sh SEE ALSO
 .Xr getgid 2 ,
 .Xr getuid 2 ,

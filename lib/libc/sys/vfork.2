@@ -100,6 +100,9 @@ parent processes standard I/O data structures.
 it is wrong to call
 .Xr exit 3
 since buffered data would then be flushed twice.)
+.Sh RETURN VALUES
+Same as for
+.Xr fork 2 .
 .Sh SEE ALSO
 .Xr execve 2 ,
 .Xr _exit 2 ,
@@ -108,9 +111,11 @@ since buffered data would then be flushed twice.)
 .Xr sigvec 2 ,
 .Xr wait 2 ,
 .Xr exit 3
-.Sh RETURN VALUES
-Same as for
-.Xr fork 2 .
+.Sh HISTORY
+The
+.Fn vfork
+system call appeared in
+.Bx 2.9 .
 .Sh BUGS
 This system call will be eliminated when proper system sharing
 mechanisms are implemented.
@@ -134,8 +139,3 @@ output or
 calls
 are allowed
 and input attempts result in an end-of-file indication.
-.Sh HISTORY
-The
-.Fn vfork
-system call appeared in
-.Bx 2.9 .

@@ -67,6 +67,15 @@ The requested process group ID must already exist in the session of
 the caller, or it must be equal to the target process ID.
 .Sh RETURN VALUES
 .Rv -std setpgid
+.Sh COMPATIBILITY
+The
+.Fn setpgrp
+system call
+is identical to
+.Fn setpgid ,
+and is retained for calling convention compatibility with historical
+versions of
+.Bx .
 .Sh ERRORS
 The
 .Fn setpgid
@@ -98,12 +107,3 @@ The
 .Fn setpgid
 system call is expected to conform to
 .St -p1003.1-90 .
-.Sh COMPATIBILITY
-The
-.Fn setpgrp
-system call
-is identical to
-.Fn setpgid ,
-and is retained for calling convention compatibility with historical
-versions of
-.Bx .
