@@ -54,6 +54,9 @@
 .\" Default .Os value
 .ds doc-operating-system FreeBSD\~5.0
 .
+.\" FreeBSD releases not found in doc-common
+.ds doc-operating-system-FreeBSD-5.1    5.1
+.
 .ec
 .
 .\" Locale support
