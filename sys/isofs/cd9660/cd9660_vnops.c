@@ -787,8 +787,6 @@ static struct vnodeopv_entry_desc cd9660_vnodeop_entries[] = {
 	{ &vop_getattr_desc,		(vop_t *) cd9660_getattr },
 	{ &vop_inactive_desc,		(vop_t *) cd9660_inactive },
 	{ &vop_ioctl_desc,		(vop_t *) cd9660_ioctl },
-	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
-	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
 	{ &vop_lookup_desc,		(vop_t *) vfs_cache_lookup },
 	{ &vop_pathconf_desc,		(vop_t *) cd9660_pathconf },
 	{ &vop_print_desc,		(vop_t *) vop_null },
@@ -798,7 +796,6 @@ static struct vnodeopv_entry_desc cd9660_vnodeop_entries[] = {
 	{ &vop_reclaim_desc,		(vop_t *) cd9660_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) cd9660_setattr },
 	{ &vop_strategy_desc,		(vop_t *) cd9660_strategy },
-	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc cd9660_vnodeop_opv_desc =
@@ -814,12 +811,9 @@ static struct vnodeopv_entry_desc cd9660_specop_entries[] = {
 	{ &vop_access_desc,		(vop_t *) cd9660_access },
 	{ &vop_getattr_desc,		(vop_t *) cd9660_getattr },
 	{ &vop_inactive_desc,		(vop_t *) cd9660_inactive },
-	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
-	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
 	{ &vop_print_desc,		(vop_t *) vop_null },
 	{ &vop_reclaim_desc,		(vop_t *) cd9660_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) cd9660_setattr },
-	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc cd9660_specop_opv_desc =
@@ -832,12 +826,9 @@ static struct vnodeopv_entry_desc cd9660_fifoop_entries[] = {
 	{ &vop_access_desc,		(vop_t *) cd9660_access },
 	{ &vop_getattr_desc,		(vop_t *) cd9660_getattr },
 	{ &vop_inactive_desc,		(vop_t *) cd9660_inactive },
-	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
-	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
 	{ &vop_print_desc,		(vop_t *) vop_null },
 	{ &vop_reclaim_desc,		(vop_t *) cd9660_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) cd9660_setattr },
-	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc cd9660_fifoop_opv_desc =
