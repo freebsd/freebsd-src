@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)acct.5	8.1 (Berkeley) 6/5/93
-.\"	$Id: acct.5,v 1.1.1.1.8.2 1997/03/07 04:18:00 mpp Exp $
+.\"	$Id: acct.5,v 1.1.1.1.8.3 1998/03/07 09:07:02 jkh Exp $
 .\"
 .Dd June 5, 1993
 .Dt ACCT 5
@@ -70,7 +70,7 @@ struct acct {
 	short	ac_mem;		/* average memory usage */
 	comp_t	ac_io;		/* count of IO blocks */
 	dev_t	ac_tty;		/* controlling tty */
-#define	AFORK	0x01		/* forked but not execed */
+#define	AFORK	0x01		/* forked but not exec'ed */
 #define	ASU	0x02		/* used super-user permissions */
 #define	ACOMPAT	0x04		/* used compatibility mode */
 #define	ACORE	0x08		/* dumped core */
