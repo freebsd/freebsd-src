@@ -85,7 +85,10 @@ fhc_attach(device_t dev)
 	bus_addr_t off;
 	device_t cdev;
 	uint32_t ctrl;
+	uint32_t *intr;
+	uint32_t iv;
 	char *name;
+	int nintr;
 	int nreg;
 	int i;
 
@@ -154,6 +157,17 @@ fhc_attach(device_t dev)
 				}
 				free(reg, M_OFWPROP);
 			}
+			nintr = OF_getprop_alloc(child, "interrupts",
+			    sizeof(*intr), (void **)&intr);
+			if (nintr != -1) {
+				for (i = 0; i < nintr; i++) {
+					iv = INTINO(intr[i]) |
+					    (sc->sc_ign << INTMAP_IGN_SHIFT);
+					resource_list_add(&fdi->fdi_rl,
+					    SYS_RES_IRQ, i, iv, iv, 1);
+				}
+				free(intr, M_OFWPROP);
+			}
 			device_set_ivars(cdev, fdi);
 		} else
 			free(name, M_OFWPROP);
@@ -172,6 +186,7 @@ fhc_print_child(device_t dev, device_t child)
 	rv = bus_print_child_header(dev, child);
 	rv += resource_list_print_type(&fdi->fdi_rl, "mem",
 	    SYS_RES_MEMORY, "%#lx");
+	rv += resource_list_print_type(&fdi->fdi_rl, "irq", SYS_RES_IRQ, "%ld");
 	rv += bus_print_child_footer(dev, child);
 	return (rv);
 }
@@ -184,6 +199,7 @@ fhc_probe_nomatch(device_t dev, device_t child)
 	fdi = device_get_ivars(child);
 	device_printf(dev, "<%s>", fdi->fdi_name);
 	resource_list_print_type(&fdi->fdi_rl, "mem", SYS_RES_MEMORY, "%#lx");
+	resource_list_print_type(&fdi->fdi_rl, "irq", SYS_RES_IRQ, "%ld");
 	printf(" type %s (no driver attached)\n",
 	    fdi->fdi_type != NULL ? fdi->fdi_type : "unknown");
 }
@@ -194,23 +210,41 @@ fhc_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
 {
 	struct fhc_softc *sc;
 	struct fhc_clr *fc;
+	bus_space_tag_t bt;
+	bus_space_handle_t bh;
 	int error;
-	int rid;
+	int i;
+	long vec;
+	uint32_t inr;
 
 	sc = device_get_softc(bus);
-	rid = rman_get_rid(r);
+	vec = rman_get_start(r);
+
+	bt = NULL;
+	bh = 0;
+	inr = 0;
+	for (i = FHC_FANFAIL; i <= FHC_TOD; i++) {
+		if (INTINO(bus_space_read_4(sc->sc_bt[i], sc->sc_bh[i],
+		    FHC_IMAP)) == INTINO(vec)){
+			bt = sc->sc_bt[i];
+			bh = sc->sc_bh[i];
+			inr = INTINO(vec) | (sc->sc_ign << INTMAP_IGN_SHIFT);
+			break;
+		}
+	}
+	if (inr == 0)
+		return (0);
 
 	fc = malloc(sizeof(*fc), M_DEVBUF, M_WAITOK | M_ZERO);
 	if (fc == NULL)
 		return (0);
 	fc->fc_func = func;
 	fc->fc_arg = arg;
-	fc->fc_bt = sc->sc_bt[rid];
-	fc->fc_bh = sc->sc_bh[rid];
+	fc->fc_bt = bt;
+	fc->fc_bh = bh;
 
-	bus_space_write_4(sc->sc_bt[rid], sc->sc_bh[rid], FHC_IMAP,
-	    rman_get_start(r));
-	bus_space_read_4(sc->sc_bt[rid], sc->sc_bh[rid], FHC_IMAP);
+	bus_space_write_4(bt, bh, FHC_IMAP, inr);
+	bus_space_read_4(bt, bh, FHC_IMAP);
 
 	error = bus_generic_setup_intr(bus, child, r, flags, fhc_intr_stub,
 	    fc, cookiep);
@@ -221,10 +255,9 @@ fhc_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
 	fc->fc_cookie = *cookiep;
 	*cookiep = fc;
 
-	bus_space_write_4(sc->sc_bt[rid], sc->sc_bh[rid], FHC_ICLR, 0x0);
-	bus_space_write_4(sc->sc_bt[rid], sc->sc_bh[rid], FHC_IMAP,
-	    INTMAP_ENABLE(rman_get_start(r), PCPU_GET(mid)));
-	bus_space_read_4(sc->sc_bt[rid], sc->sc_bh[rid], FHC_IMAP);
+	bus_space_write_4(bt, bh, FHC_ICLR, 0x0);
+	bus_space_write_4(bt, bh, FHC_IMAP, INTMAP_ENABLE(inr, PCPU_GET(mid)));
+	bus_space_read_4(bt, bh, FHC_IMAP);
 
 	return (error);
 }
@@ -266,43 +299,28 @@ fhc_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	bus_addr_t cend;
 	bus_addr_t phys;
 	int isdefault;
-	uint32_t map;
-	uint32_t vec;
 	int i;
 
 	isdefault = (start == 0UL && end == ~0UL);
 	res = NULL;
 	sc = device_get_softc(bus);
+	fdi = device_get_ivars(child);
+	rle = resource_list_find(&fdi->fdi_rl, type, *rid);
+	if (rle == NULL)
+		return (NULL);
+	if (rle->res != NULL)
+		panic("%s: resource entry is busy", __func__);
+	if (isdefault) {
+		start = rle->start;
+		count = ulmax(count, rle->count);
+		end = ulmax(rle->end, start + count - 1);
+	}
 	switch (type) {
 	case SYS_RES_IRQ:
-		if (!isdefault || count != 1 || *rid < FHC_FANFAIL ||
-		    *rid > FHC_TOD)
-			break;
-
-		map = bus_space_read_4(sc->sc_bt[*rid], sc->sc_bh[*rid],
-		    FHC_IMAP);
-		vec = INTINO(map) | (sc->sc_ign << INTMAP_IGN_SHIFT);
-		bus_space_write_4(sc->sc_bt[*rid], sc->sc_bh[*rid],
-		    FHC_IMAP, vec);
-		bus_space_read_4(sc->sc_bt[*rid], sc->sc_bh[*rid], FHC_IMAP);
-
 		res = bus_generic_alloc_resource(bus, child, type, rid,
-		    vec, vec, 1, flags);
-		if (res != NULL)
-			rman_set_rid(res, *rid);
+		    start, end, count, flags);
 		break;
 	case SYS_RES_MEMORY:
-		fdi = device_get_ivars(child);
-		rle = resource_list_find(&fdi->fdi_rl, type, *rid);
-		if (rle == NULL)
-			return (NULL);
-		if (rle->res != NULL)
-			panic("%s: resource entry is busy", __func__);
-		if (isdefault) {
-			start = rle->start;
-			count = ulmax(count, rle->count);
-			end = ulmax(rle->end, start + count - 1);
-		}
 		for (i = 0; i < sc->sc_nrange; i++) {
 			coffset = sc->sc_ranges[i].coffset;
 			cend = coffset + sc->sc_ranges[i].size - 1;
@@ -334,7 +352,7 @@ fhc_release_resource(device_t bus, device_t child, int type, int rid,
 	int error;
 
 	error = bus_generic_release_resource(bus, child, type, rid, r);
-	if (type != SYS_RES_MEMORY || error != 0)
+	if (error != 0)
 		return (error);
 	fdi = device_get_ivars(child);
 	rle = resource_list_find(&fdi->fdi_rl, type, rid);
