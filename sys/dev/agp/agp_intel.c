@@ -74,6 +74,9 @@ agp_intel_match(device_t dev)
 
  	case 0x71a18086:
  		return ("Intel 82443GX host to AGP bridge");
+
+	case 0x11308086:
+		return ("Intel 82815 (i815 GMCH) host to PCI bridge");
 	};
 
 	if (pci_get_vendor(dev) == 0x8086)
