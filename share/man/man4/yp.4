@@ -88,7 +88,8 @@ is an
 client/server system that allows a group of
 machines within an
 .Tn NIS
-domain to share a common set of configuration files. This permits a system
+domain to share a common set of configuration files.
+This permits a system
 administrator to set up
 .Tn NIS
 client systems with only minimal configuration
@@ -109,11 +110,13 @@ where
 .Pa [domainname]
 is the name of the
 .Tn NIS
-domain being served. A single
+domain being served.
+A single
 .Tn NIS
 server can
 support several domains at once, therefore it is possible to have several
-such directories, one for each supported domain. Each domain will have
+such directories, one for each supported domain.
+Each domain will have
 its own independent set of maps.
 .Pp
 In
@@ -137,8 +140,10 @@ into
 and
 .Em .pag
 files which the ndbm code uses to hold separate parts of the hash
-database. The Berkeley DB hash method instead uses a single file for
-both pieces of information. This means that while you may have
+database.
+The Berkeley DB hash method instead uses a single file for
+both pieces of information.
+This means that while you may have
 .Pa passwd.byname.dir
 and
 .Pa passwd.byname.pag
@@ -153,7 +158,8 @@ server,
 .Xr ypserv 8 ,
 and related tools need to know the database format of the
 .Tn NIS
-maps. Client
+maps.
+Client
 .Tn NIS
 systems receive all
 .Tn NIS
@@ -200,20 +206,24 @@ command) and begins broadcasting
 requests on the local network.
 These requests specify the name of the domain for which
 .Xr ypbind 8
-is attempting to establish a binding. If a server that has been
+is attempting to establish a binding.
+If a server that has been
 configured to serve the requested domain receives one of the broadcasts,
 it will respond to
 .Xr ypbind 8 ,
-which will record the server's address. If there are several servers
+which will record the server's address.
+If there are several servers
 available (a master and several slaves, for example),
 .Xr ypbind 8
-will use the address of the first one to respond. From that point
+will use the address of the first one to respond.
+From that point
 on, the client system will direct all of its
 .Tn NIS
 requests to that server.
 .Xr Ypbind 8
 will occasionally ``ping'' the server to make sure it's still up
-and running. If it fails to receive a reply to one of its pings
+and running.
+If it fails to receive a reply to one of its pings
 within a reasonable amount of time,
 .Xr ypbind 8
 will mark the domain as unbound and begin broadcasting again in the
@@ -231,7 +241,8 @@ is responsible for receiving incoming requests from
 clients,
 translating the requested domain and map name to a path to the
 corresponding database file and transmitting data from the database
-back to the client. There is a specific set of requests that
+back to the client.
+There is a specific set of requests that
 .Xr ypserv 8
 is designed to handle, most of which are implemented as functions
 within the standard C library:
@@ -280,11 +291,13 @@ and are not meant to be used by standard utilities.
 .Pp
 On networks with a large number of hosts, it is often a good idea to
 use a master server and several slaves rather than just a single master
-server. A slave server provides the exact same information as a master
+server.
+A slave server provides the exact same information as a master
 server: whenever the maps on the master server are updated, the new
 data should be propagated to the slave systems using the
 .Xr yppush 8
-command. The
+command.
+The
 .Tn NIS
 Makefile
 .Pf ( Pa /var/yp/Makefile )
@@ -305,8 +318,10 @@ master server using
 automatically from within
 .Xr ypserv 8 ;
 therefore it is not usually necessary for the administrator
-to use it directly. It can be run manually if
-desired, however.) Maintaining
+to use it directly.
+It can be run manually if
+desired, however.)
+Maintaining
 slave servers helps improve
 .Tn NIS
 performance on large
@@ -328,11 +343,13 @@ domain to extend beyond
 a local network (the
 .Xr ypbind 8
 daemon might not be able to locate a server automatically if it resides on
-a network outside the reach of its broadcasts. It is possible to force
+a network outside the reach of its broadcasts.
+It is possible to force
 .Xr ypbind 8
 to bind to a particular server with
 .Xr ypset 8
-but this is sometimes inconvenient. This problem can be avoided simply by
+but this is sometimes inconvenient.
+This problem can be avoided simply by
 placing a slave server on the local network.)
 .El
 .Pp
@@ -345,7 +362,8 @@ other
 implementations) when used exclusively with
 .Bx Free
 client
-systems. The
+systems.
+The
 .Bx Free
 password database system (which is derived directly
 from
@@ -373,8 +391,10 @@ in a special way: the server will only provide access to these
 maps in response to requests that originate on privileged ports.
 Since only the super-user is allowed to bind to a privileged port,
 the server assumes that all such requests come from privileged
-users. All other requests are denied: requests from non-privileged
-ports will receive only an error code from the server. Additionally,
+users.
+All other requests are denied: requests from non-privileged
+ports will receive only an error code from the server.
+Additionally,
 .Bx Free Ns 's
 .Xr ypserv 8
 includes support for Wietse Venema's tcp wrapper package; with tcp
@@ -384,7 +404,8 @@ to respond only to selected client machines.
 .Pp
 While these enhancements provide better security than stock
 .Tn NIS Ns ,
-they are by no means 100% effective. It is still possible for
+they are by no means 100% effective.
+It is still possible for
 someone with access to your network to spoof the server into disclosing
 the shadow password maps.
 .Pp
@@ -393,9 +414,11 @@ On the client side,
 .Fn getpwent 3
 functions will automatically search for the
 .Pa master.passwd
-maps and use them if they exist. If they do, they will be used, and
+maps and use them if they exist.
+If they do, they will be used, and
 all fields in these special maps (class, password age and account
-expiration) will be decoded. If they aren't found, the standard
+expiration) will be decoded.
+If they aren't found, the standard
 .Pa passwd
 maps will be used instead.
 .Sh COMPATIBILITY
@@ -405,7 +428,8 @@ to be running in order
 for their hostname resolution functions (
 .Fn gethostbyname ,
 .Fn gethostbyaddr ,
-etc) to work properly. On these systems,
+etc) to work properly.
+On these systems,
 .Xr ypserv 8
 performs
 .Tn DNS
@@ -425,12 +449,14 @@ if desired), therefore its
 server doesn't do
 .Tn DNS
 lookups
-by default. However,
+by default.
+However,
 .Xr ypserv 8
 can be made to perform
 .Tn DNS
 lookups if it is started with a special
-flag. It can also be made to register itself as an
+flag.
+It can also be made to register itself as an
 .Tn NIS
 v1 server
 in order to placate certain systems that insist on the presence of
@@ -463,7 +489,8 @@ client and server capabilities, it does not yet have support for
 .Xr ypupdated 8
 or the
 .Fn yp_update
-function. Both of these require secure
+function.
+Both of these require secure
 .Tn RPC Ns ,
 which
 .Bx Free
@@ -476,7 +503,8 @@ and
 .Xr getprotoent 3
 functions do not yet have
 .Tn NIS
-support. Fortunately, these files
+support.
+Fortunately, these files
 don't need to be updated that often.
 .Pp
 Many more manual pages should be written, especially
@@ -492,7 +520,8 @@ The
 .Nm YP
 subsystem was written from the ground up by
 .An Theo de Raadt
-to be compatible to Sun's implementation. Bug fixes, improvements
+to be compatible to Sun's implementation.
+Bug fixes, improvements
 and
 .Tn NIS
 server support were later added by
@@ -501,5 +530,6 @@ The server-side code was originally written by
 .An Peter Eriksson
 and
 .An Tobias Reber
-and is subject to the GNU Public License. No Sun code was
+and is subject to the GNU Public License.
+No Sun code was
 referenced.

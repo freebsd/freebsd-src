@@ -24,7 +24,8 @@ which point the corresponding action is taken.
 Rules are numbered
 from 1 to 65534; multiple rules may share the same number.
 .Pp
-There is one rule that always exists, rule number 65535. This rule
+There is one rule that always exists, rule number 65535.
+This rule
 normally causes all packets to be dropped.
 Hence, any packet which does not
 match a lower numbered rule will be dropped.  However, a kernel compile
@@ -34,7 +35,8 @@ allows the administrator to change this fixed rule to permit everything.
 .Pp
 The value passed to 
 .Fn setsockopt
-is a struct ip_fw describing the rule (see below). In some cases
+is a struct ip_fw describing the rule (see below).
+In some cases
 (such as IP_FW_DEL), only the rule number is significant.
 .Sh COMMANDS
 The following socket options are used to manage the rule list:

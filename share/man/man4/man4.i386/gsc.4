@@ -65,16 +65,20 @@ output
 The
 .Nm gsc
 character device driver currently handles only the
-Genius GS-4500 handy scanner. It operates in pure DMA modes, although
-the hardware could be set up to work with irq. I had neither enough
+Genius GS-4500 handy scanner.
+It operates in pure DMA modes, although
+the hardware could be set up to work with irq.
+I had neither enough
 documentation nor experience in writing interrupt driven device
 drivers.
 .Pp
 The device can operate at four different 
 .Em resolutions :
 100, 200,
-300 and 400dpi. It produces a simple bitmap with the most significant
-bit at the left side. The driver can optionally output the famous and
+300 and 400dpi.
+It produces a simple bitmap with the most significant
+bit at the left side.
+The driver can optionally output the famous and
 likely simple portable bitmap file format
 .Xr pbm 5
 by Jef Poskanzer.
@@ -87,7 +91,8 @@ only to name some of them ...).  In
 .Em raw
 mode a
 bit which is set means a black pixel because the scanner detects black
-points on white paper. On the other hand, because pnm format describes
+points on white paper.
+On the other hand, because pnm format describes
 intensities of electron beams in video screens a set bit in 
 .Em pbm
 mode means a white pixel.
@@ -95,13 +100,15 @@ mode means a white pixel.
 The 
 .Em width
 of the output bitmap is fixed as given by the
-resolution value. However, the 
+resolution value.
+However, the 
 .Em height
 of the bitmap must be
 supplied in 
 .Em pnm
 mode since the driver must know at what time the
-'end-of-file' shall be reached. With this feature you are able to
+'end-of-file' shall be reached.
+With this feature you are able to
 directly copy the scanner output into a pbm file with
 .Xr cat .
 Of course you can obtain a similar effect by using
@@ -114,7 +121,8 @@ The
 .Em graymap
 output mode is not yet implemented into the driver.
 It is even questionable if external programs would not do this job
-better thereby not counting to the size of the kernel. Even though, I
+better thereby not counting to the size of the kernel.
+Even though, I
 do not know of tools which produce a graymap from a halftone bitmap.
 .Pp
 The ioctl requests that are served by
@@ -126,22 +134,26 @@ requests from within shell.
 .It GSC_SRES int
 Set the
 .Em resolution
-value. If this call is made after the first
+value.
+If this call is made after the first
 read access to the device there will be no effect unless the device is
 closed and opened again.
 .It GSC_GRES int
 Get current resolution in dots per inch (dpi).
 .It GSC_SRESSSW void
-Set resolution value from selector switch. The driver must be in an
+Set resolution value from selector switch.
+The driver must be in an
 open though untouched state otherwise the request will fail and
 .Xr errno 2
 is set to EBUSY.
 .It GSC_SWIDTH int
 Set the 
 .Em width
-of the bitmap. Actually, this is an alternative
+of the bitmap.
+Actually, this is an alternative
 way of setting the resolution, since any allowed resolution matches
-exactly one width. Allowed are listed in the table below.
+exactly one width.
+Allowed are listed in the table below.
 .Bl -tag -width resolution -compact -offset indent
 .It resolution
 width
@@ -167,10 +179,13 @@ call to fail with
 set to
 .Er EINVAL .
 .Pp
-As you can see, there are width values > 1696. This does, however, not
+As you can see, there are width values > 1696.
+This does, however, not
 mean that you can obtain scanned lines longer than the width of your
-scanner or by higher resolutions. Actually, the resolution is selected
-by only by the hardware switch. Any line that is longer than what is
+scanner or by higher resolutions.
+Actually, the resolution is selected
+by only by the hardware switch.
+Any line that is longer than what is
 defined for the actual resolution will be undefined (usually white) on
 the right part that is exceeding the standard line.
 .It GSC_GWIDTH int
@@ -180,35 +195,46 @@ Set the
 .Em height
 of the bitmap in 
 .Em pnm
-mode. This is actually
+mode.
+This is actually
 a limit on the amount of lines scannable after the first read
-operation. When the limit is reached read will return 0. However, the
+operation.
+When the limit is reached read will return 0. However, the
 device is turned off only when a close is performed (either
 explicitly or implicitly on exit of the calling process).
 .It GSC_GHEIGHT int
 Get the current height of the bitmap.
 .It GSC_SBLEN int
 Set the length of the buffer used internally to do the DMA transfer.
-The buffer length is supplied in lines of the bitmap. Since the buffer
+The buffer length is supplied in lines of the bitmap.
+Since the buffer
 size limit is (currently) 0x3000 bytes the maximum number of lines
-allowed will vary with the width of each line. This upper limit is
+allowed will vary with the width of each line.
+This upper limit is
 checked before it overwrites the current value and pases an ENOMEM in
 the
 .Xr errno 2 
-variable. However, since the bitmap width can change
+variable.
+However, since the bitmap width can change
 after a buffer length was selected a read request may fail with ENOMEM
-if the buffer length turns out too high. It is generally wise to
+if the buffer length turns out too high.
+It is generally wise to
 choose long buffers rather than go save in order to obtain better
 output.
 .It GSC_GBLEN int
 Get the current buffer length in lines.
 .It GSC_SBTIME int
-Set the timeout for the completion of reading one buffer. Since a
+Set the timeout for the completion of reading one buffer.
+Since a
 handy scanner is a human/computer interface timeout values are usually
-higher than those of a flat scanner. Default is 15 seconds. After
-timeout is reached the read operation will fail with EBUSY. Note that
+higher than those of a flat scanner.
+Default is 15 seconds.
+After
+timeout is reached the read operation will fail with EBUSY.
+Note that
 the timeout timer starts anew for each buffer to be read and thus does
-not cause you to scan faster for longer images. BLEN/BTIME is similar
+not cause you to scan faster for longer images.
+BLEN/BTIME is similar
 as MIN/TIME in termios(4).
 .It GSC_GBTIME int
 Get the current buffer timeout.
@@ -216,19 +242,24 @@ Get the current buffer timeout.
 .Pp
 All ioctl requests that modify a parameter except GSC_SBTIME do not
 have an effect on an ongoing scan process, i.e. after the first read
-request that follows open. You must close the device and open it again
-for the new selections to take effect. Consequently, the selections
+request that follows open.
+You must close the device and open it again
+for the new selections to take effect.
+Consequently, the selections
 are not reset when you close or open the device.
 .Pp
 Similarly, requests that read a value do not report the value that is
-used for the ongoing scan process. The values needed during the scan
+used for the ongoing scan process.
+The values needed during the scan
 process are saved when it starts and thus are not accessed by ioctl
 requests.
 .Pp
 The BTIME value does, however, have an immediate effect on the ongoing
-scan. Thus the timeout can for example be set to long until the user
+scan.
+Thus the timeout can for example be set to long until the user
 starts scanning.  It can then be set to a short amount to react
-(nearly) immediately when the user stops. Note that the user should be
+(nearly) immediately when the user stops.
+Note that the user should be
 left time to at least fill one buffer without having to haste.
 .Pp
 Note that the 
@@ -236,7 +267,8 @@ Note that the
 versus 
 .Em raw
 mode selection is done by the
-minor number not by ioctl requests. In 
+minor number not by ioctl requests.
+In 
 .Em raw
 mode the selected
 height of the bitmap will have no effect.
@@ -295,6 +327,7 @@ whose debug bit (i.e. bit 5 out of 7) is set.
 .Sh BUGS
 Even though the scanner device has a little switch by which you should
 be able to select one of the four resolution modes, I could not yet
-determine how to read its status. Unless this is not fixed the driver
+determine how to read its status.
+Unless this is not fixed the driver
 depends on the value passed by means of ioctl(2) which need not match
 what is selected by the hardware.

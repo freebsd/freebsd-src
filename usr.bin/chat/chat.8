@@ -220,7 +220,8 @@ character sequence.
 The script will then fail because it found a match to
 the abort string.
 If it received the string \fINO CARRIER\fR, it will abort
-for the same reason. Either string may be received.
+for the same reason.
+Either string may be received.
 Either string will
 terminate the \fIchat\fR script.
 .SH CLR_ABORT STRINGS
@@ -420,7 +421,8 @@ The EOT sequence may be embedded into the send string using the
 sequence \fI^D\fR.
 .SH GENERATING BREAK
 The special reply string of \fIBREAK\fR will cause a break condition
-to be sent. The break is a special signal on the transmitter.
+to be sent.
+The break is a special signal on the transmitter.
 The
 normal processing on the receiver is to change the transmission rate.
 It may be used to cycle through the available transmission rates on

@@ -44,12 +44,15 @@ The include file
 declares several structures that are present in dynamically linked
 programs and libraries.
 The structures define the interface between several components of the
-link-editor and loader mechanism. The layout of a number of these
+link-editor and loader mechanism.
+The layout of a number of these
 structures within the binaries resembles the a.out format in many places
 as it serves such similar functions as symbol definitions (including the
 accompanying string table) and relocation records needed to resolve
-references to external entities. It also records a number of data structures
-unique to the dynamic loading and linking process. These include references
+references to external entities.
+It also records a number of data structures
+unique to the dynamic loading and linking process.
+These include references
 to other objects that are required to complete the link-editing process and
 indirection tables to facilitate
 .Em Position Independent Code
@@ -63,36 +66,45 @@ format offers no room for it elsewhere.
 .Pp
 Several utilities cooperate to ensure that the task of getting a program
 ready to run can complete successfully in a way that optimizes the use
-of system resources. The compiler emits PIC code from which shared libraries
+of system resources.
+The compiler emits PIC code from which shared libraries
 can be built by
 .Xr ld 1 .
 The compiler also includes size information of any initialized data items
-through the .size assembler directive. PIC code differs from conventional code
+through the .size assembler directive.
+PIC code differs from conventional code
 in that it accesses data variables through an indirection table, the
 Global Offset Table, by convention accessible by the reserved name
 .Em _GLOBAL_OFFSET_TABLE_.
 The exact mechanism used for this is machine dependent, usually a machine
-register is reserved for the purpose. The rational behind this construct
-is to generate code that is independent of the actual load address. Only
+register is reserved for the purpose.
+The rational behind this construct
+is to generate code that is independent of the actual load address.
+Only
 the values contained in the Global Offset Table may need updating at run-time
 depending on the load addresses of the various shared objects in the address
 space.
 .Pp
 Likewise, procedure calls to globally defined functions are redirected through
 the Procedure Linkage Table (PLT) residing in the data segment of the core
-image. Again, this is done to avoid run-time modifications to the text segment.
+image.
+Again, this is done to avoid run-time modifications to the text segment.
 .Pp
 The linker-editor allocates the Global Offset Table and Procedure Linkage Table
 when combining PIC object files into an image suitable for mapping into the
-process address space. It also collects all symbols that may be needed by the
+process address space.
+It also collects all symbols that may be needed by the
 run-time link-editor and stores these along with the image's text and data bits.
 Another reserved symbol,
 .Em _DYNAMIC
-is used to indicate the presence of the run-time linker structures. Whenever
+is used to indicate the presence of the run-time linker structures.
+Whenever
 _DYNAMIC is relocated to 0, there is no need to invoke the run-time
-link-editor. If this symbol is non-zero, it points at a data structure from
+link-editor.
+If this symbol is non-zero, it points at a data structure from
 which the location of the necessary relocation- and symbol information can
-be derived. This is most notably used by the start-up module,
+be derived.
+This is most notably used by the start-up module,
 .Em crt0.
 The _DYNAMIC structure is conventionally located at the start of the data
 segment of the image to which it pertains.
@@ -120,7 +132,8 @@ struct	_dynamic {
 .Bl -tag -width d_version
 .It Fa d_version
 This field provides for different versions of the dynamic linking
-implementation. The current version numbers understood by
+implementation.
+The current version numbers understood by
 .Xr ld 1
 and 
 .Xr ld.so 1
@@ -300,12 +313,15 @@ structure.
 Hook for attaching private data maintained by the run-time link-editor.
 .El
 .Pp
-Symbol description with size. This is simply an
+Symbol description with size.
+This is simply an
 .Fa nlist
 structure with one field
 .Pq Fa nz_size
-added. Used to convey size information on items in the data segment
-of shared objects. An array of these lives in the shared object's
+added.
+Used to convey size information on items in the data segment
+of shared objects.
+An array of these lives in the shared object's
 text segment and is addressed by the
 .Fa sdt_nzlist
 field of
@@ -356,12 +372,14 @@ The index of the symbol in the shared object's symbol table (as given by the
 field).
 .It Fa rh_next
 In case of collisions, this field is the offset of the next entry in this
-hash table bucket. It is zero for the last bucket element.
+hash table bucket.
+It is zero for the last bucket element.
 .El
 The
 .Fa rt_symbol
 structure is used to keep track of run-time allocated commons
-and data items copied from shared objects. These items are kept on linked list
+and data items copied from shared objects.
+These items are kept on linked list
 and is exported through the
 .Fa dd_cc
 field in the
@@ -383,7 +401,8 @@ The symbol description.
 .It Fa rt_next
 Virtual address of next rt_symbol.
 .It Fa rt_link
-Next in hash bucket. Used by internally by
+Next in hash bucket.
+Used by internally by
 .Nm ld.so .
 .It Fa rt_srcaddr
 Location of the source of initialized data within a shared object.
@@ -396,7 +415,8 @@ The
 .Fa so_debug
 structure is used by debuggers to gain knowledge of any shared objects
 that have been loaded in the process's address space as a result of run-time
-link-editing. Since the run-time link-editor runs as a part of process
+link-editing.
+Since the run-time link-editor runs as a part of process
 initialization, a debugger that wishes to access symbols from shared objects
 can only do so after the link-editor has been called from crt0.
 A dynamically linked binary contains a
@@ -426,7 +446,8 @@ run under control of a debugger.
 Set by the run-time linker whenever it adds symbols by loading shared objects.
 .It Fa dd_bpt_addr
 The address were a breakpoint will be set by the run-time linker to
-divert control to the debugger. This address is determined by the start-up
+divert control to the debugger.
+This address is determined by the start-up
 module,
 .Em crt0.o,
 to be some convenient place before the call to _main.
@@ -485,7 +506,8 @@ was loaded by crt0.
 .It Fa crt_dzfd
 On SunOS systems, this field contains an open file descriptor to
 .Dq Pa /dev/zero
-used to get demand paged zeroed pages. On
+used to get demand paged zeroed pages.
+On
 .Tn FreeBSD
 systems it contains -1.
 .It Fa crt_ldfd

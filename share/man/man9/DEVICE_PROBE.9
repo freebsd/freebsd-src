@@ -44,8 +44,10 @@
 .Pp
 This device method should probe to see if the device is present.
 It should return 0 if the device exists, ENXIO if it cannot be
-found. If some other error happens during the probe (such as a memory
-allocation failure), an appropriate error code should be returned. For
+found.
+If some other error happens during the probe (such as a memory
+allocation failure), an appropriate error code should be returned.
+For
 cases where more than one driver matches a device, a priority value can
 be returned.  In this case, success codes are values less than or equal
 to zero with the highest value representing the best match.  Failure
@@ -54,15 +56,18 @@ codes should be used for the purpose.
 .Pp
 If a driver returns a success code which is less than zero, it must
 not assume that it will be the same driver which is attached to the
-device. In particular, it must not assume that any values stored in
+device.
+In particular, it must not assume that any values stored in
 the softc structure will be available for its attach method and any
 resources allocated during probe must be released and re-allocated
-if the attach method is called. If a success code of zero is
+if the attach method is called.
+If a success code of zero is
 returned, the driver can assume that it will be the one attached.
 .Pp
 Devices which implement busses should use this method to probe for
 the existence of devices attached to the bus and add them as
-children. If this is combined with the use of
+children.
+If this is combined with the use of
 .Xr bus_generic_attach 9
 the child devices will be automatically probed and attached.
 .Sh RETURN VALUES

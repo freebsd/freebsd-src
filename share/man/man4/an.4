@@ -62,8 +62,10 @@ kernel pccard driver support and the
 daemon.
 ISA cards can either be configured to use ISA Plug and Play
 or to use a particular I/O address and IRQ
-by properly setting the DIP switches on the board. (The default
-switch setting is for plug and play.) The
+by properly setting the DIP switches on the board.
+(The default
+switch setting is for plug and play.)
+The
 .Nm
 driver has Plug and Play support and will work in either configuration,
 however when using a hard-wired I/O address and IRQ, the driver
@@ -86,7 +88,8 @@ selectable between 1Mbps, 2Mbps, 5.5Mbps, 11Mbps or
 By default, the
 .Nm
 driver configures the Aironet card for ad-hoc operation with an SSID
-of "ANY." In this mode,
+of "ANY."
+In this mode,
 stations can communicate among each other without the aid of an access
 point.
 To join a service set, the driver must be set for BSS mode using
