@@ -386,7 +386,7 @@ syncache_timer(xslot)
 		inp = sc->sc_tp->t_inpcb;
 		if (slot == SYNCACHE_MAXREXMTS ||
 		    slot >= tcp_syncache.rexmt_limit ||
-		    inp->inp_gencnt != sc->sc_inp_gencnt) {
+		    inp == NULL || inp->inp_gencnt != sc->sc_inp_gencnt) {
 			nsc = TAILQ_NEXT(sc, sc_timerq);
 			syncache_drop(sc, NULL);
 			tcpstat.tcps_sc_stale++;
