@@ -451,7 +451,7 @@ pccard_alloc_intr(u_int imask, inthand2_t *hand, int unit,
 	int irq;
 	unsigned int mask;
 
-	for (irq = 1; irq < ICU_LEN; irq++) {
+	for (irq = ICU_LEN; irq > 0; irq--) {
 		mask = 1ul << irq;
 		if (!(mask & imask))
 			continue;
