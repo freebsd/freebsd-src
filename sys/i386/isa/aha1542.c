@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.75 1998/02/21 10:11:43 eivind Exp $
+ *      $Id: aha1542.c,v 1.76 1998/04/17 22:36:29 des Exp $
  */
 
 /*
@@ -415,7 +415,7 @@ aha_cmd(aha, icnt, ocnt, wait, retval, opcode, va_alist)
 	va_list	 ap;
 	u_char   oc;
 	u_char	 data;
-	register i;
+	register int i;
 	int      sts;
 
 	/*
@@ -652,7 +652,7 @@ ahaintr(unit)
 	int unit;
 {
 	unsigned char stat;
-	register i;
+	register int i;
 	struct aha_data *aha = ahadata[unit];
 
 #ifdef	AHADEBUG
