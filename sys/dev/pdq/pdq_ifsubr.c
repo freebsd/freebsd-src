@@ -212,7 +212,7 @@ pdq_os_receive_pdu(
     }
 #endif
     m->m_pkthdr.len = pktlen;
-#if NBPFILTER > 0
+#if NBPFILTER > 0 && defined(__NetBSD__)
     if (sc->sc_bpf != NULL)
 	PDQ_BPF_MTAP(sc, m);
 #endif
@@ -456,8 +456,8 @@ pdq_ifattach(pdq_softc_t *sc)
     }
 #endif
   
-    if_attach(ifp);
 #if defined(__NetBSD__)
+    if_attach(ifp);
     fddi_ifattach(ifp, (caddr_t)&sc->sc_pdq->pdq_hwaddr);
 #else
     fddi_ifattach(ifp, FDDI_BPF_SUPPORTED);
