@@ -68,6 +68,8 @@ struct __sbuf {
 	int	_size;
 };
 
+struct __file_lock;
+
 /*
  * stdio state variables.
  *
@@ -125,6 +127,7 @@ typedef	struct __sFILE {
 	/* Unix stdio files get aligned to block boundaries on fseek() */
 	int	_blksize;	/* stat.st_blksize (may be != _bf._size) */
 	fpos_t	_offset;	/* current lseek offset (see WARNING) */
+	struct __file_lock *_lock;	/* used for MT-safety */
 } FILE;
 
 __BEGIN_DECLS
@@ -147,6 +150,7 @@ __END_DECLS
 #define	__SOFF	0x1000		/* set iff _offset is in fact correct */
 #define	__SMOD	0x2000		/* true => fgetln modified _p text */
 #define	__SALC	0x4000		/* allocate string space dynamically */
+#define	__SIGN	0x8000		/* ignore this file in _fwalk */
 
 /*
  * The following three definitions are for ANSI C, which took them
