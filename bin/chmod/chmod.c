@@ -29,8 +29,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: chmod.c,v 1.8 1997/02/22 14:01:30 peter Exp $
  */
 
 #ifndef lint
@@ -40,10 +38,13 @@ static char const copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char const sccsid[] = "@(#)chmod.c	8.8 (Berkeley) 4/1/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
-#include <sys/types.h>
 #include <sys/stat.h>
 
 #include <err.h>

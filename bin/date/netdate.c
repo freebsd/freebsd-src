@@ -29,12 +29,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: netdate.c,v 1.7 1997/03/10 19:49:03 guido Exp $
  */
 
 #ifndef lint
+#if 0
 static char const sccsid[] = "@(#)netdate.c	8.1 (Berkeley) 5/31/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -48,7 +50,6 @@ static char const sccsid[] = "@(#)netdate.c	8.1 (Berkeley) 5/31/93";
 
 #include <err.h>
 #include <errno.h>
-#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 

@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)chmod.1	8.4 (Berkeley) 3/31/94
-.\"	$Id: chmod.1,v 1.7 1997/02/22 14:01:29 peter Exp $
+.\"	$Id: chmod.1,v 1.8 1997/11/13 00:28:47 julian Exp $
 .\"
 .Dd March 31, 1994
 .Dt CHMOD 1
@@ -51,7 +51,7 @@
 .Ar file ...
 .Sh DESCRIPTION
 The
-.Nm chmod
+.Nm
 utility modifies the file mode bits of the listed files
 as specified by the
 .Ar mode
@@ -82,7 +82,7 @@ Symbolic links do not have modes, so unless the
 or
 .Fl L
 option is set,
-.Nm chmod
+.Nm
 on a symbolic link always succeeds and has no effect.
 The
 .Fl H ,
@@ -99,7 +99,7 @@ Only the owner of a file or the super-user is permitted to change
 the mode of a file.
 .Pp
 The
-.Nm chmod
+.Nm
 utility exits 0 on success, and >0 if an error occurs.
 .Sh MODES
 Modes may be absolute or symbolic.
@@ -289,7 +289,7 @@ option for the naughty bits.
 .Xr chown 8
 .Sh STANDARDS
 The
-.Nm chmod
+.Nm
 utility is expected to be
 .St -p1003.2
 compatible with the exception of the

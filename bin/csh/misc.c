@@ -36,12 +36,10 @@
 static char sccsid[] = "@(#)misc.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: misc.c,v 1.5 1997/02/22 14:02:02 peter Exp $";
+	"$Id: misc.c,v 1.6 1997/08/07 21:42:13 steve Exp $";
 #endif
 #endif /* not lint */
 
-#include <sys/param.h>
-#include <stdlib.h>
 #include <unistd.h>
 #if __STDC__
 # include <stdarg.h>
