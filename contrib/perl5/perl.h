@@ -486,6 +486,15 @@ register struct op *Perl_op asm(stringify(OP_IN_REGISTER));
 #   include <sys/param.h>
 #endif
 
+/* needed for IAMSUID case for 4.4BSD systems 
+ * XXX there should probably be a Configure variable
+ */
+
+#ifdef I_SYS_PARAM
+#if (defined (BSD) && (BSD >= 199306))
+#   include <sys/mount.h>
+#endif /* !BSD */
+#endif /* !I_SYS_PARAM */
 
 /* Use all the "standard" definitions? */
 #if defined(STANDARD_C) && defined(I_STDLIB)
@@ -3295,6 +3304,10 @@ typedef struct am_table_short AMTS;
 #endif
 
 #endif /* IAMSUID */
+
+#ifdef I_LIBUTIL
+#   include <libutil.h>		/* setproctitle() in some FreeBSDs */
+#endif
 
 /* and finally... */
 #define PERL_PATCHLEVEL_H_IMPLICIT
