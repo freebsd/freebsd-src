@@ -21,8 +21,9 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: sys-bsd.c,v 1.11 1997/08/19 17:52:47 peter Exp $";
+static char rcsid[] = "$Id: sys-bsd.c,v 1.12 1998/01/16 17:38:53 bde Exp $";
 #endif
+/*	$NetBSD: sys-bsd.c,v 1.1.1.3 1997/09/26 18:53:04 christos Exp $	*/
 
 /*
  * TODO:
@@ -62,7 +63,16 @@ static char rcsid[] = "$Id: sys-bsd.c,v 1.11 1997/08/19 17:52:47 peter Exp $";
 #endif
 
 #if RTM_VERSION >= 3
+#include <sys/param.h>
+#if defined(NetBSD)
+#if (NetBSD >= 199703)
+#include <netinet/if_inarp.h>
+#else	/* NetBSD 1.2D or later */
+#include <net/if_ether.h>
+#endif
+#else
 #include <netinet/if_ether.h>
+#endif
 #endif
 
 #include "pppd.h"
@@ -950,6 +960,7 @@ sifaddr(u, o, h, m)
     u_int32_t o, h, m;
 {
     struct ifaliasreq ifra;
+    struct ifreq ifr;
 
     strncpy(ifra.ifra_name, ifname, sizeof(ifra.ifra_name));
     SET_SA_FAMILY(ifra.ifra_addr, AF_INET);
@@ -961,6 +972,12 @@ sifaddr(u, o, h, m)
 	((struct sockaddr_in *) &ifra.ifra_mask)->sin_addr.s_addr = m;
     } else
 	BZERO(&ifra.ifra_mask, sizeof(ifra.ifra_mask));
+    BZERO(&ifr, sizeof(ifr));
+    strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
+    if (ioctl(sockfd, SIOCDIFADDR, (caddr_t) &ifr) < 0) {
+	if (errno != EADDRNOTAVAIL)
+	    syslog(LOG_WARNING, "Couldn't remove interface address: %m");
+    }
     if (ioctl(sockfd, SIOCAIFADDR, (caddr_t) &ifra) < 0) {
 	if (errno != EEXIST) {
 	    syslog(LOG_ERR, "Couldn't set interface address: %m");
