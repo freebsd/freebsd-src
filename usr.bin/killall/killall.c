@@ -29,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/jail.h>
 #include <sys/stat.h>
 #include <sys/user.h>
 #include <sys/sysctl.h>
@@ -49,7 +50,9 @@ static void __dead2
 usage(void)
 {
 
-	fprintf(stderr, "usage: killall [-l] [-v] [-m] [-sig] [-u user] [-t tty] [-c cmd] [cmd]...\n");
+	fprintf(stderr, "usage: killall [-l] [-v] [-m] [-sig] [-j jid]\n");
+	fprintf(stderr,
+	    "               [-u user] [-t tty] [-c cmd] [cmd]...\n");
 	fprintf(stderr, "At least one option or argument to specify processes must be given.\n");
 	exit(1);
 }
@@ -110,6 +113,7 @@ main(int ac, char **av)
 	int		vflag = 0;
 	int		sflag = 0;
 	int		dflag = 0;
+	int		jflag = 0;
 	int		mflag = 0;
 	int		zflag = 0;
 	uid_t		uid = 0;
@@ -122,6 +126,7 @@ main(int ac, char **av)
 	const char *const *p;
 	char		*ep;
 	int		errors = 0;
+	int		jid;
 	int		mib[4];
 	size_t		miblen;
 	int		st, nprocs;
@@ -142,6 +147,18 @@ main(int ac, char **av)
 		if (**av == '-') {
 			++*av;
 			switch (**av) {
+			case 'j':
+				++*av;
+				if (**av == '\0')
+					++av;
+				--ac;
+				jflag++;
+				jid = strtol(*av, &ep, 10);
+				if (!*av || *ep)
+					errx(1, "illegal jid: %s", *av);
+				if (jail_attach(jid) == -1)
+					err(1, "jail_attach(): %d", jid);
+				break;
 			case 'u':
 				++*av;
 				if (**av == '\0')
@@ -206,7 +223,7 @@ main(int ac, char **av)
 		}
 	}
 
-	if (user == NULL && tty == NULL && cmd == NULL && ac == 0)
+	if (user == NULL && tty == NULL && cmd == NULL && !jflag && ac == 0)
 		usage();
 
 	if (tty) {
@@ -324,6 +341,8 @@ main(int ac, char **av)
 					matched = 0;
 			}
 		}
+		if (jflag && thispid == getpid())
+			matched = 0;
 		if (matched == 0)
 			continue;
 		if (ac > 0)
