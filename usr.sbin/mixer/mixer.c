@@ -24,7 +24,7 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <sys/soundcard.h>
 
-char *names[SOUND_MIXER_NRDEVICES] = SOUND_DEVICE_NAMES;
+const char *names[SOUND_MIXER_NRDEVICES] = SOUND_DEVICE_NAMES;
 
 void usage(int devmask, int recmask);
 int res_name(const char *name, int mask);
