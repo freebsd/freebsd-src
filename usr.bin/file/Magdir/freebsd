@@ -1,0 +1,16 @@
+# the following are for 386BSD/FreeBSD
+
+0	lelong			0410		pure executable
+0	lelong			0413		demand paged executable
+0	lelong&077777777	041400314	FreeBSD/i386 demand paged
+>3	byte			&0x80
+>>20	lelong			<4096		shared library
+>>20	lelong			=4096		dynamically linked executable
+>>20	lelong			>4096		dynamically linked executable
+>3	byte			^0x80		executable
+>16	lelong			>0		not stripped
+
+# This covers object files, and is better than "PDP-11 executable"
+0	lelong			000000407	impure format
+>16	lelong			>0		not stripped
+

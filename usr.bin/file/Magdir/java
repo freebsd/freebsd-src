@@ -1,0 +1,8 @@
+#------------------------------------------------------------------------------
+# java:  file(1) magic for java compiled classes
+#
+
+0	belong	0xCafeBabe		compiled java class data,
+>4	beshort x			version %d.
+>6	beshort x			\b%d
+
