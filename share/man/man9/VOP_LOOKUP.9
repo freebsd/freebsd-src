@@ -62,7 +62,7 @@ struct componentname {
 	 */
 	u_long	cn_nameiop;	/* namei operation */
 	u_long	cn_flags;	/* flags to namei */
-	struct	thread *cn_thread;	/* process requesting lookup */
+	struct	thread *cn_thread;	/* thread requesting lookup */
 	struct	ucred *cn_cred;	/* credentials */
 	/*
 	 * Shared between lookup and commit routines.
