@@ -41,58 +41,6 @@ __FBSDID("$FreeBSD$");
 
 #include "pthread_md.h"
 
-#define LDT_ENTRIES 8192
-#define LDT_WORDS   (8192/sizeof(unsigned int))
-#define LDT_RESERVED NLDT
-
-static unsigned int ldt_mask[LDT_WORDS];
-static int initialized = 0;
-
-static void	initialize(void);
-
-static void
-initialize(void)
-{
-	int i, j;
-
-	memset(ldt_mask, 0xFF, sizeof(ldt_mask));
-	/* Reserve system predefined LDT entries */
-	for (i = 0; i < LDT_RESERVED; ++i) {
-		j = i / 32;
-		ldt_mask[j] &= ~(1 << (i % 32));
-	}
-	initialized = 1;
-}
-
-static u_int
-alloc_ldt_entry(void)
-{
-	u_int i, j, index;
-	
-	index = 0;
-	for (i = 0; i < LDT_WORDS; ++i) {
-		if (ldt_mask[i] != 0) {
-			j = bsfl(ldt_mask[i]);
-			ldt_mask[i] &= ~(1 << j);
-			index = i * 32 + j;
-			break;
-		}
-	}
-	return (index);
-}
-
-static void
-free_ldt_entry(u_int index)
-{
-	u_int i, j;
-
-	if (index < LDT_RESERVED || index >= LDT_ENTRIES)
-		return;
-	i = index / 32;
-	j = index % 32;
-	ldt_mask[i] |= (1 << j);
-}
-
 struct tcb *
 _tcb_ctor(struct pthread *thread)
 {
@@ -131,18 +79,11 @@ _kcb_ctor(struct kse *kse)
 	union descriptor ldt;
 	struct kcb *kcb;
 
-	if (initialized == 0)
-		initialize();
 	kcb = malloc(sizeof(struct kcb));
 	if (kcb != NULL) {
 		bzero(kcb, sizeof(struct kcb));
 		kcb->kcb_self = kcb;
 		kcb->kcb_kse = kse;
-		kcb->kcb_ldt = alloc_ldt_entry();
-		if (kcb->kcb_ldt == 0) {
-			free(kcb);
-			return (NULL);
-		}
 		ldt.sd.sd_hibase = (unsigned int)kcb >> 24;
 		ldt.sd.sd_lobase = (unsigned int)kcb & 0xFFFFFF;
 		ldt.sd.sd_hilimit = (sizeof(struct kcb) >> 16) & 0xF;
@@ -153,8 +94,8 @@ _kcb_ctor(struct kse *kse)
 		ldt.sd.sd_xx = 0;
 		ldt.sd.sd_def32 = 1;
 		ldt.sd.sd_gran = 0;	/* no more than 1M */
-		if (i386_set_ldt(kcb->kcb_ldt, &ldt, 1) < 0) {
-			free_ldt_entry(kcb->kcb_ldt);
+		kcb->kcb_ldt = i386_set_ldt(LDT_AUTO_ALLOC, &ldt, 1);
+		if (kcb->kcb_ldt < 0) {
 			free(kcb);
 			return (NULL);
 		}
@@ -165,7 +106,9 @@ _kcb_ctor(struct kse *kse)
 void
 _kcb_dtor(struct kcb *kcb)
 {
-	if (kcb->kcb_ldt != -1)
-		free_ldt_entry(kcb->kcb_ldt);
+	if (kcb->kcb_ldt >= 0) {
+		i386_set_ldt(kcb->kcb_ldt, NULL, 1);
+		kcb->kcb_ldt = -1;	/* just in case */
+	}
 	free(kcb);
 }
