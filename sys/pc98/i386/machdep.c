@@ -607,6 +607,7 @@ osigreturn(td, uap)
 		struct osigcontext *sigcntxp;
 	} */ *uap;
 {
+#ifdef COMPAT_43
 	struct trapframe *regs;
 	struct osigcontext *scp;
 	struct proc *p = td->td_proc;
@@ -709,6 +710,9 @@ osigreturn(td, uap)
 	regs->tf_eip = scp->sc_pc;
 	regs->tf_eflags = eflags;
 	return (EJUSTRETURN);
+#else /* !COMPAT_43 */
+	return (ENOSYS);
+#endif /* COMPAT_43 */
 }
 
 int

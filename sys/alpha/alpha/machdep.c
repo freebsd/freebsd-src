@@ -1446,6 +1446,7 @@ osigreturn(struct thread *td,
 		struct osigcontext *sigcntxp;
 	} */ *uap)
 {
+#ifdef COMPAT_43
 	struct osigcontext *scp, ksc;
 	struct proc *p = td->td_proc;
 
@@ -1498,6 +1499,9 @@ osigreturn(struct thread *td,
 	    sizeof(struct fpreg));
 	td->td_pcb->pcb_fp_control = ksc.sc_fp_control;
 	return (EJUSTRETURN);
+#else /* !COMPAT_43 */
+	return (ENOSYS);
+#endif /* COMPAT_43 */
 }
 
 int
