@@ -120,32 +120,115 @@ __FBSDID("$FreeBSD$");
 	
 .Lpcpu:
 	.word	_C_LABEL(__pcpu)
-.Lcurthread:
-	.word 	_C_LABEL(__pcpu) + PC_CURTHREAD
 .Lcurpcb:
 	.word	_C_LABEL(__pcpu) + PC_CURPCB
 .Lcpufuncs:	
 	.word	_C_LABEL(cpufuncs)
 .Lblock_userspace_access:
 	.word	_C_LABEL(block_userspace_access)
-
 .Lcpu_do_powersave:
 	.word	_C_LABEL(cpu_do_powersave)
-
-.Lpmap_kernel_cstate:
-	.word	(kernel_pmap_store + PMAP_CSTATE)
-
-.Llast_cache_state_ptr:
-	.word	_C_LABEL(pmap_cache_state)
-
-/* XXX: wow */
 ENTRY(cpu_throw)
+	mov	r4, r0
+	ldr	r0, .Lcurthread
+	mov	r5, r1
+
+	mov	r6, r2
+
+	/*
+	 * r4 = lwp
+	 * r5 = lwp0
+	 */
+
+	mov	r2, #0x00000000		/* curthread = NULL */
+	str	r2, [r0]
+
+	/*
+	 * We're about to clear both the cache and the TLB.
+	 * Make sure to zap the 'last cache state' pointer since the
+	 * pmap might be about to go away. Also ensure the outgoing
+	 * VM space's cache state is marked as NOT resident in the
+	 * cache, and that lwp0's cache state IS resident.
+	 */
+	ldr	r7, [r4, #(TD_PCB)]		/* r7 = old lwp's PCB */
+
+	/* Switch to lwp0 context */
+
+	ldr	r9, .Lcpufuncs
+	mov	lr, pc
+	ldr	pc, [r9, #CF_IDCACHE_WBINV_ALL]
+
+	ldr	r0, [r7, #(PCB_PL1VEC)]
+	ldr	r1, [r7, #(PCB_DACR)]
+
+	/*
+	 * r0 = Pointer to L1 slot for vector_page (or NULL)
+	 * r1 = lwp0's DACR
+	 * r4 = lwp we're switching from
+	 * r5 = lwp0
+	 * r6 = exit func
+	 * r7 = lwp0's PCB
+	 * r9 = cpufuncs
+	 */
+
+	/*
+	 * Ensure the vector table is accessible by fixing up lwp0's L1
+	 */
+	cmp	r0, #0			/* No need to fixup vector table? */
+	ldrne	r3, [r0]		/* But if yes, fetch current value */
+	ldrne	r2, [r7, #(PCB_L1VEC)]	/* Fetch new vector_page value */
+	mcr	p15, 0, r1, c3, c0, 0	/* Update DACR for lwp0's context */
+	cmpne	r3, r2			/* Stuffing the same value? */
+	strne	r2, [r0]		/* Store if not. */
+
+#ifdef PMAP_INCLUDE_PTE_SYNC
+	/*
+	 * Need to sync the cache to make sure that last store is
+	 * visible to the MMU.
+	 */
+	movne	r1, #4
+	movne	lr, pc
+	ldrne	pc, [r9, #CF_DCACHE_WB_RANGE]
+#endif /* PMAP_INCLUDE_PTE_SYNC */
+
+	/*
+	 * Note: We don't do the same optimisation as cpu_switch() with
+	 * respect to avoiding flushing the TLB if we're switching to
+	 * the same L1 since this process' VM space may be about to go
+	 * away, so we don't want *any* turds left in the TLB.
+	 */
+
+	/* Switch the memory to the new process */
+	ldr	r0, [r7, #(PCB_PAGEDIR)]
+	mov	lr, pc
+	ldr	pc, [r9, #CF_CONTEXT_SWITCH]
+
+	ldr	r0, .Lcurpcb
+   
+	/* Restore all the save registers */
+#ifndef __XSCALE__
+	add	r1, r7, #PCB_R8
+	ldmia	r1, {r8-r13}
+#else
+	ldr	r8, [r7, #(PCB_R8)]
+	ldr	r9, [r7, #(PCB_R9)]
+	ldr	r10, [r7, #(PCB_R10)]
+	ldr	r11, [r7, #(PCB_R11)]
+	ldr	r12, [r7, #(PCB_R12)]
+	ldr	r13, [r7, #(PCB_SP)]
+#endif
+	str	r7, [r0]	/* curpcb = lwp0's PCB */
+
+	mov	r1, #0x00000000		/* r5 = old lwp = NULL */
+	mov	r6, r5
+	b	.Lswitch_resume
+
 ENTRY(cpu_switch)
 	stmfd	sp!, {r4-r7, lr}
 	mov	r6, r1
 	mov	r1, r0
 
-	.Lswitch_resume:
+.Lswitch_resume:
 	/* rem: r1 = old lwp */
 	/* rem: r4 = return value [not used if came from cpu_switchto()] */
 	/* rem: r6 = new process */
@@ -155,13 +238,11 @@ ENTRY(cpu_switch)
 	/* XXX use curcpu() */
 	ldr	r0, .Lcpu_info_store
 	str	r0, [r6, #(L_CPU)]
-#else
-	/* l->l_cpu initialized in fork1() for single-processor */
 #endif
 
 	/* Process is now on a processor. */
 
-	/* We have a new curlwp now so make a note it */
+	/* We have a new curthread now so make a note it */
 	ldr	r7, .Lcurthread
 	str	r6, [r7]
 
@@ -170,13 +251,11 @@ ENTRY(cpu_switch)
 	ldr	r0, [r6, #(TD_PCB)]
 	str	r0, [r7]
 
-	/* At this point we can allow IRQ's again. */
 	/* rem: r1 = old lwp */
 	/* rem: r4 = return value */
 	/* rem: r6 = new process */
-	/* rem: interrupts are enabled */
 
-	/* Remember the old lwp in r0 */
+	/* Remember the old thread in r0 */
 	mov	r0, r1
 
 	/*
@@ -207,7 +286,7 @@ ENTRY(cpu_switch)
 	strd	r10, [r1, #(PCB_R10)]
 	strd	r12, [r1, #(PCB_R12)]
 #endif
-
+									   
 	/*
 	 * NOTE: We can now use r8-r13 until it is time to restore
 	 * them for the new process.
@@ -227,13 +306,12 @@ ENTRY(cpu_switch)
 	 */
         mrs	r3, cpsr
 	bic	r2, r3, #(PSR_MODE)
-	orr	r2, r2, #(PSR_UND32_MODE | I32_bit)
+	orr	r2, r2, #(PSR_UND32_MODE)
         msr	cpsr_c, r2
 
 	str	sp, [r8, #(PCB_UND_SP)]
 
         msr	cpsr_c, r3		/* Restore the old mode */
-
 	/* rem: r0 = old lwp */
 	/* rem: r4 = return value */
 	/* rem: r6 = new process */
@@ -267,42 +345,19 @@ ENTRY(cpu_switch)
 
 	ldr	r0, [r8, #(PCB_DACR)]		/* r0 = old DACR */
 	ldr	r1, [r9, #(PCB_DACR)]		/* r1 = new DACR */
-	ldr	r8, [r9, #(PCB_CSTATE)]		/* r8 = &new_pmap->pm_cstate */
-	ldr	r5, .Llast_cache_state_ptr	/* Previous thread's cstate */
 
 	teq	r10, r11			/* Same L1? */
 	ldr	r5, [r5]
 	cmpeq	r0, r1				/* Same DACR? */
 	beq	.Lcs_context_switched		/* yes! */
 	ldr	r3, .Lblock_userspace_access
-	mov	r12, #0
-	cmp	r5, #0				/* No last vm? (switch_exit) */
-	beq	.Lcs_cache_purge_skipped	/* No, we can skip cache flsh */
 
 	mov	r2, #DOMAIN_CLIENT
 	cmp	r1, r2, lsl #(PMAP_DOMAIN_KERNEL * 2) /* Sw to kernel thread? */
 	beq	.Lcs_cache_purge_skipped	/* Yup. Don't flush cache */
-
-	cmp	r5, r8				/* Same userland VM space? */
-	ldrneb	r12, [r5, #(CS_CACHE_ID)]	/* Last VM space cache state */
-
-	/*
-	 * We're definately switching to a new userland VM space,
-	 * and the previous userland VM space has yet to be flushed
-	 * from the cache/tlb.
-	 *
-	 * r12 holds the previous VM space's cs_cache_id state
-	 */
-	tst	r12, #0xff			/* Test cs_cache_id */
-	beq	.Lcs_cache_purge_skipped	/* VM space is not in cache */
-
 	/*
 	 * Definately need to flush the cache.
-	 * Mark the old VM space as NOT being resident in the cache.
 	 */
-	mov	r2, #0x00000000
-	strb	r2, [r5, #(CS_CACHE_ID)]
-	strb	r2, [r5, #(CS_CACHE_D)]
 
 	/*
 	 * Don't allow user space access between the purge and the switch.
@@ -315,29 +370,17 @@ ENTRY(cpu_switch)
 	mov	lr, pc
 	ldr	pc, [r1, #CF_IDCACHE_WBINV_ALL]
 	ldmfd	sp!, {r0-r3}
-
 .Lcs_cache_purge_skipped:
 	/* rem: r1 = new DACR */
 	/* rem: r3 = &block_userspace_access */
 	/* rem: r4 = return value */
-	/* rem: r5 = &old_pmap->pm_cstate (or NULL) */
 	/* rem: r6 = new lwp */
-	/* rem: r8 = &new_pmap->pm_cstate */
 	/* rem: r9 = new PCB */
 	/* rem: r10 = old L1 */
 	/* rem: r11 = new L1 */
 
 	mov	r2, #0x00000000
 	ldr	r7, [r9, #(PCB_PL1VEC)]
-
-	/*
-	 * At this point we need to kill IRQ's again.
-	 *
-	 * XXXSCW: Don't need to block FIQs if vectors have been relocated
-	 */
-#if 0
-	IRQdisableALL
-#endif
 
 	/*
 	 * Interrupts are disabled so we can allow user space accesses again
@@ -354,7 +397,7 @@ ENTRY(cpu_switch)
 	ldrne	r0, [r9, #(PCB_L1VEC)]	/* Fetch new vector_page value */
 	mcr	p15, 0, r1, c3, c0, 0	/* Update DACR for new context */
 	cmpne	r2, r0			/* Stuffing the same value? */
-#if 0
+#ifndef PMAP_INCLUDE_PTE_SYNC
 	strne	r0, [r7]		/* Nope, update it */
 #else
 	beq	.Lcs_same_vector
@@ -383,12 +426,6 @@ ENTRY(cpu_switch)
 	mov	lr, pc
 	ldr	pc, [r10, #CF_CONTEXT_SWITCH]
 
-	/*
-	 * Mark the old VM space as NOT being resident in the TLB
-	 */
-	mov	r2, #0x00000000
-	cmp	r5, #0
-	strneh	r2, [r5, #(CS_TLB_ID)]
 	b	.Lcs_context_switched
 
 	/*
@@ -403,21 +440,8 @@ ENTRY(cpu_switch)
 	ldrne	pc, [r10, #CF_TLB_FLUSHID_SE]
 
 .Lcs_context_switched:
-	/* rem: r8 = &new_pmap->pm_cstate */
 
 	/* XXXSCW: Safe to re-enable FIQs here */
-
-	/*
-	 * The new VM space is live in the cache and TLB.
-	 * Update its cache/tlb state, and if it's not the kernel
-	 * pmap, update the 'last cache state' pointer.
-	 */
-	mov	r2, #-1
-	ldr	r5, .Lpmap_kernel_cstate
-	ldr	r0, .Llast_cache_state_ptr
-	str	r2, [r8, #(CS_ALL)]
-	cmp	r5, r8
-	strne	r8, [r0]
 
 	/* rem: r4 = return value */
 	/* rem: r6 = new lwp */
@@ -435,7 +459,6 @@ ENTRY(cpu_switch)
 	ldr	sp, [r9, #(PCB_UND_SP)]
 
         msr	cpsr_c, r3		/* Restore the old mode */
-
 	/* Restore all the save registers */
 #ifndef __XSCALE__
 	add	r7, r9, #PCB_R8
@@ -451,8 +474,6 @@ ENTRY(cpu_switch)
 	ldr	r13, [r7, #(PCB_SP)]
 #endif
 
-	ldr	r5, [r6, #(TD_PROC)]	/* fetch the proc for below */
-
 	/* rem: r4 = return value */
 	/* rem: r5 = new lwp's proc */
 	/* rem: r6 = new lwp */
@@ -464,10 +485,6 @@ ENTRY(cpu_switch)
 	bl	_C_LABEL(arm_fpe_core_changecontext)
 #endif
 
-	/* We can enable interrupts again */
-#if 0
-	IRQenableALL
-#endif
 	/* rem: r4 = return value */
 	/* rem: r5 = new lwp's proc */
 	/* rem: r6 = new lwp */
@@ -482,16 +499,15 @@ ENTRY(cpu_switch)
 	ldmfd	sp!, {r4-r7, pc}
 .Lswitch_exited:
 	/*
-	 * We skip the cache purge because switch_exit() already did it.
+	 * We skip the cache purge because cpu_throw() already did it.
 	 * Load up registers the way .Lcs_cache_purge_skipped expects.
-	 * Userpsace access already blocked by switch_exit().
+	 * Userspace access already blocked by cpu_throw().
 	 */
 	ldr	r9, [r6, #(TD_PCB)]		/* r9 = new PCB */
 	ldr	r3, .Lblock_userspace_access
 	mrc	p15, 0, r10, c2, c0, 0		/* r10 = old L1 */
 	mov	r5, #0				/* No previous cache state */
 	ldr	r1, [r9, #(PCB_DACR)]		/* r1 = new DACR */
-	ldr	r8, [r9, #(PCB_CSTATE)]		/* r8 = new cache state */
 	ldr	r11, [r9, #(PCB_PAGEDIR)]	/* r11 = new L1 */
 	b	.Lcs_cache_purge_skipped
 #ifdef DIAGNOSTIC
@@ -510,23 +526,16 @@ ENTRY(fork_trampoline)
 	mov	r1, r5
 	mov	r2, sp
 	mov	r0, r4
-	mov	lr, pc
-	#if 0
-	mov	r2, sp
-	#endif
-	#if 0
-	mov	pc, r4
-	#endif
 	bl	_C_LABEL(fork_exit)
-	/* Kill irq's */
-        mrs     r0, cpsr
-        orr     r0, r0, #(I32_bit)
-        msr     cpsr_c, r0
-
+	/* Kill irq"s */
+	mrs	r0, cpsr
+	orr	r0, r0, #(I32_bit)
+	msr	cpsr_c, r0
 	PULLFRAME
 
 	movs	pc, lr			/* Exit */
 
+AST_LOCALS
 #ifndef __XSCALE__
 	.type .Lcpu_switch_ffs_table, _ASM_TYPE_OBJECT;
 .Lcpu_switch_ffs_table:
