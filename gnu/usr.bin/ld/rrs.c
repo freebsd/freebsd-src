@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rrs.c,v 1.8 1993/12/02 09:32:26 ache Exp $
+ *	$Id: rrs.c,v 1.9 1993/12/04 00:53:00 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -726,6 +726,16 @@ consider_rrs_section_lengths()
 			rrs_strtab_size += 1 + strlen(sp->name);
 			if (sp != dynamic_symbol)
 				sp->rrs_symbolnum = number_of_rrs_symbols++;
+			if (sp->alias) {
+				/*
+				 * (sigh) Always allocate space to hold the
+				 * indirection. At this point there's not
+				 * enough information to decide whether it's
+				 * actually needed or not.
+				 */
+				number_of_rrs_symbols++;
+				rrs_strtab_size += 1 + strlen(sp->alias->name);
+			}
 		}
 	} END_EACH_SYMBOL;
 
@@ -973,7 +983,17 @@ write_rrs_text()
 
 		if (sp->defined > 1) {
 			/* defined with known type */
-			if (sp->defined == N_SIZE) {
+			if (!(link_mode & SHAREABLE) &&
+					sp->alias && sp->alias->defined > 1) {
+				/*
+				 * If the target of an indirect symbol has
+				 * been defined and we are outputting an
+				 * executable, resolve the indirection; it's
+				 * no longer needed.
+				 */
+				nlp->nz_type = sp->alias->defined;
+				nlp->nz_value = sp->alias->value;
+			} else if (sp->defined == N_SIZE) {
 				/*
 				 * Make sure this symbol isn't going
 				 * to define anything.
@@ -1001,7 +1021,6 @@ write_rrs_text()
 			      "internal error: %s defined in mysterious way",
 			      sp->name);
 
-
 		/* Handle auxialiary type qualifiers */
 		switch (sp->aux) {
 		case 0:
@@ -1020,7 +1039,7 @@ write_rrs_text()
 			break;
 		default:
 			fatal(
-		      "internal error: %s: unsupported other value: %x",
+			    "internal error: %s: unsupported other value: %x",
 				      sp->name, sp->aux);
 			break;
 		}
@@ -1030,14 +1049,32 @@ write_rrs_text()
 		strcpy(rrs_strtab + offset, sp->name);
 		offset += 1 + strlen(sp->name);
 
+		if (sp->alias) {
+			/*
+			 * Write an extra symbol for indirections (possibly
+			 * just a dummy).
+			 */
+			int t = (nlp->nz_type == N_INDR + N_EXT);
+
+			INCR_NLP(nlp);
+			nlp->nz_type = N_UNDF + t?N_EXT:0;
+			nlp->nz_un.n_strx = offset;
+			nlp->nz_value = 0;
+			nlp->nz_other = 0;
+			nlp->nz_desc = 0;
+			nlp->nz_size = 0;
+			strcpy(rrs_strtab + offset, sp->alias->name);
+			offset += 1 + strlen(sp->alias->name);
+		}
+
 		INCR_NLP(nlp);
 
 	} END_EACH_SYMBOL;
 
 	if (MALIGN(offset) != rrs_strtab_size)
 		fatal(
-		"internal error: inconsistent RRS string table length: %d",
-			offset);
+		"internal error: inconsistent RRS string table length: %d, expected %d",
+			offset, rrs_strtab_size);
 
 	/* Write the symbol table */
 	if (rrs_symbol_size == sizeof(struct nlist))
@@ -1059,8 +1096,9 @@ write_rrs_text()
 	for (i = 0, shp = rrs_shobjs; shp; i++, shp = shp->next) {
 		char	*name = shp->entry->local_sym_name;
 
-		if (shp == NULL)
-			fatal("internal error: shp == NULL");
+		if (i >= number_of_shobjs)
+			fatal("internal error: # of link objects exceeds %d",
+				number_of_shobjs);
 
 		lo[i].lo_name = pos;
 		lo[i].lo_major = shp->entry->lib_major;
@@ -1075,10 +1113,11 @@ write_rrs_text()
 		pos += 1 + strlen(name);
 		lo[i].lo_next = (i == number_of_shobjs - 1) ? 0 :
 			(rrs_dyn2.ld_need + (i+1)*sizeof(struct link_object));
-
 	}
-	if (shp != NULL)
-		fatal("internal error: shp != NULL");
+
+	if (i < number_of_shobjs)
+		fatal("internal error: # of link objects less then expected %d",
+				number_of_shobjs);
 
 	md_swapout_link_object(lo, number_of_shobjs);
 	mywrite(lo, number_of_shobjs, sizeof(struct link_object), outdesc);

@@ -1,5 +1,5 @@
 /*
- * $Id: shlib.c,v 1.4 1993/12/02 00:56:40 jkh Exp $
+ * $Id: shlib.c,v 1.5 1993/12/04 00:53:02 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -11,16 +11,21 @@
 #include <sys/time.h>
 #include <fcntl.h>
 #include <string.h>
+#include <ctype.h>
 #include <dirent.h>
 #include <a.out.h>
 
 #include "ld.h"
 
+#ifdef SUNOS4
+char	*strsep();
+#endif
+
 /*
  * Standard directories to search for files specified by -l.
  */
 #ifndef STANDARD_SEARCH_DIRS
-#define	STANDARD_SEARCH_DIRS	"/usr/lib", "/usr/local/lib"
+#define	STANDARD_SEARCH_DIRS	"/usr/lib", "/usr/X386/lib", "/usr/local/lib"
 #endif
 
 char *standard_search_dirs[] = {
@@ -132,9 +137,10 @@ int	n1, n2;
 #undef minor
 
 char *
-findshlib(name, majorp, minorp)
+findshlib(name, majorp, minorp, do_dot_a)
 char	*name;
 int	*majorp, *minorp;
+int	do_dot_a;
 {
 	int		dewey[MAXDEWEY];
 	int		ndewey;
@@ -154,12 +160,23 @@ int	*majorp, *minorp;
 	for (i = 0; i < n_search_dirs; i++) {
 		DIR		*dd = opendir(search_dirs[i]);
 		struct dirent	*dp;
+		int		found_dot_a = 0;
 
 		if (dd == NULL)
 			continue;
 
 		while ((dp = readdir(dd)) != NULL) {
 			int	n, j, might_take_it = 0;
+
+			if (do_dot_a && path == NULL &&
+					dp->d_namlen == len + 2 &&
+					strncmp(dp->d_name, lname, len) == 0 &&
+					(dp->d_name+len)[0] == '.' &&
+					(dp->d_name+len)[1] == 'a') {
+
+				path = concat(search_dirs[i], "/", dp->d_name);
+				found_dot_a = 1;
+			}
 
 			if (dp->d_namlen < len + 4)
 				continue;
@@ -170,6 +187,12 @@ int	*majorp, *minorp;
 
 			if ((n = getdewey(tmp, dp->d_name+len+4)) == 0)
 				continue;
+
+			if (major != -1 && found_dot_a) { /* XXX */
+				free(path);
+				path = NULL;
+				found_dot_a = 0;
+			}
 
 			if (major == -1 && minor == -1) {
 				might_take_it = 1;
@@ -192,12 +215,19 @@ int	*majorp, *minorp;
 			if (path)
 				free(path);
 			path = concat(search_dirs[i], "/", dp->d_name);
+			found_dot_a = 0;
 			bcopy(tmp, dewey, sizeof(dewey));
 			ndewey = n;
 			*majorp = dewey[0];
 			*minorp = dewey[1];
 		}
 		closedir(dd);
+
+		if (found_dot_a)
+			/*
+			 * There's a .a archive here.
+			 */
+			return path;
 	}
 
 	return path;
