@@ -236,3 +236,12 @@ METHOD void delete_resource {
 	int		type;
 	int		rid;
 };
+
+#
+# Return a struct resource_list.
+#
+METHOD int get_resource_list {
+	device_t	dev;
+	device_t	child;
+	struct resource_list *rl;
+} DEFAULT bus_generic_get_resource_list;
