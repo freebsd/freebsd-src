@@ -49,30 +49,30 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <sys/param.h>
+#include <sys/consio.h>
+#include <sys/linker.h>
+#include <sys/module.h>
+#include <sys/mouse.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/un.h>
+
+#include <ctype.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <setjmp.h>
+#include <signal.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
 #include <string.h>
-#include <ctype.h>
-#include <signal.h>
-#include <setjmp.h>
-#include <termios.h>
 #include <syslog.h>
-#include <sys/mouse.h>
-#include <sys/consio.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/socket.h>
-#include <sys/stat.h>
-#include <sys/un.h>
-#include <sys/param.h>
-#include <sys/linker.h>
-#include <sys/module.h>
+#include <termios.h>
 #include <unistd.h>
 
 #define MAX_CLICKTHRESHOLD	2000	/* 2 seconds */
