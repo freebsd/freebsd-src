@@ -1907,11 +1907,9 @@ thread_suspend_check(int return_instead)
 {
 	struct thread *td;
 	struct proc *p;
-	struct ksegrp *kg;
 
 	td = curthread;
 	p = td->td_proc;
-	kg = td->td_ksegrp;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	while (P_SHOULDSTOP(p)) {
 		if (P_SHOULDSTOP(p) == P_STOPPED_SINGLE) {

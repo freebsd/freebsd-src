@@ -659,7 +659,7 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 	struct vnode *vp;
 	struct vattr vat;
 	struct mount *mp;
-	int cmode, oflags;
+	int cmode;
 	struct file *nfp;
 	int type, indx, error;
 	struct flock lf;
@@ -667,7 +667,6 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 
 	if ((flags & O_ACCMODE) == O_ACCMODE)
 		return (EINVAL);
-	oflags = flags;
 	flags = FFLAGS(flags);
 	error = falloc(td, &nfp, &indx);
 	if (error)
@@ -2171,12 +2170,10 @@ fchmod(td, uap)
 	} */ *uap;
 {
 	struct file *fp;
-	struct vnode *vp;
 	int error;
 
 	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
-	vp = fp->f_data;
 	error = setfmode(td, fp->f_data, uap->mode);
 	fdrop(fp, td);
 	return (error);
@@ -2315,12 +2312,10 @@ fchown(td, uap)
 	} */ *uap;
 {
 	struct file *fp;
-	struct vnode *vp;
 	int error;
 
 	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
-	vp = fp->f_data;
 	error = setfown(td, fp->f_data, uap->uid, uap->gid);
 	fdrop(fp, td);
 	return (error);
