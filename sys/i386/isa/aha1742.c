@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *	$Id: aha1742.c,v 1.7 1993/08/21 20:01:31 rgrimes Exp $
+ *	$Id: aha1742.c,v 1.7 93/08/26 21:12:21 julian Exp Locker: julian $
  */
 
 #include <sys/types.h>
@@ -324,13 +324,13 @@ int	ahb_debug = 0;
 
 struct	scsi_switch	ahb_switch = 
 {
-	"ahb",
 	ahb_scsi_cmd,
 	ahbminphys,
 	0,
 	0,
 	ahb_adapter_info,
-	0,0,0
+	"ahb",
+	0,0
 };
 
 /**/
