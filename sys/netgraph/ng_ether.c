@@ -312,14 +312,13 @@ ng_ether_attach(struct ifnet *ifp)
 	}
 
 	/* Allocate private data */
-	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_NOWAIT);
+	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (priv == NULL) {
 		log(LOG_ERR, "%s: can't %s for %s\n",
 		    __FUNCTION__, "allocate memory", name);
 		ng_unref(node);
 		return;
 	}
-	bzero(priv, sizeof(*priv));
 	node->private = priv;
 	priv->ifp = ifp;
 	IFP2NG(ifp) = node;

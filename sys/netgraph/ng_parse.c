@@ -1122,12 +1122,11 @@ ng_parse_composite(const struct ng_parse_type *type, const char *s,
 	int align, len, blen, error = 0;
 
 	/* Initialize */
-	MALLOC(foff, int *, num * sizeof(*foff), M_NETGRAPH, M_NOWAIT);
+	MALLOC(foff, int *, num * sizeof(*foff), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (foff == NULL) {
 		error = ENOMEM;
 		goto done;
 	}
-	bzero(foff, num * sizeof(*foff));
 
 	/* Get opening brace/bracket */
 	if (ng_parse_get_token(s, off, &len)
