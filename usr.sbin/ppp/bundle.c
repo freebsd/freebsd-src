@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.20 1998/06/18 23:38:04 brian Exp $
+ *	$Id: bundle.c,v 1.21 1998/06/20 00:19:32 brian Exp $
  */
 
 #include <sys/param.h>
@@ -1634,6 +1634,7 @@ bundle_setsid(struct bundle *bundle, int holdsession)
           log_Printf(LogPHASE, "%d -> %d: %s session control\n",
                      (int)orig, (int)getpid(),
                      holdsession ? "Passed" : "Dropped");
+          timer_InitService();
           break;
         default:
           close(fds[1]);
