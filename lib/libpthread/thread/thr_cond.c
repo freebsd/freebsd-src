@@ -326,7 +326,7 @@ _pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 					 * that the mutex be reaquired prior to
 					 * cancellation.
 					 */
-					if (done != 0) {
+					if (done || interrupted) {
 						rval = _mutex_cv_lock(mutex);
 						unlock_mutex = 1;
 					}
