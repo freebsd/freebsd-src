@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.69 1996/09/08 02:41:51 jfieber Exp $
+#	$Id: BSD.usr.dist,v 1.70 1996/09/08 16:24:41 jfieber Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -424,12 +424,6 @@
         ..
         sgml
             FreeBSD
-                dtd
-                ..
-                lib
-                ..
-                rep
-                ..
             ..
             ISO
             ..
