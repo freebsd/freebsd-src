@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.4 (Berkeley) 2/23/94
- * $Id: systm.h,v 1.28 1995/12/28 23:34:30 davidg Exp $
+ * $Id: systm.h,v 1.29 1996/01/01 17:05:07 peter Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -125,7 +125,7 @@ void	kprintf __P((const char *fmt, int flags, struct tty *tp, va_list ap));
 
 void	bcopy __P((const void *from, void *to, size_t len));
 void	ovbcopy __P((const void *from, void *to, size_t len));
-void	(*bzero) __P((void *buf, size_t len));
+extern void	(*bzero) __P((void *buf, size_t len));
 
 void	*memcpy __P((void *to, const void *from, size_t len));
 
