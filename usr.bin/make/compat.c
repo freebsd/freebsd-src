@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: compat.c,v 1.6 1996/10/08 04:05:40 steve Exp $
+ *	$Id: compat.c,v 1.6.2.1 1998/08/27 16:01:49 cracauer Exp $
  */
 
 #ifndef lint
@@ -287,8 +287,17 @@ CompatRunCommand (cmdp, gnp)
 	}
 	exit(1);
     }
-    free(cmdStart);
-    Lst_Replace (cmdNode, (ClientData) NULL);
+
+    /* 
+     * we need to print out the command associated with this Gnode in
+     * Targ_PrintCmd from Targ_PrintGraph when debugging at level g2,
+     * in main(), Fatal() and DieHorribly(), therefore do not free it
+     * when debugging. 
+     */
+    if (!DEBUG(GRAPH2)) {
+	free(cmdStart);
+	Lst_Replace (cmdNode, cmdp);
+    }
 
     /*
      * The child is off and running. Now all we can do is wait...
