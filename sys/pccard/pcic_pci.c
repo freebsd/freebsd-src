@@ -121,7 +121,7 @@ struct pcic_pci_table
 static struct pcic_pci_table *
 pcic_pci_lookup(u_int32_t devid, struct pcic_pci_table *tbl)
 {
-while (tbl->devid) {
+	while (tbl->devid) {
 		if (tbl->devid == devid)
 			return (tbl);
 		tbl++;
