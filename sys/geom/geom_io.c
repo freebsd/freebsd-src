@@ -37,6 +37,7 @@
 
 
 #include <sys/param.h>
+#include <sys/stdint.h>
 #ifndef _KERNEL
 #include <stdio.h>
 #include <string.h>
@@ -125,7 +126,7 @@ g_new_bio(void)
 	bp = g_bioq_first(&g_bio_idle);
 	if (bp == NULL)
 		bp = g_malloc(sizeof *bp, M_NOWAIT | M_ZERO);
-	g_trace(G_T_BIO, "g_new_bio() = %p", bp);
+	/* g_trace(G_T_BIO, "g_new_bio() = %p", bp); */
 	return (bp);
 }
 
@@ -133,7 +134,7 @@ void
 g_destroy_bio(struct bio *bp)
 {
 
-	g_trace(G_T_BIO, "g_destroy_bio(%p)", bp);
+	/* g_trace(G_T_BIO, "g_destroy_bio(%p)", bp); */
 	bzero(bp, sizeof *bp);
 	g_bioq_enqueue_tail(bp, &g_bio_idle);
 }
@@ -153,7 +154,7 @@ g_clone_bio(struct bio *bp)
 		bp2->bio_attribute = bp->bio_attribute;
 		bp->bio_children++;	/* XXX: atomic ? */
 	}
-	g_trace(G_T_BIO, "g_clone_bio(%p) = %p", bp, bp2);
+	/* g_trace(G_T_BIO, "g_clone_bio(%p) = %p", bp, bp2); */
 	return(bp2);
 }
 
@@ -307,9 +308,10 @@ g_io_deliver(struct bio *bp, int error)
 	KASSERT(bp->bio_from->geom != NULL, ("NULL bio_from->geom in g_io_deliver"));
 	KASSERT(bp->bio_to != NULL, ("NULL bio_to in g_io_deliver"));
 	g_trace(G_T_BIO,
-	    "g_io_deliver(%p) from %p(%s) to %p(%s) cmd %d error %d",
+	    "g_io_deliver(%p) from %p(%s) to %p(%s) cmd %d error %d off %jd len %jd",
 	    bp, bp->bio_from, bp->bio_from->geom->name,
-	    bp->bio_to, bp->bio_to->name, bp->bio_cmd, error);
+	    bp->bio_to, bp->bio_to->name, bp->bio_cmd, error,
+	    (intmax_t)bp->bio_offset, (intmax_t)bp->bio_length);
 	/* finish_stats(&bp->stats); */
 
 	bp->bio_error = error;
