@@ -62,7 +62,6 @@ struct which_entry {
 TAILQ_HEAD(which_head, which_entry);
 
 extern int Flags;
-extern Boolean Quiet;
 extern Boolean QUIET;
 extern Boolean UseBlkSz;
 extern char *InfoPrefix;

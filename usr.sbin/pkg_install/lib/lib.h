@@ -224,6 +224,7 @@ int		verscmp(Package *, int, int);
 int		version_cmp(const char *, const char *);
 
 /* Externs */
+extern Boolean	Quiet;
 extern Boolean	Verbose;
 extern Boolean	Fake;
 extern Boolean  Force;
