@@ -720,24 +720,18 @@ pmap_new_proc(struct proc *p)
 	u_int i;
 
 	/*
-	 * Allocate object for the upages.
+	 * Allocate object for the upage.
 	 */
-	upobj = p->p_upages_obj;
-	if (upobj == NULL) {
-		upobj = vm_object_allocate(OBJT_DEFAULT, UAREA_PAGES);
-		p->p_upages_obj = upobj;
-	}
+	upobj = vm_object_allocate(OBJT_DEFAULT, UAREA_PAGES);
+	p->p_upages_obj = upobj;
 
 	/*
 	 * Get a kernel virtual address for the U area for this process.
 	 */
-	up = (vm_offset_t)p->p_uarea;
-	if (up == 0) {
-		up = kmem_alloc_nofault(kernel_map, UAREA_PAGES * PAGE_SIZE);
-		if (up == 0)
-			panic("pmap_new_proc: upage allocation failed");
-		p->p_uarea = (struct user *)up;
-	}
+	up = kmem_alloc_nofault(kernel_map, UAREA_PAGES * PAGE_SIZE);
+	if (up == 0)
+		panic("pmap_new_proc: upage allocation failed");
+	p->p_uarea = (struct user *)up;
 
 	for (i = 0; i < UAREA_PAGES; i++) {
 		/*
@@ -787,16 +781,8 @@ pmap_dispose_proc(struct proc *p)
 		vm_page_free(m);
 	}
 	pmap_qremove(up, UAREA_PAGES);
-
-	/*
-	 * If the process got swapped out some of its UPAGES might have gotten
-	 * swapped.  Just get rid of the object to clean up the swap use
-	 * proactively.  NOTE! might block waiting for paging I/O to complete.
-	 */
-	if (upobj->type == OBJT_SWAP) {
-		p->p_upages_obj = NULL;
-		vm_object_deallocate(upobj);
-	}
+	kmem_free(kernel_map, up, UAREA_PAGES * PAGE_SIZE);
+	vm_object_deallocate(upobj);
 }
 
 /*
