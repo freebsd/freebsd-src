@@ -42,6 +42,7 @@ __RCSID("$NetBSD: lastlogin.c,v 1.4 1998/02/03 04:45:35 perry Exp $");
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <timeconv.h>
 #include <utmp.h>
 #include <unistd.h>
 
