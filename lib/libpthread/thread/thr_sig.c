@@ -149,7 +149,7 @@ _thread_sig_handler(int sig, int code, ucontext_t * scp)
 				signal_lock.access_lock = 0;
 			else {
 				sigaddset(&pthread->sigmask, sig);
-				
+
 				/*
 				 * Make sure not to deliver the same signal to
 				 * the thread twice.  sigpend is potentially
@@ -160,7 +160,7 @@ _thread_sig_handler(int sig, int code, ucontext_t * scp)
 				 */
 				if (sigismember(&pthread->sigpend, sig))
 					sigdelset(&pthread->sigpend, sig);
-			
+
 				signal_lock.access_lock = 0;
 				_thread_sig_deliver(pthread, sig);
 				sigdelset(&pthread->sigmask, sig);
@@ -461,6 +461,7 @@ handle_state_change(pthread_t pthread)
 		case PS_RUNNING:
 		case PS_SIGTHREAD:
 		case PS_STATE_MAX:
+		case PS_SUSPENDED:
 			break;
 
 		/*
@@ -492,7 +493,6 @@ handle_state_change(pthread_t pthread)
 		case PS_SIGWAIT:
 		case PS_SLEEP_WAIT:
 		case PS_SPINBLOCK:
-		case PS_SUSPENDED:
 		case PS_WAIT_WAIT:
 			if ((pthread->flags & PTHREAD_FLAGS_IN_WAITQ) != 0) {
 				PTHREAD_WAITQ_REMOVE(pthread);
@@ -628,10 +628,12 @@ _thread_sig_send(pthread_t pthread, int sig)
 		    !sigismember(&pthread->sigmask, sig)) {
 			/* Perform any state changes due to signal arrival: */
 			thread_sig_check_state(pthread, sig);
+			/* Increment the pending signal count. */
+			sigaddset(&pthread->sigpend,sig);
+		} else {
+			/* Increment the pending signal count. */
+			sigaddset(&pthread->sigpend,sig);
 		}
-
-		/* Increment the pending signal count. */
-		sigaddset(&pthread->sigpend,sig);
 	}
 }
 

@@ -36,6 +36,8 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
+static void	finish_suspension(void *arg);
+
 /* Suspend a thread: */
 int
 pthread_suspend_np(pthread_t thread)
@@ -44,22 +46,81 @@ pthread_suspend_np(pthread_t thread)
 
 	/* Find the thread in the list of active threads: */
 	if ((ret = _find_thread(thread)) == 0) {
-		/* The thread exists. Is it running? */
-		if (thread->state != PS_RUNNING &&
-		    thread->state != PS_SUSPENDED) {
-			/* The thread operation has been interrupted */
-			_thread_seterrno(thread,EINTR);
-			thread->interrupted = 1;
-		}
-
 		/*
 		 * Defer signals to protect the scheduling queues from
 		 * access by the signal handler:
 		 */
 		_thread_kern_sig_defer();
 
-		/* Suspend the thread. */
-		PTHREAD_NEW_STATE(thread,PS_SUSPENDED);
+		switch (thread->state) {
+		case PS_RUNNING:
+			/*
+			 * Remove the thread from the priority queue and
+			 * set the state to suspended:
+			 */
+			PTHREAD_PRIOQ_REMOVE(thread);
+			PTHREAD_SET_STATE(thread, PS_SUSPENDED);
+			break;
+
+		case PS_SPINBLOCK:
+		case PS_FDR_WAIT:
+		case PS_FDW_WAIT:
+		case PS_POLL_WAIT:
+		case PS_SELECT_WAIT:
+			/*
+			 * Remove these threads from the work queue
+			 * and mark the operation as interrupted:
+			 */
+			if ((thread->flags & PTHREAD_FLAGS_IN_WORKQ) != 0)
+				PTHREAD_WORKQ_REMOVE(thread);
+			_thread_seterrno(thread,EINTR);
+			thread->interrupted = 1;
+
+			/* FALLTHROUGH */
+		case PS_SIGTHREAD:
+		case PS_SLEEP_WAIT:
+		case PS_WAIT_WAIT:
+		case PS_SIGSUSPEND:
+		case PS_SIGWAIT:
+			/*
+			 * Remove these threads from the waiting queue and
+			 * set their state to suspended:
+			 */
+			PTHREAD_WAITQ_REMOVE(thread);
+			PTHREAD_SET_STATE(thread, PS_SUSPENDED);
+			break;
+
+		case PS_MUTEX_WAIT:
+		case PS_COND_WAIT:
+		case PS_FDLR_WAIT:
+		case PS_FDLW_WAIT:
+		case PS_FILE_WAIT:
+		case PS_JOIN:
+			/* Mark the thread as suspended: */
+			thread->suspended = 1;
+
+			/*
+			 * Threads in these states may be in queues.
+			 * In order to preserve queue integrity, the
+			 * cancelled thread must remove itself from the
+			 * queue.  Mark the thread as interrupted and
+			 * set the state to running.  When the thread
+			 * resumes, it will remove itself from the queue
+			 * and call the suspension completion routine.
+			 */
+			thread->interrupted = 1;
+			_thread_seterrno(thread, EINTR);
+			PTHREAD_NEW_STATE(thread, PS_RUNNING);
+			thread->continuation = finish_suspension;
+			break;
+
+		case PS_DEAD:
+		case PS_DEADLOCK:
+		case PS_STATE_MAX:
+		case PS_SUSPENDED:
+			/* Nothing needs to be done: */
+			break;
+		}
 
 		/*
 		 * Undefer and handle pending signals, yielding if
@@ -69,4 +130,13 @@ pthread_suspend_np(pthread_t thread)
 	}
 	return(ret);
 }
+
+static void
+finish_suspension(void *arg)
+{
+	if (_thread_run->suspended != 0)
+		_thread_kern_sched_state(PS_SUSPENDED, __FILE__, __LINE__);
+}
+
+
 #endif
