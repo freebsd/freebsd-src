@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.16 1994/12/28 00:49:58 ache Exp $
+#	$Id: bsd.lib.mk,v 1.17 1995/01/04 22:32:40 ache Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -279,7 +279,7 @@ afterinstall: realinstall
 .endif
 .endif
 
-DISTRIBUTION?=	bindist
+DISTRIBUTION?=	bin
 .if !target(distribute)
 distribute:
 	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${RELEASEDIR}/${DISTRIBUTION} SHARED=copies

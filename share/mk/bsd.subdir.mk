@@ -1,5 +1,5 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id: bsd.subdir.mk,v 1.4 1994/09/16 14:30:25 jkh Exp $
+#	$Id: bsd.subdir.mk,v 1.5 1994/11/13 21:05:28 phk Exp $
 
 .MAIN: all
 
@@ -53,7 +53,7 @@ depend: _SUBDIRUSE
 maninstall: _SUBDIRUSE
 .endif
 
-DISTRIBUTION?=	bindist
+DISTRIBUTION?=	bin
 .if !target(afterdistribute)
 afterdistribute:
 .endif
