@@ -592,7 +592,7 @@ printcpuinfo(void)
 			"\033SSE2"	/* Streaming SIMD Extensions #2 */
 			"\034SS"	/* Self snoop */
 			"\035HTT"	/* Hyperthreading (see EBX bit 16-23) */
-			"\036TM"	/* Thermal Monintor clock slowdown */
+			"\036TM"	/* Thermal Monitor clock slowdown */
 			"\037IA64"	/* CPU can execute IA64 instructions */
 			"\040<b31>"
 			);
@@ -735,7 +735,7 @@ identblue(void)
 	setidt(6, bluetrap6, SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 
 	/*
-	 * Certain BIOS disables cpuid instructnion of Cyrix 6x86MX CPU.
+	 * Certain BIOS disables cpuid instruction of Cyrix 6x86MX CPU.
 	 * In this case, rdmsr generates general protection fault, and
 	 * exception will be trapped by bluetrap13().
 	 */
