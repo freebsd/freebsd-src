@@ -28,6 +28,7 @@
 #include "arch-utils.h"
 #include "regcache.h"
 #include "symfile.h"
+#include "objfiles.h"
 #include "x86-64-tdep.h"
 #include "dwarf2cfi.h"
 #include "gdb_assert.h"
@@ -37,6 +38,7 @@
 #define RDX_REGNUM 3
 #define RDI_REGNUM 5
 #define EFLAGS_REGNUM 17
+#define ST0_REGNUM 22
 #define XMM1_REGNUM  39
 
 struct register_info
@@ -49,62 +51,89 @@ struct register_info
 /* x86_64_register_raw_size_table[i] is the number of bytes of storage in
    GDB's register array occupied by register i.  */
 static struct register_info x86_64_register_info_table[] = {
-  {8, "rax", &builtin_type_int64},
-  {8, "rbx", &builtin_type_int64},
-  {8, "rcx", &builtin_type_int64},
-  {8, "rdx", &builtin_type_int64},
-  {8, "rsi", &builtin_type_int64},
-  {8, "rdi", &builtin_type_int64},
-  {8, "rbp", &builtin_type_void_func_ptr},
-  {8, "rsp", &builtin_type_void_func_ptr},
-  {8, "r8", &builtin_type_int64},
-  {8, "r9", &builtin_type_int64},
-  {8, "r10", &builtin_type_int64},
-  {8, "r11", &builtin_type_int64},
-  {8, "r12", &builtin_type_int64},
-  {8, "r13", &builtin_type_int64},
-  {8, "r14", &builtin_type_int64},
-  {8, "r15", &builtin_type_int64},
-  {8, "rip", &builtin_type_void_func_ptr},
-  {4, "eflags", &builtin_type_int32},
-  {4, "ds", &builtin_type_int32},
-  {4, "es", &builtin_type_int32},
-  {4, "fs", &builtin_type_int32},
-  {4, "gs", &builtin_type_int32},
-  {10, "st0", &builtin_type_i387_ext},
-  {10, "st1", &builtin_type_i387_ext},
-  {10, "st2", &builtin_type_i387_ext},
-  {10, "st3", &builtin_type_i387_ext},
-  {10, "st4", &builtin_type_i387_ext},
-  {10, "st5", &builtin_type_i387_ext},
-  {10, "st6", &builtin_type_i387_ext},
-  {10, "st7", &builtin_type_i387_ext},
-  {4, "fctrl", &builtin_type_int32},
-  {4, "fstat", &builtin_type_int32},
-  {4, "ftag", &builtin_type_int32},
-  {4, "fiseg", &builtin_type_int32},
-  {4, "fioff", &builtin_type_int32},
-  {4, "foseg", &builtin_type_int32},
-  {4, "fooff", &builtin_type_int32},
-  {4, "fop", &builtin_type_int32},
-  {16, "xmm0", &builtin_type_v4sf},
-  {16, "xmm1", &builtin_type_v4sf},
-  {16, "xmm2", &builtin_type_v4sf},
-  {16, "xmm3", &builtin_type_v4sf},
-  {16, "xmm4", &builtin_type_v4sf},
-  {16, "xmm5", &builtin_type_v4sf},
-  {16, "xmm6", &builtin_type_v4sf},
-  {16, "xmm7", &builtin_type_v4sf},
-  {16, "xmm8", &builtin_type_v4sf},
-  {16, "xmm9", &builtin_type_v4sf},
-  {16, "xmm10", &builtin_type_v4sf},
-  {16, "xmm11", &builtin_type_v4sf},
-  {16, "xmm12", &builtin_type_v4sf},
-  {16, "xmm13", &builtin_type_v4sf},
-  {16, "xmm14", &builtin_type_v4sf},
-  {16, "xmm15", &builtin_type_v4sf},
-  {4, "mxcsr", &builtin_type_int32}
+  /*  0 */ {8, "rax", &builtin_type_int64},
+  /*  1 */ {8, "rbx", &builtin_type_int64},
+  /*  2 */ {8, "rcx", &builtin_type_int64},
+  /*  3 */ {8, "rdx", &builtin_type_int64},
+  /*  4 */ {8, "rsi", &builtin_type_int64},
+  /*  5 */ {8, "rdi", &builtin_type_int64},
+  /*  6 */ {8, "rbp", &builtin_type_void_func_ptr},
+  /*  7 */ {8, "rsp", &builtin_type_void_func_ptr},
+  /*  8 */ {8, "r8", &builtin_type_int64},
+  /*  9 */ {8, "r9", &builtin_type_int64},
+  /* 10 */ {8, "r10", &builtin_type_int64},
+  /* 11 */ {8, "r11", &builtin_type_int64},
+  /* 12 */ {8, "r12", &builtin_type_int64},
+  /* 13 */ {8, "r13", &builtin_type_int64},
+  /* 14 */ {8, "r14", &builtin_type_int64},
+  /* 15 */ {8, "r15", &builtin_type_int64},
+  /* 16 */ {8, "rip", &builtin_type_void_func_ptr},
+  /* 17 */ {4, "eflags", &builtin_type_int32},
+  /* 18 */ {4, "ds", &builtin_type_int32},
+  /* 19 */ {4, "es", &builtin_type_int32},
+  /* 20 */ {4, "fs", &builtin_type_int32},
+  /* 21 */ {4, "gs", &builtin_type_int32},
+  /* 22 */ {10, "st0", &builtin_type_i387_ext},
+  /* 23 */ {10, "st1", &builtin_type_i387_ext},
+  /* 24 */ {10, "st2", &builtin_type_i387_ext},
+  /* 25 */ {10, "st3", &builtin_type_i387_ext},
+  /* 26 */ {10, "st4", &builtin_type_i387_ext},
+  /* 27 */ {10, "st5", &builtin_type_i387_ext},
+  /* 28 */ {10, "st6", &builtin_type_i387_ext},
+  /* 29 */ {10, "st7", &builtin_type_i387_ext},
+  /* 30 */ {4, "fctrl", &builtin_type_int32},
+  /* 31 */ {4, "fstat", &builtin_type_int32},
+  /* 32 */ {4, "ftag", &builtin_type_int32},
+  /* 33 */ {4, "fiseg", &builtin_type_int32},
+  /* 34 */ {4, "fioff", &builtin_type_int32},
+  /* 35 */ {4, "foseg", &builtin_type_int32},
+  /* 36 */ {4, "fooff", &builtin_type_int32},
+  /* 37 */ {4, "fop", &builtin_type_int32},
+  /* 38 */ {16, "xmm0", &builtin_type_v4sf},
+  /* 39 */ {16, "xmm1", &builtin_type_v4sf},
+  /* 40 */ {16, "xmm2", &builtin_type_v4sf},
+  /* 41 */ {16, "xmm3", &builtin_type_v4sf},
+  /* 42 */ {16, "xmm4", &builtin_type_v4sf},
+  /* 43 */ {16, "xmm5", &builtin_type_v4sf},
+  /* 44 */ {16, "xmm6", &builtin_type_v4sf},
+  /* 45 */ {16, "xmm7", &builtin_type_v4sf},
+  /* 46 */ {16, "xmm8", &builtin_type_v4sf},
+  /* 47 */ {16, "xmm9", &builtin_type_v4sf},
+  /* 48 */ {16, "xmm10", &builtin_type_v4sf},
+  /* 49 */ {16, "xmm11", &builtin_type_v4sf},
+  /* 50 */ {16, "xmm12", &builtin_type_v4sf},
+  /* 51 */ {16, "xmm13", &builtin_type_v4sf},
+  /* 52 */ {16, "xmm14", &builtin_type_v4sf},
+  /* 53 */ {16, "xmm15", &builtin_type_v4sf},
+  /* 54 */ {4, "mxcsr", &builtin_type_int32}
 };
+
+/* This array is a mapping from Dwarf-2 register 
+   numbering to GDB's one. Dwarf-2 numbering is 
+   defined in x86-64 ABI, section 3.6.  */
+static int x86_64_dwarf2gdb_regno_map[] = {
+  0, 1, 2, 3,			/* RAX - RDX */
+  4, 5, 6, 7,			/* RSI, RDI, RBP, RSP */
+  8, 9, 10, 11,			/* R8 - R11 */
+  12, 13, 14, 15,		/* R12 - R15 */
+  -1,				/* RA - not mapped */
+  XMM1_REGNUM - 1, XMM1_REGNUM,	/* XMM0 ... */
+  XMM1_REGNUM + 1, XMM1_REGNUM + 2,
+  XMM1_REGNUM + 3, XMM1_REGNUM + 4,
+  XMM1_REGNUM + 5, XMM1_REGNUM + 6,
+  XMM1_REGNUM + 7, XMM1_REGNUM + 8,
+  XMM1_REGNUM + 9, XMM1_REGNUM + 10,
+  XMM1_REGNUM + 11, XMM1_REGNUM + 12,
+  XMM1_REGNUM + 13, XMM1_REGNUM + 14,	/* ... XMM15 */
+  ST0_REGNUM + 0, ST0_REGNUM + 1,	/* ST0 ... */
+  ST0_REGNUM + 2, ST0_REGNUM + 3,
+  ST0_REGNUM + 4, ST0_REGNUM + 5,
+  ST0_REGNUM + 6, ST0_REGNUM + 7	/* ... ST7 */
+};
+
+static int x86_64_dwarf2gdb_regno_map_length =
+  sizeof (x86_64_dwarf2gdb_regno_map) /
+  sizeof (x86_64_dwarf2gdb_regno_map[0]);
 
 /* Number of all registers */
 #define X86_64_NUM_REGS (sizeof (x86_64_register_info_table) / \
@@ -167,7 +196,7 @@ x86_64_register_convert_to_virtual (int regnum, struct type *type,
 				    char *from, char *to)
 {
   char buf[12];
-  DOUBLEST d;
+
   /* We only support floating-point values.  */
   if (TYPE_CODE (type) != TYPE_CODE_FLT)
     {
@@ -196,6 +225,19 @@ x86_64_register_convert_to_raw (struct type *type, int regnum,
   gdb_assert (TYPE_CODE (type) == TYPE_CODE_FLT && TYPE_LENGTH (type) == 12);
   /* Simply omit the two unused bytes.  */
   memcpy (to, from, FPU_REG_RAW_SIZE);
+}
+
+/* Dwarf-2 <-> GDB register numbers mapping.  */
+int
+x86_64_dwarf2_reg_to_regnum (int dw_reg)
+{
+  if (dw_reg < 0 || dw_reg > x86_64_dwarf2gdb_regno_map_length)
+    {
+      warning ("Dwarf-2 uses unmapped register #%d\n", dw_reg);
+      return dw_reg;
+    }
+
+  return x86_64_dwarf2gdb_regno_map[dw_reg];
 }
 
 /* This is the variable that is set with "set disassembly-flavour", and
@@ -331,18 +373,19 @@ classify_argument (struct type *type,
 	  case TYPE_CODE_STRUCT:
 	    {
 	      int j;
-	      for (j = 0; j < type->nfields; ++j)
+	      for (j = 0; j < TYPE_NFIELDS (type); ++j)
 		{
-		  int num = classify_argument (type->fields[j].type,
+		  int num = classify_argument (TYPE_FIELDS (type)[j].type,
 					       subclasses,
-					       (type->fields[j].loc.bitpos
-						+ bit_offset) % 256);
+					       (TYPE_FIELDS (type)[j].loc.
+						bitpos + bit_offset) % 256);
 		  if (!num)
 		    return 0;
 		  for (i = 0; i < num; i++)
 		    {
 		      int pos =
-			(type->fields[j].loc.bitpos + bit_offset) / 8 / 8;
+			(TYPE_FIELDS (type)[j].loc.bitpos +
+			 bit_offset) / 8 / 8;
 		      classes[i + pos] =
 			merge_classes (subclasses[i], classes[i + pos]);
 		    }
@@ -353,7 +396,7 @@ classify_argument (struct type *type,
 	    {
 	      int num;
 
-	      num = classify_argument (type->target_type,
+	      num = classify_argument (TYPE_TARGET_TYPE (type),
 				       subclasses, bit_offset);
 	      if (!num)
 		return 0;
@@ -372,10 +415,10 @@ classify_argument (struct type *type,
 	    {
 	      int j;
 	      {
-		for (j = 0; j < type->nfields; ++j)
+		for (j = 0; j < TYPE_NFIELDS (type); ++j)
 		  {
 		    int num;
-		    num = classify_argument (type->fields[j].type,
+		    num = classify_argument (TYPE_FIELDS (type)[j].type,
 					     subclasses, bit_offset);
 		    if (!num)
 		      return 0;
@@ -384,6 +427,8 @@ classify_argument (struct type *type,
 		  }
 	      }
 	    }
+	    break;
+	  default:
 	    break;
 	  }
 	/* Final merger cleanup.  */
@@ -447,6 +492,8 @@ classify_argument (struct type *type,
 	}
     case TYPE_CODE_VOID:
       return 0;
+    default:			/* Avoid warning.  */
+      break;
     }
   internal_error (__FILE__, __LINE__,
 		  "classify_argument: unknown argument type");
@@ -609,7 +656,7 @@ x86_64_push_arguments (int nargs, struct value **args, CORE_ADDR sp,
   static int int_parameter_registers[INT_REGS] = {
     5 /* RDI */ , 4 /* RSI */ ,
     3 /* RDX */ , 2 /* RCX */ ,
-    8 /* R8  */ , 9 /* R9  */
+    8 /* R8  */ , 9		/* R9  */
   };
   /* XMM0 - XMM15  */
   static int sse_parameter_registers[SSE_REGS] = {
@@ -752,12 +799,23 @@ x86_64_store_return_value (struct type *type, char *valbuf)
 }
 
 
-static char *
+char *
 x86_64_register_name (int reg_nr)
 {
   if (reg_nr < 0 || reg_nr >= X86_64_NUM_REGS)
     return NULL;
   return x86_64_register_info_table[reg_nr].name;
+}
+
+int
+x86_64_register_number (const char *name)
+{
+  int reg_nr;
+
+  for (reg_nr = 0; reg_nr < X86_64_NUM_REGS; reg_nr++)
+    if (strcmp (name, x86_64_register_info_table[reg_nr].name) == 0)
+      return reg_nr;
+  return -1;
 }
 
 
@@ -800,10 +858,10 @@ x86_64_frameless_function_invocation (struct frame_info *frame)
 CORE_ADDR
 x86_64_skip_prologue (CORE_ADDR pc)
 {
-  int i, firstline, currline;
+  int i;
   struct symtab_and_line v_sal;
   struct symbol *v_function;
-  CORE_ADDR salendaddr = 0, endaddr = 0;
+  CORE_ADDR endaddr;
 
   /* We will handle only functions beginning with:
      55          pushq %rbp
@@ -817,7 +875,7 @@ x86_64_skip_prologue (CORE_ADDR pc)
   /* First check, whether pc points to pushq %rbp, movq %rsp,%rbp.  */
   for (i = 0; i < PROLOG_BUFSIZE; i++)
     if (prolog_expect[i] != prolog_buf[i])
-      return pc;	/* ... no, it doesn't. Nothing to skip.  */
+      return pc;		/* ... no, it doesn't. Nothing to skip.  */
 
   /* OK, we have found the prologue and want PC of the first 
      non-prologue instruction.  */
@@ -831,18 +889,13 @@ x86_64_skip_prologue (CORE_ADDR pc)
   if (!v_function || !v_function->ginfo.value.block || !v_sal.symtab)
     return pc;
 
-  firstline = v_sal.line;
-  currline = firstline;
-  salendaddr = v_sal.end;
   endaddr = v_function->ginfo.value.block->endaddr;
 
   for (i = 0; i < v_sal.symtab->linetable->nitems; i++)
-    if (v_sal.symtab->linetable->item[i].line > firstline
-	&& v_sal.symtab->linetable->item[i].pc >= salendaddr
+    if (v_sal.symtab->linetable->item[i].pc >= pc
 	&& v_sal.symtab->linetable->item[i].pc < endaddr)
       {
 	pc = v_sal.symtab->linetable->item[i].pc;
-	currline = v_sal.symtab->linetable->item[i].line;
 	break;
       }
 
@@ -859,7 +912,7 @@ x86_64_breakpoint_from_pc (CORE_ADDR * pc, int *lenptr)
 }
 
 static struct gdbarch *
-i386_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
+x86_64_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 {
   struct gdbarch *gdbarch;
   struct gdbarch_tdep *tdep;
@@ -885,7 +938,7 @@ i386_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 	      break;
 	    default:
 	      internal_error (__FILE__, __LINE__,
-			      "i386_gdbarch_init: unknown machine type");
+			      "x86_64_gdbarch_init: unknown machine type");
 	    }
 	  break;
 	case bfd_mach_i386_i386:
@@ -902,12 +955,12 @@ i386_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 	      return arches->gdbarch;
 	    default:
 	      internal_error (__FILE__, __LINE__,
-			      "i386_gdbarch_init: unknown machine type");
+			      "x86_64_gdbarch_init: unknown machine type");
 	    }
 	  break;
 	default:
 	  internal_error (__FILE__, __LINE__,
-			  "i386_gdbarch_init: unknown machine type");
+			  "x86_64_gdbarch_init: unknown machine type");
 	}
     }
 
@@ -927,7 +980,7 @@ i386_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
       break;
     default:
       internal_error (__FILE__, __LINE__,
-		      "i386_gdbarch_init: unknown machine type");
+		      "x86_64_gdbarch_init: unknown machine type");
     }
 
   set_gdbarch_long_bit (gdbarch, 64);
@@ -967,7 +1020,6 @@ i386_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   set_gdbarch_fp0_regnum (gdbarch, X86_64_NUM_GREGS);	/* First FPU floating-point register.  */
 
   set_gdbarch_read_fp (gdbarch, cfi_read_fp);
-  set_gdbarch_write_fp (gdbarch, cfi_write_fp);
 
 /* Discard from the stack the innermost frame, restoring all registers.  */
   set_gdbarch_pop_frame (gdbarch, x86_64_pop_frame);
@@ -1056,8 +1108,11 @@ i386_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 
   set_gdbarch_inner_than (gdbarch, core_addr_lessthan);
 
-  set_gdbarch_breakpoint_from_pc (gdbarch, x86_64_breakpoint_from_pc);
+  set_gdbarch_breakpoint_from_pc (gdbarch,
+				  (gdbarch_breakpoint_from_pc_ftype *)
+				  x86_64_breakpoint_from_pc);
 
+  set_gdbarch_in_solib_call_trampoline (gdbarch, in_plt_section);
 
 /* Amount PC must be decremented by after a breakpoint.  This is often the
    number of bytes in BREAKPOINT but not always.  */
@@ -1065,13 +1120,15 @@ i386_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 
 /* Use dwarf2 debug frame informations.  */
   set_gdbarch_dwarf2_build_frame_info (gdbarch, dwarf2_build_frame_info);
+  set_gdbarch_dwarf2_reg_to_regnum (gdbarch, x86_64_dwarf2_reg_to_regnum);
+
   return gdbarch;
 }
 
 void
 _initialize_x86_64_tdep (void)
 {
-  register_gdbarch_init (bfd_arch_i386, i386_gdbarch_init);
+  register_gdbarch_init (bfd_arch_i386, x86_64_gdbarch_init);
 
   /* Initialize the table saying where each register starts in the
      register file.  */

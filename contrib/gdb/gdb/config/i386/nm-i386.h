@@ -115,6 +115,10 @@ extern int  i386_remove_hw_breakpoint (CORE_ADDR addr, void *shadow);
 
 #define DECR_PC_AFTER_HW_BREAK 0
 
+/* child_post_startup_inferior used to
+   reset all debug registers by calling i386_cleanup_dregs ().  */ 
+#define CHILD_POST_STARTUP_INFERIOR
+
 #endif /* I386_USE_GENERIC_WATCHPOINTS */
 
 #endif /* NM_I386_H */
