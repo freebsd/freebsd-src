@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.7 1994/10/09 01:52:18 phk Exp $
+ * $Id: vm_swap.c,v 1.8 1994/10/09 07:35:18 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -136,17 +136,12 @@ swapinit()
 		panic("swapvp");
 #endif
 	/*
-	 * If there is no swap configured, tell the user. If there is,
-	 * try to make swap on boot device available now. If this fails,
-	 * no swap space is available there or it isn't configured.
+	 * If there is no swap configured, tell the user.  We don't activate
+	 * any swapspaces in the kernel.  The user must explicitly use swapon
+	 * to tell start each device.
 	 */
 	if (nswap == 0)
 		printf("WARNING: no swap space found\n");
-	else {
-		error = swfree(p, 0);
-		if (error)
-			printf("WARNING: no swap on boot device - use swapon\n");
-	}
 }
 
 void
