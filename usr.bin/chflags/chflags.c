@@ -56,7 +56,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-extern u_long setflags __P((char **, u_long *, u_long *));
+int	setflags __P((char **, u_long *, u_long *));
 
 void	usage __P((void));
 
