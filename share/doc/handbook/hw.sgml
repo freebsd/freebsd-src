@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.16 1996/02/16 13:28:20 jkh Exp $ -->
+<!-- $Id: hw.sgml,v 1.17 1996/02/27 15:57:47 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- 
@@ -138,8 +138,8 @@ Slippery when wet.  Beware of dog.
 
    <sect2><heading>Serial</heading>
     <p>If you're looking for high-speed serial networking solutions, then
-    <htmlurl url="http://www.digiboard.com/" name="Digi International">
-    makes the <htmlurl url="http://www.digiboard.com/prodprofiles/profiles-prices/arnetprofiles/sync570i.html" name="SYNC 570i"> series, with drivers now in
+    <htmlurl url="http://www.dgii.com/" name="Digi International">
+    makes the <htmlurl url="http://www.dgii.com/prodprofiles/profiles-prices/digiprofiles/digispecs/sync570.html" name="SYNC/570"> series, with drivers now in
     FreeBSD-current. <htmlurl url="http://www.etinc.com"
     name="Emerging Technologies"> also manufactures a board with T1/E1
     capabilities, using software they provide.
