@@ -321,9 +321,9 @@ reread_mbr:
 	 */
 	if (((cp[4] != 'I') || (cp[5] != 'P') || (cp[6] != 'L') ||
 		 (cp[7] != '1')) &&
-		((strncmp(dname, "sd", 2) == 0) || (strncmp(dname, "wd", 2) == 0))) {
+		((strncmp(dname, "da", 2) == 0) || (strncmp(dname, "wd", 2) == 0))) {
 		/* IBM-PC HDD */
-		bp->b_flags = B_INVAL | B_AGE;
+		bp->b_flags |= B_INVAL | B_AGE;
 		brelse(bp);
 		return atcompat_dsinit(dname, dev, strat, lp, sspp);
 	}
