@@ -278,7 +278,6 @@ ofwo_action(const char *prop, const char *val)
 {
 	void *pbuf;
 	int fd, len, pblen, rv;
-	phandle_t optnode;
 	struct ofwo_extabent *ex;
 
 	pblen = 0;
@@ -290,8 +289,7 @@ ofwo_action(const char *prop, const char *val)
 		fd = ofw_open(O_RDWR);
 	else
 		fd = ofw_open(O_RDONLY);
-	optnode = ofw_optnode(fd);
-	len = ofw_getprop_alloc(fd, optnode, prop, &pbuf, &pblen, 1);
+	len = ofw_getprop_alloc(fd, ofw_optnode(fd), prop, &pbuf, &pblen, 1);
 	if (len < 0) {
 		rv = EX_UNAVAILABLE;
 		goto out;
