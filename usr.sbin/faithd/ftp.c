@@ -1,7 +1,9 @@
+/*	$KAME$	*/
+
 /*
  * Copyright (C) 1997 and 1998 WIDE Project.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +15,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -405,7 +407,7 @@ ftp_copyresult(int src, int dst, enum state state)
 		if (!passivemode && rbuf[0] == '1') {
 			if (ftp_activeconn() < 0) {
 				n = snprintf(rbuf, sizeof(rbuf),
-					"425 Cannot open data connection\r\n");
+					"425 Cannot open data connetion\r\n");
 			}
 		}
 		write(dst, rbuf, n);
@@ -555,10 +557,10 @@ passivefail:
 			p = (char *)&sin6->sin6_port;
 			n = snprintf(sbuf, sizeof(sbuf),
 "228 Entering Long Passive Mode (%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d)\r\n",
-				6, 16, UC(a[0]), UC(a[1]), UC(a[2]), UC(a[3]), 
-				UC(a[4]), UC(a[5]), UC(a[6]), UC(a[7]), 
-				UC(a[8]), UC(a[9]), UC(a[10]), UC(a[11]), 
-				UC(a[12]), UC(a[13]), UC(a[14]), UC(a[15]), 
+				6, 16, UC(a[0]), UC(a[1]), UC(a[2]), UC(a[3]),
+				UC(a[4]), UC(a[5]), UC(a[6]), UC(a[7]),
+				UC(a[8]), UC(a[9]), UC(a[10]), UC(a[11]),
+				UC(a[12]), UC(a[13]), UC(a[14]), UC(a[15]),
 				2, UC(p[0]), UC(p[1]));
 			write(dst, sbuf, n);
 			passivemode = 1;
@@ -676,7 +678,7 @@ passivefail2:
 			p = (char *)&sin->sin_port;
 			n = snprintf(sbuf, sizeof(sbuf),
 "227 Entering Passive Mode (%d,%d,%d,%d,%d,%d)\r\n",
-				UC(a[0]), UC(a[1]), UC(a[2]), UC(a[3]), 
+				UC(a[0]), UC(a[1]), UC(a[2]), UC(a[3]),
 				UC(p[0]), UC(p[1]));
 			write(dst, sbuf, n);
 			passivemode = 1;
@@ -921,12 +923,7 @@ eprtparamfail:
 		error = getaddrinfo(hostp, portp, &hints, &res);
 		if (error) {
 			n = snprintf(sbuf, sizeof(sbuf),
-				"501 EPRT: %s", gai_strerror(error));
-			if (error == EAI_SYSTEM)
-				n += snprintf(sbuf, sizeof(sbuf),
-					      ": %s", strerror(errno));
-			n +=  snprintf(sbuf, sizeof(sbuf), "\r\n");
-
+				"501 EPRT: %s\r\n", gai_strerror(error));
 			write(src, sbuf, n);
 			return n;
 		}
