@@ -169,8 +169,8 @@ setup()
 		pos_out();
 
 	/*
-	 * Truncate the output file; ignore errors because it fails on some
-	 * kinds of output files, tapes, for example.
+	 * Truncate the output file.  If it fails on a type of output file
+	 * that it should _not_ fail on, error out.
 	 */
 	if ((ddflags & (C_OF | C_SEEK | C_NOTRUNC)) == (C_OF | C_SEEK) &&
 	    out.flags & ISTRUNC)
