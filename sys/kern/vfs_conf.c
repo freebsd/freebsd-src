@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_conf.c	8.8 (Berkeley) 3/31/94
- * $Id: vfs_conf.c,v 1.27 1999/05/23 10:51:33 jb Exp $
+ * $Id: vfs_conf.c,v 1.28 1999/05/24 00:37:26 jb Exp $
  */
 
 /*
@@ -118,6 +118,7 @@ vfs_mountrootfs(void *unused)
 	struct mount		*mp;
 	int			err;
 	struct proc		*p = curproc;	/* XXX */
+	int			s;
 	int			i;
 	dev_t			orootdev;
 
@@ -146,7 +147,9 @@ vfs_mountrootfs(void *unused)
 			break;
 		rootdev = rootdevs[i];
 		if (rootdev != orootdev) {
+			s = splbio();	/* Overkill, but harmless.. */
 			printf("changing root device to %s\n", rootdevnames[i]);
+			splx(s);
 			orootdev = rootdev;
 		}
 		strncpy(mp->mnt_stat.f_mntfromname,
