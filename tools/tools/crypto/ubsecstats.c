@@ -59,7 +59,7 @@ main(int argc, char *argv[])
 		stats.hst_noload, stats.hst_nomcl);
 	printf("totbatch %u maxbatch %u\n",
 		stats.hst_totbatch, stats.hst_maxbatch);
-	printf("maxqueue %u maxqchip %u mcr1full\n",
+	printf("maxqueue %u maxqchip %u mcr1full %u\n",
 		stats.hst_maxqueue, stats.hst_maxqchip, stats.hst_mcr1full);
 	printf("rng %u modexp %u moexpcrt %u\n",
 		stats.hst_rng, stats.hst_modexp, stats.hst_modexpcrt);
