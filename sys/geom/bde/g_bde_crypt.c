@@ -331,6 +331,8 @@ g_bde_map_sector(struct g_bde_work *wp)
 	wp->so = zone * kp->zone_width + zoff;
 	wp->so += kp->keyoffset;
 	wp->so %= kp->media_width;
+	if (wp->so + wp->length > kp->media_width)
+		wp->length = kp->media_width - wp->so;
 	wp->so += kp->sector0;
 
 	/* The key sector is the last in this zone. */
@@ -364,4 +366,28 @@ g_bde_map_sector(struct g_bde_work *wp)
 	    (intmax_t)wp->kso,
 	    wp->ko);
 #endif
+	KASSERT(wp->so + wp->length <= kp->sectorN,
+	    ("wp->so (%qd) + wp->length (%qd) > EOM (%qd), offset = %qd",
+	    (intmax_t)wp->so,
+	    (intmax_t)wp->length,
+	    (intmax_t)kp->sectorN,
+	    (intmax_t)wp->offset));
+
+	KASSERT(wp->kso + kp->sectorsize <= kp->sectorN,
+	    ("wp->kso (%qd) + kp->sectorsize > EOM (%qd), offset = %qd",
+	    (intmax_t)wp->kso,
+	    (intmax_t)kp->sectorN,
+	    (intmax_t)wp->offset));
+
+	KASSERT(wp->so >= kp->sector0,
+	    ("wp->so (%qd) < BOM (%qd), offset = %qd",
+	    (intmax_t)wp->so,
+	    (intmax_t)kp->sector0,
+	    (intmax_t)wp->offset));
+
+	KASSERT(wp->kso >= kp->sector0,
+	    ("wp->kso (%qd) <BOM (%qd), offset = %qd",
+	    (intmax_t)wp->kso,
+	    (intmax_t)kp->sector0,
+	    (intmax_t)wp->offset));
 }
