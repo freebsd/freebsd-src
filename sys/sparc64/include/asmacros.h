@@ -127,10 +127,6 @@
 	set	sym, dst
 #endif
 
-#endif /* LOCORE */
-
-#endif /* _KERNEL */
-
 #define	DATA(name) \
 	.data ; \
 	.globl	name ; \
@@ -148,5 +144,9 @@ name ## :
 
 #define	END(name) \
 	.size	name, . - name
+
+#endif /* LOCORE */
+
+#endif /* _KERNEL */
 
 #endif /* !_MACHINE_ASMACROS_H_ */
