@@ -36,6 +36,8 @@
 
 #ifndef lint
 static const char sccsid[] = "@(#)contents.c	8.3 (Berkeley) 4/2/94";
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -63,7 +65,7 @@ contents(argv)
 {
 	int afd, all;
 	struct tm *tp;
-	char *file, buf[25];
+	char *file, buf[80];
 
 	afd = open_archive(O_RDONLY);
 
