@@ -98,19 +98,20 @@ struct xferstat {
     off_t		 rcvd;
 };
 
+void	 stat_start(struct xferstat *, char *, off_t, off_t);
+void	 stat_update(struct xferstat *, off_t);
+void	 stat_end(struct xferstat *);
+
 void
 stat_start(struct xferstat *xs, char *name, off_t size, off_t offset)
 {
     snprintf(xs->name, sizeof xs->name, "%s", name);
+    gettimeofday(&xs->start, NULL);
+    xs->last.tv_sec = xs->last.tv_usec = 0;
+    xs->end = xs->last;
     xs->size = size;
     xs->offset = offset;
-    if (v_level) {
-	fprintf(stderr, "Receiving %s", xs->name);
-	if (xs->size != -1)
-	    fprintf(stderr, " (%lld bytes)", xs->size - xs->offset);
-    }
-    gettimeofday(&xs->start, NULL);
-    xs->last = xs->start;
+    stat_update(xs, 0);
 }
 
 void
@@ -130,10 +131,10 @@ stat_update(struct xferstat *xs, off_t rcvd)
     
     fprintf(stderr, "\rReceiving %s", xs->name);
     if (xs->size == -1)
-	fprintf(stderr, ": %lld bytes", xs->rcvd - xs->offset);
+	fprintf(stderr, ": %lld bytes", xs->size);
     else
-	fprintf(stderr, " (%lld bytes): %d%%", xs->size - xs->offset,
-		(int)((100.0 * xs->rcvd) / (xs->size - xs->offset)));
+	fprintf(stderr, " (%lld bytes): %d%%", xs->size,
+		(int)((100.0 * (xs->rcvd + xs->offset)) / xs->size));
 }
 
 void
@@ -151,8 +152,8 @@ stat_end(struct xferstat *xs)
     delta = (xs->end.tv_sec + (xs->end.tv_usec / 1.e6))
 	- (xs->start.tv_sec + (xs->start.tv_usec / 1.e6));
     fprintf(stderr, "%lld bytes transferred in %.1f seconds ",
-	    xs->size - xs->offset, delta);
-    bps = (xs->size - xs->offset) / delta;
+	    xs->rcvd - xs->offset, delta);
+    bps = (xs->rcvd - xs->offset) / delta;
     if (bps > 1024*1024)
 	fprintf(stderr, "(%.2f MBps)\n", bps / (1024*1024));
     else if (bps > 1024)
@@ -343,9 +344,11 @@ fetch(char *URL, char *path)
 		size = us.size - count;
 	    if (timeout)
 		alarm(timeout);
-	    if (fread(buf, size, 1, f) != 1 || fwrite(buf, size, 1, of) != 1)
+	    if ((size = fread(buf, 1, size, f)) <= 0)
 		break;
 	    stat_update(&xs, count += size);
+	    if (fwrite(buf, size, 1, of) != 1)
+		break;
 	}
     }
     
