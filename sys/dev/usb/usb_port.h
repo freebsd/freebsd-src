@@ -126,14 +126,14 @@ __CONCAT(dname,_attach)(parent, self, aux) \
  * because of includes in the wrong order.
  */
 #define bdevice device_t
-#define USBDEVNAME(bdev) device_get_nameunit(bdev)
+#define USBDEVNAME(bdev)	(bdev? device_get_nameunit(bdev):"-")
 
 /* XXX Change this when FreeBSD has memset
  */
-#define memset(d, v, s)	\
+#define memset(d, v, s)			\
 		do{			\
 		if ((v) == 0)		\
-			bzero((d), (s));	\
+			bzero((d), (s));\
 		else			\
 			panic("Non zero filler for memset, cannot handle!"); \
 		} while (0)
@@ -184,7 +184,7 @@ __CONCAT(dname,_attach)(device_t self)
 
 #define USB_ATTACH_SETUP \
 	sc->sc_dev = self; \
-	device_set_desc_copy(self, devinfo);
+	device_set_desc_copy(self, devinfo)
 
 #define USB_GET_SC_OPEN(dname, unit, sc) \
 	struct __CONCAT(dname,_softc) *sc = \
