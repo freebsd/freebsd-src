@@ -722,7 +722,6 @@ A system admin's life is a sorry one.  The only advantage he has over
 Emergency Room doctors is that malpractice suits are rare.  On the
 other hand, ER doctors never have to deal with patients installing
 new versions of their own innards!"
-
 		-- Michael O'Brien
 %
 A tautology is a thing which is tautological.
@@ -3793,8 +3792,8 @@ that a belch is more satisfying.
 %
 Everything journalists write is true, except when they write about
 something you know.
-
-		-- Dag-Erling Smorgrav, June 1999, FreeBSD-Stable Mailing List
+		-- Dag-Erling Smorgrav,
+		   June 1999, FreeBSD-Stable Mailing List
 %
 Everything should be built top-down, except the first time.
 %
@@ -5633,9 +5632,8 @@ other minority viewpoint -- no matter how distasteful to the majority.
 What are our schools for if not indoctrination against Communism?
 		-- Richard M. Nixon
 %
-"I am a PC technician - however, this has unfortunately caused my
-computer to be running Win98."
-
+I am a PC technician - however, this has unfortunately caused my
+computer to be running Win98.
 		-- seen on a FreeBSD mailing-list
 %
 "I am convinced that the manufacturers of carpet odor removing powder
@@ -16397,5 +16395,4 @@ Zymurgy's Law of Volunteer Labor:
 %
 There's nothing so precious as a cafe full of Gap kiddies trying to
 work out whether you're really wearing rubber pants.
-
 		-- Mike Smith
