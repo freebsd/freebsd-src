@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 13, 2004
+.Dd September 19, 2004
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -86,8 +86,8 @@ traffic shaper in
 this manual page documents the newer version of
 .Nm
 introduced in
-.Fx
-CURRENT in July 2002, also known as
+.Fx 5.0
+in July 2002, also known as
 .Nm ipfw2 .
 .Nm ipfw2
 is a superset of the old firewall,
@@ -97,12 +97,12 @@ The differences between the two are listed in Section
 which you are encouraged to read to revise older rulesets and possibly
 write them more efficiently.
 See Section
-.Sx USING IPFW2 IN FreeBSD-STABLE
+.Sx USING IPFW2 IN FreeBSD 4.x
 for instructions on how to run
 .Nm ipfw2
 on
 .Fx
-STABLE.
+4.x.
 .Ed
 .Pp
 An
@@ -1865,13 +1865,13 @@ Controls whether bridged packets are passed to
 .Nm .
 Default is no.
 .El
-.Sh USING IPFW2 IN FreeBSD-STABLE
+.Sh USING IPFW2 IN FreeBSD 4.x
 .Nm ipfw2
 is standard in
 .Fx
-CURRENT, whereas
+5.x and 6.0, whereas
 .Fx
-STABLE still uses
+4.x still uses
 .Nm ipfw1
 unless the kernel is compiled with
 .Cm options IPFW2 ,
