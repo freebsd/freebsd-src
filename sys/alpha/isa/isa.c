@@ -29,7 +29,9 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/malloc.h>
@@ -52,23 +54,21 @@ static struct rman isa_drq_rman;
 static void
 isa_intr_enable(int irq)
 {
-	int s = splhigh();
+
 	if (irq < 8)
 		outb(IO_ICU1+1, inb(IO_ICU1+1) & ~(1 << irq));
 	else
 		outb(IO_ICU2+1, inb(IO_ICU2+1) & ~(1 << (irq - 8)));
-	splx(s);
 }
 
 static void
 isa_intr_disable(int irq)
 {
-	int s = splhigh();
+
 	if (irq < 8)
 		outb(IO_ICU1+1, inb(IO_ICU1+1) | (1 << irq));
 	else
 		outb(IO_ICU2+1, inb(IO_ICU2+1) | (1 << (irq - 8)));
-	splx(s);
 }
 
 intrmask_t
@@ -77,8 +77,10 @@ isa_irq_pending(void)
 	u_char irr1;
 	u_char irr2;
 
+	mtx_lock_spin(&icu_lock);
 	irr1 = inb(IO_ICU1);
 	irr2 = inb(IO_ICU2);
+	mtx_unlock_spin(&icu_lock);
 	return ((irr2 << 8) | irr1);
 }
 
@@ -88,8 +90,10 @@ isa_irq_mask(void)
 	u_char irr1;
 	u_char irr2;
 
+	mtx_lock_spin(&icu_lock);
 	irr1 = inb(IO_ICU1+1);
 	irr2 = inb(IO_ICU2+1);
+	mtx_unlock_spin(&icu_lock);
 	return ((irr2 << 8) | irr1);
 }
 
@@ -289,9 +293,11 @@ isa_handle_fast_intr(void *arg)
 
 	ii->intr(ii->arg);
 
+	mtx_lock_spin(&icu_lock);
 	if (irq > 7)
 		outb(IO_ICU2, 0x20 | (irq & 7));
 	outb(IO_ICU1, 0x20 | (irq > 7 ? 2 : irq));
+	mtx_unlock_spin(&icu_lock);
 }
 
 static void
@@ -311,18 +317,24 @@ isa_disable_intr(int vector)
 {
         int irq = (vector - 0x800) >> 4;
 
+	mtx_lock_spin(&icu_lock);
 	if (irq > 7)
 		outb(IO_ICU2, 0x20 | (irq & 7));
 	outb(IO_ICU1, 0x20 | (irq > 7 ? 2 : irq));
 
 	isa_intr_disable(irq);
+	mtx_unlock_spin(&icu_lock);
 }
 
 static void
 isa_enable_intr(int vector)
 {
-	int irq = (vector - 0x800) >> 4;
+	int irq;
+
+	irq = (vector - 0x800) >> 4;
+	mtx_lock_spin(&icu_lock);
 	isa_intr_enable(irq);
+	mtx_unlock_spin(&icu_lock);
 }
 
 
@@ -363,7 +375,9 @@ isa_setup_intr(device_t dev, device_t child,
 		free(ii, M_DEVBUF);
 		return error;
 	}
+	mtx_lock_spin(&icu_lock);
 	isa_intr_enable(irq->r_start);
+	mtx_unlock_spin(&icu_lock);
 
 	*cookiep = ii;
 
@@ -380,13 +394,16 @@ isa_teardown_intr(device_t dev, device_t child,
 {
 	struct isa_intr *ii = cookie;
 
+	mtx_lock_spin(&icu_lock);
+	isa_intr_disable(irq->r_start);
+	mtx_unlock_spin(&icu_lock);
+
 	if (platform.isa_teardown_intr) {
 		platform.isa_teardown_intr(dev, child, irq, cookie);	
 		return 0;
 	}
 
 	alpha_teardown_intr(ii->ih);
-	isa_intr_disable(irq->r_start);
 
 	return 0;
 }

@@ -458,28 +458,4 @@ typedef struct IOAPIC ioapic_t;
 
 #define IOART_INTVEC	0x000000ff	/* R/W: INTerrupt vector field */
 
-#ifdef LOCORE
-
-#ifdef SMP
-
-/*
- * Protects the IO APIC and apic_imen as a critical region.
- */
-#define IMASK_LOCK	MTX_LOCK_SPIN(imen_mtx, 0)
-#define IMASK_UNLOCK	MTX_UNLOCK_SPIN(imen_mtx)
-
-#else  /* SMP */
-
-#define IMASK_LOCK				/* NOP */
-#define IMASK_UNLOCK				/* NOP */
-
-#endif /* SMP */
-
-#else /* LOCORE */
-
-/* global data in mp_machdep.c */
-extern struct mtx	imen_mtx;
-
-#endif /* LOCORE */
-
 #endif /* _MACHINE_APIC_H_ */

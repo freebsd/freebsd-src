@@ -320,9 +320,6 @@ static void	release_aps(void *dummy);
  * initialize all the SMP locks
  */
 
-/* critical region around IO APIC, apic_imen */
-struct mtx		imen_mtx;
-
 /* lock region used by kernel profiling */
 int	mcount_lock;
 
