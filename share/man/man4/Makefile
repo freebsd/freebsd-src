@@ -1,11 +1,11 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/18/93
 # $FreeBSD$
 
-MAN4=	adv.4 adw.4 aha.4 ahb.4 ahc.4 amd.4 amr.4 an.4 ata.4 atkbd.4 atkbdc.4 aue.4 bktr.4 bt.4 blackhole.4 \
+MAN4=	adv.4 adw.4 aha.4 ahb.4 ahc.4 amd.4 amr.4 an.4 ata.4 atkbd.4 \
+	atkbdc.4 aue.4 bktr.4 bt.4 blackhole.4 \
 	bpf.4 bridge.4 ccd.4 cd.4 ch.4 csa.4 cue.4 da.4 dc.4 ddb.4 de.4 \
 	divert.4 dpt.4 dummynet.4 ed.4 faith.4 fd.4 fdc.4 fpa.4 fxp.4 \
-	gif.4 gusc.4 \
-	icmp.4 icmp6.4 ifmib.4 iic.4 iicbb.4 iicbus.4 iicsmb.4 \
+	gif.4 gusc.4 icmp.4 icmp6.4 ifmib.4 iic.4 iicbb.4 iicbus.4 iicsmb.4 \
 	inet.4 inet6.4 intpm.4 intro.4 ip.4 ip6.4 ipfirewall.4 ipsec.4 isp.4 \
 	joy.4 kame.4 keyboard.4 kld.4 \
 	kue.4 lo.4 lp.4 lpbb.4 lpt.4 mem.4 mlx.4 mouse.4 mtio.4 natm.4 \
