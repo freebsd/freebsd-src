@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.129 1998/12/14 13:30:29 mckay Exp $
+ *	$Id: clock.c,v 1.130 1999/04/21 07:26:27 peter Exp $
  */
 
 /*
@@ -948,7 +948,7 @@ cpu_initclocks()
 	int diag;
 #ifdef APIC_IO
 	int apic_8254_trial;
-	intrec *clkdesc;
+	struct intrec *clkdesc;
 #endif /* APIC_IO */
 
 	if (statclock_disable) {
