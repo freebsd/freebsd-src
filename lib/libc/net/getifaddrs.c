@@ -71,7 +71,12 @@
 #endif
 
 #if	_BSDI_VERSION >= 199802
+/* ifam_data is very specific to recent versions of bsdi */
 #define	HAVE_IFAM_DATA
+#endif
+
+#if defined(__NetBSD__) || defined(__OpenBSD__) || defined(__FreeBSD__)
+#define	HAVE_IFM_DATA
 #endif
 
 int
