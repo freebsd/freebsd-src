@@ -36,17 +36,17 @@
 
 #include <sys/cdefs.h>
 
-void	 brace_subst __P((char *, char **, char *, int));
-PLAN	*find_create __P((char ***));
-int	 find_execute __P((PLAN *, char **));
-PLAN	*find_formplan __P((char **));
-PLAN	*not_squish __P((PLAN *));
-PLAN	*or_squish __P((PLAN *));
-PLAN	*paren_squish __P((PLAN *));
+void	 brace_subst(char *, char **, char *, int);
+PLAN	*find_create(char ***);
+int	 find_execute(PLAN *, char **);
+PLAN	*find_formplan(char **);
+PLAN	*not_squish(PLAN *);
+PLAN	*or_squish(PLAN *);
+PLAN	*paren_squish(PLAN *);
 struct stat;
-void	 printlong __P((char *, char *, struct stat *));
-int	 queryuser __P((char **));
-OPTION	*lookup_option __P((const char *));
+void	 printlong(char *, char *, struct stat *);
+int	 queryuser(char **);
+OPTION	*lookup_option(const char *);
 
 creat_f	c_Xmin;
 creat_f	c_Xtime;

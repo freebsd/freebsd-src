@@ -54,7 +54,7 @@ static const char rcsid[] =
 
 #include "find.h"
 
-int typecompare __P((const void *, const void *));
+int typecompare(const void *, const void *);
 
 /* NB: the following table must be sorted lexically. */
 static OPTION const options[] = {

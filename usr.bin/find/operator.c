@@ -51,8 +51,8 @@ static const char rcsid[] =
 
 #include "find.h"
 
-static PLAN *yanknode __P((PLAN **));
-static PLAN *yankexpr __P((PLAN **));
+static PLAN *yanknode(PLAN **);
+static PLAN *yankexpr(PLAN **);
 
 /*
  * yanknode --
