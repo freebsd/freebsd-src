@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.44 1994/11/15 08:10:31 jkh Exp $
+#	$Id: Makefile,v 1.45 1994/11/17 07:09:21 jkh Exp $
 #
 
 # Evil floppies are, of course, 1.2MB floppies.
@@ -124,23 +124,24 @@ release20:
 	( cd ${.CURDIR}/../etc ; \
 		${MAKE} distribution DESTDIR=${RELEASEDIR}/filesys \
 			NOCRYPT=yes SHARED=copies)
-	(cd ${RELEASEDIR}/filesys; \
+	( cd ${RELEASEDIR}/filesys; \
 		tar cf - . | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/bindist/bin_tgz.)
 	cp ${.CURDIR}/extract.sh ${RELEASEDIR}/tarballs/bindist
+	( cd ${RELEASEDIR}/tarballs/bindist; cksum * > CKSUMS )
 	( cd ${.CURDIR} ;  \
 		${MAKE} floppies )
 foo:
-	(cd ${.CURDIR}/../etc ; \
+	( cd ${.CURDIR}/../etc ; \
 		${MAKE} srcebones-tarball \
 			DESTDIR=${RELEASEDIR}/filesys \
-			NOCRYPT=yes SHARED=copies)
+			NOCRYPT=yes SHARED=copies )
 		
 bar:
-	(cd ${.CURDIR}/../etc ; \
+	( cd ${.CURDIR}/../etc ; \
 		${MAKE} des-tarball \
 			DESTDIR=${RELEASEDIR}/filesys \
-			SHARED=copies)
+			SHARED=copies )
 
 DISTRIBUTIONS=	bindist DES games 
 MTREEFILES=	${.CURDIR}/../etc/mtree
