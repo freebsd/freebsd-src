@@ -1243,8 +1243,6 @@ vinum_help(int argc, char *argv[], char *argv0[])
 	"        List information about plexes.\n"
 	"lv [-r] [-s] [-v] [-V] [volume]\n"
 	"        List information about volumes.\n"
-	"makedev\n"
-	"        Remake the device nodes in /dev/vinum.\n"
 	"mirror [-f] [-n name] [-s] [-v] drives\n"
 	"        Create a mirrored volume from the specified drives.\n"
 	"move | mv -f drive object ...\n"
