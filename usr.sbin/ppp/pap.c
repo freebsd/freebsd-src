@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.17 1997/10/16 23:55:19 brian Exp $
+ * $Id: pap.c,v 1.18 1997/10/26 01:03:28 brian Exp $
  *
  *	TODO:
  */
@@ -37,6 +37,7 @@
 #endif
 #include <utmp.h>
 
+#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
@@ -45,16 +46,13 @@
 #include "lcp.h"
 #include "pap.h"
 #include "loadalias.h"
-#include "command.h"
 #include "vars.h"
 #include "hdlc.h"
 #include "lcpproto.h"
 #include "phase.h"
 #include "auth.h"
 
-static char *papcodes[] = {
-  "???", "REQUEST", "ACK", "NAK"
-};
+static const char *papcodes[] = { "???", "REQUEST", "ACK", "NAK" };
 
 static void
 SendPapChallenge(int papid)
@@ -93,7 +91,7 @@ struct authinfo AuthPapInfo = {
 };
 
 static void
-SendPapCode(int id, int code, char *message)
+SendPapCode(int id, int code, const char *message)
 {
   struct fsmheader lh;
   struct mbuf *bp;

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.26 1997/11/17 00:42:39 brian Exp $
+ * $Id: defs.h,v 1.27 1997/11/18 00:19:31 brian Exp $
  *
  *	TODO:
  */
@@ -45,6 +45,7 @@
 #define	NEXT_REDIAL_PERIOD 3	/* Default Hold time to next number redial */
 #define SCRIPT_LEN 512		/* Size of login scripts */
 #define LINE_LEN SCRIPT_LEN 	/* Size of login scripts */
+#define MAXARGS 40		/* How many args per config line */
 
 #define	CONFFILE 	"ppp.conf"
 #define	LINKUPFILE 	"ppp.linkup"

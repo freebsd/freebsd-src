@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.22 1997/11/11 22:58:09 brian Exp $
+ * $Id: auth.c,v 1.23 1997/11/17 00:42:37 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -29,6 +29,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
@@ -37,7 +38,6 @@
 #include "lcpproto.h"
 #include "ipcp.h"
 #include "loadalias.h"
-#include "command.h"
 #include "vars.h"
 #include "filter.h"
 #include "auth.h"
@@ -67,7 +67,7 @@ LocalAuthInit()
 }
 
 LOCAL_AUTH_VALID
-LocalAuthValidate(char *fname, char *system, char *key)
+LocalAuthValidate(const char *fname, const char *system, const char *key)
 {
   FILE *fp;
   int n;
@@ -102,7 +102,7 @@ LocalAuthValidate(char *fname, char *system, char *key)
 }
 
 int
-AuthValidate(char *fname, char *system, char *key)
+AuthValidate(const char *fname, const char *system, const char *key)
 {
   FILE *fp;
   int n;
@@ -128,7 +128,7 @@ AuthValidate(char *fname, char *system, char *key)
 	memset(&DefHisAddress, '\0', sizeof(DefHisAddress));
 	n -= 2;
 	if (n > 0) {
-	  if (ParseAddr(n--, &vector[2],
+	  if (ParseAddr(n--, (char const *const *)(vector+2),
 			&DefHisAddress.ipaddr,
 			&DefHisAddress.mask,
 			&DefHisAddress.width) == 0) {
@@ -145,7 +145,7 @@ AuthValidate(char *fname, char *system, char *key)
 }
 
 char *
-AuthGetSecret(char *fname, char *system, int len, int setaddr)
+AuthGetSecret(const char *fname, const char *system, int len, int setaddr)
 {
   FILE *fp;
   int n;
@@ -172,7 +172,7 @@ AuthGetSecret(char *fname, char *system, int len, int setaddr)
       n -= 2;
       if (n > 0 && setaddr) {
 	LogPrintf(LogDEBUG, "AuthGetSecret: n = %d, %s\n", n, vector[2]);
-	if (ParseAddr(n--, &vector[2],
+	if (ParseAddr(n--, (char const *const *)(vector+2),
 		      &DefHisAddress.ipaddr,
 		      &DefHisAddress.mask,
 		      &DefHisAddress.width) != 0)
@@ -186,9 +186,10 @@ AuthGetSecret(char *fname, char *system, int len, int setaddr)
 }
 
 static void
-AuthTimeout(struct authinfo *authp)
+AuthTimeout(void *vauthp)
 {
   struct pppTimer *tp;
+  struct authinfo *authp = (struct authinfo *)vauthp;
 
   tp = &authp->authtimer;
   StopTimer(tp);

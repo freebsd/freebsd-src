@@ -1,5 +1,5 @@
 /*
- * $Id: log.h,v 1.15 1997/11/04 01:17:01 brian Exp $
+ * $Id: log.h,v 1.16 1997/11/09 06:22:42 brian Exp $
  */
 
 #define LogMIN		(1)
@@ -39,6 +39,6 @@ extern int LogIsKept(int);
 extern void LogOpen(const char *);
 extern void LogSetTun(int);
 extern void LogClose(void);
-extern void LogPrintf(int, char *,...);
-extern void LogDumpBp(int, char *, struct mbuf *);
-extern void LogDumpBuff(int, char *, u_char *, int);
+extern void LogPrintf(int, const char *,...);
+extern void LogDumpBp(int, const char *, const struct mbuf *);
+extern void LogDumpBuff(int, const char *, const u_char *, int);

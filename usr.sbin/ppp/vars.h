@@ -15,13 +15,13 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.33 1997/11/09 22:07:29 brian Exp $
+ * $Id: vars.h,v 1.34 1997/11/18 14:52:08 brian Exp $
  *
  *	TODO:
  */
 
 struct confdesc {
-  char *name;
+  const char *name;
   int myside, hisside;
 };
 
@@ -68,7 +68,7 @@ struct pppvars {
   int dial_tries;		/* Dial attempts before giving up, 0 == inf */
   int loopback;			/* Turn around packets addressed to me */
   char modem_dev[40];		/* Name of device / host:port */
-  char *base_modem_dev;		/* Pointer to base of modem_dev */
+  const char *base_modem_dev;	/* Pointer to base of modem_dev */
   int open_mode;		/* LCP open mode */
 #define LOCAL_AUTH	0x01
 #define LOCAL_NO_AUTH	0x02
@@ -196,9 +196,9 @@ extern int reconnectCount;
  *
  */
 
-extern int EnableCommand(struct cmdtab *, int, char **);
-extern int DisableCommand(struct cmdtab *, int, char **);
-extern int AcceptCommand(struct cmdtab *, int, char **);
-extern int DenyCommand(struct cmdtab *, int, char **);
-extern int LocalAuthCommand(struct cmdtab *, int, char **);
-extern int DisplayCommand(void);
+extern int EnableCommand(struct cmdargs const *);
+extern int DisableCommand(struct cmdargs const *);
+extern int AcceptCommand(struct cmdargs const *);
+extern int DenyCommand(struct cmdargs const *);
+extern int LocalAuthCommand(struct cmdargs const *);
+extern int DisplayCommand(struct cmdargs const *);

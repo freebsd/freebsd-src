@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.36 1997/11/14 15:39:14 brian Exp $
+ * $Id: ipcp.c,v 1.37 1997/11/18 14:52:04 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -36,6 +36,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
@@ -48,7 +49,6 @@
 #include "os.h"
 #include "phase.h"
 #include "loadalias.h"
-#include "command.h"
 #include "vars.h"
 #include "vjcomp.h"
 #include "ip.h"
@@ -101,7 +101,7 @@ struct fsm IpcpFsm = {
   IpcpDecodeConfig,
 };
 
-static char *cftypes[] = {
+static const char *cftypes[] = {
   /* Check out the latest ``Assigned numbers'' rfc (rfc1700.txt) */
   "???",
   "IPADDRS",	/* 1: IP-Addresses */	/* deprecated */
@@ -111,7 +111,7 @@ static char *cftypes[] = {
 
 #define NCFTYPES (sizeof(cftypes)/sizeof(char *))
 
-static char *cftypes128[] = {
+static const char *cftypes128[] = {
   /* Check out the latest ``Assigned numbers'' rfc (rfc1700.txt) */
   "???",
   "PRIDNS",	/* 129: Primary DNS Server Address */
@@ -137,7 +137,7 @@ IpcpAddOutOctets(int n)
 }
 
 int
-ReportIpcpStatus()
+ReportIpcpStatus(struct cmdargs const *arg)
 {
   struct ipcpstate *icp = &IpcpInfo;
   struct fsm *fp = &IpcpFsm;
@@ -303,8 +303,10 @@ IpcpLayerUp(struct fsm * fp)
       LogPrintf(LogERROR, "IpcpLayerUp: unable to set ip address\n");
     return;
   }
+#ifndef NOALIAS
   if (mode & MODE_ALIAS)
     VarPacketAliasSetAddress(IpcpInfo.want_ipaddr);
+#endif
   OsLinkup();
   throughput_start(&throughput);
   StartIdleTimer();

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.103 1997/11/18 07:33:23 brian Exp $
+ * $Id: main.c,v 1.104 1997/11/18 18:17:25 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -33,7 +33,9 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <net/if.h>
+#ifdef __FreeBSD__
 #include <net/if_var.h>
+#endif
 #include <net/if_tun.h>
 
 #include <errno.h>
@@ -49,6 +51,7 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
@@ -62,7 +65,6 @@
 #include "lcp.h"
 #include "ipcp.h"
 #include "loadalias.h"
-#include "command.h"
 #include "vars.h"
 #include "auth.h"
 #include "filter.h"
@@ -76,6 +78,7 @@
 #include "async.h"
 #include "pathnames.h"
 #include "tun.h"
+#include "route.h"
 
 #ifndef O_NONBLOCK
 #ifdef O_NDELAY
@@ -94,7 +97,7 @@ static int dial_up;
 
 static void DoLoop(void);
 static void TerminalStop(int);
-static char *ex_desc(int);
+static const char *ex_desc(int);
 
 static void
 TtyInit(int DontWantInt)
@@ -230,7 +233,7 @@ CloseSession(int signo)
 }
 
 static void
-TerminalCont()
+TerminalCont(int signo)
 {
   pending_signal(SIGCONT, SIG_DFL);
   pending_signal(SIGTSTP, TerminalStop);
@@ -266,13 +269,14 @@ BringDownServer(int signo)
   ServerClose();
 }
 
-static char *
+static const char *
 ex_desc(int ex)
 {
   static char num[12];
-  static char *desc[] = {"normal", "start", "sock",
-    "modem", "dial", "dead", "done", "reboot", "errdead",
-  "hangup", "term", "nodial", "nologin"};
+  static const char *desc[] = {
+    "normal", "start", "sock", "modem", "dial", "dead", "done",
+    "reboot", "errdead", "hangup", "term", "nodial", "nologin"
+  };
 
   if (ex >= 0 && ex < sizeof(desc) / sizeof(*desc))
     return desc[ex];
@@ -281,10 +285,14 @@ ex_desc(int ex)
 }
 
 static void
-Usage()
+Usage(void)
 {
   fprintf(stderr,
-	  "Usage: ppp [-auto | -background | -direct | -dedicated | -ddial ] [ -alias ] [system]\n");
+	  "Usage: ppp [-auto | -background | -direct | -dedicated | -ddial ]"
+#ifndef NOALIAS
+          " [ -alias ]"
+#endif
+          " [system]\n");
   exit(EX_START);
 }
 
@@ -313,12 +321,14 @@ ProcessArgs(int argc, char **argv)
     } else if (strcmp(cp, "ddial") == 0) {
       mode |= MODE_DDIAL;
       mode &= ~MODE_INTER;
+#ifndef NOALIAS
     } else if (strcmp(cp, "alias") == 0) {
       if (loadAliasHandlers(&VarAliasHandlers) == 0)
 	mode |= MODE_ALIAS;
       else
 	LogPrintf(LogWARN, "Cannot load alias library\n");
       optc--;			/* this option isn't exclusive */
+#endif
     } else
       Usage();
     optc++;
@@ -339,7 +349,7 @@ ProcessArgs(int argc, char **argv)
 }
 
 static void
-Greetings()
+Greetings(void)
 {
   if (VarTerm) {
     fprintf(VarTerm, "User Process PPP. Written by Toshiharu OHNO.\n");
@@ -572,7 +582,7 @@ PacketMode()
 }
 
 static void
-ShowHelp()
+ShowHelp(void)
 {
   fprintf(stderr, "The following commands are available:\r\n");
   fprintf(stderr, " ~p\tEnter Packet mode\r\n");
@@ -585,7 +595,7 @@ ShowHelp()
 }
 
 static void
-ReadTty()
+ReadTty(void)
 {
   int n;
   char ch;
@@ -649,7 +659,7 @@ ReadTty()
 	}
       case 'm':
 	if (LogIsKept(LogDEBUG)) {
-	  ShowMemMap();
+	  ShowMemMap(NULL);
 	  break;
 	}
       default:
@@ -668,7 +678,7 @@ ReadTty()
  *  Here, we'll try to detect HDLC frame
  */
 
-static char *FrameHeaders[] = {
+static const char *FrameHeaders[] = {
   "\176\377\003\300\041",
   "\176\377\175\043\300\041",
   "\176\177\175\043\100\041",
@@ -677,10 +687,10 @@ static char *FrameHeaders[] = {
   NULL,
 };
 
-static u_char *
+static const u_char *
 HdlcDetect(u_char * cp, int n)
 {
-  char *ptr, *fp, **hp;
+  const char *ptr, *fp, **hp;
 
   cp[n] = '\0';			/* be sure to null terminated */
   ptr = NULL;
@@ -692,13 +702,13 @@ HdlcDetect(u_char * cp, int n)
     if (ptr)
       break;
   }
-  return ((u_char *) ptr);
+  return ((const u_char *) ptr);
 }
 
 static struct pppTimer RedialTimer;
 
 static void
-RedialTimeout()
+RedialTimeout(void *v)
 {
   StopTimer(&RedialTimer);
   LogPrintf(LogPHASE, "Redialing timer expired.\n");
@@ -727,14 +737,14 @@ StartRedialTimer(int Timeout)
 
 
 static void
-DoLoop()
+DoLoop(void)
 {
   fd_set rfds, wfds, efds;
   int pri, i, n, wfd, nfds;
   struct sockaddr_in hisaddr;
   struct timeval timeout, *tp;
   int ssize = sizeof(hisaddr);
-  u_char *cp;
+  const u_char *cp;
   int tries;
   int qlen;
   int res;
@@ -835,7 +845,7 @@ DoLoop()
 
 	if ((res = DialModem()) == EX_DONE) {
 	  nointr_sleep(1);		/* little pause to allow peer starts */
-	  ModemTimeout();
+	  ModemTimeout(NULL);
 	  PacketMode();
 	  dial_up = 0;
 	  reconnectState = RECON_UNKNOWN;
@@ -1031,10 +1041,12 @@ DoLoop()
 	  if (pri >= 0) {
 	    struct mbuf *bp;
 
+#ifndef NOALIAS
 	    if (mode & MODE_ALIAS) {
 	      VarPacketAliasIn(rbuff, sizeof rbuff);
 	      n = ntohs(((struct ip *) rbuff)->ip_len);
 	    }
+#endif
 	    bp = mballoc(n, MB_IPIN);
 	    memcpy(MBUF_CTOP(bp), rbuff, n);
 	    IpInput(bp);
@@ -1052,10 +1064,12 @@ DoLoop()
       if (LcpFsm.state <= ST_CLOSED && (mode & MODE_AUTO)) {
 	pri = PacketCheck(rbuff, n, FL_DIAL);
 	if (pri >= 0) {
+#ifndef NOALIAS
 	  if (mode & MODE_ALIAS) {
 	    VarPacketAliasOut(rbuff, sizeof rbuff);
 	    n = ntohs(((struct ip *) rbuff)->ip_len);
 	  }
+#endif
 	  IpEnqueue(pri, rbuff, n);
 	  dial_up = 1;	/* XXX */
 	}
@@ -1063,10 +1077,12 @@ DoLoop()
       }
       pri = PacketCheck(rbuff, n, FL_OUT);
       if (pri >= 0) {
+#ifndef NOALIAS
 	if (mode & MODE_ALIAS) {
 	  VarPacketAliasOut(rbuff, sizeof rbuff);
 	  n = ntohs(((struct ip *) rbuff)->ip_len);
 	}
+#endif
 	IpEnqueue(pri, rbuff, n);
       }
     }

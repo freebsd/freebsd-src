@@ -1,5 +1,5 @@
 /*
- * $Id: $
+ * $Id: alias_cmd.c,v 1.6 1997/10/26 01:02:00 brian Exp $
  */
 
 #include <sys/param.h>
@@ -13,29 +13,29 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "mbuf.h"
-#include "log.h"
 #include "defs.h"
 #include "command.h"
+#include "mbuf.h"
+#include "log.h"
 #include "loadalias.h"
 #include "vars.h"
 #include "alias_cmd.h"
 
 
-static int StrToAddr(char *, struct in_addr *);
-static int StrToPort(char *, u_short *, char *);
-static int StrToAddrAndPort(char *, struct in_addr *, u_short *, char *);
+static int StrToAddr(const char *, struct in_addr *);
+static int StrToPort(const char *, u_short *, const char *);
+static int StrToAddrAndPort(const char *, struct in_addr *, u_short *, const char *);
 
 
 int
-AliasRedirectPort(struct cmdtab *list, int argc, char **argv, void *param)
+AliasRedirectPort(struct cmdargs const *arg)
 {
   if (!(mode & MODE_ALIAS)) {
     if (VarTerm)
       fprintf(VarTerm, "Alias not enabled\n");
-  } else if (argc == 3) {
+  } else if (arg->argc == 3) {
     char proto_constant;
-    char *proto;
+    const char *proto;
     u_short local_port;
     u_short alias_port;
     int error;
@@ -43,7 +43,7 @@ AliasRedirectPort(struct cmdtab *list, int argc, char **argv, void *param)
     struct in_addr null_addr;
     struct alias_link *link;
 
-    proto = argv[0];
+    proto = arg->argv[0];
     if (strcmp(proto, "tcp") == 0) {
       proto_constant = IPPROTO_TCP;
     } else if (strcmp(proto, "udp") == 0) {
@@ -51,25 +51,25 @@ AliasRedirectPort(struct cmdtab *list, int argc, char **argv, void *param)
     } else {
       if (VarTerm) {
 	fprintf(VarTerm, "port redirect: protocol must be tcp or udp\n");
-	fprintf(VarTerm, "Usage: alias %s %s\n", list->name,
-		list->syntax);
+	fprintf(VarTerm, "Usage: alias %s %s\n", arg->cmd->name,
+		arg->cmd->syntax);
       }
       return 1;
     }
 
-    error = StrToAddrAndPort(argv[1], &local_addr, &local_port, proto);
+    error = StrToAddrAndPort(arg->argv[1], &local_addr, &local_port, proto);
     if (error) {
       if (VarTerm) {
 	fprintf(VarTerm, "port redirect: error reading local addr:port\n");
-	fprintf(VarTerm, "Usage: alias %s %s\n", list->name, list->syntax);
+	fprintf(VarTerm, "Usage: alias %s %s\n", arg->cmd->name, arg->cmd->syntax);
       }
       return 1;
     }
-    error = StrToPort(argv[2], &alias_port, proto);
+    error = StrToPort(arg->argv[2], &alias_port, proto);
     if (error) {
       if (VarTerm) {
 	fprintf(VarTerm, "port redirect: error reading alias port\n");
-	fprintf(VarTerm, "Usage: alias %s %s\n", list->name, list->syntax);
+	fprintf(VarTerm, "Usage: alias %s %s\n", arg->cmd->name, arg->cmd->syntax);
       }
       return 1;
     }
@@ -84,52 +84,52 @@ AliasRedirectPort(struct cmdtab *list, int argc, char **argv, void *param)
       fprintf(VarTerm, "port redirect: error returned by packed"
 	      " aliasing engine (code=%d)\n", error);
   } else if (VarTerm)
-    fprintf(VarTerm, "Usage: alias %s %s\n", list->name, list->syntax);
+    fprintf(VarTerm, "Usage: alias %s %s\n", arg->cmd->name, arg->cmd->syntax);
 
   return 1;
 }
 
 
 int
-AliasRedirectAddr(struct cmdtab *list, int argc, char **argv, void *param)
+AliasRedirectAddr(struct cmdargs const *arg)
 {
   if (!(mode & MODE_ALIAS)) {
     if (VarTerm)
       fprintf(VarTerm, "alias not enabled\n");
-  } else if (argc == 2) {
+  } else if (arg->argc == 2) {
     int error;
     struct in_addr local_addr;
     struct in_addr alias_addr;
     struct alias_link *link;
 
-    error = StrToAddr(argv[0], &local_addr);
+    error = StrToAddr(arg->argv[0], &local_addr);
     if (error) {
       if (VarTerm)
 	fprintf(VarTerm, "address redirect: invalid local address\n");
       return 1;
     }
-    error = StrToAddr(argv[1], &alias_addr);
+    error = StrToAddr(arg->argv[1], &alias_addr);
     if (error) {
       if (VarTerm) {
 	fprintf(VarTerm, "address redirect: invalid alias address\n");
-	fprintf(VarTerm, "Usage: alias %s %s\n", list->name, list->syntax);
+	fprintf(VarTerm, "Usage: alias %s %s\n", arg->cmd->name, arg->cmd->syntax);
       }
       return 1;
     }
     link = VarPacketAliasRedirectAddr(local_addr, alias_addr);
     if (link == NULL && VarTerm) {
       fprintf(VarTerm, "address redirect: packet aliasing engine error\n");
-      fprintf(VarTerm, "Usage: alias %s %s\n", list->name, list->syntax);
+      fprintf(VarTerm, "Usage: alias %s %s\n", arg->cmd->name, arg->cmd->syntax);
     }
   } else if (VarTerm)
-    fprintf(VarTerm, "Usage: alias %s %s\n", list->name, list->syntax);
+    fprintf(VarTerm, "Usage: alias %s %s\n", arg->cmd->name, arg->cmd->syntax);
 
   return 1;
 }
 
 
 static int
-StrToAddr(char *str, struct in_addr *addr)
+StrToAddr(const char *str, struct in_addr *addr)
 {
   struct hostent *hp;
 
@@ -147,7 +147,7 @@ StrToAddr(char *str, struct in_addr *addr)
 
 
 static int
-StrToPort(char *str, u_short *port, char *proto)
+StrToPort(const char *str, u_short *port, const char *proto)
 {
   int iport;
   struct servent *sp;
@@ -169,22 +169,23 @@ StrToPort(char *str, u_short *port, char *proto)
 }
 
 
-int
-StrToAddrAndPort(char *str, struct in_addr *addr, u_short *port, char *proto)
+static int
+StrToAddrAndPort(const char *str, struct in_addr *addr, u_short *port, const char *proto)
 {
-  char *ptr;
+  char *colon;
+  int res;
 
-  ptr = strchr(str, ':');
-  if (!ptr) {
-    LogPrintf(LogWARN, "StrToAddrAndPort: %s is missing port number.\n",
-	      str);
+  colon = strchr(str, ':');
+  if (!colon) {
+    LogPrintf(LogWARN, "StrToAddrAndPort: %s is missing port number.\n", str);
     return -1;
   }
-  *ptr = '\0';
-  ++ptr;
 
-  if (StrToAddr(str, addr) != 0)
+  *colon = '\0';		/* Cheat the const-ness ! */
+  res = StrToAddr(str, addr);
+  *colon = ':';			/* Cheat the const-ness ! */
+  if (res != 0)
     return -1;
 
-  return StrToPort(ptr, port, proto);
+  return StrToPort(colon+1, port, proto);
 }
