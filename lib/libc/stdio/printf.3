@@ -43,10 +43,12 @@
 .Nm fprintf ,
 .Nm sprintf ,
 .Nm snprintf ,
+.Nm asprintf ,
 .Nm vprintf ,
 .Nm vfprintf,
 .Nm vsprintf ,
-.Nm vsnprintf
+.Nm vsnprintf ,
+.Nm vasprintf
 .Nd formatted output conversion
 .Sh SYNOPSIS
 .Fd #include <stdio.h>
@@ -58,8 +60,8 @@
 .Fn sprintf "char *str" "const char *format" ...
 .Ft int
 .Fn snprintf "char *str" "size_t size" "const char *format" ...
-.\" .Ft int
-.\" .Fn smprintf "const char *format" ...
+.Ft int
+.Fn asprintf "char **ret" "const char *format" ...
 .Fd #include <stdarg.h>
 .Ft int
 .Fn vprintf "const char *format" "va_list ap"
@@ -69,8 +71,8 @@
 .Fn vsprintf "char *str" "char *format" "va_list ap"
 .Ft int
 .Fn vsnprintf "char *str" "size_t size" "const char *format" "va_list ap"
-.\" .Ft int
-.\" .Fn vsmprintf "const char *format" "va_list ap"
+.Ft int
+.Fn vasprintf "char **ret" "const char *format" "va_list ap"
 .Sh DESCRIPTION
 The
 .Fn printf
@@ -94,45 +96,47 @@ write output to the given output
 and
 .Fn vsnprintf
 write to the character string
-.Fa str .
-.\" .IR str ;
-.\" and
-.\" .I smprintf
-.\" and
-.\" .I vsmprintf
-.\" dynamically allocate a new string with
-.\" .IR malloc .
+.Fa str ;
+and
+.Fn asprintf
+and
+.Fn vasprintf
+dynamically allocate a new string with
+.Xr malloc 3
+/
+.Xr realloc 3 .
+.Pp
 These functions write the output under the control of a
 .Fa format
 string that specifies how subsequent arguments
 (or arguments accessed via the variable-length argument facilities of
 .Xr stdarg 3 )
 are converted for output.
-.\" Except for
-.\" .I smprintf
-.\" and
-.\" .IR vsmprintf ,
-.\" all of these functions return
+.Pp
 These functions return
 the number of characters printed
 (not including the trailing
 .Ql \e0
 used to end output to strings).
-.\" .I Smprintf
-.\" and
-.\" .I vsmprintf
-.\" return a pointer to a string of an appropriate length;
-.\" this pointer should be passed to
-.\" .I free
-.\" to release the associated storage
-.\" when it is no longer needed.
-.\" If sufficient space is not avaliable,
-.\" .I smprintf
-.\" and
-.\" .I vsmprintf
-.\" will return
-.\" .SM
-.\" .BR
+.Pp
+.Fn Asprintf
+and
+.Fn vasprintf
+return a pointer to a buffer sufficiently large to hold the
+string in the
+.Fa ret
+argument;
+This pointer should be passed to
+.Xr free 3
+to release the allocated storage when it is no longer needed.
+If sufficient space cannot be allocated, 
+.Fn asprintf
+and
+.Fn vasprintf
+will return -1 and set
+.Fa ret
+to be a NULL pointer.
+.Pp
 .Fn Snprintf
 and
 .Fn vsnprintf
@@ -147,6 +151,7 @@ if the return value is greater than or equal to the
 .Fa size
 argument, the string was too short
 and some of the printed characters were discarded.
+.Pp
 .Fn Sprintf
 and
 .Fn vsprintf
@@ -600,6 +605,15 @@ The functions
 and
 .Fn vsnprintf
 are new to this release.
+.Pp
+The functions
+.Fn asprintf
+and
+.Fn vasprintf
+first appeared in the GNU C library.  This implementation is thought
+to be compatable but is not derived from the GNU code.  This implementation
+was written by Peter Wemm <peter@FreeBSD.org> and first appeared in
+.Fx 2.2 .
 .Sh BUGS
 The conversion formats
 .Cm \&%D ,
@@ -631,7 +645,7 @@ and
 .Fn vsprintf
 assume an infinitely long string,
 callers must be careful not to overflow the actual space;
-this is often impossible to assure.
+this is often hard to assure.
 For safety, programmers should use the
 .Fn snprintf
 interface instead.
