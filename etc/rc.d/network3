@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.25 1998/05/06 17:36:16 andreas Exp $
+#	$Id: rc.network,v 1.26 1998/05/19 04:36:31 jkh Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -269,10 +269,9 @@ network_pass3() {
     fi
     
     # Network Address Translation daemon
-    if [ "X${natd_enable}" = X"YES" -a "X${natd_interface}" != X"" ]; then
-	    if [ -a "X${firewall_enable}" = X"YES" ]; then
-	            echo -n ' natd'; natd ${natd_flags} -n ${natd_interface}
-	    fi
+    if [ "X${natd_enable}" = X"YES" -a "X${natd_interface}" != X"" \
+	-a "X${firewall_enable}" = X"YES" ]; then
+	    echo -n ' natd'; natd ${natd_flags} -n ${natd_interface}
     fi
 
     echo '.'
