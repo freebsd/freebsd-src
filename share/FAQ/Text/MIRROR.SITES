@@ -1,7 +1,7 @@
                           Mirror Sites
                     For FreeBSD 2.0 and later
 
-$Id: MIRROR.SITES,v 1.9 1995/06/11 19:30:56 rgrimes Exp $
+$Id: MIRROR.SITES,v 1.10 1995/06/14 17:09:23 davidg Exp $
 
 The latest versions of FreeBSD (2.0 or later) are being mirrored at the
 following locations:
@@ -15,7 +15,7 @@ Australia	ftp://minnie.cs.adfa.oz.au/FreeBSD
 		<wkt@dolphin.cs.adfa.oz.au>
 
 Finland		ftp://nic.funet.fi/pub/unix/FreeBSD
-		<ftp@nic.funet.fi>
+		<count@nic.funet.fi>
 
 France		ftp://ftp.ibp.fr/pub/FreeBSD
 		<Remy.Card@ibp.fr>
@@ -132,3 +132,5 @@ South Africa	ftp://storm.sea.uct.ac.za/pub/FreeBSD
 Brazil          ftp://ftp.iqm.unicamp.br/pub/FreeBSD
                 Pedro A M Vazquez <vazquez@iqm.unicamp.br>
 
+Finland		ftp://nic.funet.fi/pub/unix/FreeBSD/eurocrypt
+		<count@nic.funet.fi>
