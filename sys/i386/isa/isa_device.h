@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.20 1995/03/28 07:55:39 bde Exp $
+ *	$Id: isa_device.h,v 1.21 1995/04/23 09:13:08 julian Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
@@ -57,6 +57,11 @@ typedef void inthand2_t __P((int unit));
 
 /*
  * Per device structure.
+ *
+ * XXX Note:  id_conflicts should either become an array of things we're
+ * specifically allowed to conflict with or be subsumed into some
+ * more powerful mechanism for detecting and dealing with multiple types
+ * of non-fatal conflict.  -jkh XXX
  */
 struct isa_device {
 	int	id_id;		/* device id */
@@ -69,6 +74,7 @@ struct isa_device {
 	inthand2_t *id_intr;	/* interrupt interface routine */
 	int	id_unit;	/* unit number */
 	int	id_flags;	/* flags */
+	int	id_conflicts;	/* we're allowed to conflict with things */
 	int	id_scsiid;	/* scsi id if needed */
 	int	id_alive;	/* device is present */
 #define	RI_FAST		1		/* fast interrupt handler */

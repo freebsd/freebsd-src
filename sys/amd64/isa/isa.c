@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.45 1995/04/12 20:47:54 wollman Exp $
+ *	$Id: isa.c,v 1.46 1995/04/23 09:13:07 julian Exp $
  */
 
 /*
@@ -161,7 +161,7 @@ conflict(dvp, tmpdvp, item, whatnot, reason, format)
 }
 
 /*
- * Check to see if things are alread in use, like IRQ's, I/O addresses
+ * Check to see if things are already in use, like IRQ's, I/O addresses
  * and Memory addresses.
  */
 static int
@@ -171,9 +171,10 @@ haveseen(dvp, tmpdvp, checkbits)
 	u_int	checkbits;
 {
 	/*
-	 * Only check against devices that have already been found
+	 * Only check against devices that have already been found and are not
+	 * unilaterally allowed to conflict anyway.
 	 */
-	if (tmpdvp->id_alive) {
+	if (tmpdvp->id_alive && !tmpdev->id_conflicts) {
 		char const *whatnot;
 
 		whatnot = checkbits & CC_ATTACH ? "attach" : "prob";
@@ -401,15 +402,9 @@ config_isadev_c(isdp, mp, reconfig)
 	struct isa_driver *dp = isdp->id_driver;
  
  	checkbits = 0;
-#ifndef ALLOW_CONFLICT_DRQ
 	checkbits |= CC_DRQ;
-#endif
-#ifndef ALLOW_CONFLICT_IOADDR
 	checkbits |= CC_IOADDR;
-#endif
-#ifndef ALLOW_CONFLICT_MEMADDR
 	checkbits |= CC_MEMADDR;
-#endif
 	if (!isdp->id_enabled) {
 		printf("%s%d: disabled, not probed.\n",
 			dp->name, isdp->id_unit);
@@ -476,9 +471,7 @@ config_isadev_c(isdp, mp, reconfig)
 			 * already skip the early check for IRQs and force 
 			 * a check for IRQs in the next group of checks.
 		 	 */
-#ifndef ALLOW_CONFLICT_IRQ
 			checkbits |= CC_IRQ;
-#endif
 			if (haveseen_isadev(isdp, checkbits))
 				return;
 			isdp->id_alive = id_alive;
