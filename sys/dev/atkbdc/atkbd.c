@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: atkbd.c,v 1.7 1999/05/09 04:59:24 yokota Exp $
+ * $Id: atkbd.c,v 1.8 1999/05/09 05:00:19 yokota Exp $
  */
 
 #include "atkbd.h"
@@ -826,7 +826,7 @@ next_code:
 
 	/* compose a character code */
 	if (state->ks_flags & COMPOSE) {
-		switch (keycode) {
+		switch (keycode | (scancode & 0x80)) {
 		/* key pressed, process it */
 		case 0x47: case 0x48: case 0x49:	/* keypad 7,8,9 */
 			state->ks_composed_char *= 10;
