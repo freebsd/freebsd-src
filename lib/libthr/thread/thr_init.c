@@ -66,6 +66,8 @@
 
 #include "thr_private.h"
 
+extern void _thread_init_hack(void);
+
 /*
  * All weak references used within libc should be in this table.
  * This will is so that static libraries will work.
@@ -73,6 +75,8 @@
  * XXXTHR - Check this list.
  */
 static void *references[] = {
+	&_thread_init_hack,
+	&_thread_init,
 	&_accept,
 	&_bind,
 	&_close,
@@ -135,6 +139,8 @@ static void *references[] = {
  * libraries, then the actual functions will not be loaded.
  */
 static void *libgcc_references[] = {
+	&_thread_init_hack,
+	&_thread_init,
 	&_pthread_once,
 	&_pthread_key_create,
 	&_pthread_key_delete,
