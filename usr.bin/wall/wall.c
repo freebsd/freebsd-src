@@ -67,9 +67,10 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <utmp.h>
 
+#include "ttymsg.h"
+
 static void makemsg(char *);
 static void usage(void);
-char   *ttymsg(struct iovec *, int, const char *, int);
 
 #define	IGNOREUSER	"sleeper"
 
@@ -92,7 +93,8 @@ main(int argc, char *argv[])
 	FILE *fp;
 	struct wallgroup *g;
 	struct group *grp;
-	char *p, **np;
+	char **np;
+	const char *p;
 	struct passwd *pw;
 	char line[sizeof(utmp.ut_line) + 1];
 	char username[sizeof(utmp.ut_name) + 1];
