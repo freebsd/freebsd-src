@@ -105,7 +105,7 @@ initswap()
 
 	if (kvm_getswapinfo(kd, &dummy, 1, 0) < 0) {
 		snprintf(msgbuf, sizeof(msgbuf), "systat: kvm_getswapinfo failed");
-		error(msgbuf);
+		error("%s", msgbuf);
 		return (0);
 	}
 
