@@ -1,6 +1,9 @@
 <!-- $FreeBSD$ -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+
+<!ENTITY release.url "ftp://ftp.FreeBSD.org/pub/FreeBSD/development/sparc64/">
+
 <!ENTITY % man PUBLIC "-//FreeBSD//ENTITIES DocBook Manual Page Entities//EN">
 %man;
 <!ENTITY % authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//EN">
@@ -24,7 +27,7 @@
   <para>This article gives some brief instructions on installing
     &os;/&arch; &release.current;.  Please keep in mind that this port
     is a work in progress, and as such, the installation procedure is
-    much more involved than &os;/i386 or &os;/alpha.</para>
+    much more involved than for &os;/i386 or &os;/alpha.</para>
 </abstract>
 &sect.sparc64.install;
 </article>
