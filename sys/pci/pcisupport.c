@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.10 1995/02/27 17:22:09 se Exp $
+**  $Id: pcisupport.c,v 1.11 1995/03/02 23:29:44 se Exp $
 **
 **  Device driver for INTEL PCI chipsets.
 **
@@ -53,6 +53,7 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/devconf.h>
 
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
@@ -77,7 +78,8 @@ struct	pci_device chipset_device = {
 	"chip",
 	chipset_probe,
 	chipset_attach,
-	&chipset_count
+	&chipset_count,
+	NULL
 };
 
 DATA_SET (pcidevice_set, chipset_device);
@@ -303,7 +305,8 @@ struct	pci_device ppb_device = {
 	"ppb",
 	ppb_probe,
 	ppb_attach,
-	&ppb_count
+	&ppb_count,
+	NULL
 };
 
 DATA_SET (pcidevice_set, ppb_device);
@@ -345,7 +348,8 @@ struct	pci_device vga_device = {
 	"vga",
 	vga_probe,
 	vga_attach,
-	&vga_count
+	&vga_count,
+	NULL
 };
 
 DATA_SET (pcidevice_set, vga_device);
@@ -401,7 +405,8 @@ struct	pci_device lkm_device = {
 	"lkm",
 	lkm_probe,
 	lkm_attach,
-	&lkm_count
+	&lkm_count,
+	NULL
 };
 
 DATA_SET (pcidevice_set, lkm_device);
@@ -434,7 +439,8 @@ struct	pci_device ign_device = {
 	NULL,
 	ign_probe,
 	ign_attach,
-	&ign_count
+	&ign_count,
+	NULL
 };
 
 DATA_SET (pcidevice_set, ign_device);

@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7870.c,v 1.5 1995/02/02 13:12:13 davidg Exp $
+ *	$Id: aic7870.c,v 1.6 1995/02/03 17:08:17 gibbs Exp $
  */
 
 #include <pci.h>
@@ -46,7 +46,8 @@ struct  pci_device ahc_device = {
 	"ahc",
         aic7870_probe,
         aic7870_attach,
-        &aic7870_count
+        &aic7870_count,
+	NULL
 };
 
 DATA_SET (pcidevice_set, ahc_device);

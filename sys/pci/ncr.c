@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.30 1995/03/15 18:15:32 se Exp $
+**  $Id: ncr.c,v 1.31 1995/03/16 13:02:40 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -173,6 +173,7 @@
 
 
 #ifndef __NetBSD__
+#include <sys/devconf.h>
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 #include <pci/ncrreg.h>
@@ -1254,7 +1255,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.30 1995/03/15 18:15:32 se Exp $\n";
+	"\n$Id: ncr.c,v 1.31 1995/03/16 13:02:40 se Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
@@ -1307,7 +1308,8 @@ struct	pci_device ncr_device = {
 	"ncr",
 	ncr_probe,
 	ncr_attach,
-	&ncr_count
+	&ncr_count,
+	NULL
 };
 
 DATA_SET (pcidevice_set, ncr_device);

@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.17 1995/02/27 17:17:13 se Exp $
+**  $Id: pci.c,v 1.18 1995/03/02 21:51:53 se Exp $
 **
 **  General subroutines for the PCI bus on 80*86 systems.
 **  pci_configure ()
@@ -63,10 +63,6 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 
-#include <pci/pcivar.h>
-#include <pci/pcireg.h>
-#include <pci/pcibus.h>
-
 #include <machine/pmap.h>
 #ifdef __FreeBSD2__
 #include <sys/devconf.h>
@@ -90,6 +86,11 @@ pci_internalize (struct proc *, struct kern_devconf *, void *, size_t);
 extern	pmap_t pmap_kernel(void);
 static	vm_offset_t pmap_mapdev (vm_offset_t paddr, vm_size_t vsize);
 #endif /* __FreeBSD2__ */
+
+#include <pci/pcivar.h>
+#include <pci/pcireg.h>
+#include <pci/pcibus.h>
+
 
 
 /*========================================================
@@ -407,6 +408,7 @@ void pci_configure()
 		pdcp -> pdc_kdc.kdc_parentdata  = &pdcp->pdc_pi;
 		pdcp -> pdc_kdc.kdc_state       = DC_UNKNOWN;
 		pdcp -> pdc_kdc.kdc_description = name;
+		pdcp -> pdc_kdc.kdc_shutdown	= dvp->pd_shutdown;
 
 		/*
 		**	And register this device
