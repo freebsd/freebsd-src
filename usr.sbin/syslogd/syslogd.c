@@ -39,7 +39,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 */
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.12.2.6 1997/04/26 00:05:19 pst Exp $";
+	"$Id: syslogd.c,v 1.12.2.7 1997/08/17 14:41:32 joerg Exp $";
 #endif /* not lint */
 
 /*
@@ -354,7 +354,7 @@ main(argc, argv)
 	if (funix < 0 ||
 	    bind(funix, (struct sockaddr *)&sunx, SUN_LEN(&sunx)) < 0 ||
 	    chmod(LogName, 0666) < 0) {
-		(void) sprintf(line, "cannot create %s", LogName);
+		(void) snprintf(line, sizeof line, "cannot create %s", LogName);
 		logerror(line);
 		dprintf("cannot create %s (%d)\n", LogName, errno);
 		die(0);
@@ -469,8 +469,8 @@ usage()
 {
 
 	fprintf(stderr,
-		"usage: syslogd [-ds] [-f conffile] [-m markinterval]"
-		" [-p logpath] [-a allowaddr]\n");
+		"usage: syslogd [-ds] [-a allowed_peer] [-f config_file]"
+		" [-m mark_interval]\n                [-p log_socket]\n");
 	exit(1);
 }
 
@@ -710,7 +710,7 @@ fprintlog(f, flags, msg)
 	v = iov;
 	if (f->f_type == F_WALL) {
 		v->iov_base = greetings;
-		v->iov_len = sprintf(greetings,
+		v->iov_len = snprintf(greetings, sizeof greetings,
 		    "\r\n\7Message from syslogd@%s at %.24s ...\r\n",
 		    f->f_prevhost, ctime(&now));
 		v++;
@@ -755,8 +755,8 @@ fprintlog(f, flags, msg)
 
 	case F_FORW:
 		dprintf(" %s\n", f->f_un.f_forw.f_hname);
-		l = sprintf(line, "<%d>%.15s %s", f->f_prevpri,
-		    iov[0].iov_base, iov[4].iov_base);
+		l = snprintf(line, sizeof line - 1, "<%d>%.15s %s",
+			     f->f_prevpri, iov[0].iov_base, iov[4].iov_base);
 		if (l > MAXLINE)
 			l = MAXLINE;
 		if ((finet >= 0) &&
@@ -1035,9 +1035,9 @@ logerror(type)
 
 	if (errno)
 		(void)snprintf(buf,
-		    sizeof(buf), "syslogd: %s: %s", type, strerror(errno));
+		    sizeof buf, "syslogd: %s: %s", type, strerror(errno));
 	else
-		(void)snprintf(buf, sizeof(buf), "syslogd: %s", type);
+		(void)snprintf(buf, sizeof buf, "syslogd: %s", type);
 	errno = 0;
 	dprintf("%s\n", buf);
 	logmsg(LOG_SYSLOG|LOG_ERR, buf, LocalHostName, ADDDATE);
@@ -1274,7 +1274,7 @@ cfline(line, f, prog)
 		else {
 			pri = decode(buf, prioritynames);
 			if (pri < 0) {
-				(void)sprintf(ebuf,
+				(void)snprintf(ebuf, sizeof ebuf,
 				    "unknown priority name \"%s\"", buf);
 				logerror(ebuf);
 				return;
@@ -1292,7 +1292,7 @@ cfline(line, f, prog)
 			else {
 				i = decode(buf, facilitynames);
 				if (i < 0) {
-					(void)sprintf(ebuf,
+					(void)snprintf(ebuf, sizeof ebuf,
 					    "unknown facility name \"%s\"",
 					    buf);
 					logerror(ebuf);
