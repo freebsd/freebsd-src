@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.40 1995/05/30 05:13:23 jkh Exp $
+ * $Id: menus.c,v 1.41 1995/05/30 08:28:49 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -414,8 +414,6 @@ you wish to install.",
 	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_UBIN, 0	},
       { "usbin", "/usr/src/usr.sbin (aux system binaries) [14MB]",
 	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_USBIN, 0	},
-      { "XFree86", "XFree86 3.1.1L source + contrib distribution [200MB]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_XF86, 0	},
       { NULL } },
 };
 
@@ -462,6 +460,8 @@ Those deemed most generally useful are already checked off for you.",
 	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_LINK, 0	},
       { "pex", "PEX fonts and libs needed by PEX apps [500K]",
 	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_PEX, 0	},
+      { "sources", "XFree86 3.1.1u1 source + contrib distribution [200MB]",
+	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_SRC, 0	},
       { NULL } },
 };
 
