@@ -44,7 +44,7 @@
 .Nd find or signal processes by name
 .Sh SYNOPSIS
 .Nm pgrep
-.Op Fl flnvx
+.Op Fl filnvx
 .Op Fl F Ar pidfile
 .Op Fl G Ar gid
 .Op Fl M Ar core
@@ -60,7 +60,7 @@
 .Ar pattern ...
 .Nm pkill
 .Op Fl Ar signal
-.Op Fl fnvx
+.Op Fl finvx
 .Op Fl F Ar pidfile
 .Op Fl G Ar gid
 .Op Fl M Ar core
@@ -127,6 +127,8 @@ The value zero is taken to mean the process group ID of the running
 or
 .Nm pkill
 command.
+.It Fl i
+Ignore case distinctions in both the process table and the supplied pattern.
 .It Fl j Ar jid
 Restrict matches to processes inside jails with a jail ID in the comma-separated
 list
