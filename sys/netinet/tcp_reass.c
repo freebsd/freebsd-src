@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_input.c	8.5 (Berkeley) 4/10/94
- *	$Id: tcp_input.c,v 1.21 1995/04/10 17:37:46 davidg Exp $
+ *	$Id: tcp_input.c,v 1.22 1995/05/03 07:16:52 davidg Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -1704,7 +1704,7 @@ tcp_dooptions(tp, cp, cnt, ti, to)
 		case TCPOPT_CC:
 			if (optlen != TCPOLEN_CC)
 				continue;
-			to->to_flag |= TCPOPT_CC;
+			to->to_flag |= TOF_CC;
 			bcopy((char *)cp + 2,
 			    (char *)&to->to_cc, sizeof(to->to_cc));
 			NTOHL(to->to_cc);
