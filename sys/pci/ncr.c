@@ -39,6 +39,10 @@
 ***************************************************************************
 */
 
+#ifndef COMPAT_OLDPCI
+#error "The ncr device requires the old pci compatibility shims"
+#endif
+
 #define NCR_DATE "pl30 98/1/1"
 
 #define NCR_VERSION	(2)

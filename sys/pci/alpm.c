@@ -27,6 +27,10 @@
  *
  */
 
+#ifndef COMPAT_OLDPCI
+#error "The alpm device requires the old pci compatibility shims"
+#endif
+
 /*
  * Power Management support for the Acer M15x3 chipsets
  */
