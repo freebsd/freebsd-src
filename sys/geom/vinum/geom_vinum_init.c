@@ -313,7 +313,7 @@ gv_sync(struct gv_volume *v)
 		sync->from = up;
 		sync->to = p;
 		sync->syncsize = GV_DFLT_SYNCSIZE;
-		kthread_create(gv_sync_td, sync, NULL, 0, 0, "sync_p '%s'",
+		kthread_create(gv_sync_td, sync, NULL, 0, 0, "gv_sync '%s'",
 		    p->name);
 	}
 }
@@ -363,7 +363,7 @@ gv_init_sd(struct gv_sd *s)
 	s->flags &= ~GV_SD_INITCANCEL;
 
 	/* Spawn the thread that does the work for us. */
-	kthread_create(gv_init_td, s, NULL, 0, 0, "init_sd %s", s->name);
+	kthread_create(gv_init_td, s, NULL, 0, 0, "gv_init %s", s->name);
 
 	return (0);
 }
