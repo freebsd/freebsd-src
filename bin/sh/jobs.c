@@ -203,6 +203,9 @@ fgcmd(int argc __unused, char **argv)
 	jp = getjob(argv[1]);
 	if (jp->jobctl == 0)
 		error("job not created under job control");
+	out1str(jp->ps[0].cmd);
+	out1c('\n');
+	flushout(&output);
 	pgrp = jp->ps[0].pid;
 #ifdef OLD_TTY_DRIVER
 	ioctl(2, TIOCSPGRP, (char *)&pgrp);
@@ -220,13 +223,20 @@ fgcmd(int argc __unused, char **argv)
 int
 bgcmd(int argc, char **argv)
 {
+	char s[64];
 	struct job *jp;
 
 	do {
 		jp = getjob(*++argv);
 		if (jp->jobctl == 0)
 			error("job not created under job control");
+		if (jp->state == JOBDONE)
+			continue;
 		restartjob(jp);
+		fmtstr(s, 64, "[%d] ", jp - jobtab + 1);
+		out1str(s);
+		out1str(jp->ps[0].cmd);
+		out1c('\n');
 	} while (--argc > 1);
 	return 0;
 }
