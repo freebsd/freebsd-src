@@ -45,6 +45,9 @@ dhclient - Dynamic Host Configuration Protocol Client
 .I port
 ]
 [
+.B -1
+]
+[
 .B -d
 ]
 [
@@ -128,6 +131,9 @@ To run force dhclient to always run as a foreground process, the
 .B -d
 flag should be specified.  This is useful when running dhclient under
 a debugger, or when running it out of inittab on System V systems.
+The
+.B -1
+flag cause dhclient to try once to get a lease.  If it fails, dhclient exits.
 .PP
 .SH CONFIGURATION
 The syntax of the dhclient.conf(8) file is discussed seperately.
