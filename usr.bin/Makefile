@@ -99,7 +99,6 @@ SUBDIR=	apply \
 	make \
 	mesg \
 	minigzip \
-	mk_cmds \
 	mkdep \
 	mkfifo \
 	mklocale \

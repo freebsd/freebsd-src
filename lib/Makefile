@@ -5,7 +5,7 @@
 # built are visible:
 #
 # csu must be built before all shared libaries for ELF.
-# libcom_err must be built before libkrb, libpam and libss.
+# libcom_err must be built before libkrb and libpam.
 # libcrypt must be built before libkrb, libpam and libskey.
 # msun must be built before libg++ and libstdc++.
 # libmd must be built before libatm, libopie, libradius, libskey, and
@@ -26,7 +26,7 @@ SUBDIR=	${_csu} libcom_err libcrypt msun libmd \
 	${_libmilter} ${_libncp} \
 	libnetgraph libopie libpam libpanel libpcap \
 	libposix1e libresolv librpcsvc ${_libsm} ${_libsmb} ${_libsmdb} \
-	${_libsmutil} libss \
+	${_libsmutil} \
 	libstand ${_libtelnet} libusbhid ${_libvgl} libwrap libxpg4 liby libz
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-${OBJFORMAT})
