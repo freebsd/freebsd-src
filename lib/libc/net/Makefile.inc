@@ -17,7 +17,7 @@ SRCS+=	addr2ascii.c ascii2addr.c base64.c ether_addr.c getaddrinfo.c \
 	ns_name.c ns_netint.c \
 	ns_ntoa.c ns_parse.c ns_print.c ns_ttl.c \
 	nsdispatch.c nslexer.c nsparser.c \
-	nsap_addr.c rcmd.c recv.c res_comp.c res_data.c res_debug.c \
+	nsap_addr.c rcmd.c rcmdsh.c recv.c res_comp.c res_data.c res_debug.c \
 	res_init.c res_mkquery.c res_mkupdate.c res_query.c res_send.c \
 	res_update.c rthdr.c send.c vars.c
 # not supported: iso_addr.c 
@@ -48,7 +48,7 @@ MAN+=	addr2ascii.3 byteorder.3 ethers.3 getaddrinfo.3 gethostbyname.3 \
 	if_indextoname.3 \
 	inet.3 inet_net.3 \
 	inet6_option_space.3 inet6_rthdr_space.3 linkaddr.3 \
-	nsdispatch.3 rcmd.3 resolver.3
+	nsdispatch.3 rcmd.3 rcmdsh.3 resolver.3
 # not installed: iso_addr.3 ns.3
 
 MLINKS+=addr2ascii.3 ascii2addr.3
