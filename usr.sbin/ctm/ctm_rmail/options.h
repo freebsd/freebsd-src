@@ -134,6 +134,5 @@ pusage()
 		    usage();		\
 		}			\
 	}				\
-O_end:					\
     *--argv = O_name;			\
     }

@@ -12,6 +12,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>     
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
@@ -46,6 +47,8 @@ int decode_line(char *line, char *out_buf);
  * reflected in the exit status.  In this case, the delta is left in
  * 'deltadir'.
  */
+
+int
 main(int argc, char **argv)
     {
     char *log_file = NULL;
@@ -61,7 +64,10 @@ main(int argc, char **argv)
 	STRING('l', log_file)
     ENDOPTS
 
-    if (delta_dir == NULL || piece_dir == NULL && (base_dir == NULL || argc>1))
+    if (delta_dir == NULL)
+	usage();
+
+    if (piece_dir == NULL && (base_dir == NULL || argc>1))
 	usage();
 
     if (log_file != NULL)
@@ -197,13 +203,13 @@ int
 read_piece(char *input_file)
     {
     int status = 0;
-    FILE *ifp, *ofp;
+    FILE *ifp, *ofp = 0;
     int decoding = 0;
     int line_no = 0;
     int i, n;
     int pce, npieces;
     unsigned claimed_cksum;
-    unsigned short cksum;
+    unsigned short cksum = 0;
     char out_buf[200];
     char line[200];
     char delta[30];
@@ -226,24 +232,25 @@ read_piece(char *input_file)
 	 */
 	if (!decoding)
 	    {
-	    if (sscanf(line, "CTM_MAIL BEGIN %s %d %d %c", delta, &pce, &npieces, junk) == 3)
+	    char *s;
+
+	    if (sscanf(line, "CTM_MAIL BEGIN %s %d %d %c", 
+		    delta, &pce, &npieces, junk) != 3)
+		continue;
+
+	    while ((s = strchr(delta, '/')) != NULL)
+		*s = '_';
+
+	    mk_piece_name(pname, delta, pce, npieces);
+	    if ((ofp = fopen(pname, "w")) == NULL)
 		{
-		char *s;
-
-		while ((s = strchr(delta, '/')) != NULL)
-		    *s = '_';
-
-		mk_piece_name(pname, delta, pce, npieces);
-		if ((ofp = fopen(pname, "w")) == NULL)
-		    {
-		    err("cannot open '%s' for writing", pname);
-		    status++;
-		    continue;
-		    }
-
-		cksum = 0xffff;
-		decoding++;
+		err("cannot open '%s' for writing", pname);
+		status++;
+		continue;
 		}
+
+	    cksum = 0xffff;
+	    decoding++;
 	    continue;
 	    }
 
