@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.250 1996/11/07 14:50:28 joerg Exp $
+#	$Id: Makefile,v 1.251 1996/11/08 19:09:45 jkh Exp $
 #
 # How to roll a release:
 #
@@ -41,8 +41,9 @@ ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 
 # Upper size for the mfs in the boot.flp kernel.
 # These are adjusted down to the minimum needed by doFS.sh.
-BOOTMFSSIZE=		1200
+BOOTMFSSIZE=		1250
 MFSINODE=		42000
+FIXITINODE=		28000
 
 # Things which will get you into trouble if you change them
 DISTRIBUTIONS=		bin ${EXTRA_DISTS}
@@ -414,14 +415,16 @@ release.9:
 	cd ${RD}/fixitfd && \
 		mkdir dev stand bin sbin etc mnt mnt1 mnt2 mnt3 mnt4 tmp
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=fixit \
-		DIR=${RD}/fixitfd/stand ZIP=true
+		DIR=${RD}/fixitfd/stand ZIP=false
 	( cd ${RD}/fixitfd/dev && \
 		cp ${RD}/trees/bin/dev/MAKEDEV . && \
 		sh MAKEDEV all )
-	cp ${RD}/trees/bin/etc/spwd.db ${RD}/fixitfd/etc
+	cp ${RD}/trees/bin/etc/spwd.db ${RD}/trees/bin/etc/group \
+		${RD}/trees/bin/etc/protocols ${RD}/fixitfd/etc
 	cp ${.CURDIR}/fixit.profile ${RD}/fixitfd/.profile
+	cp ${.CURDIR}/fixit.services ${RD}/fixitfd/etc/services
 	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${FDSIZE} ${RD}/fixitfd \
-		10000 ${FDLABEL}
+		${FIXITINODE} ${FDLABEL}
 	mv fs-image ${RD}/floppies/fixit.flp
 	touch release.9
 
