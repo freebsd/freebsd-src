@@ -64,12 +64,12 @@ static int portal_fileid = PORTAL_ROOTFILEID+1;
 
 static void	portal_closefd(struct thread *td, int fd);
 static int	portal_connect(struct socket *so, struct socket *so2);
-static int	portal_getattr(struct vop_getattr_args *ap);
-static int	portal_lookup(struct vop_lookup_args *ap);
-static int	portal_open(struct vop_open_args *ap);
-static int	portal_readdir(struct vop_readdir_args *ap);
-static int	portal_reclaim(struct vop_reclaim_args *ap);
-static int	portal_setattr(struct vop_setattr_args *ap);
+static vop_getattr_t	portal_getattr;
+static vop_lookup_t	portal_lookup;
+static vop_open_t	portal_open;
+static vop_readdir_t	portal_readdir;
+static vop_reclaim_t	portal_reclaim;
+static vop_setattr_t	portal_setattr;
 
 static void
 portal_closefd(td, fd)

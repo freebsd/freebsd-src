@@ -60,27 +60,27 @@
 /*
  * Prototypes for NWFS vnode operations
  */
-static int nwfs_create(struct vop_create_args *);
-static int nwfs_mknod(struct vop_mknod_args *);
-static int nwfs_open(struct vop_open_args *);
-static int nwfs_close(struct vop_close_args *);
-static int nwfs_access(struct vop_access_args *);
-static int nwfs_getattr(struct vop_getattr_args *);
-static int nwfs_setattr(struct vop_setattr_args *);
-static int nwfs_read(struct vop_read_args *);
-static int nwfs_write(struct vop_write_args *);
-static int nwfs_fsync(struct vop_fsync_args *);
-static int nwfs_remove(struct vop_remove_args *);
-static int nwfs_link(struct vop_link_args *);
-static int nwfs_lookup(struct vop_lookup_args *);
-static int nwfs_rename(struct vop_rename_args *);
-static int nwfs_mkdir(struct vop_mkdir_args *);
-static int nwfs_rmdir(struct vop_rmdir_args *);
-static int nwfs_symlink(struct vop_symlink_args *);
-static int nwfs_readdir(struct vop_readdir_args *);
-static int nwfs_strategy(struct vop_strategy_args *);
-static int nwfs_print(struct vop_print_args *);
-static int nwfs_pathconf(struct vop_pathconf_args *ap);
+static vop_create_t	nwfs_create;
+static vop_mknod_t	nwfs_mknod;
+static vop_open_t	nwfs_open;
+static vop_close_t	nwfs_close;
+static vop_access_t	nwfs_access;
+static vop_getattr_t	nwfs_getattr;
+static vop_setattr_t	nwfs_setattr;
+static vop_read_t	nwfs_read;
+static vop_write_t	nwfs_write;
+static vop_fsync_t	nwfs_fsync;
+static vop_remove_t	nwfs_remove;
+static vop_link_t	nwfs_link;
+static vop_lookup_t	nwfs_lookup;
+static vop_rename_t	nwfs_rename;
+static vop_mkdir_t	nwfs_mkdir;
+static vop_rmdir_t	nwfs_rmdir;
+static vop_symlink_t	nwfs_symlink;
+static vop_readdir_t	nwfs_readdir;
+static vop_strategy_t	nwfs_strategy;
+static vop_print_t	nwfs_print;
+static vop_pathconf_t	nwfs_pathconf;
 
 /* Global vfs data structures for nwfs */
 vop_t **nwfs_vnodeop_p;

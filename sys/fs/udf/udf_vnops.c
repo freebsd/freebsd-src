@@ -54,17 +54,17 @@
 
 extern struct iconv_functions *udf_iconv;
 
-static int udf_access(struct vop_access_args *);
-static int udf_getattr(struct vop_getattr_args *);
-static int udf_ioctl(struct vop_ioctl_args *);
-static int udf_pathconf(struct vop_pathconf_args *);
-static int udf_read(struct vop_read_args *);
-static int udf_readdir(struct vop_readdir_args *);
-static int udf_readlink(struct vop_readlink_args *ap);
-static int udf_strategy(struct vop_strategy_args *);
-static int udf_bmap(struct vop_bmap_args *);
-static int udf_lookup(struct vop_cachedlookup_args *);
-static int udf_reclaim(struct vop_reclaim_args *);
+static vop_access_t	udf_access;
+static vop_getattr_t	udf_getattr;
+static vop_ioctl_t	udf_ioctl;
+static vop_pathconf_t	udf_pathconf;
+static vop_read_t	udf_read;
+static vop_readdir_t	udf_readdir;
+static vop_readlink_t	udf_readlink;
+static vop_strategy_t	udf_strategy;
+static vop_bmap_t	udf_bmap;
+static vop_cachedlookup_t	udf_lookup;
+static vop_reclaim_t	udf_reclaim;
 static int udf_readatoffset(struct udf_node *, int *, int, struct buf **, uint8_t **);
 static int udf_bmap_internal(struct udf_node *, uint32_t, daddr_t *, uint32_t *);
 

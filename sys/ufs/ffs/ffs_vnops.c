@@ -101,20 +101,20 @@ __FBSDID("$FreeBSD$");
 #ifdef DIRECTIO
 extern int	ffs_rawread(struct vnode *vp, struct uio *uio, int *workdone);
 #endif
-static int	ffs_fsync(struct vop_fsync_args *);
-static int	ffs_getpages(struct vop_getpages_args *);
-static int	ffs_read(struct vop_read_args *);
-static int	ffs_write(struct vop_write_args *);
+static vop_fsync_t	ffs_fsync;
+static vop_getpages_t	ffs_getpages;
+static vop_read_t	ffs_read;
+static vop_write_t	ffs_write;
 static int	ffs_extread(struct vnode *vp, struct uio *uio, int ioflag);
 static int	ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag,
 		    struct ucred *cred);
-static int	ffsext_strategy(struct vop_strategy_args *);
-static int	ffs_closeextattr(struct vop_closeextattr_args *);
-static int	ffs_deleteextattr(struct vop_deleteextattr_args *);
-static int	ffs_getextattr(struct vop_getextattr_args *);
-static int	ffs_listextattr(struct vop_listextattr_args *);
-static int	ffs_openextattr(struct vop_openextattr_args *);
-static int	ffs_setextattr(struct vop_setextattr_args *);
+static vop_strategy_t	ffsext_strategy;
+static vop_closeextattr_t	ffs_closeextattr;
+static vop_deleteextattr_t	ffs_deleteextattr;
+static vop_getextattr_t	ffs_getextattr;
+static vop_listextattr_t	ffs_listextattr;
+static vop_openextattr_t	ffs_openextattr;
+static vop_setextattr_t	ffs_setextattr;
 
 
 /* Global vfs data structures for ufs. */

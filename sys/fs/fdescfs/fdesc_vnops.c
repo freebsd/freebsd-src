@@ -68,13 +68,13 @@ static vop_t **fdesc_vnodeop_p;
 static LIST_HEAD(fdhashhead, fdescnode) *fdhashtbl;
 static u_long fdhash;
 
-static int	fdesc_getattr(struct vop_getattr_args *ap);
-static int	fdesc_inactive(struct vop_inactive_args *ap);
-static int	fdesc_lookup(struct vop_lookup_args *ap);
-static int	fdesc_open(struct vop_open_args *ap);
-static int	fdesc_readdir(struct vop_readdir_args *ap);
-static int	fdesc_reclaim(struct vop_reclaim_args *ap);
-static int	fdesc_setattr(struct vop_setattr_args *ap);
+static vop_getattr_t	fdesc_getattr;
+static vop_inactive_t	fdesc_inactive;
+static vop_lookup_t	fdesc_lookup;
+static vop_open_t	fdesc_open;
+static vop_readdir_t	fdesc_readdir;
+static vop_reclaim_t	fdesc_reclaim;
+static vop_setattr_t	fdesc_setattr;
 
 /*
  * Initialise cache headers

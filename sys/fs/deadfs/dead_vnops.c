@@ -42,14 +42,14 @@ static int	chkvnlock(struct vnode *);
 /*
  * Prototypes for dead operations on vnodes.
  */
-static int	dead_bmap(struct vop_bmap_args *);
-static int	dead_ioctl(struct vop_ioctl_args *);
-static int	dead_lock(struct vop_lock_args *);
-static int	dead_lookup(struct vop_lookup_args *);
-static int	dead_open(struct vop_open_args *);
-static int	dead_poll(struct vop_poll_args *);
-static int	dead_read(struct vop_read_args *);
-static int	dead_write(struct vop_write_args *);
+static vop_bmap_t	dead_bmap;
+static vop_ioctl_t	dead_ioctl;
+static vop_lock_t	dead_lock;
+static vop_lookup_t	dead_lookup;
+static vop_open_t	dead_open;
+static vop_poll_t	dead_poll;
+static vop_read_t	dead_read;
+static vop_write_t	dead_write;
 
 vop_t **dead_vnodeop_p;
 static struct vnodeopv_entry_desc dead_vnodeop_entries[] = {
