@@ -971,7 +971,42 @@ struct pr_usrreqs pru_oldstyle = {
  * supported by a protocol.  Fill in as needed.
  */
 int
+pru_accept_notsupp(struct socket *so, struct mbuf *nam)
+{
+	return EOPNOTSUPP;
+}
+
+int
 pru_connect2_notsupp(struct socket *so1, struct socket *so2)
 {
 	return EOPNOTSUPP;
+}
+
+int
+pru_listen_notsupp(struct socket *so)
+{
+	return EOPNOTSUPP;
+}
+
+int
+pru_rcvd_notsupp(struct socket *so, int flags)
+{
+	return EOPNOTSUPP;
+}
+
+int
+pru_rcvoob_notsupp(struct socket *so, struct mbuf *m, int flags)
+{
+	return EOPNOTSUPP;
+}
+
+/*
+ * This isn't really a ``null'' operation, but it's the default one
+ * and doesn't do anything destructive.
+ */
+int
+pru_sense_null(struct socket *so, struct stat *sb)
+{
+	sb->st_blksize = so->so_snd.sb_hiwat;
+	return 0;
 }

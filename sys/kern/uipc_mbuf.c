@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $FreeBSD$
+ *	$Id$
  */
 
 #include <sys/param.h>
@@ -118,7 +118,12 @@ m_mballoc(nmb, nowait)
 		return (0);
 
 	nbytes = round_page(nmb * MSIZE);
-	p = (caddr_t)kmem_malloc(mb_map, nbytes, nowait ? M_NOWAIT : M_WAITOK);
+	p = (caddr_t)kmem_malloc(mb_map, nbytes, M_NOWAIT);
+	if (p == 0 && !nowait) {
+		mbstat.m_wait++;
+		p = (caddr_t)kmem_malloc(mb_map, nbytes, M_WAITOK);
+	}
+
 	/*
 	 * Either the map is now full, or this is nowait and there
 	 * are no pages left.
@@ -137,9 +142,9 @@ m_mballoc(nmb, nowait)
 }
 
 #if MCLBYTES > PAGE_SIZE
-int i_want_my_mcl;
+static int i_want_my_mcl;
 
-void
+static void
 kproc_mclalloc(void)
 {
 	int status;
@@ -184,13 +189,16 @@ m_clalloc(ncl, nowait)
 	 * to get any more (nothing is ever freed back to the
 	 * map).
 	 */
-	if (mb_map_full)
+	if (mb_map_full) {
+		mbstat.m_drops++;
 		return (0);
+	}
 
 #if MCLBYTES > PAGE_SIZE
 	if (nowait) {
 		i_want_my_mcl += ncl;
 		wakeup(&i_want_my_mcl);
+		mbstat.m_wait++;
 		p = 0;
 	} else {
 		p = contigmalloc1(MCLBYTES * ncl, M_DEVBUF, M_WAITOK, 0ul,
@@ -206,8 +214,10 @@ m_clalloc(ncl, nowait)
 	 * Either the map is now full, or this is nowait and there
 	 * are no pages left.
 	 */
-	if (p == NULL)
+	if (p == NULL) {
+		mbstat.m_drops++;
 		return (0);
+	}
 
 	for (i = 0; i < ncl; i++) {
 		((union mcluster *)p)->mcl_next = mclfree;
