@@ -103,8 +103,6 @@ static void	acpi_identify(driver_t *driver, device_t parent);
 static int	acpi_probe(device_t dev);
 static int	acpi_attach(device_t dev);
 static device_t	acpi_add_child(device_t bus, int order, const char *name, int unit);
-static int	acpi_print_resources(struct resource_list *rl, const char *name, int type,
-				     const char *format);
 static int	acpi_print_child(device_t bus, device_t child);
 static int	acpi_read_ivar(device_t dev, device_t child, int index, uintptr_t *result);
 static int	acpi_write_ivar(device_t dev, device_t child, int index, uintptr_t value);
@@ -532,40 +530,6 @@ acpi_add_child(device_t bus, int order, const char *name, int unit)
     return(child);
 }
 
-/*
- * Print child device resource usage
- */
-static int
-acpi_print_resources(struct resource_list *rl, const char *name, int type, const char *format)
-{
-    struct resource_list_entry	*rle;
-    int				printed, retval;
-
-    printed = 0;
-    retval = 0;
-
-    if (!SLIST_FIRST(rl))
-	return(0);
-
-    /* Yes, this is kinda cheating */
-    SLIST_FOREACH(rle, rl, link) {
-	if (rle->type == type) {
-	    if (printed == 0)
-		retval += printf(" %s ", name);
-	    else if (printed > 0)
-		retval += printf(",");
-	    printed++;
-	    retval += printf(format, rle->start);
-	    if (rle->count > 1) {
-		retval += printf("-");
-		retval += printf(format, rle->start +
-				 rle->count - 1);
-	    }
-	}
-    }
-    return(retval);
-}
-
 static int
 acpi_print_child(device_t bus, device_t child)
 {
@@ -574,10 +538,10 @@ acpi_print_child(device_t bus, device_t child)
     int retval = 0;
 
     retval += bus_print_child_header(bus, child);
-    retval += acpi_print_resources(rl, "port",  SYS_RES_IOPORT, "%#lx");
-    retval += acpi_print_resources(rl, "iomem", SYS_RES_MEMORY, "%#lx");
-    retval += acpi_print_resources(rl, "irq",   SYS_RES_IRQ,    "%ld");
-    retval += acpi_print_resources(rl, "drq",   SYS_RES_DRQ,    "%ld");
+    retval += resource_list_print_type(rl, "port",  SYS_RES_IOPORT, "%#lx");
+    retval += resource_list_print_type(rl, "iomem", SYS_RES_MEMORY, "%#lx");
+    retval += resource_list_print_type(rl, "irq",   SYS_RES_IRQ,    "%ld");
+    retval += resource_list_print_type(rl, "drq",   SYS_RES_DRQ,    "%ld");
     retval += bus_print_child_footer(bus, child);
 
     return(retval);
