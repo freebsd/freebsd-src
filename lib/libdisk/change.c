@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: change.c,v 1.9.2.1 1995/09/20 10:43:01 jkh Exp $
+ * $Id: change.c,v 1.10 1995/12/07 10:33:18 peter Exp $
  *
  */
 
@@ -19,23 +19,6 @@
 #include <sys/types.h>
 #include "libdisk.h"
 
-#if 0
-struct disk *
-Set_Phys_Geom(struct disk *disk, u_long cyl, u_long hd, u_long sect)
-{
-	struct disk *d = Int_Open_Disk(disk->name,cyl*hd*sect);
-	d->real_cyl = cyl;
-	d->real_hd = hd;
-	d->real_sect = sect;
-	d->bios_cyl = disk->bios_cyl;
-	d->bios_hd = disk->bios_hd;
-	d->bios_sect = disk->bios_sect;
-	d->flags = disk->flags;
-	Free_Disk(disk);
-	return d;
-}
-#endif
-
 void
 Set_Bios_Geom(struct disk *disk, u_long cyl, u_long hd, u_long sect)
 {
@@ -43,6 +26,38 @@ Set_Bios_Geom(struct disk *disk, u_long cyl, u_long hd, u_long sect)
 	disk->bios_hd = hd;
 	disk->bios_sect = sect;
 	Bios_Limit_Chunk(disk->chunks,1024*hd*sect);
+}
+
+void
+Sanitize_Bios_Geom(struct disk *disk)
+{
+	int sane = 1;
+
+	if (disk->bios_cyl > 1024)
+		sane = 0;
+	if (disk->bios_hd > 16)
+		sane = 0;
+	if (disk->bios_sect > 63)
+		sane = 0;
+	if (disk->bios_cyl*disk->bios_hd*disk->bios_sect != 
+	    disk->chunks->size)
+		sane = 0;
+	if (sane)
+		return;
+
+	/* First try something that IDE can handle */
+	disk->bios_sect = 63;
+	disk->bios_hd = 16;
+	disk->bios_cyl = disk->chunks->size/(disk->bios_sect*disk->bios_hd);
+
+	if (disk->bios_cyl < 1024)
+		return;
+
+	/* Hmm, try harder... */
+	disk->bios_hd = 255;
+	disk->bios_cyl = disk->chunks->size/(disk->bios_sect*disk->bios_hd);
+
+	return;
 }
 
 void
@@ -57,6 +72,11 @@ All_FreeBSD(struct disk *d, int force_all)
 			goto again;
 		}
 	c=d->chunks;
-	Create_Chunk(d,c->offset,c->size,freebsd,0xa5,
-		     force_all? CHUNK_FORCE_ALL: 0);
+	if (force_all) {
+		Sanitize_Bios_Geom(d);
+		Create_Chunk(d,c->offset,c->size,freebsd,0xa5,
+		     CHUNK_FORCE_ALL);
+	} else {
+		Create_Chunk(d,c->offset,c->size,freebsd,0xa5, 0);
+	}
 }
