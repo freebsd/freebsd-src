@@ -143,8 +143,8 @@ struct mount {
 	struct lock	mnt_lock;		/* mount structure lock */
 	int		mnt_writeopcount;	/* write syscalls in progress */
 	int		mnt_flag;		/* flags shared with user */
-	struct vfsoptlist *mnt_opt;		/* mount options */
-	struct vfsoptlist *mnt_optnew;		/* for MNT_UPDATE */
+	struct vfsoptlist *mnt_opt;		/* current mount options */
+	struct vfsoptlist *mnt_optnew;		/* new options passed to fs */
 	int		mnt_kern_flag;		/* kernel only flags */
 	int		mnt_maxsymlinklen;	/* max size of short symlink */
 	struct statfs	mnt_stat;		/* cache of filesystem stats */
