@@ -35,6 +35,7 @@ MAN=	accept_filter.9 \
 	cdevsw_add.9 \
 	cdevsw_remove.9 \
 	condvar.9 \
+	contigmalloc.9 \
 	copy.9 \
 	critical_enter.9 \
 	cr_seeothergids.9 \
@@ -400,6 +401,7 @@ MLINKS+=copy.9 copyin.9 \
 	copy.9 copyinstr.9 \
 	copy.9 copyout.9 \
 	copy.9 copystr.9
+MLINKS+=contigmalloc.9 contigfree.9
 MLINKS+=critical_enter.9 cpu_critical_enter.9 \
 	critical_enter.9 cpu_critical_exit.9 \
 	critical_enter.9 critical_exit.9
