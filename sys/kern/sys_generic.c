@@ -652,14 +652,25 @@ ioctl(td, uap)
 	}
 
 #ifdef __alpha__
+	{
+	int annoy = 1;
+
 	if (com == DIOCGDINFO_ALPHAHACK)
 		com = DIOCGDINFO;
-	if (com == DIOCSDINFO_ALPHAHACK)
+	else if (com == DIOCSDINFO_ALPHAHACK)
 		com = DIOCSDINFO;
-	if (com == DIOCWDINFO_ALPHAHACK)
+	else if (com == DIOCWDINFO_ALPHAHACK)
 		com = DIOCWDINFO;
-	if (com == DIOCGDVIRGIN_ALPHAHACK)
+	else if (com == DIOCGDVIRGIN_ALPHAHACK)
 		com = DIOCGDVIRGIN;
+	else
+		annoy = 0;
+	if (annoy) {
+		uprintf("Recompile this program, it uses obsolete ioctls.\n");
+		printf("Program using uses obsolete ioctls used, recompile.\n");
+		tsleep(&annoy, PPAUSE, "syncer", 15 * hz);
+	}
+	}
 #endif
 
 	switch (com) {
