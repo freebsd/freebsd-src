@@ -40,6 +40,9 @@
 typedef	u_int32_t tcp_seq;
 typedef u_int32_t tcp_cc;		/* connection count per rfc1644 */
 
+#define tcp6_seq	tcp_seq	/* for KAME src sync over BSD*'s */
+#define tcp6hdr		tcphdr	/* for KAME src sync over BSD*'s */
+
 /*
  * TCP header.
  * Per RFC 793, September, 1981.
