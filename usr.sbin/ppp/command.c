@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.152 1998/06/27 23:48:42 brian Exp $
+ * $Id: command.c,v 1.153 1998/07/04 10:24:49 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -122,7 +122,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0";
-const char VersionDate[] = "$Date: 1998/06/27 23:48:42 $";
+const char VersionDate[] = "$Date: 1998/07/04 10:24:49 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -837,11 +837,13 @@ OpenCommand(struct cmdargs const *arg)
     bundle_Open(arg->bundle, arg->cx ? arg->cx->name : NULL, PHYS_ALL);
   else if (arg->argc == arg->argn + 1) {
     if (!strcasecmp(arg->argv[arg->argn], "lcp")) {
-      if (arg->cx) {
-        if (arg->cx->physical->link.lcp.fsm.state == ST_OPENED)
-          fsm_Reopen(&arg->cx->physical->link.lcp.fsm);
+      struct datalink *cx = arg->cx ?
+        arg->cx : bundle2datalink(arg->bundle, NULL);
+      if (cx) {
+        if (cx->physical->link.lcp.fsm.state == ST_OPENED)
+          fsm_Reopen(&cx->physical->link.lcp.fsm);
         else
-          bundle_Open(arg->bundle, arg->cx->name, PHYS_ALL);
+          bundle_Open(arg->bundle, cx->name, PHYS_ALL);
       } else
         log_Printf(LogWARN, "open lcp: You must specify a link\n");
     } else if (!strcasecmp(arg->argv[arg->argn], "ccp")) {
