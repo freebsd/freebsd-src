@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: chat.c,v 1.44.2.7 1998/02/13 05:10:06 brian Exp $
  */
 
 #include <sys/param.h>
@@ -62,27 +62,9 @@
 #include "prompt.h"
 
 #define BUFLEFT(c) (sizeof (c)->buf - ((c)->bufend - (c)->buf))
+#define	issep(c)	((c) == '\t' || (c) == ' ')
 
 struct chat chat;
-
-#ifndef isblank
-#define	isblank(c)	((c) == '\t' || (c) == ' ')
-#endif
-
-
-#define	IBSIZE LINE_LEN
-
-static int TimeoutSec;
-static int abort_next, timeout_next;
-static int numaborts;
-static char *AbortStrings[50];
-static char inbuff[IBSIZE * 2 + 1];
-static jmp_buf ChatEnv;
-
-#define	MATCH	1
-#define	NOMATCH	0
-#define	ABORT	-1
-
 static void ExecStr(struct physical *, char *, char *, int);
 
 static void
@@ -517,7 +499,7 @@ findblank(char *p, int instring)
     }
   } else {
     while (*p) {
-      if (isblank(*p))
+      if (issep(*p))
 	return (p);
       p++;
     }
@@ -682,7 +664,8 @@ ExecStr(struct physical *physical, char *command, char *out, int olen)
   if (pipe(fids) < 0) {
     LogPrintf(LogCHAT, "Unable to create pipe in ExecStr: %s\n",
 	      strerror(errno));
-    longjmp(ChatEnv, 2);
+    *out = '\0';
+    return;
   }
   if ((pid = fork()) == 0) {
     TermTimerService();
@@ -727,7 +710,8 @@ ExecStr(struct physical *physical, char *command, char *out, int olen)
     if (WIFSIGNALED(stat)) {
       LogPrintf(LogWARN, "%s: signal %d\n", name, WTERMSIG(stat));
       free(name);
-      longjmp(ChatEnv, 3);
+      *out = '\0';
+      return;
     } else if (WIFEXITED(stat)) {
       switch (WEXITSTATUS(stat)) {
         case 0:
@@ -736,18 +720,21 @@ ExecStr(struct physical *physical, char *command, char *out, int olen)
         case 127:
           LogPrintf(LogWARN, "%s: %s\n", name, startout);
           free(name);
-          longjmp(ChatEnv, 4);
+          *out = '\0';
+          return;
           break;
         default:
           LogPrintf(LogWARN, "%s: exit %d\n", name, WEXITSTATUS(stat));
           free(name);
-          longjmp(ChatEnv, 5);
+          *out = '\0';
+          return;
           break;
       }
     } else {
       LogPrintf(LogWARN, "%s: Unexpected exit result\n", name);
       free(name);
-      longjmp(ChatEnv, 6);
+      *out = '\0';
+      return;
     }
   }
 }
