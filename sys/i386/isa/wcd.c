@@ -13,7 +13,7 @@
  * all derivative works or modified versions.
  *
  * From: Version 1.9, Mon Oct  9 20:27:42 MSK 1995
- * $Id: wcd.c,v 1.59 1998/09/15 08:15:29 gibbs Exp $
+ * $Id: wcd.c,v 1.60 1998/10/30 10:57:09 luigi Exp $
  */
 
 #include "wdc.h"
@@ -530,7 +530,7 @@ wcdopen (dev_t dev, int flags, int fmt, struct proc *p)
 	/* On the first open, read the table of contents. */
 	if (! (t->flags & F_BOPEN) && ! t->refcnt) {
 		/* Read table of contents. */
-		if (wcd_read_toc (t) < 0)
+		if (wcd_read_toc (t) != 0)
 			return (EIO);
 
 		/* Lock the media. */
