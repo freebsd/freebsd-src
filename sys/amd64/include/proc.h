@@ -31,20 +31,17 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)proc.h	7.1 (Berkeley) 5/15/91
- *	$Id$
+ *	$Id: proc.h,v 1.7 1997/02/22 09:34:59 peter Exp $
  */
 
 #ifndef _MACHINE_PROC_H_
-#define _MACHINE_PROC_H_ 1
+#define	_MACHINE_PROC_H_
 
 /*
  * Machine-dependent part of the proc structure for i386.
  */
 struct mdproc {
-	int	md_flags;		/* machine-dependent flags */
-	int	*md_regs;		/* registers on current frame */
+	struct trapframe *md_regs;	/* registers on current frame */
 };
 
-/* md_flags */
-#define	MDP_AST		0x0001	/* async trap pending */
-#endif /* _MACHINE_PROC_H_ */
+#endif /* !_MACHINE_PROC_H_ */
