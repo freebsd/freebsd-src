@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.8 1995/10/11 06:09:45 swallace Exp $
+ * $Id: uipc_syscalls.c,v 1.9 1995/10/23 15:42:12 bde Exp $
  */
 
 #include <sys/param.h>
@@ -192,7 +192,7 @@ accept1(p, uap, retval, compat)
 			break;
 		}
 		error = tsleep((caddr_t)&so->so_timeo, PSOCK | PCATCH,
-		    netcon, 0);
+		    "accept", 0);
 		if (error) {
 			splx(s);
 			return (error);
@@ -297,7 +297,7 @@ connect(p, uap, retval)
 	s = splnet();
 	while ((so->so_state & SS_ISCONNECTING) && so->so_error == 0) {
 		error = tsleep((caddr_t)&so->so_timeo, PSOCK | PCATCH,
-		    netcon, 0);
+		    "connec", 0);
 		if (error)
 			break;
 	}
