@@ -11,9 +11,102 @@
 # Localstuff:  file(1) magic for locally observed files
 # Add any locally observed files here.
 
+# Real Audio (Magic .ra\0375)
+0	belong		0x2e7261fd	audio/x-pn-realaudio
+0	string		.RMF		application/vnd.rn-realmedia
+
+#video/x-pn-realvideo
+#video/vnd.rn-realvideo
+#application/vnd.rn-realmedia
+#	sigh, there are many mimes for that but the above are the most common.
+
+# Taken from magic, converted to magic.mime
+# mime types according to http://www.geocities.com/nevilo/mod.htm:
+#	audio/it	.it
+#	audio/x-zipped-it	.itz
+#	audio/xm	fasttracker modules
+#	audio/x-s3m	screamtracker modules
+#	audio/s3m	screamtracker modules
+#	audio/x-zipped-mod	mdz
+#	audio/mod	mod
+#	audio/x-mod	All modules (mod, s3m, 669, mtm, med, xm, it, mdz, stm, itz, xmz, s3z)
+
+# Taken from loader code from mikmod version 2.14
+# by Steve McIntyre (stevem@chiark.greenend.org.uk)
+# <doj@cubic.org> added title printing on 2003-06-24
+0	string	MAS_UTrack_V00
+>14	string	>/0		audio/x-mod
+#audio/x-tracker-module
+
+#0	string	UN05		MikMod UNI format module sound data
+
+0	string	Extended\ Module: audio/x-mod
+#audio/x-tracker-module
+##>17	string	>\0		Title: "%s"
+
+21	string/c	!SCREAM!	audio/x-mod
+#audio/x-screamtracker-module
+21	string	BMOD2STM	audio/x-mod
+#audio/x-screamtracker-module
+1080	string	M.K.		audio/x-mod
+#audio/x-protracker-module
+#>0	string	>\0		Title: "%s"
+1080	string	M!K!		audio/x-mod
+#audio/x-protracker-module
+#>0	string	>\0		Title: "%s"
+1080	string	FLT4		audio/x-mod
+#audio/x-startracker-module
+#>0	string	>\0		Title: "%s"
+1080	string	FLT8		audio/x-mod
+#audio/x-startracker-module
+#>0	string	>\0		Title: "%s"
+1080	string	4CHN		audio/x-mod
+#audio/x-fasttracker-module
+#>0	string	>\0		Title: "%s"
+1080	string	6CHN		audio/x-mod
+#audio/x-fasttracker-module
+#>0	string	>\0		Title: "%s"
+1080	string	8CHN		audio/x-mod
+#audio/x-fasttracker-module
+#>0	string	>\0		Title: "%s"
+1080	string	CD81		audio/x-mod
+#audio/x-oktalyzer-tracker-module
+#>0	string	>\0		Title: "%s"
+1080	string	OKTA		audio/x-mod
+#audio/x-oktalyzer-tracker-module
+#>0	string	>\0		Title: "%s"
+# Not good enough.
+#1082	string	CH
+#>1080	string	>/0		%.2s-channel Fasttracker "oktalyzer" module sound data
+1080	string	16CN		audio/x-mod
+#audio/x-taketracker-module
+#>0	string	>\0		Title: "%s"
+1080	string	32CN		audio/x-mod
+#audio/x-taketracker-module
+#>0	string	>\0		Title: "%s"
+
+# Impuse tracker module (it)
+0	string		IMPM		audio/x-mod
+#>4	string		>\0		"%s"
+#>40	leshort		!0		compatible w/ITv%x
+#>42	leshort		!0		created w/ITv%x
+
 #------------------------------------------------------------------------------
 # end local stuff
 #------------------------------------------------------------------------------
+
+# xml based formats!
+
+# svg
+
+0	string		\<?xml
+#			text/xml
+>38	string		\<\!DOCTYPE\040svg	image/svg+xml
+
+
+# xml
+0	string		\<?xml			text/xml
+
 
 #------------------------------------------------------------------------------
 # Java
@@ -61,6 +154,8 @@
 #					IFF/8SVX audio data
 8	string		8SVX		audio/x-aiff	
 
+
+
 # Creative Labs AUDIO stuff
 #					Standard MIDI data
 0	string	MThd			audio/unknown	
@@ -92,13 +187,15 @@
 >8	string		AVI		video/x-msvideo
 #
 0	belong		0x2e7261fd	application/x-realaudio
+>8 	string		CDRA		image/x-coreldraw
+
 
 # MPEG Layer 3 sound files
 0       beshort		&0xffe0		audio/mpeg
 #MP3 with ID3 tag
 0	string		ID3		audio/mpeg
 # Ogg/Vorbis
-0	string		OggS		audio/x-ogg
+0	string		OggS		application/ogg
 
 #------------------------------------------------------------------------------
 # c-lang:  file(1) magic for C programs or various scripts
@@ -143,6 +240,8 @@
 
 #
 # zsh/ash/ae/nawk/gawk magic from cameron@cs.unsw.oz.au (Cameron Simpson)
+0       string          #!/bin/zsh	        application/x-shellscript
+0       string          #!/usr/bin/zsh	        application/x-shellscript
 0       string          #!/usr/local/bin/zsh    application/x-shellscript
 0       string          #!\ /usr/local/bin/zsh  application/x-shellscript
 0       string          #!/usr/local/bin/ash    application/x-shellscript
@@ -197,6 +296,9 @@
 0       string          \037\213        application/x-gzip
 
 0		string			PK\003\004		application/x-zip
+
+# RAR archiver (Greg Roelofs, newt@uchicago.edu)
+0	string		Rar!		application/x-rar
 
 # According to gzip.h, this is the correct byte order for packed data.
 0	string		\037\036	application/octet-stream
@@ -253,7 +355,7 @@
 0	lelong&0x8080ffff	0x0000041a	application/x-arc	squeezed
 0	lelong&0x8080ffff	0x0000061a	application/x-arc	crunched
 
-0	leshort	0xea60	application/octet-stream	x-arj
+0	leshort	0xea60	application/x-arj
 
 # LHARC/LHA archiver (Greg Roelofs, newt@uchicago.edu)
 2	string	-lh0-	application/x-lharc	lh0
@@ -304,6 +406,7 @@
 0	string		\<!doctype\ HTML	text/html
 0	string		\<!DOCTYPE\ HTML	text/html
 0	string		\<!doctype\ html	text/html
+0	string		\<!doctype\ HTML	text/html
 
 #------------------------------------------------------------------------------
 # images:  file(1) magic for image formats (see also "c-lang" for XPM bitmaps)
@@ -376,6 +479,18 @@
 #0	string		CP		color pointer
 #0	string		BA		bitmap array
 
+# CDROM Filesystems
+32769    string    CD001     application/x-iso9660
+
+# Newer StuffIt archives (grant@netbsd.org)
+0	string		StuffIt			application/x-stuffit
+#>162	string		>0			: %s
+
+# BinHex is the Macintosh ASCII-encoded file format (see also "apple")
+# Daniel Quinlan, quinlan@yggdrasil.com
+11	string	must\ be\ converted\ with\ BinHex\ 4	application/mac-binhex40
+##>41	string	x					\b, version %.3s
+
 
 #------------------------------------------------------------------------------
 # lisp:  file(1) magic for lisp programs
@@ -397,6 +512,7 @@
 0	string		Forward\ to 	message/rfc822	7bit
 0	string		Pipe\ to 	message/rfc822	7bit
 0	string		Return-Path:	message/rfc822	7bit
+0	string		Received:	message/rfc822
 0	string		Path:		message/news	8bit
 0	string		Xref:		message/news	8bit
 0	string		From:		message/rfc822	7bit
@@ -456,8 +572,8 @@
 #>34	string		>\0		(%s)
 
 # Texinfo and GNU Info, from Daniel Quinlan (quinlan@yggdrasil.com)
-#0	string		\\input\ texinfo	Texinfo source text
-#0	string		This\ is\ Info\ file	GNU Info text
+0	string		\\input\ texinfo		text/x-texinfo
+0	string		This\ is\ Info\ file	text/x-info
 
 # correct TeX magic for Linux (and maybe more)
 # from Peter Tobias (tobias@server.et-inf.fho-emden.de)
@@ -543,9 +659,249 @@
 
 # MNG Video Format, <URL:http://www.libpng.org/pub/mng/spec/>
 0	string		\x8aMNG			video/x-mng
+0	string		\x8aJNG			video/x-jng
 
 #------------------------------------------------------------------------------
 # Hierarchical Data Format, used to facilitate scientific data exchange
 # specifications at http://hdf.ncsa.uiuc.edu/
 0	belong		0x0e031301	Hierarchical Data Format (version 4) data
 0	string		\211HDF\r\n\032	Hierarchical Data Format (version 5) data
+
+# Adobe Photoshop
+0	string		8BPS			image/x-photoshop
+
+# Felix von Leitner <felix-file@fefe.de>
+0	string		d8:announce		application/x-bittorrent
+
+
+# lotus 1-2-3 document
+0	belong	0x00001a00	application/x-123
+0	belong	0x00000200 	application/x-123
+
+# MS Access database
+4	string	Standard\ Jet\ DB	application/msaccess
+
+## magic for XBase files
+#0      byte       0x02	
+#>8     leshort	  >0
+#>>12   leshort    0	application/x-dbf
+#
+#0      byte       0x03	
+#>8     leshort	  >0
+#>>12   leshort    0	application/x-dbf
+#
+#0      byte       0x04	
+#>8     leshort	  >0
+#>>12   leshort    0	application/x-dbf
+#
+#0      byte       0x05	
+#>8     leshort	  >0
+#>>12   leshort    0	application/x-dbf
+#
+#0      byte       0x30
+#>8     leshort	  >0
+#>>12   leshort    0	application/x-dbf
+#
+#0      byte       0x43
+#>8     leshort	  >0
+#>>12   leshort    0	application/x-dbf
+#
+#0      byte       0x7b
+#>8     leshort	  >0
+#>>12   leshort    0	application/x-dbf
+#
+#0      byte       0x83	
+#>8     leshort	  >0
+#>>12   leshort    0	application/x-dbf
+#
+#0      byte       0x8b
+#>8     leshort	  >0
+#>>12   leshort    0	application/x-dbf
+#
+#0      byte       0x8e	
+#>8     leshort	  >0
+#>>12   leshort    0	application/x-dbf
+#
+#0      byte       0xb3
+#>8     leshort	  >0
+#>>12   leshort    0	application/x-dbf
+#
+#0      byte       0xf5
+#>8     leshort	  >0
+#>>12   leshort    0	application/x-dbf
+#
+#0	leshort		0x0006		application/x-dbt
+
+# Debian has entries for the old PGP formats:
+# pgp:  file(1) magic for Pretty Good Privacy
+# see http://lists.gnupg.org/pipermail/gnupg-devel/1999-September/016052.html
+0       beshort         0x9900                  text/PGP key public ring
+0       beshort         0x9501                  text/PGP key security ring
+0       beshort         0x9500                  text/PGP key security ring
+0       beshort         0xa600                  text/PGP encrypted data
+0       string          -----BEGIN\040PGP       text/PGP armored data 
+>15     string          PUBLIC\040KEY\040BLOCK- public key block
+>15     string          MESSAGE-                message
+>15     string          SIGNED\040MESSAGE-      signed message
+>15     string          PGP\040SIGNATURE-       signature
+0       beshort         0x8501                  data
+#
+# GnuPG Magic:
+# 
+0       beshort         0x9901                  text/GnuPG key public ring
+0       beshort         0x8501                  text/OpenPGP data
+
+# flash:        file(1) magic for Macromedia Flash file format
+#
+# See
+#
+#       http://www.macromedia.com/software/flash/open/
+#
+0	string		FWS             
+>3	byte		x			application/x-shockwave-flash
+
+# The following paramaters are created for Namazu.
+# <http://www.namazu.org/>
+#
+# 1999/08/13
+#0	string		\<!--\ MHonArc		text/html; x-type=mhonarc
+0	string		BZh			application/x-bzip2
+
+# 1999/09/09
+# VRML (suggested by Masao Takaku)
+0	string		#VRML\ V1.0\ ascii	model/vrml
+0	string		#VRML\ V2.0\ utf8	model/vrml
+
+#------------------------------------------------------------------------------
+# ichitaro456: file(1) magic for Just System Word Processor Ichitaro
+#
+# Contributor kenzo-:
+# Reversed-engineered JS Ichitaro magic numbers
+#
+
+0	string		DOC
+>43	byte		0x14		application/ichitaro4
+>144	string	JDASH		application/ichitaro4
+
+0	string		DOC
+>43	byte		0x15		application/ichitaro5
+
+0	string		DOC
+>43	byte		0x16		application/ichitaro6
+
+#------------------------------------------------------------------------------
+# office97: file(1) magic for MicroSoft Office files
+#
+# Contributor kenzo-:
+# Reversed-engineered MS Office magic numbers
+#
+
+#0       string          \320\317\021\340\241\261\032\341
+#>48     byte            0x1B            application/excel
+
+2080	string	Microsoft\ Excel\ 5.0\ Worksheet	application/excel
+2114	string	Biff5					application/excel
+
+0       string	\224\246\056		application/msword
+
+0	belong	0x31be0000		application/msword
+
+0	string	PO^Q`			application/msword
+
+0	string	\320\317\021\340\241\261\032\341
+>546	string	bjbj			application/msword
+>546	string	jbjb			application/msword
+
+512	string	R\0o\0o\0t\0\ \0E\0n\0t\0r\0y	application/msword
+
+2080	string	Microsoft\ Word\ 6.0\ Document	application/msword
+2080	string	Documento\ Microsoft\ Word\ 6	application/msword
+2112	string	MSWordDoc			application/msword
+
+#0	string	\320\317\021\340\241\261\032\341	application/powerpoint
+0	string	\320\317\021\340\241\261\032\341	application/msword
+
+0       string  #\ PaCkAgE\ DaTaStReAm  application/x-svr4-package
+
+
+# WinNT/WinCE PE files (Warner Losh, imp@village.org)
+#
+128		string	PE\000\000	application/octet-stream
+0		string	PE\000\000	application/octet-stream
+
+# miscellaneous formats
+0		string	LZ		application/octet-stream
+
+
+# .EXE formats (Greg Roelofs, newt@uchicago.edu)
+#
+0		string	MZ
+>24		string	@		application/octet-stream
+
+0		string	MZ
+>30		string	Copyright\ 1989-1990\ PKWARE\ Inc.	application/x-zip
+
+0		string	MZ
+>30		string	PKLITE\ Copr.	application/x-zip
+
+0		string	MZ
+>36		string	LHa's\ SFX	application/x-lha
+
+0		string	MZ		application/octet-stream
+
+# LHA archiver
+2		string	-lh
+>6		string	-		application/x-lha
+
+
+# Zoo archiver
+20		lelong	0xfdc4a7dc	application/x-zoo
+
+# ARC archiver
+0       	lelong&0x8080ffff	0x0000081a	application/x-arc
+0		lelong&0x8080ffff	0x0000091a	application/x-arc
+0		lelong&0x8080ffff	0x0000021a	application/x-arc
+0		lelong&0x8080ffff	0x0000031a	application/x-arc
+0		lelong&0x8080ffff	0x0000041a	application/x-arc
+0		lelong&0x8080ffff	0x0000061a	application/x-arc
+
+# Microsoft Outlook's Transport Neutral Encapsulation Format (TNEF)
+0		lelong	0x223e9f78	application/ms-tnef
+
+
+#
+# QuickTime format
+# Contributer: Peter Breton
+#
+
+0	string		MOVI		video/quicktime
+4	string		moov		video/quicktime
+4	string		mdat		video/quicktime
+
+# Video Formate
+0       string          RIFF
+# AVI == Audio Video Interleave
+>8      string          AVI\            
+#>0xbc   string         >\0             video/x-%s
+
+>>0xbc  string          DIV3            video/x-DivX-3
+>>0xbc  string          div3            video/x-divX-3
+>>0xbc  string          DIV4            video/x-DivX-4
+>>0x70  string          DX50            video/x-DIVX-5
+>>0x70  string          MP4             video/x-MPEG-4
+>>0xbc  string          DIVX            video/x-DivX
+>8      string          WAVE            audio/x-wav
+
+# From: stephane.loeuillet@tiscali.f
+# http://www.djvuzone.org/
+0	string		AT&TFORM	image/x.djvu
+
+# Danny Milosavljevic <danny.milo@gmx.net>
+# this are adrift (adventure game standard) game files, extension .taf
+# depending on version magic continues with 0x93453E6139FA (V 4.0)
+# 0x9445376139FA (V 3.90)
+# 0x9445366139FA (V 3.80)
+# this is from source (http://www.adrift.org.uk/) and I have some taf
+# files, and checked them.
+#0       belong          0x3C423FC9
+#>4      belong          0x6A87C2CF application/x-adrift

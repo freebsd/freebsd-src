@@ -1,29 +1,8 @@
-# don't enforce GNU packaging standards
-AUTOMAKE_OPTIONS = foreign no-dependencies
+pkgdata_DATA = magic magic.mime magic.mgc magic.mime.mgc
 
-bin_PROGRAMS = file
+EXTRA_DIST = magic2mime Localstuff Header magic.mime $(magic_FRAGMENTS)
 
-data_DATA = magic magic.mime magic.mgc magic.mime.mgc
-
-MAGIC	 = @datadir@/magic
-CPPFLAGS = -DMAGIC='"$(MAGIC)"'
-
-if FSECT5
-man_MAGIC = magic.5
-else
-man_MAGIC = magic.4
-endif
-fsect = @fsect@
-man_MANS = file.1 $(man_MAGIC)
-
-file_SOURCES = file.c apprentice.c fsmagic.c softmagic.c ascmagic.c \
-	compress.c is_tar.c readelf.c print.c \
-	file.h names.h patchlevel.h readelf.h tar.h
-
-EXTRA_DIST = LEGAL.NOTICE MAINT PORTING Makefile.std magic2mime \
-	Localstuff Header $(magic_FRAGMENTS) file.man magic.man
-
-CLEANFILES = $(man_MANS) magic magic.mgc magic.mime.mgc
+CLEANFILES =  magic magic.mgc magic.mime.mgc
 
 magic: Header Localstuff $(magic_FRAGMENTS)
 	cat $(srcdir)/Header $(srcdir)/Localstuff > $@
@@ -36,25 +15,11 @@ magic: Header Localstuff $(magic_FRAGMENTS)
           cat $$f; \
 	done >> $@
 
-magic.mgc: magic file
-	./file -C -m magic
+magic.mgc: magic
+	$(top_builddir)/src/file -C -m magic
 
-magic.mime.mgc: magic.mime file
-	./file -C -m $(srcdir)/magic.mime
-
-file.1:	Makefile file.man
-	@rm -f $@
-	sed -e s@__CSECTION__@1@g \
-	    -e s@__FSECTION__@${fsect}@g \
-	    -e s@__VERSION__@${VERSION}@g \
-	    -e s@__MAGIC__@${MAGIC}@g $(srcdir)/file.man > $@
-
-magic.${fsect}: Makefile magic.man
-	@rm -f $@
-	sed -e s@__CSECTION__@1@g \
-	    -e s@__FSECTION__@${fsect}@g \
-	    -e s@__VERSION__@${VERSION}@g \
-	    -e s@__MAGIC__@${MAGIC}@g $(srcdir)/magic.man > $@
+magic.mime.mgc: magic.mime
+	$(top_builddir)/src/file -C -m $(srcdir)/magic.mime
 
 magic_FRAGMENTS = \
 Magdir/acorn \
@@ -73,22 +38,29 @@ Magdir/archive \
 Magdir/asterix \
 Magdir/att3b \
 Magdir/audio \
+Magdir/bFLT \
 Magdir/blender \
 Magdir/blit \
+Magdir/bout \
 Magdir/bsdi \
+Magdir/cad \
 Magdir/c-lang \
+Magdir/c64 \
 Magdir/cddb \
 Magdir/chi \
+Magdir/chord \
 Magdir/cisco \
 Magdir/citrus \
 Magdir/claris \
 Magdir/clipper \
+Magdir/spec \
 Magdir/commands \
+Magdir/communications \
 Magdir/compress \
 Magdir/console \
 Magdir/convex \
 Magdir/ctags \
-Magdir/cvs \
+Magdir/dact \
 Magdir/database \
 Magdir/diamond \
 Magdir/diff \
@@ -100,12 +72,16 @@ Magdir/editors \
 Magdir/elf \
 Magdir/encore \
 Magdir/epoc \
+Magdir/fcs \
 Magdir/filesystems \
 Magdir/flash \
 Magdir/fonts \
 Magdir/frame \
 Magdir/freebsd \
 Magdir/fsav \
+Magdir/games \
+Magdir/geos \
+Magdir/gcc \
 Magdir/gimp \
 Magdir/gnu \
 Magdir/grace \
@@ -113,6 +89,7 @@ Magdir/gringotts \
 Magdir/hdf \
 Magdir/hitachi-sh \
 Magdir/hp \
+Magdir/human68k \
 Magdir/ibm370 \
 Magdir/ibm6000 \
 Magdir/iff \
@@ -135,13 +112,15 @@ Magdir/magic \
 Magdir/mail.news \
 Magdir/maple \
 Magdir/mathematica \
+Magdir/matroska \
 Magdir/mcrypt \
 Magdir/mime \
 Magdir/mips \
 Magdir/mirage \
+Magdir/misctools \
 Magdir/mkid \
-Magdir/mmdf \
 Magdir/mlssa \
+Magdir/mmdf \
 Magdir/modem \
 Magdir/motorola \
 Magdir/msdos \
@@ -152,6 +131,7 @@ Magdir/netbsd \
 Magdir/netscape \
 Magdir/news \
 Magdir/nitpicker \
+Magdir/ocaml \
 Magdir/octave \
 Magdir/olf \
 Magdir/os2 \
@@ -165,13 +145,16 @@ Magdir/pdp \
 Magdir/perl \
 Magdir/pgp \
 Magdir/pkgadd \
+Magdir/plan9 \
 Magdir/plus5 \
 Magdir/printer \
 Magdir/project \
 Magdir/psdbms \
+Magdir/psion \
 Magdir/pulsar \
 Magdir/pyramid \
 Magdir/python \
+Magdir/revision \
 Magdir/riff \
 Magdir/rpm \
 Magdir/rtf \
@@ -179,8 +162,10 @@ Magdir/sc \
 Magdir/sccs \
 Magdir/sendmail \
 Magdir/sequent \
+Magdir/sgi \
 Magdir/sgml \
 Magdir/sharc \
+Magdir/sinclair \
 Magdir/sketch \
 Magdir/smalltalk \
 Magdir/sniffer \
@@ -201,6 +186,7 @@ Magdir/typeset \
 Magdir/unknown \
 Magdir/uuencode \
 Magdir/varied.out \
+Magdir/varied.script \
 Magdir/vax \
 Magdir/vicar \
 Magdir/visx \
@@ -208,8 +194,9 @@ Magdir/vms \
 Magdir/vmware \
 Magdir/vorbis \
 Magdir/vxl \
-Magdir/wordperfect \
+Magdir/wordprocessors \
 Magdir/xdelta \
 Magdir/xenix \
+Magdir/xwindows \
 Magdir/zilog \
 Magdir/zyxel
