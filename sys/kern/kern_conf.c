@@ -51,7 +51,7 @@ extern unsigned char reserved_majors[256];
 
 /*
  * This is the number of hash-buckets.  Experiements with 'real-life'
- * udev_t's show that a prime halfway between two powers of two works
+ * dev_t's show that a prime halfway between two powers of two works
  * best.
  */
 #define DEVT_HASH 83
@@ -70,6 +70,8 @@ SYSCTL_INT(_debug, OID_AUTO, free_devt, CTLFLAG_RW, &free_devt, 0, "");
 
 static struct mtx devmtx;
 static void freedev(struct cdev *dev);
+static struct cdev *newdev(int x, int y);
+
 
 static void
 devlock(void)
@@ -124,8 +126,6 @@ cdevsw_rel(struct cdevsw *csw)
 	    ("cdevsw_vrel(%s) gave negative count", csw->d_name));
 	devunlock();
 }
-
-static struct cdev *makedev(int x, int y);
 
 int
 nullop(void)
@@ -247,16 +247,16 @@ devsw(struct cdev *dev)
 int
 major(struct cdev *x)
 {
-	if (x == NODEV)
-		return NOUDEV;
+	if (x == NULL)
+		return NODEV;
 	return((x->si_udev >> 8) & 0xff);
 }
 
 int
 minor(struct cdev *x)
 {
-	if (x == NODEV)
-		return NOUDEV;
+	if (x == NULL)
+		return NODEV;
 	return(x->si_udev & 0xffff00ff);
 }
 
@@ -265,8 +265,8 @@ dev2unit(struct cdev *x)
 {
 	int i;
 
-	if (x == NODEV)
-		return NOUDEV;
+	if (x == NULL)
+		return NODEV;
 	i = minor(x);
 	return ((i & 0xff) | (i >> 8));
 }
@@ -304,14 +304,14 @@ allocdev(void)
 }
 
 static struct cdev *
-makedev(int x, int y)
+newdev(int x, int y)
 {
 	struct cdev *si;
-	udev_t	udev;
+	dev_t	udev;
 	int hash;
 
-	if (x == umajor(NOUDEV) && y == uminor(NOUDEV))
-		panic("makedev of NOUDEV");
+	if (x == umajor(NODEV) && y == uminor(NODEV))
+		panic("newdev of NODEV");
 	udev = (x << 8) | y;
 	hash = udev % DEVT_HASH;
 	LIST_FOREACH(si, &dev_hash[hash], si_hash) {
@@ -337,46 +337,40 @@ freedev(struct cdev *dev)
 	}
 }
 
-udev_t
+dev_t
 dev2udev(struct cdev *x)
 {
-	if (x == NODEV)
-		return (NOUDEV);
+	if (x == NULL)
+		return (NODEV);
 	return (x->si_udev);
 }
 
 struct cdev *
-udev2dev(udev_t udev)
+findcdev(dev_t udev)
 {
 	struct cdev *si;
 	int hash;
 
-	if (udev == NOUDEV)
-		return (NODEV);
+	if (udev == NODEV)
+		return (NULL);
 	hash = udev % DEVT_HASH;
 	LIST_FOREACH(si, &dev_hash[hash], si_hash) {
 		if (si->si_udev == udev)
 			return (si);
 	}
-	return (NODEV);
+	return (NULL);
 }
 
 int
-uminor(udev_t dev)
+uminor(dev_t dev)
 {
 	return (dev & 0xffff00ff);
 }
 
 int
-umajor(udev_t dev)
+umajor(dev_t dev)
 {
 	return ((dev & 0xff00) >> 8);
-}
-
-udev_t
-makeudev(int x, int y)
-{
-	return ((x << 8) | y);
 }
 
 static void
@@ -479,7 +473,7 @@ make_dev(struct cdevsw *devsw, int minornr, uid_t uid, gid_t gid, int perms, con
 
 	if (!(devsw->d_flags & D_INIT))
 		prep_cdevsw(devsw);
-	dev = makedev(devsw->d_maj, minornr);
+	dev = newdev(devsw->d_maj, minornr);
 	if (dev->si_flags & SI_CHEAPCLONE &&
 	    dev->si_flags & SI_NAMED &&
 	    dev->si_devsw == devsw) {
@@ -750,7 +744,7 @@ clone_create(struct clonedevs **cdp, struct cdevsw *csw, int *up, struct cdev **
 	}
 	if (unit == -1)
 		unit = low & CLONE_UNITMASK;
-	dev = makedev(csw->d_maj, unit2minor(unit | extra));
+	dev = newdev(csw->d_maj, unit2minor(unit | extra));
 	KASSERT(!(dev->si_flags & SI_CLONELIST),
 	    ("Dev %p should not be on clonelist", dev));
 	if (dl != NULL)
@@ -794,16 +788,16 @@ static int
 sysctl_devname(SYSCTL_HANDLER_ARGS)
 {
 	int error;
-	udev_t ud;
+	dev_t ud;
 	struct cdev *dev;
 
 	error = SYSCTL_IN(req, &ud, sizeof (ud));
 	if (error)
 		return (error);
-	if (ud == NOUDEV)
+	if (ud == NODEV)
 		return(EINVAL);
-	dev = udev2dev(ud);
-	if (dev == NODEV)
+	dev = findcdev(ud);
+	if (dev == NULL)
 		error = ENOENT;
 	else
 		error = SYSCTL_OUT(req, dev->si_name, strlen(dev->si_name) + 1);

@@ -447,7 +447,7 @@ uipc_sense(struct socket *so, struct stat *sb)
 		so2 = unp->unp_conn->unp_socket;
 		sb->st_blksize += so2->so_rcv.sb_cc;
 	}
-	sb->st_dev = NOUDEV;
+	sb->st_dev = NODEV;
 	if (unp->unp_ino == 0)
 		unp->unp_ino = (++unp_ino == 0) ? ++unp_ino : unp_ino;
 	sb->st_ino = unp->unp_ino;

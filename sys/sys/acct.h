@@ -56,7 +56,7 @@ struct acct {
 	gid_t	  ac_gid;		/* group id */
 	u_int16_t ac_mem;		/* average memory usage */
 	comp_t	  ac_io;		/* count of IO blocks */
-	__udev_t  ac_tty;		/* controlling tty */
+	__dev_t   ac_tty;		/* controlling tty */
 
 #define	AFORK	0x01			/* forked but not exec'ed */
 /* ASU is no longer supported */

@@ -103,7 +103,7 @@ g_dev_clone(void *arg __unused, char *name, int namelen __unused, struct cdev **
 {
 	struct g_geom *gp;
 
-	if (*dev != NODEV)
+	if (*dev != NULL)
 		return;
 
 	g_waitidle();

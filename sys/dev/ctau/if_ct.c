@@ -2629,13 +2629,13 @@ static int ct_modevent (module_t mod, int type, void *unused)
 	struct cdevsw *cdsw;
 
 #if __FreeBSD_version >= 502103
-	dev = udev2dev (makeudev(CDEV_MAJOR, 0));
+	dev = findcdev (makedev(CDEV_MAJOR, 0));
 #else
 	dev = makedev (CDEV_MAJOR, 0);
 #endif
 	switch (type) {
 	case MOD_LOAD:
-		if (dev != NODEV &&
+		if (dev != NULL &&
 		    (cdsw = devsw (dev)) &&
 		    cdsw->d_maj == CDEV_MAJOR) {
 			printf ("Tau-ISA driver is already in system\n");

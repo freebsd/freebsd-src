@@ -483,7 +483,7 @@ mixer_clone(void *arg, char *name, int namelen, struct cdev **dev)
 {
 	struct snddev_info *sd;
 
-	if (*dev != NODEV)
+	if (*dev != NULL)
 		return;
 	if (strcmp(name, "mixer") == 0) {
 		sd = devclass_get_softc(pcm_devclass, snd_unit);

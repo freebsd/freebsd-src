@@ -1083,13 +1083,13 @@ freebsd32_sendfile(struct thread *td, struct freebsd32_sendfile_args *uap)
 }
 
 struct stat32 {
-	udev_t	st_dev;
+	dev_t	st_dev;
 	ino_t	st_ino;
 	mode_t	st_mode;
 	nlink_t	st_nlink;
 	uid_t	st_uid;
 	gid_t	st_gid;
-	udev_t	st_rdev;
+	dev_t	st_rdev;
 	struct timespec32 st_atimespec;
 	struct timespec32 st_mtimespec;
 	struct timespec32 st_ctimespec;

@@ -383,7 +383,7 @@ main(int argc, char **argv)
 			if (li->li_number == -1 &&
 			    (kp->ki_flag & P_CONTROLT) == 0)
 				break;
-			if (kp->ki_tdev == (udev_t)li->li_number)
+			if (kp->ki_tdev == (dev_t)li->li_number)
 				break;
 		}
 		if (SLIST_FIRST(&tdevlist) != NULL && li == NULL) {

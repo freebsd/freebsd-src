@@ -228,7 +228,7 @@ tapclone(arg, name, namelen, dev)
 	int		i, unit;
 	char		*device_name = name;
 
-	if (*dev != NODEV)
+	if (*dev != NULL)
 		return;
 
 	device_name = TAP;

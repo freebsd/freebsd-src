@@ -82,7 +82,7 @@ struct tty {
 	int	t_line;			/* Interface to device drivers. */
 	union {
 		struct cdev *t_kdev;		/* Device. */
-		udev_t	t_udev;		/* Userland (sysctl) instance. */
+		dev_t	t_udev;		/* Userland (sysctl) instance. */
 		void	*t_devp;	/* Keep user/kernel size in sync. */
 	} ttyu;
 	int	t_state;		/* Device and driver (TS*) state. */
@@ -141,7 +141,7 @@ struct xtty {
 	long	xt_cancc;		/* Canonical queue statistics. */
 	long	xt_outcc;		/* Output queue statistics. */
 	int	xt_line;		/* Interface to device drivers. */
-	udev_t	xt_dev;			/* Userland (sysctl) instance. */
+	dev_t	xt_dev;			/* Userland (sysctl) instance. */
 	int	xt_state;		/* Device and driver (TS*) state. */
 	int	xt_flags;		/* Tty flags. */
 	int     xt_timeout;		/* Timeout for ttywait(). */
