@@ -1317,7 +1317,8 @@ brelse(struct buf * bp)
 		 */
 		resid = bp->b_bufsize;
 		foff = bp->b_offset;
-
+		if (obj != NULL)
+			VM_OBJECT_LOCK(obj);
 		for (i = 0; i < bp->b_npages; i++) {
 			int had_bogus = 0;
 
@@ -1364,7 +1365,8 @@ brelse(struct buf * bp)
 			resid -= PAGE_SIZE - (foff & PAGE_MASK);
 			foff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
 		}
-
+		if (obj != NULL)
+			VM_OBJECT_UNLOCK(obj);
 		if (bp->b_flags & (B_INVAL | B_RELBUF))
 			vfs_vmio_release(bp);
 
@@ -2225,7 +2227,9 @@ inmem(struct vnode * vp, daddr_t blkno)
 	off = (vm_ooffset_t)blkno * (vm_ooffset_t)vp->v_mount->mnt_stat.f_iosize;
 
 	for (toff = 0; toff < vp->v_mount->mnt_stat.f_iosize; toff += tinc) {
+		VM_OBJECT_LOCK(obj);
 		m = vm_page_lookup(obj, OFF_TO_IDX(off + toff));
+		VM_OBJECT_UNLOCK(obj);
 		if (!m)
 			goto notinmem;
 		tinc = size;
@@ -2276,7 +2280,7 @@ vfs_setdirty(struct buf *bp)
 		return;
 
 	object = bp->b_pages[0]->object;
-
+	VM_OBJECT_LOCK(object);
 	if ((object->flags & OBJ_WRITEABLE) && !(object->flags & OBJ_MIGHTBEDIRTY))
 		printf("Warning: object %p writeable but not mightbedirty\n", object);
 	if (!(object->flags & OBJ_WRITEABLE) && (object->flags & OBJ_MIGHTBEDIRTY))
@@ -2334,6 +2338,7 @@ vfs_setdirty(struct buf *bp)
 				bp->b_dirtyend = eoffset;
 		}
 	}
+	VM_OBJECT_UNLOCK(object);
 }
 
 /*
