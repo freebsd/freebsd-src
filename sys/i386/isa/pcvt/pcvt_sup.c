@@ -96,7 +96,7 @@ static void pcvt_set_scrnsv_tmo ( int timeout );/* else declared global */
 
 #if PCVT_PRETTYSCRNS
 static u_short *scrnsv_current = (u_short *)0;	/* attention char ptr */
-static void scrnsv_blink ( void );
+static void scrnsv_blink ( void * );
 static u_short getrand ( void );
 #endif /* PCVT_PRETTYSCRNS */
 
@@ -881,13 +881,13 @@ vgapaletteio(unsigned idx, struct rgb *val, int writeit)
  *	update asynchronous: cursor, cursor pos displ, sys load, keyb scan
  *
  *	arg is:
- *		UPDATE_START = 0 = do update; requeue
- *		UPDATE_STOP  = 1 = suspend updates
- *		UPDATE_KERN  = 2 = do update for kernel printfs
+ *		UPDATE_START = do update; requeue
+ *		UPDATE_STOP  = suspend updates
+ *		UPDATE_KERN  = do update for kernel printfs
  *
  *---------------------------------------------------------------------------*/
 void
-async_update(int arg)
+async_update(void *arg)
 {
 	static int lastpos = 0;
 	static int counter = PCVT_UPDATESLOW;
@@ -897,7 +897,7 @@ async_update(int arg)
 
 	if(arg == UPDATE_STOP)
 	{
-		untimeout((TIMEOUT_FUNC_T)async_update, UPDATE_START);
+		untimeout(async_update, UPDATE_START);
 		return;
 	}
 #endif /* XSERVER */
@@ -1082,7 +1082,7 @@ async_update_exit:
 
  	if(arg == UPDATE_START)
 	{
-	   timeout((TIMEOUT_FUNC_T)async_update, UPDATE_START, PCVT_UPDATEFAST);
+	   timeout(async_update, UPDATE_START, PCVT_UPDATEFAST);
 	}
 }
 
@@ -1921,7 +1921,7 @@ getrand(void)
  *	produce "nice" screensaving ....
  *---------------------------------------------------------------------------*/
 static void
-scrnsv_blink(void)
+scrnsv_blink(void * arg)
 {
 	static struct rgb blink_rgb[8] =
 	{
@@ -1942,7 +1942,7 @@ scrnsv_blink(void)
 	*scrnsv_current = (7 /* LIGHTGRAY */ << 8) + '*';
 	if(adaptor_type == VGA_ADAPTOR)
 		vgapaletteio(7 /* LIGHTGRAY */, &blink_rgb[(r >> 4) & 7], 1);
-	timeout((TIMEOUT_FUNC_T)scrnsv_blink, NULL, hz);
+	timeout(scrnsv_blink, NULL, hz);
 }
 
 #endif /* PCVT_PRETTYSCRNS */
@@ -1961,7 +1961,7 @@ pcvt_set_scrnsv_tmo(int timeout)
 	int x = splhigh();
 
 	if(scrnsv_timeout)
-		untimeout((TIMEOUT_FUNC_T)scrnsv_timedout, NULL);
+		untimeout(scrnsv_timedout, NULL);
 
 	scrnsv_timeout = timeout;
 	pcvt_scrnsv_reset();		/* sanity */
@@ -2038,8 +2038,7 @@ scrnsv_timedout(void *arg)
 			vgapaletteio(0 /* BLACK */, &black, 1);
 		}
 		/* prepare for next time... */
-		timeout((TIMEOUT_FUNC_T)scrnsv_timedout /* me! */,
-				NULL, hz / 10);
+		timeout(scrnsv_timedout, NULL, hz / 10);
 	}
 	else
 	{
@@ -2049,7 +2048,7 @@ scrnsv_timedout(void *arg)
 
 #if PCVT_PRETTYSCRNS
 		scrnsv_current = vsp->Crtat;
-		timeout((TIMEOUT_FUNC_T)scrnsv_blink, NULL, hz);
+		timeout(scrnsv_blink, NULL, hz);
 #endif /* PCVT_PRETTYSCRNS */
 
 		sw_cursor(0);	/* cursor off on mda/cga */
@@ -2077,14 +2076,14 @@ pcvt_scrnsv_reset(void)
 	{
 		last_schedule = time.tv_sec;
 		reschedule = 1;
-		untimeout((TIMEOUT_FUNC_T)scrnsv_timedout, NULL);
+		untimeout(scrnsv_timedout, NULL);
 	}
 	if(scrnsv_active)
 	{
 
 #if PCVT_PRETTYSCRNS
 		if(scrnsv_active > 1)
-			untimeout((TIMEOUT_FUNC_T)scrnsv_blink, NULL);
+			untimeout(scrnsv_blink, NULL);
 #endif /* PCVT_PRETTYSCRNS */
 
 		bcopy(savedscreen, vsp->Crtat, scrnsv_size);
@@ -2107,8 +2106,7 @@ pcvt_scrnsv_reset(void)
 	if(reschedule)
 	{
 		/* mark next timeout */
-		timeout((TIMEOUT_FUNC_T)scrnsv_timedout, NULL,
-				scrnsv_timeout * hz);
+		timeout(scrnsv_timedout, NULL, scrnsv_timeout * hz);
 	}
 	splx(x);
 }

@@ -731,9 +731,9 @@ in the config file"
 
 /* arguments to async_update() */
 
-#define UPDATE_START	0	/* do cursor update and requeue */
-#define UPDATE_STOP	1	/* suspend cursor updates */
-#define UPDATE_KERN	2	/* do cursor updates for kernel output */
+#define UPDATE_START	((void *)0)	/* do cursor update and requeue */
+#define UPDATE_STOP	((void *)1)	/* suspend cursor updates */
+#define UPDATE_KERN	((void *)2)	/* do cursor updates for kernel output */
 
 /* variables */
 
@@ -1204,14 +1204,6 @@ extern u_char		*saved_charsets[NVGAFONTS];
 #define Dev_t	dev_t
 #endif
 
-/* in FreeBSD > 102 arguments for timeout()/untimeout() are a special type */
-
-#if PCVT_FREEBSD > 102
-#define	TIMEOUT_FUNC_T	timeout_func_t
-#else
-#define	TIMEOUT_FUNC_T	void *
-#endif
-
 #if !PCVT_FREEBSD || (PCVT_FREEBSD < 210)
 extern void bcopyb(void *from, void *to, u_int length);
 #endif
@@ -1267,7 +1259,7 @@ void 	pcvt_set_scrnsv_tmo ( int );
 
 void	vga_move_charset ( unsigned n, unsigned char *b, int save_it);
 
-void	async_update ( int arg );
+void	async_update ( void *arg );
 void	clr_parms ( struct video_state *svsp );
 void	cons_highlight ( void );
 void	cons_normal ( void );
