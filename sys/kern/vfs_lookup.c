@@ -418,6 +418,7 @@ dirloop:
 unionlookup:
 	ndp->ni_dvp = dp;
 	ndp->ni_vp = NULL;
+	cnp->cn_flags &= ~PDIRUNLOCK;
 	ASSERT_VOP_LOCKED(dp, "lookup");
 	if ((error = VOP_LOOKUP(dp, &ndp->ni_vp, cnp)) != 0) {
 		KASSERT(ndp->ni_vp == NULL, ("leaf should be empty"));
@@ -429,7 +430,10 @@ unionlookup:
 		    (dp->v_mount->mnt_flag & MNT_UNION)) {
 			tdp = dp;
 			dp = dp->v_mount->mnt_vnodecovered;
-			vput(tdp);
+			if (cnp->cn_flags & PDIRUNLOCK)
+				vrele(tdp);
+			else
+				vput(tdp);
 			VREF(dp);
 			vn_lock(dp, LK_EXCLUSIVE | LK_RETRY, p);
 			goto unionlookup;
@@ -557,7 +561,8 @@ nextname:
 	return (0);
 
 bad2:
-	if ((cnp->cn_flags & LOCKPARENT) && *ndp->ni_next == '\0')
+	if ((cnp->cn_flags & (LOCKPARENT | PDIRUNLOCK)) == LOCKPARENT &&
+	    *ndp->ni_next == '\0')
 		VOP_UNLOCK(ndp->ni_dvp, 0, p);
 	vrele(ndp->ni_dvp);
 bad:
