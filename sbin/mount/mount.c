@@ -528,7 +528,7 @@ prmount(sfp)
 	 * Inform when file system is mounted by an unprivileged user
 	 * or privileged non-root user.
 	 */
-	if ((flags & MNT_USER) != 0 || sfp->owner != 0) {
+	if ((flags & MNT_USER) != 0 || sfp->f_owner != 0) {
 		(void)printf(", mounted by ");
 		if ((pw = getpwuid(sfp->f_owner)) != NULL)
 			(void)printf("%s", pw->pw_name);
