@@ -35,7 +35,7 @@
 
 #include <machine/psl.h>
 
-#define	CRITICAL_FORK	(mfmsr() |= PSL_EE)
+#define	CRITICAL_FORK	(mfmsr() | PSL_EE)
 
 #ifdef __GNUC__
 

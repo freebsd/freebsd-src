@@ -158,7 +158,7 @@ SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_INT|CTLFLAG_RD,
 
 struct msgbuf	*msgbufp = 0;
 
-int		bootverbose = 0, Maxmem = 0;
+int		Maxmem = 0;
 long		dumplo;
 
 vm_offset_t	phys_avail[10];
