@@ -206,7 +206,7 @@ curProc ()
 
   if (kvread (addr, &td))
     error ("cannot read thread pointer at %x\n", addr);
-  addr = (CORE_ADDR)td->td_proc;
+  addr = (CORE_ADDR)td + offsetof(struct thread, td_proc);
   if (kvread (addr, &p))
     error ("cannot read proc pointer at %x\n", addr);
   return p;
