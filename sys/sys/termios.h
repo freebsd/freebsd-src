@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)termios.h	8.3 (Berkeley) 3/28/94
- * $Id$
+ * $Id: termios.h,v 1.9 1997/02/22 09:46:07 peter Exp $
  */
 
 #ifndef _SYS_TERMIOS_H_
@@ -177,7 +177,7 @@
 
 typedef unsigned long	tcflag_t;
 typedef unsigned char	cc_t;
-typedef long		speed_t;	/* XXX should be unsigned long */
+typedef unsigned long	speed_t;
 
 struct termios {
 	tcflag_t	c_iflag;	/* input flags */
