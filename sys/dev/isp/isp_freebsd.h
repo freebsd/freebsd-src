@@ -103,6 +103,7 @@ struct isposinfo {
 #ifdef	ISP_TARGET_MODE
 #define	TM_WANTED		0x80
 #define	TM_BUSY			0x40
+#define	TM_WILDCARD_ENABLED	0x20
 #define	TM_TMODE_ENABLED	0x03
 	u_int8_t		tmflags;
 	u_int8_t		rstatus;
@@ -328,12 +329,17 @@ isp_mbox_wait_complete(struct ispsoftc *isp)
 	} else {
 		int j;
 		for (j = 0; j < 60 * 10000; j++) {
-			if (isp_intr(isp) == 0) {
-				USEC_DELAY(500);
-			}
+			u_int16_t isr, sema, mbox;
 			if (isp->isp_mboxbsy == 0) {
 				break;
 			}
+			if (ISP_READ_ISR(isp, &isr, &sema, &mbox)) {
+				isp_intr(isp, isr, sema, mbox);
+				if (isp->isp_mboxbsy == 0) {
+					break;
+				}
+			}
+			USEC_DELAY(500);
 		}
 		if (isp->isp_mboxbsy != 0) {
 			isp_prt(isp, ISP_LOGWARN,

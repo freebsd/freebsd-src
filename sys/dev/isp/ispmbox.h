@@ -219,16 +219,16 @@ typedef struct {
  */
 
 #define	WRITE_REQUEST_QUEUE_IN_POINTER(isp, value)	\
-	ISP_WRITE(isp, INMAILBOX4, value)
+	ISP_WRITE(isp, isp->isp_rqstinrp, value)
 
-#define	READ_REQUEST_QUEUE_OUT_POINTER(isp)	\
-	ISP_READ(isp, OUTMAILBOX4)
+#define	READ_REQUEST_QUEUE_OUT_POINTER(isp)		\
+	ISP_READ(isp, isp->isp_rqstoutrp)
 
-#define	WRITE_RESPONSE_QUEUE_IN_POINTER(isp, value)	\
-	ISP_WRITE(isp, INMAILBOX5, value)
+#define	READ_RESPONSE_QUEUE_IN_POINTER(isp)		\
+	ISP_READ(isp, isp->isp_respinrp)
 
-#define	READ_RESPONSE_QUEUE_OUT_POINTER(isp)	\
-	ISP_READ(isp, OUTMAILBOX5)
+#define	WRITE_RESPONSE_QUEUE_OUT_POINTER(isp, value)	\
+	ISP_WRITE(isp, isp->isp_respoutrp, value)
 
 /*
  * Command Structure Definitions
@@ -240,7 +240,8 @@ typedef struct {
 } ispds_t;
 
 typedef struct {
-	u_int64_t	ds_base;
+	u_int32_t	ds_base;
+	u_int32_t	ds_basehi;
 	u_int32_t	ds_count;
 } ispds64_t;
 
@@ -353,7 +354,7 @@ typedef struct {
 #define	ISP_SBUSIFY_ISPREQ(a, b)
 #endif
 
-#define	ISP_RQDSEG_T2	3
+#define	ISP_RQDSEG_T2		3
 typedef struct {
 	isphdr_t	req_header;
 	u_int32_t	req_handle;
@@ -368,6 +369,22 @@ typedef struct {
 	u_int32_t	req_totalcnt;
 	ispds_t		req_dataseg[ISP_RQDSEG_T2];
 } ispreqt2_t;
+
+#define	ISP_RQDSEG_T3		2
+typedef struct {
+	isphdr_t	req_header;
+	u_int32_t	req_handle;
+	u_int8_t	req_lun_trn;
+	u_int8_t	req_target;
+	u_int16_t	req_scclun;
+	u_int16_t	req_flags;
+	u_int16_t	_res2;
+	u_int16_t	req_time;
+	u_int16_t	req_seg_count;
+	u_int32_t	req_cdb[4];
+	u_int32_t	req_totalcnt;
+	ispds64_t	req_dataseg[ISP_RQDSEG_T3];
+} ispreqt3_t;
 
 /* req_flag values */
 #define	REQFLAG_NODISCON	0x0001
@@ -409,6 +426,12 @@ typedef struct {
 	u_int32_t	_res1;
 	ispds_t		req_dataseg[ISP_CDSEG];
 } ispcontreq_t;
+
+#define	ISP_CDSEG64	5
+typedef struct {
+	isphdr_t	req_header;
+	ispds64_t	req_dataseg[ISP_CDSEG64];
+} ispcontreq64_t;
 
 typedef struct {
 	isphdr_t	req_header;
@@ -630,6 +653,10 @@ typedef struct isp_icb {
 #define	ICBXOPT_RIO_16BIT_DELAY	3
 #define	ICBXOPT_RIO_32BIT_DELAY	4
 
+/* These 3 only apply to the 2300 */
+#define	ICBXOPT_RATE_ONEGB	(0 << 14)
+#define	ICBXOPT_RATE_TWOGB	(1 << 14)
+#define	ICBXOPT_RATE_AUTO	(2 << 14)
 
 
 #define	ICB_MIN_FRMLEN		256
