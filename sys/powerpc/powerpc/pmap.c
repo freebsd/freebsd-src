@@ -1055,6 +1055,29 @@ pmap_extract(pmap_t pm, vm_offset_t va)
 }
 
 /*
+ * Atomically extract and hold the physical page with the given
+ * pmap and virtual address pair if that mapping permits the given
+ * protection.
+ */
+vm_page_t
+pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
+{
+	vm_paddr_t pa;
+	vm_page_t m;
+        
+	m = NULL;
+	mtx_lock(&Giant);
+	if ((pa = pmap_extract(pmap, va)) != 0) {
+		m = PHYS_TO_VM_PAGE(pa);
+		vm_page_lock_queues();
+		vm_page_hold(m);
+		vm_page_unlock_queues();
+	}
+	mtx_unlock(&Giant);
+	return (m);
+}
+
+/*
  * Grow the number of kernel page table entries.  Unneeded.
  */
 void
@@ -1536,10 +1559,8 @@ pmap_remove_all(vm_page_t m)
 	struct  pvo_head *pvo_head;
 	struct	pvo_entry *pvo, *next_pvo;
 
-	KASSERT((m->flags & (PG_FICTITIOUS|PG_UNMANAGED)) == 0,
-	    ("pv_remove_all: illegal for unmanaged page %#x",
-	    VM_PAGE_TO_PHYS(m)));
-	
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+
 	pvo_head = vm_page_to_pvoh(m);
 	for (pvo = LIST_FIRST(pvo_head); pvo != NULL; pvo = next_pvo) {
 		next_pvo = LIST_NEXT(pvo, pvo_vlink);
