@@ -46,7 +46,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_disk.h,v 1.7 1995/01/08 15:13:40 ats Exp $
+ *	$Id: scsi_disk.h,v 1.8 1995/05/30 08:13:35 rgrimes Exp $
  */
 
 /*
@@ -187,8 +187,9 @@ union	disk_pages /* this is the structure copied from osf */
 #define		DISK_FMT_RMB	0x20
 #define		DISK_FMT_HSEC	0x40
 #define		DISK_FMT_SSEC	0x80
-	   u_char reserved2;
-	   u_char reserved3;
+	   u_char reserved21;
+	   u_char reserved22;
+	   u_char reserved23;
 	} disk_format;
 	struct page_rigid_geometry {
 	   u_char pg_code;	/* page code (should be 4)	      */
@@ -208,9 +209,13 @@ union	disk_pages /* this is the structure copied from osf */
 	   u_char land_zone_2;	/* landing zone cylinder (MSB)	      */
 	   u_char land_zone_1;	/* landing zone cylinder 	      */
 	   u_char land_zone_0;	/* landing zone cylinder (LSB)	      */
-	   u_char reserved1;
-	   u_char reserved2;
-	   u_char reserved3;
+	   u_char rpl;		/* rotational position locking (2 bits) */
+	   u_char rot_offset;	/* rotational offset */
+	   u_char reserved19;
+           u_char medium_rot_rate_1; /* medium rotation rate (RPM) (MSB) */
+           u_char medium_rot_rate_0; /* medium rotation rate (RPM) (LSB) */
+	   u_char reserved22;
+	   u_char reserved23;
     	} rigid_geometry;
 } ;
 #endif /* _SCSI_SCSI_DISK_H*/
