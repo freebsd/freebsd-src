@@ -300,6 +300,15 @@ static const char *fstypenames[] = {
 #define DIOCWDINFO	_IOW('d', 103, struct disklabel)/* set, update disk */
 #define DIOCBSDBB	_IOW('d', 110, void *)	/* write bootblocks */
 
+/*
+ * Functions for proper encoding/decoding of struct disklabel into/from
+ * bytestring.
+ */
+void bsd_partition_le_dec(u_char *ptr, struct partition *d);
+void bsd_disklabel_le_dec(u_char *ptr, struct disklabel *d);
+void bsd_partition_le_enc(u_char *ptr, struct partition *d);
+void bsd_disklabel_le_enc(u_char *ptr, struct disklabel *d);
+
 #ifndef _KERNEL
 __BEGIN_DECLS
 struct disklabel *getdiskbyname(const char *);
