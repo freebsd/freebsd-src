@@ -9,7 +9,7 @@ static
 #ifdef __STDC__
 const
 #endif
-char rcsid_kerberos5_c[] = "$Id: kerberos5.c,v 1.1 1997/09/04 06:11:15 markm Exp $";
+char rcsid_kerberos5_c[] = "$FreeBSD$";
 #endif /* lint */
 
 /*-
@@ -46,7 +46,7 @@ char rcsid_kerberos5_c[] = "$Id: kerberos5.c,v 1.1 1997/09/04 06:11:15 markm Exp
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)kerberos5.c	8.3 (Berkeley) 5/30/95";
+static const char sccsid[] = "@(#)kerberos5.c	8.3 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 /*
@@ -72,15 +72,14 @@ static char sccsid[] = "@(#)kerberos5.c	8.3 (Berkeley) 5/30/95";
 
 #ifdef	KRB5
 #include <arpa/telnet.h>
-#include <stdio.h>
-#include <krb5/krb5.h>
-#include <krb5/asn1.h>
-#include <krb5/crc-32.h>
-#include <krb5/los-proto.h>
-#include <krb5/ext-proto.h>
 #include <com_err.h>
-#include <netdb.h>
 #include <ctype.h>
+#include <krb5.h>
+#include <krb5_asn1.h>
+#include <netdb.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 /* kerberos 5 include files (ext-proto.h) will get an appropriate stdlib.h
    and string.h/strings.h */
@@ -89,7 +88,7 @@ static char sccsid[] = "@(#)kerberos5.c	8.3 (Berkeley) 5/30/95";
 #include "auth.h"
 #include "misc.h"
 
-extern auth_debug_mode;
+extern int auth_debug_mode;
 
 #ifdef	FORWARD
 int forward_flags = 0;  /* Flags get set in telnet/main.c on -f and -F */

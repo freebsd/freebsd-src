@@ -60,7 +60,9 @@ static const char rcsid[] =
 #include <err.h>
 #include <arpa/inet.h>
 
+#include <sys/mman.h>
 #include <libutil.h>
+#include <paths.h>
 #include <utmp.h>
 
 #if	defined(_SC_CRAY_SECURE_SYS)
@@ -847,7 +849,6 @@ doit(who)
 #else
 	for (;;) {
 		char *lp;
-		extern char *line, *getpty();
 
 		if ((lp = getpty()) == NULL)
 			fatal(net, "Out of ptys");
@@ -867,10 +868,10 @@ doit(who)
 	if (secflag) {
 		char slave_dev[16];
 
-		sprintf(tty_dev, "/dev/pty/%03d", ptynum);
+		sprintf(tty_dev, "%spty/%03d", _PATH_DEV, ptynum);
 		if (setdevs(tty_dev, &dv) < 0)
 		 	fatal(net, "cannot set pty security");
-		sprintf(slave_dev, "/dev/ttyp%03d", ptynum);
+		sprintf(slave_dev, "%sp%03d", _PATH_TTY, ptynum);
 		if (setdevs(slave_dev, &dv) < 0)
 		 	fatal(net, "cannot set tty security");
 	}
@@ -880,7 +881,7 @@ doit(who)
 	if (realhostname_sa(remote_hostname, sizeof(remote_hostname) - 1,
 	    who, who->sa_len) == HOSTNAME_INVALIDADDR && registerd_host_only)
 		fatal(net, "Couldn't resolve your address into a host name.\r\n\
-	 Please contact your net administrator");
+	Please contact your net administrator");
 	remote_hostname[sizeof(remote_hostname) - 1] = '\0';
 
 	trimdomain(remote_hostname, UT_HOSTSIZE);

@@ -46,6 +46,8 @@ static const char sccsid[] = "@(#)main.c	8.3 (Berkeley) 5/30/95";
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "ring.h"
 #include "externs.h"
@@ -112,13 +114,8 @@ usage()
 	    "\n\t[-e char] [-l user] [-n tracefile] ",
 #endif
 #if defined(TN3270) && defined(unix)
-# ifdef AUTHENTICATION
-	    "[-noasynch] [-noasynctty]\n\t"
-	    "[-noasyncnet] [-r] [-s src_addr] [-t transcom] ",
-# else
 	    "[-noasynch] [-noasynctty] [-noasyncnet] [-r]\n\t"
 	    "[-s src_addr] [-t transcom] ",
-# endif
 #else
 	    "[-r] [-s src_addr] [-u] ",
 #endif
@@ -143,10 +140,8 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	extern char *optarg;
-	extern int optind;
 	int ch;
-	char *user, *strrchr();
+	char *user;
 	char *src_addr = NULL;
 #ifdef	FORWARD
 	extern int forward_flags;
@@ -167,7 +162,11 @@ main(argc, argv)
 	user = NULL;
 
 	rlogin = (strncmp(prompt, "rlog", 4) == 0) ? '~' : _POSIX_VDISABLE;
+#ifdef AUTHENTICATION
 	autologin = 1;
+#else
+	autologin = -1;
+#endif
 
 #if defined(ENCRYPTION)
 	encrypt_auto(1);
@@ -232,7 +231,11 @@ main(argc, argv)
 #endif
 			break;
 		case 'a':
+#ifdef	AUTHENTICATION
 			/* It's the default now, so ignore */
+#else
+			autologin = 1;
+#endif
 			break;
 		case 'c':
 			skiprc = 1;
@@ -288,6 +291,11 @@ main(argc, argv)
 #endif
 			break;
 		case 'l':
+#ifdef	AUTHENTICATION
+			/* This is the default now, so ignore it */
+#else
+			autologin = 1;
+#endif
 			user = optarg;
 			break;
 		case 'n':
@@ -326,12 +334,22 @@ main(argc, argv)
 			family = AF_UNIX;
 			break;
 		case 'x':
+#ifdef	ENCRYPTION
 			/* This is the default now, so ignore it */
+#else
+			fprintf(stderr,
+			    "%s: Warning: -x ignored, no ENCRYPT support.\n",
+								prompt);
+#endif	/* ENCRYPTION */
 			break;
 		case 'y':
 #ifdef	ENCRYPTION
 			encrypt_auto(0);
 			decrypt_auto(0);
+#else
+			fprintf(stderr,
+			    "%s: Warning: -y ignored, no ENCRYPT support.\n",
+								prompt);
 #endif	/* ENCRYPTION */
 			break;
 #if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
@@ -350,6 +368,8 @@ main(argc, argv)
 			/* NOTREACHED */
 		}
 	}
+	if (autologin == -1)
+		autologin = (rlogin == _POSIX_VDISABLE) ? 0 : 1;
 
 	argc -= optind;
 	argv += optind;

@@ -52,7 +52,8 @@ static const char sccsid[] = "@(#)enc_des.c	8.3 (Berkeley) 5/30/95";
 #include "key-proto.h"
 #include "misc-proto.h"
 
-extern encrypt_debug_mode;
+extern int encrypt_debug_mode;
+void des_set_random_generator_seed(des_cblock *); /* XXX */
 
 #define	CFB	0
 #define	OFB	1

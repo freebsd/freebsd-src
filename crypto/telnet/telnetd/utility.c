@@ -43,6 +43,7 @@ static const char rcsid[] =
 #include <locale.h>
 #include <sys/utsname.h>
 #endif
+#include <string.h>
 #define PRINTOPTIONS
 #include "telnetd.h"
 
@@ -438,11 +439,6 @@ putf(cp, where)
 	char *slash;
 	time_t t;
 	char db[100];
-#ifdef	STREAMSPTY
-	extern char *strchr();
-#else
-	extern char *strrchr();
-#endif
 #ifdef __FreeBSD__
 	static struct utsname kerninfo;
 
