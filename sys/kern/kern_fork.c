@@ -276,8 +276,6 @@ fork1(p1, flags, procp)
 		newproc->p_leader = newproc;
 	}
 
-	newproc->p_wakeup = 0;
-
 	newproc->p_vmspace = NULL;
 
 	/*

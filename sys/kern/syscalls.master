@@ -461,8 +461,8 @@
 319     STD     BSD     { int aio_write(struct aiocb *aiocbp); }
 320     STD     BSD     { int lio_listio(int mode, struct aiocb * const *acb_list, int nent, struct sigevent *sig); }
 321     STD     BSD     { int yield(void); }
-322     STD     BSD     { int thr_sleep(const struct timespec *timeout); }
-323     STD     BSD     { int thr_wakeup(pid_t pid); }
+322	OBSOL	NOHIDE	thr_sleep
+323	OBSOL	NOHIDE	thr_wakeup
 324     STD     BSD     { int mlockall(int how); }
 325     STD     BSD     { int munlockall(void); }
 326     STD     BSD     { int __getcwd(u_char *buf, u_int buflen); }
