@@ -60,7 +60,7 @@ static unsigned devfs_generation;
 
 static struct devfs_dirent *devfs_find (struct devfs_dirent *dd, const char *name, int namelen);
 
-SYSCTL_NODE(_vfs, OID_AUTO, devfs, CTLFLAG_RW, 0, "DEVFS filesystem");
+static SYSCTL_NODE(_vfs, OID_AUTO, devfs, CTLFLAG_RW, 0, "DEVFS filesystem");
 SYSCTL_UINT(_vfs_devfs, OID_AUTO, noverflow, CTLFLAG_RW,
 	&devfs_noverflowwant, 0, "Size of DEVFS overflow table");
 SYSCTL_UINT(_vfs_devfs, OID_AUTO, generation, CTLFLAG_RD,
