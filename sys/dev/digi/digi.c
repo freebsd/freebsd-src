@@ -1933,8 +1933,7 @@ digi_detach(device_t dev)
 
 	digi_free_state(sc);
 
-	destroy_dev(makedev(CDEV_MAJOR,
-	    (sc->res.unit << 16) | CTRL_DEV));
+	destroy_dev(sc->res.ctldev);
 
 	if (sc->res.mem != NULL) {
 		bus_release_resource(dev, SYS_RES_MEMORY, sc->res.mrid,
