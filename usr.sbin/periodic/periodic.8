@@ -222,9 +222,10 @@ daily_show_badconfig=NO
 .Xr periodic.conf 5 ,
 .Xr cron 8 ,
 .Xr newsyslog 8
+.Sh EXIT STATUS
+Exit status is 0 on success and 1 if the command fails.
 .Sh DIAGNOSTICS
-Exit status is 0 on success and 1 if the command
-fails for one of the following reasons:
+The command may fail for one of the following reasons:
 .Bl -diag
 .It usage: periodic <directory of files to execute>
 No directory path argument was passed to

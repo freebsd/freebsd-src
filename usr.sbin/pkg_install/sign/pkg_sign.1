@@ -128,7 +128,7 @@ signing scheme uses eight bytes markers such
 .Sq CKSHA1
 + length for its signatures (those markers are conveniently
 eight bytes long).
-.Sh DIAGNOSTICS
+.Sh EXIT STATUS
 The
 .Nm
 and
@@ -139,6 +139,7 @@ For
 .Nm pkg_check ,
 this usually indicates that the package is not signed, or that the
 signature is forged.
+.Sh DIAGNOSTICS
 .Bl -diag
 .It "File %s is already signed"
 There is a signature embedded within the gzip file already.
