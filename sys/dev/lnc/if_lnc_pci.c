@@ -50,6 +50,7 @@
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
+#include <dev/lnc/if_lncreg.h>
 #include <dev/lnc/if_lncvar.h>
 
 #define AMD_VENDOR_ID 0x1022
@@ -122,6 +123,8 @@ lnc_pci_attach(device_t dev)
 		device_printf(dev, "Cannot setup irq handler\n");
 
 	sc->iobase = rman_get_start(sc->portres);
+	sc->lnc_btag = rman_get_bustag(sc->portres);
+	sc->lnc_bhandle = rman_get_bushandle(sc->portres);
 
 	/* XXX temp setting for nic */
 	sc->nic.ic = PCnet_PCI;
@@ -129,14 +132,17 @@ lnc_pci_attach(device_t dev)
 	sc->nic.mem_mode = DMA_FIXED;
 	sc->nrdre  = NRDRE;
 	sc->ntdre  = NTDRE;
-	sc->rap = sc->iobase + PCNET_RAP;
-	sc->rdp = sc->iobase + PCNET_RDP;
-	sc->bdp = sc->iobase + PCNET_BDP;
+	sc->rap = PCNET_RAP;
+	sc->rdp = PCNET_RDP;
+	sc->bdp = PCNET_BDP;
 
 	/* Create a DMA tag describing the ring memory we need */
 
 	lnc_mem_size = ((NDESC(sc->nrdre) + NDESC(sc->ntdre)) *
 			 sizeof(struct host_ring_entry));
+
+	lnc_mem_size += sizeof(struct init_block) + (sizeof(struct mds) *
+			(NDESC(sc->nrdre) + NDESC(sc->ntdre))) + MEM_SLEW;
 
 	lnc_mem_size += (NDESC(sc->nrdre) * RECVBUFSIZE) +
 			(NDESC(sc->ntdre) * TRANSBUFSIZE);
