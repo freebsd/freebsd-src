@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: intr_machdep.c,v 1.15 1998/12/04 22:54:46 archie Exp $
+ *	$Id: intr_machdep.c,v 1.16 1999/01/08 19:17:48 bde Exp $
  */
 
 #include "opt_auto_eoi.h"
@@ -300,7 +300,7 @@ update_intr_masks(void)
 #endif /* APIC_IO */
 		maskptr = intr_mptr[intr];
 		if (!maskptr) continue;
-		*maskptr |= 1 << intr;
+		*maskptr |= SWI_CLOCK_MASK | (1 << intr);
 		mask = *maskptr;
 		if (mask != intr_mask[intr]) {
 #if 0
@@ -407,7 +407,7 @@ icu_setup(int intr, inthand2_t *handler, void *arg, u_int *maskptr, int flags)
 	disable_intr();
 	intr_handler[intr] = handler;
 	intr_mptr[intr] = maskptr;
-	intr_mask[intr] = mask | (1 << intr);
+	intr_mask[intr] = mask | SWI_CLOCK_MASK | (1 << intr);
 	intr_unit[intr] = arg;
 #ifdef FAST_HI
 	if (flags & INTR_FAST) {
