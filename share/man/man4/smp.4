@@ -38,7 +38,8 @@ The
 kernel implements symmetric multiprocessor support.
 .Sh COMPATIBILITY
 Support for multi-processor systems is present for all supported
-architectures on FreeBSD.
+architectures on
+.Fx .
 Currently, this includes alpha, i386, ia64, and sparc64.
 Support is enabled using
 .Cd options SMP .
@@ -78,6 +79,7 @@ a move towards fine-grained kernel locking rather than reliance on
 a Giant kernel lock.
 The SMPng Project relied heavily on the support of BSDi, who provided
 reference source code from the fine-grained SMP implementation found
-in BSD/OS.
+in
+.Bsx .
 .Sh AUTHORS
 .An Steve Passe Aq fsmp@FreeBSD.org
