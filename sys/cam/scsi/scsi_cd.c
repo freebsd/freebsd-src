@@ -92,17 +92,18 @@ typedef enum {
 } cd_quirks;
 
 typedef enum {
-	CD_FLAG_INVALID		= 0x001,
-	CD_FLAG_NEW_DISC	= 0x002,
-	CD_FLAG_DISC_LOCKED	= 0x004,
-	CD_FLAG_DISC_REMOVABLE	= 0x008,
-	CD_FLAG_TAGGED_QUEUING	= 0x010,
-	CD_FLAG_CHANGER		= 0x040,
-	CD_FLAG_ACTIVE		= 0x080,
-	CD_FLAG_SCHED_ON_COMP	= 0x100,
-	CD_FLAG_RETRY_UA	= 0x200,
-	CD_FLAG_VALID_MEDIA	= 0x400,
-	CD_FLAG_VALID_TOC	= 0x800
+	CD_FLAG_INVALID		= 0x0001,
+	CD_FLAG_NEW_DISC	= 0x0002,
+	CD_FLAG_DISC_LOCKED	= 0x0004,
+	CD_FLAG_DISC_REMOVABLE	= 0x0008,
+	CD_FLAG_TAGGED_QUEUING	= 0x0010,
+	CD_FLAG_CHANGER		= 0x0040,
+	CD_FLAG_ACTIVE		= 0x0080,
+	CD_FLAG_SCHED_ON_COMP	= 0x0100,
+	CD_FLAG_RETRY_UA	= 0x0200,
+	CD_FLAG_VALID_MEDIA	= 0x0400,
+	CD_FLAG_VALID_TOC	= 0x0800,
+	CD_FLAG_SCTX_INIT	= 0x1000
 } cd_flags;
 
 typedef enum {
@@ -421,7 +422,8 @@ cdcleanup(struct cam_periph *periph)
 	xpt_print_path(periph->path);
 	printf("removing device entry\n");
 
-	if (sysctl_ctx_free(&softc->sysctl_ctx) != 0) {
+	if ((softc->flags & CD_FLAG_SCTX_INIT) != 0
+	    && sysctl_ctx_free(&softc->sysctl_ctx) != 0) {
 		xpt_print_path(periph->path);
 		printf("can't remove sysctl context\n");
 	}
@@ -581,6 +583,7 @@ cdsysctlinit(void *context, int pending)
 	mtx_lock(&Giant);
 
 	sysctl_ctx_init(&softc->sysctl_ctx);
+	softc->flags |= CD_FLAG_SCTX_INIT;
 	softc->sysctl_tree = SYSCTL_ADD_NODE(&softc->sysctl_ctx,
 		SYSCTL_STATIC_CHILDREN(_kern_cam_cd), OID_AUTO,
 		tmpstr2, CTLFLAG_RD, 0, tmpstr);
