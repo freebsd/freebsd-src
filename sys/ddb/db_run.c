@@ -129,10 +129,10 @@ db_stop_at_pc(is_breakpoint)
 	    }
 	}
 	if (db_run_mode == STEP_RETURN) {
-	    db_expr_t ins = db_get_value(pc, sizeof(int), FALSE);
-
 	    /* continue until matching return */
+	    db_expr_t ins;
 
+	    ins = db_get_value(pc, sizeof(int), FALSE);
 	    if (!inst_trap_return(ins) &&
 		(!inst_return(ins) || --db_call_depth != 0)) {
 		if (db_sstep_print) {
@@ -152,10 +152,10 @@ db_stop_at_pc(is_breakpoint)
 	    }
 	}
 	if (db_run_mode == STEP_CALLT) {
-	    db_expr_t ins = db_get_value(pc, sizeof(int), FALSE);
-
 	    /* continue until call or return */
+	    db_expr_t ins;
 
+	    ins = db_get_value(pc, sizeof(int), FALSE);
 	    if (!inst_call(ins) &&
 		!inst_return(ins) &&
 		!inst_trap_return(ins)) {
