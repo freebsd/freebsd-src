@@ -2296,6 +2296,11 @@ hatm_stop(struct hatm_softc *sc)
 	(void)hatm_reset(sc);
 
 	/*
+	 * Card resets the SUNI when resetted, so re-initialize it
+	 */
+	utopia_reset(&sc->utopia);
+
+	/*
 	 * Give any waiters on closing a VCC a chance. They will stop
 	 * to wait if they see that IFF_RUNNING disappeared.
 	 */
