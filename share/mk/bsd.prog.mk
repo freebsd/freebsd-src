@@ -103,9 +103,8 @@ _INSTALLFLAGS:=	${INSTALLFLAGS}
 _INSTALLFLAGS:=	${_INSTALLFLAGS${ie}}
 .endfor
 
-realinstall: beforeinstall
-realinstall: _proginstall
-_proginstall:
+.if !target(realinstall)
+realinstall:
 .if defined(PROG)
 .if defined(PROGNAME)
 	${INSTALL} ${COPY} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
@@ -119,8 +118,6 @@ _proginstall:
 	(cd ${DESTDIR}${ORIGBINDIR}; ln -fs dm ${PROG}; \
 	    chown -h ${BINOWN}:${ORIGBINGRP} ${PROG})
 .endif
-
-realinstall:
 .if defined(LINKS) && !empty(LINKS)
 	@set ${LINKS}; \
 	while test $$# -ge 2; do \
@@ -143,6 +140,8 @@ realinstall:
 		ln -fs $$l $$t; \
 	done; true
 .endif
+.endif !target(realinstall)
+realinstall: beforeinstall
 
 .if defined(SCRIPTS) && !empty(SCRIPTS)
 realinstall: _scriptsinstall
