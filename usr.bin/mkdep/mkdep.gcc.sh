@@ -34,8 +34,7 @@
 #	@(#)mkdep.gcc.sh	8.1 (Berkeley) 6/6/93
 #
 
-PATH=/bin:/usr/bin:/usr/ucb
-export PATH
+PATH=/bin:/usr/bin; export PATH
 
 D=.depend			# default dependency file is .depend
 append=0
@@ -63,13 +62,12 @@ while :
 	esac
 done
 
-if [ $# = 0 ] ; then
+case $# in 0) 
 	echo 'usage: mkdep [-p] [-f depend_file] [cc_flags] file ...'
-	exit 1
-fi
+	exit 1;;
+esac
 
 TMP=/tmp/mkdep$$
-
 trap 'rm -f $TMP ; exit 1' 1 2 3 13 15
 
 # For C sources, mkdep must use exactly the same cpp and predefined flags
@@ -77,22 +75,25 @@ trap 'rm -f $TMP ; exit 1' 1 2 3 13 15
 # pick the cpp.  mkdep must be told the cpp to use for exceptional cases.
 MKDEP_CPP=${MKDEP_CPP-"cc -E"}
 
-if [ x$pflag = x ]; then
-	$MKDEP_CPP -M $* | sed -e 's; \./; ;g' > $TMP
+if $MKDEP_CPP -M $@ > $TMP; then :
 else
-	$MKDEP_CPP -M $* | sed -e 's;\.o:;:;' -e 's; \./; ;g' > $TMP
-fi
-
-if [ $? != 0 ]; then
 	echo 'mkdep: compile failed.'
 	rm -f $TMP
 	exit 1
 fi
 
-if [ $append = 1 ]; then
-	cat $TMP >> $D
-	rm -f $TMP
-else
-	mv $TMP $D
-fi
+case x$pflag in
+	x) case $append in 
+		0) sed -e 's; \./; ;g' < $TMP >  $D;;
+		*) sed -e 's; \./; ;g' < $TMP >> $D;;
+	   esac
+	;;	
+	*) case $append in 
+		0) sed -e 's;\.o:;:;' -e 's; \./; ;g' < $TMP >  $D;;
+		*) sed -e 's;\.o:;:;' -e 's; \./; ;g' < $TMP >> $D;;
+	   esac
+	;;
+esac
+
+rm -f $TMP
 exit 0
