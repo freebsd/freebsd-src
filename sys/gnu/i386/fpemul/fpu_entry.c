@@ -76,6 +76,7 @@
 #include <sys/proc.h>
 #include <sys/kernel.h>
 
+#include <machine/cpu.h>
 #include <machine/pcb.h>
 
 #include <gnu/i386/fpemul/fpu_emu.h>
