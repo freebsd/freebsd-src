@@ -129,6 +129,12 @@
 #define PSM_LEVEL_MIN		PSM_LEVEL_BASE
 #define PSM_LEVEL_MAX		PSM_LEVEL_NATIVE
 
+/* Logitech PS2++ protocol */
+#define MOUSE_PS2PLUS_CHECKBITS(b)	\
+				((((b[2] & 0x03) << 2) | 0x02) == (b[1] & 0x0f))
+#define MOUSE_PS2PLUS_PACKET_TYPE(b)	\
+				(((b[0] & 0x30) >> 2) | ((b[1] & 0x30) >> 4))
+
 /* some macros */
 #define PSM_UNIT(dev)		(minor(dev) >> 1)
 #define PSM_NBLOCKIO(dev)	(minor(dev) & 1)
@@ -140,6 +146,8 @@
 #ifndef min
 #define min(x,y)		((x) < (y) ? (x) : (y))
 #endif
+
+#define abs(x)			(((x) < 0) ? -(x) : (x))
 
 /* ring buffer */
 typedef struct ringbuf {
@@ -165,6 +173,8 @@ struct psm_softc {		/* Driver status information */
     unsigned char ipacket[16];	/* interim input buffer */
     int           inputbytes;	/* # of bytes in the input buffer */
     int           button;	/* the latest button state */
+    int		  xold;	/* previous absolute X position */
+    int		  yold;	/* previous absolute Y position */
 #ifdef DEVFS
     void          *devfs_token;
     void          *b_devfs_token;
@@ -199,6 +209,7 @@ devclass_t psm_devclass;
 				    | PSM_CONFIG_IGNPORTERROR)
 
 /* other flags (flags) */
+#define PSM_FLAGS_FINGERDOWN	0x0001 /* VersaPad finger down */
 
 /* for backward compatibility */
 #define OLD_MOUSE_GETHWINFO	_IOR('M', 1, old_mousehw_t)
@@ -267,6 +278,7 @@ static probefunc_t enable_aglide;
 static probefunc_t enable_kmouse;
 static probefunc_t enable_msintelli;
 static probefunc_t enable_mmanplus;
+static probefunc_t enable_versapad;
 static int tame_mouse __P((struct psm_softc *, mousestatus_t *, unsigned char *));
 
 static struct {
@@ -287,10 +299,12 @@ static struct {
       0x80, MOUSE_PS2_PACKETSIZE, enable_kmouse, },
     { MOUSE_MODEL_INTELLI,		/* Microsoft IntelliMouse */
       0xc8, MOUSE_INTELLI_PACKETSIZE, enable_msintelli, },
+    { MOUSE_MODEL_VERSAPAD,		/* Interlink electronics VersaPad */
+      0xe8, MOUSE_PS2VERSA_PACKETSIZE, enable_versapad, },
     { MOUSE_MODEL_GENERIC,
       0xc0, MOUSE_PS2_PACKETSIZE, NULL, },
 };
-#define GENERIC_MOUSE_ENTRY	6
+#define GENERIC_MOUSE_ENTRY	7
 
 /* device driver declarateion */
 static device_method_t psm_methods[] = {
@@ -534,6 +548,7 @@ model_name(int model)
         { MOUSE_MODEL_THINK,		"ThinkingMouse" },
         { MOUSE_MODEL_INTELLI,		"IntelliMouse" },
         { MOUSE_MODEL_MOUSEMANPLUS,	"MouseMan+" },
+        { MOUSE_MODEL_VERSAPAD,		"VersaPad" },
         { MOUSE_MODEL_GENERIC,		"Generic PS/2 mouse" },
         { MOUSE_MODEL_UNKNOWN,		NULL },
     };
@@ -1079,10 +1094,11 @@ psmattach(device_t dev)
 
     if (!verbose) {
         printf("psm%d: model %s, device ID %d\n", 
-	    unit, model_name(sc->hw.model), sc->hw.hwid);
+	    unit, model_name(sc->hw.model), sc->hw.hwid & 0x00ff);
     } else {
-        printf("psm%d: model %s, device ID %d, %d buttons\n",
-	    unit, model_name(sc->hw.model), sc->hw.hwid, sc->hw.buttons);
+        printf("psm%d: model %s, device ID %d-%02x, %d buttons\n",
+	    unit, model_name(sc->hw.model),
+	    sc->hw.hwid & 0x00ff, sc->hw.hwid >> 8, sc->hw.buttons);
 	printf("psm%d: config:%08x, flags:%08x, packet size:%d\n",
 	    unit, sc->config, sc->flags, sc->mode.packetsize);
 	printf("psm%d: syncmask:%02x, syncbits:%02x\n",
@@ -1475,7 +1491,7 @@ psmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
         ((old_mousehw_t *)addr)->buttons = sc->hw.buttons;
         ((old_mousehw_t *)addr)->iftype = sc->hw.iftype;
         ((old_mousehw_t *)addr)->type = sc->hw.type;
-        ((old_mousehw_t *)addr)->hwid = sc->hw.hwid;
+        ((old_mousehw_t *)addr)->hwid = sc->hw.hwid & 0x00ff;
 	splx(s);
         break;
 
@@ -1733,8 +1749,9 @@ psmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 	error = block_mouse_data(sc, &command_byte);
 	if (error)
             return error;
-        sc->hw.hwid = get_aux_id(sc->kbdc);
-	*(int *)addr = sc->hw.hwid;
+        sc->hw.hwid &= ~0x00ff;
+        sc->hw.hwid |= get_aux_id(sc->kbdc);
+	*(int *)addr = sc->hw.hwid & 0x00ff;
 	unblock_mouse_data(sc, command_byte);
         break;
 #endif /* MOUSE_GETHWID */
@@ -1763,11 +1780,22 @@ psmintr(void *arg)
 	MOUSE_BUTTON2DOWN | MOUSE_BUTTON3DOWN,
         MOUSE_BUTTON1DOWN | MOUSE_BUTTON2DOWN | MOUSE_BUTTON3DOWN
     };
+    static int butmap_versapad[8] = {
+	0, 
+	MOUSE_BUTTON3DOWN, 
+	0, 
+	MOUSE_BUTTON3DOWN, 
+	MOUSE_BUTTON1DOWN, 
+	MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN, 
+	MOUSE_BUTTON1DOWN,
+	MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN
+    };
     register struct psm_softc *sc = arg;
     mousestatus_t ms;
     int x, y, z;
     int c;
     int l;
+    int x0, y0;
 
     /* read until there is nothing to read */
     while((c = read_aux_data_no_wait(sc->kbdc)) != -1) {
@@ -1800,14 +1828,15 @@ psmintr(void *arg)
 
 	c = sc->ipacket[0];
 
-        /* 
+	/* 
 	 * A kludge for Kensington device! 
 	 * The MSB of the horizontal count appears to be stored in 
 	 * a strange place. This kludge doesn't affect other mice 
 	 * because the bit is the overflow bit which is, in most cases, 
 	 * expected to be zero when we reach here. XXX 
 	 */
-        sc->ipacket[1] |= (c & MOUSE_PS2_XOVERFLOW) ? 0x80 : 0;
+	if (sc->hw.model != MOUSE_MODEL_VERSAPAD)
+	    sc->ipacket[1] |= (c & MOUSE_PS2_XOVERFLOW) ? 0x80 : 0;
 
         /* ignore the overflow bits... */
         x = (c & MOUSE_PS2_XNEG) ?  sc->ipacket[1] - 256 : sc->ipacket[1];
@@ -1828,13 +1857,69 @@ psmintr(void *arg)
 	    break;
 
 	case MOUSE_MODEL_MOUSEMANPLUS:
-	    if ((c & ~MOUSE_PS2_BUTTONS) == 0xc8) {
+	    /*
+	     * PS2++ protocl packet
+	     *
+	     *          b7 b6 b5 b4 b3 b2 b1 b0
+	     * byte 1:  *  1  p3 p2 1  *  *  *
+	     * byte 2:  c1 c2 p1 p0 d1 d0 1  0
+	     *
+	     * p3-p0: packet type
+	     * c1, c2: c1 & c2 == 1, if p2 == 0
+	     *         c1 & c2 == 0, if p2 == 1
+	     *
+	     * packet type: 0 (device type)
+	     * See comments in enable_mmanplus() below.
+	     * 
+	     * packet type: 1 (wheel data)
+	     *
+	     *          b7 b6 b5 b4 b3 b2 b1 b0
+	     * byte 3:  h  *  B5 B4 s  d2 d1 d0
+	     *
+	     * h: 1, if horizontal roller data
+	     *    0, if vertical roller data
+	     * B4, B5: button 4 and 5
+	     * s: sign bit
+	     * d2-d0: roller data
+	     *
+	     * packet type: 2 (reserved)
+	     */
+	    if (((c & MOUSE_PS2PLUS_SYNCMASK) == MOUSE_PS2PLUS_SYNC)
+		    && (abs(x) > 191)
+		    && MOUSE_PS2PLUS_CHECKBITS(sc->ipacket)) {
 		/* the extended data packet encodes button and wheel events */
-		x = y = 0;
-		z = (sc->ipacket[2] & MOUSE_PS2PLUS_ZNEG)
-		    ? (sc->ipacket[2] & 0x0f) - 16 : (sc->ipacket[2] & 0x0f);
-		ms.button |= (sc->ipacket[2] & MOUSE_PS2PLUS_BUTTON4DOWN)
-		    ? MOUSE_BUTTON4DOWN : 0;
+		switch (MOUSE_PS2PLUS_PACKET_TYPE(sc->ipacket)) {
+		case 1:
+		    /* wheel data packet */
+		    x = y = 0;
+		    if (sc->ipacket[2] & 0x80) {
+			/* horizontal roller count - ignore it XXX*/
+		    } else {
+			/* vertical roller count */
+			z = (sc->ipacket[2] & MOUSE_PS2PLUS_ZNEG)
+			    ? (sc->ipacket[2] & 0x0f) - 16
+			    : (sc->ipacket[2] & 0x0f);
+		    }
+		    ms.button |= (sc->ipacket[2] & MOUSE_PS2PLUS_BUTTON4DOWN)
+			? MOUSE_BUTTON4DOWN : 0;
+		    ms.button |= (sc->ipacket[2] & MOUSE_PS2PLUS_BUTTON5DOWN)
+			? MOUSE_BUTTON5DOWN : 0;
+		    break;
+		case 2:
+		    /* this packet type is reserved, and currently ignored */
+		    /* FALL THROUGH */
+		case 0:
+		    /* device type packet - shouldn't happen */
+		    /* FALL THROUGH */
+		default:
+		    x = y = 0;
+		    ms.button = ms.obutton;
+            	    log(LOG_DEBUG, "psmintr: unknown PS2++ packet type %d: "
+				   "0x%02x 0x%02x 0x%02x\n",
+			MOUSE_PS2PLUS_PACKET_TYPE(sc->ipacket),
+			sc->ipacket[0], sc->ipacket[1], sc->ipacket[2]);
+		    break;
+		}
 	    } else {
 		/* preserve button states */
 		ms.button |= ms.obutton & MOUSE_EXTBUTTONS;
@@ -1857,6 +1942,61 @@ psmintr(void *arg)
 	case MOUSE_MODEL_THINK:
 	    /* the fourth button state in the first byte */
 	    ms.button |= (c & MOUSE_PS2_TAP) ? MOUSE_BUTTON4DOWN : 0;
+	    break;
+
+	case MOUSE_MODEL_VERSAPAD:
+	    /* VersaPad PS/2 absolute mode message format
+	     *
+	     * [packet1]     7   6   5   4   3   2   1   0(LSB)
+	     *  ipacket[0]:  1   1   0   A   1   L   T   R
+	     *  ipacket[1]: H7  H6  H5  H4  H3  H2  H1  H0
+	     *  ipacket[2]: V7  V6  V5  V4  V3  V2  V1  V0
+	     *  ipacket[3]:  1   1   1   A   1   L   T   R
+	     *  ipacket[4]:V11 V10  V9  V8 H11 H10  H9  H8
+	     *  ipacket[5]:  0  P6  P5  P4  P3  P2  P1  P0
+	     *
+	     * [note]
+	     *  R: right physical mouse button (1=on)
+	     *  T: touch pad virtual button (1=tapping)
+	     *  L: left physical mouse button (1=on)
+	     *  A: position data is valid (1=valid)
+	     *  H: horizontal data (12bit signed integer. H11 is sign bit.)
+	     *  V: vertical data (12bit signed integer. V11 is sign bit.)
+	     *  P: pressure data
+	     *
+	     * Tapping is mapped to MOUSE_BUTTON4.
+	     */
+	    ms.button = butmap_versapad[c & MOUSE_PS2VERSA_BUTTONS];
+	    ms.button |= (c & MOUSE_PS2VERSA_TAP) ? MOUSE_BUTTON4DOWN : 0;
+	    x = y = 0;
+	    if (c & MOUSE_PS2VERSA_IN_USE) {
+		x0 = sc->ipacket[1] | (((sc->ipacket[4]) & 0x0f) << 8);
+		y0 = sc->ipacket[2] | (((sc->ipacket[4]) & 0xf0) << 4);
+		if (x0 & 0x800)
+		    x0 -= 0x1000;
+		if (y0 & 0x800)
+		    y0 -= 0x1000;
+		if (sc->flags & PSM_FLAGS_FINGERDOWN) {
+		    x = sc->xold - x0;
+		    y = y0 - sc->yold;
+		    if (x < 0)	/* XXX */
+			x++;
+		    else if (x)
+			x--;
+		    if (y < 0)
+			y++;
+		    else if (y)
+			y--;
+		} else {
+		    sc->flags |= PSM_FLAGS_FINGERDOWN;
+		}
+		sc->xold = x0;
+		sc->yold = y0;
+	    } else {
+		sc->flags &= ~PSM_FLAGS_FINGERDOWN;
+	    }
+	    c = ((x < 0) ? MOUSE_PS2_XNEG : 0)
+		| ((y < 0) ? MOUSE_PS2_YNEG : 0);
 	    break;
 
 	case MOUSE_MODEL_GENERIC:
@@ -2137,15 +2277,31 @@ enable_mmanplus(struct psm_softc *sc)
     if (get_mouse_status(kbdc, data, 1, 3) < 3)
         return FALSE;
 
-    /* 
-     * MouseMan+ and FirstMouse+ return following data.
+    /*
+     * PS2++ protocl, packet type 0
      *
-     * byte 1 0xc8
-     * byte 2 ?? (MouseMan+:0xc2, FirstMouse+:0xc6)
-     * byte 3 model ID? MouseMan+:0x50, FirstMouse+:0x51
+     *          b7 b6 b5 b4 b3 b2 b1 b0
+     * byte 1:  *  1  p3 p2 1  *  *  *
+     * byte 2:  1  1  p1 p0 m1 m0 1  0
+     * byte 3:  m7 m6 m5 m4 m3 m2 m1 m0
+     *
+     * p3-p0: packet type: 0
+     * m7-m0: model ID: MouseMan+:0x50, FirstMouse+:0x51,...
      */
-    if ((data[0] & ~MOUSE_PS2_BUTTONS) != 0xc8)
+    /* check constant bits */
+    if ((data[0] & MOUSE_PS2PLUS_SYNCMASK) != MOUSE_PS2PLUS_SYNC)
         return FALSE;
+    if ((data[1] & 0xc3) != 0xc2)
+        return FALSE;
+    /* check d3-d0 in byte 2 */
+    if (!MOUSE_PS2PLUS_CHECKBITS(data))
+        return FALSE;
+    /* check p3-p0 */
+    if (MOUSE_PS2PLUS_PACKET_TYPE(data) != 0)
+        return FALSE;
+
+    sc->hw.hwid &= 0x00ff;
+    sc->hw.hwid |= data[2] << 8;	/* save model ID */
 
     /*
      * MouseMan+ (or FirstMouse+) is now in its native mode, in which
@@ -2184,6 +2340,28 @@ enable_msintelli(struct psm_softc *sc)
     sc->hw.buttons = 3;
 
     return TRUE;
+}
+
+/* Interlink electronics VersaPad */
+static int
+enable_versapad(struct psm_softc *sc)
+{
+    KBDC kbdc = sc->kbdc;
+    int data[3];
+
+    set_mouse_resolution(kbdc, PSMD_RES_MEDIUM_HIGH); /* set res. 2 */
+    set_mouse_sampling_rate(kbdc, 100);		/* set rate 100 */
+    set_mouse_scaling(kbdc, 1);			/* set scale 1:1 */
+    set_mouse_scaling(kbdc, 1);			/* set scale 1:1 */
+    set_mouse_scaling(kbdc, 1);			/* set scale 1:1 */
+    set_mouse_scaling(kbdc, 1);			/* set scale 1:1 */
+    if (get_mouse_status(kbdc, data, 0, 3) < 3)	/* get status */
+	return FALSE;
+    if (data[2] != 0xa || data[1] != 0 )	/* rate == 0xa && res. == 0 */
+	return FALSE;
+    set_mouse_scaling(kbdc, 1);			/* set scale 1:1 */
+
+    return TRUE;				/* PS/2 absolute mode */
 }
 
 #ifdef PSM_HOOKAPM

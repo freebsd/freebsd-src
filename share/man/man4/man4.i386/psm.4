@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: psm.4,v 1.13.2.2 1999/02/10 14:49:51 yokota Exp $
+.\" $Id: psm.4,v 1.13.2.3 1999/08/14 21:10:47 chris Exp $
 .\"
 .Dd January 30, 1999
 .Dt PSM 4 i386
@@ -715,8 +715,17 @@ At debug level 2, much more detailed information is logged.
 .Sh CAVEATS
 Many pad devices behave as if the first (left) button were pressed if
 the user `taps' the surface of the pad.
-In contrast, some ALPS GlidePoint pad models treat the tapping action 
+In contrast, some pad products, e.g. some verions of ALPS GlidePoint 
+and Interlink VersaPad, treat the tapping action 
 as fourth button events.
+.Pp
+It is reported that Interlink VersaPad rquires both
+.Em PSM_HOOKAPM
+and
+.Em PSM_RESETAFTERSUSPEND
+options in order to recover from suspended state.
+Add these options to your kernel configuration file if the device
+does not seem to work properly after the system is resumed.
 .Pp
 Some PS/2 mouse models from MouseSystems require to be put in the
 high resolution mode to work properly. Use the driver flag to
