@@ -1151,8 +1151,8 @@ readdefects(struct cam_device *device, int argc, char **argv,
 	cam_fill_csio(&ccb->csio,
 		      /*retries*/ retry_count,
 		      /*cbfcnp*/ NULL,
-		      /*flags*/ CAM_DIR_IN | (arglist & CAM_ARG_ERR_RECOVER) ?
-					      CAM_PASS_ERR_RECOVER : 0,
+		      /*flags*/ CAM_DIR_IN | ((arglist & CAM_ARG_ERR_RECOVER) ?
+					      CAM_PASS_ERR_RECOVER : 0),
 		      /*tag_action*/ MSG_SIMPLE_Q_TAG,
 		      /*data_ptr*/ defect_list,
 		      /*dxfer_len*/ dlist_length,
@@ -2529,7 +2529,9 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 				warnx("HBA does not support 32 bit bus width");
 				retval = 1;
 				goto ratecontrol_bailout;
-			} else if (bus_width != 8) {
+			} else if ((bus_width != 8)
+				&& (bus_width != 16)
+				&& (bus_width != 32)) {
 				warnx("Invalid bus width %d", bus_width);
 				retval = 1;
 				goto ratecontrol_bailout;
