@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.59 1995/10/27 01:36:45 jkh Exp $
+ * $Id: install.c,v 1.71.2.60 1995/10/27 03:07:10 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -381,9 +381,9 @@ installCommit(char *str)
     if (RunningAsInit) {
 	if (installInitial() == RET_FAIL)
 	    return RET_FAIL;
-	else if (configFstab() == RET_FAIL)
+	if (configFstab() == RET_FAIL)
 	    return RET_FAIL;
-	else if (!root_extract()) {
+	if (!root_extract()) {
 	    dialog_clear();
 	    msgConfirm("Failed to load the ROOT distribution.  Please correct\n"
 		       "this problem and try again.");
@@ -420,9 +420,9 @@ installCommit(char *str)
 	    dmenuOpenSimple(&MenuConfigure);
     }
 
-    /* Write out any changes to /etc/sysconfig */
-    if (RunningAsInit)
-	configSysconfig();
+    /* Write out any changes .. */
+    configResolv();
+    configSysconfig();
 
     variable_set2(SYSTEM_STATE, i == RET_FAIL ? "installed+errors" : "installed");
     dialog_clear();
