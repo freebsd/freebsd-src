@@ -496,7 +496,7 @@ static mdsy_readraw_t opl_readraw;
 static mdsy_writeraw_t opl_writeraw;
 
 /* These functions are local. */
-static void opl_startplay(sc_p scp);
+static void opl_startplay(sc_p scp) __unused;
 static void opl_command(sc_p scp, int ch, int addr, u_int val);
 static int opl_status(sc_p scp);
 static void opl_enter4opmode(sc_p scp);
