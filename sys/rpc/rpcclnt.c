@@ -559,10 +559,10 @@ rpcclnt_connect(rpc, td)
 	so->so_snd.sb_flags |= SB_NOINTR;
 
 	/* Initialize other non-zero congestion variables */
-	rpc->rc_srtt[0] = rpc->rc_srtt[1] = rpc->rc_srtt[2] = rpc->rc_srtt[3] =
-		rpc->rc_srtt[4] = (RPC_TIMEO << 3);
+	rpc->rc_srtt[0] = rpc->rc_srtt[1] = rpc->rc_srtt[2] =
+		 rpc->rc_srtt[3] = (RPC_TIMEO << 3);
 	rpc->rc_sdrtt[0] = rpc->rc_sdrtt[1] = rpc->rc_sdrtt[2] =
-		rpc->rc_sdrtt[3] = rpc->rc_sdrtt[4] = 0;
+		rpc->rc_sdrtt[3] = 0;
 	rpc->rc_cwnd = RPC_MAXCWND / 2;	/* Initial send window */
 	rpc->rc_sent = 0;
 	rpc->rc_timeouts = 0;
