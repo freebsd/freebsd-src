@@ -77,6 +77,7 @@
 
 KMODLOAD?=	/sbin/kldload
 KMODUNLOAD?=	/sbin/kldunload
+OBJCOPY?=	objcopy
 
 TARGET_ARCH?=	${MACHINE_ARCH}
 
@@ -131,7 +132,15 @@ OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 PROG=	${KMOD}.ko
 .endif
 
-${PROG}: ${KMOD}.kld
+.if !defined(DEBUG)
+FULLPROG=	${PROG}
+.else
+FULLPROG=	${PROG}.debug
+${PROG}: ${FULLPROG}
+	${OBJCOPY} --strip-debug ${FULLPROG} ${PROG}
+.endif
+
+${FULLPROG}: ${KMOD}.kld
 	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} ${KMOD}.kld
 
 ${KMOD}.kld: ${OBJS}
@@ -188,7 +197,7 @@ ${_ILINKS}:
 	${ECHO} ${.TARGET} "->" $$path ; \
 	ln -s $$path ${.TARGET}
 
-CLEANFILES+= ${PROG} ${KMOD}.kld ${OBJS} ${_ILINKS} symb.tmp tmp.o
+CLEANFILES+= ${PROG} ${FULLPROG} ${KMOD}.kld ${OBJS} ${_ILINKS} symb.tmp tmp.o
 
 .if !target(install)
 .if !target(beforeinstall)
