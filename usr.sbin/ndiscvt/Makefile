@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../sys/dev/ndis
+.PATH:	${.CURDIR}/../../sys/compat/ndis
 
 PROG=	ndiscvt
 SRCS=	ndiscvt.c
