@@ -51,7 +51,7 @@
 
 #define	MODULE_NAME	"pam_ssh"
 #define	NEED_PASSPHRASE	"Need passphrase for %s (%s).\nEnter passphrase: "
-#define	PATH_SSH_AGENT	"__PREFIX__/bin/ssh-agent"
+#define	PATH_SSH_AGENT	"/usr/bin/ssh-agent"
 
 
 void
