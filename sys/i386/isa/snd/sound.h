@@ -4,6 +4,8 @@
  * include file for kernel sources, sound driver.
  * 
  * Copyright by Hannu Savolainen 1995
+ * Modified for improving mute support by Jose M. Alcaide, 1999
+ * and FreeBSD support by Luigi Rizzo, 1997-1999
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,6 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
 #ifdef KERNEL
@@ -286,6 +289,8 @@ struct _snddev_info {
     u_long  mix_devs;	/* existing devices for mixer */
     u_long  mix_rec_devs;	/* possible recording sources */
     u_long  mix_recsrc;	/* current recording source(s) */
+    u_long  mix_muted[2];  /* current muted (volume=0) devices (left/right) */
+
     u_short mix_levels[32];
 
 #define wsel dbuf_out.sel
@@ -321,6 +326,7 @@ struct _snddev_info {
 #define MD_CS4232A	0xA5
 #define MD_CS4236	0xA6
 #define MD_CS4237	0xA7
+#define	MD_CS4235	0xA8
 #define	MD_OPTI931	0xB1
 #define	MD_GUSPNP	0xB8
 #define	MD_YM0020	0xC1
@@ -399,7 +405,7 @@ struct channel_info {
 };
 
 /*
- * mixer description structure and macros
+ * mixer description structure
  */
 
 struct mixer_def {
@@ -411,15 +417,36 @@ struct mixer_def {
 typedef struct mixer_def mixer_ent;
 typedef struct mixer_def mixer_tab[32][2];
 
+/*
+ * mute control description structure
+ */
+
+struct mute_def {
+    u_int   regno:7;   /* mute register */
+    u_int   bit:4;     /* mute bit */
+    u_int   nbits:1;   /* mute capability: 1=yes, 0=no */
+};
+typedef struct mute_def mute_ent;
+typedef struct mute_def mute_tab[32][2][2];    /* [dev][left/right][in/out] */
+
 #ifdef KERNEL
 
 #define FULL_DUPLEX(d) (d->dbuf_out.chan != d->dbuf_in.chan)
+
+/* macros for filling a mixer table */
 #define MIX_ENT(name, reg_l, pol_l, pos_l, len_l, reg_r, pol_r, pos_r, len_r) \
     {{reg_l, pol_l, pos_l, len_l}, {reg_r, pol_r, pos_r, len_r}}
 #define PMIX_ENT(name, reg_l, pos_l, len_l, reg_r, pos_r, len_r) \
     {{reg_l, 0, pos_l, len_l}, {reg_r, 0, pos_r, len_r}}
 
 #define MIX_NONE(name) MIX_ENT(name, 0,0,0,0, 0,0,0,0)
+/* macros for filling a mute table */
+#define MUT_ENT(name,ireg_l,ibit_l,ilen_l,oreg_l,obit_l,olen_l, \
+		ireg_r,ibit_r,ilen_r,oreg_r,obit_r,olen_r) \
+    {{{ireg_l, ibit_l, ilen_l}, {oreg_l, obit_l, olen_l}}, \
+     {{ireg_r, ibit_r, ilen_r}, {oreg_r, obit_r, olen_r}}}
+
+#define MUT_NONE(name) {{{0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}}}
 
 /*
  * some macros for debugging purposes

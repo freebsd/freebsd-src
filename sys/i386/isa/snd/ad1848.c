@@ -6,7 +6,8 @@
  * 
  * AD1848, CS4248, CS423x, OPTi931, Yamaha OPL/SAx and many others.
  *
- * Copyright Luigi Rizzo, 1997,1998
+ * Copyright Luigi Rizzo, 1997..2000
+ * Copyright Jose M. Alcaide, 1999
  * Copyright by Hannu Savolainen 1994, 1995
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +39,8 @@
  *
  *	http://www.crystal.com/ for the CS42XX series, or
  *	http://www.opti.com/	for the OPTi931
+
+ * $FreeBSD$
  */
 
 #include <i386/isa/snd/sound.h>
@@ -67,11 +70,14 @@ static  snd_callback_t mss_callback;
  * prototypes for local functions
  */
 
+static void mss_init(snddev_info *d);
 static void mss_reinit(snddev_info *d);
 static int AD_WAIT_INIT(snddev_info *d, int x);
 static int mss_mixer_set(snddev_info *d, int dev, int value);
-static int mss_set_recsrc(snddev_info *d, int mask);
-static void ad1848_mixer_reset(snddev_info *d);
+static int mss_mixer_recsrc(snddev_info *d, int mask);
+static void mss_mixer_reset(snddev_info *d);
+static void mss_mixer_mutectl(snddev_info *d,u_long mask,int chn,int path,
+				int action);
 
 static void opti_write(int io_base, u_char reg, u_char data);
 static u_char opti_read(int io_base, u_char reg);
@@ -317,8 +323,8 @@ mss_attach(struct isa_device *dev)
 	else
 	    outb(0x371, 0x8b ); /* use low dma chan */
     }
-    mss_reinit(d);
-    ad1848_mixer_reset(d);
+    mss_init(d);
+    mss_mixer_reset(d);
     return 0;
 }
 
@@ -452,7 +458,7 @@ mss_ioctl(dev_t dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
     if ( (cmd & MIXER_WRITE(0)) == MIXER_WRITE(0) ) {
         cmd &= 0xff ;
         if (cmd == SOUND_MIXER_RECSRC)
-	    return mss_set_recsrc(d, *(int *)arg) ;
+	    return mss_mixer_recsrc(d, *(int *)arg) ;
 	else
 	    return mss_mixer_set(d, cmd, *(int *)arg) ;
     }
@@ -497,7 +503,7 @@ mss_callback(snddev_info *d, int reason)
 	    cnt /= 2;
 	cnt-- ;
 
-	DEB(printf("-- (re)start cnt %d\n", cnt));
+	DEB(printf("-- mss_callback, (re)start cnt %d\n", cnt));
 	m = ad_read(d,9) ;
 	DEB( if (m & 4) printf("OUCH! reg 9 0x%02x\n", m); );
 	m |= wr ? I9_PEN : I9_CEN ; /* enable DMA */
@@ -740,15 +746,27 @@ AD_WAIT_INIT(snddev_info *d, int x)
     return n ;
 }
 
+/*
+ * ad_read() and ad_write() access both the indirect register set, and the
+ * extended register set available in MODE 3. In order to access an extended
+ * register Xn, 64+n must be passed to these functions
+ */
+
 static int
 ad_read(snddev_info *d, int reg)
 {
     u_long   flags;
-    int             x;
+    int x, tmp ;
 
     flags = spltty();
     AD_WAIT_INIT(d, 201);
     x = inb(io_Index_Addr(d)) & ~IA_AMASK ;
+    if (reg & 0x40) { /* extended register */
+	tmp = reg & 0x10;
+	reg = ((reg << 4) | (tmp >> 2)) & 0xf4;
+	outb(io_Index_Addr(d), (u_char) 0x17 | x ) ;
+	outb(io_Indexed_Data(d), (u_char) (reg | IA_XRAE));
+    } else /* indirect register */
     outb(io_Index_Addr(d), (u_char) (reg & IA_AMASK) | x ) ;
     x = inb(io_Indexed_Data(d));
     splx(flags);
@@ -759,12 +777,19 @@ static void
 ad_write(snddev_info *d, int reg, u_char data)
 {
     u_long   flags;
+    int x, tmp ;
 
-    int x ;
     flags = spltty();
     AD_WAIT_INIT(d, 1002);
     x = inb(io_Index_Addr(d)) & ~IA_AMASK ;
+    if (reg & 0x40) { /* extended register */
+	tmp = reg & 0x10;
+	reg = ((reg << 4) | (tmp >> 2)) & 0xf4;
+	outb(io_Index_Addr(d), (u_char) 0x17 | x ) ;
+	outb(io_Indexed_Data(d), (u_char) (reg | IA_XRAE));
+    } else /* indirect register */
     outb(io_Index_Addr(d), (u_char) (reg & IA_AMASK) | x ) ;
+
     outb(io_Indexed_Data(d), data);
     splx(flags);
 }
@@ -798,22 +823,6 @@ wait_for_calibration(snddev_info *d)
     for (t = 100 ; t>0 && ad_read(d, 11) & 0x20 ; t--)
 	    DELAY(100);
 }
-
-#if 0 /* unused right now... */
-static void
-ad_mute(snddev_info *d)
-{
-    ad_write(d, 6, ad_read(d,6) | I6_MUTE);
-    ad_write(d, 7, ad_read(d,7) | I6_MUTE);
-}
-
-static void
-ad_unmute(snddev_info *d)
-{
-    ad_write(d, 6, ad_read(d,6) & ~I6_MUTE);
-    ad_write(d, 7, ad_read(d,7) & ~I6_MUTE);
-}
-#endif
 
 static void
 ad_enter_MCE(snddev_info *d)
@@ -851,14 +860,127 @@ ad_leave_MCE(snddev_info *d)
 }
 
 /*
- * only one source can be set...
+ * Mixer control section
  */
+/* these macros should be #defined in mss.h... */
+#define	INPUT_PATH	0
+#define	OUTPUT_PATH	1
+#define	MUTE_ACTN	0
+#define	UNMUTE_ACTN	1
+
+/*
+ * mss_mixer_mutectl() mutes or unmutes the input or output of a set of
+ * mixer devices, using a mute_table if it is available.
+ */
+static void
+mss_mixer_mutectl(snddev_info *d,u_long mask,int chn,int path,int action)
+{
+    int dev, reg, bit, old, new;
+    mute_tab *mut_d;
+    mixer_tab *mix_d = NULL;   /* to shut up the compiler */
+
+    /* select the appropriate mute table */
+    switch (d->bd_id) {
+    case MD_CS4236:
+    case MD_CS4237:
+        mut_d = &cs4236_mutdev;
+        break;
+    case MD_CS4235:
+       mut_d = &cs4235_mutdev;
+       break;
+    case MD_OPTI931:
+       mix_d = &opti931_mixdev;
+       mut_d = NULL;
+       break;
+    case MD_AD1848:
+       default:
+       mut_d = &mss_mutdev;
+    }
+
+    mask &= d->mix_devs;
+
+    for (dev = 0 ; dev <SOUND_MIXER_NRDEVICES; dev++){
+        if ( mask & (1L << dev) ) {
+           if ( mut_d == NULL ) {
+               if ( (*mix_d)[dev][chn].nbits == 0 )
+                   continue;
+
+               reg = (*mix_d)[dev][chn].regno;
+               bit = path == OUTPUT_PATH ? 7 : 6;
+
+               /* input gain has no mute control */
+               if ( reg == 0 || reg == 1 )
+                   continue;
+
+               old = ad_read(d, reg);
+               new = action == MUTE_ACTN ? old | (1L<<bit) : old & ~(1L<<bit);
+               ad_write(d, reg, new);
+
+               DEB(printf("mutectl: reg=%d old=0x%2.2x new=0x%2.2x\n",
+                           reg, old, new));
+           } else {
+               if ( (*mut_d)[dev][chn][path].nbits == 0 )
+                   continue;
+
+               reg = (*mut_d)[dev][chn][path].regno;
+               bit = (*mut_d)[dev][chn][path].bit;
+
+               /* bit 0 of I13 (loopback) means "enable", instead of "mute" */
+               if ( dev == SOUND_MIXER_IMIX &&
+                       (d->bd_id == MD_CS4236 || d->bd_id == MD_CS4237) )
+                   action = !action;
+
+               old = ad_read(d, reg);
+               new = (action == MUTE_ACTN) ?
+                       (old | (1L<<bit)) : (old & ~(1L<<bit)) ;
+               ad_write(d, reg, new);
+
+               DEB(printf("mutectl: reg=%d old=0x%2.2x new=0x%2.2x\n",
+                           reg, old, new));
+           }
+       }
+    }
+}
+
+/*
+ * mss_mixer_recsrc() works in a different way when the audio chip supports
+ * MODE 3; in this mode, the input mixer is a _true_ mixer, and not a
+ * simple multiplexer. Then, if the chip supports MODE 3, several recording
+ * devices can be simultaneously active.
+ */
+
 static int
-mss_set_recsrc(snddev_info *d, int mask)
+mss_mixer_recsrc(snddev_info *d, int mask)
 {
     u_char   recdev;
+    u_long   mutedev, unmutedev;
 
     mask &= d->mix_rec_devs;
+    if ( d->bd_flags & BD_F_MODE3 ) {
+       /*
+        * In MODE3, the input mixer is a true mixer, not a multiplexer.
+        * Then, all input mixer devices are muted except the record
+        * sources
+        */
+       mutedev   = (mask | d->mix_recsrc) & ~mask;
+       unmutedev = (mask | d->mix_recsrc) & ~d->mix_recsrc;
+       mss_mixer_mutectl(d, mutedev, LEFT_CHN, INPUT_PATH, MUTE_ACTN);
+       mss_mixer_mutectl(d, mutedev, RIGHT_CHN, INPUT_PATH, MUTE_ACTN);
+
+       /* only unmute devices which have volume > 0 */
+       mss_mixer_mutectl(d, unmutedev & ~d->mix_muted[LEFT_CHN], LEFT_CHN,
+                       INPUT_PATH, UNMUTE_ACTN);
+       mss_mixer_mutectl(d, unmutedev & ~d->mix_muted[RIGHT_CHN], RIGHT_CHN,
+                       INPUT_PATH, UNMUTE_ACTN);
+        /*
+	 * on the output path, unmute all old recording sources
+	 * and mute all new recording sources
+	 */
+	mss_mixer_mutectl(d, d->mix_recsrc, LEFT_CHN, OUTPUT_PATH, UNMUTE_ACTN);
+	mss_mixer_mutectl(d, d->mix_recsrc, RIGHT_CHN, OUTPUT_PATH, UNMUTE_ACTN);
+	mss_mixer_mutectl(d, mask, LEFT_CHN, OUTPUT_PATH, MUTE_ACTN);
+	mss_mixer_mutectl(d, mask, RIGHT_CHN, OUTPUT_PATH, MUTE_ACTN);
+    } else {
     switch (mask) {
     case SOUND_MASK_LINE:
     case SOUND_MASK_LINE3:
@@ -882,6 +1004,7 @@ mss_set_recsrc(snddev_info *d, int mask)
 
     ad_write(d, 0, (ad_read(d, 0) & 0x3f) | recdev);
     ad_write(d, 1, (ad_read(d, 1) & 0x3f) | recdev);
+    }
 
     d->mix_recsrc = mask;
     return 0;
@@ -896,20 +1019,34 @@ mss_mixer_set(snddev_info *d, int dev, int value)
 {
     int             left = value & 0x000000ff;
     int             right = (value & 0x0000ff00) >> 8;
-
     int             regoffs;
-    mixer_tab *mix_d = &mix_devices;
-
+    u_long    mask = 1L<<dev;
     u_char  old, val;
+    mixer_tab *mix_d = &mss_mixdev;
 
     if (dev > 31)
 	return EINVAL;
 
-    if (!(d->mix_devs & (1 << dev)))
+    if (!(d->mix_devs & mask))
 	return EINVAL;
 
-    if (d->bd_id == MD_OPTI931)
-	mix_d = &(opti931_devices);
+    /* select the appropriate mixer table */
+    switch (d->bd_id) {
+    case MD_CS4236:
+    case MD_CS4237:
+        mix_d = &cs4236_mixdev;
+        break;
+    case MD_CS4235:
+        mix_d = &cs4235_mixdev;
+        break;
+    case MD_OPTI931:
+        mix_d = &opti931_mixdev;
+        break;
+    case MD_AD1848:
+    default:
+        mix_d = &mss_mixdev;
+        break;
+    }
 
     if ((*mix_d)[dev][LEFT_CHN].nbits == 0) {
 	DEB(printf("nbits = 0 for dev %d\n", dev) );
@@ -927,62 +1064,103 @@ mss_mixer_set(snddev_info *d, int dev, int value)
 
     d->mix_levels[dev] = left | (right << 8);
 
-#if 0
-    /* Scale volumes */
-    left = mix_cvt[left];
-    right = mix_cvt[right];
-#endif
     /*
      * Set the left channel
      */
 
     regoffs = (*mix_d)[dev][LEFT_CHN].regno;
     old = val = ad_read(d, regoffs);
-    /*
-     * if volume is 0, mute chan. Otherwise, unmute.
-     */
-    if (regoffs != 0)  /* main input is different */
-	val = (left == 0 ) ? old | 0x80 : old & 0x7f ;
 
     change_bits(mix_d, &val, dev, LEFT_CHN, left);
     ad_write(d, regoffs, val);
     DEB(printf("LEFT: dev %d reg %d old 0x%02x new 0x%02x\n",
 	dev, regoffs, old, val));
 
+    /*
+     * if volume is 0, mute chan. Otherwise, unmute.
+     */
+    if ( left == 0 ) {
+	mss_mixer_mutectl(d, mask, LEFT_CHN, OUTPUT_PATH, MUTE_ACTN);
+	mss_mixer_mutectl(d, mask, LEFT_CHN, INPUT_PATH, MUTE_ACTN);
+	d->mix_muted[LEFT_CHN] |= mask;
+    } else if ( mask & d->mix_muted[LEFT_CHN] ) { /* was the device muted? */
+	/* mic path to the output mixer must stay muted */
+	if ( dev != SOUND_MIXER_MIC )
+	    mss_mixer_mutectl(d, mask, LEFT_CHN, OUTPUT_PATH, UNMUTE_ACTN);
+	/* only current recording devices must be unmuted */
+	if ( mask & d->mix_recsrc )
+	    mss_mixer_mutectl(d, mask, LEFT_CHN, INPUT_PATH, UNMUTE_ACTN);
+	d->mix_muted[LEFT_CHN] &= ~mask;
+    }
     if ((*mix_d)[dev][RIGHT_CHN].nbits != 0) { /* have stereo */
 	/*
 	 * Set the right channel
 	 */
 	regoffs = (*mix_d)[dev][RIGHT_CHN].regno;
 	old = val = ad_read(d, regoffs);
-	if (regoffs != 1)
-	    val = (right == 0 ) ? old | 0x80 : old & 0x7f ;
+
 	change_bits(mix_d, &val, dev, RIGHT_CHN, right);
 	ad_write(d, regoffs, val);
 	DEB(printf("RIGHT: dev %d reg %d old 0x%02x new 0x%02x\n",
 	    dev, regoffs, old, val));
+	/* if volume is 0, mute chan. Otherwise, unmute. */
+	if ( right == 0 ) {
+	    mss_mixer_mutectl(d, mask, RIGHT_CHN, OUTPUT_PATH, MUTE_ACTN);
+	    mss_mixer_mutectl(d, mask, RIGHT_CHN, INPUT_PATH, MUTE_ACTN);
+	    d->mix_muted[RIGHT_CHN] |= mask;
+	} else if ( mask & d->mix_muted[RIGHT_CHN] ) {
+	    if ( dev != SOUND_MIXER_MIC )
+		mss_mixer_mutectl(d, mask, RIGHT_CHN, OUTPUT_PATH, UNMUTE_ACTN);
+	    if ( mask & d->mix_recsrc )
+		mss_mixer_mutectl(d, mask, RIGHT_CHN, INPUT_PATH, UNMUTE_ACTN);
+	    d->mix_muted[RIGHT_CHN] &= ~mask;
+	}
     }
     return 0; /* success */
 }
 
 static void
-ad1848_mixer_reset(snddev_info *d)
+mss_mixer_reset(snddev_info *d)
 {
     int             i;
 
-    if (d->bd_id == MD_OPTI931)
+    /* initialize the mixer devices for each chip type */
+    switch (d->bd_id) {
+    case MD_OPTI931:
 	d->mix_devs = OPTI931_MIXER_DEVICES;
-    else if (d->bd_id != MD_AD1848)
-	d->mix_devs = MODE2_MIXER_DEVICES;
-    else
+	d->mix_rec_devs = MSS_REC_DEVICES;
+	break ;
+    case MD_AD1848:
 	d->mix_devs = MODE1_MIXER_DEVICES;
-
     d->mix_rec_devs = MSS_REC_DEVICES;
+	break;
+    case MD_CS4236:
+    case MD_CS4237:
+	d->mix_devs = CS4236_MIXER_DEVICES;
+	d->mix_rec_devs = CS4236_REC_DEVICES;
+	break;
+    case MD_CS4235:
+	d->mix_devs = CS4235_MIXER_DEVICES;
+	d->mix_rec_devs = CS4235_REC_DEVICES;
+	break;
+    default:
+	d->mix_devs = MODE2_MIXER_DEVICES;
+	d->mix_rec_devs = MSS_REC_DEVICES;
+	break;
+    }
+
+    /*
+     * set volume level for each mixer device. First, mark all devices
+     * as "muted"; in this way, we force mss_mixer_set() to unmute them.
+     */
+    d->mix_muted[LEFT_CHN] = d->mix_muted[RIGHT_CHN] = d->mix_devs;
 
     for (i = 0; i < SOUND_MIXER_NRDEVICES; i++)
-	if (d->mix_devs & (1 << i))
+	if (d->mix_devs & (1L << i))
 	    mss_mixer_set(d, i, default_mixer_levels[i]);
-    mss_set_recsrc(d, SOUND_MASK_MIC);
+
+    /* select mic as initial recording source */
+    mss_mixer_recsrc(d, SOUND_MASK_MIC);
     /*
      * some device-specific things, mostly mute the mic to
      * the output mixer so as to avoid hisses. In many cases this
@@ -1008,6 +1186,30 @@ ad1848_mixer_reset(snddev_info *d)
 	/* this is only necessary in mode 3 ... */
 	ad_write(d, 22, 0x88);
 	ad_write(d, 23, 0x88);
+	break ;
+
+    case MD_CS4236:
+    case MD_CS4237:
+	/* enable stereo digital loopback (gain controlled by X10) */
+	ad_write(d, 10|0x40, ad_read(d, 10|0x40) | 0x80);
+	/* enable the high-pass filter */
+	ad_write(d, 17, ad_read(d, 17) | 0x01);
+	break ;
+
+    case MD_CS4235:
+	/* enable the high-pass filter */
+	ad_write(d, 17, ad_read(d, 17) | 0x01);
+#if 0
+	/* enable the 20dB boost on microphone */
+	ad_write(d, 0, ad_read(d, 0) | 0x20); /* this seems ineffective...*/
+	ad_write(d, 1, ad_read(d, 1) | 0x20); /* this seems ineffective...*/
+	ad_write(d, 0x40, ad_read(d, 0x40) | 0x20); /* left */
+	ad_write(d, 0x41, ad_read(d, 0x41) | 0x20); /* right */
+#endif
+	/* disable FM, input boost 0dB */
+	ad_write(d, 0x44, ad_read(d, 0x44) & 0x1f); /* left */
+	ad_write(d, 0x45, ad_read(d, 0x45) & 0x1f); /* right */
+	break ;
     }
 }
 
@@ -1071,6 +1273,8 @@ mss_format(snddev_info *d)
      * The code scans the array looking for a suitable format. In
      * case it is not found, default to AFMT_U8 (not such a good
      * choice, but let's do it for compatibility...).
+     * XXX On the 4235, ulaw is not supported as a native format
+     * so we need to set 8-bit and translate.
      */
 
     static int fmts[] = {
@@ -1081,8 +1285,12 @@ mss_format(snddev_info *d)
     if ( (arg & d->audio_fmt) == 0 ) /* unsupported fmt, default to AFMT_U8 */
 	arg = AFMT_U8 ;
 
-    /* ulaw/alaw seems broken on the opti931... */
-    if (d->bd_id == MD_OPTI931 || d->bd_id == MD_GUSPNP) {
+    /*
+     * ulaw/alaw seems broken on the opti931, the GUSPNP,
+     * and is not supported by the CS4235
+     */
+    if (d->bd_id == MD_OPTI931 || d->bd_id == MD_GUSPNP ||
+	d->bd_id == MD_CS4235) {
 	if (arg == AFMT_MU_LAW) {
 	    arg = AFMT_U8 ;
 	    d->flags |= SND_F_XLAT8 ;
@@ -1117,7 +1325,7 @@ mss_format(snddev_info *d)
 int
 mss_detect(struct isa_device *dev)
 {
-    int             i;
+    int i, id;
     u_char   tmp, tmp1, tmp2 ;
     snddev_info *d = &(pcm_info[dev->id_unit]);
     char *name;
@@ -1260,7 +1468,6 @@ mss_detect(struct isa_device *dev)
 	    tmp1 = ad_read(d, 25);	/* Original bits */
 	    ad_write(d, 25, ~tmp1);	/* Invert all bits */
 	    if ((ad_read(d, 25) & 0xe7) == (tmp1 & 0xe7)) {
-		int             id;
 
 		/*
 		 * It's at least CS4231
@@ -1327,10 +1534,16 @@ mss_detect(struct isa_device *dev)
 			d->bd_id = MD_YM0020 ;
 		    break;
 
-		case 0x83:	/* CS4236 */
-		case 0x03:      /* CS4236 on Intel PR440FX motherboard XXX */
-		    name = "CS4236";
-		    d->bd_id = MD_CS4236;
+		case 0x83:
+		case 0x03:
+		    /*
+		     * It must be a CS4236, CS4236B or a CS4235. In order to
+		     * determine the chip type, the extended register X25 must
+		     * be used. This register is only available in MODE 3.
+		     */
+		    name = "CS4236";    /* provisional */
+		    d->bd_id = MD_CS4236;       /* provisional */
+		    d->bd_flags |= BD_F_MODE3;  /* try MODE 3 (below) */
 		    break ;
 
 		default:	/* Assume CS4231 */
@@ -1339,7 +1552,36 @@ mss_detect(struct isa_device *dev)
 		}
 	    }
 	    ad_write(d, 25, tmp1);	/* Restore bits */
+	    /*
+	     * Now, try setting MODE 3 if the chip is a CS4232/6/6B/5. After
+	     * doing this, the X25 register can be used to discriminate
+	     * between these two chips.
+	     */
+	    if ( d->bd_flags & BD_F_MODE3 ) {
+		tmp = ad_read(d, 12);
+		ad_write(d, 12, tmp | 0x60);  /* try MODE 3 */
 
+		/*
+		 * write 0xaa and 0x55 patterns to X12 and X13, and then
+		 * read the contents of these registers; if they not match
+		 * we suppose that MODE 3 does not work.
+		 */
+		ad_write(d, 12|0x40, 0xaa);
+		ad_write(d, 13|0x40, 0x55);
+		if (ad_read(d,12|0x40) != 0xaa || ad_read(d,13|0x40) != 0x55) {
+		    DDB(printf("mss_detect(): cannot change to MODE 3\n"));
+		    ad_write(d, 12, tmp);
+		    d->bd_flags &= ~BD_F_MODE3;
+		} else {        /* MODE 3 seems to work */
+		    printf("-- mode3 ok!\n");
+		    /* Is a CS4236/6B or a CS4235? */
+		    if ( d->bd_id == MD_CS4236 &&
+				(ad_read(d, 25|0x40 ) & 0x1f) == 0x1d ) {
+			d->bd_id = MD_CS4235;
+			name = "CS4235";
+		    }
+		}
+	    }
 	}
     }
     BVDDB(printf("mss_detect() - Detected %s\n", name));
@@ -1349,6 +1591,62 @@ mss_detect(struct isa_device *dev)
     return 1;
 }
 
+/* 
+ * mss_init does the basic chip initialization
+ */ 
+static void
+mss_init(snddev_info *d)
+{
+    int tmp;
+
+    /*
+     * try to set MODE2/MODE3 and detect properly the exact chip type.
+     */
+    if ( FULL_DUPLEX(d) && d->bd_id != MD_OPTI931) {
+	/* Set MODE 2, and then try MODE 3 */
+	ad_write(d, 12, ad_read(d, 12) | 0x40); /* set MODE 2 */
+
+	/* try setting mode3 if the part is a CS4232/5/6/6B/7 */
+	if ( d->bd_flags & BD_F_MODE3 ) {
+	    int a, b;
+	    tmp = ad_read(d, 12);
+	    ad_write(d, 12, tmp | 0x60);  /* try MODE 3 */
+
+	    /*
+	     * write 0xaa and 0x55 patterns to X0 and X1, and then
+	     * read the contents of these registers; if they not match
+	     * we suppose that MODE 3 does not work.
+	     */
+	    ad_write(d, 0 |0x40, 0xaa); 
+	    ad_write(d, 1 |0x40, 0x55);
+	    a = ad_read(d, 0|0x40);
+	    b = ad_read(d, 1|0x40);
+	    printf(" MODE3 detect: a 0x%02x, b 0x%02x\n", a, b);
+	    if ( a != 0xaa || b != 0x55) {
+		DDB(printf("mss_init(): cannot change to MODE 3\n"));
+		ad_write(d, 12, tmp);
+		d->bd_flags &= ~BD_F_MODE3;
+	    } else { /* MODE 3 seems to work */
+		/*
+		 * the CS4236 and CS4235 share the same PnP id, so try to
+		 * discriminate using extended register X25
+		 */
+		tmp = ad_read(d, 25|0x40) ;
+		DEB(printf("-- 4236: X25 is 0x%02x\n", tmp);)
+		if ( ( tmp & 0x1f) == 0x1d ) {
+		    d->bd_id = MD_CS4235;
+		    strcpy(d->name, "CS4235");
+		} else
+		    if ( d->bd_id = MD_CS4236 )
+			strcpy(d->name, "CS4236");
+
+		DEB(printf("mss_init(): %s now in MODE 3\n", d->name));
+	    }
+	}
+    }
+
+    mss_reinit(d);
+}
 
 /*
  * mss_reinit resets registers of the codec
@@ -1367,9 +1665,10 @@ mss_reinit(snddev_info *d)
 
     /*
      * perhaps this is not the place to set mode2, should be done
-     * only once at attach time...
+     * only once at attach time... and certainly not if we are in mode3.
      */
-    if ( FULL_DUPLEX(d) && d->bd_id != MD_OPTI931)
+    if ( FULL_DUPLEX(d) && (d->bd_flags & BD_F_MODE3) == 0 &&
+		d->bd_id != MD_OPTI931)
 	/*
 	 * set mode2 bit for dual dma op. This bit is not implemented
 	 * on the OPTi931
@@ -1412,8 +1711,10 @@ mss_reinit(snddev_info *d)
     ad_write(d, 10, 2 /* int enable */) ;
     outb(io_Status(d), 0);	/* Clear interrupt status */
     /* the following seem required on the CS4232 */
+    if ( d->bd_id == MD_CS4232 ) {
     ad_write(d, 6, ad_read(d,6) & ~I6_MUTE);
     ad_write(d, 7, ad_read(d,7) & ~I6_MUTE);
+    }
 
     snd_set_blocksize(d); /* update blocksize if user did not force it */
 }
@@ -1552,26 +1853,28 @@ cs423x_attach(u_long csn, u_long vend_id, char *name,
 
 	case 0x3700630e:        /* CS4237 */
 	    tmp_d.bd_id = MD_CS4237 ;
+	    tmp_d.bd_flags |= BD_F_MODE3;
 	    break;
 
 	case 0x2500630e:	/* AOpen AW37, CS4235 */
-	    tmp_d.bd_id = MD_CS4237 ;
+	    tmp_d.bd_id = MD_CS4235 ;
+	    tmp_d.bd_flags |= BD_F_MODE3;
 	    break ;
 
 	case 0x3500630e:        /* CS4236B */
 	case 0x3600630e:        /* CS4236 */
 	    tmp_d.bd_id = MD_CS4236 ;
+	    tmp_d.bd_flags |= BD_F_MODE3;
 	    break;
 
-        default:
-		tmp_d.bd_id = MD_CS4232;	/* to short-circuit the
-						 * detect routine */
+        default: /* to short-circuit the detect routine */
+	    tmp_d.bd_id = MD_CS4232 ;
+	    tmp_d.bd_flags |= BD_F_MODE3;
 	    break;
 	}
 	snprintf(tmp_d.name, sizeof(tmp_d.name), "%s", name);
 	tmp_d.audio_fmt |= AFMT_FULLDUPLEX ;
     }
-
     write_pnp_parms( &d, ldn );
     enable_pnp_card();
 

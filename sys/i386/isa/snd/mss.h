@@ -1,11 +1,13 @@
 /*
  * file: mss.h
  *
- * (C) 1997 Luigi Rizzo (luigi@iet.unipi.it)
+ * (C) 1997-1999 Luigi Rizzo (luigi@iet.unipi.it)
+ * CS423x mixer and muting support (C) 1999 Jose M. Alcaide (jose@we.lc.ehu.es)
  *
  * This file contains information and macro definitions for
  * AD1848-compatible devices, used in the MSS/WSS compatible boards.
  *
+ * $FreeBSD$
  */
 
 /*
@@ -45,6 +47,7 @@ ahead.
 	 * DMA, set otherwise.
 	 */
 #define	IA_AMASK		0x1f	/* mask for indirect address */
+#define	IA_XRAE			0x08	/* extended reg. enable (I23) */
 
 #define io_Indexed_Data(d)      ((d)->io_base+1+4)
 	/*
@@ -83,6 +86,12 @@ ahead.
  * some differences among different products, mainly Crystal uses them
  * differently from OPTi.
  *
+ * Note, in the CS423x there is an additional set of register, called
+ * X?? which are accessible indirectly from the I registers with the
+ * usual address/data approach. They are necessary e.g. on the 4235
+ * and when using the card in MODE3 to control the input mixer and
+ * volume controls.
+ *
  */
 
 /*
@@ -104,6 +113,7 @@ ahead.
 #define	BD_F_MCE_BIT	0x0001
 #define	BD_F_IRQ_OK	0x0002
 #define	BD_F_TMR_RUN	0x0004
+#define	BD_F_MODE3	0x0008	/* MODE 3 support */
 
 /* AD1816 register macros */
 
@@ -200,9 +210,10 @@ ahead.
 /*
  * Table of mixer registers. There is a default table for the
  * AD1848/CS423x clones, and one for the OPTI931. As more MSS
- * clones come out, there ought to be more tables.
+ * clones come out, there ought to be more tables because all these
+ * cards are not really 100% clones and the audio paths change a lot.
  *
- * Fields in the table are : polarity, register, offset, bits
+ * Fields in the table are : register, polarity, offset, bits
  *
  * The channel numbering used by individual soundcards is not fixed.
  * Some cards have assigned different meanings for the AUX1, AUX2
@@ -215,7 +226,7 @@ ahead.
  *
  */
 
-mixer_ent mix_devices[32][2] = {
+mixer_tab mss_mixdev = {
 MIX_NONE(SOUND_MIXER_VOLUME),
 MIX_NONE(SOUND_MIXER_BASS),
 MIX_NONE(SOUND_MIXER_TREBLE),
@@ -235,6 +246,27 @@ MIX_NONE(SOUND_MIXER_LINE2),
 MIX_NONE(SOUND_MIXER_LINE3),
 };
 
+mute_tab mss_mutdev = {
+MUT_NONE(SOUND_MIXER_VOLUME),
+MUT_NONE(SOUND_MIXER_BASS),
+MUT_NONE(SOUND_MIXER_TREBLE),
+MUT_ENT(SOUND_MIXER_SYNTH,	2, 6, 1,  2, 7, 1,	3, 6, 1,  3, 7, 1),
+MUT_ENT(SOUND_MIXER_PCM,	0, 0, 0,  6, 7, 1,      0, 0, 0,  7, 7, 1),
+MUT_ENT(SOUND_MIXER_SPEAKER,	0, 0, 0, 26, 5, 1,	0, 0, 0,  0, 0, 0),
+MUT_ENT(SOUND_MIXER_LINE,	2, 6, 1,  2, 7, 1,	3, 6, 1,  3, 7, 1),
+MUT_NONE(SOUND_MIXER_MIC),
+MUT_ENT(SOUND_MIXER_CD,		4, 6, 1,  4, 7, 1,	5, 6, 1,  5, 7, 1),
+MUT_NONE(SOUND_MIXER_IMIX),
+MUT_NONE(SOUND_MIXER_ALTPCM),
+MUT_NONE(SOUND_MIXER_RECLEV),
+MUT_NONE(SOUND_MIXER_IGAIN),
+MUT_NONE(SOUND_MIXER_OGAIN),
+MUT_NONE(SOUND_MIXER_LINE1),
+MUT_NONE(SOUND_MIXER_LINE2),
+MUT_NONE(SOUND_MIXER_LINE3),
+};
+
+
 #define MODE2_MIXER_DEVICES	\
     (SOUND_MASK_SYNTH | SOUND_MASK_PCM    | SOUND_MASK_SPEAKER | \
      SOUND_MASK_LINE  | SOUND_MASK_MIC    | SOUND_MASK_CD      | \
@@ -246,10 +278,163 @@ MIX_NONE(SOUND_MIXER_LINE3),
 
 
 /*
+ * entries for the CS4236/CS4237
+ */
+
+mixer_tab cs4236_mixdev = {  
+MIX_NONE(SOUND_MIXER_VOLUME),
+MIX_NONE(SOUND_MIXER_BASS),  
+MIX_NONE(SOUND_MIXER_TREBLE),
+MIX_NONE(SOUND_MIXER_SYNTH),    
+MIX_ENT(SOUND_MIXER_PCM,	 6, 1, 0, 6,	 7, 1, 0, 6),
+MIX_ENT(SOUND_MIXER_SPEAKER,	26, 1, 6, 1,	69, 1, 7, 1),
+MIX_ENT(SOUND_MIXER_LINE,	 2, 1, 0, 5,	 3, 1, 0, 5),
+MIX_ENT(SOUND_MIXER_MIC,	66, 1, 0, 5,	67, 1, 0, 5),
+MIX_ENT(SOUND_MIXER_CD,		 4, 1, 0, 5,	 5, 1, 0, 5),
+MIX_ENT(SOUND_MIXER_IMIX,	13, 1, 2, 6,	74, 1, 0, 6),
+MIX_NONE(SOUND_MIXER_ALTPCM),
+MIX_NONE(SOUND_MIXER_RECLEV),
+MIX_ENT(SOUND_MIXER_IGAIN,	 0, 0, 0, 4,	 1, 0, 0, 4),
+MIX_NONE(SOUND_MIXER_OGAIN),
+MIX_NONE(SOUND_MIXER_LINE1),
+MIX_NONE(SOUND_MIXER_LINE2),
+MIX_NONE(SOUND_MIXER_LINE3),
+};
+
+mute_tab cs4236_mutdev = {
+MUT_NONE(SOUND_MIXER_VOLUME),
+MUT_NONE(SOUND_MIXER_BASS),
+MUT_NONE(SOUND_MIXER_TREBLE),
+MUT_NONE(SOUND_MIXER_SYNTH),
+MUT_ENT(SOUND_MIXER_PCM,	 0, 0, 0,   6, 7, 1,	 0, 0, 0,   7, 7, 1),
+MUT_NONE(SOUND_MIXER_SPEAKER),
+MUT_ENT(SOUND_MIXER_LINE,	 2, 6, 1,   2, 7, 1,	 3, 6, 1,   3, 7, 1),
+MUT_ENT(SOUND_MIXER_MIC,	66, 7, 1,  66, 6, 1,	67, 7, 1,  67, 6, 1),
+MUT_ENT(SOUND_MIXER_CD,		 4, 6, 1,   4, 7, 1,	 5, 6, 1,   5, 7, 1),
+MUT_ENT(SOUND_MIXER_IMIX,	 0, 0, 0,  13, 0, 1,	 0, 0, 0,  13, 0, 1),
+MUT_NONE(SOUND_MIXER_ALTPCM),
+MUT_NONE(SOUND_MIXER_RECLEV),
+MUT_NONE(SOUND_MIXER_IGAIN),
+MUT_NONE(SOUND_MIXER_OGAIN),
+MUT_NONE(SOUND_MIXER_LINE1),
+MUT_NONE(SOUND_MIXER_LINE2),
+MUT_NONE(SOUND_MIXER_LINE3),
+};
+
+#define CS4236_MIXER_DEVICES   \
+   (SOUND_MASK_PCM   | SOUND_MASK_SPEAKER | SOUND_MASK_LINE | \
+     SOUND_MASK_MIC   | SOUND_MASK_CD      | SOUND_MASK_IMIX | \
+     SOUND_MASK_IGAIN)
+
+#define CS4236_REC_DEVICES     \
+    (SOUND_MASK_LINE | SOUND_MASK_MIC | SOUND_MASK_CD)
+
+/*
+ * entries for the CS4235.
+ */
+
+mixer_tab cs4235_mixdev = {
+   /*
+    * master volume control on the output mixer. Controls the
+    * analog part, with a range of +6 .. -56dB in 2 dB steps.
+    * Pretty good resolution, even settings near 15% of the max
+    * give decent output.
+    */
+MIX_ENT(SOUND_MIXER_VOLUME,    27, 1, 0, 5,    29, 1, 0, 5),
+MIX_NONE(SOUND_MIXER_BASS),
+MIX_NONE(SOUND_MIXER_TREBLE),
+    /*
+     * DAC2 control, before the DAC. Controls the FM synth,
+     * wavetable, and CS4610 serial port. Because these features
+     * are not used by the PCM driver they probably ought to be
+     * set to MIX_NONE
+     */
+MIX_ENT(SOUND_MIXER_SYNTH,     18, 1, 0, 5,    19, 1, 0, 5),
+    /*
+     * control for the digital samples. This acts BEFORE the D/A
+     * and has a range of +0 .. -94.5dB in 1.5dB steps, which is
+     * definitely overkill. Setting it to 50 or below is likely
+     * to produce inaudible and very noisy output.
+     */
+MIX_ENT(SOUND_MIXER_PCM,        6, 1, 0, 6,     7, 1, 0, 6),
+MIX_NONE(SOUND_MIXER_SPEAKER),
+    /*
+     * line control. Make sure bit 5 in X18 is clear
+     */
+MIX_ENT(SOUND_MIXER_LINE,       2, 1, 0, 5,     3, 1, 0, 5),
+    /*
+     * mic gain, without the 20dB boost. Controlled by reg. X2.
+     * Total range is +22.5 .. -22.5dB, before the booster.
+     */
+MIX_ENT(SOUND_MIXER_MIC,       66, 1, 0, 5,    67, 1, 0, 5),
+    /*
+     * CD input (AUX2)
+     */
+MIX_ENT(SOUND_MIXER_CD,         4, 1, 0, 5,     5, 1, 0, 5),
+    /*
+     * feed input mixer into output mixer. Only one bit really,
+     * and it is ADC -> DAC1
+     */
+MIX_ENT(SOUND_MIXER_IMIX,      82, 0, 0, 1,     0, 0, 0, 0),
+MIX_NONE(SOUND_MIXER_ALTPCM),
+    /*
+     * input mixer attenuation. Two bit control +0 .. -18dB in
+     * 6dB steps.
+     */
+MIX_ENT(SOUND_MIXER_RECLEV ,   68, 1, 5, 2,    69, 1, 5, 2),
+    /*
+     * this is a single bit controlling the mic boost.
+     */
+MIX_ENT(SOUND_MIXER_IGAIN,     66, 0, 5, 1,    67, 0, 5, 1),   /* mic boost */
+MIX_NONE(SOUND_MIXER_OGAIN),
+MIX_NONE(SOUND_MIXER_LINE1),
+MIX_NONE(SOUND_MIXER_LINE2),
+MIX_NONE(SOUND_MIXER_LINE3),
+};
+
+/*
+ * this table describes how to mute devices on the input and output paths.
+ * Order is
+ *                             IN-L      OUT-L         IN-R      OUT-R
+ *                             <reg-off-bits>
+ *      
+ */
+mute_tab cs4235_mutdev = {
+    /* main mute control for output mixer. */
+MUT_ENT(SOUND_MIXER_VOLUME,     0, 0, 0,  27, 7, 1,     0, 0, 0,  29, 7, 1),
+MUT_NONE(SOUND_MIXER_BASS),
+MUT_NONE(SOUND_MIXER_TREBLE),
+MUT_ENT(SOUND_MIXER_SYNTH,     18, 6, 1,  18, 7, 1,    19, 6, 1,  19, 7, 1),
+MUT_ENT(SOUND_MIXER_PCM,       75, 7, 1,   6, 7, 1,    75, 6, 1,   7, 7, 1),
+MUT_NONE(SOUND_MIXER_SPEAKER),
+MUT_ENT(SOUND_MIXER_LINE,       2, 6, 1,   2, 7, 1,     3, 6, 1,   3, 7, 1),
+MUT_ENT(SOUND_MIXER_MIC,       66, 7, 1,  66, 6, 1,    67, 7, 1,  67, 6, 1),
+MUT_ENT(SOUND_MIXER_CD,		4, 6, 1,   4, 7, 1,     5, 6, 1,   5, 7, 1),
+MUT_NONE(SOUND_MIXER_IMIX),
+MUT_NONE(SOUND_MIXER_ALTPCM),
+MUT_NONE(SOUND_MIXER_RECLEV),
+MUT_NONE(SOUND_MIXER_IGAIN),
+MUT_NONE(SOUND_MIXER_OGAIN),
+MUT_NONE(SOUND_MIXER_LINE1),
+MUT_NONE(SOUND_MIXER_LINE2),
+MUT_NONE(SOUND_MIXER_LINE3),
+};
+
+#define CS4235_MIXER_DEVICES   \
+    (SOUND_MASK_VOLUME | SOUND_MASK_SYNTH | SOUND_MASK_PCM | \
+     SOUND_MASK_LINE   | SOUND_MASK_MIC   | SOUND_MASK_CD  | \
+     SOUND_MASK_IMIX   | SOUND_MASK_IGAIN)
+
+#define CS4235_REC_DEVICES     \
+    (SOUND_MASK_SYNTH | SOUND_MASK_PCM | SOUND_MASK_LINE | \
+       SOUND_MASK_MIC   | SOUND_MASK_CD)
+
+
+/*
  * entries for the opti931...
  */
 
-mixer_ent opti931_devices[32][2] = {	/* for the opti931 */
+mixer_tab opti931_mixdev = {   /* for the opti931 */
 MIX_ENT(SOUND_MIXER_VOLUME,	22, 1, 1, 5,	23, 1, 1, 5),
 MIX_NONE(SOUND_MIXER_BASS),
 MIX_NONE(SOUND_MIXER_TREBLE),
@@ -285,8 +470,8 @@ static u_short default_mixer_levels[SOUND_MIXER_NRDEVICES] = {
   0x5a5a,			/* Master Volume */
   0x3232,			/* Bass */
   0x3232,			/* Treble */
-  0x4b4b,			/* FM */
-  0x4040,			/* PCM */
+  0x0000,			/* FM */
+  0x5a5a,			/* PCM */
   0x4b4b,			/* PC Speaker */
   0x2020,			/* Ext Line */
   0x4040,			/* Mic */
@@ -294,7 +479,7 @@ static u_short default_mixer_levels[SOUND_MIXER_NRDEVICES] = {
   0x0000,			/* Recording monitor */
   0x4b4b,			/* SB PCM */
   0x4b4b,			/* Recording level */
-  0x2525,			/* Input gain */
+  0x6464,			/* Input gain */
   0x0000,			/* Output gain */
   /*  0x4040,			Line1 */
   0x0000,			/* Line1 */
