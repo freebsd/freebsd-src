@@ -686,22 +686,21 @@ vfs_domount(
 		if (error)
 			return (error);
 	}
+
 	/*
-	 * Do not allow NFS export by non-root users.
+	 * Do not allow NFS export or MNT_SUIDDIR by unprivileged users.
 	 */
-	if (fsflags & MNT_EXPORTED) {
+	if (fsflags & (MNT_EXPORTED | MNT_SUIDDIR)) {
 		error = suser(td);
 		if (error)
 			return (error);
 	}
 	/*
-	 * Silently enforce MNT_NOSUID, MNT_NODEV and MNT_USER
-	 * for unprivileged users and remove MNT_SUIDDIR.
+	 * Silently enforce MNT_NODEV, MNT_NOSUID and MNT_USER for
+	 * unprivileged users.
 	 */
-	if (suser(td)) {
-		fsflags &= ~MNT_SUIDDIR;
-		fsflags |= MNT_NOSUID | MNT_NODEV | MNT_USER;
-	}
+	if (suser(td) != 0)
+		fsflags |= MNT_NODEV | MNT_NOSUID | MNT_USER;
 	/*
 	 * Get vnode to be covered
 	 */
