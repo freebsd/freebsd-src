@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.16 1995/09/08 13:24:32 davidg Exp $
+ *	$Id: imgact_aout.c,v 1.17 1995/11/06 12:52:29 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -43,7 +43,9 @@
 
 #include <vm/vm.h>
 
-int
+static int	exec_aout_imgact __P((struct image_params *imgp));
+
+static int
 exec_aout_imgact(imgp)
 	struct image_params *imgp;
 {
@@ -207,4 +209,3 @@ exec_aout_imgact(imgp)
  */
 static const struct execsw aout_execsw = { exec_aout_imgact, "a.out" };
 TEXT_SET(execsw_set, aout_execsw);
-
