@@ -262,7 +262,7 @@ which is the default for all drive types), the form with a leading
 minus sign must explicitly be used.
 .Sh EXAMPLES
 A simple inquiry about the drive type:
-.Bd -literal
+.Bd -literal -offset indent
 $ fdcontrol /dev/fd0
 1.44M
 .Ed
@@ -275,19 +275,19 @@ as opposed to a
 .Em "device density" ,
 so it is independent from the actual subdevice being used for
 .Ar device .
-.Bd -literal
+.Bd -literal -offset indent
 $ fdcontrol -v /dev/fd0
 /dev/fd0: 1.44M drive (3.5" high-density)
-.\" " <- this one is for Emacs :)
+.Ed
 .Pp
-Inquiry about the density settings
-.Bd -literal
+Inquiry about the density settings:
+.Bd -literal -offset indent
 $ fdcontrol -F /dev/fd0
 18,512,0xff,0x1b,80,500,2,0x6c,1,0,+mfm
 .Ed
 .Pp
-The verbose flag makes this human readable
-.Bd -literal
+The verbose flag makes this human readable:
+.Bd -literal -offset indent
 /dev/fd0: 1440 KB media type
         Format:         18,512,0xff,0x1b,80,500,2,0x6c,1,0,+mfm
         Sector size:    512
@@ -313,14 +313,14 @@ capable of handling FM encoding at all.)
 # fdcontrol -s 16,128,0x80,0x2,40,300,,0x10,,,-mfm,+2step /dev/fd1.1
 .Ed
 .Pp
-It is still possible to hook up 8" drives to most modern floppy 
+It is still possible to hook up 8" drives to most modern floppy
 controllers, given the right cable magic.
-(On PC hardware, tell the bios that it is a 5.25" drive)
+(On PC hardware, tell the BIOS that it is a 5.25" drive.)
 The classical 128/26/2/77 format can be read with this entry
-.Bd -literal
+.Bd -literal -offset indent
 fdcontrol -s  26,128,0x80,0x2,77,500,2,0x10,,,-mfm /dev/fd0
 .Ed
-Sh SEE ALSO
+.Sh SEE ALSO
 .Xr fdc 4
 .Sh HISTORY
 The
