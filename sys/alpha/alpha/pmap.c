@@ -1174,8 +1174,8 @@ static int
 _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
 {
 
-	while (vm_page_sleep_busy(m, FALSE, "pmuwpt"))
-		;
+	while (vm_page_sleep_if_busy(m, FALSE, "pmuwpt"))
+		vm_page_lock_queues();
 
 	if (m->hold_count == 0) {
 		vm_offset_t pteva;
@@ -1199,8 +1199,10 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
 		if (m->pindex < NUSERLEV3MAPS) {
 			/* unhold the level 2 page table */
 			vm_page_t lev2pg;
-			lev2pg = pmap_page_lookup(pmap->pm_pteobj,
+			lev2pg = vm_page_lookup(pmap->pm_pteobj,
 						  NUSERLEV3MAPS + pmap_lev1_index(va));
+			while (vm_page_sleep_if_busy(lev2pg, FALSE, "pulook"))
+				vm_page_lock_queues();
 			vm_page_unhold(lev2pg);
 			if (lev2pg->hold_count == 0)
 				_pmap_unwire_pte_hold(pmap, va, lev2pg);
@@ -1257,7 +1259,9 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va, vm_page_t mpte)
 			(pmap->pm_ptphint->pindex == ptepindex)) {
 			mpte = pmap->pm_ptphint;
 		} else {
-			mpte = pmap_page_lookup(pmap->pm_pteobj, ptepindex);
+			while ((mpte = vm_page_lookup(pmap->pm_pteobj, ptepindex)) != NULL &&
+			       vm_page_sleep_if_busy(mpte, FALSE, "pulook"))
+				vm_page_lock_queues();
 			pmap->pm_ptphint = mpte;
 		}
 	}
@@ -2134,7 +2138,9 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 */
 	if (opa) {
 		int err;
+		vm_page_lock_queues();
 		err = pmap_remove_pte(pmap, pte, va);
+		vm_page_unlock_queues();
 		if (err)
 			panic("pmap_enter: pte vanished, va: 0x%lx", va);
 	}
@@ -2259,8 +2265,11 @@ retry:
 	 */
 	pte = vtopte(va);
 	if (*pte) {
-		if (mpte)
+		if (mpte != NULL) {
+			vm_page_lock_queues();
 			pmap_unwire_pte_hold(pmap, va, mpte);
+			vm_page_unlock_queues();
+		}
 		alpha_pal_imb();		/* XXX overkill? */
 		return 0;
 	}
