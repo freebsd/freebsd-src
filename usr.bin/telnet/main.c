@@ -81,10 +81,10 @@ usage()
 	fprintf(stderr, "Usage: %s %s%s%s%s\n",
 	    prompt,
 #ifdef	AUTHENTICATION
-	    "[-8] [-E] [-K] [-L] [-S tos] [-X atype] [-a] [-c] [-d] [-e char]",
-	    "\n\t[-k realm] [-l user] [-f/-F] [-n tracefile] ",
+	    "[-8] [-E] [-K] [-L] [-N] [-S tos] [-X atype] [-a] [-c] [-d]",
+	    "\n\t[-e char] [-k realm] [-l user] [-f/-F] [-n tracefile] ",
 #else
-	    "[-8] [-E] [-L] [-S tos] [-a] [-c] [-d] [-e char] [-l user]",
+	    "[-8] [-E] [-L] [-N] [-S tos] [-a] [-c] [-d] [-e char] [-l user]",
 	    "\n\t[-n tracefile] ",
 #endif
 #if defined(TN3270) && defined(unix)
