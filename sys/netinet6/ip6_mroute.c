@@ -971,7 +971,7 @@ ip6_mforward(ip6, ifp, m)
 	 * Don't forward a packet with Hop limit of zero or one,
 	 * or a packet destined to a local-only group.
 	 */
-	if (ip6->ip6_hlim <= 1 || IN6_IS_ADDR_MC_NODELOCAL(&ip6->ip6_dst) ||
+	if (ip6->ip6_hlim <= 1 || IN6_IS_ADDR_MC_INTFACELOCAL(&ip6->ip6_dst) ||
 	    IN6_IS_ADDR_MC_LINKLOCAL(&ip6->ip6_dst))
 		return (0);
 	ip6->ip6_hlim--;
@@ -1414,6 +1414,8 @@ ip6_mdq(m, ifp, rt)
 	 * members downstream on the interface.
 	 */
 	for (mifp = mif6table, mifi = 0; mifi < nummifs; mifp++, mifi++) {
+		u_int32_t dscopein, sscopein, dscopeout, sscopeout;
+
 		if (IF_ISSET(mifi, &rt->mf6c_ifset)) {
 			/*
 			 * check if the outgoing packet is going to break
@@ -1421,17 +1423,24 @@ ip6_mdq(m, ifp, rt)
 			 * XXX For packets through PIM register tunnel
 			 * interface, we believe a routing daemon.
 			 */
-			if ((mif6table[rt->mf6c_parent].m6_flags &
-			     MIFF_REGISTER) == 0 &&
-			    (mif6table[mifi].m6_flags & MIFF_REGISTER) == 0 &&
-			    (in6_addr2scopeid(ifp, &ip6->ip6_dst) !=
-			     in6_addr2scopeid(mif6table[mifi].m6_ifp,
-					      &ip6->ip6_dst) ||
-			     in6_addr2scopeid(ifp, &ip6->ip6_src) !=
-			     in6_addr2scopeid(mif6table[mifi].m6_ifp,
-					      &ip6->ip6_src))) {
-				ip6stat.ip6s_badscope++;
-				continue;
+			if (!(mif6table[rt->mf6c_parent].m6_flags &
+			      MIFF_REGISTER) &&
+			    !(mif6table[mifi].m6_flags & MIFF_REGISTER)) {
+				if (in6_addr2zoneid(mif6table[mifi].m6_ifp,
+						    &ip6->ip6_dst,
+						    &dscopeout) ||
+				    in6_addr2zoneid(mif6table[mifi].m6_ifp,
+						    &ip6->ip6_src,
+						    &sscopeout) ||
+				    in6_addr2zoneid(ifp, &ip6->ip6_dst,
+						    &dscopein) ||
+				    in6_addr2zoneid(ifp, &ip6->ip6_src,
+						    &sscopein) ||
+				    dscopein != dscopeout ||
+				    sscopein != sscopeout) {
+					ip6stat.ip6s_badscope++;
+					continue;
+				}
 			}
 
 			mifp->m6_pkt_out++;

@@ -2134,11 +2134,9 @@ ipsec6_encapsulate(m, sav)
 	ip6 = mtod(m, struct ip6_hdr *);
 	ovbcopy((caddr_t)ip6, (caddr_t)oip6, sizeof(struct ip6_hdr));
 
-	/* Fake link-local scope-class addresses */
-	if (IN6_IS_SCOPE_LINKLOCAL(&oip6->ip6_src))
-		oip6->ip6_src.s6_addr16[1] = 0;
-	if (IN6_IS_SCOPE_LINKLOCAL(&oip6->ip6_dst))
-		oip6->ip6_dst.s6_addr16[1] = 0;
+	/* XXX: Fake scoped addresses */
+	in6_clearscope(&oip6->ip6_src);
+	in6_clearscope(&oip6->ip6_dst);
 
 	/* construct new IPv6 header. see RFC 2401 5.1.2.2 */
 	/* ECN consideration. */
