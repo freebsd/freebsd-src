@@ -154,7 +154,6 @@
       &release.prev; security fix branch.  More information can be
       found in security advisory
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:10.ibcs2.asc">FreeBSD-SA-03:10</ulink>.</para>
-]]>
 
     <para>A programming error in the
       <application>sendmail</application> implementation of its
@@ -182,6 +181,7 @@
       branch and the &release.prev; security fix branch.  More details
       can be found in security advisory
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:13.sendmail.asc">FreeBSD-SA-03:13</ulink>.</para>
+]]>
 
   </sect1>
 
