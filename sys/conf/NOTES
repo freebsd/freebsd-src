@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.146 1995/02/19 14:07:28 jkh Exp $
+#	$Id: LINT,v 1.147 1995/02/23 17:19:53 bde Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -247,27 +247,44 @@ options		QUOTA			#enable disk quotas
 
 #
 # The SCSI subsystem consists of the `base' SCSI code, a number of
-# high-level SCSI device drivers, and the low-level host-adapter
+# high-level SCSI device `type' drivers, and the low-level host-adapter
 # device drivers.  The host adapters are listed in the ISA and PCI
 # device configuration sections below.
 #
-# Note that, unlike most similar systems, the FreeBSD SCSI system
-# does not wire a particular device unit number to any specific
-# SCSI bus unit number.  Rather, unit numbers are assigned in the
-# order that the devices are found on the SCSI bus.  (This means that
-# if you remove a disk drive, you may have to rewrite your /etc/fstab
-# file.)  It is expected that this will change for FreeBSD 2.1.
-#
+# Beginning with FreeBSD 2.1 you can wire down your SCSI devices so
+# that a given bus, target, and LUN always come on line as the same
+# device unit.  In earlier versions the unit numbers were assigned
+# in the order that the devices were probed on the SCSI bus.  This
+# means that if you removed a disk drive, you may have had to rewrite
+# your /etc/fstab file, and also that you had to be careful when adding
+# a new disk as it may have been probed earlier and moved your device
+# configuration around.
+
+# This old behavior is maintained as the default behavior.  The unit
+# assignment begins with the first non-wired down unit for a device
+# type.  For example, if you wire a disk as "sd3" then the first
+# non-wired disk will be assigned sd4.
+
+# The syntax for wiring down devices is:
+
+# disk sd0 at scbus0 target 0 unit 0
+# disk sd1 at scbus0 target 1
+# disk sd2 at scbus0 target 3
+# tape st1 at scbus0 target 6
+# device cd0 at scbus?
+
+# "units" (SCSI logical unit number) that are not specified are
+# treated as if specified as LUN 0.
+
+# All SCSI devices allocate as many units as are required.
+
+# The "unknown" device (uk? in pre-2.1) is now part of the base SCSI
+# configuration and doesn't have to be explicitly configured.
+
 controller	scbus0	#base SCSI code
 device		ch0	#SCSI media changers
 device		sd0	#SCSI disks
 device		st0	#SCSI tapes
-device		uk0			#unknown scsi devices
-
-#
-# The `cd' (SCSI read-only removable disk) driver is special in that
-# the code dynamically allocates more units as they are required, with
-# no limit (other than memory) to the number available.
 device		cd0	#SCSI CD-ROMs
 
 
