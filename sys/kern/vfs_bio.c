@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.181 1998/10/28 13:36:59 dg Exp $
+ * $Id: vfs_bio.c,v 1.182 1998/10/29 11:04:22 dg Exp $
  */
 
 /*
@@ -794,8 +794,11 @@ vfs_vmio_release(bp)
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
 		bp->b_pages[i] = NULL;
-		vm_page_unwire(m, (bp->b_flags & B_ASYNC) == 0 ? 0 : 1);
-
+		/*
+		 * In order to keep page LRU ordering consistent, put
+		 * everything on the inactive queue.
+		 */
+		vm_page_unwire(m, 0);
 		/*
 		 * We don't mess with busy pages, it is
 		 * the responsibility of the process that
@@ -805,43 +808,15 @@ vfs_vmio_release(bp)
 			continue;
 			
 		if (m->wire_count == 0) {
-
 			vm_page_flag_clear(m, PG_ZERO);
 			/*
-			 * If this is an async free -- we cannot place
-			 * pages onto the cache queue.  If it is an
-			 * async free, then we don't modify any queues.
-			 * This is probably in error (for perf reasons),
-			 * and we will eventually need to build
-			 * a more complete infrastructure to support I/O
-			 * rundown.
+			 * Might as well free the page if we can and it has
+			 * no valid data.
 			 */
-			if ((bp->b_flags & B_ASYNC) == 0) {
-
-			/*
-			 * In the case of sync buffer frees, we can do pretty much
-			 * anything to any of the memory queues.  Specifically,
-			 * the cache queue is okay to be modified.
-			 */
-				if (m->valid) {
-					if(m->dirty == 0)
-						vm_page_test_dirty(m);
-					/*
-					 * this keeps pressure off of the process memory
-					 */
-					if (m->dirty == 0 && m->hold_count == 0)
-						vm_page_cache(m);
-				} else if (m->hold_count == 0) {
-					vm_page_busy(m);
-					vm_page_protect(m, VM_PROT_NONE);
-					vm_page_free(m);
-				}
-			} else {
-				/*
-				 * If async, then at least we clear the
-				 * act_count.
-				 */
-				m->act_count = 0;
+			if ((bp->b_flags & B_ASYNC) == 0 && !m->valid && m->hold_count == 0) {
+				vm_page_busy(m);
+				vm_page_protect(m, VM_PROT_NONE);
+				vm_page_free(m);
 			}
 		}
 	}
