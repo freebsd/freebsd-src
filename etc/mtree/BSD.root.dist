@@ -10,6 +10,8 @@
     boot
         defaults
         ..
+    	modules
+    	..
     ..
 /set type=dir uname=root gname=wheel mode=0555
     dev             mode=0755
@@ -56,8 +58,6 @@
         ..
     ..
     mnt
-    ..
-    modules
     ..
     proc            mode=0555
     ..
