@@ -22,6 +22,219 @@
 # and especially those who have found the time to port IP Filter to new
 # platforms.
 #
+3.4.25	13/03/2002 - Released
+
+retain rule # in state information
+
+log the direction of a packet so ipmon gets it right rather than incorrectly
+deriving it from the rule flags
+
+add #ifdef for IPFILTER_LOGSIZE (put options IPFILTER_LOGSIZE=16384 in BSD
+kernel config files to increase that buffer size)
+
+recognise return-* rules differently to block in ipftest
+
+fix bug in ipmon output for solaris
+
+add regression testing for skip rules, logging and using head/group
+
+fix output of ipmon: was displaying large unsigned ints rather than -1
+when no rules matched.
+
+make logging code compile into ipftest and add -l command line option to
+dump binary log file (read with ipmon -f) when it finishes.
+
+protect rule # and group # from interference when checking accounting rules
+
+add regression testing for log output (text) from ipmon.
+
+document -b command line option for ipmon
+ 
+fix double-quick in Solaris startup script
+
+3.4.24	01/03/2002 - Released
+
+fix how files are installed on SunOS5
+
+fix some minor problems in SunOS5 ipfboot script
+
+by default, compile all OpenBSD tools in 3.0 for IPv6
+
+fix NULL-pointer dereference in NAT code
+
+make a better attempt at replacing the appropriate binaries on BSD systems
+
+always print IPv6 icmp-types as a number
+
+impose some rules about what "skip" can be used with
+
+fix parsing problems with "keep state" and "keep state-age"
+
+Try to read as much data as is in the log device in ipmon
+
+remove some redundant checks when searching for rdr/nat rules
+
+fix bug in handling of ACCT with FTP proxy
+
+increase array size for interface names, using LIFNAMSIZ
+
+include H.323 proxy from QNX
+
+3.4.23	16/01/2002 - Released
+
+Include patches to install IPFilter into OpenBSD 3.0, both for just kernel
+compiles and complete system builds.
+
+Fix bug in automatic flushing of state table which would cause it to hang
+in an infinite loop bug introduced in 3.4.20.
+
+Modify the sample proxy (samples/proxy.c) so that it ads a NAT mapping for
+the outgoing connection to make it look like it comes from the real source.
+
+Only support ICMPv6 with IPv6.
+
+Move ipnat.1 to ipnat.8
+
+Enhance ipmon to print textual ICMP[v6] types and subtypes where possible.
+
+Make it possible to do IPv6 regression testing with ipftest.
+
+Use kvm library for kmem access, rather than trying to do it manually with
+open/lseek/read.
+
+Fix diffs for ip_input.c on BSDOS so it doesn't crash with fastroute.
+
+Remove Berkeley advertising licence clause. Reference:
+ftp://ftp.cs.berkeley.edu/pub/4bsd/README.Impt.License.Change
+
+Add more regression tests: ICMPv6 neighbour discovery, ICMP time exceeded
+and fragmentation required.
+
+Fix ipfboot script on Solaris to deal with no nameservers or no route to
+them in a clean manner.
+
+Support per-rule set timeouts for non-TCP NAT and state
+
+Add netbios proxy
+
+Add ICMPv6 stateful checking, including handling multicast destination
+addresses for neighbour discovery.
+
+Fix problems with internals of ICMP messages for MTU discovery and
+unreachables not being correctly adjust on little endian boxes.
+
+Add "in-via" and "out-via" to filtering rules grammar.  It is now possible
+to bind a rule to both incoming and outgoing interfaces, in both forward
+and reverse directions (4 directions in total).  allows for asymetric flows
+through a firewall.
+
+Fix ipfstat and ipnat for working on crash dumps.
+
+Don't let USE_INET6 stay defined for SunOS4
+
+Count things we see for each interface on solaris.
+
+Include <netinet/icmp6.h> when compiling with USE_INET6 defined and
+also include a whole bunch of #define's to make sure the symbols expected
+can be used.
+
+Fix up fastroute on BSD systems.
+
+Make fastrouting work for IPv6 just a bit better.  doesn't split up big
+packets into fragments like the IPv4 one does.  You can now do a
+"to <if>:<ipv6_addr>"
+
+Remove some of the differences between user-space and kernel-space code
+that is internal to ipfilter.
+
+Call ipfr_slowtimer() after each packet is processed in ipftest to artificially
+create the illusion of passing time and include the expire functions in the
+code compiled for user-space.
+
+Fix issues with the IPSec proxy not working or leading to a system crash.
+
+Junk all processing of SPIs and special handling for ESP.
+
+Add "no-match" as a filter rule action (resets _LAST_ match)
+
+Add hack to workaround problems with Cassini interface cards on
+Solaris and VLANs
+
+Add some protocols to etc/protocols
+
+3.4.22	03/12/2001 - Released
+
+various openbsd changes
+
+sorting based on IP numbers for ipfstat top output
+
+fix various IPv6 code & compile problems
+
+modify ip_fil.c to be more netbsd friendly
+
+fix fastroute bug where it modified a packet post-sending
+
+fix get_unit() - don't understand why it was broken.
+
+add FI_IGNOREPKT and don't count so marked packets when doing stats or
+state/nat.
+
+extend the interface name saved to log output
+
+make proxies capable of extending the matching done on a packet with a
+particular nat session
+
+change interfaces inside NAT & state code to accomodate redesign to allow
+IPsec proxy to work.
+
+fix bug when free'ing loaded rules that results in a memory leak
+(only an issue with "ipf -rf -", not flush)
+
+make ipftest capable of loading > 1 file or rules, making it now possible
+to load both NAT & filter rules
+
+fix hex input for ipftest to allow interface name & direction to work
+
+show ipsec proxy details in ipnat output
+
+if OPT_HEX is set in opts, print a packet out as hex
+
+don't modify b_next or preseve it or preserve b_prev for solaris
+
+fix up kinstall scripts to install all the files everywhere they need to
+
+fix overflowing of bits in ip_off inside iptest
+
+make userauth and proxy in samples directory compile
+
+fix minimum size when doing a pullup for ESP & ICMPv6
+
+3.4.21	24/10/2001 - Released
+
+include ipsec proxy
+
+make state work for non-tcp/udp/icmp in a very simple way
+
+include diffs for ipv6 firewall on openbsd-2.9
+
+add compatibility filter wrapper for NetBSD-current
+
+fix command line option problems with ipfs
+
+if we fill the state table and a automated flush doesn't purge any
+expiring entries, remove all entries idle for more than half a day
+
+fix bug with sending resets/icmp errors where the pointer to the data
+section of the packet was not being set (BSD only)
+
+split out validating ftp commands and responses into different halves,
+one for each of server & client.
+
+do not compile in STATETOP support for specific architectures
+
+fix INSTALL.FreeBSD to no longer provide directions and properly direct
+people to the right file for the right version of FreeBSD.
+
 3.4.20	24/07/2001 - Released
 
 adjust NAT hashing to give a better spread across the table

@@ -4,7 +4,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  */
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_lfil.c,v 2.6.2.2 2001/07/18 14:57:09 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_lfil.c,v 2.6.2.4 2002/03/06 09:44:11 darrenr Exp $";
 #endif
 
 #if defined(KERNEL) && !defined(_KERNEL)
@@ -16,7 +16,6 @@ static const char rcsid[] = "@(#)$Id: ip_lfil.c,v 2.6.2.2 2001/07/18 14:57:09 da
 #include <sys/file.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
-#include <sys/uio.h>
 #include <sys/dir.h>
 #include <sys/socket.h>
 #ifndef	_KERNEL
@@ -42,8 +41,8 @@ static const char rcsid[] = "@(#)$Id: ip_lfil.c,v 2.6.2.2 2001/07/18 14:57:09 da
 #include "netinet/ip_compat.h"
 #include <netinet/tcpip.h>
 #include "netinet/ip_fil.h"
-#include "netinet/ip_proxy.h"
 #include "netinet/ip_nat.h"
+#include "netinet/ip_proxy.h"
 #include "netinet/ip_frag.h"
 #include "netinet/ip_state.h"
 #include "netinet/ip_auth.h"
