@@ -7,8 +7,8 @@ SRCS=	perlmain.c config.h
 NOSHARED= no
 LDFLAGS=-Wl,-E
 DYNALOADER= lib/auto/DynaLoader/DynaLoader.a
-DPADD=	${DYNALOADER} ${LIBPERL} ${LIBM} ${LIBCRYPT} ${LIBMD} ${LIBXPG4}
-LDADD=	${DYNALOADER} -lperl -lm -lcrypt -lmd -lxpg4
+DPADD=	${DYNALOADER} ${LIBPERL} ${LIBM} ${LIBCRYPT} ${LIBMD}
+LDADD=	${DYNALOADER} -lperl -lm -lcrypt -lmd
 LINKS=	${BINDIR}/${PROG} ${BINDIR}/perl5 \
 	${BINDIR}/${PROG} ${BINDIR}/perl5.00503
 
