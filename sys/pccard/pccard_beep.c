@@ -26,30 +26,30 @@ struct tone {
 
 
 static struct tone silent_beep[] = {
-	{NULL, NULL}
+	{0, 0}
 };
 
 static struct tone success_beep[] = {
-	{1200,   40}, {NULL, NULL}
+	{1200,   40}, {0, 0}
 };
 static struct tone failure_beep[] = {
-	{3200,   40}, {NULL, NULL}
+	{3200,   40}, {0, 0}
 };
 static struct tone insert_remove_beep[] = {
-	{1600,   20}, {NULL, NULL}
+	{1600,   20}, {0, 0}
 };
 
 static struct tone success_melody_beep[] = {
-	{1200,    7}, {1000,    7}, { 800,   15}, {NULL, NULL}
+	{1200,    7}, {1000,    7}, { 800,   15}, {0, 0}
 };
 static struct tone failure_melody_beep[] = {
-	{2000,    7}, {2400,    7}, {2800,   15}, {NULL, NULL}
+	{2000,    7}, {2400,    7}, {2800,   15}, {0, 0}
 };
 static struct tone insert_melody_beep[] = {
-	{1600,   10}, {1200,    5}, {NULL, NULL}
+	{1600,   10}, {1200,    5}, {0, 0}
 };
 static struct tone remove_melody_beep[] = {
-	{1200,   10}, {1600,    5}, {NULL, NULL}
+	{1200,   10}, {1600,    5}, {0, 0}
 };
 
 static struct tone *melody_table[MAX_TONE_MODE][MAX_STATE] = {
@@ -73,9 +73,9 @@ pccard_beep_sub(void *arg)
 	struct tone *melody;
 	melody = (struct tone *)arg;
 
-	if (melody->pitch != NULL) {
+	if (melody->pitch != 0) {
 		sysbeep(melody->pitch, melody->duration);
-		timeout(pccard_beep_sub, ++melody, melody->duration);
+		timeout(pccard_beep_sub, melody + 1, melody->duration);
 	} else 
 		allow_beep = BEEP_ON;
 }
@@ -86,10 +86,10 @@ pccard_beep_start(void *arg)
 	struct tone *melody;
 	melody = (struct tone *)arg;
 
-	if (allow_beep == BEEP_ON && melody->pitch != NULL) {
+	if (allow_beep == BEEP_ON && melody->pitch != 0) {
 		allow_beep = BEEP_OFF;
 		sysbeep(melody->pitch, melody->duration);
-		timeout(pccard_beep_sub, ++melody, melody->duration);
+		timeout(pccard_beep_sub, melody + 1, melody->duration);
 	}
 }
 
