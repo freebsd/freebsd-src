@@ -48,7 +48,7 @@ hostname_start()
 			return
 		fi
 	elif [ -n "`hostname -s`" ]; then
-			return
+		return
 	fi
 
 	hostname ${hostname}
