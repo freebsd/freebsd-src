@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fts.h>
 #include <grp.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <locale.h>
 #include <pwd.h>
@@ -80,12 +81,26 @@ __FBSDID("$FreeBSD$");
  */
 #define	STRBUF_SIZEOF(t)	(1 + CHAR_BIT * sizeof(t) / 3 + 1)
 
-static void	 display(FTSENT *, FTSENT *, int);
-static u_quad_t	 makenines(u_long);
+/*
+ * MAKENINES(n) turns n into (10**n)-1.  This is useful for converting a width
+ * into a number that wide in decimal.
+ * XXX: Overflows are not considered.
+ */
+#define MAKENINES(n)							\
+	do {								\
+		intmax_t i;						\
+									\
+		/* Use a loop as all values of n are small. */		\
+		for (i = 1; n > 0; i *= 10)				\
+			n--;						\
+		n = i - 1;						\
+	} while(0)
+
+static void	 display(const FTSENT *, FTSENT *, int);
 static int	 mastercmp(const FTSENT * const *, const FTSENT * const *);
 static void	 traverse(int, char **, int);
 
-static void (*printfcn)(DISPLAY *);
+static void (*printfcn)(const DISPLAY *);
 static int (*sortfcn)(const FTSENT *, const FTSENT *);
 
 long blocksize;			/* block size units */
@@ -114,7 +129,7 @@ static int f_singlecol;		/* use single column output */
        int f_slash;		/* similar to f_type, but only for dirs */
        int f_sortacross;	/* sort across rows, not down columns */ 
        int f_statustime;	/* use time of last mode change */
-       int f_stream;		/* stream the output, separate with commas */
+static int f_stream;		/* stream the output, separate with commas */
 static int f_timesort;		/* sort by time vice name */
        int f_type;		/* add type character for non-regular files */
 static int f_whiteout;		/* show whiteout entries */
@@ -473,10 +488,10 @@ traverse(int argc, char *argv[], int options)
 			 */
 			if (output) {
 				putchar('\n');
-				printname(p->fts_path);
+				(void)printname(p->fts_path);
 				puts(":");
 			} else if (argc > 1) {
-				printname(p->fts_path);
+				(void)printname(p->fts_path);
 				puts(":");
 				output = 1;
 			}
@@ -499,14 +514,15 @@ traverse(int argc, char *argv[], int options)
  * points to the parent directory of the display list.
  */
 static void
-display(FTSENT *p, FTSENT *list, int options)
+display(const FTSENT *p, FTSENT *list, int options)
 {
 	struct stat *sp;
 	DISPLAY d;
 	FTSENT *cur;
 	NAMES *np;
 	off_t maxsize;
-	u_long btotal, labelstrlen, maxblock, maxinode, maxlen, maxnlink;
+	long maxblock;
+	u_long btotal, labelstrlen, maxinode, maxlen, maxnlink;
 	u_long maxlabelstr;
 	int bcfile, maxflags;
 	gid_t maxgroup;
@@ -542,9 +558,10 @@ display(FTSENT *p, FTSENT *list, int options)
 		int ninitmax;
 
 		/* Fill-in "::" as "0:0:0" for the sake of scanf. */
-		jinitmax = initmax2 = malloc(strlen(initmax) * 2 + 2);
+		jinitmax = malloc(strlen(initmax) * 2 + 2);
 		if (jinitmax == NULL)
 			err(1, "malloc");
+		initmax2 = jinitmax;
 		if (*initmax == ':')
 			strcpy(initmax2, "0:"), initmax2 += 2;
 		else
@@ -563,7 +580,7 @@ display(FTSENT *p, FTSENT *list, int options)
 			strcpy(initmax2, "0");
 
 		ninitmax = sscanf(jinitmax,
-		    " %lu : %lu : %lu : %i : %i : %i : %llu : %lu : %lu ",
+		    " %lu : %ld : %lu : %u : %u : %i : %jd : %lu : %lu ",
 		    &maxinode, &maxblock, &maxnlink, &maxuser,
 		    &maxgroup, &maxflags, &maxsize, &maxlen, &maxlabelstr);
 		f_notabs = 1;
@@ -603,10 +620,10 @@ display(FTSENT *p, FTSENT *list, int options)
 		default:
 			break;
 		}
-		maxinode = makenines(maxinode);
-		maxblock = makenines(maxblock);
-		maxnlink = makenines(maxnlink);
-		maxsize = makenines(maxsize);
+		MAKENINES(maxinode);
+		MAKENINES(maxblock);
+		MAKENINES(maxnlink);
+		MAKENINES(maxsize);
 	}
 	bcfile = 0;
 	flags = NULL;
@@ -787,7 +804,7 @@ label_out:
 		d.s_inode = strlen(buf);
 		(void)snprintf(buf, sizeof(buf), "%lu", maxnlink);
 		d.s_nlink = strlen(buf);
-		(void)snprintf(buf, sizeof(buf), "%qu", maxsize);
+		(void)snprintf(buf, sizeof(buf), "%ju", maxsize);
 		d.s_size = strlen(buf);
 		d.s_user = maxuser;
 	}
@@ -828,23 +845,4 @@ mastercmp(const FTSENT * const *a, const FTSENT * const *b)
 			return (-1);
 	}
 	return (sortfcn(*a, *b));
-}
-
-/*
- * Makenines() returns (10**n)-1.  This is useful for converting a width
- * into a number that wide in decimal.
- */
-static u_quad_t
-makenines(u_long n)
-{
-	u_long i;
-	u_quad_t reg;
-
-	reg = 1;
-	/* Use a loop instead of pow(), since all values of n are small. */
-	for (i = 0; i < n; i++)
-		reg *= 10;
-	reg--;
-
-	return reg;
 }

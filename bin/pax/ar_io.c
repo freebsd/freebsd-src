@@ -69,8 +69,10 @@ __FBSDID("$FreeBSD$");
 #define EXT_MODE	O_RDONLY	/* open mode for list/extract */
 #define AR_MODE		(O_WRONLY | O_CREAT | O_TRUNC)	/* mode for archive */
 #define APP_MODE	O_RDWR		/* mode for append */
-#define STDO		"<STDOUT>"	/* pseudo name for stdout */
-#define STDN		"<STDIN>"	/* pseudo name for stdin */
+
+static char none[] = "<NONE>";		/* pseudo name for no file */
+static char stdo[] = "<STDOUT>";	/* pseudo name for stdout */
+static char stdn[] = "<STDIN>";		/* pseudo name for stdin */
 static int arfd = -1;			/* archive file descriptor */
 static int artyp = ISREG;		/* archive type: file/FIFO/tape */
 static int arvol = 1;			/* archive volume number */
@@ -82,7 +84,7 @@ static struct stat arsb;		/* stat of archive device at open */
 static int invld_rec;			/* tape has out of spec record size */
 static int wr_trail = 1;		/* trailer was rewritten in append */
 static int can_unlnk = 0;		/* do we unlink null archives?  */
-char *arcname;		  	/* printable name of archive */
+const char *arcname;		  	/* printable name of archive */
 const char *gzip_program;		/* name of gzip program */
 static pid_t zpid = -1;			/* pid of child process */
 
@@ -100,7 +102,7 @@ static void ar_start_gzip(int, const char *, int);
  */
 
 int
-ar_open(char *name)
+ar_open(const char *name)
 {
 	struct mtget mb;
 
@@ -119,7 +121,7 @@ ar_open(char *name)
 	case EXTRACT:
 		if (name == NULL) {
 			arfd = STDIN_FILENO;
-			arcname = STDN;
+			arcname = stdn;
 		} else if ((arfd = open(name, EXT_MODE, DMOD)) < 0)
 			syswarn(0, errno, "Failed open to read on %s", name);
 		if (arfd != -1 && gzip_program != NULL)
@@ -128,7 +130,7 @@ ar_open(char *name)
 	case ARCHIVE:
 		if (name == NULL) {
 			arfd = STDOUT_FILENO;
-			arcname = STDO;
+			arcname = stdo;
 		} else if ((arfd = open(name, AR_MODE, DMOD)) < 0)
 			syswarn(0, errno, "Failed open to write on %s", name);
 		else
@@ -139,7 +141,7 @@ ar_open(char *name)
 	case APPND:
 		if (name == NULL) {
 			arfd = STDOUT_FILENO;
-			arcname = STDO;
+			arcname = stdo;
 		} else if ((arfd = open(name, APP_MODE, DMOD)) < 0)
 			syswarn(0, errno, "Failed open to read/write on %s",
 				name);
@@ -148,7 +150,7 @@ ar_open(char *name)
 		/*
 		 * arfd not used in COPY mode
 		 */
-		arcname = "<NONE>";
+		arcname = none;
 		lstrval = 1;
 		return(0);
 	}
@@ -1131,7 +1133,7 @@ ar_next(void)
 	 * if i/o is on stdin or stdout, we cannot reopen it (we do not know
 	 * the name), the user will be forced to type it in.
 	 */
-	if (strcmp(arcname, STDO) && strcmp(arcname, STDN) && (artyp != ISREG)
+	if (strcmp(arcname, stdo) && strcmp(arcname, stdn) && (artyp != ISREG)
 	    && (artyp != ISPIPE)) {
 		if (artyp == ISTAPE) {
 			tty_prnt("%s ready for archive tape volume: %d\n",
@@ -1227,7 +1229,7 @@ ar_next(void)
 		 */
 		if (ar_open(buf) >= 0) {
 			if (freeit) {
-				(void)free(arcname);
+				(void)free((char *)(uintptr_t)arcname);
 				freeit = 0;
 			}
 			if ((arcname = strdup(buf)) == NULL) {
@@ -1251,10 +1253,10 @@ ar_next(void)
  * to keep the fd the same in the calling function (parent).
  */
 void
-ar_start_gzip(int fd, const char *gzip_program, int wr)
+ar_start_gzip(int fd, const char *gzip_prog, int wr)
 {
 	int fds[2];
-	char *gzip_flags;
+	const char *gzip_flags;
 
 	if (pipe(fds) < 0)
 		err(1, "could not pipe");
@@ -1282,7 +1284,7 @@ ar_start_gzip(int fd, const char *gzip_program, int wr)
 		}
 		close(fds[0]);
 		close(fds[1]);
-		if (execlp(gzip_program, gzip_program, gzip_flags,
+		if (execlp(gzip_prog, gzip_prog, gzip_flags,
 		    (char *)NULL) < 0)
 			err(1, "could not exec");
 		/* NOTREACHED */
