@@ -29,7 +29,6 @@
  * $FreeBSD$
  */
 
-#include "sc.h"
 #include "opt_syscons.h"
 
 #ifndef SC_NO_HISTORY
@@ -46,17 +45,27 @@
 
 #include <dev/syscons/syscons.h>
 
+/*
+ * XXX Placeholder.
+ * This calculations should be dynamically scaled by number of seperate sc
+ * devices.  A base value of 'extra_history_size' should be defined for
+ * each syscons unit, and added and subtracted from the dynamic
+ * 'extra_history_size' as units are added and removed.  This way, each time
+ * a new syscons unit goes online, extra_history_size is automatically bumped.
+ */
+#define	MAXSC	1
+
 #if !defined(SC_MAX_HISTORY_SIZE)
-#define SC_MAX_HISTORY_SIZE	(1000 * MAXCONS * NSC)
+#define SC_MAX_HISTORY_SIZE	(1000 * MAXCONS * MAXSC)
 #endif
 
 #if !defined(SC_HISTORY_SIZE)
 #define SC_HISTORY_SIZE		(ROW * 4)
 #endif
 
-#if (SC_HISTORY_SIZE * MAXCONS * NSC) > SC_MAX_HISTORY_SIZE
+#if (SC_HISTORY_SIZE * MAXCONS * MAXSC) > SC_MAX_HISTORY_SIZE
 #undef SC_MAX_HISTORY_SIZE
-#define SC_MAX_HISTORY_SIZE	(SC_HISTORY_SIZE * MAXCONS * NSC)
+#define SC_MAX_HISTORY_SIZE	(SC_HISTORY_SIZE * MAXCONS * MAXSC)
 #endif
 
 /* local variables */
