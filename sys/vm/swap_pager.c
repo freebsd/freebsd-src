@@ -2470,7 +2470,7 @@ swaponvp(td, vp, dev, nblks)
 	long blk;
 	swblk_t dvbase;
 	int error;
-	u_long aligned_nblks;
+	u_long aligned_nblks, mblocks;
 	off_t mediasize;
 
 	if (!swapdev_vp) {
@@ -2520,11 +2520,11 @@ swaponvp(td, vp, dev, nblks)
 	 * If we go beyond this, we get overflows in the radix
 	 * tree bitmap code.
 	 */
-	if (nblks > 0x40000000 / BLIST_META_RADIX / nswdev) {
-		printf("exceeded maximum of %d blocks per swap unit\n",
-			0x40000000 / BLIST_META_RADIX / nswdev);
-		(void) VOP_CLOSE(vp, FREAD | FWRITE, td->td_ucred, td);
-		return (ENXIO);
+	mblocks = 0x40000000 / BLIST_META_RADIX / nswdev;
+	if (nblks > mblocks) {
+		printf("WARNING: reducing size to maximum of %d blocks per swap unit\n",
+			mblocks);
+		nblks = mblocks;
 	}
 	/*
 	 * nblks is in DEV_BSIZE'd chunks, convert to PAGE_SIZE'd chunks.
