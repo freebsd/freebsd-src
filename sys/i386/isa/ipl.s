@@ -36,7 +36,7 @@
  *
  *	@(#)ipl.s
  *
- *	$Id: ipl.s,v 1.2 1997/07/23 18:41:25 smp Exp smp $
+ *	$Id: ipl.s,v 1.3 1997/07/30 22:46:49 smp Exp smp $
  */
 
 
@@ -120,7 +120,11 @@ doreti_exit:
 	movl	%eax,_cpl
 	decb	_intr_nesting_level
 	MEXITCOUNT
+#if 0
 	REL_MPLOCK
+#else
+	REL_ISRLOCK(-1)
+#endif
 	.globl	doreti_popl_es
 doreti_popl_es:
 	popl	%es
