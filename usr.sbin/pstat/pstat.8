@@ -54,9 +54,9 @@
 displays open file entry, swap space utilization,
 terminal state, and vnode data structures.
 .Pp
-If invoked as 
+If invoked as
 .Nm swapinfo
-the 
+the
 .Fl s
 option is implied, and only the
 .Fl k
@@ -71,8 +71,8 @@ Print sizes in kilobytes, regardless of the setting of the
 .Ev BLOCKSIZE
 environment variable.
 .It Fl T
-Print the number of used and free slots in the several system tables
-and is useful for checking to see how large system tables have become
+Print the number of used and free slots in several system tables.
+This is useful for checking to see how large system tables have become
 if the system is under heavy load.
 .It Fl f
 Print the open file table with these headings:
@@ -109,12 +109,12 @@ The file offset (see
 .Xr lseek 2 ) .
 .El
 .It Fl s
-Print information about swap space usage on all the 
+Print information about swap space usage on all the
 swap areas compiled into the kernel.
 The first column is the device name of the partition.  The next column is
-the total space available in the partition.  The 
+the total space available in the partition.  The
 .Ar Used
-column indicates the total blocks used so far;  the 
+column indicates the total blocks used so far;  the
 .Ar Available
 column indicates how much space is remaining on each partition.
 The
@@ -236,7 +236,7 @@ Print the active vnodes.  Each group of vnodes corresponding
 to a particular filesystem is preceded by a two line header.  The
 first line consists of the following:
 .Bd -ragged -offset indent
-.No *** MOUNT Em fstype from 
+.No *** MOUNT Em fstype from
 on
 .Em on fsflags
 .Ed
