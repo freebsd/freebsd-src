@@ -7,8 +7,8 @@ SUBDIR= adjkerntz badsect clri disklabel dmesg dset dump dumpfs dumplfs dumpon \
 	mount_cd9660 \
 	mount_fdesc mount_kernfs mount_lfs mount_nfs mount_null mount_portal \
 	mount_procfs mount_umap mount_union mountd newfs newlfs nfsd nfsiod \
-	nologin ping quotacheck reboot restore route savecore scsi shutdown \
-	slattach startslip swapon tunefs umount
+	nologin ping quotacheck rdisc reboot restore route savecore scsi \
+	shutdown slattach startslip swapon tunefs umount
 
 .if exists(${.CURDIR}/${MACHINE})
 SUBDIR+= ${MACHINE}
