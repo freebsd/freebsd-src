@@ -49,7 +49,7 @@
 #define	NWFSIOC_GETEINFO	_IOR('n',2,struct nw_entry_info)
 #define	NWFSIOC_GETNS		_IOR('n',3,int)
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #include <sys/vnode.h>
 #include <sys/mount.h>
@@ -78,6 +78,6 @@ int nwfs_ioctl(struct vop_ioctl_args *ap);
 int nwfs_doio(struct buf *bp, struct ucred *cr, struct proc *p);
 int nwfs_vinvalbuf(struct vnode *vp, int flags, struct ucred *cred, 
 	struct proc *p, int intrflg);
-#endif	/* KERNEL */
+#endif	/* _KERNEL */
 
 #endif /* _NWFS_H_ */

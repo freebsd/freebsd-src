@@ -1,10 +1,12 @@
 /*
  * This code is derived from code available from the STB bulletin board
+ *
+ * $FreeBSD$
  */
 
 /* $XFree86: mit/server/ddx/x386/common_hw/ICD2061Aalt.c,v 2.6 1994/04/15 05:10:30 dawes Exp $ */
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include "compiler.h"
 #else
 #define GCCUSESGAS

@@ -341,7 +341,7 @@ vmspace_resident_count(struct vmspace *vmspace)
 #define	VM_FAULT_HOLD 4			/* Hold the page */
 #define VM_FAULT_DIRTY 8		/* Dirty the page */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 boolean_t vm_map_check_protection __P((vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t));
 struct pmap;
 vm_map_t vm_map_create __P((struct pmap *, vm_offset_t, vm_offset_t));

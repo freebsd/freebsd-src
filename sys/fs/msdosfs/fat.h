@@ -83,7 +83,7 @@
 
 #define	MSDOSFSEOF(pmp, cn)	((((cn) | ~(pmp)->pm_fatmask) & CLUST_EOFS) == CLUST_EOFS)
 
-#ifdef KERNEL
+#ifdef _KERNEL
 /*
  * These are the values for the function argument to the function
  * fatentry().
@@ -105,4 +105,4 @@ int freeclusterchain __P((struct msdosfsmount *pmp, u_long startchain));
 int extendfile __P((struct denode *dep, u_long count, struct buf **bpp, u_long *ncp, int flags));
 void fc_purge __P((struct denode *dep, u_int frcn));
 
-#endif	/* KERNEL */
+#endif	/* _KERNEL */

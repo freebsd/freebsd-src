@@ -30,7 +30,7 @@
 
 #include <sys/types.h>
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #include <sys/systm.h>
 #else
 #include <string.h>
@@ -40,7 +40,7 @@
 
 static void MD5Transform __P((u_int32_t [4], const unsigned char [64]));
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #define memset(x,y,z)	bzero(x,z);
 #define memcpy(x,y,z)	bcopy(y, x, z)
 #endif

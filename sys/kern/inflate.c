@@ -14,13 +14,13 @@
 
 #include <sys/param.h>
 #include <sys/inflate.h>
-#ifdef KERNEL
+#ifdef _KERNEL
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #endif
 #include <sys/malloc.h>
 
-#ifdef KERNEL
+#ifdef _KERNEL
 static MALLOC_DEFINE(M_GZIP, "Gzip trees", "Gzip trees");
 #endif
 
@@ -30,11 +30,11 @@ static MALLOC_DEFINE(M_GZIP, "Gzip trees", "Gzip trees");
 #define	ulg u_long
 
 /* Stuff to make inflate() work */
-#ifdef KERNEL
+#ifdef _KERNEL
 #define memzero(dest,len)      bzero(dest,len)
 #endif
 #define NOMEMCPY
-#ifdef KERNEL
+#ifdef _KERNEL
 #define FPRINTF printf
 #else
 extern void putstr (char *);
@@ -49,7 +49,7 @@ extern void putstr (char *);
 
 static const int qflag = 0;
 
-#ifndef KERNEL /* want to use this file in kzip also */
+#ifndef _KERNEL /* want to use this file in kzip also */
 extern unsigned char *kzipmalloc (int);
 extern void kzipfree (void*);
 #define malloc(x, y, z) kzipmalloc((x))
@@ -447,7 +447,7 @@ huft_build(glbl, b, n, s, d, e, t, m)
 
 	/* Generate counts for each bit length */
 	el = n > 256 ? b[256] : BMAX;	/* set length of EOB code, if any */
-#ifdef KERNEL
+#ifdef _KERNEL
 	memzero((char *) c, sizeof(c));
 #else
 	for (i = 0; i < BMAX+1; i++)
@@ -1045,14 +1045,14 @@ inflate(glbl)
 	struct inflate *glbl;
 {
 	int             i;
-#ifdef KERNEL
+#ifdef _KERNEL
 	u_char		*p = NULL;
 
 	if (!glbl->gz_slide)
 		p = glbl->gz_slide = malloc(GZ_WSIZE, M_GZIP, M_WAITOK);
 #endif
 	if (!glbl->gz_slide)
-#ifdef KERNEL
+#ifdef _KERNEL
 		return(ENOMEM);
 #else
 		return 3; /* kzip expects 3 */
@@ -1067,7 +1067,7 @@ inflate(glbl)
 		huft_free(glbl, glbl->gz_fixed_tl);
 		glbl->gz_fixed_tl = (struct huft *) NULL;
 	}
-#ifdef KERNEL
+#ifdef _KERNEL
 	if (p == glbl->gz_slide) {
 		free(glbl->gz_slide, M_GZIP);
 		glbl->gz_slide = NULL;

@@ -23,6 +23,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef __PC98_PC98_PC98_MACHDEP_H__
@@ -40,7 +42,7 @@ int	scsi_da_bios_params __P((struct ccb_calc_geometry *));
 #define	PC98_SAVE_AREA(highreso_flag)	(0xa1000)
 #define	PC98_SAVE_AREA_ADDRESS		(0x10)
 
-#if defined(KERNEL) && !defined(LOCORE)
+#if defined(_KERNEL) && !defined(LOCORE)
 /* BIOS parameter block */
 extern unsigned char	pc98_system_parameter[]; /* in locore.c */
 #define	OFS_BOOT_boothowto		0x210
@@ -70,6 +72,6 @@ extern unsigned char	pc98_system_parameter[]; /* in locore.c */
 
 # define PC98_TYPE_CHECK(x)	((pc98_machine_type & (x)) == (x))
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* __PC98_PC98_PC98_MACHDEP_H__ */

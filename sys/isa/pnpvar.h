@@ -29,7 +29,7 @@
 #ifndef _ISA_PNPVAR_H_
 #define _ISA_PNPVAR_H_
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #if 0
 void    pnp_write(int d, u_char r); /* used by Luigi's sound driver */
@@ -55,6 +55,6 @@ u_char  pnp_read(int d); /* currently unused, but who knows... */
 char *pnp_eisaformat(u_int32_t id);
 void pnp_parse_resources(device_t dev, u_char *resources, int len);
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_ISA_PNPVAR_H_ */

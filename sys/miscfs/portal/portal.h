@@ -50,7 +50,7 @@ struct portal_cred {
 	gid_t		pcr_groups[NGROUPS];	/* From ucred */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 struct portalmount {
 	struct vnode	*pm_root;	/* Root node */
 	struct file	*pm_server;	/* Held reference to server socket */
@@ -68,4 +68,4 @@ struct portalnode {
 #define PORTAL_ROOTFILEID	2
 
 extern vop_t **portal_vnodeop_p;
-#endif /* KERNEL */
+#endif /* _KERNEL */

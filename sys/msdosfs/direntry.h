@@ -127,7 +127,7 @@ struct winentry {
 #define DD_YEAR_MASK		0xFE00	/* year - 1980 */
 #define DD_YEAR_SHIFT		9
 
-#ifdef KERNEL
+#ifdef _KERNEL
 struct dirent;
 void unix2dostime __P((struct timespec *tsp, u_int16_t *ddp, 
 	     u_int16_t *dtp, u_int8_t *dhp));
@@ -140,4 +140,4 @@ int win2unixfn __P((struct winentry *wep, struct dirent *dp, int chksum, int tab
 u_int8_t winChksum __P((u_int8_t *name));
 int winSlotCnt __P((const u_char *un, int unlen));
 int winLenFixup __P((const u_char *un, int unlen));
-#endif	/* KERNEL */
+#endif	/* _KERNEL */

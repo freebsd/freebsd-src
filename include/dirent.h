@@ -78,7 +78,7 @@ typedef struct _dirdesc {
 
 #endif /* _POSIX_SOURCE */
 
-#ifndef KERNEL
+#ifndef _KERNEL
 
 #include <sys/cdefs.h>
 
@@ -100,6 +100,6 @@ int readdir_r __P((DIR *, struct dirent *, struct dirent **));
 #endif /* not POSIX */
 __END_DECLS
 
-#endif /* !KERNEL */
+#endif /* !_KERNEL */
 
 #endif /* !_DIRENT_H_ */

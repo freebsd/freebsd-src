@@ -33,7 +33,12 @@
 #ident	"@(#)svc_auth.c	1.16	94/04/24 SMI"
 
 #if !defined(lint) && defined(SCCSIDS)
+#if 0
 static char sccsid[] = "@(#)svc_auth.c 1.26 89/02/07 Copyr 1984 Sun Micro";
+#else
+static const char rcsid[] =
+ "$FreeBSD$";
+#endif
 #endif
 
 /*
@@ -41,7 +46,7 @@ static char sccsid[] = "@(#)svc_auth.c 1.26 89/02/07 Copyr 1984 Sun Micro";
  *
  */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #include <sys/param.h>
 #include <rpc/types.h>
 #include <rpc/xdr.h>

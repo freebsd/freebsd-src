@@ -35,7 +35,7 @@
 
 #include <sys/param.h>
 #include <sys/gmon.h>
-#ifdef KERNEL
+#ifdef _KERNEL
 #ifndef GUPROF
 #include <sys/systm.h>
 #endif
@@ -74,7 +74,7 @@ _MCOUNT_DECL(frompc, selfpc)	/* _mcount; may be static, inline, etc */
 	register struct tostruct *top, *prevtop;
 	register struct gmonparam *p;
 	register long toindex;
-#ifdef KERNEL
+#ifdef _KERNEL
 	MCOUNT_DECL(s)
 #endif
 
@@ -87,14 +87,14 @@ _MCOUNT_DECL(frompc, selfpc)	/* _mcount; may be static, inline, etc */
 	if (p->state != GMON_PROF_ON)
 		return;
 #endif
-#ifdef KERNEL
+#ifdef _KERNEL
 	MCOUNT_ENTER(s);
 #else
 	p->state = GMON_PROF_BUSY;
 #endif
 	frompci = frompc - p->lowpc;
 
-#ifdef KERNEL
+#ifdef _KERNEL
 	/*
 	 * When we are called from an exception handler, frompci may be
 	 * for a user address.  Convert such frompci's to the index of
@@ -108,7 +108,7 @@ _MCOUNT_DECL(frompc, selfpc)	/* _mcount; may be static, inline, etc */
 		if (frompci >= p->textsize)
 		    goto done;
 	}
-#endif /* KERNEL */
+#endif
 
 #ifdef GUPROF
 	if (p->state == GMON_PROF_HIRES) {
@@ -140,7 +140,7 @@ _MCOUNT_DECL(frompc, selfpc)	/* _mcount; may be static, inline, etc */
 	}
 #endif /* GUPROF */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 	/*
 	 * When we are called from an exception handler, frompc is faked
 	 * to be for where the exception occurred.  We've just solidified
@@ -156,7 +156,7 @@ _MCOUNT_DECL(frompc, selfpc)	/* _mcount; may be static, inline, etc */
 		else
 			frompci = (uintfptr_t)btrap - p->lowpc;
 	}
-#endif /* KERNEL */
+#endif
 
 	/*
 	 * check that frompc is a reasonable pc value.
@@ -238,7 +238,7 @@ _MCOUNT_DECL(frompc, selfpc)	/* _mcount; may be static, inline, etc */
 
 	}
 done:
-#ifdef KERNEL
+#ifdef _KERNEL
 	MCOUNT_EXIT(s);
 #else
 	p->state = GMON_PROF_ON;
@@ -246,7 +246,7 @@ done:
 	return;
 overflow:
 	p->state = GMON_PROF_ERROR;
-#ifdef KERNEL
+#ifdef _KERNEL
 	MCOUNT_EXIT(s);
 #endif
 	return;
