@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.75 1998/07/28 17:35:09 bde Exp $
+ *	$Id: swtch.s,v 1.76 1999/03/18 04:22:23 jlemon Exp $
  */
 
 #include "npx.h"
@@ -316,12 +316,6 @@ _idle:
 	/* do NOT have lock, intrs disabled */
 	.globl	idle_loop
 idle_loop:
-
-#if defined(SWTCH_OPTIM_STATS)
-	incl	_tlb_flush_count
-#endif
-	movl	%cr3,%eax			/* ouch! */
-	movl	%eax,%cr3
 
 	cmpl	$0,_smp_active
 	jne	1f
