@@ -100,16 +100,23 @@ static volatile u_int	cpu_reset_proxy_active;
 static void	sf_buf_init(void *arg);
 SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL)
 
-/*
- * Expanded sf_freelist head. Really an SLIST_HEAD() in disguise, with the
- * sf_freelist head with the sf_lock mutex.
- */
-static struct {
-	SLIST_HEAD(, sf_buf) sf_head;
-	struct mtx sf_lock;
-} sf_freelist;
+LIST_HEAD(sf_head, sf_buf);
 
+/*
+ * A hash table of active sendfile(2) buffers
+ */
+static struct sf_head *sf_buf_active;
+static u_long sf_buf_hashmask;
+
+#define	SF_BUF_HASH(m)	(((m) - vm_page_array) & sf_buf_hashmask)
+
+static struct sf_head sf_buf_freelist;
 static u_int	sf_buf_alloc_want;
+
+/*
+ * A lock used to synchronize access to the hash table and free list
+ */
+static struct mtx sf_buf_lock;
 
 extern int	_ucodesel, _udatasel;
 
@@ -575,16 +582,17 @@ sf_buf_init(void *arg)
 	vm_offset_t sf_base;
 	int i;
 
-	mtx_init(&sf_freelist.sf_lock, "sf_bufs list lock", NULL, MTX_DEF);
-	SLIST_INIT(&sf_freelist.sf_head);
+	sf_buf_active = hashinit(nsfbufs, M_TEMP, &sf_buf_hashmask);
+	LIST_INIT(&sf_buf_freelist);
 	sf_base = kmem_alloc_nofault(kernel_map, nsfbufs * PAGE_SIZE);
 	sf_bufs = malloc(nsfbufs * sizeof(struct sf_buf), M_TEMP,
 	    M_NOWAIT | M_ZERO);
 	for (i = 0; i < nsfbufs; i++) {
 		sf_bufs[i].kva = sf_base + i * PAGE_SIZE;
-		SLIST_INSERT_HEAD(&sf_freelist.sf_head, &sf_bufs[i], free_list);
+		LIST_INSERT_HEAD(&sf_buf_freelist, &sf_bufs[i], list_entry);
 	}
 	sf_buf_alloc_want = 0;
+	mtx_init(&sf_buf_lock, "sf_buf", NULL, MTX_DEF);
 }
 
 /*
@@ -593,13 +601,21 @@ sf_buf_init(void *arg)
 struct sf_buf *
 sf_buf_alloc(struct vm_page *m)
 {
+	struct sf_head *hash_list;
 	struct sf_buf *sf;
 	int error;
 
-	mtx_lock(&sf_freelist.sf_lock);
-	while ((sf = SLIST_FIRST(&sf_freelist.sf_head)) == NULL) {
+	hash_list = &sf_buf_active[SF_BUF_HASH(m)];
+	mtx_lock(&sf_buf_lock);
+	LIST_FOREACH(sf, hash_list, list_entry) {
+		if (sf->m == m) {
+			sf->ref_count++;
+			goto done;
+		}
+	}
+	while ((sf = LIST_FIRST(&sf_buf_freelist)) == NULL) {
 		sf_buf_alloc_want++;
-		error = msleep(&sf_freelist, &sf_freelist.sf_lock, PVM|PCATCH,
+		error = msleep(&sf_buf_freelist, &sf_buf_lock, PVM|PCATCH,
 		    "sfbufa", 0);
 		sf_buf_alloc_want--;
 
@@ -607,14 +623,15 @@ sf_buf_alloc(struct vm_page *m)
 		 * If we got a signal, don't risk going back to sleep. 
 		 */
 		if (error)
-			break;
+			goto done;
 	}
-	if (sf != NULL) {
-		SLIST_REMOVE_HEAD(&sf_freelist.sf_head, free_list);
-		sf->m = m;
-		pmap_qenter(sf->kva, &sf->m, 1);
-	}
-	mtx_unlock(&sf_freelist.sf_lock);
+	LIST_REMOVE(sf, list_entry);
+	LIST_INSERT_HEAD(hash_list, sf, list_entry);
+	sf->ref_count = 1;
+	sf->m = m;
+	pmap_qenter(sf->kva, &sf->m, 1);
+done:
+	mtx_unlock(&sf_buf_lock);
 	return (sf);
 }
 
@@ -628,8 +645,19 @@ sf_buf_free(void *addr, void *args)
 	struct vm_page *m;
 
 	sf = args;
-	pmap_qremove((vm_offset_t)addr, 1);
+	mtx_lock(&sf_buf_lock);
 	m = sf->m;
+	sf->ref_count--;
+	if (sf->ref_count == 0) {
+		pmap_qremove((vm_offset_t)addr, 1);
+		sf->m = NULL;
+		LIST_REMOVE(sf, list_entry);
+		LIST_INSERT_HEAD(&sf_buf_freelist, sf, list_entry);
+		if (sf_buf_alloc_want > 0)
+			wakeup_one(&sf_buf_freelist);
+	}
+	mtx_unlock(&sf_buf_lock);
+
 	vm_page_lock_queues();
 	vm_page_unwire(m, 0);
 	/*
@@ -640,12 +668,6 @@ sf_buf_free(void *addr, void *args)
 	if (m->wire_count == 0 && m->object == NULL)
 		vm_page_free(m);
 	vm_page_unlock_queues();
-	sf->m = NULL;
-	mtx_lock(&sf_freelist.sf_lock);
-	SLIST_INSERT_HEAD(&sf_freelist.sf_head, sf, free_list);
-	if (sf_buf_alloc_want > 0)
-		wakeup_one(&sf_freelist);
-	mtx_unlock(&sf_freelist.sf_lock);
 }
 
 /*
