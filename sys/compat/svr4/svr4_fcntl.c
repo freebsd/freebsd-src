@@ -295,7 +295,7 @@ fd_truncate(td, fd, flp)
 	/*
 	 * We only support truncating the file.
 	 */
-	if ((error = fgetvp(td, uap->fd, &vp)) != 0)
+	if ((error = fgetvp(td, fd, &vp)) != 0)
 		return (error);
 
 	if (vp->v_type == VFIFO) {
