@@ -460,7 +460,7 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 	else if (chain->fw_tcpf == IP_FW_TCPF_SYN &&
 	    chain->fw_tcpnf == IP_FW_TCPF_ACK)
 		printf(" setup");
-	else if (chain->fw_ipflg & IP_FW_IF_TCPOPT) {
+	else if (chain->fw_ipflg & IP_FW_IF_TCPFLG) {
 		int 	_flg_printed = 0;
 #define PRINTFLG(x)	{if (_flg_printed) printf(",");\
 			printf(x); _flg_printed = 1;}
