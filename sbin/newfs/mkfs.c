@@ -178,20 +178,24 @@ mkfs(struct partition *pp, char *fsys, int fi, int fo)
 		exit(17);
 	}
 	if (sblock.fs_fsize < sectorsize) {
-		printf("fragment size %d is too small, minimum is %d\n",
+		printf("increasing fragment size from %d to sectorsize (%d)\n",
 		    sblock.fs_fsize, sectorsize);
-		exit(18);
+		sblock.fs_fsize = sectorsize;
 	}
 	if (sblock.fs_bsize < MINBSIZE) {
-		printf("block size %d is too small, minimum is %d\n",
+		printf("increasing block size from %d to minimum (%d)\n",
 		    sblock.fs_bsize, MINBSIZE);
-		exit(19);
+		sblock.fs_bsize = MINBSIZE;
 	}
 	if (sblock.fs_bsize < sblock.fs_fsize) {
-		printf(
-		"block size (%d) cannot be smaller than fragment size (%d)\n",
+		printf("increasing block size from %d to fragsize (%d)\n",
 		    sblock.fs_bsize, sblock.fs_fsize);
-		exit(20);
+		sblock.fs_bsize = sblock.fs_fsize;
+	}
+	if (sblock.fs_fsize * MAXFRAG < sblock.fs_bsize) {
+		printf("increasing fragsize from %d to block size / %d (%d)\n",
+		    sblock.fs_fsize, MAXFRAG, sblock.fs_bsize / MAXFRAG);
+		sblock.fs_fsize = sblock.fs_bsize / MAXFRAG;
 	}
 	sblock.fs_bmask = ~(sblock.fs_bsize - 1);
 	sblock.fs_fmask = ~(sblock.fs_fsize - 1);
@@ -202,9 +206,7 @@ mkfs(struct partition *pp, char *fsys, int fi, int fo)
 	sblock.fs_frag = numfrags(&sblock, sblock.fs_bsize);
 	sblock.fs_fragshift = ilog2(sblock.fs_frag);
 	if (sblock.fs_frag > MAXFRAG) {
-		printf(
-	"fragment size %d is too small, minimum with block size %d is %d\n",
-		    sblock.fs_fsize, sblock.fs_bsize,
+		printf( "SYSERR: fragsize too small %d (block/frag ratio)\n",
 		    sblock.fs_bsize / MAXFRAG);
 		exit(21);
 	}
@@ -975,7 +977,7 @@ static char wc[WCSIZE];		/* bytes */
 /*
  * Flush dirty write behind buffer.
  */
-void
+static void
 wtfsflush()
 {
 	int n;
@@ -996,7 +998,7 @@ wtfsflush()
 /*
  * write a block to the file system
  */
-void
+static void
 wtfs(daddr_t bno, int size, char *bf)
 {
 	int done, n;
@@ -1037,7 +1039,7 @@ wtfs(daddr_t bno, int size, char *bf)
 /*
  * check if a block is available
  */
-int
+static int
 isblock(struct fs *fs, unsigned char *cp, int h)
 {
 	unsigned char mask;
@@ -1063,7 +1065,7 @@ isblock(struct fs *fs, unsigned char *cp, int h)
 /*
  * take a block out of the map
  */
-void
+static void
 clrblock(struct fs *fs, unsigned char *cp, int h)
 {
 	switch ((fs)->fs_frag) {
@@ -1088,7 +1090,7 @@ clrblock(struct fs *fs, unsigned char *cp, int h)
 /*
  * put a block into the map
  */
-void
+static void
 setblock(struct fs *fs, unsigned char *cp, int h)
 {
 	switch (fs->fs_frag) {
