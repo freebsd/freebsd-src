@@ -197,7 +197,9 @@ jumbo_pg_alloc(void)
 	entry = SLIST_FIRST(&jumbo_kmap_free);
 	if (entry != NULL){
 		pindex = atop(entry->kva - jumbo_basekva);
+		VM_OBJECT_LOCK(jumbo_vm_object);
 		pg = vm_page_alloc(jumbo_vm_object, pindex, VM_ALLOC_INTERRUPT);
+		VM_OBJECT_UNLOCK(jumbo_vm_object);
 		if (pg != NULL) {
 			SLIST_REMOVE_HEAD(&jumbo_kmap_free, entries);
 			SLIST_INSERT_HEAD(&jumbo_kmap_inuse, entry, entries);
