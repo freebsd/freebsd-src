@@ -1,6 +1,4 @@
 /*	$NetBSD: natm.c,v 1.5 1996/11/09 03:26:26 chuck Exp $	*/
-/* $FreeBSD$ */
-
 /*
  *
  * Copyright (c) 1996 Charles D. Cranor and Washington University.
@@ -36,6 +34,9 @@
 /*
  * natm.c: native mode ATM access (both aal0 and aal5).
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/conf.h>
