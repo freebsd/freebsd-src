@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ibcs2_misc.c,v 1.2 1995/02/20 23:52:37 davidg Exp $
+ *	$Id: ibcs2_misc.c,v 1.3 1995/03/03 15:44:44 nate Exp $
  */
 
 #include <i386/ibcs2/ibcs2.h>
@@ -411,16 +411,16 @@ ibcs2_pathconf(struct proc *p, struct ibcs2_pathconf_args *args, int *retval)
 	      		break;
 	    	case 6:	/* _PC_CHOWN_RESTRICTED */
 #ifdef _POSIX_CHOWN_RESTRICTED
-	      		*retval = _POSIX_CHOWN_RESTRICTED;
+			*retval = (1);
 #else
-			*retval = (0);
+			*retval = (-1);
 #endif
 	      		break;
 	    	case 7:	/* _PC_NO_TRUNC */
 #ifdef _POSIX_NO_TRUNC
-	      		*retval = _POSIX_NO_TRUNC;
-#else
 			*retval = (1);
+#else
+			*retval = (-1);
 #endif
 	      		break;
 		default:
