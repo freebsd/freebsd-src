@@ -34,7 +34,7 @@ The
 .Fn bread
 and
 .Fn bwrite
-functions provide a block read and write api for
+functions provide a block read and write API for
 .Xr libufs 3
 consumers.
 They operate on a userland UFS disk structure, and perform the read
@@ -46,7 +46,7 @@ The
 .Fn bread
 and
 .Fn bwrite
-functions return the amount written, or -1 in case of any error,
+functions return the amount read or written, or -1 in case of any error,
 including short read.
 .Sh ERRORS
 The function
@@ -54,7 +54,7 @@ The function
 may fail and set
 .Va errno
 for any of the errors specified for the library functions
-.Xr ufs_disk_write
+.Xr ufs_disk_write 3
 or
 .Xr pread 2 .
 Additionally, it may follow the
