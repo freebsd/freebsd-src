@@ -174,7 +174,8 @@ pow_P(x, y) double x, y;
 #endif
 {
 	struct Double s, t, __log__D();
-	double  __exp__D(), huge = 1e300, tiny = 1e-300;
+	double  __exp__D();
+	volatile double huge = 1e300, tiny = 1e-300;
 
 	if (x == zero)
 		if (y > zero)
