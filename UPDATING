@@ -14,7 +14,7 @@ earlier version of FreeBSD, you are on your own to get to November 18,
 	kbdcontrol, vidcontrol, and screen savers also need recompilation.
 	The instruction can be found in
 
-		http://www.freebsd.org/~yokota/sc_update.txt</a>
+		http://www.freebsd.org/~yokota/sc_update.txt
 
 	It has notes on splash screen too.
 
@@ -22,7 +22,7 @@ earlier version of FreeBSD, you are on your own to get to November 18,
 	Robert Nordier was kind enough to make this page to enable people to
 	install the new bootblocks:
 
-		http://www.freebsd.org/~rnordier/boot.txt</a>
+		http://www.freebsd.org/~rnordier/boot.txt
 
 	When updating to ELF, make sure that you have updated your
 	/etc/rc files which have different ldconfig invocations for
@@ -35,7 +35,7 @@ earlier version of FreeBSD, you are on your own to get to November 18,
 19990104:
 	Information about ELF day (see 19981230) can be found in
 
-		http://www.freebsd.org/~peter/elfday.html</a>
+		http://www.freebsd.org/~peter/elfday.html
 
 	about the upcoming change, its motivations and instructions
 	for doing the upgrade.
@@ -79,4 +79,4 @@ earlier version of FreeBSD, you are on your own to get to November 18,
 	to silence warnings from authentication programs (login, etc).
 	See src/etc/pam.conf for a sample.
 
-$Id: UPDATING,v 1.11 1999/01/12 20:11:29 imp Exp $
+$Id: UPDATING,v 1.12 1999/01/14 05:59:52 imp Exp $
