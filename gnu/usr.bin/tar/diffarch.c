@@ -442,7 +442,8 @@ compare_chunk (bytes, buffer)
 	}
       else
 	{
-	  fprintf (msg_file, "%s: could only read %d of %d bytes\n", current_file_name, err, bytes);
+	  fprintf (msg_file, "%s: could only read %d of %ld bytes\n",
+		   current_file_name, err, bytes);
 	}
       different++;
       return -1;
@@ -619,7 +620,7 @@ diff_sparse_files (filesize)
 	      if (err < 0)
 		msg_perror ("can't read %s", current_file_name);
 	      else
-		fprintf (msg_file, "%s: could only read %d of %d bytes\n",
+		fprintf (msg_file, "%s: could only read %d of %ld bytes\n",
 			 current_file_name, err, numbytes);
 	      break;
 	    }
@@ -638,7 +639,7 @@ diff_sparse_files (filesize)
 	  if (err < 0)
 	    msg_perror ("can't read %s", current_file_name);
 	  else
-	    fprintf (msg_file, "%s: could only read %d of %d bytes\n",
+	    fprintf (msg_file, "%s: could only read %d of %ld bytes\n",
 		     current_file_name, err, numbytes);
 	  break;
 	}

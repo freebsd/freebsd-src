@@ -411,7 +411,7 @@ prline(beg, lim, sep)
       lastnl = lim;
     }
   if (out_byte)
-    printf("%lu%c", totalcc + (beg - bufbeg), sep);
+    printf("%lu%c", (unsigned long)(totalcc + (beg - bufbeg)), sep);
   fwrite(beg, 1, lim - beg, stdout);
   if (ferror(stdout))
     error("writing output", errno);

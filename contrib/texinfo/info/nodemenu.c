@@ -98,7 +98,7 @@ format_node_info (node)
   }
 
   len = pad_to (44, line_buffer);
-  sprintf (line_buffer + len, "%d", node->nodelen);
+  sprintf (line_buffer + len, "%ld", node->nodelen);
 
   if (node->filename && *(node->filename))
     {

@@ -173,7 +173,7 @@ write_dir_file ()
       msg_perror ("Can't write to %s", gnu_dumpfile);
       return;
     }
-  fprintf (fp, "%lu\n", this_time);
+  fprintf (fp, "%lu\n", (unsigned long) this_time);
   for (dp = dir_list; dp; dp = dp->next)
     {
       if (!dp->dir_text)
