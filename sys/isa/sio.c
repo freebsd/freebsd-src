@@ -559,6 +559,7 @@ static struct isa_pnp_id sio_ids[] = {
 	{0x0034490a, NULL},	/* BRI3400 - Internal ACF Modem */
 	{0x00b4490a, NULL},	/* BRIB400 - Boca 56k PnP */
 	{0x0030320d, NULL},	/* CIR3000 - Cirrus Logic V43 */
+	{0x0100440e, NULL},	/* CRD0001 - Cardinal MVP288IV ? */
 	{0x1200c31e, NULL},	/* GVC0012 - VF1128HV-R9 (win modem?) */
 	{0x0303c31e, NULL},	/* GVC0303 - MaxTech 33.6 PnP D/F/V */
 	{0x0505c31e, NULL},	/* GVC0505 - GVC 56k Faxmodem */
@@ -574,6 +575,7 @@ static struct isa_pnp_id sio_ids[] = {
 	{0x1000eb49, NULL},	/* ROK0010 - Rockwell ? */
 	{0x5002734a, NULL},	/* RSS0250 - 5614Jx3(G) Internal Modem */
 	{0xc100ad4d, NULL},	/* SMM00C1 - Leopard 56k PnP */
+	{0x9012b04e, NULL},	/* SUP1290 - Supra ? */
 	{0x1013b04e, NULL},	/* SUP1310 - SupraExpress 336i PnP */
 	{0x8013b04e, NULL},	/* SUP1380 - SupraExpress 288i PnP Voice */
 	{0x8113b04e, NULL},	/* SUP1381 - SupraExpress 336i PnP Voice */
@@ -581,11 +583,13 @@ static struct isa_pnp_id sio_ids[] = {
 	{0x7420b04e, NULL},	/* SUP2070 - Supra ? */
 	{0x8020b04e, NULL},	/* SUP2080 - Supra ? */
 	{0x8420b04e, NULL},	/* SUP2084 - SupraExpress 56i PnP */
+	{0x7121b04e, NULL},	/* SUP2171 - SupraExpress 56i Sp? */
 	{0x8024b04e, NULL},	/* SUP2480 - Supra ? */
 	{0x01007256, NULL},	/* USR0001 - U.S. Robotics Inc., Sportster W */
 	{0x02007256, NULL},	/* USR0002 - U.S. Robotics Inc. Sportster 33. */
 	{0x04007256, NULL},	/* USR0004 - USR Sportster 14.4k */
 	{0x06007256, NULL},	/* USR0006 - USR Sportster 33.6k */
+	{0x11007256, NULL},	/* USR0011 - USR ? */
 	{0x01017256, NULL},	/* USR0101 - USR ? */
 	{0x30207256, NULL},	/* USR2030 - U.S.Robotics Inc. Sportster 560 */
 	{0x50207256, NULL},	/* USR2050 - U.S.Robotics Inc. Sportster 33. */
@@ -593,11 +597,14 @@ static struct isa_pnp_id sio_ids[] = {
 	{0x30307256, NULL},	/* USR3030 - U.S. Robotics 56K FAX INT */
 	{0x31307256, NULL},	/* USR3031 - U.S. Robotics 56K FAX INT */
 	{0x70307256, NULL},	/* USR3070 - U.S. Robotics 56K Voice INT */
+	{0x90307256, NULL},	/* USR3090 - USR ? */
 	{0x90917256, NULL},	/* USR9190 - USR 56k Voice INT */
 	{0x0300695c, NULL},	/* WCI0003 - Fax/Voice/Modem/Speakphone/Asvd */
 	{0x61f7896a, NULL},	/* ZTIF761 - Zoom ComStar 33.6 */
 	{0}
 };
+
+
 
 static int
 sio_isa_probe(dev)
