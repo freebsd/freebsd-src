@@ -533,8 +533,14 @@ again:
 	 * p_limit is copy-on-write.  Bump its refcount.
 	 */
 	p2->p_limit = lim_hold(p1->p_limit);
-	PROC_UNLOCK(p1);
+
+	/*
+	 * We don't need to prevent the parent from being swapped out just yet,
+	 * but this is a convenient point to block to swap it in if needed.
+	 */
 	PROC_UNLOCK(p2);
+	_PHOLD(p1);
+	PROC_UNLOCK(p1);
 
 	/* Bump references to the text vnode (for procfs) */
 	if (p2->p_textvp)
@@ -629,9 +635,8 @@ again:
 
 	/*
 	 * This begins the section where we must prevent the parent
-	 * from being swapped.
+	 * from being swapped.  We already got a hold on the parent earlier.
 	 */
-	_PHOLD(p1);
 	PROC_UNLOCK(p1);
 
 	/*
