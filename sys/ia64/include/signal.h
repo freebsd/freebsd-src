@@ -35,6 +35,12 @@ typedef long	sig_atomic_t;
 
 #ifndef _ANSI_SOURCE
 
+/*
+ * Minimum signal stack size. The current signal frame
+ * for IA-64 is 2656 bytes large.
+ */
+#define MINSIGSTKSZ     (3072 * 4)
+
 #ifndef _IA64_FPREG_DEFINED
 
 struct ia64_fpreg {
