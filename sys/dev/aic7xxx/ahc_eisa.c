@@ -59,6 +59,7 @@ aic7770_probe(device_t dev)
 
 	eisa_add_iospace(dev, iobase, AHC_EISA_IOSIZE, RESVADDR_NONE);
 
+	rid = 0;
 	regs = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 				0, ~0, 1, RF_ACTIVE);
 	if (regs == NULL) {
@@ -122,9 +123,11 @@ aic7770_attach(device_t dev)
 	if (name == NULL)
 		return (ENOMEM);
 	strcpy(name, device_get_nameunit(dev));
-	ahc = ahc_alloc(NULL, name);
+	ahc = ahc_alloc(dev, name);
 	if (ahc == NULL)
 		return (ENOMEM);
+
+	ahc_set_unit(ahc, device_get_unit(dev));
 
 	/* Allocate a dmatag for our SCB DMA maps */
 	/* XXX Should be a child of the PCI bus dma tag */
@@ -161,6 +164,7 @@ aic7770_map_registers(struct ahc_softc *ahc)
 	struct	resource *regs;
 	int	rid;
 
+	rid = 0;
 	regs = bus_alloc_resource(ahc->dev_softc, SYS_RES_IOPORT,
 				  &rid, 0, ~0, 1, RF_ACTIVE);
 	if (regs == NULL) {

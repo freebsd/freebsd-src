@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: //depot/src/aic7xxx/aic7770.c#4 $
  *
  * $FreeBSD$
  */
@@ -182,6 +182,11 @@ aic7770_config(struct ahc_softc *ahc, struct aic7770_identity *entry)
 	error = ahc_init(ahc);
 	if (error != 0)
 		return (error);
+
+	/*
+	 * Link this softc in with all other ahc instances.
+	 */
+	ahc_softc_insert(ahc);
 
 	/*
 	 * Enable the board's BUS drivers

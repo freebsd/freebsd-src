@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx.h#14 $
+ * $Id: //depot/src/aic7xxx/aic7xxx.h#17 $
  *
  * $FreeBSD$
  */
@@ -120,14 +120,31 @@ struct scb_platform_data;
 #define AHC_MAXTRANSFER_SIZE	 0x00ffffff	/* limited by 24bit counter */
 
 /*
+ * The maximum amount of SCB storage in hardware on a controller.
+ * This value represents an upper bound.  Controllers vary in the number
+ * they actually support.
+ */
+#define AHC_SCB_MAX	255
+
+/*
  * The maximum number of concurrent transactions supported per driver instance.
  * Sequencer Control Blocks (SCBs) store per-transaction information.  Although
  * the space for SCBs on the host adapter varies by model, the driver will
  * page the SCBs between host and controller memory as needed.  We are limited
- * to 255 because of the 8bit nature of the RISC engine and the need to
- * reserve the value of 255 as a "No Transaction" value.
+ * to 253 because:
+ * 	1) The 8bit nature of the RISC engine holds us to an 8bit value.
+ * 	2) We reserve one value, 255, to represent the invalid element.
+ *	3) Our input queue scheme requires one SCB to always be reserved
+ *	   in advance of queuing any SCBs.  This takes us down to 254.
+ *	4) To handle our output queue correctly on machines that only
+ * 	   support 32bit stores, we must clear the array 4 bytes at a
+ *	   time.  To avoid colliding with a DMA write from the sequencer,
+ *	   we must be sure that 4 slots are empty when we write to clear
+ *	   the queue.  This reduces us to 253 SCBs: 1 that just completed
+ *	   and the known three additional empty slots in the queue that
+ *	   preceed it.
  */
-#define AHC_SCB_MAX	255
+#define AHC_MAX_QUEUE	253
 
 /*
  * Ring Buffer of incoming target commands.
@@ -190,6 +207,7 @@ typedef enum {
 	AHC_AUTOPAUSE	= 0x10000,	/* Automatic pause on register access */
 	AHC_TARGETMODE	= 0x20000,	/* Has tested target mode support */
 	AHC_MULTIROLE	= 0x40000,	/* Space for two roles at a time */
+	AHC_REMOVABLE	= 0x80000,	/* Hot-Swap supported */
 	AHC_AIC7770_FE	= AHC_FENONE,
 	AHC_AIC7850_FE	= AHC_SPIOCAP|AHC_AUTOPAUSE|AHC_TARGETMODE,
 	AHC_AIC7855_FE	= AHC_AIC7850_FE,
@@ -207,7 +225,7 @@ typedef enum {
 	 */
 	AHC_AIC7890_FE	= AHC_MORE_SRAM|AHC_CMD_CHAN|AHC_ULTRA2
 			  |AHC_QUEUE_REGS|AHC_SG_PRELOAD|AHC_MULTI_TID
-			  |AHC_HS_MAILBOX |AHC_NEW_TERMCTL|AHC_LARGE_SCBS
+			  |AHC_HS_MAILBOX|AHC_NEW_TERMCTL|AHC_LARGE_SCBS
 			  |AHC_TARGETMODE,
 	AHC_AIC7892_FE	= AHC_AIC7890_FE|AHC_DT|AHC_AUTORATE|AHC_AUTOPAUSE,
 	AHC_AIC7895_FE	= AHC_AIC7880_FE|AHC_MORE_SRAM|AHC_AUTOPAUSE
