@@ -1112,8 +1112,8 @@ Arch_FindLib (gn, path)
     char	    *libName;   /* file name for archive */
     size_t	    sz;
 
-    libName = (char *)emalloc(sz);
     sz = strlen(gn->name) + 4;
+    libName = (char *)emalloc(sz);
     snprintf(libName, sz, "lib%s.a", &gn->name[2]);
 
     gn->path = Dir_FindFile (libName, path);
