@@ -893,9 +893,11 @@ distExtractAll(dialogMenuItem *self)
 	dialog_clear_norefresh();
 	printSelected(buf, Dists, DistTable, &col);
 	dialog_clear_norefresh();
-	msgConfirm("Couldn't extract the following distributions.  This may\n"
-		   "be because they were not available on the installation\n"
-		   "media you've chosen:\n\n\t%s", buf);
+	if (col) {
+	    msgConfirm("Couldn't extract the following distributions.  This may\n"
+		       "be because they were not available on the installation\n"
+		       "media you've chosen:\n\n\t%s", buf);
+	}
     }
     restorescr(w);
     return status;
