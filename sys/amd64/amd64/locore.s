@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.52 1995/04/16 10:12:16 davidg Exp $
+ *	$Id: locore.s,v 1.53 1995/06/28 04:42:25 davidg Exp $
  */
 
 /*
@@ -658,17 +658,6 @@ begin: /* now running relocated at KERNBASE where the system is linked to run */
 	shll	$PGSHIFT-2,%edx			/* corresponding to virt offset */
 	addl	$KERNBASE,%edx			/* add virtual base */
 	movl	%edx,_atdevbase
-
-#include "sc.h"
-#include "vt.h"
-#if NSC > 0 || NVT > 0
-	/* XXX: can't scinit relocate Crtat relative to atdevbase itself? */
-	.globl _Crtat				/* XXX - locore should not know about */
-	movl	_Crtat,%eax			/* variables of device drivers (pccons)! */
-	subl	$(KERNBASE+0xA0000),%eax
-	addl	%eax,%edx
-	movl	%edx,_Crtat
-#endif
 
 	/* set up bootstrap stack - 48 bytes */
 	movl	$_kstack+UPAGES*NBPG-4*12,%esp	/* bootstrap stack end location */
