@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: init_smp.c,v 1.5 1997/07/14 20:49:14 smp Exp smp $
+ * $Id: init_smp.c,v 1.11 1997/07/15 02:46:37 fsmp Exp $
  */
 
 #include "opt_smp.h"
@@ -45,6 +45,10 @@
 #include <machine/cpu.h>
 #include <machine/smp.h>
 #include <machine/smptests.h>	/** IGNORE_IDLEPROCS, TEST_TEST1 */
+#include <machine/specialreg.h>
+#ifndef CR0_EM
+#define	CR0_EM	0x00000004	/* EMulate non-NPX coproc. (trap ESC only) */
+#endif
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -179,7 +183,7 @@ secondary_main()
 	cpu_starting = cpuid;
 	smp_cpus++;
 
-	/* build our map of 'other' CPUs */
+	/* Build our map of 'other' CPUs. */
 	other_cpus = all_cpus & ~(1 << cpuid);
 
 	printf("SMP: AP CPU #%d LAUNCHED!!  Starting Scheduling...\n",
@@ -191,10 +195,16 @@ secondary_main()
 		lapic.tpr = 0xff;
 		ipi_test1();
 	}
-#else
+#endif  /** TEST_TEST1 */
+
+        /* Setup the FPU. */
+	temp = rcr0();
+	temp &= ~(CR0_EM);
+	temp |= (CR0_MP | CR0_NE | CR0_TS);
+	load_cr0(temp);
+
 	curproc = NULL;			/* ensure no context to save */
 	cpu_switch(curproc);		/* start first process */
-#endif  /** TEST_TEST1 */
 
 	panic("switch returned!");
 }
