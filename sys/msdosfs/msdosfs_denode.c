@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_denode.c,v 1.3 1994/10/06 21:06:51 davidg Exp $ */
+/*	$Id: msdosfs_denode.c,v 1.4 1994/10/10 07:57:32 phk Exp $ */
 /*	$NetBSD: msdosfs_denode.c,v 1.9 1994/08/21 18:44:00 ws Exp $	*/
 
 /*-
@@ -318,7 +318,6 @@ deupdat(dep, tp, waitfor)
 	int error;
 	struct buf *bp;
 	struct direntry *dirp;
-	struct timespec ts;
 	struct vnode *vp = DETOV(dep);
 
 #ifdef MSDOSFS_DEBUG
@@ -326,13 +325,15 @@ deupdat(dep, tp, waitfor)
 #endif
 
 	/*
-	 * If the update bit is off, or this denode is from a readonly
-	 * filesystem, or this denode is for a directory, or the denode
-	 * represents an open but unlinked file then don't do anything. DOS
-	 * directory entries that describe a directory do not ever get
-	 * updated.  This is the way dos treats them.
+	 * If the denode-modified and update-mtime bits are off,
+	 * or this denode is from a readonly filesystem,
+	 * or this denode is for a directory,
+	 * or the denode represents an open but unlinked file,
+	 * then don't do anything.  DOS directory
+	 * entries that describe a directory do not ever get
+	 * updated.  This is the way DOS treats them.
 	 */
-	if ((dep->de_flag & DE_UPDATE) == 0 ||
+	if ((dep->de_flag & (DE_MODIFIED | DE_UPDATE)) == 0 ||
 	    vp->v_mount->mnt_flag & MNT_RDONLY ||
 	    dep->de_Attributes & ATTR_DIRECTORY ||
 	    dep->de_refcnt <= 0)
@@ -347,11 +348,16 @@ deupdat(dep, tp, waitfor)
 		return error;
 
 	/*
-	 * Put the passed in time into the directory entry.
+	 * If the mtime is to be updated, put the passed in time into the
+	 * directory entry.
 	 */
-	TIMEVAL_TO_TIMESPEC(&time, &ts);
-	unix2dostime(&ts, &dep->de_Date, &dep->de_Time);
-	dep->de_flag &= ~DE_UPDATE;
+	if (dep->de_flag & DE_UPDATE)
+		unix2dostime(tp, &dep->de_Date, &dep->de_Time);
+
+	/*
+	 * The mtime is now up to date.  The denode will be unmodifed soon.
+	 */
+	dep->de_flag &= ~(DE_MODIFIED | DE_UPDATE);
 
 	/*
 	 * Copy the directory entry out of the denode into the cluster it
