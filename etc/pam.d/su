@@ -19,5 +19,4 @@ auth		required	pam_unix.so		no_warn try_first_pass nullok
 account		required	pam_unix.so
 
 # session
-#session 	required	pam_krb5.so
 #session 	optional	pam_ssh.so
