@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_xxx.c	8.2 (Berkeley) 11/14/93
- * $Id: kern_xxx.c,v 1.14 1995/09/06 15:23:20 nate Exp $
+ * $Id: kern_xxx.c,v 1.15 1995/11/09 20:22:12 phk Exp $
  */
 
 #include <sys/param.h>
@@ -124,14 +124,14 @@ osethostname(p, uap, retval)
 		uap->hostname, uap->len, 0));
 }
 
-struct gethostid_args {
+struct ogethostid_args {
 	int	dummy;
 };
 /* ARGSUSED */
 int
 ogethostid(p, uap, retval)
 	struct proc *p;
-	struct gethostid_args *uap;
+	struct ogethostid_args *uap;
 	int *retval;
 {
 
@@ -141,14 +141,14 @@ ogethostid(p, uap, retval)
 #endif /* COMPAT_43 || COMPAT_SUNOS */
 
 #ifdef COMPAT_43
-struct sethostid_args {
+struct osethostid_args {
 	long	hostid;
 };
 /* ARGSUSED */
 int
 osethostid(p, uap, retval)
 	struct proc *p;
-	struct sethostid_args *uap;
+	struct osethostid_args *uap;
 	int *retval;
 {
 	int error;
@@ -160,7 +160,10 @@ osethostid(p, uap, retval)
 }
 
 int
-oquota()
+oquota(p, uap, retval)
+	struct proc *p;
+	struct oquota_args *uap;
+	int *retval;
 {
 
 	return (ENOSYS);
