@@ -43,65 +43,9 @@ HOME=/
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin
 export HOME PATH
 
-# If there is a global system configuration file, suck it in.
-# XXX - It's only purpose is to catch rc_ng="YES".
-#
-if [ -r /etc/defaults/rc.conf ]; then
-	. /etc/defaults/rc.conf
-	source_rc_confs
-elif [ -r /etc/rc.conf ]; then
-	. /etc/rc.conf
-fi
+. /etc/rc.subr
 
-case ${rc_ng} in
-[Yy][Ee][Ss])
-	. /etc/rc.subr
-
-	load_rc_config 'XXX'
-
-	# If requested, start a watchdog timer in the background which
-	# will terminate rc.shutdown if rc.shutdown doesn't complete
-	# within the specified time.
-	#
-	_rcshutdown_watchdog=
-	if [ -n "$rcshutdown_timeout" ]; then
-		debug "Initiating watchdog timer."
-		sleep $rcshutdown_timeout && ( 
-			_msg="$rcshutdown_timeout second watchdog" \
-			    " timeout expired. Shutdown terminated."
-			logger -t rc.shutdown "$_msg"
-			echo "$_msg"
-			date
-			kill -KILL $$ >/dev/null 2>&1
-		) &
-		_rcshutdown_watchdog=$!
-	fi
-
-	# Determine the shutdown order of the /etc/rc.d scripts,
-	# and perform the operation
-	# XXX - rcorder(8) with multiple -k switches works as a logical OR,
-	#       so, we can't do this: rcorder -k shutdown -k FreeBSD.
-	#
-	files=`eval grep -l \'^# KEYWORD:.*FreeBSD\' \`rcorder -k shutdown /etc/rc.d/* 2>/dev/null\``
-
-	for _rc_elem in `reverse_list $files`; do
-		debug "run_rc_script $_rc_elem stop"
-		run_rc_script $_rc_elem stop
-	done
-
-	# Terminate the background watchdog timer (if it is running)
-	#
-	if [ -n "$_rcshutdown_watchdog" ]; then
-		kill -TERM $_rcshutdown_watchdog >/dev/null 2>&1
-	fi
-
-	echo '.'
-	exit 0
-	;;
-*)
-	# fall-through to the old rc scripts
-	;;
-esac
+load_rc_config 'XXX'
 
 # reverse_list list
 #	print the list in reverse order
@@ -115,93 +59,44 @@ reverse_list()
 	echo $_revlist
 }
 
-# Write some entropy so the rebooting /dev/random can reseed
+# If requested, start a watchdog timer in the background which
+# will terminate rc.shutdown if rc.shutdown doesn't complete
+# within the specified time.
 #
-case ${entropy_file} in
-[Nn][Oo] | '')
-	;;
-*)
-	echo -n 'Writing entropy file:'
-	rm -f ${entropy_file}
-	oumask=`umask`
-	umask 077
-	if touch ${entropy_file} ; then
-		entropy_file_confirmed="${entropy_file}"
-	else
-		# Try this as a reasonable alternative for read-only
-		# roots, diskless workstations, etc.
-		rm -f /var/db/entropy
-		if touch /var/db/entropy ; then
-			entropy_file_confirmed=/var/db/entropy
-		fi
-	fi
-	case ${entropy_file_confirmed} in
-	'')
-		echo ' ERROR - entropy file write failed'
-		;;
-	*)
-		dd if=/dev/random of=${entropy_file_confirmed} \
-		   bs=4096 count=1 2> /dev/null
-		echo '.'
-		;;
-	esac
-	umask ${oumask}
-	;;
-esac
+_rcshutdown_watchdog=
+if [ -n "$rcshutdown_timeout" ]; then
+	debug "Initiating watchdog timer."
+	sleep $rcshutdown_timeout && ( 
+		_msg="$rcshutdown_timeout second watchdog" \
+		    " timeout expired. Shutdown terminated."
+		logger -t rc.shutdown "$_msg"
+		echo "$_msg"
+		date
+		kill -KILL $$ >/dev/null 2>&1
+	) &
+	_rcshutdown_watchdog=$!
+fi
 
-# Check if /var/db/mounttab is clean.
-case $1 in
-reboot)
-	if [ -f /var/db/mounttab ]; then
-		rpc.umntall
-	fi
-	;;
-esac
+# Determine the shutdown order of the /etc/rc.d scripts,
+# and perform the operation
+# XXX - rcorder(8) with multiple -k switches works as a logical OR,
+#       so, we can't do this: rcorder -k shutdown -k FreeBSD.
+#
+files=`eval grep -l \'^# KEYWORD:.*FreeBSD\' \`rcorder -k shutdown /etc/rc.d/* 2>/dev/null\``
 
-echo -n 'Shutting down daemon processes:'
+for _rc_elem in `reverse_list $files`; do
+	debug "run_rc_script $_rc_elem stop"
+	run_rc_script $_rc_elem stop
+done
 
-# for each valid dir in $local_startup, search for init scripts matching *.sh
-case ${local_startup} in
-[Nn][Oo] | '')
-	;;
-*)
-	slist=""
-	if [ -z "${script_name_sep}" ]; then
-		script_name_sep=" "
-	fi
-	for dir in ${local_startup}; do
-		if [ -d "${dir}" ]; then
-			for script in ${dir}/*.sh; do
-				slist="${slist}${script_name_sep}${script}"
-			done
-		fi
-	done
-	script_save_sep="$IFS"
-	IFS="${script_name_sep}"
-	for script in `reverse_list ${slist}`; do
-		if [ -x "${script}" ]; then
-			(set -T
-			trap 'exit 1' 2
-			${script} stop)
-		fi
-	done
-	IFS="${script_save_sep}"
-	echo '.'
-	;;
-esac
+# Terminate the background watchdog timer (if it is running)
+#
+if [ -n "$_rcshutdown_watchdog" ]; then
+	kill -TERM $_rcshutdown_watchdog >/dev/null 2>&1
+fi
 
 # Insert other shutdown procedures here
 
-# Saving firewall state tables should be done last
-echo -n 'Saving firewall state tables:'
-
-# Save IP-filter state tables
-case ${ipfs_enable} in
-[Yy][Ee][Ss])
-	echo -n ' ipfs'
-	${ipfs_program:-/sbin/ipfs} -W ${ipfs_flags}
-	;;
-esac
 
 echo '.'
 exit 0
