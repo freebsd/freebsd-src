@@ -120,7 +120,7 @@ int pccard_beep_select(int type)
 	if (type == 0)  {
 		allow_beep = BEEP_OFF;
 		melody_type = 0;
-	} else if (type < 0 || type > MAX_TONE_MODE)
+	} else if (type < 0 || MAX_TONE_MODE - 1 < type)
 		errcode = 1;
 	else {
 		allow_beep = BEEP_ON;
