@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)domain.h	8.1 (Berkeley) 6/2/93
- * $Id: domain.h,v 1.4 1995/05/11 00:13:26 wollman Exp $
+ * $Id: domain.h,v 1.5 1995/05/15 22:55:18 davidg Exp $
  */
 
 #ifndef _SYS_DOMAIN_H_
@@ -65,6 +65,7 @@ struct	domain {
 
 #ifdef KERNEL
 extern struct	domain *domains;
+extern struct	domain localdomain;
 
 #define DOMAIN_SET(name) \
 	DATA_SET(domain_set, name ## domain);

@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.31 1995/06/14 12:28:32 amurai Exp $
+ *      $Id: scsiconf.c,v 1.32 1995/07/17 23:37:59 gibbs Exp $
  */
 
 #include <sys/types.h>
@@ -59,6 +59,8 @@ struct extend_array
 	int nelem;
 	void **ps;
 };
+
+static errval scsi_attach_sctarg __P((void));
 
 static void *extend_alloc(size_t s)
 {
@@ -622,8 +624,6 @@ void scsi_configure_start(void)
 
 void scsi_configure_finish(void)
 {
-
-	static errval scsi_attach_sctarg __P((void));
 #if NSCTARG > 0
 	scsi_attach_sctarg();
 #endif

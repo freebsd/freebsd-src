@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- *	$Id: uipc_usrreq.c,v 1.9 1995/05/30 08:06:25 rgrimes Exp $
+ *	$Id: uipc_usrreq.c,v 1.10 1995/08/08 02:22:16 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -696,7 +696,6 @@ unp_internalize(control, p)
 }
 
 int	unp_defer, unp_gcing;
-extern	struct domain localdomain;
 
 void
 unp_gc()

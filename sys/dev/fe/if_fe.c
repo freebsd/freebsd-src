@@ -1083,7 +1083,6 @@ fe_attach ( struct isa_device *isa_dev )
 	 * FIXME.
 	 */
 	if ( sc->sc_if.if_snd.ifq_maxlen == 0 ) {
-		extern int ifqmaxlen;		/* Don't be so shocked...  */
 		sc->sc_if.if_snd.ifq_maxlen = ifqmaxlen;
 	}
 
