@@ -221,27 +221,36 @@ bfe_dma_alloc(device_t dev)
 			&sc->bfe_parent_tag);
 
 	/* tag for TX ring */
-	error = bus_dma_tag_create(sc->bfe_parent_tag, BFE_TX_LIST_SIZE, 
-			BFE_TX_LIST_SIZE, BUS_SPACE_MAXADDR,  BUS_SPACE_MAXADDR, 
-			NULL, NULL, BFE_TX_LIST_SIZE, 1,  BUS_SPACE_MAXSIZE_32BIT,
+	error = bus_dma_tag_create(sc->bfe_parent_tag,
+			BFE_TX_LIST_SIZE, BFE_TX_LIST_SIZE,
+			BUS_SPACE_MAXADDR,
+			BUS_SPACE_MAXADDR, 
+			NULL, NULL,
+			BFE_TX_LIST_SIZE,
+			1,
+			BUS_SPACE_MAXSIZE_32BIT,
 			0,
 #if __FreeBSD_version > 500000
-			NULL, NULL, &sc->bfe_tx_tag);
+			NULL, NULL,
 #endif
 			&sc->bfe_tx_tag);
-
 	if (error) {
 		device_printf(dev, "could not allocate dma tag\n");
 		return(ENOMEM);
 	}
 
 	/* tag for RX ring */
-	error = bus_dma_tag_create(sc->bfe_parent_tag, BFE_RX_LIST_SIZE, 
-			BFE_RX_LIST_SIZE, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, 
-			NULL, NULL, BFE_RX_LIST_SIZE, 1, BUS_SPACE_MAXSIZE_32BIT, 
-			0, 
+	error = bus_dma_tag_create(sc->bfe_parent_tag,
+			BFE_RX_LIST_SIZE, BFE_RX_LIST_SIZE,
+			BUS_SPACE_MAXADDR,
+			BUS_SPACE_MAXADDR,
+			NULL, NULL,
+			BFE_RX_LIST_SIZE,
+			1,
+			BUS_SPACE_MAXSIZE_32BIT,
+			0,
 #if __FreeBSD_version > 500000
-			NULL, NULL,               /* lockfunc, lockarg */
+			NULL, NULL,
 #endif
 			&sc->bfe_rx_tag);
 
@@ -251,9 +260,15 @@ bfe_dma_alloc(device_t dev)
 	}
 
 	/* tag for mbufs */
-	error = bus_dma_tag_create(sc->bfe_parent_tag, ETHER_ALIGN, 0,
-			BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES, 
-			1, BUS_SPACE_MAXSIZE_32BIT, 0,
+	error = bus_dma_tag_create(sc->bfe_parent_tag,
+			ETHER_ALIGN, 0,
+			BUS_SPACE_MAXADDR,
+			BUS_SPACE_MAXADDR,
+			NULL, NULL,
+			MCLBYTES,
+			1,
+			BUS_SPACE_MAXSIZE_32BIT,
+			0,
 #if __FreeBSD_version > 500000
 			NULL, NULL,
 #endif
@@ -266,7 +281,8 @@ bfe_dma_alloc(device_t dev)
 
 	/* pre allocate dmamaps for RX list */
 	for (i = 0; i < BFE_RX_LIST_CNT; i++) {
-		error = bus_dmamap_create(sc->bfe_tag, 0, &sc->bfe_rx_ring[i].bfe_map);
+		error = bus_dmamap_create(sc->bfe_tag, 0,
+		    &sc->bfe_rx_ring[i].bfe_map);
 		if (error) {
 			device_printf(dev, "cannot create DMA map for RX\n");
 			return(ENOMEM);
@@ -275,7 +291,8 @@ bfe_dma_alloc(device_t dev)
 
 	/* pre allocate dmamaps for TX list */
 	for (i = 0; i < BFE_TX_LIST_CNT; i++) {
-		error = bus_dmamap_create(sc->bfe_tag, 0, &sc->bfe_tx_ring[i].bfe_map);
+		error = bus_dmamap_create(sc->bfe_tag, 0,
+		    &sc->bfe_tx_ring[i].bfe_map);
 		if (error) {
 			device_printf(dev, "cannot create DMA map for TX\n");
 			return(ENOMEM);
@@ -344,7 +361,7 @@ bfe_attach(device_t dev)
 		irq = pci_read_config(dev, BFE_PCI_INTLINE, 4);
 
 		/* Reset the power state. */
-		printf("bfe%d: chip is is in D%d power mode -- setting to D0\n", 
+		printf("bfe%d: chip is is in D%d power mode -- setting to D0\n",
 				sc->bfe_unit, pci_get_powerstate(dev));
 
 		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
@@ -384,7 +401,8 @@ bfe_attach(device_t dev)
 	}
 
 	if (bfe_dma_alloc(dev)) {
-		printf("bfe%d: failed to allocate DMA resources\n", sc->bfe_unit);
+		printf("bfe%d: failed to allocate DMA resources\n",
+		    sc->bfe_unit);
 		bfe_release_resources(sc);
 		error = ENXIO;
 		goto fail;
@@ -407,7 +425,8 @@ bfe_attach(device_t dev)
 
 	bfe_get_config(sc);
 
-	printf("bfe%d: Ethernet address: %6D\n", unit, sc->arpcom.ac_enaddr, ":");
+	printf("bfe%d: Ethernet address: %6D\n", unit,
+	    sc->arpcom.ac_enaddr, ":");
 
 	/* Reset the chip and turn on the PHY */
 	bfe_chip_reset(sc);
@@ -535,20 +554,20 @@ bfe_miibus_statchg(device_t dev)
 static void
 bfe_tx_ring_free(struct bfe_softc *sc)
 {
-    int i;
-    
-    for(i = 0; i < BFE_TX_LIST_CNT; i++) {
-        if(sc->bfe_tx_ring[i].bfe_mbuf != NULL) {
-            m_freem(sc->bfe_tx_ring[i].bfe_mbuf);
-            sc->bfe_tx_ring[i].bfe_mbuf = NULL;
-            bus_dmamap_unload(sc->bfe_tag,
-                    sc->bfe_tx_ring[i].bfe_map);
-            bus_dmamap_destroy(sc->bfe_tag,
-                    sc->bfe_tx_ring[i].bfe_map);
-        }
-    }
-    bzero(sc->bfe_tx_list, BFE_TX_LIST_SIZE);
-    bus_dmamap_sync(sc->bfe_tx_tag, sc->bfe_tx_map, BUS_DMASYNC_PREREAD);
+	int i;
+	
+	for(i = 0; i < BFE_TX_LIST_CNT; i++) {
+		if(sc->bfe_tx_ring[i].bfe_mbuf != NULL) {
+			m_freem(sc->bfe_tx_ring[i].bfe_mbuf);
+			sc->bfe_tx_ring[i].bfe_mbuf = NULL;
+			bus_dmamap_unload(sc->bfe_tag,
+					sc->bfe_tx_ring[i].bfe_map);
+			bus_dmamap_destroy(sc->bfe_tag,
+					sc->bfe_tx_ring[i].bfe_map);
+		}
+	}
+	bzero(sc->bfe_tx_list, BFE_TX_LIST_SIZE);
+	bus_dmamap_sync(sc->bfe_tx_tag, sc->bfe_tx_map, BUS_DMASYNC_PREREAD);
 }
 
 static void
@@ -741,7 +760,8 @@ bfe_chip_reset(struct bfe_softc *sc)
 	bfe_pci_setup(sc, BFE_INTVEC_ENET0);
 
 	/* is core up? */
-	val = CSR_READ_4(sc, BFE_SBTMSLOW) & (BFE_RESET | BFE_REJECT | BFE_CLOCK);
+	val = CSR_READ_4(sc, BFE_SBTMSLOW) &
+	    (BFE_RESET | BFE_REJECT | BFE_CLOCK);
 	if (val == BFE_CLOCK) {
 		/* It is, so shut it down */
 		CSR_WRITE_4(sc, BFE_RCV_LAZY, 0);
@@ -750,7 +770,8 @@ bfe_chip_reset(struct bfe_softc *sc)
 		CSR_WRITE_4(sc, BFE_DMATX_CTRL, 0);
 		sc->bfe_tx_cnt = sc->bfe_tx_prod = sc->bfe_tx_cons = 0;
 		if (CSR_READ_4(sc, BFE_DMARX_STAT) & BFE_STAT_EMASK) 
-			bfe_wait_bit(sc, BFE_DMARX_STAT, BFE_STAT_SIDLE, 100, 0);
+			bfe_wait_bit(sc, BFE_DMARX_STAT, BFE_STAT_SIDLE,
+			    100, 0);
 		CSR_WRITE_4(sc, BFE_DMARX_CTRL, 0);
 		sc->bfe_rx_prod = sc->bfe_rx_cons = 0;
 	}
@@ -781,8 +802,8 @@ bfe_chip_reset(struct bfe_softc *sc)
 				BFE_LAZY_FC_MASK));
 
 	/* 
-	 * We don't want lazy interrupts, so just send them at the end of a frame,
-	 * please 
+	 * We don't want lazy interrupts, so just send them at
+	 * the end of a frame, please 
 	 */
 	BFE_OR(sc, BFE_RCV_LAZY, 0);
 
@@ -794,8 +815,8 @@ bfe_chip_reset(struct bfe_softc *sc)
 	CSR_WRITE_4(sc, BFE_TX_WMARK, 56);
 
 	/* 
-	 * Initialise DMA channels - not forgetting dma addresses need to be added
-	 * to BFE_PCI_DMA 
+	 * Initialise DMA channels
+	 * - not forgetting dma addresses need to be added to BFE_PCI_DMA 
 	 */
 	CSR_WRITE_4(sc, BFE_DMATX_CTRL, BFE_TX_CTRL_ENABLE);
 	CSR_WRITE_4(sc, BFE_DMATX_ADDR, sc->bfe_tx_dma + BFE_PCI_DMA);
@@ -817,8 +838,8 @@ bfe_core_disable(struct bfe_softc *sc)
 		return;
 
 	/* 
-	 * Set reject, wait for it set, then wait for the core to stop being busy
-	 * Then set reset and reject and enable the clocks
+	 * Set reject, wait for it set, then wait for the core to stop
+	 * being busy, then set reset and reject and enable the clocks.
 	 */
 	CSR_WRITE_4(sc, BFE_SBTMSLOW, (BFE_REJECT | BFE_CLOCK));
 	bfe_wait_bit(sc, BFE_SBTMSLOW, BFE_REJECT, 1000, 0);
@@ -916,8 +937,8 @@ bfe_set_rx_mode(struct bfe_softc *sc)
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
-			bfe_cam_write(sc, LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
-					i++);
+			bfe_cam_write(sc,
+			    LLADDR((struct sockaddr_dl *)ifma->ifma_addr), i++);
 		}
 	}
 #endif
@@ -970,24 +991,27 @@ bfe_release_resources(struct bfe_softc *sc)
 
 	if(sc->bfe_tx_tag != NULL) {
 		bus_dmamap_unload(sc->bfe_tx_tag, sc->bfe_tx_map);
-		bus_dmamem_free(sc->bfe_tx_tag, sc->bfe_tx_list, sc->bfe_tx_map);
+		bus_dmamem_free(sc->bfe_tx_tag, sc->bfe_tx_list,
+		    sc->bfe_tx_map);
 		bus_dma_tag_destroy(sc->bfe_tx_tag);
 		sc->bfe_tx_tag = NULL;
 	}
 
 	if(sc->bfe_rx_tag != NULL) {
 		bus_dmamap_unload(sc->bfe_rx_tag, sc->bfe_rx_map);
-		bus_dmamem_free(sc->bfe_rx_tag, sc->bfe_rx_list, sc->bfe_rx_map);
+		bus_dmamem_free(sc->bfe_rx_tag, sc->bfe_rx_list,
+		    sc->bfe_rx_map);
 		bus_dma_tag_destroy(sc->bfe_rx_tag);
 		sc->bfe_rx_tag = NULL;
 	}
 
 	if(sc->bfe_tag != NULL) {
 		for(i = 0; i < BFE_TX_LIST_CNT; i++) {
-			bus_dmamap_destroy(sc->bfe_tag, sc->bfe_tx_ring[i].bfe_map);
+			bus_dmamap_destroy(sc->bfe_tag,
+			    sc->bfe_tx_ring[i].bfe_map);
 		}
 		bus_dma_tag_destroy(sc->bfe_tag);
-        sc->bfe_tag = NULL;
+		sc->bfe_tag = NULL;
 	}
 
 	if(sc->bfe_parent_tag != NULL)
@@ -1125,9 +1149,9 @@ bfe_txeof(struct bfe_softc *sc)
 	chipidx = CSR_READ_4(sc, BFE_DMATX_STAT) & BFE_STAT_CDMASK;
 	chipidx /= sizeof(struct bfe_desc);
 
-    i = sc->bfe_tx_cons;
+	i = sc->bfe_tx_cons;
 	/* Go through the mbufs and free those that have been transmitted */
-    while(i != chipidx) {
+	while(i != chipidx) {
 		struct bfe_data *r = &sc->bfe_tx_ring[i];
 		if(r->bfe_mbuf != NULL) {
 			ifp->if_opackets++;
@@ -1135,8 +1159,8 @@ bfe_txeof(struct bfe_softc *sc)
 			r->bfe_mbuf = NULL;
 			bus_dmamap_unload(sc->bfe_tag, r->bfe_map);
 		}
-        sc->bfe_tx_cnt--;
-        BFE_INC(i, BFE_TX_LIST_CNT);
+		sc->bfe_tx_cnt--;
+		BFE_INC(i, BFE_TX_LIST_CNT);
 	}
 
 	if(i != sc->bfe_tx_cons) {
@@ -1211,7 +1235,7 @@ bfe_rxeof(struct bfe_softc *sc)
 #else
 		ether_input(ifp, NULL, m);
 #endif
-        BFE_INC(cons, BFE_RX_LIST_CNT);
+		BFE_INC(cons, BFE_RX_LIST_CNT);
 	}
 	sc->bfe_rx_cons = cons;
 	BFE_UNLOCK(sc);
@@ -1281,9 +1305,9 @@ bfe_encap(struct bfe_softc *sc, struct mbuf *m_head, u_int32_t *txidx)
 	struct bfe_desc *d = NULL;
 	struct bfe_data *r = NULL;
 	struct mbuf     *m;
-	u_int32_t       frag, cur, cnt = 0;
+	u_int32_t	frag, cur, cnt = 0;
 #if __FreeBSD_version > 500000
-	int chainlen = 0;
+	int		chainlen = 0;
 #endif
 
 	if(BFE_TX_LIST_CNT - sc->bfe_tx_cnt < 2)
@@ -1331,15 +1355,20 @@ bfe_encap(struct bfe_softc *sc, struct mbuf *m_head, u_int32_t *txidx)
 				/* Set start of frame */
 				d->bfe_ctrl |= BFE_DESC_SOF;
 			if(cur == BFE_TX_LIST_CNT - 1)
-				/* Tell the chip to wrap to the start of the descriptor list */
+				/*
+				 * Tell the chip to wrap to the start of
+				 * the descriptor list
+				 */
 				d->bfe_ctrl |= BFE_DESC_EOT;
 
-			bus_dmamap_load(sc->bfe_tag, r->bfe_map, mtod(m, void*), m->m_len, 
-					bfe_dma_map_desc, d, 0);
-			bus_dmamap_sync(sc->bfe_tag, r->bfe_map, BUS_DMASYNC_PREREAD);
+			bus_dmamap_load(sc->bfe_tag,
+			    r->bfe_map, mtod(m, void*), m->m_len, 
+			    bfe_dma_map_desc, d, 0);
+			bus_dmamap_sync(sc->bfe_tag, r->bfe_map,
+			    BUS_DMASYNC_PREREAD);
 
 			frag = cur;
-            BFE_INC(cur, BFE_TX_LIST_CNT);
+			BFE_INC(cur, BFE_TX_LIST_CNT);
 			cnt++;
 		}
 	}
@@ -1373,8 +1402,8 @@ bfe_start(struct ifnet *ifp)
 	BFE_LOCK(sc);
 
 	/* 
-	 * not much point trying to send if the link is down or we have nothing to
-	 * send
+	 * Not much point trying to send if the link is down
+	 * or we have nothing to send.
 	 */
 	if (!sc->bfe_link && ifp->if_snd.ifq_len < 10) {
 		BFE_UNLOCK(sc);
@@ -1392,8 +1421,8 @@ bfe_start(struct ifnet *ifp)
 			break;
 
 		/* 
-		 * Pack the data into the tx ring.  If we dont have enough room, let
-		 * the chip drain the ring
+		 * Pack the data into the tx ring.  If we dont have
+		 * enough room, let the chip drain the ring.
 		 */
 		if(bfe_encap(sc, m_head, &idx)) {
 			IF_PREPEND(&ifp->if_snd, m_head);
@@ -1438,8 +1467,8 @@ bfe_init(void *xsc)
 	bfe_chip_reset(sc);
 
 	if (bfe_list_rx_init(sc) == ENOBUFS) {
-		printf("bfe%d: bfe_init failed. Not enough memory for list buffers\n",
-				sc->bfe_unit);
+		printf("bfe%d: bfe_init: Not enough memory for list buffers\n",
+		    sc->bfe_unit);
 		bfe_stop(sc);
 		return;
 	}
@@ -1536,7 +1565,8 @@ bfe_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		case SIOCGIFMEDIA:
 		case SIOCSIFMEDIA:
 			mii = device_get_softc(sc->bfe_miibus);
-			error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
+			error = ifmedia_ioctl(ifp, ifr, &mii->mii_media,
+			    command);
 			break;
 #if __FreeBSD_version > 500000
 		default:
@@ -1630,7 +1660,7 @@ bfe_stop(struct bfe_softc *sc)
 	ifp = &sc->arpcom.ac_if;
 
 	bfe_chip_halt(sc);
-    bfe_tx_ring_free(sc);
+	bfe_tx_ring_free(sc);
 	bfe_rx_ring_free(sc);
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
