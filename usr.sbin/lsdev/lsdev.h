@@ -1,4 +1,7 @@
 /*
+ * This file, written by Garrett A. Wollman, is in the public domain.
+ */
+/*
  * Declarations for lsdev(8).
  */
 

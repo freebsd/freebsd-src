@@ -1,3 +1,6 @@
+/*
+ * This file, written by Garrett A. Wollman, is in the public domain.
+ */
 #include <sys/types.h>
 #include <sys/devconf.h>
 #include <sys/sysctl.h>
