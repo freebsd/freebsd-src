@@ -1,5 +1,5 @@
-/* $Id: isp_freebsd.h,v 1.12 1999/03/17 05:04:39 mjacob Exp $ */
-/* release_03_25_99 */
+/* $Id: isp_freebsd.h,v 1.13 1999/03/25 22:52:45 mjacob Exp $ */
+/* release_4_3_99 */
 /*
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions (non CAM version)
  *---------------------------------------
@@ -36,7 +36,7 @@
 #define	_ISP_FREEBSD_H
 
 #define	ISP_PLATFORM_VERSION_MAJOR	0
-#define	ISP_PLATFORM_VERSION_MINOR	99
+#define	ISP_PLATFORM_VERSION_MINOR	991
 
 #include <sys/param.h>
 
@@ -48,7 +48,10 @@
 #define	MAXISPREQUEST	256
 #include <dev/isp/isp_freebsd_cam.h>
 #else
-#define	MAXISPREQUEST	64
+#define	MAXISPREQUEST		64
+#ifndef	SCSI_ISP_PREFER_MEM_MAP
+#define	SCSI_ISP_PREFER_MEM_MAP	0
+#endif
 
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -63,19 +66,18 @@
 #include <sys/kernel.h>
 
 
-#include <dev/isp/ispreg.h>
-#include <dev/isp/ispvar.h>
-#include <dev/isp/ispmbox.h>
-
 #define	ISP_SCSI_XFER_T		struct scsi_xfer
+
 struct isposinfo {
 	char			name[8];
 	int			unit;
 	struct scsi_link	_link;
-#if	__FreeBSD_version >=	300001
-	struct callout_handle	watchid;
-#endif
+	int8_t			delay_throttle_count;
 };
+
+#include <dev/isp/ispreg.h>
+#include <dev/isp/ispvar.h>
+#include <dev/isp/ispmbox.h>
 
 #define	PVS			"Qlogic ISP Driver, FreeBSD Non-Cam"
 #define	DFLT_DBLEVEL		1
@@ -140,23 +142,6 @@ struct isposinfo {
 
 #define	isp_name	isp_osinfo.name
 
-
-#define	WATCH_INTERVAL		30
-#if	__FreeBSD_version >=	300001
-#define	START_WATCHDOG(f, s)	\
-	(s)->isp_osinfo.watchid = timeout(f, s, WATCH_INTERVAL * hz), \
-	s->isp_dogactive = 1
-#define	STOP_WATCHDOG(f, s)	untimeout(f, s, (s)->isp_osinfo.watchid),\
-	(s)->isp_dogactive = 0
-#else
-#define	START_WATCHDOG(f, s)	\
-	timeout(f, s, WATCH_INTERVAL * hz), s->isp_dogactive = 1
-#define	STOP_WATCHDOG(f, s)	untimeout(f, s), (s)->isp_dogactive = 0
-#endif
-
-#define	RESTART_WATCHDOG(f, s)	START_WATCHDOG(f, s)
-
-
 #endif	/* __FreeBSD_version >= 300004 */
 
 extern void isp_attach(struct ispsoftc *);
@@ -170,6 +155,9 @@ extern void isp_uninit(struct ispsoftc *);
 #define	MemoryBarrier()
 #endif
 
+
+#define	DMA_MSW(x)	(((x) >> 16) & 0xffff)
+#define	DMA_LSW(x)	(((x) & 0xffff))
 
 #define	IDPRINTF(lev, x)	if (isp->isp_dblev >= lev) printf x
 #define	PRINTF			printf
@@ -260,12 +248,5 @@ static __inline const char *isp2100_pdb_statename(int pdb_state)
 		return buf;
 	}
 }
-
-/*
- * Disable these for now
- */
-
-#define	ISP_NO_FASTPOST_SCSI		1
-#define	ISP_NO_FASTPOST_FC		1
 
 #endif	/* _ISP_FREEBSD_H */
