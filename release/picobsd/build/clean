@@ -1,7 +1,7 @@
 #! /bin/sh -
 
 #
-#	$Id: clean,v 1.7 1998/08/19 07:05:23 abial Exp $
+#	$Id: clean,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
 #
 set -e
 
@@ -20,14 +20,13 @@ fi
 
 rm -f kernel kernel.kz fs.PICOBSD picobsd.bin *.o *core *.db
 rm -f picobsd.bin
-rm -f build.status
 cd ..
 for j in $list
 do
 	echo "===================== $0 $j started ======================"
 	for i in `ls -d tinyware/[a-z]*` tools/write_mfs_in_kernel tools/dumpnlist ${j}/crunch1
 	do
-		(cd ${i} && make clean && rm -f .depend)
+		(cd ${i} && make clean && make cleandepend)
 	done
 
 	echo "=============== $0 $j completed successfuly =============="
