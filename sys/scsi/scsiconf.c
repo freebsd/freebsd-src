@@ -763,7 +763,7 @@ scsi_attachdevs(scbus)
 	}
 	bzero(scbus->sc_link, sizeof(struct scsi_link*[scbus->maxtarg + 1][8]));
 #if defined(SCSI_DELAY) && SCSI_DELAY > 2
-	printf("%s%d waiting for scsi devices to settle\n",
+	printf("%s%d: waiting for scsi devices to settle\n",
 	    sc_link_proto->adapter->name, sc_link_proto->adapter_unit);
 #else	/* SCSI_DELAY > 2 */
 #undef	SCSI_DELAY

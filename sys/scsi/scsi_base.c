@@ -1199,6 +1199,12 @@ scsi_4btou(bytes)
 static sc_printing;
 
 void
+sc_print_init()
+{
+	sc_printing++;
+}
+
+void
 sc_print_start(sc_link)
 	struct scsi_link *sc_link;
 {
@@ -1245,11 +1251,12 @@ sc_print_addr(sc_link)
 		printf("\n");
 
 	if (sc_link->device == 0) {
-		printf("nodevice");
+		printf("nodevice at ");
 	}
 	else if (strcmp(sc_link->device->name, "probe") != 0) {
 		printf("%s", sc_link->device->name);
-		id_put(sc_link->dev_unit, " at ");
+		id_put(sc_link->dev_unit, ": ");
+		return;
 	}
 
 	printf("scbus");
