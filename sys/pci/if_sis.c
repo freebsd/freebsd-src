@@ -906,7 +906,7 @@ sis_attach(device_t dev)
 	sc->sis_self = dev;
 
 	mtx_init(&sc->sis_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
-	    MTX_DEF | MTX_RECURSE);
+	    MTX_DEF);
 
 	if (pci_get_device(dev) == SIS_DEVICEID_900)
 		sc->sis_type = SIS_TYPE_900;
