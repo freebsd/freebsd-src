@@ -27,7 +27,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: mount_msdos.8,v 1.1 1994/09/19 15:30:34 dfr Exp $
+.\"	$Id: mount_msdos.8,v 1.2 1994/11/19 17:55:35 nate Exp $
 .\"
 .Dd April 7, 1994
 .Dt MOUNT_MSDOS 8
@@ -100,6 +100,14 @@ of MS-DOS later than version 3.3.
 The limitations on file names imposed by MS-DOS are strange, at best.
 For instance, they are
 limited to single-case, 8 character names with 3 character extensions.
+.Pp
+If you see the warning:
+.Pp
+mountmsdosfs(): Warning: root directory is not a multiple of the clustersize in length
+.Pp
+then it is possible that writing to the MS-DOS filesystem would
+produce corruption on the disk. This is a shortcoming in the code
+which needs to be addressed.
 .Sh HISTORY
 The
 .Nm mount_msdos
