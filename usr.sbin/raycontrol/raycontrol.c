@@ -75,14 +75,12 @@ ray_printhex(u_int8_t *d, char *s, int len)
 	char *p;
     	int i;
 
-	if (len > 256)
+	if (2 * len + strlen(s) * (len - 1) > sizeof(buf) - 1)
 		err(1, "Byte string too long");
 
 	sprintf(buf, "%02x", *d);
-	for (p = buf + 2, i = 1; i < len; i++) {
-		sprintf(p, "%s%02x", s, *(d+i));
-		p = p + 2 + strlen(s);
-	}
+	for (p = buf + 2, i = 1; i < len; i++)
+		p += sprintf(p, "%s%02x", s, *(d+i));
 
 	return(buf);
 }
@@ -118,7 +116,7 @@ ray_getsiglev(char *iface, struct ray_siglev *siglev)
 
         bzero((char *)&ifr, sizeof(ifr));
 
-        strcpy(ifr.ifr_name, iface);
+        strlcpy(ifr.ifr_name, iface, sizeof(ifr.ifr_name));
         ifr.ifr_data = (caddr_t)siglev;
 
         s = socket(AF_INET, SOCK_DGRAM, 0);
@@ -140,7 +138,7 @@ ray_getstats(char *iface, struct ray_stats_req *sreq)
 
         bzero((char *)&ifr, sizeof(ifr));
 
-        strcpy(ifr.ifr_name, iface);
+        strlcpy(ifr.ifr_name, iface, sizeof(ifr.ifr_name));
         ifr.ifr_data = (caddr_t)sreq;
 
         s = socket(AF_INET, SOCK_DGRAM, 0);
@@ -271,7 +269,7 @@ ray_setval(char *iface, struct ray_param_req *rreq)
 
         bzero((char *)&ifr, sizeof(ifr));
 
-        strcpy(ifr.ifr_name, iface);
+        strlcpy(ifr.ifr_name, iface, sizeof(ifr.ifr_name));
         ifr.ifr_data = (caddr_t)rreq;
 
         s = socket(AF_INET, SOCK_DGRAM, 0);
