@@ -19,8 +19,6 @@
 #the Free Software Foundation, 59 Temple Place - Suite 330,
 #Boston MA 02111-1307, USA.
 
-# $FreeBSD$
-
 # The targets for external use include:
 # all, doc, proto, install, install-cross, install-cross-rest,
 # uninstall, TAGS, mostlyclean, clean, distclean, maintainer-clean,
