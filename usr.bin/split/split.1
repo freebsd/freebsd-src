@@ -114,18 +114,6 @@ argument is not specified, the file is split into lexically ordered
 files named with prefixes in the range of
 .Dq Li x-z
 and with suffixes as above.
-.Sh BUGS
-For historical reasons, if you specify
-.Ar name ,
-.Nm
-can only create 676 separate
-files.
-The default naming convention allows 2028 separate files.
-The
-.Fl a
-option can be used to work around this limitation.
-.Pp
-The maximum line length for matching patterns is 65536.
 .Sh SEE ALSO
 .Xr csplit 1 ,
 .Xr re_format 7
@@ -139,3 +127,15 @@ A
 .Nm
 command appeared in
 .At v3 .
+.Sh BUGS
+For historical reasons, if you specify
+.Ar name ,
+.Nm
+can only create 676 separate
+files.
+The default naming convention allows 2028 separate files.
+The
+.Fl a
+option can be used to work around this limitation.
+.Pp
+The maximum line length for matching patterns is 65536.
