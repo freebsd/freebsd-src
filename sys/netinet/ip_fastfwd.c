@@ -461,14 +461,12 @@ ip_fastforward(struct mbuf *m)
 		if (in_localip(dest) || m->m_flags & M_FASTFWD_OURS) {
 #endif /* IPFIREWALL_FORWARD */
 forwardlocal:
-			/* for ip_input */
-			m->m_flags |= M_FASTFWD_OURS;
-			ip->ip_len = htons(ip->ip_len);
-			ip->ip_off = htons(ip->ip_off);
-
 			/*
-			 * Return packet for processing by ip_input()
+			 * Return packet for processing by ip_input().
+			 * Keep host byte order as expected at ip_input's
+			 * "ours"-label.
 			 */
+			m->m_flags |= M_FASTFWD_OURS;
 			if (ro.ro_rt)
 				RTFREE(ro.ro_rt);
 			return 0;
