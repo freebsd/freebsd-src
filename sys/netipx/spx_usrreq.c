@@ -1081,11 +1081,7 @@ send:
 		si->si_ack = htons(cb->s_ack);
 
 		if (ipxcksum) {
-			si->si_sum = 0;
-			len = ntohs(si->si_len);
-			if (len & 1)
-				len++;
-			si->si_sum = ipx_cksum(m, len);
+			si->si_sum = ipx_cksum(m, ntohs(si->si_len));
 		} else
 			si->si_sum = 0xffff;
 
