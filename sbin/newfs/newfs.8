@@ -87,8 +87,7 @@ or
 the disk must be labeled using 
 .Xr disklabel 8 .
 .Nm Newfs
-builds a file system on the specified special device
-basing its defaults on the information in the disk label.
+builds a file system on the specified special device.
 Typically the defaults are reasonable, however
 .Nm newfs
 has numerous options to allow the defaults to be selectively overridden.
@@ -232,9 +231,13 @@ The speed of the disk in revolutions per minute.
 .It Fl t Ar #tracks/cylinder
 The number of tracks/cylinder available for data allocation by the file
 system.
+The default is 1.
+If zero is specified, the value from the disklabel will be used.
 .It Fl u Ar sectors/track
 The number of sectors per track available for data allocation by the file
 system.
+The default is 4096.
+If zero is specified, the value from the disklabel will be used.
 This does not include sectors reserved at the end of each track for bad
 block replacement (see the
 .Fl p
