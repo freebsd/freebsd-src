@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vfsops.c	8.7 (Berkeley) 3/5/94
- * $Id: union_vfsops.c,v 1.5 1994/09/22 19:38:20 wollman Exp $
+ * $Id: union_vfsops.c,v 1.6 1994/10/10 07:55:47 phk Exp $
  */
 
 /*
@@ -256,6 +256,8 @@ union_mount(mp, path, data, ndp, p)
 
 	(void) copyinstr(args.target, cp, len - 1, &size);
 	bzero(cp + size, len - size);
+
+	(void)union_statfs(mp, &mp->mnt_stat, p);
 
 #ifdef UNION_DIAGNOSTIC
 	printf("union_mount: from %s, on %s\n",

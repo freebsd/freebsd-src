@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.6 (Berkeley) 2/17/94
- * $Id: union_vnops.c,v 1.6 1994/10/06 21:06:49 davidg Exp $
+ * $Id: union_vnops.c,v 1.7 1994/10/10 07:55:48 phk Exp $
  */
 
 #include <sys/param.h>
@@ -53,8 +53,13 @@
 #include <sys/queue.h>
 #include <miscfs/union/union.h>
 
+/* FIXUP throws the lock on the uppervp vnode if the union_node is already
+ * locked and the uppervp vnode is not.  Before, this was thrown regardless
+ * of the state of the union_node which resulted in locked vnodes which
+ * were never unlocked (since the union would never be unlocked).
+ */
 #define FIXUP(un) { \
-	if (((un)->un_flags & UN_ULOCK) == 0) { \
+	if (((un)->un_flags & (UN_LOCKED|UN_ULOCK)) == UN_LOCKED) { \
 		union_fixup(un); \
 	} \
 }
@@ -1136,7 +1141,6 @@ union_symlink(ap)
 int
 union_readdir(ap)
 	struct vop_readdir_args /* {
-		struct vnodeop_desc *a_desc;
 		struct vnode *a_vp;
 		struct uio *a_uio;
 		struct ucred *a_cred;
@@ -1147,7 +1151,7 @@ union_readdir(ap)
 
 	if (un->un_uppervp) {
 		FIXUP(un);
-		error = VOP_READDIR(un->un_uppervp, ap->a_uio, ap->a_cred);
+		error = VOP_READDIR(un->un_uppervp, ap->a_uio, ap->a_cred, NULL, NULL, NULL);
 	}
 
 	return (error);
