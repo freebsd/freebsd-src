@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.81.2.6 1999/05/17 12:41:06 kato Exp $
+#	$Id: files.pc98,v 1.81.2.7 1999/05/25 10:38:31 kato Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -132,6 +132,7 @@ pc98/pc98/fd.c			optional	fd	device-driver
 i386/isa/gpib.c			optional	gp	device-driver
 i386/isa/asc.c			optional	asc	device-driver
 i386/isa/gsc.c			optional	gsc	device-driver
+i386/isa/ida.c			optional	id	device-driver
 i386/isa/if_ar.c		optional	ar	device-driver
 i386/isa/if_cs.c		optional	cs	device-driver
 i386/isa/if_cx.c		optional	cx	device-driver
@@ -150,6 +151,14 @@ i386/isa/if_wl.c		optional	wl	device-driver
 dev/pccard/if_xe.c		optional	xe	device-driver
 i386/isa/if_ze.c		optional	ze	device-driver
 i386/isa/if_zp.c		optional	zp	device-driver
+contrib/dev/oltr/if_oltr.c	optional	oltr	device-driver
+trlld.o				optional	oltr	device-driver	\
+	dependency	"$S/contrib/dev/oltr/i386-${KERNFORMAT}.trlld.o.uu"	\
+	compile-with	"uudecode < $S/contrib/dev/oltr/i386-${KERNFORMAT}.trlld.o.uu"	\
+	no-implicit-rule
+contrib/dev/oltr/trlldmac.c	optional	oltr	device-driver
+contrib/dev/oltr/trlldhm.c	optional	oltr	device-driver
+contrib/dev/oltr/trlldbm.c	optional	oltr	device-driver
 i386/isa/ipl_funcs.c		standard				   \
 	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} $<"
 i386/isa/intr_machdep.c		standard
