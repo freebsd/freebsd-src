@@ -34,17 +34,17 @@
 
 # Control mode page:
 0x0a {
-	{Reserved} *b7
-	{RLEC} b1
-	{Queue Algorithm Modifier} b4
-	{Reserved} *b2
-	{QErr} b1
-	{DQue} b1
-	{EECA} b1
-	{Reserved} *b4
-	{RAENP} b1
-	{UAAENP} b1
-	{EAENP} b1
+	{Reserved} *t7
+	{RLEC} t1
+	{Queue Algorithm Modifier} t4
+	{Reserved} *t2
+	{QErr} t1
+	{DQue} t1
+	{EECA} t1
+	{Reserved} *t4
+	{RAENP} t1
+	{UAAENP} t1
+	{EAENP} t1
 	{Reserved} *i1
 	{Ready AEN Holdoff Period} i2
 }
@@ -57,8 +57,8 @@
 	{Disconnect Time Limit} i2
 	{Connect Time Limit} i2
 	{Maximum Burst Size} i2
-	{Reserved} *b6
-	{DTDC} b2
+	{Reserved} *t6
+	{DTDC} t2
 	{Reserved} *i1
 	{Reserved} *i1
 	{Reserved} *i1
@@ -77,12 +77,12 @@
 # DIRECT ACCESS DEVICES
 # Caching page:
 0x08 {
-	{Reserved} *b5
-	{WCE} b1
-	{MF} b1
-	{RCD} b1
-	{Demand Retention Priority} b4
-	{Write Retention Priority} b4
+	{Reserved} *t5
+	{WCE} t1
+	{MF} t1
+	{RCD} t1
+	{Demand Retention Priority} t4
+	{Write Retention Priority} t4
 	{Disable Pre-fetch Transfer Length} i2
 	{Minumum Pre-fetch} i2
 	{Maximum Pre-fetch} i2
@@ -103,19 +103,19 @@
 	{Head settle delay} i2
 	{Motor on delay} i1
 	{Motor off delay} i1
-	{TRDY} b1
-	{SSN} b1
-	{MO} b1
-	{Reserved} *b5
-	{Reserved} *b4
-	{SPC} b4
+	{TRDY} t1
+	{SSN} t1
+	{MO} t1
+	{Reserved} *t5
+	{Reserved} *t4
+	{SPC} t4
 	{Write Compensation} i1
 	{Head load delay} i1
 	{Head unload delay} i1
-	{Pin 34} b4
-	{Pin 2} b4
-	{Pin 4} b4
-	{Pin 1} b4
+	{Pin 34} t4
+	{Pin 2} t4
+	{Pin 4} t4
+	{Pin 1} t4
 	{Medium rotation rate} i2
 	{Reserved} *i1
 	{Reserved} *i1
@@ -132,11 +132,11 @@
 	{Interleave} i2
 	{Track Skew Factor} i2
 	{Cylinder Skew Factor} i2
-	{SSEC} b1
-	{HSEC} b1
-	{RMB} b1
-	{SURF} b1
-	{Reserved} *b4
+	{SSEC} t1
+	{HSEC} t1
+	{RMB} t1
+	{SURF} t1
+	{Reserved} *t4
 }
 
 # Medium types supported page:
@@ -153,14 +153,14 @@
 
 #  Read-Write Error Recovery Page
 0x01	{
-	{AWRE (Auto Write Reallocation Enbld)} b1
-	{ARRE (Auto Read Reallocation Enbld)} b1
-	{TB (Transfer Block)} b1
-	{RC (Read Continuous)} b1
-	{EER (Enable Early Recovery)} b1
-	{PER (Post Error)} b1
-	{DTE (Disable Transfer on Error)} b1
-	{DCR (Disable Correction)} b1
+	{AWRE (Auto Write Reallocation Enbld)} t1
+	{ARRE (Auto Read Reallocation Enbld)} t1
+	{TB (Transfer Block)} t1
+	{RC (Read Continuous)} t1
+	{EER (Enable Early Recovery)} t1
+	{PER (Post Error)} t1
+	{DTE (Disable Transfer on Error)} t1
+	{DCR (Disable Correction)} t1
 	{Read Retry Count} i1
 	{Correction Span} i1
 	{Head Offset Count} i1
@@ -179,8 +179,8 @@
 	{Starting Cylinder-Reduced Write Current} i3
 	{Drive Step Rate} i2
 	{Landing Zone Cylinder} i3
-	{Reserved} *b6
-	{RPL} b2
+	{Reserved} *t6
+	{RPL} t2
 	{Rotational Offset} i1
 	{Reserved} *i1
 	{Medium Rotation Rate} i2
@@ -190,11 +190,11 @@
 
 # Verify Error Recovery Page
 0x07	{
-	{Reserved} *b4
-	{EER} b1
-	{PER} b1
-	{DTE} b1
-	{DCR} b1
+	{Reserved} *t4
+	{EER} t1
+	{PER} t1
+	{DTE} t1
+	{DCR} t1
 	{Verify Retry Count} i1
 	{Verify Correction Span} i1
 	{Reserved} *i1
