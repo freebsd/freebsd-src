@@ -1096,19 +1096,14 @@ acpi_bus_alloc_gas(device_t dev, int *type, int *rid, ACPI_GENERIC_ADDRESS *gas,
     }
 
     /*
-     * If the register width is less than 4, assume the BIOS author made a
-     * mistake and assumed the width is in units of bytes not bits.  Ugh.
+     * If the register width is less than 8, assume the BIOS author means
+     * it is a bit field and just allocate a byte.
      */
-    switch (gas->RegisterBitWidth) {
-    case 1:
-    case 2:
-    case 4:
-	gas->RegisterBitWidth *= 8;
-	break;
-    }
+    if (gas->RegisterBitWidth && gas->RegisterBitWidth < 8)
+	gas->RegisterBitWidth = 8;
 
     /* Validate the address after we're sure we support the space. */
-    if (!ACPI_VALID_ADDRESS(gas->Address) || gas->RegisterBitWidth < 8)
+    if (!ACPI_VALID_ADDRESS(gas->Address) || gas->RegisterBitWidth == 0)
 	return (EINVAL);
 
     bus_set_resource(dev, res_type, *rid, gas->Address,
