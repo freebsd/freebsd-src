@@ -1039,6 +1039,10 @@ options 	SC_NO_FONT_LOADING
 options 	SC_NO_HISTORY
 options 	SC_NO_SYSMOUSE
 
+# `flags' for sc
+#       0x80    Put the video card in the VESA 800x600 dots, 16 color mode
+#       0x100   Probe for a keyboard device periodically if one is not present
+
 #
 # The Numeric Processing eXtension driver.  In addition to this, you
 # may configure a math emulator (see above).  If your machine has a
