@@ -1,3 +1,29 @@
+.\" Copyright (c) 1995 FreeBSD Inc. 
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL [your name] OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$Id$
+.\"
 .Dd December 14, 1995
 .Dt STYLE 9
 .Os FreeBSD 2.2
@@ -13,7 +39,7 @@ files in the FreeBSD source tree.
  *
  *	@(#)style	1.14 (Berkeley) 4/28/95
  *
- *	$Id: style.9,v 1.8 1996/06/13 19:52:42 wollman Exp $
+ *	$Id: style.9,v 1.9 1996/07/17 12:32:18 bde Exp $
  *
  */
 
@@ -173,7 +199,6 @@ have a NOTREACHED comment.
 			if (num <= 0 || *ep != '\e0')
 				err("illegal number -- %s", optarg);
 			break;
-		case '?':
 		default:
 			usage();
 			/* NOTREACHED */
