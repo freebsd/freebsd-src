@@ -871,7 +871,9 @@ pps_ioctl(u_long cmd, caddr_t data, struct pps_state *pps)
 {
 	pps_params_t *app;
 	struct pps_fetch_args *fapi;
+#ifdef PPS_SYNC
 	struct pps_kcbind_args *kapi;
+#endif
 
 	switch (cmd) {
 	case PPS_IOC_CREATE:
