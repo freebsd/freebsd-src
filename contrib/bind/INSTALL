@@ -1,0 +1,74 @@
+$Id: INSTALL,v 8.6 1995/12/24 06:43:57 vixie Exp $
+
+THE FILES:
+----------
+INSTALL		-- This file
+README		-- Release announcements, tips and traps (some out of date)
+OPTIONS		-- The options that can be turned on and off
+RUNSON		-- What machines/compilers is BIND known to build on
+TODO		-- Have spare time?  Consider contributing to the project!
+doc/info/*	-- Platform-dependent build hints
+
+HOW TO BUILD:
+-------------
+4.9.3 is considerably easier to build than previous releases.  These
+are the instructions on how to compile the software.  For information
+on how to create your configuration files (resolv.conf, named.boot, and
+zone files) see the doc/bog directory and/or get "DNS and BIND" by C.
+Liu and P. Albitz from O'Reilly & Associates, Sebastopol, CA, ISBN
+0-937175-82-X 1992
+
+Note:	If you maintain a BSD or are otherwise running a 4.4BSD-based system
+	and want to integrate BIND into it, check out BSD/README.
+
+1.  (optional) If you are going to compile for multiple platforms, you
+can make a symbolic link tree for each platform to save disk space.  To
+create a directory called "sun4.dir", do:
+	make DST=sun4.dir links
+Now "cd sun4.dir" and you can do everything as if you had a complete
+copy of the source.  Just be careful if you are modifying a file, make
+sure you turn any links into files:
+	mv file file.tmp ; cp file.tmp file ; rm file.tmp
+
+2.  Edit "conf/options.h" and turn on any options that you want.  The
+defaults are pretty reasonable for most installations.
+
+3.  Edit "Makefile".  Go to the section that describes your operating
+system and uncoment it out.  Add any other variables (for example,
+I added a line "DISTHELP=/usr/local/lib".)  If in doubt, use the
+default!
+
+4.  "make" should build everything.  Consider putting "./bin" in your
+path if "make depend" fails and you think bin/mkdep will help you out.
+
+	*** NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE ***
+
+	The next step (#5) will burn down files which were supplied with
+	your operating system.  You should run the suggested "-n" first
+	and make sure you have saved any files you want to save.
+
+	*** NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE ***
+
+5.  "make install" will install everything.  You might first do
+"make -n install" to see what commands would be executed by "make install"
+to make sure you understand where everything is about to be installed.
+
+6.  (optional, SunOS 4.1.x/NetBSD-1.x/Solaris 2.x only): You can integrate
+the new resolver (client-side) code into the shared libraries of your
+operating system so that all dynamicly linked programs take advantage of
+the new resolver.  Read shres/<osname>/INSTALL to find out how to do it.
+
+
+
+HOW TO GET HELP:
+---------------- 
+If you have any problems or fixes send them to
+        bind@uunet.uu.net
+ 
+To be added to that mailing list, send mail to
+        bind-request@uunet.uu.net
+
+
+
+This INSTALL was originally written on 15Jul94 by Tom Limoncelli <tal@plts.org>
+Minor changes 23Dec95 by Christopher Davis <ckd@kei.com>
