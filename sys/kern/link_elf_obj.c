@@ -38,12 +38,16 @@
 #include <machine/elf.h>
 
 #include <vm/vm.h>
+#ifdef SPARSE_MAPPING
 #include <vm/vm_prot.h>
+#endif
 #include <vm/vm_param.h>
 #include <sys/lock.h>
+#ifdef SPARSE_MAPPING
 #include <vm/vm_object.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
+#endif
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 

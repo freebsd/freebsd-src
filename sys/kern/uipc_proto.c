@@ -42,7 +42,6 @@
 #include <sys/queue.h>
 #include <sys/sysctl.h>
 #include <sys/un.h>
-#include <sys/unpcb.h>
 
 #include <net/raw_cb.h>
 

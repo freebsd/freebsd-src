@@ -18,7 +18,6 @@
 #include <sys/conf.h>
 #include <sys/disk.h>
 #include <sys/malloc.h>
-#include <sys/vnode.h>
 #include <machine/md_var.h>
 
 MALLOC_DEFINE(M_DISK, "disk", "disk data");

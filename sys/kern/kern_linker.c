@@ -36,11 +36,8 @@
 #include <sys/sysent.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
-#include <machine/cpu.h>
-#include <machine/bootinfo.h>
 #include <sys/module.h>
 #include <sys/linker.h>
-#include <sys/unistd.h>
 #include <sys/fcntl.h>
 #include <sys/libkern.h>
 #include <sys/namei.h>

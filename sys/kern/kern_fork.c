@@ -63,7 +63,6 @@
 #include <vm/vm_extern.h>
 #include <vm/vm_zone.h>
 
-#include <machine/frame.h>
 #include <sys/user.h>
 
 static int	fast_vfork = 1;

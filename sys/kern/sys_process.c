@@ -45,7 +45,6 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
-#include <vm/vm_extern.h>
 
 #include <sys/user.h>
 #include <miscfs/procfs/procfs.h>
