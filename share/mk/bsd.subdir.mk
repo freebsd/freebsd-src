@@ -58,8 +58,7 @@ ${SUBDIR}::
 
 
 .for __target in all all-man checkdpadd clean cleandepend cleandir depend lint \
-		 obj objlink realinstall regress tags \
-		 install.debug reinstall.debug
+    obj objlink realinstall regress tags
 ${__target}: _SUBDIR
 .endfor
 

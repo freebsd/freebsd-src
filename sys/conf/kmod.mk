@@ -218,11 +218,16 @@ _INSTALLFLAGS:=	${INSTALLFLAGS}
 _INSTALLFLAGS:=	${_INSTALLFLAGS${ie}}
 .endfor
 
+.if defined(DEBUG)
 install.debug:
-	${INSTALL} ${COPY} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
-	    ${_INSTALLFLAGS} ${FULLPROG} ${DESTDIR}${KMODDIR}/
+	cd ${.CURDIR}; ${MAKE} -DINSTALL_DEBUG install
+.endif
 
 realinstall:
+.if defined(DEBUG) && defined(INSTALL_DEBUG)
+	${INSTALL} ${COPY} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
+	    ${_INSTALLFLAGS} ${FULLPROG} ${DESTDIR}${KMODDIR}/
+.else
 	${INSTALL} ${COPY} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
 	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${KMODDIR}/
 .if defined(LINKS) && !empty(LINKS)
@@ -249,6 +254,7 @@ realinstall:
 .endif
 .if !defined(NO_XREF)
 	-kldxref ${DESTDIR}${KMODDIR}
+.endif
 .endif
 
 install: afterinstall

@@ -17,10 +17,7 @@ clean:  kernel-clean
 cleandepend:  kernel-cleandepend
 clobber: kernel-clobber
 depend: kernel-depend
-# XXX "make install.debug" seems to install kernels twice.
-install.debug: kernel-install.debug
 install: kernel-install
-reinstall.debug: kernel-reinstall.debug
 reinstall: kernel-reinstall
 tags:  kernel-tags
 
@@ -30,6 +27,8 @@ FULLKERNEL=	${KERNEL_KO}
 FULLKERNEL=	${KERNEL_KO}.debug
 ${KERNEL_KO}: ${FULLKERNEL}
 	${OBJCOPY} --strip-debug ${FULLKERNEL} ${KERNEL_KO}
+install.debug reinstall.debug:
+	cd ${.CURDIR}; ${MAKE} -DINSTALL_DEBUG ${.TARGET:R}
 .endif
 
 ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
@@ -125,7 +124,7 @@ kernel-tags:
 	rm -f tags1
 	sed -e 's,      ../,    ,' tags > tags1
 
-kernel-install kernel-install.debug:
+kernel-install:
 .if exists(${DESTDIR}/boot)
 	@if [ ! -f ${DESTDIR}/boot/device.hints ] ; then \
 		echo "You must set up a ${DESTDIR}/boot/device.hints file first." ; \
@@ -136,7 +135,7 @@ kernel-install kernel-install.debug:
 		exit 1 ; \
 	fi
 .endif
-	@if [ ! -f ${KERNEL_KO}${.TARGET:S/kernel-install//} ] ; then \
+	@if [ ! -f ${FULLKERNEL} ] ; then \
 		echo "You must build a kernel first." ; \
 		exit 1 ; \
 	fi
@@ -157,13 +156,19 @@ kernel-install kernel-install.debug:
 	fi
 .endif
 	mkdir -p ${DESTDIR}${KODIR}
-	install -c -m 555 -o root -g wheel \
-		${KERNEL_KO}${.TARGET:S/kernel-install//} ${DESTDIR}${KODIR}
+.if defined(DEBUG) && defined(INSTALL_DEBUG)
+	install -c -m 555 -o root -g wheel ${FULLKERNEL} ${DESTDIR}${KODIR}
+.else
+	install -c -m 555 -o root -g wheel ${KERNEL_KO} ${DESTDIR}${KODIR}
+.endif
 
-kernel-reinstall kernel-reinstall.debug:
+kernel-reinstall:
 	@-chflags -R noschg ${DESTDIR}${KODIR}
-	install -c -m 555 -o root -g wheel \
-		${KERNEL_KO}${.TARGET:S/kernel-reinstall//} ${DESTDIR}${KODIR}
+.if defined(DEBUG) && defined(INSTALL_DEBUG)
+	install -c -m 555 -o root -g wheel ${FULLKERNEL} ${DESTDIR}${KODIR}
+.else
+	install -c -m 555 -o root -g wheel ${KERNEL_KO} ${DESTDIR}${KODIR}
+.endif
 
 .if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists($S/modules)
 all:	modules
@@ -172,9 +177,7 @@ cleandepend:  modules-cleandepend
 cleandir:  modules-cleandir
 clobber:  modules-clobber
 depend: modules-depend
-install.debug: modules-install.debug
 install: modules-install
-reinstall.debug: modules-reinstall.debug
 reinstall: modules-reinstall
 tags:  modules-tags
 .endif
@@ -206,9 +209,6 @@ modules-tags:
 
 modules-install modules-reinstall:
 	cd $S/modules ; ${MKMODULESENV} ${MAKE} install
-
-modules-install.debug modules-reinstall.debug:
-	cd $S/modules ; ${MKMODULESENV} ${MAKE} install.debug
 
 modules-tags:
 	cd $S/modules ; env ${MKMODULESENV} ${MAKE} tags
