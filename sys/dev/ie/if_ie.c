@@ -219,7 +219,6 @@ static int	in_ietint = 0;
 struct isa_driver iedriver = {
 	ieprobe, ieattach, "ie",
 };
-COMPAT_ISA_DRIVER(ie, iedriver);
 
 enum ie_hardware {
 	IE_STARLAN10,
