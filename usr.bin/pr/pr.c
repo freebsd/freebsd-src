@@ -1151,7 +1151,7 @@ otln(buf, cnt, svips, svops, mor)
 			/*
 			 * got a non space char; contract out spaces
 			 */
-			while (ops < ips) {
+			while (ips - ops > 1) {
 				/*
 				 * use as many ochar as will fit
 				 */
@@ -1196,7 +1196,7 @@ otln(buf, cnt, svips, svops, mor)
 		}
 
 		if (mor < 0) {
-			while (ops < ips) {
+			while (ips - ops > 1) {
 				/*
 				 * use as many ochar as will fit
 				 */
