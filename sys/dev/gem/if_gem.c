@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: NetBSD: gem.c,v 1.9 2001/10/21 20:45:15 thorpej Exp
+ *	from: NetBSD: gem.c,v 1.21 2002/06/01 23:50:58 lukem Exp
  *
  * $FreeBSD$
  */
@@ -124,6 +124,7 @@ gem_attach(sc)
 	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
 	struct mii_softc *child;
 	int i, error;
+	u_int32_t v;
 
 	/* Make sure the chip is stopped. */
 	ifp->if_softc = sc;
@@ -228,7 +229,15 @@ gem_attach(sc)
 	device_printf(sc->sc_dev, "Ethernet address:");
 	for (i = 0; i < 6; i++)
 		printf("%c%02x", i > 0 ? ':' : ' ', sc->sc_arpcom.ac_enaddr[i]);
-	printf("\n");
+
+	/* Get RX FIFO size */
+	sc->sc_rxfifosize = 64 *
+	    bus_space_read_4(sc->sc_bustag, sc->sc_h, GEM_RX_FIFO_SIZE);
+	printf(", %uKB RX fifo", sc->sc_rxfifosize / 1024);
+
+	/* Get TX FIFO size */
+	v = bus_space_read_4(sc->sc_bustag, sc->sc_h, GEM_TX_FIFO_SIZE);
+	printf(", %uKB TX fifo\n", v / 16);
 
 	/* Initialize ifnet structure. */
 	ifp->if_softc = sc;
@@ -416,6 +425,10 @@ gem_txdma_callback(xsc, segs, nsegs, error)
 			CTR2(KTR_GEM, "txdma_cb: start of packet at seg %d, "
 			    "tx %d", seg, tx->txd_nexttx);
 			flags |= GEM_TD_START_OF_PACKET;
+			if (++tx->txd_sc->sc_txwin > GEM_NTXSEGS * 2 / 3) {
+				tx->txd_sc->sc_txwin = 0;
+				flags |= GEM_TD_INTERRUPT_ME;
+			}
 		}
 		if ((tx->txd_flags & GTXD_LAST) != 0 && seg == nsegs - 1) {
 			CTR2(KTR_GEM, "txdma_cb: end of packet at seg %d, "
@@ -680,8 +693,9 @@ gem_meminit(sc)
 	}
 	GEM_CDTXSYNC(sc, 0, GEM_NTXDESC,
 	    BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE);
-	sc->sc_txfree = GEM_NTXDESC;
+	sc->sc_txfree = GEM_NTXDESC-1;
 	sc->sc_txnext = 0;
+	sc->sc_txwin = 0;
 
 	/*
 	 * Initialize the receive descriptor and receive job
@@ -821,7 +835,8 @@ gem_init(xsc)
 			GEM_INTR_RX_TAG_ERR|GEM_INTR_PCS|
 			GEM_INTR_MAC_CONTROL|GEM_INTR_MIF|
 			GEM_INTR_BERR));
-	bus_space_write_4(t, h, GEM_MAC_RX_MASK, 0); /* XXXX */
+	bus_space_write_4(t, h, GEM_MAC_RX_MASK,
+			GEM_MAC_RX_DONE|GEM_MAC_RX_FRAME_CNT);
 	bus_space_write_4(t, h, GEM_MAC_TX_MASK, 0xffff); /* XXXX */
 	bus_space_write_4(t, h, GEM_MAC_CONTROL_MASK, 0); /* XXXX */
 
@@ -844,14 +859,16 @@ gem_init(xsc)
 		(2<<GEM_RX_CONFIG_FBOFF_SHFT)|GEM_RX_CONFIG_RXDMA_EN|
 		(0<<GEM_RX_CONFIG_CXM_START_SHFT));
 	/*
-	 * The following value is for an OFF Threshold of about 15.5 Kbytes
-	 * and an ON Threshold of 4K bytes.
+	 * The following value is for an OFF Threshold of about 3/4 full
+	 * and an ON Threshold of 1/4 full.
 	 */
-	bus_space_write_4(t, h, GEM_RX_PAUSE_THRESH, 0xf8 | (0x40 << 12));
-	bus_space_write_4(t, h, GEM_RX_BLANKING, (2<<12)|6);
+	bus_space_write_4(t, h, GEM_RX_PAUSE_THRESH,
+	    (3 * sc->sc_rxfifosize / 256) |
+	    (   (sc->sc_rxfifosize / 256) << 12));
+	bus_space_write_4(t, h, GEM_RX_BLANKING, (6<<12)|6);
 
 	/* step 11. Configure Media */
-	(void)gem_mii_statchg(sc->sc_dev);
+	mii_mediachg(sc->sc_mii);
 
 	/* step 12. RX_MAC Configuration Register */
 	v = bus_space_read_4(t, h, GEM_MAC_RX_CONFIG);
@@ -873,7 +890,7 @@ gem_init(xsc)
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
 	ifp->if_timer = 0;
-	sc->sc_flags = ifp->if_flags;
+	sc->sc_ifflags = ifp->if_flags;
 	splx(s);
 }
 
@@ -1005,12 +1022,12 @@ static void
 gem_init_regs(sc)
 	struct gem_softc *sc;
 {
-	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
 	bus_space_tag_t t = sc->sc_bustag;
 	bus_space_handle_t h = sc->sc_h;
+	const u_char *laddr = sc->sc_arpcom.ac_enaddr;
+	u_int32_t v;
 
 	/* These regs are not cleared on reset */
-	sc->sc_inited = 0;
 	if (!sc->sc_inited) {
 
 		/* Wooo.  Magic values. */
@@ -1021,20 +1038,22 @@ gem_init_regs(sc)
 		bus_space_write_4(t, h, GEM_MAC_MAC_MIN_FRAME, ETHER_MIN_LEN);
 		/* Max frame and max burst size */
 		bus_space_write_4(t, h, GEM_MAC_MAC_MAX_FRAME,
-			(ifp->if_mtu+18) | (0x2000<<16)/* Burst size */);
+		    ETHER_MAX_LEN | (0x2000<<16));
+
 		bus_space_write_4(t, h, GEM_MAC_PREAMBLE_LEN, 0x7);
 		bus_space_write_4(t, h, GEM_MAC_JAM_SIZE, 0x4);
 		bus_space_write_4(t, h, GEM_MAC_ATTEMPT_LIMIT, 0x10);
 		/* Dunno.... */
 		bus_space_write_4(t, h, GEM_MAC_CONTROL_TYPE, 0x8088);
 		bus_space_write_4(t, h, GEM_MAC_RANDOM_SEED,
-			((sc->sc_arpcom.ac_enaddr[5]<<8)|
-			  sc->sc_arpcom.ac_enaddr[4])&0x3ff);
+		    ((laddr[5]<<8)|laddr[4])&0x3ff);
+
 		/* Secondary MAC addr set to 0:0:0:0:0:0 */
 		bus_space_write_4(t, h, GEM_MAC_ADDR3, 0);
 		bus_space_write_4(t, h, GEM_MAC_ADDR4, 0);
 		bus_space_write_4(t, h, GEM_MAC_ADDR5, 0);
-		/* MAC control addr set to 0:1:c2:0:1:80 */
+
+		/* MAC control addr set to 01:80:c2:00:00:01 */
 		bus_space_write_4(t, h, GEM_MAC_ADDR6, 0x0001);
 		bus_space_write_4(t, h, GEM_MAC_ADDR7, 0xc200);
 		bus_space_write_4(t, h, GEM_MAC_ADDR8, 0x0180);
@@ -1073,12 +1092,21 @@ gem_init_regs(sc)
 	/*
 	 * Set the station address.
 	 */
-	bus_space_write_4(t, h, GEM_MAC_ADDR0,
-		(sc->sc_arpcom.ac_enaddr[4]<<8) | sc->sc_arpcom.ac_enaddr[5]);
-	bus_space_write_4(t, h, GEM_MAC_ADDR1,
-		(sc->sc_arpcom.ac_enaddr[2]<<8) | sc->sc_arpcom.ac_enaddr[3]);
-	bus_space_write_4(t, h, GEM_MAC_ADDR2,
-		(sc->sc_arpcom.ac_enaddr[0]<<8) | sc->sc_arpcom.ac_enaddr[1]);
+	bus_space_write_4(t, h, GEM_MAC_ADDR0, (laddr[4]<<8)|laddr[5]);
+	bus_space_write_4(t, h, GEM_MAC_ADDR1, (laddr[2]<<8)|laddr[3]);
+	bus_space_write_4(t, h, GEM_MAC_ADDR2, (laddr[0]<<8)|laddr[1]);
+
+	/*
+	 * Enable MII outputs.  Enable GMII if there is a gigabit PHY.
+	 */
+	sc->sc_mif_config = bus_space_read_4(t, h, GEM_MIF_CONFIG);
+	v = GEM_MAC_XIF_TX_MII_ENA;
+	if (sc->sc_mif_config & GEM_MIF_CONFIG_MDI1) {
+		v |= GEM_MAC_XIF_FDPLX_LED;
+		if (sc->sc_flags & GEM_GIGABIT)
+			v |= GEM_MAC_XIF_GMII_MODE;
+	}
+	bus_space_write_4(t, h, GEM_MAC_XIF_CONFIG, v);
 }
 
 static void
@@ -1271,6 +1299,7 @@ gem_tint(sc)
 	bus_space_handle_t mac = sc->sc_h;
 	struct gem_txsoft *txs;
 	int txlast;
+	int progress = 0;
 
 
 	DPRINTF(sc, ("%s: gem_tint\n", device_get_name(sc->sc_dev)));
@@ -1360,6 +1389,7 @@ gem_tint(sc)
 		STAILQ_INSERT_TAIL(&sc->sc_txfreeq, txs, txs_q);
 
 		ifp->if_opackets++;
+		progress = 1;
 	}
 
 	DPRINTF(sc, ("gem_tint: GEM_TX_STATE_MACHINE %x "
@@ -1381,18 +1411,22 @@ gem_tint(sc)
 			GEM_TX_DATA_PTR_LO),
 		bus_space_read_4(sc->sc_bustag, sc->sc_h, GEM_TX_COMPLETION));
 
-	if (STAILQ_FIRST(&sc->sc_txdirtyq) == NULL)
-		ifp->if_timer = 0;
+	if (progress) {
+		if (sc->sc_txfree == GEM_NTXDESC - 1)
+			sc->sc_txwin = 0;
 
+		/* Freed some descriptors, so reset IFF_OACTIVE and restart. */
+		ifp->if_flags &= ~IFF_OACTIVE;
+		gem_start(ifp);
+
+		if (STAILQ_EMPTY(&sc->sc_txdirtyq))
+			ifp->if_timer = 0;
+	}
 
 	DPRINTF(sc, ("%s: gem_tint: watchdog %d\n",
 		device_get_name(sc->sc_dev), ifp->if_timer));
 	CTR2(KTR_GEM, "%s: gem_tint: watchdog %d",
 		device_get_name(sc->sc_dev), ifp->if_timer);
-
-	/* Freed some descriptors, so reset IFF_OACTIVE and restart. */
-	ifp->if_flags &= ~IFF_OACTIVE;
-	gem_start(ifp);
 }
 
 static void
@@ -1417,19 +1451,27 @@ gem_rint(sc)
 	struct gem_rxsoft *rxs;
 	struct mbuf *m;
 	u_int64_t rxstat;
-	int i, len;
+	u_int32_t rxcomp;
+	int i, len, progress = 0;
 
 	callout_stop(&sc->sc_rx_ch);
 	DPRINTF(sc, ("%s: gem_rint\n", device_get_name(sc->sc_dev)));
 	CTR1(KTR_GEM, "%s: gem_rint", device_get_name(sc->sc_dev));
+
+	/*
+	 * Read the completion register once.  This limits
+	 * how long the following loop can execute.
+	 */
+	rxcomp = bus_space_read_4(t, h, GEM_RX_COMPLETION);
+
 	/*
 	 * XXXX Read the lastrx only once at the top for speed.
 	 */
 	DPRINTF(sc, ("gem_rint: sc->rxptr %d, complete %d\n",
-		sc->sc_rxptr, bus_space_read_4(t, h, GEM_RX_COMPLETION)));
+		sc->sc_rxptr, rxcomp));
 	CTR2(KTR_GEM, "gem_rint: sc->rxptr %d, complete %d",
-	    sc->sc_rxptr, bus_space_read_4(t, h, GEM_RX_COMPLETION));
-	for (i = sc->sc_rxptr; i != bus_space_read_4(t, h, GEM_RX_COMPLETION);
+	    sc->sc_rxptr, rxcomp);
+	for (i = sc->sc_rxptr; i != rxcomp;
 	     i = GEM_NEXTRX(i)) {
 		rxs = &sc->sc_rxsoft[i];
 
@@ -1439,6 +1481,7 @@ gem_rint(sc)
 		rxstat = GEM_DMA_READ(sc, sc->sc_rxdescs[i].gd_flags);
 
 		if (rxstat & GEM_RD_OWN) {
+#if 0 /* XXX: In case of emergency, re-enable this. */
 			/*
 			 * The descriptor is still marked as owned, although
 			 * it is supposed to have completed. This has been
@@ -1449,10 +1492,15 @@ gem_rint(sc)
 			 */
 			callout_reset(&sc->sc_rx_ch, GEM_RXOWN_TICKS,
 			    gem_rint_timeout, sc);
+#endif
 			break;
 		}
 
+		progress++;
+		ifp->if_ipackets++;
+
 		if (rxstat & GEM_RD_BAD_CRC) {
+			ifp->if_ierrors++;
 			device_printf(sc->sc_dev, "receive error: CRC error\n");
 			GEM_INIT_RXDESC(sc, i);
 			continue;
@@ -1491,7 +1539,6 @@ gem_rint(sc)
 		}
 		m->m_data += 2; /* We're already off by two */
 
-		ifp->if_ipackets++;
 		eh = mtod(m, struct ether_header *);
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = m->m_len = len - ETHER_CRC_LEN;
@@ -1501,9 +1548,14 @@ gem_rint(sc)
 		ether_input(ifp, eh, m);
 	}
 
-	/* Update the receive pointer. */
-	sc->sc_rxptr = i;
-	bus_space_write_4(t, h, GEM_RX_KICK, i);
+	if (progress) {
+		/* Update the receive pointer. */
+		if (i == sc->sc_rxptr) {
+			device_printf(sc->sc_dev, "rint: ring wrap\n");
+		}
+		sc->sc_rxptr = i;
+		bus_space_write_4(t, h, GEM_RX_KICK, GEM_PREVRX(i));
+	}
 
 	DPRINTF(sc, ("gem_rint: done sc->rxptr %d, complete %d\n",
 		sc->sc_rxptr, bus_space_read_4(t, h, GEM_RX_COMPLETION)));
@@ -1609,14 +1661,16 @@ gem_intr(v)
 	if (status & GEM_INTR_TX_MAC) {
 		int txstat = bus_space_read_4(t, seb, GEM_MAC_TX_STATUS);
 		if (txstat & ~GEM_MAC_TX_XMIT_DONE)
-			printf("MAC tx fault, status %x\n", txstat);
+			device_printf(sc->sc_dev, "MAC tx fault, status %x\n",
+			    txstat);
 		if (txstat & (GEM_MAC_TX_UNDERRUN | GEM_MAC_TX_PKT_TOO_LONG))
 			gem_init(sc);
 	}
 	if (status & GEM_INTR_RX_MAC) {
 		int rxstat = bus_space_read_4(t, seb, GEM_MAC_RX_STATUS);
 		if (rxstat & ~(GEM_MAC_RX_DONE | GEM_MAC_RX_FRAME_CNT))
-			printf("MAC rx fault, status %x\n", rxstat);
+			device_printf(sc->sc_dev, "MAC rx fault, status %x\n",
+			    rxstat);
 		if ((rxstat & GEM_MAC_RX_OVERFLOW) != 0)
 			gem_init(sc);
 	}
@@ -1800,6 +1854,7 @@ gem_mii_statchg(dev)
 	v = bus_space_read_4(t, mac, GEM_MAC_XIF_CONFIG);
 	v = GEM_MAC_XIF_LINK_LED;
 	v |= GEM_MAC_XIF_TX_MII_ENA;
+
 	/* If an external transceiver is connected, enable its MII drivers */
 	sc->sc_mif_config = bus_space_read_4(t, mac, GEM_MIF_CONFIG);
 	if ((sc->sc_mif_config & GEM_MIF_CONFIG_MDI1) != 0) {
@@ -1807,9 +1862,14 @@ gem_mii_statchg(dev)
 		if ((IFM_OPTIONS(sc->sc_mii->mii_media_active) & IFM_FDX) != 0)
 			/* turn on full duplex LED */
 			v |= GEM_MAC_XIF_FDPLX_LED;
- 			else
-	 			/* half duplex -- disable echo */
-		 		v |= GEM_MAC_XIF_ECHO_DISABL;
+		else
+	 		/* half duplex -- disable echo */
+	 		v |= GEM_MAC_XIF_ECHO_DISABL;
+
+		if (IFM_SUBTYPE(sc->sc_mii->mii_media_active) == IFM_1000_T)
+			v |= GEM_MAC_XIF_GMII_MODE;
+		else
+			v &= ~GEM_MAC_XIF_GMII_MODE;
 	} else {
 		/* Internal MII needs buf enable */
 		v |= GEM_MAC_XIF_MII_BUF_ENA;
@@ -1864,7 +1924,7 @@ gem_ioctl(ifp, cmd, data)
 		break;
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
-			if ((sc->sc_flags ^ ifp->if_flags) == IFF_PROMISC)
+			if ((sc->sc_ifflags ^ ifp->if_flags) == IFF_PROMISC)
 				gem_setladrf(sc);
 			else
 				gem_init(sc);
@@ -1872,7 +1932,7 @@ gem_ioctl(ifp, cmd, data)
 			if (ifp->if_flags & IFF_RUNNING)
 				gem_stop(ifp, 0);
 		}
-		sc->sc_flags = ifp->if_flags;
+		sc->sc_ifflags = ifp->if_flags;
 		error = 0;
 		break;
 	case SIOCADDMULTI:
@@ -1913,37 +1973,41 @@ gem_setladrf(sc)
 	u_int32_t hash[16];
 	u_int32_t v;
 	int len;
-
-	/* Clear hash table */
-	memset(hash, 0, sizeof(hash));
+	int i;
 
 	/* Get current RX configuration */
 	v = bus_space_read_4(t, h, GEM_MAC_RX_CONFIG);
 
+	/*
+	 * Turn off promiscuous mode, promiscuous group mode (all multicast),
+	 * and hash filter.  Depending on the case, the right bit will be
+	 * enabled.
+	 */
+	v &= ~(GEM_MAC_RX_PROMISCUOUS|GEM_MAC_RX_HASH_FILTER|
+	    GEM_MAC_RX_PROMISC_GRP);
+
 	if ((ifp->if_flags & IFF_PROMISC) != 0) {
-		/* Turn on promiscuous mode; turn off the hash filter */
+		/* Turn on promiscuous mode */
 		v |= GEM_MAC_RX_PROMISCUOUS;
-		v &= ~GEM_MAC_RX_HASH_FILTER;
-		;
 		goto chipit;
 	}
 	if ((ifp->if_flags & IFF_ALLMULTI) != 0) {
 		hash[3] = hash[2] = hash[1] = hash[0] = 0xffff;
 		ifp->if_flags |= IFF_ALLMULTI;
+		v |= GEM_MAC_RX_PROMISC_GRP;
 		goto chipit;
 	}
 
-	/* Turn off promiscuous mode; turn on the hash filter */
-	v &= ~GEM_MAC_RX_PROMISCUOUS;
-	v |= GEM_MAC_RX_HASH_FILTER;
-
 	/*
 	 * Set up multicast address filter by passing all multicast addresses
-	 * through a crc generator, and then using the high order 6 bits as an
-	 * index into the 256 bit logical address filter.  The high order bit
-	 * selects the word, while the rest of the bits select the bit within
-	 * the word.
+	 * through a crc generator, and then using the high order 8 bits as an
+	 * index into the 256 bit logical address filter.  The high order 4
+	 * bits selects the word, while the other 4 bits select the bit within
+	 * the word (where bit 0 is the MSB).
 	 */
+
+	/* Clear hash table */
+	memset(hash, 0, sizeof(hash));
 
 	TAILQ_FOREACH(inm, &sc->sc_arpcom.ac_if.if_multiaddrs, ifma_link) {
 		if (inm->ifma_addr->sa_family != AF_LINK)
@@ -1970,28 +2034,20 @@ gem_setladrf(sc)
 		crc >>= 24;
 
 		/* Set the corresponding bit in the filter. */
-		hash[crc >> 4] |= 1 << (crc & 0xf);
+		hash[crc >> 4] |= 1 << (15 - (crc & 15));
+	}
+
+	v |= GEM_MAC_RX_HASH_FILTER;
+	ifp->if_flags &= ~IFF_ALLMULTI;
+
+	/* Now load the hash table into the chip (if we are using it) */
+	for (i = 0; i < 16; i++) {
+		bus_space_write_4(t, h,
+		    GEM_MAC_HASH0 + i * (GEM_MAC_HASH1-GEM_MAC_HASH0),
+		    hash[i]);
 	}
 
 chipit:
-	/* Now load the hash table into the chip */
-	bus_space_write_4(t, h, GEM_MAC_HASH0, hash[0]);
-	bus_space_write_4(t, h, GEM_MAC_HASH1, hash[1]);
-	bus_space_write_4(t, h, GEM_MAC_HASH2, hash[2]);
-	bus_space_write_4(t, h, GEM_MAC_HASH3, hash[3]);
-	bus_space_write_4(t, h, GEM_MAC_HASH4, hash[4]);
-	bus_space_write_4(t, h, GEM_MAC_HASH5, hash[5]);
-	bus_space_write_4(t, h, GEM_MAC_HASH6, hash[6]);
-	bus_space_write_4(t, h, GEM_MAC_HASH7, hash[7]);
-	bus_space_write_4(t, h, GEM_MAC_HASH8, hash[8]);
-	bus_space_write_4(t, h, GEM_MAC_HASH9, hash[9]);
-	bus_space_write_4(t, h, GEM_MAC_HASH10, hash[10]);
-	bus_space_write_4(t, h, GEM_MAC_HASH11, hash[11]);
-	bus_space_write_4(t, h, GEM_MAC_HASH12, hash[12]);
-	bus_space_write_4(t, h, GEM_MAC_HASH13, hash[13]);
-	bus_space_write_4(t, h, GEM_MAC_HASH14, hash[14]);
-	bus_space_write_4(t, h, GEM_MAC_HASH15, hash[15]);
-
 	bus_space_write_4(t, h, GEM_MAC_RX_CONFIG, v);
 }
 
