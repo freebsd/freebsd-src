@@ -48,17 +48,24 @@
  */
 
 #include "sr.h"
+#include "opt_netgraph.h"
+#ifdef NETGRAPH
+#include <i386/isa/if_sr.h>
+#else	/* NETGRAPH */
 #ifdef notyet
 #include "fr.h"
 #else
 #define NFR	0
 #endif
 #include "bpfilter.h"
+#endif	/* NETGRAPH */
 
+#ifdef NETGRAPH
 #include "sppp.h"
 #if NSPPP <= 0
 #error Device 'sr' requires sppp.
 #endif
+#endif	/* NETGRAPH */
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -69,11 +76,15 @@
 #include <sys/socket.h>
 
 #include <net/if.h>
+#ifdef NETGRAPH
+#include <sys/syslog.h>
+#else /* NETGRAPH */
 #include <net/if_sppp.h>
 
 #if NBPFILTER > 0
 #include <net/bpf.h>
-#endif
+#endif	/* NBPFILTER > 0 */
+#endif	/* NETGRAPH */
 
 #include <machine/md_var.h>
 
@@ -81,13 +92,19 @@
 #include <i386/isa/ic/hd64570.h>
 #include <i386/isa/isa_device.h>
 
+#ifdef NETGRAPH
+#include <netgraph/ng_message.h>
+#include <netgraph/netgraph.h>
+#endif /* NETGRAPH */
 /* #define USE_MODEMCK */
 
 #ifndef BUGGY
 #define BUGGY		0
 #endif
 
+#ifndef NETGRAPH
 #define PPP_HEADER_LEN	4
+#endif /* NETGRAPH */
 
 /*
  * These macros are used to hide the difference between the way the
@@ -145,7 +162,9 @@ struct sr_hardc {
 };
 
 static int	next_sc_unit = 0;
+#ifndef NETGRAPH
 static int	sr_watcher = 0;
+#endif /* NETGRAPH */
 static struct	sr_hardc sr_hardc[NSR];
 static struct	sr_hardc *sr_hardc_pci;
 
@@ -154,17 +173,20 @@ static struct	sr_hardc *sr_hardc_pci;
  * every channel (port).
  */
 struct sr_softc {
+#ifndef NETGRAPH
 	struct	sppp ifsppp;	/* PPP service w/in system */
+#endif /* NETGRAPH */
 	struct	sr_hardc *hc;	/* card-level information */
 
 	int	unit;		/* With regard to all sr devices */
 	int	subunit;	/* With regard to this card */
 
+#ifndef NETGRAPH
 	int	attached;	/* attached to FR or PPP */
 	int	protocol;	/* FR or PPP */
 #define	N2_USE_FRP	2	/* Frame Relay Protocol */
 #define	N2_USE_PPP	1	/* Point-to-Point Protocol */
-
+#endif /* NETGRAPH */
 	struct	buf_block {
 		u_int	txdesc;	/* DPRAM offset */
 		u_int	txstart;/* DPRAM offset */
@@ -188,7 +210,39 @@ struct sr_softc {
 	u_int	clk_cfg;	/* Clock configuration */
 
 	int	scachan;	/* channel # on card */
+#ifdef NETGRAPH
+	int	running;	/* something is attached so we are running */
+	int	dcd;		/* do we have dcd? */
+	/* ---netgraph bits --- */
+	char		nodename[NG_NODELEN + 1]; /* store our node name */
+	int		datahooks;	/* number of data hooks attached */
+	node_p		node;		/* netgraph node */
+	hook_p		hook;		/* data hook */
+	hook_p		debug_hook;
+	struct ifqueue	xmitq_hipri;	/* hi-priority transmit queue */
+	struct ifqueue	xmitq;		/* transmit queue */
+	int		flags;		/* state */
+#define	SCF_RUNNING	0x01		/* board is active */
+#define	SCF_OACTIVE	0x02		/* output is active */
+	int		out_dog;	/* watchdog cycles output count-down */
+#if ( __FreeBSD__ >= 3 )
+	struct callout_handle handle;	/* timeout(9) handle */
+#endif
+	u_long		inbytes, outbytes;	/* stats */
+	u_long		lastinbytes, lastoutbytes; /* a second ago */
+	u_long		inrate, outrate;	/* highest rate seen */
+	u_long		inlast;		/* last input N secs ago */
+	u_long		out_deficit;	/* output since last input */
+	u_long		oerrors, ierrors[6];
+	u_long		opackets, ipackets;
+#endif /* NETGRAPH */
 };
+
+#ifdef NETGRAPH
+#define	DOG_HOLDOFF	6	/* dog holds off for 6 secs */
+#define	QUITE_A_WHILE	300	/* 5 MINUTES */
+#define	LOTS_OF_PACKETS	100	
+#endif /* NETGRAPH */
 
 /*
  * List of valid interrupt numbers for the N2 ISA card.
@@ -270,11 +324,17 @@ struct	sr_hardc *srattach_pci(int unit, vm_offset_t plx_vaddr,
 void	srintr_hc(struct sr_hardc *hc);
 
 static ointhand2_t srintr;
+
 static int	srattach(struct sr_hardc *hc);
 static void	sr_xmit(struct sr_softc *sc);
+#ifndef NETGRAPH
 static void	srstart(struct ifnet *ifp);
 static int	srioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
 static void	srwatchdog(struct ifnet *ifp);
+#else
+static void	srstart(struct sr_softc *sc);
+static void	srwatchdog(struct sr_softc *sc);
+#endif /* NETGRAPH */
 static int	sr_packet_avail(struct sr_softc *sc, int *len, u_char *rxstat);
 static void	sr_copy_rxbuf(struct mbuf *m, struct sr_softc *sc, int len);
 static void	sr_eat_packet(struct sr_softc *sc, int single);
@@ -290,7 +350,11 @@ static void	sr_init_tx_dmac(struct sr_softc *sc);
 static void	sr_dmac_intr(struct sr_hardc *hc, u_char isr);
 static void	sr_msci_intr(struct sr_hardc *hc, u_char isr);
 static void	sr_timer_intr(struct sr_hardc *hc, u_char isr);
+#ifndef NETGRAPH
 static void	sr_modemck(void *x);
+#else
+static void	sr_modemck(struct sr_softc *x);
+#endif /* NETGRAPH */
 
 static u_int	src_get8_io(u_int base, u_int off);
 static u_int	src_get16_io(u_int base, u_int off);
@@ -301,6 +365,7 @@ static u_int	src_get16_mem(u_int base, u_int off);
 static void	src_put8_mem(u_int base, u_int off, u_int val);
 static void	src_put16_mem(u_int base, u_int off, u_int val);
 
+#ifndef NETGRAPH
 #if NFR > 0
 extern void	fr_detach(struct ifnet *);
 extern int	fr_attach(struct ifnet *);
@@ -309,6 +374,36 @@ extern void	fr_flush(struct ifnet *);
 extern int	fr_input(struct ifnet *, struct mbuf *);
 extern struct	mbuf *fr_dequeue(struct ifnet *);
 #endif
+#else
+static	void	ngsr_watchdog_frame(void * arg);
+static	void	ngsr_init(void* ignored);
+
+static ng_constructor_t	ngsr_constructor;
+static ng_rcvmsg_t	ngsr_rcvmsg;
+static ng_shutdown_t	ngsr_rmnode;
+static ng_newhook_t	ngsr_newhook;
+/*static ng_findhook_t	ngsr_findhook; */
+static ng_connect_t	ngsr_connect;
+static ng_rcvdata_t	ngsr_rcvdata;
+static ng_disconnect_t	ngsr_disconnect;
+
+static struct ng_type typestruct = {
+	NG_VERSION,
+	NG_SR_NODE_TYPE,
+	NULL,
+	ngsr_constructor,
+	ngsr_rcvmsg,
+	ngsr_rmnode,
+	ngsr_newhook,
+	NULL,
+	ngsr_connect,
+	ngsr_rcvdata,
+	ngsr_rcvdata,
+	ngsr_disconnect 
+};
+
+static int	ngsr_done_init = 0;
+#endif /* NETGRAPH */
 
 /*
  * I/O for ISA N2 card(s)
@@ -572,6 +667,15 @@ srattach_isa(struct isa_device *id)
 	u_char mar;
 	struct sr_hardc *hc = &sr_hardc[id->id_unit];
 
+	/*
+	 * Allocate the software interface table(s)
+	 */
+	MALLOC(hc->sc, struct sr_softc *,
+		hc->numports * sizeof(struct sr_softc), M_DEVBUF, M_WAITOK);
+	if (hc->sc == NULL)
+		return(0);
+	bzero(hc->sc, hc->numports * sizeof(struct sr_softc));
+
 	id->id_ointr = srintr;
 
 	outb(hc->iobase + SR_PCR, inb(hc->iobase + SR_PCR) | SR_PCR_SCARUN);
@@ -589,13 +693,6 @@ srattach_isa(struct isa_device *id)
 	     mar | (inb(hc->iobase + SR_PCR) & ~SR_PCR_16M_SEL));
 	mar = kvtop(id->id_maddr) >> 12;
 	outb(hc->iobase + SR_BAR, mar);
-
-	/*
-	 * Allocate the software interface table(s)
-	 */
-	hc->sc = malloc(hc->numports * sizeof(struct sr_softc),
-			M_DEVBUF, M_WAITOK);
-	bzero(hc->sc, hc->numports * sizeof(struct sr_softc));
 
 	/*
 	 * Get the TX clock direction and configuration. The default is a
@@ -683,13 +780,19 @@ srattach_pci(int unit, vm_offset_t plx_vaddr, vm_offset_t sca_vaddr)
 		hc = hc->next;
 	}
 
-	hc = malloc(sizeof(struct sr_hardc), M_DEVBUF, M_WAITOK);
-	*hcp = hc;
-	bzero(hc, sizeof(struct sr_hardc));
+	MALLOC(hc, struct sr_hardc *, sizeof(*hc), M_DEVBUF, M_WAITOK);
+	if (hc == NULL)
+		return NULL;
+	bzero(hc, sizeof(*hc));
 
-	hc->sc = malloc(numports * sizeof(struct sr_softc),
-			M_DEVBUF, M_WAITOK);
+	MALLOC(hc->sc, struct sr_softc *,
+		numports * sizeof(struct sr_softc), M_DEVBUF, M_WAITOK);
+	if (hc->sc == NULL) {
+		FREE(hc, M_DEVBUF);
+		return NULL;
+	}
 	bzero(hc->sc, numports * sizeof(struct sr_softc));
+	*hcp = hc;
 
 	hc->numports = numports;
 	hc->cunit = unit;
@@ -782,13 +885,17 @@ srattach_pci(int unit, vm_offset_t plx_vaddr, vm_offset_t sca_vaddr)
 /*
  * Register the ports on the adapter.
  * Fill in the info for each port.
+#ifndef NETGRAPH
  * Attach each port to sppp and bpf.
+#endif
  */
 static int
 srattach(struct sr_hardc *hc)
 {
 	struct sr_softc *sc = hc->sc;
+#ifndef NETGRAPH
 	struct ifnet *ifp;
+#endif /* NETGRAPH */
 	int unit;		/* index: channel w/in card */
 
 	/*
@@ -816,6 +923,10 @@ srattach(struct sr_hardc *hc)
 		sr_init_tx_dmac(sc);
 		sr_init_msci(sc);
 
+		printf("sr%d: Adapter %d, port %d.\n",
+		       sc->unit, hc->cunit, sc->subunit);
+
+#ifndef	NETGRAPH
 		ifp = &sc->ifsppp.pp_if;
 		ifp->if_softc = sc;
 		ifp->if_unit = sc->unit;
@@ -825,9 +936,6 @@ srattach(struct sr_hardc *hc)
 		ifp->if_ioctl = srioctl;
 		ifp->if_start = srstart;
 		ifp->if_watchdog = srwatchdog;
-
-		printf("sr%d: Adapter %d, port %d.\n",
-		       sc->unit, hc->cunit, sc->subunit);
 
 		/*
 		 * Despite the fact that we want to allow both PPP *and*
@@ -848,9 +956,28 @@ srattach(struct sr_hardc *hc)
 
 		if_attach(ifp);
 
-#if NBPFILTER > 0
+#if	NBPFILTER > 0
 		bpfattach(ifp, DLT_PPP, PPP_HEADER_LEN);
-#endif
+#endif	/* NBPFILTER > 0 */
+#else	/* NETGRAPH */
+		/*
+		 * we have found a node, make sure our 'type' is availabe.
+		 */
+		if (ngsr_done_init == 0) ngsr_init(NULL);
+		if (ng_make_node_common(&typestruct, &sc->node) != 0)
+			return (0);
+		sc->node->private = sc;
+		callout_handle_init(&sc->handle);
+		sc->xmitq.ifq_maxlen = IFQ_MAXLEN;
+		sc->xmitq_hipri.ifq_maxlen = IFQ_MAXLEN;
+		sprintf(sc->nodename, "%s%d", NG_SR_NODE_TYPE, sc->unit);
+		if (ng_name_node(sc->node, sc->nodename)) {
+			ng_rmnode(sc->node);
+			ng_unref(sc->node);
+			return (0);
+		}
+		sc->running = 0;
+#endif	/* NETGRAPH */
 	}
 
 	if (hc->mempages)
@@ -860,26 +987,24 @@ srattach(struct sr_hardc *hc)
 }
 
 /*
- * N2 Interrupt Service Routine.
- * Get the ISA interrupts.
- * 
+ * N2 Interrupt Service Routine
+ *
  * First figure out which SCA gave the interrupt.
- * 
+ * Process it.
+ * See if there is other interrupts pending.
+ * Repeat until there no interrupts remain.
  */
 static void
 srintr(int unit)
-{ 
-	struct sr_hardc *hc; 
+{
+	struct sr_hardc *hc;
 
 	hc = &sr_hardc[unit];
 	srintr_hc(hc);
 
-	return; 
+	return;
 }
 
-/*
- * PCI interrupts come straight here
- */
 void
 srintr_hc(struct sr_hardc *hc)
 {
@@ -913,7 +1038,11 @@ srintr_hc(struct sr_hardc *hc)
 
 #if BUGGY > 2
 		printf("src%d: srintr_hc isr0 %x, isr1 %x, isr2 %x\n",
+#ifndef NETGRAPH
 			unit, isr0, isr1, isr2);
+#else
+			hc->cunit, isr0, isr1, isr2);
+#endif /* NETGRAPH */
 #endif
 
 		/*
@@ -943,7 +1072,9 @@ sr_xmit(struct sr_softc *sc)
 	u_short cda_value;	/* starting descriptor */
 	u_short eda_value;	/* ending descriptor */
 	struct sr_hardc *hc;
+#ifndef NETGRAPH
 	struct ifnet *ifp;	/* O/S Network Services */
+#endif /* NETGRAPH */
 	dmac_channel *dmac;	/* DMA channel registers */
 
 #if BUGGY > 0
@@ -951,7 +1082,9 @@ sr_xmit(struct sr_softc *sc)
 #endif
 
 	hc = sc->hc;
+#ifndef NETGRAPH
 	ifp = &sc->ifsppp.pp_if;
+#endif /* NETGRAPH */
 	dmac = &hc->sca->dmac[DMAC_TXCH(sc->scachan)];
 
 	/*
@@ -984,11 +1117,18 @@ sr_xmit(struct sr_softc *sc)
 	if (sc->txb_next_tx == SR_TX_BLOCKS)	/* handle wrap... */
 		sc->txb_next_tx = 0;
 
+#ifndef NETGRAPH
 	/*
 	 * Finally, we'll set a timout (which will start srwatchdog())
 	 * within the O/S network services layer...
 	 */
 	ifp->if_timer = 2;	/* Value in seconds. */
+#else
+	/*
+	 * Don't time out for a while.
+	 */
+	sc->out_dog = DOG_HOLDOFF;	/* give ourself some breathing space*/
+#endif /* NETGRAPH */
 }
 
 /*
@@ -1005,10 +1145,16 @@ sr_xmit(struct sr_softc *sc)
  * The function that clears that should ensure that the transmitter
  * and its DMA is in a "good" idle state.
  */
+#ifndef NETGRAPH
 static void
 srstart(struct ifnet *ifp)
 {
 	struct sr_softc *sc;	/* channel control structure */
+#else
+static void
+srstart(struct sr_softc *sc)
+{
+#endif /* NETGRAPH */
 	struct sr_hardc *hc;	/* card control/config block */
 	int len;		/* total length of a packet */
 	int pkts;		/* packets placed in DPRAM */
@@ -1019,16 +1165,15 @@ srstart(struct ifnet *ifp)
 	sca_descriptor *txdesc;	/* working descriptor pointr */
 	struct buf_block *blkp;
 
+	hc = sc->hc;
+#ifndef NETGRAPH
 #if BUGGY > 0
 	printf("sr: srstart( ifp=%08x)\n", ifp);
 #endif
-
 	sc = ifp->if_softc;
-	hc = sc->hc;
-
 	if ((ifp->if_flags & IFF_RUNNING) == 0)
 		return;
-
+#endif /* NETGRAPH */
 	/*
 	 * It is OK to set the memory window outside the loop because all tx
 	 * buffers and descriptors are assumed to be in the same 16K window.
@@ -1050,7 +1195,11 @@ top_srstart:
 	 * See if we have space for more packets.
 	 */
 	if (sc->txb_inuse == SR_TX_BLOCKS) {	/* out of space? */
+#ifndef NETGRAPH
 		ifp->if_flags |= IFF_OACTIVE;	/* yes, mark active */
+#else
+		/*ifp->if_flags |= IFF_OACTIVE;*/	/* yes, mark active */
+#endif /* NETGRAPH */
 
 		if (hc->mempages)
 			SRC_SET_OFF(hc->iobase);
@@ -1076,6 +1225,7 @@ top_srstart:
 	 * dispatch table to select the service we're getting a packet
 	 * from...
 	 */
+#ifndef NETGRAPH
 	switch (sc->protocol) {
 #if NFR > 0
 	case N2_USE_FRP:
@@ -1086,7 +1236,12 @@ top_srstart:
 	default:
 		mtx = sppp_dequeue(ifp);
 	}
-
+#else /* NETGRAPH */
+	IF_DEQUEUE(&sc->xmitq_hipri, mtx);
+	if (mtx == NULL) {
+		IF_DEQUEUE(&sc->xmitq, mtx);
+	}
+#endif /* NETGRAPH */
 	if (!mtx) {
 		if (hc->mempages)
 			SRC_SET_OFF(hc->iobase);
@@ -1119,10 +1274,14 @@ top_srstart:
 			   sc->unit, mtx, len);
 #endif
 
-#if NBPFILTER > 0
+#ifndef NETGRAPH
+#if	NBPFILTER > 0
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, mtx);
-#endif
+#endif	/* NBPFILTER > 0 */
+#else	/* NETGRAPH */
+		sc->outbytes += len;
+#endif	/* NETGRAPH */
 
 		/*
 		 * We can perform a straight copy because the tranmit
@@ -1166,7 +1325,11 @@ top_srstart:
 		 * and update the statistics...
 		 */
 		m_freem(mtx);
+#ifndef NETGRAPH
 		++sc->ifsppp.pp_if.if_opackets;
+#else	/* NETGRAPH */
+		sc->opackets++;
+#endif /* NETGRAPH */
 
 		/*
 		 * Check if we have space for another packet. XXX This is
@@ -1183,6 +1346,7 @@ top_srstart:
 		/*
 		 * We'll pull the next message to be sent (if any)
 		 */
+#ifndef NETGRAPH
 		switch (sc->protocol) {
 #if NFR > 0
 		case N2_USE_FRP:
@@ -1193,7 +1357,12 @@ top_srstart:
 		default:
 			mtx = sppp_dequeue(ifp);
 		}
-
+#else /* NETGRAPH */
+		IF_DEQUEUE(&sc->xmitq_hipri, mtx);
+		if (mtx == NULL) {
+			IF_DEQUEUE(&sc->xmitq, mtx);
+		}
+#endif /* NETGRAPH */
 		if (!mtx) {	/* no message?  We're done! */
 #if BUGGY > 9
 			printf("sr%d.srstart: pending=0, pkts=%d\n",
@@ -1238,6 +1407,7 @@ top_srstart:
 	goto top_srstart;
 }
 
+#ifndef NETGRAPH
 /*
  * Handle ioctl's at the device level, though we *will* call up
  * a layer...
@@ -1422,37 +1592,56 @@ srioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	return 0;
 }
+#endif /* NETGRAPH */
 
 /*
  * This is to catch lost tx interrupts.
  */
 static void
+#ifndef NETGRAPH
 srwatchdog(struct ifnet *ifp)
+#else
+srwatchdog(struct sr_softc *sc)
+#endif /* NETGRAPH */
 {
 	int     got_st0, got_st1, got_st3, got_dsr;
+#ifndef NETGRAPH
 	struct sr_softc *sc = ifp->if_softc;
+#endif /* NETGRAPH */
 	struct sr_hardc *hc = sc->hc;
 	msci_channel *msci = &hc->sca->msci[sc->scachan];
 	dmac_channel *dmac = &sc->hc->sca->dmac[sc->scachan];
 
 #if BUGGY > 0
+#ifndef NETGRAPH
 	printf("srwatchdog(unit=%d)\n", unit);
+#else
+	printf("srwatchdog(unit=%d)\n", sc->unit);
+#endif /* NETGRAPH */
 #endif
 
+#ifndef NETGRAPH
 	if (!(ifp->if_flags & IFF_RUNNING))
 		return;
 
 	ifp->if_oerrors++;	/* update output error count */
+#else	/* NETGRAPH */
+	sc->oerrors++;	/* update output error count */
+#endif /* NETGRAPH */
 
 	got_st0 = SRC_GET8(hc->sca_base, msci->st0);
 	got_st1 = SRC_GET8(hc->sca_base, msci->st1);
 	got_st3 = SRC_GET8(hc->sca_base, msci->st3);
 	got_dsr = SRC_GET8(hc->sca_base, dmac->dsr);
 
+#ifndef NETGRAPH
 #if	0
 	if (ifp->if_flags & IFF_DEBUG)
 #endif
 		printf("sr%d: transmit failed, "
+#else	/* NETGRAPH */
+	printf("sr%d: transmit failed, "
+#endif /* NETGRAPH */
 		       "ST0 %02x, ST1 %02x, ST3 %02x, DSR %02x.\n",
 		       sc->unit,
 		       got_st0, got_st1, got_st3, got_dsr);
@@ -1463,12 +1652,20 @@ srwatchdog(struct ifnet *ifp)
 		SRC_PUT8(hc->sca_base, msci->st1, SCA_ST1_UDRN);
 	}
 	sc->xmit_busy = 0;
+#ifndef NETGRAPH
 	ifp->if_flags &= ~IFF_OACTIVE;
+#else
+	/*ifp->if_flags &= ~IFF_OACTIVE; */
+#endif /* NETGRAPH */
 
 	if (sc->txb_inuse && --sc->txb_inuse)
 		sr_xmit(sc);
 
+#ifndef NETGRAPH
 	srstart(ifp);	/* restart transmitter */
+#else
+	srstart(sc);	/* restart transmitter */
+#endif /* NETGRAPH */
 }
 
 static void
@@ -1483,6 +1680,7 @@ sr_up(struct sr_softc *sc)
 	printf("sr_up(sc=%08x)\n", sc);
 #endif
 
+#ifndef NETGRAPH
 	/*
 	 * This section should really do the attach to the appropriate
 	 * system service, be it frame relay or PPP...
@@ -1504,6 +1702,7 @@ sr_up(struct sr_softc *sc)
 		sc->attached = sc->protocol;
 	}
 
+#endif /* NETGRAPH */
 	/*
 	 * Enable transmitter and receiver. Raise DTR and RTS. Enable
 	 * interrupts.
@@ -1552,10 +1751,16 @@ sr_up(struct sr_softc *sc)
 	inb(hc->iobase);	/* XXX slow it down a bit. */
 	SRC_PUT8(hc->sca_base, msci->cmd, SCA_CMD_TXENABLE);
 
+#ifndef NETGRAPH
 #ifdef USE_MODEMCK
 	if (sr_watcher == 0)
 		sr_modemck(NULL);
 #endif
+#else	/* NETGRAPH */
+	untimeout(ngsr_watchdog_frame, sc, sc->handle);
+	sc->handle = timeout(ngsr_watchdog_frame, sc, hz);
+	sc->running = 1;
+#endif /* NETGRAPH */
 }
 
 static void
@@ -1569,6 +1774,10 @@ sr_down(struct sr_softc *sc)
 #if BUGGY > 0
 	printf("sr_down(sc=%08x)\n", sc);
 #endif
+#ifdef NETGRAPH
+	untimeout(ngsr_watchdog_frame, sc, sc->handle);
+	sc->running = 0;
+#endif /* NETGRAPH */
 
 	/*
 	 * Disable transmitter and receiver. Lower DTR and RTS. Disable
@@ -1616,6 +1825,7 @@ sr_down(struct sr_softc *sc)
 			 SRC_GET8(hc->sca_base, sca->ier1) & ~0xF0);
 	}
 
+#ifndef NETGRAPH
 	/*
 	 * This section does the detach from the currently configured net
 	 * service, be it frame relay or PPP...
@@ -1632,6 +1842,7 @@ sr_down(struct sr_softc *sc)
 	}
 
 	sc->attached = 0;
+#endif /* NETGRAPH */
 }
 
 /*
@@ -2388,7 +2599,9 @@ sr_get_packets(struct sr_softc *sc)
 	u_int len;		/* length of pending packet */
 	struct sr_hardc *hc;	/* card-level information */
 	sca_descriptor *rxdesc;	/* descriptor in memory */
+#ifndef NETGRAPH
 	struct ifnet *ifp;	/* network intf ctl table */
+#endif /* NETGRAPH */
 	struct mbuf *m = NULL;	/* message buffer */
 
 #if BUGGY > 0
@@ -2396,7 +2609,9 @@ sr_get_packets(struct sr_softc *sc)
 #endif
 
 	hc = sc->hc;
+#ifndef NETGRAPH
 	ifp = &sc->ifsppp.pp_if;
+#endif /* NETGRAPH */
 
 	if (hc->mempages) {
 		SRC_SET_MEM(hc->iobase, sc->rxdesc);
@@ -2427,6 +2642,10 @@ sr_get_packets(struct sr_softc *sc)
 #endif
 
 		pkts++;
+#ifdef NETGRAPH
+		sc->inbytes += len;
+		sc->inlast = 0;
+#endif /* NETGRAPH */
 
 		/*
 		 * OK, we've settled the incoming message status. We can now
@@ -2449,7 +2668,11 @@ sr_get_packets(struct sr_softc *sc)
 			/*
 			 * construct control information for pass-off
 			 */
+#ifndef NETGRAPH
 			m->m_pkthdr.rcvif = ifp;
+#else
+			m->m_pkthdr.rcvif = NULL;
+#endif /* NETGRAPH */
 			m->m_pkthdr.len = m->m_len = len;
 			if (len > MHLEN) {
 				MCLGET(m, M_DONTWAIT);
@@ -2470,6 +2693,7 @@ sr_get_packets(struct sr_softc *sc)
 			 */
 			sr_copy_rxbuf(m, sc, len);	/* copy from DPRAM */
 
+#ifndef NETGRAPH
 #if NBPFILTER > 0
 			if (ifp->if_bpf)
 				bpf_mtap(ifp, m);
@@ -2486,7 +2710,6 @@ sr_get_packets(struct sr_softc *sc)
 				       bp[4], bp[5], bp[6]);
 			}
 #endif
-
 			/*
 			 * Pass off the message to PPP, connecting it it to
 			 * the system...
@@ -2504,6 +2727,24 @@ sr_get_packets(struct sr_softc *sc)
 
 			ifp->if_ipackets++;
 
+#else	/* NETGRAPH */
+#if BUGGY > 3
+			{
+				u_char *bp;
+
+				bp = mtod(m,u_char *);
+				printf("sr%d: rd=%02x:%02x:%02x:%02x:%02x:%02x",
+				       sc->unit,
+				       bp[0], bp[1], bp[2],
+				       bp[4], bp[5], bp[6]);
+				printf(":%02x:%02x:%02x:%02x:%02x:%02x\n",
+				       bp[6], bp[7], bp[8],
+				       bp[9], bp[10], bp[11]);
+			}
+#endif
+			ng_queue_data(sc->hook, m, NULL);
+			sc->ipackets++;
+#endif /* NETGRAPH */
 			/*
 			 * Update the eda to the previous descriptor.
 			 */
@@ -2540,7 +2781,11 @@ sr_get_packets(struct sr_softc *sc)
 			 */
 			sr_eat_packet(sc, 1);
 
+#ifndef NETGRAPH
 			ifp->if_ierrors++;
+#else
+			sc->ierrors[0]++;
+#endif /* NETGRAPH */
 
 			got_st3 = SRC_GET8(hc->sca_base,
 				  hc->sca->msci[sc->scachan].st3);
@@ -2622,8 +2867,13 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 			if (dsr & SCA_DSR_COF) {
 				printf("sr%d: TX DMA Counter overflow, "
 				       "txpacket no %lu.\n",
+#ifndef NETGRAPH
 				       sc->unit, sc->ifsppp.pp_if.if_opackets);
 				sc->ifsppp.pp_if.if_oerrors++;
+#else
+				       sc->unit, sc->opackets);
+				sc->oerrors++;
+#endif /* NETGRAPH */
 			}
 			/*
 			 * Check for (& process) a Buffer overflow
@@ -2632,11 +2882,19 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 				printf("sr%d: TX DMA Buffer overflow, "
 				       "txpacket no %lu, dsr %02x, "
 				       "cda %04x, eda %04x.\n",
+#ifndef NETGRAPH
 				       sc->unit, sc->ifsppp.pp_if.if_opackets,
+#else
+				       sc->unit, sc->opackets,
+#endif /* NETGRAPH */
 				       dsr,
 				       SRC_GET16(hc->sca_base, dmac->cda),
 				       SRC_GET16(hc->sca_base, dmac->eda));
+#ifndef NETGRAPH
 				sc->ifsppp.pp_if.if_oerrors++;
+#else
+				sc->oerrors++;
+#endif /* NETGRAPH */
 			}
 			/*
 			 * Check for (& process) an End of Transfer (OK)
@@ -2654,8 +2912,14 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 				printf("sr%d: TX Completed OK\n", sc->unit);
 #endif
 				sc->xmit_busy = 0;
+#ifndef NETGRAPH
 				sc->ifsppp.pp_if.if_flags &= ~IFF_OACTIVE;
 				sc->ifsppp.pp_if.if_timer = 0;
+#else
+				/* XXX may need to mark tx inactive? */
+				sc->out_deficit++;
+				sc->out_dog = DOG_HOLDOFF;
+#endif /* NETGRAPH */
 
 				if (sc->txb_inuse && --sc->txb_inuse)
 					sr_xmit(sc);
@@ -2677,14 +2941,22 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 #if BUGGY > 0
 				int tt, ind;
 
+#ifndef NETGRAPH
 				tt = sc->ifsppp.pp_if.if_ipackets;
+#else	/* NETGRAPH */
+				tt = sc->ipackets;
+#endif /* NETGRAPH */
 				ind = sc->rxhind;
 #endif
 
 				sr_get_packets(sc);
-
 #if BUGGY > 0
-				if (tt == sc->ifsppp.pp_if.if_ipackets) {
+#ifndef NETGRAPH
+				if (tt == sc->ifsppp.pp_if.if_ipackets)
+#else	/* NETGRAPH */
+				if (tt == sc->ipackets)
+#endif /* NETGRAPH */
+				{
 					sca_descriptor *rxdesc;
 					int i;
 
@@ -2719,7 +2991,7 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 					if (hc->mempages)
 						SRC_SET_OFF(hc->iobase);
 				}
-#endif
+#endif /* BUGGY */
 			}
 			/*
 			 * Check for Counter overflow
@@ -2727,8 +2999,13 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 			if (dsr & SCA_DSR_COF) {
 				printf("sr%d: RX DMA Counter overflow, "
 				       "rxpkts %lu.\n",
+#ifndef NETGRAPH
 				       sc->unit, sc->ifsppp.pp_if.if_ipackets);
 				sc->ifsppp.pp_if.if_ierrors++;
+#else	/* NETGRAPH */
+				       sc->unit, sc->ipackets);
+				sc->ierrors[1]++;
+#endif /* NETGRAPH */
 			}
 			/*
 			 * Check for Buffer overflow
@@ -2737,7 +3014,11 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 				printf("sr%d: RX DMA Buffer overflow, "
 				       "rxpkts %lu, rxind %d, "
 				       "cda %x, eda %x, dsr %x.\n",
+#ifndef NETGRAPH
 				       sc->unit, sc->ifsppp.pp_if.if_ipackets,
+#else	/* NETGRAPH */
+				       sc->unit, sc->ipackets,
+#endif /* NETGRAPH */
 				       sc->rxhind,
 				       SRC_GET16(hc->sca_base, dmac->cda),
 				       SRC_GET16(hc->sca_base, dmac->eda),
@@ -2751,7 +3032,11 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 					SRC_SET_ON(hc->iobase);
 
 				sr_eat_packet(sc, 0);
+#ifndef NETGRAPH
 				sc->ifsppp.pp_if.if_ierrors++;
+#else	/* NETGRAPH */
+				sc->ierrors[2]++;
+#endif /* NETGRAPH */
 
 				SRC_PUT8(hc->sca_base,
 					 sca->msci[mch].cmd,
@@ -2764,7 +3049,11 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 				       "rxpkts %lu, rxind %d, "
 				       "cda %x, eda %x, dsr %x. After\n",
 				       sc->unit,
+#ifndef NETGRAPH
+				       sc->ipackets,
+#else	/* NETGRAPH */
 				       sc->ifsppp.pp_if.if_ipackets,
+#endif /* NETGRAPH */
 				       sc->rxhind,
 				       SRC_GET16(hc->sca_base, dmac->cda),
 				       SRC_GET16(hc->sca_base, dmac->eda),
@@ -2787,8 +3076,13 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 				 */
 				printf("sr%d: RX End of xfer, rxpkts %lu.\n",
 				       sc->unit,
+#ifndef NETGRAPH
 				       sc->ifsppp.pp_if.if_ipackets);
 				sc->ifsppp.pp_if.if_ierrors++;
+#else
+				       sc->ipackets);
+				sc->ierrors[3]++;
+#endif /* NETGRAPH */
 			}
 		}
 		isr1 >>= 4;	/* process next half of ISR */
@@ -2802,12 +3096,16 @@ sr_dmac_intr(struct sr_hardc *hc, u_char isr1)
 	for (mch = 0; mch < NCHAN; mch++) {
 		if (dotxstart & 0x0C) {	/* TX initiation enabled? */
 			sc = &hc->sc[mch];
+#ifndef NETGRAPH
 			srstart(&sc->ifsppp.pp_if);
+#else
+			srstart(sc);
+#endif /* NETGRAPH */
 		}
 		dotxstart >>= 4;/* shift for next channel */
 	}
 }
-
+#ifndef NETGRAPH
 /*
  * Perform timeout on an FR channel 
  *
@@ -2927,6 +3225,38 @@ sr_modemck(void *arg)
 	splx(s);
 }
 
+#else	/* NETGRAPH */
+/*
+ * If a port is open/active, it's DCD state is checked
+ * and a loss of DCD is recognized (and eventually processed?).
+ */
+static void
+sr_modemck(struct sr_softc *sc )
+{
+	u_int s;
+	u_char got_st3;			/* contents of ST3 */
+	struct sr_hardc *hc = sc->hc;	/* card's configuration */
+	msci_channel *msci;		/* regs specific to channel */
+
+	s = splimp();
+
+
+	if (sc->running == 0)
+		return;
+	/*
+	 * OK, now we can go looking at this channel's register contents...
+	 */
+	msci = &hc->sca->msci[sc->scachan];
+	got_st3 = SRC_GET8(hc->sca_base, msci->st3);
+
+	/*
+	 * We want to see if the DCD signal is up (DCD is true if zero)
+	 */
+	sc->dcd = (got_st3 & SCA_ST3_DCD) == 0;
+	splx(s);
+}
+
+#endif	/* NETGRAPH */
 static void
 sr_msci_intr(struct sr_hardc *hc, u_char isr0)
 {
@@ -2938,6 +3268,301 @@ sr_timer_intr(struct sr_hardc *hc, u_char isr2)
 {
 	printf("src%d: SRINTR: TIMER\n", hc->cunit);
 }
+
+#ifdef	NETGRAPH
+/*****************************************
+ * Device timeout/watchdog routine.
+ * called once per second.
+ * checks to see that if activity was expected, that it hapenned.
+ * At present we only look to see if expected output was completed.
+ */
+static void
+ngsr_watchdog_frame(void * arg)
+{
+	struct sr_softc * sc = arg;
+	int s;
+	int	speed;
+
+	if(sc->running == 0)
+		return; /* if we are not running let timeouts die */
+	/*
+	 * calculate the apparent throughputs 
+	 *  XXX a real hack
+	 */
+	s = splimp();
+	speed = sc->inbytes - sc->lastinbytes;
+	sc->lastinbytes = sc->inbytes;
+	if ( sc->inrate < speed )
+		sc->inrate = speed;
+	speed = sc->outbytes - sc->lastoutbytes;
+	sc->lastoutbytes = sc->outbytes;
+	if ( sc->outrate < speed )
+		sc->outrate = speed;
+	sc->inlast++;
+	splx(s);
+
+	if ((sc->inlast > QUITE_A_WHILE)
+	&& (sc->out_deficit > LOTS_OF_PACKETS)) {
+		log(LOG_ERR, "sr%d: No response from remote end\n", sc->unit);
+		s = splimp();
+		sr_down(sc);
+		sr_up(sc);
+		sc->inlast = sc->out_deficit = 0;
+		splx(s);
+	} else if ( sc->xmit_busy ) { /* no TX -> no TX timeouts */
+		if (sc->out_dog == 0) { 
+			log(LOG_ERR, "sr%d: Transmit failure.. no clock?\n",
+					sc->unit);
+			s = splimp();
+			srwatchdog(sc);
+#if 0
+			sr_down(sc);
+			sr_up(sc);
+#endif
+			splx(s);
+			sc->inlast = sc->out_deficit = 0;
+		} else {
+			sc->out_dog--;
+		}
+	}
+	sr_modemck(sc); 	/* update the DCD status */
+	sc->handle = timeout(ngsr_watchdog_frame, sc, hz);
+}
+
+/***********************************************************************
+ * This section contains the methods for the Netgraph interface
+ ***********************************************************************/
+/*
+ * It is not possible or allowable to create a node of this type.
+ * If the hardware exists, it will already have created it.
+ */
+static	int
+ngsr_constructor(node_p *nodep)
+{
+	return (EINVAL);
+}
+
+/*
+ * give our ok for a hook to be added...
+ * If we are not running this should kick the device into life.
+ * We allow hooks called "control" and dlci[1-1023]
+ * The hook's private info points to our stash of info about that
+ * channel.
+ */
+static	int
+ngsr_newhook(node_p node, hook_p hook, const char *name)
+{
+	struct sr_softc *	sc = node->private;
+
+	/*
+	 * check if it's our friend the debug hook
+	 */
+	if (strcmp(name, NG_SR_HOOK_DEBUG) == 0) {
+		hook->private = NULL; /* paranoid */
+		sc->debug_hook = hook;
+		return (0);
+	}
+
+	/*
+	 * Check for raw mode hook.
+	 */
+	if (strcmp(name, NG_SR_HOOK_RAW) != 0) {
+		return (EINVAL);
+	}
+	hook->private = sc;
+	sc->hook = hook;
+	sc->datahooks++;
+	sr_up(sc);
+	return (0);
+}
+
+/*
+ * incoming messages.
+ * Just respond to the generic TEXT_STATUS message
+ */
+static	int
+ngsr_rcvmsg(node_p node,
+	struct ng_mesg *msg, const char *retaddr, struct ng_mesg **resp)
+{
+	struct sr_softc *	sc;
+	int error = 0;
+
+	sc = node->private;
+	switch (msg->header.typecookie) {
+	    case	NG_SR_COOKIE: 
+		error = EINVAL;
+		break;
+	    case	NGM_GENERIC_COOKIE: 
+		switch(msg->header.cmd) {
+		    case NGM_TEXT_STATUS: {
+			    char	*arg;
+			    int pos = 0;
+			    int resplen = sizeof(struct ng_mesg) + 512;
+			    MALLOC(*resp, struct ng_mesg *, resplen,
+					M_NETGRAPH, M_NOWAIT);
+			    if (*resp == NULL) { 
+				error = ENOMEM;
+				break;
+			    }       
+			    bzero(*resp, resplen);
+			    arg = (*resp)->data;
+
+			    /*
+			     * Put in the throughput information.
+			     */
+			    pos = sprintf(arg, "%ld bytes in, %ld bytes out\n"
+			    "highest rate seen: %ld B/S in, %ld B/S out\n",
+			    sc->inbytes, sc->outbytes,
+			    sc->inrate, sc->outrate);
+			    pos += sprintf(arg + pos,
+				"%ld output errors\n",
+			    	sc->oerrors);
+			    pos += sprintf(arg + pos,
+				"ierrors = %ld, %ld, %ld, %ld, %ld, %ld\n",
+			    	sc->ierrors[0],
+			    	sc->ierrors[1],
+			    	sc->ierrors[2],
+			    	sc->ierrors[3],
+			    	sc->ierrors[4],
+			    	sc->ierrors[5]);
+
+			    (*resp)->header.version = NG_VERSION;
+			    (*resp)->header.arglen = strlen(arg) + 1;
+			    (*resp)->header.token = msg->header.token;
+			    (*resp)->header.typecookie = NG_SR_COOKIE;
+			    (*resp)->header.cmd = msg->header.cmd;
+			    strncpy((*resp)->header.cmdstr, "status",
+					NG_CMDSTRLEN);
+			}
+			break;
+	    	    default:
+		 	error = EINVAL;
+		 	break;
+		    }
+		break;
+	    default:
+		error = EINVAL;
+		break;
+	}
+	free(msg, M_NETGRAPH);
+	return (error);
+}
+
+/*
+ * get data from another node and transmit it to the correct channel
+ */
+static	int
+ngsr_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
+{
+	int s;
+	int error = 0;
+	struct sr_softc * sc = hook->node->private;
+	struct ifqueue	*xmitq_p;
+	
+	/*
+	 * data doesn't come in from just anywhere (e.g control hook)
+	 */
+	if ( hook->private == NULL) {
+		error = ENETDOWN;
+		goto bad;
+	}
+
+	/* 
+	 * Now queue the data for when it can be sent
+	 */
+	if (meta && meta->priority > 0) {
+		xmitq_p = (&sc->xmitq_hipri);
+	} else {
+		xmitq_p = (&sc->xmitq);
+	}
+	s = splimp();
+	if (IF_QFULL(xmitq_p)) {
+		IF_DROP(xmitq_p);
+		splx(s);
+		error = ENOBUFS;
+		goto bad;
+	}
+	IF_ENQUEUE(xmitq_p, m);
+	srstart(sc);
+	splx(s);
+	return (0);
+
+bad:
+	/* 
+	 * It was an error case.
+	 * check if we need to free the mbuf, and then return the error
+	 */
+	NG_FREE_DATA(m, meta);
+	return (error);
+}
+
+/*
+ * do local shutdown processing..
+ * this node will refuse to go away, unless the hardware says to..
+ * don't unref the node, or remove our name. just clear our links up.
+ */
+static	int
+ngsr_rmnode(node_p node)
+{
+	struct sr_softc * sc = node->private;
+
+	sr_down(sc);
+	ng_cutlinks(node);
+	node->flags &= ~NG_INVALID; /* bounce back to life */
+	return (0);
+}
+
+/* already linked */
+static	int
+ngsr_connect(hook_p hook)
+{
+	/* be really amiable and just say "YUP that's OK by me! " */
+	return (0);
+}
+
+/*
+ * notify on hook disconnection (destruction)
+ *
+ * Invalidate the private data associated with this dlci.
+ * For this type, removal of the last link resets tries to destroy the node.
+ * As the device still exists, the shutdown method will not actually
+ * destroy the node, but reset the device and leave it 'fresh' :)
+ *
+ * The node removal code will remove all references except that owned by the
+ * driver. 
+ */
+static	int
+ngsr_disconnect(hook_p hook)
+{
+	struct sr_softc * sc = hook->node->private;
+	int	s;
+	/*
+	 * If it's the data hook, then free resources etc.
+	 */
+	if (hook->private) {
+		s = splimp();
+		sc->datahooks--;
+		if (sc->datahooks == 0)
+			sr_down(sc);
+		splx(s);
+	} else {
+		sc->debug_hook = NULL;
+	}
+	return (0);
+}
+
+/*
+ * called during bootup
+ * or LKM loading to put this type into the list of known modules
+ */
+static void
+ngsr_init(void *ignored)
+{
+	if (ng_newtype(&typestruct))
+		printf("ngsr install failed\n");
+	ngsr_done_init = 1;
+}
+#endif /* NETGRAPH */
 
 /*
  ********************************* END ************************************
