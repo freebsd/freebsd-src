@@ -1,4 +1,0 @@
-# $Id$
-# This file determines whether to automatically start sendmail at
-# system boot time.  The default is on; options in sendmail.flags.
-on

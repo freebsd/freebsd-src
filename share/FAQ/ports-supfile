@@ -1,7 +1,0 @@
-ports-editors release=current host=FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
-ports-lang release=current host=FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
-ports-mail release=current host=FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
-ports-net release=current host=FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
-ports-shells release=current host=FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
-ports-utils release=current host=FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
-ports-x11 release=current host=FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
