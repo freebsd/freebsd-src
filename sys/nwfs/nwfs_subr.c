@@ -188,7 +188,7 @@ ncp_lookup(struct vnode *dvp, int len, char *name, struct nw_entry_info *fap,
 	conn = NWFSTOCONN(nmp);
 
 	if (len == 1 && name[0] == '.') {
-		if (strcmp(dnp->n_name, NWFS_ROOTVOL) == 0) {
+		if (dnp->n_flag & NVOLUME) {
 			error = ncp_obtain_info(nmp, dnp->n_fid.f_id, 0, NULL,
 				fap, p, cred);
 		} else {
