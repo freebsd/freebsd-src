@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evrgnini- ACPI AddressSpace (OpRegion) init
- *              $Revision: 48 $
+ *              $Revision: 51 $
  *
  *****************************************************************************/
 
@@ -371,7 +371,6 @@ AcpiEvPciConfigRegionSetup (
 }
 
 
-
 /*******************************************************************************
  *
  * FUNCTION:    AcpiEvPciBarRegionSetup
@@ -507,6 +506,7 @@ AcpiEvInitializeRegion (
     ACPI_STATUS             Status;
     ACPI_NAMESPACE_NODE     *MethodNode;
     ACPI_NAME               *RegNamePtr = (ACPI_NAME *) METHOD_NAME__REG;
+    ACPI_OPERAND_OBJECT     *RegionObj2;
 
 
     FUNCTION_TRACE_U32 ("EvInitializeRegion", AcpiNsLocked);
@@ -517,12 +517,25 @@ AcpiEvInitializeRegion (
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
+    if (RegionObj->Common.Flags & AOPOBJ_OBJECT_INITIALIZED)
+    {
+        return_ACPI_STATUS (AE_OK);
+    }
+
+    RegionObj2 = AcpiNsGetSecondaryObject (RegionObj);
+    if (!RegionObj2)
+    {
+        return_ACPI_STATUS (AE_NOT_EXIST);
+    }
     Node = AcpiNsGetParentObject (RegionObj->Region.Node);
+
+
     SpaceId = RegionObj->Region.SpaceId;
 
     RegionObj->Region.AddrHandler = NULL;
-    RegionObj->Region.Extra->Extra.Method_REG = NULL;
-    RegionObj->Region.Flags &= ~(AOPOBJ_INITIALIZED);
+    RegionObj2->Extra.Method_REG = NULL;
+    RegionObj->Common.Flags &= ~(AOPOBJ_SETUP_COMPLETE);
+    RegionObj->Common.Flags |= AOPOBJ_OBJECT_INITIALIZED;
 
     /*
      *  Find any "_REG" associated with this region definition
@@ -536,7 +549,7 @@ AcpiEvInitializeRegion (
          *  definition.  This will be executed when the handler is attached
          *  or removed
          */
-        RegionObj->Region.Extra->Extra.Method_REG = MethodNode;
+        RegionObj2->Extra.Method_REG = MethodNode;
     }
 
     /*
@@ -590,6 +603,7 @@ AcpiEvInitializeRegion (
                      */
                     AcpiEvAssociateRegionAndHandler (HandlerObj, RegionObj,
                             AcpiNsLocked);
+
                     return_ACPI_STATUS (AE_OK);
                 }
 

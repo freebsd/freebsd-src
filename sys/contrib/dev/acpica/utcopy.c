@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utcopy - Internal to external object translation utilities
- *              $Revision: 83 $
+ *              $Revision: 86 $
  *
  *****************************************************************************/
 
@@ -332,7 +332,7 @@ AcpiUtCopyIelementToEelement (
     case ACPI_COPY_TYPE_SIMPLE:
 
         /*
-         * This is a simple or null object -- get the size
+         * This is a simple or null object
          */
         Status = AcpiUtCopyIsimpleToEsimple (SourceObject,
                         TargetObject, Info->FreeSpace, &ObjectSpace);
@@ -340,8 +340,8 @@ AcpiUtCopyIelementToEelement (
         {
             return (Status);
         }
-
         break;
+
 
     case ACPI_COPY_TYPE_PACKAGE:
 
@@ -365,14 +365,14 @@ AcpiUtCopyIelementToEelement (
                             TargetObject->Package.Count * sizeof (ACPI_OBJECT));
         break;
 
+
     default:
         return (AE_BAD_PARAMETER);
+        break;
     }
-
 
     Info->FreeSpace   += ObjectSpace;
     Info->Length      += ObjectSpace;
-
     return (Status);
 }
 
@@ -423,11 +423,9 @@ AcpiUtCopyIpackageToEpackage (
     Info.NumPackages = 1;
     Info.FreeSpace   = Buffer + ROUND_UP_TO_NATIVE_WORD (sizeof (ACPI_OBJECT));
 
-
     ExternalObject->Type               = InternalObject->Common.Type;
     ExternalObject->Package.Count      = InternalObject->Package.Count;
     ExternalObject->Package.Elements   = (ACPI_OBJECT *) Info.FreeSpace;
-
 
     /*
      * Build an array of ACPI_OBJECTS in the buffer
@@ -436,15 +434,13 @@ AcpiUtCopyIpackageToEpackage (
     Info.FreeSpace += ExternalObject->Package.Count *
                     ROUND_UP_TO_NATIVE_WORD (sizeof (ACPI_OBJECT));
 
-
     Status = AcpiUtWalkPackageTree (InternalObject, ExternalObject,
                             AcpiUtCopyIelementToEelement, &Info);
 
     *SpaceUsed = Info.Length;
-
     return_ACPI_STATUS (Status);
-
 }
+
 
 /*******************************************************************************
  *
@@ -480,7 +476,6 @@ AcpiUtCopyIobjectToEobject (
         Status = AcpiUtCopyIpackageToEpackage (InternalObject,
                         RetBuffer->Pointer, &RetBuffer->Length);
     }
-
     else
     {
         /*
@@ -529,7 +524,6 @@ AcpiUtCopyEsimpleToIsimple (
     FUNCTION_TRACE ("UtCopyEsimpleToIsimple");
 
 
-
     /*
      * Simple types supported are: String, Buffer, Integer
      */
@@ -568,8 +562,8 @@ AcpiUtCopyEsimpleToIsimple (
             return_ACPI_STATUS (AE_NO_MEMORY);
         }
 
-        MEMCPY (InternalObject->String.Pointer, 
-                ExternalObject->String.Pointer, 
+        MEMCPY (InternalObject->String.Pointer,
+                ExternalObject->String.Pointer,
                 ExternalObject->String.Length);
 
         InternalObject->String.Length  = ExternalObject->String.Length;
@@ -584,8 +578,8 @@ AcpiUtCopyEsimpleToIsimple (
             return_ACPI_STATUS (AE_NO_MEMORY);
         }
 
-        MEMCPY (InternalObject->Buffer.Pointer, 
-                ExternalObject->Buffer.Pointer, 
+        MEMCPY (InternalObject->Buffer.Pointer,
+                ExternalObject->Buffer.Pointer,
                 ExternalObject->Buffer.Length);
 
         InternalObject->Buffer.Length  = ExternalObject->Buffer.Length;
@@ -597,7 +591,6 @@ AcpiUtCopyEsimpleToIsimple (
         InternalObject->Integer.Value   = ExternalObject->Integer.Value;
         break;
     }
-
 
     *RetInternalObject = InternalObject;
     return_ACPI_STATUS (AE_OK);
@@ -702,18 +695,8 @@ AcpiUtCopyEobjectToIobject (
     if (ExternalObject->Type == ACPI_TYPE_PACKAGE)
     {
         /*
-         * Package objects contain other objects (which can be objects)
-         * buildpackage does it all
-         *
-         * TBD: Package conversion must be completed and tested
-         * NOTE: this code converts packages as input parameters to
-         * control methods only.  This is a very, very rare case.
+         * Packages as external input to control methods are not supported,
          */
-/*
-        Status = AcpiUtCopyEpackageToIpackage(InternalObject,
-                                                  RetBuffer->Pointer,
-                                                  &RetBuffer->Length);
-*/
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
             "Packages as parameters not implemented!\n"));
 
@@ -789,6 +772,7 @@ AcpiUtCopyIelementToIelement (
 
 
     case 1:
+
         /*
          * This object is a package - go down another nesting level
          * Create and build the package object
@@ -796,8 +780,6 @@ AcpiUtCopyIelementToIelement (
         TargetObject = AcpiUtCreateInternalObject (ACPI_TYPE_PACKAGE);
         if (!TargetObject)
         {
-            /* TBD: must delete package created up to this point */
-
             return (AE_NO_MEMORY);
         }
 
@@ -814,10 +796,11 @@ AcpiUtCopyIelementToIelement (
         *ThisTargetPtr = TargetObject;
         break;
 
+
     default:
         return (AE_BAD_PARAMETER);
+        break;
     }
-
 
     return (Status);
 }
@@ -858,8 +841,6 @@ AcpiUtCopyIpackageToIpackage (
      */
     DestObj->Package.Elements = ACPI_MEM_CALLOCATE ((SourceObj->Package.Count + 1) *
                                                     sizeof (void *));
-    DestObj->Package.NextElement = DestObj->Package.Elements;
-
     if (!DestObj->Package.Elements)
     {
         REPORT_ERROR (
@@ -867,9 +848,22 @@ AcpiUtCopyIpackageToIpackage (
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
+    /* Init */
 
+    DestObj->Package.NextElement = DestObj->Package.Elements;
+
+    /*
+     * Copy the package element-by-element by walking the package "tree".
+     * This handles nested packages of arbitrary depth.
+     */
     Status = AcpiUtWalkPackageTree (SourceObj, DestObj,
                             AcpiUtCopyIelementToIelement, WalkState);
+    if (ACPI_FAILURE (Status))
+    {
+        /* On failure, delete the destination package object */
+
+        AcpiUtRemoveReference (DestObj);
+    }
 
     return_ACPI_STATUS (Status);
 }

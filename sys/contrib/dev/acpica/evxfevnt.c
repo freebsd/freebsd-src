@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evxfevnt - External Interfaces, ACPI event disable/enable
- *              $Revision: 38 $
+ *              $Revision: 42 $
  *
  *****************************************************************************/
 
@@ -143,13 +143,13 @@
 ACPI_STATUS
 AcpiEnable (void)
 {
-    ACPI_STATUS             Status;
+    ACPI_STATUS             Status = AE_OK;
 
 
     FUNCTION_TRACE ("AcpiEnable");
 
 
-    /* Make sure we've got ACPI tables */
+    /* Make sure we have ACPI tables */
 
     if (!AcpiGbl_DSDT)
     {
@@ -157,24 +157,26 @@ AcpiEnable (void)
         return_ACPI_STATUS (AE_NO_ACPI_TABLES);
     }
 
-    /* Make sure the BIOS supports ACPI mode */
+    AcpiGbl_OriginalMode = AcpiHwGetMode ();
 
-    if (SYS_MODE_LEGACY == AcpiHwGetModeCapabilities())
+    if (AcpiGbl_OriginalMode == SYS_MODE_ACPI)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_WARN, "Only legacy mode supported!\n"));
-        return_ACPI_STATUS (AE_ERROR);
+        ACPI_DEBUG_PRINT ((ACPI_DB_OK, "Already in ACPI mode.\n"));
     }
 
-    /* Transition to ACPI mode */
-
-    Status = AcpiHwSetMode (SYS_MODE_ACPI);
-    if (ACPI_FAILURE (Status))
+    else
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_FATAL, "Could not transition to ACPI mode.\n"));
-        return_ACPI_STATUS (Status);
-    }
+        /* Transition to ACPI mode */
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_OK, "Transition to ACPI mode successful\n"));
+        Status = AcpiHwSetMode (SYS_MODE_ACPI);
+        if (ACPI_FAILURE (Status))
+        {
+            ACPI_DEBUG_PRINT ((ACPI_DB_FATAL, "Could not transition to ACPI mode.\n"));
+            return_ACPI_STATUS (Status);
+        }
+
+        ACPI_DEBUG_PRINT ((ACPI_DB_OK, "Transition to ACPI mode successful\n"));
+    }
 
     return_ACPI_STATUS (Status);
 }
@@ -196,19 +198,22 @@ AcpiEnable (void)
 ACPI_STATUS
 AcpiDisable (void)
 {
-    ACPI_STATUS             Status;
+    ACPI_STATUS             Status = AE_OK;
 
 
     FUNCTION_TRACE ("AcpiDisable");
 
 
-    /* Restore original mode  */
-
-    Status = AcpiHwSetMode (AcpiGbl_OriginalMode);
-    if (ACPI_FAILURE (Status))
+    if (AcpiHwGetMode () != AcpiGbl_OriginalMode)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unable to transition to original mode"));
-        return_ACPI_STATUS (Status);
+        /* Restore original mode  */
+    
+        Status = AcpiHwSetMode (AcpiGbl_OriginalMode);
+        if (ACPI_FAILURE (Status))
+        {
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unable to transition to original mode"));
+            return_ACPI_STATUS (Status);
+        }
     }
 
     /* Unload the SCI interrupt handler  */

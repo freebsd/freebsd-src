@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utalloc - local cache and memory allocation routines
- *              $Revision: 106 $
+ *              $Revision: 109 $
  *
  *****************************************************************************/
 
@@ -590,19 +590,10 @@ AcpiUtDumpAllocations (
     NATIVE_CHAR             *Module)
 {
     ACPI_DEBUG_MEM_BLOCK    *Element;
-    UINT32                  i;
+    UINT32                  NumOutstanding = 0;
 
 
     FUNCTION_TRACE ("UtDumpAllocations");
-
-
-    Element = AcpiGbl_MemoryLists[0].ListHead;
-    if (Element == NULL)
-    {
-        ACPI_DEBUG_PRINT ((ACPI_DB_OK,
-                "No outstanding allocations.\n"));
-        return_VOID;
-    }
 
 
     /*
@@ -610,20 +601,19 @@ AcpiUtDumpAllocations (
      */
     AcpiUtAcquireMutex (ACPI_MTX_MEMORY);
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_OK,
-        "Outstanding allocations:\n"));
-
-    for (i = 1; ; i++)  /* Just a counter */
+    Element = AcpiGbl_MemoryLists[0].ListHead;
+    while (Element)
     {
         if ((Element->Component & Component) &&
             ((Module == NULL) || (0 == STRCMP (Module, Element->Module))))
         {
+            /* Ignore allocated objects that are in a cache */
+
             if (((ACPI_OPERAND_OBJECT  *)(&Element->UserSpace))->Common.Type != ACPI_CACHED_OBJECT)
             {
-                ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OK,
-                            "%p Len %04X %9.9s-%d",
+                AcpiOsPrintf ("%p Len %04X %9.9s-%d ",
                             &Element->UserSpace, Element->Size, Element->Module,
-                            Element->Line));
+                            Element->Line);
 
                 /* Most of the elements will be internal objects. */
 
@@ -631,90 +621,86 @@ AcpiUtDumpAllocations (
                     (&Element->UserSpace))->Common.DataType)
                 {
                 case ACPI_DESC_TYPE_INTERNAL:
-                    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OK,
-                            " ObjType %12.12s R%d",
+                    AcpiOsPrintf ("ObjType %12.12s R%d",
                             AcpiUtGetTypeName (((ACPI_OPERAND_OBJECT *)(&Element->UserSpace))->Common.Type),
-                            ((ACPI_OPERAND_OBJECT *)(&Element->UserSpace))->Common.ReferenceCount));
+                            ((ACPI_OPERAND_OBJECT *)(&Element->UserSpace))->Common.ReferenceCount);
                     break;
 
                 case ACPI_DESC_TYPE_PARSER:
-                    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OK,
-                            " ParseObj Opcode %04X",
-                            ((ACPI_PARSE_OBJECT *)(&Element->UserSpace))->Opcode));
+                    AcpiOsPrintf ("ParseObj Opcode %04X",
+                            ((ACPI_PARSE_OBJECT *)(&Element->UserSpace))->Opcode);
                     break;
 
                 case ACPI_DESC_TYPE_NAMED:
-                    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OK,
-                            " Node %4.4s",
-                            (char*)&((ACPI_NAMESPACE_NODE *)(&Element->UserSpace))->Name));
+                    AcpiOsPrintf ("Node %4.4s",
+                            (char *) &((ACPI_NAMESPACE_NODE *)(&Element->UserSpace))->Name);
                     break;
 
                 case ACPI_DESC_TYPE_STATE:
-                    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OK,
-                            " Untyped StateObj"));
+                    AcpiOsPrintf ("Untyped StateObj");
                     break;
 
                 case ACPI_DESC_TYPE_STATE_UPDATE:
-                    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OK,
-                            " UPDATE StateObj"));
+                    AcpiOsPrintf ("UPDATE StateObj");
                     break;
 
                 case ACPI_DESC_TYPE_STATE_PACKAGE:
-                    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OK,
-                            " PACKAGE StateObj"));
+                    AcpiOsPrintf ("PACKAGE StateObj");
                     break;
 
                 case ACPI_DESC_TYPE_STATE_CONTROL:
-                    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OK,
-                            " CONTROL StateObj"));
+                    AcpiOsPrintf ("CONTROL StateObj");
                     break;
 
                 case ACPI_DESC_TYPE_STATE_RPSCOPE:
-                    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OK,
-                            " ROOT-PARSE-SCOPE StateObj"));
+                    AcpiOsPrintf ("ROOT-PARSE-SCOPE StateObj");
                     break;
 
                 case ACPI_DESC_TYPE_STATE_PSCOPE:
-                    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OK,
-                            " PARSE-SCOPE StateObj"));
+                    AcpiOsPrintf ("PARSE-SCOPE StateObj");
                     break;
 
                 case ACPI_DESC_TYPE_STATE_WSCOPE:
-                    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OK,
-                            " WALK-SCOPE StateObj"));
+                    AcpiOsPrintf ("WALK-SCOPE StateObj");
                     break;
 
                 case ACPI_DESC_TYPE_STATE_RESULT:
-                    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OK,
-                            " RESULT StateObj"));
+                    AcpiOsPrintf ("RESULT StateObj");
                     break;
 
                 case ACPI_DESC_TYPE_STATE_NOTIFY:
-                    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OK,
-                            " NOTIFY StateObj"));
+                    AcpiOsPrintf ("NOTIFY StateObj");
+                    break;
+
+                case ACPI_DESC_TYPE_STATE_THREAD:
+                    AcpiOsPrintf ("THREAD StateObj");
                     break;
                 }
 
-                ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OK, "\n"));
+                AcpiOsPrintf ( "\n");
+                NumOutstanding++;
             }
         }
-
-        if (Element->Next == NULL)
-        {
-            break;
-        }
-
         Element = Element->Next;
     }
 
     AcpiUtReleaseMutex (ACPI_MTX_MEMORY);
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_OK,
-        "Total number of unfreed allocations = %d(%X)\n", i,i));
+    /* Print summary */
 
+    if (!NumOutstanding)
+    {
+        ACPI_DEBUG_PRINT ((ACPI_DB_OK,
+                "No outstanding allocations.\n"));
+    }
+    else
+    {
+        ACPI_DEBUG_PRINT ((ACPI_DB_OK,
+            "%d(%X) Outstanding allocations\n",
+            NumOutstanding, NumOutstanding));
+    }
 
     return_VOID;
-
 }
 
 

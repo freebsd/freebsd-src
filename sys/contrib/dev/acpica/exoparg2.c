@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exoparg2 - AML execution - opcodes with 2 arguments
- *              $Revision: 97 $
+ *              $Revision: 98 $
  *
  *****************************************************************************/
 
@@ -139,19 +139,18 @@
  *
  *      AcpiExOpcode_xA_yT_zR
  *
- * Where:  
+ * Where:
  *
- * xA - ARGUMENTS:    The number of arguments (input operands) that are 
+ * xA - ARGUMENTS:    The number of arguments (input operands) that are
  *                    required for this opcode type (1 through 6 args).
- * yT - TARGETS:      The number of targets (output operands) that are required 
+ * yT - TARGETS:      The number of targets (output operands) that are required
  *                    for this opcode type (0, 1, or 2 targets).
- * zR - RETURN VALUE: Indicates whether this opcode type returns a value 
+ * zR - RETURN VALUE: Indicates whether this opcode type returns a value
  *                    as the function return (0 or 1).
  *
- * The AcpiExOpcode* functions are called via the Dispatcher component with 
+ * The AcpiExOpcode* functions are called via the Dispatcher component with
  * fully resolved operands.
 !*/
-
 
 
 /*******************************************************************************
@@ -378,8 +377,8 @@ AcpiExOpcode_2A_1T_1R (
             goto Cleanup;
         }
 
-        ReturnDesc->Integer.Value = AcpiExDoMathOp (WalkState->Opcode, 
-                                                Operand[0]->Integer.Value, 
+        ReturnDesc->Integer.Value = AcpiExDoMathOp (WalkState->Opcode,
+                                                Operand[0]->Integer.Value,
                                                 Operand[1]->Integer.Value);
         goto StoreResultToTarget;
     }
@@ -623,7 +622,7 @@ AcpiExOpcode_2A_0T_1R (
      */
     if (WalkState->OpInfo->Flags & AML_LOGICAL) /* LogicalOp  (Operand0, Operand1) */
     {
-        LogicalResult = AcpiExDoLogicalOp (WalkState->Opcode, 
+        LogicalResult = AcpiExDoLogicalOp (WalkState->Opcode,
                                             Operand[0]->Integer.Value,
                                             Operand[1]->Integer.Value);
         goto StoreLogicalResult;
@@ -664,9 +663,9 @@ AcpiExOpcode_2A_0T_1R (
 
 
 StoreLogicalResult:
-    /* 
+    /*
      * Set return value to according to LogicalResult. logical TRUE (all ones)
-     * Default is FALSE (zero) 
+     * Default is FALSE (zero)
      */
     if (LogicalResult)
     {

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbutils - Table manipulation utilities
- *              $Revision: 42 $
+ *              $Revision: 43 $
  *
  *****************************************************************************/
 
@@ -169,87 +169,6 @@ AcpiTbHandleToObject (
 
     ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "TableId=%X does not exist\n", TableId));
     return (AE_BAD_PARAMETER);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiTbSystemTablePointer
- *
- * PARAMETERS:  *Where              - Pointer to be examined
- *
- * RETURN:      TRUE if Where is within the AML stream (in one of the ACPI
- *              system tables such as the DSDT or an SSDT.)
- *              FALSE otherwise
- *
- ******************************************************************************/
-
-BOOLEAN
-AcpiTbSystemTablePointer (
-    void                    *Where)
-{
-    UINT32                  i;
-    ACPI_TABLE_DESC         *TableDesc;
-    ACPI_TABLE_HEADER       *Table;
-
-
-    /* No function trace, called too often! */
-
-
-    /* Ignore null pointer */
-
-    if (!Where)
-    {
-        return (FALSE);
-    }
-
-
-    /* Check for a pointer within the DSDT */
-
-    if ((AcpiGbl_DSDT) &&
-        (IS_IN_ACPI_TABLE (Where, AcpiGbl_DSDT)))
-    {
-        return (TRUE);
-    }
-
-
-    /* Check each of the loaded SSDTs (if any)*/
-
-    TableDesc = &AcpiGbl_AcpiTables[ACPI_TABLE_SSDT];
-
-    for (i = 0; i < AcpiGbl_AcpiTables[ACPI_TABLE_SSDT].Count; i++)
-    {
-        Table = TableDesc->Pointer;
-
-        if (IS_IN_ACPI_TABLE (Where, Table))
-        {
-            return (TRUE);
-        }
-
-        TableDesc = TableDesc->Next;
-    }
-
-
-    /* Check each of the loaded PSDTs (if any)*/
-
-    TableDesc = &AcpiGbl_AcpiTables[ACPI_TABLE_PSDT];
-
-    for (i = 0; i < AcpiGbl_AcpiTables[ACPI_TABLE_PSDT].Count; i++)
-    {
-        Table = TableDesc->Pointer;
-
-        if (IS_IN_ACPI_TABLE (Where, Table))
-        {
-            return (TRUE);
-        }
-
-        TableDesc = TableDesc->Next;
-    }
-
-
-    /* Pointer does not point into any system table */
-
-    return (FALSE);
 }
 
 
