@@ -227,8 +227,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <application>OpenSSH</application>'s multiplexing code.  This bug
       could have allowed an authenticated remote user to cause
       &man.sshd.8; to execute arbitrary code with superuser
-      privileges, or allowed a connecting SSH client to execute arbitrary
-      code with the privileges of the client user.  (See security
+      privileges, or allowed a malicious SSH server to execute arbitrary
+      code on the client system with the privileges of the client user.  (See security
       advisory <ulink
         url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:13.openssh.asc">FreeBSD-SA-02:13</ulink>.)</para>
 
