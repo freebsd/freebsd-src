@@ -110,7 +110,6 @@ gnu/i386/isa/dgb.c		optional	dgb
 gnu/i386/isa/dgm.c		optional	dgm
 gnu/i386/isa/sound/awe_wave.c	optional	awe
 i386/apm/apm.c			optional	apm
-i386/eisa/3c5x9.c		optional	ep
 i386/eisa/adv_eisa.c		optional	adv
 i386/eisa/ahb.c			optional	ahb
 i386/eisa/ahc_eisa.c		optional	eisa ahc    \
@@ -199,7 +198,6 @@ i386/isa/if_ar.c		optional	ar
 i386/isa/if_cs.c		optional	cs
 i386/isa/if_cx.c		optional	cx
 i386/isa/if_el.c		optional	el
-i386/isa/if_ep.c		optional	ep
 i386/isa/if_ex.c		optional	ex
 i386/isa/if_fe.c		optional	fe
 i386/isa/if_ie.c		optional	ie

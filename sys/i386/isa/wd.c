@@ -71,6 +71,7 @@
 #include <sys/dkbad.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/conf.h>
 #include <sys/bus.h>
 #include <sys/disklabel.h>
@@ -257,6 +258,12 @@ static struct cdevsw wd_cdevsw = {
 static int      atapictrlr;
 static int      eide_quirks;
 
+
+static char wd_ident[NWD][62]  = { NULL, NULL, NULL, NULL };
+SYSCTL_STRING(_hw, OID_AUTO, wd0_ident,  CTLFLAG_RD, wd_ident[0],  0, "");
+SYSCTL_STRING(_hw, OID_AUTO, wd1_ident,  CTLFLAG_RD, wd_ident[1],  0, "");
+SYSCTL_STRING(_hw, OID_AUTO, wd2_ident,  CTLFLAG_RD, wd_ident[2],  0, "");
+SYSCTL_STRING(_hw, OID_AUTO, wd3_ident,  CTLFLAG_RD, wd_ident[3],  0, "");
 
 /*
  *  Here we use the pci-subsystem to find out, whether there is
@@ -459,6 +466,13 @@ wdattach(struct isa_device *dvp)
 			((dvp->id_flags) >> (16 * unit));
 
 		if (wdgetctlr(du) == 0) {
+
+			bzero(wd_ident[lunit], sizeof(wd_ident[lunit]);
+			snprintf(wd_ident[lunit], sizeof(wd_ident[lunit]),
+				 "%s %s",
+				 du->dk_params.wdp_model,
+				 du->dk_params.wdp_serial);
+
 			/*
 			 * Print out description of drive.
 			 * wdp_model may not be null terminated.
@@ -478,6 +492,10 @@ wdattach(struct isa_device *dvp)
 			if (du->cfg_flags & WDOPT_SLEEPHACK)
 				printf(", sleep-hack");
 			printf("\n");
+			if (bootverbose) {
+				printf("wd%d: Serial Number %s\n", lunit,
+				       du->dk_params.wdp_serial);
+			}
 			if (du->dk_params.wdp_heads == 0)
 				printf("wd%d: size unknown, using %s values\n",
 				       lunit, du->dk_dd.d_secperunit > 17
