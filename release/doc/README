@@ -114,14 +114,14 @@ ${LANG}/share/sgml/catalog to EXTRA_CATALOGS.  Except for the Makefile
 changes, this is the same procedure that is used for creating a new
 translation for DocProj files.
 
-RELNOTESng is supported in the FreeBSD release-build process.  For
-now, the building of RELNOTESng is enabled by RELNOTESNG=YES when
-building a release.  Note that setting RELNOTESng requires that both
-NODOC and NOPORTS *not* be set, as RELNOTESng require parts of
-both.  Eventually, RELNOTESNG will be made the default.
+RELNOTESng is now enabled by default in the FreeBSD release-build
+process.  It can be disabled by setting NORELNOTES=YES when building a
+release.  Note that RELNOTESng requires that NODOC *not* be set, as
+RELNOTESng require parts of the doc/ tree.  Eventually, RELNOTESNG
+will be made the default.
 
 Release builders can set which language gets built with the 
-RELNOTESNG_LANG variable; note that this is different from the 
+RELNOTES_LANG variable; note that this is different from the 
 DOC_LANG variable because (at least intially) most languages
 will have localized DocProj files but not localized release notes.
 The default language, if none is specified, is en_US.ISO_8859-1.
