@@ -730,6 +730,11 @@ static struct asc_table_entry quantum_fireball_entries[] = {
 	     "Logical unit not ready, initializing cmd. required")}
 };
 
+static struct asc_table_entry sony_mo_entries[] = {
+	{SST(0x04, 0x00, SS_START|SSQ_DECREMENT_COUNT|ENXIO,
+	     "Logical unit not ready, cause not reportable")}
+};
+
 static struct scsi_sense_quirk_entry sense_quirk_table[] = {
 	{
 		/*
@@ -743,6 +748,17 @@ static struct scsi_sense_quirk_entry sense_quirk_table[] = {
 		sizeof(quantum_fireball_entries)/sizeof(struct asc_table_entry),
 		/*sense key entries*/NULL,
 		quantum_fireball_entries
+	},
+	{
+		/*
+		 * This Sony MO drive likes to return 0x04, 0x00 when it
+		 * isn't spun up.
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "SONY", "SMO-*", "*"},
+		/*num_sense_keys*/0,
+		sizeof(sony_mo_entries)/sizeof(struct asc_table_entry),
+		/*sense key entries*/NULL,
+		sony_mo_entries
 	}
 };
 
