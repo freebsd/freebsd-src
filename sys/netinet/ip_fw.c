@@ -95,7 +95,6 @@ LIST_HEAD (ip_fw_head, ip_fw_chain) ip_fw_chain_head;
 MALLOC_DEFINE(M_IPFW, "IpFw/IpAcct", "IpFw/IpAcct chain's");
 
 #ifdef SYSCTL_NODE
-SYSCTL_DECL(_net_inet_ip);
 SYSCTL_NODE(_net_inet_ip, OID_AUTO, fw, CTLFLAG_RW, 0, "Firewall");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, enable, CTLFLAG_RW,
     &fw_enable, 0, "Enable ipfw");
