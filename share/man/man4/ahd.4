@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 1, 2002
+.Dd July 4, 2004
 .Dt AHD 4
 .Os
 .Sh NAME
@@ -63,17 +63,8 @@ busses:
 This driver provides access to the
 .Tn SCSI
 bus(es) connected to Adaptec
-.Tn AIC7901
-and
-.Tn AIC7902
+.Tn AIC79xx
 host adapter chips.
-These chips are found on many motherboards as well as the
-.Tn 29320
-and
-.Tn 39320
-Adaptec
-.Tn SCSI
-controller cards.
 .Pp
 Driver features include support for narrow and wide busses,
 fast, ultra, ultra2, ultra160, and ultra320 synchronous transfers,
@@ -131,6 +122,37 @@ disconnection,
 and the host adapter's
 .Tn SCSI
 ID.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following:
+.Pp
+.Bl -bullet -compact
+.It
+Adaptec
+.Tn AIC7901
+host adapter chip
+.It
+Adaptec
+.Tn AIC7901A
+host adapter chip
+.It
+Adaptec
+.Tn AIC7902
+host adapter chip
+.It
+Adaptec
+.Tn 29320
+host adapter
+.It
+Adaptec
+.Tn 39320
+host adapter
+.It
+Many motherboards with on-board
+.Tn SCSI
+support
+.El
 .Sh BUGS
 The current generation of 79xx chips do not support target mode in Ultra320
 mode.
