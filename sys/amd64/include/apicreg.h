@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic.h,v 1.4 1997/06/22 16:03:46 peter Exp $
+ *	$Id: apic.h,v 1.2 1997/07/08 23:29:48 smp Exp smp $
  */
 
 #ifndef _MACHINE_APIC_H_
@@ -229,12 +229,17 @@ typedef struct IOAPIC ioapic_t;
 #define MAXLVTSHIFT		16
 
 /* fields in SVR */
+#define APIC_SVR_VECTOR		0x000000ff
+#define APIC_SVR_VEC_PROG	0x000000f0
+#define APIC_SVR_VEC_FIX	0x0000000f
 #define APIC_SVR_ENABLE		0x00000100
 # define APIC_SVR_SWDIS		0x00000000
 # define APIC_SVR_SWEN		0x00000100
 #define APIC_SVR_FOCUS		0x00000200
 # define APIC_SVR_FEN		0x00000000
 # define APIC_SVR_FDIS		0x00000200
+
+/* fields in TPR */
 #define APIC_TPR_PRIO		0x000000ff
 # define APIC_TPR_INT		0x000000f0
 # define APIC_TPR_SUB		0x0000000f
