@@ -1,5 +1,3 @@
-.\"	$FreeBSD$
-.\"
 .\" Copyright (c) 2000 Matthew Jacob
 .\" All rights reserved.
 .\"
@@ -30,6 +28,9 @@
 .\" Matthew Jacob
 .\" Feral Software
 .\" mjacob@feral.com
+.\"
+.\" $FreeBSD$
+.\"
 .Dd February 21, 2000
 .Dt SESD 8
 .Os
