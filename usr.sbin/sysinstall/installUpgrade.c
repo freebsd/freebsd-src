@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id$
+ * $Id: installUpgrade.c,v 1.44 1997/02/07 04:26:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -242,17 +242,16 @@ installUpgrade(dialogMenuItem *self)
 	systemCreateHoloshell();
     }
 
-    if (!mediaVerify()) {
-	msgConfirm("Now you must specify an installation medium for the upgrade.");
 media:
-	if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
-	    return DITEM_FAILURE | DITEM_RESTORE;
-    }
+    if (!mediaVerify())
+	return DITEM_FAILURE | DITEM_RESTORE;
 
     if (!mediaDevice->init(mediaDevice)) {
 	if (!msgYesNo("Couldn't initialize the media.  Would you like\n"
-		   "to adjust your media selection and try again?"))
+		   "to adjust your media selection and try again?")) {
+	    mediaDevice = NULL;
 	    goto media;
+	}
 	else
 	    return DITEM_FAILURE | DITEM_REDRAW;
     }

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id$
+ * $Id: install.c,v 1.172 1997/02/22 14:11:46 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -636,10 +636,8 @@ installCommit(dialogMenuItem *self)
 	    return DITEM_FAILURE | DITEM_RESTORE;
     }
 
-    if (!mediaDevice) {
-	if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
-	    return DITEM_FAILURE | DITEM_RESTORE;
-    }
+    if (!mediaVerify())
+	return DITEM_FAILURE | DITEM_RESTORE;
 
     str = variable_get(SYSTEM_STATE);
     if (isDebug())
@@ -657,7 +655,8 @@ try_media:
     if (!mediaDevice->init(mediaDevice)) {
 	if (!msgYesNo("Unable to initialize selected media. Would you like to\n"
 		      "adjust your media configuration and try again?")) {
-	    if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
+	    mediaDevice = NULL;
+	    if (!mediaVerify())
 		return DITEM_FAILURE | DITEM_RESTORE;
 	    else
 		goto try_media;
