@@ -1,0 +1,87 @@
+.\" Copyright (c) 1988, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)make_keypair.8	8.2 (Berkeley) 12/11/93
+.\"
+.Dd December 11, 1993
+.Dt MAKE_KEYPAIR 8
+.Os
+.Sh NAME
+.Nm make_keypair
+.Nd generate Kerberos host key pair
+.Sh SYNOPSIS
+.Nm make_keypair
+.Ar hostname
+.Op Ar hostname ...
+.Sh DESCRIPTION
+The
+.Nm make_keypair
+command
+is used to create pairs of
+.Tn DES
+keys for
+each
+.Ar hostname .
+The keys are used by privileged programs such as
+.Xr register 1
+to make remote updates to the Kerberos database without
+having to have first acquired a Kerberos ticket granting ticket
+.Pq Tn TGT .
+The keys created by
+.Nm make_keypair
+are placed (by hand) in the filesystems of the
+kerberos server in
+.Pa /etc/kerberosIV/register_keys ,
+and in the root directory of the clients.
+For example, the file
+.Pa /.update.key128.32.130.3
+would
+contain a copy of the key of the client with
+IP address 128.32.130.3.
+These keys provide a shared secret which may be used to establish
+a secure channel between the client hosts and the Kerberos server.
+.Sh FILES
+.Bl -tag -width /etc/kerberosIV/register_keysxx -compact
+.It Pa /.update.keyxx.xx.xx.xx
+shared
+.Tn DES
+key with server
+.It Pa /etc/kerberosIV/register_keys
+server's key storage directory
+.El
+.Sh SEE ALSO
+.Xr register 1 ,
+.Xr registerd 8 ,
+.Xr kerberos 1
+.Sh HISTORY
+The
+.Nm make_keypair
+utility first appeared in 4.4BSD.
