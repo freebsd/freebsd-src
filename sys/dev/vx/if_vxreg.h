@@ -103,11 +103,6 @@ struct vx_softc {
 #define VX_ID_PORT      0x100
 
 /*
- * some macros to acces long named fields
- */
-#define BASE 	(sc->vx_io_addr)
-
-/*
  * Commands to read/write EEPROM trough EEPROM command register (Window 0,
  * Offset 0xa)
  */
