@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prof.c	8.3 (Berkeley) 9/23/93
- * $Id: subr_prof.c,v 1.11 1995/11/20 12:42:06 phk Exp $
+ * $Id: subr_prof.c,v 1.12 1995/12/02 17:10:37 bde Exp $
  */
 
 #include <sys/param.h>
@@ -39,9 +39,8 @@
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
-#include <vm/vm.h>
+#include <sys/resourcevar.h>
 #include <sys/sysctl.h>
-#include <sys/user.h>
 
 #include <machine/cpu.h>
 

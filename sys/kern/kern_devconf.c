@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_devconf.c,v 1.10 1995/05/30 08:05:23 rgrimes Exp $
+ *	$Id: kern_devconf.c,v 1.11 1995/11/20 12:42:01 phk Exp $
  */
 
 /*
@@ -35,7 +35,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
-#include <vm/vm.h>		/* needed for sysctl.h */
 #include <sys/sysctl.h>
 #include <sys/devconf.h>
 
