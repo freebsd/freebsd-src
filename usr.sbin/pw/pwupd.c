@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: pwupd.c,v 1.6 1997/10/10 06:23:41 charnier Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -112,12 +112,12 @@ pw_update(struct passwd * pwd, char const * user, int mode)
 
 	/*
 	 * First, let's check the see if the database is alright
-	 * Note: -c is only available in FreeBSD 2.2 and above
+	 * Note: -C is only available in FreeBSD 2.2 and above
 	 */
 #ifdef HAVE_PWDB_C
-	if (pwdb("-c", NULL) == 0) {	/* Check only */
+	if (pwdb("-C", NULL) == 0) {	/* Check only */
 #else
-	{				/* No -c */
+	{				/* No -C */
 #endif
 		char            pfx[32];
 		char            pwbuf[PWBUFSZ];
