@@ -781,16 +781,6 @@ spd_done:
 			else
 				clone = NULL;
 
-			/*
-			 * XXX
-			 * delayed checksums are not currently compatible
-			 * with divert sockets.
-			 */
-			if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
-				in_delayed_cksum(m);
-				m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
-			}
-
 			/* Restore packet header fields to original values */
 			ip->ip_len = htons(ip->ip_len);
 			ip->ip_off = htons(ip->ip_off);
