@@ -1818,6 +1818,33 @@ linux_ioctl_console(struct thread *td, struct linux_ioctl_args *args)
 #define IFP_IS_ETH(ifp) (ifp->if_type == IFT_ETHER)
 
 /*
+ * Interface function used by linprocfs (at the time of writing). It's not
+ * used by the Linuxulator itself.
+ */
+int
+linux_ifname(struct ifnet *ifp, char *buffer, size_t buflen)
+{
+	struct ifnet *ifscan;
+	int ethno;
+
+	/* Short-circuit non ethernet interfaces */
+	if (!IFP_IS_ETH(ifp))
+		return (snprintf(buffer, buflen, "%s%d", ifp->if_name,
+		    ifp->if_unit));
+
+	/* Determine the (relative) unit number for ethernet interfaces */
+	ethno = 0;
+	TAILQ_FOREACH(ifscan, &ifnet, if_link) {
+		if (ifscan == ifp)
+			return (snprintf(buffer, buflen, "eth%d", ethno));
+		if (IFP_IS_ETH(ifscan))
+			ethno++;
+	}
+
+	return (0);
+}
+
+/*
  * Translate a Linux interface name to a FreeBSD interface name,
  * and return the associated ifnet structure
  * bsdname and lxname need to be least IFNAMSIZ bytes long, but
