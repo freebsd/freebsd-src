@@ -208,7 +208,7 @@ struct aac_interface
 	int	(*aif_get_fwstatus)(struct aac_softc *sc);
 	void	(*aif_qnotify)(struct aac_softc *sc, int qbit);
 	int	(*aif_get_istatus)(struct aac_softc *sc);
-	void	(*aif_set_istatus)(struct aac_softc *sc, int mask);
+	void	(*aif_clr_istatus)(struct aac_softc *sc, int mask);
 	void	(*aif_set_mailbox)(struct aac_softc *sc, u_int32_t command,
 				   u_int32_t arg0, u_int32_t arg1,
 				   u_int32_t arg2, u_int32_t arg3);
@@ -217,11 +217,12 @@ struct aac_interface
 };
 extern struct aac_interface	aac_rx_interface;
 extern struct aac_interface	aac_sa_interface;
+extern struct aac_interface	aac_fa_interface;
 
 #define AAC_GET_FWSTATUS(sc)		((sc)->aac_if.aif_get_fwstatus((sc)))
 #define AAC_QNOTIFY(sc, qbit)		((sc)->aac_if.aif_qnotify((sc), (qbit)))
 #define AAC_GET_ISTATUS(sc)		((sc)->aac_if.aif_get_istatus((sc)))
-#define AAC_CLEAR_ISTATUS(sc, mask)	((sc)->aac_if.aif_set_istatus((sc), \
+#define AAC_CLEAR_ISTATUS(sc, mask)	((sc)->aac_if.aif_clr_istatus((sc), \
 					(mask)))
 #define AAC_SET_MAILBOX(sc, command, arg0, arg1, arg2, arg3) \
 	((sc)->aac_if.aif_set_mailbox((sc), (command), (arg0), (arg1), (arg2), \
@@ -253,15 +254,17 @@ TAILQ_HEAD(aac_container_tq, aac_container);
 #include <sys/lock.h>
 #include <sys/mutex.h>
 typedef struct mtx aac_lock_t;
-#define AAC_LOCK_INIT(l)	mtx_init(l, "AAC Container Mutex", MTX_DEF)
+#define AAC_LOCK_INIT(l, s)	mtx_init(l, s, MTX_DEF)
 #define AAC_LOCK_AQUIRE(l)	mtx_lock(l)
 #define AAC_LOCK_RELEASE(l)	mtx_unlock(l)
 #else
 typedef struct simplelock aac_lock_t;
-#define AAC_LOCK_INIT(l)	simple_lock_init(l)
+#define AAC_LOCK_INIT(l, s)	simple_lock_init(l)
 #define AAC_LOCK_AQUIRE(l)	simple_lock(l)
 #define AAC_LOCK_RELEASE(l)	simple_unlock(l)
 #endif
+
+#include <sys/selinfo.h>
 
 /*
  * Per-controller structure.
@@ -294,6 +297,7 @@ struct aac_softc
 	int			aac_hwif;
 #define AAC_HWIF_I960RX		0
 #define AAC_HWIF_STRONGARM	1
+#define	AAC_HWIF_FALCON		2
 #define AAC_HWIF_UNKNOWN	-1
 	bus_dma_tag_t		aac_common_dmat;	/* common structure
 							 * DMA tag */
@@ -337,9 +341,11 @@ struct aac_softc
 
 	/* management interface */
 	dev_t			aac_dev_t;
+	aac_lock_t		aac_aifq_lock;
 	struct aac_aif_command	aac_aifq[AAC_AIFQ_LENGTH];
 	int			aac_aifq_head;
 	int			aac_aifq_tail;
+	struct selinfo		rcv_select;
 	struct proc		*aifthread;
 	int			aifflags;
 #define AAC_AIFFLAGS_RUNNING	(1 << 0)
@@ -542,8 +548,8 @@ aac_dequeue_bio(struct aac_softc *sc)
 
 	s = splbio();
 	if ((bp = bioq_first(&sc->aac_bioq)) != NULL) {
-	bioq_remove(&sc->aac_bioq, bp);
-	AACQ_REMOVE(sc, AACQ_BIO);
+		bioq_remove(&sc->aac_bioq, bp);
+		AACQ_REMOVE(sc, AACQ_BIO);
 	}
 	splx(s);
 	return(bp);
@@ -552,10 +558,11 @@ aac_dequeue_bio(struct aac_softc *sc)
 static __inline void
 aac_print_printf(struct aac_softc *sc)
 {
-	if (sc->aac_common->ac_printf[0]) {
+	/*
+	 * XXX We have the ability to read the length of the printf string
+	 * from out of the mailboxes.
+	 */
 	device_printf(sc->aac_dev, "**Monitor** %.*s", AAC_PRINTF_BUFSIZE,
 		      sc->aac_common->ac_printf);
-	sc->aac_common->ac_printf[0] = 0;
 	AAC_QNOTIFY(sc, AAC_DB_PRINTF);
-	}
 }
