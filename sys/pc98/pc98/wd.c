@@ -601,7 +601,7 @@ wdattach(struct isa_device *dvp)
 			 */
 			dev = disk_create(lunit, &du->disk, 0, &wd_cdevsw,
 				    &wddisk_cdevsw);
-			dev->si_drv1 = &wddrives[lunit];
+			dev->si_drv1 = du;
 			
 		} else {
 			free(du, M_TEMP);
@@ -659,7 +659,7 @@ wdstrategy(register struct bio *bp)
 		bp->bio_flags |= BIO_ERROR;
 		goto done;
 	}
-	lunit = du->dk_unit;
+	lunit = du->dk_lunit;
 
 #ifdef PC98
 	outb(0x432,(du->dk_unit)%2);
@@ -773,7 +773,7 @@ wdstart(int ctrlr)
 
 	/* obtain controller and drive information */
 	du = bp->bio_dev->si_drv1;
-	lunit = du->dk_unit;
+	lunit = du->dk_lunit;
 
 #ifdef PC98
 	outb(0x432,(du->dk_unit)%2);
