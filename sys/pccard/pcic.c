@@ -853,9 +853,9 @@ pcicintr(void *arg)
 						pccard_event(sp->slt,
 						    card_inserted);
 					} else {
-						cinfo.disable(sp->slt);
 						pccard_event(sp->slt,
 						    card_removed);
+						cinfo.disable(sp->slt);
 					}
 				}
 			}
