@@ -122,6 +122,7 @@ Boolean			allPrecious;	/* .PRECIOUS given on line by itself */
 static Boolean		noBuiltins;	/* -r flag */
 static Lst		makefiles;	/* ordered list of makefiles to read */
 static Boolean		printVars;	/* print value of one or more vars */
+static Boolean		expandVars;	/* fully expand printed variables */
 static Lst		variables;	/* list of variables to print */
 int			maxJobs;	/* -j argument */
 static Boolean          forceJobs;      /* -j argument given */
@@ -175,9 +176,9 @@ MainParseArgs(argc, argv)
 
 	optind = 1;	/* since we're called more than once */
 #ifdef REMOTE
-# define OPTFLAGS "BD:E:I:L:PSV:d:ef:ij:km:nqrstv"
+# define OPTFLAGS "BD:E:I:L:PSV:Xd:ef:ij:km:nqrstv"
 #else
-# define OPTFLAGS "BD:E:I:PSV:d:ef:ij:km:nqrstv"
+# define OPTFLAGS "BD:E:I:PSV:Xd:ef:ij:km:nqrstv"
 #endif
 rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 		switch(c) {
@@ -193,14 +194,12 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 			break;
 		case 'V':
 			printVars = TRUE;
-			p = malloc(strlen(optarg) + 1 + 3);
-			if (!p)
-				Punt("make: cannot allocate memory.");
-                        /* This sprintf is safe, because of the malloc above */
-			(void)sprintf(p, "${%s}", optarg);
-			(void)Lst_AtEnd(variables, (ClientData)p);
+			(void)Lst_AtEnd(variables, (ClientData)optarg);
 			Var_Append(MAKEFLAGS, "-V", VAR_GLOBAL);
 			Var_Append(MAKEFLAGS, optarg, VAR_GLOBAL);
+			break;
+		case 'X':
+			expandVars = FALSE;
 			break;
 		case 'B':
 			compatMake = TRUE;
@@ -622,6 +621,7 @@ main(argc, argv)
 	makefiles = Lst_Init(FALSE);
 	envFirstVars = Lst_Init(FALSE);
 	printVars = FALSE;
+	expandVars = TRUE;
 	variables = Lst_Init(FALSE);
 	beSilent = FALSE;		/* Print commands as executed */
 	ignoreErrors = FALSE;		/* Pay attention to non-zero returns */
@@ -829,10 +829,21 @@ main(argc, argv)
 
 		for (ln = Lst_First(variables); ln != NILLNODE;
 		    ln = Lst_Succ(ln)) {
-			char *value = Var_Subst(NULL, (char *)Lst_Datum(ln),
-					  VAR_GLOBAL, FALSE);
-
+			char *value;
+			if (expandVars) {
+				p1 = malloc(strlen((char *)Lst_Datum(ln)) + 1 + 3);
+				if (!p1)
+					Punt("make: cannot allocate memory.");
+				/* This sprintf is safe, because of the malloc above */
+				(void)sprintf(p1, "${%s}", (char *)Lst_Datum(ln));
+				value = Var_Subst(NULL, p1, VAR_GLOBAL, FALSE);
+			} else {
+				value = Var_Value((char *)Lst_Datum(ln),
+						  VAR_GLOBAL, &p1);
+			}
 			printf("%s\n", value ? value : "");
+			if (p1)
+				free(p1);
 		}
 	}
 

@@ -40,7 +40,7 @@
 .Nd maintain program dependencies
 .Sh SYNOPSIS
 .Nm make
-.Op Fl BPSeiknqrstv
+.Op Fl BPSXeiknqrstv
 .Op Fl D Ar variable
 .Op Fl d Ar flags
 .Op Fl E Ar variable
@@ -217,6 +217,11 @@ with a blank line for each null or undefined variable.
 .It Fl v
 Be extra verbose.
 For multi-job makes, this will cause file banners to be generated.
+.It Fl X
+When using the
+.Fl V
+option to print the values of variables,
+do not recursively expand the values.
 .It Ar variable Ns No = Ns Ar value
 Set the value of the variable
 .Ar variable
