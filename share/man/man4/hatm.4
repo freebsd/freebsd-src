@@ -201,11 +201,15 @@ Maximum number of active TPDs per connection. This controls the maximum
 number of outstanding packet chunks per connection and thus the maximum
 delay packets can have because of queueing on the adapter. If set to 0,
 a connection can eat up all available TPDs.
+.It Cm hw.hatmN.mbuf_max_pages
+Maximum number of memory pages allocated to small external mbufs.
+This must not be zero and not larger than 65536.
 .El
 .Sh CAVEATS
 When putting a HE155 into a 64-bit 66MHz PCI slot the machine may hang.
-This occures very early in the POST so that even the display does not
-turn on. HE622 cards work just fine in 64-bit slots.
+This occures very early in the POST so that even the display does not turn on.
+The HE155 runs only in 33MHz slots (either 32 or 64-bit).
+HE622 cards work just fine in 64-bit slots.
 .Pp
 The driver may not work with bounce buffer, because of
 .Fn bus_dma_sync

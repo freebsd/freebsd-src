@@ -329,7 +329,7 @@ static void
 hatm_init_smbufs(struct hatm_softc *sc)
 {
 	sc->mbuf_pages = malloc(sizeof(sc->mbuf_pages[0]) *
-	    HE_CONFIG_MAX_MBUF_PAGES, M_DEVBUF, M_WAITOK);
+	    sc->mbuf_max_pages, M_DEVBUF, M_WAITOK);
 	sc->mbuf_npages = 0;
 }
 
@@ -1387,6 +1387,10 @@ hatm_configure(struct hatm_softc *sc)
 	/* Max TPDs per VCC */
 	kenv_getuint(sc, "tpdmax", &sc->max_tpd,
 	    HE_CONFIG_TPD_MAXCC, 0);
+
+	/* external mbuf pages */
+	kenv_getuint(sc, "max_mbuf_pages", &sc->mbuf_max_pages,
+	    HE_CONFIG_MAX_MBUF_PAGES, 0);
 
 	return (0);
 }
