@@ -174,6 +174,17 @@ nsswitch.conf(5) file, FreeBSD can be configured so that various
 databases such as passwd(5) and group(5) can be looked up using flat 
 files, NIS, or Hesiod.
 
+sshd X11Forwarding is now turned on by default on server (any risk is
+to the client, where it is already disabled by default).
+
+RSA Security has waived all patent rights to the RSA algorithm (two
+weeks before the patent was due to expire).  As a result, the native
+OpenSSL implementation of the RSA algorithm is now activated by
+default, and the rsaref port and librsaUSA are no longer
+required for USA residents. [MERGED]
+
+sshd now enabled by default on new installs. [MERGED]
+
 
 2. Supported Configurations
 ---------------------------
