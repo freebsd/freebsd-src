@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: date.c,v 1.13 1997/06/06 06:34:37 charnier Exp $
+ *	$Id: date.c,v 1.14 1997/08/04 03:37:06 brian Exp $
  */
 
 #ifndef lint
@@ -89,7 +89,7 @@ main(argc, argv)
 	tz.tz_dsttime = tz.tz_minuteswest = 0;
 	rflag = 0;
 	set_timezone = 0;
-	while ((ch = getopt(argc, argv, "D:W:M:Y:d:nr:ut:")) != -1)
+	while ((ch = getopt(argc, argv, "d:nr:ut:v:")) != -1)
 		switch((char)ch) {
 		case 'd':		/* daylight savings time */
 			tz.tz_dsttime = strtol(optarg, &endptr, 10) ? 1 : 0;
@@ -114,11 +114,8 @@ main(argc, argv)
 				usage();
 			set_timezone = 1;
 			break;
-		case 'D':
-		case 'W':
-		case 'M':
-		case 'Y':
-			v = vary_append(v, ch, optarg);
+		case 'v':
+			v = vary_append(v, optarg);
 			break;
 		default:
 			usage();
@@ -155,8 +152,8 @@ main(argc, argv)
 	lt = *localtime(&tval);
 	badv = vary_apply(v, &lt);
 	if (badv) {
-		fprintf(stderr, "-%c %s: Cannot apply date adjustment\n",
-			badv->flag, badv->arg);
+		fprintf(stderr, "%s: Cannot apply date adjustment\n",
+			badv->arg);
 		vary_destroy(v);
 		usage();
 	}
@@ -258,7 +255,7 @@ static void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n",
-		"usage: date [-nu] [-d dst] [-r seconds] [-t west] [+format]",
-		"            [-DWMY [+|-]val] [[[[yy]mm]dd]HH]MM[.ss]]");
+	    "usage: date [-nu] [-d dst] [-r seconds] [-t west] [+format]",
+	    "            [-v [+|-]val[ymwdHM]]... [[[[yy]mm]dd]HH]MM[.ss]]");
 	exit(1);
 }

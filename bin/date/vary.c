@@ -9,9 +9,6 @@ struct trans {
 };
 
 static struct trans trans_mon[] = {
-  { 1, "jan" }, { 2, "feb" }, { 3, "mar" }, { 4, "apr" }, { 5, "may" },
-  { 6, "jun" }, { 7, "jul" }, { 8, "aug" }, { 9, "sep" }, { 10, "oct" },
-  { 11, "nov" }, { 12, "dec" },
   { 1, "january" }, { 2, "february" }, { 3, "march" }, { 4, "april" },
   { 6, "june" }, { 7, "july" }, { 8, "august" }, { 9, "september" },
   { 10, "october" }, { 11, "november" }, { 12, "december" },
@@ -19,8 +16,6 @@ static struct trans trans_mon[] = {
 };
 
 static struct trans trans_wday[] = {
-  { 0, "sun" }, { 1, "mon" }, { 2, "tue" }, { 3, "wed" }, { 4, "thr" },
-  { 4, "thu" }, { 5, "fri" }, { 6, "sat" },
   { 0, "sunday" }, { 1, "monday" }, { 2, "tuesday" }, { 3, "wednesday" },
   { 4, "thursday" }, { 5, "friday" }, { 6, "saturday" },
   { -1, NULL }
@@ -33,23 +28,18 @@ trans(const struct trans t[], const char *arg)
 {
   int f;
 
-  if (strspn(arg, digits) == strlen(arg))
-    return atoi(arg);
-
   for (f = 0; t[f].val != -1; f++)
-    if (!strcasecmp(t[f].str, arg))
+    if (!strncasecmp(t[f].str, arg, 3) ||
+        !strncasecmp(t[f].str, arg, strlen(t[f].str)))
       return t[f].val;
 
   return -1;
 }
 
 struct vary *
-vary_append(struct vary *v, char flag, char *arg)
+vary_append(struct vary *v, char *arg)
 {
   struct vary *result, **nextp;
-
-  if (!strchr("DWMY", flag))
-    return 0;
 
   if (v) {
     result = v;
@@ -60,7 +50,6 @@ vary_append(struct vary *v, char flag, char *arg)
     nextp = &result;
 
   *nextp = (struct vary *)malloc(sizeof(struct vary));
-  (*nextp)->flag = flag;
   (*nextp)->arg = arg;
   (*nextp)->next = NULL;
   return result;
@@ -113,18 +102,6 @@ adjyear(struct tm *t, char type, int val)
 }
 
 static int
-sadjyear(struct tm *t, char *arg)
-{
-  switch (*arg) {
-    case '+':
-    case '-':
-      return adjyear(t, *arg, atoi(arg+1));
-    default:
-      return adjyear(t, '\0', atoi(arg));
-  }
-}
-
-static int
 adjmon(struct tm *t, char type, int val, int istext)
 {
   if (val < 0)
@@ -172,25 +149,6 @@ adjmon(struct tm *t, char type, int val, int istext)
 }
 
 static int
-sadjmon(struct tm *t, char *arg)
-{
-  int istext;
-  int val;
-
-  switch (*arg) {
-    case '+':
-    case '-':
-      istext = strspn(arg+1, digits) != strlen(arg+1);
-      val = trans(trans_mon, arg+1);
-      return adjmon(t, *arg, val, istext);
-    default:
-      istext = strspn(arg, digits) != strlen(arg);
-      val = trans(trans_mon, arg);
-      return adjmon(t, '\0', val, istext);
-  }
-}
-
-static int
 adjday(struct tm *t, char type, int val)
 {
   int mdays;
@@ -234,27 +192,12 @@ adjday(struct tm *t, char type, int val)
 }
 
 static int
-sadjwday(struct tm *t, char *arg)
+adjwday(struct tm *t, char type, int val, int istext)
 {
-  int istext;
-  int val;
-
-  switch (*arg) {
-    case '+':
-    case '-':
-      istext = strspn(arg+1, digits) != strlen(arg+1);
-      val = trans(trans_wday, arg+1);
-      break;
-    default:
-      istext = 0;
-      val = trans(trans_wday, arg);
-      break;
-  }
-
   if (val < 0)
     return 0;
 
-  switch (*arg) {
+  switch (type) {
     case '+':
       if (istext)
         if (val < t->tm_wday)
@@ -285,40 +228,144 @@ sadjwday(struct tm *t, char *arg)
 }
 
 static int
-sadjday(struct tm *t, char *arg)
+adjhour(struct tm *t, char type, int val)
 {
-  switch (*arg) {
+  if (val < 0)
+    return 0;
+
+  switch (type) {
     case '+':
+      if (!adjday(t, '+', (t->tm_hour + val) / 24))
+        return 0;
+      val %= 24;
+      t->tm_hour += val;
+      if (t->tm_hour > 23)
+        t->tm_hour -= 24;
+      break;
+
     case '-':
-      return adjday(t, *arg, atoi(arg+1));
+      if (!adjday(t, '-', val / 24))
+        return 0;
+      val %= 24;
+      if (val > t->tm_hour) {
+        if (!adjday(t, '-', 1))
+          return 0;
+        val -= 24;
+      }
+      t->tm_hour -= val;
+      break;
+
     default:
-      return adjday(t, '\0', atoi(arg));
+      if (val > 23)
+        return 0;
+      t->tm_hour = val;
   }
+
+  return mktime(t) != -1;
+}
+
+static int
+adjmin(struct tm *t, char type, int val)
+{
+  if (val < 0)
+    return 0;
+
+  switch (type) {
+    case '+':
+      if (!adjhour(t, '+', (t->tm_min + val) / 60))
+        return 0;
+      val %= 60;
+      t->tm_min += val;
+      if (t->tm_min > 59)
+        t->tm_min -= 60;
+      break;
+
+    case '-':
+      if (!adjhour(t, '-', val / 60))
+        return 0;
+      val %= 60;
+      if (val > t->tm_min) {
+        if (!adjhour(t, '-', 1))
+          return 0;
+        val -= 60;
+      }
+      t->tm_min -= val;
+      break;
+
+    default:
+      if (val > 59)
+        return 0;
+      t->tm_min = val;
+  }
+
+  return mktime(t) != -1;
 }
 
 const struct vary *
 vary_apply(const struct vary *v, struct tm *t)
 {
+  char type;
+  char which;
+  char *arg;
+  int len;
+  int val;
+
   for (; v; v = v->next) {
-    switch (v->flag) {
-      case 'D':
-        if (!sadjday(t, v->arg))
+    type = *v->arg;
+    arg = v->arg;
+    if (type == '+' || type == '-')
+      arg++;
+    else
+      type = '\0';
+    len = strlen(arg);
+    if (len < 2)
+      return v;
+
+    if (strspn(arg, digits) != len-1) {
+      val = trans(trans_wday, arg);
+      if (val != -1) {
+          if (!adjwday(t, type, val, 1))
+            return v;
+      } else {
+        val = trans(trans_mon, arg);
+        if (val != -1) {
+          if (!adjmon(t, type, val, 1))
+            return v;
+        } else
           return v;
-        break;
-      case 'W':
-        if (!sadjwday(t, v->arg))
+      }
+    } else {
+      val = atoi(arg);
+      which = arg[len-1];
+      
+      switch (which) {
+        case 'M':
+          if (!adjmin(t, type, val))
+            return v;
+          break;
+        case 'H':
+          if (!adjhour(t, type, val))
+            return v;
+          break;
+        case 'd':
+          if (!adjday(t, type, val))
+            return v;
+          break;
+        case 'w':
+          if (!adjwday(t, type, val, 0))
+            return v;
+          break;
+        case 'm':
+          if (!adjmon(t, type, val, 0))
+            return v;
+          break;
+        case 'y':
+          if (!adjyear(t, type, val))
+            return v;
+          break;
+        default:
           return v;
-        break;
-      case 'M':
-        if (!sadjmon(t, v->arg))
-          return v;
-        break;
-      case 'Y':
-        if (!sadjyear(t, v->arg))
-          return v;
-        break;
-      default:
-        return v;
+      }
     }
   }
   return 0;
