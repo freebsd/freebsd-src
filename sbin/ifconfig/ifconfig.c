@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ifconfig.c	8.2 (Berkeley) 2/16/94";
 */
 static const char rcsid[] =
-	"$Id: ifconfig.c,v 1.33 1997/12/24 00:57:41 imp Exp $";
+	"$Id: ifconfig.c,v 1.34 1997/12/26 23:28:04 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -448,10 +448,14 @@ main(argc, argv)
 			strncpy(name, sdl->sdl_data, sdl->sdl_nlen);
 			name[sdl->sdl_nlen] = '\0';
 			if (namesonly) {
-				if (need_nl)
-					putchar(' ');
-				fputs(name, stdout);
-				need_nl++;
+				if (afp == NULL ||
+					afp->af_status != ether_status ||
+					sdl->sdl_type == IFT_ETHER) {
+					if (need_nl)
+						putchar(' ');
+					fputs(name, stdout);
+					need_nl++;
+				}
 				continue;
 			}
 		} else {
