@@ -20,13 +20,13 @@
 FFLAG=-F..
 TROFF=../troff/troff -M../tmac $(FFLAG)
 GROPS=../grops/grops $(FFLAG)
-DOCS=meref.PS meintro.PS
+DOCS=meref.PS meintro.PS pic.PS
 MEMACROS=../macros/tmac.e
 SOELIM=../soelim/soelim
 
 all: $(DOCS)
 
-.SUFFIXES: .tr .me .PS .dit
+.SUFFIXES: .tr .me .ms .PS .dit
 
 .dit.PS:
 	$(GROPS) $< >$@
@@ -42,8 +42,13 @@ all: $(DOCS)
 meref.PS: meref.dit
 meintro.PS: meintro.dit
 
+# This production must use -p -e -t so pic/eqn processing is done
+pic.PS: pic.ms
+	sed $< -e "s;@VERSION@;`cat ../VERSION`;" \
+	| ../groff/groff -p -e -t -Tps $(FFLAG) -ms  >$@
+
 install:
-	
+
 clean:
 	-rm -f *.PS *.dit core
 

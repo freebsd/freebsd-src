@@ -1,3 +1,10 @@
+Fri Aug 15 08:51:47 1997  Eric S. Raymond  <esr@snark.thyrsus.com>
+
+	* README, PROJECTS, NEWS, INSTALL, VERSION, 
+	doc/Makefile. doc/pic.ms, groff/groff.man:
+	Prepare for 1.11 release.  No code changes.
+  	Documentation for pic added (doc/pic.ms).
+
 Sun Nov 26 11:45:13 1995  James Clark  <jjc@jclark.com>
 
 	* Version 1.10 released.

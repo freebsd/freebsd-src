@@ -201,12 +201,7 @@
 .\" .ds dD \s+4\f(CODRAFT\fP\s-4\ \ \-\-\ \ \\*(dD\ \ \-\-\ \ \s+4\f(CODRAFT\s-4
 .de Os
 .ds oS Null
-.if "\\$1"" \{\
-.	ds oS BSD
-.\}
-.if "\\$2"" \{\
-.	ds aa Non-Null
-.\}
+.if "\\$1"" .ds oS BSD
 .if "\\$1"ATT"   \{\
 .	ds oS AT&T
 .	if "\\$2""    .as oS \0UNIX
@@ -230,29 +225,32 @@
 .	if "\\$2"4.3t" .ds oS 4.3-Tahoe Berkeley Distribution
 .	if "\\$2"4.3r" .ds oS 4.3-Reno Berkeley Distribution
 .	if "\\$2"4.4"  .ds oS 4.4BSD
+.	if "\\*(oS"Null" .tm Unknown BSD version ``\\$2'' at line \\n(c.
 .\}
 .if "\\$1"FreeBSD" \{\
 .	if "\\$2"2"      .ds oS FreeBSD 2.0
-.	if "\\$2"2.0"    .ds oS FreeBSD 2.0
-.	if "\\$2"2.0.5"  .ds oS FreeBSD 2.0.5
-.	if "\\$2"2.1"    .ds oS FreeBSD 2.1
-.	if "\\$2"2.1.5"  .ds oS FreeBSD 2.1.5
-.	if "\\$2"2.1.6"  .ds oS FreeBSD 2.1.6
-.	if "\\$2"2.1.7"  .ds oS FreeBSD 2.1.7
-.	if "\\$2"2.2"    .ds oS FreeBSD 2.2
-.	if "\\$2"2.2.1"  .ds oS FreeBSD 2.2.1
-.	if "\\$2"2.2.2"  .ds oS FreeBSD 2.2.2
-.	if "\\$2"2.2.5"  .ds oS FreeBSD 2.2.5
-.	if "\\$2"2.2.6"  .ds oS FreeBSD 2.2.6
-.	if "\\$2"2.2.7"  .ds oS FreeBSD 2.2.7
-.	if "\\$2"2.2.8"  .ds oS FreeBSD 2.2.8
-.	if "\\$2"3.0"    .ds oS FreeBSD 3.0
-.	if "\\$2"3.1"    .ds oS FreeBSD 3.1
-.	if "\\$2"4.0"    .ds oS FreeBSD 4.0
+.	    ie \\n(.$==1        \c
+.	el .ie "\\$2"2"         \c
+.	el .ie "\\$2"2.0"       \c
+.	el .ie "\\$2"2.0.5"     \c
+.	el .ie "\\$2"2.1"       \c
+.	el .ie "\\$2"2.1.5"     \c
+.	el .ie "\\$2"2.1.6"     \c
+.	el .ie "\\$2"2.1.7"     \c
+.	el .ie "\\$2"2.2"       \c
+.	el .ie "\\$2"2.2.5"     \c
+.	el .ie "\\$2"2.2.6"     \c
+.	el .ie "\\$2"2.2.7"     \c
+.	el .ie "\\$2"2.2.8"     \c
+.	el .ie "\\$2"3.0"       \c
+.	el .ie "\\$2"3.1"       \c
+.	el .ie "\\$2"4.0"       \c
+.	el .tm Unknown FreeBSD version ``\\$2'' at line \\n(c.
 .\}
-.if "\\*(oS"Null" .ds oS \0\\$1
-.if "\\*(aa"Non-Null" .as oS \0\\$2
-.rm aa
+.if "\\*(oS"Null" \{\
+.	ds oS \&\\$1
+.	if !"\\$2"" .as oS \& \\$2
+.\}
 ..
 .de Dd
 .if !"\\*(dD"" .nr gX 1
