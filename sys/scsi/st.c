@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.90 1998/07/04 22:30:24 julian Exp $
+ * $Id: st.c,v 1.91 1998/07/11 07:46:01 bde Exp $
  */
 
 /*
@@ -452,13 +452,14 @@ st_close(dev_t dev, int flag, int fmt, struct proc *p,
 {
 	u_int32_t unit, mode;
 	struct scsi_data *st;
+	errval errcode = 0;
 
 	unit = STUNIT(dev);
 	mode = MODE(dev);
 	st = sc_link->sd;
 
 	if ((st->flags & (ST_WRITTEN | ST_FM_WRITTEN)) == ST_WRITTEN)
-		st_write_filemarks(unit, 1, 0);
+		errcode = st_write_filemarks(unit, 1, 0);
 
 	/*
 	 * Since the device has seen its last close, allow media removal. 
@@ -484,7 +485,7 @@ st_close(dev_t dev, int flag, int fmt, struct proc *p,
 	sc_link->flags &= ~SDEV_OPEN;
 	st->flags &= ~ST_OPEN;
 
-	return (0);
+	return (errcode);
 }
 
 /*
