@@ -34,11 +34,19 @@
 #include <sys/malloc.h>
 
 #include <machine/clock.h>
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/rman.h>
+
+#include <isa/isareg.h>
+#include <isa/isavar.h>
 
 #include <i386/isa/isa_device.h>
 
 #include <dev/iicbus/iiconf.h>
 #include "iicbus_if.h"
+
+#define IO_PCFSIZE	2
 
 #define TIMEOUT	9999					/* XXX */
 
@@ -71,37 +79,23 @@
 struct pcf_softc {
 
 	int pcf_base;			/* isa port */
+	int pcf_flags;
 	u_char pcf_addr;		/* interface I2C address */
 
 	int pcf_slave_mode;		/* receiver or transmitter */
 	int pcf_started;		/* 1 if start condition sent */
 
 	device_t iicbus;		/* the corresponding iicbus */
-};
 
-struct pcf_isa_softc {
-
-	int pcf_unit;			/* unit of the isa device */
-	int pcf_base;			/* isa port */
-	int pcf_irq;			/* isa irq or null if polled */
-
-	unsigned int pcf_flags;		/* boot flags */
-};
-
-#define MAXPCF 2
-
-static struct pcf_isa_softc *pcfdata[MAXPCF];
-static int npcf = 0;
-
-static int	pcfprobe_isa(struct isa_device *);
-static int	pcfattach_isa(struct isa_device *);
-
-struct isa_driver pcfdriver = {
-	pcfprobe_isa, pcfattach_isa, "pcf"
+  	int rid_irq, rid_ioport;
+	struct resource *res_irq, *res_ioport;
+	void *intr_cookie;
 };
 
 static int pcf_probe(device_t);
 static int pcf_attach(device_t);
+static void pcfintr(void *arg);
+
 static int pcf_print_child(device_t, device_t);
 
 static int pcf_repeated_start(device_t, u_char, int);
@@ -109,7 +103,6 @@ static int pcf_start(device_t, u_char, int);
 static int pcf_stop(device_t);
 static int pcf_write(device_t, char *, int, int *, int);
 static int pcf_read(device_t, char *, int, int *, int, int);
-static ointhand2_t pcfintr;
 static int pcf_rst_card(device_t, u_char, u_char, u_char *);
 
 static device_method_t pcf_methods[] = {
@@ -143,72 +136,68 @@ static devclass_t pcf_devclass;
 #define DEVTOSOFTC(dev) ((struct pcf_softc *)device_get_softc(dev))
 
 static int
-pcfprobe_isa(struct isa_device *dvp)
-{
-	device_t pcfdev;
-	struct pcf_isa_softc *pcf;
-
-	if (npcf >= MAXPCF)
-		return (0);
-
-	if ((pcf = (struct pcf_isa_softc *)malloc(sizeof(struct pcf_isa_softc),
-			M_DEVBUF, M_NOWAIT)) == NULL)
-		return (0);
-
-	pcf->pcf_base = dvp->id_iobase;		/* XXX should be ivars */
-	pcf->pcf_unit = dvp->id_unit;
-
-	if (!(dvp->id_flags & IIC_POLLED))
-		pcf->pcf_irq = (dvp->id_irq);
-
-	pcfdata[npcf++] = pcf;
-
-	/* XXX add the pcf device to the root_bus until isa bus exists */
-	pcfdev = device_add_child(root_bus, "pcf", pcf->pcf_unit);
-
-	if (!pcfdev)
-		goto error;
-
-	return (1);
-
-error:
-	free(pcf, M_DEVBUF);
-	return (0);
-}
-
-static int
-pcfattach_isa(struct isa_device *isdp)
-{
-	isdp->id_ointr = pcfintr;
-	return (1);				/* ok */
-}
-
-static int
 pcf_probe(device_t pcfdev)
 {
-	struct pcf_softc *pcf = (struct pcf_softc *)device_get_softc(pcfdev);
-	int unit = device_get_unit(pcfdev);
+	struct pcf_softc *pcf = DEVTOSOFTC(pcfdev);
+	device_t parent = device_get_parent(pcfdev);
 
-	/* retrieve base address from isa initialization
-	 *
-	 * XXX should use ivars with isabus
-	 */
-	pcf->pcf_base = pcfdata[unit]->pcf_base;
+	device_set_desc(pcfdev, "PCF8584 I2C bus controller");
+
+	pcf = DEVTOSOFTC(pcfdev);
+	bzero(pcf, sizeof(struct pcf_softc));
+
+	pcf->rid_irq = pcf->rid_ioport = 0;
+	pcf->res_irq = pcf->res_ioport = 0;
+
+	/* IO port is mandatory */
+	pcf->res_ioport = bus_alloc_resource(pcfdev, SYS_RES_IOPORT,
+					     &pcf->rid_ioport, 0ul, ~0ul, 
+					     IO_PCFSIZE, RF_ACTIVE);
+	if (pcf->res_ioport == 0) {
+		device_printf(pcfdev, "cannot reserve I/O port range\n");
+		goto error;
+	}
+	BUS_READ_IVAR(parent, pcfdev, ISA_IVAR_PORT, &pcf->pcf_base);
+
+	pcf->pcf_flags = device_get_flags(pcfdev);
+
+	if (!(pcf->pcf_flags & IIC_POLLED)) {
+		pcf->res_irq = bus_alloc_resource(pcfdev, SYS_RES_IRQ, &pcf->rid_irq,
+						  0ul, ~0ul, 1, RF_ACTIVE);
+		if (pcf->res_irq == 0) {
+			device_printf(pcfdev, "can't reserve irq, polled mode.\n");
+			pcf->pcf_flags |= IIC_POLLED;
+		}
+	}
 
 	/* reset the chip */
 	pcf_rst_card(pcfdev, IIC_FASTEST, PCF_DEFAULT_ADDR, NULL);
 
-	/* XXX try do detect chipset */
-
-	device_set_desc(pcfdev, "PCF8584 I2C bus controller");
-
 	return (0);
+error:
+	if (pcf->res_ioport != 0) {
+		bus_deactivate_resource(pcfdev, SYS_RES_IOPORT, pcf->rid_ioport,
+					pcf->res_ioport);
+		bus_release_resource(pcfdev, SYS_RES_IOPORT, pcf->rid_ioport,
+				     pcf->res_ioport);
+	}
+	return (ENXIO);
 }
 
 static int
 pcf_attach(device_t pcfdev)
 {
-	struct pcf_softc *pcf = (struct pcf_softc *)device_get_softc(pcfdev);
+	struct pcf_softc *pcf = DEVTOSOFTC(pcfdev);
+	device_t parent = device_get_parent(pcfdev);
+	int error = 0;
+
+	if (pcf->res_irq) {
+		/* default to the tty mask for registration */	/* XXX */
+		error = BUS_SETUP_INTR(parent, pcfdev, pcf->res_irq, INTR_TYPE_NET,
+					    pcfintr, pcfdev, &pcf->intr_cookie);
+		if (error)
+			return (error);
+	}
 
 	pcf->iicbus = iicbus_alloc_bus(pcfdev);
 
@@ -392,10 +381,10 @@ error:
 }
 
 static void
-pcfintr(unit)
+pcfintr(void *arg)
 {
-	struct pcf_softc *pcf =
-		(struct pcf_softc *)devclass_get_softc(pcf_devclass, unit);
+	device_t pcfdev = (device_t)arg;
+	struct pcf_softc *pcf = DEVTOSOFTC(pcfdev);
 
 	char data, status, addr;
 	char error = 0;
@@ -403,14 +392,13 @@ pcfintr(unit)
 	status = PCF_GET_S1(pcf);
 
 	if (status & PIN) {
-		printf("pcf%d: spurious interrupt, status=0x%x\n", unit,
-			status & 0xff);
+		device_printf(pcfdev, "spurious interrupt, status=0x%x\n", status & 0xff);
 
 		goto error;
 	}	
 
 	if (status & LAB)
-		printf("pcf%d: bus arbitration lost!\n", unit);
+		device_printf(pcfdev, "bus arbitration lost!\n");
 
 	if (status & BER) {
 		error = IIC_EBUSERR;
@@ -643,4 +631,4 @@ error:
 	return (error);
 }
 
-DRIVER_MODULE(pcf, root, pcf_driver, pcf_devclass, 0, 0);
+DRIVER_MODULE(pcf, isa, pcf_driver, pcf_devclass, 0, 0);

@@ -67,12 +67,12 @@ struct vpoio_data {
 	/* each device must have its own nibble inbyte microsequence */
 	struct ppb_microseq *vpo_nibble_inbyte_msq;
 
-	struct ppb_device vpo_dev;
+	device_t vpo_dev;
 };
 
 #define vpoio_set_unit(vpo,unit) ((vpo)->vpo_unit = unit)
 
-struct ppb_device *vpoio_probe(struct ppb_data *ppb, struct vpoio_data *vpo);
+int vpoio_probe(device_t dev, struct vpoio_data *vpo);
 
 int vpoio_attach(struct vpoio_data *vpo);
 int vpoio_reset_bus(struct vpoio_data *vpo);
@@ -81,7 +81,7 @@ int vpoio_do_scsi(struct vpoio_data *vpo, int host, int target, char *command,
 		int clen, char *buffer, int blen, int *result, int *count,
 		int *ret);
 
-struct ppb_device *imm_probe(struct ppb_data *ppb, struct vpoio_data *vpo);
+int imm_probe(device_t dev, struct vpoio_data *vpo);
 
 int imm_attach(struct vpoio_data *vpo);
 int imm_reset_bus(struct vpoio_data *vpo);

@@ -77,14 +77,27 @@
 /*
  * Update for ppbus, PLIP support only - Nicolas Souchu
  */ 
+#include "plip.h"
+
+#if NPLIP > 0
+
+#include "opt_plip.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/module.h>
+#include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+
+#include <machine/clock.h>
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/rman.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -96,8 +109,8 @@
 #include <net/bpf.h>
 
 #include <dev/ppbus/ppbconf.h>
-
-#include "opt_plip.h"
+#include "ppbus_if.h"
+#include <dev/ppbus/ppbio.h>
 
 #ifndef LPMTU			/* MTU for the lp# interfaces */
 #define	LPMTU	1500
@@ -135,20 +148,15 @@ static int volatile lptflag = 1;
 static int volatile lptflag = 0;
 #endif
 
-struct lpt_softc {
+struct lp_data {
 	unsigned short lp_unit;
-
-	struct ppb_device lp_dev;
 
 	struct  ifnet	sc_if;
 	u_char		*sc_ifbuf;
 	int		sc_iferrs;
+
+	struct resource *res_irq;
 };
-
-static int	nlp = 0;
-#define MAXPLIP	8			/* XXX not much better! */
-static struct lpt_softc *lpdata[MAXPLIP];
-
 
 /* Tables for the lp# interface */
 static u_char *txmith;
@@ -162,87 +170,87 @@ static u_char *ctxmith;
 #define ctrecvl (ctxmith+(3*LPIPTBLSIZE))
 
 /* Functions for the lp# interface */
-static struct ppb_device	*lpprobe(struct ppb_data *);
-static int			lpattach(struct ppb_device *);
+static int lp_probe(device_t dev);
+static int lp_attach(device_t dev);
 
 static int lpinittables(void);
 static int lpioctl(struct ifnet *, u_long, caddr_t);
 static int lpoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
 	struct rtentry *);
-static void lpintr(int);
+static void lp_intr(void *);
 
-/*
- * Make ourselves visible as a ppbus driver
- */
+#define DEVTOSOFTC(dev) \
+	((struct lp_data *)device_get_softc(dev))
+#define UNITOSOFTC(unit) \
+	((struct lp_data *)devclass_get_softc(lp_devclass, (unit)))
+#define UNITODEVICE(unit) \
+	(devclass_get_device(lp_devclass, (unit)))
 
-static struct ppb_driver lpdriver = {
-    lpprobe, lpattach, "lp"
+static devclass_t lp_devclass;
+
+static device_method_t lp_methods[] = {
+  	/* device interface */
+	DEVMETHOD(device_probe,		lp_probe),
+	DEVMETHOD(device_attach,	lp_attach),
+
+	{ 0, 0 }
 };
-DATA_SET(ppbdriver_set, lpdriver);
 
+static driver_t lp_driver = {
+  "plip",
+  lp_methods,
+  sizeof(struct lp_data),
+};
 
 /*
  * lpprobe()
  */
-static struct ppb_device *
-lpprobe(struct ppb_data *ppb)
+static int
+lp_probe(device_t dev)
 {
-	struct lpt_softc *lp;
+	device_t ppbus = device_get_parent(dev);
+	struct lp_data *lp;
+	int irq, zero = 0;
+
+	lp = DEVTOSOFTC(dev);
+	bzero(lp, sizeof(struct lp_data));
+
+	/* retrieve the ppbus irq */
+	BUS_READ_IVAR(ppbus, dev, PPBUS_IVAR_IRQ, &irq);
 
 	/* if we haven't interrupts, the probe fails */
-	if (!ppb->ppb_link->id_irq) {
-		printf("plip: not an interrupt driven port, failed.\n");
-		return (0);
+	if (irq == -1) {
+		device_printf(dev, "not an interrupt driven port, failed.\n");
+		return (ENXIO);
 	}
 
-	lp = (struct lpt_softc *) malloc(sizeof(struct lpt_softc),
-							M_TEMP, M_NOWAIT);
-	if (!lp) {
-		printf("lp: cannot malloc!\n");
-		return (0);
+	/* reserve the interrupt resource, expecting irq is available to continue */
+	lp->res_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &zero, irq, irq, 1, 
+					 RF_SHAREABLE);
+	if (lp->res_irq == 0) {
+		device_printf(dev, "cannot reserve interrupt, failed.\n");
+		return (ENXIO);
 	}
-	bzero(lp, sizeof(struct lpt_softc));
-
-	lpdata[nlp] = lp;
 
 	/*
 	 * lp dependent initialisation.
 	 */
-	lp->lp_unit = nlp;
+	lp->lp_unit = device_get_unit(dev);
 
-	if (bootverbose)
-		printf("plip: irq %d\n", ppb->ppb_link->id_irq);
+	device_set_desc(dev, "PLIP network interface");
 
-	/*
-	 * ppbus dependent initialisation.
-	 */
-	lp->lp_dev.id_unit = lp->lp_unit;
-	lp->lp_dev.name = lpdriver.name;
-	lp->lp_dev.ppb = ppb;
-	lp->lp_dev.intr = lpintr;
-
-	/* Ok, go to next device on next probe */
-	nlp ++;
-
-	return (&lp->lp_dev);
+	return (0);
 }
 
 static int
-lpattach (struct ppb_device *dev)
+lp_attach (device_t dev)
 {
-	int unit = dev->id_unit;
-	struct lpt_softc *sc = lpdata[unit];
-	struct ifnet *ifp = &sc->sc_if;
+	struct lp_data *lp = DEVTOSOFTC(dev);
+	struct ifnet *ifp = &lp->sc_if;
 
-	/*
-	 * Report ourselves
-	 */
-	printf("plip%d: <PLIP network interface> on ppbus %d\n",
-	       dev->id_unit, dev->ppb->ppb_link->adapter_unit);
-
-	ifp->if_softc = sc;
+	ifp->if_softc = lp;
 	ifp->if_name = "lp";
-	ifp->if_unit = unit;
+	ifp->if_unit = device_get_unit(dev);
 	ifp->if_mtu = LPMTU;
 	ifp->if_flags = IFF_SIMPLEX | IFF_POINTOPOINT | IFF_MULTICAST;
 	ifp->if_ioctl = lpioctl;
@@ -255,7 +263,7 @@ lpattach (struct ppb_device *dev)
 
 	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));
 
-	return (1);
+	return (0);
 }
 /*
  * Build the translation tables for the LPIP (BSD unix) protocol.
@@ -303,10 +311,13 @@ lpinittables (void)
 static int
 lpioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-    struct lpt_softc *sc = lpdata[ifp->if_unit];
+    device_t dev = UNITODEVICE(ifp->if_unit);
+    device_t ppbus = device_get_parent(dev);
+    struct lp_data *sc = DEVTOSOFTC(dev);
     struct ifaddr *ifa = (struct ifaddr *)data;
     struct ifreq *ifr = (struct ifreq *)data;
     u_char *ptr;
+    void *ih;
     int error;
 
     switch (cmd) {
@@ -322,11 +333,11 @@ lpioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
     case SIOCSIFFLAGS:
 	if ((!(ifp->if_flags & IFF_UP)) && (ifp->if_flags & IFF_RUNNING)) {
 
-	    ppb_wctr(&sc->lp_dev, 0x00);
+	    ppb_wctr(ppbus, 0x00);
 	    ifp->if_flags &= ~IFF_RUNNING;
 
 	    /* IFF_UP is not set, try to release the bus anyway */
-	    ppb_release_bus(&sc->lp_dev);
+	    ppb_release_bus(ppbus, dev);
 	    break;
 	}
 	if (((ifp->if_flags & IFF_UP)) && (!(ifp->if_flags & IFF_RUNNING))) {
@@ -334,26 +345,33 @@ lpioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 	    /* XXX
 	     * Should the request be interruptible?
 	     */
-	    if ((error = ppb_request_bus(&sc->lp_dev, PPB_WAIT|PPB_INTR)))
+	    if ((error = ppb_request_bus(ppbus, dev, PPB_WAIT|PPB_INTR)))
 		return (error);
 
 	    /* Now IFF_UP means that we own the bus */
 
-	    ppb_set_mode(&sc->lp_dev, PPB_COMPATIBLE);
+	    ppb_set_mode(ppbus, PPB_COMPATIBLE);
 
 	    if (lpinittables()) {
-		ppb_release_bus(&sc->lp_dev);
+		ppb_release_bus(ppbus, dev);
 		return ENOBUFS;
 	    }
 
 	    sc->sc_ifbuf = malloc(sc->sc_if.if_mtu + MLPIPHDRLEN,
 				  M_DEVBUF, M_WAITOK);
 	    if (!sc->sc_ifbuf) {
-		ppb_release_bus(&sc->lp_dev);
+		ppb_release_bus(ppbus, dev);
 		return ENOBUFS;
 	    }
 
-	    ppb_wctr(&sc->lp_dev, IRQENABLE);
+	    /* attach our interrupt handler, later detached when the bus is released */
+	    if ((error = BUS_SETUP_INTR(ppbus, dev, sc->res_irq,
+					INTR_TYPE_NET, lp_intr, dev, &ih))) {
+		ppb_release_bus(ppbus, dev);
+		return (error);
+	    }
+
+	    ppb_wctr(ppbus, IRQENABLE);
 	    ifp->if_flags |= IFF_RUNNING;
 	}
 	break;
@@ -404,15 +422,15 @@ lpioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 }
 
 static __inline int
-clpoutbyte (u_char byte, int spin, struct ppb_device *dev)
+clpoutbyte (u_char byte, int spin, device_t ppbus)
 {
-	ppb_wdtr(dev, ctxmitl[byte]);
-	while (ppb_rstr(dev) & CLPIP_SHAKE)
+	ppb_wdtr(ppbus, ctxmitl[byte]);
+	while (ppb_rstr(ppbus) & CLPIP_SHAKE)
 		if (--spin == 0) {
 			return 1;
 		}
-	ppb_wdtr(dev, ctxmith[byte]);
-	while (!(ppb_rstr(dev) & CLPIP_SHAKE))
+	ppb_wdtr(ppbus, ctxmith[byte]);
+	while (!(ppb_rstr(ppbus) & CLPIP_SHAKE))
 		if (--spin == 0) {
 			return 1;
 		}
@@ -420,23 +438,23 @@ clpoutbyte (u_char byte, int spin, struct ppb_device *dev)
 }
 
 static __inline int
-clpinbyte (int spin, struct ppb_device *dev)
+clpinbyte (int spin, device_t ppbus)
 {
 	u_char c, cl;
 
-	while((ppb_rstr(dev) & CLPIP_SHAKE))
+	while((ppb_rstr(ppbus) & CLPIP_SHAKE))
 	    if(!--spin) {
 		return -1;
 	    }
-	cl = ppb_rstr(dev);
-	ppb_wdtr(dev, 0x10);
+	cl = ppb_rstr(ppbus);
+	ppb_wdtr(ppbus, 0x10);
 
-	while(!(ppb_rstr(dev) & CLPIP_SHAKE))
+	while(!(ppb_rstr(ppbus) & CLPIP_SHAKE))
 	    if(!--spin) {
 		return -1;
 	    }
-	c = ppb_rstr(dev);
-	ppb_wdtr(dev, 0x00);
+	c = ppb_rstr(ppbus);
+	ppb_wdtr(ppbus, 0x00);
 
 	return (ctrecvl[cl] | ctrecvh[c]);
 }
@@ -460,9 +478,11 @@ lptap(struct ifnet *ifp, struct mbuf *m)
 }
 
 static void
-lpintr (int unit)
+lp_intr (void *arg)
 {
-	struct   lpt_softc *sc = lpdata[unit];
+	device_t dev = (device_t)arg;
+        device_t ppbus = device_get_parent(dev);
+	struct lp_data *sc = DEVTOSOFTC(dev);
 	int len, s, j;
 	u_char *bp;
 	u_char c, cl;
@@ -473,14 +493,14 @@ lpintr (int unit)
 	if (sc->sc_if.if_flags & IFF_LINK0) {
 
 	    /* Ack. the request */
-	    ppb_wdtr(&sc->lp_dev, 0x01);
+	    ppb_wdtr(ppbus, 0x01);
 
 	    /* Get the packet length */
-	    j = clpinbyte(LPMAXSPIN2, &sc->lp_dev);
+	    j = clpinbyte(LPMAXSPIN2, ppbus);
 	    if (j == -1)
 		goto err;
 	    len = j;
-	    j = clpinbyte(LPMAXSPIN2, &sc->lp_dev);
+	    j = clpinbyte(LPMAXSPIN2, ppbus);
 	    if (j == -1)
 		goto err;
 	    len = len + (j << 8);
@@ -490,14 +510,14 @@ lpintr (int unit)
 	    bp  = sc->sc_ifbuf;
 	
 	    while (len--) {
-	        j = clpinbyte(LPMAXSPIN2, &sc->lp_dev);
+	        j = clpinbyte(LPMAXSPIN2, ppbus);
 	        if (j == -1) {
 		    goto err;
 	        }
 	        *bp++ = j;
 	    }
 	    /* Get and ignore checksum */
-	    j = clpinbyte(LPMAXSPIN2, &sc->lp_dev);
+	    j = clpinbyte(LPMAXSPIN2, ppbus);
 	    if (j == -1) {
 	        goto err;
 	    }
@@ -525,27 +545,27 @@ lpintr (int unit)
 	    }
 	    goto done;
 	}
-	while ((ppb_rstr(&sc->lp_dev) & LPIP_SHAKE)) {
+	while ((ppb_rstr(ppbus) & LPIP_SHAKE)) {
 	    len = sc->sc_if.if_mtu + LPIPHDRLEN;
 	    bp  = sc->sc_ifbuf;
 	    while (len--) {
 
-		cl = ppb_rstr(&sc->lp_dev);
-		ppb_wdtr(&sc->lp_dev, 8);
+		cl = ppb_rstr(ppbus);
+		ppb_wdtr(ppbus, 8);
 
 		j = LPMAXSPIN2;
-		while((ppb_rstr(&sc->lp_dev) & LPIP_SHAKE))
+		while((ppb_rstr(ppbus) & LPIP_SHAKE))
 		    if(!--j) goto err;
 
-		c = ppb_rstr(&sc->lp_dev);
-		ppb_wdtr(&sc->lp_dev, 0);
+		c = ppb_rstr(ppbus);
+		ppb_wdtr(ppbus, 0);
 
 		*bp++= trecvh[cl] | trecvl[c];
 
 		j = LPMAXSPIN2;
-		while (!((cl=ppb_rstr(&sc->lp_dev)) & LPIP_SHAKE)) {
+		while (!((cl=ppb_rstr(ppbus)) & LPIP_SHAKE)) {
 		    if (cl != c &&
-			(((cl = ppb_rstr(&sc->lp_dev)) ^ 0xb8) & 0xf8) ==
+			(((cl = ppb_rstr(ppbus)) ^ 0xb8) & 0xf8) ==
 			  (c & 0xf8))
 			goto end;
 		    if (!--j) goto err;
@@ -578,7 +598,7 @@ lpintr (int unit)
 	goto done;
 
     err:
-	ppb_wdtr(&sc->lp_dev, 0);
+	ppb_wdtr(ppbus, 0);
 	lprintf("R");
 	sc->sc_if.if_ierrors++;
 	sc->sc_iferrs++;
@@ -588,8 +608,8 @@ lpintr (int unit)
 	 * so stop wasting our time
 	 */
 	if (sc->sc_iferrs > LPMAXERRS) {
-	    printf("lp%d: Too many errors, Going off-line.\n", unit);
-	    ppb_wctr(&sc->lp_dev, 0x00);
+	    printf("lp%d: Too many errors, Going off-line.\n", device_get_unit(dev));
+	    ppb_wctr(ppbus, 0x00);
 	    sc->sc_if.if_flags &= ~IFF_RUNNING;
 	    sc->sc_iferrs=0;
 	}
@@ -600,14 +620,14 @@ lpintr (int unit)
 }
 
 static __inline int
-lpoutbyte (u_char byte, int spin, struct ppb_device *dev)
+lpoutbyte (u_char byte, int spin, device_t ppbus)
 {
-    ppb_wdtr(dev, txmith[byte]);
-    while (!(ppb_rstr(dev) & LPIP_SHAKE))
+    ppb_wdtr(ppbus, txmith[byte]);
+    while (!(ppb_rstr(ppbus) & LPIP_SHAKE))
 	if (--spin == 0)
 		return 1;
-    ppb_wdtr(dev, txmitl[byte]);
-    while (ppb_rstr(dev) & LPIP_SHAKE)
+    ppb_wdtr(ppbus, txmitl[byte]);
+    while (ppb_rstr(ppbus) & LPIP_SHAKE)
 	if (--spin == 0)
 		return 1;
     return 0;
@@ -617,7 +637,8 @@ static int
 lpoutput (struct ifnet *ifp, struct mbuf *m,
 	  struct sockaddr *dst, struct rtentry *rt)
 {
-    struct lpt_softc *sc = lpdata[ifp->if_unit];
+    device_t dev = UNITODEVICE(ifp->if_unit);
+    device_t ppbus = device_get_parent(dev);
     int s, err;
     struct mbuf *mm;
     u_char *cp = "\0\0";
@@ -634,19 +655,19 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
     s = splhigh();
 
     /* Suspend (on laptops) or receive-errors might have taken us offline */
-    ppb_wctr(&sc->lp_dev, IRQENABLE);
+    ppb_wctr(ppbus, IRQENABLE);
 
     if (ifp->if_flags & IFF_LINK0) {
 
-	if (!(ppb_rstr(&sc->lp_dev) & CLPIP_SHAKE)) {
+	if (!(ppb_rstr(ppbus) & CLPIP_SHAKE)) {
 	    lprintf("&");
-	    lpintr(ifp->if_unit);
+	    lp_intr(dev);
 	}
 
 	/* Alert other end to pending packet */
 	spin = LPMAXSPIN1;
-	ppb_wdtr(&sc->lp_dev, 0x08);
-	while ((ppb_rstr(&sc->lp_dev) & 0x08) == 0)
+	ppb_wdtr(ppbus, 0x08);
+	while ((ppb_rstr(ppbus) & 0x08) == 0)
 		if (--spin == 0) {
 			goto nend;
 		}
@@ -659,21 +680,21 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
 	for (mm = m; mm; mm = mm->m_next) {
 		count += mm->m_len;
 	}
-	if (clpoutbyte(count & 0xFF, LPMAXSPIN1, &sc->lp_dev))
+	if (clpoutbyte(count & 0xFF, LPMAXSPIN1, ppbus))
 		goto nend;
-	if (clpoutbyte((count >> 8) & 0xFF, LPMAXSPIN1, &sc->lp_dev))
+	if (clpoutbyte((count >> 8) & 0xFF, LPMAXSPIN1, ppbus))
 		goto nend;
 
 	/* Send dummy ethernet header */
 	for (i = 0; i < 12; i++) {
-		if (clpoutbyte(i, LPMAXSPIN1, &sc->lp_dev))
+		if (clpoutbyte(i, LPMAXSPIN1, ppbus))
 			goto nend;
 		chksum += i;
 	}
 
-	if (clpoutbyte(0x08, LPMAXSPIN1, &sc->lp_dev))
+	if (clpoutbyte(0x08, LPMAXSPIN1, ppbus))
 		goto nend;
-	if (clpoutbyte(0x00, LPMAXSPIN1, &sc->lp_dev))
+	if (clpoutbyte(0x00, LPMAXSPIN1, ppbus))
 		goto nend;
 	chksum += 0x08 + 0x00;		/* Add into checksum */
 
@@ -683,17 +704,17 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
 		len = mm->m_len;
 		while (len--) {
 			chksum += *cp;
-			if (clpoutbyte(*cp++, LPMAXSPIN2, &sc->lp_dev))
+			if (clpoutbyte(*cp++, LPMAXSPIN2, ppbus))
 				goto nend;
 		}
 	} while ((mm = mm->m_next));
 
 	/* Send checksum */
-	if (clpoutbyte(chksum, LPMAXSPIN2, &sc->lp_dev))
+	if (clpoutbyte(chksum, LPMAXSPIN2, ppbus))
 		goto nend;
 
 	/* Go quiescent */
-	ppb_wdtr(&sc->lp_dev, 0);
+	ppb_wdtr(ppbus, 0);
 
 	err = 0;			/* No errors */
 
@@ -710,22 +731,22 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
 
 	m_freem(m);
 
-	if (!(ppb_rstr(&sc->lp_dev) & CLPIP_SHAKE)) {
+	if (!(ppb_rstr(ppbus) & CLPIP_SHAKE)) {
 		lprintf("^");
-		lpintr(ifp->if_unit);
+		lp_intr(dev);
 	}
 	(void) splx(s);
 	return 0;
     }
 
-    if (ppb_rstr(&sc->lp_dev) & LPIP_SHAKE) {
+    if (ppb_rstr(ppbus) & LPIP_SHAKE) {
         lprintf("&");
-        lpintr(ifp->if_unit);
+        lp_intr(dev);
     }
 
-    if (lpoutbyte(0x08, LPMAXSPIN1, &sc->lp_dev))
+    if (lpoutbyte(0x08, LPMAXSPIN1, ppbus))
         goto end;
-    if (lpoutbyte(0x00, LPMAXSPIN2, &sc->lp_dev))
+    if (lpoutbyte(0x00, LPMAXSPIN2, ppbus))
         goto end;
 
     mm = m;
@@ -733,7 +754,7 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
         cp = mtod(mm,u_char *);
 	len = mm->m_len;
         while (len--)
-	    if (lpoutbyte(*cp++, LPMAXSPIN2, &sc->lp_dev))
+	    if (lpoutbyte(*cp++, LPMAXSPIN2, ppbus))
 	        goto end;
     } while ((mm = mm->m_next));
 
@@ -741,7 +762,7 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
 
     end:
     --cp;
-    ppb_wdtr(&sc->lp_dev, txmitl[*cp] ^ 0x17);
+    ppb_wdtr(ppbus, txmitl[*cp] ^ 0x17);
 
     if (err)  {				/* if we didn't timeout... */
 	ifp->if_oerrors++;
@@ -755,11 +776,15 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
 
     m_freem(m);
 
-    if (ppb_rstr(&sc->lp_dev) & LPIP_SHAKE) {
+    if (ppb_rstr(ppbus) & LPIP_SHAKE) {
 	lprintf("^");
-	lpintr(ifp->if_unit);
+	lp_intr(dev);
     }
 
     (void) splx(s);
     return 0;
 }
+
+DRIVER_MODULE(plip, ppbus, lp_driver, lp_devclass, 0, 0);
+
+#endif /* NPLIP > 0 */

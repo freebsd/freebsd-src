@@ -26,61 +26,154 @@
  * $FreeBSD$
  *
  */
+#include "opt_ppb_1284.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/linker_set.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
+#include <sys/bus.h>
 #include <sys/malloc.h>
-
-#include <vm/vm.h>
-#include <vm/pmap.h>
 
 #include <dev/ppbus/ppbconf.h>
 #include <dev/ppbus/ppb_1284.h>
 
-#include "opt_ppb_1284.h"
+#include "ppbus_if.h"
+  
+#define DEVTOSOFTC(dev) ((struct ppb_data *)device_get_softc(dev))
+  
+MALLOC_DEFINE(M_PPBUSDEV, "ppbusdev", "Parallel Port bus device");
 
-static LIST_HEAD(, ppb_data)	ppbdata;	/* list of existing ppbus */
+static devclass_t ppbus_devclass;
 
 /*
- * Add a null driver so that the linker set always exists.
+ * Device methods
  */
+static int ppbus_probe(device_t);
+static int ppbus_attach(device_t);
+static void ppbus_print_child(device_t bus, device_t dev);
+static int ppbus_read_ivar(device_t, device_t, int, uintptr_t *);
+static int ppbus_write_ivar(device_t, device_t, int, u_long);
+static int ppbus_setup_intr(device_t, device_t, struct resource *, int,
+		void (*)(void *), void *, void **);
+static int ppbus_teardown_intr(device_t, device_t, struct resource *, void *);
 
-static struct ppb_driver nulldriver = {
-    NULL, NULL, "null"
+static device_method_t ppbus_methods[] = {
+        /* device interface */
+        DEVMETHOD(device_probe,         ppbus_probe),
+        DEVMETHOD(device_attach,        ppbus_attach),
+  
+        /* bus interface */
+	DEVMETHOD(bus_print_child,	ppbus_print_child),
+        DEVMETHOD(bus_read_ivar,        ppbus_read_ivar),
+        DEVMETHOD(bus_write_ivar,       ppbus_write_ivar),
+	DEVMETHOD(bus_setup_intr,	ppbus_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	ppbus_teardown_intr),
+	DEVMETHOD(bus_alloc_resource,   bus_generic_alloc_resource),
+
+        { 0, 0 }
 };
-DATA_SET(ppbdriver_set, nulldriver);
 
+static driver_t ppbus_driver = {
+        "ppbus",
+        ppbus_methods,
+        sizeof(struct ppb_data),
+  };
+  
+static void
+ppbus_print_child(device_t bus, device_t dev)
+{
+	struct ppb_device *ppbdev;
+
+	bus_print_child_header(bus, dev);
+
+	ppbdev = (struct ppb_device *)device_get_ivars(dev);
+
+	if (ppbdev->flags != 0)
+		printf(" flags 0x%x", ppbdev->flags);
+
+	printf(" on %s%d\n", device_get_name(bus), device_get_unit(bus));
+
+	return;
+}
+
+static int
+ppbus_probe(device_t dev)
+{
+	device_set_desc(dev, "Parallel port bus");
+
+	return (0);
+}
 
 /*
- * ppb_alloc_bus()
+ * ppb_add_device()
  *
- * Allocate area to store the ppbus description.
+ * Add a ppbus device, allocate/initialize the ivars
  */
-struct ppb_data *
-ppb_alloc_bus(void)
+static void
+ppbus_add_device(device_t dev, const char *name, int unit)
 {
-	struct ppb_data *ppb;
-	static int ppbdata_initted = 0;		/* done-init flag */
+	struct ppb_device *ppbdev;
+	device_t child;
+        
+	/* allocate ivars for the new ppbus child */
+	ppbdev = malloc(sizeof(struct ppb_device), M_PPBUSDEV, M_NOWAIT);
+	if (!ppbdev)
+		return;
+	bzero(ppbdev, sizeof *ppbdev);
 
-	ppb = (struct ppb_data *) malloc(sizeof(struct ppb_data),
-		M_TEMP, M_NOWAIT);
+	/* initialize the ivars */
+	ppbdev->name = name;
 
-	/*
-	 * Add the new parallel port bus to the list of existing ppbus.
-	 */
-	if (ppb) {
-		bzero(ppb, sizeof(struct ppb_data));
+	/* add the device as a child to the ppbus bus with the allocated
+	 * ivars */
+	child = device_add_child(dev, name, unit);
+	device_set_ivars(child, ppbdev);
 
-		if (!ppbdata_initted) {		/* list not initialised */
-		    LIST_INIT(&ppbdata);
-		    ppbdata_initted = 1;
-		}
-		LIST_INSERT_HEAD(&ppbdata, ppb, ppb_chain);
-	} else {
-		printf("ppb_alloc_bus: cannot malloc!\n");
-	}
-	return(ppb);
+	return;
 }
+
+static int
+ppbus_read_ivar(device_t bus, device_t dev, int index, uintptr_t* val)
+  {
+	struct ppb_device *ppbdev = (struct ppb_device *)device_get_ivars(dev);
+  
+	switch (index) {
+	case PPBUS_IVAR_MODE:
+		/* XXX yet device mode = ppbus mode = chipset mode */
+		*val = (u_long)ppb_get_mode(bus);
+		ppbdev->mode = (u_short)*val;
+		break;
+	case PPBUS_IVAR_AVM:
+		*val = (u_long)ppbdev->avm;
+		break;
+	case PPBUS_IVAR_IRQ:
+		BUS_READ_IVAR(device_get_parent(bus), bus, PPC_IVAR_IRQ, val);
+		break;
+	default:
+		return (ENOENT);
+	}
+  
+	return (0);
+}
+  
+static int
+ppbus_write_ivar(device_t bus, device_t dev, int index, u_long val)
+{
+	struct ppb_device *ppbdev = (struct ppb_device *)device_get_ivars(dev);
+
+	switch (index) {
+	case PPBUS_IVAR_MODE:
+		/* XXX yet device mode = ppbus mode = chipset mode */
+		ppb_set_mode(bus,val);
+		ppbdev->mode = ppb_get_mode(bus);
+		break;
+	default:
+		return (ENOENT);
+  	}
+
+	return (0);
+  }
 
 #define PPB_PNP_PRINTER		0
 #define PPB_PNP_MODEM		1
@@ -151,17 +244,17 @@ search_token(char *str, int slen, char *token)
  * Returns the class id. of the peripherial, -1 otherwise
  */
 static int
-ppb_pnp_detect(struct ppb_data *ppb, struct ppb_device *pnpdev)
+ppb_pnp_detect(device_t bus)
 {
 	char *token, *class = 0;
 	int i, len, error;
 	int class_id = -1;
 	char str[PPB_PnP_STRING_SIZE+1];
+	int unit = device_get_unit(bus);
 
-	printf("Probing for PnP devices on ppbus%d:\n",
-			ppb->ppb_link->adapter_unit);
+	printf("Probing for PnP devices on ppbus%d:\n", unit);
 	
-	if ((error = ppb_1284_read_id(pnpdev, PPB_NIBBLE, str,
+	if ((error = ppb_1284_read_id(bus, PPB_NIBBLE, str,
 					PPB_PnP_STRING_SIZE, &len)))
 		goto end_detect;
 
@@ -178,10 +271,10 @@ ppb_pnp_detect(struct ppb_data *ppb, struct ppb_device *pnpdev)
 
 	if ((token = search_token(str, len, "MFG")) != NULL ||
 		(token = search_token(str, len, "MANUFACTURER")) != NULL)
-		printf("ppbus%d: <%s", ppb->ppb_link->adapter_unit,
+		printf("ppbus%d: <%s", unit,
 			search_token(token, UNKNOWN_LENGTH, ":") + 1);
 	else
-		printf("ppbus%d: <unknown", ppb->ppb_link->adapter_unit);
+		printf("ppbus%d: <unknown", unit);
 
 	if ((token = search_token(str, len, "MDL")) != NULL ||
 		(token = search_token(str, len, "MODEL")) != NULL)
@@ -233,21 +326,11 @@ end_detect:
  * Scan the ppbus for IEEE1284 compliant devices
  */
 static int
-ppb_scan_bus(struct ppb_data *ppb)
+ppb_scan_bus(device_t bus)
 {
-	struct ppb_device pnpdev;	/* temporary device to perform I/O */
+	struct ppb_data * ppb = (struct ppb_data *)device_get_softc(bus);
 	int error = 0;
-
-	/* initialize the pnpdev structure for future use */
-	bzero(&pnpdev, sizeof(pnpdev));
-	pnpdev.ppb = ppb;
-
-	if ((error = ppb_request_bus(&pnpdev, PPB_DONTWAIT))) {
-		if (bootverbose)
-			printf("ppb: cannot allocate ppbus!\n");
-
-		return (error);
-	}
+	int unit = device_get_unit(bus);
 
 	/* try all IEEE1284 modes, for one device only
 	 * 
@@ -255,207 +338,175 @@ ppb_scan_bus(struct ppb_data *ppb)
 	 * daisy chained devices
 	 */
 
-	error = ppb_1284_negociate(&pnpdev, PPB_NIBBLE, PPB_REQUEST_ID);
+	error = ppb_1284_negociate(bus, PPB_NIBBLE, PPB_REQUEST_ID);
 
 	if ((ppb->state == PPB_ERROR) && (ppb->error == PPB_NOT_IEEE1284))
 		goto end_scan;
 
-	ppb_1284_terminate(&pnpdev);
+	ppb_1284_terminate(bus);
 
-	printf("ppb%d: IEEE1284 device found ", ppb->ppb_link->adapter_unit);
+	printf("ppbus%d: IEEE1284 device found ", unit);
 
-	if (!(error = ppb_1284_negociate(&pnpdev, PPB_NIBBLE, 0))) {
+	if (!(error = ppb_1284_negociate(bus, PPB_NIBBLE, 0))) {
 		printf("/NIBBLE");
-		ppb_1284_terminate(&pnpdev);
+		ppb_1284_terminate(bus);
 	}
 
-	if (!(error = ppb_1284_negociate(&pnpdev, PPB_PS2, 0))) {
+	if (!(error = ppb_1284_negociate(bus, PPB_PS2, 0))) {
 		printf("/PS2");
-		ppb_1284_terminate(&pnpdev);
+		ppb_1284_terminate(bus);
 	}
 
-	if (!(error = ppb_1284_negociate(&pnpdev, PPB_ECP, 0))) {
+	if (!(error = ppb_1284_negociate(bus, PPB_ECP, 0))) {
 		printf("/ECP");
-		ppb_1284_terminate(&pnpdev);
+		ppb_1284_terminate(bus);
 	}
 
-	if (!(error = ppb_1284_negociate(&pnpdev, PPB_ECP, PPB_USE_RLE))) {
+	if (!(error = ppb_1284_negociate(bus, PPB_ECP, PPB_USE_RLE))) {
 		printf("/ECP_RLE");
-		ppb_1284_terminate(&pnpdev);
+		ppb_1284_terminate(bus);
 	}
 
-	if (!(error = ppb_1284_negociate(&pnpdev, PPB_EPP, 0))) {
+	if (!(error = ppb_1284_negociate(bus, PPB_EPP, 0))) {
 		printf("/EPP");
-		ppb_1284_terminate(&pnpdev);
+		ppb_1284_terminate(bus);
 	}
 
 	/* try more IEEE1284 modes */
 	if (bootverbose) {
-		if (!(error = ppb_1284_negociate(&pnpdev, PPB_NIBBLE,
+		if (!(error = ppb_1284_negociate(bus, PPB_NIBBLE,
 				PPB_REQUEST_ID))) {
 			printf("/NIBBLE_ID");
-			ppb_1284_terminate(&pnpdev);
+			ppb_1284_terminate(bus);
 		}
 
-		if (!(error = ppb_1284_negociate(&pnpdev, PPB_PS2,
+		if (!(error = ppb_1284_negociate(bus, PPB_PS2,
 				PPB_REQUEST_ID))) {
 			printf("/PS2_ID");
-			ppb_1284_terminate(&pnpdev);
+			ppb_1284_terminate(bus);
 		}
 
-		if (!(error = ppb_1284_negociate(&pnpdev, PPB_ECP,
+		if (!(error = ppb_1284_negociate(bus, PPB_ECP,
 				PPB_REQUEST_ID))) {
 			printf("/ECP_ID");
-			ppb_1284_terminate(&pnpdev);
+			ppb_1284_terminate(bus);
 		}
 
-		if (!(error = ppb_1284_negociate(&pnpdev, PPB_ECP,
+		if (!(error = ppb_1284_negociate(bus, PPB_ECP,
 				PPB_REQUEST_ID | PPB_USE_RLE))) {
 			printf("/ECP_RLE_ID");
-			ppb_1284_terminate(&pnpdev);
+			ppb_1284_terminate(bus);
 		}
 
-		if (!(error = ppb_1284_negociate(&pnpdev, PPB_COMPATIBLE,
+		if (!(error = ppb_1284_negociate(bus, PPB_COMPATIBLE,
 				PPB_EXTENSIBILITY_LINK))) {
 			printf("/Extensibility Link");
-			ppb_1284_terminate(&pnpdev);
+			ppb_1284_terminate(bus);
 		}
 	}
 
 	printf("\n");
 
 	/* detect PnP devices */
-	ppb->class_id = ppb_pnp_detect(ppb, &pnpdev);
-
-	ppb_release_bus(&pnpdev);
+	ppb->class_id = ppb_pnp_detect(bus);
 
 	return (0);
 
 end_scan:
-	ppb_release_bus(&pnpdev);
 	return (error);
 }
 
 #endif /* !DONTPROBE_1284 */
 
-/*
- * ppb_attachdevs()
- *
- * Called by ppcattach(), this function probes the ppbus and
- * attaches found devices.
- */
-int
-ppb_attachdevs(struct ppb_data *ppb)
+static int
+ppbus_attach(device_t dev)
 {
-	struct ppb_device *dev;
-	struct ppb_driver **p_drvpp, *p_drvp;
+	int i;
+	int unit, disabled;
+	char *name;
 
-	LIST_INIT(&ppb->ppb_devs);	/* initialise device/driver list */
-	p_drvpp = (struct ppb_driver **)ppbdriver_set.ls_items;
+	/*
+	 * Add all devices configured to be attached to ppbus0.
+	 */
+	for (i = resource_query_string(-1, "at", "ppbus0");
+	     i != -1;
+	     i = resource_query_string(i, "at", "ppbus0")) {
+		unit = resource_query_unit(i);
+		name = resource_query_name(i);
+		if (resource_int_value(name, unit, "disabled", &disabled) == 0) {
+			if (disabled)
+				continue;
+		}
+		ppbus_add_device(dev, name, unit);
+	}
+
+	/*
+	 * and ppbus?
+	 */
+	for (i = resource_query_string(-1, "at", "ppbus");
+	     i != -1;
+	     i = resource_query_string(i, "at", "ppbus")) {
+		unit = resource_query_unit(i);
+		name = resource_query_name(i);
+		if (resource_int_value(name, unit, "disabled", &disabled) == 0) {
+			if (disabled)
+				continue;
+		}
+		ppbus_add_device(dev, name, unit);
+	} 
 
 #ifndef DONTPROBE_1284
 	/* detect IEEE1284 compliant devices */
-	ppb_scan_bus(ppb);
+	ppb_scan_bus(dev);
 #endif /* !DONTPROBE_1284 */
-	
-	/*
-	 * Blindly try all probes here.  Later we should look at
-	 * the parallel-port PnP standard, and intelligently seek
-	 * drivers based on configuration first.
+
+	/* launch attachement of the added children */
+	bus_generic_attach(dev);
+
+	return 0;
+}
+
+static int
+ppbus_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
+			void (*ihand)(void *), void *arg, void **cookiep)
+{
+	int error;
+	struct ppb_data *ppb = DEVTOSOFTC(bus);
+	struct ppb_device *ppbdev = (struct ppb_device *)device_get_ivars(child);
+
+	/* a device driver must own the bus to register an interrupt */
+	if (ppb->ppb_owner != child)
+		return (EINVAL);
+
+	if ((error = BUS_SETUP_INTR(device_get_parent(bus), child, r, flags,
+					ihand, arg, cookiep)))
+		return (error);
+
+	/* store the resource and the cookie for eventually forcing
+	 * handler unregistration
 	 */
-	while ((p_drvp = *p_drvpp++) != NULL) {
-	    if (p_drvp->probe && (dev = (p_drvp->probe(ppb))) != NULL) {
-		/*
-		 * Add the device to the list of probed devices.
-		 */
-		LIST_INSERT_HEAD(&ppb->ppb_devs, dev, chain);
-		
-		/* Call the device's attach routine */
-		(void)p_drvp->attach(dev);
-	    }
-	}
-	return (0);
-}
-
-/*
- * ppb_next_bus()
- *
- * Return the next bus in ppbus queue
- */
-struct ppb_data *
-ppb_next_bus(struct ppb_data *ppb)
-{
-
-	if (ppb == NULL)
-		return (ppbdata.lh_first);
-
-	return (ppb->ppb_chain.le_next);
-}
-
-/*
- * ppb_lookup_bus()
- *
- * Get ppb_data structure pointer according to the base address of the ppbus
- */
-struct ppb_data *
-ppb_lookup_bus(int base_port)
-{
-	struct ppb_data *ppb;
-
-	for (ppb = ppbdata.lh_first; ppb; ppb = ppb->ppb_chain.le_next)
-		if (ppb->ppb_link->base == base_port)
-			break;
-
-	return (ppb);
-}
-
-/*
- * ppb_lookup_link()
- *
- * Get ppb_data structure pointer according to the unit value
- * of the corresponding link structure
- */
-struct ppb_data *
-ppb_lookup_link(int unit)
-{
-	struct ppb_data *ppb;
-
-	for (ppb = ppbdata.lh_first; ppb; ppb = ppb->ppb_chain.le_next)
-		if (ppb->ppb_link->adapter_unit == unit)
-			break;
-
-	return (ppb);
-}
-
-/*
- * ppb_attach_device()
- *
- * Called by loadable kernel modules to add a device
- */
-int
-ppb_attach_device(struct ppb_device *dev)
-{
-	struct ppb_data *ppb = dev->ppb;
-
-	/* add the device to the list of probed devices */
-	LIST_INSERT_HEAD(&ppb->ppb_devs, dev, chain);
+	ppbdev->intr_cookie = *cookiep;
+	ppbdev->intr_resource = r;
 
 	return (0);
 }
 
-/*
- * ppb_remove_device()
- *
- * Called by loadable kernel modules to remove a device
- */
-void
-ppb_remove_device(struct ppb_device *dev)
+static int
+ppbus_teardown_intr(device_t bus, device_t child, struct resource *r, void *ih)
 {
+	struct ppb_data *ppb = DEVTOSOFTC(bus);
+	struct ppb_device *ppbdev = (struct ppb_device *)device_get_ivars(child);
+	
+	/* a device driver must own the bus to unregister an interrupt */
+	if ((ppb->ppb_owner != child) || (ppbdev->intr_cookie != ih) ||
+			(ppbdev->intr_resource != r))
+		return (EINVAL);
 
-	/* remove the device from the list of probed devices */
-	LIST_REMOVE(dev, chain);
+	ppbdev->intr_cookie = 0;
+	ppbdev->intr_resource = 0;
 
-	return;
+	/* pass unregistration to the upper layer */
+	return (BUS_TEARDOWN_INTR(device_get_parent(bus), child, r, ih));
 }
 
 /*
@@ -466,10 +517,11 @@ ppb_remove_device(struct ppb_device *dev)
  * how	: PPB_WAIT or PPB_DONTWAIT
  */
 int
-ppb_request_bus(struct ppb_device *dev, int how)
+ppb_request_bus(device_t bus, device_t dev, int how)
 {
 	int s, error = 0;
-	struct ppb_data *ppb = dev->ppb;
+	struct ppb_data *ppb = DEVTOSOFTC(bus);
+	struct ppb_device *ppbdev = (struct ppb_device *)device_get_ivars(dev);
 
 	while (!error) {
 		s = splhigh();	
@@ -499,8 +551,8 @@ ppb_request_bus(struct ppb_device *dev, int how)
 			 * drivers that do not set there operating mode 
 			 * during attachement
 			 */
-			if (dev->ctx.valid)
-				ppb_set_mode(dev, dev->ctx.mode);
+			if (ppbdev->ctx.valid)
+				ppb_set_mode(bus, ppbdev->ctx.mode);
 
 			splx(s);
 			return (0);
@@ -516,10 +568,17 @@ ppb_request_bus(struct ppb_device *dev, int how)
  * Release the device allocated with ppb_request_dev()
  */
 int
-ppb_release_bus(struct ppb_device *dev)
+ppb_release_bus(device_t bus, device_t dev)
 {
-	int s;
-	struct ppb_data *ppb = dev->ppb;
+	int s, error;
+	struct ppb_data *ppb = DEVTOSOFTC(bus);
+	struct ppb_device *ppbdev = (struct ppb_device *)device_get_ivars(dev);
+
+	if (ppbdev->intr_resource != 0)
+		/* force interrupt handler unregistration when the ppbus is released */
+		if ((error = BUS_TEARDOWN_INTR(bus, dev, ppbdev->intr_resource,
+					       ppbdev->intr_cookie)))
+			return (error);
 
 	s = splhigh();
 	if (ppb->ppb_owner != dev) {
@@ -531,13 +590,15 @@ ppb_release_bus(struct ppb_device *dev)
 	splx(s);
 
 	/* save the context of the device */
-	dev->ctx.mode = ppb_get_mode(dev);
+	ppbdev->ctx.mode = ppb_get_mode(bus);
 
 	/* ok, now the context of the device is valid */
-	dev->ctx.valid = 1;
+	ppbdev->ctx.valid = 1;
 
 	/* wakeup waiting processes */
 	wakeup(ppb);
 
 	return (0);
 }
+
+DRIVER_MODULE(ppbus, ppc, ppbus_driver, ppbus_devclass, 0, 0);

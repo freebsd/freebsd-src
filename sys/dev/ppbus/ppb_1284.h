@@ -108,17 +108,17 @@
 #define PPB_PERIPHERAL_TRANSFER		13
 #define PPB_PERIPHERAL_TERMINATION	14
 
-extern int nibble_1284_inbyte(struct ppb_device *, char *);
-extern int byte_1284_inbyte(struct ppb_device *, char *);
-extern int spp_1284_read(struct ppb_device *, int, char *, int, int *);
+extern int nibble_1284_inbyte(device_t, char *);
+extern int byte_1284_inbyte(device_t, char *);
+extern int spp_1284_read(device_t, int, char *, int, int *);
 
-extern int ppb_1284_negociate(struct ppb_device *, int, int);
-extern int ppb_1284_terminate(struct ppb_device *);
-extern int ppb_1284_read_id(struct ppb_device *, int, char *, int, int *);
-extern int ppb_1284_read(struct ppb_device *, int, char *, int, int *);
+extern int ppb_1284_negociate(device_t, int, int);
+extern int ppb_1284_terminate(device_t);
+extern int ppb_1284_read_id(device_t, int, char *, int, int *);
+extern int ppb_1284_read(device_t, int, char *, int, int *);
 
-extern int ppb_peripheral_terminate(struct ppb_device *, int);
-extern int ppb_peripheral_negociate(struct ppb_device *, int, int);
-extern int byte_peripheral_write(struct ppb_device *, char *, int, int *);
+extern int ppb_peripheral_terminate(device_t, int);
+extern int ppb_peripheral_negociate(device_t, int, int);
+extern int byte_peripheral_write(device_t, char *, int, int *);
 
 #endif
