@@ -182,15 +182,15 @@ getBootMgr(char *dname, u_char **bootipl, size_t *bootipl_size,
 
     cp = variable_get(VAR_BOOTMGR);
     if (!cp) {
-	/* Figure out what kind of MBR the user wants */
+	/* Figure out what kind of IPL the user wants */
 	sprintf(str, "Install Boot Manager for drive %s?", dname);
-	MenuMBRType.title = str;
-	i = dmenuOpenSimple(&MenuMBRType, FALSE);
+	MenuIPLType.title = str;
+	i = dmenuOpenSimple(&MenuIPLType, FALSE);
     } else {
 	if (!strncmp(cp, "boot", 4))
 	    BootMgr = 0;
 	else
-	    BootMgr = 2;
+	    BootMgr = 1;
     }
     if (cp || i) {
 	switch (BootMgr) {
@@ -202,7 +202,7 @@ getBootMgr(char *dname, u_char **bootipl, size_t *bootipl_size,
 	    *bootmenu = boot05;
 	    *bootmenu_size = boot05_size;
 	    return;
-	case 2:
+	case 1:
 	default:
 	    break;
 	}
@@ -565,19 +565,19 @@ diskPartition(Device *dev)
 			       "Are you absolutely sure you want to do this now?")) {
 		variable_set2(DISK_PARTITIONED, "yes", 0);
 
+#ifdef PC98
 		/*
-		 * Don't trash the MBR if the first (and therefore only) chunk
+		 * Don't trash the IPL if the first (and therefore only) chunk
 		 * is marked for a truly dedicated disk (i.e., the disklabel
 		 * starts at sector 0), even in cases where the user has
-		 * requested booteasy or a "standard" MBR -- both would be
-		 * fatal in this case.
+		 * requested a FreeBSD Boot Manager -- both would be fatal in
+		 * this case.
 		 */
 		/*
-		 * Don't offer to update the MBR on this disk if the first
+		 * Don't offer to update the IPL on this disk if the first
 		 * "real" chunk looks like a FreeBSD "all disk" partition,
 		 * or the disk is entirely FreeBSD.
 		 */
-#ifdef PC98
 		if ((d->chunks->part->type != freebsd) ||
 		    (d->chunks->part->offset > 1))
 		    getBootMgr(d->name, &bootipl, &bootipl_size,
@@ -590,6 +590,18 @@ diskPartition(Device *dev)
 		}
 		Set_Boot_Mgr(d, bootipl, bootipl_size, bootmenu, bootmenu_size);
 #else
+		/*
+		 * Don't trash the MBR if the first (and therefore only) chunk
+		 * is marked for a truly dedicated disk (i.e., the disklabel
+		 * starts at sector 0), even in cases where the user has
+		 * requested booteasy or a "standard" MBR -- both would be
+		 * fatal in this case.
+		 */
+		/*
+		 * Don't offer to update the MBR on this disk if the first
+		 * "real" chunk looks like a FreeBSD "all disk" partition,
+		 * or the disk is entirely FreeBSD.
+		 */
 		if ((d->chunks->part->type != freebsd) ||
 		    (d->chunks->part->offset > 1))
 		    getBootMgr(d->name, &mbrContents, &mbrSize);
@@ -625,6 +637,29 @@ diskPartition(Device *dev)
 	case '\033':	/* ESC */
 	case 'Q':
 	    chunking = FALSE;
+#ifdef PC98
+	    /*
+	     * Don't trash the IPL if the first (and therefore only) chunk
+	     * is marked for a truly dedicated disk (i.e., the disklabel
+	     * starts at sector 0), even in cases where the user has requested
+	     * a FreeBSD Boot Manager -- both would be fatal in this case.
+	     */
+	    /*
+	     * Don't offer to update the IPL on this disk if the first "real"
+	     * chunk looks like a FreeBSD "all disk" partition, or the disk is
+	     * entirely FreeBSD. 
+	     */
+	    if ((d->chunks->part->type != freebsd) ||
+		(d->chunks->part->offset > 1)) {
+		if (variable_cmp(DISK_PARTITIONED, "written")) {
+		    getBootMgr(d->name, &bootipl, &bootipl_size,
+			&bootmenu, &bootmenu_size);
+		    if (bootipl != NULL && bootmenu != NULL)
+			Set_Boot_Mgr(d, bootipl, bootipl_size,
+			    bootmenu, bootmenu_size);
+		}
+	    }
+#else
 	    /*
 	     * Don't trash the MBR if the first (and therefore only) chunk
 	     * is marked for a truly dedicated disk (i.e., the disklabel
@@ -639,19 +674,12 @@ diskPartition(Device *dev)
 	    if ((d->chunks->part->type != freebsd) ||
 		(d->chunks->part->offset > 1)) {
 		if (variable_cmp(DISK_PARTITIONED, "written")) {
-#ifdef PC98
-		    getBootMgr(d->name, &bootipl, &bootipl_size,
-			&bootmenu, &bootmenu_size);
-		    if (bootipl != NULL && bootmenu != NULL)
-			Set_Boot_Mgr(d, bootipl, bootipl_size,
-			    bootmenu, bootmenu_size);
-#else
 		    getBootMgr(d->name, &mbrContents, &mbrSize);
 		    if (mbrContents != NULL)
 			Set_Boot_Mgr(d, mbrContents, mbrSize);
-#endif
 		}
 	    }
+#endif
 	    break;
 
 	case 'Z':
