@@ -29,7 +29,7 @@
 #ifndef lint
 /*static char sccsid[] = "from: @(#)rpc.rstatd.c 1.1 86/09/25 Copyr 1984 Sun Micro";*/
 /*static char sccsid[] = "from: @(#)rstat_proc.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char rcsid[] = "$Id: rstat_proc.c,v 1.2 1993/09/23 18:48:55 jtc Exp $";
+static char rcsid[] = "$Id: rstat_proc.c,v 1.1.1.1 1994/08/28 14:49:04 csgr Exp $";
 #endif
 
 /*
@@ -283,10 +283,10 @@ updatestat()
 		syslog(LOG_ERR, "rstat: can't read cnt from kmem\n");
 		exit(1);
 	}
-	stats_all.s1.v_pgpgin = cnt.v_pgpgin;
-	stats_all.s1.v_pgpgout = cnt.v_pgpgout;
-	stats_all.s1.v_pswpin = cnt.v_pswpin;
-	stats_all.s1.v_pswpout = cnt.v_pswpout;
+	stats_all.s1.v_pgpgin = cnt.v_vnodepgsin;
+	stats_all.s1.v_pgpgout = cnt.v_vnodepgsout;
+	stats_all.s1.v_pswpin = cnt.v_swappgsin;
+	stats_all.s1.v_pswpout = cnt.v_swappgsout;
 	stats_all.s1.v_intr = cnt.v_intr;
 	gettimeofday(&tm, (struct timezone *) 0);
 	stats_all.s1.v_intr -= hz*(tm.tv_sec - btm.tv_sec) +
