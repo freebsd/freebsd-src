@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.50 1995/03/23 23:40:29 rgrimes Exp $
+#	$Id: Makefile,v 1.51 1995/03/27 01:31:09 rgrimes Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
@@ -176,7 +176,7 @@ most:
 	cd ${.CURDIR}/usr.sbin	&&	${MAKE} ${.MAKEFLAGS} all
 	cd ${.CURDIR}/gnu/libexec &&	${MAKE} ${.MAKEFLAGS} all
 	cd ${.CURDIR}/gnu/usr.bin &&	${MAKE} ${.MAKEFLAGS} all
-	cd ${.CURDIR}/gnu/usr.sbin &&	${MAKE} ${.MAKEFLAGS} install
+	cd ${.CURDIR}/gnu/usr.sbin &&	${MAKE} ${.MAKEFLAGS} all
 #.if defined(MAKE_EBONES) && !defined(NOCRYPT)
 #	cd ${.CURDIR}/eBones	&&	${MAKE} ${.MAKEFLAGS} most
 #.endif
