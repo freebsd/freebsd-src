@@ -747,7 +747,7 @@ A number of buffer overflows in config(8) have been fixed. [MERGED]
 pwd(1) can now double as realpath(1), a program to resolve pathnames
 to their underlying physical paths. [MERGED]
 
-file(1) has been contribify-ed, and updated to version 3.34.
+file(1) has been contribify-ed, and updated to version 3.35.
 
 stty(1) now has support for an "erase2" control character, so that
 both "delete" and "backspace" can be used to erase characters. [MERGED]
@@ -761,7 +761,7 @@ top(1) will now use the full width of its tty.
 
 groff(1) and its related utilities have been updated to FSF version
 1.17.  This import brings in a new mdoc(7) macro package, which
-removes many of the limitations of its predecessor.
+removes many of the limitations of its predecessor. [MERGED]
 
 A number of cleanups and enhancements have been applied to the PCI
 subsystem.  /usr/share/misc/pci_vendors now contains a vendor/device
@@ -782,9 +782,23 @@ the controlling tty), fsck_ffs will now output a line indicating the
 current phase number and progress information relevant to the current
 phase. [MERGED]
 
-fsck_ffs now supports background filesystem checks to mounted FFS
-filesystems with the -B option (softupdates must be enabled on these
-filesystems).
+fsck(8) and fsck_ffs(8) now support background filesystem checks to
+mounted FFS filesystems with the -B option (softupdates must be
+enabled on these filesystems).  The -F flag now determines whether a
+specified filesystem needs foreground checking.
+
+fsck(8) now has support for foreground (-F) and background (-B)
+checks.  Traditionally, fsck(8) is invoked before the filesystems are
+mounted and all checks are done to completion at that time.  If
+background checking is available, fsck(8) is invoked twice.  It is
+first invoked at the traditional time, before the filesystems are
+mounted, with the -F flag to do checking on all the filesystems that
+cannot do background checking.  It is then invoked a second time,
+after the system has completed going multiuser, with the -B flag to do
+checking on all the filesystems that can do background checking.
+Unlike the foreground checking, the background checking is started
+asynchonously so that other system activity can proceed even on the
+filesystems that are being checked.
 
 Catching up with most other network utilities in the base system,
 lpr(1), lpd(8), syslogd(8), and logger(1) are now all IPv6-capable.
@@ -993,7 +1007,8 @@ ftpd(8) now supports a -r flag for read-only mode and a -E flag to
 disable EPSV.  It also has some fixes to reduce information leakage
 and the ability to specify compile-time port ranges. [MERGED]
 
-ping(8) now supports a -m option to set the TTL of outgoing packets.
+ping(8) now supports a -m option to set the TTL of outgoing
+packets. [MERGED]
 
 A version of Transport Independent RPC (TI-RPC) has been imported.
 
@@ -1039,6 +1054,9 @@ devices, has been added.
 A new kernel option, "options REGRESSION", enables interfaces and
 functionality intended for use during correctness and regression
 testing.
+
+fmtcheck(3), a function for checking consistency of format string
+arguments, has been added.
 
 
 2. Supported Configurations
