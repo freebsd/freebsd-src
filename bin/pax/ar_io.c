@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ar_io.c,v 1.7 1997/02/22 14:04:17 peter Exp $
  */
 
 #ifndef lint
@@ -120,14 +120,14 @@ ar_open(name)
 			arfd = STDIN_FILENO;
 			arcname = STDN;
 		} else if ((arfd = open(name, EXT_MODE, DMOD)) < 0)
-			syswarn(0, errno, "Failed open to read on %s", name);
+			sys_warn(0, errno, "Failed open to read on %s", name);
 		break;
 	case ARCHIVE:
 		if (name == NULL) {
 			arfd = STDOUT_FILENO;
 			arcname = STDO;
 		} else if ((arfd = open(name, AR_MODE, DMOD)) < 0)
-			syswarn(0, errno, "Failed open to write on %s", name);
+			sys_warn(0, errno, "Failed open to write on %s", name);
 		else
 			can_unlnk = 1;
 		break;
@@ -136,7 +136,7 @@ ar_open(name)
 			arfd = STDOUT_FILENO;
 			arcname = STDO;
 		} else if ((arfd = open(name, APP_MODE, DMOD)) < 0)
-			syswarn(0, errno, "Failed open to read/write on %s",
+			sys_warn(0, errno, "Failed open to read/write on %s",
 				name);
 		break;
 	case COPY:
@@ -154,14 +154,14 @@ ar_open(name)
 	 * set up is based on device type
 	 */
 	if (fstat(arfd, &arsb) < 0) {
-		syswarn(0, errno, "Failed stat on %s", arcname);
+		sys_warn(0, errno, "Failed stat on %s", arcname);
 		(void)close(arfd);
 		arfd = -1;
 		can_unlnk = 0;
 		return(-1);
 	}
 	if (S_ISDIR(arsb.st_mode)) {
-		warn(0, "Cannot write an archive on top of a directory %s",
+		pax_warn(0, "Cannot write an archive on top of a directory %s",
 		    arcname);
 		(void)close(arfd);
 		arfd = -1;
@@ -470,7 +470,7 @@ ar_set_wr()
 	 */
 	if (((cpos = lseek(arfd, (off_t)0L, SEEK_CUR)) < 0) ||
 	    (ftruncate(arfd, cpos) < 0)) {
-		syswarn(1, errno, "Unable to truncate archive file");
+		sys_warn(1, errno, "Unable to truncate archive file");
 		return(-1);
 	}
 	return(0);
@@ -494,13 +494,13 @@ ar_app_ok()
 #endif
 {
 	if (artyp == ISPIPE) {
-		warn(1, "Cannot append to an archive obtained from a pipe.");
+		pax_warn(1, "Cannot append to an archive obtained from a pipe.");
 		return(-1);
 	}
 
 	if (!invld_rec)
 		return(0);
-	warn(1,"Cannot append, device record size %d does not support %s spec",
+	pax_warn(1,"Cannot append, device record size %d does not support %s spec",
 		rdblksz, argv0);
 	return(-1);
 }
@@ -587,9 +587,9 @@ ar_read(buf, cnt)
 	 */
 	lstrval = res;
 	if (res < 0)
-		syswarn(1, errno, "Failed read on archive volume %d", arvol);
+		sys_warn(1, errno, "Failed read on archive volume %d", arvol);
 	else
-		warn(0, "End of archive volume %d reached", arvol);
+		pax_warn(0, "End of archive volume %d reached", arvol);
 	return(res);
 }
 
@@ -668,7 +668,7 @@ ar_write(buf, bsz)
 		if (res >= 0)
 			break;
 		if (errno == EACCES) {
-			warn(0, "Write failed, archive is write protected.");
+			pax_warn(0, "Write failed, archive is write protected.");
 			res = lstrval = 0;
 			return(0);
 		}
@@ -706,18 +706,18 @@ ar_write(buf, bsz)
 	 * must quit right away.
 	 */
 	if (!wr_trail && (res <= 0)) {
-		warn(1,"Unable to append, trailer re-write failed. Quitting.");
+		pax_warn(1,"Unable to append, trailer re-write failed. Quitting.");
 		return(res);
 	}
 
 	if (res == 0)
-		warn(0, "End of archive volume %d reached", arvol);
+		pax_warn(0, "End of archive volume %d reached", arvol);
 	else if (res < 0)
-		syswarn(1, errno, "Failed write to archive volume: %d", arvol);
+		sys_warn(1, errno, "Failed write to archive volume: %d", arvol);
 	else if (!frmt->blkalgn || ((res % frmt->blkalgn) == 0))
-		warn(0,"WARNING: partial archive write. Archive MAY BE FLAWED");
+		pax_warn(0,"WARNING: partial archive write. Archive MAY BE FLAWED");
 	else
-		warn(1,"WARNING: partial archive write. Archive IS FLAWED");
+		pax_warn(1,"WARNING: partial archive write. Archive IS FLAWED");
 	return(res);
 }
 
@@ -751,7 +751,7 @@ ar_rdsync()
 		return(-1);
 
 	if ((act == APPND) || (act == ARCHIVE)) {
-		warn(1, "Cannot allow updates to an archive with flaws.");
+		pax_warn(1, "Cannot allow updates to an archive with flaws.");
 		return(-1);
 	}
 	if (io_ok)
@@ -803,10 +803,10 @@ ar_rdsync()
 		break;
 	}
 	if (lstrval <= 0) {
-		warn(1, "Unable to recover from an archive read failure.");
+		pax_warn(1, "Unable to recover from an archive read failure.");
 		return(-1);
 	}
-	warn(0, "Attempting to recover from an archive read failure.");
+	pax_warn(0, "Attempting to recover from an archive read failure.");
 	return(0);
 }
 
@@ -870,7 +870,7 @@ ar_fow(sksz, skipped)
 		if (lseek(arfd, mpos, SEEK_SET) >= 0)
 			return(0);
 	}
-	syswarn(1, errno, "Foward positioning operation on archive failed");
+	sys_warn(1, errno, "Foward positioning operation on archive failed");
 	lstrval = -1;
 	return(-1);
 }
@@ -912,7 +912,7 @@ ar_rev(sksz)
 		/*
 		 * cannot go backwards on these critters
 		 */
-		warn(1, "Reverse positioning on pipes is not supported.");
+		pax_warn(1, "Reverse positioning on pipes is not supported.");
 		lstrval = -1;
 		return(-1);
 	case ISREG:
@@ -930,7 +930,7 @@ ar_rev(sksz)
 		 * First we figure out where we are in the archive.
 		 */
 		if ((cpos = lseek(arfd, (off_t)0L, SEEK_CUR)) < 0) {
-			syswarn(1, errno,
+			sys_warn(1, errno,
 			   "Unable to obtain current archive byte offset");
 			lstrval = -1;
 			return(-1);
@@ -948,14 +948,14 @@ ar_rev(sksz)
 				/*
 				 * this should never happen
 				 */
-				warn(1,"Reverse position on previous volume.");
+				pax_warn(1,"Reverse position on previous volume.");
 				lstrval = -1;
 				return(-1);
 			}
 			cpos = (off_t)0L;
 		}
 		if (lseek(arfd, cpos, SEEK_SET) < 0) {
-			syswarn(1, errno, "Unable to seek archive backwards");
+			sys_warn(1, errno, "Unable to seek archive backwards");
 			lstrval = -1;
 			return(-1);
 		}
@@ -990,7 +990,7 @@ ar_rev(sksz)
 		 * ok we have to move. Make sure the tape drive can do it.
 		 */
 		if (sksz % phyblk) {
-			warn(1,
+			pax_warn(1,
 			    "Tape drive unable to backspace requested amount");
 			lstrval = -1;
 			return(-1);
@@ -1002,7 +1002,7 @@ ar_rev(sksz)
 		mb.mt_op = MTBSR;
 		mb.mt_count = sksz/phyblk;
 		if (ioctl(arfd, MTIOCTOP, &mb) < 0) {
-			syswarn(1,errno, "Unable to backspace tape %d blocks.",
+			sys_warn(1,errno, "Unable to backspace tape %d blocks.",
 			    mb.mt_count);
 			lstrval = -1;
 			return(-1);
@@ -1050,7 +1050,7 @@ get_phys()
 		while ((res = read(arfd, scbuf, sizeof(scbuf))) > 0)
 			padsz += res;
 		if (res < 0) {
-			syswarn(1, errno, "Unable to locate tape filemark.");
+			sys_warn(1, errno, "Unable to locate tape filemark.");
 			return(-1);
 		}
 	}
@@ -1062,7 +1062,7 @@ get_phys()
 	mb.mt_op = MTBSF;
 	mb.mt_count = 1;
 	if (ioctl(arfd, MTIOCTOP, &mb) < 0) {
-		syswarn(1, errno, "Unable to backspace over tape filemark.");
+		sys_warn(1, errno, "Unable to backspace over tape filemark.");
 		return(-1);
 	}
 
@@ -1073,11 +1073,11 @@ get_phys()
 	mb.mt_op = MTBSR;
 	mb.mt_count = 1;
 	if (ioctl(arfd, MTIOCTOP, &mb) < 0) {
-		syswarn(1, errno, "Unable to backspace over last tape block.");
+		sys_warn(1, errno, "Unable to backspace over last tape block.");
 		return(-1);
 	}
 	if ((phyblk = read(arfd, scbuf, sizeof(scbuf))) <= 0) {
-		syswarn(1, errno, "Cannot determine archive tape blocksize.");
+		sys_warn(1, errno, "Cannot determine archive tape blocksize.");
 		return(-1);
 	}
 
@@ -1088,13 +1088,13 @@ get_phys()
 	while ((res = read(arfd, scbuf, sizeof(scbuf))) > 0)
 		;
 	if (res < 0) {
-		syswarn(1, errno, "Unable to locate tape filemark.");
+		sys_warn(1, errno, "Unable to locate tape filemark.");
 		return(-1);
 	}
 	mb.mt_op = MTBSF;
 	mb.mt_count = 1;
 	if (ioctl(arfd, MTIOCTOP, &mb) < 0) {
-		syswarn(1, errno, "Unable to backspace over tape filemark.");
+		sys_warn(1, errno, "Unable to backspace over tape filemark.");
 		return(-1);
 	}
 
@@ -1114,7 +1114,7 @@ get_phys()
 	 * never fail).
 	 */
 	if (padsz % phyblk) {
-		warn(1, "Tape drive unable to backspace requested amount");
+		pax_warn(1, "Tape drive unable to backspace requested amount");
 		return(-1);
 	}
 
@@ -1125,7 +1125,7 @@ get_phys()
 	mb.mt_op = MTBSR;
 	mb.mt_count = padsz/phyblk;
 	if (ioctl(arfd, MTIOCTOP, &mb) < 0) {
-		syswarn(1,errno,"Unable to backspace tape over %d pad blocks",
+		sys_warn(1,errno,"Unable to backspace tape over %d pad blocks",
 		    mb.mt_count);
 		return(-1);
 	}
@@ -1160,10 +1160,10 @@ ar_next()
 	 * also be called via a signal handler, so we must prevent a race.
 	 */
 	if (sigprocmask(SIG_BLOCK, &s_mask, &o_mask) < 0)
-		syswarn(0, errno, "Unable to set signal mask");
+		sys_warn(0, errno, "Unable to set signal mask");
 	ar_close();
 	if (sigprocmask(SIG_SETMASK, &o_mask, (sigset_t *)NULL) < 0)
-		syswarn(0, errno, "Unable to restore signal mask");
+		sys_warn(0, errno, "Unable to restore signal mask");
 
 	if (done || !wr_trail)
 		return(-1);
@@ -1276,7 +1276,7 @@ ar_next()
 			if ((arcname = strdup(buf)) == NULL) {
 				done = 1;
 				lstrval = -1;
-				warn(0, "Cannot save archive name.");
+				pax_warn(0, "Cannot save archive name.");
 				return(-1);
 			}
 			freeit = 1;
