@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.9 1994/12/02 23:00:40 ats Exp $
+ * $Id: kern_resource.c,v 1.10 1994/12/06 22:53:37 bde Exp $
  */
 
 #include <sys/param.h>
@@ -409,17 +409,17 @@ dosetrlimit(p, which, limp)
 		break;
 
 	case RLIMIT_NOFILE:
-		if (limp->rlim_cur > maxfiles)
-			limp->rlim_cur = maxfiles;
-		if (limp->rlim_max > maxfiles)
-			limp->rlim_max = maxfiles;
+		if (limp->rlim_cur > maxfilesperproc)
+			limp->rlim_cur = maxfilesperproc;
+		if (limp->rlim_max > maxfilesperproc)
+			limp->rlim_max = maxfilesperproc;
 		break;
 
 	case RLIMIT_NPROC:
-		if (limp->rlim_cur > maxproc)
-			limp->rlim_cur = maxproc;
-		if (limp->rlim_max > maxproc)
-			limp->rlim_max = maxproc;
+		if (limp->rlim_cur > maxprocperuid)
+			limp->rlim_cur = maxprocperuid;
+		if (limp->rlim_max > maxprocperuid)
+			limp->rlim_max = maxprocperuid;
 		break;
 	}
 	*alimp = *limp;
