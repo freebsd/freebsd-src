@@ -91,7 +91,7 @@ yp_passwd(char *user)
   struct passwd *pw;
   CLIENT *clnt;
   char   *master;
-  int    c, err, status;
+  int    err, status;
   char   *s;
 
   if ((master = getserver()) == NULL) {
@@ -136,7 +136,6 @@ yp_passwd(char *user)
 
   /* Get old password */
   if(pw->pw_passwd[0]) {
-    char prompt[40];
 
     s = getpass ("Old password: ");
     if( strcmp(crypt(s, pw->pw_passwd), pw->pw_passwd)) {
