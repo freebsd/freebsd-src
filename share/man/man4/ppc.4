@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id: ppc.4,v 1.4 1999/07/12 21:01:56 nik Exp $
+.\"     $Id: ppc.4,v 1.5 1999/08/15 10:48:11 mpp Exp $
 .\"
 .Dd March 5, 1998
 .Dt PPC 4
@@ -32,7 +32,7 @@
 .Nd
 Parallel port chipset driver
 .Sh SYNOPSIS
-.Cd "controller ppc0 at isa? port? tty irq 7"
+.Cd "controller ppc0 at isa? port? flags 0xXX tty irq 7"
 .Pp
 For one or more PPBUS busses:
 .Cd "controller ppbus at ppc0"
@@ -70,6 +70,8 @@ bit 4: EPP protocol (0 EPP 1.9, 1 EPP 1.7)
 bit 5: activate IRQ (1 IRQ disabled, 0 IRQ enabled)
 .It
 bit 6: disable chipset specific detection
+.It
+bit 7: disable FIFO detection
 .El
 .Ss Supported chipsets
 Some parallel port chipsets are explicitly supported by ppc: detection and
