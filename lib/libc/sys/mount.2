@@ -32,11 +32,12 @@
 .\"     @(#)mount.2	8.3 (Berkeley) 5/24/95
 .\" $FreeBSD$
 .\"
-.Dd September 8, 2003
+.Dd March 16, 2004
 .Dt MOUNT 2
 .Os
 .Sh NAME
 .Nm mount ,
+.Nm nmount ,
 .Nm unmount
 .Nd mount or dismount a file system
 .Sh LIBRARY
@@ -48,6 +49,9 @@
 .Fn mount "const char *type" "const char *dir" "int flags" "void *data"
 .Ft int
 .Fn unmount "const char *dir" "int flags"
+.In sys/uio.h
+.Ft int
+.Fn nmount "struct iovec *iov" "u_int niov" "int flags"
 .Sh DESCRIPTION
 The
 .Fn mount
@@ -73,6 +77,32 @@ Any files in
 at the time
 of a successful mount are swept under the carpet so to speak, and
 are unavailable until the file system is unmounted.
+.Pp
+The
+.Fn nmount
+system call behaves similarly to
+.Fn mount ,
+except that the mount options (filesystem type name, device to mount,
+mount-point name, etc.) are passed as an array of name-value pairs
+in the array
+.Fa iov ,
+containing
+.Fa niov
+elements.
+The following options are required by all filesystems:
+.Bl -item -offset indent -compact
+.It
+.Li fstype Ta filesystem type name (e.g. Dq Li procfs )
+.It
+.Li fspath Ta mount point pathname (e.g. Dq Li /proc )
+.El
+.Pp
+Depending on the filesystem type, other options may be
+recognized or required;
+for example, most disk-based filesystems require a
+.Dq Li from
+option containing the pathname of a special device
+in addition to the options listed above.
 .Pp
 By default only the super-user may call the
 .Fn mount
@@ -204,7 +234,9 @@ The file system that has the specified file system ID will be unmounted.
 .Sh ERRORS
 The
 .Fn mount
-system call will fail when one of the following occurs:
+and
+.Fn nmount
+system calls will fail when one of the following occurs:
 .Bl -tag -width Er
 .It Bq Er EPERM
 The caller is neither the super-user nor the owner of
