@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: boot.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
  */
 
 /*
@@ -106,7 +106,9 @@ command_boot(int argc, char *argv[])
     /* Hook for platform-specific autoloading of modules */
     if (archsw.arch_autoload() != 0)
 	return(CMD_ERROR);
-    archsw.arch_boot();
+
+    /* Call the exec handler from the loader matching the kernel */
+    module_formats[km->m_loader]->l_exec(km);
     return(CMD_ERROR);
 }
 
