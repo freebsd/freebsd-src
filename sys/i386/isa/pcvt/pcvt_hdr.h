@@ -74,13 +74,13 @@
 #if PCVT_FREEBSD >= 200
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
 #include <sys/tty.h>
 #include <sys/uio.h>
 #include <sys/callout.h>
-#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/syslog.h>
 #include <sys/malloc.h>

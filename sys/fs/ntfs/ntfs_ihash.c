@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_ihash.c	8.7 (Berkeley) 5/17/95
- * $Id: ntfs_ihash.c,v 1.2 1999/01/02 01:17:38 semen Exp $
+ * $Id: ntfs_ihash.c,v 1.3 1999/04/20 21:06:43 semenu Exp $
  */
 
 #include <sys/param.h>
@@ -53,7 +53,7 @@ MALLOC_DEFINE(M_NTFSNTHASH, "NTFS nthash", "NTFS ntnode hash tables");
  */
 static LIST_HEAD(nthashhead, ntnode) *ntfs_nthashtbl;
 static u_long	ntfs_nthash;		/* size of hash table - 1 */
-#define	NTNOHASH(device, inum)	(&ntfs_nthashtbl[((device) + (inum)) & ntfs_nthash])
+#define	NTNOHASH(device, inum)	(&ntfs_nthashtbl[(minor(device) + (inum)) & ntfs_nthash])
 #ifndef NULL_SIMPLELOCKS
 static struct simplelock ntfs_nthash_slock;
 #endif

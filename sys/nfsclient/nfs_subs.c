@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c  8.8 (Berkeley) 5/22/95
- * $Id: nfs_subs.c,v 1.72 1999/01/27 22:42:27 dillon Exp $
+ * $Id: nfs_subs.c,v 1.73 1999/02/17 13:59:29 bde Exp $
  */
 
 /*
@@ -1260,7 +1260,7 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 	if (v3) {
 		vtyp = nfsv3tov_type(fp->fa_type);
 		vmode = fxdr_unsigned(u_short, fp->fa_mode);
-		rdev = makedev(fxdr_unsigned(int, fp->fa3_rdev.specdata1),
+		rdev = umakedev(fxdr_unsigned(int, fp->fa3_rdev.specdata1),
 			fxdr_unsigned(int, fp->fa3_rdev.specdata2));
 		fxdr_nfsv3time(&fp->fa3_mtime, &mtime);
 	} else {
@@ -1312,7 +1312,7 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 		}
 		if (vp->v_type == VCHR || vp->v_type == VBLK) {
 			vp->v_op = spec_nfsv2nodeop_p;
-			nvp = checkalias(vp, (dev_t)rdev, vp->v_mount);
+			nvp = checkalias(vp, rdev, vp->v_mount);
 			if (nvp) {
 				/*
 				 * Discard unneeded vnode, but save its nfsnode.
@@ -1338,7 +1338,7 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 	vap = &np->n_vattr;
 	vap->va_type = vtyp;
 	vap->va_mode = (vmode & 07777);
-	vap->va_rdev = (dev_t)rdev;
+	vap->va_rdev = rdev;
 	vap->va_mtime = mtime;
 	vap->va_fsid = vp->v_mount->mnt_stat.f_fsid.val[0];
 	if (v3) {
@@ -1862,8 +1862,8 @@ nfsm_srvfattr(nfsd, vap, fp)
 		fp->fa_mode = vtonfsv3_mode(vap->va_mode);
 		txdr_hyper(&vap->va_size, &fp->fa3_size);
 		txdr_hyper(&vap->va_bytes, &fp->fa3_used);
-		fp->fa3_rdev.specdata1 = txdr_unsigned(major(vap->va_rdev));
-		fp->fa3_rdev.specdata2 = txdr_unsigned(minor(vap->va_rdev));
+		fp->fa3_rdev.specdata1 = txdr_unsigned(umajor(vap->va_rdev));
+		fp->fa3_rdev.specdata2 = txdr_unsigned(uminor(vap->va_rdev));
 		fp->fa3_fsid.nfsuquad[0] = 0;
 		fp->fa3_fsid.nfsuquad[1] = txdr_unsigned(vap->va_fsid);
 		fp->fa3_fileid.nfsuquad[0] = 0;

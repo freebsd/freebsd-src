@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_node.c,v 1.26 1999/01/02 11:34:54 bde Exp $
+ * $Id: cd9660_node.c,v 1.27 1999/01/27 21:49:54 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -57,7 +57,7 @@
  */
 static struct iso_node **isohashtbl;
 static u_long isohash;
-#define	INOHASH(device, inum)	(((device) + ((inum)>>12)) & isohash)
+#define	INOHASH(device, inum)	((minor(device) + ((inum)>>12)) & isohash)
 #ifndef NULL_SIMPLELOCKS
 static struct simplelock cd9660_ihash_slock;
 #endif

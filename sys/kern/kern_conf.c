@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.35 1999/05/09 08:18:12 phk Exp $
+ * $Id: kern_conf.c,v 1.36 1999/05/09 13:00:46 phk Exp $
  */
 
 #include <sys/param.h>
@@ -70,7 +70,15 @@ cdevsw_add(dev_t *descrip,
 		struct cdevsw *newentry,
 		struct cdevsw **oldentry)
 {
-	int i ;
+	int i;
+	static int setup;
+
+	if (!setup) {
+		for (i = 0; i < NUMCDEV; i++)
+			if (!bmaj2cmaj[i])
+				bmaj2cmaj[i] = 254;
+		setup++;
+	}
 
 	if ( *descrip == NODEV) {	/* auto (0 is valid) */
 		/*
@@ -161,3 +169,66 @@ devsw_module_handler(module_t mod, int what, void* arg)
 	else
 		return 0;
 }
+
+/*
+ * dev_t and u_dev_t primitives
+ */
+
+#define DEVT_FASCIST 1
+
+int 
+major(dev_t x)
+{
+#ifdef DEVT_FASCIST
+	return(253 - ((x >> 8) & 0xff));
+#else
+	return((x >> 8) & 0xff);
+#endif
+}
+
+int
+minor(dev_t x)
+{
+	return(x & 0xffff00ff);
+}
+
+dev_t
+makedev(int x, int y)
+{
+#ifdef DEVT_FASCIST
+        return (((253 - x) << 8) | y);
+#else
+        return ((x << 8) | y);
+#endif
+}
+
+udev_t
+dev2udev(dev_t x)
+{
+	return umakedev(major(x), minor(x));
+}
+
+dev_t
+udev2dev(udev_t x, int b)
+{
+	return makedev(umajor(x), uminor(x));
+}
+
+int
+uminor(udev_t dev)
+{
+	return(dev & 0xffff00ff);
+}
+
+int
+umajor(udev_t dev)
+{
+	return((dev & 0xff00) >> 8);
+}
+
+udev_t
+umakedev(int x, int y)
+{
+        return ((x << 8) | y);
+}
+

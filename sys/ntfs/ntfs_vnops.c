@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ntfs_vnops.c,v 1.10 1999/02/02 03:15:13 semen Exp $
+ *	$Id: ntfs_vnops.c,v 1.3 1999/04/20 21:06:43 semenu Exp $
  *
  */
 
@@ -215,13 +215,13 @@ ntfs_getattr(ap)
 
 	dprintf(("ntfs_getattr: %d, flags: %d\n",ip->i_number,ip->i_flag));
 
-	vap->va_fsid = fp->f_dev;
+	vap->va_fsid = dev2udev(fp->f_dev);
 	vap->va_fileid = ip->i_number;
 	vap->va_mode = ip->i_mode;
 	vap->va_nlink = ip->i_nlink;
 	vap->va_uid = ip->i_uid;
 	vap->va_gid = ip->i_gid;
-	vap->va_rdev = (dev_t)0;
+	vap->va_rdev = 0;				/* XXX UNODEV ? */
 	vap->va_size = fp->f_size;
 	vap->va_bytes = fp->f_allocated;
 	vap->va_atime = ntfs_nttimetounix(fp->f_times.t_access);

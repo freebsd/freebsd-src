@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.77 1999/05/07 07:03:20 phk Exp $
+ *	$Id: vn.c,v 1.78 1999/05/07 10:10:10 phk Exp $
  */
 
 /*
@@ -80,6 +80,7 @@
 #include <sys/mount.h>
 #include <sys/vnode.h>
 #include <sys/fcntl.h>
+#include <sys/conf.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
 #include <sys/stat.h>

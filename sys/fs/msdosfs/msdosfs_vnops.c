@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.83 1999/04/28 11:37:27 phk Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.84 1999/05/06 18:12:51 peter Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-
@@ -341,7 +341,7 @@ msdosfs_getattr(ap)
 
 	getnanotime(&ts);
 	DETIMES(dep, &ts, &ts, &ts);
-	vap->va_fsid = dep->de_dev;
+	vap->va_fsid = dev2udev(dep->de_dev);
 	/*
 	 * The following computation of the fileid must be the same as that
 	 * used in msdosfs_readdir() to compute d_fileno. If not, pwd

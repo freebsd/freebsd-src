@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.112 1999/04/27 11:18:44 phk Exp $
+ * $Id: ufs_vnops.c,v 1.113 1999/04/28 11:38:20 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -380,13 +380,13 @@ ufs_getattr(ap)
 	/*
 	 * Copy from inode table
 	 */
-	vap->va_fsid = ip->i_dev;
+	vap->va_fsid = dev2udev(ip->i_dev);
 	vap->va_fileid = ip->i_number;
 	vap->va_mode = ip->i_mode & ~IFMT;
 	vap->va_nlink = ip->i_effnlink;
 	vap->va_uid = ip->i_uid;
 	vap->va_gid = ip->i_gid;
-	vap->va_rdev = (dev_t)ip->i_rdev;
+	vap->va_rdev = ip->i_rdev;
 	vap->va_size = ip->i_din.di_size;
 	vap->va_atime.tv_sec = ip->i_atime;
 	vap->va_atime.tv_nsec = ip->i_atimensec;

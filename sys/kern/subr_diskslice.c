@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.62 1999/05/07 09:10:10 phk Exp $
+ *	$Id: subr_diskslice.c,v 1.63 1999/05/09 11:27:41 dfr Exp $
  */
 
 #include "opt_devfs.h"
@@ -51,6 +51,7 @@
 #include <stddef.h>
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/conf.h>
 #ifdef DEVFS
@@ -63,7 +64,6 @@
 #include <sys/malloc.h>
 #include <sys/stat.h>
 #include <sys/syslog.h>
-#include <sys/systm.h>
 #include <sys/vnode.h>
 
 #include <ufs/ffs/fs.h>
