@@ -412,7 +412,7 @@
     <para>While &os; 5.0 contains a number of new and exciting
       features, it may not be suitable for all users at this time.  In
       this document, we presented some background on release
-      engineering, some of the more notable new features of the 5.0
+      engineering, some of the more notable new features of the 5.<replaceable>X</replaceable>
       series, and some drawbacks to early adoption.  We also presented
       some future plans for the 4-STABLE development branch and some
       tips on upgrading for early adopters.</para>
