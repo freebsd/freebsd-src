@@ -75,8 +75,6 @@ struct  dbreg;
 
 void	bcopyb(const void *from, void *to, size_t len);
 void	busdma_swi(void);
-void	cpu_halt(void);
-void	cpu_reset(void);
 void	cpu_setregs(void);
 void	cpu_switch_load_gs(void) __asm(__STRING(cpu_switch_load_gs));
 void	doreti_iret(void) __asm(__STRING(doreti_iret));
@@ -99,7 +97,6 @@ void	init_AMD_Elan_sc520(void);
 int	is_physical_memory(vm_offset_t addr);
 vm_paddr_t kvtop(void *addr);
 void	setidt(int idx, alias_for_inthand_t *func, int typ, int dpl, int selec);
-void	swi_vm(void *);
 int     user_dbreg_trap(void);
 
 #endif /* !_MACHINE_MD_VAR_H_ */

@@ -69,8 +69,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/vnode.h>
 
+#include <machine/cpu.h>
 #include <machine/pcb.h>
-#include <machine/md_var.h>
 #include <machine/smp.h>
 
 #include <sys/signalvar.h>
