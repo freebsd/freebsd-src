@@ -394,7 +394,7 @@ kdb_trap(int vector, struct trapframe *regs)
 
 	*regs = ddb_regs;
 
-	intr_enable(s);
+	intr_restore(s);
 
 
 	/*
