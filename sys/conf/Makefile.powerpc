@@ -33,14 +33,9 @@ S=	../../..
 .endif
 .include "$S/conf/kern.pre.mk"
 
-_OS!=uname
-.if ${_OS} != "FreeBSD"
-CWARNFLAGS=-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
-	   -Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual
-COPTS+= -D__FreeBSD__
-.endif
-
 COPTS+= -msoft-float
+
+SYSTEM_SFILES= $S/$M/$M/locore.S
 
 %BEFORE_DEPEND
 
@@ -54,7 +49,7 @@ COPTS+= -msoft-float
 
 %CLEAN
 
-locore.o: $S/$M/$M/locore.s assym.s
+locore.o: $S/$M/$M/locore.S assym.s
 	${NORMAL_S}
 
 %RULES
