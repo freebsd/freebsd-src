@@ -41,12 +41,13 @@
 
 #include <sys/callout.h>
 #include <sys/selinfo.h>
+#include <sys/queue.h>
 
 /*
  * Descriptor associated with each open bpf file.
  */
 struct bpf_d {
-	struct bpf_d	*bd_next;	/* Linked list of descriptors */
+	LIST_ENTRY(bpf_d) bd_next;	/* Linked list of descriptors */
 	/*
 	 * Buffer slots: two mbuf clusters buffer the incoming packets.
 	 *   The model has three slots.  Sbuf is always occupied.
@@ -113,8 +114,8 @@ struct bpf_d {
  * Descriptor associated with each attached hardware interface.
  */
 struct bpf_if {
-	struct bpf_if *bif_next;	/* list of all interfaces */
-	struct bpf_d *bif_dlist;	/* descriptor list */
+	LIST_ENTRY(bpf_if)	bif_next;	/* list of all interfaces */
+	LIST_HEAD(, bpf_d)	bif_dlist;	/* descriptor list */
 	struct bpf_if **bif_driverp;	/* pointer into softc */
 	u_int bif_dlt;			/* link layer type */
 	u_int bif_hdrlen;		/* length of header (with padding) */
