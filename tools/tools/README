@@ -15,6 +15,7 @@ ifinfo		Uses the interface MIB to print out all the information
 kdrv		KernelDriver; add/list/remove third-party kernel driver
 		source to/in/from a kernel source tree.
 kernxref	Shellscript to cross reference symbols in the LINT kernel.
+kerninclude	Shellscript to find unused #includes in the kernel.
 mid	 	Create a Message-ID database for mailing lists.
 portsinfo 	Generate list of new ports for last two weeks.
 scsi-defects	Get at the primary or grown defect list of a SCSI disk.
