@@ -85,6 +85,7 @@
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/fpu.h>
+#include <machine/frame.h>
 #include <machine/md_var.h>
 
 #include <dev/ofw/openfirm.h>
@@ -151,7 +152,10 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	tf = (struct trapframe *)pcb - 1;
 	bcopy(td1->td_frame, tf, sizeof(*tf));
 
-	/* XXX: Set up trap frame? */
+	/* Set up trap frame. */
+	tf->fixreg[FIRSTARG] = 0;
+	tf->fixreg[FIRSTARG + 1] = 0;
+	tf->cr &= ~0x10000000;
 
 	td2->td_frame = tf;
 
