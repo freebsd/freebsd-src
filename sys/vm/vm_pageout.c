@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.66 1996/02/22 10:57:37 davidg Exp $
+ * $Id: vm_pageout.c,v 1.67 1996/03/09 06:53:27 dyson Exp $
  */
 
 /*
@@ -794,7 +794,7 @@ rescan1:
 	    ((cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min)) {
 		bigproc = NULL;
 		bigsize = 0;
-		for (p = (struct proc *) allproc; p != NULL; p = p->p_next) {
+		for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 			/*
 			 * if this is a system process, skip it
 			 */
@@ -929,7 +929,7 @@ vm_daemon()
 		 * process is swapped out -- deactivate pages
 		 */
 
-		for (p = (struct proc *) allproc; p != NULL; p = p->p_next) {
+		for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 			int overage;
 			quad_t limit;
 			vm_offset_t size;

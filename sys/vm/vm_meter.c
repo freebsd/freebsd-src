@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_meter.c	8.4 (Berkeley) 1/4/94
- * $Id: vm_meter.c,v 1.12 1995/12/10 14:52:10 bde Exp $
+ * $Id: vm_meter.c,v 1.13 1995/12/14 09:55:02 phk Exp $
  */
 
 #include <sys/param.h>
@@ -78,7 +78,7 @@ loadav(struct loadavg *avg)
 	register int i, nrun;
 	register struct proc *p;
 
-	for (nrun = 0, p = (struct proc *) allproc; p != NULL; p = p->p_next) {
+	for (nrun = 0, p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 		switch (p->p_stat) {
 		case SSLEEP:
 			if (p->p_priority > PZERO || p->p_slptime != 0)
@@ -143,7 +143,7 @@ vmtotal SYSCTL_HANDLER_ARGS
 	/*
 	 * Calculate process statistics.
 	 */
-	for (p = (struct proc *) allproc; p != NULL; p = p->p_next) {
+	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 		if (p->p_flag & P_SYSTEM)
 			continue;
 		switch (p->p_stat) {
