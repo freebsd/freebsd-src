@@ -30,21 +30,21 @@
 .Dt C89 1
 .Sh NAME
 .Nm c89
-.Nd Posix.2 C language compiler
+.Nd POSIX.2 C language compiler
 .Sh SYNOPSIS
 .Nm
 .Op Fl c
-.Op Fl D Ar name Ns Op Ar =value
-.Ar ...\&
+.Op Fl D Ar name Ns Op = Ns Ar value
+.Ar ...
 .Op Fl E
 .Op Fl g
-.Op Fl I Ar directory ...\&
-.Op Fl L Ar directory ...\&
+.Op Fl I Ar directory ...
+.Op Fl L Ar directory ...
 .Op Fl o Ar outfile
 .Op Fl O
 .Op Fl s
-.Op Fl U Ar name ...\&
-.Ar operand ...\&
+.Op Fl U Ar name ...
+.Ar operand ...
 .Sh DESCRIPTION
 This is the name of the C language compiler as required by the
 .St -p1003.2
@@ -57,13 +57,14 @@ compiler accepts the following options:
 .It Fl c
 Suppress the link-edit phase of the compilation, and do not remove any
 object files that are produced.
-.It Fl D Ar name Ns Op Ar =value
+.It Fl D Ar name Ns Op = Ns Ar value
 Define name as if by a C-language
-.Ql #define
+.Ic #define
 directive.  If
 no
-.Ar =value
-is given, a value of 1 will be used. Note that in order to request a
+.Dq = Ns Ar value
+is given, a value of 1 will be used.
+Note that in order to request a
 translation as specified by
 .St -p1003.2
 you need to define
@@ -93,9 +94,9 @@ Change the algorithm for searching for headers whose names are not
 absolute pathnames to look in the directory named by the
 .Ar directory
 pathname before looking in the usual places.  Thus, headers whose
-names are enclosed in double-quotes (\&"\&") will be searched for first
+names are enclosed in double-quotes ("") will be searched for first
 in the directory of the file with the
-.Ql #include
+.Ic #include
 line, then in
 directories named in
 .Fl I
@@ -143,23 +144,22 @@ An operand is either in the form of a pathname or the form
 library.  At least one operand of the pathname form needs to be
 specified.  Supported operands are of the form:
 .Bl -tag -offset indent -width "-l library"
-.It Pa file Ns \&.c
+.It Ar file Ns Pa .c
 A C-language source file to be compiled and optionally linked.  The
 operand must be of this form if the
 .Fl c
 option is used.
-.It Pa file Ns \&.a
+.It Ar file Ns Pa .a
 A library of object files, as produced by
 .Xr ar 1 ,
 passed directly to the link editor.
-.It Pa file Ns \&.o
+.It Ar file Ns Pa .o
 An object file produced by
-.Nm
-.Fl c ,
+.Nm Fl c ,
 and passed directly to the link editor.
-.It Fl l Pa library
+.It Fl l Ar library
 Search the library named
-.Dl lib Ns Em library Ns \&.a
+.Pa lib Ns Ar library Ns Pa .a .
 A library will be searched when its name is encountered, so the
 placement of a
 .Fl l
