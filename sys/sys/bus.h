@@ -280,19 +280,22 @@ int	devclass_get_maxunit(devclass_t dc);
  * Access functions for device resources.
  */
 
-int	resource_int_value(const char *name, int unit, char *resname,
+int	resource_int_value(const char *name, int unit, const char *resname,
 			   int *result);
-int	resource_long_value(const char *name, int unit, char *resname,
+int	resource_long_value(const char *name, int unit, const char *resname,
 			    long *result);
-int	resource_string_value(const char *name, int unit, char *resname,
+int	resource_string_value(const char *name, int unit, const char *resname,
 			      char **result);
-int	resource_query_string(int i, char *resname, char *value);
+int	resource_query_string(int i, const char *resname, const char *value);
 char	*resource_query_name(int i);
 int	resource_query_unit(int i);
-int	resource_locate(int i, char *resname);
-int	resource_set_int(char *name, int unit, char *resname, int value);
-int	resource_set_long(char *name, int unit, char *resname, long value);
-int	resource_set_string(char *name, int unit, char *resname, char *value);
+int	resource_locate(int i, const char *resname);
+int	resource_set_int(const char *name, int unit, const char *resname,
+			 int value);
+int	resource_set_long(const char *name, int unit, const char *resname,
+			  long value);
+int	resource_set_string(const char *name, int unit, const char *resname,
+			    const char *value);
 int	resource_count(void);
 
 /*
