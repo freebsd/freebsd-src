@@ -9,8 +9,8 @@ MAN8=	telnetd.8
 SRCS=	authenc.c global.c slc.c state.c sys_term.c telnetd.c \
 	termstat.c utility.c
 
-DPADD=	${LIBUTIL} ${LIBTERMCAP}
-LDADD=	-lutil -ltermcap -ltelnet
+DPADD=	${TELNETOBJDIR}/libtelnet.a ${LIBUTIL} ${LIBTERMCAP}
+LDADD=	-L${TELNETOBJDIR} -lutil -ltermcap -ltelnet
 
 CFLAGS+=-DLINEMODE -DUSE_TERMIO -DDIAGNOSTICS -DOLD_ENVIRON -DENV_HACK
 CFLAGS+=-I${.CURDIR}/../../lib
