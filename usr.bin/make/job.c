@@ -212,7 +212,7 @@ char   		*shellPath = NULL,	/* full pathname of executable image */
                	*shellName = NULL;	/* last component of shell */
 
 
-static int  	maxJobs;    	/* The most children we can run at once */
+int maxJobs;		/* The most children we can run at once */
 STATIC int     	nJobs;	    	/* The number of children currently running */
 
 /* The structures that describe them */
