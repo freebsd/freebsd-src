@@ -168,8 +168,8 @@ vfs_mount(p, fstype, fspath, fsflags, fsdata)
 	 * variables will fit in our mp buffers, including the
 	 * terminating NUL.
 	 */
-	if ((strlen(fstype) >= MNAMELEN - 1) ||
-	    (strlen(fspath) >= MFSNAMELEN - 1))
+	if ((strlen(fstype) >= MFSNAMELEN - 1) ||
+	    (strlen(fspath) >= MNAMELEN - 1))
 		return (ENAMETOOLONG);
 
 	if (usermount == 0 && (error = suser(p)))
