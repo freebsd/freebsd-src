@@ -5,6 +5,7 @@
 
 # PROVIDE: localdaemons
 # REQUIRE: abi
+# BEFORE:  securelevel
 # KEYWORD: FreeBSD shutdown
 
 . /etc/rc.subr

@@ -5,8 +5,6 @@
 #
 
 # PROVIDE: securelevel
-# REQUIRE: aftermountlkm ipnat mountd
-# BEFORE:  DAEMON
 # KEYWORD: FreeBSD NetBSD
 
 . /etc/rc.subr
