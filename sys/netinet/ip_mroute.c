@@ -397,7 +397,6 @@ X_ip_mrouter_set(struct socket *so, struct sockopt *sopt)
 
     case MRT_ADD_MFC:
     case MRT_DEL_MFC:
-	bzero((caddr_t)&mfc, sizeof(mfc)); /* zero out all fields */
 	/*
 	 * select data size depending on API version.
 	 */
