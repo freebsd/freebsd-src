@@ -31,16 +31,18 @@
  * SUCH DAMAGE.
  *
  *	@(#)protosw.h	8.1 (Berkeley) 6/2/93
- * $Id: protosw.h,v 1.9 1995/12/16 02:14:44 bde Exp $
+ * $Id: protosw.h,v 1.11 1996/07/11 16:32:50 wollman Exp $
  */
 
 #ifndef _SYS_PROTOSW_H_
 #define _SYS_PROTOSW_H_
 
+struct ifnet;
 struct mbuf;
 struct sockaddr;
 struct socket;
 struct sockproto;
+struct stat;
 
 /*
  * Protocol switch table.
@@ -201,7 +203,14 @@ struct pr_usrreqs {
 	int	(*pru_sockaddr) __P((struct socket *so, struct mbuf *nam));
 };
 
+int	pru_accept_notsupp __P((struct socket *so, struct mbuf *nam));
 int	pru_connect2_notsupp __P((struct socket *so1, struct socket *so2));
+int	pru_control_notsupp __P((struct socket *so, int cmd, caddr_t data,
+				 struct ifnet *ifp));
+int	pru_listen_notsupp __P((struct socket *so));
+int	pru_rcvd_notsupp __P((struct socket *so, int flags));
+int	pru_rcvoob_notsupp __P((struct socket *so, struct mbuf *m, int flags));
+int	pru_sense_null __P((struct socket *so, struct stat *sb));
 
 #define	PRU_OLDSTYLE
 
