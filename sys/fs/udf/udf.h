@@ -42,6 +42,8 @@ struct udf_node {
 struct udf_mnt {
 	int			im_flags;
 	struct mount		*im_mountp;
+	struct g_consumer	*im_cp;
+	struct bufobj		*im_bo;
 	struct cdev *im_dev;
 	struct vnode		*im_devvp;
 	int			bsize;

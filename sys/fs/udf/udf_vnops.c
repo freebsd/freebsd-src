@@ -829,13 +829,12 @@ udf_strategy(struct vop_strategy_args *a)
 	struct vnode *vp;
 	struct udf_node *node;
 	int maxsize;
+	struct bufobj *bo;
 
 	bp = a->a_bp;
 	vp = a->a_vp;
 	node = VTON(vp);
 
-	KASSERT(a->a_vp == a->a_bp->b_vp, ("%s(%p != %p)",
-	    __func__, a->a_vp, a->a_bp->b_vp));
 	/* cd9660 has this test reversed, but it seems more logical this way */
 	if (bp->b_blkno != bp->b_lblkno) {
 		/*
@@ -852,10 +851,9 @@ udf_strategy(struct vop_strategy_args *a)
 		bufdone(bp);
 		return (0);
 	}
-	vp = node->i_devvp;
-	bp->b_dev = vp->v_rdev;
+	bo = node->udfmp->im_bo;
 	bp->b_iooffset = dbtob(bp->b_blkno);
-	VOP_SPECSTRATEGY(vp, bp);
+	bo->bo_ops->bop_strategy(bo, bp);
 	return (0);
 }
 

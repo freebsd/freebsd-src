@@ -89,6 +89,9 @@
 #include <sys/vnode.h>
 #include <sys/endian.h>
 
+#include <geom/geom.h>
+#include <geom/geom_vfs.h>
+
 #include <vm/uma.h>
 
 #include <fs/udf/ecma167-udf.h>
@@ -319,28 +322,25 @@ udf_mountfs(struct vnode *devvp, struct mount *mp, struct thread *td) {
 	uint32_t sector, size, mvds_start, mvds_end;
 	uint32_t fsd_offset = 0;
 	uint16_t part_num = 0, fsd_part = 0;
-	int error = EINVAL, needclose = 0;
+	int error = EINVAL;
 	int logvol_found = 0, part_found = 0, fsd_found = 0;
 	int bsize;
-
-	/*
-	 * Disallow multiple mounts of the same device. Flush the buffer
-	 * cache for the device.
-	 */
-	if ((error = vfs_mountedon(devvp)))
-		return (error);
-	if (vcount(devvp) > 1)
-		return (EBUSY);
-	if ((error = vinvalbuf(devvp, V_SAVE, td->td_ucred, td, 0, 0)))
-		return (error);
+	struct g_consumer *cp;
+	struct bufobj *bo;
 
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = VOP_OPEN(devvp, FREAD, FSCRED, td, -1);
+	DROP_GIANT();
+	g_topology_lock();
+	error = g_vfs_open(devvp, &cp, "udf", 0);
+	g_topology_unlock();
+	PICKUP_GIANT();
 	VOP_UNLOCK(devvp, 0, td);
 	if (error)
 		return error;
-	needclose = 1;
 
+	bo = &devvp->v_bufobj;
+
+	/* XXX: should be M_WAITOK */
 	MALLOC(udfmp, struct udf_mnt *, sizeof(struct udf_mnt), M_UDFMOUNT,
 	    M_NOWAIT | M_ZERO);
 	if (udfmp == NULL) {
@@ -357,6 +357,9 @@ udf_mountfs(struct vnode *devvp, struct mount *mp, struct thread *td) {
 	udfmp->im_dev = devvp->v_rdev;
 	udfmp->im_devvp = devvp;
 	udfmp->im_d2l = NULL;
+	udfmp->im_cp = cp;
+	udfmp->im_bo = bo;
+
 #if 0
 	udfmp->im_l2d = NULL;
 #endif
@@ -474,8 +477,6 @@ udf_mountfs(struct vnode *devvp, struct mount *mp, struct thread *td) {
 	brelse(bp);
 	bp = NULL;
 
-	devvp->v_rdev->si_mountpoint = mp;
-
 	mtx_init(&udfmp->hash_mtx, "udf_hash", NULL, MTX_DEF);
 	udfmp->hashtbl = phashinit(UDF_HASHTBLSIZE, M_UDFMOUNT, &udfmp->hashsz);
 
@@ -486,8 +487,11 @@ bail:
 		FREE(udfmp, M_UDFMOUNT);
 	if (bp != NULL)
 		brelse(bp);
-	if (needclose)
-		VOP_CLOSE(devvp, FREAD, NOCRED, td);
+	DROP_GIANT();
+	g_topology_lock();
+	g_wither_geom_close(cp->geom, ENXIO);
+	g_topology_unlock();
+	PICKUP_GIANT();
 	return error;
 };
 
@@ -514,8 +518,7 @@ udf_unmount(struct mount *mp, int mntflags, struct thread *td)
 #endif
 	}
 
-	udfmp->im_devvp->v_rdev->si_mountpoint = NULL;
-	error = VOP_CLOSE(udfmp->im_devvp, FREAD, NOCRED, td);
+	g_wither_geom_close(udfmp->im_cp->geom, ENXIO);
 	vrele(udfmp->im_devvp);
 
 	if (udfmp->s_table != NULL)
