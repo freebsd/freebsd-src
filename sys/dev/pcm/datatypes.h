@@ -79,6 +79,7 @@ typedef int (pcmfeed_feed_t)(pcm_feeder *feeder, u_int8_t *buffer, u_int32_t cou
 
 struct _pcm_feeder {
 	char name[16];
+	int align;
 	pcmfeed_init_t *init;
 	pcmfeed_free_t *free;
 	pcmfeed_feed_t *feed;
@@ -110,6 +111,7 @@ struct _pcm_channel {
 	pcmchan_getptr_t *getptr;
 	pcmchan_getcaps_t *getcaps;
 	pcm_feeder *feeder;
+	u_int32_t align;
 
 	int volume;
 	u_int32_t speed;

@@ -36,7 +36,6 @@
 #define ISA_DMA(b) (((b)->chan >= 0 && (b)->chan != 4 && (b)->chan < 8))
 #define CANCHANGE(c) (!(c)->buffer.dl)
 
-static int chn_reinit(pcm_channel *c);
 static void chn_stintr(pcm_channel *c);
 /*
  * SOUND OUTPUT
@@ -256,7 +255,7 @@ chn_wrintr(pcm_channel *c)
 int
 chn_write(pcm_channel *c, struct uio *buf)
 {
-	int 		l, w, timeout, ret = 0;
+	int 		a, l, w, timeout, ret = 0;
 	long		s;
 	snd_dbuf       *b = &c->buffer;
 
@@ -267,6 +266,7 @@ chn_write(pcm_channel *c, struct uio *buf)
 	       	tsleep(&s, PZERO, "pcmwrW", hz);
 		return EBUSY;
 	}
+	a = (1 << c->align) - 1;
 	c->flags |= CHN_F_WRITING;
 	while (buf->uio_resid > 0) {
 		s = spltty();
@@ -282,7 +282,9 @@ chn_write(pcm_channel *c, struct uio *buf)
 			continue;
 		}
 		/* ensure we always have a whole number of samples */
-		l = min(b->fl, b->bufsize - b->fp) & DMA_ALIGN_MASK;
+		l = min(b->fl, b->bufsize - b->fp);
+		if (l & a) panic("unaligned write %d, %d", l, a + 1);
+		l &= ~a;
 		w = c->feeder->feed(c->feeder, b->buf + b->fp, l, buf);
 		if (w == 0) panic("no feed");
 		s = spltty();
@@ -430,8 +432,8 @@ chn_read(pcm_channel *c, struct uio *buf)
 void
 chn_intr(pcm_channel *c)
 {
-	if (!c->buffer.dl) chn_reinit(c);
-	if (c->direction == PCMDIR_PLAY) chn_wrintr(c); else chn_rdintr(c);
+/*	if (!c->buffer.dl) chn_reinit(c);
+*/	if (c->direction == PCMDIR_PLAY) chn_wrintr(c); else chn_rdintr(c);
 }
 
 static void
@@ -627,7 +629,7 @@ chn_reset(pcm_channel *c)
 	return 0;
 }
 
-static int
+int
 chn_reinit(pcm_channel *c)
 {
 	if ((c->flags & CHN_F_INIT) && CANCHANGE(c)) {
