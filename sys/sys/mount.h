@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.21 (Berkeley) 5/20/95
- *	$Id: mount.h,v 1.42 1997/04/06 11:14:13 dufault Exp $
+ *	$Id: mount.h,v 1.43 1997/07/16 18:04:52 dfr Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -175,7 +175,7 @@ struct mount {
 #define	MNT_DEFEXPORTED	0x00000200	/* exported to the world */
 #define	MNT_EXPORTANON	0x00000400	/* use anon uid mapping for everyone */
 #define	MNT_EXKERB	0x00000800	/* exported with Kerberos uid mapping */
-#define MNT_EXPUBLIC	0x10000000	/* public export (WebNFS) */
+#define	MNT_EXPUBLIC	0x20000000	/* public export (WebNFS) */
 
 /*
  * Flags set by internal operations.
