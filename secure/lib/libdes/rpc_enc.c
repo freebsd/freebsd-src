@@ -1,5 +1,5 @@
-/* lib/des/rpc_enc.c */
-/* Copyright (C) 1995 Eric Young (eay@mincom.oz.au)
+/* crypto/des/rpc_enc.c */
+/* Copyright (C) 1995-1996 Eric Young (eay@mincom.oz.au)
  * All rights reserved.
  * 
  * This file is part of an SSL implementation written
@@ -47,7 +47,7 @@
 
 #include "rpc_des.h"
 #include "des_locl.h"
-#include "version.h"
+#include "des_ver.h"
 
 #ifndef NOPROTO
 int _des_crypt(char *buf,int len,struct desparams *desp);
@@ -60,7 +60,7 @@ char *buf;
 int len;
 struct desparams *desp;
 	{
-	Key_schedule ks;
+	des_key_schedule ks;
 	int enc;
 
 	des_set_key((des_cblock *)desp->des_key,ks);

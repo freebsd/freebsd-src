@@ -1,5 +1,5 @@
-/* lib/des/read_pwd.c */
-/* Copyright (C) 1995 Eric Young (eay@mincom.oz.au)
+/* crypto/des/read_pwd.c */
+/* Copyright (C) 1995-1996 Eric Young (eay@mincom.oz.au)
  * All rights reserved.
  * 
  * This file is part of an SSL implementation written
@@ -45,6 +45,12 @@
  * [including the GNU Public Licence.]
  */
 
+#ifdef WIN16TTY
+#undef WIN16
+#undef _WINDOWS
+#include <graph.h>
+#endif
+
 /* 06-Apr-92 Luke Brennan    Support for VMS */
 #include "des_locl.h"
 #include <signal.h>
@@ -55,9 +61,15 @@
  * TERMIO, TERMIOS, VMS, MSDOS and SGTTY
  */
 
-#if defined(sgi) || defined(__sgi)
+#if defined(__sgi) && !defined(TERMIOS)
 #define TERMIOS
 #undef TERMIO
+#undef SGTTY
+#endif
+
+#if defined(linux) && !defined(TERMIO)
+#undef TERMIOS
+#define TERMIO
 #undef SGTTY
 #endif
 
@@ -93,7 +105,7 @@
 #define TTY_set(tty,data)	ioctl(tty,TIOCSETP,data)
 #endif
 
-#ifndef _LIBC
+#if !defined(_LIBC) && !defined(MSDOS)
 #include <sys/ioctl.h>
 #endif
 
@@ -124,7 +136,7 @@ static int read_pw(char *buf, char *buff, int size, char *prompt, int verify);
 static void recsig(int);
 static void pushsig(void);
 static void popsig(void);
-#ifdef MSDOS
+#if defined(MSDOS) && !defined(WIN16)
 static int noecho_fgets(char *buf, int size, FILE *tty);
 #endif
 #else
@@ -133,12 +145,16 @@ static int read_pw();
 static void recsig();
 static void pushsig();
 static void popsig();
-#ifdef MSDOS
+#if defined(MSDOS) && !defined(WIN16)
 static int noecho_fgets();
 #endif
 #endif
 
+#ifndef NOPROTO
+static void (*savsig[NX509_SIG])(int );
+#else
 static void (*savsig[NX509_SIG])();
+#endif
 static jmp_buf save;
 
 int des_read_password(key, prompt, verify)
@@ -186,6 +202,8 @@ int verify;
 	return(ret);
 	}
 
+#ifndef WIN16
+
 static void read_till_nl(in)
 FILE *in;
 	{
@@ -196,6 +214,7 @@ FILE *in;
 		fgets(buf,SIZE,in);
 		} while (strchr(buf,'\n') == NULL);
 	}
+
 
 /* return 0 if ok, 1 (or -1) otherwise */
 static int read_pw(buf, buff, size, prompt, verify)
@@ -278,12 +297,13 @@ int verify;
 		buf[0]='\0';
 		fgets(buf,size,tty);
 		if (feof(tty)) goto error;
+		if (ferror(tty)) goto error;
 		if ((p=(char *)strchr(buf,'\n')) != NULL)
 			*p='\0';
 		else	read_till_nl(tty);
 		if (verify)
 			{
-			fprintf(stderr,"\nVerifying password %s",prompt);
+			fprintf(stderr,"\nVerifying password - %s",prompt);
 			fflush(stderr);
 			buff[0]='\0';
 			fgets(buff,size,tty);
@@ -305,6 +325,9 @@ int verify;
 
 error:
 	fprintf(stderr,"\n");
+#ifdef DEBUG
+	perror("fgets(tty)");
+#endif
 	/* What can we do if there is an error? */
 #if defined(TTY_set) && !defined(VMS) 
 	if (ps >= 2) TTY_set(fileno(tty),&tty_orig);
@@ -322,6 +345,22 @@ error:
 #endif
 	return(!ok);
 	}
+
+#else /* WIN16 */
+
+static int read_pw(buf, buff, size, prompt, verify)
+char *buf;
+char *buff;
+int size;
+char *prompt;
+int verify;
+	{ 
+	memset(buf,0,size);
+	memset(buff,0,size);
+	return(0);
+	}
+
+#endif
 
 static void pushsig()
 	{
@@ -348,13 +387,13 @@ int i;
 #endif
 	}
 
-#ifdef MSDOS
+#if defined(MSDOS) && !defined(WIN16)
 static int noecho_fgets(buf,size,tty)
 char *buf;
 int size;
 FILE *tty;
 	{
-	int i,n;
+	int i;
 	char *p;
 
 	p=buf;
@@ -366,7 +405,11 @@ FILE *tty;
 			break;
 			}
 		size--;
+#ifdef WIN16TTY
+		i=_inchar();
+#else
 		i=getch();
+#endif
 		if (i == '\r') i='\n';
 		*(p++)=i;
 		if (i == '\n')

@@ -1,5 +1,5 @@
-/* lib/des/set_key.c */
-/* Copyright (C) 1995 Eric Young (eay@mincom.oz.au)
+/* crypto/des/set_key.c */
+/* Copyright (C) 1995-1996 Eric Young (eay@mincom.oz.au)
  * All rights reserved.
  * 
  * This file is part of an SSL implementation written
@@ -140,8 +140,6 @@ des_cblock (*key);
 #define HPERM_OP(a,t,n,m) ((t)=((((a)<<(16-(n)))^(a))&(m)),\
 	(a)=(a)^(t)^(t>>(16-(n))))
 
-static int shifts2[16]={0,0,1,1,1,1,1,1,0,1,1,1,1,1,1,0};
-
 /* return 0 if key parity is odd (correct),
  * return -1 if key parity error,
  * return -2 if illegal weak key.
@@ -150,9 +148,10 @@ int des_set_key(key, schedule)
 des_cblock (*key);
 des_key_schedule schedule;
 	{
-	register unsigned long c,d,t,s;
+	static int shifts2[16]={0,0,1,1,1,1,1,1,0,1,1,1,1,1,1,0};
+	register DES_LONG c,d,t,s;
 	register unsigned char *in;
-	register unsigned long *k;
+	register DES_LONG *k;
 	register int i;
 
 	if (des_check_key)
@@ -164,7 +163,7 @@ des_key_schedule schedule;
 			return(-2);
 		}
 
-	k=(unsigned long *)schedule;
+	k=(DES_LONG *)schedule;
 	in=(unsigned char *)key;
 
 	c2l(in,c);

@@ -1,6 +1,12 @@
-#!/usr/local/bin/perl
-# Copyright (C) 1993 Eric Young
+#!/usr/bin/perl
 # des.pl - eric young 22/11/1991 eay@mincom.oz.au or eay@psych.psy.uq.oz.au
+#
+# Copyright (C) 1993 Eric Young
+#
+# 11 April 1996 - patched to circumvent Perl 5 (through 5.002) problem
+#                 with sign-extension on right shift operations.
+#                 Ed Kubaitis - ejk@uiuc.edu
+#
 # eay - 92/08/31 - I think I have fixed all problems for 64bit
 # versions of perl but I could be wrong since I have not tested it yet :-).
 #
@@ -25,8 +31,10 @@
 # $outbytes= &des_ecb_encrypt(*ks,1,$data);
 # @enc =unpack("C8",$outbytes);
 #
-
+                 
 package des;
+
+eval("usr integer;") if (int($]) > 4);
 
 # The following 8 arrays are used in des_set_key
 @skb0=(
@@ -375,8 +383,8 @@ sub main'des_set_key
 			$skb6[ ($d>>15)&0x3f                 ]|
 			$skb7[(($d>>21)&0x0f)|(($d>>22)&0x30)];
 		push(@ks,(($t<<16)|($s&0x0000ffff))&0xffffffff);
-		$s=      ($s>>16)|($t&0xffff0000) ;
-		push(@ks,(($s<<4)|($s>>28))&0xffffffff);
+		$s=      (($s>>16)&0x0000ffff)|($t&0xffff0000) ;
+		push(@ks,(($s<<4)|(($s>>28)&0xf))&0xffffffff);
 		}
 	@ks;
 	}
@@ -390,23 +398,23 @@ sub doPC1
 	$b^=($t<<4); $a^=$t;
 	# do $a first 
 	$t=(($a<<18)^$a)&0xcccc0000;
-	$a=$a^$t^($t>>18);
+	$a=$a^$t^(($t>>18)&0x00003fff);
 	$t=(($a<<17)^$a)&0xaaaa0000;
-	$a=$a^$t^($t>>17);
+	$a=$a^$t^(($t>>17)&0x00007fff);
 	$t=(($a<< 8)^$a)&0x00ff0000;
-	$a=$a^$t^($t>> 8);
+	$a=$a^$t^(($t>> 8)&0x00ffffff);
 	$t=(($a<<17)^$a)&0xaaaa0000;
-	$a=$a^$t^($t>>17);
+	$a=$a^$t^(($t>>17)&0x00007fff);
 
 	# now do $b
 	$t=(($b<<24)^$b)&0xff000000;
-	$b=$b^$t^($t>>24);
+	$b=$b^$t^(($t>>24)&0x000000ff);
 	$t=(($b<< 8)^$b)&0x00ff0000;
-	$b=$b^$t^($t>> 8);
+	$b=$b^$t^(($t>> 8)&0x00ffffff);
 	$t=(($b<<14)^$b)&0x33330000;
-	$b=$b^$t^($t>>14);
+	$b=$b^$t^(($t>>14)&0x0003ffff);
 	$b=(($b&0x00aa00aa)<<7)|(($b&0x55005500)>>7)|($b&0xaa55aa55);
-	$b=($b>>8)|(($a&0xf0000000)>>4);
+	$b=(($b>>8)&0x00ffffff)|((($a&0xf0000000)>>4)&0x0fffffff);
 	$a&=0x0fffffff;
 	}
 
@@ -472,10 +480,12 @@ sub main'des_ecb_encrypt
 		{
 		for ($i=0; $i<32; $i+=4)
 			{
-			$t=(($r<<1)|($r>>31))&0xffffffff;
+			$t=((($r&0x7fffffff)<<1)|(($r>>31)&0x00000001));
 			$u=$t^$ks[$i  ];
 			$t=$t^$ks[$i+1];
-			$t=(($t>>4)|($t<<28))&0xffffffff;
+			$t2=(($t&0x0000000f)<<28);
+
+			$t=((($t>>4)&0x0fffffff)|(($t&0x0000000f)<<28));
 			$l^=	$SP1[ $t     &0x3f]|
 				$SP3[($t>> 8)&0x3f]|
 				$SP5[($t>>16)&0x3f]|
@@ -485,10 +495,10 @@ sub main'des_ecb_encrypt
 				$SP4[($u>>16)&0x3f]|
 				$SP6[($u>>24)&0x3f];
 
-			$t=(($l<<1)|($l>>31))&0xffffffff;
+			$t=(($l<<1)|(($l>>31)&0x1))&0xffffffff;
 			$u=$t^$ks[$i+2];
 			$t=$t^$ks[$i+3];
-			$t=(($t>>4)|($t<<28))&0xffffffff;
+			$t=((($t>>4)&0x0fffffff)|($t<<28))&0xffffffff;
 			$r^=	$SP1[ $t     &0x3f]|
 				$SP3[($t>> 8)&0x3f]|
 				$SP5[($t>>16)&0x3f]|
@@ -503,10 +513,10 @@ sub main'des_ecb_encrypt
 		{
 		for ($i=30; $i>0; $i-=4)
 			{
-			$t=(($r<<1)|($r>>31))&0xffffffff;
+			$t=(($r<<1)|(($r>>31)&0x1))&0xffffffff;
 			$u=$t^$ks[$i  ];
 			$t=$t^$ks[$i+1];
-			$t=(($t>>4)|($t<<28))&0xffffffff;
+			$t=((($t>>4)&0x0fffffff)|($t<<28))&0xffffffff;
 			$l^=	$SP1[ $t     &0x3f]|
 				$SP3[($t>> 8)&0x3f]|
 				$SP5[($t>>16)&0x3f]|
@@ -516,10 +526,10 @@ sub main'des_ecb_encrypt
 				$SP4[($u>>16)&0x3f]|
 				$SP6[($u>>24)&0x3f];
 
-			$t=(($l<<1)|($l>>31))&0xffffffff;
+			$t=(($l<<1)|(($l>>31)&0x1))&0xffffffff;
 			$u=$t^$ks[$i-2];
 			$t=$t^$ks[$i-1];
-			$t=(($t>>4)|($t<<28))&0xffffffff;
+			$t=((($t>>4)&0x0fffffff)|($t<<28))&0xffffffff;
 			$r^=	$SP1[ $t     &0x3f]|
 				$SP3[($t>> 8)&0x3f]|
 				$SP5[($t>>16)&0x3f]|
@@ -531,6 +541,12 @@ sub main'des_ecb_encrypt
 			}
 		}
 	&doFP(*l,*r);
-	pack("C8",$l&0xff,$l>>8,$l>>16,$l>>24,
-		  $r&0xff,$r>>8,$r>>16,$r>>24);
+	pack("C8",$l&0xff, 
+	          ($l>> 8)&0x00ffffff,
+	          ($l>>16)&0x0000ffff,
+		  ($l>>24)&0x000000ff,
+		  $r&0xff,
+	          ($r>> 8)&0x00ffffff,
+	          ($r>>16)&0x0000ffff,
+		  ($r>>24)&0x000000ff);
 	}

@@ -1,5 +1,5 @@
-/* lib/des/ede_enc.c */
-/* Copyright (C) 1995 Eric Young (eay@mincom.oz.au)
+/* crypto/des/ede_enc.c */
+/* Copyright (C) 1995-1996 Eric Young (eay@mincom.oz.au)
  * All rights reserved.
  * 
  * This file is part of an SSL implementation written
@@ -57,11 +57,11 @@ des_key_schedule ks3;
 des_cblock (*ivec);
 int encrypt;
 	{
-	register unsigned long tin0,tin1;
-	register unsigned long tout0,tout1,xor0,xor1;
+	register DES_LONG tin0,tin1;
+	register DES_LONG tout0,tout1,xor0,xor1;
 	register unsigned char *in,*out;
 	register long l=length;
-	unsigned long tin[2];
+	DES_LONG tin[2];
 	unsigned char *iv;
 
 	in=(unsigned char *)input;
@@ -88,9 +88,9 @@ int encrypt;
 
 			tin[0]=tin0;
 			tin[1]=tin1;
-			des_encrypt2((unsigned long *)tin,ks1,DES_ENCRYPT);
-			des_encrypt2((unsigned long *)tin,ks2,DES_DECRYPT);
-			des_encrypt2((unsigned long *)tin,ks3,DES_ENCRYPT);
+			des_encrypt2((DES_LONG *)tin,ks1,DES_ENCRYPT);
+			des_encrypt2((DES_LONG *)tin,ks2,DES_DECRYPT);
+			des_encrypt2((DES_LONG *)tin,ks3,DES_ENCRYPT);
 			tout0=tin[0];
 			tout1=tin[1];
 
@@ -109,7 +109,7 @@ int encrypt;
 		c2l(iv,xor1);
 		for (; l>0; l-=8)
 			{
-			register unsigned long t0,t1;
+			register DES_LONG t0,t1;
 
 			c2l(in,tin0);
 			c2l(in,tin1);
@@ -120,9 +120,9 @@ int encrypt;
 
 			tin[0]=tin0;
 			tin[1]=tin1;
-			des_encrypt2((unsigned long *)tin,ks3,DES_DECRYPT);
-			des_encrypt2((unsigned long *)tin,ks2,DES_ENCRYPT);
-			des_encrypt2((unsigned long *)tin,ks1,DES_DECRYPT);
+			des_encrypt2((DES_LONG *)tin,ks3,DES_DECRYPT);
+			des_encrypt2((DES_LONG *)tin,ks2,DES_ENCRYPT);
+			des_encrypt2((DES_LONG *)tin,ks1,DES_DECRYPT);
 			tout0=tin[0];
 			tout1=tin[1];
 
