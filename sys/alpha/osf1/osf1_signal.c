@@ -471,6 +471,7 @@ osf1_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
+	mtx_assert(&psp->ps_mtx, MA_OWNED);
 
 	frame = td->td_frame;
 	oonstack = sigonstack(alpha_pal_rdusp());
@@ -490,6 +491,7 @@ osf1_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
 	} else
 		sip = (osiginfo_t *)(alpha_pal_rdusp() - rndfsize);
+	mtx_unlock(&psp->ps_mtx);
 	PROC_UNLOCK(p);
 
 	/*
@@ -551,6 +553,7 @@ osf1_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	frame->tf_regs[FRAME_FLAGS] = 0;   	/* full restore */
 	alpha_pal_wrusp((unsigned long)sip);
 	PROC_LOCK(p);
+	mtx_lock(&psp->ps_mtx);
 }
 
 

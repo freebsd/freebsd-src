@@ -146,7 +146,9 @@ cv_switch_catch(struct thread *td)
 	mtx_unlock_spin(&sched_lock);
 	p = td->td_proc;
 	PROC_LOCK(p);
+	mtx_lock(&p->p_sigacts->ps_mtx);
 	sig = cursig(td);
+	mtx_unlock(&p->p_sigacts->ps_mtx);
 	if (thread_suspend_check(1))
 		sig = SIGSTOP;
 	mtx_lock_spin(&sched_lock);
@@ -283,6 +285,7 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 	mtx_unlock_spin(&sched_lock);
 
 	PROC_LOCK(p);
+	mtx_lock(&p->p_sigacts->ps_mtx);
 	if (sig == 0)
 		sig = cursig(td);	/* XXXKSE */
 	if (sig != 0) {
@@ -291,6 +294,7 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 		else
 			rval = ERESTART;
 	}
+	mtx_unlock(&p->p_sigacts->ps_mtx);
 	if (p->p_flag & P_WEXIT)
 		rval = EINTR;
 	PROC_UNLOCK(p);
@@ -446,6 +450,7 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 	mtx_unlock_spin(&sched_lock);
 
 	PROC_LOCK(p);
+	mtx_lock(&p->p_sigacts->ps_mtx);
 	if (sig == 0)
 		sig = cursig(td);
 	if (sig != 0) {
@@ -454,6 +459,7 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 		else
 			rval = ERESTART;
 	}
+	mtx_unlock(&p->p_sigacts->ps_mtx);
 	if (p->p_flag & P_WEXIT)
 		rval = EINTR;
 	PROC_UNLOCK(p);

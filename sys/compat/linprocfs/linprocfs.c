@@ -547,6 +547,7 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	char *state;
 	segsz_t lsize;
 	struct thread *td2;
+	struct sigacts *ps;
 	int i;
 
 	PROC_LOCK(p);
@@ -653,8 +654,11 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	 * relation to struct proc, so SigBlk is left unimplemented.
 	 */
 	sbuf_printf(sb, "SigBlk:\t%08x\n",	0); /* XXX */
-	sbuf_printf(sb, "SigIgn:\t%08x\n",	p->p_sigignore.__bits[0]);
-	sbuf_printf(sb, "SigCgt:\t%08x\n",	p->p_sigcatch.__bits[0]);
+	ps = p->p_sigacts;
+	mtx_lock(&ps->ps_mtx);
+	sbuf_printf(sb, "SigIgn:\t%08x\n",	ps->ps_sigignore.__bits[0]);
+	sbuf_printf(sb, "SigCgt:\t%08x\n",	ps->ps_sigcatch.__bits[0]);
+	mtx_unlock(&ps->ps_mtx);
 	PROC_UNLOCK(p);
 	
 	/*

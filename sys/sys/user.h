@@ -174,7 +174,6 @@ void fill_kinfo_proc(struct proc *, struct kinfo_proc *);
  * when the process isn't running (esp. when swapped out).
  */
 struct user {
-	struct	sigacts u_sigacts;	/* *p_sigacts */
 	struct	pstats u_stats;		/* *p_stats */
 	/*
 	 * Remaining field for a.out core dumps - not valid at other times!

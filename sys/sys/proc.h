@@ -102,18 +102,6 @@ struct pgrp {
 	struct mtx	pg_mtx;		/*  Mutex to protect members */
 };
 
-struct procsig {
-	sigset_t ps_sigignore;		/* Signals being ignored. */
-	sigset_t ps_sigcatch;		/* Signals being caught by user. */
-	int	 ps_flag;
-	struct	 sigacts *ps_sigacts;	/* Signal actions, state. */
-	int	 ps_refcnt;
-};
-
-#define	PS_NOCLDWAIT	0x0001	/* No zombies if child dies */
-#define	PS_NOCLDSTOP	0x0002	/* No SIGCHLD when children stop. */
-#define	PS_CLDSIGIGN	0x0004	/* The SIGCHLD handler is SIG_IGN. */
-
 /*
  * pargs, used to hold a copy of the command line, if it had a sane length.
  */
@@ -157,6 +145,7 @@ struct pargs {
  *      o - ktrace lock
  *      p - select lock (sellock)
  *      r - p_peers lock
+ *      x - created at fork, only changes during single threading in exec
  *      z - zombie threads/kse/ksegroup lock
  *
  * If the locking key specifies two identifiers (for example, p_pptr) then
@@ -525,7 +514,7 @@ struct proc {
 	struct pstats	*p_stats;	/* (b) Accounting/statistics (CPU). */
 	struct plimit	*p_limit;	/* (c*) Process limits. */
 	struct vm_object *p_upages_obj; /* (a) Upages object. */
-	struct procsig	*p_procsig;	/* (c) Signal actions, state (CPU). */
+	struct sigacts	*p_sigacts;	/* (x) Signal actions, state (CPU). */
 
 	/*struct ksegrp	p_ksegrp;
 	struct kse	p_kse; */
@@ -614,9 +603,6 @@ struct proc {
 };
 
 #define	p_rlimit	p_limit->pl_rlimit
-#define	p_sigacts	p_procsig->ps_sigacts
-#define	p_sigignore	p_procsig->ps_sigignore
-#define	p_sigcatch	p_procsig->ps_sigcatch
 #define	p_session	p_pgrp->pg_session
 #define	p_pgid		p_pgrp->pg_id
 

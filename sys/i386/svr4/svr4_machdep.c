@@ -428,6 +428,7 @@ svr4_sendsig(catcher, sig, mask, code)
 #endif
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
+	mtx_assert(&psp->ps_mtx, MA_OWNED);
 
 	tf = td->td_frame;
 	oonstack = sigonstack(tf->tf_esp);
@@ -443,6 +444,7 @@ svr4_sendsig(catcher, sig, mask, code)
 	} else {
 		fp = (struct svr4_sigframe *)tf->tf_esp - 1;
 	}
+	mtx_unlock(&psp->ps_mtx);
 	PROC_UNLOCK(p);
 
 	/* 
@@ -505,6 +507,7 @@ svr4_sendsig(catcher, sig, mask, code)
 	load_gs(_udatasel);
 	tf->tf_ss = _udatasel;
 	PROC_LOCK(p);
+	mtx_lock(&psp->ps_mtx);
 #endif
 }
 

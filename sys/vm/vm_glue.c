@@ -441,30 +441,20 @@ vm_forkproc(td, p2, td2, flags)
 
 	/* XXXKSE this is unsatisfactory but should be adequate */
 	up = p2->p_uarea;
+	MPASS(p2->p_sigacts != NULL);
 
 	/*
 	 * p_stats currently points at fields in the user struct
 	 * but not at &u, instead at p_addr. Copy parts of
 	 * p_stats; zero the rest of p_stats (statistics).
-	 *
-	 * If procsig->ps_refcnt is 1 and p2->p_sigacts is NULL we dont' need
-	 * to share sigacts, so we use the up->u_sigacts.
 	 */
 	p2->p_stats = &up->u_stats;
-	if (p2->p_sigacts == NULL) {
-		if (p2->p_procsig->ps_refcnt != 1)
-			printf ("PID:%d NULL sigacts with refcnt not 1!\n",p2->p_pid);
-		p2->p_sigacts = &up->u_sigacts;
-		up->u_sigacts = *p1->p_sigacts;
-	}
-
 	bzero(&up->u_stats.pstat_startzero,
 	    (unsigned) ((caddr_t) &up->u_stats.pstat_endzero -
 		(caddr_t) &up->u_stats.pstat_startzero));
 	bcopy(&p1->p_stats->pstat_startcopy, &up->u_stats.pstat_startcopy,
 	    ((caddr_t) &up->u_stats.pstat_endcopy -
 		(caddr_t) &up->u_stats.pstat_startcopy));
-
 
 	/*
 	 * cpu_fork will copy and update the pcb, set up the kernel stack,

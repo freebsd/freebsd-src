@@ -756,6 +756,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
+	mtx_assert(&psp->ps_mtx, MA_OWNED);
 	frame = td->td_frame;
 	oonstack = sigonstack(frame->tf_r[FRAME_SP]);
 	rndfsize = ((sizeof(sf) + 15) / 16) * 16;
@@ -822,6 +823,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 #endif
 	} else
 		sfp = (struct sigframe *)(frame->tf_r[FRAME_SP] - rndfsize);
+	mtx_unlock(&psp->ps_mtx);
 	PROC_UNLOCK(p);
 
 #ifdef DEBUG
@@ -870,7 +872,8 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	frame->tf_cr_iip = PS_STRINGS - (esigcode - sigcode);
 	frame->tf_r[FRAME_R1] = sig;
 	PROC_LOCK(p);
-	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig)) {
+	mtx_lock(&psp->ps_mtx);
+	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
 		frame->tf_r[FRAME_R15] = (u_int64_t)&(sfp->sf_si);
 
 		/* Fill in POSIX parts */

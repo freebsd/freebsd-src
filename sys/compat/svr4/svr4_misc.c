@@ -1363,12 +1363,8 @@ loop:
 			sx_xunlock(&proctree_lock);
 
 			PROC_LOCK(q);
-			if (--q->p_procsig->ps_refcnt == 0) {
-				if (q->p_sigacts != &q->p_uarea->u_sigacts)
-					FREE(q->p_sigacts, M_SUBPROC);
-				FREE(q->p_procsig, M_SUBPROC);
-				q->p_procsig = NULL;
-			}
+			sigacts_free(q->p_sigacts);
+			q->p_sigacts = NULL;
 			PROC_UNLOCK(q);
 
 			/*

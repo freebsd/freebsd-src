@@ -94,7 +94,9 @@ kthread_create(void (*func)(void *), void *arg,
 	/* this is a non-swapped system process */
 	PROC_LOCK(p2);
 	p2->p_flag |= P_SYSTEM | P_KTHREAD;
-	p2->p_procsig->ps_flag |= PS_NOCLDWAIT;
+	mtx_lock(&p2->p_sigacts->ps_mtx);
+	p2->p_sigacts->ps_flag |= PS_NOCLDWAIT;
+	mtx_unlock(&p2->p_sigacts->ps_mtx);
 	_PHOLD(p2);
 	PROC_UNLOCK(p2);
 

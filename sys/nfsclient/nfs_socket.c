@@ -1239,7 +1239,9 @@ nfs_sigintr(struct nfsmount *nmp, struct nfsreq *rep, struct thread *td)
 	PROC_LOCK(p);
 	tmpset = p->p_siglist;
 	SIGSETNAND(tmpset, td->td_sigmask);
-	SIGSETNAND(tmpset, p->p_sigignore);
+	mtx_lock(&p->p_sigacts->ps_mtx);
+	SIGSETNAND(tmpset, p->p_sigacts->ps_sigignore);
+	mtx_unlock(&p->p_sigacts->ps_mtx);
 	if (SIGNOTEMPTY(p->p_siglist) && NFSINT_SIGMASK(tmpset)) {
 		PROC_UNLOCK(p);
 		return (EINTR);
