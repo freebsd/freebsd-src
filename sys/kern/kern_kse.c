@@ -838,8 +838,9 @@ thread_statclock(int user)
 		return (0);
 	if (user) {
 		/* Current always do via ast() */
+		td->td_pflags |= TDP_USTATCLOCK;
 		mtx_lock_spin(&sched_lock);
-		td->td_flags |= (TDF_USTATCLOCK|TDF_ASTPENDING);
+		td->td_flags |= TDF_ASTPENDING;
 		mtx_unlock_spin(&sched_lock);
 		td->td_uuticks++;
 	} else if (td->td_mailbox != NULL)
@@ -1129,11 +1130,9 @@ thread_userret(struct thread *td, struct trapframe *frame)
 	 * is returning from interrupt, charge thread's
 	 * userland time for UTS.
 	 */
-	if (td->td_flags & TDF_USTATCLOCK) {
+	if (td->td_pflags & TDP_USTATCLOCK) {
 		thread_update_usr_ticks(td, 1);
-		mtx_lock_spin(&sched_lock);
-		td->td_flags &= ~TDF_USTATCLOCK;
-		mtx_unlock_spin(&sched_lock);
+		td->td_pflags &= ~TDP_USTATCLOCK;
 	}
 
 	/*
