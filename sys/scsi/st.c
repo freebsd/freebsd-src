@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.49 1995/12/08 11:18:59 julian Exp $
+ * $Id: st.c,v 1.50 1995/12/08 23:22:28 phk Exp $
  */
 
 /*
@@ -365,7 +365,6 @@ static	errval
 stattach(struct scsi_link *sc_link)
 {
 	u_int32 unit;
-	char	name[32];
 
 	struct scsi_data *st = sc_link->sd;
 
@@ -1040,7 +1039,7 @@ st_strategy(struct buf *bp, struct scsi_link *sc_link)
 	 */
 	if (st->flags & ST_FIXEDBLOCKS) {
 		if (bp->b_bcount % st->blksiz) {
-			printf("st%d: bad request, must be multiple of %ld\n",
+			printf("st%ld: bad request, must be multiple of %ld\n",
 			    unit, st->blksiz);
 			bp->b_error = EIO;
 			goto bad;
@@ -1052,13 +1051,13 @@ st_strategy(struct buf *bp, struct scsi_link *sc_link)
 	 */
 	else {
 		if ((bp->b_bcount < st->blkmin || bp->b_bcount > st->blkmax)) {
-			printf("st%d: bad request, must be between %ld and %ld\n",
+			printf("st%ld: bad request, must be between %ld and %ld\n",
 		    		unit, st->blkmin, st->blkmax);
 			bp->b_error = EIO;
 			goto bad;
 		}
 		if (len != bp->b_bcount) {
-			printf("st%d: bad request, must be less than %ld bytes\n",
+			printf("st%ld: bad request, must be less than %ld bytes\n",
 				unit, bp->b_bcount + 1);
 			bp->b_error = EIO;
 			goto bad;
@@ -1396,7 +1395,7 @@ try_new_value:
 	 * drive. If not, put it back the way it was.
 	 */
 	if ( (errcode = st_mode_select(unit, 0, NULL, 0)) ) {	/* put back as it was */
-		printf("st%d: Cannot set selected mode", unit);
+		printf("st%ld: Cannot set selected mode", unit);
 		st->density = hold_density;
 		st->blksiz = hold_blksiz;
 		if (st->blksiz) {
