@@ -22,6 +22,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/sysproto.h>
@@ -741,6 +742,8 @@ aio_daemon(void *uproc)
 	struct proc *curcp, *mycp, *userp;
 	struct vmspace *myvm, *tmpvm;
 	struct thread *td = curthread;
+	struct pgrp *newpgrp;
+	struct session *newsess;
 
 	mtx_lock(&Giant);
 	/*
@@ -781,7 +784,12 @@ aio_daemon(void *uproc)
 	mycp->p_fd = NULL;
 
 	/* The daemon resides in its own pgrp. */
-	enterpgrp(mycp, mycp->p_pid, 1);
+	MALLOC(newpgrp, struct pgrp *, sizeof(struct pgrp), M_PGRP, M_WAITOK | M_ZERO);
+	MALLOC(newsess, struct session *, sizeof(struct session), M_SESSION, M_WAITOK | M_ZERO);
+
+	PGRPSESS_XLOCK();
+	enterpgrp(mycp, mycp->p_pid, newpgrp, newsess);
+	PGRPSESS_XUNLOCK();
 
 	/* Mark special process type. */
 	mycp->p_flag |= P_SYSTEM;

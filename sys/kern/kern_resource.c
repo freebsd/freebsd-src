@@ -111,14 +111,25 @@ getpriority(td, uap)
 	case PRIO_PGRP: {
 		register struct pgrp *pg;
 
-		if (uap->who == 0)
+		PGRPSESS_SLOCK();
+		if (uap->who == 0) {
 			pg = curp->p_pgrp;
-		else if ((pg = pgfind(uap->who)) == NULL)
-			break;
+			PGRP_LOCK(pg);
+		} else {
+			pg = pgfind(uap->who);
+			if (pg == NULL) {
+				PGRPSESS_SUNLOCK();
+				break;
+			}
+		}
+		PGRPSESS_SUNLOCK();
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
+			PROC_LOCK(p);
 			if (!p_cansee(curp, p) && p->p_ksegrp.kg_nice /* XXXKSE */  < low)
 				low = p->p_ksegrp.kg_nice /* XXXKSE */ ;
+			PROC_UNLOCK(p);
 		}
+		PGRP_UNLOCK(pg);
 		break;
 	}
 
@@ -185,16 +196,27 @@ setpriority(td, uap)
 	case PRIO_PGRP: {
 		register struct pgrp *pg;
 
-		if (uap->who == 0)
+		PGRPSESS_SLOCK();
+		if (uap->who == 0) {
 			pg = curp->p_pgrp;
-		else if ((pg = pgfind(uap->who)) == NULL)
-			break;
+			PGRP_LOCK(pg);
+		} else {
+			pg = pgfind(uap->who);
+			if (pg == NULL) {
+				PGRPSESS_SUNLOCK();
+				break;
+			}
+		}
+		PGRPSESS_SUNLOCK();
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
+			PROC_LOCK(p);
 			if (!p_cansee(curp, p)) {
 				error = donice(curp, p, uap->prio);
 				found++;
 			}
+			PROC_UNLOCK(p);
 		}
+		PGRP_UNLOCK(pg);
 		break;
 	}
 

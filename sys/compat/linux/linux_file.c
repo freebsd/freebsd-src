@@ -144,12 +144,13 @@ linux_open(struct thread *td, struct linux_open_args *args)
 			fo_ioctl(fp, TIOCSCTTY, (caddr_t) 0, td);
 	    fdrop(fp, td);
 	}
-    } else
+    } else {
 	PROC_UNLOCK(p);
 #ifdef DEBUG
 	if (ldebug(open))
 		printf(LMSG("open returns error %d"), error);
 #endif
+    }
     return error;
 }
 

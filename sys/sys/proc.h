@@ -60,27 +60,39 @@
 
 /*
  * One structure allocated per session.
+ *
+ * List of locks
+ * (m)		locked by s_mtx mtx
+ * (ps)		locked by pgrpsess_lock sx
+ * (c)		const until freeing
  */
 struct session {
-	int		s_count;	/* Ref cnt; pgrps in session. */
-	struct proc	*s_leader;	/* Session leader. */
-	struct vnode	*s_ttyvp;	/* Vnode of controlling terminal. */
-	struct tty	*s_ttyp;	/* Controlling terminal. */
-	pid_t		s_sid;		/* Session ID. */
-					/* Setlogin() name: */
+	int		s_count;	/* (m)		Ref cnt; pgrps in session. */
+	struct	proc	*s_leader;	/* (m, ps)	Session leader. */
+	struct	vnode	*s_ttyvp;	/* (m)		Vnode of controlling terminal. */
+	struct	tty	*s_ttyp;	/* (m)		Controlling terminal. */
+	pid_t		s_sid;		/* (c)		Session ID. */
+					/* (m)		Setlogin() name: */
 	char		s_login[roundup(MAXLOGNAME, sizeof(long))];
+	struct	mtx	s_mtx;		/* 		Mutex to protect members */
 };
 
 /*
  * One structure allocated per process group.
+ *
+ * List of locks
+ * (m)		locked by pg_mtx mtx
+ * (ps)		locked by pgrpsess_lock sx
+ * (c)		const until freeing
  */
 struct pgrp {
-	LIST_ENTRY(pgrp) pg_hash;	/* Hash chain. */
-	LIST_HEAD(, proc) pg_members;	/* Pointer to pgrp members. */
-	struct session	*pg_session;	/* Pointer to session. */
-	struct  sigiolst pg_sigiolst;	/* List of sigio sources. */
-	pid_t		pg_id;		/* Pgrp id. */
-	int		pg_jobc;	/* # procs qualifying pgrp for job control */
+	LIST_ENTRY(pgrp) pg_hash;	/* (ps)		Hash chain. */
+	LIST_HEAD(, proc) pg_members;	/* (m, ps)	Pointer to pgrp members. */
+	struct session	*pg_session;	/* (c)		Pointer to session. */
+	struct sigiolst	pg_sigiolst;	/* (m)		List of sigio sources. */
+	pid_t		pg_id;		/* (c)		Pgrp id. */
+	int		pg_jobc;	/* (m)		# procs qualifying pgrp for job control */
+	struct	mtx	pg_mtx;		/* 		Mutex to protect members */
 };
 
 struct procsig {
@@ -134,6 +146,7 @@ struct pargs {
  *      l - the attaching proc or attaching proc parent
  *      m - Giant
  *      n - not locked, lazy
+ *      o - locked by pgrpsess_lock sx
  *
  * If the locking key specifies two identifiers (for example, p_pptr) then
  * either lock is sufficient for read access, but both locks must be held
@@ -388,7 +401,7 @@ struct proc {
 
 	pid_t		p_pid;		/* (b) Process identifier. */
 	LIST_ENTRY(proc) p_hash;	/* (d) Hash chain. */
-	LIST_ENTRY(proc) p_pglist;	/* (c) List of processes in pgrp. */
+	LIST_ENTRY(proc) p_pglist;	/* (g + o) List of processes in pgrp. */
 	struct proc	*p_pptr;	/* (c + e) Pointer to parent process. */
 	LIST_ENTRY(proc) p_sibling;	/* (e) List of sibling processes. */
 	LIST_HEAD(, proc) p_children;	/* (e) Pointer to list of children. */
@@ -406,7 +419,7 @@ struct proc {
 	struct vnode	*p_textvp;	/* (b) Vnode of executable. */
 	struct mtx	p_mtx;		/* (k) Lock for this struct. */
 	char		p_lock;		/* (c) Proclock (prevent swap) count. */
-	struct klist	p_klist;	/* (c) Knotes attached to this proc. */
+	struct klist p_klist;		/* (c) Knotes attached to this proc. */
 	struct sigiolst	p_sigiolst;	/* (c) List of sigio sources. */
 	int		p_sigparent;	/* (c) Signal to parent on exit. */
 	sigset_t	p_oldsigmask;	/* (c) Saved mask from pre sigpause. */
@@ -427,7 +440,7 @@ struct proc {
 	stack_t		p_sigstk;	/* (c) Stack ptr and on-stack flag. */
 	int		p_magic;	/* (b) Magic number. */
 	char		p_comm[MAXCOMLEN + 1];	/* (b) Process name. */
-	struct pgrp	*p_pgrp;	/* (e?/c?) Pointer to process group. */
+	struct pgrp	*p_pgrp;	/* (c + o) Pointer to process group. */
 	struct sysentvec *p_sysent;	/* (b) Syscall dispatch info. */
 	struct pargs	*p_args;	/* (c) Process arguments. */
 /* End area that is copied on creation. */
@@ -515,6 +528,7 @@ struct proc {
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_PARGS);
+MALLOC_DECLARE(M_PGRP);
 MALLOC_DECLARE(M_SESSION);
 MALLOC_DECLARE(M_SUBPROC);
 MALLOC_DECLARE(M_ZOMBIE);
@@ -599,6 +613,40 @@ sigonstack(size_t sp)
 #define	PROC_LOCKED(p)	mtx_owned(&(p)->p_mtx)
 #define	PROC_LOCK_ASSERT(p, type)	mtx_assert(&(p)->p_mtx, (type))
 
+#define PGRPSESS_SLOCK()	sx_slock(&pgrpsess_lock)
+#define PGRPSESS_XLOCK()	sx_xlock(&pgrpsess_lock)
+#define PGRPSESS_SUNLOCK()	sx_sunlock(&pgrpsess_lock)
+#define PGRPSESS_XUNLOCK()	sx_xunlock(&pgrpsess_lock)
+#define	PGRPSESS_LOCK_ASSERT(type)	sx_assert(&pgrpsess_lock, (type))
+
+/* Lock and unlock a process group. */
+#define PGRP_LOCK(pg)	mtx_lock(&(pg)->pg_mtx)
+#define PGRP_UNLOCK(pg)	mtx_unlock(&(pg)->pg_mtx)
+#define	PGRP_UNLOCK_NOSWITCH(pg)					\
+	mtx_unlock_flags(&(pg)->pg_mtx, MTX_NOSWITCH)
+#define	PGRP_LOCKED(pg)	mtx_owned(&(pg)->pg_mtx)
+#define	PGRP_LOCK_ASSERT(pg, type)	mtx_assert(&(pg)->pg_mtx, (type))
+
+#define	PGRP_LOCK_PGSIGNAL(pg)						\
+	do {								\
+		if ((pg) != NULL)					\
+			PGRP_LOCK(pg);					\
+	} while (0);
+
+#define	PGRP_UNLOCK_PGSIGNAL(pg)					\
+	do {								\
+		if ((pg) != NULL)					\
+			PGRP_UNLOCK(pg);				\
+	} while (0);
+
+/* Lock and unlock a session. */
+#define SESS_LOCK(s)	mtx_lock(&(s)->s_mtx)
+#define SESS_UNLOCK(s)	mtx_unlock(&(s)->s_mtx)
+#define	SESS_UNLOCK_NOSWITCH(s)						\
+	mtx_unlock_flags(&(s)->s_mtx, MTX_NOSWITCH)
+#define	SESS_LOCKED(s)	mtx_owned(&(s)->s_mtx)
+#define	SESS_LOCK_ASSERT(s, type)	mtx_assert(&(s)->s_mtx, (type))
+
 /* Hold process U-area in memory, normally for ptrace/procfs work. */
 #define	PHOLD(p) do {							\
 	PROC_LOCK(p);							\
@@ -631,6 +679,7 @@ extern u_long pgrphash;
 
 extern struct sx allproc_lock;
 extern struct sx proctree_lock;
+extern struct sx pgrpsess_lock;
 extern struct proc proc0;		/* Process slot for swapper. */
 extern struct thread thread0;		/* Primary thread in proc0 */
 extern int hogticks;			/* Limit on kernel cpu hogs. */
@@ -672,7 +721,8 @@ struct	proc *zpfind(pid_t);	/* Find zombie process by id. */
 void	ast(struct trapframe *framep);
 struct	thread *choosethread(void);
 int	cr_cansignal(struct ucred *cred, struct proc *proc, int signum);
-int	enterpgrp(struct proc *p, pid_t pgid, int mksess);
+int	enterpgrp __P((struct proc *p, pid_t pgid, struct pgrp *pgrp, struct session *sess));
+int	enterthispgrp __P((struct proc *p, struct pgrp *pgrp));
 void	faultin(struct proc *p);
 void	fixjobc(struct proc *p, struct pgrp *pgrp, int entering);
 int	fork1(struct thread *, int, struct proc **);

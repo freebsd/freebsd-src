@@ -51,12 +51,12 @@
 #include <sys/acct.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/proc.h>
 #include <sys/sx.h>
+#include <sys/proc.h>
 #include <sys/sysproto.h>
 #include <sys/jail.h>
-#include <sys/malloc.h>
 #include <sys/pioctl.h>
 #include <sys/resourcevar.h>
 #include <sys/sysctl.h>
@@ -137,10 +137,13 @@ getpgrp(td, uap)
 	struct getpgrp_args *uap;
 {
 	struct proc *p = td->td_proc;
+	int s;
 
-	mtx_lock(&Giant);
+	s = mtx_lock_giant(kern_giant_proc);
+	PROC_LOCK(p);
 	td->td_retval[0] = p->p_pgrp->pg_id;
-	mtx_unlock(&Giant);
+	PROC_UNLOCK(p);
+	mtx_unlock_giant(s);
 	return (0);
 }
 
@@ -164,9 +167,11 @@ getpgid(td, uap)
 
 	s = mtx_lock_giant(kern_giant_proc);
 	error = 0;
-	if (uap->pid == 0)
+	if (uap->pid == 0) {
+		PROC_LOCK(p);
 		td->td_retval[0] = p->p_pgrp->pg_id;
-	else if ((pt = pfind(uap->pid)) == NULL)
+		PROC_UNLOCK(p);
+	} else if ((pt = pfind(uap->pid)) == NULL)
 		error = ESRCH;
 	else {
 		error = p_cansee(p, pt);
@@ -197,12 +202,15 @@ getsid(td, uap)
 	struct proc *p = td->td_proc;
 	struct proc *pt;
 	int error;
+	int s;
 
-	mtx_lock(&Giant);
+	s = mtx_lock_giant(kern_giant_proc);
 	error = 0;
-	if (uap->pid == 0)
+	if (uap->pid == 0) {
+		PROC_LOCK(p);
 		td->td_retval[0] = p->p_session->s_sid;
-	else if ((pt = pfind(uap->pid)) == NULL)
+		PROC_UNLOCK(p);
+	} else if ((pt = pfind(uap->pid)) == NULL)
 		error = ESRCH;
 	else {
 		error = p_cansee(p, pt);
@@ -210,7 +218,7 @@ getsid(td, uap)
 			td->td_retval[0] = pt->p_session->s_sid;
 		PROC_UNLOCK(pt);
 	}
-	mtx_unlock(&Giant);
+	mtx_unlock_giant(s);
 	return (error);
 }
 
@@ -365,19 +373,44 @@ setsid(td, uap)
 	register struct thread *td;
 	struct setsid_args *uap;
 {
+	struct pgrp *pgrp;
 	int error;
 	struct proc *p = td->td_proc;
+	struct pgrp *newpgrp;
+	struct session *newsess;
+
+	error = 0;
+	pgrp = NULL;
 
 	mtx_lock(&Giant);
-	if (p->p_pgid == p->p_pid || pgfind(p->p_pid))
+
+	MALLOC(newpgrp, struct pgrp *, sizeof(struct pgrp), M_PGRP, M_WAITOK | M_ZERO);
+	MALLOC(newsess, struct session *, sizeof(struct session), M_SESSION, M_WAITOK | M_ZERO);
+
+	PGRPSESS_XLOCK();
+
+	if (p->p_pgid == p->p_pid || (pgrp = pgfind(p->p_pid)) != NULL) {
+		if (pgrp != NULL)
+			PGRP_UNLOCK(pgrp);
 		error = EPERM;
-	else {
-		(void)enterpgrp(p, p->p_pid, 1);
+		goto fail;
+	} else {
+		(void)enterpgrp(p, p->p_pid, newpgrp, newsess);
 		td->td_retval[0] = p->p_pid;
 		error = 0;
 	}
+	PGRPSESS_XUNLOCK();
 	mtx_unlock(&Giant);
-	return (error);
+	return (0);
+
+fail:
+	PGRPSESS_XUNLOCK();
+
+	FREE(newpgrp, M_PGRP);
+	FREE(newsess, M_SESSION);
+
+	mtx_unlock(&Giant);
+	return (0);
 }
 
 /*
@@ -412,57 +445,92 @@ setpgid(td, uap)
 	register struct proc *targp;	/* target process */
 	register struct pgrp *pgrp;	/* target pgrp */
 	int error;
+	struct pgrp *newpgrp;
 
 	if (uap->pgid < 0)
 		return (EINVAL);
+
+	error = 0;
+
 	mtx_lock(&Giant);
-	sx_slock(&proctree_lock);
+
+	MALLOC(newpgrp, struct pgrp *, sizeof(struct pgrp), M_PGRP, M_WAITOK | M_ZERO);
+
+	PGRPSESS_XLOCK();
+
 	if (uap->pid != 0 && uap->pid != curp->p_pid) {
-		if ((targp = pfind(uap->pid)) == NULL || !inferior(targp)) {
+		sx_slock(&proctree_lock);
+		if ((targp = pfind(uap->pid)) == NULL) {
 			if (targp)
 				PROC_UNLOCK(targp);
+			sx_sunlock(&proctree_lock);
 			error = ESRCH;
-			goto done2;
+			goto fail;
 		}
+		if (!inferior(targp)) {
+			PROC_UNLOCK(targp);
+			sx_sunlock(&proctree_lock);
+			goto fail;
+		}
+		sx_sunlock(&proctree_lock);
 		if ((error = p_cansee(curproc, targp))) {
 			PROC_UNLOCK(targp);
-			goto done2;
+			goto fail;
 		}
 		if (targp->p_pgrp == NULL ||
 		    targp->p_session != curp->p_session) {
 			PROC_UNLOCK(targp);
 			error = EPERM;
-			goto done2;
+			goto fail;
 		}
 		if (targp->p_flag & P_EXEC) {
 			PROC_UNLOCK(targp);
 			error = EACCES;
-			goto done2;
+			goto fail;
 		}
-	} else {
-		targp = curp;
-		PROC_LOCK(curp);	/* XXX: not needed */
-	}
-	if (SESS_LEADER(targp)) {
 		PROC_UNLOCK(targp);
+	} else
+		targp = curp;
+	if (SESS_LEADER(targp)) {
 		error = EPERM;
-		goto done2;
+		goto fail;
 	}
 	if (uap->pgid == 0)
 		uap->pgid = targp->p_pid;
-	else if (uap->pgid != targp->p_pid) {
-		if ((pgrp = pgfind(uap->pgid)) == 0 ||
+	if (uap->pgid == targp->p_pid) {
+		if (targp->p_pgid == uap->pgid)
+			goto done;
+		error = enterpgrp(targp, uap->pgid, newpgrp, NULL);
+		if (error == 0)
+			newpgrp = NULL;
+	} else {
+		if ((pgrp = pgfind(uap->pgid)) == NULL ||
 		    pgrp->pg_session != curp->p_session) {
-			PROC_UNLOCK(targp);
+			if (pgrp != NULL)
+				PGRP_UNLOCK(pgrp);
 			error = EPERM;
-			goto done2;
+			goto fail;
 		}
+		if (pgrp == targp->p_pgrp) {
+			PGRP_UNLOCK(pgrp);
+			goto done;
+		}
+		PGRP_UNLOCK(pgrp);
+		error = enterthispgrp(targp, pgrp);
 	}
-	/* XXX: We should probably hold the lock across enterpgrp. */
-	PROC_UNLOCK(targp);
-	error = enterpgrp(targp, uap->pgid, 0);
-done2:
-	sx_sunlock(&proctree_lock);
+done:
+	PGRPSESS_XUNLOCK();
+	if (newpgrp != NULL)
+		FREE(newpgrp, M_PGRP);
+	mtx_unlock(&Giant);
+	return (0);
+
+fail:
+	PGRPSESS_XUNLOCK();
+
+	KASSERT(newpgrp != NULL, ("setpgid failed and newpgrp is null."));
+	FREE(newpgrp, M_PGRP);
+
 	mtx_unlock(&Giant);
 	return (error);
 }
@@ -1134,7 +1202,9 @@ issetugid(td, uap)
 	 * a user without an exec - programs cannot know *everything*
 	 * that libc *might* have put in their data segment.
 	 */
+	PROC_LOCK(p);
 	td->td_retval[0] = (p->p_flag & P_SUGID) ? 1 : 0;
+	PROC_UNLOCK(p);
 	return (0);
 }
 
@@ -1153,10 +1223,14 @@ __setugid(td, uap)
 	error = 0;
 	switch (uap->flag) {
 	case 0:
+		PROC_LOCK(td->td_proc);
 		td->td_proc->p_flag &= ~P_SUGID;
+		PROC_UNLOCK(td->td_proc);
 		break;
 	case 1:
+		PROC_LOCK(td->td_proc);
 		td->td_proc->p_flag |= P_SUGID;
+		PROC_UNLOCK(td->td_proc);
 		break;
 	default:
 		error = EINVAL;
@@ -1725,13 +1799,18 @@ getlogin(td, uap)
 	struct getlogin_args *uap;
 {
 	int error;
+	char login[MAXLOGNAME];
 	struct proc *p = td->td_proc;
 
 	mtx_lock(&Giant);
 	if (uap->namelen > MAXLOGNAME)
 		uap->namelen = MAXLOGNAME;
-	error = copyout((caddr_t) p->p_pgrp->pg_session->s_login,
-	    (caddr_t) uap->namebuf, uap->namelen);
+	PROC_LOCK(p);
+	SESS_LOCK(p->p_session);
+	bcopy(p->p_session->s_login, login, uap->namelen);
+	SESS_UNLOCK(p->p_session);
+	PROC_UNLOCK(p);
+	error = copyout((caddr_t) login, (caddr_t) uap->namebuf, uap->namelen);
 	mtx_unlock(&Giant);
 	return(error);
 }
@@ -1764,9 +1843,16 @@ setlogin(td, uap)
 	    sizeof(logintmp), (size_t *)0);
 	if (error == ENAMETOOLONG)
 		error = EINVAL;
-	else if (!error)
-		(void)memcpy(p->p_pgrp->pg_session->s_login, logintmp,
+	else if (!error) {
+		PGRPSESS_XLOCK();
+		PROC_LOCK(p);
+		SESS_LOCK(p->p_session);
+		(void) memcpy(p->p_session->s_login, logintmp,
 		    sizeof(logintmp));
+		SESS_UNLOCK(p->p_session);
+		PROC_UNLOCK(p);
+		PGRPSESS_XUNLOCK();
+	}
 done2:
 	mtx_unlock(&Giant);
 	return (error);

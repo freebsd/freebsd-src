@@ -535,15 +535,22 @@ funsetown(sigio)
 
 	if (sigio == NULL)
 		return;
+
 	s = splhigh();
 	*(sigio->sio_myref) = NULL;
 	splx(s);
-	if (sigio->sio_pgid < 0) {
+	if ((sigio)->sio_pgid < 0) {
+		struct pgrp *pg = (sigio)->sio_pgrp;
+		PGRP_LOCK(pg);
 		SLIST_REMOVE(&sigio->sio_pgrp->pg_sigiolst, sigio,
 			     sigio, sio_pgsigio);
-	} else /* if ((*sigiop)->sio_pgid > 0) */ {
+		PGRP_UNLOCK(pg);
+	} else {
+		struct proc *p = (sigio)->sio_proc;
+		PROC_LOCK(p);
 		SLIST_REMOVE(&sigio->sio_proc->p_sigiolst, sigio,
 			     sigio, sio_pgsigio);
+		PROC_UNLOCK(p);
 	}
 	crfree(sigio->sio_ucred);
 	FREE(sigio, M_SIGIO);
@@ -554,10 +561,52 @@ void
 funsetownlst(sigiolst)
 	struct sigiolst *sigiolst;
 {
+	int s;
 	struct sigio *sigio;
+	struct proc *p;
+	struct pgrp *pg;
 
-	while ((sigio = SLIST_FIRST(sigiolst)) != NULL)
-		funsetown(sigio);
+	sigio = SLIST_FIRST(sigiolst);
+	if (sigio == NULL)
+		return;
+
+	p = NULL;
+	pg = NULL;
+
+	/*
+	 * Every entry of the list should belong
+	 * to a single proc or pgrp.
+	 */
+	if (sigio->sio_pgid < 0) {
+		pg = sigio->sio_pgrp;
+		PGRP_LOCK_ASSERT(pg, MA_OWNED);
+	} else /* if (sigio->sio_pgid > 0) */ {
+		p = sigio->sio_proc;
+		PROC_LOCK_ASSERT(p, MA_OWNED);
+	}
+
+	while ((sigio = SLIST_FIRST(sigiolst)) != NULL) {
+		s = splhigh();
+		*(sigio->sio_myref) = NULL;
+		splx(s);
+		if (pg != NULL) {
+			KASSERT(sigio->sio_pgid < 0, ("Proc sigio in pgrp sigio list"));
+			KASSERT(sigio->sio_pgrp == pg, ("Bogus pgrp in sigio list"));
+			SLIST_REMOVE(&pg->pg_sigiolst, sigio, sigio, sio_pgsigio);
+			PGRP_UNLOCK(pg);
+			crfree(sigio->sio_ucred);
+			FREE(sigio, M_SIGIO);
+			PGRP_LOCK(pg);
+		} else /* if (p != NULL) */ {
+			KASSERT(sigio->sio_pgid > 0, ("Pgrp sigio in proc sigio list"));
+			KASSERT(sigio->sio_proc == p, ("Bogus proc in sigio list"));
+			SLIST_REMOVE(&p->p_sigiolst, sigio, sigio, sio_pgsigio);
+			PROC_UNLOCK(p);
+			crfree(sigio->sio_ucred);
+			FREE(sigio, M_SIGIO);
+			PROC_LOCK(p);
+		}
+	}
 }
 
 /*
@@ -574,16 +623,28 @@ fsetown(pgid, sigiop)
 	struct proc *proc;
 	struct pgrp *pgrp;
 	struct sigio *sigio;
-	int s;
+	int s, ret;
 
 	if (pgid == 0) {
 		funsetown(*sigiop);
 		return (0);
 	}
+
+	ret = 0;
+
+	/* Allocate and fill in the new sigio out of locks. */
+	MALLOC(sigio, struct sigio *, sizeof(struct sigio), M_SIGIO, M_WAITOK);
+	sigio->sio_pgid = pgid;
+	sigio->sio_ucred = crhold(curthread->td_proc->p_ucred);
+	sigio->sio_myref = sigiop;
+
+	PGRPSESS_SLOCK();
 	if (pgid > 0) {
 		proc = pfind(pgid);
-		if (proc == NULL)
-			return (ESRCH);
+		if (proc == NULL) {
+			ret = ESRCH;
+			goto fail;
+		}
 
 		/*
 		 * Policy - Don't allow a process to FSETOWN a process
@@ -593,17 +654,20 @@ fsetown(pgid, sigiop)
 		 * restrict FSETOWN to the current process or process
 		 * group for maximum safety.
 		 */
-		if (proc->p_session != curthread->td_proc->p_session) {
-			PROC_UNLOCK(proc);
-			return (EPERM);
-		}
 		PROC_UNLOCK(proc);
+		if (proc->p_session != curthread->td_proc->p_session) {
+			ret = EPERM;
+			goto fail;
+		}
 
 		pgrp = NULL;
 	} else /* if (pgid < 0) */ {
 		pgrp = pgfind(-pgid);
-		if (pgrp == NULL)
-			return (ESRCH);
+		if (pgrp == NULL) {
+			ret = ESRCH;
+			goto fail;
+		}
+		PGRP_UNLOCK(pgrp);
 
 		/*
 		 * Policy - Don't allow a process to FSETOWN a process
@@ -613,27 +677,36 @@ fsetown(pgid, sigiop)
 		 * restrict FSETOWN to the current process or process
 		 * group for maximum safety.
 		 */
-		if (pgrp->pg_session != curthread->td_proc->p_session)
-			return (EPERM);
+		if (pgrp->pg_session != curthread->td_proc->p_session) {
+			ret = EPERM;
+			goto fail;
+		}
 
 		proc = NULL;
 	}
 	funsetown(*sigiop);
-	MALLOC(sigio, struct sigio *, sizeof(struct sigio), M_SIGIO, M_WAITOK);
 	if (pgid > 0) {
+		PROC_LOCK(proc);
 		SLIST_INSERT_HEAD(&proc->p_sigiolst, sigio, sio_pgsigio);
 		sigio->sio_proc = proc;
+		PROC_UNLOCK(proc);
 	} else {
+		PGRP_LOCK(pgrp);
 		SLIST_INSERT_HEAD(&pgrp->pg_sigiolst, sigio, sio_pgsigio);
 		sigio->sio_pgrp = pgrp;
+		PGRP_UNLOCK(pgrp);
 	}
-	sigio->sio_pgid = pgid;
-	sigio->sio_ucred = crhold(curthread->td_proc->p_ucred);
-	sigio->sio_myref = sigiop;
+	PGRPSESS_SUNLOCK();
 	s = splhigh();
 	*sigiop = sigio;
 	splx(s);
 	return (0);
+
+fail:
+	PGRPSESS_SUNLOCK();
+	crfree(sigio->sio_ucred);
+	FREE(sigio, M_SIGIO);
+	return (ret);
 }
 
 /*

@@ -494,9 +494,9 @@ linprocfs_doprocstat(PFS_FILL_ARGS)
 	PS_ADD("statr",		"%c",	'0'); /* XXX */
 	PROC_LOCK(p);
 	PS_ADD("ppid",		"%d",	p->p_pptr ? p->p_pptr->p_pid : 0);
-	PROC_UNLOCK(p);
 	PS_ADD("pgrp",		"%d",	p->p_pgid);
 	PS_ADD("session",	"%d",	p->p_session->s_sid);
+	PROC_UNLOCK(p);
 	PS_ADD("tty",		"%d",	0); /* XXX */
 	PS_ADD("tpgid",		"%d",	0); /* XXX */
 	PS_ADD("flags",		"%u",	0); /* XXX */
