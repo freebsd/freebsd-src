@@ -168,8 +168,10 @@ again:
 		if (divert) {
 			*m0 = NULL;
 			return 0;	/* packet consumed */
-		} else
+		} else {
+			args.rule = NULL;
 			goto again;	/* continue with packet */
+		}
 
 	case IP_FW_NGTEE:
 		if (!NG_IPFW_LOADED)
@@ -291,8 +293,10 @@ again:
 		if (divert) {
 			*m0 = NULL;
 			return 0;	/* packet consumed */
-		} else
+		} else {
+			args.rule = NULL;
 			goto again;	/* continue with packet */
+		}
 
 	case IP_FW_NGTEE:
 		if (!NG_IPFW_LOADED)
