@@ -494,10 +494,10 @@ malloc_uninit(data)
 {
 	struct malloc_type *type = (struct malloc_type *)data;
 	struct malloc_type *t;
+#ifdef INVARIANTS
 	struct kmembuckets *kbp;
 	struct freelist *freep;
 	long indx;
-#ifdef INVARIANTS
 	int s;
 #endif
 
