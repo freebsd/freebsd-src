@@ -2493,7 +2493,7 @@ retry:
 		    ((objpgs > 0) && (p != NULL));
 		    p = TAILQ_NEXT(p, listq)) {
 
-			if (p->pindex < pindex || p->pindex - pindex > psize) {
+			if (p->pindex < pindex || p->pindex - pindex >= psize) {
 				continue;
 			}
 			tmpidx = p->pindex - pindex;
