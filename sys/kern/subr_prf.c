@@ -157,7 +157,6 @@ tprintf(struct proc *p, int pri, const char *fmt, ...)
 	if (pri != -1)
 		flags |= TOLOG;
 	if (p != NULL) {
-		PGRPSESS_XLOCK();
 		PROC_LOCK(p);
 		if (p->p_flag & P_CONTROLT && p->p_session->s_ttyvp) {
 			SESS_LOCK(p->p_session);
@@ -172,7 +171,6 @@ tprintf(struct proc *p, int pri, const char *fmt, ...)
 				tp = NULL;
 		} else
 			PROC_UNLOCK(p);
-		PGRPSESS_XUNLOCK();
 	}
 	pca.pri = pri;
 	pca.tty = tp;
@@ -181,11 +179,11 @@ tprintf(struct proc *p, int pri, const char *fmt, ...)
 	retval = kvprintf(fmt, putchar, &pca, 10, ap);
 	va_end(ap);
 	if (shld) {
-		PGRPSESS_XLOCK();
+		PROC_LOCK(p);
 		SESS_LOCK(p->p_session);
 		SESSRELE(p->p_session);
 		SESS_UNLOCK(p->p_session);
-		PGRPSESS_XUNLOCK();
+		PROC_UNLOCK(p);
 	}
 	msgbuftrigger = 1;
 }

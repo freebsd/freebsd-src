@@ -1862,14 +1862,12 @@ setlogin(td, uap)
 	if (error == ENAMETOOLONG)
 		error = EINVAL;
 	else if (!error) {
-		PGRPSESS_XLOCK();
 		PROC_LOCK(p);
 		SESS_LOCK(p->p_session);
 		(void) memcpy(p->p_session->s_login, logintmp,
 		    sizeof(logintmp));
 		SESS_UNLOCK(p->p_session);
 		PROC_UNLOCK(p);
-		PGRPSESS_XUNLOCK();
 	}
 done2:
 	mtx_unlock(&Giant);
