@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -89,26 +90,43 @@ uuid(struct uuid *id)
 	return (buffer);
 }
 
+static int
+show_value(int indent, const char *var, const char *fmt, ...)
+{
+	va_list ap;
+	int len;
+
+	len = indent;
+	while (indent--)
+		putchar(' ');
+	len += printf("<%s>", var);
+	va_start(ap, fmt);
+	len += vprintf(fmt, ap);
+	len += printf("</%s>\n", var);
+	return (len);
+}
+
 static size_t
 show_header(struct mca_record_header *rh)
 {
 
 	printf("  <header>\n");
-	printf("    seqnr=%lld\n", (long long)rh->rh_seqnr);
-	printf("    revision=%d.%d\n", BCD(rh->rh_major), BCD(rh->rh_minor));
-	printf("    severity=%s\n", severity(rh->rh_error));
-	printf("    length=%lld\n", (long long)rh->rh_length);
-	printf("    date=%d%02d/%02d/%02d\n",
+	show_value(4, "seqnr", "%lld", (long long)rh->rh_seqnr);
+	show_value(4, "revision", "%d.%d", BCD(rh->rh_major),
+	    BCD(rh->rh_minor));
+	show_value(4, "severity", "%s", severity(rh->rh_error));
+	show_value(4, "length", "%lld", (long long)rh->rh_length);
+	show_value(4, "date", "%d%02d/%02d/%02d",
 	    BCD(rh->rh_time[MCA_RH_TIME_CENT]),
 	    BCD(rh->rh_time[MCA_RH_TIME_YEAR]),
 	    BCD(rh->rh_time[MCA_RH_TIME_MON]),
 	    BCD(rh->rh_time[MCA_RH_TIME_MDAY]));
-	printf("    time=%02d:%02d:%02d\n",
+	show_value(4, "time", "%02d:%02d:%02d",
 	    BCD(rh->rh_time[MCA_RH_TIME_HOUR]),
 	    BCD(rh->rh_time[MCA_RH_TIME_MIN]),
 	    BCD(rh->rh_time[MCA_RH_TIME_SEC]));
 	if (rh->rh_flags & MCA_RH_FLAGS_PLATFORM_ID)
-		printf("    platform=%s\n", uuid(&rh->rh_platform));
+		show_value(4, "platform", "%s", uuid(&rh->rh_platform));
 	printf("  </header>\n");
 	return (rh->rh_length);
 }
@@ -118,19 +136,19 @@ show_cpu_mod(const char *what, int idx, struct mca_cpu_mod *cpu_mod)
 {
 	printf("      <%s-%d>\n", what, idx);
 	if (cpu_mod->cpu_mod_flags & MCA_CPU_MOD_FLAGS_INFO)
-		printf("        info=0x%016llx\n",
+		show_value(8, "info", "0x%016llx",
 		    (long long)cpu_mod->cpu_mod_info);
 	if (cpu_mod->cpu_mod_flags & MCA_CPU_MOD_FLAGS_REQID)
-		printf("        requester=0x%016llx\n",
+		show_value(8, "requester", "0x%016llx",
 		    (long long)cpu_mod->cpu_mod_reqid);
 	if (cpu_mod->cpu_mod_flags & MCA_CPU_MOD_FLAGS_RSPID)
-		printf("        responder=0x%016llx\n",
+		show_value(8, "responder", "0x%016llx",
 		    (long long)cpu_mod->cpu_mod_rspid);
 	if (cpu_mod->cpu_mod_flags & MCA_CPU_MOD_FLAGS_TGTID)
-		printf("        target=0x%016llx\n",
+		show_value(8, "target", "0x%016llx",
 		    (long long)cpu_mod->cpu_mod_tgtid);
 	if (cpu_mod->cpu_mod_flags & MCA_CPU_MOD_FLAGS_IP)
-		printf("        ip=0x%016llx\n",
+		show_value(8, "ip", "0x%016llx",
 		    (long long)cpu_mod->cpu_mod_ip);
 	printf("      </%s-%d>\n", what, idx);
 }
@@ -138,6 +156,7 @@ show_cpu_mod(const char *what, int idx, struct mca_cpu_mod *cpu_mod)
 static void
 show_cpu(struct mca_cpu_record *cpu)
 {
+	char var[16];
 	struct mca_cpu_mod *mod;
 	struct mca_cpu_cpuid *cpuid;
 	struct mca_cpu_psi *psi;
@@ -146,11 +165,14 @@ show_cpu(struct mca_cpu_record *cpu)
 	printf("    <cpu>\n");
 
 	if (cpu->cpu_flags & MCA_CPU_FLAGS_ERRMAP)
-		printf("      errmap=0x%016llx\n", (long long)cpu->cpu_errmap);
+		show_value(6, "errmap", "0x%016llx",
+		    (long long)cpu->cpu_errmap);
 	if (cpu->cpu_flags & MCA_CPU_FLAGS_STATE)
-		printf("      state=0x%016llx\n", (long long)cpu->cpu_state);
+		show_value(6, "state", "0x%016llx",
+		    (long long)cpu->cpu_state);
 	if (cpu->cpu_flags & MCA_CPU_FLAGS_CR_LID)
-		printf("      cr_lid=0x%016llx\n", (long long)cpu->cpu_cr_lid);
+		show_value(6, "cr_lid", "0x%016llx",
+		    (long long)cpu->cpu_cr_lid);
 
 	mod = (struct mca_cpu_mod*)(cpu + 1);
 	n = MCA_CPU_FLAGS_CACHE(cpu->cpu_flags);
@@ -170,9 +192,10 @@ show_cpu(struct mca_cpu_record *cpu)
 		show_cpu_mod("ms", i, mod++);
 
 	cpuid = (struct mca_cpu_cpuid*)mod;
-	for (i = 0; i < 6; i++)
-		printf("      cpuid%d=0x%016llx\n", i,
-		    (long long)cpuid->cpuid[i]);
+	for (i = 0; i < 6; i++) {
+		sprintf(var, "cpuid-%d", i);
+		show_value(6, var, "0x%016llx", (long long)cpuid->cpuid[i]);
+	}
 
 	psi = (struct mca_cpu_psi*)(cpuid + 1);
 	/* TODO: Dump PSI */
@@ -186,41 +209,44 @@ show_memory(struct mca_mem_record *mem)
 	printf("    <memory>\n");
 
 	if (mem->mem_flags & MCA_MEM_FLAGS_STATUS)
-		printf("      status=0x%016llx\n", (long long)mem->mem_status);
+		show_value(6, "status", "0x%016llx",
+		    (long long)mem->mem_status);
 	if (mem->mem_flags & MCA_MEM_FLAGS_ADDR)
-		printf("      address=0x%016llx\n", (long long)mem->mem_addr);
+		show_value(6, "address", "0x%016llx",
+		    (long long)mem->mem_addr);
 	if (mem->mem_flags & MCA_MEM_FLAGS_ADDRMASK)
-		printf("      mask=0x%016llx\n", (long long)mem->mem_addrmask);
+		show_value(6, "mask", "0x%016llx",
+		    (long long)mem->mem_addrmask);
 	if (mem->mem_flags & MCA_MEM_FLAGS_NODE)
-		printf("      node=0x%04x\n", mem->mem_node);
+		show_value(6, "node", "0x%04x", mem->mem_node);
 	if (mem->mem_flags & MCA_MEM_FLAGS_CARD)
-		printf("      card=0x%04x\n", mem->mem_card);
+		show_value(6, "card", "0x%04x", mem->mem_card);
 	if (mem->mem_flags & MCA_MEM_FLAGS_MODULE)
-		printf("      module=0x%04x\n", mem->mem_module);
+		show_value(6, "module", "0x%04x", mem->mem_module);
 	if (mem->mem_flags & MCA_MEM_FLAGS_BANK)
-		printf("      bank=0x%04x\n", mem->mem_bank);
+		show_value(6, "bank", "0x%04x", mem->mem_bank);
 	if (mem->mem_flags & MCA_MEM_FLAGS_DEVICE)
-		printf("      device=0x%04x\n", mem->mem_device);
+		show_value(6, "device", "0x%04x", mem->mem_device);
 	if (mem->mem_flags & MCA_MEM_FLAGS_ROW)
-		printf("      row=0x%04x\n", mem->mem_row);
+		show_value(6, "row", "0x%04x", mem->mem_row);
 	if (mem->mem_flags & MCA_MEM_FLAGS_COLUMN)
-		printf("      column=0x%04x\n", mem->mem_column);
+		show_value(6, "column", "0x%04x", mem->mem_column);
 	if (mem->mem_flags & MCA_MEM_FLAGS_BITPOS)
-		printf("      bit=0x%04x\n", mem->mem_bitpos);
+		show_value(6, "bit", "0x%04x", mem->mem_bitpos);
 	if (mem->mem_flags & MCA_MEM_FLAGS_REQID)
-		printf("        requester=0x%016llx\n",
+		show_value(6, "requester", "0x%016llx",
 		    (long long)mem->mem_reqid);
 	if (mem->mem_flags & MCA_MEM_FLAGS_RSPID)
-		printf("        responder=0x%016llx\n",
+		show_value(6, "responder", "0x%016llx",
 		    (long long)mem->mem_rspid);
 	if (mem->mem_flags & MCA_MEM_FLAGS_TGTID)
-		printf("        target=0x%016llx\n",
+		show_value(6, "target", "0x%016llx",
 		    (long long)mem->mem_tgtid);
 	if (mem->mem_flags & MCA_MEM_FLAGS_BUSDATA)
-		printf("      status=0x%016llx\n",
+		show_value(6, "status", "0x%016llx",
 		    (long long)mem->mem_busdata);
 	if (mem->mem_flags & MCA_MEM_FLAGS_OEM_ID)
-		printf("      oem=%s\n", uuid(&mem->mem_oem_id));
+		show_value(6, "oem", "%s", uuid(&mem->mem_oem_id));
 	/* TODO: Dump OEM data */
 
 	printf("    </memory>\n");
@@ -238,32 +264,32 @@ show_pci_bus(struct mca_pcibus_record *pcibus)
 	printf("    <pci-bus>\n");
 
 	if (pcibus->pcibus_flags & MCA_PCIBUS_FLAGS_STATUS)
-		printf("      status=0x%016llx\n",
+		show_value(6, "status", "0x%016llx",
 		    (long long)pcibus->pcibus_status);
 	if (pcibus->pcibus_flags & MCA_PCIBUS_FLAGS_ERROR)
-		printf("      error=0x%04x\n", pcibus->pcibus_error);
+		show_value(6, "error", "0x%04x", pcibus->pcibus_error);
 	if (pcibus->pcibus_flags & MCA_PCIBUS_FLAGS_BUS)
-		printf("      bus=0x%04x\n", pcibus->pcibus_bus);
+		show_value(6, "bus", "0x%04x", pcibus->pcibus_bus);
 	if (pcibus->pcibus_flags & MCA_PCIBUS_FLAGS_ADDR)
-		printf("      address=0x%016llx\n",
+		show_value(6, "address", "0x%016llx",
 		    (long long)pcibus->pcibus_addr);
 	if (pcibus->pcibus_flags & MCA_PCIBUS_FLAGS_DATA)
-		printf("      data=0x%016llx\n",
+		show_value(6, "data", "0x%016llx",
 		    (long long)pcibus->pcibus_data);
 	if (pcibus->pcibus_flags & MCA_PCIBUS_FLAGS_CMD)
-		printf("      cmd=0x%016llx\n",
+		show_value(6, "cmd", "0x%016llx",
 		    (long long)pcibus->pcibus_cmd);
 	if (pcibus->pcibus_flags & MCA_PCIBUS_FLAGS_REQID)
-		printf("        requester=0x%016llx\n",
+		show_value(6, "requester", "0x%016llx",
 		    (long long)pcibus->pcibus_reqid);
 	if (pcibus->pcibus_flags & MCA_PCIBUS_FLAGS_RSPID)
-		printf("        responder=0x%016llx\n",
+		show_value(6, "responder", "0x%016llx",
 		    (long long)pcibus->pcibus_rspid);
 	if (pcibus->pcibus_flags & MCA_PCIBUS_FLAGS_TGTID)
-		printf("        target=0x%016llx\n",
+		show_value(6, "target", "0x%016llx",
 		    (long long)pcibus->pcibus_tgtid);
 	if (pcibus->pcibus_flags & MCA_PCIBUS_FLAGS_OEM_ID)
-		printf("      oem=%s\n", uuid(&pcibus->pcibus_oem_id));
+		show_value(6, "oem", "%s", uuid(&pcibus->pcibus_oem_id));
 	/* TODO: Dump OEM data */
 
 	printf("    </pci-bus>\n");
@@ -281,22 +307,20 @@ show_pci_dev(struct mca_pcidev_record *pcidev)
 	printf("    <pci-dev>\n");
 
 	if (pcidev->pcidev_flags & MCA_PCIDEV_FLAGS_STATUS)
-		printf("      status=0x%016llx\n",
+		show_value(6, "status", "0x%016llx",
 		    (long long)pcidev->pcidev_status);
 	if (pcidev->pcidev_flags & MCA_PCIDEV_FLAGS_INFO) {
-		printf("      vendor=0x%04x\n",
+		show_value(6, "vendor", "0x%04x",
 		    pcidev->pcidev_info.info_vendor);
-		printf("      device=0x%04x\n",
+		show_value(6, "device", "0x%04x",
 		    pcidev->pcidev_info.info_device);
-		printf("      class=0x%06x\n",
+		show_value(6, "class", "0x%06x",
 		    MCA_PCIDEV_INFO_CLASS(pcidev->pcidev_info.info_ccfn));
-		printf("      function=0x%02x\n",
+		show_value(6, "function", "0x%02x",
 		    MCA_PCIDEV_INFO_FUNCTION(pcidev->pcidev_info.info_ccfn));
-		printf("      slot=0x%02x\n",
-		    pcidev->pcidev_info.info_slot);
-		printf("      bus=0x%04x\n",
-		    pcidev->pcidev_info.info_bus);
-		printf("      segment=0x%04x\n",
+		show_value(6, "slot", "0x%02x", pcidev->pcidev_info.info_slot);
+		show_value(6, "bus", "0x%04x", pcidev->pcidev_info.info_bus);
+		show_value(6, "segment", "0x%04x",
 		    pcidev->pcidev_info.info_segment);
 	}
 	/* TODO: dump registers */
@@ -323,8 +347,9 @@ show_section(struct mca_section_header *sh)
 	static struct uuid uuid_generic = MCA_UUID_GENERIC;
 
 	printf("  <section>\n");
-	printf("    uuid=%s\n", uuid(&sh->sh_uuid));
-	printf("    revision=%d.%d\n", BCD(sh->sh_major), BCD(sh->sh_minor));
+	show_value(4, "uuid", "%s", uuid(&sh->sh_uuid));
+	show_value(4, "revision", "%d.%d", BCD(sh->sh_major),
+	    BCD(sh->sh_minor));
 
 	if (!memcmp(&sh->sh_uuid, &uuid_cpu, sizeof(uuid_cpu)))
 		show_cpu((void*)(sh + 1));
