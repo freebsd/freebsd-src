@@ -28,31 +28,33 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: modstat.c,v 1.7 1997/03/11 14:41:52 peter Exp $
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <a.out.h>
+#include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <err.h>
 #include <string.h>
-#include <a.out.h>
+#include <unistd.h>
 #include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/conf.h>
 #include <sys/mount.h>
 #include <sys/lkm.h>
 #include <sys/file.h>
-#include <sys/errno.h>
 #include "pathnames.h"
 
-void
+static void
 usage()
 {
 
-	fprintf(stderr, "usage:\n");
-	fprintf(stderr, "modstat [-i <module id>] [-n <module name>]\n");
+	fprintf(stderr, "usage: modstat [-i <module id>] [-n <module name>]\n");
 	exit(1);
 }
 
@@ -116,7 +118,6 @@ int devfd;
 void
 cleanup()
 {
-
 	close(devfd);
 }
 
@@ -138,9 +139,8 @@ main(argc, argv)
 			modname = optarg;
 			break;	/* name */
 		case '?':
-			usage();
 		default:
-			printf("default!\n");
+			usage();
 			break;
 		}
 	}
