@@ -179,7 +179,6 @@ int	ftruncate();
 int	__sysctl();
 int	mlock();
 int	munlock();
-#ifdef LKM
 int	lkmnosys();
 int	lkmnosys();
 int	lkmnosys();
@@ -190,8 +189,6 @@ int	lkmnosys();
 int	lkmnosys();
 int	lkmnosys();
 int	lkmnosys();
-#else
-#endif
 
 #ifdef COMPAT_43
 #define compat(n, name) n, __CONCAT(o,name)
@@ -255,9 +252,6 @@ int	ogetdirentries();
 #else
 #endif
 #ifdef LFS
-#else
-#endif
-#ifdef LKM
 #else
 #endif
 
@@ -515,7 +509,6 @@ struct sysent sysent[] = {
 	{ 0, nosys },			/* 207 = nosys */
 	{ 0, nosys },			/* 208 = nosys */
 	{ 0, nosys },			/* 209 = nosys */
-#ifdef LKM
 	{ 0, lkmnosys },			/* 210 = lkmnosys */
 	{ 0, lkmnosys },			/* 211 = lkmnosys */
 	{ 0, lkmnosys },			/* 212 = lkmnosys */
@@ -526,18 +519,6 @@ struct sysent sysent[] = {
 	{ 0, lkmnosys },			/* 217 = lkmnosys */
 	{ 0, lkmnosys },			/* 218 = lkmnosys */
 	{ 0, lkmnosys },			/* 219 = lkmnosys */
-#else
-	{ 0, nosys },			/* 210 = nosys */
-	{ 0, nosys },			/* 211 = nosys */
-	{ 0, nosys },			/* 212 = nosys */
-	{ 0, nosys },			/* 213 = nosys */
-	{ 0, nosys },			/* 214 = nosys */
-	{ 0, nosys },			/* 215 = nosys */
-	{ 0, nosys },			/* 216 = nosys */
-	{ 0, nosys },			/* 217 = nosys */
-	{ 0, nosys },			/* 218 = nosys */
-	{ 0, nosys },			/* 219 = nosys */
-#endif
 };
 
 struct sysentvec aout_sysvec = {
