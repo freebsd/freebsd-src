@@ -13,14 +13,12 @@ SRCS+=	addr2ascii.c ascii2addr.c base64.c ether_addr.c getaddrinfo.c \
 	if_indextoname.c if_nameindex.c if_nametoindex.c inet_lnaof.c \
 	inet_makeaddr.c inet_net_ntop.c inet_net_pton.c inet_neta.c \
 	inet_netof.c inet_network.c inet_ntoa.c inet_ntop.c \
-	inet_pton.c ip6opt.c linkaddr.c map_v4v6.c name6.c ns_addr.c \
-	ns_name.c ns_netint.c \
-	ns_ntoa.c ns_parse.c ns_print.c ns_ttl.c \
+	inet_pton.c ip6opt.c linkaddr.c map_v4v6.c name6.c \
+	ns_name.c ns_netint.c ns_parse.c ns_print.c ns_ttl.c \
 	nsdispatch.c nslexer.c nsparser.c \
 	nsap_addr.c rcmd.c rcmdsh.c recv.c res_comp.c res_data.c res_debug.c \
 	res_init.c res_mkquery.c res_mkupdate.c res_query.c res_send.c \
 	res_update.c rthdr.c send.c sockatmark.c vars.c
-# not supported: iso_addr.c 
 
 CFLAGS+=-DINET6 -I${.OBJDIR}
 
@@ -48,7 +46,6 @@ MAN+=	addr2ascii.3 byteorder.3 ethers.3 getaddrinfo.3 gethostbyname.3 \
 	inet.3 inet_net.3 \
 	inet6_option_space.3 inet6_rthdr_space.3 linkaddr.3 \
 	nsdispatch.3 rcmd.3 rcmdsh.3 resolver.3 sockatmark.3
-# not installed: iso_addr.3 ns.3
 
 MLINKS+=addr2ascii.3 ascii2addr.3
 MLINKS+=byteorder.3 htonl.3 byteorder.3 htons.3 byteorder.3 ntohl.3 \
@@ -89,7 +86,6 @@ MLINKS+=inet6_option_space.3 inet6_option_alloc.3 \
 	inet6_rthdr_space.3 inet6_rthdr_reverse.3 \
 	inet6_rthdr_space.3 inet6_rthdr_segments.3
 MLINKS+=linkaddr.3 link_addr.3 linkaddr.3 link_ntoa.3 
-#MLINKS+=ns.3 ns_addr.3 ns.3 ns_ntoa.3
 MLINKS+=rcmd.3 iruserok.3 rcmd.3 iruserok_sa.3 \
 	rcmd.3 rcmd_af.3 \
 	rcmd.3 rresvport.3 rcmd.3 rresvport_af.3 \
