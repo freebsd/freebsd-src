@@ -537,7 +537,6 @@ retry:
 				goto retn;
 			mtx_lock(&vm_mtx);
 			object = vnode_pager_alloc(vp, vat.va_size, 0, 0);
-			mtx_unlock(&vm_mtx);
 		} else if (devsw(vp->v_rdev) != NULL) {
 			/*
 			 * This simply allocates the biggest object possible
@@ -546,7 +545,6 @@ retry:
 			 */
 			mtx_lock(&vm_mtx);
 			object = vnode_pager_alloc(vp, IDX_TO_OFF(INT_MAX), 0, 0);
-			mtx_unlock(&vm_mtx);
 		} else {
 			goto retn;
 		}
@@ -554,7 +552,6 @@ retry:
 		 * Dereference the reference we just created.  This assumes
 		 * that the object is associated with the vp.
 		 */
-		mtx_lock(&vm_mtx);
 		object->ref_count--;
 		mtx_unlock(&vm_mtx);
 		vp->v_usecount--;
