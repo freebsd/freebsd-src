@@ -404,7 +404,7 @@ ad*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|md*s*|mlxd*s*|vn*s*|wd*s*|wfd*s*)
 			slicename=`dkitos $slice`
 			minor=`dkminor 0 $unit $slice $dkrawpart`
 			mknod  $name$unit$slicename c $chr $minor root:operator
-			mknod r$name$unit$slicename c $chr $minor root:operator
+			ln -f $name$unit$slicename r$name$unit$slicename
 			case $part in
 			[a-h])
 				case $oldslice in
@@ -416,8 +416,8 @@ ad*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|md*s*|mlxd*s*|vn*s*|wd*s*|wfd*s*)
 					partname=`dkitop $part`
 					mknod  $name$unit$slicename$partname \
 					      c $chr $minor root:operator
-					mknod r$name$unit$slicename$partname \
-					      c $chr $minor root:operator
+					ln -f $name$unit$slicename$partname \
+					     r$name$unit$slicename$partname
 				done
 				;;
 			"")
@@ -446,7 +446,7 @@ fd*)
 	case $unit in
 	0|1|2|3)
 		mknod ${name}${unit}   c $chr `expr $unit '*' 64` root:operator
-		mknod r${name}${unit}  c $chr `expr $unit '*' 64` root:operator
+		ln -f ${name}${unit} r${name}${unit}
 		# Fake BSD partitions
 		for i in a b c d e f g h
 		do
