@@ -69,20 +69,11 @@ character as a decimal point).
 This is a non-portable extension, and its use will nearly guarantee that
 a shell script will not execute properly on another system.
 .Ef
-.Sh DIAGNOSTICS
-The
-.Nm
-utility exits with one of the following values:
-.Bl -tag -width flag
-.It Li \&0
-On successful completion.
-.It Li \&>\&0
-An error occurred.
-.El
 .Sh EXAMPLES
 To schedule the execution of a command for
 .Va x
-number seconds later:
+number seconds later (with
+.Xr csh 1 ) :
 .Pp
 .Dl (sleep 1800; sh command_file >& errors)&
 .Pp
@@ -118,6 +109,8 @@ The script checks every five minutes for the file zzz.rawdata,
 when the file is found, then another portion processing
 is done courteously by sleeping for 70 seconds in between each
 awk job.
+.Sh DIAGNOSTICS
+.Ex -std
 .Sh SEE ALSO
 .Xr nanosleep 2 ,
 .Xr sleep 3
@@ -127,3 +120,8 @@ The
 command is expected to be
 .St -p1003.2
 compatible.
+.Sh HISTORY
+A
+.Nm
+command appeared in
+.At v4 .
