@@ -126,13 +126,15 @@ static int
 print_matches(char *path, char *filename)
 {
 	char candidate[PATH_MAX];
-	char *d;
+	const char *d;
 	int found;
 
 	if (*filename == '/')
 		return (is_there(filename) ? 0 : -1);
 	found = 0;
 	while ((d = strsep(&path, ":")) != NULL) {
+		if (*d == '\0')
+			d = ".";
 		if (snprintf(candidate, sizeof(candidate), "%s/%s", d,
 		    filename) >= (int)sizeof(candidate))
 			continue;
