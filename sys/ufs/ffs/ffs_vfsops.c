@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.5 1994/08/20 16:03:25 davidg Exp $
+ * $Id: ffs_vfsops.c,v 1.6 1994/09/21 03:47:37 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -76,7 +76,7 @@ struct vfsops ufs_vfsops = {
 	ffs_init,
 };
 
-VFS_SET(ufs_vfsops, ffs, MOUNT_UFS, 0);
+VFS_SET(ufs_vfsops, ufs, MOUNT_UFS, 0);
 
 extern u_long nextgennumber;
 
