@@ -103,6 +103,8 @@ sysarch(td, uap)
 		if ((error = copyin(uap->parms, &kargs.largs,
 		    sizeof(struct i386_ldt_args))) != 0)
 			return (error);
+		if (kargs.largs.num > MAX_LD || kargs.largs.num <= 0)
+			return (EINVAL);
 		break;
 	default:
 		break;
