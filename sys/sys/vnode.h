@@ -608,6 +608,8 @@ int	debug_vn_lock __P((struct vnode *vp, int flags, struct thread *p,
 #endif
 int	vn_mkdir __P((char *path, int mode, enum uio_seg segflg, struct thread *td));
 int	vn_open __P((struct nameidata *ndp, int *flagp, int cmode));
+int	vn_open_cred __P((struct nameidata *ndp, int *flagp, int cmode,
+	    struct ucred *cred));
 void	vn_pollevent __P((struct vnode *vp, int events));
 void	vn_pollgone __P((struct vnode *vp));
 int	vn_pollrecord __P((struct vnode *vp, struct thread *p, int events));
