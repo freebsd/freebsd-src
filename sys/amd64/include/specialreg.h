@@ -71,6 +71,8 @@
 #define	CR4_MCE	0x00000040	/* Machine check enable */
 #define	CR4_PGE	0x00000080	/* Page global enable */
 #define	CR4_PCE	0x00000100	/* Performance monitoring counter enable */
+#define	CR4_FXSR 0x00000200	/* Fast FPU save/restore used by OS */
+#define	CR4_XMM	0x00000400	/* enable SIMD/MMX2 to use except 16 */
 
 /*
  * CPUID instruction features register
