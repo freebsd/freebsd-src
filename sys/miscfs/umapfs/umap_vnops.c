@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)umap_vnops.c	8.6 (Berkeley) 5/22/95
- * $Id: umap_vnops.c,v 1.23 1998/02/07 01:36:24 kato Exp $
+ * $Id: umap_vnops.c,v 1.24 1998/07/04 20:45:34 julian Exp $
  */
 
 /*
@@ -154,16 +154,16 @@ umap_bypass(ap)
 		credp = *credpp;
 
 		if (umap_bug_bypass && credp->cr_uid != 0)
-			printf("umap_bypass: user was %ld, group %ld\n",
-			    credp->cr_uid, credp->cr_gid);
+			printf("umap_bypass: user was %lu, group %lu\n",
+			    (u_long)credp->cr_uid, (u_long)credp->cr_gid);
 
 		/* Map all ids in the credential structure. */
 
 		umap_mapids(vp1->v_mount, credp);
 
 		if (umap_bug_bypass && credp->cr_uid != 0)
-			printf("umap_bypass: user now %ld, group %ld\n",
-			    credp->cr_uid, credp->cr_gid);
+			printf("umap_bypass: user now %lu, group %lu\n",
+			    (u_long)credp->cr_uid, (u_long)credp->cr_gid);
 	}
 
 	/* BSD often keeps a credential in the componentname structure
@@ -182,16 +182,20 @@ umap_bypass(ap)
 		compcredp = (*compnamepp)->cn_cred;
 
 		if (umap_bug_bypass && compcredp->cr_uid != 0)
-			printf("umap_bypass: component credit user was %ld, group %ld\n",
-			    compcredp->cr_uid, compcredp->cr_gid);
+			printf(
+		    "umap_bypass: component credit user was %lu, group %lu\n",
+			    (u_long)compcredp->cr_uid,
+			    (u_long)compcredp->cr_gid);
 
 		/* Map all ids in the credential structure. */
 
 		umap_mapids(vp1->v_mount, compcredp);
 
 		if (umap_bug_bypass && compcredp->cr_uid != 0)
-			printf("umap_bypass: component credit user now %ld, group %ld\n",
-			    compcredp->cr_uid, compcredp->cr_gid);
+			printf(
+		    "umap_bypass: component credit user now %lu, group %lu\n",
+			    (u_long)compcredp->cr_uid,
+			    (u_long)compcredp->cr_gid);
 	}
 
 	/*
@@ -238,29 +242,32 @@ umap_bypass(ap)
 	 */
 	if (descp->vdesc_cred_offset != VDESC_NO_OFFSET) {
 		if (umap_bug_bypass && credp && credp->cr_uid != 0)
-			printf("umap_bypass: returning-user was %ld\n",
-					credp->cr_uid);
+			printf("umap_bypass: returning-user was %lu\n",
+			    (u_long)credp->cr_uid);
 
 		if (savecredp != NOCRED) {
 			crfree(credp);
 			(*credpp) = savecredp;
 			if (umap_bug_bypass && credpp && (*credpp)->cr_uid != 0)
-				printf("umap_bypass: returning-user now %ld\n\n",
-					   (*credpp)->cr_uid);
+				printf(
+				    "umap_bypass: returning-user now %lu\n\n",
+				    (u_long)(*credpp)->cr_uid);
 		}
 	}
 
 	if (descp->vdesc_componentname_offset != VDESC_NO_OFFSET) {
 		if (umap_bug_bypass && compcredp && compcredp->cr_uid != 0)
-		printf("umap_bypass: returning-component-user was %ld\n",
-				compcredp->cr_uid);
+			printf(
+			    "umap_bypass: returning-component-user was %lu\n",
+			    (u_long)compcredp->cr_uid);
 
 		if (savecompcredp != NOCRED) {
 			crfree(compcredp);
 			(*compnamepp)->cn_cred = savecompcredp;
 			if (umap_bug_bypass && credpp && (*credpp)->cr_uid != 0)
-				printf("umap_bypass: returning-component-user now %ld\n",
-					   compcredp->cr_uid);
+				printf(
+			    "umap_bypass: returning-component-user now %lu\n",
+				    (u_long)compcredp->cr_uid);
 		}
 	}
 
@@ -510,16 +517,18 @@ umap_rename(ap)
 	compcredp = compnamep->cn_cred = crdup(savecompcredp);
 
 	if (umap_bug_bypass && compcredp->cr_uid != 0)
-		printf("umap_rename: rename component credit user was %ld, group %ld\n",
-		    compcredp->cr_uid, compcredp->cr_gid);
+		printf(
+	    "umap_rename: rename component credit user was %lu, group %lu\n",
+		    (u_long)compcredp->cr_uid, (u_long)compcredp->cr_gid);
 
 	/* Map all ids in the credential structure. */
 
 	umap_mapids(vp->v_mount, compcredp);
 
 	if (umap_bug_bypass && compcredp->cr_uid != 0)
-		printf("umap_rename: rename component credit user now %ld, group %ld\n",
-		    compcredp->cr_uid, compcredp->cr_gid);
+		printf(
+	    "umap_rename: rename component credit user now %lu, group %lu\n",
+		    (u_long)compcredp->cr_uid, (u_long)compcredp->cr_gid);
 
 	error = umap_bypass((struct vop_generic_args *)ap);
 

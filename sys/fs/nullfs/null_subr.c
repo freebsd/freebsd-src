@@ -35,7 +35,7 @@
  *
  *	@(#)null_subr.c	8.7 (Berkeley) 5/14/95
  *
- * $Id: null_subr.c,v 1.17 1998/02/09 06:09:45 eivind Exp $
+ * $Id: null_subr.c,v 1.18 1998/07/15 02:32:18 bde Exp $
  */
 
 #include "opt_debug_nullfs.h"
@@ -274,9 +274,9 @@ null_checkvp(vp, fil, lno)
 	if (a->null_lowervp == NULLVP) {
 		/* Should never happen */
 		int i; u_long *p;
-		printf("vp = %x, ZERO ptr\n", vp);
+		printf("vp = %p, ZERO ptr\n", (void *)vp);
 		for (p = (u_long *) a, i = 0; i < 8; i++)
-			printf(" %x", p[i]);
+			printf(" %lx", p[i]);
 		printf("\n");
 		/* wait for debugger */
 		while (null_checkvp_barrier) /*WAIT*/ ;
@@ -284,9 +284,9 @@ null_checkvp(vp, fil, lno)
 	}
 	if (a->null_lowervp->v_usecount < 1) {
 		int i; u_long *p;
-		printf("vp = %x, unref'ed lowervp\n", vp);
+		printf("vp = %p, unref'ed lowervp\n", (void *)vp);
 		for (p = (u_long *) a, i = 0; i < 8; i++)
-			printf(" %x", p[i]);
+			printf(" %lx", p[i]);
 		printf("\n");
 		/* wait for debugger */
 		while (null_checkvp_barrier) /*WAIT*/ ;
