@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.25 1995/12/09 20:43:53 phk Exp $
+ *	$Id: raw_ip.c,v 1.26 1996/02/23 15:47:58 phk Exp $
  */
 
 #include <sys/param.h>
@@ -218,23 +218,22 @@ rip_ctloutput(op, so, level, optname, m)
 		}
 		return (error);
 
+	case IP_FW_GET:
+		if (ip_fw_ctl_ptr==NULL || op == PRCO_SETOPT) {
+			if (*m) (void)m_free(*m);
+			return(EINVAL);
+		}
+		return (*ip_fw_ctl_ptr)(optname, m); 
 	case IP_FW_ADD:
 	case IP_FW_DEL:
 	case IP_FW_FLUSH:
 	case IP_FW_ZERO:
-		if (ip_fw_ctl_ptr==NULL) {
-			if (*m)
-				(void)m_free(*m);
+		if (ip_fw_ctl_ptr==NULL || op != PRCO_SETOPT) {
+			if (*m) (void)m_free(*m);
 			return(EINVAL);
 		}
 
-		if (op == PRCO_SETOPT) {
-			error=(*ip_fw_ctl_ptr)(optname, *m); 
-			if (*m)
-				(void)m_free(*m);
-		}
-		else
-			error=EINVAL;
+		return (*ip_fw_ctl_ptr)(optname, m); 
 		return(error);
 
 	case IP_RSVP_ON:
