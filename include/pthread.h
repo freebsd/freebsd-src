@@ -196,6 +196,8 @@ enum pthread_mutextype {
  * Thread function prototype definitions:
  */
 __BEGIN_DECLS
+int		pthread_atfork(void (*prepare)(void), void (*parent)(void),
+			void (*child)(void));
 int		pthread_attr_destroy(pthread_attr_t *);
 int		pthread_attr_getstack(const pthread_attr_t * __restrict, 
 			void ** __restrict stackaddr, 
