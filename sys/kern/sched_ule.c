@@ -1062,36 +1062,27 @@ sched_add(struct kse *ke)
 	    ke->ke_proc->p_comm));
 	KASSERT(ke->ke_proc->p_sflag & PS_INMEM,
 	    ("sched_add: process swapped out"));
+	KASSERT(ke->ke_runq == NULL,
+	    ("sched_add: KSE %p is still assigned to a run queue", ke));
 
 	kg = ke->ke_ksegrp;
-
-	if (ke->ke_runq)
-		Debugger("hrm?");
 
 	switch (PRI_BASE(kg->kg_pri_class)) {
 	case PRI_ITHD:
 	case PRI_REALTIME:
 		kseq = KSEQ_SELF();
-		if (ke->ke_runq == NULL)
-			kseq_add(kseq, ke);
 		ke->ke_runq = kseq->ksq_curr;
 		ke->ke_slice = SCHED_SLICE_MAX;
 		break;
 	case PRI_TIMESHARE:
 		kseq = KSEQ_CPU(ke->ke_cpu);
-		if (ke->ke_runq == NULL) {
-			if (SCHED_CURR(kg, ke))
-				ke->ke_runq = kseq->ksq_curr;
-			else
-				ke->ke_runq = kseq->ksq_next;
-			kseq_add(kseq, ke);
-		}
+		if (SCHED_CURR(kg, ke))
+			ke->ke_runq = kseq->ksq_curr;
+		else
+			ke->ke_runq = kseq->ksq_next;
 		break;
 	case PRI_IDLE:
 		kseq = KSEQ_CPU(ke->ke_cpu);
-		
-		if (ke->ke_runq == NULL)
-			kseq_add(kseq, ke);
 		/*
 		 * This is for priority prop.
 		 */
@@ -1110,6 +1101,7 @@ sched_add(struct kse *ke)
 	ke->ke_state = KES_ONRUNQ;
 
 	runq_add(ke->ke_runq, ke);
+	kseq_add(kseq, ke);
 }
 
 void
@@ -1118,8 +1110,7 @@ sched_rem(struct kse *ke)
 	struct kseq *kseq;
 
 	mtx_assert(&sched_lock, MA_OWNED);
-	/* KASSERT((ke->ke_state == KES_ONRUNQ), ("KSE not on run queue")); */
-	panic("WTF\n");
+	KASSERT((ke->ke_state == KES_ONRUNQ), ("KSE not on run queue"));
 
 	ke->ke_state = KES_THREAD;
 	ke->ke_ksegrp->kg_runq_kses--;
