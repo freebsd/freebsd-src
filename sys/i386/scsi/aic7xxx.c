@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.28.2.1 1995/06/04 09:15:22 davidg Exp $
+ *      $Id: aic7xxx.c,v 1.28.2.2 1995/06/04 17:54:23 davidg Exp $
  */
 /*
  * TODO:
@@ -1181,14 +1181,17 @@ ahcintr(unit)
 			 * a resid coming from a check sense
 			 * operation.
 			 */
-			if(!(scb->flags & SCB_SENSE))
+			if(!(scb->flags & SCB_SENSE)) {
 			    scb->xs->resid = (inb(iobase+SCBARRAY+17) << 16) |
 					     (inb(iobase+SCBARRAY+16) << 8) |
 					      inb(iobase+SCBARRAY+15);
+				xs->flags |= SCSI_RESID_VALID;
 #ifdef AHC_DEBUG
-			sc_print_addr(xs->sc_link);
-			printf("Handled Residual\n"); 
+				sc_print_addr(xs->sc_link);
+				printf("Handled Residual of %d bytes\n",
+					scb->xs->resid);
 #endif
+			}
 			break;
 		  }
 		  case ABORT_TAG:
@@ -1795,6 +1798,7 @@ ahc_scsi_cmd(xs)
         scb->cmdlen = xs->cmdlen;
 	scb->cmdpointer = KVTOPHYS(xs->cmd);
 	xs->resid = 0;
+	xs->status = 0;
         if (xs->datalen) {      /* should use S/G only if not zero length */
                 scb->SG_list_pointer = KVTOPHYS(scb->ahc_dma);
                 sg = scb->ahc_dma;
