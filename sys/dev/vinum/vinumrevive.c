@@ -37,6 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
+ * $Id: vinumrevive.c,v 1.9 1999/10/12 04:38:27 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -54,13 +55,13 @@
 int
 revive_block(int sdno)
 {
+    int s;						    /* priority level */
     struct sd *sd;
     struct plex *plex;
     struct volume *vol;
     struct buf *bp;
     int error = EAGAIN;
     int size;						    /* size of revive block, bytes */
-    int s;						    /* priority level */
     daddr_t plexblkno;					    /* lblkno in plex */
     int psd;						    /* parity subdisk number */
     int stripe;						    /* stripe number */
@@ -84,7 +85,9 @@ revive_block(int sdno)
 		plex->stripesize << DEV_BSHIFT);
 	else
 	    sd->revive_blocksize = DEFAULT_REVIVE_BLOCKSIZE;
-    }
+    } else if (sd->revive_blocksize > MAX_REVIVE_BLOCKSIZE)
+	sd->revive_blocksize = MAX_REVIVE_BLOCKSIZE;
+
     size = min(sd->revive_blocksize >> DEV_BSHIFT, sd->sectors - sd->revived) << DEV_BSHIFT;
 
     s = splbio();
@@ -478,6 +481,136 @@ parityops(struct vinum_ioctl_msg *data, enum parityop op)
     unlockrange(plexno, lock);
     Free(bpp);
     Free(tbuf);
+}
+
+/*
+ * Initialize a subdisk by writing zeroes to the
+ * complete address space.  If check is set,
+ * check each transfer for correctness.
+ *
+ * Each call to this function writes (and maybe
+ * checks) a single block.
+ */
+int
+initsd(int sdno, int verify)
+{
+    int s;						    /* priority level */
+    struct sd *sd;
+    struct plex *plex;
+    struct volume *vol;
+    struct buf *bp;
+    int error;
+    int size;						    /* size of init block, bytes */
+    daddr_t plexblkno;					    /* lblkno in plex */
+    int verified;					    /* set when we're happy with what we wrote */
+
+    error = 0;
+    plexblkno = 0;					    /* to keep the compiler happy */
+    sd = &SD[sdno];
+    if (sd->plexno < 0)					    /* no plex? */
+	return EINVAL;
+    plex = &PLEX[sd->plexno];				    /* point to plex */
+    if (plex->volno >= 0)
+	vol = &VOL[plex->volno];
+    else
+	vol = NULL;
+
+    if (sd->init_blocksize == 0) {
+	if (plex->stripesize != 0)			    /* we're striped, don't init more than */
+	    sd->init_blocksize = min(DEFAULT_REVIVE_BLOCKSIZE, /* one block at a time */
+		plex->stripesize << DEV_BSHIFT);
+	else
+	    sd->init_blocksize = DEFAULT_REVIVE_BLOCKSIZE;
+    } else if (sd->init_blocksize > MAX_REVIVE_BLOCKSIZE)
+	sd->init_blocksize = MAX_REVIVE_BLOCKSIZE;
+
+    size = min(sd->init_blocksize >> DEV_BSHIFT, sd->sectors - sd->initialized) << DEV_BSHIFT;
+
+    verified = 0;
+    while (!verified) {					    /* until we're happy with it, */
+	s = splbio();
+	bp = geteblk(size);				    /* Get a buffer */
+	if (bp == NULL) {
+	    splx(s);
+	    return ENOMEM;
+	}
+	if (bp->b_qindex != 0)				    /* on a queue, */
+	    bremfree(bp);				    /* remove it XXX how can this happen? */
+	splx(s);
+
+	bp->b_bufsize = size;
+	bp->b_bcount = bp->b_bufsize;
+	bp->b_resid = bp->b_bcount;
+	bp->b_data = Malloc(bp->b_bcount);
+	bp->b_blkno = sd->initialized;			    /* write it to here */
+	if (bp->b_data == NULL)
+	    return ENOMEM;
+	bzero(bp->b_data, bp->b_bcount);
+	bp->b_dev = VINUMRBDEV(sdno, VINUM_RAWSD_TYPE);	    /* create the device number */
+	BUF_LOCKINIT(bp);				    /* get a lock for the buffer */
+	BUF_LOCK(bp, LK_EXCLUSIVE);			    /* and lock it */
+	sdio(bp);					    /* perform the I/O */
+	biowait(bp);
+	if (bp->b_flags & B_ERROR)
+	    error = bp->b_error;
+	Free(bp->b_data);
+	if (bp->b_qindex == 0)				    /* not on a queue, */
+	    brelse(bp);					    /* is this kosher? */
+	if ((error == 0) && verify) {			    /* check that it got there */
+	    s = splbio();
+	    bp = geteblk(size);				    /* get a buffer */
+	    if (bp == NULL) {
+		splx(s);
+		error = ENOMEM;
+	    } else {
+		if (bp->b_qindex != 0)			    /* on a queue, */
+		    bremfree(bp);			    /* remove it XXX how can this happen? */
+		splx(s);
+
+		bp->b_bufsize = size;
+		bp->b_bcount = bp->b_bufsize;
+		bp->b_resid = bp->b_bcount;
+		bp->b_data = Malloc(bp->b_bcount);
+		bp->b_blkno = sd->initialized;		    /* read from here */
+		if (bp->b_data == NULL) {
+		    brelse(bp);
+		    error = ENOMEM;
+		    break;
+		}
+		bp->b_dev = VINUMRBDEV(sdno, VINUM_RAWSD_TYPE);	/* create the device number */
+		bp->b_flags |= B_READ;			    /* read it back */
+		BUF_LOCKINIT(bp);			    /* get a lock for the buffer */
+		BUF_LOCK(bp, LK_EXCLUSIVE);		    /* and lock it */
+		sdio(bp);
+		biowait(bp);
+		if (bp->b_flags & B_ERROR)
+		    error = bp->b_error;
+		else if ((*bp->b_data != 0)		    /* first word spammed */
+		||(bcmp(bp->b_data, &bp->b_data[1], bp->b_bcount - 1))) { /* or one of the others */
+		    printf("vinum: init error on %s, offset 0x%llx sectors\n",
+			sd->name,
+			sd->initialized);
+		    verified = 0;
+		} else
+		    verified = 1;
+		Free(bp->b_data);
+		if (bp->b_qindex == 0)			    /* not on a queue, */
+		    brelse(bp);				    /* is this kosher? */
+	    }
+	} else
+	    verified = 1;
+    }
+    if (error == 0) {					    /* did it, */
+	sd->initialized += size >> DEV_BSHIFT;		    /* moved this much further down */
+	if (sd->initialized >= sd->sectors) {		    /* finished */
+	    sd->initialized = 0;
+	    set_sd_state(sdno, sd_initialized, setstate_force);	/* bring the sd up */
+	    log(LOG_INFO, "vinum: %s is %s\n", sd->name, sd_state(sd->state));
+	    save_config();				    /* and save the updated configuration */
+	} else						    /* more to go, */
+	    error = EAGAIN;				    /* ya'll come back, see? */
+    }
+    return error;
 }
 
 /* Local Variables: */
