@@ -2021,6 +2021,13 @@ ParseSkipLine(int skip, int keep_newline)
 
         while (((c = ParseReadc()) != '\n' || lastc == '\\')
                && c != EOF) {
+            if (skip && c == '#' && lastc != '\\') {
+		/* let a comment be terminated even by an escaped \n.
+		 * This is consistent to comment handling in ParseReadLine */
+                while ((c = ParseReadc()) != '\n' && c != EOF)
+		    ;
+		break;
+	    }
             if (c == '\n') {
                 if (keep_newline)
                     Buf_AddByte(buf, (Byte)c);
