@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.21.2.1 1996/11/18 02:44:50 davidg Exp $
+ *	$Id: if_fxp.c,v 1.21.2.2 1997/02/04 07:41:01 davidg Exp $
  */
 
 /*
@@ -243,9 +243,9 @@ fxp_attach(config_id, unit)
 	}
 
 	/*
-	 * Issue a software reset.
+	 * Reset to a stable state.
 	 */
-	sc->csr->port = 0;
+	sc->csr->port = FXP_PORT_SELECTIVE_RESET;
 	DELAY(10);
 
 	/*
@@ -738,7 +738,7 @@ fxp_stop(sc)
 	/*
 	 * Issue software reset
 	 */
-	sc->csr->port = 0;
+	sc->csr->port = FXP_PORT_SELECTIVE_RESET;
 	DELAY(10);
 
 	/*
