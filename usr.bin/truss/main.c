@@ -4,7 +4,7 @@
  * do a lot of the work :).
  */
 /*
- * $Id: main.c,v 1.2 1997/12/06 14:39:30 peter Exp $
+ * $Id: main.c,v 1.3 1997/12/06 14:41:41 peter Exp $
  */
 
 #include <stdio.h>
@@ -117,7 +117,7 @@ main(int ac, char **av) {
   }
 
   ac -= optind; av += optind;
-  if (ac && pid != 0)
+  if ((pid == 0 && ac == 0) || (pid != 0 && ac != 0))
     usage();
 
   /*
