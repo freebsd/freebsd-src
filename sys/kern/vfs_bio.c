@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.80 1996/01/04 06:09:00 davidg Exp $
+ * $Id: vfs_bio.c,v 1.81 1996/01/05 20:12:33 wollman Exp $
  */
 
 /*
@@ -1605,14 +1605,14 @@ vfs_bio_clrbuf(struct buf *bp) {
  * not associated with a file object.
  */
 void
-vm_hold_load_pages(struct buf * bp, vm_offset_t froma, vm_offset_t toa)
+vm_hold_load_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 {
 	vm_offset_t pg;
 	vm_page_t p;
-	vm_offset_t from = round_page(froma);
-	vm_offset_t to = round_page(toa);
 
-	for (pg = from; pg < to; pg += PAGE_SIZE) {
+	to = round_page(to);
+
+	for (pg = round_page(from); pg < to; pg += PAGE_SIZE) {
 
 tryagain:
 
@@ -1624,22 +1624,24 @@ tryagain:
 		}
 		vm_page_wire(p);
 		pmap_kenter(pg, VM_PAGE_TO_PHYS(p));
-		bp->b_pages[((caddr_t) pg - bp->b_data) >> PAGE_SHIFT] = p;
+		bp->b_pages[(pg - trunc_page(bp->b_data)) >> PAGE_SHIFT] = p;
 		PAGE_WAKEUP(p);
 		bp->b_npages++;
 	}
 }
 
 void
-vm_hold_free_pages(struct buf * bp, vm_offset_t froma, vm_offset_t toa)
+vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 {
 	vm_offset_t pg;
 	vm_page_t p;
-	vm_offset_t from = round_page(froma);
-	vm_offset_t to = round_page(toa);
+	int index;
 
-	for (pg = from; pg < to; pg += PAGE_SIZE) {
-		int index = ((caddr_t) pg - bp->b_data) >> PAGE_SHIFT;
+	from = round_page(from);
+	to = round_page(to);
+	index = (from - trunc_page(bp->b_data)) >> PAGE_SHIFT;
+
+	for (pg = from; pg < to; pg += PAGE_SIZE, index++) {
 		p = bp->b_pages[index];
 		bp->b_pages[index] = 0;
 		pmap_kremove(pg);
