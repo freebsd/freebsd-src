@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcibus.c,v 1.1 1998/06/10 10:55:37 dfr Exp $
+ * $Id: pcibus.c,v 1.2 1998/07/12 16:16:20 dfr Exp $
  *
  */
 
@@ -36,6 +36,7 @@
 
 #include <pci/pcivar.h>
 #include <machine/chipset.h>
+#include <machine/cpuconf.h>
 
 static int cfgmech;
 static int devmax;
@@ -100,7 +101,8 @@ intr_create(void *dev_instance, int irq, inthand2_t handler, void *arg,
 	device_t pcib = chipset.bridge;
 	if (pcib)
 		return BUS_CREATE_INTR(pcib, pcib,
-				       irq, (driver_intr_t*) handler, arg);
+				       0x900 + (irq << 4),
+				       (driver_intr_t*) handler, arg);
 	else
 		return 0;
 }
@@ -114,3 +116,87 @@ intr_connect(struct intrec *idesc)
 	else
 		return EINVAL;
 }
+
+void
+alpha_platform_assign_pciintr(pcicfgregs *cfg)
+{
+	if(platform.pci_intr_map)
+		platform.pci_intr_map((void *)cfg);
+}
+
+void
+memcpy_fromio(void *d, u_int32_t s, size_t size)
+{
+    char *cp = d;
+
+    while (size--)
+	*cp++ = readb(s++);
+}
+
+void
+memcpy_toio(u_int32_t d, void *s, size_t size)
+{
+    char *cp = s;
+
+    while (size--)
+	writeb(d++, *cp++);
+}
+
+void
+memset_io(u_int32_t d, int val, size_t size)
+{
+    while (size--)
+	writeb(d++, val);
+}
+
+#include "opt_ddb.h"
+#ifdef DDB
+#include <ddb/ddb.h>
+
+DB_COMMAND(in, db_in)
+{
+    int c;
+    int size;
+    u_int32_t val;
+
+    if (!have_addr)
+	return;
+
+    size = -1;
+    while (c = *modif++) {
+	switch (c) {
+	case 'b':
+	    size = 1;
+	    break;
+	case 'w':
+	    size = 2;
+	    break;
+	case 'l':
+	    size = 4;
+	    break;
+	}
+    }
+
+    if (size < 0) {
+	db_printf("bad size\n");
+	return;
+    }
+
+    if (count <= 0) count = 1;
+    while (--count >= 0) {
+	db_printf("%08x:\t", addr);
+	switch (size) {
+	case 1:
+	    db_printf("%02x\n", inb(addr));
+	    break;
+	case 2:
+	    db_printf("%04x\n", inw(addr));
+	    break;
+	case 4:
+	    db_printf("%08x\n", inl(addr));
+	    break;
+	}
+    }
+}
+
+#endif
