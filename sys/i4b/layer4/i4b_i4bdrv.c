@@ -58,7 +58,11 @@
 #include <sys/conf.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
+#if __FreeBSD_version >= 500014
+#include <sys/selinfo.h>
+#else
 #include <sys/select.h>
+#endif
 #include <net/if.h>
 
 #ifdef __NetBSD__

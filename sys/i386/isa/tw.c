@@ -146,7 +146,7 @@
 #include <sys/conf.h>
 #include <sys/uio.h>
 #include <sys/syslog.h>
-#include <sys/select.h>
+#include <sys/selinfo.h>
 #include <sys/poll.h>
 #include <sys/bus.h>
 #define MIN(a,b)	((a)<(b)?(a):(b))
