@@ -13,7 +13,7 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`$Id: proto.m4,v 1.1.1.11 2002/04/10 03:04:58 gshapiro Exp $')
+VERSIONID(`$Id: proto.m4,v 8.646 2002/05/19 21:22:40 gshapiro Exp $')
 
 # level CF_LEVEL config file format
 V`'CF_LEVEL/ifdef(`VENDOR_NAME', `VENDOR_NAME', `Berkeley')
@@ -1057,8 +1057,9 @@ R<@> $+ + $+ < @ $+ . >	$: < $(virtuser + + @ $3 $@ $1 $@ $2 $@ +$2 $: @ $) > $1
 dnl +*@domain
 R<@> $+ + $* < @ $+ . >	$: < $(virtuser + * @ $3 $@ $1 $@ $2 $@ +$2 $: @ $) > $1 + $2 < @ $3 . >
 dnl @domain if +detail exists
-R<@> $+ + $* < @ $+ . >	$: < $(virtuser @ $3 $@ $1 $@ $2 $@ +$2 $: @ $) > $1 + $2 < @ $3 . >
-dnl without +detail (or no match)
+dnl if no match, change marker to prevent a second @domain lookup
+R<@> $+ + $* < @ $+ . >	$: < $(virtuser @ $3 $@ $1 $@ $2 $@ +$2 $: ! $) > $1 + $2 < @ $3 . >
+dnl without +detail
 R<@> $+ < @ $+ . >	$: < $(virtuser @ $2 $@ $1 $: @ $) > $1 < @ $2 . >
 dnl no match
 R<@> $+			$: $1
@@ -1434,6 +1435,7 @@ R<$+@$+> <> <$+> <$+> <$*>	$@ $>Parse0 $>canonify $1 $5 @ $2')
 R<$+> <$=w> <$+> <$+> <$*>	$@ $>Parse0 $>canonify $1
 R<$+> <> <$+> <$+> <$*>		$@ $>Parse0 $>canonify $1
 
+
 # if mailRoutingAddress and non-local mailHost,
 # relay to mailHost with new mailRoutingAddress
 ifelse(_LDAP_ROUTE_DETAIL_, `_PRESERVE_', `dnl
@@ -1449,6 +1451,7 @@ R<$+> <$+> <$+> <$+> <$*>	$>LDAPMailertable <$2> $>canonify $1',
 # if no mailRoutingAddress and local mailHost,
 # return original address
 R<> <$=w> <$+> <$+> <$*>	$@ $2
+
 
 # if no mailRoutingAddress and non-local mailHost,
 # relay to mailHost with original address
@@ -1686,7 +1689,7 @@ R$* $| $* $| $*		$@ $>"Basic_check_relay" $1 $| $2
 
 SBasic_check_relay
 # check for deferred delivery mode
-R$*			$: < ${deliveryMode} > $1
+R$*			$: < $&{deliveryMode} > $1
 R< d > $*		$@ deferred
 R< $* > $*		$: $2
 
@@ -1716,7 +1719,7 @@ dnl workspace: ignored...
 R$*			$: $&{client_addr}
 R$-.$-.$-.$-		$: <?> $(host $4.$3.$2.$1._RBL_. $: OK $)
 R<?>OK			$: OKSOFAR
-R<?>$+			$#error $@ 5.7.1 $: "550 Mail from " $&{client_addr} " refused by blackhole site _RBL_"',
+R<?>$+			$#error $@ 5.7.1 $: "550 Rejected: " $&{client_addr} " listed at _RBL_"',
 `dnl')
 undivert(8)
 
@@ -1732,7 +1735,7 @@ R$* $| $*		$@ $>"Basic_check_mail" $1
 
 SBasic_check_mail
 # check for deferred delivery mode
-R$*			$: < ${deliveryMode} > $1
+R$*			$: < $&{deliveryMode} > $1
 R< d > $*		$@ deferred
 R< $* > $*		$: $2
 
@@ -1799,6 +1802,8 @@ R<?> $* < @ $+ . >	<?> $1 < @ $2 >			strip trailing dots
 # handle non-DNS hostnames (*.bitnet, *.decnet, *.uucp, etc)
 R<?> $* < @ $* $=P >	$: <OK> $1 < @ $2 $3 >
 dnl workspace <mark> CanonicalAddress	where mark is ? or OK
+dnl A sender address with my local host name ($j) is safe
+R<?> $* < @ $j >	$: <OK> $1 < @ $j >
 ifdef(`_ACCEPT_UNRESOLVABLE_DOMAINS_',
 `R<?> $* < @ $+ >	$: <_RES_OK_> $1 < @ $2 >		... unresolvable OK',
 `R<?> $* < @ $+ >	$: <? $(resolve $2 $: $2 <PERM> $) > $1 < @ $2 >
@@ -1874,7 +1879,7 @@ SBasic_check_rcpt
 R<>			$#error $@ nouser $: "553 User address required"
 R$@			$#error $@ nouser $: "553 User address required"
 # check for deferred delivery mode
-R$*			$: < ${deliveryMode} > $1
+R$*			$: < $&{deliveryMode} > $1
 R< d > $*		$@ deferred
 R< $* > $*		$: $2
 
@@ -2097,6 +2102,7 @@ R$=R $*			$@ RELAY		relayable IP address
 ifdef(`_ACCESS_TABLE_', `dnl
 R$*			$: $>A <$1> <?> <+ Connect> <$1>
 R<RELAY> $* 		$@ RELAY		relayable IP address
+R<REJECT> $* 		$@ REJECT		rejected IP address
 ifdef(`_ATMPF_', `R<_ATMPF_> $*		$#TEMP $@ 4.3.0 $: "451 Temporary system failure. Please try again later."', `dnl')
 R<$*> <$*>		$: $2', `dnl')
 R$*			$: [ $1 ]		put brackets around it...

@@ -9,12 +9,11 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: sfsasl.c,v 1.1.1.7 2002/04/10 03:04:51 gshapiro Exp $")
+SM_RCSID("@(#)$Id: sfsasl.c,v 8.90 2002/05/09 20:44:11 ca Exp $")
 #include <stdlib.h>
 #include <sendmail.h>
 #include <errno.h>
 #if SASL
-# include <sasl.h>
 # include "sfsasl.h"
 
 /* Structure used by the "sasl" file type */
@@ -177,7 +176,11 @@ sasl_read(fp, buf, size)
 {
 	int result;
 	ssize_t len;
+# if SASL >= 20000
+	const char *outbuf = NULL;
+# else /* SASL >= 20000 */
 	static char *outbuf = NULL;
+# endif /* SASL >= 20000 */
 	static unsigned int outlen = 0;
 	static unsigned int offset = 0;
 	struct sasl_obj *so = (struct sasl_obj *) fp->f_cookie;
@@ -225,7 +228,9 @@ sasl_read(fp, buf, size)
 		/* return the rest of the buffer */
 		len = outlen - offset;
 		(void) memcpy(buf, outbuf + offset, (size_t) len);
+# if SASL < 20000
 		SASL_DEALLOC(outbuf);
+# endif /* SASL < 20000 */
 		outbuf = NULL;
 		offset = 0;
 		outlen = 0;
@@ -255,7 +260,11 @@ sasl_write(fp, buf, size)
 	size_t size;
 {
 	int result;
+# if SASL >= 20000
+	const char *outbuf;
+# else /* SASL >= 20000 */
 	char *outbuf;
+# endif /* SASL >= 20000 */
 	unsigned int outlen;
 	size_t ret = 0, total = 0;
 	struct sasl_obj *so = (struct sasl_obj *) fp->f_cookie;
@@ -276,7 +285,9 @@ sasl_write(fp, buf, size)
 			outlen -= ret;
 			total += ret;
 		}
+# if SASL < 20000
 		SASL_DEALLOC(outbuf);
+# endif /* SASL < 20000 */
 	}
 	return size;
 }
