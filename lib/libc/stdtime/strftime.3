@@ -106,7 +106,7 @@ is equivalent to
 .Dq Li %m/%d/%y .
 .It Cm %d
 is replaced by the day of the month as a decimal number (01-31).
-.It Cm \&%E* Cm \&%O*
+.It Cm %E* %O*
 POSIX locale extensions.
 The sequences
 %Ec %EC %Ex %EX %Ey %EY
@@ -135,7 +135,8 @@ but as a decimal number without century (00-99).
 .It Cm \&%H
 is replaced by the hour (24-hour clock) as a decimal number (00-23).
 .It Cm %h
-the same as %b.
+the same as
+.Cm %b .
 .It Cm \&%I
 is replaced by the hour (12-hour clock) as a decimal number (01-12).
 .It Cm %j
@@ -152,8 +153,9 @@ is replaced by the minute as a decimal number (00-59).
 is replaced by the month as a decimal number (01-12).
 .It Cm %n
 is replaced by a newline.
-.It Cm \&%O*
-the same as %E*.
+.It Cm %O*
+the same as
+.Cm %E* .
 .It Cm %p
 is replaced by national representation of either
 "ante meridiem"
@@ -207,7 +209,7 @@ is replaced by the year with century as a decimal number.
 is replaced by the year without century as a decimal number (00-99).
 .It Cm \&%Z
 is replaced by the time zone name.
-.It Cm \&%z
+.It Cm %z
 is replaced by the time zone offset from UTC; a leading plus sign stands for
 east of UTC, a minus sign for west of UTC, hours and minutes follow
 with two digits each and no delimiter between them (common form for
@@ -216,13 +218,13 @@ RFC 822 date headers).
 is replaced by national representation of the date and time
 (the format is similar to that produced by
 .Xr date 1 ) .
-.It Cm \&%-*
+.It Cm %-*
 GNU libc extension.
 Do not do any padding when performing numerical outputs.
-.It Cm \&%_*
+.It Cm %_*
 GNU libc extension.
 Explicitly specify space for padding.
-.It Cm \&%0*
+.It Cm %0*
 GNU libc extension.
 Explicitly specify zero for padding.
 .It Cm %%

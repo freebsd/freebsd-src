@@ -186,7 +186,7 @@ Range:	Overflow threshold  = 2.0**1024 = 1.8e308
 	Underflow threshold = 0.5**1022 = 2.2e\-308
 .El
 .Bd -ragged -offset indent -compact
-Overflow goes by default to a signed \(if.
+Overflow goes by default to a signed \*(if.
 Underflow is
 .Em Gradual ,
 rounding to the nearest
@@ -204,19 +204,19 @@ sign are division by zero and
 .Fn copysign x \(+-0 .
 In particular, comparison (x > y, x \(>= y, etc.)\&
 cannot be affected by the sign of zero; but if
-finite x = y then \(if = 1/(x\-y) \(!= \-1/(y\-x) = \-\(if.
+finite x = y then \*(if = 1/(x\-y) \(!= \-1/(y\-x) = \-\*(if.
 .Ed
 .Pp
-\(if is signed.
+\*(if is signed.
 .Bd -ragged -offset indent -compact
 It persists when added to itself
 or to any finite number.
 Its sign transforms
 correctly through multiplication and division, and
-(finite)/\(+-\(if\0=\0\(+-0
-(nonzero)/0 = \(+-\(if.
+(finite)/\(+-\*(if\0=\0\(+-0
+(nonzero)/0 = \(+-\*(if.
 But
-\(if\-\(if, \(if\(**0 and \(if/\(if
+\*(if\-\*(if, \*(if\(**0 and \*(if/\*(if
 are, like 0/0 and sqrt(\-3),
 invalid operations that produce \*(Na. ...
 .Ed
@@ -262,7 +262,7 @@ Only rounding like IEEE 754 can do that.
 But no single kind of rounding can be
 proved best for every circumstance, so IEEE 754
 provides rounding towards zero or towards
-+\(if or towards \-\(if
++\*(if or towards \-\*(if
 at the programmer's option.
 And the
 same kinds of rounding are specified for
@@ -277,8 +277,8 @@ listed below in declining order of probable importance.
 .Bl -column -offset indent "Invalid Operation" "Gradual Underflow"
 .Em "Exception	Default Result"
 Invalid Operation	\*(Na, or FALSE
-Overflow	\(+-\(if
-Divide by Zero	\(+-\(if
+Overflow	\(+-\*(if
+Divide by Zero	\(+-\*(if
 Underflow	Gradual Underflow
 Inexact	Rounded value
 .El

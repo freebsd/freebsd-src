@@ -98,16 +98,16 @@ requires appropriate privilege in all cases, but this behavior was optional
 in prior editions of the standard.
 .It Li _PC_NO_TRUNC
 Return greater than zero if attempts to use pathname components longer than
-.Brq Li NAME_MAX
+.Brq Dv NAME_MAX
 will result in an
 .Bq Er ENAMETOOLONG
 error; otherwise, such components will be truncated to
-.Brq Li NAME_MAX .
+.Brq Dv NAME_MAX .
 .St -p1003.1-2001
 requires the error in all cases, but this behavior was optional in prior
 editions of the standard, and some
-.No non- Ns Tn POSIX Ns \&-compliant
-filesystems do not support this behavior.
+.No non- Ns Tn POSIX Ns -compliant
+file systems do not support this behavior.
 .It Li _PC_VDISABLE
 Returns the terminal character disabling value.
 .It Li _PC_ASYNC_IO
@@ -188,12 +188,12 @@ will fail if:
 .It Bq Er ENOTDIR
 A component of the path prefix is not a directory.
 .It Bq Er ENAMETOOLONG
-A component of a pathname exceeded 
+A component of a pathname exceeded
 .Brq Dv NAME_MAX
 characters (but see
 .Dv _PC_NO_TRUNC
 above),
-or an entire path name exceeded 
+or an entire path name exceeded
 .Brq Dv PATH_MAX
 characters.
 .It Bq Er ENOENT

@@ -126,11 +126,11 @@ argument to a
 function is formed by
 .Em or Ap ing
 one or more of the values:
-.Bl -column MSG_DONTWAIT -offset indent
+.Bl -column ".Dv MSG_DONTWAIT" -offset indent
 .It Dv MSG_OOB Ta process out-of-band data
 .It Dv MSG_PEEK Ta peek at incoming message
 .It Dv MSG_WAITALL Ta wait for full request or error
-.It Dv MSG_DONTWAIT Ta don't block
+.It Dv MSG_DONTWAIT Ta do not block
 .El
 .Pp
 The
@@ -139,21 +139,29 @@ flag requests receipt of out-of-band data
 that would not be received in the normal data stream.
 Some protocols place expedited data at the head of the normal
 data queue, and thus this flag cannot be used with such protocols.
-The MSG_PEEK flag causes the receive operation to return data
+The
+.Dv MSG_PEEK
+flag causes the receive operation to return data
 from the beginning of the receive queue without removing that
 data from the queue.
 Thus, a subsequent receive call will return the same data.
-The MSG_WAITALL flag requests that the operation block until
+The
+.Dv MSG_WAITALL
+flag requests that the operation block until
 the full request is satisfied.
 However, the call may still return less data than requested
 if a signal is caught, an error or disconnect occurs,
 or the next data to be received is of a different type than that returned.
-The MSG_DONTWAIT flag requests the call to return when it would block otherwise.
-If no data is available
+The
+.Dv MSG_DONTWAIT
+flag requests the call to return when it would block otherwise.
+If no data is available,
 .Va errno
 is set to
 .Er EAGAIN .
-This flag is not available in strict ANSI or C99 compilation mode.
+This flag is not available in strict
+.Tn ANSI
+or C99 compilation mode.
 .Pp
 The
 .Fn recvmsg
@@ -292,10 +300,14 @@ The argument
 .Fa s
 does not refer to a socket.
 .It Bq Er EMSGSIZE
+The
 .Fn recvmsg
+system call
 was used to receive rights (file descriptors) that were in flight on the
-connection.  However, the receiving program did not have enough free file
-descriptor slots to accept the them.  In this case the descriptors are
+connection.
+However, the receiving program did not have enough free file
+descriptor slots to accept the them.
+In this case the descriptors are
 closed, any pending data can be returned by another call to
 .Fn recvmsg .
 .It Bq Er EAGAIN

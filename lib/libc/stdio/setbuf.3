@@ -117,7 +117,9 @@ bytes long;
 this buffer will be used instead of the current buffer.
 If
 .Fa buf
-is not NULL, it is the caller's responsibility to
+is not
+.Dv NULL ,
+it is the caller's responsibility to
 .Xr free 3
 this buffer after closing the stream.
 (If the

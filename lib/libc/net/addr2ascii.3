@@ -107,20 +107,23 @@ addresses in the specified family:
 .Pp
 .Bl -tag -width AF_INETxxxx -compact
 .It Dv AF_INET
-.Li struct in_addr
+.Vt "struct in_addr"
 (in
 .In arpa/inet.h )
 .It Dv AF_LINK
-.Li struct sockaddr_dl
+.Vt "struct sockaddr_dl"
 (in
 .In net/if_dl.h )
 .\" .It Dv AF_INET6
-.\" .Li struct in6_addr
+.\" .Vt "struct in6_addr"
 .\" (in
 .\" .In netinet6/in6.h )
 .El
 .Pp
-.Dv AF_INET and AF_LINK constants are defined in
+.Dv AF_INET
+and
+.Dv AF_LINK
+constants are defined in
 .In sys/socket.h
 .Sh RETURN VALUES
 The
@@ -167,7 +170,7 @@ are implemented in terms of the
 functions, rather than the other way around.
 .Sh ERRORS
 When a failure is returned,
-.Li errno
+.Va errno
 is set to one of the following values:
 .Bl -tag -width Er
 .It Bq Er ENAMETOOLONG
@@ -222,7 +225,7 @@ A truly
 generic interface would provide a means for determining the length of
 the buffer to be used so that it could be dynamically allocated, and
 would always require a
-.Dq Li "struct sockaddr"
+.Vt "struct sockaddr"
 to hold the binary address.
 Unfortunately, this is incompatible with existing
 practice.

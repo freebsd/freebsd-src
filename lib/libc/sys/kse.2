@@ -333,42 +333,62 @@ set to
 .Ss Signals
 .\"
 .Pp
-The current implementation creates a special a signal thread.
+The current implementation creates a special signal thread.
 Kernel threads (KSEs) in a process mask all signals, and only the signal
 thread waits for signals to be delivered to the process, the signal thread
 is responsible
 for dispatching signals to user threads.
 .Pp
 A downside of this is that if a multiplexed thread
-calls the execve() syscall, its signal mask and pending signals may not be
-available in the kernel. They are stored
-in userland and the kernel does not know where to get them, however POSIX
+calls the
+.Fn execve
+syscall, its signal mask and pending signals may not be
+available in the kernel.
+They are stored
+in userland and the kernel does not know where to get them, however
+.Tn POSIX
 requires them to be restored and passed them to new process.
-Just setting the mask for the thread before calling execve is only a 
+Just setting the mask for the thread before calling
+.Fn execve
+is only a 
 close approximation to the problem as it does not re-deliver back to the kernel
-any pending signals that the old process may have blocked, and it allows a 
-window in which new signals may be delivered to the process between the setting of the mask and the execve().
+any pending signals that the old process may have blocked, and it allows a
+window in which new signals may be delivered to the process between the setting
+of the mask and the
+.Fn execve .
 .Pp
 For now this problem has been solved by adding a special combined
-kse_thr_interrupt()/execve() mode to the
+.Fn kse_thr_interrupt Ns / Ns Fn execve
+mode to the
 .Fn kse_thr_interrupt
 syscall.
-The 
+The
 .Fn kse_thr_interrupt
-syscall has a sub command KSE_INTR_EXECVE, that allows it to accept a
-.Va kse_execv_args 
+syscall has a sub command
+.Dv KSE_INTR_EXECVE ,
+that allows it to accept a
+.Vt kse_execv_args
 structure, and allowing it to adjust the signals and then atomically
-convert into an execve() call.
+convert into an
+.Fn execve()
+call.
 Additional pending signals and the correct signal mask can be passed
-to the kernel in this way. The thread library overrides the execve syscall
-and translates it into kse_intr_interrupt call, allowing a multiplexed thread
-to restore pending signals and the correct signal mask before doing the exec.
+to the kernel in this way.
+The thread library overrides the
+.Fn execve
+syscall
+and translates it into
+.Fn kse_intr_interrupt
+call, allowing a multiplexed thread
+to restore pending signals and the correct signal mask before doing the
+.Fn exec .
 This solution to the problem may change.
 .\"
 .Ss KSE Mailboxes
 .\"
-Each KSE has a unique mailbox for user-kernel communication defined in 
-sys/kse.h. Some of the fields there are:
+Each KSE has a unique mailbox for user-kernel communication defined in
+.In sys/kse.h .
+Some of the fields there are:
 .Pp
 .Va km_version
 describes the version of this structure and must be equal to
@@ -466,20 +486,18 @@ each upcall.
 .Va km_flags
 may contain any of the following bits OR'ed together:
 .Bl -tag -width indent
-.It \&
-KMF_NOUPCALL
-block upcalls from happening. The thread is in some critical section.
-.It \&
-KMF_NOCOMPLETED
-.It \&
-KMF_DONE
-.It \&
-KMF_BOUND
+.It Dv KMF_NOUPCALL
+Block upcalls from happening.
+The thread is in some critical section.
+.It Dv KMF_NOCOMPLETED , KMF_DONE , KMF_BOUND
 This thread should be considerred to be permanently bound to
 its KSE, and treated much like a non-threaded process would be.
-It is a "long term" version of KMF_NOUPCALL in some ways.
-.It \&
-KMF_WAITSIGEVENT
+It is a
+.Dq "long term"
+version of
+.Dv KMF_NOUPCALL
+in some ways.
+.It Dv KMF_WAITSIGEVENT
 Implement charactersitics needed for the signal delivery thread.
 .El
 .\"
@@ -487,7 +505,9 @@ Implement charactersitics needed for the signal delivery thread.
 .\"
 Each user thread must have associated with it a unique
 .Vt "struct kse_thr_mailbox"
-as defined in sys/kse.h. It includes the following fields.
+as defined in
+.In sys/kse.h .
+It includes the following fields.
 .Pp
 .Va tm_udata
 is an opaque pointer ignored by the kernel.
@@ -526,9 +546,10 @@ counter is incremented.
 .Va tm_flags
 may contain any of the following bits OR'ed together:
 .Bl -tag -width indent
-.It \&
-TMF_NOUPCALL
-Similar to KMF_NOUPCALL. This flag inhibits upcalling for critical sections.
+.It Dv TMF_NOUPCALL
+Similar to
+.Dv KMF_NOUPCALL .
+This flag inhibits upcalling for critical sections.
 Some architectures require this to be in one place and some in the other.
 .El
 .Sh RETURN VALUES
