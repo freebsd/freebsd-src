@@ -118,7 +118,7 @@ struct compressor ppp_deflate_draft = {
 /*
  * Space allocation and freeing routines for use by zlib routines.
  */
-void *
+static void *
 z_alloc(notused, items, size)
     void *notused;
     u_int items, size;
@@ -129,7 +129,7 @@ z_alloc(notused, items, size)
     return ptr;
 }
 
-void
+static void
 z_free(notused, ptr)
     void *notused;
     void *ptr;
@@ -223,7 +223,7 @@ z_comp_reset(arg)
     deflateReset(&state->strm);
 }
 
-int
+static int
 z_compress(arg, mret, mp, orig_len, maxolen)
     void *arg;
     struct mbuf **mret;		/* compressed packet (out) */
@@ -469,7 +469,7 @@ z_decomp_reset(arg)
  * bug, so we return DECOMP_FATALERROR for them in order to turn off
  * compression, even though they are detected by inspecting the input.
  */
-int
+static int
 z_decompress(arg, mi, mop)
     void *arg;
     struct mbuf *mi, **mop;

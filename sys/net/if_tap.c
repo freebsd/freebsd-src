@@ -535,7 +535,7 @@ tapifinit(xtp)
  *
  * Process an ioctl request on network interface
  */
-int
+static int
 tapifioctl(ifp, cmd, data)
 	struct ifnet	*ifp;
 	u_long		 cmd;
