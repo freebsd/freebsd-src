@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$NetBSD: xlint.c,v 1.3 1995/10/23 14:29:30 jpo Exp $";
+static char rcsid[] = "$FreeBSD$";
 #endif
 
 #include <sys/param.h>
@@ -321,7 +321,6 @@ main(argc, argv)
 	libsrchpath = xcalloc(1, sizeof (char *));
 
 	appcstrg(&cppflags, "-lang-c");
-	appcstrg(&cppflags, "-undef");
 	appcstrg(&cppflags, "-$");
 	appcstrg(&cppflags, "-C");
 	appcstrg(&cppflags, "-Wcomment");
