@@ -1,6 +1,6 @@
 # /etc/crontab - root's crontab for FreeBSD
 #
-# $Id: crontab,v 1.16 1997/02/23 09:20:40 peter Exp $
+# $Id: crontab,v 1.17 1997/08/13 06:12:03 pst Exp $
 #
 SHELL=/bin/sh
 PATH=/etc:/bin:/sbin:/usr/bin:/usr/sbin
@@ -21,4 +21,4 @@ HOME=/var/log
 # time zone change adjustment for wall cmos clock,
 # does nothing, if you have UTC cmos clock.
 # See adjkerntz(8) for details.
-1,31	0-4	*	*	*	root	adjkerntz -a
+1,31    0-5     *       *       *       root    adjkerntz -a
