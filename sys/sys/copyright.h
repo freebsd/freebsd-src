@@ -38,7 +38,7 @@
 
 /* a port of FreeBSD to the NEC PC98, Japan */
 #define COPYRIGHT_PC98 \
-	"Copyright (c) 1994-1999 FreeBSD(98) porting team.\nCopyright (c) 1992  A.Kojima F.Ukai M.Ishii (KMC).\n"
+	"Copyright (c) 1994-2000 FreeBSD(98) porting team.\nCopyright (c) 1992  A.Kojima F.Ukai M.Ishii (KMC).\n"
 
 /* HP + Motorola */
 #define COPYRIGHT_HPFPLIB \
