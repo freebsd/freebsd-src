@@ -148,7 +148,7 @@ ext2_ihashins(ip)
 	struct ihashhead *ipp;
 
 	/* lock the inode, then put it on the appropriate hash list */
-	lockmgr(&ip->i_vnode->v_lock, LK_EXCLUSIVE, (struct mtx *)0, td);
+	vn_lock(ITOV(ip), LK_EXCLUSIVE | LK_RETRY, td);
 
 	mtx_lock(&ext2_ihash_mtx);
 	ipp = INOHASH(ip->i_dev, ip->i_number);

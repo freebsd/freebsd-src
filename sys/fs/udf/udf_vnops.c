@@ -135,8 +135,7 @@ udf_hashins(struct udf_node *node)
 	mtx_lock(&udfmp->hash_mtx);
 	TAILQ_INSERT_TAIL(&udfmp->udf_tqh, node, tq);
 	mtx_unlock(&udfmp->hash_mtx);
-	lockmgr(&node->i_vnode->v_lock, LK_EXCLUSIVE, (struct mtx *)0,
-		curthread);
+	vn_lock(node->i_vnode, LK_EXCLUSIVE | LK_RETRY, curthread);
 
 	return (0);
 }
@@ -1028,7 +1027,6 @@ udf_reclaim(struct vop_reclaim_args *a)
 
 		if (unode->fentry != NULL)
 			FREE(unode->fentry, M_UDFFENTRY);
-		lockdestroy(&unode->i_vnode->v_lock);
 		uma_zfree(udf_zone_node, unode);
 		vp->v_data = NULL;
 	}

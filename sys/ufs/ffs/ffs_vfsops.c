@@ -1218,10 +1218,9 @@ ffs_vget(mp, ino, flags, vpp)
 	}
 	bzero((caddr_t)ip, sizeof(struct inode));
 	/*
-	 * FFS supports lock sharing in the stack of vnodes
+	 * FFS supports recursive locking.
 	 */
-	vp->v_vnlock = &vp->v_lock;
-	lockinit(vp->v_vnlock, PINOD, "inode", VLKTIMEOUT, LK_CANRECURSE);
+	vp->v_vnlock->lk_flags |= LK_CANRECURSE;
 	vp->v_data = ip;
 	ip->i_vnode = vp;
 	ip->i_ump = ump;

@@ -276,9 +276,9 @@ vop_stdlock(ap)
 	struct vnode *vp = ap->a_vp;
 
 #ifndef	DEBUG_LOCKS
-	return (lockmgr(&vp->v_lock, ap->a_flags, VI_MTX(vp), ap->a_td));
+	return (lockmgr(vp->v_vnlock, ap->a_flags, VI_MTX(vp), ap->a_td));
 #else
-	return (debuglockmgr(&vp->v_lock, ap->a_flags, VI_MTX(vp),
+	return (debuglockmgr(vp->v_vnlock, ap->a_flags, VI_MTX(vp),
 	    ap->a_td, "vop_stdlock", vp->filename, vp->line));
 #endif
 }
@@ -294,7 +294,7 @@ vop_stdunlock(ap)
 {
 	struct vnode *vp = ap->a_vp;
 
-	return (lockmgr(&vp->v_lock, ap->a_flags | LK_RELEASE, VI_MTX(vp),
+	return (lockmgr(vp->v_vnlock, ap->a_flags | LK_RELEASE, VI_MTX(vp),
 	    ap->a_td));
 }
 
@@ -307,7 +307,7 @@ vop_stdislocked(ap)
 	} */ *ap;
 {
 
-	return (lockstatus(&ap->a_vp->v_lock, ap->a_td));
+	return (lockstatus(ap->a_vp->v_vnlock, ap->a_td));
 }
 
 /* Mark the vnode inactive */
@@ -423,9 +423,9 @@ vop_sharedlock(ap)
 	if (flags & LK_INTERLOCK)
 		vnflags |= LK_INTERLOCK;
 #ifndef	DEBUG_LOCKS
-	return (lockmgr(&vp->v_lock, vnflags, VI_MTX(vp), ap->a_td));
+	return (lockmgr(vp->v_vnlock, vnflags, VI_MTX(vp), ap->a_td));
 #else
-	return (debuglockmgr(&vp->v_lock, vnflags, VI_MTX(vp), ap->a_td,
+	return (debuglockmgr(vp->v_vnlock, vnflags, VI_MTX(vp), ap->a_td,
 	    "vop_sharedlock", vp->filename, vp->line));
 #endif
 }
@@ -480,7 +480,7 @@ vop_nolock(ap)
 	}
 	if (flags & LK_INTERLOCK)
 		vnflags |= LK_INTERLOCK;
-	return(lockmgr(&vp->v_lock, vnflags, VI_MTX(vp), ap->a_td));
+	return(lockmgr(vp->v_vnlock, vnflags, VI_MTX(vp), ap->a_td));
 #else /* for now */
 	/*
 	 * Since we are not using the lock manager, we must clear
