@@ -1,4 +1,4 @@
-/*	$Id: msgcat.c,v 1.12 1998/01/15 09:58:08 jb Exp $ */
+/*	$Id: msgcat.c,v 1.13 1998/04/30 10:14:55 ache Exp $ */
 
 /***********************************************************
 Copyright 1990, by Alfalfa Software Incorporated, Cambridge, Massachusetts.
@@ -57,6 +57,7 @@ static char *rcsid = "$NetBSD: msgcat.c,v 1.11 1995/02/27 13:06:51 cgd Exp $";
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -99,8 +100,12 @@ int type;
 	catpath = name;
 	if (stat(catpath, &sbuf)) return(NLERR);
     } else {
-	if ((lang = (char *) getenv("LANG")) == NULL) 
-		lang = "C";
+	if (type == NL_CAT_LOCALE)
+		lang = setlocale(LC_MESSAGES, NULL);
+	else {
+		if ((lang = (char *) getenv("LANG")) == NULL)
+			lang = "C";
+	}
 	if ((nlspath = (char *) getenv("NLSPATH")) == NULL
 #ifndef __NETBSD_SYSCALLS
 	    || issetugid()
