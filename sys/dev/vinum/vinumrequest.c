@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrequest.c,v 1.30 2001/01/09 04:20:55 grog Exp grog $
+ * $Id: vinumrequest.c,v 1.32 2001/05/23 23:04:38 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -185,7 +185,7 @@ vinumstart(struct buf *bp, int reviveok)
     struct request *rq;					    /* build up our request here */
     enum requeststatus status;
 
-#if VINUMDEBUG
+#ifdef VINUMDEBUG
     if (debug & DEBUG_LASTREQS)
 	logrq(loginfo_user_bp, (union rqinfou) bp, bp);
 #endif
@@ -337,7 +337,7 @@ launch_requests(struct request *rq, int reviveok)
 	} else
 	    sd->waitlist = rq;				    /* hook our request at the front */
 
-#if VINUMDEBUG
+#ifdef VINUMDEBUG
 	if (debug & DEBUG_REVIVECONFLICT)
 	    log(LOG_DEBUG,
 		"Revive conflict sd %d: %p\n%s dev %d.%d, offset 0x%x, length %ld\n",
@@ -352,7 +352,7 @@ launch_requests(struct request *rq, int reviveok)
 	return 0;					    /* and get out of here */
     }
     rq->active = 0;					    /* nothing yet */
-#if VINUMDEBUG
+#ifdef VINUMDEBUG
     if (debug & DEBUG_ADDRESSES)
 	log(LOG_DEBUG,
 	    "Request: %p\n%s dev %d.%d, offset 0x%x, length %ld\n",
@@ -627,7 +627,7 @@ bre(struct request *rq,
 		 */
 		if (rqe->sdoffset + rqe->datalen > sd->sectors) { /* ends beyond the end of the subdisk? */
 		    rqe->datalen = sd->sectors - rqe->sdoffset;	/* truncate */
-#if VINUMDEBUG
+#ifdef VINUMDEBUG
 		    if (debug & DEBUG_EOFINFO) {	    /* tell on the request */
 			log(LOG_DEBUG,
 			    "vinum: EOF on plex %s, sd %s offset %x (user offset %x)\n",
@@ -901,7 +901,7 @@ sdio(struct buf *bp)
     daddr_t endoffset;
     struct drive *drive;
 
-#if VINUMDEBUG
+#ifdef VINUMDEBUG
     if (debug & DEBUG_LASTREQS)
 	logrq(loginfo_sdio, (union rqinfou) bp, bp);
 #endif
@@ -966,7 +966,7 @@ sdio(struct buf *bp)
 	    return;
 	}
     }
-#if VINUMDEBUG
+#ifdef VINUMDEBUG
     if (debug & DEBUG_ADDRESSES)
 	log(LOG_DEBUG,
 	    "  %s dev %d.%d, sd %d, offset 0x%x, devoffset 0x%x, length %ld\n",
@@ -979,7 +979,7 @@ sdio(struct buf *bp)
 	    sbp->b.b_bcount);
 #endif
     s = splbio();
-#if VINUMDEBUG
+#ifdef VINUMDEBUG
     if (debug & DEBUG_LASTREQS)
 	logrq(loginfo_sdiol, (union rqinfou) &sbp->b, &sbp->b);
 #endif

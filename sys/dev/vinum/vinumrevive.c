@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrevive.c,v 1.10 2000/01/03 03:40:54 grog Exp grog $
+ * $Id: vinumrevive.c,v 1.15 2001/05/23 23:04:48 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -82,7 +82,7 @@ revive_block(int sdno)
 	vol = NULL;
 
     if ((sd->revive_blocksize == 0)			    /* no block size */
-        ||(sd->revive_blocksize & ((1 << DEV_BSHIFT) - 1))) /* or invalid block size */
+    ||(sd->revive_blocksize & ((1 << DEV_BSHIFT) - 1)))	    /* or invalid block size */
 	sd->revive_blocksize = DEFAULT_REVIVE_BLOCKSIZE;
     else if (sd->revive_blocksize > MAX_REVIVE_BLOCKSIZE)
 	sd->revive_blocksize = MAX_REVIVE_BLOCKSIZE;
@@ -109,7 +109,7 @@ revive_block(int sdno)
 	stripeoffset = sd->revived % plex->stripesize;	    /* offset from beginning of stripe */
 	plexblkno = sd->plexoffset			    /* base */
 	    + (sd->revived - stripeoffset) * (plex->subdisks - 1) /* offset to beginning of stripe */
-	    + stripeoffset;				    /* offset from beginning of stripe */
+	    +stripeoffset;				    /* offset from beginning of stripe */
 	stripe = (sd->revived / plex->stripesize);	    /* stripe number */
 
 	/* Make sure we don't go beyond the end of the band. */
@@ -155,8 +155,8 @@ revive_block(int sdno)
 	    lock = lockrange(plexblkno << DEV_BSHIFT, bp, plex); /* lock it */
 	if (vol != NULL)				    /* it's part of a volume, */
 	    /*
-	     * First, read the data from the volume.  We
-	     * don't care which plex, that's bre's job.
+	       * First, read the data from the volume.  We
+	       * don't care which plex, that's bre's job.
 	     */
 	    bp->b_dev = VINUMDEV(plex->volno, 0, 0, VINUM_VOLUME_TYPE);	/* create the device number */
 	else						    /* it's an unattached plex */
@@ -196,7 +196,7 @@ revive_block(int sdno)
 	if (lock)					    /* we took a lock, */
 	    unlockrange(sd->plexno, lock);		    /* give it back */
 	while (sd->waitlist) {				    /* we have waiting requests */
-#if VINUMDEBUG
+#ifdef VINUMDEBUG
 	    struct request *rq = sd->waitlist;
 
 	    if (debug & DEBUG_REVIVECONFLICT)

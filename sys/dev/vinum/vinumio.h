@@ -33,17 +33,13 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.h,v 1.19 2000/04/26 04:17:33 grog Exp grog $
+ * $Id: vinumio.h,v 1.21 2001/05/22 07:29:23 grog Exp grog $
  * $FreeBSD$
  */
 
 #define L 'F'						    /* ID letter of our ioctls */
 
-#ifdef VINUMDEBUG
 #define MAX_IOCTL_REPLY 1024
-#else
-#define MAX_IOCTL_REPLY 256
-#endif
 
 #ifdef VINUMDEBUG
 struct debuginfo {

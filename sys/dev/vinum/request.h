@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: request.h,v 1.19 2000/11/24 03:41:51 grog Exp grog $
+ * $Id: request.h,v 1.21 2001/05/23 23:03:23 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -50,7 +50,7 @@ enum xferinfo {
     XFR_PARITY_BLOCK = 0x80,				    /* parity block in request */
     XFR_BAD_SUBDISK = 0x100,				    /* this subdisk is dead */
     XFR_MALLOCED = 0x200,				    /* this buffer is malloced */
-#if VINUMDEBUG
+#ifdef VINUMDEBUG
     XFR_PHASE2 = 0x800,					    /* documentation only: 2nd phase write */
 #endif
     XFR_REVIVECONFLICT = 0x1000,			    /* possible conflict with a revive operation */
