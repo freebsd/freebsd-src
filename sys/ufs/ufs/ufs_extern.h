@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_extern.h	8.10 (Berkeley) 5/14/95
- * $Id: ufs_extern.h,v 1.16 1997/08/26 07:32:50 phk Exp $
+ * $Id: ufs_extern.h,v 1.17 1997/09/14 02:58:10 peter Exp $
  */
 
 #ifndef _UFS_UFS_EXTERN_H_
@@ -103,7 +103,7 @@ int	 ufs_pathconf __P((struct vop_pathconf_args *));
 int	 ufs_print __P((struct vop_print_args *));
 int	 ufs_readdir __P((struct vop_readdir_args *));
 int	 ufs_readlink __P((struct vop_readlink_args *));
-int	 ufs_reclaim __P((struct vnode *, struct proc *));
+int	 ufs_reclaim __P((struct vop_reclaim_args *));
 int	 ufs_remove __P((struct vop_remove_args *));
 int	 ufs_rename __P((struct vop_rename_args *));
 #define	 ufs_revoke vop_revoke

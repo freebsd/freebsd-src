@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_inode.c	8.9 (Berkeley) 5/14/95
- * $Id: ufs_inode.c,v 1.14 1997/08/26 04:36:26 dyson Exp $
+ * $Id: ufs_inode.c,v 1.15 1997/09/02 20:06:57 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -44,9 +44,11 @@
 #include <sys/param.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
+#include <sys/malloc.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
+#include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
 
 u_long	nextgennumber;		/* Next generation number to assign. */
@@ -107,11 +109,14 @@ out:
  * Reclaim an inode so that it can be used for other purposes.
  */
 int
-ufs_reclaim(vp, p)
-	struct vnode *vp;
-	struct proc *p;
+ufs_reclaim(ap)
+	struct vop_reclaim_args /* {
+		struct vnode *a_vp;
+		struct proc *a_p;
+	} */ *ap;
 {
 	register struct inode *ip;
+	register struct vnode *vp = ap->a_vp;
 #ifdef QUOTA
 	int i;
 #endif
@@ -139,5 +144,7 @@ ufs_reclaim(vp, p)
 		}
 	}
 #endif
+	FREE(vp->v_data, VFSTOUFS(vp->v_mount)->um_malloctype);
+	vp->v_data = 0;
 	return (0);
 }
