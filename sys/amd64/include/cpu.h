@@ -53,10 +53,12 @@
  * these are defined to get generic functions
  * rather than inline or machine-dependent implementations
  */
+#if 0
 #define	NEED_MINMAX		/* need {,i,l,ul}{min,max} functions */
 #define	NEED_FFS		/* need ffs function */
 #define	NEED_BCMP		/* need bcmp function */
 #define	NEED_STRLEN		/* need strlen function */
+#endif
 
 #define	cpu_exec(p)	/* nothing */
 
