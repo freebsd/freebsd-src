@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_ttyconv.c#12 $
+ * $P4: //depot/projects/openpam/lib/openpam_ttyconv.c#13 $
  */
 
 #include <sys/types.h>
@@ -76,7 +76,7 @@ prompt(const char *msg)
 	action.sa_flags = 0;
 	sigemptyset(&action.sa_mask);
 	sigaction(SIGALRM, &action, &saved_action);
-	fputs(msg, stderr);
+	fputs(msg, stdout);
 	buf[0] = '\0';
 	timed_out = 0;
 	saved_alarm = alarm(openpam_ttyconv_timeout);
