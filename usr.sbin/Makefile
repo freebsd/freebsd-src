@@ -97,6 +97,7 @@ SUBDIR=	IPXrouted \
 	sliplogin \
 	slstat \
 	spray \
+	sysinstall \
 	syslogd \
 	tcpdchk \
 	tcpdmatch \
@@ -121,10 +122,6 @@ SUBDIR=	IPXrouted \
 	ypserv \
 	ypset \
 	zic
-
-.if ${MACHINE_ARCH} != "sparc64"
-SUBDIR+=sysinstall
-.endif
 
 .if !defined(NO_IPFILTER)
 SUBDIR+=ipftest \
