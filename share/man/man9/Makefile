@@ -756,6 +756,7 @@ MLINKS+=sysctl_add_oid.9 SYSCTL_ADD_INT.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_UINT.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_ULONG.9 \
 	sysctl_add_oid.9 SYSCTL_CHILDREN.9 \
+	sysctl_add_oid.9 sysctl_move_oid.9 \
 	sysctl_add_oid.9 sysctl_remove_oid.9 \
 	sysctl_add_oid.9 SYSCTL_STATIC_CHILDREN.9
 MLINKS+=sysctl_ctx_init.9 sysctl_ctx_entry_add.9 \
