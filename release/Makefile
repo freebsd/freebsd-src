@@ -1,9 +1,9 @@
-#	$Id$
+#	$Id: Makefile,v 1.1 1994/09/23 08:28:25 rgrimes Exp $
 #
 
 MTREE_DIR=	${.CURDIR}/../etc/mtree
 
-hieriarchy:
+hierarchy:
 	# If this exits with an error code of 2 your file hieriarchy was
 	# modified for some reason, please read the mtree output to understand
 	# what was changed, then run the command again.
