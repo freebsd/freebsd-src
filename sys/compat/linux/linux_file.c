@@ -508,7 +508,10 @@ again:
 	    linux_dirent.doff = (linux_off_t) linuxreclen;
 	    linux_dirent.dreclen = (u_short) bdp->d_namlen;
 	} else {
-	    linux_dirent.doff = (linux_off_t)(off + reclen);
+	    if (cookiep)
+		linux_dirent.doff = (linux_off_t)*cookiep;
+	    else
+		linux_dirent.doff = (linux_off_t)(off + reclen);
 	    linux_dirent.dreclen = (u_short) linuxreclen;
 	}
 	strcpy(linux_dirent.dname, bdp->d_name);
