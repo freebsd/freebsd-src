@@ -123,7 +123,7 @@ main(argc, argv)
 
 	if (minlen == -1)
 		minlen = DEF_LEN;
-	else {
+	else if (minlen < 1) {
 		(void)fprintf(stderr, "strings: length less than 1\n");
 		exit (1);
 	}
