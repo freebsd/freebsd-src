@@ -240,6 +240,9 @@ RD=			${_R}/stage
 RND=			${RD}/release.doc
 FD=			${_R}/ftp
 CD=			${_R}/cdrom
+.if ${TARGET} != "pc98"
+CD_BOOT=		${CD}/bootonly
+.endif
 CD_DISC1=		${CD}/disc1
 CD_DISC2=		${CD}/disc2
 
@@ -601,6 +604,19 @@ release.7:
 			echo "$${i} distribution is finished."; \
 		fi ; \
 	done
+.if !defined(NOPORTS)
+	# XXX: Inline stripped version of doTARBALL
+	@rm -rf ${RD}/dists/ports/ports*
+	@mkdir -p ${RD}/dists/ports
+	@echo rolling ports/ports tarball
+	@tar --exclude CVS --exclude 'ports/distfiles/*' -czf \
+	  ${RD}/dists/ports/ports.tgz -C /usr ports
+	@cp ${.CURDIR}/scripts/ports-install.sh ${RD}/dists/ports/install.sh
+	@(cd ${RD}/dists/ports; \
+	  rm -f CHECKSUM.MD5; \
+	  md5 * > CHECKSUM.MD5)
+	@echo "ports distribution is finished."
+.endif
 	touch ${.TARGET}
 
 
@@ -701,8 +717,8 @@ release.9:
 .endif
 	@tar --exclude CVS -cf - -C ${.CURDIR}/../usr.sbin/sysinstall help | \
 		tar xf - -C ${RD}/mfsfd/stand
-	@mkdir -p ${RD}/mfsroot
 .if defined(SMALLBOOTSIZE)
+	@mkdir -p ${RD}/mfsroot-small
 .if exists(${.CURDIR}/${TARGET}/drivers-small.conf)
 	@mkdir -p ${RD}/mfsfd/modules
 	@awk -f  ${.CURDIR}/scripts/driver-copy2.awk 2 \
@@ -711,7 +727,7 @@ release.9:
 .endif
 	sh -e ${DOFS_SH} mfsroot-small ${RD} ${MNT} \
 		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
-	@gzip -9vc mfsroot-small > ${RD}/mfsroot/mfsroot-small.gz
+	@gzip -9cnv mfsroot-small > ${RD}/mfsroot-small/mfsroot.gz
 	@rm -rf ${RD}/mfsfd/modules
 .endif
 .if exists(${.CURDIR}/${TARGET}/drivers.conf)
@@ -720,9 +736,10 @@ release.9:
 	    ${.CURDIR}/${TARGET}/drivers.conf \
 	    ${RD}/trees/base/boot/kernel ${RD}/mfsfd/modules
 .endif
+	@mkdir -p ${RD}/mfsroot
 	sh -e ${DOFS_SH} mfsroot ${RD} ${MNT} \
 		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
-	@gzip -9vc mfsroot > ${RD}/mfsroot/mfsroot.gz
+	@gzip -9cnv mfsroot > ${RD}/mfsroot/mfsroot.gz
 	@rm -f mfsroot mfsroot-small
 	touch ${.TARGET}
 
@@ -827,9 +844,6 @@ ftp.1:
 	@mv ${FD}/EARLY-ADOPTER.HTM ${FD}/EARLY.HTM
 .endif
 	@echo "CD_VERSION = ${BUILDNAME}" > ${FD}/cdrom.inf
-.if !defined(NOPORTS)
-	@tar --exclude CVS -cBf - -C ${CD_DISC1} ports | tar -xBf - -C ${FD}
-.endif
 	touch ${.TARGET}
 
 #
@@ -837,7 +851,7 @@ ftp.1:
 #
 cdrom.1:
 	@echo "Setting up CDROM distribution area"
-	@mkdir -p ${CD_DISC1} ${CD_DISC2}
+	@mkdir -p ${CD_BOOT} ${CD_DISC1} ${CD_DISC2}
 	-@ln -s . ${CD_DISC1}/${BUILDNAME}
 .if !defined(NO_FLOPPIES)
 	@cd ${RD} && find floppies -print | cpio -dumpl ${CD_DISC1}
@@ -871,31 +885,36 @@ cdrom.1:
 	@mv ${CD_DISC1}/EARLY-ADOPTER.HTM ${CD_DISC1}/EARLY.HTM
 .endif
 .if ${TARGET} != "pc98"
-	@echo "Setting up /boot"
+	@echo "Setting up boot area"
 	@rm -f ${CD_DISC2}/boot/loader.conf
 	@cp ${RD}/mfsroot/mfsroot.gz ${CD_DISC2}/boot/mfsroot.gz
 	@echo 'mfsroot_load="YES"' > ${CD_DISC2}/boot/loader.conf
 	@echo 'mfsroot_type="mfs_root"' >> ${CD_DISC2}/boot/loader.conf
 	@echo 'mfsroot_name="/boot/mfsroot"' >> ${CD_DISC2}/boot/loader.conf
-	@cp -Rp ${CD_DISC2}/boot ${CD_DISC1}
+.if defined(CD_BOOT)
+	@cp -Rp ${CD_DISC2}/boot ${CD_BOOT}
 .endif
+	@cp -Rp ${CD_DISC2}/boot ${CD_DISC1}
 .if ${TARGET} == "i386" && defined(EMUL_BOOT) && !defined(NO_FLOPPIES)
 	# In case bootable ISO with floppy emulation is desired.
+.if defined(CD_BOOT)
+	@mkdir -p ${CD_BOOT}/floppies
+	@cp ${CD_DISC1}/floppies/boot.flp ${CD_BOOT}/floppies
+.endif
 	@mkdir -p ${CD_DISC2}/floppies
 	@cp ${CD_DISC1}/floppies/boot.flp ${CD_DISC2}/floppies
 .endif
-.if !defined(NOPORTS)
-	@mkdir -p ${CD_DISC1}/ports && \
-	  tar --exclude CVS --exclude 'ports/distfiles/*' -czf \
-	  ${CD_DISC1}/ports/ports.tgz -C /usr ports && \
-	  cp ${.CURDIR}/scripts/ports-install.sh ${CD_DISC1}/ports/install.sh \
-	  && (cd ${CD_DISC1}/ports; md5 * > CHECKSUM.MD5)
 .endif
 	touch ${.TARGET}
 
 iso.1:
 .if exists(${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh)
 	@echo "Creating ISO images..."
+.if defined(CD_BOOT)
+	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
+	    fbsd_bootonly \
+	    ${CD}/${BUILDNAME}-${TARGET}-bootonly.iso ${CD_BOOT}
+.endif
 	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
 	    fbsd_miniinst \
 	    ${CD}/${BUILDNAME}-${TARGET}-miniinst.iso ${CD_DISC1}
@@ -1072,11 +1091,7 @@ doMFSKERN:
 	@echo "echo Please insert MFS root floppy and press enter:" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "read" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 .endif
-.if defined(FDSIZE) && ${FDSIZE} == "SMALL"
-	@echo "load -t mfs_root /mfsroot-small" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
-.else
 	@echo "load -t mfs_root /mfsroot" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
-.endif
 .if ${TARGET_ARCH} != "ia64"
 	@echo "set hint.acpi.0.disabled=1" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 .endif
@@ -1098,7 +1113,7 @@ doMFSKERN:
 		${BOOTINODE} ${BIGBOOTLABEL}
 .elif defined(FDSIZE) && ${FDSIZE} == "SMALL"
 	sh -e ${DOFS_SH} ${RD}/floppies/mfsroot-small.flp \
-		${RD} ${MNT} ${SMALLBOOTSIZE} ${RD}/mfsroot/mfsroot-small.gz \
+		${RD} ${MNT} ${SMALLBOOTSIZE} ${RD}/mfsroot-small/mfsroot.gz \
 		${BOOTINODE} ${SMALLBOOTLABEL}
 	sh -e ${DOFS_SH} ${RD}/floppies/${FSIMAGE}.flp \
 		${RD} ${MNT} ${SMALLBOOTSIZE} ${RD}/image.${FSIMAGE} \
