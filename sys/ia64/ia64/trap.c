@@ -324,11 +324,11 @@ trap(int vector, int imm, struct trapframe *framep)
 		sticks = td->td_kse->ke_sticks;
 		td->td_frame = framep;
 #ifdef DIAGNOSTIC 			/* see the comment in ast() */
-		if (td->td_ucred)
-			panic("trap:thread got a cred while userspace");
+		if (td->td_ucred != NULL)
+			panic("trap(): thread got a ucred while in userspace");
 		td->td_ucred = td->td_ucred_cache;
 		td->td_ucred_cache = NULL;
-#endif /* DIAGNOSTIC */
+#endif
 		if (td->td_ucred != p->p_ucred)
 			cred_update_thread(td);
 	} else {
