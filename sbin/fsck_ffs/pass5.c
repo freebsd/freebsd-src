@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)pass5.c	8.9 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: pass5.c,v 1.11 1998/06/15 07:07:19 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -228,7 +228,7 @@ pass5()
 			default:
 				if (j < ROOTINO)
 					break;
-				errx(EEXIT, "BAD STATE %d FOR INODE I=%d",
+				errx(EEXIT, "BAD STATE %d FOR INODE I=%ld",
 				    statemap[j], j);
 			}
 		}

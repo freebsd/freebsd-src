@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)setup.c	8.10 (Berkeley) 5/9/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: setup.c,v 1.11 1998/06/15 07:07:21 charnier Exp $";
 #endif /* not lint */
 
 #define DKTYPENAMES
@@ -415,7 +415,8 @@ readsb(listerr)
 			for ( ; olp < endlp; olp++, nlp++) {
 				if (*olp == *nlp)
 					continue;
-				printf("offset %d, original %d, alternate %d\n",
+				printf(
+				    "offset %d, original %ld, alternate %ld\n",
 				    olp - (long *)&sblock, *olp, *nlp);
 			}
 		}
