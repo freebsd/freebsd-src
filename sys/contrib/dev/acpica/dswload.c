@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dswload - Dispatcher namespace load callbacks
- *              $Revision: 24 $
+ *              $Revision: 25 $
  *
  *****************************************************************************/
 
@@ -9,8 +9,8 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, Intel Corp.  All rights
- * reserved.
+ * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * All rights reserved.
  *
  * 2. License
  *
@@ -860,7 +860,7 @@ AcpiDsLoad2EndOp (
 
         Status = AcpiAmlExecCreateRegion (((ACPI_PARSE2_OBJECT *) Op)->Data,
                                         ((ACPI_PARSE2_OBJECT *) Op)->Length,
-                                        (ACPI_ADDRESS_SPACE_TYPE) Arg->Value.Integer, 
+                                        (ACPI_ADDRESS_SPACE_TYPE) Arg->Value.Integer,
                                         WalkState);
 
         DEBUG_PRINT (TRACE_DISPATCH,

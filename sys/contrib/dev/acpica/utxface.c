@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: cmxface - External interfaces for "global" ACPI functions
- *              $Revision: 55 $
+ *              $Revision: 57 $
  *
  *****************************************************************************/
 
@@ -9,8 +9,8 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, Intel Corp.  All rights
- * reserved.
+ * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * All rights reserved.
  *
  * 2. License
  *
@@ -153,7 +153,7 @@ AcpiInitializeSubsystem (
     FUNCTION_TRACE ("AcpiInitializeSubsystem");
 
     DEBUG_PRINT_RAW (ACPI_OK,
-        ("ACPI Subsystem version [%s]\n", ACPI_CA_VERSION));
+        ("ACPI: Core Subsystem version [%s]\n", ACPI_CA_VERSION));
     DEBUG_PRINT (ACPI_INFO, ("Initializing ACPI Subsystem...\n"));
 
 

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbdisply - debug display commands
- *              $Revision: 38 $
+ *              $Revision: 39 $
  *
  ******************************************************************************/
 
@@ -9,8 +9,8 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, Intel Corp.  All rights
- * reserved.
+ * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * All rights reserved.
  *
  * 2. License
  *
@@ -459,7 +459,7 @@ AcpiDbDisplayInternalObject (
 
     else if (VALID_DESCRIPTOR_TYPE (ObjDesc, ACPI_DESC_TYPE_NAMED))
     {
-        AcpiOsPrintf ("<Node>            Name %4.4s Type-%s", 
+        AcpiOsPrintf ("<Node>            Name %4.4s Type-%s",
                         &((ACPI_NAMESPACE_NODE *)ObjDesc)->Name,
                         AcpiCmGetTypeName (((ACPI_NAMESPACE_NODE *) ObjDesc)->Type));
         if (((ACPI_NAMESPACE_NODE *) ObjDesc)->Flags & ANOBJ_METHOD_ARG)

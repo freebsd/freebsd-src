@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: cmcopy - Internal to external object translation utilities
- *              $Revision: 59 $
+ *              $Revision: 61 $
  *
  *****************************************************************************/
 
@@ -9,8 +9,8 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, Intel Corp.  All rights
- * reserved.
+ * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * All rights reserved.
  *
  * 2. License
  *
@@ -198,7 +198,7 @@ AcpiCmBuildExternalSimpleObject (
 
     case ACPI_TYPE_STRING:
 
-        Length = InternalObj->String.Length;
+        Length = InternalObj->String.Length + 1;
         ExternalObj->String.Length = InternalObj->String.Length;
         ExternalObj->String.Pointer = (NATIVE_CHAR *) DataSpace;
         SourcePtr = (UINT8 *) InternalObj->String.Pointer;

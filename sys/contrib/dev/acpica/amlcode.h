@@ -3,7 +3,7 @@
  * Name: amlcode.h - Definitions for AML, as included in "definition blocks"
  *                   Declarations and definitions contained herein are derived
  *                   directly from the ACPI specification.
- *       $Revision: 42 $
+ *       $Revision: 43 $
  *
  *****************************************************************************/
 
@@ -11,8 +11,8 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, Intel Corp.  All rights
- * reserved.
+ * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * All rights reserved.
  *
  * 2. License
  *
@@ -464,8 +464,6 @@ typedef enum
 
 #define METHOD_FLAGS_ARG_COUNT  0x07
 #define METHOD_FLAGS_SERIALIZED 0x08
-
-
 
 
 /* Array sizes.  Used for range checking also */

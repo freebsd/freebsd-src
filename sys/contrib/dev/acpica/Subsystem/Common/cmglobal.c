@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: cmglobal - Global variables for the ACPI subsystem
- *              $Revision: 112 $
+ *              $Revision: 113 $
  *
  *****************************************************************************/
 
@@ -9,8 +9,8 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, Intel Corp.  All rights
- * reserved.
+ * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * All rights reserved.
  *
  * 2. License
  *
@@ -287,8 +287,6 @@ ACPI_TABLE_SUPPORT          AcpiGbl_AcpiTableData[NUM_ACPI_TABLES] =
 NATIVE_CHAR                 *MsgAcpiErrorBreak = "*** Break on ACPI_ERROR ***\n";
 
 
-
-
 /*****************************************************************************
  *
  * FUNCTION:    AcpiCmGetMutexName
@@ -393,9 +391,6 @@ AcpiCmGetTypeName (
 }
 
 
-
-
-
 /* Region type decoding */
 
 NATIVE_CHAR *AcpiGbl_RegionTypes[NUM_REGION_TYPES] =
@@ -441,9 +436,6 @@ AcpiCmGetRegionName (
 }
 
 
-
-
-
 /* Data used in keeping track of fields */
 
 NATIVE_CHAR *AcpiGbl_FENames[NUM_FIELD_NAMES] =
@@ -451,7 +443,6 @@ NATIVE_CHAR *AcpiGbl_FENames[NUM_FIELD_NAMES] =
     "skip",
     "?access?"
 };              /* FE = Field Element */
-
 
 
 NATIVE_CHAR *AcpiGbl_MatchOps[NUM_MATCH_OPS] =
@@ -490,7 +481,6 @@ NATIVE_CHAR *AcpiGbl_UpdateRules[NUM_UPDATE_RULES] =
 };
 
 #endif
-
 
 
 /*****************************************************************************

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbconvrt - ACPI Table conversion utilities
- *              $Revision: 15 $
+ *              $Revision: 16 $
  *
  *****************************************************************************/
 
@@ -9,8 +9,8 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, Intel Corp.  All rights
- * reserved.
+ * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * All rights reserved.
  *
  * 2. License
  *
@@ -145,7 +145,6 @@
 /* ACPI V1.0 entries -- address space is always I/O */
 
 #define ASL_BUILD_GAS_FROM_V1_ENTRY(a,b,c)  ASL_BUILD_GAS_FROM_ENTRY(a,b,c,ADDRESS_SPACE_SYSTEM_IO)
- 
 
 
 /*******************************************************************************
@@ -443,7 +442,7 @@ AcpiTbConvertTableFadt (void)
         PmTimerAddressSpace = (UINT8)((FADT71->AddressSpace & PM_TMR_BLK_ADDRESS_SPACE)  >> 3);
         Gpe0AddressSpace    = (UINT8)((FADT71->AddressSpace & GPE0_BLK_ADDRESS_SPACE)    >> 4);
         Gpe1AddressSpace    = (UINT8)((FADT71->AddressSpace & GPE1_BLK_ADDRESS_SPACE)    >> 5);
-        
+
         /*
          * Convert the 0.71 (non-GAS style) Block addresses to V2.0 GAS structures,
          * in this order:
