@@ -310,7 +310,7 @@ searchloop:
 						goto notfound;
 				} else if (!(res = isofncmp(name,len,
 							    ep->name,namelen))) {
-					if (isonum_711(ep->flags)&2)
+					if (isoflags & 2)
 						ino = isodirino(ep, imp);
 					else
 						ino = dbtob(bp->b_blkno)
