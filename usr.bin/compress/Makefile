@@ -2,8 +2,8 @@
 # $FreeBSD$
 
 PROG=	compress
-CFLAGS+=-Wall
 SRCS=	compress.c zopen.c
+WARNS?= 2
 LINKS=	${BINDIR}/compress ${BINDIR}/uncompress
 MLINKS=	compress.1 uncompress.1
 
