@@ -20,7 +20,6 @@ SUBDIR=	accf_data \
 	bge \
 	bridge \
 	cam \
-	ccd \
 	cd9660 \
 	coda \
 	${_crypto} \
