@@ -69,9 +69,9 @@ pseudo-device	ccd	4	# concatenated disk devices
 .Ed
 .Pp
 The count argument is how many
-.Nm ccds
+.Nm Ns 's
 memory is allocated for a boot time.  In this example, no more than 4
-.Nm ccds
+.Nm Ns s
 may be configured.  As of the
 .Fx 3.0
 release, you do not need to
@@ -81,19 +81,19 @@ module.  Simply running
 will load the module into the kernel.
 .Pp
 A
-.Nm ccd
+.Nm
 may be either serially concatenated or interleaved.  To serially
 concatenate the partitions, specify the interleave factor of 0.
 Note that mirroring may not be used with an interleave factor of 0.
 .Pp
 There is a run-time utility that is used for configuring
-.Nm ccds .
+.Nm Ns s .
 See
 .Xr ccdconfig 8
 for more information.
 .Ss The Interleave Factor
 If a
-.Nm ccd
+.Nm
 is interleaved correctly, a
 .Dq striping
 effect is achieved, which can increase sequential read/write
@@ -124,13 +124,13 @@ disk types.
 For random-access oriented workloads, such as news servers, a larger
 interleave factor (e.g., 65,536) is more desirable.  Note that there
 isn't much
-.Nm ccd
+.Nm
 can do to speed up applications that are seek-time limited.  Larger
 interleave factors will at least reduce the chance of having to seek
 two disk-heads to read one directory or a file.
 .Ss Disk Mirroring
 You can configure the
-.Nm ccd
+.Nm
 to
 .Dq mirror
 any even number of disks.  See
@@ -142,7 +142,7 @@ the mirror.  A read will be run to either side of the mirror depending
 on what the driver believes to be most optimal.  If the read fails,
 the driver will automatically attempt to read the same sector from the
 other side of the mirror.  Currently
-.Nm ccd
+.Nm
 uses a duel seek zone model to optimize reads for a multi-tasking load
 rather then a sequential load.
 .Pp
@@ -152,20 +152,20 @@ failure, you can use
 to recover the failed disk.
 .Pp
 Note that a one-disk
-.Nm ccd
+.Nm
 is not the same as the original partition.  In particular, this means
 if you have a filesystem on a two-disk mirrored
-.Nm ccd
+.Nm
 and one of the disks fail, you cannot mount and use the remaining
 partition as itself; you have to configure it as a one-disk
-.Nm ccd.
+.Nm .
 You cannot replace a disk in a mirrored
-.Nm ccd
+.Nm
 partition without first backing up the partition, then replacing the disk,
 then restoring the partition.
 .Sh WARNINGS
 If just one (or more) of the disks in a
-.Nm ccd
+.Nm
 fails, the entire
 file system will be lost unless you are mirroring the disks.
 .Pp
@@ -177,7 +177,7 @@ write error occurs, you should recover and regenerate the data as soon
 as possible.
 .Pp
 Changing the interleave or other parameters for a 
-.Nm ccd
+.Nm
 disk usually destroys whatever data previously existed on that disk.
 .Sh FILES
 /dev/{,r}ccd* - ccd device special files.

@@ -36,7 +36,7 @@
 .Cd device da1 at scbus0 target 4 unit 0
 .Sh DESCRIPTION
 The
-.Nm da
+.Nm
 driver provides support for all
 .Tn SCSI
 devices of the direct access class that are attached to the system
@@ -111,7 +111,7 @@ devices age write transactions to limit vulnerability to a few transactions
 recently reported as complete, but it is none-the-less recommended that
 systems with write cache enabled devices reside on an Uninterruptible
 Power Supply (UPS).  The
-.Nm da
+.Nm
 device driver ensures that the cache and media are synchronized upon
 final close of the device or an unexpected shutdown (panic) event.  This
 ensures that it is safe to disconnect power once the operating system
@@ -121,7 +121,7 @@ setting the
 (Write Cache Enable) bit in the caching control mode page.
 .Sh TAGGED QUEUING
 The
-.Nm da
+.Nm
 device driver will take full advantage of the SCSI feature known as tagged
 queuing.  Tagged queuing allows the device to process multiple transactions
 concurrently, often re-ordering them to reduce the number and length of
@@ -143,7 +143,7 @@ via the
 utility.
 .Sh KERNEL CONFIGURATION
 It is only necessary to explicitly configure one
-.Nm da
+.Nm
 device; data structures are dynamically allocated as disks are found
 on the
 .Tn SCSI

@@ -41,7 +41,7 @@ PCI Ethernet device driver
 .Cd "device vx"
 .Sh DESCRIPTION
 The
-.Nm vx
+.Nm
 driver provides support for the 3Com 3c590 and 3c595 EtherLink III and Fast
 EtherLink III PCI Ethernet cards in 10 Mbps mode.  The medium selection
 can be influenced by the following link flags to the
@@ -76,12 +76,12 @@ only polled-mode I/O and does not make use of the bus-mastering capability
 of the cards.
 .Sh BUGS
 The
-.Nm vx
+.Nm
 driver is known not to reset the adapter correctly following a warm boot
 on some systems.
 .Pp
 The
-.Nm vx
+.Nm
 driver has not been exhaustively tested with all the models of cards that it
 claims to support.
 .Sh SEE ALSO
@@ -91,7 +91,7 @@ claims to support.
 .Xr ifconfig 8
 .Sh HISTORY
 The
-.Nm vx
+.Nm
 device driver first appeared in
 .Fx 2.1 .
 It was derived from the
@@ -99,7 +99,7 @@ It was derived from the
 driver, from which it inherits most of its limitations.
 .Sh AUTHORS
 The
-.Nm vx
+.Nm
 device driver and this manual page were written by
 .An Fred Gray Aq fgray@rice.edu ,
 based on the work of

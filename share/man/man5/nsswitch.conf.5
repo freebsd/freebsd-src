@@ -50,7 +50,7 @@ containing information regarding hosts, users (passwords), groups, etc.
 Each database comes from a source (such as local files, DNS, and
 .Tn NIS ) ,
 and the order to look up the sources is specified in
-.Nm nsswitch.conf .
+.Nm .
 .Pp
 Each entry in 
 .Nm
@@ -199,7 +199,7 @@ To ensure compatibility with previous and current implementations, the
 source must appear alone for a given database.
 .Ss Default source lists
 If, for any reason,
-.Nm nsswitch.conf
+.Nm
 doesn't exist, or it has missing or corrupt entries,
 .Xr nsdispatch 3
 will default to an entry of

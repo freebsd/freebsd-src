@@ -72,7 +72,7 @@ statistics, as its name implies.  The idea is to keep reasonably detailed
 statistics while utilizing a minimum amount of CPU time to record them.
 Thus, no statistical calculations are actually performed in the kernel
 portion of the
-.Nm devstat
+.Nm
 code. Instead, that is left for user programs to handle.
 .Pp
 .Fn devstat_add_entry
@@ -108,7 +108,7 @@ for a complete list of types.
 .It priority
 The device priority.  The priority is used to determine how devices are
 sorted within 
-.Nm devstat's
+.Nm devstat Ns 's
 list of devices.  Devices are sorted first by priority (highest to lowest),
 and then by attach order.  See below for a complete list of available
 priorities.
@@ -251,7 +251,7 @@ driver.  See below for a complete list of device types.
 .It priority
 This is the priority.  This is the first parameter used to determine where
 to insert a device in the
-.Nm devstat
+.Nm
 list.  The second parameter is attach order.  See below for a list of
 available priorities.
 .El
@@ -296,7 +296,7 @@ typedef enum {
 .Pp
 Devices have a priority associated with them, which controls roughly where
 they are placed in the
-.Nm devstat
+.Nm
 list.  The priorities are as follows:
 .Bd -literal -offset indent
 typedef enum {

@@ -48,7 +48,7 @@
 .Sh DESCRIPTION
 .Ss Overview
 The
-.Nm pcvt
+.Nm
 driver provides a virtual screen handling system.
 Probably most important is an emulation of a wide range
 of DEC
@@ -59,7 +59,7 @@ See
 for a detailed description.
 .Pp
 The
-.Nm pcvt
+.Nm
 driver requires the keyboard driver
 .Nm atkbd
 to be also configured in the kernel.
@@ -135,7 +135,7 @@ and
 it is possible to scroll the screen back and forward.
 .Ss Configuration
 The
-.Nm pcvt
+.Nm
 console driver is available for the Intel-based
 .Fx
 operating system.
@@ -177,7 +177,7 @@ See the files
 and
 .Pa Keyboard.HP
 in the
-.Nm pcvt
+.Nm
 documentation directory for a full description.
 .It No
 Default: off
@@ -247,7 +247,7 @@ The functionality described below may be accessed via
 .Xr ioctl 2
 system calls with a file descriptor opened on a device node
 related to the
-.Nm pcvt
+.Nm
 driver.
 To make use of them, a program should contain the following line:
 .Pp
@@ -320,7 +320,7 @@ LED flags.
 .Em Keyboard remapping
 .Pp
 One important feature of the
-.Nm pcvt
+.Nm
 driver is its ability to overload the built in key definition.
 .Pp
 .Bl -tag -width 20n -offset indent -compact
@@ -651,7 +651,7 @@ struct pcvtinfo {
 .Em Screen saver
 .Pp
 Depending on the configuration of a
-.Nm pcvt
+.Nm
 driver, their might be a simple screen saver available.
 It is controlled
 by the command
@@ -672,7 +672,7 @@ option
 .Pp
 .Em Compatibility commands for USL-style VT's
 .Pp
-.Nm pcvt
+.Nm
 supports a subset of the USL-style commands used to control
 the virtual terminal interface.
 This feature is mainly intended to allow
@@ -693,18 +693,18 @@ function calls
 .It Pa /dev/ttyv?
 .It Pa /dev/console
 Device nodes to access the
-.Nm pcvt
+.Nm
 driver
 .It Pa i386/isa/pcvt/pcvt_conf.h
 .Pq relative to the kernel source tree
 Documents the various compile-time options to tailor
-.Nm pcvt .
+.Nm .
 .Sh HISTORY
 The
-.Nm pcvt
+.Nm
 driver has been developed for and contributed to 386BSD 0.1.
 Since then
-.Nm pcvt
+.Nm
 has become a standard part of
 .Fx ,
 .Nx
@@ -712,7 +712,7 @@ and
 OpenBSD.
 Since
 .Fx 5.0 ,
-.Nm pcvt
+.Nm
 is
 .Fx
 specific with support for

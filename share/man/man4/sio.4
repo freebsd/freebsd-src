@@ -105,7 +105,7 @@ Minor numbering:
 .Ed
 .Sh DESCRIPTION
 The
-.Nm sio
+.Nm
 driver provides support for NS8250-, NS16450-, NS16550 and NS16550A-based
 .Tn EIA
 .Tn RS-232C
@@ -194,7 +194,7 @@ Choose a port containing an IRQ status register for forwards compatibility,
 and the highest possible port for consistency.
 .Pp
 Serial ports controlled by the
-.Nm sio
+.Nm
 driver can be used for both `callin' and `callout'.
 For each port there is a callin device and a callout device.
 The minor number of the callout device is 128 higher
@@ -212,7 +212,7 @@ to work on general ports and need to open the port without waiting
 but are too stupid to do so.
 .Pp
 The
-.Nm sio
+.Nm
 driver also supports an initial-state and a lock-state control
 device for each of the callin and the callout "data" devices.
 The minor number of the initial-state device is 32 higher

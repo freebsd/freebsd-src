@@ -84,7 +84,7 @@ Device numbering:
                \fBPPPPP\fRort number
 .Sh DESCRIPTION
 The
-.Nm dgb
+.Nm
 driver provides support for DigiBoard PC/Xe and PC/Xi series intelligent
 serial multiport cards with asynchronous interfaces based on the
 .Tn EIA
@@ -166,7 +166,7 @@ Then the DigiBoard's address space can be set to this ``hole''.
 .\" It was copied from sio.4.  The only changes were s/sio/dgb/g.
 .Pp
 Serial ports controlled by the
-.Nm dgb
+.Nm
 driver can be used for both `callin' and `callout'.
 For each port there is a callin device and a callout device.
 The minor number of the callout device is 128 higher
@@ -184,7 +184,7 @@ to work on general ports and need to open the port without waiting
 but are too stupid to do so.
 .Pp
 The
-.Nm dgb
+.Nm
 driver also supports an initial-state and a lock-state control
 device for each of the callin and the callout "data" devices.
 The minor number of the initial-state device is 32 higher
