@@ -9,6 +9,7 @@ LIBS=	\
 	libcrypto.so.2 \
 	libedit.so.3 \
 	libfetch.so.2 \
+	libgmp.so.3 \
 	libpam.so.1 \
 	libperl.so.3 \
 	libssl.so.1 \
