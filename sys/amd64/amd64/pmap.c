@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.217 1999/01/08 14:20:54 luoqi Exp $
+ *	$Id: pmap.c,v 1.218 1999/01/09 21:41:22 dt Exp $
  */
 
 /*
@@ -731,19 +731,6 @@ invltlb_1pg( vm_offset_t va) {
 #endif
 	{
 		invlpg(va);
-	}
-}
-
-static PMAP_INLINE void
-invltlb_2pg( vm_offset_t va1, vm_offset_t va2) {
-#if defined(I386_CPU)
-	if (cpu_class == CPUCLASS_386) {
-		invltlb();
-	} else
-#endif
-	{
-		invlpg(va1);
-		invlpg(va2);
 	}
 }
 
@@ -3506,7 +3493,7 @@ pmap_pid_dump(int pid) {
 #if defined(DEBUG)
 
 static void	pads __P((pmap_t pm));
-static void	pmap_pvdump __P((vm_offset_t pa));
+void		pmap_pvdump __P((vm_offset_t pa));
 
 /* print address space of pmap*/
 static void
@@ -3533,7 +3520,7 @@ pads(pm)
 
 }
 
-static void
+void
 pmap_pvdump(pa)
 	vm_offset_t pa;
 {
