@@ -1,7 +1,7 @@
                                  FreeBSD
                                  Sup FAQ
 
-Last updated: $Date: 1994/09/11 10:56:10 $
+$Id$
 
 	SUP is a network based software update tool developed at CMU.  The
 purpose of this document is get the beginner up and running with sup.

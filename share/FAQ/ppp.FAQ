@@ -1,5 +1,6 @@
-
          Info about setting up pppd daemon on FreeBSD-2.0
+
+$Id$
 
 Before you start setting up PPP on your machine make
 sure that pppd is located in /usr/sbin and directory /etc/ppp
