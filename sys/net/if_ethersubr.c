@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.49 1998/06/12 03:48:07 julian Exp $
+ * $Id: if_ethersubr.c,v 1.50 1998/06/13 02:27:10 julian Exp $
  */
 
 #include "opt_atalk.h"
@@ -357,16 +357,15 @@ ether_output(ifp, m0, dst, rt0)
 	 * on the wire). However, we don't do that here for security
 	 * reasons and compatibility with the original behavior.
 	 */
-	if (ifp->if_flags & IFF_SIMPLEX) {
+	if ((ifp->if_flags & IFF_SIMPLEX) &&
+	   (loop_copy != -1)) {
 		if ((m->m_flags & M_BCAST) || (loop_copy > 0)) {
 			struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
 
 			(void) if_simloop(ifp, n, dst, ETHER_HDR_LEN);
 		} else if (bcmp(eh->ether_dhost,
 		    eh->ether_shost, ETHER_ADDR_LEN) == 0) {
-			if (loop_copy != -1)
-				(void) if_simloop(ifp, m, dst,
-							ETHER_HDR_LEN);
+			(void) if_simloop(ifp, m, dst, ETHER_HDR_LEN);
 			return(0);	/* XXX */
 		}
 	}
