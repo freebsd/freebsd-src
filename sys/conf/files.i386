@@ -306,6 +306,9 @@ i386/linux/linux_sysent.c	optional	compat_linux
 i386/linux/linux_sysvec.c	optional	compat_linux
 i386/pci/pci_cfgreg.c		optional	pci
 i386/pci/pci_bus.c		optional	pci
+i386/smapi/smapi.c		optional	smapi isa
+i386/smapi/smapi_isa.c		optional	smapi isa
+i386/smapi/smapi_bios.S		optional	smapi isa
 i386/svr4/svr4_locore.s		optional	compat_svr4		\
 	dependency	"svr4_assym.h"	\
 	warning "COMPAT_SVR4 is broken and should be avoided"
