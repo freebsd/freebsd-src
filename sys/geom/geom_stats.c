@@ -141,5 +141,5 @@ void
 g_stat_init(void)
 {
 	make_dev(&geom_stats_cdevsw, GEOM_MINOR_STATS,
-	    UID_ROOT, GID_WHEEL, 0400, "geom.stats");
+	    UID_ROOT, GID_WHEEL, 0400, GEOM_STATS_DEVICE);
 }
