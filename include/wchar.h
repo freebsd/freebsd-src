@@ -174,7 +174,7 @@ int	wscanf(const wchar_t * __restrict, ...);
 extern struct __sFILE *__stdinp;
 extern struct __sFILE *__stdoutp;
 
-#define	getwc(fp)	getwc(fp)
+#define	getwc(fp)	fgetwc(fp)
 #define	getwchar()	fgetwc(__stdinp)
 #define	putwc(wc, fp)	fputwc(wc, fp)
 #define	putwchar(wc)	fputwc(wc, __stdoutp)
