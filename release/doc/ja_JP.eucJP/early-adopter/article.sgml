@@ -25,7 +25,7 @@
     FreeBSD Japanese Documentation Project
 
     $FreeBSD$
-    Original revision: 1.11
+    Original revision: 1.12
 -->
 
 <article>
@@ -168,7 +168,7 @@
       <listitem>
 	<para>GCC:  コンパイラツールチェインが
 	  GCC 2.95.<replaceable>X</replaceable> ベースのものから、
-          GCC 3.2.1 pre-release スナップショットベースのものに更新されました。</para>
+          GCC 3.2.1 に更新されました。</para>
       </listitem>
 
       <listitem>
@@ -290,7 +290,7 @@
 
     <para>&os; 5.0 が公開されても、4-STABLE ブランチの開発が終了するわけではありません。
       このブランチからは少なくとも 1 回、4.8-RELEASE が公開されます。
-      4.8-RELEASE の公開は、現時点では 2003 年 2 月 1 日の予定です。</para>
+      4.8-RELEASE の公開は、現時点では 2003 年 3 月 1 日の予定です。</para>
 
     <para>執筆時点では、リリースエンジニアリングチームは
       4-STABLE ブランチからの (4.8 以降の) リリースの公開について、
@@ -393,20 +393,16 @@
       <para><application>Perl</application>
         がベースシステムから削除されています。
         すでに作成ずみの package から、もしくは Ports Collection から
-        Perl をインストールするのがおすすめです。
+        Perl をインストールしなければなりません。
         以前は Perl をベースシステムの一部として構築していたため、
         Perl のアップグレードが難しく、多くの問題を引き起こしていました。
         ベースシステムのユーティリティで Perl を使うものは、
         まだ使われているものは Perl を使わないものに書き換えられ、
-        使わなくなったものは削除されています。</para>
-
-      <para>スクリプトの中には、Perl インタプリタが
-        <filename>/usr/bin/perl</filename> に存在することを想定しているものがあります。
-        Perl の port に含まれる <filename>use.perl</filename> コマンドを使うと、
-        そういったスクリプトが動作できるよう、
-        シンボリックリンクを適切に作成することが可能です。
-        ほとんどの場合は <command>use.perl port</command>
-        を実行するだけで、必要な設定をしてくれるでしょう。</para>
+        使わなくなったものは削除されています。
+        &man.sysinstall.8; は、大部分の配布物のインストール時に、
+        その配布物の一部として Perl の package
+        もインストールするようになっていますので、
+        この変更に気づくユーザはごく一部でしょう。</para>
 
       <para>基本的に、従来の 4.<replaceable>X</replaceable>
         で使っていた実行ファイルは 5.<replaceable>X</replaceable> でも動作します。
