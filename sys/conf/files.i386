@@ -93,13 +93,14 @@ dev/ed/if_ed.c			optional	ed
 dev/ed/if_ed_isa.c		optional	ed isa
 dev/ed/if_ed_pccard.c		optional	ed card
 dev/eisa/eisaconf.c		optional	eisa
+dev/em/if_em.c			optional	em
+dev/em/if_em_fxhw.c		optional	em
+dev/em/if_em_phy.c		optional	em
 dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	vga
 dev/fb/splash.c			optional	splash
 dev/fb/vga.c			optional	vga
 dev/fe/if_fe_isa.c		optional	fe isa
-dev/sbni/if_sbni.c		optional	sbni
-dev/sbni/if_sbni_isa.c		optional	sbni isa
 dev/kbd/atkbd.c			optional	atkbd
 dev/kbd/atkbdc.c		optional	atkbdc
 dev/kbd/kbd.c			optional	atkbd
@@ -109,6 +110,8 @@ dev/kbd/kbd.c			optional	ukbd
 dev/kbd/kbd.c			optional	vt
 dev/puc/puc.c			optional	puc
 dev/puc/pucdata.c		optional	puc
+dev/sbni/if_sbni.c		optional	sbni
+dev/sbni/if_sbni_isa.c		optional	sbni isa
 dev/syscons/schistory.c		optional	sc
 dev/syscons/scmouse.c		optional	sc
 dev/syscons/scterm.c		optional	sc
@@ -479,6 +482,3 @@ netsmb/smb_subr.c		optional	netsmb
 netsmb/smb_trantcp.c		optional	netsmb
 netsmb/smb_usr.c		optional	netsmb
 pci/ide_pci.c			optional	wdc pci
-dev/em/if_em.c			optional	em
-dev/em/if_em_fxhw.c		optional	em
-dev/em/if_em_phy.c		optional	em
