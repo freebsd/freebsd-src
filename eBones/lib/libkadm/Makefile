@@ -1,10 +1,10 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.9 1995/11/12 08:13:10 markm Exp $
+#	$Id$
 
 LIB=	kadm
 
 SRCS=	kadm_err.c kadm_stream.c kadm_supp.c kadm_cli_wrap.c
-CFLAGS+=	-I. -I${.CURDIR} -I${KRBOBJDIR} -DPOSIX
+CFLAGS+=	-I. -I${.CURDIR} -I${KRBOBJDIR} -DPOSIX -DKERBEROS
 
 beforeinstall: kadm_err.c
 	-cd ${.CURDIR}; cmp -s kadm.h \
