@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftree.c,v 1.2 1994/09/24 02:56:20 davidg Exp $
+ *	$Id: ftree.c,v 1.3 1995/05/30 00:06:57 rgrimes Exp $
  */
 
 #ifndef lint
@@ -48,7 +48,6 @@ static char sccsid[] = "@(#)ftree.c	8.2 (Berkeley) 4/18/94";
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
-#include <ctype.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <fts.h>
