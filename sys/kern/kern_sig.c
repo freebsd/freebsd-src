@@ -1411,13 +1411,13 @@ psignal(p, sig)
 					}
 				}
 				mtx_unlock_spin(&sched_lock);
-				goto out;
 			} else {
 				if (p->p_thread.td_wchan == NULL)
 					goto run;
 				p->p_stat = SSLEEP;
 				mtx_unlock_spin(&sched_lock);
 			}
+			goto out;
 		}
 
 		if (prop & SA_STOP) {
