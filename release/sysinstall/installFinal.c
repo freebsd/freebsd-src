@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installFinal.c,v 1.15 1995/11/04 15:08:08 jkh Exp $
+ * $Id: installFinal.c,v 1.17 1995/11/04 17:16:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard & Coranth Gryphon.  All rights reserved.
@@ -70,11 +70,6 @@ static DMenu MenuSamba = {
 };
 
 /* These probably shouldn't be hard-coded, but making them options might prove to be even more confusing! */
-#define FTP_UID 14
-#define FTP_NAME  "ftp"
-#define FTP_GROUP "operator"
-#define FTP_COMMENT  "Anonymous FTP Admin"
-
 #define SMB_CONF "./smb.conf"
 
 
@@ -84,47 +79,6 @@ configGated(char *unused)
 {
     variable_set2("gated", "YES");
     return RET_SUCCESS;
-}
-
-/* Configure this machine as an anonymous FTP server */
-int
-configAnonFTP(char *unused)
-{
-    char *tptr;
-    char tbuf[256];
-    int i = RET_SUCCESS;
-
-    tptr = msgGetInput("/home/ftp", "What directory should the anonymous ftp account point to?");
-    if (tptr && *tptr && (tptr[0] == '/')) {
-	int len = strlen(tbuf);
-
-	strcpy(tbuf, tptr);
-	if (tbuf[len - 1] == '/')
-	    tbuf[len - 1] = '\0';
-
-	vsystem("mkdir -p %s; chmod 555 %s; chown root %s", tbuf, tbuf, tbuf);
-	if (vsystem("adduser -uid %d -home %s -shell date -dotdir no -batch %s %s \"%s\" ",
-		    FTP_UID, tbuf, FTP_NAME, FTP_GROUP, FTP_COMMENT)) {
-	    dialog_clear();
-	    msgConfirm("Unable to create FTP user!  Anonymous FTP setup failed.");
-	    i = RET_FAIL;
-	}
-	else {
-	    vsystem("mkdir %s/bin && chmod 555 %s/bin", tbuf, tbuf);
-	    vsystem("cp /bin/ls %s/bin && chmod 111 %s/bin/ls", tbuf, tbuf);
-	    vsystem("mkdir %s/etc && chmod 555 %s/etc", tbuf, tbuf);
-	    vsystem("cp /etc/pwd.db /etc/group %s/etc && chmod 444 %s/etc/pwd.db %s/etc/group", tbuf, tbuf, tbuf);
-	    vsystem("mkdir -p %s/pub/incoming", tbuf);
-	    vsystem("chmod 1777 %s/pub/incoming", tbuf);
-	    vsystem("chown -R %s %s/pub", FTP_NAME, tbuf);
-	}
-    }
-    else {
-	dialog_clear();
-	msgConfirm("Invalid Directory. Anonymous FTP will not be set up.");
-	i = RET_FAIL;
-    }
-    return i;
 }
 
 int
