@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.55 1996/07/12 07:41:34 bde Exp $
+ * $Id: vfs_subr.c,v 1.56 1996/07/24 21:21:43 phk Exp $
  */
 
 /*
@@ -672,7 +672,7 @@ reassignbuf(bp, newvp)
 	}
 }
 
-#ifndef DEVFS
+#ifndef DEVFS_ROOT
 /*
  * Create a vnode for a block device.
  * Used for root filesystem, argdev, and swap areas.
@@ -703,8 +703,8 @@ bdevvp(dev, vpp)
 	*vpp = vp;
 	return (0);
 }
+#endif /* !DEVFS_ROOT */
 
-#endif /* !DEVFS */
 /*
  * Check to see if the new vnode represents a special device
  * for which we already have a vnode (either because of
