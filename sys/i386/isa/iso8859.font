@@ -1,7 +1,20 @@
 /*
- * ISO 8859-1 font file
+ *  Copyright (C) 1992, 1993, 1994 Søren Schmidt
  *
- *	$Id$
+ *  This program is free software; you may redistribute it and/or 
+ *  modify it, provided that it retain the above copyright notice 
+ *  and the following disclaimer.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+ *
+ *	Søren Schmidt 		Email:	sos@login.dkuug.dk
+ *	Tritonvej 36		UUCP:	...uunet!dkuug!login!sos
+ *	DK9210 Aalborg SO	Phone:  +45 9814 8076
+ *
+ *	from:@(#)iso8859.font	1.1 940105
+ *	$Id: iso8859.font,v 1.4 1993/10/28 06:15:05 rgrimes Exp $
  */
 
 char font_8x8[256*8] = {
