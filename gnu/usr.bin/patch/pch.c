@@ -1,45 +1,6 @@
-/* $Header: /home/ncvs/src/gnu/usr.bin/patch/pch.c,v 1.7 1996/04/11 10:13:40 markm Exp $
+/* $Header: /home/ncvs/src/gnu/usr.bin/patch/pch.c,v 1.8 1996/04/12 11:37:32 markm Exp $
  *
- * $Log: pch.c,v $
- * Revision 1.7  1996/04/11 10:13:40  markm
- * Priorities were broken. If there was an Index: line and *** /--- lines
- * with valid names, the *** /---names were taken first.
- * this broke eg:
- * Index: foo/Makefile
- * ==========
- * RCS <blah>
- * Retrieving <blah>
- * diff <blah>
- * *** Makefile <blah>
- * --- Makefile <blah>
- *
- * By trying to patch the Makefile in the _curent_ directory, rather than
- * the one in the foo/ directory.
- *
- * Revision 1.6  1995/09/14 04:33:35  gibbs
- * Give "Index" specified filenames preference over other filenames specified
- * in the diff.  This makes it so that diffs containing files in different
- * subdirectories that have the same name not patch the same file.  For example
- * a diff with patches to Makefile, des/Makefile, usr.bin/Makefile would attempt
- * to patch Makefile three times.
- *
- * Revision 1.5  1995/05/30  05:02:35  rgrimes
- * Remove trailing whitespace.
- *
- * Revision 1.4  1994/02/25  21:46:07  phk
- * added the -C/-check again.
- *
- * Revision 1.3  1994/02/17  22:20:36  jkh
- * Put this back - I was somehow under the erroneous impression that patch was in
- * ports, until I saw the the commit messages, that is! :-)  All changed backed out.
- *
- * Revision 1.2  1994/02/17  22:16:05  jkh
- * From Poul-Henning Kamp -  Implement a -C option to verify the integrity of
- * a patch before actually applying it.
- *
- * Revision 1.1.1.1  1993/06/19  14:21:52  paul
- * b-maked patch-2.10
- *
+ * Log: pch.c,v
  * Revision 2.0.2.0  90/05/01  22:17:51  davison
  * patch12u: unidiff support added
  *
@@ -219,7 +180,7 @@ there_is_another_patch()
 	    skip_rest_of_patch = TRUE;
 	    return TRUE;
 	}
-	ask1("File to patch: ");
+	(void) ask1("File to patch: ");
 	if (*buf != '\n') {
 	    if (bestguess)
 		free(bestguess);
@@ -227,9 +188,10 @@ there_is_another_patch()
 	    filearg[0] = fetchname(buf, 0, FALSE);
 	}
 	if (filearg[0] == Nullch) {
-	    ask1("No file found--skip this patch? [n] ");
-	    if (*buf != 'y') {
-		continue;
+	    if (ask1("No file found--skip this patch? [n] ")) {
+	    	if (*buf != 'y') {
+		    continue;
+	    	}
 	    }
 	    if (verbose)
 		say1("Skipping patch...\n");

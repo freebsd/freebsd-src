@@ -1,9 +1,6 @@
-/* $Header: /home/ncvs/src/gnu/usr.bin/patch/util.h,v 1.1.1.1 1993/06/19 14:21:52 paul Exp $
+/* $Header: /home/ncvs/src/gnu/usr.bin/patch/util.h,v 1.2 1995/05/30 05:02:38 rgrimes Exp $
  *
- * $Log: util.h,v $
- * Revision 1.1.1.1  1993/06/19  14:21:52  paul
- * b-maked patch-2.10
- *
+ * Log: util.h,v
  * Revision 2.0  86/09/17  15:40:06  lwall
  * Baseline for netwide release.
  *
@@ -83,7 +80,7 @@ void copy_file();
 void say();
 void fatal();
 void pfatal();
-void ask();
+int ask();
 char *savestr();
 void set_signals();
 void ignore_signals();
