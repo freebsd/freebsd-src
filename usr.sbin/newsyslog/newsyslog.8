@@ -17,7 +17,7 @@
 .\" the suitability of this software for any purpose.  It is
 .\" provided "as is" without express or implied warranty.
 .\"
-.Dd February 23, 2003
+.Dd March 02, 2003
 .Dt NEWSYSLOG 8
 .Os
 .Sh NAME
@@ -25,9 +25,10 @@
 .Nd maintain system log files to manageable sizes
 .Sh SYNOPSIS
 .Nm
-.Op Fl Fnrv
-.Op Fl f Ar config_file
+.Op Fl Fnrsv
+.Op Fl R Ar tagname
 .Op Fl a Ar directory
+.Op Fl f Ar config_file
 .Op Ar
 .Sh DESCRIPTION
 The
@@ -274,65 +275,83 @@ rotate on every 5th day of month at 6:00 hr
 .El
 .Pp
 .It Ar flags
-This optional field specifies if the archive should have any
-special processing done to the archived log files.
-The
-.Ar Z
-flag will make the archive files compress to save space by
-using
-.Xr gzip 1 .
-The
-.Ar J
-flag will make the archive files compress to save space by
-using
-.Xr bzip2 1 .
-The
-.Ar B
-flag means that the file is a binary file, and so the
+This optional field is made up of one or more characters
+that specify any special processing to be done for the log
+files matched by this line.
+The following are valid flags:
+.Bl -tag -width indent
+.It Sy B
+indicates that the log file is a binary file, or has some
+special format.
+Usually
+.Nm
+inserts an
 .Tn ASCII
-message which
-.Nm
-inserts to indicate the fact that the logs have been
-turned over should not be included.  The
-.Ar -
-flag means nothing, but can be used as a placeholder when the
-.Ar path_to_pid_file
-field is specified.
-The
-.Ar G
-flag means that the specified
+message into a log file when rotating the file, to indicate
+when and sometimes why the log file was rotated.
+If
+.Sy B
+is specified, then that informational message will not be
+inserted into the log file.
+.It Sy G
+indicates that the specified
 .Ar logfile_name
-is a shell pattern, which instructs the
+is a shell pattern, and that
 .Nm
-to archive all filenames matching this pattern using the same
-options.
+should archive all filenames matching that pattern, using the
+other options specified on this line.
 See
 .Xr glob 3
 for details on syntax and matching rules.
-The
-.Ar W
-flag
-in conjunction with the
-.Ar Z
-flag or the
-.Ar J
-flag means that
+.It Sy J
+indicates that
+.Nm
+should attempt to save disk space by compressing the rotated
+log file using
+.Xr bzip2 1 .
+.It Sy N
+indicates that there is no process which needs to be signalled
+when this log file is rotated.
+.It Sy W
+if used with the
+.Sy Z
+or
+.Sy J
+flag, this indicates that
 .Nm
 should wait for previously started compression jobs to complete before
-starting a new one for this entry.  When it is used along with the
-.Ar G
-flag, in the case when several logfiles match the pattern and should be
-compressed, the
+starting a new one for this entry.
+If this is used with the
+.Sy G
+flag, and if multiple log files match the given pattern, then
 .Nm
-will compress logs one by one, ensuring that only one compression job
-is running at a time.
+will compress those logs one by one.
+This ensures that only one compression job is running at a time.
+.It Sy Z
+indicates that
+.Nm
+should attempt to save disk space by compressing the rotated
+log file using
+.Xr gzip 1 .
+.It Sy -
+a minus sign will not cause any special processing, but it
+can be used as a placeholder to create a
+.Ar flags
+field when you need to specify any of the following fields.
+.El
 .It Ar path_to_pid_file
-This optional field specifies
-the file name to read to find the daemon process id.  If this
-field is present, a
+This optional field specifies the file name to read to find the daemon
+process id.
+If this field is present, a
 .Ar signal_number
-is sent the process id contained in this
-file.  This field must start with "/" in order to be recognized
+is sent the process id contained in this file.
+If this field is not present, then a SIGHUP signal will be
+sent to
+.Xr syslogd 8 ,
+unless the
+.Sy N
+flag has been specified.
+This field must start with "/" in order to be recognized
 properly.
 .It Ar signal_number
 This optional field specifies
@@ -387,12 +406,66 @@ must be running as root.  Of course,
 will not be able to send a HUP signal to
 .Xr syslogd 8
 so this option should only be used in debugging.
+.It Fl s
+Specify that
+.Nm
+should not send any signals to any daemon processes that it would
+normally signal when rotating a log file.
+For any log file which is rotated, this option will usually also
+mean the rotated log file will not be compressed if there is a
+daemon which would have been signalled without this option.
+However, this option is most likely to be useful when specified
+with the
+.Fl R
+option, and in that case the compression will be done.
 .It Fl F
 Force
 .Nm
 to trim the logs, even if the trim conditions have not been met.  This
 option is useful for diagnosing system problems by providing you with
 fresh logs that contain only the problems.
+.It Fl R Ar tagname
+Specify that
+.Nm
+should rotate a given list of files, even if trim conditions are not
+met for those files.
+The
+.Ar tagname
+is only used in the messages written to the log files which are
+rotated.
+This differs from the
+.Fl F
+option in that one or more log files must also be specified, so that
+.Nm
+will only operate on those specific files.
+This option is mainly intended for the daemons or programs which write
+some log files, and want to trigger a rotate based on their own criteria.
+With this option they can execute
+.Nm
+to trigger the rotate when they want it to happen, and still give the
+system administrator a way to specify the rules of rotation (such as how
+many backup copies are kept, and what kind of compression is done).
+When a daemon does execute
+.Nm
+with the
+.Fl R
+option, it should make sure all of the log files are closed before
+calling
+.Nm ,
+and then it should re-open the files after
+.Nm
+returns.
+Usually the calling process will also want to specify the
+.Fl s
+option, so
+.Nm
+will not send a signal to the very process which called it to force
+the rotate.
+Skipping the signal step will also mean that
+.Nm
+will return faster, since
+.Nm
+normally waits a few seconds after any signal that is sent.
 .El
 .Pp
 If additional command line arguments are given,
