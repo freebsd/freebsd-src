@@ -31,26 +31,27 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- *	$Id$
+ *	$Id: uipc_usrreq.c,v 1.19 1997/02/22 09:39:29 peter Exp $
  */
 
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
-#include <sys/filedesc.h>
+#include <sys/kernel.h>
 #include <sys/domain.h>
+#include <sys/file.h>
+#include <sys/filedesc.h>
+#include <sys/mbuf.h>
+#include <sys/namei.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
-#include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/unpcb.h>
-#include <sys/un.h>
-#include <sys/namei.h>
-#include <sys/vnode.h>
-#include <sys/file.h>
 #include <sys/stat.h>
-#include <sys/mbuf.h>
+#include <sys/sysctl.h>
+#include <sys/un.h>
+#include <sys/unpcb.h>
+#include <sys/vnode.h>
 
 /*
  * Unix communications domain.
@@ -357,6 +358,16 @@ static u_long	unpdg_sendspace = 2*1024;	/* really max datagram size */
 static u_long	unpdg_recvspace = 4*1024;
 
 static int	unp_rights;			/* file descriptors in flight */
+
+SYSCTL_INT(_net_local_stream, OID_AUTO, sendspace, CTLFLAG_RW, 
+	   &unpst_sendspace, 0, "");
+SYSCTL_INT(_net_local_stream, OID_AUTO, recvspace, CTLFLAG_RW,
+	   &unpst_recvspace, 0, "");
+SYSCTL_INT(_net_local_dgram, OID_AUTO, maxdgram, CTLFLAG_RW,
+	   &unpdg_sendspace, 0, "");
+SYSCTL_INT(_net_local_dgram, OID_AUTO, recvspace, CTLFLAG_RW,
+	   &unpdg_recvspace, 0, "");
+SYSCTL_INT(_net_local, OID_AUTO, inflight, CTLFLAG_RD, &unp_rights, 0, "");
 
 static int
 unp_attach(so)
