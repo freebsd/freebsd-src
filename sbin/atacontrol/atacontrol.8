@@ -173,19 +173,26 @@ as argument (i.e.\&
 .Dq Li XXX ) ,
 and the mode will remain unchanged.
 .Pp
-Currently supported modes are :
-.Dq Li BIOSDMA ,
-.Dq Li PIO0 (alias BIOSPIO) ,
-.Dq Li PIO1 ,
-.Dq Li PIO2 ,
-.Dq Li PIO3 ,
-.Dq Li PIO4 ,
-.Dq Li WDMA2 ,
-.Dq Li UDMA2 (alias UDMA33) ,
-.Dq Li UDMA4 (alias UDMA66) ,
-.Dq Li UDMA5 (alias UDMA100)
+Currently supported modes are:
+.Cm BIOSDMA ,
+.Cm PIO0
+(alias
+.Cm BIOSPIO ) ,
+.Cm PIO1 , PIO2 , PIO3 , PIO4 ,
+.Cm WDMA2 ,
+.Cm UDMA2
+(alias
+.Cm UDMA33 ) ,
+.Cm UDMA4
+(alias
+.Cm UDMA66 ) ,
+.Cm UDMA5
+(alias
+.Cm UDMA100 )
 and
-.Dq Li UDMA6 (alias UDMA133) .
+.Cm UDMA6
+(alias
+.Cm UDMA133 ) .
 .It Ic info
 Show info about the attached devices on the
 .Ar channel .
@@ -205,23 +212,28 @@ Show info about all attached devices on all active controllers.
 .Sh EXAMPLES
 To see the devices' current access modes, use the command line:
 .Pp
-.Dl atacontrol mode 0
+.Dl "atacontrol mode 0"
 .Pp
 which results in the modes of the devices being displayed as a string
 like this:
-.Pp
-.Dl Master = WDMA2
-.Dl Slave  = PIO4
+.Bd -literal -offset indent
+Master = WDMA2
+Slave  = PIO4
+.Ed
 .Pp
 This means that ata0-master is in DMA mode,
 ata0-slave is in PIO mode,
 and so forth.
-You can set the mode with atacontrol and a string like the above,
+You can set the mode with
+.Nm
+and a string like the above,
 for example:
 .Pp
-.Dl atacontrol mode 0 PIO4 PIO4
+.Dl "atacontrol mode 0 PIO4 PIO4"
 .Pp
-The new modes are set as soon as the atacontrol command returns.
+The new modes are set as soon as the
+.Nm
+command returns.
 .Sh SEE ALSO
 .Xr ata 4
 .Sh HISTORY
