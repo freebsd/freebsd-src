@@ -128,6 +128,7 @@ isa/fd.c			optional	fdc
 isa/psm.c			optional	psm
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
+kern/link_elf_obj.c		standard
 pci/agp_ali.c			optional	agp
 pci/agp_amd.c			optional	agp
 pci/agp_i810.c			optional	agp
