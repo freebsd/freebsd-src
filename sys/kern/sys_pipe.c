@@ -177,8 +177,9 @@ pipe(p, uap)
 	int fd, error;
 
 	if (pipe_zone == NULL)
-		pipe_zone = zinit("PIPE", sizeof (struct pipe), 0, 0, 4);
+		pipe_zone = zinit("PIPE", sizeof(struct pipe), 0, 0, 4);
 
+	rpipe = wpipe = NULL;
 	if (pipe_create(&rpipe) || pipe_create(&wpipe)) {
 		pipeclose(rpipe); 
 		pipeclose(wpipe); 
@@ -306,6 +307,7 @@ pipe_create(cpipep)
 	 * protect so pipeclose() doesn't follow a junk pointer
 	 * if pipespace() fails.
 	 */
+	bzero(&cpipe->pipe_sel, sizeof(cpipe->pipe_sel));
 	cpipe->pipe_state = 0;
 	cpipe->pipe_peer = NULL;
 	cpipe->pipe_busy = 0;
@@ -322,14 +324,12 @@ pipe_create(cpipep)
 #endif
 
 	error = pipespace(cpipe, PIPE_SIZE);
-	if (error) {
+	if (error)
 		return (error);
-	}
 
 	vfs_timestamp(&cpipe->pipe_ctime);
 	cpipe->pipe_atime = cpipe->pipe_ctime;
 	cpipe->pipe_mtime = cpipe->pipe_ctime;
-	bzero(&cpipe->pipe_sel, sizeof cpipe->pipe_sel);
 
 	return (0);
 }
@@ -347,13 +347,13 @@ pipelock(cpipe, catch)
 
 	while (cpipe->pipe_state & PIPE_LOCK) {
 		cpipe->pipe_state |= PIPE_LWANT;
-		if ((error = tsleep( cpipe,
-			catch?(PRIBIO|PCATCH):PRIBIO, "pipelk", 0)) != 0) {
-			return error;
-		}
+		error = tsleep(cpipe, catch ? (PRIBIO | PCATCH) : PRIBIO,
+		    "pipelk", 0);
+		if (error != 0) 
+			return (error);
 	}
 	cpipe->pipe_state |= PIPE_LOCK;
-	return 0;
+	return (0);
 }
 
 /*
@@ -417,9 +417,9 @@ pipe_read(fp, uio, cred, flags, p)
 
 			error = uiomove(&rpipe->pipe_buffer.buffer[rpipe->pipe_buffer.out],
 					size, uio);
-			if (error) {
+			if (error)
 				break;
-			}
+
 			rpipe->pipe_buffer.out += size;
 			if (rpipe->pipe_buffer.out >= rpipe->pipe_buffer.size)
 				rpipe->pipe_buffer.out = 0;
@@ -446,7 +446,8 @@ pipe_read(fp, uio, cred, flags, p)
 			if (size > (u_int) uio->uio_resid)
 				size = (u_int) uio->uio_resid;
 
-			va = (caddr_t) rpipe->pipe_map.kva + rpipe->pipe_map.pos;
+			va = (caddr_t) rpipe->pipe_map.kva +
+			    rpipe->pipe_map.pos;
 			error = uiomove(va, size, uio);
 			if (error)
 				break;
@@ -461,11 +462,10 @@ pipe_read(fp, uio, cred, flags, p)
 		} else {
 			/*
 			 * detect EOF condition
+			 * read returns 0 on EOF, no need to set error
 			 */
-			if (rpipe->pipe_state & PIPE_EOF) {
-				/* XXX error = ? */
+			if (rpipe->pipe_state & PIPE_EOF)
 				break;
-			}
 
 			/*
 			 * If the "write-side" has been blocked, wake it up now.
@@ -492,11 +492,12 @@ pipe_read(fp, uio, cred, flags, p)
 			 * Handle non-blocking mode operation or
 			 * wait for more data.
 			 */
-			if (fp->f_flag & FNONBLOCK)
+			if (fp->f_flag & FNONBLOCK) {
 				error = EAGAIN;
-			else {
+			} else {
 				rpipe->pipe_state |= PIPE_WANTR;
-				if ((error = tsleep(rpipe, PRIBIO|PCATCH, "piperd", 0)) == 0)
+				if ((error = tsleep(rpipe, PRIBIO | PCATCH,
+				    "piperd", 0)) == 0)
 					error = pipelock(rpipe, 1);
 			}
 			if (error)
@@ -529,7 +530,7 @@ unlocked_error:
 	if ((rpipe->pipe_buffer.size - rpipe->pipe_buffer.cnt) >= PIPE_BUF)
 		pipeselwakeup(rpipe);
 
-	return error;
+	return (error);
 }
 
 #ifndef PIPE_NODIRECT
@@ -551,18 +552,17 @@ pipe_build_write_buffer(wpipe, uio)
 		size = wpipe->pipe_buffer.size;
 
 	endaddr = round_page((vm_offset_t)uio->uio_iov->iov_base + size);
-	for(i = 0, addr = trunc_page((vm_offset_t)uio->uio_iov->iov_base);
-		addr < endaddr;
-		addr += PAGE_SIZE, i+=1) {
-
+	addr = trunc_page((vm_offset_t)uio->uio_iov->iov_base);
+	for (i = 0; addr < endaddr; addr += PAGE_SIZE, i++) {
 		vm_page_t m;
 
 		if (vm_fault_quick((caddr_t)addr, VM_PROT_READ) < 0 ||
 		    (paddr = pmap_kextract(addr)) == 0) {
 			int j;
-			for(j=0;j<i;j++)
+
+			for (j = 0; j < i; j++)
 				vm_page_unwire(wpipe->pipe_map.ms[j], 1);
-			return EFAULT;
+			return (EFAULT);
 		}
 
 		m = PHYS_TO_VM_PAGE(paddr);
@@ -574,7 +574,8 @@ pipe_build_write_buffer(wpipe, uio)
  * set up the control block
  */
 	wpipe->pipe_map.npages = i;
-	wpipe->pipe_map.pos = ((vm_offset_t) uio->uio_iov->iov_base) & PAGE_MASK;
+	wpipe->pipe_map.pos =
+	    ((vm_offset_t) uio->uio_iov->iov_base) & PAGE_MASK;
 	wpipe->pipe_map.cnt = size;
 
 /*
@@ -602,7 +603,7 @@ pipe_build_write_buffer(wpipe, uio)
 		uio->uio_iov++;
 	uio->uio_resid -= size;
 	uio->uio_offset += size;
-	return 0;
+	return (0);
 }
 
 /*
@@ -610,7 +611,7 @@ pipe_build_write_buffer(wpipe, uio)
  */
 static void
 pipe_destroy_write_buffer(wpipe)
-struct pipe *wpipe;
+	struct pipe *wpipe;
 {
 	int i;
 
@@ -625,7 +626,7 @@ struct pipe *wpipe;
 			amountpipekva -= wpipe->pipe_buffer.size + PAGE_SIZE;
 		}
 	}
-	for (i=0;i<wpipe->pipe_map.npages;i++)
+	for (i = 0; i < wpipe->pipe_map.npages; i++)
 		vm_page_unwire(wpipe->pipe_map.ms[i], 1);
 }
 
@@ -643,9 +644,8 @@ pipe_clone_write_buffer(wpipe)
 
 	size = wpipe->pipe_map.cnt;
 	pos = wpipe->pipe_map.pos;
-	bcopy((caddr_t) wpipe->pipe_map.kva+pos,
-			(caddr_t) wpipe->pipe_buffer.buffer,
-			size);
+	bcopy((caddr_t) wpipe->pipe_map.kva + pos,
+	    (caddr_t) wpipe->pipe_buffer.buffer, size);
 
 	wpipe->pipe_buffer.in = size;
 	wpipe->pipe_buffer.out = 0;
@@ -671,13 +671,12 @@ pipe_direct_write(wpipe, uio)
 
 retry:
 	while (wpipe->pipe_state & PIPE_DIRECTW) {
-		if ( wpipe->pipe_state & PIPE_WANTR) {
+		if (wpipe->pipe_state & PIPE_WANTR) {
 			wpipe->pipe_state &= ~PIPE_WANTR;
 			wakeup(wpipe);
 		}
 		wpipe->pipe_state |= PIPE_WANTW;
-		error = tsleep(wpipe,
-				PRIBIO|PCATCH, "pipdww", 0);
+		error = tsleep(wpipe, PRIBIO | PCATCH, "pipdww", 0);
 		if (error)
 			goto error1;
 		if (wpipe->pipe_state & PIPE_EOF) {
@@ -687,14 +686,13 @@ retry:
 	}
 	wpipe->pipe_map.cnt = 0;	/* transfer not ready yet */
 	if (wpipe->pipe_buffer.cnt > 0) {
-		if ( wpipe->pipe_state & PIPE_WANTR) {
+		if (wpipe->pipe_state & PIPE_WANTR) {
 			wpipe->pipe_state &= ~PIPE_WANTR;
 			wakeup(wpipe);
 		}
 			
 		wpipe->pipe_state |= PIPE_WANTW;
-		error = tsleep(wpipe,
-				PRIBIO|PCATCH, "pipdwc", 0);
+		error = tsleep(wpipe, PRIBIO | PCATCH, "pipdwc", 0);
 		if (error)
 			goto error1;
 		if (wpipe->pipe_state & PIPE_EOF) {
@@ -727,7 +725,7 @@ retry:
 			wakeup(wpipe);
 		}
 		pipeselwakeup(wpipe);
-		error = tsleep(wpipe, PRIBIO|PCATCH, "pipdwt", 0);
+		error = tsleep(wpipe, PRIBIO | PCATCH, "pipdwt", 0);
 	}
 
 	pipelock(wpipe,0);
@@ -741,11 +739,11 @@ retry:
 		pipe_destroy_write_buffer(wpipe);
 	}
 	pipeunlock(wpipe);
-	return error;
+	return (error);
 
 error1:
 	wakeup(wpipe);
-	return error;
+	return (error);
 }
 #endif
 	
@@ -768,7 +766,7 @@ pipe_write(fp, uio, cred, flags, p)
 	 * detect loss of pipe read side, issue SIGPIPE if lost.
 	 */
 	if ((wpipe == NULL) || (wpipe->pipe_state & PIPE_EOF)) {
-		return EPIPE;
+		return (EPIPE);
 	}
 
 	/*
@@ -786,7 +784,7 @@ pipe_write(fp, uio, cred, flags, p)
 				nbigpipe++;
 			pipeunlock(wpipe);
 		} else {
-			return error;
+			return (error);
 		}
 	}
 		
@@ -796,6 +794,7 @@ pipe_write(fp, uio, cred, flags, p)
 	orig_resid = uio->uio_resid;
 	while (uio->uio_resid) {
 		int space;
+
 #ifndef PIPE_NODIRECT
 		/*
 		 * If the transfer is large, we can gain performance if
@@ -811,9 +810,8 @@ pipe_write(fp, uio, cred, flags, p)
 			(wpipe->pipe_map.kva || (amountpipekva < LIMITPIPEKVA)) &&
 			(uio->uio_iov->iov_len >= PIPE_MINDIRECT)) {
 			error = pipe_direct_write( wpipe, uio);
-			if (error) {
+			if (error)
 				break;
-			}
 			continue;
 		}
 #endif
@@ -831,7 +829,7 @@ pipe_write(fp, uio, cred, flags, p)
 				wpipe->pipe_state &= ~PIPE_WANTR;
 				wakeup(wpipe);
 			}
-			error = tsleep(wpipe, PRIBIO|PCATCH, "pipbww", 0);
+			error = tsleep(wpipe, PRIBIO | PCATCH, "pipbww", 0);
 			if (wpipe->pipe_state & PIPE_EOF)
 				break;
 			if (error)
@@ -852,6 +850,7 @@ pipe_write(fp, uio, cred, flags, p)
 			if ((error = pipelock(wpipe,1)) == 0) {
 				int size;	/* Transfer size */
 				int segsize;	/* first segment to transfer */
+
 				/*
 				 * It is possible for a direct write to
 				 * slip in on us... handle it here...
@@ -954,9 +953,9 @@ pipe_write(fp, uio, cred, flags, p)
 			pipeselwakeup(wpipe);
 
 			wpipe->pipe_state |= PIPE_WANTW;
-			if ((error = tsleep(wpipe, (PRIBIO+1)|PCATCH, "pipewr", 0)) != 0) {
+			error = tsleep(wpipe, PRIBIO | PCATCH, "pipewr", 0);
+			if (error != 0)
 				break;
-			}
 			/*
 			 * If read side wants to go away, we just issue a signal
 			 * to ourselves.
@@ -969,9 +968,8 @@ pipe_write(fp, uio, cred, flags, p)
 	}
 
 	--wpipe->pipe_busy;
-	if ((wpipe->pipe_busy == 0) &&
-		(wpipe->pipe_state & PIPE_WANT)) {
-		wpipe->pipe_state &= ~(PIPE_WANT|PIPE_WANTR);
+	if ((wpipe->pipe_busy == 0) && (wpipe->pipe_state & PIPE_WANT)) {
+		wpipe->pipe_state &= ~(PIPE_WANT | PIPE_WANTR);
 		wakeup(wpipe);
 	} else if (wpipe->pipe_buffer.cnt > 0) {
 		/*
@@ -1002,7 +1000,7 @@ pipe_write(fp, uio, cred, flags, p)
 	if (wpipe->pipe_buffer.cnt)
 		pipeselwakeup(wpipe);
 
-	return error;
+	return (error);
 }
 
 /*
@@ -1109,7 +1107,7 @@ pipe_stat(fp, ub, p)
 {
 	struct pipe *pipe = (struct pipe *)fp->f_data;
 
-	bzero((caddr_t)ub, sizeof (*ub));
+	bzero((caddr_t)ub, sizeof(*ub));
 	ub->st_mode = S_IFIFO;
 	ub->st_blksize = pipe->pipe_buffer.size;
 	ub->st_size = pipe->pipe_buffer.cnt;
@@ -1122,7 +1120,7 @@ pipe_stat(fp, ub, p)
 	 * st_flags, st_gen.
 	 * XXX (st_dev, st_ino) should be unique.
 	 */
-	return 0;
+	return (0);
 }
 
 /* ARGSUSED */
@@ -1137,7 +1135,7 @@ pipe_close(fp, p)
 	fp->f_data = NULL;
 	funsetown(cpipe->pipe_sigio);
 	pipeclose(cpipe);
-	return 0;
+	return (0);
 }
 
 static void
@@ -1187,7 +1185,7 @@ pipeclose(cpipe)
 		 */
 		while (cpipe->pipe_busy) {
 			wakeup(cpipe);
-			cpipe->pipe_state |= PIPE_WANT|PIPE_EOF;
+			cpipe->pipe_state |= PIPE_WANT | PIPE_EOF;
 			tsleep(cpipe, PRIBIO, "pipecl", 0);
 		}
 
@@ -1201,7 +1199,6 @@ pipeclose(cpipe)
 			wakeup(ppipe);
 			ppipe->pipe_peer = NULL;
 		}
-
 		/*
 		 * free resources
 		 */
