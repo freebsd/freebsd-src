@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.19 1995/10/20 14:25:01 jkh Exp $
+ * $Id: options.c,v 1.20 1995/10/21 14:06:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -47,9 +47,13 @@
 static char *
 varCheck(Option opt)
 {
+    char *cp = NULL;
+
     if (opt.aux)
-	return variable_get((char *)opt.aux);
-    return NULL;
+	cp = variable_get((char *)opt.aux);
+    if (!cp)
+	return "NO";
+    return cp;
 }
 
 /* Show our little logo */
@@ -96,31 +100,37 @@ mediaCheck(Option opt)
     return "<unset>";
 }
 
+#define TAPE_PROMPT	"Please enter the tape block size in 512 byte blocks"
+#define RELNAME_PROMPT	"Please specify the release you wish to load"
+#define BPKG_PROMPT	"Please specify the name of the HTML browser package:"
+#define BBIN_PROMPT	"Please specify a full pathname to the HTML browser binary:"
+#define CONFIG_PROMPT	"Please specify the name of a configuration file"
+
 static Option Options[] = {
 { "NFS Secure",		"NFS server talks only on a secure port",
-      OPT_IS_VAR,	"Set if your server refuses to talk to you (usually Suns)", OPT_NFS_SECURE, varCheck },
+      OPT_IS_VAR,	NULL,			OPT_NFS_SECURE,		varCheck	},
 { "NFS Slow",		"User is using a slow PC or ethernet card",
-      OPT_IS_VAR,	"Set if your cheap PC ethernet card is dropping NFS packets", OPT_SLOW_ETHER, varCheck },
+      OPT_IS_VAR,	NULL,			OPT_SLOW_ETHER,		varCheck	},
 { "Debugging",		"Emit extra debugging output on VTY2 (ALT-F2)",
-      OPT_IS_VAR,	"Turn this on for more info if you're experiencing any weirdness", OPT_DEBUG, varCheck },
+      OPT_IS_VAR,	NULL,			OPT_DEBUG,		varCheck	},
 { "Yes to All",		"Assume \"Yes\" answers to all non-critical dialogs",
-      OPT_IS_VAR,	"This is a good idea for unattended installation.", OPT_NO_CONFIRM, varCheck },
+      OPT_IS_VAR,	NULL,			OPT_NO_CONFIRM,		varCheck	},
 { "FTP OnError",	"What to do when FTP requests fail:  abort, retry, reselect.",
-      OPT_IS_FUNC,	mediaSetFtpOnError, OPT_FTP_ONERROR, varCheck },
+      OPT_IS_FUNC,	mediaSetFtpOnError,	OPT_FTP_ONERROR,	varCheck	},
 { "FTP username",	"Username and password to use instead of anonymous",
       OPT_IS_FUNC,	mediaSetFtpUserPass,	FTP_USER,		varCheck	},
 { "Tape Blocksize",	"Tape media block size in 512 byte blocks",
-      OPT_IS_VAR,	"Please enter the tape block size in 512 byte blocks", TAPE_BLOCKSIZE, varCheck },
+      OPT_IS_VAR,	TAPE_PROMPT,		TAPE_BLOCKSIZE,		varCheck	},
 { "Extract Detail",	"How verbosely to display file name information during extractions",
       OPT_IS_FUNC,	mediaSetCPIOVerbosity,	CPIO_VERBOSITY_LEVEL,	varCheck	},
 { "Release Name",	"Which release to attempt to load from installation media",
-      OPT_IS_VAR,	"Please specify the release you wish to load", RELNAME,		varCheck },
+      OPT_IS_VAR,	RELNAME_PROMPT,		RELNAME,		varCheck	},
 { "Browser Pkg",	"This is the browser package that will be used for viewing HTML",
-      OPT_IS_VAR,	"Please specify the name of the HTML browser package:",	BROWSER_PACKAGE,	varCheck },
+      OPT_IS_VAR,	BPKG_PROMPT,		BROWSER_PACKAGE,	varCheck	},
 { "Browser Exec",	"This is the path to the main binary of the browser package",
-      OPT_IS_VAR,	"Please specify a full pathname to the HTML browser binary:", BROWSER_BINARY,	varCheck },
+      OPT_IS_VAR,	BBIN_PROMPT,		BROWSER_BINARY,		varCheck	},
 { "Config File",	"Name of default configuration file for Load command (top menu)",
-      OPT_IS_VAR,	"Please specify the name of a configuration file", CONFIG_FILE,	varCheck },
+      OPT_IS_VAR,	CONFIG_PROMPT,		CONFIG_FILE,		varCheck	},
 { "Media Type",		"The current installation media type.",
       OPT_IS_FUNC,	mediaGetType,	MEDIA_TYPE,			mediaCheck	},
 { "Use Defaults",	"Reset all values to startup defaults",
@@ -147,12 +157,6 @@ value_of(Option opt)
 	sprintf(ival, "%d", (int)opt.data);
 	return ival;
 
-    case OPT_IS_FLAG:
-	if (opt.check)
-	    return opt.check(opt);
-	else
-	    return (*(int *)opt.data) & (int)opt.aux ? "ON" : "OFF";
-
     case OPT_IS_FUNC:
     case OPT_IS_VAR:
 	if (opt.check)
@@ -166,21 +170,20 @@ value_of(Option opt)
 static void
 fire(Option opt)
 {
-    if (opt.type == OPT_IS_FLAG) {
-	/* Toggle a flag */
-	if (*((int *)opt.data) & (int)opt.aux)
-	    *((int *)opt.data) &= ~(int)opt.aux;
-	else
-	    *((int *)opt.data) |= (int)opt.aux;
-    }
-    else if (opt.type == OPT_IS_FUNC) {
+    if (opt.type == OPT_IS_FUNC) {
 	int (*cp)(char *) = opt.data;
 
 	cp(NULL);
     }
     else if (opt.type == OPT_IS_VAR) {
-	(void)variable_get_value(opt.aux, opt.data);
-	dialog_clear();
+	if (opt.data) {
+	    (void)variable_get_value(opt.aux, opt.data);
+	    dialog_clear();
+	}
+	else if (variable_get(opt.aux))
+	    variable_unset(opt.aux);
+	else
+	    variable_set2(opt.aux, "YES");
     }
     if (opt.check)
 	opt.check(opt);
