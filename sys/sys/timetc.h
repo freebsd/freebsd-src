@@ -64,4 +64,8 @@ void	tc_init(struct timecounter *tc);
 void	tc_setclock(struct timespec *ts);
 void	tc_ticktock(void);
 
+#ifdef SYSCTL_DECL
+SYSCTL_DECL(_kern_timecounter);
+#endif
+
 #endif /* !_SYS_TIMETC_H_ */
