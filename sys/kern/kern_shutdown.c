@@ -52,6 +52,7 @@
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/kernel.h>
+#include <sys/kthread.h>
 #include <sys/mount.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
@@ -570,4 +571,35 @@ poweroff_wait(void *junk, int howto)
 	if(!(howto & RB_POWEROFF) || poweroff_delay <= 0)
 		return;
 	DELAY(poweroff_delay * 1000);
+}
+
+/*
+ * Some system processes (e.g. syncer) need to be stopped at appropriate
+ * points in their main loops prior to a system shutdown, so that they
+ * won't interfere with the shutdown process (e.g. by holding a disk buf
+ * to cause sync to fail).  For each of these system processes, register
+ * shutdown_kproc() as a handler for one of shutdown events.
+ */
+static int kproc_shutdown_wait = 60;
+SYSCTL_INT(_kern_shutdown, OID_AUTO, kproc_shutdown_wait, CTLFLAG_RW,
+    &kproc_shutdown_wait, 0, "");
+
+void
+shutdown_kproc(void *arg, int howto)
+{
+	struct proc *p;
+	int error;
+
+	if (panicstr)
+		return;
+
+	p = (struct proc *)arg;
+	printf("Waiting (max %d seconds) for system process `%s' to stop...",
+	    kproc_shutdown_wait * hz, p->p_comm);
+	error = suspend_kproc(p, kproc_shutdown_wait);
+
+	if (error == EWOULDBLOCK)
+		printf("timed out\n");
+	else
+		printf("stopped\n");
 }
