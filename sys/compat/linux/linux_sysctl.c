@@ -38,8 +38,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/sbuf.h>
 
+#include "opt_compat.h"
+
+#if !COMPAT_LINUX32
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
+#else
+#include <machine/../linux32/linux.h>
+#include <machine/../linux32/linux32_proto.h>
+#endif
 
 #include <compat/linux/linux_util.h>
 
@@ -63,16 +70,16 @@ handle_string(struct l___sysctl_args *la, char *value)
 {
 	int error;
 
-	if (la->oldval != NULL) {
+	if (la->oldval != 0) {
 		l_int len = strlen(value);
-		error = copyout(value, la->oldval, len + 1);
-		if (!error && la->oldlenp != NULL)
-			error = copyout(&len, la->oldlenp, sizeof(len));
+		error = copyout(value, PTRIN(la->oldval), len + 1);
+		if (!error && la->oldlenp != 0)
+			error = copyout(&len, PTRIN(la->oldlenp), sizeof(len));
 		if (error)
 			return (error);
 	}
 
-	if (la->newval != NULL)
+	if (la->newval != 0)
 		return (ENOTDIR);
 
 	return (0);
@@ -94,7 +101,7 @@ linux_sysctl(struct thread *td, struct linux_sysctl_args *args)
 		return (ENOTDIR);
 
 	mib = malloc(la.nlen * sizeof(l_int), M_TEMP, M_WAITOK);
-	error = copyin(la.name, mib, la.nlen * sizeof(l_int));
+	error = copyin(PTRIN(la.name), mib, la.nlen * sizeof(l_int));
 	if (error) {
 		free(mib, M_TEMP);
 		return (error);
