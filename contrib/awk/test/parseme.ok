@@ -1,0 +1,3 @@
+gawk: parseme.awk:1: BEGIN { toupper(substr*line,1,12)) }
+gawk: parseme.awk:1:                       ^ parse error
+gawk: parseme.awk:1: fatal: 0 is invalid as number of arguments for toupper

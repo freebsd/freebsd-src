@@ -3,6 +3,7 @@
 .ds AN \s-1ANSI\s+1
 .ds GN \s-1GNU\s+1
 .ds AK \s-1AWK\s+1
+.ds EP \fIGAWK: Effective AWK Programming\fP
 .if !\n(.g \{\
 .	if !\w|\*(lq| \{\
 .		ds lq ``
@@ -13,7 +14,7 @@
 .		if \w'\(rq' .ds rq "\(rq
 .	\}
 .\}
-.TH GAWK 1 "May 17 2000" "Free Software Foundation" "Utility Commands"
+.TH GAWK 1 "May 29 2001" "Free Software Foundation" "Utility Commands"
 .SH NAME
 gawk \- pattern scanning and processing language
 .SH SYNOPSIS
@@ -32,6 +33,22 @@ gawk \- pattern scanning and processing language
 ]
 .I program-text
 file .\|.\|.
+.sp
+.B pgawk
+[ \*(PX or \*(GN style options ]
+.B \-f
+.I program-file
+[
+.B \-\^\-
+] file .\|.\|.
+.br
+.B pgawk
+[ \*(PX or \*(GN style options ]
+[
+.B \-\^\-
+]
+.I program-text
+file .\|.\|.
 .SH DESCRIPTION
 .I Gawk
 is the \*(GN Project's implementation of the \*(AK programming language.
@@ -44,9 +61,22 @@ with the additional features found in the System V Release 4 version
 of \*(UX
 .IR awk .
 .I Gawk
-also provides more recent Bell Labs
+also provides more recent Bell Laboratories
 .I awk
-extensions, and some \*(GN-specific extensions.
+extensions, and a number of \*(GN-specific extensions.
+.PP
+.I Pgawk
+is the profiling version of
+.IR gawk .
+It is identical in every way to
+.IR gawk ,
+except that programs run more slowly,
+and it automatically produces an execution profile in the file
+.B awkprof.out
+when done.
+See the
+.B \-\^\-profile
+option, below.
 .PP
 The command line consists of options to
 .I gawk
@@ -63,11 +93,11 @@ pre-defined \*(AK variables.
 .SH OPTION FORMAT
 .PP
 .I Gawk
-options may be either the traditional \*(PX one letter options,
-or the \*(GN style long options.  \*(PX options start with a single \*(lq\-\*(rq,
+options may be either traditional \*(PX one letter options,
+or \*(GN style long options.  \*(PX options start with a single \*(lq\-\*(rq,
 while long options start with \*(lq\-\^\-\*(rq.
 Long options are provided for both \*(GN-specific features and
-for \*(PX mandated features.
+for \*(PX-mandated features.
 .PP
 Following the \*(PX standard,
 .IR gawk -specific
@@ -89,7 +119,7 @@ remains unique.
 .SH OPTIONS
 .PP
 .I Gawk
-accepts the following options.
+accepts the following options, listed alphabetically.
 .TP
 .PD 0
 .BI \-F " fs"
@@ -109,7 +139,7 @@ variable).
 .PD
 \fB\-\^\-assign \fIvar\fB\^=\^\fIval\fR
 Assign the value
-.IR val ,
+.I val
 to the variable
 .IR var ,
 before execution of the program begins.
@@ -144,7 +174,7 @@ flag sets the maximum number of fields, and the
 .B r
 flag sets the maximum record size.  These two flags and the
 .B \-m
-option are from the Bell Labs research version of \*(UX
+option are from the Bell Laboratories research version of \*(UX
 .IR awk .
 They are ignored by
 .IR gawk ,
@@ -153,16 +183,16 @@ since
 has no pre-defined limits.
 .TP
 .PD 0
-.B "\-W traditional"
-.TP
-.PD 0
 .B "\-W compat"
 .TP
 .PD 0
-.B \-\^\-traditional
+.B "\-W traditional"
+.TP
+.PD 0
+.B \-\^\-compat
 .TP
 .PD
-.B \-\^\-compat
+.B \-\^\-traditional
 Run in
 .I compatibility
 mode.  In compatibility mode,
@@ -189,7 +219,33 @@ below, for more information.
 .PD
 .B \-\^\-copyright
 Print the short version of the \*(GN copyright information message on
-the standard output, and exits successfully.
+the standard output and exit successfully.
+.TP
+.PD 0
+\fB\-W dump-variables\fR[\fB=\fIfile\fR]
+.TP
+.PD
+\fB\-\^\-dump-variables\fR[\fB=\fIfile\fR]
+Print a sorted list of global variables, their types and final values to
+.IR file .
+If no
+.I file
+is provided,
+.I gawk
+uses a file named
+.I awkvars.out
+in the current directory.
+.sp .5
+Having a list of all the global variables is a good way to look for
+typographical errors in your programs.
+You would also use this option if you have a large program with a lot of
+functions, and you want to be sure that your functions don't
+inadvertently use global variables that you meant to be local.
+(This is a particularly easy mistake to make with simple variable
+names like
+.BR i ,
+.BR j ,
+and so on.)
 .TP
 .PD 0
 .B "\-W help"
@@ -209,12 +265,17 @@ the standard output.
 these options cause an immediate, successful exit.)
 .TP
 .PD 0
-.B "\-W lint"
+.BR "\-W lint" [ =fatal ]
 .TP
 .PD
-.B \-\^\-lint
+.BR \-\^\-lint [ =fatal ]
 Provide warnings about constructs that are
 dubious or non-portable to other \*(AK implementations.
+With an optional argument of
+.BR fatal ,
+lint warnings become fatal errors.
+This may be drastic, but its use will certainly encourage the
+development of cleaner \*(AK programs.
 .TP
 .PD 0
 .B "\-W lint\-old"
@@ -224,6 +285,29 @@ dubious or non-portable to other \*(AK implementations.
 Provide warnings about constructs that are
 not portable to the original version of Unix
 .IR awk .
+.TP
+.PD 0
+.B "\-W gen\-po"
+.TP
+.PD
+.B \-\^\-gen\-po
+Scan and parse the \*(AK program, and generate a \*(GN
+.B \&.po
+format file on standard output with entries for all localizable
+strings in the program.  The program itself is not executed.
+See the \*(GN
+.I gettext
+distribution for more information on
+.B \&.po
+files.
+.TP
+.PD 0
+.B "\-W non\-decimal\-data"
+.TP
+.PD
+.B "\-\^\-non\-decimal\-data"
+Recognize octal and hexadecimal values in input data.
+.I "Use this option with great caution!"
 .ig
 .\" This option is left undocumented, on purpose.
 .TP
@@ -246,7 +330,7 @@ This turns on
 .I compatibility
 mode, with the following additional restrictions:
 .RS
-.TP \w'\(bu'u+1n
+.TP "\w'\(bu'u+1n"
 \(bu
 .B \ex
 escape sequences are not recognized.
@@ -255,6 +339,12 @@ escape sequences are not recognized.
 Only space and tab act as field separators when
 .B FS
 is set to a single space, newline does not.
+.TP
+\(bu
+You cannot continue lines after
+.B ?
+and
+.BR : .
 .TP
 \(bu
 The synonym
@@ -278,6 +368,23 @@ The
 .B fflush()
 function is not available.
 .RE
+.TP
+.PD 0
+\fB\-W profile\fR[\fB=\fIprof_file\fR]
+.TP
+.PD
+\fB\-\^\-profile\fR[\fB=\fIprof_file\fR]
+Send profiling data to
+.IR prof_file .
+The default is
+.BR awkprof.out .
+When run with
+.IR gawk ,
+the profile is just a \*(lqpretty printed\*(rq version of the program.
+When run with
+.IR pgawk ,
+the profile contains execution counts of each statement in the program
+in the left margin and function call counts for each user-defined function.
 .TP
 .PD 0
 .B "\-W re\-interval"
@@ -337,14 +444,15 @@ This is also useful when reporting bugs.
 .IR "GNU Coding Standards" ,
 these options cause an immediate, successful exit.)
 .TP
+.PD 0
 .B \-\^\-
-Signal the end of options.  This is useful to allow further arguments to the
+Signal the end of options. This is useful to allow further arguments to the
 \*(AK program itself to start with a \*(lq\-\*(rq.
 This is mainly for consistency with the argument parsing convention used
 by most other \*(PX programs.
 .PP
 In compatibility mode,
-any other options are flagged as illegal, but are otherwise ignored.
+any other options are flagged as invalid, but are otherwise ignored.
 In normal operation, as long as program text has been supplied, unknown
 options are passed on to the \*(AK program in the
 .B ARGV
@@ -374,7 +482,7 @@ and
 .B \-\^\-source
 options may be used multiple times on the command line.
 .I Gawk
-will read the program text as if all the
+reads the program text as if all the
 .IR program-file s
 and command line source texts
 had been concatenated together.  This is useful for building libraries
@@ -472,7 +580,7 @@ is any single character, that character separates records.
 Otherwise,
 .B RS
 is a regular expression.  Text in the input that matches this
-regular expression will separate the record.
+regular expression separates the record.
 However, in compatibility mode,
 only the first character of its string
 value is used for separating records.
@@ -512,9 +620,10 @@ by runs of spaces and/or tabs and/or newlines.
 (But see the discussion of
 .BR \-\^\-posix ,
 below).
-Note that the value of
+.B NOTE:
+The value of
 .B IGNORECASE
-(see below) will also affect how fields are split when
+(see below) also affects how fields are split when
 .B FS
 is a regular expression, and how records are separated when
 .B RS
@@ -525,7 +634,7 @@ If the
 variable is set to a space separated list of numbers, each field is
 expected to have fixed width, and
 .I gawk
-will split up the record using the specified widths.  The value of
+splits up the record using the specified widths.  The value of
 .B FS
 is ignored.
 Assigning a new value to
@@ -539,7 +648,7 @@ Each field in the input record may be referenced by its position,
 .BR $2 ,
 and so on.
 .B $0
-is the whole record.  The value of a field may be assigned to as well.
+is the whole record.
 Fields need not be referenced by constants:
 .RS
 .PP
@@ -551,6 +660,7 @@ print $n
 .RE
 .PP
 prints the fifth field in the input record.
+.PP
 The variable
 .B NF
 is set to the total number of fields in the input record.
@@ -560,10 +670,10 @@ References to non-existent fields (i.e. fields after
 produce the null-string.  However, assigning to a non-existent field
 (e.g.,
 .BR "$(NF+2) = 5" )
-will increase the value of
+increases the value of
 .BR NF ,
-create any intervening fields with the null string as their value, and
-cause the value of
+creates any intervening fields with the null string as their value, and
+causes the value of
 .B $0
 to be recomputed, with the fields being separated by the value of
 .BR OFS .
@@ -574,12 +684,21 @@ causes the values of fields past the new value to be lost, and the value of
 .B $0
 to be recomputed, with the fields being separated by the value of
 .BR OFS .
+.PP
+Assigning a value to an existing field
+causes the whole record to be rebuilt when
+.B $0
+is referenced.
+Similarly, assigning a value to
+.B $0
+causes the record to be resplit, creating new
+values for the fields.
 .SS Built-in Variables
 .PP
-.IR Gawk 's
+.IR Gawk\^ "'s"
 built-in variables are:
 .PP
-.TP \w'\fBFIELDWIDTHS\fR'u+1n
+.TP "\w'\fBFIELDWIDTHS\fR'u+1n"
 .B ARGC
 The number of command line arguments (does not include options to
 .IR gawk ,
@@ -599,6 +718,16 @@ Dynamically changing the contents of
 .B ARGV
 can control the files used for data.
 .TP
+.B BINMODE
+On non-POSIX systems, specifies use of \*(lqbinary\*(rq mode for all file I/O.
+Numeric values of 1, 2, or 3, specify that input files, output files, or
+all files, respectively, should use binary I/O.
+String values of \fB"r"\fR, or \fB"w"\fR specify that input files, or output files,
+respectively, should use binary I/O.
+String values of \fB"rw"\fR or \fB"wr"\fR specify that all files
+should use binary I/O.
+Any other string value is treated as \fB"rw"\fR, but generates a warning message.
+.TP
 .B CONVFMT
 The conversion format for numbers, \fB"%.6g"\fR, by default.
 .TP
@@ -612,9 +741,6 @@ Changing this array does not affect the environment seen by programs which
 spawns via redirection or the
 .B system()
 function.
-(This may change in a future version of
-.IR gawk .)
-.\" but don't hold your breath...
 .TP
 .B ERRNO
 If a system error occurs either doing a redirection for
@@ -627,6 +753,7 @@ then
 .B ERRNO
 will contain
 a string describing the error.
+The value is subject to translation in non-English locales.
 .TP
 .B FIELDWIDTHS
 A white-space separated list of fieldwidths.  When set,
@@ -635,10 +762,6 @@ parses the input into fields of fixed width, instead of using the
 value of the
 .B FS
 variable as the field separator.
-The fixed field width facility is still experimental; the
-semantics may change as
-.I gawk
-evolves over time.
 .TP
 .B FILENAME
 The name of the current input file.
@@ -649,7 +772,9 @@ However,
 .B FILENAME
 is undefined inside the
 .B BEGIN
-block.
+block
+(unless set by
+.BR getline ).
 .TP
 .B FNR
 The input record number in the current input file.
@@ -682,8 +807,16 @@ and the
 .BR split() ,
 and
 .B sub()
-pre-defined functions will all ignore case when doing regular expression
-operations.  Thus, if
+built-in functions all ignore case when doing regular expression
+operations.
+.B NOTE:
+Array subscripting is
+.I not
+affected, nor is the
+.B asort()
+function.
+.sp .5
+Thus, if
 .B IGNORECASE
 is not equal to zero,
 .B /aB/
@@ -695,13 +828,18 @@ is zero, so all regular expression and string
 operations are normally case-sensitive.
 Under Unix, the full ISO 8859-1 Latin-1 character set is used
 when ignoring case.
-.B NOTE:
-In versions of
+.TP
+.B LINT
+Provides dynamic control of the
+.B \-\^\-lint
+option from within an \*(AK program.
+When true,
 .I gawk
-prior to 3.0,
-.B IGNORECASE
-only affected regular expression operations.  It now affects string
-comparisons as well.
+prints lint warnings. When false, it does not.
+When assigned the string value \fB"fatal"\fP,
+lint warnings become fatal errors, exactly like
+.BR \-\^\-lint=fatal .
+Any other true value just prints warnings.
 .TP
 .B NF
 The number of fields in the current input record.
@@ -717,6 +855,57 @@ The output field separator, a space by default.
 .TP
 .B ORS
 The output record separator, by default a newline.
+.TP
+.B PROCINFO
+The elements of this array provide access to information about the
+running \*(AK program.
+On some systems,
+there may be elements in the array, \fB"group1"\fP through
+\fB"group\fIn\fB"\fR for some
+.IR n ,
+which is the number of supplementary groups that the process has.
+Use the
+.B in
+operator to test for these elements.
+The following elements are guaranteed to be available:
+.RS
+.TP \w'\fBPROCINFO["pgrpid"]\fR'u+1n
+\fBPROCINFO["egid"]\fP
+the value of the
+.IR getegid (2)
+system call.
+.TP
+\fBPROCINFO["euid"]\fP
+the value of the
+.IR geteuid (2)
+system call.
+.TP
+\fBPROCINFO["FS"]\fP
+\fB"FS"\fP if field splitting with
+.B FS
+is in effect, or \fB"FIELDWIDTHS"\fP if field splitting with
+.B FIELDWIDTHS
+is in effect.
+.TP
+\fBPROCINFO["gid"]\fP
+the value of the
+.IR getgid (2)
+system call.
+.TP
+\fBPROCINFO["pgrpid"]\fP
+the process group ID of the current process.
+.TP
+\fBPROCINFO["pid"]\fP
+the process ID of the current process.
+.TP
+\fBPROCINFO["ppid"]\fP
+the parent process ID of the current process.
+.TP
+\fBPROCINFO["uid"]\fP
+the value of the
+.IR getuid (2)
+system call.
+.RE
 .TP
 .B RS
 The input record separator, by default a newline.
@@ -743,6 +932,10 @@ The length of the string matched by
 .B SUBSEP
 The character used to separate multiple subscripts in array
 elements, by default \fB"\e034"\fR.
+.TP
+.B TEXTDOMAIN
+The text domain of the \*(AK program; used to find the localized
+translations for the program's strings.
 .SS Arrays
 .PP
 Arrays are subscripted with an expression between square brackets
@@ -817,7 +1010,7 @@ to be treated as a string, concatenate it with the null string.
 .PP
 When a string must be converted to a number, the conversion is accomplished
 using
-.IR atof (3).
+.IR strtod (3).
 A number is converted to a string by using the value of
 .B CONVFMT
 as a format string for
@@ -850,11 +1043,13 @@ If one value is numeric and the other has a string value that is a
 Otherwise, the numeric value is converted to a string and a string
 comparison is performed.
 Two strings are compared, of course, as strings.
-According to the \*(PX standard, even if two strings are
-numeric strings, a numeric comparison is performed.  However, this is
+Note that the POSIX standard applies the concept of
+\*(lqnumeric string\*(rq everywhere, even to string constants.
+However, this is
 clearly incorrect, and
 .I gawk
 does not do this.
+(Fortunately, this is fixed in the next version of the standard.)
 .PP
 Note that string constants, such as \fB"57"\fP, are
 .I not
@@ -877,6 +1072,79 @@ should be treated that way.
 .PP
 Uninitialized variables have the numeric value 0 and the string value ""
 (the null, or empty, string).
+.SS Octal and Hexadecimal Constants
+Starting with version 3.1 of
+.I gawk ,
+you may use C-style octal and hexadecimal constants in your AWK
+program source code.
+For example, the octal value
+.B 011
+is equal to decimal
+.BR 9 ,
+and the hexadecimal value
+.B 0x11
+is equal to decimal 17.
+.SS String Constants
+.PP
+String constants in \*(AK are sequences of characters enclosed
+between double quotes (\fB"\fR).  Within strings, certain
+.I "escape sequences"
+are recognized, as in C.  These are:
+.PP
+.TP "\w'\fB\e\^\fIddd\fR'u+1n"
+.B \e\e
+A literal backslash.
+.TP
+.B \ea
+The \*(lqalert\*(rq character; usually the \s-1ASCII\s+1 \s-1BEL\s+1 character.
+.TP
+.B \eb
+backspace.
+.TP
+.B \ef
+form-feed.
+.TP
+.B \en
+newline.
+.TP
+.B \er
+carriage return.
+.TP
+.B \et
+horizontal tab.
+.TP
+.B \ev
+vertical tab.
+.TP
+.BI \ex "\^hex digits"
+The character represented by the string of hexadecimal digits following
+the
+.BR \ex .
+As in \*(AN C, all following hexadecimal digits are considered part of
+the escape sequence.
+(This feature should tell us something about language design by committee.)
+E.g., \fB"\ex1B"\fR is the \s-1ASCII\s+1 \s-1ESC\s+1 (escape) character.
+.TP
+.BI \e ddd
+The character represented by the 1-, 2-, or 3-digit sequence of octal
+digits.
+E.g., \fB"\e033"\fR is the \s-1ASCII\s+1 \s-1ESC\s+1 (escape) character.
+.TP
+.BI \e c
+The literal character
+.IR c\^ .
+.PP
+The escape sequences may also be used inside constant regular expressions
+(e.g.,
+.B "/[\ \et\ef\en\er\ev]/"
+matches whitespace characters).
+.PP
+In compatibility mode, the characters represented by octal and
+hexadecimal escape sequences are treated literally when used in
+regular expression constants.  Thus,
+.B /a\e52b/
+is equivalent to
+.BR /a\e*b/ .
 .SH PATTERNS AND ACTIONS
 \*(AK is a line-oriented language.  The pattern comes first, and then the
 action.  Action statements are enclosed in
@@ -884,7 +1152,7 @@ action.  Action statements are enclosed in
 and
 .BR } .
 Either the pattern may be missing, or the action may be missing, but,
-of course, not both.  If the pattern is missing, the action will be
+of course, not both.  If the pattern is missing, the action is
 executed for every single record of input.
 A missing action is equivalent to
 .RS
@@ -1005,7 +1273,7 @@ inclusive.  It does not combine with any other sort of pattern expression.
 Regular expressions are the extended kind found in
 .IR egrep .
 They are composed of characters as follows:
-.TP \w'\fB[^\fIabc.\|.\|.\fB]\fR'u+2n
+.TP "\w'\fB[^\fIabc.\|.\|.\fB]\fR'u+2n"
 .I c
 matches the non-metacharacter
 .IR c .
@@ -1045,17 +1313,17 @@ concatenation: matches
 and then
 .IR r2 .
 .TP
-.IB r +
+.IB r\^ +
 matches one or more
-.IR r 's.
+.IR r\^ "'s."
 .TP
 .IB r *
 matches zero or more
-.IR r 's.
+.IR r\^ "'s."
 .TP
-.IB r ?
+.IB r\^ ?
 matches zero or one
-.IR r 's.
+.IR r\^ "'s."
 .TP
 .BI ( r )
 grouping: matches
@@ -1071,7 +1339,7 @@ grouping: matches
 .IB r { n , m }
 One or two numbers inside braces denote an
 .IR "interval expression" .
-If there is one number in the braces, the preceding regexp
+If there is one number in the braces, the preceding regular expression
 .I r
 is repeated
 .I n
@@ -1120,7 +1388,7 @@ matches the empty string at the beginning of a buffer (string).
 matches the empty string at the end of a buffer.
 .PP
 The escape sequences that are valid in string constants (see below)
-are also legal in regular expressions.
+are also valid in regular expressions.
 .PP
 .I "Character classes"
 are a new feature introduced in the \*(PX standard.
@@ -1130,15 +1398,15 @@ actual characters themselves can vary from country to country and/or
 from character set to character set.  For example, the notion of what
 is an alphabetic character differs in the USA and in France.
 .PP
-A character class is only valid in a regexp
+A character class is only valid in a regular expression
 .I inside
 the brackets of a character list.  Character classes consist of
 .BR [: ,
 a keyword denoting the class, and
 .BR :] .
-Here are the character
-classes defined by the \*(PX standard.
-.TP
+The character
+classes defined by the \*(PX standard are:
+.TP "\w'\fB[:alnum:]\fR'u+2n"
 .B [:alnum:]
 Alphanumeric characters.
 .TP
@@ -1183,14 +1451,16 @@ For example, before the \*(PX standard, to match alphanumeric
 characters, you would have had to write
 .BR /[A\-Za\-z0\-9]/ .
 If your character set had other alphabetic characters in it, this would not
-match them.  With the \*(PX character classes, you can write
+match them, and if your character set collated differently from
+\s-1ASCII\s+1, this might not even match the
+\s-1ASCII\s+1 alphanumeric characters.
+With the \*(PX character classes, you can write
 .BR /[[:alnum:]]/ ,
-and this will match
-.I all
+and this matches
 the alphabetic and numeric characters in your character set.
 .PP
 Two additional special sequences can appear in character lists.
-These apply to non-ASCII character sets, which can have single symbols
+These apply to non-\s-1ASCII\s+1 character sets, which can have single symbols
 (called
 .IR "collating elements" )
 that are represented with more than one
@@ -1200,7 +1470,7 @@ or sorting, purposes.  (E.g., in French, a plain \*(lqe\*(rq
 and a grave-accented e\` are equivalent.)
 .TP
 Collating Symbols
-A collating symbols is a multi-character collating element enclosed in
+A collating symbol is a multi-character collating element enclosed in
 .B [.
 and
 .BR .] .
@@ -1208,9 +1478,9 @@ For example, if
 .B ch
 is a collating element, then
 .B [[.ch.]]
-is a regexp that matches this collating element, while
+is a regular expression that matches this collating element, while
 .B [ch]
-is a regexp that matches either
+is a regular expression that matches either
 .B c
 or
 .BR h .
@@ -1224,15 +1494,17 @@ and
 For example, the name
 .B e
 might be used to represent all of
-\*(lqe,\*(rq \*(lqe\`,\*(rq and \*(lqe\`.\*(rq
+\*(lqe,\*(rq \*(lqe\h'-\w:e:u'\`,\*(rq and \*(lqe\h'-\w:e:u'\`.\*(rq
 In this case,
-.B [[=e]]
-is a regexp
+.B [[=e=]]
+is a regular expression
 that matches any of
- .BR e ,
- .BR e\' ,
+.BR e ,
+....BR "e\'" ,
+.BR "e\h'-\w:e:u'\'" ,
 or
- .BR e\` .
+....BR "e\`" .
+.BR "e\h'-\w:e:u'\`" .
 .PP
 These features are very valuable in non-English speaking locales.
 The library functions that
@@ -1253,22 +1525,22 @@ and
 .B \e'
 operators are specific to
 .IR gawk ;
-they are extensions based on facilities in the \*(GN regexp libraries.
+they are extensions based on facilities in the \*(GN regular expression libraries.
 .PP
 The various command line options
 control how
 .I gawk
-interprets characters in regexps.
+interprets characters in regular expressions.
 .TP
 No options
 In the default case,
 .I gawk
 provide all the facilities of
-\*(PX regexps and the \*(GN regexp operators described above.
+\*(PX regular expressions and the \*(GN regular expression operators described above.
 However, interval expressions are not supported.
 .TP
 .B \-\^\-posix
-Only \*(PX regexps are supported, the \*(GN operators are not special.
+Only \*(PX regular expressions are supported, the \*(GN operators are not special.
 (E.g.,
 .B \ew
 matches a literal
@@ -1278,16 +1550,16 @@ Interval expressions are allowed.
 .B \-\^\-traditional
 Traditional Unix
 .I awk
-regexps are matched.  The \*(GN operators
+regular expressions are matched.  The \*(GN operators
 are not special, interval expressions are not available, and neither
 are the \*(PX character classes
 .RB ( [[:alnum:]]
 and so on).
 Characters described by octal and hexadecimal escape sequences are
-treated literally, even if they represent regexp metacharacters.
+treated literally, even if they represent regular expression metacharacters.
 .TP
 .B \-\^\-re\-interval
-Allow interval expressions in regexps, even if
+Allow interval expressions in regular expressions, even if
 .B \-\^\-traditional
 has been provided.
 .SS Actions
@@ -1413,8 +1685,14 @@ as follows:
 The input/output statements are as follows:
 .PP
 .TP "\w'\fBprintf \fIfmt, expr-list\fR'u+1n"
-.BI close( file )
-Close file (or pipe, see below).
+\fBclose(\fIfile \fR[\fB, \fIhow\fR]\fB)\fR
+Close file, pipe or co-process.
+The optional
+.I how
+should only be used when closing one end of a
+two-way pipe to a co-process.
+It must be a string value, either
+\fB"to"\fR or \fB"from"\fR.
 .TP
 .B getline
 Set
@@ -1445,6 +1723,28 @@ Set
 from next record of
 .IR file .
 .TP
+\fIcommand\fB | getline \fR[\fIvar\fR]
+Run
+.I command
+piping the output either into
+.B $0
+or
+.IR var ,
+as above.
+.TP
+\fIcommand\fB |& getline \fR[\fIvar\fR]
+Run
+.I command
+as a co-process
+piping the output either into
+.B $0
+or
+.IR var ,
+as above.
+Co-processes are a
+.I gawk
+extension.
+.TP
 .B next
 Stop processing the current input record.  The next input record
 is read and processing starts over with the first pattern in the
@@ -1461,14 +1761,9 @@ and
 are updated,
 .B FNR
 is reset to 1, and processing starts over with the first pattern in the
-\*(AK program.  If the end of the input data is reached, the
+\*(AK program. If the end of the input data is reached, the
 .B END
 block(s), if any, are executed.
-.B NOTE:
-Earlier versions of gawk used
-.BR "next file" ,
-as two words.  While this usage is still recognized, it generates a
-warning message and will eventually be removed.
 .TP
 .B print
 Prints the current record.
@@ -1519,36 +1814,41 @@ is the null string,
 then all open output files and pipes
 have their buffers flushed.
 .PP
-Other input/output redirections are also allowed.  For
+Additional output redirections are allowed for
 .B print
 and
-.BR printf ,
-.BI >> " file"
+.BR printf .
+.TP
+.BI "print .\|.\|. >>" " file"
 appends output to the
-.IR file ,
-while
-.BI | " command"
+.IR file .
+.TP
+.BI "print .\|.\|. |" " command"
 writes on a pipe.
-In a similar fashion,
-.IB command " | getline"
-pipes into
-.BR getline .
+.TP
+.BI "print .\|.\|. |&" " command"
+sends data to a co-process.
+.PP
 The
 .BR getline
-command will return 0 on end of file, and \-1 on an error.
+command returns 0 on end of file and \-1 on an error.
+Upon an error,
+.B ERRNO
+contains a string describing the problem.
 .PP
-NOTE: If using a pipe to
+.B NOTE:
+If using a pipe or co-process to
 .BR getline ,
 or from
 .B print
 or
-.BR printf
+.B printf
 within a loop, you
 .I must
 use
 .B close()
 to create new instances of the command.
-AWK does not automatically close pipes when
+\*(AK does not automatically close pipes or co-processes when
 they return EOF.
 .SS The \fIprintf\fP\^ Statement
 .PP
@@ -1559,7 +1859,7 @@ statement and
 function
 (see below)
 accept the following conversion specification formats:
-.TP
+.TP "\w'\fB%g\fR, \fB%G\fR'u+2n"
 .B %c
 An \s-1ASCII\s+1 character.
 If the argument used for
@@ -1568,18 +1868,10 @@ is numeric, it is treated as a character and printed.
 Otherwise, the argument is assumed to be a string, and the only first
 character of that string is printed.
 .TP
-.PD 0
-.B %d
-.TP
-.PD
-.B %i
+.BR "%d" "," " %i"
 A decimal number (the integer part).
 .TP
-.PD 0
-.B %e
-.TP
-.PD
-.B %E
+.B %e , " %E"
 A floating point number of the form
 .BR [\-]d.dddddde[+\^\-]dd .
 The
@@ -1593,11 +1885,7 @@ instead of
 A floating point number of the form
 .BR [\-]ddd.dddddd .
 .TP
-.PD 0
-.B %g
-.TP
-.PD
-.B %G
+.B %g , " %G"
 Use
 .B %e
 or
@@ -1620,11 +1908,7 @@ An unsigned decimal number (again, an integer).
 .B %s
 A character string.
 .TP
-.PD 0
-.B %x
-.TP
-.PD
-.B %X
+.B %x , " %X"
 An unsigned hexadecimal number (an integer).
 The
 .B %X
@@ -1638,9 +1922,22 @@ A single
 .B %
 character; no argument is converted.
 .PP
-There are optional, additional parameters that may lie between the
+Optional, additional parameters may lie between the
 .B %
 and the control letter:
+.TP
+.IB count $
+Use the
+.IR count "'th"
+argument at this point in the formatting.
+This is called a
+.I "positional specifier"
+and
+is intended primarily for use in translated versions of
+format strings, not in the original text of an AWK program.
+It is a
+.I gawk
+extension.
 .TP
 .B \-
 The expression should be left-justified within its field.
@@ -1676,7 +1973,7 @@ For
 .BR %E ,
 and
 .BR %f ,
-the result will always contain a
+the result always contains a
 decimal point.
 For
 .BR %g ,
@@ -1722,7 +2019,9 @@ of significant digits.  For the
 and
 .B %X
 formats, it specifies the minimum number of
-digits to print.  For a string, it specifies the maximum number of
+digits to print.  For
+.BR %s ,
+it specifies the maximum number of
 characters from the string that should be printed.
 .PP
 The dynamic
@@ -1738,11 +2037,18 @@ in place of either the
 .B width
 or
 .B prec
-specifications will cause their values to be taken from
+specifications causes their values to be taken from
 the argument list to
 .B printf
 or
 .BR sprintf() .
+To use a positional specifier with a dynamic width or precision,
+supply the
+.IB count $
+after the
+.B *
+in the format string.
+For example, \fB"%3$*2$.*1$s"\fP.
 .SS Special File Names
 .PP
 When doing I/O redirection from either
@@ -1756,13 +2062,72 @@ from a file,
 .I gawk
 recognizes certain special filenames internally.  These filenames
 allow access to open file descriptors inherited from
-.IR gawk 's
+.IR gawk\^ "'s"
 parent process (usually the shell).
-Other special filenames provide access to information about the running
-.B gawk
-process.
+These file names may also be used on the command line to name data files.
 The filenames are:
-.TP \w'\fB/dev/stdout\fR'u+1n
+.TP "\w'\fB/dev/stdout\fR'u+1n"
+.B /dev/stdin
+The standard input.
+.TP
+.B /dev/stdout
+The standard output.
+.TP
+.B /dev/stderr
+The standard error output.
+.TP
+.BI /dev/fd/\^ n
+The file associated with the open file descriptor
+.IR n .
+.PP
+These are particularly useful for error messages.  For example:
+.PP
+.RS
+.ft B
+print "You blew it!" > "/dev/stderr"
+.ft R
+.RE
+.PP
+whereas you would otherwise have to use
+.PP
+.RS
+.ft B
+print "You blew it!" | "cat 1>&2"
+.ft R
+.RE
+.PP
+The following special filenames may be used with the
+.B |&
+co-process operator for creating TCP/IP network connections.
+.TP "\w'\fB/inet/tcp/\fIlport\fB/\fIrhost\fB/\fIrport\fR'u+2n"
+.BI /inet/tcp/ lport / rhost / rport
+File for TCP/IP connection on local port
+.I lport
+to
+remote host
+.I rhost
+on remote port
+.IR rport .
+Use a port of
+.B 0
+to have the system pick a port.
+.TP
+.BI /inet/udp/ lport / rhost / rport
+Similar, but use UDP/IP instead of TCP/IP.
+.TP
+.BI /inet/raw/ lport / rhost / rport
+.\" Similar, but use raw IP sockets.
+Reserved for future use.
+.PP
+Other special filenames provide access to information about the running
+.I gawk
+process.
+.B "These filenames are now obsolete."
+Use the
+.B PROCINFO
+array to obtain the information they provide.
+The filenames are:
+.TP "\w'\fB/dev/stdout\fR'u+1n"
 .B /dev/pid
 Reading this file returns the process ID of the current process,
 in decimal, terminated with a newline.
@@ -1797,88 +2162,84 @@ system call.
 If there are any additional fields, they are the group IDs returned by
 .IR getgroups (2).
 Multiple groups may not be supported on all systems.
-.TP
-.B /dev/stdin
-The standard input.
-.TP
-.B /dev/stdout
-The standard output.
-.TP
-.B /dev/stderr
-The standard error output.
-.TP
-.BI /dev/fd/\^ n
-The file associated with the open file descriptor
-.IR n .
-.PP
-These are particularly useful for error messages.  For example:
-.PP
-.RS
-.ft B
-print "You blew it!" > "/dev/stderr"
-.ft R
-.RE
-.PP
-whereas you would otherwise have to use
-.PP
-.RS
-.ft B
-print "You blew it!" | "cat 1>&2"
-.ft R
-.RE
-.PP
-These file names may also be used on the command line to name data files.
 .SS Numeric Functions
 .PP
-\*(AK has the following pre-defined arithmetic functions:
+\*(AK has the following built-in arithmetic functions:
 .PP
-.TP \w'\fBsrand(\fR[\fIexpr\^\fR]\fB)\fR'u+1n
+.TP "\w'\fBsrand(\fR[\fIexpr\^\fR]\fB)\fR'u+1n"
 .BI atan2( y , " x" )
-returns the arctangent of
+Returns the arctangent of
 .I y/x
 in radians.
 .TP
 .BI cos( expr )
-returns the cosine of
+Returns the cosine of
 .IR expr ,
 which is in radians.
 .TP
 .BI exp( expr )
-the exponential function.
+The exponential function.
 .TP
 .BI int( expr )
-truncates to integer.
+Truncates to integer.
 .TP
 .BI log( expr )
-the natural logarithm function.
+The natural logarithm function.
 .TP
 .B rand()
-returns a random number between 0 and 1.
+Returns a random number between 0 and 1.
 .TP
 .BI sin( expr )
-returns the sine of
+Returns the sine of
 .IR expr ,
 which is in radians.
 .TP
 .BI sqrt( expr )
-the square root function.
+The square root function.
 .TP
 \&\fBsrand(\fR[\fIexpr\^\fR]\fB)\fR
-uses
+Uses
 .I expr
 as a new seed for the random number generator.  If no
 .I expr
-is provided, the time of day will be used.
+is provided, the time of day is used.
 The return value is the previous seed for the random
 number generator.
 .SS String Functions
 .PP
 .I Gawk
-has the following pre-defined string functions:
+has the following built-in string functions:
 .PP
 .TP "\w'\fBsprintf(\^\fIfmt\fB\^, \fIexpr-list\^\fB)\fR'u+1n"
+\fBasort(\fIs \fR[\fB, \fId\fR]\fB)\fR
+Returns the number of elements in the source
+array
+.IR s .
+The contents of
+.I s
+are sorted using
+.IR gawk\^ "'s"
+normal rules for
+comparing values, and the indexes of the
+sorted values of
+.I s
+are replaced with sequential
+integers starting with 1. If the optional
+destination array
+.I d
+is specified, then
+.I s
+is first duplicated into
+.IR d ,
+and then
+.I d
+is sorted, leaving the indexes of the
+source array
+.I s
+unchanged.
+.TP
 \fBgensub(\fIr\fB, \fIs\fB, \fIh \fR[\fB, \fIt\fR]\fB)\fR
-search the target string
+Search the target string
 .I t
 for matches of the regular expression
 .IR r .
@@ -1897,9 +2258,9 @@ Otherwise,
 is a number indicating which match of
 .I r
 to replace.
-If no
+If
 .I t
-is supplied,
+is not supplied,
 .B $0
 is used instead.
 Within the replacement text
@@ -1925,7 +2286,7 @@ and the original target string is
 changed.
 .TP "\w'\fBsprintf(\^\fIfmt\fB\^, \fIexpr-list\^\fB)\fR'u+1n"
 \fBgsub(\fIr\fB, \fIs \fR[\fB, \fIt\fR]\fB)\fR
-for each substring matching the regular expression
+For each substring matching the regular expression
 .I r
 in the string
 .IR t ,
@@ -1943,18 +2304,18 @@ Use
 .B \e&
 to get a literal
 .BR & .
-See
-.I "Effective AWK Programming"
+(This must be typed as \fB"\e\e&"\fP;
+see \*(EP
 for a fuller discussion of the rules for
 .BR &'s
 and backslashes in the replacement text of
 .BR sub() ,
 .BR gsub() ,
 and
-.BR gensub() .
+.BR gensub() .)
 .TP
 .BI index( s , " t" )
-returns the index of the string
+Returns the index of the string
 .I t
 in the string
 .IR s ,
@@ -1963,7 +2324,7 @@ or 0 if
 is not present.
 .TP
 \fBlength(\fR[\fIs\fR]\fB)
-returns the length of the string
+Returns the length of the string
 .IR s ,
 or the length of
 .B $0
@@ -1971,8 +2332,8 @@ if
 .I s
 is not supplied.
 .TP
-.BI match( s , " r" )
-returns the position in
+\fBmatch(\fIs\fB, \fIr \fR[\fB, \fIa\fR]\fB)\fR
+Returns the position in
 .I s
 where the regular expression
 .I r
@@ -1982,9 +2343,33 @@ is not present, and sets the values of
 .B RSTART
 and
 .BR RLENGTH .
+Note that the argument order is the same as for the
+.B ~
+operator:
+.IB str " ~"
+.IR re .
+.ft R
+If array
+.I a
+is provided,
+.I a
+is cleared and then elements 1 through
+.I n
+are filled with the portions of
+.I s
+that match the corresponding parenthesized
+subexpression in
+.IR r .
+The 0'th element of
+.I a
+contains the portion
+of
+.I s
+matched by the entire regular expression
+.IR r .
 .TP
 \fBsplit(\fIs\fB, \fIa \fR[\fB, \fIr\fR]\fB)\fR
-splits the string
+Splits the string
 .I s
 into the array
 .I a
@@ -2001,19 +2386,44 @@ is cleared first.
 Splitting behaves identically to field splitting, described above.
 .TP
 .BI sprintf( fmt , " expr-list" )
-prints
+Prints
 .I expr-list
 according to
 .IR fmt ,
 and returns the resulting string.
 .TP
+.BI strtonum( str )
+Examines
+.IR str ,
+and returns its numeric value.
+If
+.I str
+begins
+with a leading
+.BR 0 ,
+.B strtonum()
+assumes that
+.I str
+is an octal number.
+If
+.I str
+begins
+with a leading
+.B 0x
+or
+.BR 0X ,
+.B strtonum()
+assumes that
+.I str
+is a hexadecimal number.
+.TP
 \fBsub(\fIr\fB, \fIs \fR[\fB, \fIt\fR]\fB)\fR
-just like
+Just like
 .BR gsub() ,
 but only the first matching substring is replaced.
 .TP
 \fBsubstr(\fIs\fB, \fIi \fR[\fB, \fIn\fR]\fB)\fR
-returns the at most
+Returns the at most
 .IR n -character
 substring of
 .I s
@@ -2026,7 +2436,7 @@ is omitted, the rest of
 is used.
 .TP
 .BI tolower( str )
-returns a copy of the string
+Returns a copy of the string
 .IR str ,
 with all the upper-case characters in
 .I str
@@ -2034,27 +2444,58 @@ translated to their corresponding lower-case counterparts.
 Non-alphabetic characters are left unchanged.
 .TP
 .BI toupper( str )
-returns a copy of the string
+Returns a copy of the string
 .IR str ,
 with all the lower-case characters in
 .I str
 translated to their corresponding upper-case counterparts.
 Non-alphabetic characters are left unchanged.
 .SS Time Functions
-.PP
 Since one of the primary uses of \*(AK programs is processing log files
 that contain time stamp information,
 .I gawk
-provides the following two functions for obtaining time stamps and
+provides the following functions for obtaining time stamps and
 formatting them.
 .PP
 .TP "\w'\fBsystime()\fR'u+1n"
-.B systime()
-returns the current time of day as the number of seconds since the Epoch
-(Midnight UTC, January 1, 1970 on \*(PX systems).
+\fBmktime(\fIdatespec\fB)\fR
+Rurns
+.I datespec
+into a time stamp of the same form as returned by
+.BR systime() .
+The
+.I datespec
+is a string of the form
+.IR "YYYY MM DD HH MM SS[ DST]" .
+The contents of the string are six or seven numbers representing respectively
+the full year including century,
+the month from 1 to 12,
+the day of the month from 1 to 31,
+the hour of the day from 0 to 23,
+the minute from 0 to 59,
+and the second from 0 to 60,
+and an optional daylight saving flag.
+The values of these numbers need not be within the ranges specified;
+for example, an hour of \-1 means 1 hour before midnight.
+The origin-zero Gregorian calendar is assumed,
+with year 0 preceding year 1 and year \-1 preceding year 0.
+The time is assumed to be in the local timezone.
+If the daylight saving flag is positive,
+the time is assumed to be daylight saving time;
+if zero, the time is assumed to be standard time;
+and if negative (the default),
+.B mktime()
+attempts to determine whether daylight saving time is in effect
+for the specified time.
+If
+.I datespec
+does not contain enough elements or if the resulting time
+is out of range,
+.B mktime()
+returns \-1.
 .TP
 \fBstrftime(\fR[\fIformat \fR[\fB, \fItimestamp\fR]]\fB)\fR
-formats
+Formats
 .I timestamp
 according to the specification in
 .IR format.
@@ -2069,7 +2510,7 @@ If
 .I format
 is missing, a default format equivalent to the output of
 .IR date (1)
-will be used.
+is used.
 See the specification for the
 .B strftime()
 function in \*(AN C for the format conversions that are
@@ -2082,68 +2523,113 @@ if that version was used to build
 .IR gawk ,
 then all of the conversions described in that man page are available to
 .IR gawk.
-.SS String Constants
+.TP
+.B systime()
+Returns the current time of day as the number of seconds since the Epoch
+(1970-01-01 00:00:00 UTC on \*(PX systems).
+.SS Bit Manipulations Functions
+Starting with version 3.1 of
+.IR gawk ,
+the following bit manipulation functions are available.
+They work by converting double-precision floating point
+values to
+.B "unsigned long"
+integers, doing the operation, and then converting the
+result back to floating point.
+The functions are:
+.TP "\w'\fBrshift(\fIval\fB, \fIcount\fB)\fR'u+2n"
+\fBand(\fIv1\fB, \fIv2\fB)\fR
+Return the bitwise AND of the values provided by
+.I v1
+and
+.IR v2 .
+.TP
+\fBcompl(\fIval\fB)\fR
+Return the bitwise complement of
+.IR val .
+.TP
+\fBlshift(\fIval\fB, \fIcount\fB)\fR
+Return the value of
+.IR val ,
+shifted left by
+.I count
+bits.
+.TP
+\fBor(\fIv1\fB, \fIv2\fB)\fR
+Return the bitwise OR of the values provided by
+.I v1
+and
+.IR v2 .
+.TP
+\fBrshift(\fIval\fB, \fIcount\fB)\fR
+Return the value of
+.IR val ,
+shifted right by
+.I count
+bits.
+.TP
+\fBxor(\fIv1\fB, \fIv2\fB)\fR
+Return the bitwise XOR of the values provided by
+.I v1
+and
+.IR v2 .
 .PP
-String constants in \*(AK are sequences of characters enclosed
-between double quotes (\fB"\fR).  Within strings, certain
-.I "escape sequences"
-are recognized, as in C.  These are:
-.PP
-.TP \w'\fB\e\^\fIddd\fR'u+1n
-.B \e\e
-A literal backslash.
+.SS Internationalization Functions
+Starting with version 3.1 of
+.IR gawk ,
+the following functions may be used from within your AWK program for
+translating strings at run-time.
+For full details, see \*(EP.
 .TP
-.B \ea
-The \*(lqalert\*(rq character; usually the \s-1ASCII\s+1 \s-1BEL\s+1 character.
+\fBbindtextdomain(\fIdirectory \fR[\fB, \fIdomain\fR]\fB)\fR
+Specifies the directory where
+.I gawk
+looks for the
+.B \&.mo
+files, in case they
+will not or cannot be placed in the ``standard'' locations
+(e.g., during testing).
+It returns the directory where
+.I domain
+is ``bound.''
+.sp .5
+The default
+.I domain
+is the value of
+.BR TEXTDOMAIN .
+If
+.I directory
+is the null string (\fB""\fR), then
+.B bindtextdomain()
+returns the current binding for the
+given
+.IR domain .
 .TP
-.B \eb
-backspace.
-.TP
-.B \ef
-form-feed.
-.TP
-.B \en
-newline.
-.TP
-.B \er
-carriage return.
-.TP
-.B \et
-horizontal tab.
-.TP
-.B \ev
-vertical tab.
-.TP
-.BI \ex "\^hex digits"
-The character represented by the string of hexadecimal digits following
-the
-.BR \ex .
-As in \*(AN C, all following hexadecimal digits are considered part of
-the escape sequence.
-(This feature should tell us something about language design by committee.)
-E.g., \fB"\ex1B"\fR is the \s-1ASCII\s+1 \s-1ESC\s+1 (escape) character.
-.TP
-.BI \e ddd
-The character represented by the 1-, 2-, or 3-digit sequence of octal
-digits.
-E.g., \fB"\e033"\fR is the \s-1ASCII\s+1 \s-1ESC\s+1 (escape) character.
-.TP
-.BI \e c
-The literal character
-.IR c\^ .
-.PP
-The escape sequences may also be used inside constant regular expressions
-(e.g.,
-.B "/[\ \et\ef\en\er\ev]/"
-matches whitespace characters).
-.PP
-In compatibility mode, the characters represented by octal and
-hexadecimal escape sequences are treated literally when used in
-regexp constants.  Thus,
-.B /a\e52b/
-is equivalent to
-.BR /a\e*b/ .
-.SH FUNCTIONS
+\fBdcgettext(\fIstring \fR[\fB, \fIdomain \fR[\fB, \fIcategory\fR]]\fB)\fR
+Returns the translation of
+.I string
+in
+text domain
+.I domain
+for locale category
+.IR category .
+The default value for
+.I domain
+is the current value of
+.BR TEXTDOMAIN .
+The default value for
+.I category
+is \fB"LC_MESSAGES"\fR.
+.sp .5
+If you supply a value for
+.IR category ,
+it must be a string equal to
+one of the known locale categories described
+in \*(EP.
+You must also supply a text domain.  Use
+.B TEXTDOMAIN
+if you want to use the current domain.
+.SH USER-DEFINED FUNCTIONS
 Functions in \*(AK are defined as follows:
 .PP
 .RS
@@ -2163,7 +2649,7 @@ real parameters by extra spaces in the parameter list.  For example:
 .RS
 .ft B
 .nf
-function  f(p, q,     a, b)	# a & b are local
+function  f(p, q,     a, b)	# a and b are local
 {
 	\&.\|.\|.
 }
@@ -2193,7 +2679,7 @@ If
 .B \-\^\-lint
 has been provided,
 .I gawk
-will warn about calls to undefined functions at parse time,
+warns about calls to undefined functions at parse time,
 instead of at run time.
 Calling an undefined function at run time is a fatal error.
 .PP
@@ -2201,6 +2687,45 @@ The word
 .B func
 may be used in place of
 .BR function .
+.SH DYNAMICALLY LOADING NEW FUNCTIONS
+Beginning with version 3.1 of
+.IR gawk ,
+you can dynamically add new built-in functions to the running
+.I gawk
+interpreter.
+The full details are beyond the scope of this manual page;
+see \*(EP for the details.
+.PP
+.TP 8
+\fBextension(\fIobject\fB, \fIfunction\fB)\fR
+Dynamically link the shared object file named by
+.IR object ,
+and invoke
+.I function
+in that object, to perform initialization.
+These should both be provided as strings.
+Returns the value returned by
+.IR function .
+.PP
+.ft B
+This function is provided and documented in \*(EP,
+but everything about this feature is likely to change
+in the next release.
+We STRONGLY recommend that you do not use this feature
+for anything that you aren't willing to redo.
+.ft R
+.SH SIGNALS
+.I pgawk
+accepts two signals.
+.B SIGUSR1
+causes it to dump a profile and function call stack to the
+profile file, which is either
+.BR awkprof.out ,
+or whatever file was named with the
+.B \-\^\-profile
+option.  It then continues to run.
+.B SIGHUP
+causes it to dump the profile and function call stack and then exit.
 .SH EXAMPLES
 .nf
 Print and sort the login names of all users:
@@ -2229,23 +2754,84 @@ Concatenate and line number (a variation on a theme):
 	{ print NR, $0 }
 .ft R
 .fi
-.SH SEE ALSO
-.IR egrep (1),
-.IR getpid (2),
-.IR getppid (2),
-.IR getpgrp (2),
-.IR getuid (2),
-.IR geteuid (2),
-.IR getgid (2),
-.IR getegid (2),
-.IR getgroups (2)
+.SH INTERNATIONALIZATION
 .PP
-.IR "The AWK Programming Language" ,
-Alfred V. Aho, Brian W. Kernighan, Peter J. Weinberger,
-Addison-Wesley, 1988.  ISBN 0-201-07981-X.
+String constants are sequences of characters enclosed in double
+quotes.  In non-English speaking environments, it is possible to mark
+strings in the \*(AK program as requiring translation to the native
+natural language. Such strings are marked in the \*(AK program with
+a leading underscore (\*(lq_\*(rq).  For example,
+.sp
+.RS
+.ft B
+gawk 'BEGIN { print "hello, world" }'
+.RE
+.sp
+.ft R
+always prints
+.BR "hello, world" .
+But,
+.sp
+.RS
+.ft B
+gawk 'BEGIN { print _"hello, world" }'
+.RE
+.sp
+.ft R
+might print
+.B "bonjour, monde"
+in France.
 .PP
-.IR "Effective AWK Programming" ,
-Edition 1.0, published by the Free Software Foundation, 1995.
+There are several steps involved in producing and running a localizable
+\*(AK program.
+.TP "\w'4.'u+2n"
+1.
+Add a
+.B BEGIN
+action to assign a value to the
+.B TEXTDOMAIN
+variable to set the text domain to a name associated with your program.
+.sp
+.ti +5n
+.ft B
+BEGIN { TEXTDOMAIN = "myprog" }
+.ft R
+.sp
+This allows
+.I gawk
+to find the
+.B \&.mo
+file associated with your program.
+Without this step,
+.I gawk
+uses the
+.B messages
+text domain,
+which likely does not contain translations for your program.
+.TP
+2.
+Mark all strings that should be translated with leading underscores.
+.TP
+3.
+If necessary, use the
+.B dcgettext()
+and/or
+.B bindtextdomain()
+functions in your program, as appropriate.
+.TP
+4.
+Run
+.B "gawk \-\^\-gen\-po \-f myprog.awk > myprog.po"
+to generate a
+.B \&.po
+file for your program.
+.TP
+5.
+Provide appropriate translations, and build and install a corresponding
+.B \&.mo
+file.
+.PP
+The internationalization features are described in full detail in \*(EP.
 .SH POSIX COMPATIBILITY
 A primary goal for
 .I gawk
@@ -2256,13 +2842,10 @@ To this end,
 .I gawk
 incorporates the following user visible
 features which are not described in the \*(AK book,
-but are part of the Bell Labs version of
+but are part of the Bell Laboratories version of
 .IR awk ,
 and are in the \*(PX standard.
 .PP
-The
-.B \-v
-option for assigning variables before program execution starts is new.
 The book indicates that command line variable assignment happens when
 .I awk
 would otherwise open the argument as a file, which is after the
@@ -2275,9 +2858,11 @@ the
 block was run.  Applications came to depend on this \*(lqfeature.\*(rq
 When
 .I awk
-was changed to match its documentation, this option was added to
+was changed to match its documentation, the
+.B \-v
+option for assigning variables before program execution was added to
 accommodate applications that depended upon the old behavior.
-(This feature was agreed upon by both the AT&T and \*(GN developers.)
+(This feature was agreed upon by both the Bell Laboratories and the \*(GN developers.)
 .PP
 The
 .B \-W
@@ -2287,7 +2872,7 @@ When processing arguments,
 .I gawk
 uses the special option \*(lq\-\^\-\*(rq to signal the end of
 arguments.
-In compatibility mode, it will warn about, but otherwise ignore,
+In compatibility mode, it warns about but otherwise ignores
 undefined options.
 In normal operation, such arguments are passed on to the \*(AK program for
 it to process.
@@ -2315,163 +2900,13 @@ and
 .BR \ev
 escape sequences (done originally in
 .I gawk
-and fed back into AT&T's); the
+and fed back into the Bell Laboratories version); the
 .B tolower()
 and
 .B toupper()
-built-in functions (from AT&T); and the \*(AN C conversion specifications in
+built-in functions (from the Bell Laboratories version); and the \*(AN C conversion specifications in
 .B printf
-(done first in AT&T's version).
-.SH GNU EXTENSIONS
-.I Gawk
-has a number of extensions to \*(PX
-.IR awk .
-They are described in this section.  All the extensions described here
-can be disabled by
-invoking
-.I gawk
-with the
-.B \-\^\-traditional
-option.
-.PP
-The following features of
-.I gawk
-are not available in
-\*(PX
-.IR awk .
-.RS
-.TP \w'\(bu'u+1n
-\(bu
-The
-.B \ex
-escape sequence.
-(Disabled with
-.BR \-\^\-posix .)
-.TP \w'\(bu'u+1n
-\(bu
-The
-.B fflush()
-function.
-(Disabled with
-.BR \-\^\-posix .)
-.TP
-\(bu
-The
-.BR systime(),
-.BR strftime(),
-and
-.B gensub()
-functions.
-.TP
-\(bu
-The special file names available for I/O redirection are not recognized.
-.TP
-\(bu
-The
-.BR ARGIND ,
-.BR ERRNO ,
-and
-.B RT
-variables are not special.
-.TP
-\(bu
-The
-.B IGNORECASE
-variable and its side-effects are not available.
-.TP
-\(bu
-The
-.B FIELDWIDTHS
-variable and fixed-width field splitting.
-.TP
-\(bu
-The use of
-.B RS
-as a regular expression.
-.TP
-\(bu
-The ability to split out individual characters using the null string
-as the value of
-.BR FS ,
-and as the third argument to
-.BR split() .
-.TP
-\(bu
-No path search is performed for files named via the
-.B \-f
-option.  Therefore the
-.B AWKPATH
-environment variable is not special.
-.TP
-\(bu
-The use of
-.B "nextfile"
-to abandon processing of the current input file.
-.TP
-\(bu
-The use of
-.BI delete " array"
-to delete the entire contents of an array.
-.RE
-.PP
-The AWK book does not define the return value of the
-.B close()
-function.
-.IR Gawk\^ 's
-.B close()
-returns the value from
-.IR fclose (3),
-or
-.IR pclose (3),
-when closing a file or pipe, respectively.
-.PP
-When
-.I gawk
-is invoked with the
-.B \-\^\-traditional
-option,
-if the
-.I fs
-argument to the
-.B \-F
-option is \*(lqt\*(rq, then
-.B FS
-will be set to the tab character.
-Note that typing
-.B "gawk \-F\et \&.\|.\|."
-simply causes the shell to quote the \*(lqt,\*(rq, and does not pass
-\*(lq\et\*(rq to the
-.B \-F
-option.
-Since this is a rather ugly special case, it is not the default behavior.
-This behavior also does not occur if
-.B \-\^\-posix
-has been specified.
-To really get a tab character as the field separator, it is best to use
-quotes:
-.BR "gawk \-F'\et' \&.\|.\|." .
-.ig
-.PP
-If
-.I gawk
-was compiled for debugging, it will
-accept the following additional options:
-.TP
-.PD 0
-.B \-Wparsedebug
-.TP
-.PD
-.B \-\^\-parsedebug
-Turn on
-.IR yacc (1)
-or
-.IR bison (1)
-debugging output during program parsing.
-This option should only be of interest to the
-.I gawk
-maintainers, and may not even be compiled into
-.IR gawk .
-..
+(done first in the Bell Laboratories version).
 .SH HISTORICAL FEATURES
 There are two features of historical \*(AK implementations that
 .I gawk
@@ -2499,7 +2934,7 @@ a = length($0)
 .PP
 This feature is marked as \*(lqdeprecated\*(rq in the \*(PX standard, and
 .I gawk
-will issue a warning about its use if
+issues a warning about its use if
 .B \-\^\-lint
 is specified on the command line.
 .PP
@@ -2517,10 +2952,239 @@ equivalent to the
 .B next
 statement.
 .I Gawk
-will support this usage if
+supports this usage if
 .B \-\^\-traditional
 has been specified.
+.SH GNU EXTENSIONS
+.I Gawk
+has a number of extensions to \*(PX
+.IR awk .
+They are described in this section.  All the extensions described here
+can be disabled by
+invoking
+.I gawk
+with the
+.B \-\^\-traditional
+option.
+.PP
+The following features of
+.I gawk
+are not available in
+\*(PX
+.IR awk .
+.\" Environment vars and startup stuff
+.TP "\w'\(bu'u+1n"
+\(bu
+No path search is performed for files named via the
+.B \-f
+option.  Therefore the
+.B AWKPATH
+environment variable is not special.
+.\" POSIX and language recognition issues
+.TP
+\(bu
+The
+.B \ex
+escape sequence.
+(Disabled with
+.BR \-\^\-posix .)
+.TP
+\(bu
+The
+.B fflush()
+function.
+(Disabled with
+.BR \-\^\-posix .)
+.TP
+\(bu
+The ability to continue lines after
+.B ?
+and
+.BR : .
+(Disabled with
+.BR \-\^\-posix .)
+.TP
+\(bu
+Octal and hexadecimal constants in AWK programs.
+.\" Special variables
+.TP
+\(bu
+The
+.BR ARGIND ,
+.BR BINMODE ,
+.BR ERRNO ,
+.BR LINT ,
+.B  RT
+and
+.B  TEXTDOMAIN
+variables are not special.
+.TP
+\(bu
+The
+.B IGNORECASE
+variable and its side-effects are not available.
+.TP
+\(bu
+The
+.B FIELDWIDTHS
+variable and fixed-width field splitting.
+.TP
+\(bu
+The
+.B PROCINFO
+array is not available.
+.\" I/O stuff
+.TP
+\(bu
+The use of
+.B RS
+as a regular expression.
+.TP
+\(bu
+The special file names available for I/O redirection are not recognized.
+.TP
+\(bu
+The
+.B |&
+operator for creating co-processes.
+.\" Changes to standard awk functions
+.TP
+\(bu
+The ability to split out individual characters using the null string
+as the value of
+.BR FS ,
+and as the third argument to
+.BR split() .
+.TP
+\(bu
+The optional second argument to the
+.B close()
+function.
+.TP
+\(bu
+The optional third argument to the
+.B match()
+function.
+.TP
+\(bu
+The ability to use positional specifiers with
+.B printf
+and
+.BR sprintf() .
+.\" New keywords or changes to keywords
+.TP
+\(bu
+The use of
+.BI delete " array"
+to delete the entire contents of an array.
+.TP
+\(bu
+The use of
+.B "nextfile"
+to abandon processing of the current input file.
+.\" New functions
+.TP
+\(bu
+The
+.BR and() ,
+.BR asort() ,
+.BR bindtextdomain() ,
+.BR compl() ,
+.BR dcgettext() ,
+.BR gensub() ,
+.BR lshift() ,
+.BR mktime() ,
+.BR or() ,
+.BR rshift() ,
+.BR strftime() ,
+.BR strtonum() ,
+.B systime()
+and
+.B xor()
+functions.
+.\" I18N stuff
+.TP
+\(bu
+Localizable strings.
+.\" Extending gawk
+.TP
+\(bu
+Adding new built-in functions dynamically with the
+.B extension()
+function.
+.PP
+The \*(AK book does not define the return value of the
+.B close()
+function.
+.IR Gawk\^ "'s"
+.B close()
+returns the value from
+.IR fclose (3),
+or
+.IR pclose (3),
+when closing an output file or pipe, respectively.
+It returns the process's exit status when closing an input pipe.
+The return value is \-1 if the named file, pipe
+or co-process was not opened with a redirection.
+.PP
+When
+.I gawk
+is invoked with the
+.B \-\^\-traditional
+option,
+if the
+.I fs
+argument to the
+.B \-F
+option is \*(lqt\*(rq, then
+.B FS
+is set to the tab character.
+Note that typing
+.B "gawk \-F\et \&.\|.\|."
+simply causes the shell to quote the \*(lqt,\*(rq, and does not pass
+\*(lq\et\*(rq to the
+.B \-F
+option.
+Since this is a rather ugly special case, it is not the default behavior.
+This behavior also does not occur if
+.B \-\^\-posix
+has been specified.
+To really get a tab character as the field separator, it is best to use
+single quotes:
+.BR "gawk \-F'\et' \&.\|.\|." .
+.ig
+.PP
+If
+.I gawk
+was compiled for debugging, it
+accepts the following additional options:
+.TP
+.PD 0
+.B \-Wparsedebug
+.TP
+.PD
+.B \-\^\-parsedebug
+Turn on
+.IR yacc (1)
+or
+.IR bison (1)
+debugging output during program parsing.
+This option should only be of interest to the
+.I gawk
+maintainers, and may not even be compiled into
+.IR gawk .
+..
 .SH ENVIRONMENT VARIABLES
+The
+.B AWKPATH
+environment variable can be used to provide a list of directories that
+.I gawk
+searches when looking for files named via the
+.B \-f
+and
+.B \-\^\-file
+options.
+.PP
 If
 .B POSIXLY_CORRECT
 exists in the environment, then
@@ -2532,54 +3196,47 @@ If
 .B \-\^\-lint
 has been specified,
 .I gawk
-will issue a warning message to this effect.
+issues a warning message to this effect.
+.SH SEE ALSO
+.IR egrep (1),
+.IR getpid (2),
+.IR getppid (2),
+.IR getpgrp (2),
+.IR getuid (2),
+.IR geteuid (2),
+.IR getgid (2),
+.IR getegid (2),
+.IR getgroups (2)
 .PP
-The
-.B AWKPATH
-environment variable can be used to provide a list of directories that
-.I gawk
-will search when looking for files named via the
-.B \-f
-and
-.B \-\^\-file
-options.
+.IR "The AWK Programming Language" ,
+Alfred V. Aho, Brian W. Kernighan, Peter J. Weinberger,
+Addison-Wesley, 1988.  ISBN 0-201-07981-X.
+.PP
+\*(EP,
+Edition 3.0, published by the Free Software Foundation, 2001.
 .SH BUGS
 The
 .B \-F
 option is not necessary given the command line variable assignment feature;
 it remains only for backwards compatibility.
 .PP
-If your system actually has support for
-.B /dev/fd
-and the associated
-.BR /dev/stdin ,
-.BR /dev/stdout ,
-and
-.B /dev/stderr
-files, you may get different output from
-.I gawk
-than you would get on a system without those files.  When
-.I gawk
-interprets these files internally, it synchronizes output to the standard
-output with output to
-.BR /dev/stdout ,
-while on a system with those files, the output is actually to different
-open files.
-Caveat Emptor.
-.PP
 Syntactically invalid single character programs tend to overflow
 the parse stack, generating a rather unhelpful message.  Such programs
 are surprisingly difficult to diagnose in the completely general case,
 and the effort to do so really is not worth it.
-.SH VERSION INFORMATION
-This man page documents
-.IR gawk ,
-version 3.0.6.
+.ig
+.PP
+.I Gawk
+suffers from ``feeping creaturism.''
+It's too bad
+.I perl
+is so inelegant.
+..
 .SH AUTHORS
 The original version of \*(UX
 .I awk
 was designed and implemented by Alfred Aho,
-Peter Weinberger, and Brian Kernighan of AT&T Bell Labs.  Brian Kernighan
+Peter Weinberger, and Brian Kernighan of Bell Laboratories.  Brian Kernighan
 continues to maintain and enhance it.
 .PP
 Paul Rubin and Jay Fenlason,
@@ -2600,14 +3257,22 @@ The initial DOS port was done by Conrad Kwok and Scott Garfinkle.
 Scott Deifik is the current DOS maintainer.  Pat Rankin did the
 port to VMS, and Michal Jaegermann did the port to the Atari ST.
 The port to OS/2 was done by Kai Uwe Rommel, with contributions and
-help from Darrel Hankerson.  Fred Fish supplied support for the Amiga.
+help from Darrel Hankerson.  Fred Fish supplied support for the Amiga,
+Stephen Davies provided the Tandem port,
+and Martin Brown provided the BeOS port.
+.SH VERSION INFORMATION
+This man page documents
+.IR gawk ,
+version 3.1.0.
 .SH BUG REPORTS
 If you find a bug in
 .IR gawk ,
 please send electronic mail to
 .BR bug-gawk@gnu.org .
 Please include your operating system and its revision, the version of
-.IR gawk ,
+.I gawk
+(from
+.BR "gawk \-\^\-version" ),
 what C compiler you used to compile it, and a test program
 and data that are as small as possible for reproducing the problem.
 .PP
@@ -2630,11 +3295,11 @@ developers occasionally read this newsgroup, posting bug reports there
 is an unreliable way to report bugs.  Instead, please use the electronic mail
 addresses given above.
 .SH ACKNOWLEDGEMENTS
-Brian Kernighan of Bell Labs
+Brian Kernighan of Bell Laboratories
 provided valuable assistance during testing and debugging.
 We thank him.
 .SH COPYING PERMISSIONS
-Copyright \(co 1996\-2000 Free Software Foundation, Inc.
+Copyright \(co 1989, 1991\-2001 Free Software Foundation, Inc.
 .PP
 Permission is granted to make and distribute verbatim copies of
 this manual page provided the copyright notice and this permission

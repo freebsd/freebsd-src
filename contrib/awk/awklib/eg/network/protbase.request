@@ -1,0 +1,7 @@
+PROGRAM blastn
+DATALIB month
+EXPECT 0.75
+BEGIN
+>GAWK310 the gawking gene GNU AWK
+tgcttggctgaggagccataggacgagagcttcctggtgaagtgtgtttcttgaaatcat
+caccaccatggacagcaaa

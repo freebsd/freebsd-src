@@ -1,0 +1,6 @@
+before ReadPGM
+ReadPGM
+after ReadPGM
+before WritePGM
+WritePGM
+after WritePGM

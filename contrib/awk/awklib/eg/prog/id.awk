@@ -1,6 +1,10 @@
 # id.awk --- implement id in awk
+#
+# Requires user and group library functions
+#
 # Arnold Robbins, arnold@gnu.org, Public Domain
 # May 1993
+# Revised February 1996
 
 # output is:
 # uid=12(foo) euid=34(bar) gid=3(baz) \
@@ -8,17 +12,10 @@
 
 BEGIN    \
 {
-    if ((getline < "/dev/user") < 0) {
-        err = "id: no /dev/user support - cannot run"
-        print err > "/dev/stderr"
-        exit 1
-    }
-    close("/dev/user")
-
-    uid = $1
-    euid = $2
-    gid = $3
-    egid = $4
+    uid = PROCINFO["uid"]
+    euid = PROCINFO["euid"]
+    gid = PROCINFO["gid"]
+    egid = PROCINFO["egid"]
 
     printf("uid=%d", uid)
     pw = getpwuid(uid)
@@ -52,18 +49,19 @@ BEGIN    \
         }
     }
 
-    if (NF > 4) {
-        printf(" groups=");
-        for (i = 5; i <= NF; i++) {
-            printf("%d", $i)
-            pw = getgrgid($i)
-            if (pw != "") {
-                split(pw, a, ":")
-                printf("(%s)", a[1])
-            }
-            if (i < NF)
-                printf(",")
+    for (i = 1; ("group" i) in PROCINFO; i++) {
+        if (i == 1)
+            printf(" groups=")
+        group = PROCINFO["group" i]
+        printf("%d", group)
+        pw = getgrgid(group)
+        if (pw != "") {
+            split(pw, a, ":")
+            printf("(%s)", a[1])
         }
+        if (("group" (i+1)) in PROCINFO)
+            printf(",")
     }
+
     print ""
 }

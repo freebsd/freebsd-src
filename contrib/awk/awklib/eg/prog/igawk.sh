@@ -1,6 +1,6 @@
 #! /bin/sh
-
 # igawk --- like gawk but do @include processing
+#
 # Arnold Robbins, arnold@gnu.org, Public Domain
 # July 1993
 
@@ -37,15 +37,15 @@ do
             f=`echo "$1" | sed 's/-.file=//'`
             echo @include "$f" >> /tmp/ig.s.$$ ;;
 
-    -?file)    # get arg, $2
+    -?file)      # get arg, $2
             echo @include "$2" >> /tmp/ig.s.$$
             shift;;
 
-    -?source=*)    # -Wsource or --source
+    -?source=*)  # -Wsource or --source
             t=`echo "$1" | sed 's/-.source=//'`
             echo "$t" >> /tmp/ig.s.$$ ;;
 
-    -?source)  # get arg, $2
+    -?source)    # get arg, $2
             echo "$2" >> /tmp/ig.s.$$
             shift;;
 
@@ -54,7 +54,7 @@ do
             gawk --version
             exit 0 ;;
 
-    -[W-]*)    opts="$opts '$1'" ;;
+    -[W-]*) opts="$opts '$1'" ;;
 
     *)      break;;
     esac
@@ -76,6 +76,7 @@ fi
 # at this point, /tmp/ig.s.$$ has the program
 gawk -- '
 # process @include directives
+
 function pathto(file,    i, t, junk)
 {
     if (index(file, "/") != 0)
@@ -109,16 +110,16 @@ BEGIN {
             }
             fpath = pathto($2)
             if (fpath == "") {
-                printf("igawk:%s:%d: cannot find %s\n", \
+                printf("igawk:%s:%d: cannot find %s\n",
                     input[stackptr], FNR, $2) > "/dev/stderr"
                 continue
             }
             if (! (fpath in processed)) {
                 processed[fpath] = input[stackptr]
-                input[++stackptr] = fpath
+                input[++stackptr] = fpath  # push onto stack
             } else
-                print $2, "included in", input[stackptr], \
-                    "already included in", \
+                print $2, "included in", input[stackptr],
+                    "already included in",
                     processed[fpath] > "/dev/stderr"
         }
         close(input[stackptr])

@@ -1,0 +1,1 @@
+gawk: fnaryscl.awk:10: fatal: attempt to use array `c (from b (from a (from foo)))' in a scalar context

@@ -1,6 +1,6 @@
 .\" AWK Reference Card --- Arnold Robbins, arnold@gnu.org
 .\"
-.\" Copyright (C) 1996, 1997, 1998, 1999, 2000 Free Software Foundation, Inc.
+.\" Copyright (C) 1996-2001 Free Software Foundation, Inc.
 .\" 
 .\" Permission is granted to make and distribute verbatim copies of
 .\" this reference card provided the copyright notice and this permission
@@ -45,57 +45,59 @@
 .ES
 .in +.2i
 .nf
-\*(FRAWK Program Execution	4
-Action Statements	7
-Arrays	9
-Bug Reports	15
+\*(FRAction Statements	7
+Arrays	11
+Awk Program Execution	4
+Bit Manipulation Functions (\*(GK)	16
+Bug Reports	2
+Closing Redirections	12
 Command Line Arguments (standard)	2
 Command Line Arguments (\*(GK)	3
 Command Line Arguments (\*(MK)	4
-Conversions And Comparisons	10
-Copying Permissions	16
+Conversions And Comparisons	9
+Copying Permissions	18
 Definitions	2
-Environment Variables	16
-Escape Sequences	7
-Expressions	9
+Dynamic Extensions (\*(GK)	18
+Environment Variables (\*(GK)	18
+Escape Sequences	8
+Expressions	11
 Fields	6
-FTP Information	16
-Historical Features (\*(GK)	16
-Input Control	11
+FTP/HTTP Information	18
+Historical Features (\*(GK)	18
+Input Control	12
+Internationalization (\*(GK)	16
 Lines And Statements	5
-.ig
-Localization	10
-..
-Numeric Functions	13
-Output Control	11
+Localization (\*(GK)	17
+Numeric Functions	14
+Output Control	12
 Pattern Elements	7
 POSIX Character Classes (\*(GK)	6
-Printf Formats	12
+Printf Formats	13
 Records	6
 Regular Expressions	5
-Special Filenames	13
-String Functions	14
-Time Functions (\*(GK)	15
-User-defined Functions	15
+Special Filenames	14
+String Functions	15
+Time Functions (\*(GK)	16
+User-defined Functions	17
 Variables	8\*(CX
 .in -.2i
 .EB "\s+2\f(HBCONTENTS\*(FR\s0"
-.sp
+.sp .4
 .TD
 .fi
-\*(CD\*(FRThis reference card was written by Arnold Robbins.
-Brian Kernighan and Michael Brennan reviewed it; we thank them
-for their help.
-.sp
+\*(CD\*(FRArnold Robbins wrote this reference card.
+We thank
+Brian Kernighan and Michael Brennan who reviewed it.
+.sp .4
 .SL
-.sp
+.sp .4
 .so SRCDIR/ad.block
 .\" a subtlety here; this line changes color. We rely on it
 .\" also to provide a blank line.
 \*(CD
 .SL
 .nf
-\*(FR\(co Copyright 1996-2000, Free Software Foundation
+\*(FR\(co Copyright 1996-2001, Free Software Foundation
 59 Temple Place \(em Suite 330
 Boston, MA  02111-1307 USA
 .nf
@@ -124,7 +126,7 @@ Several type faces are used to clarify the meaning:
 .fi
 .in +\n(INu
 .ti -\n(INu
-\(bu\|\^\*(FI\*(IN\fP is used to indicate user input and for syntactic
+\(bu\|\^\*(FI\*(IN\fP is used for emphasis, to indicate user input and for syntactic
 placeholders, such as \*(FIvariable\fP or \*(FIaction\fP.
 .in -\n(INu
 .br
@@ -137,6 +139,8 @@ placeholders, such as \*(FIvariable\fP or \*(FIaction\fP.
 \*(FC1.4e2\*(FR
 or
 \*(FC4.1E5\*(FR.
+\*(CBNumbers may also be given in octal or hexadecimal: e.g.,
+\*(FC011\*(FR or \*(FC0x11\*(FR.\*(CD
 .sp .5
 \*(FIescape sequences\fP \- a special sequence of characters beginning
 with a backslash, used to describe otherwise unprintable characters.
@@ -160,8 +164,10 @@ UNIX reference manual.
 .sp .5
 \*(FIrule\fP \- a pattern-action pair, where the pattern or action may
 be missing.\*(CX
-.EB \s+2\f(HBDEFINITIONS\*(FR\s0
+.EB "\s+2\f(HBDEFINITIONS\*(FR\s0"
 
+.\"
+.\"
 .\" --- Command Line Arguments
 .ES
 .fi
@@ -176,7 +182,7 @@ expand;
 l lw(2.2i).
 \*(FC\-F \*(FIfs\*(FR	use \*(FIfs\fP for the input field separator.
 \*(FC\-v\*(FI var\*(FC\^=\^\*(FIval\*(FR	T{
-assign the value \*(FIval\*(FR, to the variable \*(FIvar\*(FR,
+assign the value \*(FIval\*(FR to the variable \*(FIvar\*(FR
 before execution of the program begins. Such
 variable values are available to the \*(FCBEGIN\fP rule.
 T}
@@ -201,79 +207,145 @@ l lw(2.2i).
 .TE
 .EB "\s+2\f(HBCOMMAND LINE ARGUMENTS (standard)\*(FR\s0"
 
-.BT
-
+.\" --- Bug Reports
 .ES
 .fi
-\*(CDThe following options are specific to \*(GK. The \*(FC\-W\*(FR
-forms are for full POSIX compliance.
+\*(CDIf you find a bug in this reference card, please report it via electronic
+mail to \*(FCbug-gawk@gnu.org\*(FR.\*(CX
+.EB "\s+2\f(HBBUG REPORTS\*(FR\s0"
+
+.BT
+
+.\"
+.\"
+.\" --- Command Line Arguments (gawk)
+.ES
+.fi
+\*(CDThe following options are specific to \*(GK.
+You may also use ``\*(FC\-W \*(FIoption\*(FR''
+for full POSIX compliance.
+Long options may abbreviated as long as the abbreviation
+remains unique.
 .sp .5
 .ig
 .\" This option is left undocumented, on purpose.
-\*(FC\-\^\-nostalgia\*(FR
-\*(FC\-W nostalgia\*(FR%T{
+\*(FC\-\^\-nostalgia\*(FR%T{
 provide a moment of nostalgia for
 long time \*(AK users.
 T}
 ..
 .TS
 expand, tab(%);
+l lw(1.3i).
+\*(FC\-\^\-assign \*(FIvar\*(FC\^=\^\*(FIval\*(FR%just like \*(FC\-v\fP.
+\*(FC\-\^\-field-separator \*(FIfs\*(FR%just like \*(FC\-F\fP.
+\*(FC\-\^\-file \*(FIprog-file%\*(FRjust like \*(FC\-f\fP.
+.TE
+.TS
+expand, tab(%);
 ls
-l lw(1.8i).
-\*(FC\-\^\-field-separator \*(FIfs\*(FR
-%just like \*(FC\-F\fP
-\*(FC\-\^\-assign \*(FIvar\*(FC\^=\^\*(FIval\*(FR%just like \*(FC\-v\fP
-\*(FC\-\^\-file \*(FIprog-file%\*(FRjust like \*(FC\-f\fP
-\*(FC\-\^\-traditional\*(FR
-\*(FC\-\^\-compat\*(FR
-\*(FC\-W compat\*(FR
-\*(FC\-W traditional\*(FR%T{
-turn off \*(GK-specific extensions
-(\*(FC\-\^\-traditional\*(FR preferred).
+l lw(2.2i).
+\*(FC\-\^\-compat\*(FR, \*(FC\-\^\-traditional\*(FR
+%T{
+disable \*(GK-specific extensions
+(the use of \*(FC\-\^\-traditional\*(FR is preferred).
 T}
-\*(FC\-\^\-copyleft\*(FR
-\*(FC\-\^\-copyright\*(FR
-\*(FC\-W copyleft\*(FR
-\*(FC\-W copyright\*(FR%T{
+.T&
+ls
+l lw(2.2i).
+\*(FC\-\^\-copyleft\*(FR, \*(FC\-\^\-copyright\*(FR
+%T{
 print the short version of the GNU
 copyright information on \*(FCstdout\*(FR.
 T}
-\*(FC\-\^\-help\*(FR
-\*(FC\-\^\-usage\*(FR
-\*(FC\-W help\*(FR
-\*(FC\-W usage\*(FR%T{
+.T&
+ls
+l lw(2.2i).
+\*(FC\-\^\-dump-variables\*(FR[\*(FC=\*(FIfile\*(FR]
+%T{
+Print a sorted list of global variables,
+their types and final values to
+\*(FIfile\*(FR.
+If no \*(FIfile\*(FR
+is provided, \*(FCgawk\*(FR
+uses \*(FCawkvars.out\*(FR.
+T}
+\*(FC\-\^\-gen\-po\*(FR%T{
+process the program and print a GNU \*(FCgettext\*(FR
+format \*(FC\&.po\*(FR format file on standard output,
+containing the text of all strings that were marked
+for localization.
+T}
+.T&
+ls
+l lw(2.2i).
+\*(FC\-\^\-help\*(FR, \*(FC\-\^\-usage\*(FR
+%T{
 print a short summary of the available
 options on \*(FCstdout\*(FR, then exit zero.
 T}
-\*(FC\-\^\-lint\*(FR
-\*(FC\-W lint\*(FR%T{
+.T&
+ls
+l lw(2.2i).
+\*(FC\-\^\-lint\*(FR[\*(FC=fatal\*(FR]
+%T{
 warn about constructs that are dubious
 or non-portable to other \*(AKs.
+With an optional argument of \*(FCfatal\*(FR,
+lint warnings become fatal errors.
 T}
-\*(FC\-\^\-lint\-old\*(FR
-\*(FC\-W lint\-old\*(FR%T{
+.T&
+l lw(2.2i).
+\*(FC\-\^\-lint\-old\*(FR%T{
 warn about constructs that are not
 portable to the original version of
 Unix \*(AK.
 T}
-\*(FC\-\^\-posix\*(FR
-\*(FC\-W posix\*(FR%T{
+.T&
+ls
+l lw(2.2i).
+\*(FC\-\^\-non\-decimal\-data\*(FR
+%T{
+recognize octal and hexadecimal values in input data.
+\*(FIUse this option with great caution!\*(FR
+T}
+.T&
+l lw(2.2i).
+\*(FC\-\^\-posix\*(FR%T{
 disable common and GNU extensions.
 Enable \*(FIinterval expressions\*(FR in regular
 expression matching (see \fHRegular
 Expressions\fP below).
 T}
+.T&
+ls
+l lw(2.2i).
+\*(FC\-\^\-profile\*(FR[\*(FC=\*(FIprof_file\*(FR]
+%T{
+send profiling data to \*(FIprof_file\*(FR
+(default: \*(FCawkprof.out\*(FR).
+With \*(FIgawk\*(FR,
+the profile is just a ``pretty printed'' version of the program.
+With \*(FIpgawk\*(FR,
+the profile contains execution counts in the left margin
+of each statement in the program.
+T}
+.T&
+ls
+l lw(2.2i).
 \*(FC\-\^\-re\-interval\*(FR
-\*(FC\-W re\-interval\*(FR%T{
+%T{
 enable \*(FIinterval expressions\*(FR in regular
 expression matching (see \fHRegular
 Expressions\fP below). Useful if
 \*(FC\-\^\-posix\*(FR is not specified.
 T}
+.T&
+ls
+l lw(2.2i).
 \*(FC\-\^\-source '\*(FItext\*(FC'\*(FR
-\*(FC\-W source '\*(FItext\*(FC'\*(FR%use \*(FItext\*(FR as AWK program source code.
-\*(FC\-\^\-version\*(FR
-\*(FC\-W version\*(FR%T{
+%use \*(FItext\*(FR as AWK program source code.
+\*(FC\-\^\-version\*(FR%T{
 print version information on \*(FCstdout\fP
 and exit zero.
 T}
@@ -281,16 +353,25 @@ T}
 .sp .5
 .fi
 In compatibility mode,
-any other options are flagged as illegal, but are otherwise ignored.
+any other options are flagged as invalid, but are otherwise ignored.
 In normal operation, as long as program text has been supplied, unknown
 options are passed on to the AWK program in
 \*(FCARGV\*(FR
 for processing. This is most useful for running AWK
-programs via the \*(FC#!\*(FR executable interpreter mechanism.\*(CB
+programs via the \*(FC#!\*(FR executable interpreter mechanism.
+.sp .5
+\*(FIpgawk\fP accepts two signals.
+\*(FCSIGUSR1\fP causes it to dump a profile and function call stack to the
+profile file.  It then continues to run.
+\*(FCSIGHUP\fP
+causes it to dump the profile and function call stack and then exit.\*(CB
 .EB "\s+2\f(HBCOMMAND LINE ARGUMENTS (\*(GK\f(HB)\*(FR\s0"
 
 .BT
 
+.\"
+.\"
+.\" --- Command Line Arguments (mawk)
 .ES
 .fi
 \*(CDThe following options are specific to \*(MK.
@@ -309,7 +390,7 @@ options are processed. Useful with \*(FC#!\fP.
 T}
 \*(FC\-W interactive\*(FR	T{
 unbuffer \*(FCstdout\fP and line buffer \*(FCstdin\fP.
-Lines are always records, ignoring \*(FCRS\fP
+Lines are always records, ignoring \*(FCRS\fP.
 T}
 \*(FC\-W posix_space\*(FR	T{
 \*(FC\en\*(FR separates fields when \*(FCRS = "\^"\fP.
@@ -396,10 +477,10 @@ If a program only has an \*(FCEND\fP rule, the input will be read.
 .\" --- Lines And Statements
 .ES
 .fi
-\*(CDAWK is a line oriented language. The pattern comes first, and then the
+\*(CDAWK is a line-oriented language. The pattern comes first, and then the
 action. Action statements are enclosed in \*(FC{\fP and \*(FC}\*(FR.
 Either the pattern  or the action may be missing, but
-not both. If the pattern is missing, the action will be
+not both. If the pattern is missing, the action is
 executed for every input record.
 A missing action is equivalent to
 .sp .5
@@ -421,7 +502,7 @@ are automatically continued.
 Lines ending in \*(FCdo\fP or \*(FCelse\fP
 also have their statements automatically continued on the following line.
 In other cases, a line can be continued by ending it with a ``\e'',
-in which case the newline will be ignored. However, a ``\e'' after a
+in which case the newline is ignored. However, a ``\e'' after a
 \*(FC#\*(FR is not special.
 .sp .5
 Multiple statements may be put on one line by separating them with a ``;''.
@@ -465,8 +546,8 @@ _
 \*(FC\e>\*(FR~end of a word
 \*(FC\ew\*(FR~any word-constituent character
 \*(FC\eW\*(FR~any non-word-constituent character
-\*(FC\e`\*(FR~beginning of a buffer (string)
-\*(FC\e'\*(FR~end of a buffer (string)\*(CD
+\*(FC\e`\*(FR~beginning of a string
+\*(FC\e'\*(FR~end of a string\*(CD
 \*(FIr\*(FC*\*(FR~zero or more occurrences of \*(FIr\*(FR
 \*(FIr\*(FC+\*(FR~one or more occurrences of \*(FIr\*(FR
 \*(FIr\*(FC?\*(FR~zero or one occurrences of \*(FIr\*(FR
@@ -490,7 +571,7 @@ this feature in \*(GK.\*(CX
 .fi
 \*(CDIn regular expressions, within character ranges
 (\*(FC[\*(FR...\*(FC]\*(FR),
-the notation \*(FC[[:\*(FIclass\*(FC:]]\*(FR defines characters classes:
+the notation \*(FC[[:\*(FIclass\*(FC:]]\*(FR defines character classes:
 .sp .5
 .TS
 center, tab(~);
@@ -500,9 +581,12 @@ lp8 lp8 lp8 lp8.
 \*(FCblank\*(FR~space or tab~\*(FCpunct\*(FR~punctuation
 \*(FCcntrl\*(FR~control~\*(FCspace\*(FR~whitespace
 \*(FCdigit\*(FR~decimal~\*(FCupper\*(FR~upper-case
-\*(FCgraph\*(FR~non-spaces~\*(FCxdigit\*(FR~hexadecimal\*(CB
+\*(FCgraph\*(FR~non-spaces~\*(FCxdigit\*(FR~hexadecimal
 .TE
 .fi
+.sp .5
+Recognition of these character classes is disabled
+when \*(FC\-\-traditional\*(FR is supplied.\*(CB
 .EB "\s+2\f(HBPOSIX CHARACTER CLASSES (\*(GK\f(HB)\*(FR\s0"
 
 .\" --- Records
@@ -515,11 +599,11 @@ If \*(FCRS\fP is any single character, that character separates records.
 \*(CLOtherwise, \*(FCRS\fP is a regular expression.
 \*(CR(Not \*(NK.)\*(CL
 Text in the input that matches this
-regular expression will separate the record.
+regular expression separates the record.
 \*(CB\*(GK sets \*(FCRT\*(FR to the value of the
 input text that matched the regular expression.
 The value of \*(FCIGNORECASE\fP
-will also affect how records are separated when
+also affects how records are separated when
 \*(FCRS\fP is a regular expression.\*(CD
 If \*(FCRS\fP is set to the null string,
 then records are separated by one or more blank lines.
@@ -529,7 +613,7 @@ a field separator, in addition to whatever value
 \*(FCFS\fP may have.
 \*(CB\*(MK does not apply exceptional rules to \*(FCFS\fP
 when \*(FCRS = "\^"\fP.\*(CX
-.EB \s+2\f(HBRECORDS\*(FR\s0
+.EB "\s+2\f(HBRECORDS\*(FR\s0"
 
 .\" --- Fields
 .ES
@@ -548,13 +632,13 @@ by runs of spaces and/or tabs
 \*(CLand/or newlines\*(CD.
 Leading and trailing whitespace are ignored.
 \*(CBThe value of \*(FCIGNORECASE\fP
-will also affect how fields are split when
+also affects how fields are split when
 \*(FCFS\fP is a regular expression.\*(CD
 .sp .5
 \*(CBIf the \*(FCFIELDWIDTHS\fP
-variable is set to a space separated list of numbers, each field is
+variable is set to a space-separated list of numbers, each field is
 expected to have a fixed width, and \*(GK
-will split up the record using the specified widths.
+splits up the record using the specified widths.
 The value of \*(FCFS\fP is ignored.
 Assigning a new value to \*(FCFS\fP
 overrides the use of \*(FCFIELDWIDTHS\*(FR,
@@ -570,15 +654,15 @@ is set to the total number of fields in the input record.
 .sp .5
 References to non-existent fields (i.e., fields after \*(FC$NF\*(FR)
 produce the null-string. However, assigning to a non-existent field
-(e.g., \*(FC$(NF+2) = 5\*(FR) will increase the value of
-\*(FCNF\*(FR, create any intervening fields with the null string as their value,
-and cause the value of \*(FC$0\fP
+(e.g., \*(FC$(NF+2) = 5\*(FR) increases the value of
+\*(FCNF\*(FR, creates any intervening fields with the null string as their value,
+and causes the value of \*(FC$0\fP
 to be recomputed with the fields being separated by the
 value of \*(FCOFS\*(FR.
 References to negative numbered fields cause a fatal error.
 Decreasing the value of \*(FCNF\fP causes the trailing fields to be lost
 \*(CR(not \*(NK).\*(CX
-.EB \s+2\f(HBFIELDS\*(FR\s0
+.EB "\s+2\f(HBFIELDS\*(FR\s0"
 
 .BT
 
@@ -614,26 +698,79 @@ It does not combine with any other pattern expression.\*(CX
 
 .\" --- Action Statements
 .ES
-.nf
-\*(CD\*(FCif (\*(FIcondition\*(FC) \*(FIstatement\*(FR [ \*(FCelse\*(FI statement \*(FR]
-\*(FCwhile (\*(FIcondition\*(FC) \*(FIstatement \*(FR
-\*(FCdo \*(FIstatement  \*(FCwhile (\*(FIcondition\*(FC)\*(FR
-\*(FCfor (\*(FIexpr1\*(FC; \*(FIexpr2\*(FC; \*(FIexpr3\*(FC) \*(FIstatement\*(FR
-\*(FCfor (\*(FIvar \*(FCin\*(FI array\*(FC) \*(FIstatement\*(FR
-.ig
-\*(CB\*(FCabort\*(FR [ \*(FIexpression\*(FR ]\*(CD
-..
-\*(FCbreak\*(FR
+.fi
+.in +.2i
+.ti -.2i
+\*(CD\*(FCbreak\*(FR
+.br
+break out of the nearest enclosing \*(FCdo\*(FR, \*(FCfor\*(FR,
+or \*(FCwhile\*(FR loop.
+.ti -.2i
 \*(FCcontinue\*(FR
+.br
+skip the rest of the loop body.
+Evaluate the \*(FIcondition\*(FR
+part of the nearest enclosing \*(FCdo\*(FR or \*(FCwhile\*(FR loop,
+or go to the \*(FIincr\*(FR part of a \*(FCfor\*(FR loop.
+.ti -.2i
 \*(FCdelete \*(FIarray\^\*(FC[\^\*(FIindex\^\*(FC]\*(FR
-\*(CL\*(FCdelete \*(FIarray\^\*(FR\*(CD
+.br
+delete element \*(FIindex\*(FR from array \*(FIarray\*(FR.
+.ti -.2i
+\*(CL\*(FCdelete \*(FIarray\^\*(FR
+.br
+delete all elements from array \*(FIarray\*(FR.\*(CD
+.ti -.2i
+\*(FCdo \*(FIstatement  \*(FCwhile (\*(FIcondition\*(FC)\*(FR
+.br
+execute \*(FIstatement\*(FR while \*(FIcondition\*(FR is true.
+The \*(FIstatement\*(FR is always executed at least once.
+.ti -.2i
 \*(FCexit\*(FR [ \*(FIexpression\*(FR ]
-\*(FCnext\*(FR
-\*(CL\*(FCnextfile\*(FR \*(CR(not \*(MK)\*(CD
-\*(FC{ \*(FIstatements \*(FC}\*(CX
+.br
+terminate input record processing.
+Execute the \*(FCEND\*(FR rule(s) if present.
+If present, \*(FIexpression\*(FR becomes \*(AK's return value.
+.ti -.2i
+\*(FCfor (\*(FIinit\*(FC; \*(FIcond\*(FC; \*(FIincr\*(FC) \*(FIstatement\*(FR
+.br
+execute \*(FIinit\*(FR.
+Evaluate \*(FIcond\*(FR.
+If it is true, execute \*(FIstatement\*(FR.
+Execute \*(FIincr\*(FR before going back to the top to
+re-evaluate \*(FIcond\*(FR.
+Any of the three may be omitted.
+A missing \*(FIcond\*(FR is considered to be true.
+.ti -.2i
+\*(FCfor (\*(FIvar \*(FCin\*(FI array\*(FC) \*(FIstatement\*(FR
+.br
+execute \*(FIstatement\*(FR once for each subscript in \*(FIarray\*(FR,
+with \*(FIvar\*(FR set to a different subscript each time through
+the loop.
+.ti -.2i
+\*(CD\*(FCif (\*(FIcondition\*(FC) \*(FIstatement1\*(FR [ \*(FCelse\*(FI statement2\*(FR ]
+.br
+if \*(FIcondition\*(FR is true, execute \*(FIstatement1\*(FR,
+otherwise execute \*(FIstatement2\*(FR. Each \*(FCelse\*(FR
+matches the closest \*(FCif\*(FR.
+.ti -.2i
+\*(FCnext\*(FR	see \fHInput Control.\fP
+.ti -.2i
+\*(CL\*(FCnextfile\*(FR \*(CR(not \*(MK)	\*(CLsee \fHInput Control.\fP\*(CD
+.ti -.2i
+\*(FCwhile (\*(FIcondition\*(FC) \*(FIstatement \*(FR
+.br
+while \*(FIcondition\*(FR is true, execute \*(FIstatement\*(FR.
+.ti -.2i
+\*(FC{ \*(FIstatements \*(FC}\*(FR
+.br
+a list of statements enclosed in braces can be used anywhere
+that a single statement would otherwise be used.\*(CX
+.in -.2i
 .EB "\s+2\f(HBACTION STATEMENTS\*(FR\s0"
 
 
+.BT
 
 .\" --- Escape Sequences
 .ES
@@ -643,13 +780,6 @@ constants (\*(FC/.../\fP), escape sequences may be used to
 generate otherwise unprintable characters. This table lists
 the available escape sequences.
 .sp .5
-.ig
-\*(CB\*(FCPROCINFO\fP	T{
-elements of this array provide access to info
-about the running AWK program. See
-\*(AM for details.\*(CD
-T}
-..
 .TS
 center, tab(~);
 lp8 lp8 lp8 lp8.
@@ -661,17 +791,14 @@ lp8 lp8 lp8 lp8.
 \*(FC\e"\fP~double quote~\*(FC\e/\fP~forward slash\*(CX
 .TE
 .EB "\s+2\f(HBESCAPE SEQUENCES\*(FR\s0"
-
-
-.BT
-
+.sp .7
 .\" --- Variables
 .ES
 .fi
 .TS
 expand;
 l lw(2i).
-\*(FCARGC\fP	T{
+\*(CD\*(FCARGC\fP	T{
 number of command line arguments.
 T}
 \*(CB\*(FCARGIND\fP	T{
@@ -683,19 +810,31 @@ array of command line arguments. Indexed from
 contents of \*(FCARGV\fP can control the files used
 for data.
 T}
+\*(CL\*(FCBINMODE\fP	T{
+controls ``binary'' mode for all file I/O.  Values of 1, 2, or 3,
+indicate input, output, or all files, respectively, should use binary
+I/O.  \*(CR(Not \*(NK.)  \*(CLApplies only to non-POSIX systems.
+\*(CBFor \*(GK, string values of \*(FC"r"\fP, or \*(FC"w"\fP specify
+that input files, or output files, respectively, should use binary I/O.
+String values of \*(FC"rw"\fP or \*(FC"wr"\fP specify that all files
+should use binary I/O.  Any other string value is treated as \*(FC"rw"\fP,
+but generates a warning message.\*(CD
+T}
 \*(FCCONVFMT\fP	T{
 conversion format for numbers, default value
 is \*(FC"%.6g"\*(FR.
 T}
 \*(FCENVIRON\fP	T{
-array containing the the current environment.
+array containing the current environment.
 The array is indexed by the environment
 variables, each element being the value of
 that variable.
 T}
 \*(CB\*(FCERRNO\fP	T{
-contains a string describing the error when a
-redirection or read for \*(FCgetline\*(FR fails, or if
+string describing the error if a
+\*(FCgetline\*(FR
+redirection or read
+fails, or if
 \*(FCclose()\*(FR fails.
 T}
 \*(FCFIELDWIDTHS\fP	T{
@@ -710,7 +849,7 @@ on the command line, \*(FCFILENAME\fP is ``\-''.
 (unless set by \*(FCgetline\fP).
 T}
 \*(FCFNR\fP	T{
-number of the input record in current input file.
+record number in current input file.
 T}
 \*(FCFS\fP	T{
 input field separator, a space by default
@@ -718,9 +857,18 @@ input field separator, a space by default
 T}
 \*(CB\*(FCIGNORECASE\fP	T{
 if non-zero, all regular expression and string
-operations ignore case. \*(CRIn versions of \*(GK
-prior to 3.0, \*(FCIGNORECASE\fP only affected
-regular expression operations and \*(FCindex()\*(FR.\*(CD
+operations ignore case.
+Array subscripting and \*(FCasort()\*(FR are \*(FInot\*(FR affected.
+T}
+\*(CB\*(FCLINT\fP	T{
+provides dynamic control of the \*(FC\-\^\-lint\fP
+option from within an AWK program.
+When true, \*(GK
+prints lint warnings.
+When assigned the string value \*(FC"fatal"\*(FR,
+lint warnings become fatal errors, exactly like
+\*(FC\-\-lint=fatal\*(FR.
+Any other true value just prints warnings.\*(CD
 T}
 \*(FCNF\fP	T{
 number of fields in the current input record.
@@ -730,49 +878,123 @@ total number of input records seen so far.
 T}
 \*(FCOFMT\fP	T{
 output format for numbers, \*(FC"%.6g"\*(FR, by default.
-\*(CROld versions of \*(AK also used this for number
-to string conversion instead of \*(FCCONVFMT\fP.\*(CD
+\*(CROld versions of \*(AK used this for number
+to string conversion.\*(CX
 T}
-\*(FCOFS\fP	T{
+.TE
+.EB "\s+2\f(HBVARIABLES\*(FR\s0"
+.BT
+
+.\" --- Variables (continued)
+.ES
+.fi
+.TS
+expand;
+l lw(2i).
+\*(CD\*(FCOFS\fP	T{
 output field separator, a space by default.
 T}
 \*(FCORS\fP	T{
 output record separator, a newline by default.
 T}
+\*(CB\*(FCPROCINFO\fP	T{
+elements of this array provide access to info
+about the running AWK program. See
+\*(AM for details.\*(CD
+T}
+\*(FCRLENGTH\fP	T{
+length of the string matched by \*(FCmatch()\*(FR;
+\-1 if no match.
+T}
 \*(FCRS\fP	T{
 input record separator, a newline by default
 (see \fHRecords\fP above).
+T}
+\*(FCRSTART\fP	T{
+index of the first character matched by
+\*(FCmatch()\*(FR; 0 if no match.
 T}
 \*(CB\*(FCRT\fP	T{
 record terminator. \*(GK sets \*(FCRT\fP to the input
 text that matched the character or regular
 expression specified by \*(FCRS\*(FR.\*(CD
 T}
-\*(FCRSTART\fP	T{
-index of the first character matched by
-\*(FCmatch()\*(FR; 0 if no match.
-T}
-\*(FCRLENGTH\fP	T{
-length of the string matched by \*(FCmatch()\*(FR;
-\-1 if no match.
-T}
 \*(FCSUBSEP\fP	T{
 character(s) used to separate multiple subscripts
-in array elements, by default \*(FC"\e034"\*(FR. (see
-\fHArrays\fP below).\*(CX
+in array elements, by default \*(FC"\e034"\*(FR. (See
+\fHArrays\fP below).
+T}
+\*(CB\*(FCTEXTDOMAIN\fP	T{
+the application's text domain for internationalization;
+used to find the localized
+translations for the program's strings.\*(CX
 T}
 .TE
-.EB \s+2\f(HBVARIABLES\*(FR\s0
+.EB "\s+2\f(HBVARIABLES (continued)\*(FR\s0"
+
+.\" --- Conversions and Comparisons
+.ES
+.fi
+\*(CDVariables and fields may be (floating point) numbers, strings or both.
+Context determines how the value of a variable is interpreted. If used in
+a numeric expression, it will be treated as a number, if used as a string
+it will be treated as a string.
+.sp .5
+To force a variable to be treated as a number, add 0 to it; to force it
+to be treated as a string, concatenate it with the null string.
+.sp .5
+When a string must be converted to a number, the conversion is accomplished
+using \*(FIstrtod\*(FR(3).
+A number is converted to a string by using the value of \*(FCCONVFMT\fP
+as a format string for \*(FIsprintf\*(FR(3),
+with the numeric value of the variable as the argument.
+However, even though all numbers in AWK are floating-point,
+integral values are \*(FIalways\fP converted as integers.
+.sp .5
+Comparisons are performed as follows:
+If two variables are numeric, they are compared numerically.
+If one value is numeric and the other has a string value that is a
+``numeric string,'' then comparisons are also done numerically.
+Otherwise, the numeric value is converted to a string, and a string
+comparison is performed.
+Two strings are compared, of course, as strings.
+.sp .5
+Note that string constants, such as \*(FC"57"\fP, are \*(FInot\fP
+numeric strings, they are string constants. The idea of ``numeric string''
+only applies to fields, \*(FCgetline\fP input,
+\*(FCFILENAME\*(FR, \*(FCARGV\fP elements, \*(FCENVIRON\fP
+elements and the elements of an array created by
+\*(FCsplit()\fP that are numeric strings.
+The basic idea is that \*(FIuser input\*(FR,
+and only user input, that looks numeric,
+should be treated that way.
+\*(CRNote that the POSIX standard applies the concept of
+``numeric string'' everywhere, even to string constants.
+However, this is
+clearly incorrect, and none of the three free \*(AK\*(FRs do this.\*(CD
+(Fortunately, this is fixed in the next version of the standard.)
+.sp .5
+Uninitialized variables have the numeric value 0 and the string value
+\*(FC"\^"\fP
+(the null, or empty, string).\*(CX
+.EB "\s+2\f(HBCONVERSIONS AND COMPARISONS\*(FR\s0"
+
+.BT
+
+.ES
+\*(CX
+.sp 61
+.EB "\s+2\f(HBNOTES\*(FR\s0"
 
 .BT
 
 .\" --- Arrays
 .ES
 .fi
-\*(CDAn arrays subscript is an expression between square brackets
+\*(CDAn array subscript is an expression between square brackets
 (\*(FC[ \*(FRand \*(FC]\*(FR).
 If the expression is a list
-\*(FC(\*(FIexpr\*(FC, \*(FIexpr \*(FC...)\*(FR,
+(\*(FIexpr\*(FC, \*(FIexpr \*(FR...),
 then the subscript is a string consisting of the
 concatenation of the (string) value of each expression,
 separated by the value of the \*(FCSUBSEP\fP variable.
@@ -809,7 +1031,7 @@ element from an array.
 \*(CLSpecifying just the array name without a subscript in
 the \*(FCdelete\fP
 statement deletes the entire contents of an array.\*(CX
-.EB \s+2\f(HBARRAYS\*(FR\s0
+.EB "\s+2\f(HBARRAYS\*(FR\s0"
 
 .\" --- Expressions
 .ES
@@ -833,7 +1055,7 @@ and
 \*(FCsub()\fP,
 functions, mean \*(FC$0 ~ /\*(FIpat\*(FC/\*(FR.
 .sp .5
-The AWK operators, in order of decreasing precedence, are
+The AWK operators, in order of decreasing precedence, are:
 .sp .5
 .fi
 .TS
@@ -864,85 +1086,9 @@ l lw(1.8i).
 \*(FC=\0+=\0\-=\0*=\0/=\0%=\0^=\0\*(CL**=\*(CD\fP
 	assignment operators\*(CX
 .TE
-.EB \s+2\f(HBEXPRESSIONS\*(FR\s0
-
-
-.BT
-
-.\" --- Conversions and Comparisons
-.ES
-.fi
-\*(CDVariables and fields may be (floating point) numbers, strings or both.
-Context determines how the value of a variable is interpreted. If used in
-a numeric expression, it will be treated as a number, if used as a string
-it will be treated as a string.
-.sp .5
-To force a variable to be treated as a number, add 0 to it; to force it
-to be treated as a string, concatenate it with the null string.
-.sp .5
-When a string must be converted to a number, the conversion is accomplished
-using \*(FIatof\*(FR(3).
-A number is converted to a string by using the value of \*(FCCONVFMT\fP
-as a format string for \*(FIsprintf\*(FR(3),
-with the numeric value of the variable as the argument.
-However, even though all numbers in AWK are floating-point,
-integral values are \*(FIalways\fP converted as integers.
-.sp .5
-Comparisons are performed as follows:
-If two variables are numeric, they are compared numerically.
-If one value is numeric and the other has a string value that is a
-``numeric string,'' then comparisons are also done numerically.
-Otherwise, the numeric value is converted to a string, and a string
-comparison is performed.
-Two strings are compared, of course, as strings.
-\*(CRAccording to the POSIX standard, even if two strings are
-numeric strings, a numeric comparison is performed. However, this is
-clearly incorrect, and none of the three free \*(AK\*(FRs do this.\*(CD
-.sp .5
-Note that string constants, such as \*(FC"57"\fP, are \*(FInot\fP
-numeric strings, they are string constants. The idea of ``numeric string''
-only applies to fields, \*(FCgetline\fP input,
-\*(FCFILENAME\*(FR, \*(FCARGV\fP elements, \*(FCENVIRON\fP
-elements and the elements of an array created by
-\*(FCsplit()\fP that are numeric strings.
-The basic idea is that \*(FIuser input\*(FR,
-and only user input, that looks numeric,
-should be treated that way.
-.sp .5
-Uninitialized variables have the numeric value 0 and the string value
-\*(FC"\^"\fP
-(the null, or empty, string).\*(CX
-.EB "\s+2\f(HBCONVERSIONS AND COMPARISONS\*(FR\s0"
-
-.ig
-.\" --- Localization
-.ES
-.nf
-.ce 100
-\*(CDThis
-section
-is
-under
-construction.
-.sp .5
-This
-section
-is
-under
-construction.\*(CB
-.ce 0
-.EB "\s+2\f(HBLOCALIZATION\*(FR\s0"
-..
-
-.ig
-.ps +2
-.ce 1
-\*(CD\fHISBN: 0-916151-97-2\*(FR
-.ps -2
-..
+.EB "\s+2\f(HBEXPRESSIONS\*(FR\s0"
 
 .BT
-
 
 .\" --- Input Control
 .ES
@@ -950,9 +1096,8 @@ construction.\*(CB
 .TS
 expand;
 l lw(1.8i).
-\*(CD\*(FCclose(\*(FIfile\*(FC)\*(FR	close input file or pipe.
 \*(FCgetline\fP	T{
-set \*(FC$0\fP from next input record;
+set \*(FC$0\fP from next record;
 set \*(FCNF\*(FR, \*(FCNR\*(FR, \*(FCFNR\*(FR.
 T}
 \*(FCgetline < \*(FIfile\*(FR	set \*(FC$0\fP from next record of \*(FIfile\*(FR; set \*(FCNF\*(FR.
@@ -963,9 +1108,14 @@ T}
 \*(FCgetline \*(FIv \*(FC< \*(FIfile\*(FR	set \*(FIv\fP from next record of \*(FIfile\*(FR.
 \*(FIcmd \*(FC| getline\*(FR	pipe into \*(FCgetline\*(FR; set \*(FC$0\*(FR, \*(FCNF\*(FR.
 \*(FIcmd \*(FC| getline \*(FIv\*(FR	pipe into \*(FCgetline\*(FR; set \*(FIv\*(FR.
+\*(CB\*(FIcmd \*(FC|& getline\*(FR	co-process pipe into \*(FCgetline\*(FR; set \*(FC$0\*(FR, \*(FCNF\*(FR.
 .TE
 .fi
 .in +.2i
+.ti -.2i
+\*(FIcmd \*(FC|& getline \*(FIv\*(FR
+.br
+co-process pipe into \*(FCgetline\*(FR; set \*(FIv\*(FR.
 .ti -.2i
 \*(FCnext\fP
 .br
@@ -986,15 +1136,15 @@ and processing starts over with the first
 pattern in the AWK program. Upon end
 of input data, execute any \*(FCEND\fP rule(s).
 \*(CREarlier versions of \*(GK used
-\*(FCnext file\*(FR, as two words. This
-generates a warning message and will
-eventually be removed. \*(CR\*(MK does not
-currently support \*(FCnextfile\*(FR.\*(CD
+\*(FCnext file\*(FR, as two words.
+This usage is no longer supported.
+\*(CR\*(MK does not currently support \*(FCnextfile\*(FR.\*(CD
 .in -.2i
 .sp .5
 .fi
-\*(FCgetline\*(FR returns 0 on end of file, and \-1 on an
-error.\*(CX
+\*(FCgetline\*(FR returns 0 on end of file and \-1 on an error.
+\*(CBUpon an error, \*(FCERRNO\*(FR contains a string describing
+the problem.\*(CX
 .EB "\s+2\f(HBINPUT CONTROL\*(FR\s0"
 
 .\" --- Output Control
@@ -1002,28 +1152,24 @@ error.\*(CX
 .fi
 .in +.2i
 .ti -.2i
-\*(CD\*(FCclose(\*(FIfile\*(FC)\*(FR
-.br
-close output file or pipe.
-.ti -.2i
 \*(CL\*(FCfflush(\*(FR[\*(FIfile\^\*(FR]\*(FC)\*(FR
 .br
 flush any buffers associated
 with the open output file or pipe \*(FIfile\*(FR.\*(CD
-\*(CBIf \*(FIfile\fP is missing, then standard output is flushed.
-If \*(FIfile\fP is the null string, then all open output files and pipes
-are flushed \*(CR(not \*(NK)\*(CD.
+\*(CBIf no \*(FIfile\fP, then flush standard output.
+If \*(FIfile\fP is null, then flush all open output files and pipes
+\*(CR(not \*(NK)\*(CD.
 .ti -.2i
 \*(FCprint\fP
 .br
-print the current record. The output record is terminated
-with the value of \*(FCORS\fP.
+print the current record. Terminate output record
+with \*(FCORS\fP.
 .ti -.2i
 \*(FCprint \*(FIexpr-list\*(FR
 .br
 print expressions. Each expression is separated
-by the value of \*(FCOFS\fP. The output record is
-terminated with the value of \*(FCORS\fP.
+by the value of \*(FCOFS\fP. Terminate the output record
+with \*(FCORS\fP.
 .ti -.2i
 \*(FCprintf \*(FIfmt\*(FC, \*(FIexpr-list\*(FR
 .br
@@ -1042,21 +1188,47 @@ I/O redirections may be used with both \*(FCprint\fP and \*(FCprintf\fP.
 .ti -.2i
 \*(CD\*(FCprint "hello" > \*(FIfile\*(FR
 .br
-Print data to \*(FIfile\fP. The first time the file is written to, it
-will be truncated. Subsequent commands append data.
+print data to \*(FIfile\fP. The first time the file is written to, it
+is truncated. Subsequent commands append data.
 .ti -.2i
 \*(FCprint "hello" >> \*(FIfile\*(FR
 .br
-Append data to \*(FIfile\fP. The previous contents of the file are not lost.
+append data to \*(FIfile\fP. The previous contents of \*(FIfile\*(FR are not lost.
 .ti -.2i
 \*(FCprint "hello" | \*(FIcmd\*(FR
 .br
-Print data down a pipeline to \*(FIcmd\*(FR.\*(CX
+print data down a pipeline to \*(FIcmd\*(FR.
+.ti -.2i
+\*(CB\*(FCprint "hello" |& \*(FIcmd\*(FR
+.br
+print data down a pipeline to co-process \*(FIcmd\*(FR.\*(CX
 .in -.2i
 .EB "\s+2\f(HBOUTPUT CONTROL\*(FR\s0"
 
-.BT
+.ES
+.fi
+.in +.2i
+.ti -.2i
+\*(CD\*(FCclose(\*(FIfile\*(FC)\*(FR
+.br
+close input or output file, pipe \*(CBor co-process.\*(CD
+.ti -.2i
+\*(CB\*(FCclose(\*(FIcommand\*(FC, \*(FIhow\*(FC)\*(FR
+.br
+close one end of co-process pipe.
+Use \*(FC"to"\*(FR for the write end, or
+\*(FC"from"\*(FR for the read end.\*(CD
+.in -.2i
+.sp .5
+On success, \*(FCclose()\*(FR returns zero for a file, or the exit status for a process.
+It returns \-1 if \*(FIfile\*(FR
+was never opened, or
+if there was a system problem.
+\*(CB\*(FCERRNO\*(FR describes
+the error.\*(CX
+.EB "\s+2\f(HBCLOSING REDIRECTIONS\*(FR\s0"
 
+.BT
 
 .\" --- Printf Formats
 .ES
@@ -1091,6 +1263,14 @@ and the control letter:
 .TS
 expand;
 l lw(2.2i).
+\*(CB\*(FIcount\*(FC$\*(FR	T{
+use the
+\*(FIcount\*(FR'th
+argument at this point in the formatting
+(a \*(FIpositional specifier\*(FR).
+Use in translated versions of
+format strings, not in the original text of an AWK program.\*(CD
+T}
 \*(FC\-\fP	T{
 left-justify the expression within its field.
 T}
@@ -1122,7 +1302,7 @@ trailing zeros are not removed.
 T}
 \*(FC0\fP	T{
 a leading zero acts as a flag, indicating output
-should be padded with zeroes instead of spaces.
+should be padded with zeros instead of spaces.
 This applies even to non-numeric output formats.
 Only has an effect when the field width is wider
 than the value to be printed.
@@ -1130,11 +1310,11 @@ T}
 \*(FIwidth\fP	T{
 pad the field to this width. The field is normally
 padded with spaces. If the \*(FC0\fP flag has been used,
-pad with zeroes.
+pad with zeros.
 T}
-\*(FC.\fP\*(FIprec\fP	T{
+\*(FC.\*(FIprec\*(FR	T{
 precision.
-The meaning varies by control letter:
+The meaning of the \*(FIprec\*(FR varies by control letter:
 T}
  \*(FC%d\*(FR, \*(FC%o\*(FR, \*(FC%i\*(FR,
  \*(FC%u\*(FR, \*(FC%x\*(FR, \*(FC%X\fP	T{
@@ -1155,10 +1335,11 @@ T}
 The dynamic \*(FIwidth\fP and \*(FIprec\fP capabilities of the ANSI C
 \*(FCprintf()\fP routines are supported.
 A \*(FC*\fP in place of either the \*(FIwidth\fP or \*(FIprec\fP
-specifications will cause their values to be taken from
-the argument list to \*(FCprintf\fP or \*(FCsprintf()\*(FR.\*(CX
+specifications causes their values to be taken from
+the argument list to \*(FCprintf\fP or \*(FCsprintf()\*(FR.
+\*(CBUse \*(FC*\*(FIn\*(FC$\*(FR to use positional specifiers
+with a dynamic width or precision.\*(CX
 .EB "\s+2\f(HBPRINTF FORMATS\*(FR\s0"
-
 
 
 .BT
@@ -1187,13 +1368,28 @@ l lw(2i).
 .fi
 \*(CBThe following names are specific to \*(GK.
 .sp .5
-.TS
-expand;
-l lw(2i).
-\*(FC/dev/fd/\^\*(FIn\*(FR	T{
-file associated with the open file descriptor \*(FIn\*(FR
-T}
-.TE
+.in +.2i
+.ti -.2i
+\*(FC/dev/fd/\^\*(FIn\*(FR
+.br
+File associated with the open file descriptor \*(FIn\*(FR.
+.ti -.2i
+\*(FC/inet/tcp/\*(FIlport\*(FC/\*(FIrhost\*(FC/\*(FIrport\*(FR
+.br
+File for TCP/IP connection on local port \*(FIlport\*(FR to
+remote host \*(FIrhost\*(FR on remote port \*(FIrport\*(FR.
+Use a port of \*(FC0\*(FR to have the system pick a port.
+Usable only with the \*(FC|&\*(FR two-way I/O operator.
+.ti -.2i
+\*(FC/inet/udp/\*(FIlport\*(FC/\*(FIrhost\*(FC/\*(FIrport\*(FR
+.br
+Similar, but use UDP/IP instead of TCP/IP.
+.ti -.2i
+\*(CR\*(FC/inet/raw/\*(FIlport\*(FC/\*(FIrhost\*(FC/\*(FIrport\*(FR
+.br
+.\" Similar, but use raw IP sockets.
+Reserved for future use.\*(CB
+.in -.2i
 .sp .5
 .fi
 Other special filenames provide access to information about the running
@@ -1223,18 +1419,9 @@ T}
 .TE
 .sp .5
 .fi
-.ig
 \*(CRThese filenames are now obsolete.
 Use the \*(FCPROCINFO\fP array to obtain the information they provide.\*(CL
-..
-.\" BEGIN FOR 3.0.x
-\*(CRThese filenames will become obsolete in \*(GK 3.1.
-Be aware that you will have to change your programs.\*(CL
-.\" END FOR 3.0.x
 .EB "\s+2\f(HBSPECIAL FILENAMES\*(FR\s0"
-
-
-
 
 .\" --- Builtin Numeric Functions
 .ES
@@ -1262,11 +1449,18 @@ T}
 
 .BT
 
-
 .\" --- Builtin String Functions
 .ES
 .fi
 .in +.2i
+.ti -.2i
+\*(CB\*(FCasort(\*(FIs\*(FC \*(FR[\*(FC, \*(FId\*(FR]\*(FC)\*(FR
+.br
+sorts the source array \*(FIs\*(FR, replacing the indices with numeric
+values 1 through \*(FIn\*(FR (the number of elements in the array),
+and returns the number of elements.
+If destination \*(FId\*(FR is supplied, \*(FIs\*(FR is copied to \*(FId\*(FR,
+\*(FId\*(FR is sorted, and \*(FIs\*(FR is unchanged.\*(CD
 .ti -.2i
 \*(CB\*(FCgensub(\*(FIr\*(FC, \*(FIs\*(FC, \*(FIh \*(FR[\*(FC, \*(FIt\*(FR]\*(FC)\*(FR
 .br
@@ -1274,8 +1468,8 @@ search the target string
 \*(FIt\fP for matches of the regular expression \*(FIr\*(FR. If
 \*(FIh\fP is a string beginning with \*(FCg\fP or \*(FCG\*(FR,
 replace all matches of \*(FIr\fP with \*(FIs\*(FR. Otherwise, \*(FIh\fP
-is a number indicating which match of \*(FIr\fP to replace. If no
-\*(FIt\fP is supplied, \*(FC$0\fP is used instead. Within the
+is a number indicating which match of \*(FIr\fP to replace.
+If \*(FIt\fP is not supplied, \*(FC$0\fP is used instead. Within the
 replacement text \*(FIs\*(FR, the sequence \*(FC\e\*(FIn\*(FR,
 where \*(FIn\fP is a digit from 1 to 9, may be used to indicate just
 the text that matched the \*(FIn\*(FRth parenthesized subexpression.
@@ -1306,13 +1500,17 @@ returns the index of the string
 returns the length of the string
 \*(FIs\*(FR, or the length of \*(FC$0\fP if \*(FIs\fP is not supplied.
 .ti -.2i
-\*(FCmatch(\*(FIs\*(FC, \*(FIr\*(FC)\*(FR
+\*(FCmatch(\*(FIs\*(FC, \*(FIr \*(CB\*(FR[\*(FC, \*(FIa\*(FR]\*(CD\*(FC)\*(FR
 .br
 returns the position in
 \*(FIs\fP where the regular expression \*(FIr\fP occurs, or 0 if
 \*(FIr\fP is not present, and sets the values of variables
 \*(FCRSTART\fP
 and \*(FCRLENGTH\*(FR.
+\*(CBIf \*(FIa\*(FR is supplied, the text matching all of \*(FIr\*(FR
+is placed in \*(FIa\*(FC[0]\*(FR.  If there were parenthesized
+subexpressions, the matching texts are placed
+in \*(FIa\*(FC[1]\*(FR, \*(FIa\*(FC[2]\*(FR, and so on.\*(CD
 .ti -.2i
 \*(FCsplit(\*(FIs\*(FC, \*(FIa \*(FR[\*(FC, \*(FIr\*(FR]\*(FC)\*(FR
 .br
@@ -1327,6 +1525,16 @@ Splitting behaves identically to field splitting.
 .br
 prints \*(FIexpr-list\fP
 according to \*(FIfmt\*(FR, and returns the resulting string.
+.ti -.2i
+\*(CB\*(FCstrtonum(\*(FIs\*(FC)\*(FR
+.br
+examines \*(FIs\*(FR, and returns its numeric value.
+If \*(FIs\*(FR begins with a leading \*(FC0\*(FR,
+\*(FCstrtonum()\*(FR assumes that \*(FIs\*(FR
+is an octal number.
+If \*(FIs\*(FR begins with a leading \*(FC0x\*(FR
+or \*(FC0X\*(FR, \*(FCstrtonum()\*(FR assumes that
+\*(FIs\*(FR is a hexadecimal number.\*(CD
 .ti -.2i
 \*(FCsub(\*(FIr\*(FC, \*(FIs \*(FR[\*(FC, \*(FIt\*(FR]\*(FC)\*(FR
 .br
@@ -1344,21 +1552,25 @@ If \*(FIn\fP is omitted, the rest of \*(FIs\fP is used.
 returns a copy of the string \*(FIstr\*(FR,
 with all the upper-case characters in \*(FIstr\fP translated to their
 corresponding lower-case counterparts. Non-alphabetic characters are
-left unchanged.
+left unchanged.\*(CX
+.in -.2i
+.EB "\s+2\f(HBSTRING FUNCTIONS\*(FR\s0"
+
+.BT
+
+.\" --- Builtin String Functions
+.ES
+.fi
+.in +.2i
 .ti -.2i
-\*(FCtoupper(\*(FIstr\*(FC)\*(FR
+\*(CD\*(FCtoupper(\*(FIstr\*(FC)\*(FR
 .br
 returns a copy of the string \*(FIstr\*(FR,
 with all the lower-case characters in \*(FIstr\fP translated to their
 corresponding upper-case counterparts. Non-alphabetic characters are
 left unchanged.\*(CX
 .in -.2i
-.EB "\s+2\f(HBSTRING FUNCTIONS\*(FR\s0"
-
-
-
-.BT
-
+.EB "\s+2\f(HBSTRING FUNCTIONS (continued)\*(FR\s0"
 
 .\" --- Builtin Time Functions
 .ES
@@ -1369,15 +1581,13 @@ formatting them.
 .sp .5
 .fi
 .in +.2i
-.ig
 .ti -.2i
 \*(FCmktime(\*(FIdatespec\*(FC)\*(FR
 .br
 turns \*(FIdatespec\fP into a time
 stamp of the same form as returned by \*(FCsystime()\*(FR.
 The \*(FIdatespec\fP is a string of the form
-\*(FC"\*(FIYYYY MM DD HH MM SS\*(FC"\*(FR.
-..
+\*(FC"\*(FIYYYY MM DD HH MM SS[ DST]\*(FC"\*(FR.
 .ti -.2i
 \*(FCstrftime(\*(FR[\*(FIformat \*(FR[\*(FC, \*(FItimestamp\*(FR]]\*(FC)\*(FR
 .br
@@ -1387,7 +1597,7 @@ according to the specification in \*(FIformat\*(FR. The
 \*(FCsystime()\*(FR.
 If \*(FItimestamp\fP is missing, the current time of day is used. If
 \*(FIformat\fP is missing, a default format equivalent to the output
-of \*(FIdate\*(FR(1) will be used.
+of \*(FIdate\*(FR(1) is used.
 .ti -.2i
 \*(FCsystime()\fP
 .br
@@ -1396,7 +1606,83 @@ seconds since the Epoch.\*(CB
 .in -.2i
 .EB "\s+2\f(HBTIME FUNCTIONS (\*(GK\f(HB)\*(FR\s0"
 
+.\" --- Builtin Bit Manipulation Functions
+.ES
+.fi
+\*(CD\*(GK
+provides the following functions for doing bitwise operations.
+.sp .5
+.fi
+.in +.2i
+.ti -.2i
+\*(FCand(\*(FIv1\*(FC, \*(FIv2\*(FC)\*(FR
+.br
+returns the bitwise AND of the values provided by
+\*(FIv1\*(FR and \*(FIv2\*(FR.
+.ti -.2i
+\*(FCcompl(\*(FIval\*(FC)\*(FR
+.br
+returns the bitwise complement of
+\*(FIval\*(FR.
+.ti -.2i
+\*(FClshift(\*(FIval\*(FC, \*(FIcount\*(FC)\*(FR
+.br
+returns the value of \*(FIval\*(FR,
+shifted left by \*(FIcount\*(FR bits.
+.ti -.2i
+\*(FCor(\*(FIv1\*(FC, \*(FIv2\*(FC)\*(FR
+.br
+returns the bitwise OR of the values provided by
+\*(FIv1\*(FR and \*(FIv2\*(FR.
+.ti -.2i
+\*(FCrshift(\*(FIval\*(FC, \*(FIcount\*(FC)\*(FR
+.br
+returns the value of \*(FIval\*(FR,
+shifted right by \*(FIcount\*(FR bits.
+.ti -.2i
+\*(FCxor(\*(FIv1\*(FC, \*(FIv2\*(FC)\*(FR
+.br
+teturns the bitwise XOR of the values provided by
+\*(FIv1\*(FR and \*(FIv2\*(FR.\*(CB
+.in -.2i
+.EB "\s+2\f(HBBIT MANIPULATION FUNCTIONS (\*(GK\f(HB)\*(FR\s0"
 
+.\" --- Builtin Internationalizatin Functions
+.ES
+.fi
+\*(CD\*(GK
+provides the following functions for runtime message translation.
+.in +.2i
+.sp .5
+.ti -.2i
+\*(FCbindtextdomain(\*(FIdirectory \*(FR[\*(FC, \*(FIdomain\*(FR]\*(FC)\*(FR
+.br
+specifies the directory where \*(GK looks for the \*(FC\&.mo\*(FR
+files, in case they
+will not or cannot be placed in the ``standard'' locations
+(e.g., during testing.)
+It returns the directory where \*(FIdomain\*(FR is ``bound.''
+.sp .5
+The default \*(FIdomain\*(FR is the value of \*(FCTEXTDOMAIN\*(FR.
+When \*(FIdirectory\*(FR is the null string (\*(FC"\^"\*(FR),
+\*(FCbindtextdomain()\*(FR returns the current binding for the
+given \*(FIdomain\*(FR.
+.ti -.2i
+\*(FCdcgettext(\*(FIstring \*(FR[\*(FC, \*(FIdomain \*(FR[\*(FC, \*(FIcategory\*(FR]]\*(FC)\*(FR
+.br
+returns the translation of \*(FIstring\*(FR in text domain
+\*(FIdomain\*(FR for locale category \*(FIcategory\*(FR.
+The default value for \*(FIdomain\*(FR is the current value of \*(FCTEXTDOMAIN\*(FR.
+The default value for \*(FIcategory\*(FR is \*(FC"LC_MESSAGES"\*(FR.
+.sp .5
+If you supply a value for \*(FIcategory\*(FR, it must be a string equal to
+one of the known locale categories.
+You must also supply a text domain.  Use \*(FCTEXTDOMAIN\*(FR
+to use the current domain.\*(CB
+.in -.2i
+.EB "\s+2\f(HBINTERNATIONALIZATION (\*(GK\f(HB)\*(FR\s0"
+
+.BT
 
 .\" --- User-defined Functions
 .ES
@@ -1420,7 +1706,7 @@ in the parameter list. The convention is to separate local variables from
 real parameters by extra spaces in the parameter list. For example:
 .sp .5
 .nf
-	\*(FC# a & b are local
+	\*(FC# a and b are local
 	function f(p, q,     a, b)
 	{
 		\&.....
@@ -1450,16 +1736,64 @@ may be used in place of
 \*(CRNote: This usage is deprecated.\*(CX
 .EB "\s+2\f(HBUSER-DEFINED FUNCTIONS\*(FR\s0"
 
-
-
-.\" --- Bug Reports
+.\" --- Localization
 .ES
 .fi
-\*(CDIf you find a bug in this reference card, please report it via electronic
-mail to \*(FCarnold@gnu.org\*(FR.\*(CX
-.EB "\s+2\f(HBBUG REPORTS\*(FR\s0"
+\*(CDThere are several steps involved in producing and running a localizable
+\*(AK program.
+.sp .5
+1.  Add a \*(FCBEGIN\*(FR action to assign a value to the
+\*(FCTEXTDOMAIN\*(FR variable to set the text domain for
+your program.
+.sp .5
+.ti +5n
+\*(FCBEGIN { TEXTDOMAIN = "myprog" }\*(FR
+.sp .5
+This allows \*(GK to find the \*(FC\&.mo\*(FR
+file associated with your program.
+Without this step, \*(GK uses the \*(FCmessages\*(FR text domain,
+which probably won't work.
+.sp .5
+2.  Mark all strings that should be translated with leading underscores.
+.sp .5
+3.  Use the \*(FCdcgettext()\*(FR
+and/or \*(FCbindtextdomain()\*(FR
+functions in your program, as necessary or appropriate.
+.sp .5
+4.  Run
+.sp .5
+.ti +5n
+\*(FCgawk \-\^\-gen\-po \-f myprog.awk > myprog.po\*(FR
+.sp .5
+to generate a \*(FC\&.po\*(FR
+file for your program.
+.sp .5
+5.  Provide appropriate translations, and build and install a corresponding
+\*(FC\&.mo\*(FR file.
+.sp .5
+The internationalization features are described in full detail in \*(AM.\*(CB
+.EB "\s+2\f(HBLOCALIZATION (\*(GK\f(HB)\*(FR\s0"
+
 
 .BT
+
+.\" --- Extensions
+.ES
+.fi
+.in +.2i
+.ti -.2i
+\*(CD\*(FCextension(\*(FIlib\*(FC, \*(FIfunc\*(FC)\*(FR
+.br
+dynamically load the shared library
+\*(FIlib\*(FR
+and call
+\*(FIfunc\*(FR
+in it to initialize the library.
+This adds new built-in functions to \*(GK.
+It returns the value returned by
+\*(FIfunc\*(FR.\*(CB
+.in -.2i
+.EB "\s+2\f(HBDYNAMIC EXTENSIONS (\*(GK\f(HB)\*(FR\s0"
 
 .\" --- Environment Variables
 .ES
@@ -1487,7 +1821,7 @@ command line.\*(CB
 First, it is possible to call the \*(FClength()\fP
 built-in function not only with no argument, but even without parentheses.
 This feature is marked as ``deprecated'' in the POSIX standard, and \*(GK
-will issue a warning about its use if \*(FC\-\^\-lint\fP
+issues a warning about its use if \*(FC\-\^\-lint\fP
 is specified on the command line.
 .sp .5
 The other feature is the use of \*(FCcontinue\fP
@@ -1495,8 +1829,8 @@ or \*(FCbreak\fP statements outside the body of a
 \*(FCwhile\*(FR, \*(FCfor\*(FR, or \*(FCdo\fP loop.
 Historical AWK implementations have treated such usage as
 equivalent to the \*(FCnext\fP statement.
-\*(GK will support this usage if \*(FC\-\^\-traditional\fP
-has been specified.\*(CB
+\*(GK supports this usage if \*(FC\-\^\-traditional\fP
+is specified.\*(CB
 .EB "\s+2\f(HBHISTORICAL FEATURES (\*(GK\f(HB)\*(FR\s0"
 
 
@@ -1504,15 +1838,14 @@ has been specified.\*(CB
 .ES
 .nf
 \*(CDHost: \*(FCgnudist.gnu.org\*(FR
-File: \*(FC/gnu/gawk/gawk-3.0.6.tar.gz\fP
+File: \*(FC/gnu/gawk/gawk-3.1.0.tar.gz\fP
 .in +.2i
 .fi
 GNU \*(AK (\*(GK). There may be a later version.
 .in -.2i
 .nf
 .sp .5
-Host: \*(FCnetlib.bell-labs.com\*(FR
-File: \*(FC/netlib/research/awk.bundle.gz\fP
+\*(FChttp://cm.bell-labs.com/who/bwk/awk.tar.gz\fP
 .in +.2i
 .fi
 \*(NK. This version requires an ANSI C compiler;
@@ -1526,12 +1859,12 @@ File: \*(FC/pub/brennan/mawk1.3.3.tar.gz\fP
 .fi
 Michael Brennan's \*(MK. There may be a newer version.\*(CX
 .in -.2i
-.EB "\s+2\f(HBFTP INFORMATION\*(FR\s0"
+.EB "\s+2\f(HBFTP/HTTP INFORMATION\*(FR\s0"
 
 .\" --- Copying Permissions
 .ES
 .fi
-\*(CDCopyright \(co 1996-2000 Free Software Foundation, Inc.
+\*(CDCopyright \(co 1996-2001 Free Software Foundation, Inc.
 .sp .5   
 Permission is granted to make and distribute verbatim copies of this
 reference card provided the copyright notice and this permission notice
