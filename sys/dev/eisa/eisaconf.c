@@ -28,14 +28,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.c,v 1.35 1998/05/14 19:47:38 gibbs Exp $
+ *	$Id: eisaconf.c,v 1.36 1998/12/04 22:54:46 archie Exp $
  */
 
 #include "opt_eisa.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
+#include <sys/linker_set.h>
 #include <sys/malloc.h>
 
 #include <machine/limits.h>

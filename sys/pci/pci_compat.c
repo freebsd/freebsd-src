@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci_compat.c,v 1.17 1998/12/14 05:47:28 dillon Exp $
+ * $Id: pci_compat.c,v 1.18 1999/01/13 04:59:19 bde Exp $
  *
  */
 
@@ -35,7 +35,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
-#include <sys/kernel.h> /* for DATA_SET support */
+#include <sys/linker_set.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
