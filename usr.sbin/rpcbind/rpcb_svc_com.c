@@ -98,8 +98,8 @@ static bool_t xdr_rmtcall_result __P((XDR *, struct r_rmtcall_args *));
 static bool_t xdr_opaque_parms __P((XDR *, struct r_rmtcall_args *));
 static int find_rmtcallfd_by_netid __P((char *));
 static SVCXPRT *find_rmtcallxprt_by_fd __P((int));
-static u_int32_t forward_register __P((u_int32_t, struct netbuf *, int, char *,
-				    rpcproc_t, rpcvers_t));
+static int forward_register __P((u_int32_t, struct netbuf *, int, char *,
+    rpcproc_t, rpcvers_t, u_int32_t *));
 static struct finfo *forward_find __P((u_int32_t));
 static int free_slot_by_xid __P((u_int32_t));
 static int free_slot_by_index __P((int));
@@ -765,9 +765,13 @@ rpcbproc_callit_com(struct svc_req *rqstp, SVCXPRT *transp,
 		goto error;
 	}
 	xidp = __rpcb_get_dg_xidp(transp);
-	call_msg.rm_xid = forward_register(*xidp,
-			caller, fd, m_uaddr, reply_type, versnum);
-	if (call_msg.rm_xid == 0) {
+	switch (forward_register(*xidp, caller, fd, m_uaddr, reply_type,
+	    versnum, &call_msg.rm_xid)) {
+	case 1:
+		/* Success; forward_register() will free m_uaddr for us. */
+		m_uaddr = NULL;
+		break;
+	case 0:
 		/*
 		 * A duplicate request for the slow server.  Let's not
 		 * beat on it any more.
@@ -777,7 +781,7 @@ rpcbproc_callit_com(struct svc_req *rqstp, SVCXPRT *transp,
 			"rpcbproc_callit_com:  duplicate request\n");
 		free((void *) m_uaddr);
 		goto error;
-	} else 	if (call_msg.rm_xid == -1) {
+	case -1:
 		/*  forward_register failed.  Perhaps no memory. */
 		if (debugging)
 			fprintf(stderr,
@@ -919,12 +923,13 @@ out:
 
 /*
  * Makes an entry into the FIFO for the given request.
- * If duplicate request, returns a 0, else returns the xid of its call.
+ * Returns 1 on success, 0 if this is a duplicate request, or -1 on error.
+ * *callxidp is set to the xid of the call.
  */
-static u_int32_t
+static int
 forward_register(u_int32_t caller_xid, struct netbuf *caller_addr,
 		 int forward_fd, char *uaddr, rpcproc_t reply_type,
-		 rpcvers_t versnum)
+		 rpcvers_t versnum, u_int32_t *callxidp)
 {
 	int		i;
 	int		j = 0;
@@ -989,8 +994,12 @@ forward_register(u_int32_t caller_xid, struct netbuf *caller_addr,
 	 */
 	FINFO[j].uaddr = uaddr;
 	lastxid = lastxid + NFORWARD;
+	/* Don't allow a zero xid below. */
+	if ((u_int32_t)(lastxid + NFORWARD) <= NFORWARD)
+		lastxid = NFORWARD;
 	FINFO[j].forward_xid = lastxid + j;	/* encode slot */
-	return (FINFO[j].forward_xid);		/* forward on this xid */
+	*callxidp = FINFO[j].forward_xid;	/* forward on this xid */
+	return (1);
 }
 
 static struct finfo *
@@ -998,9 +1007,7 @@ forward_find(u_int32_t reply_xid)
 {
 	int		i;
 
-	i = reply_xid % NFORWARD;
-	if (i < 0)
-		i += NFORWARD;
+	i = reply_xid % (u_int32_t)NFORWARD;
 	if ((FINFO[i].flag & FINFO_ACTIVE) &&
 	    (FINFO[i].forward_xid == reply_xid)) {
 		return (&FINFO[i]);
@@ -1013,9 +1020,7 @@ free_slot_by_xid(u_int32_t xid)
 {
 	int entry;
 
-	entry = xid % NFORWARD;
-	if (entry < 0)
-		entry += NFORWARD;
+	entry = xid % (u_int32_t)NFORWARD;
 	return (free_slot_by_index(entry));
 }
 
