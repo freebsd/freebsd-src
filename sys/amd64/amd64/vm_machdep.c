@@ -266,7 +266,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	 * more analysis) (need a good safe default).
 	 */
 	bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
-	pcb2->pcb_flags &= ~(PCB_NPXTRAP|PCB_NPXINITDONE);
+	pcb2->pcb_flags &= ~PCB_NPXINITDONE;
 
 	/*
 	 * Create a new fresh stack for the new thread.

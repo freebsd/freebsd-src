@@ -100,7 +100,7 @@ struct sigcontext {
 	long	sc_ss;
 	long	sc_len;			/* sizeof(mcontext_t) */
 	/*
-	 * XXX - See <machine/ucontext.h> and <machine/npx.h> for
+	 * XXX - See <machine/ucontext.h> and <machine/fpu.h> for
 	 *       the following fields.
 	 */
 	long	sc_fpformat;

@@ -72,7 +72,7 @@ typedef struct __mcontext {
 #define	_MC_FPOWNED_PCB		0x20002	/* FP state came from PCB */
 	long	mc_ownedfp;
 	/*
-	 * See <machine/npx.h> for the internals of mc_fpstate[].
+	 * See <machine/fpu.h> for the internals of mc_fpstate[].
 	 */
 	long	mc_fpstate[64] __aligned(16);
 	long	mc_spare[8];
