@@ -49,10 +49,12 @@
 The
 .Nm
 utility provides shell level access to the ioctl
-requests served by the handy scanner device driver asc. Please see
+requests served by the handy scanner device driver asc.
+Please see
 .Xr asc 4
 for the exact meaning of the requests.  Generally they modify
-the output and behavior of the asc scanner device. When
+the output and behavior of the asc scanner device.
+When
 .Nm
 is called with no option only the current settings are reported.
 .Sh OPTIONS
@@ -65,9 +67,11 @@ Operate in quiet mode, i.e. do not report any of the current settings.
 Normally the parameters are shown after the modifications have been
 performed.
 .It Fl f Ar file
-Operate on a different scanner device node given by filename. Note
+Operate on a different scanner device node given by filename.
+Note
 that even though there may exist more than one node of scanner device
-several of them will refer the same device unit. The modifications are
+several of them will refer the same device unit.
+The modifications are
 performed od the unit regardless of the device node by which it is
 accessed.
 .It Fl r Ar resolution Bq ASC_SRES

@@ -43,12 +43,14 @@ into a format usable by the
 .Fn strxfrm
 and
 .Fn strcoll
-functions. It is used to define the many ways in which
+functions.
+It is used to define the many ways in which
 strings can be ordered and collated.
 .Fn strxfrm
 transforms
 its first argument and places the result in its second
-argument. The transformed string is such that it can be
+argument.
+The transformed string is such that it can be
 correctly ordered with other transformed strings by using
 .Fn strcmp ,
 .Fn strncmp ,
@@ -89,18 +91,21 @@ and
 .Pp
 Of these, only the
 .Ar order
-statement is required. When
+statement is required.
+When
 .Ar charmap
 or
 .Ar substitute
 is
-supplied, these statements must be ordered as above. Any
+supplied, these statements must be ordered as above.
+Any
 statements after the order statement are ignored.
 .Pp
 Lines in the specification file beginning with a
 .Ar #
 are
-treated as comments and are ignored. Blank lines are also
+treated as comments and are ignored.
+Blank lines are also
 ignored.
 .Pp
 .Ar charmap charmapfile
@@ -112,7 +117,8 @@ character encoding can be found.
 .Pp
 The format of
 .Ar charmapfile
-is shown below. Symbol
+is shown below.
+Symbol
 names are separated from their values by TAB or
 SPACE characters. symbol-value can be specified in
 a hexadecimal (\ex\fI??\fR) or octal (\e\fI???\fR)
@@ -150,7 +156,8 @@ statement is optional.
 .Pp
 .Ar order_list
 is a list of symbols, separated by semi colons, that defines the
-collating sequence. The
+collating sequence.
+The
 special symbol
 .Ar ...
 specifies, in a short-hand
@@ -230,7 +237,8 @@ are assigned the same primary ordering only.
 .Pp
 The backslash character
 .Ar \e
-is used for continuation. In this case, no characters are permitted
+is used for continuation.
+In this case, no characters are permitted
 after the backslash character.
 .Sh EXIT STATUS
 .Nm Colldef
