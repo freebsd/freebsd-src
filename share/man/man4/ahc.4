@@ -40,6 +40,9 @@ For one or more PCI cards:
 .Cd controller pci0
 .Cd controller ahc0
 .Pp
+To enable tagged queueing:
+.Cd options AHC_TAGENABLE
+.Pp
 To enable SCB paging:
 .Cd options AHC_SCBPAGING_ENABLE
 .Pp
@@ -58,13 +61,17 @@ or
 .Tn AIC7880
 host adapter chips.
 Features include support for twin and wide busses,
-ultra SCSI,
-two commands per non-tagged queueing target,
+ultra
+.Tn SCSI,
+two active commands at a time per non-tagged queueing target,
 tagged queuing,
 and SCB paging which allows up to 255 active commands on all adapters
 except those using 
 .Tn AIC7770
 chips prior to revision E.
+Tagged queueing is enabled with the
+.Dq Dv AHC_TAGENABLE
+configuration option.
 SCB paging is enabled with the
 .Dq Dv AHC_SCBPAGING_ENABLE
 configuration option.
