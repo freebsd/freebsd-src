@@ -30,6 +30,7 @@ ORG2=	0x1000
 CFLAGS=	-elf -ffreestanding -Os -fno-builtin \
 	-fno-guess-branch-probability \
 	-mrtd \
+	-I${.CURDIR}/../../common \
 	-I${.CURDIR}/../btx/lib -I. \
 	-Wall -Waggregate-return -Wbad-function-cast -Wcast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
