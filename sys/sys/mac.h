@@ -341,9 +341,10 @@ int	mac_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
 /* XXX This u_char should be vm_prot_t! */
 u_char	mac_check_vnode_mmap_prot(struct ucred *cred, struct vnode *vp,
 	    int newmapping);
-int	mac_check_vnode_op(struct ucred *cred, struct vnode *vp, int op);
 int	mac_check_vnode_open(struct ucred *cred, struct vnode *vp,
 	    mode_t acc_mode);
+int	mac_check_vnode_poll(struct ucred *cred, struct vnode *vp);
+int	mac_check_vnode_read(struct ucred *cred, struct vnode *vp);
 int	mac_check_vnode_readdir(struct ucred *cred, struct vnode *vp);
 int	mac_check_vnode_readlink(struct ucred *cred, struct vnode *vp);
 int	mac_check_vnode_rename_from(struct ucred *cred, struct vnode *dvp,
@@ -364,6 +365,7 @@ int	mac_check_vnode_setowner(struct ucred *cred, struct vnode *vp,
 int	mac_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
 	    struct timespec atime, struct timespec mtime);
 int	mac_check_vnode_stat(struct ucred *cred, struct vnode *vp);
+int	mac_check_vnode_write(struct ucred *cred, struct vnode *vp);
 int	mac_getsockopt_label_get(struct ucred *cred, struct socket *so,
 	    struct mac *extmac);
 int	mac_getsockopt_peerlabel_get(struct ucred *cred, struct socket *so,

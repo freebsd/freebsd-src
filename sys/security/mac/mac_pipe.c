@@ -755,12 +755,16 @@ mac_policy_register(struct mac_policy_conf *mpc)
 			mpc->mpc_ops->mpo_check_vnode_mmap_perms =
 			    mpe->mpe_function;
 			break;
-		case MAC_CHECK_VNODE_OP:
-			mpc->mpc_ops->mpo_check_vnode_op =
-			    mpe->mpe_function;
-			break;
 		case MAC_CHECK_VNODE_OPEN:
 			mpc->mpc_ops->mpo_check_vnode_open =
+			    mpe->mpe_function;
+			break;
+		case MAC_CHECK_VNODE_POLL:
+			mpc->mpc_ops->mpo_check_vnode_poll =
+			    mpe->mpe_function;
+			break;
+		case MAC_CHECK_VNODE_READ:
+			mpc->mpc_ops->mpo_check_vnode_read =
 			    mpe->mpe_function;
 			break;
 		case MAC_CHECK_VNODE_READDIR:
@@ -813,6 +817,10 @@ mac_policy_register(struct mac_policy_conf *mpc)
 			break;
 		case MAC_CHECK_VNODE_STAT:
 			mpc->mpc_ops->mpo_check_vnode_stat =
+			    mpe->mpe_function;
+			break;
+		case MAC_CHECK_VNODE_WRITE:
+			mpc->mpc_ops->mpo_check_vnode_write =
 			    mpe->mpe_function;
 			break;
 /*
@@ -1762,25 +1770,6 @@ mac_check_vnode_mmap_prot(struct ucred *cred, struct vnode *vp, int newmapping)
 }
 
 int
-mac_check_vnode_op(struct ucred *cred, struct vnode *vp, int op)
-{
-	int error;
-
-	if (!mac_enforce_fs)
-		return (0);
-
-	ASSERT_VOP_LOCKED(vp, "mac_check_vnode_op");
-
-	error = vn_refreshlabel(vp, cred);
-	if (error)
-		return (error);
-
-	MAC_CHECK(check_vnode_op, cred, vp, &vp->v_label, op);
-
-	return (error);
-}
-
-int
 mac_check_vnode_open(struct ucred *cred, struct vnode *vp, mode_t acc_mode)
 {
 	int error;
@@ -1795,6 +1784,44 @@ mac_check_vnode_open(struct ucred *cred, struct vnode *vp, mode_t acc_mode)
 		return (error);
 
 	MAC_CHECK(check_vnode_open, cred, vp, &vp->v_label, acc_mode);
+	return (error);
+}
+
+int
+mac_check_vnode_poll(struct ucred *cred, struct vnode *vp)
+{
+	int error;
+
+	ASSERT_VOP_LOCKED(vp, "mac_check_vnode_poll");
+
+	if (!mac_enforce_fs)
+		return (0);
+
+	error = vn_refreshlabel(vp, cred);
+	if (error)
+		return (error);
+
+	MAC_CHECK(check_vnode_poll, cred, vp, &vp->v_label);
+
+	return (error);
+}
+
+int
+mac_check_vnode_read(struct ucred *cred, struct vnode *vp)
+{
+	int error;
+
+	ASSERT_VOP_LOCKED(vp, "mac_check_vnode_read");
+
+	if (!mac_enforce_fs)
+		return (0);
+
+	error = vn_refreshlabel(vp, cred);
+	if (error)
+		return (error);
+
+	MAC_CHECK(check_vnode_read, cred, vp, &vp->v_label);
+
 	return (error);
 }
 
@@ -2049,6 +2076,26 @@ mac_check_vnode_stat(struct ucred *cred, struct vnode *vp)
 	MAC_CHECK(check_vnode_stat, cred, vp, &vp->v_label);
 	return (error);
 }
+
+int
+mac_check_vnode_write(struct ucred *cred, struct vnode *vp)
+{
+	int error;
+
+	ASSERT_VOP_LOCKED(vp, "mac_check_vnode_write");
+
+	if (!mac_enforce_fs)
+		return (0);
+
+	error = vn_refreshlabel(vp, cred);
+	if (error)
+		return (error);
+
+	MAC_CHECK(check_vnode_write, cred, vp, &vp->v_label);
+
+	return (error);
+}
+
 
 /*
  * When relabeling a process, call out to the policies for the maximum
