@@ -744,7 +744,7 @@ nd6_na_input(m, off, icmp6len)
 			 * context.  However, we keep it just for safety.
 			 */
 			s = splnet();
-			dr = defrouter_lookup(in6, rt->rt_ifp);
+			dr = defrouter_lookup(in6, ifp);
 			if (dr)
 				defrtrlist_del(dr);
 			else if (!ip6_forwarding && ip6_accept_rtadv) {
@@ -755,7 +755,7 @@ nd6_na_input(m, off, icmp6len)
 				 * (e.g. redirect case). So we must
 				 * call rt6_flush explicitly.
 				 */
-				rt6_flush(&ip6->ip6_src, rt->rt_ifp);
+				rt6_flush(&ip6->ip6_src, ifp);
 			}
 			splx(s);
 		}
