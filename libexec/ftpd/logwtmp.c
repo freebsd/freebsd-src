@@ -52,6 +52,7 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
+#include <libutil.h>
 #include "extern.h"
 
 static int fd = -1;
@@ -62,31 +63,18 @@ static int fd = -1;
  * after login, but before logout).
  */
 void
-ftpd_logwtmp(line, name, host)
-	char *line, *name, *host;
+ftpd_logwtmp(line, name, addr)
+	char *line, *name;
+	struct sockaddr *addr;
 {
 	struct utmp ut;
 	struct stat buf;
+	char host[UT_HOSTSIZE];
 
-	if (strlen(host) > UT_HOSTSIZE) {
-		struct addrinfo hints, *res;
-		int error;
-		static char hostbuf[BUFSIZ];
-
-		memset(&hints, 0, sizeof(hints));
-		hints.ai_family = PF_UNSPEC;
-		error = getaddrinfo(host, NULL, &hints, &res);
-		if (error)
-			host = "invalid hostname";
-		else {
-			getnameinfo(res->ai_addr, res->ai_addrlen,
-				hostbuf, sizeof(hostbuf), NULL, 0,
-				NI_NUMERICHOST);
-			host = hostbuf;
-			if (strlen(host) > UT_HOSTSIZE)
-				host[UT_HOSTSIZE] = '\0';
-		}
-	}
+	if (addr == NULL)
+		host[0] = '\0';
+	else
+		realhostname_sa(host, sizeof(host), addr, addr->sa_len);
 
 	if (fd < 0 && (fd = open(_PATH_WTMP, O_WRONLY|O_APPEND, 0)) < 0)
 		return;
