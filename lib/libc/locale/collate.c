@@ -73,7 +73,7 @@ __collate_load_tables(encoding)
 		__collate_load_error = save_load_error;
 		return -1;
 	}
-	/* Range checking already done at upper level caller */
+	/* Range checking not needed, encoding has fixed size */
 	(void) strcpy(buf, _PathLocale);
 	(void) strcat(buf, "/");
 	(void) strcat(buf, encoding);

@@ -302,7 +302,7 @@ const char *encoding;
 		return(0);
 	if (!_PathLocale)
 		return(1);
-	/* Range checking already done at upper level caller */
+	/* Range checking not needed, encoding has fixed size */
 	strcpy(name, _PathLocale);
 	strcat(name, "/");
 	strcat(name, encoding);
