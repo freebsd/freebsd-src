@@ -1,11 +1,12 @@
-/*	$NetBSD: ohcireg.h,v 1.2 1998/07/26 00:40:59 augustss Exp $	*/
+/*	$NetBSD: ohcireg.h,v 1.6 1998/11/25 22:32:04 augustss Exp $	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
- * Author: Lennart Augustsson <augustss@carlstedt.se>
- *         Carlstedt Research & Technology
+ * This code is derived from software contributed to The NetBSD Foundation
+ * by Lennart Augustsson (augustss@carlstedt.se) at
+ * Carlstedt Research & Technology.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -105,8 +106,8 @@
 #define OHCI_LS_THRESHOLD	0x44
 #define OHCI_RH_DESCRIPTOR_A	0x48
 #define  OHCI_GET_NDP(s)	((s) & 0xff)
-#define  OHCI_PSM		0x0100		/* Power Switching Mode */
-#define  OHCI_NPS		0x0200		/* No Power Switching */
+#define  OHCI_PSM		0x0100     /* Power Switching Mode */
+#define  OHCI_NPS		0x0200	   /* No Power Switching */
 #define  OHCI_GET_POTPGT(s)	((s) >> 24)
 #define OHCI_RH_DESCRIPTOR_B	0x4c
 #define OHCI_RH_STATUS		0x50
@@ -154,6 +155,7 @@ typedef struct {
 #define OHCI_ED_FORMAT_ISO	0x00008000
 #define OHCI_ED_GET_MAXP(s)	(((s) >> 16) & 0x07ff)
 #define OHCI_ED_SET_MAXP(s)	((s) << 16)
+#define OHCI_ED_MAXPMASK	(0x7ff << 16)
 	ohci_physaddr_t	ed_tailp;
 #define OHCI_HALTED		0x00000002
 #define OHCI_TOGGLECARRY	0x00000001
