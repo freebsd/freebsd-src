@@ -713,7 +713,7 @@ ifaof_ifpforaddr(addr, ifp)
 		}
 		if (ifp->if_flags & IFF_POINTOPOINT) {
 			if (equal(addr, ifa->ifa_dstaddr))
-				return (ifa);
+				goto done;
 		} else {
 			cp = addr->sa_data;
 			cp2 = ifa->ifa_addr->sa_data;
