@@ -751,9 +751,9 @@ status()
 		       : 0),
 		      temp_min,
 		      ((nreceived + nrepeats) ?
-		       (tsum / (nreceived + nrepeats))/1000.0
+		       (tsum / (nreceived + nrepeats))
 		       : tsum),
-		      tmax/ 1000.0);
+		      tmax);
 }
 
 /*
