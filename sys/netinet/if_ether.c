@@ -571,6 +571,7 @@ in_arpinput(m)
 	struct ether_header *eh;
 	struct arc_header *arh;
 	struct iso88025_header *th = (struct iso88025_header *)0;
+	struct iso88025_sockaddr_dl_data *trld;
 	register struct llinfo_arp *la = 0;
 	register struct rtentry *rt;
 	struct ifaddr *ifa;
@@ -697,7 +698,6 @@ match:
 		}
 		(void)memcpy(LLADDR(sdl), ar_sha(ah),
 		    sdl->sdl_alen = ah->ar_hln);
-                sdl->sdl_rcf = (u_short)0;
 		/*
 		 * If we receive an arp from a token-ring station over
 		 * a token-ring nic then try to save the source
@@ -705,13 +705,14 @@ match:
 		 */
 		if (ifp->if_type == IFT_ISO88025) {
 			th = (struct iso88025_header *)m->m_pkthdr.header;
+			trld = SDL_ISO88025(sdl);
 			rif_len = TR_RCF_RIFLEN(th->rcf);
 			if ((th->iso88025_shost[0] & TR_RII) &&
 			    (rif_len > 2)) {
-				sdl->sdl_rcf = th->rcf;
-				sdl->sdl_rcf ^= htons(TR_RCF_DIR);
-				memcpy(sdl->sdl_route, th->rd, rif_len - 2);
-				sdl->sdl_rcf &= ~htons(TR_RCF_BCST_MASK);
+				trld->trld_rcf = th->rcf;
+				trld->trld_rcf ^= htons(TR_RCF_DIR);
+				memcpy(trld->trld_route, th->rd, rif_len - 2);
+				trld->trld_rcf &= ~htons(TR_RCF_BCST_MASK);
 				/*
 				 * Set up source routing information for
 				 * reply packet (XXX)
@@ -725,9 +726,7 @@ match:
 			m->m_data -= 8;
 			m->m_len  += 8;
 			m->m_pkthdr.len += 8;
-			th->rcf = sdl->sdl_rcf;
-		} else {
-			sdl->sdl_rcf = (u_short)0;
+			th->rcf = trld->trld_rcf;
 		}
 		if (rt->rt_expire)
 			rt->rt_expire = time_second + arpt_keep;

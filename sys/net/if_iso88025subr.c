@@ -253,8 +253,8 @@ iso88025_output(ifp, m, dst, rt0)
 
 	/* Calculate routing info length based on arp table entry */
 	if (rt && (sdl = (struct sockaddr_dl *)rt->rt_gateway))
-		if (sdl->sdl_rcf != NULL)
-			rif_len = TR_RCF_RIFLEN(sdl->sdl_rcf);
+		if (SDL_ISO88025(sdl)->trld_rcf != NULL)
+			rif_len = TR_RCF_RIFLEN(SDL_ISO88025(sdl)->trld_rcf);
 
 	/* Generate a generic 802.5 header for the packet */
 	gen_th.ac = TR_AC;
@@ -264,9 +264,10 @@ iso88025_output(ifp, m, dst, rt0)
 	if (rif_len) {
 		gen_th.iso88025_shost[0] |= TR_RII;
 		if (rif_len > 2) {
-			gen_th.rcf = sdl->sdl_rcf;
+			gen_th.rcf = SDL_ISO88025(sdl)->trld_rcf;
 			(void)memcpy((caddr_t)gen_th.rd,
-				(caddr_t)sdl->sdl_route, rif_len - 2);
+				(caddr_t)SDL_ISO88025(sdl)->trld_route,
+				rif_len - 2);
 		}
 	}
 	
