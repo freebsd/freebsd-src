@@ -469,3 +469,9 @@ write
 
 This won't work if you don't have write permissions to the directory
 and probably won't be suitable if you're editing through a symbolic link.
+%
+If you want to quickly check for duplicate package/port installations,
+try the following pkg_info command.
+
+	pkg_info | sort | sed -e 's/-[0-9].*$//' | \
+	uniq -c | grep -v '^[[:space:]]*1'
