@@ -1142,11 +1142,12 @@ acd_start(struct atapi_softc *atp)
 	/* if transfer goes beyond range adjust it to be within limits */
 	if (lba + count > lastlba) {
 	    /* if we are entirely beyond EOM return EOF */
-	    if ((count = lastlba - lba) <= 0) {
+	    if (lastlba <= lba) {
 		bp->bio_resid = bp->bio_bcount;
 		biodone(bp);
 		return;
 	    }
+	    count = lastlba - lba;
 	}
 	switch (blocksize) {
 	case 2048:
@@ -1380,9 +1381,13 @@ acd_select_slot(struct acd_softc *cdp)
 static int
 acd_open_disk(struct acd_softc *cdp)
 {
-    int8_t ccb[16] = { ATAPI_SEND_OPC_INFO, 0x01, 0, 0, 0, 0, 0, 0,
-		       0, 0, 0, 0, 0, 0, 0, 0 };
+    int8_t ccb[16];
 
+    bzero(ccb, sizeof(ccb));
+    ccb[0] = ATAPI_REZERO;
+    atapi_queue_cmd(cdp->atp, ccb, NULL, 0, ATPR_F_QUIET, 60, NULL, NULL);
+    ccb[0] = ATAPI_SEND_OPC_INFO;
+    ccb[1] = 0x01;
     atapi_queue_cmd(cdp->atp, ccb, NULL, 0, ATPR_F_QUIET, 30, NULL, NULL);
     return 0;
 }
