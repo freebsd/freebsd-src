@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.2 (Berkeley) 1/4/94
- * $Id: raw_ip.c,v 1.4 1994/09/14 03:10:15 wollman Exp $
+ * $Id: raw_ip.c,v 1.5 1994/10/02 17:48:42 phk Exp $
  */
 
 #include <sys/param.h>
@@ -52,6 +52,10 @@
 #include <netinet/ip_var.h>
 #include <netinet/ip_mroute.h>
 #include <netinet/in_pcb.h>
+
+#ifdef IPFIREWALL
+#include <netinet/ip_fw.h>
+#endif
 
 struct inpcb rawinpcb;
 
@@ -203,6 +207,24 @@ rip_ctloutput(op, so, level, optname, m)
 			return (0);
 		}
 		break;
+
+#ifdef IPFIREWALL
+	case IP_FW_ADD_BLK:
+	case IP_FW_ADD_FWD:
+	case IP_FW_CHK_BLK:
+	case IP_FW_CHK_FWD:
+	case IP_FW_DEL_BLK:
+	case IP_FW_DEL_FWD:
+	case IP_FW_FLUSH:
+	case IP_FW_POLICY:
+
+		if (op == PRCO_SETOPT)
+			error=ip_firewall_ctl(optname, *m); 
+		else
+			error=EINVAL;
+		return(error);
+#endif
+
 
 	case IP_RSVP_ON:
 		error = ip_rsvp_init(so);
