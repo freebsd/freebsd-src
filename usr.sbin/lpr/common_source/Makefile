@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1998/05/13 06:49:19 jb Exp $
+#	$Id: Makefile,v 1.3 1998/06/11 03:53:23 jb Exp $
 
 #
 # Library of internal routines for the print spooler suite.
@@ -11,8 +11,7 @@ SRCS=		common.c displayq.c net.c printcap.c request.c rmjob.c \
 NOMAN=		noman
 NOPROFILE=	noprofile
 NOPIC=		nopic
-CFLAGS+=	-Wall -Wnested-externs -Wmissing-prototypes \
-		-Wstrict-prototypes -Wredundant-decls
+CFLAGS+=	${CWARNFLAGS}
 
 install:
 

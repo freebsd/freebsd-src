@@ -48,7 +48,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: lpr.c	8.4 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: lpr.c,v 1.23 1997/12/06 17:55:07 jdp Exp $";
+	"$Id: lpr.c,v 1.24 1998/04/17 17:25:49 obrien Exp $";
 #endif /* not lint */
 
 /*
@@ -550,7 +550,7 @@ static void
 cleanup(signo)
 	int signo;
 {
-	register i;
+	register int i;
 
 	signal(SIGHUP, SIG_IGN);
 	signal(SIGINT, SIG_IGN);
@@ -610,6 +610,9 @@ test(file)
 		printf("%s: cannot open %s\n", name, file);
 		return(-1);
 	}
+	/*
+	 * XXX Shall we add a similar test for ELF?
+	 */
 	if (read(fd, &execb, sizeof(execb)) == sizeof(execb) &&
 	    !N_BADMAG(execb)) {
 		printf("%s: %s is an executable program", name, file);

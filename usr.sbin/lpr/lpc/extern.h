@@ -35,6 +35,7 @@
  */
 
 
+#include <sys/types.h>
 #include <sys/cdefs.h>
 
 
@@ -57,3 +58,4 @@ __END_DECLS
 
 extern int NCMDS;
 extern struct cmd cmdtab[];
+extern uid_t	uid, euid;
