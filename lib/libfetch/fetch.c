@@ -40,8 +40,9 @@
 #include "common.h"
 
 
-int fetchLastErrCode;
-int fetchTimeout;
+int	 fetchLastErrCode;
+char	 fetchLastErrString[MAXERRSTRING];
+int	 fetchTimeout;
 
 
 /*** Local data **************************************************************/

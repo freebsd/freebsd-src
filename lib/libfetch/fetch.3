@@ -328,13 +328,8 @@ functions return 0 on success and -1 on failure.
 All other functions return a stream pointer which may be used to
 access the requested document, or NULL if an error occurred.
 .Pp
-.Nm Libfetch
-uses the Common Error Library
-.Nm ( libcom_err )
-to report errors.
-The error code passed to
-.Fn com_err
-is one of:
+The following error codes are defined in
+.Aq Pa fetch.h :
 .Bl -tag -width 18n
 .It Bq Er FETCH_ABORT
 Operation aborted    
@@ -384,7 +379,6 @@ and
 environment variables, respectively, as the address of a proxy server
 to use for transferring files.
 .Sh SEE ALSO
-.Xr com_err 3 ,
 .Xr fetch 1 ,
 .Xr ftpio 3 ,
 .Xr ip 4 .
@@ -413,14 +407,6 @@ to use for transferring files.
 .%B File Transfer Protocol
 .%O RFC959
 .Re
-.Sh NOTES
-The
-.Nm fetch
-library uses the Common Error library, and applications which link
-with
-.Nm libfetch
-must therefore also link with
-.Nm libcom_err .
 .Sh HISTORY
 The
 .Nm fetch
@@ -492,5 +478,9 @@ does not check that the result of an MDTM command is a valid date.
 The HTTP code needs a complete rewrite, or at least a serious cleanup.
 .Pp
 The man page is poorly written and produces badly formatted text.
+.Pp
+The error reporting mechanism is unsatisfactory.
+.Pp
+Some parts of the code are not fully reentrant.
 .Pp
 Tons of other stuff.
