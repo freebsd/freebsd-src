@@ -39,7 +39,6 @@
  *	@(#)ext2_alloc.c	8.8 (Berkeley) 2/21/94
  */
 
-#include "opt_diagnostic.h"
 #include "opt_quota.h"
 
 #include <sys/param.h>

@@ -66,14 +66,12 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.77 1998/01/31 11:56:32 dyson Exp $
+ * $Id: vm_fault.c,v 1.78 1998/02/04 22:33:43 eivind Exp $
  */
 
 /*
  *	Page fault handling module.
  */
-
-#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -31,10 +31,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_subr.c	8.5 (Berkeley) 3/21/95
- * $Id: ffs_subr.c,v 1.16 1997/12/05 19:55:50 bde Exp $
+ * $Id: ffs_subr.c,v 1.17 1998/02/04 22:33:32 eivind Exp $
  */
-
-#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <ufs/ffs/fs.h>

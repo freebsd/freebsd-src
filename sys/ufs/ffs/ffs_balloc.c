@@ -31,10 +31,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_balloc.c	8.8 (Berkeley) 6/16/95
- * $Id: ffs_balloc.c,v 1.17 1998/01/06 05:23:33 dyson Exp $
+ * $Id: ffs_balloc.c,v 1.18 1998/02/04 22:33:31 eivind Exp $
  */
-
-#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -31,10 +31,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.7 (Berkeley) 2/14/95
- * $Id: kern_proc.c,v 1.32 1998/02/02 05:14:03 dyson Exp $
+ * $Id: kern_proc.c,v 1.33 1998/02/04 22:32:33 eivind Exp $
  */
-
-#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

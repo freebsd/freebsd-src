@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.37 1998/01/08 23:42:06 eivind Exp $
+ *	$Id: if_ed.c,v 1.38 1998/02/05 10:17:57 kato Exp $
  */
 
 /*
@@ -60,7 +60,6 @@
 
 #include "ed.h"
 #include "bpfilter.h"
-#include "opt_diagnostic.h"
 #include "opt_inet.h"
 #include "pnp.h"
 

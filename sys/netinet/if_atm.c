@@ -36,7 +36,6 @@
  * IP <=> ATM address resolution.
  */
 
-#include "opt_diagnostic.h"
 #include "opt_inet.h"
 #include "opt_natm.h"
 

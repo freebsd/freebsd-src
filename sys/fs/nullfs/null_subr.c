@@ -35,11 +35,10 @@
  *
  *	@(#)null_subr.c	8.7 (Berkeley) 5/14/95
  *
- * $Id: null_subr.c,v 1.14 1998/01/31 07:23:12 eivind Exp $
+ * $Id: null_subr.c,v 1.15 1998/02/04 22:32:46 eivind Exp $
  */
 
 #include "opt_debug_nullfs.h"
-#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
