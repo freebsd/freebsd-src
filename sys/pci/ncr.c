@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.82.2.2 1996/12/21 02:22:34 se Exp $
+**  $Id: ncr.c,v 1.82.2.3 1996/12/21 12:25:29 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1253,7 +1253,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.82.2.2 1996/12/21 02:22:34 se Exp $\n";
+	"\n$Id: ncr.c,v 1.82.2.3 1996/12/21 12:25:29 se Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -4185,7 +4185,7 @@ void ncr_complete (ncb_p np, ccb_p cp)
 		/*
 		**	On inquire cmd (0x12) save some data.
 		*/
-		if (xp->cmd->opcode == 0x12) {
+		if (xp->cmd.opcode == 0x12 && xp->sc_link->lun == 0) {
 			bcopy (	xp->data,
 				&tp->inqdata,
 				sizeof (tp->inqdata));
