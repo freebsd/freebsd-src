@@ -114,8 +114,7 @@ CDROM distributions may work as well, though we cannot say for certain
 as we have no hand or say in how they're created).  You can either
 boot into the CD installation directly from DOS using Walnut Creek's
 supplied ``install.bat'' batch file or you can make a boot floppy with
-the ``makeflp.bat'' command [NOTE: If you're using an IDE CDROM, use
-the inst_ide.bat or atapiflp.bat batch files instead].
+the ``makeflp.bat'' command.
 
 For the easiest interface of all (from DOS), type "view".  This will
 bring up a DOS menu utility that leads you through all the available
@@ -128,8 +127,9 @@ your hardware and operating system environment.
 
 Once you've booted from DOS or floppy, you should then be able to
 select CDROM as the media type in the Media menu and load the entire
-distribution from CDROM.  No other types of installation media should
-be required.
+distribution from CDROM (note: If you have only one CDROM drive, and
+the appropriate FreeBSD CDROM is detected in it, it will be selected
+automatically as your media).
 
 After your system is fully installed and you have rebooted from the
 hard disk, you can mount the cdrom at any time by typing: ``mount /cdrom''
