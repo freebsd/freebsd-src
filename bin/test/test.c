@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: test.c,v 1.4 1994/09/24 02:59:15 davidg Exp $
  */
 
 #ifndef lint
@@ -348,7 +348,7 @@ expr_operator(op, sp, fs)
 		goto permission;
 	case ISEXEC:
 		i = S_IXOTH;
-permission:	if (fs->stat.st_uid == geteuid())
+permission:     if (geteuid() == 0 || fs->stat.st_uid == geteuid())
 			i <<= 6;
 		else if (fs->stat.st_gid == getegid())
 			i <<= 3;
