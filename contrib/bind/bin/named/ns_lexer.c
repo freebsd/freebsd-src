@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_lexer.c,v 8.28 2001/12/28 04:07:47 marka Exp $";
+static const char rcsid[] = "$Id: ns_lexer.c,v 8.30 2002/04/25 05:27:08 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -57,7 +57,7 @@ typedef enum lexer_state {
 #define LEXER_MAX_PUSHBACK	2
 
 typedef struct lexer_file_context {
-	const char *	name;
+	char *	name;
 	FILE *		stream;
 	int		line_number;
 	LexerState	state;
@@ -251,6 +251,7 @@ static struct keyword keywords[] = {
 	{"directory", T_DIRECTORY}, 
 	{"dump-file", T_DUMP_FILE},
 	{"dynamic", T_DYNAMIC},
+	{"explicit", T_EXPLICIT},
 	{"fail", T_FAIL},
 	{"fake-iquery", T_FAKE_IQUERY},
 	{"false", T_FALSE},
@@ -400,7 +401,7 @@ lexer_begin_file(const char *filename, FILE *stream) {
 		panic("memget failed in lexer_begin_file", NULL);
 	INSIST(stream != NULL);
 	lf->stream = stream;
-	lf->name = filename;  /* note copy by reference */
+	lf->name = savestr(filename, 1);
 	lf->line_number = 1;
 	lf->state = scan;
 	lf->flags = 0;
@@ -419,6 +420,7 @@ lexer_end_file(void) {
 	lf = current_file;
 	current_file = lf->next;
 	fclose(lf->stream);
+	freestr(lf->name);
 	memput(lf, sizeof *lf);
 }
 

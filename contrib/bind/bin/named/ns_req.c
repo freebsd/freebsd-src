@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_req.c	4.47 (Berkeley) 7/1/91";
-static const char rcsid[] = "$Id: ns_req.c,v 8.162 2002/02/01 00:05:36 marka Exp $";
+static const char rcsid[] = "$Id: ns_req.c,v 8.168 2002/04/30 03:43:52 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -231,24 +231,10 @@ ns_get_opt(u_char *msg, u_char *eom,
 		version = *cp++;
 		GETSHORT(flags, cp);
 		GETSHORT(rdlen, cp);
-		/* ensure options are well formed */
+		if (cp + rdlen > eom)
+			return (-1);
 		options = cp;
 		optsize = rdlen;
-		while (rdlen != 0) {
-			u_int16_t code;
-			u_int16_t len;
-
-			if (rdlen < 4)
-				return (-1);
-			GETSHORT(code, cp);
-			GETSHORT(len, cp);
-			rdlen -= 4;
-			if (len > rdlen)
-				return (-1);
-			cp += len;
-			rdlen -= len;
-		}
-		/* Everything checks out. */
 		if (versionp != NULL)
 			*versionp = version;
 		if (rcodep != NULL)
@@ -315,6 +301,7 @@ ns_req(u_char *msg, int msglen, int buflen, struct qstream *qsp,
 	u_int16_t rcode = ns_r_noerror;
 	u_int16_t udpsize = 0;
 	int drop;
+	int tsig_adjust = 0;
 
 #ifdef DEBUG
 	if (debug > 3) {
@@ -332,9 +319,18 @@ ns_req(u_char *msg, int msglen, int buflen, struct qstream *qsp,
 		has_tsig = 0;
 	else {
 		char buf[MAXDNAME];
+		u_char tmp[NS_MAXCDNAME];
 
 		has_tsig = 1;
-		n = dn_expand(msg, msg + msglen, tsigstart, buf, sizeof buf);
+		n = ns_name_unpack(msg, msg + msglen, tsigstart,
+				   tmp, sizeof tmp);
+		if (n > 0) {
+			tsig_adjust = dn_skipname(tmp, tmp + sizeof(tmp)) - n;
+			if (ns_name_ntop(tmp, buf, sizeof buf) == -1)
+				n = -1;
+			else if (buf[0] == '.')
+				buf[0] = '\0';
+		}
 		if (n < 0) {
 			ns_debug(ns_log_default, 1,
 				 "ns_req: bad TSIG key name");
@@ -395,7 +391,8 @@ ns_req(u_char *msg, int msglen, int buflen, struct qstream *qsp,
 		in_tsig->siglen = siglen;
 		memcpy(in_tsig->sig, sig, siglen);
 		tsig_size = msglen_orig - msglen;
-		in_tsig->tsig_size = tsig_size;
+		/* AXFR/IXFR need the uncompressed tsig size. */
+		in_tsig->tsig_size = tsig_size + tsig_adjust;
 	} else if (has_tsig) {
 		action = Finish;
 		in_tsig = memget(sizeof(struct tsig_record));
@@ -576,8 +573,9 @@ ns_req(u_char *msg, int msglen, int buflen, struct qstream *qsp,
 			sig2len = sizeof sig2;
 			msglen = cp - msg;
 			buflen = buflen_orig - msglen;
-			n = ns_sign(msg, &msglen, msglen + buflen, error, key,
-				    sig, siglen, sig2, &sig2len, tsig_time);
+			n = ns_sign2(msg, &msglen, msglen + buflen, error, key,
+				     sig, siglen, sig2, &sig2len, tsig_time,
+				     dnptrs, dnptrs_end);
 			if (n == NS_TSIG_ERROR_NO_SPACE &&
 				ntohs(hp->qdcount) != 0) {
 				hp->qdcount = htons(0);
@@ -609,12 +607,14 @@ ns_req(u_char *msg, int msglen, int buflen, struct qstream *qsp,
 			INSIST(n > 0);
 			cp += n;
 			buflen -= n;
+			msglen += n;
 		}
 		if (has_tsig > 0) {
 			buflen += tsig_size;
 			sig2len = sizeof sig2;
-			n = ns_sign(msg, &msglen, msglen + buflen, error, key,
-				    sig, siglen, sig2, &sig2len, tsig_time);
+			n = ns_sign2(msg, &msglen, msglen + buflen, error, key,
+				     sig, siglen, sig2, &sig2len, tsig_time,
+				     dnptrs, dnptrs_end);
 			if (n != 0) {
 				INSIST(0);
 			}
@@ -1218,12 +1218,17 @@ req_query(HEADER *hp, u_char **cpp, u_char *eom, struct qstream *qsp,
 					goto fetchns;
 				}
 			}
+#ifdef NXDOMAIN_ON_DENIAL
+			hp->rcode = ns_r_nxdomain;
+			return (Finish);
+#else
 			ns_notice(ns_log_security,
 				  "denied query from %s for \"%s\" %s/%s",
 				  sin_ntoa(from), *dname ? dname : ".",
 				  p_type(type), p_class(class));
 			nameserIncr(from.sin_addr, nssRcvdUQ);
 			return (Refuse);
+#endif
 		}
 	} else {
 		ip_match_list transfer_acl;
@@ -2315,7 +2320,10 @@ doaddinfo(HEADER *hp, u_char *msg, int msglen) {
 	cp = msg;
 loop:
 	for (ap = addinfo, i = 0; i < addcount; ap++, i++) {
-		int     foundany = 0,
+		int     auth = 0,
+			founda = 0,
+			foundaaaa = 0,
+			founda6 = 0,
 			foundcname = 0,
 			save_count = count,
 			save_msglen = msglen;
@@ -2340,16 +2348,27 @@ loop:
 		/* look for the data */
 		(void)delete_stale(np);
 		for (dp = np->n_data; dp != NULL; dp = dp->d_next) {
+			if (dp->d_class != ap->a_class)
+				continue;
 			if (dp->d_rcode == NXDOMAIN) {
-				if (dp->d_class == ap->a_class)
-					foundany++;
+				founda = founda6 = foundaaaa = 1;
 				continue;
 			}
-			if ((match(dp, (int)ap->a_class, T_CNAME) &&
-			     dp->d_type == T_CNAME)) {
+			switch (dp->d_type) {
+			case ns_t_a: founda = 1; break;
+			case ns_t_a6: founda6 = 1; break;
+			case ns_t_aaaa: foundaaaa = 1; break;
+			}
+			if (!dp->d_rcode && dp->d_type == T_CNAME) {
 				foundcname++;
 				break;
 			}
+			if (auth == 0 && ap->a_type == T_A &&
+			    (dp->d_type == ns_t_a || dp->d_type == ns_t_a6 ||
+			     dp->d_type == ns_t_aaaa) &&
+			    (zones[dp->d_zone].z_type == z_master ||
+			     zones[dp->d_zone].z_type == z_slave))
+				auth = 1;
 			if (pass == 0 && ap->a_type == T_A && 
 			    server_options->preferred_glue != 0 &&
 			    !match(dp, (int)ap->a_class,
@@ -2374,8 +2393,6 @@ loop:
 			if (ap->a_type == T_SRV &&
 			    !match(dp, (int)ap->a_class, T_SRV))
 				continue;
-
-			foundany++;
 			if (dp->d_rcode)
 				continue;
 			/*
@@ -2417,12 +2434,20 @@ loop:
 		}
  next_rr:
 		if (!NS_OPTION_P(OPTION_NOFETCHGLUE) && 
-		    !foundcname && !foundany &&
-		    (ap->a_type == T_A || ap->a_type == T_AAAA)) {
+		    !foundcname && ap->a_type == T_A) {
 			/* ask a real server for this info */
-			(void) sysquery(ap->a_dname, (int)ap->a_class,
-					ap->a_type, NULL, NULL, 0, ns_port,
-					QUERY, 0);
+			if (!founda && !auth)
+				(void) sysquery(ap->a_dname, (int)ap->a_class,
+						ns_t_a, NULL, NULL, 0, ns_port,
+						QUERY, 0);
+			if (!foundaaaa && !auth)
+				(void) sysquery(ap->a_dname, (int)ap->a_class,
+						ns_t_aaaa, NULL, NULL, 0,
+						ns_port, QUERY, 0);
+			if (!founda6 && !auth)
+				(void) sysquery(ap->a_dname, (int)ap->a_class,
+						ns_t_a6, NULL, NULL, 0, ns_port,
+						QUERY, 0);
 		}
 		if (foundcname) {
 			if (!haveComplained(nhash(ap->a_dname),

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_xfr.c,v 8.67 2001/07/10 05:06:50 marka Exp $";
+static const char rcsid[] = "$Id: ns_xfr.c,v 8.68 2002/04/11 05:19:06 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -180,13 +180,15 @@ ns_xfr(struct qstream *qsp, struct namebuf *znp,
 		qsp->xfr.transfer_format = si->transfer_format;
 	else	
 		qsp->xfr.transfer_format = server_options->transfer_format;
-	if (in_tsig == NULL)
+	if (in_tsig == NULL) {
 		qsp->xfr.tsig_state = NULL;
-	else {
+		qsp->xfr.tsig_size = 0;
+	} else {
 		qsp->xfr.tsig_state = memget(sizeof(ns_tcp_tsig_state));
 		ns_sign_tcp_init(in_tsig->key, in_tsig->sig, in_tsig->siglen,
 				 qsp->xfr.tsig_state);
 		qsp->xfr.tsig_skip = 0;
+		qsp->xfr.tsig_size = in_tsig->tsig_size;
 	}
 
 	if (type == ns_t_ixfr) {
@@ -393,14 +395,15 @@ sx_addrr(struct qstream *qsp, const char *dname, struct databuf *dp) {
 		}
 	}
 
-	n = make_rr(dname, dp, qsp->xfr.cp, qsp->xfr.eom - qsp->xfr.cp,
-		    0, qsp->xfr.ptrs, edp, 0);
+	n = make_rr(dname, dp, qsp->xfr.cp, qsp->xfr.eom - qsp->xfr.cp -
+		    qsp->xfr.tsig_size, 0, qsp->xfr.ptrs, edp, 0);
 	if (n < 0) {
 		if (sx_flush(qsp) < 0)
 			return (-1);
 		if (qsp->xfr.cp == NULL)
 			sx_newmsg(qsp);
-		n = make_rr(dname, dp, qsp->xfr.cp, qsp->xfr.eom - qsp->xfr.cp,
+		n = make_rr(dname, dp, qsp->xfr.cp, qsp->xfr.eom - 
+			    qsp->xfr.cp - qsp->xfr.tsig_size,
 			    0, qsp->xfr.ptrs, edp, 0);
 		INSIST(n >= 0);
 	}

@@ -16,10 +16,11 @@
  */
 
 /*
- * $Id: named.h,v 8.31 2002/02/01 00:05:38 marka Exp $
+ * $Id: named.h,v 8.32 2002/03/15 00:58:16 vixie Exp $
  */
 
 /* Options. Change them at your peril. */
+#undef NXDOMAIN_ON_DENIAL
 #define DEBUG
 #define ADDAUTH
 #define STUBS

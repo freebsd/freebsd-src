@@ -147,7 +147,7 @@ If the name was not previously tried
 threshold or did not contain a dot), then the name as
 originally provided is attempted.
 .Sh ENVIRONMENT
-.Bl -tag -width "/etc/resolv.conf  " -compress
+.Bl -tag -width "/etc/resolv.conf  "
 .It Ev LOCALDOMAIN   
 Affects domains appended to partial hostnames.
 .It Ev HOSTALIASES
@@ -156,14 +156,11 @@ Name of file containing
 pairs.
 .El
 .Sh FILES
-.Bl -tag -width "/etc/resolv.conf  " -compress
+.Bl -tag -width "/etc/resolv.conf  " -compact
 .It Pa /etc/resolv.conf
 See
 .Xr resolve @FORMAT_EXT@ .
-.It Ev HOSTALIASES
-Name of file containing 
-.Pq Ar host alias , full hostname
-pairs.
+.El
 .Sh SEE ALSO
 .Xr gethostbyname @LIB_NETWORK_EXT@ ,
 .Xr resolver @FORMAT_EXT@ ,

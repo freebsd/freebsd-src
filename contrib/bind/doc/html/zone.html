@@ -22,7 +22,7 @@ zone <VAR><A HREF="docdef.html">domain_name</A></VAR> [ ( in | hs | hesiod | cha
   [ allow-query { <VAR><A HREF="address_list.html">address_match_list</A></VAR> }; ]
   [ allow-transfer { <VAR><A HREF="address_list.html">address_match_list</A></VAR> }; ]
   [ dialup <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
-  [ notify <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
+  [ notify (<VAR><A HREF="docdef.html">yes_or_no</A></VAR> | explicit ); ]
   [ also-notify { <VAR><A HREF="docdef.html">ip_addr</A></VAR>; [ <VAR>ip_addr</VAR>; ... ] }; ]
   [ ixfr-base  <VAR><A HREF="docdef.html">path_name</A></VAR>; ]
   [ pubkey <VAR><A HREF="docdef.html">number</A></VAR> <VAR><A HREF="docdef.html">number</A></VAR> <VAR><A HREF="docdef.html">number</A></VAR> <VAR>string</VAR>; ]
@@ -32,7 +32,7 @@ zone <VAR><A HREF="docdef.html">domain_name</A></VAR> [ ( in | hs | hesiod | cha
   type ( slave | stub );
   [ file <VAR><A HREF="docdef.html">path_name</A></VAR>; ]
   [ ixfr-base  <VAR><A HREF="docdef.html">path_name</A></VAR>; ]
-  masters [ port <VAR><A HREF="docdef.html">ip_port</A></VAR> ] { <VAR><A HREF="docdef.html">ip_addr</A></VAR>; [ <VAR>ip_addr</VAR>; ... ] };
+  masters [ port <VAR><A HREF="docdef.html">ip_port</A></VAR> ] { <VAR><A HREF="docdef.html">ip_addr</A></VAR> [key <VAR><A HREF="key.html">key_id</A></VAR>]; [ ... ] };
   [ forward ( only | first ); ]
   [ forwarders { [ <VAR><A HREF="docdef.html">ip_addr</A></VAR> ; [ <VAR>ip_addr</VAR> ; ... ] ] }; ]
   [ check-names ( warn | fail | ignore ); ]
@@ -238,7 +238,7 @@ string representing the key.
 
 <HR>
 <ADDRESS>
-Last Updated: $Id: zone.html,v 1.24 2000/01/12 01:28:32 cyarnell Exp $
+Last Updated: $Id: zone.html,v 1.26 2002/04/25 05:27:02 marka Exp $
 </ADDRESS>
 </BODY>
 </HTML>
