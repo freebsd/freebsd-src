@@ -221,11 +221,6 @@ typedef struct IOAPIC ioapic_t;
 #define ALLHWI_LEVEL		0x00000000	/* TPR of CPU grabbing INTs */
 #endif /** GRAB_LOPRIO */
 
-/* XXX these 2 don't really belong here... */
-#define COUNT_FIELD		0x00ffffff	/* count portion of the lock */
-#define CPU_FIELD		0xff000000	/* cpu portion of the lock */
-#define FREE_LOCK		0xffffffff	/* value of lock when free */
-
 /*
  * XXX This code assummes that the reserved field of the
  *      local APIC TPR can be written with all 0s.
