@@ -48,7 +48,7 @@ maj 	name		comments
 38	lkm		assigned to Loadable Kernel Modules
 39	*apm		Advanced Power Management also ACPI
 40	*ctx		Cortex
-42	*cx		Cronyx/Sigma serial adapter
+42	*cx		Cronyx Sigma-ISA serial adapters
 43	vn		vnode "disk" device (retired)
 44	*gp		GPIB
 45	*scd		Sony CDROM interface <mdodd>
@@ -100,7 +100,7 @@ maj 	name		comments
 96	altq		alternate queueing (including cbq, red, wfq)
 97	*prom		Alpha PROM console
 98	loe		Loopback pseudo-ethernet (sbabkin@dcn.att.com)
-99	ct		Cronyx/Tau serial adaptor
+99	*ct		Cronyx Tau-ISA serial adapters (driver name "ctau")
 103	*streams	SVR4 Streams emulation <newton@atdot.dotat.org>
 104	*xpt		CAM Transport Layer Services
 105	*iic		I2C bus generic i/o
@@ -125,7 +125,7 @@ maj 	name		comments
 128	arla		Arla (AFS-clone) driver
 129	i2o		Intelligent I/O Character Device
 130	*mlx		Mylex DAC960 RAID (control device)
-134	taupci		Cronyx Tau-PCI card <vak@hanoi.cronyx.ru>
+134	cp		Cronyx Tau-PCI synchronous WAN adapters
 135	*zsc		TurboLaser console uart
 136	ipr		Iprobe on-chip perf. counters (gallatin@freebsd.org)
 137	nfp		nFast PCI crypto accelerator (support@ncipher.com)
