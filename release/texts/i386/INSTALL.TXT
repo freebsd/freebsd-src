@@ -115,7 +115,7 @@ submenu as well as the general "Usage" instructions on the first menu.
    documentation relevant to that specific section.
 
 If you've never installed FreeBSD before, or even if you have, the
-"Novice" installation mode is the most recommended since it makes sure
+"Standard" installation mode is the most recommended since it makes sure
 that you'll visit all the various important checklist items along the
 way.  If you're much more comfortable with the FreeBSD installation
 process and know _exactly_ what you want to do, use the Express or
