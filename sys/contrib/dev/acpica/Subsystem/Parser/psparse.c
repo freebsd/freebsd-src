@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psparse - Parser top level AML parse routines
- *              $Revision: 71 $
+ *              $Revision: 74 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -658,13 +658,22 @@ AcpiPsParseLoop (
                  */
 
                 Status = AcpiDsGetPredicateValue (WalkState, NULL, TRUE);
-                if (Status == AE_AML_NO_OPERAND)
+                if (ACPI_FAILURE (Status) &&
+                    ((Status & AE_CODE_MASK) != AE_CODE_CONTROL))
                 {
-                    DEBUG_PRINT (ACPI_ERROR,
-                        ("PsParseLoop: Invoked method did not return a value, %s\n",
-                        AcpiCmFormatException (Status)));
+                    if (Status == AE_AML_NO_RETURN_VALUE)
+                    {
+                        DEBUG_PRINT (ACPI_ERROR,
+                            ("PsParseLoop: Invoked method did not return a value, %s\n",
+                            AcpiCmFormatException (Status)));
 
+                    }
+                    DEBUG_PRINT (ACPI_ERROR,
+                        ("PsParseLoop: GetPredicate Failed, %s\n",
+                        AcpiCmFormatException (Status)));
+                    return_ACPI_STATUS (Status);
                 }
+
                 Status = AcpiPsNextParseState (WalkState, Op, Status);
             }
 
