@@ -437,6 +437,6 @@ devfs_init(void *junk)
 	devfs_present = 1;
 }
 
-SYSINIT(devfs, SI_SUB_DRIVERS, SI_ORDER_FIRST, devfs_init, NULL);
+SYSINIT(devfs, SI_SUB_DEVFS, SI_ORDER_FIRST, devfs_init, NULL);
 
 #endif
