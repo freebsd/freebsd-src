@@ -1568,6 +1568,7 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va)
 	pt_entry_t oldpte;
 	vm_page_t m;
 
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	oldpte = pte_load_clear(ptq);
 	if (oldpte & PG_W)
@@ -1608,8 +1609,9 @@ pmap_remove_page(pmap_t pmap, vm_offset_t va)
 {
 	pt_entry_t *pte;
 
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	if ((pte = pmap_pte(pmap, va)) == NULL || *pte == 0)
+	if ((pte = pmap_pte_quick(pmap, va)) == NULL || *pte == 0)
 		return;
 	pmap_remove_pte(pmap, pte, va);
 	pmap_invalidate_page(pmap, va);
@@ -1693,7 +1695,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			pdnxt = eva;
 
 		for (; sva != pdnxt; sva += PAGE_SIZE) {
-			if ((pte = pmap_pte(pmap, sva)) == NULL ||
+			if ((pte = pmap_pte_quick(pmap, sva)) == NULL ||
 			    *pte == 0)
 				continue;
 			anyvalid = 1;
