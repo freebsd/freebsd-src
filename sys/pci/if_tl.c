@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tl.c,v 1.5 1998/05/24 00:56:49 wpaul Exp $
+ *	$Id: if_tl.c,v 1.6 1998/05/26 23:42:24 wpaul Exp $
  */
 
 /*
@@ -240,7 +240,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_tl.c,v 1.5 1998/05/24 00:56:49 wpaul Exp $";
+	"$Id: if_tl.c,v 1.6 1998/05/26 23:42:24 wpaul Exp $";
 #endif
 
 /*
@@ -331,7 +331,7 @@ static void tl_phy_writereg	__P((struct tl_softc *, u_int16_t, u_int16_t));
 
 static void tl_autoneg		__P((struct tl_softc *, int, int));
 static void tl_setmode		__P((struct tl_softc *, int));
-static int tl_calchash		__P((char *));
+static int tl_calchash		__P((unsigned char *));
 static void tl_setmulti		__P((struct tl_softc *));
 static void tl_softreset	__P((struct tl_csr *, int));
 static int tl_list_rx_init	__P((struct tl_softc *));
@@ -992,45 +992,31 @@ static void tl_setmode(sc, media)
 	}
 
 	tl_phy_writereg(sc, PHY_BMCR, bmcr);
+#ifdef notyet
 	tl_phy_writereg(sc, PHY_ANAR, anar);
+#endif
 	tl_phy_writereg(sc, TL_PHY_CTL, ctl);
 
 	return;
 }
 
-#define XOR(a, b)		((a && !b) || (!a && b))
-#define DA(addr, offset)	(addr[offset / 8] & (1 << (offset % 8)))
-
+/*
+ * Calculate the hash of a MAC address for programming the multicast hash
+ * table.  This hash is simply the address split into 6-bit chunks
+ * XOR'd, e.g.
+ * byte: 000000|00 1111|1111 22|222222|333333|33 4444|4444 55|555555
+ * bit:  765432|10 7654|3210 76|543210|765432|10 7654|3210 76|543210
+ * Bytes 0-2 and 3-5 are symmetrical, so are folded together.  Then
+ * the folded 24-bit value is split into 6-bit portions and XOR'd.
+ */
 static int tl_calchash(addr)
-	char			*addr;
+	unsigned char           *addr;
 {
-	int			h;
+	int                     t;
 
-	h = XOR(DA(addr, 0), XOR(DA(addr, 6), XOR(DA(addr, 12),
-	    XOR(DA(addr, 18), XOR(DA(addr, 24), XOR(DA(addr, 30),
-	    XOR(DA(addr, 36), DA(addr, 42))))))));
-
-	h |= XOR(DA(addr, 1), XOR(DA(addr, 7), XOR(DA(addr, 13),
-	     XOR(DA(addr, 19), XOR(DA(addr, 25), XOR(DA(addr, 31),
-	     XOR(DA(addr, 37), DA(addr, 43)))))))) << 1;
-
-	h |= XOR(DA(addr, 2), XOR(DA(addr, 8), XOR(DA(addr, 14),
-	     XOR(DA(addr, 20), XOR(DA(addr, 26), XOR(DA(addr, 32),
-	     XOR(DA(addr, 38), DA(addr, 44)))))))) << 2;
-
-	h |= XOR(DA(addr, 3), XOR(DA(addr, 9), XOR(DA(addr, 15),
-	     XOR(DA(addr, 21), XOR(DA(addr, 27), XOR(DA(addr, 33),
-	     XOR(DA(addr, 39), DA(addr, 45)))))))) << 3;
-
-	h |= XOR(DA(addr, 4), XOR(DA(addr, 10), XOR(DA(addr, 16),
-	     XOR(DA(addr, 22), XOR(DA(addr, 28), XOR(DA(addr, 34),
-	     XOR(DA(addr, 40), DA(addr, 46)))))))) << 4;
-
-	h |= XOR(DA(addr, 5), XOR(DA(addr, 11), XOR(DA(addr, 17),
-	     XOR(DA(addr, 23), XOR(DA(addr, 29), XOR(DA(addr, 35),
-	     XOR(DA(addr, 41), DA(addr, 47)))))))) << 5;
-
-	return(h);
+	t = (addr[0] ^ addr[3]) << 16 | (addr[1] ^ addr[4]) << 8 |
+		(addr[2] ^ addr[5]);
+	return ((t >> 18) ^ (t >> 12) ^ (t >> 6) ^ t) & 0x3f;
 }
 
 static void tl_setmulti(sc)
