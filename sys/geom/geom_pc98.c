@@ -84,8 +84,11 @@ g_pc98_modify(struct g_geom *gp, struct g_pc98_softc *ms, u_char *sec)
 
 #if 0
 	/*
-	 * XXX: Some sources indicate this is a magic sequence, but appearantly
-	 * XXX: it is not universal. Documentation would be wonderful to have.
+	 * FreeBSD's boot0 IPL uses the name IPL1.  This test initially was
+	 * based on that observation.  However, other boot loaders have use
+	 * different names.  A likely good test would be to test if the first
+	 * 4 bytes are a jump to location 11 (or greater?) as well as the next
+	 * 7 bytes being printable or with trailing NUL's.
 	 */
 	if (sec[4] != 'I' || sec[5] != 'P' || sec[6] != 'L' || sec[7] != '1')
 		return (EBUSY);
@@ -256,7 +259,7 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 				    fwheads);
 		}
 		sectorsize = cp->provider->sectorsize;
-		if (sectorsize < 512)
+		if (sectorsize % 512 != 0)
 			break;
 		if (!strncmp(gp->name, "ad", 2)) {
 			u_int total_secs = cp->provider->mediasize/sectorsize;
