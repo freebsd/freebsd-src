@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_file.c,v 1.25 1999/05/08 06:39:26 phk Exp $
+ *  $Id: linux_file.c,v 1.26 1999/05/11 19:54:19 phk Exp $
  */
 
 #include "opt_compat.h"
@@ -199,7 +199,6 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args)
     struct filedesc *fdp;
     struct file *fp;
     struct vnode *vp;
-    struct vattr va;
     long pgid;
     struct pgrp *pgrp;
     struct tty *tp, *(*d_tty) __P((dev_t));
@@ -302,12 +301,9 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args)
 	    return fcntl(p, &fcntl_args); 
 	}
 	vp = (struct vnode *)fp->f_data;
-	if (vp->v_type != VCHR)
+	dev = vn_todev(vp);
+	if (vp->v_type != VCHR || dev == NODEV)
 	    return EINVAL;
-	if ((error = VOP_GETATTR(vp, &va, p->p_ucred, p)))
-	    return error;
-
-	dev = udev2dev(va.va_rdev, 0);		/* XXX vp->v_rdev ? */
 	d_tty = devsw(dev)->d_devtotty;
 	if (!d_tty || (!(tp = (*d_tty)(dev))))
 	    return EINVAL;

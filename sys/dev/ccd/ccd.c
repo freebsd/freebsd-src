@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.49 1999/06/27 09:28:43 peter Exp $ */
+/* $Id: ccd.c,v 1.50 1999/07/17 19:58:37 phk Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -306,7 +306,6 @@ ccdinit(ccd, cpaths, p)
 	register size_t size;
 	register int ix;
 	struct vnode *vp;
-	struct vattr va;
 	size_t minsize;
 	int maxsecsize;
 	struct partinfo dpart;
@@ -359,24 +358,7 @@ ccdinit(ccd, cpaths, p)
 		ci->ci_path = malloc(ci->ci_pathlen, M_DEVBUF, M_WAITOK);
 		bcopy(tmppath, ci->ci_path, ci->ci_pathlen);
 
-		/*
-		 * XXX: Cache the component's dev_t.
-		 */
-		if ((error = VOP_GETATTR(vp, &va, p->p_ucred, p)) != 0) {
-#ifdef DEBUG
-			if (ccddebug & (CCDB_FOLLOW|CCDB_INIT))
-				printf("ccd%d: %s: getattr failed %s = %d\n",
-				    ccd->ccd_unit, ci->ci_path,
-				    "error", error);
-#endif
-			while (ci >= cs->sc_cinfo) {
-				free(ci->ci_path, M_DEVBUF);
-				ci--;
-			}
-			free(cs->sc_cinfo, M_DEVBUF);
-			return (error);
-		}
-		ci->ci_dev = udev2dev(va.va_rdev, vp->v_type == VBLK ? 1 : 0);
+		ci->ci_dev = vn_todev(vp);
 
 		/*
 		 * Get partition information for the component.
