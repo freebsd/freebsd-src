@@ -1,3 +1,12 @@
+/*
+ * Judaic
+ *
+ * $Id: calendar.judaic,v 1.2 1996/01/28 19:12:24 wosch Exp $
+ */
+
+#ifndef _calendar_judaic_
+#define _calendar_judaic_
+
 03/08*	Fast of Esther (Battle of Purim; 1 day before Purim; fast day)
 03/11*	Purim (Feast of Lots; 30 days before Pesach)
 03/12*	Purim (Feast of Lots)
@@ -28,3 +37,5 @@
 10/12*	Shmini Atzeres/Simchas Torah (Rejoicing of the Law; sabbatical)
 12/12*	First Day of Chanukah
 12/27*	Fast of Asara B'Tevet (Babylonians put siege on Jerusalem; fast day)
+
+#endif /* !_calendar_judaic_ */

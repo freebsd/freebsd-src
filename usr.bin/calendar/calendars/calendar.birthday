@@ -1,3 +1,12 @@
+/*
+ * Birthday
+ *
+ * $Id: calendar.birthday,v 1.3 1996/01/28 22:58:07 wosch Exp $
+ */
+
+#ifndef _calendar_birthday_
+#define _calendar_birthday_
+
 01/01	J.D. Salinger born, 1919
 01/01	Paul Revere born in Boston, 1735
 01/02	Isaac Asimov born in Petrovichi, Russian SFSR (now part of USSR), 1920
@@ -255,3 +264,5 @@
 07/12	Thoreau's Birthday, 1817
 08/12	Thomas Mann's Death, 1955
 08/20	Leon Trotsky assassinated, 1940
+
+#endif /* !_calendar_birthday_ */

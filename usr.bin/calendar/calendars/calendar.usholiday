@@ -1,3 +1,12 @@
+/*
+ * USA holiday
+ *
+ * $Id: calendar.usholiday,v 1.3 1996/01/28 22:58:07 wosch Exp $
+ */
+
+#ifndef _calendar_usholiday_
+#define _calendar_usholiday_
+
 01/01	New Year's Day
 01/14	Julian Calendar New Year's Day
 02/02	Groundhog Day
@@ -29,3 +38,5 @@
 12/24	Christmas Eve
 12/25	Christmas
 12/31	New Year's Eve
+
+#endif /* !_calendar_usholiday_ */
