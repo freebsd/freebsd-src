@@ -46,17 +46,17 @@ If the destination object exists, it will be removed first.
 Its arguments are:
 .Bl -tag -width fdvp
 .It Fa fdvp
-the vnode of the old parent directory
+The vnode of the old parent directory.
 .It Fa fvp
-the vnode of the file to be renamed
+The vnode of the file to be renamed.
 .It Fa fcnp
-pathname information about the file's current name
+Pathname information about the file's current name.
 .It Fa tdvp
-the vnode of the new parent directory
+The vnode of the new parent directory.
 .It Fa tvp
-the vnode of the target file (if it exists)
+The vnode of the target file (if it exists).
 .It Fa tcnp
-pathname information about the file's new name
+Pathname information about the file's new name.
 .El
 .Sh LOCKS
 The source directory and file are unlocked but are expected to have their

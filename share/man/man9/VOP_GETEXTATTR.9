@@ -52,16 +52,16 @@ from a file or directory.
 Its arguments are:
 .Bl -tag -width ".Fa attrnamespace"
 .It Fa vp
-the vnode of the file or directory
+The vnode of the file or directory.
 .It Fa attrnamespace
-integer constant indicating which extended attribute namespace the attribute
-name is present in
+Integer constant indicating which extended attribute namespace the attribute
+name is present in.
 .It Fa name
-pointer to a null-terminated character string containing the attribute name
+Pointer to a null-terminated character string containing the attribute name.
 .It Fa uio
-the location of the data to be read
+The location of the data to be read.
 .It Fa size
-if not
+If not
 .Dv NULL ,
 on return it will contain the number of bytes required to read all of the
 attribute data.
@@ -73,9 +73,9 @@ when
 .Fa size
 is not, and vise versa.
 .It Fa cred
-the user credentials to use in authorizing the request
+The user credentials to use in authorizing the request.
 .It Fa td
-the thread requesting the extended attribute
+The thread requesting the extended attribute.
 .El
 .Pp
 The

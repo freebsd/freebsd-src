@@ -45,25 +45,32 @@
 The arguments are:
 .Bl -tag -width flags
 .It Fa vp
-the vnode being manipulated
+The vnode being manipulated.
 .It Fa id
-the id token which is changing the lock
+The id token which is changing the lock.
 .It Fa op
-the operation to perform (see
-.Xr fcntl 2 )
+The operation to perform (see
+.Xr fcntl 2 ) .
 .It Fa fl
-description of the lock
+Description of the lock.
 .It Fa flags
 One of more of the following:
-.Bl -column F_UNLCK -offset indent
-.It Dv F_RDLCK Ta "shared or read lock"
-.It Dv F_UNLCK Ta "unlock"
-.It Dv F_WRLCK Ta "exclusive or write lock"
-.It Dv F_WAIT Ta "Wait until lock is granted"
-.It Dv F_FLOCK Ta Use
+.Pp
+.Bl -tag -width ".Dv F_UNLCK" -offset indent -compact
+.It Dv F_RDLCK
+Shared or read lock.
+.It Dv F_UNLCK
+Unlock.
+.It Dv F_WRLCK
+Exclusive or write lock.
+.It Dv F_WAIT
+Wait until lock is granted.
+.It Dv F_FLOCK
+Use
 .Xr flock 2
-semantics for lock
-.It Dv F_POSIX Ta "Use POSIX semantics for lock"
+semantics for lock.
+.It Dv F_POSIX
+Use POSIX semantics for lock.
 .El
 .El
 .Pp

@@ -57,41 +57,60 @@ same time.
 The arguments are:
 .Bl -tag -width flags
 .It Fa vp
-the vnode being locked or unlocked
+The vnode being locked or unlocked.
 .It Fa flags
 One of the lock request types:
-.Bl -column LK_EXCLUPGRADE -offset indent
-.It Dv LK_SHARED Ta "Shared lock"
-.It Dv LK_EXCLUSIVE Ta "Exclusive lock"
-.It Dv LK_UPGRADE Ta "Shared-to-exclusive upgrade"
-.It Dv LK_EXCLUPGRADE Ta "First shared-to-exclusive upgrade"
-.It Dv LK_DOWNGRADE Ta "Exclusive-to-shared downgrade"
-.It Dv LK_RELEASE Ta "Release any type of lock"
-.It Dv LK_DRAIN Ta "Wait for all lock activity to end"
+.Pp
+.Bl -tag -width ".Dv LK_EXCLUPGRADE" -offset indent -compact
+.It Dv LK_SHARED
+Shared lock.
+.It Dv LK_EXCLUSIVE
+Exclusive lock.
+.It Dv LK_UPGRADE
+Shared-to-exclusive upgrade.
+.It Dv LK_EXCLUPGRADE
+First shared-to-exclusive upgrade.
+.It Dv LK_DOWNGRADE
+Exclusive-to-shared downgrade.
+.It Dv LK_RELEASE
+Release any type of lock.
+.It Dv LK_DRAIN
+Wait for all lock activity to end.
 .El
 .Pp
 The lock type may be
 .Em or Ns 'ed
 with these lock flags:
-.Bl -column LK_CANRECURSE -offset indent
-.It Dv LK_NOWAIT Ta "Do not sleep to wait for lock"
-.It Dv LK_SLEEPFAIL Ta "Sleep, then return failure"
-.It Dv LK_CANRECURSE Ta "Allow recursive exclusive lock"
-.It Dv LK_REENABLE Ta "Lock is to be reenabled after drain"
-.It Dv LK_NOPAUSE Ta "No spinloop"
+.Pp
+.Bl -tag -width ".Dv LK_EXCLUPGRADE" -offset indent -compact
+.It Dv LK_NOWAIT
+Do not sleep to wait for lock.
+.It Dv LK_SLEEPFAIL
+Sleep, then return failure.
+.It Dv LK_CANRECURSE
+Allow recursive exclusive lock.
+.It Dv LK_REENABLE
+Lock is to be reenabled after drain.
+.It Dv LK_NOPAUSE
+No spinloop.
 .El
 .Pp
 The lock type may be
 .Em or Ns 'ed
 with these control flags:
-.Bl -column LK_INTERLOCK -offset indent
-.It Dv LK_INTERLOCK Ta "Specify when the caller already has a simple lock \
-(VOP_LOCK will unlock the simple lock after getting the lock)"
-.It Dv LK_RETRY Ta "Retry until locked"
-.It Dv LK_NOOBJ Ta "Don't create object"
+.Pp
+.Bl -tag -width ".Dv LK_EXCLUPGRADE" -offset indent -compact
+.It Dv LK_INTERLOCK
+Specify when the caller already has a simple lock
+.Fn ( VOP_LOCK
+will unlock the simple lock after getting the lock).
+.It Dv LK_RETRY
+Retry until locked.
+.It Dv LK_NOOBJ
+Don't create object.
 .El
 .It Fa td
-thread context to use for the locks
+Thread context to use for the locks.
 .El
 .Pp
 Kernel code should use
