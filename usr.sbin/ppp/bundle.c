@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.3 1998/05/23 17:05:26 brian Exp $
+ *	$Id: bundle.c,v 1.4 1998/05/23 22:24:27 brian Exp $
  */
 
 #include <sys/types.h>
@@ -800,12 +800,6 @@ bundle_Create(const char *prefix, int type)
 
   /* Clean out any leftover crud */
   bundle_CleanInterface(&bundle);
-
-  if (prompt) {
-    /* Retrospectively introduce ourselves to the prompt */
-    prompt->bundle = &bundle;
-    bundle_RegisterDescriptor(&bundle, &prompt->desc);
-  }
 
   return &bundle;
 }
