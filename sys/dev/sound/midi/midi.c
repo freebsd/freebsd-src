@@ -89,16 +89,45 @@ static struct cdevsw midi_cdevsw = {
  * descriptors for active devices. also used as the public softc
  * of a device.
  */
-static TAILQ_HEAD(,_mididev_info) midi_info;
-static int nmidi, nsynth;
+static TAILQ_HEAD(,_mididev_info)	midi_info;
+static int		nmidi, nsynth;
 /* Mutex to protect midi_info, nmidi and nsynth. */
-static struct mtx midiinfo_mtx;
-static int midiinfo_mtx_init;
+static struct mtx	midiinfo_mtx;
+static int		midiinfo_mtx_init;
 
 /* These make the buffer for /dev/midistat */
-static int midistatbusy;
-static char midistatbuf[4096];
-static int midistatptr;
+static int		midistatbusy;
+static char		midistatbuf[4096];
+static int		midistatptr;
+
+SYSCTL_NODE(_hw, OID_AUTO, midi, CTLFLAG_RD, 0, "Midi driver");
+
+int			midi_debug;
+SYSCTL_INT(_hw_midi, OID_AUTO, debug, CTLFLAG_RW, &midi_debug, 0, "");
+
+midi_cmdtab	cmdtab_midiioctl[] = {
+	{SNDCTL_MIDI_PRETIME,	"SNDCTL_MIDI_PRETIME"},
+	{SNDCTL_MIDI_MPUMODE,	"SNDCTL_MIDI_MPUMODE"},
+	{SNDCTL_MIDI_MPUCMD,	"SNDCTL_MIDI_MPUCMD"},
+	{SNDCTL_SYNTH_INFO,	"SNDCTL_SYNTH_INFO"},
+	{SNDCTL_MIDI_INFO,	"SNDCTL_MIDI_INFO"},
+	{SNDCTL_SYNTH_MEMAVL,	"SNDCTL_SYNTH_MEMAVL"},
+	{SNDCTL_FM_LOAD_INSTR,	"SNDCTL_FM_LOAD_INSTR"},
+	{SNDCTL_FM_4OP_ENABLE,	"SNDCTL_FM_4OP_ENABLE"},
+	{MIOSPASSTHRU,		"MIOSPASSTHRU"},
+	{MIOGPASSTHRU,		"MIOGPASSTHRU"},
+	{AIONWRITE,		"AIONWRITE"},
+	{AIOGSIZE,		"AIOGSIZE"},
+	{AIOSSIZE,		"AIOSSIZE"},
+	{AIOGFMT,		"AIOGFMT"},
+	{AIOSFMT,		"AIOSFMT"},
+	{AIOGMIX,		"AIOGMIX"},
+	{AIOSMIX,		"AIOSMIX"},
+	{AIOSTOP,		"AIOSTOP"},
+	{AIOSYNC,		"AIOSYNC"},
+	{AIOGCAP,		"AIOGCAP"},
+	{-1,			NULL},
+};
 
 /*
  * This is the generic init routine.
@@ -114,6 +143,8 @@ midiinit(mididev_info *d, device_t dev)
 	 * overridden by device-specific configurations but better do
 	 * here the generic things.
 	 */
+
+	MIDI_DEBUG(printf("midiinit: unit %d.\n", d->unit));
 
 	unit = d->unit;
 	d->softc = device_get_softc(dev);
@@ -183,6 +214,58 @@ get_mididev_info_unit(int unit)
 	return md;
 }
 
+/*
+ * a small utility function which, given a unit number, returns
+ * a pointer to the associated mididev_info struct with MDT_MIDI.
+ */
+mididev_info *
+get_mididev_midi_unit(int unit)
+{
+	mididev_info *md;
+
+	/* XXX */
+	if (!midiinfo_mtx_init) {
+		midiinfo_mtx_init = 1;
+		mtx_init(&midiinfo_mtx, "midinf", MTX_DEF);
+		TAILQ_INIT(&midi_info);
+	}
+
+	mtx_lock(&midiinfo_mtx);
+	TAILQ_FOREACH(md, &midi_info, md_link) {
+		if (md->midiunit == unit)
+			break;
+	}
+	mtx_unlock(&midiinfo_mtx);
+
+	return md;
+}
+
+/*
+ * a small utility function which, given a unit number, returns
+ * a pointer to the associated mididev_info struct with MDT_SYNTH.
+ */
+mididev_info *
+get_mididev_synth_unit(int unit)
+{
+	mididev_info *md;
+
+	/* XXX */
+	if (!midiinfo_mtx_init) {
+		midiinfo_mtx_init = 1;
+		mtx_init(&midiinfo_mtx, "midinf", MTX_DEF);
+		TAILQ_INIT(&midi_info);
+	}
+
+	mtx_lock(&midiinfo_mtx);
+	TAILQ_FOREACH(md, &midi_info, md_link) {
+		if (md->synthunit == unit)
+			break;
+	}
+	mtx_unlock(&midiinfo_mtx);
+
+	return md;
+}
+
 /* Create a new midi device info structure. */
 /* TODO: lock md, then exit. */
 mididev_info *
@@ -213,12 +296,15 @@ create_mididev_info_unit(int type, mididev_info *mdinf, synthdev_info *syninf)
 
 	mtx_lock(&midiinfo_mtx);
 
-	/* XXX midi_info is still static. */
 	switch (type) {
 	case MDT_MIDI:
+		mdnew->midiunit = nmidi;
+		mdnew->synthunit = nmidi;
 		nmidi++;
 		break;
 	case MDT_SYNTH:
+		mdnew->midiunit = -1;
+		mdnew->synthunit = nsynth;
 		nsynth++;
 		break;
 	default:
@@ -233,6 +319,7 @@ create_mididev_info_unit(int type, mididev_info *mdinf, synthdev_info *syninf)
 		panic("unsupported device type");
 		return NULL;
 	}
+	mdnew->mdtype = type;
 
 	for (unit = 0 ; ; unit++) {
 		TAILQ_FOREACH(md, &midi_info, md_link) {
@@ -257,6 +344,20 @@ int
 mididev_info_number(void)
 {
 	return nmidi + nsynth;
+}
+
+/* Return the number of configured midi devices. */
+int
+mididev_midi_number(void)
+{
+	return nmidi;
+}
+
+/* Return the number of configured synth devices. */
+int
+mididev_synth_number(void)
+{
+	return nsynth;
 }
 
 /*
@@ -391,8 +492,7 @@ midi_open(dev_t i_dev, int flags, int mode, struct thread *td)
 	dev = minor(i_dev);
 	d = get_mididev_info(i_dev, &unit);
 
-	DEB(printf("open midi%d subdev %d flags 0x%08x mode 0x%08x\n",
-		   unit, dev & 0xf, flags, mode));
+	MIDI_DEBUG(printf("midi_open: unit %d, flags 0x%x.\n", unit, flags));
 
 	if (d == NULL)
 		return (ENXIO);
@@ -402,12 +502,14 @@ midi_open(dev_t i_dev, int flags, int mode, struct thread *td)
 	device_busy(d->dev);
 	if ((d->flags & MIDI_F_BUSY) != 0) {
 		mtx_unlock(&d->flagqueue_mtx);
-		DEB(printf("opl_open: unit %d is busy.\n", unit));
+		printf("midi_open: unit %d is busy.\n", unit);
 		return (EBUSY);
 	}
+	d->fflags = flags;
 	d->flags |= MIDI_F_BUSY;
 	d->flags &= ~(MIDI_F_READING | MIDI_F_WRITING);
-	d->fflags = flags;
+	if ((d->fflags & O_NONBLOCK) != 0)
+		d->flags |= MIDI_F_NBIO;
 
 	/* Init the queue. */
 	if ((flags & FREAD) != 0)
@@ -424,6 +526,16 @@ midi_open(dev_t i_dev, int flags, int mode, struct thread *td)
 	else
 		ret = d->open(i_dev, flags, mode, td);
 
+	mtx_lock(&d->flagqueue_mtx);
+
+	/* Begin recording if nonblocking. */
+	if ((d->flags & (MIDI_F_READING | MIDI_F_NBIO)) == MIDI_F_NBIO && (d->fflags & FREAD) != 0)
+	d->callback(d, MIDI_CB_START | MIDI_CB_RD);
+
+	mtx_unlock(&d->flagqueue_mtx);
+
+	MIDI_DEBUG(printf("midi_open: opened.\n"));
+
 	return (ret);
 }
 
@@ -436,7 +548,7 @@ midi_close(dev_t i_dev, int flags, int mode, struct thread *td)
 	dev = minor(i_dev);
 	d = get_mididev_info(i_dev, &unit);
 
-	DEB(printf("close midi%d subdev %d\n", unit, dev & 0xf));
+	MIDI_DEBUG(printf("midi_close: unit %d.\n", unit));
 
 	if (d == NULL)
 		return (ENXIO);
@@ -470,6 +582,8 @@ midi_close(dev_t i_dev, int flags, int mode, struct thread *td)
 	else
 		ret = d->close(i_dev, flags, mode, td);
 
+	MIDI_DEBUG(printf("midi_close: closed.\n"));
+
 	return (ret);
 }
 
@@ -483,7 +597,7 @@ midi_read(dev_t i_dev, struct uio * buf, int flag)
 	dev = minor(i_dev);
 
 	d = get_mididev_info(i_dev, &unit);
-	DEB(printf("read midi%d subdev %d flag 0x%08x\n", unit, dev & 0xf, flag));
+	MIDI_DEBUG(printf("midi_read: unit %d, resid %d.\n", unit, buf->uio_resid));
 
 	if (d == NULL)
 		return (ENXIO);
@@ -505,10 +619,13 @@ midi_read(dev_t i_dev, struct uio * buf, int flag)
 	/* Have we got the data to read? */
 	if ((d->flags & MIDI_F_NBIO) != 0 && d->midi_dbuf_in.rl == 0)
 		ret = EAGAIN;
-	else
+	else {
+		if ((d->flags & MIDI_F_NBIO) != 0 && len > d->midi_dbuf_in.rl)
+			len = d->midi_dbuf_in.rl;
 		ret = midibuf_seqread(&d->midi_dbuf_in, uiobuf, len, &lenr,
 				      d->callback, d, MIDI_CB_START | MIDI_CB_RD,
 				      &d->flagqueue_mtx);
+	}
 
 	mtx_unlock(&d->flagqueue_mtx);
 
@@ -516,6 +633,8 @@ midi_read(dev_t i_dev, struct uio * buf, int flag)
 		ret = uiomove(uiobuf, lenr, buf);
 
 	free(uiobuf, M_DEVBUF);
+
+	MIDI_DEBUG(printf("midi_read: ret %d, resid %d.\n", ret, buf->uio_resid));
 
 	return (ret);
 }
@@ -530,7 +649,7 @@ midi_write(dev_t i_dev, struct uio * buf, int flag)
 	dev = minor(i_dev);
 	d = get_mididev_info(i_dev, &unit);
 
-	DEB(printf("write midi%d subdev %d flag 0x%08x\n", unit, dev & 0xf, flag));
+	MIDI_DEBUG(printf("midi_write: unit %d.\n", unit));
 
 	if (d == NULL)
 		return (ENXIO);
@@ -593,6 +712,7 @@ midi_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 	int ret = ENOSYS, dev, unit;
 	mididev_info *d;
 	struct snd_size *sndsize;
+	snd_sync_parm *sp;
 
 	dev = minor(i_dev);
 	d = get_mididev_info(i_dev, &unit);
@@ -610,6 +730,8 @@ midi_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 	 */
 	ret = 0;
 
+	MIDI_DEBUG(printf("midi_ioctl: unit %d, cmd %s.\n", unit, midi_cmdname(cmd, cmdtab_midiioctl)));
+
 	/*
 	 * all routines are called with int. blocked. Make sure that
 	 * ints are re-enabled when calling slow or blocking functions!
@@ -620,11 +742,15 @@ midi_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 		 * we start with the new ioctl interface.
 		 */
 	case AIONWRITE:	/* how many bytes can write ? */
+		mtx_lock(&d->flagqueue_mtx);
 		*(int *)arg = d->midi_dbuf_out.fl;
+		mtx_unlock(&d->flagqueue_mtx);
+		MIDI_DEBUG(printf("midi_ioctl: fl %d.\n", *(int *)arg));
 		break;
 
 	case AIOSSIZE:     /* set the current blocksize */
 		sndsize = (struct snd_size *)arg;
+		MIDI_DEBUG(printf("midi_ioctl: play %d, rec %d.\n", sndsize->play_size, sndsize->rec_size));
 		mtx_lock(&d->flagqueue_mtx);
 		if (sndsize->play_size <= d->midi_dbuf_out.unit_size && sndsize->rec_size <= d->midi_dbuf_in.unit_size) {
 			d->midi_dbuf_out.blocksize = d->midi_dbuf_out.unit_size;
@@ -661,6 +787,7 @@ midi_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 		sndsize->play_size = d->midi_dbuf_out.blocksize;
 		sndsize->rec_size = d->midi_dbuf_in.blocksize;
 		mtx_unlock(&d->flagqueue_mtx);
+		MIDI_DEBUG(printf("midi_ioctl: play %d, rec %d.\n", sndsize->play_size, sndsize->rec_size));
 
 		ret = 0;
 		break;
@@ -672,40 +799,45 @@ midi_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 		else if (*(int *)arg == AIOSYNC_CAPTURE)
 			*(int *)arg = d->callback(d, MIDI_CB_STOP | MIDI_CB_RD);
 		else {
-			DEB(printf("AIOSTOP: bad channel 0x%x\n", *(int *)arg));
+			MIDI_DEBUG(printf("midi_ioctl: bad channel 0x%x.\n", *(int *)arg));
 			*(int *)arg = 0 ;
 		}
 		mtx_unlock(&d->flagqueue_mtx);
 		break ;
 
 	case AIOSYNC:
-		DEB(printf("AIOSYNC chan 0x%03lx pos %lu unimplemented\n",
-			   ((snd_sync_parm *)arg)->chan,
-			   ((snd_sync_parm *)arg)->pos));
+		sp = (snd_sync_parm *)arg;
+		MIDI_DEBUG(printf("midi_ioctl: unimplemented, chan 0x%03lx pos %lu.\n",
+			   sp->chan,
+			   sp->pos));
 		break;
 		/*
 		 * here follow the standard ioctls (filio.h etc.)
 		 */
 	case FIONREAD: /* get # bytes to read */
+		mtx_lock(&d->flagqueue_mtx);
 		*(int *)arg = d->midi_dbuf_in.rl;
+		mtx_unlock(&d->flagqueue_mtx);
+		MIDI_DEBUG(printf("midi_ioctl: rl %d.\n", *(int *)arg));
 		break;
 
 	case FIOASYNC: /*set/clear async i/o */
-		DEB( printf("FIOASYNC\n") ; )
+		MIDI_DEBUG(printf("FIOASYNC\n"));
 		    break;
 
 	case FIONBIO: /* set/clear non-blocking i/o */
 		mtx_lock(&d->flagqueue_mtx);
-		if ( *(int *)arg == 0 )
+		if (*(int *)arg == 0)
 			d->flags &= ~MIDI_F_NBIO ;
 		else
 			d->flags |= MIDI_F_NBIO ;
 		mtx_unlock(&d->flagqueue_mtx);
+		MIDI_DEBUG(printf("midi_ioctl: arg %d.\n", *(int *)arg));
 		break ;
 
 	case MIOSPASSTHRU: /* set/clear passthru */
 		mtx_lock(&d->flagqueue_mtx);
-		if ( *(int *)arg == 0 )
+		if (*(int *)arg == 0)
 			d->flags &= ~MIDI_F_PASSTHRU ;
 		else
 			d->flags |= MIDI_F_PASSTHRU ;
@@ -714,18 +846,22 @@ midi_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 		midibuf_clear(&d->midi_dbuf_passthru);
 
 		mtx_unlock(&d->flagqueue_mtx);
+		MIDI_DEBUG(printf("midi_ioctl: passthru %d.\n", *(int *)arg));
 
 		/* FALLTHROUGH */
 	case MIOGPASSTHRU: /* get passthru */
+		mtx_lock(&d->flagqueue_mtx);
 		if ((d->flags & MIDI_F_PASSTHRU) != 0)
-			(int *)arg = 1;
+			*(int *)arg = 1;
 		else
-			(int *)arg = 0;
-		break ;
+			*(int *)arg = 0;
+		mtx_unlock(&d->flagqueue_mtx);
+		MIDI_DEBUG(printf("midi_ioctl: passthru %d.\n", *(int *)arg));
+		break;
 
 	default:
-		DEB(printf("default ioctl midi%d subdev %d fn 0x%08x fail\n",
-			   unit, dev & 0xf, cmd));
+		MIDI_DEBUG(printf("midi_ioctl: default ioctl midi%d subdev %d fn 0x%08lx fail\n",
+				  unit, dev & 0xf, cmd));
 		ret = EINVAL;
 		break ;
 	}
@@ -740,6 +876,8 @@ midi_poll(dev_t i_dev, int events, struct thread *td)
 
 	dev = minor(i_dev);
 	d = get_mididev_info(i_dev, &unit);
+
+	MIDI_DEBUG(printf("midi_poll: unit %d.\n", unit));
 
 	if (d == NULL)
 		return (ENXIO);
@@ -802,6 +940,8 @@ midi_sync(mididev_info *d)
 	int i, rl;
 
 	mtx_assert(&d->flagqueue_mtx, MA_OWNED);
+
+	MIDI_DEBUG(printf("midi_sync: unit %d.\n", d->unit));
 
 	while (d->midi_dbuf_out.rl > 0) {
 		if ((d->flags & MIDI_F_WRITING) == 0)
@@ -902,4 +1042,16 @@ midi_readstatus(char *buf, int *ptr, struct uio *uio)
 	}
 
 	return (0);
+}
+
+char
+*midi_cmdname(int cmd, midi_cmdtab *tab)
+{
+	while (tab->name != NULL) {
+		if (cmd == tab->cmd)
+			return (tab->name);
+		tab++;
+	}
+
+	return ("unknown");
 }

@@ -548,13 +548,13 @@ opl_probe(device_t dev)
 	device_set_desc(dev, opl_op_desc.name);
 	bzero(scp, sizeof(*scp));
 
-	DEB(printf("opl%d: probing.\n", unit));
+	MIDI_DEBUG(printf("opl%d: probing.\n", unit));
 
 	scp->io_rid = 0;
 	scp->io = bus_alloc_resource(dev, SYS_RES_IOPORT, &scp->io_rid, 0, ~0, 4, RF_ACTIVE);
 	if (opl_allocres(scp, dev)) {
 		/* We try the defaults in opl_defaultiobase. */
-		DEB(printf("opl%d: port is omitted, trying the defaults.\n", unit));
+		MIDI_DEBUG(printf("opl%d: port is omitted, trying the defaults.\n", unit));
 		for (i = 0 ; i < sizeof(opl_defaultiobase) / sizeof(*opl_defaultiobase) ; i++) {
 			scp->io_rid = 0;
 			scp->io = bus_alloc_resource(dev, SYS_RES_IOPORT, &scp->io_rid, opl_defaultiobase[i], opl_defaultiobase[i] + 1, 4, RF_ACTIVE);
@@ -574,7 +574,7 @@ opl_probe(device_t dev)
 
 	/* We now have some kind of OPL. */
 
-	DEB(printf("opl%d: probed.\n", unit));
+	MIDI_DEBUG(printf("opl%d: probed.\n", unit));
 
 	return (0);
 }
@@ -645,7 +645,7 @@ opl_attach(device_t dev)
 
 	scp = device_get_softc(dev);
 
-	DEB(printf("opl: attaching.\n"));
+	MIDI_DEBUG(printf("opl: attaching.\n"));
 
 	/* Fill the softc for this unit. */
 	scp->dev = dev;
@@ -751,8 +751,8 @@ opl_attach(device_t dev)
 
 	midiinit(devinfo, dev);
 
-	DEB(printf("opl: attached.\n"));
-	DEB(printf("opl: the chip is OPL%d.\n", scp->model));
+	MIDI_DEBUG(printf("opl: attached.\n"));
+	MIDI_DEBUG(printf("opl: the chip is OPL%d.\n", scp->model));
 
 	return (0);
 }
@@ -772,11 +772,11 @@ opl_open(dev_t i_dev, int flags, int mode, struct thread *td)
 
 	unit = MIDIUNIT(i_dev);
 
-	DEB(printf("opl%d: opening.\n", unit));
+	MIDI_DEBUG(printf("opl%d: opening.\n", unit));
 
 	devinfo = get_mididev_info(i_dev, &unit);
 	if (devinfo == NULL) {
-		DEB(printf("opl_open: unit %d is not configured.\n", unit));
+		MIDI_DEBUG(printf("opl_open: unit %d is not configured.\n", unit));
 		return (ENXIO);
 	}
 	scp = devinfo->softc;
@@ -799,7 +799,7 @@ opl_open(dev_t i_dev, int flags, int mode, struct thread *td)
 		mtx_unlock(&scp->mtx);
 	}
 
-	DEB(printf("opl%d: opened.\n", unit));
+	MIDI_DEBUG(printf("opl%d: opened.\n", unit));
 
 	return (0);
 }
@@ -813,11 +813,11 @@ opl_close(dev_t i_dev, int flags, int mode, struct thread *td)
 
 	unit = MIDIUNIT(i_dev);
 
-	DEB(printf("opl%d: closing.\n", unit));
+	MIDI_DEBUG(printf("opl%d: closing.\n", unit));
 
 	devinfo = get_mididev_info(i_dev, &unit);
 	if (devinfo == NULL) {
-		DEB(printf("opl_close: unit %d is not configured.\n", unit));
+		MIDI_DEBUG(printf("opl_close: unit %d is not configured.\n", unit));
 		return (ENXIO);
 	}
 	scp = devinfo->softc;
@@ -832,7 +832,7 @@ opl_close(dev_t i_dev, int flags, int mode, struct thread *td)
 	/* Stop the OPL. */
 	opl_reset(scp->devinfo);
 
-	DEB(printf("opl%d: closed.\n", unit));
+	MIDI_DEBUG(printf("opl%d: closed.\n", unit));
 
 	return (0);
 }
@@ -845,15 +845,15 @@ opl_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 	int unit;
 	struct synth_info *synthinfo;
 	struct midi_info *midiinfo;
-	struct sbi_instrument ins;
+	struct sbi_instrument *ins;
 
 	unit = MIDIUNIT(i_dev);
 
-	DEB(printf("opl%d: ioctlling, cmd 0x%x.\n", unit, (int)cmd));
+	MIDI_DEBUG(printf("opl_ioctl: unit %d, cmd %s.\n", unit, midi_cmdname(cmd, cmdtab_midiioctl)));
 
 	devinfo = get_mididev_info(i_dev, &unit);
 	if (devinfo == NULL) {
-		DEB(printf("opl_ioctl: unit %d is not configured.\n", unit));
+		MIDI_DEBUG(printf("opl_ioctl: unit %d is not configured.\n", unit));
 		return (ENXIO);
 	}
 	scp = devinfo->softc;
@@ -880,19 +880,20 @@ opl_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 		return (0);
 		break;
 	case SNDCTL_FM_LOAD_INSTR:
-		bcopy(arg, &ins, sizeof(ins));
-		if (ins.channel < 0 || ins.channel >= SBFM_MAXINSTR) {
-			printf("opl_ioctl: Instrument number %d is not valid.\n", ins.channel);
+		ins = (struct sbi_instrument *)arg;
+		if (ins->channel < 0 || ins->channel >= SBFM_MAXINSTR) {
+			printf("opl_ioctl: Instrument number %d is not valid.\n", ins->channel);
 			return (EINVAL);
 		}
 #if notyet
-		pmgr_inform(scp, PM_E_PATCH_LOADED, inc.channel, 0, 0, 0);
+		pmgr_inform(scp, PM_E_PATCH_LOADED, inc->channel, 0, 0, 0);
 #endif /* notyet */
-		opl_storeinstr(scp, ins.channel, &ins);
+		opl_storeinstr(scp, ins->channel, ins);
 		return (0);
 		break;
 	case SNDCTL_SYNTH_MEMAVL:
-		return 0x7fffffff;
+		*(int *)arg = 0x7fffffff;
+		return (0);
 		break;
 	case SNDCTL_FM_4OP_ENABLE:
 		if (scp->model >= MODEL_OPL3)
@@ -918,14 +919,14 @@ opl_callback(void *d, int reason)
 	mtx_assert(&devinfo->flagqueue_mtx, MA_OWNED);
 
 	if (devinfo == NULL) {
-		DEB(printf("opl_callback: device not configured.\n"));
+		MIDI_DEBUG(printf("opl_callback: device not configured.\n"));
 		return (ENXIO);
 	}
 
 	unit = devinfo->unit;
 	scp = devinfo->softc;
 
-	DEB(printf("opl%d: callback, reason 0x%x.\n", unit, reason));
+	MIDI_DEBUG(printf("opl%d: callback, reason 0x%x.\n", unit, reason));
 
 	switch (reason & MIDI_CB_REASON_MASK) {
 	case MIDI_CB_START:
@@ -964,7 +965,7 @@ opl_readraw(mididev_info *md, u_char *buf, int len, int *lenr, int nonblock)
 	unit = md->unit;
 	scp = md->softc;
 	if ((md->fflags & FREAD) == 0) {
-		DEB(printf("opl_readraw: unit %d is not for reading.\n", unit));
+		MIDI_DEBUG(printf("opl_readraw: unit %d is not for reading.\n", unit));
 		return (EIO);
 	}
 
@@ -988,7 +989,7 @@ opl_writeraw(mididev_info *md, u_char *buf, int len, int *lenw, int nonblock)
 	unit = md->unit;
 	scp = md->softc;
 	if ((md->fflags & FWRITE) == 0) {
-		DEB(printf("opl_writeraw: unit %d is not for writing.\n", unit));
+		MIDI_DEBUG(printf("opl_writeraw: unit %d is not for writing.\n", unit));
 		return (EIO);
 	}
 
@@ -1010,7 +1011,7 @@ opl_killnote(mididev_info *md, int voice, int note, int vel)
 	scp = md->softc;
 	unit = md->unit;
 
-	DEB(printf("opl%d: killing a note, voice %d, note %d, vel %d.\n", unit, voice, note, vel));
+	MIDI_DEBUG(printf("opl%d: killing a note, voice %d, note %d, vel %d.\n", unit, voice, note, vel));
 
 	if (voice < 0 || voice >= md->synth.alloc.max_voice)
 		return (0);
@@ -1048,7 +1049,7 @@ opl_setinstr(mididev_info *md, int voice, int instr_no)
 	scp = md->softc;
 	unit = md->unit;
 
-	DEB(printf("opl%d: setting an instrument, voice %d, instr_no %d.\n", unit, voice, instr_no));
+	MIDI_DEBUG(printf("opl%d: setting an instrument, voice %d, instr_no %d.\n", unit, voice, instr_no));
 
 
 	if (voice < 0 || voice >= md->synth.alloc.max_voice || instr_no < 0 || instr_no >= SBFM_MAXINSTR)
@@ -1073,7 +1074,7 @@ opl_startnote(mididev_info *md, int voice, int note, int volume)
 	scp = md->softc;
 	unit = md->unit;
 
-	DEB(printf("opl%d: starting a note, voice %d, note %d, volume %d.\n", unit, voice, note, volume));
+	MIDI_DEBUG(printf("opl%d: starting a note, voice %d, note %d, volume %d.\n", unit, voice, note, volume));
 
 	if (voice < 0 || voice >= md->synth.alloc.max_voice)
 		return (0);
@@ -1192,7 +1193,7 @@ opl_reset(mididev_info *md)
 	scp = md->softc;
 	unit = md->unit;
 
-	DEB(printf("opl%d: resetting.\n", unit));
+	MIDI_DEBUG(printf("opl%d: resetting.\n", unit));
 
 	mtx_lock(&md->synth.vc_mtx);
 	mtx_lock(&scp->mtx);
@@ -1297,7 +1298,7 @@ opl_aftertouch(mididev_info *md, int voice, int press)
 	scp = md->softc;
 	unit = md->unit;
 
-	DEB(printf("opl%d: setting the aftertouch, voice %d, press %d.\n", unit, voice, press));
+	MIDI_DEBUG(printf("opl%d: setting the aftertouch, voice %d, press %d.\n", unit, voice, press));
 
 	if (voice < 0 || voice >= md->synth.alloc.max_voice)
 		return (0);
@@ -1356,7 +1357,7 @@ opl_bendpitch(sc_p scp, int voice, int value)
 	md = scp->devinfo;
 	unit = md->unit;
 
-	DEB(printf("opl%d: setting the pitch bend, voice %d, value %d.\n", unit, voice, value));
+	MIDI_DEBUG(printf("opl%d: setting the pitch bend, voice %d, value %d.\n", unit, voice, value));
 
 	mtx_lock(&scp->mtx);
 
@@ -1396,7 +1397,7 @@ opl_controller(mididev_info *md, int voice, int ctrlnum, int val)
 	scp = md->softc;
 	unit = md->unit;
 
-	DEB(printf("opl%d: setting the controller, voice %d, ctrlnum %d, val %d.\n", unit, voice, ctrlnum, val));
+	MIDI_DEBUG(printf("opl%d: setting the controller, voice %d, ctrlnum %d, val %d.\n", unit, voice, ctrlnum, val));
 
 	if (voice < 0 || voice >= md->synth.alloc.max_voice)
 		return (0);
@@ -1448,7 +1449,7 @@ opl_allocvoice(mididev_info *md, int chn, int note, struct voice_alloc_info *all
 
 	scp = md->softc;
 
-	DEB(printf("opl%d: allocating a voice, chn %d, note %d.\n", unit, chn, note));
+	MIDI_DEBUG(printf("opl%d: allocating a voice, chn %d, note %d.\n", md->unit, chn, note));
 
 	best_time = 0x7fffffff;
 
@@ -1515,7 +1516,7 @@ opl_setupvoice(mididev_info *md, int voice, int chn)
 
 	scp = md->softc;
 
-	DEB(printf("opl%d: setting up a voice, voice %d, chn %d.\n", unit, voice, chn));
+	MIDI_DEBUG(printf("opl%d: setting up a voice, voice %d, chn %d.\n", md->unit, voice, chn));
 
 	mtx_lock(&md->synth.vc_mtx);
 
@@ -1563,7 +1564,7 @@ opl_command(sc_p scp, int ch, int addr, u_int val)
 {
 	int model;
 
-	DEB(printf("opl%d: sending a command, iobase 0x%x, addr 0x%x, val 0x%x.\n", unit, iobase, addr, val));
+	MIDI_DEBUG(printf("opl%d: sending a command, addr 0x%x, val 0x%x.\n", scp->devinfo->unit, addr, val));
 
 	model = scp->model;
 
@@ -1590,7 +1591,7 @@ opl_command(sc_p scp, int ch, int addr, u_int val)
 static int
 opl_status(sc_p scp)
 {
-	DEB(printf("opl%d: reading the status.\n", unit));
+	MIDI_DEBUG(printf("opl%d: reading the status.\n", scp->devinfo->unit));
 
 	return bus_space_read_1(rman_get_bustag(scp->io), rman_get_bushandle(scp->io), 0);
 }
@@ -1606,7 +1607,7 @@ opl_enter4opmode(sc_p scp)
 
 	devinfo = scp->devinfo;
 
-	DEB(printf("opl%d: entering 4 OP mode.\n", unit));
+	MIDI_DEBUG(printf("opl%d: entering 4 OP mode.\n", devinfo->unit));
 
 	/* Connect all possible 4 OP voice operators. */
 	mtx_lock(&devinfo->synth.vc_mtx);
