@@ -201,7 +201,7 @@ static driver_t al_driver = {
 
 static devclass_t al_devclass;
 
-DRIVER_MODULE(al, pci, al_driver, al_devclass, 0, 0);
+DRIVER_MODULE(if_al, pci, al_driver, al_devclass, 0, 0);
 DRIVER_MODULE(miibus, al, miibus_driver, miibus_devclass, 0, 0);
 
 #define AL_SETBIT(sc, reg, x)				\

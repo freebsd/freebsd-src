@@ -172,7 +172,7 @@ static driver_t ste_driver = {
 
 static devclass_t ste_devclass;
 
-DRIVER_MODULE(ste, pci, ste_driver, ste_devclass, 0, 0);
+DRIVER_MODULE(if_ste, pci, ste_driver, ste_devclass, 0, 0);
 DRIVER_MODULE(miibus, ste, miibus_driver, miibus_devclass, 0, 0);
 
 #define STE_SETBIT4(sc, reg, x)				\

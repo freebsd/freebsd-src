@@ -185,7 +185,7 @@ static driver_t sis_driver = {
 
 static devclass_t sis_devclass;
 
-DRIVER_MODULE(sis, pci, sis_driver, sis_devclass, 0, 0);
+DRIVER_MODULE(if_sis, pci, sis_driver, sis_devclass, 0, 0);
 DRIVER_MODULE(miibus, sis, miibus_driver, miibus_devclass, 0, 0);
 
 #define SIS_SETBIT(sc, reg, x)				\
