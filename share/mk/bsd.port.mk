@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.31 1994/09/11 12:01:05 jkh Exp $
+# $Id: bsd.port.mk,v 1.32 1994/09/11 12:06:34 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -31,6 +31,8 @@
 # DISTNAME		- Name of port or distribution.
 # DISTFILES		- Name(s) of archive file(s) containing distribution
 #				  (default: ${DISTDIR}/${DISTNAME}${EXTRACT_SUFX}).
+# EXTRACT_ONLY		- If defined, a subset of ${DISTFILES} you want to
+#			  actually extract.
 # PATCHDIR 		- A directory containing any required patches.
 # SCRIPTDIR 	- A directory containing any auxilliary scripts.
 # FILESDIR 		- A directory containing any miscellaneous additional files.
@@ -110,6 +112,8 @@ DO_NADA?=		echo -n
 # Miscellaneous overridable commands:
 GMAKE?=			gmake
 XMKMF?=			xmkmf
+MAKE_FLAGS?=	-f
+MAKEFILE?=		Makefile
 
 NCFTP?=			ncftp
 NCFTPFLAGS?=	-N
@@ -176,9 +180,9 @@ pre-install:
 install: pre-install
 	@echo "===>  Installing for ${DISTNAME}"
 .if defined(USE_GMAKE)
-	@(cd ${WRKSRC}; ${GMAKE} install)
+	@(cd ${WRKSRC}; ${GMAKE} ${MAKE_FLAGS} ${MAKEFILE} install)
 .else defined(USE_GMAKE)
-	@(cd ${WRKSRC}; ${MAKE} install)
+	@(cd ${WRKSRC}; ${MAKE} ${MAKE_FLAGS} ${MAKEFILE} install)
 .endif
 .endif
 
@@ -208,7 +212,7 @@ build: configure pre-build
 	@echo "===>  Building for ${DISTNAME}"
 .if defined(DEPENDS)
 	@echo "===>  ${DISTNAME} depends on:  ${DEPENDS}"
-	@for i in $(DEPENDS); do \
+	@for i in ${DEPENDS}; do \
 		echo "===>  Verifying build for $$i"; \
 		if [ ! -d ${PORTSDIR}/$$i ]; then \
 			echo ">> No directory for ${PORTSDIR}/$$i.  Skipping.."; \
@@ -219,9 +223,9 @@ build: configure pre-build
 	@echo "===>  Returning to build of ${DISTNAME}"
 .endif
 .if defined(USE_GMAKE)
-	@(cd ${WRKSRC}; ${GMAKE} all)
+	@(cd ${WRKSRC}; ${GMAKE} ${MAKE_FLAGS} ${MAKEFILE} all)
 .else defined(USE_GMAKE)
-	@(cd ${WRKSRC}; ${MAKE} all)
+	@(cd ${WRKSRC}; ${MAKE} ${MAKE_FLAGS} ${MAKEFILE} all)
 .endif
 	@if [ -f ${SCRIPTDIR}/post-build ]; then \
 		sh ${SCRIPTDIR}/post-build ${PORTSDIR} ${.CURDIR} ${WRKSRC}; \
@@ -261,7 +265,7 @@ ${CONFIGURE_COOKIE}:
 	@(cd ${WRKSRC}; ./configure ${CONFIGURE_ARGS})
 .endif
 .if defined(USE_IMAKE)
-	@(cd ${WRKSRC}; ${XMKMF} && make Makefiles)
+	@(cd ${WRKSRC}; ${XMKMF} && ${MAKE} Makefiles)
 .endif
 	@if [ -f ${SCRIPTDIR}/post-configure ]; then \
 		sh ${SCRIPTDIR}/post-configure ${PORTSDIR} ${.CURDIR} ${WRKSRC}; \
@@ -276,21 +280,21 @@ pre-fetch:
 
 .if !target(fetch)
 fetch: pre-fetch
-	@for file in ${DISTFILES}; do \
-		if [ -f ${DISTDIR}/$$file ]; then \
+	@if [ ! -d ${DISTDIR} ]; then mkdir -p ${DISTDIR}; fi
+	@(cd ${DISTDIR}; \
+	 for file in ${DISTFILES}; do \
+		if [ ! -f $$file ]; then \
 			echo ">> $$file doesn't seem to exist on this system."; \
 			echo ">> Attempting to fetch it from master site."; \
-			if [ ! -d ${DISTDIR} ]; then mkdir -p ${DISTDIR}; fi \
-			cd ${DISTDIR}; \
 			if ${NCFTP} ${NCFTPFLAGS} ${MASTER_SITE}/$$file; then \
 				echo ">> $$file Fetched!" ; \
 			else \
 				echo ">> Couldn't fetch it - please try to manually retreive";\
-				echo ">> ${HOME_LOCATION}/$$file and try again."; \
+				echo ">> ${HOME_LOCATION}/$$file into ${DISTDIR} and try again."; \
 				exit 1; \
-			fi \
+			fi; \
 	    fi \
-	done
+	 done)
 .endif
 
 .if !target(pre-extract)
@@ -309,9 +313,15 @@ ${EXTRACT_COOKIE}:
 	@echo "===>  Extracting for ${DISTNAME}"
 	@rm -rf ${WRKDIR}
 	@mkdir -p ${WRKDIR}
-	@for file in ${DISTFILES}; do \
-		@${EXTRACT_CMD} ${EXTRACT_ARGS} ${DISTDIR}/$$file ; \
+.if defined(EXTRACT_ONLY)
+	@for file in ${EXTRACT_ONLY}; do \
+		${EXTRACT_CMD} ${EXTRACT_ARGS} ${DISTDIR}/$$file ; \
 	done
+.else
+	@for file in ${DISTFILES}; do \
+		${EXTRACT_CMD} ${EXTRACT_ARGS} ${DISTDIR}/$$file ; \
+	done
+.endif
 	@touch -f ${EXTRACT_COOKIE}
 .endif
 
