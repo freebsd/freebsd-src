@@ -50,9 +50,8 @@ __FBSDID("$FreeBSD$");
 #       define malloc_minsize		16U
 #   endif
 #   if defined(__ia64__)
-	static int malloc_pageshift_value;
-#	define malloc_pageshift		malloc_pageshift_value
-#       define malloc_minsize		16U
+#	define malloc_pageshift		13U
+#	define malloc_minsize		16U
 #   endif
 #   if defined(__alpha__)
 #       define malloc_pageshift		13U
@@ -414,11 +413,6 @@ malloc_init(void)
     int i, j;
     int save_errno = errno;
 
-#ifdef __ia64__
-    malloc_pageshift = 0;
-    while ((1L << malloc_pageshift) < getpagesize())
-	    malloc_pageshift++;
-#endif
     INIT_MMAP();
 
 #ifdef MALLOC_EXTRA_SANITY
