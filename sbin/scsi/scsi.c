@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: scsi.c,v 1.1.1.1 1995/01/24 12:07:27 dufault Exp $
+ *	$Id: scsi.c,v 1.2 1995/01/26 23:40:40 dufault Exp $
  */
 
 #include <stdio.h>
@@ -166,6 +166,9 @@ int iget(void *hook, char *name)
 	arg = atol(h->argv[h->got]);
 	h->got++;
 
+	if (verbose && name)
+		printf("%s: %d\n", name, arg);
+
 	return arg;
 }
 
@@ -183,6 +186,9 @@ char *cget(void *hook, char *name)
 	}
 	arg = h->argv[h->got];
 	h->got++;
+
+	if (verbose && name)
+		printf("cget: %s: %s", name, arg);
 
 	return arg;
 }
@@ -228,6 +234,12 @@ void arg_put(void *hook, int letter, void *arg, int count, char *name)
 		putchar('\n');
 }
 
+int arg_get (void *hook, char *field_name)
+{
+	printf("get \"%s\".\n", field_name);
+	return 0;
+}
+
 /* data_phase: SCSI bus data phase: DATA IN, DATA OUT, or no data transfer.
  */
 enum data_phase {none = 0, in, out};
@@ -240,6 +252,7 @@ void do_cmd(int fd, char *fmt, int argc, char **argv)
 	scsireq_t *scsireq = scsireq_new();
 	enum data_phase data_phase;
 	int output = 0;
+	char *data_out = 0;
 
 	h.argc = argc;
 	h.argv = argv;
@@ -296,7 +309,7 @@ void do_cmd(int fd, char *fmt, int argc, char **argv)
 
 			if (data_phase == out)
 			{
-				if (strcmp(data_fmt, "-") == 0)	/* stdin */
+				if (strcmp(data_fmt, "-") == 0)	/* Read data from stdin */
 				{
 					if (read(0, scsireq->databuf, count) != count)
 					{
@@ -306,9 +319,16 @@ void do_cmd(int fd, char *fmt, int argc, char **argv)
 				}
 				else	/* XXX: Not written yet */
 				{
-					fprintf(stderr, "Can't set up output data using %s.\n",
-					data_fmt);
-					exit(-1);
+#if 0
+					int scsireq_encode_visit(scsireq_t *scsireq, char
+					*fmt, 
+						int (*arg_get)(void *hook, char *field_name),
+						void *gethook)  
+#endif
+
+					bzero(scsireq->databuf, count);
+
+					scsireq_encode_visit(scsireq, data_fmt, iget, (void *)&h);
 				}
 			}
 
@@ -317,6 +337,9 @@ void do_cmd(int fd, char *fmt, int argc, char **argv)
 				scsi_debug(stderr, -1, scsireq);
 				exit(errno);
 			}
+
+			if (SCSIREQ_ERROR(scsireq))
+				scsi_debug(stderr, 0, scsireq);
 
 			if (data_phase == in)
 			{
