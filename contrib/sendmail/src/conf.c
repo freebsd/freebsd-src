@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: conf.c,v 1.1.1.12 2002/04/10 03:04:48 gshapiro Exp $")
+SM_RCSID("@(#)$Id: conf.c,v 8.969 2002/05/24 23:48:55 gshapiro Exp $")
 
 #include <sendmail/pathnames.h>
 
@@ -2327,6 +2327,25 @@ typedef unsigned int	*pt_entry_t;
 # define SPT_BUFSIZE	MAXLINE
 #endif /* ! SPT_BUFSIZE */
 
+#if _FFR_SPT_ALIGN
+
+/*
+**  It looks like the Compaq Tru64 5.1A now aligns argv and envp to
+**  64 bit alignment, so unless each piece of argv and envp is a multiple
+**  of 8 bytes (including terminating NULL), initsetproctitle() won't use
+**  any of the space beyond argv[0].  Be sure to set SPT_ALIGN_SIZE if
+**  you use this FFR.
+*/
+
+# ifdef SPT_ALIGN_SIZE
+#  define SPT_ALIGN(x, align)	((((x) + SPT_ALIGN_SIZE) >> (align)) << (align))
+# else /* SPT_ALIGN_SIZE */
+#  define SPT_ALIGN(x, align)	(x)
+# endif /* SPT_ALIGN_SIZE */
+#else /* _FFR_SPT_ALIGN */
+# define SPT_ALIGN(x, align)	(x)
+#endif /* _FFR_SPT_ALIGN */
+
 /*
 **  Pointers for setproctitle.
 **	This allows "ps" listings to give more useful information.
@@ -2345,6 +2364,7 @@ initsetproctitle(argc, argv, envp)
 	char **envp;
 {
 	register int i;
+	int align;
 	extern char **environ;
 
 	/*
@@ -2369,15 +2389,24 @@ initsetproctitle(argc, argv, envp)
 	**  Determine how much space we can use for setproctitle.
 	**  Use all contiguous argv and envp pointers starting at argv[0]
 	*/
+
+	align = -1;
+#if _FFR_SPT_ALIGN
+# ifdef SPT_ALIGN_SIZE
+	for (i = SPT_ALIGN_SIZE; i > 0; i >>= 1)
+		align++;
+# endif /* SPT_ALIGN_SIZE */
+#endif /* _FFR_SPT_ALIGN */
+
 	for (i = 0; i < argc; i++)
 	{
 		if (i == 0 || LastArgv + 1 == argv[i])
-			LastArgv = argv[i] + strlen(argv[i]);
+			LastArgv = argv[i] + SPT_ALIGN(strlen(argv[i]), align);
 	}
 	for (i = 0; LastArgv != NULL && envp[i] != NULL; i++)
 	{
 		if (LastArgv + 1 == envp[i])
-			LastArgv = envp[i] + strlen(envp[i]);
+			LastArgv = envp[i] + SPT_ALIGN(strlen(envp[i]), align);
 	}
 }
 
@@ -2742,7 +2771,8 @@ uname(name)
 	{
 		char buf[MAXLINE];
 
-		while (sm_io_fgets(file, SM_TIME_DEFAULT, buf, MAXLINE) != NULL)
+		while (sm_io_fgets(file, SM_TIME_DEFAULT,
+				   buf, sizeof buf) != NULL)
 		{
 			if (sm_io_sscanf(buf, "#define sysname \"%*[^\"]\"",
 					NODE_LENGTH, name->nodename) > 0)
@@ -5554,7 +5584,11 @@ char	*CompileOptions[] =
 	"PIPELINING",
 #endif /* PIPELINING */
 #if SASL
+# if SASL >= 20000
+	"SASLv2",
+# else /* SASL >= 20000 */
 	"SASL",
+# endif /* SASL >= 20000 */
 #endif /* SASL */
 #if SCANF
 	"SCANF",
@@ -5831,6 +5865,9 @@ char	*FFRCompileOptions[] =
 #if _FFR_CHECK_EOM
 	"_FFR_CHECK_EOM",
 #endif /* _FFR_CHECK_EOM */
+#if _FFR_CHK_QUEUE
+	"_FFR_CHK_QUEUE",
+#endif /* _FFR_CHK_QUEUE */
 #if _FFR_CONTROL_MSTAT
 	"_FFR_CONTROL_MSTAT",
 #endif /* _FFR_CONTROL_MSTAT */
@@ -5946,21 +5983,35 @@ char	*FFRCompileOptions[] =
 #if _FFR_RESET_MACRO_GLOBALS
 	"_FFR_RESET_MACRO_GLOBALS",
 #endif /* _FFR_RESET_MACRO_GLOBALS */
+#if _FFR_RESPOND_ALL
+	/* in vacation */
+	"_FFR_RESPOND_ALL",
+#endif /* _FFR_RESPOND_ALL */
 #if _FFR_RHS
 	"_FFR_RHS",
 #endif /* _FFR_RHS */
+#if _FFR_SASL_OPT_M
+	"_FFR_SASL_OPT_M",
+#endif /* _FFR_SASL_OPT_M */
 #if _FFR_SELECT_SHM
 	"_FFR_SELECT_SHM",
 #endif /* _FFR_SELECT_SHM */
 #if _FFR_SHM_STATUS
 	"_FFR_SHM_STATUS",
 #endif /* _FFR_SHM_STATUS */
+#if _FFR_SMFI_OPENSOCKET
+	"_FFR_SMFI_OPENSOCKET",
+#endif /* _FFR_SMFI_OPENSOCKET */
 #if _FFR_SMTP_SSL
 	"_FFR_SMTP_SSL",
 #endif /* _FFR_SMTP_SSL */
 #if _FFR_SOFT_BOUNCE
 	"_FFR_SOFT_BOUNCE",
 #endif /* _FFR_SOFT_BOUNCE */
+#if _FFR_SPT_ALIGN
+/* Chris Adams of HiWAAY Informations Services */
+	"_FFR_SPT_ALIGN",
+#endif /* _FFR_SPT_ALIGN */
 #if _FFR_TIMERS
 	"_FFR_TIMERS",
 #endif /* _FFR_TIMERS */

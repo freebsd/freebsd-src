@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: mci.c,v 1.1.1.7 2002/04/10 03:04:50 gshapiro Exp $")
+SM_RCSID("@(#)$Id: mci.c,v 8.205 2002/05/24 18:53:48 gshapiro Exp $")
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>
@@ -654,7 +654,7 @@ mci_lock_host_statfile(mci)
 {
 	int save_errno = errno;
 	int retVal = EX_OK;
-	char fname[MAXPATHLEN + 1];
+	char fname[MAXPATHLEN];
 
 	if (HostStatDir == NULL || mci->mci_host == NULL)
 		return EX_OK;
@@ -773,7 +773,7 @@ mci_load_persistent(mci)
 	int save_errno = errno;
 	bool locked = true;
 	SM_FILE_T *fp;
-	char fname[MAXPATHLEN + 1];
+	char fname[MAXPATHLEN];
 
 	if (mci == NULL)
 	{
@@ -1060,7 +1060,7 @@ mci_traverse_persistent(action, pathname)
 		size_t len;
 		char *newptr;
 		struct dirent *e;
-		char newpath[MAXPATHLEN + 1];
+		char newpath[MAXPATHLEN];
 
 		if ((d = opendir(pathname)) == NULL)
 		{

@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: collect.c,v 1.1.1.12 2002/04/10 03:04:47 gshapiro Exp $")
+SM_RCSID("@(#)$Id: collect.c,v 8.242 2002/05/10 15:40:09 ca Exp $")
 
 static void	collecttimeout __P((time_t));
 static void	dferror __P((SM_FILE_T *volatile, char *, ENVELOPE *));
@@ -980,7 +980,7 @@ dferror(df, msg, e)
 	}
 	else
 		syserr("421 4.3.0 collect: Cannot write %s (%s, uid=%d, gid=%d)",
-			dfname, msg, geteuid(), getegid());
+			dfname, msg, (int) geteuid(), (int) getegid());
 	if (sm_io_reopen(SmFtStdio, SM_TIME_DEFAULT, SM_PATH_DEVNULL,
 			 SM_IO_WRONLY, NULL, df) == NULL)
 		sm_syslog(LOG_ERR, e->e_id,

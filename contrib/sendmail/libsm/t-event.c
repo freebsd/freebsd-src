@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: t-event.c,v 1.1.1.2 2002/04/10 03:04:56 gshapiro Exp $")
+SM_RCSID("@(#)$Id: t-event.c,v 1.11 2002/04/25 01:50:25 ca Exp $")
 
 #include <stdio.h>
 

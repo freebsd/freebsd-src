@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2001-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: mpeix.c,v 1.1.1.1 2002/02/17 21:56:43 gshapiro Exp $")
+SM_RCSID("@(#)$Id: mpeix.c,v 1.6 2002/05/24 20:50:14 gshapiro Exp $")
 
 #ifdef MPE
 /*
@@ -607,7 +607,7 @@ sendmail_mpe_setuid(uid)
 	uid_t uid;
 {
 	char *cwd;
-	char cwd_buf[PATH_MAX+1];
+	char cwd_buf[PATH_MAX + 1];
 	int result;
 	extern void GETPRIVMODE __P((void));
 	extern void GETUSERMODE __P((void));

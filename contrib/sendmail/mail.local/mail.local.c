@@ -18,7 +18,7 @@ SM_IDSTR(copyright,
      Copyright (c) 1990, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n")
 
-SM_IDSTR(id, "@(#)$Id: mail.local.c,v 1.1.1.9 2002/04/10 03:04:53 gshapiro Exp $")
+SM_IDSTR(id, "@(#)$Id: mail.local.c,v 8.239 2002/05/24 20:56:32 gshapiro Exp $")
 
 #include <stdlib.h>
 #include <sm/errstring.h>
@@ -520,7 +520,7 @@ dolmtp()
 						"Nested MAIL command");
 					continue;
 				}
-				if (sm_strncasecmp(buf+5, "from:", 5) != 0 ||
+				if (sm_strncasecmp(buf + 5, "from:", 5) != 0 ||
 				    ((return_path = parseaddr(buf + 10,
 							      false)) == NULL))
 				{
@@ -857,7 +857,7 @@ deliver(fd, name)
 	off_t headerbytes;
 	int readamount;
 #endif /* CONTENTLENGTH */
-	char biffmsg[100], buf[8*1024];
+	char biffmsg[100], buf[8 * 1024];
 	SM_MBDB_T user;
 
 	/*

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sendmail.h>
-SM_RCSID("@(#)$Id: cf.c,v 1.1.1.1 2002/02/17 21:56:42 gshapiro Exp $")
+SM_RCSID("@(#)$Id: cf.c,v 8.18 2002/05/25 00:09:16 gshapiro Exp $")
 #include <sendmail/pathnames.h>
 
 /*
@@ -60,7 +60,7 @@ getcfname(opmode, submitmode, cftype, conffile)
 	     cftype != SM_GET_SENDMAIL_CF))
 	{
 		struct stat sbuf;
-		static char cf[PATH_MAX];
+		static char cf[MAXPATHLEN];
 
 		(void) sm_strlcpyn(cf, sizeof cf, 2, _DIR_SENDMAILCF,
 				   "submit.cf");

@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: usersmtp.c,v 1.1.1.11 2002/04/10 03:04:52 gshapiro Exp $")
+SM_RCSID("@(#)$Id: usersmtp.c,v 8.437 2002/05/24 18:53:48 gshapiro Exp $")
 
 #include <sysexits.h>
 
@@ -95,7 +95,7 @@ smtpinit(m, mci, e, onlyhelo)
 		CurHostName = MyHostName;
 	SmtpNeedIntro = true;
 	state = mci->mci_state;
-	switch (mci->mci_state)
+	switch (state)
 	{
 	  case MCIS_MAIL:
 	  case MCIS_RCPT:
@@ -603,7 +603,9 @@ getsasldata(line, firstline, m, mci, e)
 {
 	int len;
 	int result;
+# if SASL < 20000
 	char *out;
+# endif /* SASL < 20000 */
 
 	/* if not a continue we don't care about it */
 	len = strlen(line);
@@ -619,9 +621,29 @@ getsasldata(line, firstline, m, mci, e)
 	/* forget about "334 " */
 	line += 4;
 	len -= 4;
+# if SASL >= 20000
+	/* XXX put this into a macro/function? It's duplicated below */
+	if (mci->mci_sasl_string != NULL)
+	{
+		if (mci->mci_sasl_string_len <= len)
+		{
+			sm_free(mci->mci_sasl_string); /* XXX */
+			mci->mci_sasl_string = xalloc(len + 1);
+		}
+	}
+	else
+		mci->mci_sasl_string = xalloc(len + 1);
 
+	result = sasl_decode64(line, len, mci->mci_sasl_string, len + 1,
+			       (unsigned int *) &mci->mci_sasl_string_len);
+	if (result != SASL_OK)
+	{
+		mci->mci_sasl_string_len = 0;
+		*mci->mci_sasl_string = '\0';
+	}
+# else /* SASL >= 20000 */
 	out = (char *) sm_rpool_malloc_x(mci->mci_rpool, len + 1);
-	result = sasl_decode64(line, len, out, (unsigned int *)&len);
+	result = sasl_decode64(line, len, out, (unsigned int *) &len);
 	if (result != SASL_OK)
 	{
 		len = 0;
@@ -648,6 +670,7 @@ getsasldata(line, firstline, m, mci, e)
 	memcpy(mci->mci_sasl_string, out, len);
 	mci->mci_sasl_string[len] = '\0';
 	mci->mci_sasl_string_len = len;
+# endif /* SASL >= 20000 */
 	return;
 }
 /*
@@ -894,8 +917,14 @@ getauth(mci, e, sai)
 			unsigned int len;
 
 			/* '=base64' (decode) */
+# if SASL >= 20000
+  			r = sasl_decode64(pvp[i + 1] + 3,
+					  (unsigned int) l, (*sai)[r],
+					  (unsigned int) l + 1, &len);
+# else /* SASL >= 20000 */
 			r = sasl_decode64(pvp[i + 1] + 3,
 					  (unsigned int) l, (*sai)[r], &len);
+# endif /* SASL >= 20000 */
 			if (r != SASL_OK)
 				goto fail;
 			got |= 1 << r;
@@ -903,7 +932,7 @@ getauth(mci, e, sai)
 		else
 			goto fail;
 		if (tTd(95, 5))
-			sm_syslog(LOG_WARNING, NOQID, "getauth %s=%s",
+			sm_syslog(LOG_DEBUG, NOQID, "getauth %s=%s",
 				  sasl_info_name[r], (*sai)[r]);
 		++i;
 	}
@@ -949,6 +978,111 @@ getauth(mci, e, sai)
 		(*sai)[i] = NULL;	/* just clear; rpool */
 	return ret;
 }
+
+# if SASL >= 20000
+/*
+**  GETSIMPLE -- callback to get userid or authid
+**
+**	Parameters:
+**		context -- sai
+**		id -- what to do
+**		result -- (pointer to) result
+**		len -- (pointer to) length of result
+**
+**	Returns:
+**		OK/failure values
+*/
+
+static int
+getsimple(context, id, result, len)
+	void *context;
+	int id;
+	const char **result;
+	unsigned *len;
+{
+	SASL_AI_T *sai;
+
+	if (result == NULL || context == NULL)
+		return SASL_BADPARAM;
+	sai = (SASL_AI_T *) context;
+
+	switch (id)
+	{
+	  case SASL_CB_USER:
+		*result = (*sai)[SASL_USER];
+		if (tTd(95, 5))
+			sm_syslog(LOG_DEBUG, NOQID, "AUTH username '%s'",
+				  *result);
+		if (len != NULL)
+			*len = *result != NULL ? strlen(*result) : 0;
+		break;
+
+	  case SASL_CB_AUTHNAME:
+		*result = (*sai)[SASL_AUTHID];
+		if (tTd(95, 5))
+			sm_syslog(LOG_DEBUG, NOQID, "AUTH authid '%s'",
+				  *result);
+		if (len != NULL)
+			*len = *result != NULL ? strlen(*result) : 0;
+		break;
+
+	  case SASL_CB_LANGUAGE:
+		*result = NULL;
+		if (len != NULL)
+			*len = 0;
+		break;
+
+	  default:
+		return SASL_BADPARAM;
+	}
+	return SASL_OK;
+}
+/*
+**  GETSECRET -- callback to get password
+**
+**	Parameters:
+**		conn -- connection information
+**		context -- sai
+**		id -- what to do
+**		psecret -- (pointer to) result
+**
+**	Returns:
+**		OK/failure values
+*/
+
+static int
+getsecret(conn, context, id, psecret)
+	sasl_conn_t *conn;
+	SM_UNUSED(void *context);
+	int id;
+	sasl_secret_t **psecret;
+{
+	int len;
+	char *authpass;
+	MCI *mci;
+
+	if (conn == NULL || psecret == NULL || id != SASL_CB_PASS)
+		return SASL_BADPARAM;
+
+	mci = (MCI *) context;
+	authpass = mci->mci_sai[SASL_PASSWORD];
+	len = strlen(authpass);
+
+	/*
+	**  use an rpool because we are responsible for free()ing the secret,
+	**  but we can't free() it until after the auth completes
+	*/
+
+	*psecret = (sasl_secret_t *) sm_rpool_malloc(mci->mci_rpool,
+						     sizeof(sasl_secret_t) +
+						     len + 1);
+	if (*psecret == NULL)
+		return SASL_FAIL;
+	(void) sm_strlcpy((*psecret)->data, authpass, len + 1);
+	(*psecret)->len = (unsigned long) len;
+	return SASL_OK;
+}
+# else /* SASL >= 20000 */
 /*
 **  GETSIMPLE -- callback to get userid or authid
 **
@@ -1013,7 +1147,7 @@ getsimple(context, id, result, len)
 		(void) sm_strlcpy(s, (*sai)[SASL_USER], l);
 		*result = s;
 		if (tTd(95, 5))
-			sm_syslog(LOG_WARNING, NOQID, "AUTH username '%s'",
+			sm_syslog(LOG_DEBUG, NOQID, "AUTH username '%s'",
 				  *result);
 		if (len != NULL)
 			*len = *result != NULL ? strlen(*result) : 0;
@@ -1084,7 +1218,7 @@ getsimple(context, id, result, len)
 		(void) sm_strlcpy(s, authid, l);
 		*result = s;
 		if (tTd(95, 5))
-			sm_syslog(LOG_WARNING, NOQID, "AUTH authid '%s'",
+			sm_syslog(LOG_DEBUG, NOQID, "AUTH authid '%s'",
 				  *result);
 		if (len != NULL)
 			*len = authid ? strlen(authid) : 0;
@@ -1139,6 +1273,8 @@ getsecret(conn, context, id, psecret)
 	(*psecret)->len = (unsigned long) len;
 	return SASL_OK;
 }
+# endif /* SASL >= 20000 */
+
 /*
 **  SAFESASLFILE -- callback for sasl: is file safe?
 **
@@ -1161,9 +1297,17 @@ safesaslfile(context, file, type)
 safesaslfile(context, file)
 #endif /* SASL > 10515 */
 	void *context;
+# if SASL >= 20000
+	const char *file;
+# else /* SASL >= 20000 */
 	char *file;
+# endif /* SASL >= 20000 */
 #if SASL > 10515
+# if SASL >= 20000
+	sasl_verify_type_t type;
+# else /* SASL >= 20000 */
 	int type;
+# endif /* SASL >= 20000 */
 #endif /* SASL > 10515 */
 {
 	long sff;
@@ -1205,7 +1349,7 @@ safesaslfile(context, file)
 	}
 #endif /* SASL <= 10515 */
 
-	p = file;
+	p = (char *) file;
 	if ((r = safefile(p, RunAsUid, RunAsGid, RunAsUserName, sff,
 			  S_IRUSR, NULL)) == 0)
 		return SASL_OK;
@@ -1401,16 +1545,22 @@ attemptauth(m, mci, e, sai)
 	SASL_AI_T *sai;
 {
 	int saslresult, smtpresult;
+# if SASL >= 20000
+	sasl_ssf_t ssf;
+	const char *auth_id;
+	const char *out;
+# else /* SASL >= 20000 */
 	sasl_external_properties_t ssf;
-	sasl_interact_t *client_interact = NULL;
 	char *out;
+# endif /* SASL >= 20000 */
 	unsigned int outlen;
+	sasl_interact_t *client_interact = NULL;
 	char *mechusing;
 	sasl_security_properties_t ssp;
 	char in64[MAXOUTLEN];
-#if NETINET
+#if NETINET || (NETINET6 && SASL >= 20000)
 	extern SOCKADDR CurHostAddr;
-#endif /* NETINET */
+#endif /* NETINET || (NETINET6 && SASL >= 20000) */
 
 	/* no mechanism selected (yet) */
 	(*sai)[SASL_MECH] = NULL;
@@ -1420,9 +1570,16 @@ attemptauth(m, mci, e, sai)
 		sasl_dispose(&(mci->mci_conn));
 
 	/* make a new client sasl connection */
+# if SASL >= 20000
+  	saslresult = sasl_client_new(bitnset(M_LMTP, m->m_flags) ? "lmtp"
+  								 : "smtp",
+				     CurHostName, NULL, NULL, NULL, 0,
+				     &mci->mci_conn);
+# else /* SASL >= 20000 */
 	saslresult = sasl_client_new(bitnset(M_LMTP, m->m_flags) ? "lmtp"
 								 : "smtp",
 				     CurHostName, NULL, 0, &mci->mci_conn);
+# endif /* SASL >= 20000 */
 	if (saslresult != SASL_OK)
 		return EX_TEMPFAIL;
 
@@ -1443,22 +1600,96 @@ attemptauth(m, mci, e, sai)
 	if (saslresult != SASL_OK)
 		return EX_TEMPFAIL;
 
+# if SASL >= 20000
+	/* external security strength factor, authentication id */
+	ssf = 0;
+	auth_id = NULL;
+#  if STARTTLS
+	out = macvalue(macid("{cert_subject}"), e);
+	if (out != NULL && *out != '\0')
+		auth_id = out;
+	out = macvalue(macid("{cipher_bits}"), e);
+	if (out != NULL && *out != '\0')
+		ssf = atoi(out);
+#  endif /* STARTTLS */
+	saslresult = sasl_setprop(mci->mci_conn, SASL_SSF_EXTERNAL, &ssf);
+	if (saslresult != SASL_OK)
+		return EX_TEMPFAIL;
+	saslresult = sasl_setprop(mci->mci_conn, SASL_AUTH_EXTERNAL, auth_id);
+	if (saslresult != SASL_OK)
+		return EX_TEMPFAIL;
+
+#  if NETINET || NETINET6
+	/* set local/remote ipv4 addresses */
+	if (mci->mci_out != NULL && (
+#   if NETINET6
+		CurHostAddr.sa.sa_family == AF_INET6 ||
+#   endif /* NETINET6 */
+		CurHostAddr.sa.sa_family == AF_INET))
+	{
+		SOCKADDR_LEN_T addrsize;
+		SOCKADDR saddr_l;
+		char localip[60], remoteip[60];
+
+		switch (CurHostAddr.sa.sa_family)
+		{
+		  case AF_INET:
+			addrsize = sizeof(struct sockaddr_in);
+			break;
+#   if NETINET6
+		  case AF_INET6:
+			addrsize = sizeof(struct sockaddr_in6);
+			break;
+#   endif /* NETINET6 */
+		  default:
+			break;
+		}
+		if (iptostring(&CurHostAddr, addrsize,
+			       remoteip, sizeof remoteip))
+		{
+			if (sasl_setprop(mci->mci_conn, SASL_IPREMOTEPORT,
+					 remoteip) != SASL_OK)
+				return EX_TEMPFAIL;
+		}
+		addrsize = sizeof(saddr_l);
+		if (getsockname(sm_io_getinfo(mci->mci_out, SM_IO_WHAT_FD,
+					      NULL),
+				(struct sockaddr *) &saddr_l, &addrsize) == 0)
+		{
+			if (iptostring(&saddr_l, addrsize,
+				       localip, sizeof localip))
+			{
+				if (sasl_setprop(mci->mci_conn,
+						 SASL_IPLOCALPORT,
+						 localip) != SASL_OK)
+					return EX_TEMPFAIL;
+			}
+		}
+	}
+#  endif /* NETINET || NETINET6 */
+
+	/* start client side of sasl */
+	saslresult = sasl_client_start(mci->mci_conn, mci->mci_saslcap,
+				       &client_interact,
+				       &out, &outlen,
+				       (const char **) &mechusing);
+# else /* SASL >= 20000 */
 	/* external security strength factor, authentication id */
 	ssf.ssf = 0;
 	ssf.auth_id = NULL;
-#if STARTTLS
+#  if STARTTLS
 	out = macvalue(macid("{cert_subject}"), e);
 	if (out != NULL && *out != '\0')
 		ssf.auth_id = out;
 	out = macvalue(macid("{cipher_bits}"), e);
 	if (out != NULL && *out != '\0')
 		ssf.ssf = atoi(out);
-#endif /* STARTTLS */
+#  endif /* STARTTLS */
 	saslresult = sasl_setprop(mci->mci_conn, SASL_SSF_EXTERNAL, &ssf);
 	if (saslresult != SASL_OK)
 		return EX_TEMPFAIL;
 
-#if NETINET
+#  if NETINET
 	/* set local/remote ipv4 addresses */
 	if (mci->mci_out != NULL && CurHostAddr.sa.sa_family == AF_INET)
 	{
@@ -1479,13 +1710,14 @@ attemptauth(m, mci, e, sai)
 				return EX_TEMPFAIL;
 		}
 	}
-#endif /* NETINET */
+#  endif /* NETINET */
 
 	/* start client side of sasl */
 	saslresult = sasl_client_start(mci->mci_conn, mci->mci_saslcap,
 				       NULL, &client_interact,
 				       &out, &outlen,
-				       (const char **)&mechusing);
+				       (const char **) &mechusing);
+# endif /* SASL >= 20000 */
 
 	if (saslresult != SASL_OK && saslresult != SASL_CONTINUE)
 	{
@@ -1501,7 +1733,22 @@ attemptauth(m, mci, e, sai)
 	(*sai)[SASL_MECH] = mechusing;
 
 	/* send the info across the wire */
-	if (outlen > 0)
+	if (out == NULL)
+	{
+		/* no initial response */
+		smtpmessage("AUTH %s", m, mci, mechusing);
+	}
+	else if (outlen == 0)
+	{
+		/*
+		**  zero-length initial response, per RFC 2554 4.:
+		**  "Unlike a zero-length client answer to a 334 reply, a zero-
+		**  length initial response is sent as a single equals sign"
+		*/
+
+		smtpmessage("AUTH %s =", m, mci, mechusing);
+	}
+	else
 	{
 		saslresult = sasl_encode64(out, outlen, in64, MAXOUTLEN, NULL);
 		if (saslresult != SASL_OK) /* internal error */
@@ -1513,11 +1760,9 @@ attemptauth(m, mci, e, sai)
 		}
 		smtpmessage("AUTH %s %s", m, mci, mechusing, in64);
 	}
-	else
-	{
-		smtpmessage("AUTH %s", m, mci, mechusing);
-	}
+# if SASL < 20000
 	sm_sasl_free(out); /* XXX only if no rpool is used */
+# endif /* SASL < 20000 */
 
 	/* get the reply */
 	smtpresult = reply(m, mci, e, TimeOuts.to_auth, getsasldata, NULL);
@@ -1581,7 +1826,9 @@ attemptauth(m, mci, e, sai)
 		}
 		else
 			in64[0] = '\0';
+# if SASL < 20000
 		sm_sasl_free(out); /* XXX only if no rpool is used */
+# endif /* SASL < 20000 */
 		smtpmessage("%s", m, mci, in64);
 		smtpresult = reply(m, mci, e, TimeOuts.to_auth,
 				   getsasldata, NULL);
@@ -1660,12 +1907,16 @@ smtpauth(m, mci, e)
 		return EX_UNAVAILABLE;
 
 	/* set the context for the callback function to sai */
-	callbacks[CB_PASS_IDX].context = (void *)&mci->mci_sai;
-	callbacks[CB_USER_IDX].context = (void *)&mci->mci_sai;
-	callbacks[CB_AUTHNAME_IDX].context = (void *)&mci->mci_sai;
-	callbacks[CB_GETREALM_IDX].context = (void *)&mci->mci_sai;
+# if SASL >= 20000
+	callbacks[CB_PASS_IDX].context = (void *) mci;
+# else /* SASL >= 20000 */
+	callbacks[CB_PASS_IDX].context = (void *) &mci->mci_sai;
+# endif /* SASL >= 20000 */
+	callbacks[CB_USER_IDX].context = (void *) &mci->mci_sai;
+	callbacks[CB_AUTHNAME_IDX].context = (void *) &mci->mci_sai;
+	callbacks[CB_GETREALM_IDX].context = (void *) &mci->mci_sai;
 #if 0
-	callbacks[CB_SAFESASL_IDX].context = (void *)&mci->mci_sai;
+	callbacks[CB_SAFESASL_IDX].context = (void *) &mci->mci_sai;
 #endif /* 0 */
 
 	/* set default value for realm */
