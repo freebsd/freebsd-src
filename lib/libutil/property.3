@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
-.\" $Id: property.3,v 1.2 1998/10/09 07:33:58 jkh Exp $
+.\" $Id: property.3,v 1.3 1998/10/14 11:04:36 jkh Exp $
 .\" "
 .Dd October 7, 1998
 .Os
@@ -65,9 +65,7 @@ pairs from the file descriptor passed in
 .Fa fd
 and returns the head of a new property list, assuming that the
 file's contents have been parsed properly, or NULL in case
-of error.  The property list pointer should be passed to
-.Fn properties_free
-when no longer needed.
+of error.
 .Pp
 .Fn property_find
 Returns the associated value string for the property named
@@ -78,7 +76,22 @@ if found, otherwise NULL.
 is used to free the structure returned by
 .Fn properties_read
 when it is no longer needed.
+.Pp
+.Sh FILE FORMAT
+Each property in the file is assumed to have the format of
+.Fa name = value
+where
+.Fa name
+is an alphanumeric string (and any punctuation not including the `=' character) 
+and
+.Fa value
+is an arbitary string of text terminated by a newline character.  If newlines
+are desired, the entire value should be enclosed in { } (curly-bracket)
+characters.  Any line beginning with a # or ; character is assumed to
+be a comment and will be ignored.
 .Sh SEE ALSO
 .Xr auth_getval 3
 .Sh BUGS
 Simplistic.
+.Sh AUTHOR
+Jordan Hubbard
