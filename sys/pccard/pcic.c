@@ -48,6 +48,8 @@
 #include <isa/isavar.h>
 #include <dev/pcic/i82365reg.h>
 
+#include "card_if.h"
+
 /*
  *	Prototypes for interrupt handler.
  */
@@ -87,6 +89,7 @@ static struct isa_pnp_id pcic_ids[] = {
 	{PCIC_PNP_CL_PD6720,		NULL},		/* PNP0E01 */
 	{PCIC_PNP_VLSI_82C146,		NULL},		/* PNP0E02 */
 	{PCIC_PNP_82365_CARDBUS,	NULL},		/* PNP0E03 */
+        {0x1802a904,                    NULL},
 	{0}
 };
 
@@ -268,9 +271,9 @@ pcic_io(struct slot *slt, int win)
  */
 
 /*
- *	VLSI 82C146 has incompatibilities about the I/O address 
- *	of slot 1.  Assume it's the only PCIC whose vendor ID is 0x84,
- *	contact Nate Williams <nate@FreeBSD.org> if incorrect.
+ *	VLSI 82C146 has incompatibilities about the I/O address of slot 1.
+ *	Assume it's the only PCIC whose vendor ID is 0x84,
+ *	contact Warner Losh <imp@freebsd.org> if correct.
  */
 static int
 pcic_probe(device_t dev)
@@ -324,7 +327,7 @@ pcic_probe(device_t dev)
 		sp->index = rman_get_start(r);
 		sp->data = sp->index + 1;
 		sp->offset = slotnum * PCIC_SLOT_SIZE;
-		/* 
+		/*
 		 * XXX - Screwed up slot 1 on the VLSI chips.  According to
 		 * the Linux PCMCIA code from David Hinds, working chipsets
 		 * return 0x84 from their (correct) ID ports, while the broken
@@ -519,7 +522,7 @@ pcic_attach(device_t dev)
 	rid = 0;
 	r = 0;
 	if (irq >= 0) {
-		r = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, irq, 
+		r = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, irq,
 		    ~0, 1, RF_ACTIVE);
 	}
 	if (r) {
@@ -535,8 +538,7 @@ pcic_attach(device_t dev)
 		irq = 0;
 	}
 	if (irq == 0) {
-		pcictimeout_ch = timeout(pcictimeout, (void *) GET_UNIT(dev), 
-		    hz/2);
+		pcictimeout_ch = timeout(pcictimeout, (void *) GET_UNIT(dev), hz/2);
 		device_printf(dev, "Polling mode\n");
 	}
 
@@ -685,8 +687,7 @@ pcic_mapirq(struct slot *slt, int irq)
 	if (irq == 0)
 		clrb(sp, PCIC_INT_GEN, 0xF);
 	else
-		sp->putb(sp, PCIC_INT_GEN, 
-		    (sp->getb(sp, PCIC_INT_GEN) & 0xF0) | irq);
+		sp->putb(sp, PCIC_INT_GEN, (sp->getb(sp, PCIC_INT_GEN) & 0xF0) | irq);
 }
 
 /*
@@ -806,8 +807,7 @@ pcic_activate_resource(device_t dev, device_t child, int type, int rid,
 	int err;
 
 	switch (type) {
-	case SYS_RES_IOPORT:
-	{
+	case SYS_RES_IOPORT: {
 		struct io_desc *ip;
 		ip = &devi->slt->io[rid];
 		if (ip->flags == 0) {
@@ -831,8 +831,7 @@ pcic_activate_resource(device_t dev, device_t child, int type, int rid,
 		 * interrupt messages.
 		 */
 		break;
-	case SYS_RES_MEMORY: 
-	{
+	case SYS_RES_MEMORY: {
 		struct mem_desc *mp;
 		if (rid >= NUM_MEM_WINDOWS)
 			return EINVAL;
@@ -860,8 +859,7 @@ pcic_deactivate_resource(device_t dev, device_t child, int type, int rid,
 	int err;
 
 	switch (type) {
-	case SYS_RES_IOPORT:
-	{
+	case SYS_RES_IOPORT: {
 		struct io_desc *ip = &devi->slt->io[rid];
 		ip->flags &= ~IODF_ACTIVE;
 		err = pcic_io(devi->slt, rid);
@@ -872,8 +870,7 @@ pcic_deactivate_resource(device_t dev, device_t child, int type, int rid,
 	}
 	case SYS_RES_IRQ:
 		break;
-	case SYS_RES_MEMORY:
-	{
+	case SYS_RES_MEMORY: {
 		struct mem_desc *mp = &devi->slt->mem[rid];
 		mp->flags &= ~(MDF_ACTIVE | MDF_ATTR);
 		err = pcic_memory(devi->slt, rid);
@@ -890,13 +887,13 @@ pcic_deactivate_resource(device_t dev, device_t child, int type, int rid,
 }
 
 static int
-pcic_setup_intr(device_t dev, device_t child, struct resource *irq, 
+pcic_setup_intr(device_t dev, device_t child, struct resource *irq,
     int flags, driver_intr_t *intr, void *arg, void **cookiep)
 {
 	struct pccard_devinfo *devi = device_get_ivars(child);
 	int err;
 
-	err = bus_generic_setup_intr(dev, child, irq, flags, intr, arg, 
+	err = bus_generic_setup_intr(dev, child, irq, flags, intr, arg,
 	    cookiep);
 	if (err == 0)
 		pcic_mapirq(devi->slt, rman_get_start(irq));
@@ -905,7 +902,7 @@ pcic_setup_intr(device_t dev, device_t child, struct resource *irq,
 		    rman_get_start(irq));
 	return (err);
 }
- 
+
 static int
 pcic_teardown_intr(device_t dev, device_t child, struct resource *irq,
     void *cookie)
@@ -914,6 +911,42 @@ pcic_teardown_intr(device_t dev, device_t child, struct resource *irq,
 
 	pcic_mapirq(devi->slt, 0);
 	return (bus_generic_teardown_intr(dev, child, irq, cookie));
+}
+
+static int
+pcic_set_res_flags(device_t bus, device_t child, int restype, int rid,
+    u_long value)
+{
+	struct pccard_devinfo *devi = device_get_ivars(child);
+	int err = 0;
+
+	switch (restype) {
+	case SYS_RES_MEMORY: {
+		struct mem_desc *mp = &devi->slt->mem[rid];
+		if (value)
+			mp->flags |= MDF_ATTR;
+		else
+			mp->flags &= ~MDF_ATTR;
+		err = pcic_memory(devi->slt, rid);
+		break;
+	}
+	default:
+		err = EOPNOTSUPP;
+	}
+	return (err);
+}
+
+static int
+pcic_get_res_flags(device_t bus, device_t child, int restype, int rid,
+    u_long *value)
+{
+	return (EOPNOTSUPP);
+}
+
+static int
+pcic_set_memory_offset(device_t bus, device_t child, int rid, u_int32_t offset)
+{
+	return (EOPNOTSUPP);
 }
 
 static device_method_t pcic_methods[] = {
@@ -933,6 +966,11 @@ static device_method_t pcic_methods[] = {
 	DEVMETHOD(bus_deactivate_resource, pcic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	pcic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	pcic_teardown_intr),
+
+	/* Card interface */
+	DEVMETHOD(card_set_res_flags,	pcic_set_res_flags),
+	DEVMETHOD(card_get_res_flags,	pcic_get_res_flags),
+	DEVMETHOD(card_set_memory_offset, pcic_set_memory_offset),
 
 	{ 0, 0 }
 };

@@ -35,8 +35,6 @@
 
 #include <machine/bus.h>
 
-#include <dev/pccard/pccardchip.h>
-
 extern int	pccard_verbose;
 
 /*
@@ -61,7 +59,6 @@ struct pccard_mem_handle {
 	bus_space_handle_t memh;	/* mapped space handle */
 	bus_addr_t      addr;		/* resulting address in bus space */
 	bus_size_t      size;		/* size of mem space */
-	pccard_mem_handle_t mhandle;	/* opaque memory handle */
 	bus_size_t      realsize;	/* how much we really allocated */
 	long		offset;
 	int		kind;
@@ -122,12 +119,10 @@ struct pccard_function {
 	STAILQ_ENTRY(pccard_function) pf_list;
 	/* run-time state */
 	struct pccard_softc *sc;
-	struct device *child;
 	struct pccard_config_entry *cfe;
 	struct pccard_mem_handle pf_pcmh;
 #define	pf_ccrt		pf_pcmh.memt
 #define	pf_ccrh		pf_pcmh.memh
-#define	pf_ccr_mhandle	pf_pcmh.mhandle
 #define	pf_ccr_realsize	pf_pcmh.realsize
 	bus_addr_t	pf_ccr_offset;
 	int		pf_ccr_window;
@@ -161,6 +156,13 @@ struct pccard_card {
 #define	PCCARD_CIS_INVALID		{ NULL, NULL, NULL, NULL }
 	STAILQ_HEAD(, pccard_function) pf_head;
 };
+
+#define	PCCARD_MEM_ATTR		1
+#define	PCCARD_MEM_COMMON	2
+
+#define	PCCARD_WIDTH_AUTO	0
+#define	PCCARD_WIDTH_IO8	1
+#define	PCCARD_WIDTH_IO16	2
 
 /* More later? */
 struct pccard_ivar {
@@ -202,8 +204,8 @@ struct pccard_tuple {
 void	pccard_read_cis(struct pccard_softc *);
 void	pccard_check_cis_quirks(device_t);
 void	pccard_print_cis(device_t);
-int	pccard_scan_cis(struct device * dev,
-	    int (*) (struct pccard_tuple *, void *), void *);
+int	pccard_scan_cis(device_t, 
+		int (*) (struct pccard_tuple *, void *), void *);
 
 #define	pccard_cis_read_1(tuple, idx0)					\
 	(bus_space_read_1((tuple)->memt, (tuple)->memh, (tuple)->mult*(idx0)))
@@ -280,5 +282,10 @@ __inline static int
 pccard_get_ether(device_t dev, u_char *enaddr)
 {
 	return BUS_READ_IVAR(device_get_parent(dev), dev, 
-				PCCARD_IVAR_ETHADDR, (uintptr_t *)enaddr);
+	    PCCARD_IVAR_ETHADDR, (uintptr_t *)enaddr);
 }
+
+enum {
+	PCCARD_A_MEM_ATTR = 0x1
+};
+

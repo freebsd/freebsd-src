@@ -49,12 +49,12 @@
 
 #include <dev/pccard/pccardreg.h>
 #include <dev/pccard/pccardvar.h>
-#include <dev/pccard/pccardchip.h>
 
 #include <dev/pcic/i82365reg.h>
 #include <dev/pcic/i82365var.h>
 
 #include "power_if.h"
+#include "card_if.h"
 
 /*****************************************************************************
  * Configurable parameters.
@@ -357,11 +357,9 @@ static device_method_t pcic_isa_methods[] = {
 	DEVMETHOD(bus_setup_intr,	pcic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	pcic_teardown_intr),
 
-#if 0
 	/* pccard/cardbus interface */
-	DEVMETHOD(card_set_resource_attribute, pcic_set_resource_attribute),
-	DEVMETHOD(card_get_resource_attribute, pcic_get_resource_attribute),
-#endif
+	DEVMETHOD(card_set_res_flags, pcic_set_res_flags),
+	DEVMETHOD(card_set_memory_offset, pcic_set_memory_offset),
 
 	/* Power Interface */
 	DEVMETHOD(power_enable_socket,	pcic_enable_socket),

@@ -1,5 +1,4 @@
 /*
- * Prototypes for APIC compatible interrupt register and unregister.
  * PCMCIA Card Interface Controller
  *
  * Copyright (c) 1999 Roger Hardiman
