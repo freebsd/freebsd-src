@@ -1434,9 +1434,7 @@ psignal(p, sig)
 			if (!(p->p_pptr->p_procsig->ps_flag & PS_NOCLDSTOP))
 				psignal(p->p_pptr, SIGCHLD);
 			PROC_UNLOCK(p->p_pptr);
-			mtx_lock_spin(&sched_lock);
 			stop(p);
-			mtx_unlock_spin(&sched_lock);
 			goto out;
 		} else
 			goto runfast;
@@ -1598,7 +1596,7 @@ issignal(td)
 			psignal(p->p_pptr, SIGCHLD);
 			PROC_UNLOCK(p->p_pptr);
 			mtx_lock_spin(&sched_lock);
-			stop(p);
+			stop(p);	/* uses schedlock too eventually */
 			td->td_state = TDS_UNQUEUED;
 			PROC_UNLOCK(p);
 			DROP_GIANT();
@@ -1676,9 +1674,7 @@ issignal(td)
 					psignal(p->p_pptr, SIGCHLD);
 				}
 				PROC_UNLOCK(p->p_pptr);
-				mtx_lock_spin(&sched_lock);
 				stop(p);
-				mtx_unlock_spin(&sched_lock);
 				break;
 			} else
 			     if (prop & SA_IGNORE) {
@@ -1726,7 +1722,6 @@ stop(p)
 {
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	mtx_assert(&sched_lock, MA_OWNED);
 	p->p_flag |= P_STOPPED_SGNL;
 	p->p_flag &= ~P_WAITED;
 	wakeup(p->p_pptr);
