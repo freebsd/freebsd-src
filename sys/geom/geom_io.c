@@ -393,16 +393,24 @@ g_io_schedule_down(struct thread *tp __unused)
 			g_io_deliver(bp, error);
 			continue;
 		}
-		/* Truncate requests to the end of providers media. */
-		excess = bp->bio_offset + bp->bio_length;
-		if (excess > bp->bio_to->mediasize) {
-			excess -= bp->bio_to->mediasize;
-			bp->bio_length -= excess;
-		}
-		/* Deliver zero length transfers right here. */
-		if (bp->bio_length == 0) {
-			g_io_deliver(bp, 0);
-			continue;
+		switch (bp->bio_cmd) {
+		case BIO_READ:
+		case BIO_WRITE:
+		case BIO_DELETE:
+			/* Truncate requests to the end of providers media. */
+			excess = bp->bio_offset + bp->bio_length;
+			if (excess > bp->bio_to->mediasize) {
+				excess -= bp->bio_to->mediasize;
+				bp->bio_length -= excess;
+			}
+			/* Deliver zero length transfers right here. */
+			if (bp->bio_length == 0) {
+				g_io_deliver(bp, 0);
+				continue;
+			}
+			break;
+		default:
+			break;
 		}
 		bp->bio_to->geom->start(bp);
 		if (pace) {
