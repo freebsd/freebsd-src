@@ -62,10 +62,28 @@ is passed to smfi_register().
 <td><table border="1" cellspacing=0>
   <tr bgcolor="#dddddd"><th>Return value</th><th>Description</th></tr>
   <tr valign="top">
-     <td>SMFIS_DISCARD</td>
-     <td>Not meaningful, as
-        this is only meaningful from message-oriented routines.
+     <td>SMFIS_ACCEPT</td>
+     <td>Accept all commands and messages from this client without any
+         further contact with the filter. </td>
      </td>
+  </tr>
+  <tr valign="top">
+     <td>SMFIS_CONTINUE</td>
+     <td>Continue normal processing. </td>
+  </tr>
+  <tr valign="top">
+     <td>SMFIS_DISCARD</td>
+     <td>Undefined behaviour; do not use. </td>
+  </tr>
+  <tr valign="top">
+     <td>SMFIS_TEMPFAIL</td>
+     <td>Reject all commands and messages from this client with a
+         temporary failure reply code. </td>
+  </tr>
+  <tr valign="top">
+     <td>SMFIS_REJECT</td>
+     <td>Reject all commands and messages from this client with a
+         permanent failure reply code. </td>
   </tr>
 </table>
 </tr>

@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sys/time.h>
 
-SM_RCSID("@(#)$Id: deliver.c,v 8.940.2.19 2003/09/03 19:58:26 ca Exp $")
+SM_RCSID("@(#)$Id: deliver.c,v 8.940.2.20 2003/09/26 18:26:19 ca Exp $")
 
 #if HASSETUSERCONTEXT
 # include <login_cap.h>
@@ -3491,7 +3491,12 @@ do_transfer:
 		    (mci->mci_state == MCIS_MAIL ||
 		     mci->mci_state == MCIS_RCPT ||
 		     mci->mci_state == MCIS_DATA))
+		{
 			mci->mci_state = MCIS_OPEN;
+			SmtpPhase = mci->mci_phase = "idle";
+			sm_setproctitle(true, e, "%s: %s", CurHostName,
+					mci->mci_phase);
+		}
 	}
 
 	if (tobuf[0] != '\0')
