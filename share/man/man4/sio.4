@@ -34,9 +34,9 @@
 .\"
 .\"     from: @(#)dca.4	5.2 (Berkeley) 3/27/91
 .\"	from: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
-.\"	$Id: sio.4,v 1.15 1994/12/06 20:14:30 bde Exp $
+.\"	$Id: sio.4,v 1.16 1995/06/26 06:05:30 bde Exp $
 .\"
-.Dd June 3, 1994
+.Dd October 10, 1995
 .Dt SIO 4 i386
 .Os FreeBSD
 .Sh NAME
@@ -237,7 +237,7 @@ CLOCAL flag on callin ports should be locked off for logins
 to avoid certain security holes, but this needs to be done by
 getty if the callin port is used for anything else.
 .Sh FILES
-.Bl -tag -width /dev/ttyi0? -compact
+.Bl -tag -width /dev/ttyid? -compact
 .It Pa /dev/ttyd?
 for callin ports
 .It Pa /dev/ttyid?
@@ -270,14 +270,13 @@ Problem in the bottom half of the driver.
 .Bl -diag
 .It sio%d: tty-level buffer overflow.
 Problem in the application.
-.sp
 Input has arrived faster than the given module could process it
 and some has been lost.
-.sp
 .El
-.Bl -diag
-.It sio%d: reduced fifo trigger level to %d.
-Attempting to avoid further silo overflows.
+.\" .Bl -diag
+.\" .It sio%d: reduced fifo trigger level to %d.
+.\" Attempting to avoid further silo overflows.
+.\" .El
 .Sh SEE ALSO
 .Xr tty 4 ,
 .Xr termios 4 ,
