@@ -395,6 +395,7 @@ draw:
 		    else if (status & DITEM_RECREATE && !(status & DITEM_LEAVE_MENU)) {
 			delwin(menu);
 			delwin(dialog);
+			dialog_clear();
 			goto draw;
 		    }
 		}
