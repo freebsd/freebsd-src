@@ -1030,18 +1030,13 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m)
 	 */
 	pmap->pm_pdir[m->pindex] = 0;
 	--pmap->pm_stats.resident_count;
+
 	/*
-	 * We never unwire a kernel page table page, making a
-	 * check for the kernel_pmap unnecessary.
+	 * Do an invltlb to make the invalidated mapping
+	 * take effect immediately.
 	 */
-	if ((pmap->pm_pdir[PTDPTDI] & PG_FRAME) == (PTDpde[0] & PG_FRAME)) {
-		/*
-		 * Do an invltlb to make the invalidated mapping
-		 * take effect immediately.
-		 */
-		pteva = VM_MAXUSER_ADDRESS + i386_ptob(m->pindex);
-		pmap_invalidate_page(pmap, pteva);
-	}
+	pteva = VM_MAXUSER_ADDRESS + i386_ptob(m->pindex);
+	pmap_invalidate_page(pmap, pteva);
 
 	vm_page_free_zero(m);
 	atomic_subtract_int(&cnt.v_wire_count, 1);
