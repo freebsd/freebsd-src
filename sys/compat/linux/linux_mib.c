@@ -316,9 +316,9 @@ linux_debug(int syscall, int toggle, int global)
 }
 
 /*
- * Usage: sysctl -w linux.debug=<syscall_nr>.<0/1>
+ * Usage: sysctl linux.debug=<syscall_nr>.<0/1>
  *
- *    E.g.: sysctl -w linux.debug=21.0
+ *    E.g.: sysctl linux.debug=21.0
  *
  * As a special case, syscall "all" will apply to all syscalls globally.
  */
