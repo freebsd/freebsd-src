@@ -1642,38 +1642,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98">3Com 3C5x9 Etherlink III NICs (&man.ep.4; driver)
-      <itemizedlist>
-        <listitem arch="i386">
-	  <para>3C509</para>
-        </listitem>
-        <listitem arch="i386">
-	  <para>3C529 MCA</para>
-        </listitem>
-        <listitem arch="i386">
-	  <para>3C579 EISA</para>
-        </listitem>
-	<listitem arch="i386">
-	  <para>3CXE589EC, 3CXE589ET PCMCIA</para>
-	</listitem>
-        <listitem arch="i386">
-	  <para>3C589/589B/589C/589D/589E/574TX/574B
-	  PC-card/PCMCIA</para>
-        </listitem>
-        <listitem arch="i386">
-	  <para>Megahertz 3CCFEM556BI, 3CXEM556, 3CCFEM556B</para>
-	</listitem>
-	<listitem arch="i386">
-	  <para>OfficeConnect 3CXSH572BT</para>
-	</listitem>
-	<listitem arch="i386">
-	  <para>Farallon EtherMac</para>
-	</listitem>
-	<listitem arch="pc98">
-	  <para>3Com 3C569, 3C569-TPO, 3C569B, 3C569B-COMBO</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    <para arch="i386,pc98">3Com 3C5x9 Etherlink III NICs (&man.ep.4; driver)</para>
 
     <para arch="i386">3Com 3C501 8-bit ISA Ethernet NIC 
     (&man.el.4; driver)</para>
