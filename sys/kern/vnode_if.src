@@ -427,18 +427,6 @@ vop_advlock {
 };
 
 #
-#% balloc	vp	L L L
-#
-vop_balloc {
-	IN struct vnode *vp;
-	IN off_t startoffset;
-	IN int size;
-	IN struct ucred *cred;
-	IN int flags;
-	OUT struct buf **bpp;
-};
-
-#
 #% reallocblks	vp	L L L
 #
 vop_reallocblks {

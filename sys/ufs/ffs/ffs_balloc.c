@@ -55,15 +55,8 @@
  * the inode and the logical block number in a file.
  */
 int
-ffs_balloc(ap)
-	struct vop_balloc_args /* {
-		struct vnode *a_vp;
-		ufs_daddr_t a_lbn;
-		int a_size;
-		struct ucred *a_cred;
-		int a_flags;
-		struct buf *a_bpp;
-	} */ *ap;
+ffs_balloc(struct vnode *a_vp, off_t a_startoffset, int a_size,
+    struct ucred *a_cred, int a_flags, struct buf **a_bpp)
 {
 	struct inode *ip;
 	ufs_daddr_t lbn;
@@ -81,18 +74,18 @@ ffs_balloc(ap)
 	int unwindidx = -1;
 	struct proc *p = curproc;	/* XXX */
 
-	vp = ap->a_vp;
+	vp = a_vp;
 	ip = VTOI(vp);
 	fs = ip->i_fs;
-	lbn = lblkno(fs, ap->a_startoffset);
-	size = blkoff(fs, ap->a_startoffset) + ap->a_size;
+	lbn = lblkno(fs, a_startoffset);
+	size = blkoff(fs, a_startoffset) + a_size;
 	if (size > fs->fs_bsize)
 		panic("ffs_balloc: blk too big");
-	*ap->a_bpp = NULL;
+	*a_bpp = NULL;
 	if (lbn < 0)
 		return (EFBIG);
-	cred = ap->a_cred;
-	flags = ap->a_flags;
+	cred = a_cred;
+	flags = a_flags;
 
 	/*
 	 * If the next write will extend the file into a new block,
@@ -135,7 +128,7 @@ ffs_balloc(ap)
 				return (error);
 			}
 			bp->b_blkno = fsbtodb(fs, nb);
-			*ap->a_bpp = bp;
+			*a_bpp = bp;
 			return (0);
 		}
 		if (nb != 0) {
@@ -182,7 +175,7 @@ ffs_balloc(ap)
 		}
 		ip->i_db[lbn] = dbtofsb(fs, bp->b_blkno);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
-		*ap->a_bpp = bp;
+		*a_bpp = bp;
 		return (0);
 	}
 	/*
@@ -294,7 +287,7 @@ ffs_balloc(ap)
 	 * If asked only for the indirect block, then return it.
 	 */
 	if (flags & B_METAONLY) {
-		*ap->a_bpp = bp;
+		*a_bpp = bp;
 		return (0);
 	}
 	/*
@@ -329,7 +322,7 @@ ffs_balloc(ap)
 				bp->b_flags |= B_CLUSTEROK;
 			bdwrite(bp);
 		}
-		*ap->a_bpp = nbp;
+		*a_bpp = nbp;
 		return (0);
 	}
 	brelse(bp);
@@ -343,7 +336,7 @@ ffs_balloc(ap)
 		nbp = getblk(vp, lbn, fs->fs_bsize, 0, 0);
 		nbp->b_blkno = fsbtodb(fs, nb);
 	}
-	*ap->a_bpp = nbp;
+	*a_bpp = nbp;
 	return (0);
 fail:
 	/*

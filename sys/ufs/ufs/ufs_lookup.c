@@ -719,7 +719,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 		flags = B_CLRBUF;
 		if (!DOINGSOFTDEP(dvp) && !DOINGASYNC(dvp))
 			flags |= B_SYNC;
-		if ((error = VOP_BALLOC(dvp, (off_t)dp->i_offset, DIRBLKSIZ,
+		if ((error = UFS_BALLOC(dvp, (off_t)dp->i_offset, DIRBLKSIZ,
 		    cr, flags, &bp)) != 0) {
 			if (DOINGSOFTDEP(dvp) && newdirbp != NULL)
 				bdwrite(newdirbp);

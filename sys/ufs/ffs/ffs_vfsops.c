@@ -625,6 +625,7 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	ump->um_update = ffs_update;
 	ump->um_valloc = ffs_valloc;
 	ump->um_vfree = ffs_vfree;
+	ump->um_balloc = ffs_balloc;
 	bcopy(bp->b_data, ump->um_fs, (u_int)fs->fs_sbsize);
 	if (fs->fs_sbsize < SBSIZE)
 		bp->b_flags |= B_INVAL | B_NOCACHE;
