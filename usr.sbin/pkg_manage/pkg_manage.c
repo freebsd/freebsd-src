@@ -349,6 +349,8 @@ install_package(char *fname)
 	fprintf(stderr, "install_package(): Error malloc'ing tmp_file\n");
 	exit(-1);
     }
+    if (!getenv("PKG_PATH"))
+	putenv("/usr/ports/packages:/usr/ports/packages/all:.");
     exec_catch_errors(PKG_ADD, fname, tmp_file);
 
     unlink(tmp_file);
