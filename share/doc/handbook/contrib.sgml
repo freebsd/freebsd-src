@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.171 1996/12/11 22:54:52 obrien Exp $ -->
+<!-- $Id: contrib.sgml,v 1.172 1996/12/14 20:30:10 joerg Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -277,6 +277,7 @@
 	  <item>Marc Ramirez &lt;mrami@mramirez.sy.yale.edu
 	  <item>Marc van Kempen &lt;wmbfmk@urc.tue.nl&gt;
 	  <item>Mark Huizer &lt;xaa@stack.nl&gt;
+	  <item>Mark J. Taylor &lt;mtaylor@cybernet.com&gt;
 	  <item>Mark Tinguely &lt;tinguely@plains.nodak.edu&gt;
 	    &lt;tinguely@hookie.cs.ndsu.NoDak.edu&gt;
 	  <item>Martin Birgmeier
