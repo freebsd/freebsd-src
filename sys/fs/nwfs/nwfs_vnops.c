@@ -121,7 +121,6 @@ VNODEOP_SET(nwfs_vnodeop_opv_desc);
 
 /*
  * nwfs_access vnode op
- * for now just return ok
  */
 static int
 nwfs_access(ap)
@@ -133,10 +132,8 @@ nwfs_access(ap)
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
-	struct ucred *cred = ap->a_cred;
-	u_int mode = ap->a_mode;
+	mode_t mpmode;
 	struct nwmount *nmp = VTONWFS(vp);
-	int error = 0;
 
 	NCPVNDEBUG("\n");
 	if ((ap->a_mode & VWRITE) && (vp->v_mount->mnt_flag & MNT_RDONLY)) {
@@ -147,15 +144,10 @@ nwfs_access(ap)
 			break;
 		}
 	}
-	if (cred->cr_uid == 0)
-		return 0;
-	if (cred->cr_uid != nmp->m.uid) {
-		mode >>= 3;
-		if (!groupmember(nmp->m.gid, cred))
-			mode >>= 3;
-	}
-	error = (((vp->v_type == VREG) ? nmp->m.file_mode : nmp->m.dir_mode) & mode) == mode ? 0 : EACCES;
-	return error;
+	mpmode = vp->v_type == VREG ? nmp->m.file_mode :
+	    nmp->m.dir_mode;
+        return (vaccess(vp->v_type, mpmode, nmp->m.uid,
+            nmp->m.gid, ap->a_mode, ap->a_cred, NULL));
 }
 /*
  * nwfs_open vnode op
