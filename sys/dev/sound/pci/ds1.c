@@ -798,7 +798,7 @@ ds_init(struct sc_info *sc)
 		pcs = ds_rd(sc, YDSXGR_PLAYCTRLSIZE, 4) << 2;
 		if (pcs == sizeof(struct pbank))
 			break;
-		DELAY(10);
+		DELAY(1000);
 	}
 	if (pcs != sizeof(struct pbank)) {
 		device_printf(sc->dev, "preposterous playctrlsize (%d)\n", pcs);
