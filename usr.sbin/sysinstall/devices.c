@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.44 1996/04/13 13:31:27 jkh Exp $
+ * $Id: devices.c,v 1.45 1996/04/23 01:29:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -70,10 +70,10 @@ static struct {
     { DEVICE_TYPE_DISK, 	"wd",		"IDE/ESDI/MFM/ST506 disk device"			},
     { DEVICE_TYPE_FLOPPY,	"fd0",		"floppy drive unit A"					},
     { DEVICE_TYPE_FLOPPY,	"fd1",		"floppy drive unit B"					},
-    { DEVICE_TYPE_NETWORK,	"cuaa0",	"Serial port (COM1) - possible PPP/SLIP device"		},
-    { DEVICE_TYPE_NETWORK,	"cuaa1",	"Serial port (COM2) - possible PPP/SLIP device"		},
-    { DEVICE_TYPE_NETWORK,	"cuaa2",	"Serial port (COM3) - possible PPP/SLIP device"		},
-    { DEVICE_TYPE_NETWORK,	"cuaa3",	"Serial port (COM4) - possible PPP/SLIP device"		},
+    { DEVICE_TYPE_NETWORK,	"cuaa0",	"Serial port (COM1) configured as %s device"		},
+    { DEVICE_TYPE_NETWORK,	"cuaa1",	"Serial port (COM2) configured as %s device"		},
+    { DEVICE_TYPE_NETWORK,	"cuaa2",	"Serial port (COM3) configured as %s device"		},
+    { DEVICE_TYPE_NETWORK,	"cuaa3",	"Serial port (COM4) configured as %s device"		},
     { DEVICE_TYPE_NETWORK,	"lp0",		"Parallel Port IP (PLIP) using laplink cable"		},
     { DEVICE_TYPE_NETWORK,	"lo",		"Loop-back (local) network interface"			},
     { DEVICE_TYPE_NETWORK,	"sl",		"Serial-line IP (SLIP) interface"			},
@@ -158,18 +158,31 @@ deviceRegister(char *name, char *desc, char *devname, DeviceType type, Boolean e
 
     if (numDevs == DEV_MAX)
 	msgFatal("Too many devices found!");
-    newdev = new_device(name);
-    newdev->description = desc;
-    newdev->devname = devname;
-    newdev->type = type;
-    newdev->enabled = enabled;
-    newdev->init = init ? init : dummyInit;
-    newdev->get = get ? get : dummyGet;
-    newdev->close = close ? close : dummyClose;
-    newdev->shutdown = shutdown ? shutdown : dummyShutdown;
-    newdev->private = private;
-    Devices[numDevs] = newdev;
-    Devices[++numDevs] = NULL;
+    if (!strncmp("cuaa", name, 4)) {
+	char *newdesc;
+
+	/* Serial devices get a slip and ppp device each - trap here and special case the registration */
+	newdesc = safe_malloc(strlen(desc) + 5);
+	sprintf(newdesc, desc, "sl0");
+	(void)deviceRegister("sl0", newdesc, devname, type, enabled, init, get, close, shutdown, private);
+	newdesc = safe_malloc(strlen(desc) + 5);
+	sprintf(newdesc, desc, "ppp0");
+	newdev = deviceRegister("ppp0", newdesc, devname, type, enabled, init, get, close, shutdown, private);
+    }
+    else {
+	newdev = new_device(name);
+	newdev->description = desc;
+	newdev->devname = devname;
+	newdev->type = type;
+	newdev->enabled = enabled;
+	newdev->init = init ? init : dummyInit;
+	newdev->get = get ? get : dummyGet;
+	newdev->close = close ? close : dummyClose;
+	newdev->shutdown = shutdown ? shutdown : dummyShutdown;
+	newdev->private = private;
+	Devices[numDevs] = newdev;
+	Devices[++numDevs] = NULL;
+    }
     return newdev;
 }
 
