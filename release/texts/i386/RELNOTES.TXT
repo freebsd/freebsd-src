@@ -1032,6 +1032,7 @@ Toshiba Mobile HDD MEHDD20A (Type II)
 
 FAX-Modem/PC-Card
 Melco IGM-PCM56K/IGM-PCM56KH
+Nokia Card Phone 2.0 (gsm900/dcs1800 HSCSD terminal)
 
 Digital Cellular/PC-Card
 Panasonic KX-PH405
