@@ -140,21 +140,21 @@ char *argv[];
 	double lat1, long1;
 	double lat2, long2;
 	double lat3, long3;
-	extern int optind;
-	extern char *optarg;
+	extern int ntp_optind;
+	extern char *ntp_optarg;
 
 	progname = argv[0];
-	while ((c = getopt_l(argc, argv, "dh:CWG")) != EOF)
+	while ((c = ntp_getopt(argc, argv, "dh:CWG")) != EOF)
 		switch (c) {
 		case 'd':
 			++debug;
 			break;
 		case 'h':
 			hflag++;
-			height = atof(optarg);
+			height = atof(ntp_optarg);
 			if (height <= 0.0) {
 				(void) fprintf(stderr, "height %s unlikely\n",
-				    optarg);
+					       ntp_optarg);
 				errflg++;
 			}
 			break;
@@ -171,8 +171,8 @@ char *argv[];
 			errflg++;
 			break;
 		}
-	if (errflg || (!(Cflag || Wflag || Gflag) && optind+4 != argc) || 
-            ((Cflag || Wflag || Gflag) && optind+2 != argc)) {
+	if (errflg || (!(Cflag || Wflag || Gflag) && ntp_optind+4 != argc) || 
+            ((Cflag || Wflag || Gflag) && ntp_optind+2 != argc)) {
 		(void) fprintf(stderr,
 		    "usage: %s [-d] [-h height] lat1 long1 lat2 long2\n",
 		    progname);
@@ -185,10 +185,10 @@ char *argv[];
 
 		   
 	if (!(Cflag || Wflag || Gflag)) {
-		lat1 = latlong(argv[optind], 1);
-		long1 = latlong(argv[optind + 1], 0);
-		lat2 = latlong(argv[optind + 2], 1);
-		long2 = latlong(argv[optind + 3], 0);
+		lat1 = latlong(argv[ntp_optind], 1);
+		long1 = latlong(argv[ntp_optind + 1], 0);
+		lat2 = latlong(argv[ntp_optind + 2], 1);
+		long2 = latlong(argv[ntp_optind + 3], 0);
 		if (hflag) {
 			doit(lat1, long1, lat2, long2, height, "");
 		} else {
@@ -201,8 +201,8 @@ char *argv[];
 		/*
 		 * Compute delay from WWV
 	         */
-		lat1 = latlong(argv[optind], 1);
-		long1 = latlong(argv[optind + 1], 0);
+		lat1 = latlong(argv[ntp_optind], 1);
+		long1 = latlong(argv[ntp_optind + 1], 0);
 		lat2 = latlong(wwvlat, 1);
 		long2 = latlong(wwvlong, 0);
 		if (hflag) {
@@ -228,8 +228,8 @@ char *argv[];
 			    "WWVH winter propagation, ");
 		}
 	} else if (Cflag) {
-		lat1 = latlong(argv[optind], 1);
-		long1 = latlong(argv[optind + 1], 0);
+		lat1 = latlong(argv[ntp_optind], 1);
+		long1 = latlong(argv[ntp_optind + 1], 0);
 		lat2 = latlong(chulat, 1);
 		long2 = latlong(chulong, 0);
 		if (hflag) {
@@ -243,8 +243,8 @@ char *argv[];
 	} else if (Gflag) {
 		lat1 = latlong(goes_up_lat, 1);
 		long1 = latlong(goes_up_long, 0);
-		lat3 = latlong(argv[optind], 1);
-		long3 = latlong(argv[optind + 1], 0);
+		lat3 = latlong(argv[ntp_optind], 1);
+		long3 = latlong(argv[ntp_optind + 1], 0);
 
 		lat2 = latlong(goes_sat_lat, 1);
 

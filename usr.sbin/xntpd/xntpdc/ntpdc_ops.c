@@ -442,7 +442,7 @@ printpeer(pp, fp)
 	
 	if (pp->stratum <= 1) {
 		junk[4] = 0;
-		bcopy((char *)&pp->refid, junk, 4);
+		memmove(junk, (char *)&pp->refid, 4);
 		str = junk;
 	} else {
 		str = numtoa(pp->refid);
@@ -788,7 +788,7 @@ sysinfo(pcmd, fp)
 	    ufptoa(NTOHS_FP(is->rootdispersion), 4));
 	if (is->stratum <= 1) {
 		junk[4] = 0;
-		bcopy((char *)&is->refid, junk, 4);
+		memmove(junk, (char *)&is->refid, 4);
 		str = junk;
 	} else {
 		str = numtoa(is->refid);
@@ -2192,7 +2192,7 @@ fudge(pcmd, fp)
 
 
 	err = 0;
-	bzero((char *)&fudgedata, sizeof fudgedata);
+	memset((char *)&fudgedata, 0, sizeof fudgedata);
 	fudgedata.clockadr = pcmd->argval[0].netnum;
 
 	if (STREQ(pcmd->argval[1].string, "time1")) {

@@ -81,7 +81,7 @@ init_restrict()
 	 * Zero the list and put all but one on the free list
 	 */
 	resfree = 0;
-	bzero((char *)resinit, sizeof resinit);
+	memset((char *)resinit, 0, sizeof resinit);
 
 	for (i = 1; i < INITRESLIST; i++) {
 		resinit[i].next = resfree;
@@ -234,7 +234,7 @@ restrict(op, resaddr, resmask, mflags, flags)
 			if (numresfree == 0) {
 				rl = (struct restrictlist *) emalloc(
 				    INCRESLIST*sizeof(struct restrictlist));
-				bzero((char *)rl,
+				memset((char *)rl, 0,
 				    INCRESLIST*sizeof(struct restrictlist));
 
 				for (i = 0; i < INCRESLIST; i++) {
@@ -280,7 +280,7 @@ restrict(op, resaddr, resmask, mflags, flags)
 		    && !(rl->mflags & RESM_INTERFACE)) {
 			rlprev->next = rl->next;
 			restrictcount--;
-			bzero((char *)rl, sizeof(struct restrictlist));
+			memset((char *)rl, 0, sizeof(struct restrictlist));
 
 			rl->next = resfree;
 			resfree = rl;

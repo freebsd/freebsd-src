@@ -1,7 +1,7 @@
 /* numtohost.c,v 3.1 1993/07/06 01:08:40 jbj Exp
  * numtohost - convert network number to host name.
  */
-#include <string.h>
+#include "ntp_types.h"
 #include <netdb.h>
 
 #include "ntp_fp.h"

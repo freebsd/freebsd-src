@@ -30,6 +30,7 @@ static char RCSid[] = "adjtimed.c,v 3.1 1993/07/06 01:04:45 jbj Exp";
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
+#include <sys/lock.h>
 #include <time.h>
 #include <signal.h>
 #include <nlist.h>
@@ -40,8 +41,8 @@ static char RCSid[] = "adjtimed.c,v 3.1 1993/07/06 01:04:45 jbj Exp";
 #include "adjtime.h"
 
 double atof();
-extern int optind;
-extern char *optarg;
+extern int ntp_optind;
+extern char *ntp_optarg;
 
 int InitClockRate();
 int AdjustClockRate();
@@ -80,9 +81,13 @@ main(argc, argv)
 
   progname = argv[0];
 
+#ifdef LOG_LOCAL6
   openlog("adjtimed", LOG_PID, LOG_LOCAL6);
+#else
+  openlog("adjtimed", LOG_PID);
+#endif
 
-  while ((ch = getopt(argc, argv, "hkrvdfp:")) != EOF) {
+  while ((ch = ntp_getopt(argc, argv, "hkrvdfp:")) != EOF) {
     switch (ch) {
     case 'k':
     case 'r':
@@ -112,7 +117,7 @@ main(argc, argv)
       break;
 
     case 'p':
-      if ((RATE = atof(optarg)) <= 0.0 || RATE >= 100.0) {
+      if ((RATE = atof(ntp_optarg)) <= 0.0 || RATE >= 100.0) {
 	fputs("adjtimed: percentage must be between 0.0 and 100.0\n", stderr);
 	exit(1);
       }
@@ -200,6 +205,12 @@ main(argc, argv)
     syslog(LOG_ERR, "get message queue id: %m");
     perror("adjtimed: get message queue id");
     Exit(1);
+  }
+
+  if (plock(PROCLOCK)) {
+      syslog(LOG_ERR, "plock: %m");
+      perror("adjtimed: plock");
+      Cleanup();
   }
 
   for (;;) {

@@ -25,11 +25,11 @@ char *argv[];
 {
 	int c;
 	int errflg = 0;
-	extern int optind;
-	extern char *optarg;
+	extern int ntp_optind;
+	extern char *ntp_optarg;
 
 	progname = argv[0];
-	while ((c = getopt_l(argc, argv, "d")) != EOF)
+	while ((c = ntp_getopt(argc, argv, "d")) != EOF)
 		switch (c) {
 		case 'd':
 			++debug;
@@ -82,8 +82,8 @@ permute(bits, cp, dp)
 	u_char c[28];
 	u_char d[28];
 
-	bzero((char *)c, sizeof c);
-	bzero((char *)d, sizeof d);
+	memset((char *)c, 0, sizeof c);
+	memset((char *)d, 0, sizeof d);
 
 	for (i = 0; i < 28; i++) {
 		c[i] = bits[PC1_C[i]];
@@ -140,7 +140,7 @@ doit()
 	U_LONG d;
 	u_char bits[64];
 
-	bzero((char *)bits, sizeof bits);
+	memset((char *)bits, 0, sizeof bits);
 
 	printf("static U_LONG PC1_CL[8] = {");
 	for (i = 0; i < 4; i++) {

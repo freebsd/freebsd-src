@@ -163,9 +163,9 @@ struct ntp_control {
 #define	CS_SYSTEM	17
 #define	CS_KEYID	18
 #define	CS_REFSKEW	19
-#define	CS_VERSION	20
+#define CS_VARLIST	20
 
-#define	CS_MAXCODE	CS_VERSION
+#define	CS_MAXCODE	CS_VARLIST
 
 /*
  * Peer variables we understand
@@ -204,8 +204,10 @@ struct ntp_control {
 #define	CP_SENT		32
 #define	CP_FILTERROR	33
 #define	CP_FLASH	34
-#define	CP_DISP		35
-#define	CP_MAXCODE	CP_DISP
+#define CP_DISP		35
+#define CP_VARLIST	36
+
+#define	CP_MAXCODE	CP_VARLIST
 
 /*
  * Clock variables we understand
@@ -222,8 +224,9 @@ struct ntp_control {
 #define	CC_FUDGEVAL2	10
 #define	CC_FLAGS	11
 #define	CC_DEVICE	12
+#define CC_VARLIST	13
 
-#define	CC_MAXCODE	CC_DEVICE
+#define	CC_MAXCODE	CC_VARLIST
 
 /*
  * Definition of the structure used internally to hold trap information.

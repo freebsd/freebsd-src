@@ -24,6 +24,7 @@ struct clktype clktypes[] = {
 	{ REFCLK_IRIG_TPRO,	"Odetics/KSI TPRO IRIG decoder (12)", "IRIG_TPRO" },
 	{ REFCLK_ATOM_LEITCH,	"Leitch CSD 5300 controller (13)", "ATOM_LEITCH" },
 	{ REFCLK_MSF_EES,	"MSF EES M201, UK (14)",           "MSF_EES" },
+	{ REFCLK_GPSTM_TRUETIME, "TrueTime GPS/TM-TMD clock (15)", "GPS_TRUE" },
 	{ -1,			"", "" }
 };
 

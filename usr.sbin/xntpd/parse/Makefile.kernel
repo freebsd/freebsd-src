@@ -30,17 +30,22 @@ parse: parsesolaris.c libparse_kernel.a ../lib/libntp.a
 	ld -r -o parse parsesolaris.o libparse_kernel.a ../lib/libntp.a
 	@echo "--- Install 'parse' in /kernel/strmod for automatic loading"
 
-mparsestreams.o: parsestreams.c microtime.o ../lib/libntp.a libparse_kernel.a ../include/parse.h ../include/sys/parsestreams.h
+mparsestreams.o: mparsestreams.o.$(KARCH)
+	@echo "--- You may load mparsestreams.o.$(KARCH) via 'modload mparsestreams.o.$(KARCH)' into the kernel"
+
+mparsestreams.o.$(KARCH): parsestreams.c microtime.o ../lib/libntp.a libparse_kernel.a ../include/parse.h ../include/sys/parsestreams.h
 	cc -c -DMICROTIME $(DEFS) -I../include parsestreams.c
 	ld -r -o $@ parsestreams.o ../lib/libntp.a libparse_kernel.a \
 		    microtime.o
 	rm -f parsestreams.o
-	@echo "--- You may load mparsestreams.o via 'modload mparsestreams.o' into the kernel"
 
-parsestreams.o: parsestreams.c ../lib/libntp.a libparse_kernel.a ../include/parse.h ../include/sys/parsestreams.h
+parsestreams.o: parsestreams.o.$(KARCH)
+	@echo "--- You may load parsestreams.o.$(KARCH) via 'modload parsestreams.o.$(KARCH)' into the kernel"
+
+parsestreams.o.$(KARCH): parsestreams.c ../lib/libntp.a libparse_kernel.a ../include/parse.h ../include/sys/parsestreams.h
 	cc -c $(DEFS) -I../include parsestreams.c
-	ld -r -o $@ $@ ../lib/libntp.a libparse_kernel.a
-	@echo "--- You may load parsestreams.o via 'modload parsestreams.o' into the kernel"
+	ld -r -o $@ parsestreams.o ../lib/libntp.a libparse_kernel.a
+	rm -f parsestreams.o
 
 microtime.o: $(MICROTIME) assym.s
 	cc -E -I. $(MICROTIME) | sed -e '/\.global _uniqtime/d' > $@.i

@@ -66,7 +66,7 @@ TARGETS	= xntpd/xntpd xntpdc/xntpdc ntpq/ntpq ntpdate/ntpdate \
 OPTTARG = adjtime/adjtimed util/ntptime util/precision
 REFCONF=
 COMPRESSOR=compress
-# Base distribution name (will be extended by <VERSION>.tar.<comperssorsuffix>)
+# Base distribution name (will be extended by <VERSION>.tar.<compressorsuffix>)
 DISTNAME=xntp-
 MAKE=	make
 

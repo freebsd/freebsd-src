@@ -15,6 +15,7 @@
  * to its exportable state, copy this file to authdes.c . 
  */
 #include <sys/types.h>
+#include "ntp_stdlib.h"
 
 /*
  * This routine is normally called to compute the key schedule.

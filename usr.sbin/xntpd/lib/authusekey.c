@@ -96,7 +96,7 @@ authusekey(keyno, keytype, str)
 		/*
 		 * Make up key from ascii representation
 		 */
-		bzero((char *) keybytes, sizeof(keybytes));
+		memset((char *) keybytes, 0, sizeof(keybytes));
 		for (i = 0; i < 8 && i < len; i++)
 			keybytes[i] = *cp++ << 1;
 		key[0] = (U_LONG)keybytes[0] << 24 | (U_LONG)keybytes[1] << 16

@@ -1,12 +1,12 @@
 #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS)) && defined(CLOCK_RAWDCF)
 /*
- * /src/NTP/REPOSITORY/v3/parse/clk_rawdcf.c,v 3.7 1993/10/30 09:44:41 kardel Exp
+ * /src/NTP/REPOSITORY/v3/parse/clk_rawdcf.c,v 3.9 1994/01/25 19:05:12 kardel Exp
  *  
- * clk_rawdcf.c,v 3.7 1993/10/30 09:44:41 kardel Exp
+ * clk_rawdcf.c,v 3.9 1994/01/25 19:05:12 kardel Exp
  *
  * Raw DCF77 pulse clock support
  *
- * Copyright (c) 1992,1993
+ * Copyright (c) 1992,1993,1994
  * Frank Kardel Friedrich-Alexander Universitaet Erlangen-Nuernberg
  *                                    
  * This program is distributed in the hope that it will be useful,
@@ -469,7 +469,7 @@ static unsigned LONG pps_rawdcf(parseio, status, ptime)
   register int status;
   register timestamp_t *ptime;
 {
-  if (status == SYNC_ONE)
+  if (!status)
     {
       parseio->parse_dtime.parse_ptime  = *ptime;
       parseio->parse_dtime.parse_state |= PARSEB_PPS|PARSEB_S_PPS;
@@ -529,6 +529,12 @@ static unsigned LONG snt_rawdcf(parseio, ptime)
  * History:
  *
  * clk_rawdcf.c,v
+ * Revision 3.9  1994/01/25  19:05:12  kardel
+ * 94/01/23 reconcilation
+ *
+ * Revision 3.8  1994/01/22  11:24:11  kardel
+ * fixed PPS handling
+ *
  * Revision 3.7  1993/10/30  09:44:41  kardel
  * conditional compilation flag cleanup
  *

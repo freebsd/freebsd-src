@@ -92,6 +92,12 @@ extern	struct refclock		refclock_msfees;
 #define refclock_msfees	refclock_none
 #endif
 
+#if defined(GPSTM) || defined(GPSTMCLK) || defined(GPSTMPPS)
+extern	struct refclock		refclock_gpstm;
+#else
+#define	refclock_gpstm	refclock_none
+#endif
+
 /*
  * Order is clock_start(), clock_shutdown(), clock_poll(),
  * clock_control(), clock_init(), clock_buginfo, clock_flags;
@@ -114,6 +120,7 @@ struct refclock *refclock_conf[] = {
         &refclock_tpro,		/* 12 REFCLK_IRIG_TPRO */
 	&refclock_leitch,	/* 13 REFCLK_ATOM_LEITCH */
 	&refclock_msfees,	/* 14 REFCLK_MSF_EES */
+	&refclock_gpstm,	/* 15 REFCLK_GPSTM_TRUETIME */
 };
 
 u_char num_refclock_conf = sizeof(refclock_conf)/sizeof(struct refclock *);

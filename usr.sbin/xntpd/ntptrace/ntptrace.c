@@ -111,8 +111,8 @@ main(argc, argv)
 	struct server *firstserver;
 	int errflg;
 	int c;
-	extern char *optarg;
-	extern int optind;
+	extern char *ntp_optarg;
+	extern int ntp_optind;
 	extern char *Version;
 
 	errflg = 0;
@@ -121,7 +121,7 @@ main(argc, argv)
 	/*
 	 * Decode argument list
 	 */
-	while ((c = getopt_l(argc, argv, "do:nr:t:v")) != EOF)
+	while ((c = ntp_getopt(argc, argv, "do:nr:t:v")) != EOF)
 		switch (c) {
 		case 'd':
 			++debug;
@@ -130,10 +130,10 @@ main(argc, argv)
 			nonames = 1;
 			break;
 		case 'o':
-			sys_version = atoi(optarg);
+			sys_version = atoi(ntp_optarg);
 			break;
 		case 'r':
-			sys_retries = atoi(optarg);
+			sys_retries = atoi(ntp_optarg);
 			if (sys_retries < 1) {
 			    (void)fprintf(stderr,
 					"%s: retries (%d) too small\n",
@@ -142,7 +142,7 @@ main(argc, argv)
 			}
 			break;
 		case 't':
-			sys_timeout = atoi(optarg);
+			sys_timeout = atoi(ntp_optarg);
 			if (sys_timeout < 1) {
 			    (void)fprintf(stderr,
 					"%s: timeout (%d) too short\n",
@@ -160,7 +160,7 @@ main(argc, argv)
 			break;
 		}
 	
-	if (errflg || (argc - optind) > 1) {
+	if (errflg || (argc - ntp_optind) > 1) {
 		(void) fprintf(stderr,
 			"usage: %s [-vnd] [-r retries] [-t timeout] [server]\n",
 			    progname);
@@ -182,8 +182,8 @@ main(argc, argv)
 	if (debug || verbose)
 		syslog(LOG_NOTICE, "%s", Version);
 
-	if ((argc - optind) == 1)
-		firstserver = addservbyname(argv[optind]);
+	if ((argc - ntp_optind) == 1)
+		firstserver = addservbyname(argv[ntp_optind]);
 	else
 		firstserver = addservbyname("localhost");
 		
@@ -502,7 +502,7 @@ struct in_addr *iap;
 	}
 
 	server = (struct server *)emalloc(sizeof(struct server));
-	bzero((char *)server, sizeof(struct server));
+	memset((char *)server, 0, sizeof(struct server));
 
 	server->srcadr.sin_family = AF_INET;
 	server->srcadr.sin_addr = *iap;
@@ -616,7 +616,7 @@ getipaddr(host, num)
 	if (decodeipaddr(host, num)) {
 		return 1;
 	} else if ((hp = gethostbyname(host)) != 0) {
-		bcopy(hp->h_addr, (char *)num, sizeof(U_LONG));
+		memmove((char *)num, hp->h_addr, sizeof(U_LONG));
 		return 1;
 	}
 	return 0;
@@ -735,7 +735,7 @@ struct server *pp;
 
 	if (pp->stratum == 1) {
 		junk[4] = 0;
-		bcopy((char *)&pp->refid, junk, 4);
+		memmove(junk, (char *)&pp->refid, 4);
 		str = junk;
 		(void) fprintf(fp, "'%s'", str);
 	} else {

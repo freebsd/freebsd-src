@@ -65,8 +65,10 @@ static char rcsid[] =
 #include <termio.h>
 #endif /* HAVE_SYSV_TTYS */
 
-#if defined(STREAM)
+#if defined(HAVE_TERMIOS)
 #include <termios.h>
+#endif
+#if defined(STREAM)
 #include <stropts.h>
 #if defined(MX4200CLK)
 #include <sys/clkdefs.h>
@@ -260,8 +262,8 @@ mx4200_init()
 	/*
 	 * Just zero the data arrays
 	 */
-	bzero((char *)mx4200units, sizeof mx4200units);
-	bzero((char *)unitinuse, sizeof unitinuse);
+	memset((char *)mx4200units, 0, sizeof mx4200units);
+	memset((char *)unitinuse, 0, sizeof unitinuse);
 
 	/*
 	 * Initialize fudge factors to default.
@@ -368,9 +370,9 @@ mx4200_start(unit, peer)
         }
     }
 #endif /* HAVE_SYSV_TTYS */
-#if defined(STREAM)
+#if defined(HAVE_TERMIOS)
 	/*
-	 * POSIX/STREAMS serial line parameters (termios interface)
+	 * POSIX serial line parameters (termios interface)
 	 *
 	 * The MX4200CLK option provides timestamping at the driver level. 
 	 * It requires the tty_clk streams module.
@@ -403,22 +405,24 @@ mx4200_start(unit, peer)
 		    "mx4200_start: tcflush(%s): %m", mx4200dev);
                 goto screwed;
         }
+    }
+#endif /* HAVE_TERMIOS */
+#ifdef STREAM
 #if defined(MX4200CLK)
-	if (ioctl(fd232, I_PUSH, "clk") < 0)
-		syslog(LOG_ERR,
-		    "mx4200_start: ioctl(%s, I_PUSH, clk): %m", mx4200dev);
-	if (ioctl(fd232, CLK_SETSTR, "\n") < 0)
-		syslog(LOG_ERR,
-		    "mx4200_start: ioctl(%s, CLK_SETSTR): %m", mx4200dev);
+    if (ioctl(fd232, I_PUSH, "clk") < 0)
+	    syslog(LOG_ERR,
+		"mx4200_start: ioctl(%s, I_PUSH, clk): %m", mx4200dev);
+    if (ioctl(fd232, CLK_SETSTR, "\n") < 0)
+	    syslog(LOG_ERR,
+		"mx4200_start: ioctl(%s, CLK_SETSTR): %m", mx4200dev);
 #endif /* MX4200CLK */
 #if defined(MX4200PPS)
-	if (ioctl(fd232, I_PUSH, "ppsclock") < 0)
-		syslog(LOG_ERR,
-		    "mx4200_start: ioctl(%s, I_PUSH, ppsclock): %m", mx4200dev);
-	else
-		fdpps = fd232;
+    if (ioctl(fd232, I_PUSH, "ppsclock") < 0)
+	    syslog(LOG_ERR,
+		"mx4200_start: ioctl(%s, I_PUSH, ppsclock): %m", mx4200dev);
+    else
+	    fdpps = fd232;
 #endif /* MX4200PPS */
-    }
 #endif /* STREAM */
 #if defined(HAVE_BSD_TTYS)
 	/*
@@ -482,7 +486,7 @@ mx4200_start(unit, peer)
 		}
 	}
 
-	bzero((char *)mx4200, sizeof(struct mx4200unit));
+	memset((char *)mx4200, 0, sizeof(struct mx4200unit));
 	mx4200units[unit] = mx4200;
 
 	/*
@@ -508,7 +512,7 @@ mx4200_start(unit, peer)
 	peer->rootdispersion = 0;
 	peer->stratum = stratumtouse[unit];
 	if (stratumtouse[unit] <= 1)
-		bcopy(MX4200REFID, (char *)&peer->refid, 4);
+		memmove((char *)&peer->refid, MX4200REFID, 4);
 	else
 		peer->refid = htonl(MX4200HSREFID);
 	unitinuse[unit] = 1;
@@ -697,7 +701,7 @@ mx4200_receive(rbufp)
 	if (n <= 1)
 		return;
 	mx4200->lencode = n;
-	bcopy(dpt, mx4200->lastcode, n);
+	memmove(mx4200->lastcode, dpt, n);
 
 	/*
 	 * We expect to see something like:
@@ -1047,8 +1051,8 @@ mx4200_control(unit, in, out)
 				peer = mx4200->peer;
 				peer->stratum = stratumtouse[unit];
 				if (stratumtouse[unit] <= 1)
-					bcopy(MX4200REFID, (char *)&peer->refid,
-					    4);
+					memmove((char *)&peer->refid,
+						MX4200REFID, 4);
 				else
 					peer->refid = htonl(MX4200HSREFID);
 			}
@@ -1111,7 +1115,7 @@ mx4200_buginfo(unit, bug)
 		return;
 	mx4200 = mx4200units[unit];
 
-	bzero((char *)bug, sizeof(*bug));
+	memset((char *)bug, 0, sizeof(*bug));
 	bug->nvalues = 10;
 	bug->ntimes = 2;
 	if (mx4200->lasttime != 0)
@@ -1207,7 +1211,7 @@ mx4200_parse(buf, jt, validp, leapsecp)
 	char *cp;
 
 	cp = buf;
-	bzero((char *)jt, sizeof(*jt));
+	memset((char *)jt, 0, sizeof(*jt));
 
 	if ((cp = strchr(cp, ',')) == NULL)
 		return ("no rec-type");

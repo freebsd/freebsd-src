@@ -16,20 +16,20 @@ the subdirectories contain README files describing their contents. The
 base directory ./ includes:
 
 COPYRIGHT       file specifying copyright conditions, together with a
-                list of major authors and electric addresses
+                list of major authors and electric addresses.
 
 Config          * configuration file built by the configuration script
-                "make makeconfig" and used to buile the makefiles in the
+                "make makeconfig" and used to build the makefiles in the
                 various subdirectories. Do not edit.
 
 Config.local    * Unless you have a reference clock (besides the local
-		computer clock) or want to change the default installlation
+		computer clock) or want to change the default installation
 		directory (/usr/local/bin) not action is needed. For
 		configuring a reference clock a "make refconf" should
 		suffice. Diehards can still use an editor on this file.
 
 Config.local.dist file used to generate a plausible Config.local by commands
-		such as "make Config.local.green"
+		such as "make Config.local.green".
 
 Config.sed      * sed script used to build makefiles from the
                 configuration file. Do not edit.
@@ -38,17 +38,17 @@ Makefile        this is the root of the makefile tree. Do not edit.
 		(Contents under pressure - qualified personel only 8-)
 
 PORTING         contains useful information for porting to unexplored
-                new systems
+                new systems.
 
 RELNOTES        instructions for compiling and installing the daemon and
-                supporting programs
+                supporting programs.
 
-README          this file
+README          this file.
 
 TODO		our current problems where we could need help.
 
 adjtime         directory containing the sources for the adjtime daemon
-                for HP/UX systems
+                for HP/UX systems.
 
 authstuff       directory containing sources for miscellaneous programs
                 to test, calibrate and certify the cryptographic
@@ -61,44 +61,39 @@ clockstuff      directory containing sources for miscellaneous programs
                 kernel configurations, together with a program to
                 calculate propagation delays for use with radio clocks
                 and national time dissemination services such as
-                WWV/WWVH, WWVB and CHU
+                WWV/WWVH, WWVB and CHU.
 
 compilers       directory containing configuration scripts for various
-                compilers and operating systems
+                compilers and operating systems.
 
 conf            directory containing a motley collection of
                 configuration files for various systems. For example
                 only.
 
 doc             directory containing miscellaneous man pages and memos
-                useful for installation and subnet management
+                useful for installation and subnet management.
 
 gadget          directory containing instructions and construction data
                 for a mysterious little box used as a CHU radio
                 demodulator and/or a level converter-pulse generator for
-                a precision 1-pps signal
+                a precision 1-pps signal.
 
 include         directory containing include header files used by most
-                programs in the distribution
+                programs in the distribution.
 
 hints		directory containing files with hints on particular
 		topics like installation on specific OS variants or
-		general information
-
-historical.tar.Z
-		tar file with stuff believed to be old. If you find things
-		in there that are helpful for the current release, please
-		send email to mills@udel.edu.
+		general information.
 
 kernel          directory containing sources for kernel programs such as
                 line disciplines and STREAMS modules used with the CHU
-                decoder and precision 1-pps signals
+                decoder and precision 1-pps signals.
 
 lib             directory containing sources for the library programs
-                used by most programs in the distribution
+                used by most programs in the distribution.
 
 machines        directory containing configuration scripts for various
-                operating systems
+                operating systems.
 
 ntpdate         directory containing sources for a program to set the
                 local machine time from one or more remote machines
@@ -114,17 +109,17 @@ ntpq            directory containing sources for a utility program to
 ntptrace        directory containing sources for a utility program that
                 can be used to reveal the chain of NTP peers from a
                 designated peer to the primary server at the root of the
-                timekeeping subnet
+                timekeeping subnet.
 
 parse		directory containing file belonging to the generic parse
-		reference clock driver. for reasonable simple clocks it
+		reference clock driver. For reasonably simple clocks it
 		is possible to get away with about 3-4Kb of code.
 		additionally the SunOS 4.x streams module for parse is
 		residing here.
 
 parse/util	some goodies for testing parse processing of DCF77 information.
-		(primarily for use on Suns / although others may work
-		also - possibly with a little porting)
+		(primarily for use on Suns, although others may work
+		also - possibly with a little porting.)
 		one little gem is dcfd.c - DCF77 decoder with ntp loopfilter
 		code for standalone DCF77 synchronisation without the full
 		works of NTP.
@@ -135,9 +130,6 @@ ppsclock        directory containing sources for modifications to the
                 4.1.X systems only.
 
 refclocks	directory containing reference clock configuration support
-		the file in here are still experimental. Do not expect them
-		to work flawlessly on all architectures. the coded dependencies
-		might not even be correct.
 
 scripts         directory containing scripts to build the configuration
                 file "config" in this directory and then the makefiles
@@ -147,10 +139,9 @@ scripts         directory containing scripts to build the configuration
 		and daemon startup.
 
 util            directory containing sources for various utility and
-                testing programs
+                testing programs.
 
-xntpd           directory containing sources for the NTP Version 3
-                daemon
+xntpd           directory containing sources for the NTP Version 3 daemon.
 
 xntpdc          directory containing sources for a utility program to
                 query local and remote NTP peers for state variables and
@@ -160,4 +151,4 @@ xntpdc          directory containing sources for a utility program to
                 Specification RFC 1305.
 
 xntpres         directory containing sources for a name-resolution
-                program used in some configurations of NTP Version 3
+                program used in some configurations of NTP Version 3.
