@@ -119,7 +119,6 @@ MAC_TEST	opt_dontuse.h
 MD_ROOT		opt_md.h
 MD_ROOT_SIZE	opt_md.h
 NDGBPORTS	opt_dgb.h
-NSWAPDEV	opt_swap.h
 NSWBUF_MIN	opt_swap.h
 NTIMECOUNTER	opt_ntp.h
 PANIC_REBOOT_WAIT_TIME	opt_panic.h
