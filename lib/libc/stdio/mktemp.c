@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mktemp.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id: mktemp.c,v 1.7 1997/04/07 18:01:10 guido Exp $";
+		"$Id: mktemp.c,v 1.8 1998/02/13 02:13:24 imp Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -48,7 +48,9 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <unistd.h>
 
-static int _gettemp(char *, int *, int);
+char *_mktemp __P((char *));
+
+static int _gettemp __P((char *, int *, int));
 
 int
 mkstemp(path)
@@ -65,8 +67,6 @@ mkdtemp(path)
 {
 	return(_gettemp(path, (int *)NULL, 1) ? path : (char *)NULL);
 }
-
-char *_mktemp(char *);
 
 char *
 _mktemp(path)
@@ -120,13 +120,14 @@ _gettemp(path, doopen, domkdir)
 			c = (pid - 26) + 'a';
 		*trv-- = c;
 	}
+	start = trv + 1;
 
 	/*
 	 * check the target directory; if you have six X's and it
 	 * doesn't exist this runs for a *very* long time.
 	 */
 	if (doopen || domkdir) {
-		for (start = trv + 1;; --trv) {
+		for (;; --trv) {
 			if (trv <= path)
 				break;
 			if (*trv == '/') {
