@@ -82,7 +82,7 @@ yp_passwd(char *user)
 	pw = (struct passwd *)&yp_password;
 
 	if (pw->pw_uid != uid && uid != 0) {
-		warnx("Only the super-user may change account information \
+		warnx("only the super-user may change account information \
 for other users");
 		return(1);
 	}
@@ -129,7 +129,7 @@ for other users");
 		yppasswd.oldpass = strdup(getpass("Old Password: "));
 		if (strcmp(crypt(yppasswd.oldpass, pw->pw_passwd),
 							pw->pw_passwd)) {
-			errx(1, "Sorry.");
+			errx(1, "sorry");
 		}
 
 	}
@@ -172,7 +172,7 @@ for other users");
 
 	if ((!suser_override && err.re_status != RPC_SUCCESS) ||
 						status == NULL || *status) {
-		errx(1, "Failed to change NIS password: %s", 
+		errx(1, "failed to change NIS password: %s", 
 			(err.re_status != RPC_SUCCESS && !suser_override) ?
 			clnt_sperrno(err.re_status) :
 			"rpc.yppasswdd returned error status");
