@@ -913,7 +913,7 @@ DMenu MenuDistributions = {
     "distributions",
     { { "X Exit", "Exit this menu (returning to previous)",
 	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
-      { "All",			"All system sources, binaries and X Window System)",
+      { "All",			"All system sources, binaries and X Window System",
 	checkDistEverything,	distSetEverything, NULL, NULL, ' ', ' ', ' ' },
       { "Reset",		"Reset selected distribution list to nothing",
 	NULL,			distReset, NULL, NULL, ' ', ' ', ' ' },
