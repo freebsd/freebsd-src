@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -74,8 +76,8 @@ long
 telldir(dirp)
 	const DIR *dirp;
 {
-	register int index;
-	register struct ddloc *lp;
+	int index;
+	struct ddloc *lp;
 
 	if ((lp = (struct ddloc *)malloc(sizeof(struct ddloc))) == NULL)
 		return (-1);
@@ -95,11 +97,11 @@ telldir(dirp)
  */
 void
 _seekdir(dirp, loc)
-	register DIR *dirp;
+	DIR *dirp;
 	long loc;
 {
-	register struct ddloc *lp;
-	register struct ddloc **prevlp;
+	struct ddloc *lp;
+	struct ddloc **prevlp;
 	struct dirent *dp;
 
 	prevlp = &dd_hash[LOCHASH(loc)];
@@ -134,10 +136,10 @@ found:
  */
 void
 _reclaim_telldir(dirp)
-	register const DIR *dirp;
+	const DIR *dirp;
 {
-	register struct ddloc *lp;
-	register struct ddloc **prevlp;
+	struct ddloc *lp;
+	struct ddloc **prevlp;
 	int i;
 
 	for (i = 0; i < NDIRHASH; i++) {
