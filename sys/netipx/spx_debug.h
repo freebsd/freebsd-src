@@ -56,7 +56,7 @@ struct	spx_debug {
 #define	SA_DROP		4
 
 #ifdef SANAMES
-char	*spxnames[] =
+const char *spxnames[] =
     { "input", "output", "user", "respond", "drop" };
 #endif
 
