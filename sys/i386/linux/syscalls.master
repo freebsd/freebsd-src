@@ -297,7 +297,7 @@
 221	MSTD	{ int linux_fcntl64(l_uint fd, l_uint cmd, l_ulong arg); }
 222	UNIMPL
 223	UNIMPL
-224	UNIMPL	linux_gettid
+224	STD	{ long linux_gettid(void); }
 225	UNIMPL	linux_readahead
 226	STD	{ int linux_setxattr(void); }
 227	STD	{ int linux_lsetxattr(void); }
@@ -311,12 +311,12 @@
 235	STD	{ int linux_removexattr(void); }
 236	STD	{ int linux_lremovexattr(void); }
 237	STD	{ int linux_fremovexattr(void); }
-238	UNIMPL	linux_tkill
+238	STD	{ int linux_tkill(int tid, int sig); }
 239	UNIMPL	linux_sendfile64
 240	UNIMPL	linux_futex
 241	UNIMPL	linux_sched_setaffinity
 242	UNIMPL	linux_sched_getaffinity
-243	UNIMPL	linux_set_thread_area
+243	STD	{ int linux_set_thread_area(void *entry); }
 244	UNIMPL	linux_get_thread_area
 245	UNIMPL	linux_io_setup
 246	UNIMPL	linux_io_destroy
