@@ -330,7 +330,7 @@ spx_input(m, ipxp)
 		m_freem(m);
 	}
 	if (cb->s_force || (cb->s_flags & (SF_ACKNOW|SF_WIN|SF_RXT)))
-		spx_output(cb, (struct mbuf *)NULL);
+		spx_output(cb, NULL);
 	cb->s_flags &= ~(SF_WIN|SF_RXT);
 	return;
 
@@ -411,7 +411,7 @@ register struct spx *si;
 				cb->s_snxt = si->si_ack;
 				cb->s_cwnd = CUNIT;
 				cb->s_force = 1 + SPXT_REXMT;
-				spx_output(cb, (struct mbuf *)NULL);
+				spx_output(cb, NULL);
 				cb->s_timer[SPXT_REXMT] = cb->s_rxtcur;
 				cb->s_rtt = 0;
 				if (cwnd >= 4 * CUNIT)
@@ -533,11 +533,19 @@ update_window:
 				return (0);
 			} /* else queue this packet; */
 		} else {
+#ifdef BROKEN
+			/*
+			 * XXXRW: This is broken on at least one count:
+			 * spx_close() will free the ipxp and related parts,
+			 * which are then touched by spx_input() after the
+			 * return from spx_reass().
+			 */
 			/*register struct socket *so = cb->s_ipxpcb->ipxp_socket;
 			if (so->so_state && SS_NOFDREF) {
 				spx_close(cb);
 			} else
 				       would crash system*/
+#endif
 			spx_istat.notyet++;
 			m_freem(dtom(si));
 			return (0);
@@ -703,7 +711,7 @@ spx_output(cb, m0)
 {
 	struct socket *so = cb->s_ipxpcb->ipxp_socket;
 	register struct mbuf *m;
-	register struct spx *si = (struct spx *)NULL;
+	register struct spx *si = NULL;
 	register struct sockbuf *sb = &so->so_snd;
 	int len = 0, win, rcv_win;
 	short span, off, recordp = 0;
@@ -1081,7 +1089,7 @@ send:
 			spx_trace(SA_OUTPUT, cb->s_state, cb, si, 0);
 
 		if (so->so_options & SO_DONTROUTE)
-			error = ipx_outputfl(m, (struct route *)NULL, IPX_ROUTETOIF);
+			error = ipx_outputfl(m, NULL, IPX_ROUTETOIF);
 		else
 			error = ipx_outputfl(m, &cb->s_ipxpcb->ipxp_route, 0);
 	}
@@ -1393,7 +1401,7 @@ spx_connect(so, nam, td)
 
 	s = splnet();
 	if (ipxp->ipxp_lport == 0) {
-		error = ipx_pcbbind(ipxp, (struct sockaddr *)NULL, td);
+		error = ipx_pcbbind(ipxp, NULL, td);
 		if (error)
 			goto spx_connect_end;
 	}
@@ -1416,7 +1424,7 @@ spx_connect(so, nam, td)
 	 * cb->s_dport.
 	 */
 	ipxp->ipxp_fport = 0;
-	error = spx_output(cb, (struct mbuf *)NULL);
+	error = spx_output(cb, NULL);
 spx_connect_end:
 	splx(s);
 	return (error);
@@ -1480,7 +1488,7 @@ spx_listen(so, td)
 	cb = ipxtospxpcb(ipxp);
 
 	if (ipxp->ipxp_lport == 0)
-		error = ipx_pcbbind(ipxp, (struct sockaddr *)NULL, td);
+		error = ipx_pcbbind(ipxp, NULL, td);
 	if (error == 0)
 		cb->s_state = TCPS_LISTEN;
 	return (error);
@@ -1504,7 +1512,7 @@ spx_rcvd(so, flags)
 
 	s = splnet();
 	cb->s_flags |= SF_RVD;
-	spx_output(cb, (struct mbuf *)NULL);
+	spx_output(cb, NULL);
 	cb->s_flags &= ~SF_RVD;
 	splx(s);
 	return (0);
@@ -1595,7 +1603,7 @@ spx_shutdown(so)
 	socantsendmore(so);
 	cb = spx_usrclosed(cb);
 	if (cb != NULL)
-		error = spx_output(cb, (struct mbuf *)NULL);
+		error = spx_output(cb, NULL);
 	splx(s);
 	return (error);
 }
@@ -1674,7 +1682,7 @@ spx_close(cb)
 	soisdisconnected(so);
 	ipx_pcbdetach(ipxp);
 	spxstat.spxs_closed++;
-	return ((struct spxpcb *)NULL);
+	return (NULL);
 }
 
 /*
@@ -1738,7 +1746,7 @@ spx_fasttimo()
 			cb->s_flags &= ~SF_DELACK;
 			cb->s_flags |= SF_ACKNOW;
 			spxstat.spxs_delack++;
-			spx_output(cb, (struct mbuf *)NULL);
+			spx_output(cb, NULL);
 		}
 	}
 
@@ -1849,7 +1857,7 @@ spx_timers(cb, timer)
 			win = 2;
 		cb->s_cwnd = CUNIT;
 		cb->s_ssthresh = win * CUNIT;
-		spx_output(cb, (struct mbuf *)NULL);
+		spx_output(cb, NULL);
 		break;
 
 	/*
@@ -1859,7 +1867,7 @@ spx_timers(cb, timer)
 	case SPXT_PERSIST:
 		spxstat.spxs_persisttimeo++;
 		spx_setpersist(cb);
-		spx_output(cb, (struct mbuf *)NULL);
+		spx_output(cb, NULL);
 		break;
 
 	/*
@@ -1874,7 +1882,7 @@ spx_timers(cb, timer)
 		    	if (cb->s_idle >= SPXTV_MAXIDLE)
 				goto dropit;
 			spxstat.spxs_keepprobe++;
-			spx_output(cb, (struct mbuf *)NULL);
+			spx_output(cb, NULL);
 		} else
 			cb->s_idle = 0;
 		cb->s_timer[SPXT_KEEP] = SPXTV_KEEP;
