@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.35 1997/03/31 14:52:50 peter Exp $
+	$Id: syscalls.master,v 1.36 1997/05/07 16:05:34 dfr Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -327,11 +327,15 @@
 ; here allows to avoid one in libc/sys/Makefile.inc.
 203	STD	BSD	{ int mlock(caddr_t addr, size_t len); }
 204	STD	BSD	{ int munlock(caddr_t addr, size_t len); }
+; big problem here. Lite2, NetBSD and OpenBSD have syscall 205 as undelete()
+; we should move utrace before it's too late.
 205	STD	BSD	{ int utrace(caddr_t addr, size_t len); }
+; problem here. NetBSD/OpenBSD have syscall 206 as futimes()
 206	STD	BSD	{ int undelete(char *path); }
-207	UNIMPL	NOHIDE	nosys
-208	UNIMPL	NOHIDE	nosys
-209	UNIMPL	NOHIDE	nosys
+207	UNIMPL	NOHIDE	getpgid (NetBSD)
+208	UNIMPL	NODIDE	newreboot (NetBSD)
+; problem. NetBSD and OpenBSD have a different syscall number for poll()
+209	UNIMPL	NOHIDE	poll2 (NetBSD, OpenBSD used 252 first)
 
 ;
 ; The following are reserved for loadable syscalls
@@ -369,15 +373,19 @@
 230	STD	BSD	{ int shmdt(void *shmaddr); }
 231	STD	BSD	{ int shmget(key_t key, int size, int shmflg); }
 ;
-232	UNIMPL	NOHIDE	nosys
-233	UNIMPL	NOHIDE	nosys
-234	UNIMPL	NOHIDE	nosys
-235	UNIMPL	NOHIDE	nosys
-236	UNIMPL	NOHIDE	nosys
-237	UNIMPL	NOHIDE	nosys
-238	UNIMPL	NOHIDE	nosys
-239	UNIMPL	NOHIDE	nosys
-240	UNIMPL	NOHIDE	nosys
+232	STD	POSIX	{ int clock_gettime(clockid_t clock_id, \
+			    struct timespec *tp); }
+233	STD	POSIX	{ int clock_settime(clockid_t clock_id, \
+			    const struct timespec *tp); }
+234	STD	POSIX	{ int clock_getres(clockid_t clock_id, \
+			    struct timespec *tp); }
+235	UNIMPL	NOHIDE	timer_create
+236	UNIMPL	NOHIDE	timer_delete
+237	UNIMPL	NOHIDE	timer_settime
+238	UNIMPL	NOHIDE	timer_gettime
+239	UNIMPL	NOHIDE	timer_getoverrun
+240	STD	POSIX	{ int nanosleep(const struct timespec *rqtp, \
+			    struct timespec *rmtp); }
 241	UNIMPL	NOHIDE	nosys
 242	UNIMPL	NOHIDE	nosys
 243	UNIMPL	NOHIDE	nosys
@@ -390,7 +398,7 @@
 ; syscall numbers initially used in OpenBSD
 250	STD	BSD	{ int minherit(caddr_t addr, size_t len, int inherit); }
 251	STD	BSD	{ int rfork(int flags); }
-252	UNIMPL	NOHIDE	poll (OpenBSD)
+252	UNIMPL	NOHIDE	poll (OpenBSD syscall number)
 253	STD	BSD	{ int issetugid(void); }
 254	STD	BSD	{ int lchown(char *path, int uid, int gid); }
 255	UNIMPL	NOHIDE	nosys
@@ -449,3 +457,7 @@
 307	STD	BSD	{ int kldnext(int fileid); }
 308	STD	BSD	{ int kldstat(int fileid, struct kld_file_stat* stat); }
 309	STD	BSD	{ int kldfirstmod(int fileid); }
+310	UNIMPL	NOHIDE	getsid
+311	UNIMPL	NOHIDE	setresuid
+312	UNIMPL	NOHIDE	setresgid
+; utrace should be moved here.
