@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.56 1998/02/26 03:21:41 kato Exp $
+#	$Id: files.pc98,v 1.57 1998/03/14 02:31:00 kato Exp $
 #
 #
 # The long compile-with and dependency lines are required because of
@@ -169,8 +169,8 @@ i386/isa/rp.c			optional	rp	device-driver
 i386/isa/scd.c			optional	scd	device-driver
 i386/isa/seagate.c		optional	sea	device-driver
 i386/isa/si.c			optional	si	device-driver
-i386/isa/si_code.c		optional	si	device-driver
-i386/isa/si_jet.c		optional	si	device-driver
+i386/isa/si2_z280.c		optional	si	device-driver
+i386/isa/si3_t225.c		optional	si	device-driver
 pc98/pc98/sio.c			optional	sio	device-driver
 #i386/isa/snd/sound.c		optional	pcm	device-driver
 #i386/isa/snd/dmabuf.c		optional	pcm	device-driver
