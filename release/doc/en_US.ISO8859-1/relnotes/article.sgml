@@ -812,20 +812,20 @@
 
       <para>A new <literal>GEOM_STRIPE</literal>
 	class which implements RAID0 transformation has been added.
-	This class has two modes: <quote>FAST</quote> and
-	<quote>ECONOMIC</quote>.  In the <quote>FAST</quote> mode,
+	This class has two modes: <quote>fast</quote> and
+	<quote>economic</quote>.  In fast mode,
 	when very small stripe size is used, only one I/O request
-	will be send to every disks in stripe, and it is about 10
-	times faster for small stripe size than <quote>ECONOMIC</quote>
+	will be sent to every disk in a stripe; it performs about 10
+	times faster for small stripe sizes than economic
 	mode and other RAID0 implementations.
-	While this <quote>FAST</quote> mode is used by default,
-	because this mode consumes some more memory,
-	<quote>ECONOMIC</quote> mode which sends requests each time,
-	can be enabled by setting a loader tunable
+	While fast mode is used by default,
+	it consumes more memory than
+	economic mode, which sends requests each time.
+	Economic mode can be enabled by setting a loader tunable
 	<varname>kern.geom.stripe.fast</varname> to 0.
-	It is also possible to setup maximum memory
-	which <quote>FAST</quote> mode can consume,
-	by setting a loader tunable
+	It is also possible to specify the maximum memory
+	that fast mode can consume,
+	by setting the loader tunable
 	<varname>kern.geom.stripe.maxmem</varname>.</para>
 
       <para>GEOM Gate, which consists of a new <literal>GEOM_GATE</literal>
@@ -860,15 +860,15 @@
 	if the server requires it; this may eventually become an
 	option to &man.mount.smbfs.8;.</para>
 
-      <para>A kernel option <literal>options MSDOSFS_LARGE</literal>
+      <para>The <literal>options MSDOSFS_LARGE</literal> kernel option
 	has been added to support for FAT32 filesystems bigger
-	than 128GB.  This is not enabled by default, and note
-	that this uses at least 32 bytes of kernel memory for
-	each file on disk, but this is only safe to use in certain
-	controlled situations such as read-only mount
+	than 128GB.  This option is disabled by default.  It
+	uses at least 32 bytes of kernel memory for
+	each file on disk; furthermore it is only safe to use in certain
+	controlled situations, such as read-only mount
 	with less than 1 million files and so on.
-	And this does not support exporting these large filesystems
-	over NFS.</para>
+	Exporting these large filesystems
+	over NFS is not supported.</para>
     </sect3>
 
     <sect3 id="mm">
@@ -1520,7 +1520,7 @@
       has been updated from 3.1.4 to 3.2.3.</para>
 
     <para>The <filename role="package">security/portaudit</filename> utility
-      now exists in the ports collection.  This utility will read a database
+      has been added to the &os; Ports Collection.  This utility will read a database
       containing known ports vulnerabilities and report them to the
       administrator.</para>
   </sect2>
