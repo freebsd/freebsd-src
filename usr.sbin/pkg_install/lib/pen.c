@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: pen.c,v 1.13.4.2 1995/10/09 11:16:31 jkh Exp $";
+static const char *rcsid = "$Id: pen.c,v 1.13.4.3 1995/10/14 19:11:46 jkh Exp $";
 #endif
 
 /*
@@ -53,7 +53,7 @@ find_play_pen(char *pen, size_t sz)
 	strcpy(pen, "/var/tmp/instmp.XXXXXX");
     else if (stat("/tmp", &sb) != FAIL && min_free("/tmp") >= sz)
 	strcpy(pen, "/tmp/instmp.XXXXXX");
-    else if ((stat("/usr/tmp", &sb) == SUCCESS | mkdir("/usr/tmp", 01777) == SUCCESS) && min_free("/usr/tmp") >= sz)
+    else if ((stat("/usr/tmp", &sb) == SUCCESS || mkdir("/usr/tmp", 01777) == SUCCESS) && min_free("/usr/tmp") >= sz)
 	strcpy(pen, "/usr/tmp/instmp.XXXXXX");
     else {
 	barf("Can't find enough temporary space to extract the files, please set\n"
