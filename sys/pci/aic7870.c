@@ -1,6 +1,6 @@
 /*
  * Product specific probe and attach routines for:
- *      2940, aic7870, and aic7850 motherboard SCSI controllers
+ *      3940, 2940, aic7870, and aic7850 SCSI controllers
  *
  * Copyright (c) 1995 Justin T. Gibbs
  * All rights reserved.
@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7870.c,v 1.12 1995/07/04 21:21:33 gibbs Exp $
+ *	$Id: aic7870.c,v 1.13 1995/08/20 03:18:09 gibbs Exp $
  */
 
 #include <pci.h>
@@ -40,10 +40,24 @@
 #define PCI_DEVICE_ID_ADAPTEC_AIC7870	0x70789004ul
 #define PCI_DEVICE_ID_ADAPTEC_AIC7850	0x50789004ul
 
+#define	DEVCONFIG		0x40
+#define		MPORTMODE	0x00000400ul	/* aic7870 only */
+#define		RAMPSM		0x00000200ul	/* aic7870 only */
+#define		VOLSENSE	0x00000100ul
+#define		DEVCONFIG7	0x00000080ul
+#define		MRDCEN		0x00000040ul
+#define		EXTSCBTIME	0x00000020ul	/* aic7870 only */
+#define		EXTSCBPEN	0x00000010ul	/* aic7870 only */
+#define		BERREN		0x00000008ul
+#define		DACEN		0x00000004ul
+#define		STPWLEVEL	0x00000002ul
+#define		DIFACTNEGEN	0x00000001ul	/* aic7870 only */
+
 static char* aic7870_probe __P((pcici_t tag, pcidi_t type));
 void aic7870_attach __P((pcici_t config_id, int unit));
 
 static u_long aic7870_count;
+static u_char aic3940_count;
 
 struct  pci_device ahc_device = {
 	"ahc",
@@ -86,6 +100,7 @@ aic7870_attach(config_id, unit)
 	u_long io_port;
 	unsigned opri = 0;
 	ahc_type ahc_t = AHC_NONE;
+	ahc_flag ahc_f = AHC_FNONE;
         if(!(io_port = pci_conf_read(config_id, PCI_BASEADR0)))
 		return;
 	/*
@@ -96,9 +111,13 @@ aic7870_attach(config_id, unit)
 	 */
 	io_port -= 0xc01ul;
 
-	switch (pci_conf_read (config_id, PCI_ID_REG)) {
+	switch (pci_conf_read(config_id, PCI_ID_REG)) {
 		case PCI_DEVICE_ID_ADAPTEC_3940:
 			ahc_t = AHC_394;
+			aic3940_count++;
+			if(!(aic3940_count & 0x01))
+				/* Even count implies second channel */
+				ahc_f |= AHC_CHNLB;
 			break;
 		case PCI_DEVICE_ID_ADAPTEC_2940:
 			ahc_t = AHC_294;
@@ -113,7 +132,19 @@ aic7870_attach(config_id, unit)
 			break;
 	}
 
-	if(ahcprobe(unit, io_port, ahc_t)){
+	if(ahc_t & AHC_AIC7870){
+		u_long devconfig = pci_conf_read(config_id, DEVCONFIG);
+		if(devconfig & RAMPSM) {
+			/*
+			 * External SRAM present.  Have the probe walk
+			 * the SCBs to see how much SRAM we have and set
+			 * the number of SCBs accordingly.
+			 */
+			ahc_f |= AHC_EXTSCB;
+		}
+	}
+
+	if(ahcprobe(unit, io_port, ahc_t, ahc_f)){
 		ahc_unit++;
 		/*
 		 * To be compatible with the isa style of
