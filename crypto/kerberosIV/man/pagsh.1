@@ -5,18 +5,21 @@
 .Os KTH-KRB
 .Sh NAME
 .Nm pagsh
-.Nd
-execute a command without authentication
+.Nd execute a command without authentication
 .Sh SYNOPSIS
 .Nm pagsh
-.Op Oo Fl c Oc Nm command Ar args
+.Oo
+.Op Fl c
+.Ar command Ar args
+.Oc
 .Sh DESCRIPTION
 Starts a new subprocess that is detached from any Kerberos ticket
-cache and AFS tokens. Without
-.Nm command
+cache and AFS tokens.
+Without
+.Ar command
 a new shell is started.
 .Sh ENVIRONMENT
-.Bl -tag -width Fl
+.Bl -tag -width $SHELL
 .It Ev $SHELL
 Default shell.
 .El

@@ -95,7 +95,7 @@ has been compiled with support for the
 .Dv AUTHENTICATION
 option.
 There are several valid values for
-.Ar authmode:
+.Ar authmode :
 .Bl -tag -width debug
 .It debug
 Turns on authentication debugging code.
@@ -153,7 +153,7 @@ to the connection, allowing the user to see what
 .Nm telnetd
 is doing.
 There are several possible values for 
-.Ar debugmode:
+.Ar debugmode :
 .Bl -tag -width exercise
 .It Cm options
 Prints information about the negotiation of
@@ -166,7 +166,7 @@ information, plus some additional information
 about what processing is going on.
 .It Cm netdata
 Displays the data stream received by
-.Nm telnetd.
+.Nm telnetd .
 .It Cm ptydata
 Displays data written to the pty.
 .It Cm exercise
@@ -194,12 +194,12 @@ be reached may be cleaned up.
 This option is only enabled when
 .Nm telnetd
 is compiled for
-.Dv UNICOS.
+.Dv UNICOS .
 It specifies an inclusive range of pseudo-terminal devices to
 use.  If the system has sysconf variable
 .Dv _SC_CRAY_NPTY
 configured, the default pty search range is 0 to
-.Dv _SC_CRAY_NPTY;
+.Dv _SC_CRAY_NPTY ;
 otherwise, the default range is 0 to 128.  Either
 .Ar lowpty
 or
@@ -298,7 +298,9 @@ DO TIMING-MARK
 .Ed
 .Pp
 The pseudo-terminal allocated to the client is configured
-to operate in \*(lqcooked\*(rq mode, and with
+to operate in
+.Dq cooked
+mode, and with
 .Dv XTABS and
 .Dv CRMOD
 enabled (see
@@ -336,7 +338,7 @@ Indicates that the client is willing to send a
 of the Network Virtual Terminal.
 .It "WILL SGA"
 Indicates that it will not be sending
-.Dv IAC GA,
+.Dv IAC GA ,
 go ahead, commands.
 .It "WILL STATUS"
 Indicates a willingness to send the client, upon
@@ -382,7 +384,7 @@ characters remotely.
 This is not really supported, but is sent to identify a 4.2BSD
 .Xr telnet 1
 client, which will improperly respond with
-.Dv WILL ECHO.
+.Dv WILL ECHO .
 If a
 .Dv WILL ECHO
 is received, a
@@ -394,7 +396,7 @@ name of the type of terminal that is attached
 to the client side of the connection.
 .It "DO SGA"
 Indicates that it does not need to receive
-.Dv IAC GA,
+.Dv IAC GA ,
 the go ahead command.
 .It "DO NAWS"
 Requests that the client inform the server when
@@ -423,9 +425,9 @@ Only sent if
 .Nm telnetd
 is compiled with support for both linemode and
 kludge linemode, and the client responded with
-.Dv WONT LINEMODE.
+.Dv WONT LINEMODE .
 If the client responds with
-.Dv WILL TM,
+.Dv WILL TM ,
 the it is assumed that the client supports
 kludge linemode.
 Note that the
@@ -443,6 +445,7 @@ Only sent if
 is compiled with support for data encryption, and
 indicates a willingness to decrypt
 the data stream.
+.El
 .Sh ENVIRONMENT
 .Sh FILES
 .Pa /etc/services
@@ -501,6 +504,7 @@ Telnet Authentication: SPX
 Telnet Environment Option Interoperability Issues
 .It Cm RFC-1572
 Telnet Environment Option
+.El
 .Sh BUGS
 Some
 .Tn TELNET

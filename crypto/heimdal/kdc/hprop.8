@@ -5,8 +5,7 @@
 .Os HEIMDAL
 .Sh NAME
 .Nm hprop
-.Nd
-propagate the KDC database
+.Nd propagate the KDC database
 .Sh SYNOPSIS
 .Nm
 .Oo Fl m Ar file \*(Ba Xo
@@ -37,8 +36,8 @@ propagate the KDC database
 .Op Fl v | Fl -verbose
 .Op Fl -version
 .Op Fl h | Fl -help
-.Ar host Ns Op :port
-...
+.Ar host Ns Op : Ns Ar port
+.Ar ...
 .Sh DESCRIPTION
 .Nm
 takes a principal database in a specified format and converts it into
@@ -112,7 +111,7 @@ This option thansmits the database with encrypted keys.
 .Xc
 Dump the database on stdout, in a format that can be fed to hpropd.
 .El
-
+.Pp
 The following options are only valid if
 .Nm hprop
 is compiled with support for Kerberos 4 (kaserver).
@@ -145,7 +144,6 @@ Deprecated, identical to
 Deprecated, identical to 
 .Sq --source=kaserver .
 .El
-
 .Sh EXAMPLES
 The following will propagate a database to another machine (which
 should run
@@ -153,12 +151,12 @@ should run
 .Bd -literal -offset indent
 $ hprop slave-1 slave-2
 .Ed
-
+.Pp
 Copy a Kerberos 4 database to a Kerberos 5 slave:
 .Bd -literal -offset indent
 $ hprop --source=krb4-db -E krb5-slave
 .Ed
-
+.Pp
 Convert a Kerberos 4 dump-file for use with a Heimdal KDC:
 .Bd -literal -offset indent
 $ hprop -n --source=krb4-dump -d /var/kerberos/principal.dump -E | hpropd -n
