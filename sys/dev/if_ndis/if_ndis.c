@@ -523,6 +523,8 @@ ndis_txeof(adapter, packet, status)
 	if (packet->np_rsvd[1] == NULL)
 		panic("NDIS driver corrupted reserved packet fields");
 
+	NDIS_LOCK(sc);
+
 	m = (struct mbuf *)packet->np_rsvd[1];
 	idx = (int)packet->np_rsvd[0];
 	ifp->if_opackets++;
@@ -536,6 +538,8 @@ ndis_txeof(adapter, packet, status)
 
 	ifp->if_timer = 0;
 	ifp->if_flags &= ~IFF_OACTIVE;
+
+	NDIS_UNLOCK(sc);
 
 	if (ifp->if_snd.ifq_head != NULL)
 		ndis_start(ifp);
@@ -653,6 +657,8 @@ ndis_start(ifp)
 
 	sc = ifp->if_softc;
 
+	NDIS_LOCK(sc);
+
 	p0 = &sc->ndis_txarray[sc->ndis_txidx];
 
 	while(sc->ndis_txpending) {
@@ -660,7 +666,6 @@ ndis_start(ifp)
 		if (m == NULL)
 			break;
 
-		NDIS_LOCK(sc);
 		sc->ndis_txarray[sc->ndis_txidx] = NULL;
 
 		if (ndis_mtop(m, &sc->ndis_txarray[sc->ndis_txidx])) {
@@ -694,7 +699,6 @@ ndis_start(ifp)
 
 		NDIS_INC(sc);
 		sc->ndis_txpending--;
-		NDIS_UNLOCK(sc);
 
 		pcnt++;
 
@@ -720,12 +724,14 @@ ndis_start(ifp)
 	if (sc->ndis_txpending == 0)
 		ifp->if_flags |= IFF_OACTIVE;
 
-	ndis_send_packets(sc, p0, pcnt);
-
 	/*
 	 * Set a timeout in case the chip goes out to lunch.
 	 */
 	ifp->if_timer = 5;
+
+	NDIS_UNLOCK(sc);
+
+	ndis_send_packets(sc, p0, pcnt);
 
 	return;
 }
