@@ -50,28 +50,28 @@ node type performs conversion between synchronous frames and
 asynchronous frames, as defined for the PPP protocol in RFC 1662.
 Asynchronous framing uses flag bytes and octet-stuffing
 to simulate a frame oriented connection over an octet-oriented
-asynchronous line.
+asynchronous serial line.
 .Pp
 The node transmits and receives asynchronous data on the
 .Dv async
-hook.  Incoming data mbuf boundaries are ignored, while
-outgoing data is sent as a complete frame at a time.
-.Pp
-There are two synchronous hooks,
+hook.  Mbuf boundaries of incoming data are ignored.
+Once a complete packet has been received, it is decoded and
+stripped of all framing bytes, and transmitted out the
 .Dv sync
-and
-.Dv sync2 .
-For both hooks, received packets are encoded as asynchronous frames
+hook as a single frame.  The address and control bytes,
+if present, are removed from the beginning of the frame.
+.Pp
+Synchronous frames are transmitted and received on the
+.Dv sync
+hook.
+Packets received on this hook are encoded as asynchronous frames
 and sent out on
 .Dv async .
-Hook
-.Dv sync2
-differs from
-.Dv sync
-only in that any configured address and control field compression
-and/or control character escaping is disabled when the frame is encoded.
-This is useful for transmitting PPP LCP packets, which are always sent
-this way.
+Received packets should start with the PPP protocol field.
+If the LCP protocol (0xc021) is detected,
+address and control field compression is disabled
+and complete control character escaping is enabled for that frame
+(in PPP, LCP packets are always sent with these settings).
 .Pp
 This node supports ``flag sharing'' for packets transmitted on
 .Dv async .
@@ -92,9 +92,7 @@ node, which handles transmission of serial data over a tty device.
 Synchronous connection. This hook sends and receives synchronous frames.
 For PPP, these frames contain no address, control, or checksum fields;
 each frame begins with the PPP protocol number. Typically this hook would
-be connected to the
-.Dv downstream
-hook of a
+be connected to a link hook of a
 .Xr ng_ppp 8
 type node.
 .El
