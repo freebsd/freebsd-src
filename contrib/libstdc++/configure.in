@@ -2,6 +2,25 @@
 # necessary for a configure script to process the program in
 # this directory.  For more information, look at ../configure.
 
+# If the language specific compiler does not exist, but the "gcc" directory 
+# does, we do not build anything. Note, $r is set by the top-level Makefile.
+# Note that when we look for the compiler, we search both with and without
+# extension to handle cross and canadian cross builds. 
+# Note that if $norecursion is set we're being called from config.status,
+# so don't check for the compiler; we might be doing a make clean.
+compiler_name=cc1plus
+rm -f skip-this-dir
+if test -n "$r" && [ -z "$norecursion" ] ; then
+  if test -d "$r"/gcc; then
+    if test -f "$r"/gcc/$compiler_name \
+       || test -f "$r"/gcc/$compiler_name.exe; then
+      true
+    else
+      echo "rm -f multilib.out" > skip-this-dir
+    fi
+  fi
+fi
+
 if [ "${srcdir}" = "." ] ; then
   if [ "${with_target_subdir}" != "." ] ; then
     topsrcdir=${with_multisrctop}../..
@@ -39,14 +58,12 @@ esac
 
 if [ "${shared}" = "yes" ]; then
   case "${target}" in
+    alpha*-*-linux*)	frags=../../config/mh-elfalphapic ;;
+    arm*-*-*)		frags=../../config/mh-armpic ;;
     hppa*-*-*)		frags=../../config/mh-papic ;;
     i[3456]86-*-*)	frags=../../config/mh-x86pic ;;
-    alpha*-*-linux*)	frags=../../config/mh-elfalphapic ;;
-
-    # There doesn't seem to be a simpler way to say all-ppc except AIX
-    *-*-aix*)           ;;
-    powerpc*-* | ppc*-*) frags=../../config/mh-ppcpic ;;
-
+    powerpc*-*-aix*)	;;
+    powerpc*-*-*)	frags=../../config/mh-ppcpic ;;
     *-*-*) 		frags=../../config/mh-${target_cpu}pic ;;
   esac
   case "${target}" in
@@ -54,12 +71,16 @@ if [ "${shared}" = "yes" ]; then
     *-*-hpux*)		frags="${frags} hpux.ml" ;;
     *-*-irix[56]*)	frags="${frags} irix5.ml" ;;
     *-*-linux*aout*)	;;
+    *-*-freebsd2*)	;;
+    *-*-freebsd*)	frags="${frags} freebsd.ml" ;;
     *-*-linux*)		frags="${frags} linux.ml" ;;
     *-*-openbsd*)		frags="${frags} openbsd.ml" ;;
-    *-*-sysv4*)		frags="${frags} elf.ml" ;;
+    *-*-sysv[45]*|*-*-udk*)	frags="${frags} elf.ml" ;;
     *-*-solaris*)	frags="${frags} sol2shm.ml" ;;
     *-*-sunos4*)	frags="${frags} sunos4.ml" ;;
     *-*-aix*)		frags="${frags} aix.ml" ;;
+    i[3456]86-*-interix*)	frags="${frags} x86-interix.ml" ;;
+    *-*-gnu*)		frags="${frags} gnu.ml" ;;
   esac
 fi
 
@@ -73,6 +94,15 @@ case "${target}" in
 		xyes|xposix)	frags="${frags} openbsd.mt" ;;
 	esac;;
   m68k-motorola-sysv)		frags="${frags} delta.mt" ;;
+  *-*-solaris*)
+    case "x${enable_threads}" in
+      xposix)			frags="${frags} sol2pth.mt" ;;
+      xsolaris)			frags="${frags} sol2solth.mt" ;;
+    esac ;;
+  *)
+    case "x${enable_threads}" in
+      xposix)			frags="${frags} posix.mt" ;;
+    esac ;;
 esac
 
 for frag in ${frags}; do
@@ -105,15 +135,69 @@ EXTRA_DISTCLEAN='target-mkfrag'
 
 (. ${srcdir}/${TO_TOPDIR}libio/config.shared) >${package_makefile_frag} 2>${package_makefile_rules_frag}
 
+. ${topsrcdir}/config.if
+echo "
+LIBSTDCXX_INTERFACE=${libstdcxx_interface}
+CXX_INTERFACE=${cxx_interface}
+LIBC_INTERFACE=${libc_interface}
+" >> ${package_makefile_frag}
+
+# This duplicated the AC_PROG_LN_S macro in GNU autoconf.
+rm -f conttestdata
+if ln -s X conftestdata 2>/dev/null
+then
+  rm -f conftestdata
+  LN_S="ln -s"
+else
+  LN_S=ln
+fi
+echo "
+LN_S=$LN_S
+" >> ${package_makefile_frag}
+
 # post-target:
 
-# If cross-compiling, we install in $(tooldir).
+# If cross-compiling, we install in $(tooldir)/lib or in $(libsubdir)
+# depending on --enable-version-specific-runtime-libs.
 if [ -n "${with_cross_host}" ] ; then
     rm -f Makefile.tem
     sed \
-        -e 's|\(INSTALLDIR[ 	]*=[ 	]*\)[^ 	;]*|\1$(tooldir)/lib|' \
+        -e 's|^\([ 	]*INSTALLDIR[ 	]*=[ 	]*\)\$(libdir)|\1$(tooldir)/lib|' \
         Makefile >Makefile.tem
     mv -f Makefile.tem Makefile
 fi
 
+# enable multilib-ing by default.
+if [ -z "${enable_multilib}" ]; then
+    enable_multilib=yes
+fi
+
 . ${topsrcdir}/config-ml.in
+
+gxx_include_dir=
+# Specify the g++ header file directory
+# Check whether --with-gxx-include-dir or --without-gxx-include-dir was given.
+if test "${with_gxx_include_dir+set}" = set; then
+  withval="$with_gxx_include_dir"
+  case "${withval}" in
+    yes)
+      echo "configure.in: error: bad value ${withval} given for g++ include directory" 1>&2
+      exit 1
+      ;;
+    no)	;;
+    *)	gxx_include_dir=$with_gxx_include_dir ;;
+  esac
+fi
+
+if test x${gxx_include_dir} = x; then
+  if test x${enable_version_specific_runtime_libs} = xyes; then
+    gxx_include_dir='${libsubdir}/include/g++'
+  else
+    gxx_include_dir='${prefix}/include/g++'-${libstdcxx_interface}
+  fi
+fi
+
+rm -f Makefile.tem
+sed -e "s%^gxx_include_dir[ 	]*=.*$%gxx_include_dir=${gxx_include_dir}%" \
+       Makefile >Makefile.tem
+mv -f Makefile.tem Makefile
