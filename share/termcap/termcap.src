@@ -30,7 +30,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)termcap.src	8.2 (Berkeley) 11/17/93
-#	$Id: termcap.src,v 1.80 1997/06/13 05:30:50 ache Exp $
+#	$Id: termcap.src,v 1.81 1997/06/14 05:42:00 ache Exp $
 
 #	Termcap source file
 #	John Kunze, Berkeley
@@ -3511,6 +3511,8 @@ wy60-s|wyse60-s|Wyse 60 with screen switching:\
 	:te=50^Z\Ew0:ti=50\Ew1:tc=wy60:
 wy60-w-s|wyse60-w-s|Wyse 60 132-column with screen switching:\
 	:te=50^Z\Ew0:ti=50\Ew1:tc=wy60-w:
+wy60-nt|wyse60-nt|Wyse 60 with broken tab support:\
+	:pt@:tc=wy60:
 #
 #	The Wyse 75 is a vt100 lookalike without advanced video.
 #
