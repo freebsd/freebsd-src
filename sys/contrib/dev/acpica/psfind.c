@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: psfind - Parse tree search routine
- *              $Revision: 29 $
+ *              $Revision: 30 $
  *
  *****************************************************************************/
 
@@ -401,7 +401,7 @@ AcpiPsFind (
         Op = AcpiPsFindName (Scope, Name, NameOp);
         if (Op)
         {
-            ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "[%4.4s] Found! Op=%p Opcode=%4.4X\n", &Name, Op, Op->Opcode));
+            ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "[%4.4s] Found! Op=%p Opcode=%4.4X\n", (char*)&Name, Op, Op->Opcode));
         }
 
         if (!Op)
@@ -424,7 +424,7 @@ AcpiPsFind (
                     AcpiPsSetName (Op, Name);
                     AcpiPsAppendArg (Scope, Op);
 
-                    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "[%4.4s] Not found, created Op=%p Opcode=%4.4X\n", &Name, Op, Opcode));
+                    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "[%4.4s] Not found, created Op=%p Opcode=%4.4X\n", (char*)&Name, Op, Opcode));
                 }
             }
 
@@ -438,19 +438,19 @@ AcpiPsFind (
                     Op = AcpiPsFindName (Scope, Name, Opcode);
                     if (Op)
                     {
-                        ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "[%4.4s] Found in parent tree! Op=%p Opcode=%4.4X\n", &Name, Op, Op->Opcode));
+                        ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "[%4.4s] Found in parent tree! Op=%p Opcode=%4.4X\n", (char*)&Name, Op, Op->Opcode));
                     }
 
                     else
                     {
-                        ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "[%4.4s] Not found in parent=%p\n", &Name, Scope));
+                        ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "[%4.4s] Not found in parent=%p\n", (char*)&Name, Scope));
                     }
                 }
             }
 
             else
             {
-                ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Segment [%4.4s] Not Found in scope %p!\n", &Name, Scope));
+                ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Segment [%4.4s] Not Found in scope %p!\n", (char*)&Name, Scope));
             }
         }
 

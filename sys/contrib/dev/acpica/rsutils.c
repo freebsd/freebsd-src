@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsutils - Utilities for the resource manager
- *              $Revision: 22 $
+ *              $Revision: 23 $
  *
  ******************************************************************************/
 
@@ -490,7 +490,6 @@ AcpiRsSetSrsMethodData (
      */
 Cleanup:
 
-    ACPI_MEM_FREE (ByteStream);
     return_ACPI_STATUS (Status);
 }
 

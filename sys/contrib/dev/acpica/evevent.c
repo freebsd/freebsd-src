@@ -2,7 +2,7 @@
  *
  * Module Name: evevent - Fixed and General Purpose AcpiEvent
  *                          handling and dispatch
- *              $Revision: 50 $
+ *              $Revision: 51 $
  *
  *****************************************************************************/
 
@@ -554,9 +554,9 @@ AcpiEvGpeInitialize (void)
         RegisterIndex++;
     }
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "GPE registers: %X@%p (Blk0) %X@%p (Blk1)\n",
-        Gpe0RegisterCount, AcpiGbl_FADT->XGpe0Blk.Address, Gpe1RegisterCount,
-        AcpiGbl_FADT->XGpe1Blk.Address));
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "GPE registers: %X@%8.8X%8.8X (Blk0) %X@%8.8X%8.8X (Blk1)\n",
+        Gpe0RegisterCount, HIDWORD(AcpiGbl_FADT->XGpe0Blk.Address), LODWORD(AcpiGbl_FADT->XGpe0Blk.Address),
+        Gpe1RegisterCount, HIDWORD(AcpiGbl_FADT->XGpe1Blk.Address), LODWORD(AcpiGbl_FADT->XGpe1Blk.Address)));
 
     return_ACPI_STATUS (AE_OK);
 }

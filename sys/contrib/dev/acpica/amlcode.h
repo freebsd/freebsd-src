@@ -3,7 +3,7 @@
  * Name: amlcode.h - Definitions for AML, as included in "definition blocks"
  *                   Declarations and definitions contained herein are derived
  *                   directly from the ACPI specification.
- *       $Revision: 53 $
+ *       $Revision: 58 $
  *
  *****************************************************************************/
 
@@ -357,47 +357,96 @@
 #define OPGRP_FIELD                 0x02
 #define OPGRP_BYTELIST              0x04
 
-#define OPTYPE_UNDEFINED            0
+
+/* 
+ * Opcode information 
+ */
+
+/* Opcode flags */
+
+#define AML_HAS_ARGS                0x0800
+#define AML_HAS_TARGET              0x0400
+#define AML_HAS_RETVAL              0x0200
+#define AML_NSOBJECT                0x0100
+#define AML_NSOPCODE                0x0080
+#define AML_NSNODE                  0x0040
+#define AML_NAMED                   0x0020
+#define AML_DEFER                   0x0010
+#define AML_FIELD                   0x0008
+#define AML_CREATE                  0x0004
+#define AML_MATH                    0x0002
+#define AML_LOGICAL                 0x0001
+
+/* Convenient flag groupings */
+
+#define AML_FLAGS_EXEC_1A_0T_0R     AML_HAS_ARGS                                   /* Monadic1  */
+#define AML_FLAGS_EXEC_1A_0T_1R     AML_HAS_ARGS |                  AML_HAS_RETVAL /* Monadic2  */
+#define AML_FLAGS_EXEC_1A_1T_0R     AML_HAS_ARGS | AML_HAS_TARGET
+#define AML_FLAGS_EXEC_1A_1T_1R     AML_HAS_ARGS | AML_HAS_TARGET | AML_HAS_RETVAL /* Monadic2R */
+#define AML_FLAGS_EXEC_2A_0T_0R     AML_HAS_ARGS                                   /* Dyadic1   */
+#define AML_FLAGS_EXEC_2A_0T_1R     AML_HAS_ARGS |                  AML_HAS_RETVAL /* Dyadic2   */
+#define AML_FLAGS_EXEC_2A_1T_1R     AML_HAS_ARGS | AML_HAS_TARGET | AML_HAS_RETVAL /* Dyadic2R  */
+#define AML_FLAGS_EXEC_2A_2T_1R     AML_HAS_ARGS | AML_HAS_TARGET | AML_HAS_RETVAL
+#define AML_FLAGS_EXEC_3A_0T_0R     AML_HAS_ARGS
+#define AML_FLAGS_EXEC_3A_1T_1R     AML_HAS_ARGS | AML_HAS_TARGET | AML_HAS_RETVAL
+#define AML_FLAGS_EXEC_6A_0T_1R     AML_HAS_ARGS |                  AML_HAS_RETVAL
 
 
-#define OPTYPE_LITERAL              1
-#define OPTYPE_CONSTANT             2
-#define OPTYPE_METHOD_ARGUMENT      3
-#define OPTYPE_LOCAL_VARIABLE       4
-#define OPTYPE_DATA_TERM            5
+/*
+ * The opcode Type is used in a dispatch table, do not change
+ * without updating the table.
+ */
+#define AML_TYPE_EXEC_1A_0T_0R      0x00 /* Monadic1  */
+#define AML_TYPE_EXEC_1A_0T_1R      0x01 /* Monadic2  */
+#define AML_TYPE_EXEC_1A_1T_0R      0x02
+#define AML_TYPE_EXEC_1A_1T_1R      0x03 /* Monadic2R */
+#define AML_TYPE_EXEC_2A_0T_0R      0x04 /* Dyadic1   */
+#define AML_TYPE_EXEC_2A_0T_1R      0x05 /* Dyadic2   */
+#define AML_TYPE_EXEC_2A_1T_1R      0x06 /* Dyadic2R  */
+#define AML_TYPE_EXEC_2A_2T_1R      0x07
+#define AML_TYPE_EXEC_3A_0T_0R      0x08
+#define AML_TYPE_EXEC_3A_1T_1R      0x09
+#define AML_TYPE_EXEC_6A_0T_1R      0x0A
+/* End of types used in dispatch table */
 
-/* Type 1 opcodes */
-
-#define OPTYPE_MONADIC1             6
-#define OPTYPE_DYADIC1              7
-
-/* Type 2 opcodes */
-
-#define OPTYPE_MONADIC2             8
-#define OPTYPE_MONADIC2R            9
-#define OPTYPE_DYADIC2              10
-#define OPTYPE_DYADIC2R             11
-#define OPTYPE_DYADIC2S             12
-
-/* Multi-operand (>=3) opcodes */
-
-#define OPTYPE_TRIADIC              13
-#define OPTYPE_QUADRADIC            14
-#define OPTYPE_HEXADIC              15
+#define AML_TYPE_LITERAL            0x0B
+#define AML_TYPE_CONSTANT           0x0C
+#define AML_TYPE_METHOD_ARGUMENT    0x0D
+#define AML_TYPE_LOCAL_VARIABLE     0x0E
+#define AML_TYPE_DATA_TERM          0x0F
 
 /* Generic for an op that returns a value */
 
-#define OPTYPE_METHOD_CALL          16
+#define AML_TYPE_METHOD_CALL        0x10
 
 /* Misc */
 
-#define OPTYPE_CREATE_FIELD         17
-#define OPTYPE_CONTROL              18
-#define OPTYPE_RECONFIGURATION      19
-#define OPTYPE_NAMED_OBJECT         20
-#define OPTYPE_RETURN               21
+#define AML_TYPE_CREATE_FIELD       0x11
+#define AML_TYPE_CONTROL            0x12
+#define AML_TYPE_NAMED_NO_OBJ       0x13
+#define AML_TYPE_NAMED_FIELD        0x14
+#define AML_TYPE_NAMED_SIMPLE       0x15
+#define AML_TYPE_NAMED_COMPLEX      0x16
+#define AML_TYPE_RETURN             0x17
 
-#define OPTYPE_BOGUS                22
+#define AML_TYPE_UNDEFINED          0x18
+#define AML_TYPE_BOGUS              0x19
+
+
+/* 
+ * Opcode classes 
+ */
+#define AML_CLASS_EXECUTE           0x00
+#define AML_CLASS_CREATE            0x01
+#define AML_CLASS_ARGUMENT          0x02
+#define AML_CLASS_NAMED_OBJECT      0x03
+#define AML_CLASS_CONTROL           0x04
+#define AML_CLASS_ASCII             0x05
+#define AML_CLASS_PREFIX            0x06
+#define AML_CLASS_INTERNAL          0x07
+#define AML_CLASS_RETURN_VALUE      0x08
+#define AML_CLASS_METHOD_CALL       0x09
+#define AML_CLASS_UNKNOWN           0x0A
 
 
 /* Predefined Operation Region SpaceIDs */
@@ -497,18 +546,5 @@ typedef enum
 
 #define USER_REGION_BEGIN           0x80
 
-/*
- * AML tables
- */
-
-#ifdef DEFINE_AML_GLOBALS
-
-/* External declarations for the AML tables */
-
-extern UINT8                    AcpiGbl_Aml             [NUM_OPCODES];
-extern UINT16                   AcpiGbl_Pfx             [NUM_OPCODES];
-
-
-#endif /* DEFINE_AML_GLOBALS */
 
 #endif /* __AMLCODE_H__ */
