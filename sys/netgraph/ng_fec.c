@@ -137,6 +137,7 @@
 
 struct ng_fec_portlist {
 	struct ifnet		*fec_if;
+	void			(*fec_if_input) (struct ifnet *, struct mbuf *);
 	int			fec_idx;
 	int			fec_ifstat;
 	struct ether_addr	fec_mac;
@@ -167,7 +168,7 @@ struct ng_fec_private {
 typedef struct ng_fec_private *priv_p;
 
 /* Interface methods */
-static void	ng_fec_input(struct ifnet *, struct mbuf **);
+static void	ng_fec_input(struct ifnet *, struct mbuf *);
 static void	ng_fec_start(struct ifnet *ifp);
 static int	ng_fec_choose_port(struct ng_fec_bundle *b,
 			struct mbuf *m, struct ifnet **ifp);
@@ -186,9 +187,6 @@ static int	ng_fec_delport(struct ng_fec_private *priv, char *iface);
 #ifdef DEBUG
 static void	ng_fec_print_ioctl(struct ifnet *ifp, int cmd, caddr_t data);
 #endif
-
-/* ng_ether_input_p - see sys/netgraph/ng_ether.c */
-extern void (*ng_ether_input_p)(struct ifnet *ifp, struct mbuf **mp);
 
 /* Netgraph methods */
 static ng_constructor_t	ng_fec_constructor;
@@ -400,6 +398,12 @@ ng_fec_addport(struct ng_fec_private *priv, char *iface)
 	bcopy(priv->arpcom.ac_enaddr, ac->ac_enaddr, ETHER_ADDR_LEN);
 	bcopy(priv->arpcom.ac_enaddr, LLADDR(sdl), ETHER_ADDR_LEN);
 
+	/* Save original input vector */
+	new->fec_if_input = bifp->if_input;
+
+	/* Override it with our own */
+	bifp->if_input = ng_fec_input;
+
 	/* Add to the queue */
 	new->fec_if = bifp;
 	TAILQ_INSERT_TAIL(&b->ng_fec_ports, new, fec_list);
@@ -452,6 +456,9 @@ ng_fec_delport(struct ng_fec_private *priv, char *iface)
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 	bcopy((char *)&p->fec_mac, ac->ac_enaddr, ETHER_ADDR_LEN);
 	bcopy((char *)&p->fec_mac, LLADDR(sdl), ETHER_ADDR_LEN);
+
+	/* Restore input vector */
+	bifp->if_input = p->fec_if_input;
 
 	/* Delete port */
 	TAILQ_REMOVE(&b->ng_fec_ports, p, fec_list);
@@ -708,19 +715,22 @@ ng_fec_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 }
 
 /*
- * This routine spies on mbufs passing through ether_input(). If
- * they come from one of the interfaces that are aggregated into
- * our bundle, we fix up the ifnet pointer and increment our
+ * This routine spies on mbufs received by underlying network device
+ * drivers. When we add an interface to our bundle, we override its
+ * if_input routine with a pointer to ng_fec_input(). This means we
+ * get to look at all the device's packets before sending them to the
+ * real ether_input() for processing by the stack. Once we verify the
+ * packet comes from an interface that's been aggregated into
+ * our bundle, we fix up the rcvif pointer and increment our
  * packet counters so that it looks like the frames are actually
  * coming from us.
  */
 static void 
-ng_fec_input(struct ifnet *ifp, struct mbuf **m0)
+ng_fec_input(struct ifnet *ifp, struct mbuf *m0)
 {
 	struct ng_node		*node;
 	struct ng_fec_private	*priv;
 	struct ng_fec_bundle	*b;
-	struct mbuf		*m;
 	struct ifnet		*bifp;
 	struct ng_fec_portlist	*p;
 
@@ -738,9 +748,8 @@ ng_fec_input(struct ifnet *ifp, struct mbuf **m0)
 	b = &priv->fec_bundle;
 	bifp = &priv->arpcom.ac_if;
 
-	m = *m0;
 	TAILQ_FOREACH(p, &b->ng_fec_ports, fec_list) {
-		if (p->fec_if == m->m_pkthdr.rcvif)
+		if (p->fec_if == m0->m_pkthdr.rcvif)
 			break;
 	}
 
@@ -748,14 +757,21 @@ ng_fec_input(struct ifnet *ifp, struct mbuf **m0)
 	if (p == NULL)
 		return;
 
-	/* Pretend this is our frame. */
-	m->m_pkthdr.rcvif = bifp;
-	bifp->if_ipackets++;
-	bifp->if_ibytes += m->m_pkthdr.len + sizeof(struct ether_header);
+        /*
+	 * Check for a BPF tap on the underlying interface. This
+	 * is mainly a debugging aid: it allows tcpdump-ing of an
+	 * individual interface in a bundle to work, which it
+	 * otherwise would not. BPF tapping of our own aggregate
+	 * interface will occur once we call ether_input().
+	 */
+	BPF_MTAP(m0->m_pkthdr.rcvif, m0);
 
-        /* Check for a BPF tap */
-	if (bifp->if_bpf != NULL)
-		BPF_MTAP(bifp, m);
+	/* Convince the system that this is our frame. */
+	m0->m_pkthdr.rcvif = bifp;
+	bifp->if_ipackets++;
+	bifp->if_ibytes += m0->m_pkthdr.len + sizeof(struct ether_header);
+
+	(*bifp->if_input)(bifp, m0);
 
 	return;
 }
@@ -984,6 +1000,7 @@ ng_fec_start(struct ifnet *ifp)
 	ifp->if_opackets++;
 
 	priv->if_error = ether_output_frame(oifp, m0);
+
 	return;
 }
 
@@ -1065,7 +1082,6 @@ ng_fec_constructor(node_p node)
 	/* Initialize interface structure */
 	ifp->if_name = NG_FEC_FEC_NAME;
 	ifp->if_unit = priv->unit;
-	ifp->if_output = ng_fec_output;
 	ifp->if_start = ng_fec_start;
 	ifp->if_ioctl = ng_fec_ioctl;
 	ifp->if_init = ng_fec_init;
@@ -1085,13 +1101,12 @@ ng_fec_constructor(node_p node)
 	if (ng_name_node(node, ifname) != 0)
 		log(LOG_WARNING, "%s: can't acquire netgraph name\n", ifname);
 
-	/* Grab hold of the ether_input pipe. */
-	if (ng_ether_input_p == NULL)
-		ng_ether_input_p = ng_fec_input;
-
 	/* Attach the interface */
 	ether_ifattach(ifp, priv->arpcom.ac_enaddr);
 	callout_handle_init(&priv->fec_ch);
+
+	/* Override output method with our own */
+	ifp->if_output = ng_fec_output;
 
 	TAILQ_INIT(&b->ng_fec_ports);
 	b->fec_ifcnt = 0;
@@ -1181,8 +1196,6 @@ ng_fec_shutdown(node_p node)
 		ng_fec_delport(priv, ifname);
 	}
 
-	if (ng_ether_input_p != NULL)
-		ng_ether_input_p = NULL;
 	ether_ifdetach(&priv->arpcom.ac_if);
 	ifmedia_removeall(&priv->ifmedia);
 	ng_fec_free_unit(priv->unit);
