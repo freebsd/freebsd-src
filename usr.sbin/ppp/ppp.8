@@ -1,5 +1,5 @@
 .\" manual page [] for ppp 0.94 beta2 + alpha
-.\" $Id: ppp.8,v 1.8.4.2 1995/10/06 11:24:45 davidg Exp $
+.\" $Id: ppp.8,v 1.8.4.3 1996/02/05 17:03:17 dfr Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -462,8 +462,8 @@ Create a
 .Pa /usr/local/bin/ppplogin
 file with the following contents:
 .Bd -literal -offset indent
-#!/bin/sh
-/usr/sbin/ppp -direct
+#!/bin/sh -p
+exec /usr/sbin/ppp -direct
 .Ed
 
 (You can specify a label name for further control.)
