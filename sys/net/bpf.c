@@ -514,8 +514,6 @@ bpf_wakeup(d)
 		pgsigio(d->bd_sigio, d->bd_sig, 0);
 
 	selwakeup(&d->bd_sel);
-	/* XXX */
-	d->bd_sel.si_pid = 0;
 }
 
 static void
