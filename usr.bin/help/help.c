@@ -14,10 +14,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <ctype.h>
 #include <err.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
@@ -44,8 +42,9 @@ main(int argc, char *argv[])
 		size_t len;
 
 		(void)printf("Enter the message number or SCCS command name: ");
-		if ((key = fgetln(stdin, &len)) == NULL)
+		if ((key = fgetln(stdin, &len)) == NULL) {
 			err(1, NULL);
+		}
 		key[len - 1] = '\0';
 		return help(key);
 	}
@@ -56,12 +55,13 @@ main(int argc, char *argv[])
 		/*
 		 * If no error occurred this time, rv becomes 1.
 		 */
-		if (help(argv[i]) == 0)
+		if (help(argv[i]) == 0) {
 			rv = 1;
+		}
 	}
 
 	/*
-	 * Return 0 if at least one help() worked.  Return 1 else;
+	 * Return 0 if at least one help() worked.  Return 1 else.
 	 */
 	return rv ? 0 : 1;
 }
