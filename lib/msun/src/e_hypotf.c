@@ -14,7 +14,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: e_hypotf.c,v 1.4 1997/02/22 15:10:13 peter Exp $";
+static char rcsid[] = "$Id: e_hypotf.c,v 1.5 1997/03/05 11:54:00 bde Exp $";
 #endif
 
 #include "math.h"
@@ -71,14 +71,14 @@ static char rcsid[] = "$Id: e_hypotf.c,v 1.4 1997/02/22 15:10:13 peter Exp $";
 	if (w>b) {
 	    SET_FLOAT_WORD(t1,ha&0xfffff000);
 	    t2 = a-t1;
-	    w  = sqrtf(t1*t1-(b*(-b)-t2*(a+t1)));
+	    w  = __ieee754_sqrtf(t1*t1-(b*(-b)-t2*(a+t1)));
 	} else {
 	    a  = a+a;
 	    SET_FLOAT_WORD(y1,hb&0xfffff000);
 	    y2 = b - y1;
 	    SET_FLOAT_WORD(t1,ha+0x00800000);
 	    t2 = a - t1;
-	    w  = sqrtf(t1*y1-(w*(-w)-(t1*y2+t2*b)));
+	    w  = __ieee754_sqrtf(t1*y1-(w*(-w)-(t1*y2+t2*b)));
 	}
 	if(k!=0) {
 	    SET_FLOAT_WORD(t1,0x3f800000+(k<<23));
