@@ -20,30 +20,31 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/eventhandler.h>
-#include <sys/conf.h>
-#include <sys/kernel.h>
-#include <sys/time.h>
-#include <sys/reboot.h>
 #include <sys/bus.h>
-#include <sys/selinfo.h>
-#include <sys/poll.h>
+#include <sys/conf.h>
+#include <sys/eventhandler.h>
 #include <sys/fcntl.h>
-#include <sys/uio.h>
+#include <sys/kernel.h>
+#include <sys/poll.h>
+#include <sys/power.h>
+#include <sys/reboot.h>
+#include <sys/selinfo.h>
 #include <sys/signalvar.h>
 #include <sys/sysctl.h>
-#include <sys/power.h>
-#include <machine/apm_bios.h>
-#include <machine/segments.h>
-#include <machine/clock.h>
-#include <machine/stdarg.h>
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
 #include <sys/syslog.h>
+#include <sys/time.h>
+#include <sys/uio.h>
 
+#include <machine/apm_bios.h>
+#include <machine/clock.h>
 #include <machine/pc/bios.h>
+#include <machine/segments.h>
+#include <machine/stdarg.h>
 #include <machine/vm86.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_param.h>
 
 #include <i386/apm/apm.h>
 
