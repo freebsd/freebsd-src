@@ -616,6 +616,11 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 	sc->atrq.xferq.buf = NULL;
 	sc->atrs.xferq.buf = NULL;
 
+	sc->arrq.xferq.dmach = -1;
+	sc->arrs.xferq.dmach = -1;
+	sc->atrq.xferq.dmach = -1;
+	sc->atrs.xferq.dmach = -1;
+
 	sc->arrq.ndesc = 1;
 	sc->arrs.ndesc = 1;
 	sc->atrq.ndesc = 8;	/* equal to maximum of mbuf chains */
@@ -629,6 +634,8 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 	for( i = 0 ; i < sc->fc.nisodma ; i ++ ){
 		sc->fc.it[i] = &sc->it[i].xferq;
 		sc->fc.ir[i] = &sc->ir[i].xferq;
+		sc->it[i].xferq.dmach = i;
+		sc->ir[i].xferq.dmach = i;
 		sc->it[i].ndb = 0;
 		sc->ir[i].ndb = 0;
 	}
