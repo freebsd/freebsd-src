@@ -1141,10 +1141,11 @@ tryagain:
 		goto err1;
 	}
 
+	/* Get the starting offset of the new message for biff. */
+	curoff = lseek(mbfd, (off_t) 0, SEEK_END);
+
 	if (!nobiff)
 	{
-		/* Get the starting offset of the new message for biff. */
-		curoff = lseek(mbfd, (off_t) 0, SEEK_END);
 		(void) sm_snprintf(biffmsg, sizeof(biffmsg), "%s@%lld\n",
 				   name, (LONGLONG_T) curoff);
 	}
