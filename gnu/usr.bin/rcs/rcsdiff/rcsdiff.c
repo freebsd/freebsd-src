@@ -28,7 +28,6 @@ Report problems and direct all questions to:
 */
 
 /*
- * $Log: rcsdiff.c,v $
  * Revision 5.19  1995/06/16 06:19:24  eggert
  * Update FSF address.
  *
@@ -152,7 +151,7 @@ static int exitstatus;
 static RILE *workptr;
 static struct stat workstat;
 
-mainProg(rcsdiffId, "rcsdiff", "$Id: rcsdiff.c,v 5.19 1995/06/16 06:19:24 eggert Exp $")
+mainProg(rcsdiffId, "rcsdiff", "$Id: rcsdiff.c,v 1.3 1995/10/28 21:50:36 peter Exp $")
 {
     static char const cmdusage[] =
 	    "\nrcsdiff usage: rcsdiff -ksubst -q -rrev1 [-rrev2] -Vn -xsuff -zzone [diff options] file ...";
