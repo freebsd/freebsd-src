@@ -2743,10 +2743,17 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para role="historic">&man.login.1; now exports environment variables set by
       <application>PAM</application> modules. &merged;</para>
 
-    <para role="historic">&man.lpc.8; has been improved; <command>lpc clean</command>
+    <para>&man.lpc.8; has been improved; <command>lpc clean</command>
       is now somewhat safer, and a new <command>lpc tclean</command>
       command has been added to check to see what files would be
-      removed by <command>lpc clean</command>. &merged;</para>
+      removed by <command>lpc clean</command>.  <command>lpc
+      topq</command> has been reimplemented, and now allows for a much
+      more flexible specification of which jobs should be moved (such
+      as a range of job numbers, or a hostname).  An <command>lpc
+      bottomq</command> command has been added to move jobs to the
+      bottom of a print queue, and a new <command>lpc
+      setstatus</command> command can be used to set a printer's
+      status message. &merged;</para>
 
     <para role="historic">&man.lpd.8; now takes two new options: <option>-c</option>
       will log all connection errors to &man.syslogd.8;, while
