@@ -60,7 +60,7 @@ void serial_putchar (unsigned char c)
 
 	do {
 		 stat = inb (COMCONSOLE+5);
-	} while (stat & 0x20);
+	} while (!(stat & 0x20));
 
 	outb (COMCONSOLE, c);
 }
