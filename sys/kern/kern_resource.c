@@ -701,10 +701,12 @@ calcru(p, up, sp, ip)
 	struct timeval *sp;
 	struct timeval *ip;
 {
-	struct bintime bt;
+	struct bintime bt, rt;
 	struct timeval tv;
+	struct thread *td;
 	/* {user, system, interrupt, total} {ticks, usec}; previous tu: */
 	u_int64_t ut, uu, st, su, it, iu, tt, tu, ptu;
+	int problemcase;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	/* XXX: why spl-protect ?  worst case is an off-by-one report */
@@ -718,24 +720,44 @@ calcru(p, up, sp, ip)
 		st = 1;
 		tt = 1;
 	}
-	if (p == curthread->td_proc) {
+	rt = p->p_runtime;
+	problemcase = 0;
+	FOREACH_THREAD_IN_PROC(p, td) {
 		/*
 		 * Adjust for the current time slice.  This is actually fairly
 		 * important since the error here is on the order of a time
 		 * quantum, which is much greater than the sampling error.
-		 * XXXKSE use a different test due to threads on other 
-		 * processors also being 'current'.
 		 */
-		binuptime(&bt);
-		bintime_sub(&bt, PCPU_PTR(switchtime));
-		bintime_add(&bt, &p->p_runtime);
-	} else
-		bt = p->p_runtime;
-	bintime2timeval(&bt, &tv);
+		if (td == curthread) {
+			binuptime(&bt);
+			bintime_sub(&bt, PCPU_PTR(switchtime));
+			bintime_add(&rt, &bt);
+		} else if (TD_IS_RUNNING(td)) {
+			/*
+			 * XXX: this case should add the difference between
+			 * the current time and the switch time as above,
+			 * but the switch time is inaccessible, so we can't
+			 * do the adjustment and will end up with a wrong
+			 * runtime.  A previous call with a different
+			 * curthread may have obtained a (right or wrong)
+			 * runtime that is in advance of ours.  Just set a
+			 * flag to avoid warning about this known problem.
+			 */
+			problemcase = 1;
+		}
+	}
+	bintime2timeval(&rt, &tv);
 	tu = (u_int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
 	ptu = p->p_uu + p->p_su + p->p_iu;
-	if (tu < ptu || (int64_t)tu < 0) {
-		printf("calcru: negative time of %jd usec for pid %d (%s)\n",
+	if (tu < ptu) {
+		if (!problemcase)
+			printf(
+"calcru: runtime went backwards from %ju usec to %ju usec for pid %d (%s)\n",
+			    (uintmax_t)ptu, (uintmax_t)tu, p->p_pid, p->p_comm);
+		tu = ptu;
+	}
+	if ((int64_t)tu < 0) {
+		printf("calcru: negative runtime of %jd usec for pid %d (%s)\n",
 		    (intmax_t)tu, p->p_pid, p->p_comm);
 		tu = ptu;
 	}
