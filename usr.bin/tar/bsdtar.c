@@ -76,11 +76,12 @@ struct option {
 static int		 bsdtar_getopt(struct bsdtar *, const char *optstring,
     const struct option **poption);
 static void		 long_help(struct bsdtar *);
-static void		 only_mode(struct bsdtar *, char mode, const char *opt,
+static void		 only_mode(struct bsdtar *, const char *opt,
 			     const char *valid);
 static char **		 rewrite_argv(struct bsdtar *,
 			     int *argc, char ** src_argv,
 			     const char *optstring);
+static void		 set_mode(struct bsdtar *, char opt);
 static void		 version(void);
 
 /*
@@ -171,7 +172,6 @@ main(int argc, char **argv)
 	struct bsdtar		*bsdtar, bsdtar_storage;
 	const struct option	*option;
 	int			 opt, t;
-	char			 mode;
 	char			 option_o;
 	char			 possible_help_request;
 	char			 buff[16];
@@ -190,7 +190,6 @@ main(int argc, char **argv)
 #if defined(HAVE_NL_LANGINFO) && defined(HAVE_D_MD_ORDER)
 	bsdtar->day_first = (*nl_langinfo(D_MD_ORDER) == 'd');
 #endif
-	mode = '\0';
 	possible_help_request = 0;
 
 	/* Look up uid of current user for future reference */
@@ -241,11 +240,7 @@ main(int argc, char **argv)
 			bsdtar->start_dir = optarg;
 			break;
 		case 'c': /* SUSv2 */
-			if (mode != '\0')
-				bsdtar_errc(bsdtar, 1, 0,
-				    "Can't specify both -%c and -%c",
-				    opt, mode);
-			mode = opt;
+			set_mode(bsdtar, opt);
 			break;
 		case OPTION_CHECK_LINKS: /* GNU tar */
 			bsdtar->option_warn_links = 1;
@@ -365,21 +360,13 @@ main(int argc, char **argv)
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_FFLAGS;
 			break;
 		case 'r': /* SUSv2 */
-			if (mode != '\0')
-				bsdtar_errc(bsdtar, 1, 0,
-				    "Can't specify both -%c and -%c",
-				    opt, mode);
-			mode = opt;
+			set_mode(bsdtar, opt);
 			break;
 		case 'T': /* GNU tar */
 			bsdtar->names_from_file = optarg;
 			break;
 		case 't': /* SUSv2 */
-			if (mode != '\0')
-				bsdtar_errc(bsdtar, 1, 0,
-				    "Can't specify both -%c and -%c",
-				    opt, mode);
-			mode = opt;
+			set_mode(bsdtar, opt);
 			bsdtar->verbose++;
 			break;
 		case OPTION_TOTALS: /* GNU tar */
@@ -390,11 +377,7 @@ main(int argc, char **argv)
 			bsdtar->option_unlink_first = 1;
 			break;
 		case 'u': /* SUSv2 */
-			if (mode != '\0')
-				bsdtar_errc(bsdtar, 1, 0,
-				    "Can't specify both -%c and -%c",
-				    opt, mode);
-			mode = opt;
+			set_mode(bsdtar, opt);
 			break;
 		case 'v': /* SUSv2 */
 			bsdtar->verbose++;
@@ -412,11 +395,7 @@ main(int argc, char **argv)
 				    optarg);
 			break;
 		case 'x': /* SUSv2 */
-			if (mode != '\0')
-				bsdtar_errc(bsdtar, 1, 0,
-				    "Can't specify both -%c and -%c",
-				    opt, mode);
-			mode = opt;
+			set_mode(bsdtar, opt);
 			break;
 		case 'y': /* FreeBSD version of GNU tar */
 #if HAVE_LIBBZ2
@@ -458,26 +437,26 @@ main(int argc, char **argv)
 	/*
 	 * Sanity-check options.
 	 */
-	if ((mode == '\0') && possible_help_request) {
+	if ((bsdtar->mode == '\0') && possible_help_request) {
 		long_help(bsdtar);
 		exit(0);
 	}
 
-	if (mode == '\0')
+	if (bsdtar->mode == '\0')
 		bsdtar_errc(bsdtar, 1, 0,
 		    "Must specify one of -c, -r, -t, -u, -x");
 
 	/* Check boolean options only permitted in certain modes. */
 	if (bsdtar->option_absolute_paths)
-		only_mode(bsdtar, mode, "-P", "xcru");
+		only_mode(bsdtar, "-P", "xcru");
 	if (bsdtar->option_dont_traverse_mounts)
-		only_mode(bsdtar, mode, "-X", "cru");
+		only_mode(bsdtar, "-X", "cru");
 	if (bsdtar->option_fast_read)
-		only_mode(bsdtar, mode, "--fast-read", "xt");
+		only_mode(bsdtar, "--fast-read", "xt");
 	if (bsdtar->option_honor_nodump)
-		only_mode(bsdtar, mode, "--nodump", "cru");
+		only_mode(bsdtar, "--nodump", "cru");
 	if (option_o > 0) {
-		switch (mode) {
+		switch (bsdtar->mode) {
 		case 'c':
 			/*
 			 * In GNU tar, -o means "old format."  The
@@ -493,39 +472,39 @@ main(int argc, char **argv)
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_OWNER;
 			break;
 		default:
-			only_mode(bsdtar, mode, "-o", "xc");
+			only_mode(bsdtar, "-o", "xc");
 			break;
 		}
 	}
 	if (bsdtar->option_no_subdirs)
-		only_mode(bsdtar, mode, "-n", "cru");
+		only_mode(bsdtar, "-n", "cru");
 	if (bsdtar->option_stdout)
-		only_mode(bsdtar, mode, "-O", "x");
+		only_mode(bsdtar, "-O", "x");
 	if (bsdtar->option_warn_links)
-		only_mode(bsdtar, mode, "--check-links", "cr");
+		only_mode(bsdtar, "--check-links", "cr");
 
 	/* Check other parameters only permitted in certain modes. */
-	if (bsdtar->create_compression == 'Z' && mode == 'c') {
+	if (bsdtar->create_compression == 'Z' && bsdtar->mode == 'c') {
 		bsdtar_warnc(bsdtar, 0, ".Z compression not supported");
 		usage(bsdtar);
 	}
 	if (bsdtar->create_compression != '\0') {
 		strcpy(buff, "-?");
 		buff[1] = bsdtar->create_compression;
-		only_mode(bsdtar, mode, buff, "cxt");
+		only_mode(bsdtar, buff, "cxt");
 	}
 	if (bsdtar->create_format != NULL)
-		only_mode(bsdtar, mode, "-F", "c");
+		only_mode(bsdtar, "-F", "c");
 	if (bsdtar->symlink_mode != '\0') {
 		strcpy(buff, "-?");
 		buff[1] = bsdtar->symlink_mode;
-		only_mode(bsdtar, mode, buff, "cru");
+		only_mode(bsdtar, buff, "cru");
 	}
 
 	bsdtar->argc -= optind;
 	bsdtar->argv += optind;
 
-	switch(mode) {
+	switch(bsdtar->mode) {
 	case 'c':
 		tar_mode_c(bsdtar);
 		break;
@@ -547,17 +526,25 @@ main(int argc, char **argv)
 	return (bsdtar->return_value);
 }
 
+static void
+set_mode(struct bsdtar *bsdtar, char opt)
+{
+	if (bsdtar->mode != '\0' && bsdtar->mode != opt)
+		bsdtar_errc(bsdtar, 1, 0,
+		    "Can't specify both -%c and -%c", opt, bsdtar->mode);
+	bsdtar->mode = opt;
+}
+
 /*
  * Verify that the mode is correct.
  */
 static void
-only_mode(struct bsdtar *bsdtar, char mode,
-    const char *opt, const char *valid_modes)
+only_mode(struct bsdtar *bsdtar, const char *opt, const char *valid_modes)
 {
-	if (strchr(valid_modes, mode) == NULL)
+	if (strchr(valid_modes, bsdtar->mode) == NULL)
 		bsdtar_errc(bsdtar, 1, 0,
 		    "Option %s is not permitted in mode -%c",
-		    opt, mode);
+		    opt, bsdtar->mode);
 }
 
 
@@ -663,7 +650,7 @@ static const char *long_help_msg =
 	"  -f <filename>  Location of archive (default " _PATH_DEFTAPE ")\n"
 	"  -v    Verbose\n"
 	"  -w    Interactive\n"
-	"Create: %p -c [options] [<file> | <dir> | @<archive> | C=<dir> ]\n"
+	"Create: %p -c [options] [<file> | <dir> | @<archive> | -C <dir> ]\n"
 	"  <file>, <dir>  add these items to archive\n"
 	"  -z, -j  Compress archive with gzip/bzip2\n"
 	"  -F {ustar|pax|cpio|shar}  Select archive format\n"
@@ -672,7 +659,7 @@ static const char *long_help_msg =
 #else
 	"  -W exclude=<pattern>  Skip files that match pattern\n"
 #endif
-	"  C=<dir>  Change to <dir> before processing remaining files\n"
+	"  -C <dir>  Change to <dir> before processing remaining files\n"
 	"  @<archive>  Add entries from <archive> to output\n"
 	"List: %p -t [options] [<patterns>]\n"
 	"  <patterns>  If specified, list only entries that match\n"
