@@ -1031,32 +1031,43 @@ nfs_sync(mp, waitfor, cred, p)
 	struct ucred *cred;
 	struct proc *p;
 {
-	register struct vnode *vp;
+	struct vnode *vp, *vnp;
 	int error, allerror = 0;
 
 	/*
 	 * Force stale buffer cache information to be flushed.
 	 */
+	mtx_lock(&mntvnode_mtx);
 loop:
-	for (vp = mp->mnt_vnodelist.lh_first;
+	for (vp = LIST_FIRST(&mp->mnt_vnodelist);
 	     vp != NULL;
-	     vp = vp->v_mntvnodes.le_next) {
+	     vp = vnp) {
 		/*
 		 * If the vnode that we are about to sync is no longer
 		 * associated with this mount point, start over.
 		 */
 		if (vp->v_mount != mp)
 			goto loop;
+		vnp = LIST_NEXT(vp, v_mntvnodes);
+		mtx_unlock(&mntvnode_mtx);
+		mtx_lock(&vp->v_interlock);
 		if (VOP_ISLOCKED(vp, NULL) || TAILQ_EMPTY(&vp->v_dirtyblkhd) ||
-		    waitfor == MNT_LAZY)
+		    waitfor == MNT_LAZY) {
+			mtx_unlock(&vp->v_interlock);
+			mtx_lock(&mntvnode_mtx);
 			continue;
-		if (vget(vp, LK_EXCLUSIVE, p))
+		}
+		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p)) {
+			mtx_lock(&mntvnode_mtx);
 			goto loop;
+		}
 		error = VOP_FSYNC(vp, cred, waitfor, p);
 		if (error)
 			allerror = error;
 		vput(vp);
+		mtx_lock(&mntvnode_mtx);
 	}
+	mtx_unlock(&mntvnode_mtx);
 	return (allerror);
 }
 

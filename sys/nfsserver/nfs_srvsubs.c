@@ -2141,11 +2141,12 @@ nfs_clearcommit(mp)
 	s = splbio();
 	mtx_assert(&Giant, MA_OWNED);
 	mtx_assert(&vm_mtx, MA_NOTOWNED);
+	mtx_lock(&mntvnode_mtx);
 loop:
-	for (vp = mp->mnt_vnodelist.lh_first; vp; vp = nvp) {
+	for (vp = LIST_FIRST(&mp->mnt_vnodelist); vp; vp = nvp) {
 		if (vp->v_mount != mp)	/* Paranoia */
 			goto loop;
-		nvp = vp->v_mntvnodes.le_next;
+		nvp = LIST_NEXT(vp, v_mntvnodes);
 		for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 			nbp = TAILQ_NEXT(bp, b_vnbufs);
 			if (BUF_REFCNT(bp) == 0 &&
@@ -2154,6 +2155,7 @@ loop:
 				bp->b_flags &= ~(B_NEEDCOMMIT | B_CLUSTEROK);
 		}
 	}
+	mtx_unlock(&mntvnode_mtx);
 	splx(s);
 }
 
