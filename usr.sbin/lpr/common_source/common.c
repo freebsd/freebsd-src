@@ -181,8 +181,8 @@ compar(const void *p1, const void *p2)
 {
 	const struct jobqueue *qe1, *qe2;
 
-	qe1 = *(const struct jobqueue **)p1;
-	qe2 = *(const struct jobqueue **)p2;
+	qe1 = *(const struct jobqueue * const *)p1;
+	qe2 = *(const struct jobqueue * const *)p2;
 	
 	if (qe1->job_time < qe2->job_time)
 		return (-1);
