@@ -293,9 +293,8 @@ el_source(el, fname)
 	if ((fp = fopen(fname, "r")) == NULL) {
 	    if ((ptr = getenv("HOME")) == NULL)
 		return -1;
-	    fname = strncpy(path, ptr, MAXPATHLEN);
-	    (void) strncat(path, elpath, MAXPATHLEN);
-	    path[MAXPATHLEN-1] = '\0';
+	    (void)snprintf(path, sizeof(path), "%s%s", ptr, elpath);
+	    fname = path;
 	}
     }
 
