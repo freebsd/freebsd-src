@@ -21,7 +21,7 @@ SHLIB_MINOR=5
 # Magic to grab sources out of src/contrib
 #
 PCAP_DISTDIR?=${.CURDIR}/../../contrib/libpcap
-CFLAGS+=-I${PCAP_DISTDIR} -I${PCAP_DISTDIR}/lbl -I${PCAP_DISTDIR}/bpf
+CFLAGS+=-I${PCAP_DISTDIR}
 .PATH:	${PCAP_DISTDIR}
 .PATH:	${PCAP_DISTDIR}/bpf/net
 
