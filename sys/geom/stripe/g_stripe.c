@@ -89,6 +89,9 @@ static u_int g_stripe_maxmem = MAX_IO_SIZE * 10;
 TUNABLE_INT("kern.geom.stripe.maxmem", &g_stripe_maxmem);
 SYSCTL_UINT(_kern_geom_stripe, OID_AUTO, maxmem, CTLFLAG_RD, &g_stripe_maxmem,
     0, "Maximum memory that can be allocated in \"fast\" mode (in bytes)");
+static u_int g_stripe_fast_failed = 0;
+SYSCTL_UINT(_kern_geom_stripe, OID_AUTO, fast_failed, CTLFLAG_RD,
+    &g_stripe_fast_failed, 0, "How many times \"fast\" mode failed");
 
 /*
  * Greatest Common Divisor.
@@ -583,8 +586,11 @@ g_stripe_start(struct bio *bp)
 		fast = 1;
 	}
 	error = 0;
-	if (fast)
+	if (fast) {
 		error = g_stripe_start_fast(bp, no, offset, length);
+		if (error != 0)
+			g_stripe_fast_failed++;
+	}
 	/*
 	 * Do use "economic" when:
 	 * 1. "Economic" mode is ON.
