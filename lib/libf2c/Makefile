@@ -8,7 +8,7 @@ MISC =	Version.c main.c s_rnge.c abort_.c getarg_.c iargc_.c getenv_.c\
 	derf_.c derfc_.c erf_.c erfc_.c sig_die.c
 POW =	pow_ci.c pow_dd.c pow_di.c pow_hh.c pow_ii.c  pow_ri.c pow_zi.c pow_zz.c
 CX =	c_abs.c c_cos.c c_div.c c_exp.c c_log.c c_sin.c c_sqrt.c
-DCX =	z_cos.c z_div.c z_exp.c z_log.c z_sin.c z_sqrt.c
+DCX =	z_abs.c z_cos.c z_div.c z_exp.c z_log.c z_sin.c z_sqrt.c
 REAL =	r_abs.c r_acos.c r_asin.c r_atan.c r_atn2.c r_cnjg.c r_cos.c\
 	r_cosh.c r_dim.c r_exp.c r_imag.c r_int.c\
 	r_lg10.c r_log.c r_mod.c r_nint.c r_sign.c\
