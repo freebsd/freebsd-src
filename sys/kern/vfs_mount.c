@@ -527,7 +527,7 @@ vfs_nmount(td, fsflags, fsoptions)
 		 * Only root, or the user that did the original mount is
 		 * permitted to update it.
 		 */
-		if (mp->mnt_stat.f_owner != td->td_ucred->cr_uid) {
+		if (mp->mnt_cred->cr_uid != td->td_ucred->cr_uid) {
 			error = suser(td);
 			if (error) {
 				vput(vp);
@@ -643,6 +643,7 @@ vfs_nmount(td, fsflags, fsoptions)
 	mp->mnt_flag |= vfsp->vfc_flags & MNT_VISFLAGMASK;
 	strncpy(mp->mnt_stat.f_fstypename, fstype, MFSNAMELEN);
 	mp->mnt_vnodecovered = vp;
+	mp->mnt_cred = crdup(td->td_ucred);
 	mp->mnt_stat.f_owner = td->td_ucred->cr_uid;
 	strncpy(mp->mnt_stat.f_mntonname, fspath, MNAMELEN);
 	mp->mnt_iosize_max = DFLTPHYS;
@@ -901,7 +902,7 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 		 * Only root, or the user that did the original mount is
 		 * permitted to update it.
 		 */
-		if (mp->mnt_stat.f_owner != td->td_ucred->cr_uid) {
+		if (mp->mnt_cred->cr_uid != td->td_ucred->cr_uid) {
 			error = suser(td);
 			if (error) {
 				vput(vp);
@@ -1010,6 +1011,7 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 	mp->mnt_flag |= vfsp->vfc_flags & MNT_VISFLAGMASK;
 	strncpy(mp->mnt_stat.f_fstypename, fstype, MFSNAMELEN);
 	mp->mnt_vnodecovered = vp;
+	mp->mnt_cred = crdup(td->td_ucred);
 	mp->mnt_stat.f_owner = td->td_ucred->cr_uid;
 	strncpy(mp->mnt_stat.f_mntonname, fspath, MNAMELEN);
 	mp->mnt_iosize_max = DFLTPHYS;
@@ -1210,7 +1212,7 @@ unmount(td, uap)
 	 * Only root, or the user that did the original mount is
 	 * permitted to unmount this filesystem.
 	 */
-	if (mp->mnt_stat.f_owner != td->td_ucred->cr_uid) {
+	if (mp->mnt_cred->cr_uid != td->td_ucred->cr_uid) {
 		error = suser(td);
 		if (error) {
 			vput(vp);
@@ -1316,6 +1318,7 @@ dounmount(mp, flags, td)
 			wakeup(mp);
 		return (error);
 	}
+	crfree(mp->mnt_cred);
 	mtx_lock(&mountlist_mtx);
 	TAILQ_REMOVE(&mountlist, mp, mnt_list);
 	if ((coveredvp = mp->mnt_vnodecovered) != NULL)
@@ -1370,6 +1373,7 @@ vfs_rootmountalloc(fstypename, devname, mpp)
 	mp->mnt_op = vfsp->vfc_vfsops;
 	mp->mnt_flag = MNT_RDONLY;
 	mp->mnt_vnodecovered = NULLVP;
+	mp->mnt_cred = crdup(td->td_ucred);
 	vfsp->vfc_refcount++;
 	mp->mnt_iosize_max = DFLTPHYS;
 	mp->mnt_stat.f_type = vfsp->vfc_typenum;
