@@ -176,10 +176,13 @@ aac_disk_strategy(struct bio *bp)
 	}
 
 	/* perform accounting */
-	devstat_start_transaction(&sc->ad_stats);
 
 	/* pass the bio to the controller - it can work out who we are */
+	AAC_LOCK_ACQUIRE(&sc->ad_controller->aac_io_lock);
+	devstat_start_transaction(&sc->ad_stats);
 	aac_submit_bio(bp);
+	AAC_LOCK_RELEASE(&sc->ad_controller->aac_io_lock);
+
 	return;
 }
 
@@ -369,7 +372,7 @@ aac_disk_attach(device_t dev)
 	sc->ad_disk.d_mediasize = (off_t)sc->ad_size * AAC_BLOCK_SIZE;
 	sc->ad_disk.d_fwsectors = sc->ad_sectors;
 	sc->ad_disk.d_fwheads = sc->ad_heads;
-	disk_create(sc->unit, &sc->ad_disk, 0, NULL, NULL);
+	disk_create(sc->unit, &sc->ad_disk, DISKFLAG_NOGIANT, NULL, NULL);
 
 	return (0);
 }
