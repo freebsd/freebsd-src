@@ -138,7 +138,7 @@ static void setup_8254_mixed_mode __P((void));
 
 int	adjkerntz;		/* local offset from GMT in seconds */
 int	disable_rtc_set;	/* disable resettodr() if != 0 */
-u_int	idelayed;
+volatile u_int	idelayed;
 int	statclock_disable;
 u_int	stat_imask = SWI_CLOCK_MASK;
 #ifndef TIMER_FREQ
