@@ -77,6 +77,7 @@ struct card {
 	struct card_config *config;	/* List of configs */
 	struct cmd *insert;		/* Insert commands */
 	struct cmd *remove;		/* Remove commands */
+	char   *logstr;			/* String for logger */
 };
 
 struct driver {

@@ -188,6 +188,9 @@ card_removed(struct slot *sp)
 	struct card *cp;
 	int in_use = 0;
 
+	if (sp->config && sp->config->driver && sp->card)
+		logmsg("%s%d: %s removed.", sp->config->driver->kernel,
+		    sp->config->driver->unit, sp->card->logstr);
 	if (sp->cis)
 		freecis(sp->cis);
 	if (sp->config) {
@@ -836,5 +839,7 @@ setup_slot(struct slot *sp)
 				break;
 			}
 	}
+	logmsg("%s%d: %s inserted.", sp->config->driver->kernel,
+	    sp->config->driver->unit, sp->card->logstr);
 	return (1);
 }
