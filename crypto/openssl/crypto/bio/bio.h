@@ -244,7 +244,7 @@ typedef struct bio_method_st
 	long (_far *ctrl)();
 	int (_far *create)();
 	int (_far *destroy)();
-	long (_fat *callback_ctrl)();
+	long (_far *callback_ctrl)();
 	} BIO_METHOD;
 #endif
 
@@ -585,7 +585,7 @@ struct hostent *BIO_gethostbyname(const char *name);
  * and an appropriate error code is set).
  */
 int BIO_sock_error(int sock);
-int BIO_socket_ioctl(int fd, long type, unsigned long *arg);
+int BIO_socket_ioctl(int fd, long type, void *arg);
 int BIO_socket_nbio(int fd,int mode);
 int BIO_get_port(const char *str, unsigned short *port_ptr);
 int BIO_get_host_ip(const char *str, unsigned char *ip);
