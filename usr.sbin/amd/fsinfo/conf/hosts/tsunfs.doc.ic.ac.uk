@@ -1,0 +1,211 @@
+// mkfsinfo for tsunfs
+// $Id$
+
+host tsunfs.doc.ic.ac.uk
+
+/*
+arch sun3
+os sos4
+cluster csg
+dumphost flamingo.doc.ic.ac.uk
+*/
+
+#define FSTYPE_UFS	4.2
+#define	DEFAULT_OPTS	rw,noquota,nosuid,grpid
+
+// swap
+fs /dev/xy0b {
+	fstype = swap
+}
+
+// root
+fs /dev/xy0a {
+	fstype = FSTYPE_UFS
+	opts = DEFAULT_OPTS
+	passno = 1
+	freq = 1
+	dumpset = csg_sun3_vax
+	mount / {}
+}
+
+// usr
+fs /dev/xy0f {
+	fstype = FSTYPE_UFS
+	opts = rw,grpid
+	freq = 1
+	passno = 2
+	dumpset = csg_sun3_vax
+	mount /usr {}
+}
+
+// var
+fs /dev/xy0e {
+	fstype = FSTYPE_UFS
+	opts = DEFAULT_OPTS
+	freq = 1
+	passno = 4
+	dumpset = csg_sun3_vax
+	mount /var {
+		mmdf {
+			exportfs "-access=teach_hosts,root=\
+				tsun1.doc.ic.ac.uk:\
+				tsun2.doc.ic.ac.uk:\
+				tsun3.doc.ic.ac.uk:\
+				tsun4.doc.ic.ac.uk:\
+				tsun5.doc.ic.ac.uk:\
+				tsun6.doc.ic.ac.uk:\
+				tsun7.doc.ic.ac.uk:\
+				tsun8.doc.ic.ac.uk:\
+				tsun9.doc.ic.ac.uk:\
+				tsun10.doc.ic.ac.uk:\
+				tsun11.doc.ic.ac.uk:\
+				tsun12.doc.ic.ac.uk:\
+				tsun13.doc.ic.ac.uk:\
+				tsun14.doc.ic.ac.uk:\
+				tsun15.doc.ic.ac.uk:\
+				ssun1.doc.ic.ac.uk:\
+				whoops.doc.ic.ac.uk:\
+			"
+		}
+	}
+}
+
+// root filesystems for diskless clients
+fs /dev/xy0d {
+	fstype = FSTYPE_UFS
+	opts = rw,grpid
+	freq = 1
+	passno = 3
+	mount /export/roots {
+		tsun1 {
+			volname /vol/export/roots/tsun1
+			exportfs "-root=tsun1.doc.ic.ac.uk,-access=tsun1.doc.ic.ac.uk"
+		}
+		tsun2 {
+			volname /vol/export/roots/tsun2
+			exportfs "-root=tsun2.doc.ic.ac.uk,-access=tsun2.doc.ic.ac.uk"
+		}
+		tsun3 {
+			volname /vol/export/roots/tsun3
+			exportfs "-root=tsun3.doc.ic.ac.uk,-access=tsun3.doc.ic.ac.uk"
+		}
+		tsun4 {
+			volname /vol/export/roots/tsun4
+			exportfs "-root=tsun4.doc.ic.ac.uk,-access=tsun4.doc.ic.ac.uk"
+		}
+		tsun5 {
+			volname /vol/export/roots/tsun5
+			exportfs "-root=tsun5.doc.ic.ac.uk,-access=tsun5.doc.ic.ac.uk"
+		}
+		tsun6 {
+			volname /vol/export/roots/tsun6
+			exportfs "-root=tsun6.doc.ic.ac.uk,-access=tsun6.doc.ic.ac.uk"
+		}
+		tsun7 {
+			volname /vol/export/roots/tsun7
+			exportfs "-root=tsun7.doc.ic.ac.uk,-access=tsun7.doc.ic.ac.uk"
+		}
+		tsun8 {
+			volname /vol/export/roots/tsun8
+			exportfs "-root=tsun8.doc.ic.ac.uk,-access=tsun8.doc.ic.ac.uk"
+		}
+		tsun9 {
+			volname /vol/export/roots/tsun9
+			exportfs "-root=tsun9.doc.ic.ac.uk,-access=tsun9.doc.ic.ac.uk"
+		}
+		tsun10 {
+			volname /vol/export/roots/tsun10
+			exportfs "-root=tsun10.doc.ic.ac.uk,-access=tsun10.doc.ic.ac.uk"
+		}
+		tsun11 {
+			volname /vol/export/roots/tsun11
+			exportfs "-root=tsun11.doc.ic.ac.uk,-access=tsun11.doc.ic.ac.uk"
+		}
+		tsun12 {
+			volname /vol/export/roots/tsun12
+			exportfs "-root=tsun12.doc.ic.ac.uk,-access=tsun12.doc.ic.ac.uk"
+		}
+		tsun13 {
+			volname /vol/export/roots/tsun13
+			exportfs "-root=tsun13.doc.ic.ac.uk,-access=tsun13.doc.ic.ac.uk"
+		}
+		tsun14 {
+			volname /vol/export/roots/tsun14
+			exportfs "-root=tsun14.doc.ic.ac.uk,-access=tsun14.doc.ic.ac.uk"
+		}
+		tsun15 {
+			volname /vol/export/roots/tsun15
+			exportfs "-root=tsun15.doc.ic.ac.uk,-access=tsun15.doc.ic.ac.uk"
+		}
+	}
+}
+
+// swap for diskless clients
+fs /dev/xy1c {
+	fstype = FSTYPE_UFS
+	opts = DEFAULT_OPTS
+	freq = 1
+	passno = 5
+	mount /export/swaps {
+		tsun1 {
+			volname /vol/export/swaps/tsun1
+			exportfs "-root=tsun1.doc.ic.ac.uk,-access=tsun1.doc.ic.ac.uk"
+		}
+		tsun2 {
+			volname /vol/export/swaps/tsun2
+			exportfs "-root=tsun2.doc.ic.ac.uk,-access=tsun2.doc.ic.ac.uk"
+		}
+		tsun3 {
+			volname /vol/export/swaps/tsun3
+			exportfs "-root=tsun3.doc.ic.ac.uk,-access=tsun3.doc.ic.ac.uk"
+		}
+		tsun4 {
+			volname /vol/export/swaps/tsun4
+			exportfs "-root=tsun4.doc.ic.ac.uk,-access=tsun4.doc.ic.ac.uk"
+		}
+		tsun5 {
+			volname /vol/export/swaps/tsun5
+			exportfs "-root=tsun5.doc.ic.ac.uk,-access=tsun5.doc.ic.ac.uk"
+		}
+		tsun6 {
+			volname /vol/export/swaps/tsun6
+			exportfs "-root=tsun6.doc.ic.ac.uk,-access=tsun6.doc.ic.ac.uk"
+		}
+		tsun7 {
+			volname /vol/export/swaps/tsun7
+			exportfs "-root=tsun7.doc.ic.ac.uk,-access=tsun7.doc.ic.ac.uk"
+		}
+		tsun8 {
+			volname /vol/export/swaps/tsun8
+			exportfs "-root=tsun8.doc.ic.ac.uk,-access=tsun8.doc.ic.ac.uk"
+		}
+		tsun9 {
+			volname /vol/export/swaps/tsun9
+			exportfs "-root=tsun9.doc.ic.ac.uk,-access=tsun9.doc.ic.ac.uk"
+		}
+		tsun10 {
+			volname /vol/export/swaps/tsun10
+			exportfs "-root=tsun10.doc.ic.ac.uk,-access=tsun10.doc.ic.ac.uk"
+		}
+		tsun11 {
+			volname /vol/export/swaps/tsun11
+			exportfs "-root=tsun11.doc.ic.ac.uk,-access=tsun11.doc.ic.ac.uk"
+		}
+		tsun12 {
+			volname /vol/export/swaps/tsun12
+			exportfs "-root=tsun12.doc.ic.ac.uk,-access=tsun12.doc.ic.ac.uk"
+		}
+		tsun13 {
+			volname /vol/export/swaps/tsun13
+			exportfs "-root=tsun13.doc.ic.ac.uk,-access=tsun13.doc.ic.ac.uk"
+		}
+		tsun14 {
+			volname /vol/export/swaps/tsun14
+			exportfs "-root=tsun14.doc.ic.ac.uk,-access=tsun14.doc.ic.ac.uk"
+		}
+		tsun15 {
+			volname /vol/export/swaps/tsun15
+			exportfs "-root=tsun15.doc.ic.ac.uk,-access=tsun15.doc.ic.ac.uk"
+		}
+	}
+}

@@ -1,0 +1,104 @@
+// mkfsinfo for flamingo
+// $Id$
+
+host flamingo.doc.ic.ac.uk
+
+/*
+arch sun3
+os sos4
+cluster csg
+dumphost flamingo.doc.ic.ac.uk
+*/
+
+#define FSTYPE_UFS	4.2
+#define	DEFAULT_OPTS	rw,noquota,nosuid,grpid
+
+// swap
+fs /dev/xy0b {
+	fstype = swap
+}
+	
+// root
+fs /dev/xy0a {
+	fstype = FSTYPE_UFS
+	opts = DEFAULT_OPTS
+	passno = 1
+	freq = 1
+	dumpset = csg_sun3_vax
+	mount / {}
+}
+	
+// usr
+fs /dev/xy0f {
+	fstype = FSTYPE_UFS
+	opts = DEFAULT_OPTS
+	freq = 1
+	passno = 2
+	dumpset = csg_sun3_vax
+	mount /usr {
+		volname /vol/export/exec/sun3
+		exportfs "-ro,access=teach_hosts:ssun2.doc.ic.ac.uk:pelican:gould,\
+			root=gould:pelican:ssun2.doc.ic.ac.uk"
+	}
+}
+	
+// tmp
+fs /dev/xy0d {
+	fstype = FSTYPE_UFS
+	opts = DEFAULT_OPTS,nosuid
+	freq = 1
+	passno = 3
+	mount /tmp {
+		exportfs "-access=ssun1:tsunfs,root=tsunfs"
+	}
+}
+	
+// var
+fs /dev/xy0e {
+	fstype = FSTYPE_UFS
+	opts = DEFAULT_OPTS
+	freq = 1
+	passno = 4
+	dumpset = csg_sun3_vax
+	mount /var {
+		tmp {
+			exportfs "-access=ssun1:sky.doc.ic.ac.uk"
+		}
+		crash {
+			exportfs "-access=ssun1"
+		}
+		misc {
+			exportfs "-access=teach_hosts"
+		}
+		spool {
+			rwho {
+				volname /vol/rwho
+				exportfs "-ro,access=teach_hosts"
+				sel "byte==big"
+			}
+		}
+	}
+}
+	
+// source - sos4
+fs /dev/xy0h {
+	fstype = FSTYPE_UFS
+	opts = DEFAULT_OPTS
+	freq = 1
+	passno = 6
+	mount /usr/src {
+		volname /vol/src/sos4
+		exportfs "-access=svax:pelican:gould,root=pelican:svax"
+	}
+}
+	
+// home directories
+fs /dev/xy0g {
+	fstype = FSTYPE_UFS
+	opts = DEFAULT_OPTS
+	freq = 1
+	passno = 5
+	mount /a/flamingo/home/flamingo {
+		exportfs "-access=teach_hosts:thp_hosts:ssun2:obsidian:truth,root=gould"
+	}
+}

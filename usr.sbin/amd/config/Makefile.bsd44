@@ -1,0 +1,8 @@
+#	@(#)Makefile.bsd44	8.1 (Berkeley) 6/6/93
+#
+# $Id: Makefile.bsd44,v 5.2.2.1 1992/02/09 15:10:12 jsp beta $
+#
+# Extra Makefile definitions for 4.4 BSD
+#
+
+RPCLIB = -lrpc
