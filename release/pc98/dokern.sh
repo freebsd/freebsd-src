@@ -33,8 +33,6 @@ sed	-e 's/ident.*GENERIC/ident		BOOTMFS/g' \
 	-e '/	pass	/d' \
 	-e '/	ses	/d' \
 	-e '/	splash	/d' \
-	-e '/	apm$/d' \
-	-e '/	pmtimer$/d' \
 	-e '/	ppc$/d' \
 	-e '/	ppbus	/d' \
 	-e '/	lpt	/d' \
@@ -98,8 +96,6 @@ sed	-e 's/ident.*GENERIC/ident		BOOTMFS/g' \
 	-e '/	pass	/d' \
 	-e '/	ses	/d' \
 	-e '/	splash	/d' \
-	-e '/	apm$/d' \
-	-e '/	pmtimer$/d' \
 	-e '/	ppc$/d' \
 	-e '/	ppbus	/d' \
 	-e '/	lpt	/d' \
