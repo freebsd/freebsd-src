@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: deflate.c,v 1.6.4.16 1998/05/15 18:21:03 brian Exp $
+ *	$Id: deflate.c,v 1.8 1998/05/21 21:45:00 brian Exp $
  */
 
 #include <sys/types.h>
@@ -433,7 +433,7 @@ DeflateDictSetup(void *v, struct ccp *ccp, u_short proto, struct mbuf *mi)
 static const char *
 DeflateDispOpts(struct lcp_opt *o)
 {
-  static char disp[7];
+  static char disp[7];		/* Must be used immediately */
 
   sprintf(disp, "win %d", (o->data[0]>>4) + 8);
   return disp;

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.c,v 1.27.2.11 1998/05/08 01:15:18 brian Exp $
+ * $Id: timer.c,v 1.28 1998/05/21 21:48:46 brian Exp $
  *
  *  TODO:
  */
@@ -149,8 +149,8 @@ TimerService(void)
   struct pppTimer *tp, *exp, *wt;
 
   if (log_IsKept(LogTIMER)) {
-    static time_t t;
-    time_t n = time(NULL);  /* Only show timers every second */
+    static time_t t;		/* Only show timers globally every second */
+    time_t n = time(NULL);
 
     if (n > t)
       timer_Show(LogTIMER, NULL);

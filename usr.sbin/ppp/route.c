@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.46 1998/06/10 00:16:07 brian Exp $
+ * $Id: route.c,v 1.47 1998/06/15 19:06:23 brian Exp $
  *
  */
 
@@ -194,8 +194,14 @@ p_flags(struct prompt *prompt, u_long f, int max)
 const char *
 Index2Nam(int idx)
 {
-  static char **ifs;
-  static int nifs, debug_done;
+  /*
+   * XXX: Maybe we should select() on the routing socket so that we can
+   *      notice interfaces that come & go (PCCARD support).
+   *      Or we could even support a signal that resets these so that
+   *      the PCCARD insert/remove events can signal ppp.
+   */
+  static char **ifs;		/* Figure these out once */
+  static int nifs, debug_done;	/* Figure out how many once, and debug once */
 
   if (!nifs) {
     int mib[6], have, had;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.3 1998/05/23 22:24:48 brian Exp $
+ *	$Id: prompt.c,v 1.4 1998/05/27 22:43:37 brian Exp $
  */
 
 #include <sys/param.h>
@@ -72,6 +72,7 @@
 static void
 prompt_Display(struct prompt *p)
 {
+  /* XXX: See Index2Nam() - should we only figure this out once ? */
   static char shostname[MAXHOSTNAMELEN];
   const char *pconnect, *pauth;
 
@@ -170,7 +171,6 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
   struct prompt *p = descriptor2prompt(d);
   int n;
   char ch;
-  static int ttystate;
   char linebuff[LINE_LEN];
 
   if (p->TermMode == NULL) {
@@ -221,10 +221,10 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
   log_Printf(LogDEBUG, "Got %d bytes (reading from the terminal)\n", n);
 
   if (n > 0) {
-    switch (ttystate) {
+    switch (p->readtilde) {
     case 0:
       if (ch == '~')
-	ttystate++;
+        p->readtilde = 1;
       else
 	if (physical_Write(p->TermMode->physical, &ch, n) < 0) {
 	  log_Printf(LogERROR, "error writing to modem: %s\n", strerror(errno));
@@ -259,7 +259,7 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
         }
 	break;
       }
-      ttystate = 0;
+      p->readtilde = 0;
       break;
     }
   }
@@ -311,6 +311,7 @@ prompt_Create(struct server *s, struct bundle *bundle, int fd)
     p->TermMode = NULL;
     p->nonewline = 1;
     p->needprompt = 1;
+    p->readtilde = 0;
     p->bundle = bundle;
     log_RegisterPrompt(p);
   }

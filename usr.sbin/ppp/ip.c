@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.41 1998/05/21 21:45:37 brian Exp $
+ * $Id: ip.c,v 1.42 1998/06/14 01:21:24 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -252,7 +252,7 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
   int mask, len, n;
   int pri = PRI_NORMAL;
   int logit, loglen;
-  static char logbuf[200];
+  char logbuf[200];
 
   logit = log_IsKept(LogTCPIP) && filter->logok;
   loglen = 0;
