@@ -38,14 +38,13 @@
 #include <machine/md_var.h>
 #include <ia64/disasm/disasm.h>
 
-static int ia64_unaligned_print = 1;	/* warn about unaligned accesses. */
-static int ia64_unaligned_sigbus = 0;	/* SIGBUS on all unaligned accesses. */
-
-SYSCTL_INT(_machdep, OID_AUTO, unaligned_print, CTLFLAG_RW,
+static int ia64_unaligned_print = 0;
+SYSCTL_INT(_debug, OID_AUTO, unaligned_print, CTLFLAG_RW,
     &ia64_unaligned_print, 0, "warn about unaligned accesses");
 
-SYSCTL_INT(_machdep, OID_AUTO, unaligned_sigbus, CTLFLAG_RW,
-    &ia64_unaligned_sigbus, 0, "do not SIGBUS on fixed-up accesses");
+static int ia64_unaligned_test = 0;
+SYSCTL_INT(_debug, OID_AUTO, unaligned_test, CTLFLAG_RW,
+    &ia64_unaligned_test, 0, "test emulation when PSR.ac is set");
 
 static void *
 fpreg_ptr(mcontext_t *mc, int fr)
@@ -129,7 +128,9 @@ fixup(struct asm_inst *i, mcontext_t *mc, uint64_t va)
 {
 	union {
 		double d;
+		long double e;
 		uint64_t i;
+		float s;
 	} buf;
 	void *reg;
 	uint64_t postinc;
@@ -157,11 +158,28 @@ fixup(struct asm_inst *i, mcontext_t *mc, uint64_t va)
 		wrreg(reg, buf.i);
 		break;
 	case ASM_OP_LDFD:
-		copyin((void*)va, (void*)&buf.d, 8);
+		copyin((void*)va, (void*)&buf.d, sizeof(buf.d));
 		reg = fpreg_ptr(mc, (int)i->i_oper[1].o_value);
 		if (reg == NULL)
 			return (EINVAL);
-		spillfd((void*)&buf.d, reg);
+		__asm("ldfd f6=%1;; stf.spill %0=f6" : "=m"(*(double *)reg) :
+		    "m"(buf.d) : "f6");
+		break;
+	case ASM_OP_LDFE:
+		copyin((void*)va, (void*)&buf.e, sizeof(buf.e));
+		reg = fpreg_ptr(mc, (int)i->i_oper[1].o_value);
+		if (reg == NULL)
+			return (EINVAL);
+		__asm("ldfe f6=%1;; stf.spill %0=f6" :
+		    "=m"(*(long double *)reg) : "m"(buf.e) : "f6");
+		break;
+	case ASM_OP_LDFS:
+		copyin((void*)va, (void*)&buf.s, sizeof(buf.s));
+		reg = fpreg_ptr(mc, (int)i->i_oper[1].o_value);
+		if (reg == NULL)
+			return (EINVAL);
+		__asm("ldfs f6=%1;; stf.spill %0=f6" : "=m"(*(float *)reg) :
+		    "m"(buf.s) : "f6");
 		break;
 	case ASM_OP_ST2:
 		reg = greg_ptr(mc, (int)i->i_oper[2].o_value);
@@ -183,6 +201,30 @@ fixup(struct asm_inst *i, mcontext_t *mc, uint64_t va)
 			return (EINVAL);
 		buf.i = rdreg(reg);
 		copyout((void*)&buf.i, (void*)va, 8);
+		break;
+	case ASM_OP_STFD:
+		reg = fpreg_ptr(mc, (int)i->i_oper[2].o_value);
+		if (reg == NULL)
+			return (EINVAL);
+		__asm("ldf.fill f6=%1;; stfd %0=f6" : "=m"(buf.d) :
+		    "m"(*(double *)reg) : "f6");
+		copyout((void*)&buf.d, (void*)va, sizeof(buf.d));
+		break;
+	case ASM_OP_STFE:
+		reg = fpreg_ptr(mc, (int)i->i_oper[2].o_value);
+		if (reg == NULL)
+			return (EINVAL);
+		__asm("ldf.fill f6=%1;; stfe %0=f6" : "=m"(buf.e) :
+		    "m"(*(long double *)reg) : "f6");
+		copyout((void*)&buf.e, (void*)va, sizeof(buf.e));
+		break;
+	case ASM_OP_STFS:
+		reg = fpreg_ptr(mc, (int)i->i_oper[2].o_value);
+		if (reg == NULL)
+			return (EINVAL);
+		__asm("ldf.fill f6=%1;; stfs %0=f6" : "=m"(buf.s) :
+		    "m"(*(float *)reg) : "f6");
+		copyout((void*)&buf.s, (void*)va, sizeof(buf.s));
 		break;
 	default:
 		return (ENOENT);
@@ -224,11 +266,16 @@ unaligned_fixup(struct trapframe *tf, struct thread *td)
 	}
 
 	/*
-	 * If PSR.ac is set, then the process wants to know about misaligned
-	 * loads and stores. Send it a SIGBUS so that it can deal with them.
-	 * We also send a SIGBUS if configured to do so.
+	 * If PSR.ac is set, the process wants to be signalled about mis-
+	 * aligned loads and stores. Send it a SIGBUS. In order for us to
+	 * test the emulation of misaligned loads and stores, we have a
+	 * sysctl that tells us that we must emulate the load or store,
+	 * instead of sending the signal. We need the sysctl because if
+	 * PSR.ac is not set, the CPU may (and likely will) deal with the
+	 * misaligned load or store itself. As such, we won't get the
+	 * exception.
 	 */
-	if ((tf->tf_special.psr & IA64_PSR_AC) || ia64_unaligned_sigbus)
+	if ((tf->tf_special.psr & IA64_PSR_AC) && !ia64_unaligned_test)
 		return (SIGBUS);
 
 	if (!asm_decode(tf->tf_special.iip, &bundle))
