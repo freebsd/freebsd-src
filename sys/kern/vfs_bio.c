@@ -3205,8 +3205,9 @@ bufdone(struct buf *bp)
 					printf(" VDEV, lblkno: %jd, flags: 0x%x, npages: %d\n",
 					    (intmax_t) bp->b_lblkno,
 					    bp->b_flags, bp->b_npages);
-				printf(" valid: 0x%x, dirty: 0x%x, wired: %d\n",
-				    m->valid, m->dirty, m->wire_count);
+				printf(" valid: 0x%lx, dirty: 0x%lx, wired: %d\n",
+				    (u_long)m->valid, (u_long)m->dirty,
+				    m->wire_count);
 				panic("biodone: page busy < 0\n");
 			}
 			vm_page_io_finish(m);
