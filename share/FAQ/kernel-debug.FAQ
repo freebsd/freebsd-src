@@ -1,6 +1,6 @@
                    Kernel debugging FAQ for FreeBSD
 
-Last modified: $Id: kernel-debug.FAQ,v 1.2 1994/10/03 03:19:41 gclarkii Exp $
+$Id: kernel-debug.FAQ,v 1.3 1995/01/02 12:01:59 joerg Exp $
 
 
 *** Debugging a kernel crash dump with kgdb ***
