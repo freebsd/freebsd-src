@@ -43,7 +43,7 @@
  *
  * 28 Nov 1991	Poul-Henning Kamp	Speedup processing.
  */
-static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/i386/pmap.c,v 1.1.1.1 1993/06/12 14:58:06 rgrimes Exp $";
+static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/i386/pmap.c,v 1.2 1993/07/27 10:52:19 davidg Exp $";
 
 /*
  * Derived from hp300 version by Mike Hibler, this version by William
@@ -901,7 +901,8 @@ pmap_enter(pmap, va, pa, prot, wired)
 	 * Page Directory table entry not valid, we need a new PT page
 	 */
 	if (!pmap_pde_v(pmap_pde(pmap, va))) {
-		pg("ptdi %x", pmap->pm_pdir[PTDPTDI]);
+		printf("ptdi %x\n", pmap->pm_pdir[PTDPTDI]);
+		panic("Page Table Directory Invalid (ptdi)");
 	}
 
 	pte = pmap_pte(pmap, va);
