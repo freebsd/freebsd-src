@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id$
+ *	$Id: boot.c,v 1.1 1997/07/11 05:52:37 joerg Exp $
  */
 
 
@@ -324,8 +324,8 @@ loadprog(void)
 	bootdev = MAKEBOOTDEV(maj, 0, 0, 0, 0);
 
 	bootinfo.bi_version = BOOTINFO_VERSION;
-	bootinfo.bi_kernelname = name + ouraddr;
-	bootinfo.bi_nfs_diskless = NULL;
+	bootinfo.bi_kernelname = (u_int32_t)(name + ouraddr);
+	bootinfo.bi_nfs_diskless = 0;
 	bootinfo.bi_size = sizeof(bootinfo);
 	printf("total=0x%x entry point=0x%x\n", (int)addr, (int)startaddr);
 	startprog((int)startaddr, loadflags | RB_BOOTINFO, bootdev,
