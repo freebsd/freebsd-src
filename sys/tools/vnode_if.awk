@@ -324,7 +324,7 @@ while ((getline < srcfile) > 0) {
 		printh("\t\tif (vop->"name" != NULL)")
 		printh("\t\t\trc = vop->"name"(&a);")
 		printh("\t\telse")
-		printh("\t\t\trc = vop->vop_bypass((struct vop_generic_args *)&a);")
+		printh("\t\t\trc = vop->vop_bypass((struct vop_generic_args *)(void *)&a);")
 		printh("\t}")
 		printh(ctrstr);
 		printh("if (rc == 0) {");
