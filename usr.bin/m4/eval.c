@@ -421,6 +421,16 @@ register int argc;
 				}
 				pbstr(argv[2]);
 				break;
+			case '@':
+				for( n = argc - 1; n >= 2; n-- )
+				{
+					putback(rquote);
+					pbstr(argv[n]);
+					putback(lquote);
+					if( n > 2 )
+						putback(',');
+				}
+				break;
 			default:
 				putback(*p);
 				putback('$');
