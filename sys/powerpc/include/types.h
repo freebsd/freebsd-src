@@ -40,31 +40,32 @@
 #include <sys/cdefs.h>
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
-typedef struct _physadr {
+typedef	struct _physadr {
 	long	r[1];
 } *physadr;
 
-typedef struct label_t {
+typedef	struct label_t {
 	long	val[10];
 } label_t;
 #endif
 
-typedef unsigned int	vm_offset_t;
-typedef __int64_t	vm_ooffset_t;
-typedef unsigned int	vm_pindex_t;
-typedef unsigned int	vm_size_t;
+typedef	unsigned int	vm_offset_t;
+typedef	__int64_t	vm_ooffset_t;
+typedef	unsigned int	vm_pindex_t;
+typedef	unsigned int	vm_size_t;
 
-typedef __int32_t	register_t;
-typedef __uint32_t	u_register_t;
+typedef	__int32_t	register_t;
+typedef	__uint32_t	u_register_t;
 
 #ifdef _KERNEL
-typedef int		intfptr_t;
-typedef unsigned int	uintfptr_t;
+typedef	int		intfptr_t;
+typedef	unsigned int	uintfptr_t;
 #endif
 
-/* Interrupt mask (spl, xxx_imask, etc) */
-typedef __uint32_t	intrmask_t;
+/* Critical section value */
+typedef	register_t	critical_t;
 
-typedef register_t	critical_t;
+/* Interrupt mask (spl, xxx_imask, etc) */
+typedef	__uint32_t	intrmask_t;
 
 #endif	/* _MACHTYPES_H_ */
