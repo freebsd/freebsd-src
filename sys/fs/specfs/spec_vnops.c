@@ -176,15 +176,19 @@ spec_open(ap)
 		 * When running in secure mode, do not allow opens
 		 * for writing if the device is mounted
 		 */
-		if (securelevel >= 1 && vfs_mountedon(vp))
-			return (EPERM);
+		if (vfs_mountedon(vp)) {
+			error = securelevel_ge(td->td_proc->p_ucred, 1);
+			if (error)
+				return (error);
+		}
 
 		/*
 		 * When running in very secure mode, do not allow
 		 * opens for writing of any devices.
 		 */
-		if (securelevel >= 2)
-			return (EPERM);
+		error = securelevel_ge(td->td_proc->p_ucred, 2);
+		if (error)
+			return (error);
 	}
 
 	/* XXX: Special casing of ttys for deadfs.  Probably redundant */
