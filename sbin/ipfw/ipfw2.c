@@ -908,7 +908,7 @@ show_ipfw(struct ip_fw *rule)
 
 			printf("fwd %s", inet_ntoa(s->sa.sin_addr));
 			if (s->sa.sin_port)
-				printf(",%d", ntohs(s->sa.sin_port));
+				printf(",%d", s->sa.sin_port);
 		    }
 			break;
 
@@ -2592,7 +2592,7 @@ add(int ac, char *av[])
 			if (s == end)
 				errx(EX_DATAERR,
 				    "illegal forwarding port ``%s''", s);
-			p->sa.sin_port = htons( (u_short)i );
+			p->sa.sin_port = (u_short)i;
 		}
 		lookup_host(*av, &(p->sa.sin_addr));
 		}
