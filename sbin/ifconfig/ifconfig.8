@@ -227,6 +227,14 @@ addresses and
 .It Fl arp
 Disable the use of the Address Resolution Protocol
 .Pq Xr arp 4 .
+.It Cm staticarp
+If the Address Resolution Protocol is enabled,
+the host will only reply to requests for its addresses,
+and will never send any requests.
+.It Fl staticarp
+If the Address Resolution Protocol is enabled,
+the host will perform normally,
+sending out requests and listening for replies.
 .It Cm broadcast
 (Inet only.)
 Specify the address to use to represent broadcasts to the
