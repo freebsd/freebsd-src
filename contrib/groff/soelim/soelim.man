@@ -1,0 +1,59 @@
+.ig \"-*- nroff -*-
+Copyright (C) 1989-1995 Free Software Foundation, Inc.
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be included in
+translations approved by the Free Software Foundation instead of in
+the original English.
+..
+.TH @G@SOELIM @MAN1EXT@ "@MDATE@" "Groff Version @VERSION@"
+.SH NAME
+@g@soelim \- interpret .so requests in groff input
+.SH SYNOPSIS
+.B @g@soelim
+[
+.B \-Cv
+]
+[
+.IR files \|.\|.\|.\|
+]
+.SH DESCRIPTION
+.B @g@soelim
+reads
+.I files
+and replaces lines of the form
+.IP
+.BI .so\  file
+.LP
+by the contents of
+.IR file .
+It is useful if files included with
+.B so
+need to be preprocessed.
+Normally,
+.B @g@soelim
+should be invoked with the
+.B \-s
+option of
+.BR groff .
+.SH OPTIONS
+.TP
+.B \-C
+Recognize
+.B .so
+even when followed by a character other than space or newline.
+.TP
+.B \-v
+Print the version number.
+.SH "SEE ALSO"
+.BR groff (@MAN1EXT@)

@@ -1,0 +1,87 @@
+.\" These are macros to make psfig work with groff.
+.\" They require that psfig be patched as described in ../grops/psfig.diff.
+.de psfig-defs
+ps: mdef 100
+
+% wid ht llx lly urx ury psfigstart -
+
+/psfigstart {
+	/level1 save def
+	/ury exch def
+	/urx exch def
+	/lly exch def
+	/llx exch def
+	/ht exch u def
+	/wid exch u def
+	currentpoint ht add translate
+	wid urx llx sub div ht ury lly sub div neg scale
+	llx neg lly neg translate
+
+	% set the graphics state to default values
+	0 setgray
+	0 setlinecap
+	1 setlinewidth
+	0 setlinejoin
+	10 setmiterlimit
+	[] 0 setdash
+	newpath
+	/showpage {} def
+} bind def
+
+% psfigclip -
+
+/psfigclip {
+	currentpoint newpath
+	llx lly moveto
+	urx lly lineto
+	urx ury lineto
+	llx ury lineto
+	closepath clip
+	newpath moveto
+} bind def
+
+% psfigend -
+
+/psfigend {
+	level1 restore
+} bind def
+
+% globalstart -
+
+/globalstart {
+	% save the current space code on the stack
+	SC
+	level0 restore
+} bind def
+
+% globalend -
+
+/globalend {
+	end
+	BP
+	/SC exch def
+	DEFS begin
+} bind def
+..
+.de psfig-init
+.if \\n[.P] \{\
+\Y[psfig-defs]
+.	br
+.	sp -1
+.	ds psfig-init\" empty
+.	rm psfig-defs
+.\}
+..
+.de F+
+.br
+.psfig-init
+.nr psfig-fill \\n[.u]
+.nf
+.sp -.5
+.if !\\n[.$] .ce 9999
+..
+.de F-
+.br
+.ce 0
+.if \\n[psfig-fill] .fi
+..

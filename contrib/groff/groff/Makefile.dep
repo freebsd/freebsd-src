@@ -1,0 +1,5 @@
+groff.o: groff.cc ../include/lib.h ../include/assert.h \
+ ../include/errarg.h ../include/error.h ../include/stringclass.h \
+ ../include/cset.h ../include/font.h ../include/device.h pipeline.h \
+ ../include/defs.h
+pipeline.o: pipeline.c pipeline.h
