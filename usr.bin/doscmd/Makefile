@@ -51,7 +51,7 @@ beforeinstall:
 	    ${FONTFILES} ${DESTDIR}/usr/libdata/doscmd/fonts
 	cd ${.CURDIR} && \
 	    ${INSTALL} ${COPY} -o ${BINOWN} -g ${EXEGRP} -m ${SHAREMODE} \
-		fonts.alias fonts.dir ${DESTDIR}/usr/libdata/doscmd/fonts
+		fonts.dir ${DESTDIR}/usr/libdata/doscmd/fonts
 
 .if ${OBJFORMAT} == "aout"
 doscmd: ${LIBCRT0} doscmd_loader.o ${LIBGCC} ${LIBC}
