@@ -50,19 +50,14 @@ static struct cdevsw xrpu_cdevsw = {
 	/* read */	noread,
 	/* write */	nowrite,
 	/* ioctl */	xrpu_ioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	nopoll,
 	/* mmap */	xrpu_mmap,
 	/* strategy */	nostrategy,
 	/* name */	"xrpu",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

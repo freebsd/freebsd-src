@@ -83,19 +83,14 @@ static struct cdevsw mse_cdevsw = {
 	/* read */	mseread,
 	/* write */	nowrite,
 	/* ioctl */	mseioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	msepoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"mse",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

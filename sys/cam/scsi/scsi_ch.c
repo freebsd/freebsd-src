@@ -219,19 +219,14 @@ static struct cdevsw ch_cdevsw = {
 	/* read */	noread,
 	/* write */	nowrite,
 	/* ioctl */	chioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"ch",
-	/* parms */	noparms,
 	/* maj */	CH_CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

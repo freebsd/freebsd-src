@@ -109,19 +109,14 @@ static struct cdevsw vga_cdevsw = {
 	/* read */	gdcread,
 	/* write */	gdcwrite,
 	/* ioctl */	gdcioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	DRIVER_NAME,
-	/* parms */	noparms,
 	/* maj */	-1,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

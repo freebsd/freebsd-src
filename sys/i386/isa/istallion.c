@@ -640,19 +640,14 @@ static struct cdevsw stli_cdevsw = {
 	/* read */	stliread,
 	/* write */	stliwrite,
 	/* ioctl */	stliioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	ttypoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	stli_drvname,
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_TTY,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

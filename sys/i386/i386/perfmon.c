@@ -65,19 +65,14 @@ static struct cdevsw perfmon_cdevsw = {
 	/* read */      noread,
 	/* write */     nowrite,
 	/* ioctl */     perfmon_ioctl,
-	/* stop */      nostop,
-	/* reset */     noreset,
-	/* devtotty */  nodevtotty,
 	/* poll */      nopoll,
 	/* mmap */      nommap,
 	/* strategy */  nostrategy,
 	/* name */      "perfmon",
-	/* parms */     noparms,
 	/* maj */       CDEV_MAJOR,
 	/* dump */      nodump,
 	/* psize */     nopsize,
 	/* flags */     0,
-	/* maxio */     0,
 	/* bmaj */      -1
 };
 

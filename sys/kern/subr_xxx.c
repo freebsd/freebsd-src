@@ -133,31 +133,6 @@ noioctl(dev, cmd, data, flags, p)
 	return (ENODEV);
 }
 
-void
-nostop(tp, rw)
-	struct tty *tp;
-	int rw;
-{
-
-}
-
-int
-noreset(dev)
-	dev_t dev;
-{
-
-	printf("noreset(%d,%d) called\n", major(dev), minor(dev));
-	return (ENODEV);
-}
-
-struct tty *
-nodevtotty(dev)
-	dev_t dev;
-{
-
-	return (NULL);
-}
-
 int
 nommap(dev, offset, nprot)
 	dev_t dev;

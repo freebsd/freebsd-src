@@ -16,6 +16,7 @@
  * or modify this software as long as this message is kept with the software,
  * all derivative works or modified versions.
  *
+ * $FreeBSD$
  *
  */
 /*Please read the README file for usage information*/
@@ -75,19 +76,14 @@ static struct cdevsw gp_cdevsw = {
 	/* read */	noread,
 	/* write */	gpwrite,
 	/* ioctl */	gpioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"gp",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

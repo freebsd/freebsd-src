@@ -514,19 +514,14 @@ static struct cdevsw matcd_cdevsw = {
 	/* read */	physread,
 	/* write */	nowrite,
 	/* ioctl */	matcdioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
 	/* strategy */	matcdstrategy,
 	/* name */	"matcd",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_DISK,
-	/* maxio */	0,
 	/* bmaj */	BDEV_MAJOR
 };
 

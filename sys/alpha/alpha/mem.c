@@ -84,19 +84,14 @@ static struct cdevsw mem_cdevsw = {
 	/* read */	mmrw,
 	/* write */	mmrw,
 	/* ioctl */	mmioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	mmpoll,
 	/* mmap */	memmmap,
 	/* strategy */	nostrategy,
 	/* name */	"mem",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_MEM,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

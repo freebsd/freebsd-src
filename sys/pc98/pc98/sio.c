@@ -467,19 +467,14 @@ static struct cdevsw sio_cdevsw = {
 	/* read */	sioread,
 	/* write */	siowrite,
 	/* ioctl */	sioioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	ttypoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	driver_name,
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_TTY,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

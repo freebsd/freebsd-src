@@ -54,10 +54,10 @@ extern struct mc malloced[];
 STATIC struct cdevsw vinum_cdevsw =
 {
     vinumopen, vinumclose, physread, physwrite,
-    vinumioctl, nostop, noreset, nodevtotty,
+    vinumioctl, 
     seltrue, nommap, vinumstrategy, "vinum",
-    noparms, CDEV_MAJOR, vinumdump, vinumsize,
-    D_DISK, 0, BDEV_MAJOR
+    CDEV_MAJOR, vinumdump, vinumsize,
+    D_DISK, BDEV_MAJOR
 };
 
 /* Called by main() during pseudo-device attachment. */

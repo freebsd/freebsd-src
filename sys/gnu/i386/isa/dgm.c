@@ -219,19 +219,14 @@ static struct cdevsw dgm_cdevsw = {
 	/* read */	dgmread,
 	/* write */	dgmwrite,
 	/* ioctl */	dgmioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	ttypoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"dgm",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_TTY,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

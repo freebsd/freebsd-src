@@ -136,19 +136,14 @@ static struct cdevsw ums_cdevsw = {
 	/* read */	ums_read,
 	/* write */	nowrite,
 	/* ioctl */	ums_ioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	ums_poll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"ums",
-	/* parms */	noparms,
 	/* maj */	UMS_CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

@@ -172,19 +172,14 @@ static struct cdevsw i4brbch_cdevsw = {
 	/* read */	i4brbchread,
 	/* write */	i4brbchwrite,
 	/* ioctl */	i4brbchioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	POLLFIELD,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"i4brbch",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 #else

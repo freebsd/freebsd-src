@@ -112,9 +112,6 @@ typedef int d_psize_t __P((dev_t dev));
 
 typedef int d_read_t __P((dev_t dev, struct uio *uio, int ioflag));
 typedef int d_write_t __P((dev_t dev, struct uio *uio, int ioflag));
-typedef void d_stop_t __P((struct tty *tp, int rw));
-typedef int d_reset_t __P((dev_t dev));
-typedef struct tty *d_devtotty_t __P((dev_t dev));
 typedef int d_poll_t __P((dev_t dev, int events, struct proc *p));
 typedef int d_mmap_t __P((dev_t dev, vm_offset_t offset, int nprot));
 
@@ -176,12 +173,10 @@ struct cdevsw {
 	d_mmap_t	*d_mmap;
 	d_strategy_t	*d_strategy;
 	const char	*d_name;	/* base device name, e.g. 'vn' */
-	d_parms_t	*d_bogoparms;	/* XXX not used */
 	int		d_maj;
 	d_dump_t	*d_dump;
 	d_psize_t	*d_psize;
 	u_int		d_flags;
-	int		d_bogomaxio;	/* XXX not used */
 	int		d_bmaj;
 };
 
@@ -229,12 +224,8 @@ d_close_t	noclose;
 d_read_t	noread;
 d_write_t	nowrite;
 d_ioctl_t	noioctl;
-d_stop_t	nostop;
-d_reset_t	noreset;
-d_devtotty_t	nodevtotty;
 d_mmap_t	nommap;
 #define	nostrategy	((d_strategy_t *)NULL)
-#define	noparms	((d_parms_t *)NULL)
 #define	nopoll	seltrue
 
 d_dump_t	nodump;

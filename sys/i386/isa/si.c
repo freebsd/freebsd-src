@@ -180,19 +180,14 @@ static struct cdevsw si_cdevsw = {
 	/* read */	siread,
 	/* write */	siwrite,
 	/* ioctl */	siioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	ttypoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"si",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_TTY,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

@@ -243,19 +243,14 @@ static struct cdevsw da_cdevsw = {
 	/* read */	physread,
 	/* write */	physwrite,
 	/* ioctl */	daioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
 	/* strategy */	dastrategy,
 	/* name */	"da",
-	/* parms */	noparms,
 	/* maj */	DA_CDEV_MAJOR,
 	/* dump */	dadump,
 	/* psize */	dasize,
 	/* flags */	D_DISK,
-	/* maxio */	0,
 	/* bmaj */	DA_BDEV_MAJOR
 };
 

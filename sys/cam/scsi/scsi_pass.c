@@ -119,19 +119,14 @@ static struct cdevsw pass_cdevsw = {
 	/* read */	physread,
 	/* write */	physwrite,
 	/* ioctl */	passioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
 	/* strategy */	passstrategy,
 	/* name */	"pass",
-	/* parms */	noparms,
 	/* maj */	PASS_CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 
