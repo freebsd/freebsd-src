@@ -2749,11 +2749,11 @@ makeoptions	UKBD_DFLT_KEYMAP=it.iso
 # options for uvscom:
 options		UVSCOM_DEFAULT_OPKTSIZE=8	# default output packet size
 
-# Firewire support
-device		firewire	# Firewire bus code
-device		sbp		# SCSI over Firewire (Requires scbus and da)
+# FireWire support
+device		firewire	# FireWire bus code
+device		sbp		# SCSI over FireWire (Requires scbus and da)
 device		sbp_targ	# SBP-2 Target mode  (Requires scbus and targ)
-device		fwe		# Ethernet over Firewire (non-standard!)
+device		fwe		# Ethernet over FireWire (non-standard!)
 
 #####################################################################
 # crypto subsystem
