@@ -44,6 +44,7 @@ struct prison {
 	char 		pr_host[MAXHOSTNAMELEN];
 	u_int32_t	pr_ip;
 	void		*pr_linux;
+	int		pr_securelevel;
 };
 
 /*
