@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.6 1995/09/11 06:28:38 peter Exp $
+ *	$Id: si.c,v 1.7 1995/09/13 08:45:28 peter Exp $
  */
 
 #ifndef lint
@@ -642,14 +642,6 @@ mem_fail:
 				spt->sp_code = 1;
 		}
 		done_chartimes = 1;
-
-/* tell them where we stand.. */
-printf("\
-si%d: -------------------USE AT YOUR OWN RISK!!!!--------------------\n\
-si%d: WARNING!! THIS DRIVER IS NOT COMPLETE NOR SUFFICIENTLY TESTED!!\n\
-si%d: -------------------USE AT YOUR OWN RISK!!!!--------------------\n\
-", unit, unit, unit);
-
 	}
 	return (1);
 }
