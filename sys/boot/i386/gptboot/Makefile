@@ -36,6 +36,8 @@ CFLAGS=	-elf -ffreestanding -Os -fno-builtin \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings
 
+CFLAGS+= -DUFS1_ONLY 
+
 LDFLAGS=-nostdlib -static -N
 
 all: boot1 boot2
