@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.13.2.3 1996/12/04 16:01:39 phk Exp $
+ *  $Id: syscons.c,v 1.13.2.4 1996/12/08 18:40:08 joerg Exp $
  */
 
 #include "sc.h"
@@ -93,7 +93,7 @@
 #define COLD 0
 #define WARM 1
 
-/* this may break on older VGA's but is usefull on real 32 bit systems */
+/* this may break on older VGA's but is useful on real 32 bit systems */
 #define bcopyw  bcopy
 
 static default_attr user_default = {
@@ -1877,7 +1877,7 @@ switch_scr(scr_stat *scp, u_int next_scr)
     if (new_scp->proc && (new_scp->proc != pfind(new_scp->pid)))
 	new_scp->smode.mode = VT_AUTO;
 
-    /* check the modes and switch approbiatly */
+    /* check the modes and switch appropriately */
     if (old_scp->smode.mode == VT_PROCESS) {
 	old_scp->status |= SWITCH_WAIT_REL;
 	psignal(old_scp->proc, old_scp->smode.relsig);
