@@ -77,16 +77,18 @@ static void pc98_set_register __P((struct isa_device *dev,
  * Card type
  *
  * Type  Card
- *   0   Allied Telesis CenterCom LA-98-T
- *   1   MELCO LPC-TJ, LPC-TS / IO-DATA PCLA/T
- *   2   PLANET SMART COM 98 EN-2298 / ELECOM LANEED LD-BDN[123]A
- *   3   MELCO EGY-98
- *   4   MELCO LGY-98, IND-SP, IND-SS / MACNICA NE2098(XXX)
- *   5   ICM DT-ET-25, DT-ET-T5, IF-2766ET, IF-2771ET /
+ * 0x00  Allied Telesis CenterCom LA-98-T
+ * 0x10  MELCO LPC-TJ, LPC-TS / IO-DATA PCLA/T
+ * 0x20  PLANET SMART COM 98 EN-2298 / ELECOM LANEED LD-BDN[123]A
+ * 0x30  MELCO EGY-98 / Contec C-NET(98)E-A/L-A
+ * 0x40  MELCO LGY-98, IND-SP, IND-SS / MACNICA NE2098(XXX)
+ * 0x50  ICM DT-ET-25, DT-ET-T5, IF-2766ET, IF-2771ET /
  *       D-Link DE-298P{T,CAT}, DE-298{T,TP,CAT}
- *   6   Allied Telesis SIC-98
- *   8   NEC PC-9801-108
- *   9   IO-DATA LA-98
+ * 0x60  Allied Telesis SIC-98
+ * 0x80  NEC PC-9801-108
+ * 0x90  IO-DATA LA-98
+ * 0xa0  Contec C-NET(98)
+ * 0xb0  Contec C-NET(98)E/L
  */
 #define ED_TYPE98_BASE		0x10
 
@@ -99,8 +101,13 @@ static void pc98_set_register __P((struct isa_device *dev,
 #define	ED_TYPE98_SIC		0x16
 #define ED_TYPE98_108		0x18
 #define ED_TYPE98_LA98		0x19
+#define ED_TYPE98_CNET98	0x1a
+#define ED_TYPE98_CNET98EL	0x1b
+#define ED_TYPE98_UE2212	0x1c
 
-#define ED_TYPE98(x)	(((x->id_flags & 0xffff0000) >> 16) | ED_TYPE98_BASE)
+#define ED_TYPE98(x)	(((x & 0xffff0000) >> 20) | ED_TYPE98_BASE)
+#define ED_TYPE98SUB(x)	((x & 0xf0000) >> 16)
+
 
 /*
  * Page 0 register offsets
@@ -269,6 +276,68 @@ static void pc98_set_register __P((struct isa_device *dev,
 }
 
 
+/*
+ * C-NET(98)
+ */
+#define ED_CNET98_INIT_ADDR	0xaaed          /* 0xaaed reset register  */
+                                            /* 0xaaef i/o address set */
+/* offset NIC address */
+#define ED_CNET98_MAP_REG0L	 1              /* MAPPING register0 Low  */
+#define ED_CNET98_MAP_REG1L	 3              /* MAPPING register1 Low  */
+#define ED_CNET98_MAP_REG2L	 5              /* MAPPING register2 Low  */
+#define ED_CNET98_MAP_REG3L	 7              /* MAPPING register3 Low  */
+#define ED_CNET98_MAP_REG0H	 9              /* MAPPING register0 Hi   */
+#define ED_CNET98_MAP_REG1H	11              /* MAPPING register1 Hi   */
+#define ED_CNET98_MAP_REG2H	13              /* MAPPING register2 Hi   */
+#define ED_CNET98_MAP_REG3H	15              /* MAPPING register3 Hi   */
+#define ED_CNET98_WIN_REG	(0x400 +  1)    /* window register        */
+#define ED_CNET98_INT_LEV	(0x400 +  3)    /* init level register    */
+#define ED_CNET98_INT_REQ	(0x400 +  5)    /* init request register  */
+#define ED_CNET98_INT_MASK	(0x400 +  7)    /* init mask register     */
+#define ED_CNET98_INT_STAT	(0x400 +  9)    /* init status register   */
+#define ED_CNET98_INT_CLR	(0x400 +  9)    /* init clear register    */
+#define ED_CNET98_RESERVE1	(0x400 + 11)
+#define ED_CNET98_RESERVE2	(0x400 + 13)
+#define ED_CNET98_RESERVE3	(0x400 + 15)
+
+
+/*
+ * C-NET(98)E/L
+ */
+/*
+ * NIC Initial Register(on board JP1)
+ */
+#define ED_CNET98EL_INIT        0xaaed
+#define ED_CNET98EL_INIT2       0x55ed
+
+#define ED_CNET98EL_NIC_OFFSET  0
+#define ED_CNET98EL_ASIC_OFFSET 0x400   /* offset to nic i/o regs */
+#define ED_CNET98EL_PAGE_OFFSET 0x0000  /* page offset for NIC access to mem */
+/*
+ * XXX - The I/O address range is fragmented in the CNET98E/L; this is the
+ *    number of regs at iobase.
+ */
+#define ED_CNET98EL_IO_PORTS    16      /* # of i/o addresses used */
+/*
+ *    Interrupt Configuration Register (offset from ASIC base)
+ */
+#define ED_CNET98EL_ICR         0x02
+
+#define ED_CNET98EL_ICR_IRQ3    0x01    /* Interrupt request 3 select */
+#define ED_CNET98EL_ICR_IRQ5    0x02    /* Interrupt request 5 select */
+#define ED_CNET98EL_ICR_IRQ6    0x04    /* Interrupt request 6 select */
+#define ED_CNET98EL_ICR_IRQ12   0x20    /* Interrupt request 12 select */
+/*
+ *    Interrupt Mask Register (offset from ASIC base)
+ */
+#define ED_CNET98EL_IMR         0x04
+/*
+ *    Interrupt Status Register (offset from ASIC base)
+ */
+#define ED_CNET98EL_ISR         0x05
+
+
+
 /* register offsets */
 static unsigned int *edp[NED];
 static unsigned int pc98_io_skip[NED];
@@ -280,7 +349,7 @@ static int ed_pc_misc[NED];
 static int ed_pc_reset[NED];
 
 
-/* NE2000, LGY-98, ICM, LPC-T */
+/* NE2000, LGY-98, ICM, LPC-T, C-NET(98)E/L */
 static unsigned int edp_generic[16] = {
 	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
 };
@@ -314,6 +383,13 @@ static unsigned int edp_nec108[16] = {
 	0x0000, 0x0002, 0x0004, 0x0006, 0x0008, 0x000a, 0x000c, 0x000e,
 	0x1000, 0x1002, 0x1004, 0x1006, 0x1008, 0x100a, 0x100c, 0x100e
 };
+
+/* Contec C-NET(98) */
+static unsigned int edp_cnet98[16] = {
+	0x0000, 0x0002, 0x0004, 0x0006, 0x0008, 0x000a, 0x000c, 0x000e,
+	0x0400, 0x0402, 0x0404, 0x0406, 0x0408, 0x040a, 0x040c, 0x040e
+};
+
 
 static void pc98_set_register(struct isa_device *dev, int unit, int type)
 {
@@ -417,6 +493,26 @@ static void pc98_set_register(struct isa_device *dev, int unit, int type)
 		ED_NOVELL_DATA = 0x0000;
 		ED_NOVELL_RESET = 0xf000;
 		ED_PC_MISC = 0x18;
+		ED_PC_RESET = 0x1f;
+		break;
+
+	case ED_TYPE98_CNET98EL:
+		edp[unit] = edp_generic;
+		pc98_io_skip[unit] = 1;
+		ED_NOVELL_NIC_OFFSET = 0;
+		ED_NOVELL_ASIC_OFFSET = 0x0400;
+		ED_NOVELL_DATA = 0x000e;
+		ED_NOVELL_RESET = 0x0000;	/* dummy */
+		ED_PC_RESET = 0x1f;
+		break;
+
+	case ED_TYPE98_CNET98:
+		edp[unit] = edp_cnet98;
+		pc98_io_skip[unit] = 2;
+		ED_NOVELL_NIC_OFFSET = 0;
+		ED_NOVELL_ASIC_OFFSET = 0x0400;
+		ED_NOVELL_DATA = 0x000e;
+		ED_NOVELL_RESET = 0x0000;	/* dummy */
 		ED_PC_RESET = 0x1f;
 		break;
 	}

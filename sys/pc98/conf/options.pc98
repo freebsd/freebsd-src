@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.3 1996/09/10 09:37:14 asami Exp $
+#	$Id: options.pc98,v 1.4 1996/09/12 11:09:21 asami Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -23,11 +23,15 @@ PCVT_FREEBSD		opt_pcvt.h
 PCVT_SCANSET		opt_pcvt.h
 XSERVER			opt_pcvt.h
 
+AHC_TAGENABLE		opt_aic7xxx.h
+AHC_SCBPAGING_ENABLE	opt_aic7xxx.h
+
 CLK_CALIBRATION_LOOP	  opt_clock.h
 CLK_USE_I8254_CALIBRATION opt_clock.h
 CLK_USE_I586_CALIBRATION  opt_clock.h
 
 SC_KBD_PROBE_WORKS	opt_syscons.h
+SC_SPLASH_SCREEN	opt_syscons.h
 MAXCONS			opt_syscons.h
 SLOW_VGA		opt_syscons.h
 XT_KEYBOARD		opt_syscons.h
@@ -37,3 +41,4 @@ ATAPI_STATIC		opt_atapi.h
 
 USERCONFIG		opt_userconfig.h
 VISUAL_USERCONFIG	opt_userconfig.h
+USERCONFIG_BOOT		opt_userconfig.h

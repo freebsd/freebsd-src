@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.2 1996/07/23 07:45:53 asami Exp $
+ *	$Id: locore.s,v 1.3 1996/10/09 19:47:37 bde Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -46,6 +46,7 @@
 #include "apm.h"
 #include "opt_cpu.h"
 #include "opt_ddb.h"
+#include "opt_userconfig.h"
 
 #include <sys/errno.h>
 #include <sys/syscall.h>
@@ -196,6 +197,14 @@ NON_GPROF_ENTRY(btext)
 	.org	0x400
 _pc98_system_parameter:
 	.space	0x240		/* skip over warm boot shit */
+1:
+	/* save SYSTEM PARAMETER for resume (NS/T or other) */
+	movl	$0xa1000,%esi
+	movl	$0x100000,%edi
+	movl	$0x0630,%ecx
+	cld
+	rep
+	movsb
 #else	/* IBM-PC */
 #ifdef BDE_DEBUGGER
 #ifdef BIOS_STEALS_3K
@@ -212,9 +221,6 @@ _pc98_system_parameter:
 	movw	$0x1234,0x472
 #endif	/* PC98 */
 
-#ifdef PC98
-1:
-#endif
 /* Set up a real frame in case the double return in newboot is executed. */
 	pushl	%ebp
 	movl	%esp, %ebp
@@ -222,16 +228,6 @@ _pc98_system_parameter:
 /* Don't trust what the BIOS gives for eflags. */
 	pushl	$PSL_KERNEL
 	popfl
-
-#ifdef PC98
-	/* save SYSTEM PARAMETER for resume (NS/T or other) */
-	movl	$0xa1000,%esi
-	movl	$0x100000,%edi
-	movl	$0x0630,%ecx
-	cld
-	rep
-	movsb
-#endif
 
 /*
  * Don't trust what the BIOS gives for %fs and %gs.  Trust the bootstrap
@@ -338,31 +334,6 @@ _pc98_system_parameter:
 
 /* now running relocated at KERNBASE where the system is linked to run */
 begin:
-#ifdef PC98
-	/* BIOS $401:available Protect Memory (/128KB)*/
-	xorl	%eax,%eax
-	movb	_pc98_system_parameter+0x401-0x400,%al
-	shll	$17,%eax
-	addl	$0x100000,%eax
-	shrl	$12,%eax
-	movl	%eax,_Maxmem		/* Maxmem=(%ax*128K+1M)/4096 */
-	movl	%eax,_Maxmem_under16M
-	/* BIOS $594:available Protect Memory over 16M (/1MB) */
-	xorl	%edx,%edx
-	movw	_pc98_system_parameter+0x594-0x400,%dx
-	cmpl	$0,%edx
-	je	1f
-
-	addl	$16,%edx
-	shll	$8,%edx
-	movl	%edx,_Maxmem				/* Maxmem=(%dx*1M+16M)/4096 */
-1:
-
-	testb	$8,_pc98_system_parameter+0x501-0x400	/* hireso check */
-	jz		1f
-	movb	$0xff,_hireso							/* set hireso */
-1:
-#endif	/* PC98 */
 
 	/* set up bootstrap stack */
 	movl	$_kstack+UPAGES*PAGE_SIZE,%esp	/* bootstrap stack end location */
@@ -718,6 +689,15 @@ olddiskboot:
 	movl	%eax,R(_boothowto)
 	movl	12(%ebp),%eax
 	movl	%eax,R(_bootdev)
+
+#if defined(USERCONFIG_BOOT) && defined(USERCONFIG)
+	movl	$0x10200, %esi
+	movl	$R(_userconfig_from_boot),%edi
+	movl	$512,%ecx
+	cld
+	rep
+	movsb
+#endif /* USERCONFIG_BOOT */
 
 	ret
 
