@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.22 1996/07/31 10:35:47 davidg Exp $
+ * $Id: kern_synch.c,v 1.23 1996/08/28 18:36:30 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -196,7 +196,7 @@ schedcpu(arg)
 		 */
 		if (p->p_slptime > 1)
 			continue;
-		s = splstatclock();	/* prevent state changes */
+		s = splhigh();	/* prevent state changes and protect run queue */
 		/*
 		 * p_pctcpu is only for ps.
 		 */
