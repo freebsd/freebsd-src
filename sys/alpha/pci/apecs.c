@@ -548,10 +548,11 @@ apecs_init()
 	if (initted) return;
 	initted = 1;
 
+	chipset = apecs_swiz_chipset;
+
 	if (platform.pci_intr_init)
 		platform.pci_intr_init();
 
-	chipset = apecs_swiz_chipset;
 }
 
 static int
@@ -607,7 +608,8 @@ static struct resource *
 apecs_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		     u_long start, u_long end, u_long count, u_int flags)
 {
-	if (type == SYS_RES_IRQ)
+	if ((hwrpb->rpb_type == ST_DEC_2100_A50) &&
+	    (type == SYS_RES_IRQ))
 		return isa_alloc_intr(bus, child, start);
 	else
 		return pci_alloc_resource(bus, child, type, rid,
@@ -618,7 +620,8 @@ static int
 apecs_release_resource(device_t bus, device_t child, int type, int rid,
 		       struct resource *r)
 {
-	if (type == SYS_RES_IRQ)
+	if ((hwrpb->rpb_type == ST_DEC_2100_A50) &&
+	    (type == SYS_RES_IRQ))
 		return isa_release_intr(bus, child, r);
 	else
 		return pci_release_resource(bus, child, type, rid, r);
@@ -651,6 +654,11 @@ apecs_setup_intr(device_t dev, device_t child,
 
 	/* Enable PCI interrupt */
 	platform.pci_intr_enable(irq->r_start);
+
+	device_printf(child, "interrupting at APECS irq %d\n",
+		      (int) irq->r_start);
+
+
 	return 0;
 }
 
