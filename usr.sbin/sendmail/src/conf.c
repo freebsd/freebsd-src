@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)conf.c	8.315 (Berkeley) 11/10/96";
+static char sccsid[] = "@(#)conf.c	8.325 (Berkeley) 12/1/96";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -1087,13 +1087,56 @@ setsignal(sig, handler)
 #endif
 }
 /*
+**  BLOCKSIGNAL -- hold a signal to prevent delivery
+**
+**	Parameters:
+**		sig -- the signal to block.
+**
+**	Returns:
+**		1 signal was previously blocked
+**		0 signal was not previously blocked
+**		-1 on failure.
+*/
+
+int
+blocksignal(sig)
+	int sig;
+{
+#ifdef BSD4_3
+# ifndef sigmask
+#  define sigmask(s)	(1 << ((s) - 1))
+# endif
+	return (sigblock(sigmask(sig)) & sigmask(sig)) != 0;
+#else
+# ifdef ALTOS_SYSTEM_V
+	sigfunc_t handler;
+
+	handler = sigset(sig, SIG_HOLD);
+	if (handler == SIG_ERR)
+		return -1;
+	else
+		return handler == SIG_HOLD;
+# else
+	sigset_t sset, oset;
+
+	sigemptyset(&sset);
+	sigaddset(&sset, sig);
+	if (sigprocmask(SIG_BLOCK, &sset, &oset) < 0)
+		return -1;
+	else
+		return sigismember(&oset, sig);
+# endif
+#endif
+}
+/*
 **  RELEASESIGNAL -- release a held signal
 **
 **	Parameters:
 **		sig -- the signal to release.
 **
 **	Returns:
-**		0 on success.
+**		1 signal was previously blocked
+**		0 signal was not previously blocked
 **		-1 on failure.
 */
 
@@ -1102,19 +1145,25 @@ releasesignal(sig)
 	int sig;
 {
 #ifdef BSD4_3
-# ifndef sigmask
-#  define sigmask(s)	(1 << ((s) - 1))
-# endif
-	return sigsetmask(sigblock(0) & ~sigmask(sig));
+	return (sigsetmask(sigblock(0) & ~sigmask(sig)) & sigmask(sig)) != 0;
 #else
 # ifdef ALTOS_SYSTEM_V
-	sigrelse(sig) ;
+	sigfunc_t handler;
+
+	handler = sigset(sig, SIG_HOLD);
+	if (sigrelse(sig) < 0)
+		return -1;
+	else
+		return handler == SIG_HOLD;
 # else
-	sigset_t sset;
+	sigset_t sset, oset;
 
 	sigemptyset(&sset);
 	sigaddset(&sset, sig);
-	return sigprocmask(SIG_UNBLOCK, &sset, NULL);
+	if (sigprocmask(SIG_UNBLOCK, &sset, &oset) < 0)
+		return -1;
+	else
+		return sigismember(&oset, sig);
 # endif
 #endif
 }
@@ -1256,6 +1305,7 @@ init_vendor_macros(e)
 #define LA_IRIX6	11	/* special IRIX 6.2 implementation */
 #define LA_KSTAT	12	/* special Solaris kstat(3k) implementation */
 #define LA_DEVSHORT	13	/* read short from a device */
+#define LA_ALPHAOSF	14	/* Digital UNIX (OSF/1 on Alpha) table() call */
 
 /* do guesses based on general OS type */
 #ifndef LA_TYPE
@@ -1378,7 +1428,8 @@ getla()
 		(void) fcntl(kmem, F_SETFD, 1);
 	}
 	if (tTd(3, 20))
-		printf("getla: symbol address = %#x\n", Nl[X_AVENRUN].n_value);
+		printf("getla: symbol address = %#lx\n",
+			(u_long) Nl[X_AVENRUN].n_value);
 	if (lseek(kmem, (off_t) Nl[X_AVENRUN].n_value, SEEK_SET) == -1 ||
 	    read(kmem, (char *) avenrun, sizeof(avenrun)) < sizeof(avenrun))
 	{
@@ -1882,6 +1933,37 @@ getla()
 
 #endif /* LA_TYPE == LA_DEVSHORT */
 
+#if LA_TYPE == LA_ALPHAOSF
+# include <sys/table.h>
+
+int getla()
+{
+	int ave = 0;
+	struct tbl_loadavg tab;
+
+	if (table(TBL_LOADAVG, 0, &tab, 1, sizeof(tab)) == -1)
+	{
+		if (tTd(3, 1))
+			printf("getla: table %s\n", errstring(errno));
+		return (-1);
+	}
+
+	if (tTd(3, 1))
+		printf("getla: scale = %d\n", tab.tl_lscale);
+
+	if (tab.tl_lscale)
+		ave = (tab.tl_avenrun.l[0] + (tab.tl_lscale/2)) / tab.tl_lscale;
+	else
+		ave = (int) (tab.tl_avenrun.d[0] + 0.5);
+
+	if (tTd(3, 1))
+		printf("getla: %d\n", ave);
+
+	return ave;
+}
+
+#endif
+
 #if LA_TYPE == LA_ZERO
 
 int
@@ -2058,6 +2140,8 @@ refuseconnections(port)
 
 	if (MaxChildren > 0 && CurChildren >= MaxChildren)
 	{
+		extern void proc_list_probe __P((void));
+
 		proc_list_probe();
 		if (CurChildren >= MaxChildren)
 		{
@@ -2870,7 +2954,7 @@ static void dopr_outch __P(( int c ));
 static void
 dopr( buffer, format, args )
        char *buffer;
-       char *format;
+       const char *format;
        va_list args;
 {
        int ch;
@@ -3842,6 +3926,11 @@ vendor_pre_defaults(e)
 #ifdef SUN_EXTENSIONS
 	sun_pre_defaults(e);
 #endif
+#ifdef apollo
+	/* stupid domain/os can't even open /etc/sendmail.cf without this */
+	setuserenv("ISP", NULL);
+	setuserenv("SYSTYPE", NULL);
+#endif
 }
 
 
@@ -3920,6 +4009,7 @@ int	allow_severity	= LOG_INFO;
 int	deny_severity	= LOG_WARNING;
 #endif
 
+#if DAEMON
 bool
 validate_connection(sap, hostname, e)
 	SOCKADDR *sap;
@@ -3935,6 +4025,8 @@ validate_connection(sap, hostname, e)
 #endif
 	return TRUE;
 }
+
+#endif
 /*
 **  STRTOL -- convert string to long integer
 **
@@ -4184,14 +4276,26 @@ struct passwd *
 sm_getpwnam(user)
 	char *user;
 {
+#ifdef _AIX4
+	extern struct passwd *_getpwnam_shadow(const char *, const int);
+
+	return _getpwnam_shadow(user, 0);
+#else
 	return getpwnam(user);
+#endif
 }
 
 struct passwd *
 sm_getpwuid(uid)
 	UID_T uid;
 {
+#if defined(_AIX4) && 0
+	extern struct passwd *_getpwuid_shadow(const int, const int);
+
+	return _getpwuid_shadow(uid,0);
+#else
 	return getpwuid(uid);
+#endif
 }
 /*
 **  SECUREWARE_SETUP_SECURE -- Convex SecureWare setup
@@ -4610,9 +4714,6 @@ char	*OsCompileOptions[] =
 #endif
 #if HASSETVBUF
 	"HASSETVBUF",
-#endif
-#if HASSIGSETMASK
-	"HASSIGSETMASK",
 #endif
 #if HASSNPRINTF
 	"HASSNPRINTF",

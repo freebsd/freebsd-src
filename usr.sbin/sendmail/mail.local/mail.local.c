@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: mail.local.c,v 1.3 1996/10/29 05:35:24 peter Exp $
+ * $Id: mail.local.c,v 1.3.2.1 1996/11/22 07:50:58 phk Exp $
  */
 
 #ifndef lint
@@ -40,7 +40,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)mail.local.c	8.33 (Berkeley) 11/13/96";
+static char sccsid[] = "@(#)mail.local.c	8.34 (Berkeley) 11/24/96";
 #endif /* not lint */
 
 /*
@@ -659,7 +659,7 @@ vwarn(fmt, ap)
 	{
 		char fmtbuf[10240];
 
-		(void) sprintf(fmtbuf, fmt, ap);
+		(void) vsprintf(fmtbuf, fmt, ap);
 		syslog(LOG_ERR, "%s", fmtbuf);
 	}
 #endif
