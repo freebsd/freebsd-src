@@ -142,7 +142,11 @@
     <sect3 id="boot">
       <title>Boot Loader Changes</title>
 
-      <para></para>
+      <para arch="i386">A serial console-capable version of
+        <filename>boot0</filename> has been added.  It can be written
+        to a disk using &man.boot0cfg.8; and specifying
+        <filename>/boot/boot0sio</filename> as the argument to the
+        <option>-b</option> option.</para>
 
       <!-- Above this line, order boot loader changes by keyword-->
 
@@ -157,6 +161,11 @@
 
       <para arch="i386">The lmc (LAN Media Corp. PCI WAN adapter) driver has been
 	removed due to breakage and lack of maintainership.</para>
+
+      <para arch="i386">A wrapper system has been added to allow
+	binary Windows NDIS miniport network drivers to be used with
+	FreeBSD.  For more information, see the &man.ndis.4; and
+	&man.ndiscvt.8; manual pages.</para>
 
     </sect3>
 
@@ -194,14 +203,21 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
-    <para></para>
+    <para>The configuration files used by the &man.resolver.5; now
+      support the <literal>timeout:</literal> and
+      <literal>attempts:</literal> keywords.</para>
+
+    <para>&man.ipfw.8; now supports a <option>-b</option> flag to
+      print only the action and comment for each rule, thus omitting
+      the rule body.</para>
 
   </sect2>
 
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
-    <para></para>
+    <para>The <application>ACPI-CA</application> code has been updated
+      from the 20030619 snapshot to the 20031203 snapshot.</para>
 
   </sect2>
 
