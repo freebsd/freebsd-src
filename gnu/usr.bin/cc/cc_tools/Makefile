@@ -12,6 +12,7 @@
 # aliases of generated headers.
 
 CFLAGS+=	-I.
+CFLAGS+=	-static
 
 .include "../Makefile.inc"
 
@@ -33,8 +34,8 @@ gen-time-stamp: genattrtab genemit genextract genopinit genoutput genpeep genrec
 .for F in attr codes config emit extract flags opinit output peep recog
 build-tools: gen$F
 
-gen$F: gen$F.o rtl.o obstack.o print-rtl.o bitmap.o
-	${CC} -static ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
+gen$F: gen$F.o rtl.o print-rtl.o obstack.o bitmap.o
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 GENSRCS+=	gen$F.c
 CLEANFILES+=	gen$F
@@ -44,7 +45,7 @@ CLEANFILES+=	gen$F
 build-tools: gen$F
 
 gen$F: gen$F.o rtl.o rtlanal.o print-rtl.o obstack.o bitmap.o
-	${CC} -static ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 GENSRCS+=	gen$F.c
 CLEANFILES+=	gen$F
@@ -56,7 +57,7 @@ SRCS+=		bitmap.c obstack.c print-rtl.c rtl.c rtlanal.c
 build-tools: gen$F
 
 gen$F: gen$F.o
-	${CC} -static ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 GENSRCS+=	gen$F.c
 CLEANFILES+=	gen$F
