@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_pass1.c,v 1.10 1995/05/30 03:47:23 rgrimes Exp $
+ * $Id: ctm_pass1.c,v 1.11 1995/07/12 09:16:08 phk Exp $
  *
  */
 
@@ -63,8 +63,8 @@ Pass1(FILE *fd, unsigned applied)
     }
 
     for(;;) {
-	if(md5)		{Free(md5), md5 = 0;}
-	if(trash)	{Free(trash), trash = 0;}
+	Delete(md5);
+	Delete(trash);
 	cnt = -1;
 
 	GETFIELD(p,' ');			/* CTM_something */
@@ -184,6 +184,10 @@ Pass1(FILE *fd, unsigned applied)
 	    putc('\n',stderr);
 	continue;
     }
+
+    Delete(md5);
+    Delete(trash);
+
     q = MD5End (&ctx,md5_1);
     if(Verbose > 2)
 	printf("Expecting Global MD5 <%s>\n",q);

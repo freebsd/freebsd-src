@@ -6,20 +6,12 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: ctm_input.c,v 1.4 1994/09/22 02:49:18 phk Exp $
  *
  */
 
 #include "ctm.h"
 
-/*---------------------------------------------------------------------------*/
-char *
-String(char *s)
-{
-    char *p = malloc(strlen(s) + 1);
-    strcpy(p,s);
-    return p;
-}
 /*---------------------------------------------------------------------------*/
 void
 Fatal_(int ln, char *fn, char *kind)
@@ -110,4 +102,37 @@ Fdata(FILE *fd, int u_chars, MD5_CTX *ctx)
     }
     p[u_chars] = '\0';
     return p;
+}
+
+/*---------------------------------------------------------------------------*/
+/* get the filename in the next field, prepend BaseDir and give back the result
+   strings. The sustitute filename is return (the one with the suffix SUBSUFF) 
+   if it exists and the qualifier contains CTM_Q_Name_Subst
+   NOTA: Buffer is already initialize with BaseDir, CatPtr is the insertion
+   point on this buffer + the length test in Ffield() is enough for Fname() */
+
+u_char *
+Fname(FILE *fd, MD5_CTX *ctx,u_char term,int qual, int verbose)
+{
+    u_char * p;
+    struct stat st;
+
+    if ((p = Ffield(fd,ctx,term)) == NULL) return(NULL);
+
+    strcpy(CatPtr, p);
+
+    if (!(qual & CTM_Q_Name_Subst)) return(Buffer);
+
+    p = Buffer + strlen(Buffer);
+
+    strcat(Buffer, SUBSUFF);
+
+    if ( -1 == stat(Buffer, &st) ) {
+	*p = '\0';
+    } else {
+	if(verbose > 2)
+	    fprintf(stderr,"Using %s as substitute file\n", Buffer);
+    }
+
+    return (Buffer);
 }
