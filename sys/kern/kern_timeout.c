@@ -69,7 +69,9 @@ struct callout_list callfree;
 int callwheelsize, callwheelbits, callwheelmask;
 struct callout_tailq *callwheel;
 int softticks;			/* Like ticks, but for softclock(). */
-struct mtx callout_lock;
+#ifdef DIAGNOSTIC
+struct mtx callout_lock, callout_dont_sleep;
+#endif
 
 static struct callout *nextsoftcheck;	/* Next callout to be checked. */
 
@@ -120,6 +122,9 @@ kern_timeout_callwheel_init(void)
 		TAILQ_INIT(&callwheel[i]);
 	}
 	mtx_init(&callout_lock, "callout", NULL, MTX_SPIN | MTX_RECURSE);
+#ifdef DIAGNOSTIC
+	mtx_init(&callout_dont_sleep, "callout_dont_sleep", NULL, MTX_DEF);
+#endif
 }
 
 /*
@@ -214,9 +219,11 @@ softclock(void *dummy)
 				}
 #ifdef DIAGNOSTIC
 				binuptime(&bt1);
+				mtx_lock(&callout_dont_sleep);
 #endif
 				c_func(c_arg);
 #ifdef DIAGNOSTIC
+				mtx_unlock(&callout_dont_sleep);
 				binuptime(&bt2);
 				bintime_sub(&bt2, &bt1);
 				if (bt2.frac > maxdt) {
