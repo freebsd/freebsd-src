@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.50.2.9 1997/11/13 22:57:33 julian Exp $
+ * $Id: ip_input.c,v 1.50.2.10 1998/02/11 18:35:46 guido Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -1065,7 +1065,7 @@ nosourcerouting:
 			ipt->ipt_ptr += sizeof(n_time);
 		}
 	}
-	if (forward) {
+	if (forward && ipforwarding) {
 		ip_forward(m, 1);
 		return (1);
 	}
