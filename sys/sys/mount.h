@@ -312,6 +312,7 @@ extern struct vfsconf *vfsconf;	/* head of list of filesystem types */
 #ifdef __STDC__
 struct nameidata;
 struct mbuf;
+struct mount_args;
 #endif
 
 struct vfsops {
@@ -403,6 +404,7 @@ extern	char *mountrootfsname;
  * exported vnode operations
  */
 int	dounmount __P((struct mount *, int, struct proc *));
+int	mount1 __P((struct proc *p, struct mount_args *uap, int segflag));
 int	vfs_setpublicfs			    /* set publicly exported fs */
 	  __P((struct mount *, struct netexport *, struct export_args *));
 int	vfs_lock __P((struct mount *));         /* lock a vfs */

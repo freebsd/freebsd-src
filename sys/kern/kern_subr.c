@@ -387,3 +387,39 @@ uio_yield()
 	PICKUP_GIANT();
 	splx(s);
 }
+
+int
+copyinfrom(const void *src, void *dst, size_t len, int seg)
+{
+	int error = 0;
+
+	switch (seg) {
+	case UIO_USERSPACE:
+		error = copyin(src, dst, len);
+		break;
+	case UIO_SYSSPACE:
+		bcopy(src, dst, len);
+		break;
+	default:
+		panic("copyinfrom: bad seg %d\n", seg);
+	}
+	return (error);
+}
+
+int
+copyinstrfrom(const void *src, void *dst, size_t len, size_t *copied, int seg)
+{
+	int error = 0;
+
+	switch (seg) {
+	case UIO_USERSPACE:
+		error = copyinstr(src, dst, len, copied);
+		break;
+	case UIO_SYSSPACE:
+		error = copystr(src, dst, len, copied);
+		break;
+	default:
+		panic("copyinstrfrom: bad seg %d\n", seg);
+	}
+	return (error);
+}
