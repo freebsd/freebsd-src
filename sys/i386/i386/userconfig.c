@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.86 1997/06/22 13:51:04 msmith Exp $
+ **      $Id: userconfig.c,v 1.87 1997/08/11 09:44:57 jkh Exp $
  **/
 
 /**
@@ -264,6 +264,7 @@ static DEV_INFO device_info[] = {
 {"stl",         "Stallion EasyIO/Easy Connection 8/32 async adapter",0,	CLS_COMMS},
 {"stli",        "Stallion intelligent async adapter"	,0,		CLS_COMMS},
 {"lpt",         "Parallel printer port",		0,		CLS_COMMS},
+{"ppc",         "Parallel Port chipset",		0,		CLS_COMMS},
 {"gp",          "National Instruments AT-GPIB/TNT driver",	0,	CLS_COMMS},
 
 {"mse",         "Microsoft Bus Mouse",			0,		CLS_INPUT},
@@ -2358,7 +2359,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.86 1997/06/22 13:51:04 msmith Exp $
+ *      $Id: userconfig.c,v 1.87 1997/08/11 09:44:57 jkh Exp $
  */
 
 #include "scbus.h"
