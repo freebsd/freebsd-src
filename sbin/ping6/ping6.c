@@ -314,8 +314,8 @@ main(argc, argv)
 	size_t rthlen;
 
 	/* just to be sure */
-	memset(&smsghdr, 0, sizeof(&smsghdr));
-	memset(&smsgiov, 0, sizeof(&smsgiov));
+	memset(&smsghdr, 0, sizeof(smsghdr));
+	memset(&smsgiov, 0, sizeof(smsgiov));
 
 	preload = 0;
 	datap = &outpack[ICMP6ECHOLEN + ICMP6ECHOTMLEN];
