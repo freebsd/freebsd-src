@@ -156,6 +156,7 @@ MAN4=	aac.4 \
 	unix.4 \
 	urio.4 \
 	usb.4 \
+	uscanner.4 \
 	vga.4 \
 	vinum.4 \
 	vn.4 \
