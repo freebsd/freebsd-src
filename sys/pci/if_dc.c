@@ -2431,7 +2431,7 @@ dc_pnic_rx_bug_war(struct dc_softc *sc, int idx)
 	i = sc->dc_pnic_rx_bug_save;
 	cur_rx = &sc->dc_ldata->dc_rx_list[idx];
 	ptr = sc->dc_pnic_rx_buf;
-	bzero(ptr, sizeof(DC_RXLEN * 5));
+	bzero(ptr, DC_RXLEN * 5);
 
 	/* Copy all the bytes from the bogus buffers. */
 	while (1) {
