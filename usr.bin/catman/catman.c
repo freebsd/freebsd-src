@@ -201,7 +201,7 @@ directory_type(char *dir)
 		p += 3;
 		if (*p == '\0')
 			return TOP_LEVEL_DIR;
-		while (isalnum(*p) || *p == '_') {
+		while (isalnum((unsigned char)*p) || *p == '_') {
 			if (*++p == '\0')
 				return MAN_SECTION_DIR;
 		}
@@ -222,7 +222,7 @@ is_manpage_name(char *name)
 	char *n = name;
 
 	while (*n != '\0') {
-		if (!isalnum(*n)) {
+		if (!isalnum((unsigned char)*n)) {
 			switch (*n) {
 			case '_':
 				break;
