@@ -53,7 +53,7 @@ signal
 .Dv SIGABRT
 is being caught and the signal handler does not return.
 .Pp
-No open streams are closed or flushed.
+Any open streams are flushed and closed.
 .Sh RETURN VALUES
 The
 .Fn abort
@@ -67,4 +67,4 @@ The
 .Fn abort
 function
 conforms to
-.St -ansiC .
+.St -p1003.1-90 .
