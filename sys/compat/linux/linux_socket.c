@@ -503,7 +503,7 @@ linux_accept(struct thread *td, struct linux_accept_args *args)
 	bsd_args.s = linux_args.s;
 	bsd_args.name = (caddr_t)linux_args.addr;
 	bsd_args.anamelen = linux_args.namelen;
-	error = oaccept(td, &bsd_args);
+	error = accept(td, &bsd_args);
 	if (error)
 		return (error);
 
@@ -543,7 +543,7 @@ linux_getsockname(struct thread *td, struct linux_getsockname_args *args)
 	bsd_args.fdes = linux_args.s;
 	bsd_args.asa = (caddr_t) linux_args.addr;
 	bsd_args.alen = linux_args.namelen;
-	return (ogetsockname(td, &bsd_args));
+	return (getsockname(td, &bsd_args));
 }
 
 struct linux_getpeername_args {
@@ -556,7 +556,7 @@ static int
 linux_getpeername(struct thread *td, struct linux_getpeername_args *args)
 {
 	struct linux_getpeername_args linux_args;
-	struct ogetpeername_args /* {
+	struct getpeername_args /* {
 		int fdes;
 		caddr_t asa;
 		int *alen;
@@ -569,7 +569,7 @@ linux_getpeername(struct thread *td, struct linux_getpeername_args *args)
 	bsd_args.fdes = linux_args.s;
 	bsd_args.asa = (caddr_t) linux_args.addr;
 	bsd_args.alen = linux_args.namelen;
-	return (ogetpeername(td, &bsd_args));
+	return (getpeername(td, &bsd_args));
 }
 
 struct linux_socketpair_args {
@@ -615,11 +615,13 @@ static int
 linux_send(struct thread *td, struct linux_send_args *args)
 {
 	struct linux_send_args linux_args;
-	struct osend_args /* {
-		int s;
+	struct sendto_args /* {
+                int s;
 		caddr_t buf;
-		int len;
+		size_t len;
 		int flags;
+		caddr_t to;
+		int tolen;
 	} */ bsd_args;
 	int error;
 
@@ -630,7 +632,9 @@ linux_send(struct thread *td, struct linux_send_args *args)
 	bsd_args.buf = linux_args.msg;
 	bsd_args.len = linux_args.len;
 	bsd_args.flags = linux_args.flags;
-	return (osend(td, &bsd_args));
+	bsd_args.to = NULL;
+	bsd_args.tolen = 0;
+	return (sendto(td, &bsd_args));
 }
 
 struct linux_recv_args {
@@ -644,11 +648,13 @@ static int
 linux_recv(struct thread *td, struct linux_recv_args *args)
 {
 	struct linux_recv_args linux_args;
-	struct orecv_args /* {
+	struct recvfrom_args /* {
 		int s;
 		caddr_t buf;
 		int len;
 		int flags;
+		caddr_t from;
+		int fromlen;
 	} */ bsd_args;
 	int error;
 
@@ -659,7 +665,9 @@ linux_recv(struct thread *td, struct linux_recv_args *args)
 	bsd_args.buf = linux_args.msg;
 	bsd_args.len = linux_args.len;
 	bsd_args.flags = linux_args.flags;
-	return (orecv(td, &bsd_args));
+	bsd_args.from = NULL;
+	bsd_args.fromlenaddr = NULL;
+	return (recvfrom(td, &bsd_args));
 }
 
 struct linux_sendto_args {
@@ -734,7 +742,7 @@ linux_recvfrom(struct thread *td, struct linux_recvfrom_args *args)
 	bsd_args.flags = linux_to_bsd_msg_flags(linux_args.flags);
 	bsd_args.from = linux_args.from;
 	bsd_args.fromlenaddr = linux_args.fromlen;
-	return (orecvfrom(td, &bsd_args));
+	return (recvfrom(td, &bsd_args));
 }
 
 struct linux_recvmsg_args {
