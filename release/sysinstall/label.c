@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.63.2.8 1997/09/10 10:16:21 jkh Exp $
+ * $Id: label.c,v 1.63.2.9 1997/09/16 10:12:53 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -238,8 +238,6 @@ record_label_chunks(Device **devs)
     label_chunk_info[j].c = NULL;
     if (here >= j) {
 	here = j  ? j - 1 : 0;
-        pslice_focus = here;            /* VEG 09/05/97 */
-        label_focus = here;            /* VEG 09/05/97 */
     }
     if (ChunkWin) {
 	wclear(ChunkWin);
@@ -607,6 +605,8 @@ diskLabel(char *str)
     Device **devs;
     int override_focus_adjust = 0;
 
+    label_focus = 0;
+    pslice_focus = 0;
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     if (!devs) {
 	msgConfirm("No disks found!");
@@ -1067,7 +1067,7 @@ diskLabel(char *str)
 	    msg = _msg;
 	    break;
 	}
-	if (override_focus_adjust) {
+	if (!override_focus_adjust) {
             if (label_chunk_info[here].type == PART_SLICE)
                 pslice_focus = here;
             else
