@@ -13,6 +13,7 @@
 #include "sysinstall.h"
 #include <fcntl.h>
 #include <err.h>
+#include <libdisk.h>
 
 int
 scan_block(int fd, daddr_t block)

@@ -37,6 +37,7 @@
 #include "sysinstall.h"
 #include <ctype.h>
 #include <inttypes.h>
+#include <libdisk.h>
 #include <sys/disklabel.h>
 #include <sys/param.h>
 #include <sys/sysctl.h>
