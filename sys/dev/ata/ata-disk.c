@@ -273,7 +273,7 @@ addump(dev_t dev)
     blkcnt = howmany(PAGE_SIZE, secsize);
 
     while (count > 0) {
-	caddr_t va;
+	caddr_t va = NULL;
 	DELAY(1000);
 
 	if ((count / blkcnt) < dumppages)
