@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.46 1997/04/11 10:04:46 jkh Exp $ -->
+<!-- $Id: submitters.sgml,v 1.47 1997/04/12 16:51:20 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -516,6 +516,10 @@ like to publically thank them here!
 	<item><url url="mailto:joe@via.net" name="Joe McGuckin"> of
 	<url url="http://www.via.net" name="ViaNet Communications">
 	donated a <bf>Kingston ethernet controller.</bf>
+
+	<item><utl url="mailto:jack@diamond.xtalwind.net"
+	name="Jack O'Neill"> donated an <bf>NCR 53C875 SCSI
+	controller card</bf>.
 
 	<item><url url="mailto:ulf@Alameda.net" name="Ulf Zimmermann">
 	of <url url="http://www.Alameda.net" name="Alameda Networks">
