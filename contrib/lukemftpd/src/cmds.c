@@ -1,4 +1,4 @@
-/*	$NetBSD: cmds.c,v 1.16 2002/02/13 15:15:23 lukem Exp $	*/
+/*	$NetBSD: cmds.c,v 1.18 2002/10/12 08:35:16 darrenr Exp $	*/
 
 /*
  * Copyright (c) 1999-2001 The NetBSD Foundation, Inc.
@@ -98,7 +98,30 @@
  * SUCH DAMAGE.
  */
 
-#include "lukemftpd.h"
+
+#include <sys/cdefs.h>
+#ifndef lint
+__RCSID("$NetBSD: cmds.c,v 1.18 2002/10/12 08:35:16 darrenr Exp $");
+#endif /* not lint */
+
+#include <sys/param.h>
+#include <sys/stat.h>
+
+#include <arpa/ftp.h>
+
+#include <dirent.h>
+#include <errno.h>
+#include <setjmp.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <tzfile.h>
+#include <unistd.h>
+#include <ctype.h>
+
+#ifdef KERBEROS5
+#include <krb5/krb5.h>
+#endif
 
 #include "extern.h"
 
@@ -307,11 +330,11 @@ opts(const char *command)
 		*ep++ = '\0';
 	c = lookup(cmdtab, command);
 	if (c == NULL) {
-		reply(502, "Unknown command %s.", command);
+		reply(502, "Unknown command '%s'.", command);
 		return;
 	}
 	if (! CMD_IMPLEMENTED(c)) {
-		reply(501, "%s command not implemented.", c->name);
+		reply(502, "%s command not implemented.", c->name);
 		return;
 	}
 	if (! CMD_HAS_OPTIONS(c)) {
@@ -484,12 +507,14 @@ statfilecmd(const char *filename)
 {
 	FILE *fin;
 	int c;
+	int atstart;
 	char *argv[] = { INTERNAL_LS, "-lgA", "", NULL };
 
 	argv[2] = (char *)filename;
 	fin = ftpd_popen(argv, "r", STDOUT_FILENO);
 	reply(-211, "status of %s:", filename);
 /* XXX: use fgetln() or fparseln() here? */
+	atstart = 1;
 	while ((c = getc(fin)) != EOF) {
 		if (c == '\n') {
 			if (ferror(stdout)){
@@ -505,7 +530,10 @@ statfilecmd(const char *filename)
 			}
 			CPUTC('\r', stdout);
 		}
+		if (atstart && isdigit(c))
+			CPUTC(' ', stdout);
 		CPUTC(c, stdout);
+		atstart = (c == '\n');
 	}
 	(void) ftpd_pclose(fin);
 	reply(211, "End of Status");

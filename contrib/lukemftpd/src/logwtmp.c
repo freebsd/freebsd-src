@@ -1,4 +1,4 @@
-/*	$NetBSD: logwtmp.c,v 1.16 2001/02/04 22:04:12 christos Exp $	*/
+/*	$NetBSD: logwtmp.c,v 1.17 2002/09/12 08:55:31 itojun Exp $	*/
 
 /*
  * Copyright (c) 1988, 1993
@@ -34,7 +34,34 @@
  *
  */
 
-#include "lukemftpd.h"
+
+#include <sys/cdefs.h>
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)logwtmp.c	8.1 (Berkeley) 6/4/93";
+#else
+__RCSID("$NetBSD: logwtmp.c,v 1.17 2002/09/12 08:55:31 itojun Exp $");
+#endif
+#endif /* not lint */
+
+#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/time.h>
+#include <sys/stat.h>
+
+#include <fcntl.h>
+#include <setjmp.h>
+#include <signal.h>
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
+#include <utmp.h>
+#include <util.h>
+
+#ifdef KERBEROS5
+#include <krb5/krb5.h>
+#endif
 
 #include "extern.h"
 
