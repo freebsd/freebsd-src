@@ -1298,7 +1298,7 @@ extern uint32_t ahd_debug;
 #define AHD_SHOW_QFULL		0x0200
 #define AHD_SHOW_QUEUE		0x0400
 #define AHD_SHOW_TQIN		0x0800
-#define AHD_SHOW_SG		0x0800
+#define AHD_SHOW_SG		0x1000
 #define AHD_DEBUG_SEQUENCER	0x2000
 #endif
 void			ahd_print_scb(struct scb *scb);
