@@ -20,7 +20,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioctl.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
+#ifdef PC98
+#include <sys/diskpc98.h>
+#else
 #include <sys/diskmbr.h>
+#endif
 #include <paths.h>
 #include "libdisk.h"
 
