@@ -39,6 +39,7 @@
 
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>
+#include <vm/vm_zone.h>
 
 static char *sappend(char *txt, char *s);
 static int drivecmp(const void *va, const void *vb);
