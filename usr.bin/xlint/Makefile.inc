@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 WARNS=		0
-.include <bsd.own.mk>
 
 .PATH:		${.CURDIR}/../common
 
