@@ -1,16 +1,11 @@
 /**************************************************************************
 **
-**  $Id: pcireg.h,v 1.1 1995/02/01 22:56:50 se Exp $
+**  $Id: pcireg.h,v 1.3 1995/02/02 13:12:18 davidg Exp $
 **
 **  Names for PCI configuration space registers.
 **
-**  Copyright (c) 1994 Charles Hannum.  All rights reserved.
-**
-**  FreeBSD
-**
-**-------------------------------------------------------------------------
-**
 ** Copyright (c) 1994 Wolfgang Stanglmeier.  All rights reserved.
+**
 **
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions
