@@ -190,24 +190,35 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 	const Elf_Rela *rela;
 	SymCache *cache;
 	struct fptr **fptrs;
+	int bytes = obj->nchains * sizeof(SymCache);
+	int fbytes = obj->nchains * sizeof(struct fptr *);
+	int r = -1;
 
-	cache = (SymCache *)alloca(obj->nchains * sizeof(SymCache));
+	/*
+	 * The dynamic loader may be called from a thread, we have
+	 * limited amounts of stack available so we cannot use alloca().
+	 */
+	cache = mmap(NULL, bytes, PROT_READ|PROT_WRITE, MAP_ANON, -1, 0);
+	if (cache == MAP_FAILED)
+		cache = NULL;
 	if (cache != NULL)
-		memset(cache, 0, obj->nchains * sizeof(SymCache));
+		memset(cache, 0, bytes);
 
 	/*
 	 * When relocating rtld itself, we need to avoid using malloc.
 	 */
-        if (obj == obj_rtld)
-		fptrs = (struct fptr **)
-			alloca(obj->nchains * sizeof(struct fptr *));
-	else
+        if (obj == obj_rtld) {
+		fptrs = mmap(NULL, fbytes, PROT_READ|PROT_WRITE, 
+			    MAP_ANON, -1, 0);
+		if (fptrs == MAP_FAILED)
+			fptrs = NULL;
+	} else {
 		fptrs = (struct fptr **)
 			malloc(obj->nchains * sizeof(struct fptr *));
-
+	}
 	if (fptrs == NULL)
-		return -1;
-	memset(fptrs, 0, obj->nchains * sizeof(struct fptr *));
+		goto done;
+	memset(fptrs, 0, fbytes);
 
 	/* Perform relocations without addend if there are any: */
 	rellim = (const Elf_Rel *) ((caddr_t) obj->rel + obj->relsize);
@@ -218,28 +229,43 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 		locrela.r_offset = rel->r_offset;
 		locrela.r_addend = 0;
 		if (reloc_non_plt_obj(obj_rtld, obj, &locrela, cache, fptrs))
-			return -1;
+			goto done;
 	}
 
 	/* Perform relocations with addend if there are any: */
 	relalim = (const Elf_Rela *) ((caddr_t) obj->rela + obj->relasize);
 	for (rela = obj->rela;  obj->rela != NULL && rela < relalim;  rela++) {
 		if (reloc_non_plt_obj(obj_rtld, obj, rela, cache, fptrs))
-			return -1;
+			goto done;
 	}
 
 	/*
 	 * Remember the fptrs in case of later calls to dlsym(). Don't 
 	 * bother for rtld - we will lazily create a table in
-	 * make_function_pointer(). At this point we still can't risk
-	 * calling malloc().
+	 * make_function_pointer().  We still can't risk calling malloc()
+	 * in the rtld case.
+	 *
+	 * When remembering fptrs, NULL out our local fptrs variable so we
+	 * do not free it.
 	 */
-	if (obj != obj_rtld)
-		obj->priv = fptrs;
-	else
+	if (obj == obj_rtld) {
 		obj->priv = NULL;
+	} else {
+		obj->priv = fptrs;
+		fptrs = NULL;
+	}
 
-	return 0;
+	r = 0;
+done:
+	if (cache)
+		munmap(cache, bytes);
+	if (fptrs) {
+		if (obj == obj_rtld)
+			munmap(fptrs, fbytes);
+		else
+			free(fptrs);
+	}
+	return (r);
 }
 
 /* Process the PLT relocations. */
