@@ -50,8 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-#include "pathnames.h"
-
 typedef enum { false, true } bool;
 
 struct mtpt_info {
