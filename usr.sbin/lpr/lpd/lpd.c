@@ -433,11 +433,40 @@ startup()
 	char *buf;
 	register char *cp;
 	int pid;
+	char *spooldirs[16];        /* Which spooldirs are active? */
+	int i;                      /* Printer index presently processed */
+	int j;                      /* Printer index of potential conflict */
+	char *spooldir;             /* Spooldir of present printer */
+	int  canfreespool;          /* Is the spooldir malloc()ed? */
 
 	/*
-	 * Restart the daemons.
+	 * Restart the daemons and test for spooldir conflict.
 	 */
+	i = 0;
 	while (cgetnext(&buf, printcapdb) > 0) {
+
+		/* Check for duplicate spooldirs */
+		canfreespool = 1;
+		if (cgetstr(buf, "sd", &spooldir) <= 0) {
+			spooldir = _PATH_DEFSPOOL;
+			canfreespool = 0;
+		}
+		if (i < sizeof(spooldirs)/sizeof(spooldirs[0]))
+			spooldirs[i] = spooldir;
+		for (j = 0;
+			 j < MIN(i,sizeof(spooldirs)/sizeof(spooldirs[0]));
+			 j++) {
+			if (strcmp(spooldir, spooldirs[j]) == 0) {
+				syslog(LOG_ERR,
+					"startup: duplicate spool directories");
+				mcleanup(0);
+			}
+		}
+		if (canfreespool && i >= sizeof(spooldirs)/sizeof(spooldirs[0]))
+			free(spooldir);
+		i++;
+		/* Spooldir test done */
+
 		if (ckqueue(buf) <= 0) {
 			free(buf);
 			continue;	/* no work to do for this printer */
