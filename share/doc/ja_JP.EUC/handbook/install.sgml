@@ -1,6 +1,6 @@
 <!-- $FreeBSD$ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.46 -->
+<!-- Original revision: 1.49 -->
 
 <!--
 <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'>
@@ -9,8 +9,8 @@
 
 <p><em>原作: 不明</em>
 
-<p><em>訳: &a.mita;, <newline>&a.hanai;, 
-<newline>&a.iwasaki;. <newline>11 November 1996.</em>
+<p><em>訳: &a.mita;, <newline>&a.hanai;, <newline>&a.iwasaki;. 
+<newline>26 Janurnuary 1997.</em>
 
     <p>それでは, FreeBSD のインストールに挑戦してみましょう. 
 	この章には, あなたが何をする必要があるかの簡単なガイドが
@@ -167,11 +167,13 @@ Boot:
 	    <item>IDE
 	    <item>ATA
 
+	    <item>Adaptec 1505 ISA SCSI コントローラ
 	    <item>Adaptec 152x シリーズ ISA SCSI コントローラ
+	    <item>Adaptec 1535 ISA SCSI コントローラ
 	    <item>Adaptec 154x シリーズ ISA SCSI コントローラ
 	    <item>Adaptec 174x シリーズ EISA SCSI コントローラ 
 	 (スタンダード, エンハンスドモード)
-	    <item>Adaptec 274x/284x/2940/3940
+	    <item>Adaptec 274x/284x/2940/2940U/3940
               (Narrow/Wide/Twin)
 	      シリーズ EISA/VLB/PCI SCSI コントローラ
 	    <item>Adaptec AIC7850 オンボード SCSI コントローラ
@@ -625,15 +627,27 @@ ftp://192.216.222.4/pub/FreeBSD/&rel.current;-RELEASE
 	    </descrip>
 
 	    <quote><bf>注意:</bf> Active,  passive モードは `proxy' 
-		接続のような, FTP の proxy サーバがことなるポートを監視している
-		ような接続とはまた違います. </quote>
+		接続と同じではありません! proxy FTP サーバは FTP 要求
+		を受け付け実際の FTP サーバへ転送します. </quote>
 	
-	このような場合は, URL に例えば
+	    通常 proxy FTP サーバ に対しては, ユーザ名の一部として 
+	    @ 記号に続いて実際に接続したいサーバの名称を与える必要が
+	    あります. そうすると proxy サーバは本当のサーバの「ふり」
+	    をするようになります. 例えば: ftp.freebsd.org から ポート番号
+	    1234 で要求を待つ proxy FTP サーバ foo.bar.com を使って
+	    インストールしたいとします.
+
+	    この場合では, 「オプション」メニューで FTP username を 
+	    ftp@ftp.freebsd.org, パスワードとして自分の電子メールアドレス
+	    を指定します. インストールメディアとして FTP (または proxy 
+	    サーバがサポートしていれば passive FTP), URL を以下のようにします:
 <tscreen><verb>
 ftp://foo.bar.com:1234/pub/FreeBSD
 </verb></tscreen>
-	のような表記を使うことができます. ここで, ``1234'' は
-	proxy FTP サーバのポート番号です. 
+	    ftp.freebsd.org の /pub/FreeBSD に対する FTP 要求については
+	    foo.bar.com が代理で処理をおこなうことになり, 「むこう」
+	    のマシンからインストールすることができます (インストール時
+	    の要求により ftp.freebsd.org からファイルをもってきます). 
 
     <sect><heading>FreeBSD のインストール</heading>
 
