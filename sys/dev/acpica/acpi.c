@@ -162,6 +162,11 @@ acpi_identify(driver_t *driver, device_t parent)
     char		*debugpoint = getenv("debug.acpi.debugger");
 #endif
 
+    if(!cold){
+	    printf("Don't load this driver from userland!!\n");
+	    return ;
+    }
+
     /*
      * Make sure we're not being doubly invoked.
      */
