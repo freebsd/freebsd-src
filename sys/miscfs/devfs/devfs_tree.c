@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.43 1997/10/11 18:31:28 phk Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.44 1997/10/12 20:24:34 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -620,7 +620,6 @@ devfs_remove_dev(void *devnmp)
 	{
 		dev_free_name(dnp->linklist);
 	}
-	dev_free_name((devnm_p)devnmp);
 	return ;
 }
 
