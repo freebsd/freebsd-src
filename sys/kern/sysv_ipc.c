@@ -91,6 +91,11 @@ ipcperm(td, perm, mode)
 
 	if (mode & IPC_M)
 		return (0);
-	return ((mode & perm->mode) == mode ||
-	    suser(td) == 0 ? 0 : EACCES);
+
+
+	if ((mode & perm->mode) != mode) {
+		if (suser(td) != 0)
+			return (EACCES);
+	}
+	return (0);
 }
