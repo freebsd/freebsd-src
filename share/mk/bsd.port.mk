@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.52 1994/10/12 03:25:59 ache Exp $
+# $Id: bsd.port.mk,v 1.53 1994/10/12 23:32:32 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -192,10 +192,11 @@ pre-install:
 .endif
 
 .if !target(install)
-install: pre-install ${INSTALL_COOKIE}
+install: ${INSTALL_COOKIE}
 
 ${INSTALL_COOKIE}:
 	@echo "===>  Installing for ${DISTNAME}"
+	${MAKE} pre-install
 .if defined(USE_GMAKE)
 	@(cd ${WRKSRC}; ${GMAKE} ${MAKE_FLAGS} ${MAKEFILE} install)
 .else defined(USE_GMAKE)
@@ -262,14 +263,11 @@ pre-configure:
 .endif
 
 .if !target(configure)
-# This is done with a .configure because configures are often expensive,
-# and you don't want it done again gratuitously when you're trying to get
-# a make of the whole tree to work.
 configure: extract ${CONFIGURE_COOKIE}
 
 ${CONFIGURE_COOKIE}:
 	@echo "===>  Configuring for ${DISTNAME}"
-	${MAKE} ${MAKEFLAGS} pre-configure
+	${MAKE} pre-configure
 	@if [ -d ${PATCHDIR} ]; then \
 		echo "===>  Applying patches for ${DISTNAME}" ; \
 		for i in ${PATCHDIR}/patch-*; do \
@@ -370,7 +368,7 @@ pre-clean:
 .if !target(clean)
 clean: pre-clean
 	@echo "===>  Cleaning for ${DISTNAME}"
-	@rm -f ${EXTRACT_COOKIE} ${CONFIGURE_COOKIE}
+	@rm -f ${EXTRACT_COOKIE} ${CONFIGURE_COOKIE} ${INSTALL_COOKIE}
 	@rm -rf ${WRKDIR}
 .endif
 
