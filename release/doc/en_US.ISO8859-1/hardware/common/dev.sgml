@@ -3131,7 +3131,7 @@
   <sect2 id="bluetooth">
     <title>Bluetooth Devices</title>
 
-    <para arch="i386">PCCARD Host Controllers (&man.ng.bt3c.4; driver)
+    <para arch="i386,pc98">PCCARD Host Controllers (&man.ng.bt3c.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>3Com/HP 3CRWB6096-A PCCARD adapter</para>
@@ -3139,7 +3139,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">USB Host Controllers (&man.ng.ubt.4; driver)
+    <para arch="i386,pc98">USB Host Controllers (&man.ng.ubt.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>3Com 3CREB96</para>
