@@ -19,6 +19,8 @@ along with GCC; see the file COPYING.  If not, write to the Free
 Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 #include "config.h"
 #include "system.h"
 
@@ -315,7 +317,11 @@ cb_file_change (pfile, new_map)
     }
 
   update_header_times (new_map->to_file);
+#ifndef FREEBSD_NATIVE
   in_system_header = new_map->sysp != 0;
+#else /* FREEBSD_NATIVE */
+  in_system_header = 0;
+#endif /* FREEBSD_NATIVE */
   input_filename = new_map->to_file;
   lineno = to_line;
   map = new_map;
