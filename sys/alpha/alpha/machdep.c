@@ -2027,14 +2027,14 @@ set_regs(td, regs)
 }
 
 int
-get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)
+get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 {
 	/*
 	 * Use a trapframe for getsetcontext, so just copy the
 	 * threads trapframe.
 	 */
 	bcopy(td->td_frame, &mcp->mc_regs, sizeof(struct trapframe));
-	if (clear_ret != 0) {
+	if (flags & GET_MC_CLEAR_RET) {
 		mcp->mc_regs[FRAME_V0] = 0;
 		mcp->mc_regs[FRAME_A4] = 0;
 		mcp->mc_regs[FRAME_A3] = 0;

@@ -1441,7 +1441,7 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
  * Get machine context.
  */
 int
-get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)
+get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 {
 	struct trapframe *tp;
 
@@ -1462,7 +1462,7 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)
 	mcp->mc_rbp = tp->tf_rbp;
 	mcp->mc_rbx = tp->tf_rbx;
 	mcp->mc_rcx = tp->tf_rcx;
-	if (clear_ret != 0) {
+	if (flags & GET_MC_CLEAR_RET) {
 		mcp->mc_rax = 0;
 		mcp->mc_rdx = 0;
 	} else {
