@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.11 1995/04/16 11:25:15 davidg Exp $
+ * $Id: kern_malloc.c,v 1.12 1995/05/30 08:05:33 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -39,6 +39,7 @@
 #include <sys/proc.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/mbuf.h>
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -371,14 +372,13 @@ kmeminit()
 #if	(MAXALLOCSAVE < CLBYTES)
 		ERROR!_kmeminit:_MAXALLOCSAVE_too_small
 #endif
-	npg = VM_KMEM_SIZE/ NBPG;
-	if( npg > cnt.v_page_count)
-		npg = cnt.v_page_count;
+	npg = (nmbclusters * MCLBYTES + VM_KMEM_SIZE) / PAGE_SIZE;
 
 	kmemusage = (struct kmemusage *) kmem_alloc(kernel_map,
 		(vm_size_t)(npg * sizeof(struct kmemusage)));
 	kmem_map = kmem_suballoc(kernel_map, (vm_offset_t *)&kmembase,
-		(vm_offset_t *)&kmemlimit, (vm_size_t)(npg * NBPG), FALSE);
+		(vm_offset_t *)&kmemlimit, (vm_size_t)(npg * PAGE_SIZE),
+		FALSE);
 #ifdef KMEMSTATS
 	for (indx = 0; indx < MINBUCKET + 16; indx++) {
 		if (1 << indx >= CLBYTES)
@@ -387,7 +387,13 @@ kmeminit()
 			bucket[indx].kb_elmpercl = CLBYTES / (1 << indx);
 		bucket[indx].kb_highwat = 5 * bucket[indx].kb_elmpercl;
 	}
-	for (indx = 0; indx < M_LAST; indx++)
-		kmemstats[indx].ks_limit = npg * NBPG * 6 / 10;
+	/*
+	 * Limit maximum memory for each type to 60% of malloc area size or
+	 * 60% of physical memory, whichever is smaller.
+	 */
+	for (indx = 0; indx < M_LAST; indx++) {
+		kmemstats[indx].ks_limit = min(cnt.v_page_count * PAGE_SIZE,
+			(npg * PAGE_SIZE - nmbclusters * MCLBYTES)) * 6 / 10;
+	}
 #endif
 }
