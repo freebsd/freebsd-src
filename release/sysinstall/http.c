@@ -223,7 +223,7 @@ mediaGetHTTP(Device *dev, char *file, Boolean probe)
 	    variable_get(VAR_HTTP_PATH), file, variable_get(VAR_HTTP_FTP_MODE));
 
     if (isDebug()) {
-	msgDebug("sending http request: %s",req);
+	msgDebug("sending http request: %s\n",req);
     }
     write(s,req,strlen(req));
 

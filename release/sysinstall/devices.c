@@ -450,7 +450,7 @@ skipif:
 
 	    d = Open_Disk(names[i]);
 	    if (!d) {
-		msgDebug("Unable to open disk %s", names[i]);
+		msgDebug("Unable to open disk %s\n", names[i]);
 		continue;
 	    }
 

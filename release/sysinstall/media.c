@@ -489,8 +489,8 @@ int mediaSetHTTP(dialogMenuItem *self)
     variable_set2(VAR_HTTP_HOST, hostname, 0);
     variable_set2(VAR_HTTP_PORT, itoa(HttpPort), 0);
     if (isDebug()) {
-      msgDebug("VAR_FTP_PATH : %s",variable_get(VAR_FTP_PATH));
-      msgDebug("VAR_HTTP_HOST, _PORT: %s:%s",variable_get(VAR_HTTP_HOST),
+      msgDebug("VAR_FTP_PATH : %s\n",variable_get(VAR_FTP_PATH));
+      msgDebug("VAR_HTTP_HOST, _PORT: %s:%s\n",variable_get(VAR_HTTP_HOST),
                                              variable_get(VAR_HTTP_PORT));
     }
 
@@ -577,7 +577,7 @@ mediaSetNFS(dialogMenuItem *self)
 	}
 	else {
 	    if (isDebug())
-		msgDebug("Found DNS entry for %s successfully..", hostname);
+		msgDebug("Found DNS entry for %s successfully..\n", hostname);
 	}
     }
     variable_set2(VAR_NFS_HOST, hostname, 0);
