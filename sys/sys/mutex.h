@@ -114,6 +114,8 @@ void	_mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file,
 #ifdef INVARIANT_SUPPORT
 void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 #endif
+int	mtx_lock_giant(int sysctlvar);
+void	mtx_unlock_giant(int s);
 
 /*
  * We define our machine-independent (unoptimized) mutex micro-operations
@@ -274,6 +276,12 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
  */
 extern struct mtx	sched_lock;
 extern struct mtx	Giant;
+
+/*
+ * Giant lock sysctl variables used by other modules
+ */
+extern int kern_giant_proc;
+extern int kern_giant_file;
 
 /*
  * Giant lock manipulation and clean exit macros.
