@@ -139,12 +139,12 @@ int	stru;			/* avoid C keyword */
 int	mode;
 int	usedefault = 1;		/* for data transfers */
 int	pdata = -1;		/* for passive mode */
-int	readonly=0;		/* Server is in readonly mode.	*/
-int	noepsv=0;		/* EPSV command is disabled.	*/
-int	noretr=0;		/* RETR command is disabled.	*/
-int	noguestretr=0;		/* RETR command is disabled for anon users. */
-int	noguestmkd=0;		/* MKD command is disabled for anon users. */
-int	noguestmod=1;		/* anon users may not modify existing files. */
+int	readonly = 0;		/* Server is in readonly mode.	*/
+int	noepsv = 0;		/* EPSV command is disabled.	*/
+int	noretr = 0;		/* RETR command is disabled.	*/
+int	noguestretr = 0;	/* RETR command is disabled for anon users. */
+int	noguestmkd = 0;		/* MKD command is disabled for anon users. */
+int	noguestmod = 1;		/* anon users may not modify existing files. */
 
 off_t	file_size;
 off_t	byte_count;
@@ -174,17 +174,17 @@ static struct ftphost {
 char	remotehost[NI_MAXHOST];
 char	*ident = NULL;
 
-static char ttyline[20];
-char	*tty = ttyline;		/* for klogin */
+static char	ttyline[20];
+char		*tty = ttyline;		/* for klogin */
 
 #ifdef USE_PAM
 static int	auth_pam(struct passwd**, const char*);
-pam_handle_t *pamh = NULL;
+pam_handle_t	*pamh = NULL;
 #endif
 
-static struct opie opiedata;
-static char opieprompt[OPIE_CHALLENGE_MAX+1];
-static int pwok;
+static struct opie	opiedata;
+static char		opieprompt[OPIE_CHALLENGE_MAX+1];
+static int		pwok;
 
 char	*pid_file = NULL;
 
@@ -239,7 +239,7 @@ static	int transflag;		/* NB: for debugging only */
 
 #ifdef VIRTUAL_HOSTING
 static void	 inithosts(void);
-static void	selecthost(union sockunion *);
+static void	 selecthost(union sockunion *);
 #endif
 static void	 ack(char *);
 static void	 sigurg(int);
@@ -939,6 +939,9 @@ sgetsave(char *s)
  * Save the result of a getpwnam.  Used for USER command, since
  * the data returned must not be clobbered by any other command
  * (e.g., globbing).
+ * NB: The data returned by sgetpwnam() will remain valid until
+ * the next call to this function.  Its difference from getpwnam()
+ * is that sgetpwnam() is known to be called from ftpd code only.
  */
 static struct passwd *
 sgetpwnam(char *name)
