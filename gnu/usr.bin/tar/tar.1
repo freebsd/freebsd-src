@@ -3,7 +3,7 @@
 .\"
 .\"	Written by John F. Woods <jfw@jfwhome.funhouse.com>
 .\"
-.\"	$Id: tar.1,v 1.4 1995/10/25 02:17:44 torstenb Exp $
+.\"	$Id: tar.1,v 1.5 1996/02/09 21:14:26 jmz Exp $
 .\"
 .Dd 6 August 1994
 .Os FreeBSD
@@ -152,7 +152,8 @@ will use
 .Xr rmt 8
 to read or write the specified
 .Ar file
-on a remote machine.
+on a remote machine. "-" may be used is a filename, for reading
+or writing to/from stdin/stdout.
 .It Fl F Ar file
 .It Fl -info-script Ar file
 .It Fl -new-volume-script Ar file
@@ -168,7 +169,7 @@ Create/list/extract old GNU-format incremental backup.
 .It Fl -listed-incremental Ar file
 Create/list/extract new GNU-format incremental backup.
 .It Fl h
-.it Fl -dereference
+.It Fl -dereference
 Don't write symlinks as symlinks; write the data of the files they name.
 .It Fl i
 .It Fl -ignore-zeros
@@ -317,6 +318,11 @@ Note that the pattern must be quoted to prevent the shell from
 attempting to expand it according the files in the current working
 directory (the shell does not have access to the list of files in
 the archive, of course).
+.Pp
+To move file hierarchies, use a command line like this:
+.Bd -literal
+tar tar -cf - -C srcdir . | tar xpf - -C destdir
+.Ed
 .Pp
 To create a compressed archive on diskette, using gzip, use a command-line like
 .Dl tar --block-compress -z -c -v -f /dev/rfd1a -b 36 tar/
