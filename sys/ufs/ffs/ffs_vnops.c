@@ -78,7 +78,7 @@ int	ffs_fsync(struct vop_fsync_args *);
 static int	ffs_getpages(struct vop_getpages_args *);
 static int	ffs_read(struct vop_read_args *);
 static int	ffs_write(struct vop_write_args *);
-static int	ffs_extread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred);
+static int	ffs_extread(struct vnode *vp, struct uio *uio, int ioflag);
 static int	ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred);
 static int	ffs_getextattr(struct vop_getextattr_args *);
 static int	ffs_setextattr(struct vop_setextattr_args *);
@@ -324,7 +324,11 @@ ffs_read(ap)
 	uio = ap->a_uio;
 	ioflag = ap->a_ioflag;
 	if (ap->a_ioflag & IO_EXT)
-		return (ffs_extread(vp, uio, ioflag, ap->a_cred));
+#ifdef notyet
+		return (ffs_extread(vp, uio, ioflag));
+#else
+		panic("ffs_read+IO_EXT");
+#endif
 
 	GIANT_REQUIRED;
 
@@ -650,7 +654,11 @@ ffs_write(ap)
 	uio = ap->a_uio;
 	ioflag = ap->a_ioflag;
 	if (ap->a_ioflag & IO_EXT)
+#ifdef notyet
 		return (ffs_extwrite(vp, uio, ioflag, ap->a_cred));
+#else
+		panic("ffs_read+IO_EXT");
+#endif
 
 	GIANT_REQUIRED;
 
@@ -989,10 +997,10 @@ ffs_getpages(ap)
 }
 
 /*
- * Vnode op for extended attribute reading.
+ * Extended attribute reading.
  */
 static int
-ffs_extread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
+ffs_extread(struct vnode *vp, struct uio *uio, int ioflag)
 {
 	struct inode *ip;
 	struct ufs2_dinode *dp;
@@ -1156,7 +1164,7 @@ ffs_extread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 }
 
 /*
- * Vnode op for external attribute writing.
+ * Extended attribute writing.
  */
 static int
 ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
@@ -1282,6 +1290,93 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 	return (error);
 }
 
+
+/*
+ * Vnode operating to retrieve a named extended attribute.
+ *
+ * Locate a particular EA (nspace:name) in the area (ptr:length), and return
+ * the length of the EA, and possibly the pointer to the entry and to the data.
+ */
+static int
+ffs_findextattr(u_char *ptr, uint length, int nspace, const char *name, u_char **eap, u_char **eac)
+{
+	u_char *p, *pe, *pn, *p0;
+	int eapad1, eapad2, ealength, ealen, nlen;
+	uint32_t ul;
+
+	pe = ptr + length;
+	nlen = strlen(name);
+
+	for (p = ptr; p < pe; p = pn) {
+		p0 = p;
+		bcopy(p, &ul, sizeof(ul));
+		pn = p + ul;
+		/* make sure this entry is complete */
+		if (pn > pe)
+			break;
+		p += sizeof(uint32_t);
+		if (*p != nspace)
+			continue;
+		p++;
+		eapad2 = *p++;
+		if (*p != nlen)
+			continue;
+		p++;
+		if (bcmp(p, name, nlen))
+			continue;
+		ealength = sizeof(uint32_t) + 3 + nlen;
+		eapad1 = 8 - (ealength % 8);
+		if (eapad1 == 8)
+			eapad1 = 0;
+		ealength += eapad1;
+		ealen = ul - ealength - eapad2;
+		p += nlen + eapad1;
+		if (eap != NULL)
+			*eap = p0;
+		if (eac != NULL)
+			*eac = p;
+		return (ealen);
+	}
+	return(0);
+}
+
+static int
+ffs_rdextattr(u_char **p, struct vnode *vp, struct thread *td, int extra)
+{
+	struct inode *ip;
+	struct fs *fs;
+	struct ufs2_dinode *dp;
+	struct uio luio;
+	struct iovec liovec;
+	int easize, error;
+	u_char *eae;
+
+	ip = VTOI(vp);
+	fs = ip->i_fs;
+	dp = ip->i_din2;
+	easize = dp->di_extsize;
+
+	eae = malloc(easize + extra, M_TEMP, M_WAITOK);
+
+	liovec.iov_base = eae;
+	liovec.iov_len = easize;
+	luio.uio_iov = &liovec;
+	luio.uio_iovcnt = 1;
+	luio.uio_offset = 0;
+	luio.uio_resid = easize;
+	luio.uio_segflg = UIO_SYSSPACE;
+	luio.uio_rw = UIO_READ;
+	luio.uio_td = td;
+
+	error = ffs_extread(vp, &luio, IO_EXT | IO_SYNC);
+	if (error) {
+		free(eae, M_TEMP);
+		return(error);
+	}
+	*p = eae;
+	return (0);
+}
+
 /*
  * Vnode operating to retrieve a named extended attribute.
  */
@@ -1299,8 +1394,36 @@ vop_getextattr {
 };
 */
 {
+	struct inode *ip;
+	struct fs *fs;
+	u_char *eae, *p;
+	struct ufs2_dinode *dp;
+	unsigned easize;
+	int error, ealen;
 
-	return (ufs_vnoperate((struct vop_generic_args *)ap));
+	ip = VTOI(ap->a_vp);
+	fs = ip->i_fs;
+
+	if (fs->fs_magic == FS_UFS1_MAGIC)
+		return (ufs_vnoperate((struct vop_generic_args *)ap));
+
+	dp = ip->i_din2;
+	error = ffs_rdextattr(&eae, ap->a_vp, ap->a_td, 0);
+	if (error)
+		return (error);
+	easize = dp->di_extsize;
+	error = ENOATTR;
+	ealen = ffs_findextattr(eae, easize,
+	    ap->a_attrnamespace, ap->a_name, NULL, &p);
+	if (ealen != 0) {
+		error = 0;
+		if (ap->a_size != NULL)
+			*ap->a_size = ealen;
+		else if (ap->a_uio != NULL)
+			error = uiomove(p, ealen, ap->a_uio);
+	}
+	free(eae, M_TEMP);
+	return(error);
 }
 
 /*
@@ -1319,6 +1442,104 @@ vop_setextattr {
 };
 */
 {
+	struct inode *ip;
+	struct fs *fs;
+	uint32_t ealength, ul;
+	int ealen, eacont, eapad1, eapad2, error, i, easize;
+	u_char *eae, *p;
+	struct uio luio;
+	struct iovec liovec;
+	struct ufs2_dinode *dp;
+	struct ucred *cred;
 
-	return (ufs_vnoperate((struct vop_generic_args *)ap));
+	ip = VTOI(ap->a_vp);
+	fs = ip->i_fs;
+
+	if (fs->fs_magic == FS_UFS1_MAGIC)
+		return (ufs_vnoperate((struct vop_generic_args *)ap));
+
+	if (ap->a_cred != NOCRED)
+		cred = ap->a_cred;
+	else
+		cred = ap->a_vp->v_mount->mnt_cred;
+	dp = ip->i_din2;
+
+	/* Calculate the length of the EA entry */
+	if (ap->a_uio == NULL) {
+		/* delete */
+		ealength = eapad1 = ealen = eapad2 = eacont = 0;
+	} else {
+		ealen = ap->a_uio->uio_resid;
+		ealength = sizeof(uint32_t) + 3 + strlen(ap->a_name);
+		eapad1 = 8 - (ealength % 8);
+		if (eapad1 == 8)
+			eapad1 = 0;
+		eacont = ealength + eapad1;
+		eapad2 = 8 - (ealen % 8);
+		if (eapad2 == 8)
+			eapad2 = 0;
+		ealength += eapad1 + ealen + eapad2;
+	}
+
+	error = ffs_rdextattr(&eae, ap->a_vp, ap->a_td, ealength);
+	if (error)
+		return (error);
+
+	easize = dp->di_extsize;
+	ul = ffs_findextattr(eae, easize,
+	    ap->a_attrnamespace, ap->a_name, &p, NULL);
+	if (ul == 0 && ealength == 0) {
+		/* delete but nonexistent */
+		free(eae, M_TEMP);
+		return(ENOATTR);
+	} else if (ul == 0) {
+		/* new, append at end */
+		p = eae + easize;
+		easize += ealength;
+	} else if (ul != ealength) {
+		bcopy(p, &ul, sizeof ul);
+		i = p - eae + ul;
+		bcopy(p + ul, p + ealength, easize - i);
+		easize -= ul;
+		easize += ealength;
+	}
+	if (easize > NXADDR * fs->fs_bsize) {
+		free(eae, M_TEMP);
+		return(ENOSPC);
+	}
+	if (ealength != 0) {
+		bcopy(&ealength, p, sizeof(ealength));
+		p += sizeof(ealength);
+		*p++ = ap->a_attrnamespace;
+		*p++ = eapad2;
+		*p++ = strlen(ap->a_name);
+		strcpy(p, ap->a_name);
+		p += strlen(ap->a_name);
+		bzero(p, eapad1);
+		p += eapad1;
+		error = uiomove(p, ealen, ap->a_uio);
+		if (error) {
+			free(eae, M_TEMP);
+			return(error);
+		}
+		p += ealen;
+		bzero(p, eapad2);
+	}
+	liovec.iov_base = eae;
+	liovec.iov_len = easize;
+	luio.uio_iov = &liovec;
+	luio.uio_iovcnt = 1;
+	luio.uio_offset = 0;
+	luio.uio_resid = easize;
+	luio.uio_segflg = UIO_SYSSPACE;
+	luio.uio_rw = UIO_WRITE;
+	luio.uio_td = ap->a_td;
+	/* XXX: I'm not happy about truncating to zero size */
+	if (easize < dp->di_extsize)
+		error = ffs_truncate(ap->a_vp, 0, IO_EXT, cred, ap->a_td);
+	error = ffs_extwrite(ap->a_vp, &luio, IO_EXT | IO_SYNC, cred);
+	free(eae, M_TEMP);
+	if (error)
+		return(error);
+	return(error);
 }
