@@ -131,6 +131,12 @@ The checksum of the file using the default algorithm specified by
 the
 .Xr cksum 1
 utility.
+.It Cm flags
+The file flags as a symbolic name.  See
+.Xr chflags 1
+for information on these names.  If no flags are to be set the string
+.Dq none
+may be used to override the current default.
 .It Cm ignore
 Ignore any file hierarchy below this file.
 .It Cm gid
@@ -188,6 +194,7 @@ socket
 .El
 .Pp
 The default set of keywords are
+.Cm flags ,
 .Cm gid ,
 .Cm mode ,
 .Cm nlink ,
@@ -282,6 +289,7 @@ distribution.
 system specification directory
 .El
 .Sh SEE ALSO
+.Xr chflags 1 ,
 .Xr chgrp 1 ,
 .Xr chmod 1 ,
 .Xr cksum 1 ,
@@ -309,3 +317,6 @@ digests were added in
 .Fx 4.0 ,
 as new attacks have demonstrated weaknesses in
 .Tn MD5 .
+Support for file flags was added in
+.Fx 4.0 ,
+and mostly comes from NetBSD.

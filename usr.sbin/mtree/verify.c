@@ -201,10 +201,16 @@ miss(p, tail)
 		if (chown(path, p->st_uid, p->st_gid)) {
 			(void)printf("%s: user/group/mode not modified: %s\n",
 			    path, strerror(errno));
+			(void)printf("%s: warning: file mode %snot set\n", path,
+			    (p->flags & F_FLAGS) ? "and file flags " : "");
 			continue;
 		}
 		if (chmod(path, p->st_mode))
 			(void)printf("%s: permissions not set: %s\n",
+			    path, strerror(errno));
+		if ((p->flags & F_FLAGS) && p->st_flags &&
+		    chflags(path, p->st_flags))
+			(void)printf("%s: file flags not set: %s\n",
 			    path, strerror(errno));
 	}
 }

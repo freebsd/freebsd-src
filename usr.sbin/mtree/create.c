@@ -77,10 +77,12 @@ extern int lineno;
 static gid_t gid;
 static uid_t uid;
 static mode_t mode;
+static u_long flags;
 
 static int	dsort __P((const FTSENT **, const FTSENT **));
 static void	output __P((int, int *, const char *, ...));
-static int	statd __P((FTS *, FTSENT *, uid_t *, gid_t *, mode_t *));
+static int	statd __P((FTS *, FTSENT *, uid_t *, gid_t *, mode_t *,
+			   u_long *));
 static void	statf __P((int, FTSENT *));
 
 void
@@ -111,7 +113,7 @@ cwalk()
 				(void)printf("\n");
 			if (!nflag)
 				(void)printf("# %s\n", p->fts_path);
-			statd(t, p, &uid, &gid, &mode);
+			statd(t, p, &uid, &gid, &mode, &flags);
 			statf(indent, p);
 			break;
 		case FTS_DP:
@@ -250,31 +252,40 @@ statf(indent, p)
 	if (keys & F_SLINK &&
 	    (p->fts_info == FTS_SL || p->fts_info == FTS_SLNONE))
 		output(indent, &offset, "link=%s", rlink(p->fts_accpath));
+	if (keys & F_FLAGS && p->fts_statp->st_flags != flags)
+		output(indent, &offset, "flags=%s",
+		    flags_to_string(p->fts_statp->st_flags, "none"));
 	(void)putchar('\n');
 }
 
 #define	MAXGID	5000
 #define	MAXUID	5000
 #define	MAXMODE	MBITS + 1
+#define	MAXFLAGS 256
+#define	MAXS 16
 
 static int
-statd(t, parent, puid, pgid, pmode)
+statd(t, parent, puid, pgid, pmode, pflags)
 	FTS *t;
 	FTSENT *parent;
 	uid_t *puid;
 	gid_t *pgid;
 	mode_t *pmode;
+	u_long *pflags;
 {
 	register FTSENT *p;
 	register gid_t sgid;
 	register uid_t suid;
 	register mode_t smode;
+	register u_long sflags;
 	struct group *gr;
 	struct passwd *pw;
 	gid_t savegid = *pgid;
 	uid_t saveuid = *puid;
 	mode_t savemode = *pmode;
-	u_short maxgid, maxuid, maxmode, g[MAXGID], u[MAXUID], m[MAXMODE];
+	u_long saveflags = 0;
+	u_short maxgid, maxuid, maxmode, maxflags;
+	u_short g[MAXGID], u[MAXUID], m[MAXMODE], f[MAXFLAGS];
 	static int first = 1;
 
 	if ((p = fts_children(t, 0)) == NULL) {
@@ -286,8 +297,9 @@ statd(t, parent, puid, pgid, pmode)
 	bzero(g, sizeof(g));
 	bzero(u, sizeof(u));
 	bzero(m, sizeof(m));
+	bzero(f, sizeof(f));
 
-	maxuid = maxgid = maxmode = 0;
+	maxuid = maxgid = maxmode = maxflags = 0;
 	for (; p; p = p->fts_link) {
 		if (!dflag || (dflag && S_ISDIR(p->fts_statp->st_mode))) {
 			smode = p->fts_statp->st_mode & MBITS;
@@ -304,6 +316,20 @@ statd(t, parent, puid, pgid, pmode)
 			if (suid < MAXUID && ++u[suid] > maxuid) {
 				saveuid = suid;
 				maxuid = u[suid];
+			}
+
+			/*
+			 * XXX
+			 * note that the below will break when file flags
+			 * are extended beyond the first 4 bytes of each
+			 * half word of the flags
+			 */
+#define FLAGS2IDX(f) ((f & 0xf) | ((f >> 12) & 0xf0))
+			sflags = p->fts_statp->st_flags;
+			if (FLAGS2IDX(sflags) < MAXFLAGS &&
+			    ++f[FLAGS2IDX(sflags)] > maxflags) {
+				saveflags = sflags;
+				maxflags = u[FLAGS2IDX(sflags)];
 			}
 		}
 	}
@@ -344,10 +370,14 @@ statd(t, parent, puid, pgid, pmode)
 			(void)printf(" mode=%#o", savemode);
 		if (keys & F_NLINK)
 			(void)printf(" nlink=1");
+		if (keys & F_FLAGS && saveflags)
+			(void)printf(" flags=%s",
+			    flags_to_string(saveflags, "none"));
 		(void)printf("\n");
 		*puid = saveuid;
 		*pgid = savegid;
 		*pmode = savemode;
+		*pflags = saveflags;
 	}
 	return (0);
 }
