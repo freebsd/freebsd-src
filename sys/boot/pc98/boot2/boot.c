@@ -51,7 +51,6 @@ NEGLIGENCE, OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 */
 
-#include <sys/param.h>
 #include "boot.h"
 #include <a.out.h>
 #include <sys/reboot.h>
