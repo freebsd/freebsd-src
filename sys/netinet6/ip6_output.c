@@ -2417,6 +2417,9 @@ ip6_clearpktopts(pktopt, optname)
 {
 	int needfree;
 
+	if (pktopt == NULL)
+		return;
+
 	needfree = pktopt->needfree;
 
 	if (optname == -1 || optname == IPV6_PKTINFO) {
