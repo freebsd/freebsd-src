@@ -3,7 +3,6 @@
 # see gdbinit(9) for further details.
 #
 # The following lines (down to "end" comment) may need to be changed
-file kernel.debug
 set output-radix 16
 set height 70
 set width 120
@@ -37,8 +36,7 @@ end
 
 source gdbinit.kernel
 source gdbinit.vinum
+source gdbinit.machine
 
-# Attach to the remote kernel
-tr
-# And get the symbols from klds
-getsyms
+echo Ready to go.  Enter 'tr' to connect to remote target
+echo and 'getsyms' after connection to load kld symbols.
