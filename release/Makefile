@@ -717,8 +717,6 @@ release.8:
 	done
 	@mv ${RD}/mfsfd/stand/help/INSTALLATION.TXT \
 	    ${RD}/mfsfd/stand/help/INSTALL.TXT
-	@mv ${RD}/mfsfd/stand/help/EARLY-ADOPTER.TXT \
-	    ${RD}/mfsfd/stand/help/EARLY.TXT
 .endif
 	-test -f ${.CURDIR}/install.cfg \
 	    && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
@@ -862,8 +860,6 @@ ftp.1:
 	@cp ${RND}/${RELNOTES_LANG}/readme/docbook.css ${FD}
 	@mv ${FD}/INSTALLATION.TXT ${FD}/INSTALL.TXT
 	@mv ${FD}/INSTALLATION.HTM ${FD}/INSTALL.HTM
-	@mv ${FD}/EARLY-ADOPTER.TXT ${FD}/EARLY.TXT
-	@mv ${FD}/EARLY-ADOPTER.HTM ${FD}/EARLY.HTM
 .endif
 	@echo "CD_VERSION = ${BUILDNAME}" > ${FD}/cdrom.inf
 	touch ${.TARGET}
@@ -907,8 +903,6 @@ cdrom.1:
 	@cp ${RND}/${RELNOTES_LANG}/readme/docbook.css ${CD_DISC1}
 	@mv ${CD_DISC1}/INSTALLATION.TXT ${CD_DISC1}/INSTALL.TXT
 	@mv ${CD_DISC1}/INSTALLATION.HTM ${CD_DISC1}/INSTALL.HTM
-	@mv ${CD_DISC1}/EARLY-ADOPTER.TXT ${CD_DISC1}/EARLY.TXT
-	@mv ${CD_DISC1}/EARLY-ADOPTER.HTM ${CD_DISC1}/EARLY.HTM
 .endif
 .if ${TARGET} != "pc98"
 	@echo "Setting up boot area"
