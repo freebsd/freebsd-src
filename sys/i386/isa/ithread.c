@@ -97,7 +97,7 @@ sched_ithd(void *cookie)
 	 * If this interrupt is marked as being a source of entropy, use
 	 * the current timestamp to feed entropy to the PRNG.
 	 */
-	if (ir != NULL && (ir->it_flags & IT_ENTROPY)) {
+	if (harvest.interrupt && ir != NULL && (ir->it_flags & IT_ENTROPY)) {
 		struct int_entropy entropy;
 
 		entropy.irq = irq;
