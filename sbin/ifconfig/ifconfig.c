@@ -76,6 +76,7 @@ struct	sockaddr_in	netmask;
 char	name[30];
 int	flags;
 int	metric;
+int	mtu;
 int	nsellength = 1;
 int	setaddr;
 int	setipdst;
@@ -86,7 +87,7 @@ int	s;
 extern	int errno;
 
 int	setifflags(), setifaddr(), setifdstaddr(), setifnetmask();
-int	setifmetric(), setifbroadaddr(), setifipdst();
+int	setifmetric(), setifmtu(), setifbroadaddr(), setifipdst();
 int	notealias(), setsnpaoffset(), setnsellength(), notrailers();
 
 #define	NEXTARG		0xffffff
@@ -118,12 +119,13 @@ struct	cmd {
 	{ "ipdst",	NEXTARG,	setifipdst },
 	{ "snpaoffset",	NEXTARG,	setsnpaoffset },
 	{ "nsellength",	NEXTARG,	setnsellength },
-	{ "link0",	IFF_LINK0,	setifflags } ,
-	{ "-link0",	-IFF_LINK0,	setifflags } ,
-	{ "link1",	IFF_LINK1,	setifflags } ,
-	{ "-link1",	-IFF_LINK1,	setifflags } ,
-	{ "link2",	IFF_LINK2,	setifflags } ,
-	{ "-link2",	-IFF_LINK2,	setifflags } ,
+	{ "link0",	IFF_LINK0,	setifflags },
+	{ "-link0",	-IFF_LINK0,	setifflags },
+	{ "link1",	IFF_LINK1,	setifflags },
+	{ "-link1",	-IFF_LINK1,	setifflags },
+	{ "link2",	IFF_LINK2,	setifflags },
+	{ "-link2",	-IFF_LINK2,	setifflags },
+	{ "mtu",	NEXTARG,	setifmtu },
 	{ 0,		0,		setifaddr },
 	{ 0,		0,		setifdstaddr },
 };
@@ -167,10 +169,11 @@ main(argc, argv)
 	register struct afswtch *rafp;
 
 	if (argc < 2) {
-		fprintf(stderr, "usage: ifconfig interface\n%s%s%s%s%s",
+		fprintf(stderr, "usage: ifconfig interface\n%s%s%s%s%s%s",
 		    "\t[ af [ address [ dest_addr ] ] [ up ] [ down ]",
 			    "[ netmask mask ] ]\n",
 		    "\t[ metric n ]\n",
+		    "\t[ mtu n ]\n",
 		    "\t[ arp | -arp ]\n",
 		    "\t[ link0 | -link0 ] [ link1 | -link1 ] [ link2 | -link2 ] \n");
 		exit(1);
@@ -203,6 +206,10 @@ main(argc, argv)
 		perror("ioctl (SIOCGIFMETRIC)");
 	else
 		metric = ifr.ifr_metric;
+	if (ioctl(s, SIOCGIFMTU, (caddr_t)&ifr) < 0)
+		perror("ioctl (SIOCGIFMTU)");
+	else
+		mtu = ifr.ifr_mtu;
 	if (argc == 0) {
 		status();
 		exit(0);
@@ -360,6 +367,15 @@ setifmetric(val)
 		perror("ioctl (set metric)");
 }
 
+setifmtu(val)
+	char *val;
+{
+	strncpy(ifr.ifr_name, name, sizeof (ifr.ifr_name));
+	ifr.ifr_mtu = atoi(val);
+	if (ioctl(s, SIOCSIFMTU, (caddr_t)&ifr) < 0)
+		perror("ioctl (set mtu)");
+}
+
 setsnpaoffset(val)
 	char *val;
 {
@@ -383,6 +399,8 @@ status()
 	printb("flags", flags, IFFBITS);
 	if (metric)
 		printf(" metric %d", metric);
+	if (mtu)
+		printf(" mtu %d", mtu);
 	putchar('\n');
 	if ((p = afp) != NULL) {
 		(*p->af_status)(1);
