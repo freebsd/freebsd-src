@@ -123,45 +123,44 @@ static struct pcn_chipid {
 	{ 0, NULL },
 };
 
-static char *    pcn_chipid_name(u_int32_t);
-static u_int32_t pcn_chip_id	(device_t);
+static char * pcn_chipid_name(u_int32_t);
+static u_int32_t pcn_chip_id(device_t);
 
-static u_int32_t pcn_csr_read	(struct pcn_softc *, int);
-static u_int16_t pcn_csr_read16	(struct pcn_softc *, int);
-static u_int16_t pcn_bcr_read16	(struct pcn_softc *, int);
-static void pcn_csr_write	(struct pcn_softc *, int, int);
-static u_int32_t pcn_bcr_read	(struct pcn_softc *, int);
-static void pcn_bcr_write	(struct pcn_softc *, int, int);
+static u_int32_t pcn_csr_read(struct pcn_softc *, int);
+static u_int16_t pcn_csr_read16(struct pcn_softc *, int);
+static u_int16_t pcn_bcr_read16(struct pcn_softc *, int);
+static void pcn_csr_write(struct pcn_softc *, int, int);
+static u_int32_t pcn_bcr_read(struct pcn_softc *, int);
+static void pcn_bcr_write(struct pcn_softc *, int, int);
 
-static int pcn_probe		(device_t);
-static int pcn_attach		(device_t);
-static int pcn_detach		(device_t);
+static int pcn_probe(device_t);
+static int pcn_attach(device_t);
+static int pcn_detach(device_t);
 
-static int pcn_newbuf		(struct pcn_softc *, int, struct mbuf *);
-static int pcn_encap		(struct pcn_softc *,
-					struct mbuf *, u_int32_t *);
-static void pcn_rxeof		(struct pcn_softc *);
-static void pcn_txeof		(struct pcn_softc *);
-static void pcn_intr		(void *);
-static void pcn_tick		(void *);
-static void pcn_start		(struct ifnet *);
-static int pcn_ioctl		(struct ifnet *, u_long, caddr_t);
-static void pcn_init		(void *);
-static void pcn_stop		(struct pcn_softc *);
-static void pcn_watchdog		(struct ifnet *);
-static void pcn_shutdown		(device_t);
-static int pcn_ifmedia_upd	(struct ifnet *);
-static void pcn_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
+static int pcn_newbuf(struct pcn_softc *, int, struct mbuf *);
+static int pcn_encap(struct pcn_softc *, struct mbuf *, u_int32_t *);
+static void pcn_rxeof(struct pcn_softc *);
+static void pcn_txeof(struct pcn_softc *);
+static void pcn_intr(void *);
+static void pcn_tick(void *);
+static void pcn_start(struct ifnet *);
+static int pcn_ioctl(struct ifnet *, u_long, caddr_t);
+static void pcn_init(void *);
+static void pcn_stop(struct pcn_softc *);
+static void pcn_watchdog(struct ifnet *);
+static void pcn_shutdown(device_t);
+static int pcn_ifmedia_upd(struct ifnet *);
+static void pcn_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
-static int pcn_miibus_readreg	(device_t, int, int);
-static int pcn_miibus_writereg	(device_t, int, int, int);
-static void pcn_miibus_statchg	(device_t);
+static int pcn_miibus_readreg(device_t, int, int);
+static int pcn_miibus_writereg(device_t, int, int, int);
+static void pcn_miibus_statchg(device_t);
 
-static void pcn_setfilt		(struct ifnet *);
-static void pcn_setmulti	(struct pcn_softc *);
-static void pcn_reset		(struct pcn_softc *);
-static int pcn_list_rx_init	(struct pcn_softc *);
-static int pcn_list_tx_init	(struct pcn_softc *);
+static void pcn_setfilt(struct ifnet *);
+static void pcn_setmulti(struct pcn_softc *);
+static void pcn_reset(struct pcn_softc *);
+static int pcn_list_rx_init(struct pcn_softc *);
+static int pcn_list_tx_init(struct pcn_softc *);
 
 #ifdef PCN_USEIOSPACE
 #define PCN_RES			SYS_RES_IOPORT
