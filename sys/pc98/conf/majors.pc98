@@ -1,4 +1,4 @@
-$Id: majors.pc98,v 1.38 1998/09/09 14:40:27 kato Exp $
+$Id: majors.pc98,v 1.39 1998/09/14 10:43:26 kato Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -17,8 +17,8 @@ blkdev	name		comments
 1	wfd		ATAPI Floppy client of "ata"
 2	fd		floppy disk
 3	wt		QIC-02/36 tape
-4	sd		SCSI "disk" type
-5	st		SCSI "tape" type
+4	da		SCSI "direct acess" devices
+5	sa		SCSI "sequential access" devices
 6	cd		SCSI "cdrom" type
 7	mcd		Mitsumi CDROM interface
 8	lkm		assigned to Loadable Kernel modules
@@ -33,10 +33,8 @@ blkdev	name		comments
 17	matcd		Matsushita/Panasonic/Creative(SB) CDROM interface
 18	ata		"device independent" ATA/IDE driver
 19	wcdb		ATAPI CDROM client of "ata"
-20	od		SCSI "magneto-optical" disk
 21	ccd		concatenated disk
 22	gd		Geometry disk.
-23	worm		SCSI "worm type"
 24	wstb		ATAPI tape client of "ata"
 25	vinum		RAID fs
 26	sw		VM internal swap device
@@ -57,8 +55,8 @@ chrdev	name		comments
 10	wt		QIC-02/36 tape
 11	spigot		Video capture?
 12	sc		syscons/pcvt virtual consoles
-13	sd		SCSI "disk type"
-14	st		SCSI "tape type"
+13	da		SCSI "direct access devices"
+14	sa		SCSI "sequential access devices"
 15	cd		SCSI "CDROM type"
 16	lpt		PC parallel printer port
 17	ch		SCSI changer
@@ -75,7 +73,7 @@ chrdev	name		comments
 28	sio		16450/16550 serial
 29	mcd		Mitsumi CDROM interface
 30	snd		sound driver system
-31	uk		SCSI "unknown device type"
+31	pass		SCSI "Application Pass-Thru"
 32	lkmc		Loadable Kernel Module Controller
 33	lkm		assigned to Loadable Kernel Modules
 34	lkm		assigned to Loadable Kernel Modules
@@ -109,12 +107,11 @@ chrdev	name		comments
 62	worm		SCSI "worm type"
 63	rc		Riscom/8 driver
 64	??		Talisman
-65	sctarg		SCSI target
+65	targ		SCSI target sample driver
 66	labpc		National Instruments LabPC
 67	meteor		Matrox Meteor video capture
 68	si		Specialix SI/XIO (peter@freebsd.org)
 69	wcd		ATAPI CDROM client of "ata"
-70	od		SCSI "magneto-optical disk type"
 71	asc		AmiScan driver
 72	stl		Stallion (cd1400 based) (gerg@stallion.oz.au)
 73	??		was qcam
