@@ -570,7 +570,7 @@ g_bsd_diocbsdbb(dev_t dev, u_long cmd __unused, caddr_t data, int fflag __unused
 	ms = gsp->softc;
 
 	/* The disklabel to set is the ioctl argument. */
-	buf = g_malloc(BBSIZE, 0);
+	buf = g_malloc(BBSIZE, M_WAITOK);
 	p = *(void **)data;
 	error = copyin(p, buf, BBSIZE);
 	if (error) {
