@@ -34,12 +34,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsrvcache.h	8.3 (Berkeley) 3/30/95
- * $Id: nfsrvcache.h,v 1.8 1997/02/22 09:42:51 peter Exp $
+ * $Id: nfsrvcache.h,v 1.9 1997/06/03 17:22:47 dfr Exp $
  */
 
 
 #ifndef _NFS_NFSRVCACHE_H_
 #define _NFS_NFSRVCACHE_H_
+
+#include <sys/queue.h>
 
 /*
  * Definitions for the server recent request cache

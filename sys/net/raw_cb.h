@@ -31,11 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_cb.h	8.1 (Berkeley) 6/10/93
- * $Id: raw_cb.h,v 1.8 1997/04/14 18:23:23 phk Exp $
+ * $Id: raw_cb.h,v 1.9 1997/04/27 20:00:58 wollman Exp $
  */
 
 #ifndef _NET_RAW_CB_H_
 #define _NET_RAW_CB_H_
+
+#include <sys/queue.h>
 
 /*
  * Raw protocol interface control block.  Used
