@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.28 1998/03/05 21:45:53 tegge Exp $
+ *	$Id: apic_vector.s,v 1.29 1998/04/22 22:49:27 tegge Exp $
  */
 
 
@@ -675,7 +675,15 @@ _Xcpuast:
 	movl	_cpuid, %eax
 	lock	
 	btrl	%eax, _checkstate_pending_ast
-
+	lock	
+	btrl	%eax, CNAME(resched_cpus)
+	jz	2f
+	movl	$1, CNAME(want_resched)
+	lock
+	incl	CNAME(want_resched_cnt)
+2:		
+	lock
+	incl	CNAME(cpuast_cnt)
 	MEXITCOUNT
 	jmp	_doreti
 1:
@@ -803,12 +811,27 @@ forward_irq:
 	SUPERALIGN_TEXT
 	.globl _Xcpustop
 _Xcpustop:
+	pushl	%ebp
+	movl	%esp, %ebp
 	pushl	%eax
+	pushl	%ecx
+	pushl	%edx
 	pushl	%ds			/* save current data segment */
+	pushl	%es		
 
 	movl	$KDSEL, %eax
 	movl	%ax, %ds		/* use KERNEL data segment */
 
+	movl	$0, lapic_eoi		/* End Of Interrupt to APIC */
+
+	movl	_cpuid, %eax
+	imull	$PCB_SIZE, %eax
+	leal	CNAME(stoppcbs)(%eax), %eax
+	pushl	%eax
+	call	CNAME(savectx)		/* Save process context */
+	addl	$4, %esp
+	
+		
 	movl	_cpuid, %eax
 
 	lock
@@ -819,11 +842,26 @@ _Xcpustop:
 
 	lock
 	btrl	%eax, _started_cpus	/* started_cpus &= ~(1<<id) */
+	lock
+	btrl	%eax, _stopped_cpus	/* stopped_cpus &= ~(1<<id) */
 
-	movl	$0, lapic_eoi		/* End Of Interrupt to APIC */
+	test	%eax, %eax
+	jnz	2f
 
+	movl	CNAME(cpustop_restartfunc), %eax
+	test	%eax, %eax
+	jz	2f
+	movl	$0, CNAME(cpustop_restartfunc)	/* One-shot */
+
+	call	%eax
+2:
+	popl	%es
 	popl	%ds			/* restore previous data segment */
+	popl	%edx
+	popl	%ecx
 	popl	%eax
+	movl	%ebp, %esp
+	popl	%ebp
 	iret
 
 
@@ -944,12 +982,25 @@ _checkstate_pending_ast:
 	.globl CNAME(forward_irq_misscnt)
 	.globl CNAME(forward_irq_toodeepcnt)
 	.globl CNAME(forward_irq_hitcnt)
+	.globl CNAME(resched_cpus)
+	.globl CNAME(want_resched_cnt)
+	.globl CNAME(cpuast_cnt)
+	.globl CNAME(cpustop_restartfunc)
 CNAME(forward_irq_misscnt):	
 	.long 0
 CNAME(forward_irq_hitcnt):	
 	.long 0
 CNAME(forward_irq_toodeepcnt):
 	.long 0
+CNAME(resched_cpus):
+	.long 0
+CNAME(want_resched_cnt):
+	.long 0
+CNAME(cpuast_cnt):
+	.long 0
+CNAME(cpustop_restartfunc):
+	.long 0
+		
 
 
 	.globl	_apic_pin_trigger
