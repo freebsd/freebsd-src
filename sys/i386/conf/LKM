@@ -2,7 +2,7 @@
 # LKM - verification kernel for LKMs.  This is not intended to be run
 # on any real hardware, only to make it possible to test-link LKMs.
 #
-#	$Id: LKM,v 1.1 1998/03/12 20:00:21 eivind Exp $
+#	$Id: LKM,v 1.2 1998/10/22 12:23:04 bde Exp $
 #
 
 ##
@@ -23,7 +23,7 @@ options		FFS
 # missing NPX...
 controller	isa0
 # npx is mandated by config(8)
-device		npx0	at isa? port "IO_NPX" irq 13
+device		npx0	at isa? port IO_NPX irq 13
 
 ##
 #  Requirements for various LKMs
@@ -65,7 +65,7 @@ device		sio0	at isa? port "IO_COM1" tty irq 4
 #
 # For the screensavers
 #
-device		sc0	at isa? port "IO_KBD" tty irq 1
+device		sc0	at isa? port IO_KBD tty irq 1
 
 
 #
