@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)malloc.h	8.5 (Berkeley) 5/3/95
- * $Id: malloc.h,v 1.25 1997/09/21 04:24:04 dyson Exp $
+ * $Id: malloc.h,v 1.26 1997/10/10 14:05:34 phk Exp $
  */
 
 #ifndef _SYS_MALLOC_H_
@@ -46,10 +46,10 @@
 #define	M_NOWAIT	0x0001
 #define M_KERNEL	0x0002
 
-struct kmemstats {
+struct malloc_type {
 	char	*ks_shortdesc;	/* Short description */
 	char	*ks_longdesc;	/* Long description */
-	struct kmemstats *ks_next; /* Next pointer */
+	struct malloc_type *ks_next; /* Next pointer */
 	long	ks_inuse;	/* # of packets of this type currently in use */
 	long	ks_calls;	/* total packets of this type ever allocated */
 	long 	ks_memuse;	/* total memory held in bytes */
@@ -61,7 +61,7 @@ struct kmemstats {
 	long	ks_spare;
 };
 
-typedef struct kmemstats malloc_type_t[1];
+typedef struct malloc_type malloc_type_t[1];
 
 #ifdef MALLOC_INSTANTIATE
 #define MALLOC_MAKE_TYPE(type, short, long) \
@@ -76,22 +76,18 @@ MALLOC_MAKE_TYPE(M_DEVBUF, "devbuf", "device driver memory");
 MALLOC_MAKE_TYPE(M_SOCKET, "socket", "socket structure");
 MALLOC_MAKE_TYPE(M_PCB, "pcb", "protocol control block");
 MALLOC_MAKE_TYPE(M_RTABLE, "routetbl", "routing tables");
- MALLOC_MAKE_TYPE(M_HTABLE, "hosttbl", "IMP host tables");
 MALLOC_MAKE_TYPE(M_FTABLE, "fragtbl", "fragment reassembly header");
 MALLOC_MAKE_TYPE(M_ZOMBIE, "zombie", "zombie proc status");
 MALLOC_MAKE_TYPE(M_IFADDR, "ifaddr", "interface address");
 MALLOC_MAKE_TYPE(M_SOOPTS, "soopts", "socket options");
 MALLOC_MAKE_TYPE(M_SONAME, "soname", "socket name");
- MALLOC_MAKE_TYPE(M_NAMEI, "namei", "namei path name buffer");
 MALLOC_MAKE_TYPE(M_GPROF, "gprof", "kernel profiling buffer");
 MALLOC_MAKE_TYPE(M_IOCTLOPS, "ioctlops", "ioctl data buffer");
- MALLOC_MAKE_TYPE(M_MAPMEM, "mapmem", "mapped memory descriptors");
 MALLOC_MAKE_TYPE(M_CRED, "cred", "credentials");
 MALLOC_MAKE_TYPE(M_PGRP, "pgrp", "process group header");
 MALLOC_MAKE_TYPE(M_SESSION, "session", "session header");
 MALLOC_MAKE_TYPE(M_IOV, "iov", "large iov's");
 MALLOC_MAKE_TYPE(M_MOUNT, "mount", "vfs mount struct");
- MALLOC_MAKE_TYPE(M_FHANDLE, "fhandle", "network file handle");
 MALLOC_MAKE_TYPE(M_NFSREQ, "NFS req", "NFS request header");
 MALLOC_MAKE_TYPE(M_NFSMNT, "NFS mount", "NFS mount structure");
 MALLOC_MAKE_TYPE(M_NFSNODE, "NFS node", "NFS vnode private part");
@@ -101,12 +97,7 @@ MALLOC_MAKE_TYPE(M_DQUOT, "UFS quota", "UFS quota entries");
 MALLOC_MAKE_TYPE(M_UFSMNT, "UFS mount", "UFS mount structure");
 MALLOC_MAKE_TYPE(M_SHM, "shm", "SVID compatible shared memory segments");
 MALLOC_MAKE_TYPE(M_VMMAP, "VM map", "VM map structures");
- MALLOC_MAKE_TYPE(M_VMMAPENT, "VM mapent", "VM map entry structures");
- MALLOC_MAKE_TYPE(M_VMOBJ, "VM object", "VM object structure");
- MALLOC_MAKE_TYPE(M_VMOBJHASH, "VM objhash", "VM object hash structure");
-MALLOC_MAKE_TYPE(M_VMPMAP, "VM pmap", "VM pmap"); /* XXX */
- MALLOC_MAKE_TYPE(M_VMPVENT, "VM pvmap", "VM phys-virt mapping entry");
- MALLOC_MAKE_TYPE(M_VMPAGER, "VM pager", "XXX: VM pager struct");
+MALLOC_MAKE_TYPE(M_VMPMAP, "VM pmap", "VM pmap"); /* XXX only free() ??? */
 MALLOC_MAKE_TYPE(M_VMPGDATA, "VM pgdata", "XXX: VM pager private data");
 MALLOC_MAKE_TYPE(M_FILE, "file", "Open file structure");
 MALLOC_MAKE_TYPE(M_FILEDESC, "file desc", "Open file descriptor table");
@@ -137,24 +128,18 @@ MALLOC_MAKE_TYPE(M_MSDOSFSNODE, "MSDOSFS node", "MSDOSFS vnode private part");
 MALLOC_MAKE_TYPE(M_MSDOSFSFAT, "MSDOSFS FAT", "MSDOSFS file allocation table");
 MALLOC_MAKE_TYPE(M_DEVFSMNT, "DEVFS mount", "DEVFS mount structure");
 MALLOC_MAKE_TYPE(M_DEVFSBACK, "DEVFS back", "DEVFS Back node");
- MALLOC_MAKE_TYPE(M_DEVFSFRONT, "DEVFS front", "DEVFS Front node");
 MALLOC_MAKE_TYPE(M_DEVFSNODE, "DEVFS node", "DEVFS node");
 MALLOC_MAKE_TYPE(M_TEMP, "temp", "misc temporary data buffers");
 MALLOC_MAKE_TYPE(M_TTYS, "ttys", "tty data structures");
 MALLOC_MAKE_TYPE(M_GZIP, "Gzip trees", "Gzip trees");
 MALLOC_MAKE_TYPE(M_IPFW, "IpFw/IpAcct", "IpFw/IpAcct chain's");
 MALLOC_MAKE_TYPE(M_DEVL, "isa_devlist", "isa_device lists in userconfig()");
-MALLOC_MAKE_TYPE(M_PKTCLASS, "PktClass", "structures used in packet classifier");
 MALLOC_MAKE_TYPE(M_SYSCTL, "sysctl", "sysctl internal magic");
 MALLOC_MAKE_TYPE(M_SECA, "key mgmt", "security associations, key management");
 MALLOC_MAKE_TYPE(M_BIOBUF, "BIO buffer", "BIO buffer");
 MALLOC_MAKE_TYPE(M_KTRACE, "KTRACE", "KTRACE");
 MALLOC_MAKE_TYPE(M_SELECT, "select", "select() buffer");
-MALLOC_MAKE_TYPE(M_GEOM_DEV, "GEOM dev", "geometry device");
-MALLOC_MAKE_TYPE(M_GEOM_MOD, "GEOM mod", "geometry module");
-MALLOC_MAKE_TYPE(M_GEOM_REQ, "GEOM req", "geometry request");
-MALLOC_MAKE_TYPE(M_GEOM_MISC, "GEOM misc", "geometry misc");
-MALLOC_MAKE_TYPE(M_VFSCONF, "VFS conf", "vfsconf structure");
+MALLOC_MAKE_TYPE(M_VFSCONF, "VFS conf", "vfsconf structure"); /* XXX only free() ??? */
 MALLOC_MAKE_TYPE(M_AIO, "AIO", "AIO structure(s)");
 MALLOC_MAKE_TYPE(M_ZONE, "ZONE", "Zone header");
 MALLOC_MAKE_TYPE(M_HOSTCACHE, "hostcache", "per-host information cache structure");
@@ -278,11 +263,12 @@ extern char *kmembase;
 extern struct kmembuckets bucket[];
 #endif /* do not collect statistics */
 
-void	*contigmalloc __P((unsigned long size, int type, int flags,
+void	*contigmalloc __P((unsigned long size, struct malloc_type *type,
+			   int flags,
 			   unsigned long low, unsigned long high,
 			   unsigned long alignment, unsigned long boundary));
-void	free __P((void *addr, struct kmemstats *type));
-void	*malloc __P((unsigned long size, struct kmemstats *type, int flags));
+void	free __P((void *addr, struct malloc_type *type));
+void	*malloc __P((unsigned long size, struct malloc_type *type, int flags));
 #endif /* KERNEL */
 
 #endif /* !_SYS_MALLOC_H_ */
