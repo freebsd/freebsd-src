@@ -1,4 +1,4 @@
-/*	$NetBSD: cmdtab.c,v 1.40 2002/07/29 04:24:47 lukem Exp $	*/
+/*	$NetBSD: cmdtab.c,v 1.41 2003/08/07 11:13:53 agc Exp $	*/
 
 /*-
  * Copyright (c) 1996-2000 The NetBSD Foundation, Inc.
@@ -48,11 +48,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -74,7 +70,7 @@
 #if 0
 static char sccsid[] = "@(#)cmdtab.c	8.4 (Berkeley) 10/9/94";
 #else
-__RCSID("$NetBSD: cmdtab.c,v 1.40 2002/07/29 04:24:47 lukem Exp $");
+__RCSID("$NetBSD: cmdtab.c,v 1.41 2003/08/07 11:13:53 agc Exp $");
 #endif
 #endif /* not lint */
 
