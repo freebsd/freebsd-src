@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.35 1997/04/09 09:22:02 jkh Exp $
+#	$Id: Makefile,v 1.246.2.36 1997/04/20 19:30:09 jkh Exp $
 #
 # How to roll a release:
 #
@@ -51,7 +51,7 @@ FIXITINODE=		20000
 BOOTINODE=		100000
 
 # Things which will get you into trouble if you change them
-DISTRIBUTIONS=		bin ${EXTRA_DISTS}
+DISTRIBUTIONS=		${ALL_DISTS}
 MTREEFILES=		${.CURDIR}/../etc/mtree
 RD=			/R/stage
 FD=			/R/ftp
