@@ -571,7 +571,9 @@ initializecpu(void)
 	default:
 		break;
 	}
+#ifdef I686_CPU
 	enable_sse();
+#endif
 
 #if defined(PC98) && !defined(CPU_UPGRADE_HW_CACHE)
 	/*
