@@ -24,6 +24,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * 
+ * $Id$
  */
 
 #ifndef	_SVR4_TYPES_H_
@@ -67,13 +69,13 @@ typedef struct timespec  svr4_timestruc_t;
 					      (((y) << 0) & 0x00ff)))
 
 #define svr4_to_bsd_odev_t(d) makedev(svr4_omajor(d), svr4_ominor(d))
-#define bsd_to_svr4_odev_t(d) svr4_omakedev(major(d), minor(d))
+#define bsd_to_svr4_odev_t(d) svr4_omakedev(umajor(d), uminor(d))
 
 #define svr4_major(x)         ((int32_t)((((x) & 0xfffc0000) >> 18)))
 #define svr4_minor(x)         ((int32_t)((((x) & 0x0003ffff) >> 0)))
 #define svr4_makedev(x,y)     ((svr4_dev_t)((((x) << 18) & 0xfffc0000) | \
 					    (((y) << 0) & 0x0003ffff)))
 #define svr4_to_bsd_dev_t(d)  makedev(svr4_major(d), svr4_minor(d))
-#define bsd_to_svr4_dev_t(d)  svr4_makedev(major(d), minor(d))
+#define bsd_to_svr4_dev_t(d)  svr4_makedev(umajor(d), uminor(d))
 
 #endif /* !_SVR4_TYPES_H_ */
