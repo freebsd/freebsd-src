@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.88 1996/12/15 23:25:50 se Exp $
+**  $Id: ncr.c,v 1.89 1996/12/16 14:31:45 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1261,7 +1261,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.88 1996/12/15 23:25:50 se Exp $\n";
+	"\n$Id: ncr.c,v 1.89 1996/12/16 14:31:45 se Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -4620,14 +4620,14 @@ static void ncr_setsync (ncb_p np, ccb_p cp, u_char sxfer)
 	*/
 	PRINT_ADDR(xp);
 	if (sxfer & 0x1f) {
+		unsigned f10 = 10000 << (tp->widedone ? tp->widedone -1 : 0);
+		unsigned mb10 = (f10 + tp->period/2) / tp->period;
 		/*
 		**  Disable extended Sreq/Sack filtering
 		*/
 		if (tp->period <= 200) OUTB (nc_stest2, 0);
-		printf ("%s%dns (%d MHz) offset %d.\n",
-			tp->period<200 ? "FAST SCSI-2 ":"",
-			tp->period, (1000+tp->period/2)/tp->period,
-			sxfer & 0x1f);
+		printf ("%d.%d MB/s (%d ns, offset %d)\n",
+			mb10 / 10, mb10 % 10, tp->period, sxfer & 0x1f);
 	} else  printf ("asynchronous.\n");
 
 	/*
@@ -4678,9 +4678,9 @@ static void ncr_setwide (ncb_p np, ccb_p cp, u_char wide)
 	*/
 	PRINT_ADDR(xp);
 	if (scntl3 & EWS)
-		printf ("WIDE SCSI (16 bit) enabled.\n");
+		printf ("WIDE SCSI (16 bit) enabled");
 	else
-		printf ("WIDE SCSI disabled.\n");
+		printf ("WIDE SCSI disabled");
 
 	/*
 	**	set actual value and sync_status
