@@ -1,4 +1,4 @@
-#	$Id: bsd.info.mk,v 1.51 1998/08/08 07:02:07 peter Exp $
+#	$Id: bsd.info.mk,v 1.52 1999/01/14 20:02:41 markm Exp $
 #
 # The include file <bsd.info.mk> handles installing GNU (tech)info files.
 # Texinfo is a documentation system that uses a single source
@@ -93,6 +93,7 @@ INFOSECTION?=   Miscellaneous
 ICOMPRESS_CMD?=	${COMPRESS_CMD}
 ICOMPRESS_EXT?=	${COMPRESS_EXT}
 FORMATS?=	info
+GREP?=		grep
 INFO2HTML?=	info2html
 TEX?=		tex
 DVIPS?=		dvips
@@ -159,9 +160,25 @@ ${x:S/$/${ICOMPRESS_EXT}/}:	${x}
 .for x in ${INFO}
 INSTALLINFODIRS+= ${x:S/$/-install/}
 ${x:S/$/-install/}: ${DESTDIR}${INFODIR}/${INFODIRFILE}
-	${INSTALLINFO} --section=${INFOSECTION} \
-		       --entry=${INFOENTRY_${x}} \
-		       ${x}.info ${DESTDIR}${INFODIR}/${INFODIRFILE}
+	-__section=`${GREP} "^INFO-DIR-SECTION" ${x}.info`; \
+	-__entry=`${GREP} "^START-INFO-DIR-ENTRY" ${x}.info`; \
+	if [ ! -z "$$__section" ]; then \
+		if [ ! -z "$$__entry" ]; then \
+			${INSTALLINFO}  ${x}.info ${DESTDIR}${INFODIR}/${INFODIRFILE}; \
+		else \
+			${INSTALLINFO}  --entry=${INFOENTRY_${x}} \
+				${x}.info ${DESTDIR}${INFODIR}/${INFODIRFILE}; \
+		fi \
+	else \
+		if [ ! -z "$$__entry" ]; then \
+			${INSTALLINFO}  --section=${INFOSECTION} \
+				${x}.info ${DESTDIR}${INFODIR}/${INFODIRFILE}; \
+		else \
+			${INSTALLINFO}  --section=${INFOSECTION} \
+       				--entry=${INFOENTRY_${x}} \
+				${x}.info ${DESTDIR}${INFODIR}/${INFODIRFILE}; \
+		fi \
+	fi
 .endfor
 
 .PHONY: ${INSTALLINFODIRS}
