@@ -119,6 +119,7 @@ suspend_kproc(struct proc *p, int timo)
 	if ((p->p_flag & P_SYSTEM) == 0)
 		return (EINVAL);
 	SIGADDSET(p->p_siglist, SIGSTOP);
+	wakeup(p);
 	return tsleep((caddr_t)&p->p_siglist, PPAUSE, "suspkp", timo);
 }
 
