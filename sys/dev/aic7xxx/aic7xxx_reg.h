@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx_reg.h,v 1.7 1996/03/31 03:02:37 gibbs Exp $
+ *	$Id: aic7xxx_reg.h,v 1.8 1996/04/20 21:20:31 gibbs Exp $
  */
 
 /*
@@ -372,7 +372,6 @@
 #define BUSTIME			0x085
 #define		BOFF		0xf0
 #define		BON		0x0f
-#define		BOFF_60BCLKS	0xf0
 
 /*
  * Bus Speed (p. 3-45)
@@ -396,6 +395,7 @@
 #define		PAUSE		0x04
 #define		INTEN		0x02
 #define		CHIPRST		0x01
+#define		CHIPRSTACK	0x01
 
 /*
  * Interrupt Status (p. 3-50)
@@ -741,11 +741,14 @@
 #define SAVED_SCBPTR		0x051
 
 #define SCSICONF		0x05a
+#define		RESET_SCSI	0x40
+
 #define HOSTCONF		0x05d
 
 #define HA_274_BIOSCTRL		0x05f
 #define BIOSMODE		0x30
 #define BIOSDISABLED		0x30
+#define CHANNEL_B_PRIMARY	0x08
 
 /* Message codes */
 #define MSG_EXTENDED		0x01
