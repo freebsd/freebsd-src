@@ -478,6 +478,12 @@ Use with caution as a make install will overwrite any existing
 Note that
 .Va SENDMAIL_CF
 is now deprecated.
+.It Va SENDMAIL_ADDITIONAL_MC
+.Vt ( str )
+Additional .mc files which should be built into .cf files at build time.
+The value should include the full path to the .mc file(s), e.g.,
+.Pa /etc/mail/foo.mc
+.Pa /etc/mail/bar.mc .
 .It Va SENDMAIL_CFLAGS
 .Vt ( str )
 Flags to pass to the compile command when building
