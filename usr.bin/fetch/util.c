@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: util.c,v 1.2 1997/02/02 09:16:37 bde Exp $
+ *	$Id: util.c,v 1.3 1997/02/05 19:59:18 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -163,7 +163,6 @@ parse_host_port(const char *s, char **hostname, int *port)
 
 	colon = strchr(s, ':');
 	if (colon != 0) {
-		colon++;
 		errno = 0;
 		ul = strtoul(colon + 1, &ep, 10);
 		if (*ep != '\0' || colon[1] == '\0' || errno != 0
