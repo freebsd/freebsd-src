@@ -447,7 +447,7 @@ skipif:
 	    Disk *d;
 
 	    /* Ignore memory disks */
-	    if (!strncmp(names[i], "m_d", 2))
+	    if (!strncmp(names[i], "md", 2))
 		continue;
 
 	    d = Open_Disk(names[i]);
