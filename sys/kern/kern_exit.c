@@ -93,6 +93,8 @@ static struct exit_list_head exit_list = TAILQ_HEAD_INITIALIZER(exit_list);
 /*
  * exit --
  *	Death of process.
+ *
+ * MPSAFE
  */
 void
 sys_exit(p, uap)
@@ -101,7 +103,7 @@ sys_exit(p, uap)
 		int	rval;
 	} */ *uap;
 {
-
+	mtx_lock(&Giant);
 	exit1(p, W_EXITCODE(uap->rval, 0));
 	/* NOTREACHED */
 }
@@ -388,6 +390,9 @@ exit1(p, rv)
 }
 
 #ifdef COMPAT_43
+/*
+ * MPSAFE, the dirty work is handled by wait1().
+ */
 int
 owait(p, uap)
 	struct proc *p;
@@ -405,15 +410,20 @@ owait(p, uap)
 }
 #endif /* COMPAT_43 */
 
+/*
+ * MPSAFE, the dirty work is handled by wait1().
+ */
 int
 wait4(p, uap)
 	struct proc *p;
 	struct wait_args *uap;
 {
-
 	return (wait1(p, uap, 0));
 }
 
+/*
+ * MPSAFE
+ */
 static int
 wait1(q, uap, compat)
 	register struct proc *q;
@@ -429,10 +439,13 @@ wait1(q, uap, compat)
 	register struct proc *p, *t;
 	int status, error;
 
+	mtx_lock(&Giant);
 	if (uap->pid == 0)
 		uap->pid = -q->p_pgid;
-	if (uap->options &~ (WUNTRACED|WNOHANG|WLINUXCLONE))
-		return (EINVAL);
+	if (uap->options &~ (WUNTRACED|WNOHANG|WLINUXCLONE)) {
+		error = EINVAL;
+		goto done2;
+	}
 loop:
 	nfound = 0;
 	sx_slock(&proctree_lock);
@@ -478,12 +491,14 @@ loop:
 			if (uap->status) {
 				status = p->p_xstat;	/* convert to int */
 				if ((error = copyout((caddr_t)&status,
-				    (caddr_t)uap->status, sizeof(status))))
-					return (error);
+				    (caddr_t)uap->status, sizeof(status)))) {
+					goto done2;
+				}
 			}
 			if (uap->rusage && (error = copyout((caddr_t)p->p_ru,
-			    (caddr_t)uap->rusage, sizeof (struct rusage))))
-				return (error);
+			    (caddr_t)uap->rusage, sizeof (struct rusage)))) {
+				goto done2;
+			}
 			/*
 			 * If we got the child via a ptrace 'attach',
 			 * we need to give it back to the old parent.
@@ -499,7 +514,8 @@ loop:
 					wakeup((caddr_t)t);
 					PROC_UNLOCK(t);
 					sx_xunlock(&proctree_lock);
-					return (0);
+					error = 0;
+					goto done2;
 				}
 			}
 			sx_xunlock(&proctree_lock);
@@ -563,7 +579,8 @@ loop:
 			mtx_destroy(&p->p_mtx);
 			zfree(proc_zone, p);
 			nprocs--;
-			return (0);
+			error = 0;
+			goto done2;
 		}
 		if (p->p_stat == SSTOP && (p->p_flag & P_WAITED) == 0 &&
 		    (p->p_flag & P_TRACED || uap->options & WUNTRACED)) {
@@ -584,21 +601,27 @@ loop:
 					(caddr_t)uap->status, sizeof(status));
 			} else
 				error = 0;
-			return (error);
+			goto done2;
 		}
 		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 	}
 	sx_sunlock(&proctree_lock);
-	if (nfound == 0)
-		return (ECHILD);
+	if (nfound == 0) {
+		error = ECHILD;
+		goto done2;
+	}
 	if (uap->options & WNOHANG) {
 		q->p_retval[0] = 0;
-		return (0);
+		error = 0;
+		goto done2;
 	}
-	if ((error = tsleep((caddr_t)q, PWAIT | PCATCH, "wait", 0)))
-		return (error);
+	if ((error = tsleep((caddr_t)q, PWAIT | PCATCH, "wait", 0)) != 0)
+		goto done2;
 	goto loop;
+done2:
+	mtx_unlock(&Giant);
+	return(error);
 }
 
 /*
