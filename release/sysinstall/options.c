@@ -36,9 +36,10 @@
 
 #include "sysinstall.h"
 #include <ctype.h>
+#include <curses.h>
+#include <term.h>
 
 int fixitTtyWhich(dialogMenuItem *);
-int termSetType(dialogMenuItem *);
 
 static char *
 varCheck(Option opt)
@@ -125,8 +126,6 @@ static Option Options[] = {
       OPT_IS_FUNC,	mediaSetFTPUserPass,	VAR_FTP_USER,		varCheck	},
 { "Editor",		"Which text editor to use during installation",
       OPT_IS_VAR,	EDITOR_PROMPT,		VAR_EDITOR,		varCheck	},
-{ "Terminal",	"Set terminal type (TERMCAP)",
-      OPT_IS_FUNC,	termSetType,		VAR_TERM,		varCheck	},
 { "Tape Blocksize",	"Tape media block size in 512 byte blocks",
       OPT_IS_VAR,	TAPE_PROMPT,		VAR_TAPE_BLOCKSIZE,	varCheck	},
 { "Extract Detail",	"How verbosely to display file name information during extractions",
@@ -174,7 +173,7 @@ value_of(Option opt)
 	return (char *)opt.data;
 
     case OPT_IS_INT:
-	sprintf(ival, "%d", (int)opt.data);
+	sprintf(ival, "%lu", (long)opt.data);
 	return ival;
 
     case OPT_IS_FUNC:
@@ -334,34 +333,5 @@ fixitTtyWhich(dialogMenuItem *self)
 	else /* must be "serial" - wrap around */
 	    variable_set2(VAR_FIXIT_TTY, "standard", 0);
     }
-    return DITEM_SUCCESS;
-}
-
-/* Select terminal type */
-int
-termSetType(dialogMenuItem *self)
-{
-    char *cp = variable_get(VAR_TERM);
-
-    if (!cp) {
-	msgConfirm("TERMCAP is not set to anything!");
-	return DITEM_FAILURE;
-    }
-    else {
-	if (!strcmp(cp, "ansi"))
-	    variable_set2(VAR_TERM, "vt100", 0);
-	else if (!strcmp(cp, "vt100"))
-	    variable_set2(VAR_TERM, "cons25w", 0);
-	else if (!strcmp(cp, "cons25w"))
-	    variable_set2(VAR_TERM, "cons25", 0);
-	else if (!strcmp(cp, "cons25"))
-	    variable_set2(VAR_TERM, "cons25-m", 0);
-	else if (!strcmp(cp, "cons25-m"))
-	    variable_set2(VAR_TERM, "xterm", 0);
-	else /* must be "high" - wrap around */
-	    variable_set2(VAR_TERM, "ansi", 0);
-    }
-
-    setterm (cp);
     return DITEM_SUCCESS;
 }
