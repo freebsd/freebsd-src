@@ -1,7 +1,7 @@
 /*
  * Aic7xxx register and scratch ram definitions.
  *
- * Copyright (c) 1994-1999 Justin Gibbs.
+ * Copyright (c) 1994-2000 Justin Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -156,8 +156,10 @@ register SCSIRATE {
 	address			0x004
 	access_mode RW
 	bit	WIDEXFER	0x80		/* Wide transfer control */
+	bit	ENABLE_CRC	0x40		/* CRC for D-Phases */
+	bit	SINGLE_EDGE	0x10		/* Disable DT Transfers */
 	mask	SXFR		0x70		/* Sync transfer rate */
-	mask	SXFR_ULTRA2	0x7f		/* Sync transfer rate */
+	mask	SXFR_ULTRA2	0x0f		/* Sync transfer rate */
 	mask	SOFS		0x0f		/* Sync offset */
 }
 
@@ -206,6 +208,28 @@ register SCSIDATH {
 register STCNT {
 	address			0x008
 	size	3
+	access_mode RW
+}
+
+/* ALT_MODE register on Ultra160 chips */
+register OPTIONMODE {
+	address			0x008
+	access_mode RW
+	bit	AUTORATEEN		0x80
+	bit	AUTOACKEN		0x40
+	bit	ATNMGMNTEN		0x20
+	bit	BUSFREEREV		0x10
+	bit	EXPPHASEDIS		0x08
+	bit	SCSIDATL_IMGEN		0x04
+	bit	AUTO_MSGOUT_DE		0x02
+	bit	DIS_MSGIN_DUALEDGE	0x01
+	mask	OPTIONMODE_DEFAULTS	AUTO_MSGOUT_DE|DIS_MSGIN_DUALEDGE
+}
+
+/* ALT_MODE register on Ultra160 chips */
+register TARGCRCCNT {
+	address			0x00a
+	size	2
 	access_mode RW
 }
 
@@ -394,6 +418,16 @@ register SELID {
 	access_mode RW
 	mask	SELID_MASK	0xf0
 	bit	ONEBIT		0x08
+}
+
+register SCAMCTL {
+	address			0x01a
+	access_mode RW
+	bit	ENSCAMSELO	0x80
+	bit	CLRSCAMSELID	0x40
+	bit	ALTSTIM		0x20
+	bit	DFLTTID		0x10
+	mask	SCAMLVL		0x03
 }
 
 /*
@@ -874,6 +908,18 @@ register QOUTFIFO {
 	access_mode WO
 }
 
+register CRCCONTROL1 {
+	address			0x09d
+	access_mode RW
+	bit	CRCONSEEN		0x80
+	bit	CRCVALCHKEN		0x40
+	bit	CRCENDCHKEN		0x20
+	bit	CRCREQCHKEN		0x10
+	bit	TARGCRCENDEN		0x08
+	bit	TARGCRCCNTEN		0x04
+}
+
+
 /*
  * Queue Out Count (p. 3-61)
  * Number of queued SCBs in the Out FIFO
@@ -883,12 +929,24 @@ register QOUTCNT {
 	access_mode RO
 }
 
+register SCSIPHASE {
+	address			0x09e
+	access_mode RO
+	bit	STATUS_PHASE	0x20
+	bit	COMMAND_PHASE	0x10
+	bit	MSG_IN_PHASE	0x08
+	bit	MSG_OUT_PHASE	0x04
+	bit	DATA_IN_PHASE	0x02
+	bit	DATA_OUT_PHASE	0x01
+}
+
 /*
  * Special Function
  */
 register SFUNCT {
 	address			0x09f
 	access_mode RW
+	bit	ALT_MODE	0x80
 }
 
 /*
