@@ -95,6 +95,7 @@ extern	int readonly;
 extern	int noepsv;
 extern	int noretr;
 extern	int noguestretr;
+extern	char *typenames[]; /* defined in <arpa/ftp.h> included from ftpd.c */
 
 off_t	restart_point;
 
@@ -1612,7 +1613,8 @@ sizecmd(filename)
 		reply(213, "%qd", count);
 		break; }
 	default:
-		reply(504, "SIZE not implemented for Type %c.", "?AEIL"[type]);
+		reply(504, "SIZE not implemented for type %s.",
+		           typenames[type]);
 	}
 }
 
