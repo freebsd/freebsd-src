@@ -653,7 +653,14 @@ MCOUNT_LABEL(bintr)
 	FAST_INTR(21,fastintr21)
 	FAST_INTR(22,fastintr22)
 	FAST_INTR(23,fastintr23)
-#define	CLKINTR_PENDING	movl $1,CNAME(clkintr_pending)
+	
+#define	CLKINTR_PENDING							\
+	pushl $clock_lock ;						\
+	call s_lock ;							\
+	movl $1,CNAME(clkintr_pending) ;				\
+	call s_unlock ;							\
+	addl $4, %esp
+
 	INTR(0,intr0, CLKINTR_PENDING)
 	INTR(1,intr1,)
 	INTR(2,intr2,)
