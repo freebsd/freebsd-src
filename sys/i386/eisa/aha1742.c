@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.50 1996/01/31 18:02:16 gibbs Exp $
+ *      $Id: aha1742.c,v 1.45.2.2 1996/04/01 00:14:12 gibbs Exp $
  */
 
 #include <sys/types.h>
@@ -379,7 +379,7 @@ ahb_send_mbox(struct ahb_data* ahb, int opcode, int target, struct ecb *ecb)
 		DELAY(10);
 	}
 	if (wait == 0) {
-		printf("ahb%d: board not responding\n", ahb->unit);
+		printf("ahb%d: board is not responding\n", ahb->unit);
 		Debugger("aha1742");
 		fatal_if_no_DDB();
 	}
@@ -404,7 +404,7 @@ ahb_poll(struct ahb_data *ahb, int wait)
 			break;
 		DELAY(1000);
 	} if (wait == 0) {
-		printf("ahb%d: board not responding\n", ahb->unit);
+		printf("ahb%d: board is not responding\n", ahb->unit);
 		return (EIO);
 	}
 	if (cheat != ahb_ecb_phys_kv(ahb, inl(port + MBOXIN0))) {
@@ -435,7 +435,7 @@ ahb_send_immed(struct ahb_data *ahb, int target, u_long cmd)
 			break;
 		DELAY(10);
 	} if (wait == 0) {
-		printf("ahb%d: board not responding\n", ahb->unit);
+		printf("ahb%d: board is not responding\n", ahb->unit);
 		Debugger("aha1742");
 		fatal_if_no_DDB();
 	}
