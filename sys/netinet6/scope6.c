@@ -45,6 +45,16 @@
 #include <netinet6/in6_var.h>
 #include <netinet6/scope6_var.h>
 
+/*
+ * The scope6_lock protects both the global sid default stored in
+ * sid_default below, but also per-interface sid data.
+ */
+static struct mtx scope6_lock;
+#define	SCOPE6_LOCK_INIT()	mtx_init(&scope6_lock, "scope6_lock", NULL, MTX_DEF)
+#define	SCOPE6_LOCK()		mtx_lock(&scope6_lock)
+#define	SCOPE6_UNLOCK()		mtx_unlock(&scope6_lock)
+#define	SCOPE6_LOCK_ASSERT()	mtx_assert(&scope6_lock, MA_OWNED)
+
 static struct scope6_id sid_default;
 #define SID(ifp) \
 	(((struct in6_ifextra *)(ifp)->if_afdata[AF_INET6])->scope6_id)
@@ -53,6 +63,7 @@ void
 scope6_init()
 {
 
+	SCOPE6_LOCK_INIT();
 	bzero(&sid_default, sizeof(sid_default));
 }
 
@@ -114,6 +125,7 @@ scope6_set(ifp, idlist)
 
 	s = splnet();
 
+	SCOPE6_LOCK();
 	for (i = 0; i < 16; i++) {
 		if (idlist->s6id_list[i] &&
 		    idlist->s6id_list[i] != sid->s6id_list[i]) {
@@ -147,6 +159,7 @@ scope6_set(ifp, idlist)
 			sid->s6id_list[i] = idlist->s6id_list[i];
 		}
 	}
+	SCOPE6_UNLOCK();
 	splx(s);
 
 	return (error);
@@ -162,7 +175,9 @@ scope6_get(ifp, idlist)
 	if (sid == NULL)	/* paranoid? */
 		return (EINVAL);
 
+	SCOPE6_LOCK();
 	*idlist = *sid;
+	SCOPE6_UNLOCK();
 
 	return (0);
 }
@@ -272,6 +287,10 @@ in6_addr2zoneid(ifp, addr, ret_id)
 
 	scope = in6_addrscope(addr);
 
+	/*
+	 * XXX: These are all u_int32_t reads, so may not require locking.
+	 */
+	SCOPE6_LOCK();
 	switch (scope) {
 	case IPV6_ADDR_SCOPE_INTFACELOCAL: /* should be interface index */
 		zoneid = sid->s6id_list[IPV6_ADDR_SCOPE_INTFACELOCAL];
@@ -293,6 +312,8 @@ in6_addr2zoneid(ifp, addr, ret_id)
 		zoneid = 0;	/* XXX: treat as global. */
 		break;
 	}
+	SCOPE6_UNLOCK();
+
 	*ret_id = zoneid;
 	return (0);
 }
@@ -307,6 +328,7 @@ scope6_setdefault(ifp)
 	 * We might eventually have to separate the notion of "link" from
 	 * "interface" and provide a user interface to set the default.
 	 */
+	SCOPE6_LOCK();
 	if (ifp) {
 		sid_default.s6id_list[IPV6_ADDR_SCOPE_INTFACELOCAL] =
 			ifp->if_index;
@@ -316,13 +338,17 @@ scope6_setdefault(ifp)
 		sid_default.s6id_list[IPV6_ADDR_SCOPE_INTFACELOCAL] = 0;
 		sid_default.s6id_list[IPV6_ADDR_SCOPE_LINKLOCAL] = 0;
 	}
+	SCOPE6_UNLOCK();
 }
 
 int
 scope6_get_default(idlist)
 	struct scope6_id *idlist;
 {
+
+	SCOPE6_LOCK();
 	*idlist = sid_default;
+	SCOPE6_UNLOCK();
 
 	return (0);
 }
@@ -331,6 +357,8 @@ u_int32_t
 scope6_addr2default(addr)
 	struct in6_addr *addr;
 {
+	u_int32_t id;
+
 	/*
 	 * special case: The loopback address should be considered as
 	 * link-local, but there's no ambiguity in the syntax.
@@ -338,5 +366,12 @@ scope6_addr2default(addr)
 	if (IN6_IS_ADDR_LOOPBACK(addr))
 		return (0);
 
-	return (sid_default.s6id_list[in6_addrscope(addr)]);
+	/*
+	 * XXX: 32-bit read is atomic on all our platforms, is it OK
+	 * not to lock here?
+	 */
+	SCOPE6_LOCK();
+	id = sid_default.s6id_list[in6_addrscope(addr)];
+	SCOPE6_UNLOCK();
+	return (id);
 }
