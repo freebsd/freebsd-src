@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.97 1998/05/31 18:28:45 peter Exp $
+ * $Id: nfs_vnops.c,v 1.98 1998/05/31 18:30:42 peter Exp $
  */
 
 
@@ -238,6 +238,7 @@ static int	nfs_renameit __P((struct vnode *sdvp,
  * Global variables
  */
 extern u_long nfs_true, nfs_false;
+extern u_long nfs_xdrneg1;
 extern struct nfsstats nfsstats;
 extern nfstype nfsv3_type[9];
 struct proc *nfs_iodwant[NFS_MAXASYNCDAEMON];
@@ -727,15 +728,15 @@ nfs_setattrrpc(vp, vap, cred, procp)
 	} else {
 		nfsm_build(sp, struct nfsv2_sattr *, NFSX_V2SATTR);
 		if (vap->va_mode == (u_short)VNOVAL)
-			sp->sa_mode = VNOVAL;
+			sp->sa_mode = nfs_xdrneg1;
 		else
 			sp->sa_mode = vtonfsv2_mode(vp->v_type, vap->va_mode);
 		if (vap->va_uid == (uid_t)VNOVAL)
-			sp->sa_uid = VNOVAL;
+			sp->sa_uid = nfs_xdrneg1;
 		else
 			sp->sa_uid = txdr_unsigned(vap->va_uid);
 		if (vap->va_gid == (gid_t)VNOVAL)
-			sp->sa_gid = VNOVAL;
+			sp->sa_gid = nfs_xdrneg1;
 		else
 			sp->sa_gid = txdr_unsigned(vap->va_gid);
 		sp->sa_size = txdr_unsigned(vap->va_size);
@@ -1235,7 +1236,7 @@ nfs_mknodrpc(dvp, vpp, cnp, vap)
 		nfsm_build(tl, u_long *, NFSX_UNSIGNED + NFSX_V3SRVSATTR);
 		*tl++ = vtonfsv3_type(vap->va_type);
 		sp3 = (struct nfsv3_sattr *)tl;
-		nfsm_v3sattr(sp3, vap, cnp->cn_cred->cr_uid, vattr.va_gid);
+		nfsm_v3sattr(sp3, vap);
 		if (vap->va_type == VCHR || vap->va_type == VBLK) {
 			nfsm_build(tl, u_long *, 2 * NFSX_UNSIGNED);
 			*tl++ = txdr_unsigned(major(vap->va_rdev));
@@ -1244,8 +1245,8 @@ nfs_mknodrpc(dvp, vpp, cnp, vap)
 	} else {
 		nfsm_build(sp, struct nfsv2_sattr *, NFSX_V2SATTR);
 		sp->sa_mode = vtonfsv2_mode(vap->va_type, vap->va_mode);
-		sp->sa_uid = txdr_unsigned(cnp->cn_cred->cr_uid);
-		sp->sa_gid = txdr_unsigned(vattr.va_gid);
+		sp->sa_uid = nfs_xdrneg1;
+		sp->sa_gid = nfs_xdrneg1;
 		sp->sa_size = rdev;
 		txdr_nfsv2time(&vap->va_atime, &sp->sa_atime);
 		txdr_nfsv2time(&vap->va_mtime, &sp->sa_mtime);
@@ -1368,13 +1369,13 @@ again:
 		    *tl = txdr_unsigned(NFSV3CREATE_UNCHECKED);
 		    nfsm_build(tl, u_long *, NFSX_V3SRVSATTR);
 		    sp3 = (struct nfsv3_sattr *)tl;
-		    nfsm_v3sattr(sp3, vap, cnp->cn_cred->cr_uid, vattr.va_gid);
+		    nfsm_v3sattr(sp3, vap);
 		}
 	} else {
 		nfsm_build(sp, struct nfsv2_sattr *, NFSX_V2SATTR);
 		sp->sa_mode = vtonfsv2_mode(vap->va_type, vap->va_mode);
-		sp->sa_uid = txdr_unsigned(cnp->cn_cred->cr_uid);
-		sp->sa_gid = txdr_unsigned(vattr.va_gid);
+		sp->sa_uid = nfs_xdrneg1;
+		sp->sa_gid = nfs_xdrneg1;
 		sp->sa_size = 0;
 		txdr_nfsv2time(&vap->va_atime, &sp->sa_atime);
 		txdr_nfsv2time(&vap->va_mtime, &sp->sa_mtime);
@@ -1757,16 +1758,15 @@ nfs_symlink(ap)
 	nfsm_strtom(cnp->cn_nameptr, cnp->cn_namelen, NFS_MAXNAMLEN);
 	if (v3) {
 		nfsm_build(sp3, struct nfsv3_sattr *, NFSX_V3SRVSATTR);
-		nfsm_v3sattr(sp3, vap, cnp->cn_cred->cr_uid,
-			cnp->cn_cred->cr_gid);
+		nfsm_v3sattr(sp3, vap);
 	}
 	nfsm_strtom(ap->a_target, slen, NFS_MAXPATHLEN);
 	if (!v3) {
 		nfsm_build(sp, struct nfsv2_sattr *, NFSX_V2SATTR);
 		sp->sa_mode = vtonfsv2_mode(VLNK, vap->va_mode);
-		sp->sa_uid = txdr_unsigned(cnp->cn_cred->cr_uid);
-		sp->sa_gid = txdr_unsigned(cnp->cn_cred->cr_gid);
-		sp->sa_size = -1;
+		sp->sa_uid = nfs_xdrneg1;
+		sp->sa_gid = nfs_xdrneg1;
+		sp->sa_size = nfs_xdrneg1;
 		txdr_nfsv2time(&vap->va_atime, &sp->sa_atime);
 		txdr_nfsv2time(&vap->va_mtime, &sp->sa_mtime);
 	}
@@ -1833,13 +1833,13 @@ nfs_mkdir(ap)
 	nfsm_strtom(cnp->cn_nameptr, len, NFS_MAXNAMLEN);
 	if (v3) {
 		nfsm_build(sp3, struct nfsv3_sattr *, NFSX_V3SRVSATTR);
-		nfsm_v3sattr(sp3, vap, cnp->cn_cred->cr_uid, vattr.va_gid);
+		nfsm_v3sattr(sp3, vap);
 	} else {
 		nfsm_build(sp, struct nfsv2_sattr *, NFSX_V2SATTR);
 		sp->sa_mode = vtonfsv2_mode(VDIR, vap->va_mode);
-		sp->sa_uid = txdr_unsigned(cnp->cn_cred->cr_uid);
-		sp->sa_gid = txdr_unsigned(vattr.va_gid);
-		sp->sa_size = -1;
+		sp->sa_uid = nfs_xdrneg1;
+		sp->sa_gid = nfs_xdrneg1;
+		sp->sa_size = nfs_xdrneg1;
 		txdr_nfsv2time(&vap->va_atime, &sp->sa_atime);
 		txdr_nfsv2time(&vap->va_mtime, &sp->sa_mtime);
 	}

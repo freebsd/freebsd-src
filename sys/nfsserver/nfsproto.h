@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsproto.h  8.2 (Berkeley) 3/30/95
- * $Id: nfsproto.h,v 1.3 1997/02/22 09:42:50 peter Exp $
+ * $Id: nfsproto.h,v 1.4 1998/05/31 17:27:58 peter Exp $
  */
 
 #ifndef _NFS_NFSPROTO_H_
@@ -371,10 +371,8 @@ struct nfsv2_sattr {
 struct nfsv3_sattr {
 	u_long		sa_modetrue;
 	u_long		sa_mode;
-	u_long		sa_uidtrue;
-	u_long		sa_uid;
-	u_long		sa_gidtrue;
-	u_long		sa_gid;
+	u_long		sa_uidfalse;
+	u_long		sa_gidfalse;
 	u_long		sa_sizefalse;
 	u_long		sa_atimetype;
 	nfstime3	sa_atime;
