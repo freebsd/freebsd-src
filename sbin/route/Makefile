@@ -3,7 +3,7 @@
 PROG=	route
 MAN8=	route.8
 SRCS=	route.c keywords.h # ccitt_addr.h
-CFLAGS+=-I.
+CFLAGS+=-I. -Wall
 CLEANFILES+=keywords.h
 BINOWN=	root
 BINMODE=4555
