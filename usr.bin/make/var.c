@@ -536,6 +536,7 @@ Var_Exists(name, ctxt)
     if (v == (Var *)NIL) {
 	return(FALSE);
     } else if (v->flags & VAR_FROM_ENV) {
+	free(v->name);
 	Buf_Destroy(v->val, TRUE);
 	free((char *)v);
     }

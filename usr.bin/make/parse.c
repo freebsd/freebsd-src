@@ -193,7 +193,6 @@ static struct {
 } parseKeywords[] = {
 { ".BEGIN", 	  Begin,    	0 },
 { ".DEFAULT",	  Default,  	0 },
-{ ".OPTIONAL",	  Attribute,   	OP_OPTIONAL },
 { ".END",   	  End,	    	0 },
 { ".EXEC",	  Attribute,   	OP_EXEC },
 { ".IGNORE",	  Ignore,   	OP_IGNORE },
@@ -209,6 +208,7 @@ static struct {
 { ".NOTMAIN",	  Attribute,   	OP_NOTMAIN },
 { ".NOTPARALLEL", NotParallel,	0 },
 { ".NULL",  	  Null,	    	0 },
+{ ".OPTIONAL",	  Attribute,   	OP_OPTIONAL },
 { ".ORDER", 	  Order,    	0 },
 { ".PATH",	  ExPath,	0 },
 { ".PRECIOUS",	  Precious, 	OP_PRECIOUS },
@@ -2258,6 +2258,8 @@ test_char:
 	    ++ep;
 	while (ep > line && (ep[-1] == ' ' || ep[-1] == '\t')) {
 	    if (ep > line + 1 && ep[-2] == '\\')
+		break;
+	    if (ep == line + 1 && ep[-1] == '\t')
 		break;
 	    --ep;
 	}
