@@ -171,6 +171,10 @@ _pthread_exit(void *status)
 	PTHREAD_SET_STATE(curthread, PS_DEAD);
 	GIANT_UNLOCK(curthread);
 
+	/* If we're the last thread, call it quits */
+	if (TAILQ_EMPTY(&_thread_list))
+		exit(curthread->ret);
+
 	/*
 	 * Retire the architecture specific id so that it can be used for
 	 * new threads.
