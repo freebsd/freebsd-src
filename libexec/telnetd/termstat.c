@@ -31,15 +31,16 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)termstat.c	8.1 (Berkeley) 6/4/93";
+static const char sccsid[] = "@(#)termstat.c	8.2 (Berkeley) 5/30/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include "telnetd.h"
+
 
 /*
  * local variables
@@ -51,10 +52,6 @@ int def_row = 0, def_col = 0;
 #ifdef	LINEMODE
 static int _terminit = 0;
 #endif	/* LINEMODE */
-
-#if	defined(CRAY2) && defined(UNICOS5)
-int	newmap = 1;	/* nonzero if \n maps to ^M^J */
-#endif
 
 #ifdef	LINEMODE
 /*
@@ -133,18 +130,10 @@ int	newmap = 1;	/* nonzero if \n maps to ^M^J */
  *	   then linemode is off, if server won't SGA, then linemode
  *	   is on.
  */
-	void
-localstat()
+void
+localstat(void)
 {
 	int need_will_echo = 0;
-
-#if	defined(CRAY2) && defined(UNICOS5)
-	/*
-	 * Keep track of that ol' CR/NL mapping while we're in the
-	 * neighborhood.
-	 */
-	newmap = tty_isnewmap();
-#endif	/* defined(CRAY2) && defined(UNICOS5) */
 
 	/*
 	 * Check for changes to flow control if client supports it.
@@ -165,34 +154,34 @@ localstat()
 		tty_setlinemode(uselinemode);
 	}
 
-        if (uselinemode) { 
+	if (uselinemode) {
+		/*
+		 * Check for state of BINARY options.
+		 *
+		 * We only need to do the binary dance if we are actually going
+		 * to use linemode.  As this confuses some telnet clients
+		 * that don't support linemode, and doesn't gain us
+		 * anything, we don't do it unless we're doing linemode.
+		 * -Crh (henrich@msu.edu)
+		 */
 
-            /*
-             * Check for state of BINARY options.
-             *
-             * We only need to do the binary dance if we are actually going
-             * to use linemode.  As this confuses some telnet clients that dont
-             * support linemode, and doesnt gain us anything, we dont do it 
-             * unless we're doing linemode.  -Crh (henrich@msu.edu)
-             */
+		if (tty_isbinaryin()) {
+			if (his_want_state_is_wont(TELOPT_BINARY))
+				send_do(TELOPT_BINARY, 1);
+		} else {
+			if (his_want_state_is_will(TELOPT_BINARY))
+				send_dont(TELOPT_BINARY, 1);
+		}
 
-	    if (tty_isbinaryin()) {
-		    if (his_want_state_is_wont(TELOPT_BINARY))
-			    send_do(TELOPT_BINARY, 1);
-	    } else {
-		    if (his_want_state_is_will(TELOPT_BINARY))
-			    send_dont(TELOPT_BINARY, 1);
-	    }
-    
-	    if (tty_isbinaryout()) {
-		    if (my_want_state_is_wont(TELOPT_BINARY))
-			    send_will(TELOPT_BINARY, 1);
-	    } else {
-		    if (my_want_state_is_will(TELOPT_BINARY))
-			    send_wont(TELOPT_BINARY, 1);
-	    }
+		if (tty_isbinaryout()) {
+			if (my_want_state_is_wont(TELOPT_BINARY))
+				send_will(TELOPT_BINARY, 1);
+		} else {
+			if (my_want_state_is_will(TELOPT_BINARY))
+				send_wont(TELOPT_BINARY, 1);
+		}
+	}
 
-        }
 
 	/*
 	 * Do echo mode handling as soon as we know what the
@@ -346,8 +335,8 @@ done:
  *
  * Check for changes to flow control
  */
-	void
-flowstat()
+void
+flowstat(void)
 {
 	if (his_state_is_will(TELOPT_LFLOW)) {
 		if (tty_flowmode() != flowmode) {
@@ -376,9 +365,8 @@ flowstat()
  * at a time, and if using kludge linemode, then only linemode may be
  * affected.
  */
-	void
-clientstat(code, parm1, parm2)
-	register int code, parm1, parm2;
+void
+clientstat(int code, int parm1, int parm2)
 {
 
 	/*
@@ -453,7 +441,7 @@ clientstat(code, parm1, parm2)
 
 	case LM_MODE:
 	    {
-		register int ack, changed;
+		int ack, changed;
 
 		/*
 		 * Client has sent along a mode mask.  If it agrees with
@@ -565,33 +553,9 @@ clientstat(code, parm1, parm2)
 		break;
 	}  /* end of switch */
 
-#if	defined(CRAY2) && defined(UNICOS5)
-	/*
-	 * Just in case of the likely event that we changed the pty state.
-	 */
-	rcv_ioctl();
-#endif	/* defined(CRAY2) && defined(UNICOS5) */
-
 	netflush();
 
 }  /* end of clientstat */
-
-#if	defined(CRAY2) && defined(UNICOS5)
-	void
-termstat()
-{
-	needtermstat = 1;
-}
-
-	void
-_termstat()
-{
-	needtermstat = 0;
-	init_termbuf();
-	localstat();
-	rcv_ioctl();
-}
-#endif	/* defined(CRAY2) && defined(UNICOS5) */
 
 #ifdef	LINEMODE
 /*
@@ -602,8 +566,8 @@ _termstat()
  * function is called when the pty state has been processed for the first time.
  * It calls other functions that do things that were deferred in each module.
  */
-	void
-defer_terminit()
+void
+defer_terminit(void)
 {
 
 	/*
@@ -618,7 +582,7 @@ defer_terminit()
 	if (def_col || def_row) {
 		struct winsize ws;
 
-		bzero((char *)&ws, sizeof(ws));
+		memset((char *)&ws, 0, sizeof(ws));
 		ws.ws_col = def_col;
 		ws.ws_row = def_row;
 		(void) ioctl(pty, TIOCSWINSZ, (char *)&ws);
@@ -637,8 +601,8 @@ defer_terminit()
  *
  * Returns true if the pty state has been processed yet.
  */
-	int
-terminit()
+int
+terminit(void)
 {
 	return(_terminit);
 

@@ -33,7 +33,7 @@
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)utility.c	8.2 (Berkeley) 12/15/93";
+static const char sccsid[] = "@(#)utility.c	8.4 (Berkeley) 5/30/95";
 #endif
 static const char rcsid[] =
   "$FreeBSD$";
@@ -43,8 +43,10 @@ static const char rcsid[] =
 #include <locale.h>
 #include <sys/utsname.h>
 #endif
+#include <string.h>
 #define PRINTOPTIONS
 #include "telnetd.h"
+
 
 /*
  * utility functions performing io related tasks
@@ -87,11 +89,10 @@ ttloop()
 /*
  * Check a descriptor to see if out of band data exists on it.
  */
-    int
-stilloob(s)
-    int	s;		/* socket number */
+int
+stilloob(int s)
 {
-    static struct timeval timeout = { 0 };
+    static struct timeval timeout = { 0, 0 };
     fd_set	excepts;
     int value;
 
@@ -112,8 +113,8 @@ stilloob(s)
     }
 }
 
-	void
-ptyflush()
+void
+ptyflush(void)
 {
 	int n;
 
@@ -143,9 +144,8 @@ ptyflush()
  * if the current address is a TELNET IAC ("I Am a Command")
  * character.
  */
-    char *
-nextitem(current)
-    char	*current;
+static char *
+nextitem(char *current)
 {
     if ((*current&0xff) != IAC) {
 	return current+1;
@@ -158,7 +158,7 @@ nextitem(current)
 	return current+3;
     case SB:		/* loop forever looking for the SE */
 	{
-	    register char *look = current+2;
+	    char *look = current+2;
 
 	    for (;;) {
 		if ((*look++&0xff) == IAC) {
@@ -172,7 +172,6 @@ nextitem(current)
 	return current+2;
     }
 }  /* end of nextitem */
-
 
 /*
  * netclear()
@@ -190,10 +189,10 @@ nextitem(current)
  * caller should be setting the urgent data pointer AFTER calling
  * us in any case.
  */
-    void
-netclear()
+void
+netclear(void)
 {
-    register char *thisitem, *next;
+    char *thisitem, *next;
     char *good;
 #define	wewant(p)	((nfrontp > p) && ((*p&0xff) == IAC) && \
 				((*(p+1)&0xff) != EC) && ((*(p+1)&0xff) != EL))
@@ -217,7 +216,7 @@ netclear()
 		next = nextitem(next);
 	    } while (wewant(next) && (nfrontp > next));
 	    length = next-thisitem;
-	    bcopy(thisitem, good, length);
+	    memmove(good, thisitem, length);
 	    good += length;
 	    thisitem = next;
 	} else {
@@ -235,8 +234,8 @@ netclear()
  *		Send as much data as possible to the network,
  *	handling requests for urgent data.
  */
-    void
-netflush()
+void
+netflush(void)
 {
     int n;
     extern int not42;
@@ -294,10 +293,8 @@ netflush()
  */
 
 
-	void
-fatal(f, msg)
-	int f;
-	char *msg;
+void
+fatal(int f, const char *msg)
 {
 	char buf[BUFSIZ];
 
@@ -307,12 +304,10 @@ fatal(f, msg)
 	exit(1);
 }
 
-	void
-fatalperror(f, msg)
-	int f;
-	char *msg;
+void
+fatalperror(int f, const char *msg)
 {
-	char buf[BUFSIZ], *strerror();
+	char buf[BUFSIZ];
 
 	(void) snprintf(buf, sizeof(buf), "%s: %s", msg, strerror(errno));
 	fatal(f, buf);
@@ -320,15 +315,13 @@ fatalperror(f, msg)
 
 char editedhost[32];
 
-	void
-edithost(pat, host)
-	register char *pat;
-	register char *host;
+void
+edithost(char *pat, char *host)
 {
-	register char *res = editedhost;
+	char *res = editedhost;
 
 	if (!pat)
-		pat = "";
+		pat = strdup("");
 	while (*pat) {
 		switch (*pat) {
 
@@ -362,18 +355,16 @@ edithost(pat, host)
 
 static char *putlocation;
 
-	void
-putstr(s)
-	register char *s;
+static void
+putstr(const char *s)
 {
 
 	while (*s)
 		putchr(*s++);
 }
 
-	void
-putchr(cc)
-	int cc;
+void
+putchr(int cc)
 {
 	*putlocation++ = cc;
 }
@@ -381,27 +372,15 @@ putchr(cc)
 #ifdef __FreeBSD__
 static char fmtstr[] = { "%+" };
 #else
-/*
- * This is split on two lines so that SCCS will not see the M
- * between two % signs and expand it...
- */
-static char fmtstr[] = { "%l:%M\
-%P on %A, %d %B %Y" };
+static char fmtstr[] = { "%l:%M%P on %A, %d %B %Y" };
 #endif
 
-	void
-putf(cp, where)
-	register char *cp;
-	char *where;
+void
+putf(char *cp, char *where)
 {
 	char *slash;
 	time_t t;
 	char db[100];
-#ifdef	STREAMSPTY
-	extern char *index();
-#else
-	extern char *rindex();
-#endif
 #ifdef __FreeBSD__
 	static struct utsname kerninfo;
 
@@ -425,9 +404,9 @@ putf(cp, where)
 		case 't':
 #ifdef	STREAMSPTY
 			/* names are like /dev/pts/2 -- we want pts/2 */
-			slash = index(line+1, '/');
+			slash = strchr(line+1, '/');
 #else
-			slash = rindex(line, '/');
+			slash = strrchr(line, '/');
 #endif
 			if (slash == (char *) 0)
 				putstr(line);
@@ -478,10 +457,8 @@ putf(cp, where)
 /*
  * Print telnet options and commands in plain text, if possible.
  */
-	void
-printoption(fmt, option)
-	register char *fmt;
-	register int option;
+void
+printoption(const char *fmt, int option)
 {
 	if (TELOPT_OK(option))
 		output_data("%s %s\r\n", fmt, TELOPT(option));
@@ -492,22 +469,19 @@ printoption(fmt, option)
 	return;
 }
 
-    void
-printsub(direction, pointer, length)
-    char		direction;	/* '<' or '>' */
-    unsigned char	*pointer;	/* where suboption data sits */
-    int			length;		/* length of suboption data */
+void
+printsub(char direction, unsigned char *pointer, int length)
 {
-    register int i = 0;
+    int i = 0;
 
-        if (!(diagnostic & TD_OPTIONS))
+	if (!(diagnostic & TD_OPTIONS))
 		return;
 
 	if (direction) {
 	    output_data("td: %s suboption ",
 					direction == '<' ? "recv" : "send");
 	    if (length >= 3) {
-		register int j;
+		int j;
 
 		i = pointer[length-2];
 		j = pointer[length-1];
@@ -727,8 +701,8 @@ printsub(direction, pointer, length)
 	    break;
 
 	case TELOPT_STATUS: {
-	    register char *cp;
-	    register int j, k;
+	    const char *cp;
+	    int j, k;
 
 	    output_data("STATUS");
 
@@ -829,7 +803,7 @@ printsub(direction, pointer, length)
 		output_data("INFO ");
 	    env_common:
 		{
-		    register int noquote = 2;
+		    int noquote = 2;
 		    for (i = 2; i < length; i++ ) {
 			switch (pointer[i]) {
 			case NEW_ENV_VAR:
@@ -874,80 +848,13 @@ printsub(direction, pointer, length)
 	    }
 	    break;
 
-#if	defined(AUTHENTICATION)
-	case TELOPT_AUTHENTICATION:
-	    output_data("AUTHENTICATION");
-
-	    if (length < 2) {
-		output_data(" (empty suboption??\?)");
-		break;
-	    }
-	    switch (pointer[1]) {
-	    case TELQUAL_REPLY:
-	    case TELQUAL_IS:
-		output_data(" %s ", (pointer[1] == TELQUAL_IS) ?
-							"IS" : "REPLY");
-		if (AUTHTYPE_NAME_OK(pointer[2]))
-		    output_data("%s ", AUTHTYPE_NAME(pointer[2]));
-		else
-		    output_data("%d ", pointer[2]);
-		if (length < 3) {
-		    output_data("(partial suboption??\?)");
-		    break;
-		}
-		output_data("%s|%s",
-			((pointer[3] & AUTH_WHO_MASK) == AUTH_WHO_CLIENT) ?
-			"CLIENT" : "SERVER",
-			((pointer[3] & AUTH_HOW_MASK) == AUTH_HOW_MUTUAL) ?
-			"MUTUAL" : "ONE-WAY");
-
-    		{
-		    char buf[512];
-		    auth_printsub(&pointer[1], length - 1, buf, sizeof(buf));
-		    output_data("%s", buf);
-		}
-		break;
-
-	    case TELQUAL_SEND:
-		i = 2;
-		output_data(" SEND ");
-		while (i < length) {
-		    if (AUTHTYPE_NAME_OK(pointer[i]))
-			output_data("%s ", AUTHTYPE_NAME(pointer[i]));
-		    else
-			output_data("%d ", pointer[i]);
-		    if (++i >= length) {
-			output_data("(partial suboption??\?)");
-			break;
-		    }
-		    output_data("%s|%s ",
-			((pointer[i] & AUTH_WHO_MASK) == AUTH_WHO_CLIENT) ?
-							"CLIENT" : "SERVER",
-			((pointer[i] & AUTH_HOW_MASK) == AUTH_HOW_MUTUAL) ?
-							"MUTUAL" : "ONE-WAY");
-		    ++i;
-		}
-		break;
-
-	    case TELQUAL_NAME:
-		output_data(" NAME \"%.*s\"", length - 2, pointer + 2);
-		break;
-
-	    default:
-		    for (i = 2; i < length; i++) {
-			output_data(" ?%d?", pointer[i]);
-		    }
-		    break;
-	    }
-	    break;
-#endif
 
 
 	default:
 	    if (TELOPT_OK(pointer[0]))
-	        output_data("%s (unknown)", TELOPT(pointer[0]));
+		output_data("%s (unknown)", TELOPT(pointer[0]));
 	    else
-	        output_data("%d (unknown)", pointer[i]);
+		output_data("%d (unknown)", pointer[i]);
 	    for (i = 1; i < length; i++) {
 		output_data(" %d", pointer[i]);
 	    }
@@ -959,13 +866,10 @@ printsub(direction, pointer, length)
 /*
  * Dump a data buffer in hex and ascii to the output data stream.
  */
-	void
-printdata(tag, ptr, cnt)
-	register char *tag;
-	register char *ptr;
-	register int cnt;
+void
+printdata(const char *tag, char *ptr, int cnt)
 {
-	register int i;
+	int i;
 	char xbuf[30];
 
 	while (cnt) {

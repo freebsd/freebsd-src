@@ -31,9 +31,13 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-static char sccsid[] = "@(#)network.c	8.2 (Berkeley) 12/15/93";
-#endif /* not lint */
+static const char sccsid[] = "@(#)network.c	8.2 (Berkeley) 12/15/93";
+#endif
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -42,6 +46,7 @@ static char sccsid[] = "@(#)network.c	8.2 (Berkeley) 12/15/93";
 #include <errno.h>
 
 #include <arpa/telnet.h>
+#include <unistd.h>
 
 #include "ring.h"
 
@@ -56,8 +61,8 @@ unsigned char	netobuf[2*BUFSIZ], netibuf[BUFSIZ];
  * Initialize internal network data structures.
  */
 
-    void
-init_network()
+void
+init_network(void)
 {
     if (ring_init(&netoring, netobuf, sizeof netobuf) != 1) {
 	exit(1);
@@ -74,10 +79,10 @@ init_network()
  * Telnet "synch" processing).
  */
 
-    int
-stilloob()
+int
+stilloob(void)
 {
-    static struct timeval timeout = { 0 };
+    static struct timeval timeout = { 0, 0 };
     fd_set	excepts;
     int value;
 
@@ -106,8 +111,8 @@ stilloob()
  *	Sets "neturg" to the current location.
  */
 
-    void
-setneturg()
+void
+setneturg(void)
 {
     ring_mark(&netoring);
 }
@@ -122,11 +127,10 @@ setneturg()
  *	useful work.
  */
 
-
-    int
-netflush()
+int
+netflush(void)
 {
-    register int n, n1;
+    int n, n1;
 
     if ((n1 = n = ring_full_consecutive(&netoring)) > 0) {
 	if (!ring_at_mark(&netoring)) {

@@ -31,15 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)defines.h	8.1 (Berkeley) 6/6/93
+ * $FreeBSD$
  */
 
 #define	settimer(x)	clocks.x = clocks.system++
-
-#if	!defined(TN3270)
-
-#define	SetIn3270()
-
-#endif	/* !defined(TN3270) */
 
 #define	NETADD(c)	{ *netoring.supply = c; ring_supplied(&netoring, 1); }
 #define	NET2ADD(c1,c2)	{ NETADD(c1); NETADD(c2); }

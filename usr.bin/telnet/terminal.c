@@ -31,9 +31,13 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-static char sccsid[] = "@(#)terminal.c	8.1 (Berkeley) 6/6/93";
-#endif /* not lint */
+static const char sccsid[] = "@(#)terminal.c	8.2 (Berkeley) 2/16/95";
+#endif
 
 #include <arpa/telnet.h>
 #include <sys/types.h>
@@ -42,6 +46,7 @@ static char sccsid[] = "@(#)terminal.c	8.1 (Berkeley) 6/6/93";
 
 #include "externs.h"
 #include "types.h"
+
 
 Ring		ttyoring, ttyiring;
 unsigned char	ttyobuf[2*BUFSIZ], ttyibuf[BUFSIZ];
@@ -88,8 +93,8 @@ cc_t termAytChar;
  * initialize the terminal data structures.
  */
 
-    void
-init_terminal()
+void
+init_terminal(void)
 {
     if (ring_init(&ttyoring, ttyobuf, sizeof ttyobuf) != 1) {
 	exit(1);
@@ -99,7 +104,6 @@ init_terminal()
     }
     autoflush = TerminalAutoFlush();
 }
-
 
 /*
  *		Send as much data as possible to the terminal.
@@ -111,12 +115,10 @@ init_terminal()
  *			 n: All data - n was written out.
  */
 
-
-    int
-ttyflush(drop)
-    int drop;
+int
+ttyflush(int drop)
 {
-    register int n, n0, n1;
+    int n, n0, n1;
 
     n0 = ring_full_count(&ttyoring);
     if ((n1 = n = ring_full_consecutive(&ttyoring)) > 0) {
@@ -162,17 +164,14 @@ ttyflush(drop)
  */
 
 
-    int
-getconnmode()
+int
+getconnmode(void)
 {
     extern int linemode;
     int mode = 0;
 #ifdef	KLUDGELINEMODE
     extern int kludgelinemode;
 #endif
-
-    if (In3270)
-	return(MODE_FLOW);
 
     if (my_want_state_is_dont(TELOPT_ECHO))
 	mode |= MODE_ECHO;
@@ -202,11 +201,10 @@ getconnmode()
     return(mode);
 }
 
-    void
-setconnmode(force)
-    int force;
+void
+setconnmode(int force)
 {
-    register int newmode;
+    int newmode;
 
     newmode = getconnmode()|(force?MODE_FORCE:0);
 
@@ -215,9 +213,8 @@ setconnmode(force)
 
 }
 
-
-    void
-setcommandmode()
+void
+setcommandmode(void)
 {
     TerminalNewMode(-1);
 }

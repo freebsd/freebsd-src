@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)telnetd.h	8.1 (Berkeley) 6/4/93
+ * $FreeBSD$
  */
 
 
@@ -45,5 +46,4 @@
 
 /* other external variables */
 extern	char **environ;
-extern	int errno;
-
+extern	const char *altlogin;

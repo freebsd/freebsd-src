@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)defs.h	8.1 (Berkeley) 6/4/93
+ * $FreeBSD$
  */
 
 /*
@@ -41,23 +42,6 @@
 
 #ifndef	BSD
 # define	BSD 43
-#endif
-
-#if	defined(CRAY) && !defined(LINEMODE)
-# define SYSV_TERMIO
-# define LINEMODE
-# define KLUDGELINEMODE
-# define DIAGNOSTICS
-# if defined(UNICOS50) && !defined(UNICOS5)
-#  define UNICOS5
-# endif
-# if !defined(UNICOS5)
-#  define BFTPDAEMON
-#  define HAS_IP_TOS
-# endif
-#endif /* CRAY */
-#if defined(UNICOS5) && !defined(NO_SETSID)
-# define NO_SETSID
 #endif
 
 #if defined(PRINTOPTIONS) && defined(DIAGNOSTICS)
@@ -71,9 +55,7 @@
 #endif
 
 #include <sys/socket.h>
-#ifndef	CRAY
 #include <sys/wait.h>
-#endif	/* CRAY */
 #include <fcntl.h>
 #include <sys/file.h>
 #include <sys/stat.h>
@@ -134,22 +116,6 @@ typedef unsigned char cc_t;
 # endif
 #endif
 
-
-#ifdef	CRAY
-# ifdef	CRAY1
-# include <sys/pty.h>
-#  ifndef FD_ZERO
-# include <sys/select.h>
-#  endif /* FD_ZERO */
-# endif	/* CRAY1 */
-
-#include <memory.h>
-#endif	/* CRAY */
-
-#ifdef __hpux
-#include <sys/ptyio.h>
-#endif
-
 #if	!defined(TIOCSCTTY) && defined(TCSETCTTY)
 # define	TIOCSCTTY TCSETCTTY
 #endif
@@ -169,10 +135,6 @@ typedef struct fd_set { int fds_bits[1]; } fd_set;
  * I/O data buffers defines
  */
 #define	NETSLOP	64
-#ifdef CRAY
-#undef BUFSIZ
-#define BUFSIZ  2048
-#endif
 
 #define	NIACCUM(c)	{   *netip++ = c; \
 			    ncc++; \
