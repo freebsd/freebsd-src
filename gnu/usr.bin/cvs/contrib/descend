@@ -1,5 +1,5 @@
 #! /bin/sh
-# descend,v 1.1 1992/04/03 05:22:52 berliner Exp
+# $Id: descend,v 1.1 1992/04/03 05:22:52 berliner Exp $
 #
 # descend - walk down a directory tree and execute a command at each node
 

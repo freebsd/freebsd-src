@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.3 kit.
+ * specified in the README file that comes with the CVS 1.4 kit.
  * 
  * Status Information
  */
@@ -11,23 +11,20 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "@(#)status.c 1.48 92/03/31";
+static char rcsid[] = "$CVSid: @(#)status.c 1.56 94/10/07 $";
+USE(rcsid)
 #endif
 
-#if __STDC__
-static Dtype status_dirproc (char *dir, char *repos, char *update_dir);
-static int status_fileproc (char *file, char *update_dir,
+static Dtype status_dirproc PROTO((char *dir, char *repos, char *update_dir));
+static int status_fileproc PROTO((char *file, char *update_dir,
 			    char *repository, List * entries,
-			    List * srcfiles);
-static int tag_list_proc (Node * p);
-#else
-static int tag_list_proc ();
-static int status_fileproc ();
-static Dtype status_dirproc ();
-#endif				/* __STDC__ */
+			    List * srcfiles));
+static int tag_list_proc PROTO((Node * p, void *closure));
 
 static int local = 0;
 static int long_format = 0;
+static char *xfile;
+static List *xsrcfiles;
 
 static char *status_usage[] =
 {
@@ -50,7 +47,7 @@ status (argc, argv)
 	usage (status_usage);
 
     optind = 1;
-    while ((c = gnu_getopt (argc, argv, "vlR")) != -1)
+    while ((c = getopt (argc, argv, "vlR")) != -1)
     {
 	switch (c)
 	{
@@ -75,7 +72,7 @@ status (argc, argv)
     /* start the recursion processor */
     err = start_recursion (status_fileproc, (int (*) ()) NULL, status_dirproc,
 			   (int (*) ()) NULL, argc, argv, local,
-			   W_LOCAL, 0, 1, (char *) NULL, 1);
+			   W_LOCAL, 0, 1, (char *) NULL, 1, 0);
 
     return (err);
 }
@@ -97,7 +94,8 @@ status_fileproc (file, update_dir, repository, entries, srcfiles)
     Vers_TS *vers;
 
     status = Classify_File (file, (char *) NULL, (char *) NULL, (char *) NULL,
-			    1, 0, repository, entries, srcfiles, &vers);
+			    1, 0, repository, entries, srcfiles, &vers,
+			    update_dir, 0);
     switch (status)
     {
 	case T_UNKNOWN:
@@ -116,7 +114,10 @@ status_fileproc (file, update_dir, repository, entries, srcfiles)
 	    sstat = "Locally Removed";
 	    break;
 	case T_MODIFIED:
-	    sstat = "Locally Modified";
+	    if (vers->ts_conflict)
+		sstat = "Unresolved Conflict";
+	    else
+		sstat = "Locally Modified";
 	    break;
 	case T_REMOVE_ENTRY:
 	    sstat = "Entry Invalid";
@@ -136,20 +137,20 @@ status_fileproc (file, update_dir, repository, entries, srcfiles)
     if (vers->ts_user == NULL)
 	(void) printf ("File: no file %s\t\tStatus: %s\n\n", file, sstat);
     else
-	(void) printf ("File: %-17.17s\tStatus: %s\n\n", file, sstat);
+	(void) printf ("File: %-17s\tStatus: %s\n\n", file, sstat);
 
     if (vers->vn_user == NULL)
-	(void) printf ("    Version:\t\tNo entry for %s\n", file);
+	(void) printf ("   Working revision:\tNo entry for %s\n", file);
     else if (vers->vn_user[0] == '0' && vers->vn_user[1] == '\0')
-	(void) printf ("    Version:\t\tNew file!\n");
+	(void) printf ("   Working revision:\tNew file!\n");
     else
-	(void) printf ("    Version:\t\t%s\t%s\n", vers->vn_user,
-		       &vers->ts_rcs[25]);
+	(void) printf ("   Working revision:\t%s\t%s\n", vers->vn_user,
+		       vers->ts_rcs);
 
     if (vers->vn_rcs == NULL)
-	(void) printf ("    RCS Version:\tNo revision control file\n");
+	(void) printf ("   Repository revision:\tNo revision control file\n");
     else
-	(void) printf ("    RCS Version:\t%s\t%s\n", vers->vn_rcs,
+	(void) printf ("   Repository revision:\t%s\t%s\n", vers->vn_rcs,
 		       vers->srcfile->path);
 
     if (vers->entdata)
@@ -161,36 +162,49 @@ status_fileproc (file, update_dir, repository, entries, srcfiles)
 	{
 	    if (vers->vn_rcs == NULL)
 		(void) printf (
-			 "    Sticky Tag:\t\t%s - MISSING from RCS file!\n",
+			 "   Sticky Tag:\t\t%s - MISSING from RCS file!\n",
 			 edata->tag);
 	    else
 	    {
 		if (isdigit (edata->tag[0]))
-		    (void) printf ("    Sticky Tag:\t\t%s\n", edata->tag);
+		    (void) printf ("   Sticky Tag:\t\t%s\n", edata->tag);
 		else
-		    (void) printf ("    Sticky Tag:\t\t%s (%s: %s)\n",
-				   edata->tag, numdots (vers->vn_rcs) % 2 ?
-				   "revision" : "branch", vers->vn_rcs);
+		{
+		    int isbranch = RCS_isbranch (file, edata->tag, srcfiles);
+
+		    (void) printf ("   Sticky Tag:\t\t%s (%s: %s)\n",
+				   edata->tag,
+				   isbranch ? "branch" : "revision",
+				   isbranch ?
+				   RCS_whatbranch(file, edata->tag, srcfiles) :
+				   vers->vn_rcs);
+		}
 	    }
 	}
 	else
-	    (void) printf ("    Sticky Tag:\t\t(none)\n");
+	    (void) printf ("   Sticky Tag:\t\t(none)\n");
 
 	if (edata->date)
-	    (void) printf ("    Sticky Date:\t%s\n", edata->date);
+	    (void) printf ("   Sticky Date:\t\t%s\n", edata->date);
 	else
-	    (void) printf ("    Sticky Date:\t(none)\n");
+	    (void) printf ("   Sticky Date:\t\t(none)\n");
 
 	if (edata->options && edata->options[0])
-	    (void) printf ("    Sticky Options:\t%s\n", edata->options);
+	    (void) printf ("   Sticky Options:\t%s\n", edata->options);
 	else
-	    (void) printf ("    Sticky Options:\t(none)\n");
+	    (void) printf ("   Sticky Options:\t(none)\n");
 
 	if (long_format && vers->srcfile)
 	{
-	    (void) printf ("\n    Existing Tags:\n");
-	    if (vers->srcfile->symbols)
-		(void) walklist (vers->srcfile->symbols, tag_list_proc);
+	    List *symbols = RCS_symbols(vers->srcfile);
+
+	    (void) printf ("\n   Existing Tags:\n");
+	    if (symbols)
+	    {
+		xfile = file;
+		xsrcfiles = srcfiles;
+		(void) walklist (symbols, tag_list_proc, NULL);
+	    }
 	    else
 		(void) printf ("\tNo Tags Exist\n");
 	}
@@ -220,11 +234,15 @@ status_dirproc (dir, repos, update_dir)
  * Print out a tag and its type
  */
 static int
-tag_list_proc (p)
+tag_list_proc (p, closure)
     Node *p;
+    void *closure;
 {
+    int isbranch = RCS_isbranch (xfile, p->key, xsrcfiles);
+
     (void) printf ("\t%-25.25s\t(%s: %s)\n", p->key,
-		   numdots (p->data) % 2 ? "revision" : "branch",
+		   isbranch ? "branch" : "revision",
+		   isbranch ? RCS_whatbranch(xfile, p->key, xsrcfiles) :
 		   p->data);
     return (0);
 }

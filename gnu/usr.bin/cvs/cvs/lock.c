@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.3 kit.
+ * specified in the README file that comes with the CVS 1.4 kit.
  * 
  * Set Lock
  * 
@@ -13,30 +13,20 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "@(#)lock.c 1.42 92/04/10";
+static char rcsid[] = "$CVSid: @(#)lock.c 1.50 94/09/30 $";
+USE(rcsid)
 #endif
 
 extern char *ctime ();
 
-#if __STDC__
-static int readers_exist (char *repository);
-static int set_lock (char *lockdir, int will_wait, char *repository);
-static void set_lockers_name (struct stat *statp);
-static int set_writelock_proc (Node * p);
-static int unlock_proc (Node * p);
-static int write_lock (char *repository);
-static void unlock (char *repository);
-static void lock_wait ();
-#else
-static int unlock_proc ();
-static void unlock ();
-static int set_writelock_proc ();
-static int write_lock ();
-static int readers_exist ();
-static int set_lock ();
-static void set_lockers_name ();
-static void lock_wait ();
-#endif				/* __STDC__ */
+static int readers_exist PROTO((char *repository));
+static int set_lock PROTO((char *lockdir, int will_wait, char *repository));
+static void set_lockers_name PROTO((struct stat *statp));
+static int set_writelock_proc PROTO((Node * p, void *closure));
+static int unlock_proc PROTO((Node * p, void *closure));
+static int write_lock PROTO((char *repository));
+static void unlock PROTO((char *repository));
+static void lock_wait PROTO((char *repository));
 
 static char lockers_name[20];
 static char *repository;
@@ -65,7 +55,7 @@ Lock_Cleanup ()
     /* clean up multiple locks (if any) */
     if (locklist != (List *) NULL)
     {
-	(void) walklist (locklist, unlock_proc);
+	(void) walklist (locklist, unlock_proc, NULL);
 	locklist = (List *) NULL;
     }
 }
@@ -74,8 +64,9 @@ Lock_Cleanup ()
  * walklist proc for removing a list of locks
  */
 static int
-unlock_proc (p)
+unlock_proc (p, closure)
     Node *p;
+    void *closure;
 {
     unlock (p->key);
     return (0);
@@ -94,13 +85,15 @@ unlock (repository)
     if (readlock[0] != '\0')
     {
 	(void) sprintf (tmp, "%s/%s", repository, readlock);
-	(void) unlink (tmp);
+	if (unlink (tmp) < 0 && errno != ENOENT)
+	    error (0, errno, "failed to remove lock %s", tmp);
     }
 
     if (writelock[0] != '\0')
     {
 	(void) sprintf (tmp, "%s/%s", repository, writelock);
-	(void) unlink (tmp);
+	if (unlink (tmp) < 0 && errno != ENOENT)
+	    error (0, errno, "failed to remove lock %s", tmp);
     }
 
     /*
@@ -118,6 +111,13 @@ unlock (repository)
 }
 
 /*
+ * Since some systems don't define this...
+ */
+#ifndef MAXHOSTNAMELEN
+#define	MAXHOSTNAMELEN	256
+#endif
+
+/*
  * Create a lock file for readers
  */
 int
@@ -127,9 +127,17 @@ Reader_Lock (xrepository)
     int err = 0;
     FILE *fp;
     char tmp[PATH_MAX];
+#ifdef HAVE_LONG_FILE_NAMES
+    char hostname[MAXHOSTNAMELEN];
+#endif
 
     if (noexec)
 	return (0);
+
+#ifdef HAVE_LONG_FILE_NAMES
+    memset(hostname, 0, sizeof(hostname));
+    gethostname(hostname, sizeof(hostname) - 1);
+#endif
 
     /* we only do one directory at a time for read locks! */
     if (repository != NULL)
@@ -139,7 +147,13 @@ Reader_Lock (xrepository)
     }
 
     if (readlock[0] == '\0')
-	(void) sprintf (readlock, "%s.%d", CVSRFL, getpid ());
+      (void) sprintf (readlock, 
+#ifdef HAVE_LONG_FILE_NAMES
+		"%s.%s.%d", CVSRFL, hostname,
+#else
+		"%s.%d", CVSRFL,
+#endif
+		getpid ());
 
     /* remember what we're locking (for lock_cleanup) */
     repository = xrepository;
@@ -152,16 +166,24 @@ Reader_Lock (xrepository)
     (void) SIG_register (SIGTERM, Lock_Cleanup);
 
     /* make sure we can write the repository */
-    (void) sprintf (tmp, "%s/%s.%d", xrepository, CVSTFL, getpid ());
+    (void) sprintf (tmp,
+#ifdef HAVE_LONG_FILE_NAMES
+	"%s/%s.%s.%d", xrepository, CVSTFL, hostname,
+#else
+	"%s/%s.%d", xrepository, CVSTFL,
+#endif
+	getpid());
     if ((fp = fopen (tmp, "w+")) == NULL || fclose (fp) == EOF)
     {
 	error (0, errno, "cannot create read lock in repository `%s'",
 	       xrepository);
 	readlock[0] = '\0';
-	(void) unlink (tmp);
+	if (unlink (tmp) < 0 && errno != ENOENT)
+	    error (0, errno, "failed to remove lock %s", tmp);
 	return (1);
     }
-    (void) unlink (tmp);
+    if (unlink (tmp) < 0)
+	error (0, errno, "failed to remove lock %s", tmp);
 
     /* get the lock dir for our own */
     (void) sprintf (tmp, "%s/%s", xrepository, CVSLCK);
@@ -218,7 +240,7 @@ Writer_Lock (list)
 	locklist = list;		/* init for Lock_Cleanup */
 	(void) strcpy (lockers_name, "unknown");
 
-	(void) walklist (list, set_writelock_proc);
+	(void) walklist (list, set_writelock_proc, NULL);
 
 	switch (lock_error)
 	{
@@ -247,8 +269,9 @@ Writer_Lock (list)
  * walklist proc for setting write locks
  */
 static int
-set_writelock_proc (p)
+set_writelock_proc (p, closure)
     Node *p;
+    void *closure;
 {
     /* if some lock was not OK, just skip this one */
     if (lock_error != L_OK)
@@ -271,9 +294,23 @@ write_lock (repository)
     int status;
     FILE *fp;
     char tmp[PATH_MAX];
+#ifdef HAVE_LONG_FILE_NAMES
+    char hostname[MAXHOSTNAMELEN];
+#endif
+
+#ifdef HAVE_LONG_FILE_NAMES
+    memset(hostname, 0, sizeof(hostname));
+    gethostname(hostname, sizeof(hostname) - 1);
+#endif
 
     if (writelock[0] == '\0')
-	(void) sprintf (writelock, "%s.%d", CVSWFL, getpid ());
+	(void) sprintf (writelock,
+#ifdef HAVE_LONG_FILE_NAMES
+	    "%s.%s.%d", CVSWFL, hostname,
+#else
+	    "%s.%d", CVSWFL,
+#endif
+	getpid());
 
     /* make sure we clean up on error */
     (void) SIG_register (SIGHUP, Lock_Cleanup);
@@ -283,15 +320,23 @@ write_lock (repository)
     (void) SIG_register (SIGTERM, Lock_Cleanup);
 
     /* make sure we can write the repository */
-    (void) sprintf (tmp, "%s/%s.%d", repository, CVSTFL, getpid ());
+    (void) sprintf (tmp,
+#ifdef HAVE_LONG_FILE_NAMES
+	"%s/%s.%s.%d", repository, CVSTFL, hostname,
+#else
+	"%s/%s.%d", repository, CVSTFL,
+#endif
+	getpid ());
     if ((fp = fopen (tmp, "w+")) == NULL || fclose (fp) == EOF)
     {
 	error (0, errno, "cannot create write lock in repository `%s'",
 	       repository);
-	(void) unlink (tmp);
+	if (unlink (tmp) < 0 && errno != ENOENT)
+	    error (0, errno, "failed to remove lock %s", tmp);
 	return (L_ERROR);
     }
-    (void) unlink (tmp);
+    if (unlink (tmp) < 0)
+	error (0, errno, "failed to remove lock %s", tmp);
 
     /* make sure the lock dir is ours (not necessarily unique to us!) */
     (void) sprintf (tmp, "%s/%s", repository, CVSLCK);
@@ -318,7 +363,9 @@ write_lock (repository)
 	{
 	    int xerrno = errno;
 
-	    (void) unlink (tmp);
+	    if (unlink (tmp) < 0 && errno != ENOENT)
+		error (0, errno, "failed to remove lock %s", tmp);
+
 	    /* free the lock dir if we created it */
 	    if (status == L_OK)
 	    {
@@ -349,9 +396,8 @@ readers_exist (repository)
 {
     char line[MAXLINELEN];
     DIR *dirp;
-    struct direct *dp;
+    struct dirent *dp;
     struct stat sb;
-    CONST char *regex_err;
     int ret = 0;
 
 #ifdef CVS_FUDGELOCKS
@@ -361,43 +407,46 @@ again:
     if ((dirp = opendir (repository)) == NULL)
 	error (1, 0, "cannot open directory %s", repository);
 
-    (void) sprintf (line, "^%s.*", CVSRFL);
-    if ((regex_err = re_comp (line)) != NULL)
-	error (1, 0, "%s", regex_err);
-
+    errno = 0;
     while ((dp = readdir (dirp)) != NULL)
     {
-	(void) sprintf (line, "%s/%s", repository, dp->d_name);
-	if (re_exec (dp->d_name))
+	if (fnmatch (CVSRFLPAT, dp->d_name, 0) == 0)
 	{
 #ifdef CVS_FUDGELOCKS
 	    time_t now;
-
 	    (void) time (&now);
+#endif
 
-	    /*
-	     * If the create time of the file is more than CVSLCKAGE seconds
-	     * ago, try to clean-up the lock file, and if successful, re-open
-	     * the directory and try again.
-	     */
+	    (void) sprintf (line, "%s/%s", repository, dp->d_name);
 	    if (stat (line, &sb) != -1)
 	    {
+#ifdef CVS_FUDGELOCKS
+		/*
+		 * If the create time of the file is more than CVSLCKAGE 
+		 * seconds ago, try to clean-up the lock file, and if
+		 * successful, re-open the directory and try again.
+		 */
 		if (now >= (sb.st_ctime + CVSLCKAGE) && unlink (line) != -1)
 		{
-		    (void) closedir (dirp);
+		    if (closedir (dirp) < 0)
+			error (0, errno,
+			       "error closing directory %s", repository);
 		    goto again;
 		}
+#endif
 		set_lockers_name (&sb);
 	    }
-#else
-	    if (stat (line, &sb) != -1)
-		set_lockers_name (&sb);
-#endif
+
 	    ret = 1;
 	    break;
 	}
+	errno = 0;
     }
-    (void) closedir (dirp);
+    if (errno != 0)
+	error (0, errno, "error reading directory %s", repository);
+
+    if (closedir (dirp) < 0)
+	error (0, errno, "error closing directory %s", repository);
     return (ret);
 }
 

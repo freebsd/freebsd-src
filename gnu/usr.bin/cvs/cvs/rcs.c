@@ -2,7 +2,7 @@
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.3 kit.
+ * specified in the README file that comes with the CVS 1.4 kit.
  * 
  * The routines contained in this file do all the rcs file parsing and
  * manipulation
@@ -11,35 +11,52 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "@(#)rcs.c 1.28 92/03/31";
+static char rcsid[] = "$CVSid: @(#)rcs.c 1.40 94/10/07 $";
+USE(rcsid)
 #endif
 
-#if __STDC__
-static char *RCS_getbranch (RCSNode * rcs, char *tag, int force_tag_match);
-static char *RCS_getdatebranch (RCSNode * rcs, char *date, char *branch);
-static int getrcskey (FILE * fp, char **keyp, char **valp);
-static int parse_rcs_proc (Node * file);
-static int checkmagic_proc (Node *p);
-static void do_branches (List * list, char *val);
-static void do_symbols (List * list, char *val);
-static void null_delproc (Node * p);
-static void rcsnode_delproc (Node * p);
-static void rcsvers_delproc (Node * p);
-#else
-static int parse_rcs_proc ();
-static int checkmagic_proc ();
-static void rcsnode_delproc ();
-static void rcsvers_delproc ();
-static void null_delproc ();
-static int getrcskey ();
-static void do_symbols ();
-static void do_branches ();
-static char *RCS_getbranch ();
-static char *RCS_getdatebranch ();
-#endif				/* __STDC__ */
+static RCSNode *RCS_parsercsfile_i PROTO((FILE * fp, char *rcsfile));
+static char *RCS_getdatebranch PROTO((RCSNode * rcs, char *date, char *branch));
+static int getrcskey PROTO((FILE * fp, char **keyp, char **valp));
+static int parse_rcs_proc PROTO((Node * file, void *closure));
+static int checkmagic_proc PROTO((Node *p, void *closure));
+static void do_branches PROTO((List * list, char *val));
+static void do_symbols PROTO((List * list, char *val));
+static void null_delproc PROTO((Node * p));
+static void rcsnode_delproc PROTO((Node * p));
+static void rcsvers_delproc PROTO((Node * p));
 
 static List *rcslist;
 static char *repository;
+
+/*
+ * We don't want to use isspace() from the C library because:
+ *
+ * 1. The definition of "whitespace" in RCS files includes ASCII
+ *    backspace, but the C locale doesn't.
+ * 2. isspace is an very expensive function call in some implementations
+ *    due to the addition of wide character support.
+ */
+static const char spacetab[] = {
+        0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0,	/* 0x00 - 0x0f */
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 0x10 - 0x1f */
+        1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 0x20 - 0x2f */
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 0x30 - 0x3f */
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 0x40 - 0x4f */
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 0x50 - 0x5f */
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 0x60 - 0x8f */
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 0x70 - 0x7f */
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 0x80 - 0x8f */
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 0x90 - 0x9f */
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 0xa0 - 0xaf */
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 0xb0 - 0xbf */
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 0xc0 - 0xcf */
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 0xd0 - 0xdf */
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 0xe0 - 0xef */
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0  /* 0xf0 - 0xff */
+};
+
+#define whitespace(c)	(spacetab[c] != 0)
 
 /*
  * Parse all the rcs files specified and return a list
@@ -54,7 +71,7 @@ RCS_parsefiles (files, xrepos)
     rcslist = getlist ();
 
     /* walk the list parsing files */
-    if (walklist (files, parse_rcs_proc) != 0)
+    if (walklist (files, parse_rcs_proc, NULL) != 0)
     {
 	/* free the list and return NULL on error */
 	dellist (&rcslist);
@@ -69,10 +86,10 @@ RCS_parsefiles (files, xrepos)
  * Parse an rcs file into a node on the rcs list
  */
 static int
-parse_rcs_proc (file)
+parse_rcs_proc (file, closure)
     Node *file;
+    void *closure;
 {
-    Node *p;
     RCSNode *rdata;
 
     /* parse the rcs file into rdata */
@@ -80,16 +97,31 @@ parse_rcs_proc (file)
 
     /* if we got a valid RCSNode back, put it on the list */
     if (rdata != (RCSNode *) NULL)
-    {
-	p = getnode ();
-	p->key = xstrdup (file->key);
-	p->delproc = rcsnode_delproc;
-	p->type = RCSNODE;
-	p->data = (char *) rdata;
-	(void) addnode (rcslist, p);
-    }
+	RCS_addnode (file->key, rdata, rcslist);
+
     return (0);
 }
+
+/*
+ * Add an RCSNode to a list of them.
+ */
+
+void
+RCS_addnode (file, rcs, list)
+    char *file;
+    RCSNode *rcs;
+    List *list;
+{
+    Node *p;
+    
+    p = getnode ();
+    p->key = xstrdup (file);
+    p->delproc = rcsnode_delproc;
+    p->type = RCSNODE;
+    p->data = (char *) rcs;
+    (void) addnode (list, p);
+}
+
 
 /*
  * Parse an rcsfile given a user file name and a repository
@@ -100,43 +132,46 @@ RCS_parse (file, repos)
     char *repos;
 {
     RCSNode *rcs;
+    FILE *fp;
     char rcsfile[PATH_MAX];
 
     (void) sprintf (rcsfile, "%s/%s%s", repos, file, RCSEXT);
-    if (!isreadable (rcsfile))
+    if ((fp = fopen (rcsfile, "r")) != NULL) 
     {
-	(void) sprintf (rcsfile, "%s/%s/%s%s", repos, CVSATTIC,
-			file, RCSEXT);
-	if (!isreadable (rcsfile))
-	    return (NULL);
-	rcs = RCS_parsercsfile (rcsfile);
+        rcs = RCS_parsercsfile_i(fp, rcsfile);
+	if (rcs != NULL) 
+	    rcs->flags |= VALID;
+
+	fclose (fp);
+	return (rcs);
+    }
+
+    (void) sprintf (rcsfile, "%s/%s/%s%s", repos, CVSATTIC, file, RCSEXT);
+    if ((fp = fopen (rcsfile, "r")) != NULL) 
+    {
+        rcs = RCS_parsercsfile_i(fp, rcsfile);
 	if (rcs != NULL)
 	{
 	    rcs->flags |= INATTIC;
 	    rcs->flags |= VALID;
 	}
+
+	fclose (fp);
 	return (rcs);
     }
-    rcs = RCS_parsercsfile (rcsfile);
-    if (rcs != NULL)
-	rcs->flags |= VALID;
-    return (rcs);
+
+    return (NULL);
 }
 
 /*
- * Do the real work of parsing an RCS file
+ * Parse a specific rcsfile.
  */
 RCSNode *
 RCS_parsercsfile (rcsfile)
     char *rcsfile;
 {
-    Node *q, *r;
-    RCSNode *rdata;
-    RCSVers *vnode;
-    int n;
-    char *cp;
-    char *key, *value;
     FILE *fp;
+    RCSNode *rcs;
 
     /* open the rcsfile */
     if ((fp = fopen (rcsfile, "r")) == NULL)
@@ -145,9 +180,30 @@ RCS_parsercsfile (rcsfile)
 	return (NULL);
     }
 
+    rcs = RCS_parsercsfile_i (fp, rcsfile);
+
+    fclose (fp);
+    return (rcs);
+}
+
+/*
+ * Do the real work of parsing an RCS file
+ */
+static RCSNode *
+RCS_parsercsfile_i (fp, rcsfile)
+    FILE *fp;
+    char *rcsfile;
+{
+    Node *q, *r;
+    RCSNode *rdata;
+    RCSVers *vnode;
+    int n;
+    char *cp;
+    char *key, *value;
+
     /* make a node */
     rdata = (RCSNode *) xmalloc (sizeof (RCSNode));
-    bzero ((char *) rdata, sizeof (RCSNode));
+    memset ((char *) rdata, 0, sizeof (RCSNode));
     rdata->refcount = 1;
     rdata->path = xstrdup (rcsfile);
     rdata->versions = getlist ();
@@ -161,14 +217,24 @@ RCS_parsercsfile (rcsfile)
     {
 	/* get the next key/value pair */
 
-	/* if key is NULL here, then the file is missing some headers */
+	/* if key is NULL here, then the file is missing some headers
+	   or we had trouble reading the file. */
 	if (getrcskey (fp, &key, &value) == -1 || key == NULL)
 	{
+
 	    if (!really_quiet)
-		error (0, 0, "`%s' does not appear to be a valid rcs file",
-		       rcsfile);
+	    {
+		if (ferror(fp))
+		{
+		    error (1, 0, "error reading `%s'", rcsfile);
+		}
+		else
+		{
+		    error (0, 0, "`%s' does not appear to be a valid rcs file",
+			   rcsfile);
+		}
+	    }
 	    freercsnode (&rdata);
-	    (void) fclose (fp);
 	    return (NULL);
 	}
 
@@ -184,7 +250,7 @@ RCS_parsercsfile (rcsfile)
 	    if ((numdots (rdata->branch) & 1) != 0)
 	    {
 		/* turn it into a branch if it's a revision */
-		cp = rindex (rdata->branch, '.');
+		cp = strrchr (rdata->branch, '.');
 		*cp = '\0';
 	    }
 	    continue;
@@ -193,9 +259,7 @@ RCS_parsercsfile (rcsfile)
 	{
 	    if (value != NULL)
 	    {
-		/* if there are tags, set up the tag list */
-		rdata->symbols = getlist ();
-		do_symbols (rdata->symbols, value);
+		rdata->symbols_data = xstrdup(value);
 		continue;
 	    }
 	}
@@ -225,7 +289,7 @@ RCS_parsercsfile (rcsfile)
 
 	/* grab the value of the date from value */
 	valp = value + strlen (RCSDATE);/* skip the "date" keyword */
-	while (isspace (*valp))		/* take space off front of value */
+	while (whitespace (*valp))		/* take space off front of value */
 	    valp++;
 	(void) strcpy (date, valp);
 
@@ -237,7 +301,7 @@ RCS_parsercsfile (rcsfile)
 	q->delproc = rcsvers_delproc;
 	r->delproc = null_delproc;
 	q->data = r->data = xmalloc (sizeof (RCSVers));
-	bzero (q->data, sizeof (RCSVers));
+	memset (q->data, 0, sizeof (RCSVers));
 	vnode = (RCSVers *) q->data;
 
 	/* fill in the version before we forget it */
@@ -290,7 +354,6 @@ RCS_parsercsfile (rcsfile)
 	    break;
     }
 
-    (void) fclose (fp);
     return (rdata);
 }
 
@@ -325,6 +388,8 @@ freercsnode (rnodep)
     dellist (&(*rnodep)->dates);
     if ((*rnodep)->symbols != (List *) NULL)
 	dellist (&(*rnodep)->symbols);
+    if ((*rnodep)->symbols_data != (char *) NULL)
+	free ((*rnodep)->symbols_data);
     if ((*rnodep)->head != (char *) NULL)
 	free ((*rnodep)->head);
     if ((*rnodep)->branch != (char *) NULL)
@@ -405,14 +470,14 @@ getrcskey (fp, keyp, valp)
 	    *valp = (char *) NULL;
 	    return (-1);
 	}
-	if (!isspace (c))
+	if (!whitespace (c))
 	    break;
     }
 
     /* fill in key */
     cur = key;
     max = key + keysize;
-    while (!isspace (c) && c != ';')
+    while (!whitespace (c) && c != ';')
     {
 	if (cur < max)
 	    *cur++ = c;
@@ -432,6 +497,14 @@ getrcskey (fp, keyp, valp)
 	    return (-1);
 	}
     }
+    if (cur >= max)
+    {
+	key = xrealloc (key, keysize + ALLOCINCR);
+	cur = key + keysize;
+	keysize += ALLOCINCR;
+	max = key + keysize;
+    }
+
     *cur = '\0';
 
     /* if we got "desc", we are done with the file */
@@ -538,10 +611,10 @@ getrcskey (fp, keyp, valp)
 	     */
 
 	    /* whitespace with white set means compress it out */
-	    if (white && isspace (c))
+	    if (white && whitespace (c))
 		continue;
 
-	    if (isspace (c))
+	    if (whitespace (c))
 	    {
 		/* make c a space and set white */
 		white = 1;
@@ -568,7 +641,16 @@ getrcskey (fp, keyp, valp)
 
     /* terminate the string */
     if (cur)
+    {
+	if (cur >= max)
+	{
+	    value = xrealloc (value, valsize + ALLOCINCR);
+	    cur = value + valsize;
+	    valsize += ALLOCINCR;
+	    max = value + valsize;
+	}
 	*cur = '\0';
+    }
 
     /* if the string is empty, make it null */
     if (value && *value != '\0')
@@ -594,7 +676,7 @@ do_symbols (list, val)
     for (;;)
     {
 	/* skip leading whitespace */
-	while (isspace (*cp))
+	while (whitespace (*cp))
 	    cp++;
 
 	/* if we got to the end, we are done */
@@ -603,10 +685,10 @@ do_symbols (list, val)
 
 	/* split it up into tag and rev */
 	tag = cp;
-	cp = index (cp, ':');
+	cp = strchr (cp, ':');
 	*cp++ = '\0';
 	rev = cp;
-	while (!isspace (*cp) && *cp != '\0')
+	while (!whitespace (*cp) && *cp != '\0')
 	    cp++;
 	if (*cp != '\0')
 	    *cp++ = '\0';
@@ -634,7 +716,7 @@ do_branches (list, val)
     for (;;)
     {
 	/* skip leading whitespace */
-	while (isspace (*cp))
+	while (whitespace (*cp))
 	    cp++;
 
 	/* if we got to the end, we are done */
@@ -643,7 +725,7 @@ do_branches (list, val)
 
 	/* find the end of this branch */
 	branch = cp;
-	while (!isspace (*cp) && *cp != '\0')
+	while (!whitespace (*cp) && *cp != '\0')
 	    cp++;
 	if (*cp != '\0')
 	    *cp++ = '\0';
@@ -686,7 +768,7 @@ RCS_getversion (rcs, tag, date, force_tag_match)
 	if (tagrev == NULL)
 	    return ((char *) NULL);
 
-	if ((cp = rindex (tagrev, '.')) != NULL)
+	if ((cp = strrchr (tagrev, '.')) != NULL)
 	    *cp = '\0';
 	rev = RCS_getdatebranch (rcs, date, tagrev);
 	free (tagrev);
@@ -733,8 +815,9 @@ RCS_gettag (rcs, tag, force_tag_match)
 	/* If we got a symbolic tag, resolve it to a numeric */
 	if (rcs == NULL)
 	    p = NULL;
-	else
-	    p = findnode (rcs->symbols, tag);
+	else {
+	    p = findnode (RCS_symbols(rcs), tag);
+	}
 	if (p != NULL)
 	{
 	    int dots;
@@ -750,7 +833,7 @@ RCS_gettag (rcs, tag, force_tag_match)
 	    dots = numdots (tag);
 	    if (dots > 2 && (dots & 1) != 0)
 	    {
-		branch = rindex (tag, '.');
+		branch = strrchr (tag, '.');
 		cp = branch++ - 1;
 		while (*cp != '.')
 		    cp--;
@@ -874,7 +957,7 @@ RCS_magicrev (rcs, rev)
 	(void) sprintf (xrev, "%s.%d.%d", rev, RCS_MAGIC_BRANCH, rev_num);
 
 	/* walk the symbols list to see if a magic one already exists */
-	if (walklist (rcs->symbols, checkmagic_proc) != 0)
+	if (walklist (RCS_symbols(rcs), checkmagic_proc, NULL) != 0)
 	    continue;
 
 	/* we found a free magic branch.  Claim it as ours */
@@ -887,8 +970,9 @@ RCS_magicrev (rcs, rev)
  * Returns 0 if the symbol does not match, 1 if it does.
  */
 static int
-checkmagic_proc (p)
+checkmagic_proc (p, closure)
     Node *p;
+    void *closure;
 {
     if (strcmp (check_rev, p->data) == 0)
 	return (1);
@@ -897,9 +981,9 @@ checkmagic_proc (p)
 }
 
 /*
- * Returns non-zero if the specified revision number or symbolic tag
- * resolves to a "branch" within the rcs file.  We do take into account
- * any magic branches as well.
+ * Given a list of RCSNodes, returns non-zero if the specified
+ * revision number or symbolic tag resolves to a "branch" within the
+ * rcs file.
  */
 int
 RCS_isbranch (file, rev, srcfiles)
@@ -907,7 +991,6 @@ RCS_isbranch (file, rev, srcfiles)
     char *rev;
     List *srcfiles;
 {
-    int dots;
     Node *p;
     RCSNode *rcs;
 
@@ -922,7 +1005,27 @@ RCS_isbranch (file, rev, srcfiles)
 
     /* now, look for a match in the symbols list */
     rcs = (RCSNode *) p->data;
-    p = findnode (rcs->symbols, rev);
+    return (RCS_nodeisbranch (rev, rcs));
+}
+
+/*
+ * Given an RCSNode, returns non-zero if the specified revision number
+ * or symbolic tag resolves to a "branch" within the rcs file.  We do
+ * take into account any magic branches as well.
+ */
+int
+RCS_nodeisbranch (rev, rcs)
+    char *rev;
+    RCSNode *rcs;
+{
+    int dots;
+    Node *p;
+
+    /* numeric revisions are easy -- even number of dots is a branch */
+    if (isdigit (*rev))
+	return ((numdots (rev) & 1) == 0);
+
+    p = findnode (RCS_symbols(rcs), rev);
     if (p == NULL)
 	return (0);
     dots = numdots (p->data);
@@ -933,7 +1036,7 @@ RCS_isbranch (file, rev, srcfiles)
     if (dots > 2)
     {
 	char *magic;
-	char *branch = rindex (p->data, '.');
+	char *branch = strrchr (p->data, '.');
 	char *cp = branch - 1;
 	while (*cp != '.')
 	    cp--;
@@ -972,7 +1075,7 @@ RCS_whatbranch (file, rev, srcfiles)
 
     /* now, look for a match in the symbols list */
     rcs = (RCSNode *) p->data;
-    p = findnode (rcs->symbols, rev);
+    p = findnode (RCS_symbols(rcs), rev);
     if (p == NULL)
 	return ((char *) NULL);
     dots = numdots (p->data);
@@ -983,7 +1086,7 @@ RCS_whatbranch (file, rev, srcfiles)
     if (dots > 2)
     {
 	char *magic;
-	char *branch = rindex (p->data, '.');
+	char *branch = strrchr (p->data, '.');
 	char *cp = branch++ - 1;
 	while (*cp != '.')
 	    cp--;
@@ -1008,7 +1111,7 @@ RCS_whatbranch (file, rev, srcfiles)
  * Get the head of the specified branch.  If the branch does not exist,
  * return NULL or RCS_head depending on force_tag_match
  */
-static char *
+char *
 RCS_getbranch (rcs, tag, force_tag_match)
     RCSNode *rcs;
     char *tag;
@@ -1025,7 +1128,7 @@ RCS_getbranch (rcs, tag, force_tag_match)
 	return ((char *) NULL);
 
     /* find out if the tag contains a dot, or is on the trunk */
-    cp = rindex (tag, '.');
+    cp = strrchr (tag, '.');
 
     /* trunk processing is the special case */
     if (cp == NULL)
@@ -1237,7 +1340,7 @@ RCS_getdatebranch (rcs, date, branch)
 
     /* look up the first revision on the branch */
     xrev = xstrdup (branch);
-    cp = rindex (xrev, '.');
+    cp = strrchr (xrev, '.');
     if (cp == NULL)
     {
 	free (xrev);
@@ -1374,6 +1477,20 @@ RCS_getrevtime (rcs, rev, date, fudge)
     return (revdate);
 }
 
+List *
+RCS_symbols(rcs)
+    RCSNode *rcs;
+{
+	if (rcs->symbols_data) {
+		rcs->symbols = getlist ();
+		do_symbols (rcs->symbols, rcs->symbols_data);
+		free(rcs->symbols_data);
+		rcs->symbols_data = NULL;
+	}
+
+	return rcs->symbols;
+}
+
 /*
  * The argument ARG is the getopt remainder of the -k option specified on the
  * command line.  This function returns malloc'ed space that can be used
@@ -1439,7 +1556,7 @@ RCS_check_tag (tag)
 	    if (!isgraph (*cp))
 		error (1, 0, "tag `%s' has non-visible graphic characters",
 		       tag);
-	    if (index (invalid, *cp))
+	    if (strchr (invalid, *cp))
 		error (1, 0, "tag `%s' must not contain the characters `%s'",
 		       tag, invalid);
 	}
@@ -1447,3 +1564,4 @@ RCS_check_tag (tag)
     else
 	error (1, 0, "tag `%s' must start with a letter", tag);
 }
+

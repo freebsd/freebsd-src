@@ -3,13 +3,14 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.3 kit.
+ * specified in the README file that comes with the CVS 1.4 kit.
  */
 
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "@(#)parseinfo.c 1.16 92/04/10";
+static char rcsid[] = "$CVSid: @(#)parseinfo.c 1.18 94/09/23 $";
+USE(rcsid)
 #endif
 
 /*
@@ -87,7 +88,7 @@ Parse_Info (infofile, repository, callproc, all)
 	value = cp;
 
 	/* strip the newline off the end of the value */
-	if ((cp = rindex (value, '\n')) != NULL)
+	if ((cp = strrchr (value, '\n')) != NULL)
 	    *cp = '\0';
 
 	/*

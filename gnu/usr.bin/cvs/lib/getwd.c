@@ -19,6 +19,10 @@
    of getwd() which is much faster than getcwd().  As a result, we use the
    system's getwd() if it is available */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "system.h"
 
 /* Get the current working directory into PATHNAME */
