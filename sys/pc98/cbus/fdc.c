@@ -383,7 +383,7 @@ struct fd_data {
 	int	options;	/* user configurable options, see fdcio.h */
 	struct	callout_handle toffhandle;
 	struct	callout_handle tohandle;
-	struct	devstat device_stats;
+	struct	devstat *device_stats;
 	eventhandler_tag clonetag;
 	dev_t	masterdev;
 	dev_t	clonedevs[NUMDENS - 1];
@@ -1728,7 +1728,7 @@ fd_attach(device_t dev)
 				 UID_ROOT, GID_OPERATOR, 0640, "fd%d", fd->fdu);
 	for (i = 0; i < NUMDENS - 1; i++)
 		fd->clonedevs[i] = NODEV;
-	devstat_add_entry(&fd->device_stats, device_get_name(dev), 
+	fd->device_stats = devstat_new_entry(device_get_name(dev), 
 			  device_get_unit(dev), 0, DEVSTAT_NO_ORDERED_TAGS,
 			  DEVSTAT_TYPE_FLOPPY | DEVSTAT_TYPE_IF_OTHER,
 			  DEVSTAT_PRIORITY_FD);
@@ -1743,7 +1743,7 @@ fd_detach(device_t dev)
 
 	fd = device_get_softc(dev);
 	untimeout(fd_turnoff, fd, fd->toffhandle);
-	devstat_remove_entry(&fd->device_stats);
+	devstat_remove_entry(fd->device_stats);
 	destroy_dev(fd->masterdev);
 	for (i = 0; i < NUMDENS - 1; i++)
 		if (fd->clonedevs[i] != NODEV)
@@ -2153,7 +2153,7 @@ fdstrategy(struct bio *bp)
 	s = splbio();
 	bioqdisksort(&fdc->head, bp);
 	untimeout(fd_turnoff, fd, fd->toffhandle); /* a good idea */
-	devstat_start_transaction(&fd->device_stats);
+	devstat_start_transaction(fd->device_stats);
 	device_busy(fd->dev);
 	fdstart(fdc);
 	splx(s);
@@ -2911,7 +2911,7 @@ fdstate(fdc_p fdc)
 			bp->bio_resid = 0;
 			fdc->bp = NULL;
 			device_unbusy(fd->dev);
-			biofinish(bp, &fd->device_stats, 0);
+			biofinish(bp, fd->device_stats, 0);
 			fdc->fd = (fd_p) 0;
 			fdc->fdu = -1;
 			fdc->state = FINDWORK;
@@ -3078,7 +3078,7 @@ retrier(struct fdc_data *fdc)
 		fdc->bp = NULL;
 		fdc->fd->skip = 0;
 		device_unbusy(fd->dev);
-		biofinish(bp, &fdc->fd->device_stats, 0);
+		biofinish(bp, fdc->fd->device_stats, 0);
 		fdc->state = FINDWORK;
 		fdc->flags |= FDC_NEEDS_RESET;
 		fdc->fd = (fd_p) 0;

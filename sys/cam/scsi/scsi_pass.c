@@ -72,7 +72,7 @@ struct pass_softc {
 	pass_flags		flags;
 	u_int8_t		pd_type;
 	union ccb		saved_ccb;
-	struct devstat		device_stats;
+	struct devstat		*device_stats;
 	dev_t			dev;
 };
 
@@ -186,7 +186,7 @@ passcleanup(struct cam_periph *periph)
 
 	softc = (struct pass_softc *)periph->softc;
 
-	devstat_remove_entry(&softc->device_stats);
+	devstat_remove_entry(softc->device_stats);
 
 	destroy_dev(softc->dev);
 
@@ -284,7 +284,7 @@ passregister(struct cam_periph *periph, void *arg)
 	 * it even has a blocksize.
 	 */
 	no_tags = (cgd->inq_data.flags & SID_CmdQue) == 0;
-	devstat_add_entry(&softc->device_stats, "pass", periph->unit_number, 0,
+	softc->device_stats = devstat_new_entry("pass", periph->unit_number, 0,
 			  DEVSTAT_NO_BLOCKSIZE
 			  | (no_tags ? DEVSTAT_NO_ORDERED_TAGS : 0),
 			  softc->pd_type |
@@ -596,7 +596,7 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 				  passerror : NULL,
 				  /* cam_flags */ CAM_RETRY_SELTO,
 				  /* sense_flags */SF_RETRY_UA,
-				  &softc->device_stats);
+				  softc->device_stats);
 
 	if (need_unmap != 0)
 		cam_periph_unmapmem(ccb, &mapinfo);
