@@ -46,40 +46,72 @@ static INLINE void
 isp_prtstst(sp)
 	ispstatusreq_t *sp;
 {
-	char buf[128];
-	sprintf(buf, "states->");
-	if (sp->req_state_flags & RQSF_GOT_BUS)
-		sprintf(buf, "%s%s", buf, "GOT_BUS ");
-	if (sp->req_state_flags & RQSF_GOT_TARGET)
-		sprintf(buf, "%s%s", buf, "GOT_TGT ");
-	if (sp->req_state_flags & RQSF_SENT_CDB)
-		sprintf(buf, "%s%s", buf, "SENT_CDB ");
-	if (sp->req_state_flags & RQSF_XFRD_DATA)
-		sprintf(buf, "%s%s", buf, "XFRD_DATA ");
-	if (sp->req_state_flags & RQSF_GOT_STATUS)
-		sprintf(buf, "%s%s", buf, "GOT_STS ");
-	if (sp->req_state_flags & RQSF_GOT_SENSE)
-		sprintf(buf, "%s%s", buf, "GOT_SNS ");
-	if (sp->req_state_flags & RQSF_XFER_COMPLETE)
-		sprintf(buf, "%s%s", buf, "XFR_CMPLT ");
-	sprintf(buf, "%s%s", buf, "\n");
-	sprintf(buf, "%s%s", buf, "status->");
-	if (sp->req_status_flags & RQSTF_DISCONNECT)
-		sprintf(buf, "%s%s", buf, "Disconnect ");
-	if (sp->req_status_flags & RQSTF_SYNCHRONOUS)
-		sprintf(buf, "%s%s", buf, "Sync_xfr ");
-	if (sp->req_status_flags & RQSTF_PARITY_ERROR)
-		sprintf(buf, "%s%s", buf, "Parity ");
-	if (sp->req_status_flags & RQSTF_BUS_RESET)
-		sprintf(buf, "%s%s", buf, "Bus_Reset ");
-	if (sp->req_status_flags & RQSTF_DEVICE_RESET)
-		sprintf(buf, "%s%s", buf, "Device_Reset ");
-	if (sp->req_status_flags & RQSTF_ABORTED)
-		sprintf(buf, "%s%s", buf, "Aborted ");
-	if (sp->req_status_flags & RQSTF_TIMEOUT)
-		sprintf(buf, "%s%s", buf, "Timeout ");
-	if (sp->req_status_flags & RQSTF_NEGOTIATION)
-		sprintf(buf, "%s%s", buf, "Negotiation ");
+	char buf[172], *p = buf;
+	sprintf(p, "states->");
+	if (sp->req_state_flags & RQSF_GOT_BUS) {
+		p += strlen(p);
+		sprintf(p, "%s%s", buf, "GOT_BUS ");
+	}
+	if (sp->req_state_flags & RQSF_GOT_TARGET) {
+		p += strlen(p);
+		sprintf(p, "%s%s", buf, "GOT_TGT ");
+	}
+	if (sp->req_state_flags & RQSF_SENT_CDB) {
+		p += strlen(p);
+		sprintf(p, "%s%s", buf, "SENT_CDB ");
+	}
+	if (sp->req_state_flags & RQSF_XFRD_DATA) {
+		p += strlen(p);
+		sprintf(p, "%s%s", buf, "XFRD_DATA ");
+	}
+	if (sp->req_state_flags & RQSF_GOT_STATUS) {
+		p += strlen(p);
+		sprintf(p, "%s%s", buf, "GOT_STS ");
+	}
+	if (sp->req_state_flags & RQSF_GOT_SENSE) {
+		p += strlen(p);
+		sprintf(p, "%s%s", buf, "GOT_SNS ");
+	}
+	if (sp->req_state_flags & RQSF_XFER_COMPLETE) {
+		p += strlen(p);
+		sprintf(p, "%s%s", buf, "XFR_CMPLT ");
+	}
+	p += strlen(p);
+	sprintf(p, "%s%s", buf, "\n");
+	p += strlen(p);
+	sprintf(p, "%s%s", buf, "status->");
+	if (sp->req_status_flags & RQSTF_DISCONNECT) {
+		p += strlen(p);
+		sprintf(p, "%s%s", buf, "Disconnect ");
+	}
+	if (sp->req_status_flags & RQSTF_SYNCHRONOUS) {
+		p += strlen(p);
+		sprintf(p, "%s%s", buf, "Sync_xfr ");
+	}
+	if (sp->req_status_flags & RQSTF_PARITY_ERROR) {
+		p += strlen(p);
+		sprintf(p, "%s%s", buf, "Parity ");
+	}
+	if (sp->req_status_flags & RQSTF_BUS_RESET) {
+		p += strlen(p);
+		sprintf(p, "%s%s", buf, "Bus_Reset ");
+	}
+	if (sp->req_status_flags & RQSTF_DEVICE_RESET) {
+		p += strlen(p);
+		sprintf(p, "%s%s", buf, "Device_Reset ");
+	}
+	if (sp->req_status_flags & RQSTF_ABORTED) {
+		p += strlen(p);
+		sprintf(p, "%s%s", buf, "Aborted ");
+	}
+	if (sp->req_status_flags & RQSTF_TIMEOUT) {
+		p += strlen(p);
+		sprintf(p, "%s%s", buf, "Timeout ");
+	}
+	if (sp->req_status_flags & RQSTF_NEGOTIATION) {
+		p += strlen(p);
+		sprintf(p, "%s%s", buf, "Negotiation ");
+	}
 	PRINTF(buf, "%s\n", buf);
 }
 
@@ -218,5 +250,29 @@ isp_remove_handle(isp, xs)
 	ISP_SCSI_XFER_T *xs;
 {
 	isp_destroy_handle(isp, isp_find_handle(isp, xs));
+}
+
+static INLINE int
+isp_getrqentry __P((struct ispsoftc *, u_int16_t *, u_int16_t *, void **));
+
+static INLINE int
+isp_getrqentry(isp, iptrp, optrp, resultp)
+	struct ispsoftc *isp;
+	u_int16_t *iptrp;
+	u_int16_t *optrp;
+	void **resultp;
+{
+	volatile u_int16_t iptr, optr;
+
+	optr = isp->isp_reqodx = ISP_READ(isp, OUTMAILBOX4);
+	iptr = isp->isp_reqidx;
+	*resultp = ISP_QUEUE_ENTRY(isp->isp_rquest, iptr);
+	iptr = ISP_NXT_QENTRY(iptr, RQUEST_QUEUE_LEN);
+	if (iptr == optr) {
+		return (1);
+	}
+	*optrp = optr;
+	*iptrp = iptr;
+	return (0);
 }
 #endif	/* _ISP_INLINE_H */
