@@ -316,7 +316,7 @@ again:
 #ifdef MAC
 	error = mac_check_vnode_readdir(td->td_ucred, vp);
 	if (error)
-		return (error);
+		goto out;
 #endif
 
 	error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag,
