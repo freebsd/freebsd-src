@@ -52,19 +52,19 @@ static const char rcsid[] =
 #define CHR_SWITCH	24	/* Ctrl+X	 */
 #define CHR_CLEAR	23	/* Ctrl+V	 */
 
-static void	clear __P((void));
-static void	timestamp  __P((const char *));
-static void	set_tty __P((void));
-static void	unset_tty __P((void));
-static void	fatal __P((int, const char *));
-static int	open_snp __P((void));
-static void	cleanup __P((int));
-static void	usage __P((void));
-static void	setup_scr __P((void));
-static void	attach_snp __P((void));
-static void	detach_snp __P((void));
-static void	set_dev __P((const char *));
-static void	ask_dev __P((char *, const char *));
+static void	clear(void);
+static void	timestamp(const char *);
+static void	set_tty(void);
+static void	unset_tty(void);
+static void	fatal(int, const char *);
+static int	open_snp(void);
+static void	cleanup(int);
+static void	usage(void) __dead2;
+static void	setup_scr(void);
+static void	attach_snp(void);
+static void	detach_snp(void);
+static void	set_dev(const char *);
+static void	ask_dev(char *, const char *);
 
 int             opt_reconn_close = 0;
 int             opt_reconn_oflow = 0;
@@ -86,7 +86,7 @@ char            tbuf[1024], gbuf[1024];
 
 
 static void
-clear()
+clear(void)
 {
 	if (clear_ok)
 		tputs(gbuf, 1, putchar);
@@ -94,8 +94,7 @@ clear()
 }
 
 static void
-timestamp(buf)
-	const char     *buf;
+timestamp(const char *buf)
 {
 	time_t          t;
 	char            btmp[1024];
@@ -110,7 +109,7 @@ timestamp(buf)
 }
 
 static void
-set_tty()
+set_tty(void)
 {
 	struct termios  ntty;
 
@@ -136,16 +135,14 @@ set_tty()
 }
 
 static void
-unset_tty()
+unset_tty(void)
 {
 	tcsetattr (std_in, TCSANOW, &otty);
 }
 
 
 static void
-fatal(error, buf)
-	int		      error;
-	const char           *buf;
+fatal(int error, const char *buf)
 {
 	unset_tty();
 	if (buf)
@@ -155,7 +152,7 @@ fatal(error, buf)
 }
 
 static int
-open_snp()
+open_snp(void)
 {
 	char            snp[] = {_PATH_DEV "snpX"};
 	char            c;
@@ -182,8 +179,7 @@ open_snp()
 
 
 static void
-cleanup(signo)
-	int		signo __unused;
+cleanup(int signo __unused)
 {
 	if (opt_timestamp)
 		timestamp("Logging Exited.");
@@ -194,14 +190,14 @@ cleanup(signo)
 
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: watch [-ciotnW] [tty name]\n");
 	exit(EX_USAGE);
 }
 
 static void
-setup_scr()
+setup_scr(void)
 {
 	char           *cbuf = gbuf, *term;
 	if (!opt_interactive)
@@ -215,7 +211,7 @@ setup_scr()
 }
 
 static void
-detach_snp()
+detach_snp(void)
 {
 	dev_t		dev;
 
@@ -224,7 +220,7 @@ detach_snp()
 }
 
 static void
-attach_snp()
+attach_snp(void)
 {
 	if (ioctl(snp_io, SNPSTTY, &snp_tty) != 0)
 		fatal(EX_UNAVAILABLE, "cannot attach to tty");
@@ -234,16 +230,14 @@ attach_snp()
 
 
 static void
-set_dev(name)
-	const char     *name;
+set_dev(const char *name)
 {
 	char            buf[DEV_NAME_LEN];
 	struct stat	sb;
 
 	if (strlen(name) > 5 && !strncmp(name, _PATH_DEV, sizeof _PATH_DEV - 1)) {
 		snprintf(buf, sizeof buf, "%s", name);
-	}
-	else {
+	} else {
 		if (strlen(name) == 2)
 			sprintf(buf, "%s%s", _PATH_TTY, name);
 		else
@@ -261,9 +255,7 @@ set_dev(name)
 }
 
 void
-ask_dev(dbuf, msg)
-        char	       *dbuf;
-        const char     *msg;
+ask_dev(char *dbuf, const char *msg)
 {
 	char            buf[DEV_NAME_LEN];
 	int             len;
@@ -291,9 +283,7 @@ ask_dev(dbuf, msg)
 #define READB_LEN	5
 
 int
-main(ac, av)
-	int             ac;
-	char          **av;
+main(int ac, char *av[])
 {
 	int             res, idata, rv;
 	size_t		nread, b_size = MIN_SIZE;
@@ -392,7 +382,8 @@ main(ac, av)
 					if (rv == -1 || (unsigned)rv != nread) {
 						detach_snp();
 						if (opt_no_switch)
-							fatal(EX_IOERR, "write failed");
+							fatal(EX_IOERR,
+							  "write failed");
 						ask_dev(dev_name, MSG_NOWRITE);
 						set_dev(dev_name);
 					}
