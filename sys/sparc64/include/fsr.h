@@ -35,47 +35,50 @@
 #define	FSR_EXC_MASK	((1UL << FSR_EXC_BITS) - 1)
 #define	FSR_CEXC_SHIFT	0
 #define	FSR_CEXC_MASK	(FSR_EXC_MASK << FSR_CEXC_SHIFT)
-#define	FSR_CEXC(b)	((u_long)(b) << FSR_CEXC_SHIFT)
+#define	FSR_CEXC(b)	((unsigned long)(b) << FSR_CEXC_SHIFT)
+#define	FSR_GET_CEXC(x)	(((x) & FSR_CEXC_MASK) >> FSR_CEXC_SHIFT)
 #define	FSR_AEXC_SHIFT	5
 #define	FSR_AEXC_MASK	(FSR_EXC_MASK << FSR_AEXC_SHIFT)
-#define	FSR_AEXC(b)	((u_long)(b) << FSR_AEXC_SHIFT)
+#define	FSR_AEXC(b)	((unsigned long)(b) << FSR_AEXC_SHIFT)
+#define	FSR_GET_AEXC(x)	(((x) & FSR_AEXC_MASK) >> FSR_AEXC_SHIFT)
 #define	FSR_QNE		(1UL << 13)
 #define	FSR_NS		(1UL << 22)
 #define	FSR_TEM_SHIFT	23
 #define	FSR_TEM_MASK	(FSR_EXC_MASK << FSR_TEM_SHIFT)
-#define	FSR_TEM(b)	((u_long)(b) << FSR_TEM_SHIFT)
+#define	FSR_TEM(b)	((unsigned long)(b) << FSR_TEM_SHIFT)
+#define	FSR_GET_TEM(x)	(((x) & FSR_TEM_MASK) >> FSR_TEM_SHIFT)
 #define	FSR_FCC0_SHIFT	10
 #define	FSR_FCC0_BITS	2
 #define	FSR_FCC0_MASK	(((1UL << FSR_FCC0_BITS) - 1) << FSR_FCC0_SHIFT)
-#define	FSR_FCC0(x)	((u_long)(x) << FSR_FCC0_SHIFT)
-#define	FSR_GET_FCC0(x)	(((x) >> FSR_FCC0_SHIFT) & 3)
+#define	FSR_FCC0(x)	((unsigned long)(x) << FSR_FCC0_SHIFT)
+#define	FSR_GET_FCC0(x)	(((x) & FSR_FCC0_MASK) >> FSR_FCC0_SHIFT)
 #define	FSR_FTT_SHIFT	14
 #define	FSR_FTT_BITS	3
 #define	FSR_FTT_MASK	(((1UL << FSR_FTT_BITS) - 1) << FSR_FTT_SHIFT)
-#define	FSR_FTT(x)	((u_long)(x) << FSR_FTT_SHIFT)
+#define	FSR_FTT(x)	((unsigned long)(x) << FSR_FTT_SHIFT)
 #define	FSR_GET_FTT(x)	(((x) & FSR_FTT_MASK) >> FSR_FTT_SHIFT)
 #define	FSR_VER_SHIFT	17
 #define	FSR_GET_VER(x)	(((x) >> FSR_VER_SHIFT) & 7)
 #define	FSR_RD_SHIFT	30
 #define	FSR_RD_BITS	2
 #define	FSR_RD_MASK	(((1UL << FSR_RD_BITS) - 1) << FSR_RD_SHIFT)
-#define	FSR_RD(x)	((u_long)(x) << FSR_RD_SHIFT)
-#define	FSR_GET_RD(x)	(((x) >> FSR_RD_SHIFT) & 3)
+#define	FSR_RD(x)	((unsigned long)(x) << FSR_RD_SHIFT)
+#define	FSR_GET_RD(x)	(((x) & FSR_RD_MASK) >> FSR_RD_SHIFT)
 #define	FSR_FCC1_SHIFT	32
 #define	FSR_FCC1_BITS	2
 #define	FSR_FCC1_MASK	(((1UL << FSR_FCC1_BITS) - 1) << FSR_FCC1_SHIFT)
-#define	FSR_FCC1(x)	((u_long)(x) << FSR_FCC1_SHIFT)
-#define	FSR_GET_FCC1(x)	(((x) >> FSR_FCC1_SHIFT) & 3)
+#define	FSR_FCC1(x)	((unsigned long)(x) << FSR_FCC1_SHIFT)
+#define	FSR_GET_FCC1(x)	(((x) & FSR_FCC1_MASK) >> FSR_FCC1_SHIFT)
 #define	FSR_FCC2_SHIFT	34
 #define	FSR_FCC2_BITS	2
 #define	FSR_FCC2_MASK	(((1UL << FSR_FCC2_BITS) - 1) << FSR_FCC2_SHIFT)
-#define	FSR_FCC2(x)	((u_long)(x) << FSR_FCC2_SHIFT)
-#define	FSR_GET_FCC2(x)	(((x) >> FSR_FCC2_SHIFT) & 3)
+#define	FSR_FCC2(x)	((unsigned long)(x) << FSR_FCC2_SHIFT)
+#define	FSR_GET_FCC2(x)	(((x) & FSR_FCC2_MASK) >> FSR_FCC2_SHIFT)
 #define	FSR_FCC3_SHIFT	36
 #define	FSR_FCC3_BITS	2
 #define	FSR_FCC3_MASK	(((1UL << FSR_FCC3_BITS) - 1) << FSR_FCC3_SHIFT)
-#define	FSR_FCC3(x)	((u_long)(x) << FSR_FCC3_SHIFT)
-#define	FSR_GET_FCC3(x)	(((x) >> FSR_FCC3_SHIFT) & 3)
+#define	FSR_FCC3(x)	((unsigned long)(x) << FSR_FCC3_SHIFT)
+#define	FSR_GET_FCC3(x)	(((x) & FSR_FCC3_MASK) >> FSR_FCC3_SHIFT)
 
 /* CEXC/AEXC/TEM exception values */
 #define	FSR_NX		(1 << 0)
