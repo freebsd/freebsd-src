@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.58 1997/06/15 02:19:40 wollman Exp $
+ *	$Id: apm.c,v 1.59 1997/06/19 00:25:03 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -64,6 +64,9 @@ static struct apmhook	*hook[NAPM_HOOK];		/* XXX */
 
 /* Map version number to integer (keeps ordering of version numbers) */
 #define INTVERSION(major, minor)	((major)*100 + (minor))
+
+static struct callout_handle apm_timeout_ch = 
+    CALLOUT_HANDLE_INITIALIZER(&apm_timeout_ch);
 
 static timeout_t apm_timeout;
 static d_open_t apmopen;
@@ -501,7 +504,8 @@ apm_timeout(void *dummy)
 
 	apm_processevent();
 	if (sc->active == 1)
-		timeout(apm_timeout, NULL, hz - 1 );  /* More than 1 Hz */
+		/* Run slightly more oftan than 1 Hz */
+		apm_timeout_ch = timeout(apm_timeout, NULL, hz - 1 );
 }
 
 /* enable APM BIOS */
@@ -529,7 +533,7 @@ apm_event_disable(void)
 	printf("called apm_event_disable()\n");
 #endif
 	if (sc->initialized) {
-		untimeout(apm_timeout, NULL);
+		untimeout(apm_timeout, NULL, apm_timeout_ch);
 		sc->active = 0;
 	}
 }
