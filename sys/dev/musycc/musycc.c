@@ -268,7 +268,7 @@ static  ng_rcvdata_t musycc_rcvdata;
 static  ng_disconnect_t musycc_disconnect;
 
 static struct ng_type ngtypestruct = {
-	NG_ABI_VERSION,
+	NG_VERSION,
 	NG_NODETYPE,
 	NULL, 
 	musycc_constructor,
@@ -277,6 +277,7 @@ static struct ng_type ngtypestruct = {
 	musycc_newhook,
 	NULL,
 	musycc_connect,
+	musycc_rcvdata,
 	musycc_rcvdata,
 	musycc_disconnect,
 	NULL
@@ -696,7 +697,7 @@ musycc_intr0_rx_eom(struct softc *sc, int ch)
 					md->data = vtophys(m2->m_data);
 					/* Pass the received mbuf upwards. */
 					sch->last_recv = time_second;
-					NG_SEND_DATA_ONLY(error, sch->hook, m);
+					ng_queue_data(sch->hook, m, NULL);
 				} else {
 					/*
 				         * We didn't get a mbuf cluster,
@@ -874,7 +875,7 @@ musycc_intr1(void *arg)
  */
 
 static int
-musycc_constructor(node_p node)
+musycc_constructor(node_p *nodep)
 {
 
 	return (EINVAL);
@@ -895,7 +896,7 @@ musycc_config(node_p node, char *set, char *ret)
 	enum framing wframing;
 	int i;
 
-	sc = NG_NODE_PRIVATE(node);
+	sc = node->private;
 	csc = sc->csc;
 	if (csc->state == C_IDLE) 
 		init_card(csc);
@@ -971,60 +972,55 @@ barf:
  * Respond with a synchronous response.
  */
 static int
-musycc_rcvmsg(node_p node, item_p item, hook_p lasthook)
+musycc_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr, struct ng_mesg **resp)
 {
 	struct softc *sc;
-	struct ng_mesg *resp = NULL;
 	char *s, *r;
-	int error = 0;
-	struct ng_mesg *msg;
 
-	
-	NGI_GET_MSG(item, msg);
-	sc = NG_NODE_PRIVATE(node);
+	sc = node->private;
+
 	if (msg->header.typecookie != NGM_GENERIC_COOKIE)
 		goto out;
 
 	if (msg->header.cmd == NGM_TEXT_STATUS) {
-		NG_MKRESPONSE(resp, msg, 
+		NG_MKRESPONSE(*resp, msg, 
 		    sizeof(struct ng_mesg) + NG_TEXTRESPONSE, M_NOWAIT);
-		if (resp == NULL) {
-			error = ENOMEM;
-			goto out;
+		if (*resp == NULL) {
+			FREE(msg, M_NETGRAPH);
+			return (ENOMEM);
 		}
-		s = (char *)resp->data;
+		s = (char *)(*resp)->data;
 		status_8370(sc, s);
 		status_chans(sc,s);
-		resp->header.arglen = strlen(s) + 1;
-		NG_FREE_MSG(msg);
-		
-	} else if (msg->header.cmd == NGM_TEXT_CONFIG) {
+		(*resp)->header.arglen = strlen(s) + 1;
+		FREE(msg, M_NETGRAPH);
+		return (0);
+        } else if (msg->header.cmd == NGM_TEXT_CONFIG) {
 		if (msg->header.arglen) {
 			s = (char *)msg->data;
 		} else {
 			s = NULL;
 		}
 		
-		NG_MKRESPONSE(resp, msg, 
+		NG_MKRESPONSE(*resp, msg, 
 		    sizeof(struct ng_mesg) + NG_TEXTRESPONSE, M_NOWAIT);
-		if (resp == NULL) {
-			error = ENOMEM;
-			goto out;
+		if (*resp == NULL) {
+			FREE(msg, M_NETGRAPH);
+			return (ENOMEM);
 		}
-		r = (char *)resp->data;
+		r = (char *)(*resp)->data;
 		*r = '\0';
 		musycc_config(node, s, r);
-		resp->header.arglen = strlen(r) + 1;
-		NG_FREE_MSG(msg);
-	} else {
-		error = EINVAL;
-	}
+		(*resp)->header.arglen = strlen(r) + 1;
+		FREE(msg, M_NETGRAPH);
+		return (0);
+        }
 
 out:
-	/* Take care of synchronous response, if any */
-	NG_RESPOND_MSG(error, node, item, resp);
-	NG_FREE_MSG(msg);
-	return (error);
+	if (resp)
+		*resp = NULL;
+	FREE(msg, M_NETGRAPH);
+	return (EINVAL);
 }
 
 static int
@@ -1036,7 +1032,7 @@ musycc_newhook(node_p node, hook_p hook, const char *name)
 	u_int32_t ts, chan;
 	int nbit;
 
-	sc = NG_NODE_PRIVATE(node);
+	sc = node->private;
 	csc = sc->csc;
 
 	while (csc->state != C_RUNNING)
@@ -1074,12 +1070,12 @@ musycc_newhook(node_p node, hook_p hook, const char *name)
 	sch->ts = ts;
 	sch->hook = hook;
 	sch->tx_limit = nbit * 8;
-	NG_HOOK_SET_PRIVATE(hook, sch);
+	hook->private = sch;
 	return(0);
 }
 
 static int
-musycc_rcvdata(hook_p hook, item_p item)
+musycc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 {
 
 	struct softc *sc;
@@ -1088,34 +1084,31 @@ musycc_rcvdata(hook_p hook, item_p item)
 	struct mdesc *md;
 	u_int32_t ch, u, len;
 	struct mbuf *m2;
-	struct mbuf *m;
 
-	sch = NG_HOOK_PRIVATE(hook);
+	sch = hook->private;
 	sc = sch->sc;
 	csc = sc->csc;
 	ch = sch->chan;
 
 	if (csc->state != C_RUNNING) {
 		printf("csc->state = %d\n", csc->state);
-		NG_FREE_ITEM(item);
+		NG_FREE_DATA(m, meta);
 		return (0);
 	}
 
+	NG_FREE_META(meta);
+	meta = NULL;
 
 	if (sch->state != UP) {
 		printf("sch->state = %d\n", sch->state);
-		NG_FREE_ITEM(item);
+		NG_FREE_DATA(m, meta);
 		return (0);
 	} 
-	NGI_GET_M(item, m);
-	NG_FREE_ITEM(item);
 	if (sch->tx_pending + m->m_pkthdr.len > sch->tx_limit * maxlatency) {
-		printf("pend %ld len %d lim %ld\n", sch->tx_pending,
-				m->m_pkthdr.len, sch->tx_limit * maxlatency);
-		NG_FREE_M(m);
+		printf("pend %ld len %d lim %ld\n", sch->tx_pending, m->m_pkthdr.len, sch->tx_limit * maxlatency);
+		NG_FREE_DATA(m, meta);
 		return (0);
 	}
-
 
 	m2 = m;
 	len = m->m_pkthdr.len;
@@ -1159,7 +1152,7 @@ musycc_connect(hook_p hook)
 	int nts, nbuf, i, nmd, ch;
 	struct mbuf *m;
 
-	sch = NG_HOOK_PRIVATE(hook);
+	sch = hook->private;
 	sc = sch->sc;
 	csc = sc->csc;
 	ch = sch->chan;
@@ -1246,10 +1239,10 @@ musycc_connect(hook_p hook)
 		sc->mdt[ch][i].m = NULL;
 		sc->mdt[ch][i].data = 0;
 
-		MGETHDR(m, M_TRYWAIT, MT_DATA);
+		MGETHDR(m, M_WAIT, MT_DATA);
 		if (m == NULL)
 			goto errfree;
-		MCLGET(m, M_TRYWAIT);
+		MCLGET(m, M_WAIT);
 		if ((m->m_flags & M_EXT) == 0) {
 			/* We've waited mbuf_wait and still got nothing.
 			   We're calling with M_TRYWAIT anyway - a little
@@ -1274,7 +1267,6 @@ musycc_connect(hook_p hook)
 	tsleep(&sc->last, PZERO + PCATCH, "con4", hz);
 	sc->reg->srd = sc->last = 0x0820 + ch;
 	tsleep(&sc->last, PZERO + PCATCH, "con3", hz);
-	NG_HOOK_FORCE_QUEUE(NG_HOOK_PEER(hook));
 
 	return (0);
 
@@ -1286,7 +1278,7 @@ errfree:
 	}
 	FREE(sc->mdt[ch], M_MUSYCC);
 	FREE(sc->mdr[ch], M_MUSYCC);
-	return (ENOBUFS); 
+	return (ENOBUFS);
 }
 
 static int
@@ -1297,7 +1289,7 @@ musycc_disconnect(hook_p hook)
 	struct schan *sch;
 	int i, ch;
 
-	sch = NG_HOOK_PRIVATE(hook);
+	sch = hook->private;
 	sc = sch->sc;
 	csc = sc->csc;
 	ch = sch->chan;
@@ -1495,7 +1487,7 @@ musycc_attach(device_t self)
 			printf("ng_make_node_common() failed %d\n", error);
 			continue;
 		}	
-		NG_NODE_SET_PRIVATE(sc->node, sc);
+		sc->node->private = sc;
 		sprintf(sc->nodename, "sync-%d-%d-%d",
 			csc->bus,
 			csc->slot,
