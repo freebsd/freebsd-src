@@ -76,7 +76,7 @@ int
 main(int argc, char **argv)
 {
 	long arg_max;
-	int ch, cnt, count, Iflag, indouble, insingle, Jflag, jfound, lflag;
+	int ch, cnt, count, Iflag, indouble, insingle, Jflag, jfound, Lflag;
 	int nargs, nflag, nline, Rflag, wasquoted, foundeof, xflag;
 	size_t linelen;
 	const char *eofstr;
@@ -86,7 +86,7 @@ main(int argc, char **argv)
 	ep = environ;
 	inpline = replstr = NULL;
 	eofstr = "";
-	cnt = count = Iflag = Jflag = jfound = lflag = nflag = Rflag = xflag =
+	cnt = count = Iflag = Jflag = jfound = Lflag = nflag = Rflag = xflag =
 	    wasquoted = 0;
 
 	/*
@@ -117,7 +117,7 @@ main(int argc, char **argv)
 			break;
 		case 'I':
 			Iflag = 1;
-			lflag = 1;
+			Lflag = 1;
 			Rflag = 5;
 			replstr = optarg;
 			break;
@@ -126,7 +126,7 @@ main(int argc, char **argv)
 			replstr = optarg;
 			break;
 		case 'L':
-			lflag = atoi(optarg);
+			Lflag = atoi(optarg);
 			break;
 		case 'n':
 			nflag = 1;
@@ -163,7 +163,7 @@ main(int argc, char **argv)
 
 	if (xflag && !nflag)
 		usage();
-	if (Iflag || lflag)
+	if (Iflag || Lflag)
 		xflag = 1;
 	if (replstr != NULL && *replstr == '\0')
 		errx(1, "replstr may not be empty");
@@ -282,7 +282,7 @@ arg2:
 			 * run the command.  If xflag and max'd out on buffer
 			 * but not on args, object.
 			 */
-			if (xp == exp || p > ebp || ch == EOF || (lflag <= count && xflag) || foundeof) {
+			if (xp == exp || p > ebp || ch == EOF || (Lflag <= count && xflag) || foundeof) {
 				if (xflag && xp != exp && p > ebp)
 					errx(1, "insufficient space for arguments");
 				if (jfound) {
