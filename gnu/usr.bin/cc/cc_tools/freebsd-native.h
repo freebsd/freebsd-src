@@ -23,17 +23,13 @@
 
    ``cc --print-search-dirs'' gives:
    install: STANDARD_EXEC_PREFIX/(null)
-   programs: /usr/libexec/<OBJFORMAT>/:MD_EXEC_PREFIX
+   programs: /usr/libexec/<OBJFORMAT>/:STANDARD_EXEC_PREFIX:MD_EXEC_PREFIX
    libraries: MD_EXEC_PREFIX:MD_STARTFILE_PREFIX:STANDARD_STARTFILE_PREFIX
-
-   We really don't need a "STANDARD_EXEC_PREFIX".  However w/o it,
-   "--print-search-dirs" reports "install: /usr/local/lib/gcc-lib/(null)".
-   It is not harmful, but is just plain wrong.  So we define a
-   "STANDARD_EXEC_PREFIX" to not be misleading.  */
+*/
 
 #undef  TOOLDIR_BASE_PREFIX		/* Old??  This is not documented. */
 #define STANDARD_EXEC_PREFIX		PREFIX"/libexec/"
-#define MD_EXEC_PREFIX			PREFIX"/libexec/"
+#define MD_EXEC_PREFIX			/* We don't want one. */
 
 /* Under FreeBSD, the normal location of the various *crt*.o files is the
    /usr/lib directory.  */
