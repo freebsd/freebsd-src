@@ -266,15 +266,16 @@ pipespace(cpipe, size)
 	error = vm_map_find(kernel_map, object, 0,
 		(vm_offset_t *) &buffer, size, 1,
 		VM_PROT_ALL, VM_PROT_ALL, 0);
-	mtx_unlock(&vm_mtx);
 
 	if (error != KERN_SUCCESS) {
 		vm_object_deallocate(object);
+		mtx_unlock(&vm_mtx);
 		return (ENOMEM);
 	}
 
 	/* free old resources if we're resizing */
 	pipe_free_kmem(cpipe);
+	mtx_unlock(&vm_mtx);
 	cpipe->pipe_buffer.object = object;
 	cpipe->pipe_buffer.buffer = buffer;
 	cpipe->pipe_buffer.size = size;
@@ -1151,6 +1152,7 @@ pipe_free_kmem(cpipe)
 	struct pipe *cpipe;
 {
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	if (cpipe->pipe_buffer.buffer != NULL) {
 		if (cpipe->pipe_buffer.size > PIPE_SIZE)
 			--nbigpipe;
@@ -1212,6 +1214,9 @@ pipeclose(cpipe)
 		 */
 		mtx_lock(&vm_mtx);
 		pipe_free_kmem(cpipe);
+		/* XXX: erm, doesn't zalloc already have its own locks and
+		 * not need the giant vm lock?
+		 */
 		zfree(pipe_zone, cpipe);
 		mtx_unlock(&vm_mtx);
 	}
