@@ -43,30 +43,33 @@
 .Sh DESCRIPTION
 The
 .Fn VFS_VGET
-macro converts an inode number into a locked vnode.
+looks up or creates a vnode from a (mount, inode#) tupple.
 .Pp
 Its arguments are:
 .Bl -tag -width ".Fa flags"
 .It Fa mp
-The file system.
+The mountpoint.
 .It Fa ino
 The inode representing the file.
+This is a unique number assigned by the filesystem when vnodes are first
+created.
 .It Fa flags
-Additional locking flags to pass through.
+Additional locking flags to pass through to
+.Xr vget 9
 .It Fa vpp
 Return parameter for the vnode.
 .El
 .Pp
-This is an optional file system entry-point for file systems which have a
-unique id number for every file in the file system.
-It is used
-internally by the UFS file system and also by the NFSv3 server to
-implement the
-.Dv READDIRPLUS
-nfs call.
+This is an optional file system entry-point for file systems mainly
+intended for NFS server use, but many filesystems
+use it internally in
+.Xr VOP_LOOKUP 9
+and similar.
 .Pp
 If the file system does not support this call, then it should return
 .Er EOPNOTSUPP .
+.Pp
+Please see sys/ufs/ffs/ffs_vfsops.c::ffs_vget() for the canonical example.
 .Sh SEE ALSO
 .Xr VFS 9 ,
 .Xr vget 9 ,
