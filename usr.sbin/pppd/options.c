@@ -25,7 +25,9 @@ static char rcsid[] = "$Id: options.c,v 1.10 1994/05/27 00:43:34 paulus Exp $";
 #include <errno.h>
 #include <unistd.h>
 #include <limits.h>
+#define devname STDLIB_devname
 #include <stdlib.h>
+#undef devname
 #include <termios.h>
 #include <syslog.h>
 #include <string.h>
@@ -53,7 +55,7 @@ char *strdup __ARGS((char *));
 #endif
 
 #ifndef GIDSET_TYPE
-#define GIDSET_TYPE	int
+#define GIDSET_TYPE	gid_t
 #endif
 
 /*
