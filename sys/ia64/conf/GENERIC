@@ -70,7 +70,6 @@ device		pci
 
 # IA64 uses acpica
 device 		acpica
-options 	ACPI_DEBUG
 
 # Floppy drives
 device		fdc
