@@ -30,7 +30,7 @@ ends which have implemented versions of these routines are
 a.out (in @code{aoutx.h}) and ECOFF (in @code{ecoff.c}).  The a.out
 routines are used as examples throughout this section.
 
-@menu   
+@menu
 * Creating a Linker Hash Table::
 * Adding Symbols to the Hash Table::
 * Performing the Final Link::

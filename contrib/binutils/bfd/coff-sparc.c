@@ -1,5 +1,5 @@
 /* BFD back-end for Sparc COFF files.
-   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 98, 1999
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1999, 2000
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -36,8 +36,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 enum reloc_type
   {
     R_SPARC_NONE = 0,
-    R_SPARC_8,		R_SPARC_16,		R_SPARC_32, 
-    R_SPARC_DISP8,	R_SPARC_DISP16,		R_SPARC_DISP32, 
+    R_SPARC_8,		R_SPARC_16,		R_SPARC_32,
+    R_SPARC_DISP8,	R_SPARC_DISP16,		R_SPARC_DISP32,
     R_SPARC_WDISP30,	R_SPARC_WDISP22,
     R_SPARC_HI22,	R_SPARC_22,
     R_SPARC_13,		R_SPARC_LO10,
@@ -96,7 +96,7 @@ bfd_coff_generic_reloc (abfd, reloc_entry, symbol, data, input_section,
   return bfd_reloc_continue;
 }
 
-static reloc_howto_type coff_sparc_howto_table[] = 
+static reloc_howto_type coff_sparc_howto_table[] =
 {
   HOWTO(R_SPARC_NONE,    0,0, 0,false,0,complain_overflow_dont,    bfd_coff_generic_reloc,"R_SPARC_NONE",    false,0,0x00000000,true),
   HOWTO(R_SPARC_8,       0,0, 8,false,0,complain_overflow_bitfield,bfd_coff_generic_reloc,"R_SPARC_8",       false,0,0x000000ff,true),
@@ -197,7 +197,7 @@ rtype2howto (cache_ptr, dst)
 
 #define __A_MAGIC_SET__
 
-/* Enable Sparc-specific hacks in coffcode.h. */
+/* Enable Sparc-specific hacks in coffcode.h.  */
 
 #define COFF_SPARC
 

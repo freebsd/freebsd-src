@@ -1,4 +1,22 @@
 /* Interface between the opcode library and its callers.
+
+   Copyright 2001 Free Software Foundation, Inc.
+   
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2, or (at your option)
+   any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.
+   
    Written by Cygnus Support, 1993.
 
    The opcode library (libopcodes.a) provides instruction decoders for
@@ -55,6 +73,11 @@ typedef struct disassemble_info {
   unsigned long mach;
   /* Endianness (for bi-endian cpus).  Mono-endian cpus can ignore this.  */
   enum bfd_endian endian;
+
+  /* Some targets need information about the current section to accurately
+     display insns.  If this is NULL, the target disassembler function
+     will have to make its best guess.  */
+  asection *section;
 
   /* An array of pointers to symbols either at the location being disassembled
      or at the start of the function being disassembled.  The array is sorted
@@ -157,7 +180,10 @@ extern int print_insn_big_mips		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_little_mips	PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_i386_att		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_i386_intel	PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_ia64		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_i370		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_m68hc11		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_m68hc12		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_m68k		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_z8001		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_z8002		PARAMS ((bfd_vma, disassemble_info*));
@@ -166,12 +192,13 @@ extern int print_insn_h8300h		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_h8300s		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_h8500		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_alpha		PARAMS ((bfd_vma, disassemble_info*));
-extern disassembler_ftype arc_get_disassembler PARAMS ((int, int));
+extern disassembler_ftype arc_get_disassembler PARAMS ((void *));
 extern int print_insn_big_arm		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_little_arm	PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_sparc		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_big_a29k		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_little_a29k	PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_i860		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_i960		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_sh		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_shl		PARAMS ((bfd_vma, disassemble_info*));
@@ -187,11 +214,13 @@ extern int print_insn_big_powerpc	PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_little_powerpc	PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_rs6000		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_w65		PARAMS ((bfd_vma, disassemble_info*));
+extern disassembler_ftype cris_get_disassembler PARAMS ((bfd *));
 extern int print_insn_d10v		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_d30v		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_v850		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_tic30		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_vax		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_tic54x		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_tic80		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_pj		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_avr		PARAMS ((bfd_vma, disassemble_info*));
@@ -245,13 +274,15 @@ extern int generic_symbol_at_address
 /* Call this macro to initialize only the internal variables for the
    disassembler.  Architecture dependent things such as byte order, or machine
    variant are not touched by this macro.  This makes things much easier for
-   GDB which must initialize these things seperatly.  */
+   GDB which must initialize these things separately.  */
 
 #define INIT_DISASSEMBLE_INFO_NO_ARCH(INFO, STREAM, FPRINTF_FUNC) \
   (INFO).fprintf_func = (fprintf_ftype)(FPRINTF_FUNC), \
   (INFO).stream = (PTR)(STREAM), \
+  (INFO).section = NULL, \
   (INFO).symbols = NULL, \
   (INFO).num_symbols = 0, \
+  (INFO).private_data = NULL, \
   (INFO).buffer = NULL, \
   (INFO).buffer_vma = 0, \
   (INFO).buffer_length = 0, \

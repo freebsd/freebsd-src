@@ -46,10 +46,16 @@ COMPILE = $(CC) -c $(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS) $(XCFLAGS)
 SOURCES = cat-id-tbl.c
 POFILES = @POFILES@
 GMOFILES = @GMOFILES@
-DISTFILES = ChangeLog Makefile.in.in POTFILES.in $(PACKAGE).pot \
+DISTFILES = ChangeLog Makefile.in.in SRC-POTFILES.in BLD-POTFILES.in $(PACKAGE).pot \
 stamp-cat-id $(POFILES) $(GMOFILES) $(SOURCES)
 
-POTFILES = \
+# Note - the following line gets processed by bfd/configure and amended
+# to contain the full list of source dir POTFILES.
+SRC-POTFILES = \
+
+# Note - the following line gets processed by bfd/configure and amended
+# to contain the full list of build dir POTFILES.
+BLD-POTFILES = \
 
 CATALOGS = @CATALOGS@
 CATOBJEXT = @CATOBJEXT@
@@ -82,10 +88,17 @@ all: all-@USE_NLS@
 all-yes: $(CATALOGS) @MAINT@ $(PACKAGE).pot
 all-no:
 
-$(srcdir)/$(PACKAGE).pot: $(POTFILES)
-	$(XGETTEXT) --default-domain=$(PACKAGE) --directory=$(top_srcdir) \
+$(srcdir)/$(PACKAGE).pot: $(SRC-POTFILES) $(BLD-POTFILES)
+	$(XGETTEXT) --default-domain=$(PACKAGE) \
+	  --directory=$(top_srcdir) \
 	  --add-comments --keyword=_ --keyword=N_ \
-	  --files-from=$(srcdir)/POTFILES.in
+	  --files-from=$(srcdir)/SRC-POTFILES.in 
+	$(XGETTEXT) --default-domain=$(PACKAGE) \
+	  --directory=.. \
+	  --directory=. \
+	  --add-comments --keyword=_ --keyword=N_ \
+	  --join-existing \
+	  --files-from=$(srcdir)/BLD-POTFILES.in
 	rm -f $(srcdir)/$(PACKAGE).pot
 	mv $(PACKAGE).po $(srcdir)/$(PACKAGE).pot
 
@@ -191,7 +204,8 @@ mostlyclean:
 clean: mostlyclean
 
 distclean: clean
-	rm -f Makefile Makefile.in POTFILES *.mo *.msg *.cat *.cat.m
+	rm -f Makefile Makefile.in *.mo *.msg *.cat *.cat.m
+	rm -f SRC-POTFILES BLD-POTFILES SRC-POTFILES.in	BLD-POTFILES.in
 
 maintainer-clean: distclean
 	@echo "This command is intended for maintainers to use;"
@@ -225,23 +239,48 @@ update-po: Makefile
 	  fi; \
 	done
 
-POTFILES: POTFILES.in
+SRC-POTFILES: SRC-POTFILES.in
 	( if test 'x$(srcdir)' != 'x.'; then \
 	    posrcprefix='$(top_srcdir)/'; \
 	  else \
 	    posrcprefix="../"; \
 	  fi; \
 	  rm -f $@-t $@ \
-	    && (sed -e '/^#/d' -e '/^[ 	]*$$/d' \
+	    && (sed -e '/^#/d' \
+	            -e '/^[ 	]*$$/d' \
 		    -e "s@.*@	$$posrcprefix& \\\\@" < $(srcdir)/$@.in \
 		| sed -e '$$s/\\$$//') > $@-t \
 	    && chmod a-w $@-t \
 	    && mv $@-t $@ )
 
-POTFILES.in: @MAINT@ ../Makefile
-	cd .. && $(MAKE) po/POTFILES.in
+BLD-POTFILES: BLD-POTFILES.in
+	  ( rm -f $@-t $@ \
+	    && (sed -e '/^#/d' \
+	            -e '/^[ 	]*$$/d' \
+		    -e "s@.*@	../& \\\\@" < $(srcdir)/$@.in \
+		| sed -e '$$s/\\$$//') > $@-t \
+	    && chmod a-w $@-t \
+	    && mv $@-t $@ )
 
-Makefile: Make-in ../config.status POTFILES
+SRC-POTFILES.in: @MAINT@ ../Makefile
+	cd .. && $(MAKE) po/SRC-POTFILES.in
+
+BLD-POTFILES.in: @MAINT@ ../Makefile
+	cd .. && $(MAKE) po/BLD-POTFILES.in
+
+# Note - The presence of SRC-POTFILES and BLD-POTFILES as dependencies
+# here breaks the implementation of the 'distclean' rule for maintainers.
+# This is because if 'make distclean' is run in the BFD directory, the
+# Makefile there will be deleted before 'distclean' is made here, and so
+# the dependency SRC-POTFILES -> SRC-POTFILES.in -> ../Makefile cannot
+# be satisfied.
+#
+# The SRC-POTFILES and BLD-POTFILES dependencies cannot be removed,
+# however since it is necessary that these files be built during
+# *configure* time, so that configure can insert them into the
+# po/Makefile that it is creating, so that the Makefile will have
+# the correct dependencies.
+Makefile: Make-in ../config.status SRC-POTFILES BLD-POTFILES
 	cd .. \
 	  && CONFIG_FILES=$(subdir)/Makefile.in:$(subdir)/Make-in \
 	     CONFIG_HEADERS= $(SHELL) ./config.status

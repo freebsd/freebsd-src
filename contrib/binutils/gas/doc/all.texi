@@ -1,4 +1,5 @@
-@c Copyright 1992, 1993, 2000 Free Software Foundation, Inc.
+@c Copyright 1992, 1993, 1994, 1996, 1997, 1999, 2000, 2001
+@c Free Software Foundation, Inc.
 @c This file is part of the documentation for the GAS manual
 
 @c Configuration settings for all-inclusive version of manual
@@ -35,14 +36,17 @@
 @set HPPA
 @set I370
 @set I80386
+@set I860
 @set I960
 @set M32R
+@set M68HC11
 @set M680X0
 @set MCORE
 @set MIPS
 @set PJ
 @set SH
 @set SPARC
+@set C54X
 @set V850
 @set VAX
 @set VXWORKS

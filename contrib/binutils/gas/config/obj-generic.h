@@ -1,5 +1,6 @@
 /* This file is obj-generic.h
-   Copyright (C) 1987-1992 Free Software Foundation, Inc.
+   Copyright 1987, 1988, 1989, 1990, 1991, 1992, 1993, 2000
+   Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -14,18 +15,19 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with GAS; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   along with GAS; see the file COPYING.  If not, write to the Free
+   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.  */
 
 /*
  * This file is obj-generic.h and is intended to be a template for
  * object format specific header files.
  */
 
-/* define an obj specific macro off which target cpu back ends may key. */
+/* define an obj specific macro off which target cpu back ends may key.  */
 #define OBJ_GENERIC 1
 
-/* include whatever target cpu is appropriate. */
+/* include whatever target cpu is appropriate.  */
 #include "targ-cpu.h"
 
 /*
@@ -65,10 +67,9 @@ typedef void *object_headers;
 /* symbols may or may not be defined */
 #define S_IS_DEFINED(s)		(0)
 
-
 #define DEFAULT_MAGIC_NUMBER_FOR_OBJECT_FILE (0)	/* your magic number */
 
-#define OBJ_EMIT_LINENO(a,b,c)	/* must be *something*.  This no-op's it out. */
+#define OBJ_EMIT_LINENO(a,b,c)	/* must be *something*.  This no-op's it out.  */
 
 /*
  * Local Variables:
@@ -76,5 +77,3 @@ typedef void *object_headers;
  * fill-column: 131
  * End:
  */
-
-/* end of obj-generic.h */

@@ -1,5 +1,6 @@
 /* tc-sparc.h - Macros and type defines for the sparc.
-   Copyright (C) 1989, 90-96, 97, 98, 1999 Free Software Foundation, Inc.
+   Copyright 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
+   1999, 2000 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -50,30 +51,23 @@ extern const char *sparc_target_format PARAMS ((void));
 
 #define WORKING_DOT_WORD
 
-#define md_convert_frag(b,s,f)		{as_fatal (_("sparc convert_frag\n"));}
+#define md_convert_frag(b,s,f) \
+  as_fatal (_("sparc convert_frag\n"))
 #define md_estimate_size_before_relax(f,s) \
-			(as_fatal(_("estimate_size_before_relax called")),1)
+  (as_fatal(_("estimate_size_before_relax called")), 1)
 
 #define LISTING_HEADER "SPARC GAS "
 
 extern int sparc_pic_code;
 
-#define md_do_align(n, fill, len, max, around)				\
-if ((n) && (n) <= 10 && !need_pass_2 && !(fill)				\
-    && subseg_text_p (now_seg))						\
-  {									\
-    char *p;								\
-    p = frag_var (rs_align_code, 1 << n, 1, (relax_substateT) 1024,	\
-                  (symbolS *) 0, (offsetT) (n), (char *) 0);		\
-    *p = 0x00;								\
-    goto around;							\
-  }
-
 /* We require .word, et. al., to be aligned correctly.  */
 #define md_cons_align(nbytes) sparc_cons_align (nbytes)
 extern void sparc_cons_align PARAMS ((int));
+
 #define HANDLE_ALIGN(fragp) sparc_handle_align (fragp)
 extern void sparc_handle_align PARAMS ((struct frag *));
+
+#define MAX_MEM_FOR_RS_ALIGN_CODE  (3 + 4 + 4)
 
 #if defined (OBJ_ELF) || defined (OBJ_AOUT)
 
@@ -186,14 +180,16 @@ extern void cons_fix_new_sparc
      {						\
        (X)->tc_fix_data = 0;			\
      }						\
-  while(0)
+  while (0)
 
 #define TC_FIX_DATA_PRINT(FILE, FIXP)					\
   do									\
     {									\
-      fprintf((FILE), "addend2=%ld\n",   				\
+      fprintf ((FILE), "addend2=%ld\n",   				\
 	      (unsigned long) (FIXP)->tc_fix_data);			\
     }									\
-  while(0)
+  while (0)
+
+#define DWARF2_LINE_MIN_INSN_LENGTH 4
 
 /* end of tc-sparc.h */

@@ -1,5 +1,6 @@
 /* sysdep.h -- handle host dependencies for the BFD library
-   Copyright 1995, 96, 97, 98, 99, 2000 Free Software Foundation, Inc.
+   Copyright 1995, 1996, 1997, 1998, 1999, 2000
+   Free Software Foundation, Inc.
    Written by Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -126,6 +127,18 @@ extern char *getenv ();
 
 #ifdef ENABLE_NLS
 #include <libintl.h>
+/* Note the use of dgetext() and PACKAGE here, rather than gettext().
+
+   This is because the code in this directory is used to build a library which
+   will be linked with code in other directories to form programs.  We want to
+   maintain a seperate translation file for this directory however, rather
+   than being forced to merge it with that of any program linked to libbfd.
+   This is a library, so it cannot depend on the catalog currently loaded.
+
+   In order to do this, we have to make sure that when we extract messages we
+   use the OPCODES domain rather than the domain of the program that included
+   the bfd library, (eg OBJDUMP).  Hence we use dgettext (PACKAGE, String)
+   and define PACKAGE to be 'bfd'.  (See the code in configure).  */
 #define _(String) dgettext (PACKAGE, String)
 #ifdef gettext_noop
 #define N_(String) gettext_noop (String)

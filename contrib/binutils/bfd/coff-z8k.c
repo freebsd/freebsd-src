@@ -1,5 +1,6 @@
 /* BFD back-end for Zilog Z800n COFF binaries.
-   Copyright 1992, 93, 94, 95, 1997 Free Software Foundation, Inc.
+   Copyright 1992, 1993, 1994, 1995, 1997, 1999, 2000, 2001
+   Free Software Foundation, Inc.
    Contributed by Cygnus Support.
    Written by Steve Chamberlain, <sac@cygnus.com>.
 
@@ -54,7 +55,7 @@ HOWTO (R_JR, 0, 1, 8, true, 0, complain_overflow_signed, 0,
 
 /* Turn a howto into a reloc number */
 
-static int 
+static int
 coff_z8k_select_reloc (howto)
      reloc_howto_type *howto;
 {
@@ -63,12 +64,9 @@ coff_z8k_select_reloc (howto)
 
 #define SELECT_RELOC(x,howto) x.r_type = coff_z8k_select_reloc(howto)
 
-
 #define BADMAG(x) Z8KBADMAG(x)
 #define Z8K 1			/* Customize coffcode.h */
 #define __A_MAGIC_SET__
-
-
 
 /* Code to swap in the reloc */
 #define SWAP_IN_RELOC_OFFSET   bfd_h_get_32
@@ -110,18 +108,15 @@ rtype2howto (internal, dst)
 
 #define RTYPE2HOWTO(internal, relocentry) rtype2howto(internal,relocentry)
 
-
 /* Perform any necessary magic to the addend in a reloc entry */
-
 
 #define CALC_ADDEND(abfd, symbol, ext_reloc, cache_ptr) \
  cache_ptr->addend =  ext_reloc.r_offset;
 
-
 #define RELOC_PROCESSING(relent,reloc,symbols,abfd,section) \
  reloc_processing(relent, reloc, symbols, abfd, section)
 
-static void 
+static void
 reloc_processing (relent, reloc, symbols, abfd, section)
      arelent * relent;
      struct internal_reloc *reloc;
@@ -140,7 +135,6 @@ reloc_processing (relent, reloc, symbols, abfd, section)
     {
       relent->sym_ptr_ptr = bfd_abs_section_ptr->symbol_ptr_ptr;
     }
-
 
   relent->addend = reloc->r_offset;
   relent->address -= section->vma;
@@ -178,7 +172,7 @@ extra_case (in_abfd, link_info, link_order, reloc, data, src_ptr, dst_ptr)
 
     case R_IMM4L:
       bfd_put_8 (in_abfd,
-		 ((bfd_get_8 (in_abfd, data + *dst_ptr) & 0xf0) 
+		 ((bfd_get_8 (in_abfd, data + *dst_ptr) & 0xf0)
 		  | (0x0f
 		     & bfd_coff_reloc16_get_value (reloc, link_info,
 						   input_section))),
@@ -229,7 +223,6 @@ extra_case (in_abfd, link_info, link_order, reloc, data, src_ptr, dst_ptr)
 #define coff_reloc16_extra_cases extra_case
 
 #include "coffcode.h"
-
 
 #undef  coff_bfd_get_relocated_section_contents
 #undef coff_bfd_relax_section

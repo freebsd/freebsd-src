@@ -1,5 +1,5 @@
 /* BFD library -- caching of file descriptors.
-   Copyright 1990, 91, 92, 93, 94, 95, 1996, 2000
+   Copyright 1990, 1991, 1992, 1993, 1994, 1996, 2000, 2001
    Free Software Foundation, Inc.
    Hacked by Steve Chamberlain of Cygnus Support (steve@cygnus.com).
 
@@ -32,7 +32,7 @@ SECTION
 	<<bfd_cache_lookup>>, which runs around and makes sure that
 	the required BFD is open. If not, then it chooses a file to
 	close, closes it and opens the one wanted, returning its file
-	handle. 
+	handle.
 
 */
 
@@ -79,19 +79,18 @@ bfd *bfd_last_cache;
 /*
   INTERNAL_FUNCTION
   	bfd_cache_lookup
- 
+
   DESCRIPTION
  	Check to see if the required BFD is the same as the last one
  	looked up. If so, then it can use the stream in the BFD with
  	impunity, since it can't have changed since the last lookup;
  	otherwise, it has to perform the complicated lookup function.
- 
+
   .#define bfd_cache_lookup(x) \
   .    ((x)==bfd_last_cache? \
-  .      (FILE*)(bfd_last_cache->iostream): \
+  .      (FILE*) (bfd_last_cache->iostream): \
   .       bfd_cache_lookup_worker(x))
- 
- 
+
  */
 
 /* Insert a BFD into the cache.  */
@@ -262,7 +261,7 @@ FILE *
 bfd_open_file (abfd)
      bfd *abfd;
 {
-  abfd->cacheable = true;	/* Allow it to be closed later. */
+  abfd->cacheable = true;	/* Allow it to be closed later.  */
 
   if (open_files >= BFD_CACHE_MAX_OPEN)
     {
@@ -312,7 +311,7 @@ bfd_open_file (abfd)
 	  if (stat (abfd->filename, &s) == 0 && s.st_size != 0)
 	    unlink (abfd->filename);
 #endif
-	  abfd->iostream = (PTR) fopen (abfd->filename, FOPEN_WB);
+	  abfd->iostream = (PTR) fopen (abfd->filename, FOPEN_WUB);
 	  abfd->opened_once = true;
 	}
       break;
@@ -339,7 +338,7 @@ DESCRIPTION
 	quick answer.  Find a file descriptor for @var{abfd}.  If
 	necessary, it open it.  If there are already more than
 	<<BFD_CACHE_MAX_OPEN>> files open, it tries to close one first, to
-	avoid running out of file descriptors.  
+	avoid running out of file descriptors.
 */
 
 FILE *
@@ -349,7 +348,7 @@ bfd_cache_lookup_worker (abfd)
   if ((abfd->flags & BFD_IN_MEMORY) != 0)
     abort ();
 
-  if (abfd->my_archive) 
+  if (abfd->my_archive)
     abfd = abfd->my_archive;
 
   if (abfd->iostream != NULL)

@@ -376,8 +376,8 @@ class of @var{symbol}, or '?' for an unknown class.
 @example
 int bfd_decode_symclass(asymbol *symbol);
 @end example
-@findex bfd_is_undefined_symclass 
-@subsubsection @code{bfd_is_undefined_symclass }
+@findex bfd_is_undefined_symclass
+@subsubsection @code{bfd_is_undefined_symclass}
 @strong{Description}@*
 Returns non-zero if the class symbol returned by
 bfd_decode_symclass represents an undefined symbol.

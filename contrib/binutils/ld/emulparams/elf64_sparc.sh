@@ -2,14 +2,23 @@ SCRIPT_NAME=elf
 ELFSIZE=64
 TEMPLATE_NAME=elf32
 OUTPUT_FORMAT="elf64-sparc"
-TEXT_START_ADDR=0x100000
 MAXPAGESIZE=0x100000
-NONPAGED_TEXT_START_ADDR=0x100000
 ARCH="sparc:v9"
 MACHINE=
 DATA_PLT=
 GENERATE_SHLIB_SCRIPT=yes
 NOP=0x01000000
+
+case "$target" in
+  sparc*-solaris*)
+    TEXT_START_ADDR=0x100000000
+    NONPAGED_TEXT_START_ADDR=0x100000000
+    ;;
+  *)
+    TEXT_START_ADDR=0x100000
+    NONPAGED_TEXT_START_ADDR=0x100000
+    ;;
+esac
 
 if [ "x${host}" = "x${target}" ]; then
   case " $EMULATION_LIBPATH " in
@@ -31,7 +40,7 @@ if [ "x${host}" = "x${target}" ]; then
 	LIB_PATH=/lib${suffix}:/lib
 	LIB_PATH=${LIB_PATH}:/usr/lib${suffix}:/usr/lib
 	if [ -n "${NATIVE_LIB_DIRS}" ]; then
-	  LIB_PATH=${LIB_PATH}:`echo ${NATIVE_LIB_DIRS} | sed s/:/${suffix}:/g`${suffix}:${NATIVE_LIB_DIRS}
+	  LIB_PATH=${LIB_PATH}:`echo ${NATIVE_LIB_DIRS} | sed s_:_${suffix}:_g`${suffix}:${NATIVE_LIB_DIRS}
 	fi
 	if [ "${libdir}" != /usr/lib ]; then
 	  LIB_PATH=${LIB_PATH}:${libdir}${suffix}:${libdir}

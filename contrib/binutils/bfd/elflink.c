@@ -1,5 +1,6 @@
 /* ELF linking support for BFD.
-   Copyright 1995, 96, 97, 98, 99, 2000 Free Software Foundation, Inc.
+   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -41,9 +42,17 @@ _bfd_elf_create_got_section (abfd, info)
 
   switch (bed->s->arch_size)
     {
-    case 32: ptralign = 2; break;
-    case 64: ptralign = 3; break;
-    default: abort();
+    case 32:
+      ptralign = 2;
+      break;
+
+    case 64:
+      ptralign = 3;
+      break;
+
+    default:
+      bfd_set_error (bfd_error_bad_value);
+      return false;
     }
 
   flags = (SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS | SEC_IN_MEMORY
@@ -89,7 +98,6 @@ _bfd_elf_create_got_section (abfd, info)
   return true;
 }
 
-
 /* Create dynamic sections when linking against a dynamic object.  */
 
 boolean
@@ -100,13 +108,21 @@ _bfd_elf_create_dynamic_sections (abfd, info)
   flagword flags, pltflags;
   register asection *s;
   struct elf_backend_data *bed = get_elf_backend_data (abfd);
-  int ptralign = 0;
+  int ptralign;
 
   switch (bed->s->arch_size)
     {
-    case 32: ptralign = 2; break;
-    case 64: ptralign = 3; break;
-    default: abort();
+    case 32:
+      ptralign = 2;
+      break;
+
+    case 64:
+      ptralign = 3;
+      break;
+
+    default:
+      bfd_set_error (bfd_error_bad_value);
+      return false;
     }
 
   /* We need to create .plt, .rel[a].plt, .got, .got.plt, .dynbss, and
@@ -147,7 +163,7 @@ _bfd_elf_create_dynamic_sections (abfd, info)
 	return false;
     }
 
-  s = bfd_make_section (abfd, 
+  s = bfd_make_section (abfd,
 			bed->default_use_rela_p ? ".rela.plt" : ".rel.plt");
   if (s == NULL
       || ! bfd_set_section_flags (abfd, s, flags | SEC_READONLY)
@@ -183,9 +199,9 @@ _bfd_elf_create_dynamic_sections (abfd, info)
      copy relocs.  */
       if (! info->shared)
 	{
-	  s = bfd_make_section (abfd, 
-				(bed->default_use_rela_p 
-				 ? ".rela.bss" : ".rel.bss")); 
+	  s = bfd_make_section (abfd,
+				(bed->default_use_rela_p
+				 ? ".rela.bss" : ".rel.bss"));
 	  if (s == NULL
 	      || ! bfd_set_section_flags (abfd, s, flags | SEC_READONLY)
 	      || ! bfd_set_section_alignment (abfd, s, ptralign))
@@ -196,7 +212,6 @@ _bfd_elf_create_dynamic_sections (abfd, info)
   return true;
 }
 
-
 /* Record a new dynamic symbol.  We record the dynamic symbols as we
    read the input files, since we need to have a list of all of them
    before we can determine the final sizes of the output sections.
@@ -318,7 +333,7 @@ elf_link_renumber_hash_table_dynsyms (h, data)
   return true;
 }
 
-/* Assign dynsym indicies.  In a shared library we generate a section
+/* Assign dynsym indices.  In a shared library we generate a section
    symbol for each output section, which come first.  Next come all of
    the back-end allocated local dynamic syms, followed by the rest of
    the global symbols.  */
@@ -482,7 +497,6 @@ _bfd_elf_create_linker_section (abfd, info, which, defaults)
 
   return lsect;
 }
-
 
 /* Find a linker generated pointer with a given addend and type.  */
 
@@ -500,7 +514,6 @@ _bfd_elf_find_pointer_linker_section (linker_pointers, addend, which)
 
   return (elf_linker_section_pointers_t *)0;
 }
-
 
 /* Make the .rela section corresponding to the generated linker section.  */
 

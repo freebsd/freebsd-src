@@ -1,5 +1,6 @@
 /* hash.c -- hash table routines for BFD
-   Copyright (C) 1993, 94, 95, 97, 1999 Free Software Foundation, Inc.
+   Copyright 1993, 1994, 1995, 1997, 1999, 2001
+   Free Software Foundation, Inc.
    Written by Steve Chamberlain <sac@cygnus.com>
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -268,7 +269,7 @@ SUBSUBSECTION
 	Write other derived routines
 
 	You will want to write other routines for your new hash table,
-	as well.  
+	as well.
 
 	You will want an initialization routine which calls the
 	initialization routine of the hash table you are deriving from
@@ -366,7 +367,7 @@ bfd_hash_lookup (table, string, create, copy)
   struct bfd_hash_entry *hashp;
   unsigned int len;
   unsigned int index;
-  
+
   hash = 0;
   len = 0;
   s = (const unsigned char *) string;

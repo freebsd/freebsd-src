@@ -229,7 +229,7 @@ warning message when this happens.
 REPORTING BUGS IN GAS
 =====================
 
-Bugs in gas should be reported to bug-gnu-utils@gnu.org.  They may be
+Bugs in gas should be reported to bug-binutils@gnu.org.  They may be
 cross-posted to bug-gcc if they affect the use of gas with gcc.  They
 should not be reported just to bug-gcc, since I don't read that list,
 and therefore wouldn't see them.

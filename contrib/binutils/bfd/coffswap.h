@@ -1,5 +1,5 @@
 /* Generic COFF swapping routines, for BFD.
-   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 98, 1999
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1999, 2000
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -168,11 +168,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #ifndef GET_SCNHDR_NRELOC
 #define GET_SCNHDR_NRELOC bfd_h_get_16
 #endif
+#ifndef MAX_SCNHDR_NRELOC
+#define MAX_SCNHDR_NRELOC 0xffff
+#endif
 #ifndef PUT_SCNHDR_NRELOC
 #define PUT_SCNHDR_NRELOC bfd_h_put_16
 #endif
 #ifndef GET_SCNHDR_NLNNO
 #define GET_SCNHDR_NLNNO bfd_h_get_16
+#endif
+#ifndef MAX_SCNHDR_NLNNO
+#define MAX_SCNHDR_NLNNO 0xffff
 #endif
 #ifndef PUT_SCNHDR_NLNNO
 #define PUT_SCNHDR_NLNNO bfd_h_put_16
@@ -184,6 +190,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define PUT_SCNHDR_FLAGS bfd_h_put_32
 #endif
 
+#ifndef GET_RELOC_VADDR
+#define GET_RELOC_VADDR bfd_h_get_32
+#endif
+#ifndef PUT_RELOC_VADDR
+#define PUT_RELOC_VADDR bfd_h_put_32
+#endif
 
 static void coff_swap_aouthdr_in PARAMS ((bfd *, PTR, PTR));
 static unsigned int coff_swap_aouthdr_out PARAMS ((bfd *, PTR, PTR));
@@ -217,7 +229,7 @@ coff_swap_reloc_in (abfd, src, dst)
   RELOC *reloc_src = (RELOC *) src;
   struct internal_reloc *reloc_dst = (struct internal_reloc *) dst;
 
-  reloc_dst->r_vaddr = bfd_h_get_32(abfd, (bfd_byte *)reloc_src->r_vaddr);
+  reloc_dst->r_vaddr = GET_RELOC_VADDR (abfd, (bfd_byte *)reloc_src->r_vaddr);
   reloc_dst->r_symndx = bfd_h_get_signed_32(abfd, (bfd_byte *) reloc_src->r_symndx);
 
 #ifdef RS6000COFF_C
@@ -241,7 +253,7 @@ coff_swap_reloc_out (abfd, src, dst)
 {
   struct internal_reloc *reloc_src = (struct internal_reloc *)src;
   struct external_reloc *reloc_dst = (struct external_reloc *)dst;
-  bfd_h_put_32(abfd, reloc_src->r_vaddr, (bfd_byte *) reloc_dst->r_vaddr);
+  PUT_RELOC_VADDR (abfd, reloc_src->r_vaddr, (bfd_byte *) reloc_dst->r_vaddr);
   bfd_h_put_32(abfd, reloc_src->r_symndx, (bfd_byte *) reloc_dst->r_symndx);
 
 #ifdef RS6000COFF_C
@@ -274,6 +286,7 @@ coff_swap_filehdr_in (abfd, src, dst)
 {
   FILHDR *filehdr_src = (FILHDR *) src;
   struct internal_filehdr *filehdr_dst = (struct internal_filehdr *) dst;
+
 #ifdef COFF_ADJUST_FILEHDR_IN_PRE
   COFF_ADJUST_FILEHDR_IN_PRE (abfd, src, dst);
 #endif
@@ -324,7 +337,6 @@ coff_swap_filehdr_out (abfd, in, out)
   return bfd_coff_filhsz (abfd);
 }
 
-
 #ifndef NO_COFF_SYMBOLS
 
 static void
@@ -347,9 +359,9 @@ coff_swap_sym_in (abfd, ext1, in1)
     memcpy(in->_n._n_name, ext->e.e_name, SYMNMLEN);
 #endif
   }
-  in->n_value = bfd_h_get_32(abfd, (bfd_byte *) ext->e_value); 
+  in->n_value = bfd_h_get_32(abfd, (bfd_byte *) ext->e_value);
   in->n_scnum = bfd_h_get_16(abfd, (bfd_byte *) ext->e_scnum);
-  if (sizeof(ext->e_type) == 2){
+  if (sizeof (ext->e_type) == 2){
     in->n_type = bfd_h_get_16(abfd, (bfd_byte *) ext->e_type);
   }
   else {
@@ -383,7 +395,7 @@ coff_swap_sym_out (abfd, inp, extp)
   }
   bfd_h_put_32(abfd,  in->n_value , (bfd_byte *) ext->e_value);
   bfd_h_put_16(abfd,  in->n_scnum , (bfd_byte *) ext->e_scnum);
-  if (sizeof(ext->e_type) == 2)
+  if (sizeof (ext->e_type) == 2)
       {
 	bfd_h_put_16(abfd,  in->n_type , (bfd_byte *) ext->e_type);
       }
@@ -419,7 +431,7 @@ coff_swap_aux_in (abfd, ext1, type, class, indx, numaux, in1)
     case C_FILE:
       if (ext->x_file.x_fname[0] == 0) {
 	  in->x_file.x_n.x_zeroes = 0;
-	  in->x_file.x_n.x_offset = 
+	  in->x_file.x_n.x_offset =
 	   bfd_h_get_32(abfd, (bfd_byte *) ext->x_file.x_n.x_offset);
 	} else {
 #if FILNMLEN != E_FILNMLEN
@@ -438,28 +450,6 @@ coff_swap_aux_in (abfd, ext1, type, class, indx, numaux, in1)
 #endif
 	  }
       goto end;
-
-      /* RS/6000 "csect" auxents */
-#ifdef RS6000COFF_C
-    case C_EXT:
-    case C_HIDEXT:
-      if (indx + 1 == numaux)
-	{
-	  in->x_csect.x_scnlen.l = bfd_h_get_32 (abfd, ext->x_csect.x_scnlen);
-	  in->x_csect.x_parmhash = bfd_h_get_32 (abfd,
-						 ext->x_csect.x_parmhash);
-	  in->x_csect.x_snhash   = bfd_h_get_16 (abfd, ext->x_csect.x_snhash);
-	  /* We don't have to hack bitfields in x_smtyp because it's
-	     defined by shifts-and-ands, which are equivalent on all
-	     byte orders.  */
-	  in->x_csect.x_smtyp    = bfd_h_get_8  (abfd, ext->x_csect.x_smtyp);
-	  in->x_csect.x_smclas   = bfd_h_get_8  (abfd, ext->x_csect.x_smclas);
-	  in->x_csect.x_stab     = bfd_h_get_32 (abfd, ext->x_csect.x_stab);
-	  in->x_csect.x_snstab   = bfd_h_get_16 (abfd, ext->x_csect.x_snstab);
-	  goto end;
-	}
-      break;
-#endif
 
     case C_STAT:
 #ifdef C_LEAFSTAT
@@ -517,7 +507,7 @@ coff_swap_aux_in (abfd, ext1, type, class, indx, numaux, in1)
 
 end: ;
   /* the semicolon is because MSVC doesn't like labels at
-     end of block. */
+     end of block.  */
 
 #ifdef COFF_ADJUST_AUX_IN_POST
   COFF_ADJUST_AUX_IN_POST (abfd, ext1, type, class, indx, numaux, in1);
@@ -557,27 +547,6 @@ coff_swap_aux_out (abfd, inp, type, class, indx, numaux, extp)
 #endif
     }
     goto end;
-
-#ifdef RS6000COFF_C
-  /* RS/6000 "csect" auxents */
-  case C_EXT:
-  case C_HIDEXT:
-    if (indx + 1 == numaux)
-      {
-	PUTWORD (abfd, in->x_csect.x_scnlen.l,	ext->x_csect.x_scnlen);
-	PUTWORD (abfd, in->x_csect.x_parmhash,	ext->x_csect.x_parmhash);
-	PUTHALF (abfd, in->x_csect.x_snhash,	ext->x_csect.x_snhash);
-	/* We don't have to hack bitfields in x_smtyp because it's
-	   defined by shifts-and-ands, which are equivalent on all
-	   byte orders.  */
-	PUTBYTE (abfd, in->x_csect.x_smtyp,	ext->x_csect.x_smtyp);
-	PUTBYTE (abfd, in->x_csect.x_smclas,	ext->x_csect.x_smclas);
-	PUTWORD (abfd, in->x_csect.x_stab,	ext->x_csect.x_stab);
-	PUTHALF (abfd, in->x_csect.x_snstab,	ext->x_csect.x_snstab);
-	goto end;
-      }
-    break;
-#endif
 
   case C_STAT:
 #ifdef C_LEAFSTAT
@@ -703,9 +672,12 @@ coff_swap_aouthdr_in (abfd, aouthdr_ext1, aouthdr_int1)
   bfd_h_put_32(abfd, aouthdr_int->vid[1], (bfd_byte *) aouthdr_ext->vid + 4);
 #endif
 
-
 #ifdef RS6000COFF_C
+#ifdef XCOFF64
+  aouthdr_int->o_toc = bfd_h_get_64(abfd, aouthdr_ext->o_toc);
+#else
   aouthdr_int->o_toc = bfd_h_get_32(abfd, aouthdr_ext->o_toc);
+#endif
   aouthdr_int->o_snentry = bfd_h_get_16(abfd, aouthdr_ext->o_snentry);
   aouthdr_int->o_sntext = bfd_h_get_16(abfd, aouthdr_ext->o_sntext);
   aouthdr_int->o_sndata = bfd_h_get_16(abfd, aouthdr_ext->o_sndata);
@@ -716,8 +688,13 @@ coff_swap_aouthdr_in (abfd, aouthdr_ext1, aouthdr_int1)
   aouthdr_int->o_algndata = bfd_h_get_16(abfd, aouthdr_ext->o_algndata);
   aouthdr_int->o_modtype = bfd_h_get_16(abfd, aouthdr_ext->o_modtype);
   aouthdr_int->o_cputype = bfd_h_get_16(abfd, aouthdr_ext->o_cputype);
+#ifdef XCOFF64
+  aouthdr_int->o_maxstack = bfd_h_get_64(abfd, aouthdr_ext->o_maxstack);
+  aouthdr_int->o_maxdata = bfd_h_get_64(abfd, aouthdr_ext->o_maxdata);
+#else
   aouthdr_int->o_maxstack = bfd_h_get_32(abfd, aouthdr_ext->o_maxstack);
   aouthdr_int->o_maxdata = bfd_h_get_32(abfd, aouthdr_ext->o_maxdata);
+#endif
 #endif
 
 #ifdef MIPSECOFF
@@ -763,7 +740,11 @@ coff_swap_aouthdr_out (abfd, in, out)
 #endif
 
 #ifdef RS6000COFF_C
+#ifdef XCOFF64
+  bfd_h_put_64 (abfd, aouthdr_in->o_toc, aouthdr_out->o_toc);
+#else
   bfd_h_put_32 (abfd, aouthdr_in->o_toc, aouthdr_out->o_toc);
+#endif
   bfd_h_put_16 (abfd, aouthdr_in->o_snentry, aouthdr_out->o_snentry);
   bfd_h_put_16 (abfd, aouthdr_in->o_sntext, aouthdr_out->o_sntext);
   bfd_h_put_16 (abfd, aouthdr_in->o_sndata, aouthdr_out->o_sndata);
@@ -774,9 +755,18 @@ coff_swap_aouthdr_out (abfd, in, out)
   bfd_h_put_16 (abfd, aouthdr_in->o_algndata, aouthdr_out->o_algndata);
   bfd_h_put_16 (abfd, aouthdr_in->o_modtype, aouthdr_out->o_modtype);
   bfd_h_put_16 (abfd, aouthdr_in->o_cputype, aouthdr_out->o_cputype);
+#ifdef XCOFF64
+  bfd_h_put_64 (abfd, aouthdr_in->o_maxstack, aouthdr_out->o_maxstack);
+  bfd_h_put_64 (abfd, aouthdr_in->o_maxdata, aouthdr_out->o_maxdata);
+#else
   bfd_h_put_32 (abfd, aouthdr_in->o_maxstack, aouthdr_out->o_maxstack);
   bfd_h_put_32 (abfd, aouthdr_in->o_maxdata, aouthdr_out->o_maxdata);
+#endif
   memset (aouthdr_out->o_resv2, 0, sizeof aouthdr_out->o_resv2);
+#ifdef XCOFF64
+  memset (aouthdr_out->o_debugger, 0, sizeof aouthdr_out->o_debugger);
+  memset (aouthdr_out->o_resv3, 0, sizeof aouthdr_out->o_resv3);
+#endif
 #endif
 
 #ifdef MIPSECOFF
@@ -814,7 +804,7 @@ coff_swap_scnhdr_in (abfd, ext, in)
 #ifdef COFF_ADJUST_SCNHDR_IN_PRE
   COFF_ADJUST_SCNHDR_IN_PRE (abfd, ext, in);
 #endif
-  memcpy(scnhdr_int->s_name, scnhdr_ext->s_name, sizeof(scnhdr_int->s_name));
+  memcpy(scnhdr_int->s_name, scnhdr_ext->s_name, sizeof (scnhdr_int->s_name));
   scnhdr_int->s_vaddr =
     GET_SCNHDR_VADDR (abfd, (bfd_byte *) scnhdr_ext->s_vaddr);
   scnhdr_int->s_paddr =
@@ -856,11 +846,10 @@ coff_swap_scnhdr_out (abfd, in, out)
 #ifdef COFF_ADJUST_SCNHDR_OUT_PRE
   COFF_ADJUST_SCNHDR_OUT_PRE (abfd, in, out);
 #endif
-  memcpy(scnhdr_ext->s_name, scnhdr_int->s_name, sizeof(scnhdr_int->s_name));
+  memcpy(scnhdr_ext->s_name, scnhdr_int->s_name, sizeof (scnhdr_int->s_name));
 
   PUT_SCNHDR_VADDR (abfd, scnhdr_int->s_vaddr,
 		    (bfd_byte *) scnhdr_ext->s_vaddr);
-
 
   PUT_SCNHDR_PADDR (abfd, scnhdr_int->s_paddr,
 		    (bfd_byte *) scnhdr_ext->s_paddr);
@@ -879,8 +868,9 @@ coff_swap_scnhdr_out (abfd, in, out)
   PUTWORD(abfd, scnhdr_int->s_nlnno, (bfd_byte *) scnhdr_ext->s_nlnno);
   PUTWORD(abfd, scnhdr_int->s_nreloc, (bfd_byte *) scnhdr_ext->s_nreloc);
 #else
-  if (scnhdr_int->s_nlnno <= 0xffff)
-    PUTHALF(abfd, scnhdr_int->s_nlnno, (bfd_byte *) scnhdr_ext->s_nlnno);
+  if (scnhdr_int->s_nlnno <= MAX_SCNHDR_NLNNO)
+    PUT_SCNHDR_NLNNO(abfd, scnhdr_int->s_nlnno,
+	    (bfd_byte *) scnhdr_ext->s_nlnno);
   else
     {
       char buf[sizeof (scnhdr_int->s_name) + 1];
@@ -891,10 +881,11 @@ coff_swap_scnhdr_out (abfd, in, out)
 	(_("%s: warning: %s: line number overflow: 0x%lx > 0xffff"),
 	 bfd_get_filename (abfd),
 	 buf, scnhdr_int->s_nlnno);
-      PUTHALF (abfd, 0xffff, (bfd_byte *) scnhdr_ext->s_nlnno);
+      PUT_SCNHDR_NLNNO(abfd, 0xffff, (bfd_byte *) scnhdr_ext->s_nlnno);
     }
-  if (scnhdr_int->s_nreloc <= 0xffff)
-    PUTHALF(abfd, scnhdr_int->s_nreloc, (bfd_byte *) scnhdr_ext->s_nreloc);
+  if (scnhdr_int->s_nreloc <= MAX_SCNHDR_NRELOC)
+    PUT_SCNHDR_NRELOC(abfd, scnhdr_int->s_nreloc,
+	    (bfd_byte *) scnhdr_ext->s_nreloc);
   else
     {
       char buf[sizeof (scnhdr_int->s_name) + 1];
@@ -905,7 +896,7 @@ coff_swap_scnhdr_out (abfd, in, out)
 			     bfd_get_filename (abfd),
 			     buf, scnhdr_int->s_nreloc);
       bfd_set_error (bfd_error_file_truncated);
-      PUTHALF (abfd, 0xffff, (bfd_byte *) scnhdr_ext->s_nreloc);
+      PUT_SCNHDR_NRELOC(abfd, 0xffff, (bfd_byte *) scnhdr_ext->s_nreloc);
       ret = 0;
     }
 #endif

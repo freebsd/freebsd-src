@@ -29,31 +29,24 @@ Boston, MA 02111-1307, USA.  */
 
 #include <stdio.h>
 #include <errno.h>
+#ifdef NEED_DECLARATION_ERRNO
+extern int errno;
+#endif
 #ifdef HAVE_STRING_H
 #include <string.h>
 #endif
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#define ISSPACE (x) isspace(x)
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
 #endif
 
-#ifdef vfork /* Autoconf may define this to fork for us. */
-# define VFORK_STRING "fork"
-#else
-# define VFORK_STRING "vfork"
-#endif
-#ifdef HAVE_VFORK_H
-#include <vfork.h>
-#endif
-#ifdef VMS
-#define vfork() (decc$$alloc_vfork_blocks() >= 0 ? \
-               lib$get_current_invo_context(decc$$get_vfork_jmpbuf()) : -1)
-#endif /* VMS */
-
 #include "libiberty.h"
+#include "safe-ctype.h"
 
 /* stdin file number.  */
 #define STDIN_FILE_NO 0
@@ -151,9 +144,9 @@ pexecute (program, argv, this_pname, temp_base, errmsg_fmt, errmsg_arg, flags)
   if ((flags & PEXECUTE_ONE) != PEXECUTE_ONE)
     abort ();
 
-#ifdef __GO32__
+#ifdef __DJGPP__
   /* ??? What are the possible return values from spawnv?  */
-  rc = (flags & PEXECUTE_SEARCH ? spawnvp : spawnv) (1, program, argv);
+  rc = (flags & PEXECUTE_SEARCH ? spawnvp : spawnv) (P_WAIT, program, argv);
 #else
   char *scmd, *rf;
   FILE *argfile;
@@ -202,7 +195,7 @@ pexecute (program, argv, this_pname, temp_base, errmsg_fmt, errmsg_arg, flags)
   if (rc == -1)
     {
       *errmsg_fmt = install_error_msg;
-      *errmsg_arg = program;
+      *errmsg_arg = (char *)program;
       return -1;
     }
 
@@ -210,6 +203,13 @@ pexecute (program, argv, this_pname, temp_base, errmsg_fmt, errmsg_arg, flags)
   last_status = rc << 8;
   return last_pid;
 }
+
+/* Use ECHILD if available, otherwise use EINVAL.  */
+#ifdef ECHILD
+#define PWAIT_ERROR ECHILD
+#else
+#define PWAIT_ERROR EINVAL
+#endif
 
 int
 pwait (pid, status, flags)
@@ -222,13 +222,16 @@ pwait (pid, status, flags)
       /* Called twice for the same child?  */
       || pid == last_reaped)
     {
-      /* ??? ECHILD would be a better choice.  Can we use it here?  */
-      errno = EINVAL;
+      errno = PWAIT_ERROR;
       return -1;
     }
   /* ??? Here's an opportunity to canonicalize the values in STATUS.
      Needed?  */
+#ifdef __DJGPP__
+  *status = (last_status >> 8);
+#else
   *status = last_status;
+#endif
   last_reaped = last_pid;
   return last_pid;
 }
@@ -698,9 +701,10 @@ pexecute (program, argv, this_pname, temp_base, errmsg_fmt, errmsg_arg, flags)
 
   /* Fork a subprocess; wait and retry if it fails.  */
   sleep_interval = 1;
+  pid = -1;
   for (retries = 0; retries < 4; retries++)
     {
-      pid = vfork ();
+      pid = fork ();
       if (pid >= 0)
 	break;
       sleep (sleep_interval);
@@ -710,11 +714,9 @@ pexecute (program, argv, this_pname, temp_base, errmsg_fmt, errmsg_arg, flags)
   switch (pid)
     {
     case -1:
-      {
-	*errmsg_fmt = VFORK_STRING;
-	*errmsg_arg = NULL;
-	return -1;
-      }
+      *errmsg_fmt = "fork";
+      *errmsg_arg = NULL;
+      return -1;
 
     case 0: /* child */
       /* Move the input and output pipes into place, if necessary.  */
@@ -738,7 +740,6 @@ pexecute (program, argv, this_pname, temp_base, errmsg_fmt, errmsg_arg, flags)
       /* Exec the program.  */
       (*func) (program, argv);
 
-      /* Note: Calling fprintf and exit here doesn't seem right for vfork.  */
       fprintf (stderr, "%s: ", this_pname);
       fprintf (stderr, install_error_msg, program);
       fprintf (stderr, ": %s\n", xstrerror (errno));

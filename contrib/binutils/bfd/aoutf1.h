@@ -1,5 +1,5 @@
 /* A.out "format 1" file handling code for BFD.
-   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 1998
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2000
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -33,7 +33,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 /* This is needed to reject a NewsOS file, e.g. in
    gdb/testsuite/gdb.t10/crossload.exp. <kingdon@cygnus.com>
    I needed to add M_UNKNOWN to recognize a 68000 object, so this will
-   probably no longer reject a NewsOS object.  <ian@cygnus.com>. */
+   probably no longer reject a NewsOS object.  <ian@cygnus.com>.  */
 #ifndef MACHTYPE_OK
 #define MACHTYPE_OK(mtype) \
   (((mtype) == M_SPARC && bfd_lookup_arch (bfd_arch_sparc, 0) != NULL) \
@@ -123,7 +123,7 @@ sunos_set_arch_mach (abfd, machtype)
 
     case M_UNKNOWN:
       /* Some Sun3s make magic numbers without cpu types in them, so
-	 we'll default to the 68000. */
+	 we'll default to the 68000.  */
       arch = bfd_arch_m68k;
       machine = bfd_mach_m68000;
       break;
@@ -180,7 +180,7 @@ sunos_set_arch_mach (abfd, machtype)
 }
 
 #define SET_ARCH_MACH(ABFD, EXEC) \
-  NAME(sunos,set_arch_mach)(ABFD, N_MACHTYPE (EXEC)); \
+  NAME(sunos,set_arch_mach) (ABFD, N_MACHTYPE (EXEC)); \
   choose_reloc_size(ABFD);
 
 /* Determine the size of a relocation entry, based on the architecture */
@@ -275,11 +275,11 @@ sunos_write_object_contents (abfd)
   Unfortunately, they don't document the FPA structure, or at least I
   can't find it easily.  Fortunately the core header contains its own
   length.  So this shouldn't cause problems, except for c_ucode, which
-  so far we don't use but is easy to find with a little arithmetic. */
+  so far we don't use but is easy to find with a little arithmetic.  */
 
 /* But the reg structure can be gotten from the SPARC processor handbook.
   This really should be in a GNU include file though so that gdb can use
-  the same info. */
+  the same info.  */
 struct regs
 {
   int r_psr;
@@ -439,7 +439,7 @@ swapcore_sun3 (abfd, ext, intcore)
   intcore->c_ssize = bfd_h_get_32 (abfd, (unsigned char *) &extcore->c_ssize);
   memcpy (intcore->c_cmdname, extcore->c_cmdname, sizeof (intcore->c_cmdname));
   intcore->fp_stuff_pos = (long) (((struct external_sun3_core *) 0)->fp_stuff);
-  /* FP stuff takes up whole rest of struct, except c_ucode. */
+  /* FP stuff takes up whole rest of struct, except c_ucode.  */
   intcore->fp_stuff_size = intcore->c_len - (sizeof extcore->c_ucode) -
     (file_ptr) (((struct external_sun3_core *) 0)->fp_stuff);
   /* Ucode is the last thing in the struct -- just before the end */
@@ -448,7 +448,6 @@ swapcore_sun3 (abfd, ext, intcore)
     intcore->c_len - sizeof (extcore->c_ucode) + (unsigned char *) extcore);
   intcore->c_stacktop = 0x0E000000;	/* By experimentation */
 }
-
 
 /* byte-swap in the Sparc core structure */
 static void
@@ -476,7 +475,7 @@ swapcore_sparc (abfd, ext, intcore)
   intcore->c_ssize = bfd_h_get_32 (abfd, (unsigned char *) &extcore->c_ssize);
   memcpy (intcore->c_cmdname, extcore->c_cmdname, sizeof (intcore->c_cmdname));
   intcore->fp_stuff_pos = (long) (((struct external_sparc_core *) 0)->fp_stuff);
-  /* FP stuff takes up whole rest of struct, except c_ucode. */
+  /* FP stuff takes up whole rest of struct, except c_ucode.  */
   intcore->fp_stuff_size = intcore->c_len - (sizeof extcore->c_ucode) -
     (file_ptr) (((struct external_sparc_core *) 0)->fp_stuff);
   /* Ucode is the last thing in the struct -- just before the end */
@@ -544,7 +543,7 @@ swapcore_solaris_bcp (abfd, ext, intcore)
   memcpy (intcore->c_cmdname, extcore->c_cmdname, sizeof (intcore->c_cmdname));
   intcore->fp_stuff_pos =
     (long) (((struct external_solaris_bcp_core *) 0)->fp_stuff);
-  /* FP stuff takes up whole rest of struct, except c_ucode. */
+  /* FP stuff takes up whole rest of struct, except c_ucode.  */
   intcore->fp_stuff_size = intcore->c_len - (sizeof extcore->c_ucode) -
     (file_ptr) (((struct external_solaris_bcp_core *) 0)->fp_stuff);
   /* Ucode is the last thing in the struct -- just before the end */
@@ -764,7 +763,7 @@ sunos4_core_file_matches_executable_p (core_bfd, exec_bfd)
       return false;
     }
 
-  /* Solaris core files do not include an aouthdr. */
+  /* Solaris core files do not include an aouthdr.  */
   if ((core_hdr (core_bfd)->hdr)->c_len == SOLARIS_BCP_CORE_LEN)
     return true;
 

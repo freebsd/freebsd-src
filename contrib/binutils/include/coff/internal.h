@@ -1,5 +1,21 @@
 /* Internal format of COFF object file data structures, for GNU BFD.
-   This file is part of BFD, the Binary File Descriptor library.  */
+   This file is part of BFD, the Binary File Descriptor library.
+   
+   Copyright 2001 Free Software Foundation, Inc.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+   
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+   
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #ifndef GNU_COFF_INTERNAL_H
 #define GNU_COFF_INTERNAL_H 1
@@ -53,7 +69,7 @@ struct internal_filehdr
   long f_nsyms;			/* number of symtab entries	*/
   unsigned short f_opthdr;	/* sizeof(optional hdr)		*/
   unsigned short f_flags;	/* flags			*/
-  unsigned short f_target_id;	/* (TIc80 specific)		*/
+  unsigned short f_target_id;	/* (TI COFF specific)		*/
 };
 
 
@@ -100,7 +116,9 @@ typedef struct _IMAGE_DATA_DIRECTORY
 /* Extra stuff in a PE aouthdr */
 
 #define PE_DEF_SECTION_ALIGNMENT 0x1000
-#define PE_DEF_FILE_ALIGNMENT 0x200
+#ifndef PE_DEF_FILE_ALIGNMENT
+# define PE_DEF_FILE_ALIGNMENT 0x200
+#endif
 
 struct internal_extra_pe_aouthdr 
 {
@@ -222,7 +240,7 @@ struct internal_aouthdr
 
 #define C_WEAKEXT	127	/* weak symbol -- GNU extension */
 
-/* New storage classes for TIc80 */
+/* New storage classes for TI COFF */
 #define C_UEXT		19	/* Tentative external definition */
 #define C_STATLAB	20	/* Static load time label */
 #define C_EXTLAB	21	/* External load time label */
@@ -301,6 +319,7 @@ struct internal_scnhdr
   unsigned long s_nlnno;	/* number of line number entries*/
   long s_flags;			/* flags			*/
   long s_align;			/* used on I960			*/
+  unsigned char s_page;         /* TI COFF load page            */
 };
 
 /*

@@ -58,6 +58,37 @@ elf_generic_info_to_howto_rel (abfd, bfd_reloc, elf_reloc)
   bfd_reloc->howto = &dummy;
 }
 
+static boolean 
+elf32_generic_link_add_symbols (abfd, info)
+     bfd *abfd;
+     struct bfd_link_info *info;
+{
+  asection *o;
+
+  /* Check if there are any relocations.  */
+  for (o = abfd->sections; o != NULL; o = o->next)
+    if ((o->flags & SEC_RELOC) != 0)
+      {
+	Elf_Internal_Ehdr *ehdrp;
+
+	ehdrp = elf_elfheader (abfd);
+	if (abfd->my_archive)
+	  (*_bfd_error_handler) (_("%s(%s): Relocations in generic ELF (EM: %d)"),
+				 bfd_get_filename (abfd->my_archive),
+				 bfd_get_filename (abfd),
+				 ehdrp->e_machine);
+	else
+	  (*_bfd_error_handler) (_("%s: Relocations in generic ELF (EM: %d)"),
+				 bfd_get_filename (abfd),
+				 ehdrp->e_machine);
+
+	bfd_set_error (bfd_error_wrong_format);
+	return false;
+      }
+
+  return bfd_elf32_bfd_link_add_symbols (abfd, info);
+}
+
 #define TARGET_LITTLE_SYM		bfd_elf32_little_generic_vec
 #define TARGET_LITTLE_NAME		"elf32-little"
 #define TARGET_BIG_SYM			bfd_elf32_big_generic_vec
@@ -66,6 +97,7 @@ elf_generic_info_to_howto_rel (abfd, bfd_reloc, elf_reloc)
 #define ELF_MACHINE_CODE		EM_NONE
 #define ELF_MAXPAGESIZE			0x1
 #define bfd_elf32_bfd_reloc_type_lookup bfd_default_reloc_type_lookup
+#define bfd_elf32_bfd_link_add_symbols	elf32_generic_link_add_symbols
 #define elf_info_to_howto		elf_generic_info_to_howto
 #define elf_info_to_howto_rel		elf_generic_info_to_howto_rel
 

@@ -1,6 +1,26 @@
 -*- text -*-
 
+* New command line switches added to objcopy to allow symbols to be kept as
+  global symbols, and also to specify files containing lists of such symbols.
+  by Honda Hiroki.
+
+Changes in binutils 2.11:
+
+* Add support for ARM v5t and v5te architectures and Intel's XScale ARM
+  extenstions.
+
+* Add --srec-len and --srec-forceS3 command line switch to objcopy.
+  By Luciano Gemme.
+  
+* Support for the MIPS32, by Anders Norlander.
+
+* Support for the i860, by Jason Eckhardt.
+
+* Support for CRIS (Axis Communications ETRAX series).
+
 Changes in binutils 2.10:
+
+* Support for 64-bit ELF on HPPA.
 
 * New command line switch to objdump --file-start-context which shows the
   entire file contents up to the source line first encountered for a given

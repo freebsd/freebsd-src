@@ -1,5 +1,5 @@
 /* Yet Another Try at encapsulating bsd object files in coff.
-   Copyright (C) 1988, 1989, 1991 Free Software Foundation, Inc.
+   Copyright 1988, 1989, 1991 Free Software Foundation, Inc.
    Written by Pace Willisson 12/9/88
 
    This file is obsolete.  It needs to be converted to just define a bunch

@@ -1,5 +1,5 @@
 /* MN10200 ELF support for BFD.
-   Copyright (C) 1998 Free Software Foundation, Inc.
+   Copyright 1998, 2000 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -34,6 +34,6 @@ START_RELOC_NUMBERS (elf_mn10200_reloc_type)
   RELOC_NUMBER (R_MN10200_PCREL8, 5)
   RELOC_NUMBER (R_MN10200_PCREL16, 6)
   RELOC_NUMBER (R_MN10200_PCREL24, 7)
-END_RELOC_NUMBERS
+END_RELOC_NUMBERS (R_MN10200_max)
 
 #endif /* _ELF_MN10200_H */

@@ -1,5 +1,5 @@
 /* BFD back-end for TMS320C30 a.out binaries.
-   Copyright (C) 1998, 1999, 2000 Free Software Foundation, Inc.
+   Copyright 1998, 1999, 2000 Free Software Foundation, Inc.
    Contributed by Steven Haworth (steve@pm.cse.rmit.edu.au)
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -128,7 +128,7 @@ static CONST struct aout_backend_data tic30_aout_backend_data =
 /* This table lists the relocation types for the TMS320C30.  There are
    only a few relocations required, and all must be divided by 4 (>>
    2) to get the 32-bit addresses in the format the TMS320C30 likes
-   it. */
+   it.  */
 reloc_howto_type tic30_aout_howto_table[] =
 {
   EMPTY_HOWTO (-1),
@@ -210,7 +210,7 @@ tic30_aout_reloc_howto (abfd, relocs, r_index, r_extern, r_pcrel)
    requires that any relocations for the data section should point to
    the end of the aligned text section, plus an offset.  By default,
    this does not happen, therefore this function takes care of
-   that. */
+   that.  */
 
 static bfd_reloc_status_type
 tic30_aout_fix_16 (abfd, reloc_entry, symbol, data, input_section, output_bfd, error_message)
@@ -224,11 +224,11 @@ tic30_aout_fix_16 (abfd, reloc_entry, symbol, data, input_section, output_bfd, e
 {
   bfd_vma relocation;
 
-  /* Make sure that the symbol's section is defined. */
+  /* Make sure that the symbol's section is defined.  */
   if (symbol->section == &bfd_und_section && (symbol->flags & BSF_WEAK) == 0)
     return output_bfd ? bfd_reloc_ok : bfd_reloc_undefined;
   /* Get the size of the input section and turn it into the TMS320C30
-     32-bit address format. */
+     32-bit address format.  */
   relocation = (symbol->section->vma >> 2);
   relocation += bfd_get_16 (abfd, (bfd_byte *) data + reloc_entry->address);
   bfd_put_16 (abfd, relocation, (bfd_byte *) data + reloc_entry->address);
@@ -236,7 +236,7 @@ tic30_aout_fix_16 (abfd, reloc_entry, symbol, data, input_section, output_bfd, e
 }
 
 /* This function does the same thing as tic30_aout_fix_16 except for 32
-   bit relocations. */
+   bit relocations.  */
 
 static bfd_reloc_status_type
 tic30_aout_fix_32 (abfd, reloc_entry, symbol, data, input_section,
@@ -251,11 +251,11 @@ tic30_aout_fix_32 (abfd, reloc_entry, symbol, data, input_section,
 {
   bfd_vma relocation;
 
-  /* Make sure that the symbol's section is defined. */
+  /* Make sure that the symbol's section is defined.  */
   if (symbol->section == &bfd_und_section && (symbol->flags & BSF_WEAK) == 0)
     return output_bfd ? bfd_reloc_ok : bfd_reloc_undefined;
   /* Get the size of the input section and turn it into the TMS320C30
-     32-bit address format. */
+     32-bit address format.  */
   relocation = (symbol->section->vma >> 2);
   relocation += bfd_get_32 (abfd, (bfd_byte *) data + reloc_entry->address);
   bfd_put_32 (abfd, relocation, (bfd_byte *) data + reloc_entry->address);
@@ -267,7 +267,7 @@ tic30_aout_fix_32 (abfd, reloc_entry, symbol, data, input_section,
    useless for a relocation, so we just get the offset value and place
    a version of this within the object code.
    tic30_aout_final_link_relocate will then calculate the required
-   relocation to add on to the value in the object code. */
+   relocation to add on to the value in the object code.  */
 
 static bfd_reloc_status_type
 tic30_aout_fix_pcrel_16 (abfd, reloc_entry, symbol, data, input_section,
@@ -285,7 +285,7 @@ tic30_aout_fix_pcrel_16 (abfd, reloc_entry, symbol, data, input_section,
 
   /* The byte before the location of the fix contains bits 23-16 of
      the pcrel instruction.  Bit 21 is set for a delayed instruction
-     which requires on offset of 3 instead of 1. */
+     which requires on offset of 3 instead of 1.  */
   if (offset_data & 0x20)
     relocation -= 3;
   else
@@ -295,14 +295,16 @@ tic30_aout_fix_pcrel_16 (abfd, reloc_entry, symbol, data, input_section,
 }
 
 /* These macros will get 24-bit values from the bfd definition.
-   Big-endian only. */
-#define bfd_getb_24(BFD,ADDR) (bfd_get_8(BFD,ADDR) << 16) | \
-                              (bfd_get_8(BFD,ADDR+1) << 8) | \
-                              (bfd_get_8(BFD,ADDR+2))
+   Big-endian only.  */
+#define bfd_getb_24(BFD,ADDR)			\
+ (bfd_get_8 (BFD, ADDR    ) << 16) |		\
+ (bfd_get_8 (BFD, ADDR + 1) <<  8) |		\
+ (bfd_get_8 (BFD, ADDR + 2)      )
 
-#define bfd_putb_24(BFD,DATA,ADDR) bfd_put_8(BFD,(bfd_byte)((DATA >> 16) & 0xFF),ADDR); \
-	                               bfd_put_8(BFD,(bfd_byte)((DATA >> 8) & 0xFF),ADDR+1); \
-		         				   bfd_put_8(BFD,(bfd_byte)(DATA & 0xFF),ADDR+2)
+#define bfd_putb_24(BFD,DATA,ADDR)				\
+ bfd_put_8 (BFD, (bfd_byte) ((DATA >> 16) & 0xFF), ADDR    );	\
+ bfd_put_8 (BFD, (bfd_byte) ((DATA >>  8) & 0xFF), ADDR + 1);	\
+ bfd_put_8 (BFD, (bfd_byte) ( DATA        & 0xFF), ADDR + 2)
 
 /* Set parameters about this a.out file that are machine-dependent.
    This routine is called from some_aout_object_p just before it returns.  */
@@ -563,7 +565,7 @@ tic30_aout_object_p (abfd)
    * means that it isn't obvious if EXEC_P should be set.
    * All of the following must be true for an executable:
    * There must be no relocations, the bfd can be neither an
-   * archive nor an archive element, and the file must be executable. */
+   * archive nor an archive element, and the file must be executable.  */
 
   if (exec.a_trsize + exec.a_drsize == 0
       && bfd_get_format (abfd) == bfd_object && abfd->my_archive == NULL)
@@ -586,7 +588,6 @@ tic30_aout_object_p (abfd)
    section contents, and copy_private_bfd_data is not called until
    after the section contents have been set.  */
 
-/*ARGSUSED */
 static boolean
 MY_bfd_copy_private_section_data (ibfd, isec, obfd, osec)
      bfd *ibfd;
@@ -720,7 +721,7 @@ MY_bfd_final_link (abfd, info)
   int pad;
 
   /* Set the executable header size to 0, as we don't want one for an
-     output. */
+     output.  */
   adata (abfd).exec_bytes_size = 0;
   pos = adata (abfd).exec_bytes_size;
   /* Text.  */
@@ -765,7 +766,7 @@ MY_bfd_final_link (abfd, info)
   obj_bsssec (abfd)->vma = vma;
   obj_bsssec (abfd)->user_set_vma = 1;
 
-  /* We are fully resized, so don't readjust in final_link. */
+  /* We are fully resized, so don't readjust in final_link.  */
   adata (abfd).magic = z_magic;
 
   return NAME (aout, final_link) (abfd, info, MY_final_link_callback);
@@ -961,7 +962,6 @@ tic30_aout_set_arch_mach (abfd, arch, machine)
 #define MY_bfd_link_split_section  _bfd_generic_link_split_section
 #endif
 
-
 #ifndef MY_bfd_copy_private_bfd_data
 #define MY_bfd_copy_private_bfd_data _bfd_generic_bfd_copy_private_bfd_data
 #endif
@@ -1058,7 +1058,7 @@ const bfd_target tic30_aout_vec =
   BFD_JUMP_TABLE_DYNAMIC (MY),
 
   NULL,
-  
+
   (PTR) MY_backend_data
 };
 #endif /* MY_BFD_TARGET */

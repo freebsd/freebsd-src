@@ -1,6 +1,7 @@
 /* ldctor.h - linker constructor support
-   Copyright 1991, 92, 93, 94, 95, 1998 Free Software Foundation, Inc.
-   
+   Copyright 1991, 1992, 1993, 1994, 1995, 1998, 2000
+   Free Software Foundation, Inc.
+
 This file is part of GLD, the Gnu Linker.
 
 GLD is free software; you can redistribute it and/or modify
@@ -31,8 +32,7 @@ extern boolean constructors_sorted;
 
 /* We keep a list of these structures for each set we build.  */
 
-struct set_info
-{
+struct set_info {
   struct set_info *next;		/* Next set.  */
   struct bfd_link_hash_entry *h;	/* Hash table entry.  */
   bfd_reloc_code_real_type reloc;	/* Reloc to use for an entry.  */
@@ -40,8 +40,7 @@ struct set_info
   struct set_element *elements;		/* Elements in set.  */
 };
 
-struct set_element
-{
+struct set_element {
   struct set_element *next;		/* Next element.  */
   const char *name;			/* Name in set (may be NULL).  */
   asection *section;			/* Section of value in set.  */

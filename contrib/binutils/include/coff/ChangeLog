@@ -1,3 +1,83 @@
+2001-06-11  Alan Modra  <amodra@bigpond.net.au>
+
+	Merge from mainline.
+	2001-02-09  David Mosberger  <davidm@hpl.hp.com>
+	* pe.h (PEPAOUTSZ): Rename from PEP64AOUTSZ.
+	Rename from PEPAOUTHDR.
+
+2001-06-07  Alan Modra  <amodra@bigpond.net.au>
+
+	* Many files: Update copyright notices.
+
+2001-02-17  Philip Blundell  <philb@gnu.org>
+
+	From 2001-01-23  H.J. Lu  <hjl@gnu.org>
+	* pe.h (struct external_PEI_DOS_hdr): New.
+	(struct external_PEI_IMAGE_hdr): New.
+
+2000-12-11  Alan Modra  <alan@linuxcare.com.au>
+
+	* ti.h (OCTETS_PER_BYTE_POWER): Change #warning to #error.
+
+2000-12-08  Alan Modra  <alan@linuxcare.com.au>
+
+	* ti.h (OCTETS_PER_BYTE_POWER): Change #warn to #warning.
+
+2000-06-30  DJ Delorie  <dj@cygnus.com>
+
+	* pe.h: Clarify a comment.
+
+2000-05-05  Clinton Popetz  <cpopetz@cygnus.com>
+
+	* rs6k64.h (U802TOC64MAGIC): Change to U803XTOCMAGIC.
+
+2000-04-24  Clinton Popetz  <cpopetz@cygnus.com>
+
+	* rs6k64.h: New file.
+
+2000-04-17  Timothy Wall  <twall@cygnus.com>
+	
+	* ti.h: Load page cleanup.
+	* intental.h: Add load page field.
+	
+Mon Apr 17 16:44:01 2000  David Mosberger  <davidm@hpl.hp.com>
+
+	* pe.h (PEP64AOUTHDR): New header for PE+.
+	(PEP64AOUTSZ): New macro.
+	(IMAGE_SUBSYSTEM_UNKNOWN): New macro.
+	(IMAGE_SUBSYSTEM_NATIVE): Ditto.
+	(IMAGE_SUBSYSTEM_WINDOWS_GUI): Ditto.
+	(IMAGE_SUBSYSTEM_WINDOWS_CUI): Ditto.
+	(IMAGE_SUBSYSTEM_POSIX_CUI): Ditto.
+	(IMAGE_SUBSYSTEM_WINDOWS_CE_GUI): Ditto.
+	(IMAGE_SUBSYSTEM_EFI_APPLICATION): Ditto.
+	(IMAGE_SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER): Ditto.
+	(IMAGE_SUBSYSTEM_EFI_RUNTIME_DRIVER): Ditto.
+	* internal.h (PE_DEF_FILE_ALIGNMENT): Define only if not defined
+	already.
+	* ia64.h: New file.
+
+2000-04-13  Alan Modra  <alan@linuxcare.com.au>
+
+	* ti.h (ADDR_MASK): Don't use ul suffix on constants.
+	(PG_MASK): Ditto.
+
+2000-04-11  Timothy Wall  <twall@cygnus.com>
+
+	* ti.h: Remove load page references until load pages are
+	reimplemented. 
+	* tic54x.h: Ditto.
+	
+2000-04-07  Timothy Wall  <twall@cygnus.com>
+
+	* internal.h: Fix some comments related to TI COFF (instead of tic80).
+	* ti.h: New.
+	* tic54x.h: New.
+	
+Wed Apr  5 22:08:41 2000  J"orn Rennecke <amylaar@cygnus.co.uk>
+
+	* sh.h (R_SH_LOOP_START, R_SH_LOOP_END): Define.
+
 2000-03-15  Kazu Hirata  <kazu@hxi.com>
 
 	* internal.h: Fix a typo in the comment for R_MOVL2.
@@ -69,7 +149,7 @@ Wed Jun  2 18:08:18 1999  Richard Henderson  <rth@cygnus.com>
 
 Mon May 17 13:35:35 1999  Stan Cox  <scox@cygnus.com>
 
-	* coff/arm.h (F_PIC, F_ARM_2, F_ARM_2a, F_ARM_3, F_ARM_3M,
+	* arm.h (F_PIC, F_ARM_2, F_ARM_2a, F_ARM_3, F_ARM_3M,
 	F_ARM_4, F_ARM_4T, F_APCS26): Changed values to distinguish
 	F_ARM_2a, F_ARM_3M, F_ARM_4T.
 
@@ -93,7 +173,7 @@ Sun Dec  6 21:36:37 1998  Mark Elbrecht  <snowball3@usa.net>
 
 Wed Jan 27 13:35:35 1999  Stan Cox  <scox@cygnus.com>
 
-	* coff/arm.h (F_PIC_INT, F_ARM_2, F_ARM_3, F_ARM_4, F_APCS26):
+	* arm.h (F_PIC_INT, F_ARM_2, F_ARM_3, F_ARM_4, F_APCS26):
 	Changed values to avoid clashing with IMAGE_FILE_* coff header
 	flag values.
 	
@@ -118,6 +198,10 @@ Fri Dec 12 11:49:07 1997  Fred Fish  <fnf@cygnus.com>
 Tue Dec  2 10:21:40 1997  Nick Clifton  <nickc@cygnus.com>
 
 	* arm.h (COFFARM): New define.
+
+Mon Dec  1 20:24:18 1997  J"orn Rennecke <amylaar@cygnus.co.uk>
+
+	* sh.h (R_SH_SWITCH8): New.
 
 Sat Nov 22 15:10:14 1997  Nick Clifton  <nickc@cygnus.com>
 
@@ -147,6 +231,14 @@ Tue Jun  3 16:44:18 1997  Nick Clifton  <nickc@cygnus.com>
 Mon May 26 14:07:55 1997  Ian Lance Taylor  <ian@cygnus.com>
 
 	* tic80.h (R_PPL16B): Correct value.
+
+Tue May 13 10:21:14 1997  Nick Clifton  <nickc@cygnus.com>
+
+	* arm.h (constants):   Added new flag bits F_APCS_26 and
+	F_APCS_SET for the f_flags field of the filehdr structure.  Added new
+	flags: F_APCS26, F_ARM_2, F_ARM_3, F_ARM_7, F_ARM_7T to store
+	information in the flags field of the internal_f structure used by BFD
+	routines.
 
 Sat May  3 08:24:59 1997  Fred Fish  <fnf@cygnus.com>
 
@@ -282,8 +374,8 @@ Thu Nov  9 14:08:30 1995  Ian Lance Taylor  <ian@cygnus.com>
 
 Tue Nov  7 14:38:45 1995  Kim Knuttila  <krk@cygnus.com>
 
-	* coff/powerpc.h (IMAGE_NT_OPTIONAL_HDR_MAGIC): Added define.
-	* coff/pe.h: Added defines for file level flags
+	* powerpc.h (IMAGE_NT_OPTIONAL_HDR_MAGIC): Added define.
+	* pe.h: Added defines for file level flags
 
 Mon Nov  6 17:28:01 1995  Harry Dolan  <dolan@ssd.intel.com>
 
@@ -406,6 +498,15 @@ Tue May 16 15:08:20 1995  Ken Raeburn  <raeburn@cujo.cygnus.com>
 Tue May 16 15:08:20 1995  Ken Raeburn  <raeburn@cujo.cygnus.com>
 
 	* internal.h (NT_subsystem, NT_stack_heap): Now extern.
+
+Sat May 13 10:14:08 1995  Steve Chamberlain  <sac@slash.cygnus.com>
+
+	* pe.h: New file.
+	* i386.h (NT_SECTION_ALIGNMENT, NT_FILE_ALIGNMENT,
+	NT_DEF_RESERVE, NT_DEF_COMMIT): New.
+	* internal.h (internal_filehdr):  New fields for PE.
+	(IMAGE_DATA_DIRECTORY): New.
+	(internal_aouthdr): New fields for PE.
 
 Tue Feb 14 17:59:37 1995  Ian Lance Taylor  <ian@cygnus.com>
 
@@ -570,10 +671,10 @@ Wed Oct 13 15:52:34 1993  Ken Raeburn  (raeburn@cygnus.com)
 
 	Sun Oct 10 17:27:10 1993  Troy Rollo (troy@cbme.unsw.edu.au)
 
-	* coff/internal.h: Added o_sri, o_inlib and o_vid for Apollos
-			as well as R_DIR16.
+	* internal.h: Added o_sri, o_inlib and o_vid for Apollos as well
+	as R_DIR16.
 
-	* coff/apollo.h: New file
+	* apollo.h: New file
 
 Mon Oct 11 17:16:48 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
 
@@ -644,6 +745,10 @@ Thu Aug 12 11:24:42 1993  Ian Lance Taylor  (ian@cygnus.com)
 	* ecoff.h: Moved MIPS reloc definitions from here...
 	* mips.h: to here.
 
+Mon Aug  2 16:37:14 1993  Stu Grossman  (grossman at cygnus.com)
+
+	* i386.h:  Add Lynx magic number.
+
 Tue Aug  3 11:17:53 1993  Ian Lance Taylor  (ian@cygnus.com)
 
 	* alpha.h: Corrected external symbolic debugging structures to
@@ -685,6 +790,12 @@ Thu Jun 10 11:46:28 1993  Ian Lance Taylor  (ian@cygnus.com)
 Wed Jun  9 15:09:09 1993  Ian Lance Taylor  (ian@cygnus.com)
 
 	* mips.h (OMAGIC): Define.
+
+Tue Jun  8 12:16:03 1993  Steve Chamberlain  (sac@phydeaux.cygnus.com)
+
+	 Support for H8/300-H
+	* h8300.h: New magic number.
+	* internal.h: New relocations.
 
 Mon Apr 26 18:04:47 1993  Steve Chamberlain  (sac@thepub.cygnus.com)
 
@@ -863,8 +974,8 @@ Thu Feb  6 11:33:32 1992  Steve Chamberlain  (sac at rtl.cygnus.com)
 
 Sat Nov 30 20:38:35 1991  Steve Chamberlain  (sac at rtl.cygnus.com)
 
-	* ChangeLog, a29k.h, h8300.h, i386.h, i960.h, internal.h, m68k.h,
-	m88k.h, mips.h, rs6000.h: move from above coff-<foo>.h
+	* a29k.h, h8300.h, i386.h, i960.h, internal.h, m68k.h, m88k.h,
+	mips.h, rs6000.h: Move from above coff-<foo>.h.
 
 
 Local Variables:

@@ -1,5 +1,5 @@
 /* coffgrok.c
-   Copyright (C) 1994, 95, 97, 1998 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 1997, 1998, 2000 Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.
 
@@ -245,7 +245,7 @@ static
 struct coff_line *
 do_lines (i, name)
      int i;
-     char *name;
+     char *name ATTRIBUTE_UNUSED;
 {
   struct coff_line *res = (struct coff_line *) xcalloc (sizeof (struct coff_line), 1);
   asection *s;

@@ -1,5 +1,6 @@
 /* Print SPARC instructions.
-   Copyright (C) 1989, 91-97, 1998 Free Software Foundation, Inc.
+   Copyright 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+   2000 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -25,7 +26,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* Bitmask of v9 architectures.  */
 #define MASK_V9 ((1 << SPARC_OPCODE_ARCH_V9) \
-		 | (1 << SPARC_OPCODE_ARCH_V9A))
+		 | (1 << SPARC_OPCODE_ARCH_V9A) \
+		 | (1 << SPARC_OPCODE_ARCH_V9B))
 /* 1 if INSN is for v9 only.  */
 #define V9_ONLY_P(insn) (! ((insn)->architecture & ~MASK_V9))
 /* 1 if INSN is for v9.  */
@@ -95,7 +97,7 @@ static char *v9_priv_reg_names[] =
 static char *v9a_asr_reg_names[] =
 {
   "pcr", "pic", "dcr", "gsr", "set_softint", "clear_softint",
-  "softint", "tick_cmpr"
+  "softint", "tick_cmpr", "sys_tick", "sys_tick_cmpr"
 };
 
 /* Macros used to extract instruction fields.  Not all fields have
@@ -463,6 +465,10 @@ print_insn_sparc (memaddr, info)
 		    }
 		    break;
 
+		  case '3':
+		    (info->fprintf_func) (stream, "%d", X_IMM (insn, 3));
+		    break;
+
 		  case 'K':
 		    {
 		      int mask = X_MEMBAR (insn);
@@ -551,7 +557,7 @@ print_insn_sparc (memaddr, info)
 		    break;
 
 		  case '/':
-		    if (X_RS1 (insn) < 16 || X_RS1 (insn) > 23)
+		    if (X_RS1 (insn) < 16 || X_RS1 (insn) > 25)
 		      (*info->fprintf_func) (stream, "%%reserved");
 		    else
 		      (*info->fprintf_func) (stream, "%%%s",
@@ -559,7 +565,7 @@ print_insn_sparc (memaddr, info)
 		    break;
 
 		  case '_':
-		    if (X_RD (insn) < 16 || X_RD (insn) > 23)
+		    if (X_RD (insn) < 16 || X_RD (insn) > 25)
 		      (*info->fprintf_func) (stream, "%%reserved");
 		    else
 		      (*info->fprintf_func) (stream, "%%%s",
@@ -770,6 +776,9 @@ compute_arch_mask (mach)
     case bfd_mach_sparc_v8plusa :
     case bfd_mach_sparc_v9a :
       return SPARC_OPCODE_ARCH_MASK (SPARC_OPCODE_ARCH_V9A);
+    case bfd_mach_sparc_v8plusb :
+    case bfd_mach_sparc_v9b :
+      return SPARC_OPCODE_ARCH_MASK (SPARC_OPCODE_ARCH_V9B);
     }
   abort ();
 }

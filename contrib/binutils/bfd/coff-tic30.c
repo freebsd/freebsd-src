@@ -1,5 +1,5 @@
 /* BFD back-end for TMS320C30 coff binaries.
-   Copyright (C) 1998, 1999 Free Software Foundation, Inc.
+   Copyright 1998, 1999, 2000 Free Software Foundation, Inc.
    Contributed by Steven Haworth (steve@pm.cse.rmit.edu.au)
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -49,7 +49,7 @@ reloc_howto_type tic30_coff_howto_table[] =
 
 /* For the case statement use the code values used in tc_gen_reloc to
    map to the howto table entries that match those in both the aout
-   and coff implementations. */
+   and coff implementations.  */
 reloc_howto_type *
 tic30_coff_reloc_type_lookup (abfd, code)
      bfd *abfd ATTRIBUTE_UNUSED;
@@ -86,7 +86,6 @@ coff_tic30_select_reloc (howto)
 
 #define SELECT_RELOC(x,howto) x.r_type = coff_tic30_select_reloc(howto)
 
-
 #define BADMAG(x) TIC30BADMAG(x)
 #define TIC30 1			/* Customize coffcode.h */
 #define __A_MAGIC_SET__
@@ -97,7 +96,7 @@ coff_tic30_select_reloc (howto)
 #define SWAP_OUT_RELOC_EXTRA(abfd, src, dst) dst->r_stuff[0] = 'S'; \
 dst->r_stuff[1] = 'C';
 
-/* Code to turn a r_type into a howto ptr, uses the above howto table. */
+/* Code to turn a r_type into a howto ptr, uses the above howto table.  */
 
 static void
 rtype2howto (internal, dst)
@@ -133,7 +132,6 @@ rtype2howto (internal, dst)
 
 #define CALC_ADDEND(abfd, symbol, ext_reloc, cache_ptr) \
  cache_ptr->addend =  ext_reloc.r_offset;
-
 
 #define RELOC_PROCESSING(relent,reloc,symbols,abfd,section) \
  reloc_processing(relent, reloc, symbols, abfd, section)
@@ -203,6 +201,6 @@ const bfd_target tic30_coff_vec =
   BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
 
   NULL,
-  
+
   COFF_SWAP_TABLE
 };

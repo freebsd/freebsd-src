@@ -1,5 +1,5 @@
 /* BFD back-end for FreeBSD/386 a.out-ish binaries.
-   Copyright (C) 1990, 1991, 1992, 1996 Free Software Foundation, Inc.
+   Copyright 1990, 1991, 1992, 1996 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 

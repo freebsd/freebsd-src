@@ -1,5 +1,5 @@
 /* BFD PowerPC CPU definition
-   Copyright (C) 1994, 1995, 1996 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 1996, 2000 Free Software Foundation, Inc.
    Contributed by Ian Lance Taylor, Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -54,12 +54,12 @@ static const bfd_arch_info_type arch_info_struct[] =
     32,	/* 32 bits in an address */
     8,	/* 8 bits in a byte */
     bfd_arch_powerpc,
-    603, /* for the mpc603 */
+    bfd_mach_ppc_603,
     "powerpc",
     "powerpc:603",
     3,
     false, /* not the default */
-    powerpc_compatible, 
+    powerpc_compatible,
     bfd_default_scan,
     &arch_info_struct[1]
   },
@@ -68,12 +68,12 @@ static const bfd_arch_info_type arch_info_struct[] =
     32,	/* 32 bits in an address */
     8,	/* 8 bits in a byte */
     bfd_arch_powerpc,
-    604, /* for the mpc604 */
+    bfd_mach_ppc_ec603e,
     "powerpc",
-    "powerpc:604",
+    "powerpc:EC603e",
     3,
     false, /* not the default */
-    powerpc_compatible, 
+    powerpc_compatible,
     bfd_default_scan,
     &arch_info_struct[2]
   },
@@ -82,12 +82,12 @@ static const bfd_arch_info_type arch_info_struct[] =
     32,	/* 32 bits in an address */
     8,	/* 8 bits in a byte */
     bfd_arch_powerpc,
-    403, /* for the 403 */
+    bfd_mach_ppc_604,
     "powerpc",
-    "powerpc:403",
+    "powerpc:604",
     3,
     false, /* not the default */
-    powerpc_compatible, 
+    powerpc_compatible,
     bfd_default_scan,
     &arch_info_struct[3]
   },
@@ -96,12 +96,124 @@ static const bfd_arch_info_type arch_info_struct[] =
     32,	/* 32 bits in an address */
     8,	/* 8 bits in a byte */
     bfd_arch_powerpc,
-    601, /* for the mpc601 */
+    bfd_mach_ppc_403,
+    "powerpc",
+    "powerpc:403",
+    3,
+    false, /* not the default */
+    powerpc_compatible,
+    bfd_default_scan,
+    &arch_info_struct[4]
+  },
+  {
+    32,	/* 32 bits in a word */
+    32,	/* 32 bits in an address */
+    8,	/* 8 bits in a byte */
+    bfd_arch_powerpc,
+    bfd_mach_ppc_601,
     "powerpc",
     "powerpc:601",
     3,
     false, /* not the default */
-    powerpc_compatible, 
+    powerpc_compatible,
+    bfd_default_scan,
+    &arch_info_struct[5]
+  },
+  {
+    64,	/* 64 bits in a word */
+    64,	/* 64 bits in an address */
+    8,	/* 8 bits in a byte */
+    bfd_arch_powerpc,
+    bfd_mach_ppc_620,
+    "powerpc",
+    "powerpc:620",
+    3,
+    false, /* not the default */
+    powerpc_compatible,
+    bfd_default_scan,
+    &arch_info_struct[6]
+  },
+  {
+    64,	/* 64 bits in a word */
+    64,	/* 64 bits in an address */
+    8,	/* 8 bits in a byte */
+    bfd_arch_powerpc,
+    bfd_mach_ppc_630,
+    "powerpc",
+    "powerpc:630",
+    3,
+    false, /* not the default */
+    powerpc_compatible,
+    bfd_default_scan,
+    &arch_info_struct[7]
+  },
+  {
+    64,	/* 64 bits in a word */
+    64,	/* 64 bits in an address */
+    8,	/* 8 bits in a byte */
+    bfd_arch_powerpc,
+    bfd_mach_ppc_a35,
+    "powerpc",
+    "powerpc:a35",
+    3,
+    false, /* not the default */
+    powerpc_compatible,
+    bfd_default_scan,
+    &arch_info_struct[8]
+  },
+  {
+    64,	/* 64 bits in a word */
+    64,	/* 64 bits in an address */
+    8,	/* 8 bits in a byte */
+    bfd_arch_powerpc,
+    bfd_mach_ppc_rs64ii,
+    "powerpc",
+    "powerpc:rs64ii",
+    3,
+    false, /* not the default */
+    powerpc_compatible,
+    bfd_default_scan,
+    &arch_info_struct[9]
+  },
+  {
+    64,	/* 64 bits in a word */
+    64,	/* 64 bits in an address */
+    8,	/* 8 bits in a byte */
+    bfd_arch_powerpc,
+    bfd_mach_ppc_rs64iii,
+    "powerpc",
+    "powerpc:rs64iii",
+    3,
+    false, /* not the default */
+    powerpc_compatible,
+    bfd_default_scan,
+    &arch_info_struct[10]
+  },
+  {
+    32,	/* 32 bits in a word */
+    32,	/* 32 bits in an address */
+    8,	/* 8 bits in a byte */
+    bfd_arch_powerpc,
+    bfd_mach_ppc_7400,
+    "powerpc",
+    "powerpc:7400",
+    3,
+    false, /* not the default */
+    powerpc_compatible,
+    bfd_default_scan,
+    &arch_info_struct[11]
+  },
+  {
+    32,       /* 32 bits in a word */
+    32,       /* 32 bits in an address */
+    8,        /* 8 bits in a byte */
+    bfd_arch_powerpc,
+    bfd_mach_ppc_860,
+    "powerpc",
+    "powerpc:MPC8XX",
+    3,
+    false, /* not the default */
+    powerpc_compatible,
     bfd_default_scan,
     0
   }
@@ -113,12 +225,12 @@ const bfd_arch_info_type bfd_powerpc_arch =
     32,	/* 32 bits in an address */
     8,	/* 8 bits in a byte */
     bfd_arch_powerpc,
-    0, /* for the POWER/PowerPC common architecture */
+    bfd_mach_ppc, /* for the POWER/PowerPC common architecture */
     "powerpc",
     "powerpc:common",
     3,
     true, /* the default */
-    powerpc_compatible, 
+    powerpc_compatible,
     bfd_default_scan,
     &arch_info_struct[0]
   };

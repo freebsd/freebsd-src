@@ -1,5 +1,6 @@
 /* struct_symbol.h - Internal symbol structure
-   Copyright (C) 1987, 92, 93, 94, 95, 98, 1999 Free Software Foundation, Inc.
+   Copyright 1987, 1992, 1993, 1994, 1995, 1998, 1999, 2000, 2001
+   Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -21,6 +22,12 @@
 #ifndef __struc_symbol_h__
 #define __struc_symbol_h__
 
+#ifdef BFD_ASSEMBLER
+/* The BFD code wants to walk the list in both directions.  */
+#undef  SYMBOLS_NEED_BACKPOINTERS
+#define SYMBOLS_NEED_BACKPOINTERS
+#endif
+
 /* The information we keep for a symbol.  Note that the symbol table
    holds pointers both to this and to local_symbol structures.  See
    below.  */
@@ -34,13 +41,13 @@ struct symbol
   /* The (4-origin) position of sy_name in the symbol table of the object
      file.  This will be 0 for (nameless) .stabd symbols.
 
-     Not used until write_object_file() time. */
+     Not used until write_object_file() time.  */
   unsigned long sy_name_offset;
 
   /* What we write in .o file (if permitted).  */
   obj_symbol_type sy_symbol;
 
-  /* The 24 bit symbol number.  Symbol numbers start at 0 and are unsigned. */
+  /* The 24 bit symbol number.  Symbol numbers start at 0 and are unsigned.  */
   long sy_number;
 #endif
 
@@ -69,7 +76,7 @@ struct symbol
      are local and would otherwise not be.  */
   unsigned int sy_used_in_reloc : 1;
 
-  /* Whether the symbol is used as an operand or in an expression.  
+  /* Whether the symbol is used as an operand or in an expression.
      NOTE:  Not all the backends keep this information accurate;
      backends which use this bit are responsible for setting it when
      a symbol is used in backend routines.  */
@@ -87,6 +94,10 @@ struct symbol
 
 #ifdef TC_SYMFIELD_TYPE
   TC_SYMFIELD_TYPE sy_tc;
+#endif
+
+#ifdef TARGET_SYMBOL_FIELDS
+  TARGET_SYMBOL_FIELDS
 #endif
 };
 
@@ -142,5 +153,3 @@ struct local_symbol
 #endif /* BFD_ASSEMBLER */
 
 #endif /* __struc_symbol_h__ */
-
-/* end of struc-symbol.h */

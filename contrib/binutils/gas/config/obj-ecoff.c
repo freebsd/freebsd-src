@@ -1,5 +1,5 @@
 /* ECOFF object file format.
-   Copyright (C) 1993, 94, 95, 96, 97, 98, 99, 2000
+   Copyright 1993, 1994, 1995, 1996, 1998, 1999, 2000, 2001
    Free Software Foundation, Inc.
    Contributed by Cygnus Support.
    This file was put together by Ian Lance Taylor <ian@cygnus.com>.
@@ -34,6 +34,7 @@
 static int ecoff_sec_sym_ok_for_reloc PARAMS ((asection *));
 static void obj_ecoff_frob_symbol PARAMS ((symbolS *, int *));
 static void ecoff_pop_insert PARAMS ((void));
+static int ecoff_separate_stab_sections PARAMS ((void));
 
 /* These are the pseudo-ops we support in this file.  Only those
    relating to debugging information are supported here.
@@ -84,7 +85,7 @@ const pseudo_typeS obj_pseudo_table[] =
   { "extern",	ecoff_directive_extern,	0 },
 
 #ifndef TC_MIPS
-  /* For TC_MIPS, tc-mips.c adds this. */
+  /* For TC_MIPS, tc-mips.c adds this.  */
   { "weakext",	ecoff_directive_weakext, 0 },
 #endif
 
@@ -94,7 +95,7 @@ const pseudo_typeS obj_pseudo_table[] =
   { "verstamp",	s_ignore,		0 },
 
   /* Sentinel.  */
-  { NULL }
+  { NULL,	s_ignore,		0 }
 };
 
 /* Swap out the symbols and debugging information for BFD.  */
@@ -140,7 +141,7 @@ ecoff_frob_file ()
     /* bss segment */
     ".sbss", ".bss",
   };
-#define n_names (sizeof (names) / sizeof (names[0]))
+#define n_names ((int) (sizeof (names) / sizeof (names[0])))
 
   addr = 0;
   {
@@ -271,7 +272,7 @@ obj_ecoff_set_ext (sym, ext)
 
 static int
 ecoff_sec_sym_ok_for_reloc (sec)
-     asection *sec;
+     asection *sec ATTRIBUTE_UNUSED;
 {
   return 1;
 }
@@ -279,7 +280,7 @@ ecoff_sec_sym_ok_for_reloc (sec)
 static void
 obj_ecoff_frob_symbol (sym, puntp)
      symbolS *sym;
-     int *puntp;
+     int *puntp ATTRIBUTE_UNUSED;
 {
   ecoff_frob_symbol (sym);
 }
@@ -290,26 +291,44 @@ ecoff_pop_insert ()
   pop_insert (obj_pseudo_table);
 }
 
+static int
+ecoff_separate_stab_sections ()
+{
+  return 0;
+}
+
 const struct format_ops ecoff_format_ops =
 {
   bfd_target_ecoff_flavour,
   0,	/* dfl_leading_underscore */
+
+  /* FIXME: A comment why emit_section_symbols is different here (1) from
+     the single-format definition (0) would be in order.  */
   1,	/* emit_section_symbols */
+  0,	/* begin */
+  ecoff_new_file,
   obj_ecoff_frob_symbol,
   ecoff_frob_file,
+  0,	/* frob_file_before_adjust */
   0,	/* frob_file_after_relocs */
   0,	/* s_get_size */
   0,	/* s_set_size */
   0,	/* s_get_align */
   0,	/* s_set_align */
   0,	/* s_get_other */
+  0,	/* s_set_other */
   0,	/* s_get_desc */
+  0,	/* s_set_desc */
+  0,	/* s_get_type */
+  0,	/* s_set_type */
   0,	/* copy_symbol_attributes */
   ecoff_generate_asm_lineno,
   ecoff_stab,
+  ecoff_separate_stab_sections,
+  0,	/* init_stab_section */
   ecoff_sec_sym_ok_for_reloc,
   ecoff_pop_insert,
   ecoff_set_ext,
   ecoff_read_begin_hook,
-  ecoff_symbol_new_hook,
+  ecoff_symbol_new_hook
 };

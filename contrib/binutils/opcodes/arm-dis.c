@@ -1,5 +1,6 @@
 /* Instruction printing code for the ARM
-   Copyright (C) 1994, 95, 96, 97, 98, 99, 2000 Free Software Foundation, Inc. 
+   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Free Software Foundation, Inc.
    Contributed by Richard Earnshaw (rwe@pegasus.esprit.ec.org)
    Modification by James G. Smith (jsmith@cygnus.co.uk)
 
@@ -60,6 +61,8 @@ static arm_regname regnames[] =
 {
   { "raw" , "Select raw register names",
     { "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"}},
+  { "gcc",  "Select register names used by GCC",
+    { "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "sl",  "fp",  "ip",  "sp",  "lr",  "pc" }},
   { "std",  "Select register names used in ARM's ISA documentation",
     { "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "sp",  "lr",  "pc" }},
   { "apcs", "Select register names used in the APCS",
@@ -70,7 +73,7 @@ static arm_regname regnames[] =
     { "a1", "a2", "a3", "a4", "v1", "v2", "v3", "WR", "v5", "SB", "SL",  "FP",  "IP",  "SP",  "LR",  "PC" }}
 };
 
-/* Default to standard register name set.  */
+/* Default to GCC register name set.  */
 static unsigned int regname_selected = 1;
 
 #define NUM_ARM_REGNAMES  NUM_ELEM (regnames)
@@ -198,7 +201,7 @@ print_insn_arm (pc, info, given)
 				offset = - offset;
 			  
 			      /* pre-indexed */
-			      func (stream, ", #%x]", offset);
+			      func (stream, ", #%d]", offset);
 
 			      offset += pc + 8;
 
@@ -212,7 +215,7 @@ print_insn_arm (pc, info, given)
 			  else
 			    {
 			      /* Post indexed.  */
-			      func (stream, "], #%x", offset);
+			      func (stream, "], #%d", offset);
 
 			      offset = pc + 8;  /* ie ignore the offset.  */
 			    }
@@ -277,7 +280,7 @@ print_insn_arm (pc, info, given)
 			  if ((given & 0x00800000) == 0)
 			    offset = -offset;
 			  
-			  func (stream, "[pc, #%x]\t; ", offset);
+			  func (stream, "[pc, #%d]\t; ", offset);
 			  
 			  (*info->print_address_func)
 			    (offset + pc + 8, info);
@@ -419,28 +422,39 @@ print_insn_arm (pc, info, given)
 			}
 		      break;
 
+		    case 'B':
+		      /* Print ARM V5 BLX(1) address: pc+25 bits.  */
+		      {
+			bfd_vma address;
+			bfd_vma offset = 0;
+			
+			if (given & 0x00800000)
+			  /* Is signed, hi bits should be ones.  */
+			  offset = (-1) ^ 0x00ffffff;
+
+			/* Offset is (SignExtend(offset field)<<2).  */
+			offset += given & 0x00ffffff;
+			offset <<= 2;
+			address = offset + pc + 8;
+			
+			if (given & 0x01000000)
+			  /* H bit allows addressing to 2-byte boundaries.  */
+			  address += 2;
+
+		        info->print_address_func (address, info);
+		      }
+		      break;
+
 		    case 'C':
-		      switch (given & 0x000f0000)
-			{
-			default:
-			  func (stream, "_???");
-			  break;
-			case 0x90000:
-			  func (stream, "_all");
-			  break;
-			case 0x10000:
-			  func (stream, "_c");
-			  break;
-			case 0x20000:
-			  func (stream, "_x");
-			  break;
-			case 0x40000:
-			  func (stream, "_s");
-			  break;
-			case 0x80000:
-			  func (stream, "_f");
-			  break;
-			}
+		      func (stream, "_");
+		      if (given & 0x80000)
+			func (stream, "f");
+		      if (given & 0x40000)
+			func (stream, "s");
+		      if (given & 0x20000)
+			func (stream, "x");
+		      if (given & 0x10000)
+			func (stream, "c");
 		      break;
 
 		    case 'F':
@@ -658,6 +672,9 @@ print_insn_thumb (pc, info, given)
 	      info->bytes_per_chunk = 4;
 	      info->bytes_per_line  = 4;
 	      
+	      if ((given & 0x10000000) == 0)
+                 func (stream, "blx\t");
+	      else
                 func (stream, "bl\t");
 		
               info->print_address_func (BDISP23 (given) * 2 + pc + 4, info);
@@ -1026,6 +1043,14 @@ print_insn (pc, info, little)
       else
 	given = (b[0] << 24) | (b[1] << 16) | (b[2] << 8) | (b[3]);
     }
+  
+  if (info->flags & INSN_HAS_RELOC)
+    /* If the instruction has a reloc associated with it, then
+       the offset field in the instruction will actually be the
+       addend for the reloc.  (We are using REL type relocs).
+       In such cases, we can ignore the pc when computing
+       addresses, since the addend is not currently pc-relative.  */
+    pc = 0;
   
   if (is_thumb)
     status = print_insn_thumb (pc, info, given);

@@ -1,5 +1,27 @@
 -*- text -*-
 
+Changes in 2.11:
+
+x86 gas now supports the full Pentium4 instruction set.
+
+Support for AMD x86-64 architecture, by Jan Hubicka, SuSE Labs.
+
+Support for Motorola 68HC11 and 68HC12.
+
+Support for Texas Instruments TMS320C54x (tic54x).
+
+Support for IA-64.
+
+Support for i860, by Jason Eckhardt.
+
+Support for CRIS (Axis Communications ETRAX series).
+
+x86 gas has a new .arch pseudo op to specify the target CPU architecture.
+
+x86 gas -q command line option quietens warnings about register size changes
+due to suffix, indirect jmp/call without `*', stand-alone prefixes, and
+translating various deprecated floating point instructions.
+
 Changes in 2.10:
 
 Support for the ARM msr instruction was changed to only allow an immediate

@@ -1,5 +1,5 @@
 /* d10v ELF support for BFD.
-   Copyright (C) 1998 Free Software Foundation, Inc.
+   Copyright 1998, 2000 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -33,6 +33,6 @@ START_RELOC_NUMBERS (elf_d10v_reloc_type)
   RELOC_NUMBER (R_D10V_32, 6)
   RELOC_NUMBER (R_D10V_GNU_VTINHERIT, 7)
   RELOC_NUMBER (R_D10V_GNU_VTENTRY, 8)
-END_RELOC_NUMBERS
+END_RELOC_NUMBERS (R_D10V_max)
 
 #endif

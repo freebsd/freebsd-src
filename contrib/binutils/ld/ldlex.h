@@ -1,5 +1,6 @@
 /* ldlex.h -
-   Copyright 1991, 92, 93, 94, 95, 1997 Free Software Foundation, Inc.
+   Copyright 1991, 1992, 1993, 1994, 1995, 1997, 2000
+   Free Software Foundation, Inc.
 
    This file is part of GLD, the Gnu Linker.
 
@@ -57,6 +58,6 @@ extern void lex_unput PARAMS ((int));
 #ifndef yywrap
 extern int yywrap PARAMS ((void));
 #endif
-extern void parse_args PARAMS ((int, char **));
+extern void parse_args PARAMS ((unsigned, char **));
 
 #endif

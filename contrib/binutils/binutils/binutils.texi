@@ -26,11 +26,14 @@ END-INFO-DIR-ENTRY
 @end ifinfo
 
 @ifinfo
-Copyright @copyright{} 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000 Free Software Foundation, Inc.
+Copyright @copyright{} 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000, 2001 Free Software Foundation, Inc.
 
-Permission is granted to make and distribute verbatim copies of
-this manual provided the copyright notice and this permission notice
-are preserved on all copies.
+      Permission is granted to copy, distribute and/or modify this document
+      under the terms of the GNU Free Documentation License, Version 1.1
+      or any later version published by the Free Software Foundation;
+      with no Invariant Sections, with no Front-Cover Texts, and with no
+      Back-Cover Texts.  A copy of the license is included in the
+      section entitled "GNU Free Documentation License".
 
 @ignore
 Permission is granted to process this file through TeX and print the
@@ -39,14 +42,6 @@ notice identical to this one except for the removal of this paragraph
 (this paragraph not being relevant to the printed manual).
 
 @end ignore
-
-Permission is granted to copy and distribute modified versions of this
-manual under the conditions for verbatim copying, provided also that
-the entire resulting derived work is distributed under the terms of a
-permission notice identical to this one.
-
-Permission is granted to copy and distribute translations of this manual
-into another language, under the above conditions for modified versions.
 @end ifinfo
 
 @synindex ky cp
@@ -54,10 +49,10 @@ into another language, under the above conditions for modified versions.
 @c This file documents the GNU binary utilities "ar", "ld", "objcopy",
 @c  "objdump", "nm", "size", "strings", "strip", "readelf" and "ranlib".
 @c
-@c Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000 Free Software Foundation, Inc.
+@c Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000, 2001 Free Software Foundation, Inc.
 @c 
 @c This text may be freely distributed under the terms of the GNU
-@c General Public License.
+@c Free Documentation License.
 @c
 
 @setchapternewpage odd
@@ -79,19 +74,15 @@ into another language, under the above conditions for modified versions.
 @end tex
 
 @vskip 0pt plus 1filll
-Copyright @copyright{} 1991, 92, 93, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
+Copyright @copyright{} 1991, 92, 93, 94, 95, 96, 97, 1998, 2000, 2001 Free Software Foundation, Inc.
 
-Permission is granted to make and distribute verbatim copies of
-this manual provided the copyright notice and this permission notice
-are preserved on all copies.
+      Permission is granted to copy, distribute and/or modify this document
+      under the terms of the GNU Free Documentation License, Version 1.1
+      or any later version published by the Free Software Foundation;
+      with no Invariant Sections, with no Front-Cover Texts, and with no
+      Back-Cover Texts.  A copy of the license is included in the
+      section entitled "GNU Free Documentation License".
 
-Permission is granted to copy and distribute modified versions of this
-manual under the conditions for verbatim copying, provided also that
-the entire resulting derived work is distributed under the terms of a
-permission notice identical to this one.
-
-Permission is granted to copy and distribute translations of this manual
-into another language, under the above conditions for modified versions.
 @end titlepage
 
 @node Top
@@ -148,6 +139,10 @@ Create the files needed to build and use Dynamic Link Libraries
 @end table
 @end iftex
 
+This document is distributed under the terms of the GNU Free
+Documentation License.  A copy of the license is included in the
+section entitled "GNU Free Documentation License".
+
 @menu
 * ar::                          Create, modify, and extract from archives
 * nm::                          List symbols from object files
@@ -166,6 +161,7 @@ Create the files needed to build and use Dynamic Link Libraries
 * dlltool::			Create files needed to build and use DLLs
 * Selecting The Target System:: How these utilities determine the target.
 * Reporting Bugs::              Reporting Bugs
+* GNU Free Documentation License::  GNU Free Documentation License
 * Index::                       Index
 @end menu
 
@@ -234,7 +230,7 @@ program.
 @section Controlling @code{ar} on the command line
 
 @smallexample
-ar [-]@var{p}[@var{mod} [@var{relpos}] [@var{count}]] @var{archive} [@var{member}@dots{}]
+ar [-X32_64] [-]@var{p}[@var{mod} [@var{relpos}] [@var{count}]] @var{archive} [@var{member}@dots{}]
 @end smallexample
 
 @cindex Unix compatibility, @code{ar}
@@ -451,6 +447,12 @@ when the modifier @samp{v} is appended.
 This modifier shows the version number of @code{ar}.
 @end table
 
+@code{ar} ignores an initial option spelt @code{-X32_64}, for
+compatibility with AIX.  The behaviour produced by this option is the
+default for GNU @code{ar}.  @code{ar} does not support any of the other
+@code{-X} options; in particular, it does not support @code{-X32}
+which is the default for AIX @code{ar}.
+
 @node ar scripts
 @section Controlling @code{ar} with a script
 
@@ -630,14 +632,14 @@ The @sc{gnu} linker @code{ld} is now described in a separate manual.
 
 @smallexample
 nm [ -a | --debug-syms ]  [ -g | --extern-only ]
-   [ -B ]  [ -C | --demangle ] [ -D | --dynamic ]
+   [ -B ]  [ -C | --demangle[=@var{style}] ] [ -D | --dynamic ]
    [ -s | --print-armap ]  [ -A | -o | --print-file-name ]
    [ -n | -v | --numeric-sort ]  [ -p | --no-sort ]
    [ -r | --reverse-sort ]  [ --size-sort ] [ -u | --undefined-only ]
    [ -t @var{radix} | --radix=@var{radix} ] [ -P | --portability ]
    [ --target=@var{bfdname} ] [ -f @var{format} | --format=@var{format} ]
-   [ --defined-only ] [-l | --line-numbers ]
-   [ --no-demangle ] [ -V | --version ]  [ --help ]  [ @var{objfile}@dots{} ]
+   [ --defined-only ] [-l | --line-numbers ]  [ --no-demangle ]
+   [ -V | --version ]  [ -X 32_64 ]  [ --help ]  [ @var{objfile}@dots{} ]
 @end smallexample
 
 @sc{gnu} @code{nm} lists the symbols from object files @var{objfile}@dots{}.
@@ -754,12 +756,14 @@ listed.
 The same as @samp{--format=bsd} (for compatibility with the MIPS @code{nm}).
 
 @item -C
-@itemx --demangle
+@itemx --demangle[=@var{style}]
 @cindex demangling in nm
 Decode (@dfn{demangle}) low-level symbol names into user-level names.
 Besides removing any initial underscore prepended by the system, this
-makes C++ function names readable.  @xref{c++filt}, for more information
-on demangling.
+makes C++ function names readable. Different compilers have different
+mangling styles. The optional demangling style argument can be used to 
+choose an appropriate demangling style for your compiler. @xref{c++filt}, 
+for more information on demangling.
 
 @item --no-demangle
 Do not demangle low-level symbol names.  This is the default.
@@ -853,6 +857,12 @@ Display only defined symbols for each object file.
 @itemx --version
 Show the version number of @code{nm} and exit.
 
+@item -X
+This option is ignored for compatibility with the AIX version of
+@code{nm}.  It takes one parameter which must be the string
+@code{32_64}.  The default mode of AIX @code{nm} corresponds
+to @code{-X 32}, which is not supported by @sc{gnu} @code{nm}.
+
 @item --help
 Show a summary of the options to @code{nm} and exit.
 @end table
@@ -867,6 +877,7 @@ objcopy [ -F @var{bfdname} | --target=@var{bfdname} ]
         [ -S | --strip-all ]  [ -g | --strip-debug ]
         [ -K @var{symbolname} | --keep-symbol=@var{symbolname} ]
         [ -N @var{symbolname} | --strip-symbol=@var{symbolname} ]
+        [ -G @var{symbolname} | --keep-global-symbol=@var{symbolname}]
         [ -L @var{symbolname} | --localize-symbol=@var{symbolname} ]
         [ -W @var{symbolname} | --weaken-symbol=@var{symbolname} ]
         [ -x | --discard-all ]  [ -X | --discard-locals ]
@@ -885,7 +896,13 @@ objcopy [ -F @var{bfdname} | --target=@var{bfdname} ]
         [ --set-section-flags @var{section}=@var{flags} ]
         [ --add-section @var{sectionname}=@var{filename} ]
         [ --change-leading-char ] [ --remove-leading-char ]
+        [ --srec-len=@var{ival} ] [ --srec-forceS3 ]
         [ --redefine-sym @var{old}=@var{new} ] [ --weaken ]
+        [ --keep-symbols=@var{filename} ]
+        [ --strip-symbols=@var{filename} ]
+        [ --keep-global-symbols=@var{filename} ]
+        [ --localize-symbols=@var{filename} ]
+        [ --weaken-symbols=@var{filename} ]
         [ -v | --verbose ] [ -V | --version ]  [ --help ]
         @var{infile} [@var{outfile}]
 @end smallexample
@@ -895,6 +912,9 @@ file to another.  @code{objcopy} uses the @sc{gnu} @sc{bfd} Library to
 read and write the object files.  It can write the destination object
 file in a format different from that of the source object file.  The
 exact behavior of @code{objcopy} is controlled by command-line options.
+Note that @code{objcopy} should be able to copy a fully linked file
+between any two formats. However, copying a relocatable object file
+between any two formats may not work as expected.
 
 @code{objcopy} creates temporary files to do its translations and
 deletes them afterward.  @code{objcopy} uses @sc{bfd} to do all its
@@ -916,6 +936,11 @@ When generating an S-record or a raw binary file, it may be helpful to
 use @samp{-S} to remove sections containing debugging information.  In
 some cases @samp{-R} will be useful to remove sections which contain
 information that is not needed by the binary file.
+
+Note - @code{objcopy} is not able to change the endianness of its input
+files.  If the input format has an endianness, (some formats do not),
+@code{objcopy} can only copy the inputs into file formats that have the
+same endianness or which have no endianness (eg @samp{srec}).
 
 @table @code
 @item @var{infile}
@@ -973,6 +998,12 @@ be given more than once.
 @itemx --strip-symbol=@var{symbolname}
 Do not copy symbol @var{symbolname} from the source file.  This option
 may be given more than once.
+
+@item -G @var{symbolname}
+@itemx --keep-global-symbol=@var{symbolname}
+Keep only symbol @var{symbolname} global.  Make all other symbols local
+to the file, so that they are not visible externally.  This option may
+be given more than once.
 
 @item -L @var{symbolname}
 @itemx --localize-symbol=@var{symbolname}
@@ -1137,6 +1168,15 @@ different conventions for symbol names.  This is different from
 when appropriate, regardless of the object file format of the output
 file.
 
+@item --srec-len=@var{ival}
+Meaningful only for srec output.  Set the maximum length of the Srecords
+being produced to @var{ival}.  This length covers both address, data and
+crc fields.
+
+@item --srec-forceS3
+Meaningful only for srec output.  Avoid generation of S1/S2 records, 
+creating S3-only record format.
+
 @item --redefine-sym @var{old}=@var{new}
 Change the name of a symbol @var{old}, to @var{new}.  This can be useful
 when one is trying link two things together for which you have no
@@ -1147,6 +1187,36 @@ Change all global symbols in the file to be weak.  This can be useful
 when building an object which will be linked against other objects using
 the @code{-R} option to the linker.  This option is only effective when
 using an object file format which supports weak symbols.
+
+@item --keep-symbols=@var{filename}
+Apply @samp{--keep-symbol} option to each symbol listed in the file
+@var{filename}.  @var{filename} is simply a flat file, with one symbol
+name per line.  Line comments may be introduced by the hash character.
+This option may be given more than once.
+
+@item --strip-symbols=@var{filename}
+Apply @samp{--strip-symbol} option to each symbol listed in the file
+@var{filename}.  @var{filename} is simply a flat file, with one symbol
+name per line.  Line comments may be introduced by the hash character.
+This option may be given more than once.
+
+@item --keep-global-symbols=@var{filename}
+Apply @samp{--keep-global-symbol} option to each symbol listed in the
+file @var{filename}.  @var{filename} is simply a flat file, with one
+symbol name per line.  Line comments may be introduced by the hash
+character.  This option may be given more than once.
+
+@item --localize-symbols=@var{filename}
+Apply @samp{--localize-symbol} option to each symbol listed in the file
+@var{filename}.  @var{filename} is simply a flat file, with one symbol
+name per line.  Line comments may be introduced by the hash character.
+This option may be given more than once.
+
+@item --weaken-symbols=@var{filename}
+Apply @samp{--weaken-symbol} option to each symbol listed in the file
+@var{filename}.  @var{filename} is simply a flat file, with one symbol
+name per line.  Line comments may be introduced by the hash character.
+This option may be given more than once.
 
 @item -V
 @itemx --version
@@ -1170,7 +1240,7 @@ Show a summary of the options to @code{objcopy}.
 @smallexample
 objdump [ -a | --archive-headers ] 
         [ -b @var{bfdname} | --target=@var{bfdname} ] 
-        [ -C | --demangle ]
+        [ -C | --demangle[=@var{style}] ]
         [ -d | --disassemble ]
         [ -D | --disassemble-all ]
         [ -z | --disassemble-zeroes ]
@@ -1255,12 +1325,14 @@ formats available with the @samp{-i} option.
 @xref{Target Selection}, for more information.
 
 @item -C
-@itemx --demangle
+@itemx --demangle[=@var{style}]
 @cindex demangling in objdump
 Decode (@dfn{demangle}) low-level symbol names into user-level names.
 Besides removing any initial underscore prepended by the system, this
-makes C++ function names readable.  @xref{c++filt}, for more information
-on demangling.
+makes C++ function names readable.  Different compilers have different
+mangling styles. The optional demangling style argument can be used to 
+choose an appropriate demangling style for your compiler. @xref{c++filt}, 
+for more information on demangling.
 
 @item -G
 @item --debugging
@@ -1856,6 +1928,8 @@ the one specified by the C++ Annotated Reference Manual
 the one used by the HP compiler
 @item edg
 the one used by the EDG compiler
+@item gnu-new-abi
+the one used by the @sc{gnu} compiler with the new ABI.
 @end table
 
 @item --help
@@ -1891,7 +1965,7 @@ c++filt @var{option} @var{symbol}
 
 @smallexample
 addr2line [ -b @var{bfdname} | --target=@var{bfdname} ]
-          [ -C | --demangle ]
+          [ -C | --demangle[=@var{style} ]
           [ -e @var{filename} | --exe=@var{filename} ]
           [ -f | --functions ] [ -s | --basename ]
           [ -H | --help ] [ -V | --version ]
@@ -1938,12 +2012,14 @@ Specify that the object-code format for the object files is
 @var{bfdname}.
 
 @item -C
-@itemx --demangle
+@itemx --demangle[=@var{style}]
 @cindex demangling in objdump
 Decode (@dfn{demangle}) low-level symbol names into user-level names.
 Besides removing any initial underscore prepended by the system, this
-makes C++ function names readable.  @xref{c++filt}, for more information
-on demangling.
+makes C++ function names readable.  Different compilers have different
+mangling styles. The optional demangling style argument can be used to 
+choose an appropriate demangling style for your compiler. @xref{c++filt}, 
+for more information on demangling.
 
 @item -e @var{filename}
 @itemx --exe=@var{filename}
@@ -2449,7 +2525,7 @@ readelf [ -a | --all ]
         [ -V | --version-info]
         [ -D | --use-dynamic]
         [ -x <number> | --hex-dump=<number>]
-        [ -w[liapr] | --debug-dump[=info,=line,=abbrev,=pubnames,=ranges]]
+        [ -w[liaprf] | --debug-dump[=info,=line,=abbrev,=pubnames,=ranges,=frames]]
         [      --histogram]
         [ -v | --version]
         [ -H | --help]
@@ -2537,8 +2613,8 @@ symbols section.
 @itemx --hex-dump=<number>
 Displays the contents of the indicated section as a hexadecimal dump.
 
-@item -w[liapr]
-@itemx --debug-dump[=line,=info,=abbrev,=pubnames,=ranges]
+@item -w[liaprf]
+@itemx --debug-dump[=line,=info,=abbrev,=pubnames,=ranges,=frames]
 Displays the contents of the debug sections in the file, if any are
 present.  If one of the optional letters or words follows the switch
 then only data found in those specific sections will be dumped.
@@ -2871,7 +2947,7 @@ individuals in the file @file{etc/SERVICE} in the @sc{gnu} Emacs
 distribution.
 
 In any event, we also recommend that you send bug reports for the binary
-utilities to @samp{bug-gnu-utils@@gnu.org}.
+utilities to @samp{bug-binutils@@gnu.org}.
 
 The fundamental principle of reporting bugs usefully is this:
 @strong{report all the facts}.  If you are not sure whether to state a
@@ -2932,7 +3008,7 @@ A complete input file, or set of input files, that will reproduce the
 bug.  If the utility is reading an object file or files, then it is
 generally most helpful to send the actual object files, uuencoded if
 necessary to get them through the mail system.  Note that
-@samp{bug-gnu-utils@@gnu.org} is a mailing list, so you should avoid
+@samp{bug-binutils@@gnu.org} is a mailing list, so you should avoid
 sending very large files to it.  Making the files available for
 anonymous FTP is OK.
 
@@ -3019,6 +3095,370 @@ A guess about what the bug is or what it depends on.
 Such guesses are usually wrong.  Even we cannot guess right about such
 things without first using the debugger to find the facts.
 @end itemize
+
+@node GNU Free Documentation License
+@chapter GNU Free Documentation License
+@cindex GNU Free Documentation License
+
+                GNU Free Documentation License
+                
+                   Version 1.1, March 2000
+
+ Copyright (C) 2000  Free Software Foundation, Inc.
+  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+     
+ Everyone is permitted to copy and distribute verbatim copies
+ of this license document, but changing it is not allowed.
+
+
+0. PREAMBLE
+
+The purpose of this License is to make a manual, textbook, or other
+written document "free" in the sense of freedom: to assure everyone
+the effective freedom to copy and redistribute it, with or without
+modifying it, either commercially or noncommercially.  Secondarily,
+this License preserves for the author and publisher a way to get
+credit for their work, while not being considered responsible for
+modifications made by others.
+
+This License is a kind of "copyleft", which means that derivative
+works of the document must themselves be free in the same sense.  It
+complements the GNU General Public License, which is a copyleft
+license designed for free software.
+
+We have designed this License in order to use it for manuals for free
+software, because free software needs free documentation: a free
+program should come with manuals providing the same freedoms that the
+software does.  But this License is not limited to software manuals;
+it can be used for any textual work, regardless of subject matter or
+whether it is published as a printed book.  We recommend this License
+principally for works whose purpose is instruction or reference.
+
+
+1. APPLICABILITY AND DEFINITIONS
+
+This License applies to any manual or other work that contains a
+notice placed by the copyright holder saying it can be distributed
+under the terms of this License.  The "Document", below, refers to any
+such manual or work.  Any member of the public is a licensee, and is
+addressed as "you".
+
+A "Modified Version" of the Document means any work containing the
+Document or a portion of it, either copied verbatim, or with
+modifications and/or translated into another language.
+
+A "Secondary Section" is a named appendix or a front-matter section of
+the Document that deals exclusively with the relationship of the
+publishers or authors of the Document to the Document's overall subject
+(or to related matters) and contains nothing that could fall directly
+within that overall subject.  (For example, if the Document is in part a
+textbook of mathematics, a Secondary Section may not explain any
+mathematics.)  The relationship could be a matter of historical
+connection with the subject or with related matters, or of legal,
+commercial, philosophical, ethical or political position regarding
+them.
+
+The "Invariant Sections" are certain Secondary Sections whose titles
+are designated, as being those of Invariant Sections, in the notice
+that says that the Document is released under this License.
+
+The "Cover Texts" are certain short passages of text that are listed,
+as Front-Cover Texts or Back-Cover Texts, in the notice that says that
+the Document is released under this License.
+
+A "Transparent" copy of the Document means a machine-readable copy,
+represented in a format whose specification is available to the
+general public, whose contents can be viewed and edited directly and
+straightforwardly with generic text editors or (for images composed of
+pixels) generic paint programs or (for drawings) some widely available
+drawing editor, and that is suitable for input to text formatters or
+for automatic translation to a variety of formats suitable for input
+to text formatters.  A copy made in an otherwise Transparent file
+format whose markup has been designed to thwart or discourage
+subsequent modification by readers is not Transparent.  A copy that is
+not "Transparent" is called "Opaque".
+
+Examples of suitable formats for Transparent copies include plain
+ASCII without markup, Texinfo input format, LaTeX input format, SGML
+or XML using a publicly available DTD, and standard-conforming simple
+HTML designed for human modification.  Opaque formats include
+PostScript, PDF, proprietary formats that can be read and edited only
+by proprietary word processors, SGML or XML for which the DTD and/or
+processing tools are not generally available, and the
+machine-generated HTML produced by some word processors for output
+purposes only.
+
+The "Title Page" means, for a printed book, the title page itself,
+plus such following pages as are needed to hold, legibly, the material
+this License requires to appear in the title page.  For works in
+formats which do not have any title page as such, "Title Page" means
+the text near the most prominent appearance of the work's title,
+preceding the beginning of the body of the text.
+
+
+2. VERBATIM COPYING
+
+You may copy and distribute the Document in any medium, either
+commercially or noncommercially, provided that this License, the
+copyright notices, and the license notice saying this License applies
+to the Document are reproduced in all copies, and that you add no other
+conditions whatsoever to those of this License.  You may not use
+technical measures to obstruct or control the reading or further
+copying of the copies you make or distribute.  However, you may accept
+compensation in exchange for copies.  If you distribute a large enough
+number of copies you must also follow the conditions in section 3.
+
+You may also lend copies, under the same conditions stated above, and
+you may publicly display copies.
+
+
+3. COPYING IN QUANTITY
+
+If you publish printed copies of the Document numbering more than 100,
+and the Document's license notice requires Cover Texts, you must enclose
+the copies in covers that carry, clearly and legibly, all these Cover
+Texts: Front-Cover Texts on the front cover, and Back-Cover Texts on
+the back cover.  Both covers must also clearly and legibly identify
+you as the publisher of these copies.  The front cover must present
+the full title with all words of the title equally prominent and
+visible.  You may add other material on the covers in addition.
+Copying with changes limited to the covers, as long as they preserve
+the title of the Document and satisfy these conditions, can be treated
+as verbatim copying in other respects.
+
+If the required texts for either cover are too voluminous to fit
+legibly, you should put the first ones listed (as many as fit
+reasonably) on the actual cover, and continue the rest onto adjacent
+pages.
+
+If you publish or distribute Opaque copies of the Document numbering
+more than 100, you must either include a machine-readable Transparent
+copy along with each Opaque copy, or state in or with each Opaque copy
+a publicly-accessible computer-network location containing a complete
+Transparent copy of the Document, free of added material, which the
+general network-using public has access to download anonymously at no
+charge using public-standard network protocols.  If you use the latter
+option, you must take reasonably prudent steps, when you begin
+distribution of Opaque copies in quantity, to ensure that this
+Transparent copy will remain thus accessible at the stated location
+until at least one year after the last time you distribute an Opaque
+copy (directly or through your agents or retailers) of that edition to
+the public.
+
+It is requested, but not required, that you contact the authors of the
+Document well before redistributing any large number of copies, to give
+them a chance to provide you with an updated version of the Document.
+
+
+4. MODIFICATIONS
+
+You may copy and distribute a Modified Version of the Document under
+the conditions of sections 2 and 3 above, provided that you release
+the Modified Version under precisely this License, with the Modified
+Version filling the role of the Document, thus licensing distribution
+and modification of the Modified Version to whoever possesses a copy
+of it.  In addition, you must do these things in the Modified Version:
+
+A. Use in the Title Page (and on the covers, if any) a title distinct
+   from that of the Document, and from those of previous versions
+   (which should, if there were any, be listed in the History section
+   of the Document).  You may use the same title as a previous version
+   if the original publisher of that version gives permission.
+B. List on the Title Page, as authors, one or more persons or entities
+   responsible for authorship of the modifications in the Modified
+   Version, together with at least five of the principal authors of the
+   Document (all of its principal authors, if it has less than five).
+C. State on the Title page the name of the publisher of the
+   Modified Version, as the publisher.
+D. Preserve all the copyright notices of the Document.
+E. Add an appropriate copyright notice for your modifications
+   adjacent to the other copyright notices.
+F. Include, immediately after the copyright notices, a license notice
+   giving the public permission to use the Modified Version under the
+   terms of this License, in the form shown in the Addendum below.
+G. Preserve in that license notice the full lists of Invariant Sections
+   and required Cover Texts given in the Document's license notice.
+H. Include an unaltered copy of this License.
+I. Preserve the section entitled "History", and its title, and add to
+   it an item stating at least the title, year, new authors, and
+   publisher of the Modified Version as given on the Title Page.  If
+   there is no section entitled "History" in the Document, create one
+   stating the title, year, authors, and publisher of the Document as
+   given on its Title Page, then add an item describing the Modified
+   Version as stated in the previous sentence.
+J. Preserve the network location, if any, given in the Document for
+   public access to a Transparent copy of the Document, and likewise
+   the network locations given in the Document for previous versions
+   it was based on.  These may be placed in the "History" section.
+   You may omit a network location for a work that was published at
+   least four years before the Document itself, or if the original
+   publisher of the version it refers to gives permission.
+K. In any section entitled "Acknowledgements" or "Dedications",
+   preserve the section's title, and preserve in the section all the
+   substance and tone of each of the contributor acknowledgements
+   and/or dedications given therein.
+L. Preserve all the Invariant Sections of the Document,
+   unaltered in their text and in their titles.  Section numbers
+   or the equivalent are not considered part of the section titles.
+M. Delete any section entitled "Endorsements".  Such a section
+   may not be included in the Modified Version.
+N. Do not retitle any existing section as "Endorsements"
+   or to conflict in title with any Invariant Section.
+
+If the Modified Version includes new front-matter sections or
+appendices that qualify as Secondary Sections and contain no material
+copied from the Document, you may at your option designate some or all
+of these sections as invariant.  To do this, add their titles to the
+list of Invariant Sections in the Modified Version's license notice.
+These titles must be distinct from any other section titles.
+
+You may add a section entitled "Endorsements", provided it contains
+nothing but endorsements of your Modified Version by various
+parties--for example, statements of peer review or that the text has
+been approved by an organization as the authoritative definition of a
+standard.
+
+You may add a passage of up to five words as a Front-Cover Text, and a
+passage of up to 25 words as a Back-Cover Text, to the end of the list
+of Cover Texts in the Modified Version.  Only one passage of
+Front-Cover Text and one of Back-Cover Text may be added by (or
+through arrangements made by) any one entity.  If the Document already
+includes a cover text for the same cover, previously added by you or
+by arrangement made by the same entity you are acting on behalf of,
+you may not add another; but you may replace the old one, on explicit
+permission from the previous publisher that added the old one.
+
+The author(s) and publisher(s) of the Document do not by this License
+give permission to use their names for publicity for or to assert or
+imply endorsement of any Modified Version.
+
+
+5. COMBINING DOCUMENTS
+
+You may combine the Document with other documents released under this
+License, under the terms defined in section 4 above for modified
+versions, provided that you include in the combination all of the
+Invariant Sections of all of the original documents, unmodified, and
+list them all as Invariant Sections of your combined work in its
+license notice.
+
+The combined work need only contain one copy of this License, and
+multiple identical Invariant Sections may be replaced with a single
+copy.  If there are multiple Invariant Sections with the same name but
+different contents, make the title of each such section unique by
+adding at the end of it, in parentheses, the name of the original
+author or publisher of that section if known, or else a unique number.
+Make the same adjustment to the section titles in the list of
+Invariant Sections in the license notice of the combined work.
+
+In the combination, you must combine any sections entitled "History"
+in the various original documents, forming one section entitled
+"History"; likewise combine any sections entitled "Acknowledgements",
+and any sections entitled "Dedications".  You must delete all sections
+entitled "Endorsements."
+
+
+6. COLLECTIONS OF DOCUMENTS
+
+You may make a collection consisting of the Document and other documents
+released under this License, and replace the individual copies of this
+License in the various documents with a single copy that is included in
+the collection, provided that you follow the rules of this License for
+verbatim copying of each of the documents in all other respects.
+
+You may extract a single document from such a collection, and distribute
+it individually under this License, provided you insert a copy of this
+License into the extracted document, and follow this License in all
+other respects regarding verbatim copying of that document.
+
+
+7. AGGREGATION WITH INDEPENDENT WORKS
+
+A compilation of the Document or its derivatives with other separate
+and independent documents or works, in or on a volume of a storage or
+distribution medium, does not as a whole count as a Modified Version
+of the Document, provided no compilation copyright is claimed for the
+compilation.  Such a compilation is called an "aggregate", and this
+License does not apply to the other self-contained works thus compiled
+with the Document, on account of their being thus compiled, if they
+are not themselves derivative works of the Document.
+
+If the Cover Text requirement of section 3 is applicable to these
+copies of the Document, then if the Document is less than one quarter
+of the entire aggregate, the Document's Cover Texts may be placed on
+covers that surround only the Document within the aggregate.
+Otherwise they must appear on covers around the whole aggregate.
+
+
+8. TRANSLATION
+
+Translation is considered a kind of modification, so you may
+distribute translations of the Document under the terms of section 4.
+Replacing Invariant Sections with translations requires special
+permission from their copyright holders, but you may include
+translations of some or all Invariant Sections in addition to the
+original versions of these Invariant Sections.  You may include a
+translation of this License provided that you also include the
+original English version of this License.  In case of a disagreement
+between the translation and the original English version of this
+License, the original English version will prevail.
+
+
+9. TERMINATION
+
+You may not copy, modify, sublicense, or distribute the Document except
+as expressly provided for under this License.  Any other attempt to
+copy, modify, sublicense or distribute the Document is void, and will
+automatically terminate your rights under this License.  However,
+parties who have received copies, or rights, from you under this
+License will not have their licenses terminated so long as such
+parties remain in full compliance.
+
+
+10. FUTURE REVISIONS OF THIS LICENSE
+
+The Free Software Foundation may publish new, revised versions
+of the GNU Free Documentation License from time to time.  Such new
+versions will be similar in spirit to the present version, but may
+differ in detail to address new problems or concerns.  See
+http://www.gnu.org/copyleft/.
+
+Each version of the License is given a distinguishing version number.
+If the Document specifies that a particular numbered version of this
+License "or any later version" applies to it, you have the option of
+following the terms and conditions either of that specified version or
+of any later version that has been published (not as a draft) by the
+Free Software Foundation.  If the Document does not specify a version
+number of this License, you may choose any version ever published (not
+as a draft) by the Free Software Foundation.
+
+
+ADDENDUM: How to use this License for your documents
+
+To use this License in a document you have written, include a copy of
+the License in the document and put the following copyright and
+license notices just after the title page:
+
+@smallexample
+    Copyright (c)  YEAR  YOUR NAME.
+    Permission is granted to copy, distribute and/or modify this document
+    under the terms of the GNU Free Documentation License, Version 1.1
+    or any later version published by the Free Software Foundation;
+    with the Invariant Sections being LIST THEIR TITLES, with the
+    Front-Cover Texts being LIST, and with the Back-Cover Texts being LIST.
+    A copy of the license is included in the section entitled "GNU
+    Free Documentation License".
+@end smallexample
+
+If you have no Invariant Sections, write "with no Invariant Sections"
+instead of saying which ones are invariant.  If you have no
+Front-Cover Texts, write "no Front-Cover Texts" instead of
+"Front-Cover Texts being LIST"; likewise for Back-Cover Texts.
+
+If your document contains nontrivial examples of program code, we
+recommend releasing these examples in parallel under your choice of
+free software license, such as the GNU General Public License,
+to permit their use in free software.
 
 @node Index
 @unnumbered Index

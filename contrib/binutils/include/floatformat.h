@@ -1,5 +1,5 @@
 /* IEEE floating point support declarations, for GDB, the GNU Debugger.
-   Copyright (C) 1991 Free Software Foundation, Inc.
+   Copyright 1991, 1994, 1995, 1997, 2000 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -73,6 +73,9 @@ struct floatformat
 
   /* Is the integer bit explicit or implicit?  */
   enum floatformat_intbit intbit;
+
+  /* Internal name for debugging. */
+  const char *name;
 };
 
 /* floatformats for IEEE single and double, big and little endian.  */

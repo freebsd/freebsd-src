@@ -1,5 +1,5 @@
 /* Sysroff object format dumper.
-   Copyright (C) 1994, 95, 98, 99, 2000 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 1998, 1999, 2000 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -131,8 +131,8 @@ barray
 getBARRAY (ptr, idx, dsize, max)
      unsigned char *ptr;
      int *idx;
-     int dsize;
-     int max;
+     int dsize ATTRIBUTE_UNUSED;
+     int max ATTRIBUTE_UNUSED;
 {
   barray res;
   int i;

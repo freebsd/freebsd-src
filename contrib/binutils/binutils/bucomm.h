@@ -1,5 +1,5 @@
 /* bucomm.h -- binutils common include file.
-   Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000
+   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000
    Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.
@@ -138,12 +138,11 @@ void *alloca ();
 #  define N_(String) (String)
 # endif
 #else
-/* Stubs that do something close enough.  */
-# define textdomain(String) (String)
-# define gettext(String) (String)
-# define dgettext(Domain,Message) (Message)
-# define dcgettext(Domain,Message,Type) (Message)
-# define bindtextdomain(Domain,Directory) (Domain)
+# define gettext(Msgid) (Msgid)
+# define dgettext(Domainname, Msgid) (Msgid)
+# define dcgettext(Domainname, Msgid, Category) (Msgid)
+# define textdomain(Domainname) while (0) /* nothing */
+# define bindtextdomain(Domainname, Dirname) while (0) /* nothing */
 # define _(String) (String)
 # define N_(String) (String)
 #endif

@@ -1,5 +1,6 @@
 /* Routines to link ECOFF debugging information.
-   Copyright 1993, 94, 95, 96, 97, 1999 Free Software Foundation, Inc.
+   Copyright 1993, 1994, 1995, 1996, 1997, 2000
+   Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support, <ian@cygnus.com>.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -69,8 +70,8 @@ _bfd_ecoff_swap_tir_in (bigend, ext_copy, intern)
   struct tir_ext ext[1];
 
   *ext = *ext_copy;		/* Make it reasonable to do in-place.  */
-  
-  /* now the fun stuff... */
+
+  /* now the fun stuff...  */
   if (bigend) {
     intern->fBitfield   = 0 != (ext->t_bits1[0] & TIR_BITS1_FBITFIELD_BIG);
     intern->continued   = 0 != (ext->t_bits1[0] & TIR_BITS1_CONTINUED_BIG);
@@ -109,7 +110,7 @@ _bfd_ecoff_swap_tir_in (bigend, ext_copy, intern)
 
 #ifdef TEST
   if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
-    abort();
+    abort ();
 #endif
 }
 
@@ -126,8 +127,8 @@ _bfd_ecoff_swap_tir_out (bigend, intern_copy, ext)
   TIR intern[1];
 
   *intern = *intern_copy;	/* Make it reasonable to do in-place.  */
-  
-  /* now the fun stuff... */
+
+  /* now the fun stuff...  */
   if (bigend) {
     ext->t_bits1[0] = ((intern->fBitfield ? TIR_BITS1_FBITFIELD_BIG : 0)
 		       | (intern->continued ? TIR_BITS1_CONTINUED_BIG : 0)
@@ -166,7 +167,7 @@ _bfd_ecoff_swap_tir_out (bigend, intern_copy, ext)
 
 #ifdef TEST
   if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
-    abort();
+    abort ();
 #endif
 }
 
@@ -182,8 +183,8 @@ _bfd_ecoff_swap_rndx_in (bigend, ext_copy, intern)
   struct rndx_ext ext[1];
 
   *ext = *ext_copy;		/* Make it reasonable to do in-place.  */
-  
-  /* now the fun stuff... */
+
+  /* now the fun stuff...  */
   if (bigend) {
     intern->rfd   = (ext->r_bits[0] << RNDX_BITS0_RFD_SH_LEFT_BIG)
 		  | ((ext->r_bits[1] & RNDX_BITS1_RFD_BIG)
@@ -205,7 +206,7 @@ _bfd_ecoff_swap_rndx_in (bigend, ext_copy, intern)
 
 #ifdef TEST
   if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
-    abort();
+    abort ();
 #endif
 }
 
@@ -221,8 +222,8 @@ _bfd_ecoff_swap_rndx_out (bigend, intern_copy, ext)
   RNDXR intern[1];
 
   *intern = *intern_copy;	/* Make it reasonable to do in-place.  */
-  
-  /* now the fun stuff... */
+
+  /* now the fun stuff...  */
   if (bigend) {
     ext->r_bits[0] = intern->rfd >> RNDX_BITS0_RFD_SH_LEFT_BIG;
     ext->r_bits[1] = (((intern->rfd << RNDX_BITS1_RFD_SH_BIG)
@@ -243,7 +244,7 @@ _bfd_ecoff_swap_rndx_out (bigend, intern_copy, ext)
 
 #ifdef TEST
   if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
-    abort();
+    abort ();
 #endif
 }
 
@@ -465,7 +466,7 @@ add_memory_shuffle (ainfo, head, tail, data, size)
      unsigned long size;
 {
   struct shuffle *n;
-     
+
   n = (struct shuffle *) objalloc_alloc (ainfo->memory,
 					 sizeof (struct shuffle));
   if (!n)
@@ -488,7 +489,6 @@ add_memory_shuffle (ainfo, head, tail, data, size)
 /* Initialize the FDR hash table.  This returns a handle which is then
    passed in to bfd_ecoff_debug_accumulate, et. al.  */
 
-/*ARGSUSED*/
 PTR
 bfd_ecoff_debug_init (output_bfd, output_debug, output_swap, info)
      bfd *output_bfd ATTRIBUTE_UNUSED;
@@ -547,7 +547,6 @@ bfd_ecoff_debug_init (output_bfd, output_debug, output_swap, info)
 
 /* Free the accumulated debugging information.  */
 
-/*ARGSUSED*/
 void
 bfd_ecoff_debug_free (handle, output_bfd, output_debug, output_swap, info)
      PTR handle;
@@ -557,7 +556,7 @@ bfd_ecoff_debug_free (handle, output_bfd, output_debug, output_swap, info)
      struct bfd_link_info *info;
 {
   struct accumulate *ainfo = (struct accumulate *) handle;
-  
+
   bfd_hash_table_free (&ainfo->fdr_hash.table);
 
   if (! info->relocateable)
@@ -576,7 +575,6 @@ bfd_ecoff_debug_free (handle, output_bfd, output_debug, output_swap, info)
    linker information structure.  HANDLE is returned by
    bfd_ecoff_debug_init.  */
 
-/*ARGSUSED*/
 boolean
 bfd_ecoff_debug_accumulate (handle, output_bfd, output_debug, output_swap,
 			    input_bfd, input_debug, input_swap,
@@ -1409,7 +1407,6 @@ bfd_ecoff_debug_one_external (abfd, debug, swap, name, esym)
 
 /* Align the ECOFF debugging information.  */
 
-/*ARGSUSED*/
 static void
 ecoff_align_debug (abfd, debug, swap)
      bfd *abfd ATTRIBUTE_UNUSED;
@@ -1967,9 +1964,9 @@ lookup_line (abfd, debug_info, debug_swap, line_info)
   boolean stabs;
   FDR *fdr_ptr;
   int i;
-  
+
   offset = line_info->cache.start;
-     
+
   /* Build FDR table (sorted by object file's base-address) if we
      don't have it already.  */
   if (line_info->fdrtab == NULL
@@ -1981,7 +1978,7 @@ lookup_line (abfd, debug_info, debug_swap, line_info)
   /* find first FDR for address OFFSET */
   i = fdrtab_lookup (line_info, offset);
   if (i < 0)
-    return false;		/* no FDR, no fun... */
+    return false;		/* no FDR, no fun...  */
   fdr_ptr = tab[i].fdr;
 
   /* Check whether this file has stabs debugging information.  In a
@@ -2046,9 +2043,9 @@ lookup_line (abfd, debug_info, debug_swap, line_info)
                malloc.c.  I'm not sure why this happens, but it could
                be due to optimizations that reorder a function's
                position within an object-file.
-        
+
          Strategy:
-         
+
          On the first call to this function, we build a table of FDRs
          that is sorted by the base-address of the object-file the FDR
          is referring to.  Notice that each object-file may contain
@@ -2079,9 +2076,9 @@ lookup_line (abfd, debug_info, debug_swap, line_info)
 	  bfd_vma dist, min_dist = 0;
 	  char *pdr_hold;
 	  char *pdr_end;
-	  
+
 	  fdr_ptr = tab[i].fdr;
-	  
+
 	  pdr_ptr = ((char *) debug_info->external_pdr
 		     + fdr_ptr->ipdFirst * external_pdr_size);
 	  pdr_end = pdr_ptr + fdr_ptr->cpd * external_pdr_size;
@@ -2106,7 +2103,7 @@ lookup_line (abfd, debug_info, debug_swap, line_info)
 		    }
 		}
 	    }
-	  
+
 	  if (!best_pdr || min_dist < best_dist)
 	    {
 	      best_dist = min_dist;
@@ -2119,7 +2116,7 @@ lookup_line (abfd, debug_info, debug_swap, line_info)
 	     && tab[i].base_addr == tab[i - 1].base_addr);
 
       if (!best_fdr || !best_pdr)
-	return false;			/* shouldn't happen... */
+	return false;			/* shouldn't happen...  */
 
       /* phew, finally we got something that we can hold onto: */
       fdr_ptr = best_fdr;

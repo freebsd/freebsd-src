@@ -1,5 +1,5 @@
 /* depend.c - Handle dependency tracking.
-   Copyright (C) 1997, 1998 Free Software Foundation, Inc.
+   Copyright 1997, 1998, 2000 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -23,8 +23,7 @@
 /* The file to write to, or NULL if no dependencies being kept.  */
 static char *dep_file = NULL;
 
-struct dependency
-{
+struct dependency {
   char *file;
   struct dependency *next;
 };
@@ -40,9 +39,7 @@ static void wrap_output PARAMS ((FILE *, char *, int));
 
 /* Number of columns allowable.  */
 #define MAX_COLUMNS 72
-
 
-
 /* Start saving dependencies, to be written to FILENAME.  If this is
    never called, then dependency tracking is simply skipped.  */
 
@@ -66,7 +63,7 @@ register_dependency (filename)
 
   for (dep = dep_chain; dep != NULL; dep = dep->next)
     {
-      if (! strcmp (filename, dep->file))
+      if (!strcmp (filename, dep->file))
 	return;
     }
 
@@ -105,7 +102,7 @@ quote_string_for_make (file, src)
 	       the end of a file name; and backslashes in other
 	       contexts should not be doubled.  */
 	    char *q;
-	    for (q = p - 1; src < q && q[-1] == '\\';  q--)
+	    for (q = p - 1; src < q && q[-1] == '\\'; q--)
 	      {
 		if (file)
 		  putc ('\\', file);
@@ -118,7 +115,7 @@ quote_string_for_make (file, src)
 	    putc ('\\', file);
 	  i++;
 	  goto ordinary_char;
-	  
+
 	case '$':
 	  if (file)
 	    putc (c, file);
@@ -154,7 +151,11 @@ wrap_output (f, string, spacer)
   if (len == 0)
     return;
 
-  if (column && MAX_COLUMNS - 1 /*spacer*/ - 2 /*` \'*/ < column + len)
+  if (column
+      && (MAX_COLUMNS
+	  - 1 /* spacer */
+	  - 2 /* ` \'   */
+	  < column + len))
     {
       fprintf (f, " \\\n ");
       column = 0;

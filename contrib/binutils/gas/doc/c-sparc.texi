@@ -1,4 +1,5 @@
-@c Copyright (C) 1991, 1992, 1993, 1994, 1995 Free Software Foundation, Inc.
+@c Copyright 1991, 1992, 1993, 1994, 1995, 1997, 1999
+@c Free Software Foundation, Inc.
 @c This is part of the GAS manual.
 @c For copying conditions, see the file as.texinfo.
 @ifset GENERIC

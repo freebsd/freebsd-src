@@ -1,5 +1,5 @@
 /* 32-bit ELF support for ARM old abi option.
-   Copyright 1999 Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2001 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -17,7 +17,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-#include "elf/arm-oabi.h"
+#define OLD_ARM_ABI
+
+#include "elf/arm.h"
 #include "bfd.h"
 #include "sysdep.h"
 #include "libbfd.h"
@@ -263,7 +265,7 @@ static reloc_howto_type elf32_arm_howto_table[] =
          false),                /* pcrel_offset */
 
   /* XXX - gap in index numbering here.  */
-  
+
   HOWTO (R_ARM_PLT32,		/* type */
          2,                     /* rightshift */
          2,                     /* size (0 = byte, 1 = short, 2 = long) */
@@ -277,7 +279,7 @@ static reloc_howto_type elf32_arm_howto_table[] =
          0x00ffffff,		/* src_mask */
          0x00ffffff,		/* dst_mask */
          true),			/* pcrel_offset */
-  
+
   /* XXX - gap in index numbering here.  */
 
   HOWTO (R_ARM_RREL32,		/* type */
@@ -344,7 +346,7 @@ find_howto (r_type)
      unsigned int r_type;
 {
   int i;
-  
+
   for (i = NUM_ELEM (elf32_arm_howto_table); i--;)
     if (elf32_arm_howto_table [i].type == r_type)
       return elf32_arm_howto_table + i;
@@ -388,7 +390,7 @@ static const struct elf32_arm_reloc_map elf32_arm_reloc_map[] =
   {BFD_RELOC_NONE,                 R_ARM_SBREL32 },
   {BFD_RELOC_NONE,                 R_ARM_AMP_VCALL9 },
   {BFD_RELOC_THUMB_PCREL_BRANCH12, R_ARM_THM_PC11 },
-  {BFD_RELOC_THUMB_PCREL_BRANCH9,  R_ARM_THM_PC9 },  
+  {BFD_RELOC_THUMB_PCREL_BRANCH9,  R_ARM_THM_PC9 },
   {BFD_RELOC_VTABLE_INHERIT,       R_ARM_GNU_VTINHERIT },
   {BFD_RELOC_VTABLE_ENTRY,         R_ARM_GNU_VTENTRY }
 };
@@ -406,7 +408,7 @@ elf32_arm_reloc_type_lookup (abfd, code)
 
   if (code == BFD_RELOC_ARM_PLT32)
     return find_howto (R_ARM_PLT32);
-  
+
   return NULL;
 }
 

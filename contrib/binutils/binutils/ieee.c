@@ -1,5 +1,5 @@
 /* ieee.c -- Read and write IEEE-695 debugging information.
-   Copyright (C) 1996, 1998, 1999, 2000 Free Software Foundation, Inc.
+   Copyright 1996, 1998, 2000, 2001 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
    This file is part of GNU Binutils.
@@ -410,7 +410,7 @@ ieee_read_optional_number (info, pp, pv, ppresent)
     }
 
   ieee_error (info, *pp - 1, _("invalid number"));
-  return false;  
+  return false;
 }
 
 /* Read a required string from an IEEE file.  */
@@ -563,7 +563,7 @@ ieee_read_expression (info, pp, pv)
 		ieee_error (info, start, _("unknown section"));
 		return false;
 	      }
-	    
+
 	    if (esp - expr_stack >= EXPR_STACK_SIZE)
 	      {
 		ieee_error (info, start, _("expression stack overflow"));
@@ -4494,7 +4494,7 @@ ieee_start_range (info, low)
   r->next = info->pending_ranges;
   info->pending_ranges = r;
   return true;
-}  
+}
 
 /* Finish a range started by ieee_start_range.  */
 
@@ -4927,7 +4927,9 @@ ieee_start_compilation_unit (p, filename)
 {
   struct ieee_handle *info = (struct ieee_handle *) p;
   const char *modname;
+#ifdef HAVE_DOS_BASED_FILE_SYSTEM
   const char *backslash;
+#endif
   char *c, *s;
   unsigned int nindx;
 
@@ -4939,10 +4941,12 @@ ieee_start_compilation_unit (p, filename)
 
   info->filename = filename;
   modname = strrchr (filename, '/');
+#ifdef HAVE_DOS_BASED_FILE_SYSTEM
   /* We could have a mixed forward/back slash case.  */
-  backslash = strrchr (modname, '\\');
-  if (backslash > modname)
+  backslash = strrchr (filename, '\\');
+  if (modname == NULL || (backslash != NULL && backslash > modname))
     modname = backslash;
+#endif
 
   if (modname != NULL)
     ++modname;
@@ -5200,15 +5204,20 @@ ieee_add_bb11 (info, sec, low, high)
     }
   else
     {
-      const char *filename, *modname, *backslash;
+      const char *filename, *modname;
+#ifdef HAVE_DOS_BASED_FILE_SYSTEM
+      const char *backslash;
+#endif
       char *c, *s;
 
       /* Start the enclosing BB10 block.  */
       filename = bfd_get_filename (info->abfd);
       modname = strrchr (filename, '/');
-      backslash = strrchr (modname, '\\');
-      if (backslash > modname)
+#ifdef HAVE_DOS_BASED_FILE_SYSTEM
+      backslash = strrchr (filename, '\\');
+      if (modname == NULL || (backslash != NULL && backslash > modname))
 	modname = backslash;
+#endif
 
       if (modname != NULL)
 	++modname;
@@ -5838,7 +5847,7 @@ ieee_offset_type (p)
      which seems pretty important.  I'm going to punt this for now.  */
 
   return ieee_int_type (p, 4, true);
-}  
+}
 
 /* Make a method type.  */
 
@@ -7312,7 +7321,7 @@ ieee_function_parameter (p, name, kind, val)
     return false;
   ++info->fnargcount;
 
-  return true;  
+  return true;
 }
 
 /* Output pending function parameters.  */

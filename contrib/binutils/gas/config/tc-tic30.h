@@ -1,5 +1,5 @@
 /* tc-tic30.h -- Header file for tc-tic30.c
-   Copyright (C) 1998 Free Software Foundation.
+   Copyright 1998, 2000 Free Software Foundation, Inc.
    Contributed by Steven Haworth (steve@pm.cse.rmit.edu.au)
 
    This file is part of GAS, the GNU Assembler.
@@ -45,7 +45,7 @@ char *output_invalid PARAMS ((int c));
 /* Define this to 1 if you want the debug output to be on stdout,
    otherwise stderr will be used.  If stderr is used, there will be a
    better synchronisation with the as_bad outputs, but you can't
-   capture the output. */
+   capture the output.  */
 #define USE_STDOUT 0
 
 #define tc_unrecognized_line tic30_unrecognized_line

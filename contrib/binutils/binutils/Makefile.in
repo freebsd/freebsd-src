@@ -74,11 +74,15 @@ BUILD_WINDRES = @BUILD_WINDRES@
 CATALOGS = @CATALOGS@
 CATOBJEXT = @CATOBJEXT@
 CC = @CC@
+CXX = @CXX@
+CXXCPP = @CXXCPP@
 DATADIRNAME = @DATADIRNAME@
 DEMANGLER_NAME = @DEMANGLER_NAME@
 DLLTOOL = @DLLTOOL@
 DLLTOOL_DEFS = @DLLTOOL_DEFS@
 EXEEXT = @EXEEXT@
+GCJ = @GCJ@
+GCJFLAGS = @GCJFLAGS@
 GMOFILES = @GMOFILES@
 GMSGFMT = @GMSGFMT@
 GT_NO = @GT_NO@
@@ -96,10 +100,13 @@ MKINSTALLDIRS = @MKINSTALLDIRS@
 MSGFMT = @MSGFMT@
 NLMCONV_DEFS = @NLMCONV_DEFS@
 OBJDUMP = @OBJDUMP@
+OBJDUMP_DEFS = @OBJDUMP_DEFS@
+OBJEXT = @OBJEXT@
 PACKAGE = @PACKAGE@
 POFILES = @POFILES@
 POSUB = @POSUB@
 RANLIB = @RANLIB@
+STRIP = @STRIP@
 UNDERSCORE = @UNDERSCORE@
 USE_INCLUDED_LIBINTL = @USE_INCLUDED_LIBINTL@
 USE_NLS = @USE_NLS@
@@ -120,6 +127,9 @@ EXEEXT_FOR_BUILD = @EXEEXT_FOR_BUILD@
 YACC = `if [ -f ../bison/bison ]; then echo ../bison/bison -y -L$(srcdir)/../bison/; else echo @YACC@; fi`
 YFLAGS = -d
 LEX = `if [ -f ../flex/flex ]; then echo ../flex/flex; else echo @LEX@; fi`
+
+WARN_CFLAGS = @WARN_CFLAGS@
+AM_CFLAGS = $(WARN_CFLAGS)
 
 # these two are almost the same program
 AR_PROG = ar
@@ -151,7 +161,8 @@ DLLWRAP_PROG = dllwrap
 
 SRCONV_PROG = srconv$(EXEEXT) sysdump$(EXEEXT) coffdump$(EXEEXT) 
 
-man_MANS = ar.1 nm.1 objdump.1 ranlib.1 size.1 strings.1 strip.1 objcopy.1 	addr2line.1 nlmconv.1 $(DEMANGLER_NAME).1
+man_MANS = ar.1 nm.1 objdump.1 ranlib.1 size.1 strings.1 strip.1 objcopy.1 \
+	addr2line.1 nlmconv.1 $(DEMANGLER_NAME).1
 
 
 PROGS = $(SIZE_PROG) $(OBJDUMP_PROG) $(NM_PROG) $(AR_PROG) $(STRINGS_PROG) $(STRIP_PROG) $(RANLIB_PROG) $(DEMANGLER_PROG) $(OBJCOPY_PROG) @BUILD_NLMCONV@ @BUILD_SRCONV@ @BUILD_DLLTOOL@ @BUILD_WINDRES@ $(ADDR2LINE_PROG) $(READELF_PROG) @BUILD_DLLWRAP@ @BUILD_MISC@
@@ -173,15 +184,24 @@ MKDEP = gcc -MM
 
 INCLUDES = -D_GNU_SOURCE -I. -I$(srcdir) -I../bfd -I$(BFDDIR) -I$(INCDIR) @HDEFINES@ -I$(srcdir)/../intl -I../intl -DLOCALEDIR="\"$(prefix)/share/locale\""
 
-HFILES = arsup.h bucomm.h budbg.h coffgrok.h debug.h nlmconv.h dlltool.h 	windres.h winduni.h
+HFILES = arsup.h bucomm.h budbg.h coffgrok.h debug.h nlmconv.h dlltool.h \
+	windres.h winduni.h
 
 
 GENERATED_HFILES = arparse.h sysroff.h sysinfo.h defparse.h rcparse.h
 
-CFILES = addr2line.c ar.c arsup.c bucomm.c coffdump.c coffgrok.c debug.c 	dlltool.c filemode.c ieee.c is-ranlib.c is-strip.c maybe-ranlib.c 	maybe-strip.c nlmconv.c nm.c not-ranlib.c not-strip.c 	objcopy.c objdump.c prdbg.c rdcoff.c rddbg.c size.c srconv.c 	stabs.c strings.c sysdump.c version.c wrstabs.c 	windres.c resrc.c rescoff.c resbin.c winduni.c readelf.c 	resres.c dllwrap.c rename.c
+CFILES = addr2line.c ar.c arsup.c bucomm.c coffdump.c coffgrok.c debug.c \
+	dlltool.c filemode.c ieee.c is-ranlib.c is-strip.c maybe-ranlib.c \
+	maybe-strip.c nlmconv.c nm.c not-ranlib.c not-strip.c \
+	objcopy.c objdump.c prdbg.c rdcoff.c rddbg.c size.c srconv.c \
+	stabs.c strings.c sysdump.c version.c wrstabs.c \
+	windres.c resrc.c rescoff.c resbin.c winduni.c readelf.c \
+	resres.c dllwrap.c rename.c
 
 
-GENERATED_CFILES =  	underscore.c arparse.c arlex.c sysroff.c sysinfo.c syslex.c 	defparse.c deflex.c nlmheader.c rcparse.c rclex.c
+GENERATED_CFILES = \
+	underscore.c arparse.c arlex.c sysroff.c sysinfo.c syslex.c \
+	defparse.c deflex.c nlmheader.c rcparse.c rclex.c
 
 
 DEBUG_SRCS = rddbg.c debug.c stabs.c ieee.c rdcoff.c
@@ -198,12 +218,29 @@ LIBIBERTY = ../libiberty/libiberty.a
 
 POTFILES = $(CFILES) $(DEBUG_SRCS) $(HFILES)
 
-EXPECT = `if [ -f $$r/../expect/expect ] ; then           echo $$r/../expect/expect ;           else echo expect ; fi`
+EXPECT = `if [ -f $$r/../expect/expect ] ; then \
+          echo $$r/../expect/expect ; \
+          else echo expect ; fi`
 
-RUNTEST = `if [ -f ${srcdir}/../dejagnu/runtest ] ; then            echo ${srcdir}/../dejagnu/runtest ;            else echo runtest ;  fi`
+RUNTEST = `if [ -f ${srcdir}/../dejagnu/runtest ] ; then \
+           echo ${srcdir}/../dejagnu/runtest ; \
+           else echo runtest ;  fi`
 
 
-CC_FOR_TARGET = `   if [ -f $$r/../gcc/xgcc ] ; then     if [ -f $$r/../newlib/Makefile ] ; then       echo $$r/../gcc/xgcc -B$$r/../gcc/ -idirafter $$r/../newlib/targ-include -idirafter $${srcroot}/../newlib/libc/include -nostdinc;     else       echo $$r/../gcc/xgcc -B$$r/../gcc/;     fi;   else     if [ "@host@" = "@target@" ] ; then       echo $(CC);     else       echo gcc | sed '$(transform)';     fi;   fi`
+CC_FOR_TARGET = ` \
+  if [ -f $$r/../gcc/xgcc ] ; then \
+    if [ -f $$r/../newlib/Makefile ] ; then \
+      echo $$r/../gcc/xgcc -B$$r/../gcc/ -idirafter $$r/../newlib/targ-include -idirafter $${srcroot}/../newlib/libc/include -nostdinc; \
+    else \
+      echo $$r/../gcc/xgcc -B$$r/../gcc/; \
+    fi; \
+  else \
+    if [ "@host@" = "@target@" ] ; then \
+      echo $(CC); \
+    else \
+      echo gcc | sed '$(transform)'; \
+    fi; \
+  fi`
 
 
 info_TEXINFOS = binutils.texi
@@ -216,7 +253,7 @@ objcopy_SOURCES = objcopy.c not-strip.c rename.c $(WRITE_DEBUG_SRCS) $(BULIBS)
 
 strings_SOURCES = strings.c $(BULIBS)
 
-readelf_SOURCES = readelf.c version.c
+readelf_SOURCES = readelf.c version.c unwind-ia64.c
 readelf_LDADD = $(INTLLIBS) $(LIBIBERTY)
 
 strip_new_SOURCES = objcopy.c is-strip.c rename.c $(WRITE_DEBUG_SRCS) $(BULIBS)
@@ -248,25 +285,29 @@ sysdump_SOURCES = sysdump.c $(BULIBS)
 
 nlmconv_SOURCES = nlmconv.c nlmheader.y $(BULIBS)
 
-windres_SOURCES = windres.c resrc.c rescoff.c resbin.c rcparse.y rclex.l 	winduni.c resres.c $(BULIBS)
+windres_SOURCES = windres.c resrc.c rescoff.c resbin.c rcparse.y rclex.l \
+	winduni.c resres.c $(BULIBS)
 
 windres_LDADD = $(BFDLIB) $(LIBIBERTY) @LEXLIB@ $(INTLLIBS)
 
 dllwrap_SOURCES = dllwrap.c version.c
 dllwrap_LDADD = $(LIBIBERTY) $(INTLLIBS)
 
-DISTSTUFF = arparse.c arparse.h arlex.c nlmheader.c sysinfo.c sysinfo.h 	syslex.c deflex.c defparse.h defparse.c rclex.c rcparse.h rcparse.c
+DISTSTUFF = arparse.c arparse.h arlex.c nlmheader.c sysinfo.c sysinfo.h \
+	syslex.c deflex.c defparse.h defparse.c rclex.c rcparse.h rcparse.c
 
 
-DISTCLEANFILES = stamp-under sysinfo underscore.c sysroff.c sysroff.h 	site.exp site.bak
+DISTCLEANFILES = stamp-under sysinfo underscore.c sysroff.c sysroff.h \
+	site.exp site.bak
 
 
 MAINTAINERCLEANFILES = config.texi
 
-MOSTLYCLEANFILES = sysinfo $(DEMANGLER_NAME).1 binutils.log binutils.sum 	abcdefgh*
+MOSTLYCLEANFILES = sysinfo $(DEMANGLER_NAME).1 binutils.log binutils.sum \
+	abcdefgh*
 
 
-CLEANFILES = dep.sed DEP DEP1 DEP2
+CLEANFILES = dep.sed DEP DEPA DEP1 DEP2
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 mkinstalldirs = $(SHELL) $(top_srcdir)/../mkinstalldirs
 CONFIG_HEADER = config.h
@@ -283,72 +324,89 @@ DEFS = @DEFS@ -I. -I$(srcdir) -I.
 CPPFLAGS = @CPPFLAGS@
 LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@
-nlmconv_OBJECTS =  nlmconv.o nlmheader.o bucomm.o version.o filemode.o
+nlmconv_OBJECTS =  nlmconv.$(OBJEXT) nlmheader.$(OBJEXT) \
+bucomm.$(OBJEXT) version.$(OBJEXT) filemode.$(OBJEXT)
 nlmconv_LDADD = $(LDADD)
 nlmconv_DEPENDENCIES =  ../bfd/libbfd.la ../libiberty/libiberty.a
 nlmconv_LDFLAGS = 
-srconv_OBJECTS =  srconv.o coffgrok.o bucomm.o version.o filemode.o
+srconv_OBJECTS =  srconv.$(OBJEXT) coffgrok.$(OBJEXT) bucomm.$(OBJEXT) \
+version.$(OBJEXT) filemode.$(OBJEXT)
 srconv_LDADD = $(LDADD)
 srconv_DEPENDENCIES =  ../bfd/libbfd.la ../libiberty/libiberty.a
 srconv_LDFLAGS = 
-sysdump_OBJECTS =  sysdump.o bucomm.o version.o filemode.o
+sysdump_OBJECTS =  sysdump.$(OBJEXT) bucomm.$(OBJEXT) version.$(OBJEXT) \
+filemode.$(OBJEXT)
 sysdump_LDADD = $(LDADD)
 sysdump_DEPENDENCIES =  ../bfd/libbfd.la ../libiberty/libiberty.a
 sysdump_LDFLAGS = 
-coffdump_OBJECTS =  coffdump.o coffgrok.o bucomm.o version.o filemode.o
+coffdump_OBJECTS =  coffdump.$(OBJEXT) coffgrok.$(OBJEXT) \
+bucomm.$(OBJEXT) version.$(OBJEXT) filemode.$(OBJEXT)
 coffdump_LDADD = $(LDADD)
 coffdump_DEPENDENCIES =  ../bfd/libbfd.la ../libiberty/libiberty.a
 coffdump_LDFLAGS = 
-dlltool_OBJECTS =  dlltool.o defparse.o deflex.o bucomm.o version.o \
-filemode.o
+dlltool_OBJECTS =  dlltool.$(OBJEXT) defparse.$(OBJEXT) deflex.$(OBJEXT) \
+bucomm.$(OBJEXT) version.$(OBJEXT) filemode.$(OBJEXT)
 dlltool_DEPENDENCIES =  ../bfd/libbfd.la ../libiberty/libiberty.a
 dlltool_LDFLAGS = 
-windres_OBJECTS =  windres.o resrc.o rescoff.o resbin.o rcparse.o \
-rclex.o winduni.o resres.o bucomm.o version.o filemode.o
+windres_OBJECTS =  windres.$(OBJEXT) resrc.$(OBJEXT) rescoff.$(OBJEXT) \
+resbin.$(OBJEXT) rcparse.$(OBJEXT) rclex.$(OBJEXT) winduni.$(OBJEXT) \
+resres.$(OBJEXT) bucomm.$(OBJEXT) version.$(OBJEXT) filemode.$(OBJEXT)
 windres_DEPENDENCIES =  ../bfd/libbfd.la ../libiberty/libiberty.a
 windres_LDFLAGS = 
-dllwrap_OBJECTS =  dllwrap.o version.o
+dllwrap_OBJECTS =  dllwrap.$(OBJEXT) version.$(OBJEXT)
 dllwrap_DEPENDENCIES =  ../libiberty/libiberty.a
 dllwrap_LDFLAGS = 
-size_OBJECTS =  size.o bucomm.o version.o filemode.o
+size_OBJECTS =  size.$(OBJEXT) bucomm.$(OBJEXT) version.$(OBJEXT) \
+filemode.$(OBJEXT)
 size_LDADD = $(LDADD)
 size_DEPENDENCIES =  ../bfd/libbfd.la ../libiberty/libiberty.a
 size_LDFLAGS = 
-objdump_OBJECTS =  objdump.o prdbg.o rddbg.o debug.o stabs.o ieee.o \
-rdcoff.o bucomm.o version.o filemode.o
+objdump_OBJECTS =  objdump.$(OBJEXT) prdbg.$(OBJEXT) rddbg.$(OBJEXT) \
+debug.$(OBJEXT) stabs.$(OBJEXT) ieee.$(OBJEXT) rdcoff.$(OBJEXT) \
+bucomm.$(OBJEXT) version.$(OBJEXT) filemode.$(OBJEXT)
 objdump_DEPENDENCIES =  ../opcodes/libopcodes.la ../bfd/libbfd.la \
 ../libiberty/libiberty.a
 objdump_LDFLAGS = 
-ar_OBJECTS =  arparse.o arlex.o ar.o not-ranlib.o arsup.o rename.o \
-bucomm.o version.o filemode.o
+ar_OBJECTS =  arparse.$(OBJEXT) arlex.$(OBJEXT) ar.$(OBJEXT) \
+not-ranlib.$(OBJEXT) arsup.$(OBJEXT) rename.$(OBJEXT) bucomm.$(OBJEXT) \
+version.$(OBJEXT) filemode.$(OBJEXT)
 ar_DEPENDENCIES =  ../bfd/libbfd.la ../libiberty/libiberty.a
 ar_LDFLAGS = 
-strings_OBJECTS =  strings.o bucomm.o version.o filemode.o
+strings_OBJECTS =  strings.$(OBJEXT) bucomm.$(OBJEXT) version.$(OBJEXT) \
+filemode.$(OBJEXT)
 strings_LDADD = $(LDADD)
 strings_DEPENDENCIES =  ../bfd/libbfd.la ../libiberty/libiberty.a
 strings_LDFLAGS = 
-ranlib_OBJECTS =  ar.o is-ranlib.o arparse.o arlex.o arsup.o rename.o \
-bucomm.o version.o filemode.o
+ranlib_OBJECTS =  ar.$(OBJEXT) is-ranlib.$(OBJEXT) arparse.$(OBJEXT) \
+arlex.$(OBJEXT) arsup.$(OBJEXT) rename.$(OBJEXT) bucomm.$(OBJEXT) \
+version.$(OBJEXT) filemode.$(OBJEXT)
 ranlib_DEPENDENCIES =  ../bfd/libbfd.la ../libiberty/libiberty.a
 ranlib_LDFLAGS = 
-objcopy_OBJECTS =  objcopy.o not-strip.o rename.o rddbg.o debug.o \
-stabs.o ieee.o rdcoff.o wrstabs.o bucomm.o version.o filemode.o
+objcopy_OBJECTS =  objcopy.$(OBJEXT) not-strip.$(OBJEXT) \
+rename.$(OBJEXT) rddbg.$(OBJEXT) debug.$(OBJEXT) stabs.$(OBJEXT) \
+ieee.$(OBJEXT) rdcoff.$(OBJEXT) wrstabs.$(OBJEXT) bucomm.$(OBJEXT) \
+version.$(OBJEXT) filemode.$(OBJEXT)
 objcopy_LDADD = $(LDADD)
 objcopy_DEPENDENCIES =  ../bfd/libbfd.la ../libiberty/libiberty.a
 objcopy_LDFLAGS = 
-addr2line_OBJECTS =  addr2line.o bucomm.o version.o filemode.o
+addr2line_OBJECTS =  addr2line.$(OBJEXT) bucomm.$(OBJEXT) \
+version.$(OBJEXT) filemode.$(OBJEXT)
 addr2line_LDADD = $(LDADD)
 addr2line_DEPENDENCIES =  ../bfd/libbfd.la ../libiberty/libiberty.a
 addr2line_LDFLAGS = 
-readelf_OBJECTS =  readelf.o version.o
+readelf_OBJECTS =  readelf.$(OBJEXT) version.$(OBJEXT) \
+unwind-ia64.$(OBJEXT)
 readelf_DEPENDENCIES =  ../libiberty/libiberty.a
 readelf_LDFLAGS = 
-nm_new_OBJECTS =  nm.o bucomm.o version.o filemode.o
+nm_new_OBJECTS =  nm.$(OBJEXT) bucomm.$(OBJEXT) version.$(OBJEXT) \
+filemode.$(OBJEXT)
 nm_new_LDADD = $(LDADD)
 nm_new_DEPENDENCIES =  ../bfd/libbfd.la ../libiberty/libiberty.a
 nm_new_LDFLAGS = 
-strip_new_OBJECTS =  objcopy.o is-strip.o rename.o rddbg.o debug.o \
-stabs.o ieee.o rdcoff.o wrstabs.o bucomm.o version.o filemode.o
+strip_new_OBJECTS =  objcopy.$(OBJEXT) is-strip.$(OBJEXT) \
+rename.$(OBJEXT) rddbg.$(OBJEXT) debug.$(OBJEXT) stabs.$(OBJEXT) \
+ieee.$(OBJEXT) rdcoff.$(OBJEXT) wrstabs.$(OBJEXT) bucomm.$(OBJEXT) \
+version.$(OBJEXT) filemode.$(OBJEXT)
 strip_new_LDADD = $(LDADD)
 strip_new_DEPENDENCIES =  ../bfd/libbfd.la ../libiberty/libiberty.a
 strip_new_LDFLAGS = 
@@ -387,7 +445,7 @@ OBJECTS = $(nlmconv_OBJECTS) $(srconv_OBJECTS) $(sysdump_OBJECTS) $(coffdump_OBJ
 
 all: all-redirect
 .SUFFIXES:
-.SUFFIXES: .S .c .dvi .info .l .lo .o .ps .s .texi .texinfo .txi .y
+.SUFFIXES: .S .c .dvi .info .l .lo .o .obj .ps .s .texi .texinfo .txi .y
 $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) 
 	cd $(top_srcdir) && $(AUTOMAKE) --cygnus Makefile
 
@@ -468,6 +526,11 @@ maintainer-clean-noinstPROGRAMS:
 .c.o:
 	$(COMPILE) -c $<
 
+# FIXME: We should only use cygpath when building on Windows,
+# and only if it is available.
+.c.obj:
+	$(COMPILE) -c `cygpath -w $<`
+
 .s.o:
 	$(COMPILE) -c $<
 
@@ -476,6 +539,7 @@ maintainer-clean-noinstPROGRAMS:
 
 mostlyclean-compile:
 	-rm -f *.o core *.core
+	-rm -f *.$(OBJEXT)
 
 clean-compile:
 
@@ -1036,6 +1100,9 @@ check-DEJAGNU: site.exp
 installcheck:
 	/bin/sh $(srcdir)/sanity.sh $(bindir)
 
+objdump.o:objdump.c
+	$(COMPILE) -c $(OBJDUMP_DEFS) $(srcdir)/objdump.c
+
 underscore.c: stamp-under ; @true
 
 stamp-under: Makefile
@@ -1116,8 +1183,13 @@ diststuff: $(DISTSTUFF) info
 DEP: dep.sed $(CFILES) $(HFILES) $(GENERATED_CFILES) $(GENERATED_HFILES) config.h
 	rm -f DEP1
 	$(MAKE) MKDEP="$(MKDEP)" DEP1
-	sed -f dep.sed < DEP1 > $@
-	echo '# IF YOU PUT ANYTHING HERE IT WILL GO AWAY' >> $@
+	sed -f dep.sed < DEP1 > DEPA
+	echo '# IF YOU PUT ANYTHING HERE IT WILL GO AWAY' >> DEPA
+	if grep ' /' DEPA > /dev/null 2> /dev/null; then \
+	  echo 'make DEP failed!'; exit 1; \
+	else \
+	  mv -f DEPA $@; \
+	fi
 
 DEP1: $(CFILES) $(GENERATED_CFILES)
 	echo '# DO NOT DELETE THIS LINE -- mkdep uses it.' > DEP2
@@ -1199,13 +1271,13 @@ addr2line.o: addr2line.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
 ar.o: ar.c ../bfd/bfd.h $(INCDIR)/ansidecl.h $(INCDIR)/libiberty.h \
   $(INCDIR)/progress.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
   $(INCDIR)/fopen-same.h $(INCDIR)/aout/ar.h $(BFDDIR)/libbfd.h \
-  arsup.h
+  arsup.h $(INCDIR)/filenames.h
 arsup.o: arsup.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
   arsup.h $(INCDIR)/libiberty.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
-  $(INCDIR)/fopen-same.h
+  $(INCDIR)/fopen-same.h $(INCDIR)/filenames.h
 bucomm.o: bucomm.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
   $(INCDIR)/libiberty.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
-  $(INCDIR)/fopen-same.h
+  $(INCDIR)/fopen-same.h $(INCDIR)/filenames.h
 coffdump.o: coffdump.c coffgrok.h bucomm.h config.h \
   $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h
 coffgrok.o: coffgrok.c bucomm.h config.h $(INCDIR)/bin-bugs.h \
@@ -1216,13 +1288,13 @@ debug.o: debug.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
   $(INCDIR)/libiberty.h debug.h
 dlltool.o: dlltool.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
   $(INCDIR)/libiberty.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
-  $(INCDIR)/fopen-same.h $(INCDIR)/demangle.h $(INCDIR)/dyn-string.h \
-  dlltool.h
+  $(INCDIR)/fopen-same.h $(INCDIR)/getopt.h $(INCDIR)/demangle.h \
+  $(INCDIR)/dyn-string.h dlltool.h
 filemode.o: filemode.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
   bucomm.h config.h $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h
 ieee.o: ieee.c ../bfd/bfd.h $(INCDIR)/ansidecl.h $(INCDIR)/ieee.h \
   bucomm.h config.h $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h \
-  $(INCDIR)/libiberty.h debug.h budbg.h
+  $(INCDIR)/libiberty.h debug.h budbg.h $(INCDIR)/filenames.h
 is-ranlib.o: is-ranlib.c
 is-strip.o: is-strip.c
 maybe-ranlib.o: maybe-ranlib.c
@@ -1233,13 +1305,14 @@ nlmconv.o: nlmconv.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
   $(INCDIR)/nlm/internal.h $(INCDIR)/nlm/external.h nlmconv.h
 nm.o: nm.c ../bfd/bfd.h $(INCDIR)/ansidecl.h $(INCDIR)/progress.h \
   bucomm.h config.h $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h \
-  $(INCDIR)/aout/stab_gnu.h $(INCDIR)/aout/stab.def $(INCDIR)/aout/ranlib.h \
-  $(INCDIR)/demangle.h $(INCDIR)/libiberty.h
+  $(INCDIR)/getopt.h $(INCDIR)/aout/stab_gnu.h $(INCDIR)/aout/stab.def \
+  $(INCDIR)/aout/ranlib.h $(INCDIR)/demangle.h $(INCDIR)/libiberty.h
 not-ranlib.o: not-ranlib.c
 not-strip.o: not-strip.c
 objcopy.o: objcopy.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
   $(INCDIR)/progress.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
-  $(INCDIR)/fopen-same.h $(INCDIR)/libiberty.h budbg.h
+  $(INCDIR)/fopen-same.h $(INCDIR)/getopt.h $(INCDIR)/libiberty.h \
+  budbg.h $(INCDIR)/filenames.h
 objdump.o: objdump.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
   $(INCDIR)/getopt.h $(INCDIR)/progress.h bucomm.h config.h \
   $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h $(INCDIR)/dis-asm.h \
@@ -1304,14 +1377,15 @@ readelf.o: readelf.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
   $(INCDIR)/elf/d30v.h $(INCDIR)/elf/sh.h $(INCDIR)/elf/mn10200.h \
   $(INCDIR)/elf/mn10300.h $(INCDIR)/elf/hppa.h $(INCDIR)/elf/arc.h \
   $(INCDIR)/elf/fr30.h $(INCDIR)/elf/mcore.h $(INCDIR)/elf/i960.h \
-  $(INCDIR)/elf/pj.h $(INCDIR)/elf/avr.h bucomm.h config.h \
-  $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h
+  $(INCDIR)/elf/pj.h $(INCDIR)/elf/avr.h $(INCDIR)/elf/ia64.h \
+  $(INCDIR)/elf/cris.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
+  $(INCDIR)/fopen-same.h $(INCDIR)/getopt.h
 resres.o: resres.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
   bucomm.h config.h $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h \
   $(INCDIR)/libiberty.h windres.h winduni.h
 dllwrap.o: dllwrap.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
   $(INCDIR)/libiberty.h bucomm.h config.h $(INCDIR)/bin-bugs.h \
-  $(INCDIR)/fopen-same.h $(INCDIR)/dyn-string.h
+  $(INCDIR)/fopen-same.h $(INCDIR)/getopt.h $(INCDIR)/dyn-string.h
 rename.o: rename.c ../bfd/bfd.h $(INCDIR)/ansidecl.h \
   bucomm.h config.h $(INCDIR)/bin-bugs.h $(INCDIR)/fopen-same.h
 underscore.o: underscore.c

@@ -1,5 +1,5 @@
 /* bucomm.c -- Bin Utils COMmon code.
-   Copyright (C) 1991, 92, 93, 94, 95, 97, 98, 2000
+   Copyright 1991, 1992, 1993, 1994, 1995, 1997, 1998, 2000, 2001
    Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
@@ -157,7 +157,7 @@ list_supported_targets (name, f)
      const char *name;
      FILE *f;
 {
-  extern bfd_target *bfd_target_vector[];
+  extern const bfd_target *const *bfd_target_vector;
   int t;
 
   if (name == NULL)
@@ -219,7 +219,7 @@ make_tempname (filename)
   {
     /* We could have foo/bar\\baz, or foo\\bar, or d:bar.  */
     char *bslash = strrchr (filename, '\\');
-    if (bslash > slash)
+    if (slash == NULL || (bslash != NULL && bslash > slash))
       slash = bslash;
     if (slash == NULL && filename[0] != '\0' && filename[1] == ':')
       slash = filename + 1;

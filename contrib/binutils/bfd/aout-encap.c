@@ -1,5 +1,5 @@
 /* BFD back-end for a.out files encapsulated with COFF headers.
-   Copyright (C) 1990, 1991 Free Software Foundation, Inc.
+   Copyright 1990, 1991, 1994, 1995, 2000 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -53,12 +53,12 @@ encap_object_p (abfd)
 	bfd_set_error (bfd_error_wrong_format);
       return 0;
     }
-  
+
   coff_magic = bfd_h_get_16 (abfd, magicbuf);
   if (coff_magic != COFF_MAGIC)
     return 0;			/* Not an encap coff file */
 
-  __header_offset_temp==COFF_MAGIC ? sizeof(struct coffheader) : 0)
+  __header_offset_temp==COFF_MAGIC ? sizeof (struct coffheader) : 0)
   (fseek ((f), HEADER_OFFSET((f)), 1))
 
   magic = bfd_h_get_32 (abfd, magicbuf);
@@ -72,7 +72,7 @@ encap_object_p (abfd)
       bfd_set_error (bfd_error_wrong_format);
     return 0;
   }
-  NAME(aout,swap_exec_header_in)(abfd, &exec_bytes, &exec);
+  NAME(aout,swap_exec_header_in) (abfd, &exec_bytes, &exec);
 
   return aout_32_some_aout_object_p (abfd, &exec, encap_realcallback);
 }
@@ -83,9 +83,9 @@ encap_real_callback (abfd)
      bfd *abfd;
 {
   struct internal_exec *execp = exec_hdr (abfd);
-  
-  MY(callback)(abfd, execp);
-  
+
+  MY(callback) (abfd, execp);
+
   /* If we have a coff header, it can give us better values for
      text_start and exec_data_start.  This is particularly useful
      for remote debugging of embedded systems.  */

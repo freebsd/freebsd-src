@@ -1,5 +1,6 @@
 /* BFD support for handling relocation entries.
-   Copyright (C) 1990, 91, 92, 93, 94, 95, 96, 97, 98, 99, 2000
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+   2000, 2001
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -146,7 +147,6 @@ DESCRIPTION
 	to the relocation offset. Its interpretation is dependent upon
 	the howto. For example, on the 68k the code:
 
-
 |        char foo[];
 |        main()
 |                {
@@ -161,10 +161,8 @@ DESCRIPTION
 |        unlk fp
 |        rts
 
-
         This could create a reloc pointing to <<foo>>, but leave the
         offset in the data, something like:
-
 
 |RELOCATION RECORDS FOR [.text]:
 |offset   type      value
@@ -176,20 +174,16 @@ DESCRIPTION
 |0000000c 4e5e               ; unlk fp
 |0000000e 4e75               ; rts
 
-
         Using coff and an 88k, some instructions don't have enough
         space in them to represent the full address range, and
         pointers have to be loaded in two parts. So you'd get something like:
-
 
 |        or.u     r13,r0,hi16(_foo+0x12345678)
 |        ld.b     r2,r13,lo16(_foo+0x12345678)
 |        jmp      r1
 
-
         This should create two relocs, both pointing to <<_foo>>, and with
         0x12340000 in their addend field. The data would consist of:
-
 
 |RELOCATION RECORDS FOR [.text]:
 |offset   type      value
@@ -199,7 +193,6 @@ DESCRIPTION
 |00000000 5da05678           ; or.u r13,r0,0x5678
 |00000004 1c4d5678           ; ld.b r2,r13,0x5678
 |00000008 f400c001           ; jmp r1
-
 
         The relocation routine digs out the value from the data, adds
         it to the addend to get the original offset, and then adds the
@@ -223,7 +216,6 @@ DESCRIPTION
         Both relocs contain a pointer to <<foo>>, and the offsets
         contain junk.
 
-
 |RELOCATION RECORDS FOR [.text]:
 |offset   type      value
 |00000004 HI22      _foo+0x12345678
@@ -234,7 +226,6 @@ DESCRIPTION
 |00000008 f048a000     ; ldsb [%g2+%lo(_foo+0)],%i0
 |0000000c 81c7e008     ; ret
 |00000010 81e80000     ; restore
-
 
         o <<howto>>
 
@@ -391,14 +382,12 @@ FUNCTION
 DESCRIPTION
 	The HOWTO define is horrible and will go away.
 
-
 .#define HOWTO(C, R,S,B, P, BI, O, SF, NAME, INPLACE, MASKSRC, MASKDST, PC) \
 .  {(unsigned)C,R,S,B, P, BI, O,SF,NAME,INPLACE,MASKSRC,MASKDST,PC}
 
 DESCRIPTION
 	And will be replaced with the totally magic way. But for the
 	moment, we are compatible, so do it this way.
-
 
 .#define NEWHOWTO( FUNCTION, NAME,SIZE,REL,IN) HOWTO(0,0,SIZE,0,REL,0,complain_overflow_dont,FUNCTION, NAME,false,0,0,IN)
 .
@@ -589,7 +578,6 @@ DESCRIPTION
 
 */
 
-
 bfd_reloc_status_type
 bfd_perform_relocation (abfd, reloc_entry, data, input_section, output_bfd,
 			error_message)
@@ -650,7 +638,6 @@ bfd_perform_relocation (abfd, reloc_entry, data, input_section, output_bfd,
     relocation = 0;
   else
     relocation = symbol->value;
-
 
   reloc_target_output_section = symbol->section->output_section;
 
@@ -728,8 +715,6 @@ bfd_perform_relocation (abfd, reloc_entry, data, input_section, output_bfd,
 
 	  /* WTF?? */
 	  if (abfd->xvec->flavour == bfd_target_coff_flavour
-	      && strcmp (abfd->xvec->name, "aixcoff-rs6000") != 0
-	      && strcmp (abfd->xvec->name, "xcoff-powermac") != 0
 	      && strcmp (abfd->xvec->name, "coff-Intel-little") != 0
 	      && strcmp (abfd->xvec->name, "coff-Intel-big") != 0)
 	    {
@@ -992,7 +977,6 @@ DESCRIPTION
 
 */
 
-
 bfd_reloc_status_type
 bfd_install_relocation (abfd, reloc_entry, data_start, data_start_offset,
 			input_section, error_message)
@@ -1124,8 +1108,6 @@ bfd_install_relocation (abfd, reloc_entry, data_start, data_start_offset,
 
       /* WTF?? */
       if (abfd->xvec->flavour == bfd_target_coff_flavour
-	  && strcmp (abfd->xvec->name, "aixcoff-rs6000") != 0
-	  && strcmp (abfd->xvec->name, "xcoff-powermac") != 0
 	  && strcmp (abfd->xvec->name, "coff-Intel-little") != 0
 	  && strcmp (abfd->xvec->name, "coff-Intel-big") != 0)
 	{
@@ -1784,7 +1766,6 @@ displacements off that register.  These relocation types are
 handled specially, because the value the register will have is
 decided relatively late.
 
-
 ENUM
   BFD_RELOC_I960_CALLJ
 ENUMDOC
@@ -1819,7 +1800,11 @@ ENUMX
 ENUMX
   BFD_RELOC_SPARC_RELATIVE
 ENUMX
+  BFD_RELOC_SPARC_UA16
+ENUMX
   BFD_RELOC_SPARC_UA32
+ENUMX
+  BFD_RELOC_SPARC_UA64
 ENUMDOC
   SPARC ELF relocations.  There is probably some overlap with other
   relocation types already defined.
@@ -2056,6 +2041,28 @@ ENUMX
   BFD_RELOC_MIPS_GOT_OFST
 ENUMX
   BFD_RELOC_MIPS_GOT_DISP
+ENUMX
+  BFD_RELOC_MIPS_SHIFT5
+ENUMX
+  BFD_RELOC_MIPS_SHIFT6
+ENUMX
+  BFD_RELOC_MIPS_INSERT_A
+ENUMX
+  BFD_RELOC_MIPS_INSERT_B
+ENUMX
+  BFD_RELOC_MIPS_DELETE
+ENUMX
+  BFD_RELOC_MIPS_HIGHEST
+ENUMX
+  BFD_RELOC_MIPS_HIGHER
+ENUMX
+  BFD_RELOC_MIPS_SCN_DISP
+ENUMX
+  BFD_RELOC_MIPS_REL16
+ENUMX
+  BFD_RELOC_MIPS_RELGOT
+ENUMX
+  BFD_RELOC_MIPS_JALR
 COMMENT
 ENUMDOC
   MIPS ELF relocations.
@@ -2080,6 +2087,25 @@ ENUMX
   BFD_RELOC_386_GOTPC
 ENUMDOC
   i386/elf relocations
+
+ENUM
+  BFD_RELOC_X86_64_GOT32
+ENUMX
+  BFD_RELOC_X86_64_PLT32
+ENUMX
+  BFD_RELOC_X86_64_COPY
+ENUMX
+  BFD_RELOC_X86_64_GLOB_DAT
+ENUMX
+  BFD_RELOC_X86_64_JUMP_SLOT
+ENUMX
+  BFD_RELOC_X86_64_RELATIVE
+ENUMX
+  BFD_RELOC_X86_64_GOTPCREL
+ENUMX
+  BFD_RELOC_X86_64_32S
+ENUMDOC
+  x86-64/elf relocations
 
 ENUM
   BFD_RELOC_NS32K_IMM_8
@@ -2204,6 +2230,18 @@ ENUMDOC
   ARM 26 bit pc-relative branch.  The lowest two bits must be zero and are
   not stored in the instruction.
 ENUM
+  BFD_RELOC_ARM_PCREL_BLX
+ENUMDOC
+  ARM 26 bit pc-relative branch.  The lowest bit must be zero and is
+  not stored in the instruction.  The 2nd lowest bit comes from a 1 bit
+  field in the instruction.
+ENUM
+  BFD_RELOC_THUMB_PCREL_BLX
+ENUMDOC
+  Thumb 22 bit pc-relative branch.  The lowest bit must be zero and is
+  not stored in the instruction.  The 2nd lowest bit comes from a 1 bit
+  field in the instruction.
+ENUM
   BFD_RELOC_ARM_IMMEDIATE
 ENUMX
   BFD_RELOC_ARM_ADRL_IMMEDIATE
@@ -2295,6 +2333,20 @@ ENUMX
   BFD_RELOC_SH_DATA
 ENUMX
   BFD_RELOC_SH_LABEL
+ENUMX
+  BFD_RELOC_SH_LOOP_START
+ENUMX
+  BFD_RELOC_SH_LOOP_END
+ENUMX
+  BFD_RELOC_SH_COPY
+ENUMX
+  BFD_RELOC_SH_GLOB_DAT
+ENUMX
+  BFD_RELOC_SH_JMP_SLOT
+ENUMX
+  BFD_RELOC_SH_RELATIVE
+ENUMX
+  BFD_RELOC_SH_GOTPC
 ENUMDOC
   Hitachi SH relocs.  Not all of these appear in object files.
 
@@ -2311,7 +2363,7 @@ ENUMDOC
 ENUM
   BFD_RELOC_ARC_B22_PCREL
 ENUMDOC
-  Argonaut RISC Core (ARC) relocs.
+  ARC Cores relocs.
   ARC 22 bit pc-relative branch.  The lowest two bits must be zero and are
   not stored in the instruction.  The high 20 bits are installed in bits 26
   through 7 of the instruction.
@@ -2538,6 +2590,39 @@ ENUMDOC
   significant 8 bits of the opcode.
 
 ENUM
+  BFD_RELOC_TIC54X_PARTLS7
+ENUMDOC
+  This is a 7bit reloc for the tms320c54x, where the least
+  significant 7 bits of a 16 bit word are placed into the least
+  significant 7 bits of the opcode.
+
+ENUM
+  BFD_RELOC_TIC54X_PARTMS9
+ENUMDOC
+  This is a 9bit DP reloc for the tms320c54x, where the most
+  significant 9 bits of a 16 bit word are placed into the least
+  significant 9 bits of the opcode.
+
+ENUM
+  BFD_RELOC_TIC54X_23
+ENUMDOC
+  This is an extended address 23-bit reloc for the tms320c54x.
+
+ENUM
+  BFD_RELOC_TIC54X_16_OF_23
+ENUMDOC
+  This is a 16-bit reloc for the tms320c54x, where the least
+  significant 16 bits of a 23-bit extended address are placed into
+  the opcode.
+
+ENUM
+  BFD_RELOC_TIC54X_MS7_OF_23
+ENUMDOC
+  This is a reloc for the tms320c54x, where the most
+  significant 7 bits of a 23-bit extended address are placed into
+  the opcode.
+
+ENUM
   BFD_RELOC_FR30_48
 ENUMDOC
   This is a 48 bit reloc for the FR30 that stores 32 bits.
@@ -2606,7 +2691,7 @@ ENUM
   BFD_RELOC_AVR_16_PM
 ENUMDOC
   This is a 16 bit reloc for the AVR that stores 17 bit value (usually
-  program memory address) into 16 bits.  
+  program memory address) into 16 bits.
 ENUM
   BFD_RELOC_AVR_LO8_LDI
 ENUMDOC
@@ -2700,13 +2785,240 @@ ENUMDOC
   is stored in the reloc's addend.  For Rel hosts, we are forced to put
   this offset in the reloc's section offset.
 
+ENUM
+  BFD_RELOC_IA64_IMM14
+ENUMX
+  BFD_RELOC_IA64_IMM22
+ENUMX
+  BFD_RELOC_IA64_IMM64
+ENUMX
+  BFD_RELOC_IA64_DIR32MSB
+ENUMX
+  BFD_RELOC_IA64_DIR32LSB
+ENUMX
+  BFD_RELOC_IA64_DIR64MSB
+ENUMX
+  BFD_RELOC_IA64_DIR64LSB
+ENUMX
+  BFD_RELOC_IA64_GPREL22
+ENUMX
+  BFD_RELOC_IA64_GPREL64I
+ENUMX
+  BFD_RELOC_IA64_GPREL32MSB
+ENUMX
+  BFD_RELOC_IA64_GPREL32LSB
+ENUMX
+  BFD_RELOC_IA64_GPREL64MSB
+ENUMX
+  BFD_RELOC_IA64_GPREL64LSB
+ENUMX
+  BFD_RELOC_IA64_LTOFF22
+ENUMX
+  BFD_RELOC_IA64_LTOFF64I
+ENUMX
+  BFD_RELOC_IA64_PLTOFF22
+ENUMX
+  BFD_RELOC_IA64_PLTOFF64I
+ENUMX
+  BFD_RELOC_IA64_PLTOFF64MSB
+ENUMX
+  BFD_RELOC_IA64_PLTOFF64LSB
+ENUMX
+  BFD_RELOC_IA64_FPTR64I
+ENUMX
+  BFD_RELOC_IA64_FPTR32MSB
+ENUMX
+  BFD_RELOC_IA64_FPTR32LSB
+ENUMX
+  BFD_RELOC_IA64_FPTR64MSB
+ENUMX
+  BFD_RELOC_IA64_FPTR64LSB
+ENUMX
+  BFD_RELOC_IA64_PCREL21B
+ENUMX
+  BFD_RELOC_IA64_PCREL21BI
+ENUMX
+  BFD_RELOC_IA64_PCREL21M
+ENUMX
+  BFD_RELOC_IA64_PCREL21F
+ENUMX
+  BFD_RELOC_IA64_PCREL22
+ENUMX
+  BFD_RELOC_IA64_PCREL60B
+ENUMX
+  BFD_RELOC_IA64_PCREL64I
+ENUMX
+  BFD_RELOC_IA64_PCREL32MSB
+ENUMX
+  BFD_RELOC_IA64_PCREL32LSB
+ENUMX
+  BFD_RELOC_IA64_PCREL64MSB
+ENUMX
+  BFD_RELOC_IA64_PCREL64LSB
+ENUMX
+  BFD_RELOC_IA64_LTOFF_FPTR22
+ENUMX
+  BFD_RELOC_IA64_LTOFF_FPTR64I
+ENUMX
+  BFD_RELOC_IA64_LTOFF_FPTR64MSB
+ENUMX
+  BFD_RELOC_IA64_LTOFF_FPTR64LSB
+ENUMX
+  BFD_RELOC_IA64_SEGREL32MSB
+ENUMX
+  BFD_RELOC_IA64_SEGREL32LSB
+ENUMX
+  BFD_RELOC_IA64_SEGREL64MSB
+ENUMX
+  BFD_RELOC_IA64_SEGREL64LSB
+ENUMX
+  BFD_RELOC_IA64_SECREL32MSB
+ENUMX
+  BFD_RELOC_IA64_SECREL32LSB
+ENUMX
+  BFD_RELOC_IA64_SECREL64MSB
+ENUMX
+  BFD_RELOC_IA64_SECREL64LSB
+ENUMX
+  BFD_RELOC_IA64_REL32MSB
+ENUMX
+  BFD_RELOC_IA64_REL32LSB
+ENUMX
+  BFD_RELOC_IA64_REL64MSB
+ENUMX
+  BFD_RELOC_IA64_REL64LSB
+ENUMX
+  BFD_RELOC_IA64_LTV32MSB
+ENUMX
+  BFD_RELOC_IA64_LTV32LSB
+ENUMX
+  BFD_RELOC_IA64_LTV64MSB
+ENUMX
+  BFD_RELOC_IA64_LTV64LSB
+ENUMX
+  BFD_RELOC_IA64_IPLTMSB
+ENUMX
+  BFD_RELOC_IA64_IPLTLSB
+ENUMX
+  BFD_RELOC_IA64_COPY
+ENUMX
+  BFD_RELOC_IA64_TPREL22
+ENUMX
+  BFD_RELOC_IA64_TPREL64MSB
+ENUMX
+  BFD_RELOC_IA64_TPREL64LSB
+ENUMX
+  BFD_RELOC_IA64_LTOFF_TP22
+ENUMX
+  BFD_RELOC_IA64_LTOFF22X
+ENUMX
+  BFD_RELOC_IA64_LDXMOV
+ENUMDOC
+  Intel IA64 Relocations.
+
+ENUM
+  BFD_RELOC_M68HC11_HI8
+ENUMDOC
+  Motorola 68HC11 reloc.
+  This is the 8 bits high part of an absolute address.
+ENUM
+  BFD_RELOC_M68HC11_LO8
+ENUMDOC
+  Motorola 68HC11 reloc.
+  This is the 8 bits low part of an absolute address.
+ENUM
+  BFD_RELOC_M68HC11_3B
+ENUMDOC
+  Motorola 68HC11 reloc.
+  This is the 3 bits of a value.
+
+ENUM
+  BFD_RELOC_CRIS_BDISP8
+ENUMX
+  BFD_RELOC_CRIS_UNSIGNED_5
+ENUMX
+  BFD_RELOC_CRIS_SIGNED_6
+ENUMX
+  BFD_RELOC_CRIS_UNSIGNED_6
+ENUMX
+  BFD_RELOC_CRIS_UNSIGNED_4
+ENUMDOC
+  These relocs are only used within the CRIS assembler.  They are not
+  (at present) written to any object files.
+
+ENUM
+  BFD_RELOC_860_COPY
+ENUMX
+  BFD_RELOC_860_GLOB_DAT
+ENUMX
+  BFD_RELOC_860_JUMP_SLOT
+ENUMX
+  BFD_RELOC_860_RELATIVE
+ENUMX
+  BFD_RELOC_860_PC26
+ENUMX
+  BFD_RELOC_860_PLT26
+ENUMX
+  BFD_RELOC_860_PC16
+ENUMX
+  BFD_RELOC_860_LOW0
+ENUMX
+  BFD_RELOC_860_SPLIT0
+ENUMX
+  BFD_RELOC_860_LOW1
+ENUMX
+  BFD_RELOC_860_SPLIT1
+ENUMX
+  BFD_RELOC_860_LOW2
+ENUMX
+  BFD_RELOC_860_SPLIT2
+ENUMX
+  BFD_RELOC_860_LOW3
+ENUMX
+  BFD_RELOC_860_LOGOT0
+ENUMX
+  BFD_RELOC_860_SPGOT0
+ENUMX
+  BFD_RELOC_860_LOGOT1
+ENUMX
+  BFD_RELOC_860_SPGOT1
+ENUMX
+  BFD_RELOC_860_LOGOTOFF0
+ENUMX
+  BFD_RELOC_860_SPGOTOFF0
+ENUMX
+  BFD_RELOC_860_LOGOTOFF1
+ENUMX
+  BFD_RELOC_860_SPGOTOFF1
+ENUMX
+  BFD_RELOC_860_LOGOTOFF2
+ENUMX
+  BFD_RELOC_860_LOGOTOFF3
+ENUMX
+  BFD_RELOC_860_LOPC
+ENUMX
+  BFD_RELOC_860_HIGHADJ
+ENUMX
+  BFD_RELOC_860_HAGOT
+ENUMX
+  BFD_RELOC_860_HAGOTOFF
+ENUMX
+  BFD_RELOC_860_HAPC
+ENUMX
+  BFD_RELOC_860_HIGH
+ENUMX
+  BFD_RELOC_860_HIGOT
+ENUMX
+  BFD_RELOC_860_HIGOTOFF
+ENUMDOC
+  Intel i860 Relocations.
+
 ENDSENUM
   BFD_RELOC_UNUSED
 CODE_FRAGMENT
 .
 .typedef enum bfd_reloc_code_real bfd_reloc_code_real_type;
 */
-
 
 /*
 FUNCTION
@@ -2723,7 +3035,6 @@ DESCRIPTION
 
 */
 
-
 reloc_howto_type *
 bfd_reloc_type_lookup (abfd, code)
      bfd *abfd;
@@ -2735,7 +3046,6 @@ bfd_reloc_type_lookup (abfd, code)
 static reloc_howto_type bfd_howto_32 =
 HOWTO (0, 00, 2, 32, false, 0, complain_overflow_bitfield, 0, "VRT32", false, 0xffffffff, 0xffffffff, true);
 
-
 /*
 INTERNAL_FUNCTION
 	bfd_default_reloc_type_lookup
@@ -2746,7 +3056,6 @@ SYNOPSIS
 
 DESCRIPTION
 	Provides a default relocation lookup routine for any architecture.
-
 
 */
 

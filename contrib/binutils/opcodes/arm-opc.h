@@ -1,6 +1,7 @@
 /* Opcode table for the ARM.
 
-   Copyright 1994, 1995, 1996, 1997, 2000 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000
+   Free Software Foundation, Inc.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,6 +52,7 @@ struct thumb_opcode
    %a			print address for ldr/str instruction
    %s                   print address for ldr/str halfword/signextend instruction
    %b			print branch destination
+   %B			print arm BLX(1) destination
    %A			print address for ldc/stc/ldf/stf instruction
    %m			print register mask for ldm/stm instruction
    %C			print the PSR sub type.
@@ -75,7 +77,7 @@ Thumb specific format options:
 
 static struct arm_opcode arm_opcodes[] =
 {
-    /* ARM instructions */
+    /* ARM instructions.  */
     {0xe1a00000, 0xffffffff, "nop\t\t\t(mov r0,r0)"},
     {0x012FFF10, 0x0ffffff0, "bx%c\t%0-3r"},
     {0x00000090, 0x0fe000f0, "mul%c%20's\t%16-19r, %0-3r, %8-11r"},
@@ -83,6 +85,59 @@ static struct arm_opcode arm_opcodes[] =
     {0x01000090, 0x0fb00ff0, "swp%c%22'b\t%12-15r, %0-3r, [%16-19r]"},
     {0x00800090, 0x0fa000f0, "%22?sumull%c%20's\t%12-15r, %16-19r, %0-3r, %8-11r"},
     {0x00a00090, 0x0fa000f0, "%22?sumlal%c%20's\t%12-15r, %16-19r, %0-3r, %8-11r"},
+
+    /* XScale instructions.  */
+    {0x0e200010, 0x0fff0ff0, "mia%c\tacc0, %0-3r, %12-15r"},
+    {0x0e280010, 0x0fff0ff0, "miaph%c\tacc0, %0-3r, %12-15r"},
+    {0x0e2c0010, 0x0ffc0ff0, "mia%17'T%17`B%16'T%16`B%c\tacc0, %0-3r, %12-15r"},
+    {0x0c400000, 0x0ff00fff, "mar%c\tacc0, %12-15r, %16-19r"},
+    {0x0c500000, 0x0ff00fff, "mra%c\t%12-15r, %16-19r, acc0"},
+    {0xf450f000, 0xfc70f000, "pld\t%a"},
+    
+    /* V5 Instructions.  */
+    {0xe1200070, 0xfff000f0, "bkpt\t0x%16-19X%12-15X%8-11X%0-3X"},
+    {0xfa000000, 0xfe000000, "blx\t%B"},
+    {0x012fff30, 0x0ffffff0, "blx%c\t%0-3r"},
+    {0x016f0f10, 0x0fff0ff0, "clz%c\t%12-15r, %0-3r"},
+    {0xfc100000, 0xfe100000, "ldc2%22'l\t%8-11d, cr%12-15d, %A"},
+    {0xfc000000, 0xfe100000, "stc2%22'l\t%8-11d, cr%12-15d, %A"},
+    {0xfe000000, 0xff000010, "cdp2\t%8-11d, %20-23d, cr%12-15d, cr%16-19d, cr%0-3d, {%5-7d}"},
+    {0xfe000010, 0xff100010, "mcr2\t%8-11d, %21-23d, %12-15r, cr%16-19d, cr%0-3d, {%5-7d}"},
+    {0xfe100010, 0xff100010, "mrc2\t%8-11d, %21-23d, %12-15r, cr%16-19d, cr%0-3d, {%5-7d}"},
+
+    /* V5E "El Segundo" Instructions.  */    
+    {0x000000d0, 0x0e1000f0, "ldr%cd\t%12-15r, %s"},
+    {0x000000f0, 0x0e1000f0, "str%cd\t%12-15r, %s"},
+    {0x01000080, 0x0ff000f0, "smlabb%c\t%16-19r, %0-3r, %8-11r, %12-15r"},
+    {0x010000a0, 0x0ff000f0, "smlatb%c\t%16-19r, %0-3r, %8-11r, %12-15r"},
+    {0x010000c0, 0x0ff000f0, "smlabt%c\t%16-19r, %0-3r, %8-11r, %12-15r"},
+    {0x010000e0, 0x0ff000f0, "smlatt%c\t%16-19r, %0-3r, %8-11r, %12-15r"},
+
+    {0x01200080, 0x0ff000f0, "smlawb%c\t%16-19r, %0-3r, %8-11r, %12-15r"},
+    {0x012000c0, 0x0ff000f0, "smlawt%c\t%16-19r, %0-3r, %8-11r, %12-15r"},
+
+    {0x01400080, 0x0ff000f0, "smlalbb%c\t%12-15r, %16-19r, %0-3r, %8-11r"},
+    {0x014000a0, 0x0ff000f0, "smlaltb%c\t%12-15r, %16-19r, %0-3r, %8-11r"},
+    {0x014000c0, 0x0ff000f0, "smlalbt%c\t%12-15r, %16-19r, %0-3r, %8-11r"},
+    {0x014000e0, 0x0ff000f0, "smlaltt%c\t%12-15r, %16-19r, %0-3r, %8-11r"},
+
+    {0x01600080, 0x0ff0f0f0, "smulbb%c\t%16-19r, %0-3r, %8-11r"},
+    {0x016000a0, 0x0ff0f0f0, "smultb%c\t%16-19r, %0-3r, %8-11r"},
+    {0x016000c0, 0x0ff0f0f0, "smulbt%c\t%16-19r, %0-3r, %8-11r"},
+    {0x016000e0, 0x0ff0f0f0, "smultt%c\t%16-19r, %0-3r, %8-11r"},
+
+    {0x012000a0, 0x0ff0f0f0, "smulwb%c\t%16-19r, %0-3r, %8-11r"},
+    {0x012000e0, 0x0ff0f0f0, "smulwt%c\t%16-19r, %0-3r, %8-11r"},
+
+    {0x01000050, 0x0ff00ff0,  "qadd%c\t%12-15r, %0-3r, %16-19r"},
+    {0x01400050, 0x0ff00ff0, "qdadd%c\t%12-15r, %0-3r, %16-19r"},
+    {0x01200050, 0x0ff00ff0,  "qsub%c\t%12-15r, %0-3r, %16-19r"},
+    {0x01600050, 0x0ff00ff0, "qdsub%c\t%12-15r, %0-3r, %16-19r"},
+
+    {0x0c400000, 0x0ff00000, "mcrr%c\t%8-11d, %4-7d, %12-15r, %16-19r, cr%0-3d"},
+    {0x0c500000, 0x0ff00000, "mrrc%c\t%8-11d, %4-7d, %12-15r, %16-19r, cr%0-3d"},
+
+    /* ARM Instructions.  */
     {0x00000090, 0x0e100090, "str%c%6's%h\t%12-15r, %s"},
     {0x00100090, 0x0e100090, "ldr%c%6's%h\t%12-15r, %s"},
     {0x00000000, 0x0de00000, "and%c%20's\t%12-15r, %16-19r, %o"},
@@ -174,10 +229,21 @@ static struct arm_opcode arm_opcodes[] =
 
 static struct thumb_opcode thumb_opcodes[] =
 {
-  /* Thumb instructions */
-  {0x46C0, 0xFFFF, "nop\t\t\t(mov r8,r8)"}, /* format 5 instructions do not update the PSR */
+  /* Thumb instructions.  */
+
+  /* ARM V5 ISA extends Thumb.  */
+  {0xbe00, 0xff00, "bkpt\t%0-7x"},
+  {0x4780, 0xff87, "blx\t%3-6r"},	/* note: 4 bit register number.  */
+  /* Note: this is BLX(2).  BLX(1) is done in arm-dis.c/print_insn_thumb()
+     as an extension of the special processing there for Thumb BL.
+     BL and BLX(1) involve 2 successive 16-bit instructions, which must
+     always appear together in the correct order.  So, the empty
+     string is put in this table, and the string interpreter takes <empty>
+     to mean it has a pair of BL-ish instructions.  */
+  {0x46C0, 0xFFFF, "nop\t\t\t(mov r8, r8)"},
+  /* Format 5 instructions do not update the PSR.  */
   {0x1C00, 0xFFC0, "mov\t%0-2r, %3-5r\t\t(add %0-2r, %3-5r, #%6-8d)"},
-  /* format 4 */
+  /* Format 4.  */
   {0x4000, 0xFFC0, "and\t%0-2r, %3-5r"},
   {0x4040, 0xFFC0, "eor\t%0-2r, %3-5r"},
   {0x4080, 0xFFC0, "lsl\t%0-2r, %3-5r"},

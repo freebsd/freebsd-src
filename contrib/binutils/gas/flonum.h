@@ -1,6 +1,6 @@
 /* flonum.h - Floating point package
-
-   Copyright (C) 1987, 90, 91, 92, 94, 95, 1996 Free Software Foundation, Inc.
+   Copyright 1987, 1990, 1991, 1992, 1994, 1996, 2000
+   Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -49,8 +49,7 @@
    A sign value of 'P' means we've been asked to assemble +Inf
    A sign value of 'N' means we've been asked to assemble -Inf
    */
-struct FLONUM_STRUCT
-{
+struct FLONUM_STRUCT {
   LITTLENUM_TYPE *low;		/* low order littlenum of a bignum */
   LITTLENUM_TYPE *high;		/* high order littlenum of a bignum */
   LITTLENUM_TYPE *leader;	/* -> 1st non-zero littlenum */
@@ -60,7 +59,6 @@ struct FLONUM_STRUCT
 };
 
 typedef struct FLONUM_STRUCT FLONUM_TYPE;
-
 
 /***********************************************************************\
  *									*
@@ -74,15 +72,11 @@ typedef struct FLONUM_STRUCT FLONUM_TYPE;
  *									*
  \***********************************************************************/
 
-
 extern const FLONUM_TYPE flonum_positive_powers_of_ten[];
 extern const FLONUM_TYPE flonum_negative_powers_of_ten[];
 extern const int table_size_of_flonum_powers_of_ten;
-/* Flonum_XXX_powers_of_ten[] table has */
-/* legal indices from 0 to */
-/* + this number inclusive. */
-
-
+/* Flonum_XXX_powers_of_ten[] table has legal indices from 0 to
+   + this number inclusive.  */
 
 /***********************************************************************\
  *									*
@@ -106,5 +100,3 @@ void flonum_multip PARAMS ((const FLONUM_TYPE * a, const FLONUM_TYPE * b,
  \***********************************************************************/
 
 #define ERROR_EXPONENT_OVERFLOW (2)
-
-/* end of flonum.h */

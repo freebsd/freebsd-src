@@ -1,5 +1,5 @@
 /* ldmisc.c
-   Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000
+   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000
    Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support.
 
@@ -76,10 +76,10 @@ demangle (string)
       && bfd_get_symbol_leading_char (output_bfd) == string[0])
     ++string;
 
-  /* This is a hack for better error reporting on XCOFF, or the MS PE   */
-  /* format.  Xcoff has a single '.', while the NT PE for PPC has '..'. */
-  /* So we remove all of them.                                          */
-  while(string[0] == '.')
+  /* This is a hack for better error reporting on XCOFF, or the MS PE
+     format.  Xcoff has a single '.', while the NT PE for PPC has
+     '..'.  So we remove all of them.  */
+  while (string[0] == '.')
     ++string;
 
   res = cplus_demangle (string, DMGL_ANSI | DMGL_PARAMS);
@@ -96,19 +96,19 @@ vfinfo (fp, fmt, arg)
 
   while (*fmt != '\0')
     {
-      while (*fmt != '%' && *fmt != '\0') 
+      while (*fmt != '%' && *fmt != '\0')
 	{
 	  putc (*fmt, fp);
 	  fmt++;
 	}
 
-      if (*fmt == '%') 
+      if (*fmt == '%')
 	{
-	  fmt ++;
-	  switch (*fmt++) 
+	  fmt++;
+	  switch (*fmt++)
 	    {
 	    default:
-	      fprintf (fp,"%%%c", fmt[-1]);
+	      fprintf (fp, "%%%c", fmt[-1]);
 	      break;
 
 	    case '%':
@@ -191,7 +191,7 @@ vfinfo (fp, fmt, arg)
 
 	    case 'B':
 	      /* filename from a bfd */
-	      { 
+	      {
 		bfd *abfd = va_arg (arg, bfd *);
 		if (abfd->my_archive)
 		  fprintf (fp, "%s(%s)", abfd->my_archive->filename,
@@ -202,12 +202,12 @@ vfinfo (fp, fmt, arg)
 	      break;
 
 	    case 'F':
-	      /* error is fatal */
+	      /* Error is fatal.  */
 	      fatal = true;
 	      break;
 
 	    case 'P':
-	      /* print program name */
+	      /* Print program name.  */
 	      fprintf (fp, "%s", program_name);
 	      break;
 
@@ -233,7 +233,7 @@ vfinfo (fp, fmt, arg)
 	      break;
 
 	    case 'S':
-	      /* print script file and linenumber */
+	      /* Print script file and linenumber.  */
 	      if (parsing_defsym)
 		fprintf (fp, "--defsym %s", lex_string);
 	      else if (ldfile_input_filename != NULL)
@@ -243,17 +243,17 @@ vfinfo (fp, fmt, arg)
 	      break;
 
 	    case 'R':
-	      /* Print all that's interesting about a relent */
+	      /* Print all that's interesting about a relent.  */
 	      {
 		arelent *relent = va_arg (arg, arelent *);
-	
+
 		lfinfo (fp, "%s+0x%v (type %s)",
 			(*(relent->sym_ptr_ptr))->name,
 			relent->addend,
 			relent->howto->name);
 	      }
 	      break;
-	
+
 	    case 'C':
 	    case 'D':
 	    case 'G':
@@ -335,10 +335,10 @@ vfinfo (fp, fmt, arg)
 			    last_bfd = abfd;
 			    if (last_file != NULL)
 			      free (last_file);
-			    last_file = buystring (filename);
+			    last_file = xstrdup (filename);
 			    if (last_function != NULL)
 			      free (last_function);
-			    last_function = buystring (functionname);
+			    last_function = xstrdup (functionname);
 			  }
 			discard_last = false;
 			if (linenumber != 0)
@@ -355,7 +355,7 @@ vfinfo (fp, fmt, arg)
 			if (linenumber != 0)
 			  lfinfo (fp, ":%u", linenumber);
 		      }
-		    else if (linenumber != 0) 
+		    else if (linenumber != 0)
 		      lfinfo (fp, "%B:%s:%u", abfd, filename, linenumber);
 		    else
 		      lfinfo (fp, "%B(%s+0x%v):%s", abfd, section->name,
@@ -380,7 +380,7 @@ vfinfo (fp, fmt, arg)
 		  }
 	      }
 	      break;
-		
+
 	    case 's':
 	      /* arbitrary string, like printf */
 	      fprintf (fp, "%s", va_arg (arg, char *));
@@ -399,11 +399,11 @@ vfinfo (fp, fmt, arg)
 	}
     }
 
-  if (fatal == true) 
-    xexit(1);
+  if (fatal == true)
+    xexit (1);
 }
 
-/* Format info message and print on stdout. */
+/* Format info message and print on stdout.  */
 
 /* (You would think this should be called just "info", but then you
    would hosed by LynxOS, which defines that name in its libc.)  */
@@ -431,7 +431,7 @@ info_msg (va_alist)
   va_end (arg);
 }
 
-/* ('e' for error.) Format info message and print on stderr. */
+/* ('e' for error.) Format info message and print on stderr.  */
 
 void
 #if USE_STDARG
@@ -456,7 +456,7 @@ einfo (va_alist)
   va_end (arg);
 }
 
-void 
+void
 info_assert (file, line)
      const char *file;
      unsigned int line;
@@ -464,17 +464,7 @@ info_assert (file, line)
   einfo (_("%F%P: internal error %s %d\n"), file, line);
 }
 
-char *
-buystring (x)
-     CONST char *CONST x;
-{
-  size_t l = strlen(x)+1;
-  char *r = xmalloc(l);
-  memcpy(r, x,l);
-  return r;
-}
-
-/* ('m' for map) Format info message and print on map. */
+/* ('m' for map) Format info message and print on map.  */
 
 void
 #if USE_STDARG
@@ -525,13 +515,13 @@ lfinfo (va_alist)
 
 /* Functions to print the link map.  */
 
-void 
+void
 print_space ()
 {
   fprintf (config.map_file, " ");
 }
 
-void 
+void
 print_nl ()
 {
   fprintf (config.map_file, "\n");

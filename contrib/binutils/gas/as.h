@@ -1,5 +1,6 @@
 /* as.h - global header file
-   Copyright (C) 1987, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 2000
+   Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
+   1999, 2000, 2001
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -21,8 +22,7 @@
 
 #ifndef GAS
 #define GAS 1
-/*
- * I think this stuff is largely out of date.  xoxorich.
+/* I think this stuff is largely out of date.  xoxorich.
  *
  * CAPITALISED names are #defined.
  * "lowercaseH" is #defined if "lowercase.h" has been #include-d.
@@ -80,7 +80,7 @@ extern void *alloca ();
 
 /* Now, tend to the rest of the configuration.  */
 
-/* System include files first... */
+/* System include files first...  */
 #include <stdio.h>
 #include <ctype.h>
 #ifdef HAVE_STRING_H
@@ -106,8 +106,8 @@ extern void *alloca ();
    150 isn't special; it's just an arbitrary non-ASCII char value.  */
 #define OPTION_STD_BASE 150
 /* The first getopt value for machine-dependent long options.
-   170 gives the standard options room to grow.  */
-#define OPTION_MD_BASE 170
+   190 gives the standard options room to grow.  */
+#define OPTION_MD_BASE 190
 
 #ifdef DEBUG
 #undef NDEBUG
@@ -136,8 +136,7 @@ extern void *alloca ();
 
 #endif
 
-
-/* Now GNU header files... */
+/* Now GNU header files...  */
 #include "ansidecl.h"
 #ifdef BFD_ASSEMBLER
 #include "bfd.h"
@@ -185,9 +184,9 @@ extern char **environ;
 /* Make Saber happier on obstack.h.  */
 #ifdef SABER
 #undef  __PTR_TO_INT
-#define __PTR_TO_INT(P) ((int)(P))
+#define __PTR_TO_INT(P) ((int) (P))
 #undef  __INT_TO_PTR
-#define __INT_TO_PTR(P) ((char *)(P))
+#define __INT_TO_PTR(P) ((char *) (P))
 #endif
 
 #ifndef __LINE__
@@ -222,11 +221,11 @@ extern char **environ;
 
 #include "asintl.h"
 
-#define BAD_CASE(val) \
-{ \
-      as_fatal(_("Case value %ld unexpected at line %d of file \"%s\"\n"), \
-	       (long) val, __LINE__, __FILE__); \
-	   }
+#define BAD_CASE(val)							    \
+  {									    \
+    as_fatal (_("Case value %ld unexpected at line %d of file \"%s\"\n"),   \
+	      (long) val, __LINE__, __FILE__);				    \
+  }
 
 #include "flonum.h"
 
@@ -246,7 +245,7 @@ typedef addressT valueT;
 
 #ifndef COMMON
 #ifdef TEST
-#define COMMON			/* declare our COMMONs storage here. */
+#define COMMON			/* declare our COMMONs storage here.  */
 #else
 #define COMMON extern		/* our commons live elswhere */
 #endif
@@ -263,12 +262,9 @@ typedef addressT valueT;
 
 /* input_scrub.c */
 
-/*
- * Supplies sanitised buffers to read.c.
- * Also understands printing line-number part of error messages.
- */
+/* Supplies sanitised buffers to read.c.
+   Also understands printing line-number part of error messages.  */
 
-
 /* subsegs.c     Sub-segments. Also, segment(=expression type)s.*/
 
 #ifndef BFD_ASSEMBLER
@@ -291,20 +287,19 @@ typedef addressT valueT;
 #define SEG_LIST SEG_TEXT,SEG_DATA,SEG_BSS
 #endif
 
-typedef enum _segT
-  {
-    SEG_ABSOLUTE = 0,
-    SEG_LIST,
-    SEG_UNKNOWN,
-    SEG_GOOF,			/* Only happens if AS has a logic error. */
-    /* Invented so we don't crash printing */
-    /* error message involving weird segment. */
-    SEG_EXPR,			/* Intermediate expression values. */
-    SEG_DEBUG,			/* Debug segment */
-    SEG_NTV,			/* Transfert vector preload segment */
-    SEG_PTV,			/* Transfert vector postload segment */
-    SEG_REGISTER		/* Mythical: a register-valued expression */
-  } segT;
+typedef enum _segT {
+  SEG_ABSOLUTE = 0,
+  SEG_LIST,
+  SEG_UNKNOWN,
+  SEG_GOOF,			/* Only happens if AS has a logic error.  */
+  /* Invented so we don't crash printing */
+  /* error message involving weird segment.  */
+  SEG_EXPR,			/* Intermediate expression values.  */
+  SEG_DEBUG,			/* Debug segment */
+  SEG_NTV,			/* Transfert vector preload segment */
+  SEG_PTV,			/* Transfert vector postload segment */
+  SEG_REGISTER			/* Mythical: a register-valued expression */
+} segT;
 
 #define SEG_MAXIMUM_ORDINAL (SEG_REGISTER)
 #else
@@ -319,7 +314,7 @@ typedef int subsegT;
 /* What subseg we are accreting now? */
 COMMON subsegT now_subseg;
 
-/* Segment our instructions emit to. */
+/* Segment our instructions emit to.  */
 COMMON segT now_seg;
 
 #ifdef BFD_ASSEMBLER
@@ -351,51 +346,57 @@ extern segT text_section, data_section, bss_section;
 
 /* relax() */
 
-enum _relax_state
-  {
-    /* Variable chars to be repeated fr_offset times.
-       Fr_symbol unused. Used with fr_offset == 0 for a
-       constant length frag. */
-    rs_fill = 1,
+enum _relax_state {
+  /* Variable chars to be repeated fr_offset times.
+     Fr_symbol unused. Used with fr_offset == 0 for a
+     constant length frag.  */
+  rs_fill = 1,
 
-    /* Align.  The fr_offset field holds the power of 2 to which to
-       align.  The fr_var field holds the number of characters in the
-       fill pattern.  The fr_subtype field holds the maximum number of
-       bytes to skip when aligning, or 0 if there is no maximum.  */
-    rs_align,
+  /* Align.  The fr_offset field holds the power of 2 to which to
+     align.  The fr_var field holds the number of characters in the
+     fill pattern.  The fr_subtype field holds the maximum number of
+     bytes to skip when aligning, or 0 if there is no maximum.  */
+  rs_align,
 
-    /* Align code.  The fr_offset field holds the power of 2 to which
-       to align.  This type is only generated by machine specific
-       code, which is normally responsible for handling the fill
-       pattern.  The fr_subtype field holds the maximum number of
-       bytes to skip when aligning, or 0 if there is no maximum.  */
-    rs_align_code,
+  /* Align code.  The fr_offset field holds the power of 2 to which
+     to align.  This type is only generated by machine specific
+     code, which is normally responsible for handling the fill
+     pattern.  The fr_subtype field holds the maximum number of
+     bytes to skip when aligning, or 0 if there is no maximum.  */
+  rs_align_code,
 
-    /* Org: Fr_offset, fr_symbol: address. 1 variable char: fill
-       character. */
-    rs_org,
+  /* Test for alignment.  Like rs_align, but used by several targets
+     to warn if data is not properly aligned.  */
+  rs_align_test,
+
+  /* Org: Fr_offset, fr_symbol: address. 1 variable char: fill
+     character.  */
+  rs_org,
 
 #ifndef WORKING_DOT_WORD
-    /* JF: gunpoint */
-    rs_broken_word,
+  /* JF: gunpoint */
+  rs_broken_word,
 #endif
 
-    /* machine-specific relaxable (or similarly alterable) instruction */
-    rs_machine_dependent,
+  /* machine-specific relaxable (or similarly alterable) instruction */
+  rs_machine_dependent,
 
-    /* .space directive with expression operand that needs to be computed
-       later.  Similar to rs_org, but different.
-       fr_symbol: operand
-       1 variable char: fill character  */
-    rs_space,
+  /* .space directive with expression operand that needs to be computed
+     later.  Similar to rs_org, but different.
+     fr_symbol: operand
+     1 variable char: fill character  */
+  rs_space,
 
-    /* A DWARF leb128 value; only ELF uses this.  The subtype is 0 for
-       unsigned, 1 for signed.  */
-    rs_leb128,
+  /* A DWARF leb128 value; only ELF uses this.  The subtype is 0 for
+     unsigned, 1 for signed.  */
+  rs_leb128,
 
-    /* Exception frame information which we may be able to optimize.  */
-    rs_cfa
-  };
+  /* Exception frame information which we may be able to optimize.  */
+  rs_cfa,
+
+  /* Cross-fragment dwarf2 line number optimization.  */
+  rs_dwarf2dbg
+};
 
 typedef enum _relax_state relax_stateT;
 
@@ -436,7 +437,7 @@ COMMON int flag_fatal_warnings; /* --fatal-warnings */
    are detected.  */
 COMMON unsigned char flag_always_generate_output; /* -Z */
 
-/* This is true if the assembler should output time and space usage. */
+/* This is true if the assembler should output time and space usage.  */
 COMMON unsigned char flag_print_statistics;
 
 /* True if local absolute symbols are to be stripped.  */
@@ -451,7 +452,7 @@ COMMON char *out_file_name;
 /* name of file defining extensions to the basic instruction set */
 COMMON char *insttbl_file_name;
 
-/* TRUE if we need a second pass. */
+/* TRUE if we need a second pass.  */
 COMMON int need_pass_2;
 
 /* TRUE if we should do no relaxing, and
@@ -461,18 +462,22 @@ COMMON int linkrelax;
 /* TRUE if we should produce a listing.  */
 extern int listing;
 
-/* Type of debugging information we should generate.  We currently
-   support stabs, ECOFF, and DWARF2.  */
+/* Type of debugging information we should generate.  We currently support
+   stabs, ECOFF, and DWARF2.
 
-enum debug_info_type
-  {
-    DEBUG_UNSPECIFIED,
-    DEBUG_NONE,
-    DEBUG_STABS,
-    DEBUG_ECOFF,
-    DEBUG_DWARF,
-    DEBUG_DWARF2
-  };
+   NOTE!  This means debug information about the assembly source code itself
+   and _not_ about possible debug information from a high-level language.
+   This is especially relevant to DWARF2, since the compiler may emit line
+   number directives that the assembler resolves.  */
+
+enum debug_info_type {
+  DEBUG_UNSPECIFIED,
+  DEBUG_NONE,
+  DEBUG_STABS,
+  DEBUG_ECOFF,
+  DEBUG_DWARF,
+  DEBUG_DWARF2
+};
 
 extern enum debug_info_type debug_type;
 
@@ -483,15 +488,14 @@ extern int max_macro_nest;
    increase malloc calls for monitoring memory allocation.  */
 extern int chunksize;
 
-struct _pseudo_type
-  {
-    /* assembler mnemonic, lower case, no '.' */
-    const char *poc_name;
-    /* Do the work */
-    void (*poc_handler) PARAMS ((int));
-    /* Value to pass to handler */
-    int poc_val;
-  };
+struct _pseudo_type {
+  /* assembler mnemonic, lower case, no '.' */
+  const char *poc_name;
+  /* Do the work */
+  void (*poc_handler) PARAMS ((int));
+  /* Value to pass to handler */
+  int poc_val;
+};
 
 typedef struct _pseudo_type pseudo_typeS;
 
@@ -619,6 +623,10 @@ void eh_frame_convert_frag PARAMS ((fragS *));
 /* this one starts the chain of target dependant headers */
 #include "targ-env.h"
 
+#ifdef TC_ARC
+#include "struc-symbol.h"
+#endif
+
 #include "write.h"
 #include "frags.h"
 #include "hash.h"
@@ -638,6 +646,12 @@ void eh_frame_convert_frag PARAMS ((fragS *));
 COMMON int flag_m68k_mri;
 #else
 #define flag_m68k_mri 0
+#endif
+
+#ifdef WARN_COMMENTS
+COMMON int warn_comment;
+COMMON unsigned int found_comment;
+COMMON char *found_comment_file;
 #endif
 
 #ifndef NUMBERS_WITH_SUFFIX
@@ -677,5 +691,3 @@ COMMON int flag_m68k_mri;
 #endif
 
 #endif /* GAS */
-
-/* end of as.h */

@@ -599,7 +599,9 @@ Reloc types used for i960/b.out.
 @deffnx {} BFD_RELOC_SPARC_GLOB_DAT
 @deffnx {} BFD_RELOC_SPARC_JMP_SLOT
 @deffnx {} BFD_RELOC_SPARC_RELATIVE
+@deffnx {} BFD_RELOC_SPARC_UA16
 @deffnx {} BFD_RELOC_SPARC_UA32
+@deffnx {} BFD_RELOC_SPARC_UA64
 SPARC ELF relocations.  There is probably some overlap with other
 relocation types already defined.
 @end deffn
@@ -752,6 +754,17 @@ Relocation against a MIPS literal section.
 @deffnx {} BFD_RELOC_MIPS_GOT_PAGE
 @deffnx {} BFD_RELOC_MIPS_GOT_OFST
 @deffnx {} BFD_RELOC_MIPS_GOT_DISP
+@deffnx {} BFD_RELOC_MIPS_SHIFT5
+@deffnx {} BFD_RELOC_MIPS_SHIFT6
+@deffnx {} BFD_RELOC_MIPS_INSERT_A
+@deffnx {} BFD_RELOC_MIPS_INSERT_B
+@deffnx {} BFD_RELOC_MIPS_DELETE
+@deffnx {} BFD_RELOC_MIPS_HIGHEST
+@deffnx {} BFD_RELOC_MIPS_HIGHER
+@deffnx {} BFD_RELOC_MIPS_SCN_DISP
+@deffnx {} BFD_RELOC_MIPS_REL16
+@deffnx {} BFD_RELOC_MIPS_RELGOT
+@deffnx {} BFD_RELOC_MIPS_JALR
 MIPS ELF relocations.
 @end deffn
 @deffn {} BFD_RELOC_386_GOT32
@@ -763,6 +776,16 @@ MIPS ELF relocations.
 @deffnx {} BFD_RELOC_386_GOTOFF
 @deffnx {} BFD_RELOC_386_GOTPC
 i386/elf relocations
+@end deffn
+@deffn {} BFD_RELOC_X86_64_GOT32
+@deffnx {} BFD_RELOC_X86_64_PLT32
+@deffnx {} BFD_RELOC_X86_64_COPY
+@deffnx {} BFD_RELOC_X86_64_GLOB_DAT
+@deffnx {} BFD_RELOC_X86_64_JUMP_SLOT
+@deffnx {} BFD_RELOC_X86_64_RELATIVE
+@deffnx {} BFD_RELOC_X86_64_GOTPCREL
+@deffnx {} BFD_RELOC_X86_64_32S
+x86-64/elf relocations
 @end deffn
 @deffn {} BFD_RELOC_NS32K_IMM_8
 @deffnx {} BFD_RELOC_NS32K_IMM_16
@@ -830,6 +853,16 @@ It generally does map to one of the other relocation types.
 ARM 26 bit pc-relative branch.  The lowest two bits must be zero and are
 not stored in the instruction.
 @end deffn
+@deffn {} BFD_RELOC_ARM_PCREL_BLX
+ARM 26 bit pc-relative branch.  The lowest bit must be zero and is
+not stored in the instruction.  The 2nd lowest bit comes from a 1 bit
+field in the instruction.
+@end deffn
+@deffn {} BFD_RELOC_THUMB_PCREL_BLX
+Thumb 22 bit pc-relative branch.  The lowest bit must be zero and is
+not stored in the instruction.  The 2nd lowest bit comes from a 1 bit
+field in the instruction.
+@end deffn
 @deffn {} BFD_RELOC_ARM_IMMEDIATE
 @deffnx {} BFD_RELOC_ARM_ADRL_IMMEDIATE
 @deffnx {} BFD_RELOC_ARM_OFFSET_IMM
@@ -877,6 +910,13 @@ These relocs are only used within the ARM assembler.  They are not
 @deffnx {} BFD_RELOC_SH_CODE
 @deffnx {} BFD_RELOC_SH_DATA
 @deffnx {} BFD_RELOC_SH_LABEL
+@deffnx {} BFD_RELOC_SH_LOOP_START
+@deffnx {} BFD_RELOC_SH_LOOP_END
+@deffnx {} BFD_RELOC_SH_COPY
+@deffnx {} BFD_RELOC_SH_GLOB_DAT
+@deffnx {} BFD_RELOC_SH_JMP_SLOT
+@deffnx {} BFD_RELOC_SH_RELATIVE
+@deffnx {} BFD_RELOC_SH_GOTPC
 Hitachi SH relocs.  Not all of these appear in object files.
 @end deffn
 @deffn {} BFD_RELOC_THUMB_PCREL_BRANCH9
@@ -886,7 +926,7 @@ Thumb 23-, 12- and 9-bit pc-relative branches.  The lowest bit must
 be zero and is not stored in the instruction.
 @end deffn
 @deffn {} BFD_RELOC_ARC_B22_PCREL
-Argonaut RISC Core (ARC) relocs.
+ARC Cores relocs.
 ARC 22 bit pc-relative branch.  The lowest two bits must be zero and are
 not stored in the instruction.  The high 20 bits are installed in bits 26
 through 7 of the instruction.
@@ -1060,6 +1100,29 @@ This is a 8bit DP reloc for the tms320c30, where the most
 significant 8 bits of a 24 bit word are placed into the least
 significant 8 bits of the opcode.
 @end deffn
+@deffn {} BFD_RELOC_TIC54X_PARTLS7
+This is a 7bit reloc for the tms320c54x, where the least
+significant 7 bits of a 16 bit word are placed into the least
+significant 7 bits of the opcode.
+@end deffn
+@deffn {} BFD_RELOC_TIC54X_PARTMS9
+This is a 9bit DP reloc for the tms320c54x, where the most
+significant 9 bits of a 16 bit word are placed into the least
+significant 9 bits of the opcode.
+@end deffn
+@deffn {} BFD_RELOC_TIC54X_23
+This is an extended address 23-bit reloc for the tms320c54x.
+@end deffn
+@deffn {} BFD_RELOC_TIC54X_16_OF_23
+This is a 16-bit reloc for the tms320c54x, where the least
+significant 16 bits of a 23-bit extended address are placed into
+the opcode.
+@end deffn
+@deffn {} BFD_RELOC_TIC54X_MS7_OF_23
+This is a reloc for the tms320c54x, where the most
+significant 7 bits of a 23-bit extended address are placed into
+the opcode.
+@end deffn
 @deffn {} BFD_RELOC_FR30_48
 This is a 48 bit reloc for the FR30 that stores 32 bits.
 @end deffn
@@ -1186,6 +1249,126 @@ table of the class mentioned in the code.  Off of that base, an offset
 describes the entry that is being used.  For Rela hosts, this offset
 is stored in the reloc's addend.  For Rel hosts, we are forced to put
 this offset in the reloc's section offset.
+@end deffn
+@deffn {} BFD_RELOC_IA64_IMM14
+@deffnx {} BFD_RELOC_IA64_IMM22
+@deffnx {} BFD_RELOC_IA64_IMM64
+@deffnx {} BFD_RELOC_IA64_DIR32MSB
+@deffnx {} BFD_RELOC_IA64_DIR32LSB
+@deffnx {} BFD_RELOC_IA64_DIR64MSB
+@deffnx {} BFD_RELOC_IA64_DIR64LSB
+@deffnx {} BFD_RELOC_IA64_GPREL22
+@deffnx {} BFD_RELOC_IA64_GPREL64I
+@deffnx {} BFD_RELOC_IA64_GPREL32MSB
+@deffnx {} BFD_RELOC_IA64_GPREL32LSB
+@deffnx {} BFD_RELOC_IA64_GPREL64MSB
+@deffnx {} BFD_RELOC_IA64_GPREL64LSB
+@deffnx {} BFD_RELOC_IA64_LTOFF22
+@deffnx {} BFD_RELOC_IA64_LTOFF64I
+@deffnx {} BFD_RELOC_IA64_PLTOFF22
+@deffnx {} BFD_RELOC_IA64_PLTOFF64I
+@deffnx {} BFD_RELOC_IA64_PLTOFF64MSB
+@deffnx {} BFD_RELOC_IA64_PLTOFF64LSB
+@deffnx {} BFD_RELOC_IA64_FPTR64I
+@deffnx {} BFD_RELOC_IA64_FPTR32MSB
+@deffnx {} BFD_RELOC_IA64_FPTR32LSB
+@deffnx {} BFD_RELOC_IA64_FPTR64MSB
+@deffnx {} BFD_RELOC_IA64_FPTR64LSB
+@deffnx {} BFD_RELOC_IA64_PCREL21B
+@deffnx {} BFD_RELOC_IA64_PCREL21BI
+@deffnx {} BFD_RELOC_IA64_PCREL21M
+@deffnx {} BFD_RELOC_IA64_PCREL21F
+@deffnx {} BFD_RELOC_IA64_PCREL22
+@deffnx {} BFD_RELOC_IA64_PCREL60B
+@deffnx {} BFD_RELOC_IA64_PCREL64I
+@deffnx {} BFD_RELOC_IA64_PCREL32MSB
+@deffnx {} BFD_RELOC_IA64_PCREL32LSB
+@deffnx {} BFD_RELOC_IA64_PCREL64MSB
+@deffnx {} BFD_RELOC_IA64_PCREL64LSB
+@deffnx {} BFD_RELOC_IA64_LTOFF_FPTR22
+@deffnx {} BFD_RELOC_IA64_LTOFF_FPTR64I
+@deffnx {} BFD_RELOC_IA64_LTOFF_FPTR64MSB
+@deffnx {} BFD_RELOC_IA64_LTOFF_FPTR64LSB
+@deffnx {} BFD_RELOC_IA64_SEGREL32MSB
+@deffnx {} BFD_RELOC_IA64_SEGREL32LSB
+@deffnx {} BFD_RELOC_IA64_SEGREL64MSB
+@deffnx {} BFD_RELOC_IA64_SEGREL64LSB
+@deffnx {} BFD_RELOC_IA64_SECREL32MSB
+@deffnx {} BFD_RELOC_IA64_SECREL32LSB
+@deffnx {} BFD_RELOC_IA64_SECREL64MSB
+@deffnx {} BFD_RELOC_IA64_SECREL64LSB
+@deffnx {} BFD_RELOC_IA64_REL32MSB
+@deffnx {} BFD_RELOC_IA64_REL32LSB
+@deffnx {} BFD_RELOC_IA64_REL64MSB
+@deffnx {} BFD_RELOC_IA64_REL64LSB
+@deffnx {} BFD_RELOC_IA64_LTV32MSB
+@deffnx {} BFD_RELOC_IA64_LTV32LSB
+@deffnx {} BFD_RELOC_IA64_LTV64MSB
+@deffnx {} BFD_RELOC_IA64_LTV64LSB
+@deffnx {} BFD_RELOC_IA64_IPLTMSB
+@deffnx {} BFD_RELOC_IA64_IPLTLSB
+@deffnx {} BFD_RELOC_IA64_COPY
+@deffnx {} BFD_RELOC_IA64_TPREL22
+@deffnx {} BFD_RELOC_IA64_TPREL64MSB
+@deffnx {} BFD_RELOC_IA64_TPREL64LSB
+@deffnx {} BFD_RELOC_IA64_LTOFF_TP22
+@deffnx {} BFD_RELOC_IA64_LTOFF22X
+@deffnx {} BFD_RELOC_IA64_LDXMOV
+Intel IA64 Relocations.
+@end deffn
+@deffn {} BFD_RELOC_M68HC11_HI8
+Motorola 68HC11 reloc.
+This is the 8 bits high part of an absolute address.
+@end deffn
+@deffn {} BFD_RELOC_M68HC11_LO8
+Motorola 68HC11 reloc.
+This is the 8 bits low part of an absolute address.
+@end deffn
+@deffn {} BFD_RELOC_M68HC11_3B
+Motorola 68HC11 reloc.
+This is the 3 bits of a value.
+@end deffn
+@deffn {} BFD_RELOC_CRIS_BDISP8
+@deffnx {} BFD_RELOC_CRIS_UNSIGNED_5
+@deffnx {} BFD_RELOC_CRIS_SIGNED_6
+@deffnx {} BFD_RELOC_CRIS_UNSIGNED_6
+@deffnx {} BFD_RELOC_CRIS_UNSIGNED_4
+These relocs are only used within the CRIS assembler.  They are not
+(at present) written to any object files.
+@end deffn
+@deffn {} BFD_RELOC_860_COPY
+@deffnx {} BFD_RELOC_860_GLOB_DAT
+@deffnx {} BFD_RELOC_860_JUMP_SLOT
+@deffnx {} BFD_RELOC_860_RELATIVE
+@deffnx {} BFD_RELOC_860_PC26
+@deffnx {} BFD_RELOC_860_PLT26
+@deffnx {} BFD_RELOC_860_PC16
+@deffnx {} BFD_RELOC_860_LOW0
+@deffnx {} BFD_RELOC_860_SPLIT0
+@deffnx {} BFD_RELOC_860_LOW1
+@deffnx {} BFD_RELOC_860_SPLIT1
+@deffnx {} BFD_RELOC_860_LOW2
+@deffnx {} BFD_RELOC_860_SPLIT2
+@deffnx {} BFD_RELOC_860_LOW3
+@deffnx {} BFD_RELOC_860_LOGOT0
+@deffnx {} BFD_RELOC_860_SPGOT0
+@deffnx {} BFD_RELOC_860_LOGOT1
+@deffnx {} BFD_RELOC_860_SPGOT1
+@deffnx {} BFD_RELOC_860_LOGOTOFF0
+@deffnx {} BFD_RELOC_860_SPGOTOFF0
+@deffnx {} BFD_RELOC_860_LOGOTOFF1
+@deffnx {} BFD_RELOC_860_SPGOTOFF1
+@deffnx {} BFD_RELOC_860_LOGOTOFF2
+@deffnx {} BFD_RELOC_860_LOGOTOFF3
+@deffnx {} BFD_RELOC_860_LOPC
+@deffnx {} BFD_RELOC_860_HIGHADJ
+@deffnx {} BFD_RELOC_860_HAGOT
+@deffnx {} BFD_RELOC_860_HAGOTOFF
+@deffnx {} BFD_RELOC_860_HAPC
+@deffnx {} BFD_RELOC_860_HIGH
+@deffnx {} BFD_RELOC_860_HIGOT
+@deffnx {} BFD_RELOC_860_HIGOTOFF
+Intel i860 Relocations.
 @end deffn
 
 @example

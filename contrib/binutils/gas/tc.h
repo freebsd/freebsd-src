@@ -1,6 +1,7 @@
 /* tc.h - target cpu dependent
 
-   Copyright (C) 1987, 1990, 1991, 1992 Free Software Foundation, Inc.
+   Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 2000
+   Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -24,19 +25,19 @@
 extern const pseudo_typeS md_pseudo_table[];
 
 /* JF moved this here from as.h under the theory that nobody except MACHINE.c
-   and write.c care about it anyway. */
+   and write.c care about it anyway.  */
 
 struct relax_type
 {
-  /* Forward reach. Signed number. > 0. */
+  /* Forward reach. Signed number. > 0.  */
   long rlx_forward;
-  /* Backward reach. Signed number. < 0. */
+  /* Backward reach. Signed number. < 0.  */
   long rlx_backward;
 
-  /* Bytes length of this address. */
+  /* Bytes length of this address.  */
   unsigned char rlx_length;
 
-  /* Next longer relax-state.  0 means there is no 'next' relax-state. */
+  /* Next longer relax-state.  0 means there is no 'next' relax-state.  */
   relax_substateT rlx_more;
 };
 

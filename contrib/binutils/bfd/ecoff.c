@@ -1,5 +1,5 @@
 /* Generic ECOFF (Extended-COFF) routines.
-   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 98, 1999
+   Copyright 1990, 1991, 1993, 1994, 1995, 1996, 1998, 1999, 2000, 2001
    Free Software Foundation, Inc.
    Original version by Per Bothner.
    Full support added by Ian Lance Taylor, ian@cygnus.com.
@@ -74,20 +74,28 @@ static unsigned int ecoff_armap_hash PARAMS ((CONST char *s,
 
 static asection bfd_debug_section =
 {
-  /* name,   index, next, flags, set_vma, reloc_done, linker_mark, gc_mark */
-  "*DEBUG*", 0,     0,    0,     0,       0,          0,           0,
-  /* vma, lma, _cooked_size, _raw_size, output_offset, output_section, */
-  0,      0,   0,            0,         0,             NULL,
-  /* alig, reloc..., orel..., reloc_count, filepos, rel_..., line_... */
-  0,       0,        0,       0,           0,       0, 	   0,
-  /* userdata, contents, lineno, lineno_count */
-  0,           0,        0,      0,
-  /* comdat_info, moving_line_filepos, target_index, used_by_bfd,  */
-  NULL,           0,                   0,            0,
-  /* cons, owner, symbol */
-  0,       0,     (struct symbol_cache_entry *) NULL,
-  /* symbol_ptr_ptr,                   link_order_head, ..._tail */
-  (struct symbol_cache_entry **) NULL, NULL,            NULL
+  /* name,   id,  index, next, flags, user_set_vma, reloc_done,    */
+  "*DEBUG*", 0,   0,     NULL, 0,     0,            0,
+  /* linker_mark, linker_has_input, gc_mark, segment_mark,         */
+     0,           0,                0,       0,
+  /* vma, lma, _cooked_size, _raw_size,                            */ 
+     0,   0,   0,            0,
+  /* output_offset, output_section, alignment_power,               */
+     0,             NULL,           0,
+  /* relocation, orelocation, reloc_count, filepos, rel_filepos,   */
+     NULL,       NULL,        0,           0,       0,
+  /* line_filepos, userdata, contents, lineno, lineno_count,       */
+     0,            NULL,     NULL,     NULL,   0,
+  /* comdat, kept_section, moving_line_filepos,                    */
+     NULL,   NULL,         0,
+  /* target_index, used_by_bfd, constructor_chain, owner,          */
+     0,            NULL,        NULL,              NULL,
+  /* symbol,                                                       */
+     (struct symbol_cache_entry *) NULL,
+  /* symbol_ptr_ptr,                                               */
+     (struct symbol_cache_entry **) NULL,
+  /* link_order_head, link_order_tail                              */
+     NULL,            NULL
 };
 
 /* Create an ECOFF object.  */
@@ -344,9 +352,9 @@ ecoff_sec_to_styp_flags (name, flags)
     }
   else if (strcmp (name, _RCONST) == 0)
     styp = STYP_RCONST;
-  else if (flags & SEC_CODE) 
+  else if (flags & SEC_CODE)
     styp = STYP_TEXT;
-  else if (flags & SEC_DATA) 
+  else if (flags & SEC_DATA)
     styp = STYP_DATA;
   else if (flags & SEC_READONLY)
     styp = STYP_RDATA;
@@ -363,7 +371,6 @@ ecoff_sec_to_styp_flags (name, flags)
 
 /* Get the BFD flags to use for a section.  */
 
-/*ARGSUSED*/
 flagword
 _bfd_ecoff_styp_to_sec_flags (abfd, hdr, name, section)
      bfd *abfd ATTRIBUTE_UNUSED;
@@ -452,7 +459,7 @@ ecoff_slurp_symbolic_header (abfd)
   HDRR *internal_symhdr;
 
   /* See if we've already read it in.  */
-  if (ecoff_data (abfd)->debug_info.symbolic_header.magic == 
+  if (ecoff_data (abfd)->debug_info.symbolic_header.magic ==
       backend->debug_swap.sym_magic)
     return true;
 
@@ -509,7 +516,6 @@ ecoff_slurp_symbolic_header (abfd)
    object file.  This is called by gdb via the read_debug_info entry
    point in the backend structure.  */
 
-/*ARGSUSED*/
 boolean
 _bfd_ecoff_slurp_symbolic_info (abfd, ignore, debug)
      bfd *abfd;
@@ -1090,7 +1096,7 @@ ecoff_emit_aggregate (abfd, fdr, string, rndx, isym, which)
   unsigned int ifd = rndx->rfd;
   unsigned int indx = rndx->index;
   const char *name;
-  
+
   if (ifd == 0xfff)
     ifd = isym;
 
@@ -1340,7 +1346,6 @@ ecoff_type_to_string (abfd, fdr, indx)
       p1 += strlen (buffer1);
     }
 
-
   /*
    * Deal with any qualifiers.
    */
@@ -1406,7 +1411,7 @@ ecoff_type_to_string (abfd, fdr, indx)
 		int j;
 
 		/* Print array bounds reversed (ie, in the order the C
-		   programmer writes them).  C is such a fun language.... */
+		   programmer writes them).  C is such a fun language....  */
 
 		while (i < 5 && qualifiers[i+1].type == tqArray)
 		  i++;
@@ -1447,7 +1452,6 @@ ecoff_type_to_string (abfd, fdr, indx)
 
 /* Return information about ECOFF symbol SYMBOL in RET.  */
 
-/*ARGSUSED*/
 void
 _bfd_ecoff_get_symbol_info (abfd, symbol, ret)
      bfd *abfd ATTRIBUTE_UNUSED;
@@ -1459,7 +1463,6 @@ _bfd_ecoff_get_symbol_info (abfd, symbol, ret)
 
 /* Return whether this is a local label.  */
 
-/*ARGSUSED*/
 boolean
 _bfd_ecoff_bfd_is_local_label_name (abfd, name)
      bfd *abfd ATTRIBUTE_UNUSED;
@@ -1490,7 +1493,7 @@ _bfd_ecoff_print_symbol (abfd, filep, symbol, how)
       if (ecoffsymbol (symbol)->local)
 	{
 	  SYMR ecoff_sym;
-	
+
 	  (*debug_swap->swap_sym_in) (abfd, ecoffsymbol (symbol)->native,
 				      &ecoff_sym);
 	  fprintf (file, "ecoff local ");
@@ -1604,7 +1607,7 @@ _bfd_ecoff_print_symbol (abfd, filep, symbol, how)
 		  fprintf (file, _("\n      First symbol: %ld"),
 			   (long) (indx + sym_base));
 		else
-		  fprintf (file, _("\n      First symbol: %ld"), 
+		  fprintf (file, _("\n      First symbol: %ld"),
 			   ((long)
 			    (AUX_GET_ISYM (bigendian,
 					   &aux_base[ecoff_ext.asym.index])
@@ -1680,7 +1683,7 @@ ecoff_slurp_reloc_table (abfd, section, symbols)
 
   if (_bfd_ecoff_slurp_symbol_table (abfd) == false)
     return false;
-  
+
   internal_relocs = (arelent *) bfd_alloc (abfd,
 					   (sizeof (arelent)
 					    * section->reloc_count));
@@ -1778,7 +1781,7 @@ _bfd_ecoff_canonicalize_reloc (abfd, section, relptr, symbols)
 {
   unsigned int count;
 
-  if (section->flags & SEC_CONSTRUCTOR) 
+  if (section->flags & SEC_CONSTRUCTOR)
     {
       arelent_chain *chain;
 
@@ -1791,7 +1794,7 @@ _bfd_ecoff_canonicalize_reloc (abfd, section, relptr, symbols)
 	*relptr++ = &chain->relent;
     }
   else
-    { 
+    {
       arelent *tblptr;
 
       if (ecoff_slurp_reloc_table (abfd, section, symbols) == false)
@@ -1812,7 +1815,6 @@ _bfd_ecoff_canonicalize_reloc (abfd, section, relptr, symbols)
    and return the name of the source file and the line nearest to the
    wanted location.  */
 
-/*ARGSUSED*/
 boolean
 _bfd_ecoff_find_nearest_line (abfd, section, ignore_symbols, offset,
 			      filename_ptr, functionname_ptr, retline_ptr)
@@ -1984,7 +1986,6 @@ _bfd_ecoff_set_arch_mach (abfd, arch, machine)
 
 /* Get the size of the section headers.  */
 
-/*ARGSUSED*/
 int
 _bfd_ecoff_sizeof_headers (abfd, reloc)
      bfd *abfd;
@@ -1996,8 +1997,8 @@ _bfd_ecoff_sizeof_headers (abfd, reloc)
 
   c = 0;
   for (current = abfd->sections;
-       current != (asection *)NULL; 
-       current = current->next) 
+       current != (asection *)NULL;
+       current = current->next)
     ++c;
 
   ret = (bfd_coff_filhsz (abfd)
@@ -2218,13 +2219,13 @@ ecoff_compute_reloc_file_positions (abfd)
 	abort ();
       abfd->output_has_begun = true;
     }
-  
+
   reloc_base = ecoff_data (abfd)->reloc_filepos;
 
   reloc_size = 0;
   for (current = abfd->sections;
-       current != (asection *)NULL; 
-       current = current->next) 
+       current != (asection *)NULL;
+       current = current->next)
     {
       if (current->reloc_count == 0)
 	current->rel_filepos = 0;
@@ -2312,7 +2313,7 @@ bfd_ecoff_get_gp_value (abfd)
       bfd_set_error (bfd_error_invalid_operation);
       return 0;
     }
-  
+
   return ecoff_data (abfd)->gp;
 }
 
@@ -2491,8 +2492,8 @@ _bfd_ecoff_write_object_contents (abfd)
 
   count = 1;
   for (current = abfd->sections;
-       current != (asection *)NULL; 
-       current = current->next) 
+       current != (asection *)NULL;
+       current = current->next)
     {
       current->target_index = count;
       ++count;
@@ -2630,7 +2631,7 @@ _bfd_ecoff_write_object_contents (abfd)
 	/* Do nothing */ ;
       else
 	abort ();
-    }	
+    }
 
   /* Set up the file header.  */
 
@@ -2782,7 +2783,7 @@ _bfd_ecoff_write_object_contents (abfd)
 	      arelent *reloc;
 	      asymbol *sym;
 	      struct internal_reloc in;
-	  
+
 	      memset ((PTR) &in, 0, sizeof in);
 
 	      reloc = *reloc_ptr_ptr;
@@ -2982,7 +2983,7 @@ _bfd_ecoff_slurp_armap (abfd)
   char *raw_ptr;
   struct symdef *symdef_ptr;
   char *stringbase;
-  
+
   /* Get the name of the first element.  */
   i = bfd_read ((PTR) nextname, 1, 16, abfd);
   if (i == 0)
@@ -3034,11 +3035,11 @@ _bfd_ecoff_slurp_armap (abfd)
     return false;
   parsed_size = mapdata->parsed_size;
   bfd_release (abfd, (PTR) mapdata);
-    
+
   raw_armap = (char *) bfd_alloc (abfd, parsed_size);
   if (raw_armap == (char *) NULL)
     return false;
-    
+
   if (bfd_read ((PTR) raw_armap, 1, parsed_size, abfd) != parsed_size)
     {
       if (bfd_get_error () != bfd_error_system_call)
@@ -3046,7 +3047,7 @@ _bfd_ecoff_slurp_armap (abfd)
       bfd_release (abfd, (PTR) raw_armap);
       return false;
     }
-    
+
   ardata->tdata = (PTR) raw_armap;
 
   count = bfd_h_get_32 (abfd, (PTR) raw_armap);
@@ -3075,7 +3076,7 @@ _bfd_ecoff_slurp_armap (abfd)
       {
 	unsigned int name_offset, file_offset;
 	unsigned int hash, rehash, srch;
-      
+
 	name_offset = bfd_h_get_32 (abfd, (PTR) raw_ptr);
 	file_offset = bfd_h_get_32 (abfd, (PTR) (raw_ptr + 4));
 	if (file_offset == 0)
@@ -3167,7 +3168,7 @@ _bfd_ecoff_write_armap (abfd, elength, map, orl_count, stridx)
   padit = stridx % 2;
   stringsize = stridx + padit;
 
-  /* Include 8 bytes to store symdefsize and stringsize in output. */
+  /* Include 8 bytes to store symdefsize and stringsize in output.  */
   mapsize = symdefsize + stringsize + 8;
 
   firstreal = SARMAG + sizeof (struct ar_hdr) + mapsize + elength;
@@ -3201,7 +3202,7 @@ _bfd_ecoff_write_armap (abfd, elength, map, orl_count, stridx)
 #if 0
   hdr.ar_mode[0] = '0';
 #else
-  /* Building gcc ends up extracting the armap as a file - twice. */
+  /* Building gcc ends up extracting the armap as a file - twice.  */
   hdr.ar_mode[0] = '6';
   hdr.ar_mode[1] = '4';
   hdr.ar_mode[2] = '4';
@@ -3214,8 +3215,8 @@ _bfd_ecoff_write_armap (abfd, elength, map, orl_count, stridx)
 
   /* Turn all null bytes in the header into spaces.  */
   for (i = 0; i < sizeof (struct ar_hdr); i++)
-   if (((char *)(&hdr))[i] == '\0')
-     (((char *)(&hdr))[i]) = ' ';
+   if (((char *) (&hdr))[i] == '\0')
+     (((char *) (&hdr))[i]) = ' ';
 
   if (bfd_write ((PTR) &hdr, 1, sizeof (struct ar_hdr), abfd)
       != sizeof (struct ar_hdr))
@@ -3224,7 +3225,7 @@ _bfd_ecoff_write_armap (abfd, elength, map, orl_count, stridx)
   bfd_h_put_32 (abfd, (bfd_vma) hashsize, temp);
   if (bfd_write ((PTR) temp, 1, 4, abfd) != 4)
     return false;
-  
+
   hashtable = (bfd_byte *) bfd_zalloc (abfd, symdefsize);
   if (!hashtable)
     return false;
@@ -3266,7 +3267,7 @@ _bfd_ecoff_write_armap (abfd, elength, map, orl_count, stridx)
 
 	  hash = srch;
 	}
-	
+
       bfd_h_put_32 (abfd, (bfd_vma) map[i].namidx,
 		    (PTR) (hashtable + hash * 8));
       bfd_h_put_32 (abfd, (bfd_vma) firstreal,
@@ -3345,7 +3346,7 @@ _bfd_ecoff_archive_p (abfd)
   bfd_ardata (abfd)->symdefs = NULL;
   bfd_ardata (abfd)->extended_names = NULL;
   bfd_ardata (abfd)->tdata = NULL;
-  
+
   if (_bfd_ecoff_slurp_armap (abfd) == false
       || _bfd_ecoff_slurp_extended_name_table (abfd) == false)
     {
@@ -3353,7 +3354,7 @@ _bfd_ecoff_archive_p (abfd)
       abfd->tdata.aout_ar_data = tdata_hold;
       return (const bfd_target *) NULL;
     }
-  
+
   if (bfd_has_map (abfd))
     {
       bfd *first;
@@ -4391,7 +4392,7 @@ ecoff_link_write_external (h, data)
   bfd *output_bfd = einfo->abfd;
   boolean strip;
 
-  /* We need to check if this symbol is being stripped. */
+  /* We need to check if this symbol is being stripped.  */
   if (h->root.type == bfd_link_hash_undefined
       || h->root.type == bfd_link_hash_undefweak)
     strip = false;
@@ -4427,7 +4428,7 @@ ecoff_link_write_external (h, data)
 
 	  output_section = h->root.u.def.section->output_section;
 	  name = bfd_section_name (output_section->owner, output_section);
-	
+
 	  if (strcmp (name, _TEXT) == 0)
 	    h->esym.asym.sc = scText;
 	  else if (strcmp (name, _DATA) == 0)

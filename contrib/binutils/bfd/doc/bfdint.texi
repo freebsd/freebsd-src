@@ -1,4 +1,7 @@
 \input texinfo
+@c Copyright 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1998,
+@c 2000
+@c Free Software Foundation, Inc.
 @setfilename bfdint.info
 
 @settitle BFD Internals
@@ -18,8 +21,7 @@
 This document describes some BFD internal information which may be
 helpful when working on BFD.  It is very incomplete.
 
-This document is not updated regularly, and may be out of date.  It was
-last modified on $Date: 2000/04/30 15:07:52 $.
+This document is not updated regularly, and may be out of date.
 
 The initial version of this document was written by Ian Lance Taylor
 @email{ian@@cygnus.com}.
@@ -294,7 +296,7 @@ The target vector starts with a set of constants.
 @item name
 The name of the target vector.  This is an arbitrary string.  This is
 how the target vector is named in command line options for tools which
-use BFD, such as the @samp{-oformat} linker option.
+use BFD, such as the @samp{--oformat} linker option.
 
 @item flavour
 A general description of the type of target.  The following flavours are
@@ -1606,6 +1608,10 @@ it should use the @samp{START_RELOC_NUMBERS}, @samp{RELOC_NUMBER},
 @samp{FAKE_RELOC}, @samp{EMPTY_RELOC} and @samp{END_RELOC_NUMBERS}
 macros to create a table mapping the number used to indentify a
 relocation to a name describing that relocation.
+
+While not a BFD component, you probably also want to make the binutils
+program @samp{readelf} parse your ELF objects.  For this, you need to add
+code for @code{EM_@var{cpu}} as appropriate in @file{binutils/readelf.c}.
 
 @node BFD ELF processor linker
 @subsubsection Processor specific linker support

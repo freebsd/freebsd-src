@@ -1,4 +1,20 @@
-/* `a.out' object-file definitions, including extensions to 64-bit fields */
+/* `a.out' object-file definitions, including extensions to 64-bit fields
+
+   Copyright 2001 Free Software Foundation, Inc.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+   
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+   
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #ifndef __A_OUT_64_H__
 #define __A_OUT_64_H__
@@ -388,13 +404,29 @@ struct reloc_ext_external {
   bfd_byte r_addend[BYTES_IN_WORD];	/* datum addend				*/
 };
 
+#ifndef RELOC_EXT_BITS_EXTERN_BIG
 #define	RELOC_EXT_BITS_EXTERN_BIG	((unsigned int) 0x80)
-#define	RELOC_EXT_BITS_EXTERN_LITTLE	((unsigned int) 0x01)
+#endif
 
+#ifndef RELOC_EXT_BITS_EXTERN_LITTLE
+#define	RELOC_EXT_BITS_EXTERN_LITTLE	((unsigned int) 0x01)
+#endif
+
+#ifndef RELOC_EXT_BITS_TYPE_BIG
 #define	RELOC_EXT_BITS_TYPE_BIG		((unsigned int) 0x1F)
+#endif
+
+#ifndef RELOC_EXT_BITS_TYPE_SH_BIG
 #define	RELOC_EXT_BITS_TYPE_SH_BIG	0
+#endif
+
+#ifndef RELOC_EXT_BITS_TYPE_LITTLE
 #define	RELOC_EXT_BITS_TYPE_LITTLE	((unsigned int) 0xF8)
+#endif
+
+#ifndef RELOC_EXT_BITS_TYPE_SH_LITTLE
 #define	RELOC_EXT_BITS_TYPE_SH_LITTLE	3
+#endif
 
 /* Bytes per relocation entry */
 #define	RELOC_EXT_SIZE	(BYTES_IN_WORD + 3 + 1 + BYTES_IN_WORD)
