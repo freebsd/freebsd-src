@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:13  rpd
- *	$Id: asm.S,v 1.3 1994/08/30 01:38:02 bde Exp $
+ *	$Id: asm.S,v 1.4 1994/10/02 05:18:24 rgrimes Exp $
  */
 
 
@@ -164,32 +164,36 @@ xreal:
 /*
  * startprog(phyaddr)
  *	start the program on protected mode where phyaddr is the entry point
+ *
+ * XXX This whole mess should go away and we should run the boot code in
+ * flat 32 bit mode with it linked -T BOOTSEG.  See the netboot code for
+ * how this is done.
  */
 
 ENTRY(startprog)
 	push	%ebp
 	mov	%esp, %ebp
+	movl	%esp, %eax		/* Use eax as the old stack pointer */
 
-	/* get things we need into registers */
-	movl	0x8(%ebp), %ecx		/* entry offset  */
-	movl	0x0c(%ebp), %eax	/* &argv */
-
-	/* make a new stack at 0:0xa0000 (big segs) */
+	/* convert the current stack to a 32 bit flat model */
 	mov	$0x10, %ebx
 	movw	%bx, %ss
-	movl	$0xa0000, %ebx
-	movl	%ebx, %esp
+	addl	$(BOOTSEG<<4),%esp
 	
-	/* push some number of args onto the stack */
-	pushl	$0			/* was a cyl offset in the boot. */
-	pushl	0x8(%eax)		/* argv[2] = bootdev */
-	pushl	0x4(%eax)		/* argv[1] = howto */
-	pushl	$0			/* dummy 'return' address */
+	/* copy the arguments from the old stack to the new stack */
+	pushl	0x14(%eax)		/* &bootinfo */
+	pushl	$0			/* was &nfsdiskless */
+	pushl	$0			/* was esym */
+	pushl	$0			/* was cyloffset */
+	pushl	0x10(%eax)		/* bootdev */
+	pushl	0x0C(%eax)		/* howto */
+	movl	$(ourreturn),%ebx
+	addl	$(BOOTSEG<<4),%ebx	/* Fix it up for flat segments */
+	pushl	%ebx			/* our return address */
 	
 	/* push on our entry address */
-	mov	$0x08, %ebx		/* segment */
-	pushl	%ebx
-	pushl	%ecx
+	pushl	$0x08			/* segment selector */
+	pushl	0x08(%eax)		/* kernel entry address */
 
 	/* convert over the other data segs */
 	mov	$0x10, %ebx
@@ -198,6 +202,10 @@ ENTRY(startprog)
 
 	/* convert the PC (and code seg) */
 	lret
+ourreturn:
+	/* For now there is not much we can do, just lock in a loop */
+	jmp	ourreturn
+
 /*
  *
  * pbzero( dst, cnt)

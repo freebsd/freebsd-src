@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.17 1994/10/02 05:18:23 rgrimes Exp $
 #
 
 PROG=	boot
@@ -8,6 +8,7 @@ SRCS=	start.S table.c boot2.S boot.c asm.S bios.S io.c disk.c sys.c
 BINDIR=		/usr/mdec
 BINMODE=	444
 CFLAGS+=	-O2 -DDO_BAD144 -DBOOTWAIT=${BOOTWAIT}
+CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
 CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../..
 CLEANFILES+=	boot.nohdr boot.strip boot1 boot2
 DPADD=		${LIBC}
@@ -23,6 +24,12 @@ STRIP=
 
 # tunable timeout parameter, waiting for keypress, calibrated in mS
 BOOTWAIT?=	5000
+
+# Location that boot2 is loaded at
+BOOTSEG=	0x1000
+
+# Offset in BOOTSEG for the top of the stack, keep this 16 byte aligned
+BOOTSTACK=	0xFFF0
 
 boot.strip:	boot
 	cp -p boot boot.strip
