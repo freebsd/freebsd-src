@@ -76,8 +76,7 @@
 
 static MALLOC_DEFINE(M_IGMP, "igmp", "igmp state");
 
-static struct router_info *
-		find_rti(struct ifnet *ifp);
+static struct router_info *find_rti(struct ifnet *ifp);
 
 static struct igmpstat igmpstat;
 
@@ -93,7 +92,7 @@ static struct router_info *Head;
 static void igmp_sendpkt(struct in_multi *, int, unsigned long);
 
 void
-igmp_init()
+igmp_init(void)
 {
 	struct ipoption *ra;
 
@@ -121,10 +120,9 @@ igmp_init()
 }
 
 static struct router_info *
-find_rti(ifp)
-	struct ifnet *ifp;
+find_rti(struct ifnet *ifp)
 {
-        register struct router_info *rti = Head;
+        struct router_info *rti = Head;
 
 #ifdef IGMP_DEBUG
 	printf("[igmp.c, _find_rti] --> entering \n");
@@ -151,18 +149,16 @@ find_rti(ifp)
 }
 
 void
-igmp_input(m, off)
-	register struct mbuf *m;
-	int off;
+igmp_input(struct mbuf *m, int off)
 {
-	register int iphlen = off;
-	register struct igmp *igmp;
-	register struct ip *ip;
-	register int igmplen;
-	register struct ifnet *ifp = m->m_pkthdr.rcvif;
-	register int minlen;
-	register struct in_multi *inm;
-	register struct in_ifaddr *ia;
+	int iphlen = off;
+	struct igmp *igmp;
+	struct ip *ip;
+	int igmplen;
+	struct ifnet *ifp = m->m_pkthdr.rcvif;
+	int minlen;
+	struct in_multi *inm;
+	struct in_ifaddr *ia;
 	struct in_multistep step;
 	struct router_info *rti;
 	
@@ -345,8 +341,7 @@ igmp_input(m, off)
 }
 
 void
-igmp_joingroup(inm)
-	struct in_multi *inm;
+igmp_joingroup(struct in_multi *inm)
 {
 	int s = splnet();
 
@@ -366,8 +361,7 @@ igmp_joingroup(inm)
 }
 
 void
-igmp_leavegroup(inm)
-	struct in_multi *inm;
+igmp_leavegroup(struct in_multi *inm)
 {
 	if (inm->inm_state == IGMP_IREPORTEDLAST &&
 	    inm->inm_addr.s_addr != igmp_all_hosts_group &&
@@ -377,9 +371,9 @@ igmp_leavegroup(inm)
 }
 
 void
-igmp_fasttimo()
+igmp_fasttimo(void)
 {
-	register struct in_multi *inm;
+	struct in_multi *inm;
 	struct in_multistep step;
 	int s;
 
@@ -409,10 +403,10 @@ igmp_fasttimo()
 }
 
 void
-igmp_slowtimo()
+igmp_slowtimo(void)
 {
 	int s = splnet();
-	register struct router_info *rti =  Head;
+	struct router_info *rti =  Head;
 
 #ifdef IGMP_DEBUG
 	printf("[igmp.c,_slowtimo] -- > entering \n");
@@ -432,13 +426,13 @@ igmp_slowtimo()
 	splx(s);
 }
 
+/*
+ * XXX fix this static var when we remove the network code from Giant.
+ */
 static struct route igmprt;
 
 static void
-igmp_sendpkt(inm, type, addr)
-	struct in_multi *inm;
-	int type;
-	unsigned long addr;
+igmp_sendpkt(struct in_multi *inm, int type, unsigned long addr)
 {
         struct mbuf *m;
         struct igmp *igmp;
