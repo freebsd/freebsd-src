@@ -57,7 +57,7 @@ character,
 and a word is defined as a string of characters delimited by white space
 characters.
 White space characters are the set of characters for which the
-.Xr isspace 3
+.Xr iswspace 3
 function returns true.
 If more than one input file is specified, a line of cumulative counts
 for all the files is displayed on a separate line after the output for
@@ -118,7 +118,7 @@ as well as the totals for both:
 .Sh DIAGNOSTICS
 .Ex -std
 .Sh SEE ALSO
-.Xr isspace 3
+.Xr iswspace 3
 .Sh COMPATIBILITY
 Historically, the
 .Nm
@@ -133,7 +133,7 @@ systems after
 modified the implementation to be consistent
 with the documentation.
 This implementation defines a ``word'' in terms of the
-.Xr isspace 3
+.Xr iswspace 3
 function, as required by
 .St -p1003.2 .
 .Sh STANDARDS

@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wctype.h>
 
 uintmax_t tlinect, twordct, tcharct;
 int doline, doword, dochar, domulti;
@@ -234,8 +235,7 @@ word:	gotsp = 1;
 			p += clen;
 			if (wch == L'\n')
 				++linect;
-			/* XXX Non-portable; should use iswspace() */
-			if (isspace(wch))
+			if (iswspace(wch))
 				gotsp = 1;
 			else if (gotsp) {
 				gotsp = 0;
