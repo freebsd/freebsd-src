@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)cmds.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: cmds.c,v 1.3 1997/10/22 06:20:04 charnier Exp $";
 #endif /* not lint */
 
 #include "timedc.h"
@@ -68,7 +68,7 @@ static const char rcsid[] =
 
 int sock;
 int sock_raw;
-char myname[MAXHOSTNAMELEN];
+char myname[MAXHOSTNAMELEN+1];
 struct hostent *hp;
 struct sockaddr_in server;
 struct sockaddr_in dayaddr;
@@ -185,7 +185,8 @@ clockdiff(argc, argv)
 		return;
 	}
 
-	(void)gethostname(myname,sizeof(myname));
+	if (gethostname(myname, sizeof(myname) - 1) < 0)
+		err(1, "gethostname");
 
 	/* get the address for the date ready */
 	sp = getservbyname(DATE_PORT, DATE_PROTO);
@@ -295,7 +296,8 @@ msite(argc, argv)
 	dest.sin_port = srvp->s_port;
 	dest.sin_family = AF_INET;
 
-	(void)gethostname(myname, sizeof(myname));
+	if (gethostname(myname, sizeof(myname) - 1) < 0)
+		err(1, "gethostname");
 	i = 1;
 	do {
 		tgtname = (i >= argc) ? myname : argv[i];
@@ -306,8 +308,7 @@ msite(argc, argv)
 		}
 		bcopy(hp->h_addr, &dest.sin_addr.s_addr, hp->h_length);
 
-		(void)strncpy(msg.tsp_name, myname, sizeof msg.tsp_name-1);
-		msg.tsp_name[sizeof msg.tsp_name-1] = '\0';
+		(void)strcpy(msg.tsp_name, myname);
 		msg.tsp_type = TSP_MSITE;
 		msg.tsp_vers = TSPVERSION;
 		bytenetorder(&msg);
@@ -394,8 +395,9 @@ testing(argc, argv)
 
 		msg.tsp_type = TSP_TEST;
 		msg.tsp_vers = TSPVERSION;
-		(void)gethostname(myname, sizeof(myname));
-		(void)strncpy(msg.tsp_name, myname, sizeof(msg.tsp_name));
+		if (gethostname(myname, sizeof(myname) - 1) < 0)
+			err(1, "gethostname");
+		(void)strcpy(msg.tsp_name, myname);
 		bytenetorder(&msg);
 		if (sendto(sock, &msg, sizeof(struct tsp), 0,
 			   (struct sockaddr*)&sin,
@@ -437,7 +439,8 @@ tracing(argc, argv)
 	dest.sin_port = srvp->s_port;
 	dest.sin_family = AF_INET;
 
-	(void)gethostname(myname,sizeof(myname));
+	if (gethostname(myname, sizeof(myname) - 1) < 0)
+		err(1, "gethostname");
 	hp = gethostbyname(myname);
 	bcopy(hp->h_addr, &dest.sin_addr.s_addr, hp->h_length);
 
@@ -449,8 +452,7 @@ tracing(argc, argv)
 		onflag = OFF;
 	}
 
-	(void)strncpy(msg.tsp_name, myname, sizeof msg.tsp_name-1);
-	msg.tsp_name[sizeof msg.tsp_name-1] = '\0';
+	(void)strcpy(msg.tsp_name, myname);
 	msg.tsp_vers = TSPVERSION;
 	bytenetorder(&msg);
 	if (sendto(sock, &msg, sizeof(struct tsp), 0,
