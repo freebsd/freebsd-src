@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.249 1999/06/29 16:14:20 peter Exp $
+#	$Id: files.i386,v 1.250 1999/06/29 21:53:59 peter Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -176,7 +176,6 @@ i386/isa/aha_isa.c		optional	aha	device-driver
 i386/isa/asc.c			optional	asc	device-driver
 i386/isa/atapi-cd.c		optional	wcd	device-driver
 i386/isa/atapi.c		optional	wdc	device-driver
-i386/isa/bt_isa.c		optional	bt	device-driver
 i386/isa/clock.c		standard
 i386/isa/cronyx.c		optional	cx	device-driver
 i386/isa/ctx.c			optional	ctx	device-driver

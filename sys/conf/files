@@ -589,7 +589,7 @@ pci/ahc_pci.c		optional ahc device-driver			\
 	dependency	"aic7xxx_reg.h $S/pci/ahc_pci.c"
 pci/brooktree848.c	optional bktr device-driver
 pci/bt848_i2c.c		optional bktr device-driver
-pci/bt_pci.c		optional bt device-driver
+pci/bt_pci.c		optional bt pci device-driver
 pci/cy_pci.c		optional cy device-driver
 pci/dpt_pci.c		optional pci dpt device-driver
 pci/ida_pci.c		optional ida device-driver
@@ -734,3 +734,4 @@ isa_if.h		optional isa					\
 	clean		"isa_if.h"
 isa/isa_common.c	optional isa device-driver
 isa/isahint.c		optional isa device-driver
+isa/bt_isa.c		optional bt isa device-driver
