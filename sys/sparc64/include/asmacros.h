@@ -101,10 +101,8 @@
 	.sect	.rodata ; \
 9:	.asciz	msg ; \
 	.previous ; \
-	SET(9b, r1, %o2) ; \
-	clr	%o1 ; \
-	clr	%o0 ; \
-	call	__panic ; \
+	SET(9b, r1, %o0) ; \
+	call	panic ; \
 	 nop
 
 #ifdef INVARIANTS
