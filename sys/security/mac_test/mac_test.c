@@ -1046,6 +1046,15 @@ mac_test_check_vnode_getextattr(struct ucred *cred, struct vnode *vp,
 }
 
 static int
+mac_test_check_vnode_link(struct ucred *cred, struct vnode *dvp,
+    struct label *dlabel, struct vnode *vp, struct label *label,
+    struct componentname *cnp)
+{
+
+	return (0);
+}
+
+static int
 mac_test_check_vnode_lookup(struct ucred *cred, struct vnode *dvp, 
     struct label *dlabel, struct componentname *cnp)
 {
@@ -1393,6 +1402,8 @@ static struct mac_policy_op_entry mac_test_ops[] =
 	    (macop_t)mac_test_check_vnode_getacl },
 	{ MAC_CHECK_VNODE_GETEXTATTR,
 	    (macop_t)mac_test_check_vnode_getextattr },
+	{ MAC_CHECK_VNODE_LINK,
+	    (macop_t)mac_test_check_vnode_link },
 	{ MAC_CHECK_VNODE_LOOKUP,
 	    (macop_t)mac_test_check_vnode_lookup },
 	{ MAC_CHECK_VNODE_OPEN,
