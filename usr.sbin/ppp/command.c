@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.117 1997/12/23 22:38:52 brian Exp $
+ * $Id: command.c,v 1.118 1997/12/24 09:28:54 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -216,7 +216,6 @@ ShellCommand(struct cmdargs const *arg, int bg)
 {
   const char *shell;
   pid_t shpid;
-  FILE *oVarTerm;
   int argc;
   char *argv[MAXARGS];
 
@@ -259,6 +258,13 @@ ShellCommand(struct cmdargs const *arg, int bg)
   if ((shpid = fork()) == 0) {
     int dtablesize, i, fd;
 
+    TermTimerService();
+    signal(SIGINT, SIG_DFL);
+    signal(SIGQUIT, SIG_DFL);
+    signal(SIGTERM, SIG_DFL);
+    signal(SIGHUP, SIG_DFL);
+    signal(SIGALRM, SIG_DFL);
+
     if (VarTerm)
       fd = fileno(VarTerm);
     else if ((fd = open("/dev/null", O_RDWR)) == -1) {
@@ -267,15 +273,6 @@ ShellCommand(struct cmdargs const *arg, int bg)
     }
     for (i = 0; i < 3; i++)
       dup2(fd, i);
-
-    if (fd > 2)
-      if (VarTerm) {
-	oVarTerm = VarTerm;
-	VarTerm = 0;
-	if (oVarTerm && oVarTerm != stdout)
-	  fclose(oVarTerm);
-      } else
-	close(fd);
 
     for (dtablesize = getdtablesize(), i = 3; i < dtablesize; i++)
       close(i);
@@ -305,15 +302,16 @@ ShellCommand(struct cmdargs const *arg, int bg)
 	  exit(1);
 	}
       } else if (VarTerm)
-        fprintf(VarTerm, "ppp: Pausing until %s finishes\n", arg->argv[0]);
+        printf("ppp: Pausing until %s finishes\n", arg->argv[0]);
       execvp(argv[0], argv);
     } else {
       if (VarTerm)
-        fprintf(VarTerm, "ppp: Pausing until %s finishes\n", shell);
+        printf("ppp: Pausing until %s finishes\n", shell);
       execl(shell, shell, NULL);
     }
 
-    LogPrintf(LogWARN, "exec() of %s failed\n", arg->argc > 0 ? arg->argv[0] : shell);
+    LogPrintf(LogWARN, "exec() of %s failed\n",
+              arg->argc > 0 ? arg->argv[0] : shell);
     exit(255);
   }
   if (shpid == (pid_t) - 1) {
@@ -324,7 +322,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
     waitpid(shpid, &status, 0);
   }
 
-  TtyCommandMode(1);
+  TtyCommandMode(0);
 
   return (0);
 }

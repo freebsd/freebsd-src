@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.89 1997/12/21 02:34:27 brian Exp $
+.\" $Id: ppp.8,v 1.90 1997/12/21 03:16:14 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1930,6 +1930,77 @@ This means that in practice you should use two escapes, for example:
 .Bd -literal -offset indent
 set dial "... ATDT\\\\T CONNECT"
 .Ed
+.Pp
+It is also possible to execute external commands from the chat script.
+To do this, the first character of the expect or send string is an
+exclaimation mark
+.Pq Dq \&! .
+When the command is executed, standard input and standard output are
+directed to the modem device (see the
+.Dq set device
+command), and standard error is read by
+.Nm
+and substituted as the expect or send string.  If
+.Nm
+is running in interactive mode, file descriptor 4 is attached to
+.Pa /dev/tty .
+.Pp
+For example (wrapped for readability);
+.Bd -literal -offset indent
+set login "TIMEOUT 5 \\"\\" \\"\\" login:--login: ppp \e
+word: ppp \\"!sh \\\\\\\\-c \\\\\\"echo \\\\\\\\-n label: >&2\\\\\\"\\" \e
+\\"!/bin/echo in\\" HELLO"
+.Ed
+.Pp
+would result in the following chat sequence (output using the
+.Sq set log local chat
+command before dialing):
+.Bd -literal -offset indent
+Dial attempt 1 of 1
+dial OK!
+Chat: Expecting: 
+Chat: Sending: 
+Chat: Expecting: login:--login:
+Chat: Wait for (5): login:
+Chat: Sending: ppp
+Chat: Expecting: word:
+Chat: Wait for (5): word:
+Chat: Sending: ppp
+Chat: Expecting: !sh \\-c "echo \\-n label: >&2"
+Chat: Exec: sh -c "echo -n label: >&2"
+Chat: Wait for (5): !sh \\-c "echo \\-n label: >&2" --> label:
+Chat: Exec: /bin/echo in
+Chat: Sending: 
+Chat: Expecting: HELLO
+Chat: Wait for (5): HELLO
+login OK!
+.Ed
+.Pp
+Note (again) the use of the escape character, allowing many levels of
+nesting.  Here, there are four parsers at work.  The first parses the
+original line, reading it as three arguments.  The second parses the
+third argument, reading it as 11 arguments.  At this point, it is
+important that the
+.Dq \&-
+signs are escaped, otherwise this parser will see them as constituting
+an expect-send-expect sequence.  When the
+.Dq \&!
+character is seen, the execution parser reads the first command as three
+arguments, and then
+.Xr sh 1
+itself expands the argument after the
+.Fl c .
+As we wish to send the output back to the modem, in the first example
+we redirect our output to file descriptor 2 (stderr) so that
+.Nm
+itself sends and logs it, and in the second example, we just output to stdout,
+which is attached directly to the modem.
+.Pp
+This, of course means that it is possible to execute an entirely external
+.Dq chat
+command rather than using the internal one.  See
+.Xr chat 8
+for a good alternative.
 .Pp
 .It set hangup chat-script
 This specifies the chat script that will be used to reset the modem
