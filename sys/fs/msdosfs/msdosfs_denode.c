@@ -76,23 +76,6 @@ static u_long dehash;			/* size of hash table - 1 */
 static struct mtx dehash_mtx;
 static int dehash_init;
 
-union _qcvt {
-	quad_t qcvt;
-	long val[2];
-};
-#define SETHIGH(q, h) { \
-	union _qcvt tmp; \
-	tmp.qcvt = (q); \
-	tmp.val[_QUAD_HIGHWORD] = (h); \
-	(q) = tmp.qcvt; \
-}
-#define SETLOW(q, l) { \
-	union _qcvt tmp; \
-	tmp.qcvt = (q); \
-	tmp.val[_QUAD_LOWWORD] = (l); \
-	(q) = tmp.qcvt; \
-}
-
 static struct denode *
 		msdosfs_hashget(struct cdev *dev, u_long dirclust, u_long diroff);
 static void	msdosfs_hashins(struct denode *dep);
@@ -222,7 +205,6 @@ deget(pmp, dirclust, diroffset, depp)
 	struct vnode *nvp;
 	struct buf *bp;
 	struct thread *td = curthread;	/* XXX */
-	struct timeval tv;
 
 #ifdef MSDOSFS_DEBUG
 	printf("deget(pmp %p, dirclust %lu, diroffset %lx, depp %p)\n",
@@ -389,9 +371,8 @@ deget(pmp, dirclust, diroffset, depp)
 		}
 	} else
 		nvp->v_type = VREG;
-	getmicrouptime(&tv);
-	SETHIGH(ldep->de_modrev, tv.tv_sec);
-	SETLOW(ldep->de_modrev, tv.tv_usec * 4294);
+	
+	ldep->de_modrev = init_va_filerev();
 	ldep->de_devvp = pmp->pm_devvp;
 	VREF(ldep->de_devvp);
 	*depp = ldep;

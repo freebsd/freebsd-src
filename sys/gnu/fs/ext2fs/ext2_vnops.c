@@ -201,23 +201,6 @@ static struct vnodeopv_desc ext2fs_fifoop_opv_desc =
 
 #include <gnu/ext2fs/ext2_readwrite.c>
 
-union _qcvt {
-	int64_t qcvt;
-	int32_t val[2];
-};
-#define SETHIGH(q, h) { \
-	union _qcvt tmp; \
-	tmp.qcvt = (q); \
-	tmp.val[_QUAD_HIGHWORD] = (h); \
-	(q) = tmp.qcvt; \
-}
-#define SETLOW(q, l) { \
-	union _qcvt tmp; \
-	tmp.qcvt = (q); \
-	tmp.val[_QUAD_LOWWORD] = (l); \
-	(q) = tmp.qcvt; \
-}
-
 /*
  * A virgin directory (no blushing please).
  * Note that the type and namlen fields are reversed relative to ext2.
@@ -1741,7 +1724,6 @@ ext2_vinit(mntp, specops, fifoops, vpp)
 {
 	struct inode *ip;
 	struct vnode *vp;
-	struct timeval tv;
 
 	vp = *vpp;
 	ip = VTOI(vp);
@@ -1763,12 +1745,7 @@ ext2_vinit(mntp, specops, fifoops, vpp)
 	}
 	if (ip->i_number == ROOTINO)
 		vp->v_vflag |= VV_ROOT;
-	/*
-	 * Initialize modrev times
-	 */
-	getmicrouptime(&tv);
-	SETHIGH(ip->i_modrev, tv.tv_sec);
-	SETLOW(ip->i_modrev, tv.tv_usec * 4294);
+	ip->i_modrev = init_va_filerev();
 	*vpp = vp;
 	return (0);
 }

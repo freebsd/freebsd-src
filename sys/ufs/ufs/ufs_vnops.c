@@ -117,23 +117,6 @@ static int filt_ufsvnode(struct knote *kn, long hint);
 static void filt_ufsdetach(struct knote *kn);
 static int ufs_kqfilter(struct vop_kqfilter_args *ap);
 
-union _qcvt {
-	int64_t qcvt;
-	int32_t val[2];
-};
-#define SETHIGH(q, h) { \
-	union _qcvt tmp; \
-	tmp.qcvt = (q); \
-	tmp.val[_QUAD_HIGHWORD] = (h); \
-	(q) = tmp.qcvt; \
-}
-#define SETLOW(q, l) { \
-	union _qcvt tmp; \
-	tmp.qcvt = (q); \
-	tmp.val[_QUAD_LOWWORD] = (l); \
-	(q) = tmp.qcvt; \
-}
-
 /*
  * A virgin directory (no blushing please).
  */
@@ -2321,7 +2304,6 @@ ufs_vinit(mntp, specops, fifoops, vpp)
 {
 	struct inode *ip;
 	struct vnode *vp;
-	struct timeval tv;
 
 	vp = *vpp;
 	ip = VTOI(vp);
@@ -2342,12 +2324,7 @@ ufs_vinit(mntp, specops, fifoops, vpp)
 	ASSERT_VOP_LOCKED(vp, "ufs_vinit");
 	if (ip->i_number == ROOTINO)
 		vp->v_vflag |= VV_ROOT;
-	/*
-	 * Initialize modrev times
-	 */
-	getmicrouptime(&tv);
-	SETHIGH(ip->i_modrev, tv.tv_sec);
-	SETLOW(ip->i_modrev, tv.tv_usec * 4294);
+	ip->i_modrev = init_va_filerev();
 	*vpp = vp;
 	return (0);
 }
