@@ -1,7 +1,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.108 1998/04/15 17:53:32 dima Exp $
+#	$Id: Makefile.i386,v 1.109 1998/04/17 07:51:36 dima Exp $
 #
 # Makefile for FreeBSD
 #
@@ -71,27 +71,27 @@ SYSTEM_DEP= Makefile symbols.exclude symbols.sort ${SYSTEM_OBJS}
 .if ${CFLAGS:M-g} == ""
 SYMORDER_EXCLUDE=-x symbols.exclude
 .endif
-SYSTEM_LD_HEAD= @echo loading $@; rm -f $@
+SYSTEM_LD_HEAD= @echo loading ${.TARGET}; rm -f ${.TARGET}
 .if ${BINFORMAT} == aout
 SYSTEM_OBJS= locore.o vnode_if.o ${OBJS} ioconf.o param.o config.o
-SYSTEM_LD= @${LD} -Bstatic -Z -T ${LOAD_ADDRESS} -o $@ -X ${SYSTEM_OBJS} vers.o
+SYSTEM_LD= @${LD} -Bstatic -Z -T ${LOAD_ADDRESS} -o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
 SYSTEM_LD_TAIL= @echo rearranging symbols; \
-	symorder -m ${SYMORDER_EXCLUDE} symbols.sort $@; \
-	size $@; chmod 755 $@
+	symorder -m ${SYMORDER_EXCLUDE} symbols.sort ${.TARGET}; \
+	size ${.TARGET} ; chmod 755 ${.TARGET}
 .endif
 .if ${BINFORMAT} == aoutkld
 SYSTEM_OBJS= locore.o vnode_if.o ${OBJS} ioconf.o param.o config.o
-SYSTEM_LD= @${LD} -Bforcedynamic -Z -T ${LOAD_ADDRESS} -o $@ -X ${SYSTEM_OBJS} vers.o
+SYSTEM_LD= @${LD} -Bforcedynamic -Z -T ${LOAD_ADDRESS} -o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
 SYSTEM_LD_TAIL= @echo rearranging symbols; \
-	symorder -m ${SYMORDER_EXCLUDE} symbols.sort $@; \
-	size $@; chmod 755 $@
+	symorder -m ${SYMORDER_EXCLUDE} symbols.sort ${.TARGET}; \
+	size ${.TARGET} ; chmod 755 ${.TARGET}
 .endif
 .if ${BINFORMAT} == elf
 SYSTEM_OBJS= locore.o setdef0.o vnode_if.o ${OBJS} ioconf.o param.o config.o \
 	setdef1.o
 SYSTEM_LD= @${LD} -Bstatic -Ttext ${LOAD_ADDRESS} -e btext -defsym _DYNAMIC=0 \
-	-o $@ -X ${SYSTEM_OBJS} vers.o
-SYSTEM_LD_TAIL= @size $@; chmod 755 $@
+	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
+SYSTEM_LD_TAIL= @size ${.TARGET} ; chmod 755 ${.TARGET}
 .endif
 
 %BEFORE_DEPEND
@@ -138,7 +138,7 @@ setdefs.h: gensetdefs ${OBJS}
 	./gensetdefs ${OBJS} >setdefs.h
 
 gensetdefs: gensetdefs.o
-	${CC} ${CFLAGS} gensetdefs.o -o $@
+	${CC} ${CFLAGS} gensetdefs.o -o ${.TARGET}
 
 gensetdefs.o: ${I386}/i386/gensetdefs.c
 	${CC} -c ${CFLAGS} ${I386}/i386/gensetdefs.c
@@ -169,7 +169,7 @@ genassym.o: ${I386}/i386/genassym.c Makefile opt_global.h opt_vm86.h
 	${CC} -c ${CFLAGS} ${PARAM} -UKERNEL ${I386}/i386/genassym.c
 
 genassym: genassym.o
-	${CC} ${CFLAGS} ${PARAM} genassym.o -o $@
+	${CC} ${CFLAGS} ${PARAM} genassym.o -o ${.TARGET}
 
 ${OBJS}: opt_global.h
 
