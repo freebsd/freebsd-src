@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) eval.test 1.7 96/02/16 08:55:49
+# SCCS: @(#) eval.test 1.9 96/09/10 13:50:39
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -47,7 +47,7 @@ test eval-2.5 {error in eval'ed command: setting errorInfo} {
 } "test error
     while executing
 \"error \"test error\"\"
-    (\"eval\" body line 3)
+    (\"eval\" body line 1)
     invoked from within
 \"eval {
 	set a 1

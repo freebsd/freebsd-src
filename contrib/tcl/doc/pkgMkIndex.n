@@ -4,10 +4,10 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) pkgMkIndex.n 1.2 96/02/15 20:03:23
+'\" SCCS: @(#) pkgMkIndex.n 1.6 96/10/04 11:31:53
 '\" 
 .so man.macros
-.TH pkg_mkIndex n 7.5 Tcl "Tcl Built-In Commands"
+.TH pkg_mkIndex n 7.6 Tcl "Tcl Built-In Commands"
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
@@ -46,22 +46,42 @@ It does this by loading each file and seeing what packages
 and new commands appear (this is why it is essential to have
 \fBpackage provide\fR commands or \fBTcl_PkgProvide\fR calls
 in the files, as described above).
+.VS br
 .IP [3]
-Make sure that the directory is in the \fBauto_path\fR global variable.
+Install the package as a subdirectory of one of the directories given by
+the \fBtcl_pkgPath\fR variable.  If \fB$tcl_pkgPath\fR contains more
+than one directory, machine-dependent packages (e.g., those that
+contain binary shared libraries) should normally be installed
+under the first directory and machine-independent packages (e.g.,
+those that contain only Tcl scripts) should be installed under the
+second directory.
+The subdirectory should include
+the package's script and/or binary files as well as the \fBpkgIndex.tcl\fR
+file.  As long as the package is installed as a subdirectory of a
+directory in \fB$tcl_pkgPath\fR it will automatically be found during
+\fBpackage require\fR commands.
+.RS
+.LP
+If you install the package anywhere else, then you must ensure that
+the directory contaiingn the package is in the \fBauto_path\fR global variable
+or an immediate subdirectory of one of the directories in \fBauto_path\fR.
 \fBAuto_path\fR contains a list of directories that are searched
-by both the auto-loader and the package loader.
-If you want access to files described by a \fBpkgIndex.tcl\fR file
-in a directory, that directory must be present in \fBauto_path\fR.
-You can add the directory to \fBauto_path\fR explicitly in your
+by both the auto-loader and the package loader; by default it
+includes \fB$tcl_pkgPath\fR.
+The package loader also checks all of the subdirectories of the
+directories in \fBauto_path\fR.
+.VE
+You can add a directory to \fBauto_path\fR explicitly in your
 application, or you can add the directory to your \fBTCLLIBPATH\fR
 environment variable:  if this environment variable is present,
 Tcl initializes \fBauto_path\fR from it during application startup.
+.RE
 .IP [4]
 Once the above steps have been taken, all you need to do to use a
 package is to invoke \fBpackage require\fR.
 For example, if versions 2.1, 2.3, and 3.1 of package \fBTest\fR
 have been indexed by \fBpkg_mkIndex\fR, the command
-\fBpackage require Test\fR will make vesion 3.1 available
+\fBpackage require Test\fR will make version 3.1 available
 and the command \fBpackage require \-exact Test 2.1\fR will
 make version 2.1 available.
 There may be many versions of a package in the various index files

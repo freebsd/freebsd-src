@@ -1,0 +1,78 @@
+# Commands covered:  resource
+#
+# This file contains a collection of tests for one or more of the Tcl
+# built-in commands.  Sourcing this file into Tcl runs the tests and
+# generates output for errors.  No output means no errors were found.
+#
+# Copyright (c) 1996-1997 Sun Microsystems, Inc.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# SCCS: @(#) resource.test 1.5 97/05/15 17:51:48
+
+# Only run this test on Macintosh systems
+if {$tcl_platform(platform) != "macintosh"} {
+    return
+}
+if {[string compare test [info procs test]] == 1} then {source defs}
+
+test resource-1.1 {resource tests} {
+    list [catch {resource} msg] $msg
+} {1 {wrong # args: should be "resource option ?arg ...?"}}
+test resource-1.2 {resource tests} {
+    list [catch {resource _bad_} msg] $msg
+} {1 {bad option "_bad_": must be close, list, open, read, types, or write}}
+
+# resource open & close tests
+test resource-2.1 {resource open & close tests} {
+    list [catch {resource open} msg] $msg
+} {1 {wrong # args: should be "resource open fileName ?permissions?"}}
+test resource-2.2 {resource open & close tests} {
+    list [catch {resource open resource.test r extraArg} msg] $msg
+} {1 {wrong # args: should be "resource open fileName ?permissions?"}}
+test resource-2.3 {resource open & close tests} {
+    list [catch {resource open resource.test bad_perms} msg] $msg
+} {1 {illegal access mode "bad_perms"}}
+test resource-2.4 {resource open & close tests} {
+    list [catch {resource open _bad_file_} msg] $msg
+} {1 {path doesn't lead to a file}}
+test resource-2.5 {resource open & close tests} {
+    testWriteTextResource -rsrc fileRsrcName -file rsrc.file  {error "don't source me"}
+    set id [resource open rsrc.file]
+    resource close $id
+} {}
+test resource-2.6 {resource open & close tests} {
+    list [catch {resource close _bad_resource_} msg] $msg
+} {1 {invalid resource file reference "_bad_resource_"}}
+
+# Tests for the Mac version of the source command
+catch {file delete rsrc.file}
+testWriteTextResource -rsrc fileRsrcName -rsrcid 128 \
+    -file rsrc.file  {set rsrc_foo 1}
+test resource-3.1 {source command} {
+    catch {unset rsrc_foo}
+    source -rsrc fileRsrcName rsrc.file
+    list [catch {set rsrc_foo} msg] $msg
+} {0 1}
+test resource-3.2 {source command} {
+    catch {unset rsrc_foo}
+    list [catch {source -rsrc no_resource rsrc.file} msg] $msg
+} {1 {The resource "no_resource" could not be loaded from rsrc.file.}}
+test resource-3.3 {source command} {
+    catch {unset rsrc_foo}
+    source -rsrcid 128 rsrc.file
+    list [catch {set rsrc_foo} msg] $msg
+} {0 1}
+test resource-3.4 {source command} {
+    catch {unset rsrc_foo}
+    list [catch {source -rsrcid bad_int rsrc.file} msg] $msg
+} {1 {expected integer but got "bad_int"}}
+test resource-3.5 {source command} {
+    catch {unset rsrc_foo}
+    list [catch {source -rsrcid 100 rsrc.file} msg] $msg
+} {1 {The resource "ID=100" could not be loaded from rsrc.file.}}
+
+# Clean up and return
+catch {file delete rsrc.file}
+return

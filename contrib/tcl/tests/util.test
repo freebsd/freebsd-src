@@ -1,0 +1,64 @@
+# This file is a Tcl script to test the code in the file tclUtil.c.
+# This file is organized in the standard fashion for Tcl tests.
+#
+# Copyright (c) 1995-1997 Sun Microsystems, Inc.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# SCCS: @(#) util.test 1.5 97/06/16 13:21:57
+
+if {[info commands testobj] == {}} {
+    puts "This application hasn't been compiled with the \"testobj\""
+    puts "command, so I can't test the Tcl type and object support."
+    return
+}
+
+if {[string compare test [info procs test]] == 1} then {source defs}
+
+test util-1.1 {TclFindElement procedure - binary element in middle of list} {
+    lindex {0 foo\x00help 1} 1
+} "foo\x00help"
+test util-1.2 {TclFindElement procedure - binary element at end of list} {
+    lindex {0 foo\x00help} 1
+} "foo\x00help"
+
+test util-2.1 {TclCopyAndCollapse procedure - normal string} {
+    lindex {0 foo} 1
+} {foo}
+test util-2.2 {TclCopyAndCollapse procedure - string with backslashes} {
+    lindex {0 foo\n\x00help 1} 1
+} "foo\n\x00help"
+
+test util-3.1 {Tcl_ScanCountedElement procedure - don't leave unmatched braces} {
+    # This test checks for a very tricky feature.  Any list element
+    # generated with Tcl_ScanCountedElement and Tcl_ConvertElement must
+    # have the property that it can be enclosing in curly braces to make
+    # an embedded sub-list.  If this property doesn't hold, then
+    # Tcl_DStringStartSublist doesn't work.
+
+    set x {}
+    lappend x " \\\{ \\"
+    concat $x [llength "{$x}"]
+} {\ \\\{\ \\ 1}
+
+test util-4.1 {Tcl_SetObjErrorCode - one arg} {
+    catch {testsetobjerrorcode 1}
+    list [set errorCode]
+} {1}
+test util-4.2 {Tcl_SetObjErrorCode - two args} {
+    catch {testsetobjerrorcode 1 2}
+    list [set errorCode]
+} {{1 2}}
+test util-4.3 {Tcl_SetObjErrorCode - three args} {
+    catch {testsetobjerrorcode 1 2 3}
+    list [set errorCode]
+} {{1 2 3}}
+test util-4.4 {Tcl_SetObjErrorCode - four args} {
+    catch {testsetobjerrorcode 1 2 3 4}
+    list [set errorCode]
+} {{1 2 3 4}}
+test util-4.5 {Tcl_SetObjErrorCode - five args} {
+    catch {testsetobjerrorcode 1 2 3 4 5}
+    list [set errorCode]
+} {{1 2 3 4 5}}

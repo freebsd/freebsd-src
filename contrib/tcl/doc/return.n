@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) return.n 1.12 96/03/25 20:22:26
+'\" SCCS: @(#) return.n 1.13 96/08/26 13:00:12
 '\" 
 .so man.macros
 .TH return n 7.0 Tcl "Tcl Built-In Commands"
@@ -27,7 +27,6 @@ an empty string will be returned as result.
 .SH "EXCEPTIONAL RETURNS"
 .PP
 In the usual case where the \fB\-code\fR option isn't
-.VS
 specified the procedure will return normally (its completion
 code will be TCL_OK).
 However, the \fB\-code\fR option may be used to generate an
@@ -85,7 +84,6 @@ If the \fB\-errorcode\fR option is specified then \fIcode\fR provides
 a value for the \fBerrorCode\fR variable.
 If the option is not specified then \fBerrorCode\fR will
 default to \fBNONE\fR.
-.VE
 
 .SH KEYWORDS
 break, continue, error, procedure, return

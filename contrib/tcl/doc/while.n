@@ -1,11 +1,11 @@
 '\"
 '\" Copyright (c) 1993 The Regents of the University of California.
-'\" Copyright (c) 1994-1996 Sun Microsystems, Inc.
+'\" Copyright (c) 1994-1997 Sun Microsystems, Inc.
 '\"
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) while.n 1.6 96/03/25 20:27:35
+'\" SCCS: @(#) while.n 1.7 97/04/08 17:13:50
 '\" 
 .so man.macros
 .TH while n "" Tcl "Tcl Built-In Commands"
@@ -19,7 +19,7 @@ while \- Execute script repeatedly as long as a condition is met
 
 .SH DESCRIPTION
 .PP
-The \fIwhile\fR command evaluates \fItest\fR as an expression
+The \fBwhile\fR command evaluates \fItest\fR as an expression
 (in the same way that \fBexpr\fR evaluates its argument).
 The value of the expression must a proper boolean
 value; if it is a true value
@@ -32,6 +32,24 @@ iteration of the loop, and \fBbreak\fR
 commands may be executed inside \fIbody\fR to cause immediate
 termination of the \fBwhile\fR command.  The \fBwhile\fR command
 always returns an empty string.
+.PP
+Note: \fItest\fR should almost always be enclosed in braces.  If not,
+variable substitutions will be made before the \fBwhile\fR
+command starts executing, which means that variable changes
+made by the loop body will not be considered in the expression.
+This is likely to result in an infinite loop.  If \fItest\fR is
+enclosed in braces, variable substitutions are delayed until the
+expression is evaluated (before
+each loop iteration), so changes in the variables will be visible.
+For an example, try the following script with and without the braces
+around \fB$x<10\fR:
+.CS
+set x 0
+while {$x<10} {
+	puts "x is $x"
+	incr x
+}
+.CE
 
 .SH KEYWORDS
 boolean value, loop, test, while

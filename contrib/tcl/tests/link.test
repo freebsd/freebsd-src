@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) link.test 1.10 96/02/16 08:56:05
+# SCCS: @(#) link.test 1.12 97/01/21 21:16:04
 
 if {[info commands testlink] == {}} {
     puts "This application hasn't been compiled with the \"testlink\""
@@ -38,14 +38,14 @@ test link-1.2 {reading C variables from Tcl} {
 
 test link-2.1 {writing C variables from Tcl} {
     testlink delete
-    testlink set 43 1.23 4 -
+    testlink set 43 1.21 4 -
     testlink create 1 1 1 1
     set int "00721"
-    set real -8e13
+    set real -10.5
     set bool true
     set string abcdef
     concat [testlink get] $int $real $bool $string
-} {465 -8e+13 1 abcdef 00721 -8e13 true abcdef}
+} {465 -10.5 1 abcdef 00721 -10.5 true abcdef}
 test link-2.2 {writing bad values into variables} {
     testlink delete
     testlink set 43 1.23 4 -
@@ -86,12 +86,12 @@ test link-3.2 {read-only variables} {
 
 test link-4.1 {unsetting linked variables} {
     testlink delete
-    testlink set -6 -2.1 0 stringValue
+    testlink set -6 -2.5 0 stringValue
     testlink create 1 1 1 1
     unset int real bool string
     list [catch {set int} msg] $msg [catch {set real} msg] $msg \
 	    [catch {set bool} msg] $msg [catch {set string} msg] $msg
-} {0 -6 0 -2.1 0 0 0 stringValue}
+} {0 -6 0 -2.5 0 0 0 stringValue}
 test link-4.2 {unsetting linked variables} {
     testlink delete
     testlink set -6 -2.1 0 stringValue
@@ -106,22 +106,22 @@ test link-4.2 {unsetting linked variables} {
 
 test link-5.1 {unlinking variables} {
     testlink delete
-    testlink set -6 -2.1 0 stringValue
+    testlink set -6 -2.25 0 stringValue
     testlink delete
     set int xx1
     set real qrst
     set bool bogus
     set string 12345
     testlink get
-} {-6 -2.1 0 stringValue}
+} {-6 -2.25 0 stringValue}
 test link-5.2 {unlinking variables} {
     testlink delete
-    testlink set -6 -2.1 0 stringValue
+    testlink set -6 -2.25 0 stringValue
     testlink create 1 1 1 1
     testlink delete
     testlink set 25 14.7 7 -
     list $int $real $bool $string
-} {-6 -2.1 0 stringValue}
+} {-6 -2.25 0 stringValue}
 
 test link-6.1 {errors in setting up link} {
     testlink delete
@@ -182,9 +182,9 @@ test link-7.5 {access to linked variables via upvar} {
     }
     testlink delete
     testlink create 1 1 1 1
-    testlink set -4 16.3 {} {}
+    testlink set -4 16.75 {} {}
     list [catch x msg] $msg $real
-} {1 {can't set "y": variable must have real value} 16.3}
+} {1 {can't set "y": variable must have real value} 16.75}
 test link-7.6 {access to linked variables via upvar} {
     proc x {} {
 	upvar bool y
@@ -223,6 +223,10 @@ test link-8.2 {Tcl_UpdateLinkedVar procedure} {
     trace vdelete int w x
     set x
 } {}
+test link-8.3 {Tcl_UpdateLinkedVar procedure, read-only variable} {
+    testlink create 0 0 0 0
+    list [catch {testlink update 47 {} {} {}} msg] $msg $int
+} {0 {} 47}
 
 testlink delete
 foreach i {int real bool string} {

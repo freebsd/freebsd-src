@@ -1,11 +1,11 @@
 '\"
 '\" Copyright (c) 1989-1993 The Regents of the University of California.
-'\" Copyright (c) 1994-1996 Sun Microsystems, Inc.
+'\" Copyright (c) 1994-1997 Sun Microsystems, Inc.
 '\"
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) SetVar.3 1.22 96/03/25 20:07:08
+'\" SCCS: @(#) SetVar.3 1.29 97/05/19 17:35:05
 '\" 
 .so man.macros
 .TH Tcl_SetVar 3 7.4 Tcl "Tcl Library Procedures"
@@ -38,13 +38,14 @@ int
 .AP Tcl_Interp *interp in
 Interpreter containing variable.
 .AP char *varName in
-Name of variable.  May refer to a scalar variable or an element of
+Name of variable.
+May include a series of \fB::\fR namespace qualifiers
+to specify a variable in a particular namespace.
+May refer to a scalar variable or an element of
 an array variable.
-.VS
 If the name references an element of an array, then it
 must be in writable memory:  Tcl will make temporary modifications 
 to it while looking up the name.
-.VE
 .AP char *newValue in
 New value for variable.
 .AP int flags in
@@ -53,6 +54,8 @@ operation. See below for valid values.
 .AP char *name1 in
 Name of scalar variable, or name of array variable if \fIname2\fR
 is non-NULL.
+May include a series of \fB::\fR namespace qualifiers
+to specify a variable in a particular namespace.
 .AP char *name2 in
 If non-NULL, gives name of element within array and \fIname1\fR
 must refer to an array variable.
@@ -62,8 +65,19 @@ must refer to an array variable.
 .PP
 These procedures may be used to create, modify, read, and delete
 Tcl variables from C code.
-\fBTcl_SetVar\fR and \fBTcl_SetVar2\fR will create a new variable
-or modify an existing one.
+.PP
+Note that \fBTcl_GetVar\fR and \fBTcl_SetVar\fR
+have been largely replaced by the
+object-based procedures \fBTcl_ObjGetVar2\fR and \fBTcl_ObjSetVar2\fR.
+Those object-based procedures read, modify, and create
+a variable whose name is held in a Tcl object instead of a string.
+They also return a pointer to the object
+which is the variable's value instead of returning a string.
+Operations on objects can be faster since objects
+hold an internal representation that can be manipulated more efficiently.
+.PP
+\fBTcl_SetVar\fR and \fBTcl_SetVar2\fR
+will create a new variable or modify an existing one.
 Both of these procedures set the given variable to the value
 given by \fInewValue\fR, and they return a pointer to a
 copy of the variable's new value, which is stored in Tcl's
@@ -73,9 +87,10 @@ may change \fInewValue\fR after these procedures return without
 affecting the value of the variable.
 If an error occurs in setting the variable (e.g. an array
 variable is referenced without giving an index into the array),
-then NULL is returned.
+they return NULL.
 .PP
-The name of the variable may be specified in either of two ways.
+The name of the variable may be specified to
+\fBTcl_SetVar\fR and \fBTcl_SetVar2\fR in either of two ways.
 If \fBTcl_SetVar\fR is called, the variable name is given as
 a single string, \fIvarName\fR.
 If \fIvarName\fR contains an open parenthesis and ends with a
@@ -96,18 +111,34 @@ It consists of an OR-ed combination of any of the following
 bits:
 .TP
 \fBTCL_GLOBAL_ONLY\fR
-Under normal circumstances the procedures look up variables
-at the current level of procedure call for \fIinterp\fR, or
-at global level if there is no call active.
+Under normal circumstances the procedures look up variables as follows:
+If a procedure call is active in \fIinterp\fR,
+a variable is looked up at the current level of procedure call.
+Otherwise, a variable is looked up first in the current namespace,
+then in the global namespace.
 However, if this bit is set in \fIflags\fR then the variable
-is looked up at global level even if there is a procedure
-call active.
+is looked up only in the global namespace
+even if there is a procedure call active.
+If both \fBTCL_GLOBAL_ONLY\fR and \fBTCL_NAMESPACE_ONLY\fR are given,
+\fBTCL_GLOBAL_ONLY\fR is ignored.
+.TP
+\fBTCL_NAMESPACE_ONLY\fR
+Under normal circumstances the procedures look up variables as follows:
+If a procedure call is active in \fIinterp\fR,
+a variable is looked up at the current level of procedure call.
+Otherwise, a variable is looked up first in the current namespace,
+then in the global namespace.
+However, if this bit is set in \fIflags\fR then the variable
+is looked up only in the current namespace
+even if there is a procedure call active.
 .TP
 \fBTCL_LEAVE_ERR_MSG\fR
 If an error is returned and this bit is set in \fIflags\fR, then
-an error message will be left in \fI\%interp->result\fR.  If this
-flag bit isn't set then no error message is left (\fI\%interp->result\fR
-will not be modified).
+an error message will be left in the interpreter's result,
+where it can be retrieved with \fBTcl_GetObjResult\fR
+or \fBTcl_GetStringResult\fR.
+If this flag bit isn't set then no error message is left
+and the interpreter's result will not be modified.
 .TP
 \fBTCL_APPEND_VALUE\fR
 If this bit is set then \fInewValue\fR is appended to the current
@@ -118,14 +149,12 @@ If the variable is currently undefined, then this bit is ignored.
 If this bit is set, then \fInewValue\fR is converted to a valid
 Tcl list element before setting (or appending to) the variable.
 A separator space is appended before the new list element unless
-.VS
 the list element is going to be the first element in a list or
 sublist (i.e. the variable's current value is empty, or contains
 the single character ``{'', or ends in `` }'').
-.VE
 .PP
-\fBTcl_GetVar\fR and \fBTcl_GetVar2\fR return the current value
-of a variable.
+\fBTcl_GetVar\fR and \fBTcl_GetVar2\fR
+return the current value of a variable.
 The arguments to these procedures are treated in the same way
 as the arguments to \fBTcl_SetVar\fR and \fBTcl_SetVar2\fR.
 Under normal circumstances, the return value is a pointer
@@ -145,18 +174,16 @@ a variable, so that future calls to \fBTcl_GetVar\fR or \fBTcl_GetVar2\fR
 for the variable will return an error.
 The arguments to these procedures are treated in the same way
 as the arguments to \fBTcl_GetVar\fR and \fBTcl_GetVar2\fR.
-.VS
 If the variable is successfully removed then TCL_OK is returned.
 If the variable cannot be removed because it doesn't exist then
 TCL_ERROR is returned.
-.VE
 If an array element is specified, the given element is removed
 but the array remains.
 If an array name is specified without an index, then the entire
 array is removed.
 
 .SH "SEE ALSO"
-Tcl_TraceVar
+Tcl_GetObjResult, Tcl_GetStringResult, Tcl_ObjGetVar2, Tcl_ObjSetVar2, Tcl_TraceVar
 
 .SH KEYWORDS
-array, interpreter, scalar, set, unset, variable
+array, interpreter, object, scalar, set, unset, variable

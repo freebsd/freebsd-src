@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) append.test 1.14 96/04/05 15:28:42
+# SCCS: @(#) append.test 1.16 97/04/09 11:29:33
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -86,43 +86,47 @@ test append-4.6 {lappend command} {
 test append-4.7 {lappend command} {
     set x "a\{"
     lappend x abc
-} "a{ abc"
+} "a\\\{ abc"
 test append-4.8 {lappend command} {
     set x "\\\{"
     lappend x abc
 } "\\{ abc"
 test append-4.9 {lappend command} {
     set x " \{"
-    lappend x abc
-} " {abc"
+    list [catch {lappend x abc} msg] $msg
+} {1 {unmatched open brace in list}}
 test append-4.10 {lappend command} {
     set x "	\{"
-    lappend x abc
-} "	{abc"
+    list [catch {lappend x abc} msg] $msg
+} {1 {unmatched open brace in list}}
 test append-4.11 {lappend command} {
     set x "\{\{\{"
-    lappend x abc
-} "{{{abc"
+    list [catch {lappend x abc} msg] $msg
+} {1 {unmatched open brace in list}}
 test append-4.12 {lappend command} {
     set x "x \{\{\{"
-    lappend x abc
-} "x {{{abc"
+    list [catch {lappend x abc} msg] $msg
+} {1 {unmatched open brace in list}}
 test append-4.13 {lappend command} {
     set x "x\{\{\{"
     lappend x abc
-} "x{{{ abc"
+} "x\\\{\\\{\\\{ abc"
 test append-4.14 {lappend command} {
     set x " "
     lappend x abc
-} " abc"
+} "abc"
 test append-4.15 {lappend command} {
     set x "\\ "
     lappend x abc
-} "\\  abc"
+} "{ } abc"
 test append-4.16 {lappend command} {
     set x "x "
     lappend x abc
 } "x abc"
+test append-4.17 {lappend command} {
+    catch {unset x}
+    lappend x
+} {}
 
 proc check {var size} {
     set l [llength $var]
@@ -152,7 +156,3 @@ test append-6.2 {lappend errors} {
     set x ""
     list [catch {lappend x(0) 44} msg] $msg
 } {1 {can't set "x(0)": variable isn't array}}
-test append-6.3 {lappend errors} {
-    catch {unset x}
-    list [catch {lappend x} msg] $msg
-} {1 {can't read "x": no such variable}}

@@ -10,7 +10,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclLoadDl.c 1.7 96/03/14 09:03:33
+ * SCCS: @(#) tclLoadDl.c 1.8 96/12/03 16:57:00
  */
 
 #include "tclInt.h"
@@ -68,6 +68,7 @@ TclLoadFile(interp, fileName, sym1, sym2, proc1Ptr, proc2Ptr)
 				 * to sym1 and sym2. */
 {
     VOID *handle;
+    Tcl_DString newName;
 
     handle = dlopen(fileName, RTLD_NOW | RTLD_GLOBAL);
     if (handle == NULL) {
@@ -75,8 +76,31 @@ TclLoadFile(interp, fileName, sym1, sym2, proc1Ptr, proc2Ptr)
 		"\": ", dlerror(), (char *) NULL);
 	return TCL_ERROR;
     }
-    *proc1Ptr = (Tcl_PackageInitProc *) dlsym(handle, sym1);
-    *proc2Ptr = (Tcl_PackageInitProc *) dlsym(handle, sym2);
+
+    /* 
+     * Some platforms still add an underscore to the beginning of symbol
+     * names.  If we can't find a name without an underscore, try again
+     * with the underscore.
+     */
+
+    *proc1Ptr = (Tcl_PackageInitProc *) dlsym(handle, (char *) sym1);
+    if (*proc1Ptr == NULL) {
+	Tcl_DStringInit(&newName);
+	Tcl_DStringAppend(&newName, "_", 1);
+	Tcl_DStringAppend(&newName, sym1, -1);
+	*proc1Ptr = (Tcl_PackageInitProc *) dlsym(handle,
+		Tcl_DStringValue(&newName));
+	Tcl_DStringFree(&newName);
+    }
+    *proc2Ptr = (Tcl_PackageInitProc *) dlsym(handle, (char *) sym2);
+    if (*proc2Ptr == NULL) {
+	Tcl_DStringInit(&newName);
+	Tcl_DStringAppend(&newName, "_", 1);
+	Tcl_DStringAppend(&newName, sym2, -1);
+	*proc2Ptr = (Tcl_PackageInitProc *) dlsym(handle,
+		Tcl_DStringValue(&newName));
+	Tcl_DStringFree(&newName);
+    }
     return TCL_OK;
 }
 

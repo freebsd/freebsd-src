@@ -1,0 +1,108 @@
+# This file contains tests for the file tclCompile.c.
+#
+# This file contains a collection of tests for one or more of the Tcl
+# built-in commands.  Sourcing this file into Tcl runs the tests and
+# generates output for errors.  No output means no errors were found.
+#
+# Copyright (c) 1997 by Sun Microsystems, Inc.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# SCCS: @(#) compile.test 1.5 97/06/25 11:43:49
+
+if {[string compare test [info procs test]] == 1} then {source defs}
+
+# The following tests are very incomplete, although the rest of the
+# test suite covers this file fairly well.
+
+catch {rename p ""}
+catch {namespace delete test_ns_compile}
+catch {unset x}
+catch {unset y}
+catch {unset a}
+
+test compile-1.1 {TclCompileDollarVar: global scalar name with ::s} {
+    catch {unset x}
+    set x 123
+    list $::x [expr {[lsearch -exact [info globals] x] != 0}]
+} {123 1}
+test compile-1.2 {TclCompileDollarVar: global scalar name with ::s} {
+    catch {unset y}
+    proc p {} {
+        set ::y 789
+        return $::y
+    }
+    list [p] $::y [expr {[lsearch -exact [info globals] y] != 0}]
+} {789 789 1}
+test compile-1.3 {TclCompileDollarVar: global array name with ::s} {
+    catch {unset a}
+    set ::a(1) 2
+    list $::a(1) [set ::a($::a(1)) 3] $::a(2) [expr {[lsearch -exact [info globals] a] != 0}]
+} {2 3 3 1}
+test compile-1.4 {TclCompileDollarVar: global scalar name with ::s} {
+    catch {unset a}
+    proc p {} {
+        set ::a(1) 1
+        return $::a($::a(1))
+    }
+    list [p] $::a(1) [expr {[lsearch -exact [info globals] a] != 0}]
+} {1 1 1}
+
+test compile-2.1 {TclCompileSetCmd: global scalar names with ::s} {
+    catch {unset x}
+    catch {unset y}
+    set x 123
+    proc p {} {
+        set ::y 789
+        return $::y
+    }
+    list $::x [expr {[lsearch -exact [info globals] x] != 0}] \
+         [p] $::y [expr {[lsearch -exact [info globals] y] != 0}]
+} {123 1 789 789 1}
+test compile-2.2 {TclCompileSetCmd: global array names with ::s} {
+    catch {unset a}
+    set ::a(1) 2
+    proc p {} {
+        set ::a(1) 1
+        return $::a($::a(1))
+    }
+    list $::a(1) [p] [set ::a($::a(1)) 3] $::a(1) [expr {[lsearch -exact [info globals] a] != 0}]
+} {2 1 3 3 1}
+test compile-2.3 {TclCompileSetCmd: namespace var names with ::s} {
+    catch {namespace delete test_ns_compile}
+    catch {unset x}
+    namespace eval test_ns_compile {
+        variable v hello
+        variable arr
+        set ::x $::test_ns_compile::v
+	set ::test_ns_compile::arr(1) 123
+    }
+    list $::x $::test_ns_compile::arr(1)
+} {hello 123}
+
+test compile-3.1 {CollectArgInfo: binary data} {
+    list [catch "string length \000foo" msg] $msg
+} {0 4}
+test compile-3.2 {CollectArgInfo: binary data} {
+    list [catch "string length foo\000" msg] $msg
+} {0 4}
+test compile-3.3 {CollectArgInfo: handle "]" at end of command properly} {
+    set x ]
+} {]}
+
+test compile-4.1 {UpdateStringOfByteCode: called for duplicate of compiled empty object} {
+    proc p {} {
+        set x {}
+        eval $x
+        append x { }
+        eval $x
+    }
+    p
+} {}
+
+catch {rename p ""}
+catch {namespace delete test_ns_compile}
+catch {unset x}
+catch {unset y}
+catch {unset a}

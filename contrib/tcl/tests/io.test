@@ -11,12 +11,25 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# "@(#) io.test 1.87 96/07/30 11:59:00"
+# SCCS: @(#) io.test 1.119 97/06/23 18:47:01
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
+if {"[info commands testchannel]" != "testchannel"} {
+    puts "Skipping io tests. This application does not seem to have the"
+    puts "testchannel command that is needed to run these tests."
+    return
+}
+
 removeFile test1
 removeFile pipe
+
+set testConfig(umask2) 1
+catch {
+    if {"[exec umask]" != "002"} {
+	set testConfig(umask2) 0
+    }
+}
 
 # set up a long data file for some of the following tests
 
@@ -209,6 +222,42 @@ test io-1.7 {Tcl_GetChannel: stdio name translation} {
     interp delete z
     set result
 } {{} {} {can not find channel named "stderr"}}
+test io-1.8 {reuse of stdio special channels} {unixOnly} {
+    removeFile script
+    removeFile test1
+    set f [open script w]
+    puts $f {
+	close stderr
+	set f [open test1 w]
+	puts stderr hello
+	close $f
+	set f [open test1 r]
+	puts [gets $f]
+    }
+    close $f
+    set f [open "|$tcltest script" r]
+    set c [gets $f]
+    close $f
+    set c
+} hello
+test io-1.9 {reuse of stdio special channels} {unixOnly} {
+    removeFile script
+    removeFile test1
+    set f [open script w]
+    puts $f {
+	set f [open test1 w]
+	puts $f hello
+	close $f
+	close stderr
+	set f [open "|cat test1" r]
+	puts [gets $f]
+    }
+    close $f
+    set f [open "|$tcltest script" r]
+    set c [gets $f]
+    close $f
+    set c
+} hello
 
 # Must add test function for testing Tcl_CreateCloseHandler and
 # Tcl_DeleteCloseHandler.
@@ -216,38 +265,47 @@ test io-1.7 {Tcl_GetChannel: stdio name translation} {
 # Test channel table management. The functions tested are
 # GetChannelTable, DeleteChannelTable, Tcl_RegisterChannel,
 # Tcl_UnregisterChannel, Tcl_GetChannel and Tcl_CreateChannel.
+#
+# These functions use "eof stdin" to ensure that the standard
+# channels are added to the channel table of the interpreter.
 
-test io-3.1 {GetChannelTable, DeleteChannelTable on std handles} {
+test io-2.1 {GetChannelTable, DeleteChannelTable on std handles} {
+    set l1 [testchannel refcount stdin]
+    eof stdin
     interp create x
     set l ""
-    lappend l [testchannel refcount stdin]
+    lappend l [expr [testchannel refcount stdin] - $l1]
     x eval {eof stdin}
-    lappend l [testchannel refcount stdin]
+    lappend l [expr [testchannel refcount stdin] - $l1]
     interp delete x
-    lappend l [testchannel refcount stdin]
+    lappend l [expr [testchannel refcount stdin] - $l1]
     set l
-} {2 2 1}
-test io-3.2 {GetChannelTable, DeleteChannelTable on std handles} {
+} {0 1 0}
+test io-2.2 {GetChannelTable, DeleteChannelTable on std handles} {
+    set l1 [testchannel refcount stdout]
+    eof stdin
     interp create x
     set l ""
-    lappend l [testchannel refcount stdout]
+    lappend l [expr [testchannel refcount stdout] - $l1]
     x eval {eof stdout}
-    lappend l [testchannel refcount stdout]
+    lappend l [expr [testchannel refcount stdout] - $l1]
     interp delete x
-    lappend l [testchannel refcount stdout]
+    lappend l [expr [testchannel refcount stdout] - $l1]
     set l
-} {2 2 1}
-test io-3.3 {GetChannelTable, DeleteChannelTable on std handles} {
+} {0 1 0}
+test io-2.3 {GetChannelTable, DeleteChannelTable on std handles} {
+    set l1 [testchannel refcount stderr]
+    eof stdin
     interp create x
     set l ""
-    lappend l [testchannel refcount stderr]
+    lappend l [expr [testchannel refcount stderr] - $l1]
     x eval {eof stderr}
-    lappend l [testchannel refcount stderr]
+    lappend l [expr [testchannel refcount stderr] - $l1]
     interp delete x
-    lappend l [testchannel refcount stderr]
+    lappend l [expr [testchannel refcount stderr] - $l1]
     set l
-} {2 2 1}
-test io-3.4 {Tcl_RegisterChannel, Tcl_UnregisterChannel} {
+} {0 1 0}
+test io-2.4 {Tcl_RegisterChannel, Tcl_UnregisterChannel} {
     removeFile test1
     set l ""
     set f [open test1 w]
@@ -261,7 +319,7 @@ test io-3.4 {Tcl_RegisterChannel, Tcl_UnregisterChannel} {
     string compare [string tolower $l] \
 	[list 1 [format "can not find channel named \"%s\"" $f]]
 } 0
-test io-3.5 {Tcl_RegisterChannel, Tcl_UnregisterChannel} {
+test io-2.5 {Tcl_RegisterChannel, Tcl_UnregisterChannel} {
     removeFile test1
     set l ""
     set f [open test1 w]
@@ -282,7 +340,7 @@ test io-3.5 {Tcl_RegisterChannel, Tcl_UnregisterChannel} {
     string compare [string tolower $l] \
 	[list 1 2 1 1 [format "can not find channel named \"%s\"" $f]]
 } 0
-test io-3.6 {Tcl_RegisterChannel, Tcl_UnregisterChannel} {
+test io-2.6 {Tcl_RegisterChannel, Tcl_UnregisterChannel} {
     removeFile test1
     set l ""
     set f [open test1 w]
@@ -301,20 +359,20 @@ test io-3.6 {Tcl_RegisterChannel, Tcl_UnregisterChannel} {
     string compare [string tolower $l] \
 	[list 1 2 1 [format "can not find channel named \"%s\"" $f]]
 } 0
-test io-3.7 {Tcl_GetChannel->Tcl_GetStdChannel, standard handles} {
+test io-2.7 {Tcl_GetChannel->Tcl_GetStdChannel, standard handles} {
     eof stdin
 } 0
-test io-3.6 {testing Tcl_GetChannel, user opened handle} {
+test io-2.8 {testing Tcl_GetChannel, user opened handle} {
     removeFile test1
     set f [open test1 w]
     set x [eof $f]
     close $f
     set x
 } 0
-test io-3.8 {Tcl_GetChannel, channel not found} {
+test io-2.9 {Tcl_GetChannel, channel not found} {
     list [catch {eof file34} msg] $msg
 } {1 {can not find channel named "file34"}}
-test io-3.9 {Tcl_CreateChannel, insertion into channel table} {
+test io-2.10 {Tcl_CreateChannel, insertion into channel table} {
     removeFile test1
     set f [open test1 w]
     set l ""
@@ -335,21 +393,21 @@ test io-3.9 {Tcl_CreateChannel, insertion into channel table} {
 # Tcl_GetChannelType and Tcl_GetChannelFile. Tcl_GetChannelInstanceData
 # not tested because files do not use the instance data.
 
-test io-4.1 {Tcl_GetChannelName} {
+test io-3.1 {Tcl_GetChannelName} {
     removeFile test1
     set f [open test1 w]
     set n [testchannel name $f]
     close $f
     string compare $n $f
 } 0
-test io-4.2 {Tcl_GetChannelType} {
+test io-3.2 {Tcl_GetChannelType} {
     removeFile test1
     set f [open test1 w]
     set t [testchannel type $f]
     close $f
     string compare $t file
 } 0
-test io-4.3 {Tcl_GetChannelFile, input} {
+test io-3.3 {Tcl_GetChannelFile, input} {
     set f [open test1 w]
     fconfigure $f -translation lf -eofchar {}
     puts $f "1234567890\n098765432"
@@ -362,7 +420,7 @@ test io-4.3 {Tcl_GetChannelFile, input} {
     close $f
     set l
 } {10 11}
-test io-4.4 {Tcl_GetChannelFile, output} {
+test io-3.4 {Tcl_GetChannelFile, output} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf
@@ -380,7 +438,7 @@ test io-4.4 {Tcl_GetChannelFile, output} {
 
 # Test flushing. The functions tested here are FlushChannel.
 
-test io-5.1 {FlushChannel, no output buffered} {
+test io-4.1 {FlushChannel, no output buffered} {
     removeFile test1
     set f [open test1 w]
     flush $f
@@ -388,7 +446,7 @@ test io-5.1 {FlushChannel, no output buffered} {
     close $f
     set s
 } 0
-test io-5.2 {FlushChannel, some output buffered} {
+test io-4.2 {FlushChannel, some output buffered} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf -eofchar {}
@@ -401,7 +459,7 @@ test io-5.2 {FlushChannel, some output buffered} {
     lappend l [file size test1]
     set l
 } {0 6 6}
-test io-5.3 {FlushChannel, implicit flush on close} {
+test io-4.3 {FlushChannel, implicit flush on close} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf -eofchar {}
@@ -412,7 +470,7 @@ test io-5.3 {FlushChannel, implicit flush on close} {
     lappend l [file size test1]
     set l
 } {0 6}
-test io-5.4 {FlushChannel, implicit flush when buffer fills} {
+test io-4.4 {FlushChannel, implicit flush when buffer fills} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf -eofchar {}
@@ -428,7 +486,7 @@ test io-5.4 {FlushChannel, implicit flush when buffer fills} {
     close $f
     set l
 } {0 60 72}
-test io-5.5 {FlushChannel, implicit flush when buffer fills and on close} {unixOrPc} {
+test io-4.5 {FlushChannel, implicit flush when buffer fills and on close} {unixOrPc} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf -buffersize 60 -eofchar {}
@@ -442,7 +500,7 @@ test io-5.5 {FlushChannel, implicit flush when buffer fills and on close} {unixO
     lappend l [file size test1]
     set l
 } {0 60 72}
-test io-5.6 {FlushChannel, async flushing, async close} {unixOrPc asyncPipeClose} {
+test io-4.6 {FlushChannel, async flushing, async close} {unixOrPc asyncPipeClose} {
     removeFile pipe
     removeFile output
     set f [open pipe w]
@@ -481,7 +539,7 @@ test io-5.6 {FlushChannel, async flushing, async close} {unixOrPc asyncPipeClose
 
 # Tests closing a channel. The functions tested are CloseChannel and Tcl_Close.
 
-test io-6.1 {CloseChannel called when all references are dropped} {
+test io-5.1 {CloseChannel called when all references are dropped} {
     removeFile test1
     set f [open test1 w]
     interp create x
@@ -494,7 +552,7 @@ test io-6.1 {CloseChannel called when all references are dropped} {
     close $f
     set l
 } {2 1}
-test io-6.2 {CloseChannel called when all references are dropped} {
+test io-5.2 {CloseChannel called when all references are dropped} {
     removeFile test1
     set f [open test1 w]
     interp create x
@@ -509,7 +567,7 @@ test io-6.2 {CloseChannel called when all references are dropped} {
     close $f
     set l
 } abcdef
-test io-6.3 {CloseChannel, not called before output queue is empty} {unixOrPc asyncPipeClose tempNotPc nonPortable} {
+test io-5.3 {CloseChannel, not called before output queue is empty} {unixOrPc asyncPipeClose tempNotPc nonPortable} {
     removeFile pipe
     removeFile output
     set f [open pipe w]
@@ -552,13 +610,8 @@ test io-6.3 {CloseChannel, not called before output queue is empty} {unixOrPc as
     } else {
         set result ok
     }
-    #
-    # Wait for the flush to finish
-    #
-    catch {vwait x}
-    set result
 } ok
-test io-6.4 {Tcl_Close} {
+test io-5.4 {Tcl_Close} {
     removeFile test1
     set l ""
     lappend l [lsort [testchannel open]]
@@ -571,7 +624,7 @@ test io-6.4 {Tcl_Close} {
 		$consoleFileNames]
     string compare $l $x
 } 0
-test io-6.5 {Tcl_Close vs standard handles} {unixOnly} {
+test io-5.5 {Tcl_Close vs standard handles} {unixOnly} {
     removeFile script
     set f [open script w]
     puts $f {
@@ -588,10 +641,10 @@ test io-6.5 {Tcl_Close vs standard handles} {unixOnly} {
 # Test output on channels. The functions tested are Tcl_Write
 # and Tcl_Flush.
 
-test io-7.1 {Tcl_Write, channel not writable} {
+test io-6.1 {Tcl_Write, channel not writable} {
     list [catch {puts stdin hello} msg] $msg
 } {1 {channel "stdin" wasn't opened for writing}}
-test io-7.2 {Tcl_Write, empty string} {
+test io-6.2 {Tcl_Write, empty string} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -eofchar {}
@@ -599,7 +652,7 @@ test io-7.2 {Tcl_Write, empty string} {
     close $f
     file size test1
 } 0
-test io-7.3 {Tcl_Write, nonempty string} {
+test io-6.3 {Tcl_Write, nonempty string} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -eofchar {}
@@ -607,7 +660,7 @@ test io-7.3 {Tcl_Write, nonempty string} {
     close $f
     file size test1
 } 5
-test io-7.4 {Tcl_Write, buffering in full buffering mode} {
+test io-6.4 {Tcl_Write, buffering in full buffering mode} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf -buffering full -eofchar {}
@@ -621,7 +674,7 @@ test io-7.4 {Tcl_Write, buffering in full buffering mode} {
     close $f
     set l
 } {6 0 0 6}
-test io-7.5 {Tcl_Write, buffering in line buffering mode} {
+test io-6.5 {Tcl_Write, buffering in line buffering mode} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf -buffering line -eofchar {}
@@ -635,7 +688,7 @@ test io-7.5 {Tcl_Write, buffering in line buffering mode} {
     close $f
     set l
 } {5 0 0 11}
-test io-7.6 {Tcl_Write, buffering in no buffering mode} {
+test io-6.6 {Tcl_Write, buffering in no buffering mode} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf -buffering none -eofchar {}
@@ -649,7 +702,7 @@ test io-7.6 {Tcl_Write, buffering in no buffering mode} {
     close $f
     set l
 } {0 5 0 11}
-test io-7.7 {Tcl_Flush, full buffering} {
+test io-6.7 {Tcl_Flush, full buffering} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf -buffering full -eofchar {}
@@ -666,7 +719,7 @@ test io-7.7 {Tcl_Flush, full buffering} {
     close $f
     set l
 } {5 0 11 0 0 11}
-test io-7.8 {Tcl_Flush, full buffering} {
+test io-6.8 {Tcl_Flush, full buffering} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf -buffering line
@@ -686,10 +739,10 @@ test io-7.8 {Tcl_Flush, full buffering} {
     close $f
     set l
 } {5 0 0 5 0 11 0 11}
-test io-7.9 {Tcl_Flush, channel not writable} {
+test io-6.9 {Tcl_Flush, channel not writable} {
     list [catch {flush stdin} msg] $msg
 } {1 {channel "stdin" wasn't opened for writing}}
-test io-7.10 {Tcl_Write, looping and buffering} {
+test io-6.10 {Tcl_Write, looping and buffering} {
     removeFile test1
     set f1 [open test1 w]
     fconfigure $f1 -translation lf -eofchar {}
@@ -701,7 +754,7 @@ test io-7.10 {Tcl_Write, looping and buffering} {
     close $f1
     file size test1
 } 387
-test io-7.11 {Tcl_Write, no newline, implicit flush} {
+test io-6.11 {Tcl_Write, no newline, implicit flush} {
     removeFile test1
     set f1 [open test1 w]
     fconfigure $f1 -eofchar {}
@@ -713,7 +766,7 @@ test io-7.11 {Tcl_Write, no newline, implicit flush} {
     close $f2
     file size test1
 } 377
-test io-7.12 {Tcl_Write on a pipe} {unixOrPc} {
+test io-6.12 {Tcl_Write on a pipe} {unixOrPc} {
     removeFile test1
     removeFile pipe
     set f1 [open pipe w]
@@ -738,7 +791,7 @@ test io-7.12 {Tcl_Write on a pipe} {unixOrPc} {
     close $f2
     set y
 } ok
-test io-7.13 {Tcl_Write to a pipe, line buffered} {unixOrPc} {
+test io-6.13 {Tcl_Write to a pipe, line buffered} {unixOrPc} {
     removeFile test1
     removeFile pipe
     set f1 [open pipe w]
@@ -767,7 +820,7 @@ test io-7.13 {Tcl_Write to a pipe, line buffered} {unixOrPc} {
     close $f2
     set y
 } ok
-test io-7.14 {Tcl_Write, buffering and implicit flush at close} {
+test io-6.14 {Tcl_Write, buffering and implicit flush at close} {
     removeFile test3
     set f [open test3 w]
     puts -nonewline $f "Text1"
@@ -779,7 +832,7 @@ test io-7.14 {Tcl_Write, buffering and implicit flush at close} {
     close $f
     set x
 } {Text1 Text 2 Text 3}
-test io-7.15 {Tcl_Flush, channel not open for writing} {
+test io-6.15 {Tcl_Flush, channel not open for writing} {
     removeFile test1
     set fd [open test1 w]
     close $fd
@@ -789,14 +842,14 @@ test io-7.15 {Tcl_Flush, channel not open for writing} {
     string compare $x \
 	[list 1 "channel \"$fd\" wasn't opened for writing"]
 } 0
-test io-7.16 {Tcl_Flush on pipe opened only for reading} {unixOrPc unixExecs} {
+test io-6.16 {Tcl_Flush on pipe opened only for reading} {unixOrPc unixExecs} {
     set fd [open "|cat longfile" r]
     set x [list [catch {flush $fd} msg] $msg]
     catch {close $fd}
     string compare $x \
 	[list 1 "channel \"$fd\" wasn't opened for writing"]
 } 0
-test io-7.17 {Tcl_Write buffers, then Tcl_Flush flushes} {
+test io-6.17 {Tcl_Write buffers, then Tcl_Flush flushes} {
     removeFile test1
     set f1 [open test1 w]
     fconfigure $f1 -translation lf
@@ -808,7 +861,7 @@ test io-7.17 {Tcl_Write buffers, then Tcl_Flush flushes} {
     close $f1
     set x
 } 18
-test io-7.18 {Tcl_Write and Tcl_Flush intermixed} {
+test io-6.18 {Tcl_Write and Tcl_Flush intermixed} {
     removeFile test1
     set x ""
     set f1 [open test1 w]
@@ -827,7 +880,7 @@ test io-7.18 {Tcl_Write and Tcl_Flush intermixed} {
     close $f1
     set x
 } {18 24 30}
-test io-7.19 {Explicit and implicit flushes} {
+test io-6.19 {Explicit and implicit flushes} {
     removeFile test1
     set f1 [open test1 w]
     fconfigure $f1 -translation lf -eofchar {}
@@ -845,7 +898,7 @@ test io-7.19 {Explicit and implicit flushes} {
     lappend x [file size test1]
     set x
 } {18 24 30}
-test io-7.20 {Implicit flush when buffer is full} {
+test io-6.20 {Implicit flush when buffer is full} {
     removeFile test1
     set f1 [open test1 w]
     fconfigure $f1 -translation lf -eofchar {}
@@ -863,7 +916,7 @@ test io-7.20 {Implicit flush when buffer is full} {
     lappend z [file size test1]
     set z
 } {4096 12288 12600}
-test io-7.21 {Tcl_Flush to pipe} {unixOrPc} {
+test io-6.21 {Tcl_Flush to pipe} {unixOrPc} {
     removeFile pipe
     set f1 [open pipe w]
     puts $f1 {set x [read stdin 6]}
@@ -877,7 +930,7 @@ test io-7.21 {Tcl_Flush to pipe} {unixOrPc} {
     catch {close $f1}
     set x
 } "read 6 characters"
-test io-7.22 {Tcl_Flush called at other end of pipe} {unixOrPc} {
+test io-6.22 {Tcl_Flush called at other end of pipe} {unixOrPc} {
     removeFile pipe
     set f1 [open pipe w]
     puts $f1 {
@@ -900,7 +953,7 @@ test io-7.22 {Tcl_Flush called at other end of pipe} {unixOrPc} {
     close $f1
     set x
 } {hello hello bye}
-test io-7.23 {Tcl_Flush and line buffering at end of pipe} {unixOrPc} {
+test io-6.23 {Tcl_Flush and line buffering at end of pipe} {unixOrPc} {
     removeFile pipe
     set f1 [open pipe w]
     puts $f1 {
@@ -920,7 +973,7 @@ test io-7.23 {Tcl_Flush and line buffering at end of pipe} {unixOrPc} {
     close $f1
     set x
 } {hello hello bye}
-test io-7.24 {Tcl_Write and Tcl_Flush move end of file} {
+test io-6.24 {Tcl_Write and Tcl_Flush move end of file} {
     set f [open test3 w]
     puts $f "Line 1"
     puts $f "Line 2"
@@ -936,7 +989,7 @@ test io-7.24 {Tcl_Write and Tcl_Flush move end of file} {
     set x
 } {{} {Line 1
 Line 2}}
-test io-7.25 {Implicit flush with Tcl_Flush to command pipelines} {unixOrPc unixExecs} {
+test io-6.25 {Implicit flush with Tcl_Flush to command pipelines} {unixOrPc unixExecs} {
     removeFile test3
     set f [open "| cat | cat > test3" w]
     puts $f "Line 1"
@@ -950,7 +1003,7 @@ test io-7.25 {Implicit flush with Tcl_Flush to command pipelines} {unixOrPc unix
 } {Line 1
 Line 2
 }    
-test io-7.26 {Tcl_Flush, Tcl_Write on bidirectional pipelines} {unixOrPc unixExecs} {
+test io-6.26 {Tcl_Flush, Tcl_Write on bidirectional pipelines} {unixOrPc unixExecs} {
     set f [open "| cat -u" r+]
     puts $f "Line1"
     flush $f
@@ -958,7 +1011,7 @@ test io-7.26 {Tcl_Flush, Tcl_Write on bidirectional pipelines} {unixOrPc unixExe
     close $f
     set x
 } {Line1}
-test io-7.27 {Tcl_Flush on closed pipeline} {unixOrPc tempNotPc} {
+test io-6.27 {Tcl_Flush on closed pipeline} {unixOrPc tempNotPc} {
     removeFile pipe
     set f [open pipe w]
     puts $f {exit}
@@ -986,7 +1039,7 @@ test io-7.27 {Tcl_Flush on closed pipeline} {unixOrPc tempNotPc} {
     regsub {".*":} $x {"":} x
     string tolower $x
 } {1 {error flushing "": broken pipe} {posix epipe {broken pipe}}}
-test io-7.28 {Tcl_Write, lf mode} {
+test io-6.28 {Tcl_Write, lf mode} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf -eofchar {}
@@ -996,7 +1049,7 @@ test io-7.28 {Tcl_Write, lf mode} {
     close $f
     set s
 } 21
-test io-7.29 {Tcl_Write, cr mode} {
+test io-6.29 {Tcl_Write, cr mode} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation cr -eofchar {}
@@ -1004,7 +1057,7 @@ test io-7.29 {Tcl_Write, cr mode} {
     close $f
     file size test1
 } 21
-test io-7.30 {Tcl_Write, crlf mode} {
+test io-6.30 {Tcl_Write, crlf mode} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation crlf -eofchar {}
@@ -1012,7 +1065,7 @@ test io-7.30 {Tcl_Write, crlf mode} {
     close $f
     file size test1
 } 25
-test io-7.31 {Tcl_Write, background flush} {unixOrPc} {
+test io-6.31 {Tcl_Write, background flush} {unixOrPc} {
     removeFile pipe
     removeFile output
     set f [open pipe w]
@@ -1048,7 +1101,7 @@ test io-7.31 {Tcl_Write, background flush} {unixOrPc} {
         set result ok
     }
 } ok
-test io-7.32 {Tcl_Write, background flush to slow reader} {unixOrPc asyncPipeClose} {
+test io-6.32 {Tcl_Write, background flush to slow reader} {unixOrPc asyncPipeClose} {
     removeFile pipe
     removeFile output
     set f [open pipe w]
@@ -1085,7 +1138,7 @@ test io-7.32 {Tcl_Write, background flush to slow reader} {unixOrPc asyncPipeClo
         set result ok
     }
 } ok
-test io-7.33 {Tcl_Flush, implicit flush on exit} {unixOrPc} {
+test io-6.33 {Tcl_Flush, implicit flush on exit} {unixOrPc} {
     set f [open script w]
     puts $f {
 	set f [open test1 w]
@@ -1104,7 +1157,8 @@ test io-7.33 {Tcl_Flush, implicit flush on exit} {unixOrPc} {
 bye
 strange
 }
-test io-7.34 {Tcl_Close, async flush on close, using sockets} {
+
+test io-6.34 {Tcl_Close, async flush on close, using sockets} {tempNotMac} {
     set c 0
     set x running
     set l abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz
@@ -1140,7 +1194,7 @@ test io-7.34 {Tcl_Close, async flush on close, using sockets} {
     vwait x
     set c
 } 2000
-test io-7.35 {Tcl_Close vs fileevent vs multiple interpreters} {
+test io-6.35 {Tcl_Close vs fileevent vs multiple interpreters} {
     catch {interp delete x}
     catch {interp delete y}
     interp create x
@@ -1181,7 +1235,7 @@ test io-7.35 {Tcl_Close vs fileevent vs multiple interpreters} {
 
 # Test end of line translations. Procedures tested are Tcl_Write, Tcl_Read.
 
-test io-8.1 {Tcl_Write lf, Tcl_Read lf} {
+test io-7.1 {Tcl_Write lf, Tcl_Read lf} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf
@@ -1193,7 +1247,7 @@ test io-8.1 {Tcl_Write lf, Tcl_Read lf} {
     close $f
     set x
 } "hello\nthere\nand\nhere\n"
-test io-8.2 {Tcl_Write lf, Tcl_Read cr} {
+test io-7.2 {Tcl_Write lf, Tcl_Read cr} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf
@@ -1205,7 +1259,7 @@ test io-8.2 {Tcl_Write lf, Tcl_Read cr} {
     close $f
     set x
 } "hello\nthere\nand\nhere\n"
-test io-8.3 {Tcl_Write lf, Tcl_Read crlf} {
+test io-7.3 {Tcl_Write lf, Tcl_Read crlf} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf
@@ -1217,7 +1271,7 @@ test io-8.3 {Tcl_Write lf, Tcl_Read crlf} {
     close $f
     set x
 } "hello\nthere\nand\nhere\n"
-test io-8.4 {Tcl_Write cr, Tcl_Read cr} {
+test io-7.4 {Tcl_Write cr, Tcl_Read cr} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation cr
@@ -1229,7 +1283,7 @@ test io-8.4 {Tcl_Write cr, Tcl_Read cr} {
     close $f
     set x
 } "hello\nthere\nand\nhere\n"
-test io-8.5 {Tcl_Write cr, Tcl_Read lf} {
+test io-7.5 {Tcl_Write cr, Tcl_Read lf} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation cr
@@ -1241,7 +1295,7 @@ test io-8.5 {Tcl_Write cr, Tcl_Read lf} {
     close $f
     set x
 } "hello\rthere\rand\rhere\r"
-test io-8.6 {Tcl_Write cr, Tcl_Read crlf} {
+test io-7.6 {Tcl_Write cr, Tcl_Read crlf} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation cr
@@ -1253,7 +1307,7 @@ test io-8.6 {Tcl_Write cr, Tcl_Read crlf} {
     close $f
     set x 
 } "hello\rthere\rand\rhere\r"
-test io-8.7 {Tcl_Write crlf, Tcl_Read crlf} {
+test io-7.7 {Tcl_Write crlf, Tcl_Read crlf} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation crlf
@@ -1265,7 +1319,7 @@ test io-8.7 {Tcl_Write crlf, Tcl_Read crlf} {
     close $f
     set x
 } "hello\nthere\nand\nhere\n"
-test io-8.8 {Tcl_Write crlf, Tcl_Read lf} {
+test io-7.8 {Tcl_Write crlf, Tcl_Read lf} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation crlf
@@ -1277,7 +1331,7 @@ test io-8.8 {Tcl_Write crlf, Tcl_Read lf} {
     close $f
     set x
 } "hello\r\nthere\r\nand\r\nhere\r\n"
-test io-8.9 {Tcl_Write crlf, Tcl_Read cr} {
+test io-7.9 {Tcl_Write crlf, Tcl_Read cr} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation crlf
@@ -1289,7 +1343,7 @@ test io-8.9 {Tcl_Write crlf, Tcl_Read cr} {
     close $f
     set x
 } "hello\n\nthere\n\nand\n\nhere\n\n"
-test io-8.10 {Tcl_Write lf, Tcl_Read auto} {
+test io-7.10 {Tcl_Write lf, Tcl_Read auto} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf
@@ -1305,7 +1359,7 @@ there
 and
 here
 } auto}
-test io-8.11 {Tcl_Write cr, Tcl_Read auto} {
+test io-7.11 {Tcl_Write cr, Tcl_Read auto} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation cr
@@ -1321,7 +1375,7 @@ there
 and
 here
 } auto}
-test io-8.12 {Tcl_Write crlf, Tcl_Read auto} {
+test io-7.12 {Tcl_Write crlf, Tcl_Read auto} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation crlf
@@ -1338,7 +1392,7 @@ and
 here
 } auto}
 
-test io-8.13 {Tcl_Write crlf on block boundary, Tcl_Read auto} {
+test io-7.13 {Tcl_Write crlf on block boundary, Tcl_Read auto} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation crlf
@@ -1355,7 +1409,7 @@ test io-8.13 {Tcl_Write crlf on block boundary, Tcl_Read auto} {
     string length $c
 } [expr 700*15+1]
 
-test io-8.14 {Tcl_Write crlf on block boundary, Tcl_Read crlf} {
+test io-7.14 {Tcl_Write crlf on block boundary, Tcl_Read crlf} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation crlf
@@ -1372,7 +1426,7 @@ test io-8.14 {Tcl_Write crlf on block boundary, Tcl_Read crlf} {
     string length $c
 } [expr 700*15+1]
 
-test io-8.15 {Tcl_Write mixed, Tcl_Read auto} {
+test io-7.15 {Tcl_Write mixed, Tcl_Read auto} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf
@@ -1388,7 +1442,7 @@ there
 and
 here
 }
-test io-8.16 {Tcl_Write ^Z at end, Tcl_Read auto} {
+test io-7.16 {Tcl_Write ^Z at end, Tcl_Read auto} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf
@@ -1404,7 +1458,7 @@ there
 and
 here
 }
-test io-8.17 {Tcl_Write, implicit ^Z at end, Tcl_Read auto} {pcOnly} {
+test io-7.17 {Tcl_Write, implicit ^Z at end, Tcl_Read auto} {pcOnly} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -eofchar \x1a -translation lf
@@ -1420,7 +1474,7 @@ there
 and
 here
 }
-test io-8.18 {Tcl_Write, ^Z in middle, Tcl_Read auto} {
+test io-7.18 {Tcl_Write, ^Z in middle, Tcl_Read auto} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf
@@ -1440,7 +1494,7 @@ test io-8.18 {Tcl_Write, ^Z in middle, Tcl_Read auto} {
     close $f
     set l
 } {abc def 0 {} 1 {} 1}
-test io-8.19 {Tcl_Write, ^Z no newline in middle, Tcl_Read auto} {
+test io-7.19 {Tcl_Write, ^Z no newline in middle, Tcl_Read auto} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf
@@ -1460,7 +1514,7 @@ test io-8.19 {Tcl_Write, ^Z no newline in middle, Tcl_Read auto} {
     close $f
     set l
 } {abc def 0 {} 1 {} 1}
-test io-8.20 {Tcl_Write, ^Z in middle ignored, Tcl_Read lf} {
+test io-7.20 {Tcl_Write, ^Z in middle ignored, Tcl_Read lf} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf -eofchar {}
@@ -1482,7 +1536,7 @@ test io-8.20 {Tcl_Write, ^Z in middle ignored, Tcl_Read lf} {
     close $f
     set l
 } "abc def 0 \x1aghi 0 qrs 0 {} 1"
-test io-8.21 {Tcl_Write, ^Z in middle ignored, Tcl_Read cr} {
+test io-7.21 {Tcl_Write, ^Z in middle ignored, Tcl_Read cr} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf -eofchar {}
@@ -1500,7 +1554,7 @@ test io-8.21 {Tcl_Write, ^Z in middle ignored, Tcl_Read cr} {
     close $f
     set l
 } {0 1 {} 1}
-test io-8.22 {Tcl_Write, ^Z in middle ignored, Tcl_Read crlf} {
+test io-7.22 {Tcl_Write, ^Z in middle ignored, Tcl_Read crlf} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf -eofchar {}
@@ -1518,7 +1572,7 @@ test io-8.22 {Tcl_Write, ^Z in middle ignored, Tcl_Read crlf} {
     close $f
     set l
 } {0 1 {} 1}
-test io-8.23 {Tcl_Write lf, ^Z in middle, Tcl_Read auto} {
+test io-7.23 {Tcl_Write lf, ^Z in middle, Tcl_Read auto} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf
@@ -1532,7 +1586,7 @@ test io-8.23 {Tcl_Write lf, ^Z in middle, Tcl_Read auto} {
     close $f
     list $c $e
 } {8 1}
-test io-8.24 {Tcl_Write lf, ^Z in middle, Tcl_Read lf} {
+test io-7.24 {Tcl_Write lf, ^Z in middle, Tcl_Read lf} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf
@@ -1546,7 +1600,7 @@ test io-8.24 {Tcl_Write lf, ^Z in middle, Tcl_Read lf} {
     close $f
     list $c $e
 } {8 1}
-test io-8.25 {Tcl_Write cr, ^Z in middle, Tcl_Read auto} {
+test io-7.25 {Tcl_Write cr, ^Z in middle, Tcl_Read auto} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation cr
@@ -1560,7 +1614,7 @@ test io-8.25 {Tcl_Write cr, ^Z in middle, Tcl_Read auto} {
     close $f
     list $c $e
 } {8 1}
-test io-8.26 {Tcl_Write cr, ^Z in middle, Tcl_Read cr} {
+test io-7.26 {Tcl_Write cr, ^Z in middle, Tcl_Read cr} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation cr
@@ -1574,7 +1628,7 @@ test io-8.26 {Tcl_Write cr, ^Z in middle, Tcl_Read cr} {
     close $f
     list $c $e
 } {8 1}
-test io-8.27 {Tcl_Write crlf, ^Z in middle, Tcl_Read auto} {
+test io-7.27 {Tcl_Write crlf, ^Z in middle, Tcl_Read auto} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation crlf
@@ -1588,7 +1642,7 @@ test io-8.27 {Tcl_Write crlf, ^Z in middle, Tcl_Read auto} {
     close $f
     list $c $e
 } {8 1}
-test io-8.28 {Tcl_Write crlf, ^Z in middle, Tcl_Read crlf} {
+test io-7.28 {Tcl_Write crlf, ^Z in middle, Tcl_Read crlf} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation crlf
@@ -1605,7 +1659,7 @@ test io-8.28 {Tcl_Write crlf, ^Z in middle, Tcl_Read crlf} {
 
 # Test end of line translations. Functions tested are Tcl_Write and Tcl_Gets.
 
-test io-9.1 {Tcl_Write lf, Tcl_Gets auto} {
+test io-8.1 {Tcl_Write lf, Tcl_Gets auto} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf
@@ -1622,7 +1676,7 @@ test io-9.1 {Tcl_Write lf, Tcl_Gets auto} {
     close $f
     set l
 } {hello 6 auto there 12 auto}
-test io-9.2 {Tcl_Write cr, Tcl_Gets auto} {
+test io-8.2 {Tcl_Write cr, Tcl_Gets auto} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation cr
@@ -1639,7 +1693,7 @@ test io-9.2 {Tcl_Write cr, Tcl_Gets auto} {
     close $f
     set l
 } {hello 6 auto there 12 auto}
-test io-9.3 {Tcl_Write crlf, Tcl_Gets auto} {
+test io-8.3 {Tcl_Write crlf, Tcl_Gets auto} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation crlf
@@ -1656,7 +1710,7 @@ test io-9.3 {Tcl_Write crlf, Tcl_Gets auto} {
     close $f
     set l
 } {hello 7 auto there 14 auto}
-test io-9.4 {Tcl_Write lf, Tcl_Gets lf} {
+test io-8.4 {Tcl_Write lf, Tcl_Gets lf} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf
@@ -1674,7 +1728,7 @@ test io-9.4 {Tcl_Write lf, Tcl_Gets lf} {
     close $f
     set l
 } {hello 6 lf there 12 lf}
-test io-9.5 {Tcl_Write lf, Tcl_Gets cr} {
+test io-8.5 {Tcl_Write lf, Tcl_Gets cr} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf
@@ -1694,7 +1748,7 @@ test io-9.5 {Tcl_Write lf, Tcl_Gets cr} {
     close $f
     set l
 } {20 21 cr 1 {} 21 cr 1}
-test io-9.6 {Tcl_Write lf, Tcl_Gets crlf} {
+test io-8.6 {Tcl_Write lf, Tcl_Gets crlf} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf
@@ -1714,7 +1768,7 @@ test io-9.6 {Tcl_Write lf, Tcl_Gets crlf} {
     close $f
     set l
 } {20 21 crlf 1 {} 21 crlf 1}
-test io-9.7 {Tcl_Write cr, Tcl_Gets cr} {
+test io-8.7 {Tcl_Write cr, Tcl_Gets cr} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation cr
@@ -1734,7 +1788,7 @@ test io-9.7 {Tcl_Write cr, Tcl_Gets cr} {
     close $f
     set l
 } {hello 6 cr 0 there 12 cr 0}
-test io-9.8 {Tcl_Write cr, Tcl_Gets lf} {
+test io-8.8 {Tcl_Write cr, Tcl_Gets lf} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation cr
@@ -1754,7 +1808,7 @@ test io-9.8 {Tcl_Write cr, Tcl_Gets lf} {
     close $f
     set l
 } {21 21 lf 1 {} 21 lf 1}
-test io-9.9 {Tcl_Write cr, Tcl_Gets crlf} {
+test io-8.9 {Tcl_Write cr, Tcl_Gets crlf} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation cr
@@ -1774,7 +1828,7 @@ test io-9.9 {Tcl_Write cr, Tcl_Gets crlf} {
     close $f
     set l
 } {21 21 crlf 1 {} 21 crlf 1}
-test io-9.10 {Tcl_Write crlf, Tcl_Gets crlf} {
+test io-8.10 {Tcl_Write crlf, Tcl_Gets crlf} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation crlf
@@ -1794,7 +1848,7 @@ test io-9.10 {Tcl_Write crlf, Tcl_Gets crlf} {
     close $f
     set l
 } {hello 7 crlf 0 there 14 crlf 0}
-test io-9.11 {Tcl_Write crlf, Tcl_Gets cr} {
+test io-8.11 {Tcl_Write crlf, Tcl_Gets cr} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation crlf
@@ -1814,7 +1868,7 @@ test io-9.11 {Tcl_Write crlf, Tcl_Gets cr} {
     close $f
     set l
 } {hello 6 cr 0 6 13 cr 0}
-test io-9.12 {Tcl_Write crlf, Tcl_Gets lf} {
+test io-8.12 {Tcl_Write crlf, Tcl_Gets lf} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation crlf
@@ -1834,7 +1888,7 @@ test io-9.12 {Tcl_Write crlf, Tcl_Gets lf} {
     close $f
     set l
 } {6 7 lf 0 6 14 lf 0}
-test io-9.13 {binary mode is synonym of lf mode} {
+test io-8.13 {binary mode is synonym of lf mode} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation binary
@@ -1846,7 +1900,7 @@ test io-9.13 {binary mode is synonym of lf mode} {
 # Test io-9.14 has been removed because "auto" output translation mode is
 # not supoprted.
 #
-test io-9.15 {Tcl_Write mixed, Tcl_Gets auto} {
+test io-8.14 {Tcl_Write mixed, Tcl_Gets auto} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf
@@ -1865,7 +1919,7 @@ test io-9.15 {Tcl_Write mixed, Tcl_Gets auto} {
     close $f
     set l
 } {hello there and here 0 {} 1}
-test io-9.16 {Tcl_Write mixed, Tcl_Gets auto} {
+test io-8.15 {Tcl_Write mixed, Tcl_Gets auto} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf
@@ -1884,7 +1938,7 @@ test io-9.16 {Tcl_Write mixed, Tcl_Gets auto} {
     close $f
     set l
 } {hello there and here 0 {} 1}
-test io-9.17 {Tcl_Write mixed, Tcl_Gets auto} {
+test io-8.16 {Tcl_Write mixed, Tcl_Gets auto} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf
@@ -1902,7 +1956,7 @@ test io-9.17 {Tcl_Write mixed, Tcl_Gets auto} {
     close $f
     set l
 } {hello there and here 0 {} 1}
-test io-9.18 {Tcl_Write mixed, Tcl_Gets auto} {
+test io-8.17 {Tcl_Write mixed, Tcl_Gets auto} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf
@@ -1921,7 +1975,7 @@ test io-9.18 {Tcl_Write mixed, Tcl_Gets auto} {
     close $f
     set l
 } {hello there and here 0 {} 1}
-test io-9.19 {Tcl_Write ^Z at end, Tcl_Gets auto} {
+test io-8.18 {Tcl_Write ^Z at end, Tcl_Gets auto} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf
@@ -1941,7 +1995,7 @@ test io-9.19 {Tcl_Write ^Z at end, Tcl_Gets auto} {
     close $f
     set l
 } {hello there and here 0 {} 1}
-test io-9.20 {Tcl_Write, implicit ^Z at end, Tcl_Gets auto} {
+test io-8.19 {Tcl_Write, implicit ^Z at end, Tcl_Gets auto} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -eofchar \x1a -translation lf
@@ -1960,7 +2014,7 @@ test io-9.20 {Tcl_Write, implicit ^Z at end, Tcl_Gets auto} {
     close $f
     set l
 } {hello there and here 0 {} 1}
-test io-9.21 {Tcl_Write, ^Z in middle, Tcl_Gets auto, eofChar} {
+test io-8.20 {Tcl_Write, ^Z in middle, Tcl_Gets auto, eofChar} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf
@@ -1979,7 +2033,7 @@ test io-9.21 {Tcl_Write, ^Z in middle, Tcl_Gets auto, eofChar} {
     close $f
     set l
 } {abc def 0 {} 1}
-test io-9.22 {Tcl_Write, no newline ^Z in middle, Tcl_Gets auto, eofChar} {
+test io-8.21 {Tcl_Write, no newline ^Z in middle, Tcl_Gets auto, eofChar} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf
@@ -1997,7 +2051,7 @@ test io-9.22 {Tcl_Write, no newline ^Z in middle, Tcl_Gets auto, eofChar} {
     close $f
     set l
 } {abc def 0 {} 1}
-test io-9.23 {Tcl_Write, ^Z in middle ignored, Tcl_Gets lf} {
+test io-8.22 {Tcl_Write, ^Z in middle ignored, Tcl_Gets lf} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf -eofchar {}
@@ -2019,7 +2073,7 @@ test io-9.23 {Tcl_Write, ^Z in middle ignored, Tcl_Gets lf} {
     close $f
     set l
 } "abc def 0 \x1aqrs 0 tuv 0 {} 1"
-test io-9.24 {Tcl_Write, ^Z in middle ignored, Tcl_Gets cr} {
+test io-8.23 {Tcl_Write, ^Z in middle ignored, Tcl_Gets cr} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation cr -eofchar {}
@@ -2041,7 +2095,7 @@ test io-9.24 {Tcl_Write, ^Z in middle ignored, Tcl_Gets cr} {
     close $f
     set l
 } "abc def 0 \x1aqrs 0 tuv 0 {} 1"
-test io-9.25 {Tcl_Write, ^Z in middle ignored, Tcl_Gets crlf} {
+test io-8.24 {Tcl_Write, ^Z in middle ignored, Tcl_Gets crlf} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation crlf -eofchar {}
@@ -2063,7 +2117,7 @@ test io-9.25 {Tcl_Write, ^Z in middle ignored, Tcl_Gets crlf} {
     close $f
     set l
 } "abc def 0 \x1aqrs 0 tuv 0 {} 1"
-test io-9.26 {Tcl_Write lf, ^Z in middle, Tcl_Gets auto} {
+test io-8.25 {Tcl_Write lf, ^Z in middle, Tcl_Gets auto} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf
@@ -2081,7 +2135,7 @@ test io-9.26 {Tcl_Write lf, ^Z in middle, Tcl_Gets auto} {
     close $f
     set l
 } {abc def 0 {} 1}
-test io-9.27 {Tcl_Write lf, ^Z in middle, Tcl_Gets lf} {
+test io-8.26 {Tcl_Write lf, ^Z in middle, Tcl_Gets lf} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf
@@ -2099,7 +2153,7 @@ test io-9.27 {Tcl_Write lf, ^Z in middle, Tcl_Gets lf} {
     close $f
     set l
 } {abc def 0 {} 1}
-test io-9.28 {Tcl_Write cr, ^Z in middle, Tcl_Gets auto} {
+test io-8.27 {Tcl_Write cr, ^Z in middle, Tcl_Gets auto} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation cr -eofchar {}
@@ -2117,7 +2171,7 @@ test io-9.28 {Tcl_Write cr, ^Z in middle, Tcl_Gets auto} {
     close $f
     set l
 } {abc def 0 {} 1}
-test io-9.29 {Tcl_Write cr, ^Z in middle, Tcl_Gets cr} {
+test io-8.28 {Tcl_Write cr, ^Z in middle, Tcl_Gets cr} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation cr -eofchar {}
@@ -2135,7 +2189,7 @@ test io-9.29 {Tcl_Write cr, ^Z in middle, Tcl_Gets cr} {
     close $f
     set l
 } {abc def 0 {} 1}
-test io-9.30 {Tcl_Write crlf, ^Z in middle, Tcl_Gets auto} {
+test io-8.29 {Tcl_Write crlf, ^Z in middle, Tcl_Gets auto} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation crlf -eofchar {}
@@ -2153,7 +2207,7 @@ test io-9.30 {Tcl_Write crlf, ^Z in middle, Tcl_Gets auto} {
     close $f
     set l
 } {abc def 0 {} 1}
-test io-9.31 {Tcl_Write crlf, ^Z in middle, Tcl_Gets crlf} {
+test io-8.30 {Tcl_Write crlf, ^Z in middle, Tcl_Gets crlf} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation crlf -eofchar {}
@@ -2171,7 +2225,7 @@ test io-9.31 {Tcl_Write crlf, ^Z in middle, Tcl_Gets crlf} {
     close $f
     set l
 } {abc def 0 {} 1}
-test io-9.32 {Tcl_Write crlf on block boundary, Tcl_Gets auto} {
+test io-8.31 {Tcl_Write crlf on block boundary, Tcl_Gets auto} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation crlf
@@ -2190,7 +2244,7 @@ test io-9.32 {Tcl_Write crlf on block boundary, Tcl_Gets auto} {
     close $f
     string length $c
 } [expr 700*15+1]
-test io-9.33 {Tcl_Write crlf on block boundary, Tcl_Gets auto} {
+test io-8.32 {Tcl_Write crlf on block boundary, Tcl_Gets auto} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation crlf
@@ -2213,19 +2267,19 @@ test io-9.33 {Tcl_Write crlf on block boundary, Tcl_Gets auto} {
 
 # Test Tcl_Read and buffering.
 
-test io-10.1 {Tcl_Read, channel not readable} {
+test io-9.1 {Tcl_Read, channel not readable} {
     list [catch {read stdout} msg] $msg
 } {1 {channel "stdout" wasn't opened for reading}}
-test io-10.2 {Tcl_Read, zero byte count} {
+test io-9.2 {Tcl_Read, zero byte count} {
     read stdin 0
 } ""
-test io-10.3 {Tcl_Read, negative byte count} {
+test io-9.3 {Tcl_Read, negative byte count} {
     set f [open longfile r]
     set l [list [catch {read $f -1} msg] $msg]
     close $f
     set l
 } {1 {bad argument "-1": should be "nonewline"}}
-test io-10.4 {Tcl_Read, positive byte count} {
+test io-9.4 {Tcl_Read, positive byte count} {
     set f [open longfile r]
     set x [read $f 1024]
     set s [string length $x]
@@ -2233,7 +2287,7 @@ test io-10.4 {Tcl_Read, positive byte count} {
     close $f
     set s
 } 1024
-test io-10.5 {Tcl_Read, multiple buffers} {
+test io-9.5 {Tcl_Read, multiple buffers} {
     set f [open longfile r]
     fconfigure $f -buffersize 100
     set x [read $f 1024]
@@ -2242,7 +2296,7 @@ test io-10.5 {Tcl_Read, multiple buffers} {
     close $f
     set s
 } 1024
-test io-10.6 {Tcl_Read, very large read} {
+test io-9.6 {Tcl_Read, very large read} {
     set f1 [open longfile r]
     set z [read $f1 1000000]
     close $f1
@@ -2254,7 +2308,7 @@ test io-10.6 {Tcl_Read, very large read} {
     }
     set x
 } ok
-test io-10.7 {Tcl_Read, nonblocking, file} {nonBlockFiles} {
+test io-9.7 {Tcl_Read, nonblocking, file} {nonBlockFiles} {
     set f1 [open longfile r]
     fconfigure $f1 -blocking off
     set z [read $f1 20]
@@ -2266,7 +2320,7 @@ test io-10.7 {Tcl_Read, nonblocking, file} {nonBlockFiles} {
     }
     set x
 } ok
-test io-10.8 {Tcl_Read, nonblocking, file} {nonBlockFiles} {
+test io-9.8 {Tcl_Read, nonblocking, file} {nonBlockFiles} {
     set f1 [open longfile r]
     fconfigure $f1 -blocking off
     set z [read $f1 1000000]
@@ -2279,7 +2333,7 @@ test io-10.8 {Tcl_Read, nonblocking, file} {nonBlockFiles} {
     }
   set x
 } ok
-test io-10.9 {Tcl_Read, read to end of file} {
+test io-9.9 {Tcl_Read, read to end of file} {
     set f1 [open longfile r]
     set z [read $f1]
     close $f1
@@ -2291,7 +2345,7 @@ test io-10.9 {Tcl_Read, read to end of file} {
     }
     set x
 } ok
-test io-10.10 {Tcl_Read from a pipe} {unixOrPc} {
+test io-9.10 {Tcl_Read from a pipe} {unixOrPc} {
     removeFile pipe
     set f1 [open pipe w]
     puts $f1 {puts [gets stdin]}
@@ -2303,7 +2357,7 @@ test io-10.10 {Tcl_Read from a pipe} {unixOrPc} {
     close $f1
     set x
 } "hello\n"
-test io-10.11 {Tcl_Read from a pipe} {unixOrPc} {
+test io-9.11 {Tcl_Read from a pipe} {unixOrPc} {
     removeFile pipe
     set f1 [open pipe w]
     puts $f1 {puts [gets stdin]}
@@ -2322,7 +2376,7 @@ test io-10.11 {Tcl_Read from a pipe} {unixOrPc} {
 } {{hello
 } {hello
 }}
-test io-10.12 {Tcl_Read, -nonewline} {
+test io-9.12 {Tcl_Read, -nonewline} {
     removeFile test1
     set f1 [open test1 w]
     puts $f1 hello
@@ -2334,7 +2388,7 @@ test io-10.12 {Tcl_Read, -nonewline} {
     set c
 } {hello
 bye}
-test io-10.13 {Tcl_Read, -nonewline} {
+test io-9.13 {Tcl_Read, -nonewline} {
     removeFile test1
     set f1 [open test1 w]
     puts $f1 hello
@@ -2346,7 +2400,7 @@ test io-10.13 {Tcl_Read, -nonewline} {
     list [string length $c] $c
 } {9 {hello
 bye}}
-test io-10.14 {Tcl_Read, reading in small chunks} {
+test io-9.14 {Tcl_Read, reading in small chunks} {
     removeFile test1
     set f [open test1 w]
     puts $f "Two lines: this one"
@@ -2359,7 +2413,7 @@ test io-10.14 {Tcl_Read, reading in small chunks} {
 } {T wo { lines: this one
 and this one
 }}
-test io-10.15 {Tcl_Read, asking for more input than available} {
+test io-9.15 {Tcl_Read, asking for more input than available} {
     removeFile test1
     set f [open test1 w]
     puts $f "Two lines: this one"
@@ -2372,7 +2426,7 @@ test io-10.15 {Tcl_Read, asking for more input than available} {
 } {Two lines: this one
 and this one
 }
-test io-10.16 {Tcl_Read, read to end of file with -nonewline} {
+test io-9.16 {Tcl_Read, read to end of file with -nonewline} {
     removeFile test1
     set f [open test1 w]
     puts $f "Two lines: this one"
@@ -2387,7 +2441,7 @@ and this one}
 
 # Test Tcl_Gets.
 
-test io-11.1 {Tcl_Gets, reading what was written} {
+test io-10.1 {Tcl_Gets, reading what was written} {
     removeFile test1
     set f1 [open test1 w]
     set y "first line"
@@ -2402,7 +2456,7 @@ test io-11.1 {Tcl_Gets, reading what was written} {
     close $f1
     set z
 } ok
-test io-11.2 {Tcl_Gets into variable} {
+test io-10.2 {Tcl_Gets into variable} {
     set f1 [open longfile r]
     set c [gets $f1 x]
     set l [string length x]
@@ -2413,7 +2467,7 @@ test io-11.2 {Tcl_Gets into variable} {
     close $f1
     set z
 } ok
-test io-11.3 {Tcl_Gets from pipe} {unixOrPc} {
+test io-10.3 {Tcl_Gets from pipe} {unixOrPc} {
     removeFile pipe
     set f1 [open pipe w]
     puts $f1 {puts [gets stdin]}
@@ -2429,7 +2483,7 @@ test io-11.3 {Tcl_Gets from pipe} {unixOrPc} {
     }
     set z
 } ok
-test io-11.4 {Tcl_Gets with long line} {
+test io-10.4 {Tcl_Gets with long line} {
     removeFile test3
     set f [open test3 w]
     puts -nonewline $f "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -2443,13 +2497,13 @@ test io-11.4 {Tcl_Gets with long line} {
     close $f
     set x
 } {abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ}
-test io-11.5 {Tcl_Gets with long line} {
+test io-10.5 {Tcl_Gets with long line} {
     set f [open test3]
     set x [gets $f y]
     close $f
     list $x $y
 } {260 abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ}
-test io-11.6 {Tcl_Gets and end of file} {
+test io-10.6 {Tcl_Gets and end of file} {
     removeFile test3
     set f [open test3 w]
     puts -nonewline $f "Test1\nTest2"
@@ -2465,7 +2519,7 @@ test io-11.6 {Tcl_Gets and end of file} {
     close $f
     set x
 } {5 Test1 5 Test2 -1 {}}
-test io-11.7 {Tcl_Gets and bad variable} {
+test io-10.7 {Tcl_Gets and bad variable} {
     set f [open test3 w]
     puts $f "Line 1"
     puts $f "Line 2"
@@ -2477,7 +2531,7 @@ test io-11.7 {Tcl_Gets and bad variable} {
     close $f
     set result
 } {1 {can't set "x(0)": variable isn't array}}
-test io-11.8 {Tcl_Gets, exercising double buffering} {
+test io-10.8 {Tcl_Gets, exercising double buffering} {
     set f [open test3 w]
     fconfigure $f -translation lf -eofchar {}
     set x ""
@@ -2490,7 +2544,7 @@ test io-11.8 {Tcl_Gets, exercising double buffering} {
     close $f
     set y
 } 100
-test io-11.9 {Tcl_Gets, exercising double buffering} {
+test io-10.9 {Tcl_Gets, exercising double buffering} {
     set f [open test3 w]
     fconfigure $f -translation lf -eofchar {}
     set x ""
@@ -2503,7 +2557,7 @@ test io-11.9 {Tcl_Gets, exercising double buffering} {
     close $f
     set y
 } 200
-test io-11.10 {Tcl_Gets, exercising double buffering} {
+test io-10.10 {Tcl_Gets, exercising double buffering} {
     set f [open test3 w]
     fconfigure $f -translation lf -eofchar {}
     set x ""
@@ -2519,14 +2573,14 @@ test io-11.10 {Tcl_Gets, exercising double buffering} {
 
 # Test Tcl_Seek and Tcl_Tell.
 
-test io-12.1 {Tcl_Seek to current position at start of file} {
+test io-11.1 {Tcl_Seek to current position at start of file} {
     set f1 [open longfile r]
     seek $f1 0 current
     set c [tell $f1]
     close $f1
     set c
 } 0
-test io-12.2 {Tcl_Seek to offset from start} {
+test io-11.2 {Tcl_Seek to offset from start} {
     removeFile test1
     set f1 [open test1 w]
     fconfigure $f1 -translation lf -eofchar {}
@@ -2539,7 +2593,7 @@ test io-12.2 {Tcl_Seek to offset from start} {
     close $f1
     set c
 } 10
-test io-12.3 {Tcl_Seek to end of file} {
+test io-11.3 {Tcl_Seek to end of file} {
     removeFile test1
     set f1 [open test1 w]
     fconfigure $f1 -translation lf -eofchar {}
@@ -2552,7 +2606,7 @@ test io-12.3 {Tcl_Seek to end of file} {
     close $f1
     set c
 } 54
-test io-12.4 {Tcl_Seek to offset from end of file} {
+test io-11.4 {Tcl_Seek to offset from end of file} {
     removeFile test1
     set f1 [open test1 w]
     fconfigure $f1 -translation lf -eofchar {}
@@ -2565,7 +2619,7 @@ test io-12.4 {Tcl_Seek to offset from end of file} {
     close $f1
     set c
 } 44
-test io-12.5 {Tcl_Seek to offset from current position} {
+test io-11.5 {Tcl_Seek to offset from current position} {
     removeFile test1
     set f1 [open test1 w]
     fconfigure $f1 -translation lf -eofchar {}
@@ -2579,7 +2633,7 @@ test io-12.5 {Tcl_Seek to offset from current position} {
     close $f1
     set c
 } 20
-test io-12.6 {Tcl_Seek to offset from end of file} {
+test io-11.6 {Tcl_Seek to offset from end of file} {
     removeFile test1
     set f1 [open test1 w]
     fconfigure $f1 -translation lf -eofchar {}
@@ -2594,7 +2648,7 @@ test io-12.6 {Tcl_Seek to offset from end of file} {
     list $c $r
 } {44 {rstuvwxyz
 }}
-test io-12.7 {Tcl_Seek to offset from end of file, then to current position} {
+test io-11.7 {Tcl_Seek to offset from end of file, then to current position} {
     removeFile test1
     set f1 [open test1 w]
     fconfigure $f1 -translation lf -eofchar {}
@@ -2610,14 +2664,14 @@ test io-12.7 {Tcl_Seek to offset from end of file, then to current position} {
     close $f1
     list $c1 $r1 $c2
 } {44 rstuv 49}
-test io-12.8 {Tcl_Seek on pipes: not supported} {unixOrPc} {
+test io-11.8 {Tcl_Seek on pipes: not supported} {unixOrPc} {
     set f1 [open "|$tcltest" r+]
     set x [list [catch {seek $f1 0 current} msg] $msg]
     close $f1
     regsub {".*":} $x {"":} x
     string tolower $x
 } {1 {error during seek on "": invalid argument}}
-test io-12.9 {Tcl_Seek, testing buffered input flushing} {
+test io-11.9 {Tcl_Seek, testing buffered input flushing} {
     removeFile test3
     set f [open test3 w]
     fconfigure $f -eofchar {}
@@ -2640,7 +2694,7 @@ test io-12.9 {Tcl_Seek, testing buffered input flushing} {
     close $f
     set x
 } {a d a l Y {} b}
-test io-12.10 {Tcl_Seek testing flushing of buffered input} {
+test io-11.10 {Tcl_Seek testing flushing of buffered input} {
     set f [open test3 w]
     fconfigure $f -translation lf
     puts $f xyz\n123
@@ -2654,7 +2708,7 @@ test io-12.10 {Tcl_Seek testing flushing of buffered input} {
     list $x [viewFile test3]
 } "xyz {xyz
 456}"
-test io-12.11 {Tcl_Seek testing flushing of buffered output} {
+test io-11.11 {Tcl_Seek testing flushing of buffered output} {
     set f [open test3 w]
     puts $f xyz\n123
     close $f
@@ -2665,7 +2719,7 @@ test io-12.11 {Tcl_Seek testing flushing of buffered output} {
     close $f
     list $x [viewFile test3]
 } "zzy xyzzy"
-test io-12.12 {Tcl_Seek testing combination of write, seek back and read} {
+test io-11.12 {Tcl_Seek testing combination of write, seek back and read} {
     set f [open test3 w]
     fconfigure $f -translation lf -eofchar {}
     puts $f xyz\n123
@@ -2682,14 +2736,14 @@ test io-12.12 {Tcl_Seek testing combination of write, seek back and read} {
 } {14 {xyz
 123
 xyzzy} zzy}
-test io-12.13 {Tcl_Tell at start of file} {
+test io-11.13 {Tcl_Tell at start of file} {
     removeFile test1
     set f1 [open test1 w]
     set p [tell $f1]
     close $f1
     set p
 } 0
-test io-12.14 {Tcl_Tell after seek to end of file} {
+test io-11.14 {Tcl_Tell after seek to end of file} {
     removeFile test1
     set f1 [open test1 w]
     fconfigure $f1 -translation lf -eofchar {}
@@ -2702,7 +2756,7 @@ test io-12.14 {Tcl_Tell after seek to end of file} {
     close $f1
     set c1
 } 54
-test io-12.15 {Tcl_Tell combined with seeking} {
+test io-11.15 {Tcl_Tell combined with seeking} {
     removeFile test1
     set f1 [open test1 w]
     fconfigure $f1 -translation lf -eofchar {}
@@ -2717,13 +2771,13 @@ test io-12.15 {Tcl_Tell combined with seeking} {
     close $f1
     list $c1 $c2
 } {10 20}
-test io-12.16 {Tcl_tell on pipe: always -1} {unixOrPc} {
+test io-11.16 {Tcl_tell on pipe: always -1} {unixOrPc} {
     set f1 [open "|$tcltest" r+]
     set c [tell $f1]
     close $f1
     set c
 } -1
-test io-12.17 {Tcl_Tell on pipe: always -1} {unixOrPc} {
+test io-11.17 {Tcl_Tell on pipe: always -1} {unixOrPc} {
     set f1 [open "|$tcltest" r+]
     puts $f1 {puts hello}
     flush $f1
@@ -2732,7 +2786,7 @@ test io-12.17 {Tcl_Tell on pipe: always -1} {unixOrPc} {
     close $f1
     set c
 } -1
-test io-12.18 {Tcl_Tell combined with seeking and reading} {
+test io-11.18 {Tcl_Tell combined with seeking and reading} {
     removeFile test2
     set f [open test2 w]
     fconfigure $f -translation lf -eofchar {}
@@ -2752,7 +2806,7 @@ test io-12.18 {Tcl_Tell combined with seeking and reading} {
     close $f
     set x
 } {0 3 2 12 30}
-test io-12.19 {Tcl_Tell combined with opening in append mode} {
+test io-11.19 {Tcl_Tell combined with opening in append mode} {
     set f [open test3 w]
     fconfigure $f -translation lf -eofchar {}
     puts $f "abcdefghijklmnopqrstuvwxyz"
@@ -2763,7 +2817,7 @@ test io-12.19 {Tcl_Tell combined with opening in append mode} {
     close $f
     set c
 } 54
-test io-12.20 {Tcl_Tell combined with writing} {
+test io-11.20 {Tcl_Tell combined with writing} {
     set f [open test3 w]
     set l ""
     seek $f 29 start
@@ -2781,7 +2835,7 @@ test io-12.20 {Tcl_Tell combined with writing} {
 
 # Test Tcl_Eof
 
-test io-13.1 {Tcl_Eof} {
+test io-12.1 {Tcl_Eof} {
     removeFile test1
     set f [open test1 w]
     puts $f hello
@@ -2800,7 +2854,7 @@ test io-13.1 {Tcl_Eof} {
     close $f
     set x
 } {0 0 0 0 1 1}
-test io-13.2 {Tcl_Eof with pipe} {unixOrPc} {
+test io-12.2 {Tcl_Eof with pipe} {unixOrPc} {
     removeFile pipe
     set f1 [open pipe w]
     puts $f1 {gets stdin}
@@ -2818,7 +2872,7 @@ test io-13.2 {Tcl_Eof with pipe} {unixOrPc} {
     close $f1
     set x
 } {0 0 0 1}
-test io-13.3 {Tcl_Eof with pipe} {unixOrPc} {
+test io-12.3 {Tcl_Eof with pipe} {unixOrPc} {
     removeFile pipe
     set f1 [open pipe w]
     puts $f1 {gets stdin}
@@ -2840,7 +2894,7 @@ test io-13.3 {Tcl_Eof with pipe} {unixOrPc} {
     close $f1
     set x
 } {0 0 0 1 1 1}
-test io-13.4 {Tcl_Eof, eof detection on nonblocking file} {nonBlockFiles} {
+test io-12.4 {Tcl_Eof, eof detection on nonblocking file} {nonBlockFiles} {
     removeFile test1
     set f [open test1 w]
     close $f
@@ -2852,7 +2906,7 @@ test io-13.4 {Tcl_Eof, eof detection on nonblocking file} {nonBlockFiles} {
     close $f
     set l
 } {{} 1}
-test io-13.5 {Tcl_Eof, eof detection on nonblocking pipe} {unixOrPc} {
+test io-12.5 {Tcl_Eof, eof detection on nonblocking pipe} {unixOrPc} {
     removeFile pipe
     set f [open pipe w]
     puts $f {
@@ -2866,7 +2920,7 @@ test io-13.5 {Tcl_Eof, eof detection on nonblocking pipe} {unixOrPc} {
     close $f
     set l
 } {{} 1}
-test io-13.6 {Tcl_Eof, eof char, lf write, auto read} {
+test io-12.6 {Tcl_Eof, eof char, lf write, auto read} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf -eofchar \x1a
@@ -2880,7 +2934,7 @@ test io-13.6 {Tcl_Eof, eof char, lf write, auto read} {
     close $f
     list $s $l $e
 } {9 8 1}
-test io-13.7 {Tcl_Eof, eof char, lf write, lf read} {
+test io-12.7 {Tcl_Eof, eof char, lf write, lf read} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf -eofchar \x1a
@@ -2894,7 +2948,7 @@ test io-13.7 {Tcl_Eof, eof char, lf write, lf read} {
     close $f
     list $s $l $e
 } {9 8 1}
-test io-13.8 {Tcl_Eof, eof char, cr write, auto read} {
+test io-12.8 {Tcl_Eof, eof char, cr write, auto read} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation cr -eofchar \x1a
@@ -2908,7 +2962,7 @@ test io-13.8 {Tcl_Eof, eof char, cr write, auto read} {
     close $f
     list $s $l $e
 } {9 8 1}
-test io-13.9 {Tcl_Eof, eof char, cr write, cr read} {
+test io-12.9 {Tcl_Eof, eof char, cr write, cr read} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation cr -eofchar \x1a
@@ -2922,7 +2976,7 @@ test io-13.9 {Tcl_Eof, eof char, cr write, cr read} {
     close $f
     list $s $l $e
 } {9 8 1}
-test io-13.10 {Tcl_Eof, eof char, crlf write, auto read} {
+test io-12.10 {Tcl_Eof, eof char, crlf write, auto read} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation crlf -eofchar \x1a
@@ -2936,7 +2990,7 @@ test io-13.10 {Tcl_Eof, eof char, crlf write, auto read} {
     close $f
     list $s $l $e
 } {11 8 1}
-test io-13.11 {Tcl_Eof, eof char, crlf write, crlf read} {
+test io-12.11 {Tcl_Eof, eof char, crlf write, crlf read} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation crlf -eofchar \x1a
@@ -2950,7 +3004,7 @@ test io-13.11 {Tcl_Eof, eof char, crlf write, crlf read} {
     close $f
     list $s $l $e
 } {11 8 1}
-test io-13.12 {Tcl_Eof, eof char in middle, lf write, auto read} {
+test io-12.12 {Tcl_Eof, eof char in middle, lf write, auto read} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf -eofchar {}
@@ -2965,7 +3019,7 @@ test io-13.12 {Tcl_Eof, eof char in middle, lf write, auto read} {
     close $f
     list $c $l $e
 } {17 8 1}
-test io-13.13 {Tcl_Eof, eof char in middle, lf write, lf read} {
+test io-12.13 {Tcl_Eof, eof char in middle, lf write, lf read} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf -eofchar {}
@@ -2980,7 +3034,7 @@ test io-13.13 {Tcl_Eof, eof char in middle, lf write, lf read} {
     close $f
     list $c $l $e
 } {17 8 1}
-test io-13.14 {Tcl_Eof, eof char in middle, cr write, auto read} {
+test io-12.14 {Tcl_Eof, eof char in middle, cr write, auto read} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation cr -eofchar {}
@@ -2995,7 +3049,7 @@ test io-13.14 {Tcl_Eof, eof char in middle, cr write, auto read} {
     close $f
     list $c $l $e
 } {17 8 1}
-test io-13.15 {Tcl_Eof, eof char in middle, cr write, cr read} {
+test io-12.15 {Tcl_Eof, eof char in middle, cr write, cr read} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation cr -eofchar {}
@@ -3010,7 +3064,7 @@ test io-13.15 {Tcl_Eof, eof char in middle, cr write, cr read} {
     close $f
     list $c $l $e
 } {17 8 1}
-test io-13.16 {Tcl_Eof, eof char in middle, crlf write, auto read} {
+test io-12.16 {Tcl_Eof, eof char in middle, crlf write, auto read} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation crlf -eofchar {}
@@ -3025,7 +3079,7 @@ test io-13.16 {Tcl_Eof, eof char in middle, crlf write, auto read} {
     close $f
     list $c $l $e
 } {21 8 1}
-test io-13.17 {Tcl_Eof, eof char in middle, crlf write, crlf read} {
+test io-12.17 {Tcl_Eof, eof char in middle, crlf write, crlf read} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation crlf -eofchar {}
@@ -3043,7 +3097,7 @@ test io-13.17 {Tcl_Eof, eof char in middle, crlf write, crlf read} {
 
 # Test Tcl_InputBlocked
 
-test io-14.1 {Tcl_InputBlocked on nonblocking pipe} {unixOrPc tempNotPc} {
+test io-13.1 {Tcl_InputBlocked on nonblocking pipe} {unixOrPc tempNotPc} {
     set f1 [open "|$tcltest" r+]
     puts $f1 {puts hello_from_pipe}
     flush $f1
@@ -3062,7 +3116,7 @@ test io-14.1 {Tcl_InputBlocked on nonblocking pipe} {unixOrPc tempNotPc} {
     close $f1
     set x
 } {{} 1 hello 0 {} 1}
-test io-14.2 {Tcl_InputBlocked on blocking pipe} {unixOrPc tempNotPc} {
+test io-13.2 {Tcl_InputBlocked on blocking pipe} {unixOrPc tempNotPc} {
     set f1 [open "|$tcltest" r+]
     fconfigure $f1 -buffering line
     puts $f1 {puts hello_from_pipe}
@@ -3076,7 +3130,7 @@ test io-14.2 {Tcl_InputBlocked on blocking pipe} {unixOrPc tempNotPc} {
     close $f1
     set x
 } {hello_from_pipe 0 {} 0 1}
-test io-14.3 {Tcl_InputBlocked vs files, short read} {
+test io-13.3 {Tcl_InputBlocked vs files, short read} {
     removeFile test1
     set f [open test1 w]
     puts $f abcdefghijklmnop
@@ -3092,11 +3146,11 @@ test io-14.3 {Tcl_InputBlocked vs files, short read} {
     close $f
     set l
 } {0 abc 0 defghijklmnop 0 1}
-test io-14.4 {Tcl_InputBlocked vs files, event driven read} {
+test io-13.4 {Tcl_InputBlocked vs files, event driven read} {
     proc in {f} {
-        global l
+        global l x
 	lappend l [read $f 3]
-	if {[eof $f]} {lappend l eof; close $f}
+	if {[eof $f]} {lappend l eof; close $f; set x done}
     }
     removeFile test1
     set f [open test1 w]
@@ -3105,11 +3159,11 @@ test io-14.4 {Tcl_InputBlocked vs files, event driven read} {
     set f [open test1 r]
     set l ""
     fileevent $f readable [list in $f]
-    update
+    vwait x
     set l
 } {abc def ghi jkl mno {p
 } eof}
-test io-14.5 {Tcl_InputBlocked vs files, short read, nonblocking} {nonBlockFiles} {
+test io-13.5 {Tcl_InputBlocked vs files, short read, nonblocking} {nonBlockFiles} {
     removeFile test1
     set f [open test1 w]
     puts $f abcdefghijklmnop
@@ -3126,11 +3180,11 @@ test io-14.5 {Tcl_InputBlocked vs files, short read, nonblocking} {nonBlockFiles
     close $f
     set l
 } {0 abc 0 defghijklmnop 0 1}
-test io-14.6 {Tcl_InputBlocked vs files, event driven read} {nonBlockFiles} {
+test io-13.6 {Tcl_InputBlocked vs files, event driven read} {nonBlockFiles} {
     proc in {f} {
-        global l
+        global l x
 	lappend l [read $f 3]
-	if {[eof $f]} {lappend l eof; close $f}
+	if {[eof $f]} {lappend l eof; close $f; set x done}
     }
     removeFile test1
     set f [open test1 w]
@@ -3140,14 +3194,14 @@ test io-14.6 {Tcl_InputBlocked vs files, event driven read} {nonBlockFiles} {
     fconfigure $f -blocking off
     set l ""
     fileevent $f readable [list in $f]
-    update
+    vwait x
     set l
 } {abc def ghi jkl mno {p
 } eof}
 
 # Test Tcl_InputBuffered
 
-test io-15.1 {Tcl_InputBuffered} {
+test io-14.1 {Tcl_InputBuffered} {
     set f [open longfile r]
     fconfigure $f -buffersize 4096
     read $f 3
@@ -3157,7 +3211,7 @@ test io-15.1 {Tcl_InputBuffered} {
     close $f
     set l
 } {4093 3}
-test io-15.2 {Tcl_InputBuffered, test input flushing on seek} {
+test io-14.2 {Tcl_InputBuffered, test input flushing on seek} {
     set f [open longfile r]
     fconfigure $f -buffersize 4096
     read $f 3
@@ -3173,13 +3227,13 @@ test io-15.2 {Tcl_InputBuffered, test input flushing on seek} {
 
 # Test Tcl_SetChannelBufferSize, Tcl_GetChannelBufferSize
 
-test io-16.1 {Tcl_GetChannelBufferSize, default buffer size} {
+test io-15.1 {Tcl_GetChannelBufferSize, default buffer size} {
     set f [open longfile r]
     set s [fconfigure $f -buffersize]
     close $f
     set s
 } 4096
-test io-16.2 {Tcl_SetChannelBufferSize, Tcl_GetChannelBufferSize} {
+test io-15.2 {Tcl_SetChannelBufferSize, Tcl_GetChannelBufferSize} {
     set f [open longfile r]
     set l ""
     lappend l [fconfigure $f -buffersize]
@@ -3201,7 +3255,7 @@ test io-16.2 {Tcl_SetChannelBufferSize, Tcl_GetChannelBufferSize} {
 
 # Test Tcl_SetChannelOption, Tcl_GetChannelOption
 
-test io-17.1 {Tcl_GetChannelOption} {
+test io-16.1 {Tcl_GetChannelOption} {
     removeFile test1
     set f1 [open test1 w]
     set x [fconfigure $f1 -blocking]
@@ -3211,14 +3265,14 @@ test io-17.1 {Tcl_GetChannelOption} {
 #
 # Test 17.2 was removed.
 #
-test io-17.3 {Tcl_GetChannelOption} {
+test io-16.2 {Tcl_GetChannelOption} {
     removeFile test1
     set f1 [open test1 w]
     set x [fconfigure $f1 -buffering]
     close $f1
     set x
 } full
-test io-17.4 {Tcl_GetChannelOption} {
+test io-16.3 {Tcl_GetChannelOption} {
     removeFile test1
     set f1 [open test1 w]
     fconfigure $f1 -buffering line
@@ -3226,7 +3280,7 @@ test io-17.4 {Tcl_GetChannelOption} {
     close $f1
     set x
 } line
-test io-17.5 {Tcl_GetChannelOption, Tcl_SetChannelOption} {
+test io-16.4 {Tcl_GetChannelOption, Tcl_SetChannelOption} {
     removeFile test1
     set f1 [open test1 w]
     set l ""
@@ -3242,7 +3296,7 @@ test io-17.5 {Tcl_GetChannelOption, Tcl_SetChannelOption} {
     close $f1
     set l
 } {full line none line full}
-test io-17.6 {Tcl_GetChannelOption, invariance} {
+test io-16.5 {Tcl_GetChannelOption, invariance} {
     removeFile test1
     set f1 [open test1 w]
     set l ""
@@ -3252,7 +3306,7 @@ test io-17.6 {Tcl_GetChannelOption, invariance} {
     close $f1
     set l
 } {full {1 {bad value for -buffering: must be one of full, line, or none}} full}
-test io-17.7 {Tcl_SetChannelOption, multiple options} {
+test io-16.6 {Tcl_SetChannelOption, multiple options} {
     removeFile test1
     set f1 [open test1 w]
     fconfigure $f1 -translation lf -buffering line
@@ -3262,7 +3316,7 @@ test io-17.7 {Tcl_SetChannelOption, multiple options} {
     close $f1
     set x
 } 10
-test io-17.8 {Tcl_SetChannelOption, buffering, translation} {
+test io-16.7 {Tcl_SetChannelOption, buffering, translation} {
     removeFile test1
     set f1 [open test1 w]
     fconfigure $f1 -translation lf
@@ -3276,7 +3330,7 @@ test io-17.8 {Tcl_SetChannelOption, buffering, translation} {
     close $f1
     set x
 } {0 21}
-test io-17.9 {Tcl_SetChannelOption, different buffering options} {
+test io-16.8 {Tcl_SetChannelOption, different buffering options} {
     removeFile test1
     set f1 [open test1 w]
     set l ""
@@ -3296,7 +3350,7 @@ test io-17.9 {Tcl_SetChannelOption, different buffering options} {
     lappend l [file size test1]
     set l
 } {5 10 10 10 20 20}
-test io-17.10 {Tcl_SetChannelOption, blocking mode} {nonBlockFiles} {
+test io-16.9 {Tcl_SetChannelOption, blocking mode} {nonBlockFiles} {
     removeFile test1
     set f1 [open test1 w]
     close $f1
@@ -3312,7 +3366,7 @@ test io-17.10 {Tcl_SetChannelOption, blocking mode} {nonBlockFiles} {
     close $f1
     set x
 } {1 0 {} {} 0 1}
-test io-17.11 {Tcl_SetChannelOption, blocking mode} {unixOrPc tempNotPc} {
+test io-16.10 {Tcl_SetChannelOption, blocking mode} {unixOrPc tempNotPc} {
     removeFile pipe
     set f1 [open pipe w]
     puts $f1 {gets stdin}
@@ -3342,7 +3396,7 @@ test io-17.11 {Tcl_SetChannelOption, blocking mode} {unixOrPc tempNotPc} {
     close $f1
     set x
 } {0 {} 1 {} 1 {} 1 1 hi 0 0 {} 1}
-test io-17.12 {Tcl_SetChannelOption, Tcl_GetChannelOption, buffer size} {
+test io-16.11 {Tcl_SetChannelOption, Tcl_GetChannelOption, buffer size} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -buffersize -10
@@ -3350,7 +3404,7 @@ test io-17.12 {Tcl_SetChannelOption, Tcl_GetChannelOption, buffer size} {
     close $f
     set x
 } 4096
-test io-17.13 {Tcl_SetChannelOption, Tcl_GetChannelOption buffer size} {
+test io-16.12 {Tcl_SetChannelOption, Tcl_GetChannelOption buffer size} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -buffersize 10000000
@@ -3358,7 +3412,7 @@ test io-17.13 {Tcl_SetChannelOption, Tcl_GetChannelOption buffer size} {
     close $f
     set x
 } 4096
-test io-17.14 {Tcl_SetChannelOption, Tcl_GetChannelOption, buffer size} {
+test io-16.13 {Tcl_SetChannelOption, Tcl_GetChannelOption, buffer size} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -buffersize 40000
@@ -3367,7 +3421,7 @@ test io-17.14 {Tcl_SetChannelOption, Tcl_GetChannelOption, buffer size} {
     set x
 } 40000
 
-test io-18.1 {POSIX open access modes: RDWR} {
+test io-17.1 {POSIX open access modes: RDWR} {
     removeFile test3
     set f [open test3 w]
     puts $f xyzzy
@@ -3382,7 +3436,7 @@ test io-18.1 {POSIX open access modes: RDWR} {
     close $f
     set x
 } {zzy abzzy}
-test io-18.2 {POSIX open access modes: CREAT} {unixOnly} {
+test io-17.2 {POSIX open access modes: CREAT} {unixOnly} {
     removeFile test3
     set f [open test3 {WRONLY CREAT} 0600]
     file stat test3 stats
@@ -3394,7 +3448,7 @@ test io-18.2 {POSIX open access modes: CREAT} {unixOnly} {
     close $f
     set x
 } {0600 {line 1}}
-test io-18.3 {POSIX open access modes: CREAT} {unixOnly nonPortable} {
+test io-17.3 {POSIX open access modes: CREAT} {unixOnly nonPortable umask2} {
     # This test only works if your umask is 2, like ouster's.
     removeFile test3
     set f [open test3 {WRONLY CREAT}]
@@ -3402,7 +3456,7 @@ test io-18.3 {POSIX open access modes: CREAT} {unixOnly nonPortable} {
     file stat test3 stats
     format "0%o" [expr $stats(mode)&0777]
 } 0664
-test io-18.4 {POSIX open access modes: CREAT} {
+test io-17.4 {POSIX open access modes: CREAT} {
     removeFile test3
     set f [open test3 w]
     fconfigure $f -eofchar {}
@@ -3417,7 +3471,7 @@ test io-18.4 {POSIX open access modes: CREAT} {
     close $f
     set x
 } abzzy
-test io-18.5 {POSIX open access modes: APPEND} {
+test io-17.5 {POSIX open access modes: APPEND} {
     removeFile test3
     set f [open test3 w]
     fconfigure $f -translation lf -eofchar {}
@@ -3438,7 +3492,7 @@ test io-18.5 {POSIX open access modes: APPEND} {
     close $f
     set x
 } {{new line} abc}
-test io-18.6 {POSIX open access modes: EXCL} {
+test io-17.6 {POSIX open access modes: EXCL} {
     removeFile test3
     set f [open test3 w]
     puts $f xyzzy
@@ -3447,7 +3501,7 @@ test io-18.6 {POSIX open access modes: EXCL} {
     regsub " already " $msg " " msg
     string tolower $msg
 } {1 {couldn't open "test3": file exists}}
-test io-18.7 {POSIX open access modes: EXCL} {
+test io-17.7 {POSIX open access modes: EXCL} {
     removeFile test3
     set f [open test3 {WRONLY CREAT EXCL}]
     fconfigure $f -eofchar {}
@@ -3455,7 +3509,7 @@ test io-18.7 {POSIX open access modes: EXCL} {
     close $f
     viewFile test3
 } {A test line}
-test io-18.8 {POSIX open access modes: TRUNC} {
+test io-17.8 {POSIX open access modes: TRUNC} {
     removeFile test3
     set f [open test3 w]
     puts $f xyzzy
@@ -3468,7 +3522,7 @@ test io-18.8 {POSIX open access modes: TRUNC} {
     close $f
     set x
 } abc
-test io-18.9 {POSIX open access modes: NONBLOCK} {nonPortable macOrUnix} {
+test io-17.9 {POSIX open access modes: NONBLOCK} {nonPortable macOrUnix} {
     removeFile test3
     set f [open test3 {WRONLY NONBLOCK CREAT}]
     puts $f "NONBLOCK test"
@@ -3478,7 +3532,7 @@ test io-18.9 {POSIX open access modes: NONBLOCK} {nonPortable macOrUnix} {
     close $f
     set x
 } {NONBLOCK test}
-test io-18.10 {POSIX open access modes: RDONLY} {
+test io-17.10 {POSIX open access modes: RDONLY} {
     set f [open test1 w]
     puts $f "two lines: this one"
     puts $f "and this"
@@ -3490,15 +3544,15 @@ test io-18.10 {POSIX open access modes: RDONLY} {
 	[list {two lines: this one} 1 \
 		[format "channel \"%s\" wasn't opened for writing" $f]]
 } 0
-test io-18.11 {POSIX open access modes: RDONLY} {
+test io-17.11 {POSIX open access modes: RDONLY} {
     removeFile test3
     string tolower [list [catch {open test3 RDONLY} msg] $msg]
 } {1 {couldn't open "test3": no such file or directory}}
-test io-18.12 {POSIX open access modes: WRONLY} {
+test io-17.12 {POSIX open access modes: WRONLY} {
     removeFile test3
     string tolower [list [catch {open test3 WRONLY} msg] $msg]
 } {1 {couldn't open "test3": no such file or directory}}
-test io-18.13 {POSIX open access modes: WRONLY} {
+test io-17.13 {POSIX open access modes: WRONLY} {
     makeFile xyzzy test3
     set f [open test3 WRONLY]
     fconfigure $f -eofchar {}
@@ -3510,11 +3564,11 @@ test io-18.13 {POSIX open access modes: WRONLY} {
     string compare [string tolower $x] \
 	[list 1 "channel \"$f\" wasn't opened for reading" abzzy]
 } 0
-test io-18.14 {POSIX open access modes: RDWR} {
+test io-17.14 {POSIX open access modes: RDWR} {
     removeFile test3
     string tolower [list [catch {open test3 RDWR} msg] $msg]
 } {1 {couldn't open "test3": no such file or directory}}
-test io-18.15 {POSIX open access modes: RDWR} {
+test io-17.15 {POSIX open access modes: RDWR} {
     makeFile xyzzy test3
     set f [open test3 RDWR]
     puts -nonewline $f "ab"
@@ -3524,7 +3578,7 @@ test io-18.15 {POSIX open access modes: RDWR} {
     lappend x [viewFile test3]
 } {zzy abzzy}
 if {![file exists ~/_test_] && [file writable ~]} {
-    test io-18.16 {tilde substitution in open} {
+    test io-17.16 {tilde substitution in open} {
 	set f [open ~/_test_ w]
 	puts $f "Some text"
 	close $f
@@ -3533,7 +3587,7 @@ if {![file exists ~/_test_] && [file writable ~]} {
 	set x
     } 1
 }
-test io-18.17 {tilde substitution in open} {
+test io-17.17 {tilde substitution in open} {
     set home $env(HOME)
     unset env(HOME)
     set x [list [catch {open ~/foo} msg] $msg]
@@ -3541,19 +3595,19 @@ test io-18.17 {tilde substitution in open} {
     set x
 } {1 {couldn't find HOME environment variable to expand path}}
 
-test io-19.1 {Tcl_FileeventCmd: errors} {
+test io-18.1 {Tcl_FileeventCmd: errors} {
     list [catch {fileevent foo} msg] $msg
 } {1 {wrong # args: must be "fileevent channelId event ?script?}}
-test io-19.2 {Tcl_FileeventCmd: errors} {
+test io-18.2 {Tcl_FileeventCmd: errors} {
     list [catch {fileevent foo bar baz q} msg] $msg
 } {1 {wrong # args: must be "fileevent channelId event ?script?}}
-test io-19.3 {Tcl_FileeventCmd: errors} {
+test io-18.3 {Tcl_FileeventCmd: errors} {
     list [catch {fileevent gorp readable} msg] $msg
 } {1 {can not find channel named "gorp"}}
-test io-19.4 {Tcl_FileeventCmd: errors} {
+test io-18.4 {Tcl_FileeventCmd: errors} {
     list [catch {fileevent gorp writable} msg] $msg
 } {1 {can not find channel named "gorp"}}
-test io-19.5 {Tcl_FileeventCmd: errors} {
+test io-18.5 {Tcl_FileeventCmd: errors} {
     list [catch {fileevent gorp who-knows} msg] $msg
 } {1 {bad event name "who-knows": must be readable or writable}}
 
@@ -3563,10 +3617,10 @@ test io-19.5 {Tcl_FileeventCmd: errors} {
 
 set f [open foo w+]
 
-test io-20.1 {Tcl_FileeventCmd: creating, deleting, querying} {
+test io-19.1 {Tcl_FileeventCmd: creating, deleting, querying} {
     list [fileevent $f readable] [fileevent $f writable]
 } {{} {}}
-test io-20.2 {Tcl_FileeventCmd: replacing} {
+test io-19.2 {Tcl_FileeventCmd: replacing} {
     set result {}
     fileevent $f r "first script"
     lappend result [fileevent $f readable]
@@ -3588,7 +3642,7 @@ if {($tcl_platform(platform) != "macintosh") && \
 catch {set f2 [open {|cat -u} r+]}
 catch {set f3 [open {|cat -u} r+]}
 
-test io-21.1 {Tcl_FileeventCmd: creating, deleting, querying} {
+test io-20.1 {Tcl_FileeventCmd: creating, deleting, querying} {
     set result {}
     fileevent $f readable "script 1"
     lappend result [fileevent $f readable] [fileevent $f writable]
@@ -3599,7 +3653,7 @@ test io-21.1 {Tcl_FileeventCmd: creating, deleting, querying} {
     fileevent $f writable {}
     lappend result [fileevent $f readable] [fileevent $f writable]
 } {{script 1} {} {script 1} {write script} {} {write script} {} {}}
-test io-21.2 {Tcl_FileeventCmd: deleting when many present} {
+test io-20.2 {Tcl_FileeventCmd: deleting when many present} {
     set result {}
     lappend result [fileevent $f r] [fileevent $f2 r] [fileevent $f3 r]
     fileevent $f r "read f"
@@ -3614,7 +3668,7 @@ test io-21.2 {Tcl_FileeventCmd: deleting when many present} {
     lappend result [fileevent $f r] [fileevent $f2 r] [fileevent $f3 r]
 } {{} {} {} {read f} {read f2} {read f3} {read f} {} {read f3} {read f} {} {} {} {} {}}
 
-test io-22.1 {FileEventProc procedure: normal read event} {
+test io-21.1 {FileEventProc procedure: normal read event} {
     fileevent $f2 readable {
 	set x [gets $f2]; fileevent $f2 readable {}
     }
@@ -3623,7 +3677,7 @@ test io-22.1 {FileEventProc procedure: normal read event} {
     vwait x
     set x
 } {text}
-test io-22.2 {FileEventProc procedure: error in read event} {
+test io-21.2 {FileEventProc procedure: error in read event} {
     proc bgerror args {
 	global x
 	set x $args
@@ -3635,7 +3689,7 @@ test io-22.2 {FileEventProc procedure: error in read event} {
     rename bgerror {}
     list $x [fileevent $f2 readable]
 } {bogus {}}
-test io-22.3 {FileEventProc procedure: normal write event} {
+test io-21.3 {FileEventProc procedure: normal write event} {
     fileevent $f2 writable {
 	lappend x "triggered"
 	incr count -1
@@ -3650,7 +3704,7 @@ test io-22.3 {FileEventProc procedure: normal write event} {
     vwait x
     set x
 } {initial triggered triggered triggered}
-test io-22.4 {FileEventProc procedure: eror in write event} {
+test io-21.4 {FileEventProc procedure: eror in write event} {
     proc bgerror args {
 	global x
 	set x $args
@@ -3661,7 +3715,7 @@ test io-22.4 {FileEventProc procedure: eror in write event} {
     rename bgerror {}
     list $x [fileevent $f2 writable]
 } {bad-write {}}
-test io-22.5 {FileEventProc procedure: end of file} {unixOrPc unixExecs} {
+test io-21.5 {FileEventProc procedure: end of file} {unixOrPc unixExecs} {
     set f4 [open {|cat << foo} r]
     fileevent $f4 readable {
 	if {[gets $f4 line] < 0} {
@@ -3687,7 +3741,7 @@ catch {close $f3}
 
 close $f
 makeFile "foo bar" foo
-test io-23.1 {DeleteFileEvent, cleanup on close} {
+test io-22.1 {DeleteFileEvent, cleanup on close} {
     set f [open foo r]
     fileevent $f readable {
 	lappend x "binding triggered: \"[gets $f]\""
@@ -3695,10 +3749,11 @@ test io-23.1 {DeleteFileEvent, cleanup on close} {
     }
     close $f
     set x initial
-    update
+    after 100 { set y done }
+    vwait y
     set x
 } {initial}
-test io-23.2 {DeleteFileEvent, cleanup on close} {
+test io-22.2 {DeleteFileEvent, cleanup on close} {
     set f [open foo r]
     set f2 [open foo r]
     fileevent $f readable {
@@ -3715,7 +3770,7 @@ test io-23.2 {DeleteFileEvent, cleanup on close} {
     close $f2
     set x
 } {initial {f2 triggered: "foo bar"}}
-test io-23.3 {DeleteFileEvent, cleanup on close} {
+test io-22.3 {DeleteFileEvent, cleanup on close} {
     set f [open foo r]
     set f2 [open foo r]
     set f3 [open foo r]
@@ -3741,7 +3796,7 @@ test io-23.3 {DeleteFileEvent, cleanup on close} {
 
 if {[info commands testfevent] == "testfevent"} {
 
-test io-24.1 {Tcl event loop vs multiple interpreters} {
+test io-23.1 {Tcl event loop vs multiple interpreters} {
     testfevent create
     testfevent cmd {
         set f [open foo r]
@@ -3751,11 +3806,12 @@ test io-24.1 {Tcl event loop vs multiple interpreters} {
             fileevent $f readable {}
         }
     } 
+    after 1	;# We must delay because Windows takes a little time to notice
     update
     testfevent cmd {close $f}
     list [testfevent cmd {set x}] [testfevent cmd {info commands after}]
 } {{f triggered: foo bar} after}
-test io-24.2 {Tcl event loop vs multiple interpreters} {
+test io-23.2 {Tcl event loop vs multiple interpreters} {
     testfevent create
     testfevent cmd {
         set x 0
@@ -3764,7 +3820,7 @@ test io-24.2 {Tcl event loop vs multiple interpreters} {
         set x
     }
 } {triggered}
-test io-24.3 {Tcl event loop vs multiple interpreters} {
+test io-23.3 {Tcl event loop vs multiple interpreters} {
     testfevent create
     testfevent cmd {
         set x 0
@@ -3778,7 +3834,7 @@ test io-24.3 {Tcl event loop vs multiple interpreters} {
     }
 } {0 0 {0 timer}}
 
-test io-25.1 {fileevent vs multiple interpreters} {
+test io-24.1 {fileevent vs multiple interpreters} {
     set f [open foo r]
     set f2 [open foo r]
     set f3 [open foo r]
@@ -3797,7 +3853,7 @@ test io-25.1 {fileevent vs multiple interpreters} {
     close $f3
     set x
 } {{} {script 1} {} {sript 3}}
-test io-25.2 {deleting fileevent on interpreter delete} {
+test io-24.2 {deleting fileevent on interpreter delete} {
     set f [open foo r]
     set f2 [open foo r]
     set f3 [open foo r]
@@ -3818,7 +3874,7 @@ test io-25.2 {deleting fileevent on interpreter delete} {
     close $f4
     set x
 } {{script 1} {} {} {script 4}}
-test io-25.3 {deleting fileevent on interpreter delete} {
+test io-24.3 {deleting fileevent on interpreter delete} {
     set f [open foo r]
     set f2 [open foo r]
     set f3 [open foo r]
@@ -3839,7 +3895,7 @@ test io-25.3 {deleting fileevent on interpreter delete} {
     close $f4
     set x
 } {{script 1} {script 2} {} {}}
-test io-25.4 {file events on shared files and multiple interpreters} {
+test io-24.4 {file events on shared files and multiple interpreters} {
     set f [open foo r]
     set f2 [open foo r]
     testfevent create
@@ -3855,7 +3911,7 @@ test io-25.4 {file events on shared files and multiple interpreters} {
     close $f2
     set x
 } {{script 3} {script 1} {script 2}}
-test io-25.5 {file events on shared files, deleting file events} {
+test io-24.5 {file events on shared files, deleting file events} {
     set f [open foo r]
     testfevent create
     testfevent share $f
@@ -3868,7 +3924,7 @@ test io-25.5 {file events on shared files, deleting file events} {
     close $f
     set x
 } {{} {script 2}}
-test io-25.6 {file events on shared files, deleting file events} {
+test io-24.6 {file events on shared files, deleting file events} {
     set f [open foo r]
     testfevent create
     testfevent share $f
@@ -3886,7 +3942,7 @@ test io-25.6 {file events on shared files, deleting file events} {
 
 # The above curly closes the test for presence of the "testfevent" command.
 
-test io-26.1 {testing readability conditions} {
+test io-25.1 {testing readability conditions} {
     set f [open bar w]
     puts $f abcdefg
     puts $f abcdefg
@@ -3911,7 +3967,7 @@ test io-26.1 {testing readability conditions} {
     vwait x
     list $x $l
 } {done {called called called called called called called}}
-test io-26.2 {testing readability conditions} {nonBlockFiles} {
+test io-25.2 {testing readability conditions} {nonBlockFiles} {
     set f [open bar w]
     puts $f abcdefg
     puts $f abcdefg
@@ -3937,7 +3993,7 @@ test io-26.2 {testing readability conditions} {nonBlockFiles} {
     vwait x
     list $x $l
 } {done {called called called called called called called}}
-test io-26.3 {testing readability conditions} {unixOnly nonBlockFiles} {
+test io-25.3 {testing readability conditions} {unixOnly nonBlockFiles} {
     set f [open bar w]
     puts $f abcdefg
     puts $f abcdefg
@@ -3981,7 +4037,7 @@ test io-26.3 {testing readability conditions} {unixOnly nonBlockFiles} {
     close $f
     list $x $l
 } {done {0 1 0 1 0 1 0 1 0 1 0 1 0 0}}
-test io-26.4 {lf write, testing readability, ^Z termination, auto read mode} {
+test io-25.4 {lf write, testing readability, ^Z termination, auto read mode} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf
@@ -4006,7 +4062,7 @@ test io-26.4 {lf write, testing readability, ^Z termination, auto read mode} {
     vwait x
     list $c $l
 } {3 {abc def {}}}
-test io-26.5 {lf write, testing readability, ^Z in middle, auto read mode} {
+test io-25.5 {lf write, testing readability, ^Z in middle, auto read mode} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf
@@ -4031,7 +4087,7 @@ test io-26.5 {lf write, testing readability, ^Z in middle, auto read mode} {
     vwait x
     list $c $l
 } {3 {abc def {}}}
-test io-26.6 {cr write, testing readability, ^Z termination, auto read mode} {
+test io-25.6 {cr write, testing readability, ^Z termination, auto read mode} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation cr
@@ -4056,7 +4112,7 @@ test io-26.6 {cr write, testing readability, ^Z termination, auto read mode} {
     vwait x
     list $c $l
 } {3 {abc def {}}}
-test io-26.7 {cr write, testing readability, ^Z in middle, auto read mode} {
+test io-25.7 {cr write, testing readability, ^Z in middle, auto read mode} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation cr
@@ -4081,7 +4137,7 @@ test io-26.7 {cr write, testing readability, ^Z in middle, auto read mode} {
     vwait x
     list $c $l
 } {3 {abc def {}}}
-test io-26.8 {crlf write, testing readability, ^Z termination, auto read mode} {
+test io-25.8 {crlf write, testing readability, ^Z termination, auto read mode} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation crlf
@@ -4106,7 +4162,7 @@ test io-26.8 {crlf write, testing readability, ^Z termination, auto read mode} {
     vwait x
     list $c $l
 } {3 {abc def {}}}
-test io-26.9 {crlf write, testing readability, ^Z in middle, auto read mode} {
+test io-25.9 {crlf write, testing readability, ^Z in middle, auto read mode} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation crlf
@@ -4131,7 +4187,7 @@ test io-26.9 {crlf write, testing readability, ^Z in middle, auto read mode} {
     vwait x
     list $c $l
 } {3 {abc def {}}}
-test io-26.10 {lf write, testing readability, ^Z in middle, lf read mode} {
+test io-25.10 {lf write, testing readability, ^Z in middle, lf read mode} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf
@@ -4156,7 +4212,7 @@ test io-26.10 {lf write, testing readability, ^Z in middle, lf read mode} {
     vwait x
     list $c $l
 } {3 {abc def {}}}
-test io-26.11 {lf write, testing readability, ^Z termination, lf read mode} {
+test io-25.11 {lf write, testing readability, ^Z termination, lf read mode} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation lf
@@ -4181,7 +4237,7 @@ test io-26.11 {lf write, testing readability, ^Z termination, lf read mode} {
     vwait x
     list $c $l
 } {3 {abc def {}}}
-test io-26.12 {cr write, testing readability, ^Z in middle, cr read mode} {
+test io-25.12 {cr write, testing readability, ^Z in middle, cr read mode} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation cr
@@ -4206,7 +4262,7 @@ test io-26.12 {cr write, testing readability, ^Z in middle, cr read mode} {
     vwait x
     list $c $l
 } {3 {abc def {}}}
-test io-26.13 {cr write, testing readability, ^Z termination, cr read mode} {
+test io-25.13 {cr write, testing readability, ^Z termination, cr read mode} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation cr
@@ -4231,7 +4287,7 @@ test io-26.13 {cr write, testing readability, ^Z termination, cr read mode} {
     vwait x
     list $c $l
 } {3 {abc def {}}}
-test io-26.14 {crlf write, testing readability, ^Z in middle, crlf read mode} {
+test io-25.14 {crlf write, testing readability, ^Z in middle, crlf read mode} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation crlf
@@ -4256,7 +4312,7 @@ test io-26.14 {crlf write, testing readability, ^Z in middle, crlf read mode} {
     vwait x
     list $c $l
 } {3 {abc def {}}}
-test io-26.15 {crlf write, testing readability, ^Z termi, crlf read mode} {
+test io-25.15 {crlf write, testing readability, ^Z termi, crlf read mode} {
     removeFile test1
     set f [open test1 w]
     fconfigure $f -translation crlf
@@ -4282,6 +4338,119 @@ test io-26.15 {crlf write, testing readability, ^Z termi, crlf read mode} {
     list $c $l
 } {3 {abc def {}}}
 
+test io-26.1 {testing crlf reading, leftover cr disgorgment} {
+    removeFile test1
+    set f [open test1 w]
+    fconfigure $f -translation lf
+    puts -nonewline $f "a\rb\rc\r\n"
+    close $f
+    set f [open test1 r]
+    set l ""
+    lappend l [file size test1]
+    fconfigure $f -translation crlf
+    lappend l [read $f 1]
+    lappend l [tell $f]
+    lappend l [read $f 1]
+    lappend l [tell $f]
+    lappend l [read $f 1]
+    lappend l [tell $f]
+    lappend l [read $f 1]
+    lappend l [tell $f]
+    lappend l [read $f 1]
+    lappend l [tell $f]
+    lappend l [read $f 1]
+    lappend l [tell $f]
+    lappend l [eof $f]
+    lappend l [read $f 1]
+    lappend l [eof $f]
+    close $f
+    set l
+} "7 a 1 [list \r] 2 b 3 [list \r] 4 c 5 {
+} 7 0 {} 1"
+test io-26.2 {testing crlf reading, leftover cr disgorgment} {
+    removeFile test1
+    set f [open test1 w]
+    fconfigure $f -translation lf
+    puts -nonewline $f "a\rb\rc\r\n"
+    close $f
+    set f [open test1 r]
+    set l ""
+    lappend l [file size test1]
+    fconfigure $f -translation crlf
+    lappend l [read $f 2]
+    lappend l [tell $f]
+    lappend l [read $f 2]
+    lappend l [tell $f]
+    lappend l [read $f 2]
+    lappend l [tell $f]
+    lappend l [eof $f]
+    lappend l [read $f 2]
+    lappend l [tell $f]
+    lappend l [eof $f]
+    close $f
+    set l
+} "7 [list a\r] 2 [list b\r] 4 [list c\n] 7 0 {} 7 1"
+test io-26.3 {testing crlf reading, leftover cr disgorgment} {
+    removeFile test1
+    set f [open test1 w]
+    fconfigure $f -translation lf
+    puts -nonewline $f "a\rb\rc\r\n"
+    close $f
+    set f [open test1 r]
+    set l ""
+    lappend l [file size test1]
+    fconfigure $f -translation crlf
+    lappend l [read $f 3]
+    lappend l [tell $f]
+    lappend l [read $f 3]
+    lappend l [tell $f]
+    lappend l [eof $f]
+    lappend l [read $f 3]
+    lappend l [tell $f]
+    lappend l [eof $f]
+    close $f
+    set l
+} "7 [list a\rb] 3 [list \rc\n] 7 0 {} 7 1"
+test io-26.4 {testing crlf reading, leftover cr disgorgment} {
+    removeFile test1
+    set f [open test1 w]
+    fconfigure $f -translation lf
+    puts -nonewline $f "a\rb\rc\r\n"
+    close $f
+    set f [open test1 r]
+    set l ""
+    lappend l [file size test1]
+    fconfigure $f -translation crlf
+    lappend l [read $f 3]
+    lappend l [tell $f]
+    lappend l [gets $f]
+    lappend l [tell $f]
+    lappend l [eof $f]
+    lappend l [gets $f]
+    lappend l [tell $f]
+    lappend l [eof $f]
+    close $f
+    set l
+} "7 [list a\rb] 3 [list \rc] 7 0 {} 7 1"
+test io-26.5 {testing crlf reading, leftover cr disgorgment} {
+    removeFile test1
+    set f [open test1 w]
+    fconfigure $f -translation lf
+    puts -nonewline $f "a\rb\rc\r\n"
+    close $f
+    set f [open test1 r]
+    set l ""
+    lappend l [file size test1]
+    fconfigure $f -translation crlf
+    lappend l [set x [gets $f]]
+    lappend l [tell $f]
+    lappend l [gets $f]
+    lappend l [tell $f]
+    lappend l [eof $f]
+    close $f
+    set l
+} [list 7 a\rb\rc 7 {} 7 1]
+    
 test io-27.1 {testing handler deletion} {
     removeFile test1
     set f [open test1 w]
@@ -4441,6 +4610,395 @@ test io-27.6 {testing handler deletion vs reentrant calls} {
 	      {first after update}]
 } 0
 
+test io-28.1 {Test old socket deletion on Macintosh} {tempNotMac} {
+    set x 0
+    set result ""
+    proc accept {s a p} {
+	global x wait
+	fconfigure $s -blocking off
+	puts $s "sock[incr x]"
+	close $s
+	set wait done
+    }
+    set ss [socket -server accept 2831]
+    set wait ""
+    set cs [socket [info hostname] 2831]
+    vwait wait
+    lappend result [gets $cs]
+    close $cs
+
+    set wait ""
+    set cs [socket [info hostname] 2831]
+    vwait wait
+    lappend result [gets $cs]
+    close $cs
+
+    set wait ""
+    set cs [socket [info hostname] 2831]
+    vwait wait
+    lappend result [gets $cs]
+    close $cs
+
+    set wait ""
+    set cs [socket [info hostname] 2831]
+    vwait wait
+    lappend result [gets $cs]
+    close $cs
+    close $ss
+    set result
+} {sock1 sock2 sock3 sock4}
+
+test io-29.1 {TclCopyChannel} {
+    removeFile test1
+    set f1 [open io.test]
+    set f2 [open test1 w]
+    fcopy $f1 $f2 -command { # }
+    catch { fcopy $f1 $f2 } msg
+    close $f1
+    close $f2
+    string compare $msg "channel \"$f1\" is busy"
+} {0}
+test io-29.2 {TclCopyChannel} {
+    removeFile test1
+    set f1 [open io.test]
+    set f2 [open test1 w]
+    set f3 [open io.test]
+    fcopy $f1 $f2 -command { # }
+    catch { fcopy $f3 $f2 } msg
+    close $f1
+    close $f2
+    close $f3
+    string compare $msg "channel \"$f2\" is busy"
+} {0}
+test io-29.3 {TclCopyChannel} {
+    removeFile test1
+    set f1 [open io.test]
+    set f2 [open test1 w]
+    fconfigure $f1 -translation lf -blocking 0
+    fconfigure $f2 -translation cr -blocking 0
+    set s0 [fcopy $f1 $f2]
+    set result [list [fconfigure $f1 -blocking] [fconfigure $f2 -blocking]]
+    close $f1
+    close $f2
+    set s1 [file size io.test]
+    set s2 [file size test1]
+    if {("$s1" == "$s2") && ($s0 == $s1)} {
+        lappend result ok
+    }
+    set result
+} {0 0 ok}
+test io-29.4 {TclCopyChannel} {
+    removeFile test1
+    set f1 [open io.test]
+    set f2 [open test1 w]
+    fconfigure $f1 -translation lf -blocking 0
+    fconfigure $f2 -translation cr -blocking 0
+    fcopy $f1 $f2 -size 40
+    set result [list [fconfigure $f1 -blocking] [fconfigure $f2 -blocking]]
+    close $f1
+    close $f2
+    lappend result [file size test1]
+} {0 0 40}
+test io-29.5 {TclCopyChannel} {
+    removeFile test1
+    set f1 [open io.test]
+    set f2 [open test1 w]
+    fconfigure $f1 -translation lf -blocking 0
+    fconfigure $f2 -translation lf -blocking 0
+    fcopy $f1 $f2 -size -1
+    set result [list [fconfigure $f1 -blocking] [fconfigure $f2 -blocking]]
+    close $f1
+    close $f2
+    set s1 [file size io.test]
+    set s2 [file size test1]
+    if {"$s1" == "$s2"} {
+        lappend result ok
+    }
+    set result
+} {0 0 ok}
+test io-29.6 {TclCopyChannel} {
+    removeFile test1
+    set f1 [open io.test]
+    set f2 [open test1 w]
+    fconfigure $f1 -translation lf -blocking 0
+    fconfigure $f2 -translation lf -blocking 0
+    set s0 [fcopy $f1 $f2 -size [expr [file size io.test] + 5]]
+    set result [list [fconfigure $f1 -blocking] [fconfigure $f2 -blocking]]
+    close $f1
+    close $f2
+    set s1 [file size io.test]
+    set s2 [file size test1]
+    if {("$s1" == "$s2") && ($s0 == $s1)} {
+        lappend result ok
+    }
+    set result
+} {0 0 ok}
+test io-29.7 {TclCopyChannel} {
+    removeFile test1
+    set f1 [open io.test]
+    set f2 [open test1 w]
+    fconfigure $f1 -translation lf -blocking 0
+    fconfigure $f2 -translation lf -blocking 0
+    fcopy $f1 $f2
+    set result [list [fconfigure $f1 -blocking] [fconfigure $f2 -blocking]]
+    set s1 [file size io.test]
+    set s2 [file size test1]
+    close $f1
+    close $f2
+    if {"$s1" == "$s2"} {
+        lappend result ok
+    }
+    set result
+} {0 0 ok}
+test io-29.8 {TclCopyChannel} {unixOrPc} {
+    removeFile test1
+    removeFile pipe
+    set f1 [open pipe w]
+    puts $f1 {
+	puts ready
+	gets stdin
+	set f1 [open io.test r]
+	puts [read $f1 100]
+	close $f1
+    }
+    close $f1
+    set f1 [open "|$tcltest pipe" r+]
+    gets $f1
+    puts $f1 ready
+    flush $f1
+    set f2 [open test1 w]
+    set s0 [fcopy $f1 $f2 -size 40]
+    catch {close $f1}
+    close $f2
+    list $s0 [file size test1]
+} {40 40}
+
+test io-30.1 {CopyData} {
+    removeFile test1
+    set f1 [open io.test]
+    set f2 [open test1 w]
+    fconfigure $f1 -translation lf -blocking 0
+    fconfigure $f2 -translation cr -blocking 0
+    fcopy $f1 $f2 -size 0
+    set result [list [fconfigure $f1 -blocking] [fconfigure $f2 -blocking]]
+    close $f1
+    close $f2
+    lappend result [file size test1]
+} {0 0 0}
+test io-30.2 {CopyData} {
+    removeFile test1
+    set f1 [open io.test]
+    set f2 [open test1 w]
+    fconfigure $f1 -translation lf -blocking 0
+    fconfigure $f2 -translation cr -blocking 0
+    fcopy $f1 $f2 -command {set s0}
+    set result [list [fconfigure $f1 -blocking] [fconfigure $f2 -blocking]]
+    vwait s0
+    close $f1
+    close $f2
+    set s1 [file size io.test]
+    set s2 [file size test1]
+    if {("$s1" == "$s2") && ($s0 == $s1)} {
+        lappend result ok
+    }
+    set result
+} {0 0 ok}
+test io-30.3 {CopyData: background read underflow} {unixOnly} {
+    removeFile test1
+    removeFile pipe
+    set f1 [open pipe w]
+    puts $f1 {
+	puts ready
+	flush stdout				;# Don't assume line buffered!
+	fcopy stdin stdout -command { set x }
+	vwait x
+	set f [open test1 w]
+	fconfigure $f -translation lf
+	puts $f "done"
+	close $f
+    }
+    close $f1
+    set f1 [open "|$tcltest pipe" r+]
+    set result [gets $f1]
+    puts $f1 line1
+    flush $f1
+    lappend result [gets $f1]
+    puts $f1 line2
+    flush $f1
+    lappend result [gets $f1]
+    close $f1
+    after 500
+    set f [open test1]
+    lappend result [read $f]
+    close $f
+    set result
+} "ready line1 line2 {done\n}"
+test io-30.4 {CopyData: background write overflow} {unixOnly} {
+    set big aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n
+    for {set x 0} {$x < 12} {incr x} {
+	append big $big
+    }
+    removeFile test1
+    removeFile pipe
+    set f1 [open pipe w]
+    puts $f1 {
+	puts ready
+	fcopy stdin stdout -command { set x }
+	vwait x
+	set f [open test1 w]
+	fconfigure $f -translation lf
+	puts $f "done"
+	close $f
+    }
+    close $f1
+    set f1 [open "|$tcltest pipe" r+]
+    set result [gets $f1]
+    fconfigure $f1 -blocking 0
+    puts $f1 $big
+    flush $f1
+    after 500
+    set result ""
+    fileevent $f1 read {
+	append result [read $f1 1024]
+	if {[string length $result] >= [string length $big]} {
+	    set x done
+	}
+    }
+    vwait x
+    close $f1
+    set big {}
+    set x
+} done
+
+proc FcopyTestAccept {sock args} {
+    after 1000 "close $sock"
+}
+proc FcopyTestDone {bytes {error {}}} {
+    global fcopyTestDone
+    if {[string length $error]} {
+	set fcopyTestDone 1
+    } else {
+	set fcopyTestDone 0
+    }
+}
+if [catch {socket -server FcopyTestAccept 2828} listen] {
+    puts stderr "Skipping fcopy error test"
+} else {
+    test io-30.5 {CopyData: error during fcopy} {
+	set in [open io.test]	;# 126 K
+	set out [socket localhost 2828]
+	catch {unset fcopyTestDone}
+	close $listen	;# This means the socket open never really succeeds
+	fcopy $in $out -command FcopyTestDone
+	if ![info exists fcopyTestDone] {
+	    vwait fcopyTestDone
+	}
+	close $in
+	close $out
+	set fcopyTestDone
+    } 1
+}
+
+test io-31.1 {Recursive channel events} {
+    # This test checks to see if file events are delivered during recursive
+    # event loops when there is buffered data on the channel.
+
+    proc accept {s a p} {
+	global as
+	fconfigure $s -translation lf
+	puts $s "line 1\nline2\nline3"
+	flush $s
+	set as $s
+    }
+    proc readit {s next} {
+	global result x
+	lappend result $next
+	if {$next == 1} {
+	    fileevent $s readable [list readit $s 2]
+	    vwait x
+	}
+	incr x
+    }
+    set ss [socket -server accept 2828]
+
+    # We need to delay on some systems until the creation of the
+    # server socket completes.
+
+    set done 0
+    for {set i 0} {$i < 10} {incr i} {
+	if {![catch {set cs [socket [info hostname] 2828]}]} {
+	    set done 1
+	    break
+	}
+	after 100
+    }
+    if {$done == 0} {
+	close $ss
+	error "failed to connect to server"
+    }
+    set result {}
+    set x 0
+    vwait as
+    fconfigure $cs -translation lf
+    lappend result [gets $cs]
+    fconfigure $cs -blocking off
+    fileevent $cs readable [list readit $cs 1]
+    set a [after 2000 { set x failure }]
+    vwait x
+    after cancel $a
+    close $as
+    close $ss
+    close $cs
+    list $result $x
+} {{{line 1} 1 2} 2}
+test io-31.2 {Testing for busy-wait in recursive channel events} {
+    set s [socket -server accept 3939]
+    proc accept {s a p} {
+	global counter
+
+	set counter 0
+	fconfigure $s -blocking off -buffering line -translation lf
+	fileevent $s readable "doit $s"
+    }
+    proc doit {s} {
+	global counter
+
+	incr counter
+	set l [gets $s]
+	if {"$l" == ""} {
+	    fileevent $s readable "doit1 $s"
+	    after 1000 newline
+	}
+    }
+    proc doit1 {s} {
+	global counter
+
+	incr counter
+	set l [gets $s]
+	close $s
+    }
+    proc producer {} {
+	global writer
+
+	set writer [socket localhost 3939]
+	fconfigure $writer -buffering line
+	puts -nonewline $writer hello
+	flush $writer
+    }
+    proc newline {} {
+	global writer done
+
+	puts $writer hello
+	flush $writer
+	set done 1
+    }
+    producer
+    vwait done
+    close $writer
+    close $s
+    set counter
+} 1
+
 removeFile longfile
 removeFile script
 removeFile output
@@ -4449,6 +5007,8 @@ removeFile pipe
 removeFile my_script
 removeFile foo
 removeFile bar
+removeFile test2
+removeFile test3
 
 set x ""
 unset x

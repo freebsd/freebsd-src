@@ -3,7 +3,7 @@
 # Default system startup file for Tcl-based applications.  Defines
 # "unknown" procedure and auto-load facilities.
 #
-# SCCS: @(#) init.tcl 1.57 96/07/23 08:53:03
+# SCCS: @(#) init.tcl 1.79 97/06/24 17:18:54
 #
 # Copyright (c) 1991-1993 The Regents of the University of California.
 # Copyright (c) 1994-1996 Sun Microsystems, Inc.
@@ -15,13 +15,27 @@
 if {[info commands package] == ""} {
     error "version mismatch: library\nscripts expect Tcl version 7.5b1 or later but the loaded version is\nonly [info patchlevel]"
 }
-package require -exact Tcl 7.5
+package require -exact Tcl 8.0
+
+# Compute the auto path to use in this interpreter.
+
 if [catch {set auto_path $env(TCLLIBPATH)}] {
     set auto_path ""
 }
 if {[lsearch -exact $auto_path [info library]] < 0} {
     lappend auto_path [info library]
 }
+catch {
+    foreach dir $tcl_pkgPath {
+	if {[lsearch -exact $auto_path $dir] < 0} {
+	    lappend auto_path $dir
+	}
+    }
+    unset dir
+}
+
+# Conditionalize for presence of exec.
+
 package unknown tclPkgUnknown
 if {[info commands exec] == ""} {
 
@@ -32,6 +46,7 @@ if {[info commands exec] == ""} {
 }
 set errorCode ""
 set errorInfo ""
+
 
 # unknown --
 # This procedure is called when a Tcl command is invoked that doesn't
@@ -69,10 +84,6 @@ proc unknown args {
 	# Make sure we're not trying to load the same proc twice.
 	#
 	if [info exists unknown_pending($name)] {
-	    unset unknown_pending($name)
-	    if {[array size unknown_pending] == 0} {
-		unset unknown_pending
-	    }
 	    return -code error "self-referential recursion in \"unknown\" for command \"$name\"";
 	}
 	set unknown_pending($name) pending;
@@ -88,7 +99,7 @@ proc unknown args {
 	if $msg {
 	    set errorCode $savedErrorCode
 	    set errorInfo $savedErrorInfo
-	    set code [catch {uplevel $args} msg]
+	    set code [catch {uplevel 1 $args} msg]
 	    if {$code ==  1} {
 		#
 		# Strip the last five lines off the error stack (they're
@@ -107,16 +118,22 @@ proc unknown args {
     if {([info level] == 1) && ([info script] == "") \
 	    && [info exists tcl_interactive] && $tcl_interactive} {
 	if ![info exists auto_noexec] {
-	    if [auto_execok $name] {
+	    set new [auto_execok $name]
+	    if {$new != ""} {
 		set errorCode $savedErrorCode
 		set errorInfo $savedErrorInfo
-		return [uplevel exec >&@stdout <@stdin $args]
+		set redir ""
+		if {[info commands console] == ""} {
+		    set redir ">&@stdout <@stdin"
+		}
+		return [uplevel exec $redir $new [lrange $args 1 end]]
 	    }
 	}
 	set errorCode $savedErrorCode
 	set errorInfo $savedErrorInfo
 	if {$name == "!!"} {
-	    return [uplevel {history redo}]
+#	    return [uplevel {history redo}]
+	    return -code error "!! is disabled until history is fixed in Tcl8.0"
 	}
 	if [regexp {^!(.+)$} $name dummy event] {
 	    return [uplevel [list history redo $event]]
@@ -124,7 +141,15 @@ proc unknown args {
 	if [regexp {^\^([^^]*)\^([^^]*)\^?$} $name dummy old new] {
 	    return [uplevel [list history substitute $old $new]]
 	}
-	set cmds [info commands $name*]
+
+	set ret [catch {set cmds [info commands $name*]} msg]
+	if {[string compare $name "::"] == 0} {
+	    set name ""
+	}
+	if {$ret != 0} {
+	    return -code $ret -errorcode $errorCode \
+		"error in unknown while checking if \"$name\" is a unique command abbreviation: $msg"
+	}
 	if {[llength $cmds] == 1} {
 	    return [uplevel [lreplace $args 0 0 $cmds]]
 	}
@@ -165,35 +190,45 @@ proc auto_load cmd {
 	}
     }
     set auto_oldpath $auto_path
+
+    # Check if we are a safe interpreter. In that case, we support only
+    # newer format tclIndex files.
+
+    set issafe [interp issafe]
     for {set i [expr [llength $auto_path] - 1]} {$i >= 0} {incr i -1} {
 	set dir [lindex $auto_path $i]
 	set f ""
-	if [catch {set f [open [file join $dir tclIndex]]}] {
+	if {$issafe} {
+	    catch {source [file join $dir tclIndex]}
+	} elseif [catch {set f [open [file join $dir tclIndex]]}] {
 	    continue
-	}
-	set error [catch {
-	    set id [gets $f]
-	    if {$id == "# Tcl autoload index file, version 2.0"} {
-		eval [read $f]
-	    } elseif {$id == "# Tcl autoload index file: each line identifies a Tcl"} {
-		while {[gets $f line] >= 0} {
-		    if {([string index $line 0] == "#")
-			    || ([llength $line] != 2)} {
-			continue
+	} else {
+	    set error [catch {
+		set id [gets $f]
+		if {$id == "# Tcl autoload index file, version 2.0"} {
+		    eval [read $f]
+		} elseif {$id == \
+		    "# Tcl autoload index file: each line identifies a Tcl"} {
+		    while {[gets $f line] >= 0} {
+			if {([string index $line 0] == "#")
+				|| ([llength $line] != 2)} {
+			    continue
+			}
+			set name [lindex $line 0]
+			set auto_index($name) \
+			    "source [file join $dir [lindex $line 1]]"
 		    }
-		    set name [lindex $line 0]
-		    set auto_index($name) \
-			"source [file join $dir [lindex $line 1]]"
+		} else {
+		    error \
+		      "[file join $dir tclIndex] isn't a proper Tcl index file"
 		}
-	    } else {
-		error "[file join $dir tclIndex] isn't a proper Tcl index file"
+	    } msg]
+	    if {$f != ""} {
+		close $f
 	    }
-	} msg]
-	if {$f != ""} {
-	    close $f
-	}
-	if $error {
-	    error $msg $errorInfo $errorCode
+	    if $error {
+		error $msg $errorInfo $errorCode
+	    }
 	}
     }
     if [info exists auto_index($cmd)] {
@@ -209,9 +244,11 @@ if {[string compare $tcl_platform(platform) windows] == 0} {
 
 # auto_execok --
 #
-# Returns 1 if there's an executable in the current path for the
-# given name, 0 otherwise.  Builds an associative array auto_execs
-# that caches information about previous checks, for speed.
+# Returns string that indicates name of program to execute if 
+# name corresponds to a shell builtin or an executable in the
+# Windows search path, or "" otherwise.  Builds an associative 
+# array auto_execs that caches information about previous checks, 
+# for speed.
 #
 # Arguments: 
 # name -			Name of a command.
@@ -224,46 +261,68 @@ if {[string compare $tcl_platform(platform) windows] == 0} {
 # components are separated with semicolons, not colons as under Unix.
 #
 proc auto_execok name {
-    global auto_execs env
+    global auto_execs env tcl_platform
 
     if [info exists auto_execs($name)] {
 	return $auto_execs($name)
     }
-    set auto_execs($name) 0
-    if {[file pathtype $name] != "relative"} {
-	foreach ext {{} .exe .bat .cmd} {
-	    if {[file exists ${name}${ext}]
-		&& ![file isdirectory ${name}${ext}]} {
-		set auto_execs($name) 1
+    set auto_execs($name) ""
+
+    if {[lsearch -exact {cls copy date del erase dir echo mkdir md rename 
+	    ren rmdir rd time type ver vol} $name] != -1} {
+	return [set auto_execs($name) [list $env(COMSPEC) /c $name]]
+    }
+
+    if {[llength [file split $name]] != 1} {
+	foreach ext {{} .com .exe .bat} {
+	    set file ${name}${ext}
+	    if {[file exists $file] && ![file isdirectory $file]} {
+		return [set auto_execs($name) [list $file]]
 	    }
 	}
-	return $auto_execs($name)
+	return ""
     }
-    if {! [info exists env(PATH)]} {
-	if [info exists env(Path)] {
-	    set path $env(Path)
-	} else {
-	    return 0
+
+    set path "[file dirname [info nameof]];.;"
+    if {[info exists env(WINDIR)]} {
+	set windir $env(WINDIR) 
+    }
+    if {[info exists windir]} {
+	if {$tcl_platform(os) == "Windows NT"} {
+	    append path "$windir/system32;"
 	}
-    } else {
-	set path $env(PATH)
+	append path "$windir/system;$windir;"
     }
+
+    if {[info exists env(PATH)]} {
+	append path $env(PATH)
+    }
+
     foreach dir [split $path {;}] {
 	if {$dir == ""} {
 	    set dir .
 	}
-	foreach ext {{} .exe .bat .cmd} {
+	foreach ext {{} .com .exe .bat} {
 	    set file [file join $dir ${name}${ext}]
 	    if {[file exists $file] && ![file isdirectory $file]} {
-		set auto_execs($name) 1
-		return 1
+		return [set auto_execs($name) [list $file]]
 	    }
 	}
     }
-    return 0
+    return ""
 }
 
 } else {
+
+# auto_execok --
+#
+# Returns string that indicates name of program to execute if 
+# name corresponds to an executable in the path. Builds an associative 
+# array auto_execs that caches information about previous checks, 
+# for speed.
+#
+# Arguments: 
+# name -			Name of a command.
 
 # Unix version.
 #
@@ -273,10 +332,10 @@ proc auto_execok name {
     if [info exists auto_execs($name)] {
 	return $auto_execs($name)
     }
-    set auto_execs($name) 0
-    if {[file pathtype $name] != "relative"} {
+    set auto_execs($name) ""
+    if {[llength [file split $name]] != 1} {
 	if {[file executable $name] && ![file isdirectory $name]} {
-	    set auto_execs($name) 1
+	    set auto_execs($name) [list $name]
 	}
 	return $auto_execs($name)
     }
@@ -286,11 +345,11 @@ proc auto_execok name {
 	}
 	set file [file join $dir $name]
 	if {[file executable $file] && ![file isdirectory $file]} {
-	    set auto_execs($name) 1
-	    return 1
+	    set auto_execs($name) [list $file]
+	    return $auto_execs($name)
 	}
     }
-    return 0
+    return ""
 }
 
 }
@@ -524,11 +583,30 @@ proc tclPkgSetup {dir pkg version files} {
     }
 }
 
+# tclMacPkgSearch --
+# The procedure is used on the Macintosh to search a given directory for files
+# with a TEXT resource named "pkgIndex".  If it exists it is sourced in to the
+# interpreter to setup the package database.
+
+proc tclMacPkgSearch {dir} {
+    foreach x [glob -nocomplain [file join $dir *.shlb]] {
+	if [file isfile $x] {
+	    set res [resource open $x]
+	    foreach y [resource list TEXT $res] {
+		if {$y == "pkgIndex"} {source -rsrc pkgIndex}
+	    }
+	    resource close $res
+	}
+    }
+}
+
 # tclPkgUnknown --
 # This procedure provides the default for the "package unknown" function.
 # It is invoked when a package that's needed can't be found.  It scans
-# the auto_path directories looking for pkgIndex.tcl files and sources any
-# such files that are found to setup the package database.
+# the auto_path directories and their immediate children looking for
+# pkgIndex.tcl files and sources any such files that are found to setup
+# the package database.  (On the Macintosh we also search for pkgIndex
+# TEXT resources in all files.)
 #
 # Arguments:
 # name -		Name of desired package.  Not used.
@@ -536,16 +614,47 @@ proc tclPkgSetup {dir pkg version files} {
 # exact -		Either "-exact" or omitted.  Not used.
 
 proc tclPkgUnknown {name version {exact {}}} {
-    global auto_path
+    global auto_path tcl_platform env dir
 
     if ![info exists auto_path] {
 	return
     }
+    if {[info exists dir]} {
+	set save_dir $dir
+    }
     for {set i [expr [llength $auto_path] - 1]} {$i >= 0} {incr i -1} {
+	foreach file [glob -nocomplain [file join [lindex $auto_path $i] \
+		* pkgIndex.tcl]] {
+	    set dir [file dirname $file]
+	    if [catch {source $file} msg] {
+		puts stderr \
+		    "error reading package index file $file: $msg"
+	    }
+	}
 	set dir [lindex $auto_path $i]
 	set file [file join $dir pkgIndex.tcl]
 	if [file readable $file] {
-	    source $file
+	    if [catch {source $file} msg] {
+		puts stderr \
+		    "error reading package index file $file: $msg"
+	    }
 	}
+	# On the Macintosh we also look in the resource fork 
+	# of shared libraries
+	if {$tcl_platform(platform) == "macintosh"} {
+	    set dir [lindex $auto_path $i]
+	    tclMacPkgSearch $dir
+	    foreach x [glob -nocomplain [file join $dir *]] {
+		if [file isdirectory $x] {
+		    set dir $x
+		    tclMacPkgSearch $dir
+		}
+	    }
+	}
+    }
+    if {[info exists save_dir]} {
+	set dir $save_dir
+    } else {
+	unset dir
     }
 }

@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) tclsh.1 1.12 96/03/25 20:25:06
+'\" SCCS: @(#) tclsh.1 1.13 96/08/26 13:00:15
 '\" 
 .so man.macros
 .TH tclsh 1 "" Tcl "Tcl Applications"
@@ -50,7 +50,6 @@ you mark the file as executable.
 This assumes that \fBtclsh\fR has been installed in the default
 location in /usr/local/bin;  if it's installed somewhere else
 then you'll have to modify the above line to match.
-.VS
 Many UNIX systems do not allow the \fB#!\fR line to exceed about
 30 characters in length, so be sure that the \fBtclsh\fR
 executable can be accessed with a short file name.
@@ -80,7 +79,6 @@ instead to start up \fBtclsh\fR to reprocess the entire script.
 When \fBtclsh\fR starts up, it treats all three lines as comments,
 since the backslash at the end of the second line causes the third
 line to be treated as part of the comment on the second line.
-.VE
 
 .SH "VARIABLES"
 .PP

@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) dstring.test 1.8 96/02/16 08:55:46
+# SCCS: @(#) dstring.test 1.10 96/10/08 17:40:02
 
 if {[info commands testdstring] == {}} {
     puts "This application hasn't been compiled with the \"testdstring\""
@@ -153,7 +153,7 @@ test dstring-3.4 {nested sublists} {
     testdstring element last
     testdstring get
 } {before {during more} last}
-test dstring-3.4 {nested sublists} {
+test dstring-3.5 {nested sublists} {
     testdstring free
     testdstring element "\{"
     testdstring start
@@ -183,6 +183,7 @@ test dstring-5.1 {copying to result} {
 } xyz
 test dstring-5.2 {copying to result} {
     testdstring free
+    catch {unset a}
     foreach l {a b c d e f g h i j k l m n o p} {
 	testdstring append $l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l$l\n -1
     }

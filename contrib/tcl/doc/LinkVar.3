@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) LinkVar.3 1.13 96/06/05 18:00:14
+'\" SCCS: @(#) LinkVar.3 1.15 96/09/05 17:16:57
 '\" 
 .so man.macros
 .TH Tcl_LinkVar 3 7.5 Tcl "Tcl Library Procedures"
@@ -21,16 +21,15 @@ int
 .sp
 \fBTcl_UnlinkVar\fR(\fIinterp, varName\fR)
 .sp
-.VS
 \fBTcl_UpdateLinkedVar\fR(\fIinterp, varName\fR)
-.VE
 .SH ARGUMENTS
 .AS Tcl_Interp writable
 .AP Tcl_Interp *interp in
 Interpreter that contains \fIvarName\fR.
 Also used by \fBTcl_LinkVar\fR to return error messages.
 .AP char *varName in
-Name of global variable.
+Name of global variable.  Must be in writable memory: Tcl may make
+temporary modifications to it while parsing the variable name.
 .AP char *addr in
 Address of C variable that is to be linked to \fIvarName\fR.
 .AP int type in
@@ -102,7 +101,6 @@ Attempts to write the variable from Tcl will be rejected with errors.
 variable given by \fIvarName\fR.  If there does not exist a link
 for \fIvarName\fR then the procedure has no effect.
 .PP
-.VS
 \fBTcl_UpdateLinkedVar\fR may be invoked after the C variable has
 changed to force the Tcl variable to be updated immediately.
 In many cases this procedure is not needed, since any attempt to
@@ -112,7 +110,6 @@ Tk widget that wishes to display the value of the variable), the
 trace will not trigger when the C variable has changed.
 \fBTcl_UpdateLinkedVar\fR ensures that any traces on the Tcl
 variable are invoked.
-.VE
 
 .SH KEYWORDS
 boolean, integer, link, read-only, real, string, traces, variable

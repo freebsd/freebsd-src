@@ -5,13 +5,17 @@
  *	procedure for Tcl applications (without Tk).
  *
  * Copyright (c) 1993 The Regents of the University of California.
- * Copyright (c) 1994-1995 Sun Microsystems, Inc.
+ * Copyright (c) 1994-1997 Sun Microsystems, Inc.
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclAppInit.c 1.17 96/03/26 12:45:29
+ * SCCS: @(#) tclAppInit.c 1.20 97/03/24 14:29:43
  */
+
+#ifdef TCL_XT_TEST
+#include <X11/Intrinsic.h>
+#endif
 
 #include "tcl.h"
 
@@ -23,9 +27,14 @@
 extern int matherr();
 int *tclDummyMathPtr = (int *) matherr;
 
+
 #ifdef TCL_TEST
+EXTERN int		TclObjTest_Init _ANSI_ARGS_((Tcl_Interp *interp));
 EXTERN int		Tcltest_Init _ANSI_ARGS_((Tcl_Interp *interp));
 #endif /* TCL_TEST */
+#ifdef TCL_XT_TEST
+EXTERN int		Tclxttest_Init _ANSI_ARGS_((Tcl_Interp *interp));
+#endif
 
 /*
  *----------------------------------------------------------------------
@@ -49,6 +58,9 @@ main(argc, argv)
     int argc;			/* Number of command-line arguments. */
     char **argv;		/* Values of command-line arguments. */
 {
+#ifdef TCL_XT_TEST
+    XtToolkitInitialize();
+#endif
     Tcl_Main(argc, argv, Tcl_AppInit);
     return 0;			/* Needed only to prevent compiler warning. */
 }
@@ -81,11 +93,19 @@ Tcl_AppInit(interp)
     }
 
 #ifdef TCL_TEST
+#ifdef TCL_XT_TEST
+     if (Tclxttest_Init(interp) == TCL_ERROR) {
+	 return TCL_ERROR;
+     }
+#endif
     if (Tcltest_Init(interp) == TCL_ERROR) {
 	return TCL_ERROR;
     }
     Tcl_StaticPackage(interp, "Tcltest", Tcltest_Init,
             (Tcl_PackageInitProc *) NULL);
+    if (TclObjTest_Init(interp) == TCL_ERROR) {
+	return TCL_ERROR;
+    }
 #endif /* TCL_TEST */
 
     /*

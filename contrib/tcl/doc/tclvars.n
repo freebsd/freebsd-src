@@ -1,14 +1,14 @@
 '\"
 '\" Copyright (c) 1993 The Regents of the University of California.
-'\" Copyright (c) 1994-1996 Sun Microsystems, Inc.
+'\" Copyright (c) 1994-1997 Sun Microsystems, Inc.
 '\"
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) tclvars.n 1.15 96/04/12 08:28:20
+'\" SCCS: @(#) tclvars.n 1.30 97/05/02 13:06:45
 '\" 
 .so man.macros
-.TH tclvars n 7.5 Tcl "Tcl Built-In Commands"
+.TH tclvars n 8.0 Tcl "Tcl Built-In Commands"
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
@@ -36,6 +36,14 @@ passed to children by commands like \fBexec\fR.
 If the entire \fBenv\fR array is unset then Tcl will stop
 monitoring \fBenv\fR accesses and will not update environment
 variables.
+.RS
+Under Windows, the environment variables PATH, COMSPEC, and WINDIR in any
+capitalization are converted automatically to upper case.  For instance, the
+PATH variable could be exported by the operating system as ``path'',
+``Path'', ``PaTh'', etc., causing otherwise simple Tcl code to have to
+support many special cases.  All other environment variables inherited by
+Tcl are left unmodified.
+.RE
 .TP
 \fBerrorCode\fR
 After an error has occurred, this variable will be set to hold
@@ -49,7 +57,6 @@ Tcl core; individual applications may define additional formats.
 .RS
 .TP
 \fBARITH\fI code msg\fR
-.VS
 This format is used when an arithmetic error occurs (e.g. an attempt
 to divide by zero in the \fBexpr\fR command).
 \fICode\fR identifies the precise error and \fImsg\fR provides a
@@ -59,7 +66,6 @@ DOMAIN (if an argument is outside the domain of a function, such as acos(\-3)),
 IOVERFLOW (for integer overflow),
 OVERFLOW (for a floating-point overflow),
 or UNKNOWN (if the cause of the error cannot be determined).
-.VE
 .TP
 \fBCHILDKILLED\fI pid sigName msg\fR
 This format is used when a child process has been killed because of
@@ -97,10 +103,8 @@ error.  In these cases \fBerrorCode\fR will consist of a list
 containing a single element whose contents are \fBNONE\fR.
 .TP
 \fBPOSIX \fIerrName msg\fR
-.VS
 If the first element of \fBerrorCode\fR is \fBPOSIX\fR, then
 the error occurred during a POSIX kernel call.
-.VE
 The second element of the list will contain the symbolic name
 of the error that occurred, such as \fBENOENT\fR; this will
 be one of the values defined in the include file errno.h.
@@ -109,10 +113,7 @@ message corresponding to \fIerrName\fR, such as
 ``no such file or directory'' for the \fBENOENT\fR case.
 .PP
 To set \fBerrorCode\fR, applications should use library
-procedures such as \fBTcl_SetErrorCode\fR and
-.VS
-\fBTcl_PosixError\fR,
-.VE
+procedures such as \fBTcl_SetErrorCode\fR and \fBTcl_PosixError\fR,
 or they may invoke the \fBerror\fR command.
 If one of these methods hasn't been used, then the Tcl
 interpreter will reset the variable to \fBNONE\fR after
@@ -127,12 +128,11 @@ Its contents take the form of a stack trace showing the various
 nested Tcl commands that had been invoked at the time of the error.
 .TP
 \fBtcl_library\fR
-.VS
-This variable holds the network name of a directory containing the
+This variable holds the name of a directory containing the
 system library of Tcl scripts, such as those used for auto-loading.
 The value of this variable is returned by the \fBinfo library\fR command.
 See the \fBlibrary\fR manual entry for details of the facilities 
-rovided by the Tcl script library.
+provided by the Tcl script library.
 Normally each application or package will have its own application-specific
 script library in addition to the Tcl script library;
 each application should set a global variable with a name like
@@ -147,7 +147,6 @@ If \fBTCL_LIBRARY\fR isn't set or doesn't refer to an appropriate
 directory, then Tcl checks several other directories based on a
 compiled-in default location, the location of the binary containing
 the application, and the current working directory.
-.VE
 .TP
 \fBtcl_patchLevel\fR
 When an interpreter is created Tcl initializes this variable to
@@ -157,6 +156,24 @@ hold a string giving the current patch level for Tcl, such as
 The value of this variable is returned by the \fBinfo patchlevel\fR
 command.
 .VS br
+.TP
+\fBtcl_pkgPath\fR
+This variable holds a list of directories indicating where packages are
+normally installed.  It typically contains either one or two entries; 
+if it contains two entries, the first is normally a directory for
+platform-dependent packages (e.g., shared library binaries) and the
+second is normally a directory for platform-independent packages (e.g.,
+script files). Typically a package is installed as a subdirectory of one
+of the entries in \fB$tcl_pkgPath\fR. The directories in
+\fB$tcl_pkgPath\fR are included by default in the \fBauto_path\fR
+variable, so they and their immediate subdirectories are automatically
+searched for packages during \fBpackage require\fR commands.  Note:
+\fBtcl_pkgPath\fR it not intended to be modified by the application.
+Its value is added to \fBauto_path\fR at startup; changes to
+\fBtcl_pkgPath\fR are not reflected in \fBauto_path\fR.  If you
+want Tcl to search additional directories for packages you should add
+the names of those directories to \fBauto_path\fR, not \fBtcl_pkgPath\fR.
+.VE
 .TP
 \fBtcl_platform\fR
 This is an associative array whose elements contain information about
@@ -168,16 +185,22 @@ retrieve any relevant information.  In addition, extensions
 and applications may add additional values to the array.  The
 predefined elements are:
 .RS
+.VS
+.TP
+\fBbyteOrder\fR
+The native byte order of this machine: either \fBlittleEndian\fR or
+\fBbigEndian\fR. 
+.VE
 .TP
 \fBmachine\fR
 The instruction set executed by this machine, such as
-\fBPPC\fR, \fB68k\fR, or \fBsun4m\fR.  On UNIX machines, this
+\fBintel\fR, \fBPPC\fR, \fB68k\fR, or \fBsun4m\fR.  On UNIX machines, this
 is the value returned by \fBuname -m\fR.
 .TP
-\fBos\fR
-The name of the operating system running on this machine, such
-as \fBWin95\fR, \fBMacOS\fR, or \fBSunOS\fR.  On UNIX machines,
-this is the value returned by \fBuname -s\fR.
+\fBos\fR 
+The name of the operating system running on this machine,
+such as \fBWin32s\fR, \fBWindows NT\fR, \fBMacOS\fR, or \fBSunOS\fR.
+On UNIX machines, this is the value returned by \fBuname -s\fR.
 .TP
 \fBosVersion\fR
 The version number for the operating system running on this machine.
@@ -187,25 +210,72 @@ On UNIX machines, this is the value returned by \fBuname -r\fR.
 Either \fBwindows\fR, \fBmacintosh\fR, or \fBunix\fR.  This identifies the
 general operating environment of the machine.
 .RE
-.VE
 .TP
 \fBtcl_precision\fR
-If this variable is set, it must contain a decimal number giving the
+.VS
+In Tcl versions before 8.0, this variable controlled the
 number of significant digits to include when converting floating-point
 values to strings.
-If this variable is not set then 6 digits are included.
+If the variable was not set then 6 digits were included.
 17 digits is ``perfect'' for IEEE floating-point in that it allows
 double-precision values to be converted to strings and back to
 binary with no loss of precision.
-.VS br
+As of Tcl 8.0 this variable is ignored and all conversions use the
+full 17 digits.
+.VE
 .TP
 \fBtcl_rcFileName\fR
 This variable is used during initialization to indicate the name of a
 user-specific startup file.  If it is set by application-specific
 initialization, then the Tcl startup code will check for the existence
 of this file and \fBsource\fR it if it exists.  For example, for \fBwish\fR
-the variable is set to \fB~/.wishrc\fR.
-.VE
+the variable is set to \fB~/.wishrc\fR for Unix and \fB~/wishrc.tcl\fR
+for Windows.
+.TP
+\fBtcl_rcRsrcName\fR
+This variable is only used on Macintosh systems.  The variable is used
+during initialization to indicate the name of a user-specific
+\fBTEXT\fR resource located in the application or extension resource
+forks.  If it is set by application-specific initialization, then the
+Tcl startup code will check for the existence of this resource and
+\fBsource\fR it if it exists.  For example, the Macintosh \fBwish\fR
+application has the variable is set to \fBtclshrc\fR.
+.TP
+\fBtcl_traceCompile\fR
+The value of this variable can be set to control
+how much tracing information
+is displayed during bytecode compilation.
+By default, tcl_traceCompile is zero and no information is displayed.
+Setting tcl_traceCompile to 1 generates a one line summary in stdout
+whenever a procedure or top level command is compiled.
+Setting it to 2 generates a detailed listing in stdout of the
+bytecode instructions emitted during every compilation.
+This variable is useful in
+tracking down suspected problems with the Tcl compiler.
+It is also occasionally useful when converting
+existing code to use Tcl8.0.
+.TP
+\fBtcl_traceExec\fR
+The value of this variable can be set to control
+how much tracing information
+is displayed during bytecode execution.
+By default, tcl_traceExec is zero and no information is displayed.
+Setting tcl_traceExec to 1 generates a one line trace in stdout
+on each call to a Tcl procedure.
+Setting it to 2 generates a line of output
+whenever any Tcl command is invoked
+that contains the name of the command and its arguments.
+Setting it to 3 produces a detailed trace showing the result of
+executing each bytecode instruction.
+Note that when tcl_traceExec is 2 or 3,
+commands such as set and incr
+that have been entirely replaced by a sequence
+of bytecode instructions are not shown.
+Setting this variable is useful in
+tracking down suspected problems with the bytecode compiler
+and interpreter.
+It is also occasionally useful when converting
+code to use Tcl8.0.
 .TP
 \fBtcl_version\fR
 When an interpreter is created Tcl initializes this variable to
@@ -217,4 +287,4 @@ The value of this variable is returned by the \fBinfo tclversion\fR
 command.
 
 .SH KEYWORDS
-arithmetic, error, environment, POSIX, precision, subprocess, variables
+arithmetic, bytecode, compiler, error, environment, POSIX, precision, subprocess, variables

@@ -10,7 +10,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclLoadNone.c 1.5 96/02/15 11:43:01
+ * SCCS: @(#) tclLoadNone.c 1.6 97/05/14 13:23:38
  */
 
 #include "tclInt.h"
@@ -45,8 +45,9 @@ TclLoadFile(interp, fileName, sym1, sym2, proc1Ptr, proc2Ptr)
 				/* Where to return the addresses corresponding
 				 * to sym1 and sym2. */
 {
-    interp->result =
-	    "dynamic loading is not currently available on this system";
+    Tcl_SetResult(interp,
+	    "dynamic loading is not currently available on this system",
+	    TCL_STATIC);
     return TCL_ERROR;
 }
 

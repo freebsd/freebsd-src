@@ -1,65 +1,228 @@
-# Commands covered:  lreplace
+# Commands covered:  incr
 #
 # This file contains a collection of tests for one or more of the Tcl
 # built-in commands.  Sourcing this file into Tcl runs the tests and
 # generates output for errors.  No output means no errors were found.
 #
-# Copyright (c) 1991-1993 The Regents of the University of California.
-# Copyright (c) 1994 Sun Microsystems, Inc.
+# Copyright (c) 1996 Sun Microsystems, Inc.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) incr.test 1.8 96/02/16 08:56:00
+# SCCS: @(#) incr.test 1.8 97/06/20 16:53:28
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
+# Basic "incr" operation.
+
 catch {unset x}
+catch {unset i}
 
-test incr-1.1 {basic incr operation} {
-    set x 23
-    list [incr x] $x
-} {24 24}
-test incr-1.2 {basic incr operation} {
-    set x 106
-    list [incr x -5] $x
-} {101 101}
-test incr-1.3 {basic incr operation} {
-    set x "  -106"
-    list [incr x 1] $x
-} {-105 -105}
-test incr-1.3 {basic incr operation} {
-    set x "  +106"
-    list [incr x 1] $x
-} {107 107}
+test incr-1.1 {TclCompileIncrCmd: missing variable name} {
+    list [catch {incr} msg] $msg
+} {1 {wrong # args: should be "incr varName ?increment?"}}
+test incr-1.2 {TclCompileIncrCmd: simple variable name} {
+    set i 10
+    list [incr i] $i
+} {11 11}
+test incr-1.3 {TclCompileIncrCmd: error compiling variable name} {
+    set i 10
+    catch {incr "i"xxx} msg
+    set msg
+} {extra characters after close-quote}
+test incr-1.4 {TclCompileIncrCmd: simple variable name in quotes} {
+    set i 17
+    list [incr "i"] $i
+} {18 18}
+test incr-1.5 {TclCompileIncrCmd: simple variable name in braces} {
+    catch {unset {a simple var}}
+    set {a simple var} 27
+    list [incr {a simple var}] ${a simple var}
+} {28 28}
+test incr-1.6 {TclCompileIncrCmd: simple array variable name} {
+    catch {unset a}
+    set a(foo) 37
+    list [incr a(foo)] $a(foo)
+} {38 38}
+test incr-1.7 {TclCompileIncrCmd: non-simple (computed) variable name} {
+    set x "i"
+    set i 77
+    list [incr $x 2] $i
+} {79 79}
+test incr-1.8 {TclCompileIncrCmd: non-simple (computed) variable name} {
+    set x "i"
+    set i 77
+    list [incr [set x] +2] $i
+} {79 79}
 
-test incr-2.1 {incr errors} {
-    list [catch incr msg] $msg
-} {1 {wrong # args: should be "incr varName ?increment?"}}
-test incr-2.2 {incr errors} {
-    list [catch {incr a b c} msg] $msg
-} {1 {wrong # args: should be "incr varName ?increment?"}}
-test incr-2.3 {incr errors} {
-    catch {unset x}
-    list [catch {incr x} msg] $msg $errorInfo
-} {1 {can't read "x": no such variable} {can't read "x": no such variable
-    while executing
-"incr x"}}
-test incr-2.4 {incr errors} {
-    set x abc
-    list [catch {incr x} msg] $msg $errorInfo
-} {1 {expected integer but got "abc"} {expected integer but got "abc"
+test incr-1.9 {TclCompileIncrCmd: increment given} {
+    set i 10
+    list [incr i +07] $i
+} {17 17}
+test incr-1.10 {TclCompileIncrCmd: no increment given} {
+    set i 10
+    list [incr i] $i
+} {11 11}
+
+test incr-1.11 {TclCompileIncrCmd: simple global name} {
+    proc p {} {
+        global i
+        set i 54
+        incr i
+    }
+    p
+} {55}
+test incr-1.12 {TclCompileIncrCmd: simple local name} {
+    proc p {} {
+        set foo 100
+        incr foo
+    }
+    p
+} {101}
+test incr-1.13 {TclCompileIncrCmd: simple but new (unknown) local name} {
+    proc p {} {
+        incr bar
+    }
+    catch {p} msg
+    set msg
+} {can't read "bar": no such variable}
+test incr-1.14 {TclCompileIncrCmd: simple local name, >255 locals} {
+    proc 260locals {} {
+        # create 260 locals
+        set a0 0; set a1 0; set a2 0; set a3 0; set a4 0
+        set a5 0; set a6 0; set a7 0; set a8 0; set a9 0
+        set b0 0; set b1 0; set b2 0; set b3 0; set b4 0
+        set b5 0; set b6 0; set b7 0; set b8 0; set b9 0
+        set c0 0; set c1 0; set c2 0; set c3 0; set c4 0
+        set c5 0; set c6 0; set c7 0; set c8 0; set c9 0
+        set d0 0; set d1 0; set d2 0; set d3 0; set d4 0
+        set d5 0; set d6 0; set d7 0; set d8 0; set d9 0
+        set e0 0; set e1 0; set e2 0; set e3 0; set e4 0
+        set e5 0; set e6 0; set e7 0; set e8 0; set e9 0
+        set f0 0; set f1 0; set f2 0; set f3 0; set f4 0
+        set f5 0; set f6 0; set f7 0; set f8 0; set f9 0
+        set g0 0; set g1 0; set g2 0; set g3 0; set g4 0
+        set g5 0; set g6 0; set g7 0; set g8 0; set g9 0
+        set h0 0; set h1 0; set h2 0; set h3 0; set h4 0
+        set h5 0; set h6 0; set h7 0; set h8 0; set h9 0
+        set i0 0; set i1 0; set i2 0; set i3 0; set i4 0
+        set i5 0; set i6 0; set i7 0; set i8 0; set i9 0
+        set j0 0; set j1 0; set j2 0; set j3 0; set j4 0
+        set j5 0; set j6 0; set j7 0; set j8 0; set j9 0
+        set k0 0; set k1 0; set k2 0; set k3 0; set k4 0
+        set k5 0; set k6 0; set k7 0; set k8 0; set k9 0
+        set l0 0; set l1 0; set l2 0; set l3 0; set l4 0
+        set l5 0; set l6 0; set l7 0; set l8 0; set l9 0
+        set m0 0; set m1 0; set m2 0; set m3 0; set m4 0
+        set m5 0; set m6 0; set m7 0; set m8 0; set m9 0
+        set n0 0; set n1 0; set n2 0; set n3 0; set n4 0
+        set n5 0; set n6 0; set n7 0; set n8 0; set n9 0
+        set o0 0; set o1 0; set o2 0; set o3 0; set o4 0
+        set o5 0; set o6 0; set o7 0; set o8 0; set o9 0
+        set p0 0; set p1 0; set p2 0; set p3 0; set p4 0
+        set p5 0; set p6 0; set p7 0; set p8 0; set p9 0
+        set q0 0; set q1 0; set q2 0; set q3 0; set q4 0
+        set q5 0; set q6 0; set q7 0; set q8 0; set q9 0
+        set r0 0; set r1 0; set r2 0; set r3 0; set r4 0
+        set r5 0; set r6 0; set r7 0; set r8 0; set r9 0
+        set s0 0; set s1 0; set s2 0; set s3 0; set s4 0
+        set s5 0; set s6 0; set s7 0; set s8 0; set s9 0
+        set t0 0; set t1 0; set t2 0; set t3 0; set t4 0
+        set t5 0; set t6 0; set t7 0; set t8 0; set t9 0
+        set u0 0; set u1 0; set u2 0; set u3 0; set u4 0
+        set u5 0; set u6 0; set u7 0; set u8 0; set u9 0
+        set v0 0; set v1 0; set v2 0; set v3 0; set v4 0
+        set v5 0; set v6 0; set v7 0; set v8 0; set v9 0
+        set w0 0; set w1 0; set w2 0; set w3 0; set w4 0
+        set w5 0; set w6 0; set w7 0; set w8 0; set w9 0
+        set x0 0; set x1 0; set x2 0; set x3 0; set x4 0
+        set x5 0; set x6 0; set x7 0; set x8 0; set x9 0
+        set y0 0; set y1 0; set y2 0; set y3 0; set y4 0
+        set y5 0; set y6 0; set y7 0; set y8 0; set y9 0
+        set z0 0; set z1 0; set z2 0; set z3 0; set z4 0
+        set z5 0; set z6 0; set z7 0; set z8 0; set z9 0
+        # now increment the last one (local var index > 255)
+        incr z9
+    }
+    260locals
+} {1}
+test incr-1.15 {TclCompileIncrCmd: variable is array} {
+    catch {unset a}
+    set a(foo) 27
+    set x [incr a(foo) 11]
+    catch {unset a}
+    set x
+} 38
+test incr-1.16 {TclCompileIncrCmd: variable is array, elem substitutions} {
+    catch {unset a}
+    set i 5
+    set a(foo5) 27
+    set x [incr a(foo$i) 11]
+    catch {unset a}
+    set x
+} 38
+
+test incr-1.17 {TclCompileIncrCmd: increment given, simple int} {
+    set i 5
+    incr i 123
+} 128
+test incr-1.18 {TclCompileIncrCmd: increment given, simple int} {
+    set i 5
+    incr i -100
+} -95
+test incr-1.19 {TclCompileIncrCmd: increment given, but erroneous} {
+    set i 5
+    catch {incr i [set]} msg
+    set errorInfo
+} {wrong # args: should be "set varName ?newValue?"
+    while compiling
+"set"
+    (reading increment)
+    while compiling
+"incr"}
+test incr-1.20 {TclCompileIncrCmd: increment given, in quotes} {
+    set i 25
+    incr i "-100"
+} -75
+test incr-1.21 {TclCompileIncrCmd: increment given, in braces} {
+    set i 24
+    incr i {126}
+} 150
+test incr-1.22 {TclCompileIncrCmd: increment given, large int} {
+    set i 5
+    incr i 200000
+} 200005
+test incr-1.23 {TclCompileIncrCmd: increment given, formatted int != int} {
+    set i 25
+    incr i 000012345     ;# an octal literal
+} 5374
+test incr-1.24 {TclCompileIncrCmd: increment given, formatted int != int} {
+    set i 25
+    catch {incr i 1a} msg
+    set msg
+} {expected integer but got "1a"}
+
+test incr-1.25 {TclCompileIncrCmd: too many arguments} {
+    set i 10
+    catch {incr i 10 20} msg
+    set msg
+} {wrong # args: should be "incr varName ?increment?"}
+
+
+test incr-1.26 {TclCompileIncrCmd: runtime error, bad variable name} {
+    list [catch {incr {"foo}} msg] $msg $errorInfo
+} {1 {can't read ""foo": no such variable} {can't read ""foo": no such variable
     (reading value of variable to increment)
     invoked from within
-"incr x"}}
-test incr-2.5 {incr errors} {
-    set x 123
-    list [catch {incr x 1a} msg] $msg $errorInfo
-} {1 {expected integer but got "1a"} {expected integer but got "1a"
-    (reading increment)
-    invoked from within
-"incr x 1a"}}
-test incr-2.6 {incr errors} {
+"incr {"foo}"}}
+test incr-1.27 {TclCompileIncrCmd: runtime error, bad variable name} {
+    list [catch {incr [set]} msg] $msg $errorInfo
+} {1 {wrong # args: should be "set varName ?newValue?"} {wrong # args: should be "set varName ?newValue?"
+    while compiling
+"set"
+    while compiling
+"incr"}}
+test incr-1.28 {TclCompileIncrCmd: runtime error, readonly variable} {
     proc readonly args {error "variable is read-only"}
     set x 123
     trace var x w readonly
@@ -68,21 +231,16 @@ test incr-2.6 {incr errors} {
     while executing
 "incr x 1"}}
 catch {unset x}
-test incr-2.7 {incr errors} {
-    set x -
-    list [catch {incr x 1} msg] $msg
-} {1 {expected integer but got "-"}}
-test incr-2.8 {incr errors} {
-    set x {  -  }
+test incr-1.29 {TclCompileIncrCmd: runtime error, bad variable value} {
+    set x "  -  "
     list [catch {incr x 1} msg] $msg
 } {1 {expected integer but got "  -  "}}
-test incr-2.9 {incr errors} {
-    set x +
-    list [catch {incr x 1} msg] $msg
-} {1 {expected integer but got "+"}}
-test incr-2.10 {incr errors} {
-    set x {20 x}
-    list [catch {incr x 1} msg] $msg
-} {1 {expected integer but got "20 x"}}
+    
+# Check "incr" and computed command names.
 
-concat {}
+test incr-2.1 {incr and computed command names} {
+    set i 5
+    set z incr
+    $z i -1
+    set i
+} 4

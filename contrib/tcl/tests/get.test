@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) get.test 1.5 96/04/09 15:54:33
+# SCCS: @(#) get.test 1.6 96/10/08 17:39:21
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -49,11 +49,11 @@ test get-1.8 {Tcl_GetInt procedure} {nonPortable} {
     set x 0
     list [catch {incr x 4294967294} msg] $msg
 } {0 -2}
-test get-1.8 {Tcl_GetInt procedure} {nonPortable} {
+test get-1.9 {Tcl_GetInt procedure} {nonPortable} {
     set x 0
     list [catch {incr x +4294967294} msg] $msg
 } {0 -2}
-test get-1.9 {Tcl_GetInt procedure} {nonPortable} {
+test get-1.10 {Tcl_GetInt procedure} {nonPortable} {
     set x 0
     list [catch {incr x -4294967294} msg] $msg
 } {0 2}

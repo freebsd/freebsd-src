@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) list.test 1.20 96/02/16 08:56:09
+# SCCS: @(#) list.test 1.22 97/06/23 18:19:17
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -44,15 +44,17 @@ test list-1.24 {basic tests} {list} {}
 # For the next round of tests create a list and then pick it apart
 # with "index" to make sure that we get back exactly what went in.
 
+test list-2.1 {placeholder} {
+} {}
 set num 1
 proc lcheck {a b c} {
     global num d
     set d [list $a $b $c]
-    test list-2.$num {what goes in must come out} {lindex $d 0} $a
+;   test list-2.$num {what goes in must come out} {lindex $d 0} $a
     set num [expr $num+1]
-    test list-2.$num {what goes in must come out} {lindex $d 1} $b
+;   test list-2.$num {what goes in must come out} {lindex $d 1} $b
     set num [expr $num+1]
-    test list-2.$num {what goes in must come out} {lindex $d 2} $c
+;   test list-2.$num {what goes in must come out} {lindex $d 2} $c
     set num [expr $num+1]
 }
 lcheck a b c
@@ -71,3 +73,35 @@ lcheck xyz \\ 1\\\n2
 lcheck "{ab}\\" "{ab}xy" abc
 
 concat {}
+
+# Check that tclListObj.c's SetListFromAny handles possible overlarge
+# string rep lengths in the source object.
+
+proc slowsort list {
+    set result {}
+    set last [expr [llength $list] - 1]
+    while {$last > 0} {
+	set minIndex [expr [llength $list] - 1]
+	set min [lindex $list $last]
+	set i [expr $minIndex-1]
+	while {$i >= 0} {
+	    if {[string compare [lindex $list $i] $min] < 0} {
+		set minIndex $i
+		set min [lindex $list $i]
+	    }
+	    set i [expr $i-1]
+	}
+	set result [concat $result [list $min]]
+	if {$minIndex == 0} {
+	    set list [lrange $list 1 end]
+	} else {
+	    set list [concat [lrange $list 0 [expr $minIndex-1]] \
+			  [lrange $list [expr $minIndex+1] end]]
+	}
+	set last [expr $last-1]
+    }
+    return [concat $result $list]
+}
+test list-3.1 {SetListFromAny and lrange/concat results} {
+    slowsort {fred julie alex carol bill annie}
+} {alex annie bill carol fred julie}

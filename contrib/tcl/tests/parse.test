@@ -6,12 +6,12 @@
 # generates output for errors.  No output means no errors were found.
 #
 # Copyright (c) 1991-1993 The Regents of the University of California.
-# Copyright (c) 1994 Sun Microsystems, Inc.
+# Copyright (c) 1994-1996 Sun Microsystems, Inc.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) parse.test 1.34 96/03/02 14:29:03
+# SCCS: @(#) parse.test 1.40 97/06/23 18:19:53
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -121,6 +121,11 @@ format %s $b
 ]b
     set a
 } a22b
+test parse-4.4 {command substitution} {
+    set a 7.7
+    if [catch {expr int($a)}] {set a foo}
+    set a
+} 7.7
 
 # Variable substitution.
 
@@ -209,7 +214,7 @@ catch {unset a}; catch {unset a1}
 set errNum 1
 proc bsCheck {char num} {
     global errNum
-    test parse-6.$errNum {backslash substitution} {
+;   test parse-6.$errNum {backslash substitution} {
 	scan $char %c value
 	set value
     } $num
@@ -336,22 +341,22 @@ test parse-9.3 {syntax errors} {catch {set a "bcd} msg} 1
 test parse-9.4 {syntax errors} {
 	catch {set a "bcd} msg
 	set msg
-} {missing "}
+} {quoted string doesn't terminate properly}
 test parse-9.5 {syntax errors} {catch {set a "bcd"xy} msg} 1
 test parse-9.6 {syntax errors} {
 	catch {set a "bcd"xy} msg
 	set msg
-} {extra characters after close-quote}
+} {quoted string doesn't terminate properly}
 test parse-9.7 {syntax errors} {catch "set a {bcd}xy" msg} 1
 test parse-9.8 {syntax errors} {
 	catch "set a {bcd}xy" msg
 	set msg
-} {extra characters after close-brace}
+} {argument word in braces doesn't terminate properly}
 test parse-9.9 {syntax errors} {catch {set a [format abc} msg} 1
 test parse-9.10 {syntax errors} {
 	catch {set a [format abc} msg
 	set msg
-} {missing close-bracket}
+} {missing close-bracket or close-brace}
 test parse-9.11 {syntax errors} {catch gorp-a-lot msg} 1
 test parse-9.12 {syntax errors} {
 	catch gorp-a-lot msg
@@ -366,11 +371,27 @@ test parse-9.14 {syntax errors} {
     list [catch {eval \$x[format "%01000d" 0](} msg] $msg $errorInfo
 } {1 {missing )} {missing )
     (parsing index for array "x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
-    invoked from within
+    while compiling
 "$x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 ..."
     ("eval" body line 1)
     invoked from within
 "eval \$x[format "%01000d" 0]("}}
+test parse-9.15 {syntax errors, missplaced braces} {
+    catch {
+        proc misplaced_end_brace {} {
+            set what foo
+            set when [expr ${what}size - [set off$what]}]
+    } msg
+    set msg
+} {wrong # args: should be "proc name args body"}
+test parse-9.16 {syntax errors, missplaced braces} {
+    catch {
+        set a {
+            set what foo
+            set when [expr ${what}size - [set off$what]}]
+    } msg
+    set msg
+} {argument word in braces doesn't terminate properly}
 
 # Long values (stressing storage management)
 
@@ -382,30 +403,30 @@ test parse-10.1 {long values} {
 test parse-10.2 {long values} {
     llength $a
 } 43
-test parse-1a1.3 {long values} {
+test parse-10.3 {long values} {
     set b "1111 2222 3333 4444 5555 6666 7777 8888 9999 aaaa bbbb cccc dddd eeee ffff gggg hhhh iiii jjjj kkkk llll mmmm nnnn oooo pppp qqqq rrrr ssss tttt uuuu vvvv wwww xxxx yyyy zzzz AAAA BBBB CCCC DDDD EEEE FFFF GGGG HHHH"
     set b
 } $a
-test parse-10.3 {long values} {
+test parse-10.4 {long values} {
     set b "$a"
     set b
 } $a
-test parse-10.4 {long values} {
+test parse-10.5 {long values} {
     set b [set a]
     set b
 } $a
-test parse-10.5 {long values} {
+test parse-10.6 {long values} {
     set b [concat 1111 2222 3333 4444 5555 6666 7777 8888 9999 aaaa bbbb cccc dddd eeee ffff gggg hhhh iiii jjjj kkkk llll mmmm nnnn oooo pppp qqqq rrrr ssss tttt uuuu vvvv wwww xxxx yyyy zzzz AAAA BBBB CCCC DDDD EEEE FFFF GGGG HHHH]
     string length $b
 } 214
-test parse-10.6 {long values} {
+test parse-10.7 {long values} {
     set b [concat 1111 2222 3333 4444 5555 6666 7777 8888 9999 aaaa bbbb cccc dddd eeee ffff gggg hhhh iiii jjjj kkkk llll mmmm nnnn oooo pppp qqqq rrrr ssss tttt uuuu vvvv wwww xxxx yyyy zzzz AAAA BBBB CCCC DDDD EEEE FFFF GGGG HHHH]
     llength $b
 } 43
-test parse-10.7 {long values} {
+test parse-10.8 {long values} {
     set b
 } $a
-test parse-10.8 {long values} {
+test parse-10.9 {long values} {
     set a [concat 0000 1111 2222 3333 4444 5555 6666 7777 8888 9999 aaaa bbbb cccc dddd eeee ffff gggg hhhh iiii jjjj kkkk llll mmmm nnnn oooo pppp qqqq rrrr ssss tttt uuuu vvvv wwww xxxx yyyy zzzz AAAA BBBB CCCC DDDD EEEE FFFF GGGG HHHH IIII JJJJ KKKK LLLL MMMM NNNN OOOO PPPP QQQQ RRRR SSSS TTTT UUUU VVVV WWWW XXXX YYYY ZZZZ]
     llength $a
 } 62
@@ -414,11 +435,11 @@ foreach j [concat 0000 1111 2222 3333 4444 5555 6666 7777 8888 9999 aaaa bbbb cc
     set test [string index 0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ $i]
     set test $test$test$test$test
     set i [expr $i+1]
-    test parse-10.9 {long values} {
+    test parse-10.10 {long values} {
 	set j
     } $test
 }
-test parse-10.10 {test buffer overflow in backslashes in braces} {
+test parse-10.11 {test buffer overflow in backslashes in braces} {
     expr {"a" == {xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\101\101\101\101\101\101\101\101\101\101\101\101\101\101\101\101\101\101\101\101\101\101\101\101\101\101}}
 } 0
 
@@ -499,6 +520,21 @@ if {[info command testwordend] == "testwordend"} {
     test parse-13.16 {TclWordEnd procedure} {
 	testwordend "abc"
     } {c}
+    test parse-13.17 {TclWordEnd procedure} {
+	testwordend "a\000bc"
+    } {c}
+    test parse-13.18 {TclWordEnd procedure} {
+	testwordend \[a\000\]
+    } {]}
+    test parse-13.19 {TclWordEnd procedure} {
+	testwordend \"a\000\"
+    } {"}
+    test parse-13.20 {TclWordEnd procedure} {
+	testwordend a{\000}b
+    } {b}
+    test parse-13.21 {TclWordEnd procedure} {
+	testwordend "   \000b"
+    } {b}
 }
 
 test parse-14.1 {TclScriptEnd procedure} {

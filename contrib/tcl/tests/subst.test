@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) subst.test 1.7 96/02/16 08:56:30
+# SCCS: @(#) subst.test 1.8 97/06/23 18:20:15
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -70,7 +70,7 @@ test subst-5.2 {command substitutions} {
 test subst-5.3 {command substitutions} {
     subst {x.[concat foo].y.[concat bar].z}
 } {x.foo.y.bar.z}
-test subst-5.3 {command substitutions} {
+test subst-5.4 {command substitutions} {
     list [catch {subst {$long [set long] [bogus_command]}} msg] $msg
 } {1 {invalid command name "bogus_command"}}
 

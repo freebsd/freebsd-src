@@ -1,16 +1,16 @@
 '\"
-'\" Copyright (c) 1996 Sun Microsystems, Inc.
+'\" Copyright (c) 1996-7 Sun Microsystems, Inc.
 '\"
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\"
-'\" SCCS: @(#) OpenTcp.3 1.16 96/03/17 09:51:18
+'\" SCCS: @(#) OpenTcp.3 1.19 97/06/25 14:44:00
 .so man.macros
-.TH Tcl_OpenTcpClient 3 7.5 Tcl "Tcl Library Procedures"
+.TH Tcl_OpenTcpClient 3 8.0 Tcl "Tcl Library Procedures"
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-Tcl_OpenTcpClient, Tcl_OpenTcpServer \- procedures to open channels using TCP sockets
+Tcl_OpenTcpClient, Tcl_MakeTcpClientChannel, Tcl_OpenTcpServer \- procedures to open channels using TCP sockets
 .SH SYNOPSIS
 .nf
 \fB#include <tcl.h> \fR
@@ -92,11 +92,23 @@ NULL and records a POSIX error code that can be retrieved
 with \fBTcl_GetErrno\fR.
 In addition, if \fIinterp\fR is non-NULL, an error message
 is left in \fIinterp->result\fR.
+.PP
+The newly created channel is not registered in the supplied interpreter; to
+register it, use \fBTcl_RegisterChannel\fR.
+If one of the standard channels, \fBstdin, stdout\fR or \fBstderr\fR was
+previously closed, the act of creating the new channel also assigns it as a
+replacement for the standard channel.
 
 .SH TCL_MAKETCPCLIENTCHANNEL
 .PP
 \fBTcl_MakeTcpClientChannel\fR creates a \fBTcl_Channel\fR around an
 existing, platform specific, handle for a client TCP socket.
+.PP
+The newly created channel is not registered in the supplied interpreter; to
+register it, use \fBTcl_RegisterChannel\fR.
+If one of the standard channels, \fBstdin, stdout\fR or \fBstderr\fR was
+previously closed, the act of creating the new channel also assigns it as a
+replacement for the standard channel.
 
 .SH TCL_OPENTCPSERVER
 .PP
@@ -144,9 +156,24 @@ TCP server channels operate correctly only in applications that dispatch
 events through \fBTcl_DoOneEvent\fR or through Tcl commands such as
 \fBvwait\fR; otherwise Tcl will never notice that a connection request from
 a remote client is pending.
+.PP
+The newly created channel is not registered in the supplied interpreter; to
+register it, use \fBTcl_RegisterChannel\fR.
+If one of the standard channels, \fBstdin, stdout\fR or \fBstderr\fR was
+previously closed, the act of creating the new channel also assigns it as a
+replacement for the standard channel.
+
+.VS
+.SH "PLATFORM ISSUES"
+.PP
+On Unix platforms, the socket handle is a Unix file descriptor as
+returned by the \fBsocket\fR system call.  On the Windows platform, the
+socket handle is a \fBSOCKET\fR as defined in the WinSock API.  On the
+Macintosh platform, the socket handle is a \fBStreamPtr\fR.
+.VE
 
 .SH "SEE ALSO"
-Tcl_OpenFileChannel(3), vwait(n)
+Tcl_OpenFileChannel(3), Tcl_RegisterChannel(3), vwait(n)
 
 .SH KEYWORDS
 client, server, TCP

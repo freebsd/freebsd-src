@@ -9,7 +9,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclUnixFile.c 1.38 96/04/18 08:43:51
+ * SCCS: @(#) tclUnixFile.c 1.45 97/05/14 13:24:19
  */
 
 #include "tclInt.h"
@@ -43,40 +43,6 @@ static void	FreeExecutableName _ANSI_ARGS_((ClientData clientData));
 /*
  *----------------------------------------------------------------------
  *
- * Tcl_WaitPid --
- *
- *	Implements the waitpid system call on Unix systems.
- *
- * Results:
- *	Result of calling waitpid.
- *
- * Side effects:
- *	Waits for a process to terminate.
- *
- *----------------------------------------------------------------------
- */
-
-int
-Tcl_WaitPid(pid, statPtr, options)
-    int pid;
-    int *statPtr;
-    int options;
-{
-    int result;
-    pid_t real_pid;
-
-    real_pid = (pid_t) pid;
-    while (1) {
-	result = (int) waitpid(real_pid, statPtr, options);
-	if ((result != -1) || (errno != EINTR)) {
-	    return result;
-	}
-    }
-}
-
-/*
- *----------------------------------------------------------------------
- *
  * FreeCurrentDir --
  *
  *	Frees the string stored in the currentDir variable. This routine
@@ -99,6 +65,7 @@ FreeCurrentDir(clientData)
     if (currentDir != (char *) NULL) {
         ckfree(currentDir);
         currentDir = (char *) NULL;
+        currentDirExitHandlerSet = 0;
     }
 }
 
@@ -205,7 +172,9 @@ TclGetCwd(interp)
 	if (getcwd(buffer, MAXPATHLEN+1) == NULL) {
 	    if (interp != NULL) {
 		if (errno == ERANGE) {
-		    interp->result = "working directory name is too long";
+		    Tcl_SetResult(interp,
+			    "working directory name is too long",
+		            TCL_STATIC);
 		} else {
 		    Tcl_AppendResult(interp,
 			    "error getting working directory name: ",
@@ -218,227 +187,6 @@ TclGetCwd(interp)
 	strcpy(currentDir, buffer);
     }
     return currentDir;
-}
-
-/*
- *----------------------------------------------------------------------
- *
- * TclOpenFile --
- *
- *	Implements a mechanism to open files on Unix systems.
- *
- * Results:
- *	The opened file.
- *
- * Side effects:
- *	May cause a file to be created on the file system.
- *
- *----------------------------------------------------------------------
- */
-
-Tcl_File
-TclOpenFile(fname, mode)
-    char *fname;			/* The name of the file to open. */
-    int mode;				/* In what mode to open the file? */
-{
-    int fd;
-
-    fd = open(fname, mode, 0600);
-    if (fd != -1) {
-        fcntl(fd, F_SETFD, FD_CLOEXEC);
-        return Tcl_GetFile((ClientData)fd, TCL_UNIX_FD);
-    }
-    return NULL;
-}
-
-/*
- *----------------------------------------------------------------------
- *
- * TclCloseFile --
- *
- *	Implements a mechanism to close a UNIX file.
- *
- * Results:
- *	Returns 0 on success, or -1 on error, setting errno.
- *
- * Side effects:
- *	The file is closed.
- *
- *----------------------------------------------------------------------
- */
-
-int
-TclCloseFile(file)
-    Tcl_File file;	/* The file to close. */
-{
-    int type;
-    int fd;
-    int result;
-
-    fd = (int) Tcl_GetFileInfo(file, &type);
-    if (type != TCL_UNIX_FD) {
-	panic("Tcl_CloseFile: unexpected file type");
-    }
-
-    /*
-     * Refuse to close the fds for stdin, stdout and stderr.
-     */
-    
-    if ((fd == 0) || (fd == 1) || (fd == 2)) {
-        return 0;
-    }
-    
-    result = close(fd);
-    Tcl_DeleteFileHandler(file);
-    Tcl_FreeFile(file);
-    return result;
-}
-
-/*
- *----------------------------------------------------------------------
- *
- * TclReadFile --
- *
- *	Implements a mechanism to read from files on Unix systems. Also
- *	simulates blocking behavior on non-blocking files when asked to.
- *
- * Results:
- *	The number of characters read from the specified file.
- *
- * Side effects:
- *	May consume characters from the file.
- *
- *----------------------------------------------------------------------
- */
-	/* ARGSUSED */
-int
-TclReadFile(file, shouldBlock, buf, toRead)
-    Tcl_File file;	/* The file to read from. */
-    int shouldBlock;		/* Not used. */
-    char *buf;			/* The buffer to store input in. */
-    int toRead;			/* Number of characters to read. */
-{
-    int type, fd;
-
-    fd = (int) Tcl_GetFileInfo(file, &type);
-    if (type != TCL_UNIX_FD) {
-	panic("Tcl_ReadFile: unexpected file type");
-    }
-
-    return read(fd, buf, (size_t) toRead);
-}
-
-/*
- *----------------------------------------------------------------------
- *
- * TclWriteFile --
- *
- *	Implements a mechanism to write to files on Unix systems.
- *
- * Results:
- *	The number of characters written to the specified file.
- *
- * Side effects:
- *	May produce characters on the file.
- *
- *----------------------------------------------------------------------
- */
-
-	/* ARGSUSED */
-int
-TclWriteFile(file, shouldBlock, buf, toWrite)
-    Tcl_File file;	/* The file to write to. */
-    int shouldBlock;		/* Not used. */
-    char *buf;			/* Where output is stored. */
-    int toWrite;		/* Number of characters to write. */
-{
-    int type, fd;
-
-    fd = (int) Tcl_GetFileInfo(file, &type);
-    if (type != TCL_UNIX_FD) {
-	panic("Tcl_WriteFile: unexpected file type");
-    }
-    return write(fd, buf, (size_t) toWrite);
-}
-
-/*
- *----------------------------------------------------------------------
- *
- * TclSeekFile --
- *
- *	Sets the file pointer on the indicated UNIX file.
- *
- * Results:
- *	The new position at which the file will be accessed, or -1 on
- *	failure.
- *
- * Side effects:
- *	May change the position at which subsequent operations access the
- *	file designated by the file.
- *
- *----------------------------------------------------------------------
- */
-
-int
-TclSeekFile(file, offset, whence)
-    Tcl_File file;	/* The file to seek on. */
-    int offset;			/* How far to seek? */
-    int whence;			/* And from where to seek? */
-{
-    int type, fd;
-
-    fd = (int) Tcl_GetFileInfo(file, &type);
-    if (type != TCL_UNIX_FD) {
-	panic("Tcl_SeekFile: unexpected file type");
-    }
-
-    return lseek(fd, offset, whence);
-}
-
-/*
- *----------------------------------------------------------------------
- *
- * TclCreateTempFile --
- *
- *	This function creates a temporary file initialized with an
- *	optional string, and returns a file handle with the file pointer
- *	at the beginning of the file.
- *
- * Results:
- *	A handle to a file.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-Tcl_File
-TclCreateTempFile(contents)
-    char *contents;		/* String to write into temp file, or NULL. */
-{
-    char fileName[L_tmpnam];
-    Tcl_File file;
-    size_t length = (contents == NULL) ? 0 : strlen(contents);
-
-    tmpnam(fileName);
-    file = TclOpenFile(fileName, O_RDWR|O_CREAT|O_TRUNC);
-    unlink(fileName);
-
-    if ((file != NULL) && (length > 0)) {
-	int fd = (int)Tcl_GetFileInfo(file, NULL);
-	while (1) {
-	    if (write(fd, contents, length) != -1) {
-		break;
-	    } else if (errno != EINTR) {
-		close(fd);
-		Tcl_FreeFile(file);
-		return NULL;
-	    }
-	}
-	lseek(fd, 0, SEEK_SET);
-    }
-    return file;
 }
 
 /*
@@ -467,6 +215,7 @@ Tcl_FindExecutable(argv0)
     char *name, *p, *cwd;
     Tcl_DString buffer;
     int length;
+    struct stat statBuf;
 
     Tcl_DStringInit(&buffer);
     if (tclExecutableName != NULL) {
@@ -518,7 +267,9 @@ Tcl_FindExecutable(argv0)
 	    }
 	}
 	Tcl_DStringAppend(&buffer, argv0, -1);
-	if (access(Tcl_DStringValue(&buffer), X_OK) == 0) {
+	if ((access(Tcl_DStringValue(&buffer), X_OK) == 0)
+		&& (stat(Tcl_DStringValue(&buffer), &statBuf) == 0)
+		&& S_ISREG(statBuf.st_mode)) {
 	    name = Tcl_DStringValue(&buffer);
 	    goto gotName;
 	}
@@ -626,7 +377,8 @@ TclGetUserHome(name, bufferPtr)
  * Side effects:
  *	None.
  *
- *---------------------------------------------------------------------- */
+ *----------------------------------------------------------------------
+ */
 
 int
 TclMatchFiles(interp, separators, dirPtr, pattern, tail)
