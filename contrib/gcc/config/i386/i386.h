@@ -34,6 +34,8 @@ Boston, MA 02111-1307, USA. */
    PUT_OP_SIZE, USE_STAR, ADDR_BEG, ADDR_END, PRINT_IREG, PRINT_SCALE,
    PRINT_B_I_S, and many that start with ASM_ or end in ASM_OP.  */
 
+/* $FreeBSD$ */
+
 /* Names to predefine in the preprocessor for this target machine.  */
 
 #define I386 1
@@ -155,62 +157,67 @@ extern int target_flags;
 #define TARGET_486 (ix86_cpu == PROCESSOR_I486)
 #define TARGET_PENTIUM (ix86_cpu == PROCESSOR_PENTIUM)
 #define TARGET_PENTIUMPRO (ix86_cpu == PROCESSOR_PENTIUMPRO)
-#define TARGET_USE_LEAVE (ix86_cpu == PROCESSOR_I386)
-#define TARGET_PUSH_MEMORY (ix86_cpu == PROCESSOR_I386)
-#define TARGET_ZERO_EXTEND_WITH_AND (ix86_cpu != PROCESSOR_I386 \
-				     && ix86_cpu != PROCESSOR_PENTIUMPRO)
-#define TARGET_DOUBLE_WITH_ADD (ix86_cpu != PROCESSOR_I386)
-#define TARGET_USE_BIT_TEST (ix86_cpu == PROCESSOR_I386)
-#define TARGET_UNROLL_STRLEN (ix86_cpu != PROCESSOR_I386)
-#define TARGET_USE_Q_REG (ix86_cpu == PROCESSOR_PENTIUM \
-			  || ix86_cpu == PROCESSOR_PENTIUMPRO)
-#define TARGET_USE_ANY_REG (ix86_cpu == PROCESSOR_I486)
-#define TARGET_CMOVE (ix86_arch == PROCESSOR_PENTIUMPRO)
-#define TARGET_DEEP_BRANCH_PREDICTION (ix86_cpu == PROCESSOR_PENTIUMPRO)
+#define TARGET_K6 (ix86_cpu == PROCESSOR_K6)
+
+#define CPUMASK (1 << ix86_cpu)
+extern const int x86_use_leave, x86_push_memory, x86_zero_extend_with_and;
+extern const int x86_use_bit_test, x86_cmove, x86_deep_branch;
+extern const int x86_unroll_strlen, x86_use_q_reg, x86_use_any_reg;
+extern const int x86_double_with_add;
+
+#define TARGET_USE_LEAVE (x86_use_leave & CPUMASK)
+#define TARGET_PUSH_MEMORY (x86_push_memory & CPUMASK)
+#define TARGET_ZERO_EXTEND_WITH_AND (x86_zero_extend_with_and & CPUMASK)
+#define TARGET_USE_BIT_TEST (x86_use_bit_test & CPUMASK)
+#define TARGET_UNROLL_STRLEN (x86_unroll_strlen & CPUMASK)
+#define TARGET_USE_Q_REG (x86_use_q_reg & CPUMASK)
+#define TARGET_USE_ANY_REG (x86_use_any_reg & CPUMASK)
+#define TARGET_CMOVE (x86_cmove & (1 << ix86_arch))
+#define TARGET_DEEP_BRANCH_PREDICTION (x86_deep_branch & CPUMASK)
+#define TARGET_DOUBLE_WITH_ADD (x86_double_with_add & CPUMASK)
+
 #define TARGET_STACK_PROBE (target_flags & MASK_STACK_PROBE)
 
 #define TARGET_SWITCHES							\
-{ { "80387",			 MASK_80387 },				\
-  { "no-80387",			-MASK_80387 },				\
-  { "hard-float",		 MASK_80387 },				\
-  { "soft-float",		-MASK_80387 },				\
-  { "no-soft-float",		 MASK_80387 },				\
-  { "386",			 0 },					\
-  { "no-386",			 0 },					\
-  { "486",			 0 },					\
-  { "no-486",			 0 },					\
-  { "pentium",			 0 },					\
-  { "pentiumpro",		 0 },					\
-  { "rtd",			 MASK_RTD },				\
-  { "no-rtd",			-MASK_RTD },				\
-  { "align-double",		 MASK_ALIGN_DOUBLE },			\
-  { "no-align-double",		-MASK_ALIGN_DOUBLE },			\
-  { "svr3-shlib",		 MASK_SVR3_SHLIB },			\
-  { "no-svr3-shlib",		-MASK_SVR3_SHLIB },			\
-  { "ieee-fp",			 MASK_IEEE_FP },			\
-  { "no-ieee-fp",		-MASK_IEEE_FP },			\
-  { "fp-ret-in-387",		 MASK_FLOAT_RETURNS },			\
-  { "no-fp-ret-in-387",		-MASK_FLOAT_RETURNS },			\
-  { "no-fancy-math-387",	 MASK_NO_FANCY_MATH_387 },		\
-  { "fancy-math-387",		-MASK_NO_FANCY_MATH_387 },		\
-  { "omit-leaf-frame-pointer",	 MASK_OMIT_LEAF_FRAME_POINTER }, 	\
-  { "no-omit-leaf-frame-pointer",-MASK_OMIT_LEAF_FRAME_POINTER },       \
-  { "no-wide-multiply",		 MASK_NO_WIDE_MULTIPLY },		\
-  { "wide-multiply",		-MASK_NO_WIDE_MULTIPLY },		\
-  { "schedule-prologue",	 MASK_SCHEDULE_PROLOGUE },		\
-  { "no-schedule-prologue",	-MASK_SCHEDULE_PROLOGUE },		\
-  { "debug-addr",		 MASK_DEBUG_ADDR },			\
-  { "no-debug-addr",		-MASK_DEBUG_ADDR },			\
-  { "move",			-MASK_NO_MOVE },			\
-  { "no-move",			 MASK_NO_MOVE },			\
-  { "debug-arg",		 MASK_DEBUG_ARG },			\
-  { "no-debug-arg",		-MASK_DEBUG_ARG },			\
-  { "stack-arg-probe",		 MASK_STACK_PROBE },			\
-  { "no-stack-arg-probe",	-MASK_STACK_PROBE },			\
-  { "windows",			0 },					\
-  { "dll",			0 },					\
+{ { "80387",			 MASK_80387, "Use hardware fp" },	\
+  { "no-80387",			-MASK_80387, "Do not use hardware fp" },\
+  { "hard-float",		 MASK_80387, "Use hardware fp" },	\
+  { "soft-float",		-MASK_80387, "Do not use hardware fp" },\
+  { "no-soft-float",		 MASK_80387, "Use hardware fp" },	\
+  { "386",			 0, "Same as -mcpu=i386" },		\
+  { "486",			 0, "Same as -mcpu=i486" },		\
+  { "pentium",			 0, "Same as -mcpu=pentium" },		\
+  { "pentiumpro",		 0, "Same as -mcpu=pentiumpro" },	\
+  { "rtd",			 MASK_RTD, "Alternate calling convention" },\
+  { "no-rtd",			-MASK_RTD, "Use normal calling convention" },\
+  { "align-double",		 MASK_ALIGN_DOUBLE, "Align some doubles on dword boundary" },\
+  { "no-align-double",		-MASK_ALIGN_DOUBLE, "Align doubles on word boundary" },		\
+  { "svr3-shlib",		 MASK_SVR3_SHLIB, "Uninitialized locals in .bss"  },			\
+  { "no-svr3-shlib",		-MASK_SVR3_SHLIB, "Uninitialized locals in .data" },			\
+  { "ieee-fp",			 MASK_IEEE_FP, "Use IEEE math for fp comparisons" },	\
+  { "no-ieee-fp",		-MASK_IEEE_FP, "Do not use IEEE math for fp comparisons" },			\
+  { "fp-ret-in-387",		 MASK_FLOAT_RETURNS, "Return values of functions in FPU registers" },			\
+  { "no-fp-ret-in-387",		-MASK_FLOAT_RETURNS , "Do not return values of functions in FPU registers"},			\
+  { "no-fancy-math-387",	 MASK_NO_FANCY_MATH_387, "Do not generate sin, cos, sqrt for 387" },		\
+  { "fancy-math-387",		-MASK_NO_FANCY_MATH_387, "Generate sin, cos, sqrt for FPU"},		\
+  { "omit-leaf-frame-pointer",	 MASK_OMIT_LEAF_FRAME_POINTER, "Omit the frame pointer in leaf functions" }, 	\
+  { "no-omit-leaf-frame-pointer",-MASK_OMIT_LEAF_FRAME_POINTER, "" },       \
+  { "no-wide-multiply",		 MASK_NO_WIDE_MULTIPLY, "multiplies of 32 bits constrained to 32 bits" },		\
+  { "wide-multiply",		-MASK_NO_WIDE_MULTIPLY, "multiplies of 32 bits are 64 bits" },		\
+  { "schedule-prologue",	 MASK_SCHEDULE_PROLOGUE, "Schedule function prologues" },		\
+  { "no-schedule-prologue",	-MASK_SCHEDULE_PROLOGUE, "" },		\
+  { "debug-addr",		 MASK_DEBUG_ADDR, 0 /* intentionally undoc */ },			\
+  { "no-debug-addr",		-MASK_DEBUG_ADDR, 0 /* intentionally undoc */ },			\
+  { "move",			-MASK_NO_MOVE, "Generate mem-mem moves" },			\
+  { "no-move",			 MASK_NO_MOVE, "Don't generate mem-mem moves" },			\
+  { "debug-arg",		 MASK_DEBUG_ARG, 0 /* intentionally undoc */ },			\
+  { "no-debug-arg",		-MASK_DEBUG_ARG, 0 /* intentionally undoc */ },			\
+  { "stack-arg-probe",		 MASK_STACK_PROBE, "Enable stack probing" },			\
+  { "no-stack-arg-probe",	-MASK_STACK_PROBE, "" },			\
+  { "windows",			0, 0 /* intentionally undoc */ },					\
+  { "dll",			0, 0 /* intentionally undoc */ },					\
   SUBTARGET_SWITCHES							\
-  { "", MASK_SCHEDULE_PROLOGUE | TARGET_DEFAULT}}
+  { "", MASK_SCHEDULE_PROLOGUE | TARGET_DEFAULT, 0 }}
 
 /* Which processor to schedule for. The cpu attribute defines a list that
    mirrors this list, so changes to i386.md must be made at the same time.  */
@@ -219,7 +226,8 @@ enum processor_type
  {PROCESSOR_I386,			/* 80386 */
   PROCESSOR_I486,			/* 80486DX, 80486SX, 80486DX[24] */
   PROCESSOR_PENTIUM,
-  PROCESSOR_PENTIUMPRO};
+  PROCESSOR_PENTIUMPRO,
+  PROCESSOR_K6};
 
 #define PROCESSOR_I386_STRING "i386"
 #define PROCESSOR_I486_STRING "i486"
@@ -227,28 +235,20 @@ enum processor_type
 #define PROCESSOR_PENTIUM_STRING "pentium"
 #define PROCESSOR_I686_STRING "i686"
 #define PROCESSOR_PENTIUMPRO_STRING "pentiumpro"
+#define PROCESSOR_K6_STRING "k6"
 
 extern enum processor_type ix86_cpu;
 
 extern int ix86_arch;
 
 /* Define the default processor.  This is overridden by other tm.h files.  */
-#define PROCESSOR_DEFAULT \
-  ((enum processor_type) TARGET_CPU_DEFAULT == PROCESSOR_I486) \
-			 		     ? PROCESSOR_I486  \
-  : ((enum processor_type) TARGET_CPU_DEFAULT == PROCESSOR_PENTIUM) \
-					       ? PROCESSOR_PENTIUM  \
-  : ((enum processor_type) TARGET_CPU_DEFAULT == PROCESSOR_PENTIUMPRO) \
-					       ? PROCESSOR_PENTIUMPRO  \
-  : PROCESSOR_I386
+#define PROCESSOR_DEFAULT (enum processor_type) TARGET_CPU_DEFAULT
 #define PROCESSOR_DEFAULT_STRING \
-  ((enum processor_type) TARGET_CPU_DEFAULT == PROCESSOR_I486) \
-			 		     ? PROCESSOR_I486_STRING  \
-  : ((enum processor_type) TARGET_CPU_DEFAULT == PROCESSOR_PENTIUM) \
-					       ? PROCESSOR_PENTIUM_STRING  \
-  : ((enum processor_type) TARGET_CPU_DEFAULT == PROCESSOR_PENTIUMPRO) \
-					       ? PROCESSOR_PENTIUMPRO_STRING  \
-  : PROCESSOR_I386_STRING
+  (PROCESSOR_DEFAULT == PROCESSOR_I486 ? PROCESSOR_I486_STRING  \
+  : PROCESSOR_DEFAULT == PROCESSOR_PENTIUM ? PROCESSOR_PENTIUM_STRING  \
+  : PROCESSOR_DEFAULT == PROCESSOR_PENTIUMPRO ? PROCESSOR_PENTIUMPRO_STRING  \
+  : PROCESSOR_DEFAULT == PROCESSOR_K6 ? PROCESSOR_K6_STRING  \
+  : PROCESSOR_I386_STRING)
 
 /* This macro is similar to `TARGET_SWITCHES' but defines names of
    command options that have values.  Its definition is an
@@ -260,14 +260,15 @@ extern int ix86_arch;
    option if the fixed part matches.  The actual option name is made
    by appending `-m' to the specified name.  */
 #define TARGET_OPTIONS							\
-{ { "cpu=",		&ix86_cpu_string},				\
-  { "arch=",		&ix86_arch_string},				\
-  { "reg-alloc=",	&i386_reg_alloc_order },			\
-  { "regparm=",		&i386_regparm_string },				\
-  { "align-loops=",	&i386_align_loops_string },			\
-  { "align-jumps=",	&i386_align_jumps_string },			\
-  { "align-functions=",	&i386_align_funcs_string },			\
-  { "branch-cost=",	&i386_branch_cost_string },			\
+{ { "cpu=",		&ix86_cpu_string, "Schedule code for given CPU"}, \
+  { "arch=",		&ix86_arch_string, "Generate code for given CPU"}, \
+  { "reg-alloc=",	&i386_reg_alloc_order, "Control allocation order of integer registers" }, \
+  { "regparm=",		&i386_regparm_string, "Number of registers used to pass integer arguments" }, \
+  { "align-loops=",	&i386_align_loops_string, "Loop code aligned to this power of 2" }, \
+  { "align-jumps=",	&i386_align_jumps_string, "Jump targets are aligned to this power of 2" }, \
+  { "align-functions=",	&i386_align_funcs_string, "Function starts are aligned to this power of 2" }, \
+  { "preferred-stack-boundary=", &i386_preferred_stack_boundary_string, "Attempt to keep stack aligned to this power of 2" }, \
+  { "branch-cost=",	&i386_branch_cost_string, "Branches are this expensive (1-5, arbitrary units)" },			\
   SUBTARGET_OPTIONS							\
 }
 
@@ -295,44 +296,45 @@ extern int ix86_arch;
 #define CC1_CPU_SPEC "\
 %{!mcpu*: \
 %{m386:-mcpu=i386 -march=i386} \
-%{mno-486:-mcpu=i386 -march=i386} \
 %{m486:-mcpu=i486 -march=i486} \
-%{mno-386:-mcpu=i486 -march=i486} \
-%{mno-pentium:-mcpu=i486 -march=i486} \
 %{mpentium:-mcpu=pentium} \
-%{mno-pentiumpro:-mcpu=pentium} \
 %{mpentiumpro:-mcpu=pentiumpro}}"
 #endif
 
 #define CPP_486_SPEC "%{!ansi:-Di486} -D__i486 -D__i486__"
 #define CPP_586_SPEC "%{!ansi:-Di586 -Dpentium} \
 	-D__i586 -D__i586__ -D__pentium -D__pentium__"
+#define CPP_K6_SPEC "%{!ansi:-Di586 -Dk6} \
+	-D__i586 -D__i586__ -D__k6 -D__k6__" 
 #define CPP_686_SPEC "%{!ansi:-Di686 -Dpentiumpro} \
 	-D__i686 -D__i686__ -D__pentiumpro -D__pentiumpro__"
 
 #ifndef CPP_CPU_DEFAULT_SPEC
 #if TARGET_CPU_DEFAULT == 1
 #define CPP_CPU_DEFAULT_SPEC "%(cpp_486)"
-#else
+#endif
 #if TARGET_CPU_DEFAULT == 2
 #define CPP_CPU_DEFAULT_SPEC "%(cpp_586)"
-#else
+#endif
 #if TARGET_CPU_DEFAULT == 3
 #define CPP_CPU_DEFAULT_SPEC "%(cpp_686)"
-#else
+#endif
+#if TARGET_CPU_DEFAULT == 4
+#define CPP_CPU_DEFAULT_SPEC "%(cpp_k6)"
+#endif
+#ifndef CPP_CPU_DEFAULT_SPEC
 #define CPP_CPU_DEFAULT_SPEC ""
-#endif
-#endif
 #endif
 #endif /* CPP_CPU_DEFAULT_SPEC */
 
 #ifndef CPP_CPU_SPEC
 #define CPP_CPU_SPEC "\
--Asystem(unix) -Acpu(i386) -Amachine(i386) \
+-Acpu(i386) -Amachine(i386) \
 %{!ansi:-Di386} -D__i386 -D__i386__ \
 %{mcpu=i486:%(cpp_486)} %{m486:%(cpp_486)} \
 %{mpentium:%(cpp_586)} %{mcpu=pentium:%(cpp_586)} \
 %{mpentiumpro:%(cpp_686)} %{mcpu=pentiumpro:%(cpp_686)} \
+%{mcpu=k6:%(cpp_k6)} \
 %{!mcpu*:%{!m486:%{!mpentium*:%(cpp_cpu_default)}}}"
 #endif
 
@@ -357,6 +359,7 @@ extern int ix86_arch;
 #define EXTRA_SPECS							\
   { "cpp_486", CPP_486_SPEC},						\
   { "cpp_586", CPP_586_SPEC},						\
+  { "cpp_k6", CPP_K6_SPEC},						\
   { "cpp_686", CPP_686_SPEC},						\
   { "cpp_cpu_default",	CPP_CPU_DEFAULT_SPEC },				\
   { "cpp_cpu",	CPP_CPU_SPEC },						\
@@ -407,8 +410,12 @@ extern int ix86_arch;
 /* Allocation boundary (in *bits*) for storing arguments in argument list.  */
 #define PARM_BOUNDARY 32
 
-/* Boundary (in *bits*) on which stack pointer should be aligned.  */
+/* Boundary (in *bits*) on which the stack pointer must be aligned.  */
 #define STACK_BOUNDARY 32
+
+/* Boundary (in *bits*) on which the stack pointer preferrs to be
+   aligned; the compiler cannot rely on having this alignment.  */
+#define PREFERRED_STACK_BOUNDARY i386_preferred_stack_boundary
 
 /* Allocation boundary (in *bits*) for the code of a function.
    For i486, we get better performance by aligning to a cache
@@ -475,6 +482,46 @@ extern int ix86_arch;
     ? 256								\
     : TREE_CODE (TYPE) == ARRAY_TYPE					\
     ? ((TYPE_MODE (TREE_TYPE (TYPE)) == DFmode && (ALIGN) < 64)	\
+	? 64								\
+   	: (TYPE_MODE (TREE_TYPE (TYPE)) == XFmode && (ALIGN) < 128)	\
+	? 128								\
+	: (ALIGN))							\
+    : TREE_CODE (TYPE) == COMPLEX_TYPE					\
+    ? ((TYPE_MODE (TYPE) == DCmode && (ALIGN) < 64)			\
+	? 64								\
+   	: (TYPE_MODE (TYPE) == XCmode && (ALIGN) < 128)			\
+	? 128								\
+	: (ALIGN))							\
+    : ((TREE_CODE (TYPE) == RECORD_TYPE					\
+	|| TREE_CODE (TYPE) == UNION_TYPE				\
+	|| TREE_CODE (TYPE) == QUAL_UNION_TYPE)				\
+	&& TYPE_FIELDS (TYPE))						\
+    ? ((DECL_MODE (TYPE_FIELDS (TYPE)) == DFmode && (ALIGN) < 64)	\
+	? 64								\
+	: (DECL_MODE (TYPE_FIELDS (TYPE)) == XFmode && (ALIGN) < 128)	\
+	? 128								\
+	: (ALIGN))							\
+    : TREE_CODE (TYPE) == REAL_TYPE					\
+    ? ((TYPE_MODE (TYPE) == DFmode && (ALIGN) < 64)			\
+	? 64								\
+   	: (TYPE_MODE (TYPE) == XFmode && (ALIGN) < 128)			\
+	? 128								\
+	: (ALIGN))							\
+    : (ALIGN))
+
+/* If defined, a C expression to compute the alignment for a local
+   variable.  TYPE is the data type, and ALIGN is the alignment that
+   the object would ordinarily have.  The value of this macro is used
+   instead of that alignment to align the object.
+
+   If this macro is not defined, then ALIGN is used.
+
+   One use of this macro is to increase alignment of medium-size
+   data to make it all fit in fewer cache lines.  */
+
+#define LOCAL_ALIGNMENT(TYPE, ALIGN)					\
+  (TREE_CODE (TYPE) == ARRAY_TYPE					\
+    ? ((TYPE_MODE (TREE_TYPE (TYPE)) == DFmode && (ALIGN) < 64)		\
 	? 64								\
    	: (TYPE_MODE (TREE_TYPE (TYPE)) == XFmode && (ALIGN) < 128)	\
 	? 128								\
@@ -664,8 +711,8 @@ extern int ix86_arch;
 
 #define MODES_TIEABLE_P(MODE1, MODE2)				\
   ((MODE1) == (MODE2)						\
-   || ((MODE1) == SImode && (MODE2) == HImode			\
-       || (MODE1) == HImode && (MODE2) == SImode))
+   || ((MODE1) == SImode && (MODE2) == HImode)			\
+   || ((MODE1) == HImode && (MODE2) == SImode))
 
 /* Specify the registers used for certain standard purposes.
    The values of these macros are register numbers.  */
@@ -834,11 +881,6 @@ enum reg_class
 
 #define STACK_TOP_P(xop) (REG_P (xop) && REGNO (xop) == FIRST_STACK_REG)
 
-/* Try to maintain the accuracy of the death notes for regs satisfying the
-   following.  Important for stack like regs, to know when to pop. */
-
-/* #define PRESERVE_DEATH_INFO_REGNO_P(x) FP_REGNO_P(x) */
-
 /* 1 if register REGNO can magically overlap other regs.
    Note that nonzero values work only in very special circumstances. */
 
@@ -896,19 +938,10 @@ enum reg_class
 /* Similar, but for floating constants, and defining letters G and H.
    Here VALUE is the CONST_DOUBLE rtx itself.  We allow constants even if
    TARGET_387 isn't set, because the stack register converter may need to
-   load 0.0 into the function value register.
-
-   We disallow these constants when -fomit-frame-pointer and compiling
-   PIC code since reload might need to force the constant to memory.
-   Forcing the constant to memory changes the elimination offsets after
-   the point where they must stay constant.
-
-   However, we must allow them after reload as completed as reg-stack.c
-   will create insns which use these constants.  */
+   load 0.0 into the function value register.  */
 
 #define CONST_DOUBLE_OK_FOR_LETTER_P(VALUE, C)  \
-  (((reload_completed || !flag_pic || !flag_omit_frame_pointer) && (C) == 'G') \
-   ? standard_80387_constant_p (VALUE) : 0)
+  ((C) == 'G' ? standard_80387_constant_p (VALUE) : 0)
 
 /* Place additional restrictions on the register class to use when it
    is necessary to be able to hold a value of mode MODE in a reload
@@ -931,8 +964,11 @@ enum reg_class
    Narrow ALL_REGS to GENERAL_REGS.  This supports allowing movsf and
    movdf to do mem-to-mem moves through integer regs. */
 
-#define PREFERRED_RELOAD_CLASS(X,CLASS)	\
-  (GET_CODE (X) == CONST_DOUBLE && GET_MODE (X) != VOIDmode ? NO_REGS	\
+#define PREFERRED_RELOAD_CLASS(X,CLASS)					\
+  (GET_CODE (X) == CONST_DOUBLE && GET_MODE (X) != VOIDmode		\
+   ? (standard_80387_constant_p (X)					\
+      ? reg_class_subset_p (CLASS, FLOAT_REGS) ? CLASS : FLOAT_REGS	\
+      : NO_REGS)							\
    : GET_MODE (X) == QImode && ! reg_class_subset_p (CLASS, Q_REGS) ? Q_REGS \
    : ((CLASS) == ALL_REGS						\
       && GET_MODE_CLASS (GET_MODE (X)) == MODE_FLOAT) ? GENERAL_REGS	\
@@ -1532,25 +1568,16 @@ do {						\
 /* Output assembler code for a block containing the constant parts
    of a trampoline, leaving space for the variable parts.  */
 
-/* On the 386, the trampoline contains three instructions:
+/* On the 386, the trampoline contains two instructions:
      mov #STATIC,ecx
-     mov #FUNCTION,eax
-     jmp @eax  */
-#define TRAMPOLINE_TEMPLATE(FILE)			\
-{							\
-  ASM_OUTPUT_CHAR (FILE, GEN_INT (0xb9));		\
-  ASM_OUTPUT_SHORT (FILE, const0_rtx);			\
-  ASM_OUTPUT_SHORT (FILE, const0_rtx);			\
-  ASM_OUTPUT_CHAR (FILE, GEN_INT (0xb8));		\
-  ASM_OUTPUT_SHORT (FILE, const0_rtx);			\
-  ASM_OUTPUT_SHORT (FILE, const0_rtx);			\
-  ASM_OUTPUT_CHAR (FILE, GEN_INT (0xff));		\
-  ASM_OUTPUT_CHAR (FILE, GEN_INT (0xe0));		\
-}
+     jmp FUNCTION
+   The trampoline is generated entirely at runtime.  The operand of JMP
+   is the address of FUNCTION relative to the instruction following the
+   JMP (which is 5 bytes long).  */
 
 /* Length in units of the trampoline for entering a nested function.  */
 
-#define TRAMPOLINE_SIZE 12
+#define TRAMPOLINE_SIZE 10
 
 /* Emit RTL insns to initialize the variable parts of a trampoline.
    FNADDR is an RTX for the address of the function's pure code.
@@ -1558,8 +1585,14 @@ do {						\
 
 #define INITIALIZE_TRAMPOLINE(TRAMP, FNADDR, CXT)			\
 {									\
+  /* Compute offset from the end of the jmp to the target function.  */	\
+  rtx disp = expand_binop (SImode, sub_optab, FNADDR,			\
+			   plus_constant (TRAMP, 10),			\
+			   NULL_RTX, 1, OPTAB_DIRECT);			\
+  emit_move_insn (gen_rtx_MEM (QImode, TRAMP), GEN_INT (0xb9));		\
   emit_move_insn (gen_rtx_MEM (SImode, plus_constant (TRAMP, 1)), CXT); \
-  emit_move_insn (gen_rtx_MEM (SImode, plus_constant (TRAMP, 6)), FNADDR); \
+  emit_move_insn (gen_rtx_MEM (QImode, plus_constant (TRAMP, 5)), GEN_INT (0xe9));\
+  emit_move_insn (gen_rtx_MEM (SImode, plus_constant (TRAMP, 6)), disp); \
 }
 
 /* Definitions for register eliminations.
@@ -1601,30 +1634,33 @@ do {						\
     (OFFSET) = 8;	/* Skip saved PC and previous frame pointer */	\
   else									\
     {									\
-      int regno;							\
-      int offset = 0;							\
+      int nregs;							\
+      int offset;							\
+      int preferred_alignment = PREFERRED_STACK_BOUNDARY / BITS_PER_UNIT; \
+      HOST_WIDE_INT tsize = ix86_compute_frame_size (get_frame_size (),	\
+						     &nregs);		\
 									\
-      for (regno = 0; regno < FIRST_PSEUDO_REGISTER; regno++)		\
-	if ((regs_ever_live[regno] && ! call_used_regs[regno])		\
-	    || ((current_function_uses_pic_offset_table			\
-		 || current_function_uses_const_pool)			\
-		&& flag_pic && regno == PIC_OFFSET_TABLE_REGNUM))	\
-	  offset += 4;							\
+      (OFFSET) = (tsize + nregs * UNITS_PER_WORD);			\
 									\
-      (OFFSET) = offset + get_frame_size ();				\
+      offset = 4;							\
+      if (frame_pointer_needed)						\
+	offset += UNITS_PER_WORD;					\
 									\
-      if ((FROM) == ARG_POINTER_REGNUM && (TO) == STACK_POINTER_REGNUM)	\
-	(OFFSET) += 4;	/* Skip saved PC */				\
+      if ((FROM) == ARG_POINTER_REGNUM)					\
+	(OFFSET) += offset;						\
+      else								\
+	(OFFSET) -= ((offset + preferred_alignment - 1)			\
+		     & -preferred_alignment) - offset;			\
     }									\
 }
 
 /* Addressing modes, and classification of registers for them.  */
 
-/* #define HAVE_POST_INCREMENT */
-/* #define HAVE_POST_DECREMENT */
+/* #define HAVE_POST_INCREMENT 0 */
+/* #define HAVE_POST_DECREMENT 0 */
 
-/* #define HAVE_PRE_DECREMENT */
-/* #define HAVE_PRE_INCREMENT */
+/* #define HAVE_PRE_DECREMENT 0 */
+/* #define HAVE_PRE_INCREMENT 0 */
 
 /* Macros to check register numbers against specific register classes.  */
 
@@ -1703,15 +1739,15 @@ do {						\
 
 #define MAX_REGS_PER_ADDRESS 2
 
-#define CONSTANT_ADDRESS_P(X)   \
-  (GET_CODE (X) == LABEL_REF || GET_CODE (X) == SYMBOL_REF		\
-   || GET_CODE (X) == CONST_INT || GET_CODE (X) == CONST		\
-   || GET_CODE (X) == HIGH)
+#define CONSTANT_ADDRESS_P(X)					\
+  (GET_CODE (X) == LABEL_REF || GET_CODE (X) == SYMBOL_REF	\
+   || GET_CODE (X) == CONST_INT || GET_CODE (X) == CONST)
 
 /* Nonzero if the constant value X is a legitimate general operand.
    It is given that X satisfies CONSTANT_P or is a CONST_DOUBLE.  */
 
-#define LEGITIMATE_CONSTANT_P(X) 1
+#define LEGITIMATE_CONSTANT_P(X) \
+  (GET_CODE (X) == CONST_DOUBLE ? standard_80387_constant_p (X) : 1)
 
 #ifdef REG_OK_STRICT
 #define GO_IF_LEGITIMATE_ADDRESS(MODE, X, ADDR)				\
@@ -1764,8 +1800,7 @@ do {						\
    that X satisfies CONSTANT_P or is a CONST_DOUBLE.  */
 
 #define LEGITIMATE_PIC_OPERAND_P(X) \
-  (! SYMBOLIC_CONST (X)							\
-   || (GET_CODE (X) == SYMBOL_REF && CONSTANT_POOL_ADDRESS_P (X)))
+  (! SYMBOLIC_CONST (X) || legitimate_pic_address_disp_p (X))
 
 #define SYMBOLIC_CONST(X)	\
 (GET_CODE (X) == SYMBOL_REF						\
@@ -1893,10 +1928,10 @@ while (0)
    in one reasonably fast instruction.  */
 #define MOVE_MAX 4
 
-/* The number of scalar move insns which should be generated instead
-   of a string move insn or a library call.  Increasing the value
-   will always make code faster, but eventually incurs high cost in
-   increased code size.
+/* If a memory-to-memory move would take MOVE_RATIO or more simple
+   move-instruction pairs, we will do a movstr or libcall instead.
+   Increasing the value will always make code faster, but eventually
+   incurs high cost in increased code size.
 
    If you don't define this, a reasonable default is used.
 
@@ -2243,70 +2278,7 @@ while (0)
    the same cost as a data-dependence.  */
 
 #define ADJUST_COST(insn,link,dep_insn,cost)				\
-  {									\
-    rtx next_inst;							\
-    if (GET_CODE (dep_insn) == CALL_INSN)				\
-      (cost) = 0;							\
-   									\
-    else if (GET_CODE (dep_insn) == INSN				\
-	&& GET_CODE (PATTERN (dep_insn)) == SET				\
-	&& GET_CODE (SET_DEST (PATTERN (dep_insn))) == REG		\
-	&& GET_CODE (insn) == INSN					\
-	&& GET_CODE (PATTERN (insn)) == SET				\
-	&& !reg_overlap_mentioned_p (SET_DEST (PATTERN (dep_insn)),	\
-				     SET_SRC (PATTERN (insn))))		\
-      {									\
-	(cost) = 0;							\
-      }									\
-									\
-    else if (GET_CODE (insn) == JUMP_INSN)				\
-      {									\
-        (cost) = 0;							\
-      }									\
-									\
-    if (TARGET_PENTIUM)							\
-      {									\
-        if (cost !=0 && is_fp_insn (insn) && is_fp_insn (dep_insn)	\
-            && !is_fp_dest (dep_insn))					\
-          {								\
-            (cost) = 0;							\
-          }								\
-									\
-        if (agi_dependent (insn, dep_insn))				\
-          {								\
-            (cost) = 3;							\
-          }								\
-        else if (GET_CODE (insn) == INSN				\
-                 && GET_CODE (PATTERN (insn)) == SET			\
-                 && SET_DEST (PATTERN (insn)) == cc0_rtx		\
-                 && (next_inst = next_nonnote_insn (insn))		\
-                 && GET_CODE (next_inst) == JUMP_INSN)			\
-          { /* compare probably paired with jump */			\
-            (cost) = 0;							\
-          }								\
-      }									\
-    else								\
-      if (!is_fp_dest (dep_insn))					\
-	{								\
-	  if(!agi_dependent (insn, dep_insn))				\
-	    (cost) = 0;							\
-	  else if (TARGET_486)						\
-	    (cost) = 2;							\
-	}								\
-      else								\
-	if (is_fp_store (insn) && is_fp_insn (dep_insn)			\
-	    && NEXT_INSN (insn) && NEXT_INSN (NEXT_INSN (insn))		\
-	    && NEXT_INSN (NEXT_INSN (NEXT_INSN (insn)))			\
-	    && (GET_CODE (NEXT_INSN (insn)) == INSN)			\
-	    && (GET_CODE (NEXT_INSN (NEXT_INSN (insn))) == JUMP_INSN)	\
-	    && (GET_CODE (NEXT_INSN (NEXT_INSN (NEXT_INSN (insn)))) == NOTE) \
-	    && (NOTE_LINE_NUMBER (NEXT_INSN (NEXT_INSN (NEXT_INSN (insn)))) \
-		== NOTE_INSN_LOOP_END))					\
-	  {								\
-	    (cost) = 3;							\
-	  }								\
-  }
-
+     (cost) = x86_adjust_cost(insn, link, dep_insn, cost)
 
 #define ADJUST_BLOCKAGE(last_insn,insn,blockage)			\
 {									\
@@ -2322,6 +2294,8 @@ while (0)
       (blockage) = 3;							\
     }									\
 }
+
+#define ISSUE_RATE ((int)ix86_cpu > (int)PROCESSOR_I486 ? 2 : 1)
 
 
 /* Add any extra modes needed to represent the condition code.
@@ -2606,7 +2580,7 @@ do { long l;						\
    F,f -- likewise, but for floating-point.  */
 
 #define PRINT_OPERAND_PUNCT_VALID_P(CODE)				\
-  ((CODE) == '*')
+  ((CODE) == '*' || (CODE) == '_')
 
 /* Print the name of a register based on its machine mode and number.
    If CODE is 'w', pretend the mode is HImode.
@@ -2741,11 +2715,8 @@ extern void function_arg_advance ();
 extern struct rtx_def *function_arg ();
 extern int function_arg_partial_nregs ();
 extern char *output_strlen_unroll ();
-extern void output_op_from_reg ();
-extern void output_to_reg ();
 extern char *singlemove_string ();
 extern char *output_move_double ();
-extern char *output_move_memory ();
 extern char *output_move_pushmem ();
 extern int standard_80387_constant_p ();
 extern char *output_move_const_single ();
@@ -2773,6 +2744,7 @@ extern int shift_op ();
 extern int VOIDmode_compare_op ();
 extern char *output_387_binary_op ();
 extern char *output_fix_trunc ();
+extern void output_float_extend ();
 extern char *output_float_compare ();
 extern char *output_fp_cc0_set ();
 extern void save_386_machine_status ();
@@ -2793,6 +2765,9 @@ extern int reg_mentioned_in_mem ();
 extern char *output_int_conditional_move ();
 extern char *output_fp_conditional_move ();
 extern int ix86_can_use_return_insn_p ();
+extern int small_shift_operand ();
+extern char *output_ashl ();
+extern int memory_address_info ();
 
 #ifdef NOTYET
 extern struct rtx_def *copy_all_rtx ();
@@ -2807,11 +2782,13 @@ extern char *i386_regparm_string;		/* # registers to use to pass args */
 extern char *i386_align_loops_string;		/* power of two alignment for loops */
 extern char *i386_align_jumps_string;		/* power of two alignment for non-loop jumps */
 extern char *i386_align_funcs_string;		/* power of two alignment for functions */
+extern char *i386_preferred_stack_boundary_string;/* power of two alignment for stack boundary */
 extern char *i386_branch_cost_string;		/* values 1-5: see jump.c */
 extern int i386_regparm;			/* i386_regparm_string as a number */
 extern int i386_align_loops;			/* power of two alignment for loops */
 extern int i386_align_jumps;			/* power of two alignment for non-loop jumps */
 extern int i386_align_funcs;			/* power of two alignment for functions */
+extern int i386_preferred_stack_boundary;	/* preferred stack boundary alignment in bits */
 extern int i386_branch_cost;			/* values 1-5: see jump.c */
 extern char *hi_reg_name[];			/* names for 16 bit regs */
 extern char *qi_reg_name[];			/* names for 8 bit regs (low) */
