@@ -218,6 +218,8 @@ ttyopen(device, tp)
 			SET(tp->t_state, TS_CONNECTED);
 		bzero(&tp->t_winsize, sizeof(tp->t_winsize));
 	}
+	/* XXX don't hang forever on output */
+	tp->t_timeout = 5*60*hz;
 	ttsetwater(tp);
 	splx(s);
 	return (0);
