@@ -454,8 +454,10 @@ _mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file, int line)
 
 /*
  * The important part of mtx_trylock{,_flags}()
- * Tries to acquire lock `m.' We do NOT handle recursion here; we assume that
- * if we're called, it's because we know we don't already own this lock.
+ * Tries to acquire lock `m.' We do NOT handle recursion here.  If this
+ * function is called on a recursed mutex, it will return failure and
+ * will not recursively acquire the lock.  You are expected to know what
+ * you are doing.
  */
 int
 _mtx_trylock(struct mtx *m, int opts, const char *file, int line)
@@ -463,9 +465,6 @@ _mtx_trylock(struct mtx *m, int opts, const char *file, int line)
 	int rval;
 
 	MPASS(curthread != NULL);
-
-	KASSERT(!mtx_owned(m),
-	    ("mtx_trylock() called on a mutex already owned"));
 
 	rval = _obtain_lock(m, curthread);
 
