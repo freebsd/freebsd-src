@@ -2119,6 +2119,9 @@ next_code:
 			case ASH:
 				agrs = 0;
 				break;
+			case ALK:
+				alkcnt = 0;
+				break;
 			}
 		}
 		if (chr && !compose) {
