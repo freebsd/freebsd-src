@@ -682,8 +682,8 @@ quickch(win)
 		 * Need to repoint any subwindow lines to the rotated
 		 * line structured.
 		 */
-		for (wp = win->nextp; wp != win; wp = wp->nextp)
-			__set_subwin(win, wp);
+		for (wp = curscr->nextp; wp != curscr; wp = wp->nextp)
+			__set_subwin(wp->orig, wp);
 	}
 }
 
