@@ -157,8 +157,6 @@
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/disk.h>
-#include <sys/diskslice.h>
-#include <sys/disklabel.h>
 #include <sys/conf.h>
 #include <sys/lock.h>
 #include <sys/reboot.h>
@@ -320,9 +318,6 @@ struct raid_softc {
 #ifndef RAIDOUTSTANDING
 #define RAIDOUTSTANDING   10
 #endif
-
-#define RAIDLABELDEV(dev)	dkmodpart(dev, RAW_PART)
-#define DISKPART(dev)	dkpart(dev)
 
 static void raidgetdefaultlabel(RF_Raid_t *, struct raid_softc *, struct disk*);
 static int raidlock(struct raid_softc *);
@@ -1469,14 +1464,6 @@ raidstart(raidPtr)
 		 * device.. */
 
 		blocknum = bp->bio_blkno;
-#if 0 /* XXX Is this needed? */
-		if (DISKPART(bp->bio_dev) != RAW_PART) {
-			struct partition *pp;
-			pp = &sc->sc_dkdev.d_label.d_partitions[DISKPART(
-			    bp->bio_dev)];
-			blocknum += pp->p_offset;
-		}
-#endif
 
 		rf_printf(3, "Blocks: %ld, %ld\n", (long)bp->bio_blkno, (long)blocknum);
 		
