@@ -2,6 +2,5 @@
 # $FreeBSD$
 
 PROG=	printenv
-MLINKS=	printenv.1 env.1
 
 .include <bsd.prog.mk>
