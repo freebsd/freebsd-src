@@ -125,7 +125,7 @@ soisconnected(so)
 			so->so_upcallarg = head->so_accf->so_accept_filter_arg;
 			so->so_rcv.sb_flags |= SB_UPCALL;
 			so->so_options &= ~SO_ACCEPTFILTER;
-			so->so_upcall(so, so->so_upcallarg, 0);
+			so->so_upcall(so, so->so_upcallarg, M_TRYWAIT);
 			return;
 		}
 		TAILQ_REMOVE(&head->so_incomp, so, so_list);
