@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.221 1996/06/11 05:06:29 jkh Exp $
+#	$Id: Makefile,v 1.222 1996/06/12 16:32:15 jkh Exp $
 #
 # How to roll a release:
 #
@@ -291,7 +291,7 @@ release.6:
 			cd ${.CURDIR} && $(MAKE) doTARBALL \
 				SD=${RD}/trees/$${i} \
 				TN=$$i TD=$$i ARG="." && \
-				cp -p scripts/${i}-install.sh ${RD}/dists/install.sh && \
+				cp -p scripts/$${i}-install.sh ${RD}/dists/install.sh && \
 			echo "$${i} distribution is finished."; \
 		fi ; \
 	done
