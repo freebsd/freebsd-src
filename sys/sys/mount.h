@@ -110,6 +110,7 @@ struct mount {
 	struct statfs	mnt_stat;		/* cache of filesystem stats */
 	qaddr_t		mnt_data;		/* private data */
 	time_t		mnt_time;		/* last time written*/
+	u_int		mnt_iosize_max;		/* max IO request size */
 };
 
 /*

@@ -111,7 +111,6 @@ struct vnode {
 	daddr_t	v_cstart;			/* start block of cluster */
 	daddr_t	v_lasta;			/* last allocation */
 	int	v_clen;				/* length of current cluster */
-	int	v_maxio;			/* maximum I/O cluster size */
 	struct vm_object *v_object;		/* Place to store VM object */
 	struct	simplelock v_interlock;		/* lock on usecount and flag */
 	struct	lock *v_vnlock;			/* used for non-locking fs's */

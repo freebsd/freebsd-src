@@ -272,6 +272,7 @@ vfs_rootmountalloc(fstypename, devname, mpp)
 	mp->mnt_flag = MNT_RDONLY;
 	mp->mnt_vnodecovered = NULLVP;
 	vfsp->vfc_refcount++;
+	mp->mnt_iosize_max = DFLTPHYS;
 	mp->mnt_stat.f_type = vfsp->vfc_typenum;
 	mp->mnt_flag |= vfsp->vfc_flags & MNT_VISFLAGMASK;
 	strncpy(mp->mnt_stat.f_fstypename, vfsp->vfc_name, MFSNAMELEN);
@@ -593,7 +594,6 @@ getnewvnode(tag, mp, vops, vpp)
 	*vpp = vp;
 	vp->v_usecount = 1;
 	vp->v_data = 0;
-	vp->v_maxio = DFLTPHYS;
 	splx(s);
 
 	vfs_object_create(vp, p, p->p_ucred);

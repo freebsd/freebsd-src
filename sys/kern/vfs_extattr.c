@@ -278,6 +278,7 @@ mount(p, uap)
 	strncpy(mp->mnt_stat.f_fstypename, vfsp->vfc_name, MFSNAMELEN);
 	mp->mnt_vnodecovered = vp;
 	mp->mnt_stat.f_owner = p->p_ucred->cr_uid;
+	mp->mnt_iosize_max = DFLTPHYS;
 	VOP_UNLOCK(vp, 0, p);
 update:
 	/*
