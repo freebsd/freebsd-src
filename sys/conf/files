@@ -791,6 +791,7 @@ fs/unionfs/union_vfsops.c	optional unionfs
 fs/unionfs/union_vnops.c	optional unionfs
 geom/geom_aes.c		optional geom_aes
 geom/geom_bsd.c		optional geom_bsd
+geom/geom_ctl.c		standard
 geom/geom_dev.c		standard
 geom/geom_disk.c	standard
 geom/geom_dump.c	standard
