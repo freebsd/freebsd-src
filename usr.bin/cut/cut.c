@@ -32,9 +32,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
- *
  */
 
 #ifndef lint
@@ -48,7 +45,6 @@ static const char rcsid[] =
 
 #include <ctype.h>
 #include <err.h>
-#include <errno.h>
 #include <limits.h>
 #include <locale.h>
 #include <stdio.h>
