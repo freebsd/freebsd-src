@@ -8,7 +8,7 @@ BINDIR?=	/usr/bin
 
 SHLIB_MAJOR?=	4
 
-VERSION=	5.006
+VERSION=	5.6.0
 
 DYNALOADER= lib/auto/DynaLoader/DynaLoader.a
 
