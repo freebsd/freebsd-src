@@ -2,7 +2,7 @@
 .\" the BSD Copyright as specified in the file "/usr/src/COPYRIGHT" in
 .\" the source tree.
 .\"
-.\"	$Id: security.7,v 1.4 1998/12/26 05:19:42 dillon Exp $
+.\"	$Id: security.7,v 1.5 1999/03/02 03:45:47 ghelmer Exp $
 .\"
 .Dd December 20, 1998
 .Dt SECURITY 7
@@ -252,7 +252,7 @@ intruder might be able to read
 .Pa /dev/kmem
 and thus read the crypted password
 file, potentially compromising any passworded account.  An intruder that breaks
-the tty group can write to almost user's tty.  If a user is running a terminal
+the tty group can write to almost any user's tty.  If a user is running a terminal
 program or emulator with a talk-back feature, the intruder can potentially 
 generate a data stream that causes the user's terminal to echo a command, which
 is then run as that user.
@@ -450,7 +450,7 @@ Some standalone servers have self-fork-limitation parameters.
 Sendmail has its 
 .Fl OMaxDaemonChildren
 option which tends to work much
-better then trying to use sendmail's load limiting options due to the
+better than trying to use sendmail's load limiting options due to the
 load lag.  You should specify a
 .Cm MaxDaemonChildren
 parameter when you start
