@@ -41,10 +41,10 @@
  */
 struct ray_nw_param {
     struct ray_cmd_net	p_1;
-    u_int8_t		np_ap_status;
     struct ray_net_params \
     			p_2;
-    u_int8_t		np_countrycode;
+    u_int8_t		np_ap_status;
+    int			np_promisc;
 };
 #define np_upd_param	p_1.c_upd_param
 #define	np_bss_id	p_1.c_bss_id
@@ -63,7 +63,6 @@ struct ray_softc {
 
     device_t dev;			/* Device */
     struct arpcom	arpcom;		/* Ethernet common 		*/
-    struct ifmedia	ifmedia;	/* Ifnet common 		*/
     struct callout_handle
     			tx_timerh;	/* Handle for tx timer	*/
     struct callout_handle
@@ -94,7 +93,6 @@ struct ray_softc {
     struct ray_nw_param	sc_c;		/* current network params 	*/
     struct ray_nw_param sc_d;		/* desired network params	*/
     int			sc_havenet;	/* true if we have a network	*/
-    int			sc_promisc;	/* current set value		*/
     u_int8_t		sc_ccsinuse[64];/* ccss' in use -- not for tx	*/
 
     int			sc_checkcounters;
@@ -286,6 +284,15 @@ static int mib_info[RAY_MIB_MAX+1][3] = RAY_MIB_INFO;
 #ifndef RAY_MBUF_DUMP
 #define RAY_MBUF_DUMP(sc, mask, m, s)
 #endif /* RAY_MBUF_DUMP */
+
+#ifndef RAY_RECERR
+#define RAY_RECERR(sc, fmt, args...) do {				\
+    struct ifnet *ifp = &(sc)->arpcom.ac_if;				\
+    if (ifp->if_flags & IFF_DEBUG) {					\
+	    device_printf((sc)->dev, "%s(%d) " fmt "\n",		\
+		__FUNCTION__ , __LINE__ , ##args);			\
+} } while (0)
+#endif /* RAY_RECERR */
 
 /*
  * The driver assumes that the common memory is always mapped in,
