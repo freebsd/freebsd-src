@@ -1,5 +1,5 @@
 .\" Copyright (c) 1994 Gordon W. Ross, Theo de Raadt
-.\" Updated by Luigi Rizzo
+.\" Updated by Luigi Rizzo, Robert Watson
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 23, 2002
+.Dd January 10, 2004
 .Dt DISKLESS 8
 .Os
 .Sh NAME
@@ -129,13 +129,18 @@ make clean; make; make install
 cp /boot/pxeboot /tftpdir/
 .Ed
 .Pp
-In phase 3, the kernel again uses
+In phase 3, the kernel acquires IP networking configuration in one
+of two ways, and then proceeds to mount the root file system and start
+operation.
+If the phase 2 loader supporst passing network configuration to the
+kernel using the kernel environment, then the kernel will configure
+the network interface using that information.
+Otherwise, it must use
 .Tn DHCP
 or
 .Tn BOOTP
 to acquire
-configuration information, and proceeds to mount the
-root file system and start operation.
+configuration information.
 The boot
 scripts recognize a
 .Nm
@@ -401,13 +406,25 @@ clients, which will be loaded using
 .Tn NFS
 or
 .Tn TFTP ,
-should be built with at least the following options:
+must include support for the NFS client:
+.Pp
+.D1 Cd "options NFSCLIENT"
+.D1 Cd "options NFS_ROOT"
+.Pp
+If you are using a boot mechanism that does not pass network configuration
+to the kernel using the kernel environment, you will also need to include
+the following options:
 .Pp
 .D1 Cd "options BOOTP"
 .D1 Cd "options BOOTP_NFSROOT"
 .D1 Cd "options BOOTP_COMPAT"
 .Pp
-In the devices section add:
+NOTE: The PXE environment does not require these uptions.
+.Pp
+The diskless booting environment relies on memory-backed file systems to
+support temporary local storage in the event that the root file system
+is mounted read-only; as such, it is necessary to add the following
+to the device section of the kernel configuration:
 .Pp
 .D1 Cd "device md"
 .Pp
