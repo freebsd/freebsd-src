@@ -366,7 +366,7 @@ pas_pcm_init (long mem_start, struct address_info *hw_config)
     {
       dsp_devs[my_devnum = num_dspdevs++] = &pas_pcm_operations;
       sound_dsp_dmachan[my_devnum] = hw_config->dma;
-#ifndef PAS_NO_AUTODMA
+#ifndef NO_AUTODMA
       if (hw_config->dma > 3)
 	{
 	  sound_buffcounts[my_devnum] = 1;
@@ -380,7 +380,7 @@ pas_pcm_init (long mem_start, struct address_info *hw_config)
 	  sound_dma_automode[my_devnum] = 1;
 	}
 #else
-      sound_buffcounts[my_devnum] = 2;
+      sound_buffcounts[my_devnum] = DSP_BUFFCOUNT;
       sound_buffsizes[my_devnum] = DSP_BUFFSIZE;
       sound_dma_automode[my_devnum] = 0;
 #endif

@@ -6,6 +6,7 @@
 #endif
 
 #define DSP_BUFFSIZE 65536
+#define NO_AUTODMA  /* still */
 #define SELECTED_SOUND_OPTIONS	0xffffffff
 #define SOUND_VERSION_STRING "2.5"
 #define SOUND_CONFIG_DATE "Sat Apr 23 07:45:17 MSD 1994"
