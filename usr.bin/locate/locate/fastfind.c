@@ -219,11 +219,12 @@ fastfind
 		p = path + count;
 		foundchar = p - 1;
 
-		for (;;) {
 #ifdef FF_MMAP
+		for (; len > 0;) {
 			c = (u_char)*paddr++; 
 		        len--;
 #else
+		for (;;) {
 			c = getc(fp);
 #endif /* FF_MMAP */
 			/*
