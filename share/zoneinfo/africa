@@ -1,15 +1,23 @@
-# @(#)africa	7.15
+# @(#)africa	7.16
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
 # tz@elsie.nci.nih.gov for general use in the future).
 
-# From Paul Eggert <eggert@twinsun.com> (1996-09-03):
+# From Paul Eggert <eggert@twinsun.com> (1996-11-22):
 #
 # A good source for time zone historical data outside the U.S. is
 # Thomas G. Shanks, The International Atlas (3rd edition),
 # San Diego: ACS Publications, Inc. (1991).
-# Except where otherwise noted, it is the source for the data below.
+#
+# Gwillim Law <LAW@encmail.encompass.com> writes that a good source
+# for recent time zone data is the International Air Transport
+# Association's Standard Schedules Information Manual (IATA SSIM),
+# published semiannually.  Law sent in several helpful summaries
+# of the IATA's data after 1990.
+#
+# Except where otherwise noted, Shanks is the source for entries through 1990,
+# and IATA SSIM is the source for entries after 1990.
 #
 # Another source occasionally used is Edward W. Whitman, World Time Differences,
 # Whitman Publishing Co, 2 Niagara Av, Ealing, London (undated), which
@@ -255,12 +263,17 @@ Rule	Egypt	1957	1958	-	Oct	 1	0:00	0	-
 Rule	Egypt	1958	only	-	May	 1	0:00	1:00	S
 Rule	Egypt	1959	1981	-	May	 1	1:00	1:00	S
 Rule	Egypt	1959	1965	-	Sep	30	3:00	0	-
-Rule	Egypt	1966	max	-	Oct	 1	3:00	0	-
+Rule	Egypt	1966	1990	-	Oct	 1	3:00	0	-
 Rule	Egypt	1982	only	-	Jul	25	1:00	1:00	S
 Rule	Egypt	1983	only	-	Jul	12	1:00	1:00	S
 Rule	Egypt	1984	1988	-	May	 1	1:00	1:00	S
 Rule	Egypt	1989	only	-	May	 6	1:00	1:00	S
-Rule	Egypt	1990	max	-	May	 1	1:00	1:00	S
+Rule	Egypt	1990	only	-	May	 1	1:00	1:00	S
+Rule	Egypt	1991	1994	-	May	 1	0:00	1:00	S
+Rule	Egypt	1991	1994	-	Oct	 1	0:00	0	-
+Rule	Egypt	1995	max	-	Apr	lastFri	0:00	1:00	S
+Rule	Egypt	1995	max	-	Sep	lastFri	0:00	0	-
+
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Cairo	2:05:00 -	LMT	1900 Oct
 			2:00	Egypt	EE%sT
@@ -390,15 +403,15 @@ Rule	Libya	1986	only	-	Oct	 3	0:00	0	-
 Rule	Libya	1987	1989	-	Apr	 1	0:00	1:00	S
 Rule	Libya	1987	1990	-	Oct	 1	0:00	0	-
 Rule	Libya	1990	only	-	May	 4	0:00	1:00	S
+Rule	Libya	1996	max	-	Mar	30	2:00s	1:00	S
+Rule	Libya	1996	max	-	Sep	30	2:00s	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Tripoli	0:52:44 -	LMT	1920
 			1:00	Libya	CE%sT	1959
 			2:00	-	EET	1982
-# From Paul Eggert <eggert@twinsun.com> (1995-12-19):
-# usno1995 (from OAG) says Libya uses 2:00 all year, as they did before 1982.
-# We don't know when they switched back.  We'll guess 1991.
 			1:00	Libya	CE%sT	1991
-			2:00	-	EET
+			2:00	-	EET	1996 Mar 30 3:00
+			1:00	Libya	CE%sT
 
 # Madagascar
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -442,7 +455,7 @@ Zone	Indian/Mayotte	3:00:56 -	LMT	1911 Jul	# Mamoutzou
 			3:00	-	EAT
 
 # Morocco
-# rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+# RULE	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Morocco	1939	only	-	Sep	12	 0:00	1:00	S
 Rule	Morocco	1939	only	-	Nov	19	 0:00	0	-
 Rule	Morocco	1940	only	-	Feb	25	 0:00	1:00	S
@@ -474,12 +487,15 @@ Zone	Africa/Maputo	2:10:20 -	LMT	1903 Mar
 			2:00	-	SAT
 
 # Namibia
+# RULE	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	Namibia	1994	max	-	Sep	Sun>=1	2:00	1:00	S
+Rule	Namibia	1995	max	-	Apr	Sun>=1	2:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Windhoek	1:08:24 -	LMT	1892 Feb 8
 			1:30	-	SWAT	1903 Mar	# SW Africa Time
 			2:00	-	SAT	1942 Sep 20 2:00
 			2:00	1:00	SAST	1943 Mar 21 2:00
-			2:00	-	SAT
+			2:00	Namibia	SA%sT
 
 # Niger
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -618,10 +634,9 @@ Rule	Tunisia	1977	only	-	Sep	24	 0:00s	0	-
 Rule	Tunisia	1978	only	-	May	 1	 0:00s	1:00	S
 Rule	Tunisia	1978	only	-	Oct	 1	 0:00s	0	-
 Rule	Tunisia	1988	only	-	Jun	 1	 0:00s	1:00	S
-Rule	Tunisia	1988	max	-	Sep	lastSun	 0:00s	0	-
+Rule	Tunisia	1988	1990	-	Sep	lastSun	 0:00s	0	-
 Rule	Tunisia	1989	only	-	Mar	26	 0:00s	1:00	S
 Rule	Tunisia	1990	only	-	May	 1	 0:00s	1:00	S
-Rule	Tunisia	1991	max	-	Mar	lastSun	 0:00s	1:00	S
 # Shanks gives 0:09 for Paris Mean Time; go with Howse's more precise 0:09:21.
 # Shanks says the 1911 switch occurred on Mar 9; go with Howse's Mar 11.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]

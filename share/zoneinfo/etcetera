@@ -1,15 +1,19 @@
-# @(#)etcetera	7.5
+# @(#)etcetera	7.6
 
-# All of these are set up just so people can "zic -l" to a timezone
-# that's right for their area, even if it doesn't have a name or DST rules
-# (half hour zones are too much to bother with -- when someone asks!)
+# These entries are mostly present for historical reasons, so that
+# people in areas not otherwise covered by the tz files could "zic -l"
+# to a time zone that was right for their area.  These days, the
+# tz files cover almost all the inhabited world, so there's little
+# need now for the entries that are not on UTC.
 
 Zone	Etc/GMT		0	-	GMT
-Link	Etc/GMT				Etc/UTC
-Link	Etc/GMT				Etc/UCT
-Link	Etc/GMT				Etc/Universal
+Zone	Etc/UTC		0	-	UTC
+Zone	Etc/UCT		0	-	UCT
+
+Link	Etc/UTC				Etc/Universal
+Link	Etc/UTC				Etc/Zulu
+
 Link	Etc/GMT				Etc/Greenwich
-Link	Etc/GMT				Etc/Zulu
 Link	Etc/GMT				Etc/GMT-0
 Link	Etc/GMT				Etc/GMT+0
 Link	Etc/GMT				Etc/GMT0

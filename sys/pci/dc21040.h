@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1994, 1995 Matt Thomas (thomas@lkg.dec.com)
+ * Copyright (c) 1994, 1995, 1996 Matt Thomas <matt@3am-software.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -21,51 +21,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: dc21040.h,v 1.7 1996/06/14 05:25:31 davidg Exp $
- *
+ * $Id: dc21040.h,v 1.9 1996/12/01 06:00:58 rgrimes Exp $
  */
 
 #if !defined(_DC21040_H)
 #define _DC21040_H
-
-typedef unsigned char  tulip_uint8_t;
-typedef	unsigned short tulip_uint16_t;
-typedef	unsigned int   tulip_uint32_t;
-
-/*
- * The various controllers support.  Technically the DE425 is just
- * a 21040 on EISA.  But since it remarkably difference from normal
- * 21040s, we give it its own chip id.
- */
-
-typedef enum {
-    TULIP_DC21040, TULIP_DE425,
-    TULIP_DC21041,
-    TULIP_DC21140, TULIP_DC21140A, TULIP_DC21142,
-    TULIP_DC21143,
-    TULIP_CHIPID_UNKNOWN
-} tulip_chipid_t;
-
-/*
- * Various physical media types supported.
- * BNCAUI is BNC or AUI since on the 21040 you can't really tell
- * which is in use.
- */
-typedef enum {
-    TULIP_MEDIA_UNKNOWN,
-    TULIP_MEDIA_10BASET,
-    TULIP_MEDIA_BNC,
-    TULIP_MEDIA_AUI,
-    TULIP_MEDIA_BNCAUI,
-    TULIP_MEDIA_10BASET_FD,
-    TULIP_MEDIA_100BASETX,
-    TULIP_MEDIA_100BASETX_FD,
-    TULIP_MEDIA_100BASET4,
-    TULIP_MEDIA_100BASEFX,
-    TULIP_MEDIA_100BASEFX_FD,
-    TULIP_MEDIA_MAX
-} tulip_media_t;
-
 
 #if defined(BYTE_ORDER) && BYTE_ORDER == BIG_ENDIAN
 #define	TULIP_BITFIELD2(a, b)		      b, a
@@ -78,15 +38,15 @@ typedef enum {
 #endif
 
 typedef struct {
-    tulip_uint32_t d_status;
-    tulip_uint32_t TULIP_BITFIELD3(d_length1 : 11,
-				   d_length2 : 11,
-				   d_flag : 10);
-    tulip_uint32_t d_addr1;
-    tulip_uint32_t d_addr2;
+    u_int32_t d_status;
+    u_int32_t TULIP_BITFIELD3(d_length1 : 11,
+			      d_length2 : 11,
+			      d_flag : 10);
+    u_int32_t d_addr1;
+    u_int32_t d_addr2;
 } tulip_desc_t;
 
-#define	TULIP_DSTS_OWNER	0x80000000	/* Owner (1 = DC21040) */
+#define	TULIP_DSTS_OWNER	0x80000000	/* Owner (1 = 21040) */
 #define	TULIP_DSTS_ERRSUM	0x00008000	/* Error Summary */
 /*
  * Transmit Status
@@ -133,7 +93,7 @@ typedef struct {
 #define	TULIP_DFLAG_TxHASHFILT	0x0001		/* Hash/Perfect Filtering */
 
 /*
- * The DC21040 Registers (IO Space Addresses)
+ * The 21040 Registers (IO Space Addresses)
  */
 #define	TULIP_REG_BUSMODE	0x00	/* CSR0  -- Bus Mode */
 #define	TULIP_REG_TXPOLL	0x08	/* CSR1  -- Transmit Poll Demand */
@@ -189,16 +149,16 @@ typedef struct {
 #define	TULIP_STS_NORMALINTR	0x00010000L		/* (RW)  Normal Interrupt */
 #define	TULIP_STS_ABNRMLINTR	0x00008000L		/* (RW)  Abnormal Interrupt */
 #define	TULIP_STS_SYSERROR	0x00002000L		/* (RW)  System Error */
-#define	TULIP_STS_LINKFAIL	0x00001000L		/* (RW)  Link Failure (DC21040) */
-#define	TULIP_STS_FULDPLXSHRT	0x00000800L		/* (RW)  Full Duplex Short Fram Rcvd (DC21040) */
-#define	TULIP_STS_GPTIMEOUT	0x00000800L		/* (RW)  General Purpose Timeout (DC21140) */
-#define	TULIP_STS_AUI		0x00000400L		/* (RW)  AUI/TP Switch (DC21040) */
+#define	TULIP_STS_LINKFAIL	0x00001000L		/* (RW)  Link Failure (21040) */
+#define	TULIP_STS_FULDPLXSHRT	0x00000800L		/* (RW)  Full Duplex Short Fram Rcvd (21040) */
+#define	TULIP_STS_GPTIMEOUT	0x00000800L		/* (RW)  General Purpose Timeout (21140) */
+#define	TULIP_STS_AUI		0x00000400L		/* (RW)  AUI/TP Switch (21040) */
 #define	TULIP_STS_RXTIMEOUT	0x00000200L		/* (RW)  Receive Watchbog Timeout */
 #define	TULIP_STS_RXSTOPPED	0x00000100L		/* (RW)  Receive Process Stopped */
 #define	TULIP_STS_RXNOBUF	0x00000080L		/* (RW)  Receive Buffer Unavailable */
 #define	TULIP_STS_RXINTR	0x00000040L		/* (RW)  Receive Interrupt */
 #define	TULIP_STS_TXUNDERFLOW	0x00000020L		/* (RW)  Transmit Underflow */
-#define	TULIP_STS_LINKPASS	0x00000010L		/* (RW)  LinkPass (DC21041) */
+#define	TULIP_STS_LINKPASS	0x00000010L		/* (RW)  LinkPass (21041) */
 #define	TULIP_STS_TXBABBLE	0x00000008L		/* (RW)  Transmit Jabber Timeout */
 #define	TULIP_STS_TXNOBUF	0x00000004L		/* (RW)  Transmit Buffer Unavailable */
 #define	TULIP_STS_TXSTOPPED	0x00000002L		/* (RW)  Transmit Process Stopped */
@@ -207,16 +167,16 @@ typedef struct {
 /*
  * CSR6 -- Command (Operation Mode) Register
  */
-#define	TULIP_CMD_MUSTBEONE	0x02000000L		/* (RW)  Must Be One (DC21140) */
-#define	TULIP_CMD_SCRAMBLER	0x01000000L		/* (RW)  Scrambler Mode (DC21140) */
-#define	TULIP_CMD_PCSFUNCTION	0x00800000L		/* (RW)  PCS Function (DC21140) */
-#define	TULIP_CMD_TXTHRSHLDCTL	0x00400000L		/* (RW)  Transmit Threshold Mode (DC21140) */
-#define	TULIP_CMD_STOREFWD	0x00200000L		/* (RW)  Store and Foward (DC21140) */
-#define	TULIP_CMD_NOHEARTBEAT	0x00080000L		/* (RW)  No Heartbeat (DC21140) */
-#define	TULIP_CMD_PORTSELECT	0x00040000L		/* (RW)  Post Select (100Mb) (DC21140) */
-#define	TULIP_CMD_ENHCAPTEFFCT	0x00040000L		/* (RW)  Enhanced Capture Effecty (DC21041) */
+#define	TULIP_CMD_MUSTBEONE	0x02000000L		/* (RW)  Must Be One (21140) */
+#define	TULIP_CMD_SCRAMBLER	0x01000000L		/* (RW)  Scrambler Mode (21140) */
+#define	TULIP_CMD_PCSFUNCTION	0x00800000L		/* (RW)  PCS Function (21140) */
+#define	TULIP_CMD_TXTHRSHLDCTL	0x00400000L		/* (RW)  Transmit Threshold Mode (21140) */
+#define	TULIP_CMD_STOREFWD	0x00200000L		/* (RW)  Store and Foward (21140) */
+#define	TULIP_CMD_NOHEARTBEAT	0x00080000L		/* (RW)  No Heartbeat (21140) */
+#define	TULIP_CMD_PORTSELECT	0x00040000L		/* (RW)  Post Select (100Mb) (21140) */
+#define	TULIP_CMD_ENHCAPTEFFCT	0x00040000L		/* (RW)  Enhanced Capture Effecty (21041) */
 #define	TULIP_CMD_CAPTREFFCT	0x00020000L		/* (RW)  Capture Effect (!802.3) */
-#define	TULIP_CMD_BACKPRESSURE	0x00010000L		/* (RW)  Back Pressure (!802.3) (DC21040) */
+#define	TULIP_CMD_BACKPRESSURE	0x00010000L		/* (RW)  Back Pressure (!802.3) (21040) */
 #define	TULIP_CMD_THRESHOLDCTL	0x0000C000L		/* (RW)  Threshold Control */
 #define	TULIP_CMD_THRSHLD72	0x00000000L		/*       00 - 72 Bytes */
 #define	TULIP_CMD_THRSHLD96	0x00004000L		/*       01 - 96 Bytes */
@@ -244,18 +204,18 @@ typedef struct {
 #define	TULIP_SIACONN_AUI		0x0000000DL
 #define	TULIP_SIACONN_10BASET		0x00000005L
 
-#define	TULIP_DC21041_SIACONN_10BASET	0x0000EF01L
-#define	TULIP_DC21041_SIATXRX_10BASET	0x0000FF3FL
-#define	TULIP_DC21041_SIATXRX_10BASET_FD 0x0000FF3DL
-#define	TULIP_DC21041_SIAGEN_10BASET	0x00000000L
+#define	TULIP_21041_SIACONN_10BASET		0x0000EF01L
+#define	TULIP_21041_SIATXRX_10BASET		0x0000FF3FL
+#define	TULIP_21041_SIATXRX_10BASET_FD		0x0000FF3DL
+#define	TULIP_21041_SIAGEN_10BASET		0x00000000L
 
-#define	TULIP_DC21041_SIACONN_AUI	0x0000EF09L
-#define	TULIP_DC21041_SIATXRX_AUI	0x0000F73DL
-#define	TULIP_DC21041_SIAGEN_AUI	0x0000000EL
+#define	TULIP_21041_SIACONN_AUI			0x0000EF09L
+#define	TULIP_21041_SIATXRX_AUI			0x0000F73DL
+#define	TULIP_21041_SIAGEN_AUI			0x0000000EL
 
-#define	TULIP_DC21041_SIACONN_BNC	0x0000EF09L
-#define	TULIP_DC21041_SIATXRX_BNC	0x0000F73DL
-#define	TULIP_DC21041_SIAGEN_BNC	0x00000006L
+#define	TULIP_21041_SIACONN_BNC			0x0000EF09L
+#define	TULIP_21041_SIATXRX_BNC			0x0000F73DL
+#define	TULIP_21041_SIAGEN_BNC			0x00000006L
 
 #define	TULIP_WATCHDOG_TXDISABLE	0x00000001L
 #define	TULIP_WATCHDOG_RXDISABLE	0x00000010L
@@ -279,18 +239,18 @@ typedef struct {
 #define	TULIP_BUSMODE_TXPOLL_200000ns	0x00020000L
 #define	TULIP_BUSMODE_TXPOLL_800000ns	0x00040000L
 #define	TULIP_BUSMODE_TXPOLL_1600000ns	0x00060000L
-#define	TULIP_BUSMODE_TXPOLL_12800ns	0x00080000L	/* DC21041 only */
-#define	TULIP_BUSMODE_TXPOLL_25600ns	0x000A0000L	/* DC21041 only */
-#define	TULIP_BUSMODE_TXPOLL_51200ns	0x000C0000L	/* DC21041 only */
-#define	TULIP_BUSMODE_TXPOLL_102400ns	0x000E0000L	/* DC21041 only */
-#define	TULIP_BUSMODE_DESC_BIGENDIAN	0x00100000L	/* DC21041 only */
+#define	TULIP_BUSMODE_TXPOLL_12800ns	0x00080000L	/* 21041 only */
+#define	TULIP_BUSMODE_TXPOLL_25600ns	0x000A0000L	/* 21041 only */
+#define	TULIP_BUSMODE_TXPOLL_51200ns	0x000C0000L	/* 21041 only */
+#define	TULIP_BUSMODE_TXPOLL_102400ns	0x000E0000L	/* 21041 only */
+#define	TULIP_BUSMODE_DESC_BIGENDIAN	0x00100000L	/* 21041 only */
 
 #define	TULIP_REG_CFDA			0x40
 #define	TULIP_CFDA_SLEEP		0x80000000L
 #define	TULIP_CFDA_SNOOZE		0x40000000L
 
 /*
- * These are the defintitions used for the DEC DC21140
+ * These are the defintitions used for the DEC 21140
  * evaluation board.
  */
 #define	TULIP_GP_EB_PINS		0x0000011F	/* General Purpose Pin directions */
@@ -299,7 +259,7 @@ typedef struct {
 #define	TULIP_GP_EB_INIT		0x0000000B	/* No loopback --- point-to-point */
 
 /*
- * These are the defintitions used for the SMC9332 (DC21140) board.
+ * These are the defintitions used for the SMC9332 (21140) board.
  */
 #define	TULIP_GP_SMC_9332_PINS		0x0000013F	/* General Purpose Pin directions */
 #define	TULIP_GP_SMC_9332_OK10		0x00000080	/* 10 Mb/sec Signal Detect gep<7> */
@@ -326,7 +286,7 @@ typedef struct {
 
 /*
  * These are the defintitions used for the Cogent EM100
- * DC21140 board.
+ * 21140 board.
  */
 #define	TULIP_GP_EM100_PINS		0x0000013F	/* General Purpose Pin directions */
 #define	TULIP_GP_EM100_INIT		0x00000009	/* No loopback --- point-to-point */
@@ -349,14 +309,14 @@ typedef struct {
 #define	TULIP_OUI_ZNYX_2		0x95
 
 /*
- * Compex's OUI.  We need to twiddle a bit on their DC21041 card.
+ * Compex's OUI.  We need to twiddle a bit on their 21041 card.
  */
 #define	TULIP_OUI_COMPEX_0		0x00
 #define	TULIP_OUI_COMPEX_1		0x80
 #define	TULIP_OUI_COMPEX_2		0x48
-#define	TULIP_DC21041_COMPEX_XREGDATA	1
+#define	TULIP_21041_COMPEX_XREGDATA	1
 /*
- * SROM definitions for the DC21140 and DC21041.
+ * SROM definitions for the 21140 and 21041.
  */
 #define	SROMXREG	0x0400
 #define SROMSEL         0x0800
@@ -379,7 +339,7 @@ typedef struct {
 #define	SROM_BITWIDTH	6
 
 /*
- * MII Definitions for the DC21041 and DC21140/DC21140A/DC21142
+ * MII Definitions for the 21041 and 21140/21140A/21142
  */
 #define	MII_PREAMBLE		(~0)
 #define	MII_TEST		0xAAAAAAAA
@@ -447,9 +407,9 @@ typedef struct {
 #define	DE425_EISA_IOSIZE	0x100
 
 #define	DEC_VENDORID		0x1011
-#define	DC21040_CHIPID		0x0002
-#define	DC21140_CHIPID		0x0009
-#define	DC21041_CHIPID		0x0014
+#define	CHIPID_21040		0x0002
+#define	CHIPID_21140		0x0009
+#define	CHIPID_21041		0x0014
 #define	PCI_VENDORID(x)		((x) & 0xFFFF)
 #define	PCI_CHIPID(x)		(((x) >> 16) & 0xFFFF)
 
@@ -460,10 +420,10 @@ typedef struct {
  */
 
 typedef struct {
-    tulip_uint8_t sh_idbuf[18];
-    tulip_uint8_t sh_version;
-    tulip_uint8_t sh_adapter_count;
-    tulip_uint8_t sh_ieee802_address[6];
+    u_int8_t sh_idbuf[18];
+    u_int8_t sh_version;
+    u_int8_t sh_adapter_count;
+    u_int8_t sh_ieee802_address[6];
 } tulip_srom_header_t;
 
 typedef enum {
@@ -501,13 +461,13 @@ typedef enum {
     TULIP_SROM_MEDIA_100BASEFX_FD		=0x0008
 } tulip_srom_media_t;
 
-#define	TULIP_SROM_DC21041_EXTENDED	0x40
+#define	TULIP_SROM_21041_EXTENDED	0x40
 
-#define	TULIP_SROM_DC2114X_NOINDICATOR		0x8000
-#define	TULIP_SROM_DC2114X_DEFAULT		0x4000
-#define	TULIP_SROM_DC2114X_POLARITY		0x0080
-#define	TULIP_SROM_DC2114X_CMDBITS(n)		(((n) & 0x0071) << 18)
-#define	TULIP_SROM_DC2114X_BITPOS(b)		(1 << (((b) & 0x0E) >> 1))
+#define	TULIP_SROM_2114X_NOINDICATOR	0x8000
+#define	TULIP_SROM_2114X_DEFAULT	0x4000
+#define	TULIP_SROM_2114X_POLARITY	0x0080
+#define	TULIP_SROM_2114X_CMDBITS(n)	(((n) & 0x0071) << 18)
+#define	TULIP_SROM_2114X_BITPOS(b)	(1 << (((b) & 0x0E) >> 1))
 
 
 
