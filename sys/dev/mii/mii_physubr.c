@@ -290,8 +290,7 @@ mii_phy_update(struct mii_softc *sc, int cmd)
  * Given an ifmedia word, return the corresponding ANAR value.
  */
 int
-mii_anar(media)
-	int media;
+mii_anar(int media)
 {
 	int rv;
 
@@ -323,8 +322,7 @@ mii_anar(media)
  * Given a BMCR value, return the corresponding ifmedia word.
  */
 int
-mii_media_from_bmcr(bmcr)
-	int bmcr;
+mii_media_from_bmcr(int bmcr)
 {
 	int rv = IFM_ETHER;
 
