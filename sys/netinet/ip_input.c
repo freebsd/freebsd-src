@@ -325,11 +325,11 @@ ip_input(struct mbuf *m)
   	
 	if (m->m_flags & M_FASTFWD_OURS) {
 		/*
-		 * ip_fastforward firewall changed dest to local.
-		 * We expect ip_len and ip_off in host byte order.
+		 * Firewall or NAT changed destination to local.
+		 * We expect ip_len and ip_off to be in host byte order.
 		 */
-		m->m_flags &= ~M_FASTFWD_OURS;	/* for reflected mbufs */
-		/* Set up some basic stuff */
+		m->m_flags &= ~M_FASTFWD_OURS;
+		/* Set up some basics that will be used later. */
 		ip = mtod(m, struct ip *);
 		hlen = ip->ip_hl << 2;
   		goto ours;
