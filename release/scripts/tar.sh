@@ -35,7 +35,7 @@
 # $FreeBSD$
 #
 
-archive=${TAPE:-/dev/rst0}
+archive=${TAPE:-/dev/rsa0}
 blocksize="20"
 device=""
 mode="none"
