@@ -207,7 +207,7 @@ crypto/des/des_ecb.c	optional ipsec ipsec_esp
 crypto/des/des_setkey.c	optional ipsec ipsec_esp
 crypto/rijndael/rijndael-alg-fst.c	optional ipsec ipsec_esp
 crypto/rijndael/rijndael-api-fst.c	optional ipsec ipsec_esp
-crypto/ripemd160/rmd160.c	optional ipsec
+opencrypto/rmd160.c		optional ipsec
 crypto/sha1.c		optional ipsec
 crypto/sha2/sha2.c	optional ipsec
 ddb/db_access.c		optional ddb
