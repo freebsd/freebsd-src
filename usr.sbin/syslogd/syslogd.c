@@ -250,6 +250,7 @@ struct	filed *Files;
 struct	filed consfile;
 
 int	Debug;			/* debug flag */
+int	resolve = 1;		/* resolve hostname */
 char	LocalHostName[MAXHOSTNAMELEN+1];	/* our hostname */
 char	*LocalDomain;		/* our local domain name */
 int	finet = -1;		/* Internet datagram socket */
@@ -310,7 +311,7 @@ main(argc, argv)
 	pid_t ppid = 1;
 	socklen_t len;
 
-	while ((ch = getopt(argc, argv, "a:dl:f:m:p:suv")) != -1)
+	while ((ch = getopt(argc, argv, "a:dl:f:m:p:rsuv")) != -1)
 		switch(ch) {
 		case 'd':		/* debug */
 			Debug++;
@@ -327,6 +328,9 @@ main(argc, argv)
 			break;
 		case 'p':		/* path */
 			funixn[0] = optarg;
+			break;
+		case 'r':
+			resolve = 0;
 			break;
 		case 's':		/* no network mode */
 			SecureMode++;
@@ -515,7 +519,10 @@ main(argc, argv)
 			    (struct sockaddr *)&frominet, &len);
 			if (l > 0) {
 				line[l] = '\0';
-				hname = cvthname(&frominet);
+				if (resolve)
+					hname = cvthname(&frominet);
+				else
+					hname = inet_ntoa(frominet.sin_addr);
 				if (validate(&frominet, hname))
 					printline(hname, line);
 			} else if (l < 0 && errno != EINTR)
@@ -541,7 +548,7 @@ usage()
 {
 
 	fprintf(stderr, "%s\n%s\n%s\n",
-		"usage: syslogd [-dsuv] [-a allowed_peer] [-f config_file]",
+		"usage: syslogd [-drsuv] [-a allowed_peer] [-f config_file]",
 		"               [-m mark_interval] [-p log_socket]",
 		"               [-l log_socket]");
 	exit(1);
