@@ -1,7 +1,7 @@
 #	$FreeBSD$
 
 ALL=	cryptotest cryptokeytest cryptostats \
-	ubsecstats hifnstats ipsecstats
+	ubsecstats hifnstats ipsecstats safestats
 
 all:	${ALL}
 
@@ -24,6 +24,10 @@ ubsecstats: ubsecstats.c
 # program to print statistics kept by the HIFN driver
 hifnstats: hifnstats.c
 	${CC} -o hifnstats hifnstats.c
+
+# program to print statistics kept by the SafeNet driver
+safestats: safestats.c
+	${CC} -o safestats safestats.c
 
 # program to print statistics kept by fast ipsec
 ipsecstats: ipsecstats.c
