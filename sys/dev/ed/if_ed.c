@@ -20,7 +20,7 @@
  */
 
 /*
- * $Id: if_ed.c,v 2.14 1993/11/22 10:55:30 davidg Exp davidg $
+ * $Id: if_ed.c,v 1.23 1993/11/22 11:08:14 davidg Exp $
  */
 
 /*
@@ -185,10 +185,16 @@ struct	ed_softc {
 	u_char	next_packet;	/* pointer to next unread RX packet */
 } ed_softc[NED];
 
-int	ed_attach(), ed_init(), edintr(), ed_ioctl(), ed_probe(),
-	ed_start(), ed_reset(), ed_watchdog();
-
-static void ed_stop();
+int ed_attach(struct isa_device *);
+void ed_init(int);
+void edintr(int);
+int ed_ioctl(struct ifnet *, int, caddr_t);
+int ed_probe(struct isa_device *);
+void ed_start(struct ifnet *);
+void ed_reset(int, int);
+void ed_watchdog(int);
+static void ed_get_packet(struct ed_softc *, char *, int /*u_short*/);
+static void ed_stop(int);
 
 static inline void ed_rint();
 static inline void ed_xmit();
@@ -1113,15 +1119,16 @@ ed_attach(isa_dev)
 #if NBPFILTER > 0
 	bpfattach(&sc->bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
-
+	return 1;
 }
  
 /*
  * Reset interface.
  */
-int
-ed_reset(unit)
+void
+ed_reset(unit, uban)
 	int unit;
+	int uban;		/* XXX */
 {
 	int s;
 
@@ -1167,7 +1174,7 @@ ed_stop(unit)
  * Device timeout/watchdog routine. Entered if the device neglects to
  *	generate an interrupt after a transmit has been started on it.
  */
-int
+void
 ed_watchdog(unit)
 	int unit;
 {
@@ -1176,12 +1183,13 @@ ed_watchdog(unit)
 	log(LOG_ERR, "ed%d: device timeout\n", unit);
 	++sc->arpcom.ac_if.if_oerrors;
 
-	ed_reset(unit);
+	ed_reset(unit, 0);
 }
 
 /*
  * Initialize device. 
  */
+void
 ed_init(unit)
 	int unit;
 {
@@ -1410,7 +1418,7 @@ static inline void ed_xmit(ifp)
  *  2) that the IFF_OACTIVE flag is checked before this code is called
  *     (i.e. that the output part of the interface is idle)
  */
-int
+void
 ed_start(ifp)
 	struct ifnet *ifp;
 {
@@ -1666,7 +1674,7 @@ ed_rint(unit)
 				"ed%d: NIC memory corrupt - invalid packet length %d\n",
 				unit, len);
 			++sc->arpcom.ac_if.if_ierrors;
-			ed_reset(unit);
+			ed_reset(unit, 0);
 			return;
 		}
 
@@ -1708,7 +1716,7 @@ ed_rint(unit)
 /*
  * Ethernet interface interrupt processor
  */
-int
+void
 edintr(unit)
 	int unit;
 {
@@ -1831,7 +1839,7 @@ edintr(unit)
 				/*
 				 * Stop/reset/re-init NIC
 				 */
-				ed_reset(unit);
+				ed_reset(unit, 0);
 			} else {
 
 			    /*
@@ -2054,13 +2062,14 @@ ed_ioctl(ifp, command, data)
  * Retreive packet from shared memory and send to the next level up via
  *	ether_input(). If there is a BPF listener, give a copy to BPF, too.
  */
+static void
 ed_get_packet(sc, buf, len)
 	struct ed_softc *sc;
 	char *buf;
 	u_short len;
 {
 	struct ether_header *eh;
-    	struct mbuf *m, *head, *ed_ring_to_mbuf();
+    	struct mbuf *m, *head = 0, *ed_ring_to_mbuf();
 	u_short off;
 	int resid;
 	u_short etype;
@@ -2381,7 +2390,7 @@ ed_pio_write_mbufs(sc,m,dst)
 	if (!maxwait) {
 		log(LOG_WARNING, "ed%d: remote transmit DMA failed to complete\n",
 			sc->arpcom.ac_if.if_unit);
-		ed_reset(sc->arpcom.ac_if.if_unit);
+		ed_reset(sc->arpcom.ac_if.if_unit, 0);
 	}
 
 	return(len);

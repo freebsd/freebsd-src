@@ -19,7 +19,7 @@
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  * slight mod to make work with 34F as well: Wed Jun  2 18:05:48 WST 1993
  *
- *      $Id: ultra14f.c,v 2.3 93/10/16 02:01:08 julian Exp Locker: julian $
+ *      $Id: ultra14f.c,v 1.12 1993/11/18 05:02:20 rgrimes Exp $
  */
 
 #include <sys/types.h>
@@ -243,7 +243,7 @@ int     uhaprobe();
 int     uha_attach();
 int     uhaintr();
 int32   uha_scsi_cmd();
-void    uha_timeout();
+void    uha_timeout(caddr_t, int);
 void	uha_free_mscp();
 int     uha_abort();
 void    uhaminphys();
@@ -494,6 +494,7 @@ uha_adapter_info(unit)
  */
 int
 uhaintr(unit)
+	int unit;
 {
 	struct uha_data *uha = uhadata[unit];
 	struct mscp *mscp;
@@ -611,10 +612,12 @@ uha_done(unit, mscp)
  */
 void
 uha_free_mscp(unit, mscp, flags)
+	int unit;
 	struct mscp *mscp;
+	int flags;
 {
 	struct uha_data *uha = uhadata[unit];
-	unsigned int opri;
+	unsigned int opri = 0;
 
 	if (!(flags & SCSI_NOMASK))
 		opri = splbio();
@@ -627,7 +630,7 @@ uha_free_mscp(unit, mscp, flags)
 	 * one to come free, starting with queued entries
 	 */
 	if (!mscp->next) {
-		wakeup(&uha->free_mscp);
+		wakeup((caddr_t)&uha->free_mscp);
 	}
 	if (!(flags & SCSI_NOMASK))
 		splx(opri);
@@ -644,7 +647,7 @@ uha_get_mscp(unit, flags)
 	int	unit, flags;
 {
 	struct uha_data *uha = uhadata[unit];
-	unsigned opri;
+	unsigned opri = 0;
 	struct mscp *mscpp;
 	int     hashnum;
 
@@ -1045,7 +1048,7 @@ uha_scsi_cmd(xs)
 	if (!(flags & SCSI_NOMASK)) {
 		s = splbio();
 		uha_send_mbox(unit, mscp);
-		timeout(uha_timeout, mscp, (xs->timeout * hz) / 1000);
+		timeout(uha_timeout, (caddr_t)mscp, (xs->timeout * hz) / 1000);
 		splx(s);
 		SC_DEBUG(xs->sc_link, SDEV_DB3, ("cmd_sent\n"));
 		return (SUCCESSFULLY_QUEUED);
@@ -1076,8 +1079,9 @@ uha_scsi_cmd(xs)
 }
 
 void
-uha_timeout(struct mscp *mscp)
+uha_timeout(caddr_t arg1, int arg2)
 {
+	struct mscp *mscp = (struct mscp *)arg1;
 	int     unit;
 	struct uha_data *uha;
 	int     s = splbio();
@@ -1101,7 +1105,7 @@ uha_timeout(struct mscp *mscp)
 		uha_done(unit, mscp, FAIL);
 	} else {		/* abort the operation that has timed out */
 		printf("\n");
-		timeout(uha_timeout, mscp, 2 * hz);
+		timeout(uha_timeout, (caddr_t)mscp, 2 * hz);
 		mscp->flags = MSCP_ABORTED;
 	}
 	splx(s);

@@ -224,7 +224,7 @@ sbintr (int unused)
 static int
 set_dsp_irq (int interrupt_level)
 {
-  int             retcode;
+  int             retcode = EINVAL;
 
 #ifdef linux
   struct sigaction sa;

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.4 1993/10/18 14:21:48 davidg Exp $
+ *	$Id: cons.c,v 1.5 1993/11/07 17:41:32 wollman Exp $
  */
 
 
@@ -73,6 +73,7 @@ struct	tty *constty = 0;	/* virtual console output device */
 struct	consdev *cn_tab;	/* physical console device info */
 struct	tty *cn_tty;		/* XXX: console tty struct for tprintf */
 
+void
 cninit()
 {
 	register struct consdev *cp;
@@ -99,6 +100,7 @@ cninit()
 	(*cp->cn_init)(cp);
 }
 
+int
 cnopen(dev, flag, mode, p)
 	dev_t dev;
 	int flag, mode;
@@ -110,6 +112,7 @@ cnopen(dev, flag, mode, p)
 	return ((*cdevsw[major(dev)].d_open)(dev, flag, mode, p));
 }
  
+int
 cnclose(dev, flag, mode, p)
 	dev_t dev;
 	int flag, mode;
@@ -121,9 +124,11 @@ cnclose(dev, flag, mode, p)
 	return ((*cdevsw[major(dev)].d_close)(dev, flag, mode, p));
 }
  
+int
 cnread(dev, uio, flag)
 	dev_t dev;
 	struct uio *uio;
+	int flag;
 {
 	if (cn_tab == NULL)
 		return (0);
@@ -131,9 +136,11 @@ cnread(dev, uio, flag)
 	return ((*cdevsw[major(dev)].d_read)(dev, uio, flag));
 }
  
+int
 cnwrite(dev, uio, flag)
 	dev_t dev;
 	struct uio *uio;
+	int flag;
 {
 	if (cn_tab == NULL)
 		return (0);
@@ -144,9 +151,12 @@ cnwrite(dev, uio, flag)
 	return ((*cdevsw[major(dev)].d_write)(dev, uio, flag));
 }
  
+int
 cnioctl(dev, cmd, data, flag, p)
 	dev_t dev;
+	int cmd;
 	caddr_t data;
+	int flag;
 	struct proc *p;
 {
 	int error;
@@ -169,6 +179,7 @@ cnioctl(dev, cmd, data, flag, p)
 }
 
 /*ARGSUSED*/
+int
 cnselect(dev, rw, p)
 	dev_t dev;
 	int rw;
@@ -179,6 +190,7 @@ cnselect(dev, rw, p)
 	return (ttselect(cn_tab->cn_dev, rw, p));
 }
 
+int
 cngetc()
 {
 	if (cn_tab == NULL)
@@ -186,6 +198,7 @@ cngetc()
 	return ((*cn_tab->cn_getc)(cn_tab->cn_dev));
 }
 
+void
 cnputc(c)
 	register int c;
 {

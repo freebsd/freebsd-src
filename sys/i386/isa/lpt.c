@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id$
+ *	$Id: lpt.c,v 1.5 1993/10/16 13:46:10 rgrimes Exp $
  */
 
 /*
@@ -77,7 +77,7 @@
 #define	BUFSIZE		1024
 
 #ifndef DEBUG
-#define lprintf
+#define lprintf (void)
 #else
 #define lprintf		if (lptflag) printf
 int lptflag = 1;
@@ -281,7 +281,8 @@ lprintf ("status %x\n", inb(port+lpt_status) );
 		}
 
 		/* wait 1/4 second, give up if we get a signal */
-		if (tsleep (sc, LPPRI|PCATCH, "lptinit", hz/4) != EWOULDBLOCK) {
+		if (tsleep ((caddr_t)sc, LPPRI|PCATCH, "lptinit", 
+			    hz/4) != EWOULDBLOCK) {
 			sc->sc_state = 0;
 			splx(s);
 			return (EBUSY);
@@ -303,7 +304,7 @@ lprintf ("status %x\n", inb(port+lpt_status) );
 	sc->sc_inbuf = geteblk(BUFSIZE);
 	sc->sc_xfercnt = 0;
 	splx(s);
-	timeout (lptout, sc, hz/2);
+	timeout (lptout, (caddr_t)sc, hz/2);
 lprintf("opened.\n");
 	return(0);
 }
@@ -315,7 +316,7 @@ lptout (sc)
 
 lprintf ("T %x ", inb(sc->sc_port+lpt_status));
 	if (sc->sc_state&OPEN)
-		timeout (lptout, sc, hz/2);
+		timeout (lptout, (caddr_t)sc, hz/2);
 	else	sc->sc_state &= ~TOUT;
 
 	if (sc->sc_state & ERROR)
@@ -350,7 +351,8 @@ lptclose(dev, flag)
 	while ((inb(port+lpt_status) & (LPS_SEL|LPS_OUT|LPS_NBSY|LPS_NERR)) !=
 			(LPS_SEL|LPS_NBSY|LPS_NERR) || sc->sc_xfercnt)
 		/* wait 1/4 second, give up if we get a signal */
-		if (tsleep (sc, LPPRI|PCATCH, "lpclose", hz) != EWOULDBLOCK)
+		if (tsleep ((caddr_t)sc, LPPRI|PCATCH, 
+			    "lpclose", hz) != EWOULDBLOCK)
 			break;
 
 	sc->sc_state = 0;
@@ -388,7 +390,8 @@ lprintf("\nC %d. ", sc->sc_xfercnt);
 				(void) splx(pl);
 			}
 lprintf("W ");
-			if (err = tsleep (sc, LPPRI|PCATCH, "lpwrite", 0))
+			if (err = tsleep ((caddr_t)sc, LPPRI|PCATCH,
+					  "lpwrite", 0))
 				return(err);
 		}
 	}

@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 2.3 93/10/11 11:49:49 julian Exp Locker: julian $
+ *      $Id: cd.c,v 1.12 1993/11/18 05:02:46 rgrimes Exp $
  */
 
 #define SPLCD splbio
@@ -200,6 +200,7 @@ cdattach(sc_link)
  */
 errval 
 cdopen(dev)
+	dev_t dev;
 {
 	errval  errcode = 0;
 	u_int32 unit, part;
@@ -424,7 +425,7 @@ cdstrategy(bp)
 	cdstart(unit);
 
 	splx(opri);
-	return;
+	return 0;		/* XXX ??? is this the right return? */
       bad:
 	bp->b_flags |= B_ERROR;
       done:
@@ -915,6 +916,8 @@ cdgetdisklabel(unit)
  */
 u_int32 
 cd_size(unit, flags)
+	int unit;
+	int flags;
 {
 	struct scsi_read_cd_cap_data rdcap;
 	struct scsi_read_cd_capacity scsi_cmd;
@@ -1183,8 +1186,10 @@ cd_reset(unit)
  */
 errval 
 cd_read_subchannel(unit, mode, format, track, data, len)
-	u_int32 unit, mode, format, len;
+	u_int32 unit, mode, format;
+	int track;
 	struct cd_sub_channel_info *data;
+	u_int32 len;
 {
 	struct scsi_read_subchannel scsi_cmd;
 	errval  error;
@@ -1253,6 +1258,8 @@ cd_read_toc(unit, mode, start, data, len)
  */
 errval 
 cd_get_parms(unit, flags)
+	int unit;
+	int flags;
 {
 	struct cd_data *cd = cd_driver.cd_data[unit];
 

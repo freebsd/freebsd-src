@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id$
+ *	$Id: db_break.c,v 1.2 1993/10/16 16:47:07 rgrimes Exp $
  */
 
 /*
@@ -34,8 +34,9 @@
  * Breakpoints.
  */
 #include "param.h"
+#include "systm.h"
 #include "proc.h"
-#include <machine/db_machdep.h>		/* type definitions */
+#include "ddb/ddb.h"
 
 #include <ddb/db_lex.h>
 #include <ddb/db_break.h>
@@ -291,7 +292,7 @@ db_breakpoint_cmd(addr, have_addr, count, modif)
 
 /* list breakpoints */
 void
-db_listbreak_cmd()
+db_listbreak_cmd(db_expr_t dummy1, int dummy2, db_expr_t dummy3, char *dummy4)
 {
 	db_list_breakpoints();
 }

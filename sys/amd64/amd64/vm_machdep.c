@@ -37,7 +37,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id$
+ *	$Id: vm_machdep.c,v 1.6 1993/10/15 10:34:29 rgrimes Exp $
  */
 
 #include "npx.h"
@@ -62,6 +62,7 @@
  * address in each process; in the future we will probably relocate
  * the frame pointers on the stack after copying.
  */
+int
 cpu_fork(p1, p2)
 	register struct proc *p1, *p2;
 {
@@ -177,7 +178,10 @@ cpu_exit(p)
 	panic("cpu_exit");
 }
 
-cpu_wait(p) struct proc *p; {
+void
+cpu_wait(p)
+	struct proc *p; 
+{
 
 	/* drop per-process resources */
 	vmspace_free(p->p_vmspace);
@@ -188,6 +192,7 @@ cpu_wait(p) struct proc *p; {
 /*
  * Set a red zone in the kernel stack after the u. area.
  */
+void
 setredzone(pte, vaddr)
 	u_short *pte;
 	caddr_t vaddr;
@@ -207,6 +212,7 @@ setredzone(pte, vaddr)
  * Both addresses are assumed to reside in the Sysmap,
  * and size must be a multiple of CLSIZE.
  */
+void
 pagemove(from, to, size)
 	register caddr_t from, to;
 	int size;
@@ -230,6 +236,7 @@ pagemove(from, to, size)
 /*
  * Convert kernel VA to physical address
  */
+int
 kvtop(addr)
 	register caddr_t addr;
 {
@@ -351,6 +358,7 @@ extern vm_map_t phys_map;
  * All requests are (re)mapped into kernel VA space via the useriomap
  * (a name with only slightly more meaning than "kernelmap")
  */
+void
 vmapbuf(bp)
 	register struct buf *bp;
 {
@@ -385,6 +393,7 @@ vmapbuf(bp)
  * Free the io map PTEs associated with this IO operation.
  * We also invalidate the TLB entries and restore the original b_addr.
  */
+void
 vunmapbuf(bp)
 	register struct buf *bp;
 {
@@ -404,6 +413,7 @@ vunmapbuf(bp)
 /*
  * Force reset the processor by invalidating the entire address space!
  */
+void				/* XXX should be __dead too */
 cpu_reset() {
 
 	/* force a shutdown by unmapping entire address space ! */
@@ -412,4 +422,5 @@ cpu_reset() {
 	/* "good night, sweet prince .... <THUNK!>" */
 	tlbflush(); 
 	/* NOTREACHED */
+	while(1);		/* to fool compiler... */
 }

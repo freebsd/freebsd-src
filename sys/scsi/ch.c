@@ -2,7 +2,7 @@
  * Written by grefen@?????
  * Based on scsi drivers by Julian Elischer (julian@tfs.com)
  *
- *      $Id: ch.c,v 2.2 93/10/16 00:58:30 julian Exp Locker: julian $
+ *      $Id: ch.c,v 1.5 1993/11/18 05:02:48 rgrimes Exp $
  */
 
 #include	<sys/types.h>
@@ -115,8 +115,8 @@ chattach(sc_link)
 	}
 	ch_data[unit].initialized = 1;
 
-	return;
-
+	return 1;
+				/* XXX ??? is this the right return val? */
 }
 
 /*
@@ -124,6 +124,7 @@ chattach(sc_link)
  */
 errval 
 chopen(dev)
+	dev_t dev;
 {
 	errval  errcode = 0;
 	u_int32 unit, mode;
@@ -189,6 +190,7 @@ chopen(dev)
  */
 errval 
 chclose(dev)
+	dev_t dev;
 {
 	unsigned char unit, mode;
 	struct scsi_link *sc_link;
@@ -212,6 +214,7 @@ chioctl(dev, cmd, arg, mode)
 	dev_t   dev;
 	u_int32 cmd;
 	caddr_t arg;
+	int mode;
 {
 	/* struct ch_cmd_buf *args; */
 	union scsi_cmd *scsi_cmd;
@@ -275,6 +278,7 @@ chioctl(dev, cmd, arg, mode)
 errval 
 ch_getelem(unit, stat, type, from, data, flags)
 	u_int32 unit, from, flags;
+	int type;
 	short  *stat;
 	char   *data;
 {

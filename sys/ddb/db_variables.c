@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id$
+ *	$Id: db_variables.c,v 1.2 1993/10/16 16:47:29 rgrimes Exp $
  */
 
 /*
@@ -32,17 +32,15 @@
  */
 
 #include "param.h"
+#include "systm.h"
 #include "proc.h"
-#include <machine/db_machdep.h>
+#include "ddb/ddb.h"
 
 #include <ddb/db_lex.h>
 #include <ddb/db_variables.h>
 
-extern unsigned int	db_maxoff;
-
-extern int	db_radix;
-extern int	db_max_width;
-extern int	db_tab_stop_width;
+void db_read_variable(struct db_variable *, db_expr_t *);
+static void db_write_variable(struct db_variable *, db_expr_t *);
 
 struct db_variable db_vars[] = {
 	{ "radix",	&db_radix, FCN_NULL },
@@ -107,6 +105,7 @@ db_set_variable(value)
 }
 
 
+void
 db_read_variable(vp, valuep)
 	struct db_variable *vp;
 	db_expr_t	*valuep;
@@ -119,6 +118,7 @@ db_read_variable(vp, valuep)
 	    (*func)(vp, valuep, DB_VAR_GET);
 }
 
+static void
 db_write_variable(vp, valuep)
 	struct db_variable *vp;
 	db_expr_t	*valuep;
@@ -132,7 +132,7 @@ db_write_variable(vp, valuep)
 }
 
 void
-db_set_cmd()
+db_set_cmd(db_expr_t dummy1, int dummy2, db_expr_t dummy3, char *dummy4)
 {
 	db_expr_t	value;
 	int	(*func)();

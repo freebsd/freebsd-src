@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.15 1993/11/22 23:25:46 nate Exp $
+ *	$Id: wd.c,v 1.16 1993/11/23 21:36:37 nate Exp $
  */
 
 /* TODO:peel out buffer at low ipl, speed improvement */
@@ -141,8 +141,8 @@ static int wdcommand(struct disk *, int);
 static int wdcontrol(struct buf *);
 static int wdsetctlr(dev_t, struct disk *);
 static int wdgetctlr(int, struct disk *);
-static int wdtimeout(int);
-static int wdreset(int);
+static void wdtimeout(caddr_t, int);
+static void wdreset(int);
 
 /*
  * Probe for controller.
@@ -211,7 +211,7 @@ wdattach(struct isa_device *dvp)
 		}
 		/* initialize timeout */
 		wdtimeout_status[unit] = 0;
-		wdtimeout(unit);
+		wdtimeout((caddr_t)unit, 0);
 
 		/* print out description of drive, suppressing multiple blanks*/
 		if(wdgetctlr(unit, du) == 0)  {
@@ -244,7 +244,7 @@ wdattach(struct isa_device *dvp)
  * to complete.  Multi-page transfers are supported.  All I/O requests must
  * be a multiple of a sector in length.
  */
-int
+void
 wdstrategy(register struct buf *bp)
 {
 	register struct buf *dp;
@@ -1188,7 +1188,7 @@ wdsize(dev_t dev)
 	return((int)du->dk_dd.d_partitions[part].p_size);
 }
 
-static int
+static void
 wdreset(int wdc)
 {
 	outb(wdc+wd_ctlr, (WDCTL_RST|WDCTL_IDS));
@@ -1199,9 +1199,10 @@ wdreset(int wdc)
 	outb(wdc+wd_ctlr, WDCTL_4BIT);
 }
 
-static int
-wdtimeout(int unit)
+static void
+wdtimeout(caddr_t arg1, int arg2)
 {
+	int unit = (int)arg1;
 	int x = splbio();
 
 	if (wdtimeout_status[unit]) {
@@ -1216,9 +1217,8 @@ wdtimeout(int unit)
 			wdstart();
 		}
 	}
-	timeout(wdtimeout, unit, 100);
+	timeout(wdtimeout, (caddr_t)unit, 100);	/* XXX !!! 100 what? */
 	splx(x);
-	return (0);
 }
 
 extern        char *vmmap;            /* poor name! */
