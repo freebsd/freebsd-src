@@ -95,18 +95,25 @@ extern Elf_Addr fptr_storage[];
 static Elf_Addr
 lookup_fdesc(linker_file_t lf, Elf_Word symidx)
 {
+	linker_file_t top;
 	Elf_Addr addr;
+	const char *symname;
 	int i;
 	static int eot = 0;
 
 	addr = elf_lookup(lf, symidx, 0);
 	if (addr == 0) {
-		for (i = 0; i < lf->ndeps; i++) {
-			addr = lookup_fdesc(lf->deps[i], symidx);
+		top = lf;
+		symname = elf_get_symname(top, symidx);
+		for (i = 0; i < top->ndeps; i++) {
+			lf = top->deps[i];
+			addr = (Elf_Addr)linker_file_lookup_symbol(lf,
+			    symname, 0);
 			if (addr != 0)
-				return (addr);
+				break;
 		}
-		return (0);
+		if (addr == 0)
+			return (0);
 	}
 
 	if (eot)
