@@ -133,8 +133,6 @@ union _qcvt {
 	tmp.val[_QUAD_LOWWORD] = (l); \
 	(q) = tmp.qcvt; \
 }
-#define VN_KNOTE(vp, b) \
-	KNOTE(&vp->v_pollinfo.vpi_selinfo.si_note, (b))
 
 /*
  * A virgin directory (no blushing please).

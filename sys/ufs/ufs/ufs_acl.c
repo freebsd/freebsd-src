@@ -53,9 +53,6 @@
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
 
-#define VN_KNOTE(vp, b) \
-	KNOTE(&vp->v_pollinfo.vpi_selinfo.si_note, (b))
-
 #ifdef UFS_ACL
 
 /*
