@@ -389,7 +389,9 @@ vm_pageout_flush(mc, count, flags)
 	}
 	object = mc[0]->object;
 	vm_page_unlock_queues();
+	VM_OBJECT_LOCK(object);
 	vm_object_pip_add(object, count);
+	VM_OBJECT_UNLOCK(object);
 
 	vm_pager_put_pages(object, mc, count,
 	    (flags | ((object == kernel_object) ? VM_PAGER_PUT_SYNC : 0)),
