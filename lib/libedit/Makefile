@@ -55,10 +55,10 @@ help.c: ${ASRC} makelist
 help.h: ${ASRC} makelist
 	sh ${.CURDIR}/makelist -bh ${ASRC} > ${.TARGET}
 
-editline.c: ${OSRCS}
+editline.c: ${OSRCS} help.h
 	sh ${.CURDIR}/makelist -e ${.ALLSRC:T} > ${.TARGET}
 
-.depend: vi.h emacs.h common.h fcns.h help.h help.c
+beforedepend: vi.h emacs.h common.h fcns.h help.h help.c
 
 test:	test.o libedit.a ${DPADD} ${LIBTERMCAP}
 	${CC} ${CFLAGS} ${.ALLSRC} -o ${.TARGET} libedit.a ${LDADD}
