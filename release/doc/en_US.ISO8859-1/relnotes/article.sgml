@@ -143,7 +143,8 @@
       <para arch="i386">A bug that even when no AT keyboard is connected,
         &man.atkbd.4; registers an AT keyboard during console initialization
         has been fixed.  <command>kbdcontrol -k /dev/kbd1</command>
-        is no longer needed when only a USB keyboard is connected.</para>
+        is no longer needed when only a USB keyboard is connected.
+        &merged;</para>
     </sect3>
 
     <sect3 id="boot">
