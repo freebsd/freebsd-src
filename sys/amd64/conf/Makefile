@@ -6,5 +6,5 @@ all:
 clean:
 	rm -f LINT
 
-LINT: ../../conf/NOTES NOTES makeLINT.sed
-	cat ../../conf/NOTES NOTES | sed -E -n -f makeLINT.sed > LINT
+LINT: ../../conf/NOTES NOTES ../../conf/makeLINT.sed
+	cat ../../conf/NOTES NOTES | sed -E -n -f ../../conf/makeLINT.sed > LINT
