@@ -393,12 +393,17 @@ natm_usr_sockaddr(struct socket *so, struct sockaddr **nam)
 
 /* xxx - should be const */
 struct pr_usrreqs natm_usrreqs = {
-	natm_usr_abort, pru_accept_notsupp, natm_usr_attach, natm_usr_bind,
-	natm_usr_connect, pru_connect2_notsupp, natm_usr_control,
-	natm_usr_detach, natm_usr_disconnect, pru_listen_notsupp,
-	natm_usr_peeraddr, pru_rcvd_notsupp, pru_rcvoob_notsupp,
-	natm_usr_send, pru_sense_null, natm_usr_shutdown,
-	natm_usr_sockaddr, sosend, soreceive, sopoll, pru_sosetlabel_null
+	.pru_abort =		natm_usr_abort,
+	.pru_attach =		natm_usr_attach,
+	.pru_bind =		natm_usr_bind,
+	.pru_connect =		natm_usr_connect,
+	.pru_control =		natm_usr_control,
+	.pru_detach =		natm_usr_detach,
+	.pru_disconnect =	natm_usr_disconnect,
+	.pru_peeraddr =		natm_usr_peeraddr,
+	.pru_send =		natm_usr_send,
+	.pru_shutdown =		natm_usr_shutdown,
+	.pru_sockaddr =		natm_usr_sockaddr,
 };
 
 #else  /* !FREEBSD_USRREQS */

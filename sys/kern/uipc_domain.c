@@ -74,13 +74,27 @@ MTX_SYSINIT(domain, &dom_mtx, "domain list", MTX_DEF);
  * All functions return EOPNOTSUPP.
  */
 struct pr_usrreqs nousrreqs = {
-        pru_abort_notsupp, pru_accept_notsupp, pru_attach_notsupp,
-        pru_bind_notsupp, pru_connect_notsupp, pru_connect2_notsupp,
-        pru_control_notsupp, pru_detach_notsupp, pru_disconnect_notsupp,
-        pru_listen_notsupp, pru_peeraddr_notsupp, pru_rcvd_notsupp,
-        pru_rcvoob_notsupp, pru_send_notsupp, pru_sense_null,
-        pru_shutdown_notsupp, pru_sockaddr_notsupp, pru_sosend_notsupp,
-        pru_soreceive_notsupp, pru_sopoll_notsupp, pru_sosetlabel_null
+	.pru_abort =		pru_abort_notsupp,
+	.pru_accept =		pru_accept_notsupp,
+	.pru_attach =		pru_attach_notsupp,
+	.pru_bind =		pru_bind_notsupp,
+	.pru_connect =		pru_connect_notsupp,
+	.pru_connect2 =		pru_connect2_notsupp,
+	.pru_control =		pru_control_notsupp,
+	.pru_detach =		pru_detach_notsupp,
+	.pru_disconnect	=	pru_disconnect_notsupp,
+	.pru_listen =		pru_listen_notsupp,
+	.pru_peeraddr =		pru_peeraddr_notsupp,
+	.pru_rcvd =		pru_rcvd_notsupp,
+	.pru_rcvoob =		pru_rcvoob_notsupp,
+	.pru_send =		pru_send_notsupp,
+	.pru_sense =		pru_sense_null,
+	.pru_shutdown =		pru_shutdown_notsupp,
+	.pru_sockaddr =		pru_sockaddr_notsupp,
+	.pru_sosend =		pru_sosend_notsupp,
+	.pru_soreceive =	pru_soreceive_notsupp,
+	.pru_sopoll =		pru_sopoll_notsupp,
+	.pru_sosetlabel =	pru_sosetlabel_null
 };
 
 /*
@@ -92,14 +106,30 @@ static void
 net_init_domain(struct domain *dp)
 {
 	struct protosw *pr;
+	struct pr_usrreqs *pu;
 
 	if (dp->dom_init)
 		(*dp->dom_init)();
 	for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++){
-		if (pr->pr_usrreqs == 0)
-			panic("domaininit: %ssw[%d] has no usrreqs!",
-			      dp->dom_name, 
-			      (int)(pr - dp->dom_protosw));
+		pu = pr->pr_usrreqs;
+		KASSERT(pu != NULL, 
+		    ("domaininit: %ssw[%d] has no usrreqs!",
+		    dp->dom_name, (int)(pr - dp->dom_protosw)));
+#define DEFAULT(foo, bar)	if ((foo) == NULL)  (foo) = (bar)
+		DEFAULT(pu->pru_accept, pru_accept_notsupp);
+		DEFAULT(pu->pru_connect, pru_connect_notsupp);
+		DEFAULT(pu->pru_connect2, pru_connect2_notsupp);
+		DEFAULT(pu->pru_control, pru_control_notsupp);
+		DEFAULT(pu->pru_listen, pru_listen_notsupp);
+		DEFAULT(pu->pru_rcvd, pru_rcvd_notsupp);
+		DEFAULT(pu->pru_rcvoob, pru_rcvoob_notsupp);
+		DEFAULT(pu->pru_sense, pru_sense_null);
+		DEFAULT(pu->pru_sosend, sosend);
+		DEFAULT(pu->pru_soreceive, soreceive);
+		DEFAULT(pu->pru_sopoll, sopoll);
+		DEFAULT(pu->pru_sosetlabel, pru_sosetlabel_null);
+#undef DEFAULT
+
 		if (pr->pr_init)
 			(*pr->pr_init)();
 	}

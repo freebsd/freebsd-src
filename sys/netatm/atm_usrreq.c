@@ -66,27 +66,19 @@ static int	atm_dgram_info(caddr_t);
  * New-style socket request routines
  */
 struct pr_usrreqs	atm_dgram_usrreqs = {
-	atm_proto_notsupp1,		/* pru_abort */
-	pru_accept_notsupp,		/* pru_accept */
-	atm_dgram_attach,		/* pru_attach */
-	atm_proto_notsupp2,		/* pru_bind */
-	pru_connect_notsupp,		/* pru_connect */
-	pru_connect2_notsupp,		/* pru_connect2 */
-	atm_dgram_control,		/* pru_control */
-	atm_proto_notsupp1,		/* pru_detach */
-	atm_proto_notsupp1,		/* pru_disconnect */
-	pru_listen_notsupp,		/* pru_listen */
-	atm_proto_notsupp3,		/* pru_peeraddr */
-	pru_rcvd_notsupp,		/* pru_rcvd */
-	pru_rcvoob_notsupp,		/* pru_rcvoob */
-	atm_proto_notsupp4,		/* pru_send */
-	pru_sense_null,			/* pru_sense */
-	atm_proto_notsupp1,		/* pru_shutdown */
-	atm_proto_notsupp3,		/* pru_sockaddr */
-	NULL,				/* pru_sosend */
-	NULL,				/* pru_soreceive */
-	NULL,				/* pru_sooll */
-	pru_sosetlabel_null		/* pru_sosetlabel */
+	.pru_abort =		atm_proto_notsupp1,
+	.pru_attach =		atm_dgram_attach,
+	.pru_bind =		atm_proto_notsupp2,
+	.pru_control =		atm_dgram_control,
+	.pru_detach =		atm_proto_notsupp1,
+	.pru_disconnect =	atm_proto_notsupp1,
+	.pru_peeraddr =		atm_proto_notsupp3,
+	.pru_send =		atm_proto_notsupp4,
+	.pru_shutdown =		atm_proto_notsupp1,
+	.pru_sockaddr =		atm_proto_notsupp3,
+	.pru_sosend =		NULL,
+	.pru_soreceive =	NULL,
+	.pru_sopoll =		NULL,
 };
 
 

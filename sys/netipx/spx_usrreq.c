@@ -108,19 +108,39 @@ static	int spx_shutdown(struct socket *so);
 static	int spx_sp_attach(struct socket *so, int proto, struct thread *td);
 
 struct	pr_usrreqs spx_usrreqs = {
-	spx_usr_abort, spx_accept, spx_attach, spx_bind,
-	spx_connect, pru_connect2_notsupp, ipx_control, spx_detach,
-	spx_usr_disconnect, spx_listen, ipx_peeraddr, spx_rcvd,
-	spx_rcvoob, spx_send, pru_sense_null, spx_shutdown,
-	ipx_sockaddr, sosend, soreceive, sopoll, pru_sosetlabel_null
+	.pru_abort =		spx_usr_abort,
+	.pru_accept =		spx_accept,
+	.pru_attach =		spx_attach,
+	.pru_bind =		spx_bind,
+	.pru_connect =		spx_connect,
+	.pru_control =		ipx_control,
+	.pru_detach =		spx_detach,
+	.pru_disconnect =	spx_usr_disconnect,
+	.pru_listen =		spx_listen,
+	.pru_peeraddr =		ipx_peeraddr,
+	.pru_rcvd =		spx_rcvd,
+	.pru_rcvoob =		spx_rcvoob,
+	.pru_send =		spx_send,
+	.pru_shutdown =		spx_shutdown,
+	.pru_sockaddr =		ipx_sockaddr,
 };
 
 struct	pr_usrreqs spx_usrreq_sps = {
-	spx_usr_abort, spx_accept, spx_sp_attach, spx_bind,
-	spx_connect, pru_connect2_notsupp, ipx_control, spx_detach,
-	spx_usr_disconnect, spx_listen, ipx_peeraddr, spx_rcvd,
-	spx_rcvoob, spx_send, pru_sense_null, spx_shutdown,
-	ipx_sockaddr, sosend, soreceive, sopoll, pru_sosetlabel_null
+	.pru_abort =		spx_usr_abort,
+	.pru_accept =		spx_accept,
+	.pru_attach =		spx_sp_attach,
+	.pru_bind =		spx_bind,
+	.pru_connect =		spx_connect,
+	.pru_control =		ipx_control,
+	.pru_detach =		spx_detach,
+	.pru_disconnect =	spx_usr_disconnect,
+	.pru_listen =		spx_listen,
+	.pru_peeraddr =		ipx_peeraddr,
+	.pru_rcvd =		spx_rcvd,
+	.pru_rcvoob =		spx_rcvoob,
+	.pru_send =		spx_send,
+	.pru_shutdown =		spx_shutdown,
+	.pru_sockaddr =		ipx_sockaddr,
 };
 
 void

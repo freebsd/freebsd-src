@@ -88,19 +88,31 @@ static	int ripx_attach(struct socket *so, int proto, struct thread *td);
 static	int ipx_output(struct ipxpcb *ipxp, struct mbuf *m0);
 
 struct	pr_usrreqs ipx_usrreqs = {
-	ipx_usr_abort, pru_accept_notsupp, ipx_attach, ipx_bind,
-	ipx_connect, pru_connect2_notsupp, ipx_control, ipx_detach,
-	ipx_disconnect, pru_listen_notsupp, ipx_peeraddr, pru_rcvd_notsupp,
-	pru_rcvoob_notsupp, ipx_send, pru_sense_null, ipx_shutdown,
-	ipx_sockaddr, sosend, soreceive, sopoll, pru_sosetlabel_null
+	.pru_abort =		ipx_usr_abort,
+	.pru_attach =		ipx_attach,
+	.pru_bind =		ipx_bind,
+	.pru_connect =		ipx_connect,
+	.pru_control =		ipx_control,
+	.pru_detach =		ipx_detach,
+	.pru_disconnect =	ipx_disconnect,
+	.pru_peeraddr =		ipx_peeraddr,
+	.pru_send =		ipx_send,
+	.pru_shutdown =		ipx_shutdown,
+	.pru_sockaddr =		ipx_sockaddr,
 };
 
 struct	pr_usrreqs ripx_usrreqs = {
-	ipx_usr_abort, pru_accept_notsupp, ripx_attach, ipx_bind,
-	ipx_connect, pru_connect2_notsupp, ipx_control, ipx_detach,
-	ipx_disconnect, pru_listen_notsupp, ipx_peeraddr, pru_rcvd_notsupp,
-	pru_rcvoob_notsupp, ipx_send, pru_sense_null, ipx_shutdown,
-	ipx_sockaddr, sosend, soreceive, sopoll, pru_sosetlabel_null
+	.pru_abort =		ipx_usr_abort,
+	.pru_attach =		ripx_attach,
+	.pru_bind =		ipx_bind,
+	.pru_connect =		ipx_connect,
+	.pru_control =		ipx_control,
+	.pru_detach =		ipx_detach,
+	.pru_disconnect =	ipx_disconnect,
+	.pru_peeraddr =		ipx_peeraddr,
+	.pru_send =		ipx_send,
+	.pru_shutdown =		ipx_shutdown,
+	.pru_sockaddr =		ipx_sockaddr,
 };
 
 /*
