@@ -488,7 +488,7 @@ Collapse_Disk(struct disk *d)
 #ifdef PC98
 static char * device_list[] = {"wd", "aacd", "ad", "da", "afd", "fla", "idad", "mlxd", "amrd", "twed", "ar", "fd", 0};
 #else
-static char * device_list[] = {"aacd", "ad", "da", "afd", "fla", "idad", "mlxd", "amrd", "twed", "ar", "fd", 0};
+static char * device_list[] = {"aacd", "ad", "da", "afd", "fla", "idad", "ipsd", "mlxd", "amrd", "twed", "ar", "fd", 0};
 #endif
 
 int qstrcmp(const void* a, const void* b) {
