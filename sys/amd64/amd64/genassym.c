@@ -34,12 +34,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.49 1997/10/10 09:43:58 peter Exp $
+ *	$Id: genassym.c,v 1.50 1997/10/10 12:38:27 peter Exp $
  */
 
 #include "opt_vm86.h"
 
-#include <stdio.h>
 #include <sys/param.h>
 #include <sys/buf.h>
 #include <sys/errno.h>
@@ -54,7 +53,6 @@
 #include <sys/vmmeter.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #define KERNEL /* XXX avoid user headers */
@@ -67,7 +65,8 @@
 #include <nfs/nfs.h>
 #include <nfs/nfsdiskless.h>
 
-extern int	main __P((void));
+int	main __P((void));
+int	printf __P((const char *, ...));
 
 int
 main()
