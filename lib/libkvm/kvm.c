@@ -155,9 +155,9 @@ _kvm_malloc(kd, n)
 {
 	void *p;
 
-	if ((p = malloc(n)) == NULL)
-		_kvm_err(kd, kd->program, strerror(errno));
-	memset(p, 0, n);
+	if ((p = calloc(n, sizeof(char))) == NULL)
+		_kvm_err(kd, kd->program, "can't allocate %u bytes: %s",
+			 n, strerror(errno));
 	return (p);
 }
 
