@@ -32,7 +32,7 @@
 .\"	@(#)login.1	8.2 (Berkeley) 5/5/94
 .\" $FreeBSD$
 .\"
-.Dd May 5, 1994
+.Dd October 16, 2004
 .Dt LOGIN 1
 .Os
 .Sh NAME
@@ -140,12 +140,9 @@ system mailboxes
 makes login quieter
 .It Pa /etc/auth.conf
 configure authentication services
-.It Pa /etc/pam.conf
-.Nm
-uses
-.Pa /etc/pam.conf
-entries with service name
-.Dq login
+.It Pa /etc/pam.d/login
+.Xr pam 8
+configuration file
 .El
 .Sh SEE ALSO
 .Xr builtin 1 ,
