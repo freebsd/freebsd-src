@@ -10,7 +10,6 @@ SRCS=	osf1_ioctl.c osf1_misc.c osf1_signal.c osf1_sysent.c \
 	opt_simos.h opt_nfs.h device_if.h bus_if.h vnode_if.h
 
 #CFLAGS+=  -g
-EXPORT_SYMS=	_osf1
 
 opt_compat.h:
 	echo "#define COMPAT_43 1" > ${.TARGET}
