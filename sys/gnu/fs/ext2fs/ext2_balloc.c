@@ -61,15 +61,15 @@
  */
 int
 ext2_balloc(ip, bn, size, cred, bpp, flags)
-	register struct inode *ip;
-	register daddr_t bn;
+	struct inode *ip;
+	daddr_t bn;
 	int size;
 	struct ucred *cred;
 	struct buf **bpp;
 	int flags;
 {
-	register struct ext2_sb_info *fs;
-	register daddr_t nb;
+	struct ext2_sb_info *fs;
+	daddr_t nb;
 	struct buf *bp, *nbp;
 	struct vnode *vp = ITOV(ip);
 	struct indir indirs[NIADDR + 2];

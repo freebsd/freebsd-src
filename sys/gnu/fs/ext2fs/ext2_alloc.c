@@ -95,13 +95,13 @@ ext2_discard_prealloc(ip)
  */
 int
 ext2_alloc(ip, lbn, bpref, size, cred, bnp)
-	register struct inode *ip;
+	struct inode *ip;
 	daddr_t lbn, bpref;
 	int size;
 	struct ucred *cred;
 	daddr_t *bnp;
 {
-	register struct ext2_sb_info *fs;
+	struct ext2_sb_info *fs;
 	daddr_t bno;
 	
 	*bnp = 0;
@@ -364,9 +364,9 @@ ext2_valloc(pvp, mode, cred, vpp)
 	struct ucred *cred;
 	struct vnode **vpp;
 {
-	register struct inode *pip;
-	register struct ext2_sb_info *fs;
-	register struct inode *ip;
+	struct inode *pip;
+	struct ext2_sb_info *fs;
+	struct inode *ip;
 	ino_t ino;
 	int i, error;
 	
@@ -472,11 +472,11 @@ ext2_blkpref(ip, lbn, indx, bap, blocknr)
  */
 void
 ext2_blkfree(ip, bno, size)
-	register struct inode *ip;
+	struct inode *ip;
 	daddr_t bno;
 	long size;
 {
-	register struct ext2_sb_info *fs;
+	struct ext2_sb_info *fs;
 
 	fs = ip->i_e2fs;
 	/*
@@ -496,9 +496,9 @@ ext2_vfree(pvp, ino, mode)
 	ino_t ino;
 	int mode;
 {
-	register struct ext2_sb_info *fs;
-	register struct inode *pip;
-	register mode_t save_i_mode;
+	struct ext2_sb_info *fs;
+	struct inode *pip;
+	mode_t save_i_mode;
 
 	pip = VTOI(pvp);
 	fs = pip->i_e2fs;
