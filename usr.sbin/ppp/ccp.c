@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.45 1998/05/21 01:26:05 brian Exp $
+ * $Id: ccp.c,v 1.32 1998/05/21 21:44:21 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -587,4 +587,16 @@ ccp_Proto(struct ccp *ccp)
 {
   return !link2physical(ccp->fsm.link) || !ccp->fsm.bundle->ncp.mp.active ?
          PROTO_COMPD : PROTO_ICOMPD;
+}
+
+void
+ccp_SetOpenMode(struct ccp *ccp)
+{
+  int f;
+
+  for (f = 0; f < CCP_NEG_TOTAL; f++)
+    if (ccp->cfg.neg[f])
+      ccp->fsm.open_mode = 0;
+
+  ccp->fsm.open_mode = OPEN_PASSIVE;	/* Go straight to ST_STOPPED */
 }
