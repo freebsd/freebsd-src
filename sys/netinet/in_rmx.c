@@ -357,18 +357,18 @@ in_inithead(void **head, int off)
 
 
 /*
- * This zaps old routes when the interface goes down.
- * Currently it doesn't delete static routes; there are
- * arguments one could make for both behaviors.  For the moment,
- * we will adopt the Principle of Least Surprise and leave them
- * alone (with the knowledge that this will not be enough for some
- * people).  The ones we really want to get rid of are things like ARP
- * entries, since the user might down the interface, walk over to a completely
- * different network, and plug back in.
+ * This zaps old routes when the interface goes down or interface
+ * address is deleted.  In the latter case, it deletes static routes
+ * that point to this address.  If we don't do this, we may end up
+ * using the old address in the future.  The ones we always want to
+ * get rid of are things like ARP entries, since the user might down
+ * the interface, walk over to a completely different network, and
+ * plug back in.
  */
 struct in_ifadown_arg {
 	struct radix_node_head *rnh;
 	struct ifaddr *ifa;
+	int del;
 };
 
 static int
@@ -378,7 +378,8 @@ in_ifadownkill(struct radix_node *rn, void *xap)
 	struct rtentry *rt = (struct rtentry *)rn;
 	int err;
 
-	if (rt->rt_ifa == ap->ifa && !(rt->rt_flags & RTF_STATIC)) {
+	if (rt->rt_ifa == ap->ifa &&
+	    (ap->del || !(rt->rt_flags & RTF_STATIC))) {
 		/*
 		 * We need to disable the automatic prune that happens
 		 * in this case in rtrequest() because it will blow
@@ -387,7 +388,7 @@ in_ifadownkill(struct radix_node *rn, void *xap)
 		 * the routes that rtrequest() would have in any case,
 		 * so that behavior is not needed there.
 		 */
-		rt->rt_flags &= ~RTF_PRCLONING;
+		rt->rt_flags &= ~(RTF_CLONING | RTF_PRCLONING);
 		err = rtrequest(RTM_DELETE, (struct sockaddr *)rt_key(rt),
 				rt->rt_gateway, rt_mask(rt), rt->rt_flags, 0);
 		if (err) {
@@ -398,7 +399,7 @@ in_ifadownkill(struct radix_node *rn, void *xap)
 }
 
 int
-in_ifadown(struct ifaddr *ifa)
+in_ifadown(struct ifaddr *ifa, int delete)
 {
 	struct in_ifadown_arg arg;
 	struct radix_node_head *rnh;
@@ -408,6 +409,7 @@ in_ifadown(struct ifaddr *ifa)
 
 	arg.rnh = rnh = rt_tables[AF_INET];
 	arg.ifa = ifa;
+	arg.del = delete;
 	rnh->rnh_walktree(rnh, in_ifadownkill, &arg);
 	ifa->ifa_flags &= ~IFA_ROUTE;
 	return 0;
