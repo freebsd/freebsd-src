@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.h,v 1.10 1997/09/03 02:08:19 brian Exp $
+ * $Id: ipcp.h,v 1.11 1997/10/26 01:02:55 brian Exp $
  *
  *	TODO:
  */
@@ -75,3 +75,4 @@ extern void IpcpDefAddress(void);
 extern void IpcpUp(void);
 extern void IpcpOpen(void);
 extern int ReportIpcpStatus(void);
+extern void IpcpInput(struct mbuf *);

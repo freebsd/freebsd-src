@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.h,v 1.7 1997/09/17 23:17:50 brian Exp $
+ * $Id: chap.h,v 1.8 1997/10/26 01:02:19 brian Exp $
  *
  *	TODO:
  */
@@ -26,3 +26,5 @@
 #define	CHAP_FAILURE	4
 
 extern struct authinfo AuthChapInfo;
+
+extern void ChapInput(struct mbuf *);

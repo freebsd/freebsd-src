@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.30 1997/10/17 00:20:30 brian Exp $
+ * $Id: ipcp.c,v 1.31 1997/10/26 01:02:54 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -50,6 +50,7 @@
 #include "command.h"
 #include "vars.h"
 #include "vjcomp.h"
+#include "ip.h"
 
 #ifndef NOMSEXT
 struct in_addr ns_entries[2];
