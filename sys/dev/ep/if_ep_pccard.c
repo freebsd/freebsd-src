@@ -224,7 +224,7 @@ ep_pccard_attach(device_t dev)
 		CSR_WRITE_2(sc, EP_W3_OPTIONS, 0xc040);
 		CSR_WRITE_2(sc, EP_COMMAND, RX_RESET);
 		CSR_WRITE_2(sc, EP_COMMAND, TX_RESET);
-		EP_BUSY_WAIT;
+		EP_BUSY_WAIT(sc);
 		DELAY(1000);
 		CSR_WRITE_2(sc, EP_W3_OPTIONS, 0x8040);
 	} else
