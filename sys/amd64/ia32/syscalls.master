@@ -599,3 +599,4 @@
 426	UNIMPL	BSD	__acl_set_link
 427	UNIMPL	BSD	__acl_delete_link
 428	UNIMPL	BSD	__acl_aclcheck_link
+429	UNIMPL	NOHIDE	sigwait
