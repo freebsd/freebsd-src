@@ -12,8 +12,8 @@ BIN1=	amd.map apmd.conf auth.conf \
 	inetd.conf login.access login.conf \
 	mac.conf motd netconfig networks newsyslog.conf \
 	phones printcap profile protocols \
-	rc rc.atm rc.devfs rc.diskless1 rc.diskless2 rc.firewall rc.firewall6 \
-	rc.network rc.network6 rc.pccard rc.sendmail rc.serial rc.shutdown \
+	rc.atm rc.devfs rc.diskless1 rc.diskless2 rc.firewall rc.firewall6 \
+	rc.network rc.network6 rc.pccard rc.sendmail rc.serial \
 	rc.subr rc.syscons rc.sysctl remote rpc services \
 	shells sysctl.conf syslog.conf usbd.conf \
 	etc.${MACHINE_ARCH}/disktab \
@@ -37,7 +37,7 @@ SSL=	${.CURDIR}/../crypto/openssl/apps/openssl.cnf
 .endif
 
 # -rwxr-xr-x root:wheel, for the new cron root:wheel
-BIN2=	netstart pccard_ether rc.suspend rc.resume
+BIN2=	netstart pccard_ether rc.suspend rc.resume rc rc.shutdown
 
 DEFAULTS= rc.conf pccard.conf periodic.conf
 
