@@ -56,11 +56,14 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/condvar.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/queue.h>
 #include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/conf.h>
 
 #include <sys/bus.h>
@@ -636,6 +639,9 @@ exca_valid_slot(struct exca_softc *exca)
 {
 	uint8_t c;
 
+	/* Assume the worst */
+	exca->chipset = EXCA_BOGUS;
+
 	/*
 	 * see if there's a PCMCIA controller here
 	 * Intel PCMCIA controllers use 0x82 and 0x83
@@ -757,6 +763,72 @@ exca_probe_slots(device_t dev, struct exca_softc *exca, bus_space_tag_t iot,
 			err = 0;
 	}
 	return (err);
+}
+
+void
+exca_insert(struct exca_softc *exca)
+{
+	if (exca->pccarddev != NULL) {
+		if (CARD_ATTACH_CARD(exca->pccarddev) != 0)
+			device_printf(exca->dev,
+			    "PC Card card activation failed\n");
+	} else {
+		device_printf(exca->dev,
+		    "PC Card inserted, but no pccard bus.\n");
+	}
+}
+  
+
+void
+exca_removal(struct exca_softc *exca)
+{
+	if (exca->pccarddev != NULL)
+		CARD_DETACH_CARD(exca->pccarddev);
+}
+
+int
+exca_activate_resource(struct exca_softc *exca, device_t child, int type,
+    int rid, struct resource *res)
+{
+	int err;
+	if (!(rman_get_flags(res) & RF_ACTIVE)) { /* not already activated */
+		switch (type) {
+		case SYS_RES_IOPORT:
+			err = exca_io_map(exca, 0, res);
+			break;
+		case SYS_RES_MEMORY:
+			err = exca_mem_map(exca, 0, res);
+			break;
+		default:
+			err = 0;
+			break;
+		}
+		if (err)
+			return (err);
+
+	}
+	return (BUS_ACTIVATE_RESOURCE(device_get_parent(exca->dev), child,
+		  type, rid, res));
+}
+
+int
+exca_deactivate_resource(struct exca_softc *exca, device_t child, int type,
+    int rid, struct resource *res)
+{
+	if (rman_get_flags(res) & RF_ACTIVE) { /* if activated */
+		switch (type) {
+		case SYS_RES_IOPORT:
+			if (exca_io_unmap_res(exca, res))
+				return (ENOENT);
+			break;
+		case SYS_RES_MEMORY:
+			if (exca_mem_unmap_res(exca, res))
+				return (ENOENT);
+			break;
+		}
+	}
+	return (BUS_DEACTIVATE_RESOURCE(device_get_parent(exca->dev), child,
+	    type, rid, res));
 }
 
 static int

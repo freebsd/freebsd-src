@@ -76,6 +76,9 @@ struct exca_softc
 	uint32_t	flags;
 #define EXCA_SOCKET_PRESENT	0x00000001
 #define EXCA_HAS_MEMREG_WIN	0x00000002
+#define EXCA_CARD_OK		0x00000004
+#define	EXCA_KTHREAD_RUNNING	0x00000008
+#define	EXCA_KTHREAD_DONE	0x00000010
 	uint32_t	offset;
 	int		chipset;
 #define EXCA_CARDBUS	0
@@ -93,12 +96,18 @@ struct exca_softc
 #define	EXCA_RF5C396	12		/* Ricoh RF5C396 */
 #define	EXCA_IBM	13		/* IBM clone */
 #define	EXCA_IBM_KING	14		/* IBM KING PCMCIA Controller */
+#define EXCA_BOGUS	-1		/* Invalid/not present/etc */
 	exca_getb_fn	*getb;
 	exca_putb_fn	*putb;
+	struct proc	*event_thread;
+	struct mtx	mtx;
+	struct cv	cv;
+	device_t	pccarddev;
 };
 
 void exca_init(struct exca_softc *sc, device_t dev, 
     bus_space_tag_t, bus_space_handle_t, uint32_t);
+void exca_insert(struct exca_softc *sc);
 int exca_io_map(struct exca_softc *sc, int width, struct resource *r);
 int exca_io_unmap_res(struct exca_softc *sc, struct resource *res);
 int exca_is_pcic(struct exca_softc *sc);
@@ -110,7 +119,14 @@ int exca_mem_set_offset(struct exca_softc *sc, struct resource *res,
 int exca_mem_unmap_res(struct exca_softc *sc, struct resource *res);
 int exca_probe_slots(device_t dev, struct exca_softc *exca,
     bus_space_tag_t iot, bus_space_handle_t ioh);
+void exca_removal(struct exca_softc *);
 void exca_reset(struct exca_softc *, device_t child);
+
+/* bus/device interfaces */
+int exca_activate_resource(struct exca_softc *exca, device_t child, int type,
+    int rid, struct resource *res);
+int exca_deactivate_resource(struct exca_softc *exca, device_t child, int type,
+    int rid, struct resource *res);
 
 static __inline uint8_t
 exca_getb(struct exca_softc *sc, int reg)
