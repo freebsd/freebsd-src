@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.227.2.35 1998/03/24 03:35:54 asami Exp $
+#	$Id: bsd.port.mk,v 1.227.2.36 1998/05/04 09:15:06 steve Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -269,6 +269,8 @@ ARCH!=	uname -m
 
 # Get the operating system type
 OPSYS!=	uname -s
+
+.include <bsd.locale.mk>
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -587,6 +589,11 @@ MASTER_SITE_KDE+=	\
 # Empty declaration to avoid "variable MASTER_SITES recursive" error
 MASTER_SITES?=
 PATCH_SITES?=
+
+# If the user has this set, try it first
+.if defined(NEAR_SITE_LIST)
+MASTER_SITES:=  ${NEAR_SITE_LIST} ${MASTER_SITES}
+.endif
 
 # To avoid double-slashes
 MASTER_SITE_SUBDIR?=	.

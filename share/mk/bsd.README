@@ -1,5 +1,5 @@
 #	@(#)bsd.README	8.2 (Berkeley) 4/2/94
-#	$Id$
+#	$Id: bsd.README,v 1.9.2.1 1998/03/07 13:17:49 jkh Exp $
 
 XXX This document is seriously out of date, it is currenly being revised.
 
@@ -84,6 +84,11 @@ object.
 
 The include file <sys.mk> has the default rules for all makes, in the BSD
 environment or otherwise.  You probably don't want to touch this file.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+bsd.locale.mk - a list of location specific parameters (currently this is
+used to list official ports mirrors only)
 
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
