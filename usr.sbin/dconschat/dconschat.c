@@ -151,9 +151,9 @@ dconschat_cleanup(int sig)
 		tcsetattr(STDIN_FILENO, TCSADRAIN, &dc->tsave);
 
 	if (sig > 0)
-		printf("\ndconschat exiting with signal %d ...\n", sig);
+		printf("\n[dconschat exiting with signal %d ...]\n", sig);
 	else
-		printf("\ndconschat exiting...\n");
+		printf("\n[dconschat exiting...]\n");
 	exit(0);
 }
 
