@@ -288,23 +288,8 @@ ata_generic_interrupt(void *data)
     int length;
 
     /* ignore this interrupt if there is no running request */
-    if (!request) {
-	if (ATA_LOCK_CH(ch)) {
-	    u_int8_t status = ATA_IDX_INB(ch, ATA_STATUS);
-	    u_int8_t error = ATA_IDX_INB(ch, ATA_ERROR);
-
-	    if (bootverbose)
-		ata_printf(ch, -1, 
-			   "spurious interrupt - status=0x%02x error=0x%02x\n",
-			   status, error);
-	    ATA_UNLOCK_CH(ch);
-	}
-	else {
-	    if (bootverbose)
-		ata_printf(ch, -1, "spurious interrupt - channel busy\n");
-	}
+    if (!request) 
 	return;
-    }
 
     ATA_DEBUG_RQ(request, "interrupt");
 
