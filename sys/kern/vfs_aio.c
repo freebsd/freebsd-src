@@ -510,6 +510,7 @@ aio_free_entry(struct aiocblist *aiocbe)
 	}
 	aiocbe->jobstate = JOBST_NULL;
 	untimeout(process_signal, aiocbe, aiocbe->timeouthandle);
+	fdrop(aiocbe->fd_file, curthread);
 	uma_zfree(aiocb_zone, aiocbe);
 	return 0;
 }
@@ -1390,8 +1391,10 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 			suword(&job->_aiocb_private.error, EBADF);
 		return EBADF;
 	}
+	fhold(fp);
 
 	if (aiocbe->uaiocb.aio_offset == -1LL) {
+		fdrop(fp, td);
 		uma_zfree(aiocb_zone, aiocbe);
 		if (type == 0)
 			suword(&job->_aiocb_private.error, EINVAL);
@@ -1400,6 +1403,7 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 
 	error = suword(&job->_aiocb_private.kernelinfo, jobrefid);
 	if (error) {
+		fdrop(fp, td);
 		uma_zfree(aiocb_zone, aiocbe);
 		if (type == 0)
 			suword(&job->_aiocb_private.error, EINVAL);
@@ -1413,6 +1417,7 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 		jobrefid++;
 	
 	if (opcode == LIO_NOP) {
+		fdrop(fp, td);
 		uma_zfree(aiocb_zone, aiocbe);
 		if (type == 0) {
 			suword(&job->_aiocb_private.error, 0);
@@ -1423,6 +1428,7 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 	}
 
 	if ((opcode != LIO_READ) && (opcode != LIO_WRITE)) {
+		fdrop(fp, td);
 		uma_zfree(aiocb_zone, aiocbe);
 		if (type == 0) {
 			suword(&job->_aiocb_private.status, 0);
@@ -1430,8 +1436,6 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 		}
 		return EINVAL;
 	}
-
-	fhold(fp);
 
 	if (aiocbe->uaiocb.aio_sigevent.sigev_notify == SIGEV_KEVENT) {
 		kev.ident = aiocbe->uaiocb.aio_sigevent.sigev_notify_kqueue;
@@ -1467,6 +1471,7 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 	error = kqueue_register(kq, &kev, td);
 aqueue_fail:
 	if (error) {
+		fdrop(fp, td);
 		uma_zfree(aiocb_zone, aiocbe);
 		if (type == 0)
 			suword(&job->_aiocb_private.error, error);
@@ -1562,7 +1567,6 @@ retryproc:
 	}
 	splx(s);
 done:
-	fdrop(fp, td);
 	return error;
 }
 
