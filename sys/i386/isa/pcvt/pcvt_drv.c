@@ -1073,7 +1073,7 @@ pccnprobe(struct consdev *cp)
 	 * Take control if we are the highest priority enabled display device.
 	 */
 	dvp = find_display();
-	if (dvp != NULL && dvp->id_driver != &vtdriver) {
+	if (dvp == NULL || dvp->id_driver != &vtdriver) {
 		cp->cn_pri = CN_DEAD;
 		return;
 	}
