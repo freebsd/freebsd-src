@@ -40,7 +40,7 @@
 .Sh DESCRIPTION
 The
 .Fn vfs_unbusy
-function unbusies (unlocks) a mount point by unlocking
+function unbusies a mount point by unlocking
 .Fa mp->mnt_lock .
 The lock is typically aquired by calling
 .Xr vfs_busy 9
@@ -63,4 +63,4 @@ this function, and it will be unlocked upon return.
 .Xr vfs_busy 9
 .Sh AUTHORS
 This man page was written by
-.An Chad David .
+.An Chad David Aq davidc@acns.ab.ca .

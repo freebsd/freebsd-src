@@ -31,7 +31,9 @@
 .Os
 .Sh NAME
 .Nm devsw
-.Nd "checks if the vnode represents a disk"
+.Nd returns the
+.Vt cdevsw
+structure
 .Sh SYNOPSIS
 .In sys/conf.h
 .Ft "struct cdevsw *"
@@ -63,6 +65,11 @@ entry should be returned.
 A pointer to a
 .Vt cdevsw
 structure.
+.Sh SEE ALSO
+.Xr major 9 ,
+.Xr minor 9 ,
+.Xr umajor 9 ,
+.Xr uminor 9
 .Sh AUTHORS
 This man page was written by
-.An Chad David .
+.An Chad David Aq davidc@acns.ab.ca .

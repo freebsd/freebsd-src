@@ -31,7 +31,7 @@
 .Os
 .Sh NAME
 .Nm BUF_REFCNT
-.Nd "returns the reference count of the buffer lock"
+.Nd "returns the reference count on a buffer's lock"
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/buf.h
@@ -40,7 +40,7 @@
 .Sh DESCRIPTION
 The
 .Fn BUF_REFCNT
-function returns the reference count of the buffer lock.
+function returns the reference count on a buffer's lock.
 .Pp
 Its argument is:
 .Bl -tag -xwidth ".Fa bp"
@@ -55,4 +55,4 @@ The buffer whose lock reference count is to be returned.
 .Xr lockcount 9
 .Sh AUTHORS
 This man page was written by
-.An Chad David .
+.An Chad David Aq davidc@acns.ab.ca .

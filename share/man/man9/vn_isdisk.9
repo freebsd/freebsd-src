@@ -31,7 +31,7 @@
 .Os
 .Sh NAME
 .Nm vn_isdisk
-.Nd "checks if the vnode represents a disk"
+.Nd "checks if a vnode represents a disk"
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/vnode.h
@@ -40,9 +40,13 @@
 .Sh DESCRIPTION
 The
 .Fn vn_isdisk
-function checks to see if the vnode represents a disk.
-In order for the vnode to be a disk it must be a character
-device,
+function checks to see if
+.Fa vp
+represents a disk.
+In order for
+.Fa vp
+to be a disk,
+it must be a character device,
 .Va v_rdev
 must be valid, and the
 .Vt cdevsw
@@ -60,10 +64,10 @@ The vnode to check.
 An integer pointer to store the error number in if the call fails.
 .El
 .Sh RETURN VALUES
-If the vnode represents a disk, 1 is returned; otherwise, zero
+If the vnode represents a disk, 1 is returned; otherwise, 0
 is returned and
 .Fa errp
 will contain the error number.
 .Sh AUTHORS
 This man page was written by
-.An Chad David .
+.An Chad David Aq davidc@acns.ab.ca .
