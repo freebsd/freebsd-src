@@ -154,70 +154,72 @@ do {								\
   (d) = sf_u.value;						\
 } while (0)
 
-/* ieee style elementary functions */
-double	__ieee754_sqrt(double);
-double	__ieee754_acos(double);
-double	__ieee754_acosh(double);
-double	__ieee754_log(double);
-double	__ieee754_atanh(double);
-double	__ieee754_asin(double);
-double	__ieee754_atan2(double,double);
-double	__ieee754_exp(double);
-double	__ieee754_cosh(double);
-double	__ieee754_fmod(double,double);
-double	__ieee754_pow(double,double);
-double	__ieee754_lgamma_r(double,int *);
-double	__ieee754_gamma_r(double,int *);
-double	__ieee754_lgamma(double);
-double	__ieee754_gamma(double);
-double	__ieee754_log10(double);
-double	__ieee754_sinh(double);
-double	__ieee754_hypot(double,double);
-double	__ieee754_j0(double);
-double	__ieee754_j1(double);
-double	__ieee754_y0(double);
-double	__ieee754_y1(double);
-double	__ieee754_jn(int,double);
-double	__ieee754_yn(int,double);
-double	__ieee754_remainder(double,double);
-int	__ieee754_rem_pio2(double,double*);
-double	__ieee754_scalb(double,double);
+/*
+ * ieee style elementary functions
+ *
+ * We rename functions here to improve other sources' diffability
+ * against fdlibm.
+ */
+#define	__ieee754_sqrt	sqrt
+#define	__ieee754_acos	acos
+#define	__ieee754_acosh	acosh
+#define	__ieee754_log	log
+#define	__ieee754_atanh	atanh
+#define	__ieee754_asin	asin
+#define	__ieee754_atan2	atan2
+#define	__ieee754_exp	exp
+#define	__ieee754_cosh	cosh
+#define	__ieee754_fmod	fmod
+#define	__ieee754_pow	pow
+#define	__ieee754_lgamma lgamma
+#define	__ieee754_gamma	gamma
+#define	__ieee754_lgamma_r lgamma_r
+#define	__ieee754_gamma_r gamma_r
+#define	__ieee754_log10	log10
+#define	__ieee754_sinh	sinh
+#define	__ieee754_hypot	hypot
+#define	__ieee754_j0	j0
+#define	__ieee754_j1	j1
+#define	__ieee754_y0	y0
+#define	__ieee754_y1	y1
+#define	__ieee754_jn	jn
+#define	__ieee754_yn	yn
+#define	__ieee754_remainder remainder
+#define	__ieee754_rem	rem
+#define	__ieee754_scalb	scalb
+#define	__ieee754_sqrtf	sqrtf
+#define	__ieee754_acosf	acosf
+#define	__ieee754_acoshf acoshf
+#define	__ieee754_logf	logf
+#define	__ieee754_atanhf atanhf
+#define	__ieee754_asinf	asinf
+#define	__ieee754_atan2f atan2f
+#define	__ieee754_expf	expf
+#define	__ieee754_coshf	coshf
+#define	__ieee754_fmodf	fmodf
+#define	__ieee754_powf	powf
+#define	__ieee754_lgammaf lgammaf
+#define	__ieee754_gammaf gammaf
+#define	__ieee754_lgammaf_r lgammaf_r
+#define	__ieee754_gammaf_r gammaf_r
+#define	__ieee754_log10f log10f
+#define	__ieee754_sinhf	sinhf
+#define	__ieee754_hypotf hypotf
+#define	__ieee754_j0f	j0f
+#define	__ieee754_j1f	j1f
+#define	__ieee754_y0f	y0f
+#define	__ieee754_y1f	y1f
+#define	__ieee754_jnf	jnf
+#define	__ieee754_ynf	ynf
+#define	__ieee754_remainderf remainderf
+#define	__ieee754_rem	rem
+#define	__ieee754_scalbf scalbf
 
 /* fdlibm kernel function */
-double	__kernel_standard(double,double,int);
 double	__kernel_sin(double,double,int);
 double	__kernel_cos(double,double);
 double	__kernel_tan(double,double,int);
 int	__kernel_rem_pio2(double*,double*,int,int,int,const int*);
-
-/* ieee style elementary float functions */
-float	__ieee754_sqrtf(float);
-float	__ieee754_acosf(float);
-float	__ieee754_acoshf(float);
-float	__ieee754_logf(float);
-float	__ieee754_atanhf(float);
-float	__ieee754_asinf(float);
-float	__ieee754_atan2f(float,float);
-float	__ieee754_expf(float);
-float	__ieee754_coshf(float);
-float	__ieee754_fmodf(float,float);
-float	__ieee754_powf(float,float);
-float	__ieee754_lgammaf_r(float,int *);
-float	__ieee754_gammaf_r(float,int *);
-float	__ieee754_lgammaf(float);
-float	__ieee754_gammaf(float);
-float	__ieee754_log10f(float);
-float	__ieee754_sinhf(float);
-float	__ieee754_hypotf(float,float);
-float	__ieee754_j0f(float);
-float	__ieee754_j1f(float);
-float	__ieee754_y0f(float);
-float	__ieee754_y1f(float);
-float	__ieee754_jnf(int,float);
-float	__ieee754_ynf(int,float);
-float	__ieee754_remainderf(float,float);
-int	__ieee754_rem_pio2f(float,float*);
-float	__ieee754_scalbf(float,float);
 
 /* float versions of fdlibm kernel functions */
 float	__kernel_sinf(float,float,int);

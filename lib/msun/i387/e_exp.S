@@ -38,7 +38,7 @@
 RCSID("$FreeBSD$")
 
 /* e^x = 2^(x * log2(e)) */
-ENTRY(__ieee754_exp)
+ENTRY(exp)
 	/*
 	 * If x is +-Inf, then the subtraction would give Inf-Inf = NaN.
 	 * Avoid this.  Also avoid it if x is NaN for convenience.
