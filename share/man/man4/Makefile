@@ -67,6 +67,7 @@ MAN=	aac.4 \
 	gre.4 \
 	gusc.4 \
 	gx.4 \
+	hatm.4 \
 	hifn.4 \
 	hme.4 \
 	ichsmb.4 \
@@ -298,6 +299,7 @@ MLINKS+=gem.4 if_gem.4
 MLINKS+=gif.4 if_gif.4
 MLINKS+=gre.4 if_gre.4
 MLINKS+=gx.4 if_gx.4
+MLINKS+=hatm.4 if_hatm.4
 MLINKS+=hme.4 if_hme.4
 MLINKS+=ipfirewall.4 ipacct.4 ipfirewall.4 ipaccounting.4 ipfirewall.4 ipfw.4
 MLINKS+=kue.4 if_kue.4
