@@ -47,7 +47,7 @@ static char aa2[] =	"apprentice demi-god";
 static char aa3[] =	"  minor demi-god   ";
 static char aa4[] =	"  major demi-god   ";
 static char aa5[] =	"    minor deity    ";
-static char aa6[] =	"    major deity    "; 
+static char aa6[] =	"    major deity    ";
 static char aa7[] =	"  novice guardian  ";
 static char aa8[] =	"apprentice guardian";
 static char aa9[] =	"    The Creator    ";
@@ -456,7 +456,7 @@ char spelweird[MAXMONST+8][SPNUM] = {
 /*                      p m d s c s    w s e h c c p i    b c p c h c v    d l d g f f    s h s t m    s g s w a p */
 /*                      r l e l h s    e t n e b r h n    a l l a a k p    r i r l l g    c l t e f    p e u t l e */
 /*                      o e x e m p    b r l l l e a v    l d y n s l r    y t l o o r    a d p l i    h n m w t r */
-	
+
 
 /*            bat */ {  0,0,0,0,0,0,   0,0,0,0,0,0,0,0,   0,0,0,0,0,0,0,   0,0,0,0,0,0,   0,0,0,0,0,   0,0,0,0,0,0 },
 /*          gnome */ {  0,0,0,0,0,0,   0,0,0,0,0,0,0,5,   0,0,0,0,0,0,0,   0,0,0,0,0,0,   0,0,0,0,0,   0,0,0,0,0,0 },
@@ -608,7 +608,7 @@ char is_alpha[]=  /* isalpha[character] = TRUE || FALSE */
     };
 
 /*
- *	function to create scroll numbers with appropriate probability of 
+ *	function to create scroll numbers with appropriate probability of
  *	occurrence
  *
  *	0 - armor			1 - weapon		2 - enlightenment	3 - paper

@@ -221,7 +221,7 @@ register int lowx,lowy,hix,hiy;
 
 	/* walk down since rscnt and rsmax change */
 	for(rsp = &rs[rsmax-1]; rsp >= rs; rsp--) {
-		
+
 		if((lx = rsp->rlx) > hix || (ly = rsp->rly) > hiy ||
 		   (hx = rsp->rhx) < lowx || (hy = rsp->rhy) < lowy)
 			continue;

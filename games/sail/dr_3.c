@@ -320,7 +320,7 @@ reload()
 checksails()
 {
 	register struct ship *sp;
-	register int rig, full; 
+	register int rig, full;
 	struct ship *close;
 
 	foreachship(sp) {
@@ -336,7 +336,7 @@ checksails()
 					full = 1;
 				else
 					full = 0;
-			} else 
+			} else
 				full = 0;
 		} else
 			full = 0;

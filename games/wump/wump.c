@@ -625,7 +625,7 @@ getans(prompt)
 }
 
 bats_nearby()
-{ 
+{
 	register int i;
 
 	/* check for bats in the immediate vicinity */
@@ -636,7 +636,7 @@ bats_nearby()
 }
 
 pit_nearby()
-{ 
+{
 	register int i;
 
 	/* check for pits in the immediate vicinity */

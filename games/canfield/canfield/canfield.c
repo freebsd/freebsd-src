@@ -174,7 +174,7 @@ int uid;
 #define maxtimecharge		 3
 #define valuepercardup	 	 5
 /*
- * Variables associated with betting 
+ * Variables associated with betting
  */
 struct betinfo {
 	long	hand;		/* cost of dealing hand */
@@ -560,7 +560,7 @@ printcard(a, b, cp)
 }
 
 /*
- * procedure to move the top card from one location to the top 
+ * procedure to move the top card from one location to the top
  * of another location. The pointers always point to the top
  * of the piles.
  */
@@ -568,7 +568,7 @@ transit(source, dest)
 	struct cardtype **source, **dest;
 {
 	struct cardtype *temp;
-	
+
 	temp = *source;
 	*source = (*source)->next;
 	temp->next = *dest;
@@ -616,7 +616,7 @@ fndbase(cp, column, row)
 					game.wins += valuepercardup;
 					total.wins += valuepercardup;
 				}
-			} else 
+			} else
 				nomore = TRUE;
 	} while (nomore == FALSE);
 }
@@ -754,7 +754,7 @@ struct cardtype *cp;
 		move(msgrow, msgcol);
 		printw("Error: no cards to move");
 		return (FALSE);
-	} else 
+	} else
 		return (TRUE);
 }
 
@@ -765,14 +765,14 @@ bool
 ranklower(cp1, cp2)
 	struct cardtype *cp1, *cp2;
 {
-	if (cp2->rank == Ace) 
+	if (cp2->rank == Ace)
 		if (cp1->rank == King)
 			return (TRUE);
-		else 
+		else
 			return (FALSE);
 	else if (cp1->rank + 1 == cp2->rank)
 		return (TRUE);
-	else 
+	else
 		return (FALSE);
 }
 
@@ -785,7 +785,7 @@ diffcolor(cp1, cp2)
 {
 	if (cp1->color == cp2->color)
 		return (FALSE);
-	else 
+	else
 		return (TRUE);
 }
 
@@ -799,15 +799,15 @@ tabok(cp, des)
 	if ((cp == stock) && (tableau[des] == NIL))
 		return (TRUE);
 	else if (tableau[des] == NIL)
-		if (stock == NIL && 
-		    cp != bottom[0] && cp != bottom[1] && 
+		if (stock == NIL &&
+		    cp != bottom[0] && cp != bottom[1] &&
 		    cp != bottom[2] && cp != bottom[3])
 			return (TRUE);
-		else 
+		else
 			return (FALSE);
 	else if (ranklower(cp, tableau[des]) && diffcolor(cp, tableau[des]))
 		return (TRUE);
-	else 
+	else
 		return (FALSE);
 }
 
@@ -1123,7 +1123,7 @@ struct cardtype **cp;
 				usedtalon();
 				printcard(taloncol, talonrow, talon);
 			}
-		} else 
+		} else
 			destinerror();
 	}
 }
@@ -1142,7 +1142,7 @@ tabprint(sour, des)
 	slength = length[sour];
 	if (slength == tabrow)
 		printcard(pilemap[des], dlength, tableau[sour]);
-	else 
+	else
 		while (slength != tabrow - 1) {
 			tempcard = tableau[sour];
 			for (i=1; i<=slength-tabrow; i++)
@@ -1174,7 +1174,7 @@ tabtotab(sour, des)
 			length[des] = length[des] + (length[sour] - (tabrow - 1));
 			length[sour] = tabrow - 1;
 			timesthru = 0;
-		} else 
+		} else
 			destinerror();
 	}
 }
@@ -1189,11 +1189,11 @@ rankhigher(cp, let)
 	if (found[let]->rank == King)
 		if (cp->rank == Ace)
 			return(TRUE);
-		else 
+		else
 			return(FALSE);
 	else if (cp->rank - 1 == found[let]->rank)
 		return(TRUE);
-	else 
+	else
 		return(FALSE);
 }
 
@@ -1205,7 +1205,7 @@ samesuit(cp, let)
 {
 	if (cp->suit == found[let]->suit)
 		return (TRUE);
-	else 
+	else
 		return (FALSE);
 }
 
@@ -1251,7 +1251,7 @@ movetofound(cp, source)
 					mtfdone = TRUE;
 				} else
 					tempbase++;
-			else 
+			else
 				tempbase++;
 		} while ((tempbase != 4) && !mtfdone);
 		if (!mtfdone)

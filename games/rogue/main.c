@@ -77,7 +77,7 @@ char *argv[];
 		put_mons();
 		put_player(party_room);
 		print_stats(STAT_ALL);
-PL:		
+PL:
 		play_level();
 		free_stuff(&level_objects);
 		free_stuff(&level_monsters);

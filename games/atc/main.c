@@ -75,7 +75,7 @@ main(ac, av)
 	name = *av++;
 	while (*av) {
 #ifndef SAVEDASH
-		if (**av == '-') 
+		if (**av == '-')
 			*++*av;
 		else
 			break;
@@ -106,7 +106,7 @@ main(ac, av)
 				file = *av;
 				av++;
 				break;
-			default: 
+			default:
 				fprintf(stderr, "Unknown option '%c'\n", *ptr,
 					name);
 				f_usage++;
@@ -118,7 +118,7 @@ main(ac, av)
 	srandom(seed);
 
 	if (f_usage)
-		fprintf(stderr, 
+		fprintf(stderr,
 		    "Usage: %s -[u?lstp] [-[gf] game_name] [-r random seed]\n",
 			name);
 	if (f_showscore)
@@ -132,7 +132,7 @@ main(ac, av)
 		buf[strlen(buf) - 1] = '\0';
 		puts(buf);
 	}
-		
+
 	if (f_usage || f_showscore || f_list || f_printpath)
 		exit(0);
 

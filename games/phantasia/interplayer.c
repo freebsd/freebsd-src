@@ -79,12 +79,12 @@ long	foeloc = 0L;		/* location in file of person to fight */
 /
 / RETURN VALUE: none
 /
-/ MODULES CALLED: readrecord(), readmessage(), writerecord(), collecttaxes(), 
-/	displaystats(), fabs(), more(), death(), sleep(), wmove(), waddch(), printw(), 
-/	myturn(), altercoordinates(), waddstr(), wrefresh(), mvprintw(), 
+/ MODULES CALLED: readrecord(), readmessage(), writerecord(), collecttaxes(),
+/	displaystats(), fabs(), more(), death(), sleep(), wmove(), waddch(), printw(),
+/	myturn(), altercoordinates(), waddstr(), wrefresh(), mvprintw(),
 /	getanswer(), wclrtoeol(), wclrtobot()
 /
-/ GLOBAL INPUTS: Foestrikes, LINES, Lines, Other, Shield, Player, *stdscr, 
+/ GLOBAL INPUTS: Foestrikes, LINES, Lines, Other, Shield, Player, *stdscr,
 /	Fileloc, *Enemyname
 /
 / GLOBAL OUTPUTS: Foestrikes, Lines, Shield, Player, Luckout, *Enemyname
@@ -347,10 +347,10 @@ LEAVE:
 /
 / RETURN VALUE: none
 /
-/ MODULES CALLED: writerecord(), inputoption(), floor(), wmove(), drandom(), 
+/ MODULES CALLED: writerecord(), inputoption(), floor(), wmove(), drandom(),
 /	waddstr(), wrefresh(), mvprintw(), wclrtoeol(), wclrtobot()
 /
-/ GLOBAL INPUTS: Lines, Other, Player, *stdscr, Fileloc, Luckout, 
+/ GLOBAL INPUTS: Lines, Other, Player, *stdscr, Fileloc, Luckout,
 /	*Enemyname
 /
 / GLOBAL OUTPUTS: Foestrikes, Lines, Player, Luckout
@@ -380,7 +380,7 @@ int	ch;		/* input */
 	{
 	default:	/* fight */
 	    dtemp = ROLL(2.0, Player.p_might);
-HIT:		
+HIT:
 	    mvprintw(Lines++, 0, "You hit %s %.0f times!", Enemyname, dtemp);
 	    Player.p_sin += 0.5;
 	    Player.p_1scratch += dtemp;
@@ -516,8 +516,8 @@ long	loc = 0L;		/* location in energy void file */
 /
 / RETURN VALUE: none
 /
-/ MODULES CALLED: writerecord(), more(), fread(), death(), fseek(), sleep(), 
-/	floor(), wmove(), waddch(), drandom(), printw(), altercoordinates(), 
+/ MODULES CALLED: writerecord(), more(), fread(), death(), fseek(), sleep(),
+/	floor(), wmove(), waddch(), drandom(), printw(), altercoordinates(),
 /	waddstr(), wrefresh(), encounter(), writevoid()
 /
 / GLOBAL INPUTS: Other, Player, *stdscr, Enrgyvoid, *Playersfp
@@ -654,7 +654,7 @@ long	loc;			/* location in file of other players */
 		    Player.p_mana =
 		    Player.p_energy =
 		    Player.p_maxenergy =
-		    Player.p_magiclvl = 
+		    Player.p_magiclvl =
 		    Player.p_brains =
 		    Player.p_experience =
 		    Player.p_quickness = 1.0;
@@ -708,8 +708,8 @@ long	loc;			/* location in file of other players */
 /
 / RETURN VALUE: none
 /
-/ MODULES CALLED: descrstatus(), descrlocation(), more(), fread(), fseek(), 
-/	floor(), wmove(), printw(), waddstr(), distance(), wrefresh(), 
+/ MODULES CALLED: descrstatus(), descrlocation(), more(), fread(), fseek(),
+/	floor(), wmove(), printw(), waddstr(), distance(), wrefresh(),
 /	descrtype(), wclrtobot()
 /
 / GLOBAL INPUTS: LINES, Other, Circle, Wizard, Player, *stdscr, *Playersfp
@@ -766,7 +766,7 @@ register int	numusers = 0;	/* number of users on file */
 		/* those nearer the origin can be seen */
 		|| Player.p_palantir)
 		/* palantir enables one to see others */
-		&& (Other.p_status != S_CLOAKED 
+		&& (Other.p_status != S_CLOAKED
 		    || (Player.p_specialtype == SC_VALAR && Player.p_palantir))
 		/* not cloaked; valar can see through cloak with a palantir */
 		&& Other.p_specialtype != SC_VALAR)
@@ -778,7 +778,7 @@ register int	numusers = 0;	/* number of users on file */
 		/* cannot see player's coordinates */
 		printw("%-20s %19.19s ",
 		    Other.p_name, descrlocation(&Other, TRUE));
-	
+
 	printw("%6.0f %s  %-9.9s%s\n", Other.p_level, descrtype(&Other, TRUE),
 	    Other.p_login, descrstatus(&Other));
 
@@ -806,7 +806,7 @@ register int	numusers = 0;	/* number of users on file */
 /
 / RETURN VALUE: none
 /
-/ MODULES CALLED: writerecord(), fread(), fseek(), fopen(), wmove(), fclose(), 
+/ MODULES CALLED: writerecord(), fread(), fseek(), fopen(), wmove(), fclose(),
 /	fwrite(), altercoordinates(), waddstr(), fprintf()
 /
 / GLOBAL INPUTS: *Energyvoidfp, Other, Player, *stdscr,
@@ -889,12 +889,12 @@ long	loc = 0L;		/* location of old king in player file */
 /
 / RETURN VALUE: none
 /
-/ MODULES CALLED: writerecord(), truncstring(), fread(), fseek(), fopen(), 
-/	floor(), wmove(), drandom(), fclose(), fwrite(), sscanf(), strcmp(), 
-/	infloat(), waddstr(), findname(), distance(), userlist(), mvprintw(), 
+/ MODULES CALLED: writerecord(), truncstring(), fread(), fseek(), fopen(),
+/	floor(), wmove(), drandom(), fclose(), fwrite(), sscanf(), strcmp(),
+/	infloat(), waddstr(), findname(), distance(), userlist(), mvprintw(),
 /	allocvoid(), getanswer(), getstring(), wclrtoeol(), writevoid()
 /
-/ GLOBAL INPUTS: *Energyvoidfp, Other, Illcmd[], Wizard, Player, *stdscr, 
+/ GLOBAL INPUTS: *Energyvoidfp, Other, Illcmd[], Wizard, Player, *stdscr,
 /	Databuf[], Enrgyvoid
 /
 / GLOBAL OUTPUTS: Other, Player, Enrgyvoid

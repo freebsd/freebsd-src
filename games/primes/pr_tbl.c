@@ -45,7 +45,7 @@ static char sccsid[] = "@(#)pr_tbl.c	8.1 (Berkeley) 5/31/93";
  *
  *   chongo <for a good prime call: 391581 * 2^216193 - 1> /\oo/\
  *
- * We are able to sieve 2^32-1 because this table has primes up to 65537 
+ * We are able to sieve 2^32-1 because this table has primes up to 65537
  * and 65537^2 > 2^32-1.
  */
 

@@ -140,7 +140,7 @@ news()
 		fight(WOODSMAN,50);
 	}
 	switch(position){
-		
+
 		case 267:
 		case 257:	/* entering a cave */
 		case 274:
@@ -225,7 +225,7 @@ crash()
 	if (!location[position].flyhere || (testbit(location[position].objects,LAND) && fuel <= 0)){
 		if (!location[position].flyhere)
 			puts("You're flying too low.  We're going to crash!");
-		else{ 
+		else{
 			puts("You're out of fuel.  We'll have to crash land!");
 			if (!location[position].down){
 				puts("Your viper strikes the ground and explodes into firey fragments.");

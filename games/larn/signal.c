@@ -5,7 +5,7 @@ extern char savefilename[],wizard,predostuff,nosignal;
 static s2choose()	/* text to be displayed if ^C during intro screen */
 	{
 	cursor(1,24); lprcat("Press "); setbold(); lprcat("return"); resetbold();
-	lprcat(" to continue: ");   lflush(); 
+	lprcat(" to continue: ");   lflush();
 	}
 
 static void
@@ -61,7 +61,7 @@ static void sigpipe()	{ sigpanic(SIGPIPE); }
 static void sigterm()	{ sigpanic(SIGTERM); }
 sigsetup()
 	{
-	signal(SIGQUIT, cntlc); 		signal(SIGINT,  cntlc); 
+	signal(SIGQUIT, cntlc); 		signal(SIGINT,  cntlc);
 	signal(SIGKILL, SIG_IGN);		signal(SIGHUP,  sgam);
 	signal(SIGILL,  sigill);		signal(SIGTRAP, sigtrap);
 	signal(SIGIOT,  sigiot);		signal(SIGEMT,  sigemt);
@@ -143,6 +143,6 @@ sigpanic(sig)
 	sprintf(buf,"\nLarn - Panic! Signal %d received [%s]",sig,signame[sig]);
 	write(2,buf,strlen(buf));  sleep(2);
 	sncbr();
-	savegame(savefilename); 
+	savegame(savefilename);
 	kill(getpid(),sig); /* this will terminate us */
 	}

@@ -1,4 +1,4 @@
-/* 
+/*
  * bs.c - original author: Bruce Holloway
  *		salvo option by: Chuck A DeGaul
  * with improved user interface, autoconfiguration and code cleanup
@@ -260,7 +260,7 @@ static void intro()
     init_pair(COLOR_YELLOW, COLOR_YELLOW, COLOR_BLACK);
 #endif /* A_COLOR */
 
-}		    
+}
 
 /* VARARGS1 */
 static void prompt(n, f, s)
@@ -468,7 +468,7 @@ static void initgame()
 	    placeship(PLAYER, ss, TRUE);
 	    error((char *)NULL);
 	    ss->placed = TRUE;
-	}	    
+	}
 	else if (c == 'R')
 	{
 	    prompt(1, "Placing the rest of your fleet at random...");
@@ -480,7 +480,7 @@ static void initgame()
 		    ss->placed = TRUE;
 		}
 	    error((char *)NULL);
-	}	    
+	}
 	else if (strchr("hjkl8462", c))
 	{
 	    ss->x = curx;
@@ -492,7 +492,7 @@ static void initgame()
 	    case 'j': case '2': ss->dir = S; break;
 	    case 'h': case '4': ss->dir = W; break;
 	    case 'l': case '6': ss->dir = E; break;
-	    }	    
+	    }
 
 	    if (checkplace(PLAYER, ss, TRUE))
 	    {
@@ -744,7 +744,7 @@ int x, y;
 			for (i = -1; i <= ss->length; ++i)
 			{
 			    int x, y;
-			    
+
 			    x = bx + i * xincr[ss->dir];
 			    y = by + i * yincr[ss->dir];
 			    if (ONBOARD(x, y))
@@ -1236,7 +1236,7 @@ char *argv[];
 				i = 0;
 			}
 		    }
-		} 
+		}
 	    }
 	    else
 	    	while(turn ? cputurn() : plyturn())

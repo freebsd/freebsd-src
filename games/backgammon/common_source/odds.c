@@ -44,7 +44,7 @@ int		r2, val;
 	register int	i, j;
 
 	if (r1 == 0)  {
-		for (i = 0; i < 6; i++)  
+		for (i = 0; i < 6; i++)
 			for (j = 0; j < 6; j++)
 				table[i][j] = 0;
 		return;

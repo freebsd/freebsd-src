@@ -18,7 +18,7 @@ register char ch;
 init_objects(){
 register int i, j, first, last, sum, end;
 register char let, *tmp;
-	/* init base; if probs given check that they add up to 100, 
+	/* init base; if probs given check that they add up to 100,
 	   otherwise compute probs; shuffle descriptions */
 	end = SIZE(objects);
 	first = 0;

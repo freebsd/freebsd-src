@@ -98,7 +98,7 @@ main(argc, argv)
 	}
 	printplayer(USER);
 	(void)printf("get to start.\n");
-	
+
 	for (;;) {
 		move = usermove();
 		if (!comphand[move]) {
@@ -208,12 +208,12 @@ promove()
 				max = i;
 				break;
 			}
-		while (++i < RANKS) 
+		while (++i < RANKS)
 			if (comphand[i] != CARDS &&
 			    comphand[i] > comphand[max])
 				max = i;
 		return(max);
-	} 
+	}
 	if (nrandom(1024) == 0723) {
 		for (i = 0; i < RANKS; ++i)
 			if (userhand[i] && comphand[i])
@@ -340,7 +340,7 @@ printhand(hand)
 
 	for (book = i = 0; i < RANKS; i++)
 		if (hand[i] < CARDS)
-			for (j = hand[i]; --j >= 0;) 
+			for (j = hand[i]; --j >= 0;)
 				PRC(i);
 		else
 			++book;

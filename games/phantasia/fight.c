@@ -17,12 +17,12 @@
 /
 / RETURN VALUE: none
 /
-/ MODULES CALLED: monsthits(), playerhits(), readmessage(), callmonster(), 
-/	writerecord(), pickmonster(), displaystats(), pow(), cancelmonster(), 
-/	awardtreasure(), more(), death(), wmove(), setjmp(), drandom(), printw(), 
+/ MODULES CALLED: monsthits(), playerhits(), readmessage(), callmonster(),
+/	writerecord(), pickmonster(), displaystats(), pow(), cancelmonster(),
+/	awardtreasure(), more(), death(), wmove(), setjmp(), drandom(), printw(),
 /	longjmp(), wrefresh(), mvprintw(), wclrtobot()
 /
-/ GLOBAL INPUTS: Curmonster, Whichmonster, LINES, Lines, Circle, Shield, 
+/ GLOBAL INPUTS: Curmonster, Whichmonster, LINES, Lines, Circle, Shield,
 /	Player, *stdscr, Fileloc, Fightenv[], *Enemyname
 /
 / GLOBAL OUTPUTS: Curmonster, Whichmonster, Lines, Shield, Player, Luckout
@@ -237,7 +237,7 @@ pickmonster()
 	/* even chance of some tamer non-water monsters */
 	return((int) ROLL(14.0, 50.0));
 
-    else 
+    else
 	/* even chance of some of the tamest non-water monsters */
 	return((int) ROLL(14.0, 25.0));
 }
@@ -254,8 +254,8 @@ pickmonster()
 /
 / RETURN VALUE: none
 /
-/ MODULES CALLED: hitmonster(), throwspell(), inputoption(), cancelmonster(), 
-/	floor(), wmove(), drandom(), altercoordinates(), waddstr(), mvprintw(), 
+/ MODULES CALLED: hitmonster(), throwspell(), inputoption(), cancelmonster(),
+/	floor(), wmove(), drandom(), altercoordinates(), waddstr(), mvprintw(),
 /	wclrtoeol(), wclrtobot()
 /
 / GLOBAL INPUTS: Curmonster, Lines, Player, *stdscr, Luckout, *Enemyname
@@ -429,14 +429,14 @@ int	ch;		/* input */
 /
 / RETURN VALUE: none
 /
-/ MODULES CALLED: cancelmonster(), scramblestats(), more(), floor(), wmove(), 
-/	drandom(), altercoordinates(), longjmp(), waddstr(), mvprintw(), 
+/ MODULES CALLED: cancelmonster(), scramblestats(), more(), floor(), wmove(),
+/	drandom(), altercoordinates(), longjmp(), waddstr(), mvprintw(),
 /	getanswer()
 /
-/ GLOBAL INPUTS: Curmonster, Lines, Circle, Shield, Player, *stdscr, 
+/ GLOBAL INPUTS: Curmonster, Lines, Circle, Shield, Player, *stdscr,
 /	Fightenv[], *Enemyname
 /
-/ GLOBAL OUTPUTS: Curmonster, Whichmonster, Lines, Shield, Player, 
+/ GLOBAL OUTPUTS: Curmonster, Whichmonster, Lines, Shield, Player,
 /	*Enemyname
 /
 / DESCRIPTION:
@@ -471,7 +471,7 @@ int	ch;			/* input */
 	    /* take experience away */
 	    inflict = ROLL(10.0, Curmonster.m_strength);
 	    inflict = MIN(Player.p_experience, inflict);
-	    mvprintw(Lines++, 0, 
+	    mvprintw(Lines++, 0,
 		"%s took away %.0f experience points.", Enemyname, inflict);
 	    Player.p_experience -= inflict;
 	    return;
@@ -796,11 +796,11 @@ double	inflict;
 /
 / RETURN VALUE: none
 /
-/ MODULES CALLED: hitmonster(), cancelmonster(), sqrt(), floor(), wmove(), 
-/	drandom(), altercoordinates(), longjmp(), infloat(), waddstr(), mvprintw(), 
+/ MODULES CALLED: hitmonster(), cancelmonster(), sqrt(), floor(), wmove(),
+/	drandom(), altercoordinates(), longjmp(), infloat(), waddstr(), mvprintw(),
 /	getanswer()
 /
-/ GLOBAL INPUTS: Curmonster, Whichmonster, Nomana[], Player, *stdscr, 
+/ GLOBAL INPUTS: Curmonster, Whichmonster, Nomana[], Player, *stdscr,
 /	Fightenv[], Illspell[], *Enemyname
 /
 / GLOBAL OUTPUTS: Curmonster, Whichmonster, Shield, Player
@@ -1035,7 +1035,7 @@ int	ch;		/* input */
 /
 / RETURN VALUE: none
 /
-/ MODULES CALLED: truncstring(), fread(), fseek(), floor(), drandom(), 
+/ MODULES CALLED: truncstring(), fread(), fseek(), floor(), drandom(),
 /	strcpy()
 /
 / GLOBAL INPUTS: Curmonster, Circle, Player, *Monstfp
@@ -1144,11 +1144,11 @@ struct monster	Othermonster;		/* to find a name for mimics */
 /
 / RETURN VALUE: none
 /
-/ MODULES CALLED: pickmonster(), collecttaxes(), more(), cursedtreasure(), 
-/	floor(), wmove(), drandom(), sscanf(), printw(), altercoordinates(), 
+/ MODULES CALLED: pickmonster(), collecttaxes(), more(), cursedtreasure(),
+/	floor(), wmove(), drandom(), sscanf(), printw(), altercoordinates(),
 /	longjmp(), infloat(), waddstr(), getanswer(), getstring(), wclrtobot()
 /
-/ GLOBAL INPUTS: Somebetter[], Curmonster, Whichmonster, Circle, Player, 
+/ GLOBAL INPUTS: Somebetter[], Curmonster, Whichmonster, Circle, Player,
 /	*stdscr, Databuf[], *Statptr, Fightenv[]
 /
 / GLOBAL OUTPUTS: Whichmonster, Shield, Player
@@ -1211,7 +1211,7 @@ double	dtemp;				/* for temporary calculations */
 
 	return;
 	}
-    else   
+    else
 	/* other treasures */
 	{
 	addstr("You have found some treasure.  Do you want to inspect it ? ");

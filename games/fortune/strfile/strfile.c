@@ -68,7 +68,7 @@ static char sccsid[] = "@(#)strfile.c	8.1 (Berkeley) 5/31/93";
  *	s - Silent.  Give no summary of data processed at the end of
  *	    the run.
  *	o - order the strings in alphabetic order
- *	i - if ordering, ignore case 
+ *	i - if ordering, ignore case
  *	r - randomize the order of the strings
  *	x - set rotated bit
  *

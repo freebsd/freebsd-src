@@ -223,7 +223,7 @@ treasureroom(lv)
 	for (tx=1+rnd(10);  tx<MAXX-10;  tx+=10)
 	  if ( (lv==MAXLEVEL-1) || (lv==MAXLEVEL+MAXVLEVEL-1) || rnd(13)==2)
 		{
-		xsize = rnd(6)+3;  	    ysize = rnd(3)+3;  
+		xsize = rnd(6)+3;  	    ysize = rnd(3)+3;
 		ty = rnd(MAXY-9)+1;  /* upper left corner of room */
 		if (lv==MAXLEVEL-1 || lv==MAXLEVEL+MAXVLEVEL-1)
 			troom(lv,xsize,ysize,tx=tx+rnd(MAXX-24),ty,rnd(3)+6);
@@ -232,8 +232,8 @@ treasureroom(lv)
 	}
 
 /*
- *	subroutine to create a treasure room of any size at a given location 
- *	room is filled with objects and monsters 
+ *	subroutine to create a treasure room of any size at a given location
+ *	room is filled with objects and monsters
  *	the coordinate given is that of the upper left corner of the room
  */
 troom(lv,xsize,ysize,tx,ty,glyph)
@@ -247,7 +247,7 @@ troom(lv,xsize,ysize,tx,ty,glyph)
 	for (j=ty; j<ty+ysize; j++)
 		for (i=tx; i<tx+xsize; i++)				/* now put in the walls */
 			{
-			item[i][j]=OWALL; mitem[i][j]=0; 
+			item[i][j]=OWALL; mitem[i][j]=0;
 			}
 	for (j=ty+1; j<ty+ysize-1; j++)
 		for (i=tx+1; i<tx+xsize-1; i++)			/* now clear out interior */

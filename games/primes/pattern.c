@@ -45,8 +45,8 @@ static char sccsid[] = "@(#)pattern.c	8.1 (Berkeley) 5/31/93";
  *
  *   chongo <for a good prime call: 391581 * 2^216193 - 1> /\oo/\
  *
- * To avoid excessive sieves for small factors, we use the table below to 
- * setup our sieve blocks.  Each element represents a odd number starting 
+ * To avoid excessive sieves for small factors, we use the table below to
+ * setup our sieve blocks.  Each element represents a odd number starting
  * with 1.  All non-zero elements are factors of 3, 5, 7, 11 and 13.
  */
 

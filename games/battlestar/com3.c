@@ -57,7 +57,7 @@ dig()
 				puts("Nothing happens.");
 		}
 	}
-	else	
+	else
 		puts("You don't have a shovel.");
 }
 
@@ -216,7 +216,7 @@ shoot()
 		if (wordnumber <= wordcount && wordtype[wordnumber] == NOUNS){
 			time++;
 			switch(wordvalue[wordnumber]){
-			
+
 				case DOOR:
 					switch(position){
 						case 189:

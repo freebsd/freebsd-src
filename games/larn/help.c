@@ -1,7 +1,7 @@
 /*	help.c		Larn is copyrighted 1986 by Noah Morgan. */
 #include "header.h"
 /*
- *	help function to display the help info	
+ *	help function to display the help info
  *
  *	format of the .larn.help file
  *

@@ -57,7 +57,7 @@
  */
 /* #define	MAIL */
 #define	DEF_MAILREADER	_PATH_MAIL		/* or e.g. /bin/mail */
-#define	MAILCKFREQ	100	
+#define	MAILCKFREQ	100
 
 
 #define SHELL		/* do not delete the '!' command */

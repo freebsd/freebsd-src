@@ -57,7 +57,7 @@ kiss()
 					break;
 				default:
 					puts("She's gone limp.");
-					
+
 			}
 			break;
 			case NATIVE:
