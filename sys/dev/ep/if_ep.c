@@ -767,7 +767,7 @@ read_again:
 			m->m_len += (lenthisone & 3);
 		} else {
 			EP_READ_MULTI_2(sc, EP_W1_RX_PIO_RD_1,
-			    (uint16_t *)mtod(m, caddr_t)+m->m_len),
+			    (uint16_t *)(mtod(m, caddr_t)+m->m_len),
 			    lenthisone / 2);
 			m->m_len += lenthisone;
 			if (lenthisone & 1)
