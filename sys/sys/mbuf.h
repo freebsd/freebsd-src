@@ -31,15 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)mbuf.h	8.5 (Berkeley) 2/19/95
- * $Id: mbuf.h,v 1.24 1997/10/10 18:15:46 phk Exp $
+ * $Id: mbuf.h,v 1.25 1997/10/12 20:26:00 phk Exp $
  */
 
 #ifndef _SYS_MBUF_H_
 #define _SYS_MBUF_H_
-
-#ifndef M_WAITOK
-#include <sys/malloc.h>
-#endif
 
 /*
  * Mbufs are of a single size, MSIZE (machine/machparam.h), which
@@ -149,8 +145,8 @@ struct mbuf {
 #define MT_OOBDATA	15	/* expedited data  */
 
 /* flags to m_get/MGET */
-#define	M_DONTWAIT	M_NOWAIT
-#define	M_WAIT		M_WAITOK
+#define	M_DONTWAIT	1
+#define	M_WAIT		0
 
 /* Freelists:
  *
@@ -416,7 +412,6 @@ int	m_clalloc __P((int, int));
 void	m_copyback __P((struct mbuf *, int, int, caddr_t));
 void	m_copydata __P((struct mbuf *,int,int,caddr_t));
 void	m_freem __P((struct mbuf *));
-
 #endif /* KERNEL */
 
 #endif /* !_SYS_MBUF_H_ */
