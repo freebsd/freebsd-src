@@ -14,6 +14,7 @@
 . /etc/rc.subr
 
 name="virecover"
+rcvar="`set_rcvar`"
 stop_cmd=":"
 start_cmd="virecover_start"
 
