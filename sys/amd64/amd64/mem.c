@@ -217,10 +217,10 @@ memmmap(dev_t dev, vm_offset_t offset, int prot)
 	/* minor device 1 is kernel memory */
 	case 1:
         	return i386_btop(vtophys(offset));
-	}
 
 	default:
 		return -1;
+	}
 }
 
 /*
