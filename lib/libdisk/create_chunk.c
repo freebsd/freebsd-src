@@ -32,8 +32,6 @@ __FBSDID("$FreeBSD$");
 #include <pwd.h>
 #include "libdisk.h"
 
-struct chunk *New_Chunk(void);
-
 static int
 Fixup_FreeBSD_Names(struct chunk *c)
 {
