@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.9 1994/02/22 22:59:38 rgrimes Exp $
+ *	$Id: boot.c,v 1.10 1994/04/20 22:06:24 phk Exp $
  */
 
 
@@ -76,7 +76,7 @@ int drive;
 		ouraddr,
 		argv[7] = memsize(0),
 		argv[8] = memsize(1),
-		"$Revision: 1.9 $");
+		"$Revision: 1.10 $");
 	printf("use hd(1,a)/386bsd to boot sd0 when wd0 is also installed\n");
 	gateA20();
 loadstart:
@@ -243,14 +243,10 @@ loadprog(howto)
 		printf("Press 'A', 'B' or any other key for the default ");
 		printf("%c: ", unit+'A');
 		i = getchar();
-		switch (i) {
-			case '0': case 'A': case 'a':
-				unit = 0;
-				break;
-			case '1': case 'B': case 'b':
-				unit = 1;
-				break;
-		}
+		if (i=='0' || i=='A' || i=='a')
+			unit = 0;
+		if (i=='1' || i=='B' || i=='b')
+			unit = 1;
 		printf("\n");
 		break;
 	case 4:
