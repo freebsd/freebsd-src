@@ -734,18 +734,14 @@ ng_ing_rcvdata(hook_p hook, item_p item)
 	struct ifqueue  *xmitq_p;
 	int s;
 	struct mbuf *m;
-#ifdef THIS_DOESNT_COMPILE
-	meta_p meta;
-#endif
+	struct ng_tag_prio *ptag;
 	
 	NGI_GET_M(item, m);
-	NGI_GET_META(item, meta);
 	NG_FREE_ITEM(item);
 
 	if(NG_HOOK_PRIVATE(hook) == NULL)
 	{
 		NG_FREE_M(m);
-		NG_FREE_META(meta);
 		return(ENETDOWN);
 	}
 	
@@ -760,18 +756,11 @@ ng_ing_rcvdata(hook_p hook, item_p item)
        /*
 	* Now queue the data for when it can be sent
 	*/
-#ifdef THIS_DOESNT_COMPILE
-	if (meta && meta->priority > 0)
-	{
+	if ((ptag = (struct ng_tag_prio *)m_tag_locate(m, NGM_GENERIC_COOKIE,
+	    NG_TAG_PRIO, NULL)) != NULL && (ptag->priority > NG_PRIO_CUTOFF) )
 		xmitq_p = (&sc->xmitq_hipri);
-	}
 	else
-	{
 		xmitq_p = (&sc->xmitq);
-	}
-#else
-	xmitq_p = (&sc->xmitq);
-#endif
 
 	s = splimp();
 
@@ -782,7 +771,6 @@ ng_ing_rcvdata(hook_p hook, item_p item)
 		IF_UNLOCK(xmitq_p);
 		splx(s);
 		NG_FREE_M(m);
-		NG_FREE_META(meta);
 		return(ENOBUFS);
 	}
 
