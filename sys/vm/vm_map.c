@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.134 1998/08/24 08:39:37 dfr Exp $
+ * $Id: vm_map.c,v 1.135 1998/09/04 08:06:57 dfr Exp $
  */
 
 /*
@@ -1976,7 +1976,7 @@ vm_map_split(entry)
 				  new_object, shadow_list);
 		vm_object_clear_flag(source, OBJ_ONEMAPPING);
 		new_object->backing_object_offset = 
-			orig_object->backing_object_offset + offidxstart;
+			orig_object->backing_object_offset + IDX_TO_OFF(offidxstart);
 		new_object->backing_object = source;
 		source->shadow_count++;
 		source->generation++;
