@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: pc98kbd.c,v 1.2 1999/01/18 14:55:38 kato Exp $
  */
 
 #include "pckbd.h"
@@ -163,7 +163,7 @@ pckbd_isa_intr(int unit)
 	keyboard_t *kbd;
 
 	kbd = pckbd_softc[unit]->kbd;
-	(*kbdsw[kbd->kb_index]->intr)(kbd, NULL);
+	(*kbdsw[kbd->kb_index]->intr)(kbd);
 }
 
 static int
@@ -398,7 +398,7 @@ static int		wait_for_kbd_data(struct kbdc_softc *kbdc);
 /* local variables */
 
 /* the initial key map, accent map and fkey strings */
-#include <i386/isa/kbdtables.h>
+#include <dev/kbd/kbdtables.h>
 
 /* structures for the default keyboard */
 static keyboard_t	default_kbd;
@@ -547,7 +547,7 @@ pckbd_term(keyboard_t *kbd)
 
 /* keyboard interrupt routine */
 static int
-pckbd_intr(keyboard_t *kbd, void *arg)
+pckbd_intr(keyboard_t *kbd)
 {
 	int c;
 
