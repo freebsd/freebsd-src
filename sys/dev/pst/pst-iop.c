@@ -154,31 +154,32 @@ iop_intr(void *data)
     struct i2o_single_reply *reply;
     u_int32_t mfa;
 
-    if ((mfa = sc->reg->oqueue) == 0xffffffff) {
-	if ((mfa = sc->reg->oqueue) == 0xffffffff) {
-	    printf("pstiop: no mfa on interrupt ?\n");
+    /* we might get more than one finished request pr interrupt */
+    while (1) {
+	if ((mfa = sc->reg->oqueue) == 0xffffffff)
+	    if ((mfa = sc->reg->oqueue) == 0xffffffff)
+		return;
+
+	reply = (struct i2o_single_reply *)(sc->obase + (mfa - sc->phys_obase));
+
+	/* if this is a event register reply, shout! */
+	if (reply->function == I2O_UTIL_EVENT_REGISTER) {
+	    struct i2o_util_event_reply_message *event = 
+		(struct i2o_util_event_reply_message *)reply;
+
+	    printf("pstiop: EVENT!! idx=%08x data=%08x\n",
+		   event->event_mask, event->event_data[0]);
 	    return;
 	}
+
+	/* if reply is a failurenotice we need to free the original mfa */
+	if (reply->message_flags & I2O_MESSAGE_FLAGS_FAIL)
+	    iop_free_mfa(sc,((struct i2o_fault_reply *)(reply))->preserved_mfa);
+	
+	/* reply->initiator_context points to the service routine */
+	((void (*)(struct iop_softc *, u_int32_t, struct i2o_single_reply *))
+	    (reply->initiator_context))(sc, mfa, reply);
     }
-    reply = (struct i2o_single_reply *)(sc->obase + (mfa - sc->phys_obase));
-
-    /* if this is a event register reply, shout! */
-    if (reply->function == I2O_UTIL_EVENT_REGISTER) {
-	struct i2o_util_event_reply_message *event = 
-	    (struct i2o_util_event_reply_message *)reply;
-
-	printf("pstiop: EVENT!! idx=%08x data=%08x\n",
-	       event->event_mask, event->event_data[0]);
-	return;
-    }
-
-    /* if reply is a failurenotice we need to free the original mfa */
-    if (reply->message_flags & I2O_MESSAGE_FLAGS_FAIL)
-	iop_free_mfa(sc,((struct i2o_fault_reply *)(reply))->preserved_mfa);
-    
-    /* reply->initiator_context points to the service routine */
-    ((void (*)(struct iop_softc *, u_int32_t, struct i2o_single_reply *))
-	(reply->initiator_context))(sc, mfa, reply);
 }
 
 int
@@ -186,7 +187,7 @@ iop_reset(struct iop_softc *sc)
 {
     struct i2o_exec_iop_reset_message *msg;
     int mfa, timeout = 5000;
-    u_int32_t reply = 0;
+    volatile u_int32_t reply = 0;
 
     mfa = iop_get_mfa(sc);
     msg = (struct i2o_exec_iop_reset_message *)(sc->ibase + mfa);
@@ -209,8 +210,8 @@ iop_reset(struct iop_softc *sc)
     timeout = 10000;
     while ((mfa = sc->reg->iqueue) == 0xffffffff && --timeout)
 	DELAY(1000);
-    iop_free_mfa(sc, mfa);
 
+    iop_free_mfa(sc, mfa);
     return reply;
 }
 
@@ -219,12 +220,13 @@ iop_init_outqueue(struct iop_softc *sc)
 {
     struct i2o_exec_init_outqueue_message *msg;
     int i, mfa, timeout = 5000;
-    u_int32_t reply = 0;
+    volatile u_int32_t reply = 0;
 
     if (!(sc->obase = contigmalloc(I2O_IOP_OUTBOUND_FRAME_COUNT *
 				   I2O_IOP_OUTBOUND_FRAME_SIZE,
 				   M_PSTIOP, M_NOWAIT,
-				   0, 0xFFFFFFFF, sizeof(u_int32_t), 0))) {
+				   0x00010000, 0xFFFFFFFF,
+				   sizeof(u_int32_t), 0))) {
 	printf("pstiop: contigmalloc of outqueue buffers failed!\n");
 	return 0;
     }
@@ -279,7 +281,7 @@ iop_get_lct(struct iop_softc *sc)
 #define ALLOCSIZE	 (PAGE_SIZE + (256 * sizeof(struct i2o_lct_entry)))
 
     if (!(reply = contigmalloc(ALLOCSIZE, M_PSTIOP, M_NOWAIT | M_ZERO,
-			       0, 0xFFFFFFFF, sizeof(u_int32_t), 0)))
+			       0x00010000, 0xFFFFFFFF, sizeof(u_int32_t), 0)))
 	return 0;
 
     mfa = iop_get_mfa(sc);
@@ -323,11 +325,11 @@ iop_get_util_params(struct iop_softc *sc, int target, int operation, int group)
     int mfa;
 
     if (!(param = contigmalloc(PAGE_SIZE, M_PSTIOP, M_NOWAIT | M_ZERO,
-			       0, 0xFFFFFFFF, sizeof(u_int32_t), 0)))
+			       0x00010000, 0xFFFFFFFF, sizeof(u_int32_t), 0)))
 	return NULL;
 
     if (!(reply = contigmalloc(PAGE_SIZE, M_PSTIOP, M_NOWAIT | M_ZERO,
-			       0, 0xFFFFFFFF, sizeof(u_int32_t), 0)))
+			       0x00010000, 0xFFFFFFFF, sizeof(u_int32_t), 0)))
 	return NULL;
 
     mfa = iop_get_mfa(sc);
