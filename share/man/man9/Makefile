@@ -4,14 +4,14 @@ MAN9=	MD5.9 \
 	VFS.9 VFS_FHTOVP.9 VFS_INIT.9 VFS_MOUNT.9 VFS_QUOTACTL.9 \
 	VFS_ROOT.9 VFS_START.9 VFS_STATFS.9 VFS_SYNC.9 VFS_UNMOUNT.9 \
 	VFS_VGET.9 VFS_VPTOFH.9 VFS_CHECKEXP.9 \
-	VOP_ABORTOP.9 VOP_ACCESS.9 VOP_ADVLOCK.9 VOP_ATTRIB.9 \
+	VOP_ACCESS.9 VOP_ADVLOCK.9 VOP_ATTRIB.9 \
 	VOP_BWRITE.9 VOP_CREATE.9 VOP_FSYNC.9 VOP_LEASE.9 \
 	VOP_GETPAGES.9 VOP_INACTIVE.9 VOP_IOCTL.9 VOP_LINK.9 \
 	VOP_LOCK.9 VOP_LOOKUP.9 VOP_MMAP.9 VOP_OPENCLOSE.9 \
 	VOP_PATHCONF.9 VOP_PRINT.9 VOP_RDWR.9 VOP_READDIR.9 \
 	VOP_READLINK.9 VOP_REALLOCBLKS.9 VOP_REMOVE.9 VOP_RENAME.9 \
 	VOP_STRATEGY.9 \
-	at_exit.9 at_fork.9 at_shutdown.9 bios.9 boot.9 buf.9 cd.9 copy.9 \
+	at_exit.9 at_fork.9 bios.9 boot.9 buf.9 cd.9 copy.9 \
 	devfs_add_devswf.9 devfs_link.9 devfs_remove_dev.9 devstat.9 \
 	devtoname.9 fetch.9 ifnet.9 inittodr.9 intro.9 kernacc.9 malloc.9 \
 	make_dev.9 microseq.9 mi_switch.9 namei.9 panic.9 physio.9 posix4.9 \
@@ -53,7 +53,6 @@ MLINKS+=VOP_RDWR.9 VOP_WRITE.9
 MLINKS+=VOP_REMOVE.9 VOP_RMDIR.9
 MLINKS+=at_exit.9 rm_at_exit.9
 MLINKS+=at_fork.9 rm_at_fork.9
-MLINKS+=at_shutdown.9 rm_at_shutdown.9
 MLINKS+=copy.9 copyin.9 copy.9 copyinstr.9 copy.9 copyout.9 copy.9 copystr.9
 MLINKS+=devfs_link.9 devfs_makelink.9
 MLINKS+=devstat.9 devicestat.9 devstat.9 devstat_add_entry.9 
@@ -62,7 +61,7 @@ MLINKS+=devstat.9 devstat_end_transaction.9
 MLINKS+=fetch.9 fubyte.9 fetch.9 fuswintr.9 fetch.9 fusword.9 fetch.9 fuword.9
 MLINKS+=ifnet.9 if_data.9 ifnet.9 ifaddr.9 ifnet.9 ifqueue.9
 MLINKS+=kernacc.9 useracc.9
-MLINKS+=make_dev.9 remove_dev.9
+MLINKS+=make_dev.9 destroy_dev.9
 MLINKS+=malloc.9 FREE.9 malloc.9 MALLOC.9 malloc.9 free.9
 MLINKS+=mi_switch.9 cpu_switch.9
 MLINKS+=posix4.9 p1003_1b.9
