@@ -81,4 +81,23 @@ stl(vm_offset_t va, u_int64_t r)
     __asm__ __volatile__ ("mb");
 }
 
+static __inline void
+stb_nb(vm_offset_t va, u_int64_t r)
+{
+    __asm__ __volatile__ ("stb %1,%0" : "=m"(*(u_int8_t*)va) : "r"(r));
+}
+
+static __inline void
+stw_nb(vm_offset_t va, u_int64_t r)
+{
+    __asm__ __volatile__ ("stw %1,%0" : "=m"(*(u_int16_t*)va) : "r"(r));
+}
+
+
+static __inline void
+stl_nb(vm_offset_t va, u_int64_t r)
+{
+    __asm__ __volatile__ ("stl %1,%0" : "=m"(*(u_int32_t*)va) : "r"(r));
+}
+
 #endif /* !_MACHINE_BWX_H_ */
