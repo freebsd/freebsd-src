@@ -31,7 +31,7 @@
 .\"
 .\"     @(#)slattach.8	6.4 (Berkeley) 3/16/91
 .\"
-.\"	$Header: /home/ncvs/src/sbin/slattach/slattach.8,v 1.8 1995/10/26 05:13:54 nate Exp $
+.\"	$Header: /home/ncvs/src/sbin/slattach/slattach.8,v 1.9 1996/01/29 23:52:39 mpp Exp $
 .\"
 .Dd April 4, 1993
 .Dt SLATTACH 8
@@ -105,19 +105,27 @@ Specifies the speed of the connection. If not specified, the
 default of 9600 is used.
 .It Fl u Ar unit-command
 When the line is switched to slip discipline, run
-.Ql sh \-c Ar unit-command <last> <current>
+.Ql Nm "sh -c" Ar unit-command <old> <new>
 where
-.Ar <last>
+.Ar <old>
 and
-.Ar <current>
+.Ar <new>
 are the slip unit numbers when the line was
 last opened and the unit number of the current slip connection
 respectively.  The unit number can change after redialing if you are
 using more than one slip line.
+When
+.Nm slattach
+connected first time, it run
+.Ql Nm "sh -c" Ar unit-command Nm \-1 Ar <new> .
+When
+.Nm slattach
+disconnected, it run
+.Ql Nm "sh -c" Ar unit-command <old> Nm \-1 .
 .Nm Slattach
 will abort if the unit number
 changes and
-.Fl u Ar unit-command
+.Ql Fl u Ar \%unit-command
 was not specified.
 .It Fl z
 forces redial
@@ -240,7 +248,8 @@ process and can be examined by scripts in oder to send a signal to
 .Xr netintro 4 ,
 .Xr ifconfig 8 ,
 .Xr rc 8 ,
-.Xr uustat 1
+.Xr uustat 1 ,
+/usr/share/examples/slattach
 .Sh HISTORY
 The
 .Nm
