@@ -83,10 +83,19 @@ case "${populate_var}" in
 *)
 	if [ -d /var/run -a -d /var/db -a -d /var/empty ] ; then
 		true
-	elif [ ! -x /usr/sbin/mtree ] ; then
-		false
-	else
+	elif [ -x /usr/sbin/mtree ] ; then
 		_populate_var
+	else
+		# We need mtree to populate /var so try mounting /usr.
+		# If this does not work, we can not boot so it is OK to
+		# try to mount out of order.
+		mount /usr
+		if [ ! -x /usr/sbin/mtree ] ; then
+			exit 1
+		else
+			_populate_var
+		fi
+	else
 	fi
 	;;
 esac
