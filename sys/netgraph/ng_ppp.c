@@ -947,8 +947,10 @@ bypass:
 }
 
 /*
- * Deliver a frame out a link, either a real one or NG_PPP_BUNDLE_LINKNUM
+ * Deliver a frame out a link, either a real one or NG_PPP_BUNDLE_LINKNUM.
  * If the link is not enabled then ENXIO is returned, unless "bypass" is != 0.
+ *
+ * If the frame is too big for the particular link, return EMSGSIZE.
  */
 static int
 ng_ppp_output(node_p node, int bypass,
@@ -958,8 +960,11 @@ ng_ppp_output(node_p node, int bypass,
 	struct ng_ppp_link *link;
 	int len, error;
 	struct mbuf *m;
+	u_int16_t mru;
 
-	 NGI_GET_M(item, m); 	/* separate them for a while */
+	/* Extract mbuf */
+	NGI_GET_M(item, m);
+
 	/* If not doing MP, map bundle virtual link to (the only) link */
 	if (linkNum == NG_PPP_BUNDLE_LINKNUM && !priv->conf.enableMultilink)
 		linkNum = priv->activeLinks[0];
@@ -980,6 +985,14 @@ ng_ppp_output(node_p node, int bypass,
 			NG_FREE_ITEM(item);
 			return (ENETDOWN);
 		}
+	}
+
+	/* Check peer's MRU for this link */
+	mru = (link != NULL) ? link->conf.mru : priv->conf.mrru;
+	if (mru != 0 && m->m_pkthdr.len > mru) {
+		NG_FREE_M(m);
+		NG_FREE_ITEM(item);
+		return (EMSGSIZE);
 	}
 
 	/* Prepend protocol number, possibly compressed */
@@ -1513,6 +1526,7 @@ static int
 ng_ppp_mp_output(node_p node, struct mbuf *m, meta_p meta)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
+	const int hdr_len = priv->conf.xmitShortSeq ? 2 : 4;
 	int distrib[NG_PPP_MAX_LINKS];
 	int firstFragment;
 	int activeLinkNum;
@@ -1571,8 +1585,8 @@ deliver:
 
 			/* Calculate fragment length; don't exceed link MTU */
 			len = distrib[activeLinkNum];
-			if (len > link->conf.mru)
-				len = link->conf.mru;
+			if (len > link->conf.mru - hdr_len)
+				len = link->conf.mru - hdr_len;
 			distrib[activeLinkNum] -= len;
 			lastFragment = (len == m->m_pkthdr.len);
 
