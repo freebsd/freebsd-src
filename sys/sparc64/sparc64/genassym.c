@@ -65,6 +65,7 @@
 #include <machine/tlb.h>
 #include <machine/tsb.h>
 #include <machine/tstate.h>
+#include <machine/upa.h>
 #include <machine/utrap.h>
 
 ASSYM(KERNBASE, KERNBASE);
@@ -106,13 +107,14 @@ ASSYM(PTR_SHIFT, PTR_SHIFT);
 ASSYM(PAGE_SHIFT, PAGE_SHIFT);
 ASSYM(PAGE_MASK, PAGE_MASK);
 
-ASSYM(CPU_INITED, CPU_INITED);
-ASSYM(CPU_STARTED, CPU_STARTED);
+ASSYM(CPU_CLKSYNC, CPU_CLKSYNC);
+ASSYM(CPU_INIT, CPU_INIT);
 
 ASSYM(CSA_MID, offsetof(struct cpu_start_args, csa_mid));
 ASSYM(CSA_STATE, offsetof(struct cpu_start_args, csa_state));
-ASSYM(CSA_DATA, offsetof(struct cpu_start_args, csa_data));
-ASSYM(CSA_VA, offsetof(struct cpu_start_args, csa_va));
+ASSYM(CSA_TICK, offsetof(struct cpu_start_args, csa_tick));
+ASSYM(CSA_VER, offsetof(struct cpu_start_args, csa_ver));
+ASSYM(CSA_TTES, offsetof(struct cpu_start_args, csa_ttes));
 
 ASSYM(KTR_PROC, KTR_PROC);
 ASSYM(KTR_TRAP, KTR_TRAP);
@@ -158,6 +160,7 @@ ASSYM(PC_MID, offsetof(struct pcpu, pc_mid));
 ASSYM(PC_TLB_CTX, offsetof(struct pcpu, pc_tlb_ctx));
 ASSYM(PC_TLB_CTX_MAX, offsetof(struct pcpu, pc_tlb_ctx_max));
 ASSYM(PC_TLB_CTX_MIN, offsetof(struct pcpu, pc_tlb_ctx_min));
+ASSYM(PC_VMSPACE, offsetof(struct pcpu, pc_vmspace));
 ASSYM(PC_SIZEOF, sizeof(struct pcpu));
 
 ASSYM(IH_SHIFT, IH_SHIFT);
@@ -272,5 +275,8 @@ ASSYM(TF_FPRS, offsetof(struct trapframe, tf_fprs));
 ASSYM(TF_PIL, offsetof(struct trapframe, tf_pil));
 ASSYM(TF_WSTATE, offsetof(struct trapframe, tf_wstate));
 ASSYM(TF_SIZEOF, sizeof(struct trapframe));
+
+ASSYM(UPA_CR_MID_SHIFT, UPA_CR_MID_SHIFT);
+ASSYM(UPA_CR_MID_SIZE, UPA_CR_MID_SIZE);
 
 ASSYM(UT_MAX, UT_MAX);

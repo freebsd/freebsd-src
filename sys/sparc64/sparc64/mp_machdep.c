@@ -77,6 +77,7 @@
 #include <machine/asi.h>
 #include <machine/md_var.h>
 #include <machine/smp.h>
+#include <machine/tlb.h>
 #include <machine/tte.h>
 
 static ih_func_t cpu_ipi_ast;
@@ -90,9 +91,35 @@ static ih_func_t cpu_ipi_stop;
  */
 struct	cpu_start_args cpu_start_args = { -1, -1, 0, 0 };
 
+vm_offset_t mp_tramp;
+
 static struct mtx ap_boot_mtx;
 
 u_int	mp_boot_mid;
+
+void cpu_mp_unleash(void *);
+SYSINIT(cpu_mp_unleash, SI_SUB_SMP, SI_ORDER_FIRST, cpu_mp_unleash, NULL);
+
+vm_offset_t
+mp_tramp_alloc(void)
+{
+	struct tte *tp;
+	char *v;
+	int i;
+
+	v = OF_claim(NULL, PAGE_SIZE, PAGE_SIZE);
+	if (v == NULL)
+		panic("mp_tramp_alloc");
+	bcopy(mp_tramp_code, v, mp_tramp_code_len);
+	*(u_long *)(v + mp_tramp_tlb_slots) = kernel_tlb_slots;
+	*(u_long *)(v + mp_tramp_func) = (u_long)mp_startup;
+	tp = (struct tte *)(v + mp_tramp_code_len);
+	for (i = 0; i < kernel_tlb_slots; i++)
+		tp[i] = kernel_ttes[i];
+	for (i = 0; i < PAGE_SIZE; i += sizeof(long))
+		flush(v + i);
+	return (vm_offset_t)v;
+}
 
 /*
  * Probe for other cpus.
@@ -119,6 +146,31 @@ cpu_mp_probe(void)
 	return (cpus > 1);
 }
 
+static void
+sun4u_startcpu(phandle_t cpu, void *func, u_long arg)
+{
+	static struct {
+		cell_t	name;
+		cell_t	nargs;
+		cell_t	nreturns;
+		cell_t	cpu;
+		cell_t	func;
+		cell_t	arg;
+	} args = {
+		(cell_t)"SUNW,start-cpu",
+		3,
+		0,
+		0,
+		0,
+		0
+	};
+
+	args.cpu = cpu;
+	args.func = (cell_t)func;
+	args.arg = (cell_t)arg;
+	openfirmware(&args);
+}
+
 /*
  * Fire up any non-boot processors.
  */
@@ -129,12 +181,12 @@ cpu_mp_start(void)
 	struct pcpu *pc;
 	phandle_t child;
 	phandle_t root;
-	vm_offset_t pa;
 	vm_offset_t va;
 	char buf[128];
-	u_long data;
-	u_int mid;
+	u_int clock;
 	int cpuid;
+	u_int mid;
+	u_long s;
 
 	mtx_init(&ap_boot_mtx, "ap boot", MTX_SPIN);
 
@@ -153,46 +205,31 @@ cpu_mp_start(void)
 			panic("cpu_mp_start: can't get module id");
 		if (mid == mp_boot_mid)
 			continue;
+		if (OF_getprop(child, "clock-frequency", &clock,
+		    sizeof(clock)) <= 0)
+			panic("cpu_mp_start: can't get clock");
 
-		/*
-		 * Found a non-boot processor.  It is currently spinning in
-		 * _mp_start, and it has no stack.  Allocate a per-cpu page
-		 * for it, which it will use as a bootstrap stack, and pass
-		 * it through the argument area.
-		 */
-		cpuid = mp_ncpus++;
-		va = kmem_alloc(kernel_map, PAGE_SIZE);
-		pa = pmap_kextract(va);
-		if (pa == 0)
-			panic("cpu_mp_start: pmap_kextract\n");
-		pc = (struct pcpu *)(va + PAGE_SIZE) - 1;
-		pcpu_init(pc, cpuid, sizeof(*pc));
-		pc->pc_mid = mid;
-		data = TD_V | TD_8K | TD_VA_LOW(va) | TD_PA(pa) |
-		    TD_L | TD_CP | TD_CV | TD_P | TD_W;
-
-		/*
-		 * Initialize the argument area to start this cpu.
-		 * Note, order is important here.  We must set the pcpu pointer
-		 * and the tte data before letting it loose.
-		 */
-		csa->csa_data = data;
-		csa->csa_va = va;
+		csa->csa_state = 0;
+		sun4u_startcpu(child, (void *)mp_tramp, 0);
+		s = intr_disable();
+		while (csa->csa_state != CPU_CLKSYNC)
+			;
 		membar(StoreLoad);
-		csa->csa_mid = mid;
-		csa->csa_state = CPU_STARTING;
-		while (csa->csa_state == CPU_STARTING)
-			membar(StoreLoad);
-		if (csa->csa_state != CPU_STARTED)
-			panic("cpu_mp_start: bad state %d for cpu %d\n",
-			    csa->csa_state, mid);
-		csa->csa_state = CPU_BOOTSTRAPING;
-		while (csa->csa_state == CPU_BOOTSTRAPING)
-			membar(StoreLoad);
-		if (csa->csa_state != CPU_BOOTSTRAPPED)
-			panic("cpu_mp_start: bad state %d for cpu %d\n",
-			    csa->csa_state, mid);
-		cpu_ipi_send(mid, 0, (u_long)tl_ipi_test, 0);
+		csa->csa_tick = rd(tick);
+		while (csa->csa_state != CPU_INIT)
+			;
+		csa->csa_tick = 0;
+		intr_restore(s);
+
+		cpuid = mp_ncpus++;
+		cpu_identify(csa->csa_ver, clock, cpuid);
+
+		va = kmem_alloc(kernel_map, PCPU_PAGES * PAGE_SIZE);
+		pc = (struct pcpu *)(va + (PCPU_PAGES * PAGE_SIZE)) - 1;
+		pcpu_init(pc, cpuid, sizeof(*pc));
+		pc->pc_addr = va;
+		pc->pc_mid = mid;
+
 		all_cpus |= 1 << cpuid;
 	}
 	PCPU_SET(other_cpus, all_cpus & ~(1 << PCPU_GET(cpuid)));
@@ -201,48 +238,71 @@ cpu_mp_start(void)
 void
 cpu_mp_announce(void)
 {
-	TODO;
+}
+
+void
+cpu_mp_unleash(void *v)
+{
+	volatile struct cpu_start_args *csa;
+	struct pcpu *pc;
+	vm_offset_t pa;
+	vm_offset_t va;
+	u_int ctx_min;
+	u_int ctx_inc;
+	u_long s;
+	int i;
+
+	ctx_min = 1;
+	ctx_inc = (8192 - 1) / mp_ncpus;
+	csa = &cpu_start_args;
+	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+		pc->pc_tlb_ctx = ctx_min;
+		pc->pc_tlb_ctx_min = ctx_min;
+		pc->pc_tlb_ctx_max = ctx_min + ctx_inc;
+		ctx_min += ctx_inc;
+
+		if (pc->pc_cpuid == PCPU_GET(cpuid))
+			continue;
+		KASSERT(pc->pc_idlethread != NULL,
+		    ("cpu_mp_unleash: idlethread"));
+		KASSERT(pc->pc_curthread == pc->pc_idlethread,
+		    ("cpu_mp_unleash: curthread"));
+	
+		pc->pc_curpcb = pc->pc_curthread->td_pcb;
+		for (i = 0; i < PCPU_PAGES; i++) {
+			va = pc->pc_addr + i * PAGE_SIZE;
+			pa = pmap_kextract(va);
+			if (pa == 0)
+				panic("cpu_mp_unleash: pmap_kextract\n");
+			csa->csa_ttes[i].tte_vpn = TV_VPN(va);
+			csa->csa_ttes[i].tte_data = TD_V | TD_8K | TD_PA(pa) |
+			    TD_L | TD_CP | TD_CV | TD_P | TD_W;
+		}
+		csa->csa_state = 0;
+		csa->csa_mid = pc->pc_mid;
+		s = intr_disable();
+		while (csa->csa_state != CPU_BOOTSTRAP)
+			;
+		intr_restore(s);
+	}
 }
 
 void
 cpu_mp_bootstrap(struct pcpu *pc)
 {
-	struct cpu_start_args *csa;
+	volatile struct cpu_start_args *csa;
 
 	csa = &cpu_start_args;
-	CTR1(KTR_SMP, "cpu_mp_bootstrap: cpuid=%d", pc->pc_cpuid);
-	while (csa->csa_state != CPU_BOOTSTRAPING)
-		membar(StoreLoad);
-	cpu_setregs(pc);
 	pmap_map_tsb();
-
-	CTR0(KTR_SMP, "cpu_mp_bootstrap: spinning");
-	csa->csa_state = CPU_BOOTSTRAPPED;
-	membar(StoreLoad);
-	for (;;)
-		;
-
-	mtx_lock_spin(&ap_boot_mtx);
-
-	CTR1(KTR_SMP, "SMP: AP CPU #%d Launched", PCPU_GET(cpuid));
+	cpu_setregs(pc);
 
 	smp_cpus++;
-
-	/* Build our map of 'other' CPUs. */
 	PCPU_SET(other_cpus, all_cpus & ~(1 << PCPU_GET(cpuid)));
-
 	printf("SMP: AP CPU #%d Launched!\n", PCPU_GET(cpuid));
 
-	if (smp_cpus == mp_ncpus) {
-		smp_started = 1; /* enable IPI's, tlb shootdown, freezes etc */
-		smp_active = 1;	 /* historic */
-	}
-
-	mtx_unlock_spin(&ap_boot_mtx);
-
-	/* wait until all the AP's are up */
-	while (smp_started == 0)
-		; /* nothing */
+	csa->csa_state = CPU_BOOTSTRAP;
+	for (;;)
+		;
 
 	binuptime(PCPU_PTR(switchtime));
 	PCPU_SET(switchticks, ticks);
