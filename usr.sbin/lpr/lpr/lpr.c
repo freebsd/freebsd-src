@@ -80,7 +80,7 @@ static const char rcsid[] =
 #include "pathnames.h"
 
 static char	*cfname;	/* daemon control files, linked from tf's */
-static char	*class = host;	/* class title on header page */
+static char	*class = local_host;	/* class title on header page */
 static char	*dfname;	/* data files */
 static char	*fonts[4];	/* troff font names */
 static char	 format = 'f';	/* format char for printing files */
@@ -152,7 +152,7 @@ main(int argc, char *argv[])
 		signal(SIGTERM, cleanup);
 
 	progname = argv[0];
-	gethostname(host, sizeof(host));
+	gethostname(local_host, sizeof(local_host));
 	openlog("lpd", 0, LOG_LPR);
 
 	errs = 0;
@@ -326,7 +326,7 @@ main(int argc, char *argv[])
 	(void) fchown(tfd, pp->daemon_user, -1);
 	/* owned by daemon for protection */
 	seteuid(uid);
-	card('H', host);
+	card('H', local_host);
 	card('P', person);
 	card('C', class);
 	if (hdr && !pp->no_header) {
@@ -854,7 +854,7 @@ mktemps(const struct printer *pp)
 			n = n * 10 + (*cp++ - '0');
 		}
 	}
-	len = strlen(pp->spool_dir) + strlen(host) + 8;
+	len = strlen(pp->spool_dir) + strlen(local_host) + 8;
 	tfname = lmktemp(pp, "tf", n, len);
 	cfname = lmktemp(pp, "cf", n, len);
 	dfname = lmktemp(pp, "df", n, len);
@@ -876,6 +876,7 @@ lmktemp(const struct printer *pp, const char *id, int num, int len)
 
 	if ((s = malloc(len)) == NULL)
 		errx(1, "out of memory");
-	(void) snprintf(s, len, "%s/%sA%03d%s", pp->spool_dir, id, num, host);
+	(void) snprintf(s, len, "%s/%sA%03d%s", pp->spool_dir, id, num,
+	    local_host);
 	return(s);
 }

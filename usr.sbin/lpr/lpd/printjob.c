@@ -107,7 +107,7 @@ static char	 title[80];	/* ``pr'' title */
 static char      locale[80];    /* ``pr'' locale */
 
 static char	class[32];		/* classification field */
-static char	fromhost[MAXHOSTNAMELEN];	/* user's host machine */
+static char	origin_host[MAXHOSTNAMELEN];	/* user's host machine */
 				/* indentation size in static characters */
 static char	indent[10] = "-i0";
 static char	jobname[100];		/* job or file name */
@@ -417,8 +417,7 @@ printit(struct printer *pp, char *file)
 	while (getline(cfp))
 		switch (line[0]) {
 		case 'H':
-			strncpy(fromhost, line+1, sizeof(fromhost) - 1);
-			fromhost[sizeof(fromhost) - 1] = '\0';
+			strlcpy(origin_host, line + 1, sizeof(origin_host));
 			if (class[0] == '\0') {
 				strncpy(class, line+1, sizeof(class) - 1);
 				class[sizeof(class) - 1] = '\0';
@@ -747,7 +746,7 @@ print(struct printer *pp, int format, char *file)
 	av[n++] = "-n";
 	av[n++] = logname;
 	av[n++] = "-h";
-	av[n++] = fromhost;
+	av[n++] = origin_host;
 	av[n++] = pp->acct_file;
 	av[n] = 0;
 	fo = pfd;
@@ -874,8 +873,7 @@ sendit(struct printer *pp, char *file)
 				i = i * 10 + (*cp++ - '0');
 			fino = i;
 		} else if (line[0] == 'H') {
-			strncpy(fromhost, line+1, sizeof(fromhost) - 1);
-			fromhost[sizeof(fromhost) - 1] = '\0';
+			strlcpy(origin_host, line + 1, sizeof(origin_host));
 			if (class[0] == '\0') {
 				strncpy(class, line+1, sizeof(class) - 1);
 				class[sizeof(class) - 1] = '\0';
@@ -1005,7 +1003,7 @@ sendfile(struct printer *pp, int type, char *file, char format)
 			av[++n] = "-n";
 			av[++n] = logname;
 			av[++n] = "-h";
-			av[++n] = fromhost;
+			av[++n] = origin_host;
 			av[++n] = pp->acct_file;
 			av[++n] = 0;
 			if ((ifilter = dofork(pp, DORETURN)) == 0) { /* child */
@@ -1166,7 +1164,7 @@ sendfile(struct printer *pp, int type, char *file, char format)
 		openpr(pp);
 	if (type == '\3')
 		trstat_write(pp, TR_SENDING, stb.st_size, logname,
-				 pp->remote_host, fromhost);
+				 pp->remote_host, origin_host);
 	return(OK);
 }
 
@@ -1321,10 +1319,10 @@ sendmail(struct printer *pp, char *user, int bombed)
 		_exit(0);
 	} else if (s > 0) {				/* parent */
 		dup2(p[1], 1);
-		printf("To: %s@%s\n", user, fromhost);
+		printf("To: %s@%s\n", user, origin_host);
 		printf("Subject: %s printer job \"%s\"\n", pp->printer,
 			*jobname ? jobname : "<unknown>");
-		printf("Reply-To: root@%s\n\n", host);
+		printf("Reply-To: root@%s\n\n", local_host);
 		printf("Your printer job ");
 		if (*jobname)
 			printf("(%s) ", jobname);
@@ -1341,7 +1339,8 @@ sendmail(struct printer *pp, char *user, int bombed)
 			cp = "FATALERR";
 			break;
 		case NOACCT:
-			printf("\ncould not be printed without an account on %s\n", host);
+			printf("\ncould not be printed without an account on %s\n",
+			    local_host);
 			cp = "NOACCT";
 			break;
 		case FILTERERR:

@@ -106,9 +106,9 @@ rmjob(const char *printer)
 		}
 	}
 	if (!strcmp(person, "-all")) {
-		if (from == host)
+		if (from_host == local_host)
 			fatal(pp, "The login name \"-all\" is reserved");
-		all = 1;	/* all those from 'from' */
+		all = 1;	/* all those from 'from_host' */
 		person = root;
 	}
 
@@ -218,8 +218,8 @@ do_unlink(char *file)
 {
 	int	ret;
 
-	if (from != host)
-		printf("%s: ", host);
+	if (from_host != local_host)
+		printf("%s: ", local_host);
 	seteuid(euid);
 	ret = unlink(file);
 	seteuid(uid);
@@ -242,7 +242,7 @@ chk(char *file)
 	if (strlen(file) < 7 || file[0] != 'c' || file[1] != 'f')
 		return(0);
 
-	if (all && (from == host || !strcmp(from, file+6)))
+	if (all && (from_host == local_host || !strcmp(from_host, file+6)))
 		return(1);
 
 	/*
@@ -288,12 +288,13 @@ chk(char *file)
 int
 isowner(char *owner, char *file)
 {
-	if (!strcmp(person, root) && (from == host || !strcmp(from, file+6)))
+	if (!strcmp(person, root) && (from_host == local_host ||
+	    !strcmp(from_host, file+6)))
 		return (1);
-	if (!strcmp(person, owner) && !strcmp(from, file+6))
+	if (!strcmp(person, owner) && !strcmp(from_host, file+6))
 		return (1);
-	if (from != host)
-		printf("%s: ", host);
+	if (from_host != local_host)
+		printf("%s: ", local_host);
 	printf("%s: Permission denied\n", file);
 	return(0);
 }
@@ -362,8 +363,8 @@ rmremote(const struct printer *pp)
 	rem = getport(pp, pp->remote_host, 0);
 	(void)signal(SIGALRM, savealrm);
 	if (rem < 0) {
-		if (from != host)
-			printf("%s: ", host);
+		if (from_host != local_host)
+			printf("%s: ", local_host);
 		printf("connection to %s is down\n", pp->remote_host);
 	} else {
 		if (writev(rem, iov, niov) != totlen)

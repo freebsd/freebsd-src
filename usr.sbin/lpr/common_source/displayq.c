@@ -127,7 +127,7 @@ displayq(struct printer *pp, int format)
 	if (ret >= 0) {
 		if (statb.st_mode & LFM_PRINT_DIS) {
 			if (pp->remote)
-				printf("%s: ", host);
+				printf("%s: ", local_host);
 			printf("Warning: %s is down: ", pp->printer);
 			seteuid(euid);
 			fd = open(pp->status_file, O_RDONLY|O_SHLOCK);
@@ -141,7 +141,7 @@ displayq(struct printer *pp, int format)
 		}
 		if (statb.st_mode & LFM_QUEUE_DIS) {
 			if (pp->remote)
-				printf("%s: ", host);
+				printf("%s: ", local_host);
 			printf("Warning: %s queue is turned off\n", 
 			       pp->printer);
 		}
@@ -179,7 +179,7 @@ displayq(struct printer *pp, int format)
 				 * Print the status file.
 				 */
 				if (pp->remote)
-					printf("%s: ", host);
+					printf("%s: ", local_host);
 				seteuid(euid);
 				fd = open(pp->status_file, O_RDONLY|O_SHLOCK);
 				seteuid(uid);
@@ -238,8 +238,8 @@ displayq(struct printer *pp, int format)
 	alarm(0);
 	(void)signal(SIGALRM, savealrm);
 	if (fd < 0) {
-		if (from != host)
-			printf("%s: ", host);
+		if (from_host != local_host)
+			printf("%s: ", local_host);
 		printf("connection to %s is down\n", pp->remote_host);
 	}
 	else {
@@ -259,7 +259,7 @@ static void
 warn(const struct printer *pp)
 {
 	if (pp->remote)
-		printf("%s: ", host);
+		printf("%s: ", local_host);
 	puts("Warning: no daemon present");
 	current[0] = '\0';
 }
@@ -396,7 +396,7 @@ inlist(char *uname, char *cfile)
 	for (n = 0, cp = cfile+3; isdigit(*cp); )
 		n = n * 10 + (*cp++ - '0');
 	for (r = requ; r < &requ[requests]; r++)
-		if (*r == n && !strcmp(cp, from))
+		if (*r == n && !strcmp(cp, from_host))
 			return(1);
 	return(0);
 }
