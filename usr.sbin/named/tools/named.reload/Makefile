@@ -8,11 +8,11 @@ INDOT=
 
 beforeinstall:	named.reload
 	install -c -o ${BINOWN} -g ${BINGRP} -m 555 \
-	    ${.CURDIR}/named.reload ${DESTDIR}${BINDIR}
+	    named.reload ${DESTDIR}${BINDIR}
 
 named.reload: named.reload.sh Makefile
 	sed -e "s|%PIDDIR%|${PIDDIR}|" \
-	    < named.reload.sh > named.reload
+	    < ${.CURDIR}/named.reload.sh > named.reload
 
 .include "${.CURDIR}/../../../Makefile.inc"
 .include <bsd.prog.mk>

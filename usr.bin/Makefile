@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.20 1994/09/22 01:26:58 wollman Exp $
+#	$Id: Makefile,v 1.21 1994/09/23 00:00:57 ache Exp $
 
 # XXX MISSING:		bc dc deroff diction diff ex graph learn plot
 #			ptx spell spline struct units xsend
@@ -10,9 +10,9 @@
 #
 SUBDIR=	apply ar at banner basename biff cal calendar \
 	cap_mkdb checknr chflags chpass cksum col colcrt colrm column \
-	comm compress cpp ctags cut dirname du \
+	comm compress cpp ctags cut dig dirname du \
 	env error expand f2c false file find finger fmt fold fpr from \
-	fsplit fstat ftp gcore gprof head hexdump id indent ipcrm ipcs \
+	fsplit fstat ftp gcore gprof head hexdump host id indent ipcrm ipcs \
 	join jot kdump ktrace key keyinfo keyinit lam last \
 	lastcomm leave lex locate lock logger login logname lorder \
 	lsvfs m4 mail make mesg mkdep mkfifo mklocale mkstr modstat \
