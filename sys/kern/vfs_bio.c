@@ -72,6 +72,8 @@ struct	buf_ops buf_ops_bio = {
  */
 struct buf *buf;		/* buffer header pool */
 
+static struct proc *bufdaemonproc;
+
 static void vm_hold_free_pages(struct buf * bp, vm_offset_t from,
 		vm_offset_t to);
 static void vm_hold_load_pages(struct buf * bp, vm_offset_t from,
@@ -888,9 +890,13 @@ bwrite(struct buf * bp)
 		 * don't allow the async write to saturate the I/O
 		 * system.  We will not deadlock here because
 		 * we are blocking waiting for I/O that is already in-progress
-		 * to complete.
+		 * to complete. We do not block here if it is the update
+		 * or syncer daemon trying to clean up as that can lead
+		 * to deadlock.
 		 */
-		waitrunningbufspace();
+		if (curthread->td_proc != bufdaemonproc &&
+		    curthread->td_proc != updateproc)
+			waitrunningbufspace();
 	}
 
 	return (0);
@@ -2039,8 +2045,6 @@ restart:
  *	update daemon but if it cannot keep up this process starts to
  *	take the load in an attempt to prevent getnewbuf() from blocking.
  */
-
-static struct proc *bufdaemonproc;
 
 static struct kproc_desc buf_kp = {
 	"bufdaemon",
