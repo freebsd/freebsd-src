@@ -643,11 +643,7 @@ options 	DEVFS			#devices filesystem
 # making abrupt shutdown less risky.  It is not enabled by default due
 # to copyright restraints on the code that implement it.
 #
-# Read ../../ufs/ffs/README.softupdates to learn what you need to
-# do to enable this.  ../../ufs/ffs/README gives more details on how they
-# actually work.
-#
-#options 	SOFTUPDATES
+options 	SOFTUPDATES
 
 # Extended attributes allow additional data to be associated with files,
 # and is used for ACLs, Capabilities, and MAC labels
