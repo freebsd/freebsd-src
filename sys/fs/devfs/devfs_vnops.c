@@ -462,7 +462,7 @@ devfs_getattr(ap)
 		fix(dev->si_ctime);
 		vap->va_ctime = dev->si_ctime;
 
-		vap->va_rdev = de->de_inode ^ devfs_random();
+		vap->va_rdev = dev->si_inode ^ devfs_random();
 	}
 	vap->va_gen = 0;
 	vap->va_flags = 0;
@@ -483,7 +483,9 @@ devfs_ioctl_f(struct file *fp, u_long com, void *data, struct ucred *cred, struc
 	struct cdevsw *dsw;
 	struct vnode *vp;
 	struct vnode *vpold;
-	int error;
+	int error, i;
+	const char *p;
+	struct fiodgname_arg *fgn;
 
 	error = devfs_fp_check(fp, &dev, &dsw);
 	if (error)
@@ -493,6 +495,13 @@ devfs_ioctl_f(struct file *fp, u_long com, void *data, struct ucred *cred, struc
 		*(int *)data = dsw->d_flags & D_TYPEMASK;
 		dev_relthread(dev);
 		return (0);
+	} else if (com == FIODGNAME) {
+		fgn = data;
+		p = devtoname(dev);
+		i = strlen(p) + 1;
+		if (i > fgn->len)
+			return (EINVAL);
+		return (copyout(p, fgn->buf, i));
 	}
 	if (dsw->d_flags & D_NEEDGIANT)
 		mtx_lock(&Giant);
