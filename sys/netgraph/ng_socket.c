@@ -143,7 +143,7 @@ static struct ng_type typestruct = {
 	.rcvdata =	ngs_rcvdata,
 	.disconnect =	ngs_disconnect,
 };
-NETGRAPH_INIT(socket, &typestruct);
+NETGRAPH_INIT_ORDERED(socket, &typestruct, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY);
 
 /* Buffer space */
 static u_long ngpdg_sendspace = 20 * 1024;	/* really max datagram size */
