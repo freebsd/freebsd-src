@@ -1,5 +1,3 @@
-/*	$NetBSD: wmemchr.c,v 1.1 2000/12/23 23:14:37 itojun Exp $	*/
-
 /*-
  * Copyright (c)1999 Citrus Project,
  * All rights reserved.
@@ -26,14 +24,16 @@
  * SUCH DAMAGE.
  *
  *	citrus Id: wmemchr.c,v 1.2 2000/12/20 14:08:31 itojun Exp
- *
- * $FreeBSD$
  */
 
 #include <sys/cdefs.h>
 #if defined(LIBC_SCCS) && !defined(lint)
 __RCSID("$NetBSD: wmemchr.c,v 1.1 2000/12/23 23:14:37 itojun Exp $");
 #endif /* LIBC_SCCS and not lint */
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif
 
 #include <assert.h>
 #include <wchar.h>

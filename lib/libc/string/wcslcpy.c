@@ -1,6 +1,3 @@
-/*	$NetBSD: wcslcpy.c,v 1.1 2000/12/23 23:14:36 itojun Exp $	*/
-/*	from OpenBSD: strlcpy.c,v 1.4 1999/05/01 18:56:41 millert Exp 	*/
-
 /*
  * Copyright (c) 1998 Todd C. Miller <Todd.Miller@courtesan.com>
  * All rights reserved.
@@ -27,13 +24,17 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ *	from OpenBSD: strlcpy.c,v 1.4 1999/05/01 18:56:41 millert Exp
  */
 
 #include <sys/cdefs.h>
 #if defined(LIBC_SCCS) && !defined(lint)
 __RCSID("$NetBSD: wcslcpy.c,v 1.1 2000/12/23 23:14:36 itojun Exp $");
 #endif /* LIBC_SCCS and not lint */
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif
 
 #include <sys/types.h>
 #include <assert.h>
