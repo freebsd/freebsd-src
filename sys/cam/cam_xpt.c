@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.42.2.14 1999/05/25 20:27:27 gibbs Exp $
+ *      $Id: cam_xpt.c,v 1.42.2.15 1999/06/20 18:45:55 mjacob Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -216,6 +216,7 @@ struct xpt_softc {
 static const char quantum[] = "QUANTUM";
 static const char sony[] = "SONY";
 static const char west_digital[] = "WDIGTL";
+static const char microp[] = "MICROP";
 static const char samsung[] = "SAMSUNG";
 static const char seagate[] = "SEAGATE";
 
@@ -236,6 +237,11 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		{ T_DIRECT, SIP_MEDIA_FIXED, quantum, "XP32275*", "*" },
 		/*quirks*/0, /*mintags*/24, /*maxtags*/32
 	},
+		{ T_DIRECT, SIP_MEDIA_FIXED, microp, "4421-07*", "*" },
+		/*quirks*/0, /*mintags*/0, /*maxtags*/0
+	},
+	{
+		/* Broken tagged queuing drive */
 	{
 		/* Broken tagged queuing drive */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "HP", "C372*", "*" },
@@ -243,7 +249,7 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 	},
 	{
 		/* Broken tagged queuing drive */
-		{ T_DIRECT, SIP_MEDIA_FIXED, "MICROP", "3391*", "x43h" },
+		{ T_DIRECT, SIP_MEDIA_FIXED, microp, "3391*", "x43h" },
 		/*quirks*/0, /*mintags*/0, /*maxtags*/0
 	},
 	{
