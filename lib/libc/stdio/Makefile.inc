@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 4/17/94
-#	$Id: Makefile.inc,v 1.13 1998/03/12 12:05:14 bde Exp $
+#	$Id: Makefile.inc,v 1.14 1998/04/11 07:40:41 jb Exp $
 
 # stdio sources
 .PATH: ${.CURDIR}/../libc/stdio
@@ -13,15 +13,8 @@ SRCS+=	_flock_stub.c \
 	printf.c putc.c putchar.c puts.c putw.c refill.c remove.c rewind.c \
 	rget.c scanf.c setbuf.c setbuffer.c setvbuf.c snprintf.c sprintf.c \
 	sscanf.c stdio.c tempnam.c tmpfile.c tmpnam.c ungetc.c vasprintf.c \
-	vfscanf.c vprintf.c vscanf.c vsnprintf.c vsprintf.c \
+	vfprintf.c vfscanf.c vprintf.c vscanf.c vsnprintf.c vsprintf.c \
 	vsscanf.c wbuf.c wsetup.c
-
-.if defined(NETBSD_SYSCALLS)
-#  XXX Temporary until FreeBSD's vfprintf is ported
-SRCS+=	netbsd_vfprintf.c
-.else
-SRCS+=	vfprintf.c
-.endif
 
 .if ${LIB} == "c"
 MAN3+=	fclose.3 ferror.3 fflush.3 fgetln.3 fgets.3 fopen.3 fputs.3 \
