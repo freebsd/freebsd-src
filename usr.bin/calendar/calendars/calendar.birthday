@@ -1,7 +1,7 @@
 /*
  * Birthday
  *
- * $Id: calendar.birthday,v 1.4 1997/02/22 19:28:18 peter Exp $
+ * $Id: calendar.birthday,v 1.5 1997/02/25 00:45:24 mpp Exp $
  */
 
 #ifndef _calendar_birthday_
@@ -90,10 +90,13 @@
 03/14	Giovanni Virginia Schiaparelli born, 1835, astronomer;
 		named Mars "canals"
 03/14	Jean Baptiste Joseph Fourier born, 1768, mathematician & physicist
+03/15	J.J. Robert's Birthday in Liberia
+03/15	Julius Caesar assassinated by Brutus; Ides of March, 44BC
 03/16	George Clymer born, 1739
 03/16	James Madison born, 1751
 03/24	Harry Houdini born, 1874
 03/26	Benjamin Thompson born, 1753, Count Rumford; physicist
+03/26	David Packard died, 1996; age of 83
 03/27	Wilhelm Conrad Roentgen born, 1845, discoverer of X-rays
 03/28	Pierre Simon de Laplace born, 1749, mathematician & astronomer
 03/30	Francisco Jose de Goya born, 1746
@@ -143,6 +146,7 @@
 06/03	Henry James born, 1811
 06/07	(Eugene Henri) Paul Gaugin born, 1848
 06/07	George Bryan "Beau" Brummel born, 1778
+06/07	Alan Mathison Turning died, 1954
 06/08	Frank Lloyd Wright born in Richland Center, Wisconsin, 1869
 06/13	Alexander the Great dies (323BC)
 06/15	Edward (Edvard Hagerup) Grieg born in Bergen, Norway, 1843
@@ -150,10 +154,12 @@
 06/18	M.C. Escher born, 1898
 06/22	Carl Hubbell born, 1903
 06/22	Meryl Streep born in Summit, New Jersey, 1949
+06/23	Alan Mathison Turing born, 1912
 06/25	Eric Arthur Blair (a.k.a. George Orwell) born, 1903
 06/27	Helen Keller born, 1880
 07/03	Franz Kafka born, 1883
 07/04	Nathaniel Hawthorne born in Salem, Massachusetts, 1804
+07/04	John Adams and Thomas Jefferson die on same day, 1826
 07/06	(Helen) Beatrix Potter born, 1866
 07/06	John Paul Jones born, 1747
 07/07	P.T. Barnum dies, 1891
@@ -161,6 +167,7 @@
 07/10	John Calvin born, 1509
 07/11	John Quincy Adams born, 1767
 07/12	Henry David Thoreau born, 1817
+07/12	Thoreau's Birthday, 1817
 07/15	Clement Clarke Moore born, 1779, author of "A Visit from
 		Saint Nicholas"
 07/18	Brian Auger is born in London, 1939
@@ -171,10 +178,12 @@
 08/01	Herman Melville born, 1819
 08/03	Lenny Bruce dies of a morphine overdose, 1966
 08/08	Dustin Hoffman born in Los Angeles, 1937
+08/12	Thomas Mann's Death, 1955
 08/13	Annie Oakley born, 1860
 08/13	Fidel Castro born, 1927
 08/17	Mae West born, 1892
 08/18	Meriwether Lewis born, 1927
+08/20	Leon Trotsky assassinated, 1940
 08/23	Gene Kelly born, 1912
 08/27	Lyndon B. Johnson born, 1908
 08/29	Oliver Wendell Holmes born, 1809, physician & father of the jurist
@@ -252,6 +261,7 @@
 12/12	E.G. Robinson born, 1893
 12/14	George Washington dies, 1799
 12/17	William Safire (Safir) born, 1929
+12/19	Konrad Zuse died, 1995
 12/20	Carl Sagan died, 1996
 12/21	Benjamin Disraeli born, 1804
 12/22	Giacomo Puccini born, 1858
@@ -259,11 +269,5 @@
 12/25	Isaac Newton (Sir) born in Grantham, England, 1642
 12/26	Chas. Babbage born, 1791
 12/28	John von Neumann born, 1903
-03/15	J.J. Robert's Birthday in Liberia
-03/15	Julius Caesar assassinated by Brutus; Ides of March, 44BC
-07/04	John Adams and Thomas Jefferson die on same day, 1826
-07/12	Thoreau's Birthday, 1817
-08/12	Thomas Mann's Death, 1955
-08/20	Leon Trotsky assassinated, 1940
 
 #endif /* !_calendar_birthday_ */
