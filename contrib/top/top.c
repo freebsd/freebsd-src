@@ -9,7 +9,9 @@ char *copyright =
  *  but this entire comment MUST remain intact.
  *
  *  Copyright (c) 1984, 1989, William LeFebvre, Rice University
- *  Copyright (c) 1989, 1990, 1992, William LeFebvre, Northwestern University
+ *  Copyright (c) 1989 - 1994, William LeFebvre, Northwestern University
+ *  Copyright (c) 1994, 1995, William LeFebvre, Argonne National Laboratory
+ *  Copyright (c) 1996, William LeFebvre, Group sys Consulting
  *
  * $FreeBSD$
  */
@@ -55,9 +57,6 @@ char stdoutbuf[Buffersize];
 
 /* build Signal masks */
 #define Smask(s)	(1 << ((s) - 1))
-
-/* for system errors */
-extern int errno;
 
 /* for getopt: */
 extern int  optind;
@@ -188,7 +187,7 @@ char *argv[];
     /* FD_SET and friends are not present:  fake it */
     typedef int fd_set;
 #define FD_ZERO(x)     (*(x) = 0)
-#define FD_SET(f, x)   (*(x) = f)
+#define FD_SET(f, x)   (*(x) = 1<<f)
 #endif
     fd_set readfds;
 
@@ -221,6 +220,8 @@ char *argv[];
 
     /* set the buffer for stdout */
 #ifdef DEBUG
+    extern FILE *debug;
+    debug = fopen("debug.run", "w");
     setbuffer(stdout, NULL, 0);
 #else
     setbuffer(stdout, stdoutbuf, Buffersize);
@@ -269,10 +270,16 @@ char *argv[];
 	    optind = 1;
 	}
 
-	while ((i = getopt(ac, av, "SIbinqus:d:U:o:t")) != EOF)
+	while ((i = getopt(ac, av, "SIbinquvs:d:U:o:t")) != EOF)
 	{
 	    switch(i)
 	    {
+	      case 'v':			/* show version number */
+		fprintf(stderr, "%s: version %s\n",
+			myname, version_string());
+		exit(1);
+		break;
+
 	      case 'u':			/* toggle uid/username display */
 		do_unames = !do_unames;
 		break;
@@ -317,10 +324,10 @@ char *argv[];
 		break;
 
 	      case 's':
-		if ((delay = atoi(optarg)) < 0)
+		if ((delay = atoi(optarg)) < 0 || (delay == 0 && getuid() != 0))
 		{
 		    fprintf(stderr,
-			"%s: warning: seconds delay should be non-negative -- using default\n",
+			"%s: warning: seconds delay should be positive -- using default\n",
 			myname);
 		    delay = Default_DELAY;
 		    warnings++;
@@ -595,7 +602,7 @@ restart:
 	    /* determine number of processes to actually display */
 	    /* this number will be the smallest of:  active processes,
 	       number user requested, number current screen accomodates */
-	    active_procs = system_info.p_active;
+	    active_procs = system_info.P_ACTIVE;
 	    if (active_procs > topn)
 	    {
 		active_procs = topn;
@@ -620,7 +627,13 @@ restart:
 	u_endscreen(i);
 
 	/* now, flush the output buffer */
-	fflush(stdout);
+	if (fflush(stdout) != 0)
+	{
+	    new_message(MT_standout, " Write error on stdout");
+	    putchar('\r');
+	    quit(1);
+	    /*NOTREACHED*/
+	}
 
 	/* only do the rest if we have more displays to show */
 	if (displays)
@@ -662,7 +675,7 @@ restart:
 
 		/* set up arguments for select with timeout */
 		FD_ZERO(&readfds);
-		FD_SET(1, &readfds);		/* for standard input */
+		FD_SET(0, &readfds);		/* for standard input */
 		timeout.tv_sec  = delay;
 		timeout.tv_usec = 0;
 
@@ -727,7 +740,13 @@ restart:
 		    /* now read it and convert to command strchr */
 		    /* (use "change" as a temporary to hold strchr) */
 		    if (read(0, &ch, 1) != 1)
-			quit(0);
+		    {
+			/* read error: either 0 or -1 */
+			new_message(MT_standout, " Read error on stdin");
+			putchar('\r');
+			quit(1);
+			/*NOTREACHED*/
+		    }
 		    if ((iptr = strchr(command_chars, ch)) == NULL)
 		    {
 			if (ch != '\r' && ch != '\n')
@@ -833,7 +852,10 @@ restart:
 				new_message(MT_standout, "Seconds to delay: ");
 				if ((i = readline(tempbuf1, 8, Yes)) > -1)
 				{
-				    delay = i;
+				    if ((delay = i) == 0 && getuid() != 0)
+				    {
+					delay = 1;
+				    }
 				}
 				clear_message();
 				break;
@@ -971,6 +993,9 @@ restart:
 	}
     }
 
+#ifdef DEBUG
+    fclose(debug);
+#endif
     quit(0);
     /*NOTREACHED*/
 }
