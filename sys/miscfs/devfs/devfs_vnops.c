@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.27 1996/09/20 05:55:47 nate Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.28 1996/10/12 00:07:53 julian Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -616,8 +616,7 @@ DBPRINT(("setattr\n"));
 	    (vap->va_blocksize != VNOVAL)  ||
 	    (vap->va_rdev != VNOVAL)  ||
 	    (vap->va_bytes != VNOVAL)  ||
-	    (vap->va_gen != VNOVAL)  ||
-	    (vap->va_atime.tv_sec != VNOVAL))
+	    (vap->va_gen != VNOVAL ))
 	{
 		return EINVAL;
 	}
