@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.6 1998/05/28 23:15:33 brian Exp $
+ *	$Id: datalink.c,v 1.7 1998/05/29 18:32:10 brian Exp $
  */
 
 #include <sys/types.h>
@@ -509,6 +509,7 @@ datalink_LayerDown(void *v, struct fsm *fp)
         peerid_Init(&dl->peer);
         fsm_Down(&dl->physical->link.ccp.fsm);
         fsm_Close(&dl->physical->link.ccp.fsm);
+        datalink_NewState(dl, DATALINK_LCP);  /* before parent TLD */
         (*dl->parent->LayerDown)(dl->parent->object, fp);
         /* fall through */
 

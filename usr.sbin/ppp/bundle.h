@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.5 1998/05/29 18:33:08 brian Exp $
+ *	$Id: bundle.h,v 1.6 1998/06/06 20:50:56 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -70,7 +70,11 @@ struct bundle {
 
   int routing_seq;            /* The current routing sequence number */
   u_int phase;                /* Curent phase */
-  int phys_type;              /* Union of all physical::type's */
+
+  struct {
+    int all;                  /* Union of all physical::type's */
+    int open;                 /* Union of all open physical::type's */
+  } phys_type;
 
   unsigned CleaningUp : 1;    /* Going to exit.... */
 
