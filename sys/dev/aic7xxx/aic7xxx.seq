@@ -41,7 +41,7 @@
  *
  *-M************************************************************************/
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.26 1996/01/05 16:11:49 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.28 1996/01/09 16:14:03 gibbs Exp $"
 
 #include "../../dev/aic7xxx/aic7xxx_reg.h"
 
@@ -419,11 +419,12 @@ sg_load:
  * };
  */
 
+	mvi	DINDEX,HADDR
 /*
  * For Linux, we must throw away four bytes since there is a 32bit gap
  * in the middle of a struct scatterlist
  */
-#ifdef LINUX
+#ifdef linux
 	call	bcopy_4_dfdat
 	mov	NONE,DFDAT
 	mov	NONE,DFDAT
@@ -434,7 +435,6 @@ sg_load:
 /*
  * For FreeBSD, just copy it wholesale
  */
-	mvi	DINDEX,HADDR
 	call	bcopy_7_dfdat
 #endif
 
@@ -513,6 +513,7 @@ p_mesgout_loop:
 	mvi	CLRSINT1,CLRATNO			/* drop ATN */
 p_mesgout_outb:
 	dec	DINDEX
+	or	CLRSINT0, CLRSPIORDY
 	mov	SCSIDATL,SINDIR
 	
 p_mesgout4:
@@ -881,6 +882,7 @@ mk_mesg1:
  */
 
 inb_next:
+	or	CLRSINT0, CLRSPIORDY
 	mov	NONE,SCSIDATL			/*dummy read from latch to ACK*/
 inb_next_wait:
 	test	SSTAT1,PHASEMIS	jnz mesgin_phasemis
