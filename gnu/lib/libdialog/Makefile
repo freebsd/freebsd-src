@@ -1,7 +1,9 @@
 # Makefile for libdialog
-# $Id: Makefile,v 1.12 1995/05/04 09:45:29 ache Exp $
+# $Id: Makefile,v 1.13 1995/08/06 12:22:47 bde Exp $
 
 LIB=    dialog
+MAN3=	dialog.3
+
 SHLIB_MAJOR= 3
 SHLIB_MINOR= 0
 SRCS=   kernel.c rc.c checklist.c inputbox.c menubox.c msgbox.c \
