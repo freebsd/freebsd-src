@@ -28,6 +28,8 @@ Table of Contents:
 
 3.1     Repairing an existing FreeBSD installation.
 
+3.2     Upgrading from FreeBSD 2.0.5
+
 
 1.0     DOS user's Question and Answer section
 ===     ======================================
@@ -174,8 +176,8 @@ is still not a bad idea though you don't need to put a DOS filesystem
 on each floppy.  You can use the `disklabel' and `newfs' commands to
 put a UFS filesystem on them instead, like so:
 
-	disklabel -w -r fd0 floppy3	(use floppy5 for 1.2MB disks)
-	newfs /dev/rfd0
+        disklabel -w -r fd0 floppy3     (use floppy5 for 1.2MB disks)
+        newfs /dev/rfd0
 
 Then you can mount and write to them like any other file system.
 
@@ -332,14 +334,14 @@ installation can continue over NFS or FTP.
         FTP installation may be done from any mirror site containing a
         reasonably up-to-date version of FreeBSD 2.1.  A full menu of
         reasonable choices for almost any location in the world is
-	provided in the FTP site menu.
+        provided in the FTP site menu.
 
         If you are installing from some other FTP site not listed in
-	this menu, or you are having troubles getting your name server
-	configured properly, you can also specify your own URL by
-	selecting the ``Other'' choice in that menu.  A URL can
-	contain a hostname or an IP address, so the following would
-	work in the absence of a name server:
+        this menu, or you are having troubles getting your name server
+        configured properly, you can also specify your own URL by
+        selecting the ``Other'' choice in that menu.  A URL can
+        contain a hostname or an IP address, so the following would
+        work in the absence of a name server:
 
                 ftp://192.216.191.11/pub/FreeBSD/2.1.0-RELEASE
         
@@ -348,20 +350,20 @@ installation can continue over NFS or FTP.
            o FTP:
 
              For all FTP transfers, use the standard "Active" mode for
-	     transfers.  This will not work through most firewalls but
-	     will often work best with older ftp servers that do not
-	     support passive mode.  If your connection hangs with
-	     passive mode, try this one!
+             transfers.  This will not work through most firewalls but
+             will often work best with older ftp servers that do not
+             support passive mode.  If your connection hangs with
+             passive mode, try this one!
 
            o FTP Passive:
 
              For all FTP transfers, use "Passive" mode.  This allows
-	     the user to pass through firewalls that do not allow
-	     incoming connections on random port addresses.
+             the user to pass through firewalls that do not allow
+             incoming connections on random port addresses.
 
         NOTE: ACTIVE AND PASSIVE MODES ARE NOT THE SAME AS A `PROXY'
         CONNECTIONS, WHERE A PROXY FTP SERVER IS LISTENING ON A
-	DIFFERENT PORT!
+        DIFFERENT PORT!
 
         In such instances, you should specify the URL as something like:
 
@@ -462,21 +464,21 @@ follows:
           you to chose how your drives will be used for FreeBSD.
           If you're dedicating an entire drive to FreeBSD, the
           `A' command is probably all you need to type here, otherwise
-	  move to a partition marked `Unused' (or delete an existing one)
-	  and use the `C' command to create a FreeBSD partition in its
-	  place.
+          move to a partition marked `Unused' (or delete an existing one)
+          and use the `C' command to create a FreeBSD partition in its
+          place.
 
         o Next, with the `Label Editor', you can specify how the space
           in any FreeBSD partitions should be used by FreeBSD.  You
           can also mount any non-FreeBSD partitions (such as DOS) in this
-	  screen.  If you want the standard layout, simply type `A' for
-	  the defaults.
+          screen.  If you want the standard layout, simply type `A' for
+          the defaults.
 
         o Next, the `Distributions' menu allows you to specify how much
           of FreeBSD you'd like to load.  A good choice is the "User"
           distribution for a small system or the "Developer" distribution
           for someone wanting a more programmer-oriented configuration.
-	  If none of the existing collections seem applicable, select
+          If none of the existing collections seem applicable, select
           Custom to choose the component distributions yourself.
 
         o Next, the `Media' menu allows you to specify what kind of
@@ -518,7 +520,7 @@ mailing list - questions@FreeBSD.org.  We'll do our best to help you!
 
 
 3.1     Repairing an existing FreeBSD installation.
----	-------------------------------------------
+---     -------------------------------------------
 
 FreeBSD 2.1 now features a "Fixit" option in the top menu of the boot
 floppy.  To use it, you will also need a fixit.flp image floppy,
@@ -530,6 +532,46 @@ shell with a wide variety of commants available for checking,
 repairing and examining file systems and their contents.  Some
 administration experience is required to use this option!
 
+
+3.2     Upgrading from FreeBSD 2.0.5
+---     ----------------------------
+
+It must first be said that this upgrade DOES NOT take a particularly
+sophisticated approach to the upgrade problem, it being more a question
+of providing what seemed "good enough" at the time.  A truly polished
+upgrade that deals properly with the broad spectrum of installed 2.0.5
+systems would be nice to have, but until that gets written what you get is
+this - the brute-force approach!
+
+What this upgrade will attempt to do is best summarized thusly:
+
+  1.  fsck and mount all file systems chosen in the label editor.
+  2.  Ask for a location to preserve your /etc directory into and do so.
+  3.  Extract all selected distributions on top of your existing system.
+  4.  Copy certain obvious files back from the preserved /etc, leaving the
+      rest of the /etc file merge up to the user.
+  5.  Drop user in a shell so that they may perform that merge before
+      rebooting into the new system.
+
+And that's it!  This "upgrade" is not going to hold your hand in all
+major respects, it's simply provided to make one PART of the upgrade
+easier.
+
+IMPORTANT NOTE: What this upgrade procedure may also do, in fact, is
+completely destroy your system (though much more quickly than you
+would have been able to destroy it yourself). It is simply impossible
+to guarantee that this procedure's crude form of upgrade automation
+will work in all cases and if you do this upgrade without proper
+BACKUPS for any important data then you really must like living life
+close to the edge, that's all we can say!
+
+NOTE to 2.0 users: We're sorry, but the "slice" changes that were
+added in FreeBSD 2.0.5 made automated upgrades pretty difficult due to
+the fact that a complete reinstall is pretty much called for.  Things
+may still *work* after a 2.1 upgrade, but you will also no doubt
+receive many warnings at boot time about non-aligned slices and such;
+we really do recommend a fresh installation for 2.0 systems!  (But
+back up your user data first :-).
 
                                         Jordan
 
