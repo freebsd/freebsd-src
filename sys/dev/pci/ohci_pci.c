@@ -1,4 +1,4 @@
-/*	FreeBSD $Id: ohci_pci.c,v 1.8 1999/01/06 19:55:49 n_hibma Exp $ */
+/*	$FreeBSD$ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -135,7 +135,6 @@ ohci_pci_attach(pcici_t config_id, int unit)
 	int id;
 	usbd_status r;
 	ohci_softc_t *sc = NULL;
-	int rev;
 	vm_offset_t pbase;
 
 	sc = malloc(sizeof(ohci_softc_t), M_DEVBUF, M_NOWAIT);
