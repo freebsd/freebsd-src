@@ -239,8 +239,16 @@ grscan(search, gid, name)
 		 * past this point under certain circumstances or
 		 * we risk dereferencing null pointers down below.
 		 */
-		if (!search && _gr_group.gr_name[0] == '+')
-			return(1);
+		if (_gr_group.gr_name[0] == '+') {
+			switch(search) {
+				case 0:
+					return(1);
+				case 1:
+					return(0);
+				default:
+					return(0);
+			}
+		}
 #endif /* YP */
 		_gr_group.gr_passwd = strsep(&bp, ":\n");
 		if (!(cp = strsep(&bp, ":\n")))
