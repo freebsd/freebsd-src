@@ -392,6 +392,8 @@ struct dos_partition {
 #define DIOCSBAD	_IOW('d', 110, struct dkbad)	/* set kernel dkbad */
 #define DIOCSBADSCAN	_IOW('d', 111, int)	/* set badscan mode */
 
+#ifdef KERNEL
+
 /*
  * XXX encoding of disk minor numbers, should be elsewhere.
  *
@@ -436,8 +438,6 @@ dkunit(dev_t dev)
 {
 	return (((minor(dev) >> 16) & 0x1e0) | ((minor(dev) >> 3) & 0x1f));
 }
-
-#ifdef KERNEL
 
 struct	buf;
 struct	buf_queue_head;
