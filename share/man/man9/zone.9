@@ -25,14 +25,15 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 18, 2002
+.Dd July 21, 2003
 .Dt ZONE 9
 .Os
 .Sh NAME
 .Nm uma_zcreate ,
 .Nm uma_zalloc ,
 .Nm uma_zfree ,
-.Nm uma_zdestroy
+.Nm uma_zdestroy ,
+.Nm uma_zone_set_max
 .Nd zone allocator
 .Sh SYNOPSIS
 .In sys/param.h
@@ -50,6 +51,8 @@
 .Fn uma_zfree "uma_zone_t zone" "void *item"
 .Ft void
 .Fn uma_zdestroy "uma_zone_t zone"
+.Ft void
+.Fn uma_zone_set_max "uma_zone_t zone" "int nitems"
 .Sh DESCRIPTION
 The zone allocator provides an efficient interface for managing
 dynamically-sized collections of items of similar size.
@@ -167,6 +170,22 @@ All items allocated from the zone with
 must have been freed with
 .Fn uma_zfree
 before.
+.Pp
+The purpose of
+.Fn uma_zone_set_max
+is to limit the maximum amount of memory that the system can dedicated
+toward the zone specified by the
+.Fa zone
+argument.
+The
+.Fa nitems
+argument gives the upper limit of items in the zone.
+This limits the total number of items in the zone which includes:
+allocated items, free items and free items in the per-cpu caches.
+On systems with more than one CPU it may not be possible to allocate
+the specified number of items even when there is no shortage of memory,
+because all of the remaining free items may be in the caches of the
+other CPUs when the limit is hit.
 .Sh RETURN VALUES
 The
 .Fn uma_zalloc
