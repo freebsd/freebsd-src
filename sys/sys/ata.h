@@ -36,25 +36,25 @@
 /* ATA/ATAPI device parameter information */
 struct ata_params {
     u_int8_t    cmdsize         :2;             /* packet command size */
-#define         ATAPI_PSIZE_12          0       /* 12 bytes */
-#define         ATAPI_PSIZE_16          1       /* 16 bytes */
+#define ATAPI_PSIZE_12                 0       /* 12 bytes */
+#define ATAPI_PSIZE_16                 1       /* 16 bytes */
 
     u_int8_t                    :3;
     u_int8_t    drqtype         :2;             /* DRQ type */
-#define         ATAPI_DRQT_MPROC        0       /* cpu    3 ms delay */
-#define         ATAPI_DRQT_INTR         1       /* intr  10 ms delay */
-#define         ATAPI_DRQT_ACCEL        2       /* accel 50 us delay */
+#define ATAPI_DRQT_MPROC        	0       /* cpu    3 ms delay */
+#define ATAPI_DRQT_INTR         	1       /* intr  10 ms delay */
+#define ATAPI_DRQT_ACCEL        	2       /* accel 50 us delay */
 
     u_int8_t    removable       :1;             /* device is removable */
     u_int8_t    device_type     :5;             /* device type */
-#define         ATAPI_TYPE_DIRECT       0       /* disk/floppy */
-#define         ATAPI_TYPE_TAPE         1       /* streaming tape */
-#define         ATAPI_TYPE_CDROM        5       /* CD-ROM device */
-#define         ATAPI_TYPE_OPTICAL      7       /* optical disk */
+#define ATAPI_TYPE_DIRECT       	0       /* disk/floppy */
+#define ATAPI_TYPE_TAPE         	1       /* streaming tape */
+#define ATAPI_TYPE_CDROM        	5       /* CD-ROM device */
+#define ATAPI_TYPE_OPTICAL      	7       /* optical disk */
 
     u_int8_t                    :1;
     u_int8_t    proto           :2;             /* command protocol */
-#define         ATAPI_PROTO_ATAPI       2
+#define ATAPI_PROTO_ATAPI       	2
 
     u_int16_t	cylinders;			/* number of cylinders */
     u_int16_t	reserved2;
@@ -94,9 +94,9 @@ struct ata_params {
     u_int8_t	odmamode;			/* old DMA modes, not ATA-3 */
 
     u_int16_t	atavalid;			/* fields valid */
-#define		ATA_FLAG_54_58	      1		/* words 54-58 valid */
-#define		ATA_FLAG_64_70	      2		/* words 64-70 valid */
-#define		ATA_FLAG_88	      4		/* word 88 valid */
+#define	ATA_FLAG_54_58	      		1	/* words 54-58 valid */
+#define	ATA_FLAG_64_70	      		2	/* words 64-70 valid */
+#define	ATA_FLAG_88	      		4	/* word 88 valid */
 
     u_int16_t	currcyls;
     u_int16_t	currheads;
@@ -165,39 +165,44 @@ struct ata_params {
     u_int16_t	reserved246[10];
 };
 
-#define		ATA_MODE_MASK		0x0f
-#define		ATA_DMA_MASK		0xf0
-#define 	ATA_PIO			0x00
-#define 	ATA_PIO0		0x08
-#define		ATA_PIO1		0x09
-#define		ATA_PIO2		0x0a
-#define		ATA_PIO3		0x0b
-#define		ATA_PIO4		0x0c
-#define		ATA_DMA			0x10
-#define		ATA_WDMA		0x20
-#define		ATA_WDMA2		0x22
-#define		ATA_UDMA		0x40
-#define		ATA_UDMA2		0x42
-#define		ATA_UDMA4		0x44
-#define		ATA_UDMA5		0x45
+#define	ATA_MODE_MASK		0x0f
+#define	ATA_DMA_MASK		0xf0
+#define ATA_PIO			0x00
+#define ATA_PIO0		0x08
+#define	ATA_PIO1		0x09
+#define	ATA_PIO2		0x0a
+#define	ATA_PIO3		0x0b
+#define	ATA_PIO4		0x0c
+#define	ATA_DMA			0x10
+#define	ATA_WDMA		0x20
+#define	ATA_WDMA2		0x22
+#define	ATA_UDMA		0x40
+#define	ATA_UDMA2		0x42
+#define	ATA_UDMA4		0x44
+#define	ATA_UDMA5		0x45
 
-struct ata_modes {
-	int			channel;
-	int			mode[2];
+struct ata_cmd {
+    int 			channel;
+    int				cmd;
+#define ATAGPARM      	 	1
+#define ATAGMODE        	2
+#define ATASMODE        	3
+#define ATAREINIT       	4
+#define ATAATTACH       	5
+#define ATADETACH       	6
+
+    union {
+	struct {
+	    int			mode[2];
+	} mode;
+	struct 	{
+	    int			type[2];
+	    char		name[2][32];
+	    struct ata_params	params[2];
+	} param;
+    } u;
 };
 
-struct ata_param {
-	int			channel;
-	int			type[2];
-	char			name[2][32];
-	struct ata_params	params[2];
-};
-
-#define ATAGPARM	_IOWR('a',  1, struct ata_param)
-#define ATAGMODE	_IOWR('a',  2, struct ata_modes)
-#define ATASMODE	_IOWR('a',  3, struct ata_modes)
-#define ATAREINIT	_IOW('a',  4, int)
-#define ATAATTACH	_IOW('a',  5, int)
-#define ATADETACH	_IOW('a',  6, int)
+#define IOCATA			_IOWR('a',  1, struct ata_cmd)
 
 #endif /* _SYS_ATA_H_ */
