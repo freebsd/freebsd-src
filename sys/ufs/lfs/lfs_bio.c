@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_bio.c	8.10 (Berkeley) 6/10/95
- * $Id: lfs_bio.c,v 1.11 1997/02/22 09:47:17 peter Exp $
+ * $Id: lfs_bio.c,v 1.12 1997/03/23 00:45:13 bde Exp $
  */
 
 #include <sys/param.h>
@@ -117,6 +117,7 @@ lfs_bwrite(ap)
 		ip->i_flag |= IN_CHANGE | IN_MODIFIED | IN_UPDATE;
 		fs->lfs_avail -= db;
 		++locked_queue_count;
+		++numdirtybuffers;
 		bp->b_flags |= B_DELWRI | B_LOCKED;
 		bp->b_flags &= ~(B_READ | B_ERROR);
 		s = splbio();
