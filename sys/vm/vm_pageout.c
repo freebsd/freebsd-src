@@ -494,7 +494,7 @@ vm_pageout_object_deactivate_pages(map, object, desired, map_remove_only)
 			    p->hold_count != 0 ||
 			    p->busy != 0 ||
 			    (p->flags & (PG_BUSY|PG_UNMANAGED)) ||
-			    !pmap_page_exists(vm_map_pmap(map), p)) {
+			    !pmap_page_exists_quick(vm_map_pmap(map), p)) {
 				p = next;
 				continue;
 			}

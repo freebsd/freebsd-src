@@ -936,6 +936,19 @@ pmap_clear_reference(vm_page_t m)
 	TODO;
 }
 
+/*
+ *	pmap_ts_referenced:
+ *
+ *	Return a count of reference bits for a page, clearing those bits.
+ *	It is not necessary for every reference bit to be cleared, but it
+ *	is necessary that 0 only be returned when there are truly no
+ *	reference bits set.
+ *
+ *	XXX: The exact number of bits to check and clear is a matter that
+ *	should be tested and standardized at some point in the future for
+ *	optimal aging of shared pages.
+ */
+
 int
 pmap_ts_referenced(vm_page_t m)
 {
@@ -1160,8 +1173,15 @@ pmap_pageable(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 {
 }
 
+/*
+ * Returns true if the pmap's pv is one of the first
+ * 16 pvs linked to from this page.  This count may
+ * be changed upwards or downwards in the future; it
+ * is only necessary that true be returned for a small
+ * subset of pmaps for proper page aging.
+ */
 boolean_t
-pmap_page_exists(pmap_t pmap, vm_page_t m)
+pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 {
 	TODO;
 	return (0);
