@@ -59,9 +59,9 @@ struct arglist {
 
 
 union node;
-void expandhere __P((union node *, int));
-void expandarg __P((union node *, struct arglist *, int));
-void expari __P((int));
-int patmatch __P((char *, char *, int));
-void rmescapes __P((char *));
-int casematch __P((union node *, char *));
+void expandhere(union node *, int);
+void expandarg(union node *, struct arglist *, int);
+void expari(int);
+int patmatch(char *, char *, int);
+void rmescapes(char *);
+int casematch(union node *, char *);

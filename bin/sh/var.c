@@ -38,9 +38,9 @@
 #if 0
 static char sccsid[] = "@(#)var.c	8.3 (Berkeley) 5/4/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -77,7 +77,7 @@ struct varinit {
 	struct var *var;
 	int flags;
 	char *text;
-	void (*func) __P((const char *));
+	void (*func)(const char *);
 };
 
 
@@ -91,6 +91,7 @@ struct var vifs;
 struct var vmail;
 struct var vmpath;
 struct var vpath;
+struct var vppid;
 struct var vps1;
 struct var vps2;
 struct var vvers;
@@ -116,6 +117,8 @@ const struct varinit varinit[] = {
 	  NULL },
 	{ &vpath,	VSTRFIXED|VTEXTFIXED,		"PATH=/bin:/usr/bin",
 	  changepath },
+	{ &vppid,	VSTRFIXED|VTEXTFIXED|VUNSET,	"PPID=",
+	  NULL },
 	/*
 	 * vps1 depends on uid
 	 */
@@ -133,9 +136,9 @@ const struct varinit varinit[] = {
 
 struct var *vartab[VTABSIZE];
 
-STATIC struct var **hashvar __P((char *));
-STATIC int varequal __P((char *, char *));
-STATIC int localevar __P((char *));
+STATIC struct var **hashvar(char *);
+STATIC int varequal(char *, char *);
+STATIC int localevar(char *);
 
 /*
  * Initialize the varable symbol tables and import the environment
@@ -163,7 +166,9 @@ INIT {
  */
 
 void
-initvar() {
+initvar(void)
+{
+	char ppid[20];
 	const struct varinit *ip;
 	struct var *vp;
 	struct var **vpp;
@@ -188,6 +193,10 @@ initvar() {
 		vps1.text = geteuid() ? "PS1=$ " : "PS1=# ";
 		vps1.flags = VSTRFIXED|VTEXTFIXED;
 	}
+	if ((vppid.flags & VEXPORT) == 0) {
+		fmtstr(ppid, sizeof(ppid), "%d", (int)getppid());
+		setvarsafe("PPID", ppid, 0);
+	}
 }
 
 /*
@@ -195,9 +204,7 @@ initvar() {
  */
 
 int
-setvarsafe(name, val, flags)
-	char *name, *val;
-	int flags;
+setvarsafe(char *name, char *val, int flags)
 {
 	struct jmploc jmploc;
 	struct jmploc *volatile savehandler = handler;
@@ -223,9 +230,7 @@ setvarsafe(name, val, flags)
  */
 
 void
-setvar(name, val, flags)
-	char *name, *val;
-	int flags;
+setvar(char *name, char *val, int flags)
 {
 	char *p, *q;
 	int len;
@@ -267,9 +272,8 @@ setvar(name, val, flags)
 }
 
 STATIC int
-localevar(s)
-	char *s;
-	{
+localevar(char *s)
+{
 	static char *lnames[7] = {
 		"ALL", "COLLATE", "CTYPE", "MONETARY",
 		"NUMERIC", "TIME", NULL
@@ -296,11 +300,10 @@ localevar(s)
  */
 
 void
-setvareq(s, flags)
-	char *s;
-	int flags;
+setvareq(char *s, int flags)
 {
 	struct var *vp, **vpp;
+	int len;
 
 	if (aflag)
 		flags |= VEXPORT;
@@ -308,7 +311,7 @@ setvareq(s, flags)
 	for (vp = *vpp ; vp ; vp = vp->next) {
 		if (varequal(s, vp->text)) {
 			if (vp->flags & VREADONLY) {
-				size_t len = strchr(s, '=') - s;
+				len = strchr(s, '=') - s;
 				error("%.*s: is read only", len, s);
 			}
 			INTOFF;
@@ -359,9 +362,8 @@ setvareq(s, flags)
  */
 
 void
-listsetvar(list)
-	struct strlist *list;
-	{
+listsetvar(struct strlist *list)
+{
 	struct strlist *lp;
 
 	INTOFF;
@@ -378,9 +380,8 @@ listsetvar(list)
  */
 
 char *
-lookupvar(name)
-	char *name;
-	{
+lookupvar(char *name)
+{
 	struct var *v;
 
 	for (v = *hashvar(name) ; v ; v = v->next) {
@@ -402,9 +403,7 @@ lookupvar(name)
  */
 
 char *
-bltinlookup(name, doall)
-	char *name;
-	int doall;
+bltinlookup(char *name, int doall)
 {
 	struct strlist *sp;
 	struct var *v;
@@ -432,7 +431,8 @@ bltinlookup(name, doall)
  */
 
 char **
-environment() {
+environment(void)
+{
 	int nenv;
 	struct var **vpp;
 	struct var *vp;
@@ -470,7 +470,8 @@ SHELLPROC {
 #endif
 
 void
-shprocvar() {
+shprocvar(void)
+{
 	struct var **vpp;
 	struct var *vp, **prev;
 
@@ -503,17 +504,21 @@ shprocvar() {
  */
 
 int
-showvarscmd(argc, argv)
-	int argc __unused;
-	char **argv __unused;
+showvarscmd(int argc __unused, char **argv __unused)
 {
 	struct var **vpp;
 	struct var *vp;
+	const char *s;
 
 	for (vpp = vartab ; vpp < vartab + VTABSIZE ; vpp++) {
 		for (vp = *vpp ; vp ; vp = vp->next) {
-			if ((vp->flags & VUNSET) == 0)
-				out1fmt("%s\n", vp->text);
+			if (vp->flags & VUNSET)
+				continue;
+			for (s = vp->text; *s != '='; s++)
+				out1c(*s);
+			out1c('=');
+			out1qstr(s + 1);
+			out1c('\n');
 		}
 	}
 	return 0;
@@ -526,18 +531,34 @@ showvarscmd(argc, argv)
  */
 
 int
-exportcmd(argc, argv)
-	int argc;
-	char **argv;
+exportcmd(int argc, char **argv)
 {
 	struct var **vpp;
 	struct var *vp;
 	char *name;
 	char *p;
+	char *cmdname;
+	int ch, values;
 	int flag = argv[0][0] == 'r'? VREADONLY : VEXPORT;
 
+	cmdname = argv[0];
+	optreset = optind = 1;
+	values = 0;
+	while ((ch = getopt(argc, argv, "p")) != -1) {
+		switch (ch) {
+		case 'p':
+			values = 1;
+			break;
+		case '?':
+		default:
+			error("unknown option: -%c", optopt);
+		}
+	}
+	argc -= optind;
+	argv += optind;
+
 	listsetvar(cmdenviron);
-	if (argc > 1) {
+	if (argc != 0) {
 		while ((name = *argptr++) != NULL) {
 			if ((p = strchr(name, '=')) != NULL) {
 				p++;
@@ -545,6 +566,7 @@ exportcmd(argc, argv)
 				vpp = hashvar(name);
 				for (vp = *vpp ; vp ; vp = vp->next) {
 					if (varequal(vp->text, name)) {
+
 						vp->flags |= flag;
 						if ((vp->flags & VEXPORT) && localevar(vp->text)) {
 							putenv(vp->text);
@@ -561,8 +583,16 @@ found:;
 		for (vpp = vartab ; vpp < vartab + VTABSIZE ; vpp++) {
 			for (vp = *vpp ; vp ; vp = vp->next) {
 				if (vp->flags & flag) {
+					if (values) {
+						out1str(cmdname);
+						out1c(' ');
+					}
 					for (p = vp->text ; *p != '=' ; p++)
 						out1c(*p);
+					if (values && !(vp->flags & VUNSET)) {
+						out1c('=');
+						out1qstr(p + 1);
+					}
 					out1c('\n');
 				}
 			}
@@ -577,9 +607,7 @@ found:;
  */
 
 int
-localcmd(argc, argv)
-	int argc __unused;
-	char **argv __unused;
+localcmd(int argc __unused, char **argv __unused)
 {
 	char *name;
 
@@ -600,9 +628,8 @@ localcmd(argc, argv)
  */
 
 void
-mklocal(name)
-	char *name;
-	{
+mklocal(char *name)
+{
 	struct localvar *lvp;
 	struct var **vpp;
 	struct var *vp;
@@ -644,7 +671,8 @@ mklocal(name)
  */
 
 void
-poplocalvars() {
+poplocalvars(void)
+{
 	struct localvar *lvp;
 	struct var *vp;
 
@@ -668,9 +696,7 @@ poplocalvars() {
 
 
 int
-setvarcmd(argc, argv)
-	int argc;
-	char **argv;
+setvarcmd(int argc, char **argv)
 {
 	if (argc <= 2)
 		return unsetcmd(argc, argv);
@@ -689,9 +715,7 @@ setvarcmd(argc, argv)
  */
 
 int
-unsetcmd(argc, argv)
-	int argc __unused;
-	char **argv __unused;
+unsetcmd(int argc __unused, char **argv __unused)
 {
 	char **ap;
 	int i;
@@ -723,9 +747,8 @@ unsetcmd(argc, argv)
  */
 
 int
-unsetvar(s)
-	char *s;
-	{
+unsetvar(char *s)
+{
 	struct var **vpp;
 	struct var *vp;
 
@@ -764,9 +787,8 @@ unsetvar(s)
  */
 
 STATIC struct var **
-hashvar(p)
-	char *p;
-	{
+hashvar(char *p)
+{
 	unsigned int hashval;
 
 	hashval = ((unsigned char) *p) << 4;
@@ -784,9 +806,8 @@ hashvar(p)
  */
 
 STATIC int
-varequal(p, q)
-	char *p, *q;
-	{
+varequal(char *p, char *q)
+{
 	while (*p == *q++) {
 		if (*p++ == '=')
 			return 1;

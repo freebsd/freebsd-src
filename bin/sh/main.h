@@ -40,7 +40,7 @@
 extern int rootpid;	/* pid of main shell */
 extern int rootshell;	/* true if we aren't a child of the main shell */
 
-void readcmdfile __P((char *));
-void cmdloop __P((int));
-int dotcmd __P((int, char **));
-int exitcmd __P((int, char **));
+void readcmdfile(char *);
+void cmdloop(int);
+int dotcmd(int, char **);
+int exitcmd(int, char **);

@@ -37,4 +37,4 @@
  * $FreeBSD$
  */
 
-void chkmail __P((int));
+void chkmail(int);

@@ -33,8 +33,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #ifndef lint
@@ -85,6 +83,7 @@ extern char *arith_buf, *arith_startbuf;
 %%
 
 void
-arith_lex_reset() {
+arith_lex_reset()
+{
 	YY_NEW_FILE;
 }

@@ -38,9 +38,9 @@
 #if 0
 static char sccsid[] = "@(#)trap.c	8.5 (Berkeley) 6/5/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <signal.h>
 #include <unistd.h>
@@ -82,15 +82,14 @@ static volatile sig_atomic_t gotsig[NSIG];
 				/* indicates specified signal received */
 static int ignore_sigchld;	/* Used while handling SIGCHLD traps. */
 
-static int getsigaction __P((int, sig_t *));
+static int getsigaction(int, sig_t *);
 
 
 /*
  * Map a string to a signal number.
  */
 static int
-sigstring_to_signum(sig)
-	char *sig;
+sigstring_to_signum(char *sig)
 {
 
 	if (is_number(sig)) {
@@ -117,7 +116,7 @@ sigstring_to_signum(sig)
  * Print a list of valid signal names.
  */
 static void
-printsignals()
+printsignals(void)
 {
 	int n;
 
@@ -135,9 +134,7 @@ printsignals()
  * The trap builtin.
  */
 int
-trapcmd(argc, argv)
-	int argc;
-	char **argv;
+trapcmd(int argc, char **argv)
 {
 	char *action;
 	int signo;
@@ -188,7 +185,7 @@ trapcmd(argc, argv)
  * Clear traps on a fork.
  */
 void
-clear_traps()
+clear_traps(void)
 {
 	char *volatile *tp;
 
@@ -210,8 +207,7 @@ clear_traps()
  * out what it should be set to.
  */
 void
-setsignal(signo)
-	int signo;
+setsignal(int signo)
 {
 	int action;
 	sig_t sig, sigact = SIG_DFL;
@@ -296,9 +292,7 @@ setsignal(signo)
  * Return the current setting for sig w/o changing it.
  */
 static int
-getsigaction(signo, sigact)
-	int signo;
-	sig_t *sigact;
+getsigaction(int signo, sig_t *sigact)
 {
 	struct sigaction sa;
 
@@ -313,8 +307,7 @@ getsigaction(signo, sigact)
  * Ignore a signal.
  */
 void
-ignoresig(signo)
-	int signo;
+ignoresig(int signo)
 {
 
 	if (sigmode[signo] != S_IGN && sigmode[signo] != S_HARD_IGN) {
@@ -344,8 +337,7 @@ SHELLPROC {
  * Signal handler.
  */
 void
-onsig(signo)
-	int signo;
+onsig(int signo)
 {
 
 #ifndef BSD
@@ -380,7 +372,7 @@ onsig(signo)
  * handlers while we are executing a trap handler.
  */
 void
-dotrap()
+dotrap(void)
 {
 	int i;
 	int savestatus;
@@ -418,8 +410,7 @@ dotrap()
  * Controls whether the shell is interactive or not.
  */
 void
-setinteractive(on)
-	int on;
+setinteractive(int on)
 {
 	static int is_interactive = -1;
 
@@ -436,8 +427,7 @@ setinteractive(on)
  * Called to exit the shell.
  */
 void
-exitshell(status)
-	int status;
+exitshell(int status)
 {
 	struct jmploc loc1, loc2;
 	char *p;

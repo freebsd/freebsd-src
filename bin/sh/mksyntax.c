@@ -44,9 +44,9 @@ static char const copyright[] =
 #if 0
 static char sccsid[] = "@(#)mksyntax.c	8.2 (Berkeley) 5/4/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * This program creates syntax.h and syntax.c.
@@ -111,17 +111,15 @@ static int size;	/* number of values which a char variable can have */
 static int nbits;	/* number of bits in a character */
 static int digit_contig;/* true if digits are contiguous */
 
-static void filltable __P((char *));
-static void init __P((void));
-static void add __P((char *, char *));
-static void print __P((char *));
-static void output_type_macros __P((void));
-static void digit_convert __P((void));
+static void filltable(char *);
+static void init(void);
+static void add(char *, char *);
+static void print(char *);
+static void output_type_macros(void);
+static void digit_convert(void);
 
 int
-main(argc, argv)
-	int argc __unused;
-	char **argv __unused;
+main(int argc __unused, char **argv __unused)
 {
 	char c;
 	char d;
@@ -268,8 +266,7 @@ main(argc, argv)
  */
 
 static void
-filltable(dftval)
-	char *dftval;
+filltable(char *dftval)
 {
 	int i;
 
@@ -283,7 +280,7 @@ filltable(dftval)
  */
 
 static void
-init()
+init(void)
 {
 	filltable("CWORD");
 	syntax[0] = "CEOF";
@@ -303,8 +300,7 @@ init()
  */
 
 static void
-add(p, type)
-	char *p, *type;
+add(char *p, char *type)
 {
 	while (*p)
 		syntax[*p++ + base] = type;
@@ -317,8 +313,7 @@ add(p, type)
  */
 
 static void
-print(name)
-	char *name;
+print(char *name)
 {
 	int i;
 	int col;
@@ -360,7 +355,7 @@ static char *macro[] = {
 };
 
 static void
-output_type_macros()
+output_type_macros(void)
 {
 	char **pp;
 
@@ -381,7 +376,7 @@ output_type_macros()
  */
 
 static void
-digit_convert()
+digit_convert(void)
 {
 	int maxdigit;
 	static char digit[] = "0123456789";

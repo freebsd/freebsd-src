@@ -87,8 +87,6 @@ expr:	ARITH_LPAREN expr ARITH_RPAREN = { $$ = $2; }
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #ifndef lint
@@ -107,12 +105,11 @@ static const char rcsid[] =
 char *arith_buf, *arith_startbuf;
 extern void arith_lex_reset();
 
-int yylex __P((void));
-int yyparse __P((void));
+int yylex(void);
+int yyparse(void);
 
 int
-arith(s)
-	char *s;
+arith(char *s)
 {
 	long result;
 
@@ -127,8 +124,7 @@ arith(s)
 }
 
 void
-yyerror(s)
-	char *s;
+yyerror(char *s)
 {
 
 	yyerrok;
@@ -141,9 +137,7 @@ yyerror(s)
  *  The exp(1) builtin.
  */
 int
-expcmd(argc, argv)
-	int argc;
-	char **argv;
+expcmd(int argc, char **argv)
 {
 	char *p;
 	char *concat;
@@ -180,13 +174,12 @@ expcmd(argc, argv)
 /*************************/
 #ifdef TEST_ARITH
 #include <stdio.h>
-main(argc, argv)
-	char *argv[];
+main(int argc, char *argv[])
 {
 	printf("%d\n", exp(argv[1]));
 }
-error(s)
-	char *s;
+
+error(char *s)
 {
 	fprintf(stderr, "exp: %s\n", s);
 	exit(1);

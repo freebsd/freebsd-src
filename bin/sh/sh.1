@@ -46,7 +46,7 @@
 .Op Fl /+abCEefIimnpsTuVvx
 .Op Fl /+o Ar longname
 .Op Fl c Ar string
-.Op Ar arg ...\&
+.Op Ar arg ...
 .Sh DESCRIPTION
 The
 .Nm
@@ -185,7 +185,7 @@ and
 .Fl c
 options do not have long names.
 They take arguments and are described after the single letter options.
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl a Li allexport
 Flag variables for export when assignments are made to them.
 .It Fl b Li notify
@@ -195,7 +195,6 @@ completion.
 .It Fl C Li noclobber
 Do not overwrite existing files with
 .Dq Li > .
-(UNIMPLEMENTED)
 .It Fl E Li emacs
 Enable the builtin
 .Xr emacs 1
@@ -265,7 +264,6 @@ sh -T -c "trap 'exit 1' 2 ; some-blocking-program"
 Write a message to standard error when attempting
 to expand a variable that is not set, and if the
 shell is not interactive, exit immediately.
-(UNIMPLEMENTED)
 .It Fl V Li vi
 Enable the builtin
 .Xr vi 1
@@ -303,6 +301,14 @@ command line editor:
 set -E
 set -o emacs
 .Ed
+.Pp
+If used without an argument, the
+.Fl o
+option displays the current option settings in a human-readable format.
+If
+.Cm +o
+is used without an argument, the current option settings are output
+in a format suitable for re-input into the shell.
 .Ss Lexical Structure
 The shell reads input in terms of lines from a file and breaks
 it up into words at whitespace (blanks and tabs), and at
@@ -313,38 +319,16 @@ which are special to the shell.
 There are two types of operators: control operators and
 redirection operators (their meaning is discussed later).
 The following is a list of valid operators:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Control operators:
 .Bl -column "XXX" "XXX" "XXX" "XXX" "XXX" -offset center -compact
-.It Xo
-.Li & Ta Xo
-.Li && Ta Xo
-.Li ( Ta Xo
-.Li ) Ta Xo
-.Li \en
-.Xc Xc Xc Xc Xc
-.It Xo
-.Li ;; Ta Xo
-.Li ; Ta Xo
-.Li | Ta Xo
-.Li ||
-.Xc Xc Xc Xc
+.It Li & Ta Li && Ta Li ( Ta Li ) Ta Li \en
+.It Li ;; Ta Li ; Ta Li | Ta Li ||
 .El
 .It Redirection operators:
 .Bl -column "XXX" "XXX" "XXX" "XXX" "XXX" -offset center -compact
-.It Xo
-.Li < Ta Xo
-.Li > Ta Xo
-.Li << Ta Xo
-.Li >> Ta Xo
-.Li <>
-.Xc Xc Xc Xc Xc
-.It Xo
-.Li <& Ta Xo
-.Li >& Ta Xo
-.Li <<- Ta Xo
-.Li >|
-.Xc Xc Xc Xc
+.It Li < Ta Li > Ta Li << Ta Li >> Ta Li <>
+.It Li <& Ta Li >& Ta Li <<- Ta Li >|
 .El
 .El
 .Ss Quoting
@@ -352,7 +336,7 @@ Quoting is used to remove the special meaning of certain characters
 or words to the shell, such as operators, whitespace, or
 keywords.  There are three types of quoting: matched single quotes,
 matched double quotes, and backslash.
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Single Quotes
 Enclosing characters in single quotes preserves the literal
 meaning of all the characters (except single quotes, making
@@ -369,13 +353,7 @@ The backslash inside double quotes is historically weird.
 It remains literal unless it precedes the following characters,
 which it serves to quote:
 .Bl -column "XXX" "XXX" "XXX" "XXX" "XXX" -offset center -compact
-.It Xo
-.Li $ Ta Xo
-.Li ` Ta Xo
-.Li \&" Ta Xo
-.Li \e\  Ta Xo
-.Li \en
-.Xc Xc Xc Xc Xc
+.It Li $ Ta Li ` Ta Li \&" Ta Li \e\  Ta Li \en
 .El
 .It Backslash
 A backslash preserves the literal meaning of the following
@@ -388,27 +366,9 @@ Reserved words are words that have special meaning to the
 shell and are recognized at the beginning of a line and
 after a control operator.  The following are reserved words:
 .Bl -column "doneXX" "elifXX" "elseXX" "untilXX" "whileX" -offset center
-.It Xo
-.Li \&! Ta Xo
-.Li { Ta Xo
-.Li } Ta Xo
-.Ic case Ta Xo
-.Ic do
-.Xc Xc Xc Xc Xc
-.It Xo
-.Ic done Ta Xo
-.Ic elif Ta Xo
-.Ic else Ta Xo
-.Ic esac Ta Xo
-.Ic fi
-.Xc Xc Xc Xc Xc
-.It Xo
-.Ic for Ta Xo
-.Ic if Ta Xo
-.Ic then Ta Xo
-.Ic until Ta Xo
-.Ic while
-.Xc Xc Xc Xc Xc
+.It Li \&! Ta { Ta } Ta Ic case Ta Ic do
+.It Ic done Ta Ic elif Ta Ic else Ta Ic esac Ta Ic fi
+.It Ic for Ta Ic if Ta Ic then Ta Ic until Ta Ic while
 .El
 .Ss Aliases
 An alias is a name and corresponding value set using the
@@ -859,7 +819,7 @@ This should appear as the first statement of a function,
 and the syntax is:
 .Bd -ragged -offset indent
 .Ic local
-.Op Ar variable ...\&
+.Op Ar variable ...
 .Op Ar -
 .Ed
 .Pp
@@ -1076,7 +1036,7 @@ expansion, with the exception of the special parameter
 .Pp
 In addition, a parameter expansion can be modified by using one of the
 following formats.
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Li ${parameter:-word}
 Use Default Values.  If parameter is unset or
 null, the expansion of word is
@@ -1129,7 +1089,7 @@ the result of the expansion is unspecified.
 Enclosing the full parameter expansion string in double-quotes does not
 cause the following four varieties of pattern characters to be quoted,
 whereas quoting characters within the braces has this effect.
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Li ${parameter%word}
 Remove Smallest Suffix Pattern.  The word
 is expanded to produce a pattern.  The
@@ -1273,12 +1233,10 @@ make it the first or last character listed.
 This section lists the commands which
 are builtin because they need to perform some operation
 that cannot be performed by a separate process.  In addition to
-these, builtin versions of the
-.Xr printf 1
-and
+these, a builtin version of the
 .Xr test 1
-commands are provided for efficiency.
-.Bl -tag -width Ds
+command is provided for efficiency.
+.Bl -tag -width indent
 .It Ic \&:
 A null command that returns a 0 (true) exit value.
 .It Ic \&. Ar file
@@ -1293,9 +1251,7 @@ for the file.  If it is not found in the
 .Ev PATH ,
 it is sought in the current working directory.
 .It Ic alias Op Ar name ...
-.It Ic alias Xo
-.Op Ar name Ns = Ns Ar string ...
-.Xc
+.It Ic alias Op Ar name Ns = Ns Ar string ...
 If
 .Ar name Ns = Ns Ar string
 is specified, the shell defines the alias
@@ -1312,6 +1268,8 @@ With no arguments, the
 builtin command prints the names and values of all defined aliases
 (see
 .Ic unalias ) .
+Alias values are written with appropriate quoting so that they are
+suitable for reinput to the shell.
 .It Ic bg Op Ar job ...
 Continue the specified jobs
 (or the current job if no jobs are given)
@@ -1321,7 +1279,7 @@ Execute the specified builtin command,
 .Ar cmd .
 This is useful when the user wishes to override a shell function
 with the same name as a builtin command.
-.It Ic cd Op Ar directory
+.It Ic cd Oo Fl LP Oc Op Ar directory
 Switch to the specified
 .Ar directory ,
 or to the directory specified in the
@@ -1332,8 +1290,7 @@ is specified.
 If
 .Ar directory
 does not begin with
-.Pa / ,
-.Pa \&. ,
+.Pa / , . ,
 or
 .Pa .. ,
 then the directories listed in the
@@ -1357,26 +1314,36 @@ if this is different from the name that the user gave.
 These may be different either because the
 .Ev CDPATH
 mechanism was used or because a symbolic link was crossed.
+.Pp
+If the
+.Fl P
+option is specified,
+.Pa ..
+is handled physically and symbolic links are resolved before
+.Pa ..
+components are processed.
+If the
+.Fl L
+option is specified,
+.Pa ..
+is handled logically.
+This is the default.
 .It Ic chdir
 A synonym for the
 .Ic cd
 builtin command.
-.It Xo
-.Ic echo
-.Op Fl en
-.Ar string
-.Xc
+.It Ic echo Oo Fl en Oc Ar string
 Print
 .Ar string
 to the standard output with a newline appended.
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl n
 Suppress the output of the trailing newline.
 .It Fl e
 Process C-style backslash escape sequences.
 .Ic echo
 understands the following character escapes:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It \ea
 Alert (ring the terminal bell)
 .It \eb
@@ -1441,7 +1408,11 @@ If
 is given
 it is used as the exit status of the shell;
 otherwise the exit status of the preceding command is used.
-.It Ic export Ar name ...
+.It Xo
+.Ic export
+.Op Fl p
+.Op Ar name ...
+.Xc
 The specified names are exported so that they will
 appear in the environment of subsequent commands.
 The only way to un-export a variable is to
@@ -1455,28 +1426,19 @@ export name=value
 .Pp
 With no arguments the export command lists the names
 of all exported variables.
-.It Xo
-.Ic fc
-.Op Fl e Ar editor
-.Op Ar first Op Ar last
-.Xc
-.It Xo
-.Ic fc
-.Fl l
-.Op Fl nr
-.Op Ar first Op Ar last
-.Xc
-.It Xo
-.Ic fc
-.Fl s
-.Op Ar old=new
-.Op Ar first
-.Xc
+If the
+.Fl p
+option is specified, the exported variables are printed as
+.Dq Ic export Ar name Ns = Ns Ar value
+lines, suitable for re-input to the shell.
+.It Ic fc Oo Fl e Ar editor Oc Op Ar first Op Ar last
+.It Ic fc Fl l Oo Fl nr Oc Op Ar first Op Ar last
+.It Ic fc Fl s Oo Ar old Ns = Ns Ar new Oc Op Ar first
 The
 .Ic fc
 builtin command lists, or edits and re-executes,
 commands previously entered to an interactive shell.
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl e Ar editor
 Use the editor named by
 .Ar editor
@@ -1533,7 +1495,7 @@ The value of
 or
 .Ar last
 or both are one of the following:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Ar [+]num
 A positive number representing a command number;
 command numbers can be displayed with the
@@ -1559,7 +1521,7 @@ the string form of the first operand cannot contain an embedded equal sign.
 .Pp
 The following environment variables affect the execution of
 .Ic fc :
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Ev FCEDIT
 Name of the editor to use.
 .It Ev HISTSIZE
@@ -1590,11 +1552,7 @@ If an invalid option is encountered,
 is set to
 .Dq Li \&? .
 It returns a false value (1) when it encounters the end of the options.
-.It Xo
-.Ic hash
-.Op Fl rv
-.Op Ar command ...
-.Xc
+.It Ic hash Oo Fl rv Oc Op Ar command ...
 The shell maintains a hash table which remembers the locations of commands.
 With no arguments whatsoever, the
 .Ic hash
@@ -1625,10 +1583,23 @@ Print the process id's of the processes in the specified
 If the
 .Ar job
 argument is omitted, use the current job.
-.It Ic jobs
-This command lists out all the background processes
-which are children of the current shell process.
-.It Ic pwd
+.It Xo
+.Ic jobs
+.Op Fl ls
+.Op Ar job ...
+.Xc
+Print information about the specified jobs, or all jobs if no
+.Ar job
+argument is given.
+The information printed includes job ID, status and command name.
+.Pp
+If the
+.Fl l
+option is specified, the PID of each job is also printed.
+If the
+.Fl s
+option is specified, only the PID's of the jobs are printed, one per line.
+.It Ic pwd Op Fl LP
 Print the path of the current directory.  The builtin command may
 differ from the program of the same name because the
 builtin command remembers what the current directory
@@ -1638,13 +1609,16 @@ renamed,
 the builtin version of
 .Xr pwd 1
 will continue to print the old name for the directory.
-.It Xo
-.Ic read
-.Op Fl p Ar prompt
-.Op Fl t Ar timeout
-.Op Fl er
-.Ar variable ...
-.Xc
+.Pp
+If the
+.Fl P
+option is specified, symbolic links are resolved.
+If the
+.Fl L
+option is specified, the shell's notion of the current directory
+is printed (symbolic links are not resolved).
+This is the default.
+.It Ic read Oo Fl p Ar prompt Oc Oo Fl t Ar timeout Oc Oo Fl er Oc Ar variable ...
 The
 .Ar prompt
 is printed if the
@@ -1699,7 +1673,11 @@ is assumed.
 The
 .Fl e
 option exists only for backward compatibility with older scripts.
-.It Ic readonly Ar name ...
+.It Xo
+.Ic readonly
+.Op Fl p
+.Op Ar name ...
+.Xc
 Each specified
 .Ar name
 is marked as read only,
@@ -1714,13 +1692,13 @@ readonly name=value
 With no arguments the
 .Ic readonly
 command lists the names of all read only variables.
-.It Xo
-.Ic set
-.Op Fl /+abCEefIimnpTuVvx
-.Op Fl /+o Ar longname
-.Op Fl c Ar string
-.Op Fl - Ar arg ...
-.Xc
+If the
+.Fl p
+option is specified, the read-only variables are printed as
+.Dq Ic readonly Ar name Ns = Ns Ar value
+lines, suitable for re-input to the shell.
+.It Ic set Oo Fl /+abCEefIimnpTuVvx Oc Oo Fl /+o Ar longname Oc Oo
+.Fl c Ar string Oc Op Fl - Ar arg ...
 The
 .Ic set
 command performs three different functions:
@@ -1784,11 +1762,7 @@ A shift sets the value of $1 to the value of $2,
 the value of $2 to the value of $3, and so on,
 decreasing the value of $# by one.
 If there are zero positional parameters, shifting does not do anything.
-.It Xo
-.Ic trap
-.Op Ar action
-.Ar signal ...
-.Xc
+.It Ic trap Oo Ar action Oc Ar signal ...
 Cause the shell to parse and execute
 .Ar action
 when any specified
@@ -1815,11 +1789,7 @@ and not found.
 For aliases the alias expansion is printed;
 for commands and tracked aliases
 the complete pathname of the command is printed.
-.It Xo
-.Ic ulimit
-.Op Fl HSabcdflmnstuv
-.Op Ar limit
-.Xc
+.It Ic ulimit Oo Fl HSabcdflmnstuv Oc Op Ar limit
 Set or display resource limits (see
 .Xr getrlimit 2 ) .
 If
@@ -1856,7 +1826,7 @@ is not acceptable in this mode.
 The remaining options specify which resource value is to be
 displayed or modified.
 They are mutually exclusive.
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl b Ar sbsize
 The maximum size of socket buffer usage, in bytes.
 .It Fl c Ar coredumpsize
@@ -1887,23 +1857,29 @@ Set the file creation mask (see
 to the octal value specified by
 .Ar mask .
 If the argument is omitted, the current mask value is printed.
-.It Xo
-.Ic unalias
-.Op Fl a
-.Op Ar name
-.Xc
+.It Ic unalias Oo Fl a Oc Op Ar name
 If
 .Ar name
 is specified, the shell removes that alias.
 If
 .Fl a
 is specified, all aliases are removed.
-.It Ic unset Ar name ...
-The specified variables and functions are unset and unexported.
-If a given
+.It Xo
+.Ic unset
+.Op Fl fv
+.Ar name ...
+.Xc
+The specified variables or functions are unset and unexported.
+If the
+.Fl v
+option is specified or no options are given, the
 .Ar name
-corresponds to both a variable and a function,
-both the variable and the function are unset.
+arguments are treated as variable names.
+If the
+.Fl f
+option is specified, the
+.Ar name
+arguments are treated as function names.
 .It Ic wait Op Ar job
 Wait for the specified
 .Ar job
@@ -1948,11 +1924,10 @@ emacs-style command line editing features.
 .Xr builtin 1 ,
 .Xr echo 1 ,
 .Xr expr 1 ,
-.Xr printf 1 ,
 .Xr pwd 1 ,
 .Xr test 1
 .Sh HISTORY
 A
 .Nm
 command appeared in
-.At V.1 .
+.At v1 .

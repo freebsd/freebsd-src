@@ -38,9 +38,9 @@
 #if 0
 static char sccsid[] = "@(#)histedit.c	8.2 (Berkeley) 5/4/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <limits.h>
@@ -72,14 +72,14 @@ EditLine *el;	/* editline cookie */
 int displayhist;
 static FILE *el_in, *el_out;
 
-STATIC char *fc_replace __P((const char *, char *, char *));
+STATIC char *fc_replace(const char *, char *, char *);
 
 /*
  * Set history and editing status.  Called whenever the status may
  * have changed (figures out what to do).
  */
 void
-histedit()
+histedit(void)
 {
 
 #define editing (Eflag || Vflag)
@@ -165,9 +165,7 @@ sethistsize(hs)
  *  the Korn shell fc command.  Oh well...
  */
 int
-histcmd(argc, argv)
-	int argc;
-	char **argv;
+histcmd(int argc, char **argv)
 {
 	int ch;
 	char *editor = NULL;
@@ -182,6 +180,7 @@ histcmd(argc, argv)
 	struct jmploc *volatile savehandler;
 	char editfile[PATH_MAX];
 	FILE *efp;
+	int oldhistnum;
 #ifdef __GNUC__
 	/* Avoid longjmp clobbering */
 	(void) &editor;
@@ -209,7 +208,7 @@ histcmd(argc, argv)
 	      (ch = getopt(argc, argv, ":e:lnrs")) != -1)
 		switch ((char)ch) {
 		case 'e':
-			editor = shoptarg;
+			editor = optarg;
 			break;
 		case 'l':
 			lflg = 1;
@@ -392,9 +391,7 @@ histcmd(argc, argv)
 }
 
 STATIC char *
-fc_replace(s, p, r)
-	const char *s;
-	char *p, *r;
+fc_replace(const char *s, char *p, char *r)
 {
 	char *dest;
 	int plen = strlen(p);
@@ -416,8 +413,7 @@ fc_replace(s, p, r)
 }
 
 int
-not_fcnumber(s)
-	char *s;
+not_fcnumber(char *s)
 {
 	if (s == NULL)
 		return (0);
@@ -427,9 +423,7 @@ not_fcnumber(s)
 }
 
 int
-str_to_event(str, last)
-	char *str;
-	int last;
+str_to_event(char *str, int last)
 {
 	const HistEvent *he;
 	char *s = str;
@@ -479,9 +473,7 @@ str_to_event(str, last)
 #include "error.h"
 
 int
-histcmd(argc, argv)
-	int argc;
-	char **argv;
+histcmd(int argc, char **argv)
 {
 
 	error("not compiled with history support");

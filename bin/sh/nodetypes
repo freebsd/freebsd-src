@@ -120,6 +120,7 @@ NTO nfile			# fd> fname
 NFROM nfile			# fd< fname
 NFROMTO nfile			# fd<> fname
 NAPPEND nfile			# fd>> fname
+NCLOBBER nfile			# fd>| fname
 	type	  int
 	next	  nodeptr		# next redirection in list
 	fd	  int			# file descriptor being redirected

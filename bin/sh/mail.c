@@ -38,9 +38,9 @@
 #if 0
 static char sccsid[] = "@(#)mail.c	8.2 (Berkeley) 5/4/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Routines to check for mail.  (Perhaps make part of main.c?)
@@ -72,8 +72,7 @@ STATIC time_t mailtime[MAXMBOXES];	/* times of mailboxes */
  */
 
 void
-chkmail(silent)
-	int silent;
+chkmail(int silent)
 {
 	int i;
 	char *mpath;

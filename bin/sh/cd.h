@@ -33,6 +33,6 @@
  * $FreeBSD$
  */
 
-char	*getpwd __P((void));
-int	 cdcmd  __P((int, char **));
-int	 pwdcmd __P((int, char **));
+char	*getpwd(void);
+int	 cdcmd (int, char **);
+int	 pwdcmd(int, char **);

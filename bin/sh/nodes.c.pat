@@ -57,11 +57,11 @@ char   *funcstring;		/* block to allocate strings from */
 %SIZES
 
 
-STATIC void calcsize __P((union node *));
-STATIC void sizenodelist __P((struct nodelist *));
-STATIC union node *copynode __P((union node *));
-STATIC struct nodelist *copynodelist __P((struct nodelist *));
-STATIC char *nodesavestr __P((char *));
+STATIC void calcsize(union node *);
+STATIC void sizenodelist(struct nodelist *);
+STATIC union node *copynode(union node *);
+STATIC struct nodelist *copynodelist(struct nodelist *);
+STATIC char *nodesavestr(char *);
 
 
 
@@ -70,8 +70,7 @@ STATIC char *nodesavestr __P((char *));
  */
 
 union node *
-copyfunc(n)
-	union node *n;
+copyfunc(union node *n)
 {
 	if (n == NULL)
 		return NULL;
@@ -86,8 +85,7 @@ copyfunc(n)
 
 
 STATIC void
-calcsize(n)
-	union node *n;
+calcsize(union node *n)
 {
 	%CALCSIZE
 }
@@ -95,8 +93,7 @@ calcsize(n)
 
 
 STATIC void
-sizenodelist(lp)
-	struct nodelist *lp;
+sizenodelist(struct nodelist *lp)
 {
 	while (lp) {
 		funcblocksize += ALIGN(sizeof(struct nodelist));
@@ -108,8 +105,7 @@ sizenodelist(lp)
 
 
 STATIC union node *
-copynode(n)
-	union node *n;
+copynode(union node *n)
 {
 	union node *new;
 
@@ -119,8 +115,7 @@ copynode(n)
 
 
 STATIC struct nodelist *
-copynodelist(lp)
-	struct nodelist *lp;
+copynodelist(struct nodelist *lp)
 {
 	struct nodelist *start;
 	struct nodelist **lpp;
@@ -140,8 +135,7 @@ copynodelist(lp)
 
 
 STATIC char *
-nodesavestr(s)
-	char   *s;
+nodesavestr(char *s)
 {
 	char *p = s;
 	char *q = funcstring;
@@ -160,8 +154,7 @@ nodesavestr(s)
  */
 
 void
-freefunc(n)
-	union node *n;
+freefunc(union node *n)
 {
 	if (n)
 		ckfree(n);
