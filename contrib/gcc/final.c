@@ -345,8 +345,6 @@ end_final (filename)
       /* zero word */
       assemble_integer (const0_rtx, UNITS_PER_WORD, 1);
 
-      fprintf(asm_out_file,".stabs \"bbset\", 25, 0, 0, LPBX0\n");
-
       /* address of filename */
       ASM_GENERATE_INTERNAL_LABEL (name, "LPBX", 1);
       assemble_integer (gen_rtx (SYMBOL_REF, Pmode, name), UNITS_PER_WORD, 1);
