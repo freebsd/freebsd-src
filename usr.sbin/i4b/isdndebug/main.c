@@ -27,7 +27,7 @@
  *	main.c - i4b set debug options
  *	------------------------------
  *
- *	$Id: main.c,v 1.17 1999/04/28 14:48:06 hm Exp $ 
+ *	$Id: main.c,v 1.3 1999/05/20 10:13:12 hm Exp $ 
  *
  *      last edit-date: [Wed Apr 28 16:47:28 1999]
  *
@@ -84,7 +84,7 @@ main(int argc, char **argv)
 	ctl_debug_t cdbg;
 	int ret;
 	
-	while ((c = getopt(argc, argv, "eghl:mrs:u:zH?")) != EOF)
+	while ((c = getopt(argc, argv, "eghl:mrs:u:zH?")) != -1)
 	{
 		switch(c)
 		{

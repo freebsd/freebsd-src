@@ -27,7 +27,7 @@
  *	main.c - isdndecode main program file
  *	-------------------------------------
  *
- *	$Id: main.c,v 1.8 1999/04/26 12:10:39 hm Exp $
+ *	$Id: main.c,v 1.3 1999/05/20 10:13:30 hm Exp $
  *
  *      last edit-date: [Mon Apr 26 14:02:44 1999]
  *
@@ -90,7 +90,7 @@ main(int argc, char *argv[])
 
 	b = &buf[sizeof(i4b_trace_hdr_t)];
 	
-	while( (c = getopt(argc, argv, "abdf:hiln:op:u:BPR:T:?")) != EOF)
+	while( (c = getopt(argc, argv, "abdf:hiln:op:u:BPR:T:?")) != -1)
 	{
 		switch(c)
 		{

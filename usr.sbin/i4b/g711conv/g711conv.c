@@ -67,7 +67,7 @@
  *
  *	last edit-date: [Mon Apr 26 14:00:31 1999]
  *
- *	$Id: g711conv.c,v 1.3 1999/04/26 12:10:39 hm Exp $
+ *	$Id: g711conv.c,v 1.1 1999/05/20 10:12:14 hm Exp $
  *
  *---------------------------------------------------------------------------*/
 
@@ -185,7 +185,7 @@ main(int argc, char **argv)
 	int opt_R = 0;	
 	unsigned char uc;
 	
-	while ((c = getopt(argc, argv, "aurPR?")) != EOF)
+	while ((c = getopt(argc, argv, "aurPR?")) != -1)
 	{
 		switch(c)
 		{
