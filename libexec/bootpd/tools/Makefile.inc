@@ -2,4 +2,3 @@
 # $FreeBSD$
 
 BINDIR=		/usr/sbin
-MANSECT?=	8

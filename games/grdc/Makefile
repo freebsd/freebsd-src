@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 PROG=   grdc
+MAN=   grdc.6
 DPADD=  ${LIBNCURSES}
 LDADD=  -lncurses
 

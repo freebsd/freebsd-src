@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	ftpd
+MAN=	ftpd.8
 SRCS=	ftpd.c ftpcmd.y logwtmp.c popen.c skey-stuff.c
 
 CFLAGS+=-DSETPROCTITLE -DSKEY -DLOGIN_CAP -DVIRTUAL_HOSTING -Wall

@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	fish
+MAN=	fish.6
 HIDEGAME=hidegame
 
 beforeinstall:
