@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.64 1998/12/27 11:23:05 luigi Exp $
+ * $Id: ipfw.c,v 1.65 1999/01/22 01:46:32 archie Exp $
  *
  */
 
@@ -572,16 +572,18 @@ show_usage(const char *fmt, ...)
 		warnx("error: %s", buf);
 	}
 	fprintf(stderr, "usage: ipfw [options]\n"
-"    flush\n"
+"    [pipe] flush\n"
 "    add [number] rule\n"
-"    delete number ...\n"
-"    list [number ...]\n"
-"    show [number ...]\n"
+"    [pipe] delete number ...\n"
+"    [pipe] list [number ...]\n"
+"    [pipe] show [number ...]\n"
 "    zero [number ...]\n"
+"    pipe number config [pipeconfig\n"
 "  rule:  action proto src dst extras...\n"
 "    action:\n"
 "      {allow|permit|accept|pass|deny|drop|reject|unreach code|\n"
-"       reset|count|skipto num|divert port|tee port|fwd ip} [log]\n"
+"       reset|count|skipto num|divert port|tee port|fwd ip|\n"
+"       pipe num} [log]\n"
 "    proto: {ip|tcp|udp|icmp|<number>}\n"
 "    src: from [not] {any|ip[{/bits|:mask}]} [{port|port-port},[port],...]\n"
 "    dst: to [not] {any|ip[{/bits|:mask}]} [{port|port-port},[port],...]\n"
@@ -593,7 +595,13 @@ show_usage(const char *fmt, ...)
 "    {established|setup}\n"
 "    tcpflags [!]{syn|fin|rst|ack|psh|urg},...\n"
 "    ipoptions [!]{ssrr|lsrr|rr|ts},...\n"
-"    icmptypes {type[,type]}...\n");
+"    icmptypes {type[,type]}...\n"
+"  pipecfg:\n"
+"    {bw|bandwidth} <number>{bit/s|Kbit/s|Mbit/s|Bytes/s|KBytes/s|MBytes/s}\n"
+"    delay <milliseconds>\n"
+"    queue <size>{packets|Bytes|KBytes}\n"
+"    plr <fraction>\n"
+);
 
 	exit(EX_USAGE);
 }
@@ -952,11 +960,11 @@ config_pipe(int ac, char **av)
             if (!strncmp(*av,"bw",strlen(*av)) ||
                 ! strncmp(*av,"bandwidth",strlen(*av))) {
                 pipe.bandwidth = strtoul(av[1], &end, 0);
-                if (*end == 'K')
+                if (*end == 'K' || *end == 'k' )
                         end++, pipe.bandwidth *= 1000 ;
                 else if (*end == 'M')
                         end++, pipe.bandwidth *= 1000000 ;
-                if (*end == 'B')
+                if ( *end == 'B' || !strncmp(end, "by", 2) )
                         pipe.bandwidth *= 8 ;
                 av+=2; ac-=2;
             } else if (!strncmp(*av,"delay",strlen(*av)) ) {
@@ -965,15 +973,19 @@ config_pipe(int ac, char **av)
             } else if (!strncmp(*av,"plr",strlen(*av)) ) {
                 
                 double d = strtod(av[1], NULL);
+		if (d > 1)
+		    d = 1 ;
+		else if (d < 0)
+		    d = 0 ;
                 pipe.plr = (int)(d*0x7fffffff) ;
                 av+=2; ac-=2;
             } else if (!strncmp(*av,"queue",strlen(*av)) ) {
                 end = NULL ;
                 pipe.queue_size = strtoul(av[1], &end, 0);
-                if (*end == 'K') {
+                if (*end == 'K' || *end == 'k') {
                     pipe.queue_size_bytes = pipe.queue_size*1024 ;
                     pipe.queue_size = 0 ;
-                } else if (*end == 'B') {
+                } else if (*end == 'B' || !strncmp(end, "by", 2)) {
                     pipe.queue_size_bytes = pipe.queue_size ;
                     pipe.queue_size = 0 ;
                 }
@@ -1439,8 +1451,10 @@ ipfw_main(ac,av)
 				do_flush = 1;
 		}
 		if ( do_flush ) {
-			if (setsockopt(s,IPPROTO_IP,IP_FW_FLUSH,NULL,0) < 0)
-				err(EX_UNAVAILABLE, "setsockopt(%s)", "IP_FW_FLUSH");
+			if (setsockopt(s, IPPROTO_IP,
+				do_pipe ? IP_DUMMYNET_FLUSH : IP_FW_FLUSH, NULL, 0) < 0)
+			    err(EX_UNAVAILABLE, "setsockopt(IP_%s_FLUSH)",
+				do_pipe ? "DUMMYNET" : "FW");
 			if (!do_quiet)
 				printf("Flushed all rules.\n");
 		}
