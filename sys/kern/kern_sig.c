@@ -1297,6 +1297,7 @@ psignal(p, sig)
 		    (action == SIG_DFL))
 		        return;
 		SIG_CONTSIGMASK(p->p_siglist);
+		p->p_flag &= ~P_CONTINUED;
 	}
 	SIGADDSET(p->p_siglist, sig);
 	signotify(p);			/* uses schedlock */
@@ -1345,6 +1346,7 @@ psignal(p, sig)
 			 * Otherwise, process goes back to sleep state.
 			 */
 			p->p_flag &= ~P_STOPPED_SGNL;
+			p->p_flag |= P_CONTINUED;
 			if (action == SIG_DFL) {
 				SIGDELSET(p->p_siglist, sig);
 			} else if (action == SIG_CATCH) {
