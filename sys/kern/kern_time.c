@@ -156,27 +156,27 @@ int
 clock_gettime(struct thread *td, struct clock_gettime_args *uap)
 {
 	struct timespec ats;
-	struct timeval user, sys;
+	struct timeval sys, user;
 
 	switch (uap->clock_id) {
 	case CLOCK_REALTIME:
 		nanotime(&ats);
 		break;
-	case CLOCK_MONOTONIC:
-		nanouptime(&ats);
-		break;
 	case CLOCK_VIRTUAL:
+		mtx_lock_spin(&sched_lock);
 		calcru(td->td_proc, &user, &sys, NULL);
+		mtx_unlock_spin(&sched_lock);
 		TIMEVAL_TO_TIMESPEC(&user, &ats);
 		break;
 	case CLOCK_PROF:
+		mtx_lock_spin(&sched_lock);
 		calcru(td->td_proc, &user, &sys, NULL);
-		ats.tv_sec = user.tv_sec + sys.tv_sec;
-		ats.tv_nsec = (user.tv_usec + sys.tv_usec) * 1000;
-		if (ats.tv_nsec > 1000000000) {
-			ats.tv_sec++;
-			ats.tv_nsec -= 1000000000;
-		}
+		mtx_unlock_spin(&sched_lock);
+		timevaladd(&user, &sys);
+		TIMEVAL_TO_TIMESPEC(&user, &ats);
+		break;
+	case CLOCK_MONOTONIC:
+		nanouptime(&ats);
 		break;
 	default:
 		return (EINVAL);
@@ -232,10 +232,8 @@ int
 clock_getres(struct thread *td, struct clock_getres_args *uap)
 {
 	struct timespec ts;
-	int error;
 
 	ts.tv_sec = 0;
-
 	switch (uap->clock_id) {
 	case CLOCK_REALTIME:
 	case CLOCK_MONOTONIC:
@@ -254,12 +252,9 @@ clock_getres(struct thread *td, struct clock_getres_args *uap)
 	default:
 		return (EINVAL);
 	}
-
-	error = 0;
-	if (uap->tp)
-		error = copyout(&ts, uap->tp, sizeof(ts));
-
-	return (error);
+	if (uap->tp == NULL)
+		return (0);
+	return (copyout(&ts, uap->tp, sizeof(ts)));
 }
 
 static int nanowait;
