@@ -3,7 +3,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
-#ifdef __sgi
+#if defined(__sgi) && (IRIX > 602)
 # include <sys/ptimers.h>
 #endif
 #include <sys/errno.h>
@@ -701,7 +701,8 @@ void *m;
 			if (!fr_tcpudpchk(&fr->fr_tuc, fin))
 				continue;
 		} else if (fr->fr_icmpm || fr->fr_icmp) {
-			if ((fi->fi_p != IPPROTO_ICMP) || off ||
+			if (((fi->fi_p != IPPROTO_ICMP) &&
+			    (fi->fi_p != IPPROTO_ICMPV6)) || off ||
 			    (fin->fin_dlen < 2))
 				continue;
 			if ((fin->fin_data[0] & fr->fr_icmpm) != fr->fr_icmp) {
@@ -815,6 +816,26 @@ int out;
 	char hbuf[128];
 #  endif
 	int up;
+
+#  if !SOLARIS && !defined(NETBSD_PF) && \
+      ((defined(__FreeBSD__) && (__FreeBSD_version < 500011)) || \
+       defined(__OpenBSD__) || defined(_BSDI_VERSION))
+	if (fr_checkp != fr_check && fr_running > 0) {
+		static int counter = 0;
+
+		if (counter == 0) {
+			printf("WARNING: fr_checkp corrupt: value %lx\n",
+				(u_long)fr_checkp);
+			printf("WARNING: fr_checkp should be %lx\n",
+				(u_long)fr_check);
+			printf("WARNING: fixing fr_checkp\n");
+		}
+		fr_checkp = fr_check;
+		counter++;
+		if (counter == 10000)
+			counter = 0;
+	}
+#  endif
 
 #  ifdef M_CANFASTFWD
 	/*
@@ -1526,7 +1547,7 @@ nodata:
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: fil.c,v 2.35.2.63 2002/08/28 12:40:08 darrenr Exp $
+ * $Id: fil.c,v 2.35.2.67 2002/12/06 13:28:05 darrenr Exp $
  */
 /*
  * Copy data from an mbuf chain starting "off" bytes from the beginning,
@@ -1732,9 +1753,9 @@ frentry_t **listp;
 }
 
 
-int frflush(unit, flags)
+int frflush(unit, proto, flags)
 minor_t unit;
-int flags;
+int proto, flags;
 {
 	int flushed = 0, set;
 
@@ -1749,19 +1770,35 @@ int flags;
 
 	if (flags & FR_OUTQUE) {
 #ifdef	USE_INET6
-		(void) frflushlist(set, unit, &flushed, &ipfilter6[1][set]);
-		(void) frflushlist(set, unit, &flushed, &ipacct6[1][set]);
+		if (proto == 0 || proto == 6) {
+			(void) frflushlist(set, unit,
+					   &flushed, &ipfilter6[1][set]);
+			(void) frflushlist(set, unit,
+					   &flushed, &ipacct6[1][set]);
+		}
 #endif
-		(void) frflushlist(set, unit, &flushed, &ipfilter[1][set]);
-		(void) frflushlist(set, unit, &flushed, &ipacct[1][set]);
+		if (proto == 0 || proto == 4) {
+			(void) frflushlist(set, unit,
+					   &flushed, &ipfilter[1][set]);
+			(void) frflushlist(set, unit,
+					   &flushed, &ipacct[1][set]);
+		}
 	}
 	if (flags & FR_INQUE) {
 #ifdef	USE_INET6
-		(void) frflushlist(set, unit, &flushed, &ipfilter6[0][set]);
-		(void) frflushlist(set, unit, &flushed, &ipacct6[0][set]);
+		if (proto == 0 || proto == 6) {
+			(void) frflushlist(set, unit,
+					    &flushed, &ipfilter6[0][set]);
+			(void) frflushlist(set, unit,
+					   &flushed, &ipacct6[0][set]);
+		}
 #endif
-		(void) frflushlist(set, unit, &flushed, &ipfilter[0][set]);
-		(void) frflushlist(set, unit, &flushed, &ipacct[0][set]);
+		if (proto == 0 || proto == 4) {
+			(void) frflushlist(set, unit,
+					   &flushed, &ipfilter[0][set]);
+			(void) frflushlist(set, unit,
+					   &flushed, &ipacct[0][set]);
+		}
 	}
 	RWLOCK_EXIT(&ipf_mutex);
 	return flushed;
