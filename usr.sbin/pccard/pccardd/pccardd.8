@@ -40,6 +40,7 @@
 .Op Fl i Ar IRQ
 .Op Fl I
 .Op Fl f Ar configfile
+.Op Fl s Ar socket
 .Sh DESCRIPTION
 The
 .Nm
@@ -158,6 +159,10 @@ and lists the PC-CARD cards recognized by
 .Nm ,
 and the kernel drivers and devices that are used to
 interface to the card.
+.It Fl s Ar socket
+Specifies a path to a control socket.
+The default is
+.Pa /var/tmp/.pccardd .
 .El
 .Sh FILES
 .Bl -tag -width /etc/defaults/pccard.conf -compact
@@ -165,6 +170,8 @@ interface to the card.
 default configuration file
 .It Pa /etc/pccard.conf
 user configuration file
+.It Pa /var/tmp/.pccardd
+default control socket
 .It Pa /var/run/pccardd.pid
 process id of the currently running
 .Nm
