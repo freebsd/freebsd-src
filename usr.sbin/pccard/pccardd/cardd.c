@@ -363,7 +363,7 @@ escape:
 	}
 	if ((sp->config = assign_driver(cp)) == NULL) 
 		return;
-	if (err = assign_io(sp)) {
+	if ((err = assign_io(sp))) {
 		char *reason;
 
 		switch (err) {
@@ -825,6 +825,7 @@ setup_slot(struct slot *sp)
 	offs = sp->cis->reg_addr;
 	rw_flags = MDF_ATTR;
 	ioctl(sp->fd, PIOCRWFLAG, &rw_flags);
+#if RESET_MAY_BE_HARMFUL
 	lseek(sp->fd, offs, SEEK_SET);
 	c = 0x80;
 	write(sp->fd, &c, sizeof(c));
@@ -833,6 +834,7 @@ setup_slot(struct slot *sp)
 	c = 0x00;
 	write(sp->fd, &c, sizeof(c));
 	usleep(sp->card->reset_time * 1000);
+#endif
 	lseek(sp->fd, offs, SEEK_SET);
 	c = sp->config->index;
 	c |= 0x40;
