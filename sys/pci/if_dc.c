@@ -1223,10 +1223,14 @@ static void dc_setcfg(sc, media)
 		if (sc->dc_pmode == DC_PMODE_MII) {
 			int	watchdogreg;
 
+			if (DC_IS_INTEL(sc)) {
 			/* there's a write enable bit here that reads as 1 */
-			watchdogreg = CSR_READ_4(sc, DC_WATCHDOG);
-			watchdogreg &= ~DC_WDOG_CTLWREN;
-			watchdogreg |= DC_WDOG_JABBERDIS;
+				watchdogreg = CSR_READ_4(sc, DC_WATCHDOG);
+				watchdogreg &= ~DC_WDOG_CTLWREN;
+				watchdogreg |= DC_WDOG_JABBERDIS;
+			} else {
+				DC_SETBIT(sc, DC_WATCHDOG, DC_WDOG_JABBERDIS);
+			}
 			DC_CLRBIT(sc, DC_NETCFG, (DC_NETCFG_PCS|
 			    DC_NETCFG_PORTSEL|DC_NETCFG_SCRAMBLER));
 			if (sc->dc_type == DC_TYPE_98713)
