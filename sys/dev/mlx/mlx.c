@@ -2433,8 +2433,8 @@ mlx_describe_controller(struct mlx_softc *sc)
 		  sc->mlx_enq2->me_actual_channels > 1 ? "s" : "",
 		  sc->mlx_enq2->me_firmware_id & 0xff,
 		  (sc->mlx_enq2->me_firmware_id >> 8) & 0xff,
-		  (sc->mlx_enq2->me_firmware_id >> 16),
 		  (sc->mlx_enq2->me_firmware_id >> 24) & 0xff,
+		  (sc->mlx_enq2->me_firmware_id >> 16),
 		  sc->mlx_enq2->me_mem_size / (1024 * 1024));
 
     if (bootverbose) {
