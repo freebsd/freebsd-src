@@ -14,16 +14,6 @@ SRCS=   authfd.c authfile.c bufaux.c buffer.c canohost.c channels.c \
 SRCS+=	getaddrinfo.c getnameinfo.c name6.c rcmd.c bindresvport.c
 .endif
 
-.if defined(MAKE_KERBEROS4) && \
-	((${MAKE_KERBEROS4} == "yes") || (${MAKE_KERBEROS4} == "YES"))
-CFLAGS+= -DKRB4
-.endif # MAKE_KERBEROS4
-
-.if defined(MAKE_KERBEROS5) && \
-	((${MAKE_KERBEROS5} == "yes") || (${MAKE_KERBEROS5} == "YES"))
-CFLAGS+= -DKRB5
-.endif # MAKE_KERBEROS5
-
 DPADD=	${LIBCRYPTO} ${LIBZ}
 LDADD=	-lcrypto -lz
 
