@@ -23,12 +23,15 @@ SUBDIR=	atrun \
 	rpc.rwalld \
 	rpc.sprayd \
 	rshd \
-	rtld-elf \
 	save-entropy \
 	talkd \
 	tcpd \
 	tftpd \
 	ypxfr
+
+.if ${MACHINE_ARCH} != amd64
+SUBDIR+=rtld-elf
+.endif
 
 .if !defined(NO_BIND)
 SUBDIR+=named-xfer
