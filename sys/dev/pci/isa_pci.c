@@ -42,6 +42,7 @@
 #include <sys/bus.h>
 #include <sys/rman.h>
 
+#include <isa/isavar.h>
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 
@@ -54,7 +55,7 @@ struct isab_softc {
 };
 
 static int	isab_probe(device_t dev);
-static int	isab_attach(device_t dev);
+static int	pci_isab_attach(device_t dev);
 static int	isab_detach(device_t dev);
 static int	isab_resume(device_t dev);
 static int	isab_suspend(device_t dev);
@@ -62,7 +63,7 @@ static int	isab_suspend(device_t dev);
 static device_method_t isab_methods[] = {
     /* Device interface */
     DEVMETHOD(device_probe,		isab_probe),
-    DEVMETHOD(device_attach,		isab_attach),
+    DEVMETHOD(device_attach,		pci_isab_attach),
     DEVMETHOD(device_detach,		isab_detach),
     DEVMETHOD(device_shutdown,		bus_generic_shutdown),
     DEVMETHOD(device_suspend,		isab_suspend),
@@ -85,8 +86,6 @@ static driver_t isab_driver = {
     isab_methods,
     sizeof(struct isab_softc),
 };
-
-static devclass_t isab_devclass;
 
 DRIVER_MODULE(isab, pci, isab_driver, isab_devclass, 0, 0);
 
@@ -155,21 +154,17 @@ isab_probe(device_t dev)
 }
 
 static int
-isab_attach(device_t dev)
+pci_isab_attach(device_t dev)
 {
-    device_t	child;
     struct isab_softc *sc = device_get_softc(dev);
     int error, rid;
 
     /*
      * Attach an ISA bus.  Note that we can only have one ISA bus.
      */
-    child = device_add_child(dev, "isa", 0);
-    if (child != NULL) {
-	error = bus_generic_attach(dev);
-	if (error)
-	     return (error);
-    }
+    error = isab_attach(dev);
+    if (error)
+	    return (error);
 
     switch (pci_get_devid(dev)) {
     case 0x71108086: /* Intel 82371AB */
