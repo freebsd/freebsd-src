@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1 1997/12/15 23:40:54 cwt Exp $
+# $Id: Makefile,v 1.2 1997/12/21 08:31:50 cwt Exp $
 
 GLOBAL_DIR=	${.CURDIR}/../../../contrib/global
 .PATH:		${GLOBAL_DIR}/lib
