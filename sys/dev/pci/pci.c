@@ -60,7 +60,7 @@
 #include "pcib_if.h"
 #include "pci_if.h"
 
-static uint32_t	pci_mapbase(unsigned mapreg);
+static uint32_t		pci_mapbase(unsigned mapreg);
 static int		pci_maptype(unsigned mapreg);
 static int		pci_mapsize(unsigned testval);
 static int		pci_maprange(unsigned mapreg);
@@ -69,18 +69,18 @@ static void		pci_fixancient(pcicfgregs *cfg);
 static int		pci_porten(device_t pcib, int b, int s, int f);
 static int		pci_memen(device_t pcib, int b, int s, int f);
 static int		pci_add_map(device_t pcib, int b, int s, int f, int reg, 
-				    struct resource_list *rl);
+			    struct resource_list *rl);
 static void		pci_add_resources(device_t pcib, device_t bus,
-					  device_t dev);
+			    device_t dev);
 static int		pci_probe(device_t dev);
 static int		pci_attach(device_t dev);
 static void		pci_load_vendor_data(void);
 static int		pci_describe_parse_line(char **ptr, int *vendor, 
-						int *device, char **desc);
+			    int *device, char **desc);
 static char		*pci_describe_device(device_t dev);
 static int		pci_modevent(module_t mod, int what, void *arg);
 static void		pci_hdrtypedata(device_t pcib, int b, int s, int f, 
-					pcicfgregs *cfg);
+			    pcicfgregs *cfg);
 static void		pci_read_extcap(device_t pcib, pcicfgregs *cfg);
 
 static device_method_t pci_methods[] = {
