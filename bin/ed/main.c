@@ -355,7 +355,7 @@ next_addr(void)
 				addr = addr_last;
 				break;
 			}
-			/* FALL THROUGH */
+			/* FALLTHROUGH */
 		default:
 			if (ibufp == hd)
 				return EOF;
@@ -489,7 +489,7 @@ exec_command(void)
 	case 'e':
 		if (modified && !scripted)
 			return EMOD;
-		/* fall through */
+		/* FALLTHROUGH */
 	case 'E':
 		if (addr_cnt > 0) {
 			errmsg = "unexpected address";
