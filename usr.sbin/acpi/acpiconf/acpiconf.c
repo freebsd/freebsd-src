@@ -45,7 +45,7 @@
 
 static int	acpifd;
 
-static int
+static void
 acpi_init(void)
 {
 	acpifd = open(ACPIDEV, O_RDWR);
