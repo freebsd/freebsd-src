@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.48 1998/12/19 02:55:33 julian Exp $
+ *  $Id: linux_misc.c,v 1.49 1998/12/24 21:21:20 julian Exp $
  */
 
 #include <sys/param.h>
@@ -1171,3 +1171,75 @@ linux_nice(struct proc *p, struct linux_nice_args *args)
 	return setpriority(p, &bsd_args);
 }
 
+int
+linux_setgroups(p, uap)
+     struct proc *p;
+     struct linux_setgroups_args *uap;
+{
+  struct pcred *pc = p->p_cred;
+  linux_gid_t linux_gidset[NGROUPS];
+  gid_t *bsd_gidset;
+  int ngrp, error;
+
+  if ((error = suser(pc->pc_ucred, &p->p_acflag)))
+    return error;
+
+  if (uap->gidsetsize > NGROUPS)
+    return EINVAL;
+
+  ngrp = uap->gidsetsize;
+  pc->pc_ucred = crcopy(pc->pc_ucred);
+  if (ngrp >= 1) {
+    if ((error = copyin((caddr_t)uap->gidset,
+                      (caddr_t)linux_gidset,
+                        ngrp * sizeof(linux_gid_t))))
+      return error;
+
+    pc->pc_ucred->cr_ngroups = ngrp;
+
+    bsd_gidset = pc->pc_ucred->cr_groups;
+    ngrp--;
+    while (ngrp >= 0) {
+      bsd_gidset[ngrp] = linux_gidset[ngrp];
+      ngrp--;
+    }
+  }
+  else
+    pc->pc_ucred->cr_ngroups = 1;
+
+  setsugid(p);
+  return 0;
+}
+
+int
+linux_getgroups(p, uap)
+     struct proc *p;
+     struct linux_getgroups_args *uap;
+{
+  struct pcred *pc = p->p_cred;
+  linux_gid_t linux_gidset[NGROUPS];
+  gid_t *bsd_gidset;
+  int ngrp, error;
+
+  if ((ngrp = uap->gidsetsize) == 0) {
+    p->p_retval[0] = pc->pc_ucred->cr_ngroups;
+    return 0;
+  }
+
+  if (ngrp < pc->pc_ucred->cr_ngroups)
+    return EINVAL;
+
+  ngrp = 0;
+  bsd_gidset = pc->pc_ucred->cr_groups;
+  while (ngrp < pc->pc_ucred->cr_ngroups) {
+    linux_gidset[ngrp] = bsd_gidset[ngrp];
+    ngrp++;
+  }
+
+  if ((error = copyout((caddr_t)linux_gidset, (caddr_t)uap->gidset,
+                       ngrp * sizeof(linux_gid_t))))
+    return error;
+
+  p->p_retval[0] = ngrp;
+  return (0);
+}
