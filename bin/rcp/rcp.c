@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rcp.c,v 1.5 1995/09/10 14:57:48 markm Exp $
+ *	$Id: rcp.c,v 1.6 1996/02/08 21:06:40 pst Exp $
  */
 
 #ifndef lint
@@ -69,7 +69,7 @@ static char sccsid[] = "@(#)rcp.c	8.2 (Berkeley) 4/2/94";
 #include "extern.h"
 
 #ifdef KERBEROS
-#include <kerberosIV/des.h>
+#include <des.h>
 #include <kerberosIV/krb.h>
 
 #include "../../usr.bin/rlogin/krb.h"
