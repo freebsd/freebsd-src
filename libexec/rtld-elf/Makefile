@@ -1,6 +1,5 @@
 # $FreeBSD$
 
-MAINTAINER=	jdp
 PROG=		ld-elf.so.1
 SRCS=		rtld_start.S rtld.c lockdflt.c map_object.c malloc.c \
 		xmalloc.c debug.c reloc.c
