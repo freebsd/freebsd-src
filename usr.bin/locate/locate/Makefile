@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
-# $Id$
+#	$Id$
 
 PROG=	locate
 SRCS=	util.c locate.c
@@ -21,5 +21,4 @@ beforeinstall:
 #		${.CURDIR}/locate.rc ${DESTDIR}/etc
 
 .include "../../Makefile.inc"
-.include "../Makefile.inc"
 .include <bsd.prog.mk>
