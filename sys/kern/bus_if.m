@@ -82,20 +82,20 @@ METHOD void probe_nomatch {
 # Read an instance variable.  Return 0 on success.
 #
 METHOD int read_ivar {
-	device_t dev;
-	device_t child;
-	int indx;
-	uintptr_t *result;
+	device_t _dev;
+	device_t _child;
+	int _indx;
+	uintptr_t *_result;
 };
 
 #
 # Write an instance variable.  Return 0 on success.
 #
 METHOD int write_ivar {
-	device_t dev;
-	device_t child;
-	int indx;
-	uintptr_t value;
+	device_t _dev;
+	device_t _child;
+	int _indx;
+	uintptr_t _value;
 };
 
 #
@@ -103,8 +103,8 @@ METHOD int write_ivar {
 # to reclaim any resources allocated on behalf of the child.
 #
 METHOD void child_detached {
-	device_t dev;
-	device_t child;
+	device_t _dev;
+	device_t _child;
 };
 
 #
@@ -113,8 +113,8 @@ METHOD void child_detached {
 # attach any un-matched children of the bus.
 #
 METHOD void driver_added {
-	device_t dev;
-	driver_t *driver;
+	device_t _dev;
+	driver_t *_driver;
 } DEFAULT bus_generic_driver_added;
 
 #
@@ -124,10 +124,10 @@ METHOD void driver_added {
 # added after the last existing child with the same order.
 #
 METHOD device_t add_child {
-	device_t dev;
-	int order;
-	const char *name;
-	int unit;
+	device_t _dev;
+	int _order;
+	const char *_name;
+	int _unit;
 };
 
 #
@@ -145,30 +145,30 @@ METHOD device_t add_child {
 # uses the resource.
 #
 METHOD struct resource * alloc_resource {
-	device_t	dev;
-	device_t	child;
-	int		type;
-	int	       *rid;
-	u_long		start;
-	u_long		end;
-	u_long		count;
-	u_int		flags;
+	device_t	_dev;
+	device_t	_child;
+	int		_type;
+	int	       *_rid;
+	u_long		_start;
+	u_long		_end;
+	u_long		_count;
+	u_int		_flags;
 } DEFAULT null_alloc_resource;
 
 METHOD int activate_resource {
-	device_t	dev;
-	device_t	child;
-	int		type;
-	int		rid;
-	struct resource *r;
+	device_t	_dev;
+	device_t	_child;
+	int		_type;
+	int		_rid;
+	struct resource *_r;
 };
 
 METHOD int deactivate_resource {
-	device_t	dev;
-	device_t	child;
-	int		type;
-	int		rid;
-	struct resource *r;
+	device_t	_dev;
+	device_t	_child;
+	int		_type;
+	int		_rid;
+	struct resource *_r;
 };
 
 #
@@ -177,28 +177,28 @@ METHOD int deactivate_resource {
 # is not necessarily the same as the one the client passed).
 #
 METHOD int release_resource {
-	device_t	dev;
-	device_t	child;
-	int		type;
-	int		rid;
-	struct resource *res;
+	device_t	_dev;
+	device_t	_child;
+	int		_type;
+	int		_rid;
+	struct resource *_res;
 };
 
 METHOD int setup_intr {
-	device_t	dev;
-	device_t	child;
-	struct resource *irq;
-	int		flags;
-	driver_intr_t	*intr;
-	void		*arg;
-	void		**cookiep;
+	device_t	_dev;
+	device_t	_child;
+	struct resource *_irq;
+	int		_flags;
+	driver_intr_t	*_intr;
+	void		*_arg;
+	void		**_cookiep;
 };
 
 METHOD int teardown_intr {
-	device_t	dev;
-	device_t	child;
-	struct resource	*irq;
-	void		*cookie;
+	device_t	_dev;
+	device_t	_child;
+	struct resource	*_irq;
+	void		*_cookie;
 };
 
 #
@@ -206,12 +206,12 @@ METHOD int teardown_intr {
 # the type or rid are out of range.
 #
 METHOD int set_resource {
-	device_t	dev;
-	device_t	child;
-	int		type;
-	int		rid;
-	u_long		start;
-	u_long		count;
+	device_t	_dev;
+	device_t	_child;
+	int		_type;
+	int		_rid;
+	u_long		_start;
+	u_long		_count;
 };
 
 #
@@ -219,28 +219,28 @@ METHOD int set_resource {
 # out of range or have not been set.
 #
 METHOD int get_resource {
-	device_t	dev;
-	device_t	child;
-	int		type;
-	int		rid;
-	u_long		*startp;
-	u_long		*countp;
+	device_t	_dev;
+	device_t	_child;
+	int		_type;
+	int		_rid;
+	u_long		*_startp;
+	u_long		*_countp;
 };
 
 #
 # Delete a resource.
 #
 METHOD void delete_resource {
-	device_t	dev;
-	device_t	child;
-	int		type;
-	int		rid;
+	device_t	_dev;
+	device_t	_child;
+	int		_type;
+	int		_rid;
 };
 
 #
 # Return a struct resource_list.
 #
 METHOD struct resource_list * get_resource_list {
-	device_t	dev;
-	device_t	child;
+	device_t	_dev;
+	device_t	_child;
 } DEFAULT bus_generic_get_resource_list;
