@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.28 1999/05/08 11:06:33 brian Exp $
+ * $Id: filter.c,v 1.29 1999/05/31 23:57:36 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
@@ -261,6 +261,18 @@ ParseUdpOrTcp(int argc, char const *const *argv, int proto,
   return 1;
 }
 
+static int ParseIgmp(int argc, char const * const *argv, struct filterent *tgt) {
+  /* Filter currently is a catch-all. Requests are either permitted or
+     dropped. */
+  if (argc != 0) {
+    log_Printf(LogWARN, "ParseIgmp: Too many parameters\n");
+    return 0;
+  } else
+    tgt->opt.srcop = OP_NONE;
+
+  return 1;
+}
+
 static unsigned
 addrtype(const char *addr)
 {
@@ -396,6 +408,9 @@ Parse(struct ipcp *ipcp, int argc, char const *const *argv,
   case P_ICMP:
     val = ParseIcmp(argc, argv, &filterdata);
     break;
+  case P_IGMP:
+    val = ParseIgmp(argc, argv, &filterdata);
+    break;
   }
 
   log_Printf(LogDEBUG, "Parse: Src: %s\n", inet_ntoa(filterdata.src.ipaddr));
@@ -529,7 +544,7 @@ filter_Show(struct cmdargs const *arg)
   return 0;
 }
 
-static const char *protoname[] = { "none", "tcp", "udp", "icmp" };
+static const char *protoname[] = { "none", "tcp", "udp", "icmp", "igmp" };
 
 const char *
 filter_Proto2Nam(int proto)
