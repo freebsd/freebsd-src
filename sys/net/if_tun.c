@@ -188,7 +188,7 @@ tunmodevent(module_t mod, int type, void *data)
 			bpfdetach(&tp->tun_if);
 			if_detach(&tp->tun_if);
 			KASSERT(dev->si_flags & SI_NAMED, ("Missing make_dev"));
-			FREE(tp, M_TUN);
+			free(tp, M_TUN);
 		}
 
 		/*
