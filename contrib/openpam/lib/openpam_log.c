@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_log.c#17 $
+ * $P4: //depot/projects/openpam/lib/openpam_log.c#18 $
  */
 
 #include <ctype.h>
@@ -44,6 +44,8 @@
 #include <security/pam_appl.h>
 
 #include "openpam_impl.h"
+
+int _openpam_debug = 0;
 
 #if defined(openpam_log)
 
@@ -62,12 +64,10 @@ _openpam_log(int level, const char *func, const char *fmt, ...)
 
 	switch (level) {
 	case PAM_LOG_DEBUG:
-#ifndef DEBUG
-		return;
-#else
+		if (!_openpam_debug)
+			return;
 		priority = LOG_DEBUG;
 		break;
-#endif
 	case PAM_LOG_VERBOSE:
 		priority = LOG_INFO;
 		break;
@@ -108,12 +108,10 @@ openpam_log(int level, const char *fmt, ...)
 
 	switch (level) {
 	case PAM_LOG_DEBUG:
-#ifndef DEBUG
-		return;
-#else
+		if (!_openpam_debug)
+			return;
 		priority = LOG_DEBUG;
 		break;
-#endif
 	case PAM_LOG_VERBOSE:
 		priority = LOG_INFO;
 		break;
