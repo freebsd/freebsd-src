@@ -47,6 +47,7 @@
 .Op Fl H | Fl L | Fl P
 .Oc
 .Op Fl f
+.Op Fl h
 .Ar group
 .Ar files ...
 .Sh DESCRIPTION
@@ -77,15 +78,11 @@ in the files instead of just the files themselves.
 .It Fl f
 The force option ignores errors, except for usage errors and doesn't
 query about strange modes (unless the user does not have proper permissions).
+.It Fl h
+If the file is a symbolic link, the group ID of the link itself is changed
+rather than the file that is pointed to.
 .El
 .Pp
-Symbolic links don't have groups, so unless the 
-.Fl H
-or
-.Fl L
-option is set,
-.Nm chgrp
-on a symbolic link always succeeds and has no effect.
 The
 .Fl H ,
 .Fl L
@@ -113,11 +110,7 @@ The
 .Nm chgrp
 utility exits 0 on success, and >0 if an error occurs.
 .Sh COMPATIBILITY
-Previous versions of the
-.Nm chgrp
-utility changed the group of symbolic links specified on the command
-line.
-In this system, symbolic links do not have groups.
+In previous versions of this system, symbolic links did not have groups.
 .Sh FILES
 .Bl -tag -width /etc/group -compact
 .It Pa /etc/group
