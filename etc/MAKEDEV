@@ -328,7 +328,7 @@ all)
 	sh MAKEDEV iic0 iic1				# cdev, I2C device
 	sh MAKEDEV smb0 smb1				# cdev, SMBus device
 	sh MAKEDEV usb usb0 uhid0 ums0 ulpt0 ugen0	# cdev, USB devices
-	sh MAKEDEV urio0 uscanner0 umodem0		# cdev, USB devices too
+	sh MAKEDEV urio0 uscanner0 umodem0 ucom0	# cdev, USB devices too
 	sh MAKEDEV bpf0 bpf1 bpf2 bpf3 			# cdev, network
 	sh MAKEDEV ipl tun0 tun1 tun2 tun3		# cdev, network
 	sh MAKEDEV tap0 tap1 tap2 tap3			# cdev, network
