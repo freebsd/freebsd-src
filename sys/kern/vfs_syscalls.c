@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.25.4.2 1995/09/18 05:30:19 davidg Exp $
+ * $Id: vfs_syscalls.c,v 1.25.4.3 1995/10/26 09:17:19 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -457,7 +457,10 @@ getfsstat(p, uap, retval)
 	maxcount = uap->bufsize / sizeof(struct statfs);
 	sfsp = (caddr_t)uap->buf;
 	for (count = 0, mp = mountlist.tqh_first; mp != NULL; mp = nmp) {
-		nmp = mp->mnt_list.tqe_next;
+		if (vfs_busy(mp)) {
+			nmp = mp->mnt_list.tqe_next;
+			continue;
+		}
 		if (sfsp && count < maxcount &&
 		    ((mp->mnt_flag & MNT_MLOCK) == 0)) {
 			sp = &mp->mnt_stat;
@@ -467,15 +470,22 @@ getfsstat(p, uap, retval)
 			 */
 			if (((uap->flags & MNT_NOWAIT) == 0 ||
 			    (uap->flags & MNT_WAIT)) &&
-			    (error = VFS_STATFS(mp, sp, p)))
+			    (error = VFS_STATFS(mp, sp, p))) {
+				nmp = mp->mnt_list.tqe_next;
+				vfs_unbusy(mp);
 				continue;
+			}
 			sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 			error = copyout((caddr_t)sp, sfsp, sizeof(*sp));
-			if (error)
+			if (error) {
+				vfs_unbusy(mp);
 				return (error);
+			}
 			sfsp += sizeof(*sp);
 		}
 		count++;
+		nmp = mp->mnt_list.tqe_next;
+		vfs_unbusy(mp);
 	}
 	if (sfsp && count > maxcount)
 		*retval = maxcount;
