@@ -49,7 +49,7 @@ which requires an argument.
 args=\`getopt abo: $*\`
 # you should not use \`getopt abo: "$@"\` since that would parse
 # the arguments differently from what the set command below does.
-if [ $? != 0 ]
+if [ $? -ne 0 ]
 then
 	echo 'Usage: ...'
 	exit 2
@@ -86,6 +86,7 @@ cmd \-a \-oarg \-\- file file
 .Pp
 .Ed
 .Sh SEE ALSO
+.Xr getopts 1 ,
 .Xr sh 1 ,
 .Xr getopt 3
 .Sh DIAGNOSTICS
