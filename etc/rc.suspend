@@ -41,7 +41,7 @@ if [ -r /var/run/rc.suspend.pid ]; then
 	exit 1
 fi
 
-echo $$ > /var/run/rc.suspend.pid
+echo $$ 2> /dev/null > /var/run/rc.suspend.pid
 
 # If you have troubles on suspending with PC-CARD modem, try this.
 # See also contrib/pccardq.c (Only for PAO users).
