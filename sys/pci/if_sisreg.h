@@ -470,6 +470,7 @@ struct sis_softc {
 	bus_dma_tag_t		sis_tag;
 	struct sis_ring_data	sis_cdata;
 	struct callout		sis_stat_ch;
+	int			sis_stopped;
 #ifdef DEVICE_POLLING
 	int			rxcycles;
 #endif
