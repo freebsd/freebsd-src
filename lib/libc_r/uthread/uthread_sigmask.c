@@ -36,20 +36,22 @@
 #include <sys/signalvar.h>
 #include <errno.h>
 #include <signal.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	pthread_sigmask=_pthread_sigmask
+
 int
-pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
+_pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
 {
+	struct pthread	*curthread = _get_curthread();
 	sigset_t	sigset;
 	int		ret = 0;
 
 	/* Check if the existing signal process mask is to be returned: */
 	if (oset != NULL) {
 		/* Return the current mask: */
-		*oset = _thread_run->sigmask;
+		*oset = curthread->sigmask;
 	}
 	/* Check if a new signal set was provided by the caller: */
 	if (set != NULL) {
@@ -58,19 +60,19 @@ pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
 		/* Block signals: */
 		case SIG_BLOCK:
 			/* Add signals to the existing mask: */
-			SIGSETOR(_thread_run->sigmask, *set);
+			SIGSETOR(curthread->sigmask, *set);
 			break;
 
 		/* Unblock signals: */
 		case SIG_UNBLOCK:
 			/* Clear signals from the existing mask: */
-			SIGSETNAND(_thread_run->sigmask, *set);
+			SIGSETNAND(curthread->sigmask, *set);
 			break;
 
 		/* Set the signal process mask: */
 		case SIG_SETMASK:
 			/* Set the new mask: */
-			_thread_run->sigmask = *set;
+			curthread->sigmask = *set;
 			break;
 
 		/* Trap invalid actions: */
@@ -82,15 +84,15 @@ pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
 		}
 
 		/* Increment the sequence number: */
-		_thread_run->sigmask_seqno++;
+		curthread->sigmask_seqno++;
 
 		/*
 		 * Check if there are pending signals for the running
 		 * thread or process that aren't blocked:
 		 */
-		sigset = _thread_run->sigpend;
+		sigset = curthread->sigpend;
 		SIGSETOR(sigset, _process_sigpending);
-		SIGSETNAND(sigset, _thread_run->sigmask);
+		SIGSETNAND(sigset, curthread->sigmask);
 		if (SIGNOTEMPTY(sigset))
 			/*
 			 * Call the kernel scheduler which will safely
@@ -102,4 +104,3 @@ pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
 	/* Return the completion status: */
 	return (ret);
 }
-#endif

@@ -32,13 +32,15 @@
  * $FreeBSD$
  */
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	pthread_join=_pthread_join
+
 int
-pthread_join(pthread_t pthread, void **thread_return)
+_pthread_join(pthread_t pthread, void **thread_return)
 {
+	struct pthread	*curthread = _get_curthread();
 	int ret = 0;
  
 	_thread_enter_cancellation_point();
@@ -51,7 +53,7 @@ pthread_join(pthread_t pthread, void **thread_return)
 	}
 
 	/* Check if the caller has specified itself: */
-	if (pthread == _thread_run) {
+	if (pthread == curthread) {
 		/* Avoid a deadlock condition: */
 		_thread_leave_cancellation_point();
 		return(EDEADLK);
@@ -72,7 +74,7 @@ pthread_join(pthread_t pthread, void **thread_return)
 
 	/* Check if the thread is not dead: */
 	else if (pthread->state != PS_DEAD) {
-		PTHREAD_ASSERT_NOT_IN_SYNCQ(_thread_run);
+		PTHREAD_ASSERT_NOT_IN_SYNCQ(curthread);
 
 		/*
 		 * Enter a loop in case this thread is woken prematurely
@@ -80,7 +82,7 @@ pthread_join(pthread_t pthread, void **thread_return)
 		 */
 		for (;;) {
 			/* Clear the interrupted flag: */
-			_thread_run->interrupted = 0;
+			curthread->interrupted = 0;
 
 			/*
 			 * Protect against being context switched out while
@@ -90,25 +92,25 @@ pthread_join(pthread_t pthread, void **thread_return)
 
 			/* Add the running thread to the join queue: */
 			TAILQ_INSERT_TAIL(&(pthread->join_queue),
-			    _thread_run, sqe);
-			_thread_run->flags |= PTHREAD_FLAGS_IN_JOINQ;
-			_thread_run->data.thread = pthread;
+			    curthread, sqe);
+			curthread->flags |= PTHREAD_FLAGS_IN_JOINQ;
+			curthread->data.thread = pthread;
 
 			/* Schedule the next thread: */
 			_thread_kern_sched_state(PS_JOIN, __FILE__, __LINE__);
 
-			if ((_thread_run->flags & PTHREAD_FLAGS_IN_JOINQ) != 0) {
+			if ((curthread->flags & PTHREAD_FLAGS_IN_JOINQ) != 0) {
 				TAILQ_REMOVE(&(pthread->join_queue),
-				    _thread_run, sqe);
-				_thread_run->flags &= ~PTHREAD_FLAGS_IN_JOINQ;
+				    curthread, sqe);
+				curthread->flags &= ~PTHREAD_FLAGS_IN_JOINQ;
 			}
-			_thread_run->data.thread = NULL;
+			curthread->data.thread = NULL;
 
 			_thread_kern_sig_undefer();
 
-			if (_thread_run->interrupted != 0) {
-				if (_thread_run->continuation != NULL)
-					_thread_run->continuation(_thread_run);
+			if (curthread->interrupted != 0) {
+				if (curthread->continuation != NULL)
+					curthread->continuation(curthread);
 				/*
 				 * This thread was interrupted, probably to
 				 * invoke a signal handler.  Make sure the
@@ -134,9 +136,9 @@ pthread_join(pthread_t pthread, void **thread_return)
 				 * by the thread we're joining to when it
 				 * exits or detaches:
 				 */
-				ret = _thread_run->error;
+				ret = curthread->error;
 				if ((ret == 0) && (thread_return != NULL))
-					*thread_return = _thread_run->ret;
+					*thread_return = curthread->ret;
 
 				/* We're done; break out of the loop. */
 				break;
@@ -156,11 +158,12 @@ pthread_join(pthread_t pthread, void **thread_return)
 void
 _join_backout(pthread_t pthread)
 {
+	struct pthread	*curthread = _get_curthread();
+
 	_thread_kern_sig_defer();
 	if ((pthread->flags & PTHREAD_FLAGS_IN_JOINQ) != 0) {
 		TAILQ_REMOVE(&pthread->data.thread->join_queue, pthread, sqe);
-		_thread_run->flags &= ~PTHREAD_FLAGS_IN_JOINQ;
+		curthread->flags &= ~PTHREAD_FLAGS_IN_JOINQ;
 	}
 	_thread_kern_sig_undefer();
 }
-#endif

@@ -32,12 +32,13 @@
  * $FreeBSD$
  */
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	pthread_attr_setstackaddr=_pthread_attr_setstackaddr
+
 int
-pthread_attr_setstackaddr(pthread_attr_t *attr, void *stackaddr)
+_pthread_attr_setstackaddr(pthread_attr_t *attr, void *stackaddr)
 {
 	int	ret;
 
@@ -51,4 +52,3 @@ pthread_attr_setstackaddr(pthread_attr_t *attr, void *stackaddr)
 	}
 	return(ret);
 }
-#endif

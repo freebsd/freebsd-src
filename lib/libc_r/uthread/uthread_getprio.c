@@ -32,12 +32,13 @@
  * $FreeBSD$
  */
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	pthread_getprio=_pthread_getprio
+
 int
-pthread_getprio(pthread_t pthread)
+_pthread_getprio(pthread_t pthread)
 {
 	int policy, ret;
 	struct sched_param param;
@@ -53,4 +54,3 @@ pthread_getprio(pthread_t pthread)
 	/* Return the thread priority or an error status: */
 	return (ret);
 }
-#endif

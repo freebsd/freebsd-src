@@ -32,12 +32,11 @@
  * $FreeBSD$
  */
 #include <signal.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
 sig_t
-_thread_sys_signal(int s, sig_t a)
+__sys_signal(int s, sig_t a)
 {
 	struct sigaction sa;
 	struct sigaction osa;
@@ -48,11 +47,10 @@ _thread_sys_signal(int s, sig_t a)
 	sa.sa_flags = SA_SIGINFO;
 
 	/* Perform the sigaction syscall: */
-	if (_thread_sys_sigaction(s, &sa, &osa) < 0) {
+	if (__sys_sigaction(s, &sa, &osa) < 0) {
 		/* Return an error: */
 		return (SIG_ERR);
 	}
 	/* Return a pointer to the old signal handler: */
 	return (osa.sa_handler);
 }
-#endif

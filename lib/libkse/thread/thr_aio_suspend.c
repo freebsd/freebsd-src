@@ -30,9 +30,10 @@
  */
 
 #include <aio.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
+
+#pragma weak	aio_suspend=_aio_suspend
 
 int
 _aio_suspend(const struct aiocb * const iocbs[], int niocb, const struct
@@ -41,11 +42,9 @@ _aio_suspend(const struct aiocb * const iocbs[], int niocb, const struct
 	int	ret;
 
 	_thread_enter_cancellation_point();
-	ret = _aio_suspend(iocbs, niocb, timeout);
+	ret = __sys_aio_suspend(iocbs, niocb, timeout);
 	_thread_leave_cancellation_point();
-	
+
 	return ret;
 }
 
-__strong_reference(_aio_suspend, aio_suspend);
-#endif

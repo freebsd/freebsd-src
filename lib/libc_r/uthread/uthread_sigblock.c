@@ -32,18 +32,16 @@
  * $FreeBSD$
  */
 #include <signal.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
 int
-_thread_sys_sigblock(int mask)
+__sys_sigblock(int mask)
 {
 	int             omask, n;
 
-	n = _thread_sys_sigprocmask(SIG_BLOCK, (sigset_t *) & mask, (sigset_t *) & omask);
+	n = __sys_sigprocmask(SIG_BLOCK, (sigset_t *) & mask, (sigset_t *) & omask);
 	if (n)
 		return (n);
 	return (omask);
 }
-#endif

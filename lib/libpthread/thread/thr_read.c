@@ -37,13 +37,15 @@
 #include <sys/uio.h>
 #include <errno.h>
 #include <unistd.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
+
+#pragma weak	read=__read
 
 ssize_t
 _read(int fd, void *buf, size_t nbytes)
 {
+	struct pthread	*curthread = _get_curthread();
 	int	ret;
 	int	type;
 
@@ -66,14 +68,14 @@ _read(int fd, void *buf, size_t nbytes)
 		}
 
 		/* Perform a non-blocking read syscall: */
-		while ((ret = _thread_sys_read(fd, buf, nbytes)) < 0) {
+		while ((ret = __sys_read(fd, buf, nbytes)) < 0) {
 			if ((_thread_fd_table[fd]->flags & O_NONBLOCK) == 0 &&
 			    (errno == EWOULDBLOCK || errno == EAGAIN)) {
-				_thread_run->data.fd.fd = fd;
+				curthread->data.fd.fd = fd;
 				_thread_kern_set_timeout(NULL);
 
 				/* Reset the interrupted operation flag: */
-				_thread_run->interrupted = 0;
+				curthread->interrupted = 0;
 
 				_thread_kern_sched_state(PS_FDR_WAIT,
 				    __FILE__, __LINE__);
@@ -82,7 +84,7 @@ _read(int fd, void *buf, size_t nbytes)
 				 * Check if the operation was
 				 * interrupted by a signal
 				 */
-				if (_thread_run->interrupted) {
+				if (curthread->interrupted) {
 					errno = EINTR;
 					ret = -1;
 					break;
@@ -97,7 +99,7 @@ _read(int fd, void *buf, size_t nbytes)
 }
 
 ssize_t
-read(int fd, void *buf, size_t nbytes)
+__read(int fd, void *buf, size_t nbytes)
 {
 	ssize_t	ret;
 
@@ -107,4 +109,3 @@ read(int fd, void *buf, size_t nbytes)
 
 	return ret;
 }
-#endif

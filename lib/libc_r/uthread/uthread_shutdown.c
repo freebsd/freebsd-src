@@ -34,9 +34,10 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
+
+#pragma weak	shutdown=_shutdown
 
 int
 _shutdown(int fd, int how)
@@ -46,19 +47,19 @@ _shutdown(int fd, int how)
 	switch (how) {
 	case 0:
 			if ((ret = _FD_LOCK(fd, FD_READ, NULL)) == 0) {
-			ret = _thread_sys_shutdown(fd, how);
+			ret = __sys_shutdown(fd, how);
 			_FD_UNLOCK(fd, FD_READ);
 		}
 		break;
 	case 1:
 			if ((ret = _FD_LOCK(fd, FD_WRITE, NULL)) == 0) {
-			ret = _thread_sys_shutdown(fd, how);
+			ret = __sys_shutdown(fd, how);
 			_FD_UNLOCK(fd, FD_WRITE);
 		}
 		break;
 	case 2:
 			if ((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) {
-			ret = _thread_sys_shutdown(fd, how);
+			ret = __sys_shutdown(fd, how);
 			_FD_UNLOCK(fd, FD_RDWR);
 		}
 		break;
@@ -69,6 +70,3 @@ _shutdown(int fd, int how)
 	}
 	return (ret);
 }
-
-__strong_reference(_shutdown, shutdown);
-#endif

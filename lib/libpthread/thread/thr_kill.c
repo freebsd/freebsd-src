@@ -33,12 +33,13 @@
  */
 #include <errno.h>
 #include <signal.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	pthread_kill=_pthread_kill
+
 int
-pthread_kill(pthread_t pthread, int sig)
+_pthread_kill(pthread_t pthread, int sig)
 {
 	int ret;
 
@@ -71,4 +72,3 @@ pthread_kill(pthread_t pthread, int sig)
 	/* Return the completion status: */
 	return (ret);
 }
-#endif

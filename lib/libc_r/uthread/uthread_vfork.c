@@ -1,9 +1,12 @@
+/*
+ * $FreeBSD$
+ */
 #include <unistd.h>
-#ifdef _THREAD_SAFE
+
+#pragma weak	vfork=_vfork
 
 int
-vfork(void)
+_vfork(void)
 {
 	return (fork());
 }
-#endif

@@ -36,9 +36,10 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
+
+#pragma weak	close=__close
 
 int
 _close(int fd)
@@ -60,7 +61,7 @@ _close(int fd)
 	 * the file descriptor status:
 	 */
 	else if (((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) &&
-	    ((ret = _thread_sys_fstat(fd, &sb)) == 0)) {
+	    ((ret = __sys_fstat(fd, &sb)) == 0)) {
 		/*
 		 * Check if the file should be left as blocking.
 		 *
@@ -83,9 +84,9 @@ _close(int fd)
 		 */
 		if ((S_ISREG(sb.st_mode) || S_ISCHR(sb.st_mode)) && (_thread_fd_table[fd]->flags & O_NONBLOCK) == 0) {
 			/* Get the current flags: */
-			flags = _thread_sys_fcntl(fd, F_GETFL, NULL);
+			flags = __sys_fcntl(fd, F_GETFL, NULL);
 			/* Clear the nonblocking file descriptor flag: */
-			_thread_sys_fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
+			__sys_fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
 		}
 
 		/* XXX: Assumes well behaved threads. */
@@ -95,13 +96,13 @@ _close(int fd)
 		free(entry);
 
 		/* Close the file descriptor: */
-		ret = _thread_sys_close(fd);
+		ret = __sys_close(fd);
 	}
 	return (ret);
 }
 
 int
-close(int fd)
+__close(int fd)
 {
 	int	ret;
 
@@ -111,4 +112,3 @@ close(int fd)
 	
 	return ret;
 }
-#endif

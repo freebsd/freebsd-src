@@ -37,9 +37,10 @@
 #include <fcntl.h>
 #include <dirent.h>
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
+
+#pragma weak	open=_open
 
 int
 _open(const char *path, int flags,...)
@@ -56,12 +57,12 @@ _open(const char *path, int flags,...)
 		va_end(ap);
 	}
 	/* Open the file: */
-	if ((fd = _thread_sys_open(path, flags, mode)) < 0) {
+	if ((fd = __sys_open(path, flags, mode)) < 0) {
 	}
 	/* Initialise the file descriptor table entry: */
 	else if (_thread_fd_table_init(fd) != 0) {
 		/* Quietly close the file: */
-		_thread_sys_close(fd);
+		__sys_close(fd);
 
 		/* Reset the file descriptor: */
 		fd = -1;
@@ -72,7 +73,7 @@ _open(const char *path, int flags,...)
 }
 
 int
-open(const char *path, int flags,...)
+__open(const char *path, int flags,...)
 {
 	int	ret;
 	int	mode = 0;
@@ -93,4 +94,3 @@ open(const char *path, int flags,...)
 
 	return ret;
 }
-#endif

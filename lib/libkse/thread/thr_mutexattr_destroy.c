@@ -33,12 +33,13 @@
  */
 #include <stdlib.h>
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	pthread_mutexattr_destroy=_pthread_mutexattr_destroy
+
 int
-pthread_mutexattr_destroy(pthread_mutexattr_t *attr)
+_pthread_mutexattr_destroy(pthread_mutexattr_t *attr)
 {
 	int	ret;
 	if (attr == NULL || *attr == NULL) {
@@ -50,4 +51,3 @@ pthread_mutexattr_destroy(pthread_mutexattr_t *attr)
 	}
 	return(ret);
 }
-#endif

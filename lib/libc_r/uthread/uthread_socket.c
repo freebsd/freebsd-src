@@ -35,9 +35,10 @@
 #include <sys/socket.h>
 #include <fcntl.h>
 #include <unistd.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
+
+#pragma weak	socket=_socket
 
 int
 _socket(int af, int type, int protocol)
@@ -45,16 +46,13 @@ _socket(int af, int type, int protocol)
 	int fd;
 
 	/* Create a socket: */
-	if ((fd = _thread_sys_socket(af, type, protocol)) < 0) {
+	if ((fd = __sys_socket(af, type, protocol)) < 0) {
 		/* Error creating socket. */
 
 	/* Initialise the entry in the file descriptor table: */
 	} else if (_thread_fd_table_init(fd) != 0) {
-		_thread_sys_close(fd);
+		__sys_close(fd);
 		fd = -1;
 	}
 	return (fd);
 }
-
-__strong_reference(_socket, socket);
-#endif

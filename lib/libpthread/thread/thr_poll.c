@@ -38,14 +38,15 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/fcntl.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	poll=_poll
 
 int 
 _poll(struct pollfd *fds, unsigned int nfds, int timeout)
 {
+	struct pthread *curthread = _get_curthread();
 	struct timespec	ts;
 	int		numfds = nfds;
 	int             i, ret = 0;
@@ -71,7 +72,7 @@ _poll(struct pollfd *fds, unsigned int nfds, int timeout)
 		return (-1);
 	}
 
-	if (((ret = _thread_sys_poll(fds, numfds, 0)) == 0) && (timeout != 0)) {
+	if (((ret = __sys_poll(fds, numfds, 0)) == 0) && (timeout != 0)) {
 		data.nfds = numfds;
 		data.fds = fds;
 
@@ -83,10 +84,10 @@ _poll(struct pollfd *fds, unsigned int nfds, int timeout)
 			fds[i].revents = 0;
 		}
 
-		_thread_run->data.poll_data = &data;
-		_thread_run->interrupted = 0;
+		curthread->data.poll_data = &data;
+		curthread->interrupted = 0;
 		_thread_kern_sched_state(PS_POLL_WAIT, __FILE__, __LINE__);
-		if (_thread_run->interrupted) {
+		if (curthread->interrupted) {
 			errno = EINTR;
 			ret = -1;
 		} else {
@@ -96,6 +97,3 @@ _poll(struct pollfd *fds, unsigned int nfds, int timeout)
 
 	return (ret);
 }
-
-__strong_reference(_poll, poll);
-#endif

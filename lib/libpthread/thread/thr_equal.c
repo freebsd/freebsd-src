@@ -31,14 +31,14 @@
  *
  * $FreeBSD$
  */
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	pthread_equal=_pthread_equal
+
 int
-pthread_equal(pthread_t t1, pthread_t t2)
+_pthread_equal(pthread_t t1, pthread_t t2)
 {
 	/* Compare the two thread pointers: */
 	return (t1 == t2);
 }
-#endif

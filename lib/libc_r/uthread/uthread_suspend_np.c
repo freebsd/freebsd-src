@@ -32,15 +32,16 @@
  * $FreeBSD$
  */
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
 static void	finish_suspension(void *arg);
 
+#pragma weak	pthread_suspend_np=_pthread_suspend_np
+
 /* Suspend a thread: */
 int
-pthread_suspend_np(pthread_t thread)
+_pthread_suspend_np(pthread_t thread)
 {
 	int ret;
 
@@ -144,9 +145,10 @@ pthread_suspend_np(pthread_t thread)
 static void
 finish_suspension(void *arg)
 {
-	if (_thread_run->suspended != SUSP_NO)
+	struct pthread	*curthread = _get_curthread();
+
+	if (curthread->suspended != SUSP_NO)
 		_thread_kern_sched_state(PS_SUSPENDED, __FILE__, __LINE__);
 }
 
 
-#endif

@@ -32,12 +32,13 @@
  * $FreeBSD$
  */
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	pthread_attr_getscope=_pthread_attr_getscope
+
 int
-pthread_attr_getscope(const pthread_attr_t *attr, int *contentionscope)
+_pthread_attr_getscope(const pthread_attr_t *attr, int *contentionscope)
 {
 	int ret = 0;
 
@@ -51,4 +52,3 @@ pthread_attr_getscope(const pthread_attr_t *attr, int *contentionscope)
 
 	return(ret);
 }
-#endif

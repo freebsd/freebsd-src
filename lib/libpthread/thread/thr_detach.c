@@ -32,12 +32,13 @@
  * $FreeBSD$
  */
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	pthread_detach=_pthread_detach
+
 int
-pthread_detach(pthread_t pthread)
+_pthread_detach(pthread_t pthread)
 {
 	int             rval = 0;
 	pthread_t       next_thread;
@@ -85,4 +86,3 @@ pthread_detach(pthread_t pthread)
 	/* Return the completion status: */
 	return (rval);
 }
-#endif

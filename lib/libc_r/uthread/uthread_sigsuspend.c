@@ -33,23 +33,25 @@
  */
 #include <signal.h>
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
+
+#pragma weak	sigsuspend=__sigsuspend
 
 int
 _sigsuspend(const sigset_t * set)
 {
+	struct pthread	*curthread = _get_curthread();
 	int             ret = -1;
 	sigset_t        oset;
 
 	/* Check if a new signal set was provided by the caller: */
 	if (set != NULL) {
 		/* Save the current signal mask: */
-		oset = _thread_run->sigmask;
+		oset = curthread->sigmask;
 
 		/* Change the caller's mask: */
-		_thread_run->sigmask = *set;
+		curthread->sigmask = *set;
 
 		/* Wait for a signal: */
 		_thread_kern_sched_state(PS_SIGSUSPEND, __FILE__, __LINE__);
@@ -58,7 +60,7 @@ _sigsuspend(const sigset_t * set)
 		errno = EINTR;
 
 		/* Restore the signal mask: */
-		_thread_run->sigmask = oset;
+		curthread->sigmask = oset;
 	} else {
 		/* Return an invalid argument error: */
 		errno = EINVAL;
@@ -69,7 +71,7 @@ _sigsuspend(const sigset_t * set)
 }
 
 int
-sigsuspend(const sigset_t * set)
+__sigsuspend(const sigset_t * set)
 {
 	int	ret;
 
@@ -79,4 +81,3 @@ sigsuspend(const sigset_t * set)
 
 	return ret;
 }
-#endif

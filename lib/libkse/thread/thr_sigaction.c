@@ -33,9 +33,10 @@
  */
 #include <signal.h>
 #include <errno.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
+
+#pragma weak	sigaction=_sigaction
 
 int
 _sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
@@ -49,6 +50,9 @@ _sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 		errno = EINVAL;
 		ret = -1;
 	} else {
+		if (_thread_initial == NULL)
+			_thread_init();
+
 		/*
 		 * Check if the existing signal action structure contents are
 		 * to be returned: 
@@ -98,7 +102,7 @@ _sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 				gact.sa_handler = (void (*) ()) _thread_sig_handler;
 
 			/* Change the signal action in the kernel: */
-		    	if (_thread_sys_sigaction(sig,&gact,NULL) != 0)
+		    	if (__sys_sigaction(sig,&gact,NULL) != 0)
 				ret = -1;
 		}
 	}
@@ -106,6 +110,3 @@ _sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 	/* Return the completion status: */
 	return (ret);
 }
-
-__strong_reference(_sigaction, sigaction);
-#endif

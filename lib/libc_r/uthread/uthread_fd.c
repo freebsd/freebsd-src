@@ -36,7 +36,6 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
@@ -115,7 +114,7 @@ _thread_fd_table_init(int fd)
 
 		/* Get the flags for the file: */
 		if (((fd >= 3) || (_pthread_stdio_flags[fd] == -1)) &&
-		    (entry->flags = _thread_sys_fcntl(fd, F_GETFL, 0)) == -1) {
+		    (entry->flags = __sys_fcntl(fd, F_GETFL, 0)) == -1) {
 			ret = -1;
 		}
 		else {
@@ -138,7 +137,7 @@ _thread_fd_table_init(int fd)
 			 * driver is naturally non-blocking.
 			 */
 			saved_errno = errno;
-			_thread_sys_fcntl(fd, F_SETFL,
+			__sys_fcntl(fd, F_SETFL,
 			    entry->flags | O_NONBLOCK);
 			errno = saved_errno;
 
@@ -181,6 +180,7 @@ _thread_fd_table_init(int fd)
 void
 _thread_fd_unlock(int fd, int lock_type)
 {
+	struct pthread	*curthread = _get_curthread();
 	int	ret;
 
 	/*
@@ -202,7 +202,7 @@ _thread_fd_unlock(int fd, int lock_type)
 		_SPINLOCK(&_thread_fd_table[fd]->lock);
 
 		/* Check if the running thread owns the read lock: */
-		if (_thread_fd_table[fd]->r_owner == _thread_run) {
+		if (_thread_fd_table[fd]->r_owner == curthread) {
 			/* Check the file descriptor and lock types: */
 			if (lock_type == FD_READ || lock_type == FD_RDWR) {
 				/*
@@ -244,7 +244,7 @@ _thread_fd_unlock(int fd, int lock_type)
 			}
 		}
 		/* Check if the running thread owns the write lock: */
-		if (_thread_fd_table[fd]->w_owner == _thread_run) {
+		if (_thread_fd_table[fd]->w_owner == curthread) {
 			/* Check the file descriptor and lock types: */
 			if (lock_type == FD_WRITE || lock_type == FD_RDWR) {
 				/*
@@ -300,6 +300,7 @@ _thread_fd_unlock(int fd, int lock_type)
 int
 _thread_fd_lock(int fd, int lock_type, struct timespec * timeout)
 {
+	struct pthread	*curthread = _get_curthread();
 	int	ret;
 
 	/*
@@ -308,7 +309,7 @@ _thread_fd_lock(int fd, int lock_type, struct timespec * timeout)
 	 */
 	if ((ret = _thread_fd_table_init(fd)) == 0) {
 		/* Clear the interrupted flag: */
-		_thread_run->interrupted = 0;
+		curthread->interrupted = 0;
 
 		/*
 		 * Lock the file descriptor table entry to prevent
@@ -323,8 +324,8 @@ _thread_fd_lock(int fd, int lock_type, struct timespec * timeout)
 			 * Wait for the file descriptor to be locked
 			 * for read for the current thread: 
 			 */
-			while ((_thread_fd_table[fd]->r_owner != _thread_run) &&
-			    (_thread_run->interrupted == 0)) {
+			while ((_thread_fd_table[fd]->r_owner != curthread) &&
+			    (curthread->interrupted == 0)) {
 				/*
 				 * Check if the file descriptor is locked by
 				 * another thread: 
@@ -336,14 +337,14 @@ _thread_fd_lock(int fd, int lock_type, struct timespec * timeout)
 					 * queue of threads waiting for a  
 					 * read lock on this file descriptor: 
 					 */
-					FDQ_INSERT(&_thread_fd_table[fd]->r_queue, _thread_run);
+					FDQ_INSERT(&_thread_fd_table[fd]->r_queue, curthread);
 
 					/*
 					 * Save the file descriptor details
 					 * in the thread structure for the
 					 * running thread: 
 					 */
-					_thread_run->data.fd.fd = fd;
+					curthread->data.fd.fd = fd;
 
 					/* Set the timeout: */
 					_thread_kern_set_timeout(timeout);
@@ -371,16 +372,16 @@ _thread_fd_lock(int fd, int lock_type, struct timespec * timeout)
 					 */
 					_SPINLOCK(&_thread_fd_table[fd]->lock);
 
-					if (_thread_run->interrupted != 0) {
+					if (curthread->interrupted != 0) {
 						FDQ_REMOVE(&_thread_fd_table[fd]->r_queue,
-						    _thread_run);
+						    curthread);
 					}
 				} else {
 					/*
 					 * The running thread now owns the
 					 * read lock on this file descriptor: 
 					 */
-					_thread_fd_table[fd]->r_owner = _thread_run;
+					_thread_fd_table[fd]->r_owner = curthread;
 
 					/*
 					 * Reset the number of read locks for
@@ -390,20 +391,20 @@ _thread_fd_lock(int fd, int lock_type, struct timespec * timeout)
 				}
 			}
 
-			if (_thread_fd_table[fd]->r_owner == _thread_run)
+			if (_thread_fd_table[fd]->r_owner == curthread)
 				/* Increment the read lock count: */
 				_thread_fd_table[fd]->r_lockcount++;
 		}
 
 		/* Check the file descriptor and lock types: */
-		if (_thread_run->interrupted == 0 &&
+		if (curthread->interrupted == 0 &&
 		    (lock_type == FD_WRITE || lock_type == FD_RDWR)) {
 			/*
 			 * Wait for the file descriptor to be locked
 			 * for write for the current thread: 
 			 */
-			while ((_thread_fd_table[fd]->w_owner != _thread_run) &&
-			    (_thread_run->interrupted == 0)) {
+			while ((_thread_fd_table[fd]->w_owner != curthread) &&
+			    (curthread->interrupted == 0)) {
 				/*
 				 * Check if the file descriptor is locked by
 				 * another thread: 
@@ -416,14 +417,14 @@ _thread_fd_lock(int fd, int lock_type, struct timespec * timeout)
 					 * write lock on this file
 					 * descriptor: 
 					 */
-					FDQ_INSERT(&_thread_fd_table[fd]->w_queue, _thread_run);
+					FDQ_INSERT(&_thread_fd_table[fd]->w_queue, curthread);
 
 					/*
 					 * Save the file descriptor details
 					 * in the thread structure for the
 					 * running thread: 
 					 */
-					_thread_run->data.fd.fd = fd;
+					curthread->data.fd.fd = fd;
 
 					/* Set the timeout: */
 					_thread_kern_set_timeout(timeout);
@@ -450,9 +451,9 @@ _thread_fd_lock(int fd, int lock_type, struct timespec * timeout)
 					 */
 					_SPINLOCK(&_thread_fd_table[fd]->lock);
 
-					if (_thread_run->interrupted != 0) {
+					if (curthread->interrupted != 0) {
 						FDQ_REMOVE(&_thread_fd_table[fd]->w_queue,
-						    _thread_run);
+						    curthread);
 					}
 				} else {
 					/*
@@ -460,7 +461,7 @@ _thread_fd_lock(int fd, int lock_type, struct timespec * timeout)
 					 * write lock on this   file
 					 * descriptor: 
 					 */
-					_thread_fd_table[fd]->w_owner = _thread_run;
+					_thread_fd_table[fd]->w_owner = curthread;
 
 					/*
 					 * Reset the number of write locks
@@ -470,7 +471,7 @@ _thread_fd_lock(int fd, int lock_type, struct timespec * timeout)
 				}
 			}
 
-			if (_thread_fd_table[fd]->w_owner == _thread_run)
+			if (_thread_fd_table[fd]->w_owner == curthread)
 				/* Increment the write lock count: */
 				_thread_fd_table[fd]->w_lockcount++;
 		}
@@ -478,11 +479,11 @@ _thread_fd_lock(int fd, int lock_type, struct timespec * timeout)
 		/* Unlock the file descriptor table entry: */
 		_SPINUNLOCK(&_thread_fd_table[fd]->lock);
 
-		if (_thread_run->interrupted != 0) {
+		if (curthread->interrupted != 0) {
 			ret = -1;
 			errno = EINTR;
-			if (_thread_run->continuation != NULL)
-				_thread_run->continuation((void *)_thread_run);
+			if (curthread->continuation != NULL)
+				curthread->continuation((void *)curthread);
 		}
 	}
 
@@ -493,6 +494,7 @@ _thread_fd_lock(int fd, int lock_type, struct timespec * timeout)
 void
 _thread_fd_unlock_debug(int fd, int lock_type, char *fname, int lineno)
 {
+	struct pthread	*curthread = _get_curthread();
 	int	ret;
 
 	/*
@@ -514,7 +516,7 @@ _thread_fd_unlock_debug(int fd, int lock_type, char *fname, int lineno)
 		_spinlock_debug(&_thread_fd_table[fd]->lock, fname, lineno);
 
 		/* Check if the running thread owns the read lock: */
-		if (_thread_fd_table[fd]->r_owner == _thread_run) {
+		if (_thread_fd_table[fd]->r_owner == curthread) {
 			/* Check the file descriptor and lock types: */
 			if (lock_type == FD_READ || lock_type == FD_RDWR) {
 				/*
@@ -556,7 +558,7 @@ _thread_fd_unlock_debug(int fd, int lock_type, char *fname, int lineno)
 			}
 		}
 		/* Check if the running thread owns the write lock: */
-		if (_thread_fd_table[fd]->w_owner == _thread_run) {
+		if (_thread_fd_table[fd]->w_owner == curthread) {
 			/* Check the file descriptor and lock types: */
 			if (lock_type == FD_WRITE || lock_type == FD_RDWR) {
 				/*
@@ -613,6 +615,7 @@ int
 _thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
 		char *fname, int lineno)
 {
+	struct pthread	*curthread = _get_curthread();
 	int	ret;
 
 	/*
@@ -621,7 +624,7 @@ _thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
 	 */
 	if ((ret = _thread_fd_table_init(fd)) == 0) {
 		/* Clear the interrupted flag: */
-		_thread_run->interrupted = 0;
+		curthread->interrupted = 0;
 
 		/*
 		 * Lock the file descriptor table entry to prevent
@@ -636,8 +639,8 @@ _thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
 			 * Wait for the file descriptor to be locked
 			 * for read for the current thread: 
 			 */
-			while ((_thread_fd_table[fd]->r_owner != _thread_run) &&
-			    (_thread_run->interrupted == 0)) {
+			while ((_thread_fd_table[fd]->r_owner != curthread) &&
+			    (curthread->interrupted == 0)) {
 				/*
 				 * Check if the file descriptor is locked by
 				 * another thread: 
@@ -649,16 +652,16 @@ _thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
 					 * queue of threads waiting for a  
 					 * read lock on this file descriptor: 
 					 */
-					FDQ_INSERT(&_thread_fd_table[fd]->r_queue, _thread_run);
+					FDQ_INSERT(&_thread_fd_table[fd]->r_queue, curthread);
 
 					/*
 					 * Save the file descriptor details
 					 * in the thread structure for the
 					 * running thread: 
 					 */
-					_thread_run->data.fd.fd = fd;
-					_thread_run->data.fd.branch = lineno;
-					_thread_run->data.fd.fname = fname;
+					curthread->data.fd.fd = fd;
+					curthread->data.fd.branch = lineno;
+					curthread->data.fd.fname = fname;
 
 					/* Set the timeout: */
 					_thread_kern_set_timeout(timeout);
@@ -686,16 +689,16 @@ _thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
 					 */
 					_SPINLOCK(&_thread_fd_table[fd]->lock);
 
-					if (_thread_run->interrupted != 0) {
+					if (curthread->interrupted != 0) {
 						FDQ_REMOVE(&_thread_fd_table[fd]->r_queue,
-						    _thread_run);
+						    curthread);
 					}
 				} else {
 					/*
 					 * The running thread now owns the
 					 * read lock on this file descriptor: 
 					 */
-					_thread_fd_table[fd]->r_owner = _thread_run;
+					_thread_fd_table[fd]->r_owner = curthread;
 
 					/*
 					 * Reset the number of read locks for
@@ -712,20 +715,20 @@ _thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
 				}
 			}
 
-			if (_thread_fd_table[fd]->r_owner == _thread_run)
+			if (_thread_fd_table[fd]->r_owner == curthread)
 				/* Increment the read lock count: */
 				_thread_fd_table[fd]->r_lockcount++;
 		}
 
 		/* Check the file descriptor and lock types: */
-		if (_thread_run->interrupted == 0 &&
+		if (curthread->interrupted == 0 &&
 		    (lock_type == FD_WRITE || lock_type == FD_RDWR)) {
 			/*
 			 * Wait for the file descriptor to be locked
 			 * for write for the current thread: 
 			 */
-			while ((_thread_fd_table[fd]->w_owner != _thread_run) &&
-			    (_thread_run->interrupted == 0)) {
+			while ((_thread_fd_table[fd]->w_owner != curthread) &&
+			    (curthread->interrupted == 0)) {
 				/*
 				 * Check if the file descriptor is locked by
 				 * another thread: 
@@ -738,16 +741,16 @@ _thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
 					 * write lock on this file
 					 * descriptor: 
 					 */
-					FDQ_INSERT(&_thread_fd_table[fd]->w_queue, _thread_run);
+					FDQ_INSERT(&_thread_fd_table[fd]->w_queue, curthread);
 
 					/*
 					 * Save the file descriptor details
 					 * in the thread structure for the
 					 * running thread: 
 					 */
-					_thread_run->data.fd.fd = fd;
-					_thread_run->data.fd.branch = lineno;
-					_thread_run->data.fd.fname = fname;
+					curthread->data.fd.fd = fd;
+					curthread->data.fd.branch = lineno;
+					curthread->data.fd.fname = fname;
 
 					/* Set the timeout: */
 					_thread_kern_set_timeout(timeout);
@@ -774,9 +777,9 @@ _thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
 					 */
 					_SPINLOCK(&_thread_fd_table[fd]->lock);
 
-					if (_thread_run->interrupted != 0) {
+					if (curthread->interrupted != 0) {
 						FDQ_REMOVE(&_thread_fd_table[fd]->w_queue,
-						    _thread_run);
+						    curthread);
 					}
 				} else {
 					/*
@@ -784,7 +787,7 @@ _thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
 					 * write lock on this   file
 					 * descriptor: 
 					 */
-					_thread_fd_table[fd]->w_owner = _thread_run;
+					_thread_fd_table[fd]->w_owner = curthread;
 
 					/*
 					 * Reset the number of write locks
@@ -801,7 +804,7 @@ _thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
 				}
 			}
 
-			if (_thread_fd_table[fd]->w_owner == _thread_run)
+			if (_thread_fd_table[fd]->w_owner == curthread)
 				/* Increment the write lock count: */
 				_thread_fd_table[fd]->w_lockcount++;
 		}
@@ -809,11 +812,11 @@ _thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
 		/* Unlock the file descriptor table entry: */
 		_SPINUNLOCK(&_thread_fd_table[fd]->lock);
 
-		if (_thread_run->interrupted != 0) {
+		if (curthread->interrupted != 0) {
 			ret = -1;
 			errno = EINTR;
-			if (_thread_run->continuation != NULL)
-				_thread_run->continuation((void *)_thread_run);
+			if (curthread->continuation != NULL)
+				curthread->continuation((void *)curthread);
 		}
 	}
 
@@ -985,4 +988,3 @@ fd_next_writer(int fd)
 
 	return (pthread);
 }
-#endif

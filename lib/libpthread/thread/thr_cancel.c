@@ -8,8 +8,13 @@
 
 static void	finish_cancellation(void *arg);
 
+#pragma weak	pthread_cancel=_pthread_cancel
+#pragma weak	pthread_setcancelstate=_pthread_setcancelstate
+#pragma weak	pthread_setcanceltype=_pthread_setcanceltype
+#pragma weak	pthread_testcancel=_pthread_testcancel
+
 int
-pthread_cancel(pthread_t pthread)
+_pthread_cancel(pthread_t pthread)
 {
 	int ret;
 
@@ -111,26 +116,27 @@ pthread_cancel(pthread_t pthread)
 }
 
 int
-pthread_setcancelstate(int state, int *oldstate)
+_pthread_setcancelstate(int state, int *oldstate)
 {
+	struct pthread	*curthread = _get_curthread();
 	int ostate;
 	int ret;
 
-	ostate = _thread_run->cancelflags & PTHREAD_CANCEL_DISABLE;
+	ostate = curthread->cancelflags & PTHREAD_CANCEL_DISABLE;
 
 	switch (state) {
 	case PTHREAD_CANCEL_ENABLE:
 		if (oldstate != NULL)
 			*oldstate = ostate;
-		_thread_run->cancelflags &= ~PTHREAD_CANCEL_DISABLE;
-		if ((_thread_run->cancelflags & PTHREAD_CANCEL_ASYNCHRONOUS) != 0)
+		curthread->cancelflags &= ~PTHREAD_CANCEL_DISABLE;
+		if ((curthread->cancelflags & PTHREAD_CANCEL_ASYNCHRONOUS) != 0)
 			pthread_testcancel();
 		ret = 0;
 		break;
 	case PTHREAD_CANCEL_DISABLE:
 		if (oldstate != NULL)
 			*oldstate = ostate;
-		_thread_run->cancelflags |= PTHREAD_CANCEL_DISABLE;
+		curthread->cancelflags |= PTHREAD_CANCEL_DISABLE;
 		ret = 0;
 		break;
 	default:
@@ -141,24 +147,25 @@ pthread_setcancelstate(int state, int *oldstate)
 }
 
 int
-pthread_setcanceltype(int type, int *oldtype)
+_pthread_setcanceltype(int type, int *oldtype)
 {
+	struct pthread	*curthread = _get_curthread();
 	int otype;
 	int ret;
 
-	otype = _thread_run->cancelflags & PTHREAD_CANCEL_ASYNCHRONOUS;
+	otype = curthread->cancelflags & PTHREAD_CANCEL_ASYNCHRONOUS;
 	switch (type) {
 	case PTHREAD_CANCEL_ASYNCHRONOUS:
 		if (oldtype != NULL)
 			*oldtype = otype;
-		_thread_run->cancelflags |= PTHREAD_CANCEL_ASYNCHRONOUS;
+		curthread->cancelflags |= PTHREAD_CANCEL_ASYNCHRONOUS;
 		pthread_testcancel();
 		ret = 0;
 		break;
 	case PTHREAD_CANCEL_DEFERRED:
 		if (oldtype != NULL)
 			*oldtype = otype;
-		_thread_run->cancelflags &= ~PTHREAD_CANCEL_ASYNCHRONOUS;
+		curthread->cancelflags &= ~PTHREAD_CANCEL_ASYNCHRONOUS;
 		ret = 0;
 		break;
 	default:
@@ -169,16 +176,18 @@ pthread_setcanceltype(int type, int *oldtype)
 }
 
 void
-pthread_testcancel(void)
+_pthread_testcancel(void)
 {
-	if (((_thread_run->cancelflags & PTHREAD_CANCEL_DISABLE) == 0) &&
-	    ((_thread_run->cancelflags & PTHREAD_CANCELLING) != 0)) {
+	struct pthread	*curthread = _get_curthread();
+
+	if (((curthread->cancelflags & PTHREAD_CANCEL_DISABLE) == 0) &&
+	    ((curthread->cancelflags & PTHREAD_CANCELLING) != 0)) {
 		/*
 		 * It is possible for this thread to be swapped out
 		 * while performing cancellation; do not allow it
 		 * to be cancelled again.
 		 */
-		_thread_run->cancelflags &= ~PTHREAD_CANCELLING;
+		curthread->cancelflags &= ~PTHREAD_CANCELLING;
 		_thread_exit_cleanup();
 		pthread_exit(PTHREAD_CANCELED);
 		PANIC("cancel");
@@ -188,15 +197,19 @@ pthread_testcancel(void)
 void
 _thread_enter_cancellation_point(void)
 {
+	struct pthread	*curthread = _get_curthread();
+
 	/* Look for a cancellation before we block: */
 	pthread_testcancel();
-	_thread_run->cancelflags |= PTHREAD_AT_CANCEL_POINT;
+	curthread->cancelflags |= PTHREAD_AT_CANCEL_POINT;
 }
 
 void
 _thread_leave_cancellation_point(void)
 {
-	_thread_run->cancelflags &= ~PTHREAD_AT_CANCEL_POINT;
+	struct pthread	*curthread = _get_curthread();
+
+	curthread->cancelflags &= ~PTHREAD_AT_CANCEL_POINT;
 	/* Look for a cancellation after we unblock: */
 	pthread_testcancel();
 }
@@ -204,11 +217,13 @@ _thread_leave_cancellation_point(void)
 static void
 finish_cancellation(void *arg)
 {
-	_thread_run->continuation = NULL;
-	_thread_run->interrupted = 0;
+	struct pthread	*curthread = _get_curthread();
 
-	if ((_thread_run->cancelflags & PTHREAD_CANCEL_NEEDED) != 0) {
-		_thread_run->cancelflags &= ~PTHREAD_CANCEL_NEEDED;
+	curthread->continuation = NULL;
+	curthread->interrupted = 0;
+
+	if ((curthread->cancelflags & PTHREAD_CANCEL_NEEDED) != 0) {
+		curthread->cancelflags &= ~PTHREAD_CANCEL_NEEDED;
 		_thread_exit_cleanup();
 		pthread_exit(PTHREAD_CANCELED);
 	}

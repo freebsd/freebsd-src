@@ -31,12 +31,13 @@
 
 #include <sys/types.h>
 #include <sys/wait.h>
-#ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+#pragma weak	waitpid=_waitpid
+
 pid_t
-waitpid(pid_t wpid, int *status, int options)
+_waitpid(pid_t wpid, int *status, int options)
 {
 	pid_t	ret;
 
@@ -46,4 +47,3 @@ waitpid(pid_t wpid, int *status, int options)
 	
 	return ret;
 }
-#endif
