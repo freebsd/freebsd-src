@@ -359,6 +359,8 @@
             ..
             ppp
             ..
+            pppd
+            ..
             printing
             ..
             scsi_target
