@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)resourcevar.h	8.3 (Berkeley) 2/22/94
- * $Id: resourcevar.h,v 1.4 1994/10/08 22:22:58 phk Exp $
+ * $Id: resourcevar.h,v 1.5 1994/10/10 00:58:33 phk Exp $
  */
 
 #ifndef	_SYS_RESOURCEVAR_H_
@@ -83,14 +83,16 @@ struct plimit {
 	    (p)->p_stats->p_prof.pr_addr, (p)->p_stats->p_prof.pr_ticks)
 
 #ifdef KERNEL
+int	 addupc __P((int pc, struct uprof *up, int ticks));
 void	 addupc_intr __P((struct proc *p, u_long pc, u_int ticks));
 void	 addupc_task __P((struct proc *p, u_long pc, u_int ticks));
-int	 addupc __P((int, struct uprof *, int));
+void	 calcru __P((struct proc *p, struct timeval *up, struct timeval *sp,
+		     struct timeval *ip));
+int	 fuswintr __P((void *base));
 struct plimit
 	*limcopy __P((struct plimit *lim));
-void	calcru __P((struct proc *p,struct timeval *up,struct timeval *sp,struct timeval *ip));
-void	ruadd __P((struct rusage *, struct rusage *));
-int	fuswintr __P((caddr_t));
-int	suswintr __P((caddr_t, int));
+void	 ruadd __P((struct rusage *ru, struct rusage *ru2));
+int	 suswintr __P((void *base, int word));
 #endif
+
 #endif	/* !_SYS_RESOURCEVAR_H_ */
