@@ -516,15 +516,15 @@ ata_cyrix_setmode(struct ata_device *atadev, int mode)
     if (!error) {
 	if (mode >= ATA_UDMA0) {
 	    ATA_OUTL(ch->r_io[ATA_BMCMD_PORT].res,
-		     0x24 + (devno << 3), udmatiming[mode % ATA_MODE_MASK]);
+		     0x24 + (devno << 3), udmatiming[mode & ATA_MODE_MASK]);
 	}
 	else if (mode >= ATA_WDMA0) {
 	    ATA_OUTL(ch->r_io[ATA_BMCMD_PORT].res,
-		     0x24 + (devno << 3), dmatiming[mode % ATA_MODE_MASK]);
+		     0x24 + (devno << 3), dmatiming[mode & ATA_MODE_MASK]);
 	}
 	else {
 	    ATA_OUTL(ch->r_io[ATA_BMCMD_PORT].res,
-		     0x20 + (devno << 3), piotiming[mode % ATA_MODE_MASK]);
+		     0x20 + (devno << 3), piotiming[mode & ATA_MODE_MASK]);
 	}
 	atadev->mode = mode;
     }
