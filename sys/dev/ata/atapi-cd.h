@@ -348,6 +348,3 @@ struct acd_softc {
     struct wormio_prepare_track preptrack;	/* scratch region */
     struct devstat		*stats;		/* devstat entry */
 };
-
-#define CDRIOCBLANK		_IO('c',100)	/* blank a CDRW disc */
-#define CDRIOCNEXTWRITEABLEADDR _IOR('c',101,int)   
