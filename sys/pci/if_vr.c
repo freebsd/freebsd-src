@@ -1692,7 +1692,5 @@ vr_shutdown(device_t dev)
 {
 	struct vr_softc		*sc = device_get_softc(dev);
 
-	VR_LOCK(sc);
-	vr_stop(sc);
-	VR_UNLOCK(sc);
+	vr_detach(sc);
 }
