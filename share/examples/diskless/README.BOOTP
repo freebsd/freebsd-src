@@ -14,11 +14,10 @@
     to export read-only NFS partitions from the server, yet still be able to
     customize each workstation ( or not ).
 
-    The current /etc/rc.diskless file takes over the function of mounting 
-    'disks' and retargets rc.conf.local and rc.local from /etc
-    to /conf/$IP_OF_WORKSTATION.  The typical automatic configuration and
-    mounting of disks in /etc/rc is bypassed, but most if not all rc.conf
-    style options are left intact.
+    /etc/rc.diskless1 is responsible for doing core mounts and for retargeting
+    /conf/ME ( part of the read-only root NFS mount ) to /conf/$IP_OF_CLIENT.
+    /etc/rc.conf.local and /etc/rc.local, along with other machine-specific
+    configuration files, are typically softlinks to /conf/ME/<filename>.
 
     In the BOOTP workstation /conf/$IP/rc.conf.local, you must typically
     turn *OFF* most of the system option defaults in /etc/rc.conf as well
@@ -37,6 +36,13 @@
     files to R+W directories if /usr is mounted read-only, and retarget
     syslogd and other programs.  This example is not designed to run out of
     the box and some modifications are required.
+
+    >> NOTE <<  HT.DISKLESS/ttys contains the typical configuration required
+    to bring X up at boot time.  Essentially, it runs xdm in the foreground
+    with the appropriate arguments rather then a getty on ttyv0.  You must
+    run xdm on ttyv0 in order to prevent xdm racing with getty on a virtual
+    terminal.  Such a race can cause your keyboard to be directed away from
+    the X session, essentially making the session unusable.
 
     Typically you should start with a clean slate by tar-copying this example
     directory to /conf and then hack on it in /conf rather then in 

@@ -148,6 +148,11 @@
     /conf/<full-host-name>/.  Depending on your system configuration, 
     there may be other files not listed above that you have to worry about.
 
+    In many cases, /conf/ME/filename is itself a softlink to 
+    "../HT.xxxx/filename", where HT.xxxx is something like HT.STD ... this
+    added complexity actually makes it easier to manage multiple
+    classifications of machines.
+
 				DELETION OF FILES
 
     Any file found on the template destination that does not exist in the
