@@ -718,6 +718,8 @@ xe_intr(void *xscp)
 
 	  /* Deliver packet to upper layers */
 	  if (mbp != NULL) {
+	    mbp->m_flags |= M_HASFCS;		/* FCS is included in our
+						 * packet */
 	    mbp->m_pkthdr.len = mbp->m_len = len;
 	    (*ifp->if_input)(ifp, mbp);		/* Send the packet on its way */
 	    ifp->if_ipackets++;			/* Success! */
