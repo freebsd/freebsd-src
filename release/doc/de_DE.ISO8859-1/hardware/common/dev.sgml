@@ -29,10 +29,10 @@
 	build.
 
 	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.49 2002/12/07 21:07:59 ue Exp $
-	basiert auf: 1.119.2.2
+	basiert auf: 1.119.2.3
 -->
 
-<sect1>
+<sect1 id="support">
   <sect1info>
     <pubdate>$FreeBSD$</pubdate>
   </sect1info>

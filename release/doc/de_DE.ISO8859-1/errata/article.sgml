@@ -9,7 +9,7 @@
 	not be the one that received the last change in the document.)
 
 	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.9 2002/10/12 18:02:21 ue Exp $
-	basiert auf: 1.9.2.3
+	basiert auf: 1.9.2.4
 -->
 
 <!DOCTYPE ARTICLE PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -75,7 +75,7 @@
       werden.</para>
   </abstract>
 
-  <sect1>
+  <sect1 id="intro">
     <title>Einleitung</title>
 
     <para>Diese Errata enthalten <quote>brandhei&szlig;e</quote>
@@ -106,13 +106,13 @@
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
   </sect1>
 
-  <sect1>
+  <sect1 id="security">
     <title>Sicherheitshinweise</title>
 
     <para>Keine aktuellen Sicherheitshinweise.</para>
   </sect1>
 
-  <sect1>
+  <sect1 id="late-news">
     <title>Aktuelle Informationen</title>
 
     <para>Die auf &man.geom.4; basierenden Routinen des Kernel zur

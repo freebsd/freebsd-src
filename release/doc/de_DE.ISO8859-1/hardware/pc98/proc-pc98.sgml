@@ -1,10 +1,10 @@
 <!--
   $FreeBSD$
   $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/pc98/proc-pc98.sgml,v 1.1 2002/07/08 18:41:44 ue Exp $
-  basiert auf: 1.1
+  basiert auf: 1.1.2.1
 -->
 
-<sect1>
+<sect1 id="support-sys">
   <title>Unterst&uuml;tzte Systeme</title>
 
   <para>NEC PC-98x1 Systeme</para>

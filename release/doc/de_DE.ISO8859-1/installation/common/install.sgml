@@ -2,7 +2,7 @@
 
 $FreeBSD$
 $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/install.sgml,v 1.14 2002/12/07 20:14:02 ue Exp $
-basiert auf: 1.17
+basiert auf: 1.17.2.1
 
 install.sgml
 
@@ -11,7 +11,7 @@ from {alpha,i386}/INSTALL.TXT.
 
 -->
 
-<sect1>
+<sect1 id="install">
   <title>Wie installiere ich &os;</title>
 
   <para>In diesem Kapitel erfahren Sie, wie Sie &os; installieren.

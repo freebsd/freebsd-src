@@ -1,7 +1,7 @@
 <!--
 	$FreeBSD$
 	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/sparc64/article.sgml,v 1.6 2002/10/12 18:02:22 ue Exp $
-	basiert auf: 1.2
+	basiert auf: 1.2.2.1
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -29,7 +29,7 @@
   &sect.intro;
   &sect.proc.sparc64;
   &sect.dev.sparc64;
-  <sect1>
+  <sect1 id="acknowledgements">
     <title>Danksagung</title>
 
     <para>Dieses Dokument basiert zum Teil auf den Release Notes
