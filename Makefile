@@ -445,6 +445,8 @@ lib-tools:
 		rm -f /usr/sbin/compile_et
 	cd ${.CURDIR}/usr.bin/mk_cmds && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/usr.bin/uudecode && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/gnu/usr.bin/bison && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/gnu/usr.bin/gperf && ${MAKE} depend && \
