@@ -764,17 +764,38 @@ static time_t	now;
  */
 static int
 skip_message(const char *name, const char *spec) {
+	const char *s;
+	char prev, next;
+	int exclude = 0;
+	/* Behaviour on explicit match */
+
 	if (spec == NULL)
 		return 0;
-
-	switch (spec[0]) {
-	case '+':
-		return (strcmp(name, spec + 1) != 0);
+	switch (*spec) {
 	case '-':
-		return (strcmp(name, spec + 1) == 0);
+		exclude = 1;
+		/*FALLTHROUGH*/
+	case '+':
+		spec++;
+		break;
 	default:
-		return (strcmp(name, spec) != 0);
+		break;
 	}
+	s = strstr (spec, name);
+
+	if (s != NULL) {
+		prev = (s == spec ? ',' : *(s - 1));
+		next = *(s + strlen (name));
+
+		if (prev == ',' && (next == '\0' || next == ','))
+			/* Explicit match: skip iff the spec is an
+			   exclusive one. */
+			return exclude;
+	}
+
+	/* No explicit match for this name: skip the message iff
+	   the spec is an inclusive one. */
+	return !exclude;
 }
 
 /*
