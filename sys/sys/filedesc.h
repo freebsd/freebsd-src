@@ -107,6 +107,7 @@ void	fdfree __P((struct proc *p));
 int	closef __P((struct file *fp,struct proc *p));
 void	fdcloseexec __P((struct proc *p));
 int	getvnode __P((struct filedesc *fdp, int fd, struct file **fpp));
+void	setugidsafety __P((struct proc *p));
 #endif
 
 #endif
