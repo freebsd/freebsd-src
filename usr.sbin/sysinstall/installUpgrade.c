@@ -93,7 +93,6 @@ static HitList etc_files [] = {
    { JUST_COPY,		"make.conf",		TRUE, NULL },
    { JUST_COPY,		"manpath.config",	TRUE, NULL },
    { JUST_COPY,		"master.passwd",	FALSE, NULL },
-   { JUST_COPY,		"modems",		TRUE, NULL },
    { JUST_COPY,		"motd",			TRUE, NULL },
    { JUST_COPY,		"namedb",		TRUE, NULL },
    { JUST_COPY,		"networks",		TRUE, NULL },

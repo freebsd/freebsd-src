@@ -30,7 +30,6 @@ login.conf	- login class capabilities database (see login.conf(5))
 mail.rc		- systemwide initialization files for mail(1)
 make.conf	- example configuration variables for system builds
 manpath.config	- configuration file for man(1)
-modems		- modem configuration database (see modems(5))
 motd		- sample Message of the Day
 netstart	- network startup script run from /etc/rc
 networks	- see networks(5)
