@@ -179,6 +179,6 @@ ShowFile(char *filename, char *header)
     }
     dialog_clear();
     sprintf(buf, "/stand/gzip -c -d %s", filename);
-    dialog_prgbox(header, buf, LINES-1, COLS, TRUE, TRUE);
+    dialog_prgbox(header, buf, LINES-1, COLS, TRUE, FALSE);
     dialog_clear();
 }
