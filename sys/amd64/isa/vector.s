@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: vector.s,v 1.6 1994/01/10 23:15:09 ache Exp $
+ *	$Id: vector.s,v 1.7 1994/04/02 07:00:50 davidg Exp $
  */
 
 #include "i386/isa/icu.h"
@@ -97,7 +97,10 @@
  * loading segregs.
  */
 
-#define	FAST_INTR(unit, irq_num, id_num, handler, enable_icus) \
+#define	FAST_INTR(irq_num, enable_icus) \
+	.text ; \
+	SUPERALIGN_TEXT ; \
+IDTVEC(fastintr/**/irq_num) ; \
 	pushl	%eax ;		/* save only call-used registers */ \
 	pushl	%ecx ; \
 	pushl	%edx ; \
@@ -107,12 +110,13 @@
 	movl	%ax,%ds ; \
 	MAYBE_MOVW_AX_ES ; \
 	FAKE_MCOUNT((4+ACTUALLY_PUSHED)*4(%esp)) ; \
-	pushl	$unit ; \
-	call	handler ;	/* do the work ASAP */ \
+	pushl	_intr_unit + (irq_num) * 4 ; \
+	call	*_intr_handler + (irq_num) * 4 ; /* do the work ASAP */ \
 	enable_icus ;		/* (re)enable ASAP (helps edge trigger?) */ \
 	addl	$4,%esp ; \
 	incl	_cnt+V_INTR ;	/* book-keeping can wait */ \
-	incl	_intrcnt_actv + (id_num) * 4 ; \
+	movl	_intr_countp + (irq_num) * 4,%eax ; \
+	incl	(%eax) ; \
 	movl	_cpl,%eax ;	/* are we unmasking pending HWIs or SWIs? */ \
 	notl	%eax ; \
 	andl	_ipending,%eax ; \
@@ -147,7 +151,10 @@
 	MEXITCOUNT ; \
 	jmp	_doreti
 
-#define	INTR(unit, irq_num, id_num, mask, handler, icu, enable_icus, reg, stray) \
+#define	INTR(irq_num, icu, enable_icus, reg) \
+	.text ; \
+	SUPERALIGN_TEXT ; \
+IDTVEC(intr/**/irq_num) ; \
 	pushl	$0 ;		/* dumby error code */ \
 	pushl	$0 ;		/* dumby trap type */ \
 	pushal ; \
@@ -167,15 +174,17 @@
 	testb	$IRQ_BIT(irq_num),%reg ; \
 	jne	2f ; \
 1: ; \
+Xresume/**/irq_num: ; \
 	FAKE_MCOUNT(12*4(%esp)) ;	/* XXX late to avoid double count */ \
-	incl	_intrcnt_actv + (id_num) * 4 ; \
+	movl	_intr_countp + (irq_num) * 4,%eax ; \
+	incl	(%eax) ; \
 	movl	_cpl,%eax ; \
 	pushl	%eax ; \
-	pushl	$unit ; \
-	orl	mask,%eax ; \
+	pushl	_intr_unit + (irq_num) * 4 ; \
+	orl	_intr_mask + (irq_num) * 4,%eax ; \
 	movl	%eax,_cpl ; \
 	sti ; \
-	call	handler ; \
+	call	*_intr_handler + (irq_num) * 4 ; \
 	movb	_imen + IRQ_BYTE(irq_num),%al ; \
 	andb	$~IRQ_BIT(irq_num),%al ; \
 	movb	%al,_imen + IRQ_BYTE(irq_num) ; \
@@ -189,9 +198,6 @@
 	ALIGN_TEXT ; \
 2: ; \
 	/* XXX skip mcounting here to avoid double count */ \
-	movl	$1b,%eax ;	/* register resume address */ \
-				/* XXX - someday do it at attach time */ \
-	movl	%eax,ihandlers + (irq_num) * 4 ;	\
 	orb	$IRQ_BIT(irq_num),_ipending + IRQ_BYTE(irq_num) ; \
 	popl	%es ; \
 	popl	%ds ; \
@@ -199,118 +205,48 @@
 	addl	$4+4,%esp ; \
 	iret
 
-/*
- * vector.h has defined a macro 'BUILD_VECTORS' containing a big list of info
- * about vectors, including a submacro 'BUILD_VECTOR' that operates on the
- * info about each vector.  We redefine 'BUILD_VECTOR' to expand the info
- * in different ways.  Here we expand it to a list of interrupt handlers.
- * This order is of course unimportant.  Elsewhere we expand it to inline
- * linear search code for which the order is a little more important and
- * concatenating the code with no holes is very important.
- *
- * XXX - now there is BUILD_FAST_VECTOR as well as BUILD_VECTOR.
- *
- * The info consists of the following items for each vector:
- *
- *	name (identifier):	name of the vector; used to build labels
- *	unit (expression):	unit number to call the device driver with
- *	irq_num (number):	number of the IRQ to handled (0-15)
- *	id_num (number):	uniq numeric id for handler (assigned by config)
- *	mask (blank-ident):	priority mask used
- *	handler (blank-ident):	interrupt handler to call
- *	icu_num (number):	(1 + irq_num / 8) converted for label building
- *	icu_enables (number):	1 for icu_num == 1, 1_AND_2 for icu_num == 2
- *	reg (blank-ident):	al for icu_num == 1, ah for icu_num == 2
- *
- * 'irq_num' is converted in several ways at config time to get around
- * limitations in cpp.  The macros have blanks after commas iff they would
- * not mess up identifiers and numbers.
- */
-
-#undef BUILD_FAST_VECTOR
-#define	BUILD_FAST_VECTOR(name, unit, irq_num, id_num, mask, handler, \
-			  icu_num, icu_enables, reg) \
-	.globl	handler ; \
-	.text ; \
-	.globl	_V/**/name ; \
-	SUPERALIGN_TEXT ; \
-_V/**/name: ; \
-	FAST_INTR(unit, irq_num,id_num, handler, ENABLE_ICU/**/icu_enables)
-
-#undef BUILD_VECTOR
-#define	BUILD_VECTOR(name, unit, irq_num, id_num, mask, handler, \
-		     icu_num, icu_enables, reg) \
-	.globl	handler ; \
-	.text ; \
-	.globl	_V/**/name ; \
-	SUPERALIGN_TEXT ; \
-_V/**/name: ; \
-	INTR(unit,irq_num, id_num, mask, handler, IO_ICU/**/icu_num, \
-	     ENABLE_ICU/**/icu_enables, reg,)
-
 MCOUNT_LABEL(bintr)
-	BUILD_VECTORS
-
-	/* hardware interrupt catcher (IDT 32 - 47) */
-	.globl	_isa_strayintr
-
-#define	STRAYINTR(irq_num, icu_num, icu_enables, reg) \
-IDTVEC(intr/**/irq_num) ; \
-	INTR(irq_num,irq_num,irq_num, _high_imask,  _isa_strayintr, \
-		  IO_ICU/**/icu_num, ENABLE_ICU/**/icu_enables, reg,stray)
-
-/*
- * XXX - the mask (1 << 2) == IRQ_SLAVE will be generated for IRQ 2, instead
- * of the mask IRQ2 (defined as IRQ9 == (1 << 9)).  But IRQ 2 "can't happen".
- * In fact, all stray interrupts "can't happen" except for bugs.  The
- * "stray" IRQ 7 is documented behaviour of the 8259.  It happens when there
- * is a glitch on any of its interrupt inputs.  Does it really interrupt when
- * IRQ 7 is masked?
- *
- * XXX - unpend doesn't work for these, it sends them to the real handler.
- *
- * XXX - the race bug during initialization may be because I changed the
- * order of switching from the stray to the real interrupt handler to before
- * enabling interrupts.  The old order looked unsafe but maybe it is OK with
- * the stray interrupt handler installed.  But these handlers only reduce
- * the window of vulnerability - it is still open at the end of
- * isa_configure().
- *
- * XXX - many comments are stale.
- */
-
-	STRAYINTR(0,1,1, al)
-	STRAYINTR(1,1,1, al)
-	STRAYINTR(2,1,1, al)
-	STRAYINTR(3,1,1, al)
-	STRAYINTR(4,1,1, al)
-	STRAYINTR(5,1,1, al)
-	STRAYINTR(6,1,1, al)
-	STRAYINTR(7,1,1, al)
-	STRAYINTR(8,2,1_AND_2, ah)
-	STRAYINTR(9,2,1_AND_2, ah)
-	STRAYINTR(10,2,1_AND_2, ah)
-	STRAYINTR(11,2,1_AND_2, ah)
-	STRAYINTR(12,2,1_AND_2, ah)
-	STRAYINTR(13,2,1_AND_2, ah)
-	STRAYINTR(14,2,1_AND_2, ah)
-	STRAYINTR(15,2,1_AND_2, ah)
-#if 0
-	INTRSTRAY(255, _highmask, 255) ; call	_isa_strayintr ; INTREXIT2
-#endif
+	FAST_INTR(0, ENABLE_ICU1)
+	FAST_INTR(1, ENABLE_ICU1)
+	FAST_INTR(2, ENABLE_ICU1)
+	FAST_INTR(3, ENABLE_ICU1)
+	FAST_INTR(4, ENABLE_ICU1)
+	FAST_INTR(5, ENABLE_ICU1)
+	FAST_INTR(6, ENABLE_ICU1)
+	FAST_INTR(7, ENABLE_ICU1)
+	FAST_INTR(8, ENABLE_ICU1_AND_2)
+	FAST_INTR(9, ENABLE_ICU1_AND_2)
+	FAST_INTR(10, ENABLE_ICU1_AND_2)
+	FAST_INTR(11, ENABLE_ICU1_AND_2)
+	FAST_INTR(12, ENABLE_ICU1_AND_2)
+	FAST_INTR(13, ENABLE_ICU1_AND_2)
+	FAST_INTR(14, ENABLE_ICU1_AND_2)
+	FAST_INTR(15, ENABLE_ICU1_AND_2)
+	INTR(0, IO_ICU1, ENABLE_ICU1, al)
+	INTR(1, IO_ICU1, ENABLE_ICU1, al)
+	INTR(2, IO_ICU1, ENABLE_ICU1, al)
+	INTR(3, IO_ICU1, ENABLE_ICU1, al)
+	INTR(4, IO_ICU1, ENABLE_ICU1, al)
+	INTR(5, IO_ICU1, ENABLE_ICU1, al)
+	INTR(6, IO_ICU1, ENABLE_ICU1, al)
+	INTR(7, IO_ICU1, ENABLE_ICU1, al)
+	INTR(8, IO_ICU2, ENABLE_ICU1_AND_2, ah)
+	INTR(9, IO_ICU2, ENABLE_ICU1_AND_2, ah)
+	INTR(10, IO_ICU2, ENABLE_ICU1_AND_2, ah)
+	INTR(11, IO_ICU2, ENABLE_ICU1_AND_2, ah)
+	INTR(12, IO_ICU2, ENABLE_ICU1_AND_2, ah)
+	INTR(13, IO_ICU2, ENABLE_ICU1_AND_2, ah)
+	INTR(14, IO_ICU2, ENABLE_ICU1_AND_2, ah)
+	INTR(15, IO_ICU2, ENABLE_ICU1_AND_2, ah)
 MCOUNT_LABEL(eintr)
 
-/*
- * These are the interrupt counters, I moved them here from icu.s so that
- * they are with the name table.  rgrimes
- *
- * There are now lots of counters, this has been redone to work with
- * Bruce Evans intr-0.1 code, which I modified some more to make it all
- * work with vmstat.
- */
 	.data
 ihandlers:			/* addresses of interrupt handlers */
-	.space	NHWI*4		/* actually resumption addresses for HWI's */
+				/* actually resumption addresses for HWI's */
+	.long	Xresume0, Xresume1, Xresume2, Xresume3 
+	.long	Xresume4, Xresume5, Xresume6, Xresume7
+	.long	Xresume8, Xresume9, Xresume10, Xresume11
+	.long	Xresume12, Xresume13, Xresume14, Xresume15 
 	.long	swi_tty, swi_net, 0, 0, 0, 0, 0, 0
 	.long	0, 0, 0, 0, 0, 0, swi_clock, swi_ast
 imasks:				/* masks for interrupt handlers */
@@ -318,43 +254,37 @@ imasks:				/* masks for interrupt handlers */
 	.long	SWI_TTY_MASK, SWI_NET_MASK, 0, 0, 0, 0, 0, 0
 	.long	0, 0, 0, 0, 0, 0, SWI_CLOCK_MASK, SWI_AST_MASK
 
-	.globl	_intrcnt
-_intrcnt:			/* used by vmstat to calc size of table */
-	.globl	_intrcnt_bad7
-_intrcnt_bad7:	.space	4	/* glitches on irq 7 */
-	.globl	_intrcnt_bad15
-_intrcnt_bad15:	.space	4	/* glitches on irq 15 */
-	.globl	_intrcnt_stray
-_intrcnt_stray:	.space	4	/* total count of stray interrupts */
-	.globl	_intrcnt_actv
-_intrcnt_actv:	.space	NR_REAL_INT_HANDLERS * 4	/* active interrupts */
-	.globl	_eintrcnt
-_eintrcnt:			/* used by vmstat to calc size of table */
-
 /*
- * Build the interrupt name table for vmstat
+ * Interrupt counters and names.  The format of these and the label names
+ * must agree with what vmstat expects.  The tables are indexed by device
+ * ids so that we don't have to move the names around as devices are
+ * attached.
  */
+#include "vector.h"
+	.globl	_intrcnt, _eintrcnt
+_intrcnt:
+	.space	(NR_DEVICES + ICU_LEN) * 4
+_eintrcnt:
 
-#undef BUILD_FAST_VECTOR
-#define BUILD_FAST_VECTOR	BUILD_VECTOR
-
-#undef BUILD_VECTOR
-#define	BUILD_VECTOR(name, unit, irq_num, id_num, mask, handler, \
-		     icu_num, icu_enables, reg) \
-	.ascii	"name irq" ; \
-	.asciz	"irq_num"
-/*
- * XXX - use the __STRING and __CONCAT macros from <sys/cdefs.h> to stringize
- * and concatenate names above and elsewhere.  Note that __CONCAT doesn't
- * work when nested.
- */
-
-	.text
 	.globl	_intrnames, _eintrnames
 _intrnames:
-	BUILD_VECTOR(bad,,7,,,,,,)
-	BUILD_VECTOR(bad,,15,,,,,,)
-	BUILD_VECTOR(stray,,,,,,,,)
-	BUILD_VECTORS
-
+	.ascii	DEVICE_NAMES
+	.asciz	"stray irq0"
+	.asciz	"stray irq1"
+	.asciz	"stray irq2"
+	.asciz	"stray irq3"
+	.asciz	"stray irq4"
+	.asciz	"stray irq5"
+	.asciz	"stray irq6"
+	.asciz	"stray irq7"
+	.asciz	"stray irq8"
+	.asciz	"stray irq9"
+	.asciz	"stray irq10"
+	.asciz	"stray irq11"
+	.asciz	"stray irq12"
+	.asciz	"stray irq13"
+	.asciz	"stray irq14"
+	.asciz	"stray irq15"
 _eintrnames:
+
+	.text

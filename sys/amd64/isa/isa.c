@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.19 1994/08/10 04:39:52 wollman Exp $
+ *	$Id: isa.c,v 1.20 1994/08/13 03:50:07 wollman Exp $
  */
 
 /*
@@ -65,6 +65,7 @@
 #include <i386/isa/icu.h>
 #include <i386/isa/ic/i8237.h>
 #include <i386/isa/ic/i8042.h>
+#include "vector.h"
 
 /*
 **  Register definitions for DMA controller 1 (channels 0..3):
@@ -82,20 +83,70 @@
 #define	DMA2_MODE	(IO_DMA2 + 2*11)	/* mode register */
 #define	DMA2_FFC	(IO_DMA2 + 2*12)	/* clear first/last FF */
 
-void config_isadev __P((struct isa_device *, u_int *));
+/*
+ * Bits to specify the type and amount of conflict checking.
+ */
+#define	CC_ATTACH	(1 << 0)
+#define	CC_DRQ		(1 << 1)
+#define	CC_IOADDR	(1 << 2)
+#define	CC_IRQ		(1 << 3)
+#define	CC_MEMADDR	(1 << 4)
+
+/*
+ * XXX these defines should be in a central place.
+ */
+#define	read_eflags()		({u_long ef; \
+				  __asm("pushfl; popl %0" : "=a" (ef)); \
+				  ef; })
+#define	write_eflags(ef)	__asm("pushl %0; popfl" : : "a" ((u_long)(ef)))
+
+u_long	*intr_countp[ICU_LEN];
+inthand2_t *intr_handler[ICU_LEN];
+u_int	intr_mask[ICU_LEN];
+int	intr_unit[ICU_LEN];
+
+static inthand_t *fastintr[ICU_LEN] = {
+	&IDTVEC(fastintr0), &IDTVEC(fastintr1),
+	&IDTVEC(fastintr2), &IDTVEC(fastintr3),
+	&IDTVEC(fastintr4), &IDTVEC(fastintr5),
+	&IDTVEC(fastintr6), &IDTVEC(fastintr7),
+	&IDTVEC(fastintr8), &IDTVEC(fastintr9),
+	&IDTVEC(fastintr10), &IDTVEC(fastintr11),
+	&IDTVEC(fastintr12), &IDTVEC(fastintr13),
+	&IDTVEC(fastintr14), &IDTVEC(fastintr15)
+};
+
+static inthand_t *slowintr[ICU_LEN] = {
+	&IDTVEC(intr0), &IDTVEC(intr1), &IDTVEC(intr2), &IDTVEC(intr3),
+	&IDTVEC(intr4), &IDTVEC(intr5), &IDTVEC(intr6), &IDTVEC(intr7),
+	&IDTVEC(intr8), &IDTVEC(intr9), &IDTVEC(intr10), &IDTVEC(intr11),
+	&IDTVEC(intr12), &IDTVEC(intr13), &IDTVEC(intr14), &IDTVEC(intr15)
+};
+
+static void config_isadev __P((struct isa_device *isdp, u_int *mp));
+static void conflict __P((struct isa_device *dvp, struct isa_device *tmpdvp,
+			  int item, char const *whatnot, char const *reason,
+			  char const *format));
+static int haveseen __P((struct isa_device *dvp, struct isa_device *tmpdvp,
+			 u_int checkbits));
+static int haveseen_isadev __P((struct isa_device *dvp, u_int checkbits));
+static inthand2_t isa_strayintr;
+static void register_imask __P((struct isa_device *dvp, u_int mask));
 
 /*
  * print a conflict message
  */
-void
-conflict(dvp, tmpdvp, item, reason, format)
-	struct isa_device	*dvp, *tmpdvp;
+static void
+conflict(dvp, tmpdvp, item, whatnot, reason, format)
+	struct isa_device	*dvp;
+	struct isa_device	*tmpdvp;
 	int			item;
-	char			*reason;
-	char			*format;
+	char const		*whatnot;
+	char const		*reason;
+	char const		*format;
 {
-	printf("%s%d not probed due to %s conflict with %s%d at ",
-		dvp->id_driver->name, dvp->id_unit, reason,
+	printf("%s%d not %sed due to %s conflict with %s%d at ",
+		dvp->id_driver->name, dvp->id_unit, whatnot, reason,
 		tmpdvp->id_driver->name, tmpdvp->id_unit);
 	printf(format, item);
 	printf("\n");
@@ -105,9 +156,11 @@ conflict(dvp, tmpdvp, item, reason, format)
  * Check to see if things are alread in use, like IRQ's, I/O addresses
  * and Memory addresses.
  */
-int
-haveseen(dvp, tmpdvp)
-	struct	isa_device *dvp, *tmpdvp;
+static int
+haveseen(dvp, tmpdvp, checkbits)
+	struct isa_device *dvp;
+	struct isa_device *tmpdvp;
+	u_int	checkbits;
 {
 	int	status = 0;
 
@@ -115,17 +168,20 @@ haveseen(dvp, tmpdvp)
 	 * Only check against devices that have already been found
 	 */
 	if (tmpdvp->id_alive) {
+		char const *whatnot;
+
+		whatnot = checkbits & CC_ATTACH ? "attach" : "probe";
 		/*
 		 * Check for I/O address conflict.  We can only check the
 		 * starting address of the device against the range of the
 		 * device that has already been probed since we do not
 		 * know how many I/O addresses this device uses.
 		 */
-		if (tmpdvp->id_alive != -1) {
+		if (checkbits & CC_IOADDR && tmpdvp->id_alive != -1) {
 			if ((dvp->id_iobase >= tmpdvp->id_iobase) &&
 			    (dvp->id_iobase <=
 				  (tmpdvp->id_iobase + tmpdvp->id_alive - 1))) {
-				conflict(dvp, tmpdvp, dvp->id_iobase,
+				conflict(dvp, tmpdvp, dvp->id_iobase, whatnot,
 					 "I/O address", "0x%x");
 				status = 1;
 			}
@@ -140,34 +196,32 @@ haveseen(dvp, tmpdvp)
 		 * since at that time we would know the full range.
 		 * XXX KERNBASE is a hack, we should have vaddr in the table!
 		 */
-		if(tmpdvp->id_maddr) {
-			if((KERNBASE + dvp->id_maddr >= tmpdvp->id_maddr) &&
-			   (KERNBASE + dvp->id_maddr <=
-			   (tmpdvp->id_maddr + tmpdvp->id_msize - 1))) {
-				conflict(dvp, tmpdvp, dvp->id_maddr, "maddr",
-					"0x%x");
+		if (checkbits & CC_MEMADDR && tmpdvp->id_maddr) {
+			if ((KERNBASE + dvp->id_maddr >= tmpdvp->id_maddr) &&
+			    (KERNBASE + dvp->id_maddr <=
+			     (tmpdvp->id_maddr + tmpdvp->id_msize - 1))) {
+				conflict(dvp, tmpdvp, (int)dvp->id_maddr,
+					 whatnot, "maddr", "0x%x");
 				status = 1;
 			}
 		}
-#ifndef COM_MULTIPORT
 		/*
 		 * Check for IRQ conflicts.
 		 */
-		if(tmpdvp->id_irq) {
+		if (checkbits & CC_IRQ && tmpdvp->id_irq) {
 			if (tmpdvp->id_irq == dvp->id_irq) {
 				conflict(dvp, tmpdvp, ffs(dvp->id_irq) - 1,
-					"irq", "%d");
+					 whatnot, "irq", "%d");
 				status = 1;
 			}
 		}
-#endif
 		/*
 		 * Check for DRQ conflicts.
 		 */
-		if(tmpdvp->id_drq != -1) {
+		if (checkbits & CC_DRQ && tmpdvp->id_drq != -1) {
 			if (tmpdvp->id_drq == dvp->id_drq) {
-				conflict(dvp, tmpdvp, dvp->id_drq,
-					"drq", "%d");
+				conflict(dvp, tmpdvp, dvp->id_drq, whatnot,
+					 "drq", "%d");
 				status = 1;
 			}
 		}
@@ -179,25 +233,22 @@ haveseen(dvp, tmpdvp)
  * Search through all the isa_devtab_* tables looking for anything that
  * conflicts with the current device.
  */
-int
-haveseen_isadev(dvp)
+static int
+haveseen_isadev(dvp, checkbits)
 	struct isa_device *dvp;
+	u_int	checkbits;
 {
 	struct isa_device *tmpdvp;
 	int	status = 0;
 
-	for (tmpdvp = isa_devtab_tty; tmpdvp->id_driver; tmpdvp++) {
-		status |= haveseen(dvp, tmpdvp);
-	}
-	for (tmpdvp = isa_devtab_bio; tmpdvp->id_driver; tmpdvp++) {
-		status |= haveseen(dvp, tmpdvp);
-	}
-	for (tmpdvp = isa_devtab_net; tmpdvp->id_driver; tmpdvp++) {
-		status |= haveseen(dvp, tmpdvp);
-	}
-	for (tmpdvp = isa_devtab_null; tmpdvp->id_driver; tmpdvp++) {
-		status |= haveseen(dvp, tmpdvp);
-	}
+	for (tmpdvp = isa_devtab_tty; tmpdvp->id_driver; tmpdvp++)
+		status |= haveseen(dvp, tmpdvp, checkbits);
+	for (tmpdvp = isa_devtab_bio; tmpdvp->id_driver; tmpdvp++)
+		status |= haveseen(dvp, tmpdvp, checkbits);
+	for (tmpdvp = isa_devtab_net; tmpdvp->id_driver; tmpdvp++)
+		status |= haveseen(dvp, tmpdvp, checkbits);
+	for (tmpdvp = isa_devtab_null; tmpdvp->id_driver; tmpdvp++)
+		status |= haveseen(dvp, tmpdvp, checkbits);
 	return(status);
 }
 
@@ -208,26 +259,18 @@ void
 isa_configure() {
 	struct isa_device *dvp;
 
-	enable_intr();
 	splhigh();
+	enable_intr();
 	INTREN(IRQ_SLAVE);
 	printf("Probing for devices on the ISA bus:\n");
-	for (dvp = isa_devtab_tty; dvp->id_driver; dvp++) {
-		if (!haveseen_isadev(dvp))
-			config_isadev(dvp,&tty_imask);
-	}
-	for (dvp = isa_devtab_bio; dvp->id_driver; dvp++) {
-		if (!haveseen_isadev(dvp))
-			config_isadev(dvp,&bio_imask);
-	}
-	for (dvp = isa_devtab_net; dvp->id_driver; dvp++) {
-		if (!haveseen_isadev(dvp))
-			config_isadev(dvp,&net_imask);
-	}
-	for (dvp = isa_devtab_null; dvp->id_driver; dvp++) {
-		if (!haveseen_isadev(dvp))
-			config_isadev(dvp,(u_int *) NULL);
-	}
+	for (dvp = isa_devtab_tty; dvp->id_driver; dvp++)
+		config_isadev(dvp, &tty_imask);
+	for (dvp = isa_devtab_bio; dvp->id_driver; dvp++)
+		config_isadev(dvp, &bio_imask);
+	for (dvp = isa_devtab_net; dvp->id_driver; dvp++)
+		config_isadev(dvp, &net_imask);
+	for (dvp = isa_devtab_null; dvp->id_driver; dvp++)
+		config_isadev(dvp, (u_int *)NULL);
 	bio_imask |= SWI_CLOCK_MASK;
 	net_imask |= SWI_NET_MASK;
 	tty_imask |= SWI_TTY_MASK;
@@ -253,27 +296,54 @@ isa_configure() {
 	printf("bio_imask %x tty_imask %x net_imask %x\n",
 	       bio_imask, tty_imask, net_imask);
 #endif
+	/*
+	 * Finish initializing intr_mask[].  Note that the partly
+	 * constructed masks aren't actually used since we're at splhigh.
+	 * For fully dynamic initialization, register_intr() and
+	 * unregister_intr() will have to adjust the masks for _all_
+	 * interrupts and for tty_imask, etc.
+	 */
+	for (dvp = isa_devtab_tty; dvp->id_driver; dvp++)
+		register_imask(dvp, tty_imask);
+	for (dvp = isa_devtab_bio; dvp->id_driver; dvp++)
+		register_imask(dvp, bio_imask);
+	for (dvp = isa_devtab_net; dvp->id_driver; dvp++)
+		register_imask(dvp, net_imask);
+	for (dvp = isa_devtab_null; dvp->id_driver; dvp++)
+		register_imask(dvp, SWI_CLOCK_MASK);
 	splnone();
 }
 
 /*
  * Configure an ISA device.
  */
-void
+static void
 config_isadev(isdp, mp)
 	struct isa_device *isdp;
 	u_int *mp;
 {
+	u_int checkbits;
+	int id_alive;
 	struct isa_driver *dp = isdp->id_driver;
  
+ 	checkbits = 0;
+#ifndef ALLOW_CONFLICT_DRQ
+	checkbits |= CC_DRQ;
+#endif
+#ifndef ALLOW_CONFLICT_IOADDR
+	checkbits |= CC_IOADDR;
+#endif
+#ifndef ALLOW_CONFLICT_MEMADDR
+	checkbits |= CC_MEMADDR;
+#endif
+	if (haveseen_isadev(isdp, checkbits))
+		return;
 	if (isdp->id_maddr) {
-		extern u_int atdevbase;
-
 		isdp->id_maddr -= 0xa0000; /* XXX should be a define */
 		isdp->id_maddr += atdevbase;
 	}
-	isdp->id_alive = (*dp->probe)(isdp);
-	if (isdp->id_alive) {
+	id_alive = (*dp->probe)(isdp);
+	if (id_alive) {
 		/*
 		 * Only print the I/O address range if id_alive != -1
 		 * Right now this is a temporary fix just for the new
@@ -282,21 +352,20 @@ config_isadev(isdp, mp)
 		 * Rod Grimes 04/26/94
 		 */
 		printf("%s%d", dp->name, isdp->id_unit);
-		if (isdp->id_alive != -1) {
+		if (id_alive != -1) {
  			printf(" at 0x%x", isdp->id_iobase);
- 			if ((isdp->id_iobase + isdp->id_alive - 1) !=
+ 			if ((isdp->id_iobase + id_alive - 1) !=
  			     isdp->id_iobase) {
  				printf("-0x%x",
-				       isdp->id_iobase +
-				       isdp->id_alive - 1);
+				       isdp->id_iobase + id_alive - 1);
 			}
 		}
-		if(isdp->id_irq)
+		if (isdp->id_irq)
 			printf(" irq %d", ffs(isdp->id_irq) - 1);
 		if (isdp->id_drq != -1)
 			printf(" drq %d", isdp->id_drq);
 		if (isdp->id_maddr)
-			printf(" maddr 0x%x", kvtop(isdp->id_maddr));
+			printf(" maddr 0x%lx", kvtop(isdp->id_maddr));
 		if (isdp->id_msize)
 			printf(" msize %d", isdp->id_msize);
 		if (isdp->id_flags)
@@ -312,18 +381,25 @@ config_isadev(isdp, mp)
 				}
 			}
 		}
-
+		/*
+		 * Check for conflicts again.  The driver may have changed
+		 * *dvp.  We should weaken the early check since the
+		 * driver may have been able to change *dvp to avoid
+		 * conflicts if given a chance.  We already skip the early
+		 * check for IRQs and force a check for IRQs in the next
+		 * group of checks.
+		 */
+		checkbits |= CC_IRQ;
+		if (haveseen_isadev(isdp, checkbits))
+			return;
+		isdp->id_alive = id_alive;
 		(*dp->attach)(isdp);
-
-		if(isdp->id_irq) {
-			int intrno;
-
-			intrno = ffs(isdp->id_irq)-1;
-			setidt(ICU_OFFSET+intrno, isdp->id_intr,
-				 SDT_SYS386IGT, SEL_KPL);
-			if(mp) {
-				INTRMASK(*mp,isdp->id_irq);
-			}
+		if (isdp->id_irq) {
+			if (mp)
+				INTRMASK(*mp, isdp->id_irq);
+			register_intr(ffs(isdp->id_irq) - 1, isdp->id_id,
+				      isdp->id_ri_flags, isdp->id_intr,
+				      mp ? *mp : 0, isdp->id_unit);
 			INTREN(isdp->id_irq);
 		}
 	} else {
@@ -334,22 +410,6 @@ config_isadev(isdp, mp)
 		printf("\n");
 	}
 }
-
-#define	IDTVEC(name)	__CONCAT(X,name)
-/* default interrupt vector table entries */
-typedef void inthand_t();
-typedef void (*inthand_func_t)();
-extern inthand_t
-	IDTVEC(intr0), IDTVEC(intr1), IDTVEC(intr2), IDTVEC(intr3),
-	IDTVEC(intr4), IDTVEC(intr5), IDTVEC(intr6), IDTVEC(intr7),
-	IDTVEC(intr8), IDTVEC(intr9), IDTVEC(intr10), IDTVEC(intr11),
-	IDTVEC(intr12), IDTVEC(intr13), IDTVEC(intr14), IDTVEC(intr15);
-
-static inthand_func_t defvec[ICU_LEN] = {
-	&IDTVEC(intr0), &IDTVEC(intr1), &IDTVEC(intr2), &IDTVEC(intr3),
-	&IDTVEC(intr4), &IDTVEC(intr5), &IDTVEC(intr6), &IDTVEC(intr7),
-	&IDTVEC(intr8), &IDTVEC(intr9), &IDTVEC(intr10), &IDTVEC(intr11),
-	&IDTVEC(intr12), &IDTVEC(intr13), &IDTVEC(intr14), &IDTVEC(intr15) };
 
 /*
  * Fill in default interrupt table (in case of spuruious interrupt
@@ -362,7 +422,7 @@ isa_defaultirq()
 
 	/* icu vectors */
 	for (i = 0; i < ICU_LEN; i++)
-		setidt(ICU_OFFSET + i, defvec[i], SDT_SYS386IGT, SEL_KPL);
+		unregister_intr(i, (inthand2_t *)NULL);
 
 	/* initialize 8259's */
 	outb(IO_ICU1, 0x11);		/* reset; program device, four bytes */
@@ -417,6 +477,9 @@ void isa_dmacascade(unsigned chan)
 		outb(DMA2_SMSK, chan & 3);
 	}
 }
+
+static int
+isa_dmarangecheck(caddr_t va, unsigned length, unsigned chan);
 
 /*
  * isa_dmastart(): program 8237 DMA controller channel, avoid page alignment
@@ -520,7 +583,7 @@ void isa_dmadone(int flags, caddr_t addr, int nbytes, int chan)
  * Return true if special handling needed.
  */
 
-int
+static int
 isa_dmarangecheck(caddr_t va, unsigned length, unsigned chan) {
 	vm_offset_t phys, priorpage = 0, endva;
 	u_int dma_pgmsk = (chan & 4) ?  ~(128*1024-1) : ~(64*1024-1);
@@ -622,7 +685,7 @@ isa_nmi(cd)
 /*
  * Caught a stray interrupt, notify
  */
-void
+static void
 isa_strayintr(d)
 	int d;
 {
@@ -637,13 +700,18 @@ isa_strayintr(d)
 	 * the first 5 get logged, then it quits logging them, and puts
 	 * out a special message. rgrimes 3/25/1993
 	 */
-	extern u_long intrcnt_stray;
-
-	intrcnt_stray++;
-	if (intrcnt_stray <= 5)
-		log(LOG_ERR,"ISA strayintr %x\n", d);
-	if (intrcnt_stray == 5)
-		log(LOG_CRIT,"Too many ISA strayintr not logging any more\n");
+	/*
+	 * XXX TODO print a different message for #7 if it is for a
+	 * glitch.  Glitches can be distinguished from real #7's by
+	 * testing that the in-service bit is _not_ set.  The test
+	 * must be done before sending an EOI so it can't be done if
+	 * we are using AUTO_EOI_1.
+	 */
+	if (intrcnt[NR_DEVICES + d] <= 5)
+		log(LOG_ERR, "stray irq %d\n", d);
+	if (intrcnt[NR_DEVICES + d] == 5)
+		log(LOG_CRIT,
+		    "too many stray irq %d's; not logging any more\n", d);
 }
 
 /*
@@ -683,8 +751,84 @@ isa_irq_pending(dvp)
 {
 	unsigned id_irq;
 
-	id_irq = (unsigned short) dvp->id_irq;	/* XXX silly type in struct */
+	id_irq = dvp->id_irq;
 	if (id_irq & 0xff)
 		return (inb(IO_ICU1) & id_irq);
 	return (inb(IO_ICU2) & (id_irq >> 8));
+}
+
+int
+register_intr(intr, device_id, flags, handler, mask, unit)
+	int	intr;
+	int	device_id;
+	u_int	flags;
+	inthand2_t *handler;
+	u_int	mask;
+	int	unit;
+{
+	char	*cp;
+	u_long	ef;
+	int	id;
+
+	if ((u_int)intr >= ICU_LEN || intr == 2
+	    || (u_int)device_id >= NR_DEVICES)
+		return (EINVAL);
+	if (intr_handler[intr] != isa_strayintr)
+		return (EBUSY);
+	ef = read_eflags();
+	disable_intr();
+	intr_countp[intr] = &intrcnt[device_id];
+	intr_handler[intr] = handler;
+	intr_mask[intr] = mask | (1 << intr);
+	intr_unit[intr] = unit;
+	setidt(ICU_OFFSET + intr,
+	       flags & RI_FAST ? fastintr[intr] : slowintr[intr],
+	       SDT_SYS386IGT, SEL_KPL);
+	write_eflags(ef);
+	for (cp = intrnames, id = 0; id <= device_id; id++)
+		while (*cp++ != '\0')
+			;
+	if (cp > eintrnames)
+		return (0);
+	if (intr < 10) {
+		cp[-3] = intr + '0';
+		cp[-2] = ' ';
+	} else {
+		cp[-3] = '1';
+		cp[-2] = intr - 10 + '0';
+	}
+	return (0);
+}
+
+static void
+register_imask(dvp, mask)
+	struct isa_device *dvp;
+	u_int	mask;
+{
+	if (dvp->id_alive && dvp->id_irq) {
+		int	intr;
+
+		intr = ffs(dvp->id_irq) - 1;
+		intr_mask[intr] = mask | (1 <<intr);
+	}
+}
+
+int
+unregister_intr(intr, handler)
+	int	intr;
+	inthand2_t *handler;
+{
+	u_long	ef;
+
+	if ((u_int)intr >= ICU_LEN || handler != intr_handler[intr])
+		return (EINVAL);
+	ef = read_eflags();
+	disable_intr();
+	intr_countp[intr] = &intrcnt[NR_DEVICES + intr];
+	intr_handler[intr] = isa_strayintr;
+	intr_mask[intr] = HWI_MASK | SWI_MASK;
+	intr_unit[intr] = intr;
+	setidt(ICU_OFFSET + intr, slowintr[intr], SDT_SYS386IGT, SEL_KPL);
+	write_eflags(ef);
+	return (0);
 }
