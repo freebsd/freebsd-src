@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.4 (Berkeley) 1/9/95
- *	$Id: in.c,v 1.24 1996/04/07 06:59:52 davidg Exp $
+ *	$Id: in.c,v 1.25 1996/09/09 20:17:24 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -188,6 +188,8 @@ in_control(so, cmd, data, ifp)
 
 	case SIOCAIFADDR:
 	case SIOCDIFADDR:
+		if (ifp == 0)
+			return (EADDRNOTAVAIL);
 		if (ifra->ifra_addr.sin_family == AF_INET) {
 			for (oia = ia; ia; ia = ia->ia_next) {
 				if (ia->ia_ifp == ifp  &&
@@ -212,7 +214,7 @@ in_control(so, cmd, data, ifp)
 			return (EPERM);
 
 		if (ifp == 0)
-			panic("in_control");
+			return (EADDRNOTAVAIL);
 		if (ia == (struct in_ifaddr *)0) {
 			oia = (struct in_ifaddr *)
 				malloc(sizeof *oia, M_IFADDR, M_WAITOK);
