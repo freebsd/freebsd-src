@@ -51,6 +51,7 @@
 #define LIBGCC_SPEC		"%{!pg: -lgcc} %{pg: -lgcc_p}"
 #define LIBSTDCXX_PROFILE	"-lstdc++_p"
 #define MATH_LIBRARY_PROFILE	"-lm_p"
+#define FORTRAN_LIBRARY_PROFILE	"-lg2c_p"
 
 /* FreeBSD is 4.4BSD derived */
 #define bsd4_4
