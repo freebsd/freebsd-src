@@ -45,13 +45,12 @@
 #define AAC_ADAPTER_FIBS	8
 
 /*
- * FIBs are allocated in clusters as we need them; each cluster must be physically
- * contiguous.  Set the number of FIBs to try to allocate in a cluster.
- * Setting this value too high may result in FIBs not being available in conditions
- * of high load with fragmented physical memory.  The value must be a multiple of
- * (PAGE_SIZE / 512).
+ * FIBs are allocated up-front, and the pool isn't grown.  We should allocate
+ * enough here to let us keep the adapter busy without wasting large amounts
+ * of kernel memory.  The current interface implementation limits us to 512
+ * FIBs queued for the adapter at any one time.
  */
-#define AAC_CLUSTER_COUNT	64
+#define AAC_FIB_COUNT		128
 
 /*
  * The controller reports status events in AIFs.  We hang on to a number of these
@@ -72,7 +71,18 @@
 /*
  * Timeout for immediate commands.
  */
-#define AAC_IMMEDIATE_TIMEOUT	30
+#define AAC_IMMEDIATE_TIMEOUT	30		/* seconds */
+
+/*
+ * Timeout for normal commands
+ */
+#define AAC_CMD_TIMEOUT		30		/* seconds */
+
+/*
+ * Rate at which we periodically check for timed out commands and kick the
+ * controller.
+ */
+#define AAC_PERIODIC_INTERVAL	10		/* seconds */
 
 /*
  * Character device major numbers.
@@ -139,26 +149,11 @@ struct aac_command
 #define AAC_CMD_DATAIN		(1<<1)		/* command involves data moving from controller to host */
 #define AAC_CMD_DATAOUT		(1<<2)		/* command involves data moving from host to controller */
 #define AAC_CMD_COMPLETED	(1<<3)		/* command has been completed */
+#define AAC_CMD_TIMEDOUT	(1<<4)		/* command taken too long */
 
     void			(* cm_complete)(struct aac_command *cm);
     void			*cm_private;
-    struct callout_handle	timeout_handle;	/* timeout handle */
-};
-
-/*
- * Command/command packet cluster.
- *
- * Due to the difficulty of using the zone allocator to create a new
- * zone from within a module, we use our own clustering to reduce 
- * memory wastage due to allocating lots of these small structures.
- */
-struct aac_command_cluster
-{
-    TAILQ_ENTRY(aac_command_cluster)	cmc_link;
-    struct aac_fib			*cmc_fibs;
-    bus_dmamap_t			cmc_fibmap;
-    u_int32_t				cmc_fibphys;
-    struct aac_command			cmc_command[AAC_CLUSTER_COUNT];
+    time_t			cm_timestamp;	/* command creation time */
 };
 
 /*
@@ -231,29 +226,30 @@ extern struct aac_interface	aac_sa_interface;
 struct aac_softc 
 {
     /* bus connections */
-    device_t		aac_dev;
-    struct resource	*aac_regs_resource;	/* register interface window */
-    int			aac_regs_rid;		/* resource ID */
-    bus_space_handle_t	aac_bhandle;		/* bus space handle */
-    bus_space_tag_t	aac_btag;		/* bus space tag */
-    bus_dma_tag_t	aac_parent_dmat;	/* parent DMA tag */
-    bus_dma_tag_t	aac_buffer_dmat;	/* data buffer/command DMA tag */
-    struct resource	*aac_irq;		/* interrupt */
-    int			aac_irq_rid;
-    void		*aac_intr;		/* interrupt handle */
+    device_t			aac_dev;
+    struct resource		*aac_regs_resource;	/* register interface window */
+    int				aac_regs_rid;		/* resource ID */
+    bus_space_handle_t		aac_bhandle;		/* bus space handle */
+    bus_space_tag_t		aac_btag;		/* bus space tag */
+    bus_dma_tag_t		aac_parent_dmat;	/* parent DMA tag */
+    bus_dma_tag_t		aac_buffer_dmat;	/* data buffer/command DMA tag */
+    struct resource		*aac_irq;		/* interrupt */
+    int				aac_irq_rid;
+    void			*aac_intr;		/* interrupt handle */
 
     /* controller features, limits and status */
-    int			aac_state;
+    int				aac_state;
 #define AAC_STATE_SUSPEND	(1<<0)
 #define	AAC_STATE_OPEN		(1<<1)
 #define AAC_STATE_INTERRUPTS_ON	(1<<2)
 #define AAC_STATE_AIF_SLEEPER	(1<<3)
-    struct FsaRevision	aac_revision;
+    struct FsaRevision		aac_revision;
 
     /* controller hardware interface */
     int				aac_hwif;
 #define AAC_HWIF_I960RX		0
 #define AAC_HWIF_STRONGARM	1
+#define AAC_HWIF_UNKNOWN	-1
     bus_dma_tag_t		aac_common_dmat;	/* common structure DMA tag */
     bus_dmamap_t		aac_common_dmamap;	/* common structure DMA map */
     struct aac_common		*aac_common;
@@ -261,16 +257,22 @@ struct aac_softc
     struct aac_interface	aac_if;
 
     /* command/fib resources */
-    TAILQ_HEAD(,aac_command_cluster)	aac_clusters;	/* command memory blocks */
-    bus_dma_tag_t			aac_fib_dmat;	/* DMA tag for allocating FIBs */
+    bus_dma_tag_t		aac_fib_dmat;	/* DMA tag for allocating FIBs */
+    struct aac_fib		*aac_fibs;
+    bus_dmamap_t		aac_fibmap;
+    u_int32_t			aac_fibphys;
+    struct aac_command		aac_command[AAC_FIB_COUNT];
 
     /* command management */
-    TAILQ_HEAD(,aac_command)	aac_freecmds;	/* command structures available for reuse */
+    TAILQ_HEAD(,aac_command)	aac_free;	/* command structures available for reuse */
     TAILQ_HEAD(,aac_command)	aac_ready;	/* commands on hold for controller resources */
-    TAILQ_HEAD(,aac_command)	aac_completed;	/* commands which have been returned by the controller */
+    TAILQ_HEAD(,aac_command)	aac_busy;
+    TAILQ_HEAD(,aac_command)	aac_complete;	/* commands which have been returned by the controller */
     struct bio_queue_head	aac_bioq;
     struct aac_queue_table	*aac_queues;
     struct aac_queue_entry	*aac_qentries[AAC_QUEUE_COUNT];
+
+    struct aac_qstat		aac_qstat[AACQ_COUNT];	/* queue statistics */
 
     /* connected containters */
     struct aac_container	aac_container[AAC_MAX_CONTAINERS];
@@ -301,7 +303,7 @@ extern int		aac_resume(device_t dev);
 extern void		aac_intr(void *arg);
 extern devclass_t	aac_devclass;
 extern void		aac_submit_bio(struct bio *bp);
-extern void		aac_complete_bio(struct bio *bp);
+extern void		aac_biodone(struct bio *bp);
 
 /*
  * Debugging levels:
@@ -310,25 +312,31 @@ extern void		aac_complete_bio(struct bio *bp);
  *  2 - extremely noisy, emit trace items in loops, etc.
  */
 #ifdef AAC_DEBUG
-#define debug(level, fmt, args...)	do { if (level <= AAC_DEBUG) printf("%s: " fmt "\n", __FUNCTION__ , ##args); } while(0)
-#define debug_called(level)		do { if (level <= AAC_DEBUG) printf(__FUNCTION__ ": called\n"); } while(0)
+# define debug(level, fmt, args...)						\
+    do {									\
+	if (level <= AAC_DEBUG) printf("%s: " fmt "\n", __FUNCTION__ , ##args);	\
+    } while(0)
+# define debug_called(level)						\
+    do {								\
+	if (level <= AAC_DEBUG) printf(__FUNCTION__ ": called\n");	\
+    } while(0)
 
 extern void	aac_print_queues(struct aac_softc *sc);
 extern void	aac_panic(struct aac_softc *sc, char *reason);
 extern void	aac_print_fib(struct aac_softc *sc, struct aac_fib *fib, char *caller);
 extern void	aac_print_aif(struct aac_softc *sc, struct aac_aif_command *aif);
 
-#define AAC_PRINT_FIB(sc, fib)	aac_print_fib(sc, fib, __FUNCTION__)
+# define AAC_PRINT_FIB(sc, fib)	aac_print_fib(sc, fib, __FUNCTION__)
 
 #else
-#define debug(level, fmt, args...)
-#define debug_called(level)
+# define debug(level, fmt, args...)
+# define debug_called(level)
 
-#define aac_print_queues(sc)
-#define aac_panic(sc, reason)
-#define aac_print_aif(sc, aif)
+# define aac_print_queues(sc)
+# define aac_panic(sc, reason)
+# define aac_print_aif(sc, aif)
 
-#define AAC_PRINT_FIB(sc, fib)
+# define AAC_PRINT_FIB(sc, fib)
 #endif
 
 struct aac_code_lookup {
@@ -337,109 +345,115 @@ struct aac_code_lookup {
 };
 
 /********************************************************************************
- * Queue primitives
- *
- * These are broken out individually to make statistics gathering easier.
+ * Queue primitives for driver queues.
  */
+#define AACQ_ADD(sc, qname)					\
+	do {							\
+	    struct aac_qstat *qs = &(sc)->aac_qstat[qname];	\
+								\
+	    qs->q_length++;					\
+	    if (qs->q_length > qs->q_max)			\
+		qs->q_max = qs->q_length;			\
+	} while(0)
+
+#define AACQ_REMOVE(sc, qname)    (sc)->aac_qstat[qname].q_length--
+#define AACQ_INIT(sc, qname)			\
+	do {					\
+	    sc->aac_qstat[qname].q_length = 0;	\
+	    sc->aac_qstat[qname].q_max = 0;	\
+	} while(0)
+
+
+#define AACQ_COMMAND_QUEUE(name, index)					\
+static __inline void							\
+aac_initq_ ## name (struct aac_softc *sc)				\
+{									\
+    TAILQ_INIT(&sc->aac_ ## name);					\
+    AACQ_INIT(sc, index);						\
+}									\
+static __inline void							\
+aac_enqueue_ ## name (struct aac_command *cm)				\
+{									\
+    int		s;							\
+									\
+    s = splbio();							\
+    TAILQ_INSERT_TAIL(&cm->cm_sc->aac_ ## name, cm, cm_link);		\
+    AACQ_ADD(cm->cm_sc, index);						\
+    splx(s);								\
+}									\
+static __inline void							\
+aac_requeue_ ## name (struct aac_command *cm)				\
+{									\
+    int		s;							\
+									\
+    s = splbio();							\
+    TAILQ_INSERT_HEAD(&cm->cm_sc->aac_ ## name, cm, cm_link);		\
+    AACQ_ADD(cm->cm_sc, index);						\
+    splx(s);								\
+}									\
+static __inline struct aac_command *					\
+aac_dequeue_ ## name (struct aac_softc *sc)				\
+{									\
+    struct aac_command	*cm;						\
+    int			s;						\
+									\
+    s = splbio();							\
+    if ((cm = TAILQ_FIRST(&sc->aac_ ## name)) != NULL) {		\
+	TAILQ_REMOVE(&sc->aac_ ## name, cm, cm_link);			\
+	AACQ_REMOVE(sc, index);						\
+    }									\
+    splx(s);								\
+    return(cm);								\
+}									\
+static __inline void							\
+aac_remove_ ## name (struct aac_command *cm)				\
+{									\
+    int			s;						\
+									\
+    s = splbio();							\
+    TAILQ_REMOVE(&cm->cm_sc->aac_ ## name, cm, cm_link);		\
+    AACQ_REMOVE(cm->cm_sc, index);					\
+    splx(s);								\
+}									\
+struct hack
+
+AACQ_COMMAND_QUEUE(free, AACQ_FREE);
+AACQ_COMMAND_QUEUE(ready, AACQ_READY);
+AACQ_COMMAND_QUEUE(busy, AACQ_BUSY);
+AACQ_COMMAND_QUEUE(complete, AACQ_COMPLETE);
+
+/*
+ * outstanding bio queue
+ */
+static __inline void
+aac_initq_bio(struct aac_softc *sc)
+{
+    bioq_init(&sc->aac_bioq);
+    AACQ_INIT(sc, AACQ_BIO);
+}
 
 static __inline void
-aac_enqueue_ready(struct aac_command *cm)
+aac_enqueue_bio(struct aac_softc *sc, struct bio *bp)
 {
     int		s;
 
     s = splbio();
-    TAILQ_INSERT_TAIL(&cm->cm_sc->aac_ready, cm, cm_link);
+    bioq_insert_tail(&sc->aac_bioq, bp);
+    AACQ_ADD(sc, AACQ_BIO);
     splx(s);
 }
 
-static __inline void
-aac_requeue_ready(struct aac_command *cm)
+static __inline struct bio *
+aac_dequeue_bio(struct aac_softc *sc)
 {
     int		s;
+    struct bio	*bp;
 
     s = splbio();
-    TAILQ_INSERT_HEAD(&cm->cm_sc->aac_ready, cm, cm_link);
+    if ((bp = bioq_first(&sc->aac_bioq)) != NULL) {
+	bioq_remove(&sc->aac_bioq, bp);
+	AACQ_REMOVE(sc, AACQ_BIO);
+    }
     splx(s);
-}
-
-static __inline struct aac_command *
-aac_dequeue_ready(struct aac_softc *sc)
-{
-    struct aac_command	*cm;
-    int			s;
-
-    s = splbio();
-    if ((cm = TAILQ_FIRST(&sc->aac_ready)) != NULL)
-	TAILQ_REMOVE(&sc->aac_ready, cm, cm_link);
-    splx(s);
-    return(cm);
-}
-
-static __inline void
-aac_enqueue_completed(struct aac_command *cm)
-{
-    int		s;
-
-    s = splbio();
-    TAILQ_INSERT_TAIL(&cm->cm_sc->aac_completed, cm, cm_link);
-    splx(s);
-}
-
-static __inline struct aac_command *
-aac_dequeue_completed(struct aac_softc *sc)
-{
-    struct aac_command	*cm;
-    int			s;
-
-    s = splbio();
-    if ((cm = TAILQ_FIRST(&sc->aac_completed)) != NULL)
-	TAILQ_REMOVE(&sc->aac_completed, cm, cm_link);
-    splx(s);
-    return(cm);
-}
-
-static __inline void
-aac_enqueue_free(struct aac_command *cm)
-{
-    int		s;
-
-    s = splbio();
-    TAILQ_INSERT_HEAD(&cm->cm_sc->aac_freecmds, cm, cm_link);
-    splx(s);
-}
-
-static __inline struct aac_command *
-aac_dequeue_free(struct aac_softc *sc)
-{
-    struct aac_command	*cm;
-    int			s;
-
-    s = splbio();
-    if ((cm = TAILQ_FIRST(&sc->aac_freecmds)) != NULL)
-	TAILQ_REMOVE(&sc->aac_freecmds, cm, cm_link);
-    splx(s);
-    return(cm);
-}
-
-static __inline void
-aac_enqueue_cluster(struct aac_softc *sc, struct aac_command_cluster *cmc)
-{
-    int		s;
-
-    s = splbio();
-    TAILQ_INSERT_HEAD(&sc->aac_clusters, cmc, cmc_link);
-    splx(s);
-}
-
-static __inline struct aac_command_cluster *
-aac_dequeue_cluster(struct aac_softc *sc)
-{
-    struct aac_command_cluster	*cmc;
-    int				s;
-
-    s = splbio();
-    if ((cmc = TAILQ_FIRST(&sc->aac_clusters)) != NULL)
-	TAILQ_REMOVE(&sc->aac_clusters, cmc, cmc_link);
-    splx(s);
-    return(cmc);
+    return(bp);
 }
