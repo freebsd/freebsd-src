@@ -419,12 +419,17 @@ vnode_pager_input_smlfs(object, m)
 	kva = vm_pager_map_page(m);
 
 	for (i = 0; i < PAGE_SIZE / bsize; i++) {
+		vm_ooffset_t address;
 
 		if (vm_page_bits(i * bsize, bsize) & m->valid)
 			continue;
 
-		fileaddr = vnode_pager_addr(vp,
-			IDX_TO_OFF(m->pindex) + i * bsize, (int *)0);
+		address = IDX_TO_OFF(m->pindex) + i * bsize;
+		if (address >= object->un_pager.vnp.vnp_size) {
+			fileaddr = -1;
+		} else {
+			fileaddr = vnode_pager_addr(vp, address, NULL);
+		}
 		if (fileaddr != -1) {
 			bp = getpbuf(&vnode_pbuf_freecnt);
 
