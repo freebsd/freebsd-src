@@ -42,6 +42,7 @@ struct lc_time_T {
 	const char *	pm;
 	const char *	date_fmt;
 	const char *	alt_month[12];
+	const char *    Ex_fmt;
 };
 
 extern	struct lc_time_T _time_localebuf;
