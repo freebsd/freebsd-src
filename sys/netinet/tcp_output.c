@@ -314,12 +314,22 @@ after_sack_rexmit:
 			 */
 			len = ((long)ulmin(so->so_snd.sb_cc, tp->snd_wnd) 
 			       - off);
-			cwin = tp->snd_cwnd - 
-				(tp->snd_nxt - tp->sack_newdata) -
-				sack_bytes_rxmt;
-			if (cwin < 0)
-				cwin = 0;
-			len = lmin(len, cwin);
+			/*
+			 * Don't remove this (len > 0) check !
+			 * We explicitly check for len > 0 here (although it 
+			 * isn't really necessary), to work around a gcc 
+			 * optimization issue - to force gcc to compute
+			 * len above. Without this check, the computation
+			 * of len is bungled by the optimizer.
+			 */
+			if (len > 0) {
+				cwin = tp->snd_cwnd - 
+					(tp->snd_nxt - tp->sack_newdata) -
+					sack_bytes_rxmt;
+				if (cwin < 0)
+					cwin = 0;
+				len = lmin(len, cwin);
+			}
 		}
 	}
 
