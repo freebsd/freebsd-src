@@ -489,7 +489,7 @@ rst_readdir(RST_DIR *dirp)
 /*
  * Simulate the opening of a directory
  */
-RST_DIR *
+void *
 rst_opendir(const char *name)
 {
 	struct inotab *itp;
@@ -509,9 +509,11 @@ rst_opendir(const char *name)
  * In our case, there is nothing to do when closing a directory.
  */
 void
-rst_closedir(RST_DIR *dirp)
+rst_closedir(void *arg)
 {
+	RST_DIR *dirp;
 
+	dirp = arg;
 	(void)close(dirp->dd_fd);
 	free(dirp);
 	return;
