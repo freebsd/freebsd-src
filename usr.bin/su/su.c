@@ -128,7 +128,7 @@ main(int argc, char *argv[])
 	uid_t		ruid;
 	gid_t		gid;
 	int		asme, ch, asthem, fastlogin, prio, i, setwhat, retcode,
-			statusp, child_pid, ret_pid;
+			statusp, child_pid, child_pgrp, ret_pid;
 	char		*username, *cleanenv, *class, shellbuf[MAXPATHLEN];
 	const char	*p, *user, *shell, *mytty, **nargv;
 
@@ -329,7 +329,9 @@ main(int argc, char *argv[])
 	default:
 		while ((ret_pid = waitpid(child_pid, &statusp, WUNTRACED)) != -1) {
 			if (WIFSTOPPED(statusp)) {
+				child_pgrp = tcgetpgrp(1);
 				kill(getpid(), SIGSTOP);
+				tcsetpgrp(1, child_pgrp);
 				kill(child_pid, SIGCONT);
 				statusp = 1;
 				continue;
