@@ -8,7 +8,7 @@ CFLAGS+= -DNO_IDEA
 
 .if ${MACHINE_ARCH} == "i386"
 CFLAGS+= -DL_ENDIAN 
-.if !defined(NOPERL)
+.if !defined(NOPERL) && !defined(NO_PERL)
 CFLAGS+= -DSHA1_ASM -DBN_ASM -DMD5_ASM -DRMD160_ASM
 .endif
 .elif ${MACHINE_ARCH} == "alpha"
