@@ -1132,7 +1132,10 @@ static int ti_chipinit(sc)
 	/* Initialize link to down state. */
 	sc->ti_linkstat = TI_EV_CODE_LINK_DOWN;
 
-	sc->arpcom.ac_if.if_hwassist = TI_CSUM_FEATURES;
+	if (sc->arpcom.ac_if.if_capenable & IFCAP_HWCSUM)
+		sc->arpcom.ac_if.if_hwassist = TI_CSUM_FEATURES;
+	else
+		sc->arpcom.ac_if.if_hwassist = 0;
 
 	/* Set endianness before we access any non-PCI registers. */
 #if BYTE_ORDER == BIG_ENDIAN
@@ -1464,6 +1467,8 @@ static int ti_attach(dev)
 
 	mtx_init(&sc->ti_mtx, device_get_nameunit(dev), MTX_DEF | MTX_RECURSE);
 	TI_LOCK(sc);
+	sc->arpcom.ac_if.if_capabilities = IFCAP_HWCSUM;
+	sc->arpcom.ac_if.if_capenable = sc->arpcom.ac_if.if_capabilities;
 
 	/*
 	 * Map control/status registers.
@@ -2329,7 +2334,7 @@ static int ti_ioctl(ifp, command, data)
 {
 	struct ti_softc		*sc = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *) data;
-	int			error = 0;
+	int			mask, error = 0;
 	struct ti_cmd_desc	cmd;
 
 	TI_LOCK(sc);
@@ -2387,6 +2392,18 @@ static int ti_ioctl(ifp, command, data)
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
 		error = ifmedia_ioctl(ifp, ifr, &sc->ifmedia, command);
+		break;
+	case SIOCSIFCAP:
+		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+		if (mask & IFCAP_HWCSUM) {
+			if (IFCAP_HWCSUM & ifp->if_capenable)
+				ifp->if_capenable &= ~IFCAP_HWCSUM;
+                        else
+                                ifp->if_capenable |= IFCAP_HWCSUM;
+			if (ifp->if_flags & IFF_RUNNING)
+				ti_init(sc);
+                }
+		error = 0;
 		break;
 	default:
 		error = EINVAL;
