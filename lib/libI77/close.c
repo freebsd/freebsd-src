@@ -31,11 +31,10 @@ integer f_clos(cllist *a)
 	b= &f__units[a->cunit];
 	if(b->ufd==NULL)
 		goto done;
+	if (b->uscrtch == 1)
+		goto Delete;
 	if (!a->csta)
-		if (b->uscrtch == 1)
-			goto Delete;
-		else
-			goto Keep;
+		goto Keep;
 	switch(*a->csta) {
 		default:
 	 	Keep:
@@ -51,8 +50,8 @@ integer f_clos(cllist *a)
 		case 'd':
 		case 'D':
 		Delete:
+			fclose(b->ufd);
 			if(b->ufnm) {
-				fclose(b->ufd);
 				unlink(b->ufnm); /*SYSDEP*/
 				free(b->ufnm);
 				}
