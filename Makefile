@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.171 1998/04/25 14:32:22 andreas Exp $
+#	$Id: Makefile,v 1.172 1998/04/26 08:40:25 jkh Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -128,10 +128,19 @@ OBJDIR=		obj
 CLEANDIR=
 .else
 .if defined(NOCLEANDIR)
-CLEANDIR=	clean
+CLEANDIR=	clean cleandepend
 .else
 CLEANDIR=	cleandir
 .endif
+.endif
+
+.if !defined(NOCLEAN) && ${.MAKEFLAGS:M-j} == ""
+_NODEPEND=	true
+.endif
+.if defined(_NODEPEND)
+_DEPEND=	cleandepend
+.else
+_DEPEND=	depend
 .endif
 
 SUP?=		cvsup
@@ -206,7 +215,7 @@ COMPILER_ENV=	BISON_SIMPLE=${WORLDTMP}/usr/share/misc/bison.simple \
 
 BMAKEENV=	PATH=${TMPPATH} ${COMPILER_ENV} NOEXTRADEPEND=t
 XMAKEENV=	PATH=${STRICTTMPPATH} ${COMPILER_ENV} \
-		CC='cc -nostdinc'	# XXX -nostdlib
+		CFLAGS="-nostdinc ${CFLAGS}"	# XXX -nostdlib
 
 # used to compile and install 'make' in temporary build tree
 MAKETMP=	${WORLDTMP}/make
@@ -258,7 +267,7 @@ buildworld:
 	@echo "--------------------------------------------------------------"
 	@echo " Cleaning up the obj tree"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${BMAKE} par-${CLEANDIR}
+	cd ${.CURDIR} && ${BMAKE} ${CLEANDIR:S/^/par-/}
 .endif
 .if !defined(NOOBJDIR)
 	@echo
@@ -303,16 +312,18 @@ buildworld:
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR} && ${BMAKE} build-tools
 .endif
+.if !defined(_NODEPEND)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding dependencies"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR} && ${XMAKE} par-depend
+.endif
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Building libraries"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${XMAKE} libraries
+	cd ${.CURDIR} && ${XMAKE} -DNOINFO -DNOMAN libraries
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Building everything.."
@@ -459,14 +470,14 @@ bootstrap:
 	cd ${.CURDIR}/include && find -dx . | cpio -dump ${DESTDIR}/usr/include
 	cd ${.CURDIR}/include && ${MAKE} symlinks
 .endif
-	cd ${.CURDIR}/usr.bin/make && ${MAKE} ${MK_FLAGS} depend && \
+	cd ${.CURDIR}/usr.bin/make && ${MAKE} ${MK_FLAGS} ${_DEPEND} && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/xinstall && ${MAKE} ${MK_FLAGS} depend && \
+	cd ${.CURDIR}/usr.bin/xinstall && ${MAKE} ${MK_FLAGS} ${_DEPEND} && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/lex && ${MAKE} bootstrap && \
-		${MAKE} ${MK_FLAGS} depend && \
+		${MAKE} ${MK_FLAGS} ${_DEPEND} && \
 		${MAKE} ${MK_FLAGS} -DNOLIB all && \
 		${MAKE} ${MK_FLAGS} -DNOLIB -B install ${CLEANDIR}
 .if !defined(NOOBJDIR)
@@ -484,7 +495,7 @@ bootstrap:
 include-tools:
 .for d in usr.bin/compile_et usr.bin/rpcgen
 	cd ${.CURDIR}/$d && ${MAKE} cleandepend && \
-		${MAKE} ${MK_FLAGS} depend && \
+		${MAKE} ${MK_FLAGS} ${_DEPEND} && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endfor
@@ -574,7 +585,7 @@ lib-tools:
 		usr.bin/nm		\
 		usr.bin/ranlib		\
 		usr.bin/uudecode
-	cd ${.CURDIR}/$d && ${MAKE} ${MK_FLAGS} depend && \
+	cd ${.CURDIR}/$d && ${MAKE} ${MK_FLAGS} ${_DEPEND} && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install && \
 		${MAKE} ${MK_FLAGS:S/-DNOPIC//} -B ${CLEANDIR} ${OBJDIR}
@@ -634,7 +645,7 @@ bootstrap-libraries:
     lib/libmd lib/libutil lib/libz usr.bin/lex/lib
 .if exists(${.CURDIR}/${_lib})
 	cd ${.CURDIR}/${_lib} && \
-		${MAKE} ${MK_FLAGS} depend && \
+		${MAKE} ${MK_FLAGS} ${_DEPEND} && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
@@ -731,12 +742,12 @@ build-tools:
 		usr.sbin/chown		\
 		usr.sbin/mtree		\
 		usr.sbin/zic
-	cd ${.CURDIR}/$d && ${MAKE} ${MK_FLAGS} depend && \
+	cd ${.CURDIR}/$d && ${MAKE} ${MK_FLAGS} ${_DEPEND} && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endfor
 
-.for __target in clean cleandir obj depend
+.for __target in clean cleandepend cleandir depend obj
 .for entry in ${SUBDIR}
 ${entry}.${__target}__D: .PHONY
 	@if test -d ${.CURDIR}/${entry}.${MACHINE}; then \
