@@ -31,7 +31,8 @@
 .Os
 .Sh NAME
 .Nm VFS_SET
-.Nd "setup loadable filesystem vfsconf"
+.Nd set up loadable filesystem
+.Vt vfsconf
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/mount.h
@@ -39,40 +40,45 @@
 .Fn VFS_SET "struct vfsops *vfsops" "char *fsname" "int flags"
 .Sh DESCRIPTION
 .Fn VFS_SET
-creates a vfsconf structure for the loadable module with the given vfsops, name and
-flags, and declares it by calling
-.Fn DECLARE_MODULE
+creates a
+.Vt vfsconf
+structure for the loadable module with the given
+.Fa vfsops , fsname
+and
+.Fa flags ,
+and declares it by calling
+.Xr DECLARE_MODULE 9
 using
 .Fn vfs_modevent
 as the event handler.
 .Sh PSEUDO CODE
 .Bd -literal
-	/*
-	 * fill in the ones we use, and use the vfs_std for the rest.
-	 */
-	static struct vfsops myfs_vfsops = {
-	        myfs_mount,
-	        vfs_stdstart,
-	        myfs_unmount,
-	        myfs_root,
-	        vfs_stdquotactl,
-	        myfs_statfs,
-	        vfs_stdsync,
-	        vfs_stdvget,
-	        vfs_stdfhtovp,
-	        vfs_stdcheckexp,
-	        vfs_stdvptofh,
-	        vfs_stdinit,
-	        vfs_stduninit,
-	        vfs_stdextattrctl,
-	};
+/*
+ * fill in the ones we use, and use the vfs_std for the rest.
+ */
+static struct vfsops myfs_vfsops = {
+        myfs_mount,
+        vfs_stdstart,
+        myfs_unmount,
+        myfs_root,
+        vfs_stdquotactl,
+        myfs_statfs,
+        vfs_stdsync,
+        vfs_stdvget,
+        vfs_stdfhtovp,
+        vfs_stdcheckexp,
+        vfs_stdvptofh,
+        vfs_stdinit,
+        vfs_stduninit,
+        vfs_stdextattrctl,
+};
 
-	VFS_SET(myfs_vfsops, skelfs, 0);
+VFS_SET(myfs_vfsops, skelfs, 0);
 .Ed
 .Sh SEE ALSO
+.Xr DECLARE_MODULE 9 ,
 .Xr vfsconf 9 ,
-.Xr vfs_modevent 9 ,
-.Xr DECLARE_MODULE 9
+.Xr vfs_modevent 9
 .Sh AUTHORS
 This man page was written by
 .An Chad David Aq davidc@acns.ab.ca .
