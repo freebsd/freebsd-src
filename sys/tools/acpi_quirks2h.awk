@@ -55,7 +55,7 @@ NR == 1 {
 #
 $1 == "name:" {
 	ENTRY_NAME = $2;
-	printf("const struct acpi_table %s[] = {\n", ENTRY_NAME) > OUTPUT;
+	printf("const struct acpi_q_rule %s[] = {\n", ENTRY_NAME) > OUTPUT;
 }
 
 #
@@ -77,7 +77,7 @@ $1 == "oem:" {
 	M = match (REMAINDER, /\"[^\"]*\"/);
 	OEM_TABLE_ID = substr(REMAINDER, M, RLENGTH);
 
-	printf("\t{ ACPI_TABLE_%s, OEM, %s, %s },\n",
+	printf("\t{ ACPI_TABLE_%s, OEM, {%s}, {%s} },\n",
 	    TABLE, OEM_ID, OEM_TABLE_ID) > OUTPUT;
 }
 
@@ -91,43 +91,38 @@ $1 == "creator:" {
 	M = match ($0, /\"[^\"]*\"/);
 	CREATOR = substr($0, M, RLENGTH);
 
-	printf("\t{ ACPI_TABLE_%s, CREATOR, %s },\n", TABLE, CREATOR) > OUTPUT;
+	printf("\t{ ACPI_TABLE_%s, CREATOR, {%s} },\n",
+	    TABLE, CREATOR) > OUTPUT;
 }
 
 #
 # OEM REVISION field
 #
 $1 == "oem_rev:" {
-	TYPE = $2;
+	TABLE = $2;
 	SIGN = $3;
 	VALUE = $4;
 
 	# Parse operand
 	OPERAND = trans_sign(SIGN);
 
-	# Parse OEM revision ID
-	REV = "OEM_REV";
-
-	printf("\t{ ACPI_TABLE_%s, %s, %s, %s },\n",
-	    TYPE, REV, OPERAND, VALUE) > OUTPUT;
+	printf("\t{ ACPI_TABLE_%s, OEM_REV, {.op = %s}, {.rev = %s} },\n",
+	    TABLE, OPERAND, VALUE) > OUTPUT;
 }
 
 #
 # CREATOR REVISION field
 #
 $1 == "creator_rev:" {
-	TYPE = $2;
+	TABLE = $2;
 	SIGN = $3;
 	VALUE = $4;
 
 	# Parse operand
 	OPERAND = trans_sign(SIGN);
 
-	# Parse creator revision ID
-	REV = "CREATOR_REV";
-
-	printf("\t{ ACPI_TABLE_%s, %s, %s, %s },\n",
-	    TYPE, REV, OPERAND, VALUE) > OUTPUT;
+	printf("\t{ ACPI_TABLE_%s, CREATOR_REV, {.op = %s}, {.rev = %s} },\n",
+	    TABLE, OPERAND, VALUE) > OUTPUT;
 }
 
 #
@@ -149,7 +144,7 @@ $1 == "quirks:" {
 #
 END {
 	# Header
-	printf("const struct acpi_blacklist acpi_quirks_table[] = {\n") \
+	printf("const struct acpi_q_entry acpi_quirks_table[] = {\n") \
 	    > OUTPUT;
 
 	# Array of all quirks
