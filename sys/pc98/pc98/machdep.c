@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.122 1999/06/30 13:30:10 kato Exp $
+ *	$Id: machdep.c,v 1.123 1999/07/03 08:31:32 kato Exp $
  */
 
 #include "apm.h"
@@ -401,12 +401,6 @@ again:
 	 */
 	{
 		vm_offset_t mb_map_size;
-		int xclusters;
-
-		/* Allow override of NMBCLUSTERS from the kernel environment */
-		if (getenv_int("kern.ipc.nmbclusters", &xclusters) && 
-		    xclusters > nmbclusters)
-		    nmbclusters = xclusters;
 
 		mb_map_size = nmbufs * MSIZE + nmbclusters * MCLBYTES;
 		mb_map_size = roundup2(mb_map_size, max(MCLBYTES, PAGE_SIZE));

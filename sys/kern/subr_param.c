@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.c	8.3 (Berkeley) 8/20/94
- * $Id: param.c,v 1.32 1998/12/14 08:34:54 dillon Exp $
+ * $Id: param.c,v 1.33 1999/04/09 16:28:11 des Exp $
  */
 
 #include <stddef.h>
@@ -82,22 +82,6 @@ int	maxprocperuid = NPROC-1;		/* maximum # of processes per user */
 int	maxfiles = MAXFILES;			/* system wide open files limit */
 int	maxfilesperproc = MAXFILES;		/* per-process open files limit */
 int	ncallout = 16 + NPROC + MAXFILES;	/* maximum # of timer events */
-
-/* maximum # of mbuf clusters */
-#ifndef NMBCLUSTERS
-#define	NMBCLUSTERS (512 + MAXUSERS * 16)
-#endif
-int	nmbclusters = NMBCLUSTERS;
-
-#if MAXFILES > NMBCLUSTERS
-#define	MAXSOCKETS MAXFILES
-#else
-#define	MAXSOCKETS NMBCLUSTERS
-#endif
-int	maxsockets = MAXSOCKETS;
-
-/* allocate 1/4th amount of virtual address space for mbufs XXX */
-int	nmbufs = NMBCLUSTERS * 4;
 
 /* maximum # of sf_bufs (sendfile(2) zero-copy virtual buffers) */
 #ifndef NSFBUFS
