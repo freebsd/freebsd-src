@@ -833,6 +833,7 @@ main(int argc, char **argv)
 					 sep->se_service, sep->se_user);
 					_exit(EX_OSERR);
 				}
+				login_close(lc);
 #else
 				if (pwd->pw_uid) {
 					if (setlogin(sep->se_user) < 0) {
@@ -971,6 +972,9 @@ config(void)
 	struct servtab *sep, *new, **sepp;
 	long omask;
 	int new_nomapped;
+#ifdef LOGIN_CAP
+	login_cap_t *lc = NULL;
+#endif
 
 	if (!setconfig()) {
 		syslog(LOG_ERR, "%s: %m", CONFIG);
@@ -992,13 +996,14 @@ config(void)
 			continue;
 		}
 #ifdef LOGIN_CAP
-		if (login_getclass(new->se_class) == NULL) {
+		if ((lc = login_getclass(new->se_class)) == NULL) {
 			/* error syslogged by getclass */
 			syslog(LOG_ERR,
 				"%s/%s: %s: login class error, service ignored",
 				new->se_service, new->se_proto, new->se_class);
 			continue;
 		}
+		login_close(lc);
 #endif
 		new_nomapped = new->se_nomapped;
 		for (sep = servtab; sep; sep = sep->se_next)
