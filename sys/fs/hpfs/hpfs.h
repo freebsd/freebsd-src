@@ -329,15 +329,12 @@ struct hpfsmount {
 	u_int8_t *	hpm_bitmap;
 };
 
-#define	H_HASHED	0x0001		/* Present in hash */
 #define	H_PARVALID	0x0002		/* parent info is valid */
 #define	H_CHANGE	0x0004		/* node date was changed */
 #define	H_PARCHANGE	0x0008		/* parent node date was changed */
 #define	H_INVAL		0x0010		/* Invalid node */
 struct hpfsnode {
 	struct mtx h_interlock;
-
-	LIST_ENTRY(hpfsnode)	h_hash;
 
 	struct hpfsmount *h_hpmp;
 	struct fnode 	h_fn;
@@ -388,13 +385,3 @@ MALLOC_DECLARE(M_HPFSNO);
 #define	FID(f)		(*((lsn_t *)(f)->fid_data))
 
 extern struct vop_vector hpfs_vnodeops;
-
-/* Hash routines, too small to be separate header */
-void hpfs_hphashinit(void);
-void hpfs_hphashdestroy(void);
-struct hpfsnode *hpfs_hphashlookup(struct cdev *, lsn_t);
-struct hpfsnode *hpfs_hphashget(struct cdev *, lsn_t);
-int hpfs_hphashvget(struct cdev *, lsn_t, int, struct vnode **, struct thread *);
-void hpfs_hphashins(register struct hpfsnode *);
-void hpfs_hphashrem(register struct hpfsnode *);
-extern struct lock hpfs_hphash_lock;
