@@ -1508,6 +1508,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			va = pv->pv_va;
 			if (va >= sva && va < eva) {
 				pte = pmap_find_vhpt(va);
+				KASSERT(pte != NULL, ("pte"));
 				pmap_remove_pte(pmap, pte, va, pv, 1);
 				pmap_invalidate_page(pmap, va);
 			}
@@ -1565,6 +1566,7 @@ pmap_remove_all(vm_page_t m)
 
 		oldpmap = pmap_install(pmap);
 		pte = pmap_find_vhpt(va);
+		KASSERT(pte != NULL, ("pte"));
 		if (pmap_pte_pa(pte) != VM_PAGE_TO_PHYS(m))
 			panic("pmap_remove_all: pv_table for %lx is inconsistent", VM_PAGE_TO_PHYS(m));
 		pmap_remove_pte(pmap, pte, va, pv, 1);
@@ -2052,7 +2054,7 @@ pmap_change_wiring(pmap, va, wired)
 	oldpmap = pmap_install(pmap);
 
 	pte = pmap_find_vhpt(va);
-
+	KASSERT(pte != NULL, ("pte"));
 	if (wired && !pmap_pte_w(pte))
 		pmap->pm_stats.wired_count++;
 	else if (!wired && pmap_pte_w(pte))
@@ -2212,16 +2214,9 @@ pmap_remove_pages(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		}
 
 		pte = pmap_find_vhpt(pv->pv_va);
-		if (!pte)
-			panic("pmap_remove_pages: page on pm_pvlist has no pte\n");
-
-
-/*
- * We cannot remove wired pages from a process' mapping at this time
- */
-		if (pte->pte_ig & PTE_IG_WIRED) {
+		KASSERT(pte != NULL, ("pte"));
+		if (pte->pte_ig & PTE_IG_WIRED)
 			continue;
-		}
 
 		pmap_remove_pte(pmap, pte, pv->pv_va, pv, 1);
 	}
@@ -2250,6 +2245,7 @@ pmap_page_protect(vm_page_t m, vm_prot_t prot)
 			pmap_t oldpmap = pmap_install(pv->pv_pmap);
 			struct ia64_lpte *pte;
 			pte = pmap_find_vhpt(pv->pv_va);
+			KASSERT(pte != NULL, ("pte"));
 			pmap_pte_set_prot(pte, newprot);
 			pmap_update_vhpt(pte, pv->pv_va);
 			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
@@ -2286,6 +2282,7 @@ pmap_ts_referenced(vm_page_t m)
 		pmap_t oldpmap = pmap_install(pv->pv_pmap);
 		struct ia64_lpte *pte;
 		pte = pmap_find_vhpt(pv->pv_va);
+		KASSERT(pte != NULL, ("pte"));
 		if (pte->pte_a) {
 			count++;
 			pte->pte_a = 0;
@@ -2317,6 +2314,7 @@ pmap_is_referenced(vm_page_t m)
 		pmap_t oldpmap = pmap_install(pv->pv_pmap);
 		struct ia64_lpte *pte = pmap_find_vhpt(pv->pv_va);
 		pmap_install(oldpmap);
+		KASSERT(pte != NULL, ("pte"));
 		if (pte->pte_a)
 			return 1;
 	}
@@ -2343,6 +2341,7 @@ pmap_is_modified(vm_page_t m)
 		pmap_t oldpmap = pmap_install(pv->pv_pmap);
 		struct ia64_lpte *pte = pmap_find_vhpt(pv->pv_va);
 		pmap_install(oldpmap);
+		KASSERT(pte != NULL, ("pte"));
 		if (pte->pte_d)
 			return 1;
 	}
@@ -2364,6 +2363,7 @@ pmap_clear_modify(vm_page_t m)
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		pmap_t oldpmap = pmap_install(pv->pv_pmap);
 		struct ia64_lpte *pte = pmap_find_vhpt(pv->pv_va);
+		KASSERT(pte != NULL, ("pte"));
 		if (pte->pte_d) {
 			pte->pte_d = 0;
 			pmap_update_vhpt(pte, pv->pv_va);
@@ -2389,6 +2389,7 @@ pmap_clear_reference(vm_page_t m)
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		pmap_t oldpmap = pmap_install(pv->pv_pmap);
 		struct ia64_lpte *pte = pmap_find_vhpt(pv->pv_va);
+		KASSERT(pte != NULL, ("pte"));
 		if (pte->pte_a) {
 			pte->pte_a = 0;
 			pmap_update_vhpt(pte, pv->pv_va);
