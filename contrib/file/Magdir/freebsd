@@ -126,5 +126,9 @@
 
 # /var/run/ld.so.hints
 # What are you laughing about?
-0	lelong			011421044151	ld.so hints file
->4	lelong			>0		(version %d)
+0	lelong			011421044151	ld.so hints file (Little Endian
+>4	lelong			>0		\b, version %d)
+>4	belong			<=0		\b)
+0	belong			011421044151	ld.so hints file (Big Endian
+>4	belong			>0		\b, version %d)
+>4	belong			<=0		\b)
