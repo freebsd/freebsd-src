@@ -59,6 +59,7 @@ add (argc, argv)
     /* Nonzero if we found a slash, and are thus adding files in a
        subdirectory.  */
     int found_slash = 0;
+    size_t cvsroot_len;
 
     if (argc == 1 || argc == -1)
 	usage (add_usage);
@@ -91,6 +92,8 @@ add (argc, argv)
 
     if (argc <= 0)
 	usage (add_usage);
+
+    cvsroot_len = strlen (CVSroot_directory);
 
     /* First some sanity checks.  I know that the CVS case is (sort of)
        also handled by add_directory, but we need to check here so the
@@ -157,7 +160,11 @@ add (argc, argv)
 
 	start_server ();
 	ign_setup ();
-	if (options) send_arg(options);
+	if (options)
+	{
+	    send_arg (options);
+	    free (options);
+	}
 	option_with_arg ("-m", message);
 
 	/* If !found_slash, refrain from sending "Directory", for
@@ -219,6 +226,17 @@ add (argc, argv)
 		/* find the repository associated with our current dir */
 		repository = Name_Repository (NULL, update_dir);
 
+		/* don't add stuff to Emptydir */
+		if (strncmp (repository, CVSroot_directory, cvsroot_len) == 0
+		    && ISDIRSEP (repository[cvsroot_len])
+		    && strncmp (repository + cvsroot_len + 1,
+				CVSROOTADM,
+				sizeof CVSROOTADM - 1) == 0
+		    && ISDIRSEP (repository[cvsroot_len + sizeof CVSROOTADM])
+		    && strcmp (repository + cvsroot_len + sizeof CVSROOTADM + 1,
+			       CVSNULLREPOS) == 0)
+		    error (1, 0, "cannot add to %s", repository);
+
 		/* before we do anything else, see if we have any
 		   per-directory tags */
 		ParseTag (&tag, &date, &nonbranch);
@@ -227,7 +245,7 @@ add (argc, argv)
 		sprintf (rcsdir, "%s/%s", repository, p);
 
 		Create_Admin (p, argv[i], rcsdir, tag, date,
-			      nonbranch, 0);
+			      nonbranch, 0, 1);
 
 		if (found_slash)
 		    send_a_repository ("", repository, update_dir);
@@ -303,6 +321,17 @@ add (argc, argv)
 
 	/* Find the repository associated with our current dir.  */
 	repository = Name_Repository (NULL, finfo.update_dir);
+
+	/* don't add stuff to Emptydir */
+	if (strncmp (repository, CVSroot_directory, cvsroot_len) == 0
+	    && ISDIRSEP (repository[cvsroot_len])
+	    && strncmp (repository + cvsroot_len + 1,
+			CVSROOTADM,
+			sizeof CVSROOTADM - 1) == 0
+	    && ISDIRSEP (repository[cvsroot_len + sizeof CVSROOTADM])
+	    && strcmp (repository + cvsroot_len + sizeof CVSROOTADM + 1,
+		       CVSNULLREPOS) == 0)
+	    error (1, 0, "cannot add to %s", repository);
 
 	entries = Entries_Open (0, NULL);
 
@@ -619,6 +648,8 @@ cannot resurrect %s; RCS file removed by second party", finfo.fullname);
 
     if (message)
 	free (message);
+    if (options)
+	free (options);
 
     return (err);
 }
@@ -769,10 +800,8 @@ add_directory (finfo)
 
 #ifdef SERVER_SUPPORT
     if (!server_active)
-	Create_Admin (".", finfo->fullname, rcsdir, tag, date, nonbranch, 0);
-#else
-    Create_Admin (".", finfo->fullname, rcsdir, tag, date, nonbranch, 0);
 #endif
+        Create_Admin (".", finfo->fullname, rcsdir, tag, date, nonbranch, 0, 1);
     if (tag)
 	free (tag);
     if (date)

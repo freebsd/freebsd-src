@@ -366,7 +366,7 @@ printf_output (format, va_alist)
       char *str;
       int num;
       int ch;
-      unsigned char buf[100];
+      char buf[100];
 
       while ((q = strchr (p, '%')) != NULL)
 	{

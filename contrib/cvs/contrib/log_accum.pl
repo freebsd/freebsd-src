@@ -13,7 +13,7 @@
 #
 # hacked greatly by Greg A. Woods <woods@planix.com>
 
-# Usage: log_accum.pl [-d] [-s] [-M module] [[-m mailto] ...] [[-R replyto] ...] [-f logfile]
+# Usage: log_accum.pl [-d] [-s] [-w] [-M module] [-u user] [[-m mailto] ...] [[-R replyto] ...] [-f logfile]
 #	-d		- turn on debugging
 #	-m mailto	- send mail to "mailto" (multiple)
 #	-R replyto	- set the "Reply-To:" to "replyto" (multiple)
@@ -21,6 +21,7 @@
 #	-f logfile	- write commit messages to logfile too
 #	-s		- *don't* run "cvs status -v" for each file
 #	-w		- show working directory with log message
+#	-u user		- $USER passed from loginfo
 
 #
 #	Configurable options
@@ -251,7 +252,6 @@ sub write_commitlog {
 $debug = 0;
 $id = getpgrp();		# note, you *must* use a shell which does setpgrp()
 $state = $STATE_NONE;
-$login = getlogin || (getpwuid($<))[0] || "nobody";
 chop($hostname = `hostname`);
 chop($domainname = `domainname`);
 if ($domainname !~ '^\..*') {
@@ -285,6 +285,8 @@ while (@ARGV) {
 	}
     } elsif ($arg eq '-M') {
 	$modulename = shift @ARGV;
+    } elsif ($arg eq '-u') {
+	$login = shift @ARGV;
     } elsif ($arg eq '-s') {
 	$do_status = 0;
     } elsif ($arg eq '-w') {
@@ -297,6 +299,9 @@ while (@ARGV) {
 	$donefiles = 1;
 	@files = split(/ /, $arg);
     }
+}
+if ($login eq '') {
+    $login = getlogin || (getpwuid($<))[0] || "nobody";
 }
 ($mailto) || die("No mail recipient specified (use -m)\n");
 if ($replyto eq '') {

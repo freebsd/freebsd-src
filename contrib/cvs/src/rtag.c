@@ -29,7 +29,7 @@ static int rtag_fileproc PROTO ((void *callerdat, struct file_info *finfo));
 static int rtag_filesdoneproc PROTO ((void *callerdat, int err,
 				      char *repos, char *update_dir,
 				      List *entries));
-static int rtag_proc PROTO((int *pargc, char **argv, char *xwhere,
+static int rtag_proc PROTO((int argc, char **argv, char *xwhere,
 		      char *mwhere, char *mfile, int shorten,
 		      int local_specified, char *mname, char *msg));
 static int rtag_delete PROTO((RCSNode *rcsfile));
@@ -222,9 +222,9 @@ rtag (argc, argv)
  */
 /* ARGSUSED */
 static int
-rtag_proc (pargc, argv, xwhere, mwhere, mfile, shorten, local_specified,
+rtag_proc (argc, argv, xwhere, mwhere, mfile, shorten, local_specified,
 	   mname, msg)
-    int *pargc;
+    int argc;
     char **argv;
     char *xwhere;
     char *mwhere;
@@ -236,6 +236,7 @@ rtag_proc (pargc, argv, xwhere, mwhere, mfile, shorten, local_specified,
 {
     /* Begin section which is identical to patch_proc--should this
        be abstracted out somehow?  */
+    char *myargv[2];
     int err = 0;
     int which;
     char *repository;
@@ -277,13 +278,10 @@ rtag_proc (pargc, argv, xwhere, mwhere, mfile, shorten, local_specified,
 	}
 	else
 	{
-	    int i;
-
-	    /* a file means muck argv */
-	    for (i = 1; i < *pargc; i++)
-		free (argv[i]);
-	    argv[1] = xstrdup (mfile);
-	    (*pargc) = 2;
+	    myargv[0] = argv[0];
+	    myargv[1] = mfile;
+	    argc = 2;
+	    argv = myargv;
 	}
 	free (path);
     }
@@ -305,7 +303,7 @@ rtag_proc (pargc, argv, xwhere, mwhere, mfile, shorten, local_specified,
 
     if (numtag != NULL && !numtag_validated)
     {
-	tag_check_valid (numtag, *pargc - 1, argv + 1, local, 0, NULL);
+	tag_check_valid (numtag, argc - 1, argv + 1, local, 0, NULL);
 	numtag_validated = 1;
     }
 
@@ -315,7 +313,7 @@ rtag_proc (pargc, argv, xwhere, mwhere, mfile, shorten, local_specified,
     mtlist = getlist();
     err = start_recursion (check_fileproc, check_filesdoneproc,
                            (DIRENTPROC) NULL, (DIRLEAVEPROC) NULL, NULL,
-                           *pargc - 1, argv + 1, local, which, 0, 1,
+                           argc - 1, argv + 1, local, which, 0, 1,
                            where, 1);
     
     if (err)
@@ -326,7 +324,7 @@ rtag_proc (pargc, argv, xwhere, mwhere, mfile, shorten, local_specified,
     /* start the recursion processor */
     err = start_recursion (rtag_fileproc, rtag_filesdoneproc, rtag_dirproc,
 			   (DIRLEAVEPROC) NULL, NULL,
-			   *pargc - 1, argv + 1, local,
+			   argc - 1, argv + 1, local,
 			   which, 0, 0, where, 1);
     free (where);
     dellist(&mtlist);

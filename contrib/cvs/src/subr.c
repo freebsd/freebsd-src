@@ -171,7 +171,8 @@ pathname_levels (path)
 	    if (-level > max_level)
 		max_level = -level;
 	}
-	else if (p[0] == '.' && (p[1] == '\0' || p[1] == '/'))
+	else if (p[0] == '\0' || p[0] == '/' ||
+		 (p[0] == '.' && (p[1] == '\0' || p[1] == '/')))
 	    ;
 	else
 	    ++level;
@@ -218,9 +219,7 @@ line2argv (pargc, argv, line, sepchars)
     int argv_allocated;
 
     /* Small for testing.  */
-    /* argv_allocated must be at least 3 because at some places
-       (e.g. checkout_proc) cvs alters argv[2].  */
-    argv_allocated = 4;
+    argv_allocated = 1;
     *argv = (char **) xmalloc (argv_allocated * sizeof (**argv));
 
     *pargc = 0;
@@ -586,7 +585,9 @@ file_has_markers (finfo)
 	error (1, errno, "cannot open %s", finfo->fullname);
     while (getline (&line, &line_allocated, fp) > 0)
     {
-	if (strncmp (line, RCS_MERGE_PAT, sizeof RCS_MERGE_PAT - 1) == 0)
+	if (strncmp (line, RCS_MERGE_PAT_1, sizeof RCS_MERGE_PAT_1 - 1) == 0 ||
+	    strncmp (line, RCS_MERGE_PAT_2, sizeof RCS_MERGE_PAT_2 - 1) == 0 ||
+	    strncmp (line, RCS_MERGE_PAT_3, sizeof RCS_MERGE_PAT_3 - 1) == 0)
 	{
 	    result = 1;
 	    goto out;
@@ -647,9 +648,9 @@ get_file (name, fullname, mode, buf, bufsize, len)
 	e = open_file (name, mode);
     }
 
-    if (*bufsize < filesize)
+    if (*buf == NULL || *bufsize <= filesize)
     {
-	*bufsize = filesize;
+	*bufsize = filesize + 1;
 	*buf = xrealloc (*buf, *bufsize);
     }
 
@@ -691,12 +692,9 @@ get_file (name, fullname, mode, buf, bufsize, len)
     *len = nread;
 
     /* Force *BUF to be large enough to hold a null terminator. */
-    if (*buf != NULL)
-    {
-	if (nread == *bufsize)
-	    expand_string (buf, bufsize, *bufsize + 1);
-	(*buf)[nread] = '\0';
-    }
+    if (nread == *bufsize)
+	expand_string (buf, bufsize, *bufsize + 1);
+    (*buf)[nread] = '\0';
 }
 
 
@@ -744,3 +742,37 @@ resolve_symlink (filename)
 	}
     }
 }
+
+/*
+ * Rename a file to an appropriate backup name based on BAKPREFIX.
+ * If suffix non-null, then ".<suffix>" is appended to the new name.
+ *
+ * Returns the new name, which caller may free() if desired.
+ */
+char *
+backup_file (filename, suffix)
+     const char *filename;
+     const char *suffix;
+{
+    char *backup_name;
+
+    if (suffix == NULL)
+    {
+        backup_name = xmalloc (sizeof (BAKPREFIX) + strlen (filename) + 1);
+        sprintf (backup_name, "%s%s", BAKPREFIX, filename);
+    }
+    else
+    {
+        backup_name = xmalloc (sizeof (BAKPREFIX)
+                               + strlen (filename)
+                               + strlen (suffix)
+                               + 2);  /* one for dot, one for trailing '\0' */
+        sprintf (backup_name, "%s%s.%s", BAKPREFIX, filename, suffix);
+    }
+
+    if (isfile (filename))
+        copy_file (filename, backup_name);
+
+    return backup_name;
+}
+

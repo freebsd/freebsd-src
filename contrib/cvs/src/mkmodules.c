@@ -283,14 +283,23 @@ static const char *const config_contents[] = {
     "# Set this to \"no\" if pserver shouldn't check system users/passwords\n",
     "#SystemAuth=no\n",
     "\n",
+    "# Put CVS lock files in this directory rather than directly in the repository.\n",
+    "#LockDir=/var/lock/cvs\n",
+    "\n",
+#ifdef PRESERVE_PERMISSIONS_SUPPORT
     "# Set `PreservePermissions' to `yes' to save file status information\n",
     "# in the repository.\n",
     "#PreservePermissions=no\n",
     "\n",
+#endif
     "# Set `TopLevelAdmin' to `yes' to create a CVS directory at the top\n",
     "# level of the new working directory when using the `cvs checkout'\n",
     "# command.\n",
     "#TopLevelAdmin=no\n",
+    "\n",
+    "# Set `LogHistory' to `all' or `TOFEWGCMAR' to log all transactions to the\n",
+    "# history file, or a subset as needed (ie `TMAR' logs all write operations)\n",
+    "#LogHistory=TOFEWGCMAR\n",
     NULL
 };
 
@@ -374,6 +383,9 @@ mkmodules (dir)
     char *line = NULL;
     size_t line_allocated = 0;
     const struct admin_file *fileptr;
+
+    if (noexec)
+	return 0;
 
     if (save_cwd (&cwd))
 	error_exit ();
@@ -868,6 +880,9 @@ init (argc, argv)
     if ( CVS_CHDIR (adm) < 0)
 	error (1, errno, "cannot change to directory %s", adm);
 
+    /* Make Emptydir so it's there if we need it */
+    mkdir_if_needed (CVSNULLREPOS);
+
     /* 80 is long enough for all the administrative file names, plus
        "/" and so on.  */
     info = xmalloc (strlen (adm) + 80);
@@ -929,6 +944,29 @@ init (argc, argv)
 	fp = open_file (info, "w");
 	if (fclose (fp) < 0)
 	    error (1, errno, "cannot close %s", info);
+ 
+        /* Make the new history file world-writeable, since every CVS
+           user will need to be able to write to it.  We use chmod()
+           because xchmod() is too shy. */
+        chmod (info, 0666);
+    }
+
+    /* Make an empty val-tags file to prevent problems creating it later.  */
+    strcpy (info, adm);
+    strcat (info, "/");
+    strcat (info, CVSROOTADM_VALTAGS);
+    if (!isfile (info))
+    {
+	FILE *fp;
+
+	fp = open_file (info, "w");
+	if (fclose (fp) < 0)
+	    error (1, errno, "cannot close %s", info);
+ 
+        /* Make the new val-tags file world-writeable, since every CVS
+           user will need to be able to write to it.  We use chmod()
+           because xchmod() is too shy. */
+        chmod (info, 0666);
     }
 
     free (info);

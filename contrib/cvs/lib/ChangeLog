@@ -1,3 +1,46 @@
+2000-07-10  Larry Jones  <larry.jones@sdrc.com>
+
+	* savecwd.c: #include <sys/types.h> before <fcntl.h>.
+
+2000-07-04  Karl Fogel  <kfogel@red-bean.com>
+
+	* getline.h, getline.c (getstr): take new limit arg.
+	(GETLINE_NO_LIMIT): new #define.
+	(getline_safe): new function, takes limit arg and passes it on.
+	(getline): pass GETLINE_NO_LIMIT to getstr().
+	
+	See related change of same date in ../src/ChangeLog.
+
+2000-06-19  Larry Jones  <larry.jones@sdrc.com>
+
+	* regex.c, regex.h: Version from emacs 20.7 to plug memory leaks
+	and avoid potential portability problems.
+
+2000-03-22  Larry Jones  <larry.jones@sdrc.com>
+
+	* getdate.y: Add logic to allow yyyy/mm/dd in addition to mm/dd/yy
+	(since that is the format CVS frequently uses).
+	* getdate.c: Regenerated.
+
+2000-02-16  Jim Meyering  <meyering@lucent.com>
+
+	* sighandle.c (SIG_inCrSect): New function.
+
+2000-01-03  Larry Jones  <larry.jones@sdrc.com>
+
+	* getdate.y (Convert): Add window to determine whether 2-digit dates
+	are 19xx (69-99) or 20xx (00-68).
+	(get_date): Fix y2k bug: initialize yyYear to tm_year + 1900,
+	not just tm_year.
+	* getdate.c: Regenerated.
+
+1999-12-29  Jim Kingdon  <http://developer.redhat.com/>
+
+	* Makefile.in: There was a comment here which referred to a long
+	comment in configure.in about regex.o (the configure.in comment
+	isn't there any more).  Replace our comment with a conciser
+	version of the former configure.in comment.
+
 1999-03-26  Jim Kingdon  <http://www.cyclic.com>
 
 	* getopt.h: Don't declare the arguments to getopt.

@@ -97,9 +97,12 @@ versions of CVS?
 
 On the web, http://www.loria.fr/~molli/cvs-index.html.
 
-The mailing list for CVS is info-cvs@prep.ai.mit.edu.  Send
+See also 
+	http://www.cvshome.org
+
+The mailing list for CVS is info-cvs@gnu.org.  Send
 subscription and removal requests for that list to
-info-cvs-request@prep.ai.mit.edu.
+info-cvs-request@gnu.org.
 
 The newsgroup for CVS (and other configuration management systems) is
 comp.software.config-mgmt.  There is not yet a CVS-specific newsgroup,

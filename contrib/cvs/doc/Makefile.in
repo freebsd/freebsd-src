@@ -21,7 +21,7 @@ VPATH = @srcdir@
 prefix = @prefix@
 exec_prefix = @exec_prefix@
 
-infodir = $(prefix)/info
+infodir = @infodir@
 
 INSTALL	= @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@

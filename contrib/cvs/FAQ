@@ -18,6 +18,9 @@ some time, you are encouraged to double-check them against other
 sources like the Cederqvist manual and update the FAQ.  If you don't
 have such time, take them with a grain of salt or a few.
 
+Since Feb. 2000 CVS is being maintained by OpenAvenue, Inc. and many of
+the existing resources have been centeralized on http://www.cvshome.org.
+
   Category: /, all questions
   
   Category: /
@@ -8554,3 +8557,4 @@ done
    The FAQ-O-Matic lives at http://gille.loria.fr:7000/cgi-bin/faqomatic.
    The code was written by Jon Howell, and the content by folks from all
    over the web.
+     _________________________________________________________________

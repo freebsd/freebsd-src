@@ -190,7 +190,7 @@ release (argc, argv)
 	    {
 		if (strchr ("MARCZ", *line))
 		    c++;
-		(void) printf (line);
+		(void) fputs (line, stdout);
 	    }
 	    if (line_length < 0 && !feof (fp))
 		error (0, errno, "cannot read from subprocess");
