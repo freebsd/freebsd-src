@@ -93,7 +93,7 @@ struct	ksegrp ksegrp0;
 static struct procsig procsig0;
 static struct filedesc0 filedesc0;
 static struct plimit limit0;
-static struct vmspace vmspace0;
+struct	vmspace vmspace0;
 struct	proc *initproc;
 
 int cmask = CMASK;
