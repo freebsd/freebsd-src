@@ -472,18 +472,18 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 	if (rman_get_bustag(r) == I386_BUS_SPACE_MEM) {
 		caddr_t vaddr = 0;
 
-		if (r->r_end < 1024 * 1024) {
+		if (rman_get_end(r) < 1024 * 1024) {
 			/*
 			 * The first 1Mb is mapped at KERNBASE.
 			 */
-			vaddr = (caddr_t)(uintptr_t)(KERNBASE + r->r_start);
+			vaddr = (caddr_t)(uintptr_t)(KERNBASE + rman_get_start(r));
 		} else {
 			u_int32_t paddr;
 			u_int32_t psize;
 			u_int32_t poffs;
 
-			paddr = r->r_start;
-			psize = r->r_end - r->r_start;
+			paddr = rman_get_start(r);
+			psize = rman_get_size(r);
 
 			poffs = paddr - trunc_page(paddr);
 			vaddr = (caddr_t) pmap_mapdev(paddr-poffs, psize+poffs) + poffs;
@@ -511,10 +511,11 @@ nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 	/*
 	 * If this is a memory resource, unmap it.
 	 */
-	if ((rman_get_bustag(r) == I386_BUS_SPACE_MEM) && (r->r_end >= 1024 * 1024)) {
+	if ((rman_get_bustag(r) == I386_BUS_SPACE_MEM) &&
+	    (rman_get_end(r) >= 1024 * 1024)) {
 		u_int32_t psize;
 
-		psize = r->r_end - r->r_start;
+		psize = rman_get_size(r);
 		pmap_unmapdev((vm_offset_t)rman_get_virtual(r), psize);
 	}
 		
@@ -525,7 +526,7 @@ static int
 nexus_release_resource(device_t bus, device_t child, int type, int rid,
 		       struct resource *r)
 {
-	if (r->r_flags & RF_ACTIVE) {
+	if (rman_get_flags(r) & RF_ACTIVE) {
 		int error = bus_deactivate_resource(child, type, rid, r);
 		if (error)
 			return error;
