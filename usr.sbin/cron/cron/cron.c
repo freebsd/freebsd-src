@@ -100,19 +100,9 @@ main(argc, argv)
 # endif
 		(void) fprintf(stderr, "[%d] cron started\n", getpid());
 	} else {
-		switch (fork()) {
-		case -1:
-			log_it("CRON",getpid(),"DEATH","can't fork");
+		if (daemon(1, 0) == -1) {
+			log_it("CRON",getpid(),"DEATH","can't become daemon");
 			exit(0);
-			break;
-		case 0:
-			/* child process */
-			log_it("CRON",getpid(),"STARTUP","fork ok");
-			(void) setsid();
-			break;
-		default:
-			/* parent process should just die */
-			_exit(0);
 		}
 	}
 
