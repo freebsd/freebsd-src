@@ -1457,8 +1457,7 @@ fwohci_itxbuf_enable(struct firewire_comm *fc, int dmach)
 			((struct fwohcidb_tr *)(dbch->xferq.stdma2->end))->db[dbch->ndesc - 1].db.desc.depend &= ~0xf;
 			((struct fwohcidb_tr *)(dbch->xferq.stdma2->end))->db[0].db.desc.depend &= ~0xf;
 		} else {
-			if (firewire_debug)
-				device_printf(fc->dev,
+			device_printf(fc->dev,
 				"fwohci_itxbuf_enable: queue underrun\n");
 		}
 		return err;
@@ -1968,7 +1967,8 @@ fwohci_tbuf_update(struct fwohci_softc *sc, int dmach)
 		db_tr = (struct fwohcidb_tr *)dbch->xferq.stdma2->end;
 		stat = db_tr->db[2].db.desc.status;
 		if (stat)
-			printf("XXX stdma2 already done stat:0x%x\n", stat);
+			device_printf(fc->dev,
+				"stdma2 already done stat:0x%x\n", stat);
 	}
 		
 	stat = OREAD(sc, OHCI_ITCTL(dmach)) & 0x1f;
