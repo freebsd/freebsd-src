@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.401 1998/10/07 03:13:36 jkh Exp $
+#	$Id: Makefile,v 1.402 1998/10/07 21:53:14 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -699,12 +699,12 @@ doMFSKERN:
 		-e 's/GENERIC/BOOTMFS/g' \
 		-e '/maxusers/s/32/4/' < GENERIC > BOOTMFS && \
 	  echo "options  MFS" >> BOOTMFS && \
+	  echo "options	 MFS_ROOT" >> BOOTMFS && \
 	  echo "options  NFS_NOSERVER" >> BOOTMFS && \
 	  echo 'options  "MAXCONS=4"' >> BOOTMFS && \
 	  echo "options  SCSI_NO_OP_STRINGS" >> BOOTMFS && \
 	  echo "options  SCSI_NO_SENSE_STRINGS" >> BOOTMFS && \
 	  echo "options  USERCONFIG_BOOT" >> BOOTMFS
-	  echo "options	 MFS_ROOT" >> BOOTMFS
 .if defined(MFSKERN)
 	@echo "options \"MFS_ROOT_SIZE=`cat fs-image.${FSIMAGE}.size`\"" >> \
 	  ${.CURDIR}/../sys/i386/conf/BOOTMFS
