@@ -1328,7 +1328,7 @@ nxtfile(int argc, char **argv, const char **fname, char *buf, int dt)
 				++errcnt;
 				if (nodiag)
 					continue;
-				(void)fprintf(err, "pr: Cannot open %s, %s\n",
+				(void)fprintf(err, "pr: cannot open %s, %s\n",
 					argv[eoptind], strerror(errno));
 				continue;
 			}
@@ -1357,7 +1357,7 @@ nxtfile(int argc, char **argv, const char **fname, char *buf, int dt)
 					++errcnt;
 					(void)fclose(inf);
 					(void)fprintf(err,
-						"pr: Cannot stat %s, %s\n",
+						"pr: cannot stat %s, %s\n",
 						argv[eoptind], strerror(errno));
 					return(NULL);
 				}
@@ -1673,7 +1673,7 @@ setup(int argc, char *argv[])
 		case 'l':
 			if (!isdigit((unsigned char)*eoptarg) || ((lines=atoi(eoptarg)) < 1)) {
 				(void)fputs(
-				 "pr: Number of lines must be 1 or more\n",err);
+				 "pr: number of lines must be 1 or more\n",err);
 				return(1);
 			}
 			break;
