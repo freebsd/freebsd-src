@@ -1924,6 +1924,7 @@ ccmail		3264/tcp   #cc:mail/lotus
 ccmail		3264/udp   #cc:mail/lotus
 dec-notes	3333/tcp   #DEC Notes
 dec-notes	3333/udp   #DEC Notes
+rdp		3389/tcp   #Microsoft Remote Desktop Protocol
 rsvp-encap	3455/udp   #RSVP encapsulated in UDP
 nut		3493/tcp   #Network UPS Tools
 nut		3493/udp   #Network UPS Tools
