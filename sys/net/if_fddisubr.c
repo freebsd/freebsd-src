@@ -122,7 +122,7 @@ static	int fddi_resolvemulti(struct ifnet *, struct sockaddr **,
  */
 int
 fddi_output(ifp, m, dst, rt0)
-	register struct ifnet *ifp;
+	struct ifnet *ifp;
 	struct mbuf *m;
 	struct sockaddr *dst;
 	struct rtentry *rt0;
@@ -130,8 +130,8 @@ fddi_output(ifp, m, dst, rt0)
 	u_int16_t type;
 	int loop_copy = 0, error = 0, hdrcmplt = 0;
  	u_char esrc[6], edst[6];
-	register struct rtentry *rt;
-	register struct fddi_header *fh;
+	struct rtentry *rt;
+	struct fddi_header *fh;
 	struct arpcom *ac = (struct arpcom *)ifp;
 
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
@@ -296,7 +296,7 @@ fddi_output(ifp, m, dst, rt0)
 	}
 
 	if (type != 0) {
-		register struct llc *l;
+		struct llc *l;
 		M_PREPEND(m, sizeof (struct llc), M_DONTWAIT);
 		if (m == 0)
 			senderr(ENOBUFS);
@@ -367,11 +367,11 @@ bad:
 void
 fddi_input(ifp, fh, m)
 	struct ifnet *ifp;
-	register struct fddi_header *fh;
+	struct fddi_header *fh;
 	struct mbuf *m;
 {
-	register struct ifqueue *inq;
-	register struct llc *l;
+	struct ifqueue *inq;
+	struct llc *l;
 
 	if ((ifp->if_flags & IFF_UP) == 0) {
 		m_freem(m);
@@ -511,10 +511,10 @@ fddi_input(ifp, fh, m)
 
 void
 fddi_ifattach(ifp)
-	register struct ifnet *ifp;
+	struct ifnet *ifp;
 {
-	register struct ifaddr *ifa;
-	register struct sockaddr_dl *sdl;
+	struct ifaddr *ifa;
+	struct sockaddr_dl *sdl;
 
 	ifp->if_type = IFT_FDDI;
 	ifp->if_addrlen = 6;
