@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/4/94
-#	$Id: Makefile,v 1.19 1997/02/22 14:21:26 peter Exp $
+#	$Id: Makefile,v 1.20 1997/04/23 04:56:39 davidn Exp $
 
 PROG=	ftpd
 MAN8=	ftpd.8
@@ -11,6 +11,13 @@ LDADD=	-lskey -lmd -lcrypt -lutil
 DPADD=	${LIBSKEY} ${LIBMD} ${LIBCRYPT} ${LIBUTIL}
 
 CLEANFILES+=ftpcmd.c y.tab.h
+
+.ifdef FTPD_INTERNAL_LS
+LSDIR=	../../bin/ls
+.PATH:	${.CURDIR}/${LSDIR}
+SRCS+=	ls.c cmp.c print.c stat_flags.c util.c
+CFLAGS+=-DINTERNAL_LS -Dmain=ls_main -I${.CURDIR}/${LSDIR}
+.endif
 
 .if exists(${DESTDIR}/usr/lib/libkrb.a) && defined(MAKE_EBONES)
 .PATH:  ${.CURDIR}/../../usr.bin/login
