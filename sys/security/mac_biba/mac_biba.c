@@ -1200,6 +1200,18 @@ mac_biba_create_fragment(struct mbuf *datagram, struct label *datagramlabel,
 }
 
 static void
+mac_biba_create_mbuf_from_inpcb(struct inpcb *inp, struct label *inplabel,
+    struct mbuf *m, struct label *mlabel)
+{
+	struct mac_biba *source, *dest;
+
+	source = SLOT(inplabel);
+	dest = SLOT(mlabel);
+
+	mac_biba_copy_single(source, dest);
+}
+
+static void
 mac_biba_create_mbuf_from_mbuf(struct mbuf *oldmbuf,
     struct label *oldmbuflabel, struct mbuf *newmbuf,
     struct label *newmbuflabel)
@@ -2698,6 +2710,7 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_create_ifnet = mac_biba_create_ifnet,
 	.mpo_create_inpcb_from_socket = mac_biba_create_inpcb_from_socket,
 	.mpo_create_ipq = mac_biba_create_ipq,
+	.mpo_create_mbuf_from_inpcb = mac_biba_create_mbuf_from_inpcb,
 	.mpo_create_mbuf_from_mbuf = mac_biba_create_mbuf_from_mbuf,
 	.mpo_create_mbuf_linklayer = mac_biba_create_mbuf_linklayer,
 	.mpo_create_mbuf_from_bpfdesc = mac_biba_create_mbuf_from_bpfdesc,

@@ -1662,10 +1662,7 @@ tcp_twrespond(struct tcptw *tw, struct socket *so, struct mbuf *msrc,
 	m->m_data += max_linkhdr;
 
 #ifdef MAC
-	if (so != NULL)
-		mac_create_mbuf_from_socket(so, m);
-	else
-		mac_create_mbuf_netlayer(msrc, m);
+	mac_create_mbuf_from_inpcb(inp, m);
 #endif
 
 #ifdef INET6

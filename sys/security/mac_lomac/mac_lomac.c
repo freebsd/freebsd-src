@@ -1340,6 +1340,18 @@ mac_lomac_create_fragment(struct mbuf *datagram, struct label *datagramlabel,
 }
 
 static void
+mac_lomac_create_mbuf_from_inpcb(struct inpcb *inp, struct label *inplabel,
+    struct mbuf *m, struct label *mlabel)
+{
+	struct mac_lomac *source, *dest;
+
+	source = SLOT(inplabel);
+	dest = SLOT(mlabel);
+
+	mac_lomac_copy_single(source, dest);
+}
+
+static void
 mac_lomac_create_mbuf_from_mbuf(struct mbuf *oldmbuf,
     struct label *oldmbuflabel, struct mbuf *newmbuf,
     struct label *newmbuflabel)
@@ -2680,6 +2692,7 @@ static struct mac_policy_ops mac_lomac_ops =
 	.mpo_create_ifnet = mac_lomac_create_ifnet,
 	.mpo_create_inpcb_from_socket = mac_lomac_create_inpcb_from_socket,
 	.mpo_create_ipq = mac_lomac_create_ipq,
+	.mpo_create_mbuf_from_inpcb = mac_lomac_create_mbuf_from_inpcb,
 	.mpo_create_mbuf_from_mbuf = mac_lomac_create_mbuf_from_mbuf,
 	.mpo_create_mbuf_linklayer = mac_lomac_create_mbuf_linklayer,
 	.mpo_create_mbuf_from_bpfdesc = mac_lomac_create_mbuf_from_bpfdesc,

@@ -229,6 +229,9 @@ struct mac_policy_ops {
 	void	(*mpo_create_fragment)(struct mbuf *datagram,
 		    struct label *datagramlabel, struct mbuf *fragment,
 		    struct label *fragmentlabel);
+	void	(*mpo_create_mbuf_from_inpcb)(struct inpcb *inp,
+		    struct label *inplabel, struct mbuf *m,
+		    struct label *mlabel);
 	void	(*mpo_create_mbuf_from_mbuf)(struct mbuf *oldmbuf,
 		    struct label *oldlabel, struct mbuf *newmbuf,
 		    struct label *newlabel);
