@@ -320,6 +320,8 @@ mf_fgets(sp, spflag)
 				fname = files->fname;
 				if ((f = fopen(fname, "r")) == NULL)
 					err(1, "%s", fname);
+				if (inplace != NULL && *inplace == '\0')
+					unlink(fname);
 			}
 			if ((c = getc(f)) != EOF) {
 				(void)ungetc(c, f);
@@ -366,6 +368,8 @@ mf_fgets(sp, spflag)
 			fname = files->fname;
 			if ((f = fopen(fname, "r")) == NULL)
 				err(1, "%s", fname);
+			if (inplace != NULL && *inplace == '\0')
+				unlink(fname);
 		}
 	}
 	(void)ungetc(c, f);
@@ -427,8 +431,16 @@ inplace_edit(filename)
 		return -1;
 	}
 
-	strlcpy(backup, *filename, MAXPATHLEN);
-	strlcat(backup, inplace, MAXPATHLEN);
+	if (*inplace == '\0') {
+		char template[] = "/tmp/sed.XXXXXXXXXX";
+
+		if (mktemp(template) == NULL)
+			err(1, "mktemp");
+		strlcpy(backup, template, MAXPATHLEN);
+	} else {
+		strlcpy(backup, *filename, MAXPATHLEN);
+		strlcat(backup, inplace, MAXPATHLEN);
+	}
 
 	input = open(*filename, O_RDONLY);
 	if (input == -1)
