@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ldd.c,v 1.8 1996/10/29 18:45:20 peter Exp $
+ *	$Id: ldd.c,v 1.9 1996/11/22 13:58:03 peter Exp $
  */
 
 #include <sys/types.h>
@@ -50,11 +50,7 @@ extern int	error_count;
 void
 usage()
 {
-	extern char *__progname;
-
-	fprintf(stderr, "Usage: %s [-f format] [-v] <filename> ...\n",
-			__progname);
-
+	fprintf(stderr, "usage: ldd [-v] [-f format] program ...\n");
 	exit(1);
 }
 
