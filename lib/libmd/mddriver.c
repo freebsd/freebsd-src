@@ -1,5 +1,5 @@
 /* MDDRIVER.C - test driver for MD2, MD4 and MD5
- * $Id$
+ * $Id: mddriver.c,v 1.3 1997/02/22 15:07:24 peter Exp $
  */
 
 /* Copyright (C) 1990-2, RSA Data Security, Inc. Created 1990. All
@@ -18,8 +18,10 @@
      defined with C compiler flags.
  */
 #ifndef MD
-#define MD MD5
+#define MD 5
 #endif
+
+#include <sys/types.h>
 
 #include <stdio.h>
 #include <time.h>
