@@ -125,7 +125,8 @@ int main(int argc, char **argv)
     if (p == NULL || *p == '\0')
 	objprefix = "/usr/obj"; /* default */
     else
-	objprefix = strdup(p);
+	if ((objprefix = strdup(p)) == NULL)
+	    out_of_memory();
 
     while((optc = getopt(argc, argv, "lh:m:c:e:p:foq")) != -1) {
 	switch(optc) {
@@ -133,11 +134,13 @@ int main(int argc, char **argv)
 	case 'o':	makeobj = 1; break;
 	case 'q':	verbose = 0; break;
 
-	case 'm':	strcpy(outmkname, optarg); break;
-	case 'p':	objprefix = strdup(optarg); break;
-	case 'h':	strcpy(outhdrname, optarg); break;
-	case 'c':	strcpy(outcfname, optarg); break;
-	case 'e':	strcpy(execfname, optarg); break;
+	case 'm':	strlcpy(outmkname, optarg, sizeof(outmkname)); break;
+	case 'p':	if ((objprefix = strdup(optarg)) == NULL)
+				out_of_memory();
+			break;
+	case 'h':	strlcpy(outhdrname, optarg, sizeof(outhdrname)); break;
+	case 'c':	strlcpy(outcfname, optarg, sizeof(outcfname)); break;
+	case 'e':	strlcpy(execfname, optarg, sizeof(execfname)); break;
 	case 'l':	list_mode++; verbose = 0; break;
 
 	case '?':
@@ -154,24 +157,22 @@ int main(int argc, char **argv)
      * generate filenames
      */
 
-    strcpy(infilename, argv[0]);
+    strlcpy(infilename, argv[0], sizeof(infilename));
 
     /* confname = `basename infilename .conf` */
 
-    if((p=strrchr(infilename, '/')) != NULL) strcpy(confname, p+1);
-    else strcpy(confname, infilename);
+    if((p=strrchr(infilename, '/')) != NULL)
+	strlcpy(confname, p+1, sizeof(confname));
+    else
+        strlcpy(confname, infilename, sizeof(confname));
     if((p=strrchr(confname, '.')) != NULL && !strcmp(p, ".conf")) *p = '\0';
 
-    if(!*outmkname) sprintf(outmkname, "%s.mk", confname);
-    if(!*outcfname) sprintf(outcfname, "%s.c", confname);
-    if(!*execfname) sprintf(execfname, "%s", confname);
+    if(!*outmkname) snprintf(outmkname, sizeof(outmkname), "%s.mk", confname);
+    if(!*outcfname) snprintf(outcfname, sizeof(outcfname), "%s.c", confname);
+    if(!*execfname) snprintf(execfname, sizeof(execfname), "%s", confname);
 
     snprintf(cachename, sizeof(cachename), "%s.cache", confname);
     snprintf(tempfname, sizeof(tempfname), ".tmp_%sXXXXXX", confname);
-    if(mktemp(tempfname) == NULL) {
-	perror(tempfname);
-	exit(1);
-    }
 
     parse_conf_file();
     if (list_mode)
@@ -233,9 +234,9 @@ void parse_one_file(char *filename)
     FILE *cf;
     char line[MAXLINELEN];
 
-    sprintf(line, "reading %s", filename);
+    snprintf(line, sizeof(line), "reading %s", filename);
     status(line);
-    strcpy(curfilename, filename);
+    strlcpy(curfilename, filename, sizeof(curfilename));
 
     if((cf = fopen(curfilename, "r")) == NULL) {
 	warn("%s", curfilename);
@@ -526,7 +527,8 @@ void fillin_program(prog_t *p)
 	if(srcparent)
 	    snprintf(line, MAXLINELEN, "%s/%s", srcparent, p->name);
 	if(is_dir(line))
-	    p->srcdir = strdup(line);
+	    if ((p->srcdir = strdup(line)) == NULL)
+		out_of_memory();
     }
 
     /* Determine the actual srcdir (maybe symlinked). */
@@ -549,7 +551,8 @@ void fillin_program(prog_t *p)
     if(!makeobj && !p->objdir && p->srcdir) {
 	snprintf(line, sizeof line, "%s/%s", objprefix, p->realsrcdir);
 	if (is_dir(line))
-	    p->objdir = strdup(line);
+	    if ((p->objdir = strdup(line)) == NULL)
+		out_of_memory();
 	else
 	    p->objdir = p->realsrcdir;
     }
@@ -577,7 +580,7 @@ void fillin_program(prog_t *p)
 void fillin_program_objs(prog_t *p, char *path)
 {
     char *obj, *cp;
-    int rc;
+    int fd, rc;
     FILE *f;
     char *objvar="OBJS";
     strlst_t *s;
@@ -585,7 +588,11 @@ void fillin_program_objs(prog_t *p, char *path)
 
     /* discover the objs from the srcdir Makefile */
 
-    if((f = fopen(tempfname, "w")) == NULL) {
+    if((fd = mkstemp(tempfname)) == -1) {
+	perror(tempfname);
+	exit(1);
+    }
+    if((f = fdopen(fd, "w")) == NULL) {
 	warn("%s", tempfname);
 	goterror = 1;
 	return;
@@ -952,7 +959,7 @@ void status(char *str)
 
 void out_of_memory(void)
 {
-    errx(1, "%s: %d: out of memory, stopping", infilename, linenum);
+    err(1, "%s: %d: out of memory, stopping", infilename, linenum);
 }
 
 
