@@ -15,6 +15,7 @@ sparc64/sparc64/clock.c		standard
 sparc64/sparc64/db_disasm.c	optional ddb
 sparc64/sparc64/db_interface.c	optional ddb
 sparc64/sparc64/db_trace.c	optional ddb
+sparc64/sparc64/db_hwwatch.c	optional ddb
 sparc64/sparc64/elf_machdep.c	standard
 # locore.s and exception.s need to be handled in Makefile to put them first.
 # Otherwise it's they're normal.
