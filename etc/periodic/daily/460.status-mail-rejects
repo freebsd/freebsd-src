@@ -1,7 +1,15 @@
 #!/bin/sh
 #
-# $Id$
+# $Id: 460.status-mail-rejects,v 1.1 1997/11/22 04:02:49 brian Exp $
 #
+
+#
+# Do not run by default. Can grow your root mailbox up to 2Mb per day
+# since SPAMmers like to retry often
+#
+
+exit 0
+
 if [ -d /etc/mail -a -f /var/log/maillog ]; then
     echo
     echo Checking for rejected mail:
