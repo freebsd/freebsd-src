@@ -536,7 +536,12 @@ madt_parse_interrupt_override(INTERRUPT_SOURCE_OVERRIDE *intr)
 	}
 
 	if (intr->Source != intr->GlobalSystemInterrupt) {
-		ioapic_remap_vector(new_ioapic, new_pin, intr->Source);
+		/* XXX: This assumes that the SCI uses IRQ 9. */
+		if (intr->GlobalSystemInterrupt > 15 && intr->Source == 9)
+			acpi_OverrideInterruptLevel(
+				intr->GlobalSystemInterrupt);
+		else
+			ioapic_remap_vector(new_ioapic, new_pin, intr->Source);
 		if (madt_find_interrupt(intr->Source, &old_ioapic,
 		    &old_pin) != 0)
 			printf("MADT: Could not find APIC for source IRQ %d\n",
