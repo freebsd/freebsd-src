@@ -1,3 +1,9 @@
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include "file.h"
 
 #include <string.h>

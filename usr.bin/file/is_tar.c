@@ -5,13 +5,16 @@
  * Pubic Domain version written 26 Aug 1985 John Gilmore (ihnp4!hoptoad!gnu).
  *
  * @(#)list.c 1.18 9/23/86 Public Domain - gnu
- * $Id: is_tar.c,v 1.1.1.2 1997/03/18 17:58:48 mpp Exp $
  *
  * Comments changed and some code/comments reformatted
  * for file command by Ian Darwin.
  */
 
-#include <string.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include <ctype.h>
 #include <sys/types.h>
 #include "tar.h"
