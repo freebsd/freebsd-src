@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.41 1994/12/04 03:41:18 jkh Exp $
+# $Id: instdist.sh,v 1.42 1994/12/05 00:40:23 jkh Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -26,7 +26,7 @@ media_set_defaults()
 {
 	MEDIA_TYPE=""
 	MEDIA_DEVICE=""
-	MEDIA_DISTRIBUTION=""
+	MEDIA_DISTRIBUTIONS=""
 	DISTRIB_SUBDIR=""
 	TMPDIR="/usr/tmp"
 	FTP_PATH=""
@@ -38,7 +38,7 @@ media_reset()
 {
 	MEDIA_DEVICE=""
 	MEDIA_TYPE=""
-	MEDIA_DISTRIBUTION=""
+	MEDIA_DISTRIBUTIONS=""
 	FTP_PATH=""
 	NFS_PATH=""
 	NFS_OPTIONS=""
@@ -95,25 +95,33 @@ media_select_ftp_site()
 Please select the site closest to you or \"other\" if you'd like\n\
 to specify another choice.  Also note that not all sites carry\n\
 every possible distribution!  Distributions other than the basic\n\
-binary set are only guaranteed to be available from the Primary site." \
--1 -1 5 \
-   "Primary" "ftp://ftp.freebsd.org/pub/FreeBSD/${DISTNAME}" \
-   "U.S-2" "ftp://ftp.dataplex.net/pub/FreeBSD/${DISTNAME}" \
-   "U.S-3" "ftp://kryten.atinc.com/pub/FreeBSD/${DISTNAME}" \
-   "U.S-4" "ftp://ref.tfs.com/pub/FreeBSD/${DISTNAME}" \
-   "Holland" "ftp://ftp.nl.net/pub/os/FreeBSD/${DISTNAME}" \
-   "Israel" "ftp://orgchem.weizmann.ac.il/pub/FreeBSD-${DISTNAME}" \
-   "Taiwan" "ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/${DISTNAME}" \
-   "Australia" "ftp://ftp.physics.usyd.edu.au/FreeBSD/${DISTNAME}" \
-   "France" "ftp://ftp.ibp.fr/pub/FreeBSD/${DISTNAME}" \
-   "Finland" "ftp://nic.funet.fi/pub/unix/FreeBSD/${DISTNAME}" \
-   "Russia" "ftp://ftp.kiae.su/FreeBSD/${DISTNAME}" \
-   "Japan" "ftp://ftp.sra.co.jp/pub/os/FreeBSD/distribution/${DISTNAME}" \
-   "Japan-2" "ftp://ftp.mei.co.jp/free/PC-UNIX/FreeBSD/${DISTNAME}" \
-   "Japan-3" "ftp://ftp.waseda.ac.jp/pub/FreeBSD/${DISTNAME}" \
-   "Japan-4" "ftp://ftp.pu-toyama.ac.jp/pub/FreeBSD/${DISTNAME}" \
-   "Japan-5" "ftp://ftpsv1.u-aizu.ac.jp/pub/os/FreeBSD/${DISTNAME}" \
-   "other" "None of the above.  I want to specify my own." \
+binary set are only guaranteed to be available from the Primary site.\n\
+Please use arrow keys to scroll through all items." \
+-1 -1 6 \
+  "Primary" "ftp://ftp.freebsd.org/pub/FreeBSD/${DISTNAME}" \
+  "Australia" "ftp://ftp.physics.usyd.edu.au/FreeBSD/${DISTNAME}" \
+  "Finland" "ftp://nic.funet.fi/pub/unix/FreeBSD/${DISTNAME}" \
+  "France" "ftp://ftp.ibp.fr/pub/FreeBSD/${DISTNAME}" \
+  "Germany" "ftp://ftp.uni-duisburg.de/pub/unix/FreeBSD/${DISTNAME}" \
+  "Israel" "ftp://orgchem.weizmann.ac.il/pub/FreeBSD-${DISTNAME}" \
+  "Japan" "ftp://ftp.sra.co.jp/pub/os/FreeBSD/distribution/${DISTNAME}" \
+  "Japan-2" "ftp://ftp.mei.co.jp/free/PC-UNIX/FreeBSD/${DISTNAME}" \
+  "Japan-3" "ftp://ftp.waseda.ac.jp/pub/FreeBSD/${DISTNAME}" \
+  "Japan-4" "ftp://ftp.pu-toyama.ac.jp/pub/FreeBSD/${DISTNAME}" \
+  "Japan-5" "ftp://ftpsv1.u-aizu.ac.jp/pub/os/FreeBSD/${DISTNAME}" \
+  "Japan-6" "ftp://tutserver.tutcc.tut.ac.jp/FreeBSD/FreeBSD-${DISTNAME}" \
+  "Japan-7" "ftp://ftp.ee.uec.ac.jp/pub/os/FreeBSD.other/FreeBSD-${DISTNAME}" \
+  "Netherlands" "ftp://ftp.nl.net/pub/os/FreeBSD/${DISTNAME}" \
+  "Russia" "ftp://ftp.kiae.su/FreeBSD/${DISTNAME}" \
+  "Taiwan" "ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/${DISTNAME}" \
+  "UK" "ftp://ftp.demon.co.uk/pub/BSD/FreeBSD/${DISTNAME}" \
+  "UK-2" "ftp://src.doc.ic.ac.uk/packages/unix/FreeBSD/${DISTNAME}" \
+  "UK-3" "ftp://unix.hensa.ac.uk/pub/walnut.creek/FreeBSD/${DISTNAME}" \
+  "USA" "ftp://ref.tfs.com/pub/FreeBSD/${DISTNAME}" \
+  "USA-2" "ftp://ftp.dataplex.net/pub/FreeBSD/${DISTNAME}" \
+  "USA-3" "ftp://kryten.atinc.com/pub/FreeBSD/${DISTNAME}" \
+  "USA-4" "ftp://ftp.neosoft.com/systems/FreeBSD/${DISTNAME}" \
+  "other" "None of the above.  I want to specify my own." \
       2> ${TMP}/menu.tmp.$$
 	RETVAL=$?
 	ANSWER=`cat ${TMP}/menu.tmp.$$`
@@ -121,21 +129,28 @@ binary set are only guaranteed to be available from the Primary site." \
 	if ! handle_rval ${RETVAL}; then return 1; fi
    case ${ANSWER} in
    Primary) FTP_PATH="ftp://ftp.freebsd.org/pub/FreeBSD/${DISTNAME}" ;;
-   U.S-2) FTP_PATH="ftp://ftp.dataplex.net/pub/FreeBSD/${DISTNAME}" ;;
-   U.S-3) FTP_PATH="ftp://kryten.atinc.com/pub/FreeBSD/${DISTNAME}" ;;
-   U.S-4) FTP_PATH="ftp://ref.tfs.com/pub/FreeBSD/${DISTNAME}" ;;
-   Holland) FTP_PATH="ftp://ftp.nl.net/pub/os/FreeBSD/${DISTNAME}" ;;
-   Israel) FTP_PATH="ftp://orgchem.weizmann.ac.il/pub/FreeBSD-${DISTNAME}" ;;
-   Taiwan) FTP_PATH="ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/${DISTNAME}" ;;
    Australia) FTP_PATH="ftp://ftp.physics.usyd.edu.au/FreeBSD/${DISTNAME}" ;;
-   France) FTP_PATH="ftp://ftp.ibp.fr/pub/FreeBSD/${DISTNAME}" ;;
    Finland) FTP_PATH="ftp://nic.funet.fi/pub/unix/FreeBSD/${DISTNAME}" ;;
+   France) FTP_PATH="ftp://ftp.ibp.fr/pub/FreeBSD/${DISTNAME}" ;;
+   Germany) FTP_PATH="ftp://ftp.uni-duisburg.de/pub/unix/FreeBSD/${DISTNAME}" ;;
+   Israel) FTP_PATH="ftp://orgchem.weizmann.ac.il/pub/FreeBSD-${DISTNAME}" ;;
    Japan) FTP_PATH="ftp://ftp.sra.co.jp/pub/os/FreeBSD/distribution/${DISTNAME}" ;;
    Japan-2) FTP_PATH="ftp://ftp.mei.co.jp/free/PC-UNIX/FreeBSD/${DISTNAME}" ;;
    Japan-3) FTP_PATH="ftp://ftp.waseda.ac.jp/pub/FreeBSD/${DISTNAME}" ;;
    Japan-4) FTP_PATH="ftp://ftp.pu-toyama.ac.jp/pub/FreeBSD/${DISTNAME}" ;;
    Japan-5) FTP_PATH="ftp://ftpsv1.u-aizu.ac.jp/pub/os/FreeBSD/${DISTNAME}" ;;
+   Japan-6) FTP_PATH="ftp://tutserver.tutcc.tut.ac.jp/FreeBSD/FreeBSD-${DISTNAME}" ;;
+   Japan-7) FTP_PATH="ftp://ftp.ee.uec.ac.jp/pub/os/FreeBSD.other/FreeBSD-${DISTNAME}" ;;
+   Netherlands) FTP_PATH="ftp://ftp.nl.net/pub/os/FreeBSD/${DISTNAME}" ;;
    Russia) FTP_PATH="ftp://ftp.kiae.su/FreeBSD/${DISTNAME}" ;;
+   Taiwan) FTP_PATH="ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/${DISTNAME}" ;;
+   UK) FTP_PATH="ftp://ftp.demon.co.uk/pub/BSD/FreeBSD/${DISTNAME}" ;;
+   UK-2) FTP_PATH="ftp://src.doc.ic.ac.uk/packages/unix/FreeBSD/${DISTNAME}" ;;
+   UK-3) FTP_PATH="ftp://unix.hensa.ac.uk/pub/walnut.creek/FreeBSD/${DISTNAME}" ;;
+   USA) FTP_PATH="ftp://ref.tfs.com/pub/FreeBSD/${DISTNAME}" ;;
+   USA-2) FTP_PATH="ftp://ftp.dataplex.net/pub/FreeBSD/${DISTNAME}" ;;
+   USA-3) FTP_PATH="ftp://kryten.atinc.com/pub/FreeBSD/${DISTNAME}" ;;
+   USA-4) FTP_PATH="ftp://ftp.neosoft.com/systems/FreeBSD/${DISTNAME}" ;;
    other)
 	TITLE="FTP Installation Information"
 	DEFAULT_VALUE="${FTP_PATH}"
@@ -259,11 +274,11 @@ media_install_set()
 
 media_select_distribution()
 {
-	MEDIA_DISTRIBUTION=""
-	while [ "${MEDIA_DISTRIBUTION}" = "" ]; do
+	MEDIA_DISTRIBUTIONS=""
+	while [ "${MEDIA_DISTRIBUTIONS}" = "" ]; do
 
 	dialog --title "Please specify a distribution to load" \
-	--menu \
+	--checklist \
 "FreeBSD is separated into a number of distributions for ease of\n\
 installation.  With repeated passes through this screen, you'll be\n\
 given the chance to load one or all of them.  Mandatory distributions\n\
@@ -271,31 +286,31 @@ MUST be loaded!  Please also note that the secrdist is NOT FOR EXPORT\n\
 from the U.S.  Please don't endanger U.S. ftp sites by getting it\n\
 illegally, thanks!  When finished, select <Cancel>." \
 -1 -1 10 \
-  "?diskfree"  "How much disk space do I have free?" \
-  "bindist" "Binary base files (mandatory - ${BINSIZE})" \
-  "games" "Games and other frivolities (optional - ${GAMESIZE})" \
-  "manpages" "Manual pages (optional - ${MANSIZE})" \
-  "proflibs" "Profiled libraries (optional - ${PROFSIZE})" \
-  "dict" "Spelling checker dictionary files (optional - ${DICTSIZE})" \
-  "srcdist" "Sources for everything but DES (optional - ${SRCSIZE})" \
-  "secrdist" "DES encryption code (and sources) (optional - ${SECRSIZE})" \
-  "compat1xdist" "FreeBSD 1.x binary compatability (optional - ${COMPATSIZE})" \
-  "XFree86-3.1" "The XFree86 3.1 distribution (optional - ${X11SIZE})" \
+  "?diskfree"  "How much disk space do I have free?" OFF \
+  "bindist" "Binary base files (mandatory - ${BINSIZE})" ON \
+  "games" "Games and other frivolities (optional - ${GAMESIZE})" OFF \
+  "manpages" "Manual pages (optional - ${MANSIZE})" OFF \
+  "proflibs" "Profiled libraries (optional - ${PROFSIZE})" OFF \
+  "dict" "Spelling checker dictionary files (optional - ${DICTSIZE})" OFF \
+  "srcdist" "Sources for everything but DES (optional - ${SRCSIZE})" OFF \
+  "secrdist" "DES encryption code (and sources) (optional - ${SECRSIZE})" OFF \
+  "compat1xdist" "FreeBSD 1.x binary compatability (optional - ${COMPATSIZE})" OFF \
+  "XFree86-3.1" "The XFree86 3.1 distribution (optional - ${X11SIZE})" OFF \
      2> ${TMP}/menu.tmp.$$
 	RETVAL=$?
-	MEDIA_DISTRIBUTION=`cat ${TMP}/menu.tmp.$$`
+	MEDIA_DISTRIBUTIONS=`cat ${TMP}/menu.tmp.$$`
 	rm -f ${TMP}/menu.tmp.$$
 	if ! handle_rval ${RETVAL}; then return 1; fi
-	if [ "${MEDIA_DISTRIBUTION}" = "?diskfree" ]; then
-		if df -k > ${TMP}/df.out; then
-			dialog --title "How much free space do I have?" \
-			  --textbox ${TMP}/df.out 15 76
+	for DIST in ${MEDIA_DISTRIBUTIONS}; do 
+		if [ "${DIST}" = "?diskfree" ]; then
+			if df -k > ${TMP}/df.out; then
+			   dialog --title "How much free space do I have?" \
+				--textbox ${TMP}/df.out 15 76
 		else
 			error "Couldn't get disk usage information! :-("
 		fi
-		MEDIA_DISTRIBUTION=""
-	fi
 	done
+  done
 }
 
 media_get_possible_subdir()
