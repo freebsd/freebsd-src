@@ -25,6 +25,7 @@ LOCALES=	bg_BG.CP1251 \
 		ko_KR.eucKR \
 		la_LN.ISO8859-1 \
 		lt_LT.ISO8859-4 \
+		lt_LT.ISO8859-13 \
 		nl_NL.ISO8859-1 \
 		no_NO.ISO8859-1 \
 		pl_PL.ISO8859-2 \
