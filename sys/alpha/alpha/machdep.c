@@ -1418,11 +1418,9 @@ osigreturn(struct proc *p,
 		return (EINVAL);
 
 	/*
-	 * Test and fetch the context structure.
-	 * We grab it all at once for speed.
+	 * Fetch the entire context structure at once for speed.
 	 */
-	if (useracc((caddr_t)scp, sizeof (*scp), VM_PROT_READ) == 0 ||
-	    copyin((caddr_t)scp, (caddr_t)&ksc, sizeof ksc))
+	if (copyin((caddr_t)scp, (caddr_t)&ksc, sizeof ksc))
 		return (EINVAL);
 
 	/*
@@ -1488,11 +1486,9 @@ sigreturn(struct proc *p,
 		return (EINVAL);
 
 	/*
-	 * Test and fetch the context structure.
-	 * We grab it all at once for speed.
+	 * Fetch the entire context structure at once for speed.
 	 */
-	if (useracc((caddr_t)ucp, sizeof(ucontext_t), VM_PROT_READ) == 0 ||
-	    copyin((caddr_t)ucp, (caddr_t)&uc, sizeof(ucontext_t)))
+	if (copyin((caddr_t)ucp, (caddr_t)&uc, sizeof(ucontext_t)))
 		return (EINVAL);
 
 	/*
