@@ -2707,7 +2707,7 @@ JobInterrupt(runINTERRUPT, signo)
 
     aborting = ABORT_INTERRUPT;
 
-   (void) Lst_Open(jobs);
+    (void) Lst_Open(jobs);
     while ((ln = Lst_Next(jobs)) != NULL) {
 	job = (Job *) Lst_Datum(ln);
 
@@ -2748,7 +2748,7 @@ JobInterrupt(runINTERRUPT, signo)
     }
 
 #ifdef REMOTE
-   (void)Lst_Open(stoppedJobs);
+    (void)Lst_Open(stoppedJobs);
     while ((ln = Lst_Next(stoppedJobs)) != NULL) {
 	job = (Job *) Lst_Datum(ln);
 
