@@ -174,7 +174,7 @@ static device_method_t sk_methods[] = {
 };
 
 static driver_t sk_driver = {
-	"skc",
+	"if_skc",
 	sk_methods,
 	sizeof(struct sk_softc)
 };
