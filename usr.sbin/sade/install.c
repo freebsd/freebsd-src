@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.30 1995/05/19 15:56:01 jkh Exp $
+ * $Id: install.c,v 1.31 1995/05/19 21:30:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -76,14 +76,18 @@ preInstallCheck(void)
     return TRUE;
 }
 
-int
-installCommit(char *str)
+static void
+installInitial(void)
 {
     extern u_char boot1[], boot2[];
     extern u_char mbr[], bteasy17[];
     u_char *mbrContents;
     Device **devs;
     int i;
+    static Boolean alreadyDone = FALSE;
+
+    if (alreadyDone)
+	return;
 
     /* If things aren't kosher, or we refuse to proceed, bail. */
     if (!preInstallCheck()
@@ -126,6 +130,13 @@ installCommit(char *str)
 	    }
 	}
     }
+    alreadyDone = TRUE;
+}
+
+int
+installCommit(char *str)
+{
+    installInitial();
     make_filesystems();
     copy_self();
     cpio_extract();

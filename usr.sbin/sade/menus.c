@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.16 1995/05/18 09:02:00 jkh Exp $
+ * $Id: menus.c,v 1.17 1995/05/19 16:58:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -70,6 +70,8 @@ option by pressing enter.  If you'd like a shell, press ESC",	/* prompt */
 	DMENU_SUBMENU, (void *)&MenuOptions, 0, 0	},
       { "Proceed", "Go to the installation menu",		/* P */
 	DMENU_SUBMENU, (void *)&MenuInstall, 0, 0		},
+      { "Quit", "Exit this installation utility",		/* Q */
+	DMENU_CANCEL, NULL, 0, 0 },
       { NULL } },
 };
 
@@ -148,24 +150,12 @@ DMenu MenuMediaCDROM = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Choose a CDROM type",
     "FreeBSD can be installed directly from a CDROM containing a valid\n\
-FreeBSD 2.0.5 distribution.  If you are seeing this menu, it's either\n\
-because you haven't booted directly from the CDROM in DOS/Windows or\n\
-your CDROM was not detected.  If you feel that you are seeing this dialog\n\
-in error, you may wish to reboot FreeBSD with the -c boot flag (see the\n\
-hardware guide in the Documentation menu for more info) and check that your\n\
-CDROM controller and the kernel agree on reasonable values.  Please also\n\
-note that FreeBSD does NOT currently support IDE CDROM drives!",
-    "Press F1 for more information on CDROM support",
-    "media_cdrom.hlp",
-    { { "Matsushita", "Panasonic \"Sound Blaster\" CDROM.",		/* M */
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=/dev/matcd0a", 0, 0	},
-      { "Mitsumi", "Mitsumi FX-001 series drive (not IDE)",		/* M */
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=/dev/mcd0a", 0, 0	},
-      { "SCSI", "SCSI CDROM drive attached to supported SCSI controller", /* S */
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=/dev/cd0a", 0, 0	},
-      { "Sony", "Sony CDU31/33A or compatible CDROM drive",		/* S */
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=/dev/scd0a", 0, 0	},
-      { NULL } },
+FreeBSD 2.0.5 distribution.  If you are seeing this menu it's because\n\
+more than one CDROM drive on your system was found.  Please select one\n\
+of the following CDROM drives as your installation drive.",
+    "Press F1 to read the installation guide",
+    "install.hlp",
+    { { NULL } },
 };
 
 DMenu MenuMediaFloppy = {
@@ -181,9 +171,9 @@ scripts.",
     "Please select the floppy drive you want to use",
     NULL,
     { { "A", "Floppy drive A",		/* M */
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=/dev/fd0a", 0, 0	},
+	DMENU_SET_VARIABLE, (void *)"mediaDevice=fd0a", 0, 0	},
       { "B", "Floppy drive B",		/* M */
-	DMENU_SET_VARIABLE, (void *)"mediaDevice=/dev/fd1a", 0, 0	},
+	DMENU_SET_VARIABLE, (void *)"mediaDevice=fd1a", 0, 0	},
       { NULL } },
 };
 
