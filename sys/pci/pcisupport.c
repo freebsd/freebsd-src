@@ -595,42 +595,6 @@ dumpconfigspace (device_t dev)
 #endif /* PCI_QUIET */
 
 
-const char *
-ide_pci_match(device_t dev)
-{
-
-    switch (pci_get_devid(dev)) {
-    case 0x12308086:
-	return ("Intel PIIX IDE controller");
-    case 0x70108086:
-	return ("Intel PIIX3 IDE controller");
-    case 0x71118086:
-	return ("Intel PIIX4 IDE controller");
-    case 0x4d33105a:
-	return ("Promise Ultra/33 IDE controller");
-    case 0x522910b9:
-	return ("AcerLabs Aladdin IDE controller");
-    case 0x15711106:
-    case 0x05711106:
-	return ("VIA Apollo IDE controller");
-    case 0x06401095:
-	return ("CMD 640 IDE controller");
-    case 0x06461095:
-	return ("CMD 646 IDE controller");
-    case 0xc6931080:
-	return ("Cypress 82C693 IDE controller");
-    case 0x01021078:
-	return ("Cyrix 5530 IDE controller");
-    case 0x55131039:
-	return ("SiS 5591 IDE controller");
-    default:
-	if (pci_get_class(dev) == PCIC_STORAGE &&
-	    pci_get_subclass(dev) == PCIS_STORAGE_IDE)
-	    return ("Unknown PCI IDE controller");
-    }
-    return NULL;
-}
-
 static void
 chipset_attach (device_t dev, int unit)
 {
@@ -972,6 +936,123 @@ static devclass_t isab_devclass;
 
 DRIVER_MODULE(isab, pci, isab_driver, isab_devclass, 0, 0);
 
+const char *
+pci_usb_match(device_t dev)
+{
+
+	switch (pci_get_devid(dev)) {
+
+	/* Intel -- vendor 0x8086 */
+	case 0x70208086:
+		return ("Intel 82371SB (PIIX3) USB controller");
+	case 0x71128086:
+		return ("Intel 82371AB/EB (PIIX4) USB controller");
+
+	/* VIA Technologies -- vendor 0x1106 (0x1107 on the Apollo Master) */
+	case 0x30381106:
+		return ("VIA 83C572 USB controller");
+
+	/* AcerLabs -- vendor 0x10b9 */
+	case 0x523710b9:
+		return ("AcerLabs M5237 (Aladdin-V) USB controller");
+
+	/* OPTi -- vendor 0x1045 */
+	case 0xc8611045:
+		return ("OPTi 82C861 (FireLink) USB controller");
+
+	/* NEC -- vendor 0x1033 */
+	case 0x00351033:
+		return ("NEC uPD 9210 USB controller");
+
+	/* CMD Tech -- vendor 0x1095 */
+	case 0x06701095:
+		return ("CMD Tech 670 (USB0670) USB controller");
+	case 0x06731095:
+		return ("CMD Tech 673 (USB0673) USB controller");
+	}
+
+	if (pci_get_class(dev) == PCIC_SERIALBUS
+	    && pci_get_subclass(dev) == PCIS_SERIALBUS_USB) {
+		if (pci_get_progif(dev) == 0x00 /* UHCI */ ) {
+			return ("UHCI USB controller");
+		} else if (pci_get_progif(dev) == 0x10 /* OHCI */ ) {
+			return ("OHCI USB controller");
+		} else {
+			return ("USB controller");
+		}
+	}
+	return NULL;
+}
+
+const char *
+pci_ata_match(device_t dev)
+{
+
+	switch (pci_get_devid(dev)) {
+
+	/* Intel -- vendor 0x8086 */
+	case 0x12308086:
+		return ("Intel PIIX ATA controller");
+	case 0x70108086:
+		return ("Intel PIIX3 ATA controller");
+	case 0x71118086:
+		return ("Intel PIIX4 ATA controller");
+	case 0x12348086:
+		return ("Intel 82371MX mobile PCI ATA accelerator (MPIIX)");
+
+	/* Promise -- vendor 0x105a */
+	case 0x4d33105a:
+		return ("Promise Ultra/33 ATA controller");
+	case 0x4d38105a:
+		return ("Promise Ultra/66 ATA controller");
+
+	/* AcerLabs -- vendor 0x10b9 */
+	case 0x522910b9:
+		return ("AcerLabs Aladdin ATA controller");
+
+	/* VIA Technologies -- vendor 0x1106 (0x1107 on the Apollo Master) */
+	case 0x05711106:
+		switch (pci_read_config(dev, 0x08, 1)) {
+		case 1:
+			return ("VIA 85C586 ATA controller");
+		case 6:
+			return ("VIA 85C586 ATA controller");
+		}
+		/* FALL THROUGH */
+	case 0x15711106:
+		return ("VIA Apollo ATA controller");
+
+	/* CMD Tech -- vendor 0x1095 */
+	case 0x06401095:
+		return ("CMD 640 ATA controller");
+	case 0x06461095:
+		return ("CMD 646 ATA controller");
+
+	/* Cypress -- vendor 0x1080 */
+	case 0xc6931080:
+		return ("Cypress 82C693 ATA controller");
+
+	/* Cyrix -- vendor 0x1078 */
+	case 0x01021078:
+		return ("Cyrix 5530 ATA controller");
+
+	/* SiS -- vendor 0x1039 */
+	case 0x55131039:
+		return ("SiS 5591 ATA controller");
+
+	/* Highpoint tech -- vendor 0x1103 */
+	case 0x00041103:
+		return ("HighPoint HPT366 ATA controller");
+	}
+
+	if (pci_get_class(dev) == PCIC_STORAGE &&
+	    pci_get_subclass(dev) == PCIS_STORAGE_IDE)
+		return ("Unknown PCI ATA controller");
+
+	return NULL;
+}
+
+
 static const char*
 chip_match(device_t dev)
 {
@@ -1019,8 +1100,6 @@ chip_match(device_t dev)
 		return ("Intel 82434LX (Mercury) PCI cache memory controller");
 	case 0x122d8086:
 		return ("Intel 82437FX PCI cache memory controller");
-	case 0x12348086:
-		return ("Intel 82371MX mobile PCI I/O IDE accelerator (MPIIX)");
 	case 0x12358086:
 		return ("Intel 82437MX mobile PCI cache memory controller");
 	case 0x12508086:
@@ -1034,12 +1113,6 @@ chip_match(device_t dev)
 	case 0x12378086:
 		fixwsc_natoma(dev);
 		return ("Intel 82440FX (Natoma) PCI and memory controller");
-#if 0
-	case 0x70208086:
-		return ("Intel 82371SB (PIIX3) USB controller");
-	case 0x71128086:
-		return ("Intel 82371AB/EB (PIIX4) USB controller");
-#endif
 	case 0x84c58086:
 		return ("Intel 82453KX/GX (Orion) PCI memory controller");
 
@@ -1086,18 +1159,12 @@ chip_match(device_t dev)
 		return ("VIA 82C598MVP (Apollo MVP3) host bridge");
 	case 0x30401106:
 		return ("VIA 82C586B ACPI interface");
-	case 0x05711106:
-		return ("VIA 82C586B IDE controller");
 	case 0x30571106:
 		return ("VIA 82C686 ACPI interface");
 	case 0x30581106:
 		return ("VIA 82C686 AC97 Audio");
 	case 0x30681106:
 		return ("VIA 82C686 AC97 Modem");
-#if 0
-	case 0x30381106:
-		return ("VIA 83C572 USB controller");
-#endif
 
 	/* AMD -- vendor 0x1022 */
 	case 0x70061022:
@@ -1114,20 +1181,12 @@ chip_match(device_t dev)
 	/* id is '10b9" but the register always shows "10b9". -Foxfair  */
 	case 0x154110b9:
 		return ("AcerLabs M1541 (Aladdin-V) PCI host bridge");
-#if 0
-	case 0x523710b9:
-		return ("AcerLabs M5237 (Aladdin-V) USB controller");
-#endif
 	case 0x710110b9:
 		return ("AcerLabs M15x3 Power Management Unit");
 
 	/* OPTi -- vendor 0x1045 */
 	case 0xc8221045:
 		return ("OPTi 82C822 host to PCI Bridge");
-#if 0
-	case 0xc8611045:
-		return ("OPTi 82C861 (FireLink) USB controller");
-#endif
 
 	/* NEC -- vendor 0x1033 */
 
@@ -1142,18 +1201,6 @@ chip_match(device_t dev)
 	case 0x002c1033:
 	case 0x003b1033:
 		return NULL;
-#if 0
-	case 0x00351033:
-		return ("NEC uPD 9210 USB controller");
-#endif
-
-#if 0
-	/* CMD Tech -- vendor 0x1095 */
-	case 0x06701095:
-		return ("CMD Tech 670 (USB0670) USB controller");
-	case 0x06731095:
-		return ("CMD Tech 673 (USB0673) USB controller");
-#endif
 	};
 
 	if (pci_get_class(dev) == PCIC_BRIDGE
@@ -1161,19 +1208,6 @@ chip_match(device_t dev)
 	    && pci_get_subclass(dev) != PCIS_BRIDGE_ISA
 	    && pci_get_subclass(dev) != PCIS_BRIDGE_EISA)
 		return pci_bridge_type(dev);
-
-#if 0
-	if (pci_get_class(dev) == PCIC_SERIALBUS
-	    && pci_get_subclass(dev) == PCIS_SERIALBUS_USB) {
-		if (pci_get_progif(dev) == 0x00 /* UHCI */ ) {
-			return ("UHCI USB controller");
-		} else if (pci_get_progif(dev) == 0x10 /* OHCI */ ) {
-			return ("OHCI USB controller");
-		} else {
-			return ("USB controller");
-		}
-	}
-#endif
 
 	return NULL;
 }
@@ -1183,8 +1217,6 @@ static int chip_probe(device_t dev)
 	const char *desc;
 
 	desc = chip_match(dev);
-	if (desc == NULL)
-		desc = ide_pci_match(dev);
 	if (desc) {
 		if (pci_get_class(dev) == PCIC_BRIDGE
 		    && pci_get_subclass(dev) == PCIS_BRIDGE_HOST) {
