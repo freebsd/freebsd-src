@@ -105,113 +105,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
-#define	ASR_VERSION	1
-#define	ASR_REVISION	'0'
-#define	ASR_SUBREVISION '8'
-#define	ASR_MONTH	8
-#define	ASR_DAY		21
-#define	ASR_YEAR	2001 - 1980
-
-/*
- *	Debug macros to reduce the unsightly ifdefs
- */
-#if (defined(DEBUG_ASR) || defined(DEBUG_ASR_USR_CMD) || defined(DEBUG_ASR_CMD))
-#define debug_asr_message(message)					       \
-	{								       \
-		u_int32_t * pointer = (u_int32_t *)message;		       \
-		u_int32_t   length = I2O_MESSAGE_FRAME_getMessageSize(message);\
-		u_int32_t   counter = 0;				       \
-									       \
-		while (length--) {					       \
-			printf ("%08lx%c", (u_long)*(pointer++),	       \
-			  (((++counter & 7) == 0) || (length == 0))	       \
-			    ? '\n'					       \
-			    : ' ');					       \
-		}							       \
-	}
-#endif /* DEBUG_ASR || DEBUG_ASR_USR_CMD || DEBUG_ASR_CMD */
-
-#if (defined(DEBUG_ASR))
-  /* Breaks on none STDC based compilers :-( */
-#define debug_asr_printf(fmt,args...)	 printf(fmt, ##args)
-#define debug_asr_dump_message(message) debug_asr_message(message)
-#define debug_asr_print_path(ccb)	 xpt_print_path(ccb->ccb_h.path);
-  /* None fatal version of the ASSERT macro */
-#if (defined(__STDC__))
-#define ASSERT(phrase) if(!(phrase))printf(#phrase " at line %d file %s\n",__LINE__,__FILE__)
-#else
-#define ASSERT(phrase) if(!(phrase))printf("phrase" " at line %d file %s\n",__LINE__,__FILE__)
-#endif
-#else /* DEBUG_ASR */
-#define debug_asr_printf(fmt,args...)
-#define debug_asr_dump_message(message)
-#define debug_asr_print_path(ccb)
-#define ASSERT(x)
-#endif /* DEBUG_ASR */
-
-/*
- *	If DEBUG_ASR_CMD is defined:
- *		0 - Display incoming SCSI commands
- *		1 - add in a quick character before queueing.
- *		2 - add in outgoing message frames.
- */
-#if (defined(DEBUG_ASR_CMD))
-#define debug_asr_cmd_printf(fmt,args...)     printf(fmt,##args)
-#define debug_asr_dump_ccb(ccb)				      \
-	{							      \
-		u_int8_t * cp = (unsigned char *)&(ccb->csio.cdb_io); \
-		int	   len = ccb->csio.cdb_len;		      \
-								      \
-		while (len) {					      \
-			debug_asr_cmd_printf (" %02x", *(cp++));      \
-			--len;					      \
-		}						      \
-	}
-#if (DEBUG_ASR_CMD > 0)
-#define debug_asr_cmd1_printf		       debug_asr_cmd_printf
-#else
-#define debug_asr_cmd1_printf(fmt,args...)
-#endif
-#if (DEBUG_ASR_CMD > 1)
-#define debug_asr_cmd2_printf		       debug_asr_cmd_printf
-#define debug_asr_cmd2_dump_message(message) debug_asr_message(message)
-#else
-#define debug_asr_cmd2_printf(fmt,args...)
-#define debug_asr_cmd2_dump_message(message)
-#endif
-#else /* DEBUG_ASR_CMD */
-#define debug_asr_cmd_printf(fmt,args...)
-#define debug_asr_cmd_dump_ccb(ccb)
-#define debug_asr_cmd1_printf(fmt,args...)
-#define debug_asr_cmd2_printf(fmt,args...)
-#define debug_asr_cmd2_dump_message(message)
-#endif /* DEBUG_ASR_CMD */
-
-#if (defined(DEBUG_ASR_USR_CMD))
-#define debug_usr_cmd_printf(fmt,args...)   printf(fmt,##args)
-#define debug_usr_cmd_dump_message(message) debug_usr_message(message)
-#else /* DEBUG_ASR_USR_CMD */
-#define debug_usr_cmd_printf(fmt,args...)
-#define debug_usr_cmd_dump_message(message)
-#endif /* DEBUG_ASR_USR_CMD */
-
-#define	dsDescription_size 46	/* Snug as a bug in a rug */
-#include "dev/asr/dptsig.h"
-
-static dpt_sig_S ASR_sig = {
-	{ 'd', 'P', 't', 'S', 'i', 'G'}, SIG_VERSION, PROC_INTEL,
-	PROC_386 | PROC_486 | PROC_PENTIUM | PROC_SEXIUM, FT_HBADRVR, 0,
-	OEM_DPT, OS_FREE_BSD, CAP_ABOVE16MB, DEV_ALL,
-	ADF_ALL_SC5,
-	0, 0, ASR_VERSION, ASR_REVISION, ASR_SUBREVISION,
-	ASR_MONTH, ASR_DAY, ASR_YEAR,
-/*	 01234567890123456789012345678901234567890123456789	< 50 chars */
-	"Adaptec FreeBSD 4.0.0 Unix SCSI I2O HBA Driver"
-	/*		 ^^^^^ asr_attach alters these to match OS */
-};
-
 #include <sys/param.h>	/* TRUE=1 and FALSE=0 defined here */
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -256,6 +149,106 @@ static dpt_sig_S ASR_sig = {
 #include	"dev/asr/i2oadptr.h"
 
 #include	"dev/asr/sys_info.h"
+
+__FBSDID("$FreeBSD$");
+
+#define	ASR_VERSION	1
+#define	ASR_REVISION	'0'
+#define	ASR_SUBREVISION '8'
+#define	ASR_MONTH	8
+#define	ASR_DAY		21
+#define	ASR_YEAR	2001 - 1980
+
+/*
+ *	Debug macros to reduce the unsightly ifdefs
+ */
+#if (defined(DEBUG_ASR) || defined(DEBUG_ASR_USR_CMD) || defined(DEBUG_ASR_CMD))
+static __inline void
+debug_asr_message(PI2O_MESSAGE_FRAME message)
+{
+	u_int32_t * pointer = (u_int32_t *)message;
+	u_int32_t   length = I2O_MESSAGE_FRAME_getMessageSize(message);
+	u_int32_t   counter = 0;
+
+	while (length--) {
+		printf("%08lx%c", (u_long)*(pointer++),
+		  (((++counter & 7) == 0) || (length == 0)) ? '\n' : ' ');
+	}
+}
+#endif /* DEBUG_ASR || DEBUG_ASR_USR_CMD || DEBUG_ASR_CMD */
+
+#ifdef DEBUG_ASR
+  /* Breaks on none STDC based compilers :-( */
+#define debug_asr_printf(fmt,args...)	printf(fmt, ##args)
+#define debug_asr_dump_message(message)	debug_asr_message(message)
+#define debug_asr_print_path(ccb)	xpt_print_path(ccb->ccb_h.path);
+#else /* DEBUG_ASR */
+#define debug_asr_printf(fmt,args...)
+#define debug_asr_dump_message(message)
+#define debug_asr_print_path(ccb)
+#endif /* DEBUG_ASR */
+
+/*
+ *	If DEBUG_ASR_CMD is defined:
+ *		0 - Display incoming SCSI commands
+ *		1 - add in a quick character before queueing.
+ *		2 - add in outgoing message frames.
+ */
+#if (defined(DEBUG_ASR_CMD))
+#define debug_asr_cmd_printf(fmt,args...)     printf(fmt,##args)
+static __inline void
+debug_asr_dump_ccb(union ccb *ccb)
+{
+	u_int8_t	*cp = (unsigned char *)&(ccb->csio.cdb_io);
+	int		len = ccb->csio.cdb_len;
+
+	while (len) {
+		debug_asr_cmd_printf (" %02x", *(cp++));
+		--len;
+	}
+}
+#if (DEBUG_ASR_CMD > 0)
+#define debug_asr_cmd1_printf		       debug_asr_cmd_printf
+#else
+#define debug_asr_cmd1_printf(fmt,args...)
+#endif
+#if (DEBUG_ASR_CMD > 1)
+#define debug_asr_cmd2_printf			debug_asr_cmd_printf
+#define debug_asr_cmd2_dump_message(message)	debug_asr_message(message)
+#else
+#define debug_asr_cmd2_printf(fmt,args...)
+#define debug_asr_cmd2_dump_message(message)
+#endif
+#else /* DEBUG_ASR_CMD */
+#define debug_asr_cmd_printf(fmt,args...)
+#define debug_asr_dump_ccb(ccb)
+#define debug_asr_cmd1_printf(fmt,args...)
+#define debug_asr_cmd2_printf(fmt,args...)
+#define debug_asr_cmd2_dump_message(message)
+#endif /* DEBUG_ASR_CMD */
+
+#if (defined(DEBUG_ASR_USR_CMD))
+#define debug_usr_cmd_printf(fmt,args...)   printf(fmt,##args)
+#define debug_usr_cmd_dump_message(message) debug_usr_message(message)
+#else /* DEBUG_ASR_USR_CMD */
+#define debug_usr_cmd_printf(fmt,args...)
+#define debug_usr_cmd_dump_message(message)
+#endif /* DEBUG_ASR_USR_CMD */
+
+#define	dsDescription_size 46	/* Snug as a bug in a rug */
+#include "dev/asr/dptsig.h"
+
+static dpt_sig_S ASR_sig = {
+	{ 'd', 'P', 't', 'S', 'i', 'G'}, SIG_VERSION, PROC_INTEL,
+	PROC_386 | PROC_486 | PROC_PENTIUM | PROC_SEXIUM, FT_HBADRVR, 0,
+	OEM_DPT, OS_FREE_BSD, CAP_ABOVE16MB, DEV_ALL,
+	ADF_ALL_SC5,
+	0, 0, ASR_VERSION, ASR_REVISION, ASR_SUBREVISION,
+	ASR_MONTH, ASR_DAY, ASR_YEAR,
+/*	 01234567890123456789012345678901234567890123456789	< 50 chars */
+	"Adaptec FreeBSD 4.0.0 Unix SCSI I2O HBA Driver"
+	/*		 ^^^^^ asr_attach alters these to match OS */
+};
 
 /* Configuration Definitions */
 
@@ -493,7 +486,7 @@ ASR_fillMessage(char *Message, u_int16_t size)
 	return (Message_Ptr);
 } /* ASR_fillMessage */
 
-#define	EMPTY_QUEUE ((U32)-1L)
+#define	EMPTY_QUEUE (-1L)
 
 static __inline U32
 ASR_getMessage(i2oRegs_t *virt)
@@ -524,8 +517,8 @@ ASR_initiateCp(i2oRegs_t *virt, U8 *fvirt, PI2O_MESSAGE_FRAME Message)
 		DELAY (10000);
 	}
 	if (MessageOffset != EMPTY_QUEUE) {
-		bcopy (Message, fvirt + MessageOffset,
-		  I2O_MESSAGE_FRAME_getMessageSize(Message) << 2);
+		bcopy(Message, fvirt + MessageOffset,
+		      I2O_MESSAGE_FRAME_getMessageSize(Message) << 2);
 		/*
 		 *	Disable the Interrupts
 		 */
@@ -566,9 +559,10 @@ ASR_resetIOP(i2oRegs_t *virt, U8 *fvirt)
 	/*
 	 *	Send the Message out
 	 */
-	if ((Old = ASR_initiateCp (virt, fvirt, (PI2O_MESSAGE_FRAME)Message_Ptr)) != (U32)-1L) {
+	if ((Old = ASR_initiateCp(virt, fvirt,
+				  (PI2O_MESSAGE_FRAME)Message_Ptr)) != -1L) {
 		/*
-		 *	Wait for a response (Poll), timeouts are dangerous if
+		 * Wait for a response (Poll), timeouts are dangerous if
 		 * the card is truly responsive. We assume response in 2s.
 		 */
 		u_int8_t Delay = 200;
@@ -580,10 +574,10 @@ ASR_resetIOP(i2oRegs_t *virt, U8 *fvirt)
 		 *	Re-enable the interrupts.
 		 */
 		virt->Mask = Old;
-		ASSERT (*Reply_Ptr);
-		return (*Reply_Ptr);
+		KASSERT(*Reply_Ptr != NULL, ("Reply_Ptr == NULL"));
+		return(*Reply_Ptr);
 	}
-	ASSERT (Old != (U32)-1L);
+	KASSERT(Old != -1L, ("Old == -1"));
 	return (0);
 } /* ASR_resetIOP */
 
@@ -601,14 +595,14 @@ ASR_getStatus(i2oRegs_t *virt, U8 *fvirt, PI2O_EXEC_STATUS_GET_REPLY buffer)
 	 *  Build up our copy of the Message.
 	 */
 	Message_Ptr = (PI2O_EXEC_STATUS_GET_MESSAGE)ASR_fillMessage(Message,
-	  sizeof(I2O_EXEC_STATUS_GET_MESSAGE));
+	    sizeof(I2O_EXEC_STATUS_GET_MESSAGE));
 	I2O_EXEC_STATUS_GET_MESSAGE_setFunction(Message_Ptr,
-	  I2O_EXEC_STATUS_GET);
+	    I2O_EXEC_STATUS_GET);
 	I2O_EXEC_STATUS_GET_MESSAGE_setReplyBufferAddressLow(Message_Ptr,
-	  KVTOPHYS((void *)buffer));
+	    KVTOPHYS((void *)buffer));
 	/* This one is a Byte Count */
 	I2O_EXEC_STATUS_GET_MESSAGE_setReplyBufferLength(Message_Ptr,
-	  sizeof(I2O_EXEC_STATUS_GET_REPLY));
+	    sizeof(I2O_EXEC_STATUS_GET_REPLY));
 	/*
 	 *  Reset the Reply Status
 	 */
@@ -616,7 +610,8 @@ ASR_getStatus(i2oRegs_t *virt, U8 *fvirt, PI2O_EXEC_STATUS_GET_REPLY buffer)
 	/*
 	 *	Send the Message out
 	 */
-	if ((Old = ASR_initiateCp (virt, fvirt, (PI2O_MESSAGE_FRAME)Message_Ptr)) != (U32)-1L) {
+	if ((Old = ASR_initiateCp(virt, fvirt,
+				  (PI2O_MESSAGE_FRAME)Message_Ptr)) != -1L) {
 		/*
 		 *	Wait for a response (Poll), timeouts are dangerous if
 		 * the card is truly responsive. We assume response in 50ms.
@@ -1004,8 +999,8 @@ ASR_getTidAddress(Asr_softc_t *sc, int bus, int target, int lun, int new_entry)
 		 *	Copy the whole thing, safer, simpler coding
 		 * and not really performance critical at this point.
 		 */
-		bcopy (bus_ptr, new_bus_ptr, sizeof(*bus_ptr)
-		  + (sizeof(bus_ptr->LUN) * (bus_ptr->size - 1)));
+		bcopy(bus_ptr, new_bus_ptr, sizeof(*bus_ptr)
+		    + (sizeof(bus_ptr->LUN) * (bus_ptr->size - 1)));
 		sc->ha_targets[bus] = new_bus_ptr;
 		free (bus_ptr, M_TEMP);
 		bus_ptr = new_bus_ptr;
@@ -1055,9 +1050,8 @@ ASR_getTidAddress(Asr_softc_t *sc, int bus, int target, int lun, int new_entry)
 		 *	Copy the whole thing, safer, simpler coding
 		 * and not really performance critical at this point.
 		 */
-		bcopy (target_ptr, new_target_ptr,
-		  sizeof(*target_ptr)
-		  + (sizeof(target_ptr->TID) * (target_ptr->size - 1)));
+		bcopy(target_ptr, new_target_ptr, sizeof(*target_ptr)
+		    + (sizeof(target_ptr->TID) * (target_ptr->size - 1)));
 		bus_ptr->LUN[target] = new_target_ptr;
 		free (target_ptr, M_TEMP);
 		target_ptr = new_target_ptr;
@@ -1392,15 +1386,15 @@ ASR_queue(Asr_softc_t *sc, PI2O_MESSAGE_FRAME Message)
 	U32		MessageOffset;
 	union asr_ccb	*ccb;
 
-	debug_asr_printf ("Host Command Dump:\n");
-	debug_asr_dump_message (Message);
+	debug_asr_printf("Host Command Dump:\n");
+	debug_asr_dump_message(Message);
 
 	ccb = (union asr_ccb *)(long)
 	  I2O_MESSAGE_FRAME_getInitiatorContext64(Message);
 
 	if ((MessageOffset = ASR_getMessage(sc->ha_Virt)) != EMPTY_QUEUE) {
-		bcopy (Message, sc->ha_Fvirt + MessageOffset,
-		  I2O_MESSAGE_FRAME_getMessageSize(Message) << 2);
+		bcopy(Message, sc->ha_Fvirt + MessageOffset,
+		    I2O_MESSAGE_FRAME_getMessageSize(Message) << 2);
 		if (ccb) {
 			ASR_ccbAdd (sc, ccb);
 		}
@@ -1639,9 +1633,8 @@ ASR_acquireLct(Asr_softc_t *sc)
 				return (ENOMEM);
 			}
 			span = ((caddr_t)sg) - (caddr_t)Message_Ptr;
-			bcopy ((caddr_t)Message_Ptr,
-			  (caddr_t)NewMessage_Ptr, span);
-			free (Message_Ptr, M_TEMP);
+			bcopy(Message_Ptr, NewMessage_Ptr, span);
+			free(Message_Ptr, M_TEMP);
 			sg = (PI2O_SGE_SIMPLE_ELEMENT)
 			  (((caddr_t)NewMessage_Ptr) + span);
 			Message_Ptr = NewMessage_Ptr;
@@ -1829,9 +1822,10 @@ ASR_init_message(union asr_ccb *ccb, PI2O_MESSAGE_FRAME	Message)
 	 * copy the cdb over
 	 */
 	PRIVATE_SCSI_SCB_EXECUTE_MESSAGE_setCDBLength(
-	  (PPRIVATE_SCSI_SCB_EXECUTE_MESSAGE)Message_Ptr, ccb->csio.cdb_len);
-	bcopy (&(ccb->csio.cdb_io),
-	  ((PPRIVATE_SCSI_SCB_EXECUTE_MESSAGE)Message_Ptr)->CDB, ccb->csio.cdb_len);
+	    (PPRIVATE_SCSI_SCB_EXECUTE_MESSAGE)Message_Ptr, ccb->csio.cdb_len);
+	bcopy(&(ccb->csio.cdb_io),
+	    ((PPRIVATE_SCSI_SCB_EXECUTE_MESSAGE)Message_Ptr)->CDB,
+	    ccb->csio.cdb_len);
 
 	/*
 	 * Given a buffer describing a transfer, set up a scatter/gather map
@@ -1862,7 +1856,7 @@ ASR_init_message(union asr_ccb *ccb, PI2O_MESSAGE_FRAME	Message)
 
 	len = ccb->csio.dxfer_len;
 	v = ccb->csio.data_ptr;
-	ASSERT (ccb->csio.dxfer_len >= 0);
+	KASSERT(ccb->csio.dxfer_len >= 0, ("csio.dxfer_len < 0"));
 	MessageSize = I2O_MESSAGE_FRAME_getMessageSize(Message_Ptr);
 	PRIVATE_SCSI_SCB_EXECUTE_MESSAGE_setByteCount(
 	  (PPRIVATE_SCSI_SCB_EXECUTE_MESSAGE)Message_Ptr, len);
@@ -1940,7 +1934,8 @@ ASR_initOutBound(Asr_softc_t *sc)
 	/*
 	 *	Send the Message out
 	 */
-	if ((Old = ASR_initiateCp (sc->ha_Virt, sc->ha_Fvirt, (PI2O_MESSAGE_FRAME)Message_Ptr)) != (U32)-1L) {
+	if ((Old = ASR_initiateCp(sc->ha_Virt, sc->ha_Fvirt,
+				 (PI2O_MESSAGE_FRAME)Message_Ptr)) != -1L) {
 		u_long size, addr;
 
 		/*
@@ -2355,8 +2350,8 @@ asr_attach(ATTACH_ARGS)
 		 *	Fixup the OS revision as saved in the dptsig for the
 		 *	engine (dptioctl.h) to pick up.
 		 */
-		bcopy (osrelease, &ASR_sig.dsDescription[16], 5);
-		printf ("asr%d: major=%d\n", unit, asr_cdevsw.d_maj);
+		bcopy(osrelease, &ASR_sig.dsDescription[16], 5);
+		printf("asr%d: major=%d\n", unit, asr_cdevsw.d_maj);
 	}
 	/*
 	 *	Initialize the software structure
@@ -2672,8 +2667,8 @@ asr_action(struct cam_sim *sim, union ccb  *ccb)
 {
 	struct Asr_softc *sc;
 
-	debug_asr_printf("asr_action(%lx,%lx{%x})\n",
-	  (u_long)sim, (u_long)ccb, ccb->ccb_h.func_code);
+	debug_asr_printf("asr_action(%lx,%lx{%x})\n", (u_long)sim, (u_long)ccb,
+			 ccb->ccb_h.func_code);
 
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("asr_action\n"));
 
@@ -2714,12 +2709,10 @@ asr_action(struct cam_sim *sim, union ccb  *ccb)
 			  ccb->ccb_h.target_id,
 			  ccb->ccb_h.target_lun);
 		}
-		debug_asr_cmd_printf ("(%d,%d,%d,%d)",
-		  cam_sim_unit(sim),
-		  cam_sim_bus(sim),
-		  ccb->ccb_h.target_id,
-		  ccb->ccb_h.target_lun);
-		debug_asr_cmd_dump_ccb(ccb);
+		debug_asr_cmd_printf("(%d,%d,%d,%d)", cam_sim_unit(sim),
+				     cam_sim_bus(sim), ccb->ccb_h.target_id,
+				     ccb->ccb_h.target_lun);
+		debug_asr_dump_ccb(ccb);
 
 		if ((Message_Ptr = ASR_init_message ((union asr_ccb *)ccb,
 		  (PI2O_MESSAGE_FRAME)Message)) != NULL) {
@@ -2735,7 +2728,7 @@ asr_action(struct cam_sim *sim, union ccb  *ccb)
 				debug_asr_cmd_printf (" E\n");
 				xpt_done(ccb);
 			}
-			debug_asr_cmd_printf (" Q\n");
+			debug_asr_cmd_printf(" Q\n");
 			break;
 		}
 		/*
@@ -2944,9 +2937,8 @@ asr_intr(Asr_softc_t *sc)
 			/*
 			 *  Copy the packet out to the Original Message
 			 */
-			bcopy ((caddr_t)Message_Ptr,
-			  sc->ha_Fvirt + MessageOffset,
-			  sizeof(I2O_UTIL_NOP_MESSAGE));
+			bcopy(Message_Ptr, sc->ha_Fvirt + MessageOffset,
+			      sizeof(I2O_UTIL_NOP_MESSAGE));
 			/*
 			 *  Issue the NOP
 			 */
@@ -3044,8 +3036,8 @@ asr_intr(Asr_softc_t *sc)
 				 && (size > ccb->csio.sense_len)) {
 					size = ccb->csio.sense_len;
 				}
-				bcopy ((caddr_t)Reply->SenseData,
-				  (caddr_t)&(ccb->csio.sense_data), size);
+				bcopy(Reply->SenseData,
+				      &(ccb->csio.sense_data), size);
 			}
 		}
 
@@ -3444,9 +3436,8 @@ ASR_queue_i(Asr_softc_t	*sc, PI2O_MESSAGE_FRAME	Packet)
 					}
 					span = ((caddr_t)sg)
 					     - (caddr_t)Message_Ptr;
-					bcopy ((caddr_t)Message_Ptr,
-					  (caddr_t)NewMessage_Ptr, span);
-					bcopy ((caddr_t)(sg-1),
+					bcopy(Message_Ptr,NewMessage_Ptr, span);
+					bcopy((caddr_t)(sg-1),
 					  ((caddr_t)NewMessage_Ptr) + span,
 					  MessageSizeInBytes - span);
 					free (Message_Ptr, M_TEMP);
@@ -3551,10 +3542,9 @@ ASR_queue_i(Asr_softc_t	*sc, PI2O_MESSAGE_FRAME	Packet)
 		if (size > sizeof(ccb->csio.sense_data)) {
 			size = sizeof(ccb->csio.sense_data);
 		}
-		bcopy ((caddr_t)&(ccb->csio.sense_data), (caddr_t)Reply_Ptr->SenseData,
-		  size);
+		bcopy(&(ccb->csio.sense_data), Reply_Ptr->SenseData, size);
 		I2O_SCSI_ERROR_REPLY_MESSAGE_FRAME_setAutoSenseTransferCount(
-		  Reply_Ptr, size);
+		    Reply_Ptr, size);
 	}
 
 	/* Free up in-kernel buffers */
@@ -3564,19 +3554,19 @@ ASR_queue_i(Asr_softc_t	*sc, PI2O_MESSAGE_FRAME	Packet)
 		/* DIR bit considered `valid', error due to ignorance works */
 		 && ((I2O_FLAGS_COUNT_getFlags(&(elm->FlagsCount))
 		  & I2O_SGL_FLAGS_DIR) == 0)) {
-			error = copyout ((caddr_t)(elm->KernelSpace),
+			error = copyout((caddr_t)(elm->KernelSpace),
 			  elm->UserSpace,
 			  I2O_FLAGS_COUNT_getCount(&(elm->FlagsCount)));
 		}
 		SLIST_REMOVE_HEAD(&sgList, link);
-		free (elm, M_TEMP);
+		free(elm, M_TEMP);
 	}
 	if (error == 0) {
 	/* Copy reply frame to user space */
-		error = copyout ((caddr_t)Reply_Ptr, (caddr_t)Reply,
-		  ReplySizeInBytes);
+		error = copyout((caddr_t)Reply_Ptr, (caddr_t)Reply,
+				ReplySizeInBytes);
 	}
-	free (Reply_Ptr, M_TEMP);
+	free(Reply_Ptr, M_TEMP);
 	asr_free_ccb(ccb);
 
 	return (error);
@@ -3612,8 +3602,7 @@ asr_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	case DPT_SIGNATURE + ((50 - dsDescription_size) << 16):
 #endif
 		if (cmd & 0xFFFF0000) {
-			(void)bcopy ((caddr_t)(&ASR_sig), data,
-			    sizeof(dpt_sig_S));
+			bcopy(&ASR_sig, data, sizeof(dpt_sig_S));
 			return (0);
 		}
 	/* Traditional version of the ioctl interface */
@@ -3652,12 +3641,12 @@ asr_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 #define	FLG_OSD_PCI_VALID 0x0001
 #define	FLG_OSD_DMA	  0x0002
 #define	FLG_OSD_I2O	  0x0004
-		CtlrInfo.hbaFlags = FLG_OSD_PCI_VALID | FLG_OSD_DMA | FLG_OSD_I2O;
+		CtlrInfo.hbaFlags = FLG_OSD_PCI_VALID|FLG_OSD_DMA|FLG_OSD_I2O;
 		CtlrInfo.Interrupt = sc->ha_irq;
 		if (cmd & 0xFFFF0000) {
-			bcopy (&CtlrInfo, data, sizeof(CtlrInfo));
+			bcopy(&CtlrInfo, data, sizeof(CtlrInfo));
 		} else {
-			error = copyout (&CtlrInfo, *(caddr_t *)data, sizeof(CtlrInfo));
+			error = copyout(&CtlrInfo, *(caddr_t *)data, sizeof(CtlrInfo));
 		}
 	}	return (error);
 
@@ -3669,7 +3658,7 @@ asr_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		/* Kernel Specific ptok `hack' */
 #define		ptok(a) ((char *)(uintptr_t)(a) + KERNBASE)
 
-		bzero (&Info, sizeof(Info));
+		bzero(&Info, sizeof(Info));
 
 		/* Appears I am the only person in the Kernel doing this */
 		outb (0x70, 0x12);
@@ -3768,9 +3757,9 @@ asr_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 
 		/* Copy Out The Info Structure To The User */
 		if (cmd & 0xFFFF0000) {
-			bcopy (&Info, data, sizeof(Info));
+			bcopy(&Info, data, sizeof(Info));
 		} else {
-			error = copyout (&Info, *(caddr_t *)data, sizeof(Info));
+			error = copyout(&Info, *(caddr_t *)data, sizeof(Info));
 		}
 		return (error); }
 
@@ -3781,23 +3770,23 @@ asr_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 			i = 0;
 		}
 		if (cmd & 0xFFFF0000) {
-			bcopy ((caddr_t)(&i), data, sizeof(i));
+			bcopy(&i, data, sizeof(i));
 		} else {
-			error = copyout (&i, *(caddr_t *)data, sizeof(i));
+			error = copyout(&i, *(caddr_t *)data, sizeof(i));
 		}
 		break;
 
 		/* Send an I2O command */
 	case I2OUSRCMD:
-		return (ASR_queue_i (sc, *((PI2O_MESSAGE_FRAME *)data)));
+		return (ASR_queue_i(sc, *((PI2O_MESSAGE_FRAME *)data)));
 
 		/* Reset and re-initialize the adapter */
 	case I2ORESETCMD:
-		return (ASR_reset (sc));
+		return (ASR_reset(sc));
 
 		/* Rescan the LCT table and resynchronize the information */
 	case I2ORESCANCMD:
-		return (ASR_rescan (sc));
+		return (ASR_rescan(sc));
 	}
 	return (EINVAL);
 } /* asr_ioctl */
