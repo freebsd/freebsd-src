@@ -1401,10 +1401,14 @@ skip:
 		 */
 		if (rval) {
 			reply(530, "Login incorrect.");
-			if (logging)
+			if (logging) {
 				syslog(LOG_NOTICE,
+				    "FTP LOGIN FAILED FROM %s",
+				    remotehost);
+				syslog(LOG_AUTHPRIV | LOG_NOTICE,
 				    "FTP LOGIN FAILED FROM %s, %s",
 				    remotehost, curname);
+			}
 			pw = NULL;
 			if (login_attempts++ >= 5) {
 				syslog(LOG_NOTICE,
