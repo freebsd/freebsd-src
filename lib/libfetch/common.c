@@ -190,10 +190,6 @@ _fetch_default_port(char *scheme)
 int
 _fetch_default_proxy_port(char *scheme)
 {
-    struct servent *se;
-
-    if ((se = getservbyname(scheme, "tcp")) != NULL)
-	return ntohs(se->s_port);
     if (strcasecmp(scheme, SCHEME_FTP) == 0)
 	return FTP_DEFAULT_PROXY_PORT;
     if (strcasecmp(scheme, SCHEME_HTTP) == 0)
