@@ -160,7 +160,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 struct pmap kernel_pmap_store;
-LIST_HEAD(pmaplist, pmap);
 
 vm_paddr_t avail_start;		/* PA of first available physical page */
 vm_paddr_t avail_end;		/* PA of last available physical page */
