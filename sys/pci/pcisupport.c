@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.17 1995/07/27 22:14:25 se Exp $
+**  $Id: pcisupport.c,v 1.18 1995/08/15 09:43:42 se Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -90,6 +90,8 @@ chipset_probe (pcici_t tag, pcidi_t type)
 	unsigned	rev;
 
 	switch (type) {
+	case 0x04868086:
+		return ("Intel 82425EX PCI system controller");
 	case 0x04848086:
 		rev = (unsigned) pci_conf_read (tag, PCI_CLASS_REG) & 0xff;
 		if (rev == 3)
@@ -99,8 +101,10 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("Intel 82424ZX (Saturn) cache DRAM controller");
 	case 0x04828086:
 		return ("Intel 82375EB PCI-EISA bridge");
+#ifdef undef
 	case 0x04868086:
 		return ("Intel 82430ZX (Aries)");
+#endif
 	case 0x04a38086:
 		rev = (unsigned) pci_conf_read (tag, PCI_CLASS_REG) & 0xff;
 		if (rev == 16 || rev == 17)
@@ -150,6 +154,75 @@ chipset_probe (pcici_t tag, pcidi_t type)
 #define M_EQ 0  /* mask and return true if equal */
 #define M_NE 1  /* mask and return true if not equal */
 #define TRUE 2  /* don't read config, always true */
+
+static const struct condmsg conf82425ex[] =
+{
+    { 0x00, 0x00, 0x00, TRUE, "\tClock " },
+    { 0x50, 0x06, 0x00, M_EQ, "25" },
+    { 0x50, 0x06, 0x02, M_EQ, "33" },
+    { 0x50, 0x04, 0x04, M_EQ, "??", },
+    { 0x00, 0x00, 0x00, TRUE, "MHz, L1 Cache " },
+    { 0x50, 0x01, 0x00, M_EQ, "Disabled\n" },
+    { 0x50, 0x09, 0x01, M_EQ, "Write-through\n" },
+    { 0x50, 0x09, 0x09, M_EQ, "Write-back\n" },
+
+    { 0x00, 0x00, 0x00, TRUE, "\tL2 Cache " },
+    { 0x52, 0x07, 0x00, M_EQ, "Disabled" },
+    { 0x52, 0x0f, 0x01, M_EQ, "64KB Write-through" },
+    { 0x52, 0x0f, 0x02, M_EQ, "128KB Write-through" },
+    { 0x52, 0x0f, 0x03, M_EQ, "256KB Write-through" },
+    { 0x52, 0x0f, 0x04, M_EQ, "512KB Write-through" },
+    { 0x52, 0x0f, 0x01, M_EQ, "64KB Write-back" },
+    { 0x52, 0x0f, 0x02, M_EQ, "128KB Write-back" },
+    { 0x52, 0x0f, 0x03, M_EQ, "256KB Write-back" },
+    { 0x52, 0x0f, 0x04, M_EQ, "512KB Write-back" },
+    { 0x53, 0x01, 0x00, M_EQ, ", 3-" },
+    { 0x53, 0x01, 0x01, M_EQ, ", 2-" },
+    { 0x53, 0x06, 0x00, M_EQ, "3-3-3" },
+    { 0x53, 0x06, 0x02, M_EQ, "2-2-2" },
+    { 0x53, 0x06, 0x04, M_EQ, "1-1-1" },
+    { 0x53, 0x06, 0x06, M_EQ, "?-?-?" },
+    { 0x53, 0x18, 0x00, M_EQ, "/4-2-2-2\n" },
+    { 0x53, 0x18, 0x08, M_EQ, "/3-2-2-2\n" },
+    { 0x53, 0x18, 0x10, M_EQ, "/?-?-?-?\n" },
+    { 0x53, 0x18, 0x18, M_EQ, "/2-1-1-1\n" },
+
+    { 0x56, 0x00, 0x00, TRUE, "\tDRAM: " },
+    { 0x56, 0x02, 0x02, M_EQ, "Fast Code Read, " },
+    { 0x56, 0x04, 0x04, M_EQ, "Fast Data Read, " },
+    { 0x56, 0x08, 0x08, M_EQ, "Fast Write, " },
+    { 0x57, 0x20, 0x20, M_EQ, "Pipelined CAS" },
+    { 0x57, 0x2e, 0x00, M_NE, "\n\t" },
+    { 0x57, 0x00, 0x00, TRUE, "Timing: RAS: " },
+    { 0x57, 0x07, 0x00, M_EQ, "4" },
+    { 0x57, 0x07, 0x01, M_EQ, "3" },
+    { 0x57, 0x07, 0x02, M_EQ, "2" },
+    { 0x57, 0x07, 0x04, M_EQ, "1.5" },
+    { 0x57, 0x07, 0x05, M_EQ, "1" },
+    { 0x57, 0x00, 0x00, TRUE, " Clocks, CAS Read: " },
+    { 0x57, 0x18, 0x00, M_EQ, "3/1", },
+    { 0x57, 0x18, 0x00, M_EQ, "2/1", },
+    { 0x57, 0x18, 0x00, M_EQ, "1.5/0.5", },
+    { 0x57, 0x18, 0x00, M_EQ, "1/1", },
+    { 0x57, 0x00, 0x00, TRUE, ", CAS Write: " },
+    { 0x57, 0x20, 0x00, M_EQ, "2/1", },
+    { 0x57, 0x20, 0x20, M_EQ, "1/1", },
+    { 0x57, 0x00, 0x00, TRUE, "\n" },
+
+    { 0x40, 0x01, 0x01, M_EQ, "\tCPU-to-PCI Byte Merging\n" },
+    { 0x40, 0x02, 0x02, M_EQ, "\tCPU-to-PCI Bursting\n" },
+    { 0x40, 0x04, 0x04, M_EQ, "\tPCI Posted Writes\n" },
+    { 0x40, 0x20, 0x00, M_EQ, "\tDRAM Parity Disabled\n" },
+
+    { 0x48, 0x03, 0x01, M_EQ, "\tPCI IDE controller: Primary (1F0h-1F7h,3F6h,3F7h)" },
+    { 0x48, 0x03, 0x02, M_EQ, "\tPCI IDE controller: Secondary (170h-177h,376h,377h)" },
+    { 0x4d, 0x01, 0x01, M_EQ, "\tRTC (70-77h)\n" },
+    { 0x4d, 0x02, 0x02, M_EQ, "\tKeyboard (60,62,64,66h)\n" },
+    { 0x4d, 0x08, 0x08, M_EQ, "\tIRQ12/M Mouse Function\n" },
+
+/* end marker */
+    { 0 }
+};
 
 static const struct condmsg conf82424zx[] =
 {
@@ -361,6 +434,9 @@ chipset_attach (pcici_t config_id, int unit)
 
 	switch (pci_conf_read (config_id, PCI_ID_REG)) {
 
+	case 0x04868086:
+		writeconfig (config_id, conf82425ex);
+		break;
 	case 0x04838086:
 		writeconfig (config_id, conf82424zx);
 		break;
