@@ -1420,7 +1420,7 @@ skip:
 
 #ifdef SETPROCTITLE
 		snprintf(proctitle, sizeof(proctitle),
-			 "%s: %s", remotehost, pw->pw_name);
+			 "%s: user/%s", remotehost, pw->pw_name);
 		setproctitle("%s", proctitle);
 #endif /* SETPROCTITLE */
 		if (logging)
