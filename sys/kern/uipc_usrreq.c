@@ -549,9 +549,7 @@ unp_attach(so)
 	unp_count++;
 	LIST_INIT(&unp->unp_refs);
 	unp->unp_socket = so;
-	FILEDESC_LOCK(curproc->p_fd);
 	unp->unp_rvnode = curthread->td_proc->p_fd->fd_rdir;
-	FILEDESC_UNLOCK(curproc->p_fd);
 	LIST_INSERT_HEAD(so->so_type == SOCK_DGRAM ? &unp_dhead
 			 : &unp_shead, unp, unp_link);
 	so->so_pcb = unp;
@@ -646,9 +644,7 @@ restart:
 	}
 	VATTR_NULL(&vattr);
 	vattr.va_type = VSOCK;
-	FILEDESC_LOCK(td->td_proc->p_fd);
 	vattr.va_mode = (ACCESSPERMS & ~td->td_proc->p_fd->fd_cmask);
-	FILEDESC_UNLOCK(td->td_proc->p_fd);
 #ifdef MAC
 	error = mac_check_vnode_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
 	    &vattr);
