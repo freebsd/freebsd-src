@@ -10,8 +10,7 @@ SYS?=	/sys
 # win when there is a struct tag with the same name (e.g., vmmeter).  The
 # better solution would be for ctags to generate "struct vmmeter" tags.
 
-COMM=	${SYS}/conf/*.[ch] \
-	${SYS}/dev/advansys/*.[ch] \
+COMM=	${SYS}/dev/advansys/*.[ch] \
 	${SYS}/dev/aha/*.[ch] \
 	${SYS}/dev/aic7xxx/*.[ch] \
 	${SYS}/dev/buslogic/*.[ch] \
@@ -26,7 +25,6 @@ COMM=	${SYS}/conf/*.[ch] \
 	${SYS}/dev/pdq/*.[ch] \
 	${SYS}/dev/ppbus/*.[ch] \
 	${SYS}/dev/smbus/*.[ch] \
-	${SYS}/dev/vn/*.[ch] \
 	${SYS}/dev/vx/*.[ch] \
 	${SYS}/fs/deadfs/*.[ch] \
 	${SYS}/fs/fdescfs/*.[ch] \
