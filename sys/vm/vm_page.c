@@ -457,6 +457,18 @@ vm_page_zero_fill(vm_page_t m)
 }
 
 /*
+ *	vm_page_zero_fill_area:
+ *
+ *	Like vm_page_zero_fill but only fill the specified area.
+ */
+boolean_t
+vm_page_zero_fill_area(vm_page_t m, int off, int size)
+{
+	pmap_zero_page_area(m, off, size);
+	return (TRUE);
+}
+
+/*
  *	vm_page_copy:
  *
  *	Copy one page to another
