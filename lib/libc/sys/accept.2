@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)accept.2	8.2 (Berkeley) 12/11/93
-.\"     $Id$
+.\"     $Id: accept.2,v 1.5 1998/01/11 17:07:20 alex Exp $
 .\"
 .Dd December 11, 1993
 .Dt ACCEPT 2
@@ -171,9 +171,9 @@ The per-process descriptor table is full.
 The system file table is full.
 .It Bq Er ENOTSOCK
 The descriptor references a file, not a socket.
-.It Bq Er EOPNOTSUPP
-The referenced socket is not of type
-.Dv SOCK_STREAM . 
+.It Bq Er EINVAL
+.Xr listen 2 
+has not been called on the socket descriptor.
 .It Bq Er EFAULT
 The
 .Fa addr
