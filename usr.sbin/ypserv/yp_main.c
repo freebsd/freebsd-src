@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: yp_main.c,v 1.17 1998/02/11 19:15:32 wpaul Exp $";
+	"$Id: yp_main.c,v 1.18 1998/06/04 15:11:14 wpaul Exp $";
 #endif /* not lint */
 
 /*
@@ -143,9 +143,9 @@ yp_svc_run()
 				FD_CLR(resfd, &readfds);
 			}
 			svc_getreqset(&readfds);
-			if (forked && pid != getpid())
-				exit(0);
 		}
+		if (forked && pid != getpid())
+			_exit(0);
 	}
 }
 
