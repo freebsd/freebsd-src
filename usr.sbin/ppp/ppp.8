@@ -382,9 +382,11 @@ It is possible to configure
 to open more than one physical connection to the peer, combining the
 bandwidth of all links for better throughput.
 .It Supports MPPE (draft-ietf-pppext-mppe)
-MPPE is Microsoft Point to Point Encryption scheme. It is possible to configure
+MPPE is Microsoft Point to Point Encryption scheme.
+It is possible to configure
 .Nm
-to participate in Microsoft's Windows VPN. For now, 
+to participate in Microsoft's Windows VPN.
+For now, 
 .Nm
 can only get encryption keys from CHAP 81 authentication.
 .Nm
@@ -2403,7 +2405,8 @@ to exit.
 This signal, tells
 .Nm
 to re-open any existing server socket, dropping all existing diagnostic
-connections.  Sockets that couldn't previously be opened will be retried.
+connections.
+Sockets that couldn't previously be opened will be retried.
 .It USR2
 This signal, tells
 .Nm
@@ -2796,8 +2799,10 @@ values are honoured as if the peer were responsible for dropping the
 connection.
 .It mppe
 Default: Enabled and Accepted.
-This is Microsoft Point to Point Encryption scheme. MPPE key size can be 
-40-, 56- and 128-bits. Refer to
+This is Microsoft Point to Point Encryption scheme.
+MPPE key size can be 
+40-, 56- and 128-bits.
+Refer to
 .Dq set mppe
 command.
 .It MSChapV2|chap81
@@ -4912,7 +4917,8 @@ triggers the connection to connect once the link is up despite the
 peer assigning us a new (dynamic) IP address.
 .It set mppe Op 40|56|128|* Op stateless|statefull|*
 This option selects the encryption parameters used when negotiation
-MPPE.  MPPE can be disabled entirely with the
+MPPE.
+MPPE can be disabled entirely with the
 .Dq disable mppe
 command.
 If no arguments are given,
@@ -4931,9 +4937,11 @@ The first argument specifies the number of bits that
 .Nm
 should insist on during negotiations and the second specifies whether
 .Nm
-should insist on statefull or stateless mode.  In stateless mode, the
+should insist on statefull or stateless mode.
+In stateless mode, the
 encryption dictionary is re-initialised with every packet according to
-an encryption key that is changed with every packet.  In statefull mode,
+an encryption key that is changed with every packet.
+In statefull mode,
 the encryption dictionary is re-initialised every 256 packets or after
 the loss of any data and the key is changed every 256 packets.
 Stateless mode is less efficient but is better for unreliable transport
@@ -5634,6 +5642,7 @@ This socket is used to pass links between different instances of
 .Xr syslog 3 ,
 .Xr uucplock 3 ,
 .Xr netgraph 4 ,
+.Xr ng_pppoe 4 ,
 .Xr crontab 5 ,
 .Xr group 5 ,
 .Xr passwd 5 ,
@@ -5647,7 +5656,6 @@ This socket is used to pass links between different instances of
 .Xr init 8 ,
 .Xr isdn 8 ,
 .Xr named 8 ,
-.Xr ng_pppoe 4 ,
 .Xr ping 8 ,
 .Xr pppctl 8 ,
 .Xr pppd 8 ,
