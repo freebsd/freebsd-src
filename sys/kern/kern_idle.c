@@ -18,10 +18,6 @@
 #include <sys/resourcevar.h>
 #include <sys/smp.h>
 #include <sys/unistd.h>
-#if 0
-#include <vm/vm.h>
-#include <vm/vm_extern.h>
-#endif
 #ifdef KTRACE
 #include <sys/uio.h>
 #include <sys/ktrace.h>
@@ -97,11 +93,6 @@ idle_proc(void *dummy)
 			if (count++ < 0)
 				CTR0(KTR_PROC, "idle_proc: timed out waiting"
 				    " for a process");
-#endif
-
-#if 0
-			if (vm_page_zero_idle() != 0)
-				continue;
 #endif
 
 #ifdef __i386__
