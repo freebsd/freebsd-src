@@ -38,6 +38,10 @@
 .Nm firewire
 .Nd IEEE1394 High-performance Serial Bus
 .Sh SYNOPSIS
+.Cd "kldload firewire"
+.Pp
+or
+.Pp
 .Cd "device firewire"
 .Cd "device fwohci"
 .Pp
@@ -82,6 +86,7 @@ bus, every device is identified with EUI 64 address.
 .Xr fwcontrol 8 ,
 .Xr fwe 4 ,
 .Xr fwohci 4 ,
+.Xr kldload 8 ,
 .Xr pci 4 ,
 .Xr sbp 4 ,
 .Xr sysctl 8
@@ -101,3 +106,6 @@ and
 for the
 .Fx
 project.
+.Pp
+.Sh BUGS
+See fwohci(4) for security note.
