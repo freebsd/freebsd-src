@@ -1320,6 +1320,8 @@ Parse_DoVar(char *line, GNode *ctxt)
     }	    	    type;   	/* Type of assignment */
     char            *opc;	/* ptr to operator character to
 				 * null-terminate the variable name */
+    Buffer	    *buf;
+
     /*
      * Avoid clobbered variable warnings by forcing the compiler
      * to ``unregister'' variables
@@ -1425,7 +1427,10 @@ Parse_DoVar(char *line, GNode *ctxt)
 	if (!Var_Exists(line, ctxt))
 	    Var_Set(line, "", ctxt);
 
-	cp = Var_Subst(NULL, cp, ctxt, FALSE);
+	buf = Var_Subst(NULL, cp, ctxt, FALSE);
+	cp = Buf_GetAll(buf, NULL);
+	Buf_Destroy(buf, FALSE);
+
 	oldVars = oldOldVars;
 
 	Var_Set(line, cp, ctxt);
@@ -1442,7 +1447,9 @@ Parse_DoVar(char *line, GNode *ctxt)
 	     * expansion on the whole thing. The resulting string will need
 	     * freeing when we're done, so set freeCmd to TRUE.
 	     */
-	    cp = Var_Subst(NULL, cp, VAR_CMD, TRUE);
+	    buf = Var_Subst(NULL, cp, VAR_CMD, TRUE);
+	    cp = Buf_GetAll(buf, NULL);
+	    Buf_Destroy(buf, FALSE);
 	    freeCmd = TRUE;
 	}
 
@@ -1548,6 +1555,7 @@ Parse_AddIncludeDir(char *dir)
 static void
 ParseDoError(char *errmsg)
 {
+	Buffer *buf;
 
 	if (!isspace((unsigned char)*errmsg)) {
 		Parse_Error(PARSE_WARNING, "invalid syntax: .error%s", errmsg);
@@ -1557,9 +1565,12 @@ ParseDoError(char *errmsg)
 	while (isspace((unsigned char)*errmsg))
 		errmsg++;
 
-	errmsg = Var_Subst(NULL, errmsg, VAR_GLOBAL, FALSE);
+	buf = Var_Subst(NULL, errmsg, VAR_GLOBAL, FALSE);
+	errmsg = Buf_GetAll(buf, NULL);
 
 	Parse_Error(PARSE_FATAL, "%s", errmsg);
+	Buf_Destroy(buf, TRUE);
+
 	/* Terminate immediately. */
 	exit(1);
 }
@@ -1577,6 +1588,7 @@ ParseDoError(char *errmsg)
 static void
 ParseDoWarning(char *warnmsg)
 {
+	Buffer *buf;
 
 	if (!isspace((unsigned char)*warnmsg)) {
 		Parse_Error(PARSE_WARNING, "invalid syntax: .warning%s",
@@ -1587,9 +1599,11 @@ ParseDoWarning(char *warnmsg)
 	while (isspace((unsigned char)*warnmsg))
 		warnmsg++;
 
-	warnmsg = Var_Subst(NULL, warnmsg, VAR_GLOBAL, FALSE);
+	buf = Var_Subst(NULL, warnmsg, VAR_GLOBAL, FALSE);
+	warnmsg = Buf_GetAll(buf, NULL);
 
 	Parse_Error(PARSE_WARNING, "%s", warnmsg);
+	Buf_Destroy(buf, TRUE);
 }
 
 /*-
@@ -1618,6 +1632,7 @@ ParseDoInclude(char *file)
     char          endc;	    	/* the character which ends the file spec */
     char          *cp;		/* current position in file spec */
     Boolean 	  isSystem; 	/* TRUE if makefile is a system makefile */
+    Buffer	  *buf;
 
     /*
      * Skip to delimiter character so we know where to look
@@ -1664,7 +1679,9 @@ ParseDoInclude(char *file)
      * Substitute for any variables in the file name before trying to
      * find the thing.
      */
-    file = Var_Subst(NULL, file, VAR_CMD, FALSE);
+    buf = Var_Subst(NULL, file, VAR_CMD, FALSE);
+    file = Buf_GetAll(buf, NULL);
+    Buf_Destroy(buf, FALSE);
 
     /*
      * Now we know the file's name and its search path, we attempt to
@@ -1731,6 +1748,7 @@ ParseDoInclude(char *file)
     if (fullname == NULL) {
 	*cp = endc;
 	Parse_Error(PARSE_FATAL, "Could not find %s", file);
+	/* XXXHB free(file) */
 	return;
     }
 
@@ -1825,6 +1843,7 @@ ParseTraditionalInclude(char *file)
     char          *fullname;	/* full pathname of file */
     IFile         *oldFile;	/* state associated with current file */
     char          *cp;		/* current position in file spec */
+    Buffer	  *buf;
 
     /*
      * Skip over whitespace
@@ -1852,7 +1871,9 @@ ParseTraditionalInclude(char *file)
      * Substitute for any variables in the file name before trying to
      * find the thing.
      */
-    file = Var_Subst(NULL, file, VAR_CMD, FALSE);
+    buf = Var_Subst(NULL, file, VAR_CMD, FALSE);
+    file = Buf_GetAll(buf, NULL);
+    Buf_Destroy(buf, FALSE);
 
     /*
      * Now we know the file's name, we attempt to find the durn thing.
@@ -1874,8 +1895,11 @@ ParseTraditionalInclude(char *file)
 
     if (fullname == NULL) {
 	Parse_Error(PARSE_FATAL, "Could not find %s", file);
+	/* XXXHB free(file) */
 	return;
     }
+
+    /* XXXHB free(file) */
 
     /*
      * Once we find the absolute path to the file, we get to save all the
@@ -2373,6 +2397,7 @@ Parse_File(char *name, FILE *stream)
 {
     char	  *cp,		/* pointer into the line */
                   *line;	/* the line we're working on */
+    Buffer	  *buf;
 
     inLine = FALSE;
     curFile.fname = name;
@@ -2414,7 +2439,10 @@ Parse_File(char *name, FILE *stream)
 
 		    *cp2 = '\0';
 
-		    cp = Var_Subst(NULL, cp, VAR_CMD, FALSE);
+		    buf = Var_Subst(NULL, cp, VAR_CMD, FALSE);
+		    cp = Buf_GetAll(buf, NULL);
+		    Buf_Destroy(buf, FALSE);
+
 		    Var_Delete(cp, VAR_GLOBAL);
 		    goto nextLine;
 		}
@@ -2483,7 +2511,10 @@ Parse_File(char *name, FILE *stream)
 
 		ParseFinishLine();
 
-		cp = Var_Subst(NULL, line, VAR_CMD, TRUE);
+		buf = Var_Subst(NULL, line, VAR_CMD, TRUE);
+		cp = Buf_GetAll(buf, NULL);
+		Buf_Destroy(buf, FALSE);
+
 		free(line);
 		line = cp;
 

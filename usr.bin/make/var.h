@@ -118,7 +118,7 @@ Boolean Var_Exists(const char *, struct GNode *);
 char *Var_Value(const char *, struct GNode *, char **);
 char *Var_Quote(const char *);
 char *Var_Parse(char *, struct GNode *, Boolean, size_t *, Boolean *);
-char *Var_Subst(const char *, char *, struct GNode *, Boolean);
+struct Buffer *Var_Subst(const char *, char *, struct GNode *, Boolean);
 char *Var_GetTail(char *);
 char *Var_GetHead(char *);
 void Var_Init(void);

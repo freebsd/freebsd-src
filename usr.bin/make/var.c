@@ -220,8 +220,9 @@ VarCmp(const void *v, const void *name)
 static char *
 VarPossiblyExpand(const char *name, GNode *ctxt)
 {
-	char *tmp;
-	char *result;
+	Buffer	*buf;
+	char	*str;
+	char	*tmp;
 
 	/*
 	 * XXX make a temporary copy of the name because Var_Subst insists
@@ -229,11 +230,15 @@ VarPossiblyExpand(const char *name, GNode *ctxt)
 	 */
 	tmp = estrdup(name);
 	if (strchr(name, '$') != NULL) {
-		result = Var_Subst(NULL, tmp, ctxt, 0);
+		buf = Var_Subst(NULL, tmp, ctxt, 0);
+		str = Buf_GetAll(buf, NULL);
+		Buf_Destroy(buf, FALSE);
+
 		free(tmp);
-		return (result);
-	} else
+		return (str);
+	} else {
 		return (tmp);
+	}
 }
 
 /*-
@@ -1129,29 +1134,40 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 	}
     }
 
-    if (v->flags & VAR_IN_USE) {
-	Fatal("Variable %s is recursive.", v->name);
-	/*NOTREACHED*/
-    } else {
-	v->flags |= VAR_IN_USE;
-    }
+	/*
+	 * Make sure this variable is fully expanded.
+	 * XXX This section really should be its own function.
+	 */
+	{
+		if (v->flags & VAR_IN_USE) {
+			Fatal("Variable %s is recursive.", v->name);
+			/* NOTREACHED */
+		} else {
+			v->flags |= VAR_IN_USE;
+		}
 
-    /*
-     * Before doing any modification, we have to make sure the value
-     * has been fully expanded. If it looks like recursion might be
-     * necessary (there's a dollar sign somewhere in the variable's value)
-     * we just call Var_Subst to do any other substitutions that are
-     * necessary. Note that the value returned by Var_Subst will have
-     * been dynamically-allocated, so it will need freeing when we
-     * return.
-     */
-    str = (char *)Buf_GetAll(v->val, (size_t *)NULL);
-    if (strchr(str, '$') != (char *)NULL) {
-	str = Var_Subst(NULL, str, ctxt, err);
-	*freePtr = TRUE;
-    }
+		/*
+		 * Before doing any modification, we have to make sure the
+		 * value has been fully expanded. If it looks like recursion
+		 * might be necessary (there's a dollar sign somewhere in the
+		 * variable's value) we just call Var_Subst to do any other
+		 * substitutions that are necessary. Note that the value
+		 * returned by Var_Subst will have been
+		 * dynamically-allocated, so it will need freeing when we
+		 * return.
+		 */
+		str = (char *)Buf_GetAll(v->val, (size_t *)NULL);
+		if (strchr(str, '$') != NULL) {
+			Buffer *buf;
 
-    v->flags &= ~VAR_IN_USE;
+			buf = Var_Subst(NULL, str, ctxt, err);
+			str = Buf_GetAll(buf, NULL);
+			Buf_Destroy(buf, FALSE);
+
+			*freePtr = TRUE;
+		}
+		v->flags &= ~VAR_IN_USE;
+	}
 
     /*
      * Now we need to apply any modifiers the user wants applied.
@@ -1753,22 +1769,20 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
  *	None. The old string must be freed by the caller
  *-----------------------------------------------------------------------
  */
-char *
+Buffer *
 Var_Subst(const char *var, char *str, GNode *ctxt, Boolean undefErr)
 {
-    Buffer	*buf;	/* Buffer for forming things */
-    char	*val;	/* Value to substitute for a variable */
-    size_t	length;	/* Length of the variable invocation */
-    Boolean	doFree;	/* Set true if val should be freed */
-    char	*result;
+    Boolean	errorReported;
+    Buffer	*buf;		/* Buffer for forming things */
 
-    static Boolean errorReported;	/* Set true if an error has already
-					 * been reported to prevent a plethora
-					 * of messages when recursing */
-
-    buf = Buf_Init(0);
+    /*
+     * Set TRUE if an error has already been reported to prevent a
+     * plethora of messages when recursing.
+     * XXXHB this comment sounds wrong.
+     */
     errorReported = FALSE;
 
+    buf = Buf_Init(0);
     while (*str) {
 	if (var == NULL && (str[0] == '$') && (str[1] == '$')) {
 	    /*
@@ -1780,6 +1794,10 @@ Var_Subst(const char *var, char *str, GNode *ctxt, Boolean undefErr)
 	    str += 2;
 
 	} else if (str[0] == '$') {
+	    char	*val;	/* Value to substitute for a variable */
+	    size_t	length;	/* Length of the variable invocation */
+	    Boolean	doFree;	/* Set true if val should be freed */
+
 	    /*
 	     * Variable invocation.
 	     */
@@ -1904,13 +1922,12 @@ Var_Subst(const char *var, char *str, GNode *ctxt, Boolean undefErr)
 	    do {
 		str++;
 	    } while (str[0] != '$' && str[0] != '\0');
+
 	    Buf_AppendRange(buf, cp, str);
 	}
     }
 
-    result = (char *)Buf_GetAll(buf, (size_t *)NULL);
-    Buf_Destroy(buf, FALSE);
-    return (result);
+    return (buf);
 }
 
 /*-
