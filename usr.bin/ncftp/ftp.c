@@ -189,7 +189,7 @@ int hookup(char *host, unsigned int port)
 			continue;
 			}
 		}
-		PERROR("hookup", "connect");
+		PERROR("hookup", host);
 		switch (errno) {
 			case ENETDOWN:
 			case ENETUNREACH:
