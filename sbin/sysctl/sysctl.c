@@ -496,7 +496,7 @@ show_var(int *oid, int nlen)
 	i = sysctl(oid, nlen, 0, &j, 0, 0);
 	j += j; /* we want to be sure :-) */
 
-	val = alloca(j);
+	val = alloca(j + 1);
 	len = j;
 	i = sysctl(oid, nlen, val, &len, 0, 0);
 	if (i || !len)
@@ -507,6 +507,7 @@ show_var(int *oid, int nlen)
 		return (0);
 	}
 
+	val[len] = '\0';
 	fmt = buf;
 	oidfmt(oid, nlen, fmt, &kind);
 	p = val;
@@ -514,7 +515,7 @@ show_var(int *oid, int nlen)
 	case 'A':
 		if (!nflag)
 			printf("%s%s", name, sep);
-		printf("%s", p);
+		printf("%.*s", len, p);
 		return (0);
 		
 	case 'I':
