@@ -272,7 +272,10 @@ next:		for (start = fmt;; ++fmt) {
 				PF(f, uval);
 			break;
 		}
-		case 'e': case 'E': case 'f': case 'g': case 'G': {
+		case 'e': case 'E':
+		case 'f': case 'F':
+		case 'g': case 'G':
+		case 'a': case 'A': {
 			double p;
 
 			if (getdouble(&p))
