@@ -155,7 +155,6 @@ SUBDIR=	alias \
 	rusers \
 	rwall \
 	rwho \
-	${_sasc} \
 	script \
 	sed \
 	shar \
@@ -271,7 +270,6 @@ _bluetooth=	bluetooth
 _doscmd=	doscmd
 _ncplist=	ncplist
 _ncplogin=	ncplogin
-_sasc=		sasc
 _smbutil=	smbutil
 .endif
 
