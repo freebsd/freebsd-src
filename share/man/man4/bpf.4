@@ -70,7 +70,7 @@ Reads from these files return the next group of packets
 that have matched the filter. 
 To improve performance, the buffer passed to read must be
 the same size as the buffers used internally by
-.Nm
+.Nm bpf .
 This size is returned by the
 .Dv BIOCGBLEN
 ioctl (see below), and 
@@ -101,7 +101,9 @@ links are supported.
 .Sh IOCTLS
 The
 .Xr ioctl 2
-command codes below are defined in <net/bpf.h>.  All commands require
+command codes below are defined in
+.Aq Pa net/bpf.h .
+All commands require
 these includes:
 .Bd -literal
 	#include <sys/types.h>
@@ -219,7 +221,9 @@ kernel because of buffer overflows
 .El
 .It Dv BIOCIMMEDIATE
 .Pq Li u_int
-Enable or disable ``immediate mode'', based on the truth value of the argument.
+Enable or disable
+.Dq immediate mode ,
+based on the truth value of the argument.
 When immediate mode is enabled, reads return immediately upon packet
 reception.  Otherwise, a read will block until either the kernel buffer
 becomes full or a timeout occurs.
@@ -279,7 +283,9 @@ or haphazard packet matching).
 .It Dv BIOCSHDRCMPLT
 .It Dv BIOCGHDRCMPLT
 .Pq Li u_int
-Set or get the status of the ``header complete'' flag.
+Set or get the status of the
+.Dq header complete
+flag.
 Set to zero if the link level source address should be filled in automatically
 by the the interface output routine.  Set to one if the link level source
 address will be written, as provided, to the wire.  This flag is initialized
@@ -408,7 +414,9 @@ Below are the semantics for each defined
 instruction.
 We use the convention that A is the accumulator, X is the index register,
 P[] packet data, and M[] scratch memory store.
-P[i:n] gives the data at byte offset ``i'' in the packet,
+P[i:n] gives the data at byte offset
+.Dq i
+in the packet,
 interpreted as a word (n=4),
 unsigned halfword (n=2), or unsigned byte (n=1).
 M[i] gives the i'th word in the scratch memory store, which is only
@@ -420,13 +428,16 @@ addressed in word units.  The memory store is indexed from 0 to
 and
 .Li jf
 are the corresponding fields in the
-instruction definition.  ``len'' refers to the length of the packet.
+instruction definition.
+.Dq len
+refers to the length of the packet.
 .Pp
 .Bl -tag -width BPF_STXx -compact
 .It Dv BPF_LD
 These instructions copy a value into the accumulator.  The type of the
-source operand is specified by an ``addressing mode'' and can be 
-a constant
+source operand is specified by an
+.Dq addressing mode
+and can be a constant
 .Pq Dv BPF_IMM ,
 packet data at a fixed offset
 .Pq Dv BPF_ABS ,
