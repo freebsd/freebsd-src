@@ -110,6 +110,10 @@ struct uhid_softc {
 
 	int sc_refcnt;
 	u_char sc_dying;
+
+#if defined(__FreeBSD__)
+	dev_t dev;
+#endif
 };
 
 #define	UHIDUNIT(dev)	(minor(dev))
@@ -232,16 +236,12 @@ USB_ATTACH(uhid)
 	sc->sc_repdesc = desc;
 	sc->sc_repdesc_size = size;
 
-#ifdef __FreeBSD__
-	{
-		static int global_init_done = 0;
-
-		if (!global_init_done) {
-			cdevsw_add(&uhid_cdevsw);
-			global_init_done = 1;
-		}
-	}
+#if defined(__FreeBSD__)
+	sc->dev = make_dev(&uhid_cdevsw, device_get_unit(self),
+			UID_ROOT, GID_OPERATOR,
+			0644, "uhid%d", device_get_unit(self));
 #endif
+
 	USB_ATTACH_SUCCESS_RETURN;
 }
 
@@ -272,7 +272,11 @@ USB_DETACH(uhid)
 	int s;
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 	int maj, mn;
+#elif defined(__FreeBSD__)
+	struct vnode *vp;
+#endif
 
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 	DPRINTF(("uhid_detach: sc=%p flags=%d\n", sc, flags));
 #else
 	DPRINTF(("uhid_detach: sc=%p\n", sc));
@@ -303,7 +307,11 @@ USB_DETACH(uhid)
 	mn = self->dv_unit;
 	vdevgone(maj, mn, mn, VCHR);
 #elif defined(__FreeBSD__)
-	/* XXX not implemented yet */
+	vp = SLIST_FIRST(&sc->dev->si_hlist);
+	if (vp)
+		VOP_REVOKE(vp, REVOKEALL);
+
+	destroy_dev(sc->dev);
 #endif
 
 	free(sc->sc_repdesc, M_USBDEV);
