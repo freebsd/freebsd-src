@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 
 SUBDIR=	bootcode stlload stlstats
 

@@ -1,5 +1,5 @@
 # Makefile
-# $FreeBSD$
+# $Id$
 
 MAN8=	manctl.8
 

@@ -1,4 +1,4 @@
-// $FreeBSD$
+// $Id$
 // csg vax config - really just for {s,r}vax
 
 #define FSTYPE_UFS	4.2

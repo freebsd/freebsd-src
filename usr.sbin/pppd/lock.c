@@ -4,7 +4,7 @@
  * This code is derived from chat.c.
  */
 
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$Id$";
 
 #include <stdio.h>
 #include <string.h>

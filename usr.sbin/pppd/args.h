@@ -1,6 +1,6 @@
 /*
  * neat macro from ka9q to "do the right thing" with ansi prototypes
- * $FreeBSD$
+ * $Id$
  */
 
 #ifndef __P

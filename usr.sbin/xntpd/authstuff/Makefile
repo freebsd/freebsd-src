@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $Id$
 #
 # Most of the programs in this directory are completely useless for the
 # NTP configuration that we provide by default.

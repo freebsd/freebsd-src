@@ -29,7 +29,7 @@
 /*
  * Create an MS-DOS (FAT) file system.
  *
- * $FreeBSD$
+ * $Id$
  */
 
 #include <sys/types.h>

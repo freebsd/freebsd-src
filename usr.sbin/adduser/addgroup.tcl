@@ -29,7 +29,7 @@
 #	signal handling
 # 	add only users who exist
 #
-# $FreeBSD$
+# $Id$
 
 # set global variables
 set etc_group "/etc/group";        #set etc_group "/usr/tmp/group" 

@@ -5,7 +5,7 @@
 
 /*
  *
- * $FreeBSD$
+ * $Id$
  *
  * pred.c -- Test program for Dave Rand's rendition of the
  * predictor algorithm

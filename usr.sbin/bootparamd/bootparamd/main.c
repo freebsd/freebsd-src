@@ -6,7 +6,7 @@ use and modify. Please send modifications and/or suggestions + bug fixes to
         Klas Heggemann <klas@nada.kth.se>
 
 
-	$FreeBSD$
+	$Id$
 
 */
 

@@ -37,7 +37,7 @@
  *
  *	@(#)os-hpux.h	8.1 (Berkeley) 6/6/93
  *
- * $FreeBSD$
+ * $Id$
  *
  * HP/9000 HP-UX definitions for Amd (automounter)
  */

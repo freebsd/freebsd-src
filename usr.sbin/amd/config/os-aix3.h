@@ -37,7 +37,7 @@
  *
  *	@(#)os-aix3.h	8.1 (Berkeley) 6/6/93
  *
- * $FreeBSD$
+ * $Id$
  *
  * AIX 3.1 definitions for Amd (automounter)
  */

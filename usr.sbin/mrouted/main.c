@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $FreeBSD$
+ * $Id$
  */
 
 /*
@@ -34,7 +34,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"@(#) $FreeBSD$";
+	"@(#) $Id$";
 #endif
 
 extern char *configfilename;

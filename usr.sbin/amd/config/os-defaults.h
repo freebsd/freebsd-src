@@ -37,7 +37,7 @@
  *
  *	@(#)os-defaults.h	8.1 (Berkeley) 6/6/93
  *
- * $FreeBSD$
+ * $Id$
  *
  * Common OS definitions.  These may be overridden in
  * the OS specific files ("os-foo.h").

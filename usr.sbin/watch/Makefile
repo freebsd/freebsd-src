@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 
 PROG=	watch
 MAN8=   watch.8

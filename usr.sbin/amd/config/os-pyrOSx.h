@@ -37,7 +37,7 @@
  *
  *	@(#)os-pyrOSx.h	8.1 (Berkeley) 6/6/93
  *
- * $FreeBSD$
+ * $Id$
  *
  * Pyramid OSx definitions for Amd (automounter)
  *		from Stefan Petri <petri@tubsibr.UUCP>

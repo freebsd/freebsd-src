@@ -37,7 +37,7 @@
  *
  *	@(#)os-concentrix.h	8.1 (Berkeley) 6/6/93
  *
- * $FreeBSD$
+ * $Id$
  *
  * Alliant Concentrix 5.0.0 definitions for Amd (automounter)
  */

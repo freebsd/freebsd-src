@@ -38,7 +38,7 @@
  *
  *	@(#)fsi_lex.l	8.2 (Berkeley) 2/17/94
  *
- * $FreeBSD$
+ * $Id$
  *
  */
 

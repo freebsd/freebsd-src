@@ -17,7 +17,7 @@
  *              New eject algorithm.
  *              Some code style reformatting.
  *
- * $FreeBSD$
+ * $Id$
  */
 
 #include <ctype.h>

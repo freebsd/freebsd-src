@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 
 PROG=	yppush
 SRCS=	yp_clnt.c ypxfr_getmap.c yp_dblookup.c yppush_svc.c \

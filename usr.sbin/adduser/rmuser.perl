@@ -30,7 +30,7 @@
 #
 # Guy Helmer <ghelmer@alpha.dsu.edu>, 07/17/96
 #
-#	$FreeBSD$
+#	$Id$
 
 sub LOCK_SH {0x01;}
 sub LOCK_EX {0x02;}

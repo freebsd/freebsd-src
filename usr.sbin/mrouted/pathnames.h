@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $FreeBSD$
+ * $Id$
  */
 
 #define _PATH_MROUTED_CONF	"/etc/mrouted.conf"
