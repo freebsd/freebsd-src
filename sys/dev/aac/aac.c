@@ -2332,8 +2332,8 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 #include <machine/../linux/linux_proto.h>
 #include <compat/linux/linux_ioctl.h>
 
-#define AAC_LINUX_IOCTL_MIN  0x0000
-#define AAC_LINUX_IOCTL_MAX  0xffff
+#define AAC_LINUX_IOCTL_MIN  0x2000
+#define AAC_LINUX_IOCTL_MAX  0x21ff
 
 static linux_ioctl_function_t aac_linux_ioctl;
 static struct linux_ioctl_handler aac_handler = {aac_linux_ioctl,
