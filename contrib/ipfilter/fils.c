@@ -51,7 +51,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)fils.c	1.21 4/20/96 (C) 1993-1996 Darren Reed";
-static const char rcsid[] = "@(#)$Id: fils.c,v 2.2.2.3 1999/10/05 12:57:37 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: fils.c,v 2.2.2.4 1999/12/04 02:06:24 darrenr Exp $";
 #endif
 
 extern	char	*optarg;
@@ -474,7 +474,8 @@ ips_stat_t *ipsp;
 				PRINTF(" keep state");
 			PRINTF("\n");
 
-			PRINTF("\tpkt_flags & %x = %x,\t", ips.is_flags & 0xf,
+			PRINTF("\tpkt_flags & %x(%x) = %x,\t",
+				ips.is_flags & 0xf, ips.is_flags,
 				ips.is_flags >> 4);
 			PRINTF("\tpkt_options & %x = %x\n", ips.is_optmsk,
 				ips.is_opt);

@@ -12,13 +12,14 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "%W% %G% (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: iptest.c,v 2.1 1999/08/04 17:31:08 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: iptest.c,v 2.1.2.2 1999/11/28 03:43:45 darrenr Exp $";
 #endif
 #include <stdio.h>
 #include <netdb.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/socket.h>
@@ -97,7 +98,8 @@ char **argv;
 	struct	tcpiphdr *ti;
 	struct	in_addr	gwip;
 	ip_t	*ip;
-	char	*name =  argv[0], host[64], *gateway = NULL, *dev = NULL;
+	char	*name =  argv[0], host[MAXHOSTNAMELEN + 1];
+	char	*gateway = NULL, *dev = NULL;
 	char	*src = NULL, *dst;
 	int	mtu = 1500, tests = 0, pointtest = 0, c;
 
@@ -153,6 +155,7 @@ char **argv;
 	if (!src)
 	    {
 		gethostname(host, sizeof(host));
+		host[sizeof(host) - 1] = '\0';
 		src = host;
 	    }
 
