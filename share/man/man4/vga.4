@@ -53,7 +53,7 @@ The console driver will call the
 driver to manipulate video hardware (changing video modes, loading font, etc).
 .Pp
 The keyword
-.Em conflicts
+.Dv conflicts
 is required, as the video card may use I/O ports in the same range
 as other drivers.
 .Pp
@@ -67,7 +67,7 @@ VESA support can either be statically included in the kernel
 or can be loaded as a separate module.
 .Pp
 In order to statically link the VESA support to the kernel, the
-.Em VESA
+.Dv VESA
 option (see below) must be defined in the kernel configuration file.
 .Pp
 The
@@ -83,15 +83,15 @@ can be used to control the
 driver.
 These options provide compatibility with certain VGA cards.
 .Bl -tag -width MOUSE
-.It Em VGA_ALT_SEQACCESS
+.It Dv VGA_ALT_SEQACCESS
 You may want to try this option if the mouse pointer is not drawn correctly 
 or the font does not seem to be loaded properly on the VGA card. 
 However, it may cause flicker on some systems.
-.It Em VGA_SLOW_IOACCESS
+.It Dv VGA_SLOW_IOACCESS
 Older VGA cards may require this option for proper operation.
 It makes the driver perform byte-wide I/O to VGA registers and
 slow down a little.
-.It Em VGA_WIDTH90
+.It Dv VGA_WIDTH90
 This option enables 90 column modes: 90x25, 90x30, 90x43, 90x50, 90x60.  
 These modes are not always supported by the video card and the display.
 It is highly likely that LCD display cannot work with these modes.
@@ -99,12 +99,12 @@ It is highly likely that LCD display cannot work with these modes.
 .Pp
 The following options add optional features to the driver.
 .Bl -tag -width MOUSE
-.It Em VESA
+.It Dv VESA
 Add VESA BIOS support to the driver.
 If the VGA card has the VESA BIOS extension 1.2 or later, 
 this option will utilize the VESA BIOS service to switch to high
 resolution modes.
-.It Em VESA_DEBUG=N
+.It Dv VESA_DEBUG=N
 Set the VESA support debug level to
 .Fa N .
 The default value is zero, which suppresses all debugging output.
@@ -114,16 +114,17 @@ The following options will remove some features from the
 .Nm
 driver and save kernel memory.
 .Bl -tag -width MOUSE
-.It Em VGA_NO_FONT_LOADING
+.It Dv VGA_NO_FONT_LOADING
 The
 .Nm
 driver can load software font to EGA and VGA cards.
-This option removes this feature.  Note that if you use this option and
+This option removes this feature.
+Note that if you use this option and
 still wish to use the mouse on the console then you must also use the
-.Em SC_ALT_MOUSE_IMAGE
+.Dv SC_ALT_MOUSE_IMAGE
 option.  See
 .Xr syscons 4 .
-.It Em VGA_NO_MODE_CHANGE
+.It Dv VGA_NO_MODE_CHANGE
 This option prevents the driver from changing video modes.
 .El
 .\".Sh FILES
@@ -140,7 +141,7 @@ in order to enable the VESA BIOS Extension support.
 .Pp
 If you do not want VESA support included in the kernel, but
 want to use occasionally, do not add the
-.Em VESA
+.Dv VESA
 option.  And load the
 .Nm vesa
 module as desired:
