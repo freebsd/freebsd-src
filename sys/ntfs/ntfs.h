@@ -316,9 +316,6 @@ typedef int (vop_t) __P((void *));
 #define VN_LOCK(a, b, c)	vn_lock((a), (b), (c))
 #define	LOCKMGR(a, b, c)	lockmgr((a), (b), (c), NULL)
 
-/* PDIRUNLOCK is used by NetBSD to mark if vfs_lookup() unlocked parent dir;
- * on FreeBSD, it's not defined and nothing similar exists */
-#define PDIRUNLOCK		0
 #endif /* NetBSD */
 
 #if defined(NTFS_DEBUG)

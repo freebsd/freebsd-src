@@ -274,6 +274,7 @@ lookup(ndp)
 	int rdonly;			/* lookup read-only flag bit */
 	int trailing_slash;
 	int error = 0;
+	int dpunlocked = 0;		/* dp has already been unlocked */
 	struct componentname *cnp = &ndp->ni_cnd;
 	struct proc *p = cnp->cn_proc;
 
@@ -417,6 +418,7 @@ dirloop:
 unionlookup:
 	ndp->ni_dvp = dp;
 	ndp->ni_vp = NULL;
+	cnp->cn_flags &= ~PDIRUNLOCK;
 	ASSERT_VOP_LOCKED(dp, "lookup");
 	if ((error = VOP_LOOKUP(dp, &ndp->ni_vp, cnp)) != 0) {
 		KASSERT(ndp->ni_vp == NULL, ("leaf should be empty"));
@@ -428,7 +430,10 @@ unionlookup:
 		    (dp->v_mount->mnt_flag & MNT_UNION)) {
 			tdp = dp;
 			dp = dp->v_mount->mnt_vnodecovered;
-			vput(tdp);
+			if (cnp->cn_flags & PDIRUNLOCK)
+				vrele(tdp);
+			else
+				vput(tdp);
 			VREF(dp);
 			vn_lock(dp, LK_EXCLUSIVE | LK_RETRY, p);
 			goto unionlookup;
@@ -487,11 +492,14 @@ unionlookup:
 	       (cnp->cn_flags & NOCROSSMOUNT) == 0) {
 		if (vfs_busy(mp, 0, 0, p))
 			continue;
+		VOP_UNLOCK(dp, 0, p);
 		error = VFS_ROOT(mp, &tdp);
 		vfs_unbusy(mp, p);
-		if (error)
+		if (error) {
+			dpunlocked = 1;
 			goto bad2;
-		vput(dp);
+		}
+		vrele(dp);
 		ndp->ni_vp = dp = tdp;
 	}
 
@@ -553,11 +561,15 @@ nextname:
 	return (0);
 
 bad2:
-	if ((cnp->cn_flags & LOCKPARENT) && *ndp->ni_next == '\0')
+	if ((cnp->cn_flags & (LOCKPARENT | PDIRUNLOCK)) == LOCKPARENT &&
+	    *ndp->ni_next == '\0')
 		VOP_UNLOCK(ndp->ni_dvp, 0, p);
 	vrele(ndp->ni_dvp);
 bad:
-	vput(dp);
+	if (dpunlocked)
+		vrele(dp);
+	else
+		vput(dp);
 	ndp->ni_vp = NULL;
 	return (error);
 }
