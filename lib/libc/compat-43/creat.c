@@ -51,4 +51,6 @@ __creat(path, mode)
 	return(_open(path, O_WRONLY|O_CREAT|O_TRUNC, mode));
 }
 
+#ifndef _THREAD_SAFE
 __weak_reference(__creat, creat);
+#endif

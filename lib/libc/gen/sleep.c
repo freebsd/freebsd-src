@@ -68,4 +68,6 @@ __sleep(seconds)
 		(time_remaining.tv_nsec != 0)); /* round up */
 }
 
+#ifndef _THREAD_SAFE
 __weak_reference(__sleep, sleep);
+#endif
