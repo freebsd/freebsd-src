@@ -151,7 +151,7 @@ acpi_pci_link_entry_dump(struct acpi_prt_entry *entry)
 	}
 
 	printf(" %d.%d.%d\n", entry->busno,
-	    (int)((entry->prt.Address & 0xffff0000) >> 16),
+	    (int)(ACPI_ADR_PCI_SLOT(entry->prt.Address)),
 	    (int)entry->prt.Pin);
 }
 
@@ -981,7 +981,7 @@ acpi_pci_link_config(device_t dev, ACPI_BUFFER *prtbuf, int busno)
 
 		snprintf(prthint, sizeof(prthint),
 		    "hw.acpi.pci.link.%d.%d.%d.irq", entry->busno,
-		    (int)((entry->prt.Address & 0xffff0000) >> 16),
+		    (int)(ACPI_ADR_PCI_SLOT(entry->prt.Address)),
 		    (int)entry->prt.Pin);
 
 		if (getenv_int(prthint, &irq) == 0)
@@ -1069,7 +1069,7 @@ acpi_pci_find_prt(device_t pcibdev, device_t dev, int pin)
 	TAILQ_FOREACH(entry, &acpi_prt_entries, links) {
 		prt = &entry->prt;
 		if (entry->busno == pci_get_bus(dev) &&
-		    (prt->Address & 0xffff0000) >> 16 == pci_get_slot(dev) &&
+		    ACPI_ADR_PCI_SLOT(prt->Address) == pci_get_slot(dev) &&
 		    prt->Pin == pin)
 			break;
 	}

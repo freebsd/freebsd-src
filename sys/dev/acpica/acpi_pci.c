@@ -280,8 +280,8 @@ acpi_pci_save_handle(ACPI_HANDLE handle, UINT32 level, void *context,
 
 	if (ACPI_FAILURE(acpi_GetInteger(handle, "_ADR", &address)))
 		return_ACPI_STATUS (AE_OK);
-	slot = address >> 16;
-	func = address & 0xffff;
+	slot = ACPI_ADR_PCI_SLOT(address);
+	func = ACPI_ADR_PCI_FUNC(address);
 	if (device_get_children((device_t)context, &devlist, &devcount) != 0)
 		return_ACPI_STATUS (AE_OK);
 	for (i = 0; i < devcount; i++) {
