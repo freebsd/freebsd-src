@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.6 1994/08/22 17:05:00 davidg Exp $
+ * $Id: vfs_subr.c,v 1.7 1994/08/24 04:06:39 davidg Exp $
  */
 
 /*
@@ -437,6 +437,8 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 	register struct buf *bp;
 	struct buf *nbp, *blist;
 	int s, error;
+	vm_pager_t pager;
+	vm_object_t object;
 
 	if (flags & V_SAVE) {
 		if (error = VOP_FSYNC(vp, cred, MNT_WAIT, p))
@@ -445,7 +447,7 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 			panic("vinvalbuf: dirty bufs");
 	}
 	for (;;) {
-		if ((blist = vp->v_cleanblkhd.lh_first) && flags & V_SAVEMETA)
+		if ((blist = vp->v_cleanblkhd.lh_first) && (flags & V_SAVEMETA))
 			while (blist && blist->b_lblkno < 0)
 				blist = blist->b_vnbufs.le_next;
 		if (!blist && (blist = vp->v_dirtyblkhd.lh_first) && 
@@ -457,7 +459,7 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 
 		for (bp = blist; bp; bp = nbp) {
 			nbp = bp->b_vnbufs.le_next;
-			if (flags & V_SAVEMETA && bp->b_lblkno < 0)
+			if ((flags & V_SAVEMETA) && bp->b_lblkno < 0)
 				continue;
 			s = splbio();
 			if (bp->b_flags & B_BUSY) {
@@ -486,6 +488,20 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 			brelse(bp);
 		}
 	}
+
+	pager = (vm_pager_t)vp->v_vmdata;
+	if (pager != NULL) {
+		object = vm_object_lookup(pager);
+		if (object) {
+			vm_object_lock(object);
+			if (flags & V_SAVE)
+				vm_object_page_clean(object, 0, 0, TRUE, FALSE);
+			vm_object_page_remove(object, 0, object->size);
+			vm_object_unlock(object);
+			vm_object_deallocate(object);
+		}
+	}
+
 	if (!(flags & V_SAVEMETA) &&
 	    (vp->v_dirtyblkhd.lh_first || vp->v_cleanblkhd.lh_first))
 		panic("vinvalbuf: flush failed");
