@@ -399,14 +399,13 @@ mixer_open(dev_t i_dev, int flags, int mode, struct proc *p)
 	struct snd_mixer *m;
 	intrmask_t s;
 
-	s = spltty();
 	m = i_dev->si_drv1;
-	if (m->busy) {
-		splx(s);
-		return EBUSY;
-	}
-	m->busy = 1;
+	s = spltty();
+	snd_mtxlock(m->lock);
 
+	m->busy++;
+
+	snd_mtxunlock(m->lock);
 	splx(s);
 	return 0;
 }
@@ -417,14 +416,18 @@ mixer_close(dev_t i_dev, int flags, int mode, struct proc *p)
 	struct snd_mixer *m;
 	intrmask_t s;
 
-	s = spltty();
 	m = i_dev->si_drv1;
+	s = spltty();
+	snd_mtxlock(m->lock);
+
 	if (!m->busy) {
+		snd_mtxunlock(m->lock);
 		splx(s);
 		return EBADF;
 	}
-	m->busy = 0;
+	m->busy--;
 
+	snd_mtxunlock(m->lock);
 	splx(s);
 	return 0;
 }
