@@ -28,7 +28,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 .\" THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: pn.4,v 1.2 1998/12/05 09:31:25 rnordier Exp $
+.\"	$Id: pn.4,v 1.4 1999/04/14 19:02:39 wpaul Exp $
 .\"
 .Dd November 7, 1998
 .Dt PN 4 i386
@@ -150,12 +150,11 @@ The
 driver was written by
 .An Bill Paul Aq wpaul@ctr.columbia.edu .
 .Sh BUGS
-The
-.Nm
-driver currently only supports cards with external transceivers
-connected to the PNIC controller via its MII bus. This is because
-the author had no boards available for testing which made use of the
-internal transceiver. Most of the PNIC implementations on the market
-today use an external PHY, so hopefully this will not present any
-serious problems. Code to support the internal transceiver may be
-added later if hardware becomes available.
+The internal NWAY support on the 82c168 chip is horribly broken, which
+means that autoselection will not work, except maybe for half-duplex
+10Mbps links. In order to use other modes (e.g. 100Mbps) it will be
+necessary to
+use
+.Xr ifconfig 8
+to set the interface manually. Autoselection for 82c169 boards using
+MII transceivers should work correctly.
