@@ -1,8 +1,12 @@
+/* $FreeBSD$ */
+
 #ifndef _AC97_CODEC_H_
 #define _AC97_CODEC_H_
 
+#ifdef __linux__
 #include <linux/types.h>
 #include <linux/soundcard.h>
+#endif
 
 /* AC97 1.0 */
 #define  AC97_RESET               0x0000      //
@@ -64,7 +68,9 @@
 #define AC97_VENDOR_ID2           0x007e
 
 /* volume control bit defines */
+#ifndef	AC97_MUTE
 #define AC97_MUTE                 0x8000
+#endif
 #define AC97_MICBOOST             0x0040
 #define AC97_LEFTVOL              0x3f00
 #define AC97_RIGHTVOL             0x003f
@@ -213,6 +219,7 @@
                                     (FOO < SOUND_MIXER_NRDEVICES) && \
                                     (CODEC)->supported_mixers & (1<<FOO) )
 
+#ifdef __linux__
 struct ac97_codec {
 	/* AC97 controller connected with */
 	void *private_data;
@@ -281,5 +288,6 @@ extern unsigned int ac97_set_adc_rate(struct ac97_codec *codec, unsigned int rat
 extern unsigned int ac97_set_dac_rate(struct ac97_codec *codec, unsigned int rate);
 extern int ac97_save_state(struct ac97_codec *codec);
 extern int ac97_restore_state(struct ac97_codec *codec);
+#endif	/*__linux__*/
 
 #endif /* _AC97_CODEC_H_ */
