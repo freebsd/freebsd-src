@@ -44,11 +44,16 @@
 #include <sys/types.h>
 
 #ifndef _POSIX_SOURCE
+#define _PATH_PWD		"/etc"
 #define	_PATH_PASSWD		"/etc/passwd"
+#define	_PASSWD			"passwd"
 #define	_PATH_MASTERPASSWD	"/etc/master.passwd"
+#define	_MASTERPASSWD		"master.passwd"
 
 #define	_PATH_MP_DB		"/etc/pwd.db"
+#define	_MP_DB			"pwd.db"
 #define	_PATH_SMP_DB		"/etc/spwd.db"
+#define	_SMP_DB			"spwd.db"
 
 #define	_PATH_PWD_MKDB		"/usr/sbin/pwd_mkdb"
 
