@@ -2881,12 +2881,15 @@ pmap_mapdev(pa, size)
 
 	offset = pa & PAGE_MASK;
 	size = roundup(offset + size, PAGE_SIZE);
+	pa = pa & PG_FRAME;
 
-	va = kmem_alloc_nofault(kernel_map, size);
+	if (pa < KERNLOAD && pa + size <= KERNLOAD)
+		va = KERNBASE + pa;
+	else
+		va = kmem_alloc_nofault(kernel_map, size);
 	if (!va)
 		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
 
-	pa = pa & PG_FRAME;
 	for (tmpva = va; size > 0; ) {
 		pmap_kenter(tmpva, pa);
 		size -= PAGE_SIZE;
@@ -2904,6 +2907,8 @@ pmap_unmapdev(va, size)
 {
 	vm_offset_t base, offset, tmpva;
 
+	if (va >= KERNBASE && va + size <= KERNBASE + KERNLOAD)
+		return;
 	base = va & PG_FRAME;
 	offset = va & PAGE_MASK;
 	size = roundup(offset + size, PAGE_SIZE);
