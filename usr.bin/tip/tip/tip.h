@@ -202,6 +202,8 @@ extern value_t	vtable[];	/* variable table */
 #if !ACULOG
 #define logent(a, b, c, d)
 #define loginit()
+#else
+void logent __P((char *, char *, char *, char*));
 #endif
 
 /*
@@ -296,8 +298,24 @@ extern	int disc;			/* current tty discpline */
 extern	char *ctrl();
 extern	char *vinterp();
 extern	char *connect();
-
-int	tipabort	__P((char *));
+extern	int   size __P((char *));
+extern	int   any __P((char, char *));
+extern	void  setscript __P((void));
+extern	void  tipout __P((void));
+extern	void  vinit __P((void));
+extern	void  loginit __P((void));
+extern	int   hunt __P((char *));
+extern	int vstring __P((char *, char *));
+extern	void setparity __P((char *));
+extern	void vlex __P((char *));
+extern	void daemon_uid __P((void));
+extern	void disconnect __P((char *));
+extern	void shell_uid __P((void));
+extern	void unraw __P((void));
+extern	void pwrite __P((int, char *, int));
+extern	int prompt __P((char *, char *));
+extern	void  consh __P((int));
+extern	void tipabort __P((char *));
 
 #define TL_VERBOSE       0x00000001
 #define TL_SIGNAL_TIPOUT 0x00000002
