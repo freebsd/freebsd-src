@@ -45,6 +45,7 @@ static char *id =
  *---------------------------------------------------------------------------*/
 
 #include <stdio.h>
+#include <err.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <machine/pcvt_ioctl.h>
@@ -104,31 +105,15 @@ char *argv[];
 	{
 		fd = DEFAULTFD;
 	}
-	else
-	{
-		if((fd = open(device, O_RDWR)) == -1)
-		{
-			char buffer[80];
-			strcpy(buffer,"ERROR opening ");
-			strcat(buffer,device);
-			perror(buffer);
-			exit(1);
-		}
-	}
+	else if((fd = open(device, O_RDWR)) == -1)
+		err(1, "ERROR opening %s", device);
 
 	if(screen == -1)
 	{
 		struct stat stat;
 
 		if((fstat(fd, &stat)) == -1)
-		{
-			char buffer[80];
-			strcpy(buffer,"ERROR opening ");
-			strcat(buffer,device);
-			perror(buffer);
-			exit(1);
-		}
-
+			err(1, "ERROR opening %s", device);
 		screen = minor(stat.st_rdev);
 	}
 
@@ -137,10 +122,7 @@ char *argv[];
 	cursorshape.screen_no = screen;
 
 	if(ioctl(fd, VGACURSOR, &cursorshape) == -1)
-	{
-		perror("cursor - ioctl VGACURSOR failed, error");
-		exit(1);
-	}
+		err(1, "cursor - ioctl VGACURSOR failed, error");
 	else
 		exit(0);
 }

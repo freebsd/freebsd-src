@@ -28,6 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
 static char *id =
@@ -53,6 +54,7 @@ static char *id =
  *---------------------------------------------------------------------------*/
 
 #include <stdio.h>
+#include <err.h>
 #include <fcntl.h>
 #include <machine/pcvt_ioctl.h>
 
@@ -105,12 +107,7 @@ char *argv[];
 		if((fd = open(device, O_RDWR)) == -1)
 		{
 			if(verbose)
-			{
-				char buffer[80];
-				strcpy(buffer,"ERROR opening ");
-				strcat(buffer,device);
-				perror(buffer);
-			}
+				warn("ERROR opening %s", device);
 			exit(1);
 		}
 	}
@@ -122,7 +119,7 @@ char *argv[];
 	if(ioctl(fd, VGAPCVTID, &pcvtid) == -1)
 	{
 		if(verbose)
-			perror("ispcvt - ioctl VGAPCVTID failed, error");
+			warn("ioctl VGAPCVTID failed, error");
 		exit(1);
 	}
 
@@ -133,27 +130,28 @@ char *argv[];
 			if(pcvtid.rminor != PCVTIDMINOR)
 			{
 				if(verbose)
-					fprintf(stderr,"ispcvt - minor revision: expected %d, got %d\n", PCVTIDMINOR, pcvtid.rminor);
+					warnx("minor revision: expected %d, got %d", PCVTIDMINOR, pcvtid.rminor);
 				exit(4);	/* minor revision mismatch */
 			}
 		}
 		else
 		{
 			if(verbose)
-				fprintf(stderr,"ispcvt - major revision: expected %d, got %d\n", PCVTIDMAJOR, pcvtid.rmajor);
+				warnx("major revision: expected %d, got %d", PCVTIDMAJOR, pcvtid.rmajor);
 			exit(3);	/* major revision mismatch */
 		}
 	}
 	else
 	{
 		if(verbose)
-			fprintf(stderr,"ispcvt - name check: expected %s, got %s\n", PCVTIDNAME, pcvtid.name);
+			warnx("name check: expected %s, got %s", PCVTIDNAME, pcvtid.name);
 		exit(2);	/* name mismatch */
 	}
 
 	if(verbose)
 	{
-		fprintf(stderr,"\nispcvt: kernel and utils match, driver name [%s], release [%1.1d.%02.2d]\n\n",pcvtid.name,pcvtid.rmajor,pcvtid.rminor);
+		warnx("\nkernel and utils match, driver name [%s], release [%1.1d.%02.2d]\n",
+			  pcvtid.name, pcvtid.rmajor, pcvtid.rminor);
 	}
 
 	if(config == 0)
@@ -162,7 +160,7 @@ char *argv[];
 	if(ioctl(fd, VGAPCVTINFO, &pcvtinfo) == -1)
 	{
 		if(verbose)
-			perror("ispcvt - ioctl VGAPCVTINFO failed, error");
+			warn("ioctl VGAPCVTINFO failed, error");
 		exit(1);
 	}
 
