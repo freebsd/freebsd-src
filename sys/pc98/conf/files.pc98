@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.9.2.20 1998/02/17 03:19:00 kato Exp $
+#	$Id: files.pc98,v 1.9.2.21 1998/03/15 15:21:15 kato Exp $
 #
 aicasm				optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/*.[chyl]"			   \
@@ -157,8 +157,8 @@ i386/isa/rc.c			optional	rc	device-driver
 i386/isa/scd.c			optional	scd	device-driver
 i386/isa/seagate.c		optional	sea	device-driver
 i386/isa/si.c			optional	si	device-driver
-i386/isa/si_code.c		optional	si	device-driver
-i386/isa/si_jet.c		optional	si	device-driver
+i386/isa/si2_z280.c		optional	si	device-driver
+i386/isa/si3_t225.c		optional	si	device-driver
 pc98/pc98/sio.c			optional	sio	device-driver
 #i386/isa/snd/sound.c      optional        pcm    device-driver
 #i386/isa/snd/dmabuf.c     optional        pcm    device-driver
