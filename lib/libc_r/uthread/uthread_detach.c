@@ -46,7 +46,7 @@ pthread_detach(pthread_t pthread)
 	_thread_kern_sig_block(&status);
 
 	/* Check for invalid calling parameters: */
-	if (pthread == NULL) {
+	if (pthread == NULL || pthread->magic != PTHREAD_MAGIC) {
 		/* Return an invalid argument error: */
 		rval = EINVAL;
 	}

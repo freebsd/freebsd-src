@@ -1,4 +1,4 @@
-.\" Copyright (c) 1996 John Birrell <jb@cimlogic.com.au>.
+.\" Copyright (c) 1996-1998 John Birrell <jb@cimlogic.com.au>.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -55,7 +55,9 @@ calls on the same target thread is unspecified.
 If successful,  the
 .Fn pthread_detach
 function will return zero. Otherwise an error number will be returned to
-indicate the error.
+indicate the error. Note that the function does not change the value
+of errno as it did for some drafts of the standard. These early drafts
+also passed a pointer to pthread_t as the argument. Beware!
 .Sh ERRORS
 .Fn pthread_detach
 will fail if:
@@ -74,6 +76,6 @@ thread ID,
 .Xr pthread_join 3
 .Sh STANDARDS
 .Fn pthread_detach
-is expected to conform to IEEE
+conforms to ISO/IEC 9945-1 ANSI/IEEE
 .Pq Dq Tn POSIX
-Std 1003.1c when it is published.
+Std 1003.1 Second Edition 1996-07-12
