@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.15.2.10 1995/06/01 22:58:39 jkh Exp $
+ * $Id: config.c,v 1.15.2.11 1995/06/01 23:09:42 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -307,6 +307,8 @@ configResolv(void)
     fprintf(fp, "domain\t%s\n", getenv(VAR_DOMAINNAME));
     fprintf(fp, "nameserver\t%s\n", getenv(VAR_NAMESERVER));
     fclose(fp);
+    if (isDebug())
+	msgDebug("Wrote out /etc/resolv.conf\n");
 
 skip:
     /* Tack ourselves at the end of /etc/hosts */
@@ -315,6 +317,8 @@ skip:
 	fp = fopen("/etc/hosts", "a");
 	fprintf(fp, "%s\t\t%s\n", cp, getenv(VAR_HOSTNAME));
 	fclose(fp);
+	if (isDebug())
+	    msgDebug("Appended entry for %s to /etc/hosts\n", cp);
 	hostsModified = TRUE;
     }
 }
