@@ -42,6 +42,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/exec.h>
 #include <sys/lock.h>
@@ -129,13 +130,14 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 	}
 
 	if (p->p_sflag & PS_INMEM) {
-		struct timeval ut, st;
+		struct timeval start, ut, st;
 
 		calcru(p, &ut, &st, (struct timeval *) NULL);
 		mtx_unlock_spin(&sched_lock);
-		sbuf_printf(sb, " %lld,%ld %ld,%ld %ld,%ld",
-		    (long long)p->p_stats->p_start.tv_sec,
-		    p->p_stats->p_start.tv_usec,
+		start = p->p_stats->p_start;
+		timevaladd(&start, &boottime);
+		sbuf_printf(sb, " %ld,%ld %ld,%ld %ld,%ld",
+		    start.tv_sec, start.tv_usec,
 		    ut.tv_sec, ut.tv_usec,
 		    st.tv_sec, st.tv_usec);
 	} else {

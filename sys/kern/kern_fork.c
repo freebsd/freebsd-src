@@ -686,7 +686,7 @@ again:
 	 * If RFSTOPPED not requested, make child runnable and add to
 	 * run queue.
 	 */
-	microtime(&(p2->p_stats->p_start));
+	microuptime(&p2->p_stats->p_start);
 	if ((flags & RFSTOPPED) == 0) {
 		mtx_lock_spin(&sched_lock);
 		p2->p_state = PRS_NORMAL;

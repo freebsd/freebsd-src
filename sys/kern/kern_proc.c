@@ -677,8 +677,7 @@ fill_kinfo_proc(p, kp)
 	}
 	if ((p->p_sflag & PS_INMEM) && p->p_stats) {
 		kp->ki_start = p->p_stats->p_start;
-		if (kp->ki_start.tv_sec < 3600)
-			kp->ki_start.tv_sec += boottime.tv_sec;
+		timevaladd(&kp->ki_start, &boottime);
 		kp->ki_rusage = p->p_stats->p_ru;
 		kp->ki_childtime.tv_sec = p->p_stats->p_cru.ru_utime.tv_sec +
 		    p->p_stats->p_cru.ru_stime.tv_sec;
