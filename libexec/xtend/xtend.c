@@ -31,7 +31,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: xtend.c,v 1.3.2.1 1997/12/18 07:37:47 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -41,7 +41,6 @@ static const char rcsid[] =
  */
 
 #include <err.h>
-#include <errno.h>
 #include <pwd.h>
 #include <setjmp.h>
 #include <signal.h>
@@ -55,6 +54,7 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/stat.h>
+#include <sys/errno.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/un.h>

@@ -31,7 +31,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: user.c,v 1.3.2.1 1997/12/18 07:37:46 charnier Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -57,26 +57,33 @@ int
 user_command()
 {
   char h;
+  char *m;
   int i, k, n, error;
   char cmd[512], dumppath[MAXPATHLEN+1], pkt[3];
   FILE *dumpf;
 
   error = 0;
   if(fgets(cmd, 512, User) != NULL) {
+    m = cmd;
+    while ( *m != '\0' ) {
+	if(isupper(*m))
+	    *m = tolower(*m);
+	m++;
+    }
     if(sscanf(cmd, "status %c %d", &h, &i) == 2
-		&& h >= 'A' && h <= 'P' && i >= 1 && i <= 16) {
-      h -= 'A';
+		&& h >= 'a' && h <= 'p' && i >= 1 && i <= 16) {
+      h -= 'a';
       i--;
-      printstatus(User, &Status[(int)h][i]);
+      printstatus(User, &Status[h][i]);
     } else if(sscanf(cmd, "send %c %s %d", &h, cmd, &n) == 3
-	      && h >= 'A' && h <= 'P' && (i = find(cmd, X10cmdnames)) >= 0) {
-      h -= 'A';
+	      && h >= 'a' && h <= 'p' && (i = find(cmd, X10cmdnames)) >= 0) {
+      h -= 'a';
       pkt[0] = h;
       pkt[1] = i;
       pkt[2] = n;
       if(write(tw523, pkt, 3) != 3) {
 	fprintf(Log, "%s:  Transmission error (packet [%s %s]:%d).\n",
-		thedate(), X10housenames[(int)h], X10cmdnames[i], n);
+		thedate(), X10housenames[h], X10cmdnames[i], n);
 	error++;
       } else {
 	fprintf(User, "OK\n");
@@ -87,9 +94,9 @@ user_command()
       if((dumpf = fopen(dumppath, "w")) != NULL) {
 	for(h = 0; h < 16; h++) {
 	  for(i = 0; i < 16; i++) {
-	    if(Status[(int)h][i].lastchange) {
-	      fprintf(dumpf, "%s%d\t", X10housenames[(int)h], i+1);
-	      printstatus(dumpf, &Status[(int)h][i]);
+	    if(Status[h][i].lastchange) {
+	      fprintf(dumpf, "%s%d\t", X10housenames[h], i+1);
+	      printstatus(dumpf, &Status[h][i]);
 	    }
 	  }
 	}
@@ -99,8 +106,8 @@ user_command()
 	error++;
       }
     } else if(sscanf(cmd, "monitor %c %d", &h, &i) == 2
-	      && h >= 'A' && h <= 'P' && i >= 1 && i <= 16) {
-      h -= 'A';
+	      && h >= 'a' && h <= 'p' && i >= 1 && i <= 16) {
+      h -= 'a';
       i--;
       for(k = 0; k < MAXMON; k++) {
 	if(!Monitor[k].inuse) break;
@@ -148,7 +155,7 @@ char *tab[];
 	int i;
 
 	for(i = 0; tab[i] != NULL; i++) {
-	  if(strcmp(s, tab[i]) == 0) return(i);
+	  if(strcasecmp(s, tab[i]) == 0) return(i);
 	}
 	return(-1);
 }
