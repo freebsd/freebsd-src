@@ -35,10 +35,11 @@
 
 #include <machine/asmacros.h>
 
-RCSID("$Id: e_scalb.S,v 1.1.1.1 1994/08/19 09:40:00 jkh Exp $")
+RCSID("$Id: e_scalb.S,v 1.2 1994/08/19 11:14:19 jkh Exp $")
 
 ENTRY(__ieee754_scalb)
 	fldl	12(%esp)
 	fldl	4(%esp)
 	fscale
+	fstp	%st(1)
 	ret
