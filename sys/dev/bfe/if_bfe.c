@@ -907,9 +907,7 @@ static void
 bfe_set_rx_mode(struct bfe_softc *sc)
 {
 	struct ifnet *ifp = &sc->arpcom.ac_if;
-#if __FreeBSD_version > 500000
 	struct ifmultiaddr  *ifma;
-#endif
 	u_int32_t val;
 	int i = 0;
 
@@ -929,19 +927,18 @@ bfe_set_rx_mode(struct bfe_softc *sc)
 	CSR_WRITE_4(sc, BFE_CAM_CTRL, 0);
 	bfe_cam_write(sc, sc->arpcom.ac_enaddr, i++);
 
-#if __FreeBSD_version > 500000
 	if (ifp->if_flags & IFF_ALLMULTI)
 		val |= BFE_RXCONF_ALLMULTI;
 	else {
 		val &= ~BFE_RXCONF_ALLMULTI;
-		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		for (ifma = ifp->if_multiaddrs.lh_first; ifma != NULL;
+		    ifma = ifma->ifma_link.le_next) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			bfe_cam_write(sc,
 			    LLADDR((struct sockaddr_dl *)ifma->ifma_addr), i++);
 		}
 	}
-#endif
 
 	CSR_WRITE_4(sc, BFE_RXCONF, val);
 	BFE_OR(sc, BFE_CAM_CTRL, BFE_CAM_ENABLE);
