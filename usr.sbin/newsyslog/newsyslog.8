@@ -72,7 +72,7 @@ By default, this configuration file is
 .Pa /etc/newsyslog.conf .
 Each line of the file contains information about a particular log file
 that should be handled by
-.Nm newsyslog .
+.Nm Ns .
 Each line has five mandatory fields and four optional fields, with a
 whitespace separating each field.  Blank lines or lines beginning with
 ``#'' are ignored.  The fields of the configuration file are as
@@ -126,7 +126,7 @@ and a time in a restricted
 .Tn ISO 8601
 format.  If a time is specified, the log file will only be trimmed
 if
-.Nm newsyslog
+.Nm
 is run within one hour of the specified time.  If an 
 interval is specified, the log file will be trimmed if that many hours have
 passed since the last rotation.  When both a time and an interval are
@@ -228,10 +228,13 @@ the signal number will be sent to the daemon process. By default
 a SIGHUP will be sent.
 .El
 .Sh OPTIONS
-The following options can be used with newsyslog:
+The following options can be used with
+.Nm Ns :
 .Bl -tag -width indent
 .It Fl f Ar config_file
-Instruct newsyslog to use 
+Instruct
+.Nm
+to use 
 .Ar config_file
 instead of
 .Pa /etc/newsyslog.conf
@@ -265,7 +268,7 @@ fresh logs that contain only the problems.
 .Bl -tag -width /etc/newsyslog.confxxxx -compact
 .It Pa /etc/newsyslog.conf
 .Nm
-configuration file.
+configuration file
 .El
 .Sh BUGS
 Doesn't yet automatically read the logs to find security breaches.
