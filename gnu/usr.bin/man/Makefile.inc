@@ -19,3 +19,16 @@ refer=			/usr/bin/refer
 grap=			# no grap
 pic=			/usr/bin/pic
 zcat=			/usr/bin/zcat
+
+# For scripts.
+.if !target(obj)
+obj:
+	@cd ${.CURDIR}; rm -rf obj; \
+	here=`pwd`; dest=/usr/obj/`echo $$here | sed 's,/usr/src/,,'`; \
+	echo "$$here -> $$dest"; ln -s $$dest obj; \
+	if test -d /usr/obj -a ! -d $$dest; then \
+		mkdir -p $$dest; \
+	else \
+		true; \
+	fi;
+.endif
