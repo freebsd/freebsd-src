@@ -1,6 +1,6 @@
 #ifndef lint
 static char *rcsid =
-    "@(#)$Header: /home/ncvs/src/usr.sbin/traceroute/traceroute.c,v 1.6 1996/08/09 06:00:53 fenner Exp $ (LBL)";
+    "@(#)$Header: /home/ncvs/src/usr.sbin/traceroute/traceroute.c,v 1.7 1996/08/13 16:28:59 fenner Exp $ (LBL)";
 #endif
 
 /*
@@ -564,12 +564,35 @@ main(int argc, char **argv)
 			send_probe(++seq, ttl, &t1);
 			while ((cc = wait_for_reply(s, &from, &t1)) != 0) {
 				(void) gettimeofday(&t2, &tz);
+				/*
+				 * Since we'll be receiving all ICMP
+				 * messages to this host above, we may
+				 * never end up with cc=0, so we need
+				 * an additional termination check.
+				 */
+				if (t2.tv_sec - t1.tv_sec > waittime) {
+					cc = 0;
+					break;
+				}
 				if ((i = packet_ok(packet, cc, &from, seq))) {
+					double T;
+					int precis;
 					if (from.sin_addr.s_addr != lastaddr) {
 						print(packet, cc, &from);
 						lastaddr = from.sin_addr.s_addr;
 					}
-					Printf("  %.3f ms", deltaT(&t1, &t2));
+					T = deltaT(&t1, &t2);
+#ifdef SANE_PRECISION
+					if (T >= 1000.0)
+						precis = 0;
+					else if (T >= 100.0)
+						precis = 1;
+					else if (T >= 10.0)
+						precis = 2;
+					else
+#endif
+						precis = 3;
+					Printf("  %.*f ms", precis, T);
 					switch(i - 1) {
 					case ICMP_UNREACH_PORT:
 #ifndef ARCHAIC
@@ -598,6 +621,14 @@ main(int argc, char **argv)
 					case ICMP_UNREACH_SRCFAIL:
 						++unreachable;
 						Printf(" !S");
+						break;
+					case ICMP_UNREACH_NET_PROHIB:
+						++unreachable;
+						Printf(" !A");
+						break;
+					case ICMP_UNREACH_HOST_PROHIB:
+						++unreachable;
+						Printf(" !C");
 						break;
 					}
 					break;
@@ -737,8 +768,8 @@ packet_ok(u_char *buf, int cc, struct sockaddr_in *from, int seq)
 		int i;
 		u_long *lp = (u_long *)&icp->icmp_ip;
 
-		Printf("\n%d bytes from %s to %s", cc,
-			inet_ntoa(from->sin_addr), inet_ntoa(ip->ip_dst));
+		Printf("\n%d bytes from %s", cc, inet_ntoa(from->sin_addr));
+		Printf(" to %s", inet_ntoa(ip->ip_dst));
 		Printf(": icmp type %d (%s) code %d\n", type, pr_type(type),
 		       icp->icmp_code);
 		for (i = 4; i < cc ; i += sizeof(long))
