@@ -565,6 +565,7 @@ struct xl_softc {
 	u_int16_t		xl_caps;
 	u_int8_t		xl_stats_no_timeout;
 	u_int16_t		xl_tx_thresh;
+	int			xl_if_flags;
 	struct xl_list_data	*xl_ldata;
 	struct xl_chain_data	xl_cdata;
 	struct callout_handle	xl_stat_ch;
