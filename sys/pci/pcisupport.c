@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.43 1997/02/22 09:44:13 peter Exp $
+**  $Id: pcisupport.c,v 1.44 1997/03/25 19:03:04 se Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -95,14 +95,14 @@ generic_pci_bridge (pcici_t tag)
 	unsigned id = pci_conf_read (tag, PCI_ID_REG);
 
 	switch (classreg >> 16 & 0xff) {
-		case 0:	strcpy(tmpbuf, "Host->PCI"); break;
-		case 1:	strcpy(tmpbuf, "PCI->ISA"); break;
-		case 2:	strcpy(tmpbuf, "PCI->EISA"); break;
-		case 4:	strcpy(tmpbuf, "PCI->PCI"); break;
-		case 5:	strcpy(tmpbuf, "PCI->PCMCIA"); break;
-		case 7:	strcpy(tmpbuf, "PCI->CardBus"); break;
+		case 0:	strcpy(tmpbuf, "Host to PCI"); break;
+		case 1:	strcpy(tmpbuf, "PCI to ISA"); break;
+		case 2:	strcpy(tmpbuf, "PCI to EISA"); break;
+		case 4:	strcpy(tmpbuf, "PCI to PCI"); break;
+		case 5:	strcpy(tmpbuf, "PCI to PCMCIA"); break;
+		case 7:	strcpy(tmpbuf, "PCI to CardBus"); break;
 		default: 
-			sprintf(tmpbuf, "PCI->0x%x", classreg>>16 & 0xff); 
+			sprintf(tmpbuf, "PCI to 0x%x", classreg>>16 & 0xff); 
 			break;
 	}
 	sprintf(tmpbuf+strlen(tmpbuf), " bridge (vendor=%04x device=%04x)",
