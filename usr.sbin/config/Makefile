@@ -2,6 +2,9 @@
 
 PROG=	config
 CFLAGS+=-I. -I${.CURDIR} -DSTATCLOCK
+.if defined(CONFIG_DONT_CLOBBER)
+CFLAGS+= -DCONFIG_DONT_CLOBBER
+.endif
 SRCS=	config.c main.c lang.c mkioconf.c mkmakefile.c mkglue.c mkheaders.c \
 	mkswapconf.c
 MAN8=	config.8
