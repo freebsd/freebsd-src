@@ -542,11 +542,6 @@
    sys/boot/efi/libefi/arch/ia64/ldscript.ia64.  */
 #define HAVE_GAS_SHF_MERGE 1
 
-/* XXX HAVE_GAS_SHF_MERGE is target-dependent so it shouldn't be put in
-   this target-independent config file.  Defining it breaks aout support
-   on i386's.  */
-#undef HAVE_GAS_SHF_MERGE
-
 /* Define if your assembler supports explicit relocations. */
 /* #undef HAVE_AS_EXPLICIT_RELOCS */
 
@@ -566,8 +561,7 @@
 /* #undef HAVE_AS_OFFSETABLE_LO10 */
 
 /* Define true if the assembler supports '.long foo@GOTOFF'. */
-/* DEO:XXX match TARGET_ELF definition in i386/freebsd.h.  */
-#define HAVE_AS_GOTOFF_IN_DATA ((target_flags & MASK_AOUT) == 0)
+#define HAVE_AS_GOTOFF_IN_DATA 1
 
 /* Define if your assembler supports dwarf2 .file/.loc directives,
    and preserves file table indices exactly as given. */

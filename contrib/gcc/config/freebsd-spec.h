@@ -85,7 +85,7 @@ Boston, MA 02111-1307, USA.  */
    the final CPP_PREDEFINES value.  */
 
 #define FBSD_CPP_PREDEFINES \
-  "-D__FreeBSD__=5 -D__FreeBSD_cc_version=500004 -Dunix -D__KPRINTF_ATTRIBUTE__ -Asystem=unix -Asystem=bsd -Asystem=FreeBSD"
+  "-D__FreeBSD__=5 -D__FreeBSD_cc_version=500005 -Dunix -D__ELF__ -D__KPRINTF_ATTRIBUTE__ -Asystem=unix -Asystem=bsd -Asystem=FreeBSD"
 #endif	/* ! FREEBSD_NATIVE */
 
 
@@ -99,9 +99,6 @@ Boston, MA 02111-1307, USA.  */
 
 #define FBSD_CPP_SPEC "							\
   %(cpp_cpu)								\
-  %{!maout: -D__ELF__}							\
-  %{munderscores: -D__UNDERSCORES__}					\
-  %{maout: %{!mno-underscores: -D__UNDERSCORES__}}			\
   %{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__}		\
   %{!ansi:%{!std=c89:%{!std=iso9899.1990:%{!std=iso9899.199409:-D_LONGLONG}}}} \
   %{posix:-D_POSIX_SOURCE}"
