@@ -635,7 +635,7 @@ r_entry:
 
 	if (kbd == NULL)
 		return;		/* shouldn't happen */
-	(*kbdsw[kbd->kb_index]->init)(kbd);
+	kbd_configure(0);
 
 	ledstate = LEDSTATE_UPDATE_PENDING;
 

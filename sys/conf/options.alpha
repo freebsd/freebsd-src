@@ -1,4 +1,4 @@
-#	$Id: options.alpha,v 1.8 1999/01/18 20:26:50 gallatin Exp $
+#	$Id: options.alpha,v 1.9 1999/01/23 16:53:26 dfr Exp $
 
 EV5			opt_global.h
 EV4			opt_global.h
@@ -41,7 +41,11 @@ PSM_DEBUG		opt_psm.h
 # Fb options
 FB_INSTALL_CDEV		opt_fb.h
 
+# Atkbd options
+ATKBD_DFLT_KEYMAP	opt_atkbd.h
+
 # Kbd options
+KBD_DISABLE_KEYMAP_LOAD	opt_kbd.h
 KBD_INSTALL_CDEV	opt_kbd.h
 KBD_MAXRETRY		opt_kbd.h
 KBD_MAXWAIT		opt_kbd.h
