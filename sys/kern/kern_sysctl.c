@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.56 1995/12/07 12:46:52 davidg Exp $
+ * $Id: kern_sysctl.c,v 1.57 1995/12/14 08:31:36 phk Exp $
  */
 
 #include <sys/param.h>
@@ -563,7 +563,7 @@ sysctl_sysctl_name2oid SYSCTL_HANDLER_ARGS
 	return (error);
 }
 
-SYSCTL_PROC(_sysctl, 3, name2oid, CTLFLAG_RW, 0, 0, 
+SYSCTL_PROC(_sysctl, 3, name2oid, CTLFLAG_RW|CTLFLAG_ANYBODY, 0, 0, 
 	sysctl_sysctl_name2oid, "I", "");
 
 static int
@@ -698,7 +698,7 @@ sysctl_handle_opaque SYSCTL_HANDLER_ARGS
  * XXX: rather untested at this point
  */
 static int
-sysctl_old_kernel(struct sysctl_req *req, void *p, int l)
+sysctl_old_kernel(struct sysctl_req *req, const void *p, int l)
 {
 	int i = 0;
 
@@ -715,7 +715,7 @@ sysctl_old_kernel(struct sysctl_req *req, void *p, int l)
 }
 
 static int
-sysctl_new_kernel(struct sysctl_req *req, void *p, int l)
+sysctl_new_kernel(struct sysctl_req *req, const void *p, int l)
 {
 	if (!req->newptr)
 		return 0;
@@ -730,7 +730,7 @@ sysctl_new_kernel(struct sysctl_req *req, void *p, int l)
  * Transfer function to/from user space.
  */
 static int
-sysctl_old_user(struct sysctl_req *req, void *p, int l)
+sysctl_old_user(struct sysctl_req *req, const void *p, int l)
 {
 	int error = 0, i = 0;
 
@@ -807,10 +807,15 @@ sysctl_root SYSCTL_HANDLER_ARGS
 	}
 	return ENOENT;
 found:
-
 	/* If writing isn't allowed */
 	if (req->newptr && !((*oidpp)->oid_kind & CTLFLAG_WR))
 		return (EPERM);
+
+	/* Most likely only root can write */
+	if (!((*oidpp)->oid_kind & CTLFLAG_ANYBODY) &&
+	    req->newptr && req->p &&
+	    (i = suser(req->p->p_ucred, &req->p->p_acflag)))
+		return (i);
 
 	if (!(*oidpp)->oid_handler)
 		return EINVAL;
@@ -876,9 +881,6 @@ userland_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *old
 	bzero(&req, sizeof req);
 
 	req.p = p;
-
-	if (new != NULL && (error = suser(p->p_ucred, &p->p_acflag)))
-		return (error);
 
 	if (oldlenp) {
 		if (inkernel) {
