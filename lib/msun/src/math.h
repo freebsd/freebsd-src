@@ -68,6 +68,11 @@ extern const union __nan_un {
 #define	MATH_ERREXCEPT	2
 #define	math_errhandling	MATH_ERREXCEPT
 
+#ifdef	__ia64__
+#define	FP_FAST_FMA
+#endif
+#define	FP_FAST_FMAF
+
 /* Symbolic constants to classify floating point numbers. */
 #define	FP_INFINITE	0x01
 #define	FP_NAN		0x02
