@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7870.c,v 1.11.2.10 1996/04/28 19:37:09 gibbs Exp $
+ *	$Id: aic7870.c,v 1.11.2.11 1996/05/10 16:43:19 gibbs Exp $
  */
 
 #include <pci.h>
@@ -399,8 +399,8 @@ aic7870_attach(config_id, unit)
 		   default:
 		   {
 			printf("ahc: Unknown controller type.  Ignoring.\n");
+			splx(opri);
 			return;
-			break;
 		   }
 		}
 
@@ -435,9 +435,9 @@ aic7870_attach(config_id, unit)
 			}
 			else
 				our_id = 0x07;
-			outb(SCSICONF, (our_id & 0x07)|ENSPCHK|RESET_SCSI);
+			outb(SCSICONF + io_port, (our_id & 0x07)|ENSPCHK|RESET_SCSI);
 			/* In case we are a wide card */
-			outb(SCSICONF + 1, our_id);
+			outb(SCSICONF + 1 + io_port, our_id);
 
 			if(!ultra_enb || (ahc->flags & AHC_USEDEFAULTS)) {
 				/*
@@ -460,7 +460,6 @@ aic7870_attach(config_id, unit)
 	splx(opri);
 
 	ahc_attach(ahc);
-	return;
 }
 
 int
