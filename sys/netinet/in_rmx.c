@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: in_rmx.c,v 1.23 1996/01/23 05:15:30 fenner Exp $
+ * $Id: in_rmx.c,v 1.24 1996/04/26 18:31:41 wollman Exp $
  */
 
 /*
@@ -84,9 +84,38 @@ in_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 	/*
 	 * For IP, all unicast non-host routes are automatically cloning.
 	 */
-	if(!(rt->rt_flags & (RTF_HOST | RTF_CLONING))) {
-		if(!IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
-			rt->rt_flags |= RTF_PRCLONING;
+	if(IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
+		rt->rt_flags |= RTF_MULTICAST;
+
+	if(!(rt->rt_flags & (RTF_HOST | RTF_CLONING | RTF_MULTICAST))) {
+		rt->rt_flags |= RTF_PRCLONING;
+	}
+
+	/*
+	 * A little bit of help for both IP output and input:
+	 *   For host routes, we make sure that RTF_BROADCAST
+	 *   is set for anything that looks like a broadcast address.
+	 *   This way, we can avoid an expensive call to in_broadcast()
+	 *   in ip_output() most of the time (because the route passed
+	 *   to ip_output() is almost always a host route).
+	 *
+	 *   We also do the same for local addresses, with the thought
+	 *   that this might one day be used to speed up ip_input().
+	 *
+	 * We also mark routes to multicast addresses as such, because
+	 * it's easy to do and might be useful (but this is much more
+	 * dubious since it's so easy to inspect the address).  (This
+	 * is done above.)
+	 */
+	if (rt->rt_flags & RTF_HOST) {
+		if (in_broadcast(sin->sin_addr, rt->rt_ifp)) {
+			rt->rt_flags |= RTF_BROADCAST;
+		} else {
+#define satosin(sa) ((struct sockaddr_in *)sa)
+			if (satosin(rt->rt_ifa->ifa_addr)->sin_addr.s_addr
+			    == sin->sin_addr.s_addr)
+				rt->rt_flags |= RTF_LOCAL;
+#undef satosin
 		}
 	}
 
