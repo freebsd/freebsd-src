@@ -1495,13 +1495,11 @@ disc_optim(tp, t, rc)
 	struct rc_chans	*rc;
 {
 
-	if (!(t->c_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP
-			   | IXOFF | IXON))
+	if (!(t->c_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP | IXON))
 	    && (!(t->c_iflag & BRKINT) || (t->c_iflag & IGNBRK))
-	    && (!(t->c_iflag & PARMRK) ||
-		(t->c_iflag & (IGNPAR|IGNBRK)) == (IGNPAR|IGNBRK))
-	    && !(t->c_lflag & (ECHO | ECHONL | ICANON | IEXTEN | ISIG
-			   | PENDIN))
+	    && (!(t->c_iflag & PARMRK)
+		|| (t->c_iflag & (IGNPAR | IGNBRK)) == (IGNPAR | IGNBRK))
+	    && !(t->c_lflag & (ECHO | ICANON | IEXTEN | ISIG | PENDIN))
 	    && linesw[tp->t_line].l_rint == ttyinput)
 		tp->t_state |= TS_CAN_BYPASS_L_RINT;
 	else

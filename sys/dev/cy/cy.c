@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.11 1995/07/22 16:44:46 bde Exp $
+ *	$Id: cy.c,v 1.12 1995/07/29 04:05:53 bde Exp $
  */
 
 #include "cy.h"
@@ -2367,16 +2367,14 @@ disc_optim(tp, t, com)
 
 	/*
 	 * XXX can skip a lot more cases if Smarts.  Maybe
-	 * (IGNCR | ISTRIP | IXOFF | IXON) in c_iflag.  But perhaps we
+	 * (IGNCR | ISTRIP | IXON) in c_iflag.  But perhaps we
 	 * shouldn't skip if (TS_CNTTB | TS_LNCH) is set in t_state.
 	 */
-	if (!(t->c_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP
-			   | IXOFF | IXON))
+	if (!(t->c_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP | IXON))
 	    && (!(t->c_iflag & BRKINT) || (t->c_iflag & IGNBRK))
-	    && (!(t->c_iflag & PARMRK) ||
-		(t->c_iflag & (IGNPAR|IGNBRK)) == (IGNPAR|IGNBRK))
-	    && !(t->c_lflag & (ECHO | ECHONL | ICANON | IEXTEN | ISIG
-			   | PENDIN))
+	    && (!(t->c_iflag & PARMRK)
+		|| (t->c_iflag & (IGNPAR | IGNBRK)) == (IGNPAR | IGNBRK))
+	    && !(t->c_lflag & (ECHO | ICANON | IEXTEN | ISIG | PENDIN))
 	    && linesw[tp->t_line].l_rint == ttyinput)
 		tp->t_state |= TS_CAN_BYPASS_L_RINT;
 	else
