@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.41 1994/11/07 20:09:35 joerg Exp $
+ *      $Id: sd.c,v 1.42 1994/11/15 14:47:49 bde Exp $
  */
 
 #define SPLSD splbio
@@ -620,7 +620,7 @@ sdstart(unit)
 			}
 		} else {
 bad:
-			printf("sd%ld: oops not queued", unit);
+			printf("sd%ld: oops not queued\n", unit);
 			bp->b_error = EIO;
 			bp->b_flags |= B_ERROR;
 			biodone(bp);
