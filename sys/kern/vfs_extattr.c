@@ -4490,7 +4490,13 @@ fhstatfs(td, uap)
 int
 extattrctl(td, uap)
 	struct thread *td;
-	struct extattrctl_args *uap;
+	struct extattrctl_args /* {
+		syscallarg(const char *) path;
+		syscallarg(int) cmd;
+		syscallarg(const char *) filename;
+		syscallarg(int) attrnamespace;
+		syscallarg(const char *) attrname;
+	} */ *uap;
 {
 	struct vnode *filename_vp;
 	struct nameidata nd;
@@ -4499,32 +4505,32 @@ extattrctl(td, uap)
 	int error;
 
 	/*
-	 * SCARG(uap, attrname) not always defined.  We check again later
-	 * when we invoke the VFS call so as to pass in NULL there if needed.
+	 * uap->attrname is not always defined.  We check again later when we
+	 * invoke the VFS call so as to pass in NULL there if needed.
 	 */
-	if (SCARG(uap, attrname) != NULL) {
-		error = copyinstr(SCARG(uap, attrname), attrname,
-		    EXTATTR_MAXNAMELEN, NULL);
+	if (uap->attrname != NULL) {
+		error = copyinstr(uap->attrname, attrname, EXTATTR_MAXNAMELEN,
+		    NULL);
 		if (error)
 			return (error);
 	}
 
 	/*
-	 * SCARG(uap, filename) not always defined.  If it is, grab
-	 * a vnode lock, which VFS_EXTATTRCTL() will later release.
+	 * uap->filename is not always defined.  If it is, grab a vnode lock,
+	 * which VFS_EXTATTRCTL() will later release.
 	 */
 	filename_vp = NULL;
-	if (SCARG(uap, filename) != NULL) {
+	if (uap->filename != NULL) {
 		NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
-		    SCARG(uap, filename), td);
+		    uap->filename, td);
 		if ((error = namei(&nd)) != 0)
 			return (error);
 		filename_vp = nd.ni_vp;
 		NDFREE(&nd, NDF_NO_VP_RELE | NDF_NO_VP_UNLOCK);
 	}
 
-	/* SCARG(uap, path) always defined. */
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
+	/* uap->path is always defined. */
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
 	if ((error = namei(&nd)) != 0) {
 		if (filename_vp != NULL)
 			vput(filename_vp);
@@ -4539,12 +4545,12 @@ extattrctl(td, uap)
 		return (error);
 	}
 
-	if (SCARG(uap, attrname) != NULL) {
-		error = VFS_EXTATTRCTL(mp, SCARG(uap, cmd), filename_vp,
-		    SCARG(uap, attrnamespace), attrname, td);
+	if (uap->attrname != NULL) {
+		error = VFS_EXTATTRCTL(mp, uap->cmd, filename_vp,
+		    uap->attrnamespace, attrname, td);
 	} else {
-		error = VFS_EXTATTRCTL(mp, SCARG(uap, cmd), filename_vp,
-		    SCARG(uap, attrnamespace), NULL, td);
+		error = VFS_EXTATTRCTL(mp, uap->cmd, filename_vp,
+		    uap->attrnamespace, NULL, td);
 	}
 
 	vn_finished_write(mp_writable);
@@ -4612,24 +4618,29 @@ done:
 int
 extattr_set_file(td, uap)
 	struct thread *td;
-	struct extattr_set_file_args *uap;
+	struct extattr_set_file_args /* {
+		syscallarg(const char *) path;
+		syscallarg(int) attrnamespace;
+		syscallarg(const char *) attrname;
+		syscallarg(void *) data;
+		syscallarg(size_t) nbytes;
+	} */ *uap;
 {
 	struct nameidata nd;
 	char attrname[EXTATTR_MAXNAMELEN];
 	int error;
 
-	error = copyinstr(SCARG(uap, attrname), attrname, EXTATTR_MAXNAMELEN,
-	    NULL);
+	error = copyinstr(uap->attrname, attrname, EXTATTR_MAXNAMELEN, NULL);
 	if (error)
 		return (error);
 
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
-	error = extattr_set_vp(nd.ni_vp, SCARG(uap, attrnamespace), attrname,
-	    SCARG(uap, data), SCARG(uap, nbytes), td);
+	error = extattr_set_vp(nd.ni_vp, uap->attrnamespace, attrname,
+	    uap->data, uap->nbytes, td);
 
 	vrele(nd.ni_vp);
 	return (error);
@@ -4638,23 +4649,27 @@ extattr_set_file(td, uap)
 int
 extattr_set_fd(td, uap)
 	struct thread *td;
-	struct extattr_set_fd_args *uap;
+	struct extattr_set_fd_args /* {
+		syscallarg(int) fd;
+		syscallarg(int) attrnamespace;
+		syscallarg(const char *) attrname;
+		syscallarg(void *) data;
+		syscallarg(size_t) nbytes;
+	} */ *uap;
 {
 	struct file *fp;
 	char attrname[EXTATTR_MAXNAMELEN];
 	int error;
 
-	error = copyinstr(SCARG(uap, attrname), attrname, EXTATTR_MAXNAMELEN,
-	    NULL);
+	error = copyinstr(uap->attrname, attrname, EXTATTR_MAXNAMELEN, NULL);
 	if (error)
 		return (error);
 
-	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
 
-	error = extattr_set_vp((struct vnode *)fp->f_data,
-	    SCARG(uap, attrnamespace), attrname, SCARG(uap, data),
-	    SCARG(uap, nbytes), td);
+	error = extattr_set_vp((struct vnode *)fp->f_data, uap->attrnamespace,
+	    attrname, uap->data, uap->nbytes, td);
 	fdrop(fp, td);
 
 	return (error);
@@ -4719,24 +4734,29 @@ done:
 int
 extattr_get_file(td, uap)
 	struct thread *td;
-	struct extattr_get_file_args *uap;
+	struct extattr_get_file_args /* {
+		syscallarg(const char *) path;
+		syscallarg(int) attrnamespace;
+		syscallarg(const char *) attrname;
+		syscallarg(void *) data;
+		syscallarg(size_t) nbytes;
+	} */ *uap;
 {
 	struct nameidata nd;
 	char attrname[EXTATTR_MAXNAMELEN];
 	int error;
 
-	error = copyinstr(SCARG(uap, attrname), attrname, EXTATTR_MAXNAMELEN,
-	    NULL);
+	error = copyinstr(uap->attrname, attrname, EXTATTR_MAXNAMELEN, NULL);
 	if (error)
 		return (error);
 
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
-	error = extattr_get_vp(nd.ni_vp, SCARG(uap, attrnamespace), attrname,
-	    SCARG(uap, data), SCARG(uap, nbytes), td);
+	error = extattr_get_vp(nd.ni_vp, uap->attrnamespace, attrname,
+	    uap->data, uap->nbytes, td);
 
 	vrele(nd.ni_vp);
 	return (error);
@@ -4745,23 +4765,27 @@ extattr_get_file(td, uap)
 int
 extattr_get_fd(td, uap)
 	struct thread *td;
-	struct extattr_get_fd_args *uap;
+	struct extattr_get_fd_args /* {
+		syscallarg(int) fd;
+		syscallarg(int) attrnamespace;
+		syscallarg(const char *) attrname;
+		syscallarg(void *) data;
+		syscallarg(size_t) nbytes;
+	} */ *uap;
 {
 	struct file *fp;
 	char attrname[EXTATTR_MAXNAMELEN];
 	int error;
 
-	error = copyinstr(SCARG(uap, attrname), attrname, EXTATTR_MAXNAMELEN,
-	    NULL);
+	error = copyinstr(uap->attrname, attrname, EXTATTR_MAXNAMELEN, NULL);
 	if (error)
 		return (error);
 
 	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
 		return (error);
 
-	error = extattr_get_vp((struct vnode *)fp->f_data,
-	    SCARG(uap, attrnamespace), attrname, SCARG(uap, data),
-	    SCARG(uap, nbytes), td);
+	error = extattr_get_vp((struct vnode *)fp->f_data, uap->attrnamespace,
+	    attrname, uap->data, uap->nbytes, td);
 
 	fdrop(fp, td);
 	return (error);
@@ -4800,24 +4824,26 @@ extattr_delete_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 int
 extattr_delete_file(td, uap)
 	struct thread *td;
-	struct extattr_delete_file_args *uap;
+	struct extattr_delete_file_args /* {
+		syscallarg(const char *) path;
+		syscallarg(int) attrnamespace;
+		syscallarg(const char *) attrname;
+	} */ *uap;
 {
 	struct nameidata nd;
 	char attrname[EXTATTR_MAXNAMELEN];
 	int error;
 
-	error = copyinstr(SCARG(uap, attrname), attrname, EXTATTR_MAXNAMELEN,
-	     NULL);
+	error = copyinstr(uap->attrname, attrname, EXTATTR_MAXNAMELEN, NULL);
 	if (error)
 		return(error);
 
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return(error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
-	error = extattr_delete_vp(nd.ni_vp, SCARG(uap, attrnamespace),
-	    attrname, td);
+	error = extattr_delete_vp(nd.ni_vp, uap->attrnamespace, attrname, td);
 
 	vrele(nd.ni_vp);
 	return(error);
@@ -4826,24 +4852,27 @@ extattr_delete_file(td, uap)
 int
 extattr_delete_fd(td, uap)
 	struct thread *td;
-	struct extattr_delete_fd_args *uap;
+	struct extattr_delete_fd_args /* {
+		syscallarg(int) fd;
+		syscallarg(int) attrnamespace;
+		syscallarg(const char *) attrname;
+	} */ *uap;
 {
 	struct file *fp;
 	struct vnode *vp;
 	char attrname[EXTATTR_MAXNAMELEN];
 	int error;
 
-	error = copyinstr(SCARG(uap, attrname), attrname, EXTATTR_MAXNAMELEN,
-	    NULL);
+	error = copyinstr(uap->attrname, attrname, EXTATTR_MAXNAMELEN, NULL);
 	if (error)
 		return (error);
 
-	if ((error = getvnode(td->td_proc->p_fd, SCARG(uap, fd), &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
 	vp = (struct vnode *)fp->f_data;
 
 	error = extattr_delete_vp((struct vnode *)fp->f_data,
-	    SCARG(uap, attrnamespace), attrname, td);
+	    uap->attrnamespace, attrname, td);
 
 	fdrop(fp, td);
 	return (error);
