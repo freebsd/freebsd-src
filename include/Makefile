@@ -36,7 +36,7 @@ LDIRS=	cam geom net net80211 netatalk netatm netgraph netinet netinet6 \
 
 LSUBDIRS=	cam/scsi \
 	dev/acpica dev/an dev/bktr dev/firewire \
-	dev/ic dev/iicbus dev/ofw \
+	dev/ic dev/iicbus ${_dev_ieee488} dev/ofw \
 	dev/ppbus dev/smbus dev/usb dev/wi dev/utopia \
 	fs/devfs fs/fdescfs fs/fifofs fs/msdosfs fs/ntfs fs/nullfs \
 	fs/nwfs fs/portalfs fs/procfs fs/smbfs fs/udf fs/umapfs \
@@ -49,6 +49,10 @@ LSUBDIRS=	cam/scsi \
 	security/mac_biba security/mac_bsdextended security/mac_lomac \
 	security/mac_mls security/mac_partition \
 	ufs/ffs ufs/ufs
+
+.if !defined(NO_GPIB)
+_dev_ieee488=	dev/ieee488
+.endif
 
 .if !defined(NO_BLUETOOTH)
 LSUBSUBDIRS=	netgraph/bluetooth/include
