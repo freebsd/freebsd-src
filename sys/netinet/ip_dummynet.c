@@ -10,7 +10,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_dummynet.c,v 1.7.2.2 1999/03/26 14:19:40 luigi Exp $
+ *	$Id: ip_dummynet.c,v 1.7.2.3 1999/03/26 16:48:55 luigi Exp $
  */
 
 /*
@@ -152,9 +152,11 @@ dn_move(struct dn_pipe *pipe, int immediate)
 	     * such that the pkt would go out before the next tick.
 	     */
 	    if (pipe->bandwidth) {
-		if (pipe->numbytes < len)
+		int len_scaled = len*8*hz ;
+		/* numbytes is in bit/sec, scaled 8*hz ... */
+		if (pipe->numbytes < len_scaled)
 		    break;
-		pipe->numbytes -= len;
+		pipe->numbytes -= len_scaled;
 	    }
 	    pipe->r_len--; /* elements in queue */
 	    pipe->r_len_bytes -= len ;
@@ -216,7 +218,7 @@ dn_move(struct dn_pipe *pipe, int immediate)
 	    struct rtentry *tmp_rt = pkt->ro.ro_rt ;
 
 	    (void)ip_output((struct mbuf *)pkt, (struct mbuf *)pkt->ifp,
-			&(pkt->ro), pkt->dn_hlen, NULL);
+			&(pkt->ro), pkt->dn_dst, NULL);
 	    rt_unref (tmp_rt) ;
 	    }
 	    break ;
@@ -224,8 +226,13 @@ dn_move(struct dn_pipe *pipe, int immediate)
 	    ip_input((struct mbuf *)pkt) ;
 	    break ;
 #ifdef BRIDGE
-	case DN_TO_BDG_FWD :
-	    bdg_forward((struct mbuf **)&pkt, pkt->ifp);
+	case DN_TO_BDG_FWD : {
+	    struct mbuf *m = (struct mbuf *)pkt ;
+
+	    bdg_forward(&m, pkt->ifp);
+	    if (m)
+		m_freem(m);
+	    }
 	    break ;
 #endif
 	default:
@@ -277,7 +284,8 @@ dummynet(void * __unused unused)
  */
 int
 dummynet_io(int pipe_nr, int dir,
-	struct mbuf *m, struct ifnet *ifp, struct route *ro, int hlen,
+	struct mbuf *m, struct ifnet *ifp, struct route *ro,
+	struct sockaddr_in *dst,
 	struct ip_fw_chain *rule)
 {
     struct dn_pkt *pkt;
@@ -333,11 +341,21 @@ dummynet_io(int pipe_nr, int dir,
 
     pkt->ifp = ifp;
     if (dir == DN_TO_IP_OUT) {
-	pkt->ro = *ro; /* XXX copied! */
+	/*
+	 * we need to copy *ro because for icmp pkts (and maybe others)
+	 * the caller passed a pointer into the stack.
+	 */
+	pkt->ro = *ro;
 	if (ro->ro_rt)
 	    ro->ro_rt->rt_refcnt++ ; /* XXX */
+	/*
+	 * and again, dst might be a pointer into *ro...
+	 */
+	if (dst == &ro->ro_dst) /* dst points into ro */
+	    dst = &(pkt->ro.ro_dst) ;
+
+	pkt->dn_dst = dst;
     }
-    pkt->dn_hlen = hlen;
     if (pipe->r.head == NULL)
 	pipe->r.head = pkt;
     else
@@ -469,11 +487,10 @@ ip_dn_ctl(struct sockopt *sopt)
 	    struct dn_pipe *q = (struct dn_pipe *)bp ;
 
 	    bcopy(p, bp, sizeof( *p ) );
-		/*
-		 * return bw and delay in bits/s and ms, respectively
-		 */
-		q->bandwidth *= (8*hz) ;
-		q->delay = (q->delay * 1000) / hz ;
+	    /*
+	     * return bw and delay in bits/s and ms, respectively
+	     */
+	    q->delay = (q->delay * 1000) / hz ;
 	    bp += sizeof( *p ) ;
 	}
 	error = sooptcopyout(sopt, buf, size);
@@ -490,25 +507,19 @@ ip_dn_ctl(struct sockopt *sopt)
 	    /*
 	     * The config program passes parameters as follows:
 	     * bandwidth = bits/second (0 = no limits);
-	     *    must be translated in bytes/tick.
 	     * delay = ms
 	     *    must be translated in ticks.
 	     * queue_size = slots (0 = no limit)
 	     * queue_size_bytes = bytes (0 = no limit)
 	     *	  only one can be set, must be bound-checked
 	     */
-	    if ( p->bandwidth > 0 ) {
-		p->bandwidth = p->bandwidth / 8 / hz ;
-		if (p->bandwidth == 0)	/* too little does not make sense! */
-			p->bandwidth = 10 ;
-	    }
 	    p->delay = ( p->delay * hz ) / 1000 ;
 	    if (p->queue_size == 0 && p->queue_size_bytes == 0)
-		p->queue_size = 100 ;
+		p->queue_size = 50 ;
 	    if (p->queue_size != 0 )	/* buffers are prevailing */
 		p->queue_size_bytes = 0 ;
 	    if (p->queue_size > 100)
-		p->queue_size = 100 ;
+		p->queue_size = 50 ;
 	    if (p->queue_size_bytes > 1024*1024)
 		p->queue_size_bytes = 1024*1024 ;
 #if 0
@@ -590,8 +601,7 @@ ip_dn_ctl(struct sockopt *sopt)
 void
 ip_dn_init(void)
 {
-    printf("DUMMYNET initialized (990326) -- size dn_pkt %d\n",
-	sizeof(struct dn_pkt));
+    printf("DUMMYNET initialized (990504)\n");
     all_pipes = NULL ;
     ip_dn_ctl_ptr = ip_dn_ctl;
 }

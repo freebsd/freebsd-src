@@ -10,7 +10,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_dummynet.h,v 1.3 1999/01/23 23:59:50 archie Exp $
+ *	$Id: ip_dummynet.h,v 1.2.2.1 1999/01/25 19:19:28 archie Exp $
  */
 
 #ifndef _IP_DUMMYNET_H
@@ -39,7 +39,7 @@ struct dn_pkt {
 	struct m_hdr hdr ;
 #define dn_next	hdr.mh_nextpkt	/* next element in queue */
 #define dn_m	hdr.mh_next	/* packet to be forwarded */
-#define dn_hlen	hdr.mh_len	/* hlen, for ip_output			*/
+#define dn_dst	hdr.mh_len	/* dst, for ip_output			*/
 #define dn_dir	hdr.mh_flags	/* IP_FW_F_IN or IP_FW_F_OUT		*/
         int     delay;		/* stays queued until delay=0		*/
         struct ifnet *ifp;	/* interface, for ip_output		*/
@@ -108,7 +108,8 @@ extern ip_dn_ctl_t *ip_dn_ctl_ptr;
 void ip_dn_init(void);	/* called in ip_input.c */
 void dn_rule_delete(void *r);		/* used in ip_fw.c */
 int dummynet_io(int pipe, int dir,
-	struct mbuf *m, struct ifnet *ifp, struct route *ro, int hlen,
+	struct mbuf *m, struct ifnet *ifp, struct route *ro,
+	struct sockaddr_in * dst,
 	struct ip_fw_chain *rule);
 #endif /* KERNEL */
 
