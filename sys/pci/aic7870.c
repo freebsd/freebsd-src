@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7870.c,v 1.3 1995/01/22 00:47:50 gibbs Exp $
+ *	$Id: aic7870.c,v 1.4 1995/02/02 12:36:14 davidg Exp $
  */
 
 #include <pci.h>
@@ -29,6 +29,7 @@
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 #include <pci/pcireg.h>
+#include <pci/pcivar.h>
 #include <i386/scsi/aic7xxx.h>
 
 #define PCI_BASEADR0	PCI_MAP_REG_START
@@ -40,11 +41,14 @@ void aic7870_attach __P((pcici_t config_id, int unit));
 
 static u_long aic7870_count;
 
-struct  pci_driver ahc_device = {
+struct  pci_device ahc_device = {
+	"ahc",
         aic7870_probe,
         aic7870_attach,
         &aic7870_count
 };
+
+DATA_SET (pcidevice_set, ahc_device);
 
 static  char* 
 aic7870_probe (pcici_t tag, pcidi_t type)

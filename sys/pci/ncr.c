@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.14 1995/01/12 14:01:13 se Exp $
+**  $Id: ncr.c,v 1.15 1995/02/02 12:36:16 davidg Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -44,15 +44,21 @@
 ***************************************************************************
 */
 
+#define	NCR_PATCHLEVEL	"pl4 95/01/27"
+
 #define NCR_VERSION	(2)
 #define	MAX_UNITS	(16)
 
+#ifndef LDSC
+	/* belongs to sstat2 in ncrreg.h */
+        #define   LDSC    0x02  /* sta: disconnect & reconnect      */
+#endif
 
 /*==========================================================
 **
 **	Configuration and Debugging
 **
-**	May be overwritten in <i386/conf/XXXXX>
+**	May be overwritten in <arch/conf/XXXXX>
 **
 **==========================================================
 */
@@ -139,12 +145,6 @@
 */
 
 #define MAX_SIZE  ((MAX_SCATTER-1) * NBPG)
-
-/*
-**    Write disk status information to dkstat ?
-*/
-
-/* #define DK */
 
 /*==========================================================
 **
@@ -163,19 +163,23 @@
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/kernel.h>
-#ifdef DK
-#include <sys/dkstat.h>
-#endif /* DK */
+#ifndef __NetBSD__
+#include <machine/clock.h>
+#endif
 #include <vm/vm.h>
 #endif /* KERNEL */
 
-#include <pci/ncrreg.h>
 
-#ifdef __NetBSD__
-#include <sys/device.h>
-#include <i386/pci/pcivar.h>
-#endif /* __NetBSD */
+#ifndef __NetBSD__
+#include <pci/pcivar.h>
 #include <pci/pcireg.h>
+#include <pci/ncrreg.h>
+#else
+#include <sys/device.h>
+#include <i386/pci/ncrreg.h>
+#include <i386/pci/pcivar.h>
+#include <i386/pci/pcireg.h>
+#endif /* __NetBSD */
 
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
@@ -1152,7 +1156,7 @@ struct script {
 	ncrcmd  data_in		[MAX_SCATTER * 4 + 7];
 	ncrcmd  data_out	[MAX_SCATTER * 4 + 7];
 	ncrcmd	aborttag	[  4];
-	ncrcmd	abort		[ 20];
+	ncrcmd	abort		[ 22];
 	ncrcmd	snooptest	[ 11];
 };
 
@@ -1222,7 +1226,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.14 1995/01/12 14:01:13 se Exp $\n";
+	"\n$Id: ncr.c,v 1.15 1995/02/02 12:36:16 davidg Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
@@ -1258,7 +1262,6 @@ static u_char rs_cmd  [6] =
 */
 
 #define	NCR_810_ID	(0x00011000ul)
-#define	NCR_815_ID	(0x00041000ul)
 #define	NCR_825_ID	(0x00031000ul)
 
 #ifdef __NetBSD__
@@ -1271,11 +1274,14 @@ struct	cfdriver ncrcd = {
 
 static u_long ncr_count;
 
-struct	pci_driver ncr_device = {
+struct	pci_device ncr_device = {
+	"ncr",
 	ncr_probe,
 	ncr_attach,
 	&ncr_count
 };
+
+DATA_SET (pcidevice_set, ncr_device);
 
 #endif /* !__NetBSD__ */
 
@@ -2345,7 +2351,8 @@ static	struct script script0 = {
 	/*
 	**	DISCONNECTing  ...
 	**
-	**	Disable the "unexpected disconnect" feature.
+	**	disable the "unexpected disconnect" feature,
+	**	and remove the ACK signal.
 	*/
 	SCR_REG_REG (scntl2, SCR_AND, 0x7f),
 		0,
@@ -2383,8 +2390,6 @@ static	struct script script0 = {
 }/*-------------------------< MSG_OUT >-------------------*/,{
 	/*
 	**	The target requests a message.
-	**	First remove ATN so the target will
-	**	not continue fetching messages.
 	*/
 	SCR_MOVE_ABS (1) ^ SCR_MSG_OUT,
 		NADDR (msgout),
@@ -2824,6 +2829,8 @@ static	struct script script0 = {
 	SCR_COPY (1),
 		RADDR (sfbr),
 		NADDR (lastmsg),
+	SCR_CLR (SCR_ACK),
+		0,
 	SCR_WAIT_DISC,
 		0,
 	SCR_JUMP,
@@ -3119,7 +3126,6 @@ ncr_probe(parent, self, aux)
 	if (!pci_targmatch(cf, pa))
 		return 0;
 	if (pa->pa_id != NCR_810_ID &&
-	    pa->pa_id != NCR_815_ID &&
 	    pa->pa_id != NCR_825_ID)
   		return 0;
 
@@ -3135,9 +3141,6 @@ static	char* ncr_probe (pcici_t tag, pcidi_t type)
 
 	case NCR_810_ID:
 		return ("ncr 53c810 scsi");
-
-	case NCR_815_ID:
-		return ("ncr 53c815 scsi");
 
 	case NCR_825_ID:
 		return ("ncr 53c825 wide scsi");
@@ -3247,7 +3250,6 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	case NCR_810_ID:
 		np->maxwide = 0;
 		break;
-	case NCR_815_ID:
 	case NCR_825_ID:
 		np->maxwide = 1;
 		break;
@@ -3296,6 +3298,31 @@ static	void ncr_attach (pcici_t config_id, int unit)
 	OUTB (nc_istat,  SRST);
 	OUTB (nc_istat,  0   );
 
+#ifdef NCR_DUMP_REG
+	/*
+	**	Log the initial register contents
+	*/
+	{
+		int reg;
+#ifdef __NetBSD__
+		u_long config_id = pa->pa_tag;
+#endif
+		for (reg=0; reg<256; reg+=4) {
+			if (reg%16==0) printf ("reg[%2x]", reg);
+			printf (" %08x", (int)pci_conf_read (config_id, reg));
+			if (reg%16==12) printf ("\n");
+		}
+	}
+
+	/*
+	**	Reset chip, once again.
+	*/
+
+	OUTB (nc_istat,  SRST);
+	OUTB (nc_istat,  0   );
+
+#endif NCR_DUMP_REG
+
 	/*
 	**	Now check the cache handling of the pci chipset.
 	*/
@@ -3333,8 +3360,12 @@ static	void ncr_attach (pcici_t config_id, int unit)
 		ncr_name (np));
 	DELAY (1000000);
 #endif
-	printf ("%s scanning for targets 0..%d ($Revision: 1.14 $)\n",
-		ncr_name (np), MAX_TARGET-1);
+#ifdef NCR_PATCHLEVEL
+	printf ("%s scanning for targets 0..%d (V%d " NCR_PATCHLEVEL ")\n",
+#else
+	printf ("%s scanning for targets 0..%d (V%d)\n",
+#endif
+		ncr_name (np), MAX_TARGET-1, NCR_VERSION);
 
 	/*
 	**	Now let the generic SCSI driver
@@ -3668,7 +3699,22 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 	**----------------------------------------------------
 	*/
 
-	idmsg = (cp==&np->ccb ? 0x80 : 0xc0) | xp->LUN;
+#ifndef NCR_NO_DISCONNECT
+	idmsg = (cp==&np->ccb ? M_IDENTIFY : 0xc0) | xp->LUN;
+#else
+	/*---------------------------------------------------------------------
+	** Some users have problems with this driver.
+	** I assume that the current problems relate to a conflict between
+	** a disconnect and an immediately following reconnect operation.
+	** With this option you can prevent the driver from using disconnects.
+	** If this removes the problems, I would know where to search further..
+	** Of course this is no solution.
+	** Without disconnects the performance will be severely degraded.
+	** But it may help to trace down the core problem.
+	**---------------------------------------------------------------------
+	*/
+	idmsg = M_IDENTIFY | xp->LUN;
+#endif
 
 	cp -> scsi_smsg [0] = idmsg;
 	msglen=1;
@@ -3957,7 +4003,7 @@ void ncr_complete (ncb_p np, ccb_p cp)
 	**	Sanity check
 	*/
 
-	if (!cp || !cp->magic || !cp->xfer) return;
+	if (!cp || (cp->magic!=CCB_MAGIC) || !cp->xfer) return;
 	cp->magic = 1;
 	cp->tlimit= 0;
 
@@ -4083,12 +4129,6 @@ void ncr_complete (ncb_p np, ccb_p cp)
 			if (lp->reqlink != lp->actlink)
 				ncr_opennings (np, lp, xp);
 		};
-
-#ifdef DK
-		dk_xfer[DK] ++;
-		dk_wds [DK] += xp->datalen/64;
-		dk_wpms[DK] =  1000000;
-#endif /* DK */
 
 		tp->bytes     += xp->datalen;
 		tp->transfers ++;
@@ -4306,7 +4346,7 @@ void ncr_init (ncb_p np, char * msg, u_long code)
 	OUTB (nc_scntl0, 0xca   );      /*  full arb., ena parity, par->ATN  */
 	OUTB (nc_scntl1, 0x00	);	/*  odd parity, and remove CRST!!    */
 	OUTB (nc_scntl3, np->rv_scntl3);/*  timing prescaler                 */
-	OUTB (nc_scid  , 0x40|np->myaddr);/*  host adapter SCSI address      */
+	OUTB (nc_scid  , RRE|np->myaddr);/*  host adapter SCSI address      */
 	OUTW (nc_respid, 1ul<<np->myaddr);/*  id to respond to               */
 	OUTB (nc_istat , SIGP	);	/*  Signal Process                   */
 	OUTB (nc_dmode , 0xc0	);	/*  Burst length = 16 transfer       */
@@ -4684,6 +4724,10 @@ static void ncr_timeout (ncb_p np)
 	ccb_p cp;
 
 	if (np->lasttime != thistime) {
+		/*
+		**	block ncr interupts
+		*/
+		int oldspl = splbio();
 		np->lasttime = thistime;
 
 		ncr_usercmd (np);
@@ -4781,12 +4825,9 @@ static void ncr_timeout (ncb_p np)
 			/*
 			**	wakeup this ccb.
 			*/
-			{
-				int oldspl = splbio();
-				ncr_complete (np, cp);
-				splx (oldspl);
-			};
+			ncr_complete (np, cp);
 		};
+		splx (oldspl);
 	}
 
 	timeout (TIMEOUT ncr_timeout, (caddr_t) np, step ? step : 1);
@@ -4819,6 +4860,7 @@ void ncr_exception (ncb_p np)
 	u_char  istat, dstat;
 	u_short sist;
 	u_long	dsp;
+	int	i;
 
 	/*
 	**	interrupt on the fly ?
@@ -4935,13 +4977,47 @@ void ncr_exception (ncb_p np)
 		np->regdump.nc_dstat = dstat;
 		np->regdump.nc_sist  = sist;
 	};
+
+	/*=========================================
+	**	log message for real hard errors
+	**=========================================
 
-	printf ("%s targ %d?: ERROR (%x:%x:%x) (%x/%x) @ (%x:%x).\n",
+	"ncr0 targ 0?: ERROR (ds:si) (so-si-sd) (sxfer/scntl3) @ (dsp:dbc)."
+	"              reg: r0 r1 r2 r3 r4 r5 r6 ..... rf."
+
+	exception register:
+		ds:	dstat
+		si:	sist
+
+	SCSI bus lines:
+		so:	control lines as driver by NCR.
+		si:	control lines as seen by NCR.
+		sd:	scsi data lines as seen by NCR.
+
+	wide/fastmode:
+		sxfer:	(see the manual)
+		scntl3:	(see the manual)
+
+	current script command:
+		dsp:	script adress (relative to start of script).
+		dbc:	first word of script command.
+
+	First 16 register of the chip:
+		r0..rf
+
+	=============================================
+	*/
+
+	printf ("%s targ %d?: ERROR (%x:%x) (%x-%x-%x) (%x/%x) @ (%x:%x).\n",
 		ncr_name (np), INB (nc_ctest0)&7, dstat, sist,
-		INB (nc_sbcl),
+		INB (nc_socl), INB (nc_sbcl), INB (nc_sbdl),
 		INB (nc_sxfer),INB (nc_scntl3),
-		(unsigned) (dsp = INL (nc_dsp)),
+		((unsigned) (dsp = INL (nc_dsp))) - (unsigned) np->p_script,
 		(unsigned) INL (nc_dbc));
+	printf ("              reg:");
+	for (i=0; i<16;i++)
+		printf (" %x", ((u_char*)np->reg)[i]);
+	printf (".\n");
 
 	/*----------------------------------------
 	**	clean up the dma fifo
@@ -4980,15 +5056,27 @@ void ncr_exception (ncb_p np)
 		!(dstat & (MDPE|BF|ABRT|SIR)) &&
 		((INL(nc_dbc) & 0xf8000000) == SCR_WAIT_DISC)) {
 		/*
-		**      Data cycles while waiting for disconnect.
-		**	Force disconnect.
+		**      Unexpected data cycle while waiting for disconnect.
 		*/
-		OUTB (nc_scntl1, 0);
+		if (INB(nc_sstat2) & LDSC) {
+			/*
+			**	It's an early reconnect.
+			**	Let's continue ...
+			*/
+			OUTB (nc_dcntl, (STD|NOCOM));
+			/*
+			**	info message
+			*/
+			printf ("%s: XXX INFO: LDSC while IID.\n",
+				ncr_name (np));
+			return;
+		};
+		printf ("%s: target %d? doesn't release the bus.\n",
+			ncr_name (np), INB (nc_ctest0)&7);
 		/*
-		**      System may hang, but timeout will handle that.
-		**	In fact, timeout can handle ALL problems :-)
+		**	return without restarting the NCR.
+		**	timeout will do the real work.
 		*/
-		OUTB (nc_dcntl, (STD|NOCOM));
 		return;
 	};
 
@@ -5914,7 +6002,7 @@ static	ccb_p ncr_get_ccb
 
 	while (cp->magic) {
 		if (flags & SCSI_NOSLEEP) break;
-		if (tsleep ((caddr_t)cp, PZERO|PCATCH, "ncr", 0))
+		if (tsleep ((caddr_t)cp, PRIBIO|PCATCH, "ncr", 0))
 			break;
 	};
 

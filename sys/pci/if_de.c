@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.13 1994/12/22 23:42:25 davidg Exp $
+ * $Id: if_de.c,v 1.14 1995/02/02 12:36:15 davidg Exp $
  *
  */
 
@@ -46,6 +46,8 @@
 #include <sys/ioctl.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
+#include <sys/kernel.h>
+#include <machine/clock.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -78,9 +80,9 @@
 
 #include <pci.h>
 #if NPCI > 0
-#include <pci/pcireg.h>
+#include <pci/pcivar.h>
 #endif
-#include <i386/isa/icu.h>
+
 #include <pci/dc21040.h>
 
 /*
@@ -840,6 +842,8 @@ tulip_addr_filter(
     }
 }
 
+/*extern void arp_ifinit(struct arpcom *, struct ifaddr*);*/
+
 static int
 tulip_ioctl(
     struct ifnet *ifp,
@@ -1041,11 +1045,14 @@ static char* tulip_pci_probe (pcici_t config_id, pcidi_t device_id);
 static void  tulip_pci_attach(pcici_t config_id, int unit);
 static u_long tulip_count;
 
-struct pci_driver dedevice = {
+struct pci_device dedevice = {
+    "de",
     tulip_pci_probe,
     tulip_pci_attach,
    &tulip_count,
 };
+
+DATA_SET (pcidevice_set, dedevice);
 
 #define	PCI_CFID	0x00	/* Configuration ID */
 #define	PCI_CFCS	0x04	/* Configurtion Command/Status */
