@@ -47,7 +47,7 @@ _pthread_join(pthread_t pthread, void **thread_return)
 	_thread_enter_cancellation_point();
 
 	/* Check if the caller has specified an invalid thread: */
-	if (pthread == NULL || pthread->magic != PTHREAD_MAGIC) {
+	if (pthread->magic != PTHREAD_MAGIC) {
 		/* Invalid thread: */
 		_thread_leave_cancellation_point();
 		return(EINVAL);
@@ -85,16 +85,20 @@ _pthread_join(pthread_t pthread, void **thread_return)
 			}
 
 	/* Check if the thread was not found or has been detached: */
-	if (thread == NULL ||
-	    ((pthread->attr.flags & PTHREAD_DETACHED) != 0)) {
-		if (thread != NULL)
-			UMTX_UNLOCK(&pthread->lock);
+	if (thread == NULL) {
 		THREAD_LIST_UNLOCK;
 		DEAD_LIST_UNLOCK;
 		ret = ESRCH;
 		goto out;
-
 	}
+	if ((pthread->attr.flags & PTHREAD_DETACHED) != 0) {
+		UMTX_UNLOCK(&pthread->lock);
+		THREAD_LIST_UNLOCK;
+		DEAD_LIST_UNLOCK;
+		ret = EINVAL;
+		goto out;
+	}
+
 	if (pthread->joiner != NULL) {
 		/* Multiple joiners are not supported. */
 		/* XXXTHR - support multiple joiners. */
