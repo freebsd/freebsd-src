@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.27 1995/10/09 05:09:37 bde Exp $
+#	$Id: bsd.lib.mk,v 1.29 1996/01/21 17:26:25 jdp Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -20,20 +20,9 @@ CXXINCLUDES+= -I${DESTDIR}/usr/include/${CXX}
 CFLAGS+= ${DEBUG_FLAGS}
 .endif
 
-LIBDIR?=	/usr/lib
-LINTLIBDIR?=	/usr/libdata/lint
-LIBGRP?=	bin
-LIBOWN?=	bin
-LIBMODE?=	444
-SHLIBDIR?=	${LIBDIR}
-
 .if !defined(DEBUG_FLAGS)
 STRIP?=	-s
 .endif
-
-BINGRP?=	bin
-BINOWN?=	bin
-BINMODE?=	555
 
 .MAIN: all
 
