@@ -20,6 +20,8 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
+.\" $FreeBSD$
+.\"
 .TH TCPDUMP 1  "30 June 1997"
 .SH NAME
 tcpdump \- dump traffic on a network
@@ -27,7 +29,7 @@ tcpdump \- dump traffic on a network
 .na
 .B tcpdump
 [
-.B \-adeflnNOpqStvx
+.B \-adeflnNOpqStvxX
 ] [
 .B \-c
 .I count
@@ -215,6 +217,11 @@ Print each packet (minus its link level header) in hex.
 The smaller of the entire packet or
 .I snaplen
 bytes will be printed.
+.TP
+.B \-X
+Like
+.B \-x
+but dumps the packet in emacs-hexl like format with ASCII decoding.
 .IP "\fI expression\fP"
 .RS
 selects which packets will be dumped.  If no \fIexpression\fP
