@@ -74,7 +74,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 # define AGG_MAXPLAYCH	4
 #endif
 
-#define AGG_BUFSIZ	0x4000 /* 0x1000, but gets underflows */
+#define AGG_DEFAULT_BUFSZ	0x4000 /* 0x1000, but gets underflows */
 
 
 /* -----------------------------
@@ -112,6 +112,7 @@ struct agg_info {
 	struct ac97_info	*codec;
 	void			*lock;
 
+	unsigned int		bufsz;
 	u_int			playchns, active;
 	struct agg_chinfo	pch[AGG_MAXPLAYCH];
 	struct agg_chinfo	rch;
@@ -520,7 +521,7 @@ static void
 aggch_start_dac(struct agg_chinfo *ch)
 {
 	u_int wpwa = APU_USE_SYSMEM | (ch->offset >> 9);
-	u_int size = AGG_BUFSIZ >> 1;
+	u_int size = ch->parent->bufsz >> 1;
 	u_int speed = ch->speed;
 	u_int offset = ch->offset >> 1;
 	u_int cp = 0;
@@ -593,7 +594,7 @@ static inline void
 suppress_jitter(struct agg_chinfo *ch)
 {
 	if (ch->wcreg_tpl & WAVCACHE_CHCTL_STEREO) {
-		int cp, diff, halfsize = AGG_BUFSIZ >> 2;
+		int cp, diff, halfsize = ch->parent->bufsz >> 2;
 
 		if (ch->aputype == APUTYPE_16BITSTEREO)
 			halfsize >>= 1;
@@ -654,10 +655,10 @@ aggch_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c,
 	ch->num = ess->playchns;
 	ch->dir = dir;
 
-	p = dma_malloc(ess, AGG_BUFSIZ, &physaddr);
+	p = dma_malloc(ess, ess->bufsz, &physaddr);
 	if (p == NULL)
 		return NULL;
-	sndbuf_setup(b, p, AGG_BUFSIZ);
+	sndbuf_setup(b, p, ess->bufsz);
 
 	ch->offset = physaddr - ess->baseaddr;
 	if (physaddr < ess->baseaddr || ch->offset > WPWA_MAXADDR) {
@@ -963,18 +964,20 @@ agg_attach(device_t dev)
 	}
 	ess->dev = dev;
 
+	ess->bufsz = pcm_getbuffersize(dev, 4096, AGG_DEFAULT_BUFSZ, 65536);
+
 	if (bus_dma_tag_create(/*parent*/NULL,
 	    /*alignment*/1 << WAVCACHE_BASEADDR_SHIFT,
 	    /*boundary*/WPWA_MAXADDR + 1,
 	    /*lowaddr*/MAESTRO_MAXADDR, /*highaddr*/BUS_SPACE_MAXADDR,
 	    /*filter*/NULL, /*filterarg*/NULL,
-	    /*maxsize*/AGG_BUFSIZ * 2, /*nsegments*/1, /*maxsegz*/0x3ffff,
+	    /*maxsize*/ess->bufsz, /*nsegments*/1, /*maxsegz*/0x3ffff,
 	    /*flags*/0, &ess->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto bad;
 	}
 
-	ess->stat = dma_malloc(ess, AGG_BUFSIZ, &ess->baseaddr);
+	ess->stat = dma_malloc(ess, ess->bufsz, &ess->baseaddr);
 	if (ess->stat == NULL) {
 		device_printf(dev, "cannot allocate status buffer\n");
 		goto bad;
