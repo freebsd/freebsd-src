@@ -13,7 +13,7 @@
 |         1.5     Installing over a network using NFS or FTP          |
 |                 1.5.1   NFS Installation tips                       |
 |                 1.5.2   FTP Installation tips                       |
-|         1.6     Tips for Serial COnsole Users                       |
+|         1.6     Tips for Serial Console Users                       |
 |                                                                     |
 | 2.0     DOS User's Q&A section.                                     |
 |         2.1     How do I make space for FreeBSD?                    |
@@ -504,13 +504,13 @@ such is your desire.
 ---     ---------------------------------------
 
 Yes. DOS extended partitions are mapped in at the end of the other
-``slices'' in FreeBSD, e.g. your D: drive might be /dev/sd0s5, your E:
-drive /dev/sd0s6, and so on. This example assumes, of course, that
+``slices'' in FreeBSD, e.g. your D: drive might be /dev/da0s5, your E:
+drive /dev/da0s6, and so on. This example assumes, of course, that
 your extended partition is on SCSI drive 0. For IDE drives, substitute
-``wd'' for ``sd'' appropriately. You otherwise mount extended
+``wd'' for ``da'' appropriately. You otherwise mount extended
 partitions exactly like you would mount any other DOS drive, e.g.:
 
-mount -t msdos /dev/sd0s5 /dos_d
+mount -t msdos /dev/da0s5 /dos_d
 
 
 2.4     Can I run DOS binaries under FreeBSD?
