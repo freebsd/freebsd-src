@@ -16,13 +16,6 @@ struct	exec head;
 char	*loadpoint;
 char	*kernel;
 char	kernel_buf[128];
-#ifdef INCLUDE_3COM
-#ifdef _3COM_USE_AUI
-short aui = 1;
-#else
-short aui = 0;
-#endif
-#endif
 void	(*kernelentry)();
 struct	nfs_diskless nfsdiskless;
 int	hostnamelen;
@@ -30,6 +23,7 @@ char	config_buffer[512];		/* Max TFTP packet */
 struct	bootinfo bootinfo;
 unsigned long	netmask;
 
+extern char eth_driver[];
 extern	char packet[];
 extern	int packetlen, rpc_id;
 char	broadcast[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
@@ -155,10 +149,7 @@ load()
 	}
 
 		/* Fill in nfsdiskless.myif */
-	/*
-	sprintf(&nfsdiskless.myif.ifra_name,"ep0");
-	*/
-	eth_fillname(&nfsdiskless.myif.ifra_name);
+	sprintf(&nfsdiskless.myif.ifra_name,eth_driver);
         nfsdiskless.myif.ifra_addr.sa_len = sizeof(struct sockaddr);
         nfsdiskless.myif.ifra_addr.sa_family = AF_INET;
 	addr = htonl(arptable[ARP_CLIENT].ipaddr);

@@ -1,3 +1,10 @@
+/************************************************************************
+
+Program to put ROM checksum in ROM image.
+
+This program strips off the FreeBSD a.out header!
+
+************************************************************************/
 #include <stdio.h>
 #include <fcntl.h>
 
@@ -17,6 +24,10 @@ main(argc,argv)
 		exit(2);
 	}
 	bzero(rom, ROMSIZE);
+	if (lseek(fd, (off_t)32, SEEK_SET) < 0) {
+		perror("lseek error");
+		exit(2);
+	}
 	if (read(fd, rom, ROMSIZE) < 0) {
 		perror("read error");
 		exit(2);
@@ -29,7 +40,7 @@ main(argc,argv)
 		sum += rom[i];
 	if (sum)
 		printf("checksum fails.\n");
-	if (lseek(fd, 0L, SEEK_SET) < 0) {
+	if (lseek(fd, (off_t)0, SEEK_SET) < 0) {
 		perror("unable to seek");
 		exit(2);
 	}

@@ -10,31 +10,13 @@ Author: Martin Renters
 extern struct nfs_diskless nfsdiskless;
 extern int hostnamelen;
 extern unsigned long netmask;
+extern eth_reset();
+extern short aui;
 
 int cmd_ip(), cmd_server(), cmd_kernel(), cmd_help(), exit();
 int cmd_rootfs(), cmd_swapfs(), cmd_interface(), cmd_hostname();
 int cmd_netmask(), cmd_swapsize(), cmd_swapopts(), cmd_rootopts();
-#ifdef INCLUDE_3COM
 int cmd_aui();
-#endif
-
-#ifdef SMALL_ROM
-struct bootcmds_t {
-	char *name;
-	int (*func)();
-} bootcmds[] = {
-	{"ip",		cmd_ip},
-	{"server",	cmd_server},
-	{"bootfile",	cmd_bootfile},
-	{"diskboot",	exit},
-	{"autoboot",	NULL},
-#ifdef INCLUDE_3COM
-        {"trans",       cmd_aui},
-#endif
-	{NULL,		NULL}
-};
-
-#else					/* !SMALL ROM */
 
 struct bootcmds_t {
 	char *name;
@@ -55,14 +37,12 @@ struct bootcmds_t {
 	{"rootopts",	cmd_rootopts,	"<options> root mount options"},
 	{"diskboot",	exit,		"          boot from disk"},
 	{"autoboot",	NULL,		"          continue"},
-#ifdef INCLUDE_3COM
         {"trans",       cmd_aui,        "<on|off>     turn transceiver on|off"},
-#endif
 	{NULL,		NULL,		NULL}
 };
 
 /**************************************************************************
-CMD_HELP - Display help screen  - NOT FOR SMALL ROMS
+CMD_HELP - Display help screen
 **************************************************************************/
 cmd_help()
 {
@@ -73,7 +53,6 @@ cmd_help()
 		cmd++;
 	}
 }
-#endif					/* SMALL ROM */
 
 /**************************************************************************
 CMD_IP - Set my IP address
@@ -88,9 +67,6 @@ cmd_ip(p)
 	} else default_netmask();
 }
 
-#ifdef INCLUDE_3COM
-extern short aui;
-extern eth_reset();
 /**************************************************************************
 CMD_AUI - Turn on-board transceiver on or off
 **************************************************************************/
@@ -109,7 +85,6 @@ cmd_aui(p)
         }
         printf ("Transceiver is %s\r\n",aui ? "off" : "on");
 }
-#endif
 
 /**************************************************************************
 CMD_SERVER - Set server's IP address
@@ -314,11 +289,7 @@ execute(buf)
 		} else
 			cmd++;
 	}
-#ifdef SMALL_ROM
-	printf("invalid command\n\r");
-#else
 	printf("bad command - type 'help' for list\n\r");
-#endif
 	return(0);
 }
 
