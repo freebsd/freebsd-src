@@ -13,7 +13,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.33 1996/03/19 04:39:53 nate Exp $
+ *	$Id: apm.c,v 1.34 1996/03/19 04:49:13 nate Exp $
  */
 
 #include "apm.h"
@@ -501,7 +501,11 @@ apm_cpu_idle(void)
 
 	if (sc->idle_cpu) {
 		if (sc->active) {
-			__asm ("movw $0x5305, %ax; lcall _apm_addr");
+			u_long eax, ebx, ecx;
+
+			eax = (APM_BIOS <<8) | APM_CPUIDLE;
+			ecx = ebx = 0;
+			apm_int(&eax, &ebx, &ecx);
 		}
 	}
 	/*
@@ -526,7 +530,11 @@ apm_cpu_busy(void)
 	struct apm_softc *sc = &apm_softc;
 
 	if (sc->idle_cpu && sc->active) {
-		__asm("movw $0x5306, %ax; lcall _apm_addr");
+		u_long eax, ebx, ecx;
+
+		eax = (APM_BIOS <<8) | APM_CPUIDLE;
+		ecx = ebx = 0;
+		apm_int(&eax, &ebx, &ecx);
 	}
 }
 
