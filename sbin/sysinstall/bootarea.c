@@ -58,8 +58,9 @@ write_bootblocks(int fd, off_t offset, int bbsize)
 		Fatal("Failed to write disklabel: %s\n", strerror(errno));
 		return(-1);
 	}
-	return(0);
 
+	Debug("Seeking to block %ld ", offset);
+	Debug("Seeking to byte %ld ", (offset * avail_disklabels[inst_disk].d_secsize));
 	if (lseek(fd, (offset * avail_disklabels[inst_disk].d_secsize), SEEK_SET) < 0) {
 		sprintf(errmsg, "Couldn't seek to start of partition\n");
 		return(-1);
@@ -69,8 +70,8 @@ write_bootblocks(int fd, off_t offset, int bbsize)
 		return(-1);
 
 	if (write(fd, bootblocks, bbsize) != bbsize) {
-		sprintf(errmsg, "Failed to write bootblocks (%p) %d %s\n",
-			bootblocks,
+		sprintf(errmsg, "Failed to write bootblocks (%p,%d) %d %s\n",
+			bootblocks, bbsize,
 			errno, strerror(errno)
 			);
 		return(-1);
