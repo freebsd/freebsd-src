@@ -17,7 +17,7 @@ Author: Martin Renters
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <netinet/in.h>
-#include <nfs/nfs.h>
+#include <nfs/nfsv2.h>
 #include <nfs/nfsdiskless.h>
 #include <machine/bootinfo.h>
 #include <machine/cpufunc.h>
