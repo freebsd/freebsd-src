@@ -1127,21 +1127,21 @@ mac_biba_create_ifnet(struct ifnet *ifnet, struct label *ifnetlabel)
 	char tifname[IFNAMSIZ], ifname[IFNAMSIZ], *p, *q;
 	char tiflist[sizeof(trusted_interfaces)];
 	struct mac_biba *dest;
-	int len, grade;
+	int len, type;
 
 	dest = SLOT(ifnetlabel);
 
 	if (ifnet->if_type == IFT_LOOP) {
-		grade = MAC_BIBA_TYPE_EQUAL;
+		type = MAC_BIBA_TYPE_EQUAL;
 		goto set;
 	}
 
 	if (trust_all_interfaces) {
-		grade = MAC_BIBA_TYPE_HIGH;
+		type = MAC_BIBA_TYPE_HIGH;
 		goto set;
 	}
 
-	grade = MAC_BIBA_TYPE_LOW;
+	type = MAC_BIBA_TYPE_LOW;
 
 	if (trusted_interfaces[0] == '\0' ||
 	    !strvalid(trusted_interfaces, sizeof(trusted_interfaces)))
@@ -1161,7 +1161,7 @@ mac_biba_create_ifnet(struct ifnet *ifnet, struct label *ifnetlabel)
 				bzero(tifname, sizeof(tifname));
 				bcopy(q, tifname, len);
 				if (strcmp(tifname, ifname) == 0) {
-					grade = MAC_BIBA_TYPE_HIGH;
+					type = MAC_BIBA_TYPE_HIGH;
 					break;
 				}
 			} else {
@@ -1176,8 +1176,8 @@ mac_biba_create_ifnet(struct ifnet *ifnet, struct label *ifnetlabel)
 		}
 	}
 set:
-	mac_biba_set_single(dest, grade, 0, NULL);
-	mac_biba_set_range(dest, grade, 0, NULL, grade, 0, NULL);
+	mac_biba_set_single(dest, type, 0, NULL);
+	mac_biba_set_range(dest, type, 0, NULL, type, 0, NULL);
 }
 
 static void
