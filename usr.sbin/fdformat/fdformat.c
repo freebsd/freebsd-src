@@ -47,7 +47,7 @@
 
 #include <errno.h>
 #include <machine/ioctl_fd.h>
-#include <../i386/isa/fdreg.h>	/* XXX should be in <machine> dir */
+#include <i386/isa/fdreg.h>	/* XXX should be in <machine> dir */
 
 static void
 format_track(int fd, int cyl, int secs, int head, int rate,
