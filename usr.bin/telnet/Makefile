@@ -41,8 +41,14 @@ CFLAGS+=-DENV_HACK
 CFLAGS+=-DSKEY
 CFLAGS+=-I${.CURDIR}/../../lib
 
+.if exists(${.OBJDIR}/../../lib/libtelnet)
+LIBTELNET=	${.OBJDIR}/../../lib/libtelnet/libtelnet.a
+.else
+LIBTELNET=	${.CURDIR}/../../lib/libtelnet/libtelnet.a
+.endif
+
 DPADD=	${LIBTERMCAP} ${LIBTELNET}
-LDADD=	-ltermcap -ltelnet
+LDADD=	-ltermcap ${LIBTELNET}
 
 .if !defined(RELEASE_CRUNCH)
 CFLAGS+=-DINET6
