@@ -1,12 +1,12 @@
 /*
- * Copyright (C) 1993-1998 by Darren Reed.
+ * Copyright (C) 1993-2000 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  */
 /* #pragma ident   "@(#)solaris.c	1.12 6/5/96 (C) 1995 Darren Reed"*/
-#pragma ident "@(#)$Id: solaris.c,v 2.1.2.14 2000/01/25 15:32:03 darrenr Exp $"
+#pragma ident "@(#)$Id: solaris.c,v 2.15.2.3 2000/05/22 10:26:17 darrenr Exp $"
 
 #include <sys/systm.h>
 #include <sys/types.h>
@@ -213,7 +213,7 @@ int _init()
 		return -1;
 	ipfinst = mod_install(&modlink1);
 #ifdef	IPFDEBUG
-	cmn_err(CE_NOTE, "IP Filter: _init() = %d\n", ipfinst);
+	cmn_err(CE_NOTE, "IP Filter: _init() = %d", ipfinst);
 #endif
 	return ipfinst;
 }
@@ -227,7 +227,7 @@ int _fini(void)
 		return -1;
 	ipfinst = mod_remove(&modlink1);
 #ifdef	IPFDEBUG
-	cmn_err(CE_NOTE, "IP Filter: _fini() = %d\n", ipfinst);
+	cmn_err(CE_NOTE, "IP Filter: _fini() = %d", ipfinst);
 #endif
 	return ipfinst;
 }
@@ -242,7 +242,7 @@ struct modinfo *modinfop;
 		return -1;
 	ipfinst = mod_info(&modlink1, modinfop);
 #ifdef	IPFDEBUG
-	cmn_err(CE_NOTE, "IP Filter: _info(%x) = %x\n", modinfop, ipfinst);
+	cmn_err(CE_NOTE, "IP Filter: _info(%x) = %x", modinfop, ipfinst);
 #endif
 	if (fr_running > 0)
 		ipfsync();
@@ -399,7 +399,7 @@ ddi_detach_cmd_t cmd;
 			return DDI_FAILURE;
 		}
 		if (!soldetach()) {
-			cmn_err(CE_CONT, "IP Filter: detached\n");
+			cmn_err(CE_CONT, "%s detached\n", ipfilter_version);
 			return (DDI_SUCCESS);
 		}
 	default:
@@ -528,13 +528,18 @@ int out;
 {
 	register mblk_t *m, *mt = *mp;
 	register ip_t *ip;
-	size_t hlen, len, off, mlen, iphlen;
-	int err, synced = 0;
+	size_t hlen, len, off, mlen, iphlen, plen;
+	int err, synced = 0, sap, p;
 	u_char *bp;
+#if SOLARIS2 >= 8
+	ip6_t *ip6;
+#endif
 #ifndef	sparc
-	u_short __iplen, __ipoff;
+	u_short __ipoff;
 #endif
 tryagain:
+	ip = NULL;
+	m = NULL;
 	/*
 	 * If there is only M_DATA for a packet going out, then any header
 	 * information (which would otherwise appear in an M_PROTO mblk before
@@ -552,8 +557,16 @@ tryagain:
 		dl_unitdata_ind_t *dl = (dl_unitdata_ind_t *)bp;
 		if (dl->dl_primitive != DL_UNITDATA_IND &&
 		    dl->dl_primitive != DL_UNITDATA_REQ) {
-			frstats[out].fr_notdata++;
-			return 0;
+			ip = (ip_t *)dl;
+			if ((ip->ip_v == IPVERSION) &&
+			    (ip->ip_hl == (sizeof(*ip) >> 2)) &&
+			    (ntohs(ip->ip_len) == mt->b_wptr - mt->b_rptr)) {
+				off = 0;
+				m = mt;
+			} else {
+				frstats[out].fr_notdata++;
+				return 0;
+			}
 		}
 	}
 
@@ -561,8 +574,9 @@ tryagain:
 	 * Find the first data block, count the data blocks in this chain and
 	 * the total amount of data.
 	 */
-	for (m = mt; m && (MTYPE(m) != M_DATA); m = m->b_cont)
-		off = 0;	/* Any non-M_DATA cancels the offset */
+	if (ip == NULL)
+		for (m = mt; m && (MTYPE(m) != M_DATA); m = m->b_cont)
+			off = 0;	/* Any non-M_DATA cancels the offset */
 
 	if (!m) {
 		frstats[out].fr_nodata++;
@@ -598,7 +612,6 @@ tryagain:
 	off = (u_char *)ip - m->b_rptr;
 	if (off != 0)
 		m->b_rptr = (u_char *)ip;
-	mlen = msgdsize(m);
 
 	len = m->b_wptr - m->b_rptr;
 	if (m->b_wptr < m->b_rptr) {
@@ -607,30 +620,72 @@ tryagain:
 		frstats[out].fr_bad++;
 		return -1;
 	}
+
+	mlen = msgdsize(m);
+	sap = qif->qf_ill->ill_sap;
+
+	if (sap == 0x800) {
+		hlen = sizeof(*ip);
+		plen = ntohs(ip->ip_len);
+		sap = 0;
+	}
+#if SOLARIS2 >= 8
+	else if (sap == IP6_DL_SAP) {
+		hlen = sizeof(ip6_t);
+		ip6 = (ip6_t *)ip;
+		plen = ntohs(ip6->ip6_plen);
+		sap = IP6_DL_SAP;
+	}
+#endif
+	else {
+		hlen = 0;
+		sap = -1;
+	}
+
 	/*
 	 * Ok, the IP header isn't on a 32bit aligned address so junk it.
 	 */
-	if (((u_int)ip & 0x3) || (len < sizeof(*ip))) {
+	if (((u_int)ip & 0x3) || (len < hlen) || (sap == -1)) {
+		mblk_t *m2;
+		u_char *s;
+
 		/*
-		 * We have link layer header and IP header in the same mbuf,
-		 * problem being that a pullup without adjusting b_rptr will
-		 * bring us back here again as it's likely that the start of
-		 * the databuffer (b_datab->db_base) is already aligned.  Hmm,
-		 * should we pull it all up (length of -1 to pullupmsg) if we
-		 * can, now ?
+		 * Junk using pullupmsg - it's next to useless.
 		 */
 fixalign:
-		if (!pullupmsg(m, sizeof(ip_t))) {
+		len = msgdsize(m);
+		m2 = allocb(len, BPRI_HI);
+		if (m2 == NULL) {
 			frstats[out].fr_pull[1]++;
 			return -1;
 		}
+
+		m2->b_wptr = m2->b_rptr + len;
+		s = (u_char *)ip;
+		for (bp = m2->b_rptr; m; bp += len) {
+			len = m->b_wptr - s;
+			bcopy(m->b_rptr, bp, len);
+			m = m->b_cont;
+			if (m)
+				s = m->b_rptr;
+		}
+		*mp = m2;
+		MTYPE(m2) = M_DATA;
+		freemsg(mt);
+		mt = m2;
+
 		frstats[out].fr_pull[0]++;
 		synced = 1;
 		off = 0;
 		goto tryagain;
 
 	}
-	if (ip->ip_v != IPVERSION) {
+
+	if (((sap == 0) && (ip->ip_v != IP_VERSION))
+#if SOLARIS2 >= 8
+	    || ((sap == IP6_DL_SAP) && ((ip6->ip6_vfc >> 4) != 6))
+#endif
+	) {
 		m->b_rptr -= off;
 		if (!synced) {
 			synced = 1;
@@ -644,26 +699,48 @@ fixalign:
 	}
 
 #ifndef	sparc
-	__iplen = (u_short)ip->ip_len,
-	__ipoff = (u_short)ip->ip_off;
+# if SOLARIS2 >= 8
+	if (sap == IP6_DL_SAP) {
+		ip6->ip6_plen = plen;
+	} else {
+# endif
+		__ipoff = (u_short)ip->ip_off;
 
-	ip->ip_len = ntohs(__iplen);
-	ip->ip_off = ntohs(__ipoff);
+		ip->ip_len = plen;
+		ip->ip_off = ntohs(__ipoff);
+# if SOLARIS2 >= 8
+	}
+# endif
+#endif
+	if (sap == 0)
+		iphlen = ip->ip_hl << 2;
+#if SOLARIS2 >= 8
+	else if (sap == IP6_DL_SAP)
+		iphlen = sizeof(ip6_t);
 #endif
 
-	hlen = iphlen = ip->ip_hl << 2;
-
-	if ((iphlen < sizeof(ip_t)) || (iphlen > (u_short)ip->ip_len) ||
-	    (mlen < (u_short)ip->ip_len)) {
+	if ((
+#if SOLARIS2 >= 8
+	     (sap == IP6_DL_SAP) && (mlen < iphlen + plen)) ||
+	    ((sap == 0) &&
+#endif
+	     ((iphlen < hlen) || (iphlen > plen) || (mlen < plen)))) {
 		/*
 		 * Bad IP packet or not enough data/data length mismatches
 		 */
 #ifndef	sparc
-		__iplen = (u_short)ip->ip_len,
-		__ipoff = (u_short)ip->ip_off;
+# if SOLARIS2 >= 8
+		if (sap == IP6_DL_SAP) {
+			ip6->ip6_plen = htons(plen);
+		} else {
+# endif
+			__ipoff = (u_short)ip->ip_off;
 
-		ip->ip_len = htons(__iplen);
-		ip->ip_off = htons(__ipoff);
+			ip->ip_len = htons(plen);
+			ip->ip_off = htons(__ipoff);
+# if SOLARIS2 >= 8
+		}
+# endif
 #endif
 		m->b_rptr -= off;
 		frstats[out].fr_bad++;
@@ -674,8 +751,17 @@ fixalign:
 	 * Make hlen the total size of the IP header plus TCP/UDP/ICMP header
 	 * (if it is one of these three).
 	 */
+	if (sap == 0)
+		p = ip->ip_p;
+#if SOLARIS2 >= 8
+	else if (sap == IP6_DL_SAP)
+		p = ip6->ip6_nxt;
+
+	if ((sap == IP6_DL_SAP) || ((ip->ip_off & IP_OFFMASK) == 0))
+#else
 	if ((ip->ip_off & IP_OFFMASK) == 0)
-		switch (ip->ip_p)
+#endif
+		switch (p)
 		{
 		case IPPROTO_TCP :
 			hlen += sizeof(tcphdr_t);
@@ -691,8 +777,15 @@ fixalign:
 			break;
 		}
 
-	if (hlen > mlen)
+	if (hlen > mlen) {
 		hlen = mlen;
+#if SOLARIS2 >= 8
+	} else if (sap == IP6_DL_SAP) {
+		if (m->b_wptr - m->b_rptr > plen + hlen)
+			m->b_wptr = m->b_rptr + plen + hlen;
+#endif
+	} else if (m->b_wptr - m->b_rptr > plen)
+		m->b_wptr = m->b_rptr + plen;
 
 	/*
 	 * If we don't have enough data in the mblk or we haven't yet copied
@@ -724,11 +817,20 @@ fixalign:
 		if (*mp == mt) {
 			m->b_rptr -= off;
 #ifndef	sparc
-			__iplen = (u_short)ip->ip_len,
-			__ipoff = (u_short)ip->ip_off;
-
-			ip->ip_len = htons(__iplen);
-			ip->ip_off = htons(__ipoff);
+# if SOLARIS2 >= 8
+			if (sap == IP6_DL_SAP) {
+				ip6->ip6_plen = htons(plen);
+			} else {
+# endif
+				__ipoff = (u_short)ip->ip_off;
+				/*
+				 * plen is useless because of NAT.
+				 */
+				ip->ip_len = htons(ip->ip_len);
+				ip->ip_off = htons(__ipoff);
+# if SOLARIS2 >= 8
+			}
+# endif
 #endif
 		} else
 			cmn_err(CE_NOTE,
@@ -750,6 +852,15 @@ mblk_t *mb;
 		mb->b_prev = NULL;
 		freemsg(mb);
 		return 0;
+	}
+
+	if (mb->b_datap->db_ref > 1) {
+		mblk_t *m1;
+
+		m1 = copymsg(mb);
+		freemsg(mb);
+		mb = m1;
+		frstats[0].fr_copy++;
 	}
 
 	READ_ENTER(&ipf_solaris);
@@ -842,6 +953,15 @@ mblk_t *mb;
 		mb->b_prev = NULL;
 		freemsg(mb);
 		return 0;
+	}
+
+	if (mb->b_datap->db_ref > 1) {
+		mblk_t *m1;
+
+		m1 = copymsg(mb);
+		freemsg(mb);
+		mb = m1;
+		frstats[1].fr_copy++;
 	}
 
 	READ_ENTER(&ipf_solaris);
@@ -959,7 +1079,7 @@ mblk_t *mb;
 		freemsg(mb);
 		return 0;
 	}
- 
+
 	if (MTYPE(mb) != M_IOCTL)
 		return (*ipf_ip_inp)(q, mb);
 
@@ -1056,10 +1176,6 @@ void solattach()
 		if (!in || !il->ill_wq)
 			continue;
 
-#if SOLARIS2 >= 8
-		if (il->ill_isv6)
-			continue;
-#endif
 		out = il->ill_wq->q_next;
 
 		WRITE_ENTER(&ipfs_mutex);
@@ -1142,6 +1258,7 @@ void solattach()
 		mblk_t *m;
 
 		qif->qf_hl = 0;
+		qif->qf_sap = il->ill_sap;
 # if 0
 		/*
 		 * Can't seem to lookup a route for the IP address on the
@@ -1192,6 +1309,26 @@ void solattach()
 					f->fr_ifa = il;
 			}
 		}
+#if SOLARIS2 >= 8
+		for (f = ipfilter6[0][fr_active]; f; f = f->fr_next) {
+			if ((f->fr_ifa == (struct ifnet *)-1)) {
+				len = strlen(f->fr_ifname) + 1;
+				if ((len != 0) &&
+				    (len == (size_t)il->ill_name_length) &&
+				    !strncmp(il->ill_name, f->fr_ifname, len))
+					f->fr_ifa = il;
+			}
+		}
+		for (f = ipfilter6[1][fr_active]; f; f = f->fr_next) {
+			if ((f->fr_ifa == (struct ifnet *)-1)) {
+				len = strlen(f->fr_ifname) + 1;
+				if ((len != 0) &&
+				    (len == (size_t)il->ill_name_length) &&
+				    !strncmp(il->ill_name, f->fr_ifname, len))
+					f->fr_ifa = il;
+			}
+		}
+#endif
 		RWLOCK_EXIT(&ipf_mutex);
 		WRITE_ENTER(&ipf_nat);
 		for (np = nat_list; np; np = np->in_next) {
@@ -1228,8 +1365,14 @@ void solattach()
 		out->q_qinfo = &qif->qf_wqinit;
 
 		RWLOCK_EXIT(&ipfs_mutex);
-		cmn_err(CE_CONT, "IP Filter: attach to [%s,%d]\n",
-			qif->qf_name, il->ill_ppa);
+		cmn_err(CE_CONT, "IP Filter: attach to [%s,%d] - %s\n",
+			qif->qf_name, il->ill_ppa,
+#if SOLARIS2 >= 8
+			il->ill_isv6 ? "IPv6" : "IPv4"
+#else
+			"IPv4"
+#endif
+			);
 	}
 	if (!qif_head)
 		cmn_err(CE_CONT, "IP Filter: not attached to any interfaces\n");
@@ -1268,7 +1411,14 @@ int ipfsync()
 			qp = &qif->qf_next;
 			continue;
 		}
-		cmn_err(CE_CONT, "IP Filter: detaching [%s]\n", qif->qf_name);
+		cmn_err(CE_CONT, "IP Filter: detaching [%s] - %s\n",
+			qif->qf_name,
+#if SOLARIS2 >= 8
+			(qif->qf_sap == IP6_DL_SAP) ? "IPv6" : "IPv4"
+#else
+			"IPv4"
+#endif
+			);
 		*qp = qif->qf_next;
 
 		/*
@@ -1286,6 +1436,14 @@ int ipfsync()
 		for (f = ipfilter[1][fr_active]; f; f = f->fr_next)
 			if (f->fr_ifa == (void *)qif->qf_ill)
 				f->fr_ifa = (struct ifnet *)-1;
+#if SOLARIS2 >= 8
+		for (f = ipfilter6[0][fr_active]; f; f = f->fr_next)
+			if (f->fr_ifa == (void *)qif->qf_ill)
+				f->fr_ifa = (struct ifnet *)-1;
+		for (f = ipfilter6[1][fr_active]; f; f = f->fr_next)
+			if (f->fr_ifa == (void *)qif->qf_ill)
+				f->fr_ifa = (struct ifnet *)-1;
+#endif
 
 #if 0 /* XXX */
 		/*
@@ -1372,8 +1530,14 @@ int soldetach()
 		if (il) {
 			in = qif->qf_in;
 			out = qif->qf_out;
-			cmn_err(CE_CONT, "IP Filter: detaching [%s,%d]\n",
-				qif->qf_name, il->ill_ppa);
+			cmn_err(CE_CONT, "IP Filter: detaching [%s,%d] - %s\n",
+				qif->qf_name, il->ill_ppa,
+#if SOLARIS2 >= 8
+			(qif->qf_sap == IP6_DL_SAP) ? "IPv6" : "IPv4"
+#else
+			"IPv4"
+#endif
+			);
 
 #ifdef	IPFDEBUG
 			cmn_err(CE_NOTE,
@@ -1404,13 +1568,24 @@ void printire(ire)
 ire_t *ire;
 {
 	printf("ire: ll_hdr_mp %p rfq %p stq %p src_addr %x max_frag %d\n",
-		ire->ire_ll_hdr_mp, ire->ire_rfq, ire->ire_stq,
+# if SOLARIS2 >= 8
+		NULL,
+# else
+		ire->ire_ll_hdr_mp,
+# endif
+		ire->ire_rfq, ire->ire_stq,
 		ire->ire_src_addr, ire->ire_max_frag);
 	printf("ire: mask %x addr %x gateway_addr %x type %d\n",
 		ire->ire_mask, ire->ire_addr, ire->ire_gateway_addr,
 		ire->ire_type);
 	printf("ire: ll_hdr_length %d ll_hdr_saved_mp %p\n",
-		ire->ire_ll_hdr_length, ire->ire_ll_hdr_saved_mp);
+		ire->ire_ll_hdr_length,
+# if SOLARIS2 >= 8
+		NULL
+# else
+		ire->ire_ll_hdr_saved_mp
+# endif
+		);
 }
 #endif
 
@@ -1422,14 +1597,20 @@ mblk_t *mb, **mpp;
 fr_info_t *fin;
 frdest_t *fdp;
 {
+#ifdef	USE_INET6
+	ip6_t *ip6 = (ip6_t *)ip;
+#endif
 	ire_t *ir, *dir, *gw;
 	struct in_addr dst;
 	queue_t *q = NULL;
 	mblk_t *mp = NULL;
 	size_t hlen = 0;
 	frentry_t *fr;
+	frdest_t fd;
 	ill_t *ifp;
+	qif_t *qif;
 	u_char *s;
+	int p;
 
 #ifndef	sparc
 	u_short __iplen, __ipoff;
@@ -1455,18 +1636,50 @@ frdest_t *fdp;
 		*mpp = mp;
 	}
 
+	if (!fdp) {
+		ipif_t *ipif;
+
+		ifp = fin->fin_ifp;
+		ipif = ifp->ill_ipif;
+		if (!ipif)
+			goto bad_fastroute;
+#if SOLARIS2 > 5
+		ir = ire_ctable_lookup(ipif->ipif_local_addr, 0, IRE_LOCAL,
+				       NULL, NULL, MATCH_IRE_TYPE);
+#else
+		ir = ire_lookup_myaddr(ipif->ipif_local_addr);
+#endif
+		if (!ir)
+			ir = (ire_t *)-1;
+
+                fd.fd_ifp = (struct ifnet *)ir;
+		fd.fd_ip = ip->ip_dst;
+		fdp = &fd;
+	}
+
 	ir = (ire_t *)fdp->fd_ifp;
 
 	if (fdp->fd_ip.s_addr)
 		dst = fdp->fd_ip;
 	else
-		dst = fin->fin_fi.fi_dst;
+		dst.s_addr = fin->fin_fi.fi_daddr;
 
 #if SOLARIS2 >= 6
 	gw = NULL;
-	dir = ire_route_lookup(dst.s_addr, 0xffffffff, 0, 0, NULL, &gw, NULL,
-				MATCH_IRE_DSTONLY|MATCH_IRE_DEFAULT|
-				MATCH_IRE_RECURSIVE);
+	if (fin->fin_v == 4) {
+		p = ip->ip_p;
+		dir = ire_route_lookup(dst.s_addr, 0xffffffff, 0, 0, NULL,
+					&gw, NULL, MATCH_IRE_DSTONLY|
+					MATCH_IRE_DEFAULT|MATCH_IRE_RECURSIVE);
+	}
+# ifdef	USE_INET6
+	else if (fin->fin_v == 6) {
+		p = ip6->ip6_nxt;
+		dir = ire_route_lookup_v6(&ip6->ip6_dst, 0xffffffff, 0, 0,
+					NULL, &gw, NULL, MATCH_IRE_DSTONLY|
+					MATCH_IRE_DEFAULT|MATCH_IRE_RECURSIVE);
+	}
+# endif
 #else
 	dir = ire_lookup(dst.s_addr);
 #endif
@@ -1502,18 +1715,22 @@ frdest_t *fdp;
 			fin->fin_fr = ipacct[1][fr_active];
 			if ((fin->fin_fr != NULL) &&
 			    (fr_scanlist(FR_NOMATCH, ip, fin, mb)&FR_ACCOUNT)){
-				ATOMIC_INC(frstats[1].fr_acct);
+				ATOMIC_INCL(frstats[1].fr_acct);
 			}
 			fin->fin_fr = NULL;
-			(void) fr_checkstate(ip, fin);
-			(void) ip_natout(ip, fin);
-		}       
+			if (!fr || !(fr->fr_flags & FR_RETMASK)) {
+				(void) fr_checkstate(ip, fin);
+				(void) ip_natout(ip, fin);
+			}
+		}
 #ifndef	sparc
-		__iplen = (u_short)ip->ip_len,
-		__ipoff = (u_short)ip->ip_off;
+		if (fin->fin_v == 4) {
+			__iplen = (u_short)ip->ip_len,
+			__ipoff = (u_short)ip->ip_off;
 
-		ip->ip_len = htons(__iplen);
-		ip->ip_off = htons(__ipoff);
+			ip->ip_len = htons(__iplen);
+			ip->ip_off = htons(__ipoff);
+		}
 #endif
 
 #if SOLARIS2 < 8
@@ -1541,7 +1758,7 @@ frdest_t *fdp;
 				mp2 = copyb(mp);
 				if (!mp2)
 					goto bad_fastroute;
-				mp2->b_cont = mb;
+				linkb(mp2, mb);
 				mb = mp2;
 			}
 		}
@@ -1557,7 +1774,7 @@ frdest_t *fdp;
 			RWLOCK_EXIT(&ipfs_mutex);
 			RWLOCK_EXIT(&ipf_solaris);
 #if SOLARIS2 >= 6
-			if ((ip->ip_p == IPPROTO_TCP) && dohwcksum &&
+			if ((p == IPPROTO_TCP) && dohwcksum &&
 			    (ifp->ill_ick.ick_magic == ICK_M_CTL_MAGIC)) {
 				tcphdr_t *tcp;
 				u_32_t t;
@@ -1642,4 +1859,24 @@ char *buf;
 		len -= clen;
 		bp += clen;
 	}
+}
+
+
+int fr_verifysrc(ipa, ifp)
+struct in_addr ipa;
+void *ifp;
+{
+	ire_t *ir, *dir, *gw;
+
+#if SOLARIS2 >= 6
+	dir = ire_route_lookup(ipa.s_addr, 0xffffffff, 0, 0, NULL, &gw, NULL,
+				MATCH_IRE_DSTONLY|MATCH_IRE_DEFAULT|
+				MATCH_IRE_RECURSIVE);
+#else
+	dir = ire_lookup(ipa.s_addr);
+#endif
+
+	if (!dir)
+		return 0;
+	return (ire_to_ill(dir) == ifp);
 }

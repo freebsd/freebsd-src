@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1993-1998 by Darren Reed.
+ * Copyright (C) 1993-2000 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
@@ -42,8 +42,8 @@
 #include "ipl.h"
 
 #if !defined(lint)
-static const char sccsid[] = "@(#)ipf.c	1.23 6/5/96 (C) 1993-1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipf.c,v 2.2 1999/08/06 15:26:08 darrenr Exp $";
+static const char sccsid[] = "@(#)ipf.c	1.23 6/5/96 (C) 1993-2000 Darren Reed";
+static const char rcsid[] = "@(#)$Id: ipf.c,v 2.10 2000/03/13 22:10:23 darrenr Exp $";
 #endif
 
 #if	SOLARIS
@@ -60,6 +60,9 @@ void	zerostats __P((void));
 int	main __P((int, char *[]));
 
 int	opts = 0;
+#ifdef	USE_INET6
+int	use_inet6 = 0;
+#endif
 
 static	int	fd = -1;
 
@@ -77,7 +80,7 @@ static	int	get_flags __P((void));
 
 static void usage()
 {
-	fprintf(stderr, "usage: ipf [-AdDEInoPrsUvVyzZ] %s %s %s\n",
+	fprintf(stderr, "usage: ipf [-6AdDEInoPrsUvVyzZ] %s %s %s\n",
 		"[-l block|pass|nomatch]", "[-F i|o|a|s|S]", "[-f filename]");
 	exit(1);
 }
@@ -89,11 +92,16 @@ char *argv[];
 {
 	int c;
 
-	while ((c = getopt(argc, argv, "AdDEf:F:Il:noPrsUvVyzZ")) != -1) {
+	while ((c = getopt(argc, argv, "6AdDEf:F:Il:noPrsUvVyzZ")) != -1) {
 		switch (c)
 		{
 		case '?' :
 			usage();
+#ifdef	USE_INET6
+		case '6' :
+			use_inet6 = 1;
+			break;
+#endif
 		case 'A' :
 			opts &= ~OPT_INACTIVE;
 			break;
@@ -122,7 +130,6 @@ char *argv[];
 			opts |= OPT_DONOTHING;
 			break;
 		case 'o' :
-			opts |= OPT_OUTQUE;
 			break;
 		case 'P' :
 			ipfname = IPL_AUTH;
@@ -175,7 +182,7 @@ char *ipfdev;
 
 	if (!(opts & OPT_DONOTHING) && fd == -1)
 		if ((fd = open(ipfdev, O_RDWR)) == -1)
-			if ((fd = open(ipfname, O_RDONLY)) == -1)
+			if ((fd = open(ipfdev, O_RDONLY)) == -1)
 				perror("open device");
 	return fd;
 }
@@ -193,7 +200,7 @@ static	int	get_flags()
 	int i;
 
 	if ((opendevice(ipfname) != -2) && (ioctl(fd, SIOCGETFF, &i) == -1)) {
-		perror("SIOCFRENB");
+		perror("SIOCGETFF");
 		return 0;
 	}
 	return i;
@@ -204,8 +211,13 @@ static	void	set_state(enable)
 u_int	enable;
 {
 	if (opendevice(ipfname) != -2)
-		if (ioctl(fd, SIOCFRENB, &enable) == -1)
-			perror("SIOCFRENB");
+		if (ioctl(fd, SIOCFRENB, &enable) == -1) {
+			if (errno == EBUSY)
+				fprintf(stderr,
+					"IP FIlter: already initialized\n");
+			else
+				perror("SIOCFRENB");
+		}
 	return;
 }
 
@@ -283,24 +295,26 @@ char	*name, *file;
 
 			if ((opts & OPT_ZERORULEST) &&
 			    !(opts & OPT_DONOTHING)) {
-				if (ioctl(fd, add, fr) == -1)
+				if (ioctl(fd, add, &fr) == -1)
 					perror("ioctl(SIOCZRLST)");
 				else {
 #ifdef	USE_QUAD_T
 					printf("hits %qd bytes %qd ",
+						(long long)fr->fr_hits,
+						(long long)fr->fr_bytes);
 #else
 					printf("hits %ld bytes %ld ",
-#endif
 						fr->fr_hits, fr->fr_bytes);
+#endif
 					printfr(fr);
 				}
 			} else if ((opts & OPT_REMOVE) &&
 				   !(opts & OPT_DONOTHING)) {
-				if (ioctl(fd, del, fr) == -1)
-					perror("ioctl(SIOCDELFR)");
+				if (ioctl(fd, del, &fr) == -1)
+					perror("ioctl(delete rule)");
 			} else if (!(opts & OPT_DONOTHING)) {
-				if (ioctl(fd, add, fr) == -1)
-					perror("ioctl(SIOCADDFR)");
+				if (ioctl(fd, add, &fr) == -1)
+					perror("ioctl(add/insert rule)");
 			}
 		}
 	}
@@ -348,8 +362,8 @@ char	*opt;
 {
 	int	flag, err;
 
-	err = get_flags();
-	if (err != 0) {
+	flag = get_flags();
+	if (flag != 0) {
 		if ((opts & (OPT_DONOTHING|OPT_VERBOSE)) == OPT_VERBOSE)
 			printf("log flag is currently %#x\n", flag);
 	}
@@ -452,13 +466,14 @@ void frsync()
 void zerostats()
 {
 	friostat_t	fio;
+	friostat_t	*fiop = &fio;
 
 	if (opendevice(ipfname) != -2) {
-		if (ioctl(fd, SIOCFRZST, &fio) == -1) {
+		if (ioctl(fd, SIOCFRZST, &fiop) == -1) {
 			perror("ioctl(SIOCFRZST)");
 			exit(-1);
 		}
-		showstats(&fio);
+		showstats(fiop);
 	}
 
 }
@@ -526,12 +541,13 @@ static void blockunknown()
 static void showversion()
 {
 	struct friostat fio;
+	struct friostat *fiop=&fio;
 	u_32_t flags;
 	char *s;
 
-	printf("ipf: %s (%d)\n", IPL_VERSION, sizeof(frentry_t));
+	printf("ipf: %s (%d)\n", IPL_VERSION, (int)sizeof(frentry_t));
 
-	if (opendevice(ipfname) != -2 && ioctl(fd, SIOCGETFS, &fio)) {
+	if (opendevice(ipfname) != -2 && ioctl(fd, SIOCGETFS, &fiop)) {
 		perror("ioctl(SIOCGETFS");
 		return;
 	}

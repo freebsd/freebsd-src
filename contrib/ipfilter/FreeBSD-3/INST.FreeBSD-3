@@ -1,4 +1,4 @@
-To build a kernel with the IP filter, follow these steps:
+To build a kernel with the IP filter, follow these seven steps:
 
 	1. do "make freebsd3"
 
