@@ -120,14 +120,14 @@ static	struct users {
 	int	u_min;
 	int	u_max;
 } users[] = {
-	{ 24, 8, 1024 },		/* MACHINE_VAX */
-	{ 4, 2, 128 },			/* MACHINE_TAHOE */
-	{ 8, 2, 64 },			/* MACHINE_HP300 */
-	{ 8, 2, 64 },			/* MACHINE_I386 */
-	{ 8, 2, 64 },			/* MACHINE_MIPS */
-	{ 8, 2, 64 },			/* MACHINE_PMAX */
-	{ 8, 2, 64 },			/* MACHINE_LUNA68K */
-	{ 8, 2, 64 },			/* MACHINE_NEWS3400 */
+	{ 8, 2, 512 },			/* MACHINE_VAX */
+	{ 8, 2, 512 },			/* MACHINE_TAHOE */
+	{ 8, 2, 512 },			/* MACHINE_HP300 */
+	{ 8, 2, 512 },			/* MACHINE_I386 */
+	{ 8, 2, 512 },			/* MACHINE_MIPS */
+	{ 8, 2, 512 },			/* MACHINE_PMAX */
+	{ 8, 2, 512 },			/* MACHINE_LUNA68K */
+	{ 8, 2, 512 },			/* MACHINE_NEWS3400 */
 };
 #define	NUSERS	(sizeof (users) / sizeof (users[0]))
 
