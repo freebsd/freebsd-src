@@ -667,7 +667,7 @@ The code that parses the generic command line arguments doesn't know that
 some of the subcommands take multiple arguments.  So if, for instance, you
 tried something like this:
 .Bd -literal -offset foobar
-camcontrol -n da -u 1 -c "00 00 00 00 00 v" 0x00 -v
+camcontrol cmd -n da -u 1 -c "00 00 00 00 00 v" 0x00 -v
 .Ed
 .Pp
 The sense information from the test unit ready command would not get
