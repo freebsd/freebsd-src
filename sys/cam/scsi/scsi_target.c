@@ -1155,17 +1155,18 @@ targstrategy(struct bio *bp)
 	int    s;
 	
 	unit = minor(bp->bio_dev);
+	bp->bio_resid = bp->bio_bcount;
 
 	/* ioctl is the only supported operation of the control device */
 	if (TARG_IS_CONTROL_DEV(unit)) {
-		bp->bio_error = EINVAL;
-		goto bad;
+		biofinish(bp, NULL, EINVAL);
+		return;
 	}
 
 	periph = cam_extend_get(targperiphs, unit);
 	if (periph == NULL) {
-		bp->bio_error = ENXIO;
-		goto bad;
+		biofinish(bp, NULL, ENXIO);
+		return;
 	}
 	softc = (struct targ_softc *)periph->softc;
 
@@ -1183,10 +1184,11 @@ targstrategy(struct bio *bp)
 		splx(s);
 		if (softc->state == TARG_STATE_EXCEPTION
 		 && (softc->exceptions & TARG_EXCEPT_DEVICE_INVALID) == 0)
-			bp->bio_error = EBUSY;
+			s = EBUSY;
 		else
-			bp->bio_error = ENXIO;
-		goto bad;
+			s = ENXIO;
+		biofinish(bp, NULL, s);
+		return;
 	}
 	
 	/*
@@ -1214,14 +1216,6 @@ targstrategy(struct bio *bp)
 	targrunqueue(periph, softc);
 
 	return;
-bad:
-	bp->bio_flags |= BIO_ERROR;
-
-	/*
-	 * Correctly set the buf to indicate a completed xfer
-	 */
-	bp->bio_resid = bp->bio_bcount;
-	biodone(bp);
 }
 
 static void

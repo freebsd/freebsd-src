@@ -223,9 +223,10 @@ ptstrategy(struct bio *bp)
 	
 	unit = minor(bp->bio_dev);
 	periph = cam_extend_get(ptperiphs, unit);
+	bp->bio_resid = bp->bio_bcount;
 	if (periph == NULL) {
-		bp->bio_error = ENXIO;
-		goto bad;		
+		biofinish(bp, NULL, ENXIO);
+		return;
 	}
 	softc = (struct pt_softc *)periph->softc;
 
@@ -241,8 +242,8 @@ ptstrategy(struct bio *bp)
 	 */
 	if ((softc->flags & PT_FLAG_DEVICE_INVALID)) {
 		splx(s);
-		bp->bio_error = ENXIO;
-		goto bad;
+		biofinish(bp, NULL, ENXIO);
+		return;
 	}
 	
 	/*
@@ -258,14 +259,6 @@ ptstrategy(struct bio *bp)
 	xpt_schedule(periph, /* XXX priority */1);
 
 	return;
-bad:
-	bp->bio_flags |= BIO_ERROR;
-
-	/*
-	 * Correctly set the buf to indicate a completed xfer
-	 */
-	bp->bio_resid = bp->bio_bcount;
-	biodone(bp);
 }
 
 static void
