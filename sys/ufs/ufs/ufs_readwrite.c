@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $Id: ufs_readwrite.c,v 1.35 1997/12/16 22:28:26 eivind Exp $
+ * $Id: ufs_readwrite.c,v 1.36 1997/12/19 09:03:06 dyson Exp $
  */
 
 #ifdef LFS_READWRITE
@@ -60,7 +60,7 @@
 #include <sys/poll.h>
 #include <sys/sysctl.h>
 
-int vfs_ioopt = 1;
+int vfs_ioopt = 0;
 
 SYSCTL_INT(_vfs, OID_AUTO, ioopt,
 	CTLFLAG_RW, &vfs_ioopt, 0, "");
