@@ -18,7 +18,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha2742.c,v 1.2 1994/11/18 07:07:28 jkh Exp $
+ *      $Id: aha2742.c,v 1.3 1994/11/18 07:25:02 jkh Exp $
  */
 /*
  * TODO:
@@ -1620,9 +1620,7 @@ gottit: if (!(flags & SCSI_NOMASK))
 void ahc_loadseq(port)
 	int port;
 {
-        static unsigned char seqprog[] = {
-#               include <aha274x_seq.h>
-        };
+        extern unsigned char seqprog[];
  
         outb(SEQCTL + port, PERRORDIS|SEQRESET|LOADRAM);
 
