@@ -641,23 +641,23 @@ ich_pci_probe(device_t dev)
 		return 0;
 
 	case 0x01b110de:
-		device_set_desc(dev, "Nvidia nForce");
+		device_set_desc(dev, "nVidia nForce");
 		return 0;
 
 	case 0x006a10de:
-		device_set_desc(dev, "Nvidia nForce2");
+		device_set_desc(dev, "nVidia nForce2");
 		return 0;
 
 	case 0x008a10de:
-		device_set_desc(dev, "Nvidia nForce2 400");
+		device_set_desc(dev, "nVidia nForce2 400");
 		return 0;
 
 	case 0x00da10de:
-		device_set_desc(dev, "Nvidia nForce3");
+		device_set_desc(dev, "nVidia nForce3");
 		return 0;
 
 	case 0x00ea10de:
-		device_set_desc(dev, "Nvidia nForce3 250");
+		device_set_desc(dev, "nVidia nForce3 250");
 		return 0;
 
 	case 0x74451022:
