@@ -247,29 +247,29 @@ aha_isa_attach(device_t dev)
 				/* lockfunc	*/ busdma_lock_mutex,
 				/* lockarg	*/ &Giant,
 				&aha->parent_dmat) != 0) {
-                aha_free(aha);
 		bus_release_resource(dev, SYS_RES_IOPORT, aha->portrid, aha->port);
 		bus_release_resource(dev, SYS_RES_IRQ, aha->irqrid, aha->irq);
 		bus_release_resource(dev, SYS_RES_DRQ, aha->drqrid, aha->drq);
+                aha_free(aha);
                 return (ENOMEM);
         }                              
 
         if (aha_init(aha)) {
 		device_printf(dev, "init failed\n");
-                aha_free(aha);
 		bus_release_resource(dev, SYS_RES_IOPORT, aha->portrid, aha->port);
 		bus_release_resource(dev, SYS_RES_IRQ, aha->irqrid, aha->irq);
 		bus_release_resource(dev, SYS_RES_DRQ, aha->drqrid, aha->drq);
+                aha_free(aha);
                 return (ENOMEM);
         }
 
 	error = aha_attach(aha);
 	if (error) {
 		device_printf(dev, "attach failed\n");
-                aha_free(aha);
 		bus_release_resource(dev, SYS_RES_IOPORT, aha->portrid, aha->port);
 		bus_release_resource(dev, SYS_RES_IRQ, aha->irqrid, aha->irq);
 		bus_release_resource(dev, SYS_RES_DRQ, aha->drqrid, aha->drq);
+                aha_free(aha);
                 return (error);
 	}
 
@@ -277,10 +277,10 @@ aha_isa_attach(device_t dev)
 	    &ih);
 	if (error) {
 		device_printf(dev, "Unable to register interrupt handler\n");
-                aha_free(aha);
 		bus_release_resource(dev, SYS_RES_IOPORT, aha->portrid, aha->port);
 		bus_release_resource(dev, SYS_RES_IRQ, aha->irqrid, aha->irq);
 		bus_release_resource(dev, SYS_RES_DRQ, aha->drqrid, aha->drq);
+                aha_free(aha);
                 return (error);
 	}
 
