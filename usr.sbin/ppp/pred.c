@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pred.c,v 1.20.2.4 1998/02/23 00:38:41 brian Exp $
+ *	$Id: pred.c,v 1.20.2.5 1998/03/13 00:44:22 brian Exp $
  */
 
 #include <sys/param.h>
@@ -59,16 +59,16 @@
  * A better hash function would result in additional compression,
  * at the expense of time.
  */
-#define IHASH(x) do {iHash = (iHash << 4) ^ (x);} while(0)
-#define OHASH(x) do {oHash = (oHash << 4) ^ (x);} while(0)
+#define HASH(state, x) state->hash = (state->hash << 4) ^ (x)
 #define GUESS_TABLE_SIZE 65536
 
-static unsigned short int iHash, oHash;
-static unsigned char *InputGuessTable;
-static unsigned char *OutputGuessTable;
+struct pred1_state {
+  u_short hash;
+  u_char dict[GUESS_TABLE_SIZE];
+};
 
 static int
-compress(u_char * source, u_char * dest, int len)
+compress(struct pred1_state *state, u_char *source, u_char *dest, int len)
 {
   int i, bitmask;
   unsigned char *flagdest, flags, *orgdest;
@@ -78,13 +78,13 @@ compress(u_char * source, u_char * dest, int len)
     flagdest = dest++;
     flags = 0;			/* All guess wrong initially */
     for (bitmask = 1, i = 0; i < 8 && len; i++, bitmask <<= 1) {
-      if (OutputGuessTable[oHash] == *source) {
+      if (state->dict[state->hash] == *source) {
 	flags |= bitmask;	/* Guess was right - don't output */
       } else {
-	OutputGuessTable[oHash] = *source;
+	state->dict[state->hash] = *source;
 	*dest++ = *source;	/* Guess wrong, output char */
       }
-      OHASH(*source++);
+      HASH(state, *source++);
       len--;
     }
     *flagdest = flags;
@@ -93,19 +93,17 @@ compress(u_char * source, u_char * dest, int len)
 }
 
 static void
-SyncTable(u_char * source, u_char * dest, int len)
+SyncTable(struct pred1_state *state, u_char * source, u_char * dest, int len)
 {
-
   while (len--) {
-    if (InputGuessTable[iHash] != *source) {
-      InputGuessTable[iHash] = *source;
-    }
-    IHASH(*dest++ = *source++);
+    if (state->dict[state->hash] != *source)
+      state->dict[state->hash] = *source;
+    HASH(state, *dest++ = *source++);
   }
 }
 
 static int
-decompress(u_char * source, u_char * dest, int len)
+decompress(struct pred1_state *state, u_char * source, u_char * dest, int len)
 {
   int i, bitmask;
   unsigned char flags, *orgdest;
@@ -116,78 +114,70 @@ decompress(u_char * source, u_char * dest, int len)
     len--;
     for (i = 0, bitmask = 1; i < 8; i++, bitmask <<= 1) {
       if (flags & bitmask) {
-	*dest = InputGuessTable[iHash];	/* Guess correct */
+	*dest = state->dict[state->hash];	/* Guess correct */
       } else {
 	if (!len)
 	  break;		/* we seem to be really done -- cabo */
-	InputGuessTable[iHash] = *source;	/* Guess wrong */
+	state->dict[state->hash] = *source;	/* Guess wrong */
 	*dest = *source++;	/* Read from source */
 	len--;
       }
-      IHASH(*dest++);
+      HASH(state, *dest++);
     }
   }
   return (dest - orgdest);
 }
 
 static void
-Pred1TermInput(void)
+Pred1Term(void *v)
 {
-  if (InputGuessTable != NULL) {
-    free(InputGuessTable);
-    InputGuessTable = NULL;
-  }
+  struct pred1_state *state = (struct pred1_state *)v;
+  free(state);
 }
 
 static void
-Pred1TermOutput(void)
+Pred1ResetInput(void *v)
 {
-  if (OutputGuessTable != NULL) {
-    free(OutputGuessTable);
-    OutputGuessTable = NULL;
-  }
-}
-
-static void
-Pred1ResetInput(void)
-{
-  iHash = 0;
-  memset(InputGuessTable, '\0', GUESS_TABLE_SIZE);
+  struct pred1_state *state = (struct pred1_state *)v;
+  state->hash = 0;
+  memset(state->dict, '\0', sizeof state->dict);
   LogPrintf(LogCCP, "Predictor1: Input channel reset\n");
 }
 
 static void
-Pred1ResetOutput(void)
+Pred1ResetOutput(void *v)
 {
-  oHash = 0;
-  memset(OutputGuessTable, '\0', GUESS_TABLE_SIZE);
+  struct pred1_state *state = (struct pred1_state *)v;
+  state->hash = 0;
+  memset(state->dict, '\0', sizeof state->dict);
   LogPrintf(LogCCP, "Predictor1: Output channel reset\n");
 }
 
-static int
-Pred1InitInput(void)
+static void *
+Pred1InitInput(struct lcp_opt *o)
 {
-  if (InputGuessTable == NULL)
-    if ((InputGuessTable = malloc(GUESS_TABLE_SIZE)) == NULL)
-      return 0;
-  Pred1ResetInput();
-  return 1;
+  struct pred1_state *state;
+  state = (struct pred1_state *)malloc(sizeof(struct pred1_state));
+  if (state != NULL)
+    Pred1ResetInput(state);
+  return state;
+}
+
+static void *
+Pred1InitOutput(struct lcp_opt *o)
+{
+  struct pred1_state *state;
+  state = (struct pred1_state *)malloc(sizeof(struct pred1_state));
+  if (state != NULL)
+    Pred1ResetOutput(state);
+  return state;
 }
 
 static int
-Pred1InitOutput(void)
-{
-  if (OutputGuessTable == NULL)
-    if ((OutputGuessTable = malloc(GUESS_TABLE_SIZE)) == NULL)
-      return 0;
-  Pred1ResetOutput();
-  return 1;
-}
-
-static int
-Pred1Output(struct ccp *ccp, struct link *l, int pri, u_short proto,
+Pred1Output(void *v, struct ccp *ccp, struct link *l, int pri, u_short proto,
             struct mbuf *bp)
 {
+  struct pred1_state *state = (struct pred1_state *)v;
   struct mbuf *mwp;
   u_char *cp, *wp, *hp;
   int orglen, len;
@@ -206,7 +196,7 @@ Pred1Output(struct ccp *ccp, struct link *l, int pri, u_short proto,
   fcs = HdlcFcs(INITFCS, bufp, 2 + orglen);
   fcs = ~fcs;
 
-  len = compress(bufp + 2, wp, orglen);
+  len = compress(state, bufp + 2, wp, orglen);
   LogPrintf(LogDEBUG, "Pred1Output: orglen (%d) --> len (%d)\n", orglen, len);
   ccp->uncompout += orglen;
   if (len < orglen) {
@@ -227,8 +217,9 @@ Pred1Output(struct ccp *ccp, struct link *l, int pri, u_short proto,
 }
 
 static struct mbuf *
-Pred1Input(struct ccp *ccp, u_short *proto, struct mbuf *bp)
+Pred1Input(void *v, struct ccp *ccp, u_short *proto, struct mbuf *bp)
 {
+  struct pred1_state *state = (struct pred1_state *)v;
   u_char *cp, *pp;
   int len, olen, len1;
   struct mbuf *wp;
@@ -245,7 +236,7 @@ Pred1Input(struct ccp *ccp, u_short *proto, struct mbuf *bp)
   len += *cp++;
   ccp->uncompin += len & 0x7fff;
   if (len & 0x8000) {
-    len1 = decompress(cp, pp, olen - 4);
+    len1 = decompress(state, cp, pp, olen - 4);
     ccp->compin += olen;
     len &= 0x7fff;
     if (len != len1) {		/* Error is detected. Send reset request */
@@ -259,7 +250,7 @@ Pred1Input(struct ccp *ccp, u_short *proto, struct mbuf *bp)
     pp += len1;
   } else {
     ccp->compin += len;
-    SyncTable(cp, pp, len);
+    SyncTable(state, cp, pp, len);
     cp += len;
     pp += len;
   }
@@ -295,7 +286,7 @@ Pred1Input(struct ccp *ccp, u_short *proto, struct mbuf *bp)
 }
 
 static void
-Pred1DictSetup(struct ccp *ccp, u_short proto, struct mbuf * bp)
+Pred1DictSetup(void *v, struct ccp *ccp, u_short proto, struct mbuf * bp)
 {
 }
 
@@ -306,20 +297,25 @@ Pred1DispOpts(struct lcp_opt *o)
 }
 
 static void
-Pred1GetOpts(struct lcp_opt *o)
+Pred1InitOptsOutput(struct lcp_opt *o, const struct ccp_config *cfg)
 {
-  o->id = TY_PRED1;
   o->len = 2;
 }
 
 static int
-Pred1SetOpts(struct lcp_opt *o)
+Pred1SetOptsOutput(struct lcp_opt *o)
 {
-  if (o->id != TY_PRED1 || o->len != 2) {
-    Pred1GetOpts(o);
+  if (o->len != 2) {
+    o->len = 2;
     return MODE_NAK;
   }
   return MODE_ACK;
+}
+
+static int
+Pred1SetOptsInput(struct lcp_opt *o, const struct ccp_config *cfg)
+{
+  return Pred1SetOptsOutput(o);
 }
 
 const struct ccp_algorithm Pred1Algorithm = {
@@ -327,19 +323,18 @@ const struct ccp_algorithm Pred1Algorithm = {
   ConfPred1,
   Pred1DispOpts,
   {
-    Pred1GetOpts,
-    Pred1SetOpts,
+    Pred1SetOptsInput,
     Pred1InitInput,
-    Pred1TermInput,
+    Pred1Term,
     Pred1ResetInput,
     Pred1Input,
     Pred1DictSetup
   },
   {
-    Pred1GetOpts,
-    Pred1SetOpts,
+    Pred1InitOptsOutput,
+    Pred1SetOptsOutput,
     Pred1InitOutput,
-    Pred1TermOutput,
+    Pred1Term,
     Pred1ResetOutput,
     Pred1Output
   },

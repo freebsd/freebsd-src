@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.22 1998/03/16 22:51:49 brian Exp $
+ * $Id: ccp.c,v 1.30.2.23 1998/03/16 22:53:31 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -28,6 +28,7 @@
 #include <netinet/ip.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <termios.h>
 
@@ -150,6 +151,8 @@ ccp_Init(struct ccp *ccp, struct bundle *bundle, struct link *l,
   /* Initialise ourselves */
   fsm_Init(&ccp->fsm, "CCP", PROTO_CCP, CCP_MAXCODE, 10, LogCCP,
            bundle, l, parent, &ccp_Callbacks);
+  ccp->cfg.deflate.in.winsize = 0;
+  ccp->cfg.deflate.out.winsize = 15;
   ccp_Setup(ccp);
 }
 
@@ -161,9 +164,11 @@ ccp_Setup(struct ccp *ccp)
   ccp->fsm.maxconfig = 10;
   ccp->his_proto = ccp->my_proto = -1;
   ccp->reset_sent = ccp->last_reset = -1;
-  ccp->in_algorithm = ccp->out_algorithm = -1;
+  ccp->in.algorithm = ccp->out.algorithm = -1;
+  ccp->in.state = ccp->out.state = NULL;
+  ccp->in.opt.id = -1;
+  ccp->out.opt = NULL;
   ccp->his_reject = ccp->my_reject = 0;
-  ccp->out_init = ccp->in_init = 0;
   ccp->uncompout = ccp->compout = 0;
   ccp->uncompin = ccp->compin = 0;
 }
@@ -181,26 +186,47 @@ CcpSendConfigReq(struct fsm *fp)
 {
   /* Send config REQ please */
   struct ccp *ccp = fsm2ccp(fp);
+  struct ccp_opt **o;
   u_char *cp, buff[100];
-  int f;
+  int f, alloc;
 
   LogPrintf(LogCCP, "CcpSendConfigReq\n");
   cp = buff;
+  o = &ccp->out.opt;
+  alloc = ccp->his_reject == 0 && ccp->out.opt == NULL;
   ccp->my_proto = -1;
-  ccp->out_algorithm = -1;
+  ccp->out.algorithm = -1;
   for (f = 0; f < NALGORITHMS; f++)
     if (Enabled(algorithm[f]->Conf) && !REJECTED(ccp, algorithm[f]->id)) {
-      struct lcp_opt o;
+      if (alloc) {
+        *o = (struct ccp_opt *)malloc(sizeof(struct ccp_opt));
+        (*o)->val.id = algorithm[f]->id;
+        (*o)->val.len = 2;
+        (*o)->next = NULL;
+        (*o)->algorithm = f;
+        (*algorithm[f]->o.OptInit)(&(*o)->val, &ccp->cfg);
+      } else {
+        for (o = &ccp->out.opt; *o != NULL; o = &(*o)->next)
+          if ((*o)->val.id == algorithm[f]->id && (*o)->algorithm == f)
+            break;
+        if (*o == NULL) {
+          LogPrintf(LogERROR, "CCP REQ buffer lost !\n");
+          break;
+        }
+      }
 
-      (*algorithm[f]->o.Get)(&o);
-      if (cp + o.len > buff + sizeof buff) {
+      if (cp + (*o)->val.len > buff + sizeof buff) {
         LogPrintf(LogERROR, "CCP REQ buffer overrun !\n");
         break;
       }
-      cp += LcpPutConf(LogCCP, cp, &o, cftypes[o.id],
-                       (*algorithm[f]->Disp)(&o));
-      ccp->my_proto = o.id;
-      ccp->out_algorithm = f;
+      cp += LcpPutConf(LogCCP, cp, &(*o)->val, cftypes[(*o)->val.id],
+                       (*algorithm[f]->Disp)(&(*o)->val));
+
+      ccp->my_proto = (*o)->val.id;
+      ccp->out.algorithm = f;
+
+      if (alloc)
+        o = &(*o)->next;
     }
   FsmOutput(fp, CODE_CONFIGREQ, fp->reqid++, buff, cp - buff);
 }
@@ -235,8 +261,8 @@ CcpRecvResetReq(struct fsm *fp)
 {
   /* Got a reset REQ, reset outgoing dictionary */
   struct ccp *ccp = fsm2ccp(fp);
-  if (ccp->out_init)
-    (*algorithm[ccp->out_algorithm]->o.Reset)();
+  if (ccp->out.state != NULL)
+    (*algorithm[ccp->out.algorithm]->o.Reset)(ccp->out.state);
 }
 
 static void
@@ -252,13 +278,13 @@ CcpLayerFinish(struct fsm *fp)
   /* We're now down */
   struct ccp *ccp = fsm2ccp(fp);
   LogPrintf(LogCCP, "CcpLayerFinish.\n");
-  if (ccp->in_init) {
-    (*algorithm[ccp->in_algorithm]->i.Term)();
-    ccp->in_init = 0;
+  if (ccp->in.state != NULL) {
+    (*algorithm[ccp->in.algorithm]->i.Term)(ccp->in.state);
+    ccp->in.state = NULL;
   }
-  if (ccp->out_init) {
-    (*algorithm[ccp->out_algorithm]->o.Term)();
-    ccp->out_init = 0;
+  if (ccp->out.state != NULL) {
+    (*algorithm[ccp->out.algorithm]->o.Term)(ccp->out.state);
+    ccp->out.state = NULL;
   }
 }
 
@@ -278,26 +304,29 @@ CcpLayerUp(struct fsm *fp)
   /* We're now up */
   struct ccp *ccp = fsm2ccp(fp);
   LogPrintf(LogCCP, "CcpLayerUp.\n");
-  if (!ccp->in_init && ccp->in_algorithm >= 0 &&
-      ccp->in_algorithm < NALGORITHMS)
-    if ((*algorithm[ccp->in_algorithm]->i.Init)())
-      ccp->in_init = 1;
-    else {
+  if (ccp->in.state == NULL && ccp->in.algorithm >= 0 &&
+      ccp->in.algorithm < NALGORITHMS) {
+    ccp->in.state = (*algorithm[ccp->in.algorithm]->i.Init)(&ccp->in.opt);
+    if (ccp->in.state == NULL) {
       LogPrintf(LogERROR, "%s (in) initialisation failure\n",
                 protoname(ccp->his_proto));
       ccp->his_proto = ccp->my_proto = -1;
       FsmClose(fp);
     }
-  if (!ccp->out_init && ccp->out_algorithm >= 0 &&
-      ccp->out_algorithm < NALGORITHMS)
-    if ((*algorithm[ccp->out_algorithm]->o.Init)())
-      ccp->out_init = 1;
-    else {
+  }
+
+  if (ccp->out.state == NULL && ccp->out.algorithm >= 0 &&
+      ccp->out.algorithm < NALGORITHMS) {
+    ccp->out.state = (*algorithm[ccp->out.algorithm]->o.Init)
+                       (&ccp->out.opt->val);
+    if (ccp->out.state == NULL) {
       LogPrintf(LogERROR, "%s (out) initialisation failure\n",
                 protoname(ccp->my_proto));
       ccp->his_proto = ccp->my_proto = -1;
       FsmClose(fp);
     }
+  }
+
   LogPrintf(LogCCP, "Out = %s[%d], In = %s[%d]\n",
             protoname(ccp->my_proto), ccp->my_proto,
             protoname(ccp->his_proto), ccp->his_proto);
@@ -311,18 +340,29 @@ CcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
   struct ccp *ccp = fsm2ccp(fp);
   int type, length;
   int f;
+  const char *end;
 
   while (plen >= sizeof(struct fsmconfig)) {
     type = *cp;
     length = cp[1];
-    if (type < NCFTYPES)
-      LogPrintf(LogCCP, " %s[%d]\n", cftypes[type], length);
-    else
-      LogPrintf(LogCCP, " ???[%d]\n", length);
+
+    if (length > sizeof(struct lcp_opt)) {
+      length = sizeof(struct lcp_opt);
+      LogPrintf(LogCCP, "Warning: Truncating length to %d\n", length);
+    }
 
     for (f = NALGORITHMS-1; f > -1; f--)
       if (algorithm[f]->id == type)
         break;
+
+    end = f == -1 ? "" : (*algorithm[f]->Disp)((struct lcp_opt *)cp);
+    if (end == NULL)
+      end = "";
+
+    if (type < NCFTYPES)
+      LogPrintf(LogCCP, " %s[%d] %s\n", cftypes[type], length, end);
+    else
+      LogPrintf(LogCCP, " ???[%d] %s\n", length, end);
 
     if (f == -1) {
       /* Don't understand that :-( */
@@ -332,26 +372,26 @@ CcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
         dec->rejend += length;
       }
     } else {
-      struct lcp_opt o;
+      struct ccp_opt *o;
 
       switch (mode_type) {
       case MODE_REQ:
-	if (Acceptable(algorithm[f]->Conf) && ccp->in_algorithm == -1) {
-	  memcpy(&o, cp, length);
-          switch ((*algorithm[f]->i.Set)(&o)) {
+	if (Acceptable(algorithm[f]->Conf) && ccp->in.algorithm == -1) {
+	  memcpy(&ccp->in.opt, cp, length);
+          switch ((*algorithm[f]->i.Set)(&ccp->in.opt, &ccp->cfg)) {
           case MODE_REJ:
-	    memcpy(dec->rejend, &o, o.len);
-	    dec->rejend += o.len;
+	    memcpy(dec->rejend, &ccp->in.opt, ccp->in.opt.len);
+	    dec->rejend += ccp->in.opt.len;
             break;
           case MODE_NAK:
-	    memcpy(dec->nakend, &o, o.len);
-	    dec->nakend += o.len;
+	    memcpy(dec->nakend, &ccp->in.opt, ccp->in.opt.len);
+	    dec->nakend += ccp->in.opt.len;
             break;
           case MODE_ACK:
 	    memcpy(dec->ackend, cp, length);
 	    dec->ackend += length;
 	    ccp->his_proto = type;
-            ccp->in_algorithm = f;		/* This one'll do ! */
+            ccp->in.algorithm = f;		/* This one'll do :-) */
             break;
           }
 	} else {
@@ -360,12 +400,19 @@ CcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 	}
 	break;
       case MODE_NAK:
-	memcpy(&o, cp, length);
-        if ((*algorithm[f]->o.Set)(&o) == MODE_ACK)
-          ccp->my_proto = algorithm[f]->id;
+        for (o = ccp->out.opt; o != NULL; o = o->next)
+          if (o->val.id == cp[0])
+            break;
+        if (o == NULL)
+          LogPrintf(LogCCP, "Warning: Ignoring peer NAK of unsent option\n");
         else {
-	  ccp->his_reject |= (1 << type);
-	  ccp->my_proto = -1;
+	  memcpy(&o->val, cp, length);
+          if ((*algorithm[f]->o.Set)(&o->val) == MODE_ACK)
+            ccp->my_proto = algorithm[f]->id;
+          else {
+	    ccp->his_reject |= (1 << type);
+	    ccp->my_proto = -1;
+          }
         }
         break;
       case MODE_REJ:
@@ -375,15 +422,24 @@ CcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       }
     }
 
-    plen -= length;
-    cp += length;
+    plen -= cp[1];
+    cp += cp[1];
   }
 
   if (mode_type != MODE_NOP && dec->rejend != dec->rej) {
-    dec->ackend = dec->ack;	/* let's not send both ! */
-    if (!ccp->in_init) {
+    /* rejects are preferred */
+    dec->ackend = dec->ack;
+    dec->nakend = dec->nak;
+    if (ccp->in.state == NULL) {
       ccp->his_proto = -1;
-      ccp->in_algorithm = -1;
+      ccp->in.algorithm = -1;
+    }
+  } else if (mode_type != MODE_NOP && dec->nakend != dec->nak) {
+    /* then NAKs */
+    dec->ackend = dec->ack;
+    if (ccp->in.state == NULL) {
+      ccp->his_proto = -1;
+      ccp->in.algorithm = -1;
     }
   }
 }
@@ -423,8 +479,8 @@ CcpRecvResetAck(struct fsm *fp, u_char id)
 
   ccp->last_reset = ccp->reset_sent;
   ccp->reset_sent = -1;
-  if (ccp->in_init)
-    (*algorithm[ccp->in_algorithm]->i.Reset)();
+  if (ccp->in.state != NULL)
+    (*algorithm[ccp->in.algorithm]->i.Reset)(ccp->in.state);
 }
 
 int
@@ -432,8 +488,10 @@ ccp_Output(struct ccp *ccp, struct link *l, int pri, u_short proto,
            struct mbuf *m)
 {
   /* Compress outgoing Network Layer data */
-  if ((proto & 0xfff1) == 0x21 && ccp->fsm.state == ST_OPENED && ccp->out_init)
-    return (*algorithm[ccp->out_algorithm]->o.Write)(ccp, l, pri, proto, m);
+  if ((proto & 0xfff1) == 0x21 && ccp->fsm.state == ST_OPENED &&
+      ccp->out.state != NULL)
+    return (*algorithm[ccp->out.algorithm]->o.Write)
+             (ccp->out.state, ccp, l, pri, proto, m);
   return 0;
 }
 
@@ -451,13 +509,15 @@ ccp_Decompress(struct ccp *ccp, u_short *proto, struct mbuf *bp)
         /* Send another REQ and put the packet in the bit bucket */
         LogPrintf(LogCCP, "ReSendResetReq(%d)\n", ccp->reset_sent);
         FsmOutput(&ccp->fsm, CODE_RESETREQ, ccp->reset_sent, NULL, 0);
-      } else if (ccp->in_init)
-        return (*algorithm[ccp->in_algorithm]->i.Read)(ccp, proto, bp);
+      } else if (ccp->in.state != NULL)
+        return (*algorithm[ccp->in.algorithm]->i.Read)
+                 (ccp->in.state, ccp, proto, bp);
       pfree(bp);
       bp = NULL;
-    } else if ((*proto & 0xfff1) == 0x21 && ccp->in_init)
+    } else if ((*proto & 0xfff1) == 0x21 && ccp->in.state != NULL)
       /* Add incoming Network Layer traffic to our dictionary */
-      (*algorithm[ccp->in_algorithm]->i.DictSetup)(ccp, *proto, bp);
+      (*algorithm[ccp->in.algorithm]->i.DictSetup)
+        (ccp->in.state, ccp, *proto, bp);
 
   return bp;
 }

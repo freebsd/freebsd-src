@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.39 1998/03/16 22:51:58 brian Exp $
+ * $Id: command.c,v 1.131.2.40 1998/03/16 22:53:38 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -1314,6 +1314,27 @@ SetVariable(struct cmdargs const *arg)
       cx->cfg.script.login[sizeof cx->cfg.script.login - 1] = '\0';
     }
     break;
+  case VAR_WINSIZE:
+    if (arg->argc > 0) {
+      cx->ccp.cfg.deflate.out.winsize = atoi(arg->argv[0]);
+      if (cx->ccp.cfg.deflate.out.winsize < 8 ||
+          cx->ccp.cfg.deflate.out.winsize > 15) {
+          LogPrintf(LogWARN, "%d: Invalid outgoing window size\n",
+                    cx->ccp.cfg.deflate.out.winsize);
+          cx->ccp.cfg.deflate.out.winsize = 15;
+      }
+      if (arg->argc > 1) {
+        cx->ccp.cfg.deflate.in.winsize = atoi(arg->argv[1]);
+        if (cx->ccp.cfg.deflate.in.winsize < 8 ||
+            cx->ccp.cfg.deflate.in.winsize > 15) {
+            LogPrintf(LogWARN, "%d: Invalid incoming window size\n",
+                      cx->ccp.cfg.deflate.in.winsize);
+            cx->ccp.cfg.deflate.in.winsize = 15;
+        }
+      } else
+        cx->ccp.cfg.deflate.in.winsize = 0;
+    }
+    break;
   case VAR_DEVICE:
     Physical_SetDeviceList(cx->physical, argp);
     break;
@@ -1385,6 +1406,9 @@ static struct cmdtab const SetCommands[] = {
   "Set authentication name", "set authname name", (const void *) VAR_AUTHNAME},
   {"ctsrts", NULL, SetCtsRts, LOCAL_AUTH | LOCAL_CX,
   "Use CTS/RTS modem signalling", "set ctsrts [on|off]"},
+  {"deflate", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
+  "Set deflate window sizes", "set deflate out-winsize in-winsize",
+  (const void *) VAR_WINSIZE},
   {"device", "line", SetVariable, LOCAL_AUTH | LOCAL_CX,
   "Set modem device name", "set device|line device-name[,device-name]",
   (const void *) VAR_DEVICE},

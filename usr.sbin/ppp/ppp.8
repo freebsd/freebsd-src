@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97.2.4 1998/03/16 07:37:56 brian Exp $
+.\" $Id: ppp.8,v 1.97.2.5 1998/03/16 22:52:42 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1997,6 +1997,20 @@ for security reasons.
 This sets the authentication id used in client mode PAP or CHAP negotiation.
 .It set ctsrts
 This sets hardware flow control and is the default.
+.It set deflate out-winsize [in-winsize]
+This sets the DEFLATE algorithms default outgoing and incoming window
+sizes.  Both
+.Ar out-winsize
+and
+.Ar in-winsize
+must be values between
+.Em 8
+and
+.Em 15 .
+If
+.Ar in-winsize
+is specified, ppp will insist that this window size is used and will not
+accept any other values from the peer.
 .It set device|line value[,value...]
 This sets the device(s) to which
 .Nm

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.h,v 1.14.2.11 1998/02/23 00:38:19 brian Exp $
+ * $Id: ccp.h,v 1.14.2.12 1998/02/27 01:22:19 brian Exp $
  *
  *	TODO:
  */
@@ -35,6 +35,20 @@
 #define	TY_PPPD_DEFLATE	24	/* Deflate (gzip) - (mis) numbered by pppd */
 #define	TY_DEFLATE	26	/* Deflate (gzip) - rfc 1979 */
 
+struct ccp_config {
+  struct {
+    struct {
+      int winsize;
+    } in, out;
+  } deflate;
+};
+
+struct ccp_opt {
+  struct ccp_opt *next;
+  int algorithm;
+  struct lcp_opt val;
+};
+
 struct ccp {
   struct fsm fsm;		/* The finite state machine */
 
@@ -44,17 +58,25 @@ struct ccp {
   int reset_sent;		/* If != -1, ignore compressed 'till ack */
   int last_reset;		/* We can receive more (dups) w/ this id */
 
-  int in_algorithm;		/* Incoming algorithm in use */
-  int out_algorithm;		/* Outgoing algorithm in use */
+  struct {
+    int algorithm;		/* Algorithm in use */
+    void *state;		/* Returned by implementations Init() */
+    struct lcp_opt opt;		/* Set by implementations OptInit() */
+  } in;
+
+  struct {
+    int algorithm;		/* Algorithm in use */
+    void *state;		/* Returned by implementations Init() */
+    struct ccp_opt *opt;	/* Set by implementations OptInit() */
+  } out;
 
   u_int32_t his_reject;		/* Request codes rejected by peer */
   u_int32_t my_reject;		/* Request codes I have rejected */
 
-  int out_init : 1;		/* Init called for out algorithm */
-  int in_init : 1;		/* Init called for in algorithm */
-
   u_long uncompout, compout;
   u_long uncompin, compin;
+
+  struct ccp_config cfg;
 };
 
 #define fsm2ccp(fp) (fp->proto == PROTO_CCP ? (struct ccp *)fp : NULL)
@@ -64,21 +86,21 @@ struct ccp_algorithm {
   int Conf;					/* A Conf value from vars.h */
   const char *(*Disp)(struct lcp_opt *);
   struct {
-    void (*Get)(struct lcp_opt *);
-    int (*Set)(struct lcp_opt *);
-    int (*Init)(void);
-    void (*Term)(void);
-    void (*Reset)(void);
-    struct mbuf *(*Read)(struct ccp *, u_short *, struct mbuf *);
-    void (*DictSetup)(struct ccp *, u_short, struct mbuf *);
+    int (*Set)(struct lcp_opt *, const struct ccp_config *);
+    void *(*Init)(struct lcp_opt *);
+    void (*Term)(void *);
+    void (*Reset)(void *);
+    struct mbuf *(*Read)(void *, struct ccp *, u_short *, struct mbuf *);
+    void (*DictSetup)(void *, struct ccp *, u_short, struct mbuf *);
   } i;
   struct {
-    void (*Get)(struct lcp_opt *);
+    void (*OptInit)(struct lcp_opt *, const struct ccp_config *);
     int (*Set)(struct lcp_opt *);
-    int (*Init)(void);
-    void (*Term)(void);
-    void (*Reset)(void);
-    int (*Write)(struct ccp *, struct link *, int, u_short, struct mbuf *);
+    void *(*Init)(struct lcp_opt *);
+    void (*Term)(void *);
+    void (*Reset)(void *);
+    int (*Write)(void *, struct ccp *, struct link *, int, u_short,
+                 struct mbuf *);
   } o;
 };
 

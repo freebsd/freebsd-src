@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: deflate.c,v 1.6.4.6 1998/02/23 00:38:28 brian Exp $
+ *	$Id: deflate.c,v 1.6.4.7 1998/03/13 00:44:00 brian Exp $
  */
 
 #include <sys/param.h>
@@ -54,30 +54,31 @@
 struct deflate_state {
     u_short seqno;
     int uncomp_rec;
+    int winsize;
     z_stream cx;
 };
 
-static int iWindowSize = 15;
-static int oWindowSize = 15;
-static struct deflate_state InputState, OutputState;
 static char garbage[10];
 static u_char EMPTY_BLOCK[4] = { 0x00, 0x00, 0xff, 0xff };
 
 #define DEFLATE_CHUNK_LEN 1024		/* Allocate mbufs this size */
 
 static void
-DeflateResetOutput(void)
+DeflateResetOutput(void *v)
 {
-  OutputState.seqno = 0;
-  OutputState.uncomp_rec = 0;
-  deflateReset(&OutputState.cx);
+  struct deflate_state *state = (struct deflate_state *)v;
+
+  state->seqno = 0;
+  state->uncomp_rec = 0;
+  deflateReset(&state->cx);
   LogPrintf(LogCCP, "Deflate: Output channel reset\n");
 }
 
 static int
-DeflateOutput(struct ccp *ccp, struct link *l, int pri, u_short proto,
+DeflateOutput(void *v, struct ccp *ccp, struct link *l, int pri, u_short proto,
               struct mbuf *mp)
 {
+  struct deflate_state *state = (struct deflate_state *)v;
   u_char *wp, *rp;
   int olen, ilen, len, res, flush;
   struct mbuf *mo_head, *mo, *mi_head, *mi;
@@ -103,53 +104,53 @@ DeflateOutput(struct ccp *ccp, struct link *l, int pri, u_short proto,
   mo_head = mo = mballoc(DEFLATE_CHUNK_LEN, MB_HDLCOUT);
   mo->cnt = 2;
   wp = MBUF_CTOP(mo);
-  *wp++ = OutputState.seqno >> 8;
-  *wp++ = OutputState.seqno & 0377;
-  LogPrintf(LogDEBUG, "DeflateOutput: Seq %d\n", OutputState.seqno);
-  OutputState.seqno++;
+  *wp++ = state->seqno >> 8;
+  *wp++ = state->seqno & 0377;
+  LogPrintf(LogDEBUG, "DeflateOutput: Seq %d\n", state->seqno);
+  state->seqno++;
 
   /* Set up the deflation context */
-  OutputState.cx.next_out = wp;
-  OutputState.cx.avail_out = DEFLATE_CHUNK_LEN - 2;
-  OutputState.cx.next_in = MBUF_CTOP(mi);
-  OutputState.cx.avail_in = mi->cnt;
+  state->cx.next_out = wp;
+  state->cx.avail_out = DEFLATE_CHUNK_LEN - 2;
+  state->cx.next_in = MBUF_CTOP(mi);
+  state->cx.avail_in = mi->cnt;
   flush = Z_NO_FLUSH;
 
   olen = 0;
   while (1) {
-    if ((res = deflate(&OutputState.cx, flush)) != Z_OK) {
+    if ((res = deflate(&state->cx, flush)) != Z_OK) {
       if (res == Z_STREAM_END)
         break;			/* Done */
       LogPrintf(LogERROR, "DeflateOutput: deflate returned %d (%s)\n",
-                res, OutputState.cx.msg ? OutputState.cx.msg : "");
+                res, state->cx.msg ? state->cx.msg : "");
       pfree(mo_head);
       mbfree(mi_head);
-      OutputState.seqno--;
+      state->seqno--;
       return 1;			/* packet dropped */
     }
 
-    if (flush == Z_SYNC_FLUSH && OutputState.cx.avail_out != 0)
+    if (flush == Z_SYNC_FLUSH && state->cx.avail_out != 0)
       break;
 
-    if (OutputState.cx.avail_in == 0 && mi->next != NULL) {
+    if (state->cx.avail_in == 0 && mi->next != NULL) {
       mi = mi->next;
-      OutputState.cx.next_in = MBUF_CTOP(mi);
-      OutputState.cx.avail_in = mi->cnt;
+      state->cx.next_in = MBUF_CTOP(mi);
+      state->cx.avail_in = mi->cnt;
       if (mi->next == NULL)
         flush = Z_SYNC_FLUSH;
     }
 
-    if (OutputState.cx.avail_out == 0) {
+    if (state->cx.avail_out == 0) {
       mo->next = mballoc(DEFLATE_CHUNK_LEN, MB_HDLCOUT);
       olen += (mo->cnt = DEFLATE_CHUNK_LEN);
       mo = mo->next;
       mo->cnt = 0;
-      OutputState.cx.next_out = MBUF_CTOP(mo);
-      OutputState.cx.avail_out = DEFLATE_CHUNK_LEN;
+      state->cx.next_out = MBUF_CTOP(mo);
+      state->cx.avail_out = DEFLATE_CHUNK_LEN;
     }
   }
 
-  olen += (mo->cnt = DEFLATE_CHUNK_LEN - OutputState.cx.avail_out);
+  olen += (mo->cnt = DEFLATE_CHUNK_LEN - state->cx.avail_out);
   olen -= 4;		/* exclude the trailing EMPTY_BLOCK */
 
   /*
@@ -193,17 +194,20 @@ DeflateOutput(struct ccp *ccp, struct link *l, int pri, u_short proto,
 }
 
 static void
-DeflateResetInput(void)
+DeflateResetInput(void *v)
 {
-  InputState.seqno = 0;
-  InputState.uncomp_rec = 0;
-  inflateReset(&InputState.cx);
+  struct deflate_state *state = (struct deflate_state *)v;
+
+  state->seqno = 0;
+  state->uncomp_rec = 0;
+  inflateReset(&state->cx);
   LogPrintf(LogCCP, "Deflate: Input channel reset\n");
 }
 
 static struct mbuf *
-DeflateInput(struct ccp *ccp, u_short *proto, struct mbuf *mi)
+DeflateInput(void *v, struct ccp *ccp, u_short *proto, struct mbuf *mi)
 {
+  struct deflate_state *state = (struct deflate_state *)v;
   struct mbuf *mo, *mo_head, *mi_head;
   u_char *wp;
   int ilen, olen;
@@ -217,24 +221,24 @@ DeflateInput(struct ccp *ccp, u_short *proto, struct mbuf *mi)
   /* Check the sequence number. */
   seq = (hdr[0] << 8) + hdr[1];
   LogPrintf(LogDEBUG, "DeflateInput: Seq %d\n", seq);
-  if (seq != InputState.seqno) {
-    if (seq <= InputState.uncomp_rec)
+  if (seq != state->seqno) {
+    if (seq <= state->uncomp_rec)
       /*
        * So the peer's started at zero again - fine !  If we're wrong,
        * inflate() will fail.  This is better than getting into a loop
        * trying to get a ResetReq to a busy sender.
        */
-      InputState.seqno = seq;
+      state->seqno = seq;
     else {
       LogPrintf(LogERROR, "DeflateInput: Seq error: Got %d, expected %d\n",
-                seq, InputState.seqno);
+                seq, state->seqno);
       pfree(mi_head);
       CcpSendResetReq(&ccp->fsm);
       return NULL;
     }
   }
-  InputState.seqno++;
-  InputState.uncomp_rec = 0;
+  state->seqno++;
+  state->uncomp_rec = 0;
 
   /* Allocate an output mbuf */
   mo_head = mo = mballoc(DEFLATE_CHUNK_LEN, MB_IPIN);
@@ -248,10 +252,10 @@ DeflateInput(struct ccp *ccp, u_short *proto, struct mbuf *mi)
    * byte of the output and decide whether we have a compressed
    * proto field.
    */
-  InputState.cx.next_in = MBUF_CTOP(mi);
-  InputState.cx.avail_in = mi->cnt;
-  InputState.cx.next_out = wp + 1;
-  InputState.cx.avail_out = 1;
+  state->cx.next_in = MBUF_CTOP(mi);
+  state->cx.avail_in = mi->cnt;
+  state->cx.next_out = wp + 1;
+  state->cx.avail_out = 1;
   ilen += mi->cnt;
 
   flush = mi->next ? Z_NO_FLUSH : Z_SYNC_FLUSH;
@@ -259,45 +263,45 @@ DeflateInput(struct ccp *ccp, u_short *proto, struct mbuf *mi)
   olen = 0;
 
   while (1) {
-    if ((res = inflate(&InputState.cx, flush)) != Z_OK) {
+    if ((res = inflate(&state->cx, flush)) != Z_OK) {
       if (res == Z_STREAM_END)
         break;			/* Done */
       LogPrintf(LogERROR, "DeflateInput: inflate returned %d (%s)\n",
-                res, InputState.cx.msg ? InputState.cx.msg : "");
+                res, state->cx.msg ? state->cx.msg : "");
       pfree(mo_head);
       pfree(mi);
       CcpSendResetReq(&ccp->fsm);
       return NULL;
     }
 
-    if (flush == Z_SYNC_FLUSH && InputState.cx.avail_out != 0)
+    if (flush == Z_SYNC_FLUSH && state->cx.avail_out != 0)
       break;
 
-    if (InputState.cx.avail_in == 0 && mi && (mi = mbfree(mi)) != NULL) {
+    if (state->cx.avail_in == 0 && mi && (mi = mbfree(mi)) != NULL) {
       /* underflow */
-      InputState.cx.next_in = MBUF_CTOP(mi);
-      ilen += (InputState.cx.avail_in = mi->cnt);
+      state->cx.next_in = MBUF_CTOP(mi);
+      ilen += (state->cx.avail_in = mi->cnt);
       if (mi->next == NULL)
         flush = Z_SYNC_FLUSH;
     }
 
-    if (InputState.cx.avail_out == 0)
+    if (state->cx.avail_out == 0)
       /* overflow */
       if (first) {
         if (!(wp[1] & 1)) {
           /* 2 byte proto, shuffle it back in output */
           wp[0] = wp[1];
-          InputState.cx.next_out--;
-          InputState.cx.avail_out = DEFLATE_CHUNK_LEN-1;
+          state->cx.next_out--;
+          state->cx.avail_out = DEFLATE_CHUNK_LEN-1;
         } else
-          InputState.cx.avail_out = DEFLATE_CHUNK_LEN-2;
+          state->cx.avail_out = DEFLATE_CHUNK_LEN-2;
         first = 0;
       } else {
         olen += (mo->cnt = DEFLATE_CHUNK_LEN);
         mo->next = mballoc(DEFLATE_CHUNK_LEN, MB_IPIN);
         mo = mo->next;
-        InputState.cx.next_out = MBUF_CTOP(mo);
-        InputState.cx.avail_out = DEFLATE_CHUNK_LEN;
+        state->cx.next_out = MBUF_CTOP(mo);
+        state->cx.avail_out = DEFLATE_CHUNK_LEN;
       }
   }
 
@@ -311,7 +315,7 @@ DeflateInput(struct ccp *ccp, u_short *proto, struct mbuf *mi)
     return NULL;
   }
 
-  olen += (mo->cnt = DEFLATE_CHUNK_LEN - InputState.cx.avail_out);
+  olen += (mo->cnt = DEFLATE_CHUNK_LEN - state->cx.avail_out);
 
   *proto = ((u_short)wp[0] << 8) | wp[1];
   mo_head->offset += 2;
@@ -328,24 +332,25 @@ DeflateInput(struct ccp *ccp, u_short *proto, struct mbuf *mi)
    * Simulate an EMPTY_BLOCK so that our dictionary stays in sync.
    * The peer will have silently removed this!
    */
-  InputState.cx.next_out = garbage;
-  InputState.cx.avail_out = sizeof garbage;
-  InputState.cx.next_in = EMPTY_BLOCK;
-  InputState.cx.avail_in = sizeof EMPTY_BLOCK;
-  inflate(&InputState.cx, Z_SYNC_FLUSH);
+  state->cx.next_out = garbage;
+  state->cx.avail_out = sizeof garbage;
+  state->cx.next_in = EMPTY_BLOCK;
+  state->cx.avail_in = sizeof EMPTY_BLOCK;
+  inflate(&state->cx, Z_SYNC_FLUSH);
 
   return mo_head;
 }
 
 static void
-DeflateDictSetup(struct ccp *ccp, u_short proto, struct mbuf *mi)
+DeflateDictSetup(void *v, struct ccp *ccp, u_short proto, struct mbuf *mi)
 {
+  struct deflate_state *state = (struct deflate_state *)v;
   int res, flush, expect_error;
   u_char *rp;
   struct mbuf *mi_head;
   short len;
 
-  LogPrintf(LogDEBUG, "DeflateDictSetup: Got seq %d\n", InputState.seqno);
+  LogPrintf(LogDEBUG, "DeflateDictSetup: Got seq %d\n", state->seqno);
 
   /*
    * Stuff an ``uncompressed data'' block header followed by the
@@ -372,41 +377,41 @@ DeflateDictSetup(struct ccp *ccp, u_short proto, struct mbuf *mi)
   rp[3] = (~len) & 0377;		/* One's compliment of the length */
   rp[4] = (~len) >> 8;
 
-  InputState.cx.next_in = rp;
-  InputState.cx.avail_in = mi->cnt;
-  InputState.cx.next_out = garbage;
-  InputState.cx.avail_out = sizeof garbage;
+  state->cx.next_in = rp;
+  state->cx.avail_in = mi->cnt;
+  state->cx.next_out = garbage;
+  state->cx.avail_out = sizeof garbage;
   flush = Z_NO_FLUSH;
   expect_error = 0;
 
   while (1) {
-    if ((res = inflate(&InputState.cx, flush)) != Z_OK) {
+    if ((res = inflate(&state->cx, flush)) != Z_OK) {
       if (res == Z_STREAM_END)
         break;			/* Done */
       if (expect_error && res == Z_BUF_ERROR)
         break;
       LogPrintf(LogERROR, "DeflateDictSetup: inflate returned %d (%s)\n",
-                res, InputState.cx.msg ? InputState.cx.msg : "");
+                res, state->cx.msg ? state->cx.msg : "");
       LogPrintf(LogERROR, "DeflateDictSetup: avail_in %d, avail_out %d\n",
-                InputState.cx.avail_in, InputState.cx.avail_out);
+                state->cx.avail_in, state->cx.avail_out);
       CcpSendResetReq(&ccp->fsm);
       mbfree(mi_head);		/* lose our allocated ``head'' buf */
       return;
     }
 
-    if (flush == Z_SYNC_FLUSH && InputState.cx.avail_out != 0)
+    if (flush == Z_SYNC_FLUSH && state->cx.avail_out != 0)
       break;
 
-    if (InputState.cx.avail_in == 0 && mi && (mi = mi->next) != NULL) {
+    if (state->cx.avail_in == 0 && mi && (mi = mi->next) != NULL) {
       /* underflow */
-      InputState.cx.next_in = MBUF_CTOP(mi);
-      InputState.cx.avail_in = mi->cnt;
+      state->cx.next_in = MBUF_CTOP(mi);
+      state->cx.avail_in = mi->cnt;
       if (mi->next == NULL)
         flush = Z_SYNC_FLUSH;
     }
 
-    if (InputState.cx.avail_out == 0) {
-      if (InputState.cx.avail_in == 0)
+    if (state->cx.avail_out == 0) {
+      if (state->cx.avail_in == 0)
         /*
          * This seems to be a bug in libz !  If inflate() finished
          * with 0 avail_in and 0 avail_out *and* this is the end of
@@ -420,16 +425,16 @@ DeflateDictSetup(struct ccp *ccp, u_short proto, struct mbuf *mi)
          */
         expect_error = 1;
       /* overflow */
-      InputState.cx.next_out = garbage;
-      InputState.cx.avail_out = sizeof garbage;
+      state->cx.next_out = garbage;
+      state->cx.avail_out = sizeof garbage;
     }
   }
 
   ccp->compin += len;
   ccp->uncompin += len;
 
-  InputState.seqno++;
-  InputState.uncomp_rec++;
+  state->seqno++;
+  state->uncomp_rec++;
   mbfree(mi_head);		/* lose our allocated ``head'' buf */
 }
 
@@ -443,50 +448,21 @@ DeflateDispOpts(struct lcp_opt *o)
 }
 
 static void
-DeflateGetInputOpts(struct lcp_opt *o)
+DeflateInitOptsOutput(struct lcp_opt *o, const struct ccp_config *cfg)
 {
-  o->id = TY_DEFLATE;
   o->len = 4;
-  o->data[0] = ((iWindowSize-8)<<4)+8;
-  o->data[1] = '\0';
-}
-
-static void
-DeflateGetOutputOpts(struct lcp_opt *o)
-{
-  o->id = TY_DEFLATE;
-  o->len = 4;
-  o->data[0] = ((oWindowSize-8)<<4)+8;
-  o->data[1] = '\0';
-}
-
-static void
-PppdDeflateGetInputOpts(struct lcp_opt *o)
-{
-  o->id = TY_PPPD_DEFLATE;
-  o->len = 4;
-  o->data[0] = ((iWindowSize-8)<<4)+8;
-  o->data[1] = '\0';
-}
-
-static void
-PppdDeflateGetOutputOpts(struct lcp_opt *o)
-{
-  o->id = TY_PPPD_DEFLATE;
-  o->len = 4;
-  o->data[0] = ((oWindowSize-8)<<4)+8;
+  o->data[0] = ((cfg->deflate.out.winsize - 8) << 4) + 8;
   o->data[1] = '\0';
 }
 
 static int
-DeflateSetOpts(struct lcp_opt *o, int *sz)
+DeflateSetOptsOutput(struct lcp_opt *o)
 {
-  if (o->len != 4 || (o->data[0]&15) != 8 || o->data[1] != '\0') {
+  if (o->len != 4 || (o->data[0] & 15) != 8 || o->data[1] != '\0')
     return MODE_REJ;
-  }
-  *sz = (o->data[0] >> 4) + 8;
-  if (*sz > 15) {
-    *sz = 15;
+
+  if ((o->data[0] >> 4) + 8 > 15) {
+    o->data[0] = ((15 - 8) << 4) + 8;
     return MODE_NAK;
   }
 
@@ -494,84 +470,89 @@ DeflateSetOpts(struct lcp_opt *o, int *sz)
 }
 
 static int
-DeflateSetInputOpts(struct lcp_opt *o)
+DeflateSetOptsInput(struct lcp_opt *o, const struct ccp_config *cfg)
 {
-  int res;
-  res = DeflateSetOpts(o, &iWindowSize);
-  if (res != MODE_ACK)
-    DeflateGetInputOpts(o);
-  return res;
+  int want;
+
+  if (o->len != 4 || (o->data[0] & 15) != 8 || o->data[1] != '\0')
+    return MODE_REJ;
+
+  want = (o->data[0] >> 4) + 8;
+  if (cfg->deflate.in.winsize == 0) {
+    if (want < 8 || want > 15) {
+      o->data[0] = ((15 - 8) << 4) + 8;
+    }
+  } else if (want != cfg->deflate.in.winsize) {
+    o->data[0] = ((cfg->deflate.in.winsize - 8) << 4) + 8;
+    return MODE_NAK;
+  }
+
+  return MODE_ACK;
 }
 
-static int
-DeflateSetOutputOpts(struct lcp_opt *o)
+static void *
+DeflateInitInput(struct lcp_opt *o)
 {
-  int res;
-  res = DeflateSetOpts(o, &oWindowSize);
-  if (res != MODE_ACK)
-    DeflateGetOutputOpts(o);
-  return res;
+  struct deflate_state *state;
+
+  state = (struct deflate_state *)malloc(sizeof(struct deflate_state));
+  if (state != NULL) {
+    state->winsize = (o->data[0] >> 4) + 8;
+    state->cx.zalloc = NULL;
+    state->cx.opaque = NULL;
+    state->cx.zfree = NULL;
+    state->cx.next_out = NULL;
+    if (inflateInit2(&state->cx, -state->winsize) == Z_OK)
+      DeflateResetInput(state);
+    else {
+      free(state);
+      state = NULL;
+    }
+  }
+
+  return state;
 }
 
-static int
-PppdDeflateSetInputOpts(struct lcp_opt *o)
+static void *
+DeflateInitOutput(struct lcp_opt *o)
 {
-  int res;
-  res = DeflateSetOpts(o, &iWindowSize);
-  if (res != MODE_ACK)
-    PppdDeflateGetInputOpts(o);
-  return res;
-}
+  struct deflate_state *state;
 
-static int
-PppdDeflateSetOutputOpts(struct lcp_opt *o)
-{
-  int res;
-  res = DeflateSetOpts(o, &oWindowSize);
-  if (res != MODE_ACK)
-    PppdDeflateGetOutputOpts(o);
-  return res;
-}
+  state = (struct deflate_state *)malloc(sizeof(struct deflate_state));
+  if (state != NULL) {
+    state->winsize = (o->data[0] >> 4) + 8;
+    state->cx.zalloc = NULL;
+    state->cx.opaque = NULL;
+    state->cx.zfree = NULL;
+    state->cx.next_in = NULL;
+    if (deflateInit2(&state->cx, Z_DEFAULT_COMPRESSION, 8,
+                     -state->winsize, 8, Z_DEFAULT_STRATEGY) == Z_OK)
+      DeflateResetOutput(state);
+    else {
+      free(state);
+      state = NULL;
+    }
+  }
 
-static int
-DeflateInitInput(void)
-{
-  InputState.cx.zalloc = NULL;
-  InputState.cx.opaque = NULL;
-  InputState.cx.zfree = NULL;
-  InputState.cx.next_out = NULL;
-  if (inflateInit2(&InputState.cx, -iWindowSize) != Z_OK)
-    return 0;
-  DeflateResetInput();
-  return 1;
-}
-
-static int
-DeflateInitOutput(void)
-{
-  OutputState.cx.zalloc = NULL;
-  OutputState.cx.opaque = NULL;
-  OutputState.cx.zfree = NULL;
-  OutputState.cx.next_in = NULL;
-  if (deflateInit2(&OutputState.cx, Z_DEFAULT_COMPRESSION, 8,
-                   -oWindowSize, 8, Z_DEFAULT_STRATEGY) != Z_OK)
-    return 0;
-  DeflateResetOutput();
-  return 1;
-}
-
-static void
-DeflateTermInput(void)
-{
-  iWindowSize = 15;
-  inflateEnd(&InputState.cx);
+  return state;
 }
 
 static void
-DeflateTermOutput(void)
+DeflateTermInput(void *v)
 {
-  oWindowSize = 15;
-  deflateEnd(&OutputState.cx);
+  struct deflate_state *state = (struct deflate_state *)v;
+
+  inflateEnd(&state->cx);
+  free(state);
+}
+
+static void
+DeflateTermOutput(void *v)
+{
+  struct deflate_state *state = (struct deflate_state *)v;
+
+  deflateEnd(&state->cx);
+  free(state);
 }
 
 const struct ccp_algorithm PppdDeflateAlgorithm = {
@@ -579,8 +560,7 @@ const struct ccp_algorithm PppdDeflateAlgorithm = {
   ConfPppdDeflate,
   DeflateDispOpts,
   {
-    PppdDeflateGetInputOpts,
-    PppdDeflateSetInputOpts,
+    DeflateSetOptsInput,
     DeflateInitInput,
     DeflateTermInput,
     DeflateResetInput,
@@ -588,8 +568,8 @@ const struct ccp_algorithm PppdDeflateAlgorithm = {
     DeflateDictSetup
   },
   {
-    PppdDeflateGetOutputOpts,
-    PppdDeflateSetOutputOpts,
+    DeflateInitOptsOutput,
+    DeflateSetOptsOutput,
     DeflateInitOutput,
     DeflateTermOutput,
     DeflateResetOutput,
@@ -602,8 +582,7 @@ const struct ccp_algorithm DeflateAlgorithm = {
   ConfDeflate,
   DeflateDispOpts,
   {
-    DeflateGetInputOpts,
-    DeflateSetInputOpts,
+    DeflateSetOptsInput,
     DeflateInitInput,
     DeflateTermInput,
     DeflateResetInput,
@@ -611,8 +590,8 @@ const struct ccp_algorithm DeflateAlgorithm = {
     DeflateDictSetup
   },
   {
-    DeflateGetOutputOpts,
-    DeflateSetOutputOpts,
+    DeflateInitOptsOutput,
+    DeflateSetOptsOutput,
     DeflateInitOutput,
     DeflateTermOutput,
     DeflateResetOutput,
