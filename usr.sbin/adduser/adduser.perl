@@ -32,7 +32,7 @@
 #
 #   Email: Wolfram Schneider <wosch@cs.tu-berlin.de>
 #
-# $Id: adduser.perl,v 1.10 1996/02/10 17:15:47 wosch Exp $
+# $Id: adduser.perl,v 1.11 1996/05/06 06:15:19 gclarkii Exp $
 #
 
 # read variables
@@ -41,8 +41,8 @@ sub variables {
     $defaultpasswd = "yes";	# use password for new users
     $dotdir = "/usr/share/skel"; # copy dotfiles from this dir
     $dotdir_bak = $dotdir;
-    $send_message = "/etc/adduser.message"; # send message to new user
-    $send_message_bak = $send_message;
+    $send_message = "no"; # send message to new user
+    $send_message_bak = '/etc/adduser.message';
     $config = "/etc/adduser.conf"; # config file for adduser
     $config_read = 1;		# read config file
     $logfile = "/var/log/adduser"; # logfile
@@ -905,7 +905,11 @@ sub filetest {
 # create configuration files and exit
 sub create_conf {
     $create_conf = 1;
-    &message_create($send_message);
+    if ($send_message ne 'no') {
+	&message_create($send_message);
+    } else {
+	&message_create($send_message_bak);
+    }
     &config_write(1);
     exit(0);
 }
