@@ -12,7 +12,22 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.22 1994/08/27 16:14:19 davidg Exp $
+ *      $Id: bt742a.c,v 1.23 1994/09/25 07:11:37 phk Exp $
+ */
+
+/*
+ * Bulogic/Bustek 32 bit Addressing Mode SCSI driver.
+ *
+ * NOTE: 1. Some bt5xx card can NOT handle 32 bit addressing mode. 
+ *       2. OLD bt445s Revision A,B,C,D(nowired) + any firmware version
+ *          has broken busmaster for handling 32 bit addressing on H/W bus
+ *	    side.
+ *
+ *       3. Extended probing still needs confirmation from our user base, due
+ *	    to several H/W and firmware dependencies. If you have a problem
+ *	    with extended probing, please contact 'amurai@spec.co.jp'
+ *
+ *						amurai@spec.co.jp 94/6/16
  */
 
 /*
@@ -101,7 +116,7 @@ typedef unsigned long int physaddr;
 #define BT_MBX_INIT_EXTENDED	0x81	/* Mbx initialization */
 #define BT_INQUIRE_EXTENDED	0x8D	/* Adapter Setup Inquiry */
 
-/* Follows command appeared at FirmWare 3.31 */
+/* The following command appeared at FirmWare 3.31 */
 #define	BT_ROUND_ROBIN	0x8f	/* Enable/Disable(default) round robin */
 #define   BT_DISABLE		0x00	/* Parameter value for Disable */
 #define   BT_ENABLE		0x01	/* Parameter value for Enable */
@@ -125,7 +140,7 @@ struct bt_cmd_buf {
  * these could be bigger but we need the bt_data to fit on a single page..
  */
 
-#define BT_MBX_SIZE	16	/* mail box size  (MAX 255 MBxs) */
+#define BT_MBX_SIZE	32	/* mail box size  (MAX 255 MBxs) */
 				/* don't need that many really */
 #define BT_CCB_MAX	32	/* store up to 32CCBs at any one time */
 				/* in bt742a H/W ( Not MAX ? ) */
@@ -281,8 +296,7 @@ struct bt_setup {
 	u_char  bus_on;
 	u_char  bus_off;
 	u_char  num_mbx;
-	u_char  mbx[3];		/*XXX */
-	/* doesn't make sense with 32bit addresses */
+	u_char  mbx[3];		/* for backwards compatibility */
 	struct {
 		u_char  offset:4;
 		u_char  period:3;
@@ -296,6 +310,45 @@ struct bt_config {
 	u_char  intr;
 	u_char  scsi_dev:3;
 	u_char	:5;
+};
+
+#define BT_INQUIRE_REV_THIRD	0x84	/* Get Adapter FirmWare version #3 */
+#define BT_INQUIRE_REV_FOURTH	0x85	/* Get Adapter FirmWare version #4 */
+
+/*
+ * Determine 32bit address/Data firmware functionality from the bus type
+ * Note: bt742a/747[s|d]/757/946/445s will return 'E'
+ *       bt542b/545s/545d will return 'A'
+ *				94/05/18 amurai@spec.co.jp
+ */
+#define BT_BUS_TYPE_24bit 'A' 	/* PC/AT 24 bit address bus type */
+#define BT_BUS_TYPE_32bit 'E' 	/* EISA/VLB/PCI 32 bit address bus type */
+#define BT_BUS_TYPE_MCA   'M'   /* Micro chanel is ? forget it right now */
+struct bt_ext_info {
+	u_char  bus_type;	/* Host adapter bus type */
+	u_char  bios_addr;	/* Bios Address-Not used */
+	u_short max_seg;	/* Max segment List */
+	u_char  num_mbx;	/* Number of mailbox */
+	int32	mbx_base;	/* mailbox base address */
+	struct	{
+		u_char  resv1:2;	/* ??? */
+		u_char	maxsync:1;	/* ON: 10MB/s , OFF: 5MB/s */
+		u_char	resv2:2;	/* ??? */
+		u_char	sync:1;		/* ON: Sync,  OFF: async ONLY!! */
+		u_char	resv3:2;	/* ??? */
+	} s;
+	u_char  firmid[3];	/* Firmware ver. & rev. w/o last char */
+};
+
+#define BT_GET_BOARD_INFO	0x8b	/* Get H/W ID and Revision */
+struct bt_board_info {
+	u_char	id[4];		/* i.e bt742a -> '7','4','2','A'  */
+	u_char	ver[2];		/* i.e Board Revision 'H' -> 'H', 0x00 */
+};
+
+#define BT_GET_SYNC_VALUE	0x8c	/* Get Synchronous Value */
+struct bt_sync_value {
+	u_char	value[8];	/* Synchrnous value (value * 10 nsec) */
 };
 
 #define INT9	0x01
@@ -314,6 +367,8 @@ struct bt_config {
 #define KVTOPHYS(x)	vtophys(x)
 #define PAGESIZ		4096
 #define INVALIDATE_CACHE {asm volatile( ".byte	0x0F ;.byte 0x08" ); }
+
+u_char  bt_scratch_buf[256];
 
 struct bt_data {
 	short   bt_base;		/* base port for each board */
@@ -339,7 +394,7 @@ int     btprobe();
 int     btattach();
 int     btintr();
 int32   bt_scsi_cmd();
-timeout_t bt_timeout;
+void	bt_timeout(caddr_t, int);
 void	bt_inquire_setup_information();
 void    bt_done();
 void    btminphys();
@@ -393,7 +448,7 @@ main()
 #else /*KERNEL */
 
 /*
- * bt_cmd(unit,icnt, ocnt,wait, retval, opcode, args)
+ * bt_cmd(unit, icnt, ocnt, wait, retval, opcode, args)
  *
  * Activate Adapter command
  *    icnt:   number of args (outbound bytes written after opcode)
@@ -565,7 +620,8 @@ btprobe(dev)
 	}
 	/*
 	 * If it's there, put in it's interrupt vectors
-	 */ dev->id_unit = unit;
+	 */
+	dev->id_unit = unit;
 	dev->id_irq = (1 << bt->bt_int);
 	dev->id_drq = bt->bt_dma;
 
@@ -728,8 +784,10 @@ btintr(unit)
 			bt_nextmbx(wmbi, wmbx, mbi);
 		}
 		if (!found) {
+#ifdef DEBUG
 			printf("bt%d: mbi at 0x%08x should be found, stat=%02x..resync\n",
 			    unit, wmbi, stat);
+#endif
 		} else {
 			found = 0;
 			goto AGAIN;
@@ -986,6 +1044,8 @@ bt_init(unit)
 	unsigned char ad[4];
 	volatile int i, sts;
 	struct bt_config conf;
+	struct bt_ext_info info;
+	struct bt_board_info binfo;
 
 	/*
 	 * reset board, If it doesn't respond, assume 
@@ -1002,10 +1062,62 @@ bt_init(unit)
 	}
 	if (i == 0) {
 #ifdef	UTEST
-		printf("bt_init: No answer from bt742a board\n");
+		printf("bt_init: No answer from board\n");
 #endif
 		return (ENXIO);
 	}
+
+	/*
+         * Displaying Board ID and Hardware Revision
+         *                                   94/05/18 amurai@spec.co.jp
+         */
+	bt_cmd(unit, 1, sizeof(binfo),0,&binfo,BT_GET_BOARD_INFO,sizeof(binfo));
+	printf("bt%d: Bt%c%c%c%c/%c%d-", unit,
+				binfo.id[0],
+				binfo.id[1],
+				binfo.id[2],
+				binfo.id[3],
+				binfo.ver[0],
+				(unsigned) binfo.ver[1]
+				);
+
+	/*
+         * Make sure board has a capability of 32bit addressing.
+         *   and Firmware also need a capability of 32bit addressing pointer
+         *   in Extended mailbox and ccb structure.
+         *                                   94/05/18 amurai@spec.co.jp
+         */
+	bt_cmd(unit, 1, sizeof(info),0,&info, BT_INQUIRE_EXTENDED,sizeof(info));
+	switch (info.bus_type) {
+		case BT_BUS_TYPE_24bit:		/* PC/AT 24 bit address bus */
+			printf("ISA(24bit) bus\n");
+			break;	
+		case BT_BUS_TYPE_32bit:		/* EISA/VLB/PCI 32 bit bus */
+			printf("PCI/EISA/VLB(32bit) bus\n");
+			break;	
+		case BT_BUS_TYPE_MCA:           /* forget it right now */
+			printf("MCA bus architecture...");
+			printf("giving up\n");
+			return (ENXIO);
+			break;
+		default:
+			printf("Unknown state...");
+			printf("giving up\n");
+			return (ENXIO);
+			break;
+	}
+	if ( binfo.id[0] == '5' ) {
+		printf("bt%d: This driver is designed for using 32 bit addressing\n",unit);
+		printf("bt%d: mode firmware and EISA/PCI/VLB bus architecture bus\n",unit);
+		printf("bt%d: WITHOUT any software trick/overhead (i.e.bounce buffer).\n",unit);
+		printf("bt%d: If you have more than 16MBytes memory\n",unit);
+		printf("bt%d: your filesystem will get a serious damage.\n",unit);
+	} else if ( info.bus_type == BT_BUS_TYPE_24bit ) {
+		printf("bt%d: Your board should report a 32bit bus architecture type..\n",unit);
+		printf("bt%d: A firmware on your board may have a problem with over\n",unit);
+		printf("bt%d: 16MBytes memory handling with this driver.\n",unit);
+	}
+
 	/*
 	 * Assume we have a board at this stage
 	 * setup dma channel from jumpers and save int
@@ -1043,7 +1155,7 @@ bt_init(unit)
 		return (EIO);
 	}
 	if (bt->bt_dma == -1)
-		printf("eisa dma, ");
+		printf("busmastering, ");
 	else
 		printf("dma=%d, ", bt->bt_dma);
 
@@ -1104,10 +1216,8 @@ bt_init(unit)
 	 */
 	bt->bt_mbx.tmbo = &bt->bt_mbx.mbo[0];
 	bt->bt_mbx.tmbi = &bt->bt_mbx.mbi[0];
-	bt_inquire_setup_information(unit);
+	bt_inquire_setup_information(unit, &info);
 
-	/* Enable round-robin scheme - appeared at firmware rev. 3.31 */
-	bt_cmd(unit, 1, 0, 0, 0, BT_ROUND_ROBIN, BT_ENABLE);
 
 	/*
 	 * Note that we are going and return (to probe)
@@ -1116,45 +1226,109 @@ bt_init(unit)
 }
 
 void
-bt_inquire_setup_information(unit)
-	int     unit;
+bt_inquire_setup_information(
+	int     unit,
+	struct  bt_ext_info *info )
 {
 	struct	bt_data *bt = btdata[unit];
 	struct	bt_setup setup;
+	struct	bt_sync_value sync;
+	char	dummy[8];
+	char	sub_ver[3];
 	struct	bt_boardID bID;
 	int	i;
 
-	/* Inquire Board ID to Bt742 for firmware version */
-	bt_cmd(unit, 0, sizeof(bID), 0, &bID, BT_INQUIRE);
-	printf("bt%d: version %c.%c, ",
-	    unit, bID.firm_revision, bID.firm_version);
+	/* Inquire Installed Devices */
+	bzero( &dummy[0], sizeof(dummy) );
+        bt_cmd(unit, 0, sizeof(dummy), 100, &dummy[0], BT_DEV_GET);
 
-	/* Obtain setup information from Bt742. */
+	/*
+	 * If board has a capbility of Syncrhonouse mode,
+         * Get a SCSI Synchronous value
+	 */
+	if ( info->s.sync ) {
+        	bt_cmd(unit, 1, sizeof(sync), 100, 
+				&sync,BT_GET_SYNC_VALUE,sizeof(sync));
+	}
+
+	/*
+	 * Inquire Board ID to board for firmware version
+	 */
+	bt_cmd(unit, 0, sizeof(bID), 0, &bID, BT_INQUIRE);
+	bt_cmd(unit, 0, 1, 0, &sub_ver[0], BT_INQUIRE_REV_THIRD );
+	i = ((int)(bID.firm_revision-'0')) * 10 + (int)(bID.firm_version-'0');
+	if ( i >= 33 ) {
+		bt_cmd(unit, 0, 1, 0, &sub_ver[1], BT_INQUIRE_REV_FOURTH );
+	} else {
+		/*
+                 * Below rev 3.3 firmware has a problem for issuing
+		 * the BT_INQUIRE_REV_FOURTH command.
+ 		 */
+		sub_ver[1]='\0';
+	}
+	sub_ver[2]='\0';
+	if (sub_ver[1]==' ')
+		sub_ver[1]='\0';
+	printf("bt%d: version %c.%c%s, ",
+	    unit, bID.firm_revision, bID.firm_version, sub_ver );
+
+	/*
+	 * Obtain setup information from board.
+	 */
 	bt_cmd(unit, 1, sizeof(setup), 0, &setup, BT_SETUP_GET, sizeof(setup));
 
-	if (setup.sync_neg) {
-		printf("sync, ");
+	if (setup.sync_neg && info->s.sync ) {
+		if ( info->s.maxsync ) {
+			printf("fast sync, ");	/* Max 10MB/s */
+		} else {
+			printf("sync, ");	/* Max 5MB/s */
+		}
 	} else {
-		printf("async, ");
+		if ( info->s.sync ) {
+			printf("async, ");	/* Never try by board */
+		} else {
+			printf("async only, "); /* Doesn't has a capability on board */
+		}
 	}
 	if (setup.parity) {
 		printf("parity, ");
 	} else {
 		printf("no parity, ");
 	}
-	printf("%d mbxs, %d ccbs\n", setup.num_mbx, bt->numccbs);
+	printf("%d mbxs, %d ccbs\n", setup.num_mbx, BT_CCB_MAX);
 
+	/*
+	 * Displayi SCSI negotiation value by each target.
+         *   						amurai@spec.co.jp 
+         */
 	for (i = 0; i < 8; i++) {
-		if (!setup.sync[i].offset &&
-		    !setup.sync[i].period &&
-		    !setup.sync[i].valid)
+		if (!setup.sync[i].valid )
 			continue;
-
-		printf("bt%d: dev%02d Offset=%d,Transfer period=%d, Synchronous? %s",
-		    unit, i,
-		    setup.sync[i].offset, setup.sync[i].period,
-		    setup.sync[i].valid ? "Yes" : "No");
+		if ( (!setup.sync[i].offset && !setup.sync[i].period)
+					    || !info->s.sync ) {
+			printf("bt%d: targ %d async\n", unit, i);
+		} else {
+			printf("bt%d: targ %d sync rate=%2d.%02dMB/s(%dns), offset=%02d\n",
+		    	    unit, i,
+			    100 / sync.value[i],
+			    (100 % sync.value[i]) * 100 / sync.value[i],
+			    sync.value[i] * 10,
+		    	    setup.sync[i].offset );
+		}
 	}
+
+	/* 
+         * Enable round-robin scheme - appeared at firmware rev. 3.31
+	 *   Below rev 3.XX firmware has a problem for issuing 
+         *    BT_ROUND_ROBIN command  amurai@spec.co.jp
+	 */
+	if ( bID.firm_revision >= '3' ) {
+		printf("bt%d: Enabling Round robin scheme\n", unit);
+		bt_cmd(unit, 1, 0, 0, 0, BT_ROUND_ROBIN, BT_ENABLE);
+	} else {
+		printf("bt%d: Not Enabling Round robin scheme\n", unit);
+	}
+
 }
 
 #ifndef	min
@@ -1284,17 +1458,6 @@ bt_scsi_cmd(xs)
 					 * the the last, just extend the length 
 					 */
 				{
-
-					/* check it fits on the ISA bus */
-					if (thisphys > 0xFFFFFF)
-					{
-						printf("bt%d: DMA beyond"
-							" end Of ISA\n", unit);
-						xs->error = XS_DRIVER_STUFFUP;
-						bt_free_ccb(unit, ccb, flags);
-						return (HAD_ERROR);
-					}
-					/** how far to the end of the page ***/
 					/* how far to the end of the page */
 					nextphys = (thisphys & (~(PAGESIZ - 1)))
 					    + PAGESIZ;
@@ -1401,7 +1564,7 @@ bt_poll(unit, xs, ccb)
 		 * accounting for the fact that the clock is not running yet
 		 * by taking out the clock queue entry it makes.
 		 */
-		bt_timeout((caddr_t)ccb);
+		bt_timeout((caddr_t)ccb, 0);
 
 		/*
 		 * because we are polling, take out the timeout entry
@@ -1428,7 +1591,7 @@ bt_poll(unit, xs, ccb)
 			 * We timed out again...  This is bad.  Notice that
 			 * this time there is no clock queue entry to remove.
 			 */
-			bt_timeout((caddr_t)ccb);
+			bt_timeout((caddr_t)ccb, 0);
 		}
 	}
 	if (xs->error)
@@ -1437,20 +1600,22 @@ bt_poll(unit, xs, ccb)
 }
 
 void
-bt_timeout(void *arg1)
+bt_timeout(caddr_t arg1, int arg2)
 {
 	struct bt_ccb * ccb = (struct bt_ccb *)arg1;
 	int     unit;
 	struct bt_data *bt;
 	int     s = splbio();
 
+	/*
+         * A timeout routine in kernel DONOT unlink
+	 * Entry chains when time outed....So infinity Loop..
+         *                              94/04/20 amurai@spec.co.jp
+         */
+	untimeout(bt_timeout, (caddr_t)ccb);
+
 	unit = ccb->xfer->sc_link->adapter_unit;
 	bt = btdata[unit];
-	printf("bt%d:%d:%d (%s%d) timed out ", unit
-	    ,ccb->xfer->sc_link->target
-	    ,ccb->xfer->sc_link->lun
-	    ,ccb->xfer->sc_link->device->name
-	    ,ccb->xfer->sc_link->dev_unit);
 
 #ifdef	UTEST
 	bt_print_active_ccbs(unit);
@@ -1477,13 +1642,14 @@ bt_timeout(void *arg1)
 		ccb->xfer->retries = 0;		/* I MEAN IT ! */
 		ccb->host_stat = BT_ABORTED;
 		bt_done(unit, ccb);
-	} else {		/* abort the operation that has timed out */
+	} else {	
+		/* abort the operation that has timed out */
 		printf("bt%d: Try to abort\n", unit);
 		bt_send_mbo(unit, ~SCSI_NOMASK,
 		    BT_MBO_ABORT, ccb);
 		/* 2 secs for the abort */
-		timeout(bt_timeout, (caddr_t)ccb, 2 * hz);
 		ccb->flags = CCB_ABORTED;
+		timeout(bt_timeout, (caddr_t)ccb, 2 * hz);
 	}
 	splx(s);
 }
