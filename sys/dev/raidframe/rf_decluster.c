@@ -66,7 +66,7 @@ __FBSDID("$FreeBSD$");
 extern int rf_copyback_in_progress;	/* debug only */
 
 /* found in rf_kintf.c */
-int     rf_GetSpareTableFromDaemon(RF_SparetWait_t * req);
+extern int     rf_GetSpareTableFromDaemon(RF_SparetWait_t * req);
 
 #if (RF_INCLUDE_PARITY_DECLUSTERING > 0) || (RF_INCLUDE_PARITY_DECLUSTERING_PQ > 0)
 
