@@ -1279,7 +1279,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         as SCSI devices via the CAM layer and drivers (&man.cd.4;,
         &man.da.4;, &man.st.4;, and &man.pass.4;).  This feature requires
         <literal>device atapicam</literal> in the kernel
-        configuration.</para>
+        configuration.  More information can be found in
+        &man.atapicam.4;.</para>
 
       <para>The &man.ata.4; driver now has support for the Sil 0680
         and VIA 8233/8235 controllers. &merged;</para>
@@ -2321,6 +2322,13 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <literal>speed</literal> command to set the maximum speed to be
       used by the drive (the maximum possible speed can be selected
       setting the speed to <literal>max</literal>).</para>
+
+    <para>A &man.check.utility.compat.3; library function has been
+      added to <filename>libc</filename>, to determine 
+      whether a named utility should behave in &os; 4-compatible mode
+      or in a <quote>standard</quote> mode (default standard).  The
+      configuration is done &man.malloc.3;-style, with either an
+      environment variable or a symbolic link.</para>
 
     <para>&man.chflags.1; has moved from <filename>/usr/bin</filename>
       to <filename>/bin</filename>.</para>
@@ -3602,6 +3610,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       these utilities as &man.b64encode.1; and &man.b64decode.1;
       respectively.</para>
 
+    <para>Functions to implement and manipulate OSF/DCE 1.1-compliant
+      UUIDs have been added to <filename>libc</filename>.  More
+      information can be found in &man.uuid.3;.</para>
+
     <para>The &man.uuidgen.1; utility has been added.  It uses the new
       &man.uuidgen.2; system call to generate one or more Universally
       Unique Identifiers compatible with OSF/DCE 1.1 version 1
@@ -3881,8 +3893,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para><application>ncurses</application> has been updated to
 	5.2-20020615.</para>
 
-      <para role="historic">The <application>NTP</application> suite of programs has
-	been updated to 4.1.0. &merged;</para>
+      <para>The <application>NTP</application> suite of programs has
+	been updated to 4.1.1a.</para>
 
       <para><application>OpenPAM</application>
         (<quote>Citronella</quote> release) has been imported,
@@ -3973,8 +3985,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	from the <varname>net.inet.ip.ttl</varname> sysctl
 	variable. &merged;</para>
 
-      <para role="historic">The timezone database has been updated to the
-	<filename>tzdata2002c</filename> release. &merged;</para>
+      <para>The timezone database has been updated to the
+	<filename>tzdata2002d</filename> release. &merged;</para>
 
       <sect4>
 	<title>CVS</title>
