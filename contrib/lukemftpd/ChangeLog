@@ -1,3 +1,33 @@
+Thu Mar 14 06:02:31 UTC 2002	lukem
+
+	* released 1.2 beta 1
+
+Thu Mar 14 05:39:24 UTC 2002	lukem
+
+	* libukem/snprintf.c: fix compile errors with gcc 3.x
+
+Sat Mar  1 07:10:54 UTC 2002	lukem
+
+	* update to NetBSD-current 2002-03-01
+	    User visible changes include:
+		- enable case insensitive fnmatch(3)ing for hostname globs
+		  in ftpusers(5)
+		- add 'denyquick' ftpd.conf(5) keyword
+		- add 'private' ftpd.conf(5) keyword
+		- use "advertise" in docco
+	    User visible fixes:
+		- reject SIZE requests for ASCII files > 10KB long
+		- fixes for mlsd/mlst standards conformance
+		- fix passive transfers for various web browsers
+		- various glob(3) fixes
+		- don't log xferlog-style entries if the transfer didn't start
+		- fix skey password challenge
+		- don't try and use the motd directive if it's not set
+
+Thu Feb 28 01:39:06 UTC 2002	lukem
+
+	* update libukem/glob.c from NetBSD's __glob13.c rev 1.22 and rev 1.23
+
 Wed May  9 02:04:08 UTC 2001	lukem
 
 	* released 1.1
@@ -10,7 +40,7 @@ Sat Apr 28 07:13:57 UTC 2001	lukem
 
 Wed Apr 25 06:27:08 UTC 2001	lukem
 
-	* update to NetBSD-current 2001/04/25:
+	* update to NetBSD-current 2001-04-25:
 		- update copyrights
 		- remove superfluous byte_count update in send_file_list
 		- use own code instead of bothering with glob() to do ~

@@ -1,4 +1,4 @@
-/*	$NetBSD: extern.h,v 1.41 2001/04/25 01:46:25 lukem Exp $	*/
+/*	$NetBSD: extern.h,v 1.43 2001/12/04 13:54:12 lukem Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -193,7 +193,7 @@ void	yyerror(char *);
 
 #include <netinet/in.h>
 
-#ifdef BSD4_4
+#if defined(__NetBSD__)
 # define HAVE_SETPROCTITLE	1
 # define HAVE_SOCKADDR_SA_LEN	1
 #endif
@@ -249,11 +249,13 @@ typedef enum {
 
 typedef enum {
 	FLAG_checkportcmd =	1<<0,	/* Check port commands */
-	FLAG_modify =		1<<1,	/* Allow CHMOD, DELE, MKD, RMD, RNFR,
+	FLAG_denyquick =	1<<1,	/* Check ftpusers(5) before PASS */
+	FLAG_modify =		1<<2,	/* Allow CHMOD, DELE, MKD, RMD, RNFR,
 					   UMASK */
-	FLAG_passive =		1<<2,	/* Allow PASV mode */
-	FLAG_sanenames =	1<<3,	/* Restrict names of uploaded files */ 
-	FLAG_upload =		1<<4	/* As per modify, but also allow
+	FLAG_passive =		1<<3,	/* Allow PASV mode */
+	FLAG_private =		1<<4,	/* Don't publish class info in STAT */
+	FLAG_sanenames =	1<<5,	/* Restrict names of uploaded files */ 
+	FLAG_upload =		1<<6,	/* As per modify, but also allow
 					   APPE, STOR, STOU */
 } classflag_t;
 
@@ -286,7 +288,7 @@ struct ftpclass {
 	mode_t		 umask;		/* Umask to use */
 };
 
-extern void		ftp_loop(void) __attribute__ ((noreturn));
+extern void		ftp_loop(void);
 extern void		ftp_handle_line(char *);
 
 #ifndef	GLOBAL
