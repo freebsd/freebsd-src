@@ -48,6 +48,7 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/7/93";
  */
 
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/file.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -87,7 +88,7 @@ edit(filename)
 	register char *m;
 	off_t initial_pos, position();
 	static int didpipe;
-	char message[100], *p;
+	char message[MAXPATHLEN + 50], *p;
 	char *rindex(), *strerror(), *save(), *bad_file();
 
 	initial_pos = NULL_POSITION;
@@ -122,7 +123,8 @@ edit(filename)
 		return(0);
 	}
 	else if ((f = open(filename, O_RDONLY, 0)) < 0) {
-		(void)sprintf(message, "%s: %s", filename, strerror(errno));
+		(void)snprintf(message, sizeof(message),
+		   "%s: %s", filename, strerror(errno));
 		error(message);
 		free(filename);
 		return(0);
