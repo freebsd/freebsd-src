@@ -12,6 +12,10 @@ Unused message id's (this is okay):
 029
 036
 037
+047
+050
+051
+052
 057
 061
 078
@@ -26,6 +30,7 @@ Unused message id's (this is okay):
 164
 167
 169
+176
 191
 207
 209
@@ -144,26 +149,21 @@ MISSING ERROR MESSAGES (Please add!):
 317
 =========================
 Extra error messages (just delete them):
-047
-050
-051
-052
-176
 =========================
 MESSAGES WITH THE SAME MESSAGE ID's (FIX!):
 =========================
 Duplicate messages, both id and message (this is okay):
 =========================
 Duplicate messages, just message (this is okay):
-   2 %s RAS[IRILSQ W SLI[KOM BOLX[OE KOLI^ESTWO IMEN FAJLOWX
-   2 %s SU]ESTWUET, NE ZAPISAN; ISPOLXZUJTE ! DLQ OBHODAX
-   2 %s: %lu STROK, %lu SIMWOLOWX
-   2 %s: NE DO KONCA WOSSTANOWLENNYJ FAJLX
-   2 bUFER %s PUSTX
-   2 fAJL IZMENEN SO WREMENI POSLEDNEJ ZAPISI: SOHRANITE ILI ISPOLXZUJTE ! DLQ OBHODAX
-   2 set: %s OPCIQ NE QWLQETSQ DWOI^NOJX
-   2 zAPISI NE WELISX, NEWOZMOVNO OTMENITX POSLEDN@@ KOMANDUX
-   3 %s: UDALENX
-   3 nET SIMWOLOW DLQ UDALENIQX
-   4 iSPOLXZOWANIE: %sX
+   2 %s расширился в слишком большое количество имен файловX
+   2 %s существует, не записан; используйте ! для обходаX
+   2 %s: %lu строк, %lu символовX
+   2 %s: не до конца восстановленный файлX
+   2 Буфер %s пустX
+   2 Записи не велись, невозможно отменить последнюю командуX
+   2 Файл изменен со времени последней записи: сохраните или используйте ! для обходаX
+   2 set: %s опция не является логическойX
+   3 %s: удаленX
+   3 Нет символов для удаленияX
+   4 Использование: %sX
 =========================
