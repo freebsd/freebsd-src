@@ -57,15 +57,7 @@ arguments to the state specified by the
 .Fa enable
 argument.
 .Sh RETURN VALUES
-Upon successful completion,
-.Fn i386_get_ioperm
-and
-.Fn i386_set_ioperm
-return the value of 0.
-Otherwise, a value of -1 is returned and the global
-variable
-.Va errno
-is set to indicate the error.
+.Rv -std
 .Sh ERRORS
 .Fn i386_get_ioperm
 and

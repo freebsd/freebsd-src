@@ -155,11 +155,7 @@ the soft cpu time limit is exceeded, a signal
 is sent to the
 offending process.
 .Sh RETURN VALUES
-A 0 return value indicates that the call succeeded, changing
-or returning the resource limit.   A return value of -1 indicates
-that an error occurred, and an error code is stored in the global
-location
-.Va errno .
+.Rv -std
 .Sh ERRORS
 .Fn Getrlimit
 and

@@ -57,14 +57,7 @@ function decrements (locks) the semaphore pointed to by
 only if the value is non-zero.  Otherwise, the semaphore is not decremented and
 an error is returned.
 .Sh RETURN VALUES
-If successful,
-.Fn sem_wait
-and
-.Fn sem_trywait
-return 0.  Otherwise, -1 is returned and
-.Va errno
-is set to indicate the type of
-error.
+.Rv -std
 .Sh ERRORS
 .Fn sem_wait
 and

@@ -125,10 +125,7 @@ Fields that are undefined for a particular file system are set to -1.
 returns the same information about an open file referenced by descriptor
 .Fa fd .
 .Sh RETURN VALUES
-Upon successful completion, a value of 0 is returned.
-Otherwise, -1 is returned and the global variable
-.Va errno
-is set to indicate the error.
+.Rv -std
 .Sh ERRORS
 .Fn Statfs
 fails if one or more of the following are true:

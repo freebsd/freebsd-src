@@ -120,12 +120,14 @@ by reverting to the set-user-ID value.
 Similarly, the effective group ID may be set to the value
 of the real group ID or the saved set-user-ID.
 .Sh RETURN VALUES
-Upon success, these functions return 0;
-otherwise \-1 is returned.
-.Pp
-If the user is not the super user, or the uid
-specified is not the real, effective ID, or saved ID,
-these functions return \-1.
+.Rv -std
+.Sh ERRORS
+The functions will fail if:
+.Bl -tag -width Er
+.It Bq Er EPERM
+The user is not the super user and the ID
+specified is not the real, effective ID, or saved ID.
+.El
 .Sh SEE ALSO
 .Xr getgid 2 ,
 .Xr getuid 2 ,
