@@ -101,9 +101,6 @@ apic_initialize(void)
 #endif  /** TEST_TEST1 */
 
 	lapic.svr = temp;
-
-	if (bootverbose)
-		apic_dump("apic_initialize()");
 }
 
 
