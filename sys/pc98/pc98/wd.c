@@ -490,9 +490,8 @@ wdattach(struct isa_device *dvp)
 		bioq_init(&wdtab[dvp->id_unit].controller_queue);
 
 	sprintf(buf, "wdc%d", dvp->id_unit);
-	for (i = resource_query_string(-1, "at", buf);
-	     i != -1;
-	     i = resource_query_string(i, "at", buf)) {
+	i = -1;
+	while ((i = resource_query_string(i, "at", buf)) != -1) {
 		if (strcmp(resource_query_name(i), "wd"))
 			/* Avoid a bit of foot shooting. */
 			continue;
