@@ -27,6 +27,9 @@
  *
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * User Space Library Functions
  * ----------------------------
@@ -52,11 +55,6 @@
 #include <string.h>
 
 #include "libatm.h"
-
-#ifndef lint
-__RCSID("@(#) $FreeBSD$");
-#endif
-
 
 /*
  * Get IP address
