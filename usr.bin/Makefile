@@ -57,6 +57,7 @@ SUBDIR=	alias \
 	genassym \
 	gencat \
 	gensetdefs \
+	getconf \
 	getopt \
 	gprof \
 	head \
