@@ -243,17 +243,27 @@ vsyslog(pri, fmt, ap)
 	if (!opened)
 		openlog(LogTag, LogStat | LOG_NDELAY, 0);
 	connectlog();
-	if (send(LogFile, tbuf, cnt, 0) >= 0)
-		return;
 
 	/*
-	 * If the send() failed, the odds are syslogd was restarted.
-	 * Make one (only) attempt to reconnect to /dev/log.
+	 * If the send() failed, there are two likely scenarios: 
+	 *  1) syslogd was restarted
+	 *  2) /var/run/log is out of socket buffer space
+	 * We attempt to reconnect to /var/run/log to take care of
+	 * case #1 and keep send()ing data to cover case #2
+	 * to give syslogd a chance to empty its socket buffer.
 	 */
-	disconnectlog();
-	connectlog();
-	if (send(LogFile, tbuf, cnt, 0) >= 0)
-		return;
+
+	if (send(LogFile, tbuf, cnt, 0) < 0) {
+		if (errno != ENOBUFS) {
+			disconnectlog();
+			connectlog();
+		}
+		do {
+			usleep(1);
+			if (send(LogFile, tbuf, cnt, 0) >= 0)
+				break;
+		} while (errno == ENOBUFS);
+	}
 
 	/*
 	 * Output the message to the console; try not to block
