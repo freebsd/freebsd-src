@@ -29,7 +29,7 @@ SUBDIR+=	pam_deny
 .if defined(MAKE_KERBEROS4) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
 SUBDIR+=	pam_kerberosIV
 .endif
-.if defined(MAKE_KERBEROS5__) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
+.if defined(MAKE_KERBEROS5) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
 SUBDIR+=	pam_krb5
 .endif
 SUBDIR+=	pam_opie
