@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.18 1996/06/25 08:54:47 sos Exp $
+ *	$Id: syscons.h,v 1.19 1996/06/26 13:04:53 sos Exp $
  */
 
 #ifndef _I386_ISA_SYSCONS_H_
@@ -60,8 +60,8 @@
 #define SWITCH_WAIT_ACQ	0x00080
 #define BUFFER_SAVED	0x00100
 #define CURSOR_ENABLED 	0x00200
-#define CURSOR_SHOWN 	0x00400
-#define MOUSE_ENABLED	0x00800
+#define MOUSE_ENABLED	0x00400
+#define MOUSE_MOVED	0x00800
 #define MOUSE_CUTTING	0x01000
 
 /* configuration flags */
@@ -148,12 +148,12 @@ typedef struct scr_stat {
 	term_stat 	term;			/* terminal emulation stuff */
 	int	 	status;			/* status (bitfield) */
 	u_short 	*cursor_pos;		/* cursor buffer position */
+	u_short 	*cursor_oldpos;		/* cursor old buffer position */
 	u_short		cursor_saveunder;	/* saved chars under cursor */
 	char		cursor_start;		/* cursor start line # */
 	char		cursor_end;		/* cursor end line # */
 	u_short		*mouse_pos;		/* mouse buffer position */
 	u_short		*mouse_oldpos;		/* mouse old buffer position */
-	u_short		mouse_saveunder[4];	/* saved chars under mouse */
 	short		mouse_xpos;		/* mouse x coordinate */
 	short		mouse_ypos;		/* mouse y coordinate */
 	short		mouse_buttons;		/* mouse buttons */
@@ -184,6 +184,8 @@ typedef struct default_attr {
 } default_attr;
 
 void load_palette(void);
-void set_border(int color);
+void set_border(u_char color);
+void set_mode(scr_stat *scp);
+void copy_font(int operation, int font_type, char* font_image);
 
 #endif /* !_I386_ISA_SYSCONS_H_ */
