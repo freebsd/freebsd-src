@@ -39,7 +39,9 @@
 
 #include <sys/ucred.h>
 #include <sys/queue.h>
+#ifdef _KERNEL
 #include <sys/lock.h>
+#endif
 
 typedef struct fsid { int32_t val[2]; } fsid_t;	/* file system id type */
 
@@ -92,6 +94,7 @@ struct statfs {
 	long    f_spare[2];		/* unused spare */
 };
 
+#ifdef _KERNEL
 /*
  * Structure per mounted file system.  Each mounted file system has an
  * array of operations and an instance record.  The file systems are
@@ -116,6 +119,7 @@ struct mount {
 	time_t		mnt_time;		/* last time written*/
 	u_int		mnt_iosize_max;		/* max IO request size */
 };
+#endif /* _KERNEL */
 
 /*
  * User specifiable flags.
