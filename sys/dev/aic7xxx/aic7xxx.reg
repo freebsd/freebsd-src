@@ -430,6 +430,59 @@ register SPIOCAP {
 	bit	SSPIOCPS	0x01	/* Termination and cable detection */
 }
 
+register BRDCTL	{
+	address			0x01d
+	bit	BRDDAT7		0x80
+	bit	BRDDAT6		0x40
+	bit	BRDDAT5		0x20
+	bit	BRDSTB		0x10
+	bit	BRDCS		0x08
+	bit	BRDRW		0x04
+	bit	BRDCTL1		0x02
+	bit	BRDCTL0		0x01
+	/* 7890 Definitions */
+	bit	BRDDAT4		0x10
+	bit	BRDDAT3		0x08
+	bit	BRDDAT2		0x04
+	bit	BRDRW_ULTRA2	0x02
+	bit	BRDSTB_ULTRA2	0x01
+}
+
+/*
+ * Serial EEPROM Control (p. 4-92 in 7870 Databook)
+ * Controls the reading and writing of an external serial 1-bit
+ * EEPROM Device.  In order to access the serial EEPROM, you must
+ * first set the SEEMS bit that generates a request to the memory
+ * port for access to the serial EEPROM device.  When the memory
+ * port is not busy servicing another request, it reconfigures
+ * to allow access to the serial EEPROM.  When this happens, SEERDY
+ * gets set high to verify that the memory port access has been
+ * granted.  
+ *
+ * After successful arbitration for the memory port, the SEECS bit of 
+ * the SEECTL register is connected to the chip select.  The SEECK, 
+ * SEEDO, and SEEDI are connected to the clock, data out, and data in 
+ * lines respectively.  The SEERDY bit of SEECTL is useful in that it 
+ * gives us an 800 nsec timer.  After a write to the SEECTL register, 
+ * the SEERDY goes high 800 nsec later.  The one exception to this is 
+ * when we first request access to the memory port.  The SEERDY goes 
+ * high to signify that access has been granted and, for this case, has 
+ * no implied timing.
+ *
+ * See 93cx6.c for detailed information on the protocol necessary to 
+ * read the serial EEPROM.
+ */
+register SEECTL {
+	address			0x01e
+	bit	EXTARBACK	0x80
+	bit	EXTARBREQ	0x40
+	bit	SEEMS		0x20
+	bit	SEERDY		0x10
+	bit	SEECS		0x08
+	bit	SEECK		0x04
+	bit	SEEDO		0x02
+	bit	SEEDI		0x01
+}
 /*
  * SCSI Block Control (p. 3-32)
  * Controls Bus type and channel selection.  In a twin channel configuration
@@ -570,30 +623,22 @@ register BCTL {
 	bit	ENABLE		0x01
 }
 
-register DSCOMMAND0 {
-	address			0x084
-	access_mode RW
-	bit	CACHETHEN	0x80
-	bit	DPARCKEN	0x40
-	bit	MPARCKEN	0x20
-	bit	EXTREQLCK	0x10
-	bit	INTSCBRAMSEL	0x08
-	bit	RAMPS		0x04
-	bit	USCBSIZE32	0x02
-	bit	CIOPARCKEN	0x01
-}
-
 /*
  * On the aic78X0 chips, Board Control is replaced by the DSCommand
  * register (p. 4-64)
  */
-register DSCOMMAND {
+register DSCOMMAND0 {
 	address			0x084
 	access_mode RW
 	bit	CACHETHEN	0x80	/* Cache Threshold enable */
 	bit	DPARCKEN	0x40	/* Data Parity Check Enable */
 	bit	MPARCKEN	0x20	/* Memory Parity Check Enable */
 	bit	EXTREQLCK	0x10	/* External Request Lock */
+	/* aic7890/91/96/97 only */
+	bit	INTSCBRAMSEL	0x08	/* Internal SCB RAM Select */
+	bit	RAMPS		0x04	/* External SCB RAM Present */
+	bit	USCBSIZE32	0x02	/* Use 32byte SCB Page Size */
+	bit	CIOPARCKEN	0x01	/* Internal bus parity error enable */
 }
 
 /*
@@ -607,7 +652,7 @@ register BUSTIME {
 }
 
 /*
- * Bus Speed (p. 3-45)
+ * Bus Speed (p. 3-45) aic7770 only
  */
 register BUSSPD {
 	address			0x086
@@ -615,6 +660,12 @@ register BUSSPD {
 	mask	DFTHRSH		0xc0
 	mask	STBOFF		0x38
 	mask	STBON		0x07
+	mask	DFTHRSH_100	0xc0
+}
+
+/* aic7850/55/60/70/80/95 only */
+register DSPCISTATUS {
+	address			0x086
 	mask	DFTHRSH_100	0xc0
 }
 
@@ -941,11 +992,6 @@ register STATUS_2840 {
 
 /* --------------------- AIC-7870-only definitions -------------------- */
 
-register DSPCISTATUS {
-	address			0x086
-	mask	DFTHRSH_100	0xc0
-}
-
 register CCHADDR {
 	address			0x0E0
 	size 8
@@ -1056,59 +1102,6 @@ register SG_CACHEPTR {
 	bit	LAST_SEG_DONE	0x01
 }
 
-register BRDCTL	{
-	address			0x01d
-	bit	BRDDAT7		0x80
-	bit	BRDDAT6		0x40
-	bit	BRDDAT5		0x20
-	bit	BRDSTB		0x10
-	bit	BRDCS		0x08
-	bit	BRDRW		0x04
-	bit	BRDCTL1		0x02
-	bit	BRDCTL0		0x01
-	/* 7890 Definitions */
-	bit	BRDDAT4		0x10
-	bit	BRDDAT3		0x08
-	bit	BRDDAT2		0x04
-	bit	BRDRW_ULTRA2	0x02
-	bit	BRDSTB_ULTRA2	0x01
-}
-
-/*
- * Serial EEPROM Control (p. 4-92 in 7870 Databook)
- * Controls the reading and writing of an external serial 1-bit
- * EEPROM Device.  In order to access the serial EEPROM, you must
- * first set the SEEMS bit that generates a request to the memory
- * port for access to the serial EEPROM device.  When the memory
- * port is not busy servicing another request, it reconfigures
- * to allow access to the serial EEPROM.  When this happens, SEERDY
- * gets set high to verify that the memory port access has been
- * granted.  
- *
- * After successful arbitration for the memory port, the SEECS bit of 
- * the SEECTL register is connected to the chip select.  The SEECK, 
- * SEEDO, and SEEDI are connected to the clock, data out, and data in 
- * lines respectively.  The SEERDY bit of SEECTL is useful in that it 
- * gives us an 800 nsec timer.  After a write to the SEECTL register, 
- * the SEERDY goes high 800 nsec later.  The one exception to this is 
- * when we first request access to the memory port.  The SEERDY goes 
- * high to signify that access has been granted and, for this case, has 
- * no implied timing.
- *
- * See 93cx6.c for detailed information on the protocol necessary to 
- * read the serial EEPROM.
- */
-register SEECTL {
-	address			0x01e
-	bit	EXTARBACK	0x80
-	bit	EXTARBREQ	0x40
-	bit	SEEMS		0x20
-	bit	SEERDY		0x10
-	bit	SEECS		0x08
-	bit	SEECK		0x04
-	bit	SEEDO		0x02
-	bit	SEEDI		0x01
-}
 /* ---------------------- Scratch RAM Offsets ------------------------- */
 /* These offsets are either to values that are initialized by the board's
  * BIOS or are specified by the sequencer code.
@@ -1401,11 +1394,6 @@ const HOST_MSG			0xff
 
 /* Target mode command processing constants */
 const CMD_GROUP_CODE_SHIFT	0x05
-const CMD_GROUP0_BYTE_DELTA	-4
-const CMD_GROUP2_BYTE_DELTA	9
-const CMD_GROUP3_BYTE_DELTA	-15
-const CMD_GROUP4_BYTE_DELTA	4
-const CMD_GROUP5_BYTE_DELTA	11
 
 const TCL_TARGET_SHIFT		4
 /* The update interval must be a power of 2 */
