@@ -122,7 +122,7 @@ int	ithread_add_handler(struct ithd *ithread, const char *name,
 	    driver_intr_t handler, void *arg, u_char pri, enum intr_type flags,
 	    void **cookiep);
 int	ithread_remove_handler(void *cookie);
-int	ithread_schedule(struct ithd *ithread, int do_switch);
+int	ithread_schedule(struct ithd *ithread);
 int     swi_add(struct ithd **ithdp, const char *name,
 	    driver_intr_t handler, void *arg, int pri, enum intr_type flags,
 	    void **cookiep);

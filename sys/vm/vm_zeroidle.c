@@ -151,12 +151,14 @@ vm_pagezero(void __unused *arg)
 	for (;;) {
 		if (vm_page_zero_check()) {
 			pages += vm_page_zero_idle();
+#ifndef PREEMPTION
 			if (pages > idlezero_maxrun || sched_runnable()) {
 				mtx_lock_spin(&sched_lock);
 				mi_switch(SW_VOL, NULL);
 				mtx_unlock_spin(&sched_lock);
 				pages = 0;
 			}
+#endif
 		} else {
 			tsleep(&zero_state, pri, "pgzero", hz * 300);
 			pages = 0;

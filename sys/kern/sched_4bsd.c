@@ -654,7 +654,7 @@ sched_switch(struct thread *td, struct thread *newtd)
 		sched_tdcnt++;
 	td->td_lastcpu = td->td_oncpu;
 	td->td_last_kse = ke;
-	td->td_flags &= ~TDF_NEEDRESCHED;
+	td->td_flags &= ~(TDF_NEEDRESCHED | TDF_OWEPREEMPT);
 	td->td_oncpu = NOCPU;
 	/*
 	 * At the last moment, if this thread is still marked RUNNING,
@@ -712,6 +712,16 @@ sched_add(struct thread *td)
 	    ke->ke_proc->p_comm));
 	KASSERT(ke->ke_proc->p_sflag & PS_INMEM,
 	    ("sched_add: process swapped out"));
+
+#ifdef SMP
+	/*
+	 * Only try to preempt if the thread is unpinned or pinned to the
+	 * current CPU.
+	 */
+	if (KSE_CAN_MIGRATE(ke) || ke->ke_runq == &runq_pcpu[PCPU_GET(cpuid)])
+#endif
+	if (maybe_preempt(td))
+		return;
 	ke->ke_ksegrp->kg_runq_kses++;
 	ke->ke_state = KES_ONRUNQ;
 

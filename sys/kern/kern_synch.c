@@ -299,7 +299,9 @@ mi_switch(int flags, struct thread *newtd)
 	if (!TD_ON_LOCK(td) && !TD_IS_RUNNING(td))
 		mtx_assert(&Giant, MA_NOTOWNED);
 #endif
-	KASSERT(td->td_critnest == 1,
+	KASSERT(td->td_critnest == 1 || (td->td_critnest == 2 &&
+	    (td->td_flags & TDF_OWEPREEMPT) != 0 && (flags & SW_INVOL) != 0 &&
+	    newtd == NULL),
 	    ("mi_switch: switch in a critical section"));
 	KASSERT((flags & (SW_INVOL | SW_VOL)) != 0,
 	    ("mi_switch: switch must be voluntary or involuntary"));
@@ -308,6 +310,7 @@ mi_switch(int flags, struct thread *newtd)
 		p->p_stats->p_ru.ru_nvcsw++;
 	else
 		p->p_stats->p_ru.ru_nivcsw++;
+
 	/*
 	 * Compute the amount of time during which the current
 	 * process was running, and add that to its total so far.

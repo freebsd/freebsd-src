@@ -230,11 +230,7 @@ sched_ithd(void *cookie)
 	int error;
 
 	iv = cookie;
-#ifdef notyet
 	error = ithread_schedule(iv->iv_ithd);
-#else
-	error = ithread_schedule(iv->iv_ithd, 0);
-#endif
 	if (error == EINVAL)
 		intr_stray_vector(iv);
 }
