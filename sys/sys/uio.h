@@ -86,10 +86,8 @@ struct vm_object;
 
 void	uio_yield(void);
 int	uiomove(caddr_t, int, struct uio *);
-#ifdef ENABLE_VFS_IOOPT		/* Experimental support for zero-copy I/O */
 int	uiomoveco(caddr_t, int, struct uio *, struct vm_object *);
 int	uioread(int, struct uio *, struct vm_object *, int *);
-#endif
 int	copyinfrom(const void *src, void *dst, size_t len, int seg);
 int	copyinstrfrom(const void *src, void *dst, size_t len,
 	    size_t *copied, int seg);
