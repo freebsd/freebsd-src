@@ -1185,8 +1185,8 @@ ni6_input(m, off)
 	struct ni_reply_fqdn *fqdn;
 	int addrs;		/* for NI_QTYPE_NODEADDR */
 	struct ifnet *ifp = NULL; /* for NI_QTYPE_NODEADDR */
-	struct sockaddr_in6 sin6; /* double meaning; ip6_dst and subjectaddr */
-	struct sockaddr_in6 sin6_d; /* XXX: we should retrieve this from m_aux */
+	struct sockaddr_in6 sin6_sbj; /* subject address */
+	struct sockaddr_in6 sin6_d;
 	struct ip6_hdr *ip6;
 	int oldfqdn = 0;	/* if 1, return pascal string (03 draft) */
 	char *subj = NULL;
@@ -1203,32 +1203,41 @@ ni6_input(m, off)
 	}
 #endif
 
+	bzero(&sin6_d, sizeof(sin6_d));
+	sin6_d.sin6_family = AF_INET6; /* not used, actually */
+	sin6_d.sin6_len = sizeof(sin6_d); /* ditto */
+	sin6_d.sin6_addr = ip6->ip6_dst;
+	if (in6_addr2zoneid(m->m_pkthdr.rcvif, &ip6->ip6_dst,
+	    &sin6_d.sin6_scope_id)) {
+		goto bad;
+	}
+	if (in6_embedscope(&sin6_d.sin6_addr, &sin6_d, NULL, NULL))
+		goto bad; /* XXX should not happen */
+
 	/*
 	 * Validate IPv6 destination address.
 	 *
 	 * The Responder must discard the Query without further processing
 	 * unless it is one of the Responder's unicast or anycast addresses, or
 	 * a link-local scope multicast address which the Responder has joined.
-	 * [icmp-name-lookups-07, Section 4.]
+	 * [icmp-name-lookups-08, Section 4.]
 	 */
-	bzero(&sin6, sizeof(sin6));
-	sin6.sin6_family = AF_INET6;
-	sin6.sin6_len = sizeof(struct sockaddr_in6);
-	bcopy(&ip6->ip6_dst, &sin6.sin6_addr, sizeof(sin6.sin6_addr));
-	/* XXX scopeid */
-	if ((ia6 = (struct in6_ifaddr *)ifa_ifwithaddr((struct sockaddr *)&sin6)) != NULL) {
-		/* unicast/anycast, fine */
-		if ((ia6->ia6_flags & IN6_IFF_TEMPORARY) != 0 &&
-		    (icmp6_nodeinfo & 4) == 0) {
+	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
+		if (!IN6_IS_ADDR_MC_LINKLOCAL(&ip6->ip6_dst))
+			goto bad;
+		/* else it's a link-local multicast, fine */
+	} else {		/* unicast or anycast */
+		if ((ia6 = ip6_getdstifaddr(m)) == NULL)
+			goto bad; /* XXX impossible */
+
+		if ((ia6->ia6_flags & IN6_IFF_TEMPORARY) &&
+		    !(icmp6_nodeinfo & 4)) {
 			nd6log((LOG_DEBUG, "ni6_input: ignore node info to "
 				"a temporary address in %s:%d",
 			       __FILE__, __LINE__));
 			goto bad;
 		}
-	} else if (IN6_IS_ADDR_MC_LINKLOCAL(&sin6.sin6_addr))
-		; /* link-local multicast, fine */
-	else
-		goto bad;
+	}
 
 	/* validate query Subject field. */
 	qtype = ntohs(ni6->ni_qtype);
@@ -1261,7 +1270,7 @@ ni6_input(m, off)
 				goto bad;
 #endif
 
-			if (subjlen != sizeof(sin6.sin6_addr))
+			if (subjlen != sizeof(struct in6_addr))
 				goto bad;
 
 			/*
@@ -1279,24 +1288,21 @@ ni6_input(m, off)
 			 * We do not do proxy at this moment.
 			 */
 			/* m_pulldown instead of copy? */
+			bzero(&sin6_sbj, sizeof(sin6_sbj));
+			sin6_sbj.sin6_family = AF_INET6;
+			sin6_sbj.sin6_len = sizeof(sin6_sbj);
 			m_copydata(m, off + sizeof(struct icmp6_nodeinfo),
-			    subjlen, (caddr_t)&sin6.sin6_addr);
+			    subjlen, (caddr_t)&sin6_sbj.sin6_addr);
 			if (in6_addr2zoneid(m->m_pkthdr.rcvif,
-			    &sin6.sin6_addr, &sin6.sin6_scope_id)) {
+			    &sin6_sbj.sin6_addr, &sin6_sbj.sin6_scope_id)) {
 				goto bad;
 			}
-			in6_embedscope(&sin6.sin6_addr, &sin6, NULL, NULL);
-			bzero(&sin6_d, sizeof(sin6_d));
-			sin6_d.sin6_family = AF_INET6; /* not used, actually */
-			sin6_d.sin6_len = sizeof(sin6_d); /* ditto */
-			sin6_d.sin6_addr = ip6->ip6_dst;
-			if (in6_addr2zoneid(m->m_pkthdr.rcvif,
-			    &ip6->ip6_dst, &sin6_d.sin6_scope_id)) {
-				goto bad;
-			}
-			in6_embedscope(&sin6_d.sin6_addr, &sin6_d, NULL, NULL);
-			subj = (char *)&sin6;
-			if (SA6_ARE_ADDR_EQUAL(&sin6, &sin6_d))
+			if (in6_embedscope(&sin6_sbj.sin6_addr, &sin6_sbj,
+			    NULL, NULL))
+				goto bad; /* XXX should not happen */
+
+			subj = (char *)&sin6_sbj;
+			if (SA6_ARE_ADDR_EQUAL(&sin6_sbj, &sin6_d))
 				break;
 
 			/*
