@@ -81,8 +81,7 @@ static struct cdevsw acpi_cdevsw = {
     CDEV_MAJOR,
     nodump,
     nopsize,
-    0,
-    -1
+    0
 };
 
 static const char* sleep_state_names[] = {
