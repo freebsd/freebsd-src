@@ -24,13 +24,11 @@
 .\"
 .\" $FreeBSD$
 .\"
-.\" Note: The date here should be updated whenever a non-trivial
-.\" change is made to the manual page.
 .Dd January 22, 2004
-.Dt PTHREAD_SPIN_INIT 3 PTHREAD_SPIN_DESTROY 3
+.Dt PTHREAD_SPIN_INIT 3
 .Os
 .Sh NAME
-.Nm pthread_spin_init pthread_spin_destroy
+.Nm pthread_spin_init , pthread_spin_destroy
 .Nd "initialize or destroy a spin lock"
 .Sh LIBRARY
 .Lb libpthread
@@ -51,15 +49,15 @@ allocate any resources necessary to begin using it.
 If
 .Fa pshared
 is set to
-.Dv PTHREAD_PROCESS_SHARED
+.Dv PTHREAD_PROCESS_SHARED ,
 any thread,
 whether belonging to the process in which the spinlock was created or not,
 that has access to the memory area where
 .Fa lock
-resides can use
+resides, can use
 .Fa lock .
 If it is set to
-.Dv PTHREAD_PROCESS_PRIVATE
+.Dv PTHREAD_PROCESS_PRIVATE ,
 it can only be used by threads within the same process.
 .Pp
 The
@@ -67,18 +65,17 @@ The
 function will destroy
 .Fa lock
 and release any resources that may have been allocated on its behalf.
-.Pp
-.Sh DIAGNOSTICS
+.Sh RETURN VALUES
 If successful,
 both
 .Fn pthread_spin_init
 and
 .Fn pthread_spin_destroy
 will return zero.
-Otherwise an error number will be returned to indicate the error.
+Otherwise, an error number will be returned to indicate the error.
 .Pp
-Neither of these functions will return EINTR.
-.Pp
+Neither of these functions will return
+.Er EINTR .
 .Sh ERRORS
 The
 .Fn pthread_spin_init
@@ -138,4 +135,5 @@ and in
 .Lb libpthread
 if any value other than
 .Dv PTHREAD_PROCESSES_PRIVATE
-is specified it returns EINVAL.
+is specified, it returns
+.Er EINVAL .

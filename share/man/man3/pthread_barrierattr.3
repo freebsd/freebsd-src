@@ -24,14 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.\" Note: The date here should be updated whenever a non-trivial
-.\" change is made to the manual page.
 .Dd February 19, 2004
-.Dt PTHREAD_BARRIERATTR_DESTROY 3 PTHREAD_BARRIERATTR_GETPSHARED 3 PTHREAD_BARRIERATTR_INIT 3 PTHREAD_BARRIERATTR_SETPSHARED 3
+.Dt PTHREAD_BARRIERATTR 3
 .Os
 .Sh NAME
-.Nm pthread_barrierattr_destroy pthread_barrierattr_getpshared
-.Nm pthread_barrierattr_init pthread_barrierattr_setpshared
+.Nm pthread_barrierattr_destroy , pthread_barrierattr_getpshared ,
+.Nm pthread_barrierattr_init , pthread_barrierattr_setpshared
 .Nd "manipulate a barrier attribute object"
 .Sh LIBRARY
 .Lb libpthread
@@ -69,7 +67,7 @@ The
 function will set the process-shared attribute of
 .Fa attr
 to the value specified in
-.Fa pshared.
+.Fa pshared .
 The argument
 .Fa pshared
 may have one of the following values:
@@ -81,12 +79,12 @@ threads in the same process as the one that created the object.
 The barrier object it is attached to may be accessed by
 threads in processes other than the one that created the object.
 .El
-.Sh DIAGNOSTICS
-If successful all these functions will return zero.
-Otherwise an error number will be returned to indicate the error.
+.Sh RETURN VALUES
+If successful, all these functions will return zero.
+Otherwise, an error number will be returned to indicate the error.
 .Pp
-None of these functions will return EINTR.
-.Pp
+None of these functions will return
+.Er EINTR .
 .Sh ERRORS
 The
 .Fn pthread_barrierattr_destroy ,
@@ -122,10 +120,10 @@ is not one of the allowed values.
 .Sh SEE ALSO
 .Xr pthread_barrier_destroy 3 ,
 .Xr pthread_barrier_init 3 ,
-.Xr pthread_barrier_wait 3 ,
+.Xr pthread_barrier_wait 3
 .Sh HISTORY
 The
-.Fn pthread_barrierattr
+.Fn pthread_barrierattr_*
 functions first appeared in
 .Lb libpthread
 in
@@ -136,15 +134,16 @@ in
 .Fx 5.3 .
 .Sh BUGS
 The implementation of
-.Fn pthread_barriers
+barriers
 does not fully conform to
 .St -p1003.2
 because the process-shared attribute is ignored in
 .Lb libthr ,
 and in
-.Lb libpthread
+.Lb libpthread ;
 if any value other than
 .Dv PTHREAD_PROCESSES_PRIVATE
 is specified in a call to
-.Fn pthread_barrierattr_setpshared
-it will return EINVAL.
+.Fn pthread_barrierattr_setpshared ,
+it will return
+.Er EINVAL .
