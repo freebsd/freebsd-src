@@ -456,7 +456,7 @@ EcGpeQueryHandler(void *Context)
 	    printf("EcGpeQueryHandler:ClearEvent Failed\n");
     if(AcpiEnableEvent(sc->ec_gpebit,ACPI_EVENT_GPE) != AE_OK)
 	    printf("EcGpeQueryHandler:EnableEvent Failed\n");
-    return;
+    return_VOID;
 }
 static void EcGpeHandler(void *Context)
 {
@@ -482,7 +482,7 @@ static void EcGpeHandler(void *Context)
 			printf("QueryHandler Queuing Failed\n");
 		}
 	}
-    return_VOID;
+    return;
 }
 
 static ACPI_STATUS
