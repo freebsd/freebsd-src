@@ -40,6 +40,7 @@
 #include <stddef.h>
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/assym.h>
 #include <sys/proc.h>
 #include <sys/buf.h>
@@ -56,9 +57,7 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#define _KERNEL	/* Avoid userland compatability headers */
 #include <sys/user.h>
-#undef _KERNEL
 #include <net/if.h>
 #include <netinet/in.h>
 #include <nfs/nfsv2.h>
