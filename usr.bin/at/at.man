@@ -186,6 +186,20 @@ to use
 If neither exists, only the superuser is allowed use of
 .Nm Ns .
 This is the default configuration.
+.Sh IMPLEMENTATION NOTES
+Note that
+.Nm
+is implemented through the
+.Xr cron 8
+daemon by calling
+.Xr atrun 8
+every five minutes.
+This implies that the granularity of
+.Nm
+might not be optimal for every deployment.
+If a finer granularity is needed the system crontab at
+.Pa /etc/crontab
+needs to be changed.
 .Sh OPTIONS
 .Bl -tag -width indent
 .It Fl q Ar queue
