@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2.c,v 1.6 1995/11/13 07:18:27 bde Exp $
+ *	$Id: ibcs2.c,v 1.7 1995/11/14 07:34:00 bde Exp $
  */
 
 #include <sys/param.h>
@@ -41,7 +41,7 @@ MOD_MISC(ibcs2);
 static int
 ibcs2_load(struct lkm_table *lkmtp, int cmd)
 {
-	uprintf("ibcs2 emulator installed\n");
+	/* uprintf("ibcs2 emulator installed\n"); XXX - shut up, you! */
 	return 0;
 }
 
