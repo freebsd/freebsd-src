@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppbconf.c,v 1.9 1998/12/07 21:58:16 archie Exp $
+ *	$Id: ppbconf.c,v 1.10 1999/01/10 12:04:55 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -262,7 +262,7 @@ ppb_scan_bus(struct ppb_data *ppb)
 
 	ppb_1284_terminate(&pnpdev);
 
-	printf("ppc%d: IEEE1284 device found ", ppb->ppb_link->adapter_unit);
+	printf("ppb%d: IEEE1284 device found ", ppb->ppb_link->adapter_unit);
 
 	if (!(error = ppb_1284_negociate(&pnpdev, PPB_NIBBLE, 0))) {
 		printf("/NIBBLE");
@@ -317,8 +317,6 @@ ppb_scan_bus(struct ppb_data *ppb)
                 printf("/Extensibility Link");
 		ppb_1284_terminate(&pnpdev);
         }
-
-	printf(" in FORWARD_IDLE state\n");
 
 	/* detect PnP devices */
 	ppb->class_id = ppb_pnp_detect(ppb, &pnpdev);

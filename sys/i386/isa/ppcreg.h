@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppcreg.h,v 1.5 1998/10/31 11:37:09 nsouch Exp $
+ *	$Id: ppcreg.h,v 1.6 1999/01/10 12:04:53 nsouch Exp $
  *
  */
 #ifndef __PPCREG_H
@@ -122,14 +122,14 @@ struct ppc_data {
 #define PPC_DISABLE_INTR	(PPC_SERVICE_INTR | PPC_nFAULT_INTR)
 #define PPC_ECR_RESET		(PPC_ECR_PS2 | PPC_DISABLE_INTR)
 
-#define r_dtr(ppc) ((char)inb((ppc)->ppc_base + PPC_SPP_DTR))
-#define r_str(ppc) ((char)inb((ppc)->ppc_base + PPC_SPP_STR))
-#define r_ctr(ppc) ((char)inb((ppc)->ppc_base + PPC_SPP_CTR))
-#define r_epp(ppc) ((char)inb((ppc)->ppc_base + PPC_EPP_DATA))
-#define r_cnfgA(ppc) ((char)inb((ppc)->ppc_base + PPC_ECP_CNFGA))
-#define r_cnfgB(ppc) ((char)inb((ppc)->ppc_base + PPC_ECP_CNFGB))
-#define r_ecr(ppc) ((char)inb((ppc)->ppc_base + PPC_ECP_ECR))
-#define r_fifo(ppc) ((char)inb((ppc)->ppc_base + PPC_ECP_D_FIFO))
+#define r_dtr(ppc) (inb((ppc)->ppc_base + PPC_SPP_DTR))
+#define r_str(ppc) (inb((ppc)->ppc_base + PPC_SPP_STR))
+#define r_ctr(ppc) (inb((ppc)->ppc_base + PPC_SPP_CTR))
+#define r_epp(ppc) (inb((ppc)->ppc_base + PPC_EPP_DATA))
+#define r_cnfgA(ppc) (inb((ppc)->ppc_base + PPC_ECP_CNFGA))
+#define r_cnfgB(ppc) (inb((ppc)->ppc_base + PPC_ECP_CNFGB))
+#define r_ecr(ppc) (inb((ppc)->ppc_base + PPC_ECP_ECR))
+#define r_fifo(ppc) (inb((ppc)->ppc_base + PPC_ECP_D_FIFO))
 
 #define w_dtr(ppc,byte) outb((ppc)->ppc_base + PPC_SPP_DTR, byte)
 #define w_str(ppc,byte) outb((ppc)->ppc_base + PPC_SPP_STR, byte)
