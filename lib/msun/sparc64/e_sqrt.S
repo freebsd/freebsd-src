@@ -27,7 +27,7 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$")
 
-ENTRY(sqrt)
+ENTRY(__ieee754_sqrt)
 	retl
 	fsqrtd %f0, %f0
-END(sqrt)
+END(__ieee754_sqrt)
