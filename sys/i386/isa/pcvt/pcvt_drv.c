@@ -108,8 +108,9 @@ static struct cdevsw vt_cdevsw = {
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
-	/* flags */	D_TTY,
-	/* bmaj */	-1
+	/* flags */	D_TTY | D_KQFILTER,
+	/* bmaj */	-1,
+	/* kqfilter */	ttykqfilter,
 };
 
 static int pcvt_probe(device_t dev);

@@ -258,8 +258,9 @@ static struct cdevsw dgm_cdevsw = {
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
-	/* flags */	D_TTY,
-	/* bmaj */	-1
+	/* flags */	D_TTY | D_KQFILTER,
+	/* bmaj */	-1,
+	/* kqfilter */	ttykqfilter,
 };
 
 static	speed_t	dgmdefaultrate = TTYDEF_SPEED;

@@ -100,8 +100,9 @@ struct cdevsw cx_cdevsw = {
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
-	/* flags */	D_TTY,
-	/* bmaj */	-1
+	/* flags */	D_TTY | D_KQFILTER,
+	/* bmaj */	-1,
+	/* kqfilter */	ttykqfilter,
 };
 #else
 struct tty *cx_tty [NCX*NCHAN];         /* tty data */
