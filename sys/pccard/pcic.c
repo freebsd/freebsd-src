@@ -51,7 +51,7 @@
 #include <pccard/pcic98reg.h>
 #endif
 
-#include <pccard/card.h>
+#include <pccard/cardinfo.h>
 #include <pccard/driver.h>
 #include <pccard/slot.h>
 
