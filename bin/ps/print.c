@@ -542,7 +542,8 @@ elapsed(KINFO *k, VARENT *ve)
 	v = ve->var;
 
 	secs = now - k->ki_p->ki_start.tv_sec;
-	(void)snprintf(obuff, sizeof(obuff), "%3ld:%02ld", secs/60, secs%60);
+	(void)snprintf(obuff, sizeof(obuff), "%3ld:%02ld", (long)secs/60,
+	    (long)secs%60);
 	(void)printf("%*s", v->width, obuff);
 }
 
