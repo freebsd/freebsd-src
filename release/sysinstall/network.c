@@ -280,7 +280,7 @@ startPPP(Device *devp)
     fprintf(fp, "\ninstall:\n");
     fprintf(fp, " set speed %s\n", speed);
     fprintf(fp, " set device %s\n", devp->devname);
-    fprintf(fp, " set ifaddr %s %s\n", myaddr, provider);
+    fprintf(fp, " set ifaddr %s %s 255.255.255.0 0.0.0.0\n", myaddr, provider);
     fprintf(fp, " set timeout 0\n");
     fprintf(fp, " enable dns\n");
     fprintf(fp, " set log local phase\n");
