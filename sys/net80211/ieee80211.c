@@ -699,15 +699,15 @@ ieee80211_setmode(struct ieee80211com *ic, enum ieee80211_phymode mode)
 	 * XXX what if we have stations already associated???
 	 * XXX probably not right for autoselect?
 	 */
+	if (ic->ic_caps & IEEE80211_C_SHPREAMBLE)
+		ic->ic_flags |= IEEE80211_F_SHPREAMBLE;
 	if (mode == IEEE80211_MODE_11G) {
 		if (ic->ic_caps & IEEE80211_C_SHSLOT)
 			ic->ic_flags |= IEEE80211_F_SHSLOT;
-		if (ic->ic_caps & IEEE80211_C_SHPREAMBLE)
-			ic->ic_flags |= IEEE80211_F_SHPREAMBLE;
 		ieee80211_set11gbasicrates(&ic->ic_sup_rates[mode],
 			IEEE80211_MODE_11G);
 	} else {
-		ic->ic_flags &= ~(IEEE80211_F_SHSLOT | IEEE80211_F_SHPREAMBLE);
+		ic->ic_flags &= ~IEEE80211_F_SHSLOT;
 	}
 
 	ic->ic_curmode = mode;
