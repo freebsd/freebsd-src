@@ -1664,6 +1664,19 @@
     <para>&man.mail.1; now takes a <option>-E</option> flag to avoid
     sending messages with empty bodies. &merged;</para>
 
+    <para>&man.route.8; is now more verbose when changing indirect
+    routes, in the case of a gateway route that is the same route as
+    the one being modified.</para>
+
+    <para>&man.route.8; now uses
+    <literal><replaceable>host</replaceable>/<replaceable>bits</replaceable></literal>
+    syntax instead of 
+    <literal><replaceable>net</replaceable>/<replaceable>bits</replaceable></literal>
+    syntax, for compatability with &man.netstat.1;.</para>
+
+    <para>&man.route.8; can now create <quote>proxy only</quote>
+    published ARP entries.</para>
+
     <sect3>
       <title>Contributed Software</title>
 
@@ -1762,19 +1775,6 @@
 
       <para><application>Perl</application> has been updated to version
       5.6.0.</para>
-
-      <para>&man.route.8; is now more verbose when changing indirect
-      routes, in the case of a gateway route that is the same route as
-      the one being modified.</para>
-
-      <para>&man.route.8; now uses
-      <literal><replaceable>host</replaceable>/<replaceable>bits</replaceable></literal>
-      syntax instead of 
-      <literal><replaceable>net</replaceable>/<replaceable>bits</replaceable></literal>
-      syntax, for compatability with &man.netstat.1;.</para>
-
-      <para>&man.route.8; can now create <quote>proxy only</quote>
-      published ARP entries.</para>
 
       <para>&man.routed.8; has been updated to version 2.22. &merged;</para>
 
