@@ -46,7 +46,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.45 1998/04/24 11:50:30 obrien Exp $
+ *	$Id: subr_diskslice.c,v 1.46 1998/06/06 03:06:55 bde Exp $
  */
 
 #include "opt_devfs.h"
@@ -596,7 +596,7 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom, bdevsw, cdevsw)
 	struct disklabel *lp;
 	d_strategy_t *strat;
 	ds_setgeom_t *setgeom;
-	struct bdevsw *bdevsw;
+	struct cdevsw *bdevsw;
 	struct cdevsw *cdevsw;
 {
 	struct dkbad *btp;

@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: kern_physio.c,v 1.25 1998/03/28 10:33:05 bde Exp $
+ * $Id: kern_physio.c,v 1.26 1998/04/04 05:55:05 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -168,10 +168,10 @@ minphys(bp)
 	struct buf *bp;
 {
 	u_int maxphys = DFLTPHYS;
-	struct bdevsw *bdsw;
+	struct cdevsw *bdsw;
 	int offset;
 
-	bdsw = cdevsw[major(bp->b_dev)]->d_bdev;
+	bdsw = cdevsw[major(bp->b_dev)];
 
 	if (bdsw && bdsw->d_maxio) {
 		maxphys = bdsw->d_maxio;
@@ -193,11 +193,11 @@ minphys(bp)
 struct buf *
 phygetvpbuf(dev_t dev, int resid)
 {
-	struct bdevsw *bdsw;
+	struct cdevsw *bdsw;
 	int maxio;
 
-	bdsw = cdevsw[major(dev)]->d_bdev;
-	if (bdsw == NULL)
+	bdsw = cdevsw[major(dev)];
+	if ((bdsw == NULL) || (bdsw->d_bmaj == -1))
 		return getpbuf();
 
 	maxio = bdsw->d_maxio;
@@ -205,26 +205,6 @@ phygetvpbuf(dev_t dev, int resid)
 		resid = maxio;
 
 	return getpbuf();
-}
-
-int
-rawread(dev, uio, ioflag)
-	dev_t dev;
-	struct uio *uio;
-	int ioflag;
-{
-	return (physio(cdevsw[major(dev)]->d_strategy, (struct buf *)NULL,
-	    dev, 1, minphys, uio));
-}
-
-int
-rawwrite(dev, uio, ioflag)
-	dev_t dev;
-	struct uio *uio;
-	int ioflag;
-{
-	return (physio(cdevsw[major(dev)]->d_strategy, (struct buf *)NULL,
-	    dev, 0, minphys, uio));
 }
 
 static void

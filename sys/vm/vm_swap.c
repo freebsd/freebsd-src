@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.54 1998/06/25 11:28:07 phk Exp $
+ * $Id: vm_swap.c,v 1.55 1998/07/04 20:45:42 julian Exp $
  */
 
 #include "opt_devfs.h"
@@ -68,15 +68,19 @@
  * provided as a character (raw) device.
  */
 
-static void swstrategy __P((struct buf *));
+static	d_strategy_t    swstrategy;
+static	d_read_t	swread;
+static	d_write_t	swwrite;
 
 #define CDEV_MAJOR 4
 #define BDEV_MAJOR 26
-static struct cdevsw sw_cdevsw;
 
-static struct bdevsw sw_bdevsw = 
-	{ noopen,	noclose,	swstrategy,	noioc,		/*1*/
-	  nodump,	nopsize,	0,	"sw",	&sw_cdevsw,	-1 };
+static struct cdevsw sw_cdevsw = 
+	{ nullopen,	nullclose,	swread,		swwrite,	/*4*/
+	  noioc,	nostop,		noreset,	nodevtotty,/* swap */
+	  seltrue,	nommap,		swstrategy,	"sw",
+	  NULL,		-1,		nodump,		nopsize,
+	  0,		0,		-1};
 
 static dev_t	swapdev = makedev(BDEV_MAJOR, 0);
 
@@ -94,6 +98,18 @@ struct vnode *swapdev_vp;
 int nswap;			/* first block after the interleaved devs */
 static int nswdev = NSWAPDEV;
 int vm_swap_size;
+
+static int
+swread(dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(swstrategy, NULL, dev, 1, minphys, uio));
+}
+
+static int
+swwrite(dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(swstrategy, NULL, dev, 0, minphys, uio));
+}
 
 static void
 swstrategy(bp)
@@ -308,7 +324,7 @@ static void 	sw_drvinit(void *unused)
 {
 
 	if( ! sw_devsw_installed ) {
-		bdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &sw_bdevsw);
+		cdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &sw_cdevsw);
 		/*
 		 * XXX: This is pretty gross, but it will disappear with
 		 * the blockdevices RSN.

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.41 1998/06/17 14:58:04 bde Exp $
+ * $Id: conf.h,v 1.42 1998/06/25 11:27:56 phk Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -94,26 +94,6 @@ typedef int l_modem_t __P((struct tty *tp, int flag));
 #define	D_NOCLUSTERW	0x20000		/* disables cluster write */
 #define	D_NOCLUSTERRW	(D_NOCLUSTERR | D_NOCLUSTERW)
 
-/*
- * Block device switch table
- */
-struct bdevsw {
-	d_open_t	*d_open;
-	d_close_t	*d_close;
-	d_strategy_t	*d_strategy;
-	d_ioctl_t	*d_ioctl;
-	d_dump_t	*d_dump;
-	d_psize_t	*d_psize;
-	u_int		d_flags;
-	char 		*d_name;	/* name of the driver e.g. audio */
-	struct cdevsw	*d_cdev; 	/* cross pointer to the cdev */
-	int		d_maj;		/* the major number we were assigned */
-	int		d_maxio;
-};
-
-#ifdef KERNEL
-extern struct bdevsw *bdevsw[];
-#endif
 
 /*
  * Character device switch table
@@ -131,7 +111,7 @@ struct cdevsw {
 	d_mmap_t	*d_mmap;
 	d_strategy_t	*d_strategy;
 	char		*d_name;	/* see above */
-	struct bdevsw	*d_bdev;
+	void		*d_spare;
 	int		d_maj;
 	d_dump_t	*d_dump;
 	d_psize_t	*d_psize;
@@ -141,6 +121,7 @@ struct cdevsw {
 };
 
 #ifdef KERNEL
+extern struct cdevsw *bdevsw[];
 extern struct cdevsw *cdevsw[];
 #endif
 
@@ -227,9 +208,6 @@ d_ioctl_t	nxioctl;
 d_dump_t	nxdump;
 #define	nxpsize	nopsize		/* one NULL value is as good as another */
 
-d_read_t	rawread;
-d_write_t	rawwrite;
-
 l_read_t	l_noread;
 l_write_t	l_nowrite;
 
@@ -250,7 +228,7 @@ struct bdevsw_module_data {
     void*		chainarg; /* arg for next event handler */
     int			bdev;	/* device major to use */
     int			cdev;	/* device major to use */
-    struct bdevsw*	bdevsw;	/* device functions */
+    struct cdevsw*	cdevsw;	/* device functions */
 };
 
 #define CDEV_MODULE(name, major, devsw, evh, arg)			\
@@ -283,7 +261,7 @@ int	bdevsw_module_handler __P((module_t mod, modeventtype_t what, void* arg));
 #endif /* _SYS_MODULE_H_ */
 
 int	cdevsw_add __P((dev_t *descrip,struct cdevsw *new,struct cdevsw **old));
-void	bdevsw_add_generic __P((int bdev, int cdev, struct bdevsw *bdevsw));
+void	cdevsw_add_generic __P((int bdev, int cdev, struct cdevsw *cdevsw));
 dev_t	chrtoblk __P((dev_t dev));
 int	iskmemdev __P((dev_t dev));
 int	iszerodev __P((dev_t dev));
