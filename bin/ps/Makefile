@@ -2,7 +2,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/2/93
 
 PROG=	ps
-SRCS=	fmt.c keyword.c nlist.c print.c ps.c
+SRCS=	fmt.c keyword.c nlist.c print.c ps.c lomac.c
 #
 # To support "lazy" ps for non root/wheel users
 # add -DLAZY_PS to the cflags.  This helps

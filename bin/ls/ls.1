@@ -43,7 +43,7 @@
 .Nd list directory contents
 .Sh SYNOPSIS
 .Nm
-.Op Fl ABCFGHLPRTWabcdfgiklnoqrstu1
+.Op Fl ABCFGHLPRTWZabcdfgiklnoqrstu1
 .Op Ar
 .Sh DESCRIPTION
 For each operand that names a
@@ -122,6 +122,8 @@ Display complete time information for the file, including
 month, day, hour, minute, second, and year.
 .It Fl W
 Display whiteouts when scanning directories.
+.It Fl Z
+Display each file's LOMAC level.
 .It Fl a
 Include directory entries whose names begin with a
 dot (.).
@@ -245,6 +247,7 @@ option is given, the following information
 is displayed for each file:
 file mode,
 number of links, owner name, group name,
+LOMAC level,
 number of bytes in the file, abbreviated
 month, day-of-month file was last modified,
 hour file last modified, minute file last
@@ -535,6 +538,11 @@ The group field is now automatically included in the long listing for
 files in order to be compatible with the
 .St -p1003.2
 specification.
+.Sh FILES
+.Bl -tag -width /dev/lomac -compact
+.It Pa /dev/lomac
+interface used to query the LOMAC LKM
+.El
 .Sh SEE ALSO
 .Xr chflags 1 ,
 .Xr chmod 1 ,
@@ -542,6 +550,7 @@ specification.
 .Xr xterm 1 ,
 .Xr termcap 5 ,
 .Xr symlink 7 ,
+.Xr lomac 4 ,
 .Xr sticky 8
 .Sh HISTORY
 An
