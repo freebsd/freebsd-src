@@ -266,7 +266,7 @@ init_static(pthread_mutex_t *mutex)
 	_SPINLOCK(&static_init_lock);
 
 	if (*mutex == NULL)
-		ret = pthread_mutex_init(mutex, NULL);
+		ret = _pthread_mutex_init(mutex, NULL);
 	else
 		ret = 0;
 
@@ -283,7 +283,7 @@ init_static_private(pthread_mutex_t *mutex)
 	_SPINLOCK(&static_init_lock);
 
 	if (*mutex == NULL)
-		ret = pthread_mutex_init(mutex, &static_mattr);
+		ret = _pthread_mutex_init(mutex, &static_mattr);
 	else
 		ret = 0;
 
