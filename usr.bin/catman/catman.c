@@ -65,6 +65,7 @@ static int force;		/* -f flag: force overwriting all cat pages */
 static int rm_junk;		/* -r flag: remove garbage pages */
 static char *locale;		/* user's locale if -L is used */
 static char *lang_locale;	/* short form of locale */
+static const char *machine;
 static int exit_code;		/* exit code to use when finished */
 
 /*
@@ -633,6 +634,7 @@ process_mandir(char *dir_name, char *section)
 		process_section(dir_name, section);
 	} else {
 		struct dirent **entries;
+		char *machine_dir;
 		int nsections;
 		int i;
 
@@ -644,6 +646,11 @@ process_mandir(char *dir_name, char *section)
 		}
 		for (i = 0; i < nsections; i++) {
 			process_section(dir_name, entries[i]->d_name);
+			asprintf(&machine_dir, "%s/%s", entries[i]->d_name,
+			    machine);
+			if (test_path(machine_dir, NULL) & TEST_DIR)
+				process_section(dir_name, machine_dir);
+			free(machine_dir);
 			free(entries[i]);
 		}
 		free(entries);
@@ -782,6 +789,10 @@ main(int argc, char **argv)
 	signal(SIGHUP, trap_signal);
 	signal(SIGQUIT, trap_signal);
 	signal(SIGTERM, trap_signal);
+
+	if ((machine = getenv("MACHINE")) == NULL)
+		machine = MACHINE;
+
 	if (optind == argc) {
 		const char *manpath = getenv("MANPATH");
 		if (manpath == NULL)
