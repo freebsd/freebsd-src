@@ -162,9 +162,10 @@ nsgphy_attach(device_t dev)
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_T, 0, sc->mii_inst),
 	    BMCR_S1000);
 	PRINT("1000baseTX");
-	sc->mii_capabilities =
-	    (PHY_READ(sc, MII_BMSR) |
+	sc->mii_capabilities = (PHY_READ(sc, MII_BMSR) |
 	    (BMSR_10TFDX|BMSR_10THDX)) & ma->mii_capmask;
+	if (sc->mii_capabilities & BMSR_EXTSTAT)
+		sc->mii_extcapabilities = PHY_READ(sc, MII_EXTSR);
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_FDX, sc->mii_inst),
 	    BMCR_S100|BMCR_FDX);
 	PRINT("100baseTX-FDX");
