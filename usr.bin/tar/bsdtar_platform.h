@@ -42,7 +42,6 @@
 #ifdef __FreeBSD__
 /* A default configuration for FreeBSD, used if there is no config.h. */
 #define PACKAGE_NAME "bsdtar"
-#define PACKAGE_VERSION "1.00"
 
 #define HAVE_BZLIB_H 1
 #define HAVE_CHFLAGS 1

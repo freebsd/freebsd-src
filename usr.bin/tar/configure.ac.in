@@ -34,8 +34,6 @@ AC_CHECK_DECL([D_MD_ORDER],
 
 # Checks for library functions.
 AC_FUNC_FNMATCH
-# Check for FNM_LEADING_DIR fnmatch extension
-AC_GNU_SOURCE
 AC_PROG_GCC_TRADITIONAL
 AC_FUNC_LSTAT
 AC_HEADER_MAJOR
