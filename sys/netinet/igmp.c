@@ -338,7 +338,7 @@ igmp_input(m, off)
 	 * Pass all valid IGMP packets up to any process(es) listening
 	 * on a raw IGMP socket.
 	 */
-	rip_input(m, off, proto);
+	rip_input(m, off);
 }
 
 void
