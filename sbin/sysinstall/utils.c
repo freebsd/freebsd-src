@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: utils.c,v 1.31 1994/11/19 00:09:00 ache Exp $
+ * $Id: utils.c,v 1.30.2.1 1994/11/21 03:12:24 phk Exp $
  *
  */
 
@@ -99,19 +99,19 @@ AskAbort(char *fmt, ...)
 	va_start(ap,fmt);
 	vsnprintf(p, 2048, fmt, ap);
 	va_end(ap);
-	strcat(p, "\nDo you wish to abort the installation?\n");
+	strcat(p, "\n\nDo you wish to abort the installation?");
 	if (!dialog_yesno("Abort", p, -1, -1)) {
 		dialog_clear_norefresh();
 		Abort();
-	} else
-		dialog_clear();
+	}
+	dialog_clear();
 	free(p);
 }
 
 void
 Abort()
 {
-	if (dialog_yesno("Exit sysinstall","\nAre you sure you want to quit?\n",
+	if (dialog_yesno("Exit sysinstall","\n\nAre you sure you want to quit?",
 						  -1, -1)) {
 		dialog_clear();
 		return;
@@ -223,6 +223,8 @@ void
 Link(char *from, char *to)
 {
 	TellEm("ln %s %s", from, to);
+	if(fixit)
+	    unlink(to);
 	if (link(from, to) == -1)
 		Fatal("Couldn't create link: %s -> %s\n", from, to);
 }
@@ -264,3 +266,81 @@ PartMb(struct disklabel *lbl,int part)
 	l = 1024*1024/lbl->d_secsize;
 	return (lbl->d_partitions[part].p_size + l/2)/l;
 }
+
+void
+CleanMount(int disk, int part)
+{
+    int i = MP[disk][part];
+    Faction[i] = 0;
+    if (Fmount[i]) {
+        free(Fmount[i]);
+        Fmount[i] = 0;
+    }           
+    if (Fname[i]) {
+        free(Fname[i]);
+        Fname[i] = 0;
+    }       
+    if (Ftype[i]) {
+        free(Ftype[i]);
+        Ftype[i] = 0;
+    }
+    MP[disk][part] = 0;
+}
+
+char *
+SetMount(int disk, int part, char *path)
+{
+    int k;
+    char buf[80];
+
+    CleanMount(disk,part);
+    for (k = 1; k < MAX_NO_FS; k++)
+	if (!Fmount[k])
+	    break;
+
+    if (k >= MAX_NO_FS) 
+	return "Maximum number of filesystems exceeded";
+
+    Fmount[k] = StrAlloc(path);
+    sprintf(buf, "%s%c", Dname[disk], part + 'a');
+    Fname[k] = StrAlloc(buf);
+    switch (Dlbl[disk]->d_partitions[part].p_fstype) {
+	case FS_BSDFFS:
+	    Ftype[k] = StrAlloc("ufs");
+	    if(!fixit)
+		Faction[k] = 1;
+	    break;
+	case FS_MSDOS:
+	    Ftype[k] = StrAlloc("msdos");
+	    Faction[k] = 0;
+	    break;
+	case FS_SWAP:
+	    Ftype[k] = StrAlloc("swap");
+	    Faction[k] = 1;
+	    break;
+	default:
+	    CleanMount(disk,part);
+	    return "Unknown filesystem-type";
+    }
+    Fsize[k] = (Dlbl[disk]->d_partitions[part].p_size+1024)/2048;
+    
+    MP[disk][part] = k;
+    return NULL;
+}
+
+void
+enable_label(int fd)
+{ 
+	int flag = 1;
+	if (ioctl(fd, DIOCWLABEL, &flag) < 0) 
+	    Fatal("ioctl(DIOCWLABEL,1) failed: %s",strerror(errno));
+}
+
+void
+disable_label(int fd)
+{  
+	int flag = 0;
+	if (ioctl(fd, DIOCWLABEL, &flag) < 0) 
+	    Fatal("ioctl(DIOCWLABEL,0) failed: %s",strerror(errno));
+}
+

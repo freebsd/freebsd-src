@@ -28,16 +28,18 @@ static unsigned char *welcome[] = {
     "1. README",
     "READ THIS FIRST.",
     "2. Release Notes",
-     "Read the 2.0 Release Notes (recommended).",
+    "Read the 2.0 Release Notes (recommended).",
     "3. Troubleshooting",
     "Read this in case of trouble.",
-    "4. COPYRIGHT",
+    "4. Partitions and MBRs",
+    "Verbose description of how these work.",
+    "5. COPYRIGHT",
     "Read FreeBSD Copyright Information.",
-    "5. Install",
+    "6. Install",
     "Proceed with full installation.",
-    "6. Fixit",
+    "7. Fixit",
     "Repair existing installation (`fixit' mode).",
-    "7. Quit",
+    "8. Quit",
     "Don't do anything, just reboot.",
 };
 
@@ -46,7 +48,7 @@ stage0()
 {
 evil_goto:
     if (dialog_menu("Welcome to FreeBSD!",
-		    "Use ALT-F2 and ALT-F1 to toggle between debugging\ninformation screen (ALT-F2) or this dialog screen (ALT-F1)\n\nPlease select one of the following options:", -1, -1, 7, 7, welcome, selection))
+		    "Use ALT-F2 and ALT-F1 to toggle between debugging\ninformation screen (ALT-F2) or this dialog screen (ALT-F1)\n\nPlease select one of the following options:", -1, -1, 8, 8, welcome, selection))
 	ExitSysinstall();
 
     switch (atoi(selection)) {
@@ -65,21 +67,39 @@ evil_goto:
 	goto evil_goto;
 	break;
 
-    case 4:	/* View copyrights */
+    case 4:	/* View DISK FAQ */
+        ShowFile(HELPME_FILE, "DISK FAQ");
+	goto evil_goto;
+	break;
+
+    case 5:	/* View copyrights */
         ShowFile(COPYRIGHT_FILE, "COPYRIGHT");
 	goto evil_goto;
 	break;
 
-    case 5:	/* Proceed (do nothing special, really) */
-	break;
-
-    case 6:
-	dialog_msgbox("Sorry!", "This feature is not currently implemented.",
-		     -1, -1, 1);
-	goto evil_goto;
+    case 6:	/* Proceed (do nothing special, really) */
+	fixit = 0;
 	break;
 
     case 7:
+	dialog_clear();
+	dialog_update();
+	dialog_msgbox("WARNING!", 
+"The usual install procedure will be invoked, but with most of the
+sanity checks disabled.  The suggested course of action is to:
+	1. Go to (F)disk and do a (W)rite, and possibly a (B)oot too
+	   if your MBR has been wiped.
+	2. Go into (D)isklabel and identify your root (/) and swap
+	   partitions.
+	3. Select (P)roceed to reboot and load the cpio floppy.
+	4. You will now be in the stand-alone shell, where you may
+	   conduct further repairs with the tools you'll find in
+	   /stand.
+	5. Good luck...  You'll probably need it.", -1, -1, 1);
+	fixit = 1;
+	break;
+
+    case 8:
 	/* Be neat.. */
 	ExitSysinstall();
 	break;	/* hope not! :) */
