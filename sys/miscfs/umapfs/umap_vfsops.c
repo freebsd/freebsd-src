@@ -260,7 +260,6 @@ umapfs_unmount(mp, mntflags, p)
 	int mntflags;
 	struct proc *p;
 {
-	struct vnode *umapm_rootvp = MOUNTTOUMAPMOUNT(mp)->umapm_rootvp;
 	int error;
 	int flags = 0;
 
@@ -281,23 +280,11 @@ umapfs_unmount(mp, mntflags, p)
 	if (mntinvalbuf(mp, 1))
 		return (EBUSY);
 #endif
-	if (umapm_rootvp->v_usecount > 1)
-		return (EBUSY);
-	error = vflush(mp, umapm_rootvp, flags);
+	/* There is 1 extra root vnode reference (umapm_rootvp). */
+	error = vflush(mp, 1, flags);
 	if (error)
 		return (error);
 
-#ifdef DEBUG
-	vprint("alias root of lower", umapm_rootvp);
-#endif
-	/*
-	 * Release reference on underlying root vnode
-	 */
-	vrele(umapm_rootvp);
-	/*
-	 * And blow it away for future re-use
-	 */
-	vgone(umapm_rootvp);
 	/*
 	 * Finally, throw away the umap_mount structure
 	 */

@@ -1528,10 +1528,22 @@ vdrop(vp)
 /*
  * Remove any vnodes in the vnode table belonging to mount point mp.
  *
- * If MNT_NOFORCE is specified, there should not be any active ones,
+ * If FORCECLOSE is not specified, there should not be any active ones,
  * return error if any are found (nb: this is a user error, not a
- * system error). If MNT_FORCE is specified, detach any active vnodes
+ * system error). If FORCECLOSE is specified, detach any active vnodes
  * that are found.
+ *
+ * If WRITECLOSE is set, only flush out regular file vnodes open for
+ * writing.
+ *
+ * SKIPSYSTEM causes any vnodes marked VSYSTEM to be skipped.
+ *
+ * `rootrefs' specifies the base reference count for the root vnode
+ * of this filesystem. The root vnode is considered busy if its
+ * v_usecount exceeds this value. On a successful return, vflush()
+ * will call vrele() on the root vnode exactly rootrefs times.
+ * If the SKIPSYSTEM or WRITECLOSE flags are specified, rootrefs must
+ * be zero.
  */
 #ifdef DIAGNOSTIC
 static int busyprt = 0;		/* print out busy vnodes */
@@ -1539,15 +1551,32 @@ SYSCTL_INT(_debug, OID_AUTO, busyprt, CTLFLAG_RW, &busyprt, 0, "");
 #endif
 
 int
-vflush(mp, skipvp, flags)
+vflush(mp, rootrefs, flags)
 	struct mount *mp;
-	struct vnode *skipvp;
+	int rootrefs;
 	int flags;
 {
 	struct proc *p = curproc;	/* XXX */
-	struct vnode *vp, *nvp;
-	int busy = 0;
+	struct vnode *vp, *nvp, *rootvp = NULL;
+	int busy = 0, error;
 
+	/* Hack to prevent crashes with old filesystem modules. */
+	if (rootrefs < 0 || rootrefs > 10) {
+		printf("vflush: %s: bad rootrefs %d\n",
+		    mp->mnt_stat.f_fstypename, rootrefs);
+		return (EBUSY);
+	}
+	if (rootrefs > 0) {
+		KASSERT((flags & (SKIPSYSTEM | WRITECLOSE)) == 0,
+		    ("vflush: bad args"));
+		/*
+		 * Get the filesystem root vnode. We can vput() it
+		 * immediately, since with rootrefs > 0, it won't go away.
+		 */
+		if ((error = VFS_ROOT(mp, &rootvp)) != 0)
+			return (error);
+		vput(rootvp);
+	}
 	simple_lock(&mntvnode_slock);
 loop:
 	for (vp = LIST_FIRST(&mp->mnt_vnodelist); vp; vp = nvp) {
@@ -1558,11 +1587,6 @@ loop:
 		if (vp->v_mount != mp)
 			goto loop;
 		nvp = LIST_NEXT(vp, v_mntvnodes);
-		/*
-		 * Skip over a selected vnode.
-		 */
-		if (vp == skipvp)
-			continue;
 
 		simple_lock(&vp->v_interlock);
 		/*
@@ -1618,8 +1642,24 @@ loop:
 		busy++;
 	}
 	simple_unlock(&mntvnode_slock);
+	if (rootrefs > 0 && (flags & FORCECLOSE) == 0) {
+		/*
+		 * If just the root vnode is busy, and if its refcount
+		 * is equal to `rootrefs', then go ahead and kill it.
+		 */
+		simple_lock(&rootvp->v_interlock);
+		KASSERT(busy > 0, ("vflush: not busy"));
+		KASSERT(rootvp->v_usecount >= rootrefs, ("vflush: rootrefs"));
+		if (busy == 1 && rootvp->v_usecount == rootrefs) {
+			vgonel(rootvp, p);
+			busy = 0;
+		} else
+			simple_unlock(&rootvp->v_interlock);
+	}
 	if (busy)
 		return (EBUSY);
+	for (; rootrefs > 0; rootrefs--)
+		vrele(rootvp);
 	return (0);
 }
 

@@ -858,7 +858,7 @@ ffs_flushfiles(mp, flags, p)
 #ifdef QUOTA
 	if (mp->mnt_flag & MNT_QUOTA) {
 		int i;
-		error = vflush(mp, NULLVP, SKIPSYSTEM|flags);
+		error = vflush(mp, 0, SKIPSYSTEM|flags);
 		if (error)
 			return (error);
 		for (i = 0; i < MAXQUOTAS; i++) {
@@ -875,7 +875,7 @@ ffs_flushfiles(mp, flags, p)
         /*
 	 * Flush all the files.
 	 */
-	if ((error = vflush(mp, NULL, flags)) != 0)
+	if ((error = vflush(mp, 0, flags)) != 0)
 		return (error);
 	/*
 	 * Flush filesystem metadata.
