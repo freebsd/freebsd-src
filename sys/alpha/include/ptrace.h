@@ -47,4 +47,8 @@
 
 #define FIX_SSTEP(p)	ptrace_clear_single_step(p)
 
+int	ptrace_clear_single_step(struct proc *_p);
+int	ptrace_set_pc(struct proc *_p, unsigned long _addr);
+int	ptrace_single_step(struct proc *_p);
+
 #endif
