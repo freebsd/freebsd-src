@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $Id: ufs_readwrite.c,v 1.46 1998/03/09 22:12:52 dyson Exp $
+ * $Id: ufs_readwrite.c,v 1.47 1998/03/30 09:56:31 phk Exp $
  */
 
 #define	BLKSIZE(a, b, c)	blksize(a, b, c)
@@ -71,7 +71,7 @@ READ(ap)
 	ufs_daddr_t lbn, nextlbn;
 	off_t bytesinfile;
 	long size, xfersize, blkoffset;
-	int error;
+	int error, isize;
 	u_short mode;
 	int seqcount;
 	int ioflag;
@@ -88,15 +88,22 @@ READ(ap)
 	if (uio->uio_rw != UIO_READ)
 		panic("%s: mode", READ_S);
 
-	if (vp->v_type == VLNK) {
-		if ((int)ip->i_size < vp->v_mount->mnt_maxsymlinklen)
-			panic("%s: short symlink", READ_S);
-	} else if (vp->v_type != VREG && vp->v_type != VDIR)
+	if (vp->v_type != VREG && vp->v_type != VDIR && vp->v_type != VLNK)
 		panic("%s: type %d", READ_S, vp->v_type);
 #endif
 	fs = ip->I_FS;
 	if ((u_int64_t)uio->uio_offset > fs->fs_maxfilesize)
 		return (EFBIG);
+
+	/* handle a read() on a VLNK obtained via O_NOFOLLOW */
+	if (vp->v_type == VLNK) {
+		isize = ip->i_size;
+		if ((isize < vp->v_mount->mnt_maxsymlinklen) ||
+		    (ip->i_din.di_blocks == 0)) {	/* XXX - for old fastlink support */
+			uiomove((char *)ip->i_shortlink, isize, ap->a_uio);
+			return (0);
+		}
+	}
 
 	object = vp->v_object;
 
@@ -282,8 +289,11 @@ WRITE(ap)
 				vm_object_vndeallocate(object);
 			return (EPERM);
 		}
-		/* FALLTHROUGH */
+		break;
 	case VLNK:
+		/* bail out if this is from the user, it's too hard */
+		if (uio->uio_segflg != UIO_SYSSPACE)
+			return (EOPNOTSUPP);
 		break;
 	case VDIR:
 		if ((ioflag & IO_SYNC) == 0)
