@@ -304,8 +304,8 @@ modules-tags:
 modules-install modules-install.debug:
 .if !defined(NO_MODULES_OLD)
 	if [ -d ${DESTDIR}/modules -a -n "`ls ${DESTDIR}/modules`" ]; then \
-		mkdir -p ${DESTDIR}/modules.old
-		cp -p ${DESTDIR}/modules/* ${DESTDIR}/modules.old; \
+		mkdir -p ${DESTDIR}/modules.old ; \
+		cp -p ${DESTDIR}/modules/* ${DESTDIR}/modules.old ; \
 	fi;
 .endif
 	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules ${MAKE} install
