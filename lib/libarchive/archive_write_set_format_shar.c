@@ -56,6 +56,7 @@ struct shar {
 	int			 end_of_line;
 	struct archive_entry	*entry;
 	int			 has_data;
+	char			*last_dir;
 	char			 outbuff[1024];
 	size_t			 outbytes;
 	size_t			 outpos;
@@ -130,6 +131,7 @@ archive_write_shar_header(struct archive *a, struct archive_entry *entry)
 {
 	const char *linkname;
 	const char *name;
+	char *p, *pp;
 	struct shar *shar;
 	const struct stat *st;
 
@@ -140,28 +142,74 @@ archive_write_shar_header(struct archive *a, struct archive_entry *entry)
 		shar->wrote_header = 1;
 	}
 
-	/* Save the entry for the closing */
+	/* Save the entry for the closing. */
 	if (shar->entry)
 		archive_entry_free(shar->entry);
 	shar->entry = archive_entry_clone(entry);
 	name = archive_entry_pathname(entry);
 	st = archive_entry_stat(entry);
 
+	/* Handle some preparatory issues. */
+	switch(st->st_mode & S_IFMT) {
+	case S_IFREG:
+		/* Only regular files have non-zero size. */
+		break;
+	case S_IFDIR:
+	case S_IFIFO:
+	case S_IFCHR:
+	case S_IFBLK:
+		/* All other file types have zero size in the archive. */
+		archive_entry_set_size(entry, 0);
+		break;
+	default:
+		archive_entry_set_size(entry, 0);
+		if (archive_entry_hardlink(entry) == NULL &&
+		    archive_entry_symlink(entry) == NULL) {
+			archive_set_error(a, -1,
+			    "shar format cannot archive this");
+			return (ARCHIVE_WARN);
+		}
+	}
+
+	/* Stock preparation for all file types. */
+	shar_printf(a, "echo x %s\n", name);
+
+	if (!S_ISDIR(st->st_mode)) {
+		/* Try to create the dir. */
+		p = strdup(name);
+		pp = strrchr(p, '/');
+		if (pp != NULL)
+			*pp = '\0';
+
+		if (shar->last_dir == NULL) {
+			shar_printf(a, "mkdir -p %s > /dev/null 2>&1\n", p);
+			shar->last_dir = p;
+		} else if (strcmp(p, shar->last_dir) == 0) {
+			/* We've already created this exact dir. */
+			free(p);
+		} else if (strlen(p) < strlen(shar->last_dir) &&
+		    strncmp(p, shar->last_dir, strlen(p)) == 0) {
+			/* We've already created a subdir. */
+			free(p);
+		} else {
+			shar_printf(a, "mkdir -p %s > /dev/null 2>&1\n", p);
+			free(shar->last_dir);
+			shar->last_dir = p;
+		}
+	}
+
+	/* Handle file-type specific issues. */
 	shar->has_data = 0;
-	if ((linkname = archive_entry_hardlink(entry)) != NULL) {
-		shar_printf(a, "echo x %s\n", name);
+	if ((linkname = archive_entry_hardlink(entry)) != NULL)
 		shar_printf(a, "ln -f %s %s\n", linkname, name);
-	} else if ((linkname = archive_entry_symlink(entry)) != NULL) {
-		shar_printf(a, "echo x %s\n", name);
+	else if ((linkname = archive_entry_symlink(entry)) != NULL)
 		shar_printf(a, "ln -fs %s %s\n", linkname, name);
-	} else {
+	else {
 		switch(st->st_mode & S_IFMT) {
 		case S_IFREG:
-			shar_printf(a, "echo x %s\n", name);
-			if (archive_entry_size(entry) == 0) {
+			if (archive_entry_size(entry) == 0)
 				shar_printf(a, "touch %s\n", name);
-				shar->has_data = 0;
-			} else {
+			else {
 				if (shar->dump) {
 					shar_printf(a,
 					    "uudecode -o %s << 'SHAR_END'\n",
@@ -180,36 +228,35 @@ archive_write_shar_header(struct archive *a, struct archive_entry *entry)
 			}
 			break;
 		case S_IFDIR:
-			shar_printf(a, "echo x %s\n", name);
 			shar_printf(a, "mkdir -p %s > /dev/null 2>&1\n", name);
+			/* Record that we just created this directory. */
+			if (shar->last_dir != NULL)
+				free(shar->last_dir);
+
+			shar->last_dir = strdup(name);
+			/* Trim a trailing '/'. */
+			pp = strrchr(shar->last_dir, '/');
+			if (pp != NULL && pp[1] == '\0')
+				*pp = '\0';
 			/*
 			 * TODO: Put dir name/mode on a list to be fixed
 			 * up at end of archive.
 			 */
 			break;
 		case S_IFIFO:
-			shar_printf(a, "echo x %s\n", name);
 			shar_printf(a, "mkfifo %s\n", name);
 			break;
 		case S_IFCHR:
-			shar_printf(a, "echo x %s\n", name);
 			shar_printf(a, "mknod %s c %d %d\n", name,
 			    archive_entry_devmajor(entry),
 			    archive_entry_devminor(entry));
 			break;
 		case S_IFBLK:
-			shar_printf(a, "echo x %s\n", name);
 			shar_printf(a, "mknod %s b %d %d\n", name,
 			    archive_entry_devmajor(entry),
 			    archive_entry_devminor(entry));
 			break;
-		case S_IFSOCK:
-			archive_set_error(a, -1,
-			    "shar format cannot archive socket");
-			return (ARCHIVE_WARN);
 		default:
-			archive_set_error(a, -1,
-			    "shar format cannot archive this");
 			return (ARCHIVE_WARN);
 		}
 	}
@@ -395,8 +442,10 @@ archive_write_shar_finish(struct archive *a)
 		 * uncompressed data within gzip/bzip2 streams.
 		 */
 	}
-	if (shar->entry)
+	if (shar->entry != NULL)
 		archive_entry_free(shar->entry);
+	if (shar->last_dir != NULL)
+		free(shar->last_dir);
 	free(shar);
 	a->format_data = NULL;
 	return (ARCHIVE_OK);
