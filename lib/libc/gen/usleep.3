@@ -63,16 +63,16 @@ the sleep time is set to
 the remaining clock time.
 .Pp
 This function is implemented using
-.Xr signanosleep 2
+.Xr nanosleep 2
 by pausing for
 .Fa microseconds
-of time or until SIGALRM signal occurse (if not blocked).
+of time or until any signal occurse.
 .Sh NOTES
 .Pp
 A microsecond is 0.000001 seconds.
 .Sh SEE ALSO
+.Xr nanosleep 2 ,
 .Xr setitimer 2 ,
-.Xr signanosleep 2 ,
 .Xr alarm 3 ,
 .Xr signal 3 ,
 .Xr sleep 3 ,

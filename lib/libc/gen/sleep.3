@@ -63,14 +63,10 @@ the sleep time is set to
 the remaining clock time.
 .Pp
 This function is implemented using
-.Xr signanosleep 2
+.Xr nanosleep 2
 by pausing for
 .Fa seconds
 of time or until any signal occurse.
-For compatibility reasons SIGALRM signal handled internally
-(if not blocked) during
-.Fn sleep
-call.
 .Sh RETURN VALUES
 The
 .Fn sleep
@@ -81,8 +77,8 @@ needed to be passed to a subsequent sleep to complete the necessary delay.
 repeatedly until it returns zero may busy-wait until a timer
 is available.
 .Sh SEE ALSO
+.Xr nanosleep 2 ,
 .Xr setitimer 2 ,
-.Xr signanosleep 2 ,
 .Xr alarm 3 ,
 .Xr signal 3 ,
 .Xr ualarm 3 ,
