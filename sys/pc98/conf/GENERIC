@@ -67,8 +67,8 @@ options 	_KPOSIX_VERSION=199309L
 #options 	NAPIC=1			# number of IO APICs
 #options 	NINTR=24		# number of INTs
 
-device		isa0
-device		pci0
+device		isa
+device		pci
 
 # Floppy drives
 device		fdc0	at isa? port IO_FD1 irq 11 drq 2
@@ -85,19 +85,17 @@ device		wd0	at wdc0 drive 0
 #device		wd3	at wdc0 drive 3
 
 # ATAPI devices on wdc?
-device		wcd0		#IDE CD-ROM
-#device		wfd0		#IDE Floppy (e.g. LS-120)
-#device		wst0		#IDE Tape (e.g. Travan)
+device		wcd		#IDE CD-ROM
+#device		wfd		#IDE Floppy (e.g. LS-120)
+#device		wst		#IDE Tape (e.g. Travan)
 
 # SCSI Controllers
-# A single entry for any of these controllers (ahb, ahc, amd, ncr, etc...) is
-# sufficient for any number of installed devices.
-device		adv0
-device		ahc0		# AHA2940 and onboard AIC7xxx devices
-device		amd0		# AMD 53C974 (Teckram DC-390(T))
-device		isp0		# Qlogic family
-device		ncr0		# NCR/Symbios Logic
-device		sym0		# NCR/Symbios Logic (newer chipsets)
+device		adv
+device		ahc		# AHA2940 and onboard AIC7xxx devices
+device		amd		# AMD 53C974 (Teckram DC-390(T))
+device		isp		# Qlogic family
+device		ncr		# NCR/Symbios Logic
+device		sym		# NCR/Symbios Logic (newer chipsets)
 
 #
 # WD33C93 SCSI card (55/92 like board)
@@ -119,16 +117,15 @@ device bs0 at isa? port IO_SCSI irq 5 drq 3 flags 0
 #device bs0 at isa? port IO_SCSI irq 5 drq 3 flags 0x50000
 
 # SCSI peripherals
-# Only one of each of these is needed, they are dynamically allocated.
-device		scbus0		# SCSI bus (required)
-device		da0		# Direct Access (disks)
-device		sa0		# Sequential Access (tape etc)
-device		cd0		# CD
-device		pass0		# Passthrough device (direct SCSI access)
+device		scbus		# SCSI bus (required)
+device		da		# Direct Access (disks)
+device		sa		# Sequential Access (tape etc)
+device		cd		# CD
+device		pass		# Passthrough device (direct SCSI access)
 
 # RAID controllers
-device		amr0		# AMI MegaRAID
-device		mlx0		# Mylex DAC960 family
+device		amr		# AMI MegaRAID
+device		mlx		# Mylex DAC960 family
 
 # keyboard driver
 device		pckbd0	at isa? port IO_KBD irq 1
@@ -149,7 +146,7 @@ device		npx0	at nexus? port IO_NPX irq 8
 device		apm0    at nexus? disable flags 0x20 # Advanced Power Management
 
 # PCCARD (PCMCIA) support
-device		card0
+device		card
 device		pcic0	at isa? irq 6 port 0x3e0
 
 # Serial (COM) ports
@@ -185,7 +182,7 @@ device		mse0	at isa? port IO_MSE irq 13
 
 # NEW Parallel port
 device		ppc0	at isa? port? irq 14
-device		ppbus0		# Parallel port bus (required)
+device		ppbus		# Parallel port bus (required)
 device		lpt0	at ppbus?	# Printer
 device		plip0	at ppbus?	# TCP/IP over parallel
 device		ppi0	at ppbus?	# Parallel port interface device
@@ -196,23 +193,23 @@ device		olpt0	at isa? port IO_LPT
 
 
 # PCI Ethernet NICs.
-device		de0		# DEC/Intel DC21x4x (``Tulip'')
-device		fxp0		# Intel EtherExpress PRO/100B (82557, 82558)
-device		tx0		# SMC 9432TX (83c170 ``EPIC'')
-device		vx0		# 3Com 3c590, 3c595 (``Vortex'')
-device		wx0		# Intel Gigabit Ethernet Card (``Wiseman'')
+device		de		# DEC/Intel DC21x4x (``Tulip'')
+device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
+device		tx		# SMC 9432TX (83c170 ``EPIC'')
+device		vx		# 3Com 3c590, 3c595 (``Vortex'')
+device		wx		# Intel Gigabit Ethernet Card (``Wiseman'')
 
 # PCI Ethernet NICs that use the common MII bus controller code.
-device		miibus0		# MII bus support
-device		dc0		# DEC/Intel 21143 and various workalikes
-device		rl0		# RealTek 8129/8139
-device		sf0		# Adaptec AIC-6915 (``Starfire'')
-device		sis0		# Silicon Integrated Systems SiS 900/SiS 7016
-device		ste0		# Sundance ST201 (D-Link DFE-550TX)
-device		tl0		# Texas Instruments ThunderLAN
-device		vr0		# VIA Rhine, Rhine II
-device		wb0		# Winbond W89C840F
-device		xl0		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
+device		miibus		# MII bus support
+device		dc		# DEC/Intel 21143 and various workalikes
+device		rl		# RealTek 8129/8139
+device		sf		# Adaptec AIC-6915 (``Starfire'')
+device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
+device		ste		# Sundance ST201 (D-Link DFE-550TX)
+device		tl		# Texas Instruments ThunderLAN
+device		vr		# VIA Rhine, Rhine II
+device		wb		# Winbond W89C840F
+device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # ISA Ethernet NICs.
 #
@@ -262,20 +259,20 @@ device		lnc0	at isa? port 0x03d0 irq 6
 # WaveLAN/IEEE 802.11 wireless NICs. Note: the WaveLAN/IEEE really
 # exists only as a PCMCIA device, so there is no ISA attatement needed
 # and resources will always be dynamically assigned by the pccard code.
-#device		wi0
+#device		wi
 
 # Aironet 4500/4800 802.11 wireless NICs. Note: the declaration below will
 # work for PCMCIA and PCI cards, as well as ISA cards set to ISA PnP
 # mode (the factory default). If you set the switches on your ISA
 # card for a manually chosen I/O address and IRQ, you must specify
 # those paremeters here.
-# device	an0
+# device	an
 
 # requires PCCARD (PCMCIA) support to be activated
-device		sn0
+device		sn
 #device		xe0	at isa? port? irq ?
 
-#device	snd0
+#device	snd
 #device	sb0	at isa? port 0x20d2 irq 10 conflicts drq 3
 #device	sbxvi0 	at isa? drq 3
 #device	sbmidi0	at isa? port 0x80d2
@@ -300,16 +297,16 @@ pseudo-device	bpf		#Berkeley packet filter
 #pseudo-device	compat_atdisk	#IBM-PC HDD support
 
 # USB support
-#device		uhci0		# UHCI PCI->USB interface
-#device		ohci0		# OHCI PCI->USB interface
-#device		usb0		# USB Bus (required)
-#device		ugen0		# Generic
-#device		uhid0		# "Human Interface Devices"
-#device		ukbd0		# Keyboard
-#device		ulpt0		# Printer
-#device		umass0		# Disks/Mass storage - Requires scbus and da0
-#device		ums0		# Mouse
+#device		uhci		# UHCI PCI->USB interface
+#device		ohci		# OHCI PCI->USB interface
+#device		usb		# USB Bus (required)
+#device		ugen		# Generic
+#device		uhid		# "Human Interface Devices"
+#device		ukbd		# Keyboard
+#device		ulpt		# Printer
+#device		umass		# Disks/Mass storage - Requires scbus and da0
+#device		ums		# Mouse
 # USB Ethernet
-#device		aue0		# ADMtek USB ethernet
-#device		cue0		# CATC USB ethernet
-#device		kue0		# Kawasaki LSI USB ethernet
+#device		aue		# ADMtek USB ethernet
+#device		cue		# CATC USB ethernet
+#device		kue		# Kawasaki LSI USB ethernet
