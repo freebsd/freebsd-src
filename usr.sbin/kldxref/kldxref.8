@@ -41,7 +41,7 @@
 The
 .Nm
 command is used to generate hint files which list modules, their
-version numbers, and the files that contains them.
+version numbers, and the files that contain them.
 These hints are used by the kernel loader to determine where to find a
 particular KLD module.
 .Pp
@@ -52,11 +52,11 @@ file is created, and the preexisting hint file (if there was one in
 that directory) is removed.
 .Pp
 The following options are available:
-.Bl -tag -width Fl
+.Bl -tag -width ".Fl f Ar file"
 .It Fl R
 Recurse into subdirectories.
 .It Fl d
-Don't generate a hint file, but print module metadata on standard
+Do not generate a hint file, but print module metadata on standard
 output.
 .It Fl f Ar file
 Specify a different name for the hint files than
@@ -67,11 +67,11 @@ Operate in verbose mode.
 .Sh EXAMPLES
 To build hint files for both standard and add-on modules:
 .Pp
-.Dl kldxref /boot/kernel /modules
+.Dl "kldxref /boot/kernel /modules"
 .Pp
 To build hint files for all installed kernels:
 .Pp
-.Dl kldxref -R /boot
+.Dl "kldxref -R /boot"
 .Sh SEE ALSO
 .Xr kld 4 ,
 .Xr kldconfig 8 ,
@@ -84,6 +84,7 @@ The
 command first appeared in
 .Fx 5.0 .
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
 command was implemented by
