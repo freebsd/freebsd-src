@@ -122,6 +122,7 @@ struct _keywords keywords[] =
 #ifdef VINUMDEBUG
     keypair(debug),
 #endif
+#endif
     keypair(attach),
     keypair(detach),
     keypair(printconfig),
@@ -151,7 +152,6 @@ struct _keywords keywords[] =
     keypair(getdaemon),
     keypair(max),
     keypair(resetstats)
-#endif
 };
 struct keywordset keyword_set = KEYWORDSET(keywords);
 
