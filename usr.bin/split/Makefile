@@ -2,6 +2,5 @@
 # $FreeBSD$
 
 PROG=	split
-CFLAGS+=-Wall
 
 .include <bsd.prog.mk>

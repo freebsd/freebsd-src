@@ -31,20 +31,18 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1987, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#endif
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)split.c	8.2 (Berkeley) 4/16/94";
-#else
-static const char rcsid[] =
-  "$FreeBSD$";
+static const char sccsid[] = "@(#)split.c	8.2 (Berkeley) 4/16/94";
 #endif
-#endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/types.h>
@@ -61,7 +59,7 @@ static const char rcsid[] =
 
 #define DEFLINE	1000			/* Default num lines per file. */
 
-size_t	 bytecnt;			/* Byte count to split on. */
+int	 bytecnt;			/* Byte count to split on. */
 long	 numlines;			/* Line count to split on. */
 int	 file_open;			/* If a file open. */
 int	 ifd = -1, ofd = -1;		/* Input/output file descriptors. */
@@ -175,8 +173,9 @@ main(argc, argv)
 void
 split1()
 {
-	size_t bcnt, dist, len;
+	size_t bcnt;
 	char *C;
+	int dist, len;
 
 	for (bcnt = 0;;)
 		switch ((len = read(ifd, bfr, MAXBSIZE))) {
@@ -188,7 +187,7 @@ split1()
 		default:
 			if (!file_open)
 				newfile();
-			if (bcnt + len >= bytecnt) {
+			if (bcnt + len >= (u_int)bytecnt) {
 				dist = bytecnt - bcnt;
 				if (write(ofd, bfr, dist) != dist)
 					err(EX_IOERR, "write");
@@ -197,7 +196,7 @@ split1()
 				    len -= bytecnt, C += bytecnt) {
 					newfile();
 					if (write(ofd,
-					    C, (int)bytecnt) != bytecnt)
+					    C, bytecnt) != bytecnt)
 						err(EX_IOERR, "write");
 				}
 				if (len != 0) {
