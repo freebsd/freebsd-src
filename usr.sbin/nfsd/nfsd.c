@@ -355,6 +355,7 @@ main(argc, argv, envp)
 	(void)signal(SIGUSR1, cleanup);
 	FD_ZERO(&v4bits);
 	FD_ZERO(&v6bits);
+	FD_ZERO(&sockbits);
  
 	rpcbregcnt = 0;
 	/* Set up the socket for udp and rpcb register it. */
