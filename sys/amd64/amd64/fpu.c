@@ -455,7 +455,7 @@ npx_attach(dev)
 	}
 	npxinit(__INITIAL_NPXCW__);
 
-#ifdef I586_CPU
+#ifdef I586_CPU_XXX
 	if (cpu_class == CPUCLASS_586 && npx_ex16 && npx_exists &&
 	    timezero("i586_bzero()", i586_bzero) <
 	    timezero("bzero()", bzero) * 4 / 5) {
