@@ -202,6 +202,12 @@ static struct dc_type dc_devs[] = {
 		"PlaneX FNW-3602-T CardBus 10/100" },
 	{ DC_VENDORID_3COM, DC_DEVICEID_3CSOHOB,
 		"3Com OfficeConnect 10/100B" },
+	{ DC_VENDORID_MICROSOFT, DC_DEVICEID_MSMN120,
+		"Microsoft MN-120 CardBus 10/100" },
+	{ DC_VENDORID_MICROSOFT, DC_DEVICEID_MSMN130,
+		"Microsoft MN-130 10/100" },
+	{ DC_VENDORID_MICROSOFT, DC_DEVICEID_MSMN130_FAKE,
+		"Microsoft MN-130 10/100" },
 	{ 0, 0, NULL }
 };
 
@@ -1587,6 +1593,18 @@ dc_devtype(device_t dev)
 			if (t->dc_did == DC_DEVICEID_DM9102 &&
 			    rev >= DC_REVISION_DM9102A)
 				t++;
+			/*
+			 * The Microsoft MN-130 has a device ID of 0x0002,
+			 * which happens to be the same as the PNIC 82c168.
+			 * To keep dc_attach() from getting confused, we
+			 * pretend its ID is something different.
+			 * XXX: ideally, dc_attach() should be checking
+			 * vendorid+deviceid together to avoid such
+			 * collisions.
+			 */
+			if (t->dc_vid == DC_VENDORID_MICROSOFT &&
+			    t->dc_did == DC_DEVICEID_MSMN130)
+				t++;
 			return (t);
 		}
 		t++;
@@ -1927,6 +1945,8 @@ dc_attach(device_t dev)
 	case DC_DEVICEID_EN2242:
 	case DC_DEVICEID_HAWKING_PN672TX:
 	case DC_DEVICEID_3CSOHOB:
+	case DC_DEVICEID_MSMN120:
+	case DC_DEVICEID_MSMN130_FAKE: /* XXX avoid collision with PNIC*/
 		sc->dc_type = DC_TYPE_AN985;
 		sc->dc_flags |= DC_64BIT_HASH;
 		sc->dc_flags |= DC_TX_USE_TX_INTR;

@@ -985,6 +985,20 @@ struct dc_softc {
 #define DC_DEVICEID_HAWKING_PN672TX 0xab08
 
 /*
+ * Microsoft device ID.
+ */
+#define DC_VENDORID_MICROSOFT		0x1414
+
+/*
+ * Supported Microsoft PCI and cardbus NICs. These are really
+ * ADMtek parts in disguise.
+ */
+
+#define DC_DEVICEID_MSMN120	0x0001
+#define DC_DEVICEID_MSMN130	0x0002
+#define DC_DEVICEID_MSMN130_FAKE	0xFFF2
+
+/*
  * PCI low memory base and low I/O base register, and
  * other PCI registers.
  */
