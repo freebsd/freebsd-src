@@ -44,6 +44,7 @@
 #define WINB_UNKNOWN	9
 #define NS_PC87334	10
 #define SMC_37C935	11
+#define NS_PC87303	12
 
 /*
  * Parallel Port Chipset Type. SMC versus GENERIC (others)
