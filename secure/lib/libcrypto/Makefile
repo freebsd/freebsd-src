@@ -5,6 +5,8 @@
 LIB=		crypto
 SHLIB_MAJOR=	1
 
+MAINTAINER=	kris
+
 LCRYPTO_SRC=	${.CURDIR}/../../../crypto/openssl/crypto
 
 # base sources

@@ -2,6 +2,8 @@
 
 PROG=	openssl
 
+MAINTAINER=	kris
+
 LDADD=	-lssl -lcrypto
 NOMAN=	noman 
 
