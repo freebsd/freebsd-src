@@ -245,8 +245,11 @@ static void
 cb_line_change (pfile, token, parsing_args)
      cpp_reader *pfile ATTRIBUTE_UNUSED;
      const cpp_token *token;
-     int parsing_args ATTRIBUTE_UNUSED;
+     int parsing_args;
 {
+  if (token->type == CPP_EOF || parsing_args)
+    return;
+
   src_lineno = SOURCE_LINE (map, token->line);
 }
 
@@ -297,7 +300,7 @@ cb_file_change (pfile, new_map)
     }
 
   update_header_times (new_map->to_file);
-  in_system_header = (warn_system_headers && new_map->sysp != 0);
+  in_system_header = new_map->sysp != 0;
   input_filename = new_map->to_file;
   lineno = to_line;
   map = new_map;

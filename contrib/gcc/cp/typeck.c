@@ -909,10 +909,8 @@ comptypes (t1, t2, strict)
   if (t1 == t2)
     return 1;
 
-  /* This should never happen.  */
-  my_friendly_assert (t1 != error_mark_node, 307);
-
-  if (t2 == error_mark_node)
+  /* Suppress errors caused by previously reported errors */
+  if (t1 == error_mark_node || t2 == error_mark_node)
     return 0;
 
   /* If either type is the internal version of sizetype, return the
@@ -1405,7 +1403,7 @@ compparms (parms1, parms2)
 	 they fail to match.  */
       if (t1 == 0 || t2 == 0)
 	return 0;
-      if (!same_type_p (TREE_VALUE (t2), TREE_VALUE (t1)))
+      if (!same_type_p (TREE_VALUE (t1), TREE_VALUE (t2)))
 	return 0;
 
       t1 = TREE_CHAIN (t1);
@@ -2174,8 +2172,13 @@ finish_class_member_access_expr (tree object, tree name)
 
 	  /* Find the base of OBJECT_TYPE corresponding to SCOPE.  */
 	  access_path = lookup_base (object_type, scope, ba_check, NULL);
-	  if (!access_path || access_path == error_mark_node)
+	  if (access_path == error_mark_node)
 	    return error_mark_node;
+	  if (!access_path)
+	    {
+	      error ("`%T' is not a base of `%T'", scope, object_type);
+	      return error_mark_node;
+	    }
 
 	  /* Look up the member.  */
 	  member = lookup_member (access_path, name, /*protect=*/1, 
@@ -2641,9 +2644,9 @@ get_member_function_from_ptrfunc (instance_ptrptr, function)
 }
 
 tree
-build_function_call_real (function, params, require_complete, flags)
+build_function_call_real (function, params, flags)
      tree function, params;
-     int require_complete, flags;
+     int flags;
 {
   register tree fntype, fndecl;
   register tree coerced_params;
@@ -2757,7 +2760,7 @@ tree
 build_function_call (function, params)
      tree function, params;
 {
-  return build_function_call_real (function, params, 1, LOOKUP_NORMAL);
+  return build_function_call_real (function, params, LOOKUP_NORMAL);
 }
 
 /* Convert the actual parameter expressions in the list VALUES
@@ -4739,12 +4742,13 @@ build_static_cast (type, expr)
 					  (TREE_TYPE (type))))
       && at_least_as_qualified_p (TREE_TYPE (type), intype))
     {
-      /* At this point we have checked all of the conditions except
-	 that B is not a virtual base class of D.  That will be
-	 checked by build_base_path.  */
-      tree base = lookup_base (TREE_TYPE (type), intype, ba_any, NULL);
+      /* There is a standard conversion from "D*" to "B*" even if "B"
+	 is ambiguous or inaccessible.  Therefore, we ask lookup_base
+	 to check these conditions.  */
+      tree base = lookup_base (TREE_TYPE (type), intype, ba_check, NULL);
 
-      /* Convert from B* to D*.  */
+      /* Convert from "B*" to "D*".  This function will check that "B"
+	 is not a virtual base of "D".  */
       expr = build_base_path (MINUS_EXPR, build_address (expr), 
 			      base, /*nonnull=*/false);
       /* Convert the pointer to a reference -- but then remember that
@@ -4803,7 +4807,7 @@ build_static_cast (type, expr)
 
       check_for_casting_away_constness (intype, type);
       base = lookup_base (TREE_TYPE (type), TREE_TYPE (intype), 
-			  ba_check | ba_quiet, NULL);
+			  ba_check, NULL);
       return build_base_path (MINUS_EXPR, expr, base, /*nonnull=*/false);
     }
   if ((TYPE_PTRMEM_P (type) && TYPE_PTRMEM_P (intype))
@@ -5237,6 +5241,10 @@ build_modify_expr (lhs, modifycode, rhs)
 		    TREE_OPERAND (lhs, 0), newrhs);
 
     case MODIFY_EXPR:
+      if (TREE_SIDE_EFFECTS (TREE_OPERAND (lhs, 0)))
+	lhs = build (TREE_CODE (lhs), TREE_TYPE (lhs),
+		     stabilize_reference (TREE_OPERAND (lhs, 0)),
+		     TREE_OPERAND (lhs, 1));
       newrhs = build_modify_expr (TREE_OPERAND (lhs, 0), modifycode, rhs);
       if (newrhs == error_mark_node)
 	return error_mark_node;
@@ -5288,8 +5296,9 @@ build_modify_expr (lhs, modifycode, rhs)
     {
       if (TREE_CODE (rhs) == CONSTRUCTOR)
 	{
-	  my_friendly_assert (same_type_p (TREE_TYPE (rhs), lhstype),
-			      20011220);
+	  if (! same_type_p (TREE_TYPE (rhs), lhstype))
+	    /* Call convert to generate an error; see PR 11063.  */
+	    rhs = convert (lhstype, rhs);
 	  result = build (INIT_EXPR, lhstype, lhs, rhs);
 	  TREE_SIDE_EFFECTS (result) = 1;
 	  return result;
@@ -5442,14 +5451,6 @@ build_modify_expr (lhs, modifycode, rhs)
 	}
     }
 
-  if (TREE_CODE (lhstype) != REFERENCE_TYPE)
-    {
-      if (TREE_SIDE_EFFECTS (lhs))
-	lhs = stabilize_reference (lhs);
-      if (TREE_SIDE_EFFECTS (newrhs))
-	newrhs = stabilize_reference (newrhs);
-    }
-
   /* Convert new value to destination type.  */
 
   if (TREE_CODE (lhstype) == ARRAY_TYPE)
@@ -5505,44 +5506,8 @@ build_modify_expr (lhs, modifycode, rhs)
   if (newrhs == error_mark_node)
     return error_mark_node;
 
-  if (TREE_CODE (newrhs) == COND_EXPR)
-    {
-      tree lhs1;
-      tree cond = TREE_OPERAND (newrhs, 0);
-
-      if (TREE_SIDE_EFFECTS (lhs))
-	cond = build_compound_expr (tree_cons
-				    (NULL_TREE, lhs,
-				     build_tree_list (NULL_TREE, cond)));
-
-      /* Cannot have two identical lhs on this one tree (result) as preexpand
-	 calls will rip them out and fill in RTL for them, but when the
-	 rtl is generated, the calls will only be in the first side of the
-	 condition, not on both, or before the conditional jump! (mrs) */
-      lhs1 = break_out_calls (lhs);
-
-      if (lhs == lhs1)
-	/* If there's no change, the COND_EXPR behaves like any other rhs.  */
-	result = build (modifycode == NOP_EXPR ? MODIFY_EXPR : INIT_EXPR,
-			lhstype, lhs, newrhs);
-      else
-	{
-	  tree result_type = TREE_TYPE (newrhs);
-	  /* We have to convert each arm to the proper type because the
-	     types may have been munged by constant folding.  */
-	  result
-	    = build (COND_EXPR, result_type, cond,
-		     build_modify_expr (lhs, modifycode,
-					cp_convert (result_type,
-						    TREE_OPERAND (newrhs, 1))),
-		     build_modify_expr (lhs1, modifycode,
-					cp_convert (result_type,
-						    TREE_OPERAND (newrhs, 2))));
-	}
-    }
-  else
-    result = build (modifycode == NOP_EXPR ? MODIFY_EXPR : INIT_EXPR,
-		    lhstype, lhs, newrhs);
+  result = build (modifycode == NOP_EXPR ? MODIFY_EXPR : INIT_EXPR,
+		  lhstype, lhs, newrhs);
 
   TREE_SIDE_EFFECTS (result) = 1;
 
@@ -6100,7 +6065,8 @@ convert_for_initialization (exp, type, rhs, flags, errtype, fndecl, parmnum)
 
       if (fndecl)
 	savew = warningcount, savee = errorcount;
-      rhs = initialize_reference (type, rhs, /*decl=*/NULL_TREE);
+      rhs = initialize_reference (type, rhs, /*decl=*/NULL_TREE,
+				  /*cleanup=*/NULL);
       if (fndecl)
 	{
 	  if (warningcount > savew)
