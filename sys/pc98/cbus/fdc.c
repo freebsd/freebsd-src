@@ -1008,7 +1008,7 @@ fd_probe(device_t dev)
 	/* look up what bios thinks we have */
 	switch (fd->fdu) {
 	case 0:
-		if (isa_get_flags(fdc->fdc_dev) & FDC_PRETEND_D0)
+		if (device_get_flags(fdc->fdc_dev) & FDC_PRETEND_D0)
 			fdt = RTCFDT_144M | RTCFDT_144M_PRETENDED;
 		else
 			fdt = (rtcin(RTC_FDISKETTE) & 0xf0);

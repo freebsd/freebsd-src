@@ -99,7 +99,7 @@ pckbdprobe(device_t dev)
 	device_set_desc(dev, "PC-98 Keyboard");
 
 	return pckbd_probe_unit(device_get_unit(dev), isa_get_port(dev),
-				(1 << isa_get_irq(dev)), isa_get_flags(dev));
+				(1 << isa_get_irq(dev)), device_get_flags(dev));
 }
 
 static int
@@ -111,7 +111,7 @@ pckbdattach(device_t dev)
 	int		zero = 0;
 
 	pckbd_attach_unit(device_get_unit(dev), &kbd, isa_get_port(dev),
-			  (1 << isa_get_irq(dev)), isa_get_flags(dev));
+			  (1 << isa_get_irq(dev)), device_get_flags(dev));
 
 	res = bus_alloc_resource(dev, SYS_RES_IRQ, &zero, 0ul, ~0ul, 1,
 				 RF_SHAREABLE | RF_ACTIVE);

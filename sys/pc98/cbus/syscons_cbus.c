@@ -79,13 +79,13 @@ scprobe(device_t dev)
 		return (ENXIO);
 
 	device_set_desc(dev, "System console");
-	return sc_probe_unit(device_get_unit(dev), isa_get_flags(dev));
+	return sc_probe_unit(device_get_unit(dev), device_get_flags(dev));
 }
 
 static int
 scattach(device_t dev)
 {
-	return sc_attach_unit(device_get_unit(dev), isa_get_flags(dev));
+	return sc_attach_unit(device_get_unit(dev), device_get_flags(dev));
 }
 
 static int
