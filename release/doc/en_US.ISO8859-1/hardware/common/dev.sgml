@@ -1035,7 +1035,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha">National Semiconductor DS8390-based Ethernet NICs, including
+    <para arch="i386,pc98">National Semiconductor DS8390-based Ethernet NICs, including
     Novell NE2000 and clones
     (&man.ed.4; driver)
       <note arch="pc98">
