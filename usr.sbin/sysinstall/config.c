@@ -547,63 +547,6 @@ configSecurity(dialogMenuItem *self)
     return DITEM_SUCCESS;
 }
 
-int
-configSecurityProfile(dialogMenuItem *self)
-{
-    WINDOW *w = savescr();
-
-    dialog_clear_norefresh();
-    dmenuOpenSimple(&MenuSecurityProfile, FALSE); 
-    restorescr(w);
-    return DITEM_SUCCESS;
-}
-
-/* Use the most extreme security settings */
-int
-configSecurityExtreme(dialogMenuItem *self)
-{
-    WINDOW *w = savescr();
-
-    variable_set2("sshd_enable", "NO", 1);
-    variable_set2("kern_securelevel_enable", "YES", 1);
-    variable_set2("kern_securelevel", "2", 1);
-
-    if (self)
-	msgConfirm("Extreme security settings have been selected.\n\n"
-	    "Sshd has been disabled, and kernel security levels have"
-	    "been enabled.\n\n"
-	    "PLEASE NOTE that this still does not save you from having\n"
-	    "to properly secure your system in other ways or exercise\n"
-	    "due diligence in your administration, this simply picks\n"
-	    "a more secure set of out-of-box defaults to start with.\n\n"
-	    "To change any of these settings later, edit /etc/rc.conf");
-
-    restorescr(w);
-    return DITEM_SUCCESS;
-}
-
-int
-configSecurityModerate(dialogMenuItem *self)
-{
-    WINDOW *w = savescr();
-
-    variable_set2("sshd_enable", "YES", 1);
-    variable_set2("kern_securelevel_enable", "NO", 1);
-
-    if (self)
-	msgConfirm("Moderate security settings have been selected.\n\n"
-	    "Sshd has been enabled and kernel securelevels are disabled;\n"
-	    "all other settings have been left intact.\n\n"
-            "PLEASE NOTE that this still does not save you from having\n"
-            "to properly secure your system in other ways or exercise\n"
-            "due diligence in your administration, this simply picks\n"
-            "a standard set of out-of-box defaults to start with.\n\n"
-	    "To change any of these settings later, edit /etc/rc.conf");
-
-    restorescr(w);
-    return DITEM_SUCCESS;
-}
-
 static void
 write_root_xprofile(char *str)
 {
