@@ -95,8 +95,6 @@ int	toascii __P((int));
 #endif
 __END_DECLS
 
-#define	__istype(c,f)	(!!__maskrune((c),(f)))
-
 #define	isalnum(c)	__istype((c), _CTYPE_A|_CTYPE_D)
 #define	isalpha(c)	__istype((c), _CTYPE_A)
 #define	iscntrl(c)	__istype((c), _CTYPE_C)
@@ -154,6 +152,12 @@ __maskrune(_BSD_CT_RUNE_T_ _c, unsigned long _f)
 }
 
 static __inline int
+__istype(_BSD_CT_RUNE_T_ _c, unsigned long _f)
+{
+	return (!!__maskrune(_c, _f));
+}
+
+static __inline int
 __isctype(_BSD_CT_RUNE_T_ _c, unsigned long _f)
 {
 	return (_c < 0 || _c >= _CACHED_RUNES) ? 0 :
@@ -178,6 +182,7 @@ __tolower(_BSD_CT_RUNE_T_ _c)
 
 __BEGIN_DECLS
 int		__maskrune __P((_BSD_CT_RUNE_T_, unsigned long));
+int		__istype  __P((_BSD_CT_RUNE_T_, unsigned long));
 int		__isctype __P((_BSD_CT_RUNE_T_, unsigned long));
 _BSD_CT_RUNE_T_	__toupper __P((_BSD_CT_RUNE_T_));
 _BSD_CT_RUNE_T_	__tolower __P((_BSD_CT_RUNE_T_));
