@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: sleep.9,v 1.3 1996/04/05 23:23:25 joerg Exp $
+.\" $Id: sleep.9,v 1.4 1996/04/06 13:33:23 joerg Exp $
 .\" "
 .Dd April 3, 1996
 .Os
@@ -94,7 +94,7 @@ is returned if the system call should be interrupted by the signal
 .Pq return Dv EINTR .
 .Pp
 .Nm Sleep
-is the traditional form.  It doesn't let you specifiy a timeout nor a
+is the traditional form.  It doesn't let you specify a timeout nor a
 .Ar wmesg ,
 hence its use is deprecated.
 .Sh RETURN VALUES
@@ -102,7 +102,7 @@ See above.
 .Sh SEE ALSO
 .Xr ps 1
 .Sh HISTORY
-The sleep/wakeup process synchronisation mechanism is very old.  It
+The sleep/wakeup process synchronization mechanism is very old.  It
 appeared in a very early version of Unix.
 .Pp
 .Nm Tsleep
