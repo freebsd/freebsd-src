@@ -38,7 +38,7 @@ static char *rcsid = "$FreeBSD$";
  */
 #include <rpc/rpc.h>
 #include <sys/socket.h>
-#include <sys/errno.h>
+#include <errno.h>
 #include <netdb.h>
 #include <string.h>
 
