@@ -368,7 +368,8 @@ linux_sa_put(struct osockaddr *osa)
 }
 
 static int
-linux_sendit(struct thread *td, int s, struct msghdr *mp, int flags)
+linux_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
+    enum uio_seg segflg)
 {
 	struct mbuf *control;
 	struct sockaddr *to;
@@ -399,7 +400,8 @@ linux_sendit(struct thread *td, int s, struct msghdr *mp, int flags)
 	} else
 		control = NULL;
 
-	error = kern_sendit(td, s, mp, linux_to_bsd_msg_flags(flags), control);
+	error = kern_sendit(td, s, mp, linux_to_bsd_msg_flags(flags), control,
+	    segflg);
 
 bad:
 	if (to)
@@ -441,33 +443,25 @@ linux_sendto_hdrincl(struct thread *td, struct linux_sendto_args *linux_args)
 /*
  * linux_ip_copysize defines how many bytes we should copy
  * from the beginning of the IP packet before we customize it for BSD.
- * It should include all the fields we modify (ip_len and ip_off)
- * and be as small as possible to minimize copying overhead.
+ * It should include all the fields we modify (ip_len and ip_off).
  */
 #define linux_ip_copysize	8
 
 	struct ip *packet;
-	caddr_t sg = stackgap_init();
 	struct msghdr msg;
-	struct iovec aiov[2];
+	struct iovec aiov[1];
 	int error;
 
 	/* Check the packet isn't too small before we mess with it */
 	if (linux_args->len < linux_ip_copysize)
 		return (EINVAL);
 
-	/*
-	 * Tweaking the user buffer in place would be bad manners.
-	 * We create a corrected IP header with just the needed length,
-	 * then use an iovec to glue it to the rest of the user packet
-	 * when calling sendit().
-	 */
-	packet = (struct ip *)stackgap_alloc(&sg, linux_ip_copysize);
+	packet = (struct ip *)malloc(linux_args->len, M_TEMP, M_WAITOK);
 
-	/* Make a copy of the beginning of the packet to be sent */
+	/* Make kernel copy of the packet to be sent */
 	if ((error = copyin(PTRIN(linux_args->msg), packet,
-	    linux_ip_copysize)))
-		return (error);
+	    linux_args->len)))
+		goto goout;
 
 	/* Convert fields from Linux to BSD raw IP socket format */
 	packet->ip_len = linux_args->len;
@@ -477,15 +471,15 @@ linux_sendto_hdrincl(struct thread *td, struct linux_sendto_args *linux_args)
 	msg.msg_name = PTRIN(linux_args->to);
 	msg.msg_namelen = linux_args->tolen;
 	msg.msg_iov = aiov;
-	msg.msg_iovlen = 2;
+	msg.msg_iovlen = 1;
 	msg.msg_control = NULL;
 	msg.msg_flags = 0;
 	aiov[0].iov_base = (char *)packet;
-	aiov[0].iov_len = linux_ip_copysize;
-	aiov[1].iov_base = (char *)PTRIN(linux_args->msg) +
-	    linux_ip_copysize;
-	aiov[1].iov_len = linux_args->len - linux_ip_copysize;
-	error = linux_sendit(td, linux_args->s, &msg, linux_args->flags);
+	aiov[0].iov_len = linux_args->len;
+	error = linux_sendit(td, linux_args->s, &msg, linux_args->flags,
+	    UIO_SYSSPACE);
+goout:
+	free(packet, M_TEMP);
 	return (error);
 }
 
@@ -892,7 +886,8 @@ linux_sendto(struct thread *td, struct linux_sendto_args *args)
 	msg.msg_flags = 0;
 	aiov.iov_base = PTRIN(linux_args.msg);
 	aiov.iov_len = linux_args.len;
-	error = linux_sendit(td, linux_args.s, &msg, linux_args.flags);
+	error = linux_sendit(td, linux_args.s, &msg, linux_args.flags,
+	    UIO_USERSPACE);
 	return (error);
 }
 
@@ -968,7 +963,8 @@ linux_sendmsg(struct thread *td, struct linux_sendmsg_args *args)
 		return (error);
 	msg.msg_iov = iov;
 	msg.msg_flags = 0;
-	error = linux_sendit(td, linux_args.s, &msg, linux_args.flags);
+	error = linux_sendit(td, linux_args.s, &msg, linux_args.flags,
+	    UIO_USERSPACE);
 	free(iov, M_IOV);
 	return (error);
 }
