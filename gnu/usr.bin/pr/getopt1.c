@@ -17,13 +17,24 @@
    Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #ifdef HAVE_CONFIG_H
+#if defined (emacs) || defined (CONFIG_BROKETS)
+/* We use <config.h> instead of "config.h" so that a compilation
+   using -I. -I$srcdir will use ./config.h rather than $srcdir/config.h
+   (which it would do because it found this file in $srcdir).  */
+#include <config.h>
+#else
 #include "config.h"
+#endif
 #endif
 
 #include "getopt.h"
 
-#if !__STDC__ && !defined(const) && IN_GCC
+#ifndef __STDC__
+/* This is a separate conditional since some stdc systems
+   reject `defined (const)'.  */
+#ifndef const
 #define const
+#endif
 #endif
 
 #include <stdio.h>
