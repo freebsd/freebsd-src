@@ -323,6 +323,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
       strcmp(obj_main->interp, obj_rtld.path) != 0) {
 	free(obj_rtld.path);
 	obj_rtld.path = xstrdup(obj_main->interp);
+        __progname = obj_rtld.path;
     }
 
     digest_dynamic(obj_main, 0);
