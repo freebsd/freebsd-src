@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.47 1997/08/26 00:13:06 bde Exp $
+ * $Id: kern_fork.c,v 1.48 1997/11/06 19:29:09 phk Exp $
  */
 
 #include "opt_ktrace.h"
@@ -56,21 +56,19 @@
 #include <sys/unistd.h>	
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
-#include <vm/vm_inherit.h>
 
 #ifdef SMP
-int fast_vfork = 0;	/* Doesn't work on SMP yet */
+static int	fast_vfork = 0;	/* Doesn't work on SMP yet. */
 #else
-int fast_vfork = 1;
+static int	fast_vfork = 1;
 #endif
 SYSCTL_INT(_kern, OID_AUTO, fast_vfork, CTLFLAG_RW, &fast_vfork, 0, "");
 
-static int fork1 __P((struct proc *p, int flags, int *retval));
+static int fork1 __P((struct proc *p, int flags));
 
 /*
  * These are the stuctures used to create a callout list for things to do
@@ -95,7 +93,8 @@ fork(p, uap)
 	struct proc *p;
 	struct fork_args *uap;
 {
-	return (fork1(p, (RFFDG|RFPROC), p->p_retval));
+
+	return (fork1(p, RFFDG | RFPROC));
 }
 
 /* ARGSUSED */
@@ -104,8 +103,8 @@ vfork(p, uap)
 	struct proc *p;
 	struct vfork_args *uap;
 {
-	return (fork1(p, (RFFDG|RFPROC|RFPPWAIT|(fast_vfork ? RFMEM : 0)),
-		p->p_retval));
+
+	return (fork1(p, RFFDG | RFPROC | RFPPWAIT | (fast_vfork ? RFMEM : 0)));
 }
 
 /* ARGSUSED */
@@ -114,7 +113,8 @@ rfork(p, uap)
 	struct proc *p;
 	struct rfork_args *uap;
 {
-	return (fork1(p, uap->flags, p->p_retval));
+
+	return (fork1(p, uap->flags));
 }
 
 
@@ -122,10 +122,9 @@ int	nprocs = 1;		/* process 0 */
 static int nextpid = 0;
 
 static int
-fork1(p1, flags, retval)
+fork1(p1, flags)
 	register struct proc *p1;
 	int flags;
-	int retval[];
 {
 	register struct proc *p2, *pptr;
 	register uid_t uid;
@@ -349,13 +348,15 @@ again:
 	}
 
 	/*
-	 * Preserve some flags in subprocess.
+	 * Preserve some more flags in subprocess.  P_PROFIL has already
+	 * been preserved.
 	 */
 	p2->p_flag |= p1->p_flag & P_SUGID;
 	if (p1->p_session->s_ttyvp != NULL && p1->p_flag & P_CONTROLT)
 		p2->p_flag |= P_CONTROLT;
 	if (flags & RFPPWAIT)
 		p2->p_flag |= P_PPWAIT;
+
 	LIST_INSERT_AFTER(p1, p2, p_pglist);
 
 	/*
@@ -437,10 +438,10 @@ again:
 
 	/*
 	 * Return child pid to parent process,
-	 * marking us as parent via retval[1].
+	 * marking us as parent via p1->p_retval[1].
 	 */
-	retval[0] = p2->p_pid;
-	retval[1] = 0;
+	p1->p_retval[0] = p2->p_pid;
+	p1->p_retval[1] = 0;
 	return (0);
 }
 
