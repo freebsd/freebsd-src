@@ -680,7 +680,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	  been changed from mode 0644 to mode 0640 to protect against
 	  a file locking local denial of service.</para>
 
-	<para>&new.461; A potential DNS map buffer overflow bug has been
+	<para>&new.461; A potential DNS map buffer overflow bug (in
+	  code that is not used in configurations by default) has been
 	  fixed.
 	  <note>
 	    <para>This bug has been addressed in &os; 4.6-STABLE by
