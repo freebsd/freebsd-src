@@ -37,6 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
+ * $Id: vinumvar.h,v 1.21 1999/10/12 04:39:08 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -176,7 +177,8 @@ enum constants {
     INITIAL_DRIVE_FREELIST = 16,			    /* number of entries in drive freelist */
     PLEX_REGION_TABLE_SIZE = 8,				    /* number of entries in plex region tables */
     INITIAL_LOCKS = 64,					    /* number of locks to allocate to a plex */
-    DEFAULT_REVIVE_BLOCKSIZE = 65536,			    /* size of block to transfer in one op */
+    MAX_REVIVE_BLOCKSIZE = 65536,			    /* maximum revive block size */
+    DEFAULT_REVIVE_BLOCKSIZE = 16384,			    /* default revive block size */
     VINUMHOSTNAMELEN = 32,				    /* host name field in label */
 };
 
@@ -289,6 +291,10 @@ struct _vinum_conf {
     int volumes_used;
 
     int flags;
+
+#define VINUM_MAXACTIVE  256				    /* maximum number of active requests */
+    int active;						    /* current number of requests outstanding */
+    int maxactive;					    /* maximum number of requests ever outstanding */
 #if VINUMDEBUG
     int lastrq;
     struct buf *lastbuf;
@@ -409,6 +415,9 @@ struct drive {
 	u_int64_t offset;				    /* offset of entry */
 	u_int64_t sectors;				    /* and length in sectors */
     } *freelist;
+#define DRIVE_MAXACTIVE  10				    /* maximum number of active requests */
+    int active;						    /* current number of requests outstanding */
+    int maxactive;					    /* maximum number of requests ever outstanding */
 #ifdef VINUMDEBUG
     char lockfilename[16];				    /* name of file from which we were locked */
     int lockline;					    /* and the line number */
@@ -445,6 +454,10 @@ struct sd {
     int revive_blocksize;				    /* revive block size (bytes) */
     int revive_interval;				    /* and time to wait between transfers */
     struct request *waitlist;				    /* list of requests waiting on revive op */
+    /* init parameters */
+    u_int64_t initialized;				    /* block number of current init request */
+    int init_blocksize;					    /* init block size (bytes) */
+    int init_interval;					    /* and time to wait between transfers */
     char name[MAXSDNAME];				    /* name of subdisk */
 };
 
@@ -552,13 +565,14 @@ struct meminfo {
     struct mc *malloced;				    /* pointer to kernel table */
 };
 
+#define MCFILENAMELEN	16
 struct mc {
     struct timeval time;
     int seq;
     int size;
     short line;
     caddr_t address;
-    char file[16];
+    char file[MCFILENAMELEN];
 };
 
 /*
