@@ -56,7 +56,7 @@
 
   <sect2>
     <title>Disk Controllers</title>
-      <para arch="i386,alpha,sparc64,ia64,pc98">IDE/ATA controllers (&man.ata.4; driver)
+      <para arch="i386,alpha,sparc64,ia64,pc98,amd64">IDE/ATA controllers (&man.ata.4; driver)
         <itemizedlist>
 	   <listitem>
 	     <para>Acard ATP850 UDMA2, ATP860 UDMA4, ATP865 UDMA6</para>
@@ -146,7 +146,7 @@
     <para arch="i386">Adaptec AHA_174x series EISA SCSI controller in 
       enhanced mode (&man.ahb.4; driver)</para>
 
-    <para arch="i386,pc98,alpha,sparc64">Adaptec AIC-7770, AIC-7850,
+    <para arch="i386,pc98,alpha,sparc64,amd64">Adaptec AIC-7770, AIC-7850,
       AIC-7860, AIC-7870, AIC-7880, and AIC789x based SCSI host
       adapters (&man.ahc.4; driver)</para>
 
@@ -859,7 +859,7 @@
     <para arch="i386,pc98">Fujitsu MB86960A/MB86965A based Fast Ethernet NICs
     (&man.fe.4; driver)</para>
 
-    <para arch="i386,pc98,alpha,ia64,sparc64">Intel 82557-, 82258-, 82559-, 82550-
+    <para arch="i386,pc98,alpha,ia64,sparc64,amd64">Intel 82557-, 82258-, 82559-, 82550-
     or 82562-based Fast Ethernet NICs (&man.fxp.4; driver)
       <itemizedlist>
         <listitem>
@@ -944,7 +944,7 @@
     on the 3Com 3XP Typhoon/Sidewinder (3CR990) chipset (&man.txp.4; driver)
     </para>
 
-    <para arch="i386,pc98,ia64">Gigabit Ethernet NICs based on the Broadcom BCM570x
+    <para arch="i386,pc98,ia64,amd64">Gigabit Ethernet NICs based on the Broadcom BCM570x
     (&man.bge.4; driver)
     </para>
 
@@ -1272,7 +1272,7 @@
 
   <sect2>
     <title>Serial Interfaces</title>
-    <para arch="i386,alpha,ia64"><quote>PC standard</quote> 8250, 16450, and 16550-based serial ports (&man.sio.4; driver)</para>
+    <para arch="i386,alpha,ia64,amd64"><quote>PC standard</quote> 8250, 16450, and 16550-based serial ports (&man.sio.4; driver)</para>
 
     <para arch="sparc64">Serial ports based on the SAB82532 serial
       chip, console only (sab driver)</para>
@@ -2122,7 +2122,7 @@
     <para arch="i386">Genius and Mustek hand scanners</para>
     <para arch="i386">GPB and Transputer drivers</para>
 
-    <para arch="i386,alpha,ia64">VGA-compatible video cards
+    <para arch="i386,alpha,ia64,amd64">VGA-compatible video cards
       (&man.vga.4; driver)
 
       <note>
@@ -2139,7 +2139,7 @@
         <listitem arch="i386,alpha">
 	  <para>AT-style keyboards (&man.atkbd.4; driver)</para>
 	</listitem>
-        <listitem arch="i386,alpha,ia64">
+        <listitem arch="i386,alpha,ia64,amd64">
 	  <para>PS/2 keyboards (&man.atkbd.4; driver)</para>
 	</listitem>
         <listitem arch="pc98">
@@ -2157,7 +2157,7 @@
         <listitem arch="i386,pc98">
 	  <para>Bus mice and compatible devices (&man.mse.4; driver)</para>
 	</listitem>
-        <listitem arch="i386,alpha,ia64">
+        <listitem arch="i386,alpha,ia64,amd64">
 	  <para>PS/2 mice and compatible devices, including many laptop
 	    pointing devices (&man.psm.4; driver)</para>
 	</listitem>
