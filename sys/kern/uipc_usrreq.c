@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- *	$Id: uipc_usrreq.c,v 1.42 1999/04/12 14:34:52 eivind Exp $
+ *	$Id: uipc_usrreq.c,v 1.43 1999/04/28 11:37:07 phk Exp $
  */
 
 #include <sys/param.h>
@@ -366,6 +366,9 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		socantsendmore(so);
 		unp_shutdown(unp);
 	}
+
+	if (control && error != 0)
+		unp_dispose(control);
 
 release:
 	if (control)
