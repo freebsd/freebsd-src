@@ -37,7 +37,7 @@
 .Sh SYNOPSIS
 .Cd options INVARIANTS
 .Cd options INVARIANT_SUPPORT
-.Fn SPLASSERT "char *level, char *msg"
+.Fn SPLASSERT "level, const char *msg"
 .Sh DESCRIPTION
 In a kernel compiled with both "options INVARIANTS"
 and "options INVARIANT_SUPPORT",
@@ -80,7 +80,7 @@ macro is defined to
 .Xr panic 9 .
 .Sh EXAMPLES
 The kernel function
-.Fn rtredirect
+.Fn rtalloc
 must be called at
 .Fn splnet :
 .Bd -literal -offset indent
@@ -95,6 +95,7 @@ rtalloc(ro)
 .Pp
 .Sh SEE ALSO
 .Xr config 8 ,
+.Xr CONDSPLASSERT 9 ,
 .Xr KASSERT 9 ,
 .Xr panic 9
 .Sh AUTHORS
