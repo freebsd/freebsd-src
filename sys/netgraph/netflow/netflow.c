@@ -34,6 +34,7 @@ static const char rcs_id[] =
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/mbuf.h>
+#include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
 
@@ -587,7 +588,8 @@ export_send(priv_p priv)
 
 	header->count = htons(header->count);
 	if ((m = m_devget((caddr_t)header, mlen, 0, NULL, NULL)) == NULL) {
-		printf("ng_netflow: m_devget() failed, losing export dgram\n");
+		log(LOG_CRIT, "ng_netflow: m_devget() failed, losing export "
+		    "dgram\n");
 		header->count = 0;
 		return(ENOBUFS);
 	}
@@ -671,7 +673,8 @@ ng_netflow_expire(void *arg)
 		 */
 
 		if ((error = export_add(priv, fle)) != 0)
-			printf("ng_netflow: export_add() failed: %u\n", error);
+			log(LOG_CRIT, "ng_netflow: export_add() failed: %u\n",
+			    error);
 		(void )free_flow(priv, fle);
 
 		mtx_lock(&priv->expire_mtx);
@@ -710,8 +713,8 @@ ng_netflow_expire(void *arg)
 			mtx_unlock(&priv->work_mtx);
 
 			if ((error = export_add(priv, fle)) != 0)
-				printf("ng_netflow: export_add() failed: %u\n",
-				    error);
+				log(LOG_CRIT, "ng_netflow: export_add() "
+				    "failed: %u\n", error);
 
 			used = free_flow(priv, fle);
 
