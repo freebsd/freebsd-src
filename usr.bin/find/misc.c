@@ -64,8 +64,8 @@ brace_subst(orig, store, path, len)
 	char *orig, **store, *path;
 	int len;
 {
-	register int plen;
-	register char ch, *p;
+	int plen;
+	char ch, *p;
 
 	plen = strlen(path);
 	for (p = *store; (ch = *orig) != '\0'; ++orig)
@@ -88,7 +88,7 @@ brace_subst(orig, store, path, len)
  */
 int
 queryuser(argv)
-	register char **argv;
+	char **argv;
 {
 	int ch, first, nl;
 

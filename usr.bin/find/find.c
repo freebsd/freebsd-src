@@ -117,23 +117,23 @@ find_formplan(argv)
 	 */
 	if (!isoutput) {
 		OPTION *p;
-		char **argv = 0;
+		char **argv1 = 0;
 
 		if (plan == NULL) {
-			p = option("-print");
-			new = (p->create)(p, &argv);
+			p = lookup_option("-print");
+			new = (p->create)(p, &argv1);
 			tail = plan = new;
 		} else {
-			p = option("(");
-			new = (p->create)(p, &argv);
+			p = lookup_option("(");
+			new = (p->create)(p, &argv1);
 			new->next = plan;
 			plan = new;
-			p = option(")");
-			new = (p->create)(p, &argv);
+			p = lookup_option(")");
+			new = (p->create)(p, &argv1);
 			tail->next = new;
 			tail = new;
-			p = option("-print");
-			new = (p->create)(p, &argv);
+			p = lookup_option("-print");
+			new = (p->create)(p, &argv1);
 			tail->next = new;
 			tail = new;
 		}
@@ -180,7 +180,7 @@ find_execute(plan, paths)
 	PLAN *plan;		/* search plan */
 	char **paths;		/* array of pathnames to traverse */
 {
-	register FTSENT *entry;
+	FTSENT *entry;
 	PLAN *p;
 	int rval;
 

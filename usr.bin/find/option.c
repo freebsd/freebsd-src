@@ -54,6 +54,8 @@ static const char rcsid[] =
 
 #include "find.h"
 
+int typecompare __P((const void *, const void *));
+
 /* NB: the following table must be sorted lexically. */
 static OPTION const options[] = {
 	{ "!",		c_simple,	f_not,		0 },
@@ -137,13 +139,13 @@ PLAN *
 find_create(argvp)
 	char ***argvp;
 {
-	register OPTION *p;
+	OPTION *p;
 	PLAN *new;
 	char **argv;
 
 	argv = *argvp;
 
-	if ((p = option(*argv)) == NULL)
+	if ((p = lookup_option(*argv)) == NULL)
 		errx(1, "%s: unknown option", *argv);
 	++argv;
 
@@ -153,11 +155,10 @@ find_create(argvp)
 }
 
 OPTION *
-option(name)
-	char *name;
+lookup_option(name)
+	const char *name;
 {
 	OPTION tmp;
-	int typecompare __P((const void *, const void *));
 
 	tmp.name = name;
 	return ((OPTION *)bsearch(&tmp, options,
@@ -168,5 +169,5 @@ int
 typecompare(a, b)
 	const void *a, *b;
 {
-	return (strcmp(((OPTION *)a)->name, ((OPTION *)b)->name));
+	return (strcmp(((const OPTION *)a)->name, ((const OPTION *)b)->name));
 }
