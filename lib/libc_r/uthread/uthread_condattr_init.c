@@ -45,8 +45,7 @@ pthread_condattr_init(pthread_condattr_t *attr)
 
 	if ((pattr = (pthread_condattr_t)
 			malloc(sizeof(struct pthread_cond_attr))) == NULL) {
-		errno = ENOMEM;
-		ret = -1;
+		ret = ENOMEM;
 	} else {
 		memcpy(pattr, &pthread_condattr_default,
 				sizeof(struct pthread_cond_attr));

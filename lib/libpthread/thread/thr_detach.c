@@ -49,8 +49,7 @@ pthread_detach(pthread_t * p_pthread)
 	/* Check for invalid calling parameters: */
 	if (p_pthread == NULL || (pthread = *p_pthread) == NULL) {
 		/* Return an invalid argument error: */
-		errno = EINVAL;
-		rval = -1;
+		rval = EINVAL;
 	}
 	/* Check if the thread has not been detached: */
 	else if ((pthread->attr.flags & PTHREAD_DETACHED) == 0) {
@@ -70,8 +69,7 @@ pthread_detach(pthread_t * p_pthread)
 		*p_pthread = NULL;
 	} else {
 		/* Return an error: */
-		errno = ESRCH;
-		rval = -1;
+		rval = ESRCH;
 	}
 
 	/* Unblock signals: */
