@@ -8,6 +8,7 @@
 LIBCRT0?=	${DESTDIR}${LIBDIR}/crt0.o
 
 LIBALIAS?=	${DESTDIR}${LIBDIR}/libalias.a
+LIBASN1?=	${DESTDIR}${LIBDIR}/libasn1.a	# XXX in secure dist, not base
 LIBATM?=	${DESTDIR}${LIBDIR}/libatm.a
 LIBC?=		${DESTDIR}${LIBDIR}/libc.a
 LIBC_PIC?=	${DESTDIR}${LIBDIR}/libc_pic.a
@@ -40,6 +41,7 @@ LIBIPX?=	${DESTDIR}${LIBDIR}/libipx.a
 LIBISC?=	${DESTDIR}${LIBDIR}/libisc.a
 LIBKDB?=	${DESTDIR}${LIBDIR}/libkdb.a	# XXX in secure dist, not base
 LIBKRB?=	${DESTDIR}${LIBDIR}/libkrb.a	# XXX in secure dist, not base
+LIBKRB5?=	${DESTDIR}${LIBDIR}/libkrb5.a	# XXX in secure dist, not base
 LIBKEYCAP?=	${DESTDIR}${LIBDIR}/libkeycap.a
 LIBKVM?=	${DESTDIR}${LIBDIR}/libkvm.a
 LIBL?=		${DESTDIR}${LIBDIR}/libl.a
@@ -60,14 +62,22 @@ LIBOPIE?=	${DESTDIR}${LIBDIR}/libopie.a
 LIBPAM?=	${DESTDIR}${LIBDIR}/libpam.a
 MINUSLPAM?=	-lpam
 .if defined(NOSHARED) && ${NOSHARED} != "no" && ${NOSHARED} != "NO"
+.if defined(MAKE_KERBEROS4) || defined(MAKE_KERBEROS5)
 .ifdef MAKE_KERBEROS4
-LIBPAM+=	${LIBKRB} ${LIBCRYPTO} ${LIBCOM_ERR}
-MINUSLPAM+=	-lkrb -lcrypto -lcom_err
+LIBPAM+=	${LIBKRB}
+MINUSLPAM+=	-lkrb
+.endif
+.ifdef MAKE_KERBEROS5
+LIBPAM+=	${LIBKRB5} ${LIBASN1}
+MINUSLPAM+=	-lkrb5 -lasn1 -L${.OBJDIR}/../../kerberos5/lib/libroken/ -lroken
+.endif
+LIBPAM+=	${LIBCRYPTO} ${LIBCOM_ERR}
+MINUSLPAM+=	-lcom_err
 .endif
 LIBPAM+=	${LIBRADIUS} ${LIBTACPLUS} ${LIBSKEY} ${LIBCRYPT} ${LIBMD} \
 		${LIBUTIL} ${LIBOPIE} ${LIBCRYPTO}
 MINUSLPAM+=	-lradius -ltacplus -lskey -lcrypt -lmd -lutil -lopie \
-		-L${.OBJDIR}/../../secure/lib/libssh/ -lssh -lcrypto
+		-lcrypto
 .endif
 
 LIBPANEL?=	${DESTDIR}${LIBDIR}/libpanel.a
