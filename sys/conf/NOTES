@@ -2203,9 +2203,11 @@ options 	CLK_USE_I8254_CALIBRATION
 options 	CLK_USE_TSC_CALIBRATION
 options 	CLUSTERDEBUG
 options 	COMPAT_LINUX
+options		COMPAT_SVR4
 options 	CPU_UPGRADE_HW_CACHE
 options 	DEBUG
 options 	DEBUG_LINUX
+options		DEBUG_SVR4
 options 	DEBUG_VFS_LOCKS
 #options 	DISABLE_PSE
 options 	ENABLE_ALART
