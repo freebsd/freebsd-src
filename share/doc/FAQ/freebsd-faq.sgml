@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.18 1995/11/13 08:24:59 roberto Exp $
+<date> $Id: freebsd-faq.sgml,v 1.19 1995/11/13 22:53:21 roberto Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -26,18 +26,13 @@ Any entries with a &lt;XXX&gt; are under construction.
           Mailing list"> or to <url url="mailto:faq@FreeBSD.ORG"
           name="FreeBSD FAQ mailing list">
 
-        The latest released version is FreeBSD 2.0.5R. FreeBSD-current
-        refers to the future FreeBSD 2.2. The 2.1 release will be issued
+        The latest released version is FreeBSD 2.1.0R. FreeBSD-current
+        refers to the future FreeBSD 2.2. The 2.1 release has been issued
         from a special branch of the -current sources and is intended as a
         even more stable version of 2.0.5.
 
         There are regular snapshots extracted from 2.2-CURRENT. Check on
         <tt>ftp.FreeBSD.ORG</tt> in <tt>/pub/FreeBSD/*-SNAP*</tt>.
-
-        The current snapshot is 2.1.0-951104-SNAP.
-
-        Latest notes: expect 2.1-RELEASE to hit the streets in a few days
-        for FTP. It will be burned on CD-ROM soon !
 
         This version of the FAQ uses the <tt>linuxdoc-sgml</tt> utility
         written for Linux by Matt Welsh. The initial SGML translation was
@@ -106,8 +101,8 @@ Any entries with a &lt;XXX&gt; are under construction.
           The distribution is available via anonymous ftp from:
           <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/" name="FreeBSD home directory">
 
-          For the current release, 2.0.5R, look in:
-          <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.0.5-RELEASE/" name="FreeBSD 2.0.5-RELEASE">
+          For the current release, 2.1.0R, look in:
+          <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.0-RELEASE/" name="FreeBSD 2.1.0-RELEASE">
 
           FreeBSD is also available via CDROM, from the following place(s):
  
@@ -144,6 +139,7 @@ Any entries with a &lt;XXX&gt; are under construction.
             <tag/hardware/  Discussion on hardware requirements for
               FreeBSD.
             <tag/committers/ CVS commit messages for -current users
+            <tag/chat/  What does not belong elsewhere, general chat, fun.
             <tag/users-groups/ This is the mailing list for the
               coordinators from each of the local area Users Groups to
               dicuss matters with each other and a designated individual
@@ -155,9 +151,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           The FreeBSD-commit list has been broken up into groups dealing
           with different areas of interest.  Please see the FreeBSD mailing
           list FAQ in:
-          <verb>
-            /usr/src/share/FAQ/Text/mailing-list.FAQ
-          </verb>
+          <url url="http://www.freebsd.org/How/handbook/handbook212.html#eresources:mail" name="Handbook s section on mailing-lists">
         <p>
           Example:
         <p>
@@ -192,10 +186,14 @@ Any entries with a &lt;XXX&gt; are under construction.
           you may have a look at various packages already ported for
           FreeBSD 2.X in <tt>/usr/ports/news</tt>. You'll find Cnews, INN,
           Trn, TIN and others there.
+
+          For French-speaking  people, the <tt/fr.comp.os.bsd/ group is for
+          you.  Ask your system administrator  if   you don't receive  this
+          group. 
       </sect1>
       
       <sect1>
-	<heading>Books on FreeBSD</heading>
+        <heading>Books on FreeBSD</heading>
         <p> 
           There currently aren't any books written specifically for
           FreeBSD, although some people are supposedly working on some.
@@ -317,13 +315,13 @@ Any entries with a &lt;XXX&gt; are under construction.
  
           Installation instructions can be found as:
  
-          <url   url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.0.5-RELEASE/INSTALL"
-            name="INSTALL from 2.0.5R">
+          <url   url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.0-RELEASE/INSTALL"
+            name="INSTALL from 2.1.0R">
  
           Release notes are also available as:
  
-          <url  url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.0.5-RELEASE/RELNOTES"
-            name="RELNOTES from 2.0.5R">
+          <url  url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.1.0-RELEASE/RELNOTES"
+            name="RELNOTES from 2.1.0R">
  
           On the CDROM, the following files are in the top-most directory:
  
@@ -455,7 +453,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           Answer:<newline>
           Doing this using <tt/disklabel/ (and <tt/fdisk/) is probably
           harder than using <tt/sysinstall/.  The following should work to
-          put FreeBSD-2.0.5 on the whole of an <bf/empty/ disk assuming that
+          put FreeBSD-2.1.0 on the whole of an <bf/empty/ disk assuming that
           the <tt/disktab/ entry is correct.
           <verb>
             disklabel -r -w /dev/rsd1 sea32550N
@@ -610,8 +608,12 @@ sea32550N|Seagate 32550N:\
 
           <descrip>
             <tag/South Africa/
-              <tt>skeleton.mikom.csir.co.za:/pub/FreeBSD</tt><newline>
-              <tt>storm.sea.uct.ac.za:/pub/FreeBSD</tt>
+              <tt>ftp://ftp.internat.freebsd.org/pub/FreeBSD</tt><newline>
+              <tt>ftp://storm.sea.uct.ac.za/pub/FreeBSD</tt>
+            <tag/Brazil/
+              <tt>ftp://ftp.iqm.unicamp.br/pub/FreeBSD</tt>
+            <tag/Finland/
+              <tt>ftp://nic.funet.fi/pub/unix/FreeBSD/eurocrypt</tt>
           </descrip>
 
           The non-US <tt/securedist/ can be used as a direct replacement
@@ -645,7 +647,7 @@ sea32550N|Seagate 32550N:\
         <p>
           FreeBSD supports ST-506 (sometimes called ``MFM''), RLL, and ESDI
           drives, which are usually connected to WD-1002, WD-1003, or
-          WD-1006 controllers (although clones should also work).
+          WD-1006/7 controllers (although clones should also work).
 
           FreeBSD also supports IDE and SCSI hard drives.
 
@@ -657,13 +659,14 @@ sea32550N|Seagate 32550N:\
 
           <descrip>
             <tag/Adaptec/
+              AH-152x Series &lt;ISA&gt; <newline>
               AH-154x Series &lt;ISA&gt; <newline>
               AH-174x Series &lt;EISA&gt; <newline>
-              AH-152x Series &lt;ISA&gt; <newline>
               Sound Blaster SCSI (AH-152x compat) &lt;ISA&gt; <newline>
               AH-2742/2842 Series &lt;ISA/EISA&gt; <newline>
-              AH-2820/2822/2825 Series &lt;VLB&gt; <newline>
-              AH-294x and aic7870 MB controllers &lt;PCI&gt;
+              AH-2820/2822/2825 Series (Narrow/Twin/Wide) &lt;VLB&gt; <newline>
+              AH-294x and aic7870 MB controllers (Narrow/Twin/Wide) &lt;PCI&gt;<newline>
+              AH-394x (Narrow/Twin/Wide)
             <tag/Buslogic/
               BT-445 Series &lt;VLB&gt; (but see section <ref id="bigram"
                 name="on 32 MB machines">) <newline>
@@ -675,11 +678,14 @@ sea32550N|Seagate 32550N:\
             <tag/Future Domain/
               TMC-950 Series &lt;ISA&gt; <newline>
             <tag/PCI Generic/
-              NCR 53C810 based controllers &lt;PCI&gt; <newline>
+              NCR 53C81x based controllers &lt;PCI&gt; <newline>
               NCR 53C82x based controllers &lt;PCI&gt; <newline>
+              NCR 53C860/75 based controllers &lt;PCI&gt; <newline>
             <tag/ProAudioSpectrum/
               Zilog 5380 based controllers &lt;ISA&gt; <newline>
               Trantor 130 based controllers &lt;ISA&gt; <newline>
+            <tag/DTC/
+              DTC 3290 EISA SCSI in AHA-154x emulation.<newline>
             <tag/Seagate/
               ST-01/02 Series &lt;ISA&gt;<newline>
             <tag/UltraStor/
@@ -696,13 +702,15 @@ sea32550N|Seagate 32550N:\
         <p>
           Any SCSI drive connected to a supported controller.
 
-          Mitsumi LU002 (8bit), LU005 (16bit) and FX001D (16bit 2x Speed).
-
-          Sony CDU 31/33A<newline>
-          Sound Blaster Non-SCSI CD-ROM<newline>
-          Matsushita/Panasocnic CD-ROM<newline>
-          ATAPI compatiable IDE CD-ROMs &lt;Current-only&gt;.
- 
+          <itemize>
+            <item>Mitsumi LU002 (8bit), LU005 (16bit) and FX001D (16bit 2x
+              Speed).
+            <item>Sony CDU 31/33A<newline>
+            <item>Sound Blaster Non-SCSI CD-ROM<newline>
+            <item>Matsushita/Panasocnic CD-ROM<newline>
+            <item>ATAPI compatible IDE CD-ROMs (should be considered
+              <bf/experimental/)
+          </itemize>
           All non-SCSI cards are known to be extremely slow compared to
           SCSI drives.
  
@@ -800,7 +808,7 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
               DEC EtherWORKS II and EtherWORKS III controllers. <newline>
             <tag/``ie'' driver/
               AT&amp;T EN100/StarLAN 10 <newline>
-              3COM 3c507 <newline>
+              3COM 3c507 Etherlink 16/TP<newline>
               NI5210 <newline>
             <tag/``is'' driver/
               Isolan AT 4141-0 <newline>
@@ -808,7 +816,7 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
             <tag/``el'' driver/
               3com 3c501 (does not support Multicast or DMA)
             <tag/``eg'' driver/
-              3com 3c505 
+              3com 3c505 Etherlink/+
             <tag/``ze'' driver/
               IBM PCMCIA credit card adapter
             <tag/``lnc'' drive/
@@ -828,6 +836,9 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
             <tag/``fe'' driver/
               Fujitsu MB86960A/MB86965A Ethernet cards
           </descrip>
+
+          <bf/NOTE/     PCMCIA ethernet cards from IBM and National
+          Semiconductor.
 
           <bf/NOTE/	Drivers marked with (*) are known to have problems.
 
@@ -879,7 +890,7 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
             <tag/``nic'' driver/
               Dr Neuhaus NICCY 3008, 3009 &amp; 5000 ISDN cards
             <tag/``psm'' driver/
-              PS/2 ouse port
+              PS/2 mouse port
             <tag><tt/tw.c/</tag>
               Driver for the X-10 POWERHOUSE <newline>
           </descrip>
@@ -1236,7 +1247,9 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
 	<heading>I've heard of something called FreeBSD-current. How do I run it, and where can I get more information?</heading>
 
         <p>
-          Read the file <tt>/usr/src/share/FAQ/Text/current-policy.FAQ</tt>,
+          Read this:
+          <url url="http://www.freebsd.org/How/handbook/handbook175.html"
+            name="Handook's section of FreeBSD-CURRENT">
           it will tell you all you need to know.
           
       <sect1>
@@ -1260,11 +1273,13 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
             <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/packages/sup.tgz"
             name="The SUP package">
 
-          Second, read the file <tt>/usr/src/share/FAQ/Text/sup.FAQ</tt>.
+          Second, read the <url
+            url="http://www.freebsd.org/How/handbook/handbook188.html#333"
+            name="Handbook's section on SUP">
 
           This file describes how to setup sup on your machine.  You may
           also want to look at
-          <tt>/usr/src/share/FAQ/extras/*.supfile</tt>, or you may grab
+          <tt>/usr/src/share/examples/sup/*-supfile</tt>, or you may grab
           updated supfiles from:
 
             <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FAQ/extras"
@@ -1313,11 +1328,9 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
 
         <p>
           Yes, you can use the <tt/CTM/ facility.  Check out the
-          <tt/ctm.FAQ/ file or
 
-            <url url="ftp://freefall.cdrom.com/pub/CTM/README" name="README
-            for CTM">
-
+            <url
+            url="http://www.freebsd.org/How/handbook/handbook/handbook180.html#325" name="Handbook's section on for CTM">
           for more information.
 
       <sect1>
@@ -1346,9 +1359,8 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
         <p>
           Please take a look at the FAQ for submiting code to FreeBSD at:
 
-          <url
-            url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FAQ/Text/submitters.FAQ"
-            name="Submitters' FAQ">
+          <url url="http://www.FreeBSD.ORG/How/handbook/handbook199.html#344"
+            name="Handbbook's section on how to submit code">.
 
           And thanks for the thought.
 
@@ -1545,6 +1557,27 @@ disk        fd1   at fdc0 drive 1
           The <tt>/etc/rc.i386</tt> is for Intel-specifics setting like the
           iBCS2 emulation.
 
+          Starting with 2.1.0R, you can have "local" startup files in a
+          directory specified in <tt>/etc/sysconfig</tt>:
+          <verb>
+            # Location of local startup files.
+            local_startup=/usr/local/etc/rc.local.d
+          </verb>
+          Each file ending in <tt/.sh/ will be executed in alphabetic
+          order.
+
+          If you want to have a proper order without changing all the file
+          names, you can use a scheme similar to the following with digits
+          prepended to each file name to insure order:
+          <verb>
+            10news.sh
+            15httpd.sh
+            20ssh.sh
+          </verb>
+          It can be seen as ugly (or SysV :-)) but it provides a simple and
+          regular scheme for locally-added packages without resorting to
+          magical editing of <tt>/etc/rc.local</tt>.
+
       <sect1>
 	<heading>How do I add a user easily?  I read the man page and am more confused than ever!</heading>
 
@@ -1557,9 +1590,13 @@ disk        fd1   at fdc0 drive 1
           under further development.
 
       <sect1>
-	<heading>&lt;XXX&gt; I'm trying to use my printer and keep running into problems.  I tried looking at <tt>/etc/printcap</tt>, but it's close to useless.  Any ideas?</heading>
+	<heading>I'm trying to use my printer and keep running into problems.  I tried looking at <tt>/etc/printcap</tt>, but it's close to useless.  Any ideas?</heading>
         <p>
-          Still under construction.
+          Please have a look at the section of the Handbook on printing. It
+          should cover most of your problem. See
+          <url
+            url="http://www.freebsd.org/How/handbook/handbook85.html#132"
+            name="Handbook's section on printing">
       </sect1>
 
       <sect1>
@@ -1587,13 +1624,26 @@ disk        fd1   at fdc0 drive 1
             <item>Danish (both ISO and cp865),
             <item>French (ISO only),
             <item>German (both ISO and cp850),
-            <item>Russian
+            <item>Russian,
             <item>Swedish (both ISO and cp850),
             <item>U.K. (both ISO and cp850),
-            <item>Spain
-            <item>U.S.A. (ISO only).
+            <item>Spain,
+            <item>U.S.A. (ISO only),
+            <item>Dvorak US.
           </itemize>
       </sect1>
+
+      <sect1>
+        <heading>Why do I get a ``CMAP busy panic during boot just after installing a new kernel?</heading>
+        <p>
+          The logic that attempts to detect an out of data
+          <tt>/var/db/kvm_*.db</tt> files sometimes fails and using a
+          mismatched file can sometimes lead to panics.
+
+          If this happens, reboot single-user and do:
+          <verb>
+            rm /var/db/kvm_*.db
+          </verb>
 
     <sect>
       <heading>Networking</heading>
@@ -1609,23 +1659,34 @@ disk        fd1   at fdc0 drive 1
             name="Handbook's section on diskless boot">
 
       <sect1>
+        <heading>I want to setup aliases for my hosts but each time I get
+          the following message: ``File exists''.
+        <p>
+          Try adding <tt/nettmask 0xffffffff/ to each <tt/ifconfig(8)/
+          command line.
+
+      <sect1>
 	<heading>I've heard that you can use a FreeBSD box as a dedicated network router - is there any easy support for this?</heading>
 
         <p>
           Internet standards and good engineering practice prohibit us from
-          providing packet forwarding by default in FreeBSD.  You can
-          enable this support by adding ``<tt/options GATEWAY/'' to your
-          kernel configuration file and recompiling.  
+          providing packet forwarding by default in FreeBSD. You can
+          however enable this feature by changing the following variable to
+          <tt/YES/ in <tt>/etc/sysconfig</tt>:
+          <verb>
+            # If you want this host to be a gateway, set to YES.
+            gateway=YES
+          </verb>
 
-          This kernel option will put the <tt/sysctl/ variable
+          This  option will put the <tt/sysctl/ variable
           <tt/net.inet.ip.forwarding/ to <tt/1/.
 
           In most cases, you will also need to run a routing process to
           tell other systems on your network about your router; FreeBSD
           comes with the standard BSD routing daemon <tt/routed(8)/, or for
           more complex situations you may want to try <em/GaTeD/ (available
-          by FTP from <tt/gated.Cornell.edu/) which supports FreeBSD as of
-          3_5Alpha7.
+          by FTP from <tt/ftp.gated.Merit.EDU/) which supports FreeBSD as
+          of 3_5Alpha7.
 
           It is our duty to warn you that, even when FreeBSD is configured
           in this way, it does not completely comply with the Internet
@@ -1639,18 +1700,14 @@ disk        fd1   at fdc0 drive 1
           Yes.  See the man pages for <tt/slattach(8)/ and/or <tt/pppd(8)/
           if you're using FreeBSD to connect to another site.  If you're
           using FreeBSD as a server for other machines, look at the man
-          page for <tt/sliplogin(8)/.  You may also want to take a look at
-          the slip FAQ in:
-
-          <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FAQ/Text/Slip.FAQ"
-            name="SLIP FAQ">
+          page for <tt/sliplogin(8)/.  
 
           You can also have a look at the SLIP/PPP/Use PPP sections of the
           handbook in <tt>/usr/share/doc/handbook</tt> or use the following
           link:
 
-          <url url="http://www.FreeBSD.ORG/How/handbook"
-            name="FreeBSD's Handbook">
+          <url url="http://www.FreeBSD.ORG/How/handbook/handbook136.html#272"
+            name="Handbook's section on SLIP and PPP">
 
       <sect1>
 	<heading>How do I get my network set up? I don't see how to make my <tt>/dev/ed0</tt> device!</heading>
@@ -1684,8 +1741,9 @@ disk        fd1   at fdc0 drive 1
           applications like NFS.
 
           See 
-
-	  <url url="ftp://ftp.FreeBSD.ORG/pub/FAQ/Text/NFS.FAQ" name="NFS FAQ">
+	  <url
+            url="http://www.freebsd.org/How/handbook/handbook167.html#312"
+            name="Handbook's section NFS">
 
           for more information on
           this topic.
