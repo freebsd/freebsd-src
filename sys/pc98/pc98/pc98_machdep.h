@@ -28,7 +28,7 @@
 #ifndef __PC98_PC98_PC98_MACHDEP_H__
 #define __PC98_PC98_PC98_MACHDEP_H__
 
-void pc98_init_dmac __P((void));
-void pc98_getmemsize __P((void));
+void	pc98_init_dmac __P((void));
+void	pc98_getmemsize __P((void));
 
 #endif /* __PC98_PC98_PC98_MACHDEP_H__ */
