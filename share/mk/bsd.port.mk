@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.223 1996/08/24 09:28:48 asami Exp $
+# $Id: bsd.port.mk,v 1.224 1996/08/25 21:07:38 wosch Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -408,6 +408,7 @@ MASTER_SITE_OVERRIDE=  ftp://ftp.freebsd.org/pub/FreeBSD/distfiles/${DIST_SUBDIR
 
 # Empty declaration to avoid "variable MASTER_SITES recursive" error
 MASTER_SITES?=
+PATCH_SITES?=
 # I guess we're in the master distribution business! :)  As we gain mirror
 # sites for distfiles, add them to this list.
 .if !defined(MASTER_SITE_OVERRIDE)
@@ -421,7 +422,8 @@ PATCH_SITES:=	${MASTER_SITE_OVERRIDE} ${PATCH_SITES}
 # Search CDROM first if mounted, symlink instead of copy if
 # FETCH_SYMLINK_DISTFILES is set
 .if exists(/cdrom/ports/distfiles)
-MASTER_SITES:=	file:/cdrom/ports/distfiles/ ${MASTER_SITES}
+MASTER_SITES:=	file:/cdrom/ports/distfiles/${DIST_SUBDIR}/ ${MASTER_SITES}
+PATCH_SITES:=	file:/cdrom/ports/distfiles/${DIST_SUBDIR}/ ${PATCH_SITES}
 .if defined(FETCH_SYMLINK_DISTFILES)
 FETCH_BEFORE_ARGS+=	-l
 .endif
