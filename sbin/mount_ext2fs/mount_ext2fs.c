@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)mount_lfs.c	8.3 (Berkeley) 3/27/94";
 */
 static const char rcsid[] =
-	"$Id";
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -80,7 +80,7 @@ main(argc, argv)
 	while ((ch = getopt(argc, argv, "o:")) != EOF)
 		switch (ch) {
 		case 'o':
-			getmntopts(optarg, mopts, &mntflags);
+			getmntopts(optarg, mopts, &mntflags, 0);
 			break;
 		case '?':
 		default:
