@@ -1,4 +1,4 @@
-/* $Id: swtch.s,v 1.3 1998/06/27 15:37:43 dfr Exp $ */
+/* $Id: swtch.s,v 1.4 1998/07/12 16:32:03 dfr Exp $ */
 /* $NetBSD: locore.s,v 1.47 1998/03/22 07:26:32 thorpej Exp $ */
 
 /*
@@ -220,11 +220,6 @@ Lcs6:
 	mov	s3, a0				/* swap the context */
 	SWITCH_CONTEXT
 
-	/* XXX remove after implementing ASNs */
-	ldiq	a0, -2				/* TBIA */
-	call_pal PAL_OSF1_tbi
-	call_pal PAL_imb
-	
 Lcs7:
 	
 	/*
