@@ -63,6 +63,7 @@ extern int	af;	/* address family */
 int	kread(u_long addr, char *buf, int size);
 const char *plural(int);
 const char *plurales(int);
+const char *pluralies(int);
 
 void	protopr(u_long, const char *, int);
 void	tcp_stats(u_long, const char *, int);
