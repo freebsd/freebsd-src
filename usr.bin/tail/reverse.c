@@ -200,6 +200,11 @@ r_buf(fp)
 		    len < BSZ && (ch = getc(fp)) != EOF; ++len)
 			*p++ = ch;
 
+		if (ferror(fp)) {
+			ierr();
+			return;
+		}
+
 		/*
 		 * If no input data for this block and we tossed some data,
 		 * recover it.
