@@ -126,7 +126,6 @@ main(int argc, char *argv[])
 		char		* const *b;
 	}		np;
 	uid_t		ruid;
-	gid_t		gid;
 	int		asme, ch, asthem, fastlogin, prio, i, setwhat, retcode,
 			statusp, child_pid, child_pgrp, ret_pid;
 	char		*username, *cleanenv, *class, shellbuf[MAXPATHLEN];
@@ -197,7 +196,6 @@ main(int argc, char *argv[])
 		pwd = getpwuid(ruid);
 	if (pwd == NULL)
 		errx(1, "who are you?");
-	gid = pwd->pw_gid;
 
 	username = strdup(pwd->pw_name);
 	if (username == NULL)
