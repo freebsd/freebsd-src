@@ -387,9 +387,9 @@ sr_attach(device_t device)
 	 * Report Card configuration information before we start configuring
 	 * each channel on the card...
 	 */
-	printf("src%d: %uK RAM (%d mempages) @ %08x-%08x, %u ports.\n",
+	printf("src%d: %uK RAM (%d mempages) @ %p-%p, %u ports.\n",
 	       hc->cunit, hc->memsize / 1024, hc->mempages,
-	       (u_int)hc->mem_start, (u_int)hc->mem_end, hc->numports);
+	       hc->mem_start, hc->mem_end, hc->numports);
 
 	src_init(hc);
 	sr_init_sca(hc);
@@ -967,8 +967,8 @@ top_srstart:
 	 * can record this in the structure and fire it off w/ the DMA
 	 * processor of the serial chip...
 	 */
-	txdesc = (sca_descriptor *)blkp->txdesc;
-	blkp->txeda = (u_short)((u_int)&txdesc[i]);
+	txdesc = (sca_descriptor *)(uintptr_t)blkp->txdesc;
+	blkp->txeda = (u_short)((uintptr_t)&txdesc[i]);
 
 	sc->txb_inuse++;	/* update inuse status */
 	sc->txb_new++;		/* new traffic wuz added */
@@ -1634,7 +1634,7 @@ sr_init_rx_dmac(struct sr_softc *sc)
 	 * needed to construct a circular buffer...
 	 */
 	rxd = (sca_descriptor *)(hc->mem_start + (sc->rxdesc & hc->winmsk));
-	rxda_d = (u_int) hc->mem_start - (sc->rxdesc & ~hc->winmsk);
+	rxda_d = (uintptr_t) hc->mem_start - (sc->rxdesc & ~hc->winmsk);
 
 	for (rxbuf = sc->rxstart;
 	     rxbuf < sc->rxend;
@@ -1642,7 +1642,7 @@ sr_init_rx_dmac(struct sr_softc *sc)
 		/*
 		 * construct the circular chain...
 		 */
-		rxda = (u_int) & rxd[1] - rxda_d + hc->mem_pstart;
+		rxda = (uintptr_t) &rxd[1] - rxda_d + hc->mem_pstart;
 		rxd->cp = (u_short)(rxda & 0xffff);
 
 		/*
@@ -1682,10 +1682,10 @@ sr_init_rx_dmac(struct sr_softc *sc)
 	SRC_PUT16(hc->sca_base, dmac->cda, cda_v);
 	SRC_PUT8(hc->sca_base, dmac->sarb, sarb_v);
 
-	rxd = (sca_descriptor *)sc->rxstart;
+	rxd = (sca_descriptor *)(uintptr_t)sc->rxstart;
 
 	SRC_PUT16(hc->sca_base, dmac->eda,
-		  (u_short)((u_int) & rxd[sc->rxmax - 1] & 0xffff));
+		  (u_short)((uintptr_t) &rxd[sc->rxmax - 1] & 0xffff));
 
 	SRC_PUT8(hc->sca_base, dmac->dir, 0xF0);
 
@@ -1726,13 +1726,13 @@ sr_init_tx_dmac(struct sr_softc *sc)
 		blkp = &sc->block[blk];
 		txd = (sca_descriptor *)(hc->mem_start
 					 + (blkp->txdesc & hc->winmsk));
-		txda_d = (u_int) hc->mem_start
+		txda_d = (uintptr_t) hc->mem_start
 		    - (blkp->txdesc & ~hc->winmsk);
 
 		x = 0;
 		txbuf = blkp->txstart;
 		for (; txbuf < blkp->txend; txbuf += SR_BUF_SIZ, txd++) {
-			txda = (u_int) & txd[1] - txda_d + hc->mem_pstart;
+			txda = (uintptr_t) &txd[1] - txda_d + hc->mem_pstart;
 			txd->cp = (u_short)(txda & 0xffff);
 
 			txd->bp = (u_short)((txbuf + hc->mem_pstart)
@@ -1748,7 +1748,7 @@ sr_init_tx_dmac(struct sr_softc *sc)
 		txd->cp = (u_short)((blkp->txdesc + hc->mem_pstart)
 				    & 0xffff);
 
-		blkp->txtail = (u_int)txd - (u_int)hc->mem_start;
+		blkp->txtail = (uintptr_t)txd - (uintptr_t)hc->mem_start;
 	}
 
 	SRC_PUT8(hc->sca_base, dmac->dsr, 0);	/* Disable DMA */
@@ -1980,9 +1980,9 @@ sr_eat_packet(struct sr_softc *sc, int single)
 		loopcnt++;
 
 		if (loopcnt > sc->rxmax) {
-			printf("sr%d: eat pkt %d loop, cda %x, "
-			       "rxdesc %x, stat %x.\n",
-			       sc->unit, loopcnt, (u_int) cda, (u_int) rxdesc,
+			printf("sr%d: eat pkt %d loop, cda %p, "
+			       "rxdesc %p, stat %x.\n",
+			       sc->unit, loopcnt, cda, rxdesc,
 			       rxdesc->stat);
 			break;
 		}
@@ -2006,12 +2006,12 @@ sr_eat_packet(struct sr_softc *sc, int single)
 	/*
 	 * Update the eda to the previous descriptor.
 	 */
-	rxdesc = (sca_descriptor *)sc->rxdesc;
+	rxdesc = (sca_descriptor *)(uintptr_t)sc->rxdesc;
 	rxdesc = &rxdesc[(sc->rxhind + sc->rxmax - 2) % sc->rxmax];
 
 	SRC_PUT16(hc->sca_base,
 		  hc->sca->dmac[DMAC_RXCH(sc->scachan)].eda,
-		  (u_short)((u_int)(rxdesc + hc->mem_pstart) & 0xffff));
+		  (u_short)(((uintptr_t)rxdesc + hc->mem_pstart) & 0xffff));
 }
 
 /*
@@ -2167,13 +2167,13 @@ sr_get_packets(struct sr_softc *sc)
 			i = (len + SR_BUF_SIZ - 1) / SR_BUF_SIZ;
 			sc->rxhind = (sc->rxhind + i) % sc->rxmax;
 
-			rxdesc = (sca_descriptor *)sc->rxdesc;
+			rxdesc = (sca_descriptor *)(uintptr_t)sc->rxdesc;
 			rxndx = (sc->rxhind + sc->rxmax - 2) % sc->rxmax;
 			rxdesc = &rxdesc[rxndx];
 
 			SRC_PUT16(hc->sca_base,
 				  hc->sca->dmac[DMAC_RXCH(sc->scachan)].eda,
-				  (u_short)((u_int)(rxdesc + hc->mem_pstart)
+				  (u_short)(((uintptr_t)rxdesc + hc->mem_pstart)
 					     & 0xffff));
 
 		} else {
