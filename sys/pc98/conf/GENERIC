@@ -86,9 +86,9 @@ device		wcd		#IDE CD-ROM
 #device		wst		#IDE Tape (e.g. Travan)
 
 # SCSI Controllers
-device		adv		# Advansys scsi adapters
+device		adv		# Advansys SCSI adapters
 device		ahc		# AHA2940 and onboard AIC7xxx devices
-device		amd		# AMD 53C974 (Teckram DC-390(T))
+device		amd		# AMD 53C974 (Tekram DC-390(T))
 device		isp		# Qlogic family
 #device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
@@ -192,7 +192,7 @@ device		awi		# BayStack 660 and others
 device		wi		# WaveLAN/IEEE 802.11 wireless NICs.
 #device		wl		# Older non 802.11 Wavelan wireless NIC.
 
-# Pseudo devices - the number indicates how many units to allocated.
+# Pseudo devices - the number indicates how many units to allocate.
 device		random		# Entropy device
 device		loop		# Network loopback
 device		ether		# Ethernet support
