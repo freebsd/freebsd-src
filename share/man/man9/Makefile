@@ -25,6 +25,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	bus_generic_detach.9 \
 	bus_generic_print_child.9 bus_generic_read_ivar.9 \
 	bus_generic_shutdown.9 bus_release_resource.9 \
+	bus_set_resource.9 \
 	byteorder.9 \
 	cd.9 cdevsw_add.9 cdevsw_remove.9 condvar.9 copy.9 \
 	critical_enter.9 crypto.9 \
