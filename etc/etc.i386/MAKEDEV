@@ -96,7 +96,7 @@
 #	isdn*	ISDN devices
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.95.4.8 1995/11/10 04:42:37 jkh Exp $
+#	$Id: MAKEDEV,v 1.95.4.9 1996/03/21 19:52:18 nate Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -420,6 +420,33 @@ sd*|vn*|wd*|od*)
 			chmod 600 r${name}${unit}.ctl
 			;;
 		esac
+		;;
+	*)
+		echo bad unit for disk in: $i
+		;;
+	esac
+	umask 77
+	;;
+
+ccd*)
+	umask 37
+	name=ccd
+	blk=21; chr=74
+	unit=`expr $i : '...\(.*\)'`
+	case $unit in
+	[0-9]|[1-2][0-9]|30|31)
+		rm -f r${name}${unit}.ctl
+		mknod r${name}${unit}.ctl c $chr `expr $unit '*' 8 + $scsictl `
+		chmod 600 r${name}${unit}.ctl
+		for part in 0 1 2 3 4 5 6 7
+		do
+			minor=`dkminor 0 $unit 0 $part` 
+			partname=`dkitop $part`
+			mknod  $name$unit$partname \
+			      b $blk $minor
+			mknod r$name$unit$partname \
+			      c $chr $minor
+		done
 		;;
 	*)
 		echo bad unit for disk in: $i

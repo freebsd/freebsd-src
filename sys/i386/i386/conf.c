@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.85.4.3 1995/10/13 03:41:37 davidg Exp $
+ *	$Id: conf.c,v 1.85.4.4 1995/10/14 13:52:32 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -223,6 +223,27 @@ d_psize_t	odsize;
 #define	odioctl		nxioctl
 #define	oddump		nxdump
 #define	odsize		zerosize
+#endif
+
+#include "ccd.h"
+#if NCCD > 0
+d_open_t        ccdopen;
+d_close_t       ccdclose;
+d_strategy_t    ccdstrategy;
+d_ioctl_t       ccdioctl;
+d_psize_t       ccdsize;
+d_read_t        ccdread;
+d_write_t       ccdwrite;
+#define	ccddump	nxdump
+#else
+#define	ccdopen		nxopen
+#define	ccdclose	nxclose
+#define	ccdstrategy	nxstrategy
+#define	ccdioctl	nxioctl
+#define	ccddump		nxdump
+#define	ccdsize		zerosize
+#define ccdread		nxread
+#define ccdwrite	nxwrite
 #endif
 
 #include "cd.h"
@@ -457,6 +478,8 @@ struct bdevsw	bdevsw[] =
 	  nxdump,       zerosize,       0 },
 	{ odopen,	odclose,	odstrategy,	odioctl,	/*20*/
 	  oddump,	odsize,		0 },
+	{ ccdopen,	ccdclose,	ccdstrategy,	ccdioctl,	/*21*/
+	  ccddump,	ccdsize,	0 },
 
 /*
  * If you need a bdev major number for a driver that you intend to donate
@@ -1354,7 +1377,10 @@ struct cdevsw	cdevsw[] =
 	  seltrue,	nommap,		odstrategy },
 	{ ascopen,      ascclose,       ascread,        nowrite,        /*71*/
 	  ascioctl,     nostop,         nullreset,      nodevtotty, /* asc */   
-	  ascselect,    nommap,         NULL }
+	  ascselect,    nommap,         NULL },
+	{ ccdopen,	ccdclose,	ccdread,	ccdwrite,	/*74*/
+	  ccdioctl,	nostop,		nullreset,	nodevtotty,/* ccd */
+	  seltrue,	nommap,		ccdstrategy }
 
 };
 int	nchrdev = sizeof (cdevsw) / sizeof (cdevsw[0]);

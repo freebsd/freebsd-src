@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.184.4.12 1996/02/23 15:25:55 phk Exp $
+#	$Id: LINT,v 1.184.4.13 1996/04/22 19:48:22 nate Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -376,6 +376,7 @@ controller	isa0
 # BOUNCE_BUFFERS provides support for ISA DMA on machines with more
 # than 16 megabytes of memory.  It doesn't hurt on other machines.
 # Some broken EISA and VLB hardware may need this, too.
+pseudo-device	ccd	4	#Concatenated disk driver
 #
 # DUMMY_NOPS disables extra delays for some bus operations.  The delays
 # are mostly for older systems and aren't used consistently.  Probably
