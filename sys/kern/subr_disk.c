@@ -94,13 +94,8 @@ bioq_flush(struct bio_queue_head *head, struct devstat *stp, int error)
 {
 	struct bio *bp;
 
-	for (;;) {
-		bp = bioq_first(head);
-		if (bp == NULL)
-			break;
-		bioq_remove(head, bp);
+	while ((bp = bioq_takefirst(head)) != NULL)
 		biofinish(bp, stp, error);
-	}
 }
 
 void
@@ -117,6 +112,16 @@ bioq_first(struct bio_queue_head *head)
 	return (TAILQ_FIRST(&head->queue));
 }
 
+struct bio *
+bioq_takefirst(struct bio_queue_head *head)
+{
+	struct bio *bp;
+
+	bp = TAILQ_FIRST(&head->queue);
+	if (bp != NULL)
+		bioq_remove(head, bp);
+	return (bp);
+}
 
 /*
  * Seek sort for disks.
