@@ -98,6 +98,10 @@ static u_int32_t acd_lun_map = 0;
 static MALLOC_DEFINE(M_ACD, "ACD driver", "ATAPI CD driver buffers");
 static struct g_class acd_class = {
 	.name = "ACD",
+	.version = G_VERSION,
+	.access = acd_geom_access,
+	.ioctl = acd_geom_ioctl,
+	.start = acd_geom_start,
 };
 DECLARE_GEOM_CLASS(acd_class, acd);
 
@@ -249,9 +253,6 @@ acd_geom_create(void *arg, int flag)
     cdp = arg;
     g_topology_assert();
     gp = g_new_geomf(&acd_class, "acd%d", cdp->lun);
-    gp->access = acd_geom_access;
-    gp->ioctl = acd_geom_ioctl;
-    gp->start = acd_geom_start;
     gp->softc = cdp;
     cdp->gp = gp;
     pp = g_new_providerf(gp, "acd%d", cdp->lun);

@@ -364,6 +364,7 @@ g_aes_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 static struct g_class g_aes_class	= {
 	.name = AES_CLASS_NAME,
+	.version = G_VERSION,
 	.taste = g_aes_taste,
 	.start = g_aes_start,
 	.orphan = g_aes_orphan,

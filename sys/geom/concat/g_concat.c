@@ -58,6 +58,7 @@ static g_dumpconf_t g_concat_dumpconf;
 
 struct g_class g_concat_class = {
 	.name = G_CONCAT_CLASS_NAME,
+	.version = G_VERSION,
 	.ctlreq = g_concat_config,
 	.taste = g_concat_taste,
 	.destroy_geom = g_concat_destroy_geom

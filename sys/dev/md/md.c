@@ -123,6 +123,7 @@ static struct cdevsw mdctl_cdevsw = {
 
 struct g_class g_md_class = {
 	.name = "MD",
+	.version = G_VERSION,
 	.init = g_md_init,
 	.fini = g_md_fini,
 	.start = g_md_start,
