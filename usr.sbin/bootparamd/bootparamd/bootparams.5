@@ -1,3 +1,4 @@
+.hlm 0
 .\"
 .\" Copyright (c) 1994 Gordon W. Ross
 .\" All rights reserved.
@@ -39,18 +40,19 @@
 The
 .Nm
 file specifies the boot parameters that
-diskless
+.Xr diskless 8
 clients may request when booting over the network.
 Each client supported by this server must have an entry in the
 .Nm
 file containing the pathnames for its
-.Nm root
+.Dq root
 and (optionally)
-.Nm swap
+.Dq swap
 areas.
 .Pp
 Each line in the file
-(other than comment lines that begin with a #)
+(other than comment lines that begin with a
+.Ql # )
 specifies the client name followed by the pathnames that
 the client may request by their logical names.
 The components of the line are delimited with blank or tab,
@@ -63,12 +65,18 @@ dummy	root=host:/export/dummy/root \\
 	dump=host:/export/dummy/swap
 .Ed
 .Pp
-When the client named "dummy" requests the pathname for
-its logical "root" it will be given the pathname
-.Dq Pa "host:/export/dummy/root"
+When the client named
+.Dq dummy
+requests the pathname for its logical
+.Dq root
+it will be given the pathname
+.Dq Pa host:/export/dummy/root
 as the response to its
 .Tn RPC
-request.  The "host:" component must be supplied.
+request.
+The
+.Dq host:
+component must be supplied.
 .Sh FILES
 .Bl -tag -width /etc/bootparams -compact
 .It Pa /etc/bootparams
