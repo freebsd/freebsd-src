@@ -37,7 +37,7 @@
 static char sccsid[] = "@(#)mkheaders.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mkoptions.c,v 1.6 1997/09/15 06:37:10 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -103,9 +103,15 @@ do_option(name)
 	value = NULL;
 	for (op = opt; op; op = op->op_next) {
 		if (eq(name, op->op_name)) {
+			oldvalue = value;
 			value = op->op_value;
-			if (!value)
+			if (value == NULL)
 				value = ns("1");
+			if (oldvalue != NULL && !eq(value, oldvalue))
+				printf(
+			    "%s:%d: option \"%s\" redefined from %s to %s\n",
+				   PREFIX, op->op_line, op->op_name, oldvalue,
+				   value);
 			op->op_ownfile++;
 		}
 	}
