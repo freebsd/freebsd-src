@@ -17,6 +17,9 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20040519:       p21	FreeBSD-SA-04:10.cvs
+	Correct a heap overflow in cvs's pserver protocol parser.
+
 20040505:	p20	FreeBSD-SA-04:09.kadmind
 	Correct a heap buffer overflow in k5admind's Kerberos IV support.
 
