@@ -266,7 +266,8 @@ static const struct pccard_product wi_pccard_products[] = {
 	{ NULL }
 };
 
-static int wi_pccard_match(dev)
+static int
+wi_pccard_match(dev)
 	device_t	dev;
 {
 	const struct pccard_product *pp;
@@ -279,7 +280,8 @@ static int wi_pccard_match(dev)
 	return ENXIO;
 }
 
-static int wi_pccard_probe(dev)
+static int
+wi_pccard_probe(dev)
 	device_t	dev;
 {
 	struct wi_softc	*sc;
@@ -322,7 +324,8 @@ wi_pci_probe(dev)
 }
 #endif
 
-static int wi_pccard_detach(dev)
+static int
+wi_pccard_detach(dev)
 	device_t		dev;
 {
 	struct wi_softc		*sc;
@@ -354,7 +357,8 @@ static int wi_pccard_detach(dev)
 	return(0);
 }
 
-static int wi_pccard_attach(device_t dev)
+static int
+wi_pccard_attach(device_t dev)
 {
 	struct wi_softc		*sc;
 	int			error;
@@ -670,7 +674,8 @@ wi_get_id(sc, dev)
 	return;
 }
 
-static void wi_rxeof(sc)
+static void
+wi_rxeof(sc)
 	struct wi_softc		*sc;
 {
 	struct ifnet		*ifp;
@@ -781,7 +786,8 @@ static void wi_rxeof(sc)
 	ether_input(ifp, eh, m);
 }
 
-static void wi_txeof(sc, status)
+static void
+wi_txeof(sc, status)
 	struct wi_softc		*sc;
 	int			status;
 {
@@ -800,7 +806,8 @@ static void wi_txeof(sc, status)
 	return;
 }
 
-void wi_inquire(xsc)
+void
+wi_inquire(xsc)
 	void			*xsc;
 {
 	struct wi_softc		*sc;
@@ -820,7 +827,8 @@ void wi_inquire(xsc)
 	return;
 }
 
-void wi_update_stats(sc)
+void
+wi_update_stats(sc)
 	struct wi_softc		*sc;
 {
 	struct wi_ltv_gen	gen;
@@ -859,7 +867,8 @@ void wi_update_stats(sc)
 	return;
 }
 
-static void wi_intr(xsc)
+static void
+wi_intr(xsc)
 	void		*xsc;
 {
 	struct wi_softc		*sc = xsc;
@@ -928,7 +937,8 @@ static void wi_intr(xsc)
 	return;
 }
 
-static int wi_cmd(sc, cmd, val)
+static int
+wi_cmd(sc, cmd, val)
 	struct wi_softc		*sc;
 	int			cmd;
 	int			val;
@@ -979,7 +989,8 @@ static int wi_cmd(sc, cmd, val)
 	return(0);
 }
 
-static void wi_reset(sc)
+static void
+wi_reset(sc)
 	struct wi_softc		*sc;
 {
 #define WI_INIT_TRIES 5
@@ -1005,7 +1016,8 @@ static void wi_reset(sc)
 /*
  * Read an LTV record from the NIC.
  */
-static int wi_read_record(sc, ltv)
+static int
+wi_read_record(sc, ltv)
 	struct wi_softc		*sc;
 	struct wi_ltv_gen	*ltv;
 {
@@ -1092,7 +1104,8 @@ static int wi_read_record(sc, ltv)
 /*
  * Same as read, except we inject data instead of reading it.
  */
-static int wi_write_record(sc, ltv)
+static int
+wi_write_record(sc, ltv)
 	struct wi_softc		*sc;
 	struct wi_ltv_gen	*ltv;
 {
@@ -1171,7 +1184,8 @@ static int wi_write_record(sc, ltv)
 	return(0);
 }
 
-static int wi_seek(sc, id, off, chan)
+static int
+wi_seek(sc, id, off, chan)
 	struct wi_softc		*sc;
 	int			id, off, chan;
 {
@@ -1211,7 +1225,8 @@ static int wi_seek(sc, id, off, chan)
 	return(0);
 }
 
-static int wi_read_data(sc, id, off, buf, len)
+static int
+wi_read_data(sc, id, off, buf, len)
 	struct wi_softc		*sc;
 	int			id, off;
 	caddr_t			buf;
@@ -1242,7 +1257,8 @@ static int wi_read_data(sc, id, off, buf, len)
  * attempt to read then back. If we fail to locate the guard words where
  * we expect them, we preform the transfer over again.
  */
-static int wi_write_data(sc, id, off, buf, len)
+static int
+wi_write_data(sc, id, off, buf, len)
 	struct wi_softc		*sc;
 	int			id, off;
 	caddr_t			buf;
@@ -1287,7 +1303,8 @@ again:
  * Allocate a region of memory inside the NIC and zero
  * it out.
  */
-static int wi_alloc_nicmem(sc, len, id)
+static int
+wi_alloc_nicmem(sc, len, id)
 	struct wi_softc		*sc;
 	int			len;
 	int			*id;
@@ -1324,7 +1341,8 @@ static int wi_alloc_nicmem(sc, len, id)
 	return(0);
 }
 
-static void wi_setmulti(sc)
+static void
+wi_setmulti(sc)
 	struct wi_softc		*sc;
 {
 	struct ifnet		*ifp;
@@ -1363,7 +1381,8 @@ static void wi_setmulti(sc)
 	return;
 }
 
-static void wi_setdef(sc, wreq)
+static void
+wi_setdef(sc, wreq)
 	struct wi_softc		*sc;
 	struct wi_req		*wreq;
 {
@@ -1440,7 +1459,8 @@ static void wi_setdef(sc, wreq)
 	return;
 }
 
-static int wi_ioctl(ifp, command, data)
+static int
+wi_ioctl(ifp, command, data)
 	struct ifnet		*ifp;
 	u_long			command;
 	caddr_t			data;
@@ -1763,7 +1783,8 @@ out:
 	return(error);
 }
 
-static void wi_init(xsc)
+static void
+wi_init(xsc)
 	void			*xsc;
 {
 	struct wi_softc		*sc = xsc;
@@ -1868,7 +1889,8 @@ static void wi_init(xsc)
 	return;
 }
 
-static void wi_start(ifp)
+static void
+wi_start(ifp)
 	struct ifnet		*ifp;
 {
 	struct wi_softc		*sc;
@@ -1964,7 +1986,8 @@ static void wi_start(ifp)
 	return;
 }
 
-static int wi_mgmt_xmit(sc, data, len)
+static int
+wi_mgmt_xmit(sc, data, len)
 	struct wi_softc		*sc;
 	caddr_t			data;
 	int			len;
@@ -2001,7 +2024,8 @@ static int wi_mgmt_xmit(sc, data, len)
 	return(0);
 }
 
-static void wi_stop(sc)
+static void
+wi_stop(sc)
 	struct wi_softc		*sc;
 {
 	struct ifnet		*ifp;
@@ -2033,7 +2057,8 @@ static void wi_stop(sc)
 	return;
 }
 
-static void wi_watchdog(ifp)
+static void
+wi_watchdog(ifp)
 	struct ifnet		*ifp;
 {
 	struct wi_softc		*sc;
@@ -2083,7 +2108,8 @@ wi_alloc(dev, io_rid)
 	return (0);
 }
 
-static void wi_free(dev)
+static void
+wi_free(dev)
 	device_t		dev;
 {
 	struct wi_softc		*sc = device_get_softc(dev);
@@ -2104,7 +2130,8 @@ static void wi_free(dev)
 	return;
 }
 
-static void wi_shutdown(dev)
+static void
+wi_shutdown(dev)
 	device_t		dev;
 {
 	struct wi_softc		*sc;
@@ -2200,8 +2227,8 @@ SYSCTL_INT(_machdep, OID_AUTO, wi_cache_iponly, CTLFLAG_RW,
  * can be converted to dBms by subtracting 149, so I've modified the code
  * to do that instead of the scaling it did originally.
  */
-static  
-void wi_cache_store (struct wi_softc *sc, struct ether_header *eh,
+static void
+wi_cache_store(struct wi_softc *sc, struct ether_header *eh,
                      struct mbuf *m, unsigned short rx_quality)
 {
 	struct ip *ip = 0; 
@@ -2322,7 +2349,8 @@ void wi_cache_store (struct wi_softc *sc, struct ether_header *eh,
 }
 #endif
 
-static int wi_get_cur_ssid(sc, ssid, len)
+static int
+wi_get_cur_ssid(sc, ssid, len)
 	struct wi_softc		*sc;
 	char			*ssid;
 	int			*len;
@@ -2374,7 +2402,8 @@ static int wi_get_cur_ssid(sc, ssid, len)
 	return error;
 }
 
-static int wi_media_change(ifp)
+static int
+wi_media_change(ifp)
 	struct ifnet		*ifp;
 {
 	struct wi_softc		*sc = ifp->if_softc;
@@ -2411,7 +2440,8 @@ static int wi_media_change(ifp)
 	return(0);
 }
 
-static void wi_media_status(ifp, imr)
+static void
+wi_media_status(ifp, imr)
 	struct ifnet		*ifp;
 	struct ifmediareq	*imr;
 {
