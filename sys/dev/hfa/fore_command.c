@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_command.c,v 1.3 1998/10/31 20:06:52 phk Exp $
+ *	@(#) $Id: fore_command.c,v 1.4 1998/12/04 22:54:45 archie Exp $
  *
  */
 
@@ -38,7 +38,7 @@
 #include <dev/hfa/fore_include.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: fore_command.c,v 1.3 1998/10/31 20:06:52 phk Exp $");
+__RCSID("@(#) $Id: fore_command.c,v 1.4 1998/12/04 22:54:45 archie Exp $");
 #endif
 
 /*
@@ -437,7 +437,7 @@ fore_cmd_free(fup)
 				sizeof(Q_status) * CMD_QUELEN,
 				ATM_DEV_NONCACHE);
 		}
-		atm_dev_free((void *)fup->fu_cmd_stat);
+		atm_dev_free((volatile void *)fup->fu_cmd_stat);
 		fup->fu_cmd_stat = NULL;
 		fup->fu_cmd_statd = NULL;
 	}

@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.c,v 1.7 1999/01/21 00:34:50 grog Exp $
+ * $Id: vinumio.c,v 1.8 1999/01/23 01:29:05 peter Exp $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */
@@ -507,7 +507,7 @@ check_drive(char *drivename)
 static char *
 sappend(char *txt, char *s)
 {
-    while (*s++ = *txt++);
+    while ((*s++ = *txt++) != 0);
     return s - 1;
 }
 
@@ -1017,8 +1017,8 @@ vinum_scandisk(char *drivename[], int drives)
 int 
 drivecmp(const void *va, const void *vb)
 {
-    struct drive *a = *(struct drive **) va;
-    struct drive *b = *(struct drive **) vb;
+    const struct drive *a = *(const struct drive * const *) va;
+    const struct drive *b = *(const struct drive * const *) vb;
 
     if ((a->label.last_update.tv_sec == b->label.last_update.tv_sec)
 	&& (a->label.last_update.tv_usec == b->label.last_update.tv_usec))

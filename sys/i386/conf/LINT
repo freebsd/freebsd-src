@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.545 1999/01/25 03:51:51 peter Exp $
+#	$Id: LINT,v 1.546 1999/01/25 19:34:26 nsouch Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -2011,7 +2011,7 @@ options DPT_SHUTDOWN_SLEEP=500
 
 # USB support
 # UHCI controller 
-controller    uhci0
+#controller    uhci0
 # OHCI controller
 controller    ohci0
 # General USB code (mandatory for USB)

@@ -1274,7 +1274,7 @@ caddr_t data;
 		do {
 			struct ifnet *shadow;
 		    
-			if (error = suser(curproc->p_ucred, &curproc->p_acflag))
+			if ((error = suser(curproc->p_ucred, &curproc->p_acflag)) != 0)
 				break;
 		    
 			if ((shadow = pvc_attach(ifp)) != NULL) {

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppb_msq.c,v 1.3 1998/09/20 14:41:54 nsouch Exp $
+ *	$Id: ppb_msq.c,v 1.4 1999/01/10 12:04:54 nsouch Exp $
  *
  */
 #include <machine/stdarg.h>
@@ -128,7 +128,7 @@ ppb_MS_exec(struct ppb_device *dev, int opcode, union ppb_insarg param1,
 		union ppb_insarg param2, union ppb_insarg param3, int *ret)
 {
 	struct ppb_microseq msq[] = {
-		  { MS_UNKNOWN, { MS_UNKNOWN, MS_UNKNOWN, MS_UNKNOWN } },
+		  { MS_UNKNOWN, { { MS_UNKNOWN }, { MS_UNKNOWN }, { MS_UNKNOWN } } },
 		  MS_RET(0)
 	};
 
