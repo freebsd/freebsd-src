@@ -1,4 +1,4 @@
-<!-- $Id: eresources.sgml,v 1.4 1995/06/20 16:42:48 jfieber Exp $ -->
+<!-- $Id: eresources.sgml,v 1.5 1995/06/30 17:37:36 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt>
@@ -26,7 +26,7 @@
 
 Though many of the FreeBSD development members read USENET, we cannot
 always guarantee that we'll get to your questions in a timely fashion
-(or at all) if you post them only to one of the comp.os.386bsd.*
+(or at all) if you post them only to one of the comp.unix.bsd.*
 groups.  By addressing your questions to the appropriate mailing list
 you will reach both us and a concentrated FreeBSD audience, invariably
 assuring a better (or at least faster) response.
@@ -85,6 +85,7 @@ freebsd-admin            Administrative issues
 freebsd-arch             Architecture and design discussions
 freebsd-core             FreeBSD core team
 freebsd-install          Installation development
+freebsd-users-groups     Users group coordination
 </verb>
 
 <bf>CVS lists:</bf> The following lists are for people seeing the log messages
@@ -253,6 +254,15 @@ for FreeBSD.
 <tag/FREEBSD-SECURITY/ <em>Security issues</em><newline> 
 FreeBSD computer security issues (DES, Kerberos, known security holes and
 fixes, etc).
+
+<tag/FREEBSD-USERS-GROUPS/ <em>User Group Coordination List</em><newline>
+This is the mailing list for the coordinators from each of the 
+local area Users Groups to dicuss matters with each other and a 
+designated individual from the Core Team.  This mail list should
+be limited to meeting synopsis and coordination of projects that span
+User Groups.
+
+
 </descrip>
 
       <sect>
