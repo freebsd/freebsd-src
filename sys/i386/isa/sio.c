@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.33 1994/03/10 10:06:27 ache Exp $
+ *	$Id: sio.c,v 1.34 1994/03/14 18:52:14 ache Exp $
  */
 
 #include "sio.h"
@@ -774,11 +774,6 @@ sioclose(dev, flag, mode, p)
 	(*linesw[tp->t_line].l_close)(tp, flag);
 	ttyclose(tp);
 	comhardclose(com);
-	ttyfree(tp);
-#ifdef broken /* session holds a ref to the tty; can't deallocate */
-	sio_tty[UNIT(dev)] = (struct tty *)NULL;
-	com->tp = (struct tty *)NULL;
-#endif
 	return (0);
 }
 
