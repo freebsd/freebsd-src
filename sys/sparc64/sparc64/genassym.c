@@ -46,7 +46,6 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
-#include <vm/vm_zone.h>
 
 #include <machine/asi.h>
 #include <machine/vmparam.h>

@@ -65,7 +65,6 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
-#include <vm/vm_zone.h>
 
 #include <machine/clock.h>
 #include <machine/frame.h>
