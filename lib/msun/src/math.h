@@ -34,15 +34,35 @@ extern const union __nan_un {
 	float		__uf;
 } __nan;
 
+#if (defined(__GNUC__) && __GNUC__ >= 3) || defined(__INTEL_COMPILER)
+#define	__MATH_BUILTIN_CONSTANTS
+#endif
+
+#if (defined(__GNUC__) && __GNUC__ >= 3)
+#define	__MATH_BUILTIN_RELOPS
+#endif
+
+#ifdef __MATH_BUILTIN_CONSTANTS
+#define	HUGE_VAL	__builtin_huge_val()
+#else
 #define	HUGE_VAL	(__infinity.__ud)
+#endif
 
 #if __ISO_C_VISIBLE >= 1999
 #define	FP_ILOGB0	(-__INT_MAX)
 #define	FP_ILOGBNAN	__INT_MAX
+
+#ifdef __MATH_BUILTIN_CONSTANTS
+#define	HUGE_VALF	__builtin_huge_valf()
+#define	HUGE_VALL	__builtin_huge_vall()
+#define	INFINITY	__builtin_inf()
+#define	NAN		__builtin_nan("")
+#else
 #define	HUGE_VALF	(float)HUGE_VAL
 #define	HUGE_VALL	(long double)HUGE_VAL
 #define	INFINITY	HUGE_VALF
 #define	NAN		(__nan.__uf)
+#endif /* __MATH_BUILTIN_CONSTANTS */
 
 #define	MATH_ERRNO	1
 #define	MATH_ERREXCEPT	2
@@ -64,6 +84,14 @@ extern const union __nan_un {
 #define	isnan(x)	(fpclassify(x) == FP_NAN)
 #define	isnormal(x)	(fpclassify(x) == FP_NORMAL)
 
+#ifdef __MATH_BUILTIN_RELOPS
+#define	isgreater(x, y)		__builtin_isgreater((x), (y))
+#define	isgreaterequal(x, y)	__builtin_isgreaterequal((x), (y))
+#define	isless(x, y)		__builtin_isless((x), (y))
+#define	islessequal(x, y)	__builtin_islessequal((x), (y))
+#define	islessgreater(x, y)	__builtin_islessgreater((x), (y))
+#define	isunordered(x, y)	__builtin_isunordered((x), (y))
+#else
 #define	isgreater(x, y)		(!isunordered((x), (y)) && (x) > (y))
 #define	isgreaterequal(x, y)	(!isunordered((x), (y)) && (x) >= (y))
 #define	isless(x, y)		(!isunordered((x), (y)) && (x) < (y))
@@ -71,6 +99,7 @@ extern const union __nan_un {
 #define	islessgreater(x, y)	(!isunordered((x), (y)) && \
 					((x) > (y) || (y) > (x)))
 #define	isunordered(x, y)	(isnan(x) || isnan(y))
+#endif /* __MATH_BUILTIN_RELOPS */
 
 #define	signbit(x)	__signbit(x)
 
