@@ -18,7 +18,7 @@ RM=	rm -f
 ALL=	freebsd.cf
 
 # Local sendmail.cf, may be set in /etc/make.conf.  Warning! If set, this
-# causes 'make install' to always copy it over /etc/sendmail.cf!!!
+# causes 'make install' to always copy it over /etc/mail/sendmail.cf!!!
 # Caveat emptor!  Be sure you want this before you enable it.
 .if defined(SENDMAIL_CF)
 ALL+=	${SENDMAIL_CF}
@@ -33,13 +33,13 @@ depend:
 install:
 .if defined(SENDMAIL_CF)
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 ${SENDMAIL_CF} \
-		${DESTDIR}/etc/sendmail.cf
+		${DESTDIR}/etc/mail/sendmail.cf
 .endif
 
 # Helper for src/etc/Makefile
 etc-sendmail.cf: freebsd.cf
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 644 freebsd.cf \
-		${DESTDIR}/etc/sendmail.cf
+		${DESTDIR}/etc/mail/sendmail.cf
 
 # this is overkill, but....
 M4FILES!= find ${CFDIR} -type f -name '*.m4' -print
