@@ -1,4 +1,4 @@
-/*	$NetBSD: uhub.c,v 1.14 1999/01/08 11:58:25 augustss Exp $	*/
+/*	$NetBSD: uhub.c,v 1.16 1999/01/10 19:13:15 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -38,6 +38,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+/*
+ * USB spec: http://www.usb.org/cgi-usb/mailmerge.cgi/home/usb/docs/developers/cgiform.tpl
+ */
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -57,8 +61,8 @@
 #include <dev/usb/usbdivar.h>
 
 #ifdef USB_DEBUG
-#define DPRINTF(x)	if (usbdebug) printf x
-#define DPRINTFN(n,x)	if (usbdebug>(n)) printf x
+#define DPRINTF(x)	if (usbdebug) logprintf x
+#define DPRINTFN(n,x)	if (usbdebug>(n)) logprintf x
 extern int	usbdebug;
 extern char 	*usbd_error_strs[];
 #else
@@ -340,8 +344,7 @@ uhub_explore(dev)
 		up = &dev->hub->ports[port-1];
 		r = usbd_get_port_status(dev, port, &up->status);
 		if (r != USBD_NORMAL_COMPLETION) {
-			DPRINTF(("uhub_explore: get port status failed, on port %d "
-				 "error=%d(%s)\n",
+			DPRINTF(("uhub_explore: get port %d status failed error=%d(%s)\n",
 				 port, r, usbd_error_strs[r]));
 			continue;
 		}
@@ -480,7 +483,6 @@ uhub_disconnect_port(up)
 	}
 
 	/* Remove the device */
-#if defined(__NetBSD__)
 	for (i = 0; i < dev->cdesc->bNumInterface; i++) {
 		for (p = LIST_FIRST(&dev->ifaces[i].pipes); p; p = n) {
 			n = LIST_NEXT(p, next);
@@ -502,7 +504,7 @@ uhub_disconnect_port(up)
 				uhub_disconnect_port(rup);
 		}
 	}
-#elif defined(__FreeBSD__)
+#if defined(__FreeBSD__)
 	device_delete_child(scp->sc_dev, sc->sc_dev);
 #endif
 
