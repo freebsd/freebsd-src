@@ -293,8 +293,8 @@ hash_insert(priv_p priv, int slot, struct flow_rec *r, int plen)
 }
 
 static __inline int
-make_flow_rec(struct mbuf **m, int *plen, struct flow_rec *r, uint8_t *tcp_flags,
-	u_int16_t i_ifx)
+make_flow_rec(struct mbuf **m, int *plen, struct flow_rec *r,
+	uint8_t *tcp_flags, u_int16_t i_ifx)
 {
 	register struct ip *ip;
 	int hlen;
@@ -469,7 +469,8 @@ ng_netflow_flow_add(priv_p priv, struct mbuf **m, iface_p iface)
 
 	/* Try to fill *rec */
 	bzero(&r, sizeof(r));
-	if ((error = make_flow_rec(m, &plen, &r, &tcp_flags, iface->info.ifinfo_index)))
+	if ((error = make_flow_rec(m, &plen, &r, &tcp_flags,
+	    iface->info.ifinfo_index)))
 		return (error);
 
 	slot = ip_hash(&r);
@@ -554,7 +555,8 @@ ng_netflow_flow_show(priv_p priv, uint32_t last, struct ng_mesg *resp)
 	for (; last < CACHESIZE; fle++, last++) {
 		if (ISFREE(fle))
 			continue;
-		bcopy(&fle->f, &(data->entries[data->nentries]), sizeof(fle->f));
+		bcopy(&fle->f, &(data->entries[data->nentries]),
+		    sizeof(fle->f));
 		data->nentries ++;
 		if (data->nentries == NREC_AT_ONCE) {
 			if (++last < CACHESIZE)
@@ -687,13 +689,14 @@ ng_netflow_expire(void *arg)
 	mtx_lock(&priv->work_mtx);
 	TAILQ_FOREACH_SAFE(fle, &(priv->work_queue), fle_work, fle1) {
 		/*
-		 * When cache size has not reached CACHELOWAT yet, we keep both
-		 * inactive and active flows in cache. Doing this, we reduce number
-		 * of exports, since many inactive flows may wake up and continue
-		 * their life. However, we make an exclusion for scans. It is very
-		 * rare situation that inactive 1-packet flow will wake up.
-		 * When cache has reached CACHELOWAT, we expire all inactive flows,
-		 * until cache gets of sane size.
+		 * When cache size has not reached CACHELOWAT yet, we keep
+		 * both inactive and active flows in cache. Doing this, we
+		 * reduce number of exports, since many inactive flows may
+		 * wake up and continue their life. However, we make an
+		 * exclusion for scans. It is very rare situation that
+		 * inactive 1-packet flow will wake up.
+		 * When cache has reached CACHELOWAT, we expire all inactive
+		 * flows, until cache gets to a sane size.
 		 */
 		if (used <= CACHELOWAT && !INACTIVE(fle))
 			goto finish;
@@ -707,10 +710,10 @@ ng_netflow_expire(void *arg)
 			/*
 			 * While we are sending to collector, unlock cache.
 			 * XXX: it can happen, however with a small probability,
-			 * that item, we are holding now, can be moved to the top
-			 * of flow cache by node thread. In this case our expire
-			 * thread stops checking. Since this is not fatal we will
-			 * just ignore it now.
+			 * that item, we are holding now, can be moved to the
+			 * top of flow cache by node thread. In this case our
+			 * expire thread stops checking. Since this is not
+			 * fatal we will just ignore it now.
 			 */
 			mtx_unlock(&priv->work_mtx);
 
