@@ -64,8 +64,10 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
+#include <vm/vm_zone.h>
 
 #include <machine/clock.h>
+#include <machine/emul.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/pcb.h>
@@ -78,10 +80,9 @@
 #include <machine/watch.h>
 
 void trap(struct trapframe *tf);
-int trap_mmu_fault(struct thread *td, struct trapframe *tf);
 void syscall(struct trapframe *tf);
 
-u_long trap_mask = 0xffffffffffffffffL & ~(1 << T_INTR);
+static int trap_pfault(struct thread *td, struct trapframe *tf);
 
 extern char fsbail[];
 
@@ -89,13 +90,10 @@ extern char *syscallnames[];
 
 const char *trap_msg[] = {
 	"reserved",
-	"power on reset",
-	"watchdog reset",
-	"externally initiated reset",
-	"software initiated reset",
-	"red state exception",
 	"instruction access exception",
 	"instruction access error",
+	"instruction access protection",
+	"illtrap instruction",
 	"illegal instruction",
 	"privileged opcode",
 	"floating point disabled",
@@ -105,29 +103,44 @@ const char *trap_msg[] = {
 	"division by zero",
 	"data access exception",
 	"data access error",
+	"data access protection",
 	"memory address not aligned",
-	"lddf memory address not aligned",
-	"stdf memory address not aligned",
 	"privileged action",
-	"interrupt vector",
+	"async data error",
+	"trap instruction 16",
+	"trap instruction 17",
+	"trap instruction 18",
+	"trap instruction 19",
+	"trap instruction 20",
+	"trap instruction 21",
+	"trap instruction 22",
+	"trap instruction 23",
+	"trap instruction 24",
+	"trap instruction 25",
+	"trap instruction 26",
+	"trap instruction 27",
+	"trap instruction 28",
+	"trap instruction 29",
+	"trap instruction 30",
+	"trap instruction 31",
+	"interrupt",
 	"physical address watchpoint",
 	"virtual address watchpoint",
 	"corrected ecc error",
 	"fast instruction access mmu miss",
 	"fast data access mmu miss",
-	"fast data access protection",
 	"spill",
 	"fill",
 	"fill",
 	"breakpoint",
+	"clean window",
+	"range check",
+	"fix alignment",
+	"integer overflow",
 	"syscall",
 	"restore physical watchpoint",
 	"restore virtual watchpoint",
-	"trap instruction",
 };
-
-int unaligned_fixup(struct thread *td, struct trapframe *tf);
-int emulate_insn(struct thread *td, struct trapframe *tf);
 
 void
 trap(struct trapframe *tf)
@@ -154,10 +167,10 @@ trap(struct trapframe *tf)
 	type = tf->tf_type;
 	ucode = type;	/* XXX */
 
-	CTR5(KTR_TRAP, "trap: %s type=%s (%s) ws=%#lx ow=%#lx",
+	CTR4(KTR_TRAP, "trap: %s type=%s (%s) pil=%#lx",
 	    p->p_comm, trap_msg[type & ~T_KERNEL],
 	    ((type & T_KERNEL) ? "kernel" : "user"),
-	    rdpr(wstate), rdpr(otherwin));
+	    rdpr(pil));
 
 	if ((type & T_KERNEL) == 0) {
 		sticks = td->td_kse->ke_sticks;
@@ -168,6 +181,7 @@ trap(struct trapframe *tf)
 		PROC_UNLOCK(p);
  	} else {
  		sticks = 0;
+if ((type & ~T_KERNEL) != T_BREAKPOINT)
 		KASSERT(cold || td->td_ucred != NULL,
 		    ("kernel trap doesn't have ucred"));
 	}
@@ -177,45 +191,48 @@ trap(struct trapframe *tf)
 	/*
 	 * User Mode Traps
 	 */
-	case T_ALIGN:
+	case T_MEM_ADDRESS_NOT_ALIGNED:
 		if ((sig = unaligned_fixup(td, tf)) == 0) {
 			TF_DONE(tf);
 			goto user;
 		}
 		goto trapsig;
+#if 0
 	case T_ALIGN_LDDF:
 	case T_ALIGN_STDF:
 		sig = SIGBUS;
 		goto trapsig;
+#endif
 	case T_BREAKPOINT:
 		sig = SIGTRAP;
 		goto trapsig;
-	case T_DIVIDE:
+	case T_DIVISION_BY_ZERO:
 		sig = SIGFPE;
 		goto trapsig;
 	case T_FP_DISABLED:
 		if (fp_enable_thread(td, tf))
 			goto user;
 		/* Fallthrough. */
-	case T_FP_IEEE:
-		sig = SIGFPE;
-		goto trapsig;
-	case T_FP_OTHER:
-		if ((sig = fp_exception_other(td, tf)) == 0) {
+	case T_FP_EXCEPTION_IEEE_754:
+	case T_FP_EXCEPTION_OTHER:
+		mtx_lock(&Giant);
+		if ((sig = fp_exception(td, tf, &ucode)) == 0) {
+			mtx_unlock(&Giant);
 			TF_DONE(tf);
 			goto user;
 		}
+		mtx_unlock(&Giant);
 		goto trapsig;
 	case T_DATA_ERROR:
-	case T_DATA_EXCPTN:
-	case T_INSN_ERROR:
-	case T_INSN_EXCPTN:
+	case T_DATA_EXCEPTION:
+	case T_INSTRUCTION_ERROR:
+	case T_INSTRUCTION_EXCEPTION:
 		sig = SIGILL;	/* XXX */
 		goto trapsig;
-	case T_DMMU_MISS:
-	case T_DMMU_PROT:
-	case T_IMMU_MISS:
-		error = trap_mmu_fault(td, tf);
+	case T_DATA_MISS:
+	case T_DATA_PROTECTION:
+	case T_INSTRUCTION_MISS:
+		error = trap_pfault(td, tf);
 		if (error == 0)
 			goto user;
 		sig = error;
@@ -226,25 +243,40 @@ trap(struct trapframe *tf)
 			sigexit(td, SIGILL);
 			/* Not reached. */
 		}
-		goto userout;
+		goto user;
 	case T_FILL_RET:
 		if (rwindow_load(td, tf, 1)) {
 			PROC_LOCK(p);
 			sigexit(td, SIGILL);
 			/* Not reached. */
 		}
-		goto userout;
-	case T_INSN_ILLEGAL:
-		if ((sig = emulate_insn(td, tf)) == 0) {
+		goto user;
+	case T_ILLEGAL_INSTRUCTION:
+		if ((sig = emul_insn(td, tf)) == 0) {
 			TF_DONE(tf);
 			goto user;
 		}
 		goto trapsig;
-	case T_PRIV_ACTION:
-	case T_PRIV_OPCODE:
+	case T_PRIVILEGED_ACTION:
+	case T_PRIVILEGED_OPCODE:
 		sig = SIGBUS;
 		goto trapsig;
-	case T_SOFT:
+	case T_TRAP_INSTRUCTION_16:
+	case T_TRAP_INSTRUCTION_17:
+	case T_TRAP_INSTRUCTION_18:
+	case T_TRAP_INSTRUCTION_19:
+	case T_TRAP_INSTRUCTION_20:
+	case T_TRAP_INSTRUCTION_21:
+	case T_TRAP_INSTRUCTION_22:
+	case T_TRAP_INSTRUCTION_23:
+	case T_TRAP_INSTRUCTION_24:
+	case T_TRAP_INSTRUCTION_25:
+	case T_TRAP_INSTRUCTION_26:
+	case T_TRAP_INSTRUCTION_27:
+	case T_TRAP_INSTRUCTION_28:
+	case T_TRAP_INSTRUCTION_29:
+	case T_TRAP_INSTRUCTION_30:
+	case T_TRAP_INSTRUCTION_31:
 		sig = SIGILL;
 		goto trapsig;
 	case T_SPILL:
@@ -253,8 +285,8 @@ trap(struct trapframe *tf)
 			sigexit(td, SIGILL);
 			/* Not reached. */
 		}
-		goto userout;
-	case T_TAG_OVFLW:
+		goto user;
+	case T_TAG_OFERFLOW:
 		sig = SIGEMT;
 		goto trapsig;
 
@@ -267,14 +299,14 @@ trap(struct trapframe *tf)
 			goto out;
 		break;
 #endif
-	case T_DMMU_MISS | T_KERNEL:
-	case T_DMMU_PROT | T_KERNEL:
-	case T_IMMU_MISS | T_KERNEL:
-		error = trap_mmu_fault(td, tf);
+	case T_DATA_MISS | T_KERNEL:
+	case T_DATA_PROTECTION | T_KERNEL:
+	case T_INSTRUCTION_MISS | T_KERNEL:
+		error = trap_pfault(td, tf);
 		if (error == 0)
 			goto out;
 		break;
-	case T_WATCH_PHYS | T_KERNEL:
+	case T_PA_WATCHPOINT | T_KERNEL:
 		TR3("trap: watch phys pa=%#lx tpc=%#lx, tnpc=%#lx",
 		    watch_phys_get(&mask), tf->tf_tpc, tf->tf_tnpc);
 		PCPU_SET(wp_pstate, (tf->tf_tstate & TSTATE_PSTATE_MASK) >>
@@ -288,7 +320,7 @@ trap(struct trapframe *tf)
 		PCPU_SET(wp_mask, mask);
 		watch_phys_clear();
 		goto out;
-	case T_WATCH_VIRT | T_KERNEL:
+	case T_VA_WATCHPOINT | T_KERNEL:
 		/*
 		 * At the moment, just print the information from the trap,
 		 * remove the watchpoint, use evil magic to execute the
@@ -307,7 +339,7 @@ trap(struct trapframe *tf)
 		tf->tf_tstate &= ~TSTATE_IE;
 		wrpr(pstate, rdpr(pstate), PSTATE_IE);
 		PCPU_SET(wp_insn, *((u_int *)tf->tf_tnpc));
-		*((u_int *)tf->tf_tnpc) = 0x91d03002;	/* ta %xcc, 2 */
+		*((u_int *)tf->tf_tnpc) = 0x91d03003;	/* ta %xcc, 2 */
 		flush(tf->tf_tnpc);
 		PCPU_SET(wp_va, watch_virt_get(&mask));
 		PCPU_SET(wp_mask, mask);
@@ -346,7 +378,6 @@ trapsig:
 	trapsignal(p, sig, ucode);
 user:
 	userret(td, tf, sticks);
-userout:
 	mtx_assert(&Giant, MA_NOTOWNED);
 	mtx_lock(&Giant);
 	crfree(td->td_ucred);
@@ -357,133 +388,114 @@ out:
 	return;
 }
 
-int
-trap_mmu_fault(struct thread *td, struct trapframe *tf)
+static int
+trap_pfault(struct thread *td, struct trapframe *tf)
 {
-	struct mmuframe *mf;
 	struct vmspace *vm;
-	struct stte *stp;
 	struct pcb *pcb;
-	struct tte tte;
 	struct proc *p;
 	vm_offset_t va;
 	vm_prot_t prot;
 	u_long ctx;
-	pmap_t pm;
 	int flags;
 	int type;
 	int rv;
 
 	p = td->td_proc;
-	KASSERT(td->td_pcb != NULL, ("trap_dmmu_miss: pcb NULL"));
-	KASSERT(p->p_vmspace != NULL, ("trap_dmmu_miss: vmspace NULL"));
+	KASSERT(td->td_pcb != NULL, ("trap_pfault: pcb NULL"));
+	KASSERT(p->p_vmspace != NULL, ("trap_pfault: vmspace NULL"));
 
 	rv = KERN_SUCCESS;
-	mf = (struct mmuframe *)tf->tf_arg;
-	ctx = TLB_TAR_CTX(mf->mf_tar);
+	ctx = TLB_TAR_CTX(tf->tf_tar);
 	pcb = td->td_pcb;
 	type = tf->tf_type & ~T_KERNEL;
-	va = TLB_TAR_VA(mf->mf_tar);
-	stp = NULL;
+	va = TLB_TAR_VA(tf->tf_tar);
 
-	CTR4(KTR_TRAP, "trap_mmu_fault: td=%p pm_ctx=%#lx va=%#lx ctx=%#lx",
+	CTR4(KTR_TRAP, "trap_pfault: td=%p pm_ctx=%#lx va=%#lx ctx=%#lx",
 	    td, p->p_vmspace->vm_pmap.pm_context, va, ctx);
 
-	if (type == T_DMMU_PROT) {
+	if (type == T_DATA_PROTECTION) {
 		prot = VM_PROT_WRITE;
 		flags = VM_FAULT_DIRTY;
 	} else {
-		if (type == T_DMMU_MISS)
+		if (type == T_DATA_MISS)
 			prot = VM_PROT_READ;
 		else
 			prot = VM_PROT_READ | VM_PROT_EXECUTE;
 		flags = VM_FAULT_NORMAL;
 	}
 
-	if (ctx == TLB_CTX_KERNEL) {
-		mtx_lock(&Giant);
-		rv = vm_fault(kernel_map, va, prot, VM_FAULT_NORMAL);
-		mtx_unlock(&Giant);
-		if (rv == KERN_SUCCESS) {
-			stp = tsb_kvtostte(va);
-			tte = stp->st_tte;
-			if (type == T_IMMU_MISS)
-				tlb_store(TLB_DTLB | TLB_ITLB, va, ctx, tte);
-			else
-				tlb_store(TLB_DTLB, va, ctx, tte);
-		}
-	} else if (tf->tf_type & T_KERNEL &&
-	    (td->td_intr_nesting_level != 0 || pcb->pcb_onfault == NULL ||
-	    pcb->pcb_onfault == fsbail)) {
-		rv = KERN_FAILURE;
-	} else {
-		mtx_lock(&Giant);
+	if (ctx != TLB_CTX_KERNEL) {
+		if ((tf->tf_tstate & TSTATE_PRIV) != 0 &&
+		    (td->td_intr_nesting_level != 0 ||
+		    pcb->pcb_onfault == NULL || pcb->pcb_onfault == fsbail))
+			return (-1);
+
+		/*
+		 * This is a fault on non-kernel virtual memory.
+		 */
 		vm = p->p_vmspace;
-		pm = &vm->vm_pmap;
-		stp = tsb_stte_lookup(pm, va);
-		if (stp == NULL || type == T_DMMU_PROT) {
-			/*
-			 * Keep the process from being swapped out at this
-			 * critical time.
-			 */
-			PROC_LOCK(p);
-			++p->p_lock;
-			PROC_UNLOCK(p);
-		
-			/*
-			 * Grow the stack if necessary.  vm_map_growstack only
-			 * fails if the va falls into a growable stack region
-			 * and the stack growth fails.  If it succeeds, or the
-			 * va was not within a growable stack region, fault in
-			 * the user page.
-			 */
-			if (vm_map_growstack(p, va) != KERN_SUCCESS)
-				rv = KERN_FAILURE;
-			else
-				rv = vm_fault(&vm->vm_map, va, prot, flags);
-		
-			/*
-			 * Now the process can be swapped again.
-			 */
-			PROC_LOCK(p);
-			--p->p_lock;
-			PROC_UNLOCK(p);
-		} else {
-			stp = tsb_stte_promote(pm, va, stp);
-			stp->st_tte.tte_data |= TD_REF;
-			switch (type) {
-			case T_IMMU_MISS:
-				if ((stp->st_tte.tte_data & TD_EXEC) == 0) {
-					rv = KERN_FAILURE;
-					break;
-				}
-				tlb_store(TLB_DTLB | TLB_ITLB, va, ctx,
-				    stp->st_tte);
-				break;
-			case T_DMMU_PROT:
-				if ((stp->st_tte.tte_data & TD_SW) == 0) {
-					rv = KERN_FAILURE;
-					break;
-				}
-				/* Fallthrough. */
-			case T_DMMU_MISS:
-				tlb_store(TLB_DTLB, va, ctx, stp->st_tte);
-				break;
-			}
-		}
-		mtx_unlock(&Giant);
+
+		mtx_lock(&Giant);
+
+		/*
+		 * Keep swapout from messing with us during this
+		 * critical time.
+		 */
+		PROC_LOCK(p);
+		++p->p_lock;
+		PROC_UNLOCK(p);
+
+		/*
+		 * Grow the stack if necessary.  vm_map_growstack only
+		 * fails if the va falls into a growable stack region
+		 * and the stack growth fails.  If it succeeds, or the
+		 * va was not within a growable stack region, fault in
+		 * the user page.
+		 */
+		if (vm_map_growstack(p, va) != KERN_SUCCESS)
+			rv = KERN_FAILURE;
+		else
+			rv = vm_fault(&vm->vm_map, va, prot, flags);
+
+		/*
+		 * Now the process can be swapped again.
+		 */
+		PROC_LOCK(p);
+		--p->p_lock;
+		PROC_UNLOCK(p);
+	} else {
+		/*
+		 * This is a fault on kernel virtual memory.  Attempts to access
+		 * kernel memory from user mode cause priviledged action traps,
+		 * not page fault.
+		 */
+		KASSERT(tf->tf_tstate & TSTATE_PRIV,
+		    ("trap_pfault: fault on nucleus context from user mode"));
+
+		mtx_lock(&Giant);
+
+		/*
+		 * Don't have to worry about process locking or stacks in the
+		 * kernel.
+		 */
+		rv = vm_fault(kernel_map, va, prot, VM_FAULT_NORMAL);
 	}
-	CTR3(KTR_TRAP, "trap_mmu_fault: return p=%p va=%#lx rv=%d", p, va, rv);
+	mtx_unlock(&Giant);
+
+	CTR3(KTR_TRAP, "trap_pfault: return td=%p va=%#lx rv=%d",
+	    td, va, rv);
 	if (rv == KERN_SUCCESS)
 		return (0);
-	if (tf->tf_type & T_KERNEL) {
-		if (pcb->pcb_onfault != NULL && ctx != TLB_CTX_KERNEL) {
+	if ((tf->tf_tstate & TSTATE_PRIV) != 0) {
+		if (td->td_intr_nesting_level == 0 &&
+		    pcb->pcb_onfault != NULL) {
 			tf->tf_tpc = (u_long)pcb->pcb_onfault;
 			tf->tf_tnpc = tf->tf_tpc + 4;
 			return (0);
 		}
 	}
-	return (rv == KERN_PROTECTION_FAILURE ? SIGBUS : SIGSEGV);
+	return ((rv == KERN_PROTECTION_FAILURE) ? SIGBUS : SIGSEGV);
 }
 
 /* Maximum number of arguments that can be passed via the out registers. */
@@ -570,7 +582,7 @@ syscall(struct trapframe *tf)
 		bcopy(&tf->tf_out[reg], args, sizeof(args[0]) * regcnt);
 		error = copyin((void *)(tf->tf_out[6] + SPOFF +
 		    offsetof(struct frame, f_pad[6])),
-		    &args[reg + regcnt], (narg - regcnt) * sizeof(args[0]));
+		    &args[regcnt], (narg - regcnt) * sizeof(args[0]));
 		if (error != 0)
 			goto bad;
 	}
