@@ -1,4 +1,4 @@
-<!-- $Id: memoryuse.sgml,v 1.3 1995/09/25 04:53:33 jfieber Exp $ -->
+<!-- $Id: memoryuse.sgml,v 1.4 1995/10/22 00:42:13 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>PC memory utilization<label id="memoryuse"></heading>
@@ -6,10 +6,8 @@
 <p><em>Contributed by &a.joerg;.<newline>
   16 Apr 1995.</em>
 
-<bf>Question:</bf> <em>By the way, I have seen no description 
-of how FreeBSD uses PC memory, ie
-what 0-640K gets used for, does the kernel load there or higher,
-is the kernel relocated, etc.  Is there a paper on this?</em>
+<em>A short description of how FreeBSD uses the memory on the i386 
+platform</em>
 
 The boot sector will be loaded at <tt>0:0x7c00</tt>, and relocates itself
 immediately to <tt>0x7c0:0</tt>.  (This is nothing magic, just an adjustment
