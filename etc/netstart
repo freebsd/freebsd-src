@@ -23,7 +23,7 @@ ifconfig ne0 inet $hostname netmask my-netmask
 ifconfig en0 inet $hostname netmask my-netmask
 
 # set the address for the loopback interface
-ifconfig lo0 inet localhost
+ifconfig lo0 inet 127.0.0.1
 
 # use loopback, not the wire
 route add $hostname localhost
