@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.163 1995/12/24 08:10:41 davidg Exp $
+ *	$Id: machdep.c,v 1.164 1995/12/25 01:02:32 davidg Exp $
  */
 
 #include "npx.h"
@@ -116,6 +116,10 @@ extern int ptrace_set_pc __P((struct proc *p, unsigned int addr));
 extern int ptrace_single_step __P((struct proc *p));
 extern int ptrace_write_u __P((struct proc *p, vm_offset_t off, int data));
 extern void dblfault_handler __P((void));
+
+extern void i486_bzero	__P((void *, size_t));
+extern void i586_bzero	__P((void *, size_t));
+extern void i686_bzero	__P((void *, size_t));
 
 static void cpu_startup __P((void *));
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
@@ -565,6 +569,7 @@ identifycpu()
 #if defined(I486_CPU)
 	case CPUCLASS_486:
 		printf("486");
+		bzero = i486_bzero;
 		break;
 #endif
 #if defined(I586_CPU)
@@ -573,6 +578,7 @@ identifycpu()
 		       ((100 * i586_ctr_rate) >> I586_CTR_RATE_SHIFT) / 100,
 		       ((100 * i586_ctr_rate) >> I586_CTR_RATE_SHIFT) % 100);
 		printf("586");
+		bzero = i586_bzero;
 		break;
 #endif
 #if defined(I686_CPU)
@@ -581,6 +587,7 @@ identifycpu()
 		       ((100 * i586_ctr_rate) >> I586_CTR_RATE_SHIFT) / 100,
 		       ((100 * i586_ctr_rate) >> I586_CTR_RATE_SHIFT) % 100);
 		printf("686");
+		bzero = i686_bzero;
 		break;
 #endif
 	default:
