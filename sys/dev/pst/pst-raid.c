@@ -174,17 +174,17 @@ pst_attach(device_t dev)
 
     psc->disk.d_sectorsize = psc->info->block_size;
     psc->disk.d_mediasize = psc->info->capacity;
-    psc->disk.d_fssectors = 63;
-    psc->disk.d_fsheads = 255;
+    psc->disk.d_fwsectors = 63;
+    psc->disk.d_fwheads = 255;
 
     devstat_add_entry(&psc->stats, "pst", lun, psc->info->block_size,
 		      DEVSTAT_NO_ORDERED_TAGS,
 		      DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_IDE,
 		      DEVSTAT_PRIORITY_DISK);
 
-    printf("pst%d: %lluMB <%.40s> [%d/%d/%d] on %.16s\n", lun,
-	   (unsigned long long)psc->disk.d_label.d_secperunit / (1024 * 2),
-	   name, psc->disk.d_label.d_ncylinders, 255, 63,
+    printf("pst%d: %lluMB <%.40s> [%lld/%d/%d] on %.16s\n", lun,
+	   (unsigned long long)psc->info->capacity / (1024 * 1024),
+	   name, psc->info->capacity/(512*255*63), 255, 63,
 	   device_get_nameunit(psc->iop->dev));
 
     EVENTHANDLER_REGISTER(shutdown_post_sync, pst_shutdown,
