@@ -524,7 +524,7 @@ ieee80211_crypto_decap(struct ieee80211com *ic,
 	struct ieee80211_key *k;
 	struct ieee80211_frame *wh;
 	const struct ieee80211_cipher *cip;
-	u_int8_t *ivp;
+	const u_int8_t *ivp;
 	u_int8_t keyid;
 	int hdrlen;
 
@@ -545,7 +545,7 @@ ieee80211_crypto_decap(struct ieee80211com *ic,
 	 */
 	wh = mtod(m, struct ieee80211_frame *);
 	hdrlen = ieee80211_hdrsize(wh);
-	ivp = mtod(m, u_int8_t *) + hdrlen;	/* XXX contig */
+	ivp = mtod(m, const u_int8_t *) + hdrlen;	/* XXX contig */
 	keyid = ivp[IEEE80211_WEP_IVLEN];
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1) ||
 	    ni->ni_ucastkey.wk_cipher == &ieee80211_cipher_none)
