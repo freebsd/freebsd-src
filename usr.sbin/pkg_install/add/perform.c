@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.31 1995/10/31 20:30:15 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.32 1995/11/12 04:55:23 jkh Exp $";
 #endif
 
 /*
@@ -63,7 +63,7 @@ pkg_do(char *pkg)
     char pkg_fullname[FILENAME_MAX];
     char playpen[FILENAME_MAX];
     char extract_contents[FILENAME_MAX];
-    char *where_to, *tmp;
+    char *where_to, *tmp, *extract;
     FILE *cfile;
     int code;
     PackingList p;
@@ -107,17 +107,22 @@ pkg_do(char *pkg)
 	    fclose(cfile);
 	}
 	else {
-	    strcpy(pkg_fullname,pkg);		/* copy for sanity's sake, could remove pkg_fullname */
-	    if (stat(pkg_fullname, &sb) == FAIL) {
-		whinge("Can't stat package file '%s'.", pkg_fullname);
-		goto bomb;
+	    strcpy(pkg_fullname, pkg);		/* copy for sanity's sake, could remove pkg_fullname */
+	    if (strcmp(pkg, "-")) {
+		if (stat(pkg_fullname, &sb) == FAIL) {
+		    whinge("Can't stat package file '%s'.", pkg_fullname);
+		    goto bomb;
+		}
+		sprintf(extract_contents, "--fast-read %s", CONTENTS_FNAME);
+		extract = extract_contents;
 	    }
+	    else
+		extract = NULL;
 	    Home = make_playpen(playpen, sb.st_size * 4);
 	    if (!Home)
 		whinge("Unable to make playpen for %d bytes.\n", sb.st_size * 4);
 	    where_to = Home;
-	    sprintf(extract_contents, "--fast-read %s", CONTENTS_FNAME);
-	    if (unpack(pkg_fullname, extract_contents)) {
+	    if (unpack(pkg_fullname, extract)) {
 		whinge("Unable to extract table of contents file from `%s' - not a package?.", pkg_fullname);
 		goto bomb;
 	    }
@@ -160,7 +165,7 @@ pkg_do(char *pkg)
 	     * compress an average of 75%, so multiply by 4 for good measure.
 	     */
 
-	    if (min_free(playpen) < sb.st_size * 4) {
+	    if (!inPlace && min_free(playpen) < sb.st_size * 4) {
 		whinge("Projected size of %d exceeds available free space.\n"
 		       "Please set your PKG_TMPDIR variable to point to a location with more\n"
 		       "free space and try again.", sb.st_size * 4);
@@ -178,6 +183,7 @@ pkg_do(char *pkg)
 		goto bomb;
 	    }
 	}
+
 	/* Check for sanity and dependencies */
 	if (sanity_check(pkg))
 	    goto bomb;

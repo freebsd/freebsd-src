@@ -66,8 +66,10 @@ command to examine the package file.
 .Sh OPTIONS
 The following command line arguments are supported.
 .Bl -tag -width indent
-.It Ar pkg-name ...
-Packages in the named files are installed.
+.It Ar pkg-name [... pkg-name]
+The named packages are installed.  A package name of - will cause
+.Nm
+to read from stdin.
 .It Fl v
 Turns on verbose output.
 .Em "Optional."
