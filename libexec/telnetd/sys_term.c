@@ -42,6 +42,8 @@ static char sccsid[] = "@(#)sys_term.c	8.2 (Berkeley) 12/15/93";
 #include <libtelnet/auth.h>
 #endif
 
+extern char *altlogin;
+
 #if defined(CRAY) || defined(__hpux)
 # define PARENT_DOES_UTMP
 #endif
@@ -1620,6 +1622,7 @@ start_login(host, autologin, name)
 	if (auth_level >= 0 && autologin == AUTH_VALID) {
 # if	!defined(NO_LOGIN_F)
 		argv = addarg(argv, "-f");
+		argv = addarg(argv, "--");
 		argv = addarg(argv, name);
 # else
 #  if defined(LOGIN_R)
@@ -1692,17 +1695,14 @@ start_login(host, autologin, name)
 			pty = xpty;
 		}
 #  else
+		argv = addarg(argv, "--");
 		argv = addarg(argv, name);
 #  endif
 # endif
 	} else
 #endif
-	if (user = getenv("USER")) {
-	if (strchr(user, '-')) {
-			syslog(LOG_ERR, "tried to pass user \"%s\" to login",
-			       user);
-			fatal(net, "invalid user");
-		}
+	if (getenv("USER")) {
+		argv = addarg(argv, "--");
 		argv = addarg(argv, getenv("USER"));
 #if	defined(LOGIN_ARGS) && defined(NO_LOGIN_P)
 		{
@@ -1728,10 +1728,14 @@ start_login(host, autologin, name)
 		close(pty);
 #endif
 	closelog();
-	execv(_PATH_LOGIN, argv);
 
-	syslog(LOG_ERR, "%s: %m\n", _PATH_LOGIN);
-	fatalperror(net, _PATH_LOGIN);
+	if (altlogin == NULL) {
+		altlogin = _PATH_LOGIN;
+	}
+	execv(altlogin, argv);
+
+	syslog(LOG_ERR, "%s: %m\n", altlogin);
+	fatalperror(net, altlogin);
 	/*NOTREACHED*/
 }
 

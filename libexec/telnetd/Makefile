@@ -9,10 +9,10 @@ CFLAGS+=-I${.CURDIR}/../../lib
 SRCS=	global.c slc.c state.c sys_term.c telnetd.c \
 	termstat.c utility.c
 #SRCS+=	authenc.c
-DPADD=	${LIBUTIL} ${LIBTERMCAP}
+DPADD=	${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET}
 LDADD=	-lutil -ltermcap -ltelnet
+#DPADD+=	$LIBKRB} ${LIBDES}
 #LDADD+=	-lkrb -ldes
 MAN8=	telnetd.8
-
 
 .include <bsd.prog.mk>

@@ -124,6 +124,7 @@ int	lowpty = 0, highpty;	/* low, high pty numbers */
 int debug = 0;
 int keepalive = 1;
 char *progname;
+char *altlogin;
 
 extern void usage P((void));
 
@@ -133,7 +134,7 @@ extern void usage P((void));
  * passed off to getopt().
  */
 char valid_opts[] = {
-	'd', ':', 'h', 'k', 'n', 'S', ':', 'u', ':', 'U',
+	'd', ':', 'h', 'k', 'n', 'p', ':', 'S', ':', 'u', ':', 'U',
 #ifdef	AUTHENTICATION
 	'a', ':', 'X', ':',
 #endif
@@ -282,6 +283,10 @@ main(argc, argv)
 
 		case 'n':
 			keepalive = 0;
+			break;
+
+		case 'p':
+			altlogin = optarg;
 			break;
 
 #ifdef CRAY
@@ -661,12 +666,14 @@ getterminaltype(name)
 	 * we have to just go with what we (might) have already gotten.
 	 */
 	if (his_state_is_will(TELOPT_TTYPE) && !terminaltypeok(terminaltype)) {
-	    (void) strncpy(first, terminaltype, sizeof(first));
+	    (void) strncpy(first, terminaltype, sizeof(first)-1);
+	    first[sizeof(first)-1] = '\0';
 	    for(;;) {
 		/*
 		 * Save the unknown name, and request the next name.
 		 */
-		(void) strncpy(last, terminaltype, sizeof(last));
+		(void) strncpy(last, terminaltype, sizeof(last)-1);
+		last[sizeof(last)-1] = '\0';
 		_gettermname();
 		if (terminaltypeok(terminaltype))
 		    break;
@@ -684,8 +691,10 @@ getterminaltype(name)
 		     * the start of the list.
 		     */
 		     _gettermname();
-		    if (strncmp(first, terminaltype, sizeof(first)) != 0)
-			(void) strncpy(terminaltype, first, sizeof(first));
+		    if (strncmp(first, terminaltype, sizeof(first)) != 0) {
+			(void) strncpy(terminaltype, first, sizeof(terminaltype)-1);
+			terminaltype[sizeof(terminaltype)-1] = '\0';
+		    }
 		    break;
 		}
 	    }
