@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.2 1995/05/27 23:39:26 phk Exp $
+ * $Id: cdrom.c,v 1.3 1995/05/28 03:04:46 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -105,6 +105,9 @@ mediaGetCDROM(char *file)
     char		buf[PATH_MAX];
 
     snprintf(buf, PATH_MAX, "/cdrom/%s", file);
+    if (!access(buf,R_OK))
+	    return open(buf, O_RDONLY);
+    snprintf(buf, PATH_MAX, "/cdrom/dists/%s", file);
     return open(buf, O_RDONLY);
 }
 
