@@ -211,24 +211,30 @@ The percentage of real memory used by this process.
 The flags associated with the process as in
 the include file
 .In sys/proc.h :
-.Bl -column P_NOCLDSTOP P_NOCLDSTOP
+.Bl -column P_STOPPED_SINGLE 0x4000000
 .It Dv "P_ADVLOCK" Ta No "0x00001	Process may hold a POSIX advisory lock"
 .It Dv "P_CONTROLT" Ta No "0x00002	Has a controlling terminal"
-.It Dv "P_INMEM" Ta No "0x00004		Loaded into memory"
-.It Dv "P_NOCLDSTOP" Ta No "0x00008	No SIGCHLD when children stop"
+.It Dv "P_KTHREAD" Ta No "0x00004	Kernel thread"
+.It Dv "P_NOLOAD" Ta No "0x00008	Ignore during load avg calculations"
 .It Dv "P_PPWAIT" Ta No "0x00010	Parent is waiting for child to exec/exit"
 .It Dv "P_PROFIL" Ta No "0x00020	Has started profiling"
-.It Dv "P_SELECT" Ta No "0x00040	Selecting; wakeup/waiting danger"
-.It Dv "P_SINTR" Ta No "0x00080		Sleep is interruptible"
+.It Dv "P_STOPPROF" Ta No "0x00040	Has thread in requesting to stop prof"
 .It Dv "P_SUGID" Ta No "0x00100		Had set id privileges since last exec"
 .It Dv "P_SYSTEM" Ta No "0x00200	System proc: no sigs, stats or swapping"
-.It Dv "P_TIMEOUT" Ta No "0x00400	Timing out during sleep"
+.It Dv "P_SINGLE_EXIT" Ta No "0x00400	Threads suspending should exit, not wait"
 .It Dv "P_TRACED" Ta No "0x00800	Debugged process being traced"
-.It Dv "P_WAITED" Ta No "0x01000	Debugging process has waited for child"
+.It Dv "P_WAITED" Ta No "0x01000	Someone is waiting for us"
 .It Dv "P_WEXIT" Ta No "0x02000		Working on exiting"
 .It Dv "P_EXEC" Ta No "0x04000		Process called exec"
-.It Dv "P_OWEUPC" Ta No "0x20000	Owe process an addupc() call at next ast"
-.It Dv "P_SWAPPING" Ta No "0x40000	Process is being swapped"
+.It Dv "P_SA" Ta No "0x08000		Using scheduler activations"
+.It Dv "P_CONTINUED" Ta No "0x10000	Proc has continued from a stopped state"
+.It Dv "P_STOPPED_SIG" Ta No "0x20000	Stopped due to SIGSTOP/SIGTSTP"
+.It Dv "P_STOPPED_TRACE" Ta No "0x40000	Stopped because of tracing"
+.It Dv "P_STOPPED_SINGLE" Ta No "0x80000	Only one thread can continue"
+.It Dv "P_PROTECTED" Ta No "0x100000	Do not kill on memory overcommit"
+.It Dv "P_SIGEVENT" Ta No "0x200000	Process pending signals changed"
+.It Dv "P_JAILED" Ta No "0x1000000	Process is in jail"
+.It Dv "P_INEXEC" Ta No "0x4000000	Process is in execve()"
 .El
 .It label
 The MAC label of the process.
@@ -271,11 +277,6 @@ The first character indicates the run state of the process:
 Marks a process in disk (or other short term, uninterruptible) wait.
 .It I
 Marks a process that is idle (sleeping for longer than about 20 seconds).
-.It J
-Marks a process which is in
-.Xr jail 2 .
-The hostname of the prison can be found in
-.Ql /proc/<pid>/status .
 .It L
 Marks a process that is waiting to acquire a lock.
 .It R
@@ -284,6 +285,8 @@ Marks a runnable process.
 Marks a process that is sleeping for less than about 20 seconds.
 .It T
 Marks a stopped process.
+.It W
+Marks an idle interrupt thread.
 .It Z
 Marks a dead process (a ``zombie'').
 .El
@@ -298,18 +301,13 @@ The process is in the foreground process group of its control terminal.
 The process has raised
 .Tn CPU
 scheduling priority.
-.It >
-The process has specified a soft limit on memory requirements and is
-currently exceeding that limit; such a process is (necessarily) not
-swapped.
-.It A
-the process has asked for random page replacement
-.Pf ( Dv MADV_RANDOM ,
-from
-.Xr madvise 2 ,
-for example, lisp in a garbage collect).
 .It E
 The process is trying to exit.
+.It J
+Marks a process which is in
+.Xr jail 2 .
+The hostname of the prison can be found in
+.Ql /proc/<pid>/status .
 .It L
 The process has pages locked in core (for example, for raw
 .Tn I/O ) .
@@ -318,15 +316,6 @@ The process has reduced
 .Tn CPU
 scheduling priority (see
 .Xr setpriority 2 ) .
-.It S
-The process has asked for
-.Tn FIFO
-page replacement
-.Pf ( Dv MADV_SEQUENTIAL ,
-from
-.Xr madvise 2 ,
-for example, a large image processing program using virtual memory to
-sequentially address voluminous data).
 .It s
 The process is a session leader.
 .It V
