@@ -99,12 +99,10 @@ SYSCTL_DECL(_security);
 SYSCTL_NODE(_security, OID_AUTO, mac, CTLFLAG_RW, 0,
     "TrustedBSD MAC policy controls");
 
-#ifndef MAC_MAX_POLICIES
-#define	MAC_MAX_POLICIES	8
-#endif
 #if MAC_MAX_POLICIES > 32
 #error "MAC_MAX_POLICIES too large"
 #endif
+
 static unsigned int mac_max_policies = MAC_MAX_POLICIES;
 static unsigned int mac_policy_offsets_free = (1 << MAC_MAX_POLICIES) - 1;
 SYSCTL_UINT(_security_mac, OID_AUTO, max_policies, CTLFLAG_RD,
