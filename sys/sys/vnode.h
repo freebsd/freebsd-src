@@ -622,7 +622,6 @@ int	getnewvnode(const char *tag, struct mount *mp, vop_t **vops,
 	    struct vnode **vpp);
 u_quad_t init_va_filerev(void);
 int	lease_check(struct vop_lease_args *ap);
-int	spec_vnoperate(struct vop_generic_args *);
 int	speedup_syncer(void);
 #define textvp_fullpath(p, rb, rfb) \
 	vn_fullpath(FIRST_THREAD_IN_PROC(p), (p)->p_textvp, rb, rfb)
@@ -729,8 +728,8 @@ void	vbusy(struct vnode *vp);
 void 	v_addpollinfo(struct vnode *vp);
 
 extern	vop_t **default_vnodeop_p;
-extern	vop_t **spec_vnodeop_p;
 extern	vop_t **dead_vnodeop_p;
+extern	vop_t **devfs_specop_p;
 
 #endif /* _KERNEL */
 
