@@ -78,7 +78,13 @@ struct pmap_statistics {
 };
 .Ed
 .Pp
-Each implementation is expected to maintain the statistics in this structure.
+The implementation's
+.Vt struct pmap
+must contain an instance of this structure having the name
+.Va pm_stats ,
+and it must be updated by the implementation after each relevant
+.Nm pmap
+operation.
 .Sh SEE ALSO
 .Xr pmap 9 ,
 .Xr pmap_activate 9 ,
