@@ -69,6 +69,7 @@ network_pass1() {
 			else
 				echo 'Warning: IP-filter module failed to load.'
 				# avoid further errors
+				ipfilter_active="NO"
 				ipmon_enable="NO"
 				ipfilter_enable="NO"
 				ipnat_enable="NO"
@@ -289,11 +290,12 @@ network_pass1() {
 
 	# Re-Sync ipfilter so it picks up any new network interfaces
 	#
-	case ${ipfilter_enable} in
+	case ${ipfilter_active} in
 	[Yy][Ee][Ss])
 		${ipfilter_program:-/sbin/ipf} -y ${ipfilter_flags} >/dev/null
 		;;
 	esac
+	unset ipfilter_active
 
 	# Initialize IP filtering using ipfw
 	#
