@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.57 1997/06/15 02:02:41 wollman Exp $
+ *	$Id: apm.c,v 1.58 1997/06/15 02:19:40 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -231,6 +231,8 @@ apm_power_off(void)
 {
 	u_long eax, ebx, ecx;
 
+	if (!apm_softc.active)
+		return;
 	eax = (APM_BIOS << 8) | APM_SETPWSTATE;
 	ebx = PMDV_ALLDEV;
 	ecx = PMST_OFF;
