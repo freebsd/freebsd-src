@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.105 1996/06/17 03:35:23 dyson Exp $
+ *	$Id: pmap.c,v 1.106 1996/06/18 01:22:06 bde Exp $
  */
 
 /*
@@ -1767,6 +1767,9 @@ pmap_object_init_pt(pmap, addr, object, pindex, size, limit)
 			(object->resident_page_count > MAX_INIT_PT))) {
 		return;
 	}
+
+	if (psize + pindex > object->size)
+		psize = object->size - pindex;
 
 	/*
 	 * if we are processing a major portion of the object, then scan the
