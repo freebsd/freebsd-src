@@ -287,8 +287,6 @@ BOOTABLE="-b"
 DOCREL= doc.1 doc.2
 .endif
 
-TMAKE!=		echo MAKEFLAGS=\"-m ${.CURDIR}/../share/mk\"; \
-		cd ${.CURDIR}/..; ${MAKE} -f Makefile.inc1 -V TMAKE
 WMAKEENV!=	echo MAKEFLAGS=\"-m ${.CURDIR}/../share/mk\"; \
 		cd ${.CURDIR}/..; ${CROSSMAKE} -f Makefile.inc1 -V WMAKEENV
 WMAKE=		${WMAKEENV} ${MAKE}
@@ -564,7 +562,8 @@ release.5:
 	cd ${j}_crunch; ${WMAKEENV} crunchgen -o ${.CURDIR}/${j}_crunch.conf
 .endif
 	cd ${j}_crunch; ${WMAKE} -f ${j}_crunch.mk subclean
-	cd ${.CURDIR}/..; ${TMAKE} build-tools
+	cd ${.CURDIR}/..; ${MAKE} -m ${.CURDIR}/../share/mk -f Makefile.inc1 \
+	    _build-tools
 	cd ${j}_crunch; ${WMAKE} -f ${j}_crunch.mk \
 	    CFLAGS="-Os -pipe" -DNO_CPU_CFLAGS all
 	${WMAKEENV} strip -R .comment ${j}_crunch/${j}_crunch
