@@ -308,7 +308,7 @@ ahc_queue_scb(struct ahc_softc *ahc, struct scb *scb)
 	 */
 	q_hscb = ahc->next_queued_scb->hscb;
 	saved_tag = q_hscb->tag;
-	memcpy(q_hscb, scb->hscb, 32);
+	memcpy(q_hscb, scb->hscb, sizeof(*scb->hscb));
 	q_hscb->tag = saved_tag;
 	q_hscb->next = scb->hscb->tag;
 
