@@ -1,5 +1,5 @@
-/* $Id: $ */
-/* release_12_28_98_A */
+/* $Id: ispvar.h,v 1.7 1998/12/28 19:22:27 mjacob Exp $ */
+/* release_12_28_98_A+ */
 /*
  * Soft Definitions for for Qlogic ISP SCSI adapters.
  *
@@ -99,7 +99,7 @@ typedef struct {
 	        	isp_data_line_active_neg: 1,
 			isp_cmd_dma_burst_enable: 1,
 			isp_data_dma_burst_enabl: 1,
-			isp_fifo_threshold	: 2,
+			isp_fifo_threshold	: 3,
 			isp_diffmode		: 1,
 			isp_fast_mttr		: 1,
 			isp_initiator_id	: 4,
