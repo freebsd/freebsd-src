@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: types.h,v 1.1 1998/01/10 10:13:16 jb Exp $ */
 /* From: NetBSD: types.h,v 1.8 1997/04/06 08:47:45 cgd Exp */
 
 /*-
@@ -69,5 +69,13 @@ typedef	long			  int64_t;
 typedef	unsigned long		u_int64_t;
 
 typedef int64_t			register_t;
+
+typedef int32_t			ufs_daddr_t;
+
+/* Interrupt mask (spl, xxx_imask, etc) */
+typedef u_int32_t		intrmask_t;
+
+/* Interrupt handler function type - arg should be "void *" one day */
+typedef void			inthand2_t(int _unit);
 
 #endif	/* _MACHTYPES_H_ */
