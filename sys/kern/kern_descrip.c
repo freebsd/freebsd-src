@@ -641,7 +641,7 @@ fsetown(pgid, sigiop)
 	sigio->sio_ucred = crhold(curthread->td_ucred);
 	sigio->sio_myref = sigiop;
 
-	PGRPSESS_SLOCK();
+	sx_slock(&proctree_lock);
 	if (pgid > 0) {
 		proc = pfind(pgid);
 		if (proc == NULL) {
@@ -699,14 +699,14 @@ fsetown(pgid, sigiop)
 		sigio->sio_pgrp = pgrp;
 		PGRP_UNLOCK(pgrp);
 	}
-	PGRPSESS_SUNLOCK();
+	sx_sunlock(&proctree_lock);
 	s = splhigh();
 	*sigiop = sigio;
 	splx(s);
 	return (0);
 
 fail:
-	PGRPSESS_SUNLOCK();
+	sx_sunlock(&proctree_lock);
 	crfree(sigio->sio_ucred);
 	FREE(sigio, M_SIGIO);
 	return (ret);

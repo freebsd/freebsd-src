@@ -95,11 +95,11 @@
 
 #define INIT_IN(in, op, ident, p) \
 	  (in)->opcode = (op); \
-	  PGRPSESS_SLOCK(); \
+	  sx_slock(&proctree_lock); \
 	  (in)->pid = p ? p->p_pid : -1; \
           (in)->pgid = p ? p->p_pgid : -1; \
           (in)->sid = (p && p->p_session && p->p_session->s_leader) ? (p->p_session->s_leader->p_pid) : -1; \
-	  PGRPSESS_SUNLOCK(); \
+	  sx_sunlock(&proctree_lock); \
           if (ident != NOCRED) {                              \
 	      (in)->cred.cr_uid = ident->cr_uid;              \
 	      (in)->cred.cr_groupid = ident->cr_gid;          \

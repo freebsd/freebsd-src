@@ -110,18 +110,18 @@ getpriority(td, uap)
 	case PRIO_PGRP: {
 		register struct pgrp *pg;
 
-		PGRPSESS_SLOCK();
+		sx_slock(&proctree_lock);
 		if (uap->who == 0) {
 			pg = td->td_proc->p_pgrp;
 			PGRP_LOCK(pg);
 		} else {
 			pg = pgfind(uap->who);
 			if (pg == NULL) {
-				PGRPSESS_SUNLOCK();
+				sx_sunlock(&proctree_lock);
 				break;
 			}
 		}
-		PGRPSESS_SUNLOCK();
+		sx_sunlock(&proctree_lock);
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 			PROC_LOCK(p);
 			if (!p_cansee(td->td_proc, p) && p->p_ksegrp.kg_nice /* XXXKSE */  < low)
@@ -200,18 +200,18 @@ setpriority(td, uap)
 	case PRIO_PGRP: {
 		register struct pgrp *pg;
 
-		PGRPSESS_SLOCK();
+		sx_slock(&proctree_lock);
 		if (uap->who == 0) {
 			pg = curp->p_pgrp;
 			PGRP_LOCK(pg);
 		} else {
 			pg = pgfind(uap->who);
 			if (pg == NULL) {
-				PGRPSESS_SUNLOCK();
+				sx_sunlock(&proctree_lock);
 				break;
 			}
 		}
-		PGRPSESS_SUNLOCK();
+		sx_sunlock(&proctree_lock);
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 			PROC_LOCK(p);
 			if (!p_cansee(td->td_proc, p)) {

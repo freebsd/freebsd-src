@@ -794,9 +794,9 @@ aio_daemon(void *uproc)
 	MALLOC(newsess, struct session *, sizeof(struct session), M_SESSION,
 		M_WAITOK | M_ZERO);
 
-	PGRPSESS_XLOCK();
+	sx_xlock(&proctree_lock);
 	enterpgrp(mycp, mycp->p_pid, newpgrp, newsess);
-	PGRPSESS_XUNLOCK();
+	sx_xunlock(&proctree_lock);
 
 	/* Mark special process type. */
 	mycp->p_flag |= P_SYSTEM;

@@ -701,9 +701,9 @@ vn_ioctl(fp, com, data, td)
 		if (error == 0 && com == TIOCSCTTY) {
 
 			/* Do nothing if reassigning same control tty */
-			PGRPSESS_SLOCK();
+			sx_slock(&proctree_lock);
 			if (td->td_proc->p_session->s_ttyvp == vp) {
-				PGRPSESS_SUNLOCK();
+				sx_sunlock(&proctree_lock);
 				return (0);
 			}
 
@@ -713,7 +713,7 @@ vn_ioctl(fp, com, data, td)
 			td->td_proc->p_session->s_ttyvp = vp;
 			SESS_UNLOCK(td->td_proc->p_session);
 
-			PGRPSESS_SUNLOCK();
+			sx_sunlock(&proctree_lock);
 
 			/* Get rid of reference to old control tty */
 			if (vpold)
