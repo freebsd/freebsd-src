@@ -19,7 +19,7 @@ SUBDIR=	apply ar at banner basename biff cal calendar \
 	nm nohup pagesize passwd paste pr printenv printf quota \
 	ranlib rdist renice rev rlogin rs rsh ruptime rwho \
 	script sed shar showmount size soelim split \
-	strings strip su talk tcopy tee telnet tftp time tip \
+	strings strip su symorder talk tcopy tee telnet tftp time tip \
 	tn3270 touch tput tr true tset tsort tty ul uname unexpand \
 	unifdef uniq unvis users uudecode uuencode vacation \
 	vgrind vi vis w wall wc what whereis who whois window write \
