@@ -1,0 +1,3 @@
+#	$Id$
+
+BINDIR?=	/usr/bin
