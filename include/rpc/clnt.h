@@ -394,7 +394,7 @@ extern CLIENT *clnt_tli_create(const int, const struct netconfig *,
  */
 extern CLIENT *clnt_vc_create(const int, const struct netbuf *,
 			      const rpcprog_t, const rpcvers_t,
-			      const u_int, const u_int);
+			      u_int, u_int);
 /*
  * Added for compatibility to old rpc 4.0. Obsoleted by clnt_vc_create().
  */

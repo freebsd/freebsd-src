@@ -58,7 +58,7 @@ handles
 .Ft "CLIENT *"
 .Fn clnt_tp_create_timed "const char * host" "const rpcprog_t prognum" "const rpcvers_t versnum" "const struct netconfig *netconf" "const struct timeval *timeout"
 .Ft "CLIENT *"
-.Fn clnt_vc_create "const int fildes" "const struct netbuf *svcaddr" "const rpcprog_t prognum" "const rpcvers_t versnum" "const u_int sendsz" "const u_int recvsz"
+.Fn clnt_vc_create "const int fildes" "const struct netbuf *svcaddr" "const rpcprog_t prognum" "const rpcvers_t versnum" "u_int sendsz" "u_int recvsz"
 .Sh DESCRIPTION
 RPC library routines allow C language programs to make procedure
 calls on other machines across the network.
