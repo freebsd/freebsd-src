@@ -279,6 +279,15 @@ mac_bsdextended_check(struct ucred *cred, uid_t object_uid, gid_t object_gid,
 		if (rules[i] == NULL)
 			continue;
 
+		/*
+		 * Since we don't separately handle append, map append to
+		 * write.
+		 */
+		if (acc_mode & VAPPEND) {
+			acc_mode &= ~VAPPEND;
+			acc_mode |= VWRITE;
+		}
+
 		error = mac_bsdextended_rulecheck(rules[i], cred, object_uid,
 		    object_gid, acc_mode);
 		if (error)
