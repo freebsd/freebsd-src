@@ -33,6 +33,7 @@ SUBDIR=	adjkerntz \
 	ggate \
 	${_gpt} \
 	growfs \
+	gvinum \
 	ifconfig \
 	init \
 	${_ip6fw} \
