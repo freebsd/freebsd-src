@@ -25,7 +25,7 @@
 .\" $FreeBSD$
 .\"
 .Dd December 15, 2000
-.Os FreeBSD
+.Os
 .Dt ORM 4
 .Sh NAME
 .Nm orm
@@ -34,7 +34,7 @@
 .Nm
 is automatically included on all systems that have an ISA bus.
 .Sh DESCRIPTION
-The driver scan at boot time the ISA I/O memory space for option
+The driver scans at boot time the ISA I/O memory space for option
 ROM(s) and claims them.
 Other drivers are thus precluded from using ISA I/O memory that is on
 top of an option ROM.
