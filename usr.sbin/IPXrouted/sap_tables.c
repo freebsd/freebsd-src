@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sap_tables.c,v 1.4 1997/07/01 00:33:41 bde Exp $
+ *	$Id: sap_tables.c,v 1.5 1997/07/06 07:38:33 jhay Exp $
  */
 
 #include "defs.h"
@@ -134,19 +134,6 @@ sap_nearestserver(ushort ServType, struct interface *ifp)
 		for(sap = sh->forw; sap != (sap_entry *)sh; sap = sap->forw) {
 			if (ServType != sap->sap.ServType)
 				continue;
-			if (ifp == sap->ifp)
-				continue;
-
-			csap = sap->clone;
-			while (csap) {
-				if (ifp == csap->ifp)
-					/*
-					 * I would have loved to use
-					 * something else here.
-					 */
-					goto next;
-				csap = csap->clone;
-			}
 
 			if (ntohs(sap->sap.hops) < besthops) {
 				best = sap;

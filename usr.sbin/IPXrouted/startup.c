@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: startup.c,v 1.6 1997/02/22 16:01:01 peter Exp $
  */
 
 #ifndef lint
@@ -183,6 +183,9 @@ ifinit(void)
 			}
 			ifs.int_dstaddr = *brdaddr;
 		}
+		if (ifs.int_flags & IFF_LOOPBACK) {
+			ifs.int_dstaddr = ifs.int_addr;
+		}
 		/* 
 		 * already known to us? 
 		 * what makes a POINTOPOINT if unique is its dst addr,
@@ -192,9 +195,6 @@ ifinit(void)
 			if_ifwithdstaddr(&ifs.int_dstaddr)) ||
 			( ((ifs.int_flags & IFF_POINTOPOINT) == 0) &&
 			if_ifwithaddr(&ifs.int_addr)))
-			continue;
-		/* no one cares about software loopback interfaces */
-		if (ifs.int_flags & IFF_LOOPBACK)
 			continue;
 		ifp = (struct interface *)
 			malloc(sdl->sdl_nlen + 1 + sizeof(ifs));
