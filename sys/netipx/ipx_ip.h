@@ -33,7 +33,7 @@
  *
  *	@(#)ipxip.h
  *
- * $Id: ipx_ip.h,v 1.5 1995/12/16 03:43:49 bde Exp $
+ * $Id: ipx_ip.h,v 1.6 1996/05/08 19:31:46 jhay Exp $
  */
 
 #ifndef _NETIPX_IPXIP_H_
@@ -51,20 +51,9 @@ struct ifnet_en {
 
 #ifdef KERNEL
 
-extern struct ifnet ipxipif;
-extern struct ifnet_en *ipxip_list;
-
-struct ifnet_en *
-	ipxipattach __P((void));
 void	ipxip_ctlinput __P((int cmd, struct sockaddr *sa, void *arg));
-int	ipxip_free __P((struct ifnet *ifp));
 void	ipxip_input __P((struct mbuf *m, int hlen));
-int	ipxipioctl __P((struct ifnet *ifp, int cmd, caddr_t data));
-int	ipxipoutput __P((struct ifnet *ifp, struct mbuf *m,
-			 struct sockaddr *dst, struct rtentry *rt));
 int	ipxip_route __P((struct socket *so, struct mbuf *m));
-void	ipxip_rtchange __P((struct in_addr *dst));
-void	ipxipstart __P((struct ifnet *ifp));
 
 #endif /* KERNEL */
 

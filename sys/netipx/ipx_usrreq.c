@@ -33,20 +33,16 @@
  *
  *	@(#)ipx_usrreq.c
  *
- * $Id: ipx_usrreq.c,v 1.7 1996/05/08 19:31:48 jhay Exp $
+ * $Id: ipx_usrreq.c,v 1.7.2.1 1996/11/25 07:18:10 phk Exp $
  */
 
 #include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/errno.h>
-#include <sys/stat.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>
@@ -58,14 +54,11 @@
 #include <netipx/ipx_pcb.h>
 #include <netipx/ipx_if.h>
 #include <netipx/ipx_var.h>
-#include <netipx/ipx_error.h>
 #include <netipx/ipx_ip.h>
 
 /*
  * IPX protocol implementation.
  */
-
-int noipxRoute;
 
 int ipxsendspace = IPXSNDQ;
 SYSCTL_INT(_net_ipx_ipx, OID_AUTO, ipxsendspace, CTLFLAG_RW,
@@ -73,6 +66,34 @@ SYSCTL_INT(_net_ipx_ipx, OID_AUTO, ipxsendspace, CTLFLAG_RW,
 int ipxrecvspace = IPXRCVQ;
 SYSCTL_INT(_net_ipx_ipx, OID_AUTO, ipxrecvspace, CTLFLAG_RW,
             &ipxrecvspace, 0, "");
+
+static	int ipx_usr_abort(struct socket *so);
+static	int ipx_attach(struct socket *so, int proto);
+static	int ipx_bind(struct socket *so, struct mbuf *nam);
+static	int ipx_connect(struct socket *so, struct mbuf *nam);
+static	int ipx_detach(struct socket *so);
+static	int ipx_disconnect(struct socket *so);
+static	int ipx_send(struct socket *so, int flags, struct mbuf *m,
+		     struct mbuf *addr, struct mbuf *control);
+static	int ipx_shutdown(struct socket *so);
+static	int ripx_attach(struct socket *so, int proto);
+static	int ipx_output(struct ipxpcb *ipxp, struct mbuf *m0);
+
+struct	pr_usrreqs ipx_usrreqs = {
+	ipx_usr_abort, pru_accept_notsupp, ipx_attach, ipx_bind,
+	ipx_connect, pru_connect2_notsupp, ipx_control, ipx_detach,
+	ipx_disconnect, pru_listen_notsupp, ipx_peeraddr, pru_rcvd_notsupp,
+	pru_rcvoob_notsupp, ipx_send, pru_sense_null, ipx_shutdown,
+	ipx_sockaddr
+};
+
+struct	pr_usrreqs ripx_usrreqs = {
+	ipx_usr_abort, pru_accept_notsupp, ripx_attach, ipx_bind,
+	ipx_connect, pru_connect2_notsupp, ipx_control, ipx_detach,
+	ipx_disconnect, pru_listen_notsupp, ipx_peeraddr, pru_rcvd_notsupp,
+	pru_rcvoob_notsupp, ipx_send, pru_sense_null, ipx_shutdown,
+	ipx_sockaddr
+};
 
 /*
  *  This may also be called for raw listeners.
@@ -86,7 +107,7 @@ ipx_input(m, ipxp)
 	struct ifnet *ifp = m->m_pkthdr.rcvif;
 	struct sockaddr_ipx ipx_ipx;
 
-	if (ipxp==0)
+	if (ipxp == NULL)
 		panic("No ipxpcb");
 	/*
 	 * Construct sockaddr format source address.
@@ -97,10 +118,10 @@ ipx_input(m, ipxp)
 	ipx_ipx.sipx_addr = ipx->ipx_sna;
 	ipx_ipx.sipx_zero[0] = '\0';
 	ipx_ipx.sipx_zero[1] = '\0';
-	if (ipx_neteqnn(ipx->ipx_sna.x_net, ipx_zeronet) && ifp) {
+	if (ipx_neteqnn(ipx->ipx_sna.x_net, ipx_zeronet) && ifp != NULL) {
 		register struct ifaddr *ifa;
 
-		for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next) {
+		for (ifa = ifp->if_addrlist; ifa != NULL; ifa = ifa->ifa_next) {
 			if (ifa->ifa_addr->sa_family == AF_IPX) {
 				ipx_ipx.sipx_addr.x_net =
 					IA_SIPX(ifa)->sipx_addr.x_net;
@@ -109,13 +130,13 @@ ipx_input(m, ipxp)
 		}
 	}
 	ipxp->ipxp_rpt = ipx->ipx_pt;
-	if ( ! (ipxp->ipxp_flags & IPXP_RAWIN) ) {
-		m->m_len -= sizeof (struct ipx);
-		m->m_pkthdr.len -= sizeof (struct ipx);
-		m->m_data += sizeof (struct ipx);
+	if (!(ipxp->ipxp_flags & IPXP_RAWIN) ) {
+		m->m_len -= sizeof(struct ipx);
+		m->m_pkthdr.len -= sizeof(struct ipx);
+		m->m_data += sizeof(struct ipx);
 	}
 	if (sbappendaddr(&ipxp->ipxp_socket->so_rcv, (struct sockaddr *)&ipx_ipx,
-	    m, (struct mbuf *)0) == 0)
+	    m, (struct mbuf *)NULL) == 0)
 		goto bad;
 	sorwakeup(ipxp->ipxp_socket);
 	return;
@@ -132,11 +153,11 @@ ipx_abort(ipxp)
 	ipx_pcbdisconnect(ipxp);
 	soisdisconnected(so);
 }
+
 /*
  * Drop connection, reporting
  * the specified error.
  */
-/* struct ipxpcb * DELETE THIS */
 void
 ipx_drop(ipxp, errno)
 	register struct ipxpcb *ipxp;
@@ -145,20 +166,22 @@ ipx_drop(ipxp, errno)
 	struct socket *so = ipxp->ipxp_socket;
 
 	/*
-	 * someday, in the xerox world
+	 * someday, in the IPX world
 	 * we will generate error protocol packets
 	 * announcing that the socket has gone away.
+	 *
+	 * XXX Probably never. IPX does not have error packets.
 	 */
 	/*if (TCPS_HAVERCVDSYN(tp->t_state)) {
 		tp->t_state = TCPS_CLOSED;
-		(void) tcp_output(tp);
+		tcp_output(tp);
 	}*/
 	so->so_error = errno;
 	ipx_pcbdisconnect(ipxp);
 	soisdisconnected(so);
 }
 
-int
+static int
 ipx_output(ipxp, m0)
 	struct ipxpcb *ipxp;
 	struct mbuf *m0;
@@ -173,7 +196,7 @@ ipx_output(ipxp, m0)
 	/*
 	 * Calculate data length.
 	 */
-	for (m = m0; m; m = m->m_next) {
+	for (m = m0; m != NULL; m = m->m_next) {
 		mprev = m;
 		len += m->m_len;
 	}
@@ -189,7 +212,7 @@ ipx_output(ipxp, m0)
 		} else {
 			struct mbuf *m1 = m_get(M_DONTWAIT, MT_DATA);
 
-			if (m1 == 0) {
+			if (m1 == NULL) {
 				m_freem(m0);
 				return (ENOBUFS);
 			}
@@ -208,15 +231,15 @@ ipx_output(ipxp, m0)
 	if (ipxp->ipxp_flags & IPXP_RAWOUT) {
 		ipx = mtod(m, struct ipx *);
 	} else {
-		M_PREPEND(m, sizeof (struct ipx), M_DONTWAIT);
-		if (m == 0)
+		M_PREPEND(m, sizeof(struct ipx), M_DONTWAIT);
+		if (m == NULL)
 			return (ENOBUFS);
 		ipx = mtod(m, struct ipx *);
 		ipx->ipx_tc = 0;
 		ipx->ipx_pt = ipxp->ipxp_dpt;
 		ipx->ipx_sna = ipxp->ipxp_laddr;
 		ipx->ipx_dna = ipxp->ipxp_faddr;
-		len += sizeof (struct ipx);
+		len += sizeof(struct ipx);
 	}
 
 	ipx->ipx_len = htons((u_short)len);
@@ -233,7 +256,7 @@ ipx_output(ipxp, m0)
 	 */
 	so = ipxp->ipxp_socket;
 	if (so->so_options & SO_DONTROUTE)
-		return (ipx_outputfl(m, (struct route *)0,
+		return (ipx_outputfl(m, (struct route *)NULL,
 		    (so->so_options & SO_BROADCAST) | IPX_ROUTETOIF));
 	/*
 	 * Use cached route for previous datagram if
@@ -250,7 +273,7 @@ ipx_output(ipxp, m0)
 	/*
 	 * I think that this will all be handled in ipx_pcbconnect!
 	 */
-	if (ro->ro_rt) {
+	if (ro->ro_rt != NULL) {
 		if(ipx_neteq(ipxp->ipxp_lastdst, ipx->ipx_dna)) {
 			/*
 			 * This assumes we have no GH type routes
@@ -272,17 +295,14 @@ ipx_output(ipxp, m0)
 		} else {
 		re_route:
 			RTFREE(ro->ro_rt);
-			ro->ro_rt = (struct rtentry *)0;
+			ro->ro_rt = NULL;
 		}
 	}
 	ipxp->ipxp_lastdst = ipx->ipx_dna;
 #endif /* ancient_history */
-	if (noipxRoute)
-		ro = 0;
 	return (ipx_outputfl(m, ro, so->so_options & SO_BROADCAST));
 }
 
-/* ARGSUSED */
 int
 ipx_ctloutput(req, so, level, name, value)
 	int req, level;
@@ -293,7 +313,6 @@ ipx_ctloutput(req, so, level, name, value)
 	register struct mbuf *m;
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 	int mask, error = 0;
-	/*extern long ipx_pexseq;*/ /*XXX*//*JRE*/
 
 	if (ipxp == NULL)
 		return (EINVAL);
@@ -301,10 +320,10 @@ ipx_ctloutput(req, so, level, name, value)
 	switch (req) {
 
 	case PRCO_GETOPT:
-		if (value==NULL)
+		if (value == NULL)
 			return (EINVAL);
 		m = m_get(M_DONTWAIT, MT_DATA);
-		if (m==NULL)
+		if (m == NULL)
 			return (ENOBUFS);
 		switch (name) {
 
@@ -398,202 +417,200 @@ ipx_ctloutput(req, so, level, name, value)
 	return (error);
 }
 
-/*ARGSUSED*/
-int
-ipx_usrreq(so, req, m, nam, control)
+static int
+ipx_usr_abort(so)
 	struct socket *so;
-	int req;
-	struct mbuf *m, *nam, *control;
+{
+	int s;
+	struct ipxpcb *ipxp = sotoipxpcb(so);
+
+	s = splnet();
+	ipx_pcbdetach(ipxp);
+	splx(s);
+	sofree(so);
+	soisdisconnected(so);
+	return (0);
+}
+
+static int
+ipx_attach(so, proto)
+	struct socket *so;
+	int proto;
+{
+	int error;
+	int s;
+	struct ipxpcb *ipxp = sotoipxpcb(so);
+
+	if (ipxp != NULL)
+		return (EINVAL);
+	s = splnet();
+	error = ipx_pcballoc(so, &ipxpcb);
+	splx(s);
+	if (error == 0)
+		error = soreserve(so, ipxsendspace, ipxrecvspace);
+	return (error);
+}
+
+static int
+ipx_bind(so, nam)
+	struct socket *so;
+	struct mbuf *nam;
 {
 	struct ipxpcb *ipxp = sotoipxpcb(so);
-	int error = 0;
 
-	if (req == PRU_CONTROL)
-                return (ipx_control(so, (int)m, (caddr_t)nam,
-			(struct ifnet *)control));
-	if (control && control->m_len) {
-		error = EINVAL;
-		goto release;
-	}
-	if (ipxp == NULL && req != PRU_ATTACH) {
-		error = EINVAL;
-		goto release;
-	}
-	switch (req) {
+	return (ipx_pcbbind(ipxp, nam));
+}
 
-	case PRU_ATTACH:
-		if (ipxp != NULL) {
-			error = EINVAL;
-			break;
-		}
-		error = ipx_pcballoc(so, &ipxpcb);
-		if (error)
-			break;
-		error = soreserve(so, ipxsendspace, ipxrecvspace);
-		if (error)
-			break;
-		break;
+static int
+ipx_connect(so, nam)
+	struct socket *so;
+	struct mbuf *nam;
+{
+	int error;
+	int s;
+	struct ipxpcb *ipxp = sotoipxpcb(so);
 
-	case PRU_DETACH:
-		if (ipxp == NULL) {
-			error = ENOTCONN;
-			break;
-		}
-		ipx_pcbdetach(ipxp);
-		break;
+	if (!ipx_nullhost(ipxp->ipxp_faddr))
+		return (EISCONN);
+	s = splnet();
+	error = ipx_pcbconnect(ipxp, nam);
+	splx(s);
+	if (error == 0)
+		soisconnected(so);
+	return (error);
+}
 
-	case PRU_BIND:
-		error = ipx_pcbbind(ipxp, nam);
-		break;
+static int
+ipx_detach(so)
+	struct socket *so;
+{
+	int s;
+	struct ipxpcb *ipxp = sotoipxpcb(so);
 
-	case PRU_LISTEN:
-		error = EOPNOTSUPP;
-		break;
+	if (ipxp == NULL)
+		return (ENOTCONN);
+	s = splnet();
+	ipx_pcbdetach(ipxp);
+	splx(s);
+	return (0);
+}
 
-	case PRU_CONNECT:
+static int
+ipx_disconnect(so)
+	struct socket *so;
+{
+	int s;
+	struct ipxpcb *ipxp = sotoipxpcb(so);
+
+	if (ipx_nullhost(ipxp->ipxp_faddr))
+		return (ENOTCONN);
+	s = splnet();
+	ipx_pcbdisconnect(ipxp);
+	splx(s);
+	soisdisconnected(so);
+	return (0);
+}
+
+int
+ipx_peeraddr(so, nam)
+	struct socket *so;
+	struct mbuf *nam;
+{
+	struct ipxpcb *ipxp = sotoipxpcb(so);
+
+	ipx_setpeeraddr(ipxp, nam);
+	return (0);
+}
+
+static int
+ipx_send(so, flags, m, nam, control)
+	struct socket *so;
+	int flags;
+	struct mbuf *m;
+	struct mbuf *nam;
+	struct mbuf *control;
+{
+	int error;
+	struct ipxpcb *ipxp = sotoipxpcb(so);
+	struct ipx_addr laddr;
+	int s = 0;
+
+	if (nam != NULL) {
+		laddr = ipxp->ipxp_laddr;
 		if (!ipx_nullhost(ipxp->ipxp_faddr)) {
 			error = EISCONN;
-			break;
+			goto send_release;
 		}
+		/*
+		 * Must block input while temporarily connected.
+		 */
+		s = splnet();
 		error = ipx_pcbconnect(ipxp, nam);
-		if (error == 0)
-			soisconnected(so);
-		break;
-
-	case PRU_CONNECT2:
-		error = EOPNOTSUPP;
-		break;
-
-	case PRU_ACCEPT:
-		error = EOPNOTSUPP;
-		break;
-
-	case PRU_DISCONNECT:
+		if (error) {
+			splx(s);
+			goto send_release;
+		}
+	} else {
 		if (ipx_nullhost(ipxp->ipxp_faddr)) {
 			error = ENOTCONN;
-			break;
+			goto send_release;
 		}
+	}
+	error = ipx_output(ipxp, m);
+	m = NULL;
+	if (nam != NULL) {
 		ipx_pcbdisconnect(ipxp);
-		soisdisconnected(so);
-		break;
-
-	case PRU_SHUTDOWN:
-		socantsendmore(so);
-		break;
-
-	case PRU_SEND:
-	{
-		struct ipx_addr laddr;
-		int s = 0;
-
-		if (nam) {
-			laddr = ipxp->ipxp_laddr;
-			if (!ipx_nullhost(ipxp->ipxp_faddr)) {
-				error = EISCONN;
-				break;
-			}
-			/*
-			 * Must block input while temporarily connected.
-			 */
-			s = splnet();
-			error = ipx_pcbconnect(ipxp, nam);
-			if (error) {
-				splx(s);
-				break;
-			}
-		} else {
-			if (ipx_nullhost(ipxp->ipxp_faddr)) {
-				error = ENOTCONN;
-				break;
-			}
-		}
-		error = ipx_output(ipxp, m);
-		m = NULL;
-		if (nam) {
-			ipx_pcbdisconnect(ipxp);
-			splx(s);
-			ipxp->ipxp_laddr.x_host = laddr.x_host;
-			ipxp->ipxp_laddr.x_port = laddr.x_port;
-		}
+		splx(s);
+		ipxp->ipxp_laddr.x_host = laddr.x_host;
+		ipxp->ipxp_laddr.x_port = laddr.x_port;
 	}
-		break;
 
-	case PRU_ABORT:
-		ipx_pcbdetach(ipxp);
-		sofree(so);
-		soisdisconnected(so);
-		break;
-
-	case PRU_SOCKADDR:
-		ipx_setsockaddr(ipxp, nam);
-		break;
-
-	case PRU_PEERADDR:
-		ipx_setpeeraddr(ipxp, nam);
-		break;
-
-	case PRU_SENSE:
-		/*
-		 * stat: don't bother with a blocksize.
-		 */
-		return (0);
-
-	case PRU_SENDOOB:
-	case PRU_FASTTIMO:
-	case PRU_SLOWTIMO:
-	case PRU_PROTORCV:
-	case PRU_PROTOSEND:
-		error =  EOPNOTSUPP;
-		break;
-
-	case PRU_CONTROL:
-	case PRU_RCVD:
-	case PRU_RCVOOB:
-		return (EOPNOTSUPP);	/* do not free mbuf's */
-
-	default:
-		panic("ipx_usrreq");
-	}
-release:
-	if (control != NULL)
-		m_freem(control);
+send_release:
 	if (m != NULL)
 		m_freem(m);
 	return (error);
 }
 
-/*ARGSUSED*/
-int
-ipx_raw_usrreq(so, req, m, nam, control)
+static int
+ipx_shutdown(so)
 	struct socket *so;
-	int req;
-	struct mbuf *m, *nam, *control;
 {
-	int error = 0;
-	struct ipxpcb *ipxp = sotoipxpcb(so);
-	/*extern struct ipxpcb ipxrawpcb;*//*XXX*//*JRE*/
-
-	switch (req) {
-
-	case PRU_ATTACH:
-
-		if (!(so->so_state & SS_PRIV) || (ipxp != NULL)) {
-			error = EINVAL;
-			break;
-		}
-		error = ipx_pcballoc(so, &ipxrawpcb);
-		if (error)
-			break;
-		error = soreserve(so, ipxsendspace, ipxrecvspace);
-		if (error)
-			break;
-		ipxp = sotoipxpcb(so);
-		ipxp->ipxp_faddr.x_host = ipx_broadhost;
-		ipxp->ipxp_flags = IPXP_RAWIN | IPXP_RAWOUT;
-		break;
-	default:
-		error = ipx_usrreq(so, req, m, nam, control);
-	}
-	return (error);
+	socantsendmore(so);
+	return (0);
 }
 
+int
+ipx_sockaddr(so, nam)
+	struct socket *so;
+	struct mbuf *nam;
+{
+	struct ipxpcb *ipxp = sotoipxpcb(so);
+
+	ipx_setsockaddr(ipxp, nam);
+	return (0);
+}
+
+static int
+ripx_attach(so, proto)
+	struct socket *so;
+	int proto;
+{
+	int error = 0;
+	int s;
+	struct ipxpcb *ipxp = sotoipxpcb(so);
+
+	if (!(so->so_state & SS_PRIV) || (ipxp != NULL))
+		return (EINVAL);
+	s = splnet();
+	error = ipx_pcballoc(so, &ipxrawpcb);
+	splx(s);
+	if (error)
+		return (error);
+	error = soreserve(so, ipxsendspace, ipxrecvspace);
+	if (error)
+		return (error);
+	ipxp = sotoipxpcb(so);
+	ipxp->ipxp_faddr.x_host = ipx_broadhost;
+	ipxp->ipxp_flags = IPXP_RAWIN | IPXP_RAWOUT;
+	return (error);
+}

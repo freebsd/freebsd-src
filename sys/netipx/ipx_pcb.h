@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_pcb.h
  *
- * $Id: ipx_pcb.h,v 1.5 1995/11/24 12:25:10 bde Exp $
+ * $Id: ipx_pcb.h,v 1.5.4.1 1996/11/25 07:18:09 phk Exp $
  */
 
 #ifndef _NETIPX_IPX_PCB_H_
@@ -60,12 +60,12 @@ struct ipxpcb {
 
 /* possible flags */
 
-#define IPXP_IN_ABORT	0x1		/* calling abort through socket */
-#define IPXP_RAWIN	0x2		/* show headers on input */
-#define IPXP_RAWOUT	0x4		/* show header on output */
-#define IPXP_ALL_PACKETS	0x8		/* Turn off higher proto processing */
+#define IPXP_IN_ABORT		0x1	/* calling abort through socket */
+#define IPXP_RAWIN		0x2	/* show headers on input */
+#define IPXP_RAWOUT		0x4	/* show header on output */
+#define IPXP_ALL_PACKETS	0x8	/* Turn off higher proto processing */
 
-#define	IPX_WILDCARD	1
+#define	IPX_WILDCARD		1
 
 #define ipxp_lport ipxp_laddr.x_port
 #define ipxp_fport ipxp_faddr.x_port
@@ -92,6 +92,6 @@ void	ipx_pcbnotify __P((struct ipx_addr *dst, int errno,
 			   void (*notify)(struct ipxpcb *), long param));
 void	ipx_setpeeraddr __P((struct ipxpcb *ipxp, struct mbuf *nam));
 void	ipx_setsockaddr __P((struct ipxpcb *ipxp, struct mbuf *nam));
-#endif
+#endif /* KERNEL */
 
 #endif /* !_NETIPX_IPX_PCB_H_ */

@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	from: if_ethersubr.c,v 1.5 1994/12/13 22:31:45 wollman Exp
- * $Id$
+ * $Id: if_fddisubr.c,v 1.9.2.3 1997/03/15 21:03:25 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -198,15 +198,23 @@ fddi_output(ifp, m0, dst, rt0)
 #endif
 #ifdef IPX
 	case AF_IPX:
+		{
+		struct ifaddr *ia;
+
 		type = htons(ETHERTYPE_IPX);
  		bcopy((caddr_t)&(((struct sockaddr_ipx *)dst)->sipx_addr.x_host),
 		    (caddr_t)edst, sizeof (edst));
-		if (!bcmp((caddr_t)edst, (caddr_t)&ipx_thishost, sizeof(edst)))
-			return (looutput(ifp, m, dst, rt));
+		for (ia = ifp->if_addrlist; ia != NULL; ia = ia->ifa_next)
+			if(ia->ifa_addr->sa_family == AF_IPX &&
+			   !bcmp((caddr_t)edst,
+				 (caddr_t)&((struct ipx_ifaddr *)ia)->ia_addr.sipx_addr.x_host,
+				 sizeof(edst)))
+				return (looutput(ifp, m, dst, rt));
 		/* If broadcasting on a simplex interface, loopback a copy */
 		if ((m->m_flags & M_BCAST) && (ifp->if_flags & IFF_SIMPLEX))
 			mcopy = m_copy(m, 0, (int)M_COPYALL);
 		break;
+		}
 #endif
 #ifdef NETATALK
 	case AF_APPLETALK: {

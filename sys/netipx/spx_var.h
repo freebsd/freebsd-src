@@ -33,7 +33,7 @@
  *
  *	@(#)spx_var.h
  *
- * $Id: spx_var.h,v 1.3 1995/10/31 23:36:47 julian Exp $
+ * $Id: spx_var.h,v 1.4 1995/11/04 09:03:47 julian Exp $
  */
 
 #ifndef _NETIPX_SPX_VAR_H_
@@ -107,17 +107,6 @@ struct	spx_istat {
 	struct spxstat newstats;
 };
 
-#ifdef KERNEL
-extern struct spx_istat spx_istat;
-extern u_short spx_iss;
-
-/* Following was struct spxstat spxstat; */
-#ifndef spxstat
-#define spxstat spx_istat.newstats
-#endif
-
-#endif
-
 #define	SPX_ISSINCR	128
 /*
  * spx sequence numbers are 16 bit integers operated
@@ -129,4 +118,4 @@ extern u_short spx_iss;
 #define	SSEQ_GT(a,b)	(((short)((a)-(b))) > 0)
 #define	SSEQ_GEQ(a,b)	(((short)((a)-(b))) >= 0)
 
-#endif
+#endif /* !_NETIPX_SPX_VAR_H_ */

@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_proto.c
  *
- * $Id: ipx_proto.c,v 1.4 1996/01/05 20:47:05 wollman Exp $
+ * $Id: ipx_proto.c,v 1.5 1996/05/08 04:38:22 gpalmer Exp $
  */
 
 #include <sys/param.h>
@@ -41,61 +41,65 @@
 #include <sys/protosw.h>
 #include <sys/domain.h>
 #include <sys/kernel.h>
-#include <sys/mbuf.h>
 #include <sys/sysctl.h>
 
 #include <net/radix.h>
 
 #include <netipx/ipx.h>
+#include <netipx/ipx_var.h>
 #include <netipx/spx.h>
+
+extern	struct domain ipxdomain;
+static	struct pr_usrreqs nousrreqs;
 
 /*
  * IPX protocol family: IPX, ERR, PXP, SPX, ROUTE.
  */
 
-struct protosw ipxsw[] = {
+static struct protosw ipxsw[] = {
 { 0,		&ipxdomain,	0,		0,
   0,		0,		0,		0,
   0,
-  ipx_init,	0,		0,		0
+  ipx_init,	0,		0,		0,
+  &nousrreqs
 },
 { SOCK_DGRAM,	&ipxdomain,	0,		PR_ATOMIC|PR_ADDR,
   0,		0,		ipx_ctlinput,	ipx_ctloutput,
-  ipx_usrreq,
-  0,		0,		0,		0
+  0,
+  0,		0,		0,		0,
+  &ipx_usrreqs
 },
 { SOCK_STREAM,	&ipxdomain,	IPXPROTO_SPX,	PR_CONNREQUIRED|PR_WANTRCVD,
   0,		0,		spx_ctlinput,	spx_ctloutput,
-  spx_usrreq,
-  spx_init,	spx_fasttimo,	spx_slowtimo,	0
+  0,
+  spx_init,	spx_fasttimo,	spx_slowtimo,	0,
+  &spx_usrreqs
 },
 { SOCK_SEQPACKET,&ipxdomain,	IPXPROTO_SPX,	PR_CONNREQUIRED|PR_WANTRCVD|PR_ATOMIC,
   0,		0,		spx_ctlinput,	spx_ctloutput,
-  spx_usrreq_sp,
-  0,		0,		0,		0
+  0,
+  0,		0,		0,		0,
+  &spx_usrreq_sps
 },
 { SOCK_RAW,	&ipxdomain,	IPXPROTO_RAW,	PR_ATOMIC|PR_ADDR,
   0,		0,		0,		ipx_ctloutput,
-  ipx_raw_usrreq,
-  0,		0,		0,		0
-},
-{ SOCK_RAW,	&ipxdomain,	IPXPROTO_ERROR,	PR_ATOMIC|PR_ADDR,
-  0,		0,		0,		ipx_ctloutput,
-  ipx_raw_usrreq,
-  0,		0,		0,		0
+  0,
+  0,		0,		0,		0,
+  &ripx_usrreqs
 },
 #ifdef IPTUNNEL
 #if 0
 { SOCK_RAW,	&ipxdomain,	IPPROTO_IPX,	PR_ATOMIC|PR_ADDR,
   iptun_input,	rip_output,	iptun_ctlinput,	0,
-  rip_usrreq,
+  0,
   0,		0,		0,		0,
+  &rip_usrreqs
 },
 #endif
 #endif
 };
 
-struct domain ipxdomain =
+struct	domain ipxdomain =
     { AF_IPX, "network systems", 0, 0, 0, 
       ipxsw, &ipxsw[sizeof(ipxsw)/sizeof(ipxsw[0])], 0,
       rn_inithead, 16, sizeof(struct sockaddr_ipx)};
@@ -106,5 +110,3 @@ SYSCTL_NODE(_net,	PF_IPX,		ipx,	CTLFLAG_RW, 0,
 
 SYSCTL_NODE(_net_ipx,	IPXPROTO_RAW,	ipx,	CTLFLAG_RW, 0, "IPX");
 SYSCTL_NODE(_net_ipx,	IPXPROTO_SPX,	spx,	CTLFLAG_RW, 0, "SPX");
-SYSCTL_NODE(_net_ipx,	IPXPROTO_ERROR,	error,	CTLFLAG_RW, 0,
-	    "Error Protocol");
