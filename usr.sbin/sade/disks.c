@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.48 1996/05/09 09:42:03 jkh Exp $
+ * $Id: disks.c,v 1.49 1996/06/08 08:01:43 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -101,7 +101,7 @@ print_chunks(Disk *d)
 	     "Subtype", "Flags");
     for (i = 0, row = CHUNK_START_ROW; chunk_info[i]; i++, row++) {
 	if (i == current_chunk)
-	    attrset(tag_attr);
+	    attrset(ATTR_SELECTED);
 	mvprintw(row, 2, "%10ld %10lu %10lu %8s %8d %8s %8d\t%-6s",
 		 chunk_info[i]->offset, chunk_info[i]->size,
 		 chunk_info[i]->end, chunk_info[i]->name,

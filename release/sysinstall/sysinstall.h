@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.56 1996/05/16 11:47:44 jkh Exp $
+ * $Id: sysinstall.h,v 1.57 1996/05/29 01:35:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -128,6 +128,9 @@
 
 /* One MB worth of blocks */
 #define ONE_MEG				2048
+
+/* Which selection attributes to use */
+#define ATTR_SELECTED			(OnVTY ? item_selected_attr : item_attr)
 
 /*** Types ***/
 typedef unsigned int Boolean;
@@ -279,8 +282,6 @@ extern unsigned int	XF86Dists;		/* Which XFree86 dists we want			*/
 extern unsigned int	XF86ServerDists;	/* The XFree86 servers we want			*/
 extern unsigned int	XF86FontDists;		/* The XFree86 fonts we want			*/
 extern int		BootMgr;		/* Which boot manager to use 			*/
-
-
 extern DMenu		MenuInitial;		/* Initial installation menu			*/
 extern DMenu		MenuFixit;		/* Fixit repair menu				*/
 extern DMenu		MenuMBRType;		/* Type of MBR to write on the disk		*/
