@@ -84,5 +84,6 @@ void Buf_Destroy(Buffer *, Boolean);
 void Buf_ReplaceLastByte(Buffer *, Byte);
 
 void Buf_Append(Buffer *, const char []);
+void Buf_AppendRange(Buffer *, const char [], const char *);
 
 #endif /* buf_h_a61a6812 */
