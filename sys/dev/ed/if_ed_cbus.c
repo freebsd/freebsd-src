@@ -280,24 +280,6 @@ ed_isa_attach(dev)
 	return ed_attach(sc, device_get_unit(dev), flags);
 }
 
-static device_method_t ed_isa_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		ed_isa_probe),
-	DEVMETHOD(device_attach,	ed_isa_attach),
-
-	{ 0, 0 }
-};
-
-static driver_t ed_isa_driver = {
-	"ed",
-	ed_isa_methods,
-	sizeof(struct ed_softc)
-};
-
-static devclass_t ed_isa_devclass;
-
-DRIVER_MODULE(if_ed, isa, ed_isa_driver, ed_isa_devclass, 0, 0);
-
 #ifdef PC98
 /*
  * Interrupt conversion table for EtherEZ98
@@ -1756,3 +1738,19 @@ ed_pio_testmem(sc, page_offset, isa16bit, flags)
 	return (1);
 }
 #endif	/* PC98 */
+
+static device_method_t ed_isa_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ed_isa_probe),
+	DEVMETHOD(device_attach,	ed_isa_attach),
+
+	{ 0, 0 }
+};
+
+static driver_t ed_isa_driver = {
+	"ed",
+	ed_isa_methods,
+	sizeof(struct ed_softc)
+};
+
+DRIVER_MODULE(if_ed, isa, ed_isa_driver, ed_devclass, 0, 0);
