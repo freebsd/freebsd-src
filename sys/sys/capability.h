@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000, 2001 Robert N. M. Watson
+ * Copyright (c) 2000-2001 Robert N. M. Watson
  * All rights reserved.
  *
  * Copyright (c) 1999 Ilmar S. Habibulin
