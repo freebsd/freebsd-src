@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.12 1995/01/10 07:32:51 davidg Exp $
+ * $Id: vm_pager.c,v 1.13 1995/03/11 22:25:20 davidg Exp $
  */
 
 /*
@@ -422,7 +422,7 @@ relpbuf(bp)
 
 	if (bswneeded) {
 		bswneeded = 0;
-		wakeup((caddr_t) &bswlist);
+		wakeup((caddr_t) &bswneeded);
 	}
 	splx(s);
 }
