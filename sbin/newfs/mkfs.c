@@ -55,6 +55,7 @@ static const char rcsid[] =
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/param.h>
@@ -156,7 +157,7 @@ mkfs(struct partition *pp, char *fsys)
 	 * Convert to filesystem fragment sized units.
 	 */
 	if (fssize <= 0) {
-		printf("preposterous size %qd\n", fssize);
+		printf("preposterous size %jd\n", (intmax_t)fssize);
 		exit(13);
 	}
 	wtfs(fssize - (realsectorsize / DEV_BSIZE), realsectorsize,
@@ -348,8 +349,8 @@ mkfs(struct partition *pp, char *fsys)
 		lastminfpg = roundup(sblock.fs_iblkno +
 		    sblock.fs_ipg / INOPF(&sblock), sblock.fs_frag);
 		if (sblock.fs_size < lastminfpg) {
-			printf("Filesystem size %qd < minimum size of %d\n",
-				sblock.fs_size, lastminfpg);
+			printf("Filesystem size %jd < minimum size of %d\n",
+			    (intmax_t)sblock.fs_size, lastminfpg);
 			exit(28);
 		}
 		if (sblock.fs_size % sblock.fs_fpg >= lastminfpg ||
@@ -420,9 +421,10 @@ mkfs(struct partition *pp, char *fsys)
 	 * Dump out summary information about filesystem.
 	 */
 #	define B2MBFACTOR (1 / (1024.0 * 1024.0))
-	printf("%s: %.1fMB (%qd sectors) block size %d, fragment size %d\n",
+	printf("%s: %.1fMB (%jd sectors) block size %d, fragment size %d\n",
 	    fsys, (float)sblock.fs_size * sblock.fs_fsize * B2MBFACTOR,
-	    fsbtodb(&sblock, sblock.fs_size), sblock.fs_bsize, sblock.fs_fsize);
+	    (intmax_t)fsbtodb(&sblock, sblock.fs_size), sblock.fs_bsize,
+	    sblock.fs_fsize);
 	printf("\tusing %d cylinder groups of %.2fMB, %d blks, %d inodes.\n",
 	    sblock.fs_ncg, (float)sblock.fs_fpg * sblock.fs_fsize * B2MBFACTOR,
 	    sblock.fs_fpg / sblock.fs_frag, sblock.fs_ipg);
@@ -443,8 +445,8 @@ mkfs(struct partition *pp, char *fsys)
 	bcopy((char *)&sblock, iobuf, SBLOCKSIZE);
 	for (cylno = 0; cylno < sblock.fs_ncg; cylno++) {
 		initcg(cylno, utime);
-		j = snprintf(tmpbuf, sizeof(tmpbuf), " %qd%s",
-		    fsbtodb(&sblock, cgsblock(&sblock, cylno)),
+		j = snprintf(tmpbuf, sizeof(tmpbuf), " %jd%s",
+		    (intmax_t)fsbtodb(&sblock, cgsblock(&sblock, cylno)),
 		    cylno < (sblock.fs_ncg-1) ? "," : "");
 		if (j < 0)
 			tmpbuf[j = 0] = '\0';
