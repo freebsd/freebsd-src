@@ -32,6 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lang.l	8.1 (Berkeley) 6/6/93
+ * $FreeBSD$
  */
 
 #include <ctype.h>
@@ -71,7 +72,6 @@ struct kt {
 	{ "iosiz",	IOSIZ },
 	{ "irq",	IRQ },
 	{ "machine",	MACHINE },
-	{ "major",	MAJOR },
 	{ "makeoptions", MAKEOPTIONS },
 	{ "master",	MASTER },
 	{ "maxusers",	MAXUSERS },
