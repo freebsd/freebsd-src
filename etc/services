@@ -9,7 +9,7 @@
 # Kerberos services are for Kerberos v4, and are unofficial.  Sites running
 # v5 should uncomment v5 entries and comment v4 entries.
 #
-#	$Id: services,v 1.37 1997/09/18 08:56:53 asami Exp $
+#	$Id$
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 # WELL KNOWN PORT NUMBERS
@@ -169,8 +169,8 @@ ttylink		 87/tcp
 #		 87/tcp	   any private terminal link
 #PROBLEMS!===========================================================
 #		 87/udp	   any private terminal link
-#kerberos	  88/tcp    krb5	# Kerberos (v5)
-#kerberos	  88/udp    krb5	# Kerberos (v5)
+kerberos-sec	 88/tcp    # krb5	# Kerberos (v5)
+kerberos-sec	 88/udp    # krb5	# Kerberos (v5)
 su-mit-tg	 89/tcp	   #SU/MIT Telnet Gateway
 su-mit-tg	 89/udp	   #SU/MIT Telnet Gateway
 dnsix		 90/tcp	   #DNSIX Securit Attribute Token Map
@@ -790,11 +790,11 @@ ris-cm		748/tcp	   #Russell Info Sci Calendar Manager
 ris-cm		748/udp	   #Russell Info Sci Calendar Manager
 #kerberos-adm	 749/tcp    #Kerberos administration (v5)
 #kerberos-adm	 749/udp    #Kerberos administration (v5)
-kerberos	750/udp		kdc	# Kerberos (v4)
-kerberos	750/tcp		kdc	# Kerberos (v4)
+kerberos-iv	750/udp		kdc	# Kerberos (v4)
+kerberos-iv	750/tcp		kdc	# Kerberos (v4)
 #PROBLEMS!========================================================
-rfile		750/tcp
-loadav		750/udp
+#rfile		750/tcp
+#loadav		750/udp
 #PROBLEMS!========================================================
 kerberos_master 751/tcp	   # Kerberos `kadmin' (v4)
 kerberos_master 751/udp	   # Kerberos `kadmin' (v4)
@@ -1490,8 +1490,8 @@ dls-monitor	2048/tcp
 dls-monitor	2048/udp
 nfsd		2049/udp	nfs		# NFS server daemon
 #PROBLEMS!=============================================================
-shilp		2049/tcp
-shilp		2049/udp
+#shilp		2049/tcp
+#shilp		2049/udp
 #PROBLEMS!=============================================================
 dlsrpn		2065/tcp   #Data Link Switch Read Port Number
 dlsrpn		2065/udp   #Data Link Switch Read Port Number
@@ -1499,9 +1499,15 @@ dlswpn		2067/tcp   #Data Link Switch Write Port Number
 dlswpn		2067/udp   #Data Link Switch Write Port Number
 zephyr-clt      2103/udp   #Zephyr serv-hm connection
 zephyr-hm       2104/udp   #Zephyr hostmanager
-zephyr-hm-srv	2105/udp   #Zephyr hm-serv connection
+#PROBLEMS!=============================================================
+#zephyr-hm-srv	2105/udp   #Zephyr hm-serv connection
+#PROBLEMS!=============================================================
 eklogin		2105/tcp   #Kerberos (v4) encrypted rlogin
+eklogin		2105/udp   #Kerberos (v4) encrypted rlogin
+ekshell		2106/tcp   #Kerberos (v4) encrypted rshell
+ekshell		2106/udp   #Kerberos (v4) encrypted rshell
 rkinit		2108/tcp   #Kerberos (v4) remote initialization
+rkinit		2108/udp   #Kerberos (v4) remote initialization
 ats		2201/tcp   #Advanced Training System Program
 ats		2201/udp   #Advanced Training System Program
 ivs-video	2232/tcp   #IVS Video default
