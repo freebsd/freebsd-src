@@ -229,5 +229,7 @@ afterinstall:
 	       ${LOCALEDIR}/zh_HK.UTF-8/LC_NUMERIC
 	ln -sf ../zh_TW.Big5/LC_NUMERIC \
 	       ${LOCALEDIR}/zh_TW.UTF-8/LC_NUMERIC
+	ln -sf ../lt_LT.ISO8859-13/LC_NUMERIC \
+		${LOCALEDIR}/lt_LT.ISO8859-4/LC_NUMERIC
 
 .include <bsd.prog.mk>

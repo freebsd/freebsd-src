@@ -158,5 +158,7 @@ afterinstall:
 		${LOCALEDIR}/zh_TW.UTF-8/LC_MONETARY
 	ln -sf ../zh_HK.UTF-8/LC_MONETARY \
 		${LOCALEDIR}/zh_HK.Big5HKSCS/LC_MONETARY
+	ln -sf ../lt_LT.ISO8859-13/LC_MONETARY \
+		${LOCALEDIR}/lt_LT.ISO8859-4/LC_MONETARY
 
 .include <bsd.prog.mk>
