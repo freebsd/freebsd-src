@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.47 1996/01/27 00:13:33 bde Exp $
+ *	$Id: vm_page.c,v 1.48 1996/03/02 02:54:24 dyson Exp $
  */
 
 /*
@@ -535,7 +535,7 @@ vm_page_unqueue(vm_page_t m)
 	--(*vm_page_queues[queue].cnt);
 	if (queue == PQ_CACHE) {
 		if ((cnt.v_cache_count + cnt.v_free_count) <
-			(cnt.v_free_min + cnt.v_cache_min))
+			(cnt.v_free_reserved + cnt.v_cache_min))
 			pagedaemon_wakeup();
 	}
 	return;
@@ -680,7 +680,7 @@ vm_page_alloc(object, pindex, page_req)
 	 * we would be nearly out of memory.
 	 */
 	if (((cnt.v_free_count + cnt.v_cache_count) <
-		(cnt.v_free_min + cnt.v_cache_min)) ||
+		(cnt.v_free_reserved + cnt.v_cache_min)) ||
 			(cnt.v_free_count < cnt.v_pageout_free_min))
 		pagedaemon_wakeup();
 
@@ -823,6 +823,10 @@ vm_page_free(m)
 			panic("vm_page_free: freeing busy page");
 	}
 
+ 	if (m->hold_count) {
+ 		panic("freeing held page, count=%d", m->hold_count);
+ 	}
+  
 	vm_page_remove(m);
 	vm_page_unqueue(m);
 
