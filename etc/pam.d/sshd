@@ -8,10 +8,12 @@
 auth		required	pam_nologin.so	no_warn
 auth		sufficient	pam_opie.so	no_warn no_fake_prompts
 auth		required	pam_opieaccess.so	no_warn
+auth		sufficient	pam_krb5.so	no_warn try_first_pass
 auth		required	pam_unix.so	no_warn try_first_pass
 
 # account
 account		required	pam_login_access.so
+account		required	pam_krb5.so
 account		required	pam_unix.so
 
 # session
