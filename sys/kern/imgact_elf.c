@@ -93,7 +93,7 @@ __elfN(insert_brand_entry)(Elf_Brandinfo *entry)
 {
 	int i;
 
-	for (i=0; i<MAX_BRANDS; i++) {
+	for (i = 0; i < MAX_BRANDS; i++) {
 		if (elf_brand_list[i] == NULL) {
 			elf_brand_list[i] = entry;
 			break;
@@ -109,7 +109,7 @@ __elfN(remove_brand_entry)(Elf_Brandinfo *entry)
 {
 	int i;
 
-	for (i=0; i<MAX_BRANDS; i++) {
+	for (i = 0; i < MAX_BRANDS; i++) {
 		if (elf_brand_list[i] == entry) {
 			elf_brand_list[i] = NULL;
 			break;
@@ -153,7 +153,7 @@ __elfN(check_header)(const Elf_Ehdr *hdr)
 	 * Make sure we have at least one brand for this machine.
 	 */
 
-	for (i=0; i<MAX_BRANDS; i++) {
+	for (i = 0; i < MAX_BRANDS; i++) {
 		if (elf_brand_list[i]->machine == hdr->e_machine)
 			break;
 	}
@@ -203,7 +203,7 @@ __elfN(map_partial)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		}
 
 		off = offset - trunc_page(offset);
-		error = copyout((caddr_t)data_buf+off, (caddr_t)start, end - start);
+		error = copyout((caddr_t)data_buf + off, (caddr_t)start, end - start);
 		vm_map_remove(exec_map, data_buf, data_buf + PAGE_SIZE);
 		if (error) {
 			return (KERN_FAILURE);
@@ -257,7 +257,7 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 						 object,
 						 trunc_page(offset),
 						 &data_buf,
-						 2*PAGE_SIZE,
+						 2 * PAGE_SIZE,
 						 TRUE,
 						 VM_PROT_READ,
 						 VM_PROT_ALL,
@@ -271,10 +271,10 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 				sz = end - start;
 				if (sz > PAGE_SIZE)
 					sz = PAGE_SIZE;
-				error = copyout((caddr_t)data_buf+off,
+				error = copyout((caddr_t)data_buf + off,
 						(caddr_t)start, sz);
 				vm_map_remove(exec_map, data_buf,
-					      data_buf + 2*PAGE_SIZE);
+					      data_buf + 2 * PAGE_SIZE);
 				if (error) {
 					return (KERN_FAILURE);
 				}
@@ -283,7 +283,7 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 			rv = KERN_SUCCESS;
 		} else {
 			vm_map_lock(map);
-			rv =  vm_map_insert(map, object, offset, start, end,
+			rv = vm_map_insert(map, object, offset, start, end,
 					    prot, max, cow);
 			vm_map_unlock(map);
 		}
@@ -338,9 +338,9 @@ __elfN(load_section)(struct proc *p, struct vmspace *vmspace,
 	 * choose the second..
 	 */
 	if (memsz > filsz)
-		map_len = trunc_page_ps(offset+filsz, pagesize) - file_addr;
+		map_len = trunc_page_ps(offset + filsz, pagesize) - file_addr;
 	else
-		map_len = round_page_ps(offset+filsz, pagesize) - file_addr;
+		map_len = round_page_ps(offset + filsz, pagesize) - file_addr;
 
 	if (map_len != 0) {
 		vm_object_reference(object);
@@ -404,7 +404,7 @@ __elfN(load_section)(struct proc *p, struct vmspace *vmspace,
 		/* send the page fragment to user space */
 		off = trunc_page_ps(offset + filsz, pagesize)
 			- trunc_page(offset + filsz);
-		error = copyout((caddr_t)data_buf+off, (caddr_t)map_addr,
+		error = copyout((caddr_t)data_buf + off, (caddr_t)map_addr,
 			copy_len);
 		vm_map_remove(exec_map, data_buf, data_buf + PAGE_SIZE);
 		if (error) {
@@ -562,7 +562,7 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 		}
 	}
 	*addr = base_addr;
-	*entry=(unsigned long)hdr->e_entry + rbase;
+	*entry = (unsigned long)hdr->e_entry + rbase;
 
 fail:
 	if (imgp->firstpage)
@@ -586,7 +586,7 @@ extern int fallback_elf_brand;
 static int
 __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 {
-	const Elf_Ehdr *hdr = (const Elf_Ehdr *) imgp->image_header;
+	const Elf_Ehdr *hdr = (const Elf_Ehdr *)imgp->image_header;
 	const Elf_Phdr *phdr;
 	Elf_Auxargs *elf_auxargs = NULL;
 	struct vmspace *vmspace;
@@ -619,7 +619,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		/* Only support headers in first page for now */
 		return (ENOEXEC);
 	}
-	phdr = (const Elf_Phdr*)(imgp->image_header + hdr->e_phoff);
+	phdr = (const Elf_Phdr *)(imgp->image_header + hdr->e_phoff);
 
 	/*
 	 * From this point on, we may have resources that need to be freed.
@@ -635,7 +635,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	 * we can figure out VM ranges and page sizes.
 	 */
 	brand_info = NULL;
-	for (i = 0;  i < MAX_BRANDS;  i++) {
+	for (i = 0; i < MAX_BRANDS; i++) {
 		Elf_Brandinfo *bi = elf_brand_list[i];
 
 		if (bi != NULL &&
@@ -666,8 +666,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	vmspace = imgp->proc->p_vmspace;
 
 	for (i = 0; i < hdr->e_phnum; i++) {
-		switch(phdr[i].p_type) {
-
+		switch (phdr[i].p_type) {
 		case PT_LOAD:	/* Loadable segment */
 			prot = 0;
 			if (phdr[i].p_flags & PF_X)
@@ -702,7 +701,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			 * We only handle one each of those yet XXX
 			 */
 			if (hdr->e_entry >= phdr[i].p_vaddr &&
-			hdr->e_entry <(phdr[i].p_vaddr+phdr[i].p_memsz)) {
+			hdr->e_entry < (phdr[i].p_vaddr + phdr[i].p_memsz)) {
   				text_addr = trunc_page(phdr[i].p_vaddr);
   				text_size = round_page(phdr[i].p_memsz +
 						       phdr[i].p_vaddr -
@@ -751,7 +750,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 
 	/* If the executable has a brand, search for it in the brand list. */
 	if (brand_info == NULL) {
-		for (i = 0;  i < MAX_BRANDS;  i++) {
+		for (i = 0; i < MAX_BRANDS; i++) {
 			Elf_Brandinfo *bi = elf_brand_list[i];
 
 			if (bi != NULL &&
@@ -768,7 +767,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 
 	/* Lacking a known brand, search for a recognized interpreter. */
 	if (brand_info == NULL && interp != NULL) {
-		for (i = 0;  i < MAX_BRANDS;  i++) {
+		for (i = 0; i < MAX_BRANDS; i++) {
 			Elf_Brandinfo *bi = elf_brand_list[i];
 
 			if (bi != NULL &&
@@ -879,7 +878,7 @@ __elfN(freebsd_fixup)(register_t **stack_base, struct image_params *imgp)
 	imgp->auxargs = NULL;
 
 	base--;
-	suword(base, (long) imgp->argc);
+	suword(base, (long)imgp->argc);
 	*stack_base = (register_t *)base;
 	return (0);
 }
@@ -963,7 +962,7 @@ __elfN(coredump)(td, vp, limit)
 
 		php = (Elf_Phdr *)((char *)hdr + sizeof(Elf_Ehdr)) + 1;
 		offset = hdrsize;
-		for (i = 0;  i < seginfo.count;  i++) {
+		for (i = 0; i < seginfo.count; i++) {
 			error = vn_rdwr_inchunks(UIO_WRITE, vp,
 			    (caddr_t)(uintptr_t)php->p_vaddr,
 			    php->p_filesz, offset, UIO_USERSPACE,
@@ -1041,7 +1040,7 @@ each_writable_segment(p, func, closure)
 	vm_map_t map = &p->p_vmspace->vm_map;
 	vm_map_entry_t entry;
 
-	for (entry = map->header.next;  entry != &map->header;
+	for (entry = map->header.next; entry != &map->header;
 	    entry = entry->next) {
 		vm_object_t obj;
 
