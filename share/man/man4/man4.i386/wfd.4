@@ -44,22 +44,22 @@ The
 driver provides support for
 .Em ATAPI
 floppy disks, typically LS-120 style 120mb/1.4mb floppy drives.
-In general the interfaces are similar to those described by 
+In general the interfaces are similar to those described by
 .Xr wd 4 .
 .Pp
-As the IDE controllers are probed during boot, the 
+As the IDE controllers are probed during boot, the
 .Em IDE
 buses are scanned for devices.
 Any devices found which answered as
 .Sq Em Floppy
 and
 .Sq Em removable
-type device will be attached to the 
+type device will be attached to the
 .Nm
 driver.
 The first device found will be attached as
 .Em wfd0
-and the next, 
+and the next,
 .Em wfd1 ,
 and so on.
 .Pp
@@ -73,7 +73,7 @@ types of floppy disk:
 .It 720kb
 .El
 .Sh PARTITIONING
-The 
+The
 .Nm
 driver allows the disk to have two levels of partitioning.
 One layer, called the

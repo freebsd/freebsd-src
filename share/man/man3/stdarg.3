@@ -99,11 +99,11 @@ macro expands to an expression that has the type and value of the next
 argument in the call.
 The parameter
 .Fa ap
-is the 
+is the
 .Em va_list Fa ap
 initialized by
 .Fn va_start .
-Each call to 
+Each call to
 .Fn va_arg
 modifies
 .Fa ap
@@ -111,7 +111,7 @@ so that the next call returns the next argument.
 The parameter
 .Fa type
 is a type name specified so that the type of a pointer to an
-object that has the specified type can be obtained simply by 
+object that has the specified type can be obtained simply by
 adding a *
 to
 .Fa type .
@@ -124,9 +124,9 @@ random errors will occur.
 .Pp
 The first use of the
 .Fn va_arg
-macro after that of the 
+macro after that of the
 .Fn va_start
-macro returns the argument after 
+macro returns the argument after
 .Fa last .
 Successive invocations return the values of the remaining
 arguments.
@@ -134,7 +134,7 @@ arguments.
 The
 .Fn va_end
 macro handles a normal return from the function whose variable argument
-list was initialized by 
+list was initialized by
 .Fn va_start .
 .Pp
 The
@@ -185,7 +185,7 @@ These macros are
 .Em not
 compatible with the historic macros they replace.
 A backward compatible version can be found in the include
-file 
+file
 .Aq Pa varargs.h .
 .Sh BUGS
 Unlike the

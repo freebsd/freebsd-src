@@ -118,7 +118,7 @@ device class.
 The flags describe which of the fields the kernel should match against.
 A device must match all specified fields in order to be returned.  The
 match flags are enumerated in the
-.Va pci_getconf_flags 
+.Va pci_getconf_flags
 structure.
 Hopefully the flag values are obvious enough that they don't need to
 described in detail.
@@ -134,7 +134,7 @@ Number of matches returned by the kernel.
 .It matches
 Buffer containing matching devices returned by the kernel.  The items in
 this buffer are of type
-.Va pci_conf , 
+.Va pci_conf ,
 which consists of the following items:
 .Bl -tag -width pc_subvendor
 .It pc_sel
@@ -202,7 +202,7 @@ buffer.
 .It PCI_GETCONF_LIST_CHANGED
 This status tells the user that the
 .Tn PCI
-device list has changed since his last call to the 
+device list has changed since his last call to the
 .Dv PCIOCGETCONF
 ioctl and he must reset the
 .Va offset

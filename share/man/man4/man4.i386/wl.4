@@ -47,29 +47,29 @@ about 400 feet (indoors, more outdoors) can be covered in circumference.
 This card can talk to the companion (wlp0) pccard.  Speeds vary
 from 1 megabit to theoretically 2 megabits (roughly T1 in speed).
 .Pp
-The card has three fundamental hardware 
+The card has three fundamental hardware
 units, a so-called PSA or programmable storage area, a radio modem,
-and a ethernet lan controller.  The latter component is the 
+and a ethernet lan controller.  The latter component is the
 ancient (and not very honorable) Intel 82586 ethernet chip.
 Fundamentally it appears to the operating system as an ethernet system,
 and speaks IEEE MAC addresses.  The radio modem simply translates
 ethernet packets to/from radio packets, that are either at 2.4 Ghz
 or 915 mhz depending on the radio modem.  It supports a collision
 avoidance scheme.  The lan controller
-supports promiscuous mode, broadcast, and multicasting 
+supports promiscuous mode, broadcast, and multicasting
 (although there is a glitch
-in the latter).  "It thinks it is ethernet".  
-.Pp 
+in the latter).  "It thinks it is ethernet".
+.Pp
 How it is used
 depends on the kind of antennae deployed with it.  Point to point
 applications are possible as are ethernet-like lan use.  The vendor
-ships an omni-directional antennae that works in the 
+ships an omni-directional antennae that works in the
 vicinity of 400 feet (indoors).
 Point to point antennae can be purchased that will go miles.
 .Sh SETUP
 The card can either be initialized with the vendor supplied DOS setup software.
 Typically minimally an IRQ, port, and Network ID must be supplied.
-Michael Smith's 
+Michael Smith's
 .Xr wlconfig 8
 utility can now be used to do this work from
 the UNIX side.  The card is "not" plug and play.
@@ -79,7 +79,7 @@ by the radio modem.
 .Sh CONTROL
 In addition to the config utility, there are several sysctl
 switches that can be used to modify runtime parameters.
-The 
+The
 .Xr sysctl 8
 variables are as follows:
 .Bl -diag
@@ -94,9 +94,9 @@ This switch defaults to 0; i.e., the nwid is not ignored.  It can
 be set to 1 to cause the nwid to not be used.  This may be useful
 when the device is in promiscuous mode as one can watch for all
 packets and ignore nwid differences.
-.It machdep.wl_xmit_watch <milliseconds> 
+.It machdep.wl_xmit_watch <milliseconds>
 This switch is not currently useful.
-.It machdep.wl_gather_snr <milliseconds> 
+.It machdep.wl_gather_snr <milliseconds>
 This switch is not currently useful.
 .Pp
 There is also a signal strength cache in the driver.  It may be interrogated
@@ -105,12 +105,12 @@ with
 Incoming packets
 are checked for certain hardware radio-modem values including signal
 strength, silence, and quality, which range fro 0..63, 0..63, and 0..15
-respectively.  Thus one can read out signal strenth values to see 
-how close/far peer nodes are.  The signal strength cache is indexed by 
+respectively.  Thus one can read out signal strenth values to see
+how close/far peer nodes are.  The signal strength cache is indexed by
 sender MAC address.
 There are two sysctls that change how it filters packets.  Both are on
 by default.
-.It machdep.wl_wlcache_mcastonly <0 | 1> 
+.It machdep.wl_wlcache_mcastonly <0 | 1>
 By default this switch is on.
 It forces the cache to filter out
 unicast packets.  Only broadcast or multicast packets are accepted.

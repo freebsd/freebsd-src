@@ -75,7 +75,7 @@ system call must be used
 after binding the socket with the
 .Xr bind 2
 system call.  Only
-passive sockets may use the 
+passive sockets may use the
 .Xr accept 2
 call to accept incoming connections.  Only active sockets may
 use the
@@ -142,7 +142,7 @@ various
 extensions which are provided in this implementation.  The boolean
 option
 .Dv TCP_NOOPT
-is provided to disable 
+is provided to disable
 .Tn TCP
 option use on a per-connection basis.
 .It Dv TCP_NOPUSH
@@ -212,7 +212,7 @@ when no advice to the contrary is received from MSS negotiation.
 Maximum TCP send window.
 .It TCPCTL_RECVSPACE
 .Pq tcp.recvspace
-Maximum TCP receive window. 
+Maximum TCP receive window.
 .It tcp.log_in_vain
 Log any connection attempts to ports where there is not a socket
 accepting connections.
@@ -221,7 +221,7 @@ The number of packets allowed to be in-flight during the
 .Tn TCP
 slow-start phase on a non-local network.
 .It tcp.local_slowstart_flightsize
-The number of packets allowed to be in-flight during the 
+The number of packets allowed to be in-flight during the
 .Tn TCP
 slow-start phase to local machines in the same subnet.
 .It tcp.msl
@@ -233,7 +233,7 @@ Amount of time the connection should be idle before keepalive
 probes (if enabled) are sent.
 .It tcp.keepintvl
 The interval between keepalive probes sent to remote machines.
-After 
+After
 .Dv TCPTV_KEEPCNT
 (default 8) probes are sent, with no response, the connection is dropped.
 .It tcp.always_keepalive
@@ -259,7 +259,7 @@ reassembly queue if the system is low on mbufs.
 .\"
 .It tcp.tcp_lq_overflow
 If a connection is dropped due to a listen queue overflow, delete the
-cloned route associated with the connection if it does not have any 
+cloned route associated with the connection if it does not have any
 prior information.
 .It tcp.blackhole
 If enabled, disable sending of RST when a connection is attempted
@@ -314,7 +314,7 @@ when an attempt
 is made to create a socket with a port which has already been
 allocated;
 .It Bq Er EADDRNOTAVAIL
-when an attempt is made to create a 
+when an attempt is made to create a
 socket with a network address for which no network interface
 exists.
 .It Bq Er EAFNOSUPPORT

@@ -11,10 +11,10 @@
 The PC keyboard is used as the console character input device.
 The keyboard
 is owned by the current virtual console.
-To switch between the virtual consoles use the sequence 
+To switch between the virtual consoles use the sequence
 .Ar ALT+Fn ,
 which means hold down ALT and press one of the function keys.
-The 
+The
 virtual console with the same number as the function key is then
 selected as the current virtual console and given exclusive use of
 the keyboard and display.
@@ -50,12 +50,12 @@ Switch virtual console.
 Change the meaning of another key.
 .El
 .Pp
-The keyboard is seen as a number of keys numbered from 1 to n. This 
+The keyboard is seen as a number of keys numbered from 1 to n. This
 number is often referred to as the "scancode" for a given key.
 The number
-of the key is transmitted as an 8 bit char with bit 7 as 0 when a key is 
+of the key is transmitted as an 8 bit char with bit 7 as 0 when a key is
 pressed, and the number with bit 7 as 1 when released.
-This makes it 
+This makes it
 possible to make the mapping of the keys fully configurable.
 .Pp
 The meaning of every key is programmable via the PIO_KEYMAP ioctl call, that
@@ -91,21 +91,21 @@ represented by the map array, as shown below:
  0x1E      'a'     'A'   0x01   0x01    'a'    'A'   0x01   0x01
 .Ed
 .Pp
-This is the default mapping for the key labelled 'A' which normally has 
-scancode 0x1E. The eight states are as shown, giving the 'A' key its 
-normal behavior. 
+This is the default mapping for the key labelled 'A' which normally has
+scancode 0x1E. The eight states are as shown, giving the 'A' key its
+normal behavior.
 The spcl field is used to give the key "special" treatment, and is
-interpreted as follows. 
+interpreted as follows.
 Each bit corresponds to one of the states above.
-If the bit is 0 the 
-key emits the number defined in the corresponding map[] entry. 
-If the bit is 1 the key is "special". This means it does not emit 
-anything; instead it changes the "state". That means it is a shift, 
-control, alt, lock, switch-screen, function-key or no-op key. 
+If the bit is 0 the
+key emits the number defined in the corresponding map[] entry.
+If the bit is 1 the key is "special". This means it does not emit
+anything; instead it changes the "state". That means it is a shift,
+control, alt, lock, switch-screen, function-key or no-op key.
 The bitmap is backwards ie. 7 for base, 6 for shift etc.
 .Pp
 The flgs field defines if the key should react on caps-lock (1),
-num-lock (2), both (3) or ignore both (0). 
+num-lock (2), both (3) or ignore both (0).
 .Pp
 The
 .Xr kbdcontrol 1

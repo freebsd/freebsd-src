@@ -87,7 +87,7 @@ The kernel will panic, if it can't release the resource.
 .Sh EXAMPLES
 .Bd -literal
 	/* deactivate IRQ */
-	bus_teardown_intr(dev, foosoftc->irqres, foosoftc->irqid);  
+	bus_teardown_intr(dev, foosoftc->irqres, foosoftc->irqid);
 
 	/* release IRQ resource */
 	bus_release_resource(dev, SYS_RES_IRQ, foosoftc->irqid,

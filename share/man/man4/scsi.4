@@ -61,7 +61,7 @@ of drivers to control various
 devices, and to utilize different
 .Tn SCSI
 host adapters through host adapter drivers.
-When the system probes the 
+When the system probes the
 .Tn SCSI
 busses, it attaches any devices it finds to the appropriate
 drivers.  The
@@ -175,7 +175,7 @@ then the first non-wired disk shall come on line as
 The system allows common device drivers to work through many different
 types of adapters.
 The adapters take requests from the upper layers and do
-all IO between the 
+all IO between the
 .Em SCSI
 bus and the system.
 The maximum size of a transfer is governed by the
@@ -183,7 +183,7 @@ adapter.
 Most adapters can transfer 64KB in a single operation, however
 many can transfer larger amounts.
 .Sh TARGET MODE
-Some adapters support 
+Some adapters support
 .Em target mode
 in which the system is capable of operating as a device, responding to
 operations initiated by another system.
@@ -195,7 +195,7 @@ subsystem.
 see other scsi device entries.
 .Sh DIAGNOSTICS
 When the kernel is compiled with options CAMDEBUG, an XPT_DEBUG CCB can be
-used to enable various amounts of tracing information on any 
+used to enable various amounts of tracing information on any
 specific device.
 Devices not being traced will not produce trace information.
 There are currently four debugging flags that may be turned on:

@@ -182,16 +182,16 @@ If there is nothing in the
 field, the Bourne shell
 .Pq Pa /bin/sh
 is assumed.
-For security reasons, if the shell is set to a script that disallows 
+For security reasons, if the shell is set to a script that disallows
 access to the system (the
 .Xr nologin 8
-script, for example), care should be taken not to import any environment 
+script, for example), care should be taken not to import any environment
 variables.  With
 .Xr sh 1 ,
 this can be done by specifying the
 .Fl p
 flag.
-Check the specific shell documentation to determine how this is 
+Check the specific shell documentation to determine how this is
 done with other shells.
 .Sh YP/NIS INTERACTION
 .Ss Enabling access to NIS passwd data
@@ -537,7 +537,7 @@ format.
 The
 .Tn SunOS
 documentation claims that
-adding a 
+adding a
 .Ql \&+
 entry to the password file causes the contents of
 the NIS password database to be
@@ -594,7 +594,7 @@ Instead,
 groups all the NIS override entries together
 and constructs a filter out of them.
 Each NIS password entry
-is compared against the override filter exactly once and 
+is compared against the override filter exactly once and
 treated accordingly: if the filter allows the entry through
 unaltered, it's treated unaltered; if the filter calls for remapping
 of fields, then fields are remapped; if the filter calls for
@@ -663,7 +663,7 @@ If an
 netgroup doesn't exist, the system
 will try to match users against the normal
 .Ql operator
-group instead. 
+group instead.
 .Ss Changes in behavior from older versions of FreeBSD
 There have been several bug fixes and improvements in
 .Tn FreeBSD Ns 's

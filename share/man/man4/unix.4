@@ -49,7 +49,7 @@ that provides local (on-machine) interprocess
 communication through the normal
 .Xr socket 2
 mechanisms.
-The 
+The
 .Tn UNIX Ns -domain
 family supports the
 .Dv SOCK_STREAM
@@ -88,7 +88,7 @@ The
 protocol family does not support broadcast addressing or any form
 of
 .Dq wildcard
-matching on incoming messages. 
+matching on incoming messages.
 All addresses are absolute- or relative-pathnames
 of other
 .Tn UNIX Ns -domain
@@ -101,7 +101,7 @@ or
 .Xr sendto 2
 must be writable.
 .Sh PROTOCOLS
-The 
+The
 .Tn UNIX Ns -domain
 protocol family is comprised of simple
 transport protocols that support the
@@ -110,7 +110,7 @@ and
 .Dv SOCK_DGRAM
 abstractions.
 .Dv SOCK_STREAM
-sockets also support the communication of 
+sockets also support the communication of
 .Ux
 file descriptors through the use of the
 .Ar msg_control
@@ -122,7 +122,7 @@ and
 .Xr recvmsg 2 .
 .Pp
 Any valid descriptor may be sent in a message.
-The file descriptor(s) to be passed are described using a 
+The file descriptor(s) to be passed are described using a
 .Ar struct cmsghdr
 that is defined in the include file
 .Aq Pa sys/socket.h .
@@ -135,13 +135,13 @@ by the length field of the message;
 the length field is the sum of the size of the header
 plus the size of the array of file descriptors.
 .Pp
-The received descriptor is a 
+The received descriptor is a
 .Em duplicate
 of the sender's descriptor, as if it were created with a call to
 .Xr dup 2 .
 Per-process descriptor flags, set with
 .Xr fcntl 2 ,
-are 
+are
 .Em not
 passed to a receiver.
 Descriptors that are awaiting delivery, or that are

@@ -52,11 +52,11 @@ happens to be 128.  It isn't directly available to applications.
 The clock reported by
 .Xr clock 3 .
 This is a virtual clock with a frequency that happens to be 128.  Its
-actual frequency is given by the macro 
-.Dv CLOCKS_PER_SEC .  
+actual frequency is given by the macro
+.Dv CLOCKS_PER_SEC .
 Note that
 .Dv CLOCKS_PER_SEC
-may be floating point.  Don't use 
+may be floating point.  Don't use
 .Fn clock
 in new programs under
 .Fx .
@@ -71,22 +71,22 @@ The clock reported by
 This is a virtual clock with a frequency that happens to be 128.  Its
 actual frequency is given by the macro
 .Dv CLK_TCK
-(deprecated; don't use) and by 
+(deprecated; don't use) and by
 .Fn sysconf SC_CLK_TCK
 and by
 .Xr sysctl 3 .
 Note that its frequency may be different from
 .Dv CLOCKS_PER_SEC .
-Don't use 
+Don't use
 .Xr times 3
 in new programs under
 .Fx .
 It is feeble compared with
 .Xr gettimeofday 2
-together with 
+together with
 .Fn getrusage .
 It is provided for POSIX
-conformance.  It is implemented by calling 
+conformance.  It is implemented by calling
 .Fn gettimeofday
 and
 .Fn getrusage
