@@ -7,6 +7,7 @@ SUBDIR=	adjkerntz \
 	atacontrol \
 	atm \
 	badsect \
+	bsdlabel \
 	camcontrol \
 	ccdconfig \
 	clri \
@@ -94,7 +95,6 @@ SUBDIR+=ipf \
 SUBDIR+=cxconfig \
 	mount_nwfs \
 	mount_smbfs
-SUBDIR+=disklabel
 .if ${MACHINE} == "pc98"
 SUBDIR+=fdisk_pc98
 .else
@@ -104,13 +104,8 @@ SUBDIR+=fdisk
 
 .if ${MACHINE_ARCH} == "ia64"
 SUBDIR+=fdisk \
-	disklabel \
 	gpt \
 	mca
-.endif
-
-.if ${MACHINE_ARCH} == "alpha"
-SUBDIR+=disklabel
 .endif
 
 .if ${MACHINE_ARCH} == "sparc64"
