@@ -301,8 +301,8 @@ aac_attach(struct aac_softc *sc)
 	 * Make the control device.
 	 */
 	unit = device_get_unit(sc->aac_dev);
-	sc->aac_dev_t = make_dev(&aac_cdevsw, unit, UID_ROOT, GID_WHEEL, 0644,
-				 "aac%d", unit);
+	sc->aac_dev_t = make_dev(&aac_cdevsw, unit, UID_ROOT, GID_OPERATOR,
+				 0640, "aac%d", unit);
 #if __FreeBSD_version > 500005
 	(void)make_dev_alias(sc->aac_dev_t, "afa%d", unit);
 	(void)make_dev_alias(sc->aac_dev_t, "hpn%d", unit);
