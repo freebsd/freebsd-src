@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsinit - namespace initialization
- *              $Revision: 5 $
+ *              $Revision: 9 $
  *
  *****************************************************************************/
 
@@ -216,8 +216,6 @@ AcpiNsInitializeDevices (
     Info.DeviceCount = 0;
     Info.Num_STA = 0;
     Info.Num_INI = 0;
-    Info.Num_HID = 0;
-    Info.Num_PCI = 0;
 
 
     DEBUG_PRINT_RAW (ACPI_OK, ("Executing device _INI methods:"));
@@ -233,9 +231,8 @@ AcpiNsInitializeDevices (
 
 
     DEBUG_PRINT_RAW (ACPI_OK,
-        ("\n%d Devices found: %d _STA, %d _INI, %d _HID, %d PCIRoot\n",
-        Info.DeviceCount, Info.Num_STA, Info.Num_INI,
-        Info.Num_HID, Info.Num_PCI));
+        ("\n%d Devices found: %d _STA, %d _INI\n",
+        Info.DeviceCount, Info.Num_STA, Info.Num_INI));
 
     return_ACPI_STATUS (Status);
 }
@@ -300,6 +297,13 @@ AcpiNsInitOneObject (
 
         Info->OpRegionInit++;
         Status = AcpiDsGetRegionArguments (ObjDesc);
+        if (ACPI_FAILURE (Status))
+        {
+            DEBUG_PRINT_RAW (ACPI_ERROR, ("\n"));
+            DEBUG_PRINT (ACPI_ERROR, ("%s while getting region arguments [%4.4s]\n", 
+                            AcpiCmFormatException (Status), &Node->Name));
+        }
+
         DEBUG_PRINT_RAW (ACPI_OK, ("."));
         break;
 
@@ -314,6 +318,12 @@ AcpiNsInitOneObject (
 
         Info->FieldInit++;
         Status = AcpiDsGetFieldUnitArguments (ObjDesc);
+        if (ACPI_FAILURE (Status))
+        {
+            DEBUG_PRINT_RAW (ACPI_ERROR, ("\n"));
+            DEBUG_PRINT (ACPI_ERROR, ("%s while getting field arguments [%4.4s]\n", 
+                            AcpiCmFormatException (Status), &Node->Name));
+        }
         DEBUG_PRINT_RAW (ACPI_OK, ("."));
 
         break;
@@ -352,7 +362,6 @@ AcpiNsInitOneDevice (
     void                    **ReturnValue)
 {
     ACPI_STATUS             Status;
-    ACPI_OPERAND_OBJECT    *RetObj = NULL;
     ACPI_NAMESPACE_NODE    *Node;
     UINT32                  Flags;
     ACPI_DEVICE_WALK_INFO  *Info = (ACPI_DEVICE_WALK_INFO *) Context;
@@ -400,7 +409,8 @@ AcpiNsInitOneDevice (
     Status = AcpiNsEvaluateRelative (ObjHandle, "_INI", NULL, NULL);
     if (AE_NOT_FOUND == Status)
     {
-         /* No _INI means device requires no initialization */
+        /* No _INI means device requires no initialization */
+        Status = AE_OK;
     }
 
     else if (ACPI_FAILURE (Status))
@@ -421,93 +431,5 @@ AcpiNsInitOneDevice (
         Info->Num_INI++;
     }
 
-
-    /*
-     * Examine the HID of the device.  _HID can be an executable
-     * control method -- it simply has to return a string or number
-     * containing the HID.
-     */
-
-    if (RetObj)
-    {
-        AcpiCmRemoveReference (RetObj);
-    }
-
-    RetObj = NULL;
-    Status = AcpiNsEvaluateRelative (ObjHandle, "_HID", NULL, &RetObj);
-    if (AE_NOT_FOUND == Status)
-    {
-        /* No _HID --> Can't be a PCI root bridge */
-        return_ACPI_STATUS (AE_OK);
-    }
-
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
-
-    Info->Num_HID++;
-
-
-    /*
-     * Found an _HID object.
-     * Check for a PCI Root Bridge.  We need to install the PCI_CONFIG space
-     * handler on all PCI Root Bridges found within the namespace
-     *
-     * A PCI Root Bridge has an HID with the value EISAID("PNP0A03")
-     * The HID can be either a number or a string.
-     */
-
-    switch (RetObj->Common.Type)
-    {
-    case ACPI_TYPE_NUMBER:
-
-        if (RetObj->Number.Value != PCI_ROOT_HID_VALUE)
-        {
-            goto Cleanup;
-        }
-
-        break;
-
-    case ACPI_TYPE_STRING:
-
-        if (STRNCMP (RetObj->String.Pointer, PCI_ROOT_HID_STRING,
-                     sizeof (PCI_ROOT_HID_STRING)))
-        {
-            goto Cleanup;
-        }
-
-        break;
-
-    default:
-
-        goto Cleanup;
-    }
-
-
-    /*
-     * We found a valid PCI_ROOT_HID.
-     * The parent of the HID entry is the PCI device;  Install the default PCI
-     * handler for this PCI device.
-     */
-
-    Info->Num_PCI++;
-
-    if (!(Info->Flags & ACPI_NO_PCI_INIT))
-    {
-        Status = AcpiInstallAddressSpaceHandler (ObjHandle,
-                                                 ADDRESS_SPACE_PCI_CONFIG,
-                                                 ACPI_DEFAULT_HANDLER, NULL, NULL);
-    }
-
-Cleanup:
-
-    if (RetObj)
-    {
-        AcpiCmRemoveReference (RetObj);
-    }
-
     return_ACPI_STATUS (Status);
 }
-
-

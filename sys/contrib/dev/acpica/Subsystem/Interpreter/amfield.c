@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: amfield - ACPI AML (p-code) execution - field manipulation
- *              $Revision: 73 $
+ *              $Revision: 74 $
  *
  *****************************************************************************/
 
@@ -367,7 +367,7 @@ AcpiAmlAccessNamedField (
     if (BufferLength > ByteFieldLength)
     {
         DEBUG_PRINT (ACPI_INFO,
-            ("AmlAccessNamedField: Byte length %d too large, truncated to %x\n",
+            ("AmlAccessNamedField: Byte length %X truncated to %X\n",
             ActualByteLength, ByteFieldLength));
 
         ActualByteLength = ByteFieldLength;
@@ -378,7 +378,7 @@ AcpiAmlAccessNamedField (
     if (DIV_8(BitGranularity) > ByteFieldLength)
     {
         DEBUG_PRINT (ACPI_INFO,
-            ("AmlAccessNamedField: Bit granularity %d too large, truncated to %x\n",
+            ("AmlAccessNamedField: Bit granularity %X truncated to %X\n",
             BitGranularity, MUL_8(ByteFieldLength)));
 
         BitGranularity = MUL_8(ByteFieldLength);
@@ -387,7 +387,7 @@ AcpiAmlAccessNamedField (
     if (ByteGranularity > ByteFieldLength)
     {
         DEBUG_PRINT (ACPI_INFO,
-            ("AmlAccessNamedField: Byte granularity %d too large, truncated to %x\n",
+            ("AmlAccessNamedField: Byte granularity %X truncated to %X\n",
             ByteGranularity, ByteFieldLength));
 
         ByteGranularity = ByteFieldLength;

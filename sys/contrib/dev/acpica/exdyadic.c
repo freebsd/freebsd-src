@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: amdyadic - ACPI AML (p-code) execution for dyadic operators
- *              $Revision: 67 $
+ *              $Revision: 68 $
  *
  *****************************************************************************/
 
@@ -174,7 +174,7 @@ AcpiAmlExecDyadic1 (
         /* Invalid parameters on object stack  */
 
         DEBUG_PRINT (ACPI_ERROR,
-            ("ExecDyadic1/%s: bad operand(s) (0x%X)\n",
+            ("ExecDyadic1/%s: bad operand(s) (Status=%X)\n",
             AcpiPsGetOpcodeName (Opcode), Status));
 
         goto Cleanup;
@@ -216,7 +216,7 @@ AcpiAmlExecDyadic1 (
 
             default:
                 DEBUG_PRINT (ACPI_ERROR,
-                    ("AmlExecDyadic1/NotifyOp: unexpected notify object type %d\n",
+                    ("AmlExecDyadic1/NotifyOp: unexpected notify object type %X\n",
                     ObjDesc->Common.Type));
 
                 Status = AE_AML_OPERAND_TYPE;
@@ -299,7 +299,7 @@ AcpiAmlExecDyadic2R (
     if (ACPI_FAILURE (Status))
     {
         DEBUG_PRINT (ACPI_ERROR,
-            ("ExecDyadic2R/%s: bad operand(s) (0x%X)\n",
+            ("ExecDyadic2R/%s: bad operand(s) (Status=%X)\n",
             AcpiPsGetOpcodeName (Opcode), Status));
 
         goto Cleanup;
@@ -469,7 +469,7 @@ AcpiAmlExecDyadic2R (
         if (ObjDesc2->Common.Type != ObjDesc->Common.Type)
         {
             DEBUG_PRINT (ACPI_ERROR,
-                ("AmlExecDyadic2R/ConcatOp: operand type mismatch %d %d\n",
+                ("AmlExecDyadic2R/ConcatOp: operand type mismatch %X != %X\n",
                 ObjDesc->Common.Type, ObjDesc2->Common.Type));
             Status = AE_AML_OPERAND_TYPE;
             goto Cleanup;
@@ -656,7 +656,7 @@ AcpiAmlExecDyadic2S (
         /* Invalid parameters on object stack  */
 
         DEBUG_PRINT (ACPI_ERROR,
-            ("ExecDyadic2S/%s: bad operand(s) (0x%X)\n",
+            ("ExecDyadic2S/%s: bad operand(s) (Status=%X)\n",
             AcpiPsGetOpcodeName (Opcode), Status));
 
         goto Cleanup;
@@ -789,7 +789,7 @@ AcpiAmlExecDyadic2 (
         /* Invalid parameters on object stack  */
 
         DEBUG_PRINT (ACPI_ERROR,
-            ("ExecDyadic2/%s: bad operand(s) (0x%X)\n",
+            ("ExecDyadic2/%s: bad operand(s) (Status=%X)\n",
             AcpiPsGetOpcodeName (Opcode), Status));
 
         goto Cleanup;

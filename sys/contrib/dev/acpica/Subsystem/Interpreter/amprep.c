@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: amprep - ACPI AML (p-code) execution - field prep utilities
- *              $Revision: 68 $
+ *              $Revision: 69 $
  *
  *****************************************************************************/
 
@@ -294,7 +294,7 @@ AcpiAmlPrepDefFieldValue (
     if (Type != ACPI_TYPE_REGION)
     {
         DEBUG_PRINT (ACPI_ERROR,
-            ("AmlPrepDefFieldValue: Needed Region, found %d %s\n",
+            ("AmlPrepDefFieldValue: Needed Region, found type %X %s\n",
             Type, AcpiCmGetTypeName (Type)));
         return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
     }
@@ -415,7 +415,7 @@ AcpiAmlPrepBankFieldValue (
     if (Type != ACPI_TYPE_REGION)
     {
         DEBUG_PRINT (ACPI_ERROR,
-            ("AmlPrepBankFieldValue: Needed Region, found %d %s\n",
+            ("AmlPrepBankFieldValue: Needed Region, found type %X %s\n",
             Type, AcpiCmGetTypeName (Type)));
         return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
     }

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evxface - External interfaces for ACPI events
- *              $Revision: 96 $
+ *              $Revision: 97 $
  *
  *****************************************************************************/
 
@@ -195,7 +195,7 @@ AcpiInstallFixedEventHandler (
     }
 
     DEBUG_PRINT (ACPI_INFO,
-        ("Enabled fixed event %d.  Handler: %x\n", Event, Handler));
+        ("Enabled fixed event %X, Handler=%p\n", Event, Handler));
 
 
 Cleanup:
@@ -256,7 +256,7 @@ AcpiRemoveFixedEventHandler (
     AcpiGbl_FixedEventHandlers[Event].Handler = NULL;
     AcpiGbl_FixedEventHandlers[Event].Context = NULL;
 
-    DEBUG_PRINT (ACPI_INFO, ("Disabled fixed event %d.\n", Event));
+    DEBUG_PRINT (ACPI_INFO, ("Disabled fixed event %X.\n", Event));
 
     AcpiCmReleaseMutex (ACPI_MTX_EVENTS);
     return_ACPI_STATUS (Status);

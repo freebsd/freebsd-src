@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsaccess - Top-level functions for accessing ACPI namespace
- *              $Revision: 113 $
+ *              $Revision: 115 $
  *
  ******************************************************************************/
 
@@ -392,6 +392,9 @@ AcpiNsLookup (
     if ((!ScopeInfo) ||
         (!ScopeInfo->Scope.Node))
     {
+        DEBUG_PRINT (TRACE_NAMES,
+            ("NsLookup: Null scope prefix, using root node (%p)\n", AcpiGbl_RootNode));
+
         PrefixNode = AcpiGbl_RootNode;
     }
     else
@@ -604,7 +607,7 @@ AcpiNsLookup (
             ThisSearchType = Type;
         }
 
-        /* Pluck and ACPI name from the front of the pathname */
+        /* Pluck one ACPI name from the front of the pathname */
 
         MOVE_UNALIGNED32_TO_32 (&SimpleName, Pathname);
 
@@ -655,7 +658,7 @@ AcpiNsLookup (
             /* Complain about a type mismatch */
 
             REPORT_WARNING (
-                ("NsLookup: %4.4s, type 0x%X, checking for type 0x%X\n",
+                ("NsLookup: %4.4s, type %X, checking for type %X\n",
                 &SimpleName, ThisNode->Type, TypeToCheckFor));
         }
 
@@ -679,7 +682,7 @@ AcpiNsLookup (
              */
 
             DEBUG_PRINT (ACPI_INFO,
-                ("NsLookup: Load mode=%d  ThisNode=%x\n",
+                ("NsLookup: Load mode=%X  ThisNode=%X\n",
                 InterpreterMode, ThisNode));
         }
 

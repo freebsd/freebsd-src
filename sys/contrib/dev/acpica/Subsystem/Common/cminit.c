@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: cminit - Common ACPI subsystem initialization
- *              $Revision: 88 $
+ *              $Revision: 89 $
  *
  *****************************************************************************/
 
@@ -150,7 +150,7 @@ AcpiCmFadtRegisterError (
 {
 
     REPORT_ERROR (
-        ("Invalid FADT register value, %s = 0x%X (FADT=0x%X)\n",
+        ("Invalid FADT register value, %s=%X (FADT=%p)\n",
         RegisterName, Value, AcpiGbl_FADT));
 
 

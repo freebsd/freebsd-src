@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dswscope - Scope stack manipulation
- *              $Revision: 39 $
+ *              $Revision: 40 $
  *
  *****************************************************************************/
 
@@ -154,7 +154,7 @@ AcpiDsScopeStackClear (
         WalkState->ScopeInfo = ScopeInfo->Scope.Next;
 
         DEBUG_PRINT (TRACE_EXEC,
-            ("Popped object type 0x%X\n", ScopeInfo->Common.Value));
+            ("Popped object type %X\n", ScopeInfo->Common.Value));
         AcpiCmDeleteGenericState (ScopeInfo);
     }
 }
@@ -258,7 +258,7 @@ AcpiDsScopeStackPop (
     }
 
     DEBUG_PRINT (TRACE_EXEC,
-        ("Popped object type 0x%X\n", ScopeInfo->Common.Value));
+        ("Popped object type %X\n", ScopeInfo->Common.Value));
 
     AcpiCmDeleteGenericState (ScopeInfo);
 

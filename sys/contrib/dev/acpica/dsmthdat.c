@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dsmthdat - control method arguments and local variables
- *              $Revision: 34 $
+ *              $Revision: 36 $
  *
  ******************************************************************************/
 
@@ -166,10 +166,10 @@ AcpiDsMethodDataInit (
     {
         MOVE_UNALIGNED32_TO_32 (&WalkState->Arguments[i].Name,
                                 NAMEOF_ARG_NTE);
-
         WalkState->Arguments[i].Name       |= (i << 24);
         WalkState->Arguments[i].DataType    = ACPI_DESC_TYPE_NAMED;
-        WalkState->Arguments[i].Type        = INTERNAL_TYPE_METHOD_ARGUMENT;
+        WalkState->Arguments[i].Type        = ACPI_TYPE_ANY;
+        WalkState->Arguments[i].Flags       = ANOBJ_END_OF_PEER_LIST | ANOBJ_METHOD_ARG;
     }
 
     /* Init the method locals */
@@ -181,7 +181,8 @@ AcpiDsMethodDataInit (
 
         WalkState->LocalVariables[i].Name    |= (i << 24);
         WalkState->LocalVariables[i].DataType = ACPI_DESC_TYPE_NAMED;
-        WalkState->LocalVariables[i].Type     = INTERNAL_TYPE_METHOD_LOCAL_VAR;
+        WalkState->LocalVariables[i].Type     = ACPI_TYPE_ANY;
+        WalkState->LocalVariables[i].Flags    = ANOBJ_END_OF_PEER_LIST | ANOBJ_METHOD_LOCAL;
     }
 
     return_ACPI_STATUS (AE_OK);
@@ -643,14 +644,14 @@ AcpiDsMethodDataGetValue (
         {
         case MTH_TYPE_ARG:
             DEBUG_PRINT (ACPI_ERROR,
-                ("DsMethodDataGetValue: Uninitialized Arg[%d] at entry %X\n",
+                ("DsMethodDataGetValue: Uninitialized Arg[%d] at entry %p\n",
                 Index, Entry));
             return_ACPI_STATUS (AE_AML_UNINITIALIZED_ARG);
             break;
 
         case MTH_TYPE_LOCAL:
             DEBUG_PRINT (ACPI_ERROR,
-                ("DsMethodDataGetValue: Uninitialized Local[%d] at entry %X\n",
+                ("DsMethodDataGetValue: Uninitialized Local[%d] at entry %p\n",
                 Index, Entry));
             return_ACPI_STATUS (AE_AML_UNINITIALIZED_LOCAL);
             break;

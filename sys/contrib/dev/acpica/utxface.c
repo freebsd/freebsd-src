@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: cmxface - External interfaces for "global" ACPI functions
- *              $Revision: 54 $
+ *              $Revision: 55 $
  *
  *****************************************************************************/
 
@@ -277,7 +277,9 @@ AcpiEnableSubsystem (
         Status = AcpiEnable ();
         if (ACPI_FAILURE (Status))
         {
-            return_ACPI_STATUS (Status);
+            /* TBD: workaround. Old Lions don't enable properly */
+            DEBUG_PRINT(ACPI_WARN, ("AcpiEnable failed.\n"));
+            /*return_ACPI_STATUS (Status);*/
         }
     }
 

@@ -2,7 +2,7 @@
  *
  * Module Name: evmisc - ACPI device notification handler dispatch
  *                       and ACPI Global Lock support
- *              $Revision: 19 $
+ *              $Revision: 20 $
  *
  *****************************************************************************/
 
@@ -157,7 +157,7 @@ AcpiEvNotifyDispatch (
 
 
     DEBUG_PRINT (ACPI_INFO,
-        ("Dispatching Notify(%d) on device %p\n", NotifyValue, Device));
+        ("Dispatching Notify(%X) on device %p\n", NotifyValue, Device));
 
     switch (NotifyValue)
     {
