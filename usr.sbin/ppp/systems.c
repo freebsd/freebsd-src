@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.37 1998/06/15 19:05:47 brian Exp $
+ * $Id: systems.c,v 1.38 1998/06/15 19:06:25 brian Exp $
  *
  *  TODO:
  */
@@ -315,8 +315,13 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
           if (*cp == '\0')  /* empty / comment */
             continue;
 
-          if (!indent)      /* start of next section */
+          if (!indent) {    /* start of next section */
+            wp = strchr(cp, ':');
+            if (doexec && (wp == NULL || wp[1] != '\0'))
+	      log_Printf(LogWARN, "Unindented command (%s line %d) - ignored\n",
+		         filename, linenum);
             break;
+          }
 
           len = strlen(cp);
           argc = command_Interpret(cp, len, argv);
