@@ -134,7 +134,7 @@ int	clkintr_pending;
 int	disable_rtc_set;	/* disable resettodr() if != 0 */
 volatile u_int	idelayed;
 int	statclock_disable;
-u_int	stat_imask = SWI_CLOCK_MASK;
+u_int	stat_imask = SWI_LOW_MASK;
 #ifndef TIMER_FREQ
 #define TIMER_FREQ   1193182
 #endif
