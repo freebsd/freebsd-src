@@ -41,6 +41,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl alrtu
+.Op Ar host ...
 .Sh DESCRIPTION
 The
 .Nm
@@ -48,6 +49,13 @@ utility gives a status line like
 .Xr uptime 1
 for each machine on the local network; these are formed from packets
 broadcast by each host on the network once every three minutes.
+.Pp
+If no operands are given,
+.Nm
+displays uptime status for all machines;
+otherwise only those hosts specified on the command line are displayed.
+If hosts are specified on the command line, the sort order is equivalent
+to the order hosts were specified on the command line.
 .Pp
 Machines for which no status report has been received for 11
 minutes are shown as being down, and machines for which no status

@@ -70,11 +70,13 @@ struct	whod awhod;
 size_t nhosts;
 time_t now;
 int rflg = 1;
+DIR *dirp;
 
 int	 hscmp(const void *, const void *);
 char	*interval(time_t, const char *);
 int	 lcmp(const void *, const void *);
 void	 morehosts(void);
+void	 ruptime(const char *, int, int (*)(const void *, const void *));
 int	 tcmp(const void *, const void *);
 int	 ucmp(const void *, const void *);
 void	 usage(void);
@@ -82,16 +84,8 @@ void	 usage(void);
 int
 main(int argc, char *argv[])
 {
-	struct dirent *dp;
-	struct hs *hsp;
-	struct whod *wd;
-	struct whoent *we;
-	DIR *dirp;
-	size_t hspace;
-	int aflg, ch, fd, i, maxloadav;
-	char buf[sizeof(struct whod)];
 	int (*cmp)(const void *, const void *);
-	u_int cc;
+	int aflg, ch;
 
 	aflg = 0;
 	cmp = hscmp;
@@ -118,74 +112,14 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (argc != 0)
-		usage();
-
 	if (chdir(_PATH_RWHODIR) || (dirp = opendir(".")) == NULL)
 		err(1, "%s", _PATH_RWHODIR);
 
-	maxloadav = -1;
-	for (nhosts = hspace = 0; (dp = readdir(dirp)) != NULL;) {
-		if (dp->d_ino == 0 || strncmp(dp->d_name, "whod.", 5))
-			continue;
-		if ((fd = open(dp->d_name, O_RDONLY, 0)) < 0) {
-			warn("%s", dp->d_name);
-			continue;
-		}
-		cc = read(fd, buf, sizeof(struct whod));
-		(void)close(fd);
-
-		if (cc < WHDRSIZE)
-			continue;
-		if (nhosts == hspace) {
-			if ((hs =
-			    realloc(hs, (hspace += 40) * sizeof(*hs))) == NULL)
-				err(1, NULL);
-			hsp = hs + nhosts;
-		}
-
-		if ((hsp->hs_wd = malloc((size_t)WHDRSIZE)) == NULL)
-			err(1, NULL);
-		memmove(hsp->hs_wd, buf, (size_t)WHDRSIZE);
-
-		for (wd = (struct whod *)buf, i = 0; i < 2; ++i)
-			if (wd->wd_loadav[i] > maxloadav)
-				maxloadav = wd->wd_loadav[i];
-
-		for (hsp->hs_nusers = 0,
-		    we = (struct whoent *)(buf + cc); --we >= wd->wd_we;)
-			if (aflg || we->we_idle < 3600)
-				++hsp->hs_nusers;
-		++hsp;
-		++nhosts;
-	}
-	if (nhosts == 0)
-		errx(1, "no hosts in %s", _PATH_RWHODIR);
-
-	(void)time(&now);
-	qsort(hs, nhosts, sizeof(hs[0]), cmp);
-	for (i = 0; i < (int)nhosts; i++) {
-		hsp = &hs[i];
-		if (LEFTEARTH(hsp))
-			continue;
-		if (ISDOWN(hsp)) {
-			(void)printf("%-12.12s%s\n", hsp->hs_wd->wd_hostname,
-			    interval(now - hsp->hs_wd->wd_recvtime, "down"));
-			continue;
-		}
-		(void)printf(
-		    "%-12.12s%s,  %4d user%s  load %*.2f, %*.2f, %*.2f\n",
-		    hsp->hs_wd->wd_hostname,
-		    interval((time_t)hsp->hs_wd->wd_sendtime -
-			(time_t)hsp->hs_wd->wd_boottime, "  up"),
-		    hsp->hs_nusers,
-		    hsp->hs_nusers == 1 ? ", " : "s,",
-		    maxloadav >= 1000 ? 5 : 4,
-			hsp->hs_wd->wd_loadav[0] / 100.0,
-		    maxloadav >= 1000 ? 5 : 4,
-		        hsp->hs_wd->wd_loadav[1] / 100.0,
-		    maxloadav >= 1000 ? 5 : 4,
-		        hsp->hs_wd->wd_loadav[2] / 100.0);
+	ruptime(*argv, aflg, cmp);
+	while (*argv++ != NULL) {
+		if (*argv == NULL)
+			break;
+		ruptime(*argv, aflg, cmp);
 	}
 	exit(0);
 }
@@ -239,6 +173,98 @@ lcmp(const void *a1, const void *a2)
 	else
 		return (rflg *
 		   (HS(a2)->hs_wd->wd_loadav[0] - HS(a1)->hs_wd->wd_loadav[0]));
+}
+
+void
+ruptime(const char *host, int aflg, int (*cmp)(const void *, const void *))
+{
+	struct hs *hsp;
+	struct whod *wd;
+	struct whoent *we;
+	struct dirent *dp;
+	const char *hostname;
+	char buf[sizeof(struct whod)];
+	int fd, i, maxloadav;
+	size_t hspace;
+	u_int cc;
+
+	rewinddir(dirp);
+	hsp = NULL;
+	maxloadav = -1;
+	for (nhosts = hspace = 0; (dp = readdir(dirp)) != NULL;) {
+		if (dp->d_ino == 0 || strncmp(dp->d_name, "whod.", 5) != 0)
+			continue;
+		if ((fd = open(dp->d_name, O_RDONLY, 0)) < 0) {
+			warn("%s", dp->d_name);
+			continue;
+		}
+		cc = read(fd, buf, sizeof(struct whod));
+		(void)close(fd);
+		if (host != NULL) {
+			hostname = ((struct whod *)buf)->wd_hostname;
+			if (strcasecmp(hostname, host) != 0)
+				continue;
+		}
+
+		if (cc < WHDRSIZE)
+			continue;
+		if (nhosts == hspace) {
+			if ((hs =
+			    realloc(hs, (hspace += 40) * sizeof(*hs))) == NULL)
+				err(1, NULL);
+			hsp = hs + nhosts;
+		}
+
+		if ((hsp->hs_wd = malloc((size_t)WHDRSIZE)) == NULL)
+			err(1, NULL);
+		memmove(hsp->hs_wd, buf, (size_t)WHDRSIZE);
+
+		for (wd = (struct whod *)buf, i = 0; i < 2; ++i)
+			if (wd->wd_loadav[i] > maxloadav)
+				maxloadav = wd->wd_loadav[i];
+
+		for (hsp->hs_nusers = 0,
+		    we = (struct whoent *)(buf + cc); --we >= wd->wd_we;)
+			if (aflg || we->we_idle < 3600)
+				++hsp->hs_nusers;
+		++hsp;
+		++nhosts;
+	}
+	if (nhosts == 0) {
+		if (host == NULL)
+			errx(1, "no hosts in %s", _PATH_RWHODIR);
+		else
+			warnx("host %s not in %s", host, _PATH_RWHODIR);
+	}
+
+	(void)time(&now);
+	qsort(hs, nhosts, sizeof(hs[0]), cmp);
+	for (i = 0; i < (int)nhosts; i++) {
+		hsp = &hs[i];
+		if (LEFTEARTH(hsp))
+			continue;
+		if (ISDOWN(hsp)) {
+			(void)printf("%-12.12s%s\n", hsp->hs_wd->wd_hostname,
+			    interval(now - hsp->hs_wd->wd_recvtime, "down"));
+			continue;
+		}
+		(void)printf(
+		    "%-12.12s%s,  %4d user%s  load %*.2f, %*.2f, %*.2f\n",
+		    hsp->hs_wd->wd_hostname,
+		    interval((time_t)hsp->hs_wd->wd_sendtime -
+			(time_t)hsp->hs_wd->wd_boottime, "  up"),
+		    hsp->hs_nusers,
+		    hsp->hs_nusers == 1 ? ", " : "s,",
+		    maxloadav >= 1000 ? 5 : 4,
+			hsp->hs_wd->wd_loadav[0] / 100.0,
+		    maxloadav >= 1000 ? 5 : 4,
+		        hsp->hs_wd->wd_loadav[1] / 100.0,
+		    maxloadav >= 1000 ? 5 : 4,
+		        hsp->hs_wd->wd_loadav[2] / 100.0);
+		free(hsp->hs_wd);
+	}
+	free(hs);
+	hs = NULL;
 }
 
 /* Number of users comparison. */
