@@ -67,13 +67,19 @@ disk_dev_synth(dev_t dev)
 			dev_depends(pdev, dev);
 			return;
 		}
-		dev = make_dev(pdev->si_devsw, dkmakeminor(u, s, p), 
-		    UID_ROOT, GID_OPERATOR, 0640, "%s%ds%d%c", 
-			dp->d_devsw->d_name, u, s - BASE_SLICE + 1, 'a' + p);
-		dev_depends(pdev, dev);
-		if (p == RAW_PART) 
-			make_dev_alias(dev, "%s%ds%d",
+		if (p != RAW_PART) {
+			dev = make_dev(pdev->si_devsw, dkmakeminor(u, s, p), 
+			    UID_ROOT, GID_OPERATOR, 0640, "%s%ds%d%c", 
+				dp->d_devsw->d_name, u, s - BASE_SLICE + 1,
+				'a' + p);
+		} else {
+			dev = make_dev(pdev->si_devsw, dkmakeminor(u, s, p), 
+			    UID_ROOT, GID_OPERATOR, 0640, "%s%ds%d", 
+				dp->d_devsw->d_name, u, s - BASE_SLICE + 1);
+			make_dev_alias(dev, "%s%ds%dc",
 			    dp->d_devsw->d_name, u, s - BASE_SLICE + 1);
+		}
+		dev_depends(pdev, dev);
 		return;
 	}
 }
@@ -132,18 +138,22 @@ disk_clone(void *arg, char *name, int namelen, dev_t *dev)
 				p = name[i] - 'a';
 		}
 
-		if (s >= BASE_SLICE)
+		if (s >= BASE_SLICE && p != RAW_PART) {
 			*dev = make_dev(pdev->si_devsw, dkmakeminor(u, s, p), 
 			    UID_ROOT, GID_OPERATOR, 0640, "%s%ds%d%c",
-			    pdev->si_devsw->d_name, u, s - BASE_SLICE + 1, p + 'a');
-		else
+			    pdev->si_devsw->d_name, u, s - BASE_SLICE + 1, 
+			    p + 'a');
+		} else if (s >= BASE_SLICE) {
+			*dev = make_dev(pdev->si_devsw, dkmakeminor(u, s, p), 
+			    UID_ROOT, GID_OPERATOR, 0640, "%s%ds%d",
+			    pdev->si_devsw->d_name, u, s - BASE_SLICE + 1);
+			make_dev_alias(*dev, "%s%ds%dc", 
+			    pdev->si_devsw->d_name, u, s - BASE_SLICE + 1);
+		} else {
 			*dev = make_dev(pdev->si_devsw, dkmakeminor(u, s, p), 
 			    UID_ROOT, GID_OPERATOR, 0640, name);
-		dev_depends(pdev, *dev);
-		if (s >= BASE_SLICE && p == RAW_PART) {
-			make_dev_alias(*dev, "%s%ds%d", 
-			    pdev->si_devsw->d_name, u, s - BASE_SLICE + 1);
 		}
+		dev_depends(pdev, *dev);
 		return;
 	}
 }
