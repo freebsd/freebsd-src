@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.89.2.12 1997/01/03 06:38:15 jkh Exp $
+ * $Id: menus.c,v 1.89.2.13 1997/01/15 04:50:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -332,7 +332,7 @@ whichMouse(dialogMenuItem *self)
     
     if (!file_readable("/dev/mouse"))
 	return FALSE;
-    if (readlink("/dev/mouse", buf, BUFSIZ) == -1)
+    if (readlink("/dev/mouse", buf, sizeof buf) == -1)
 	return FALSE;
     if (!strcmp(self->prompt, "COM1"))
 	return !strcmp(buf, "/dev/cuaa0");
@@ -369,7 +369,7 @@ DMenu MenuMouse = {
 	"ln -fs /dev/cuaa2 /dev/mouse", '(', '*', ')', 1 },
       { "COM4",	"Serial mouse on COM4", whichMouse, dmenuSystemCommand, NULL,
 	"ln -fs /dev/cuaa3 /dev/mouse", '(', '*', ')', 1 },
-      { "BusMouse",	"Logitech or ATI bus mouse", whichMouse, dmenuSystemCommand, NULL,
+      { "BusMouse", "Logitech or ATI bus mouse", whichMouse, dmenuSystemCommand, NULL,
 	"ln -fs /dev/mse0 /dev/mouse", '(', '*', ')', 1 },
       { "PS/2",	"PS/2 style mouse (must enable psm0 device)", whichMouse, dmenuSystemCommand, NULL,
 	"ln -fs /dev/psm0 /dev/mouse", '(', '*', ')', 1 },

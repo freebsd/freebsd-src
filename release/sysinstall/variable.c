@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: variable.c,v 1.12 1996/12/09 08:22:19 jkh Exp $
+ * $Id: variable.c,v 1.11.2.2 1996/12/12 11:18:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -43,6 +43,12 @@ make_variable(char *var, char *value)
 {
     Variable *vp;
 
+    /* Trim leading and trailing whitespace */
+    var = string_skipwhite(string_prune(var));
+
+    if (!var || !*var)
+	return;
+
     /* Put it in the environment in any case */
     setenv(var, value, 1);
 
@@ -80,7 +86,7 @@ variable_set(char *var)
     if ((cp = index(tmp, '=')) == NULL)
 	msgFatal("Invalid variable format: %s", var);
     *(cp++) = '\0';
-    make_variable(tmp, cp);
+    make_variable(tmp, string_skipwhite(cp));
 }
 
 void
@@ -108,7 +114,7 @@ variable_unset(char *var)
     unsetenv(var);
     if ((cp = index(var, '=')) != NULL) {
 	sstrncpy(name, cp, cp - var);
-	var = name;
+	var = string_skipwhite(string_prune(name));
     }
 
     /* Now search to see if it's in our list, if we have one.. */

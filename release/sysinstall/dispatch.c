@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dispatch.c,v 1.5.2.2 1996/11/07 09:07:12 jkh Exp $
+ * $Id: dispatch.c,v 1.5.2.3 1996/12/14 16:23:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -37,6 +37,8 @@
 #include "sysinstall.h"
 #include <ctype.h>
 
+static int _shutdown(dialogMenuItem *unused);
+    
 static struct _word {
     char *name;
     int (*handler)(dialogMenuItem *self);
@@ -85,6 +87,7 @@ static struct _word {
     { "optionsEditor",		optionsEditor		},
     { "addGroup",		userAddGroup		},
     { "addUser",		userAddUser		},
+    { "shutdown",		_shutdown 		},
     { NULL, NULL },
 };
 
@@ -104,6 +107,13 @@ call_possible_resword(char *name, dialogMenuItem *value, int *status)
     return rval;
 }
 
+/* Just convenience */
+static int _shutdown(dialogMenuItem *unused)
+{
+    systemShutdown(0);
+    return DITEM_FAILURE;
+}
+
 /* For a given string, call it or spit out an undefined command diagnostic */
 int
 dispatchCommand(char *str)
@@ -115,16 +125,22 @@ dispatchCommand(char *str)
 	msgConfirm("Null or zero-length string passed to dispatchCommand");
 	return DITEM_FAILURE;
     }
+    /* If it's got a newline, trim it */
+    if ((cp = index(str, '\n')) != NULL)
+	*cp = '\0';
+
     /* A command might be a pathname if it's encoded in argv[0], as we also support */
     if (index(str, '=')) {
 	variable_set(str);
-	return DITEM_SUCCESS;
+	i = DITEM_SUCCESS;
     }
-    else if ((cp = index(str, '/')) != NULL)
-	str = cp + 1;
-    if (!call_possible_resword(str, NULL, &i)) {
-	msgConfirm("No such command: %s", str);
-	return DITEM_FAILURE;
+    else {
+	if ((cp = index(str, '/')) != NULL)
+	    str = cp + 1;
+	if (!call_possible_resword(str, NULL, &i)) {
+	    msgConfirm("No such command: %s", str);
+	    i = DITEM_FAILURE;
+	}
     }
     return i;
 }
