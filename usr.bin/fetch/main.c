@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.47 1998/09/20 00:01:26 jkh Exp $ */
+/* $Id: main.c,v 1.48 1998/11/08 23:18:48 des Exp $ */
 
 #include <sys/types.h>
 
@@ -52,7 +52,7 @@ static void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n", 
-		"usage: fetch [-DHILMNPRTVablmnpqrtv] [-o outputfile] [-S bytes]",
+		"usage: fetch [-DHILMNPRTVablmnpqrstv] [-o outputfile] [-S bytes]",
 		"             [-f file -h host [-c dir] | URL]");
 	exit(EX_USAGE);
 }
@@ -71,10 +71,11 @@ main(int argc, char *const *argv)
     init_schemes();
     fs = clean_fetch_state;
     fs.fs_verbose = 1;
+    fs.fs_reportsize = 0;
     fs.fs_expectedsize = -1;
     change_to_dir = file_to_get = hostname = 0;
 
-    while ((c = getopt(argc, argv, "abc:D:f:h:HIlLmMnNo:pPqRrS:tT:vV:")) != -1) {
+    while ((c = getopt(argc, argv, "abc:D:f:h:HIlLmMnNo:pPqRrS:stT:vV:")) != -1) {
 	    switch (c) {
 	    case 'D': case 'H': case 'I': case 'L': case 'N': case 'V': 
 		    break;	/* ncftp compatibility */
@@ -133,6 +134,10 @@ main(int argc, char *const *argv)
 	    
 	    case 't':
 		    fs.fs_use_connect = 1;
+		    break;
+
+	    case 's':
+		    fs.fs_reportsize = 1;
 		    break;
 
 	    case 'S':
