@@ -54,8 +54,10 @@
 
 	.globl	CNAME(_logname_valid)	/* in _getlogin() */
 
-SYSCALL(setlogin)
+_SYSENTRY(setlogin)
+	_SYSCALL(setlogin)
 	PIC_PROLOGUE(%o3, %o2)
 	SET(CNAME(_logname_valid), %o2, %o3)
 	retl
 	 stw	%g0, [%o3]
+_SYSEND(setlogin)

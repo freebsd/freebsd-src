@@ -44,8 +44,9 @@
 #include "SYS.h"
 
 	.text
-	.align 16
-	.globl HIDENAME(cerror)
+	.align	16
+	.globl	HIDENAME(cerror)
+	.type	HIDENAME(cerror),@function
 
 	/*
 	 * The __error() function is thread aware. For non-threaded
@@ -61,3 +62,4 @@ HIDENAME(cerror):
 	mov	-1, %i0
 	ret
 	 restore %g0, -1, %o1
+END(HIDENAME(cerror))
