@@ -202,7 +202,6 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	register struct proc *p = curproc;
 	register struct trapframe *regs;
 	struct linux_rt_sigframe *fp, frame;
-	struct sigacts *psp = p->p_sigacts;
 	int oonstack;
 
 	regs = p->p_md.md_regs;
@@ -216,7 +215,7 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 * Allocate space for the signal handler context.
 	 */
 	if ((p->p_flag & P_ALTSTACK) && !oonstack &&
-	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
+	    SIGISMEMBER(p->p_sigacts->ps_sigonstack, sig)) {
 		fp = (struct linux_rt_sigframe *)(p->p_sigstk.ss_sp +
 		    p->p_sigstk.ss_size - sizeof(struct linux_rt_sigframe));
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
@@ -257,17 +256,28 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 
 	frame.sf_handler = catcher;
 	frame.sf_sig = sig;
-
 	frame.sf_siginfo = &fp->sf_si;
 	frame.sf_ucontext = &fp->sf_sc;
+
 	/* Fill siginfo structure. */
 	frame.sf_si.lsi_signo = sig;
 	frame.sf_si.lsi_code = code;
 	frame.sf_si.lsi_addr = (void *)regs->tf_err;
+
 	/*
 	 * Build the signal context to be used by sigreturn.
 	 */
-	frame.sf_sc.uc_mcontext.sc_mask   = mask->__bits[0];
+	frame.sf_sc.uc_flags = 0;		/* XXX ??? */
+	frame.sf_sc.uc_link = NULL;		/* XXX ??? */
+
+	frame.sf_sc.uc_stack.ss_sp = p->p_sigstk.ss_sp;
+	frame.sf_sc.uc_stack.ss_flags =
+	    bsd_to_linux_sigaltstack(p->p_sigstk.ss_flags);
+	frame.sf_sc.uc_stack.ss_size = p->p_sigstk.ss_size;
+
+	bsd_to_linux_sigset(mask, &frame.sf_sc.uc_sigmask);
+
+	frame.sf_sc.uc_mcontext.sc_mask   = frame.sf_sc.uc_sigmask.__bits[0];
 	frame.sf_sc.uc_mcontext.sc_gs     = rgs();
 	frame.sf_sc.uc_mcontext.sc_fs     = regs->tf_fs;
 	frame.sf_sc.uc_mcontext.sc_es     = regs->tf_es;
@@ -287,21 +297,11 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	frame.sf_sc.uc_mcontext.sc_err    = regs->tf_err;
 	frame.sf_sc.uc_mcontext.sc_trapno = code;	/* XXX ???? */
 
-	/*
-	 * Build the remainder of the ucontext struct to be used by sigreturn.
-	 */
-	frame.sf_sc.uc_flags = 0;		/* XXX ??? */
-	frame.sf_sc.uc_link = NULL;		/* XXX ??? */
-	frame.sf_sc.uc_stack.ss_sp = p->p_sigstk.ss_sp;
-	frame.sf_sc.uc_stack.ss_flags = 
-	    bsd_to_linux_sigaltstack(p->p_sigstk.ss_flags);
-	frame.sf_sc.uc_stack.ss_size = p->p_sigstk.ss_size;
 #ifdef DEBUG
 	printf("Linux-emul(%ld): rt_sendsig flags: 0x%x, sp: %p, ss: 0x%x, mask: 0x%x\n",
 	    (long)p->p_pid, frame.sf_sc.uc_stack.ss_flags,  p->p_sigstk.ss_sp, 
 	    p->p_sigstk.ss_size, frame.sf_sc.uc_mcontext.sc_mask);
 #endif
-	bsd_to_linux_sigset(mask, &frame.sf_sc.uc_sigmask);
 
 	if (copyout(&frame, fp, sizeof(frame)) != 0) {
 		/*
@@ -345,8 +345,14 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	register struct proc *p = curproc;
 	register struct trapframe *regs;
 	struct linux_sigframe *fp, frame;
-	struct sigacts *psp = p->p_sigacts;
+	linux_sigset_t lmask;
 	int oonstack, i;
+
+	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig)) {
+		/* Signal handler installed with SA_SIGINFO. */
+		linux_rt_sendsig(catcher, sig, mask, code);
+		return;
+	}
 
 	regs = p->p_md.md_regs;
 	oonstack = p->p_sigstk.ss_flags & SS_ONSTACK;
@@ -356,17 +362,11 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	    (long)p->p_pid, catcher, sig, (void*)mask, code);
 #endif
 
-	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig)) {
-		/* Signal handler installed with SA_SIGINFO. */
-		linux_rt_sendsig(catcher, sig, mask, code);
-		return;
-	}
-
 	/*
 	 * Allocate space for the signal handler context.
 	 */
 	if ((p->p_flag & P_ALTSTACK) && !oonstack &&
-	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
+	    SIGISMEMBER(p->p_sigacts->ps_sigonstack, sig)) {
 		fp = (struct linux_sigframe *)(p->p_sigstk.ss_sp +
 		    p->p_sigstk.ss_size - sizeof(struct linux_sigframe));
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
@@ -404,10 +404,12 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	frame.sf_handler = catcher;
 	frame.sf_sig = sig;
 
+	bsd_to_linux_sigset(mask, &lmask);
+
 	/*
 	 * Build the signal context to be used by sigreturn.
 	 */
-	frame.sf_sc.sc_mask   = mask->__bits[0];
+	frame.sf_sc.sc_mask   = lmask.__bits[0];
 	frame.sf_sc.sc_gs     = rgs();
 	frame.sf_sc.sc_fs     = regs->tf_fs;
 	frame.sf_sc.sc_es     = regs->tf_es;
@@ -426,10 +428,12 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	frame.sf_sc.sc_ss     = regs->tf_ss;
 	frame.sf_sc.sc_err    = regs->tf_err;
 	frame.sf_sc.sc_trapno = code;	/* XXX ???? */
-	bzero(&frame.fpstate, sizeof(struct linux_fpstate));
+
+	bzero(&frame.sf_fpstate, sizeof(struct linux_fpstate));
+
 	for (i = 0; i < (LINUX_NSIG_WORDS-1); i++)
-		frame.extramask[i] = mask->__bits[i+1];
-	
+		frame.sf_extramask[i] = lmask.__bits[i+1];
+
 	if (copyout(&frame, fp, sizeof(frame)) != 0) {
 		/*
 		 * Process has trashed its stack; give it an illegal
@@ -468,10 +472,9 @@ linux_sigreturn(p, args)
 	struct proc *p;
 	struct linux_sigreturn_args *args;
 {
-	struct linux_sigcontext context;
+	struct linux_sigframe frame;
 	register struct trapframe *regs;
-	u_int extramask[LINUX_NSIG_WORDS-1];
-	u_int *emp;
+	linux_sigset_t lmask;
 	int eflags, i;
 
 	regs = p->p_md.md_regs;
@@ -481,18 +484,18 @@ linux_sigreturn(p, args)
 	    (long)p->p_pid, (void *)args->scp);
 #endif
 	/*
-	 * The trampoline code hands us the context.
+	 * The trampoline code hands us the sigframe.
 	 * It is unsafe to keep track of it ourselves, in the event that a
 	 * program jumps out of a signal handler.
 	 */
-	if (copyin((caddr_t)args->scp, &context, sizeof(context)) != 0)
+	if (copyin((caddr_t)args->sfp, &frame, sizeof(frame)) != 0)
 		return (EFAULT);
 
 	/*
 	 * Check for security violations.
 	 */
 #define	EFLAGS_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
-	eflags = context.sc_eflags;
+	eflags = frame.sf_sc.sc_eflags;
 	/*
 	 * XXX do allow users to change the privileged flag PSL_RF.  The
 	 * cpu sets PSL_RF in tf_eflags for faults.  Debuggers should
@@ -513,40 +516,37 @@ linux_sigreturn(p, args)
 	 * other selectors, invalid %eip's and invalid %esp's.
 	 */
 #define	CS_SECURE(cs)	(ISPL(cs) == SEL_UPL)
-	if (!CS_SECURE(context.sc_cs)) {
+	if (!CS_SECURE(frame.sf_sc.sc_cs)) {
 		trapsignal(p, SIGBUS, T_PROTFLT);
 		return(EINVAL);
 	}
 
 	p->p_sigstk.ss_flags &= ~SS_ONSTACK;
-	emp = (u_int *)((caddr_t)args->scp + sizeof(context) + 
-	    sizeof(struct linux_fpstate));
-	if (copyin((caddr_t)emp, extramask, sizeof(extramask)) == 0)
-		for (i = 0; i < (LINUX_NSIG_WORDS-1); i++) 
-			p->p_sigmask.__bits[i+1] = extramask[i];
-
-	SIGSETOLD(p->p_sigmask, context.sc_mask);
+	lmask.__bits[0] = frame.sf_sc.sc_mask;
+	for (i = 0; i < (LINUX_NSIG_WORDS-1); i++)
+		lmask.__bits[i+1] = frame.sf_extramask[i];
+	linux_to_bsd_sigset(&lmask, &p->p_sigmask);
 	SIG_CANTMASK(p->p_sigmask);
 
 	/*
 	 * Restore signal context.
 	 */
 	/* %gs was restored by the trampoline. */
-	regs->tf_fs     = context.sc_fs;
-	regs->tf_es     = context.sc_es;
-	regs->tf_ds     = context.sc_ds;
-	regs->tf_edi    = context.sc_edi;
-	regs->tf_esi    = context.sc_esi;
-	regs->tf_ebp    = context.sc_ebp;
-	regs->tf_ebx    = context.sc_ebx;
-	regs->tf_edx    = context.sc_edx;
-	regs->tf_ecx    = context.sc_ecx;
-	regs->tf_eax    = context.sc_eax;
-	regs->tf_eip    = context.sc_eip;
-	regs->tf_cs     = context.sc_cs;
+	regs->tf_fs     = frame.sf_sc.sc_fs;
+	regs->tf_es     = frame.sf_sc.sc_es;
+	regs->tf_ds     = frame.sf_sc.sc_ds;
+	regs->tf_edi    = frame.sf_sc.sc_edi;
+	regs->tf_esi    = frame.sf_sc.sc_esi;
+	regs->tf_ebp    = frame.sf_sc.sc_ebp;
+	regs->tf_ebx    = frame.sf_sc.sc_ebx;
+	regs->tf_edx    = frame.sf_sc.sc_edx;
+	regs->tf_ecx    = frame.sf_sc.sc_ecx;
+	regs->tf_eax    = frame.sf_sc.sc_eax;
+	regs->tf_eip    = frame.sf_sc.sc_eip;
+	regs->tf_cs     = frame.sf_sc.sc_cs;
 	regs->tf_eflags = eflags;
-	regs->tf_esp    = context.sc_esp_at_signal;
-	regs->tf_ss     = context.sc_ss;
+	regs->tf_esp    = frame.sf_sc.sc_esp_at_signal;
+	regs->tf_ss     = frame.sf_sc.sc_ss;
 
 	return (EJUSTRETURN);
 }
@@ -582,7 +582,7 @@ linux_rt_sigreturn(p, args)
 	    (long)p->p_pid, (void *)args->ucp);
 #endif
 	/*
-	 * The trampoline code hands us the u_context.
+	 * The trampoline code hands us the ucontext.
 	 * It is unsafe to keep track of it ourselves, in the event that a
 	 * program jumps out of a signal handler.
 	 */
@@ -626,7 +626,7 @@ linux_rt_sigreturn(p, args)
 	SIG_CANTMASK(p->p_sigmask);
 
 	/*
-	 * Restore signal context->
+	 * Restore signal context
 	 */
 	/* %gs was restored by the trampoline. */
 	regs->tf_fs     = context->sc_fs;
