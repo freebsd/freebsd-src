@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.10 1994/08/20 21:34:59 csgr Exp $
+#	$Id: Makefile,v 1.11 1994/08/25 10:47:30 paul Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
@@ -85,7 +85,7 @@ CLEANDIR=	clean
 CLEANDIR=	cleandir
 .endif
 
-world:	directories cleandist mk includes libraries tools mdec
+world:	directories cleandist mk includes libraries tools
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding ${DESTDIR} The whole thing"
 	@echo "--------------------------------------------------------------"
@@ -178,8 +178,14 @@ libraries:
 	cd ${.CURDIR}/secure/lib && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
+.if exists(sys)
+	cd ${.CURDIR}/sys/libkern && \
+		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+.endif
+.if exists(lib)
 	cd ${.CURDIR}/lib && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+.endif
 	# You need the lex lib before you can build kerberosIV
 #XXX	# We don't have lex in the 2.0 tree yet!
 #XXX	cd ${.CURDIR}/usr.bin/lex/lib && \
@@ -204,22 +210,5 @@ tools:
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/make && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
-
-mdec:
-	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding ${DESTDIR}/usr/mdec"
-	@echo "--------------------------------------------------------------"
-	@echo
-	@echo " XXX Not yet ready in 2.0.0"
-#XXX.if ${MACHINE} == "i386"
-#XXX	# XXX Need to fix for obj case, src/sys/Makefile needs to be fixed to
-#XXX	# traverse down into here and this can go away!
-#XXX	cd ${.CURDIR}/sys/i386/boot &&	${MAKE} depend all install ${CLEANDIR}
-#XXX.if defined (DESTDIR)
-#XXX	# XXX Really need to fix the sys/i386/boot Makefile so this is not
-#XXX	# necessary!!!
-#XXX	cd /usr/mdec && find . | cpio -pdamuv ${DESTDIR}/usr/mdec
-#XXX.endif
-#XXX.endif
 
 .include <bsd.subdir.mk>
