@@ -27,6 +27,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
+ * $FreeBSD$
+ *
  */
 
 #define DEB(x)
@@ -378,8 +380,12 @@ sb16_dsp_trigger(int dev, int bits)
 
     if (!bits)
 	sb_dsp_command(0xd0);	/* Halt DMA */
-    else if (bits & irq_mode)
-	sb_dsp_command(0xd4);	/* Continue DMA */
+    else if (bits & irq_mode) {
+	if (dsp_16bit)
+	    sb_dsp_command(0xd6);	/* Continue 16bit DMA */
+	else
+	    sb_dsp_command(0xd4);	/* Continue 8bit DMA */
+    }
 }
 
 static void
