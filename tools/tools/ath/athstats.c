@@ -55,8 +55,6 @@
 
 #include <stdio.h>
 #include <signal.h>
-#include <kvm.h>
-#include <nlist.h>
 
 #include "../../../sys/contrib/dev/ath/ah_desc.h"
 #include "../../../sys/net80211/ieee80211_ioctl.h"
@@ -94,19 +92,22 @@ printstats(FILE *fd, const struct ath_stats *stats)
 #define	N(a)	(sizeof(a) / sizeof(a[0]))
 #define	STAT(x,fmt) \
 	if (stats->ast_##x) fprintf(fd, "%u " fmt "\n", stats->ast_##x)
+	int i, j;
+
 	STAT(watchdog, "watchdog timeouts");
 	STAT(hardware, "hardware error interrupts");
 	STAT(bmiss, "beacon miss interrupts");
+	STAT(bstuck, "stuck beacon conditions");
 	STAT(rxorn, "recv overrun interrupts");
 	STAT(rxeol, "recv eol interrupts");
 	STAT(txurn, "txmit underrun interrupts");
+	STAT(mib, "mib overflow interrupts");
 	STAT(intrcoal, "interrupts coalesced");
-	STAT(rx_orn, "rx overrun interrupts");
 	STAT(tx_mgmt, "tx management frames");
 	STAT(tx_discard, "tx frames discarded prior to association");
+	STAT(tx_qstop, "tx stopped 'cuz no xmit buffer");
 	STAT(tx_encap, "tx encapsulation failed");
 	STAT(tx_nonode, "tx failed 'cuz no node");
-	STAT(tx_qstop, "tx stopped 'cuz no xmit buffer");
 	STAT(tx_nombuf, "tx failed 'cuz no mbuf");
 	STAT(tx_nomcl, "tx failed 'cuz no cluster");
 	STAT(tx_linear, "tx linearized to cluster");
@@ -122,16 +123,21 @@ printstats(FILE *fd, const struct ath_stats *stats)
 	STAT(tx_rts, "tx frames with rts enabled");
 	STAT(tx_cts, "tx frames with cts enabled");
 	STAT(tx_shortpre, "tx frames with short preamble");
+	STAT(tx_altrate, "tx frames with an alternate rate");
+	STAT(tx_protect, "tx frames with 11g protection");
 	STAT(rx_nombuf,	"rx setup failed 'cuz no mbuf");
 	STAT(rx_busdma,	"rx setup failed for dma resrcs");
 	STAT(rx_orn, "rx failed 'cuz of desc overrun");
-	STAT(rx_tooshort, "rx failed 'cuz frame too short");
 	STAT(rx_crcerr, "rx failed 'cuz of bad CRC");
 	STAT(rx_fifoerr, "rx failed 'cuz of FIFO overrun");
 	STAT(rx_badcrypt, "rx failed 'cuz decryption");
+	STAT(rx_badmic, "rx failed 'cuz MIC failure");
+	STAT(rx_tooshort, "rx failed 'cuz frame too short");
+	STAT(rx_toobig, "rx failed 'cuz frame too large");
+	STAT(rx_mgt, "rx management frames");
+	STAT(rx_ctl, "rx control frames");
 	STAT(rx_phyerr, "rx failed 'cuz of PHY err");
 	if (stats->ast_rx_phyerr != 0) {
-		int i, j;
 		for (i = 0; i < 32; i++) {
 			if (stats->ast_rx_phy[i] == 0)
 				continue;
@@ -149,12 +155,24 @@ printstats(FILE *fd, const struct ath_stats *stats)
 		}
 	}
 	STAT(be_nombuf,	"beacon setup failed 'cuz no mbuf");
+	STAT(be_xmit,	"beacons transmitted");
 	STAT(per_cal, "periodic calibrations");
 	STAT(per_calfail, "periodic calibration failures");
 	STAT(per_rfgain, "rfgain value change");
 	STAT(rate_calls, "rate control checks");
 	STAT(rate_raise, "rate control raised xmit rate");
 	STAT(rate_drop, "rate control dropped xmit rate");
+	if (stats->ast_tx_rssi)
+		fprintf(fd, "rssi of last ack: %u\n", stats->ast_tx_rssi);
+	if (stats->ast_rx_rssi)
+		fprintf(fd, "avg recv rssi: %u\n", stats->ast_rx_rssi);
+	STAT(ant_defswitch, "switched default/rx antenna");
+	STAT(ant_txswitch, "tx used alternate antenna");
+	fprintf(fd, "Antenna profile:\n");
+	for (i = 0; i < 8; i++)
+		if (stats->ast_ant_rx[i] || stats->ast_ant_tx[i])
+			fprintf(fd, "[%u] tx %8u rx %8u\n", i,
+				stats->ast_ant_tx[i], stats->ast_ant_rx[i]);
 #undef STAT
 #undef N
 }
@@ -197,109 +215,6 @@ getifrate(int s, const char* ifname)
 #undef N
 }
 
-#define	WI_RID_COMMS_QUALITY	0xFD43
-/*
- * Technically I don't think there's a limit to a record
- * length. The largest record is the one that contains the CIS
- * data, which is 240 words long, so 256 should be a safe
- * value.
- */
-#define WI_MAX_DATALEN	512
-
-struct wi_req {
-	u_int16_t	wi_len;
-	u_int16_t	wi_type;
-	u_int16_t	wi_val[WI_MAX_DATALEN];
-};
-
-static u_int
-getrssi(int s, const char *iface)
-{
-	struct ifreq ifr;
-	struct wi_req wreq;
-
-	bzero(&wreq, sizeof(wreq));
-	wreq.wi_len = WI_MAX_DATALEN;
-	wreq.wi_type = WI_RID_COMMS_QUALITY;
-
-	bzero(&ifr, sizeof(ifr));
-	strlcpy(ifr.ifr_name, iface, sizeof(ifr.ifr_name));
-	ifr.ifr_data = (caddr_t)&wreq;
-	return ioctl(s, SIOCGIFGENERIC, &ifr) == -1 ?  0 : wreq.wi_val[1];
-}
-
-static kvm_t *kvmd;
-static char *nlistf = NULL;
-static char *memf = NULL;
-
-static struct nlist nl[] = {
-#define	N_IFNET	0
-	{ "_ifnet" },
-};
-
-/*
- * Read kernel memory, return 0 on success.
- */
-static int
-kread(u_long addr, void *buf, int size)
-{
-	if (kvmd == 0) {
-		/*
-		 * XXX.
-		 */
-		kvmd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, buf);
-		setgid(getgid());
-		if (kvmd != NULL) {
-			if (kvm_nlist(kvmd, nl) < 0) {
-				if(nlistf)
-					errx(1, "%s: kvm_nlist: %s", nlistf,
-					     kvm_geterr(kvmd));
-				else
-					errx(1, "kvm_nlist: %s", kvm_geterr(kvmd));
-			}
-
-			if (nl[0].n_type == 0) {
-				if(nlistf)
-					errx(1, "%s: no namelist", nlistf);
-				else
-					errx(1, "no namelist");
-			}
-		} else {
-			warnx("kvm not available");
-			return(-1);
-		}
-	}
-	if (!buf)
-		return (0);
-	if (kvm_read(kvmd, addr, buf, size) != size) {
-		warnx("%s", kvm_geterr(kvmd));
-		return (-1);
-	}
-	return (0);
-}
-
-static u_long
-ifnetsetup(const char *interface, u_long off)
-{
-	struct ifnet ifnet;
-	u_long firstifnet;
-	struct ifnethead ifnethead;
-
-	if (kread(off, (char *)&ifnethead, sizeof ifnethead))
-		return;
-	firstifnet = (u_long)TAILQ_FIRST(&ifnethead);
-	for (off = firstifnet; off;) {
-		char name[IFNAMSIZ];
-
-		if (kread(off, (char *)&ifnet, sizeof ifnet))
-			break;
-		if (interface && strcmp(ifnet.if_xname, interface) == 0)
-			return off;
-		off = (u_long)TAILQ_NEXT(&ifnet, if_link);
-	}
-	return 0;
-}
-
 static int signalled;
 
 static void
@@ -329,15 +244,9 @@ main(int argc, char *argv[])
 		strncpy(ifr.ifr_name, "ath0", sizeof (ifr.ifr_name));
 	if (argc > 1) {
 		u_long interval = strtoul(argv[1], NULL, 0);
-		u_long off;
 		int line, omask;
 		u_int rate = getifrate(s, ifr.ifr_name);
-		u_int32_t rate_raise, rate_drop, mgmt;
 		struct ath_stats cur, total;
-		struct ifnet ifcur, iftot;
-
-		kread(0, 0, 0);
-		off = ifnetsetup(ifr.ifr_name, nl[N_IFNET].n_value);
 
 		if (interval < 1)
 			interval = 1;
@@ -345,9 +254,10 @@ main(int argc, char *argv[])
 		signalled = 0;
 		alarm(interval);
 	banner:
-		printf("%8s %8s %7s %7s %6s %6s %6s %7s %4s %4s"
+		printf("%8s %8s %7s %7s %7s %6s %6s %5s %7s %4s %4s"
 			, "input"
 			, "output"
+			, "altrate"
 			, "short"
 			, "long"
 			, "xretry"
@@ -365,54 +275,37 @@ main(int argc, char *argv[])
 			ifr.ifr_data = (caddr_t) &cur;
 			if (ioctl(s, SIOCGATHSTATS, &ifr) < 0)
 				err(1, ifr.ifr_name);
-			if (total.ast_rate_raise != rate_raise ||
-			    total.ast_rate_drop != rate_drop ||
-			    total.ast_tx_mgmt != mgmt) {
-				rate = getifrate(s, ifr.ifr_name);
-				rate_raise = total.ast_rate_raise;
-				rate_drop = total.ast_rate_drop;
-				mgmt = total.ast_tx_mgmt;
-			}
-			if (kread(off, &ifcur, sizeof(ifcur)))
-				err(1, ifr.ifr_name);
-			printf("%8u %8u %7u %7u %6u %6u %6u %7u %4u %3uM\n"
-				, ifcur.if_ipackets - iftot.if_ipackets
-				, ifcur.if_opackets - iftot.if_opackets
+			rate = getifrate(s, ifr.ifr_name);
+			printf("%8u %8u %7u %7u %7u %6u %6u %5u %7u %4u %3uM\n"
+				, cur.ast_rx_packets - total.ast_rx_packets
+				, cur.ast_tx_packets - total.ast_tx_packets
+				, cur.ast_tx_altrate - total.ast_tx_altrate
 				, cur.ast_tx_shortretry - total.ast_tx_shortretry
 				, cur.ast_tx_longretry - total.ast_tx_longretry
 				, cur.ast_tx_xretries - total.ast_tx_xretries
 				, cur.ast_rx_crcerr - total.ast_rx_crcerr
 				, cur.ast_rx_badcrypt - total.ast_rx_badcrypt
 				, cur.ast_rx_phyerr - total.ast_rx_phyerr
-				, getrssi(s, ifr.ifr_name)
+				, cur.ast_rx_rssi
 				, rate
 			);
 			total = cur;
-			iftot = ifcur;
 		} else {
 			ifr.ifr_data = (caddr_t) &total;
 			if (ioctl(s, SIOCGATHSTATS, &ifr) < 0)
 				err(1, ifr.ifr_name);
-			if (total.ast_rate_raise != rate_raise ||
-			    total.ast_rate_drop != rate_drop ||
-			    total.ast_tx_mgmt != mgmt) {
-				rate = getifrate(s, ifr.ifr_name);
-				rate_raise = total.ast_rate_raise;
-				rate_drop = total.ast_rate_drop;
-				mgmt = total.ast_tx_mgmt;
-			}
-			if (kread(off, &iftot, sizeof(iftot)))
-				err(1, ifr.ifr_name);
-			printf("%8u %8u %7u %7u %6u %6u %6u %7u %4u %3uM\n"
-				, iftot.if_ipackets
-				, iftot.if_opackets
+			rate = getifrate(s, ifr.ifr_name);
+			printf("%8u %8u %7u %7u %7u %6u %6u %5u %7u %4u %3uM\n"
+				, total.ast_rx_packets
+				, total.ast_tx_packets
+				, total.ast_tx_altrate
 				, total.ast_tx_shortretry
 				, total.ast_tx_longretry
 				, total.ast_tx_xretries
 				, total.ast_rx_crcerr
 				, total.ast_rx_badcrypt
 				, total.ast_rx_phyerr
-				, getrssi(s, ifr.ifr_name)
+				, total.ast_rx_rssi
 				, rate
 			);
 		}
