@@ -129,12 +129,14 @@ for
 .Xr mktemp 3
 to fill in with a unique ID.
 .Bd -filled -offset indent -compact
-Note:  This should really not be necessary with pkg_info,
+Note:  This should really not be necessary with
+.Nm ,
 since very little information is extracted from each package
 and one would have to have a very small 
 .Pa /tmp
 indeed to overflow it.
 .Ed
+.El
 .Sh TECHNICAL DETAILS
 Package info is either extracted from package files named on the
 command line, or from already installed package information
