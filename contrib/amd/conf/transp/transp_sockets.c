@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: transp_sockets.c,v 1.6.2.5 2001/06/08 18:50:40 ezk Exp $
+ * $Id: transp_sockets.c,v 1.6.2.10 2003/04/23 14:27:34 ezk Exp $
  *
  * Socket specific utilities.
  *      -Erez Zadok <ezk@cs.columbia.edu>
@@ -50,9 +50,6 @@
 #include <am_defs.h>
 #include <amu.h>
 
-#ifndef RPC_MAXDATASIZE
-#define RPC_MAXDATASIZE 9000
-#endif
 
 /*
  * find the IP address that can be used to connect to the local host
@@ -219,8 +216,6 @@ create_nfs_service(int *soNFSp, u_short *nfs_portp, SVCXPRT **nfs_xprtp, void (*
 int
 create_amq_service(int *udp_soAMQp, SVCXPRT **udp_amqpp, int *tcp_soAMQp, SVCXPRT **tcp_amqpp)
 {
-  int maxrec = RPC_MAXDATASIZE;
-
   /* first create TCP service */
   if (tcp_soAMQp) {
     *tcp_soAMQp = socket(AF_INET, SOCK_STREAM, 0);
@@ -235,10 +230,22 @@ create_amq_service(int *udp_soAMQp, SVCXPRT **udp_amqpp, int *tcp_soAMQp, SVCXPR
       plog(XLOG_FATAL, "cannot create tcp service for amq: soAMQp=%d", *tcp_soAMQp);
       return 2;
     }
-  }
+
 #ifdef SVCSET_CONNMAXREC
-	SVC_CONTROL(*tcp_amqpp, SVCSET_CONNMAXREC, &maxrec);
-#endif
+    /*
+     * This is *BSD at its best.
+     * They just had to do things differently than everyone else
+     * so they fixed a library DoS issue by forcing client-side changes...
+     */
+# ifndef RPC_MAXDATASIZE
+#  define RPC_MAXDATASIZE 9000
+# endif /* not RPC_MAXDATASIZE */
+    {
+      int maxrec = RPC_MAXDATASIZE;
+      SVC_CONTROL(*tcp_amqpp, SVCSET_CONNMAXREC, &maxrec);
+    }
+#endif /* not SVCSET_CONNMAXREC */
+  }
 
   /* next create UDP service */
   if (udp_soAMQp) {
@@ -378,19 +385,3 @@ try_again:
        (int) nfs_version, proto, host);
   return nfs_version;
 }
-
-
-/*
- * AUTOFS FUNCTIONS FOR SOCKETS:
- */
-#ifdef HAVE_FS_AUTOFS
-/*
- * Create the nfs service for amd
- */
-int
-create_autofs_service(int *soAUTOFSp, u_short *autofs_portp, SVCXPRT **autofs_xprtp, void (*dispatch_fxn)(struct svc_req *rqstp, SVCXPRT *transp))
-{
-  /* NOT IMPLEMENTED! */
-  return -1;
-}
-#endif /* HAVE_FS_AUTOFS */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amd.h,v 1.8.2.3 2001/04/07 00:47:41 ib42 Exp $
+ * $Id: amd.h,v 1.8.2.6 2002/12/27 22:44:29 ezk Exp $
  *
  */
 
@@ -229,7 +229,6 @@ extern voidp amqproc_umnt_1_svc(voidp argp, struct svc_req *rqstp);
 
 /* other external definitions */
 extern am_nfs_fh *root_fh(char *dir);
-extern am_node *autofs_lookuppn(am_node *mp, char *fname, int *error_return, int op);
 extern am_node *find_ap(char *);
 extern am_node *find_ap2(char *, am_node *);
 extern bool_t xdr_amq_mount_info_qelem(XDR *xdrs, qelem *qhead);
@@ -284,19 +283,6 @@ extern char *nfs_match(am_opts *fo);
 #if defined(HAVE_FS_NFS3) && !defined(HAVE_XDR_MOUNTRES3)
 extern bool_t xdr_mountres3(XDR *xdrs, mountres3 *objp);
 #endif /* defined(HAVE_FS_NFS3) && !defined(HAVE_XDR_MOUNTRES3) */
-
-#ifdef HAVE_FS_AUTOFS
-extern SVCXPRT *autofsxprt;
-extern u_short autofs_port;
-extern int amd_use_autofs;
-
-extern int autofs_mount(am_node *mp);
-extern int autofs_umount(am_node *mp);
-extern int create_autofs_service(int *soAUTOFSp, u_short *autofs_portp, SVCXPRT **autofs_xprtp, void (*dispatch_fxn)(struct svc_req *rqstp, SVCXPRT *transp));
-extern int svc_create_local_service(void (*dispatch) (), u_long prognum, u_long versnum, char *nettype, char *servname);
-extern void autofs_mounted(mntfs *mf);
-extern void autofs_program_1(struct svc_req *rqstp, SVCXPRT *transp);
-#endif /* HAVE_FS_AUTOFS */
 
 /* Unix file system (irix) */
 #ifdef HAVE_FS_XFS

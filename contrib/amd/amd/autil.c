@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: autil.c,v 1.4.2.2 2001/04/29 05:08:35 ib42 Exp $
+ * $Id: autil.c,v 1.4.2.5 2003/04/14 01:23:09 ezk Exp $
  *
  */
 
@@ -286,7 +286,13 @@ am_mounted(am_node *mp)
    * Check whether this mount should be cached permanently
    */
   if (mf->mf_ops->fs_flags & FS_NOTIMEOUT) {
-    mp->am_flags |= AMF_NOTIMEOUT;
+    mntent_t mnt;
+    mnt.mnt_opts = mf->mf_mopts;
+
+    if (mf->mf_mopts && hasmntopt(&mnt, "unmount"))
+      mp->am_flags &= ~AMF_NOTIMEOUT;
+    else
+      mp->am_flags |= AMF_NOTIMEOUT;
   } else if (mf->mf_mount[1] == '\0' && mf->mf_mount[0] == '/') {
     mp->am_flags |= AMF_NOTIMEOUT;
   } else {
@@ -295,6 +301,8 @@ am_mounted(am_node *mp)
       mnt.mnt_opts = mf->mf_mopts;
       if (hasmntopt(&mnt, "nounmount"))
 	mp->am_flags |= AMF_NOTIMEOUT;
+      if (hasmntopt(&mnt, "unmount"))
+	mp->am_flags &= ~AMF_NOTIMEOUT;
       if ((mp->am_timeo = hasmntval(&mnt, "utimeout")) == 0)
 	mp->am_timeo = gopt.am_timeo;
     }

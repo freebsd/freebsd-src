@@ -15,7 +15,7 @@ $SOCK_STREAM = &SOCK_STREAM;
 # system requirements:
 # 	must have 'nslookup' and 'hostname' programs.
 
-# $Header: /proj/bank/cvsroot/am-utils/scripts/expn.in,v 1.2.2.1 2000/06/14 01:58:48 ionut Exp $
+# $Header: /proj/bank/cvsroot/am-utils/scripts/expn.in,v 1.2.2.2 2002/07/11 14:27:02 ezk Exp $
 
 # TODO:
 #	less magic should apply to command-line addresses
@@ -59,7 +59,7 @@ $SOCK_STREAM = &SOCK_STREAM;
 #  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 #  SUCH DAMAGE.
 #
-# This copyright notice derrived from material copyrighted by the Regents
+# This copyright notice derived from material copyrighted by the Regents
 # of the University of California.
 #
 # Contributions accepted.
@@ -257,7 +257,7 @@ while (@hosts) {
 			# on the results of our query until we have looked
 			# at the complete output.  @toFinal stores expansions
 			# that will be final if we take them.  @toExpn stores
-			# expnansions that are not final.  @isValid keeps
+			# expansions that are not final.  @isValid keeps
 			# track of our ability to send mail to each of the
 			# expansions.
 			#
@@ -783,7 +783,7 @@ sub domainify
 	}
 
 	#
-	# There are several weird situtations that need to be
+	# There are several weird situations that need to be
 	# accounted for.  They have to do with domain relay hosts.
 	#
 	# Examples:
@@ -954,7 +954,7 @@ sub mxredirect
 	return undef;
 }
 # follow mx records, return a hostname
-# also follow temporary redirections comming from &domainify and
+# also follow temporary redirections coming from &domainify and
 # &mxlookup
 sub mx
 {
@@ -1032,7 +1032,7 @@ sub mxlookup
 		}
 		if (/Non-existent domain/) {
 			#
-			# These addresss are hosed.  Kaput!  Dead!
+			# These addresses are hosed.  Kaput!  Dead!
 			# However, if we created the address in the
 			# first place then there is a chance of
 			# salvation.
@@ -1091,7 +1091,7 @@ sub mxunroll
 	print "looking for mxbacktrace{$addr *** $host}\n"
 		if ($debug > 1);
 	while (defined $mxbacktrace{"$addr *** $host"}) {
-		print "Unrolling MX expnasion: \@$host:$addr -> "
+		print "Unrolling MX expansion: \@$host:$addr -> "
 			if ($debug || $verbose);
 		$host = $mxbacktrace{"$addr *** $host"};
 		print "\@$host:$addr\n"
@@ -1103,7 +1103,7 @@ sub mxunroll
 		if ($host =~ /\./);
 	return 0;
 }
-# register a completed expnasion.  Make the final address as
+# register a completed expansion.  Make the final address as
 # simple as possible.
 sub final
 {
@@ -1315,7 +1315,7 @@ Finally, the
 debug, flag will expose many of the inner workings so that
 it is possible to eliminate bugs.
 .SH ENVIRONMENT
-No enviroment variables are used.
+No environment variables are used.
 .SH FILES
 .PD 0
 .B /tmp/expn$$

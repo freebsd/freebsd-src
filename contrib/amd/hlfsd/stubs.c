@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: stubs.c,v 1.5.2.2 2001/01/10 03:23:36 ezk Exp $
+ * $Id: stubs.c,v 1.5.2.6 2002/12/27 22:45:09 ezk Exp $
  *
  * HLFSD was written at Columbia University Computer Science Department, by
  * Erez Zadok <ezk@cs.columbia.edu> and Alexander Dupuy <dupuy@cs.columbia.edu>
@@ -123,6 +123,11 @@ nfsproc_getattr_2_svc(am_nfs_fh *argp, struct svc_req *rqstp)
     un_fattr.na_mtime = startup;
   }
 
+  if (getcreds(rqstp, &uid, &gid, nfsxprt) < 0) {
+    res.ns_status = NFSERR_STALE;
+    return &res;
+  }
+
   if (eq_fh(argp, &root)) {
     res.ns_status = NFS_OK;
     res.ns_u.ns_attr_u = rootfattr;
@@ -134,19 +139,19 @@ nfsproc_getattr_2_svc(am_nfs_fh *argp, struct svc_req *rqstp)
      * values cache.  It forces the last-modified time of the symlink to be
      * current.  It is not needed if the O/S has an nfs flag to turn off the
      * symlink-cache at mount time (such as Irix 5.x and 6.x). -Erez.
+     *
+     * Additionally, Linux currently ignores the nt_useconds field,
+     * so we must update the nt_seconds field every time.
      */
-    if (++slinkfattr.na_mtime.nt_useconds == 0)
-      ++slinkfattr.na_mtime.nt_seconds;
+    if (uid != slinkfattr.na_uid) {
+      slinkfattr.na_mtime.nt_seconds++;
+      slinkfattr.na_uid = uid;
+    }
 #endif /* not MNT2_NFS_OPT_SYMTTL */
 
     res.ns_status = NFS_OK;
     res.ns_u.ns_attr_u = slinkfattr;
   } else {
-
-    if (getcreds(rqstp, &uid, &gid, nfsxprt) < 0) {
-      res.ns_status = NFSERR_STALE;
-      return &res;
-    }
     if (gid != hlfs_gid) {
       res.ns_status = NFSERR_STALE;
     } else {
@@ -210,6 +215,11 @@ nfsproc_lookup_2_svc(nfsdiropargs *argp, struct svc_req *rqstp)
     return &res;
   }
 
+  if (getcreds(rqstp, &uid, &gid, nfsxprt) < 0) {
+    res.dr_status = NFSERR_NOENT;
+    return &res;
+  }
+
   if (eq_fh(&argp->da_fhandle, &root)) {
     if (argp->da_name[0] == '.' &&
 	(argp->da_name[1] == '\0' ||
@@ -228,9 +238,14 @@ nfsproc_lookup_2_svc(nfsdiropargs *argp, struct svc_req *rqstp)
        * values cache.  It forces the last-modified time of the symlink to be
        * current.  It is not needed if the O/S has an nfs flag to turn off the
        * symlink-cache at mount time (such as Irix 5.x and 6.x). -Erez.
+       *
+       * Additionally, Linux currently ignores the nt_useconds field,
+       * so we must update the nt_seconds field every time.
        */
-      if (++slinkfattr.na_mtime.nt_useconds == 0)
-	++slinkfattr.na_mtime.nt_seconds;
+      if (uid != slinkfattr.na_uid) {
+	slinkfattr.na_mtime.nt_seconds++;
+	slinkfattr.na_uid = uid;
+      }
 #endif /* not MNT2_NFS_OPT_SYMTTL */
       res.dr_u.dr_drok_u.drok_fhandle = slink;
       res.dr_u.dr_drok_u.drok_attributes = slinkfattr;
@@ -238,7 +253,7 @@ nfsproc_lookup_2_svc(nfsdiropargs *argp, struct svc_req *rqstp)
       return &res;
     }
 
-    if (getcreds(rqstp, &uid, &gid, nfsxprt) < 0 || gid != hlfs_gid) {
+    if (gid != hlfs_gid) {
       res.dr_status = NFSERR_NOENT;
       return &res;
     }
@@ -292,7 +307,7 @@ nfsproc_readlink_2_svc(am_nfs_fh *argp, struct svc_req *rqstp)
     res.rlr_status = NFS_OK;
     if (groupid == hlfs_gid) {
       res.rlr_u.rlr_data_u = DOTSTRING;
-    } else if (!(res.rlr_u.rlr_data_u = path_val = homedir(userid))) {
+    } else if (!(res.rlr_u.rlr_data_u = path_val = homedir(userid, groupid))) {
       /*
        * parent process (fork in homedir()) continues
        * processing, by getting a NULL returned as a

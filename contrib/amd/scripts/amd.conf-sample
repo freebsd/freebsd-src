@@ -65,7 +65,9 @@ hesiod_base =			automount
 browsable_dirs =		yes | no | full
 map_options =			cache:=all
 map_type =			file|hesiod|ndbm|nis|nisplus|passwd|union|ldap
-mount_type =			nfs | autofs
+# regular amd (nfs) mount point (default)
+# don't try the "autofs" type.  It is not implemented yet.
+mount_type =			nfs
 search_path =			/etc/local:/etc/amdmaps:/misc/yp
 # alternate RPC program number to register with the port mapper
 portmap_program =		300019-300029
@@ -84,8 +86,9 @@ map_options =			cache:=all
 # if map type is not defined, will search all map types (default)
 map_type =			file|hesiod|ndbm|nis|nisplus|passwd|union|ldap
 search_path =			/etc/local:/etc/amdmaps:/misc/yp
-# an amd or autofs mount point
-mount_type =			nfs | autofs
+# regular amd (nfs) mount point (default)
+# don't try the "autofs" type.  It is not implemented yet.
+mount_type =			nfs
 browsable_dirs =		yes | no
 # an optional tag to be used with amd -T tag. untagged entries are always
 # used.  Tagged ones get used only if specified with "amd -T"

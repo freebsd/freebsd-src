@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: nfs_start.c,v 1.5.2.1 2001/01/10 03:23:08 ezk Exp $
+ * $Id: nfs_start.c,v 1.5.2.6 2002/12/27 22:44:39 ezk Exp $
  *
  */
 
@@ -54,12 +54,6 @@
 
 SVCXPRT *nfsxprt;
 u_short nfs_port;
-
-#ifdef HAVE_FS_AUTOFS
-SVCXPRT *autofsxprt = NULL;
-u_short autofs_port = 0;
-int amd_use_autofs = 0;
-#endif /* HAVE_FS_AUTOFS */
 
 #ifndef HAVE_SIGACTION
 # define MASKED_SIGS	(sigmask(SIGINT)|sigmask(SIGTERM)|sigmask(SIGCHLD)|sigmask(SIGHUP))
@@ -89,7 +83,7 @@ checkup(void)
 #ifdef HAVE_GETPAGESIZE
     dlog("%#lx bytes of memory allocated; total is %#lx (%ld pages)",
 	 (long) (next_mem - max_mem), (unsigned long) next_mem,
-	 ((long) next_mem + getpagesize() - 1) / getpagesize());
+	 ((long) next_mem + getpagesize() - 1) / (long) getpagesize());
 #else /* not HAVE_GETPAGESIZE */
     dlog("%#lx bytes of memory allocated; total is %#lx",
 	 (long) (next_mem - max_mem), (unsigned long) next_mem);
@@ -282,7 +276,7 @@ run_rpc(void)
 #endif /* DEBUG */
 	continue;
       }
-      perror("select");
+      plog(XLOG_ERROR, "select: %m");
       break;
 
     case 0:
@@ -353,9 +347,6 @@ mount_automounter(int ppid)
 #ifdef HAVE_TRANSPORT_TYPE_TLI
   struct netconfig *udp_amqncp, *tcp_amqncp;
 #endif /* HAVE_TRANSPORT_TYPE_TLI */
-#ifdef HAVE_FS_AUTOFS
-  int soAUTOFS;
-#endif /* HAVE_FS_AUTOFS */
 
   /*
    * Create the nfs service for amd
@@ -373,20 +364,6 @@ mount_automounter(int ppid)
 #endif /* not HAVE_TRANSPORT_TYPE_TLI */
   if (ret != 0)
     return ret;
-
-#ifdef HAVE_FS_AUTOFS
-  if (amd_use_autofs) {
-    /*
-     * Create the autofs service for amd, but only if autofs maps
-     * were defined (so amd doesn't clash with automountd.)
-     */
-    plog(XLOG_INFO, "creating autofs service listener");
-    ret = create_autofs_service(&soAUTOFS, &autofs_port, &autofsxprt, autofs_program_1);
-    /* if autofs service fails it is OK if using a test amd */
-    if (ret != 0 && gopt.portmap_program == AMQ_PROGRAM)
-      return ret;
-  }
-#endif /* HAVE_FS_AUTOFS */
 
   /*
    * Start RPC forwarding

@@ -1,113 +1,113 @@
-# -*- text -*-
 		      am-utils 6.0 compatibility list
 
 For each system, list if it autoconfigures, compiles, or runs.  Fill in
 email id of person who confirms the fact.  A missing entry means unverified.
-A 'no' or '!' means verified broken or nonexistent (static library).
+A 'no' or 'X' means verified broken or nonexistent (static library).
 
-SYSTEM				AUTOCONF  COMPILE    RUN      SHLIB
-=========================	========  =========  =======  =====
-alpha-dec-osf2.1		ezk       ezk        ezk     !ezk
-alpha-dec-osf4.0		ezk       ezk        dsr[3]   ezk
-alpha-dec-osf4.0f		ezk       ezk        dsr[3]   ezk
-alpha-dec-osf5.1		ro        ro         ro       ro
-alphaev5-unknown-linux-gnu	ezk       ezk        finkel   ezk
-alphaev5-unknown-linux-gnu-rh5.2 ezk      ezk        ezk      ezk
-alphaev6-dec-osf5.0		ezk       ezk        dsr[3]   ezk
-hppa1.0-hp-hpux11.00		ezk       ezk        ezk      ezk
-hppa1.1-hp-hpux10.10		ezk       ezk        ezk      ezk
-hppa1.1-hp-hpux10.20		ezk       ezk        ezk      ezk
-hppa1.1-hp-hpux11.00		ezk       ezk        ezk      ezk
-hppa1.1-hp-hpux9.01		ezk[4]    ezk[4]     nrh/ezk  ezk
-hppa1.1-hp-hpux9.05		ezk[4]    ezk[4]     nrh/ezk  ezk
-hppa1.1-hp-hpux9.07		ezk[4]    ezk[4]     nrh/ezk  ezk
-hppa2.0w-hp-hpux11.00		ezk       ezk        ezk      ezk
-i386-pc-bsdi2.1			ezk       ezk        ezk     !ezk
-i386-pc-bsdi3.0			ezk       ezk        ezk     !ezk
-i386-pc-bsdi3.1			ezk       ezk        ezk     !ezk
-i386-pc-bsdi4.0			ezk       ezk        ezk      ezk
-i386-pc-bsdi4.0.1		ezk       ezk        ezk      ezk
-i386-pc-bsdi4.1			ezk       ezk        ezk      ezk
-i386-pc-solaris2.5.1		ezk       ezk        ezk      ezk
-i386-pc-solaris2.6		ezk       ezk        ezk      ezk
-i386-pc-solaris2.7		ezk       ezk        ezk      ezk
-i386-unknown-freebsd2.1.0	ezk       ezk        ezk
-i386-unknown-freebsd2.2.1	ezk       ezk        ezk      ezk
-i386-unknown-freebsd2.2.6	ezk       ezk        ezk      ezk
-i386-unknown-freebsd2.2.7	ezk       ezk        ezk      ezk
-i386-unknown-freebsd2.2.8	ezk       ezk        ezk      ezk
-i386-unknown-freebsd3.0		ezk       ezk        ezk      ezk
-i386-unknown-freebsd4.2		ezk       ezk        ezk      ezk
-i386-unknown-freebsd5.0		ezk       ezk        ezk      ezk
-i386-unknown-freebsdelf3.0	ezk       ezk        ezk      ezk
-i386-unknown-freebsdelf3.1	ezk       ezk        ezk      ezk
-i386-unknown-freebsdelf3.2	ezk       ezk        ezk      ezk
-i386-unknown-freebsdelf3.3	ezk       ezk        ezk      ezk
-i386-unknown-freebsdelf3.4	ezk       ezk        ezk      ezk
-i386-unknown-freebsdelf4.0	ezk       ezk        ezk      ezk
-i386-unknown-netbsd1.2.1	ezk       ezk        ezk      ezk
-i386-unknown-netbsd1.3		ezk       ezk        ezk      ezk
-i386-unknown-netbsd1.3.1	ezk       ezk        ezk      ezk
-i386-unknown-netbsd1.3.2	ezk       ezk        ezk      ezk
-i386-unknown-netbsd1.3.3	ezk       ezk        ezk      ezk
-i386-unknown-netbsd1.4		ezk       ezk        ezk      ezk
-i386-unknown-netbsd1.4.1	ezk       ezk        ezk      ezk
-i386-unknown-openbsd2.1		ezk       ezk        ezk      ezk
-i386-unknown-openbsd2.2		ezk       ezk        ezk      ezk
-i386-unknown-openbsd2.3		ezk       ezk        ezk      ezk
-i386-unknown-openbsd2.4		ezk       ezk        ezk      ezk
-i386-unknown-openbsd2.5		ezk       ezk        ezk      ezk
-i486-ncr-sysv4.3.03		ezk       ezk                 ezk
-i486-pc-linux-gnu-rh6.0		ezk       ezk        ezk      ezk
-i486-pc-linux-gnulibc1		ezk       ezk        ezk      ezk
-i486-pc-linux-gnulibc1-rh4.2	ezk       ezk        ezk      ezk
-i486-pc-linux-gnuoldld		ezk       ezk        ezk      ezk
-i586-pc-linux-gnu		ezk       ezk        ezk      ezk
-i586-pc-linux-gnu-rh5.2		ezk       ezk        ezk      ezk
-i586-pc-linux-gnu-rh6.0		ezk       ezk        ezk      ezk
-i586-pc-linux-gnu-rh6.1		ezk       ezk        ezk      ezk
-i586-pc-linux-gnu-rh6.2		ezk       ezk        ezk      ezk
-i586-pc-linux-gnulibc1		ezk       ezk        ezk      ezk
-i586-pc-linux-gnulibc1-rh4.2	ezk       ezk        ezk      ezk
-i686-pc-linux-gnu		ezk       ezk        ezk      ezk
-i686-pc-linux-gnu-rh5.2		ezk       ezk        ezk      ezk
-i686-pc-linux-gnu-rh6.0		ezk       ezk        ezk      ezk
-i686-pc-linux-gnu-rh6.2		ezk       ezk        ezk      ezk
-i686-pc-linux-gnulibc		ezk       ezk        ezk      ezk
-i686-pc-linux-gnulibc1		ezk       ezk        ezk      ezk
-m68k-hp-hpux9.00		ezk[4]    ezk[4]     nrh/ezk
-m68k-next-nextstep3		ezk       ezk        ezk     !ezk
-m68k-sun-sunos4.1.1		ezk       ezk                !ezk
-mips-dec-ultrix4.3		ro        ro         ro
-mips-sgi-irix5.2
-mips-sgi-irix5.3		ezk       ezk        ezk     ezk
-mips-sgi-irix6.2		ezk[1]    ezk[1]     ezk[1]  ezk
-mips-sgi-irix6.4		ezk       ezk        ezk     ezk
-mips-sgi-irix6.5		ezk       ezk                ezk
-powerpc-ibm-aix4.1.5.0		ezk       ezk        wpaul  !ezk
-powerpc-ibm-aix4.2.1.0		ezk       ezk        ezk    !ezk
-powerpc-ibm-aix4.3.1.0		ezk       ezk               !ezk
-powerpc-unknown-linux-gnu	jose      jose       jose
-rs6000-ibm-aix3.2		ezk       ezk        ezk
-rs6000-ibm-aix3.2.5		ezk       ezk        ezk
-rs6000-ibm-aix4.1.4.0		ezk       ezk               !ezk
-rs6000-ibm-aix4.1.5.0		ezk       ezk               !ezk
-sparc-sun-solaris2.3		ezk       ezk        ezk     ezk
-sparc-sun-solaris2.4		ezk       ezk        ezk     ezk
-sparc-sun-solaris2.5		ezk       ezk        ezk     ezk
-sparc-sun-solaris2.5.1		ezk       ezk        ezk     ezk
-sparc-sun-solaris2.6		ezk       ezk[2]     ezk     ezk
-sparc-sun-solaris2.7		ezk       ezk[2]     ezk     ezk
-sparc-sun-solaris2.8		ro        ro         ro      ro
-sparc-sun-sunos4.1.1		ezk       ezk        ezk     ezk
-sparc-sun-sunos4.1.3		ezk       ezk        ezk     ezk
-sparc-sun-sunos4.1.3C		ezk       ezk        ezk     ezk
-sparc-sun-sunos4.1.3_U1		ezk       ezk        ezk     ezk
-sparc-sun-sunos4.1.4		ezk       ezk        ezk     ezk
-sparc-unknown-linux-gnulibc1	ezk       ezk        ezk     ezk
-sparc-unknown-netbsd1.2E	ezk       ezk        ezk
-sparc-unknown-netbsd1.2G	ezk       ezk        ezk
-sparc64-unknown-linux-gnu	ezk	  ezk	     ezk     ezk
+SYSTEM				CONFIG	COMPILE	 RUN	SHLIB
+=========================	======	=======	 =====	=====
+alpha-dec-osf2.1		ezk[0]	ezk	ezk	ezk[X]
+alpha-dec-osf4.0		ezk[0]	ezk	dsr[3]	ezk
+alpha-dec-osf4.0f		ezk[0]	ezk	dsr[3]	ezk
+alpha-dec-osf5.1		ro[0]	ro	ro	ro
+alphaev5-unknown-linux		ezk[0]	ezk	finkel	ezk
+alphaev5-unknown-linux-rh5.2	ezk[0]	ezk	ezk	ezk
+alphaev6-dec-osf5.0		ezk[0]	ezk	dsr[3]	ezk
+hppa1.0-hp-hpux11.00		ezk[0]	ezk	ezk	ezk
+hppa1.1-hp-hpux10.10		ezk[0]	ezk	ezk	ezk
+hppa1.1-hp-hpux10.20		ezk[0]	ezk	ezk	ezk
+hppa1.1-hp-hpux11.00		ezk[0]	ezk	ezk	ezk
+hppa1.1-hp-hpux9.01		ezk[0,4]ezk[4]	nrh/ezk	ezk
+hppa1.1-hp-hpux9.05		ezk[0,4]ezk[4]	nrh/ezk	ezk
+hppa1.1-hp-hpux9.07		ezk[0,4]ezk[4]	nrh/ezk	ezk
+hppa2.0w-hp-hpux11.00		ezk[0]	ezk	ezk	ezk
+i386-pc-bsdi2.1			ion	ion	ion	ion[X]
+i386-pc-bsdi3.0			ezk[0]	ezk	ezk	ezk[X]
+i386-pc-bsdi3.1			ezk[0]	ezk	ezk	ezk[X]
+i386-pc-bsdi4.0			ezk[0]	ezk	ezk	ezk
+i386-pc-bsdi4.0.1		ezk[0]	ezk	ezk	ezk
+i386-pc-bsdi4.1			ezk[0]	ezk	ezk	ezk
+i386-pc-linux			ezk[0]	ezk	ezk	ezk
+i386-pc-linux-libc1		ezk[0]	ezk	ezk	ezk
+i386-pc-linux-libc1-rh4.2	ezk[0]	ezk	ezk	ezk
+i386-pc-linux-rh5.2		ezk[0]	ezk	ezk	ezk
+i386-pc-linux-rh6.0		ezk[0]	ezk	ezk	ezk
+i386-pc-linux-rh6.1		ezk[0]	ezk	ezk	ezk
+i386-pc-linux-rh6.2		ion	ion	ion	ion
+i386-pc-linux-rh7.1		ion	ion	ion	ion
+i386-pc-linux-rh7.2		ion	ion	ion	ion
+i386-pc-linux-rh7.3		ion	ion	ion	ion
+i386-pc-solaris2.5.1		ezk[0]	ezk	ezk	ezk
+i386-pc-solaris2.6		ezk[0]	ezk	ezk	ezk
+i386-pc-solaris2.7		ezk[0]	ezk	ezk	ezk
+i386-unknown-freebsd2.1.0	ezk[0]	ezk	ezk
+i386-unknown-freebsd2.2.1	ezk[0]	ezk	ezk	ezk
+i386-unknown-freebsd2.2.6	ezk[0]	ezk	ezk	ezk
+i386-unknown-freebsd2.2.7	ezk[0]	ezk	ezk	ezk
+i386-unknown-freebsd2.2.8	ezk[0]	ezk	ezk	ezk
+i386-unknown-freebsd3.0		ezk[0]	ezk	ezk	ezk
+i386-unknown-freebsd4.2		ezk[0]	ezk	ezk	ezk
+i386-unknown-freebsd4.4		ezk[0]	ezk	ezk	ezk
+i386-unknown-freebsd5.0		ezk[0]	ezk	ezk	ezk
+i386-unknown-freebsdelf3.0	ezk[0]	ezk	ezk	ezk
+i386-unknown-freebsdelf3.1	ezk[0]	ezk	ezk	ezk
+i386-unknown-freebsdelf3.2	ezk[0]	ezk	ezk	ezk
+i386-unknown-freebsdelf3.3	ezk[0]	ezk	ezk	ezk
+i386-unknown-freebsdelf3.4	ezk[0]	ezk	ezk	ezk
+i386-unknown-freebsdelf4.0	ezk[0]	ezk	ezk	ezk
+i386-unknown-netbsd1.2.1	ezk[0]	ezk	ezk	ezk
+i386-unknown-netbsd1.3		ezk[0]	ezk	ezk	ezk
+i386-unknown-netbsd1.3.1	ezk[0]	ezk	ezk	ezk
+i386-unknown-netbsd1.3.2	ezk[0]	ezk	ezk	ezk
+i386-unknown-netbsd1.3.3	ezk[0]	ezk	ezk	ezk
+i386-unknown-netbsd1.4		ezk[0]	ezk	ezk	ezk
+i386-unknown-netbsd1.4.1	ezk[0]	ezk	ezk	ezk
+i386-unknown-openbsd2.1		ezk[0]	ezk	ezk	ezk
+i386-unknown-openbsd2.2		ezk[0]	ezk	ezk	ezk
+i386-unknown-openbsd2.3		ezk[0]	ezk	ezk	ezk
+i386-unknown-openbsd2.4		ezk[0]	ezk	ezk	ezk
+i386-unknown-openbsd2.5		ezk[0]	ezk	ezk	ezk
+i486-ncr-sysv4.3.03		ezk[0]	ezk		ezk
+ia64-hp-hpux11.20		ezk[0]	ezk	ezk	ezk
+ia64-unknown-linux-rh7.1	ezk[0]	ezk	ezk	ezk
+ia64-unknown-linux-rh7.2	ezk[0]	ezk	ezk	ezk
+ia64-unknown-linux-rh2.1AS	ezk[0]	ezk	ezk	ezk
+ia64-unknown-linux-rh2.1AW	ezk[0]	ezk	ezk	ezk
+m68k-hp-hpux9.00		ezk[0,4]ezk[4]	nrh/ezk
+m68k-next-nextstep3		ezk[0]	ezk	ezk	ezk[X]
+m68k-sun-sunos4.1.1		ezk[0]	ezk		ezk[X]
+mips-dec-ultrix4.3		ro[0]	ro	ro
+mips-sgi-irix5.3		ezk[0]	ezk	ezk	ezk
+mips-sgi-irix6.2		ezk[0,1]ezk[1]	ezk[1]	ezk
+mips-sgi-irix6.4		ezk[0]	ezk	ezk	ezk
+mips-sgi-irix6.5		ezk[0]	ezk		ezk
+powerpc-ibm-aix4.1.5.0		ezk[0]	ezk	wpaul	ezk[X]
+powerpc-ibm-aix4.2.1.0		ezk[0]	ezk	ezk	ezk[X]
+powerpc-ibm-aix4.3.1.0		ezk[0]	ezk		ezk[X]
+powerpc-ibm-aix5.1.0.0		ion	ion	ion	ion[X]
+powerpc-unknown-linux		jose[0]	jose	jose
+rs6000-ibm-aix3.2		ezk[0]	ezk	ezk
+rs6000-ibm-aix3.2.5		ezk[0]	ezk	ezk
+rs6000-ibm-aix4.1.4.0		ezk[0]	ezk		ezk[X]
+rs6000-ibm-aix4.1.5.0		ezk[0]	ezk		ezk[X]
+sparc-sun-solaris2.3		ezk[0]	ezk	ezk	ezk
+sparc-sun-solaris2.4		ezk[0]	ezk	ezk	ezk
+sparc-sun-solaris2.5		ezk[0]	ezk	ezk	ezk
+sparc-sun-solaris2.5.1		ion	ion	ion	ion
+sparc-sun-solaris2.6		ion	ion	ion	ion
+sparc-sun-solaris2.7		ion	ion	ion	ion
+sparc-sun-solaris2.8		ion	ion	ion	ion
+sparc-sun-sunos4.1.1		ezk[0]	ezk	ezk	ezk
+sparc-sun-sunos4.1.3		ezk[0]	ezk	ezk	ezk
+sparc-sun-sunos4.1.3C		ezk[0]	ezk	ezk	ezk
+sparc-sun-sunos4.1.3_U1		ezk[0]	ezk	ezk	ezk
+sparc-sun-sunos4.1.4		ezk[0]	ezk	ezk	ezk
+sparc-unknown-linux-libc1	ezk[0]	ezk	ezk	ezk
+sparc-unknown-linux-rh6.2	ion	ion	ion	ion
+sparc-unknown-netbsd1.2E	ezk[0]	ezk	ezk
+sparc-unknown-netbsd1.2G	ezk[0]	ezk	ezk
+sparc64-unknown-linux-rh6.2	ion	ion	ion	ion
+sparc64-unknown-linux-suse7.3	ezk[0]	ezk	ezk	ezk
 
 EMAIL ID LEGEND:
 
@@ -115,6 +115,7 @@ bking:	Bevis R W King <B.King@ee.surrey.ac.uk>
 dsr:	Dan Riley <dsr@mail.lns.cornell.edu>
 ezk:	Erez Zadok <ezk@cs.columbia.edu>
 finkel:	Raphael Finkel <raphael@cs.uky.edu>
+ion:	Ion Badulescu <ion@cs.columbia.edu>
 jose:	Jose Nazario <jose@biocserver.BIOC.CWRU.Edu>
 nrh:	Nick Hall <nrh@dcs.ed.ac.uk>
 ro:	Rainer Orth <ro@TechFak.Uni-Bielefeld.DE>
@@ -123,6 +124,9 @@ wpaul:	Bill Paul <wpaul@ctr.columbia.edu>
 
 
 FOOTNOTES:
+
+[0] These entries were tested with older 6.0 releases, but not with the
+    latest version. They probably still work, however.
 
 [1] If compiling with cc on Irix 6, then use
 
@@ -138,13 +142,7 @@ Also, to get NFS V3 working, you need these two patches from SGI:
 
 and then add "-p tcp" to /etc/config/nfsd.options.
 
-[2] If compiling on Solaris 2.6, you need to add -D_LARGEFILE64_SOURCE to
-CFLAGS to enable the 64bit file offset interface:
-
-	make CFLAGS="-O2 -g -D_LARGEFILE64_SOURCE"
-
-If you're using the standard configure script, it will add this flag for you
-automatically.
+[2] ... has gone missing ...
 
 [3] DU-4.0 may not use NFS (server-side) V3 by default.  You may need to
 adjust /etc/init.d/nfs, and change the nfsd startup line from to

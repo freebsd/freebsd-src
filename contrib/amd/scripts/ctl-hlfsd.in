@@ -86,12 +86,14 @@ case "$1" in
 	then
 		echo @sbindir@/hlfsd ${PASSWD_FILE} -a $altmaildir -x all -D fork -l $logdir/hlfsd /mail/home .mailspool
 		@sbindir@/hlfsd ${PASSWD_FILE} -a $altmaildir -x all -D fork -l $logdir/hlfsd /mail/home .mailspool &
+		test -x /var/lock/subsys && touch /var/lock/subsys/hlfsd
 	fi
 	;;
 
 'stop')
 	# prepend space to program name to ensure only amd process dies
 	killproc " hlfsd"
+	test -f /var/lock/subsys/hlfsd && rm -f /var/lock/subsys/hlfsd
 	;;
 
 'restart')

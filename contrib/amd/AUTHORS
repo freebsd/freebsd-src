@@ -1,4 +1,3 @@
-# -*- text -*-
 PRIMARY AUTHORS AND MAJOR CONTRIBUTORS TO AM_UTILS:
 Original authors of amd were the Berkeley team and especially Jan-Simon
 Pendry.  Since then many people have contributed patches.
@@ -168,6 +167,9 @@ October 10, 1997: compile time cleanups of printf()s in hlfsd code.  If nfs
 server is down or does not support a portmapper call, then mark it down as
 version 2, and try again later.
 
+April 12, 2003: support new "unmount" option, useful to timeout removable
+local media mounts.
+
 * Bill Paul <wpaul@ctr.columbia.edu>
 
 November 5, 1997: NFS v.3 support for AIX 4.2.1, which does *not* include
@@ -268,6 +270,7 @@ copies, and using cached copies if map failed to reload.
 * Peter Breitenlohner <peb@mppmu.mpg.de>
 July 24, 1999: patch for linux 2.2.x to work with older libc5 systems, and
 nis_isup mis-logic fixes.
+December 13, 2001: report typos in scripts/amd.conf.5.
 
 * Dale Talcott <aeh@quest.cc.purdue.edu>
 July 26, 1999: added NFS3 support for AIX mounting.
@@ -311,3 +314,28 @@ February 1, 2001: important Linux NFS error number mapping fixed
 
 * Ahmon Dancy <dancy@franz.com>
 February 9, 2001: Apple Rhapsody/Darwin/OS X port
+
+* Sebastien Bahloul <sebastien.bahloul@mangoosta.fr>
+July 3, 2001: LDAP fixes and updates to support new APIs
+
+March 27, 2002: LDAP bug and port to HPUX-11.
+
+* Philippe Troin <phil@fifi.org>
+July 12, 2001: Proper handling of GNU getopt, support for optionally
+disabling LDAP/Hesiod, fixes for the dev/nodev option on Linux
+
+November 28, 2001: Bug fix.  Support "nolock" as an NFS option, not a
+generic mount option.
+
+July 17, 2003: Debian fixes.  Null am_pref free.
+
+* Trond Myklebust <trond.myklebust@fys.uio.no>
+January 10, 2002: Proper initialization of the timeo parameter on Linux, TCP
+_must_ have a timeout 2 orders of magnitude larger than UDP
+
+* Sean Fagan <sef@apple.com>
+March 14, 2003: detect and use the MNT2_GEN_OPT_AUTOMNTFS mount flag
+on OS X / Darwin.
+
+* Hendrik Scholz <hscholz@raisdorf.net>
+June 9, 2003: mk-amd-map should open temp db file using O_EXCL.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2001 Erez Zadok
+ * Copyright (c) 1997-2003 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: am_utils.h,v 1.11.2.6 2001/02/23 01:03:40 ezk Exp $
+ * $Id: am_utils.h,v 1.11.2.12 2002/12/27 22:45:10 ezk Exp $
  *
  */
 
@@ -94,6 +94,7 @@
 #define STREQ(s1, s2)		(strcmp((s1), (s2)) == 0)
 #define STRCEQ(s1, s2)		(strcasecmp((s1), (s2)) == 0)
 #define NSTREQ(s1, s2, n)	(strncmp((s1), (s2), (n)) == 0)
+#define NSTRCEQ(s1, s2, n)	(strncasecmp((s1), (s2), (n)) == 0)
 #define FSTREQ(s1, s2)		((*(s1) == *(s2)) && STREQ((s1),(s2)))
 
 /*
@@ -195,9 +196,7 @@ extern int umount_fs(char *fs_name, const char *mnttabname);
  */
 #define	AMF_NOTIMEOUT	0x0001	/* This node never times out */
 #define	AMF_ROOT	0x0002	/* This is a root node */
-#ifdef HAVE_FS_AUTOFS
-# define AMF_AUTOFS	0x0004	/* this node is of type autofs */
-#endif /* HAVE_FS_AUTOFS */
+#define AMF_AUTOFS	0x0004	/* This node is of type autofs -- not yet supported */
 
 /*
  * The following values can be tuned...
@@ -699,9 +698,9 @@ extern int create_nfs_service(int *soNFSp, u_short *nfs_portp, SVCXPRT **nfs_xpr
 
 #endif /* not HAVE_TRANSPORT_TYPE_TLI */
 
-#ifndef HAVE_FIELD_STRUCT_FHSTATUS_FHS_FH
+#ifndef HAVE_STRUCT_FHSTATUS_FHS_FH
 # define fhs_fh  fhstatus_u.fhs_fhandle
-#endif /* not HAVE_FIELD_STRUCT_FHSTATUS_FHS_FH */
+#endif /* not HAVE_STRUCT_FHSTATUS_FHS_FH */
 
 
 /**************************************************************************/
@@ -886,13 +885,6 @@ extern am_ops amfs_linkx_ops;	/* Symlink FS with existence check */
 extern am_ops amfs_union_ops;	/* Union FS */
 #endif /* HAVE_AMU_FS_UNION */
 
-/*
- * Autofs file system
- */
-#ifdef HAVE_FS_AUTOFS
-extern am_ops autofs_ops;	/* (Sun) Autofs FS */
-#endif /* HAVE_FS_AUTOFS */
-
 
 /**************************************************************************/
 /*** DEBUGGING								***/
@@ -956,6 +948,7 @@ extern void malloc_verify(void);
 
 /* functions that depend solely on debugging */
 extern void print_nfs_args(const nfs_args_t *nap, u_long nfs_version);
+extern int debug_option (char *opt);
 
 #else /* not DEBUG */
 
@@ -965,10 +958,16 @@ extern void print_nfs_args(const nfs_args_t *nap, u_long nfs_version);
  */
 #  define	XFREE(x) free(x)
 
+#define		amuDebug(x)	if (0)
+#define		dlog		if (0) dplog
+#define		amuDebugNo(x)	if (0)
+
+#define		print_nfs_args(nap, nfs_version)
+#define		debug_option(x)	(1)
+
 #endif /* not DEBUG */
 
 extern int debug_flags;		/* Debug options */
-extern int debug_option (char *opt);
 extern struct opt_tab dbg_opt[];
 extern void dplog(const char *fmt, ...)
      __attribute__ ((__format__ (__printf__, 1, 2)));
