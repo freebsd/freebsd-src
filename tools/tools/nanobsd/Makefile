@@ -71,16 +71,18 @@ all:	buildworld installworld buildimage
 #
 Customize:	_.cs
 _.cs:	_.iw _.di _.ik _.di
+	rm -f _.cs.tmp
+	touch _.cs.tmp
 .for cust in ${CUSTOMIZE}
 .if exists(${.CURDIR}/Customize/${${cust}})
-	sh -e ${.CURDIR}/Customize/${cust} ${WD} ${WORLDDIR} ${.CURDIR} ${CUSTOMIZE_ARGS}
+	sh -e ${.CURDIR}/Customize/${cust} ${WD} ${WORLDDIR} ${.CURDIR} ${CUSTOMIZE_ARGS}  >> _.cs.tmp 2>&1
 .elif exists(${.CURDIR}/${${cust}})
-	sh -e ${.CURDIR}/${cust} ${WD} ${WORLDDIR} ${.CURDIR} ${CUSTOMIZE_ARGS}
+	sh -e ${.CURDIR}/${cust} ${WD} ${WORLDDIR} ${.CURDIR} ${CUSTOMIZE_ARGS} >> _.cs.tmp 2>&1
 .else
-	sh -e ${cust} ${WD} ${WORLDDIR} ${.CURDIR} ${CUSTOMIZE_ARGS}
+	sh -e ${cust} ${WD} ${WORLDDIR} ${.CURDIR} ${CUSTOMIZE_ARGS} >> _.cs.tmp 2>&1
 .endif
 .endfor
-	touch _.cs
+	mv _.cs.tmp _.cs
 
 ###########################################################################
 #
