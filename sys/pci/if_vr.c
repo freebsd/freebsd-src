@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_vr.c,v 1.13 1999/07/06 19:23:31 des Exp $
+ *	$Id: if_vr.c,v 1.14 1999/08/10 17:15:10 wpaul Exp $
  */
 
 /*
@@ -100,7 +100,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_vr.c,v 1.13 1999/07/06 19:23:31 des Exp $";
+	"$Id: if_vr.c,v 1.14 1999/08/10 17:15:10 wpaul Exp $";
 #endif
 
 /*
@@ -1132,6 +1132,7 @@ static int vr_attach(dev)
 		bus_teardown_intr(dev, sc->vr_irq, sc->vr_intrhand);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->vr_irq);
 		bus_release_resource(dev, VR_RES, VR_RID, sc->vr_res);
+		free(sc->vr_ldata_ptr, M_DEVBUF);
 		error = ENXIO;
 		goto fail;
 	}
