@@ -65,10 +65,10 @@ static char sccsid[] = "@(#)recvjob.c	8.2 (Berkeley) 4/27/95";
 
 #define ack()	(void) write(1, sp, 1);
 
-static char	 dfname[40];	/* data files */
+static char	 dfname[256];	/* data files */
 static int	 minfree;       /* keep at least minfree blocks available */
 static char	*sp = "";
-static char	 tfname[40];	/* tmp copy of cf before linking */
+static char	 tfname[256];	/* tmp copy of cf before linking */
 
 static int        chksize __P((int));
 static void       frecverr __P((const char *, ...));
