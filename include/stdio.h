@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stdio.h	8.5 (Berkeley) 4/29/95
- *	$Id: stdio.h,v 1.14 1998/01/01 17:07:44 alex Exp $
+ *	$Id: stdio.h,v 1.15 1998/04/11 07:33:46 jb Exp $
  */
 
 #ifndef	_STDIO_H_
@@ -274,9 +274,9 @@ __BEGIN_DECLS
 char	*ctermid __P((char *));
 FILE	*fdopen __P((int, const char *));
 int	 fileno __P((FILE *));
-int	ftrylockfile __P((FILE *));
-void	flockfile __P((FILE *));
-void	funlockfile __P((FILE *));
+int	 ftrylockfile __P((FILE *));
+void	 flockfile __P((FILE *));
+void	 funlockfile __P((FILE *));
 __END_DECLS
 #endif /* not ANSI */
 
@@ -421,21 +421,29 @@ void	_funlockfile __P((FILE *));
 #else
 #define _FLOCKFILE(x)	_flockfile(x)
 #endif
-static __inline int	__getc_locked(FILE *fp) {	\
-	extern int __isthreaded;			\
-	int	ret;					\
-	if (__isthreaded) _FLOCKFILE(fp);		\
-	ret = getc_unlocked(fp);			\
-	if (__isthreaded) _funlockfile(fp);		\
-	return(ret);					\
+static __inline int			\
+__getc_locked(FILE *_fp)		\
+{					\
+	extern int __isthreaded;	\
+	int _ret;			\
+	if (__isthreaded)		\
+		_FLOCKFILE(_fp);	\
+	_ret = getc_unlocked(_fp);	\
+	if (__isthreaded)		\
+		_funlockfile(_fp);	\
+	return (_ret);			\
 }
-static __inline int __putc_locked(int x, FILE *fp) {	\
-	extern int __isthreaded;			\
-	int	ret;					\
-	if (__isthreaded) _FLOCKFILE(fp);		\
-	ret = putc_unlocked(x, fp);			\
-	if (__isthreaded) _funlockfile(fp);		\
-	return(ret);					\
+static __inline int			\
+__putc_locked(int _x, FILE *_fp)	\
+{					\
+	extern int __isthreaded;	\
+	int _ret;			\
+	if (__isthreaded)		\
+		_FLOCKFILE(_fp);	\
+	_ret = putc_unlocked(_x, _fp);	\
+	if (__isthreaded)		\
+		_funlockfile(_fp);	\
+	return (_ret);			\
 }
 #define	getc(fp)	__getc_locked(fp)
 #define	putc(x, fp)	__putc_locked(x, fp)
