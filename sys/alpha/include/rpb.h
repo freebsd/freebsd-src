@@ -109,9 +109,9 @@ struct rpb {
 #define	SV_ST_FLAMINGO45	0x00002000	/* Flamingo45;	3000/900 */
 
 /*
- * System types for ???
+ * System types for ?
  */
-#define	SV_ST_SABLE		0x00000400	/* Sable (???) */
+#define	SV_ST_SABLE		0x00000400	/* Sable (?) */
 
 /*
  * System types for the DEC 3000/300 (Pelican) Family
