@@ -80,9 +80,6 @@ struct xucred {
 #ifdef _KERNEL
 struct thread;
 
-#ifdef DIAGNOSTIC
-void		cred_free_thread(struct thread *td);
-#endif
 void		cred_update_thread(struct thread *td);
 void		change_egid(struct ucred *newcred, gid_t egid);
 void		change_euid(struct ucred *newcred, struct uidinfo *euip);

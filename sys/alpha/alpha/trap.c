@@ -589,9 +589,6 @@ out:
 		framep->tf_regs[FRAME_SP] = alpha_pal_rdusp();
 		userret(td, framep, sticks);
 		mtx_assert(&Giant, MA_NOTOWNED);
-#ifdef DIAGNOSTIC
-		cred_free_thread(td);
-#endif
 	}
 	return;
 
@@ -778,9 +775,6 @@ syscall(code, framep)
 	 */
 	STOPEVENT(p, S_SCX, code);
 
-#ifdef DIAGNOSTIC
-	cred_free_thread(td);
-#endif
 #ifdef WITNESS
 	if (witness_list(td)) {
 		panic("system call %s returning with mutex(s) held\n",
