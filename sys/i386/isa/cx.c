@@ -56,8 +56,10 @@
 #      define t_out t_outq
 #      define RB_LEN(q) ((q).c_cc)
 #      define RB_GETC(q) getc(&q)
+#ifndef TSA_CARR_ON /* FreeBSD 2.x before not long after 2.0.5 */
 #      define TSA_CARR_ON(tp) tp
 #      define TSA_OLOWAT(q) ((caddr_t)&(q)->t_out)
+#endif
 #endif
 
 #include <machine/cronyx.h>
@@ -197,7 +199,7 @@ int cxopen (dev_t dev, int flag, int mode, struct proc *p)
 		cx_chan_rts (c, 1);
 	}
 	if (cx_chan_cd (c))
-		tp->t_state |= TS_CARR_ON;
+		(*linesw[tp->t_line].l_modem)(tp, 1);
 	if (! (flag & O_NONBLOCK)) {
 		/* Lock the channel against cxconfig while we are
 		 * waiting for carrier. */
@@ -594,6 +596,9 @@ void cxoproc (struct tty *tp)
 	if (tp->t_state & (TS_SO_OCOMPLETE | TS_SO_OLOWAT) || tp->t_wsel)
 		ttwwakeup (tp);
 #else /* FreeBSD 2.x and BSDI */
+#ifndef TS_ASLEEP /* FreeBSD some time after 2.0.5 */
+	ttwwakeup(tp);
+#else
 	if (RB_LEN (tp->t_out) <= tp->t_lowat) {
 		if (tp->t_state & TS_ASLEEP) {
 			tp->t_state &= ~TS_ASLEEP;
@@ -601,6 +606,7 @@ void cxoproc (struct tty *tp)
 		}
 		selwakeup(&tp->t_wsel);
 	}
+#endif
 #endif
 	splx (s);
 }
