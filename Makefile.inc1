@@ -718,7 +718,7 @@ _generic_libs+=	lib
 .if !defined(NO_OPENSSL)
 _prebuild_libs+=	secure/lib/libcrypto secure/lib/libssl
 .endif
-.if !defined(NO_OPENSSH)
+.if !defined(NO_OPENSSH) && !defined(NO_OPENSSL)
 _prebuild_libs+=	secure/lib/libssh
 secure/lib/libssh__L: secure/lib/libcrypto__L lib/libz__L
 .endif
