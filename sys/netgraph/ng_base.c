@@ -2143,7 +2143,7 @@ ng_snd_item(item_p item, int queue)
 		/* Protect nodes from sending NULL pointers
 		 * to each other
 		 */
-		if (m == NULL)
+		if (NGI_M(item) == NULL)
 			return (EINVAL);
 
 		CHECK_DATA_MBUF(NGI_M(item));
