@@ -1,0 +1,149 @@
+.\"
+.\" Copyright 1998 Bruce A. Mah
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	$FreeBSD$
+.Dd July 17, 1998
+.Dt PKG_VERSION 1
+.Os FreeBSD
+.Sh NAME
+.Nm pkg_version
+.Nd summarize installed versions of packages
+.Sh SYNOPSIS
+.Nm pkg_version
+.Op Fl cdhv
+.Op Ar index
+.Sh DESCRIPTION
+The
+.Nm
+command is used to produce a report of non-base software packages
+installed using the 
+.Xr pkg_add 1
+command.  Version numbers are compared against an
+index file, to see which packages might need updating.
+.Pp
+Each package name is printed, along with a one-character status flag:
+.Bl -tag -width indent
+.It Li =
+The installed version of the package matches the index.
+.It Li <
+The installed version of the package is older than the version listed
+in the index.
+.It Li >
+The installed version of the package is newer than listed in the
+index.
+.It Li ?
+The relationship between the installed version of a package and the
+index file could not be determined.  A common reason for this message
+is that there are multiple versions of a particular software package
+installed, or that multiple versions are listed in the index file.
+Examples from the
+.Fx 2.2.6
+ports collection are the Tcl toolkit or the
+.Tn EMACS
+editor.
+.Sh OPTIONS
+.Nm 
+supports several command-line arguments:
+.Bl -tag -width indent
+.It Fl c
+Enable commands output.  Commands output includes the commands you should
+type to update your installed packages to the latest versions in the ports
+system.
+.It Fl d
+Enable debugging output.
+.It Fl h
+Print help message.
+.It Fl v
+Enable verbose output.  Verbose output includes some English-text
+interpretations of the version number comparisons, as well as the
+version numbers compared for each package.  Non-verbose output is
+probably easier for programs or scripts to parse.
+.It Ar index
+Specify the index to be used as a basis of comparison.  This index can
+be specified as a filename (in the local filesystem) or a URL.  Any
+URL understandable by
+.Xr fetch 1
+can be used here.  If no
+.Ar index
+file is specified on the command line,
+.Pa /usr/ports/INDEX
+is used.
+.El
+.Sh SEE ALSO
+.Xr fetch 1 ,
+.Xr pkg_add 1 ,
+.Xr pkg_create 1 ,
+.Xr pkg_delete 1 .
+.Sh FILES
+.Bl -tag -width /usr/ports/INDEX -compact
+.It Pa /usr/ports/INDEX
+Default index file.
+.El
+.Sh EXAMPLES
+The following is a typical invocation of the
+.Nm
+command, which checks the installed packages against the local ports
+index file:
+.Pp
+.Dl % pkg_version -v
+.Pp
+The command below generates a report against
+the version numbers in the on-line ports collection:
+.Pp
+.Dl % pkg_version ftp://ftp.freebsd.org/pub/FreeBSD/ports-current/INDEX
+.Pp
+The command below generates a file of commands to run to update the installed
+files. It is
+.Bf Em
+not
+.Ef
+suggested that you run these commands automatically. Always review the
+suggestions, and then cut-and-paste (or retype) the commands you want to run.
+.Pp
+.Dl % pkg_version -c > do_update
+.Sh AUTHOR
+.An Bruce A. Mah Aq bmah@ca.sandia.gov
+.Sh CONTRIBUTORS
+.An Nik Clayton Aq nik@freebsd.org
+.Sh BUGS
+There should be a better way of dealing with packages that
+can have more than one installed version.
+.Pp
+Patch levels aren't handled
+very well (i.e. version numbers of the form 1.2p3 or 1.2pl3).
+.Pp
+Updates to packages
+that don't change the version number (e.g. small delta bugfixes in the
+package/port itself) aren't detected.
+.Pp
+Commands output doesn't know about dependencies between packages. For
+example, you might have two versions of Tcl installed because two other
+packages require the different versions.
+.Nm
+will suggest removing the out-of-date version.
+.Pp
+Commands output assumes you install new software using the ports system,
+rather than using
+.Xr pkg_add 1 .
