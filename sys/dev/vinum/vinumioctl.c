@@ -53,6 +53,8 @@ void detachobject(struct vinum_ioctl_msg *);
 void renameobject(struct vinum_rename_msg *);
 void replaceobject(struct vinum_ioctl_msg *);
 
+jmp_buf command_fail;					    /* return on a failed command */
+
 /* ioctl routine */
 int 
 vinumioctl(dev_t dev,
