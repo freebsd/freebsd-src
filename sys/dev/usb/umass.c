@@ -612,6 +612,15 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 		return(UMATCH_VENDOR_PRODUCT);
 	}
 
+	/*
+	 * The Pentax Optio 230 requires RS_NO_CLEAR_UA
+	 * PR: kern/46369
+	 */
+	if (UGETW(dd->idVendor) == USB_VENDOR_ASAHIOPTICAL) {
+	    && UGETW(dd->idProduct) == USB_PRODUCT_ASAHIOPTICAL_OPTIO230) {
+		sc->quirks |= RS_NO_CLEAR_UA;
+	}
+
 	if (UGETW(dd->idVendor) == USB_VENDOR_FUJIPHOTO
 	    && UGETW(dd->idProduct) == USB_PRODUCT_FUJIPHOTO_MASS0100) {
 		sc->quirks |= RS_NO_CLEAR_UA;

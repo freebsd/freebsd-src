@@ -455,6 +455,9 @@
 #define	USB_PRODUCT_APPLE_OPTMOUSE	0x0302		/* Optical mouse */
 #define	USB_PRODUCT_APPLE_SPEAKERS	0x1101		/* Speakers */
 
+/* Asahi Optical products */
+#define	USB_PRODUCT_ASAHIOPTICAL_OPTIO230	0x0004		/* Digital camera */
+
 /* ATen products */
 #define	USB_PRODUCT_ATEN_UC1284	0x2001		/* Parallel printer adapter */
 #define	USB_PRODUCT_ATEN_UC10T	0x2002		/* 10Mbps ethernet adapter */

@@ -388,6 +388,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "Speakers",
 	},
 	{
+	    USB_VENDOR_ASAHIOPTICAL, USB_PRODUCT_ASAHIOPTICAL_OPTIO230,
+	    0,
+	    "Asahi Optical",
+	    "Digital camera",
+	},
+	{
 	    USB_VENDOR_ATEN, USB_PRODUCT_ATEN_UC1284,
 	    0,
 	    "ATEN International",
