@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.39 1998/06/07 17:12:01 dfr Exp $
+ * $Id: bpf.c,v 1.40 1998/07/29 05:34:59 kjc Exp $
  */
 
 #include "bpfilter.h"
@@ -192,6 +192,7 @@ bpf_movein(uio, linktype, mp, sockp, datlen)
 #endif
 		break;
 
+	case DLT_RAW:
 	case DLT_NULL:
 		sockp->sa_family = AF_UNSPEC;
 		hlen = 0;
