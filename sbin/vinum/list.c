@@ -713,7 +713,7 @@ vinum_info(int argc, char *argv[], char *argv0[])
 	}
 #if VINUMDEBUG
     if (Verbose) {
-	printf("\nTime\t\t Event\t     Buf\tDev\tOffset\t\tBytes\tSD\tSDoff\tDoffset\tGoffset\n\n");
+	printf("\nTime\t\t Event\t     Buf\tDev\t  Offset\tBytes\tSD\tSDoff\tDoffset\tGoffset\n\n");
 	for (i = RQINFO_SIZE - 1; i >= 0; i--) {	    /* go through the request list in order */
 	    *((int *) &rq) = i;
 	    if (ioctl(superdev, VINUM_RQINFO, &rq) < 0) {
@@ -725,7 +725,7 @@ vinum_info(int argc, char *argv[], char *argv0[])
 		break;
 
 	    case loginfo_user_bp:			    /* this is the bp when strategy is called */
-		printf("%s 1VS %s %p\t%d.%d\t0x%-9x\t%ld\n",
+		printf("%s 1VS %s %p\t%d.%-6d 0x%-9x\t%ld\n",
 		    timetext(&rq.timestamp),
 		    rq.info.b.b_flags & B_READ ? "Read " : "Write",
 		    rq.bp,
@@ -736,7 +736,7 @@ vinum_info(int argc, char *argv[], char *argv0[])
 		break;
 
 	    case loginfo_user_bpl:			    /* and this is the bp at launch time */
-		printf("%s 2LR %s %p\t%d.%d\t0x%-9x\t%ld\n",
+		printf("%s 2LR %s %p\t%d.%-6d 0x%-9x\t%ld\n",
 		    timetext(&rq.timestamp),
 		    rq.info.b.b_flags & B_READ ? "Read " : "Write",
 		    rq.bp,
@@ -747,7 +747,7 @@ vinum_info(int argc, char *argv[], char *argv0[])
 		break;
 
 	    case loginfo_rqe:				    /* user RQE */
-		printf("%s 3RQ %s %p\t%d.%d\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
+		printf("%s 3RQ %s %p\t%d.%-6d 0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
 		    timetext(&rq.timestamp),
 		    rq.info.rqe.b.b_flags & B_READ ? "Read " : "Write",
 		    rq.bp,
@@ -762,7 +762,7 @@ vinum_info(int argc, char *argv[], char *argv0[])
 		break;
 
 	    case loginfo_iodone:			    /* iodone called */
-		printf("%s 4DN %s %p\t%d.%d\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
+		printf("%s 4DN %s %p\t%d.%-6d 0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
 		    timetext(&rq.timestamp),
 		    rq.info.rqe.b.b_flags & B_READ ? "Read " : "Write",
 		    rq.bp,
@@ -777,7 +777,7 @@ vinum_info(int argc, char *argv[], char *argv0[])
 		break;
 
 	    case loginfo_raid5_data:			    /* RAID-5 write data block */
-		printf("%s 5RD %s %p\t%d.%d\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
+		printf("%s 5RD %s %p\t%d.%-6d 0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
 		    timetext(&rq.timestamp),
 		    rq.info.rqe.b.b_flags & B_READ ? "Read " : "Write",
 		    rq.bp,
@@ -792,7 +792,7 @@ vinum_info(int argc, char *argv[], char *argv0[])
 		break;
 
 	    case loginfo_raid5_parity:			    /* RAID-5 write parity block */
-		printf("%s 6RP %s %p\t%d.%d\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
+		printf("%s 6RP %s %p\t%d.%-6d 0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
 		    timetext(&rq.timestamp),
 		    rq.info.rqe.b.b_flags & B_READ ? "Read " : "Write",
 		    rq.bp,
@@ -804,6 +804,31 @@ vinum_info(int argc, char *argv[], char *argv0[])
 		    rq.info.rqe.sdoffset,
 		    rq.info.rqe.dataoffset,
 		    rq.info.rqe.groupoffset);
+		break;
+
+	    case loginfo_lockwait:
+		printf("%s Lockwait  %p\t%d\t  0x%x\n",
+		    timetext(&rq.timestamp),
+		    rq.bp,
+		    rq.info.lockinfo.plexno,
+		    rq.info.lockinfo.stripe);
+		break;
+
+	    case loginfo_lock:
+		printf("%s Lock      %p\t%d\t  0x%x\n",
+		    timetext(&rq.timestamp),
+		    rq.bp,
+		    rq.info.lockinfo.plexno,
+		    rq.info.lockinfo.stripe);
+		break;
+
+	    case loginfo_unlock:
+		printf("%s Unlock\t  %p\t%d\t  0x%x\n",
+		    timetext(&rq.timestamp),
+		    rq.bp,
+		    rq.info.lockinfo.plexno,
+		    rq.info.lockinfo.stripe);
+
 	    }
 	}
     }
