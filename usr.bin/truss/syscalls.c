@@ -357,7 +357,12 @@ void
 print_syscall(struct trussinfo *trussinfo, const char *name, int nargs, char **s_args) {
   int i;
   int len = 0;
+
+  if (trussinfo->flags & FOLLOWFORKS)
+    len += fprintf(trussinfo->outfile, "%5d:  ", trussinfo->pid);
+
   len += fprintf(trussinfo->outfile, "%s(", name);
+
   for (i = 0; i < nargs; i++) {
     if (s_args[i])
       len += fprintf(trussinfo->outfile, "%s", s_args[i]);

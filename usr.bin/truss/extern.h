@@ -32,7 +32,7 @@
  */
 
 extern int setup_and_wait(char **);
-extern int start_tracing(int, int);
+extern int start_tracing(int, int, int);
 extern void restore_proc(int);
 extern const char *ioctlname(register_t val);
 #ifdef __alpha__
