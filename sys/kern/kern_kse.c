@@ -538,13 +538,17 @@ kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 	/* KSE-enabled processes only, please. */
 	if (!(p->p_flag & P_KSES))
 		return (EINVAL);
-
+	if ((td->td_ksegrp->kg_numupcalls != 0) && (td->td_mailbox == NULL)) {
+		KASSERT((td->td_upcall != NULL), ("%s: not own an upcall", __func__));
+		if (td->td_upcall->ku_mailbox == uap->mbx)
+			return (0);
+	}
 	PROC_LOCK(p);
 	mtx_lock_spin(&sched_lock);
 	if (uap->mbx) {
 		FOREACH_KSEGRP_IN_PROC(p, kg) {
 			FOREACH_UPCALL_IN_GROUP(kg, ku) {
-				if (ku->ku_mailbox == uap->mbx) 
+				if (ku->ku_mailbox == uap->mbx)
 					break;
 			}
 			if (ku)
@@ -565,7 +569,6 @@ kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 			panic("%s: no owner", __func__);
 		} else if (TD_ON_SLEEPQ(td2) &&
 		           (td2->td_wchan == &kg->kg_completed)) {
-			ku->ku_flags |= KUF_DOUPCALL;
 			abortsleep(td2);
 		} else {
 			ku->ku_flags |= KUF_DOUPCALL;
