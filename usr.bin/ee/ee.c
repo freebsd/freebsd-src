@@ -5019,8 +5019,8 @@ strings_init()
 	mode_strings[7] = catgetlocal( 145, "emacs key bindings   ");
 	emacs_help_text[0] = help_text[0];
 	emacs_help_text[1] = catgetlocal( 146, "^a beginning of line    ^i tab                  ^r restore word            ");
-	emacs_help_text[2] = catgetlocal( 147, "^b back 1 char          ^j undel char           ^t top of text             ");
-	emacs_help_text[3] = catgetlocal( 148, "^c command              ^k delete line          ^u bottom of text          ");
+	emacs_help_text[2] = catgetlocal( 147, "^b back 1 char          ^j undel char           ^t begin of file           ");
+	emacs_help_text[3] = catgetlocal( 148, "^c command              ^k delete line          ^u end of file             ");
 	emacs_help_text[4] = catgetlocal( 149, "^d delete char          ^l undelete line        ^v next page               ");
 	emacs_help_text[5] = catgetlocal( 150, "^e end of line          ^m newline              ^w delete word             ");
 	emacs_help_text[6] = catgetlocal( 151, "^f forward 1 char       ^n next line            ^x search                  ");
@@ -5042,7 +5042,7 @@ strings_init()
 	emacs_control_keys[0] = catgetlocal( 154, "^[ (escape) menu ^y search prompt ^k delete line    ^p prev line  ^g prev page");
 	emacs_control_keys[1] = catgetlocal( 155, "^o ascii code    ^x search        ^l undelete line  ^n next line  ^v next page");
 	emacs_control_keys[2] = catgetlocal( 156, "^u end of file   ^a begin of line ^w delete word    ^b back char  ^z next word");
-	emacs_control_keys[3] = catgetlocal( 157, "^t top of text   ^e end of line   ^r restore word   ^f forward char           ");
+	emacs_control_keys[3] = catgetlocal( 157, "^t begin of file ^e end of line   ^r restore word   ^f forward char           ");
 	emacs_control_keys[4] = catgetlocal( 158, "^c command       ^d delete char   ^j undelete char              ESC-Enter: exit");
 	EMACS_string = catgetlocal( 159, "EMACS");
 	NOEMACS_string = catgetlocal( 160, "NOEMACS");
