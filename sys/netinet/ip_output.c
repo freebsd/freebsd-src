@@ -400,6 +400,7 @@ ip_output(m0, opt, ro, flags, imo)
 	if ((ifp->if_snd.ifq_len + ip->ip_len / ifp->if_mtu + 1) >=
 		ifp->if_snd.ifq_maxlen) {
 			error = ENOBUFS;
+			ipstat.ips_odropped++;
 			goto bad;
 	}
 
