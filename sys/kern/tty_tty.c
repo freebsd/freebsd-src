@@ -65,6 +65,7 @@ ctty_clone(void *arg, char *name, int namelen, struct cdev **dev)
 		*dev = ctty;
 	else
 		*dev = curthread->td_proc->p_session->s_ttyvp->v_rdev;
+	dev_ref(*dev);
 }
 
 static void

@@ -655,6 +655,7 @@ devfs_lookupx(ap)
 	devfs_populate(dmp);
 
 	dde = devfs_itode(dmp, cdev->si_inode);
+	dev_rel(cdev);
 
 	if (dde == NULL || *dde == NULL || *dde == DE_DELETED)
 		goto notfound;

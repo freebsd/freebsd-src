@@ -253,8 +253,10 @@ tapclone(arg, name, namelen, dev)
 	if (i) {
 		*dev = make_dev(&tap_cdevsw, unit2minor(unit | extra),
 		     UID_ROOT, GID_WHEEL, 0600, "%s%d", device_name, unit);
-		if (*dev != NULL)
+		if (*dev != NULL) {
+			dev_ref(*dev);
 			(*dev)->si_flags |= SI_CHEAPCLONE;
+		}
 	}
 } /* tapclone */
 
