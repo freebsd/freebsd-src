@@ -32,9 +32,9 @@
 .Nm acpi
 .Nd Advanced Configuration and Power Management support
 .Sh SYNOPSIS
-.Cd device acpi
+.Cd "device acpi"
 .Pp
-.Cd options ACPI_DEBUG
+.Cd "options ACPI_DEBUG"
 .Sh DESCRIPTION
 The
 .Nm
@@ -203,8 +203,7 @@ To disable the
 .Nm
 driver completely, set the kernel environment variable
 .Va hint.acpi.0.disabled
-to 
-.Dq 1 .
+to 1.
 Some i386 machines totally fail to operate with some or all of ACPI disabled.
 Other i386 machines fail with ACPI enabled.
 Non-i386 platforms do not support operating systems which do not use ACPI.
@@ -295,27 +294,27 @@ utilities from the
 .Pa devel/acpicatools
 port, and some ACPI knowledge.
 .Sh TUNABLES
-.Bl -tag -width children
-.It Li acpi_dsdt_load
-Enables loading of a custom acpi DSDT.
-.It Li acpi_dsdt_name
+.Bl -tag -width indent
+.It Va acpi_dsdt_load
+Enables loading of a custom ACPI DSDT.
+.It Va acpi_dsdt_name
 Name of the DSDT table to load, if loading is enabled.
-.It Li debug.acpi.disable
+.It Va debug.acpi.disable
 Selectively disables portions of ACPI for debugging purposes.
-.It Li hint.acpi.0.disabled
-Disables all of ACPI
-.It Li hw.acpi.cpu.performance_speed
+.It Va hint.acpi.0.disabled
+Disables all of ACPI.
+.It Va hw.acpi.cpu.performance_speed
 Sets the speed of the CPU, if it supports multiple speeds, while in
 the performance power profile.
-.It Li hw.acpi.cpu.economy_speed
+.It Va hw.acpi.cpu.economy_speed
 Sets the speed of the CPU, if it supports multiple speeds, while in
 the economy power profile.
-.It Li hw.acpi.ec.event_driven
+.It Va hw.acpi.ec.event_driven
 Enables or disables the event driven model for the embedded controller
 driver.
-.It Li hw.acpi.pci.link.%d.%d.%d.irq
+.It Va hw.acpi.pci.link.%d.%d.%d.irq
 Override the interrupt to use.
-.It Li hw.acpi.verbose
+.It Va hw.acpi.verbose
 Turn on verbose debugging information about what ACPI is doing.
 .El
 .Sh COMPATIBILITY
