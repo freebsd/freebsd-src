@@ -31,16 +31,20 @@
  * SUCH DAMAGE.
  *
  *	@(#)protosw.h	8.1 (Berkeley) 6/2/93
- * $Id$
+ *	$Id: protosw.h,v 1.15 1997/02/22 09:45:42 peter Exp $
  */
 
 #ifndef _SYS_PROTOSW_H_
 #define _SYS_PROTOSW_H_
 
+/* Forward declare these structures referenced from prototypes below. */
+struct ifnet;
 struct mbuf;
 struct sockaddr;
 struct socket;
 struct sockproto;
+struct stat;
+struct uio;
 
 /*
  * Protocol switch table.
@@ -165,11 +169,12 @@ char *prurequests[] = {
 #endif
 
 #ifdef	KERNEL			/* users shouldn't see this decl */
-struct stat;
-struct ifnet;
 
 /*
  * If the ordering here looks odd, that's because it's alphabetical.
+ * Having this structure separated out from the main protoswitch is actually
+ * a big (12 cycles per call) lose on high-end CPUs.  We will eventually
+ * migrate this stuff back into the main structure.
  */
 struct pr_usrreqs {
 	int	(*pru_abort) __P((struct socket *so));
@@ -187,11 +192,6 @@ struct pr_usrreqs {
 	int	(*pru_rcvd) __P((struct socket *so, int flags));
 	int	(*pru_rcvoob) __P((struct socket *so, struct mbuf *m,
 				   int flags));
-	/*
-	 * The `m' parameter here is almost certainly going to become a
-	 * `struct uio' at some point in the future.  Similar changes
-	 * will probably happen for the receive entry points.
-	 */
 	int	(*pru_send) __P((struct socket *so, int flags, struct mbuf *m, 
 			      struct mbuf *addr, struct mbuf *control));
 #define	PRUS_OOB	0x1
@@ -199,6 +199,18 @@ struct pr_usrreqs {
 	int	(*pru_sense) __P((struct socket *so, struct stat *sb));
 	int	(*pru_shutdown) __P((struct socket *so));
 	int	(*pru_sockaddr) __P((struct socket *so, struct mbuf *nam));
+	 
+	/*
+	 * These two added later, so they are out of order.  They are used
+	 * for shortcutting (fast path input/output) in some protocols.
+	 * XXX - that's a lie, they are not implemented yet
+	 */
+	int	(*pru_sosend) __P((struct socket *so, struct mbuf *addr,
+				   struct uio *uio, struct mbuf *top,
+				   struct mbuf *control, int flags));
+	int	(*pru_soreceive) __P((struct socket *so, struct mbuf **paddr,
+				      struct uio *uio, struct mbuf **mp0,
+				      struct mbuf **controlp, int *flagsp));
 };
 
 int	pru_accept_notsupp __P((struct socket *so, struct mbuf *nam));
