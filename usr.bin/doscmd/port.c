@@ -158,6 +158,21 @@ inb_traceport(int port)
     return(byte);
 }
 
+/*
+ * Real input/output to (hopefully) iomapped port
+ */
+void
+outb_port(int port, unsigned char byte)
+{
+    out(port, byte);
+}
+
+unsigned char
+inb_port(int port)
+{
+    return in(port);
+}
+
 /* 
  * Fake input/output ports
  */

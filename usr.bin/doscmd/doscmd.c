@@ -480,7 +480,7 @@ do_args(int argc, char *argv[])
     FILE	*fp;
     char 	*col;
 
-    while ((c = getopt (argc, argv, "234Oc:TkCIEMPRLAU:S:HDtzvVxXYfbri:o:d:")) != -1) {
+    while ((c = getopt (argc, argv, "234Oc:TkCIEMPRLAU:S:HDtzvVxXYfbri:o:p:d:")) != -1) {
 	switch (c) {
 	case 'd':
 	    if (fp = fopen(optarg, "w")) {
@@ -515,6 +515,7 @@ do_args(int argc, char *argv[])
 		i = strtol(col, 0, 0);
 	    }
 	    p = strtol(optarg, 0, 0);
+	    iomap_port(p, i);
 
 	    while (i-- > 0)
 		define_input_port_handler(p++, inb_traceport);
@@ -526,9 +527,24 @@ do_args(int argc, char *argv[])
 		i = strtol(col, 0, 0);
 	    }
 	    p = strtol(optarg, 0, 0);
+	    iomap_port(p, i);
 
 	    while (i-- > 0)
 		define_output_port_handler(p++, outb_traceport);
+	    break;
+	case 'p':
+	    i = 1;
+	    if (col = strchr(optarg, ':')) {
+		*col++ = 0;
+		i = strtol(col, 0, 0);
+	    }
+	    p = strtol(optarg, 0, 0);
+	    iomap_port(p, i);
+
+	    while (i-- > 0) {
+		define_input_port_handler(p++, inb_port);
+		define_output_port_handler(p++, outb_port);
+	    }
 	    break;
 
 	case 'r':
@@ -834,6 +850,9 @@ struct io_range {
 	int enable;
 };
 
+/* This is commented out as it is never called.  Turn it back on if needed.
+ */
+#if COMMENTED_OUT
 static void
 iomap_init(void)
 {
@@ -844,6 +863,7 @@ iomap_init(void)
                 { 0x1c80, 2, 1 },               /* 0x1c80 - 0x1c81 */
                 { 0x2c80, 2, 1 },               /* 0x2c80 - 0x2c81 */
                 { 0x3c80, 2, 1 },               /* 0x3c80 - 0x3c81 */
+                { 0x378,  8, 1 },               /* 0x378 - 0x37F */
                 { 0x3c4,  2, 1 },               /* 0x3c4 - 0x3c5 */
                 { 0x3c5,  2, 1 },               /* 0x3ce - 0x3cf */
 #else
@@ -851,8 +871,21 @@ iomap_init(void)
 #endif
                 { 0, 0, 0 }
         };
-
+	
         for (i = 0; io[i].length; i++)
                 if (i386_set_ioperm(io[i].start, io[i].length, io[i].enable) < 0)
                         err(1, "i386_set_ioperm");
+}
+#endif
+
+/* This is used to map in only the specified port range, instead of all
+   the ports or only certain port ranges.
+ */
+void
+iomap_port(int port, int count)
+{
+    if (i386_set_ioperm(port, count, 1) < 0)
+	err(1, "i386_set_ioperm");
+
+    debug(D_PORT,"mapped I/O port: port=%#x count=%d\n", port, count);
 }
