@@ -557,9 +557,11 @@ ifconfig_ed0_alias0="inet 127.0.0.253 netmask 0xffffffff"
 ifconfig_ed0_alias1="inet 127.0.0.254 netmask 0xffffffff"
 .Ed
 .Pp
-.\" XXX horrible markup here:
-And so on.  For each ifconfig_<interface>_alias<n> entry that is
-found, its contents are passed to
+And so on.
+For each
+.Va ifconfig_ Ns Ao Ar interface Ac Ns Va _alias Ns Aq Ar n
+entry that is found,
+its contents are passed to
 .Xr ifconfig 8 .
 Execution stops at the first unsuccessful access, so if you
 had something like:
