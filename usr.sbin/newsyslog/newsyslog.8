@@ -242,17 +242,24 @@ Some examples:
 .Bl -tag -width Ds -compact -offset indent
 .It Ar $D0
 rotate every night at midnight
+(same as
+.Ar @T00 )
 .It Ar $D23
 rotate every day at 23:00 hr
+(same as
+.Ar @T23 )
 .It Ar $W0D23
 rotate every week on Sunday at 23:00 hr
 .It Ar $W5D16
 rotate every week on Friday at 16:00 hr
 .It Ar $M1D0
 rotate at the first day of every month at midnight
-(i.e., the start of the day)
+(i.e., the start of the day; same as
+.Ar @01T00 )
 .It Ar $M5D6
 rotate on every 5th day of month at 6:00 hr
+(same as
+.Ar @05T06 )
 .El
 .Pp
 .It Ar flags
