@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.5 (Berkeley) 1/4/94
- * $Id: nfs_bio.c,v 1.25 1996/09/19 18:20:54 nate Exp $
+ * $Id: nfs_bio.c,v 1.26 1996/10/11 10:15:30 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -66,7 +66,7 @@ extern struct proc *nfs_iodwant[NFS_MAXASYNCDAEMON];
 extern int nfs_numasync;
 extern struct nfsstats nfsstats;
 
-int nfs_dwrite = 1;
+static int nfs_dwrite = 1;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, dwrite, CTLFLAG_RW, &nfs_dwrite, 0, "");
 
 /*
