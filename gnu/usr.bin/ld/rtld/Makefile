@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.9 1994/02/13 20:42:48 jkh Exp $
+#	$Id: Makefile,v 1.10 1994/03/10 23:19:54 ats Exp $
 
 PROG=	ld.so
 SRCS=	mdprologue.S rtld.c malloc.c shlib.c etc.c md.c
@@ -11,6 +11,7 @@ LDFLAGS+=-Bshareable -Bsymbolic -assert nosymbolic
 ASFLAGS+=-k
 LDADD+=	-lc_pic -lgcc_pic
 BINDIR= /usr/libexec
+INSTALLFLAGS+=	-fschg
 
 .SUFFIXES: .S
 
