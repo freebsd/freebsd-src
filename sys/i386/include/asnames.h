@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.37 1999/07/20 06:52:33 msmith Exp $
+ * $Id: asnames.h,v 1.38 1999/07/29 01:49:19 msmith Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -128,9 +128,7 @@
 #define _Xintr6				Xintr6
 #define _Xintr7				Xintr7
 #define _Xintr8				Xintr8
-#define _Xintr8254			Xintr8254
 #define _Xintr9				Xintr9
-#define _XintrRTC			XintrRTC
 #define _Xinvltlb			Xinvltlb
 #define _Xrendezvous			Xrendezvous
 #define _Xmchk				Xmchk
@@ -149,27 +147,9 @@
 #define __udatasel			_udatasel
 #define _alltraps			alltraps
 #define _ap_init			ap_init
-#define _apic_base			apic_base
-#define _apic_id_to_logical		apic_id_to_logical
 #define _apic_imen			apic_imen
 #define _apic_isrbit_location		apic_isrbit_location
 #define _apic_pin_trigger		apic_pin_trigger
-#define _apm_addr			apm_addr
-#define _apm_bios_call			apm_bios_call
-#define _apm_cs16_base			apm_cs16_base
-#define _apm_cs16_limit			apm_cs16_limit
-#define _apm_cs32_base			apm_cs32_base
-#define _apm_cs32_limit			apm_cs32_limit
-#define _apm_cs_entry			apm_cs_entry
-#define _apm_cs_limit			apm_cs_limit
-#define _apm_current_gdt_pdesc		apm_current_gdt_pdesc
-#define _apm_ds_base			apm_ds_base
-#define _apm_ds_limit			apm_ds_limit
-#define _apm_flags			apm_flags
-#define _apm_init_image			apm_init_image
-#define _apm_init_image_size		apm_init_image_size
-#define _apm_setup			apm_setup
-#define _apm_version			apm_version
 #define _arith_invalid			arith_invalid
 #define _arith_overflow			arith_overflow
 #define _arith_underflow		arith_underflow
@@ -180,7 +160,6 @@
 #define _bintr				bintr
 #define _bio_imask			bio_imask
 #define _bioscall_vector		bioscall_vector
-#define _bluetrap			bluetrap
 #define _bootCodeSeg			bootCodeSeg
 #define _bootDataSeg			bootDataSeg
 #define _bootMP				bootMP
@@ -190,7 +169,6 @@
 #define _bootdev			bootdev
 #define _boothowto			boothowto
 #define _bootinfo			bootinfo
-#define _bootstrap_gdt			bootstrap_gdt
 #define _btrap				btrap
 #define _bzero				bzero
 #define _cam_imask			cam_imask
@@ -201,7 +179,7 @@
 #define _checkstate_pc			checkstate_pc
 #define _checkstate_pending_ast		checkstate_pending_ast
 #define _checkstate_probed_cpus		checkstate_probed_cpus
-#define _clock_lock			clock_lock
+#define _chooseproc			chooseproc
 #define _cnt				cnt
 #define _copyin_vector			copyin_vector
 #define _copyout_vector			copyout_vector
@@ -217,7 +195,6 @@
 #define _cpu_num_to_apic_id		cpu_num_to_apic_id
 #define _cpu_switch			cpu_switch
 #define _cpu_vendor			cpu_vendor
-#define _cypoll				cypoll
 #define _default_halt			default_halt
 #define _denormal_operand		denormal_operand
 #define _div_small			div_small
@@ -244,16 +221,13 @@
 #define _get_isrlock			get_isrlock
 #define _get_mplock			get_mplock
 #define _get_syscall_lock		get_syscall_lock
-#define _getmicrouptime			getmicrouptime
 #define _idle				idle
-#define _idqs				idqs
 #define _ihandlers			ihandlers
 #define _imen				imen
 #define _imen_lock			imen_lock
 #define _in_vm86call			in_vm86call
 #define _init386			init386
 #define _init_secondary			init_secondary
-#define _initial_bioscalls		initial_bioscalls
 #define _intr_countp			intr_countp
 #define _intr_handler			intr_handler
 #define _intr_mask			intr_mask
@@ -265,14 +239,10 @@
 #define _ioapic				ioapic
 #define _ipending			ipending
 #define _isr_lock			isr_lock
-#define _ivectors			ivectors
 #define _kernelname			kernelname
-#define _kstack				kstack
 #define _lapic				lapic
 #define _linux_sigcode			linux_sigcode
 #define _linux_szsigcode		linux_szsigcode
-#define _mask8254			mask8254
-#define _maskRTC			maskRTC
 #define _mi_startup			mi_startup
 #define _microuptime			microuptime
 #define _mp_gdtbase			mp_gdtbase
@@ -286,8 +256,6 @@
 #define _nfs_diskless_valid		nfs_diskless_valid
 #define _normalize			normalize
 #define _normalize_nuo			normalize_nuo
-#define _npx_intrs_while_probing	npx_intrs_while_probing
-#define _npx_traps_while_probing	npx_traps_while_probing
 #define _npx_intr			npx_intr
 #define _npxsave			npxsave
 #define _ovbcopy_vector			ovbcopy_vector
@@ -298,12 +266,9 @@
 #define _poly_div4			poly_div4
 #define _polynomial			polynomial
 #define _private_tss			private_tss
-#define _probeintr			probeintr
-#define _probetrap			probetrap
 #define _proc0				proc0
 #define _proc0paddr			proc0paddr
-#define _qs				qs
-#define _rcpoll				rcpoll
+#define _procrunnable			procrunnable
 #define _real_2op_NaN			real_2op_NaN
 #define _reg_div			reg_div
 #define _reg_u_add			reg_u_add
@@ -312,17 +277,14 @@
 #define _reg_u_sub			reg_u_sub
 #define _rel_mplock			rel_mplock
 #define _round_reg			round_reg
-#define _rtqs				rtqs
 #define _s_lock				s_lock
 #define _s_unlock			s_unlock
-#define _secondary_main			secondary_main
 #define _set_precision_flag_down	set_precision_flag_down
 #define _set_precision_flag_up		set_precision_flag_up
 #define _set_user_ldt			set_user_ldt
 #define _shrx				shrx
 #define _shrxs				shrxs
 #define _sigcode			sigcode
-#define _siopoll			siopoll
 #define _smp_active			smp_active
 #define _soft_imask			soft_imask
 #define _softclock			softclock
@@ -345,32 +307,17 @@
 #define _szsigcode			szsigcode
 #define _ticks				ticks
 #define _time				time
-#define _timer0_max_count		timer0_max_count
-#define _timer0_overflow_threshold	timer0_overflow_threshold
-#define _timer0_prescaler_count		timer0_prescaler_count
 #define _trap				trap
-#define _trap_by_wrmsr			trap_by_wrmsr
 #define _trapwrite			trapwrite
-#define _tsc_bias			tsc_bias
-#define _tsc_freq			tsc_freq
-#define _tsc_multiplier			tsc_multiplier
 #define _tty_imask			tty_imask
-#define _userconfig_from_boot		userconfig_from_boot
 #define _vec				vec
 #define _vec8254			vec8254
-#define _vecRTC				vecRTC
-#define _vm86_emulate			vm86_emulate
 #define _vm86_prepcall			vm86_prepcall
-#define _vm86_sysarch			vm86_sysarch
-#define _vm86_trap			vm86_trap
 #define _vm86pa				vm86pa
 #define _vm86paddr			vm86paddr
 #define _vm86pcb			vm86pcb
 #define _vm_page_zero_idle		vm_page_zero_idle
 #define _want_resched			want_resched
-#define _whichidqs			whichidqs
-#define _whichqs			whichqs
-#define _whichrtqs			whichrtqs
 #define _wm_sqrt			wm_sqrt
 
 #endif /* __ELF__ */

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.6 1999/06/26 12:45:12 peter Exp $
+ *	$Id: genassym.c,v 1.7 1999/06/28 09:15:35 peter Exp $
  */
 
 #include <sys/param.h>
@@ -78,18 +78,7 @@ int	printf __P((const char *, ...));
 int
 main()
 {
-	OFF(P_FORW,		struct proc,	p_procq.tqe_next);
-	OFF(P_BACK,		struct proc,	p_procq.tqe_prev);
-	OFF(P_VMSPACE,		struct proc,	p_vmspace);
 	OFF(P_ADDR,		struct proc,	p_addr);
-	OFF(P_PRI,		struct proc,	p_priority);
-	OFF(P_RTPRIO_TYPE,	struct proc,	p_rtprio.type);
-	OFF(P_RTPRIO_PRIO,	struct proc,	p_rtprio.prio);
-	OFF(P_STAT,		struct proc,	p_stat);
-	OFF(P_WCHAN,		struct proc,	p_wchan);
-	OFF(P_FLAG,		struct proc,	p_flag);
-	OFF(P_PID,		struct proc,	p_pid);
-	OFF(P_RUNTIME,		struct proc,	p_runtime);
 	OFF(P_MD_FLAGS,		struct proc,	p_md.md_flags);
 	OFF(P_MD_PCBPADDR,	struct proc,	p_md.md_pcbpaddr);
 	OFF(P_MD_HAE,		struct proc,	p_md.md_hae);
@@ -97,53 +86,21 @@ main()
 
 	OFF(CHIPSET_WRITE_HAE,	struct alpha_chipset, write_hae);
 
-	OFF(PH_LINK,		struct prochd,	ph_link);
-	OFF(PH_RLINK,		struct prochd,	ph_rlink);
-
-	CONST1(SSLEEP);
-	CONST1(SRUN);
-
-	OFF(VM_PMAP,		struct vmspace,	vm_pmap);
-	OFF(V_TRAP,		struct vmmeter,	v_trap);
-	OFF(V_SYSCALL,		struct vmmeter,	v_trap);
-	OFF(V_INTR,		struct vmmeter,	v_trap);
-
-	CONST1(UPAGES);
-	CONST1(PAGE_SIZE);
-	CONST1(PAGE_SHIFT);
-	CONST1(PAGE_MASK);
-	CONST1(USRSTACK);
 	CONST1(VM_MAXUSER_ADDRESS);
-	CONST1(KERNBASE);
 	CONST1(PTLEV1I);
 	CONST1(PTESIZE);
 
 	OFF(U_PCB_ONFAULT,	struct user,	u_pcb.pcb_onfault);
 	OFF(U_PCB_HWPCB_KSP,	struct user,	u_pcb.pcb_hw.apcb_ksp);
 	OFF(U_PCB_CONTEXT,	struct user,	u_pcb.pcb_context);
-	OFF(U_PROFSCALE,	struct user,	u_stats.p_prof.pr_scale);
 
-	OFF(PR_BASE,		struct uprof,	pr_base);
-	OFF(PR_SIZE,		struct uprof,	pr_size);
-	OFF(PR_OFF,		struct uprof,	pr_off);
-	OFF(PR_SCALE,		struct uprof,	pr_scale);
-
-	OFF(RU_MINFLT,		struct rusage,	ru_minflt);
-	
 	OFF(PCB_HW,		struct pcb,	pcb_hw);
-	OFF(PCB_CONTEXT,	struct pcb,	pcb_context);
-	OFF(PCB_FP,		struct pcb,	pcb_fp);
-	OFF(PCB_ONFAULT,	struct pcb,	pcb_onfault);
-	OFF(PCB_ACCESSADDR,	struct pcb,	pcb_accessaddr);
 
 	OFF(FPREG_FPR_REGS,	struct fpreg,	fpr_regs);
 	OFF(FPREG_FPR_CR,	struct fpreg,	fpr_cr);
 
-	CONST1(B_READ);
-	CONST1(ENOENT);
 	CONST1(EFAULT);
 	CONST1(ENAMETOOLONG);
-	CONST1(MAXPATHLEN);
 
 	/* Register offsets, for stack frames. */
 	CONST1(FRAME_V0),
