@@ -36,7 +36,7 @@
  * future.
  */
 
-#ident "$Id: dpt_control.c,v 1.4 1998/04/17 22:36:20 des Exp $"
+#ident "$Id: dpt_control.c,v 1.3.2.3 1998/05/12 19:57:26 gibbs Exp $"
 
 #include "opt_dpt.h"
 
@@ -854,8 +854,9 @@ dpt_drvinit(void *unused)
 	dev_t           dev;
 
 	if (!dpt_devsw_installed) {
-		printf("DPT:  RAID Manager driver, Version %d.%d.%d\n",
-		       DPT_CTL_RELEASE, DPT_CTL_VERSION, DPT_CTL_PATCH);
+		if (bootverbose)
+			printf("DPT:  RAID Manager driver, Version %d.%d.%d\n",
+			       DPT_CTL_RELEASE, DPT_CTL_VERSION, DPT_CTL_PATCH);
 
 		/* Add the I/O (data) channel */
 		dev = makedev(CDEV_MAJOR, 0);
