@@ -51,8 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #endif /* TEST */
 
-#define NSHUFF 100      /* to drop part of seed -> 1st value correlation */
-
 static int
 do_rand(unsigned long *ctx)
 {
@@ -98,7 +96,7 @@ rand_r(unsigned int *ctx)
 }
 
 
-static u_long next = 892053144; /* after srand(1), NSHUFF counted */
+static u_long next = 1;
 
 int
 rand()
@@ -110,11 +108,7 @@ void
 srand(seed)
 u_int seed;
 {
-	int i;
-
 	next = seed;
-	for (i = 0; i < NSHUFF; i++)
-		(void)rand();
 }
 
 
