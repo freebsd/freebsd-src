@@ -36,8 +36,6 @@
 #ifndef _SYS_SYSENT_H_
 #define	_SYS_SYSENT_H_
 
-#include <sys/signal.h>
-
 struct proc;
 
 typedef	int	sy_call_t __P((struct proc *, void *));
@@ -50,6 +48,7 @@ struct sysent {		/* system call table */
   /* placeholder till we integrate rest of lite2 syscallargs changes XXX */
 
 struct image_params;
+struct __sigset;
 struct trapframe;
 struct vnode;
 
@@ -65,14 +64,16 @@ struct sysentvec {
 					/* translate trap-to-signal mapping */
 	int		(*sv_fixup) __P((register_t **, struct image_params *));
 					/* stack fixup function */
-	void		(*sv_sendsig) __P((void (*)(int), int, sigset_t *, u_long));
+	void		(*sv_sendsig) __P((void (*)(int), int,
+					   struct __sigset *, u_long));
 					/* send signal */
 	char 		*sv_sigcode;	/* start of sigtramp code */
 	int 		*sv_szsigcode;	/* size of sigtramp code */
 	void		(*sv_prepsyscall) __P((struct trapframe *, int *,
 					       u_int *, caddr_t *));
 	char		*sv_name;	/* name of binary type */
-	int		(*sv_coredump) __P((struct proc *p, struct vnode *, off_t));
+	int		(*sv_coredump) __P((struct proc *, struct vnode *,
+					    off_t));
 					/* function to dump core, or NULL */
 };
 
