@@ -53,7 +53,7 @@ struct deflate_state {
 static char garbage[10];
 static u_char EMPTY_BLOCK[4] = { 0x00, 0x00, 0xff, 0xff };
 
-#define DEFLATE_CHUNK_LEN 1600		/* Allocate mbufs this size */
+#define DEFLATE_CHUNK_LEN (1536 - sizeof(struct mbuf))
 
 static void
 DeflateResetOutput(void *v)

@@ -83,6 +83,8 @@ struct mqueue {
 #define MB_UNKNOWN	38
 #define MB_MAX		MB_UNKNOWN
 
+#define M_MAXLEN	(2048 - sizeof(struct mbuf))
+
 struct cmdargs;
 
 extern int m_length(struct mbuf *);
