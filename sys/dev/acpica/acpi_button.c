@@ -64,6 +64,11 @@ static ACPI_STATUS
 static void	acpi_button_notify_sleep(void *arg);
 static void	acpi_button_notify_wakeup(void *arg);
 
+static char *btn_ids[] = {
+    "PNP0C0C", "ACPI_FPB", "PNP0C0E", "ACPI_FSB",
+    NULL
+};
+
 static device_method_t acpi_button_methods[] = {
     /* Device interface */
     DEVMETHOD(device_probe,	acpi_button_probe),
@@ -89,34 +94,31 @@ MODULE_DEPEND(acpi_button, acpi, 1, 1, 1);
 static int
 acpi_button_probe(device_t dev)
 {
-    struct acpi_button_softc	*sc;
-    ACPI_HANDLE h;
-    int ret = ENXIO;
+    struct acpi_button_softc *sc;
+    char *str; 
 
-    h = acpi_get_handle(dev);
+    if (acpi_disabled("button") ||
+	(str = ACPI_ID_PROBE(device_get_parent(dev), dev, btn_ids)) == NULL)
+	return (ENXIO);
+
     sc = device_get_softc(dev);
-    if (acpi_get_type(dev) == ACPI_TYPE_DEVICE && !acpi_disabled("button")) {
-	if (acpi_MatchHid(h, "PNP0C0C")) {
-	    device_set_desc(dev, "Power Button");
-	    sc->button_type = ACPI_POWER_BUTTON;
-	    ret = 0;
-	} else if (acpi_MatchHid(h, "ACPI_FPB")) {
-	    device_set_desc(dev, "Power Button (fixed)");
-	    sc->button_type = ACPI_POWER_BUTTON;
-	    sc->fixed = 1;
-	    ret = 0;
-	} else if (acpi_MatchHid(h, "PNP0C0E")) {
-	    device_set_desc(dev, "Sleep Button");
-	    sc->button_type = ACPI_SLEEP_BUTTON;
-	    ret = 0;
-	} else if (acpi_MatchHid(h, "ACPI_FSB")) {
-	    device_set_desc(dev, "Sleep Button (fixed)");
-	    sc->button_type = ACPI_SLEEP_BUTTON;
-	    sc->fixed = 1;
-	    ret = 0;
-	}
+    if (strcmp(str, "PNP0C0C") == 0) {
+	device_set_desc(dev, "Power Button");
+	sc->button_type = ACPI_POWER_BUTTON;
+    } else if (strcmp(str, "ACPI_FPB") == 0) {
+	device_set_desc(dev, "Power Button (fixed)");
+	sc->button_type = ACPI_POWER_BUTTON;
+	sc->fixed = 1;
+    } else if (strcmp(str, "PNP0C0E") == 0) {
+	device_set_desc(dev, "Sleep Button");
+	sc->button_type = ACPI_SLEEP_BUTTON;
+    } else if (strcmp(str, "ACPI_FSB") == 0) {
+	device_set_desc(dev, "Sleep Button (fixed)");
+	sc->button_type = ACPI_SLEEP_BUTTON;
+	sc->fixed = 1;
     }
-    return (ret);
+
+    return (0);
 }
 
 static int

@@ -81,13 +81,14 @@ MODULE_DEPEND(acpi_lid, acpi, 1, 1, 1);
 static int
 acpi_lid_probe(device_t dev)
 {
-    if (acpi_get_type(dev) == ACPI_TYPE_DEVICE && !acpi_disabled("lid") &&
-	acpi_MatchHid(acpi_get_handle(dev), "PNP0C0D")) {
+    static char *lid_ids[] = { "PNP0C0D", NULL };
 
-	device_set_desc(dev, "Control Method Lid Switch");
-	return (0);
-    }
-    return (ENXIO);
+    if (acpi_disabled("lid") ||
+	ACPI_ID_PROBE(device_get_parent(dev), dev, lid_ids) == NULL)
+	return (ENXIO);
+
+    device_set_desc(dev, "Control Method Lid Switch");
+    return (0);
 }
 
 static int
