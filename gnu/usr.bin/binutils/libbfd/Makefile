@@ -35,6 +35,7 @@ CFLAGS+= -DSELECT_ARCHITECTURES="${SELARCH}"
 
 SELVEC=
 .for _v in ${VECS}
+CFLAGS+= -DHAVE_${_v}
 .if ${SELVEC} == ""
 SELVEC+= &${_v}
 .else

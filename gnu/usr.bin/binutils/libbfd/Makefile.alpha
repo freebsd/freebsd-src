@@ -6,8 +6,7 @@ VECS+=	bfd_elf64_alpha_freebsd_vec ecoffalpha_little_vec
 .if ${TARGET_ARCH} == "alpha"
 CFLAGS+= -DDEFAULT_VECTOR=bfd_elf64_alpha_freebsd_vec
 .endif
-CFLAGS+= -DHAVE_bfd_elf64_alpha_freebsd_vec
-CFLAGS+= -DHAVE_ecoffalpha_little_vec
+
 CLEANFILES+=	elf64-target.h
 
 elf64-target.h: elfxx-target.h
