@@ -47,8 +47,8 @@ MALLOC_DECLARE(M_RTABLE);
 
 struct radix_node {
 	struct	radix_mask *rn_mklist;	/* list of masks contained in subtree */
-	struct	radix_node *rn_p;	/* parent */
-	short	rn_b;			/* bit offset; -1-index(netmask) */
+	struct	radix_node *rn_parent;	/* parent */
+	short	rn_bit;			/* bit offset; -1-index(netmask) */
 	char	rn_bmask;		/* node: mask for bit test*/
 	u_char	rn_flags;		/* enumerated next */
 #define RNF_NORMAL	1		/* leaf contains normal route */
@@ -73,19 +73,19 @@ struct radix_node {
 #endif
 };
 
-#define rn_dupedkey rn_u.rn_leaf.rn_Dupedkey
-#define rn_key rn_u.rn_leaf.rn_Key
-#define rn_mask rn_u.rn_leaf.rn_Mask
-#define rn_off rn_u.rn_node.rn_Off
-#define rn_l rn_u.rn_node.rn_L
-#define rn_r rn_u.rn_node.rn_R
+#define	rn_dupedkey	rn_u.rn_leaf.rn_Dupedkey
+#define	rn_key		rn_u.rn_leaf.rn_Key
+#define	rn_mask		rn_u.rn_leaf.rn_Mask
+#define	rn_offset	rn_u.rn_node.rn_Off
+#define	rn_left		rn_u.rn_node.rn_L
+#define	rn_right	rn_u.rn_node.rn_R
 
 /*
  * Annotations to tree concerning potential routes applying to subtrees.
  */
 
 struct radix_mask {
-	short	rm_b;			/* bit offset; -1-index(netmask) */
+	short	rm_bit;			/* bit offset; -1-index(netmask) */
 	char	rm_unused;		/* cf. rn_bmask */
 	u_char	rm_flags;		/* cf. rn_flags */
 	struct	radix_mask *rm_mklist;	/* more masks to try */
@@ -96,8 +96,8 @@ struct radix_mask {
 	int	rm_refs;		/* # of references to this struct */
 };
 
-#define rm_mask rm_rmu.rmu_mask
-#define rm_leaf rm_rmu.rmu_leaf		/* extra field would make 32 bytes */
+#define	rm_mask rm_rmu.rmu_mask
+#define	rm_leaf rm_rmu.rmu_leaf		/* extra field would make 32 bytes */
 
 #define MKGet(m) {\
 	if (rn_mkfreelist) {\
