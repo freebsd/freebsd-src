@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.43 1995/12/19 14:30:42 davidg Exp $
+ *	$Id: cpufunc.h,v 1.44 1995/12/28 23:34:17 davidg Exp $
  */
 
 /*
@@ -322,19 +322,11 @@ void	write_eflags	__P((u_long ef));
 #endif	/* __GNUC__ */
 
 /*
- * XXX the following declarations document garbage in support.s.
- * bcopy[bwx]() was used by pccons but isn't used now.
- */
-void	bcopyb		__P((const void *from, void *to, size_t len));
-void	bcopyw		__P((const void *from, void *to, size_t len));
-void	bcopyx		__P((const void *from, void *to, size_t len,
-			     int stride));
-/*
  * These variables and functions in support.s are used.
  */
 extern u_int atdevbase;	/* offset in virtual memory of ISA io mem */
 
-void	filli		__P((int pat, void *base, size_t cnt));
+void	bcopyb		__P((const void *from, void *to, size_t len));
 void	fillw		__P((int /*u_short*/ pat, void *base, size_t cnt));
 int	fusword		__P((void *base));
 void	load_cr0	__P((u_long cr0));
