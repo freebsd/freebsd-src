@@ -149,6 +149,10 @@ uses this feature.
 A remotely-exploitable vulnerability in ntpd(8) has been closed (see
 security advisory FreeBSD-SA-01:31).
 
+Initial sequence numbers in TCP are more thoroughly randomized, using
+an algorithm obtained from OpenBSD (see security advisory
+FreeBSD-SA-01:39).
+
 Many other small but meaningful changes, too many to list.  See CVS
 repository for more details.  Suffice it to say from a user
 perspective that "various things were tightened up."
