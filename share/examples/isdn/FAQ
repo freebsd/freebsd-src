@@ -3,7 +3,7 @@
                    ISDN4BSD Frequently Asked Questions
                    ===================================
 
-                last edit-date: [Wed Nov  1 15:06:22 2000]
+                last edit-date: [Wed Nov  1 15:08:03 2000]
 
  $FreeBSD$
 
@@ -1076,3 +1076,4 @@ A: i just found out what i did wrong ...
    isdn_fsdev="/dev/ttyv4"         # Output device for fullscreen mode (or NO for daemon mode).
    isdn_flags="-dn -d0x1f9"        # Flags for isdnd
 
+From: Guido Boehm <g.boehm@web.de>
