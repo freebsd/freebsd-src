@@ -22,13 +22,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: map_object.c,v 1.1.1.1 1998/03/07 19:24:35 jdp Exp $
+ *      $Id: map_object.c,v 1.2 1998/09/04 19:03:57 dfr Exp $
  */
 
 #include <sys/param.h>
 #include <sys/mman.h>
 
-#include <assert.h>
 #include <errno.h>
 #include <stddef.h>
 #include <string.h>
@@ -39,14 +38,15 @@
 static int protflags(int);	/* Elf flags -> mmap protection */
 
 /*
- * Map a shared object into memory.  The argument is a file descriptor,
+ * Map a shared object into memory.  The "fd" argument is a file descriptor,
  * which must be open on the object and positioned at its beginning.
+ * The "path" argument is a pathname that is used only for error messages.
  *
  * The return value is a pointer to a newly-allocated Obj_Entry structure
  * for the shared object.  Returns NULL on failure.
  */
 Obj_Entry *
-map_object(int fd)
+map_object(int fd, const char *path)
 {
     Obj_Entry *obj;
     union {
@@ -78,7 +78,7 @@ map_object(int fd)
     caddr_t bss_addr;
 
     if ((nbytes = read(fd, u.buf, PAGE_SIZE)) == -1) {
-	_rtld_error("Read error: %s", strerror(errno));
+	_rtld_error("%s: read error: %s", path, strerror(errno));
 	return NULL;
     }
 
@@ -88,25 +88,25 @@ map_object(int fd)
       || u.hdr.e_ident[EI_MAG1] != ELFMAG1
       || u.hdr.e_ident[EI_MAG2] != ELFMAG2
       || u.hdr.e_ident[EI_MAG3] != ELFMAG3) {
-	_rtld_error("Invalid file format");
+	_rtld_error("%s: invalid file format", path);
 	return NULL;
     }
     if (u.hdr.e_ident[EI_CLASS] != ELF_TARG_CLASS
       || u.hdr.e_ident[EI_DATA] != ELF_TARG_DATA) {
-	_rtld_error("Unsupported file layout");
+	_rtld_error("%s: unsupported file layout", path);
 	return NULL;
     }
     if (u.hdr.e_ident[EI_VERSION] != EV_CURRENT
       || u.hdr.e_version != EV_CURRENT) {
-	_rtld_error("Unsupported file version");
+	_rtld_error("%s: unsupported file version", path);
 	return NULL;
     }
     if (u.hdr.e_type != ET_EXEC && u.hdr.e_type != ET_DYN) {
-	_rtld_error("Unsupported file type");
+	_rtld_error("%s: unsupported file type", path);
 	return NULL;
     }
     if (u.hdr.e_machine != ELF_TARG_MACH) {
-	_rtld_error("Unsupported machine");
+	_rtld_error("%s: unsupported machine", path);
 	return NULL;
     }
 
@@ -115,9 +115,15 @@ map_object(int fd)
      * not strictly required by the ABI specification, but it seems to
      * always true in practice.  And, it simplifies things considerably.
      */
-    assert(u.hdr.e_phentsize == sizeof(Elf_Phdr));
-    assert(u.hdr.e_phoff + u.hdr.e_phnum*sizeof(Elf_Phdr) <= PAGE_SIZE);
-    assert(u.hdr.e_phoff + u.hdr.e_phnum*sizeof(Elf_Phdr) <= nbytes);
+    if (u.hdr.e_phentsize != sizeof(Elf_Phdr)) {
+	_rtld_error(
+	  "%s: invalid shared object: e_phentsize != sizeof(Elf_Phdr)", path);
+	return NULL;
+    }
+    if (u.hdr.e_phoff + u.hdr.e_phnum*sizeof(Elf_Phdr) > nbytes) {
+	_rtld_error("%s: program header too large", path);
+	return NULL;
+    }
 
     /*
      * Scan the program header entries, and save key information.
@@ -134,7 +140,10 @@ map_object(int fd)
 	switch (phdr->p_type) {
 
 	case PT_LOAD:
-	    assert(nsegs < 2);
+	    if (nsegs >= 2) {
+		_rtld_error("%s: too many PT_LOAD segments", path);
+		return NULL;
+	    }
 	    segs[nsegs] = phdr;
 	    ++nsegs;
 	    break;
@@ -151,13 +160,18 @@ map_object(int fd)
 	++phdr;
     }
     if (phdyn == NULL) {
-	_rtld_error("Object is not dynamically-linked");
+	_rtld_error("%s: object is not dynamically-linked", path);
 	return NULL;
     }
 
-    assert(nsegs == 2);
-    assert(segs[0]->p_align >= PAGE_SIZE);
-    assert(segs[1]->p_align >= PAGE_SIZE);
+    if (nsegs < 2) {
+	_rtld_error("%s: too few PT_LOAD segments", path);
+	return NULL;
+    }
+    if (segs[0]->p_align < PAGE_SIZE || segs[1]->p_align < PAGE_SIZE) {
+	_rtld_error("%s: PT_LOAD segments not page-aligned", path);
+	return NULL;
+    }
 
     /*
      * Map the entire address space of the object, to stake out our
@@ -172,13 +186,13 @@ map_object(int fd)
     mapbase = mmap(base_addr, mapsize, protflags(segs[0]->p_flags),
       MAP_PRIVATE, fd, base_offset);
     if (mapbase == (caddr_t) -1) {
-	_rtld_error("mmap of entire address space failed: %s",
-	  strerror(errno));
+	_rtld_error("%s: mmap of entire address space failed: %s",
+	  path, strerror(errno));
 	return NULL;
     }
     if (base_addr != NULL && mapbase != base_addr) {
-	_rtld_error("mmap returned wrong address: wanted %p, got %p",
-	  base_addr, mapbase);
+	_rtld_error("%s: mmap returned wrong address: wanted %p, got %p",
+	  path, base_addr, mapbase);
 	munmap(mapbase, mapsize);
 	return NULL;
     }
@@ -190,7 +204,7 @@ map_object(int fd)
     data_addr = mapbase + (data_vaddr - base_vaddr);
     if (mmap(data_addr, data_vlimit - data_vaddr, protflags(segs[1]->p_flags),
       MAP_PRIVATE|MAP_FIXED, fd, data_offset) == (caddr_t) -1) {
-	_rtld_error("mmap of data failed: %s", strerror(errno));
+	_rtld_error("%s: mmap of data failed: %s", path, strerror(errno));
 	return NULL;
     }
 
@@ -207,7 +221,7 @@ map_object(int fd)
     if (bss_vlimit > bss_vaddr) {	/* There is something to do */
 	if (mmap(bss_addr, bss_vlimit - bss_vaddr, protflags(segs[1]->p_flags),
 	  MAP_PRIVATE|MAP_FIXED|MAP_ANON, -1, 0) == (caddr_t) -1) {
-	    _rtld_error("mmap of bss failed: %s", strerror(errno));
+	    _rtld_error("%s: mmap of bss failed: %s", path, strerror(errno));
 	    return NULL;
 	}
     }

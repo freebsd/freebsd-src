@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.c,v 1.27 1999/07/09 16:22:55 jdp Exp $
+ *      $Id: rtld.c,v 1.28 1999/07/14 04:09:11 jdp Exp $
  */
 
 /*
@@ -73,7 +73,7 @@ static void call_fini_functions(Obj_Entry *);
 static void call_init_functions(Obj_Entry *);
 static void die(void);
 static void digest_dynamic(Obj_Entry *);
-static Obj_Entry *digest_phdr(const Elf_Phdr *, int, caddr_t);
+static Obj_Entry *digest_phdr(const Elf_Phdr *, int, caddr_t, const char *);
 static Obj_Entry *dlcheck(void *);
 static char *find_library(const char *, const Obj_Entry *);
 static const char *gethints(void);
@@ -170,6 +170,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     char **env;
     Elf_Auxinfo *aux;
     Elf_Auxinfo *auxp;
+    const char *argv0;
 
     /*
      * On entry, the dynamic linker itself has not been relocated yet.
@@ -200,6 +201,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     init_rtld((caddr_t) aux_info[AT_BASE]->a_un.a_ptr);
 
     __progname = obj_rtld.path;
+    argv0 = argv[0] != NULL ? argv[0] : "(null)";
     environ = env;
 
     trust = geteuid() == getuid() && getegid() == getgid();
@@ -226,7 +228,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     if (aux_info[AT_EXECFD] != NULL) {	/* Load the main program. */
 	int fd = aux_info[AT_EXECFD]->a_un.a_val;
 	dbg("loading main program");
-	obj_main = map_object(fd);
+	obj_main = map_object(fd, argv0);
 	close(fd);
 	if (obj_main == NULL)
 	    die();
@@ -244,10 +246,11 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	assert(aux_info[AT_PHENT]->a_un.a_val == sizeof(Elf_Phdr));
 	assert(aux_info[AT_ENTRY] != NULL);
 	entry = (caddr_t) aux_info[AT_ENTRY]->a_un.a_ptr;
-	obj_main = digest_phdr(phdr, phnum, entry);
+	if ((obj_main = digest_phdr(phdr, phnum, entry, argv0)) == NULL)
+	    die();
     }
 
-    obj_main->path = xstrdup(argv[0] ? argv[0] : "(null)");
+    obj_main->path = xstrdup(argv0);
     obj_main->mainprog = true;
     digest_dynamic(obj_main);
 
@@ -543,7 +546,7 @@ digest_dynamic(Obj_Entry *obj)
  * returns an Obj_Entry structure.
  */
 static Obj_Entry *
-digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry)
+digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
 {
     Obj_Entry *obj = CNEW(Obj_Entry);
     const Elf_Phdr *phlimit = phdr + phnum;
@@ -554,13 +557,19 @@ digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry)
 	switch (ph->p_type) {
 
 	case PT_PHDR:
-	    assert((const Elf_Phdr *) ph->p_vaddr == phdr);
+	    if ((const Elf_Phdr *)ph->p_vaddr != phdr) {
+		_rtld_error("%s: invalid PT_PHDR", path);
+		return NULL;
+	    }
 	    obj->phdr = (const Elf_Phdr *) ph->p_vaddr;
 	    obj->phsize = ph->p_memsz;
 	    break;
 
 	case PT_LOAD:
-	    assert(nsegs < 2);
+	    if (nsegs >= 2) {
+		_rtld_error("%s: too many PT_LOAD segments", path);
+		return NULL;
+	    }
 	    if (nsegs == 0) {	/* First load segment */
 		obj->vaddrbase = trunc_page(ph->p_vaddr);
 		obj->mapbase = (caddr_t) obj->vaddrbase;
@@ -579,7 +588,10 @@ digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry)
 	    break;
 	}
     }
-    assert(nsegs == 2);
+    if (nsegs < 2) {
+	_rtld_error("%s: too few PT_LOAD segments", path);
+	return NULL;
+    }
 
     obj->entry = entry;
     return obj;
@@ -944,7 +956,7 @@ load_object(char *path)
 	    return NULL;
 	}
 	dbg("loading \"%s\"", path);
-	obj = map_object(fd);
+	obj = map_object(fd, path);
 	close(fd);
 	if (obj == NULL) {
 	    free(path);
@@ -1366,9 +1378,9 @@ symlook_obj(const char *name, unsigned long hash, const Obj_Entry *obj,
 	    const Elf_Sym *symp;
 	    const char *strp;
 
-	    assert(symnum < obj->nchains);
+	    if (symnum >= obj->nchains)
+		return NULL;	/* Bad object */
 	    symp = obj->symtab + symnum;
-	    assert(symp->st_name != 0);
 	    strp = obj->strtab + symp->st_name;
 
 	    if (strcmp(name, strp) == 0)
