@@ -121,7 +121,7 @@ main(int argc, char *argv[], char *envp[])
 {
 #if __FreeBSD__ >= 3
     if (modfind(WRONGMOD) >= 0) {			    /* wrong module loaded, */
-	fprintf(stderr, "Wrong module loaded: %s.  Starting %s.\n", VINUMMOD, WRONGMOD);
+	fprintf(stderr, "Wrong module loaded: %s.  Starting %s(8).\n", WRONGMOD, WRONGMOD);
 	argv[0] = "/sbin/" WRONGMOD;
 	execve(argv[0], argv, envp);
 	exit(1);
@@ -452,7 +452,7 @@ make_devices(void)
 	return;
     }
     /* First, create directories for the volumes */
-    for (volno = 0; volno < vinum_conf.volumes_used; volno++) {
+    for (volno = 0; volno < vinum_conf.volumes_allocated; volno++) {
 	dev_t voldev;
 	dev_t rvoldev;
 
@@ -546,7 +546,7 @@ make_devices(void)
     }
 
     /* Drives.  Do this later (both logical and physical names) XXX */
-    for (driveno = 0; driveno < vinum_conf.drives_used; driveno++) {
+    for (driveno = 0; driveno < vinum_conf.drives_allocated; driveno++) {
 	get_drive_info(&drive, driveno);
 	if (drive.state != drive_unallocated) {
 	    sprintf(filename, "ln -s %s " VINUM_DIR "/drive/%s", drive.devicename, drive.label.name);
@@ -578,7 +578,7 @@ find_object(const char *name, enum objecttype *type)
 	return -1;
     }
     /* Search the drive table */
-    for (object = 0; object < vinum_conf.drives_used; object++) {
+    for (object = 0; object < vinum_conf.drives_allocated; object++) {
 	get_drive_info(&drive, object);
 	if (strcmp(name, drive.label.name) == 0) {
 	    *type = drive_object;
@@ -587,7 +587,7 @@ find_object(const char *name, enum objecttype *type)
     }
 
     /* Search the subdisk table */
-    for (object = 0; object < vinum_conf.subdisks_used; object++) {
+    for (object = 0; object < vinum_conf.subdisks_allocated; object++) {
 	get_sd_info(&sd, object);
 	if (strcmp(name, sd.name) == 0) {
 	    *type = sd_object;
@@ -596,7 +596,7 @@ find_object(const char *name, enum objecttype *type)
     }
 
     /* Search the plex table */
-    for (object = 0; object < vinum_conf.plexes_used; object++) {
+    for (object = 0; object < vinum_conf.plexes_allocated; object++) {
 	get_plex_info(&plex, object);
 	if (strcmp(name, plex.name) == 0) {
 	    *type = plex_object;
@@ -605,7 +605,7 @@ find_object(const char *name, enum objecttype *type)
     }
 
     /* Search the volume table */
-    for (object = 0; object < vinum_conf.volumes_used; object++) {
+    for (object = 0; object < vinum_conf.volumes_allocated; object++) {
 	get_volume_info(&vol, object);
 	if (strcmp(name, vol.name) == 0) {
 	    *type = volume_object;
