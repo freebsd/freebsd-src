@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.misc.c,v 3.23 1997/02/23 19:03:23 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.misc.c,v 3.24 2002/03/08 17:36:46 christos Exp $ */
 /*
  * sh.misc.c: Miscelaneous functions
  */
@@ -14,11 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.misc.c,v 3.23 1997/02/23 19:03:23 christos Exp $")
+RCSID("$Id: sh.misc.c,v 3.24 2002/03/08 17:36:46 christos Exp $")
 
 static	int	renum	__P((int, int));
 static  Char  **blkend	__P((Char **));

@@ -1,4 +1,4 @@
-$ $Id: set23,v 1.1 2001/03/18 19:06:40 christos Exp $
+$ $Id: set23,v 1.2 2002/03/08 17:46:50 christos Exp $
 $ tc.os.c
 $set 23 
 1 Bad cpu/site name
@@ -19,16 +19,16 @@ $set 23
 16 release:  %s\n
 17 version:  %s\n
 18 machine:  %s\n
-19 getwd: Cannot open ".." (%s)
-20 getwd: Cannot chdir to ".." (%s)
-21 getwd: Read error in ".." (%s)
-22 getwd: Cannot change back to "." (%s)
-23 getwd: Cannot stat "/" (%s)
-24 getwd: Cannot stat "." (%s)
-25 getwd: Cannot stat directory "%s" (%s)
-26 getwd: Cannot open directory "%s" (%s)
-27 getwd: Cannot find "." in ".." (%s)
+19 getwd: Не могу открыть ".." (%s)
+20 getwd: Не могу сменить каталог на ".." (%s)
+21 getwd: Ошибка чтения в ".." (%s)
+22 getwd: Не могу вернуться назад в "." (%s)
+23 getwd: Не могу выполнить stat на "/" (%s)
+24 getwd: Не могу выполнить stat на "." (%s)
+25 getwd: Не могу выполнить stat на каталог "%s" (%s)
+26 getwd: Не могу открыть каталог "%s" (%s)
+27 getwd: Не могу найти "." в ".." (%s)
 28 Неверный тип системы
-29 System type is not set
+29 Тип системы не установлен
 30 Слишком много аргументов
 31 Неверный аргумент
