@@ -104,22 +104,10 @@ struct acpi_device {
 # define ACPI_LOCK_DECL			int s
 # define kthread_create(a, b, c, d, e, f)	kthread_create(a, b, c, f)
 # define tc_init(a)			init_timecounter(a)
-#elif 0
-/*
- * The ACPI subsystem lives under a single mutex.  You *must*
- * acquire this mutex before calling any of the acpi_ or Acpi* functions.
- */
-extern struct mtx	acpi_mutex;
-# define ACPI_LOCK			mtx_lock(&acpi_mutex)
-# define ACPI_UNLOCK			mtx_unlock(&acpi_mutex)
-# define ACPI_ASSERTLOCK		mtx_assert(&acpi_mutex, MA_OWNED)
-# define ACPI_MSLEEP(a, b, c, d, e)	msleep(a, b, c, d, e)
-# define ACPI_LOCK_DECL
 #else
 # define ACPI_LOCK
 # define ACPI_UNLOCK
 # define ACPI_ASSERTLOCK
-# define ACPI_MSLEEP(a, b, c, d, e)	tsleep(a, c, d, e)
 # define ACPI_LOCK_DECL
 #endif
 
