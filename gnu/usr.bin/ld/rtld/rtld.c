@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.25 1995/06/27 09:53:19 dfr Exp $
+ *	$Id: rtld.c,v 1.26 1995/09/27 23:14:08 nate Exp $
  */
 
 #include <sys/param.h>
@@ -371,14 +371,8 @@ struct _dynamic	*dp;
 			sodp = (struct sod *)(LM_LDBASE(smp) + next);
 			if ((newmap = map_object(sodp, smp)) == NULL) {
 				if (!tracing) {
-					char *name = (char *)
-					    (sodp->sod_name + LM_LDBASE(smp));
-					char *fmt = sodp->sod_library ?
-						"%s: lib%s.so.%d.%d" :
-						"%s: %s";
-					err(1, fmt, main_progname, name,
-						sodp->sod_major,
-						sodp->sod_minor);
+					errx(1, "%s: %s", main_progname,
+					     __dlerror());
 				}
 				newmap = alloc_link_map(NULL, sodp, smp, 0, 0);
 			}
@@ -502,8 +496,11 @@ again:
 }
 
 /*
- * Map object identified by link object LOP which was found
- * in link map LMP.
+ * Map object identified by link object sodp which was found in link
+ * map smp.  Returns a pointer to the link map for the requested object.
+ *
+ * On failure, it sets an error message that can be retrieved by __dlerror,
+ * and returns NULL.
  */
 	static struct so_map *
 map_object(sodp, smp)
@@ -525,8 +522,9 @@ again:
 		path = rtfindlib(name, sodp->sod_major,
 				 sodp->sod_minor, &usehints);
 		if (path == NULL) {
-			generror ("Can't find shared library \"%s\"",
-				  name);
+			generror ("Can't find shared library"
+				  " \"lib%s.so.%d.%d\"",
+				  name, sodp->sod_major, sodp->sod_minor);
 			return NULL;
 		}
 	} else {
