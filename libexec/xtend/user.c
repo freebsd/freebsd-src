@@ -46,15 +46,15 @@ static const char rcsid[] =
 
 MONENTRY Monitor[MAXMON];
 
-int find __P((char *, char *[]));
-void printstatus __P((FILE *, STATUS *));
+int find(char *, char *[]);
+void printstatus(FILE *, STATUS *);
 
 /*
  * Process a user command
  */
 
 int
-user_command()
+user_command(void)
 {
   char h;
   char *m;
@@ -149,9 +149,7 @@ user_command()
 }
 
 int
-find(s, tab)
-char *s;
-char *tab[];
+find(char *s, char *tab[])
 {
 	int i;
 
@@ -162,9 +160,7 @@ char *tab[];
 }
 
 void
-printstatus(f, s)
-FILE *f;
-STATUS *s;
+printstatus(FILE *f, STATUS *s)
 {
   fprintf(f, "%s:%d", s->onoff ? "On" : "Off", s->brightness);
   switch(s->selected) {
