@@ -173,13 +173,14 @@ dump_deviceids()
 				dump_pcmcia_id(assign->vals[1]);
 #endif
 			/* Emit device description */
-			fprintf (ofp, "\t\\\n\t\"%s\"", dev->vals[0]);
+			fprintf (ofp, "\t\\\n\t\"%s\" },", dev->vals[0]);
 		}
 	}
 
 	/* Emit end of table */
 
-	fprintf(ofp, " },\n\n");
+	fprintf(ofp, "\n\n");
+
 }
 
 static void
