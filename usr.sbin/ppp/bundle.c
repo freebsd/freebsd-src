@@ -746,8 +746,8 @@ bundle_Create(const char *prefix, int type, int unit)
   }
 
 #ifdef TUNSIFMODE
-  /* Make sure we're POINTOPOINT */
-  iff = IFF_POINTOPOINT;
+  /* Make sure we're POINTOPOINT & IFF_MULTICAST */
+  iff = IFF_POINTOPOINT | IFF_MULTICAST;
   if (ID0ioctl(bundle.dev.fd, TUNSIFMODE, &iff) < 0)
     log_Printf(LogERROR, "bundle_Create: ioctl(TUNSIFMODE): %s\n",
 	       strerror(errno));
@@ -783,13 +783,6 @@ bundle_Create(const char *prefix, int type, int unit)
   bundle.dev.header = 0;
 #endif
 #endif
-
-  if (!iface_SetFlags(bundle.iface->name, IFF_UP)) {
-    iface_Destroy(bundle.iface);
-    bundle.iface = NULL;
-    close(bundle.dev.fd);
-    return NULL;
-  }
 
   log_Printf(LogPHASE, "Using interface: %s\n", ifname);
 
