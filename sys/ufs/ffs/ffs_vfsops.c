@@ -1244,11 +1244,13 @@ ffs_vget(mp, ino, flags, vpp)
 	/*
 	 * FFS supports recursive locking.
 	 */
+	fs = ump->um_fs;
 	vp->v_vnlock->lk_flags |= LK_CANRECURSE;
 	vp->v_data = ip;
+	vp->v_bsize = fs->fs_bsize;
 	ip->i_vnode = vp;
 	ip->i_ump = ump;
-	ip->i_fs = fs = ump->um_fs;
+	ip->i_fs = fs;
 	ip->i_dev = dev;
 	ip->i_number = ino;
 #ifdef QUOTA
