@@ -3,8 +3,6 @@
 
 PROG=	ls
 SRCS=	cmp.c ls.c print.c util.c
-NO_WERROR=1
-WFORMAT=0
 DPADD=	${LIBM}
 LDADD=	-lm
 
