@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_var.h	8.4 (Berkeley) 5/24/95
- * 	$Id: tcp_var.h,v 1.16 1995/09/21 17:29:13 wollman Exp $
+ * 	$Id: tcp_var.h,v 1.17 1995/09/22 07:40:18 peter Exp $
  */
 
 #ifndef _NETINET_TCP_VAR_H_
@@ -46,15 +46,15 @@
 struct tcpcb {
 	struct	tcpiphdr *seg_next;	/* sequencing queue */
 	struct	tcpiphdr *seg_prev;
-	short	t_state;		/* state of this connection */
-	short	t_timer[TCPT_NTIMERS];	/* tcp timers */
-	short	t_rxtshift;		/* log(2) of rexmt exp. backoff */
-	short	t_rxtcur;		/* current retransmit value */
-	short	t_dupacks;		/* consecutive dup acks recd */
-	u_short	t_maxseg;		/* maximum segment size */
-	u_short	t_maxopd;		/* mss plus options */
-	char	t_force;		/* 1 if forcing out a byte */
-	u_short	t_flags;
+	int	t_state;		/* state of this connection */
+	int	t_timer[TCPT_NTIMERS];	/* tcp timers */
+	int	t_rxtshift;		/* log(2) of rexmt exp. backoff */
+	int	t_rxtcur;		/* current retransmit value */
+	int	t_dupacks;		/* consecutive dup acks recd */
+	u_int	t_maxseg;		/* maximum segment size */
+	u_int	t_maxopd;		/* mss plus options */
+	int	t_force;		/* 1 if forcing out a byte */
+	u_int	t_flags;
 #define	TF_ACKNOW	0x0001		/* ack peer immediately */
 #define	TF_DELACK	0x0002		/* ack, but try to delay it */
 #define	TF_NODELAY	0x0004		/* don't delay packets to coalesce */
@@ -109,12 +109,12 @@ struct tcpcb {
  * transmit timing stuff.  See below for scale of srtt and rttvar.
  * "Variance" is actually smoothed difference.
  */
-	u_short	t_idle;			/* inactivity time */
-	short	t_rtt;			/* round trip time */
+	u_int	t_idle;			/* inactivity time */
+	int	t_rtt;			/* round trip time */
 	tcp_seq	t_rtseq;		/* sequence number being timed */
-	short	t_srtt;			/* smoothed round-trip time */
-	short	t_rttvar;		/* variance in round-trip time */
-	u_short	t_rttmin;		/* minimum rtt allowed */
+	int	t_srtt;			/* smoothed round-trip time */
+	int	t_rttvar;		/* variance in round-trip time */
+	u_int	t_rttmin;		/* minimum rtt allowed */
 	u_long	max_sndwnd;		/* largest window peer has offered */
 
 /* out-of-band data */
@@ -122,7 +122,7 @@ struct tcpcb {
 	char	t_iobc;			/* input character */
 #define	TCPOOB_HAVEDATA	0x01
 #define	TCPOOB_HADDATA	0x02
-	short	t_softerror;		/* possible error not yet reported */
+	int	t_softerror;		/* possible error not yet reported */
 
 /* RFC 1323 variables */
 	u_char	snd_scale;		/* window scaling for send window */
