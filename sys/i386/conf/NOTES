@@ -660,9 +660,8 @@ options		SAFE_RNDTEST	# enable rndtest support
 device		apm
 hint.apm.0.flags="0x20"
 device		pmtimer			# Adjust system timer at wakeup time
-#The Cy driver is commented out until imp can move it to dev/cy
-#device		cy	1
-#options 	CY_PCI_FASTINTR		# Use with cy_pci unless irq is shared
+device		cy	1
+options 	CY_PCI_FASTINTR		# Use with cy_pci unless irq is shared
 hint.cy.0.at="isa"
 hint.cy.0.irq="10"
 hint.cy.0.maddr="0xd4000"
