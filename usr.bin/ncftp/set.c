@@ -100,7 +100,7 @@ void set_verbose(char *new, int unset)
 	else if (unset || !new) verbose = V_ERRS;
 	else {
 		if (isalpha(*new)) {
-			c = islower(*new) ? toupper(*new) : *new;
+			c = islower(*new) ? toupper(*new) : *new;	
 			for (i=0; i<(int)(sizeof(short_verbose_msgs)/sizeof(char *)); i++) {
 				if (short_verbose_msgs[i][0] == c)
 					verbose = i - 1;
@@ -113,7 +113,7 @@ void set_verbose(char *new, int unset)
 		}
 	}
 	(void) Strncpy(vstr, short_verbose_msgs[verbose+1]);
-	if (!parsing_rc && NOT_VQUIET)
+	if (!parsing_rc && NOT_VQUIET) 
 		(void) fputs(verbose_msgs[verbose+1], stdout);
 }	/* set_verbose */
 
@@ -324,7 +324,7 @@ int set(int argc, char **argv)
 		if (v != NULL) {
 			if (v->conn_required && !connected)
 				(void) fprintf(stderr, "%s: must be connected.\n", var);
-			else if (v->type < 0)
+			else if (v->type < 0)	
 				(void) fprintf(stderr, "%s: read-only variable.\n", var);
 			else if (v->proc != (setvarproc) 0) {
 				(*v->proc)(val, unset);		/* a custom set proc. */

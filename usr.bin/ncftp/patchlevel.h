@@ -1,3 +1,5 @@
+v1.9.5 - October 29, 1995.  Termcap needs ospeed initialization for BSD.
+
 v1.9.4 - April 15, 1995.  Using PORT by default instead of PASV by default.
   Method to get the mail pathname changed.
 
@@ -52,7 +54,7 @@ v1.7.8 - June 30, 1994.  No longer defining TERMH for linux.
 v1.7.7 - June 21, 1994.  Deleted a space in front of an " #endif".
   No functionality change whatsoever...
 
-v1.7.6 - June 18, 1994.  Added commands and code to support the
+v1.7.6 - June 18, 1994.  Added commands and code to support the 
   PASV command for passive negotiation of the data connection from
   the host server to the client.  This facilitates operation of the
   client software from within a firewall.  (J. B. Harrell)
@@ -79,39 +81,39 @@ v1.7.1 - March 27, 1994.  Defining HAS_DOMAINNAME for NeXT.  Term hack can
   first now. Smarter about determining abbreviations from local hostnames.
   Fixed bug where progress meter would go beserk after trying to get
   a non-existant file.
-
+  
 v1.7.0 - March 14, 1994.  More verbose when logging to the system log,
   and making sure that syslog() itself is called with a total of 5
   or less parameters.  Official patch posted which incorporates all
   the fixes to 1.6.0 (i.e. 1.6.1, 1.6.2, ... 1.6.9).
-
+  
 v1.6.9 - March 11, 1994.  Added DOMAIN_NAME and Solaris CPP symbols.
   Better handling of getting the domain name, specifically with SunOS.
   BSDi support added.
-
+  
 v1.6.8 - March 4, 1994.  Ensuring that tmp files are not public.
   Trying harder to get the real hostname, and fixed problem with
   disappearing progress meters (both due to T. Lindgren).
-
+  
 v1.6.7 - February 20, 1994.  Using getpwnam() instead of getpwuid().
   Supporting WWW paths (i.e. ftp://host.name/path/name).
-
+  
 v1.6.6 - February 15, 1994.  Prevented scenario of fclosing a NULL FILE *.
   Edited term ftp's hookup() a little.  More defs for linux in sys.h.
   Not updating a recent entry unless you were fully logged in.
-
+  
 v1.6.5 - January 6, 1994.  Fixed error with an #ifndef/#endif block having
   whitespace before the #.  No longer confirming "ls >file" actions.
   Changed echo() to Echo().  AIX 3 uses TERMIOS.
-
+  
 v1.6.4 - December 30, 1993.  Fixed rare problem with GetDateAndTime.
-  confirm() will return true if you're running the init macro.
-
+  confirm() will return true if you're running the init macro. 
+  
 v1.6.3 - December 28, 1993.  Added a new diagnostic command, memchk,
   to print stats from a special malloc library if you used one.
   Using SIZE and MDTM when the remote site supports it.  Using a new
   set of routines for term (again).
-
+  
 v1.6.2 - December 10, 1993.
   Term hack no longer depends on the PASV command (!).  The BROKEN_MEMCPY
   problem worked-around.  More wary of symbolic-link recursion.
@@ -119,11 +121,11 @@ v1.6.2 - December 10, 1993.
   buffer.  Debug mode won't print your password.  Progress meters
   no longer goof up when the file is huge.  Added time-remaining to the
   Philbar.
-
+  
 v1.6.1 - November 5, 1993.
   Checking if we have permission to write over a file to fetch.
   A few very minor changes.  BSD no longer trying to use strchr :-)
-
+  
 v1.6.0 - October 31, 1993.
   Added "term" support for Linux users.  Better SCO Xenix support.  Added
   -DLINGER, if you have a connection requiring it (so 'puts' to the remote
