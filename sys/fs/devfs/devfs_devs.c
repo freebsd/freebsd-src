@@ -377,7 +377,7 @@ devfs_populate(struct devfs_mount *dm)
 	return (0);
 }
 
-static void
+void
 devfs_create(dev_t dev)
 {
 	int ino, i, *ip;
@@ -426,7 +426,7 @@ devfs_create(dev_t dev)
 		devfs_attemptoverflow(0);
 }
 
-static void
+void
 devfs_destroy(dev_t dev)
 {
 	int ino, i;
@@ -447,8 +447,7 @@ devfs_destroy(dev_t dev)
 static void
 devfs_init(void *junk)
 {
-	devfs_create_hook = devfs_create;
-	devfs_destroy_hook = devfs_destroy;
+
 	devfs_rules_init();
 }
 
