@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.16 1996/10/20 13:20:57 phk Exp $
+ * $Id: malloc.c,v 1.17 1996/10/26 08:19:07 phk Exp $
  *
  */
 
@@ -43,9 +43,11 @@
  *			It's probably best if this is the native
  *			page size, but it shouldn't have to be.
  *
- * malloc_minsize	minimum size of an allocation
+ * malloc_minsize	minimum size of an allocation in bytes.
  *			If this is too small it's too much work
- *			to manage them.
+ *			to manage them.  This is also the smallest
+ *			unit of alignment used for the storage
+ *			returned by malloc/realloc.
  *
  */
 
@@ -737,7 +739,7 @@ imalloc(size_t size)
     if (malloc_abort && !result)
 	wrterror("allocation failed.\n");
 
-    if (malloc_zero)
+    if (malloc_zero && result)
 	memset(result, 0, size);
 
     return result;
