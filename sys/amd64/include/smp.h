@@ -58,10 +58,6 @@ extern volatile u_int		checkstate_need_ast;
 extern volatile u_int		resched_cpus;
 extern void (*cpustop_restartfunc) __P((void));
 
-/* functions in apic_ipl.s */
-u_int	io_apic_read		__P((int, int));
-void	io_apic_write		__P((int, int, u_int));
-
 /* global data in mp_machdep.c */
 extern int			bsp_apic_ready;
 extern int			mp_ncpus;
@@ -146,6 +142,9 @@ int	ext_int_setup		__P((int, int));
 void	set_apic_timer		__P((int));
 int	read_apic_timer		__P((void));
 void	u_sleep			__P((int));
+u_int	io_apic_read		__P((int, int));
+void	io_apic_write		__P((int, int, u_int));
+
 
 /* global data in init_smp.c */
 extern int			invltlb_ok;

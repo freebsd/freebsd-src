@@ -130,32 +130,3 @@ ENTRY(INTRDIS)
 	IMASK_UNLOCK			/* exit critical reg */
 	popfl				/* restore old state of EI flag */
 	ret
-
-/******************************************************************************
- * 
- */
-
-/*
- * u_int io_apic_write(int apic, int select);
- */
-ENTRY(io_apic_read)
-	movl	4(%esp), %ecx		/* APIC # */
-	movl	_ioapic, %eax
-	movl	(%eax,%ecx,4), %edx	/* APIC base register address */
-	movl	8(%esp), %eax		/* target register index */
-	movl	%eax, (%edx)		/* write the target register index */
-	movl	16(%edx), %eax		/* read the APIC register data */
-	ret				/* %eax = register value */
-
-/*
- * void io_apic_write(int apic, int select, int value);
- */
-ENTRY(io_apic_write)
-	movl	4(%esp), %ecx		/* APIC # */
-	movl	_ioapic, %eax
-	movl	(%eax,%ecx,4), %edx	/* APIC base register address */
-	movl	8(%esp), %eax		/* target register index */
-	movl	%eax, (%edx)		/* write the target register index */
-	movl	12(%esp), %eax		/* target register value */
-	movl	%eax, 16(%edx)		/* write the APIC register data */
-	ret				/* %eax = void */
