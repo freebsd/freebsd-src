@@ -763,6 +763,8 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 		kp->ki_lastcpu = td->td_lastcpu;
 		kp->ki_oncpu = td->td_oncpu;
 		kp->ki_tdflags = td->td_flags;
+		kp->ki_tid = td->td_tid;
+		kp->ki_numthreads = p->p_numthreads;
 		kp->ki_pcb = td->td_pcb;
 		kp->ki_kstack = (void *)td->td_kstack;
 		kp->ki_pctcpu = sched_pctcpu(td);
