@@ -510,6 +510,24 @@ struct vop_generic_args {
 
 extern int vfs_badlock_panic;
 extern int vfs_badlock_print;
+extern int vfs_badlock_mutex;
+
+#define	ASSERT_VI_UNLOCKED(vp)						\
+do {									\
+	struct vnode *_vp = (vp);					\
+									\
+	if (vfs_badlock_mutex)						\
+		mtx_assert(VI_MTX(_vp), MA_NOTOWNED);			\
+} while (0)								\
+
+#define	ASSERT_VI_LOCKED(vp)						\
+do {									\
+	struct vnode *_vp = (vp);					\
+									\
+	if (vfs_badlock_mutex)						\
+		mtx_assert(VI_MTX(_vp), MA_OWNED);			\
+} while (0)								\
+
 
 /*
  * This only exists to supress warnings from unlocked specfs accesses.  It is
@@ -594,11 +612,17 @@ void vop_rename_pre(void *a);
 void vop_strategy_pre(void *a);
 void vop_lookup_pre(void *a);
 void vop_lookup_post(void *a, int rc);
+void vop_lock_pre(void *a);
+void vop_lock_post(void *a, int rc);
+void vop_unlock_pre(void *a);
+void vop_unlock_post(void *a, int rc);
 
 #else
 
 #define ASSERT_VOP_LOCKED(vp, str)
 #define ASSERT_VOP_UNLOCKED(vp, str)
+#define	ASSERT_VI_UNLOCKED(vp)
+#define	ASSERT_VI_LOCKED(vp)
 
 #endif
 
