@@ -71,15 +71,15 @@
  * For the thread_safe versions, we prepend _thread_sys_ to the function
  * name so that the 'C' wrapper can go around the real name.
  */
-#define	PSYSCALL(x)	2: PIC_PROLOGUE; jmp PIC_PLT(HIDENAME(cerror)); \
-			ENTRY(__CONCAT(_thread_sys_,x)); \
-			.weak CNAME(x); \
-			.set CNAME(x),CNAME(__CONCAT(_thread_sys_,x)); \
+#define	PSYSCALL(x)	2: PIC_PROLOGUE; jmp PIC_PLT(HIDENAME(cerror));	\
+			ENTRY(__CONCAT(_thread_sys_,x));		\
+			.weak CNAME(x);					\
+			.set CNAME(x),CNAME(__CONCAT(_,x));		\
 			lea __CONCAT(SYS_,x),%eax; KERNCALL; jb 2b
 #define	PRSYSCALL(x)	PSYSCALL(x); ret
-#define	PPSEUDO(x,y)	ENTRY(__CONCAT(_thread_sys_,x)); \
-			.weak CNAME(x); \
-			.set CNAME(x),CNAME(__CONCAT(_thread_sys_,x)); \
+#define	PPSEUDO(x,y)	ENTRY(__CONCAT(_thread_sys_,x));		\
+			.weak CNAME(x);					\
+			.set CNAME(x),CNAME(__CONCAT(_,x));		\
 			lea __CONCAT(SYS_,y), %eax; KERNCALL; ret
 #else
 /*
