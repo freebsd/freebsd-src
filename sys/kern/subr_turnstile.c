@@ -219,6 +219,7 @@ struct mutex_prof {
 #define MPROF_CNT 2
 #define MPROF_AVG 3
 	u_int64_t counter[4];
+	struct mutex_prof *next;
 };
 
 /*
@@ -227,10 +228,10 @@ struct mutex_prof {
  *
  * Note: NUM_MPROF_BUFFERS must be smaller than MPROF_HASH_SIZE.
  */
-#define NUM_MPROF_BUFFERS 4096
+#define NUM_MPROF_BUFFERS 1000
 static struct mutex_prof mprof_buf[NUM_MPROF_BUFFERS];
 static int first_free_mprof_buf;
-#define MPROF_HASH_SIZE 32771
+#define MPROF_HASH_SIZE 1009
 static struct mutex_prof *mprof_hash[MPROF_HASH_SIZE];
 
 static int mutex_prof_acquisitions;
@@ -256,13 +257,7 @@ SYSCTL_INT(_debug_mutex_prof, OID_AUTO, collisions, CTLFLAG_RD,
  * mprof_mtx protects the profiling buffers and the hash.
  */
 static struct mtx mprof_mtx;
-
-static void
-mprof_init(void *arg __unused)
-{
-	mtx_init(&mprof_mtx, "mutex profiling lock", MTX_SPIN | MTX_QUIET);
-}
-SYSINIT(mprofinit, SI_SUB_LOCK, SI_ORDER_ANY, mprof_init, NULL);
+MTX_SYSINIT(mprof, &mprof_mtx, "mutex profiling lock", MTX_SPIN | MTX_QUIET);
 
 static u_int64_t
 nanoseconds(void)
@@ -340,7 +335,7 @@ _mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
 		struct mutex_prof *mpp;
 		u_int64_t acqtime, now;
 		const char *p, *q;
-		volatile u_int hash, n;
+		volatile u_int hash;
 
 		now = nanoseconds();
 		acqtime = m->acqtime;
@@ -354,12 +349,9 @@ _mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
 		for (hash = line, q = p; *q != '\0'; ++q)
 			hash = (hash * 2 + *q) % MPROF_HASH_SIZE;
 		mtx_lock_spin(&mprof_mtx);
-		n = hash;
-		while ((mpp = mprof_hash[n]) != NULL) {
+		for (mpp = mprof_hash[hash]; mpp != NULL; mpp = mpp->next)
 			if (mpp->line == line && strcmp(mpp->file, p) == 0)
 				break;
-			n = (n + 1) % MPROF_HASH_SIZE;
-		}
 		if (mpp == NULL) {
 			/* Just exit if we cannot get a trace buffer */
 			if (first_free_mprof_buf >= NUM_MPROF_BUFFERS) {
@@ -370,9 +362,11 @@ _mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
 			mpp->name = mtx_name(m);
 			mpp->file = p;
 			mpp->line = line;
-			mutex_prof_collisions += n - hash;
+			mpp->next = mprof_hash[hash];
+			if (mprof_hash[hash] != NULL)
+				++mutex_prof_collisions;
+			mprof_hash[hash] = mpp;	
 			++mutex_prof_records;
-			mprof_hash[hash] = mpp;
 		}
 		/*
 		 * Record if the mutex has been held longer now than ever
