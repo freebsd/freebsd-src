@@ -3,7 +3,7 @@
  * Garrett Wollman, September 1994.
  * This file is in the public domain.
  *
- *	$Id: clock.h,v 1.13 1996/05/01 08:38:50 bde Exp $
+ *	$Id: clock.h,v 1.14 1996/06/14 11:00:56 asami Exp $
  */
 
 #ifndef _MACHINE_CLOCK_H_
@@ -38,6 +38,8 @@
 #define CPU_THISTICKLEN(dflt) dflt
 #endif
 
+#define	I586_CTR_COMULTIPLIER_SHIFT	20
+#define	I586_CTR_MULTIPLIER_SHIFT	32
 #define		I586_CTR_RATE_SHIFT	8
 
 #if defined(KERNEL) && !defined(LOCORE)
@@ -55,7 +57,9 @@ extern int	statclock_disable;
 extern int	wall_cmos_clock;
 
 #if defined(I586_CPU) || defined(I686_CPU)
-extern unsigned	i586_ctr_freq;
+extern u_int	i586_ctr_comultiplier;
+extern u_int	i586_ctr_freq;
+extern u_int	i586_ctr_multiplier;
 extern unsigned	i586_ctr_rate;	/* fixed point */
 extern long long i586_last_tick;
 extern long long i586_ctr_bias;
