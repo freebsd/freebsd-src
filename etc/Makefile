@@ -95,13 +95,6 @@ distribution:
 	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${SSL} ${DESTDIR}/etc/ssl
 .endif
-.if defined(MAKEDEV_INSTALL)
-	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 555 \
-	    MAKEDEV.local MAKEDEV ${DESTDIR}/dev
-.if defined(MAKEDEV_RUN)
-	cd ${DESTDIR}/dev; sh MAKEDEV all
-.endif
-.endif
 	cd ${.CURDIR}/root; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		dot.cshrc ${DESTDIR}/root/.cshrc; \
