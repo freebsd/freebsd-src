@@ -93,6 +93,8 @@ static const struct cputab models[] = {
         { "Motorola PowerPC 7450",	MPC7450,	REVFMT_MAJMIN },
         { "Motorola PowerPC 7455",	MPC7455,	REVFMT_MAJMIN },
         { "Motorola PowerPC 7457",	MPC7457,	REVFMT_MAJMIN },
+        { "Motorola PowerPC 7447A",	MPC7447A,	REVFMT_MAJMIN },
+        { "Motorola PowerPC 7448",	MPC7448,	REVFMT_MAJMIN },
         { "Motorola PowerPC 8240",	MPC8240,	REVFMT_MAJMIN },
         { "Unknown PowerPC CPU",	0,		REVFMT_HEX }
 };
@@ -174,9 +176,14 @@ cpu_setup(u_int cpuid)
 #endif
 		break;
 
+	case MPC7448:
+	case MPC7447A:
 	case MPC7457:
 	case MPC7455:
 	case MPC7450:
+		/* Enable the 7450 branch caches */
+		hid0 |= HID0_SGE | HID0_BTIC;
+		hid0 |= HID0_LRSTK | HID0_FOLD | HID0_BHT;
 		/* Disable BTIC on 7450 Rev 2.0 or earlier and on 7457 */
 		if (((pvr >> 16) == MPC7450 && (pvr & 0xFFFF) <= 0x0200)
 		    || (pvr >> 16) == MPC7457)
@@ -211,6 +218,8 @@ cpu_setup(u_int cpuid)
 	mtspr(SPR_HID0, hid0);
 
 	switch (vers) {
+	case MPC7447A:
+	case MPC7448:
 	case MPC7450:
 	case MPC7455:
 	case MPC7457:
@@ -226,6 +235,8 @@ cpu_setup(u_int cpuid)
 	case IBM750FX:
 	case MPC7400:
 	case MPC7410:
+	case MPC7447A:
+	case MPC7448:
 	case MPC7450:
 	case MPC7455:
 	case MPC7457:
