@@ -95,7 +95,7 @@ hint.sio.0.irq="4"
 hint.sio.1.at="isa"
 hint.sio.1.port="0x238"
 hint.sio.1.irq="5"
-hint.sio.1.flags="0x12000010"
+hint.sio.1.flags="0x12000000"
 # PC-9861K, PC-9801-101, MDC-926Rs
 #hint.sio.1.at="isa"
 #hint.sio.1.port="0x0B1"
