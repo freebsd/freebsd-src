@@ -24,7 +24,7 @@
 #define	_MODEM_H_
 #include <termios.h>
 #include "mbuf.h"
-#include <sys/cdefs.h>
+#include "cdefs.h"
 
 extern int RawModem __P((int));
 extern void UnrawModem __P((int));

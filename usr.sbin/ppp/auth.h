@@ -15,40 +15,28 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: log.h,v 1.2 1995/02/26 12:17:38 amurai Exp $
+ * $Id:$
  *
  *	TODO:
  */
 
-#ifndef _LOG_H_
-#define	_LOG_H_
-#include "cdefs.h"
-/*
- *  Definition of log level
- */
-#define	LOG_PHASE	0
-#		define	LM_PHASE	"Phase"
-#define	LOG_CHAT	1
-#		define	LM_CHAT		"Chat"
-#define	LOG_LQM		2
-#		define	LM_LQM		"LQM"
-#define	LOG_LCP		3
-#		define	LM_LCP		"LCP"
-#define	LOG_TCPIP	4
-#		define	LM_TCPIP	"TCP/IP"
-#define	LOG_HDLC	5
-#		define	LM_HDLC		"HDLC"
-#define	LOG_ASYNC	6
-#		define	LM_ASYNC	"Async"
-#define	MAXLOGLEVEL	7
+#ifndef _AUTH_H_
+#define	_AUTH_H_
 
-extern int loglevel;
+typedef enum { VALID, INVALID, NOT_FOUND } LOCAL_AUTH_VALID;
+LOCAL_AUTH_VALID	LocalAuthValidate( char *, char *, char *); 
 
-extern void LogTimeStamp __P((void));
-extern int LogOpen __P((void));
-extern void DupLog __P((void));
-extern void LogClose __P((void));
-extern void logprintf __P((char *, ...)), LogPrintf __P((int, char *, ...));
-extern void LogDumpBp __P((int level, char *header, struct mbuf *bp));
-extern void LogDumpBuff __P((int level, char *header, u_char *ptr, int cnt));
+struct authinfo {
+  void (*ChallengeFunc)();
+  struct pppTimer authtimer;
+  int retry;
+  int id;
+};
+extern struct authinfo AuthPapInfo;
+extern struct authinfo AuthChapInfo;
+
+extern void SendPapChallenge __P((int));
+extern void SendChapChallenge __P((int));
+extern void StopAuthTimer __P((struct authinfo *));
+extern void StartAuthChallenge __P((struct authinfo *));
 #endif
