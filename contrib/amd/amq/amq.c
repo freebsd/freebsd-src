@@ -39,9 +39,11 @@
  *      %W% (Berkeley) %G%
  *
  * $Id: amq.c,v 1.7.2.5 2001/01/12 22:43:43 ro Exp $
- * $FreeBSD$
  *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Automounter query tool
@@ -252,7 +254,6 @@ show_mi(amq_mount_info_list *ml, enum show_opt e, int *mwid, int *dwid, int *twi
 	       mi->mi_up > 0 ? "up" :
 	       mi->mi_up < 0 ? "starting" : "down");
 	if (mi->mi_error > 0) {
-	  extern int sys_nerr;
 	  if (mi->mi_error < sys_nerr)
 #ifdef HAVE_STRERROR
 	    printf(" (%s)", strerror(mi->mi_error));
