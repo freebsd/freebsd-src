@@ -7,7 +7,7 @@
 /*
  * Written by Julian Elischer (julian@DIALIX.oz.au)
  *
- * $Header: /home/ncvs/src/sys/miscfs/devfs/devfsdefs.h,v 1.5 1995/09/06 09:29:19 julian Exp $
+ * $Header: /home/ncvs/src/sys/miscfs/devfs/devfsdefs.h,v 1.6 1995/09/06 23:15:55 julian Exp $
  */
 
 /* first a couple of defines for compatibility with inodes */
@@ -90,6 +90,7 @@ struct	devnode	/* the equivalent of an INODE */
 	u_long	vn_id;		/* make sure we have the right vnode */
 	int (***ops)(void *);	/* yuk... pointer to pointer(s) to funcs */
 	int	len;		/* of any associated info (e.g. dir data) */
+	devnm_p	last_lookup;	/* name I was last looked up from */
 	union  typeinfo {
 		struct {
 			struct	cdevsw	*cdevsw;
@@ -107,7 +108,7 @@ struct	devnode	/* the equivalent of an INODE */
 			devnm_p	dirlist;
 			devnm_p	*dirlast;
 			dn_p	parent;
-			devnm_p	myname;
+			devnm_p	myname;		/* my entry in .. */
 			int	entrycount;
 		}Dir;
 		struct {
