@@ -567,7 +567,6 @@ static int
 pcapoll(dev_t dev, int events, struct proc *p)
 {
  	int s;
- 	struct proc *p1;
 	int revents = 0;
 
  	s = spltty();
@@ -576,14 +575,8 @@ pcapoll(dev_t dev, int events, struct proc *p)
  		if (!pca_status.in_use[0] || !pca_status.in_use[1] ||
  		    !pca_status.in_use[2])
  			revents |= events & (POLLOUT | POLLWRNORM);
- 		else {
-			if (pca_status.wsel.si_pid &&
-			    (p1=pfind(pca_status.wsel.si_pid))
-			    && p1->p_wchan == (caddr_t)&selwait)
-				pca_status.wsel.si_flags = SI_COLL;
-			else
-				pca_status.wsel.si_pid = p->p_pid;
-		}
+ 		else
+			selrecord(p, &pca_status.wsel);
 	}
 	splx(s);
 	return (revents);
