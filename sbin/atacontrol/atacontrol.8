@@ -33,90 +33,78 @@
 .Nd
 ATA device driver control program
 .Sh SYNOPSIS
-.Nm
+.Nm 
 .Aq Ar command
-.Ar channel Op Ar args
-.Pp
+.Op channel [args]
+
 .Nm
 .Ic attach
-.Ar channel
+.Op channel
 .Nm
 .Ic detach
-.Ar channel
+.Op channel
 .Nm
 .Ic reinit
-.Ar channel
+.Op channel
 .Nm
 .Ic mode
-.Ar channel
-.Op Ar mastermode slavemode
+.Op channel
+.Op mastermode slavemode
 .Nm
 .Ic info
-.Ar channel
+.Op channel
+
 .Sh DESCRIPTION
 .Nm
 is a control program that provides the user access and control to the
-.Fx
-.Xr ata 4
-subsystem.
+.Fx 
+ATA subsystem.
 .Pp
 .Nm
 can cause severe system crashes and loss of data if used improperly, please
-exercise caution when using this command!
+exercise caution when using this command!.
 .Pp
 .Nm
 supports the following commands:
-.Bl -tag -width "attach"
-.It Ic attach
-Attach an ATA
-.Ar channel ,
-devices on the channel are probed and attached as
+.Pp
+.Bl -tag -width 8n
+.It Ic attach 
+Attach an ATA channel, devices on the channel are probed and attached as
 is done on boot.
+.Pp
 .It Ic detach
-Detach an ATA
-.Ar channel ,
-devices on the channel are removed from the kernel,
+Detach an ATA channel, devices on the channel are removed from the kernel,
 and all outstanding tranfers etc are returned back to the system marked
 as failed.
+.Pp
 .It Ic reinit
-Reinitialize an ATA
-.Ar channel .
-Both devices on the channel are reset and
+Reinitialize an ATA channel. Both devices on the channel are reset and
 initialized to the parameters the ATA driver has stored internally.
 Devices that has gone bad and no longer responds to the probe, or devices
-that has physically been removed are removed from the kernel.
-Likewise
+that has physically been removed are removed from the kernel. Likewise
 are devices that show up during a reset, probed and attached.
-.It Ic mode
+.Pp
+.It Ic mode 
 Without the two mode arguments the current transfer modes of both
-devices are printed.
-If the mode arguments are given, the ATA driver
-is asked to change the transfer modes to those given.
-The ATA driver
+devices are printed. If the mode arguments are given, the ATA driver
+is asked to change the transfer modes to those given. The ATA driver
 will reject modes that is not supported by the hardware.
-Modes are given like
-.Dq Li PIO3 ,
-.Dq Li udma2 ,
-.Dq Li udma100 ,
-case does not matter.
+Modes are given like PIO3, udma2, udma100, case does not matter.
+.Pp
 .It Ic info
-Show info on the device on the
-.Ar channel ,
-currently only the device
+Show info on the device on the channel, currently only the device
 name and manufacture/version strings are shown.
-.El
-.Sh SEE ALSO
-.Xr ata 4
+.Pp
 .Sh HISTORY
 The
 .Nm
-utility first appeared in
+driver first appeared in
 .Fx 5.0 .
 .Sh AUTHORS
 .An -nosplit
 The
 .Nm
-utility was written by
+driver was written by
 .An S\(/oren Schmidt
 .Aq sos@FreeBSD.org .
 .Pp
