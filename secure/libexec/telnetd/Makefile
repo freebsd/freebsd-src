@@ -13,10 +13,10 @@ CFLAGS+=	-DLINEMODE -DUSE_TERMIO -DDIAGNOSTICS -DOLD_ENVIRON \
 SRCS=		global.c slc.c state.c sys_term.c telnetd.c \
 		termstat.c utility.c authenc.c
 
-DPADD=		${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET} ${LIBCRYPTO} \
-		${LIBCRYPT} ${LIBMP} ${LIBPAM}
-LDADD=		-lutil -ltermcap ${LIBTELNET} -lcrypto \
-		-lcrypt -lmp ${MINUSLPAM}
+DPADD=		${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET} ${LIBMP} ${LIBCRYPTO} \
+		${LIBCRYPT} ${LIBPAM}
+LDADD=		-lutil -ltermcap ${LIBTELNET} -lmp -lcrypto \
+		-lcrypt ${MINUSLPAM}
 
 .include <bsd.prog.mk>
 
