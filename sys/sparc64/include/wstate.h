@@ -84,8 +84,8 @@
 #define	WSTATE_ASSUME64		2	/* assume 64-bit mode */
 #define	WSTATE_ASSUME32		3	/* assume 32-bit mode */
 
-#define	WSTATE_MASK		7	/* for WSTATE.NORMAL */
-#define	WSTATE_USERSHIFT	3	/* for WSTATE.OTHER / user */
+#define	WSTATE_NORMAL_MASK	3	/* wstate normal minus transition */
+#define	WSTATE_OTHER_SHIFT	3	/* for wstate other / user */
 
 #define	WSTATE_KERNEL		0	/* normal kernel wstate */
 
