@@ -45,6 +45,8 @@
 
 #include <sys/acpi.h>
 
+#include <dev/acpi/acpi.h>		/* for softc */
+
 #include <dev/acpi/aml/aml_amlmem.h>
 #include <dev/acpi/aml/aml_common.h>
 #include <dev/acpi/aml/aml_env.h>
@@ -84,18 +86,6 @@ static vm_offset_t	 acpi_pmap_vtp(vm_offset_t va);
 
 static struct	ACPIaddr acpi_addr;
 struct		ACPIrsdp *acpi_rsdp;
-
-/* softc */
-typedef struct acpi_softc {
-	struct	ACPIsdt *rsdt;
-	struct	ACPIsdt *facp;
-	struct	FACPbody *facp_body;
-	struct	ACPIsdt *dsdt;
-	struct	FACS *facs;
-	int	system_state_initialized;
-	int	broken_wakeuplogic;
-	struct	acpi_system_state_package system_state_package;
-} acpi_softc_t;
 
 /* Character device stuff */
 
@@ -891,6 +881,9 @@ acpi_set_sleeping_state(acpi_softc_t *sc, u_int8_t state)
 
 	/* Prepare to sleep */
 	acpi_execute_pts(sc, state);
+
+	/* PowerResource manipulation */
+	acpi_powerres_set_sleeping_state(sc, state);
 
 	if (!sc->system_state_initialized) {
 		return;
