@@ -23,23 +23,36 @@ Boston, MA 02111-1307, USA.  */
 /* This file lives in at least two places: libiberty and gcc.
    Don't change one without the other.  */
 
-#ifdef IN_GCC
+/* $FreeBSD$ */
+
+#ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include "system.h"
-
-#ifdef IN_GCC
-#include "gansidecl.h"
-/* ??? Need to find a suitable header file.  */
-#define PEXECUTE_FIRST   1
-#define PEXECUTE_LAST    2
-#define PEXECUTE_ONE     (PEXECUTE_FIRST + PEXECUTE_LAST)
-#define PEXECUTE_SEARCH  4
-#define PEXECUTE_VERBOSE 8
-#else
-#include "libiberty.h"
+#include <stdio.h>
+#include <errno.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
 #endif
+#define ISSPACE (x) isspace(x)
+#ifdef HAVE_SYS_WAIT_H
+#include <sys/wait.h>
+#endif
+
+#ifdef vfork /* Autoconf may define this to fork for us. */
+# define VFORK_STRING "fork"
+#else
+# define VFORK_STRING "vfork"
+#endif
+#ifdef HAVE_VFORK_H
+#include <vfork.h>
+#endif
+#ifdef VMS
+#define vfork() (decc$$alloc_vfork_blocks() >= 0 ? \
+               lib$get_current_invo_context(decc$$get_vfork_jmpbuf()) : -1)
+#endif /* VMS */
+
+#include "libiberty.h"
 
 /* stdin file number.  */
 #define STDIN_FILE_NO 0
@@ -219,53 +232,18 @@ pwait (pid, status, flags)
 
 #endif /* MSDOS */
 
-#if defined (_WIN32)
+#if defined (_WIN32) && ! defined (_UWIN)
 
 #include <process.h>
 
-#ifdef __CYGWIN32__
+#ifdef __CYGWIN__
 
 #define fix_argv(argvec) (argvec)
 
 extern int _spawnv ();
 extern int _spawnvp ();
 
-int
-pexecute (program, argv, this_pname, temp_base, errmsg_fmt, errmsg_arg, flags)
-     const char *program;
-     char * const *argv;
-     const char *this_pname;
-     const char *temp_base;
-     char **errmsg_fmt, **errmsg_arg;
-     int flags;
-{
-  int pid;
-
-  if ((flags & PEXECUTE_ONE) != PEXECUTE_ONE)
-    abort ();
-  pid = (flags & PEXECUTE_SEARCH ? _spawnvp : _spawnv)
-    (_P_NOWAIT, program, fix_argv(argv));
-  if (pid == -1)
-    {
-      *errmsg_fmt = install_error_msg;
-      *errmsg_arg = program;
-      return -1;
-    }
-  return pid;
-}
-
-int
-pwait (pid, status, flags)
-     int pid;
-     int *status;
-     int flags;
-{
-  /* ??? Here's an opportunity to canonicalize the values in STATUS.
-     Needed?  */
-  return cwait (status, pid, WAIT_CHILD);
-}
-
-#else /* ! __CYGWIN32__ */
+#else /* ! __CYGWIN__ */
 
 /* This is a kludge to get around the Microsoft C spawn functions' propensity
    to remove the outermost set of double quotes from all arguments.  */
@@ -303,6 +281,7 @@ fix_argv (argvec)
 
   return (const char * const *) argvec;
 }
+#endif /* __CYGWIN__ */
 
 #include <io.h>
 #include <fcntl.h>
@@ -419,6 +398,9 @@ pwait (pid, status, flags)
      int *status;
      int flags;
 {
+#ifdef __CYGWIN__
+  return wait (status);
+#else
   int termstat;
 
   pid = _cwait (&termstat, pid, WAIT_CHILD);
@@ -436,11 +418,10 @@ pwait (pid, status, flags)
     *status = (((termstat) & 0xff) << 8);
 
   return pid;
+#endif /* __CYGWIN__ */
 }
 
-#endif /* ! defined (__CYGWIN32__) */
-
-#endif /* _WIN32 */
+#endif /* _WIN32 && ! _UWIN */
 
 #ifdef OS2
 
@@ -623,22 +604,10 @@ pfinish ()
 
 /* include for Unix-like environments but not for Dos-like environments */
 #if ! defined (__MSDOS__) && ! defined (OS2) && ! defined (MPW) \
-    && ! defined (_WIN32)
-
-#ifdef VMS
-#define vfork() (decc$$alloc_vfork_blocks() >= 0 ? \
-               lib$get_current_invo_context(decc$$get_vfork_jmpbuf()) : -1)
-#else
-#ifdef USG
-#define vfork fork
-#endif
-#endif
+    && ! (defined (_WIN32) && ! defined (_UWIN))
 
 extern int execv ();
 extern int execvp ();
-#ifdef IN_GCC
-extern char * my_strerror			PROTO ((int));
-#endif
 
 int
 pexecute (program, argv, this_pname, temp_base, errmsg_fmt, errmsg_arg, flags)
@@ -700,11 +669,7 @@ pexecute (program, argv, this_pname, temp_base, errmsg_fmt, errmsg_arg, flags)
     {
     case -1:
       {
-#ifdef vfork
-	*errmsg_fmt = "fork";
-#else
-	*errmsg_fmt = "vfork";
-#endif
+	*errmsg_fmt = VFORK_STRING;
 	*errmsg_arg = NULL;
 	return -1;
       }
@@ -734,11 +699,7 @@ pexecute (program, argv, this_pname, temp_base, errmsg_fmt, errmsg_arg, flags)
       /* Note: Calling fprintf and exit here doesn't seem right for vfork.  */
       fprintf (stderr, "%s: ", this_pname);
       fprintf (stderr, install_error_msg, program);
-#ifdef IN_GCC
-      fprintf (stderr, ": %s\n", my_strerror (errno));
-#else
       fprintf (stderr, ": %s\n", xstrerror (errno));
-#endif
       _exit (1);
       /* NOTREACHED */
       return 0;
@@ -772,4 +733,4 @@ pwait (pid, status, flags)
   return pid;
 }
 
-#endif /* ! __MSDOS__ && ! OS2 && ! MPW && ! _WIN32 */
+#endif /* ! __MSDOS__ && ! OS2 && ! MPW && ! (_WIN32 && ! _UWIN) */
