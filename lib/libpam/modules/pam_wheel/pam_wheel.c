@@ -42,13 +42,14 @@
 #include <pam_mod_misc.h>
 
 enum { PAM_OPT_DENY=PAM_OPT_STD_MAX, PAM_OPT_GROUP, PAM_OPT_TRUST,
-	PAM_OPT_AUTH_AS_SELF };
+	PAM_OPT_AUTH_AS_SELF, PAM_OPT_NOROOT_OK };
 
 static struct opttab other_options[] = {
 	{ "deny",		PAM_OPT_DENY },
 	{ "group",		PAM_OPT_GROUP },
 	{ "trust",		PAM_OPT_TRUST },
 	{ "auth_as_self",	PAM_OPT_AUTH_AS_SELF },
+	{ "noroot_ok",		PAM_OPT_NOROOT_OK },
 	{ NULL, 0 }
 };
 
@@ -69,23 +70,35 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags, int argc, const char **argv)
 	struct passwd *pwd;
 	struct group *grp;
 	int retval;
-	const char *user;
+	uid_t tuid;
+	const char *user, *targetuser;
 	char *use_group;
 
 	pam_std_option(&options, other_options, argc, argv);
 
 	PAM_LOG("Options processed");
 
+	retval = pam_get_user(pamh, &targetuser, NULL);
+	if (retval != PAM_SUCCESS)
+		PAM_RETURN(retval);
+	pwd = getpwnam(targetuser);
+	if (pwd != NULL)
+		tuid = pwd->pw_uid;
+	else
+		PAM_RETURN(PAM_AUTH_ERR);
+
+	PAM_LOG("Got target user: %s   uid: %d", targetuser, tuid);
+
 	if (pam_test_option(&options, PAM_OPT_AUTH_AS_SELF, NULL)) {
 		pwd = getpwnam(getlogin());
 		user = strdup(pwd->pw_name);
 	}
 	else {
-		retval = pam_get_user(pamh, &user, NULL);
-		if (retval != PAM_SUCCESS)
-			PAM_RETURN(retval);
+		user = targetuser;
 		pwd = getpwnam(user);
 	}
+	if (pwd == NULL)
+		PAM_RETURN(PAM_AUTH_ERR);
 
 	PAM_LOG("Got user: %s", user);
 	PAM_LOG("User's primary uid, gid: %d, %d", pwd->pw_uid, pwd->pw_gid);
@@ -95,6 +108,13 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags, int argc, const char **argv)
 		PAM_RETURN(PAM_IGNORE);
 
 	PAM_LOG("Not superuser");
+
+	/* If authenticating as something non-superuser, return OK */
+	if (pam_test_option(&options, PAM_OPT_NOROOT_OK, NULL))
+		if (tuid != 0)
+			PAM_RETURN(PAM_SUCCESS);
+
+	PAM_LOG("Checking group");
 
 	if (!pam_test_option(&options, PAM_OPT_GROUP, &use_group)) {
 		if ((grp = getgrnam("wheel")) == NULL)
