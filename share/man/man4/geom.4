@@ -1,0 +1,311 @@
+.\"
+.\" Copyright (c) 2002 Poul-Henning Kamp
+.\" Copyright (c) 2002 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by Poul-Henning Kamp
+.\" and NAI Labs, the Security Research Division of Network Associates, Inc.
+.\" under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
+.\" DARPA CHATS research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 27, 2002
+.Os FreeBSD 5.0
+.Dt GEOM 4
+.Sh NAME
+.Nm GEOM
+.Nd modular disk I/O request transformation framework.
+.Sh DESCRIPTION
+The GEOM framework provides an infrastructure in which modules
+can perform transformations on disk I/O requests on their path from
+the upper kernel to the device drivers and back.
+.Pp
+Transformations in a GEOM context ranges from the simple geometric
+displacement performed in typical disklabel modules over RAID
+algorithms and device multipath resolution to full blown cryptographic
+protection of the stored data.
+.Pp
+Compared to traditional "volume management", GEOM differs from most
+and in some cases all previous implementations in the following ways:
+.Bl -bullet 
+.It
+GEOM is extensible.  It is trivially simple to write a new class
+of transformation and it will not be given stepchild treatment.  If
+someone for some reason wanted to mount IBM MVS diskpacks, a class
+recognizing and configuring their VTOC information would be a trivial
+matter.
+.It
+GEOM is topologically agnostic.  Most volume management implementations
+have very strict notions of how classes can fit together, very often
+one fixed hierarchy is provided for instance  subdisk - plex -
+volume.
+.El
+.Pp
+Being extensible means that new transformations are treated no differently
+than existing transformations.
+.Pp
+Fixed hierarchies are bad because they make it impossible to express
+the intent efficiently.
+In the fixed hierarchy above it is not possible to mirror two
+physical disks and then parition the mirror into subdisks, instead
+one is forced to make subdisks on the physical volumes and to mirror
+these two and two resulting in a much more complex configuration.
+GEOM on the other hand does not care in which order things are done,
+the only restriction is that cycles in the graph will not be allowed.
+.Pp
+.Sh "TERMINOLOGY and TOPOLOGY"
+Geom is quite object oriented and consequently the terminology
+borrows a lot of context and sematics from the OO vocabulary:
+.Pp
+A "class", represented by the data structure g_class implements one
+particular kind of transformation.  Typical examples are MBR disk
+partition, BSD disklabel or RAID5 classes.
+.Pp
+An instance of a class is called a "geom" and represented by the
+data structure "g_geom".  An in typical i386 FreeBSD system, there
+will be one geom of class MBR for each disk.
+.Pp
+A "provider", represented by the data structure "g_provider", is
+the front gate at which a geom offers service.
+A provider is "a disk-like thing which appear in /dev" - a logical
+disk in other words.
+All providers have three main properties: name, sectorsize and size. .
+.Pp
+A "consumer" is the backdoor through which a geom connects to another
+geoms provider and through which I/O requests are sent.
+.Pp
+The topological relationship between these entities are as follows:
+.Bl -bullet
+.It
+A class has zero or more geom instances.
+.It
+A geom has exactly one class it is derived from.
+.It
+A geom has zero or more consumers.
+.It
+A geom has zero or more provicers.
+.It
+A consumer can be attached to zero or one providers.
+.It
+A provider can have zero or more consumers attached.
+.El
+.Pp
+All geoms have a rank-number assigned which is used to detect and
+prevent loops in the acyclic directed graph, this rank number is
+assigned as follows:
+.Bl -enum
+.It
+A geom with no attached consumers has rank=1
+.It
+A geom with attached consumers has a rank one higher then the
+highest rank of the geoms of the providers its consumers are
+attached to.
+.El
+.Sh "SPECIAL TOPOLOGICAL MANEUVRES"
+In addition to the straightforward attach which attaches a consumer
+to a provider and dettach which breaks the bond, a number of special
+toplogical maneuvres exists to facilitate configuration and to
+improve the overall flexibility.
+.Pp
+.Em TASTING
+is a process which happens whenever a new class or new provider
+is created and it is the class' chance to automatically configure an
+instance on providers which it recognize as its own.
+A typical example is the MBR disk-parition class which will look for
+the MBR table in the first sector and if found and validated it will
+instantiate a geom to multiplex according to the contents of the MBR.
+.Pp
+A new class will be offered all existing providers in turn and a new
+provider will be offered to all classes in turn.
+.Pp
+Exactly what a class does to recognize if it should accept the offered
+provider is not defined by GEOM, but the sensible set of options are:
+.Bl -bullet
+.It
+Examine specific data structures on the disk.
+.It
+Examine properties like sectorsize or mediasize for the provider.
+.It
+Examine the rank number of the providers geom.
+.It
+Examine the method name of the providers geom.
+.El
+.Pp
+.Em ORPHANIZATION
+is the process by which a provider is removed while
+it potentially still being in used.
+.Pp
+When a geom makes a provider as orphan all future I/O requests will
+"bounce" on the provider with an error code set by the geom.  Any
+consumers attached to the provider will receive notification about
+the orphanization and need to take appropriate action.
+.Pp
+A geom which came into being as result of a normal taste operation
+should selfdestruct unless it has an way to keep functioning.  Geoms
+like disklabels and stripes should therefore selfdestruct whereas
+RAID5 or mirror geoms can continue to function as ong as they do
+not loose quorum.
+.Pp
+When a provider is orphaned, this does not result in any immediate
+change in the topology, any attached consumers are still attached,
+any opened paths are still open, it is the responsibility of the
+geoms above to close and dettach as soon as this can happen.
+.Pp
+The typical scenario is that a device driver notices a disk has
+gone and orphans the provider for it.
+The geoms on top receive the orphanization event and orphan all
+their providers in turn.
+Providers which are not attached to are destroyed right away.
+Eventually at the toplevel the geom which interfaces
+to the DEVFS received an orphan event on its consumer and it
+calls destroy_dev(9) and does an explicit close if the
+device was open and then dettaches its consumer.
+The provider below is now no longer attached to and can be
+destroyed, if the geom has no more providers it can dettach
+its consumer and selfdestruct and so the carnage passes back
+down the tree, until the original provider is dettached from
+and it can be destroyed by the geom serving the device driver.
+.Pp
+While this approach seens byzantine it does provide the maximum
+flexibility in handling disapparing devices.
+.Pp
+.Em SPOILING
+is a special case of orphanization used to protect
+against stale metadata.
+It is probably easiest to understand spoiling by going through
+an example.
+.Pp
+Imagine a disk, "da0" on top of which a MBR geom provides
+"da0s1" and "da0s2" and on top of "da0s1" a BSD geom provides
+"da0s1a" through "da0s1e", both the MBR and BSD geoms have
+autoconfigured based on data structures on the disk media.
+Now imagine the case where "da0" is opened for writing and those
+data structures are modified or overwritten:  Now the geoms would
+be operating on stale metadata unless some notification system
+can inform them otherwise.
+To avoid this situation, when the open of "da0" for write happens,
+all attached consumers are told about this, and geoms like
+MBR and BSD will selfdestruct as a result.
+When "da0" is closed again, it will be offered for tasting again
+and if the data structures for MBR and BSD are still there, new
+geoms will instantiate themselves anew.
+.Pp
+Now for the fine print:
+.Pp
+If any of the paths through the MBR or BSD module were open, they
+would have opened downwards with an exclusive bit rendering it
+impossible to open "da0" for writing in that case and conversely
+the requested exclusive bit would render it impossible to open a
+path through the MBR geom while "da0" is open for writing.
+.Pp
+From this it also follows that changing the size of open geoms can
+only be done through their cooperation.
+.Pp
+Finally: the spoiling only happens when the write count goes from
+zero to non-zero and the retasting only when the write count goes
+back to zero.
+.Pp
+.Em INSERT/DELETE
+are a very special operation which allows a new geom
+to be instantiated between a consumer and a provider attached to
+each other and to remove it again.
+.Pp
+To understand the utility of this, imagine a provider with
+being mounted as a filesystem.
+Between the DEVFS geoms consumer and its provider we insert
+a mirror modules which configures itself with one mirror
+copy and consequently is transparent to the I/O requests
+on the path.
+We can now configure yet a mirror copy on the mirror geom,
+request a synchronization and finally drop the first mirror
+copy.
+We have now in essence moved a mounted filesystem from one
+disk to another while it was being used.
+At this point the mirror geom can be deleted from the path
+again, it has served its purpose.
+.Pp
+.Em CONFIGURE
+is the process where the administrator issues instructions
+for a particular class to instantiate itself.  There are multiple
+ways to express intent in this case, a particular provider can be
+specified with a level of override forcing for instance a BSD
+disklabel module to attach to a provider which was not found palatable
+during the TASTE operation.
+.Pp
+Finally IO is the reason we even do this: it concerns itself with
+sending I/O requests through the graph.
+.Pp
+.Em "I/O REQUESTS
+represented by struct bio, originate at a consumer,
+are scheduled on its attached provider and when processed, returned
+to the consumer.
+It is important to realize that the struct bio which
+enters throuh the provider of a particular geom does not "come
+out on the other side".
+Even simple transformations like MBR and BSD will clone the
+struct bio, modify the clone and schedule the clone on their
+own consumer.
+Note that cloning the struct bio does not involve cloning the
+actual data area specified in the IO request.
+.Pp
+In total five different IO requests exist in GEOM: read, write,
+delete, format, get attribute and set attribute.
+.Pp
+Read and write are pretty self explanatory.
+.Pp
+Delete indicates that a certain range of data is no longer used
+and that it can be erased or freed as the underlying technology
+supports.
+Technologies like flash adaptation layers can arrange to erase
+the relevant blocks before they will become reassigned and
+crytographic devices may want to fill random bits into the
+range to reduce the amount of data available for attack.
+.Pp
+It is important to recognize that a delete indication is not a
+request and consequently there is no guarantee that the data actually
+will be erased or made unavailable unless guaranteed by specific
+geoms in the graph.  If "secure delete" semantics are required, a
+geom should be pushed which converts delete indications into (a
+sequence of) write requests.
+.Pp
+Get attribute and set attribute supports inspection and manipulation
+of out-of-band attributes on a particular provider or path.
+Attributes are named by ascii strings and they will be discussed in
+a separate section below.
+.Pp
+(stay tuned while the author rests his brain and fingers: more to come.)
+.Sh HISTORY
+This software was developed for the FreeBSD Project by Poul-Henning Kamp
+and NAI Labs, the Security Research Division of Network Associates, Inc.
+under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
+DARPA CHATS research program.
+.Pp
+The first precursor for GEOM was a gruesome hack to Minix 1.2 and was
+never distributed.  An earlier attempt to implement a less general scheme in FreeBSD never succeeded.
+.Sh AUTHORS
+.An "Poul-Henning Kamp" Aq phk@FreeBSD.org
