@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_kern.c,v 1.16 1999/03/23 05:07:56 jb Exp $
+ * $Id: uthread_kern.c,v 1.19 1999/06/20 08:28:31 jb Exp $
  *
  */
 #include <errno.h>
@@ -679,27 +679,24 @@ _thread_kern_poll(int wait_reqd)
 
 	/*
 	 * Check to see if the signal queue needs to be walked to look
-	 * for threads awoken by a signal while in the scheduler.  Only
-	 * do this if a wait is specified; otherwise, the waiting queue
-	 * will be checked after the zero-timed _poll.
+	 * for threads awoken by a signal while in the scheduler.
 	 */
-	while ((_sigq_check_reqd != 0) && (timeout_ms != 0)) {
+	if (_sigq_check_reqd != 0) {
 		/* Reset flag before handling queued signals: */
 		_sigq_check_reqd = 0;
 
 		dequeue_signals();
+	}
 
+	/*
+	 * Check for a thread that became runnable due to a signal:
+	 */
+	if (PTHREAD_PRIOQ_FIRST() != NULL) {
 		/*
-		 * Check for a thread that became runnable due to
-		 * a signal:
+		 * Since there is at least one runnable thread,
+		 * disable the wait.
 		 */
-		if (PTHREAD_PRIOQ_FIRST() != NULL) {
-			/*
-			 * Since there is at least one runnable thread,
-			 * disable the wait.
-			 */
-			timeout_ms = 0;
-		}
+		timeout_ms = 0;
 	}
 
 	/*
@@ -729,6 +726,11 @@ _thread_kern_poll(int wait_reqd)
 				PTHREAD_WAITQ_SETACTIVE();
 				/* One less thread in a spinblock state: */
 				_spinblock_count--;
+				/*
+				 * Since there is at least one runnable
+				 * thread, disable the wait.
+				 */
+				timeout_ms = 0;
 			}
 			break;
 
