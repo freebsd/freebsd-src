@@ -5,8 +5,7 @@ PROG=	rcp
 SRCS=	rcp.c util.c
 CFLAGS+=-DBINDIR=${BINDIR}
 WARNS=	0
-
-WFORMAT?=	0
+WFORMAT=0
 
 .if exists(${DESTDIR}${LIBDIR}/libkrb.a) && defined(MAKE_KERBEROS4)
 SRCS+=	krcmd.c kcmd.c rcmd_util.c
