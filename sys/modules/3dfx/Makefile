@@ -9,9 +9,11 @@ INCSRC=        ../../sys
 
 CLEANFILES=    pci.h
 
+.if ${MACHINE_ARCH} == "i386"
 # This line enables linux ioctl handling by default
 # comment out if you don't want it
 TDFX_OPTS=     "\#define TDFX_LINUX"
+.endif
 
 # Uncomment this for debugging messages
 #CFLAGS+=      -DDEBUG
