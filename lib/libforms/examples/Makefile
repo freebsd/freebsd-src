@@ -4,6 +4,13 @@ NOMAN = yet
 SRCS = test.c
 
 CFLAGS = 
-LDADD = -lforms -lncurses -lmytinfo
+
+.if exists(${.CURDIR}/../obj)
+FORMDIR=${.CURDIR}/../obj
+.else
+FORMDIR=${.CURDIR}/..
+.endif
+
+LDADD = -L${FORMDIR} -lforms -lncurses -lmytinfo
 
 .include <bsd.prog.mk>
