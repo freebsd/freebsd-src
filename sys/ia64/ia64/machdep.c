@@ -669,7 +669,6 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	 */
 	pcpup = (struct pcpu *) pmap_steal_memory(PAGE_SIZE);
 	pcpu_init(pcpup, 0, PAGE_SIZE);
-	pcpup->pc_current_pmap = kernel_pmap;
 	ia64_set_k4((u_int64_t) pcpup);
 	PCPU_SET(curthread, &thread0);
 
@@ -695,6 +694,7 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	 * Initialize the virtual memory system.
 	 */
 	pmap_bootstrap();
+	pcpup->pc_current_pmap = kernel_pmap;
 
 	/*
 	 * Initialize debuggers, and break into them if appropriate.
