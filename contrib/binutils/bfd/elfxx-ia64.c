@@ -1437,7 +1437,7 @@ elfNN_ia64_hash_table_create (abfd)
 {
   struct elfNN_ia64_link_hash_table *ret;
 
-  ret = bfd_alloc (abfd, sizeof (*ret));
+  ret = bfd_zalloc (abfd, sizeof (*ret));
   if (!ret)
     return 0;
   if (!_bfd_elf_link_hash_table_init (&ret->root, abfd,

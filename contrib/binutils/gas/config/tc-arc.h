@@ -1,5 +1,5 @@
 /* tc-arc.h - Macros and type defines for the ARC.
-   Copyright (C) 1994, 1995, 1997, 1999 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 1997, 2000, 2001 Free Software Foundation, Inc.
    Contributed by Doug Evans (dje@cygnus.com).
 
    This file is part of GAS, the GNU Assembler.
@@ -17,7 +17,7 @@
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
    Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA. */
+   02111-1307, USA.  */
 
 #define TC_ARC 1
 
@@ -27,7 +27,19 @@
 
 #define TARGET_ARCH bfd_arch_arc
 
+#define DIFF_EXPR_OK
+#define REGISTER_PREFIX '%'
+
+#ifdef LITTLE_ENDIAN
+#undef LITTLE_ENDIAN
+#endif
+
+#ifdef BIG_ENDIAN
+#undef BIG_ENDIAN
+#endif
+
 #define LITTLE_ENDIAN   1234
+
 #define BIG_ENDIAN      4321
 
 /* The endianness of the target format may change based on command
@@ -55,17 +67,4 @@ extern void arc_cons_fix_new ();
 #define TC_CONS_FIX_NEW(FRAG, WHERE, NBYTES, EXP) \
 arc_cons_fix_new (FRAG, WHERE, NBYTES, EXP)
 
-#if 0
-/* Extra stuff that we need to keep track of for each symbol.  */
-struct arc_tc_sy
-{
-  /* The real name, if the symbol was renamed.  */
-  char *real_name;
-};
-
-#define TC_SYMFIELD_TYPE struct arc_tc_sy
-
-/* Finish up the symbol.  */
-extern int arc_frob_symbol PARAMS ((symbolS *));
-#define tc_frob_symbol(sym, punt) punt = arc_frob_symbol (sym)
-#endif
+#define DWARF2_LINE_MIN_INSN_LENGTH 4

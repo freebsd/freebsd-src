@@ -3,7 +3,7 @@
 ### WARNING: this file contains embedded tabs.  Do not run untabify on this file.
 
 # Configuration script
-# Copyright (C) 1988, 90, 91, 92, 93, 94, 95, 96, 97, 98, 1999, 2000, 2001
+# Copyright (C) 1988, 90, 91, 92, 93, 94, 95, 96, 97, 98, 1999
 # Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
@@ -804,57 +804,46 @@ fi
 
 # If CC and CXX are not set in the environment, and the Makefile
 # exists, try to extract them from it.  This is to handle running
-# ./config.status by hand.  Do the same for various Makefile fragments
-# so that they can specify these vars.
-for file in Mafefile ${package_makefile_rules_frag} \
-    ${site:+config/ms-${site}} ${host_makefile_frag} \
-    ${target_makefile_frag} ${package_makefile_frag}
-do
-  if ! test -r $file; then
-    file=${srcdir}/${file}
-    if ! test -r $file; then continue; fi
-  fi
-
-  if [ -z "${CC}" ]; then
-    sed -n -e ':loop
+# ./config.status by hand.
+if [ -z "${CC}" ] && [ -r Makefile ]; then
+  sed -n -e ':loop
 /\\$/ N
 s/\\\n//g
 t loop
-/^CC[ 	]*=/ s/CC[ 	]*=[ 	]*\(.*\)/\1/p' < $file > Makefile.cc
-    CC=`tail -1 Makefile.cc`
-    rm -f Makefile.cc
-  fi
+/^CC[ 	]*=/ s/CC[ 	]*=[ 	]*\(.*\)/\1/p' < Makefile > Makefile.cc
+  CC=`tail -1 Makefile.cc`
+  rm -f Makefile.cc
+fi
 
-  if [ -z "${CFLAGS}" ]; then
-    sed -n -e ':loop
+if [ -z "${CFLAGS}" ] && [ -r Makefile ]; then
+  sed -n -e ':loop
 /\\$/ N
 s/\\\n//g
 t loop
-/^CFLAGS[ 	]*=/ s/CFLAGS[ 	]*=[ 	]*\(.*\)/\1/p' < $file > Makefile.cc
-    CFLAGS=`tail -1 Makefile.cc`
-    rm -f Makefile.cc
-  fi
+/^CFLAGS[ 	]*=/ s/CFLAGS[ 	]*=[ 	]*\(.*\)/\1/p' < Makefile > Makefile.cc
+  CFLAGS=`tail -1 Makefile.cc`
+  rm -f Makefile.cc
+fi
 
-  if [ -z "${CXX}" ]; then
-    sed -n -e ':loop
+if [ -z "${CXX}" ] && [ -r Makefile ]; then
+  sed -n -e ':loop
 /\\$/ N
 s/\\\n//g
 t loop
-/^CXX[ 	]*=/ s/CXX[ 	]*=[ 	]*\(.*\)/\1/p' < $file > Makefile.cc
-    CXX=`tail -1 Makefile.cc`
-    rm -f Makefile.cc
-  fi
+/^CXX[ 	]*=/ s/CXX[ 	]*=[ 	]*\(.*\)/\1/p' < Makefile > Makefile.cc
+  CXX=`tail -1 Makefile.cc`
+  rm -f Makefile.cc
+fi
 
-  if [ -z "${CXXFLAGS}" ]; then
-    sed -n -e ':loop
+if [ -z "${CXXFLAGS}" ] && [ -r Makefile ]; then
+  sed -n -e ':loop
 /\\$/ N
 s/\\\n//g
 t loop
-/^CXXFLAGS[ 	]*=/ s/CXXFLAGS[ 	]*=[ 	]*\(.*\)/\1/p' < $file > Makefile.cc
-    CXXFLAGS=`tail -1 Makefile.cc`
-    rm -f Makefile.cc
-  fi
-done
+/^CXXFLAGS[ 	]*=/ s/CXXFLAGS[ 	]*=[ 	]*\(.*\)/\1/p' < Makefile > Makefile.cc
+  CXXFLAGS=`tail -1 Makefile.cc`
+  rm -f Makefile.cc
+fi
 
 # Generate a default definition for YACC.  This is used if the makefile can't
 # locate bison or byacc in objdir.
