@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vmparam.h	5.9 (Berkeley) 5/12/91
- *	$Id: vmparam.h,v 1.11 1994/01/14 16:24:00 davidg Exp $
+ *	$Id: vmparam.h,v 1.13 1994/05/25 08:57:22 rgrimes Exp $
  */
 
 
@@ -235,29 +235,4 @@
 #define	I386_CR3PAT	0x0
 #endif
 
-#ifdef notyet
-#define _cr3() ({u_long rtn; \
-	asm (" movl %%cr3,%%eax; movl %%eax,%0 " \
-		: "=g" (rtn) \
-		: \
-		: "ax"); \
-	rtn; \
-})
-
-#define load_cr3(s) ({ u_long val; \
-	val = (s) | I386_CR3PAT; \
-	asm ("movl %0,%%eax; movl %%eax,%%cr3" \
-		:  \
-		: "g" (val) \
-		: "ax"); \
-})
-
-#define tlbflush() ({ u_long val; \
-	val = u.u_pcb.pcb_ptd | I386_CR3PAT; \
-	asm ("movl %0,%%eax; movl %%eax,%%cr3" \
-		:  \
-		: "g" (val) \
-		: "ax"); \
-})
-#endif
 #endif /* _MACHINE_VMPARAM_H_ */
