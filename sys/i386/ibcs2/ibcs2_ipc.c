@@ -22,41 +22,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: ibcs2_ipc.c,v 1.10 1997/02/22 09:33:19 peter Exp $
+ * $Id: ibcs2_ipc.c,v 1.11 1997/03/24 11:23:31 bde Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/namei.h>
-#include <sys/proc.h>
-#include <sys/file.h>
-#include <sys/stat.h>
-#include <sys/filedesc.h>
-#include <sys/ipc.h>
-#include <sys/kernel.h>
-#include <sys/malloc.h>
-#include <sys/mbuf.h>
-#include <sys/mman.h>
-#include <sys/mount.h>
-#include <sys/reboot.h>
-#include <sys/resource.h>
-#include <sys/resourcevar.h>
-#include <sys/signal.h>
-#include <sys/signalvar.h>
-#include <sys/socket.h>
-#include <sys/time.h>
-#include <sys/times.h>
-#include <sys/vnode.h>
-#include <sys/uio.h>
-#include <sys/wait.h>
-#include <sys/utsname.h>
-#include <sys/unistd.h>
 #include <sys/msg.h>
 #include <sys/sem.h>
 #include <sys/shm.h>
 #include <sys/sysproto.h>
-
-#include <vm/vm.h>
 
 #include <i386/ibcs2/ibcs2_types.h>
 #include <i386/ibcs2/ibcs2_signal.h>

@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: ibcs2_other.c,v 1.5 1997/02/22 09:33:24 peter Exp $
  */
 
 /*
@@ -30,9 +30,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
 #include <sys/sysproto.h>
-#include <sys/kernel.h>
 
 #include <i386/ibcs2/ibcs2_types.h>
 #include <i386/ibcs2/ibcs2_signal.h>
