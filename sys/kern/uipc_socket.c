@@ -1165,7 +1165,6 @@ dontblock:
 			if ((flags & MSG_PEEK) == 0) {
 				so->so_oobmark -= len;
 				if (so->so_oobmark == 0) {
-					SOCKBUF_LOCK_ASSERT(&so->so_rcv);
 					so->so_rcv.sb_state |= SBS_RCVATMARK;
 					break;
 				}
@@ -1212,10 +1211,8 @@ dontblock:
 	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
 	if (m != NULL && pr->pr_flags & PR_ATOMIC) {
 		flags |= MSG_TRUNC;
-		if ((flags & MSG_PEEK) == 0) {
-			SOCKBUF_LOCK_ASSERT(&so->so_rcv);
+		if ((flags & MSG_PEEK) == 0)
 			(void) sbdroprecord_locked(&so->so_rcv);
-		}
 	}
 	if ((flags & MSG_PEEK) == 0) {
 		if (m == NULL) {
