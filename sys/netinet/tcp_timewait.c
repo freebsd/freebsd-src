@@ -1363,7 +1363,7 @@ tcp_isn_tick(xtp)
 		isn_offset = projected_offset;
 
 	isn_offset_old = isn_offset;
-	callout_reset(&isn_callout, 1, tcp_isn_tick, NULL);
+	callout_reset(&isn_callout, hz/100, tcp_isn_tick, NULL);
 	INP_INFO_WUNLOCK(&tcbinfo);
 }
 
