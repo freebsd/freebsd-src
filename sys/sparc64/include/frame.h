@@ -90,6 +90,4 @@ struct thread;
 int	rwindow_save(struct thread *td);
 int	rwindow_load(struct thread *td, struct trapframe *tf, int n);
 
-int	kdb_trap(struct trapframe *tf);
-
 #endif /* !_MACHINE_FRAME_H_ */
