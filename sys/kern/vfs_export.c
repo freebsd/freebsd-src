@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.57 1996/07/30 18:00:25 bde Exp $
+ * $Id: vfs_subr.c,v 1.58 1996/08/15 06:45:01 dyson Exp $
  */
 
 /*
@@ -65,6 +65,8 @@
 #include <vm/vm_param.h>
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_pager.h>
+#include <vm/vnode_pager.h>
 #include <sys/sysctl.h>
 
 #include <miscfs/specfs/specdev.h>
@@ -477,6 +479,8 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 		if (vp->v_dirtyblkhd.lh_first != NULL)
 			panic("vinvalbuf: dirty bufs");
 	}
+
+	s = splbio();
 	for (;;) {
 		if ((blist = vp->v_cleanblkhd.lh_first) && (flags & V_SAVEMETA))
 			while (blist && blist->b_lblkno < 0)
@@ -492,7 +496,6 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 			nbp = bp->b_vnbufs.le_next;
 			if ((flags & V_SAVEMETA) && bp->b_lblkno < 0)
 				continue;
-			s = splbio();
 			if (bp->b_flags & B_BUSY) {
 				bp->b_flags |= B_WANTED;
 				error = tsleep((caddr_t) bp,
@@ -505,7 +508,6 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 			}
 			bremfree(bp);
 			bp->b_flags |= B_BUSY;
-			splx(s);
 			/*
 			 * XXX Since there are no node locks for NFS, I
 			 * believe there is a slight chance that a delayed
@@ -520,6 +522,7 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 			brelse(bp);
 		}
 	}
+	splx(s);
 
 	s = splbio();
 	while (vp->v_numoutput > 0) {
@@ -638,7 +641,6 @@ reassignbuf(bp, newvp)
 	register struct buf *bp;
 	register struct vnode *newvp;
 {
-	register struct buflists *listheadp;
 	int s;
 
 	if (newvp == NULL) {
@@ -670,8 +672,7 @@ reassignbuf(bp, newvp)
 			LIST_INSERT_AFTER(tbp, bp, b_vnbufs);
 		}
 	} else {
-		listheadp = &newvp->v_cleanblkhd;
-		bufinsvn(bp, listheadp);
+		bufinsvn(bp, &newvp->v_cleanblkhd);
 	}
 	splx(s);
 }
@@ -745,6 +746,7 @@ loop:
 			goto loop;
 		break;
 	}
+
 	if (vp == NULL || vp->v_tag != VT_NON) {
 		MALLOC(nvp->v_specinfo, struct specinfo *,
 		    sizeof(struct specinfo), M_VNODE, M_WAITOK);
@@ -804,8 +806,18 @@ vget(vp, lockflag)
 		freevnodes--;
 	}
 	vp->v_usecount++;
+
+	/*
+	 * Create the VM object, if needed
+	 */
+	if ((vp->v_type == VREG) &&
+		((vp->v_object == NULL) ||
+			(vp->v_object->flags & OBJ_VFS_REF) == 0)) {
+		vfs_object_create(vp, curproc, curproc->p_ucred, 0);
+	}
 	if (lockflag)
 		VOP_LOCK(vp);
+
 	return (0);
 }
 
@@ -816,9 +828,21 @@ void
 vref(vp)
 	struct vnode *vp;
 {
-
 	if (vp->v_usecount <= 0)
 		panic("vref used where vget required");
+
+	if ((vp->v_type == VREG) &&
+		((vp->v_object == NULL) ||
+			((vp->v_object->flags & OBJ_VFS_REF) == 0)) ) {
+		/*
+		 * We need to lock to VP during the time that
+		 * the object is created.  This is necessary to
+		 * keep the system from re-entrantly doing it
+		 * multiple times.
+		 */
+		vfs_object_create(vp, curproc, curproc->p_ucred, 0);
+	}
+
 	vp->v_usecount++;
 }
 
@@ -829,7 +853,6 @@ void
 vput(vp)
 	register struct vnode *vp;
 {
-
 	VOP_UNLOCK(vp);
 	vrele(vp);
 }
@@ -847,10 +870,21 @@ vrele(vp)
 	if (vp == NULL)
 		panic("vrele: null vp");
 #endif
+
 	vp->v_usecount--;
+
+	if ((vp->v_usecount == 1) &&
+		vp->v_object &&
+		(vp->v_object->flags & OBJ_VFS_REF)) {
+		vp->v_object->flags &= ~OBJ_VFS_REF;
+		vm_object_deallocate(vp->v_object);
+		return;
+	}
+
 	if (vp->v_usecount > 0)
 		return;
-	if (vp->v_usecount < 0 /* || vp->v_writecount < 0 */ ) {
+
+	if (vp->v_usecount < 0) {
 #ifdef DIAGNOSTIC
 		vprint("vrele: negative ref count", vp);
 #endif
@@ -944,6 +978,11 @@ loop:
 		if ((flags & WRITECLOSE) &&
 		    (vp->v_writecount == 0 || vp->v_type != VREG))
 			continue;
+
+		if ((vp->v_usecount == 1) && vp->v_object) {
+			pager_cache(vp->v_object, FALSE);
+		}
+
 		/*
 		 * With v_usecount == 0, all we need to do is clear out the
 		 * vnode data structures and we are done.
@@ -1546,8 +1585,62 @@ loop:
 		if (VOP_ISLOCKED(vp) && (flags != MNT_WAIT))
 			continue;
 		if (vp->v_object &&
-		   (((vm_object_t) vp->v_object)->flags & OBJ_MIGHTBEDIRTY)) {
+		   (vp->v_object->flags & OBJ_MIGHTBEDIRTY)) {
 			vm_object_page_clean(vp->v_object, 0, 0, TRUE, TRUE);
 		}
 	}
+}
+
+/*
+ * Create the VM object needed for VMIO and mmap support.  This
+ * is done for all VREG files in the system.  Some filesystems might
+ * afford the additional metadata buffering capability of the
+ * VMIO code by making the device node be VMIO mode also.
+ */
+int
+vfs_object_create(vp, p, cred, waslocked)
+	struct vnode *vp;
+	struct proc *p;
+	struct ucred *cred;
+	int waslocked;
+{
+	struct vattr vat;
+	vm_object_t object;
+	int error = 0;
+
+retry:
+	if ((object = vp->v_object) == NULL) {
+		if (vp->v_type == VREG) {
+			if ((error = VOP_GETATTR(vp, &vat, cred, p)) != 0)
+				goto retn;
+			(void) vnode_pager_alloc(vp,
+				OFF_TO_IDX(round_page(vat.va_size)), 0, 0);
+		} else {
+			/*
+			 * This simply allocates the biggest object possible
+			 * for a VBLK vnode.  This should be fixed, but doesn't
+			 * cause any problems (yet).
+			 */
+			(void) vnode_pager_alloc(vp, INT_MAX, 0, 0);
+		}
+		vp->v_object->flags |= OBJ_VFS_REF;
+	} else {
+		if (object->flags & OBJ_DEAD) {
+			if (waslocked)
+				VOP_UNLOCK(vp);
+			tsleep(object, PVM, "vodead", 0);
+			if (waslocked)
+				VOP_LOCK(vp);
+			goto retry;
+		}
+		if ((object->flags & OBJ_VFS_REF) == 0) {
+			object->flags |= OBJ_VFS_REF;
+			vm_object_reference(object);
+		}
+	}
+	if (vp->v_object)
+		vp->v_flag |= VVMIO;
+
+retn:
+	return error;
 }

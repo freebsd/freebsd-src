@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.38 1996/03/02 22:18:34 dyson Exp $
+ * $Id: ffs_vfsops.c,v 1.39 1996/06/12 03:37:51 davidg Exp $
  */
 
 #include "opt_quota.h"
@@ -67,6 +67,7 @@
 #include <vm/vm_prot.h>
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
+#include <vm/vm_extern.h>
 
 static int	ffs_sbupdate __P((struct ufsmount *, int));
 static int	ffs_reload __P((struct mount *,struct ucred *,struct proc *));
@@ -468,6 +469,7 @@ ffs_mountfs(devvp, mp, p)
 	int error, i, size;
 	int ronly;
 	u_int strsize;
+	int ncount;
 
 	/*
 	 * Disallow multiple mounts of the same device.
@@ -478,7 +480,10 @@ ffs_mountfs(devvp, mp, p)
 	error = vfs_mountedon(devvp);
 	if (error)
 		return (error);
-	if (vcount(devvp) > 1 && devvp != rootvp)
+	ncount = vcount(devvp);
+	if (devvp->v_object)
+		ncount -= 1;
+	if (ncount > 1 && devvp != rootvp)
 		return (EBUSY);
 	error = vinvalbuf(devvp, V_SAVE, p->p_ucred, p, 0, 0);
 	if (error)
@@ -587,9 +592,11 @@ ffs_mountfs(devvp, mp, p)
 	/*
 	 * Only VMIO the backing device if the backing device is a real
 	 * block device.  This excludes the original MFS implementation.
+	 * Note that it is optional that the backing device be VMIOed.  This
+	 * increases the opportunity for metadata caching.
 	 */
 	if ((devvp->v_type == VBLK) && (major(devvp->v_rdev) < nblkdev)) {
-		vn_vmio_open(devvp, p, p->p_ucred);
+		vfs_object_create(devvp, p, p->p_ucred, 0);
 	}
 	return (0);
 out:
@@ -663,9 +670,14 @@ ffs_unmount(mp, mntflags, p)
 		ffs_sbupdate(ump, MNT_WAIT);
 	}
 	ump->um_devvp->v_specflags &= ~SI_MOUNTEDON;
+
+	vnode_pager_uncache(ump->um_devvp);
+
 	error = VOP_CLOSE(ump->um_devvp, ronly ? FREAD : FREAD|FWRITE,
 		NOCRED, p);
-	vn_vmio_close(ump->um_devvp);
+
+	vrele(ump->um_devvp);
+
 	free(fs->fs_csp[0], M_UFSMNT);
 	free(fs, M_UFSMNT);
 	free(ump, M_UFSMNT);

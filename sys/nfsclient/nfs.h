@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.1 (Berkeley) 6/10/93
- * $Id: nfs.h,v 1.16 1995/12/17 21:12:05 phk Exp $
+ * $Id: nfs.h,v 1.17 1996/01/30 22:59:39 mpp Exp $
  */
 
 #ifndef _NFS_NFS_H_
@@ -535,9 +535,7 @@ void	nfsrv_rcv __P((struct socket *so, caddr_t arg, int waitflag));
 void	nfsrvw_sort __P((gid_t [],int));
 void	nfsrv_setcred __P((struct ucred *,struct ucred *));
 int	nfs_writebp __P((struct buf *,int));
-int	nfsrv_vput __P(( struct vnode * ));
-int	nfsrv_vrele __P(( struct vnode * ));
-int	nfsrv_vmio __P(( struct vnode * ));
+int	nfsrv_object_create __P(( struct vnode * ));
 void	nfsrv_wakenfsd __P((struct nfssvc_sock *slp));
 int	nfsrv_writegather __P((struct nfsrv_descript **, struct nfssvc_sock *,
 			       struct proc *, struct mbuf **));
