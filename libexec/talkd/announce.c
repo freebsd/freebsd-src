@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)announce.c	8.3 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: announce.c,v 1.9 1997/12/02 12:33:11 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -104,6 +104,7 @@ print_mesg(tty, tf, request, remote_machine)
 	char *remote_machine;
 {
 	struct timeval clock;
+	time_t clock_sec;
 	struct timezone zone;
 	struct tm *localtime();
 	struct tm *localclock;
@@ -117,7 +118,8 @@ print_mesg(tty, tf, request, remote_machine)
 	i = 0;
 	max_size = 0;
 	gettimeofday(&clock, &zone);
-	localclock = localtime( &clock.tv_sec );
+	clock_sec = clock.tv_sec;
+	localclock = localtime(&clock_sec);
 	(void)snprintf(line_buf[i], N_CHARS, " ");
 	sizes[i] = strlen(line_buf[i]);
 	max_size = max(max_size, sizes[i]);
