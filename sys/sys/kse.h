@@ -89,6 +89,7 @@ struct kse_mailbox {
 #define	KMF_NOUPCALL		0x01
 #define	KMF_NOCOMPLETED		0x02
 #define	KMF_DONE		0x04
+#define	KMF_BOUND		0x08
 
 #ifndef _KERNEL
 int	kse_create(struct kse_mailbox *, int);
