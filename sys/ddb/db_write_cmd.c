@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_write_cmd.c,v 1.5 1995/05/30 07:57:23 rgrimes Exp $
+ *	$Id: db_write_cmd.c,v 1.6 1995/12/07 12:45:07 davidg Exp $
  */
 
 /*
@@ -33,10 +33,8 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
-#include <vm/vm_param.h>
-#include <ddb/ddb.h>
 
+#include <ddb/ddb.h>
 #include <ddb/db_lex.h>
 #include <ddb/db_access.h>
 #include <ddb/db_command.h>

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_examine.c,v 1.10 1995/11/29 10:25:17 phk Exp $
+ *	$Id: db_examine.c,v 1.11 1995/12/07 12:44:49 davidg Exp $
  */
 
 /*
@@ -32,8 +32,6 @@
  */
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
-#include <vm/vm_param.h>
 
 #include <ddb/ddb.h>
 

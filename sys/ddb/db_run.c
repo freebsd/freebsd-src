@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_run.c,v 1.8 1995/12/07 12:44:57 davidg Exp $
+ *	$Id: db_run.c,v 1.9 1995/12/10 13:32:39 phk Exp $
  */
 
 /*
@@ -36,11 +36,10 @@
  */
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <ddb/ddb.h>
 
+#include <vm/vm.h>
+
+#include <ddb/ddb.h>
 #include <ddb/db_lex.h>
 #include <ddb/db_break.h>
 #include <ddb/db_access.h>

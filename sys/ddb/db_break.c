@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_break.c,v 1.9 1995/12/07 12:44:46 davidg Exp $
+ *	$Id: db_break.c,v 1.10 1995/12/10 13:32:33 phk Exp $
  */
 
 /*
@@ -35,11 +35,11 @@
  */
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <ddb/ddb.h>
 
+#include <vm/vm.h>
+#include <vm/vm_kern.h>
+
+#include <ddb/ddb.h>
 #include <ddb/db_lex.h>
 #include <ddb/db_break.h>
 #include <ddb/db_access.h>
@@ -311,8 +311,6 @@ db_listbreak_cmd(dummy1, dummy2, dummy3, dummy4)
 {
 	db_list_breakpoints();
 }
-
-#include <vm/vm_kern.h>
 
 /*
  *	We want ddb to be usable before most of the kernel has been
