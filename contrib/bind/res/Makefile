@@ -1,6 +1,6 @@
 #
 #	from @(#)Makefile	5.16 (Berkeley) 3/14/88
-#	$Id: Makefile,v 8.13 1996/08/08 22:49:48 vixie Exp $
+#	$Id: Makefile,v 8.14 1997/06/01 20:34:37 vixie Exp $
 #
 
 ## ++Copyright++ 1988, 1995
@@ -99,8 +99,7 @@ ${DESTDIR}${DESTLIB}/libresolv.a: libresolv.a
 
 .c.o:
 	${CC} ${CFLAGS} -c $*.c
-	-${LDS} ld -x -r $*.o
-	${LDS} mv a.out $*.o
+	-${LDS} ld -x -r $*.o && ${LDS} mv a.out $*.o
 
 clean: FRC
 	rm -f errs a.out core libresolv.a tags .depend

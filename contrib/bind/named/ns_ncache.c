@@ -69,7 +69,7 @@ cache_n_resp(msg, msglen)
 		u_int16_t atype;
 		u_char *tp = cp;
 		u_char *cp1;
-		u_char data[BUFSIZ+MAXDNAME];
+		u_char data[MAXDNAME*2 + INT32SZ*5];
 		size_t len = sizeof data;
 
 		/* we store NXDOMAIN as T_SOA regardless of the query type */

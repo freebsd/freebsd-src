@@ -1,10 +1,8 @@
 # Makefile for BIND>=4.9 top level
 # vixie@decwrl December, 1992 [original]
 #
-# $Id: Makefile,v 8.48 1996/11/26 10:11:13 vixie Exp $
+# $Id: Makefile,v 8.49 1997/06/01 20:34:25 vixie Exp vixie $
 
-## ++Copyright++ 1989
-## -
 ## Copyright (c) 1989
 ##    The Regents of the University of California.  All rights reserved.
 ## 
@@ -35,7 +33,7 @@
 ## LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 ## OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 ## SUCH DAMAGE.
-## -
+##
 ## Portions Copyright (c) 1993 by Digital Equipment Corporation.
 ## 
 ## Permission to use, copy, modify, and distribute this software for any
@@ -53,10 +51,8 @@
 ## PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
 ## ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 ## SOFTWARE.
-## -
-## --Copyright--
 
-VER = 4.9.5-P1
+VER = 4.9.6-REL
 SHELL = /bin/sh
 MAKE = make
 DESTDIR =
@@ -301,7 +297,7 @@ PIC =
 #otherwise uncomment the next line and hope for the best
 #CC = cc $(CPPFLAGS)
 #CDEBUG = -g
-#CPPPFLAGS = -DSVR4 -D_SYS_STREAM_H
+#CPPPFLAGS = -DSVR4 -D_SYS_STREAM_H -DMAXHOSTNAMELEN=256
 #CPPFLAGS = $(CPPPFLAGS) $(SOLCOMPAT)
 #INDOT = in.
 #XFER_INDOT =
@@ -823,6 +819,44 @@ PIC =
 #PIC = -Kpic
 #MANROFF = ( tbl | nroff -man )
 #MANDIR = man
+
+#(MOTOROLA Rel FH40.4x ,m88k)
+#Support for Motorola m88k machines. The compiler supports
+#three compile flags for processor type
+#   -F88000 the generic 88k
+#   -F88100 for the 88100 chip
+#   -F88110 for the 88110 chip
+#
+# Set to which version of CPU is being used. This was
+# compiled on a 197DP with the -F88110 flag
+# Earlier boards (187 and V/88) need 88100 and 88000
+#
+# See /usr/ccs/lib/.compilerc
+#
+#CC = /usr/ccs/bin/cc $(CPPFLAGS)
+#CDEBUG = -g -O
+#CPPFLAGS = -F88110 -D_SYS_STREAM_H -DSVR4
+#INDOT -in.
+#XFER_INDOT =
+#LEX = lex
+#LIBS = -lsocket -lnsl -ll
+#DESTBIN = /usr/bin
+#DESTSBIN = /usr/sbin
+#DESTEXEC = /etc
+#DESTHELP = /usr/lib
+#DESTLIB = /usr/lib
+#DESTINC = /usr/include
+#DESTMAN = /usr/share/man
+#PIDDIR = /etc
+#LDS = @:
+#LDFLAGS=-s
+#RANLIB = touch
+#COMPINCL = compat/include
+#CATEXT = $$$$N
+#INSTALL_COMPAT = install-compat
+#INSTALL = /usr/ucb/install
+#PS =ps -p
+#IOT = IOT
 
 ####################################################################
 ############ no user servicable parts beyond this point ############
