@@ -104,6 +104,7 @@ sparc64/sparc64/tick.c		standard
 sparc64/sparc64/tlb.c		standard
 sparc64/sparc64/trap.c		standard
 sparc64/sparc64/tsb.c		standard
+sparc64/sparc64/uio_machdep.c	standard
 sparc64/sparc64/vm_machdep.c	standard
 #
 ukbdmap.h			optional	ukbd_dflt_keymap	\
