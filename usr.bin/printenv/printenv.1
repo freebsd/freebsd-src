@@ -101,6 +101,25 @@ If no command is specified,
 .Nm env
 prints out the names and values
 of the variables in the environment, with one name/value pair per line.
+.Pp
+.Nm env
+is sometimes useful with the
+.Qq #!
+construct (see
+.Xr execve 2 ) .
+The only difference between
+.Qq #!/usr/local/bin/foo
+and
+.Qq #!/usr/bin/env /usr/local/bin/foo
+is that the latter works even if
+.Pa /usr/local/bin/foo
+is itself interpreted.
+Using
+.Nm env
+this way also allows one to reference
+.Pa foo
+without the path,
+as well as set up the environment as desired.
 .Sh SEE ALSO
 .Xr csh 1 ,
 .Xr sh 1 ,
