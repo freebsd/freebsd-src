@@ -1,3 +1,5 @@
+#	$Id: Makefile,v 1.15 1996/05/07 23:18:43 wosch Exp $
+
 LIB=	disk
 SRCS=	blocks.c disklabel.c dkcksum.c chunk.c disk.c change.c \
 	create_chunk.c rules.c write_disk.c data.c
@@ -46,7 +48,7 @@ data.c:	${.CURDIR}/libdisk.h ${BOOTS}/boot1 ${BOOTS}/boot2
                 < ${BOOTS}/boot1 > tmp.c
 	file2c 'const unsigned char boot2[] = {' '};' \
                 < ${BOOTS}/boot2 >> tmp.c
-	mv tmp.c data.c
+	mv -f tmp.c data.c
 
 beforeinstall:
 	@${ECHO} installing libdisk.h
