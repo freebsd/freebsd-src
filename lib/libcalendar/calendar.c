@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: calendar.c,v 1.1.1.1 1997/12/04 10:41:49 helbig Exp $
  */
 
 #include "calendar.h"
@@ -45,6 +45,8 @@ static int const month1[] =
    /*  M   A   M   J    J    A    S    O    N    D    J */
 static int const month1s[]=
     {0, 31, 61, 92, 122, 153, 184, 214, 235, 265, 296, 327}; 
+
+typedef struct date date;
 
 /* The last day of Julian calendar, in internal and ndays representation */
 static int nswitch;	/* The last day of Julian calendar */
