@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.195 1999/03/28 10:47:25 markm Exp $
+#	$Id: Makefile,v 1.196 1999/04/11 19:46:36 ache Exp $
 
 SUBDIR=	sendmail
 
@@ -114,6 +114,8 @@ distrib-dirs:
 	mtree -deU -f ${.CURDIR}/mtree/BSD.usr.dist -p ${DESTDIR}/usr
 	mtree -deU -f ${.CURDIR}/mtree/BSD.include.dist \
 		-p ${DESTDIR}/usr/include
+	mtree -deU -f ${.CURDIR}/mtree/BSD.include.dist \
+		-p ${DESTDIR}/usr/libdata/perl/5.00503/mach
 	cd ${DESTDIR}/; rm -f ${DESTDIR}/sys; ln -s usr/src/sys sys
 	cd ${DESTDIR}/usr/share/locale; \
 	set - `cat ${.CURDIR}/locale.alias`; \
