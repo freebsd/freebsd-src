@@ -50,13 +50,13 @@
 .Fn suser_xxx "struct ucred *cred" "struct proc *proc" "int flags"
 .Sh DESCRIPTION
 The
-.Nm suser
+.Nm
 and
 .Nm suser_xxx
 functions checks if the credentials given include superuser powers.
 .Pp
 The
-.Nm suser
+.Nm
 function is the most common, and should be used unless special
 circumstances dictate otherwise.
 .Pp
@@ -72,7 +72,7 @@ been imprisoned by the
 system call.  
 There are cases however where this is appropriate, and this can
 be done by setting the
-.Ql PRISON_ROOT
+.Dv PRISON_ROOT
 bit in the flags argument to the
 .Nm suser_xxx 
 function.  It is important to review carefully in each case that
@@ -84,7 +84,7 @@ implicit in
 call should such powers be granted.
 .Pp
 The
-.Nm suser
+.Nm
 and
 .Nm suser_xxx
 functions note the fact that superuser powers have been used in the
@@ -95,14 +95,16 @@ the functions should only be called after other permission
 possibilities have been exhausted.
 .Sh RETURN VALUES
 The
-.Nm suser
+.Nm
 and
 .Nm suser_xxx
-functions return 0 if the user has superuser powers and EPERM otherwise.
+functions return 0 if the user has superuser powers and
+.Dv EPERM
+otherwise.
 This is the
 .Em reverse logic
 of some other implementations of
-.Nm suser
+.Nm
 in which a TRUE response indicates superuser powers.
 .Sh SEE ALSO
 .Xr chroot 2 ,
