@@ -74,17 +74,17 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-    <para arch="i386">The &man.amdpm.4; driver has been added to
+    <para arch="i386" role="historic">The &man.amdpm.4; driver has been added to
       provide access to the system monitoring functions of the AMD 756
       chipset. &merged;</para>
 
-    <para>The &man.agp.4; driver for AGP devices has been
+    <para role="historic">The &man.agp.4; driver for AGP devices has been
       added. &merged;</para>
 
     <para>A new &man.ddb.4; command <command>show pcpu</command> lists
       some of the per-CPU data.</para>
 
-    <para>Two new &man.ddb.4; commands, <command>hwatch</command> and
+    <para role="historic">Two new &man.ddb.4; commands, <command>hwatch</command> and
       <command>dhwatch</command>, have been introduced.  Analogous to
       <command>watch</command> and <command>dwatch</command>, they
       install hardware watchpoints (as opposed to software
@@ -111,7 +111,7 @@
     <para arch="sparc64">Support has been added for EBus-based
       devices.</para>
 
-    <para arch="i386">The &man.ichsmb.4; driver for the Intel 82801AA
+    <para arch="i386" role="historic">The &man.ichsmb.4; driver for the Intel 82801AA
       (ICH) SMBus controller and compatibles has been
       added. &merged;</para>
 
@@ -124,14 +124,14 @@
       sysctl variables have moved from <varname>kern.security.*</varname> to
       <varname>security.*</varname>.</para>
 
-    <para>The <varname>kern.maxvnodes</varname> limit now properly
+    <para role="historic">The <varname>kern.maxvnodes</varname> limit now properly
       limits the number of vnodes in use.  Previously only vnodes with
       no cached pages could be freed; this could allow the number of
       vnodes to grow without limit on large-memory machines accessing
       many small files.  A <literal>vnlru</literal> kernel thread
       helps to flush and reuse vnodes. &merged;</para>
 
-    <para>The kernel message buffer is now accessible by the
+    <para role="historic">The kernel message buffer is now accessible by the
       (machine-independent) <varname>kern.msgbuf</varname> sysctl
       variable; &man.dmesg.8; no longer needs to be SGID
       <groupname>kmem</groupname>. &merged;</para>
@@ -139,7 +139,7 @@
     <para>The kernel environment is now dynamic, and can be changed
       via the new &man.kenv.2; system call.</para>
 
-    <para>The &man.kqueue.2; event notification facility was added to
+    <para role="historic">The &man.kqueue.2; event notification facility was added to
       the &os; kernel.  This is a new interface which is able to
       replace &man.poll.2;/&man.select.2;, offering improved
       performance, as well as the ability to report many different
@@ -147,7 +147,7 @@
       pipes, fifos, and files are present, as well as for signals and
       processes. &merged;</para>
 
-    <para arch="i386,pc98">A new <varname>KVA_SPACE</varname> kernel option
+    <para arch="i386,pc98" role="historic">A new <varname>KVA_SPACE</varname> kernel option
       can be used to reconfigure the size of the kernel virtual
       address space. &merged;</para>
 
@@ -159,12 +159,12 @@
       for a module name and version to KLD filename mapping.  The new
       &man.kldxref.8; utility is used to generate these files.</para>
 
-    <para>Linux emulation now supports the kernel functionality
+    <para role="historic">Linux emulation now supports the kernel functionality
       required by the
       <filename role="package">emulators/linux_base</filename>
       (RedHat 7.X emulation) port. &merged;</para>
 
-    <para>Linux emulation now requires <literal>options
+    <para role="historic">Linux emulation now requires <literal>options
       SYSVSEM</literal> in the kernel configuration. &merged;</para>
 
     <para>&man.lomac.4;, a Low-Watermark Mandatory Access Control
@@ -174,26 +174,26 @@
       additional configuration from the administrator.  Work on this
       feature was sponsored by DARPA and NAI Labs.</para>
 
-    <para>The <varname>maxusers</varname> kernel configuration
+    <para role="historic">The <varname>maxusers</varname> kernel configuration
       parameter is now a boot-time tunable variable.  The kernel
       parameters derived from <varname>maxusers</varname> are now also
       tunables and can be overridden at boot-time.  The
       <varname>hz</varname> parameter is also now a
       tunable. &merged;</para>
 
-    <para>Specifying a value of <literal>0</literal> for the
+    <para role="historic">Specifying a value of <literal>0</literal> for the
       <varname>maxusers</varname> kernel configuration parameter will
       now cause an appropriate value to be calculated at boot-time
       (between 32 and 384, depending on the amount of memory present).
       This value is now the default for all
       <filename>GENERIC</filename> kernels. &merged;</para>
 
-    <para arch="alpha">A <varname>MAXMEM</varname> kernel option,
+    <para arch="alpha" role="historic">A <varname>MAXMEM</varname> kernel option,
       along with the <varname>hw.physmem</varname> loader tunable, can
       be used to artificially reduce the memory size of a machine for
       testing (or other purposes). &merged;</para>
 
-    <para>The kernel configuration parameters
+    <para role="historic">The kernel configuration parameters
       <varname>MAXTSIZ</varname>, <varname>DFLDSIZ</varname>,
       <varname>MAXDSIZ</varname>, <varname>DFLSSIZ</varname>,
       <varname>MAXSSIZ</varname>, and <varname>SGROWSIZ</varname> are
@@ -205,7 +205,7 @@
       It enables the <varname>debug.mutex.prof.*</varname> hierarchy
       of sysctl variables.</para>
 
-    <para arch="i386,pc98">The <literal>NCPU</literal>,
+    <para arch="i386,pc98" role="historic">The <literal>NCPU</literal>,
       <literal>NAPIC</literal>, <literal>NBUS</literal>, and
       <literal>NINTR</literal> kernel configuration options,
       for configuring SMP kernels, have been removed.
@@ -213,15 +213,15 @@
       and the other, aforementioned options are now
       dynamic. &merged;</para>
 
-    <para>A &man.nmdm.4; null-modem terminal driver has been added.
+    <para role="historic">A &man.nmdm.4; null-modem terminal driver has been added.
       &merged;</para>
 
-    <para>The <literal>O_DIRECT</literal> flag has been added to
+    <para role="historic">The <literal>O_DIRECT</literal> flag has been added to
       &man.open.2; and &man.fcntl.2;.  Specifying this flag for open
       files will attempt to minimize the cache effects of reading and
       writing. &merged;</para>
 
-    <para>An &man.orm.4; device has been added to claim the option
+    <para role="historic">An &man.orm.4; device has been added to claim the option
       ROMs in the ISA memory I/O space, to prevent other drivers from
       mistakenly assigning addresses that conflict with these
       ROMs. &merged;</para>
@@ -229,20 +229,20 @@
     <para arch="i386,pc98">PECOFF (Win32 Execution file format) support has
       been added.</para>
 
-    <para arch="pc98">The pmc driver, which supports the power
+    <para arch="pc98" role="historic">The pmc driver, which supports the power
       management controller of the NEC PC-98NOTE, has been
       added. &merged;</para>
 
-    <para>POSIX.1b Shared Memory Objects are now supported.  The
+    <para role="historic">POSIX.1b Shared Memory Objects are now supported.  The
       implementation uses regular files, but automatically enables the
       MAP_NOSYNC flag when they are &man.mmap.2;-ed. &merged;</para>
 
-    <para>Replaced the <literal>PQ_*CACHE</literal> options with a
+    <para role="historic">Replaced the <literal>PQ_*CACHE</literal> options with a
       single <literal>PQ_CACHESIZE</literal> option to be set to the
       cache size in kilobytes.  The old options are still supported
       for backwards compatibility. &merged;</para>
 
-    <para arch="i386">The &man.puc.4; (PCI <quote>Universal</quote>
+    <para arch="i386" role="historic">The &man.puc.4; (PCI <quote>Universal</quote>
       Communications) driver has been added, to help connect PCI-based
       serial ports to the &man.sio.4; driver. &merged;</para>
 
@@ -269,10 +269,10 @@
       SAB82532 serial chip found on many newer Sparc Ultra machines,
       has been added.</para>
 
-    <para>The &man.snp.4; device is no longer static and can now be
+    <para role="historic">The &man.snp.4; device is no longer static and can now be
       compiled as a module. &merged;</para>
 
-    <para arch="i386">The &man.spic.4; driver, which provides access
+    <para arch="i386" role="historic">The &man.spic.4; driver, which provides access
       to the Jog Dial device on some Sony laptops, has been
       added.  &man.moused.8; support for this device has also been
       added. &merged;</para>
@@ -281,18 +281,18 @@
       pasting, by default bound to
       <keycap>Shift</keycap>-<keycap>Insert</keycap>.</para>
 
-    <para>Support for USB devices was added to the
+    <para role="historic">Support for USB devices was added to the
       <filename>GENERIC</filename> kernel and to the installation
       programs to support USB devices out of the box.  Note that SRM
       does not support USB devices at the moment, so you must still
       use an AT keyboard if you are not using a serial
       console. &merged;</para>
 
-    <para arch="i386,pc98">The &man.umodem.4; driver for USB modems
+    <para arch="i386,pc98" role="historic">The &man.umodem.4; driver for USB modems
       has been added. Support is provided for the 3Com 5605 and
       Metricom Ricochet GS wireless USB modems. &merged;</para>
 
-    <para arch="i386,pc98">The &man.uscanner.4; driver for basic USB
+    <para arch="i386,pc98" role="historic">The &man.uscanner.4; driver for basic USB
       scanner support using SANE has been added. See <ulink
       url="http://www.mostang.com/sane/">the SANE home page</ulink>
       for supported scanners. The HP ScanJet 4100C, 5200C and 6300C
@@ -318,12 +318,12 @@
 
     <para>A VESA S3 linear framebuffer driver has been added.</para>
 
-    <para arch="i386">The &man.viapm.4; driver for VIA SMBus
+    <para arch="i386" role="historic">The &man.viapm.4; driver for VIA SMBus
       power management controllers has been added. &merged;</para>
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
-    <para>Write combining for crashdumps has been implemented.  This
+    <para role="historic">Write combining for crashdumps has been implemented.  This
       feature is useful when write caching is disabled on both SCSI
       and IDE disks, where large memory dumps could take up to an hour
       to complete. &merged;</para>
@@ -340,7 +340,7 @@
     <para arch="alpha">Support for threads under Linux emulation has
       been added.</para>
 
-    <para>The <maketarget>buildkernel</maketarget> target now gets the
+    <para role="historic">The <maketarget>buildkernel</maketarget> target now gets the
       name of the configuration(s) to build from the
       <varname>KERNCONF</varname> variable, not
       <varname>KERNEL</varname>.  It is no longer required, in some
@@ -351,7 +351,7 @@
       <application>binutil</application> updates and when
       &man.config.8; changes version.) &merged;</para>
 
-    <para>The out-of-swap process termination code now begins killing
+    <para role="historic">The out-of-swap process termination code now begins killing
       processes earlier to avoid deadlocks; it now also takes into
       account the swap space used by processes when computing the
       process sizes. &merged;</para>
@@ -359,7 +359,7 @@
     <para>Linker sets are now self-contained; gensetdefs(8) is
       unnecessary and has been removed.</para>
 
-    <para>Network device cloning has been implemented, and the
+    <para role="historic">Network device cloning has been implemented, and the
       &man.gif.4; device has been modified to take advantage of it.
       Thus, instead of specifying how many &man.gif.4; interfaces are
       available in kernel configuration files, &man.ifconfig.8;'s
@@ -373,12 +373,12 @@
     <para>Idle zeroing of pages can be enabled with the
       <varname>vm.idlezero_enable</varname> sysctl variable.</para>
 
-    <para arch="i386,pc98">The load addresses of kernels are now exported
+    <para arch="i386,pc98" role="historic">The load addresses of kernels are now exported
       to the symbol table and various hard-coded constants have been
       removed so that utilities such as &man.ps.1; can work with
       kernels compiled at different addresses. &merged;</para>
 
-    <para>Coredumps of large processes (or of a large number of
+    <para role="historic">Coredumps of large processes (or of a large number of
       processes) no longer lock up the machine for long periods of
       time. &merged;</para>
 
@@ -393,24 +393,24 @@
     <para arch="alpha">The console driver has gained support for
       TGA-based display adapters.</para>
 
-    <para>The kernel on the installation CDs is now separated from the
+    <para role="historic">The kernel on the installation CDs is now separated from the
       <filename>mfsroot</filename> image.  This permits the use of a
       full kernel when installing from CD on machines that support CD
       booting (instead of the stripped-down kernel used on
       floppies). &merged;</para>
 
-    <para>The system load average computation now adds some jitter to
+    <para role="historic">The system load average computation now adds some jitter to
       the timing of samples, in order to avoid synchronization with
       processes that run periodically. &merged;</para>
 
-    <para>If a debugging kernel with modules is being built
+    <para role="historic">If a debugging kernel with modules is being built
       (i.e. using <literal>makeoptions DEBUG=-g</literal>), the
       modules will now be built with debugging support as well, for
       completeness.  A side effect of this change is that modules
       built and installed with debugging kernels will now occupy more
       space on disk than they did previously. &merged;</para>
 
-    <para>The kernel dump device can now be set via the
+    <para role="historic">The kernel dump device can now be set via the
       <varname>dumpdev</varname> loader tunable.  As a result, it is
       now possible to obtain crash dumps from panics during the late
       stages of kernel initialization (before the system enters into
@@ -448,7 +448,7 @@
 	configuration file to only include
 	<literal>I386_CPU</literal>.</para>
 
-      <para arch="alpha">AlphaServer 1200 (<quote>Tincup</quote>) has
+      <para arch="alpha" role="historic">AlphaServer 1200 (<quote>Tincup</quote>) has
 	been tested and works OK.  Currently it does not want to boot
 	from CD or floppy but a transplanted disk that was installed
 	on another Alpha works well. &merged;</para>
@@ -475,7 +475,7 @@
 
       <para arch="alpha">SMP support for the Alpha is now operational.</para>
 
-      <para arch="i386">Detection for new processors, such as the
+      <para arch="i386" role="historic">Detection for new processors, such as the
 	FC-PGA2 Pentium III (Tualatin), Transmeta Crusoe, and
 	Transmeta Crusoe LongRun, has been added. &merged;</para>
 
@@ -487,12 +487,12 @@
 	900/SiS 7016), ste (Sundance ST201 (D-Link DFE-550TX)), wb
 	(Winbond W89C840F).</para>
 
-      <para arch="i386">Support for Streaming <acronym>SIMD</acronym>
+      <para arch="i386" role="historic">Support for Streaming <acronym>SIMD</acronym>
 	Extensions (<acronym>SSE</acronym>) has been introduced.  The
 	<literal>CPU_ENABLE_SSE</literal> kernel option controls
 	whether support is compiled into the kernel. &merged;</para>
 
-      <para arch="i386">The <literal>CPU_ATHLON_SSE_HACK</literal>
+      <para arch="i386" role="historic">The <literal>CPU_ATHLON_SSE_HACK</literal>
 	kernel option has been added, which attempts to enable the SSE
 	feature bit on newer Athlon CPUs if the BIOS has forgotten to
 	enable it. &merged;</para>
@@ -504,7 +504,7 @@
 	Ultra 2, Ultra 60, Enterprise 220R, and
 	Enterprise 420R.</para>
 
-      <para arch="i386">On some systems, the BIOS does not activate
+      <para arch="i386" role="historic">On some systems, the BIOS does not activate
 	the I/O ports and memory of PC devices, thus making them
 	unusable.  The <literal>PCI_ENABLE_IO_MODES</literal> kernel
 	option forces &os; to enable these devices so that they can be
@@ -515,11 +515,11 @@
     <sect3>
       <title>Bootloader Changes</title>
 
-      <para arch="i386"><filename>boot2</filename> now supports a
+      <para arch="i386" role="historic"><filename>boot2</filename> now supports a
 	<option>-n</option> option to disallow boot interruption by
 	keypresses. &merged;</para>
 
-      <para arch="i386">A new <filename>cdboot</filename> bootstrap
+      <para arch="i386" role="historic">A new <filename>cdboot</filename> bootstrap
 	utility for CDROMs provides better compatability with some
 	BIOS implementations that do not completely implement the El
 	Torito bootable CDROM standard.  This boot loader supports
@@ -527,33 +527,33 @@
 	need for an emulated floppy disk image on a bootable
 	CDROM. &merged;</para>
 
-      <para arch="i386,pc98">The i386 boot loader now has support for a
+      <para arch="i386,pc98" role="historic">The i386 boot loader now has support for a
 	<literal>nullconsole</literal> console type, for use on
 	systems with neither a video console nor a serial
 	port. &merged;</para>
 
-      <para arch="i386,pc98">The &man.loader.8; now has optional support
+      <para arch="i386,pc98" role="historic">The &man.loader.8; now has optional support
 	(enabled at compile-time, off by default) for loading
 	<application>bzip2</application>-compressed kernels and
 	modules. &merged;</para>
 
-      <para arch="i386">Support for Intel's Wired for Management 2.0
+      <para arch="i386" role="historic">Support for Intel's Wired for Management 2.0
 	(PXE) was added to the &os; boot loader.  Due to API
 	differences, the older PXE versions are not supported.  This
 	allow network booting using DHCP. &merged;</para>
 
       <!-- Above this line, order bootloader changes by keyword-->
 
-      <para arch="i386">The &os; boot loader now contains a workaround
+      <para arch="i386" role="historic">The &os; boot loader now contains a workaround
 	to support CDROM booting on certain IBM BIOSs that expect the
 	first sector of the emulated floppy to contain a valid MS-DOS
 	BPB that they can modify. &merged;</para>
 
-      <para arch="i386,pc98">The &os; boot loader now supports a
+      <para arch="i386,pc98" role="historic">The &os; boot loader now supports a
 	<option>-p</option> flag to force the kernel to pause after
 	each line of output during the probing phase. &merged;</para>
 
-      <para arch="alpha,i386">The &os; boot loader is now capable of
+      <para arch="alpha,i386" role="historic">The &os; boot loader is now capable of
 	booting from filesystems with block sizes larger than
 	8K. &merged;</para>
 
@@ -566,25 +566,25 @@
     <sect3>
       <title>Network Interface Support</title>
 
-      <para>The &man.an.4; driver for Cisco Aironet cards now supports
+      <para role="historic">The &man.an.4; driver for Cisco Aironet cards now supports
 	Wired Equivalent Privacy (WEP) encryption, settable via
 	&man.ancontrol.8;. &merged;</para>
 
-      <para>The &man.an.4; driver now supports the Cisco Aironet 350
+      <para role="historic">The &man.an.4; driver now supports the Cisco Aironet 350
 	series of adaptors. &merged;</para>
 
-      <para>The &man.an.4; driver now supports <quote>monitor</quote>
+      <para role="historic">The &man.an.4; driver now supports <quote>monitor</quote>
 	mode, settable via the <option>-M</option> option to
 	&man.ancontrol.8;. &merged;</para>
 
-      <para>The &man.an.4; driver now supports Cisco LEAP, as well as
+      <para role="historic">The &man.an.4; driver now supports Cisco LEAP, as well as
 	the <quote>Home</quote> WEP key.  The Linux Aironet utilities
 	are now supported under emulation. &merged;</para>
 
-      <para arch="i386,pc98">Generic support for ARCNET token-based
+      <para arch="i386,pc98" role="historic">Generic support for ARCNET token-based
 	networks has been added. &merged;</para>
 
-      <para arch="i386,pc98">The &man.bge.4; driver has been added to
+      <para arch="i386,pc98" role="historic">The &man.bge.4; driver has been added to
 	support the Broadcom BCM570x family of Gigabit Ethernet
 	controllers, including the 3Com 3c996-T, the SysKonnect
 	SK-9D21 and SK-9D41, and the built-in Gigabit Ethernet NICs on
@@ -592,16 +592,16 @@
 	jumbo frames and VLAN tag insertion/stripping are supported,
 	as well as interrupt moderation. &merged;</para>
 
-      <para arch="i386">The cm driver has been added to support SMC
+      <para arch="i386" role="historic">The cm driver has been added to support SMC
 	COM90cx6 ARCNET network adapters. &merged;</para>
 
       <para>The &man.dc.4; driver now supports NICs based on the Xircom
 	3201 and Conexant LANfinity RS7112 chips.</para>
 
-      <para>The &man.dc.4; driver now has support for
+      <para role="historic">The &man.dc.4; driver now has support for
 	VLANs. &merged;</para>
 
-      <para>The &man.de.4; driver now performs round-robin arbitration
+      <para role="historic">The &man.de.4; driver now performs round-robin arbitration
 	between the transmit and receive units of the 21143, instead
 	of giving priority to the receive unit.  This gives a
 	10&ndash;15% performance improvement in the forwarding rate
@@ -609,18 +609,18 @@
 
       <para arch="alpha">The &man.ed.4; driver is now supported.</para>
 
-      <para arch="i386,pc98">Linksys Fast Ethernet PCCARD cards supported
+      <para arch="i386,pc98" role="historic">Linksys Fast Ethernet PCCARD cards supported
 	by the &man.ed.4; driver now require the addition of flag
 	<literal>0x80000</literal> to their config line in
 	&man.pccard.conf.5;.  This flag is not optional.  These
 	Linksys cards will not be recognized without
 	it. &merged;</para>
 
-      <para>A bug in the &man.ed.4; driver that could cause panics
+      <para role="historic">A bug in the &man.ed.4; driver that could cause panics
 	with very short packets and BPF or bridging active has been
 	fixed. &merged;</para>
 
-      <para>The &man.ed.4; driver now has support for D-Link DL10022
+      <para role="historic">The &man.ed.4; driver now has support for D-Link DL10022
 	chips, necessary for the NetGear FA-410TX and other cards.  As
 	a result, <literal>device miibus</literal> is required in
 	kernel configurations using the &man.ed.4;
@@ -629,34 +629,34 @@
       <para arch="i386">The &man.el.4; driver can now be loaded as a
 	module.</para>
 
-      <para arch="i386,pc98">The &man.em.4; driver has been added to
+      <para arch="i386,pc98" role="historic">The &man.em.4; driver has been added to
 	support NICs based on the Intel 82542, 82543, and 82544
 	Gigabit Ethernet controller chips.  The driver supports
 	transmit/receive checksum offload and jumbo frames on 82543
 	and 82544-based adapters. &merged;</para>
 
-      <para>The &man.faith.4; device is now loadable, unloadable, and
+      <para role="historic">The &man.faith.4; device is now loadable, unloadable, and
 	clonable. &merged;</para>
 
-      <para arch="i386,pc98">Support for Fujitsu MB86960A/MB86965A based
+      <para arch="i386,pc98" role="historic">Support for Fujitsu MB86960A/MB86965A based
 	Ethernet PC-Cards has been added back in the &man.fe.4;
 	driver. &merged;</para>
 
-      <para arch="alpha">The &man.fpa.4; driver now supports Digital's
+      <para arch="alpha" role="historic">The &man.fpa.4; driver now supports Digital's
 	DEFPA FDDI adaptors on the Alpha. &merged;</para>
 
-      <para>The &man.fxp.4; driver now requires a <literal>device
+      <para role="historic">The &man.fxp.4; driver now requires a <literal>device
 	miibus</literal> entry in the kernel configuration
 	file. &merged;</para>
 
-      <para>The &man.fxp.4; driver now contains a workaround for PCI
+      <para role="historic">The &man.fxp.4; driver now contains a workaround for PCI
 	protocol violations caused by defects in some systems based on
 	the Intel ICH2/ICH2-M chip.  The workaround is to rewrite the
 	EEPROM on the interface to disable Dynamic Standby Mode; once
 	the EEPROM is rewritten, the system needs to be rebooted for
 	the new settings to take effect. &merged;</para>
 
-      <para>The &man.fxp.4; driver now supports Intel's loadable
+      <para role="historic">The &man.fxp.4; driver now supports Intel's loadable
 	microcode to implement receive-side interrupt coalescing and
 	packet bundling, on NICs that support these features.  This
 	support can be activated by the use of the
@@ -667,7 +667,7 @@
 	the Sun GEM Gigabit Ethernet and ERI Fast Ethernet
 	adapters.</para>
 
-      <para>The &man.gx.4; driver has been added to support NICs based
+      <para role="historic">The &man.gx.4; driver has been added to support NICs based
 	on the Intel 82542 and 82543 Gigabit Ethernet controller
 	chips.  Both fiber and copper variants of the cards are
 	supported.  Both boards support VLAN tagging/insertion, and
@@ -678,17 +678,17 @@
 	the Sun HME Fast Ethernet adapter, onboard on many Sun Ultra
 	series machines.</para>
 
-      <para>The &man.lge.4; driver has been added to support the Level
+      <para role="historic">The &man.lge.4; driver has been added to support the Level
 	1 LXT1001 NetCellerator Gigabit Ethernet controller chip. This
 	device is used on some fiber optic GigE cards from SMC, D-Link
 	and Addtron.  Jumbograms and TCP/IP checksum offload on
 	receive are supported, although hardware VLAN filtering is
 	not. &merged;</para>
 
-      <para>The my driver, which supports the Myson Fast Ethernet and
+      <para role="historic">The my driver, which supports the Myson Fast Ethernet and
 	Gigabit Ethernet adapters, has been added. &merged;</para>
 
-      <para>Added the &man.nge.4; driver, which supports PCI Gigabit
+      <para role="historic">Added the &man.nge.4; driver, which supports PCI Gigabit
 	Ethernet adapters based on the National Semiconductor DP83820
 	and DP83821 Gigabit Ethernet controller chips, including the
 	D-Link DGE-500T, SMC EZ Card 1000 (SMC9462TX), Asante
@@ -696,7 +696,7 @@
 	This driver supports transmit and receive checksum
 	offloading. &merged;</para>
 
-      <para>The &man.pcn.4; driver, which supports the AMD PCnet/FAST,
+      <para role="historic">The &man.pcn.4; driver, which supports the AMD PCnet/FAST,
 	PCnet/FAST+, PCnet/FAST III, PCnet/PRO, PCnet/Home, and
 	HomePNA adapters, has been added.  Although these cards are
 	already supported by the &man.lnc.4; driver, the &man.pcn.4;
@@ -706,87 +706,87 @@
 	pc98 and Alpha platforms.  The &man.lnc.4; driver is still needed
 	to support non-PCI cards. &merged;</para>
 
-      <para>The &man.ray.4; driver, which supports the Webgear Aviator
+      <para role="historic">The &man.ray.4; driver, which supports the Webgear Aviator
 	wireless network cards, has been committed.  The operation of
 	&man.ray.4; interfaces can be modified by
 	&man.raycontrol.8;. &merged;</para>
 
-      <para arch="i386">The sbni driver, for supporting the Granch
+      <para arch="i386" role="historic">The sbni driver, for supporting the Granch
 	SBNI12 series of ISA and PCI point-to-point communications
 	interfaces, has been added.  The <filename
 	role="package">sysutils/sbniconfig</filename> port in the &os;
 	Ports Collection can be used for configuring these
 	devices. &merged;</para>
 
-      <para>Added support for PCI Ethernet adapters based on the SiS
+      <para role="historic">Added support for PCI Ethernet adapters based on the SiS
 	900 and SiS 7016 Fast Ethernet controller chips (for example,
 	as seen on the SiS 635 and 735 motherboard chipsets), as well
 	as the National Semiconductor DP83815 chipset (including the
 	NetGear FA311-TX and FA312-TX) in the form of the &man.sis.4;
 	driver.  This device has support for VLANs. &merged;</para>
 
-      <para arch="pc98">The snc driver for the National Semiconductor
+      <para arch="pc98" role="historic">The snc driver for the National Semiconductor
 	DP8393X (SONIC) Ethernet controller has been added.
 	Currently, this driver is only used on the PC-98
 	architecture. &merged;</para>
 
       <para>The &man.stf.4; device is now clonable.</para>
 
-      <para>The &man.tap.4; driver, a virtual Ethernet device driver
+      <para role="historic">The &man.tap.4; driver, a virtual Ethernet device driver
 	for bridged configurations, has been added.  This device is
 	clonable.  &merged;</para>
 
-      <para>The &man.ti.4; driver now supports the Alteon AceNIC
+      <para role="historic">The &man.ti.4; driver now supports the Alteon AceNIC
 	1000baseT Gigabit Ethernet and Netgear GA620T 1000baseT
 	Gigabit cards. &merged;</para>
 
-      <para>The &man.ti.4; driver correctly masks VLAN tags. &merged;</para>
+      <para role="historic">The &man.ti.4; driver correctly masks VLAN tags. &merged;</para>
 
-      <para>The &man.txp.4; driver has been added to support NICs
+      <para role="historic">The &man.txp.4; driver has been added to support NICs
 	based on the 3Com 3XP Typhoon/Sidewinder (3CR990)
 	chipset. &merged;</para>
 
-      <para>&man.vlan.4; devices are now loadable, unloadable, and
+      <para role="historic">&man.vlan.4; devices are now loadable, unloadable, and
 	clonable. &merged;</para>
 
-      <para>The &man.wi.4; driver now has support for Prism II and
+      <para role="historic">The &man.wi.4; driver now has support for Prism II and
 	Prism 2.5-based NICs.  104/128-bit WEP now works on Prism
 	cards. &merged;</para>
 
-      <para>The &man.wi.4; driver now supports using a &os; host as
+      <para role="historic">The &man.wi.4; driver now supports using a &os; host as
 	a wireless access point.  This functionality can be enabled
 	using the <literal>mediaopt hostap</literal> option of
 	&man.ifconfig.8;.  This feature requires a wireless
 	adapter based on the Prism II chipset. &merged;</para>
 
-      <para>The &man.wi.4; driver now has support for
+      <para role="historic">The &man.wi.4; driver now has support for
 	<application>bsd-airtools</application>. &merged;</para>
 
-      <para>The xe driver can now be built as a
+      <para role="historic">The xe driver can now be built as a
 	module. &merged;</para>
 
-      <para>The &man.xl.4; driver now supports the 3Com 3C556 and
+      <para role="historic">The &man.xl.4; driver now supports the 3Com 3C556 and
 	3C556B MiniPCI adapters used on some laptops. &merged;</para>
 
-      <para>The &man.xl.4; driver now supports reception of VLAN
+      <para role="historic">The &man.xl.4; driver now supports reception of VLAN
 	tagged frames (on the <quote>Cyclone</quote> or newer
 	chipsets). &merged;</para>
 
-      <para>The &man.xl.4; driver now supports send- and receive-side
+      <para role="historic">The &man.xl.4; driver now supports send- and receive-side
 	TCP/IP checksum offloading for NICs implementing this feature,
 	such as the 3C905B, 3C905C, and 3C980C. &merged;</para>
 
-      <para>A bug in the &man.xl.4; driver, related to statistics
+      <para role="historic">A bug in the &man.xl.4; driver, related to statistics
 	overflow interrupt handling, was causing slowdowns at medium
 	to high packet rates; this has been fixed. &merged;</para>
 
-      <para>The per-interface <varname>ifnet</varname> structure now
+      <para role="historic">The per-interface <varname>ifnet</varname> structure now
 	has the ability to indicate a set of capabilities supported by
 	a network interface, and which ones are enabled.
 	&man.ifconfig.8; has support for querying these
 	capabilities. &merged;</para>
 
-      <para>Performance with hosts having a large number of IP aliases
+      <para role="historic">Performance with hosts having a large number of IP aliases
 	has been improved, by replacing the per-interface
 	<varname>if_inaddr</varname> linear list with a hash table. &merged;</para>
 
@@ -796,7 +796,7 @@
 	<varname>SIOCGIFCONF</varname> ioctl may be performed on the
 	special <filename>/dev/network</filename> node.</para>
 
-      <para>Selected network drivers now implement a semi-polling
+      <para role="historic">Selected network drivers now implement a semi-polling
 	mode, which makes systems much more resilient to attacks and
 	overloads.  To enable polling, the following options are
 	required in a kernel configuration file:
@@ -812,7 +812,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	&man.fxp.4;, &man.rl.4;, and &man.sis.4;.  More details can be found in
 	the &man.polling.4; manual page. &merged;</para>
 
-      <para arch="i386,pc98">The packet-forwarding performance of certain
+      <para arch="i386,pc98" role="historic">The packet-forwarding performance of certain
 	network drivers (specifically &man.dc.4; and &man.sis.4;) has
 	been enhanced by the elimination of unnecessary buffer
 	copies. &merged;</para>
@@ -821,11 +821,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <sect3>
       <title>Network Protocols</title>
 
-      <para>&man.accept.filter.9;, a kernel feature to reduce
+      <para role="historic">&man.accept.filter.9;, a kernel feature to reduce
 	overheads when accepting and reading new connections on
 	listening sockets, has been added. &merged;</para>
 
-      <para>The <literal>proxy</literal> modifier to &man.arp.8;'s
+      <para role="historic">The <literal>proxy</literal> modifier to &man.arp.8;'s
 	<option>-d</option> option has been renamed to
 	<literal>pub</literal>, for consistency with the
 	<option>-s</option> option.  The <literal>only</literal> keyword
@@ -833,15 +833,15 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<option>-S</option> flags, to be used in creating
 	<quote>proxy-only</quote> published entries. &merged;</para>
 
-      <para>The read timeout feature of &man.bpf.4; now works more
+      <para role="historic">The read timeout feature of &man.bpf.4; now works more
 	correctly with &man.select.2;/&man.poll.2;, and therefore with
 	pthreads. &merged;</para>
 
-      <para>&man.bridge.4; and &man.dummynet.4; have received some
+      <para role="historic">&man.bridge.4; and &man.dummynet.4; have received some
 	enhancements and bug fixes, and are now loadable
 	modules. &merged;</para>
 
-      <para>&man.bridge.4; now has better support for multiple,
+      <para role="historic">&man.bridge.4; now has better support for multiple,
 	fully-independent bridging clusters, and is much more stable
 	in the presence of dynamic attachments and detatchments.  Full
 	support for VLANs is also supported. &merged;</para>
@@ -851,7 +851,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	are now limited by separate counters.  Each rate limiting
 	queue now has its own description.</para>
 
-      <para>ICMP <literal>UNREACH_FILTER_PROHIB</literal> messages can
+      <para role="historic">ICMP <literal>UNREACH_FILTER_PROHIB</literal> messages can
 	now RST TCP connections in the <literal>SYN_SENT</literal>
 	state if the correct sequence numbers are sent back, as
 	controlled by the
@@ -860,17 +860,17 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>IP multicast now works on VLAN devices.  Several other
 	bugs in the VLAN code have also been fixed.</para>
 
-      <para>A bug in the IPsec processing for IPv4, which caused the
+      <para role="historic">A bug in the IPsec processing for IPv4, which caused the
 	inbound SPD checks to be ignored, has been fixed. &merged;</para>
 
-      <para>&man.ipfw.4; now filters correctly in the presence of ECN
+      <para role="historic">&man.ipfw.4; now filters correctly in the presence of ECN
 	bits in TCP segments. &merged;</para>
 
-      <para>A new ng_eiface netgraph module has been added, which
+      <para role="historic">A new ng_eiface netgraph module has been added, which
 	appears as an Ethernet interface but delivers its Ethernet
 	frames to a Netgraph hook. &merged;</para>
 
-      <para>A new &man.ng.etf.4; netgraph node allows Ethernet type
+      <para role="historic">A new &man.ng.etf.4; netgraph node allows Ethernet type
 	packets to be filtered to different hooks depending on
 	ethertype. &merged;</para>
 
@@ -882,31 +882,31 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	packets into the main IP input processing code, has been
 	added.</para>
 
-      <para>The &man.ng.mppc.4; and &man.ng.bridge.4; node types have
+      <para role="historic">The &man.ng.mppc.4; and &man.ng.bridge.4; node types have
 	been added to the &man.netgraph.4; subsystem.  The
 	&man.ng.ether.4; node is now dynamically loadable.
 	Miscellaneous bug fixes and enhancements have also been
 	made. &merged;</para>
 
-      <para>A new netgraph node type &man.ng.one2many.4; for
+      <para role="historic">A new netgraph node type &man.ng.one2many.4; for
 	multiplexing and demultiplexing packets over multiple links
 	has been added.  &merged;</para>
 
       <para>A new ng_split node type has been added for splitting a
         bidirectional packet flow into two unidirectional flows.</para>
 
-      <para>A new sysctl
+      <para role="historic">A new sysctl
 	<varname>net.inet.ip.check_interface</varname>, which is on by
 	default, causes IP to verify that an incoming packet arrives
 	on an interface that has an address matching the packet's
 	destination address. &merged;</para>
 
-      <para>A new sysctl
+      <para role="historic">A new sysctl
 	<varname>net.link.ether.inet.log_arp_wrong_iface</varname> has
 	been added to control the suppression of logging when ARP
 	replies arrive on the wrong interface. &merged;</para>
 
-      <para>A new <literal>options RANDOM_IP_ID</literal> kernel
+      <para role="historic">A new <literal>options RANDOM_IP_ID</literal> kernel
 	option causes the ID field of IP packets to be randomized.
 	This closes a minor information leak which allows a remote
 	observer to determine the rate at which the machine is
@@ -916,41 +916,41 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para arch="alpha">SLIP has been removed from the
 	<filename>mfsroot</filename> floppy image.</para>
 
-      <para>TCP has received some bug fixes for its delayed ACK
+      <para role="historic">TCP has received some bug fixes for its delayed ACK
 	behavior. &merged;</para>
 
-      <para>TCP now supports the NewReno modification to the TCP Fast
+      <para role="historic">TCP now supports the NewReno modification to the TCP Fast
 	Recovery algorithm.  This behavior can be controlled via the
 	<varname>net.inet.tcp.newreno</varname> sysctl
 	variable. &merged;</para>
 
-      <para>TCP now uses a more aggressive timeout for initial SYN
+      <para role="historic">TCP now uses a more aggressive timeout for initial SYN
 	segments; this allows initial connection attempts to be
 	dropped much faster. &merged;</para>
 
-      <para>The <literal>TCP_COMPAT_42</literal> kernel option has
+      <para role="historic">The <literal>TCP_COMPAT_42</literal> kernel option has
 	been removed. &merged;</para>
 
-      <para>The <literal>TCP_RESTRICT_RST</literal> kernel option has
+      <para role="historic">The <literal>TCP_RESTRICT_RST</literal> kernel option has
 	been removed.  Similar functionality can be achieved with the
 	<varname>net.inet.tcp.blackhole</varname> sysctl
 	variable. &merged;</para>
 
-      <para>TCP now has RFC 1323 extensions enabled by default in
+      <para role="historic">TCP now has RFC 1323 extensions enabled by default in
 	&man.rc.conf.5;. &merged;</para>
 
-      <para>RFC 1323 and RFC 1644 TCP extensions are now disabled for
+      <para role="historic">RFC 1323 and RFC 1644 TCP extensions are now disabled for
 	a connection in progress if no response has been received by
 	the third SYN segment sent.  This behavior tries to work
 	around (very old) terminal servers with buggy VJ header
 	compression implementations. &merged;</para>
 
-      <para>The TCP implementation no longer requires the allocation
+      <para role="historic">The TCP implementation no longer requires the allocation
 	of a TCP template structure for each connection; this should
 	reduce the buffer usage on large systems handling many
 	connections. &merged;</para>
 
-      <para>TCP's default buffer sizes, controlled by the
+      <para role="historic">TCP's default buffer sizes, controlled by the
 	<varname>net.inet.tcp.sendspace</varname> and
 	<varname>net.inet.tcp.recvspace</varname> sysctl variables,
 	have been increased to 32K and 64K respectively.  Previously,
@@ -970,13 +970,13 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	</note>
       </para>
 
-      <para>TCP now supports RFC 1948 (Defending Against Sequence
+      <para role="historic">TCP now supports RFC 1948 (Defending Against Sequence
 	Number Attacks).  The
 	<varname>net.inet.tcp.isn_reseed_interval</varname> sysctl
 	variable controls the reseeding of the secret data used in
 	the RFC 1948 initial sequence number calculations. &merged;</para>
 
-      <para>The TCP implementation in &os; now implements a cache of
+      <para role="historic">The TCP implementation in &os; now implements a cache of
 	outstanding, received SYN segments.  Incoming SYN segments now
 	cause entries to be placed in the cache until the TCP
 	three-way handshake is complete, at which point, memory is
@@ -990,11 +990,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	Service attacks.  Work on this feature was sponsored by DARPA
 	and NAI Labs. &merged;</para>
 
-      <para>A bug in the TCP implementation, which could cause
+      <para role="historic">A bug in the TCP implementation, which could cause
 	connections to stall if a sender saw a zero-sized window, has
 	been corrected. &merged;</para>
 
-      <para>The TCP implementation now properly ignores packets
+      <para role="historic">The TCP implementation now properly ignores packets
 	addressed to IP-layer broadcast addresses. &merged;</para>
 
       <para>The ephemeral port range used for TCP and UDP has been
@@ -1006,7 +1006,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <sect3>
       <title>Disks and Storage</title>
 
-      <para arch="i386">Support for the Adaptec FSA family of PCI-SCSI
+      <para arch="i386" role="historic">Support for the Adaptec FSA family of PCI-SCSI
 	RAID controllers has been added, in the form of the
 	&man.aac.4; driver.  This driver includes proper handling of
 	commands initiated by the adapter, addition/removal of disk
@@ -1014,7 +1014,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	necessary for the management CLI, and is fully qualified and
 	sanctioned by Adaptec. &merged;</para>
 
-      <para>The &man.ahc.4; driver has received numerous updates,
+      <para role="historic">The &man.ahc.4; driver has received numerous updates,
 	bugfixes, and enhancements.  Among various improvements are
 	improved compatibility with chips in <quote>RAID Port</quote>
 	mode and systems with AAA and/or ARO cards installed, as well
@@ -1022,52 +1022,52 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	including a rare hang on Ultra2/U160
 	controllers. &merged;</para>
 
-      <para arch="i386">The &man.asr.4; driver, which provides support
+      <para arch="i386" role="historic">The &man.asr.4; driver, which provides support
 	for the Adaptec SCSI RAID controller family, as well as the
 	DPT SmartRAID V and VI families, has been
 	added. &merged;</para>
 
-      <para arch="i386">The &man.asr.4; driver now supports the
+      <para arch="i386" role="historic">The &man.asr.4; driver now supports the
 	Adaptec 2000S and 2005S Zero-Channel RAID
 	controllers. &merged;</para>
 
-      <para>The &man.ata.4; driver now has support for ATA100
+      <para role="historic">The &man.ata.4; driver now has support for ATA100
 	controllers.  In addition, it now supports the ServerWorks
 	ROSB4 ATA33 chipset, the CMD 648 ATA66 and CMD 649 ATA100
 	chipsets, and the Cyrix 5530. &merged;</para>
 
-      <para>To provide more flexible configuration, the various
+      <para role="historic">To provide more flexible configuration, the various
 	options for the &man.ata.4; driver are now boot loader
 	tunables, rather than kernel configure-time
 	options. &merged;</para>
 
-      <para>The &man.ata.4; driver now has support for tagged queuing,
+      <para role="historic">The &man.ata.4; driver now has support for tagged queuing,
 	which is enabled by the <varname>hw.ata.tags</varname> loader
 	tunable. &merged;</para>
 
-      <para>The &man.ata.4; driver now has support for ATA
+      <para role="historic">The &man.ata.4; driver now has support for ATA
 	<quote>pseudo</quote> RAID controllers as the Promise Fasttrak
 	and HighPoint HPT370 controllers. &merged;</para>
 
-      <para>The &man.ata.4; driver now supports a wider variety of SiS
+      <para role="historic">The &man.ata.4; driver now supports a wider variety of SiS
 	chipsets, as listed in the Hardware Notes. &merged;</para>
 
-      <para>The &man.ata.4; driver now has support for creating,
+      <para role="historic">The &man.ata.4; driver now has support for creating,
 	deleting, querying, and rebuilding ATA RAIDs under control of
 	&man.atacontrol.8;. &merged;</para>
 
-      <para>The BurnProof(TM) feature, for applicable ATAPI CD-ROM
+      <para role="historic">The BurnProof(TM) feature, for applicable ATAPI CD-ROM
 	burners, is now supported. &merged;</para>
 
-      <para>The &man.ata.4; driver now has support for 48-bit
+      <para role="historic">The &man.ata.4; driver now has support for 48-bit
 	addressing.  Devices larger than 137GB are now
 	supported. &merged;</para>
 
-      <para>The &man.ata.4; driver now contains fixes for some data
+      <para role="historic">The &man.ata.4; driver now contains fixes for some data
 	corruption problems on systems using the VIA 82C686B
 	Southbridge chip. &merged;</para>
 
-      <para>The &man.cd.4; driver now has support for write
+      <para role="historic">The &man.cd.4; driver now has support for write
 	operations.  This allows writing to DVD-RAM, PD and similar
 	drives that probe as CD devices.  Note that change affects
 	only random-access writeable devices, not sequential-only
@@ -1076,7 +1076,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<filename role="package">sysutils/cdrtools</filename> in the
 	Ports Collection. &merged;</para>
 
-      <para arch="i386">The ciss driver, for devices utilizing the
+      <para arch="i386" role="historic">The ciss driver, for devices utilizing the
 	Common Interface for SCSI-3 Support, has been added.  This
 	driver supports the Compaq SmartRAID 5* family of RAID
 	controllers (5300, 532, 5i). &merged;</para>
@@ -1091,14 +1091,14 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	support a wide variety of operations on I/O requests on their
 	way from the upper kernel to the device drivers.</para>
 
-      <para>The ida disk driver now has crashdump
+      <para role="historic">The ida disk driver now has crashdump
 	support. &merged;</para>
 
-      <para arch="i386">The iir driver has been added to support the
+      <para arch="i386" role="historic">The iir driver has been added to support the
 	Intel Integrated RAID controllers, as well as prior ICP Vortex
 	controllers.</para>
 
-      <para arch="alpha">A bug that made certain CDROM drives fail to
+      <para arch="alpha" role="historic">A bug that made certain CDROM drives fail to
 	attach when connected to a SCSI card driven by &man.isp.4; has
 	been fixed. &merged;</para>
 
@@ -1109,7 +1109,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	SCSI cards, including Ultra2 and Ultra3 and dual bus
 	cards.</para>
 
-      <para>The &man.isp.4; driver now supports the Qlogic 2300 and
+      <para role="historic">The &man.isp.4; driver now supports the Qlogic 2300 and
 	2312 Optical Fibre Channel PCI cards. &merged;</para>
 
       <para>&man.md.4;, the memory disk device, has had the
@@ -1118,11 +1118,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	has been removed.  The Memory Filesystem (MFS) has also been
 	removed.</para>
 
-      <para arch="i386">The &man.mly.4; driver, for Mylex PCI to SCSI
+      <para arch="i386" role="historic">The &man.mly.4; driver, for Mylex PCI to SCSI
 	AccelRAID and eXtremeRAID controllers with firmware 6.X and
 	later, has been added. &merged;</para>
 
-      <para arch="i386,pc98">The ncv, nsp, and stg drivers have been ported
+      <para arch="i386,pc98" role="historic">The ncv, nsp, and stg drivers have been ported
 	from NetBSD/pc98.  They support the NCR 53C50 / Workbit Ninja
 	SCSI-3 / TMC 18C30, 18C50 based PC-Card/ISA SCSI controllers.
 	All three drivers can be built and loaded as
@@ -1135,10 +1135,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	fixed, including the <quote>tape drive spinning indefinitely
 	upon &man.mt.1; <option>stat</option></quote> problem.</para>
 
-      <para arch="i386">The &man.twe.4; 3ware ATA RAID driver has
+      <para arch="i386" role="historic">The &man.twe.4; 3ware ATA RAID driver has
 	added. &merged;</para>
 
-      <para>The &man.wd.4; compatibility devices were removed from the
+      <para role="historic">The &man.wd.4; compatibility devices were removed from the
 	&man.ata.4; driver. &merged;</para>
     </sect3>
 
@@ -1154,7 +1154,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<filename>/usr/src/sys/ufs/ufs/README.extattr</filename> for
 	details).</para>
 
-      <para>Due to a licensing change, softupdates have been
+      <para role="historic">Due to a licensing change, softupdates have been
 	integrated into the main portion of the kernel source tree.
 	As a consequence, softupdates are now available with the
 	<filename>GENERIC</filename> kernel. &merged;</para>
@@ -1171,9 +1171,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	&man.df.1; will track the number of blocks and files that are
 	committed to being freed.</para>
 
-      <para>A bug in FFS that could cause superblock corruption on
+      <para role="historic">A bug in FFS that could cause superblock corruption on
 	very large filesystems has been corrected. &merged;</para>
 
+      <para role="historic">The ISO-9660 filesystem now has a hook that supports a
       <para>The ISO-9660 filesystem now has a hook that supports a
 	loadable character conversion routine.  The
 	<filename role="package">sysutils/cd9660_unicode</filename>
@@ -1181,11 +1182,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para>&man.kernfs.5; is obsolete and has been retired.</para>
 
-      <para>A bug in the NFS client that caused bogus access times with
+      <para role="historic">A bug in the NFS client that caused bogus access times with
 	<literal>O_EXCL|O_CREAT</literal> opens was
 	fixed. &merged;</para>
 
-      <para>A new NFS hash function (based on the Fowler/Noll/Vo hash
+      <para role="historic">A new NFS hash function (based on the Fowler/Noll/Vo hash
 	algorithm) has been implemented to improve NFS performance by
 	increasing the efficiency of the <varname>nfsnode</varname>
 	hash tables. &merged;</para>
@@ -1204,7 +1205,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	details can be found in
 	<filename>/usr/src/sys/ufs/ufs/README.acls</filename>.</para>
 
-      <para>The directory layout preference algorithm for FFS
+      <para role="historic">The directory layout preference algorithm for FFS
 	(<literal>dirprefs</literal>) has been changed.  Rather than
 	scattering directory blocks across a disk, it attempts to
 	group related directory blocks together.  Operations
@@ -1212,7 +1213,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	tree, have shown marked speedups.  This change is transparent
 	and automatic for new directories. &merged;</para>
 
-      <para arch="i386,pc98">smbfs (CIFS) support in kernel has been added.
+      <para arch="i386,pc98" role="historic">smbfs (CIFS) support in kernel has been added.
 	The userland programs &man.smbutil.1; and &man.mount.smbfs.8;
 	can be used to work with SMB shares.  Note that
 	&man.mount.smbfs.8; will automatically load the
@@ -1233,7 +1234,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	&man.linprocfs.5; and &man.procfs.5; have been modified to use
 	pseudofs.</para>
 
-      <para>A simple hash-based lookup optimization for large
+      <para role="historic">A simple hash-based lookup optimization for large
 	directories called <literal>dirhash</literal> has been added.
 	Conditional on the
 	<literal>UFS_DIRHASH</literal> kernel option (enabled by
@@ -1241,16 +1242,16 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	improves the speed of operations on very large directories at
 	the expense of some memory. &merged;</para>
 
-      <para>The virtual memory subsystem now backs UFS directory
+      <para role="historic">The virtual memory subsystem now backs UFS directory
 	memory requirements by default (this behavior is controlled
 	via the <varname>vfs.vmiodirenable</varname> sysctl
 	variable). &merged;</para>
 
-      <para>A bug that prevented the root filesystem from being
+      <para role="historic">A bug that prevented the root filesystem from being
 	mounted from a SCSI CDROM has been fixed (ATAPI CDROMs were
 	always supported). &merged;</para>
 
-      <para>A number of bugs in the filesystem code, discovered
+      <para role="historic">A number of bugs in the filesystem code, discovered
 	through the use of the <application>fsx</application>
 	filesystem test tool, have been fixed.  Under certain
 	circumstances (primarily related to use of NFS), these bugs
@@ -1270,11 +1271,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <sect3>
       <title>PCCARD Support</title>
 
-      <para arch="i386,pc98">The pccard driver and &man.pccardc.8; now
+      <para arch="i386,pc98" role="historic">The pccard driver and &man.pccardc.8; now
 	support multiple <quote>beep types</quote> upon card insertion
 	and removal. &merged;</para>
 
-      <para>On many modern hosts, PCCARD devices can be configured to
+      <para role="historic">On many modern hosts, PCCARD devices can be configured to
 	route their interrupts via either the ISA or PCI interrupt
 	paths.  The &man.pcic.4; driver has been updated to support
 	both interrupt paths (formerly, only routing via ISA was
@@ -1288,14 +1289,14 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	lines, placed in <filename>/boot/loader.conf</filename>, may
 	fix the problem:</para>
 
-      <programlisting>hw.pcic.intr_path="1"
+      <programlisting role="historic">hw.pcic.intr_path="1"
   hw.pcic.irq="0"</programlisting>
 
-      <para>When installing &os; on such a system, typing the
+      <para role="historic">When installing &os; on such a system, typing the
 	following lines to the boot loader may be helpful in starting
 	up &os; for the first time:<para>
 
-      <screen><prompt>ok</prompt> <userinput>set hw.pcic.intr_path="1"</userinput>
+      <screen role="historic"><prompt>ok</prompt> <userinput>set hw.pcic.intr_path="1"</userinput>
 <prompt>ok</prompt> <userinput>set hw.pcic.irq="0"</userinput></screen>
 
       <para arch="i386">Preliminary Cardbus support under NEWCARD has
@@ -1307,7 +1308,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <sect3>
       <title>Multimedia Support</title>
 
-      <para arch="i386">The &man.pcm.4; driver now supports the ESS
+      <para arch="i386" role="historic">The &man.pcm.4; driver now supports the ESS
 	Solo 1, Maestro-1, Maestro-2, and Maestro-2e; Forte Media
 	fm801, ESS Maestro-2e, and VIA Technologies VT82C686A sound
 	card/chipsets, and has received some other updates.  Separate
@@ -1317,18 +1318,18 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	CS4281 sound chip has been added.  A driver for the S3
 	SonicVibes chipset has been added. &merged;</para>
 
-      <para arch="i386">A driver for the Avance Logic ALS4000 has been
+      <para arch="i386" role="historic">A driver for the Avance Logic ALS4000 has been
 	added. &merged;</para>
 
-      <para arch="i386">A driver for the ESS Maestro-3/Allegro has
+      <para arch="i386" role="historic">A driver for the ESS Maestro-3/Allegro has
 	been added, however due to licensing restrictions, it cannot
 	be compiled into the kernel. &merged; To use this driver, add
 	the following line to
 	<filename>/boot/loader.conf</filename>:</para>
 
-      <programlisting>snd_maestro3_load="YES"</programlisting>
+      <programlisting role="historic">snd_maestro3_load="YES"</programlisting>
 
-      <para>The &man.bktr.4; driver has been updated to 2.18.  This
+      <para role="historic">The &man.bktr.4; driver has been updated to 2.18.  This
 	update provides a number of new features.  New tuner types
 	have been added, and improvements to the KLD module and to
 	memory allocation have been made.  Bugs in &man.devfs.5; when
@@ -1336,23 +1337,23 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	Hauppauge Model 44xxx WinTV Cards (the ones with no audio mux)
 	has been added. &merged;</para>
 
-      <para arch="i386,pc98">The ufm driver, supporting the D-Link DSB-R100
+      <para arch="i386,pc98" role="historic">The ufm driver, supporting the D-Link DSB-R100
 	USB Radio, has been added. &merged;</para>
 
-      <para>When sound modules are built, one can now load all the
+      <para role="historic">When sound modules are built, one can now load all the
 	drivers and infrastructure by <command>kldload
 	snd</command>. &merged;</para>
 
       <para>A new API has been added for sound cards with hardware
 	volume control.</para>
 
-      <para arch="i386">A driver for the Intel 443MX, 810, 815, and
+      <para arch="i386" role="historic">A driver for the Intel 443MX, 810, 815, and
 	815E integrated sound devices has been added. &merged;</para>
 
-      <para arch="i386">The via82c686 sound driver now supports the VIA
+      <para arch="i386" role="historic">The via82c686 sound driver now supports the VIA
 	VT8233. &merged;</para>
 
-      <para arch="i386">The ich sound driver now support the SiS
+      <para arch="i386" role="historic">The ich sound driver now support the SiS
 	7012 chipset. &merged;</para>
 
       <para arch="i386">Drivers have been added to support the Direct
@@ -1386,7 +1387,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<para><application>IPFilter</application> has been updated to
 	  3.4.28.</para>
 
-	<para><application>IPFilter</application> now supports
+	<para role="historic"><application>IPFilter</application> now supports
 	  IPv6. &merged;</para>
 
       </sect4>
@@ -1397,39 +1398,39 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<para><application>isdn4bsd</application> has been updated to
 	  version 1.0.2.</para>
 
-	<para>The &man.ifpi.4; driver for supporting the AVM
+	<para role="historic">The &man.ifpi.4; driver for supporting the AVM
 	  Fritz!Card PCI controller has been added. &merged;</para>
 
-	<para>The &man.ifpi2.4; driver for supporting the AVM
+	<para role="historic">The &man.ifpi2.4; driver for supporting the AVM
 	  Fritz!Card PCI version 2 controller has been added. &merged;</para>
 
-	<para>The &man.ihfc.4; driver for supporting Cologne Chip
+	<para role="historic">The &man.ihfc.4; driver for supporting Cologne Chip
 	  Designs HFC devices under
 	  <application>isdn4bsd</application> has been
 	  added. &merged;</para>
 
-	<para>The &man.itjc.4; driver for supporting NETjet-S / Teles
+	<para role="historic">The &man.itjc.4; driver for supporting NETjet-S / Teles
 	  PCI-TJ devices under <application>isdn4bsd</application> has
 	  been added. &merged;</para>
 
-	<para>Experimental support for the Eicon.Diehl DIVA 2.0 and
+	<para role="historic">Experimental support for the Eicon.Diehl DIVA 2.0 and
 	  2.02 ISA PnP ISDN cards has been added to the &man.isic.4;
 	  <application>isdn4bsd</application> driver. &merged;</para>
 
-	<para>The &man.isic.4; driver now supports the Compaq Microcom
+	<para role="historic">The &man.isic.4; driver now supports the Compaq Microcom
 	  610 ISDN ISA PnP card. &merged;</para>
 
-	<para>Active CAPI-based ISDN cards manufactured by AVM are now
+	<para role="historic">Active CAPI-based ISDN cards manufactured by AVM are now
 	  supported using the &man.i4bcapi.4; and the &man.iavc.4;
 	  driver.  The supported cards are the AVM B1 PCI and AVM B1
 	  ISA Basic Rate cards and the AVM T1 Primary Rate
 	  cards. &merged;</para>
 
-	<para>A new <literal>maxconnecttime</literal> keyword is now
+	<para role="historic">A new <literal>maxconnecttime</literal> keyword is now
 	  accepted in &man.isdnd.rc.5; files to limit the time a
 	  connection may remain open. &merged;</para>
 
-	<para>&man.isdnphone.8; now supports a <option>-k</option>
+	<para role="historic">&man.isdnphone.8; now supports a <option>-k</option>
 	  option for sending messages via the keypad facility to a PBX
 	  or exchange office. &merged;</para>
 
@@ -1441,35 +1442,35 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <sect4 id="kame-kernel">
 	<title>KAME</title>
 
-	<para>The IPv6 stack is now based on a snapshot based on the
+	<para role="historic">The IPv6 stack is now based on a snapshot based on the
 	  KAME Project's IPv6 snapshot as of 28 May, 2001.  Most of
 	  the items listed in this section are a result of this
 	  import.  <xref linkend="kame-userland"> lists userland
 	  updates to the KAME IPv6 stack. &merged;</para>
 
-	<para>&man.gif.4; is now based on RFC 2893, rather than RFC
+	<para role="historic">&man.gif.4; is now based on RFC 2893, rather than RFC
 	  1933.  The <literal>IFF_LINK2</literal> interface flag can
 	  be used to control ingress filtering. &merged;</para>
 
-	<para><application>IPsec</application> has received some
+	<para role="historic"><application>IPsec</application> has received some
 	  enhancements, including the ability to use the Rijndael and
 	  SHA2 algorithms.  IPsec RC5 support has been removed due to
 	  patent issues. &merged;</para>
 
-	<para>&man.stf.4; now conforms to RFC 3056; the
+	<para role="historic">&man.stf.4; now conforms to RFC 3056; the
 	  <literal>IFF_LINK2</literal> interface flag can be used to
 	  control ingress filtering. &merged;</para>
 
-	<para>IPv6 has better checking of illegal addresses (such as
+	<para role="historic">IPv6 has better checking of illegal addresses (such as
 	  loopback addresses) on physical networks. &merged;</para>
 
-	<para>The <varname>IPV6_V6ONLY</varname> socket option is now
+	<para role="historic">The <varname>IPV6_V6ONLY</varname> socket option is now
 	  completely supported.  The kernel's default behavior with
 	  respect to this option is controlled by the
 	  <varname>net.inet6.ip6.v6only</varname> sysctl
 	  variable. &merged;</para>
 
-	<para>RFC 3041 (Privacy Extensions for Stateless Address
+	<para role="historic">RFC 3041 (Privacy Extensions for Stateless Address
 	  Autoconfiguration) is now supported.  It can be enabled via
 	  the <varname>net.inet6.ip6.use_tempaddr</varname> sysctl
 	  variable. &merged;</para>
@@ -1480,7 +1481,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
   <sect2 id="security">
     <title>Security-Related Changes</title>
 
-    <para>&man.sysinstall.8; now allows the user to select one of two
+    <para role="historic">&man.sysinstall.8; now allows the user to select one of two
       <quote>security profiles</quote> at install-time.  These
       profiles enable different levels of system security by enabling
       or disabling various system services in &man.rc.conf.5; on new
@@ -1493,7 +1494,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>A security hole in Linux emulation was fixed (see security
       advisory FreeBSD-SA-00:42). &merged;</para>
 
-    <para>String-handling library calls in many programs were fixed to
+    <para role="historic">String-handling library calls in many programs were fixed to
       reduce the possibility of buffer overflow-related exploits.
       &merged;</para>
 
@@ -1529,14 +1530,14 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       has been closed (see security advisory
       FreeBSD-SA-00:76). &merged;</para>
 
-    <para>The &man.ssh.1; binary is no longer SUID root by
+    <para role="historic">The &man.ssh.1; binary is no longer SUID root by
       default. &merged;</para>
 
-    <para>Some fixes were applied to the Kerberos IV implementation
+    <para role="historic">Some fixes were applied to the Kerberos IV implementation
       related to environment variables, a possible buffer overrun, and
       overwriting ticket files. &merged;</para>
 
-    <para>&man.telnet.1; now does a better job of sanitizing its
+    <para role="historic">&man.telnet.1; now does a better job of sanitizing its
       environment. &merged;</para>
 
     <para>Several vulnerabilities in &man.procfs.5; were fixed (see
@@ -1571,14 +1572,14 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       regenerating the server key when an RSA failure is detected (see
       security advisory FreeBSD-SA-01:24). &merged;</para>
 
-    <para>A number of programs have had output formatting strings
+    <para role="historic">A number of programs have had output formatting strings
       corrected so as to reduce the risk of
       vulnerabilities. &merged;</para>
 
-    <para>A number of programs that use temporary files now do so more
+    <para role="historic">A number of programs that use temporary files now do so more
       securely. &merged;</para>
 
-    <para>A bug in ICMP that could cause an attacker to disrupt TCP and UDP
+    <para role="historic">A bug in ICMP that could cause an attacker to disrupt TCP and UDP
       <quote>sessions</quote> has been corrected. &merged;</para>
 
     <para>A bug in &man.timed.8;, which caused it to crash if send
@@ -1622,7 +1623,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       directory hierarchy.  This bug has been fixed (see security
       advisory FreeBSD-SA-01:40). &merged;</para>
 
-    <para><application>OpenSSH</application> now switches to the
+    <para role="historic"><application>OpenSSH</application> now switches to the
       user's UID before attempting to unlink the authentication
       forwarding file, nullifying the effects of a race.</para>
 
@@ -1645,7 +1646,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       attacks (see security advisory
       FreeBSD-SA-01:52). &merged;</para>
 
-    <para>All services in <filename>inetd.conf</filename> are now
+    <para role="historic">All services in <filename>inetd.conf</filename> are now
       disabled by default for new installations.  &man.sysinstall.8;
       gives the option of enabling or disabling &man.inetd.8; on new
       installations, as well as editing
@@ -1690,7 +1691,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       moved to the Ports Collection and no longer a part of the base
       system. &merged;</para>
 
-    <para>A security hole in the form of a buffer overflow in the
+    <para role="historic">A security hole in the form of a buffer overflow in the
       &man.semop.2; system call has been closed. &merged;</para>
 
     <para>A security hole in <application>OpenSSH</application>, which
@@ -1806,18 +1807,18 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
   <sect2 id="userland">
     <title>Userland Changes</title>
 
-    <para>If the first argument to &man.ancontrol.8; or
+    <para role="historic">If the first argument to &man.ancontrol.8; or
       &man.wicontrol.8; doesn't start with a <literal>-</literal>, it
       is assumed to be an interface. &merged;</para>
 
-    <para>&man.apmd.8; now has the ability to monitor battery levels
+    <para role="historic">&man.apmd.8; now has the ability to monitor battery levels
       and execute commands based on percentage or minutes of battery
       life remaining via the <literal>apm_battery</literal>
       configuration directive.  See the commented-out examples in
       <filename>/etc/apmd.conf</filename> for the
       syntax. &merged;</para>
 
-    <para>&man.arp.8; now prints the applicable interface name for
+    <para role="historic">&man.arp.8; now prints the applicable interface name for
       each ARP entry. &merged;</para>
 
     <para>&man.arp.8; now prints <literal>[fddi]</literal> or
@@ -1831,18 +1832,18 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       option to remove jobs and the <option>-t</option> option to
       specify times in POSIX time format.</para>
 
-    <para>&man.atacontrol.8; has been added to control various aspects
+    <para role="historic">&man.atacontrol.8; has been added to control various aspects
       of the &man.ata.4; driver. &merged;</para>
 
     <para>The system &man.awk.1; now refers to
       <application>BWK awk</application>.  <application>GNU
       awk</application> is now available as &man.gawk.1;.</para>
 
-    <para arch="pc98">&man.boot98cfg.8;, a PC-98 boot manager
+    <para arch="pc98" role="historic">&man.boot98cfg.8;, a PC-98 boot manager
       installation and configuration utility, has been
       added. &merged;</para>
 
-    <para>&man.burncd.8; now supports a <option>-m</option> option for
+    <para role="historic">&man.burncd.8; now supports a <option>-m</option> option for
       multisession mode (the default behavior now is to close disks as
       single-session).  A <option>-l</option> option to take a list of
       image files from a filename was also added;
@@ -1854,30 +1855,30 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>&man.burncd.8; now has the ability to write VCDs/SVCDs.</para>
 
-    <para>&man.c89.1; has been converted from a shell script to a
+    <para role="historic">&man.c89.1; has been converted from a shell script to a
       binary executable, fixing some minor bugs. &merged;</para>
 
-    <para arch="i386,pc98">A minimalized version of &man.camcontrol.8; is
+    <para arch="i386,pc98" role="historic">A minimalized version of &man.camcontrol.8; is
       now available on the installation floppy.  This allows it to
       rescan for devices that have been connected after booting, or to
       show the devices attached to SCSI busses (e. g. from within the
       <quote>emergency holographic shell</quote>). &merged;</para>
 
-    <para>&man.cat.1; now has the ability to read from UNIX-domain
+    <para role="historic">&man.cat.1; now has the ability to read from UNIX-domain
       sockets. &merged;</para>
 
     <para>&man.catman.1; is now a C program, instead of a
       Perl script.</para>
 
-    <para>&man.cdcontrol.1; now supports a <literal>cdid</literal>
+    <para role="historic">&man.cdcontrol.1; now supports a <literal>cdid</literal>
       command, which calculates and displays the CD serial number,
       using the same algorithm used by the CDDB
       database. &merged;</para>
 
-    <para>&man.cdcontrol.1; now uses the <envar>CDROM</envar>
+    <para role="historic">&man.cdcontrol.1; now uses the <envar>CDROM</envar>
       environment variable to pick a default device. &merged;</para>
 
-    <para>&man.cdcontrol.1; now supports <literal>next</literal> and
+    <para role="historic">&man.cdcontrol.1; now supports <literal>next</literal> and
       <literal>prev</literal> commands to skip forwards or backwards a
       specified number of tracks while playing an audio
       CD. &merged;</para>
@@ -1889,7 +1890,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.chflags.1; has moved from <filename>/usr/bin</filename>
       to <filename>/bin</filename>.</para>
 
-    <para>&man.chio.1; now has the ability to specify elements by
+    <para role="historic">&man.chio.1; now has the ability to specify elements by
       volume tag instead of by their physical location as well as the
       ability to return an element to its previous
       location. &merged;</para>
@@ -1897,7 +1898,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.chmod.1; now supports a <option>-h</option> for
       changing the mode of a symbolic link.</para>
 
-    <para>&man.chown.8; now correctly follows symbolic links named as
+    <para role="historic">&man.chown.8; now correctly follows symbolic links named as
       command line arguments if run without
       <option>-R</option>. &merged;</para>
 
@@ -1909,30 +1910,30 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       require inclusion of
       <filename>&lt;sys/param.h&gt;</filename></para>
 
-    <para>&man.col.1; now takes a <option>-p</option> flag to force
+    <para role="historic">&man.col.1; now takes a <option>-p</option> flag to force
       unknown control sequences to be passed through
       unchanged. &merged;</para>
 
-    <para>The <filename>compat3x</filename> distribution has been
+    <para role="historic">The <filename>compat3x</filename> distribution has been
       updated to include libraries present in &os;
       3.5.1-RELEASE. &merged;</para>
 
     <para>A <filename>compat4x</filename> distribution has been added
       for compatibility with &os; 4-STABLE.</para>
 
-    <para>&man.config.8; is now better about converting various
+    <para role="historic">&man.config.8; is now better about converting various
       warnings that should have been errors into actual fatal errors
       with an exit code.  This ensures that <literal>make
       buildkernel</literal> doesn't quietly ignore them and build a
       bogus kernel without a human to read the errors. &merged;</para>
 
-    <para>A number of buffer overflows in &man.config.8; have been
+    <para role="historic">A number of buffer overflows in &man.config.8; have been
       fixed. &merged;</para>
 
     <para>A new &man.csplit.1; utility, which splits files based on
       context, has been added.</para>
 
-    <para>&man.ctags.1; no longer creates a corrupt tags file if the
+    <para role="historic">&man.ctags.1; no longer creates a corrupt tags file if the
       source file used <literal>//</literal> (C++-style)
       comments. &merged;</para>
 
@@ -1945,47 +1946,47 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.devinfo.8;, a simple tool to print the device tree and resource
       usage by devices, has been added.</para>
 
-    <para>&man.df.1; now takes a <option>-l</option> option to only
+    <para role="historic">&man.df.1; now takes a <option>-l</option> option to only
       display information about locally-mounted
       filesystems. &merged;</para>
 
-    <para>&man.disklabel.8; now supports partition sizes expressed in
+    <para role="historic">&man.disklabel.8; now supports partition sizes expressed in
       kilobytes, megabytes, or gigabytes, in addition to
       sectors. &merged;</para>
 
     <para>diskpart(8) has been declared obsolete, and has been
       removed.</para>
 
-    <para>&man.dmesg.8; now has a <option>-a</option> option to show
+    <para role="historic">&man.dmesg.8; now has a <option>-a</option> option to show
       the entire message buffer, including &man.syslogd.8; records and
       <filename>/dev/console</filename> output. &merged;</para>
 
-    <para>&man.du.1; now takes a <option>-I</option> command-line flag
+    <para role="historic">&man.du.1; now takes a <option>-I</option> command-line flag
       to ignore/skip files and subdirectories matching a specified
       shell-glob mask. &merged;</para>
 
-    <para>&man.dump.8; now supports inheritance of the
+    <para role="historic">&man.dump.8; now supports inheritance of the
       <literal>nodump</literal> flag down a hierarchy. &merged;</para>
 
-    <para>The <option>-T</option> option to &man.dump.8; no longer
+    <para role="historic">The <option>-T</option> option to &man.dump.8; no longer
       swallows an extra argument. &merged;</para>
 
-    <para>&man.dump.8; has a new <option>-D</option> option, allowing
+    <para role="historic">&man.dump.8; has a new <option>-D</option> option, allowing
       the path to the <filename>/etc/dumpdates</filename> file to be
       changed. &merged;</para>
 
-    <para>&man.dump.8; now supplies progress information in its
+    <para role="historic">&man.dump.8; now supplies progress information in its
       process title, useful for monitoring automated
       backups. &merged;</para>
 
     <para>&man.dump.8; now supports a new <option>-S</option> flag to allow
       it to just print out the dump size estimates and exit.</para>
 
-    <para>&man.edquota.8; now takes a <option>-f</option> option to
+    <para role="historic">&man.edquota.8; now takes a <option>-f</option> option to
       allow limiting the prototype quota distribution (specified with
       <option>-p</option>) to a single filesystem. &merged;</para>
 
-    <para><filename>/etc/rc.firewall</filename> and
+    <para role="historic"><filename>/etc/rc.firewall</filename> and
       <filename>/etc/rc.firewall6</filename> will no longer add their own
       hardcoded rules in the cases of a rules file in the
       <varname>firewall_type</varname> variable or a non-existent
@@ -1994,7 +1995,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       addition, the <literal>closed</literal> firewall type now works
       as documented in the &man.rc.firewall.8; manual page. &merged;</para>
 
-    <para>The functionality of <filename>/etc/security</filename> has
+    <para role="historic">The functionality of <filename>/etc/security</filename> has
       been been moved into a set of scripts under the &man.periodic.8;
       framework, to make local customization easier and more
       maintainable.  These scripts now reside in
@@ -2022,41 +2023,41 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       from bad media, and to obviate for a complex invocation of
       &man.dd.1;.</para>
 
-    <para>&man.find.1; now takes the <option>-empty</option> flag,
+    <para role="historic">&man.find.1; now takes the <option>-empty</option> flag,
       which returns true if a file or directory is
       empty. &merged;</para>
 
-    <para>&man.find.1; now takes the <option>-iname</option> and
+    <para role="historic">&man.find.1; now takes the <option>-iname</option> and
       <option>-ipath</option> primaries for case-insensitive matches,
       and the <option>-regexp</option> and <option>-iregexp</option>
       primaries for regular-expression matches.  The
       <option>-E</option> flag now enables extended regular
       expressions. &merged;</para>
 
-    <para>&man.find.1; now has the <option>-anewer</option>,
+    <para role="historic">&man.find.1; now has the <option>-anewer</option>,
       <option>-cnewer</option>, <option>-mnewer</option>,
       <option>-okdir</option>, and <option>-newer[acm][acmt]</option>
       primaries for comparisons of file timestamps.  The latter
       primaries can be specified with various units of
       time. &merged;</para>
 
-    <para>&man.finger.1; now has the ability to support fingering
+    <para role="historic">&man.finger.1; now has the ability to support fingering
       aliases, via the &man.finger.conf.5; file. &merged;</para>
 
     <para>&man.finger.1; now has support for a
       <filename>.pubkey</filename> file.</para>
 
-    <para>&man.fmt.1; has been rewritten; the rewrite fixes a number
+    <para role="historic">&man.fmt.1; has been rewritten; the rewrite fixes a number
       of bugs compared to its prior behavior. &merged;</para>
 
-    <para>&man.fmtcheck.3;, a function for checking consistency of
+    <para role="historic">&man.fmtcheck.3;, a function for checking consistency of
       format string arguments, has been added. &merged;</para>
 
     <para>&man.fold.1; now supports a <option>-b</option> flag to
       break at byte positions and a <option>-s</option> flag to break at
       word boundaries.</para>
 
-    <para>&man.fsdb.8; now supports a <literal>blocks</literal>
+    <para role="historic">&man.fsdb.8; now supports a <literal>blocks</literal>
       command to list the blocks allocated by a particular
       inode. &merged;</para>
 
@@ -2086,7 +2087,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       controlled by the
       <varname>background_fsck</varname> option in &man.rc.conf.5;.</para>
 
-    <para>Shortly after the receipt of a <literal>SIGINFO</literal>
+    <para role="historic">Shortly after the receipt of a <literal>SIGINFO</literal>
       signal (normally control-T from the controlling tty),
       &man.fsck.ffs.8; will now output a line indicating the current
       phase number and progress information relevant to the current
@@ -2098,10 +2099,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <option>-F</option> flag now determines whether a specified
       filesystem needs foreground checking.</para>
 
-    <para>A new &man.fsck.msdosfs.8; utility has been added to check
+    <para role="historic">A new &man.fsck.msdosfs.8; utility has been added to check
       the consistency of MS-DOS filesystems. &merged;</para>
 
-    <para>&man.ftpd.8; now supports a <option>-r</option> flag for
+    <para role="historic">&man.ftpd.8; now supports a <option>-r</option> flag for
       read-only mode and a <option>-E</option> flag to disable
       <literal>EPSV</literal>.  It also has some fixes to reduce
       information leakage and the ability to specify compile-time port
@@ -2115,11 +2116,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       be used to create a relatively safe anonymous FTP drop box for
       others to upload to.</para>
 
-    <para arch="i386,pc98">&man.gdb.1; now supports hardware
+    <para arch="i386,pc98" role="historic">&man.gdb.1; now supports hardware
       watchpoints (using the kernel's debug register + support that
       has been introduced in &os; 4.0). &merged;</para>
 
-    <para>The &man.getprogname.3; and &man.setprogname.3; library
+    <para role="historic">The &man.getprogname.3; and &man.setprogname.3; library
       functions have been added to manipulate the name of the current
       program.  They are used by error-reporting routines to produce
       consistent output. &merged;</para>
@@ -2129,12 +2130,12 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       With this change, properly-compiled KLD modules are now able to
       be profiled.</para>
 
-    <para>&man.growfs.8;, a utility for growing FFS filesystems, has
+    <para role="historic">&man.growfs.8;, a utility for growing FFS filesystems, has
       been added.  &man.ffsinfo.8;, a utility for dump all the
       meta-information of an existing filesystem, has also been
       added. &merged;</para>
 
-    <para>The &man.groups.1; and &man.whoami.1; shell scripts are now
+    <para role="historic">The &man.groups.1; and &man.whoami.1; shell scripts are now
       unnecessary; their functionality has been completely folded into
       &man.id.1;. &merged;</para>
 
@@ -2144,32 +2145,32 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       will automatically load them as needed to fulfill
       dependencies.</para>
 
-    <para>&man.indent.1; has gained some new formatting
+    <para role="historic">&man.indent.1; has gained some new formatting
       options. &merged;</para>
 
-    <para>&man.ifconfig.8; can set the link-layer address of
+    <para role="historic">&man.ifconfig.8; can set the link-layer address of
       an interface using the <option>link</option> parameter.
       &merged;</para>
 
-    <para>&man.ifconfig.8; can now accept addresses in slash/CIDR
+    <para role="historic">&man.ifconfig.8; can now accept addresses in slash/CIDR
     notation. &merged;</para>
 
-    <para>&man.ifconfig.8; now has support for setting parameters for
+    <para role="historic">&man.ifconfig.8; now has support for setting parameters for
       IEEE 802.11 wireless network devices.  &man.wi.4; and &man.an.4;
       devices are supported, and partial support is provided for
       &man.awi.4; devices. &merged;</para>
 
-    <para>&man.ifconfig.8; no longer displays the list of supported
+    <para role="historic">&man.ifconfig.8; no longer displays the list of supported
       media by default.  Instead it displays it when the
       <option>-m</option> flag is given. &merged;</para>
 
-    <para>The syntax of &man.inetd.8;'s support for &man.faithd.8; is
+    <para role="historic">The syntax of &man.inetd.8;'s support for &man.faithd.8; is
       now compatible with that of other BSDs. &merged;</para>
 
-    <para>The <literal>ident</literal> protocol support in
+    <para role="historic">The <literal>ident</literal> protocol support in
       &man.inetd.8; has been cleaned up and updated. &merged;</para>
 
-    <para>&man.inetd.8; now has the ability to manage UNIX-domain
+    <para role="historic">&man.inetd.8; now has the ability to manage UNIX-domain
       sockets. &merged;</para>
 
     <para>By default, &man.inetd.8; is no longer run by &man.rc.8; at
@@ -2180,7 +2181,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <programlisting>inetd_enable="YES"</programlisting>
 
-    <para>&man.install.1; has a number of new features, including the
+    <para role="historic">&man.install.1; has a number of new features, including the
       <option>-b</option> and <option>-B</option> options for backing up
       existing target files and the <option>-S</option> option for
       <quote>safe</quote> (atomic copy) operation.  The
@@ -2190,36 +2191,38 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       (create directories) and <option>-C</option> (copy changed files
       only) are used together. &merged;</para>
 
-    <para>IP Filter is now supported by the &man.rc.conf.5; boot-time
+    <para role="historic">IP Filter is now supported by the &man.rc.conf.5; boot-time
       configuration and initialization. &merged;</para>
 
-    <para>&man.ipfstat.8; now supports the <option>-t</option> option
+    <para role="historic">&man.ipfstat.8; now supports the <option>-t</option> option
       to turn on a &man.top.1;-like display. &merged;</para>
 
-    <para>&man.ipfw.8; will now avoid the display of dynamic firewall
+    <para role="historic">&man.ipfw.8; will now avoid the display of dynamic firewall
       rules unless the <option>-d</option> flag is passed to it.  The
       <option>-e</option> option lists expired dynamic
       rules. &merged;</para>
 
-    <para>&man.ipfw.8; has a new feature (<literal>me</literal>) that
+    <para role="historic">&man.ipfw.8; has a new feature (<literal>me</literal>) that
       allows for packet matching on interfaces with
       dynamically-changing IP addresses. &merged;</para>
 
-    <para>&man.ipfw.8; has a new <literal>limit</literal> type of
+    <para role="historic">&man.ipfw.8; has a new <literal>limit</literal> type of
       firewall rule, which limits the number of sessions between
       address pairs. &merged;</para>
 
     <para>&man.ipfw.8; filter rules can now match on the value of the
       IPv4 precedence field.</para>
 
-    <para>&man.ip6fw.8; now has the ability to use a preprocessor and
+    <para role="historic">&man.ip6fw.8; now has the ability to use a preprocessor and
       use the <option>-q</option> (quiet) flag when reading from a
       file. &merged;</para>
 
-    <para>&man.ispppcontrol.8; has been deleted, and its functionality
+    <para role="historic">&man.ispppcontrol.8; has been deleted, and its functionality
       has been folded into &man.spppcontrol.8;. &merged;</para>
 
-    <para>&man.k5su.8; is no longer installed SUID
+    <para role="historic">&man.kenv.1;, a command to dump the kernel environment, has
+
+    <para role="historic">&man.k5su.8; is no longer installed SUID
       <username>root</username> by default.  Users requiring this
       feature can either manually change the permissions on the
       &man.k5su.8; executable or add
@@ -2233,14 +2236,14 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.kenv.1; now has the ability to set or delete kernel
       environment variables.</para>
 
-    <para>&man.keyinfo.1; is now a C program, rather than a Perl
+    <para role="historic">&man.keyinfo.1; is now a C program, rather than a Perl
       script. &merged;</para>
 
     <para>The kget(8) utility has been removed (it was only
       useful for UserConfig, which is not present in &os;
       &release.current;).</para>
 
-    <para>&man.killall.1; is now a C program, rather than a Perl
+    <para role="historic">&man.killall.1; is now a C program, rather than a Perl
       script.  As a result, its <option>-m</option> option now uses
       the regular expression syntax of &man.regex.3;, rather than that
       of Perl. &merged;</para>
@@ -2248,29 +2251,29 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.killall.1; no longer tries to kill zombie processes
       unless the <option>-z</option> flag is specified.</para>
 
-    <para>The &man.kldconfig.8; utility has been added to make it
+    <para role="historic">The &man.kldconfig.8; utility has been added to make it
       easier to manipulate the kernel module search
       path. &merged;</para>
 
     <para>ktrdump, a utility to dump the ktr trace buffer from
       userland, has been added.</para>
 
-    <para>&man.last.1; now implements a <option>-d</option> that
+    <para role="historic">&man.last.1; now implements a <option>-d</option> that
       provides a <quote>snapshot</quote> of who was logged in at a
       particular date and time. &merged;</para>
 
-    <para>&man.last.1; now supports a <option>-y</option> flag, which
+    <para role="historic">&man.last.1; now supports a <option>-y</option> flag, which
       causes the year to be included in the session start time. &merged;</para>
 
-    <para>The &man.lastlogin.8; utility, which prints the last login
+    <para role="historic">The &man.lastlogin.8; utility, which prints the last login
       time of each user, has been imported from
       NetBSD. &merged;</para>
 
-    <para>&man.ldconfig.8; now checks directory ownerships and
+    <para role="historic">&man.ldconfig.8; now checks directory ownerships and
       permissions for greater security; these checks can be disabled
       with the <option>-i</option> flag. &merged;</para>
 
-    <para>&man.ldd.1; can now be used on shared libraries, in addition
+    <para role="historic">&man.ldd.1; can now be used on shared libraries, in addition
       to executables. &merged;</para>
 
     <para>&man.ldd.1; now supports a <option>-a</option> flag to list
@@ -2280,20 +2283,20 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <filename>libc_r</filename> contains only thread
       functions.</para>
 
-    <para><filename>libcrypt</filename> and
+    <para role="historic"><filename>libcrypt</filename> and
       <filename>libdescrypt</filename> have been unified to provide a
       configurable password authentication hash library.  Both the md5
       and des hash methods are provided unless the des hash is
       specifically compiled out. &merged;</para>
 
-    <para><filename>libcrypt</filename> now has support for Blowfish
+    <para role="historic"><filename>libcrypt</filename> now has support for Blowfish
       password hashing. &merged;</para>
 
-    <para arch="i386"><filename>libdisk</filename> can now do
+    <para arch="i386" role="historic"><filename>libdisk</filename> can now do
       install-time configuration of the <filename>boot0</filename>
       boot loader. &merged;</para>
 
-    <para><filename>libstand</filename> now has support for
+    <para role="historic"><filename>libstand</filename> now has support for
       filesystems containing
       <application>bzip2</application>-compressed
       files. &merged;</para>
@@ -2303,20 +2306,20 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       cannot expand or truncate files because the filesystem may be
       dirty or inconsistent).</para>
 
-    <para><filename>libstand</filename> now has support for loading
+    <para role="historic"><filename>libstand</filename> now has support for loading
       large kernels and modules split across several physical
       media. &merged;</para>
 
-    <para>The default TCP port range used by
+    <para role="historic">The default TCP port range used by
       <filename>libfetch</filename> for passive FTP retrievals has
       changed; this affects the behavior of &man.fetch.1;, which has
       gained the <option>-U</option> option to restore the old
       behavior. &merged;</para>
 
-    <para><filename>libfetch</filename> now has support for an
+    <para role="historic"><filename>libfetch</filename> now has support for an
       authentication callback. &merged;</para>
 
-    <para><filename>libfetch</filename> now has support for a
+    <para role="historic"><filename>libfetch</filename> now has support for a
       <envar>HTTP_USER_AGENT</envar> environment
       variable. &merged;</para>
 
@@ -2326,64 +2329,64 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>The functions from <filename>libposix1e</filename> have been
       integrated into <filename>libc</filename>.</para>
 
-    <para><filename>libusb</filename> has been renamed as
+    <para role="historic"><filename>libusb</filename> has been renamed as
       <filename>libusbhid</filename>, following NetBSD's naming
       conventions. &merged;</para>
 
-    <para>&man.ln.1; now takes an <option>-i</option> option to
+    <para role="historic">&man.ln.1; now takes an <option>-i</option> option to
       request user confirmation before overwriting an existing
       file. &merged;</para>
 
-    <para>&man.ln.1; now takes a <option>-h</option> flag to avoid
+    <para role="historic">&man.ln.1; now takes a <option>-h</option> flag to avoid
       following a target that is a link, with a <option>-n</option>
       flag for compatibility with other
       implementations. &merged;</para>
 
-    <para>&man.logger.1; can now send messages directly to a remote
+    <para role="historic">&man.logger.1; can now send messages directly to a remote
       syslog. &merged;</para>
 
-    <para>&man.login.1; now exports environment variables set by
+    <para role="historic">&man.login.1; now exports environment variables set by
       <application>PAM</application> modules. &merged;</para>
 
-    <para>&man.lpc.8; has been improved; <command>lpc clean</command>
+    <para role="historic">&man.lpc.8; has been improved; <command>lpc clean</command>
       is now somewhat safer, and a new <command>lpc tclean</command>
       command has been added to check to see what files would be
       removed by <command>lpc clean</command>. &merged;</para>
 
-    <para>&man.lpd.8; now takes two new options: <option>-c</option>
+    <para role="historic">&man.lpd.8; now takes two new options: <option>-c</option>
       will log all connection errors to &man.syslogd.8;, while
       <option>-W</option> will allow connections from non-reserved
       ports. &merged;</para>
 
-    <para>&man.lpd.8; now has some support for
+    <para role="historic">&man.lpd.8; now has some support for
       <literal>o</literal>-type print-file actions in its control
       files, which allows printing of PostScript files generated by
       <application>MacOS</application> 10.1. &merged;</para>
 
-    <para>&man.lpd.8; now recognizes the <option>-s</option> flag as
+    <para role="historic">&man.lpd.8; now recognizes the <option>-s</option> flag as
       the preferred synonym for <option>-p</option> (these flags
       cause &man.lpd.8; not to open a socket for network print
       jobs). &merged;</para>
 
-    <para>&man.lpd.8; now implements a new <literal>rc</literal>
+    <para role="historic">&man.lpd.8; now implements a new <literal>rc</literal>
       printcap option.  When specified in a print queue for a remote
       host, boolean option causes &man.lpd.8; to resend the data file
       for each copy the user requested via <command>lpr
       -#<replaceable>n</replaceable></command>. &merged;</para>
 
-    <para>Catching up with most other network utilities in the base
+    <para role="historic">Catching up with most other network utilities in the base
       system, &man.lpr.1;, &man.lpd.8;, &man.syslogd.8;, and
       &man.logger.1; are now all IPv6-capable. &merged;</para>
 
-    <para><command>lprm -</command> now works for remote printer
+    <para role="historic"><command>lprm -</command> now works for remote printer
       queues. &merged;</para>
 
-    <para>&man.ls.1; can produce colorized listings with the
+    <para role="historic">&man.ls.1; can produce colorized listings with the
       <option>-G</option> flag (and appropriate terminal support).
       The <envar>CLICOLOR</envar> environment variable can be set to
       enable colorized listings by default. &merged;</para>
 
-    <para>&man.ls.1; now accepts a <option>-h</option> flag, which
+    <para role="historic">&man.ls.1; now accepts a <option>-h</option> flag, which
       when combined with the <option>-l</option> flag, causes file
       sizes to be printed with unit suffixes, such that the number of
       digits printed is fewer than four. &merged;</para>
@@ -2394,30 +2397,30 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       a <option>-x</option> flag to sort filenames across a
       page.</para>
 
-    <para>&man.m4.1; now accepts a <option>-s</option> flag to cause
+    <para role="historic">&man.m4.1; now accepts a <option>-s</option> flag to cause
       it to emit <literal>#line</literal> directives for use by
       &man.cpp.1;. &merged;</para>
 
-    <para>&man.mail.1; now takes a <option>-E</option> flag to avoid
+    <para role="historic">&man.mail.1; now takes a <option>-E</option> flag to avoid
       sending messages with empty bodies. &merged;</para>
 
-    <para>&man.make.1; has gained the <literal>:C///</literal>
+    <para role="historic">&man.make.1; has gained the <literal>:C///</literal>
       (regular expression substitution), <literal>:L</literal>
       (lowercase), and <literal>:U</literal> (uppercase) variable
       modifiers.  These were added to reduce the differences between
       the &os; and OpenBSD/NetBSD &man.make.1; programs.
       &merged;</para>
 
-    <para>Bugs in &man.make.1;, among which include broken null suffix
+    <para role="historic">Bugs in &man.make.1;, among which include broken null suffix
       behavior, bad assumptions about current directory permissions,
       and potential buffer overflows, have been fixed. &merged;</para>
 
-    <para>The new <varname>CPUTYPE</varname>
+    <para role="historic">The new <varname>CPUTYPE</varname>
       <filename>make.conf</filename> variable controls the compilation
       of processor-specific optimizations in various pieces of code
       such as <application>OpenSSL</application>. &merged;</para>
 
-    <para>The &os; <filename>Makefile</filename> infrastructure now
+    <para role="historic">The &os; <filename>Makefile</filename> infrastructure now
       supports the <varname>WARNS</varname> directive from NetBSD.
       This directive controls the addition of compiler warning flags
       to <varname>CFLAGS</varname> in a relatively compiler-neutral
@@ -2441,12 +2444,12 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       &man.mount.8; that mimics the command line option set of the
       deprecated &man.mount.mfs.8;.</para>
 
-    <para>&man.mergemaster.8; now sources an
+    <para role="historic">&man.mergemaster.8; now sources an
       <filename>/etc/mergemaster.rc</filename> file and also prompts
       the user to run recommended commands (such as
       <command>newaliases</command>) as needed. &merged;</para>
 
-    <para>&man.mergemaster.8; now supports two new flags.
+    <para role="historic">&man.mergemaster.8; now supports two new flags.
       The <option>-p</option> flag enables a
       <quote>pre-<literal>buildworld</literal></quote> mode to files
       known to be essential to the success of the
@@ -2457,14 +2460,14 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <filename>/etc/rc.conf</filename> to the default options in
       <filename>/etc/defaults/rc.conf</filename>. &merged;</para>
 
-    <para>mk_cmds(1) and the associated
+    <para role="historic">mk_cmds(1) and the associated
       <filename>libss</filename> have been removed; they have been
       unused for quite some time. &merged;</para>
 
-    <para>&man.moused.8; now takes a <option>-a</option> option to
+    <para role="historic">&man.moused.8; now takes a <option>-a</option> option to
       control mouse acceleration. &merged;</para>
 
-    <para>&man.mtree.8; now includes support for a file that lists
+    <para role="historic">&man.mtree.8; now includes support for a file that lists
       pathnames to be excluded when creating and verifying prototypes.
       This makes it easier to use &man.mtree.8; as a part of an
       intrusion-detection system. &merged;</para>
@@ -2473,43 +2476,43 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       automatically answer <quote>no</quote> when it would ask to
       overwrite a file.</para>
 
-    <para>&man.natd.8; now supports a
+    <para role="historic">&man.natd.8; now supports a
       <option>-log_ipfw_denied</option> option to log packets that
       cannot be re-injected because they are blocked by &man.ipfw.8;
       rules. &merged;</para>
 
-    <para>The <quote>in use</quote> percentage metric displayed by
+    <para role="historic">The <quote>in use</quote> percentage metric displayed by
       &man.netstat.1; now really reflects the percentage of network
       mbufs used. &merged;</para>
 
-    <para>&man.netstat.1; now has a <option>-W</option> flag that
+    <para role="historic">&man.netstat.1; now has a <option>-W</option> flag that
       tells it not to truncate addresses, even if they're too long for
       the column they're printed in. &merged;</para>
 
-    <para>&man.netstat.1; now keeps track of input and output packets
+    <para role="historic">&man.netstat.1; now keeps track of input and output packets
       on a per-address basis for each interface. &merged;</para>
 
-    <para>&man.netstat.1; now has a <option>-z</option> flag to reset
+    <para role="historic">&man.netstat.1; now has a <option>-z</option> flag to reset
       statistics. &merged;</para>
 
-    <para>&man.netstat.1; now has a <option>-S</option> flag to print
+    <para role="historic">&man.netstat.1; now has a <option>-S</option> flag to print
       address numerically but port names symbolically. &merged;</para>
 
-    <para>&man.newfs.8; now implements write combining, which can make
+    <para role="historic">&man.newfs.8; now implements write combining, which can make
       creation of new filesystems up to seven times
       faster. &merged;</para>
 
-    <para>&man.newfs.8; now takes a <option>-U</option> option to
+    <para role="historic">&man.newfs.8; now takes a <option>-U</option> option to
       enable softupdates on a new filesystem. &merged;</para>
 
-    <para>The default number of cylinders per group in &man.newfs.8;
+    <para role="historic">The default number of cylinders per group in &man.newfs.8;
       is now computed to be the maximum allowable given the current
       filesystem parameters.  It can be overridden with the
       <option>-c</option> option.  Formerly, the default was fixed at
       16.  This change leads to better &man.fsck.8; performance and
       reduced fragmentation. &merged;</para>
 
-    <para><anchor id="newfs-block-frag-sizes">The default block and
+    <para role="historic"><anchor id="newfs-block-frag-sizes">The default block and
       fragment sizes for new filesystems created by &man.newfs.8; are
       now 16384 and 2048 bytes, respectively (the old defaults were
       8192 and 1024 bytes).  This change generally provides increased
@@ -2524,15 +2527,15 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <option>-p</option>, <option>-r</option>, <option>-t</option>,
       and <option>-x</option> flags.</para>
 
-    <para>&man.newsyslog.8; now has the ability to compress log files
+    <para role="historic">&man.newsyslog.8; now has the ability to compress log files
       using &man.bzip2.1;. &merged;</para>
 
     <para><application>NFS</application> now works over IPv6.</para>
 
-    <para>&man.ngctl.8; now supports a <option>write</option> command
+    <para role="historic">&man.ngctl.8; now supports a <option>write</option> command
       to send a data packet down a given hook. &merged;</para>
 
-    <para>&man.nl.1;, a line numbering filter program, has been
+    <para role="historic">&man.nl.1;, a line numbering filter program, has been
       added. &merged;</para>
 
     <para><application>nsswitch</application> support has been merged
@@ -2584,7 +2587,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>A &man.pam.self.8; module, which allows self-authentication
       of a user, has been added.</para>
 
-    <para>A &man.pam.ssh.8; module has been added to allow the use of
+    <para role="historic">A &man.pam.ssh.8; module has been added to allow the use of
       SSH passphrases and keypairs for authentication.  This module
       also handles session management by invoking
       &man.ssh-agent.1;. &merged;</para>
@@ -2593,12 +2596,12 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       authentication to members of a group, which defaults to
       <groupname>wheel</groupname>.</para>
 
-    <para>&man.passwd.1; and &man.pw.8; now select the password hash
+    <para role="historic">&man.passwd.1; and &man.pw.8; now select the password hash
       algorithm at run time.  See the <literal>passwd_format</literal>
       attribute in
       <filename>/etc/login.conf</filename>. &merged;</para>
 
-    <para>&man.patch.1; now accepts a <option>-i</option> command-line
+    <para role="historic">&man.patch.1; now accepts a <option>-i</option> command-line
       flag to read a patch from a file, rather than standard
       input. &merged;</para>
 
@@ -2606,54 +2609,54 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       validity or portability between POSIX systems, has been
       added.</para>
 
-    <para>&man.pax.1; has received a number of enhancements, including
+    <para role="historic">&man.pax.1; has received a number of enhancements, including
       &man.cpio.1; functionality, &man.tar.1; compatibility
       enhancements, <option>-z</option> and <option>-Z</option> flags
       for &man.gzip.1; and &man.compress.1; functionality, and a
       number of bug fixes. &merged;</para>
 
-    <para>&man.pciconf.8; now supports a <option>-v</option> option to
+    <para role="historic">&man.pciconf.8; now supports a <option>-v</option> option to
       display the vendor/device information of configured devices, in
       conjunction with the <option>-l</option> option.  The default
       vendor/device database can be found at
       <filename>/usr/share/misc/pci_vendors</filename>. &merged;</para>
 
-    <para>The behavior of &man.periodic.8; is now controlled by
+    <para role="historic">The behavior of &man.periodic.8; is now controlled by
       <filename>/etc/defaults/periodic.conf</filename> and
       <filename>/etc/periodic.conf</filename>. &merged;</para>
 
-    <para>&man.ping.8; now supports a <option>-m</option> option to
+    <para role="historic">&man.ping.8; now supports a <option>-m</option> option to
       set the TTL of outgoing packets. &merged;</para>
 
-    <para>&man.ping.8; now supports a <option>-A</option> option to
+    <para role="historic">&man.ping.8; now supports a <option>-A</option> option to
       beep when packets are lost. &merged;</para>
 
-    <para>Userland &man.ppp.8; has received a number of updates and
+    <para role="historic">Userland &man.ppp.8; has received a number of updates and
       bug fixes. &merged;</para>
 
-    <para>&man.ppp.8; has gained the <literal>tcpmssfixup</literal>
+    <para role="historic">&man.ppp.8; has gained the <literal>tcpmssfixup</literal>
       option, which adjusts outgoing and incoming TCP SYN packets so
       that the maximum receive segment size is no larger than allowed
       by the interface MTU. &merged;</para>
 
-    <para>&man.ppp.8; now supports IPv6. &merged;</para>
+    <para role="historic">&man.ppp.8; now supports IPv6. &merged;</para>
 
-    <para>&man.pppd.8; (the control program for kernel-level PPP) is
+    <para role="historic">&man.pppd.8; (the control program for kernel-level PPP) is
       now installed mode <literal>4550</literal> and
       <username>root</username><literal>:</literal><groupname>dialer</groupname>,
       rather than mode <literal>4555</literal> (in other words, it is
       no longer world-executable).  Users of &man.pppd.8; may need to
       change their group settings. &merged;</para>
 
-    <para>&man.pr.1; now supports the <option>-f</option> and
+    <para role="historic">&man.pr.1; now supports the <option>-f</option> and
       <option>-p</option> flags to pause output going to a
       terminal. &merged;</para>
 
-    <para>The <option>-W</option> option to &man.ps.1; (to extract
+    <para role="historic">The <option>-W</option> option to &man.ps.1; (to extract
       information from a specified swap device) has been useless for
       some time; it has been removed. &merged;</para>
 
-    <para>&man.pwd.1; can now double as &man.realpath.1;, a program to
+    <para role="historic">&man.pwd.1; can now double as &man.realpath.1;, a program to
       resolve pathnames to their underlying physical
       paths. &merged;</para>
 
@@ -2664,10 +2667,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       &man.rand.3; has been improved to provide less biased
       results.</para>
 
-    <para>&man.rc.8; now has an framework for handling dependencies
+    <para role="historic">&man.rc.8; now has an framework for handling dependencies
       between &man.rc.conf.5; variables. &merged;</para>
 
-    <para>&man.rc.8; now deletes all non-directory files in
+    <para role="historic">&man.rc.8; now deletes all non-directory files in
       <filename>/var/run</filename> and
       <filename>/var/spool/lock</filename> at boot
       time. &merged;</para>
@@ -2682,18 +2685,18 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       still available from &os; Ports Collection as
       <filename role="package">net/44bsd-rdist</filename>.</para>
 
-    <para>&man.reboot.8; now takes a <option>-k</option> to specify
+    <para role="historic">&man.reboot.8; now takes a <option>-k</option> to specify
       the next kernel to boot. &merged;</para>
 
     <para>The &man.renice.8; command implements a <option>-n</option>
       option, which specifies an increment to be applied to the
       priority of a process.</para>
 
-    <para>The &man.resolver.3; in &os; now implements EDNS0 support,
+    <para role="historic">The &man.resolver.3; in &os; now implements EDNS0 support,
       which will be necessary when working with IPv6 transport-ready
       resolvers/DNS servers. &merged;</para>
 
-    <para>The &man.rfork.thread.3; library call has been added as a
+    <para role="historic">The &man.rfork.thread.3; library call has been added as a
       helper function to &man.rfork.2;.  Using this function should
       avoid the need to implement complex stack swap
       code. &merged;</para>
@@ -2701,20 +2704,20 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>The <option>-v</option> option to &man.rm.1; now displays
       the entire pathname of a file being removed.</para>
 
-    <para>&man.route.8; is now more verbose when changing indirect
+    <para role="historic">&man.route.8; is now more verbose when changing indirect
       routes, in the case of a gateway route that is the same route as
       the one being modified. &merged;</para>
 
-    <para>&man.route.8; now uses
+    <para role="historic">&man.route.8; now uses
       <literal><replaceable>host</replaceable>/<replaceable>bits</replaceable></literal>
       syntax instead of
       <literal><replaceable>net</replaceable>/<replaceable>bits</replaceable></literal>
       syntax, for compatibility with &man.netstat.1;. &merged;</para>
 
-    <para>&man.route.8; can now create <quote>proxy only</quote>
+    <para role="historic">&man.route.8; can now create <quote>proxy only</quote>
       published ARP entries. &merged;</para>
 
-    <para>The &man.route.8; <option>add</option> command now supports
+    <para role="historic">The &man.route.8; <option>add</option> command now supports
       the <option>-ifp</option> and <option>-ifa</option>
       modifiers. &merged;</para>
 
@@ -2727,10 +2730,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.rpc.lockd.8; has been imported from NetBSD.  This
       daemon provides support for servicing client NFS locks.</para>
 
-    <para>The performance of the ELF dynamic linker &man.rtld.1; has
+    <para role="historic">The performance of the ELF dynamic linker &man.rtld.1; has
       been improved. &merged;</para>
 
-    <para>RSA Security has waived all patent rights to the
+    <para role="historic">RSA Security has waived all patent rights to the
       <application>RSA</application> algorithm.  As a result, the
       native <application>OpenSSL</application> implementation of the
       RSA algorithm is now activated by default, and the <filename
@@ -2744,35 +2747,35 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <varname>LD_TRACE_LOADED_OBJECTS_ALL</varname> environment
       variable is defined.</para>
 
-    <para>&man.savecore.8; now supports a <option>-k</option> option
+    <para role="historic">&man.savecore.8; now supports a <option>-k</option> option
       to prevent clearing a crash dump after saving it.  It also
       attempts to avoid writing large stretches of zeros to crash dump
       files to save space and time. &merged;</para>
 
-    <para>&man.savecore.8; now works correctly on machines with 2 GB
+    <para role="historic">&man.savecore.8; now works correctly on machines with 2 GB
       or more of RAM. &merged;</para>
 
     <para>The &man.sccs.1; front-end to the Source Code Control System
       has been revived.</para>
 
-    <para>&man.sed.1; now takes a <option>-E</option> option for
+    <para role="historic">&man.sed.1; now takes a <option>-E</option> option for
       extended regular expression support. &merged;</para>
 
     <para>&man.sed.1; now takes a <option>-i</option> option to enable
       in-place editing of files.</para>
 
-    <para>&man.send-pr.1; now takes a <option>-a</option> option to
+    <para role="historic">&man.send-pr.1; now takes a <option>-a</option> option to
       include a file into the <literal>Fix:</literal> section of a
       problem report. &merged;</para>
 
     <para>The &man.setfacl.1; and &man.getfacl.1; commands have been
       added to manage filesystem Access Control Lists.</para>
 
-    <para>&man.setproctitle.3; has been moved from
+    <para role="historic">&man.setproctitle.3; has been moved from
       <filename>libutil</filename> to
       <filename>libc</filename>. &merged;</para>
 
-    <para>&man.sh.1; now implements <command>test</command> as a
+    <para role="historic">&man.sh.1; now implements <command>test</command> as a
       built-in command for improved efficiency. &merged;</para>
 
     <para>&man.sh.1; no longer implements <command>printf</command> as
@@ -2786,14 +2789,14 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       redirection, and a <option>-u</option> to give an error if an
       unset variable is expanded.</para>
 
-    <para>&man.sockstat.1; now has <option>-c</option> and
+    <para role="historic">&man.sockstat.1; now has <option>-c</option> and
       <option>-l</option> flags for listing connected and listening
       sockets, respectively. &merged;</para>
 
     <para>&man.spkrtest.8; is now a &man.sh.1; script, rather than a
       Perl script.</para>
 
-    <para>&man.split.1; now has the ability to split a file longer
+    <para role="historic">&man.split.1; now has the ability to split a file longer
       than 2GB. &merged;</para>
 
     <para>&man.split.1; now supports a <option>-a</option> option to
@@ -2805,10 +2808,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <literal>struct selinfo</literal> and related functions have been
       moved to <filename>&lt;sys/selinfo.h&gt;</filename>.</para>
 
-    <para>The &man.strnstr.3; and &man.strcasestr.3; variants of
+    <para role="historic">The &man.strnstr.3; and &man.strcasestr.3; variants of
       &man.strstr.3; have been implemented. &merged;</para>
 
-    <para>&man.stty.1; now has support for an
+    <para role="historic">&man.stty.1; now has support for an
       <literal>erase2</literal> control character, so that, for
       example, both the <keycap>Delete</keycap> and
       <keycap>Backspace</keycap> keys can be used to erase
@@ -2817,21 +2820,21 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.su.1; now uses <application>PAM</application> for
       authentication.</para>
 
-    <para>Boot-time &man.syscons.4; configuration was moved to a
+    <para role="historic">Boot-time &man.syscons.4; configuration was moved to a
       machine-independent
       <filename>/etc/rc.syscons</filename>. &merged;</para>
 
-    <para>&man.sysctl.8; now supports a <option>-N</option> option to
+    <para role="historic">&man.sysctl.8; now supports a <option>-N</option> option to
       print out variable names only. &merged;</para>
 
-    <para>&man.sysctl.8; has replaced the <option>-A</option> and
+    <para role="historic">&man.sysctl.8; has replaced the <option>-A</option> and
       <option>-X</option> options with <option>-ao</option> and
       <option>-ax</option> respectively; the former options are now
       deprecated.  The <option>-w</option> option is deprecated as
       well; it is not needed to determine the user's
       intentions. &merged;</para>
 
-    <para>&man.sysctl.8; now supports a <option>-e</option> option to
+    <para role="historic">&man.sysctl.8; now supports a <option>-e</option> option to
       separate variable names and values by <literal>=</literal>
       rather than <literal>:</literal>.  This feature is useful for
       producing output that can be fed back to
@@ -2840,11 +2843,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.sysctl.8; now accepts a <option>-d</option> flag to print
       the descriptions of variables.</para>
 
-    <para>&man.sysinstall.8; now properly preserves
+    <para role="historic">&man.sysinstall.8; now properly preserves
       <filename>/etc/mail</filename> during a binary
       upgrade. &merged;</para>
 
-    <para>&man.sysinstall.8; now uses some more intuitive defaults
+    <para role="historic">&man.sysinstall.8; now uses some more intuitive defaults
       thanks to some new dialog support functions. &merged;</para>
 
     <para>The default root partition in &man.sysinstall.8; is now
@@ -2855,10 +2858,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       installation process.  The &man.sysinstall.8; manpage is also
       installed in a more consistent fashion now.</para>
 
-    <para>&man.sysinstall.8; now has the ability to load KLDs as a
+    <para role="historic">&man.sysinstall.8; now has the ability to load KLDs as a
       part of the installation. &merged;</para>
 
-    <para>When run from the installation media, &man.sysinstall.8;
+    <para role="historic">When run from the installation media, &man.sysinstall.8;
       will automatically load any device drivers found in the
       <filename>/stand/modules</filename> directory of the
       <literal>mfsroot</literal> floppy or filesystem image.  Note
@@ -2866,11 +2869,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       messages; the &man.sysinstall.8; debugging screen will provide
       additional information. &merged;</para>
 
-    <para>&man.sysinstall.8; now enables Soft Updates by default on
+    <para role="historic">&man.sysinstall.8; now enables Soft Updates by default on
       all filesystems it creates, except for the root
       filesystem. &merged;</para>
 
-    <para>&man.sysinstall.8; has received updates for its
+    <para role="historic">&man.sysinstall.8; has received updates for its
       <quote>auto</quote> partitioning mode which provide more
       reasonable defaults for the sizes of partitions that are
       created; auto-sized partitions can now also recover the space
@@ -2880,45 +2883,45 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.sysinstall.8; no longer mounts the &man.procfs.5;
       filesystem by default on new installs.</para>
 
-    <para>&man.sysinstall.8; now has rudimentary support for
+    <para role="historic">&man.sysinstall.8; now has rudimentary support for
       retrieving packages from the correct volume of a multiple-volume
       installation (such as a multi-CD distribution). &merged;</para>
 
-    <para>&man.syslogd.8; can take a <option>-n</option> option to
+    <para role="historic">&man.syslogd.8; can take a <option>-n</option> option to
       disable DNS queries for every request. &merged;</para>
 
-    <para>&man.syslogd.8; now supports a
+    <para role="historic">&man.syslogd.8; now supports a
       <literal>LOG_CONSOLE</literal> facility (disabled by default),
       which can be used to log <filename>/dev/console</filename>
       output. &merged;</para>
 
-    <para>&man.syslogd.8; now has the ability to bind to a specific
+    <para role="historic">&man.syslogd.8; now has the ability to bind to a specific
       address (as opposed to using every available one) via the
       <option>-b</option> option. &merged;</para>
 
-    <para>&man.syslogd.8; now accepts a <option>-c</option> flag to
+    <para role="historic">&man.syslogd.8; now accepts a <option>-c</option> flag to
       disable repeated line compression. &merged;</para>
 
     <para>&man.tabs.1;, a utility to set terminal tab stops, has been
       added.</para>
 
-    <para>&man.tail.1; now has the ability to work on files longer
+    <para role="historic">&man.tail.1; now has the ability to work on files longer
       than 2GB. &merged;</para>
 
-    <para>&man.tar.1; now supports the <varname>TAR_RSH</varname>
+    <para role="historic">&man.tar.1; now supports the <varname>TAR_RSH</varname>
       variable, principally to enable the use of &man.ssh.1; as a
       transport. &merged;</para>
 
-    <para>&man.telnet.1; now does autologin and encryption by default;
+    <para role="historic">&man.telnet.1; now does autologin and encryption by default;
       a new <option>-y</option> option turns off encryption. &merged;</para>
 
-    <para>&man.telnet.1; now supports a <option>-u</option> flag to
+    <para role="historic">&man.telnet.1; now supports a <option>-u</option> flag to
       allow connections to UNIX-domain (<literal>AF_UNIX</literal>)
       sockets. &merged;</para>
 
-    <para>&man.tftp.1; and &man.tftpd.8; now support IPv6. &merged;</para>
+    <para role="historic">&man.tftp.1; and &man.tftpd.8; now support IPv6. &merged;</para>
 
-    <para>&man.tftpd.8; now takes the <option>-c</option> and
+    <para role="historic">&man.tftpd.8; now takes the <option>-c</option> and
       <option>-C</option> options, which allow the server to
       &man.chroot.2; based on the IP address of the connecting client.
       &man.tftp.1; and &man.tftpd.8; can now transfer files larger
@@ -2935,7 +2938,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>A version of Transport Independent RPC
       (<application>TI-RPC</application>) has been imported.</para>
 
-    <para>&man.tmpnam.3; will now use the <envar>TMPDIR</envar>
+    <para role="historic">&man.tmpnam.3; will now use the <envar>TMPDIR</envar>
       environment variable, if set, to specify the location of
       temporary files. &merged;</para>
 
@@ -2949,10 +2952,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       operate on a symbolic link, rather than what the link points
       to.</para>
 
-    <para>The &man.truncate.1; utility, which truncates or extends the
+    <para role="historic">The &man.truncate.1; utility, which truncates or extends the
       length of files, has been added. &merged;</para>
 
-    <para>Ukrainian language support has been added to the &os;
+    <para role="historic">Ukrainian language support has been added to the &os;
       console. &merged;</para>
 
     <para><application>UUCP</application> has been removed from the
@@ -2962,16 +2965,16 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.unexpand.1; now supports a <option>-t</option> to
       specify tabstabs analogous to &man.expand.1;.</para>
 
-    <para>&man.units.1; has received some updates and
+    <para role="historic">&man.units.1; has received some updates and
       bugfixes. &merged;</para>
 
     <para>&man.usbdevs.8; now supports a <option>-d</option> flag to
       show the device driver associated with each device.</para>
 
-    <para>The &man.usbhidctl.1; utility has been added to manipulate
+    <para role="historic">The &man.usbhidctl.1; utility has been added to manipulate
       USB Human Interface Devices. &merged;</para>
 
-    <para>&man.uuencode.1; and &man.uudecode.1; now accept a <option>-o</option> option to
+    <para role="historic">&man.uuencode.1; and &man.uudecode.1; now accept a <option>-o</option> option to
       set their output files.  &man.uuencode.1; can now be made to do base64 encoding
       when given the <option>-m</option> flag, while &man.uudecode.1;
       can now automatically decode base64 files. &merged;</para>
@@ -2981,21 +2984,21 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       these utilities as &man.b64encode.1; and &man.b64decode.1;
       respectively.</para>
 
-    <para>&man.vidcontrol.1; now accepts a <option>-g</option>
+    <para role="historic">&man.vidcontrol.1; now accepts a <option>-g</option>
       parameter to select custom text geometry in the
       <literal>VESA_800x600</literal> raster text mode. &merged;</para>
 
-    <para>&man.vidcontrol.1; now allows the user to omit the font size
+    <para role="historic">&man.vidcontrol.1; now allows the user to omit the font size
       specification when loading a font, and has some better
       error-handling. &merged;</para>
 
-    <para>&man.vidcontrol.1; now supports a <option>-p</option> option
+    <para role="historic">&man.vidcontrol.1; now supports a <option>-p</option> option
       to take a snapshot of a &man.syscons.4; video buffer.  These
       snapshots can be manipulated by the
       <filename role="package">graphics/scr2png</filename> utility in
       the Ports Collection. &merged;</para>
 
-    <para>&man.vidcontrol.1; now supports a <option>-C</option> option
+    <para role="historic">&man.vidcontrol.1; now supports a <option>-C</option> option
       to clear the history buffer for a given tty, as well as a
       <option>-h</option> option to set the size of the history
       buffer. &merged;</para>
@@ -3004,10 +3007,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       from 256KB to 279KB, to spread out superblocks more evenly
       between stripes.</para>
 
-    <para>&man.wall.1; now supports a <option>-g</option> flag to
+    <para role="historic">&man.wall.1; now supports a <option>-g</option> flag to
       write a message to all users of a given group. &merged;</para>
 
-    <para>&man.watch.8; now takes a <option>-f</option> option to
+    <para role="historic">&man.watch.8; now takes a <option>-f</option> option to
       specify a &man.snp.4; device to use. &merged;</para>
 
     <para>&man.which.1; is now a C program, rather than a Perl
@@ -3019,12 +3022,12 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       to <option>am i</option>; <option>-u</option> shows idle time;
       <option>-q</option> to list names in columns.</para>
 
-    <para>&man.whois.1; now directs queries for IP addresses to ARIN.
+    <para role="historic">&man.whois.1; now directs queries for IP addresses to ARIN.
       If a query to ARIN references APNIC or RIPE, the appropriate
       server will also be queried, provided that the
       <option>-Q</option> option is not specified. &merged;</para>
 
-    <para>&man.whois.1; supports a <option>-c</option> option to
+    <para role="historic">&man.whois.1; supports a <option>-c</option> option to
       specify a country code to help direct queries towards a
       particular whois server. &merged;</para>
 
@@ -3040,24 +3043,24 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       force its utility argument to be called after some number of
       lines.</para>
 
-    <para>The compiler chain now uses the FSF-supplied C/C++ runtime
+    <para role="historic">The compiler chain now uses the FSF-supplied C/C++ runtime
       initialization code.  This change brings about better
       compatibility with code generated from the various egcs and gcc
       ports, as well as the stock public FSF source. &merged;</para>
 
-    <para>The threads library has gained some signal handling changes,
+    <para role="historic">The threads library has gained some signal handling changes,
       bug fixes, and performance enhancements (including zero system
       call thread switching).  &man.gdb.1; thread support has been
       updated to match these changes. &merged;</para>
 
-    <para>Significant additions have been made to internationalization
+    <para role="historic">Significant additions have been made to internationalization
       support; &os; now has complete locale support for the
       <literal>LC_MONETARY</literal>, <literal>LC_NUMERIC</literal>,
       and <literal>LC_MESSAGES</literal> categories.  A number of
       applications have been updated to take advantage of this
       support. &merged;</para>
 
-    <para>Locale names have been changed to improve compatibility with
+    <para role="historic">Locale names have been changed to improve compatibility with
       the names used by X11R6, as well as a number of other UNIX
       versions.  As an example, the
       <literal>en_US.ISO_8859-1</literal> locale name has been changed
@@ -3066,10 +3069,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <filename>/etc/locale.alias</filename> provide backward
       compatibility. &merged;</para>
 
-    <para><filename>/usr/src/share/examples/BSD_daemon/</filename> now
+    <para role="historic"><filename>/usr/src/share/examples/BSD_daemon/</filename> now
       contains a scalable Beastie graphic. &merged;</para>
 
-    <para>As part of an ongoing process, many manual pages were
+    <para role="historic">As part of an ongoing process, many manual pages were
       improved, both in terms of their formatting markup and in their
       content. &merged;</para>
 
@@ -3092,30 +3095,30 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<command>awk</command> or
 	<command>nawk</command>.</para>
 
-      <para><application>bc</application> has been updated from 1.04 to
+      <para role="historic"><application>bc</application> has been updated from 1.04 to
 	1.06. &merged;</para>
 
-      <para>The ISC library from the <application>BIND</application>
+      <para role="historic">The ISC library from the <application>BIND</application>
 	distribution is now built as
       <filename>libisc</filename>. &merged;</para>
 
-      <para><application>BIND</application> is now built with the
+      <para role="historic"><application>BIND</application> is now built with the
 	<literal>NOADDITIONAL</literal> flag, which causes
 	&man.named.8; to operate in a more consistent fashion for
 	certain common misconfigurations. &merged;</para>
 
-      <para><application>BIND</application> has been updated to
+      <para role="historic"><application>BIND</application> has been updated to
 	8.3.2-T1B. &merged;</para>
 
       <para><application>Binutils</application> has been updated to
 	2.12.0.</para>
 
-      <para><application>bzip2</application> 1.0.2 has been imported;
+      <para role="historic"><application>bzip2</application> 1.0.2 has been imported;
 	this brings the &man.bzip2.1; program and the
 	<filename>libbz2</filename> library to the base
 	system. &merged;</para>
 
-      <para>The &man.ee.1; <application>Easy Editor</application> has
+      <para role="historic">The &man.ee.1; <application>Easy Editor</application> has
 	been updated to 1.4.2. &merged;</para>
 
       <para><application>file</application> has been updated to
@@ -3131,16 +3134,16 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	</warning>
 	</para>
 
-      <para>&man.gcc.1; now uses a unified <filename>libgcc</filename>
+      <para role="historic">&man.gcc.1; now uses a unified <filename>libgcc</filename>
 	rather than a separate one for threaded and non-threaded
 	programs.  <filename>/usr/lib/libgcc_r.a</filename> can be
 	removed. &merged;</para>
 
-      <para>&man.gcc.1; now supports the environment variable
+      <para role="historic">&man.gcc.1; now supports the environment variable
 	<envar>GCC_OPTIONS</envar>, which can hold a set of default
 	options for <application>GCC</application>. &merged;</para>
 
-      <para><application>GNATS</application> has been updated to
+      <para role="historic"><application>GNATS</application> has been updated to
 	3.113. &merged;</para>
 
       <para><application>GNU awk</application> has been updated to
@@ -3149,26 +3152,26 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para><application>gperf</application> has been updated to
 	2.7.2.</para>
 
-      <para><application>groff</application> and its related utilities
+      <para role="historic"><application>groff</application> and its related utilities
 	have been updated to FSF version 1.17.2.  This import brings
 	in a new &man.mdoc.7; macro package (sometimes referred to as
 	<literal>mdocNG</literal>), which removes many of the
 	limitations of its predecessor. &merged;</para>
 
-      <para><application>Heimdal Kerberos</application> has been updated to
+      <para role="historic"><application>Heimdal Kerberos</application> has been updated to
 	0.4e. &merged;</para>
 
-      <para>The version of <application>IPFilter</application>
+      <para role="historic">The version of <application>IPFilter</application>
 	provided with &os; now includes the &man.ipfs.8; program,
 	which allows state information created for NAT entries and
 	stateful rules to be saved to disk and restored after a
 	reboot.  Boot-time configuration of these features is
 	supported by &man.rc.conf.5;. &merged;</para>
 
-      <para>The <application>ISC DHCP</application> client has been
+      <para role="historic">The <application>ISC DHCP</application> client has been
 	updated to 3.0.1RC8. &merged;</para>
 
-      <para><application>Kerberos IV</application> has been updated to
+      <para role="historic"><application>Kerberos IV</application> has been updated to
 	1.0.5. &merged;</para>
 
       <para>The &man.more.1; command has been replaced by
@@ -3176,7 +3179,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<command>more</command>. &merged; Version 371 of
       <application>less</application> has been imported.</para>
 
-      <para><application>libpcap</application> has been updated to
+      <para role="historic"><application>libpcap</application> has been updated to
 	0.6.2. &merged;</para>
 
       <para><application>libreadline</application> has been updated to
@@ -3205,7 +3208,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para><application>ncurses</application> has been updated to
 	5.2-20020518.</para>
 
-      <para>The <application>NTP</application> suite of programs has
+      <para role="historic">The <application>NTP</application> suite of programs has
 	been updated to 4.1.0. &merged;</para>
 
       <para><application>OpenPAM</application>
@@ -3245,7 +3248,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         of the <filename role="package">textproc/textutils</filename>
         port.</para>
 
-      <para>&man.routed.8; has been updated to version
+      <para role="historic">&man.routed.8; has been updated to version
 	2.22. &merged;</para>
 
       <para arch="i386,pc98">Version 1.4.4 of the
@@ -3262,10 +3265,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para><application>GNU tar</application> has been updated to
 	1.13.25.</para>
 
-      <para><application>tcpdump</application> has been updated to
+      <para role="historic"><application>tcpdump</application> has been updated to
 	3.6.3. &merged;</para>
 
-      <para>The &man.csh.1; shell has been replaced by &man.tcsh.1;,
+      <para role="historic">The &man.csh.1; shell has been replaced by &man.tcsh.1;,
 	although it can still be run as <command>csh</command>.
 	<application>tcsh</application> has been updated to version
 	6.11. &merged;</para>
@@ -3278,35 +3281,35 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	&man.inetd.8; replacements such as
 	<application>xinetd</application>.</para>
 
-      <para><application>texinfo</application> has been updated to
+      <para role="historic"><application>texinfo</application> has been updated to
 	4.1. &merged;</para>
 
       <para><application>top</application> has been updated to version
 	3.5b12.</para>
 
-      <para>&man.traceroute.8; now takes its default maximum TTL value
+      <para role="historic">&man.traceroute.8; now takes its default maximum TTL value
 	from the <varname>net.inet.ip.ttl</varname> sysctl
 	variable. &merged;</para>
 
-      <para>The timezone database has been updated to the
+      <para role="historic">The timezone database has been updated to the
 	<filename>tzdata2002c</filename> release. &merged;</para>
 
       <sect4>
 	<title>CVS</title>
 
-	<para><application>cvs</application> has been updated to
+	<para role="historic"><application>cvs</application> has been updated to
 	  1.11.1p1. &merged;</para>
 
-	<para>The default value for &man.cvs.1;'s
+	<para role="historic">The default value for &man.cvs.1;'s
 	  <envar>CVS_RSH</envar> variable is now
 	  <literal>ssh</literal>, rather than
 	  <literal>rsh</literal>. &merged;</para>
 
-	<para>&man.cvs.1; now supports a <option>-T</option> option to
+	<para role="historic">&man.cvs.1; now supports a <option>-T</option> option to
 	  update a sandbox's <filename>CVS/Template</filename> file
 	  from the repository. &merged;</para>
 
-	<para>&man.cvs.1; <literal>diff</literal> now supports the
+	<para role="historic">&man.cvs.1; <literal>diff</literal> now supports the
 	  <option>-j</option> option to perform differences against a
 	  revision relative to a branch tag. &merged;</para>
       </sect4>
@@ -3314,7 +3317,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <sect4>
 	<title>CVSup</title>
 
-	<para><application>CVSup</application>, a frequently used
+	<para role="historic"><application>CVSup</application>, a frequently used
 	  utility in the &os; Ports Collection, was formerly
 	  installable using several ports and packages.  The
 	  <filename role="package">net/cvsup-bin</filename> and
@@ -3323,7 +3326,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	  <filename role="package">net/cvsup</filename> port should be
 	  used instead. &merged;</para>
 
-	<para><application>CVSup</application> has been updated to
+	<para role="historic"><application>CVSup</application> has been updated to
 	  16.1_3, which is available in the &os; Ports Collection as
 	  <filename role="package">net/cvsup</filename>.  This update
 	  fixes a long-standing (but only recently encountered) bug
@@ -3335,45 +3338,45 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <sect4 id="kame-userland">
 	<title>KAME</title>
 
-	<para>The IPv6 stack is now based on a snapshot based on the
+	<para role="historic">The IPv6 stack is now based on a snapshot based on the
 	  KAME Project's IPv6 snapshot as of 28 May, 2001.  Most of
 	  the items listed in this section are a result of this
 	  import.
 	  <xref linkend="kame-kernel"> lists kernel updates to the
 	  KAME IPv6 stack. &merged;</para>
 
-	<para>&man.faithd.8; now supports a configuration file for
+	<para role="historic">&man.faithd.8; now supports a configuration file for
 	  access control. &merged;</para>
 
-	<para>&man.ifconfig.8; can now perform the functions of
+	<para role="historic">&man.ifconfig.8; can now perform the functions of
 	  &man.gifconfig.8;. &merged;</para>
 
-	<para>&man.ifconfig.8; can now perform the functions of
+	<para role="historic">&man.ifconfig.8; can now perform the functions of
 	  &man.prefix.8;.  &man.prefix.8; is now a shell script for
 	  partial backwards compatibility. &merged;</para>
 
-	<para>&man.ndp.8; now implements garbage collection for stale
+	<para role="historic">&man.ndp.8; now implements garbage collection for stale
 	  NDP entries, as described in RFC 2461 (Neighbor Discovery
 	  for IP Version 6 (IPv6)). &merged;</para>
 
-	<para>pim6dd(8) and pim6sd(8) have been removed due
+	<para role="historic">pim6dd(8) and pim6sd(8) have been removed due
 	  to restrictive licensing conditions.  These programs are
 	  available in the ports collection as
 	  <filename role="package">net/pim6dd</filename> and
 	  <filename role="package">net/pim6sd</filename>. &merged;</para>
 
-	<para>&man.route6d.8; now supports an <option>-n</option> flag
+	<para role="historic">&man.route6d.8; now supports an <option>-n</option> flag
 	  to avoid updating the kernel forwarding
 	  table. &merged;</para>
 
-	<para>The <option>-R</option> (router renumbering) option to
+	<para role="historic">The <option>-R</option> (router renumbering) option to
 	  &man.rtadvd.8; is currently ignored. &merged;</para>
       </sect4>
 
       <sect4>
 	<title>OpenSSH</title>
 
-	<para><application>OpenSSH</application> has been updated to
+	<para role="historic"><application>OpenSSH</application> has been updated to
 	  2.9, which provides support for the SSH2 protocol (now the
 	  default) and DSA keys.  &man.ssh-add.1; and
 	  &man.ssh-agent.1; can now handle DSA keys, with support for
@@ -3427,30 +3430,30 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	  in a dropped session when an X11-forwarded client was
 	  closed, was fixed.</para>
 
-	<para><application>Kerberos</application> compatibility has
+	<para role="historic"><application>Kerberos</application> compatibility has
 	  been added to
 	  <application>OpenSSH</application>. &merged;</para>
 
-	<para><application>OpenSSH</application> has been modified to
+	<para role="historic"><application>OpenSSH</application> has been modified to
 	  be more resistant to traffic analysis by requiring that
   	  <quote>non-echoed</quote> characters are still echoed back
 	  in a null packet, as well as by padding passwords sent so as
 	  not to hint at password lengths. &merged;</para>
 
-	<para>&man.sshd.8; is now enabled by default on new
+	<para role="historic">&man.sshd.8; is now enabled by default on new
 	  installs. &merged;</para>
 
-	<para>&man.sshd.8; <literal>X11Forwarding</literal> is now
+	<para role="historic">&man.sshd.8; <literal>X11Forwarding</literal> is now
 	  turned on by default on the server (any risk is to the
 	  client, where it is already disabled by
 	  default). &merged;</para>
 
-	<para>In <filename>/etc/ssh/sshd_config</filename>, the
+	<para role="historic">In <filename>/etc/ssh/sshd_config</filename>, the
 	  <literal>ConnectionsPerPeriod</literal> parameter has been
 	  deprecated in favor of
 	  <literal>MaxStartups</literal>. &merged;</para>
 
-	<para><application>OpenSSH</application> now has a
+	<para role="historic"><application>OpenSSH</application> now has a
 	  <literal>VersionAddendum</literal> configuration setting for
 	  &man.sshd.8; to allow changing the part of the
 	  <application>OpenSSH</application> version string after the
@@ -3463,7 +3466,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<para><application>OpenSSL</application> has been updated to
 	  0.9.6c.</para>
 
-	<para><application>OpenSSL</application> now has support for
+	<para role="historic"><application>OpenSSL</application> now has support for
 	  machine-dependent ASM optimizations, activated by the new
 	  <varname>MACHINE_CPU</varname> and/or
 	  <varname>CPUTYPE</varname>
@@ -3485,7 +3488,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	  <filename>/usr/src/contrib/sendmail/RELEASE_NOTES</filename>
 	  for more information. &merged;</para>
 
-	<para>&man.mail.local.8; is no longer installed as a
+	<para role="historic">&man.mail.local.8; is no longer installed as a
 	  set-user-ID binary.  If you are using a
 	  <filename>/etc/mail/sendmail.cf</filename> from the default
 	  <filename>sendmail.cf</filename> included with &os; any time
@@ -3499,29 +3502,29 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	  <filename>.mc</filename> file and regenerating the
 	  <filename>sendmail.cf</filename> file:</para>
 
-	<programlisting>MODIFY_MAILER_FLAGS(`LOCAL',`+S')dnl</programlisting>
+	<programlisting role="historic">MODIFY_MAILER_FLAGS(`LOCAL',`+S')dnl</programlisting>
 
-	<para>Note that <literal>FEATURE(`local_lmtp')</literal> already
+	<para role="historic">Note that <literal>FEATURE(`local_lmtp')</literal> already
 	  does this. &merged;</para>
 
-	<para>The default <filename>/etc/mail/sendmail.cf</filename>
+	<para role="historic">The default <filename>/etc/mail/sendmail.cf</filename>
 	  disables the SMTP <literal>EXPN</literal> and
 	  <literal>VRFY</literal> commands. &merged;</para>
 
-	<para>&man.vacation.1; has been updated to use the version
+	<para role="historic">&man.vacation.1; has been updated to use the version
 	  included with <application>sendmail</application>. &merged;</para>
 
-	<para>The <application>sendmail</application> configuration
+	<para role="historic">The <application>sendmail</application> configuration
 	  building tools are installed in
 	  <filename>/usr/share/sendmail/cf/</filename>. &merged;</para>
 
-	<para>New <filename>make.conf</filename> options:
+	<para role="historic">New <filename>make.conf</filename> options:
 	  <varname>SENDMAIL_MC</varname> and
 	  <varname>SENDMAIL_ADDITIONAL_MC</varname>.  See
 	  <filename>/usr/share/examples/etc/make.conf</filename> for more
 	  information. &merged;</para>
 
-	<para><filename>/etc/mail/Makefile</filename> now supports:
+	<para role="historic"><filename>/etc/mail/Makefile</filename> now supports:
 	  the new <varname>SENDMAIL_MC</varname>
 	  <filename>make.conf</filename> option; the ability to build
 	  <filename>.cf</filename> files from
@@ -3530,7 +3533,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	  and restart
 	  <application>sendmail</application>. &merged;</para>
 
-	<para>The <username>smmsp</username> and
+	<para role="historic">The <username>smmsp</username> and
 	  <username>mailnull</username> users have been added to
 	  <filename>/etc/master.passwd</filename>.  In the absence of a
 	  <literal>confDEF_USER_ID</literal> setting, by default,
@@ -3549,7 +3552,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	  <programlisting>define(`confDEF_USER_ID', `daemon')</programlisting>
 	</para>
 
-	<para>Beginning with the import of
+	<para role="historic">Beginning with the import of
 	  <application>sendmail</application> 8.12.2, multiple
 	  <application>sendmail</application> daemons (some required
 	  to handle outgoing mail) are started by &man.rc.8;, even if
@@ -3596,49 +3599,49 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<application>Perl</application> into the &os; Ports
 	Collection, has been added.</para>
 
-      <para>&man.pkg.create.1; and &man.pkg.add.1; can now work with
+      <para role="historic">&man.pkg.create.1; and &man.pkg.add.1; can now work with
 	packages that have been compressed using
 	&man.bzip2.1;. &man.pkg.add.1; will use the PACKAGEROOT
 	environment variable to determine a mirror site for new
 	packages. &merged;</para>
 
-      <para>&man.pkg.create.1; now records dependencies in dependency
+      <para role="historic">&man.pkg.create.1; now records dependencies in dependency
 	order rather than in the order specified on the command line.
 	This improves the functioning of <command>pkg_add
 	-r</command>. &merged;</para>
 
-      <para>&man.pkg.create.1; now supports a <option>-b</option> to
+      <para role="historic">&man.pkg.create.1; now supports a <option>-b</option> to
 	create a package file from a locally-installed
 	package. &merged;</para>
 
-      <para>When requested to delete multiple packages,
+      <para role="historic">When requested to delete multiple packages,
 	&man.pkg.delete.1; will now attempt to remove them in
 	dependency order rather than the order specified on the
 	command line. &merged;</para>
 
-      <para>&man.pkg.delete.1; now can perform glob/regexp matching of
+      <para role="historic">&man.pkg.delete.1; now can perform glob/regexp matching of
 	package names.  In addition, it supports a <option>-a</option>
 	option for removing all packages and a <option>-i</option>
 	option for &man.rm.1;-style interactive
 	confirmation. &merged;</para>
 
-      <para>&man.pkg.delete.1; now supports a <option>-r</option>
+      <para role="historic">&man.pkg.delete.1; now supports a <option>-r</option>
 	option for recursive package removal. &merged;</para>
 
-      <para>&man.pkg.info.1; now supports globbing against names of
+      <para role="historic">&man.pkg.info.1; now supports globbing against names of
 	installed packages.  The <option>-G</option> option disables
 	this behavior, and the <option>-x</option> option causes
 	regular expression matching instead of shell
 	globbing. &merged;</para>
 
-      <para>&man.pkg.info.1; can now accept a <option>-g</option> flag
+      <para role="historic">&man.pkg.info.1; can now accept a <option>-g</option> flag
 	for verifying an installed package against its recorded
 	checksums (to see if it's been modified post-installation).
 	Naturally, this mechanism is only as secure as the contents of
 	<filename>/var/db/pkg</filename> if it's to be used for auditing
 	purposes. &merged;</para>
 
-      <para>&man.pkg.sign.1; and &man.pkg.check.1; have been added to
+      <para role="historic">&man.pkg.sign.1; and &man.pkg.check.1; have been added to
 	digitally sign and verify the signatures on binary package
 	files. &merged;</para>
 
@@ -3649,16 +3652,16 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	the <filename role="package">sysutils/portupgrade</filename>
 	port.</para>
 
-      <para>&man.pkg.version.1; now has a version number comparison
+      <para role="historic">&man.pkg.version.1; now has a version number comparison
 	routine that corresponds to the Porters Handbook.  It also has
 	a <option>-t</option> option for testing address comparisons.
 	&merged;</para>
 
-      <para>&man.pkg.version.1; now takes a <option>-s</option> flag
+      <para role="historic">&man.pkg.version.1; now takes a <option>-s</option> flag
 	to limit its operation to ports/packages matching a given
 	string. &merged;</para>
 
-      <para>Version numbers of installed packages have a new
+      <para role="historic">Version numbers of installed packages have a new
 	(backward-compatible) syntax, which supports the
 	<varname>PORTREVISION</varname> and
 	<varname>PORTEPOCH</varname> variables in Ports Collection
@@ -3669,24 +3672,24 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	&man.pkg.version.1; can now compare these new-style version
 	numbers. &merged;</para>
 
-      <para>To improve performance and disk utilization, the
+      <para role="historic">To improve performance and disk utilization, the
 	<quote>ports skeletons</quote> in the &os; Ports Collection
 	have been restructured.  Installed ports and packages should
 	not be affected. &merged;</para>
 
-      <para>All packages and ports now contain an
+      <para role="historic">All packages and ports now contain an
 	<quote>origin</quote> directive, which makes it easier for
 	programs such as &man.pkg.version.1; to determine the
 	directory from which a package was built. &merged;</para>
 
-      <para>The Ports Collection infrastructure now uses
+      <para role="historic">The Ports Collection infrastructure now uses
         <application>XFree86</application> 4.2.0 as the default version
         of the X Window System for the purposes of satisfying
         dependencies.  To return to using
         <application>XFree86</application> 3.3.6, add the following line
         to <filename>/etc/make.conf</filename>: &merged;</para>
 
-      <programlisting>XFREE86_VERSION=3</programlisting>
+      <programlisting role="historic">XFREE86_VERSION=3</programlisting>
 
       <para>The libraries installed by the <filename
 	role="package">emulators/linux_base</filename> port (required
@@ -3711,7 +3714,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       installations, at the expense of compatability with some old
       BIOSs.</para>
 
-    <para arch="i386,pc98,alpha"><application>XFree86</application> 4.2.0
+    <para arch="i386,pc98,alpha" role="historic"><application>XFree86</application> 4.2.0
       is now the default version of the X Window System supported by
       &man.sysinstall.8;.  It installs
       <application>XFree86</application> as a set of standard binary
