@@ -1,4 +1,4 @@
-%x string name charmap
+%x string name charmap defn nchar subs
 %{
 /*-
  * Copyright (c) 1995 Alex Tatmanjants <alex@elvisti.kiev.ua>
@@ -26,9 +26,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scan.l,v 1.1 1995/02/17 17:29:49 ache Exp $
+ * $Id: scan.l,v 1.3 1996/06/02 17:18:18 phk Exp $
  */
 
+#include <ctype.h>
 #include <err.h>
 #include <unistd.h>
 #include <string.h>
@@ -36,51 +37,64 @@
 #include "collate.h"
 #include "y.tab.h"
 
-int line_no = 1;
+int line_no = 1, save_no;
 u_char buf[STR_LEN], *ptr;
 FILE *map_fp;
+extern char map_name[];
 YY_BUFFER_STATE main_buf, map_buf;
 #ifdef FLEX_DEBUG
 YYSTYPE yylval;
 #endif /* FLEX_DEBUG */
 %}
 %%
-<INITIAL,charmap>[ \t]	;
-\"			{ ptr = buf; BEGIN(string); }
-\<			{ ptr = buf; BEGIN(name); }
+<INITIAL,charmap,nchar,subs>[ \t]+      ;
+<subs>\"                { ptr = buf; BEGIN(string); }
+<INITIAL>\<             { ptr = buf; BEGIN(name); }
 ^#.*\n			line_no++;
 ^\n			line_no++;
-\\\n			line_no++;
-\\t			{ yylval.ch = '\t'; return CHAR; }
-\\n			{ yylval.ch = '\n'; return CHAR; }
-\\b			{ yylval.ch = '\b'; return CHAR; }
-\\f			{ yylval.ch = '\f'; return CHAR; }
-\\v			{ yylval.ch = '\v'; return CHAR; }
-\\r			{ yylval.ch = '\r'; return CHAR; }
-\\a			{ yylval.ch = '\a'; return CHAR; }
-\\.			{ yylval.ch = yytext[1]; return CHAR; }
-<INITIAL,charmap>\n			{ line_no++; return '\n'; }
-[;,{}()]		return *yytext;
-substitute		return SUBSTITUTE;
-with			return WITH;
-order			return ORDER;
-charmap			BEGIN(charmap);
-;[ \t]*\.\.\.[ \t]*;		return RANGE;
-\\[0-7]{3}		{
+<INITIAL>\\\n           line_no++;
+<INITIAL,nchar>\\t      { yylval.ch = '\t'; return CHAR; }
+<INITIAL,nchar>\\n      { yylval.ch = '\n'; return CHAR; }
+<INITIAL,nchar>\\b      { yylval.ch = '\b'; return CHAR; }
+<INITIAL,nchar>\\f      { yylval.ch = '\f'; return CHAR; }
+<INITIAL,nchar>\\v      { yylval.ch = '\v'; return CHAR; }
+<INITIAL,nchar>\\r      { yylval.ch = '\r'; return CHAR; }
+<INITIAL,nchar>\\a      { yylval.ch = '\a'; return CHAR; }
+<INITIAL,nchar>\\.      { yylval.ch = yytext[1]; return CHAR; }
+<subs>\n                {
+	line_no++;
+	BEGIN(INITIAL);
+	return '\n';
+}
+<INITIAL,nchar>\n       {
+	line_no++;
+	if (map_fp != NULL) {
+		ptr = buf;
+		BEGIN(defn);
+	}
+	return '\n';
+}
+<INITIAL>[;,{}()]       return *yytext;
+<INITIAL>substitute     { BEGIN(subs); return SUBSTITUTE; }
+<subs>with              return WITH;
+<INITIAL>order          return ORDER;
+<INITIAL>charmap        BEGIN(charmap);
+<INITIAL>;[ \t]*\.\.\.[ \t]*;   return RANGE;
+<INITIAL,nchar>\\[0-7]{3}       {
 	u_int v;
 
 	sscanf(&yytext[1], "%o", &v);
 	yylval.ch = (u_char)v;
 	return CHAR;
 }
-\\x[0-9a-z]{2}		{
+<INITIAL,nchar>\\x[0-9a-z]{2}   {
 	u_int v;
 
 	sscanf(&yytext[2], "%x", &v);
 	yylval.ch = (u_char)v;
 	return CHAR;
 }
-[^;,{}() \t\n"<]+	{
+<INITIAL>[^;,{}() \t\n"<]+      {
 	if(yyleng == 1) {
 		yylval.ch = *yytext;
 		return CHAR;
@@ -91,19 +105,41 @@ charmap			BEGIN(charmap);
 	strcpy(yylval.str, yytext);
 	return CHAIN;
 }
-<name>\\\>		{
+<nchar>.                {
+	yylval.ch = *yytext;
+	return CHAR;
+}
+<defn>[ \t]+            {
+	if (ptr == buf)
+		errx(EX_UNAVAILABLE, "map expected near line %u of %s",
+		     line_no, map_name);
+	*ptr = '\0';
+	strcpy(yylval.str, buf);
+	BEGIN(nchar);
+	return DEFN;
+}
+<name>\/\/              {
 	if(ptr >= buf + sizeof(buf) - 1)
-		errx(EX_UNAVAILABLE, "name/string buffer overflaw near line %u",
+		errx(EX_UNAVAILABLE, "name buffer overflaw near line %u, character '/'",
+		     line_no);
+	*ptr++ = '/';
+}
+<name>\/\>              {
+	if(ptr >= buf + sizeof(buf) - 1)
+		errx(EX_UNAVAILABLE, "name buffer overflaw near line %u, character '>'",
 		     line_no);
 	*ptr++ = '>';
 }
 <string>\\\"		{
 	if(ptr >= buf + sizeof(buf) - 1)
-		errx(EX_UNAVAILABLE, "name/string buffer overflaw near line %u",
+		errx(EX_UNAVAILABLE, "string buffer overflaw near line %u, character '\"'",
 		     line_no);
 	*ptr++ = '"';
 }
 <name>\>		{
+	if (ptr == buf)
+		errx(EX_UNAVAILABLE, "name expected near line %u",
+		     line_no);
 	*ptr = '\0';
 	strcpy(yylval.str, buf);
 	BEGIN(INITIAL);
@@ -112,93 +148,129 @@ charmap			BEGIN(charmap);
 <string>\"		{
 	*ptr = '\0';
 	strcpy(yylval.str, buf);
-	BEGIN(INITIAL);
+	BEGIN(subs);
 	return STRING;
 }
-<name,string>.		{
+<name,defn>.            {
+	char *s = (map_fp != NULL) ? map_name : "input";
+
+	if (!isascii(*yytext) || !isprint(*yytext))
+		errx(EX_UNAVAILABLE, "non-ASCII or non-printable character 0x%02x not allowed in the map/name near line %u of %s",
+		     *yytext, line_no, s);
 	if(ptr >= buf + sizeof(buf) - 1)
-		errx(EX_UNAVAILABLE, "name/string buffer overflaw near line %u",
-		     line_no);
+		errx(EX_UNAVAILABLE, "map/name buffer overflaw near line %u of %s, character '%c'",
+		     line_no, s, *yytext);
 	*ptr++ = *yytext;
 }
-<name,string>\\t		{
+<string>\\t             {
 	if(ptr >= buf + sizeof(buf) - 1)
-		errx(EX_UNAVAILABLE, "name/string buffer overflaw near line %u",
+		errx(EX_UNAVAILABLE, "string buffer overflaw near line %u, character '\\t'",
 		     line_no);
 	*ptr++ = '\t';
 }
-<name,string>\\b		{
+<string>\\b             {
 	if(ptr >= buf + sizeof(buf) - 1)
-		errx(EX_UNAVAILABLE, "name/string buffer overflaw near line %u",
+		errx(EX_UNAVAILABLE, "string buffer overflaw near line %u, character '\\b'",
 		     line_no);
 	*ptr++ = '\b';
 }
-<name,string>\\f		{
+<string>\\f             {
 	if(ptr >= buf + sizeof(buf) - 1)
-		errx(EX_UNAVAILABLE, "name/string buffer overflaw near line %u",
+		errx(EX_UNAVAILABLE, "string buffer overflaw near line %u, character '\\f'",
 		     line_no);
 	*ptr++ = '\f';
 }
-<name,string>\\v		{
+<string>\\v             {
 	if(ptr >= buf + sizeof(buf) - 1)
-		errx(EX_UNAVAILABLE, "name/string buffer overflaw near line %u",
+		errx(EX_UNAVAILABLE, "string buffer overflaw near line %u, character '\\v'",
 		     line_no);
 	*ptr++ = '\v';
 }
-<name,string>\\n		{
+<string>\\n             {
 	if(ptr >= buf + sizeof(buf) - 1)
-		errx(EX_UNAVAILABLE, "name/string buffer overflaw near line %u",
+		errx(EX_UNAVAILABLE, "string buffer overflaw near line %u, character '\\n'",
 		     line_no);
 	*ptr++ = '\n';
 }
-<name,string>\\r		{
+<string>\\r             {
 	if(ptr >= buf + sizeof(buf) - 1)
-		errx(EX_UNAVAILABLE, "name/string buffer overflaw near line %u",
+		errx(EX_UNAVAILABLE, "string buffer overflaw near line %u, character '\\r'",
 		     line_no);
 	*ptr++ = '\r';
 }
-<name,string>\\a		{
+<string>\\a             {
 	if(ptr >= buf + sizeof(buf) - 1)
-		errx(EX_UNAVAILABLE, "name/string buffer overflaw near line %u",
+		errx(EX_UNAVAILABLE, "string buffer overflaw near line %u, character '\\a'",
 		     line_no);
 	*ptr++ = '\a';
 }
-<name,string><<EOF>>	{
-	errx(EX_UNAVAILABLE, "unterminated name/string near line %u", line_no);
+<name,string,defn>\n            {
+	char *s = (map_fp != NULL) ? map_name : "input";
+
+	errx(EX_UNAVAILABLE, "unterminated map/name/string near line %u of %s", line_no, s);
 }
-<name,string>\\x[0-9a-f]{2}	{
+<name,string,nchar><<EOF>>      {
+	char *s = (map_fp != NULL) ? map_name : "input";
+
+	errx(EX_UNAVAILABLE, "premature EOF in the name/string/char near line %u of %s", line_no, s);
+}
+<string>\\x[0-9a-f]{2}          {
 	u_int v;
 
 	sscanf(&yytext[2], "%x", &v);
 	*ptr++ = (u_char)v;
 }
-<name,string>\\[0-7]{3}	{
+<string>\\[0-7]{3}              {
 	u_int v;
 
 	sscanf(&yytext[1], "%o", &v);
 	*ptr++ = (u_char)v;
 }
+<string>\\.             {
+	if(ptr >= buf + sizeof(buf) - 1)
+		errx(EX_UNAVAILABLE, "string buffer overflaw near line %u, character '%c'",
+		     line_no, yytext[1]);
+	*ptr++ = yytext[1];
+}
+<string>.               {
+	if(ptr >= buf + sizeof(buf) - 1)
+		errx(EX_UNAVAILABLE, "string buffer overflaw near line %u, character '%c'",
+		     line_no, *yytext);
+	*ptr++ = *yytext;
+}
 <charmap>[^ \t\n]+	{
-	if((map_fp = fopen(yytext, "r")) == 0)
-		err(EX_UNAVAILABLE, "can't open charmap file %s near line %u",
-		    yytext, line_no);
+	strcat(map_name, "/");
+	strcat(map_name, yytext);
+	if((map_fp = fopen(map_name, "r")) == NULL)
+		err(EX_UNAVAILABLE, "can't open 'charmap' file %s",
+		    map_name);
+	save_no = line_no;
+	line_no = 1;
 	map_buf = yy_new_buffer(map_fp, YY_BUF_SIZE);
 	main_buf = YY_CURRENT_BUFFER;
 	yy_switch_to_buffer(map_buf);
-	BEGIN(INITIAL);
+	ptr = buf;
+	BEGIN(defn);
 }
-<charmap><<EOF>>	{
-	errx(EX_UNAVAILABLE, "charmap file name expected near line %u",
+<charmap>\n             {
+	errx(EX_UNAVAILABLE, "'charmap' file name expected near line %u",
 	     line_no);
 }
-<<EOF>>			{
-	if(map_fp) {
+<charmap><<EOF>>        {
+	errx(EX_UNAVAILABLE, "'charmap' file name expected near line %u",
+	     line_no);
+}
+<INITIAL,defn><<EOF>>                 {
+	if(map_fp != NULL) {
+		if (ptr != buf)
+			errx(EX_UNAVAILABLE, "premature EOF in the map near line %u of %s", line_no, map_name);
 		yy_switch_to_buffer(main_buf);
 		yy_delete_buffer(map_buf);
 		fclose(map_fp);
-		map_fp = 0;
-	}
-	else
+		map_fp = NULL;
+		line_no = save_no;
+		BEGIN(INITIAL);
+	} else
 		yyterminate();
 }
 %%
