@@ -34,10 +34,6 @@
  * $FreeBSD$
  */
 
-#if __FreeBSD_version >= 500111
-typedef int bus_dmasync_op_t;
-#endif
-
 struct fwdma_alloc {
 	bus_dma_tag_t	dma_tag;
 	bus_dmamap_t	dma_map;
