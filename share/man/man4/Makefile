@@ -105,6 +105,7 @@ MAN=	aac.4 \
 	kld.4 \
 	kue.4 \
 	ktr.4 \
+	led.4 \
 	lge.4 \
 	lmc.4 \
 	lo.4 \
