@@ -33,6 +33,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -51,6 +53,7 @@ static char sccsid[] = "@(#)pr.c	8.2 (Berkeley) 4/16/94";
 
 #include <ctype.h>
 #include <errno.h>
+#include <locale.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -1561,7 +1564,7 @@ usage()
 	(void)fputs(
 	 "          [-i[ch][gap]] [-l line] [-n[ch][width]] [-o offset]\n",err);
 	(void)fputs(
-	 "          [-s[ch]] [-w width] [-] [file ...]\n", err);
+	 "          [-L locale] [-s[ch]] [-w width] [-] [file ...]\n", err);
 }
 
 /*
@@ -1578,6 +1581,7 @@ setup(argc, argv)
 	int iflag = 0;
 	int wflag = 0;
 	int cflag = 0;
+	char *Lflag = NULL;
 
 	if (isatty(fileno(stdout))) {
 		/*
@@ -1589,7 +1593,7 @@ setup(argc, argv)
 		}
 	} else
 		err = stderr;
-	while ((c = egetopt(argc, argv, "#adFmrte?h:i?l:n?o:s?w:")) != -1) {
+	while ((c = egetopt(argc, argv, "#adFmrte?h:i?L:l:n?o:s?w:")) != -1) {
 		switch (c) {
 		case '+':
 			if ((pgnm = atoi(eoptarg)) < 1) {
@@ -1614,11 +1618,11 @@ setup(argc, argv)
 			break;
 		case 'e':
 			++eflag;
-			if ((eoptarg != NULL) && !isdigit(*eoptarg))
+			if ((eoptarg != NULL) && !isdigit((unsigned char)*eoptarg))
 				inchar = *eoptarg++;
 			else
 				inchar = INCHAR;
-			if ((eoptarg != NULL) && isdigit(*eoptarg)) {
+			if ((eoptarg != NULL) && isdigit((unsigned char)*eoptarg)) {
 				if ((ingap = atoi(eoptarg)) < 0) {
 					(void)fputs(
 					"pr: -e gap must be 0 or more\n", err);
@@ -1641,11 +1645,11 @@ setup(argc, argv)
 			break;
 		case 'i':
 			++iflag;
-			if ((eoptarg != NULL) && !isdigit(*eoptarg))
+			if ((eoptarg != NULL) && !isdigit((unsigned char)*eoptarg))
 				ochar = *eoptarg++;
 			else
 				ochar = OCHAR;
-			if ((eoptarg != NULL) && isdigit(*eoptarg)) {
+			if ((eoptarg != NULL) && isdigit((unsigned char)*eoptarg)) {
 				if ((ogap = atoi(eoptarg)) < 0) {
 					(void)fputs(
 					"pr: -i gap must be 0 or more\n", err);
@@ -1660,8 +1664,11 @@ setup(argc, argv)
 			} else
 				ogap = OGAP;
 			break;
+		case 'L':
+			Lflag = eoptarg;
+			break;
 		case 'l':
-			if (!isdigit(*eoptarg) || ((lines=atoi(eoptarg)) < 1)) {
+			if (!isdigit((unsigned char)*eoptarg) || ((lines=atoi(eoptarg)) < 1)) {
 				(void)fputs(
 				 "pr: Number of lines must be 1 or more\n",err);
 				return(1);
@@ -1671,11 +1678,11 @@ setup(argc, argv)
 			++merge;
 			break;
 		case 'n':
-			if ((eoptarg != NULL) && !isdigit(*eoptarg))
+			if ((eoptarg != NULL) && !isdigit((unsigned char)*eoptarg))
 				nmchar = *eoptarg++;
 			else
 				nmchar = NMCHAR;
-			if ((eoptarg != NULL) && isdigit(*eoptarg)) {
+			if ((eoptarg != NULL) && isdigit((unsigned char)*eoptarg)) {
 				if ((nmwd = atoi(eoptarg)) < 1) {
 					(void)fputs(
 					"pr: -n width must be 1 or more\n",err);
@@ -1689,7 +1696,7 @@ setup(argc, argv)
 				nmwd = NMWD;
 			break;
 		case 'o':
-			if (!isdigit(*eoptarg) || ((offst = atoi(eoptarg))< 1)){
+			if (!isdigit((unsigned char)*eoptarg) || ((offst = atoi(eoptarg))< 1)){
 				(void)fputs("pr: -o offset must be 1 or more\n",
 					err);
 				return(1);
@@ -1702,12 +1709,14 @@ setup(argc, argv)
 			++sflag;
 			if (eoptarg == NULL)
 				schar = SCHAR;
-			else
+			else {
 				schar = *eoptarg++;
-			if (*eoptarg != '\0') {
-				(void)fprintf(err,
-				      "pr: invalid value for -s %s\n", eoptarg);
-				return(1);
+				if (*eoptarg != '\0') {
+					(void)fprintf(err,
+					    "pr: invalid value for -s %s\n",
+					    eoptarg);
+					return(1);
+				}
 			}
 			break;
 		case 't':
@@ -1715,7 +1724,7 @@ setup(argc, argv)
 			break;
 		case 'w':
 			++wflag;
-			if (!isdigit(*eoptarg) || ((pgwd = atoi(eoptarg)) < 1)){
+			if (!isdigit((unsigned char)*eoptarg) || ((pgwd = atoi(eoptarg)) < 1)){
 				(void)fputs(
 				   "pr: -w width must be 1 or more \n",err);
 				return(1);
@@ -1810,5 +1819,7 @@ setup(argc, argv)
 	}
 
 	timefrmt = TIMEFMT;
+	(void) setlocale(LC_TIME, (Lflag != NULL) ? Lflag : "");
+
 	return(0);
 }
