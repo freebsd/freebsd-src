@@ -117,6 +117,7 @@
 #include <ofw/openfirm.h>
 
 #include <machine/bus.h>
+#include <machine/bus_private.h>
 #include <machine/iommureg.h>
 #include <machine/bus_common.h>
 #include <machine/frame.h>
@@ -396,15 +397,7 @@ sbus_probe(device_t dev)
 		panic("bus_dma_tag_create failed");
 	/* Customize the tag. */
 	sc->sc_cdmatag->dt_cookie = &sc->sc_is;
-	sc->sc_cdmatag->dt_dmamap_create = iommu_dvmamap_create;
-	sc->sc_cdmatag->dt_dmamap_destroy = iommu_dvmamap_destroy;
-	sc->sc_cdmatag->dt_dmamap_load = iommu_dvmamap_load;
-	sc->sc_cdmatag->dt_dmamap_load_mbuf = iommu_dvmamap_load_mbuf;
-	sc->sc_cdmatag->dt_dmamap_load_uio = iommu_dvmamap_load_uio;
-	sc->sc_cdmatag->dt_dmamap_unload = iommu_dvmamap_unload;
-	sc->sc_cdmatag->dt_dmamap_sync = iommu_dvmamap_sync;
-	sc->sc_cdmatag->dt_dmamem_alloc = iommu_dvmamem_alloc;
-	sc->sc_cdmatag->dt_dmamem_free = iommu_dvmamem_free;
+	sc->sc_cdmatag->dt_mt = &iommu_dma_methods;
 	/* XXX: register as root dma tag (kludge). */
 	sparc64_root_dma_tag = sc->sc_cdmatag;
 

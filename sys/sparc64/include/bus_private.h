@@ -34,6 +34,14 @@
 #include <sys/queue.h>
 
 /*
+ * Helpers
+ */
+int sparc64_bus_mem_map(bus_space_tag_t, bus_space_handle_t, bus_size_t,
+    int, vm_offset_t, void **);
+int sparc64_bus_mem_unmap(void *, bus_size_t);
+bus_space_handle_t sparc64_fake_bustag(int, bus_addr_t, struct bus_space_tag *);
+
+/*
  * This is more or less arbitrary, except for the stack space consumed by
  * the segments array. Choose more than ((BUS_SPACE_MAXSIZE / PAGE_SIZE) + 1),
  * since in practice we could be map pages more than once.
@@ -53,10 +61,14 @@ struct bus_dmamap {
 	int			dm_loaded;
 };
 
-static __inline void
-sparc64_dmamap_init(struct bus_dmamap *m)
-{
-	SLIST_INIT(&m->dm_reslist);
-}
+int sparc64_dma_alloc_map(bus_dma_tag_t dmat, bus_dmamap_t *mapp);
+void sparc64_dma_free_map(bus_dma_tag_t dmat, bus_dmamap_t map);
+
+/*
+ * XXX: This is a kluge. It would be better to handle dma tags in a hierarchical
+ * way, and have a BUS_GET_DMA_TAG(); however, since this is not currently the
+ * case, save a root tag in the relevant bus attach function and use that.
+ */
+extern bus_dma_tag_t sparc64_root_dma_tag;
 
 #endif /* !_MACHINE_BUS_PRIVATE_H_ */
