@@ -70,21 +70,6 @@ the pathname of the target of the symlink
 These entry points are called after
 .Xr VOP_LOOKUP 9
 when an object is being created.
-Normally,
-.Xr VOP_LOOKUP 9
-will have set the
-.Dv SAVENAME
-flag in
-.Fa cnp->cn_flags
-to keep the memory pointed to by
-.Fa cnp->cn_pnbuf
-valid.
-If an error is detected when creating the file,
-then this memory will be freed.
-If the file is created successfully, then it will be freed unless the
-.Dv SAVESTART
-flag is specified in
-.Fa cnp .
 .Sh LOCKS
 The directory,
 .Fa dvp
@@ -112,11 +97,8 @@ vop_create(struct vnode *dvp,
 	mode |= IFREG;
 
     error = SOMEFS_VALLOC(dvp, mode, cnp->cn_cred, &vp);
-    if (error) {
-	free(cnp->cn_pnbuf, M_NAMEI);
-	vput(dvp);
+    if (error)
 	return error;
-    }
 
     /*
      * Update the permissions for the new vnode, including
@@ -140,9 +122,6 @@ vop_create(struct vnode *dvp,
     if (error)
 	goto bad;
 
-    if ((cnp->cn_flags & SAVESTART) == 0)
-	free(cnp->cn_pnbuf, M_NAMEI);
-    vput(dvp);
     *vpp = vp;
 
     return 0;
@@ -152,15 +131,12 @@ bad:
      * Write error occurred trying to update the inode
      * or the directory so must deallocate the inode.
      */
-    free(cnp->cn_pnbuf, M_NAMEI);
     vput(vp);
 
     /*
      * Deallocate file system resources for vp.
      */
     ...;
-
-    vput(dvp);
 
     return error;
 }
