@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: request.h,v 1.18 2000/05/07 04:05:33 grog Exp grog $
+ * $Id: request.h,v 1.19 2000/11/24 03:41:51 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -55,6 +55,7 @@ enum xferinfo {
 #endif
     XFR_REVIVECONFLICT = 0x1000,			    /* possible conflict with a revive operation */
     XFR_BUFLOCKED = 0x2000,				    /* BUF_LOCK performed on this buffer */
+    XFR_COPYBUF = 0x4000,				    /* data buffer was copied */
     /* operations that need a parity block */
     XFR_PARITYOP = (XFR_NORMAL_WRITE | XFR_RECOVERY_READ | XFR_DEGRADED_WRITE),
     /* operations that use the group parameters */
@@ -129,6 +130,7 @@ struct rqgroup {
  */
 struct request {
     struct buf *bp;					    /* pointer to the high-level request */
+    caddr_t save_data;					    /* for copied write buffers */
     enum xferinfo flags;
     union {
 	int volno;					    /* volume index */
@@ -187,10 +189,22 @@ enum rqinfo_type {
     loginfo_unlock,					    /* unlock range */
 };
 
+/*
+ * This is the rangelock structure with an added
+ * buffer pointer and plex number.  We don't need
+ * the plex number for the locking protocol, but
+ * it does help a lot when logging.
+ */
+struct rangelockinfo {
+    daddr_t stripe;					    /* address + 1 of the range being locked  */
+    struct buf *bp;					    /* user's buffer pointer */
+    int plexno;
+};
+
 union rqinfou {						    /* info to pass to logrq */
     struct buf *bp;
     struct rqelement *rqe;				    /* address of request, for correlation */
-    struct rangelock *lockinfo;
+    struct rangelockinfo *lockinfo;
 };
 
 struct rqinfo {
