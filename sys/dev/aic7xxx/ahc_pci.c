@@ -726,13 +726,6 @@ ahc_pci_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	/*
-	 * Take a look to see if we have external SRAM.
-	 * We currently do not attempt to use SRAM that is
-	 * shared among multiple controllers.
-	 */
-	ahc_probe_ext_scbram(ahc);
-
 	if ((ahc->features & AHC_DT) != 0) {
 		u_int optionmode;
 		u_int sfunct;
@@ -767,19 +760,21 @@ ahc_pci_attach(device_t dev)
 	 */
 	{
 		u_int8_t sblkctl;
+		u_int dscommand0;
 
+		dscommand0 = ahc_inb(ahc, DSCOMMAND0);
+		dscommand0 |= DPARCKEN|MPARCKEN;
 		if ((ahc->features & AHC_ULTRA2) != 0) {
-			u_int dscommand0;
 
 			/*
 			 * DPARCKEN doesn't work correctly on
 			 * some MBs so don't use it.
 			 */
-			dscommand0 = ahc_inb(ahc, DSCOMMAND0);
 			dscommand0 &= ~(USCBSIZE32|DPARCKEN);
-			dscommand0 |= CACHETHEN|MPARCKEN;
-			ahc_outb(ahc, DSCOMMAND0, dscommand0);
+			dscommand0 |= CACHETHEN;
 		}
+
+		ahc_outb(ahc, DSCOMMAND0, dscommand0);
 
 		/* See if we have an SEEPROM and perform auto-term */
 		check_extport(ahc, &sxfrctl1);
@@ -824,10 +819,18 @@ ahc_pci_attach(device_t dev)
 
 			ahc->our_id = our_id;
 		}
-
-		printf("%s: %s ", ahc_name(ahc),
-		       ahc_chip_names[ahc->chip & AHC_CHIPID_MASK]);
 	}
+
+	/*
+	 * Take a look to see if we have external SRAM.
+	 * We currently do not attempt to use SRAM that is
+	 * shared among multiple controllers.
+	 */
+	ahc_probe_ext_scbram(ahc);
+
+
+	printf("%s: %s ", ahc_name(ahc),
+	       ahc_chip_names[ahc->chip & AHC_CHIPID_MASK]);
 
 	/*
 	 * Record our termination setting for the
@@ -960,7 +963,9 @@ ahc_probe_ext_scbram(struct ahc_softc *ahc)
 	 || (ahc_inb(ahc, ERROR) & MPARERR) == 0)
 		pcheck = TRUE;
 
+	/* Clear any resulting parity error */
 	ahc_outb(ahc, CLRINT, CLRPARERR);
+	ahc_outb(ahc, CLRINT, CLRBRKADRINT);
 
 	/* Now see if we can do fast timing */
 	ahc_ext_scbram_config(ahc, enable, pcheck, /*fast*/TRUE);
@@ -971,7 +976,9 @@ ahc_probe_ext_scbram(struct ahc_softc *ahc)
 		fast = TRUE;
 
 done:
+	/* Clear any resulting parity error */
 	ahc_outb(ahc, CLRINT, CLRPARERR);
+	ahc_outb(ahc, CLRINT, CLRBRKADRINT);
 	if (bootverbose && enable) {
 		printf("%s: External SRAM, %dns access%s\n",
 		       ahc_name(ahc), fast ? 10 : 20,
