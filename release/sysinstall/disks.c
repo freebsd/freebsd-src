@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31.2.27 1995/10/26 08:55:35 jkh Exp $
+ * $Id: disks.c,v 1.31.2.28 1995/10/30 08:04:46 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -79,11 +79,12 @@ print_chunks(Disk *d)
 
     if ((!d->bios_cyl || d->bios_cyl > 65536) || (!d->bios_hd || d->bios_hd > 256) || (!d->bios_sect || d->bios_sect >= 64)) {
 	dialog_clear();
-	msgConfirm("WARNING:  The detected geometry is incorrect!  Please adjust\n"
+	msgConfirm("WARNING:  The current geometry for %s is incorrect.  Please adjust\n"
 		   "it to the correct values manually with the (G)eometry command.\n"
 		   "If you are unsure about the correct geometry (which may be\n"
 		   "\"translated\"), please consult the Hardware Guide in the\n"
-		   "Documentation submenu.");
+		   "Documentation submenu.  If you are using the entire disk for FreeBSD"
+		   "then you can probably safely ignore this message.", d->name);
     }
     attrset(A_NORMAL);
     mvaddstr(0, 0, "Disk name:\t");
@@ -208,6 +209,45 @@ scriptPartition(Device *dev, Disk *d)
     }
 }
 
+static u_char *
+getBootMgr(char *dname)
+{
+    extern u_char mbr[], bteasy17[];
+    char str[80];
+    char *cp;
+    int i = 0;
+
+    cp = variable_get(VAR_BOOTMGR);
+    if (!cp) {
+	/* Figure out what kind of MBR the user wants */
+	sprintf(str, "Install Boot Manager for drive %s?", dname);
+	MenuMBRType.title = str;
+	i = dmenuOpenSimple(&MenuMBRType);
+    }
+    else {
+	if (!strncmp(cp, "boot", 4))
+	    BootMgr = 0;
+	else if (!strcmp(cp, "standard"))
+	    BootMgr = 1;
+	else
+	    BootMgr = 2;
+    }
+    if (cp || i) {
+	switch (BootMgr) {
+	case 0:
+	    return bteasy17;
+
+	case 1:
+	    return mbr;
+
+	case 2:
+	default:
+	    break;
+	}
+    }
+    return NULL;
+}
+
 void
 diskPartition(Device *dev, Disk *d)
 {
@@ -215,6 +255,7 @@ diskPartition(Device *dev, Disk *d)
     int key = 0;
     Boolean chunking;
     char *msg = NULL;
+    u_char *mbrContents;
 
     chunking = TRUE;
     keypad(stdscr, TRUE);
@@ -284,8 +325,6 @@ diskPartition(Device *dev, Disk *d)
 			       "less at risk.\n\n"
 			       "Do you insist on dedicating the entire disk this way?");
 	    }
-	    if (rv)
-		msgInfo("Well OK, but you can't say you haven't been warned!");
 	    All_FreeBSD(d, rv);
 	    variable_set2(DISK_PARTITIONED, "yes");
 	    record_chunks(d);
@@ -380,6 +419,15 @@ diskPartition(Device *dev, Disk *d)
 			  "choose No at this dialog.")) {
 		variable_set2(DISK_PARTITIONED, "yes");
 		clear();
+
+		/* Don't trash the MBR if the first (and therefore only) chunk is marked for a truly dedicated
+		 * disk (i.e., the disklabel starts at sector 0), even in cases where the user has requested
+		 * booteasy or a "standard" MBR -- both would be fatal in this case.
+		 */
+		if ((d->chunks->part->flags & CHUNK_FORCE_ALL) != CHUNK_FORCE_ALL
+		    && (mbrContents = getBootMgr(d->name)) != NULL)
+		    Set_Boot_Mgr(d, mbrContents);
+
 		if (diskPartitionWrite(NULL) != RET_SUCCESS) {
 		    dialog_clear();
 		    msgConfirm("Disk partition write returned an error status!");
@@ -408,6 +456,13 @@ diskPartition(Device *dev, Disk *d)
 
 	case 'Q':
 	    chunking = FALSE;
+	    /* Don't trash the MBR if the first (and therefore only) chunk is marked for a truly dedicated
+	     * disk (i.e., the disklabel starts at sector 0), even in cases where the user has requested
+	     * booteasy or a "standard" MBR -- both would be fatal in this case.
+	     */
+	    if ((d->chunks->part->flags & CHUNK_FORCE_ALL) != CHUNK_FORCE_ALL
+		&& (mbrContents = getBootMgr(d->name)) != NULL)
+		Set_Boot_Mgr(d, mbrContents);
 	    break;
 
 	default:
@@ -509,51 +564,10 @@ diskPartitionEditor(char *str)
     return i;
 }
 
-static u_char *
-getBootMgr(int disk)
-{
-    extern u_char mbr[], bteasy17[];
-    char str[80];
-    char *cp;
-    int i = 0;
-
-    cp = variable_get(VAR_BOOTMGR);
-    if (!cp) {
-	/* Figure out what kind of MBR the user wants */
-	sprintf(str, "Install Boot Manager for %s drive?", disk == 0 ? "first" :
-		disk == 1 ? "second" : "<illegal>");
-	MenuMBRType.title = str;
-	i = dmenuOpenSimple(&MenuMBRType);
-    }
-    else {
-	if (!strncmp(cp, "boot", 4))
-	    BootMgr = 0;
-	else if (!strcmp(cp, "standard"))
-	    BootMgr = 1;
-	else
-	    BootMgr = 2;
-    }
-    if (cp || i) {
-	switch (BootMgr) {
-	case 0:
-	    return bteasy17;
-
-	case 1:
-	    return mbr;
-
-	case 2:
-	default:
-	    break;
-	}
-    }
-    return NULL;
-}
-
 int
 diskPartitionWrite(char *str)
 {
     extern u_char boot1[], boot2[];
-    u_char *mbrContents;
     Device **devs;
     char *cp;
     int i;
@@ -579,12 +593,6 @@ diskPartitionWrite(char *str)
 
 	if (!devs[i]->enabled)
 	    continue;
-
- 	/* Don't trash the MBR if the first (and therefore only) chunk is marked for a truly dedicated
- 	   disk (i.e., the disklabel starts at sector 0), even in cases where the user has requested
- 	   booteasy or a "standard" MBR -- both would be fatal in this case. */
- 	if (i < 2 && (mbrContents = getBootMgr(i)) != NULL && (d->chunks->part->flags & CHUNK_FORCE_ALL) != CHUNK_FORCE_ALL)
-	    Set_Boot_Mgr(d, mbrContents);
 
 	Set_Boot_Blocks(d, boot1, boot2);
 	msgNotify("Writing partition information to drive %s", d->name);

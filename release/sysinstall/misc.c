@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.12.2.4 1995/10/20 15:40:47 jkh Exp $
+ * $Id: misc.c,v 1.12.2.6 1995/10/22 17:39:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -305,7 +305,7 @@ Mount(char *mountp, void *dev)
     ufsargs.fspec = device;
     if (mount(MOUNT_UFS, mountpoint, 0, (caddr_t)&ufsargs) == -1) {
 	dialog_clear();
-	msgConfirm("Error mounting %s on %s : %s\n", device, mountpoint, strerror(errno));
+	msgConfirm("Error mounting %s on %s : %s", device, mountpoint, strerror(errno));
 	return RET_FAIL;
     }
     return RET_SUCCESS;

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.7.2.12 1995/10/22 17:39:25 jkh Exp $
+ * $Id: network.c,v 1.7.2.14 1995/10/26 08:56:02 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -136,7 +136,7 @@ mediaInitNetwork(Device *dev)
     if (!rp || *rp == '0') {
 	dialog_clear();
 	msgConfirm("No gateway has been set. You may be unable to access hosts\n"
-		   "not on your local network\n");
+		   "not on your local network");
     }
     else {
 	msgNotify("Adding default route to %s.", rp);
@@ -181,6 +181,7 @@ mediaShutdownNetwork(Device *dev)
 	msgNotify("Killing PPP process %d.", (int)dev->private);
 	kill((pid_t)dev->private, SIGTERM);
 	dev->private = NULL;
+	networkInitialized = FALSE;
     }
 }
 

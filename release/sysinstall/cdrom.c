@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.7.2.11 1995/10/22 17:38:57 jkh Exp $
+ * $Id: cdrom.c,v 1.7.2.12 1995/11/03 12:02:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -81,7 +81,7 @@ mediaInitCDROM(Device *dev)
 
     if (mount(MOUNT_CD9660, "/cdrom", MNT_RDONLY, (caddr_t) &args) == -1) {
 	dialog_clear();
-	msgConfirm("Error mounting %s on /cdrom: %s (%u)\n", dev->devname, strerror(errno), errno);
+	msgConfirm("Error mounting %s on /cdrom: %s (%u)", dev->devname, strerror(errno), errno);
 	return FALSE;
     }
     /*
@@ -136,7 +136,7 @@ mediaShutdownCDROM(Device *dev)
     msgDebug("Unmounting %s from /cdrom\n", dev->devname);
     if (unmount("/cdrom", MNT_FORCE) != 0) {
 	dialog_clear();
-	msgConfirm("Could not unmount the CDROM from /cdrom: %s\n", strerror(errno));
+	msgConfirm("Could not unmount the CDROM from /cdrom: %s", strerror(errno));
     }
     msgDebug("Unmount successful\n");
     cdromMounted = FALSE;

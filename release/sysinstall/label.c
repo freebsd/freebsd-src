@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.32.2.25 1995/10/26 08:55:52 jkh Exp $
+ * $Id: label.c,v 1.32.2.26 1995/11/03 12:02:39 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1035,7 +1035,7 @@ diskLabel(char *str)
 		devs = deviceFind(NULL, DEVICE_TYPE_DISK);
 		if (!devs) {
 		    dialog_clear();
-		    msgConfirm("Can't find any disk devicse!");
+		    msgConfirm("Can't find any disk devices!");
 		    break;
 		}
 		for (i = 0; devs[i] && ((Disk *)devs[i]->private); i++) {
