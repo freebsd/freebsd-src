@@ -53,6 +53,7 @@
 #define	_BSD_MBSTATE_T_	__mbstate_t		/* mbstate_t */
 #define	_BSD_PTRDIFF_T_	long			/* ptr1 - ptr2 */
 #define	_BSD_RUNE_T_	_BSD_CT_RUNE_T_		/* rune_t (see below) */
+#define	_BSD_SEGSZ_T_	__int32_t		/* segment size (in pages) */
 #define	_BSD_SIZE_T_	unsigned long		/* sizeof() */
 #define	_BSD_SOCKLEN_T_	__uint32_t
 #define	_BSD_SSIZE_T_	long			/* byte count or error */
