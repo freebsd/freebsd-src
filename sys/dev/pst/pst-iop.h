@@ -39,19 +39,19 @@ struct out_mfa_buf {
 };
 
 struct iop_softc {
-    struct resource *r_mem;
-    struct resource *r_irq;
-    caddr_t ibase;
-    u_int32_t phys_ibase;
-    caddr_t obase;
-    u_int32_t phys_obase;
-    struct i2o_registers *reg;
-    struct i2o_status_get_reply *status;
-    int lct_count;
-    struct i2o_lct_entry *lct;
-    device_t dev;
-    void *handle;
-    struct intr_config_hook *iop_delayed_attach;
+    struct resource		*r_mem;
+    struct resource		*r_irq;
+    caddr_t			ibase;
+    u_int32_t			phys_ibase;
+    caddr_t			obase;
+    u_int32_t			phys_obase;
+    struct i2o_registers	*reg;
+    struct i2o_status_get_reply	*status;
+    int				lct_count;
+    struct i2o_lct_entry	*lct;
+    device_t			dev;
+    void			*handle;
+    struct intr_config_hook	*iop_delayed_attach;
 };
 
 /* structure at start of IOP shared mem */
@@ -70,10 +70,10 @@ struct i2o_registers {
     volatile u_int32_t	oqueue_event;
     volatile u_int32_t	oqueue_intr_status;
     volatile u_int32_t	oqueue_intr_mask;
-#define I2O_OUT_INTR_QUEUE	0x08
-#define I2O_OUT_INTR_BELL	0x04
-#define I2O_OUT_INTR_MSG1	0x02
-#define I2O_OUT_INTR_MSG0	0x01
+#define I2O_OUT_INTR_QUEUE				0x08
+#define I2O_OUT_INTR_BELL				0x04
+#define I2O_OUT_INTR_MSG1				0x02
+#define I2O_OUT_INTR_MSG0				0x01
 
     volatile u_int64_t	reserved2;
     volatile u_int32_t	iqueue;
@@ -86,41 +86,41 @@ struct i2o_registers {
 
 /* Scatter/Gather List management  */
 struct i2o_sgl {
-    u_int32_t	count:24;
-#define I2O_SGL_CNT_MASK	0xffffff
+    u_int32_t		count:24;
+#define I2O_SGL_CNT_MASK				0xffffff
 
-    u_int32_t	flags:8;
-#define I2O_SGL_SIMPLE		0x10
-#define I2O_SGL_PAGELIST	0x20
-#define I2O_SGL_CHAIN		0x30
-#define I2O_SGL_ATTRIBUTE	0x7c
-#define I2O_SGL_BC0		0x01
-#define I2O_SGL_BC1		0x02
-#define I2O_SGL_DIR		0x04
-#define I2O_SGL_LA		0x08
-#define I2O_SGL_EOB		0x40
-#define I2O_SGL_END		0x80
+    u_int32_t		flags:8;
+#define I2O_SGL_SIMPLE					0x10
+#define I2O_SGL_PAGELIST				0x20
+#define I2O_SGL_CHAIN					0x30
+#define I2O_SGL_ATTRIBUTE				0x7c
+#define I2O_SGL_BC0					0x01
+#define I2O_SGL_BC1					0x02
+#define I2O_SGL_DIR					0x04
+#define I2O_SGL_LA					0x08
+#define I2O_SGL_EOB					0x40
+#define I2O_SGL_END					0x80
 
-    u_int32_t	phys_addr[1];
+    u_int32_t		phys_addr[1];
 } __attribute__((packed));
 
 #define I2O_SGL_MAX_SEGS	((I2O_IOP_OUTBOUND_FRAME_SIZE - (8 + 2)) + 1)
 
 /* i2o command codes */
-#define I2O_UTIL_NOP		0x00
-#define I2O_UTIL_PARAMS_GET	0x06
-#define I2O_UTIL_CLAIM		0x09
-#define I2O_UTIL_CONFIG_DIALOG	0x10
-#define I2O_UTIL_EVENT_REGISTER	0x13
-#define I2O_BSA_BLOCK_READ	0x30
-#define I2O_BSA_BLOCK_WRITE	0x31
-#define I2O_BSA_CACHE_FLUSH	0x37
-#define I2O_EXEC_STATUS_GET	0xa0
-#define I2O_EXEC_OUTBOUND_INIT	0xa1
-#define I2O_EXEC_LCT_NOTIFY	0xa2
-#define I2O_EXEC_SYSTAB_SET	0xa3
-#define I2O_EXEC_IOP_RESET	0xbd
-#define I2O_EXEC_SYS_ENABLE	0xd1
+#define I2O_UTIL_NOP					0x00
+#define I2O_UTIL_PARAMS_GET				0x06
+#define I2O_UTIL_CLAIM					0x09
+#define I2O_UTIL_CONFIG_DIALOG				0x10
+#define I2O_UTIL_EVENT_REGISTER				0x13
+#define I2O_BSA_BLOCK_READ				0x30
+#define I2O_BSA_BLOCK_WRITE				0x31
+#define I2O_BSA_CACHE_FLUSH				0x37
+#define I2O_EXEC_STATUS_GET				0xa0
+#define I2O_EXEC_OUTBOUND_INIT				0xa1
+#define I2O_EXEC_LCT_NOTIFY				0xa2
+#define I2O_EXEC_SYSTAB_SET				0xa3
+#define I2O_EXEC_IOP_RESET				0xbd
+#define I2O_EXEC_SYS_ENABLE				0xd1
 
 /* basic message layout */
 struct i2o_basic_message {
@@ -132,6 +132,7 @@ struct i2o_basic_message {
     u_int32_t		initiator_address:12;
     u_int32_t		function:8;
     u_int32_t		initiator_context;
+    u_int32_t		transaction_context;
 } __attribute__((packed));
 
 /* basic reply layout */
