@@ -30,7 +30,13 @@
 #define _UN_NAMESPACE_H_
 
 #undef		accept
+#undef		__acl_aclcheck_fd
+#undef		__acl_delete_fd
+#undef		__acl_get_fd
+#undef		__acl_set_fd
 #undef		bind
+#undef		__cap_get_fd
+#undef		__cap_set_fd
 #undef		close
 #undef		connect
 #undef		dup
