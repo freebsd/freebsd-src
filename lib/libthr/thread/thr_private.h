@@ -52,6 +52,7 @@
 #include <sys/types.h>
 #include <sys/cdefs.h>
 #include <sys/errno.h>
+#include <sys/msg.h>
 #include <sys/time.h>
 #include <sys/queue.h>
 #include <pthread_np.h>
@@ -833,6 +834,12 @@ int	__sys_kevent(int, const struct kevent *, int, struct kevent *,
 int	__sys_ioctl(int, unsigned long, ...);
 #endif
 
+/* #include <sys/msg.h> */
+#ifdef _SYS_MSG_H_
+int __sys_msgrcv(int, void *, size_t, long, int);
+int __sys_msgsnd(int, const void *, size_t, int);
+#endif
+
 /* #include <sys/mman.h> */
 #ifdef _SYS_MMAN_H_
 int	__sys_msync(void *, size_t, int);
@@ -852,6 +859,7 @@ int	__sys_getpeername(int, struct sockaddr *, socklen_t *);
 int	__sys_getsockname(int, struct sockaddr *, socklen_t *);
 int	__sys_getsockopt(int, int, int, void *, socklen_t *);
 int	__sys_listen(int, int);
+ssize_t __sys_recv(int, void *, size_t, int);
 ssize_t	__sys_recvfrom(int, void *, size_t, int, struct sockaddr *, socklen_t *);
 ssize_t	__sys_recvmsg(int, struct msghdr *, int);
 int	__sys_sendfile(int, int, off_t, size_t, struct sf_hdtr *, off_t *, int);
@@ -898,12 +906,23 @@ int	__sys_open(const char *, int, ...);
 int	__sys_poll(struct pollfd *, unsigned, int);
 #endif
 
+/* #include <semaphore.h> */
+#ifdef _SEMAPHORE_H_
+int      __sem_timedwait(sem_t * __restrict, const struct timespec * __restrict);
+int      __sem_wait(sem_t *);
+#endif
+
 /* #include <signal.h> */
 #ifdef _SIGNAL_H_
 int	__sys_sigaction(int, const struct sigaction *, struct sigaction *);
 int	__sys_sigaltstack(const struct sigaltstack *, struct sigaltstack *);
 int	__sys_sigprocmask(int, const sigset_t *, sigset_t *);
 int	__sys_sigreturn(ucontext_t *);
+int     __sys_sigsuspend(const sigset_t *);
+int     __sys_sigtimedwait(const sigset_t * __restrict, siginfo_t * __restrict,
+	    const struct timespec * __restrict);
+int     __sys_sigwait(const sigset_t * __restrict, int * __restrict);
+int     __sys_sigwaitinfo(const sigset_t * __restrict, siginfo_t * __restrict);
 #endif
 
 /* #include <unistd.h> */
@@ -918,6 +937,8 @@ pid_t	__sys_fork(void);
 long	__sys_fpathconf(int, int);
 int	__sys_fsync(int);
 int	__sys_pipe(int *);
+ssize_t __sys_pread(int, void *, size_t, off_t);
+ssize_t __sys_pwrite(int, const void *, size_t, off_t);
 ssize_t	__sys_read(int, void *, size_t);
 ssize_t	__sys_write(int, const void *, size_t);
 #endif
