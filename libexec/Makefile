@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile,v 1.33 1998/08/04 15:32:43 peter Exp $
+#	$Id: Makefile,v 1.34 1998/08/30 01:52:53 jb Exp $
 
 SUBDIR=	atrun bootpd comsat fingerd ftpd getNAME getty \
 	makekey mknetid revnetgroup rexecd rlogind \
@@ -16,9 +16,10 @@ SUBDIR+=named-xfer
 .if ${OBJFORMAT} == aout
 SUBDIR+=rtld-aout
 .endif
+.endif
+
 .if ${OBJFORMAT} == elf
 SUBDIR+=rtld-elf
-.endif
 .endif
 
 .if defined(RELEASEDIR) || !exists(${.CURDIR}/../kerberosIV) || defined(NOCRYPT) || !defined(MAKE_KERBEROS4)
