@@ -104,7 +104,7 @@ void PBE2PARAM_free (PBE2PARAM *a)
 	if(a==NULL) return;
 	X509_ALGOR_free(a->keyfunc);
 	X509_ALGOR_free(a->encryption);
-	Free ((char *)a);
+	Free (a);
 }
 
 int i2d_PBKDF2PARAM(PBKDF2PARAM *a, unsigned char **pp)
@@ -131,7 +131,7 @@ PBKDF2PARAM *PBKDF2PARAM_new(void)
 	ASN1_CTX c;
 	M_ASN1_New_Malloc(ret, PBKDF2PARAM);
 	M_ASN1_New(ret->salt, ASN1_TYPE_new);
-	M_ASN1_New(ret->iter, ASN1_INTEGER_new);
+	M_ASN1_New(ret->iter, M_ASN1_INTEGER_new);
 	ret->keylength = NULL;
 	ret->prf = NULL;
 	return (ret);
@@ -155,10 +155,10 @@ void PBKDF2PARAM_free (PBKDF2PARAM *a)
 {
 	if(a==NULL) return;
 	ASN1_TYPE_free(a->salt);
-	ASN1_INTEGER_free(a->iter);
-	ASN1_INTEGER_free(a->keylength);
+	M_ASN1_INTEGER_free(a->iter);
+	M_ASN1_INTEGER_free(a->keylength);
 	X509_ALGOR_free(a->prf);
-	Free ((char *)a);
+	Free (a);
 }
 
 /* Return an algorithm identifier for a PKCS#5 v2.0 PBE algorithm:
@@ -175,19 +175,27 @@ X509_ALGOR *PKCS5_pbe2_set(const EVP_CIPHER *cipher, int iter,
 	PBKDF2PARAM *kdf = NULL;
 	PBE2PARAM *pbe2 = NULL;
 	ASN1_OCTET_STRING *osalt = NULL;
+	ASN1_OBJECT *obj;
+
+	alg_nid = EVP_CIPHER_type(cipher);
+	if(alg_nid == NID_undef) {
+		ASN1err(ASN1_F_PKCS5_PBE2_SET,
+				ASN1_R_CIPHER_HAS_NO_OBJECT_IDENTIFIER);
+		goto err;
+	}
+	obj = OBJ_nid2obj(alg_nid);
 
 	if(!(pbe2 = PBE2PARAM_new())) goto merr;
 
 	/* Setup the AlgorithmIdentifier for the encryption scheme */
 	scheme = pbe2->encryption;
 
-	alg_nid = EVP_CIPHER_type(cipher);
-
-	scheme->algorithm = OBJ_nid2obj(alg_nid);
+	scheme->algorithm = obj;
 	if(!(scheme->parameter = ASN1_TYPE_new())) goto merr;
 
 	/* Create random IV */
-	RAND_bytes(iv, EVP_CIPHER_iv_length(cipher));
+	if (RAND_pseudo_bytes(iv, EVP_CIPHER_iv_length(cipher)) < 0)
+		goto err;
 
 	/* Dummy cipherinit to just setup the IV */
 	EVP_CipherInit(&ctx, cipher, NULL, iv, 0);
@@ -199,13 +207,13 @@ X509_ALGOR *PKCS5_pbe2_set(const EVP_CIPHER *cipher, int iter,
 	EVP_CIPHER_CTX_cleanup(&ctx);
 
 	if(!(kdf = PBKDF2PARAM_new())) goto merr;
-	if(!(osalt = ASN1_OCTET_STRING_new())) goto merr;
+	if(!(osalt = M_ASN1_OCTET_STRING_new())) goto merr;
 
 	if (!saltlen) saltlen = PKCS5_SALT_LEN;
 	if (!(osalt->data = Malloc (saltlen))) goto merr;
 	osalt->length = saltlen;
 	if (salt) memcpy (osalt->data, salt, saltlen);
-	else RAND_bytes (osalt->data, saltlen);
+	else if (RAND_pseudo_bytes (osalt->data, saltlen) < 0) goto merr;
 
 	if(iter <= 0) iter = PKCS5_DEFAULT_ITER;
 	if(!ASN1_INTEGER_set(kdf->iter, iter)) goto merr;
@@ -218,7 +226,7 @@ X509_ALGOR *PKCS5_pbe2_set(const EVP_CIPHER *cipher, int iter,
 	/* If its RC2 then we'd better setup the key length */
 
 	if(alg_nid == NID_rc2_cbc) {
-		if(!(kdf->keylength = ASN1_INTEGER_new())) goto merr;
+		if(!(kdf->keylength = M_ASN1_INTEGER_new())) goto merr;
 		if(!ASN1_INTEGER_set (kdf->keylength,
 				 EVP_CIPHER_key_length(cipher))) goto merr;
 	}
@@ -264,7 +272,7 @@ X509_ALGOR *PKCS5_pbe2_set(const EVP_CIPHER *cipher, int iter,
 	err:
 	PBE2PARAM_free(pbe2);
 	/* Note 'scheme' is freed as part of pbe2 */
-	ASN1_OCTET_STRING_free(osalt);
+	M_ASN1_OCTET_STRING_free(osalt);
 	PBKDF2PARAM_free(kdf);
 	X509_ALGOR_free(kalg);
 	X509_ALGOR_free(ret);

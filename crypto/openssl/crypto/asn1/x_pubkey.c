@@ -100,7 +100,7 @@ X509_PUBKEY *X509_PUBKEY_new(void)
 
 	M_ASN1_New_Malloc(ret,X509_PUBKEY);
 	M_ASN1_New(ret->algor,X509_ALGOR_new);
-	M_ASN1_New(ret->public_key,ASN1_BIT_STRING_new);
+	M_ASN1_New(ret->public_key,M_ASN1_BIT_STRING_new);
 	ret->pkey=NULL;
 	return(ret);
 	M_ASN1_New_Error(ASN1_F_X509_PUBKEY_NEW);
@@ -110,9 +110,9 @@ void X509_PUBKEY_free(X509_PUBKEY *a)
 	{
 	if (a == NULL) return;
 	X509_ALGOR_free(a->algor);
-	ASN1_BIT_STRING_free(a->public_key);
+	M_ASN1_BIT_STRING_free(a->public_key);
 	if (a->pkey != NULL) EVP_PKEY_free(a->pkey);
-	Free((char *)a);
+	Free(a);
 	}
 
 int X509_PUBKEY_set(X509_PUBKEY **x, EVP_PKEY *pkey)
@@ -176,15 +176,17 @@ int X509_PUBKEY_set(X509_PUBKEY **x, EVP_PKEY *pkey)
 	if ((s=(unsigned char *)Malloc(i+1)) == NULL) goto err;
 	p=s;
 	i2d_PublicKey(pkey,&p);
-	if (!ASN1_BIT_STRING_set(pk->public_key,s,i)) goto err;
+	if (!M_ASN1_BIT_STRING_set(pk->public_key,s,i)) goto err;
 	/* Set number of unused bits to zero */
 	pk->public_key->flags&= ~(ASN1_STRING_FLAG_BITS_LEFT|0x07);
 	pk->public_key->flags|=ASN1_STRING_FLAG_BITS_LEFT;
 
 	Free(s);
 
+#if 0
 	CRYPTO_add(&pkey->references,1,CRYPTO_LOCK_EVP_PKEY);
 	pk->pkey=pkey;
+#endif
 
 	if (*x != NULL)
 		X509_PUBKEY_free(*x);
@@ -252,3 +254,113 @@ err:
 	return(NULL);
 	}
 
+/* Now two pseudo ASN1 routines that take an EVP_PKEY structure
+ * and encode or decode as X509_PUBKEY
+ */
+
+EVP_PKEY *d2i_PUBKEY(EVP_PKEY **a, unsigned char **pp,
+	     long length)
+{
+	X509_PUBKEY *xpk;
+	EVP_PKEY *pktmp;
+	xpk = d2i_X509_PUBKEY(NULL, pp, length);
+	if(!xpk) return NULL;
+	pktmp = X509_PUBKEY_get(xpk);
+	X509_PUBKEY_free(xpk);
+	if(!pktmp) return NULL;
+	if(a) {
+		EVP_PKEY_free(*a);
+		*a = pktmp;
+	}
+	return pktmp;
+}
+
+int i2d_PUBKEY(EVP_PKEY *a, unsigned char **pp)
+{
+	X509_PUBKEY *xpk=NULL;
+	int ret;
+	if(!a) return 0;
+	if(!X509_PUBKEY_set(&xpk, a)) return 0;
+	ret = i2d_X509_PUBKEY(xpk, pp);
+	X509_PUBKEY_free(xpk);
+	return ret;
+}
+
+/* The following are equivalents but which return RSA and DSA
+ * keys
+ */
+#ifndef NO_RSA
+RSA *d2i_RSA_PUBKEY(RSA **a, unsigned char **pp,
+	     long length)
+{
+	EVP_PKEY *pkey;
+	RSA *key;
+	unsigned char *q;
+	q = *pp;
+	pkey = d2i_PUBKEY(NULL, &q, length);
+	if(!pkey) return NULL;
+	key = EVP_PKEY_get1_RSA(pkey);
+	EVP_PKEY_free(pkey);
+	if(!key) return NULL;
+	*pp = q;
+	if(a) {
+		RSA_free(*a);
+		*a = key;
+	}
+	return key;
+}
+
+int i2d_RSA_PUBKEY(RSA *a, unsigned char **pp)
+{
+	EVP_PKEY *pktmp;
+	int ret;
+	if(!a) return 0;
+	pktmp = EVP_PKEY_new();
+	if(!pktmp) {
+		ASN1err(ASN1_F_I2D_RSA_PUBKEY, ERR_R_MALLOC_FAILURE);
+		return 0;
+	}
+	EVP_PKEY_set1_RSA(pktmp, a);
+	ret = i2d_PUBKEY(pktmp, pp);
+	EVP_PKEY_free(pktmp);
+	return ret;
+}
+#endif
+
+#ifndef NO_DSA
+DSA *d2i_DSA_PUBKEY(DSA **a, unsigned char **pp,
+	     long length)
+{
+	EVP_PKEY *pkey;
+	DSA *key;
+	unsigned char *q;
+	q = *pp;
+	pkey = d2i_PUBKEY(NULL, &q, length);
+	if(!pkey) return NULL;
+	key = EVP_PKEY_get1_DSA(pkey);
+	EVP_PKEY_free(pkey);
+	if(!key) return NULL;
+	*pp = q;
+	if(a) {
+		DSA_free(*a);
+		*a = key;
+	}
+	return key;
+}
+
+int i2d_DSA_PUBKEY(DSA *a, unsigned char **pp)
+{
+	EVP_PKEY *pktmp;
+	int ret;
+	if(!a) return 0;
+	pktmp = EVP_PKEY_new();
+	if(!pktmp) {
+		ASN1err(ASN1_F_I2D_DSA_PUBKEY, ERR_R_MALLOC_FAILURE);
+		return 0;
+	}
+	EVP_PKEY_set1_DSA(pktmp, a);
+	ret = i2d_PUBKEY(pktmp, pp);
+	EVP_PKEY_free(pktmp);
+	return ret;
+}
+#endif

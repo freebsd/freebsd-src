@@ -57,6 +57,7 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <openssl/bio.h>
 #include <openssl/x509.h>
 #include <openssl/pem.h>
@@ -85,7 +86,7 @@ char *argv[];
 	int i,printit=0;
 	STACK_OF(PKCS7_SIGNER_INFO) *sk;
 
-	SSLeay_add_all_algorithms();
+	OpenSSL_add_all_algorithms();
 	bio_err=BIO_new_fp(stderr,BIO_NOCLOSE);
 
 	data=BIO_new(BIO_s_file());
@@ -121,9 +122,10 @@ char *argv[];
 	}
 
         if ((in=BIO_new_file(keyfile,"r")) == NULL) goto err;
-        if ((x509=PEM_read_bio_X509(in,NULL,NULL)) == NULL) goto err;
+        if ((x509=PEM_read_bio_X509(in,NULL,NULL,NULL)) == NULL) goto err;
         BIO_reset(in);
-        if ((pkey=PEM_read_bio_PrivateKey(in,NULL,NULL)) == NULL) goto err;
+        if ((pkey=PEM_read_bio_PrivateKey(in,NULL,NULL,NULL)) == NULL)
+		goto err;
         BIO_free(in);
 
 	if (pp == NULL)
@@ -131,7 +133,7 @@ char *argv[];
 
 
 	/* Load the PKCS7 object from a file */
-	if ((p7=PEM_read_bio_PKCS7(data,NULL,NULL)) == NULL) goto err;
+	if ((p7=PEM_read_bio_PKCS7(data,NULL,NULL,NULL)) == NULL) goto err;
 
 
 
@@ -148,7 +150,7 @@ char *argv[];
 	/* We need to process the data */
 	/* We cannot support detached encryption */
 	p7bio=PKCS7_dataDecode(p7,pkey,detached,x509);
-	
+
 	if (p7bio == NULL)
 		{
 		printf("problems decoding\n");

@@ -59,23 +59,24 @@
 #include <stdio.h>
 #include <time.h>
 #include <errno.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 
-#include <openssl/crypto.h>
 #include "cryptlib.h"
+#include <openssl/crypto.h>
 #include <openssl/lhash.h>
 #include <openssl/buffer.h>
 #include <openssl/evp.h>
 #include <openssl/asn1.h>
 #include <openssl/x509.h>
+#include <openssl/x509v3.h>
 #include <openssl/objects.h>
 
 static int null_callback(int ok,X509_STORE_CTX *e);
+static int check_chain_purpose(X509_STORE_CTX *ctx);
+static int check_trust(X509_STORE_CTX *ctx);
 static int internal_verify(X509_STORE_CTX *ctx);
 const char *X509_version="X.509" OPENSSL_VERSION_PTEXT;
 
-static STACK *x509_store_ctx_method=NULL;
+static STACK_OF(CRYPTO_EX_DATA_FUNCS) *x509_store_ctx_method=NULL;
 static int x509_store_ctx_num=0;
 #if 0
 static int x509_store_num=1;
@@ -127,7 +128,7 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
 		ctx->last_untrusted=1;
 		}
 
-	/* We use a temporary so we can chop and hack at it */
+	/* We use a temporary STACK so we can chop and hack at it */
 	if (ctx->untrusted != NULL
 	    && (sktmp=sk_X509_dup(ctx->untrusted)) == NULL)
 		{
@@ -184,17 +185,37 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
 
 	i=sk_X509_num(ctx->chain);
 	x=sk_X509_value(ctx->chain,i-1);
-	if (X509_NAME_cmp(X509_get_subject_name(x),X509_get_issuer_name(x))
+	xn = X509_get_subject_name(x);
+	if (X509_NAME_cmp(xn,X509_get_issuer_name(x))
 		== 0)
 		{
 		/* we have a self signed certificate */
 		if (sk_X509_num(ctx->chain) == 1)
 			{
-			ctx->error=X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT;
-			ctx->current_cert=x;
-			ctx->error_depth=i-1;
-			ok=cb(0,ctx);
-			if (!ok) goto end;
+			/* We have a single self signed certificate: see if
+			 * we can find it in the store. We must have an exact
+			 * match to avoid possible impersonation.
+			 */
+			ok=X509_STORE_get_by_subject(ctx,X509_LU_X509,xn,&obj);
+			if ((ok != X509_LU_X509) || X509_cmp(x, obj.data.x509)) 
+				{
+				ctx->error=X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT;
+				ctx->current_cert=x;
+				ctx->error_depth=i-1;
+				if(ok == X509_LU_X509) X509_OBJECT_free_contents(&obj);
+				ok=cb(0,ctx);
+				if (!ok) goto end;
+				}
+			else 
+				{
+				/* We have a match: replace certificate with store version
+				 * so we get any trust settings.
+				 */
+				X509_free(x);
+				x = obj.data.x509;
+				sk_X509_set(ctx->chain, i - 1, x);
+				ctx->last_untrusted=0;
+				}
 			}
 		else
 			{
@@ -272,6 +293,17 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
 		if (!ok) goto end;
 		}
 
+	/* We have the chain complete: now we need to check its purpose */
+	if(ctx->purpose > 0) ok = check_chain_purpose(ctx);
+
+	if(!ok) goto end;
+
+	/* The chain extensions are OK: check trust */
+
+	if(ctx->trust > 0) ok = check_trust(ctx);
+
+	if(!ok) goto end;
+
 	/* We may as well copy down any DSA parameters that are required */
 	X509_get_pubkey_parameters(NULL,ctx->chain);
 
@@ -289,6 +321,71 @@ end:
 	if (chain_ss != NULL) X509_free(chain_ss);
 	return(ok);
 	}
+
+/* Check a certificate chains extensions for consistency
+ * with the supplied purpose
+ */
+
+static int check_chain_purpose(X509_STORE_CTX *ctx)
+{
+#ifdef NO_CHAIN_VERIFY
+	return 1;
+#else
+	int i, ok=0;
+	X509 *x;
+	int (*cb)();
+	cb=ctx->ctx->verify_cb;
+	if (cb == NULL) cb=null_callback;
+	/* Check all untrusted certificates */
+	for(i = 0; i < ctx->last_untrusted; i++) {
+		x = sk_X509_value(ctx->chain, i);
+		if(!X509_check_purpose(x, ctx->purpose, i)) {
+			if(i) ctx->error = X509_V_ERR_INVALID_CA;
+			else ctx->error = X509_V_ERR_INVALID_PURPOSE;
+			ctx->error_depth = i;
+			ctx->current_cert = x;
+			ok=cb(0,ctx);
+			if(!ok) goto end;
+		}
+		/* Check pathlen */
+		if((i > 1) && (x->ex_pathlen != -1)
+					&& (i > (x->ex_pathlen + 1))) {
+			ctx->error = X509_V_ERR_PATH_LENGTH_EXCEEDED;
+			ctx->error_depth = i;
+			ctx->current_cert = x;
+			ok=cb(0,ctx);
+			if(!ok) goto end;
+		}
+	}
+	ok = 1;
+	end:
+	return(ok);
+#endif
+}
+
+static int check_trust(X509_STORE_CTX *ctx)
+{
+#ifdef NO_CHAIN_VERIFY
+	return 1;
+#else
+	int i, ok;
+	X509 *x;
+	int (*cb)();
+	cb=ctx->ctx->verify_cb;
+	if (cb == NULL) cb=null_callback;
+/* For now just check the last certificate in the chain */
+	i = sk_X509_num(ctx->chain) - 1;
+	x = sk_X509_value(ctx->chain, i);
+	ok = X509_check_trust(x, ctx->trust, 0);
+	if(ok == X509_TRUST_TRUSTED) return 1;
+	ctx->error_depth = sk_X509_num(ctx->chain) - 1;
+	ctx->current_cert = x;
+	if(ok == X509_TRUST_REJECTED) ctx->error = X509_V_ERR_CERT_REJECTED;
+	else ctx->error = X509_V_ERR_CERT_UNTRUSTED;
+	ok = cb(0, ctx);
+	return(ok);
+#endif
+}
 
 static int internal_verify(X509_STORE_CTX *ctx)
 	{
@@ -339,11 +436,14 @@ static int internal_verify(X509_STORE_CTX *ctx)
 				}
 			if (X509_verify(xs,pkey) <= 0)
 				{
-				EVP_PKEY_free(pkey);
 				ctx->error=X509_V_ERR_CERT_SIGNATURE_FAILURE;
 				ctx->current_cert=xs;
 				ok=(*cb)(0,ctx);
-				if (!ok) goto end;
+				if (!ok)
+					{
+					EVP_PKEY_free(pkey);
+					goto end;
+					}
 				}
 			EVP_PKEY_free(pkey);
 			pkey=NULL;
@@ -439,7 +539,7 @@ int X509_cmp_current_time(ASN1_UTCTIME *ctm)
 	atm.length=sizeof(buff2);
 	atm.data=(unsigned char *)buff2;
 
-	X509_gmtime_adj(&atm,-offset);
+	X509_gmtime_adj(&atm,-offset*60);
 
 	i=(buff1[0]-'0')*10+(buff1[1]-'0');
 	if (i < 50) i+=100; /* cf. RFC 2459 */
@@ -525,13 +625,13 @@ int X509_STORE_add_cert(X509_STORE *ctx, X509 *x)
 
 	X509_OBJECT_up_ref_count(obj);
 
-	r=(X509_OBJECT *)lh_insert(ctx->certs,(char *)obj);
+	r=(X509_OBJECT *)lh_insert(ctx->certs,obj);
 	if (r != NULL)
 		{ /* oops, put it back */
-		lh_delete(ctx->certs,(char *)obj);
+		lh_delete(ctx->certs,obj);
 		X509_OBJECT_free_contents(obj);
 		Free(obj);
-		lh_insert(ctx->certs,(char *)r);
+		lh_insert(ctx->certs,r);
 		X509err(X509_F_X509_STORE_ADD_CERT,X509_R_CERT_ALREADY_IN_HASH_TABLE);
 		ret=0;
 		}
@@ -560,13 +660,13 @@ int X509_STORE_add_crl(X509_STORE *ctx, X509_CRL *x)
 
 	X509_OBJECT_up_ref_count(obj);
 
-	r=(X509_OBJECT *)lh_insert(ctx->certs,(char *)obj);
+	r=(X509_OBJECT *)lh_insert(ctx->certs,obj);
 	if (r != NULL)
 		{ /* oops, put it back */
-		lh_delete(ctx->certs,(char *)obj);
+		lh_delete(ctx->certs,obj);
 		X509_OBJECT_free_contents(obj);
 		Free(obj);
-		lh_insert(ctx->certs,(char *)r);
+		lh_insert(ctx->certs,r);
 		X509err(X509_F_X509_STORE_ADD_CRL,X509_R_CERT_ALREADY_IN_HASH_TABLE);
 		ret=0;
 		}
@@ -576,8 +676,8 @@ int X509_STORE_add_crl(X509_STORE *ctx, X509_CRL *x)
 	return(ret);	
 	}
 
-int X509_STORE_CTX_get_ex_new_index(long argl, char *argp, int (*new_func)(),
-	     int (*dup_func)(), void (*free_func)())
+int X509_STORE_CTX_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
+	     CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func)
         {
         x509_store_ctx_num++;
         return(CRYPTO_get_ex_new_index(x509_store_ctx_num-1,
@@ -620,6 +720,19 @@ STACK_OF(X509) *X509_STORE_CTX_get_chain(X509_STORE_CTX *ctx)
 	return(ctx->chain);
 	}
 
+STACK_OF(X509) *X509_STORE_CTX_get1_chain(X509_STORE_CTX *ctx)
+	{
+	int i;
+	X509 *x;
+	STACK_OF(X509) *chain;
+	if(!ctx->chain || !(chain = sk_X509_dup(ctx->chain))) return NULL;
+	for(i = 0; i < sk_X509_num(chain); i++) {
+		x = sk_X509_value(chain, i);
+		CRYPTO_add(&x->references, 1, CRYPTO_LOCK_X509);
+	}
+	return(chain);
+	}
+
 void X509_STORE_CTX_set_cert(X509_STORE_CTX *ctx, X509 *x)
 	{
 	ctx->cert=x;
@@ -629,6 +742,69 @@ void X509_STORE_CTX_set_chain(X509_STORE_CTX *ctx, STACK_OF(X509) *sk)
 	{
 	ctx->untrusted=sk;
 	}
+
+int X509_STORE_CTX_set_purpose(X509_STORE_CTX *ctx, int purpose)
+	{
+	return X509_STORE_CTX_purpose_inherit(ctx, 0, purpose, 0);
+	}
+
+int X509_STORE_CTX_set_trust(X509_STORE_CTX *ctx, int trust)
+	{
+	return X509_STORE_CTX_purpose_inherit(ctx, 0, 0, trust);
+	}
+
+/* This function is used to set the X509_STORE_CTX purpose and trust
+ * values. This is intended to be used when another structure has its
+ * own trust and purpose values which (if set) will be inherited by
+ * the ctx. If they aren't set then we will usually have a default
+ * purpose in mind which should then be used to set the trust value.
+ * An example of this is SSL use: an SSL structure will have its own
+ * purpose and trust settings which the application can set: if they
+ * aren't set then we use the default of SSL client/server.
+ */
+
+int X509_STORE_CTX_purpose_inherit(X509_STORE_CTX *ctx, int def_purpose,
+				int purpose, int trust)
+{
+	int idx;
+	/* If purpose not set use default */
+	if(!purpose) purpose = def_purpose;
+	/* If we have a purpose then check it is valid */
+	if(purpose) {
+		X509_PURPOSE *ptmp;
+		idx = X509_PURPOSE_get_by_id(purpose);
+		if(idx == -1) {
+			X509err(X509_F_X509_STORE_CTX_PURPOSE_INHERIT,
+						X509_R_UNKNOWN_PURPOSE_ID);
+			return 0;
+		}
+		ptmp = X509_PURPOSE_get0(idx);
+		if(ptmp->trust == X509_TRUST_DEFAULT) {
+			idx = X509_PURPOSE_get_by_id(def_purpose);
+			if(idx == -1) {
+				X509err(X509_F_X509_STORE_CTX_PURPOSE_INHERIT,
+						X509_R_UNKNOWN_PURPOSE_ID);
+				return 0;
+			}
+			ptmp = X509_PURPOSE_get0(idx);
+		}
+		/* If trust not set then get from purpose default */
+		if(!trust) trust = ptmp->trust;
+	}
+	if(trust) {
+		idx = X509_TRUST_get_by_id(trust);
+		if(idx == -1) {
+			X509err(X509_F_X509_STORE_CTX_PURPOSE_INHERIT,
+						X509_R_UNKNOWN_TRUST_ID);
+			return 0;
+		}
+	}
+
+	if(purpose) ctx->purpose = purpose;
+	if(trust) ctx->trust = trust;
+	return 1;
+}
+
 
 IMPLEMENT_STACK_OF(X509)
 IMPLEMENT_ASN1_SET_OF(X509)

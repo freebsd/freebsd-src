@@ -58,7 +58,11 @@
 
 #if !defined(MSDOS) && !defined(VMS) && !defined(WIN32)
 #include <openssl/opensslconf.h>
-#include OPENSSL_UNISTD
+#ifdef OPENSSL_UNISTD
+# include OPENSSL_UNISTD
+#else
+# include <unistd.h>
+#endif
 /* If unistd.h defines _POSIX_VERSION, we conclude that we
  * are on a POSIX system and have sigaction and termios. */
 #if defined(_POSIX_VERSION)
@@ -123,7 +127,7 @@
 #undef  SGTTY
 #endif
 
-#if !defined(TERMIO) && !defined(TERMIOS) && !defined(VMS) && !defined(MSDOS)
+#if !defined(TERMIO) && !defined(TERMIOS) && !defined(VMS) && !defined(MSDOS) && !defined(MAC_OS_pre_X) && !defined(MAC_OS_GUSI_SOURCE)
 #undef  TERMIOS
 #undef  TERMIO
 #define SGTTY
@@ -153,7 +157,7 @@
 #define TTY_set(tty,data)	ioctl(tty,TIOCSETP,data)
 #endif
 
-#if !defined(_LIBC) && !defined(MSDOS) && !defined(VMS)
+#if !defined(_LIBC) && !defined(MSDOS) && !defined(VMS) && !defined(MAC_OS_pre_X)
 #include <sys/ioctl.h>
 #endif
 
@@ -172,6 +176,15 @@ struct IOSB {
 	short iosb$w_count;
 	long  iosb$l_info;
 	};
+#endif
+
+#if defined(MAC_OS_pre_X) || defined(MAC_OS_GUSI_SOURCE)
+/*
+ * This one needs work. As a matter of fact the code is unoperational
+ * and this is only a trick to get it compiled.
+ *					<appro@fy.chalmers.se>
+ */
+#define TTY_STRUCT int
 #endif
 
 #ifndef NX509_SIG
