@@ -59,7 +59,7 @@
   054   rshift rshift rshift rshift rshift rshift rshift rshift  O
   055   '*'    '*'    nl     nl     170    170    138    138     O
   056   lalt   lalt   lalt   lalt   lalt   lalt   lalt   lalt    O
-  057   ' '    ' '    nul    ' '    160    160    160    160     O
+  057   ' '    ' '    nul    ' '    160    160    susp   160     O
   058   alock  clock  clock  clock  clock  clock  clock  clock   O
   059   fkey01 fkey13 fkey25 fkey37 scr01  scr11  scr01  scr11   O
   060   fkey02 fkey14 fkey26 fkey38 scr02  scr12  scr02  scr12   O
