@@ -319,10 +319,13 @@ vm_proc_swapin(struct proc *p)
 			rv = vm_pager_get_pages(upobj, &m, 1, 0);
 			if (rv != VM_PAGER_OK)
 				panic("vm_proc_swapin: cannot get upage");
-			m = vm_page_lookup(upobj, i);
-			m->valid = VM_PAGE_BITS_ALL;
 		}
 		ma[i] = m;
+	}
+	if (upobj->resident_page_count != UAREA_PAGES)
+		panic("vm_proc_swapin: lost pages from upobj");
+	TAILQ_FOREACH(m, &upobj->memq, listq) {
+		m->valid = VM_PAGE_BITS_ALL;
 		vm_page_wire(m);
 		vm_page_wakeup(m);
 		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
