@@ -1410,8 +1410,8 @@ cd0: 250.000MB/s transfers (250.000MHz, offset 12)</programlisting>
   
       <para>In AS500 DIMMs are installed in sets of 4, in <quote>physically 
       interleaved</quote> layout. So, a bank of 4 DIMMs is <emphasis>not</emphasis>
-      4 physically adjacent DIMMs. Note that the DIMMs are <emphasis>not
-      </emphasis>SDRAM DIMMs.</para>
+      4 physically adjacent DIMMs. Note that the DIMMs are <emphasis>not</emphasis>
+      SDRAM DIMMs.</para>
   
       <para>In AS600 the memory SIMMs are placed onto two memory daughter 
       cards. SIMMs are installed in sets of 8. Both memory daughter cards must 
