@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_acct.c	8.1 (Berkeley) 6/14/93
- *	$Id: kern_acct.c,v 1.13 1997/02/22 09:39:00 peter Exp $
+ *	$Id: kern_acct.c,v 1.14 1997/03/23 03:36:17 bde Exp $
  */
 
 #include <sys/param.h>
@@ -55,7 +55,6 @@
 #include <sys/errno.h>
 #include <sys/acct.h>
 #include <sys/resourcevar.h>
-#include <sys/ioctl.h>
 #include <sys/tty.h>
 
 /*

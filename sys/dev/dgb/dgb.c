@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.23 1997/02/22 09:29:42 peter Exp $
+ *  dgb.c $Id: dgb.c,v 1.24 1997/03/23 03:33:56 bde Exp $
  *
  *  Digiboard driver.
  *
@@ -45,7 +45,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/reboot.h>
-#include <sys/ioctl.h>
 #include <sys/tty.h>
 #include <sys/proc.h>
 #include <sys/conf.h>

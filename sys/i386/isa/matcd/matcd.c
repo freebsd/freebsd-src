@@ -337,7 +337,7 @@ static char	MATCDVERSION[]="Version  1(26) 18-Oct-95";
 static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank Durda IV";
 /*	The proceeding strings may not be changed*/
 
-/* $Id: matcd.c,v 1.22 1997/02/22 09:38:11 peter Exp $ */
+/* $Id: matcd.c,v 1.23 1997/03/23 03:35:32 bde Exp $ */
 
 /*---------------------------------------------------------------------------
 	Include declarations
@@ -352,7 +352,6 @@ static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank 
 #include	<sys/cdio.h>
 #include	<sys/disklabel.h>
 #include	<sys/fcntl.h>
-#include	<sys/ioctl.h>
 #include	<sys/proc.h>
 
 #include	"i386/isa/matcd/options.h"	/*Conditional compile options

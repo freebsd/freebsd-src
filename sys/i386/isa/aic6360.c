@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.27 1997/03/23 04:39:35 bde Exp $
+ * $Id: aic6360.c,v 1.28 1997/03/23 06:26:47 bde Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -120,7 +120,6 @@
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
-#include <sys/ioctl.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/proc.h>

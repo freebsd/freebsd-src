@@ -60,7 +60,7 @@
  *               that category, with the possible exception of scanners and
  *               some of the older MO drives.
  *
- * $Id: seagate.c,v 1.20 1997/02/22 09:37:05 peter Exp $
+ * $Id: seagate.c,v 1.21 1997/03/23 04:39:51 bde Exp $
  */
 
 /*
@@ -117,7 +117,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/errno.h>
-#include <sys/ioctl.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/proc.h>

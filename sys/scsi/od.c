@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.28 1997/02/22 09:44:26 peter Exp $
+ *	$Id: od.c,v 1.29 1997/03/23 06:33:45 bde Exp $
  */
 
 /*
@@ -68,7 +68,6 @@
 #include <sys/conf.h>
 #include <sys/file.h>
 #include <sys/stat.h>
-#include <sys/ioctl.h>
 #include <sys/buf.h>
 #include <sys/uio.h>
 #include <sys/malloc.h>

@@ -42,7 +42,6 @@
 #include <sys/buf.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
-#include <sys/ioctl.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/

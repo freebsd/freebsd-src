@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.44 1997/02/22 09:28:58 peter Exp $
+ *	$Id: vn.c,v 1.45 1997/03/23 03:33:39 bde Exp $
  */
 
 /*
@@ -76,7 +76,6 @@
 #include <sys/errno.h>
 #include <sys/buf.h>
 #include <sys/malloc.h>
-#include <sys/ioctl.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
 #include <sys/fcntl.h>

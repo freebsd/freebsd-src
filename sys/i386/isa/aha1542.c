@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.67 1997/03/23 04:39:26 bde Exp $
+ *      $Id: aha1542.c,v 1.68 1997/03/23 06:26:46 bde Exp $
  */
 
 /*
@@ -26,7 +26,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
-#include <sys/ioctl.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/proc.h>

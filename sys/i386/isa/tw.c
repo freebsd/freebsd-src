@@ -134,7 +134,6 @@
 #include <sys/conf.h>
 #include <sys/buf.h>
 #include <sys/kernel.h>
-#include <sys/ioctl.h>
 #include <sys/uio.h>
 #include <sys/syslog.h>
 #include <sys/select.h>

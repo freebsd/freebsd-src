@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_fea.c,v 1.1.1.1 1997/01/17 23:19:49 joerg Exp $
+ * $Id: if_fea.c,v 1.2 1997/01/17 23:54:37 joerg Exp $
  */
 
 /*
@@ -36,7 +36,6 @@
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
-#include <sys/ioctl.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
 #if defined(__bsdi__) || defined(__NetBSD__)

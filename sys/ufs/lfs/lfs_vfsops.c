@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vfsops.c	8.20 (Berkeley) 6/10/95
- * $Id: lfs_vfsops.c,v 1.17 1997/03/23 00:45:23 bde Exp $
+ * $Id: lfs_vfsops.c,v 1.18 1997/03/23 03:37:42 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -47,7 +47,6 @@
 #include <sys/mbuf.h>
 #include <sys/fcntl.h>
 #include <sys/disklabel.h>
-#include <sys/ioctl.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/socket.h>

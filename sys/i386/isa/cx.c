@@ -24,7 +24,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
-#include <sys/ioctl.h>
 #include <sys/fcntl.h>
 #include <sys/conf.h>
 #include <sys/proc.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id: in_pcb.c,v 1.27 1997/02/22 09:41:29 peter Exp $
+ *	$Id: in_pcb.c,v 1.28 1997/03/03 09:23:33 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -42,7 +42,6 @@
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/ioctl.h>
 #include <sys/errno.h>
 #include <sys/time.h>
 #include <sys/proc.h>

@@ -27,7 +27,6 @@
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
-#include <sys/ioctl.h>
 #include <sys/disklabel.h>
 #include <sys/cdio.h>
 #include <sys/conf.h>

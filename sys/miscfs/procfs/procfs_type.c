@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: procfs_type.c,v 1.3 1997/02/22 09:40:30 peter Exp $
  */
 
 #include <sys/param.h>
@@ -44,7 +44,6 @@
 #include <sys/proc.h>
 #include <sys/sysent.h>
 #include <sys/vnode.h>
-#include <sys/ioctl.h>
 #include <sys/tty.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
