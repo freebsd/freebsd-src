@@ -44,7 +44,7 @@
 .Fl b | h | H | k |
 .Fl m | P
 .Oc
-.Op Fl ain
+.Op Fl ailn
 .Op Fl t Ar type
 .Op Ar file | filesystem ...
 .Sh DESCRIPTION
@@ -91,6 +91,8 @@ Use 1024-byte (1-Kbyte) blocks rather than the default.  Note that
 this overrides the
 .Ev BLOCKSIZE
 specification from the environment.
+.It Fl l
+Only display information about locally-mounted filesystems.
 .It Fl m
 Use 1048576-byte (1-Mbyte) blocks rather than the default.  Note that
 this overrides the
@@ -106,7 +108,7 @@ When this option is specified,
 will not request new statistics from the filesystems, but will respond
 with the possibly stale statistics that were previously obtained.
 .It Fl P
-Use POSIX compliant output of 512-byte blocks rather than the default. 
+Use POSIX compliant output of 512-byte blocks rather than the default.
 Note that this overrides the
 .Ev BLOCKSIZE
 specification from the environment.
