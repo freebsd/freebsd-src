@@ -17,6 +17,14 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20030125:
+	The scheduler framework has grown a second scheduler and consequently
+	you must specify one and only one scheduler in your kernel config.
+	The in cvs config files have been updated to use the old scheduler
+	which may be selected via 'options SCHED_4BSD'.  If you would like
+	to try the new, much more experimental, scheduler please try
+	'options SCHED_ULE' and contribute to the arch@ discussion.
+
 20030115:
 	A new version of the wi driver has been imported into the tree.
 	One now must have device wlan in the config file for it to operate
