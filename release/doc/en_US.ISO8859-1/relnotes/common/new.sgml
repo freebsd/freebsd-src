@@ -416,7 +416,7 @@
         <varname>net.inet.ip.portrange.randomtime</varname>
         seconds.  The default values for these two sysctl variables
         are <literal>10</literal> and <literal>45</literal>,
-        respectively.</para>
+        respectively. &merged;</para>
 
       <para>Fine-grained locking has been applied to many of the data
 	structures in the IPX/SPX protocol stack.  While not fully
@@ -549,6 +549,12 @@
       Device nodes have been managed by the &man.devfs.5; device file
       system since &os; 5.0.</para>
 
+    <para>The &man.moused.8; daemon now supports <quote>virtual
+      scrolling</quote>, in which mouse motions made while holding
+      down the middle mouse button are interpreted as scrolling.  This
+      feature is enabled with the <option>-V</option>
+      flag. &merged;</para>
+
     <para>For years, &os; has used <filename>Makefile</filename>
       variables of the form
       <varname>NO<replaceable>FOO</replaceable></varname> and
@@ -582,13 +588,13 @@
     <para>The &man.syslogd.8; utility now opens an additional domain
       socket <filename>/var/run/logpriv</filename> by default,
       with <literal>0600</literal> permissions to be used
-      by privileged programs.  This prevents the privileged
+      by privileged programs.  This prevents privileged
       programs from locking when the domain sockets
-      run out of the buffer space due to
-      local denial-of-service attack.</para>
+      run out of buffer space due to a
+      local denial-of-service attack. &merged;</para>
 
     <para>The <option>-f</option> option of &man.tail.1; utility
-      now supports more than one file at a time.</para>
+      now supports more than one file at a time. &merged;</para>
 
     <para>The &man.telnet.1; and &man.telnetd.8; programs now support
       the <option>-S</option> option for specifying a numeric TOS
@@ -613,20 +619,20 @@
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
-      <para>&man.rc.conf.5; now supports change of the interface name
-	on boot time.  For example:</para>
+      <para>&man.rc.conf.5; now supports changes of network interface names
+	at boot time.  For example:</para>
 
       <programlisting>ifconfig_fxp0_name="net0"
 ifconfig_net0="inet 10.0.0.1/16"</programlisting>
 
       <para>The <filename>rc.d/moused</filename> script now
-	start/stop/check on a specific device when
-	the device name as the second argument to the script:</para>
+	starts/stops/checks a specific device when
+	the device name is given as the second argument to the script:</para>
 
       <screen>&prompt.root; /etc/rc.d/moused start ums0</screen>
 
       <para>To use different &man.rc.conf.5; knobs with different
-	mice use the device name as part of the knob.
+	mice, use the device name as part of the knob.
 	For example, if the mouse device is <filename>/dev/ums0</filename>
 	the following lines can be used:</para>
 
