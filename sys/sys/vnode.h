@@ -148,7 +148,6 @@ struct vnode {
 	const char *filename;			/* Source file doing locking */
 	int line;				/* Line number doing locking */
 #endif
-	ino_t	v_cachedid;			/* cached file id */
 };
 
 #endif /* defined(_KERNEL) || defined(_KVM_VNODE) */

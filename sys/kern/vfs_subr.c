@@ -850,7 +850,6 @@ getnewvnode(tag, mp, vops, vpp)
 	*vpp = vp;
 	vp->v_usecount = 1;
 	vp->v_data = 0;
-	vp->v_cachedid = -1;
 	VI_UNLOCK(vp);
 	if (pollinfo != NULL) {
 		knlist_destroy(&pollinfo->vpi_selinfo.si_note);
@@ -2951,7 +2950,6 @@ sysctl_vnode(SYSCTL_HANDLER_ARGS)
 			case VREG:
 			case VDIR:
 			case VLNK:
-				xvn[n].xv_ino = vp->v_cachedid;
 				break;
 			case VBLK:
 			case VCHR:
