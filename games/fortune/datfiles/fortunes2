@@ -463,7 +463,7 @@ computer is so important, what the words *fatal error* mean, and who and what
 you should blame when you make a mistake.
 
 	Yes, I want the brochure describing this incredible offer.
-	I enclose $1000 is small unmarked bills to cover the cost of
+	I enclose $1000 in small unmarked bills to cover the cost of
 	postage and handling. (No live poultry, please.)
 
 *** Our Slogan:  Top down programming for the masses. ***
@@ -16906,7 +16906,7 @@ For example, if \thinmskip = 3mu, this makes \thickmskip = 6mu.  But if
 you also want to use \skip12 for horizontal glue, whether in math mode or
 not, the amount of skipping will be in points (e.g., 6pt).  The rule is
 that glue in math mode varies with the size only when it is an \mskip;
-when moving between an mskipand ordinary skip, the conversion factor
+when moving between an mskip and ordinary skip, the conversion factor
 1mu=1pt is always used.  The meaning of '\mskip\skip12' and
 '\baselineskip=\the\thickmskip' should be clear.
 		-- Donald Knuth, TeX 82 -- Comparison with TeX80
@@ -42020,7 +42020,7 @@ The English instinctively admire any man
 who has no talent and is modest about it.
 		-- James Agate, British film and drama critic
 %
-The entire work force of the Communist countries is sunjected to periodic
+The entire work force of the Communist countries is subjected to periodic
 purges (called verifications in Newspeak).  One of the most severe took
 place in 1957 when Novotny, rattled by the Hungarian Revolution the year
 before, tried hard to weed out "radishes" (red outside, white inside) from
