@@ -182,13 +182,6 @@ cpu_set_fork_handler(td, func, arg)
 	cf->cf_arg0 = (register_t)arg;
 }
 
-/*
- * cpu_exit is called as the last action during exit.
- * We release the address space of the process, block interrupts,
- * and call switch_exit.  switch_exit switches to proc0's PCB and stack,
- * then jumps into the middle of cpu_switch, as if it were switching
- * from proc0.
- */
 void
 cpu_exit(td)
 	register struct thread *td;
