@@ -34,7 +34,7 @@
 .\"
 .\"     @(#)tr.1	8.1 (Berkeley) 6/6/93
 .\"
-.Dd June 6, 1993
+.Dd October 11, 1997
 .Dt TR 1
 .Os
 .Sh NAME
@@ -42,18 +42,18 @@
 .Nd translate characters
 .Sh SYNOPSIS
 .Nm tr
-.Op Fl cs
+.Op Fl csu
 .Ar string1 string2
 .Nm tr
-.Op Fl c
+.Op Fl cu
 .Fl d
 .Ar string1
 .Nm tr
-.Op Fl c
+.Op Fl cu
 .Fl s
 .Ar string1
 .Nm tr
-.Op Fl c
+.Op Fl cu
 .Fl ds
 .Ar string1 string2
 .Sh DESCRIPTION
@@ -82,6 +82,10 @@ or
 .Ar string2 )
 in the input into a single instance of the character.
 This occurs after all deletion and translation is completed.
+.It Fl u
+The
+.Fl u
+option guarantees that any output is unbuffered.
 .El
 .Pp
 In the first synopsis form, the characters in
@@ -290,3 +294,8 @@ has less characters than
 is permitted by POSIX but is not required.
 Shell scripts attempting to be portable to other POSIX systems should use
 the ``[#*]'' convention instead of relying on this behavior.
+The
+.Fl u
+option is an extension to the
+.St -p1003.2
+standard.
