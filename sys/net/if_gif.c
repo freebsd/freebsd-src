@@ -499,11 +499,11 @@ gif_input(m, af, gifp)
 		splx(s);
 		return;
 	}
+	gifp->if_ipackets++;
+	gifp->if_ibytes += m->m_pkthdr.len;
 	IF_ENQUEUE(ifq, m);
 	/* we need schednetisr since the address family may change */
 	schednetisr(isr);
-	gifp->if_ipackets++;
-	gifp->if_ibytes += m->m_pkthdr.len;
 	splx(s);
 
 	return;
