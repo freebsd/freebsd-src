@@ -56,21 +56,18 @@
 struct malloc_type {
 	struct malloc_type *ks_next;	/* next in list */
 	long 	ks_memuse;	/* total memory held in bytes */
-	long	ks_limit;	/* most that are allowed to exist */
 	long	ks_size;	/* sizes of this thing that are allocated */
 	long	ks_inuse;	/* # of packets of this type currently in use */
 	uint64_t ks_calls;	/* total packets of this type ever allocated */
 	long	ks_maxused;	/* maximum number ever used */
 	u_long	ks_magic;	/* if it's not magic, don't touch it */
 	const char *ks_shortdesc;	/* short description */
-	u_short	ks_limblocks;	/* number of times blocked for hitting limit */
-	u_short	ks_mapblocks;	/* number of times blocked for kernel map */
 };
 
 #ifdef _KERNEL
 #define	MALLOC_DEFINE(type, shortdesc, longdesc) \
 	struct malloc_type type[1] = { \
-		{ NULL, 0, 0, 0, 0, 0, 0, M_MAGIC, shortdesc, 0, 0 } \
+		{ NULL, 0, 0, 0, 0, 0, M_MAGIC, shortdesc } \
 	}; \
 	SYSINIT(type##_init, SI_SUB_KMEM, SI_ORDER_SECOND, malloc_init, type); \
 	SYSUNINIT(type##_uninit, SI_SUB_KMEM, SI_ORDER_ANY, malloc_uninit, type)

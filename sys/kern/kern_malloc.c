@@ -45,6 +45,7 @@
 #include <sys/mutex.h>
 #include <sys/vmmeter.h>
 #include <sys/proc.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -91,33 +92,40 @@ static char *kmemlimit;
 
 #define KMEM_ZMAX	65536
 #define KMEM_ZSIZE	(KMEM_ZMAX >> KMEM_ZSHIFT)
-static uma_zone_t kmemzones[KMEM_ZSIZE + 1];
+static u_int8_t kmemsize[KMEM_ZSIZE + 1];
+
+#ifdef MALLOC_PROFILE
+uint64_t krequests[KMEM_ZSIZE + 1];
+#endif
 
 
 /* These won't be powers of two for long */
 struct {
-	int size;
-	char *name;
-} kmemsizes[] = {
-	{16, "16"},
-	{32, "32"},
-	{64, "64"},
-	{128, "128"},
-	{256, "256"},
-	{512, "512"},
-	{1024, "1024"},
-	{2048, "2048"},
-	{4096, "4096"},
-	{8192, "8192"},
-	{16384, "16384"},
-	{32768, "32768"},
-	{65536, "65536"},
+	int kz_size;
+	char *kz_name;
+	uma_zone_t kz_zone;
+} kmemzones[] = {
+	{16, "16", NULL},
+	{32, "32", NULL},
+	{64, "64", NULL},
+	{128, "128", NULL},
+	{256, "256", NULL},
+	{512, "512", NULL},
+	{1024, "1024", NULL},
+	{2048, "2048", NULL},
+	{4096, "4096", NULL},
+	{8192, "8192", NULL},
+	{16384, "16384", NULL},
+	{32768, "32768", NULL},
+	{65536, "65536", NULL},
 	{0, NULL},
 };
 
+u_int vm_kmem_size;
 static struct mtx malloc_mtx;
 
-u_int vm_kmem_size;
+static int sysctl_kern_malloc(SYSCTL_HANDLER_ARGS);
+
 
 /*
  *	malloc:
@@ -133,8 +141,7 @@ malloc(size, type, flags)
 	struct malloc_type *type;
 	int flags;
 {
-	int s;
-	long indx;
+	int indx;
 	caddr_t va;
 	uma_zone_t zone;
 	register struct malloc_type *ksp = type;
@@ -144,52 +151,34 @@ malloc(size, type, flags)
 		KASSERT(curthread->td_intr_nesting_level == 0,
 		   ("malloc(M_WAITOK) in interrupt context"));
 #endif
-	s = splmem();
-	/* mtx_lock(&malloc_mtx); XXX */
-	while (ksp->ks_memuse >= ksp->ks_limit) {
-		if (flags & M_NOWAIT) {
-			splx(s);
-			/* mtx_unlock(&malloc_mtx); XXX */
-			return ((void *) NULL);
-		}
-		if (ksp->ks_limblocks < 65535)
-			ksp->ks_limblocks++;
-		msleep((caddr_t)ksp, /* &malloc_mtx */ NULL, PSWP+2, type->ks_shortdesc,
-		    0);
-	}
-	/* mtx_unlock(&malloc_mtx); XXX */
-
 	if (size <= KMEM_ZMAX) {
-		indx = size;
-		if (indx & KMEM_ZMASK)
-			indx = (indx & ~KMEM_ZMASK) + KMEM_ZBASE;
-		zone = kmemzones[indx >> KMEM_ZSHIFT];
-		indx = zone->uz_size;
+		if (size & KMEM_ZMASK)
+			size = (size & ~KMEM_ZMASK) + KMEM_ZBASE;
+		indx = kmemsize[size >> KMEM_ZSHIFT];
+		zone = kmemzones[indx].kz_zone;
+#ifdef MALLOC_PROFILE
+		krequests[size >> KMEM_ZSHIFT]++;
+#endif
 		va = uma_zalloc(zone, flags);
-		if (va == NULL) {
-			/* mtx_lock(&malloc_mtx); XXX */
+		if (va == NULL) 
 			goto out;
-		}
-		ksp->ks_size |= indx;
+
+		ksp->ks_size |= 1 << indx;
+		size = zone->uz_size;
 	} else {
-		/* XXX This is not the next power of two so this will break ks_size */
-		indx = roundup(size, PAGE_SIZE);
+		size = roundup(size, PAGE_SIZE);
 		zone = NULL;
 		va = uma_large_malloc(size, flags);
-		if (va == NULL) {
-			/* mtx_lock(&malloc_mtx); XXX */
+		if (va == NULL)
 			goto out;
-		}
 	}
-	/* mtx_lock(&malloc_mtx); XXX */
-	ksp->ks_memuse += indx;
+	ksp->ks_memuse += size;
 	ksp->ks_inuse++;
 out:
 	ksp->ks_calls++;
 	if (ksp->ks_memuse > ksp->ks_maxused)
 		ksp->ks_maxused = ksp->ks_memuse;
-	splx(s);
-	/* mtx_unlock(&malloc_mtx); XXX */
+
 	/* XXX: Do idle pre-zeroing.  */
 	if (va != NULL && (flags & M_ZERO))
 		bzero(va, size);
@@ -211,7 +200,6 @@ free(addr, type)
 	uma_slab_t slab;
 	void *mem;
 	u_long size;
-	int s;
 	register struct malloc_type *ksp = type;
 
 	/* free(NULL, ...) does nothing */
@@ -219,13 +207,13 @@ free(addr, type)
 		return;
 
 	size = 0;
-	s = splmem();
 
 	mem = (void *)((u_long)addr & (~UMA_SLAB_MASK));
 	slab = hash_sfind(mallochash, mem);
 
 	if (slab == NULL)
-		panic("free: address %p(%p) has not been allocated.\n", addr, mem);
+		panic("free: address %p(%p) has not been allocated.\n",
+		    addr, mem);
 
 	if (!(slab->us_flags & UMA_SLAB_MALLOC)) {
 		size = slab->us_zone->uz_size;
@@ -234,15 +222,8 @@ free(addr, type)
 		size = slab->us_size;
 		uma_large_free(slab);
 	}
-	/* mtx_lock(&malloc_mtx); XXX */
-
 	ksp->ks_memuse -= size;
-	if (ksp->ks_memuse + size >= ksp->ks_limit &&
-	    ksp->ks_memuse < ksp->ks_limit)
-		wakeup((caddr_t)ksp);
 	ksp->ks_inuse--;
-	splx(s);
-	/* mtx_unlock(&malloc_mtx); XXX */
 }
 
 /*
@@ -316,7 +297,7 @@ static void
 kmeminit(dummy)
 	void *dummy;
 {
-	register long indx;
+	u_int8_t indx;
 	u_long npg;
 	u_long mem_size;
 	void *hashmem;
@@ -324,7 +305,7 @@ kmeminit(dummy)
 	int highbit;
 	int bits;
 	int i;
-
+ 
 	mtx_init(&malloc_mtx, "malloc", NULL, MTX_DEF);
 
 	/*
@@ -394,15 +375,15 @@ kmeminit(dummy)
 	hashmem = (void *)kmem_alloc(kernel_map, (vm_size_t)hashsize);
 	uma_startup2(hashmem, hashsize / sizeof(void *));
 
-	for (i = 0, indx = 0; kmemsizes[indx].size != 0; indx++) {
-		uma_zone_t zone;
-		int size = kmemsizes[indx].size;
-		char *name = kmemsizes[indx].name;
+	for (i = 0, indx = 0; kmemzones[indx].kz_size != 0; indx++) {
+		int size = kmemzones[indx].kz_size;
+		char *name = kmemzones[indx].kz_name;
 
-		zone = uma_zcreate(name, size, NULL, NULL, NULL, NULL,
-		    UMA_ALIGN_PTR, UMA_ZONE_MALLOC);
+		kmemzones[indx].kz_zone = uma_zcreate(name, size, NULL, NULL,
+		    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_MALLOC);
+		    
 		for (;i <= size; i+= KMEM_ZBASE)
-			kmemzones[i >> KMEM_ZSHIFT] = zone;
+			kmemsize[i >> KMEM_ZSHIFT] = indx;
 		
 	}
 }
@@ -413,22 +394,19 @@ malloc_init(data)
 {
 	struct malloc_type *type = (struct malloc_type *)data;
 
+	mtx_lock(&malloc_mtx);
 	if (type->ks_magic != M_MAGIC)
 		panic("malloc type lacks magic");
-
-	if (type->ks_limit != 0)
-		return;
 
 	if (cnt.v_page_count == 0)
 		panic("malloc_init not allowed before vm init");
 
-	/*
-	 * The default limits for each malloc region is 1/2 of the
-	 * malloc portion of the kmem map size.
-	 */
-	type->ks_limit = vm_kmem_size / 2;
+	if (type->ks_next != NULL)
+		return;
+
 	type->ks_next = kmemstatistics;	
 	kmemstatistics = type;
+	mtx_unlock(&malloc_mtx);
 }
 
 void
@@ -438,14 +416,12 @@ malloc_uninit(data)
 	struct malloc_type *type = (struct malloc_type *)data;
 	struct malloc_type *t;
 
+	mtx_lock(&malloc_mtx);
 	if (type->ks_magic != M_MAGIC)
 		panic("malloc type lacks magic");
 
 	if (cnt.v_page_count == 0)
 		panic("malloc_uninit not allowed before vm init");
-
-	if (type->ks_limit == 0)
-		panic("malloc_uninit on uninitialized type");
 
 	if (type == kmemstatistics)
 		kmemstatistics = type->ks_next;
@@ -458,5 +434,80 @@ malloc_uninit(data)
 		}
 	}
 	type->ks_next = NULL;
-	type->ks_limit = 0;
+	mtx_unlock(&malloc_mtx);
 }
+
+static int
+sysctl_kern_malloc(SYSCTL_HANDLER_ARGS)
+{
+	struct malloc_type *type;
+	int linesize = 128;
+	int curline;
+	int bufsize;
+	int first;
+	int error;
+	char *buf;
+	char *p;
+	int cnt;
+	int len;
+	int i;
+
+	cnt = 0;
+
+	mtx_lock(&malloc_mtx);
+	for (type = kmemstatistics; type != NULL; type = type->ks_next)
+		cnt++;
+
+	bufsize = linesize * (cnt + 1);
+	p = buf = (char *)malloc(bufsize, M_TEMP, M_WAITOK|M_ZERO);
+
+	len = snprintf(p, linesize,
+	    "\n        Type  InUse MemUse HighUse Requests  Size(s)\n");
+	p += len;
+
+	for (type = kmemstatistics; cnt != 0 && type != NULL;
+	    type = type->ks_next, cnt--) {
+		if (type->ks_calls == 0)
+			continue;
+
+		curline = linesize - 2;	/* Leave room for the \n */
+		len = snprintf(p, curline, "%13s%6ld%6ldK%7ldK%9llu",
+			type->ks_shortdesc,
+			type->ks_inuse,
+			(type->ks_memuse + 1023) / 1024,
+			(type->ks_maxused + 1023) / 1024,
+			(long long unsigned)type->ks_calls);
+		curline -= len;
+		p += len;
+
+		first = 1;
+		for (i = 0; i < 14/* 8 * sizeof(type->ks_size)*/; i++) 
+			if (type->ks_size & (1 << i)) {
+				if (first)
+					len = snprintf(p, curline, "  ");
+				else
+					len = snprintf(p, curline, ",");
+				curline -= len;
+				p += len;
+
+				len = snprintf(p, curline,
+				    "%s", kmemzones[i].kz_name);
+				curline -= len;
+				p += len;
+
+				first = 0;
+			}
+
+		len = snprintf(p, 2, "\n");
+		p += len;
+	}
+
+	mtx_unlock(&malloc_mtx);
+	error = SYSCTL_OUT(req, buf, p - buf);
+
+	free(buf, M_TEMP);
+	return (error);
+}
+
+SYSCTL_OID(_kern, OID_AUTO, malloc, CTLTYPE_STRING|CTLFLAG_RD,
+    NULL, 0, sysctl_kern_malloc, "A", "Malloc Stats");
