@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.2 (Berkeley) 1/4/94
- * $Id: raw_ip.c,v 1.9 1994/12/12 17:20:55 ugen Exp $
+ * $Id: raw_ip.c,v 1.10 1994/12/13 15:57:34 ugen Exp $
  */
 
 #include <sys/param.h>
@@ -188,8 +188,11 @@ rip_ctloutput(op, so, level, optname, m)
 	register struct inpcb *inp = sotoinpcb(so);
 	register int error;
 
-	if (level != IPPROTO_IP)
+	if (level != IPPROTO_IP) {
+		if (op == PRCO_SETOPT && *m)
+			(void)m_free(*m);
 		return (EINVAL);
+	}
 
 	switch (optname) {
 
