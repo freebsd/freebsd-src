@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)clnt_tcp.c 1.37 87/10/05 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)clnt_tcp.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: clnt_tcp.c,v 1.7 1996/12/30 14:36:17 peter Exp $";
+static char *rcsid = "$Id: clnt_tcp.c,v 1.10 1997/05/28 05:05:08 wpaul Exp $";
 #endif
 
 /*
@@ -521,7 +521,7 @@ readtcp(ct, buf, len)
 
 		gettimeofday(&after, NULL);
 		timersub(&start, &after, &duration);
-		timersub(&delta, &duration, &tmp);
+		timersub(&ct->ct_wait, &duration, &tmp);
 		delta = tmp;
 		if (delta.tv_sec < 0 || !timerisset(&delta))
 			r = 0;
