@@ -140,6 +140,7 @@ SYSCTL_INT(_vfs, OID_AUTO, bufreusecnt, CTLFLAG_RW,
 	&bufreusecnt, 0, "");
 
 static int bufhashmask;
+static int bufhashshift;
 static LIST_HEAD(bufhashhdr, buf) *bufhashtbl, invalhash;
 struct bqueues bufqueues[BUFFER_QUEUES] = { { 0 } };
 char *buf_wmesg = BUF_WMESG;
@@ -160,7 +161,40 @@ static __inline
 struct bufhashhdr *
 bufhash(struct vnode *vnp, daddr_t bn)
 {
-	return(&bufhashtbl[(((uintptr_t)(vnp) >> 7) + (int)bn) & bufhashmask]);
+	u_int64_t hashkey64;
+	int hashkey; 
+	
+	/*
+	 * A variation on the Fibonacci hash that Knuth credits to
+	 * R. W. Floyd, see Knuth's _Art of Computer Programming,
+	 * Volume 3 / Sorting and Searching_
+	 *
+         * We reduce the argument to 32 bits before doing the hash to
+	 * avoid the need for a slow 64x64 multiply on 32 bit platforms.
+	 *
+	 * sizeof(struct vnode) is 168 on i386, so toss some of the lower
+	 * bits of the vnode address to reduce the key range, which
+	 * improves the distribution of keys across buckets.
+	 *
+	 * The file system cylinder group blocks are very heavily
+	 * used.  They are located at invervals of fbg, which is
+	 * on the order of 89 to 94 * 2^10, depending on other
+	 * filesystem parameters, for a 16k block size.  Smaller block
+	 * sizes will reduce fpg approximately proportionally.  This
+	 * will cause the cylinder group index to be hashed using the
+	 * lower bits of the hash multiplier, which will not distribute
+	 * the keys as uniformly in a classic Fibonacci hash where a
+	 * relatively small number of the upper bits of the result
+	 * are used.  Using 2^16 as a close-enough approximation to
+	 * fpg, split the hash multiplier in half, with the upper 16
+	 * bits being the inverse of the golden ratio, and the lower
+	 * 16 bits being a fraction between 1/3 and 3/7 (closer to
+	 * 3/7 in this case), that gives good experimental results.
+	 */
+	hashkey64 = ((u_int64_t)(uintptr_t)vnp >> 3) + (u_int64_t)bn;
+	hashkey = (((u_int32_t)(hashkey64 + (hashkey64 >> 32)) * 0x9E376DB1u) >>
+	    bufhashshift) & bufhashmask;
+	return(&bufhashtbl[hashkey]);
 }
 
 /*
@@ -319,8 +353,9 @@ caddr_t
 bufhashinit(caddr_t vaddr)
 {
 	/* first, make a null hash table */
+	bufhashshift = 29;
 	for (bufhashmask = 8; bufhashmask < nbuf / 4; bufhashmask <<= 1)
-		;
+		bufhashshift--;
 	bufhashtbl = (void *)vaddr;
 	vaddr = vaddr + sizeof(*bufhashtbl) * bufhashmask;
 	--bufhashmask;
