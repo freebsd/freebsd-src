@@ -35,6 +35,7 @@
  * $FreeBSD$
  */
 
+#include "opt_cpu.h"
 #include "opt_debug_npx.h"
 #include "opt_math_emulate.h"
 #include "opt_npx.h"
@@ -104,6 +105,8 @@
 #define	fnstsw(addr)		__asm __volatile("fnstsw %0" : "=m" (*(addr)))
 #define	fp_divide_by_0()	__asm("fldz; fld1; fdiv %st,%st(1); fnop")
 #define	frstor(addr)		__asm("frstor %0" : : "m" (*(addr)))
+#define	fxrstor(addr)		__asm("fxrstor %0" : : "m" (*(addr)))
+#define	fxsave(addr)		__asm __volatile("fxsave %0" : "=m" (*(addr)))
 #define	start_emulating()	__asm("smsw %%ax; orb %0,%%al; lmsw %%ax" \
 				      : : "n" (CR0_TS) : "ax")
 #define	stop_emulating()	__asm("clts")
@@ -118,10 +121,40 @@ void	fnstcw		__P((caddr_t addr));
 void	fnstsw		__P((caddr_t addr));
 void	fp_divide_by_0	__P((void));
 void	frstor		__P((caddr_t addr));
+void	fxsave		__P((caddr_t addr));
+void	fxrstor		__P((caddr_t addr));
 void	start_emulating	__P((void));
 void	stop_emulating	__P((void));
 
 #endif	/* __GNUC__ */
+
+#ifdef CPU_ENABLE_SSE
+#define GET_FPU_CW(proc) \
+	(cpu_fxsr ? \
+		(proc)->p_addr->u_pcb.pcb_save.sv_xmm.sv_env.en_cw : \
+		(proc)->p_addr->u_pcb.pcb_save.sv_87.sv_env.en_cw)
+#define GET_FPU_SW(proc) \
+	(cpu_fxsr ? \
+		(proc)->p_addr->u_pcb.pcb_save.sv_xmm.sv_env.en_sw : \
+		(proc)->p_addr->u_pcb.pcb_save.sv_87.sv_env.en_sw)
+#define MASK_FPU_SW(proc, mask) \
+	(cpu_fxsr ? \
+		(proc)->p_addr->u_pcb.pcb_save.sv_xmm.sv_env.en_sw & (mask) : \
+		(proc)->p_addr->u_pcb.pcb_save.sv_87.sv_env.en_sw & (mask))
+#define GET_FPU_EXSW_PTR(pcb) \
+	(cpu_fxsr ? \
+		&(pcb)->pcb_save.sv_xmm.sv_ex_sw : \
+		&(pcb)->pcb_save.sv_87.sv_ex_sw)
+#else /* CPU_ENABLE_SSE */
+#define GET_FPU_CW(proc) \
+	(proc->p_addr->u_pcb.pcb_save.sv_87.sv_env.en_cw)
+#define GET_FPU_SW(proc) \
+	(proc->p_addr->u_pcb.pcb_save.sv_87.sv_env.en_sw)
+#define MASK_FPU_SW(proc, mask) \
+	((proc)->p_addr->u_pcb.pcb_save.sv_87.sv_env.en_sw & (mask))
+#define GET_FPU_EXSW_PTR(pcb) \
+	(&(pcb)->pcb_save.sv_87.sv_ex_sw)
+#endif /* CPU_ENABLE_SSE */
 
 typedef u_char bool_t;
 
@@ -132,6 +165,8 @@ static	void	npx_intr	__P((void *));
 #endif
 static	int	npx_probe	__P((device_t dev));
 static	int	npx_probe1	__P((device_t dev));
+static	void	fpusave		__P((union savefpu *, u_char));
+static	void	fpurstor	__P((union savefpu *, u_char));
 #ifdef I586_CPU_XXX
 static	long	timezero	__P((const char *funcname,
 				     void (*func)(void *buf, size_t len)));
@@ -582,7 +617,7 @@ void
 npxinit(control)
 	u_short control;
 {
-	struct save87 dummy;
+	union savefpu dummy;
 	critical_t savecrit;
 
 	if (!npx_exists)
@@ -597,7 +632,7 @@ npxinit(control)
 	stop_emulating();
 	fldcw(&control);
 	if (PCPU_GET(curpcb) != NULL)
-		fnsave(&PCPU_GET(curpcb)->pcb_savefpu);
+		fpusave(&PCPU_GET(curpcb)->pcb_save, curproc->p_oncpu);
 	start_emulating();
 	critical_exit(savecrit);
 }
@@ -613,7 +648,7 @@ npxexit(p)
 
 	savecrit = critical_enter();
 	if (p == PCPU_GET(npxproc))
-		npxsave(&PCPU_GET(curpcb)->pcb_savefpu);
+		npxsave(&PCPU_GET(curpcb)->pcb_save);
 	critical_exit(savecrit);
 #ifdef NPX_DEBUG
 	if (npx_exists) {
@@ -826,6 +861,7 @@ npxtrap()
 {
 	critical_t savecrit;
 	u_short control, status;
+	u_long *exstat;
 
 	if (!npx_exists) {
 		printf("npxtrap: npxproc = %p, curproc = %p, npx_exists = %d\n",
@@ -840,16 +876,17 @@ npxtrap()
 	 * wherever they are.
 	 */
 	if (PCPU_GET(npxproc) != curproc) {
-		control = curproc->p_addr->u_pcb.pcb_savefpu.sv_env.en_cw;
-		status = curproc->p_addr->u_pcb.pcb_savefpu.sv_env.en_sw;
+		control = GET_FPU_CW(curproc);
+		status = GET_FPU_SW(curproc);
 	} else {
 		fnstcw(&control);
 		fnstsw(&status);
 	}
 
-	curproc->p_addr->u_pcb.pcb_savefpu.sv_ex_sw = status;
+	exstat = GET_FPU_EXSW_PTR(&curproc->p_addr->u_pcb);
+	*exstat = status;
 	if (PCPU_GET(npxproc) != curproc)
-		curproc->p_addr->u_pcb.pcb_savefpu.sv_env.en_sw &= ~0x80bf;
+		MASK_FPU_SW(curproc, ~0x80bf);
 	else
 		fnclex();
 	critical_exit(savecrit);
@@ -866,6 +903,7 @@ npxtrap()
 int
 npxdna()
 {
+	u_long *exstat;
 	critical_t s;
 
 	if (!npx_exists)
@@ -881,7 +919,9 @@ npxdna()
 	 * Record new context early in case frstor causes an IRQ13.
 	 */
 	PCPU_SET(npxproc, CURPROC);
-	PCPU_GET(curpcb)->pcb_savefpu.sv_ex_sw = 0;
+
+	exstat = GET_FPU_EXSW_PTR(PCPU_GET(curpcb));
+	*exstat = 0;
 	/*
 	 * The following frstor may cause an IRQ13 when the state being
 	 * restored has a pending error.  The error will appear to have been
@@ -894,7 +934,7 @@ npxdna()
 	 * fnsave are broken, so our treatment breaks fnclex if it is the
 	 * first FPU instruction after a context switch.
 	 */
-	frstor(&PCPU_GET(curpcb)->pcb_savefpu);
+	fpurstor(&PCPU_GET(curpcb)->pcb_save, curproc->p_oncpu);
 	critical_exit(s);
 
 	return (1);
@@ -925,13 +965,44 @@ npxdna()
  */
 void
 npxsave(addr)
-	struct save87 *addr;
+	union savefpu *addr;
 {
 
 	stop_emulating();
-	fnsave(addr);
+	fpusave(addr, curproc->p_oncpu);
+
 	start_emulating();
 	PCPU_SET(npxproc, NULL);
+}
+
+static void
+fpusave(addr, oncpu)
+	union savefpu *addr;
+	u_char oncpu;
+{
+	static struct savexmm svxmm[MAXCPU];
+	
+	if (!cpu_fxsr)
+		fnsave(addr);
+	else {
+		fxsave(&svxmm[oncpu]);
+		bcopy(&svxmm[oncpu], addr, sizeof(struct savexmm));
+	}
+}
+
+static void
+fpurstor(addr, oncpu)
+	union savefpu *addr;
+	u_char oncpu;
+{
+	static struct savexmm svxmm[MAXCPU];
+
+	if (!cpu_fxsr)
+		frstor(addr);
+	else {
+		bcopy(addr, &svxmm[oncpu], sizeof (struct savexmm));
+		fxrstor(&svxmm[oncpu]);
+	}
 }
 
 #ifdef I586_CPU_XXX
