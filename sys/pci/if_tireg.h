@@ -137,7 +137,7 @@
  */
 #define TI_FIRMWARE_MAJOR		0xc
 #define TI_FIRMWARE_MINOR		0x4
-#define TI_FIRMWARE_FIX			0xd
+#define TI_FIRMWARE_FIX			0xb
 
 /*
  * Miscelaneous Local Control register.
@@ -348,6 +348,7 @@
 #define TI_OPMODE_NO_TX_INTRS		0x00002000
 #define TI_OPMODE_NO_RX_INTRS		0x00004000
 #define TI_OPMODE_FATAL_ENB		0x40000000 /* not yet implimented */
+#define TI_OPMODE_JUMBO_HDRSPLIT	0x00008000
 
 /*
  * DMA configuration thresholds.
@@ -423,6 +424,53 @@
 #define TI_MEM_MAX		0x7FFFFF
 
 /*
+ * Maximum register address on the Tigon.
+ */
+#define	TI_REG_MAX		0x3fff
+
+/*
+ * These values were taken from Alteon's tg.h.
+ */
+#define TI_BEG_SRAM     0x0             /* host thinks it's here */
+#define TI_BEG_SCRATCH  0xc00000        /* beg of scratch pad area */
+#define TI_END_SRAM_II     0x800000        /* end of SRAM, for 2 MB stuffed */
+#define TI_END_SCRATCH_II  0xc04000        /* end of scratch pad CPU A (16KB) */
+#define TI_END_SCRATCH_B 0xc02000       /* end of scratch pad CPU B (8KB) */
+#define TI_BEG_SCRATCH_B_DEBUG 0xd00000 /* beg of scratch pad for ioctl */
+#define TI_END_SCRATCH_B_DEBUG 0xd02000 /* end of scratch pad for ioctl */
+#define TI_SCRATCH_DEBUG_OFF 0x100000   /* offset for ioctl usage */
+#define TI_END_SRAM_I     0x200000        /* end of SRAM, for 2 MB stuffed */
+#define TI_END_SCRATCH_I  0xc00800        /* end of scratch pad area (2KB) */
+#define TI_BEG_PROM     0x40000000      /* beg of PROM, special access */
+#define TI_BEG_FLASH    0x80000000      /* beg of EEPROM, special access */
+#define TI_END_FLASH    0x80100000      /* end of EEPROM for 1 MB stuff */
+#define TI_BEG_SER_EEPROM 0xa0000000    /* beg of Serial EEPROM (fake out) */
+#define TI_END_SER_EEPROM 0xa0002000    /* end of Serial EEPROM (fake out) */
+#define TI_BEG_REGS     0xc0000000      /* beg of register area */
+#define TI_END_REGS     0xc0000400      /* end of register area */
+#define TI_END_WRITE_REGS 0xc0000180    /* can't write GPRs currently */
+#define TI_BEG_REGS2    0xc0000200      /* beg of second writeable reg area */
+/* the EEPROM is byte addressable in a pretty odd way */
+#define EEPROM_BYTE_LOC 0xff000000      
+
+/*
+ * From Alteon's tg.h.
+ */
+#define TI_PROCESSOR_A          0
+#define TI_PROCESSOR_B          1
+#define TI_CPU_A                TG_PROCESSOR_A
+#define TI_CPU_B                TG_PROCESSOR_B
+
+/*
+ * Following macro can be used to access to any of the CPU registers
+ * It will adjust the address appropriately.
+ * Parameters:
+ *      reg - The register to access, e.g TI_CPU_CONTROL
+ *      cpu - cpu, i.e PROCESSOR_A or PROCESSOR_B (or TI_CPU_A or TI_CPU_B)
+ */
+#define CPU_REG(reg, cpu) ((reg) + (cpu) * 0x100)
+
+/*
  * Even on the alpha, pci addresses are 32-bit quantities
  */
 
@@ -486,192 +534,6 @@ struct ti_producer {
 	u_int32_t		ti_unused;
 };
 
-/*
- * Tigon statistics counters.
- */
-struct ti_stats {
-	/*
-	 * MAC stats, taken from RFC 1643, ethernet-like MIB
-	 */
-	volatile u_int32_t dot3StatsAlignmentErrors;		/* 0 */
-	volatile u_int32_t dot3StatsFCSErrors;			/* 1 */
-	volatile u_int32_t dot3StatsSingleCollisionFrames;	/* 2 */
-	volatile u_int32_t dot3StatsMultipleCollisionFrames;	/* 3 */
-	volatile u_int32_t dot3StatsSQETestErrors;		/* 4 */
-	volatile u_int32_t dot3StatsDeferredTransmissions;	/* 5 */
-	volatile u_int32_t dot3StatsLateCollisions;		/* 6 */
-	volatile u_int32_t dot3StatsExcessiveCollisions;	/* 7 */
-	volatile u_int32_t dot3StatsInternalMacTransmitErrors;	/* 8 */
-	volatile u_int32_t dot3StatsCarrierSenseErrors;		/* 9 */
-	volatile u_int32_t dot3StatsFrameTooLongs;		/* 10 */
-	volatile u_int32_t dot3StatsInternalMacReceiveErrors;	/* 11 */
-	/*
-	 * interface stats, taken from RFC 1213, MIB-II, interfaces group
-	 */
-	volatile u_int32_t ifIndex;				/* 12 */
-	volatile u_int32_t ifType;				/* 13 */
-	volatile u_int32_t ifMtu;				/* 14 */
-	volatile u_int32_t ifSpeed;				/* 15 */
-	volatile u_int32_t ifAdminStatus;			/* 16 */
-#define IF_ADMIN_STATUS_UP      1
-#define IF_ADMIN_STATUS_DOWN    2
-#define IF_ADMIN_STATUS_TESTING 3
-	volatile u_int32_t ifOperStatus;			/* 17 */
-#define IF_OPER_STATUS_UP       1
-#define IF_OPER_STATUS_DOWN     2
-#define IF_OPER_STATUS_TESTING  3
-#define IF_OPER_STATUS_UNKNOWN  4
-#define IF_OPER_STATUS_DORMANT  5
-	volatile u_int32_t ifLastChange;			/* 18 */
-	volatile u_int32_t ifInDiscards;			/* 19 */
-	volatile u_int32_t ifInErrors;				/* 20 */
-	volatile u_int32_t ifInUnknownProtos;			/* 21 */
-	volatile u_int32_t ifOutDiscards;			/* 22 */
-	volatile u_int32_t ifOutErrors;				/* 23 */
-	volatile u_int32_t ifOutQLen;     /* deprecated */	/* 24 */
-	volatile u_int8_t  ifPhysAddress[8]; /* 8 bytes */	/* 25 - 26 */
-	volatile u_int8_t  ifDescr[32];				/* 27 - 34 */
-	u_int32_t alignIt;      /* align to 64 bit for u_int64_ts following */
-	/*
-	 * more interface stats, taken from RFC 1573, MIB-IIupdate,
-	 * interfaces group
-	 */
-	volatile u_int64_t ifHCInOctets;			/* 36 - 37 */
-	volatile u_int64_t ifHCInUcastPkts;			/* 38 - 39 */
-	volatile u_int64_t ifHCInMulticastPkts;			/* 40 - 41 */
-	volatile u_int64_t ifHCInBroadcastPkts;			/* 42 - 43 */
-	volatile u_int64_t ifHCOutOctets;			/* 44 - 45 */
-	volatile u_int64_t ifHCOutUcastPkts;			/* 46 - 47 */
-	volatile u_int64_t ifHCOutMulticastPkts;		/* 48 - 49 */
-	volatile u_int64_t ifHCOutBroadcastPkts;		/* 50 - 51 */
-	volatile u_int32_t ifLinkUpDownTrapEnable;		/* 52 */
-	volatile u_int32_t ifHighSpeed;				/* 53 */
-	volatile u_int32_t ifPromiscuousMode; 			/* 54 */
-	volatile u_int32_t ifConnectorPresent; /* follow link state 55 */
-	/*
-	 * Host Commands
-	 */
-	volatile u_int32_t nicCmdsHostState;			/* 56 */
-	volatile u_int32_t nicCmdsFDRFiltering;			/* 57 */
-	volatile u_int32_t nicCmdsSetRecvProdIndex;		/* 58 */
-	volatile u_int32_t nicCmdsUpdateGencommStats;		/* 59 */
-	volatile u_int32_t nicCmdsResetJumboRing;		/* 60 */
-	volatile u_int32_t nicCmdsAddMCastAddr;			/* 61 */
-	volatile u_int32_t nicCmdsDelMCastAddr;			/* 62 */
-	volatile u_int32_t nicCmdsSetPromiscMode;		/* 63 */
-	volatile u_int32_t nicCmdsLinkNegotiate;		/* 64 */
-	volatile u_int32_t nicCmdsSetMACAddr;			/* 65 */
-	volatile u_int32_t nicCmdsClearProfile;			/* 66 */
-	volatile u_int32_t nicCmdsSetMulticastMode;		/* 67 */
-	volatile u_int32_t nicCmdsClearStats;			/* 68 */
-	volatile u_int32_t nicCmdsSetRecvJumboProdIndex;	/* 69 */
-	volatile u_int32_t nicCmdsSetRecvMiniProdIndex;		/* 70 */
-	volatile u_int32_t nicCmdsRefreshStats;			/* 71 */
-	volatile u_int32_t nicCmdsUnknown;			/* 72 */
-	/*
-	 * NIC Events
-	 */
-	volatile u_int32_t nicEventsNICFirmwareOperational;	/* 73 */
-	volatile u_int32_t nicEventsStatsUpdated;		/* 74 */
-	volatile u_int32_t nicEventsLinkStateChanged;		/* 75 */
-	volatile u_int32_t nicEventsError;			/* 76 */
-	volatile u_int32_t nicEventsMCastListUpdated;		/* 77 */
-	volatile u_int32_t nicEventsResetJumboRing;		/* 78 */
-	/*
-	 * Ring manipulation
-	 */
-	volatile u_int32_t nicRingSetSendProdIndex;		/* 79 */
-	volatile u_int32_t nicRingSetSendConsIndex;		/* 80 */
-	volatile u_int32_t nicRingSetRecvReturnProdIndex;	/* 81 */
-	/*
-	 * Interrupts
-	 */
-	volatile u_int32_t nicInterrupts;			/* 82 */
-	volatile u_int32_t nicAvoidedInterrupts;		/* 83 */
-	/*
-	 * BD Coalessing Thresholds
-	 */
-	volatile u_int32_t nicEventThresholdHit;		/* 84 */
-	volatile u_int32_t nicSendThresholdHit;			/* 85 */
-	volatile u_int32_t nicRecvThresholdHit;			/* 86 */
-	/*
-	 * DMA Attentions
-	 */
-	volatile u_int32_t nicDmaRdOverrun;			/* 87 */
-	volatile u_int32_t nicDmaRdUnderrun;			/* 88 */
-	volatile u_int32_t nicDmaWrOverrun;			/* 89 */
-	volatile u_int32_t nicDmaWrUnderrun;			/* 90 */
-	volatile u_int32_t nicDmaWrMasterAborts;		/* 91 */
-	volatile u_int32_t nicDmaRdMasterAborts;		/* 92 */
-	/*
-	 * NIC Resources
-	 */
-	volatile u_int32_t nicDmaWriteRingFull;			/* 93 */
-	volatile u_int32_t nicDmaReadRingFull;			/* 94 */
-	volatile u_int32_t nicEventRingFull;			/* 95 */
-	volatile u_int32_t nicEventProducerRingFull;		/* 96 */
-	volatile u_int32_t nicTxMacDescrRingFull;		/* 97 */
-	volatile u_int32_t nicOutOfTxBufSpaceFrameRetry;	/* 98 */
-	volatile u_int32_t nicNoMoreWrDMADescriptors;		/* 99 */
-	volatile u_int32_t nicNoMoreRxBDs;			/* 100 */
-	volatile u_int32_t nicNoSpaceInReturnRing;		/* 101 */
-	volatile u_int32_t nicSendBDs;            /* current count 102 */
-	volatile u_int32_t nicRecvBDs;            /* current count 103 */
-	volatile u_int32_t nicJumboRecvBDs;       /* current count 104 */
-	volatile u_int32_t nicMiniRecvBDs;        /* current count 105 */
-	volatile u_int32_t nicTotalRecvBDs;       /* current count 106 */
-	volatile u_int32_t nicTotalSendBDs;       /* current count 107 */
-	volatile u_int32_t nicJumboSpillOver;			/* 108 */
-	volatile u_int32_t nicSbusHangCleared;			/* 109 */
-	volatile u_int32_t nicEnqEventDelayed;			/* 110 */
-	/*
-	 * Stats from MAC rx completion
-	 */
-	volatile u_int32_t nicMacRxLateColls;			/* 111 */
-	volatile u_int32_t nicMacRxLinkLostDuringPkt;		/* 112 */
-	volatile u_int32_t nicMacRxPhyDecodeErr;		/* 113 */
-	volatile u_int32_t nicMacRxMacAbort;			/* 114 */
-	volatile u_int32_t nicMacRxTruncNoResources;		/* 115 */
-	/*
-	 * Stats from the mac_stats area
-	 */
-	volatile u_int32_t nicMacRxDropUla;			/* 116 */
-	volatile u_int32_t nicMacRxDropMcast;			/* 117 */
-	volatile u_int32_t nicMacRxFlowControl;			/* 118 */
-	volatile u_int32_t nicMacRxDropSpace;			/* 119 */
-	volatile u_int32_t nicMacRxColls;			/* 120 */
-	/*
- 	 * MAC RX Attentions
-	 */
-	volatile u_int32_t nicMacRxTotalAttns;			/* 121 */
-	volatile u_int32_t nicMacRxLinkAttns;			/* 122 */
-	volatile u_int32_t nicMacRxSyncAttns;			/* 123 */
-	volatile u_int32_t nicMacRxConfigAttns;			/* 124 */
-	volatile u_int32_t nicMacReset;				/* 125 */
-	volatile u_int32_t nicMacRxBufDescrAttns;		/* 126 */
-	volatile u_int32_t nicMacRxBufAttns;			/* 127 */
-	volatile u_int32_t nicMacRxZeroFrameCleanup;		/* 128 */
-	volatile u_int32_t nicMacRxOneFrameCleanup;		/* 129 */
-	volatile u_int32_t nicMacRxMultipleFrameCleanup;	/* 130 */
-	volatile u_int32_t nicMacRxTimerCleanup;		/* 131 */
-	volatile u_int32_t nicMacRxDmaCleanup;			/* 132 */
-	/*
-	 * Stats from the mac_stats area
-	 */
-	volatile u_int32_t nicMacTxCollisionHistogram[15];	/* 133 */
-	/*
-	 * MAC TX Attentions
-	 */
-	volatile u_int32_t nicMacTxTotalAttns;			/* 134 */
-	/*
-	 * NIC Profile
-	 */
-	volatile u_int32_t nicProfile[32];			/* 135 */
-	/*
-	 * Pat to 1024 bytes.
-	 */
-	u_int32_t		pad[75];
-};
 /*
  * Tigon general information block. This resides in host memory
  * and contains the status counters, ring control blocks and
@@ -1057,7 +919,11 @@ struct ti_event_desc {
  */
 struct ti_ring_data {
 	struct ti_rx_desc	ti_rx_std_ring[TI_STD_RX_RING_CNT];
+#ifdef PRIVATE_JUMBOS
 	struct ti_rx_desc	ti_rx_jumbo_ring[TI_JUMBO_RX_RING_CNT];
+#else
+	struct ti_rx_desc_ext	ti_rx_jumbo_ring[TI_JUMBO_RX_RING_CNT];
+#endif
 	struct ti_rx_desc	ti_rx_mini_ring[TI_MINI_RX_RING_CNT];
 	struct ti_rx_desc	ti_rx_return_ring[TI_RETURN_RING_CNT];
 	struct ti_event_desc	ti_event_ring[TI_EVENT_RING_CNT];
@@ -1113,7 +979,14 @@ struct ti_jpool_entry {
 	SLIST_ENTRY(ti_jpool_entry)	jpool_entries;
 };
 
+typedef enum {
+	TI_FLAG_NONE		= 0x00,
+	TI_FLAG_DEBUGING	= 0x01,
+	TI_FLAG_WAIT_FOR_LINK	= 0x02
+} ti_flag_vals;
+
 struct ti_softc {
+	STAILQ_ENTRY(ti_softc)	ti_links;
 	struct arpcom		arpcom;		/* interface info */
 	bus_space_handle_t	ti_bhandle;
 	vm_offset_t		ti_vhandle;
@@ -1126,6 +999,7 @@ struct ti_softc {
 	u_int8_t		ti_hwrev;	/* Tigon rev (1 or 2) */
 	u_int8_t		ti_copper;	/* 1000baseTX card */
 	u_int8_t		ti_linkstat;	/* Link state */
+	int			ti_hdrsplit;	/* enable header splitting */
 	struct ti_ring_data	*ti_rdata;	/* rings */
 	struct ti_chain_data	ti_cdata;	/* mbufs */
 #define ti_ev_prodidx		ti_rdata->ti_ev_prodidx_r
@@ -1150,6 +1024,8 @@ struct ti_softc {
 	int			ti_if_flags;
 	int			ti_txcnt;
 	struct mtx		ti_mtx;
+	ti_flag_vals		ti_flags;
+	dev_t			dev;
 };
 
 #define	TI_LOCK(_sc)		mtx_lock(&(_sc)->ti_mtx)

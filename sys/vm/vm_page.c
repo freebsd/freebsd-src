@@ -1733,6 +1733,75 @@ vm_page_test_dirty(vm_page_t m)
 	}
 }
 
+int so_zerocp_fullpage = 0;
+
+void
+vm_page_cowfault(vm_page_t m)
+{
+	vm_page_t mnew;
+	vm_object_t object;
+	vm_pindex_t pindex;
+
+	object = m->object;
+	pindex = m->pindex;
+	vm_page_busy(m);
+
+ retry_alloc:
+	vm_page_remove(m);
+	mnew = vm_page_alloc(object, pindex, VM_ALLOC_NORMAL);
+	if (mnew == NULL) {
+		vm_page_insert(m, object, pindex);
+		VM_WAIT;
+		goto retry_alloc;
+	}
+
+	if (m->cow == 0) {
+		/* 
+		 * check to see if we raced with an xmit complete when 
+		 * waiting to allocate a page.  If so, put things back 
+		 * the way they were 
+		 */
+		vm_page_busy(mnew);
+		vm_page_free(mnew);
+		vm_page_insert(m, object, pindex);
+	} else { /* clear COW & copy page */
+		if (so_zerocp_fullpage) {
+			mnew->valid = VM_PAGE_BITS_ALL;
+		} else {
+			vm_page_copy(m, mnew);
+		}
+		vm_page_dirty(mnew);
+		vm_page_flag_clear(mnew, PG_BUSY);
+	}
+	vm_page_wakeup(m); /*unbusy the page */
+}
+
+void 
+vm_page_cowclear(vm_page_t m)
+{
+
+	/* XXX KDM find out if giant is required here. */
+	GIANT_REQUIRED;
+	if (m->cow) {
+		atomic_subtract_int(&m->cow, 1);
+		/* 
+		 * let vm_fault add back write permission  lazily
+		 */
+	} 
+	/*
+	 *  sf_buf_free() will free the page, so we needn't do it here
+	 */ 
+}
+
+void
+vm_page_cowsetup(vm_page_t m)
+{
+	/* XXX KDM find out if giant is required here */
+	GIANT_REQUIRED;
+	atomic_add_int(&m->cow, 1);
+	vm_page_protect(m, VM_PROT_READ);
+}
+
 #include "opt_ddb.h"
 #ifdef DDB
 #include <sys/kernel.h>

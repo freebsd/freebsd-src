@@ -133,6 +133,7 @@ struct vm_page {
 	u_short	valid;			/* map of valid DEV_BSIZE chunks */
 	u_short	dirty;			/* map of dirty DEV_BSIZE chunks */
 #endif
+	u_int cow;			/* page cow mapping count */
 };
 
 /*
@@ -363,5 +364,9 @@ int vm_page_bits (int, int);
 void vm_page_zero_invalid(vm_page_t m, boolean_t setvalid);
 void vm_page_free_toq(vm_page_t m);
 void vm_page_zero_idle_wakeup(void);
+void vm_page_cowfault (vm_page_t);
+void vm_page_cowsetup (vm_page_t);
+void vm_page_cowclear (vm_page_t);
+
 #endif				/* _KERNEL */
 #endif				/* !_VM_PAGE_ */

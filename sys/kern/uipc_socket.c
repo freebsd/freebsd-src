@@ -35,6 +35,7 @@
  */
 
 #include "opt_inet.h"
+#include "opt_zero.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -94,6 +95,17 @@ SYSCTL_INT(_kern_ipc, KIPC_SOMAXCONN, somaxconn, CTLFLAG_RW,
 static int numopensockets;
 SYSCTL_INT(_kern_ipc, OID_AUTO, numopensockets, CTLFLAG_RD,
     &numopensockets, 0, "Number of open sockets");
+#ifdef ZERO_COPY_SOCKETS
+/* These aren't static because they're used in other files. */
+int so_zero_copy_send = 1;
+int so_zero_copy_receive = 1;
+SYSCTL_NODE(_kern_ipc, OID_AUTO, zero_copy, CTLFLAG_RD, 0,
+    "Zero copy controls");
+SYSCTL_INT(_kern_ipc_zero_copy, OID_AUTO, receive, CTLFLAG_RW,
+    &so_zero_copy_receive, 0, "Enable zero copy receive");
+SYSCTL_INT(_kern_ipc_zero_copy, OID_AUTO, send, CTLFLAG_RW,
+    &so_zero_copy_send, 0, "Enable zero copy send");
+#endif /* ZERO_COPY_SOCKETS */
 
 
 /*
@@ -471,6 +483,22 @@ bad:
  * must check for short counts if EINTR/ERESTART are returned.
  * Data and control buffers are freed on return.
  */
+
+#ifdef ZERO_COPY_SOCKETS
+struct so_zerocopy_stats{
+	int size_ok;
+	int align_ok;
+	int found_ifp;
+};
+struct so_zerocopy_stats so_zerocp_stats = {0,0,0};
+#include <netinet/in.h>
+#include <net/route.h>
+#include <netinet/in_pcb.h>
+#include <vm/vm.h>
+#include <vm/vm_page.h>
+#include <vm/vm_object.h>
+#endif /*ZERO_COPY_SOCKETS*/
+
 int
 sosend(so, addr, uio, top, control, flags, td)
 	register struct socket *so;
@@ -486,6 +514,9 @@ sosend(so, addr, uio, top, control, flags, td)
 	register long space, len, resid;
 	int clen = 0, error, s, dontroute, mlen;
 	int atomic = sosendallatonce(so) || top;
+#ifdef ZERO_COPY_SOCKETS
+	int cow_send;
+#endif /* ZERO_COPY_SOCKETS */
 
 	if (uio)
 		resid = uio->uio_resid;
@@ -574,6 +605,9 @@ restart:
 			if (flags & MSG_EOR)
 				top->m_flags |= M_EOR;
 		    } else do {
+#ifdef ZERO_COPY_SOCKETS
+			cow_send = 0;
+#endif /* ZERO_COPY_SOCKETS */
 			if (top == 0) {
 				MGETHDR(m, M_TRYWAIT, MT_DATA);
 				if (m == NULL) {
@@ -592,12 +626,32 @@ restart:
 				mlen = MLEN;
 			}
 			if (resid >= MINCLSIZE) {
+#ifdef ZERO_COPY_SOCKETS				
+				if (so_zero_copy_send &&
+				    resid>=PAGE_SIZE && 
+				    space>=PAGE_SIZE && 
+				    uio->uio_iov->iov_len>=PAGE_SIZE) {
+					so_zerocp_stats.size_ok++;
+					if (!((vm_offset_t)
+					  uio->uio_iov->iov_base & PAGE_MASK)){
+						so_zerocp_stats.align_ok++;
+						cow_send = socow_setup(m, uio);
+					}
+				} 
+				if (!cow_send){
+#endif /* ZERO_COPY_SOCKETS */
 				MCLGET(m, M_TRYWAIT);
 				if ((m->m_flags & M_EXT) == 0)
 					goto nopages;
 				mlen = MCLBYTES;
 				len = min(min(mlen, resid), space);
 			} else {
+#ifdef ZERO_COPY_SOCKETS
+					len = PAGE_SIZE;
+				}
+					
+			} else {
+#endif /* ZERO_COPY_SOCKETS */
 nopages:
 				len = min(min(mlen, resid), space);
 				/*
@@ -608,6 +662,11 @@ nopages:
 					MH_ALIGN(m, len);
 			}
 			space -= len;
+#ifdef ZERO_COPY_SOCKETS
+			if (cow_send)
+				error = 0;
+			else
+#endif /* ZERO_COPY_SOCKETS */
 			error = uiomove(mtod(m, caddr_t), (int)len, uio);
 			resid = uio->uio_resid;
 			m->m_len = len;
@@ -719,6 +778,27 @@ soreceive(so, psa, uio, mp0, controlp, flagsp)
 		if (error)
 			goto bad;
 		do {
+#ifdef ZERO_COPY_SOCKETS
+			if (so_zero_copy_receive) {
+				vm_page_t pg;
+				int disposable;
+
+				if ((m->m_flags & M_EXT)
+				 && (m->m_ext.ext_type == EXT_DISPOSABLE))
+					disposable = 1;
+				else
+					disposable = 0;
+
+				pg = PHYS_TO_VM_PAGE(vtophys(mtod(m, caddr_t)));
+				if (uio->uio_offset == -1)
+					uio->uio_offset =IDX_TO_OFF(pg->pindex);
+
+				error = uiomoveco(mtod(m, caddr_t), 
+						  min(uio->uio_resid, m->m_len),
+						  uio, pg->object,
+						  disposable);
+			} else
+#endif /* ZERO_COPY_SOCKETS */
 			error = uiomove(mtod(m, caddr_t),
 			    (int) min(uio->uio_resid, m->m_len), uio);
 			m = m_free(m);
@@ -874,6 +954,28 @@ dontblock:
 		 */
 		if (mp == 0) {
 			splx(s);
+#ifdef ZERO_COPY_SOCKETS
+			if (so_zero_copy_receive) {
+				vm_page_t pg;
+				int disposable;
+
+				if ((m->m_flags & M_EXT)
+				 && (m->m_ext.ext_type == EXT_DISPOSABLE))
+					disposable = 1;
+				else
+					disposable = 0;
+ 
+				pg = PHYS_TO_VM_PAGE(vtophys(mtod(m, caddr_t) +
+					moff));
+
+				if (uio->uio_offset == -1)
+					uio->uio_offset =IDX_TO_OFF(pg->pindex);
+
+				error = uiomoveco(mtod(m, caddr_t) + moff,
+						  (int)len, uio,pg->object,
+						  disposable);
+			} else
+#endif /* ZERO_COPY_SOCKETS */
 			error = uiomove(mtod(m, caddr_t) + moff, (int)len, uio);
 			s = splnet();
 			if (error)

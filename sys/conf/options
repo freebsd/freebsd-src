@@ -345,6 +345,11 @@ NETGRAPH_VJC		opt_netgraph.h
 DRM_LINUX		opt_drm.h
 DRM_DEBUG		opt_drm.h
 
+
+ZERO_COPY_SOCKETS	opt_zero.h
+TI_PRIVATE_JUMBOS	opt_ti.h
+TI_JUMBO_HDRSPLIT	opt_ti.h
+
 # ATM (HARP version)
 ATM_CORE		opt_atm.h
 ATM_IP			opt_atm.h
@@ -405,6 +410,8 @@ INVARIANTS		opt_global.h
 REGRESSION		opt_global.h
 RESTARTABLE_PANICS	opt_global.h
 VFS_BIO_DEBUG		opt_global.h
+MSIZE			opt_global.h
+MCLSHIFT		opt_global.h
 
 # These are VM related options
 VM_KMEM_SIZE		opt_vm.h
