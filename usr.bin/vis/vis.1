@@ -32,7 +32,7 @@
 .\"     @(#)vis.1	8.4 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd April 19, 1994
+.Dd June 25, 2004
 .Dt VIS 1
 .Os
 .Sh NAME
@@ -124,3 +124,11 @@ The
 .Nm
 command appeared in
 .Bx 4.4 .
+.Sh BUGS
+Due to limitations in the underlying
+.Xr vis 3
+function, the
+.Nm
+utility
+does not recognize multibyte characters, and thus may consider them to be
+non-printable when they are in fact printable (and vice versa.)
