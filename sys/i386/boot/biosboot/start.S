@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:29  rpd
- *	$Id: start.S,v 1.6 1995/09/16 13:51:20 bde Exp $
+ *	$Id: start.S,v 1.7 1996/07/05 19:55:05 julian Exp $
  */
 
 /*
@@ -62,7 +62,15 @@ BSDPART=	0xA5	/* value of boot_ind, means bootable partition */
 BOOTABLE=	0x80	/* value of boot_ind, means bootable partition */
 NAMEBLOCKMAGIC=	0xfadefeed /* value of magicnumebr for block2 	*/
 
-/* to debug this, Use the DEBUGMSG(msg) macro defined in asm.S */
+/*
+ * This DEBUGMSG(msg) macro may be useful for debugging.  Its use is
+ * restricted to this file since it only works in real mode.
+ */
+#define DEBUGMSG(msg)		\
+	data32			; \
+	mov	$msg, %esi	; \
+	data32			; \
+	call	message
 
 	.text	
 
@@ -89,7 +97,7 @@ start:
 	 * effectively, we push the bootstring.
 	 */
 	data32
-	mov	$(BOOTSTACK - 64), %esp
+	mov	$BOOTSTACK-64, %esp
 
 	/* set up %es, (where we will load boot2 to) */
 	mov	%ax, %es
@@ -264,7 +272,7 @@ scan:
 	 * which is just above the stack for 64 bytes.
 	 */
 	data32
-	movl	$(BOOTSTACK-64), %ecx	/* 64 bytes at the top of the stack */
+	movl	$BOOTSTACK-64, %ecx	/* 64 bytes at the top of the stack */
 nxtbyte:
 	addr32
 	movb	%es:(%ebx), %al	/* get the next byte in */
@@ -361,7 +369,6 @@ err_stop:
 /*
  * message: write the error message in %ds:%esi to console
  */
-ENTRY(message)
 message:
 	/*
 	 * Use BIOS "int 10H Function 0Eh" to write character in teletype mode
