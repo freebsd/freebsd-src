@@ -37,8 +37,8 @@ static char sccsid[] = "@(#)strsep.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <string.h>
-#include <stdio.h>
+#include <sys/param.h>
+#include <sys/libkern.h>
 
 /*
  * Get next token from string *stringp, where tokens are possibly-empty
