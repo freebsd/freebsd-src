@@ -847,7 +847,6 @@ coda_inactive(struct vop_inactive_args *ap)
 	    printf("coda_inactive: cp->ovp != NULL use %d: vp %p, cp %p\n",
 	    	   vrefcnt(vp), vp, cp);
 #endif
-	lockmgr(&cp->c_lock, LK_RELEASE, &vp->v_interlock, td);
     } else {
 #ifdef OLD_DIAGNOSTIC
 	if (vrefcnt(CTOV(cp))) {
@@ -857,7 +856,6 @@ coda_inactive(struct vop_inactive_args *ap)
 	    panic("coda_inactive:  cp->ovp != NULL");
 	}
 #endif
-	VOP_UNLOCK(vp, 0, td);
 	vgone(vp);
     }
 
@@ -1630,7 +1628,6 @@ coda_reclaim(struct vop_reclaim_args *ap)
 #endif
     }	
     cache_purge(vp);
-    lockdestroy(&(VTOC(vp)->c_lock));
     coda_free(VTOC(vp));
     vp->v_data = NULL;
     vnode_destroy_vobject(vp);
@@ -1643,23 +1640,22 @@ coda_lock(struct vop_lock_args *ap)
 /* true args */
     struct vnode *vp = ap->a_vp;
     struct cnode *cp = VTOC(vp);
-    struct thread *td = ap->a_td;
 /* upcall decl */
 /* locals */
 
     ENTRY;
+
+    if ((ap->a_flags & LK_INTERLOCK) == 0) {
+	VI_LOCK(vp);
+	ap->a_flags |= LK_INTERLOCK;
+    }
 
     if (coda_lockdebug) {
 	myprintf(("Attempting lock on %s\n",
 		  coda_f2s(&cp->c_fid)));
     }
 
-#ifndef	DEBUG_LOCKS
-    return (lockmgr(&cp->c_lock, ap->a_flags, &vp->v_interlock, td));
-#else
-    return (debuglockmgr(&cp->c_lock, ap->a_flags, &vp->v_interlock, td,
-			 "coda_lock", vp->filename, vp->line));
-#endif
+    return (vop_stdlock(ap));
 }
 
 int
@@ -1668,7 +1664,6 @@ coda_unlock(struct vop_unlock_args *ap)
 /* true args */
     struct vnode *vp = ap->a_vp;
     struct cnode *cp = VTOC(vp);
-    struct thread *td = ap->a_td;
 /* upcall decl */
 /* locals */
 
@@ -1678,17 +1673,16 @@ coda_unlock(struct vop_unlock_args *ap)
 		  coda_f2s(&cp->c_fid)));
     }
 
-    return (lockmgr(&cp->c_lock, ap->a_flags | LK_RELEASE, &vp->v_interlock, td));
+    return (vop_stdunlock(ap));
 }
 
 int
 coda_islocked(struct vop_islocked_args *ap)
 {
 /* true args */
-    struct cnode *cp = VTOC(ap->a_vp);
     ENTRY;
 
-    return (lockstatus(&cp->c_lock, ap->a_td));
+    return (vop_stdislocked(ap));
 }
 
 /* How one looks up a vnode given a device/inode pair: */
@@ -1808,7 +1802,6 @@ make_coda_node(fid, vfsp, type)
 	struct vnode *vp;
 	
 	cp = coda_alloc();
-	lockinit(&cp->c_lock, PINOD, "cnode", 0, 0);
 	cp->c_fid = *fid;
 	
 	err = getnewvnode("coda", vfsp, &coda_vnodeops, &vp);  
