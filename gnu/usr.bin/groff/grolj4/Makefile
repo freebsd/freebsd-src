@@ -5,7 +5,7 @@ SRCS=		lj4.cc
 LDADD+=		${LIBDRIVER} ${LIBGROFF} -lm
 DPADD+=		${LIBDRIVER} ${LIBGROFF} ${LIBM}
 
-CLEANFILES+=	${MAN1}
+CLEANFILES+=	grolj4.1
 
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>

@@ -6,7 +6,7 @@ CFLAGS+=	-I${.CURDIR}/../include
 LDADD+= 	${LIBBIB} ${LIBGROFF} -lm
 DPADD+= 	${LIBBIB} ${LIBGROFF} ${LIBM}
 
-CLEANFILES+=	${MAN1}
+CLEANFILES+=	indxbib.1
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \

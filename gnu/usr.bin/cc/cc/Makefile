@@ -5,7 +5,7 @@
 .PATH: ${GCCDIR}
 
 PROG=	cc
-MAN1=	gcc.1
+MAN=	gcc.1
 SRCS=	gcc.c gccspec.c
 NOSHARED?=yes
 

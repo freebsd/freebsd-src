@@ -5,7 +5,7 @@ SRCS=		dvi.cc
 LDADD+=		${LIBDRIVER} ${LIBGROFF} -lm
 DPADD+=		${LIBDRIVER} ${LIBGROFF} ${LIBM}
 
-CLEANFILES+=	${MAN1}
+CLEANFILES+=	grodvi.1
 
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>
