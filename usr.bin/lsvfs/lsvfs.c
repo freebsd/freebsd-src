@@ -3,7 +3,7 @@
  * Garrett A. Wollman, September 1994
  * This file is in the public domain.
  *
- * $Id: lsvfs.c,v 1.10 1998/01/17 16:24:27 bde Exp $
+ * $Id: lsvfs.c,v 1.11 1998/08/29 13:53:22 bde Exp $
  */
 
 #define _NEW_VFSCONF
@@ -36,7 +36,7 @@ main(int argc, char **argv)
 
   if(argc) {
     for(; argc; argc--, argv++) {
-      if (getvfsbyname(*argv, &vfc) != 0) {
+      if (getvfsbyname(*argv, &vfc) == 0) {
         printf(FMT, vfc.vfc_name, vfc.vfc_refcount, fmt_flags(vfc.vfc_flags));
       } else {
 	warnx("VFS %s unknown or not loaded", *argv);
