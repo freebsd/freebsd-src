@@ -508,6 +508,7 @@ sigreturn(struct thread *td, struct sigreturn_args *uap)
 
 	p->p_sigmask = uc.uc_sigmask;
 	SIG_CANTMASK(p->p_sigmask);
+	signotify(p);
 	PROC_UNLOCK(p);
 	CTR4(KTR_SIG, "sigreturn: return td=%p pc=%#lx sp=%#lx tstate=%#lx",
 	     td, tf->tf_tpc, tf->tf_sp, tf->tf_tstate);

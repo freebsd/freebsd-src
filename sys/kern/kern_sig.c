@@ -180,6 +180,25 @@ CURSIG(struct proc *p)
 	return (SIGPENDING(p) ? issignal(p) : 0);
 }
 
+/*
+ * Arrange for ast() to handle unmasked pending signals on return to user
+ * mode.  This must be called whenever a signal is added to p_siglist or
+ * unmasked in p_sigmask.
+ */
+void
+signotify(struct proc *p)
+{
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	mtx_assert(&sched_lock, MA_NOTOWNED);
+	mtx_lock_spin(&sched_lock);
+	if (SIGPENDING(p)) {
+		p->p_sflag |= PS_NEEDSIGCHK;
+		p->p_kse.ke_flags |= KEF_ASTPENDING;	/* XXXKSE */  
+	}
+	mtx_unlock_spin(&sched_lock);
+}
+
 static __inline int
 sigprop(int sig)
 {
@@ -514,6 +533,7 @@ do_sigprocmask(p, how, set, oset, old)
 			break;
 		case SIG_UNBLOCK:
 			SIGSETNAND(p->p_sigmask, *set);
+			signotify(p);
 			break;
 		case SIG_SETMASK:
 			SIG_CANTMASK(*set);
@@ -521,6 +541,7 @@ do_sigprocmask(p, how, set, oset, old)
 				SIGSETLO(p->p_sigmask, *set);
 			else
 				p->p_sigmask = *set;
+			signotify(p);
 			break;
 		default:
 			error = EINVAL;
@@ -753,6 +774,7 @@ osigsetmask(td, uap)
 	PROC_LOCK(p);
 	SIG2OSIG(p->p_sigmask, td->td_retval[0]);
 	SIGSETLO(p->p_sigmask, set);
+	signotify(p);
 	PROC_UNLOCK(p);
 	mtx_unlock(&Giant);
 	return (0);
@@ -805,6 +827,7 @@ sigsuspend(td, uap)
 
 	SIG_CANTMASK(mask);
 	p->p_sigmask = mask;
+	signotify(p);
 	while (msleep((caddr_t) ps, &p->p_mtx, PPAUSE|PCATCH, "pause", 0) == 0)
 		/* void */;
 	PROC_UNLOCK(p);
@@ -840,6 +863,7 @@ osigsuspend(td, uap)
 	OSIG2SIG(uap->mask, mask);
 	SIG_CANTMASK(mask);
 	SIGSETLO(p->p_sigmask, mask);
+	signotify(p);
 	while (msleep((caddr_t) ps, &p->p_mtx, PPAUSE|PCATCH, "opause", 0) == 0)
 		/* void */;
 	PROC_UNLOCK(p);
@@ -1303,6 +1327,7 @@ psignal(p, sig)
 		SIG_CONTSIGMASK(p->p_siglist);
 	}
 	SIGADDSET(p->p_siglist, sig);
+	signotify(p);
 
 	/*
 	 * Defer further processing for signals which are held,
@@ -1475,7 +1500,6 @@ psignal(p, sig)
 #ifdef SMP
 			struct kse *ke;
 			struct thread *td = curthread;
-			signotify(&p->p_kse);  /* XXXKSE */  
 /* we should only deliver to one thread.. but which one? */
 			FOREACH_KSEGRP_IN_PROC(p, kg) {
 				FOREACH_KSE_IN_GROUP(kg, ke) {
@@ -1485,8 +1509,6 @@ psignal(p, sig)
 					forward_signal(ke->ke_thread);
 				}
 			}
-#else
-			signotify(&p->p_kse);  /* XXXKSE */  
 #endif
 		}
 		mtx_unlock_spin(&sched_lock);

@@ -70,44 +70,49 @@ userret(td, frame, oticks)
 	struct proc *p = td->td_proc;
 	struct kse *ke = td->td_kse; 
 	struct ksegrp *kg = td->td_ksegrp;
-	int sig;
 
+#ifdef INVARIANTS
+	/* Check that we called signotify() enough. */
 	mtx_lock(&Giant);
 	PROC_LOCK(p);
-	while ((sig = CURSIG(p)) != 0)
-		postsig(sig);
+	mtx_lock_spin(&sched_lock);
+	if (SIGPENDING(p) && ((p->p_sflag & PS_NEEDSIGCHK) == 0 ||
+	    (p->p_kse.ke_flags & KEF_ASTPENDING) == 0))
+		printf("failed to set signal flags proprly for ast()\n");
+	mtx_unlock_spin(&sched_lock);
 	PROC_UNLOCK(p);
 	mtx_unlock(&Giant);
+#endif
 
-	mtx_lock_spin(&sched_lock);
-	td->td_priority = kg->kg_user_pri;
-	if (ke->ke_flags & KEF_NEEDRESCHED) {
-		DROP_GIANT();
-		setrunqueue(td);
-		p->p_stats->p_ru.ru_nivcsw++;
-		mi_switch();
-		mtx_unlock_spin(&sched_lock);
-		PICKUP_GIANT();
-		mtx_lock(&Giant);
-		PROC_LOCK(p);
-		while ((sig = CURSIG(p)) != 0)
-			postsig(sig);
-		mtx_unlock(&Giant);
-		PROC_UNLOCK(p);
+	/*
+	 * XXX we cheat slightly on the locking here to avoid locking in
+	 * the usual case.  Setting td_priority here is essentially an
+	 * incomplete workaround for not setting it properly elsewhere.
+	 * Now that some interrupt handlers are threads, not setting it
+	 * properly elsewhere can clobber it in the window between setting
+	 * it here and returning to user mode, so don't waste time setting
+	 * it perfectly here.
+	 */
+	if (td->td_priority != kg->kg_user_pri) {
 		mtx_lock_spin(&sched_lock);
+		td->td_priority = kg->kg_user_pri;
+		mtx_unlock_spin(&sched_lock);
 	}
 
 	/*
 	 * Charge system time if profiling.
+	 *
+	 * XXX should move PS_PROFIL to a place that can obviously be
+	 * accessed safely without sched_lock.
 	 */
 	if (p->p_sflag & PS_PROFIL) {
 		quad_t ticks;
 
+		mtx_lock_spin(&sched_lock);
 		ticks = ke->ke_sticks - oticks;
 		mtx_unlock_spin(&sched_lock);
 		addupc_task(ke, TRAPF_PC(frame), (u_int)ticks * psratio);
-	} else
-		mtx_unlock_spin(&sched_lock);
+	}
 }
 
 /*
@@ -122,9 +127,11 @@ ast(framep)
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
 	struct kse *ke = td->td_kse;
+	struct ksegrp *kg = td->td_ksegrp;
 	u_int prticks, sticks;
 	int sflag;
 	int flags;
+	int sig;
 #if defined(DEV_NPX) && !defined(SMP)
 	int ucode;
 #endif
@@ -135,6 +142,7 @@ ast(framep)
 		panic("Returning to user mode with mutex(s) held");
 #endif
 	mtx_assert(&Giant, MA_NOTOWNED);
+	mtx_assert(&sched_lock, MA_NOTOWNED);
 	prticks = 0;		/* XXX: Quiet warning. */
 	td->td_frame = framep;
 	/*
@@ -148,8 +156,8 @@ ast(framep)
 	sticks = ke->ke_sticks;
 	sflag = p->p_sflag;
 	flags = ke->ke_flags;
-	p->p_sflag &= ~(PS_PROFPEND | PS_ALRMPEND);
-	ke->ke_flags &= ~(KEF_OWEUPC | KEF_ASTPENDING);
+	p->p_sflag &= ~(PS_ALRMPEND | PS_NEEDSIGCHK | PS_PROFPEND);
+	ke->ke_flags &= ~(KEF_ASTPENDING | KEF_NEEDRESCHED | KEF_OWEUPC);
 	cnt.v_soft++;
 	if (flags & KEF_OWEUPC && sflag & PS_PROFIL) {
 		prticks = p->p_stats->p_prof.pr_ticks;
@@ -180,6 +188,22 @@ ast(framep)
 		PROC_LOCK(p);
 		psignal(p, SIGPROF);
 		PROC_UNLOCK(p);
+	}
+	if (flags & KEF_NEEDRESCHED) {
+		mtx_lock_spin(&sched_lock);
+		td->td_priority = kg->kg_user_pri;
+		setrunqueue(td);
+		p->p_stats->p_ru.ru_nivcsw++;
+		mi_switch();
+		mtx_unlock_spin(&sched_lock);
+	}
+	if (sflag & PS_NEEDSIGCHK) {
+		mtx_lock(&Giant);
+		PROC_LOCK(p);
+		while ((sig = CURSIG(p)) != 0)
+			postsig(sig);
+		PROC_UNLOCK(p);
+		mtx_unlock(&Giant);
 	}
 
 	userret(td, framep, sticks);

@@ -649,6 +649,7 @@ osigreturn(td, uap)
 
 	SIGSETOLD(p->p_sigmask, scp->sc_mask);
 	SIG_CANTMASK(p->p_sigmask);
+	signotify(p);
 	PROC_UNLOCK(p);
 	regs->tf_ebp = scp->sc_fp;
 	regs->tf_esp = scp->sc_sp;
@@ -758,6 +759,7 @@ sigreturn(td, uap)
 
 	p->p_sigmask = ucp->uc_sigmask;
 	SIG_CANTMASK(p->p_sigmask);
+	signotify(p);
 	PROC_UNLOCK(p);
 	return (EJUSTRETURN);
 }
