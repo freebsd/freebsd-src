@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001 Networks Associates Technologies, Inc.
+ * Copyright (c) 2001 Networks Associates Technology, Inc.
  * Copyright (c) 1982, 1986, 1989, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
