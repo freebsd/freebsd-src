@@ -387,8 +387,8 @@ static	int	siosetwater(struct com_s *com, speed_t speed);
 static	void	comstart(struct tty *tp);
 static	void	comstop(struct tty *tp, int rw);
 static	timeout_t comwakeup;
-static	void	disc_optim(struct tty	*tp, struct termios *t,
-				     struct com_s *com);
+static	void	disc_optim(struct tty *tp, struct termios *t,
+		    struct com_s *com);
 
 char		sio_driver_name[] = "sio";
 static struct	mtx sio_lock;
