@@ -79,13 +79,6 @@ idle_proc(void *dummy)
 	int count;
 
 	for (;;) {
-		/*
-		 * Clear switchtime, which prevents the idle process's time
-		 * from being counted.
-		switchtime.tv_usec = 0;
-		switchtime.tv_sec = 0;
-		 */
-
 		mtx_assert(&Giant, MA_NOTOWNED);
 
 		count = 0;
