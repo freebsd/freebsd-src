@@ -482,14 +482,30 @@ or may not support.
 These capabilities are very hardware-specific
 and allow, when enabled,
 to offload specific network processing to the interface
-or to offer a particular feature for use by upper layers.
+or to offer a particular feature for use by other kernel parts.
 .Pp
-It should be noted that a capability can be completely
+It should be stressed that a capability can be completely
 uncontrolled (i.e., stay always enabled with no way to disable it)
 or allow limited control over itself (e.g., depend on another
 capability's state.)
 Such peculiarities are determined solely by the hardware and driver
 of a particular interface.
+Only the driver possesses
+the knowledge on whether and how the interface capabilities
+can be controlled.
+Consequently, capabilities flags in
+.Va if_capenable
+should never be modified directly by kernel code other than
+the interface driver.
+The command
+.Dv SIOCSIFCAP
+to
+.Fn ifioctl
+is the dedicated means to attempt altering
+.Va if_capenable
+on an interface.
+Userland code shall use
+.Xr ioctl 2 .
 .Pp
 The following capabilities are currently supported by the system:
 .Bl -tag -width ".Dv IFCAP_VLAN_HWTAGGING" -offset indent
