@@ -147,10 +147,9 @@ mac_ifoff_check_socket_deliver(struct socket *so, struct label *socketlabel,
     struct mbuf *m, struct label *mbuflabel)
 {
 
-	if (m->m_flags & M_PKTHDR) {
-		if (m->m_pkthdr.rcvif != NULL)
-			return (check_ifnet_incoming(m->m_pkthdr.rcvif, 0));
-	}
+	M_ASSERTPKTHDR(m);
+	if (m->m_pkthdr.rcvif != NULL)
+		return (check_ifnet_incoming(m->m_pkthdr.rcvif, 0));
 
 	return (0);
 }
