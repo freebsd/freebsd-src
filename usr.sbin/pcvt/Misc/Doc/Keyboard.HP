@@ -1,0 +1,286 @@
+================================================================================
+#                                                                              #
+#	Function key mapping for the "more HP" - like layout                   #
+#                                                                              #
+================================================================================
+
+
+I.	Function Key Map
+========================
+
+
+PC   | F1  | F2  | F3  | F4  | F5  | F6  | F7  | F8  | F9  | F10 | F11 | F12 |
+Key
+     _________________________________________________________________________
+UNSHF| 132 | Soft|     |     |     | 7/8 | Dspl| Auto| SCRN| SCRN| SCRN| SCRN|
+SYS  | Cols|Reset|     |     | Beep| Bit | Func| Wrap|  0  |  1  |  2  |  3  |
+LABEL|_____|_____|_____|_____|_____|_____|_____|_____|_____|_____|_____|_____|
+UNSHF|     |     |     |     |     |     |     |     | SCRN| SCRN| SCRN| SCRN|
+USER | F6  | F7  | F8  | F9  | F10 | F11 | F12 | F13 |  0  |  1  |  2  |  3  |
+LABEL|_____|_____|_____|_____|_____|_____|_____|_____|_____|_____|_____|_____|
+     |     |     |     |     |     |     |     |     | Fkey| U/S |VT/HP| Next|
+ALT  | F14 | HELP| DO  | F17 | F18 | F19 | F20 | F21 |Label|Label| Mode| SCRN|
+     |_____|_____|_____|_____|_____|_____|_____|_____|_____|_____|_____|_____|
+     | User| User| User| User| User| User| User| User|     |     |     |     |
+SHIFT| F6  | F7  | F8  | F9  | F10 | F11 | F12 | F13 |     |     |     |     |
+     |_____|_____|_____|_____|_____|_____|_____|_____|_____|_____|_____|_____|
+ALT- | User| User| User| User| User| User| User| User|     |     |     |     |
+SHIFT| F14 | F15 | F16 | F17 | F18 | F19 | F20 | F21 |     |     |     |     |
+     |_____|_____|_____|_____|_____|_____|_____|_____|_____|_____|_____|_____|
+CTRL-| SCRN| SCRN| SCRN| SCRN| SCRN| SCRN| SCRN| SCRN| SCRN| SCRN| SCRN| SCRN|
+ALT  |  0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |  8  |  9  |  10 |  11 |
+     |_____|_____|_____|_____|_____|_____|_____|_____|_____|_____|_____|_____|
+
+PC   | F1  | F2  | F3  | F4  | F5  | F6  | F7  | F8  | F9  | F10 | F11 | F12 |
+Key
+
+
+
+II.	Special Keys Used To Change The General Runtime Functionality
+=====================================================================
+
+
+	To be consistent with XFfree86 2.0 Virtual Screen switching, it is
+	now also possible to switch screens by using:
+
+		CTRL - ALT - Fx , where x can be 1 ... No of screens compiled,
+		                  see the definition of PCVT_NSCREENS !
+
+
+	Virtual Screen/Terminal switching
+	---------------------------------
+
+		F9  or CTRL-ALT-F1	switches to screen 0
+		F10 or CTRL-ALT-F2	switches to screen 1
+		F11 or CTRL-ALT-F3	switches to screen 2
+		F12 or CTRL-ALT-F4	switches to screen 3
+		CTRL-ALT-F5		switches to screen 4
+		CTRL-ALT-F6		switches to screen 5
+		CTRL-ALT-F7		switches to screen 6
+		CTRL-ALT-F8		switches to screen 7
+		CTRL-ALT-F9		switches to screen 8
+		CTRL-ALT-F10		switches to screen 9
+		CTRL-ALT-F11		switches to screen 10
+		CTRL-ALT-F12		switches to screen 11
+
+		(see also ALT-F12 below)
+
+
+	ALT-F9	Function key labels ON / OFF
+	------------------------------------
+
+		this key is only operational, when in HP/VT mode, see F11
+
+		ALT-F9 toggles between function key labels displayed or not.
+
+		ON:  screen has either 25-3 = 22, 28-3 = 25 or 50-3 = 47 lines
+			2 lines fkey labels displayed
+			row/col display enabled
+			1 line status/load avg line
+
+		OFF: screen has either 25-3 = 22, 28-3 = 25 or 50-3 = 47 lines
+			no function key labels displayed
+			no row/col display
+			no status/load avg line
+
+		applicable escape sequences:
+
+			switch OFF:
+			ESC & j @	remove labels from screen
+
+			switch ON:			
+			ESC & j A	display system fkey labels
+			ESC & j B	display user fkey labels
+			ESC & j C	display current fkey labels
+
+		
+	ALT-F10	User / System Function key labels
+	-----------------------------------------
+
+		this key is only operational, when in HP/VT mode, see ALT-F11
+
+		ALT-F10 toggles between the display of user or system
+		function key labels
+
+		this key is only active if labels are toggled on via
+		the ALT-F9 function key
+		
+		screen has either 25-3 = 22, 28-3 = 25 or 50-3 = 47 lines
+			2 lines fkey labels displayed
+			row/col display enabled
+			1 line status/load avg line
+
+		
+		applicable escape sequences: (see above)
+		
+			ESC & j A	display system fkey labels
+			ESC & j B	display user fkey labels
+			ESC & j C	display current fkey labels
+
+
+	ALT-F11	Toggle between pure VT and HP-VT Emulation
+	--------------------------------------------------
+
+		This key switches between pure vt100/vt220 mode and
+		vt100/vt220 with hp-fkey-labels mode of operation.
+		this is not dependent of any screen resolution the
+		virtual consoles are in.
+
+		initially, after power on, all virtual screens are in
+		the pure vt-mode:
+
+		- the emulator does not execute any hp escape sequences
+		- the function key label lines are switched off
+		- no load average or status line is displayed
+		- no row / column counter is displayed
+		- no window number is displayed
+		- the full screen 25x80, 28x80 or 50x80 is usable
+		- ALT-F9 and ALT-F10 have no function
+
+		when toggled to the vt/hp mix of operation, the following
+		changes take place:
+
+		- the emulator executes the supported hp-esc sequences
+		- the function key labels are displayable depending
+		  on the state of ALT-F9/F10
+		- the load average is displayed
+		- the row / column counters are displayed
+		- the window number is displayed in the lower right corner
+		- in any screen resolution, the last 3 lines are lost,
+		  so one has a 22x80, 25x80 and 47x80 resolution
+		- F9 and F10 are operational.
+
+		when switching modes by means of ALT-F11, the following
+		changes to the current environment, the emulator may
+		be in, apply:
+
+		- the screen is cleared
+		- the cursor moves to the home position
+		- the scrolling region is reset to default
+
+		(this functionality is available via an ioctl)
+
+	ALT-F12	Cycle current screen
+	----------------------------
+
+		This key cycles through the display of the video
+		screens. on startup, screen 0 is displayed; with every
+		keypress of F12, the next screen is displayed, wrapping
+		from the maximum screen number back to screen 0.
+
+		(this functionality is available via an ioctl)	
+
+
+III.	Special Keys used to change the Runtime Functionality of a Page
+=======================================================================
+
+	when in mixed HP/VT mode, one has two types of function key labels
+	on screen, user function keys and system function keys.
+
+	this functionality is NOT available in pure VT220 mode !
+
+	the user function keys emit the below mentioned VT220 function-
+	key sequences. the labels can be reprogrammed by use of escape
+	sequences.
+
+	in system function key mode, several pre-programmed functions inside
+	the emulator can be toggled, currently implemented are:
+
+	- F1, if a chipset is detected for which 132 operation is supported,
+		F1 toggles between 80 columns and 132 columns.
+	- F2, does a soft reset of the emulator code
+ 	- F3, -/-
+	- F4, -/-
+	- F5, toggle the audible beep generation
+	- F6, toggle 7/8 bit char width 
+	- F7, toggle display functions. this means that control codes 
+	      in the range 0x00 to 0x1f are not EXECUTED by the emulator
+	      any longer, but displayed on the screen
+	- F8, toggle automatic cursor wraparound at end of line
+
+	these functions operate just for the selected screen
+
+
+IV.	Keyboard VT220 compatibility
+====================================
+
+	The following keys behave different as probably expected.
+
+	They were mapped to provide more VT220 compatibility.
+
+	To have F1-F8 emit something in HP-mode, you have to switch
+	to user function key labels by using ALT-F10 (see ALT-F10 above) !
+
+	PC Keyboard	VT220 Keyboard
+	-------------	--------------------------------------------------
+	F1		F6	(ESC [ 17 ~)
+	F2		F7	(ESC [ 18 ~)
+	F3		F8	(ESC [ 19 ~)
+	F4		F9	(ESC [ 20 ~)
+	F5		F10	(ESC [ 21 ~)
+	F6		F11	(ESC [ 23 ~)
+	F7		F12	(ESC [ 24 ~)
+	F8		F13	(ESC [ 25 ~)
+	ALT-F1		F14	(ESC [ 26 ~)
+	ALT-F2		HELP	(ESC [ 28 ~)
+	ALT-F3		DO	(ESC [ 29 ~)
+	ALT-F4		F17	(ESC [ 31 ~)
+	ALT-F5		F18	(ESC [ 32 ~)
+	ALT-F6		F19	(ESC [ 33 ~)
+	ALT-F7		F20	(ESC [ 34 ~)
+	ALT-F8		F21	(ESC [ 35 ~)	(i know !!!!)
+
+	SHIFT-F1 ... SHIFT-F8
+			User Defined Keys for F6 - F13
+
+	ALT-SHIFT-F1 ... ALT-SHIFT-F8
+			User Defined Keys for F14 - F20
+	 
+	Insert		Insert Here (ESC [ 2 ~)
+
+	Delete		Remove (ESC [ 3 ~)
+
+	Home		Find (ESC [ 1 ~)
+
+	End		Select (ESC [ 4 ~)
+
+	PgUp		Prev Screen (ESC [ 5 ~)
+
+	PgDn		Next Screen (ESC [ 6 ~)
+
+	PrtSc		(ignored)
+
+	Pause		(ignored)
+
+	Break		(ignored)
+
+	Cursor Keys	dependent upon state of cursor key mode either
+			ESC [ A ... ESC [ D or ESC O A ... ESC O D
+
+	NumLock		toggles Numeric Keypad for Keypad Numeric Mode
+			and Keypad Application Mode
+
+	ALT-Keypad-0	can be used to generate any keycode in the
+	ALT-Keypad-1	rage 0-255.
+	ALT-Keypad-2	this was modeled with the behaviour of a 	
+	ALT-Keypad-3	popular boot loader in mind
+	ALT-Keypad-4
+	ALT-Keypad-5
+	ALT-Keypad-6
+	ALT-Keypad-7
+	ALT-Keypad-8
+	ALT-Keypad-9
+
+	Numeric Keypad	dependent upon state of keypad numeric/application
+			mode either 0 ... 9 or ESC O p ... ESC O y
+
+	ALT-NumLock	emits PF1 sequence (ESC O P)
+
+	ALT-Keypad-/	emits PF2 sequence (ESC O Q)
+
+	ALT-Keypad-*	emits PF3 sequence (ESC O R)
+
+	ALT-Keypad--	emits PF4 sequence (ESC O S)
+
+
+/* EOF */

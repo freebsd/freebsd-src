@@ -1,0 +1,18 @@
+# $Id: modules,v 1.4 1999/04/18 01:43:32 tom Exp $
+@ base
+ansi      progs   $(srcdir) $(srcdir)/tack.h ../include/term.h
+charset   progs   $(srcdir) $(srcdir)/tack.h ../include/term.h
+color     progs   $(srcdir) $(srcdir)/tack.h ../include/term.h
+control   progs   $(srcdir) $(srcdir)/tack.h ../include/term.h
+crum      progs   $(srcdir) $(srcdir)/tack.h ../include/term.h
+edit      progs   $(srcdir) $(srcdir)/tack.h ../include/term.h $(INCDIR)/tic.h
+fun       progs   $(srcdir) $(srcdir)/tack.h ../include/term.h
+init      progs   $(srcdir) $(srcdir)/tack.h ../include/term.h
+menu      progs   $(srcdir) $(srcdir)/tack.h ../include/term.h
+modes     progs   $(srcdir) $(srcdir)/tack.h ../include/term.h
+output    progs   $(srcdir) $(srcdir)/tack.h ../include/term.h
+pad       progs   $(srcdir) $(srcdir)/tack.h ../include/term.h
+scan      progs   $(srcdir) $(srcdir)/tack.h ../include/term.h
+sync      progs   $(srcdir) $(srcdir)/tack.h ../include/term.h
+sysdep    progs   $(srcdir) $(srcdir)/tack.h ../include/term.h
+tack      progs   $(srcdir) $(srcdir)/tack.h ../include/term.h

@@ -1,0 +1,2 @@
+pass in proto icmp from localhost to localhost icmp-type timest
+block in proto icmp from any to any icmp-type unreach code 1

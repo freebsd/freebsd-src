@@ -1,0 +1,159 @@
+#!/usr/local/bin/perl -w
+
+# v 0.2-very-beta
+#
+# 17 July 2000 Derek J. Balling (dredd@megacity.org)
+#
+# The $SENDMAIL flag tells the code to lump networks in sendmail format
+# if applicable. If this flag is disabled, cidrexpand will literally create
+# a single line for each entry, which may or may not be what you want. :)
+# makes for a rather large hash table...
+#
+# Acts as a preparser on /etc/mail/access_db to allow you to use address/bit
+# notation. Caveat: the address portion MUST be the start address or your
+# results will NOT be what what you want.
+#
+# If you have two overlapping CIDR blocks with conflicting actions
+# e.g.   10.2.3.128/25 REJECT and 10.2.3.143 ACCEPT
+# make sure that the exceptions to the more general block are specified
+# later in the access_db.
+#
+# the -r flag to makemap will make it "do the right thing"
+#
+# Modifications
+# -------------
+#  5 Nov  2002 Richard Rognlie (richard@sendmail.com)
+#     Added code to deal with the prefix tags that may now be included in
+#     the access_db
+#
+#     Added clarification in the notes for what to do if you have 
+#     exceptions to a larger CIDR block.
+#
+# usage:
+#  cidrexpand < /etc/mail/access | makemap -r hash /etc/mail/access
+#
+# Report bugs to: dredd@megacity.org
+#
+
+my $spaceregex = '\s+';
+
+while (my $arg = shift @ARGV)
+{
+     if ($arg eq '-t')
+     {
+	$spaceregex = shift;
+     }
+}
+
+use strict;
+
+my $SENDMAIL = 1;
+
+while (<>)
+{
+     my ($prefix,$left,$right,$space);
+
+     if (! /^(|\S\S*:)(\d+\.){3}\d+\/\d\d?$spaceregex.*/ )
+     {
+	print;
+     }
+     else
+     {
+	($prefix,$left,$space,$right) = /^(|\S\S*:)((?:\d+\.){3}\d+\/\d\d?)($spaceregex)(.*)$/;
+
+	my @new_lefts = expand_network($left);
+	foreach my $nl (@new_lefts)
+	{
+	    print "$prefix$nl$space$right\n";
+	}
+
+     }
+}
+    
+sub expand_network
+{
+     my ($network,$mask) = split /\//, shift;
+     my @diffs = calc_changes($network,$mask);
+     my ($first,$second,$third,$fourth) = split /\./, $network;
+
+     my @rc = ();
+
+     for my $f ($first..($first+$diffs[0]))
+     {
+	if ( ( $SENDMAIL ) and ($diffs[1] == 255))
+	{
+	    push @rc, "$f";
+	}
+	else
+	{
+	    for my $s ($second..($second+$diffs[1]))
+	    {
+		if ( ($SENDMAIL) and ($diffs[2] == 255) )
+		{
+		    push @rc,"$f\.$s";
+		}
+		else
+		{
+		    for my $t ($third..($third+$diffs[2]))
+		    {
+			if ( ($SENDMAIL) and ($diffs[3] == 255))
+			{
+			    push @rc, "$f\.$s\.$t";
+			}
+			else
+			{
+			    for my $fr ($fourth..($fourth+$diffs[3]))
+			    {
+				push @rc, "$f\.$s\.$t\.$fr";
+			    }
+			}
+		    }
+		}
+	    }
+	}
+     }
+     return @rc;
+}
+
+sub calc_changes
+{
+     my ($network,$mask) = @_;
+    
+     my @octs = split /\./, $network;
+    
+     my ($first,$second,$third,$fourth) = (0,0,0,0);
+    
+     my $power = 32 - $mask;
+    
+     if ($mask > 24)
+     {
+	$fourth = 2**$power - 1;
+     }
+     elsif ($mask > 16)
+     {
+	$fourth = 255;
+	$third = 2**($power-8) - 1;
+     }
+     elsif ($mask > 8)
+     {
+	$fourth = 255;
+	$third  = 255;
+	$second = 2**($power-16) - 1;
+     }
+     elsif ($mask > 0)
+     {
+	$fourth = 255;
+	$third = 255;
+	$second = 255;
+	$first = 2**($power-24) - 1;
+     }
+     elsif ($mask == 0)
+     {
+	$fourth = 255;
+	$third = 255;
+	$second = 255;
+	$first = 255;
+     }
+
+     return ($first,$second,$third,$fourth);
+}

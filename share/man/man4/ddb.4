@@ -1,0 +1,551 @@
+.\"
+.\" Mach Operating System
+.\" Copyright (c) 1991,1990 Carnegie Mellon University
+.\" All Rights Reserved.
+.\"
+.\" Permission to use, copy, modify and distribute this software and its
+.\" documentation is hereby granted, provided that both the copyright
+.\" notice and this permission notice appear in all copies of the
+.\" software, derivative works or modified versions, and any portions
+.\" thereof, and that both notices appear in supporting documentation.
+.\"
+.\" CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
+.\" CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
+.\" ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
+.\"
+.\" Carnegie Mellon requests users of this software to return to
+.\"
+.\"  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
+.\"  School of Computer Science
+.\"  Carnegie Mellon University
+.\"  Pittsburgh PA 15213-3890
+.\"
+.\" any improvements or extensions that they make and grant Carnegie Mellon
+.\" the rights to redistribute these changes.
+.\"
+.\" changed a \# to #, since groff choked on it.
+.\"
+.\" HISTORY
+.\" ddb.4,v
+.\" Revision 1.1  1993/07/15  18:41:02  brezak
+.\" Man page for DDB
+.\"
+.\" Revision 2.6  92/04/08  08:52:57  rpd
+.\" 	Changes from OSF.
+.\" 	[92/01/17  14:19:22  jsb]
+.\" 	Changes for OSF debugger modifications.
+.\" 	[91/12/12            tak]
+.\"
+.\" Revision 2.5  91/06/25  13:50:22  rpd
+.\" 	Added some watchpoint explanation.
+.\" 	[91/06/25            rpd]
+.\"
+.\" Revision 2.4  91/06/17  15:47:31  jsb
+.\" 	Added documentation for continue/c, match, search, and watchpoints.
+.\" 	I've not actually explained what a watchpoint is; maybe Rich can
+.\" 	do that (hint, hint).
+.\" 	[91/06/17  10:58:08  jsb]
+.\"
+.\" Revision 2.3  91/05/14  17:04:23  mrt
+.\" 	Correcting copyright
+.\"
+.\" Revision 2.2  91/02/14  14:10:06  mrt
+.\" 	Changed to new Mach copyright
+.\" 	[91/02/12  18:10:12  mrt]
+.\"
+.\" Revision 2.2  90/08/30  14:23:15  dbg
+.\" 	Created.
+.\" 	[90/08/30            dbg]
+.\"
+.\" $FreeBSD$
+.Dd January 16, 1996
+.Dt DDB 4
+.Os
+.Sh NAME
+.Nm ddb
+.Nd interactive kernel debugger
+.Sh SYNOPSIS
+.Cd options DDB
+.Pp
+To prevent activation of the debugger on kernel
+.Xr panic 9 :
+.Cd options DDB_UNATTENDED
+.Sh DESCRIPTION
+The
+.Nm
+kernel debugger has most of the features of the old kdb,
+but with a more rational syntax
+inspired by
+.Xr gdb 1 .
+If linked into the running kernel,
+it can be invoked locally with the
+.Ql debug
+.Xr keymap 5
+action.
+The debugger is also invoked on kernel
+.Xr panic 9
+if the
+.Va debug.debugger_on_panic
+.Xr sysctl 8
+MIB variable is set non-zero,
+which is the default
+unless the
+.Dv DDB_UNATTENDED
+option is specified.
+.Pp
+The current location is called `dot'.  The `dot' is displayed with
+a hexadecimal format at a prompt.
+Examine and write commands update `dot' to the address of the last line
+examined or the last location modified, and set `next' to the address of
+the next location to be examined or changed.
+Other commands don't change `dot', and set `next' to be the same as `dot'.
+.Pp
+The general command syntax is:
+.Cm command Ns Op Li \&/ Ns Ar modifier
+.Ar address Ns Op Li , Ns Ar count
+.Pp
+A blank line repeats the previous command from the address `next' with
+count 1 and no modifiers.  Specifying
+.Ar address
+sets `dot' to the
+address.  Omitting
+.Ar address
+uses `dot'.  A missing
+.Ar count
+is taken
+to be 1 for printing commands or infinity for stack traces.
+.Pp
+The
+.Nm
+debugger has a feature like the
+.Xr more 1
+command
+for the output.  If an output line exceeds the number set in the
+.Li \&$lines
+variable, it displays
+.Dq Em --db_more--
+and waits for a response.
+The valid responses for it are:
+.Pp
+.Bl -tag -compact -width SPC
+.It Li SPC
+one more page
+.It Li RET
+one more line
+.It Li q
+abort the current command, and return to the command input mode
+.El
+.Pp
+Finally,
+.Nm
+provides a small (currently 10 items) command history, and offers
+simple emacs-style command line editing capabilities.  In addition to
+the emacs control keys, the usual ANSI arrow keys might be used to
+browse through the history buffer, and move the cursor within the
+current line.
+.Sh COMMANDS
+.Bl -ohang
+.It Cm examine
+.It Cm x
+Display the addressed locations according to the formats in the modifier.
+Multiple modifier formats display multiple locations.
+If no format is specified, the last formats specified for this command
+is used.
+.Pp
+The format characters are:
+.Bl -tag -compact -width indent
+.It Li b
+look at by bytes (8 bits)
+.It Li h
+look at by half words (16 bits)
+.It Li l
+look at by long words (32 bits)
+.It Li a
+print the location being displayed
+.It Li A
+print the location with a line number if possible
+.It Li x
+display in unsigned hex
+.It Li z
+display in signed hex
+.It Li o
+display in unsigned octal
+.It Li d
+display in signed decimal
+.It Li u
+display in unsigned decimal
+.It Li r
+display in current radix, signed
+.It Li c
+display low 8 bits as a character.
+Non-printing characters are displayed as an octal escape code (e.g., `\e000').
+.It Li s
+display the null-terminated string at the location.
+Non-printing characters are displayed as octal escapes.
+.It Li m
+display in unsigned hex with character dump at the end of each line.
+The location is also displayed in hex at the beginning of each line.
+.It Li i
+display as an instruction
+.It Li I
+display as an instruction with possible alternate formats depending on the
+machine:
+.Bl -tag -width MIPS -compact
+.It Tn VAX
+don't assume that each external label is a procedure entry mask
+.It Tn i386
+don't round to the next long word boundary
+.It Tn MIPS
+print register contents
+.El
+.El
+.It Cm xf
+Examine forward:
+Execute an examine command with the last specified parameters to it
+except that the next address displayed by it is used as the start address.
+.It Cm xb
+Examine backward:
+Execute an examine command with the last specified parameters to it
+except that the last start address subtracted by the size displayed by it
+is used as the start address.
+.It Cm print Ns Op Cm /acdoruxz
+Print
+.Ar addr Ns s
+according to the modifier character (as described above for
+.Li examine ) .
+Valid formats are:
+.Li a ,
+.Li x ,
+.Li z ,
+.Li o ,
+.Li d ,
+.Li u ,
+.Li r ,
+and
+.Li c .
+If no modifier is specified, the last one specified to it is used.
+.Ar addr
+can be a string, in which case it is printed as it is.  For example:
+.Bd -literal -offset indent
+print/x \&"eax = \&" $eax \&"\enecx = \&" $ecx \&"\en\&"
+.Ed
+.Pp
+will print like:
+.Bd -literal -offset indent
+eax = xxxxxx
+ecx = yyyyyy
+.Ed
+.It Xo
+.Cm write Ns Op Cm /bhl
+.Ar addr Ar expr1 Op Ar "expr2 ..."
+.Xc
+Write the expressions specified after
+.Ar addr
+on the command line at succeeding locations starting with
+.Ar addr
+The write unit size can be specified in the modifier with a letter
+.Li b
+(byte),
+.Li h
+(half word) or
+.Li l
+(long word) respectively.  If omitted,
+long word is assumed.
+.Pp
+.Sy Warning :
+since there is no delimiter between expressions, strange
+things may happen.
+It's best to enclose each expression in parentheses.
+.It Xo
+.Cm set
+.Li \&$ Ns Ar variable
+.Op Li =
+.Ar expr
+.Xc
+Set the named variable or register with the value of
+.Ar expr .
+Valid variable names are described below.
+.It Cm break Ns Op Cm /u
+Set a break point at
+.Ar addr .
+If
+.Ar count
+is supplied, continues
+.Ar count
+- 1 times before stopping at the
+break point.  If the break point is set, a break point number is
+printed with
+.Sq Li \&# .
+This number can be used in deleting the break point
+or adding conditions to it.
+.Pp
+If the
+.Li u
+modifier is specified, this command sets a break point in user space
+address.  Without the
+.Li u
+option, the address is considered in the kernel
+space, and wrong space address is rejected with an error message.
+This modifier can be used only if it is supported by machine dependent
+routines.
+.Pp
+.Sy Warning :
+If a user text is shadowed by a normal user space debugger,
+user space break points may not work correctly.  Setting a break
+point at the low-level code paths may also cause strange behavior.
+.It Cm delete Ar addr
+.It Cm delete Li \&# Ns Ar number
+Delete the break point.  The target break point can be specified by a
+break point number with
+.Li # ,
+or by using the same
+.Ar addr
+specified in the original
+.Cm break
+command.
+.It Cm step Ns Op Cm /p
+Single step
+.Ar count
+times (the comma is a mandatory part of the syntax).
+If the
+.Li p
+modifier is specified, print each instruction at each step.
+Otherwise, only print the last instruction.
+.Pp
+.Sy Warning :
+depending on machine type, it may not be possible to
+single-step through some low-level code paths or user space code.
+On machines with software-emulated single-stepping (e.g., pmax),
+stepping through code executed by interrupt handlers will probably
+do the wrong thing.
+.It Cm continue Ns Op Cm /c
+Continue execution until a breakpoint or watchpoint.
+If the
+.Li c
+modifier is specified, count instructions while executing.
+Some machines (e.g., pmax) also count loads and stores.
+.Pp
+.Sy Warning :
+when counting, the debugger is really silently single-stepping.
+This means that single-stepping on low-level code may cause strange
+behavior.
+.It Cm until Ns Op Cm /p
+Stop at the next call or return instruction.
+If the
+.Li p
+modifier is specified, print the call nesting depth and the
+cumulative instruction count at each call or return.  Otherwise,
+only print when the matching return is hit.
+.It Cm next Ns Op Cm /p
+.It Cm match Ns Op Cm /p
+Stop at the matching return instruction.
+If the
+.Li p
+modifier is specified, print the call nesting depth and the
+cumulative instruction count at each call or return.  Otherwise,
+only print when the matching return is hit.
+.It Xo
+.Cm trace Ns Op Cm /u
+.Op Ar frame
+.Op , Ns Ar count
+.Xc
+Stack trace.  The
+.Li u
+option traces user space; if omitted,
+.Cm trace
+only traces
+kernel space.
+.Ar count
+is the number of frames to be traced.
+If
+.Ar count
+is omitted, all frames are printed.
+.Pp
+.Sy Warning :
+User space stack trace is valid
+only if the machine dependent code supports it.
+.It Xo
+.Cm search Ns Op Cm /bhl
+.Ar addr
+.Ar value
+.Op Ar mask
+.Op , Ns Ar count
+.Xc
+Search memory for
+.Ar value .
+This command might fail in interesting
+ways if it doesn't find the searched-for value.  This is because
+ddb doesn't always recover from touching bad memory.  The optional
+.Ar count
+argument limits the search.
+.It Cm show all procs Ns Op Cm /m
+.It Cm ps Ns Op Cm /m
+Display all process information.
+The process information may not be shown if it is not
+supported in the machine, or the bottom of the stack of the
+target process is not in the main memory at that time.
+The
+.Li m
+modifier will alter the display to show VM map
+addresses for the process and not show other info.
+.It Cm show registers Ns Op Cm /u
+Display the register set.
+If the
+.Li u
+option is specified, it displays user registers instead of
+kernel or currently saved one.
+.Pp
+.Sy Warning :
+The support of the
+.Li u
+modifier depends on the machine.  If
+not supported, incorrect information will be displayed.
+.It Xo
+.Cm show map Ns Op Cm /f
+.Ar addr
+.Xc
+Prints the VM map at
+.Ar addr .
+If the
+.Li f
+modifier is specified the
+complete map is printed.
+.It Xo
+.Cm show object Ns Op Cm /f
+.Ar addr
+.Xc
+Prints the VM object at
+.Ar addr .
+If the
+.Li f
+option is specified the
+complete object is printed.
+.It Cm "show watches"
+Displays all watchpoints.
+.It Xo
+.Cm watch
+.Ar addr Ns Li \&, Ns Ar size
+.Xc
+Set a watchpoint for a region.  Execution stops
+when an attempt to modify the region occurs.
+The
+.Ar size
+argument defaults to 4.
+If you specify a wrong space address, the request is rejected
+with an error message.
+.Pp
+.Sy Warning :
+Attempts to watch wired kernel memory
+may cause unrecoverable error in some systems such as i386.
+Watchpoints on user addresses work best.
+.It Cm gdb
+Toggles between remote GDB and DDB mode.  In remote GDB mode, another
+machine is required that runs
+.Xr gdb 1
+using the remote debug feature, with a connection to the serial
+console port on the target machine.  Currently only available on the
+.Em i386
+architecture.
+.It Cm help
+Print a short summary of the available commands and command
+abbreviations.
+.El
+.Sh VARIABLES
+The debugger accesses registers and variables as
+.Li \&$ Ns Em name .
+Register names are as in the
+.Dq Cm show registers
+command.
+Some variables are suffixed with numbers, and may have some modifier
+following a colon immediately after the variable name.
+For example, register variables can have a
+.Li u
+modifier to indicate user register (e.g.,
+.Li $eax:u ) .
+.Pp
+Built-in variables currently supported are:
+.Bl -tag -width tabstops -compact
+.It Li radix
+Input and output radix
+.It Li maxoff
+Addresses are printed as 'symbol'+offset unless offset is greater than maxoff.
+.It Li maxwidth
+The width of the displayed line.
+.It Li lines
+The number of lines.  It is used by "more" feature.
+.It Li tabstops
+Tab stop width.
+.It Li work Ns Ar xx
+Work variable.
+.Ar xx
+can be 0 to 31.
+.El
+.Sh EXPRESSIONS
+Almost all expression operators in C are supported except
+.Sq Li \&~ ,
+.Sq Li \&^ ,
+and unary
+.Sq Li \&& .
+Special rules in
+.Nm
+are:
+.Bl -tag -width Identifiers
+.It Em Identifiers
+The name of a symbol is translated to the value of the symbol, which
+is the address of the corresponding object.
+.Sq Li \&.
+and
+.Sq Li \&:
+can be used in the identifier.
+If supported by an object format dependent routine,
+.Sm off
+.Oo Em filename : Oc Em func : lineno ,
+.Sm on
+.Oo Em filename : Oc Ns Em variable ,
+and
+.Oo Em filename : Oc Ns Em lineno
+can be accepted as a symbol.
+.It Em Numbers
+Radix is determined by the first two letters:
+.Li 0x :
+hex,
+.Li 0o :
+octal,
+.Li 0t :
+decimal; otherwise, follow current radix.
+.It Li \&.
+`dot'
+.It Li \&+
+`next'
+.It Li \&..
+address of the start of the last line examined.
+Unlike `dot' or `next', this is only changed by
+.Dq Li examine
+or
+.Dq Li write
+command.
+.It Li \&'
+last address explicitly specified.
+.It Li \&$ Ns Em variable
+Translated to the value of the specified variable.
+It may be followed by a
+.Li :
+and modifiers as described above.
+.It Em a Ns Li \&# Ns Em b
+a binary operator which rounds up the left hand side to the next
+multiple of right hand side.
+.It Li \&* Ns Em expr
+indirection.  It may be followed by a
+.Sq Li :
+and modifiers as described above.
+.El
+.Sh SEE ALSO
+.Xr gdb 1
+.Sh HISTORY
+The
+.Nm
+debugger was developed for Mach, and ported to
+.Bx 386 0.1 .
+This manual page translated from
+.Fl man
+macros by Garrett Wollman.

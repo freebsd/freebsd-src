@@ -1,0 +1,231 @@
+#!/bin/sh
+#
+# $Id: freebsd,v 1.13.2.4 2002/06/09 22:37:55 murray Exp $
+#
+# $FreeBSD$
+
+if [ -x /usr/bin/logger ]; then
+	LOGGER="/usr/bin/logger -s -p user.notice -t dhclient"
+else
+	LOGGER=echo
+fi
+
+make_resolv_conf() {
+  if [ x"$new_domain_name_servers" != x ]; then
+    if [ "x$new_domain_name" != x ]; then
+      echo search $new_domain_name >/etc/resolv.conf
+    else
+      rm /etc/resolv.conf
+    fi
+    for nameserver in $new_domain_name_servers; do
+      echo nameserver $nameserver >>/etc/resolv.conf
+    done
+  fi
+}
+
+# Must be used on exit.   Invokes the local dhcp client exit hooks, if any.
+exit_with_hooks() {
+  exit_status=$1
+  if [ -f /etc/dhclient-exit-hooks ]; then
+    . /etc/dhclient-exit-hooks
+  fi
+# probably should do something with exit status of the local script
+  exit $exit_status
+}
+
+# Invoke the local dhcp client enter hooks, if they exist.
+if [ -f /etc/dhclient-enter-hooks ]; then
+  exit_status=0
+  . /etc/dhclient-enter-hooks
+  # allow the local script to abort processing of this state
+  # local script must set exit_status variable to nonzero.
+  if [ $exit_status -ne 0 ]; then
+    exit $exit_status
+  fi
+fi
+
+if [ x$new_network_number != x ]; then
+   $LOGGER New Network Number: $new_network_number
+fi
+
+if [ x$new_broadcast_address != x ]; then
+ $LOGGER New Broadcast Address: $new_broadcast_address
+  new_broadcast_arg="broadcast $new_broadcast_address"
+fi
+if [ x$old_broadcast_address != x ]; then
+  old_broadcast_arg="broadcast $old_broadcast_address"
+fi
+if [ x$new_subnet_mask != x ]; then
+  new_netmask_arg="netmask $new_subnet_mask"
+fi
+if [ x$old_subnet_mask != x ]; then
+  old_netmask_arg="netmask $old_subnet_mask"
+fi
+if [ x$alias_subnet_mask != x ]; then
+  alias_subnet_arg="netmask $alias_subnet_mask"
+fi
+
+if [ x$reason = xMEDIUM ]; then
+  eval "ifconfig $interface $medium"
+  eval "ifconfig $interface inet -alias 0.0.0.0 $medium" >/dev/null 2>&1
+  sleep 1
+  exit_with_hooks 0
+fi
+
+if [ x$reason = xPREINIT ]; then
+  if [ x$alias_ip_address != x ]; then
+    ifconfig $interface inet -alias $alias_ip_address > /dev/null 2>&1
+    route delete $alias_ip_address 127.0.0.1 > /dev/null 2>&1
+  fi
+  ifconfig $interface inet 0.0.0.0 netmask 0.0.0.0 \
+		broadcast 255.255.255.255 up
+  exit_with_hooks 0
+fi
+
+if [ x$reason = xARPCHECK ] || [ x$reason = xARPSEND ]; then
+  exit_with_hooks 0;
+fi
+  
+if [ x$reason = xBOUND ] || [ x$reason = xRENEW ] || \
+   [ x$reason = xREBIND ] || [ x$reason = xREBOOT ]; then
+  current_hostname=`/bin/hostname`
+  if [ x$current_hostname = x ] || \
+     [ x$current_hostname = x$old_host_name ]; then
+    if [ x$current_hostname = x ] || \
+       [ x$new_host_name != x$old_host_name ]; then
+      $LOGGER "New Hostname: $new_host_name"
+      hostname $new_host_name
+    fi
+  fi
+  if [ x$old_ip_address != x ] && [ x$alias_ip_address != x ] && \
+		[ x$alias_ip_address != x$old_ip_address ]; then
+    ifconfig $interface inet -alias $alias_ip_address > /dev/null 2>&1
+    route delete $alias_ip_address 127.0.0.1 > /dev/null 2>&1
+  fi
+  if [ x$old_ip_address != x ] && [ x$old_ip_address != x$new_ip_address ]
+   then
+    eval "ifconfig $interface inet -alias $old_ip_address $medium"
+    route delete $old_ip_address 127.1 >/dev/null 2>&1
+    for router in $old_routers; do
+      route delete default $router >/dev/null 2>&1
+    done
+    if [ -n "$old_static_routes" ]; then
+      set -- $old_static_routes
+      while [ $# -gt 1 ]; do
+	route delete $1 $2
+	shift; shift
+      done
+    fi
+    arp -n -a | sed -n -e 's/^.*(\(.*\)) at .*$/arp -d \1/p' |sh
+  fi
+  if [ x$old_ip_address = x ] || [ x$old_ip_address != x$new_ip_address ] || \
+     [ x$reason = xBOUND ] || [ x$reason = xREBOOT ]; then
+    eval "ifconfig $interface inet $new_ip_address $new_netmask_arg \
+					$new_broadcast_arg $medium"
+    $LOGGER "New IP Address ($interface): $new_ip_address"
+    $LOGGER "New Subnet Mask ($interface): $new_subnet_mask"
+    $LOGGER "New Broadcast Address ($interface): $new_broadcast_address"
+    if [ -n "$new_routers" ]; then
+      $LOGGER "New Routers: $new_routers"
+    fi
+    route add $new_ip_address 127.1 >/dev/null 2>&1
+    for router in $new_routers; do
+      route add default $router >/dev/null 2>&1
+    done
+    if [ -n "$new_static_routes" ]; then
+      $LOGGER "New Static Routes: $new_static_routes"
+      set -- $new_static_routes
+      while [ $# -gt 1 ]; do
+	route add $1 $2
+	shift; shift
+      done
+    fi
+  fi
+  if [ x$new_ip_address != x$alias_ip_address ] && [ x$alias_ip_address != x ];
+   then
+    ifconfig $interface inet alias $alias_ip_address $alias_subnet_arg
+    route add $alias_ip_address 127.0.0.1
+  fi
+  make_resolv_conf
+  exit_with_hooks 0
+fi
+
+if [ x$reason = xEXPIRE ] || [ x$reason = xFAIL ] || [ x$reason = xRELEASE ] \
+   || [ x$reason = xSTOP ]; then
+  if [ x$alias_ip_address != x ]; then
+    ifconfig $interface inet -alias $alias_ip_address > /dev/null 2>&1
+    route delete $alias_ip_address 127.0.0.1 > /dev/null 2>&1
+  fi
+  if [ x$old_ip_address != x ]; then
+    eval "ifconfig $interface inet -alias $old_ip_address $medium"
+    route delete $old_ip_address 127.1 >/dev/null 2>&1
+    for router in $old_routers; do
+      route delete default $router >/dev/null 2>&1
+    done
+    if [ -n "$old_static_routes" ]; then
+      set -- $old_static_routes
+      while [ $# -gt 1 ]; do
+	route delete $1 $2
+	shift; shift
+      done
+    fi
+    arp -n -a | sed -n -e 's/^.*(\(.*\)) at .*$/arp -d \1/p' \
+						|sh >/dev/null 2>&1
+  fi
+  if [ x$alias_ip_address != x ]; then
+    ifconfig $interface inet alias $alias_ip_address $alias_subnet_arg
+    route add $alias_ip_address 127.0.0.1
+  fi
+  exit_with_hooks 0
+fi
+
+if [ x$reason = xTIMEOUT ]; then
+  if [ x$alias_ip_address != x ]; then
+    ifconfig $interface inet -alias $alias_ip_address > /dev/null 2>&1
+    route delete $alias_ip_address 127.0.0.1 > /dev/null 2>&1
+  fi
+  eval "ifconfig $interface inet $new_ip_address $new_netmask_arg \
+					$new_broadcast_arg $medium"
+  $LOGGER "New IP Address ($interface): $new_ip_address"
+  $LOGGER "New Subnet Mask ($interface): $new_subnet_mask"
+  $LOGGER "New Broadcast Address ($interface): $new_broadcast_address"
+  sleep 1
+  if [ -n "$new_routers" ]; then
+    $LOGGER "New Routers: $new_routers"
+    set -- $new_routers
+    if ping -q -c 1 $1; then
+      if [ x$new_ip_address != x$alias_ip_address ] && \
+			[ x$alias_ip_address != x ]; then
+	ifconfig $interface inet alias $alias_ip_address $alias_subnet_arg
+	route add $alias_ip_address 127.0.0.1
+      fi
+      route add $new_ip_address 127.1 >/dev/null 2>&1
+      for router in $new_routers; do
+	route add default $router >/dev/null 2>&1
+      done
+      set -- $new_static_routes
+      while [ $# -gt 1 ]; do
+	route add $1 $2
+	shift; shift
+      done
+      make_resolv_conf
+      exit_with_hooks 0
+    fi
+  fi
+  eval "ifconfig $interface inet -alias $new_ip_address $medium"
+  for router in $old_routers; do
+    route delete default $router >/dev/null 2>&1
+  done
+  if [ -n "$old_static_routes" ]; then
+    set -- $old_static_routes
+    while [ $# -gt 1 ]; do
+      route delete $1 $2
+      shift; shift
+    done
+  fi
+  arp -n -a | sed -n -e 's/^.*(\(.*\)) at .*$/arp -d \1/p' \
+							|sh >/dev/null 2>&1
+  exit_with_hooks 1
+fi
+
+exit_with_hooks 0

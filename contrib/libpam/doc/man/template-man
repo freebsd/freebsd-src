@@ -1,0 +1,53 @@
+.\" Hey Emacs! This file is -*- nroff -*- source.
+.\" $Id: template-man,v 1.1 1997/01/04 18:25:13 morgan Exp $
+.\" $FreeBSD$
+.\" Copyright (c) Andrew G. Morgan 1997 <morgan@parc.power.net>
+.TH PAM_???? 2 "1997 Jan 4" "Linux-PAM 0.55" "Application Programmers' Manual"
+.SH NAME
+
+function names \- brief summary of function
+
+.SH SYNOPSIS
+.B #include <security/pam_????.h>
+.sp
+.BI "int pam_???(pam_handle_t " pamh ", int  " flags);
+.sp 2
+.SH DESCRIPTION
+.TP
+.B pam_???
+Here goes the
+.I explanation
+it may be quite
+.IR long .
+.TP
+.SH "RETURN VALUE"
+.B pam_???
+On success...
+.BR PAM_SUCCESS
+is returned
+.TP
+.SH ERRORS
+May be translated to text with
+.BR pam_strerror "(2). "
+
+.SH "CONFORMING TO"
+.B pam_???
+DCE-RFC 86.0, October 1995.
+
+.SH BUGS
+.sp 2
+none known.
+
+.SH "SEE ALSO"
+
+.BR pam_??? "(2), "
+and
+.BR pam_??? "(2). "
+
+Also, see the three
+.BR Linux-PAM
+Guides, for
+.BR "System administrators" ", "
+.BR "module developers" ", "
+and
+.BR "application developers" ". "

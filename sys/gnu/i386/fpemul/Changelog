@@ -1,0 +1,38 @@
+$FreeBSD$
+
+This file contains the changes made to W. Metzenthem's 387 FPU
+emulator to make it work under NetBSD.
+
+a, Changes to make it compile:
+	
+	1 - Changed the #include's to get the appropriate .h files.
+	2 - Renamed .S to .s, to satisfy the kernel Makefile.
+	3 - Changed the C++ style // comments to /* */
+	4 - Changed the FPU_ORIG_EIP macro. A letter from bde included
+		in the package suggested using tf_isp for using instead
+		of the linux __orig_eip. This later turned out to interfere
+		with the user stack, so i created a separate variable, stored
+		in the i387_union.
+	5 - Changed the get_fs_.. put_fs_.. fns to fubyte,fuword,subyte,
+		suword.
+	6 - Removed the verify_area fns. I don't really know what they do,
+		i suppose they verify access to memory. The sufu routines
+		should do this.
+
+b, Changes to make it work:
+	
+	1 - Made math_emulate() to return 0 when successful, so trap() won't
+		try to generate a signal.
+	2 - Changed the size of the save87 struct in /sys/arch/i387/include/
+		npx.h to accomodate the i387_union.
+	
+d, Other changes:
+
+	1 - Removed obsolate and/or linux specific stuff.
+	2 - Changed the RE_ENTRANT_CHECK_[ON|OFF] macro to
+		REENTRANT_CHECK([ON|OFF]) so indent can grok it.
+	3 - Re-indented to Berkeley style.
+	4 - Limited max no of lookaheads. LOOKAHEAD_LIMIT in fpu_entry.c
+
+
+	Szabolcs Szigeti (pink@fsz.bme.hu)

@@ -1,0 +1,1035 @@
+This is Info file gmp.info, produced by Makeinfo-1.64 from the input
+file gmp.texi.
+
+START-INFO-DIR-ENTRY
+* gmp: (gmp.info).               GNU Multiple Precision Arithmetic Library.
+END-INFO-DIR-ENTRY
+
+   This file documents GNU MP, a library for arbitrary-precision
+arithmetic.
+
+   Copyright (C) 1991, 1993, 1994, 1995, 1996 Free Software Foundation,
+Inc.
+
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
+
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided that
+the entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be stated in a
+translation approved by the Foundation.
+
+
+File: gmp.info,  Node: Floating-point Functions,  Next: Low-level Functions,  Prev: Rational Number Functions,  Up: Top
+
+Floating-point Functions
+************************
+
+   This is a description of the *preliminary* interface for
+floating-point arithmetic in GNU MP 2.
+
+   The floating-point functions expect arguments of type `mpf_t'.
+
+   The MP floating-point functions have an interface that is similar to
+the MP integer functions.  The function prefix for floating-point
+operations is `mpf_'.
+
+   There is one significant characteristic of floating-point numbers
+that has motivated a difference between this function class and other
+MP function classes: the inherent inexactness of floating point
+arithmetic.  The user has to specify the precision of each variable.  A
+computation that assigns a variable will take place with the precision
+of the assigned variable; the precision of variables used as input is
+ignored.
+
+   The precision of a calculation is defined as follows: Compute the
+requested operation exactly (with "infinite precision"), and truncate
+the result to the destination variable precision.  Even if the user has
+asked for a very high precision, MP will not calculate with superfluous
+digits.  For example, if two low-precision numbers of nearly equal
+magnitude are added, the precision of the result will be limited to
+what is required to represent the result accurately.
+
+   The MP floating-point functions are *not* intended as a smooth
+extension to the IEEE P754 arithmetic.  Specifically, the results
+obtained on one computer often differs from the results obtained on a
+computer with a different word size.
+
+* Menu:
+
+* Initializing Floats::
+* Assigning Floats::
+* Simultaneous Float Init & Assign::
+* Converting Floats::
+* Float Arithmetic::
+* Float Comparison::
+* I/O of Floats::
+* Miscellaneous Float Functions::
+
+
+File: gmp.info,  Node: Initializing Floats,  Next: Assigning Floats,  Up: Floating-point Functions
+
+Initialization and Assignment Functions
+=======================================
+
+ - Function: void mpf_set_default_prec (unsigned long int PREC)
+     Set the default precision to be *at least* PREC bits.  All
+     subsequent calls to `mpf_init' will use this precision, but
+     previously initialized variables are unaffected.
+
+   An `mpf_t' object must be initialized before storing the first value
+in it.  The functions `mpf_init' and `mpf_init2' are used for that
+purpose.
+
+ - Function: void mpf_init (mpf_t X)
+     Initialize X to 0.  Normally, a variable should be initialized
+     once only or at least be cleared, using `mpf_clear', between
+     initializations.  The precision of X is undefined unless a default
+     precision has already been established by a call to
+     `mpf_set_default_prec'.
+
+ - Function: void mpf_init2 (mpf_t X, unsigned long int PREC)
+     Initialize X to 0 and set its precision to be *at least* PREC
+     bits.  Normally, a variable should be initialized once only or at
+     least be cleared, using `mpf_clear', between initializations.
+
+ - Function: void mpf_clear (mpf_t X)
+     Free the space occupied by X.  Make sure to call this function for
+     all `mpf_t' variables when you are done with them.
+
+   Here is an example on how to initialize floating-point variables:
+     {
+       mpf_t x, y;
+       mpf_init (x);			/* use default precision */
+       mpf_init2 (y, 256);		/* precision *at least* 256 bits */
+       ...
+       /* Unless the program is about to exit, do ... */
+       mpf_clear (x);
+       mpf_clear (y);
+     }
+
+   The following three functions are useful for changing the precision
+during a calculation.  A typical use would be for adjusting the
+precision gradually in iterative algorithms like Newton-Raphson, making
+the computation precision closely match the actual accurate part of the
+numbers.
+
+ - Function: void mpf_set_prec (mpf_t ROP, unsigned long int PREC)
+     Set the precision of ROP to be *at least* PREC bits.  Since
+     changing the precision involves calls to `realloc', this routine
+     should not be called in a tight loop.
+
+ - Function: unsigned long int mpf_get_prec (mpf_t OP)
+     Return the precision actually used for assignments of OP.
+
+ - Function: void mpf_set_prec_raw (mpf_t ROP, unsigned long int PREC)
+     Set the precision of ROP to be *at least* PREC bits.  This is a
+     low-level function that does not change the allocation.  The PREC
+     argument must not be larger that the precision previously returned
+     by `mpf_get_prec'.  It is crucial that the precision of ROP is
+     ultimately reset to exactly the value returned by `mpf_get_prec'.
+
+
+File: gmp.info,  Node: Assigning Floats,  Next: Simultaneous Float Init & Assign,  Prev: Initializing Floats,  Up: Floating-point Functions
+
+Assignment Functions
+--------------------
+
+   These functions assign new values to already initialized floats
+(*note Initializing Floats::.).
+
+ - Function: void mpf_set (mpf_t ROP, mpf_t OP)
+ - Function: void mpf_set_ui (mpf_t ROP, unsigned long int OP)
+ - Function: void mpf_set_si (mpf_t ROP, signed long int OP)
+ - Function: void mpf_set_d (mpf_t ROP, double OP)
+ - Function: void mpf_set_z (mpf_t ROP, mpz_t OP)
+ - Function: void mpf_set_q (mpf_t ROP, mpq_t OP)
+     Set the value of ROP from OP.
+
+ - Function: int mpf_set_str (mpf_t ROP, char *STR, int BASE)
+     Set the value of ROP from the string in STR.  The string is of the
+     form `M@N' or, if the base is 10 or less, alternatively `MeN'.
+     `M' is the mantissa and `N' is the exponent.  The mantissa is
+     always in the specified base.  The exponent is either in the
+     specified base or, if BASE is negative, in decimal.
+
+     The argument BASE may be in the ranges 2 to 36, or -36 to -2.
+     Negative values are used to specify that the exponent is in
+     decimal.
+
+     Unlike the corresponding `mpz' function, the base will not be
+     determined from the leading characters of the string if BASE is 0.
+     This is so that numbers like `0.23' are not interpreted as octal.
+
+     White space is allowed in the string, and is simply ignored.
+
+     This function returns 0 if the entire string up to the '\0' is a
+     valid number in base BASE.  Otherwise it returns -1.
+
+
+File: gmp.info,  Node: Simultaneous Float Init & Assign,  Next: Converting Floats,  Prev: Assigning Floats,  Up: Floating-point Functions
+
+Combined Initialization and Assignment Functions
+------------------------------------------------
+
+   For convenience, MP provides a parallel series of initialize-and-set
+functions which initialize the output and then store the value there.
+These functions' names have the form `mpf_init_set...'
+
+   Once the float has been initialized by any of the `mpf_init_set...'
+functions, it can be used as the source or destination operand for the
+ordinary float functions.  Don't use an initialize-and-set function on
+a variable already initialized!
+
+ - Function: void mpf_init_set (mpf_t ROP, mpf_t OP)
+ - Function: void mpf_init_set_ui (mpf_t ROP, unsigned long int OP)
+ - Function: void mpf_init_set_si (mpf_t ROP, signed long int OP)
+ - Function: void mpf_init_set_d (mpf_t ROP, double OP)
+     Initialize ROP and set its value from OP.
+
+     The precision of ROP will be taken from the active default
+     precision, as set by `mpf_set_default_prec'.
+
+ - Function: int mpf_init_set_str (mpf_t ROP, char *STR, int BASE)
+     Initialize ROP and set its value from the string in STR.  See
+     `mpf_set_str' above for details on the assignment operation.
+
+     Note that ROP is initialized even if an error occurs.  (I.e., you
+     have to call `mpf_clear' for it.)
+
+     The precision of ROP will be taken from the active default
+     precision, as set by `mpf_set_default_prec'.
+
+
+File: gmp.info,  Node: Converting Floats,  Next: Float Arithmetic,  Prev: Simultaneous Float Init & Assign,  Up: Floating-point Functions
+
+Conversion Functions
+====================
+
+ - Function: double mpf_get_d (mpf_t OP)
+     Convert OP to a double.
+
+ - Function: char * mpf_get_str (char *STR, mp_exp_t *EXPPTR, int BASE,
+          size_t N_DIGITS, mpf_t OP)
+     Convert OP to a string of digits in base BASE.  The base may vary
+     from 2 to 36.  Generate at most N_DIGITS significant digits, or if
+     N_DIGITS is 0, the maximum number of digits accurately
+     representable by OP.
+
+     If STR is NULL, space for the mantissa is allocated using the
+     default allocation function, and a pointer to the string is
+     returned.
+
+     If STR is not NULL, it should point to a block of storage enough
+     large for the mantissa, i.e., N_DIGITS + 2.  The two extra bytes
+     are for a possible minus sign, and for the terminating null
+     character.
+
+     The exponent is written through the pointer EXPPTR.
+
+     If N_DIGITS is 0, the maximum number of digits meaningfully
+     achievable from the precision of OP will be generated.  Note that
+     the space requirements for STR in this case will be impossible for
+     the user to predetermine.  Therefore, you need to pass NULL for
+     the string argument whenever N_DIGITS is 0.
+
+     The generated string is a fraction, with an implicit radix point
+     immediately to the left of the first digit.  For example, the
+     number 3.1416 would be returned as "31416" in the string and 1
+     written at EXPPTR.
+
+
+File: gmp.info,  Node: Float Arithmetic,  Next: Float Comparison,  Prev: Converting Floats,  Up: Floating-point Functions
+
+Arithmetic Functions
+====================
+
+ - Function: void mpf_add (mpf_t ROP, mpf_t OP1, mpf_t OP2)
+ - Function: void mpf_add_ui (mpf_t ROP, mpf_t OP1, unsigned long int
+          OP2)
+     Set ROP to OP1 + OP2.
+
+ - Function: void mpf_sub (mpf_t ROP, mpf_t OP1, mpf_t OP2)
+ - Function: void mpf_ui_sub (mpf_t ROP, unsigned long int OP1, mpf_t
+          OP2)
+ - Function: void mpf_sub_ui (mpf_t ROP, mpf_t OP1, unsigned long int
+          OP2)
+     Set ROP to OP1 - OP2.
+
+ - Function: void mpf_mul (mpf_t ROP, mpf_t OP1, mpf_t OP2)
+ - Function: void mpf_mul_ui (mpf_t ROP, mpf_t OP1, unsigned long int
+          OP2)
+     Set ROP to OP1 times OP2.
+
+   Division is undefined if the divisor is zero, and passing a zero
+divisor to the divide functions will make these functions intentionally
+divide by zero.  This gives the user the possibility to handle
+arithmetic exceptions in these functions in the same manner as other
+arithmetic exceptions.
+
+ - Function: void mpf_div (mpf_t ROP, mpf_t OP1, mpf_t OP2)
+ - Function: void mpf_ui_div (mpf_t ROP, unsigned long int OP1, mpf_t
+          OP2)
+ - Function: void mpf_div_ui (mpf_t ROP, mpf_t OP1, unsigned long int
+          OP2)
+     Set ROP to OP1/OP2.
+
+ - Function: void mpf_sqrt (mpf_t ROP, mpf_t OP)
+ - Function: void mpf_sqrt_ui (mpf_t ROP, unsigned long int OP)
+     Set ROP to the square root of OP.
+
+ - Function: void mpf_neg (mpf_t ROP, mpf_t OP)
+     Set ROP to -OP.
+
+ - Function: void mpf_abs (mpf_t ROP, mpf_t OP)
+     Set ROP to the absolute value of OP.
+
+ - Function: void mpf_mul_2exp (mpf_t ROP, mpf_t OP1, unsigned long int
+          OP2)
+     Set ROP to OP1 times 2 raised to OP2.
+
+ - Function: void mpf_div_2exp (mpf_t ROP, mpf_t OP1, unsigned long int
+          OP2)
+     Set ROP to OP1 divided by 2 raised to OP2.
+
+
+File: gmp.info,  Node: Float Comparison,  Next: I/O of Floats,  Prev: Float Arithmetic,  Up: Floating-point Functions
+
+Comparison Functions
+====================
+
+ - Function: int mpf_cmp (mpf_t OP1, mpf_t OP2)
+ - Function: int mpf_cmp_ui (mpf_t OP1, unsigned long int OP2)
+ - Function: int mpf_cmp_si (mpf_t OP1, signed long int OP2)
+     Compare OP1 and OP2.  Return a positive value if OP1 > OP2, zero
+     if OP1 = OP2, and a negative value if OP1 < OP2.
+
+ - Function: int mpf_eq (mpf_t OP1, mpf_t OP2, unsigned long int op3)
+     Return non-zero if the first OP3 bits of OP1 and OP2 are equal,
+     zero otherwise.  I.e., test of OP1 and OP2 are approximately equal.
+
+ - Function: void mpf_reldiff (mpf_t ROP, mpf_t OP1, mpf_t OP2)
+     Compute the relative difference between OP1 and OP2 and store the
+     result in ROP.
+
+ - Macro: int mpf_sgn (mpf_t OP)
+     Return +1 if OP > 0, 0 if OP = 0, and -1 if OP < 0.
+
+     This function is actually implemented as a macro.  It evaluates its
+     arguments multiple times.
+
+
+File: gmp.info,  Node: I/O of Floats,  Next: Miscellaneous Float Functions,  Prev: Float Comparison,  Up: Floating-point Functions
+
+Input and Output Functions
+==========================
+
+   Functions that perform input from a stdio stream, and functions that
+output to a stdio stream.  Passing a NULL pointer for a STREAM argument
+to any of these functions will make them read from `stdin' and write to
+`stdout', respectively.
+
+   When using any of these functions, it is a good idea to include
+`stdio.h' before `gmp.h', since that will allow `gmp.h' to define
+prototypes for these functions.
+
+ - Function: size_t mpf_out_str (FILE *STREAM, int BASE, size_t
+          N_DIGITS, mpf_t OP)
+     Output OP on stdio stream STREAM, as a string of digits in base
+     BASE.  The base may vary from 2 to 36.  Print at most N_DIGITS
+     significant digits, or if N_DIGITS is 0, the maximum number of
+     digits accurately representable by OP.
+
+     In addition to the significant digits, a leading `0.' and a
+     trailing exponent, in the form `eNNN', are printed.  If BASE is
+     greater than 10, `@' will be used instead of `e' as exponent
+     delimiter.
+
+     Return the number of bytes written, or if an error occurred,
+     return 0.
+
+ - Function: size_t mpf_inp_str (mpf_t ROP, FILE *STREAM, int BASE)
+     Input a string in base BASE from stdio stream STREAM, and put the
+     read float in ROP.  The string is of the form `M@N' or, if the
+     base is 10 or less, alternatively `MeN'.  `M' is the mantissa and
+     `N' is the exponent.  The mantissa is always in the specified
+     base.  The exponent is either in the specified base or, if BASE is
+     negative, in decimal.
+
+     The argument BASE may be in the ranges 2 to 36, or -36 to -2.
+     Negative values are used to specify that the exponent is in
+     decimal.
+
+     Unlike the corresponding `mpz' function, the base will not be
+     determined from the leading characters of the string if BASE is 0.
+     This is so that numbers like `0.23' are not interpreted as octal.
+
+     Return the number of bytes read, or if an error occurred, return 0.
+
+
+File: gmp.info,  Node: Miscellaneous Float Functions,  Prev: I/O of Floats,  Up: Floating-point Functions
+
+Miscellaneous Functions
+=======================
+
+ - Function: void mpf_random2 (mpf_t ROP, mp_size_t MAX_SIZE, mp_exp_t
+          MAX_EXP)
+     Generate a random float of at most MAX_SIZE limbs, with long
+     strings of zeros and ones in the binary representation.  The
+     exponent of the number is in the interval -EXP to EXP.  This
+     function is useful for testing functions and algorithms, since
+     this kind of random numbers have proven to be more likely to
+     trigger corner-case bugs.  Negative random numbers are generated
+     when MAX_SIZE is negative.
+
+
+File: gmp.info,  Node: Low-level Functions,  Next: BSD Compatible Functions,  Prev: Floating-point Functions,  Up: Top
+
+Low-level Functions
+*******************
+
+   This chapter describes low-level MP functions, used to implement the
+high-level MP functions, but also intended for time-critical user code.
+
+   These functions start with the prefix `mpn_'.
+
+   The `mpn' functions are designed to be as fast as possible, *not* to
+provide a coherent calling interface.  The different functions have
+somewhat similar interfaces, but there are variations that make them
+hard to use.  These functions do as little as possible apart from the
+real multiple precision computation, so that no time is spent on things
+that not all callers need.
+
+   A source operand is specified by a pointer to the least significant
+limb and a limb count.  A destination operand is specified by just a
+pointer.  It is the responsibility of the caller to ensure that the
+destination has enough space for storing the result.
+
+   With this way of specifying operands, it is possible to perform
+computations on subranges of an argument, and store the result into a
+subrange of a destination.
+
+   A common requirement for all functions is that each source area
+needs at least one limb.  No size argument may be zero.
+
+   The `mpn' functions is the base for the implementation of the `mpz_',
+`mpf_', and `mpq_' functions.
+
+   This example adds the number beginning at SRC1_PTR and the number
+beginning at SRC2_PTR and writes the sum at DEST_PTR.  All areas have
+SIZE limbs.
+
+     cy = mpn_add_n (dest_ptr, src1_ptr, src2_ptr, size)
+
+In the notation used here, a source operand is identified by the
+pointer to the least significant limb, and the limb count in braces.
+For example, {s1_ptr, s1_size}.
+
+ - Function: mp_limb_t mpn_add_n (mp_limb_t * DEST_PTR, const mp_limb_t
+          * SRC1_PTR, const mp_limb_t * SRC2_PTR, mp_size_t SIZE)
+     Add {SRC1_PTR, SIZE} and {SRC2_PTR, SIZE}, and write the SIZE
+     least significant limbs of the result to DEST_PTR.  Return carry,
+     either 0 or 1.
+
+     This is the lowest-level function for addition.  It is the
+     preferred function for addition, since it is written in assembly
+     for most targets.  For addition of a variable to itself (i.e.,
+     SRC1_PTR equals SRC2_PTR, use `mpn_lshift' with a count of 1 for
+     optimal speed.
+
+ - Function: mp_limb_t mpn_add_1 (mp_limb_t * DEST_PTR, const mp_limb_t
+          * SRC1_PTR, mp_size_t SIZE, mp_limb_t SRC2_LIMB)
+     Add {SRC1_PTR, SIZE} and SRC2_LIMB, and write the SIZE least
+     significant limbs of the result to DEST_PTR.  Return carry, either
+     0 or 1.
+
+ - Function: mp_limb_t mpn_add (mp_limb_t * DEST_PTR, const mp_limb_t *
+          SRC1_PTR, mp_size_t SRC1_SIZE, const mp_limb_t * SRC2_PTR,
+          mp_size_t SRC2_SIZE)
+     Add {SRC1_PTR, SRC1_SIZE} and {SRC2_PTR, SRC2_SIZE}, and write the
+     SRC1_SIZE least significant limbs of the result to DEST_PTR.
+     Return carry, either 0 or 1.
+
+     This function requires that SRC1_SIZE is greater than or equal to
+     SRC2_SIZE.
+
+ - Function: mp_limb_t mpn_sub_n (mp_limb_t * DEST_PTR, const mp_limb_t
+          * SRC1_PTR, const mp_limb_t * SRC2_PTR, mp_size_t SIZE)
+     Subtract {SRC2_PTR, SRC2_SIZE} from {SRC1_PTR, SIZE}, and write
+     the SIZE least significant limbs of the result to DEST_PTR.
+     Return borrow, either 0 or 1.
+
+     This is the lowest-level function for subtraction.  It is the
+     preferred function for subtraction, since it is written in
+     assembly for most targets.
+
+ - Function: mp_limb_t mpn_sub_1 (mp_limb_t * DEST_PTR, const mp_limb_t
+          * SRC1_PTR, mp_size_t SIZE, mp_limb_t SRC2_LIMB)
+     Subtract SRC2_LIMB from {SRC1_PTR, SIZE}, and write the SIZE least
+     significant limbs of the result to DEST_PTR.  Return borrow,
+     either 0 or 1.
+
+ - Function: mp_limb_t mpn_sub (mp_limb_t * DEST_PTR, const mp_limb_t *
+          SRC1_PTR, mp_size_t SRC1_SIZE, const mp_limb_t * SRC2_PTR,
+          mp_size_t SRC2_SIZE)
+     Subtract {SRC2_PTR, SRC2_SIZE} from {SRC1_PTR, SRC1_SIZE}, and
+     write the SRC1_SIZE least significant limbs of the result to
+     DEST_PTR.  Return borrow, either 0 or 1.
+
+     This function requires that SRC1_SIZE is greater than or equal to
+     SRC2_SIZE.
+
+ - Function: void mpn_mul_n (mp_limb_t * DEST_PTR, const mp_limb_t *
+          SRC1_PTR, const mp_limb_t * SRC2_PTR, mp_size_t SIZE)
+     Multiply {SRC1_PTR, SIZE} and {SRC2_PTR, SIZE}, and write the
+     *entire* result to DEST_PTR.
+
+     The destination has to have space for 2SIZE limbs, even if the
+     significant result might be one limb smaller.
+
+ - Function: mp_limb_t mpn_mul_1 (mp_limb_t * DEST_PTR, const mp_limb_t
+          * SRC1_PTR, mp_size_t SIZE, mp_limb_t SRC2_LIMB)
+     Multiply {SRC1_PTR, SIZE} and SRC2_LIMB, and write the SIZE least
+     significant limbs of the product to DEST_PTR.  Return the most
+     significant limb of the product.
+
+     This is a low-level function that is a building block for general
+     multiplication as well as other operations in MP.  It is written
+     in assembly for most targets.
+
+     Don't call this function if SRC2_LIMB is a power of 2; use
+     `mpn_lshift' with a count equal to the logarithm of SRC2_LIMB
+     instead, for optimal speed.
+
+ - Function: mp_limb_t mpn_addmul_1 (mp_limb_t * DEST_PTR, const
+          mp_limb_t * SRC1_PTR, mp_size_t SIZE, mp_limb_t SRC2_LIMB)
+     Multiply {SRC1_PTR, SIZE} and SRC2_LIMB, and add the SIZE least
+     significant limbs of the product to {DEST_PTR, SIZE} and write the
+     result to DEST_PTR DEST_PTR.  Return the most significant limb of
+     the product, plus carry-out from the addition.
+
+     This is a low-level function that is a building block for general
+     multiplication as well as other operations in MP.  It is written
+     in assembly for most targets.
+
+ - Function: mp_limb_t mpn_submul_1 (mp_limb_t * DEST_PTR, const
+          mp_limb_t * SRC1_PTR, mp_size_t SIZE, mp_limb_t SRC2_LIMB)
+     Multiply {SRC1_PTR, SIZE} and SRC2_LIMB, and subtract the SIZE
+     least significant limbs of the product from {DEST_PTR, SIZE} and
+     write the result to DEST_PTR.  Return the most significant limb of
+     the product, minus borrow-out from the subtraction.
+
+     This is a low-level function that is a building block for general
+     multiplication and division as well as other operations in MP.  It
+     is written in assembly for most targets.
+
+ - Function: mp_limb_t mpn_mul (mp_limb_t * DEST_PTR, const mp_limb_t *
+          SRC1_PTR, mp_size_t SRC1_SIZE, const mp_limb_t * SRC2_PTR,
+          mp_size_t SRC2_SIZE)
+     Multiply {SRC1_PTR, SRC1_SIZE} and {SRC2_PTR, SRC2_SIZE}, and
+     write the result to DEST_PTR.  Return the most significant limb of
+     the result.
+
+     The destination has to have space for SRC1_SIZE + SRC1_SIZE limbs,
+     even if the result might be one limb smaller.
+
+     This function requires that SRC1_SIZE is greater than or equal to
+     SRC2_SIZE.  The destination must be distinct from either input
+     operands.
+
+ - Function: mp_size_t mpn_divrem (mp_limb_t * R1P, mp_size_t XSIZE,
+          mp_limb_t * RS2P, mp_size_t RS2SIZE, const mp_limb_t * S3P,
+          mp_size_t S3SIZE)
+     Divide {RS2P, RS2SIZE} by {S3P, S3SIZE}, and write the quotient at
+     R1P, with the exception of the most significant limb, which is
+     returned.  The remainder replaces the dividend at RS2P.
+
+     In addition to an integer quotient, XSIZE fraction limbs are
+     developed, and stored after the integral limbs.  For most usages,
+     XSIZE will be zero.
+
+     It is required that RS2SIZE is greater than or equal to S3SIZE.
+     It is required that the most significant bit of the divisor is set.
+
+     If the quotient is not needed, pass RS2P + S3SIZE as R1P.  Aside
+     from that special case, no overlap between arguments is permitted.
+
+     Return the most significant limb of the quotient, either 0 or 1.
+
+     The area at R1P needs to be RS2SIZE - S3SIZE + XSIZE limbs large.
+
+ - Function: mp_limb_t mpn_divrem_1 (mp_limb_t * R1P, mp_size_t XSIZE,
+          mp_limb_t * S2P, mp_size_t S2SIZE, mp_limb_t S3LIMB)
+     Divide {S2P, S2SIZE} by S3LIMB, and write the quotient at R1P.
+     Return the remainder.
+
+     In addition to an integer quotient, XSIZE fraction limbs are
+     developed, and stored after the integral limbs.  For most usages,
+     XSIZE will be zero.
+
+     The areas at R1P and S2P have to be identical or completely
+     separate, not partially overlapping.
+
+ - Function: mp_size_t mpn_divmod (mp_limb_t * R1P, mp_limb_t * RS2P,
+          mp_size_t RS2SIZE, const mp_limb_t * S3P, mp_size_t S3SIZE)
+     *This interface is obsolete.  It will disappear from future
+     releases.  Use `mpn_divrem' in its stead.*
+
+ - Function: mp_limb_t mpn_divmod_1 (mp_limb_t * R1P, mp_limb_t * S2P,
+          mp_size_t S2SIZE, mp_limb_t S3LIMB)
+     *This interface is obsolete.  It will disappear from future
+     releases.  Use `mpn_divrem_1' in its stead.*
+
+ - Function: mp_limb_t mpn_mod_1 (mp_limb_t * S1P, mp_size_t S1SIZE,
+          mp_limb_t S2LIMB)
+     Divide {S1P, S1SIZE} by S2LIMB, and return the remainder.
+
+ - Function: mp_limb_t mpn_preinv_mod_1 (mp_limb_t * S1P, mp_size_t
+          S1SIZE, mp_limb_t S2LIMB, mp_limb_t S3LIMB)
+     *This interface is obsolete.  It will disappear from future
+     releases.  Use `mpn_mod_1' in its stead.*
+
+ - Function: mp_limb_t mpn_bdivmod (mp_limb_t * DEST_PTR, mp_limb_t *
+          S1P, mp_size_t S1SIZE, const mp_limb_t * S2P, mp_size_t
+          S2SIZE, unsigned long int D)
+     The function puts the low [D/BITS_PER_MP_LIMB] limbs of Q = {S1P,
+     S1SIZE}/{S2P, S2SIZE} mod 2^D at DEST_PTR, and returns the high D
+     mod BITS_PER_MP_LIMB bits of Q.
+
+     {S1P, S1SIZE} - Q * {S2P, S2SIZE} mod 2^(S1SIZE*BITS_PER_MP_LIMB)
+     is placed at S1P.  Since the low [D/BITS_PER_MP_LIMB] limbs of
+     this difference are zero, it is possible to overwrite the low
+     limbs at S1P with this difference, provided DEST_PTR <= S1P.
+
+     This function requires that S1SIZE * BITS_PER_MP_LIMB >= D, and
+     that {S2P, S2SIZE} is odd.
+
+     *This interface is preliminary.  It might change incompatibly in
+     future revisions.*
+
+ - Function: mp_limb_t mpn_lshift (mp_limb_t * DEST_PTR, const
+          mp_limb_t * SRC_PTR, mp_size_t SRC_SIZE, unsigned long int
+          COUNT)
+     Shift {SRC_PTR, SRC_SIZE} COUNT bits to the left, and write the
+     SRC_SIZE least significant limbs of the result to DEST_PTR.  COUNT
+     might be in the range 1 to n - 1, on an n-bit machine. The bits
+     shifted out to the left are returned.
+
+     Overlapping of the destination space and the source space is
+     allowed in this function, provided DEST_PTR >= SRC_PTR.
+
+     This function is written in assembly for most targets.
+
+ - Function: mp_limp_t mpn_rshift (mp_limb_t * DEST_PTR, const
+          mp_limb_t * SRC_PTR, mp_size_t SRC_SIZE, unsigned long int
+          COUNT)
+     Shift {SRC_PTR, SRC_SIZE} COUNT bits to the right, and write the
+     SRC_SIZE most significant limbs of the result to DEST_PTR.  COUNT
+     might be in the range 1 to n - 1, on an n-bit machine.  The bits
+     shifted out to the right are returned.
+
+     Overlapping of the destination space and the source space is
+     allowed in this function, provided DEST_PTR <= SRC_PTR.
+
+     This function is written in assembly for most targets.
+
+ - Function: int mpn_cmp (const mp_limb_t * SRC1_PTR, const mp_limb_t *
+          SRC2_PTR, mp_size_t SIZE)
+     Compare {SRC1_PTR, SIZE} and {SRC2_PTR, SIZE} and return a
+     positive value if src1 > src2, 0 of they are equal, and a negative
+     value if src1 < src2.
+
+ - Function: mp_size_t mpn_gcd (mp_limb_t * DEST_PTR, mp_limb_t *
+          SRC1_PTR, mp_size_t SRC1_SIZE, mp_limb_t * SRC2_PTR,
+          mp_size_t SRC2_SIZE)
+     Puts at DEST_PTR the greatest common divisor of {SRC1_PTR,
+     SRC1_SIZE} and {SRC2_PTR, SRC2_SIZE}; both source operands are
+     destroyed by the operation.  The size in limbs of the greatest
+     common divisor is returned.
+
+     {SRC1_PTR, SRC1_SIZE} must be odd, and {SRC2_PTR, SRC2_SIZE} must
+     have at least as many bits as {SRC1_PTR, SRC1_SIZE}.
+
+     *This interface is preliminary.  It might change incompatibly in
+     future revisions.*
+
+ - Function: mp_limb_t mpn_gcd_1 (const mp_limb_t * SRC1_PTR, mp_size_t
+          SRC1_SIZE, mp_limb_t SRC2_LIMB)
+     Return the greatest common divisor of {SRC1_PTR, SRC1_SIZE} and
+     SRC2_LIMB, where SRC2_LIMB (as well as SRC1_SIZE) must be
+     different from 0.
+
+ - Function: mp_size_t mpn_gcdext (mp_limb_t * R1P, mp_limb_t * R2P,
+          mp_limb_t * S1P, mp_size_t S1SIZE, mp_limb_t * S2P, mp_size_t
+          S2SIZE)
+     Puts at R1P the greatest common divisor of {S1P, S1SIZE} and {S2P,
+     S2SIZE}.  The first cofactor is written at R2P.  Both source
+     operands are destroyed by the operation.  The size in limbs of the
+     greatest common divisor is returned.
+
+     *This interface is preliminary.  It might change incompatibly in
+     future revisions.*
+
+ - Function: mp_size_t mpn_sqrtrem (mp_limb_t * R1P, mp_limb_t * R2P,
+          const mp_limb_t * SP, mp_size_t SIZE)
+     Compute the square root of {SP, SIZE} and put the result at R1P.
+     Write the remainder at R2P, unless R2P is NULL.
+
+     Return the size of the remainder, whether R2P was NULL or non-NULL.
+     Iff the operand was a perfect square, the return value will be 0.
+
+     The areas at R1P and SP have to be distinct.  The areas at R2P and
+     SP have to be identical or completely separate, not partially
+     overlapping.
+
+     The area at R1P needs to have space for ceil(SIZE/2) limbs.  The
+     area at R2P needs to be SIZE limbs large.
+
+     *This interface is preliminary.  It might change incompatibly in
+     future revisions.*
+
+ - Function: mp_size_t mpn_get_str (unsigned char *STR, int BASE,
+          mp_limb_t * S1P, mp_size_t S1SIZE)
+     Convert {S1P, S1SIZE} to a raw unsigned char array in base BASE.
+     The string is not in ASCII; to convert it to printable format, add
+     the ASCII codes for `0' or `A', depending on the base and range.
+     There may be leading zeros in the string.
+
+     The area at S1P is clobbered.
+
+     Return the number of characters in STR.
+
+     The area at STR has to have space for the largest possible number
+     represented by a S1SIZE long limb array, plus one extra character.
+
+ - Function: mp_size_t mpn_set_str (mp_limb_t * R1P, const char *STR,
+          size_t strsize, int BASE)
+     Convert the raw unsigned char array at STR of length STRSIZE to a
+     limb array {S1P, S1SIZE}.  The base of STR is BASE.
+
+     Return the number of limbs stored in R1P.
+
+ - Function: unsigned long int mpn_scan0 (const mp_limb_t * S1P,
+          unsigned long int BIT)
+     Scan S1P from bit position BIT for the next clear bit.
+
+     It is required that there be a clear bit within the area at S1P at
+     or beyond bit position BIT, so that the function has something to
+     return.
+
+     *This interface is preliminary.  It might change incompatibly in
+     future revisions.*
+
+ - Function: unsigned long int mpn_scan1 (const mp_limb_t * S1P,
+          unsigned long int BIT)
+     Scan S1P from bit position BIT for the next set bit.
+
+     It is required that there be a set bit within the area at S1P at or
+     beyond bit position BIT, so that the function has something to
+     return.
+
+     *This interface is preliminary.  It might change incompatibly in
+     future revisions.*
+
+ - Function: void mpn_random2 (mp_limb_t * R1P, mp_size_t R1SIZE)
+     Generate a random number of length R1SIZE with long strings of
+     zeros and ones in the binary representation, and store it at R1P.
+
+     The generated random numbers are intended for testing the
+     correctness of the implementation of the `mpn' routines.
+
+ - Function: unsigned long int mpn_popcount (const mp_limb_t * S1P,
+          unsigned long int SIZE)
+     Count the number of set bits in {S1P, SIZE}.
+
+ - Function: unsigned long int mpn_hamdist (const mp_limb_t * S1P,
+          const mp_limb_t * S2P, unsigned long int SIZE)
+     Compute the hamming distance between {S1P, SIZE} and {S2P, SIZE}.
+
+ - Function: int mpn_perfect_square_p (const mp_limb_t * S1P, mp_size_t
+          SIZE)
+     Return non-zero iff {S1P, SIZE} is a perfect square.
+
+
+File: gmp.info,  Node: BSD Compatible Functions,  Next: Custom Allocation,  Prev: Low-level Functions,  Up: Top
+
+Berkeley MP Compatible Functions
+********************************
+
+   These functions are intended to be fully compatible with the
+Berkeley MP library which is available on many BSD derived U*ix systems.
+
+   The original Berkeley MP library has a usage restriction: you cannot
+use the same variable as both source and destination in a single
+function call.  The compatible functions in GNU MP do not share this
+restriction--inputs and outputs may overlap.
+
+   It is not recommended that new programs are written using these
+functions.  Apart from the incomplete set of functions, the interface
+for initializing `MINT' objects is more error prone, and the `pow'
+function collides with `pow' in `libm.a'.
+
+   Include the header `mp.h' to get the definition of the necessary
+types and functions.  If you are on a BSD derived system, make sure to
+include GNU `mp.h' if you are going to link the GNU `libmp.a' to you
+program.  This means that you probably need to give the -I<dir> option
+to the compiler, where <dir> is the directory where you have GNU `mp.h'.
+
+ - Function: MINT * itom (signed short int INITIAL_VALUE)
+     Allocate an integer consisting of a `MINT' object and dynamic limb
+     space.  Initialize the integer to INITIAL_VALUE.  Return a pointer
+     to the `MINT' object.
+
+ - Function: MINT * xtom (char *INITIAL_VALUE)
+     Allocate an integer consisting of a `MINT' object and dynamic limb
+     space.  Initialize the integer from INITIAL_VALUE, a hexadecimal,
+     '\0'-terminate C string.  Return a pointer to the `MINT' object.
+
+ - Function: void move (MINT *SRC, MINT *DEST)
+     Set DEST to SRC by copying.  Both variables must be previously
+     initialized.
+
+ - Function: void madd (MINT *SRC_1, MINT *SRC_2, MINT *DESTINATION)
+     Add SRC_1 and SRC_2 and put the sum in DESTINATION.
+
+ - Function: void msub (MINT *SRC_1, MINT *SRC_2, MINT *DESTINATION)
+     Subtract SRC_2 from SRC_1 and put the difference in DESTINATION.
+
+ - Function: void mult (MINT *SRC_1, MINT *SRC_2, MINT *DESTINATION)
+     Multiply SRC_1 and SRC_2 and put the product in DESTINATION.
+
+ - Function: void mdiv (MINT *DIVIDEND, MINT *DIVISOR, MINT *QUOTIENT,
+          MINT *REMAINDER)
+ - Function: void sdiv (MINT *DIVIDEND, signed short int DIVISOR, MINT
+          *QUOTIENT, signed short int *REMAINDER)
+     Set QUOTIENT to DIVIDEND/DIVISOR, and REMAINDER to DIVIDEND mod
+     DIVISOR.  The quotient is rounded towards zero; the remainder has
+     the same sign as the dividend unless it is zero.
+
+     Some implementations of these functions work differently--or not
+     at all--for negative arguments.
+
+ - Function: void msqrt (MINT *OPERAND, MINT *ROOT, MINT *REMAINDER)
+     Set ROOT to the truncated integer part of the square root of
+     OPERAND.  Set REMAINDER to OPERAND-ROOT*ROOT, (i.e., zero if
+     OPERAND is a perfect square).
+
+     If ROOT and REMAINDER are the same variable, the results are
+     undefined.
+
+ - Function: void pow (MINT *BASE, MINT *EXP, MINT *MOD, MINT *DEST)
+     Set DEST to (BASE raised to EXP) modulo MOD.
+
+ - Function: void rpow (MINT *BASE, signed short int EXP, MINT *DEST)
+     Set DEST to BASE raised to EXP.
+
+ - Function: void gcd (MINT *OPERAND1, MINT *OPERAND2, MINT *RES)
+     Set RES to the greatest common divisor of OPERAND1 and OPERAND2.
+
+ - Function: int mcmp (MINT *OPERAND1, MINT *OPERAND2)
+     Compare OPERAND1 and OPERAND2.  Return a positive value if
+     OPERAND1 > OPERAND2, zero if OPERAND1 = OPERAND2, and a negative
+     value if OPERAND1 < OPERAND2.
+
+ - Function: void min (MINT *DEST)
+     Input a decimal string from `stdin', and put the read integer in
+     DEST.  SPC and TAB are allowed in the number string, and are
+     ignored.
+
+ - Function: void mout (MINT *SRC)
+     Output SRC to `stdout', as a decimal string.  Also output a
+     newline.
+
+ - Function: char * mtox (MINT *OPERAND)
+     Convert OPERAND to a hexadecimal string, and return a pointer to
+     the string.  The returned string is allocated using the default
+     memory allocation function, `malloc' by default.
+
+ - Function: void mfree (MINT *OPERAND)
+     De-allocate, the space used by OPERAND.  *This function should
+     only be passed a value returned by `itom' or `xtom'.*
+
+
+File: gmp.info,  Node: Custom Allocation,  Next: Contributors,  Prev: BSD Compatible Functions,  Up: Top
+
+Custom Allocation
+*****************
+
+   By default, the MP functions use `malloc', `realloc', and `free' for
+memory allocation.  If `malloc' or `realloc' fails, the MP library
+terminates execution after printing a fatal error message to standard
+error.
+
+   For some applications, you may wish to allocate memory in other
+ways, or you may not want to have a fatal error when there is no more
+memory available.  To accomplish this, you can specify alternative
+memory allocation functions.
+
+ - Function: void mp_set_memory_functions (
+          void *(*ALLOC_FUNC_PTR) (size_t),
+          void *(*REALLOC_FUNC_PTR) (void *, size_t, size_t),
+          void (*FREE_FUNC_PTR) (void *, size_t))
+     Replace the current allocation functions from the arguments.  If
+     an argument is NULL, the corresponding default function is
+     retained.
+
+     *Make sure to call this function in such a way that there are no
+     active MP objects that were allocated using the previously active
+     allocation function!  Usually, that means that you have to call
+     this function before any other MP function.*
+
+   The functions you supply should fit the following declarations:
+
+ - Function: void * allocate_function (size_t ALLOC_SIZE)
+     This function should return a pointer to newly allocated space
+     with at least ALLOC_SIZE storage units.
+
+ - Function: void * reallocate_function (void *PTR, size_t OLD_SIZE,
+          size_t NEW_SIZE)
+     This function should return a pointer to newly allocated space of
+     at least NEW_SIZE storage units, after copying at least the first
+     OLD_SIZE storage units from PTR.  It should also de-allocate the
+     space at PTR.
+
+     You can assume that the space at PTR was formerly returned from
+     `allocate_function' or `reallocate_function', for a request for
+     OLD_SIZE storage units.
+
+ - Function: void deallocate_function (void *PTR, size_t SIZE)
+     De-allocate the space pointed to by PTR.
+
+     You can assume that the space at PTR was formerly returned from
+     `allocate_function' or `reallocate_function', for a request for
+     SIZE storage units.
+
+   (A "storage unit" is the unit in which the `sizeof' operator returns
+the size of an object, normally an 8 bit byte.)
+
+
+File: gmp.info,  Node: Contributors,  Next: References,  Prev: Custom Allocation,  Up: Top
+
+Contributors
+************
+
+   I would like to thank Gunnar Sjoedin and Hans Riesel for their help
+with mathematical problems, Richard Stallman for his help with design
+issues and for revising the first version of this manual, Brian Beuning
+and Doug Lea for their testing of early versions of the library.
+
+   John Amanatides of York University in Canada contributed the function
+`mpz_probab_prime_p'.
+
+   Paul Zimmermann of Inria sparked the development of GMP 2, with his
+comparisons between bignum packages.
+
+   Ken Weber (Kent State University, Universidade Federal do Rio Grande
+do Sul) contributed `mpz_gcd', `mpz_divexact', `mpn_gcd', and
+`mpn_bdivmod', partially supported by CNPq (Brazil) grant 301314194-2.
+
+   Per Bothner of Cygnus Support helped to set up MP to use Cygnus'
+configure.  He has also made valuable suggestions and tested numerous
+intermediary releases.
+
+   Joachim Hollman was involved in the design of the `mpf' interface,
+and in the `mpz' design revisions for version 2.
+
+   Bennet Yee contributed the functions `mpz_jacobi' and `mpz_legendre'.
+
+   Andreas Schwab contributed the files `mpn/m68k/lshift.S' and
+`mpn/m68k/rshift.S'.
+
+   The development of floating point functions of GNU MP 2, were
+supported in part by the ESPRIT-BRA (Basic Research Activities) 6846
+project POSSO (POlynomial System SOlving).
+
+   GNU MP 2 was finished and released by TMG Datakonsult,
+Sodermannagatan 5, 116 23 STOCKHOLM, SWEDEN, in cooperation with the
+IDA Center for Computing Sciences, USA.
+
+
+File: gmp.info,  Node: References,  Prev: Contributors,  Up: Top
+
+References
+**********
+
+   * Donald E. Knuth, "The Art of Computer Programming", vol 2,
+     "Seminumerical Algorithms", 2nd edition, Addison-Wesley, 1981.
+
+   * John D. Lipson, "Elements of Algebra and Algebraic Computing", The
+     Benjamin Cummings Publishing Company Inc, 1981.
+
+   * Richard M. Stallman, "Using and Porting GCC", Free Software
+     Foundation, 1995.
+
+   * Peter L. Montgomery, "Modular Multiplication Without Trial
+     Division", in Mathematics of Computation, volume 44, number 170,
+     April 1985.
+
+   * Torbjorn Granlund and Peter L. Montgomery, "Division by Invariant
+     Integers using Multiplication", in Proceedings of the SIGPLAN
+     PLDI'94 Conference, June 1994.
+
+   * Tudor Jebelean, "An algorithm for exact division", Journal of
+     Symbolic Computation, v. 15, 1993, pp. 169-180.
+
+   * Kenneth Weber, "The accelerated integer GCD algorithm", ACM
+     Transactions on Mathematical Software, v. 21 (March), 1995, pp.
+     111-122.
+
+
+File: gmp.info,  Node: Concept Index,  Up: Top
+
+Concept Index
+*************
+
+* Menu:
+
+* gmp.h:                                MP Basics.
+* mp.h:                                 BSD Compatible Functions.
+* Arithmetic functions <1>:             Float Arithmetic.
+* Arithmetic functions:                 Integer Arithmetic.
+* Bit manipulation functions:           Integer Logic and Bit Fiddling.
+* BSD MP compatible functions:          BSD Compatible Functions.
+* Comparison functions:                 Float Comparison.
+* Conditions for copying GNU MP:        Copying.
+* Conversion functions <1>:             Converting Integers.
+* Conversion functions:                 Converting Floats.
+* Copying conditions:                   Copying.
+* Float arithmetic functions:           Float Arithmetic.
+* Float assignment functions:           Assigning Floats.
+* Float comparisons functions:          Float Comparison.
+* Float functions:                      Floating-point Functions.
+* Float input and output functions:     I/O of Floats.
+* Floating-point functions:             Floating-point Functions.
+* Floating-point number:                MP Basics.
+* I/O functions <1>:                    I/O of Floats.
+* I/O functions:                        I/O of Integers.
+* Initialization and assignment functions <1>: Simultaneous Float Init & Assign.
+* Initialization and assignment functions: Simultaneous Integer Init & Assign.
+* Input functions <1>:                  I/O of Integers.
+* Input functions:                      I/O of Floats.
+* Installation:                         Installing MP.
+* Integer:                              MP Basics.
+* Integer arithmetic functions:         Integer Arithmetic.
+* Integer assignment functions:         Assigning Integers.
+* Integer conversion functions:         Converting Integers.
+* Integer functions:                    Integer Functions.
+* Integer input and output functions:   I/O of Integers.
+* Limb:                                 MP Basics.
+* Logical functions:                    Integer Logic and Bit Fiddling.
+* Low-level functions:                  Low-level Functions.
+* Miscellaneous float functions:        Miscellaneous Float Functions.
+* Miscellaneous integer functions:      Miscellaneous Integer Functions.
+* Output functions <1>:                 I/O of Floats.
+* Output functions:                     I/O of Integers.
+* Rational number:                      MP Basics.
+* Rational number functions:            Rational Number Functions.
+* Reporting bugs:                       Reporting Bugs.
+* User-defined precision:               Floating-point Functions.
+

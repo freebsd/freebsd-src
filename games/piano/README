@@ -1,0 +1,12 @@
+Hello. I've been using FreeBSD from version 1.0 1993 and very happy.
+One of my favorite is /dev/speaker.  Here is my /dev/speaker
+application named `piano' which is a piano/organ emulator.  I'd like
+to contribute this program to FreeBSD if you like it.
+
+This directory contains sources, Makefile and man page.
+
+Make sure to config /dev/speaker and make it writable.  Please select
+appropriate owner/group/mode for /dev/speaker and piano.
+
+._. . ._ _..    _ .... .    .._. .. _. .    __ ._ _. .._ ._ ._..
+candy@kgc.co.jp (Toshihiro Kanda)    or zw6t-knd@asahi-net.or.jp

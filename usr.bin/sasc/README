@@ -1,0 +1,9 @@
+ASC - A device driver for a handy scanner
+
+This is a device driver for GI1904-based hand scanners, e.g. the Trust
+Amiscan Grey and possibly others. The driver is based on the "gsc"
+driver and, partly, on a  Linux driver.
+
+The driver has a working select().
+
+-Luigi Rizzo (luigi@iet.unipi.it)

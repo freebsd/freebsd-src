@@ -1,0 +1,1268 @@
+This is groff, produced by makeinfo version 4.2 from ./groff.texinfo.
+
+This manual documents GNU `troff' version 1.18.
+
+   Copyright (C) 1994-2000, 2001, 2002 Free Software Foundation, Inc.
+
+     Permission is granted to copy, distribute and/or modify this
+     document under the terms of the GNU Free Documentation License,
+     Version 1.1 or any later version published by the Free Software
+     Foundation; with no Invariant Sections, with the Front-Cover texts
+     being `A GNU Manual," and with the Back-Cover Texts as in (a)
+     below.  A copy of the license is included in the section entitled
+     `GNU Free Documentation License."
+
+     (a) The FSF's Back-Cover Text is: `You have freedom to copy and
+     modify this GNU Manual, like GNU software.  Copies published by
+     the Free Software Foundation raise funds for GNU development."
+   
+INFO-DIR-SECTION Miscellaneous
+START-INFO-DIR-ENTRY
+* Groff: (groff).               The GNU troff document formatting system.
+END-INFO-DIR-ENTRY
+
+
+File: groff,  Node: grops,  Next: grodvi,  Prev: grotty,  Up: Output Devices
+
+`grops'
+=======
+
+* Menu:
+
+* Invoking grops::
+* Embedding PostScript::
+
+
+File: groff,  Node: Invoking grops,  Next: Embedding PostScript,  Prev: grops,  Up: grops
+
+Invoking `grops'
+----------------
+
+
+File: groff,  Node: Embedding PostScript,  Prev: Invoking grops,  Up: grops
+
+Embedding POSTSCRIPT
+--------------------
+
+
+File: groff,  Node: grodvi,  Next: grolj4,  Prev: grops,  Up: Output Devices
+
+`grodvi'
+========
+
+* Menu:
+
+* Invoking grodvi::
+
+
+File: groff,  Node: Invoking grodvi,  Prev: grodvi,  Up: grodvi
+
+Invoking `grodvi'
+-----------------
+
+
+File: groff,  Node: grolj4,  Next: grolbp,  Prev: grodvi,  Up: Output Devices
+
+`grolj4'
+========
+
+* Menu:
+
+* Invoking grolj4::
+
+
+File: groff,  Node: Invoking grolj4,  Prev: grolj4,  Up: grolj4
+
+Invoking `grolj4'
+-----------------
+
+
+File: groff,  Node: grolbp,  Next: grohtml,  Prev: grolj4,  Up: Output Devices
+
+`grolbp'
+========
+
+* Menu:
+
+* Invoking grolbp::
+
+
+File: groff,  Node: Invoking grolbp,  Prev: grolbp,  Up: grolbp
+
+Invoking `grolbp'
+-----------------
+
+
+File: groff,  Node: grohtml,  Next: gxditview,  Prev: grolbp,  Up: Output Devices
+
+`grohtml'
+=========
+
+* Menu:
+
+* Invoking grohtml::
+* grohtml specific registers and strings::
+
+
+File: groff,  Node: Invoking grohtml,  Next: grohtml specific registers and strings,  Prev: grohtml,  Up: grohtml
+
+Invoking `grohtml'
+------------------
+
+
+File: groff,  Node: grohtml specific registers and strings,  Prev: Invoking grohtml,  Up: grohtml
+
+`grohtml' specific registers and strings
+----------------------------------------
+
+ - Register: \n[ps4html]
+ - String: \*[www-image-template]
+     The registers `ps4html' and `www-image-template' are defined by
+     the `pre-grohtml' preprocessor.  `pre-grohtml' reads in the
+     `troff' input, marks up the inline equations and passes the result
+     firstly to
+
+
+          troff -Tps -rps4html=1 -dwww-image-template=TEMPLATE
+
+     and secondly to
+
+
+          troff -Thtml
+
+     The PostScript device is used to create all the image files, and
+     the register `ps4html' enables the macro sets to ignore floating
+     keeps, footers, and headings.
+
+     The register `www-image-template' is set to the user specified
+     template name or the default name.
+
+
+File: groff,  Node: gxditview,  Prev: grohtml,  Up: Output Devices
+
+`gxditview'
+===========
+
+* Menu:
+
+* Invoking gxditview::
+
+
+File: groff,  Node: Invoking gxditview,  Prev: gxditview,  Up: gxditview
+
+Invoking `gxditview'
+--------------------
+
+
+File: groff,  Node: File formats,  Next: Installation,  Prev: Output Devices,  Up: Top
+
+File formats
+************
+
+   All files read and written by `gtroff' are text files.  The
+following two sections describe their format.
+
+* Menu:
+
+* gtroff Output::
+* Font Files::
+
+
+File: groff,  Node: gtroff Output,  Next: Font Files,  Prev: File formats,  Up: File formats
+
+`gtroff' Output
+===============
+
+   This section describes the intermediate output format of GNU
+`troff'.  This output is produced by a run of `gtroff' before it is fed
+into a device postprocessor program.
+
+   As `groff' is a wrapper program around `gtroff' that automatically
+calls a postprocessor, this output does not show up normally.  This is
+why it is called "intermediate".  `groff' provides the option `-Z' to
+inhibit postprocessing, such that the produced intermediate output is
+sent to standard output just like calling `gtroff' manually.
+
+   Here, the term "troff output" describes what is output by `gtroff',
+while "intermediate output" refers to the language that is accepted by
+the parser that prepares this output for the postprocessors.  This
+parser is smarter on whitespace and implements obsolete elements for
+compatibility, otherwise both formats are the same.(1) (*note gtroff
+Output-Footnote-1::)
+
+   The main purpose of the intermediate output concept is to facilitate
+the development of postprocessors by providing a common programming
+interface for all devices.  It has a language of its own that is
+completely different from the `gtroff' language.  While the `gtroff'
+language is a high-level programming language for text processing, the
+intermediate output language is a kind of low-level assembler language
+by specifying all positions on the page for writing and drawing.
+
+   The intermediate output produced by `gtroff' is fairly readable,
+while output from AT&T `troff' is rather hard to understand because of
+strange habits that are still supported, but not used any longer by
+`gtroff'.
+
+* Menu:
+
+* Language Concepts::
+* Command Reference::
+* Intermediate Output Examples::
+* Output Language Compatibility::
+
+
+File: groff,  Node: gtroff Output-Footnotes,  Up: gtroff Output
+
+   (1) The parser and postprocessor for intermediate output can be
+found in the file
+`GROFF-SOURCE-DIR/src/libs/libdriver/input.cc'.
+
+
+File: groff,  Node: Language Concepts,  Next: Command Reference,  Prev: gtroff Output,  Up: gtroff Output
+
+Language Concepts
+-----------------
+
+   During the run of `gtroff', the input data is cracked down to the
+information on what has to be printed at what position on the intended
+device.  So the language of the intermediate output format can be quite
+small.  Its only elements are commands with and without arguments.  In
+this section, the term "command" always refers to the intermediate
+output language, and never to the `gtroff' language used for document
+formatting.  There are commands for positioning and text writing, for
+drawing, and for device controlling.
+
+* Menu:
+
+* Separation::
+* Argument Units::
+* Document Parts::
+
+
+File: groff,  Node: Separation,  Next: Argument Units,  Prev: Language Concepts,  Up: Language Concepts
+
+Separation
+..........
+
+   AT&T `troff' output has strange requirements on whitespace.  The
+`gtroff' output parser, however, is smart about whitespace by making it
+maximally optional.  The whitespace characters, i.e., the tab, space,
+and newline characters, always have a syntactical meaning.  They are
+never printable because spacing within the output is always done by
+positioning commands.
+
+   Any sequence of space or tab characters is treated as a single
+"syntactical space".  It separates commands and arguments, but is only
+required when there would occur a clashing between the command code and
+the arguments without the space.  Most often, this happens when
+variable-length command names, arguments, argument lists, or command
+clusters meet.  Commands and arguments with a known, fixed length need
+not be separated by syntactical space.
+
+   A line break is a syntactical element, too.  Every command argument
+can be followed by whitespace, a comment, or a newline character.  Thus
+a "syntactical line break" is defined to consist of optional
+syntactical space that is optionally followed by a comment, and a
+newline character.
+
+   The normal commands, those for positioning and text, consist of a
+single letter taking a fixed number of arguments.  For historical
+reasons, the parser allows to stack such commands on the same line, but
+fortunately, in `gtroff''s intermediate output, every command with at
+least one argument is followed by a line break, thus providing
+excellent readability.
+
+   The other commands - those for drawing and device controlling - have
+a more complicated structure; some recognize long command names, and
+some take a variable number of arguments.  So all `D' and `x' commands
+were designed to request a syntactical line break after their last
+argument.  Only one command, `x X', has an argument that can stretch
+over several lines; all other commands must have all of their arguments
+on the same line as the command, i.e., the arguments may not be
+splitted by a line break.
+
+   Empty lines (these are lines containing only space and/or a
+comment), can occur everywhere.  They are just ignored.
+
+
+File: groff,  Node: Argument Units,  Next: Document Parts,  Prev: Separation,  Up: Language Concepts
+
+Argument Units
+..............
+
+   Some commands take integer arguments that are assumed to represent
+values in a measurement unit, but the letter for the corresponding
+scale indicator is not written with the output command arguments.  Most
+commands assume the scale indicator `u', the basic unit of the device,
+some use `z', the scaled point unit of the device, while others, such
+as the color commands, expect plain integers.
+
+   Note that single characters can have the eighth bit set, as can the
+names of fonts and special characters.  The names of characters and
+fonts can be of arbitrary length.  A character that is to be printed
+will always be in the current font.
+
+   A string argument is always terminated by the next whitespace
+character (space, tab, or newline); an embedded `#' character is
+regarded as part of the argument, not as the beginning of a comment
+command.  An integer argument is already terminated by the next
+non-digit character, which then is regarded as the first character of
+the next argument or command.
+
+
+File: groff,  Node: Document Parts,  Prev: Argument Units,  Up: Language Concepts
+
+Document Parts
+..............
+
+   A correct intermediate output document consists of two parts, the
+"prologue" and the "body".
+
+   The task of the prologue is to set the general device parameters
+using three exactly specified commands.  `gtroff''s prologue is
+guaranteed to consist of the following three lines (in that order):
+
+
+     x T DEVICE
+     x res N H V
+     x init
+
+with the arguments set as outlined in *Note Device Control Commands::.
+Note that the parser for the intermediate output format is able to
+swallow additional whitespace and comments as well even in the prologue.
+
+   The body is the main section for processing the document data.
+Syntactically, it is a sequence of any commands different from the ones
+used in the prologue.  Processing is terminated as soon as the first
+`x stop' command is encountered; the last line of any `gtroff'
+intermediate output always contains such a command.
+
+   Semantically, the body is page oriented.  A new page is started by a
+`p' command.  Positioning, writing, and drawing commands are always
+done within the current page, so they cannot occur before the first `p'
+command.  Absolute positioning (by the `H' and `V' commands) is done
+relative to the current page; all other positioning is done relative to
+the current location within this page.
+
+
+File: groff,  Node: Command Reference,  Next: Intermediate Output Examples,  Prev: Language Concepts,  Up: gtroff Output
+
+Command Reference
+-----------------
+
+   This section describes all intermediate output commands, both from
+AT&T `troff' as well as the `gtroff' extensions.
+
+* Menu:
+
+* Comment Command::
+* Simple Commands::
+* Graphics Commands::
+* Device Control Commands::
+* Obsolete Command::
+
+
+File: groff,  Node: Comment Command,  Next: Simple Commands,  Prev: Command Reference,  Up: Command Reference
+
+Comment Command
+...............
+
+`#ANYTHING<end of line>'
+     A comment.  Ignore any characters from the `#' character up to the
+     next newline character.
+
+     This command is the only possibility for commenting in the
+     intermediate output.  Each comment can be preceded by arbitrary
+     syntactical space; every command can be terminated by a comment.
+
+
+File: groff,  Node: Simple Commands,  Next: Graphics Commands,  Prev: Comment Command,  Up: Command Reference
+
+Simple Commands
+...............
+
+   The commands in this subsection have a command code consisting of a
+single character, taking a fixed number of arguments.  Most of them are
+commands for positioning and text writing.  These commands are smart
+about whitespace.  Optionally, syntactical space can be inserted
+before, after, and between the command letter and its arguments.  All
+of these commands are stackable, i.e., they can be preceded by other
+simple commands or followed by arbitrary other commands on the same
+line.  A separating syntactical space is only necessary when two
+integer arguments would clash or if the preceding argument ends with a
+string argument.
+
+`C XXX<whitespace>'
+     Print a special character named XXX.  The trailing syntactical
+     space or line break is necessary to allow glyph names of arbitrary
+     length.  The glyph is printed at the current print position; the
+     glyph's size is read from the font file.  The print position is
+     not changed.
+
+`c G'
+     Print glyph G at the current print position;(1) (*note Simple
+     Commands-Footnote-1::) the glyph's size is read from the font
+     file.  The print position is not changed.
+
+`f N'
+     Set font to font number N (a non-negative integer).
+
+`H N'
+     Move right to the absolute vertical position N (a non-negative
+     integer in basic units `u' relative to left edge of current page.
+
+`h N'
+     Move N (a non-negative integer) basic units `u' horizontally to
+     the right.  The original UNIX troff manual allows negative values
+     for N also, but `gtroff' doesn't use this.
+
+`m COLOR-SCHEME [COMPONENT ...]'
+     Set the color for text (glyphs), line drawing, and the outline of
+     graphic objects using different color schemes; the analoguous
+     command for the filling color of graphic objects is `DF'.  The
+     color components are specified as integer arguments between 0 and
+     65536.  The number of color components and their meaning vary for
+     the different color schemes.  These commands are generated by
+     `gtroff''s escape sequence `\m'.  No position changing.  These
+     commands are a `gtroff' extension.
+
+    `mc CYAN MAGENTA YELLOW'
+          Set color using the CMY color scheme, having the 3 color
+          components CYAN, MAGENTA, and YELLOW.
+
+    `md'
+          Set color to the default color value (black in most cases).
+          No component arguments.
+
+    `mg GRAY'
+          Set color to the shade of gray given by the argument, an
+          integer between 0 (black) and 65536 (white).
+
+    `mk CYAN MAGENTA YELLOW BLACK'
+          Set color using the CMYK color scheme, having the 4 color
+          components CYAN, MAGENTA, YELLOW, and BLACK.
+
+    `mr RED GREEN BLUE'
+          Set color using the RGB color scheme, having the 3 color
+          components RED, GREEN, and BLUE.
+
+`N N'
+     Print glyph with index N (a non-negative integer) of the current
+     font.  This command is a `gtroff' extension.
+
+`n B A'
+     Inform the device about a line break, but no positioning is done by
+     this command.  In AT&T `troff', the integer arguments B and A
+     informed about the space before and after the current line to make
+     the intermediate output more human readable without performing any
+     action.  In `groff', they are just ignored, but they must be
+     provided for compatibility reasons.
+
+`p N'
+     Begin a new page in the outprint.  The page number is set to N.
+     This page is completely independent of pages formerly processed
+     even if those have the same page number.  The vertical position on
+     the outprint is automatically set to 0.  All positioning, writing,
+     and drawing is always done relative to a page, so a `p' command
+     must be issued before any of these commands.
+
+`s N'
+     Set point size to N scaled points (this is unit `z').  AT&T
+     `troff' used the unit points (`p') instead.  *Note Output Language
+     Compatibility::.
+
+`t XXX<whitespace>'
+`t XXX DUMMY-ARG<whitespace>'
+     Print a word, i.e., a sequence of characters XXX representing
+     output glyphs which names are single characters, terminated by a
+     space character or a line break; an optional second integer
+     argument is ignored (this allows the formatter to generate an even
+     number of arguments).  The first glyph should be printed at the
+     current position, the current horizontal position should then be
+     increased by the width of the first glyph, and so on for each
+     glyph.  The widths of the glyphs are read from the font file,
+     scaled for the current point size, and rounded to a multiple of
+     the horizontal resolution.  Special characters cannot be printed
+     using this command (use the `C' command for special characters).
+     This command is a `gtroff' extension; it is only used for devices
+     whose `DESC' file contains the `tcommand' keyword (*note DESC File
+     Format::).
+
+`u N XXX<whitespace>'
+     Print word with track kerning.  This is the same as the `t'
+     command except that after printing each glyph, the current
+     horizontal position is increased by the sum of the width of that
+     glyph and N (an integer in basic units `u').  This command is a
+     `gtroff' extension; it is only used for devices whose `DESC' file
+     contains the `tcommand' keyword (*note DESC File Format::).
+
+`V N'
+     Move down to the absolute vertical position N (a non-negative
+     integer in basic units `u') relative to upper edge of current page.
+
+`v N'
+     Move N basic units `u' down (N is a non-negative integer).  The
+     original UNIX troff manual allows negative values for N also, but
+     `gtroff' doesn't use this.
+
+`w'
+     Informs about a paddable white space to increase readability.  The
+     spacing itself must be performed explicitly by a move command.
+
+
+File: groff,  Node: Simple Commands-Footnotes,  Up: Simple Commands
+
+   (1) `c' is actually a misnomer since it outputs a glyph.
+
+
+File: groff,  Node: Graphics Commands,  Next: Device Control Commands,  Prev: Simple Commands,  Up: Command Reference
+
+Graphics Commands
+.................
+
+   Each graphics or drawing command in the intermediate output starts
+with the letter `D', followed by one or two characters that specify a
+subcommand; this is followed by a fixed or variable number of integer
+arguments that are separated by a single space character.  A `D'
+command may not be followed by another command on the same line (apart
+from a comment), so each `D' command is terminated by a syntactical
+line break.
+
+   `gtroff' output follows the classical spacing rules (no space
+between command and subcommand, all arguments are preceded by a single
+space character), but the parser allows optional space between the
+command letters and makes the space before the first argument optional.
+As usual, each space can be any sequence of tab and space characters.
+
+   Some graphics commands can take a variable number of arguments.  In
+this case, they are integers representing a size measured in basic
+units `u'.  The arguments called H1, H2, ..., HN stand for horizontal
+distances where positive means right, negative left.  The arguments
+called V1, V2, ..., VN stand for vertical distances where positive
+means down, negative up.  All these distances are offsets relative to
+the current location.
+
+   Unless indicated otherwise, each graphics command directly
+corresponds to a similar `gtroff' `\D' escape sequence.  *Note Drawing
+Requests::.
+
+   Unknown `D' commands are assumed to be device-specific.  Its
+arguments are parsed as strings; the whole information is then sent to
+the postprocessor.
+
+   In the following command reference, the syntax element <line break>
+means a syntactical line break as defined above.
+
+`D~ H1 V1 H2 V2 ... HN VN<line break>'
+     Draw B-spline from current position to offset (H1,V1), then to
+     offset (H2,V2), if given, etc. up to (HN,VN).  This command takes
+     a variable number of argument pairs; the current position is moved
+     to the terminal point of the drawn curve.
+
+`Da H1 V1 H2 V2<line break>'
+     Draw arc from current position to (H1,V1)+(H2,V2) with center at
+     (H1,V1); then move the current position to the final point of the
+     arc.
+
+`DC D<line break>'
+`DC D DUMMY-ARG<line break>'
+     Draw a solid circle using the current fill color with diameter D
+     (integer in basic units `u') with leftmost point at the current
+     position; then move the current position to the rightmost point of
+     the circle.  An optional second integer argument is ignored (this
+     allows the formatter to generate an even number of arguments).
+     This command is a `gtroff' extension.
+
+`Dc D<line break>'
+     Draw circle line with diameter D (integer in basic units `u') with
+     leftmost point at the current position; then move the current
+     position to the rightmost point of the circle.
+
+`DE H V<line break>'
+     Draw a solid ellipse in the current fill color with a horizontal
+     diameter of H and a vertical diameter of V (both integers in basic
+     units `u') with the leftmost point at the current position; then
+     move to the rightmost point of the ellipse.  This command is a
+     `gtroff' extension.
+
+`De H V<line break>'
+     Draw an outlined ellipse with a horizontal diameter of H and a
+     vertical diameter of V (both integers in basic units `u') with the
+     leftmost point at current position; then move to the rightmost
+     point of the ellipse.
+
+`DF COLOR-SCHEME [COMPONENT ...]<line break>'
+     Set fill color for solid drawing objects using different color
+     schemes; the analoguous command for setting the color of text, line
+     graphics, and the outline of graphic objects is `m'.  The color
+     components are specified as integer arguments between 0 and 65536.
+     The number of color components and their meaning vary for the
+     different color schemes.  These commands are generated by
+     `gtroff''s escape sequences `\D'F ...'' and `\M' (with no other
+     corresponding graphics commands).  No position changing.  This
+     command is a `gtroff' extension.
+
+    `DFc CYAN MAGENTA YELLOW<line break>'
+          Set fill color for solid drawing objects using the CMY color
+          scheme, having the 3 color components CYAN, MAGENTA, and
+          YELLOW.
+
+    `DFd<line break>'
+          Set fill color for solid drawing objects to the default fill
+          color value (black in most cases).  No component arguments.
+
+    `DFg GRAY<line break>'
+          Set fill color for solid drawing objects to the shade of gray
+          given by the argument, an integer between 0 (black) and 65536
+          (white).
+
+    `DFk CYAN MAGENTA YELLOW BLACK<line break>'
+          Set fill color for solid drawing objects using the CMYK color
+          scheme, having the 4 color components CYAN, MAGENTA, YELLOW,
+          and BLACK.
+
+    `DFr RED GREEN BLUE<line break>'
+          Set fill color for solid drawing objects using the RGB color
+          scheme, having the 3 color components RED, GREEN, and BLUE.
+
+`Df N<line break>'
+     The argument N must be an integer in the range -32767 to 32767.
+
+    0 <= N <= 1000
+          Set the color for filling solid drawing objects to a shade of
+          gray, where 0 corresponds to solid white, 1000 (the default)
+          to solid black, and values in between to intermediate shades
+          of gray; this is obsoleted by command `DFg'.
+
+    N < 0 or N < 1000
+          Set the filling color to the color that is currently being
+          used for the text and the outline, see command `m'.  For
+          example, the command sequence
+
+
+               mg 0 0 65536
+               Df -1
+
+          sets all colors to blue.
+
+     No position changing.  This command is a `gtroff' extension.
+
+`Dl H V<line break>'
+     Draw line from current position to offset (H,V) (integers in basic
+     units `u'); then set current position to the end of the drawn line.
+
+`Dp H1 V1 H2 V2 ... HN VN<line break>'
+     Draw a polygon line from current position to offset (H1,V1), from
+     there to offset (H2,V2), etc. up to offset (HN,VN), and from there
+     back to the starting position.  For historical reasons, the
+     position is changed by adding the sum of all arguments with odd
+     index to the actual horizontal position and the even ones to the
+     vertical position.  Although this doesn't make sense it is kept
+     for compatibility.  This command is a `gtroff' extension.
+
+`Dp H1 V1 H2 V2 ... HN VN<line break>'
+     Draw a solid polygon in the current fill color rather than an
+     outlined polygon, using the same arguments and positioning as the
+     corresponding `Dp' command.  This command is a `gtroff' extension.
+
+`Dt N<line break>'
+     Set the current line thickness to N (an integer in basic units
+     `u') if N>0; if N=0 select the smallest available line thickness;
+     if N<0 set the line thickness proportional to the point size (this
+     is the default before the first `Dt' command was specified).  For
+     historical reasons, the horizontal position is changed by adding
+     the argument to the actual horizontal position, while the vertical
+     position is not changed.  Although this doesn't make sense it is
+     kept for compatibility.  This command is a `gtroff' extension.
+
+
+File: groff,  Node: Device Control Commands,  Next: Obsolete Command,  Prev: Graphics Commands,  Up: Command Reference
+
+Device Control Commands
+.......................
+
+   Each device control command starts with the letter `x', followed by
+a space character (optional or arbitrary space or tab in `gtroff') and
+a subcommand letter or word; each argument (if any) must be preceded by
+a syntactical space.  All `x' commands are terminated by a syntactical
+line break; no device control command can be followed by another
+command on the same line (except a comment).
+
+   The subcommand is basically a single letter, but to increase
+readability, it can be written as a word, i.e., an arbitrary sequence
+of characters terminated by the next tab, space, or newline character.
+All characters of the subcommand word but the first are simply ignored.
+For example, `gtroff' outputs the initialization command `x i' as
+`x init' and the resolution command `x r' as `x res'.
+
+   In the following, the syntax element <line break> means a
+syntactical line break (*note Separation::).
+
+`xF NAME<line break>'
+     The `F' stands for FILENAME.
+
+     Use NAME as the intended name for the current file in error
+     reports.  This is useful for remembering the original file name
+     when `gtroff' uses an internal piping mechanism.  The input file is
+     not changed by this command.  This command is a `gtroff' extension.
+
+`xf N S<line break>'
+     The `f' stands for FONT.
+
+     Mount font position N (a non-negative integer) with font named S
+     (a text word).  *Note Font Positions::.
+
+`xH N<line break>'
+     The `H' stands for HEIGHT.
+
+     Set glyph height to N (a positive integer in scaled points `z').
+     AT&T `troff' uses the unit points (`p') instead.  *Note Output
+     Language Compatibility::.
+
+`xi<line break>'
+     The `i' stands for INIT.
+
+     Initialize device.  This is the third command of the prologue.
+
+`xp<line break>'
+     The `p' stands for PAUSE.
+
+     Parsed but ignored.  The original UNIX troff manual writes
+
+          pause device, can be restarted
+
+`xr N H V<line break>'
+     The `r' stands for RESOLUTION.
+
+     Resolution is N, while H is the minimal horizontal motion, and V
+     the minimal vertical motion possible with this device; all
+     arguments are positive integers in basic units `u' per inch.  This
+     is the second command of the prologue.
+
+`xS N<line break>'
+     The `S' stands for SLANT.
+
+     Set slant to N (an integer in basic units `u').
+
+`xs<line break>'
+     The `s' stands for STOP.
+
+     Terminates the processing of the current file; issued as the last
+     command of any intermediate troff output.
+
+`xt<line break>'
+     The `t' stands for TRAILER.
+
+     Generate trailer information, if any.  In GTROFF, this is actually
+     just ignored.
+
+`xT XXX<line break>'
+     The `T' stands for TYPESETTER.
+
+     Set name of device to word XXX, a sequence of characters ended by
+     the next white space character.  The possible device names coincide
+     with those from the `groff' `-T' option.  This is the first
+     command of the prologue.
+
+`xu N<line break>'
+     The `u' stands for UNDERLINE.
+
+     Configure underlining of spaces.  If N is 1, start underlining of
+     spaces; if N is 0, stop underlining of spaces.  This is needed for
+     the `cu' request in nroff mode and is ignored otherwise.  This
+     command is a `gtroff' extension.
+
+`xX ANYTHING<line break>'
+     The `x' stands for X-ESCAPE.
+
+     Send string ANYTHING uninterpreted to the device.  If the line
+     following this command starts with a `+' character this line is
+     interpreted as a continuation line in the following sense.  The
+     `+' is ignored, but a newline character is sent instead to the
+     device, the rest of the line is sent uninterpreted.  The same
+     applies to all following lines until the first character of a line
+     is not a `+' character.  This command is generated by the `gtroff'
+     escape sequence `\X'.  The line-continuing feature is a `gtroff'
+     extension.
+
+
+File: groff,  Node: Obsolete Command,  Prev: Device Control Commands,  Up: Command Reference
+
+Obsolete Command
+................
+
+   In AT&T `troff' output, the writing of a single glyph is mostly done
+by a very strange command that combines a horizontal move and a single
+character giving the glyph name.  It doesn't have a command code, but
+is represented by a 3-character argument consisting of exactly 2 digits
+and a character.
+
+DDG
+     Move right DD (exactly two decimal digits) basic units `u', then
+     print glyph G (represented as a single character).
+
+     In `gtroff', arbitrary syntactical space around and within this
+     command is allowed to be added.  Only when a preceding command on
+     the same line ends with an argument of variable length a
+     separating space is obligatory.  In AT&T `troff', large clusters
+     of these and other commands are used, mostly without spaces; this
+     made such output almost unreadable.
+
+   For modern high-resolution devices, this command does not make sense
+because the width of the glyphs can become much larger than two decimal
+digits.  In `gtroff', this is only used for the devices `X75',
+`X75-12', `X100', and `X100-12'.  For other devices, the commands `t'
+and `u' provide a better functionality.
+
+
+File: groff,  Node: Intermediate Output Examples,  Next: Output Language Compatibility,  Prev: Command Reference,  Up: gtroff Output
+
+Intermediate Output Examples
+----------------------------
+
+   This section presents the intermediate output generated from the same
+input for three different devices.  The input is the sentence `hell
+world' fed into `gtroff' on the command line.
+
+High-resolution device `ps'
+     This is the standard output of `gtroff' if no `-T' option is given.
+
+          shell> echo "hell world" | groff -Z -T ps
+          
+          x T ps
+          x res 72000 1 1
+          x init
+          p1
+          x font 5 TR
+          f5
+          s10000
+          V12000
+          H72000
+          thell
+          wh2500
+          tw
+          H96620
+          torld
+          n12000 0
+          x trailer
+          V792000
+          x stop
+
+     This output can be fed into `grops' to get its representation as a
+     PostScript file.
+
+Low-resolution device `latin1'
+     This is similar to the high-resolution device except that the
+     positioning is done at a minor scale.  Some comments (lines
+     starting with `#') were added for clarification; they were not
+     generated by the formatter.
+
+          shell> echo "hell world" | groff -Z -T latin1
+          
+          # prologue
+          x T latin1
+          x res 240 24 40
+          x init
+          # begin a new page
+          p1
+          # font setup
+          x font 1 R
+          f1
+          s10
+          # initial positioning on the page
+          V40
+          H0
+          # write text `hell'
+          thell
+          # inform about space, and issue a horizontal jump
+          wh24
+          # write text `world'
+          tworld
+          # announce line break, but do nothing because ...
+          n40 0
+          # ... the end of the document has been reached
+          x trailer
+          V2640
+          x stop
+
+     This output can be fed into `grotty' to get a formatted text
+     document.
+
+AT&T `troff' output
+     Since a computer monitor has a very low resolution compared to
+     modern printers the intermediate output for the X Window devices
+     can use the jump-and-write command with its 2-digit displacements.
+
+          shell> echo "hell world" | groff -Z -T X100
+          
+          x T X100
+          x res 100 1 1
+          x init
+          p1
+          x font 5 TR
+          f5
+          s10
+          V16
+          H100
+          # write text with jump-and-write commands
+          ch07e07l03lw06w11o07r05l03dh7
+          n16 0
+          x trailer
+          V1100
+          x stop
+
+     This output can be fed into `xditview' or `gxditview' for
+     displaying in X.
+
+     Due to the obsolete jump-and-write command, the text clusters in
+     the AT&T `troff' output are almost unreadable.
+
+
+File: groff,  Node: Output Language Compatibility,  Prev: Intermediate Output Examples,  Up: gtroff Output
+
+Output Language Compatibility
+-----------------------------
+
+   The intermediate output language of AT&T `troff' was first
+documented in the UNIX troff manual, with later additions documented in
+`A Typesetter-indenpendent TROFF', written by Brian Kernighan.
+
+   The `gtroff' intermediate output format is compatible with this
+specification except for the following features.
+
+   * The classical quasi device independence is not yet implemented.
+
+   * The old hardware was very different from what we use today.  So the
+     `groff' devices are also fundamentally different from the ones in
+     AT&T `troff'.  For example, the AT&T PostScript device is called
+     `post' and has a resolution of only 720 units per inch, suitable
+     for printers 20 years ago, while `groff''s `ps' device has a
+     resolution of 72000 units per inch.  Maybe, by implementing some
+     rescaling mechanism similar to the classical quasi device
+     independence, `groff' could emulate AT&T's `post' device.
+
+   * The B-spline command `D~' is correctly handled by the intermediate
+     output parser, but the drawing routines aren't implemented in some
+     of the postprocessor programs.
+
+   * The argument of the commands `s' and `x H' has the implicit unit
+     scaled point `z' in `gtroff', while AT&T `troff' has point (`p').
+     This isn't an incompatibility but a compatible extension, for both
+     units coincide for all devices without a `sizescale' parameter in
+     the `DESC' file, including all postprocessors from AT&T and
+     `groff''s text devices.  The few `groff' devices with a
+     `sizescale' parameter either do not exist for AT&T `troff', have a
+     different name, or seem to have a different resolution.  So
+     conflicts are very unlikely.
+
+   * The position changing after the commands `Dp', `DP', and `Dt' is
+     illogical, but as old versions of `gtroff' used this feature it is
+     kept for compatibility reasons.
+
+
+
+File: groff,  Node: Font Files,  Prev: gtroff Output,  Up: File formats
+
+Font Files
+==========
+
+   The `gtroff' font format is roughly a superset of the `ditroff' font
+format (as used in later versions of AT&T `troff' and its descendants).
+Unlike the `ditroff' font format, there is no associated binary
+format; all files are text files.(1) (*note Font Files-Footnote-1::)
+The font files for device NAME are stored in a directory `devNAME'.
+There are two types of file: a device description file called `DESC'
+and for each font F a font file called `F'.
+
+* Menu:
+
+* DESC File Format::
+* Font File Format::
+
+
+File: groff,  Node: Font Files-Footnotes,  Up: Font Files
+
+   (1) Plan 9 `troff' has also abandoned the binary format.
+
+
+File: groff,  Node: DESC File Format,  Next: Font File Format,  Prev: Font Files,  Up: Font Files
+
+`DESC' File Format
+------------------
+
+   The `DESC' file can contain the following types of line.  Except for
+the `charset' keyword which must comes last (if at all), the order of
+the lines is not important.
+
+`res N'
+     There are N machine units per inch.
+
+`hor N'
+     The horizontal resolution is N machine units.
+
+`vert N'
+     The vertical resolution is N machine units.
+
+`sizescale N'
+     The scale factor for point sizes.  By default this has a value
+     of 1.  One scaled point is equal to one point/N.  The arguments to
+     the `unitwidth' and `sizes' commands are given in scaled points.
+     *Note Fractional Type Sizes::, for more information.
+
+`unitwidth N'
+     Quantities in the font files are given in machine units for fonts
+     whose point size is N scaled points.
+
+`prepro PROGRAM'
+     Call PROGRAM as a preprocessor.  Currently, this keyword is used
+     by `groff' with option `-Thtml' only.
+
+`postpro PROGRAM'
+     Call PROGRAM as a postprocessor.  For example, the line
+
+
+          postpro grodvi
+
+     in the file `devdvi/DESC' makes `groff' call `grodvi' if option
+     `-Tdvi' is given (and `-Z' isn't used).
+
+`tcommand'
+     This means that the postprocessor can handle the `t' and `u'
+     intermediate output commands.
+
+`sizes S1 S2 ... SN 0'
+     This means that the device has fonts at S1, S2, ...  SN scaled
+     points.  The list of sizes must be terminated by 0 (this is digit
+     zero).  Each SI can also be a range of sizes M-N.  The list can
+     extend over more than one line.
+
+`styles S1 S2 ... SM'
+     The first M font positions are associated with styles S1 ... SM.
+
+`fonts N F1 F2 F3 ... FN'
+     Fonts F1 ... FN are mounted in the font positions M+1, ..., M+N
+     where M is the number of styles.  This command may extend over
+     more than one line.  A font name of 0 means no font is mounted on
+     the corresponding font position.
+
+`family FAM'
+     The default font family is FAM.
+
+`use_charnames_in_special'
+     This command indicates that `gtroff' should encode special
+     characters inside special commands.  Currently, this is only used
+     by the HTML output device.  *Note Postprocessor Access::.
+
+`papersize STRING ...'
+     Select a paper size.  Valid values for STRING are the ISO paper
+     types `A0'-`A7', `B0'-`B7', `C0'-`C7', `D0'-`D7', `DL', and the US
+     paper types `letter', `legal', `tabloid', `ledger', `statement',
+     `executive', `com10', and `monarch'.  Case is not significant for
+     STRING if it holds predefined paper types.  Alternatively, STRING
+     can be a file name (e.g. `/etc/papersize'); if the file can be
+     opened, `groff' reads the first line and tests for the above paper
+     sizes.  Finally, STRING can be a custom paper size in the format
+     `LENGTH,WIDTH' (no spaces before and after the comma).  Both
+     LENGTH and WIDTH must have a unit appended; valid values are `i'
+     for inches, `C' for centimeters, `p' for points, and `P' for
+     picas.  Example: `12c,235p'.  An argument which starts with a
+     digit is always treated as a custom paper format.  `papersize'
+     sets both the vertical and horizontal dimension of the output
+     medium.
+
+     More than one argument can be specified; `groff' scans from left to
+     right and uses the first valid paper specification.
+
+`pass_filenames'
+     Tell `gtroff' to emit the name of the source file currently being
+     processed.  This is achieved by the intermediate output command
+     `F'.  Currently, this is only used by the HTML output device.
+
+`print PROGRAM'
+     Use PROGRAM as a spooler program for printing.  If omitted, the
+     `-l' and `-L' options of `groff' are ignored.
+
+`charset'
+     This line and everything following in the file are ignored.  It is
+     allowed for the sake of backwards compatibility.
+
+   The `res', `unitwidth', `fonts', and `sizes' lines are mandatory.
+Other commands are ignored by `gtroff' but may be used by
+postprocessors to store arbitrary information about the device in the
+`DESC' file.
+
+   Here a list of obsolete keywords which are recognized by `groff' but
+completely ignored: `spare1', `spare2', `biggestfont'.
+
+
+File: groff,  Node: Font File Format,  Prev: DESC File Format,  Up: Font Files
+
+Font File Format
+----------------
+
+   A "font file", also (and probably better) called a "font description
+file", has two sections.  The first section is a sequence of lines each
+containing a sequence of blank delimited words; the first word in the
+line is a key, and subsequent words give a value for that key.
+
+`name F'
+     The name of the font is F.
+
+`spacewidth N'
+     The normal width of a space is N.
+
+`slant N'
+     The glyphs of the font have a slant of N degrees.  (Positive means
+     forward.)
+
+`ligatures LIG1 LIG2 ... LIGN [0]'
+     Glyphs LIG1, LIG2, ..., LIGN are ligatures; possible ligatures are
+     `ff', `fi', `fl', `ffi' and `ffl'.  For backwards compatibility,
+     the list of ligatures may be terminated with a 0.  The list of
+     ligatures may not extend over more than one line.
+
+`special'
+     The font is "special"; this means that when a glyph is requested
+     that is not present in the current font, it is searched for in any
+     special fonts that are mounted.
+
+   Other commands are ignored by `gtroff' but may be used by
+postprocessors to store arbitrary information about the font in the font
+file.
+
+   The first section can contain comments which start with the `#'
+character and extend to the end of a line.
+
+   The second section contains one or two subsections.  It must contain
+a `charset' subsection and it may also contain a `kernpairs'
+subsection.  These subsections can appear in any order.  Each
+subsection starts with a word on a line by itself.
+
+   The word `charset' starts the character set subsection.(1) (*note
+Font File Format-Footnote-1::)  The `charset' line is followed by a
+sequence of lines.  Each line gives information for one glyph.  A line
+comprises a number of fields separated by blanks or tabs.  The format is
+
+     NAME METRICS TYPE CODE [ENTITY-NAME] [`--' COMMENT]
+
+NAME identifies the glyph name(2) (*note Font File Format-Footnote-2::):
+If NAME is a single character C then it corresponds to the `gtroff'
+input character C; if it is of the form `\C' where C is a single
+character, then it corresponds to the special character `\[C]';
+otherwise it corresponds to the special character `\[NAME]'.  If it is
+exactly two characters XX it can be entered as `\(XX'.  Note that
+single-letter special characters can't be accessed as `\C'; the only
+exception is `\-' which is identical to `\[-]'.
+
+   `gtroff' supports 8-bit input characters; however some utilities
+have difficulties with eight-bit characters.  For this reason, there is
+a convention that the entity name `charN' is equivalent to the single
+input character whose code is N.  For example, `char163' would be
+equivalent to the character with code 163 which is the pounds sterling
+sign in the ISO Latin-1 character set.  You shouldn't use `charN'
+entities in font description files since they are related to input, not
+output.  Otherwise, you get hard-coded connections between input and
+output encoding which prevents use of different (input) character sets.
+
+   The name `---' is special and indicates that the glyph is unnamed;
+such glyphs can only be used by means of the `\N' escape sequence in
+`gtroff'.
+
+   The TYPE field gives the glyph type:
+
+`1'
+     the glyph has a descender, for example, `p';
+
+`2'
+     the glyph has an ascender, for example, `b';
+
+`3'
+     the glyph has both an ascender and a descender, for example, `('.
+
+   The CODE field gives the code which the postprocessor uses to print
+the glyph.  The glyph can also be input to `gtroff' using this code by
+means of the `\N' escape sequence.  CODE can be any integer.  If it
+starts with `0' it is interpreted as octal; if it starts with `0x' or
+`0X' it is interpreted as hexadecimal.  Note, however, that the `\N'
+escape sequence only accepts a decimal integer.
+
+   The ENTITY-NAME field gives an ASCII string identifying the glyph
+which the postprocessor uses to print the `gtroff' glyph NAME.  This
+field is optional and has been introduced so that the HTML device
+driver can encode its character set.  For example, the glyph `\[Po]' is
+represented as `&pound;' in HTML 4.0.
+
+   Anything on the line after the ENTITY-NAME field resp. after `--'
+will be ignored.
+
+   The METRICS field has the form:
+
+     WIDTH[`,'HEIGHT[`,'DEPTH[`,'ITALIC-CORRECTION
+       [`,'LEFT-ITALIC-CORRECTION[`,'SUBSCRIPT-CORRECTION]]]]]
+
+There must not be any spaces between these subfields (it has been split
+here into two lines for better legibility only).  Missing subfields are
+assumed to be 0.  The subfields are all decimal integers.  Since there
+is no associated binary format, these values are not required to fit
+into a variable of type `char' as they are in `ditroff'.  The WIDTH
+subfield gives the width of the glyph.  The HEIGHT subfield gives the
+height of the glyph (upwards is positive); if a glyph does not extend
+above the baseline, it should be given a zero height, rather than a
+negative height.  The DEPTH subfield gives the depth of the glyph, that
+is, the distance from the baseline to the lowest point below the
+baseline to which the glyph extends (downwards is positive); if a glyph
+does not extend below the baseline, it should be given a zero depth,
+rather than a negative depth.  The ITALIC-CORRECTION subfield gives the
+amount of space that should be added after the glyph when it is
+immediately to be followed by a glyph from a roman font.  The
+LEFT-ITALIC-CORRECTION subfield gives the amount of space that should
+be added before the glyph when it is immediately to be preceded by a
+glyph from a roman font.  The SUBSCRIPT-CORRECTION gives the amount of
+space that should be added after a glyph before adding a subscript.
+This should be less than the italic correction.
+
+   A line in the `charset' section can also have the format
+
+
+     NAME "
+
+This indicates that NAME is just another name for the glyph mentioned
+in the preceding line.
+
+   The word `kernpairs' starts the kernpairs section.  This contains a
+sequence of lines of the form:
+
+
+     C1 C2 N
+
+This means that when glyph C1 appears next to glyph C2 the space
+between them should be increased by N.  Most entries in the kernpairs
+section have a negative value for N.
+
+
+File: groff,  Node: Font File Format-Footnotes,  Up: Font File Format
+
+   (1) This keyword is misnamed since it starts a list of ordered
+glyphs, not characters.
+
+   (2) The distinction between input, characters, and output, glyphs,
+is not clearly separated in the terminology of `groff'; for example,
+the `char' request should be called `glyph' since it defines an output
+entity.
+
+
+File: groff,  Node: Installation,  Next: Copying This Manual,  Prev: File formats,  Up: Top
+
+Installation
+************
+
+
+File: groff,  Node: Copying This Manual,  Next: Request Index,  Prev: Installation,  Up: Top
+
+Copying This Manual
+*******************
+
+* Menu:
+
+* GNU Free Documentation License::  License for copying this manual.
+

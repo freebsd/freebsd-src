@@ -1,0 +1,20 @@
+# This file is a shell script fragment that supplies the information
+# necessary for a configure script to process the program in
+# this directory.  For more information, look at ../configure.
+
+configdirs=
+srctrigger=itom.c
+srcname="GNU Multi-Precision library/mpbsd"
+
+# per-host:
+
+# per-target:
+
+mpzfiles="add.c cmp.c gcd.c mul.c pow_ui.c powm.c sqrtrem.c sub.c"
+
+for fn in $mpzfiles
+  do
+    rm -f $fn
+    files="$files ../mpz/$fn"
+    links="$links $fn"
+  done

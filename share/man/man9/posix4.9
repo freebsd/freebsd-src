@@ -1,0 +1,138 @@
+.\" Copyright (c) 1998 HD Associates, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd March 1, 1998
+.Dt POSIX.1B 9
+.Os
+.Sh NAME
+.Nm posix1b
+.Nd "Posix P1003-1B extensions"
+.Sh DESCRIPTION
+POSIX.1B adds real time extensions and some commonly used
+Berkeley extensions to POSIX.1.
+This section contains preliminary information about avoiding conflicts
+and adding support for the required ability to specify the interface
+version.
+.Sh STATUS
+March 28, 1998: _POSIX_PRIORITY_SCHEDULING works with these kernel
+options in your configuration:
+.Bd -literal -offset 0i
+options		"P1003_1B"
+options		"_KPOSIX_PRIORITY_SCHEDULING"
+.Ed
+.Sh SPECIFYING THE VERSION
+There are three manifest constants that set the version and programming interface
+for POSIX.1B.
+.Bd -literal -offset 0i
+_POSIX_VERSION
+.Ed
+specifies the system for which the system is built.  The default
+is POSIX.1 and is 199009L.  POSIX.1B is 199309L.  This defines
+the base features of the operating system.
+.Bd -literal -offset 0i
+_POSIX_SOURCE
+.Ed
+is a macro from POSIX.1 that can
+be defined to specify that only POSIX and ANSI functionality should occur
+in the name space.
+.Bd -literal -offset 0i
+_POSIX_C_SOURCE
+.Ed
+is a macro from POSIX.1B that can be defined to specify that only
+POSIX and ANSI functionality from a specific POSIX version should occur
+in the name space, i.e., if _POSIX_VERSION is 199309L (POSIX.1B) but
+_POSIX_C_SOURCE is 199009L (POSIX.1) then only POSIX.1 features should
+appear.
+.Sh PROPERLY HIDING EXTENSIONS
+The following test macros are set up in <sys/_posix.h>.  They should
+used by system header files to avoid the kind of tests you see in
+<sys/_posix.h>.  Source programs should not use these
+.Fx
+specific
+implementation details and should test _POSIX_VERSION, _POSIX_SOURCE
+and _POSIX_C_SOURCE.
+These should not be used in the kernel though - the kernel should be
+immune to the user land setting of _POSIX_VERSION.  The P1003_1B option can
+be used in the kernel to limit inclusion of new code, but make sure
+things work properly when a POSIX.1B program is run on a kernel without
+the P1003_1B option.
+.Bd -literal -offset 0i
+_P1003_1B_VISIBLE
+.Ed
+is a test macro that sorts out when extensions should be
+visible.  It is defined in <sys/_posix.h>.
+.Pp
+In normal C program development
+only _POSIX_VERSION is set, permitting
+.Bx
+extensions to
+appear to the programs.  However, when adding new functionality mandated
+by POSIX.1B, it
+is important to satisfy the requirements added by the
+new _POSIX_C_SOURCE macro.  _P1003_1B_VISIBLE (not a standard feature test macro)
+is defined in sys/unistd.h when the combination of _POSIX_VERSION,
+_POSIX_SOURCE, and _POSIX_C_SOURCE indicate that the extensions are in scope.
+.Bd -literal -offset 0i
+_P1003_1B_VISIBLE_HISTORICALLY
+.Ed
+is present to conditionalize POSIX.1B extensions that were historically
+in the system.  These are visible when _POSIX_SOURCE and _POSIX_C_SOURCE
+are not set at all or when _POSIX_C_SOURCE enables POSIX.1B features.
+The intent of this feature test is to permit hiding the new extensions
+while still letting
+.Bx
+extensions show up to avoid breaking existing
+programs without trying to use the "big hammer" of _POSIX_C_SOURCE.
+.Pp
+Some recent additions to header files
+are new enough that they should be changed to
+be dependent on _P1003_1B_VISIBLE instead of _HISTORICALLY.
+.Pp
+Traditional
+.Bx
+headers (e.g., mmap.h) now specified
+in POSIX.1B can include <sys/_posix.h> and conditionalize
+.Bx
+extensions on _P1003_1B_VISIBLE_HISTORICALLY.
+.Sh NON STANDARD TEST MACROS
+.Bd -literal -offset 0i
+_P1003_1B_INCLUDE_MAYBES
+.Ed
+when set before the inclusion of any other header file
+requests that all header files that the POSIX.1B spec says a standard
+header may include should be included.  Normally no non-required
+headers are included.  Setting this pre-processor definition should
+make any compliant program compile without issues of header file
+inclusion.
+.Bd -literal -offset 0i
+P1003_1B
+.Ed
+is a config option to build in POSIX.1B support in the kernel.
+.\" .Sh SEE ALSO
+.Sh HISTORY
+The
+.Nm
+section manual page appeared in
+.Fx 3.0 .

@@ -1,0 +1,42 @@
+.\" $Id: krb.conf.5,v 1.4 1999/08/02 16:09:57 bg Exp $
+.\" Copyright 1989 by the Massachusetts Institute of Technology.
+.\"
+.\" For copying and distribution information,
+.\" please see the file <mit-copyright.h>.
+.\"
+.TH KRB.CONF 5 "Kerberos Version 4.0" "MIT Project Athena"
+.SH NAME
+/etc/krb.conf \- Kerberos configuration file
+.SH DESCRIPTION
+.I krb.conf
+contains configuration information describing the Kerberos realm(s) and the
+Kerberos key distribution center (KDC) servers for known realms.
+.PP
+.I krb.conf
+starts with a definition of the local realm on the first line, this is
+followed by any number lines defining supplementary local realms.  The
+rest of the file consists of lines indicating realm/host entries. The
+first token is a realm name, and the second is a server specification
+of a host running a KDC for that realm. The words "admin server"
+following the hostname indicate that the host also provides an
+administrative database server.
+
+To be able to communicate with the KDC through a firewall it is
+sometimes necessary to tunnel requests over HTTP or TCP. Tunnel
+protocols and port numbers are specified in the server specification
+using the syntax [(UDP|TCP|HTTP)/]hostname[:port].
+
+For example:
+.nf
+.in +1i
+SICS.SE
+NADA.KTH.SE
+SICS.SE     TCP/kerberos.sics.se:88 admin server
+NADA.KTH.SE kerberos.nada.kth.se    admin server
+NADA.KTH.SE kerberos-1.nada.kth.se
+NADA.KTH.SE kerberos-2.nada.kth.se
+NADA.KTH.SE HTTP/kerberos-3.nada.kth.se
+KTH.SE      kerberos.kth.se         admin server
+.in -1i
+.SH SEE ALSO
+krb.realms(5), krb_get_krbhst(3), krb_get_lrealm(3)

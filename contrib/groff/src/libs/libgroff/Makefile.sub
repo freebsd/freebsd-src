@@ -1,0 +1,103 @@
+LIB=groff
+OBJS=\
+  assert.$(OBJEXT) \
+  change_lf.$(OBJEXT) \
+  cmap.$(OBJEXT) \
+  color.$(OBJEXT) \
+  cset.$(OBJEXT) \
+  device.$(OBJEXT) \
+  errarg.$(OBJEXT) \
+  error.$(OBJEXT) \
+  fatal.$(OBJEXT) \
+  filename.$(OBJEXT) \
+  font.$(OBJEXT) \
+  fontfile.$(OBJEXT) \
+  geometry.$(OBJEXT) \
+  getopt.$(OBJEXT) \
+  getopt1.$(OBJEXT) \
+  htmlhint.$(OBJEXT) \
+  invalid.$(OBJEXT) \
+  lf.$(OBJEXT) \
+  lineno.$(OBJEXT) \
+  macropath.$(OBJEXT) \
+  maxfilename.$(OBJEXT) \
+  mksdir.$(OBJEXT) \
+  nametoindex.$(OBJEXT) \
+  new.$(OBJEXT) \
+  paper.$(OBJEXT) \
+  prime.$(OBJEXT) \
+  progname.$(OBJEXT) \
+  ptable.$(OBJEXT) \
+  searchpath.$(OBJEXT) \
+  string.$(OBJEXT) \
+  strsave.$(OBJEXT) \
+  tmpfile.$(OBJEXT) \
+  tmpname.$(OBJEXT) \
+  iftoa.$(OBJEXT) \
+  itoa.$(OBJEXT) \
+  matherr.$(OBJEXT) \
+  version.$(OBJEXT) \
+  $(LIBOBJS)
+CCSRCS=\
+  $(srcdir)/assert.cc \
+  $(srcdir)/change_lf.cc \
+  $(srcdir)/cmap.cc \
+  $(srcdir)/color.cc \
+  $(srcdir)/cset.cc \
+  $(srcdir)/device.cc \
+  $(srcdir)/errarg.cc \
+  $(srcdir)/error.cc \
+  $(srcdir)/fatal.cc \
+  $(srcdir)/filename.cc \
+  $(srcdir)/font.cc \
+  $(srcdir)/fontfile.cc \
+  $(srcdir)/geometry.cc \
+  $(srcdir)/htmlhint.cc \
+  $(srcdir)/invalid.cc \
+  $(srcdir)/lf.cc \
+  $(srcdir)/lineno.cc \
+  $(srcdir)/macropath.cc \
+  $(srcdir)/maxfilename.cc \
+  $(srcdir)/mksdir.cc \
+  $(srcdir)/mkstemp.cc \
+  $(srcdir)/nametoindex.cc \
+  $(srcdir)/new.cc \
+  $(srcdir)/paper.cc \
+  $(srcdir)/prime.cc \
+  $(srcdir)/progname.cc \
+  $(srcdir)/ptable.cc \
+  $(srcdir)/searchpath.cc \
+  $(srcdir)/string.cc \
+  $(srcdir)/strsave.cc \
+  $(srcdir)/tmpfile.cc \
+  $(srcdir)/tmpname.cc \
+  version.cc
+CSRCS=\
+  $(srcdir)/fmod.c \
+  $(srcdir)/getcwd.c \
+  $(srcdir)/getopt.c \
+  $(srcdir)/getopt1.c \
+  $(srcdir)/iftoa.c \
+  $(srcdir)/itoa.c \
+  $(srcdir)/matherr.c \
+  $(srcdir)/putenv.c \
+  $(srcdir)/strerror.c \
+  $(srcdir)/strtol.c \
+  $(srcdir)/../snprintf/snprintf.c
+GENSRCS=\
+  version.cc
+
+src_version=`cat $(top_srcdir)/VERSION`
+src_revision=`cat $(top_srcdir)/REVISION`
+
+version.cc: $(top_srcdir)/VERSION $(top_srcdir)/REVISION
+	@echo Making version.cc
+	@echo const char \*version_string = \"$(src_version)\"\; >$@
+	@echo const char \*revision_string = \"$(src_revision)\"\; >>$@
+	@echo extern \"C\" const char \*Version_string = \"$(src_version).$(src_revision)\"\; | \
+	  sed -e 's/\.0\"/\"/' >>$@
+
+# We have to avoid $(COMPILE.c) since we must not use groff's `assert.h'
+snprintf.$(OBJEXT): $(srcdir)/../snprintf/snprintf.c
+	$(CC) -c $(CDEFINES) $(CFLAGS) $(CPPFLAGS) \
+	  $(srcdir)/../snprintf/snprintf.c

@@ -1,0 +1,77 @@
+.\"
+.\" Copyright 2000 Paul Richards
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	$FreeBSD$
+.Dd December 27, 2000
+.Dt PKG_UPDATE 1
+.Os
+.Sh NAME
+.Nm pkg_update
+.Nd update an installed package
+.Sh SYNOPSIS
+.Nm
+.Op Fl nv
+.Op Fl r Ar oldpkg
+.Ar newpkg.tgz
+.Sh DESCRIPTION
+The
+.Nm
+command is used to update an already installed package.
+It takes care
+of propagating dependencies from the replaced versions to the newly
+installed version.
+It would normally be used to replace all currently
+installed versions of a package with a more current version.
+It can
+also be used to revert a package to an older version by specifying the
+version to be replaced with the
+.Fl r
+option.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl n
+Print the actions to be performed but don't actually do them.
+.It Fl r Ar oldpkg
+Replace the specified version of the package.
+Normally
+.Nm
+will replace all installed versions of a package with the new version.
+This isn't always desirable since for some packages it is expected
+that multiple versions will be installed at the same time.
+This option allows a specific version to be replaced.
+.It Fl v
+Enable verbose output.
+.El
+.Sh SEE ALSO
+.Xr pkg_add 1 ,
+.Xr pkg_create 1 ,
+.Xr pkg_delete 1 ,
+.Xr pkg_info 1 ,
+.Xr pkg_version 1
+.Sh AUTHORS
+.An Paul Richards Aq paul@FreeBSD.org
+.Sh BUGS
+None known of as yet.

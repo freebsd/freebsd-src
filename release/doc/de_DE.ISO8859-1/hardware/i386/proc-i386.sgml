@@ -1,0 +1,54 @@
+<!--
+  $FreeBSD$
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/i386/proc-i386.sgml,v 1.2.2.5 2002/10/11 22:24:12 ue Exp $
+  basiert auf: 1.1.2.4
+-->
+
+<sect1>
+  <title>Unterst&uuml;tzte Prozessoren und Mainboards</title>
+
+  <para>&os;/i386 kann auf vielen <quote>IBM PC kompatiblen</quote>
+    Maschinen benutzt werden.  Es ist nicht m&ouml;glich, hier alle
+    unterst&uuml;tzten Kombinationen aufzuf&uuml;hren, die von &os;
+    unterst&uuml;tzt werden, da es viel zu viele M&ouml;glichkeiten
+    gibt.  Dennoch ist es m&ouml;glich, einige allgemeine Hinweise zu
+    geben.</para>
+
+  <para>Fast alle i386-kompatiblen Prozessoren werden
+    unterst&uuml;tzt.  Alle Prozessoren von Intel ab dem 80386 werden
+    unterst&uuml;tzt, also 80386, 80486, Pentium, Pentium Pro, Pentium
+    II, Pentium III, Pentium 4, und die Modellvarianten dieser
+    Prozessoren, wie der Xeon und Celeron.  Der 80386sx wird zwar
+    unterst&uuml;tzt, wir raten aber dringend von der Verwendung
+    dieser CPU ab).  Alle i386-kompatiblen Prozessoren von AMD werden
+    unterst&uuml;tzt, dazu geh&ouml;ren Am486, Am5x86, K5, K6 (alle
+    Varianten), Athlon (einschlie&szlig;lich Athlon-MP, Athlon-XP,
+    Athlon-4 und Athlon Thunderbird) und Duron. Der integrierte
+    Prozessor AMD &Eacute;lan SC520 wird unterst&uuml;tzt.  Der
+    Transmeta Crusoe wird erkannt und unterst&uuml;tzt, das gleiche
+    gilt f&uuml;r die i386-kompatiblen Prozessoren von Cyrix und
+    NexGen.</para>
+
+  <para>F&uuml;r diese Plattform gibt es ganz Reihe verschiedener
+    Mainboards.  F&uuml;r Mainboards mit ISA, VLB, EISA, AGP, und PCI
+    Steckpl&auml;tzen ist die Unterst&uuml;tzung ausgezeichnet.  Der
+    MCA (<quote>MicroChannel</quote>) Bus, der in den IBM PS/2
+    Computern zu finden ist, wird nur teilweise
+    unterst&uuml;tzt.</para>
+
+  <para>Symmetrische Multi-Prozessor (SMP) Systeme werden im
+    allgemeinen von &os; unterst&uuml;tzt.  Allerdings kommt es in
+    einigen F&auml;llen zu Problemen, weil das BIOS oder das Mainboard
+    fehlerhaft sind.  Ein Blick in der Archive der Mailingliste &a.smp; kann hier
+    weiterhelfen.</para>
+
+  <para>&os; l&auml;uft normalerweise auf Laptops mit i386-Prozessoren,
+    allerdings gibt es keinen einheitlichen Standard f&uuml;r die
+    Unterst&uuml;tzung bestimmter Ausstattungsmerkmale wie Audio,
+    Grafik, Power Management, und PCCARD Steckpl&auml;tzen.  Diese
+    Merkmale sind von Maschine zu Maschine verschiedenen.  In vielen
+    F&auml;llen ist es sogar notwendig, &os; speziell anzupassen, um
+    Fehlern in der Hardware und anderen Merkw&uuml;rdigkeiten
+    auszugleichen.  Im Zweifelsfalle kann ein Blick in der Archive der
+    Mailingliste &a.mobile; weiterhelfen.</para>
+</sect1>

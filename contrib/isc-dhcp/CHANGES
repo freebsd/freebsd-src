@@ -1,0 +1,104 @@
+970609
+
+- Don't trust hostnames provided by client - Win95 allows *spaces* in
+  client-supplied hostnames!
+
+- Be lenient in parsing client-hostname statement in case a bad hostname
+  got recorded.
+
+970607
+
+- Change size_t to ssize_t in return values where a negative number
+  is used to indicate an error.
+
+- Always write out two digits for single-byte quantities in arrays.
+
+- When parsing a lease database, correctly transfer the client
+  hostname and hostname to the memory-resident lease structure.
+
+- If the lease we want to give the client is different than the
+  one it's asking for, and we recognize the one it's asking for as
+  ours, NAK it.
+
+- Only accept a DHCPRELEASE or DHCPNAK if the client supplies an IP
+  address and the lease corresponding to that address is available to
+  that client.
+
+- Make it a warning rather than an error if resolv.conf is missing.
+
+970605
+
+- Add client-hostname token to lexer so that the parser can use it.
+  Fixes a serious lease database bug.
+
+- Disable log message on receipt of short ICMP Echo replies.
+
+970602
+
+- Added DHCP Client scripts for FreeBSD, Solaris, and Linux, but
+  they're not guaranteed to work.
+
+- Added some Cygwin32 (Windows NT/Windows 95) support, but this is not
+  sufficiently complete to be useful yet.
+
+- Updated README
+
+- Put something useful in TODO - formerly it mostly listed projects
+  that were way out on the back burner.
+
+In DHCP Client:
+
+- Add default, supersede, prepend and append option support, so that a
+  client can override or modify server-supplied options, and provide
+  default values if the server provides no values.
+
+- Add reject keyword, so that packets from rogue DHCP or BOOTP servers
+  can be rejected out of hand.
+
+- Added support for booting from BOOTP servers.
+
+- Added BOOTP flag to client lease declaration, to indicated that a
+  particular lease was acquired through a BOOTP server.
+
+- Don't try to do INIT-REBOOT on leases acquired from BOOTP servers.
+
+- Print server's IP address instead of its IP address when logging
+  DHCP/BOOTP messages received by client.
+
+- Fix some bugs in saved lease activation.
+
+- Fix some scripting bugs.
+
+- New sample dhclient.conf script demonstrates new features.
+
+In common code:
+
+- Partially implemented asynchronous DNS lookups.
+
+- Fixed some bugs in dispatch routine.
+
+- Fix date parsing bug that was setting dates forward one day every
+  time dhcpd was restarted (this has been fixed for a while in the 1.0
+  branch).
+
+- Change name-server option name to ien116-name-server so as to reduce
+  the potential for confusion.
+
+DHCP Relay daemon:
+
+- Fixed an operator precedence bug having to do with the broadcast
+  flag.
+
+DHCP Server:
+
+- Add support to record the client-supplied hostname in the lease file,
+  for better readability.
+
+- Fixed a bug in the renewal code that resulted in the server ignoring
+  unicast renewals from non-local subnets.   This bug caused some
+  heartburn for Win95 machines.
+
+- Copy ciaddr from saved ciaddr, not from giaddr.
+
+- New -t flag tests /etc/dhcpd.conf for syntax errors.
+

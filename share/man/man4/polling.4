@@ -1,0 +1,91 @@
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 15, 2002
+.Dt POLLING 4
+.Os
+.Sh NAME
+.Nm polling
+.Nd device polling support
+.Sh SYNOPSIS
+.Cd options DEVICE_POLLING
+.Cd options HZ=1000
+.Sh DESCRIPTION
+"Device polling" (polling for brevity) refers to a technique to
+handle devices that does not rely on the latter to generate
+interrupts when they need attention, but rather lets the CPU poll
+devices to service their needs.
+This might seem inefficient and counterintuitive, but when done
+properly, polling gives more control to the operating system on
+when and how to handle devices, with a number of advantages in terms
+of system responsivity and performance.
+.Pp
+In particular, polling reduces the overhead for context
+switches which is incurred when servicing interrupts, and
+gives more control on the scheduling of the CPU between various
+tasks (user processes, software interrupts, device handling)
+which ultimately reduces the chances of livelock in the system.
+
+.Sh PRINCIPLES OF OPERATION
+
+In the normal, interrupt-based mode, devices generate an interrupt
+whenever they need attention. This in turn causes a
+context switch and the execution of a interrupt handler
+which performs whatever processing is needed by the device.
+The duration of the interrupt handler is potentially unbounded
+unless the device driver has been programmed with real-time
+concerns in mind (which is generally not the case for FreeBSD
+drivers). Furthermore, under heavy traffic, the system might be
+persistently processing interrupts without being able to
+complete other work, either in the kernel or in userland.
+.Pp
+Polling disables interrupts by polling devices at appropriate
+times, i.e. on clock interrupts, system calls and within the idle loop.
+This way, the context switch overhead is removed. Furthermore,
+the operating system can control accurately how much work to spend
+in handling device events, and thus prevent livelock by reserving
+some amount of CPU to other tasks.
+.Pp
+Polling is enabled with a sysctl variable
+.Va kern.polling.enable
+whereas the percentage of CPU cycles reserved to userland processes is
+controlled by the sysctl variable
+.Va kern.polling.user_frac
+whose range is 0 to 100 (50 is the default value).
+.Pp
+When polling is enabled, and provided that there is work to do,
+up to
+.Va user_frac
+percent of the CPU cycles is reserved to userland tasks, the
+remaining fraction being available for device processing.
+.Pp
+Enabling polling also changes the way network software interrupts
+are scheduled, so there is never the risk of livelock because
+packets are not processed to completion.
+.Pp
+There are other variables which control or monitor the behaviour
+of devices operating in polling mode, but they are unlikely to
+require modifications, and are documented in the source file
+.Nm src/sys/kern/kern_poll.c
+.Sh SUPPORTED DEVICES
+
+Polling requires explicit modifications to the device drivers.
+As of this writing, the
+.Li "dc", "fxp", "rl"
+and
+.Li "sis"
+devices are supported, with other in the works.
+The modifications are rather straightforward, consisting in
+the extraction of the inner part of the interrupt service routine
+and writing a callback function, *_poll(), which is invoked
+to probe the device for events and process them. See the
+conditionally compiled sections of the devices mentioned above
+for more details.
+.Pp
+Because in the worst case devices are only polled on
+clock interrupts, in order to reduce the latency in processing
+packets it is advisable to increase the frequency of the clock
+to at least 1000 HZ.
+.Sh HISTORY
+Device polling was introduced in February 2002 by
+.An Luigi Rizzo Aq luigi@iet.unipi.it .

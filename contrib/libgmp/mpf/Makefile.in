@@ -1,0 +1,115 @@
+# Makefile for GNU MP/mpf functions
+# Copyright (C) 1991, 1993, 1994, 1996 Free Software Foundation, Inc.
+
+# This file is part of the GNU MP Library.
+
+# The GNU MP Library is free software; you can redistribute it and/or modify
+# it under the terms of the GNU Library General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or (at your
+# option) any later version.
+
+# The GNU MP Library is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Library General Public
+# License for more details.
+
+# You should have received a copy of the GNU Library General Public License
+# along with the GNU MP Library; see the file COPYING.LIB.  If not, write to
+# the Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
+# MA 02111-1307, USA.
+
+srcdir = .
+
+CC = gcc
+
+CFLAGS = -g -O
+AR = ar
+AR_FLAGS = rc
+SHELL = /bin/sh
+
+#### host and target specific makefile fragments come in here.
+###
+
+MPF_SRCS = init.c init2.c set.c set_ui.c set_si.c set_str.c set_d.c set_z.c \
+  iset.c iset_ui.c iset_si.c iset_str.c iset_d.c clear.c get_str.c \
+  dump.c size.c eq.c reldiff.c sqrt.c random2.c inp_str.c out_str.c \
+  add.c add_ui.c sub.c sub_ui.c ui_sub.c mul.c mul_ui.c div.c div_ui.c \
+  cmp.c cmp_ui.c cmp_si.c mul_2exp.c div_2exp.c abs.c neg.c set_q.c get_d.c \
+  set_dfl_prec.c set_prc.c set_prc_raw.c get_prc.c ui_div.c sqrt_ui.c
+MPF_OBJS = init.o init2.o set.o set_ui.o set_si.o set_str.o set_d.o set_z.o \
+  iset.o iset_ui.o iset_si.o iset_str.o iset_d.o clear.o get_str.o \
+  dump.o size.o eq.o reldiff.o sqrt.o random2.o inp_str.o out_str.o \
+  add.o add_ui.o sub.o sub_ui.o ui_sub.o mul.o mul_ui.o div.o div_ui.o \
+  cmp.o cmp_ui.o cmp_si.o mul_2exp.o div_2exp.o abs.o neg.o set_q.o get_d.o \
+  set_dfl_prec.o set_prc.o set_prc_raw.o get_prc.o ui_div.o sqrt_ui.o
+
+LATER_OBJS = inp_raw.o out_raw.o random.o pow_ui.o fac_ui.o
+
+INCLUDES = -I. -I.. -I../mpn -I$(srcdir)/..
+
+libmpf.a: Makefile $(MPF_OBJS)
+	rm -f $@
+	$(AR) $(AR_FLAGS) $@ $(MPF_OBJS)
+
+.c.o:
+	$(CC) -c $(INCLUDES) $(CFLAGS) $(XCFLAGS) $<
+
+clean mostlyclean:
+	rm -f *.o libmpf.a
+	-cd tests; $(MAKE) $@
+distclean maintainer-clean: clean
+	rm -f Makefile config.status
+	-cd tests; $(MAKE) $@
+
+Makefile: $(srcdir)/Makefile.in
+	$(SHELL) ./config.status
+
+H = $(srcdir)/../gmp.h $(srcdir)/../gmp-impl.h ../mpn/gmp-mparam.h
+
+abs.o: $(srcdir)/abs.c $(H)
+add.o: $(srcdir)/add.c $(H)
+add_ui.o: $(srcdir)/add_ui.c $(H)
+clear.o: $(srcdir)/clear.c $(H)
+cmp.o: $(srcdir)/cmp.c $(H)
+cmp_si.o: $(srcdir)/cmp_si.c $(H)
+cmp_ui.o: $(srcdir)/cmp_ui.c $(H)
+eq.o: $(srcdir)/eq.c $(H)
+div.o: $(srcdir)/div.c  $(H) $(srcdir)/../longlong.h
+div_2exp.o: $(srcdir)/div_2exp.c $(H)
+div_ui.o: $(srcdir)/div_ui.c $(H) $(srcdir)/../longlong.h
+dump.o: $(srcdir)/dump.c $(H)
+get_d.o: $(srcdir)/get_d.c $(H)
+get_prc.o: $(srcdir)/get_prc.c $(H)
+get_str.o: $(srcdir)/get_str.c $(H) $(srcdir)/../longlong.h
+init.o: $(srcdir)/init.c $(H)
+init2.o: $(srcdir)/init2.c $(H)
+inp_str.o: $(srcdir)/inp_str.c $(H)
+iset.o: $(srcdir)/iset.c $(H)
+iset_d.o: $(srcdir)/iset_d.c $(H)
+iset_si.o: $(srcdir)/iset_si.c $(H)
+iset_str.o: $(srcdir)/iset_str.c $(H)
+iset_ui.o: $(srcdir)/iset_ui.c $(H)
+mul.o: $(srcdir)/mul.c $(H)
+mul_2exp.o: $(srcdir)/mul_2exp.c $(H)
+mul_ui.o: $(srcdir)/mul_ui.c $(H)
+neg.o: $(srcdir)/neg.c $(H)
+out_str.o: $(srcdir)/out_str.c $(H)
+random2.o: $(srcdir)/random2.c $(H)
+reldiff.o: $(srcdir)/reldiff.c $(H)
+set.o: $(srcdir)/set.c $(H)
+set_d.o: $(srcdir)/set_d.c $(H)
+set_dfl_prec.o: $(srcdir)/set_dfl_prec.c $(H)
+set_prc.o: $(srcdir)/set_prc.c $(H)
+set_prc_raw.o: $(srcdir)/set_prc_raw.c $(H)
+set_q.o: $(srcdir)/set_q.c $(H)
+set_si.o: $(srcdir)/set_si.c $(H)
+set_str.o: $(srcdir)/set_str.c $(H) $(srcdir)/../longlong.h
+set_ui.o: $(srcdir)/set_ui.c $(H)
+set_z.o: $(srcdir)/set_z.c $(H)
+size.o: $(srcdir)/size.c $(H)
+sqrt.o: $(srcdir)/sqrt.c $(H)
+sqrt_ui.o: $(srcdir)/sqrt_ui.c $(H)
+sub.o: $(srcdir)/sub.c $(H)
+sub_ui.o: $(srcdir)/sub_ui.c $(H)
+ui_div.o: $(srcdir)/ui_div.c $(H) $(srcdir)/../longlong.h
+ui_sub.o: $(srcdir)/ui_sub.c $(H)

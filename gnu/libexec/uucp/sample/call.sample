@@ -1,0 +1,20 @@
+# This is an example of call, the call out password file for Taylor
+# UUCP.  To use it, you must compile the package with
+# HAVE_TAYLOR_CONFIG set to 1 in policy.h (that is the default), copy
+# this file to newconfigdir as set in Makefile.in (the default is
+# /usr/local/conf/uucp), and edit it as appropriate for your system.
+
+# Everything after a '#' character is a comment.  To uncomment any of
+# the sample lines below, just delete the '#'.
+
+# This file is used when the ``call-login'' or ``call-password''
+# commands are used in the sys file with a "*" argument (e.g.,
+# ``call-login *'').  The system name is looked up in this file, and
+# the login name and password are used.
+
+# The point of this is that the sys file may then be publically
+# readable, while still concealing the login names and passwords used
+# to connect to the remote system.
+
+# The format is just system-name login-name password.
+uunet Uairs foobar

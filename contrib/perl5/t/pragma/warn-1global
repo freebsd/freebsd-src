@@ -1,0 +1,159 @@
+Check existing $^W functionality
+
+__END__
+
+# warnable code, warnings disabled
+$a =+ 3 ;
+EXPECT
+
+########
+-w
+# warnable code, warnings enabled via command line switch
+$a =+ 3 ;
+EXPECT
+Reversed += operator at - line 3.
+Name "main::a" used only once: possible typo at - line 3.
+########
+#! perl -w
+# warnable code, warnings enabled via #! line
+$a =+ 3 ;
+EXPECT
+Reversed += operator at - line 3.
+Name "main::a" used only once: possible typo at - line 3.
+########
+
+# warnable code, warnings enabled via compile time $^W
+BEGIN { $^W = 1 }
+$a =+ 3 ;
+EXPECT
+Reversed += operator at - line 4.
+Name "main::a" used only once: possible typo at - line 4.
+########
+
+# compile-time warnable code, warnings enabled via runtime $^W
+# so no warning printed.
+$^W = 1 ;
+$a =+ 3 ;
+EXPECT
+
+########
+
+# warnable code, warnings enabled via runtime $^W
+$^W = 1 ;
+my $b ; chop $b ;
+EXPECT
+Use of uninitialized value at - line 4.
+########
+
+# warnings enabled at compile time, disabled at run time
+BEGIN { $^W = 1 }
+$^W = 0 ;
+my $b ; chop $b ;
+EXPECT
+
+########
+
+# warnings disabled at compile time, enabled at run time
+BEGIN { $^W = 0 }
+$^W = 1 ;
+my $b ; chop $b ;
+EXPECT
+Use of uninitialized value at - line 5.
+########
+-w
+--FILE-- abcd
+my $b ; chop $b ;
+1 ;
+--FILE-- 
+require "./abcd";
+EXPECT
+Use of uninitialized value at ./abcd line 1.
+########
+
+--FILE-- abcd
+my $b ; chop $b ;
+1 ;
+--FILE-- 
+#! perl -w
+require "./abcd";
+EXPECT
+Use of uninitialized value at ./abcd line 1.
+########
+
+--FILE-- abcd
+my $b ; chop $b ;
+1 ;
+--FILE-- 
+$^W =1 ;
+require "./abcd";
+EXPECT
+Use of uninitialized value at ./abcd line 1.
+########
+
+--FILE-- abcd
+$^W = 0;
+my $b ; chop $b ;
+1 ;
+--FILE-- 
+$^W =1 ;
+require "./abcd";
+EXPECT
+
+########
+
+--FILE-- abcd
+$^W = 1;
+1 ;
+--FILE-- 
+$^W =0 ;
+require "./abcd";
+my $b ; chop $b ;
+EXPECT
+Use of uninitialized value at - line 3.
+########
+
+$^W = 1;
+eval "my $b ; chop $b ;" ;
+EXPECT
+Use of uninitialized value at - line 3.
+Use of uninitialized value at - line 3.
+########
+
+eval "$^W = 1;" ;
+my $b ; chop $b ;
+EXPECT
+
+########
+
+eval {$^W = 1;} ;
+my $b ; chop $b ;
+EXPECT
+Use of uninitialized value at - line 3.
+########
+
+{
+    local ($^W) = 1;
+}
+my $b ; chop $b ;
+EXPECT
+
+########
+
+my $a ; chop $a ;
+{
+    local ($^W) = 1;
+    my $b ; chop $b ;
+}
+my $c ; chop $c ;
+EXPECT
+Use of uninitialized value at - line 5.
+########
+-w
+-e undef
+EXPECT
+Use of uninitialized value at - line 2.
+########
+BEGIN { $^W = 1 }
+for (@{[0]}) { "$_" }		# check warning isn't duplicated
+EXPECT
+Useless use of string in void context at - line 2.

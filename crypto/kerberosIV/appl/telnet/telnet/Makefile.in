@@ -1,0 +1,75 @@
+# $Id: Makefile.in,v 1.34 1999/03/11 13:50:09 joda Exp $
+
+srcdir		= @srcdir@
+top_srcdir	= @top_srcdir@
+VPATH		= @srcdir@
+
+SHELL		= /bin/sh
+
+CC = @CC@
+LINK = @LINK@
+AR = ar
+RANLIB = @RANLIB@
+DEFS = @DEFS@
+CFLAGS = @CFLAGS@ $(WFLAGS)
+WFLAGS = @WFLAGS@
+LD_FLAGS = @LD_FLAGS@
+LIBS = @LIBS@
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+MKINSTALLDIRS = @top_srcdir@/mkinstalldirs
+
+PROGS = telnet$(EXECSUFFIX)
+
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+bindir = @bindir@
+libdir = @libdir@
+transform=@program_transform_name@
+EXECSUFFIX=@EXECSUFFIX@
+
+SOURCES=authenc.c commands.c main.c network.c ring.c \
+	sys_bsd.c telnet.c terminal.c \
+	utilities.c
+
+OBJECTS=authenc.o commands.o main.o network.o ring.o sys_bsd.o \
+	telnet.o terminal.o utilities.o
+
+libtop=@libtop@
+
+LIBKRB		= -L../../../lib/krb -lkrb
+LIBDES		= -L../../../lib/des -ldes
+LIBROKEN	= -L../../../lib/roken -lroken
+
+KLIB=$(LIBKRB) $(LIBDES)
+
+
+all: $(PROGS)
+
+.c.o:
+	$(CC) -c $(DEFS) -I../../../include -I.. -I$(srcdir)/.. $(CFLAGS) $(CPPFLAGS) $<
+
+telnet$(EXECSUFFIX): $(OBJECTS)
+	$(LINK) $(LD_FLAGS) $(LDFLAGS) -o $@ $(OBJECTS) -L../libtelnet -ltelnet $(KLIB) $(LIBROKEN) $(LIBS) @LIB_tgetent@ $(LIBROKEN)
+
+install: all
+	$(MKINSTALLDIRS) $(DESTDIR)$(bindir)
+	for x in $(PROGS); do \
+	  $(INSTALL_PROGRAM) $$x $(DESTDIR)$(bindir)/`echo $$x | sed '$(transform)'`; \
+	done
+
+uninstall:
+	for x in $(PROGS); do \
+	  rm -f $(DESTDIR)$(bindir)/`echo $$x | sed '$(transform)'`; \
+	done
+
+TAGS: $(SOURCES)
+	etags $(SOURCES)
+
+clean cleandir:
+	rm -f *.o *.a telnet$(EXECSUFFIX) \#* *~ core
+
+distclean: clean
+	rm -f Makefile *~
+
+.PHONY: all install uninstall clean cleandir distclean

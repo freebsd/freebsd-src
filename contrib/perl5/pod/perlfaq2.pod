@@ -1,0 +1,459 @@
+=head1 NAME
+
+perlfaq2 - Obtaining and Learning about Perl ($Revision: 1.30 $, $Date: 1998/12/29 19:43:32 $)
+
+=head1 DESCRIPTION
+
+This section of the FAQ answers questions about where to find
+source and documentation for Perl, support, and
+related matters.
+
+=head2 What machines support Perl?  Where do I get it?
+
+The standard release of Perl (the one maintained by the perl
+development team) is distributed only in source code form.  You
+can find this at http://www.perl.com/CPAN/src/latest.tar.gz , which
+in standard Internet format (a gzipped archive in POSIX tar format).
+
+Perl builds and runs on a bewildering number of platforms.  Virtually
+all known and current Unix derivatives are supported (Perl's native
+platform), as are proprietary systems like VMS, DOS, OS/2, Windows,
+QNX, BeOS, and the Amiga.  There are also the beginnings of support
+for MPE/iX.
+
+Binary distributions for some proprietary platforms, including
+Apple systems, can be found http://www.perl.com/CPAN/ports/ directory.
+Because these are not part of the standard distribution, they may
+and in fact do differ from the base Perl port in a variety of ways.
+You'll have to check their respective release notes to see just
+what the differences are.  These differences can be either positive
+(e.g. extensions for the features of the particular platform that
+are not supported in the source release of perl) or negative (e.g.
+might be based upon a less current source release of perl).
+
+=head2 How can I get a binary version of Perl?
+
+If you don't have a C compiler because your vendor for whatever
+reasons did not include one with your system, the best thing to do is
+grab a binary version of gcc from the net and use that to compile perl
+with.  CPAN only has binaries for systems that are terribly hard to
+get free compilers for, not for Unix systems.
+
+Some URLs that might help you are:
+
+    http://language.perl.com/info/software.html
+    http://www.perl.com/latest/
+    http://www.perl.com/CPAN/ports/
+
+If you want information on proprietary systems.  A simple installation
+guide for MS-DOS is available at http://www.cs.ruu.nl/~piet/perl5dos.html
+and similarly for Windows 3.1 at http://www.cs.ruu.nl/~piet/perlwin3.html .
+
+=head2 I don't have a C compiler on my system.  How can I compile perl?
+
+Since you don't have a C compiler, you're doomed and your vendor
+should be sacrificed to the Sun gods.  But that doesn't help you.
+
+What you need to do is get a binary version of gcc for your system
+first.  Consult the Usenet FAQs for your operating system for
+information on where to get such a binary version.
+
+=head2 I copied the Perl binary from one machine to another, but scripts don't work.
+
+That's probably because you forgot libraries, or library paths differ.
+You really should build the whole distribution on the machine it will
+eventually live on, and then type C<make install>.  Most other
+approaches are doomed to failure.
+
+One simple way to check that things are in the right place is to print out
+the hard-coded @INC which perl is looking for.
+
+    % perl -e 'print join("\n",@INC)'
+
+If this command lists any paths which don't exist on your system, then you
+may need to move the appropriate libraries to these locations, or create
+symlinks, aliases, or shortcuts appropriately.  @INC is also printed as
+part of the output of
+
+    % perl -V
+
+You might also want to check out L<perlfaq8/"How do I keep my own
+module/library directory?">.
+
+=head2 I grabbed the sources and tried to compile but gdbm/dynamic loading/malloc/linking/... failed.  How do I make it work?
+
+Read the F<INSTALL> file, which is part of the source distribution.
+It describes in detail how to cope with most idiosyncrasies that the
+Configure script can't work around for any given system or
+architecture.
+
+=head2 What modules and extensions are available for Perl?  What is CPAN?  What does CPAN/src/... mean?
+
+CPAN stands for Comprehensive Perl Archive Network, a huge archive
+replicated on dozens of machines all over the world.  CPAN contains
+source code, non-native ports, documentation, scripts, and many
+third-party modules and extensions, designed for everything from
+commercial database interfaces to keyboard/screen control to web
+walking and CGI scripts.  The master machine for CPAN is
+ftp://ftp.funet.fi/pub/languages/perl/CPAN/, but you can use the
+address http://www.perl.com/CPAN/CPAN.html to fetch a copy from a
+"site near you".  See http://www.perl.com/CPAN (without a slash at the
+end) for how this process works.
+
+CPAN/path/... is a naming convention for files available on CPAN
+sites.  CPAN indicates the base directory of a CPAN mirror, and the
+rest of the path is the path from that directory to the file.  For
+instance, if you're using ftp://ftp.funet.fi/pub/languages/perl/CPAN
+as your CPAN site, the file CPAN/misc/japh file is downloadable as
+ftp://ftp.funet.fi/pub/languages/perl/CPAN/misc/japh .
+
+Considering that there are hundreds of existing modules in the
+archive, one probably exists to do nearly anything you can think of.
+Current categories under CPAN/modules/by-category/ include perl core
+modules; development support; operating system interfaces; networking,
+devices, and interprocess communication; data type utilities; database
+interfaces; user interfaces; interfaces to other languages; filenames,
+file systems, and file locking; internationalization and locale; world
+wide web support; server and daemon utilities; archiving and
+compression; image manipulation; mail and news; control flow
+utilities; filehandle and I/O; Microsoft Windows modules; and
+miscellaneous modules.
+
+=head2 Is there an ISO or ANSI certified version of Perl?
+
+Certainly not.  Larry expects that he'll be certified before Perl is.
+
+=head2 Where can I get information on Perl?
+
+The complete Perl documentation is available with the perl distribution.
+If you have perl installed locally, you probably have the documentation
+installed as well: type C<man perl> if you're on a system resembling Unix.
+This will lead you to other important man pages, including how to set your
+$MANPATH.  If you're not on a Unix system, access to the documentation
+will be different; for example, it might be only in HTML format.  But all
+proper perl installations have fully-accessible documentation.
+
+You might also try C<perldoc perl> in case your system doesn't
+have a proper man command, or it's been misinstalled.  If that doesn't
+work, try looking in /usr/local/lib/perl5/pod for documentation.
+
+If all else fails, consult the CPAN/doc directory, which contains the
+complete documentation in various formats, including native pod,
+troff, html, and plain text.  There's also a web page at
+http://www.perl.com/perl/info/documentation.html that might help.
+
+Many good books have been written about Perl -- see the section below
+for more details.
+
+Tutorial documents are included in current or upcoming Perl releases
+include L<perltoot> for objects, L<perlopentut> for file opening
+semantics, L<perlreftut> for managing references, and L<perlxstut>
+for linking C and Perl together.  There may be more by the 
+time you read this.  The following URLs might also be of 
+assistance:
+
+    http://language.perl.com/info/documentation.html
+    http://reference.perl.com/query.cgi?tutorials
+
+=head2 What are the Perl newsgroups on USENET?  Where do I post questions?
+
+The now defunct comp.lang.perl newsgroup has been superseded by the
+following groups:
+
+    comp.lang.perl.announce 		Moderated announcement group
+    comp.lang.perl.misc     		Very busy group about Perl in general
+    comp.lang.perl.moderated            Moderated discussion group
+    comp.lang.perl.modules  		Use and development of Perl modules
+    comp.lang.perl.tk           	Using Tk (and X) from Perl
+
+    comp.infosystems.www.authoring.cgi 	Writing CGI scripts for the Web.
+
+There is also USENET gateway to the mailing list used by the crack
+Perl development team (perl5-porters) at
+news://news.perl.com/perl.porters-gw/ .
+
+=head2 Where should I post source code?
+
+You should post source code to whichever group is most appropriate, but
+feel free to cross-post to comp.lang.perl.misc.  If you want to cross-post
+to alt.sources, please make sure it follows their posting standards,
+including setting the Followup-To header line to NOT include alt.sources;
+see their FAQ (http://www.faqs.org/faqs/alt-sources-intro/) for details.
+
+If you're just looking for software, first use Alta Vista, Deja News, and
+search CPAN.  This is faster and more productive than just posting
+a request.
+
+=head2 Perl Books
+
+A number of books on Perl and/or CGI programming are available.  A few of
+these are good, some are ok, but many aren't worth your money.  Tom
+Christiansen maintains a list of these books, some with extensive
+reviews, at http://www.perl.com/perl/critiques/index.html.
+
+The incontestably definitive reference book on Perl, written by
+the creator of Perl, is now in its second edition:
+
+    Programming Perl (the "Camel Book"):
+	by Larry Wall, Tom Christiansen, and Randal Schwartz
+        ISBN 1-56592-149-6      (English)
+        ISBN 4-89052-384-7      (Japanese)
+	URL: http://www.oreilly.com/catalog/pperl2/
+    (French, German, Italian, and Hungarian translations also
+    available)
+
+The companion volume to the Camel containing thousands
+of real-world examples, mini-tutorials, and complete programs
+(first premiering at the 1998 Perl Conference), is:
+
+    The Perl Cookbook (the "Ram Book"):
+	by Tom Christiansen and Nathan Torkington, 
+		    with Foreword by Larry Wall
+	ISBN: 1-56592-243-3
+	URL:  http://perl.oreilly.com/cookbook/
+
+If you're already a hard-core systems programmer, then the Camel Book
+might suffice for you to learn Perl from.  But if you're not, check
+out:
+
+    Learning Perl (the "Llama Book"):
+	by Randal Schwartz and Tom Christiansen 
+		    with Foreword by Larry Wall
+	ISBN: 1-56592-284-0
+	URL:  http://www.oreilly.com/catalog/lperl2/
+
+Despite the picture at the URL above, the second edition of "Llama
+Book" really has a blue cover, and is updated for the 5.004 release
+of Perl.  Various foreign language editions are available, including
+I<Learning Perl on Win32 Systems> (the Gecko Book).
+
+If you're not an accidental programmer, but a more serious and possibly
+even degreed computer scientist who doesn't need as much hand-holding as
+we try to provide in the Llama or its defurred cousin the Gecko, please
+check out the delightful book, I<Perl: The Programmer's Companion>,
+written by Nigel Chapman.
+
+You can order O'Reilly books directly from O'Reilly & Associates,
+1-800-998-9938.  Local/overseas is 1-707-829-0515.  If you can
+locate an O'Reilly order form, you can also fax to 1-707-829-0104.
+See http://www.ora.com/ on the Web.
+
+What follows is a list of the books that the FAQ authors found personally
+useful.  Your mileage may (but, we hope, probably won't) vary.
+
+Recommended books on (or mostly on) Perl follow; those marked with
+a star may be ordered from O'Reilly.
+
+=over
+
+=item References
+
+    *Programming Perl
+	by Larry Wall, Tom Christiansen, and Randal L. Schwartz
+
+    *Perl 5 Desktop Reference
+        By Johan Vromans
+
+=item Tutorials
+		
+    *Learning Perl [2nd edition]
+	by Randal L. Schwartz and Tom Christiansen
+	    with foreword by Larry Wall
+
+    *Learning Perl on Win32 Systems
+	by Randal L. Schwartz, Erik Olson, and Tom Christiansen,
+	    with foreword by Larry Wall
+
+    Perl: The Programmer's Companion
+	by Nigel Chapman
+
+    Cross-Platform Perl 
+	by Eric F. Johnson
+
+    MacPerl: Power and Ease 
+	by Vicki Brown and Chris Nandor, foreword by Matthias Neeracher
+
+=item Task-Oriented 
+
+    *The Perl Cookbook
+	by Tom Christiansen and Nathan Torkington
+	    with foreword by Larry Wall
+
+    Perl5 Interactive Course [2nd edition]
+	by Jon Orwant
+
+    *Advanced Perl Programming 
+	by Sriram Srinivasan
+
+    Effective Perl Programming 
+	by Joseph Hall
+
+=item Special Topics
+
+    *Mastering Regular Expressions
+	by Jeffrey Friedl
+
+    How to Set up and Maintain a World Wide Web Site [2nd edition]
+	by Lincoln Stein
+
+=back
+
+=head2 Perl in Magazines
+
+The first and only periodical devoted to All Things Perl, I<The
+Perl Journal> contains tutorials, demonstrations, case studies,
+announcements, contests, and much more.  TPJ has columns on web
+development, databases, Win32 Perl, graphical programming, regular
+expressions, and networking, and sponsors the Obfuscated Perl
+Contest.  It is published quarterly under the gentle hand of its
+editor, Jon Orwant.  See http://www.tpj.com/ or send mail to
+subscriptions@tpj.com .
+
+Beyond this, magazines that frequently carry high-quality articles
+on Perl are I<Web Techniques> (see http://www.webtechniques.com/),
+I<Performance Computing> (http://www.performance-computing.com/), and Usenix's
+newsletter/magazine to its members, I<login:>, at http://www.usenix.org/.
+Randal's Web Technique's columns are available on the web at
+http://www.stonehenge.com/merlyn/WebTechniques/.
+
+=head2 Perl on the Net: FTP and WWW Access
+
+To get the best (and possibly cheapest) performance, pick a site from
+the list below and use it to grab the complete list of mirror sites.
+>From there you can find the quickest site for you.  Remember, the
+following list is I<not> the complete list of CPAN mirrors.
+
+  http://www.perl.com/CPAN-local
+  http://www.perl.com/CPAN	(redirects to an ftp mirror)
+  http://www.perl.org/CPAN
+  ftp://ftp.funet.fi/pub/languages/perl/CPAN/
+  http://www.cs.ruu.nl/pub/PERL/CPAN/
+  ftp://ftp.cs.colorado.edu/pub/perl/CPAN/
+
+=head2 What mailing lists are there for perl?
+
+Most of the major modules (tk, CGI, libwww-perl) have their own
+mailing lists.  Consult the documentation that came with the module for
+subscription information.  The Perl Institute attempts to maintain a
+list of mailing lists at:
+
+	http://www.perl.org/maillist.html
+
+=head2 Archives of comp.lang.perl.misc
+
+Have you tried Deja News or Alta Vista?  Those are the 
+best archives.  Just look up "*perl*" as a newsgroup.
+
+    http://www.dejanews.com/dnquery.xp?QRY=&DBS=2&ST=PS&defaultOp=AND&LNG=ALL&format=terse&showsort=date&maxhits=25&subjects=&groups=*perl*&authors=&fromdate=&todate=
+
+You'll probably want to trim that down a bit, though.
+
+ftp.cis.ufl.edu:/pub/perl/comp.lang.perl.*/monthly has an almost
+complete collection dating back to 12/89 (missing 08/91 through
+12/93).  They are kept as one large file for each month.
+
+You'll probably want more a sophisticated query and retrieval mechanism
+than a file listing, preferably one that allows you to retrieve
+articles using a fast-access indices, keyed on at least author, date,
+subject, thread (as in "trn") and probably keywords.  The best
+solution the FAQ authors know of is the MH pick command, but it is
+very slow to select on 18000 articles.
+
+If you have, or know where can be found, the missing sections, please
+let perlfaq-suggestions@perl.com know.
+
+=head2 Where can I buy a commercial version of Perl?
+
+In a real sense, Perl already I<is> commercial software: It has a licence
+that you can grab and carefully read to your manager. It is distributed
+in releases and comes in well-defined packages. There is a very large
+user community and an extensive literature.  The comp.lang.perl.*
+newsgroups and several of the mailing lists provide free answers to your
+questions in near real-time.  Perl has traditionally been supported by
+Larry, scores of software designers and developers, and myriads of
+programmers, all working for free to create a useful thing to make life
+better for everyone.
+
+However, these answers may not suffice for managers who require a
+purchase order from a company whom they can sue should anything go awry.
+Or maybe they need very serious hand-holding and contractual obligations.
+Shrink-wrapped CDs with perl on them are available from several sources if
+that will help.  For example, many perl books carry a perl distribution
+on them, as do the O'Reily Perl Resource Kits (in both the Unix flavor
+and in the proprietary Microsoft flavor); the free Unix distributions
+also all come with Perl.
+
+Or you can purchase a real support contract.  Although Cygnus historically
+provided this service, they no longer sell support contracts for Perl.
+Instead, the Paul Ingram Group will be taking up the slack through The
+Perl Clinic.  The following is a commercial from them:
+
+"Do you need professional support for Perl and/or Oraperl?  Do you need
+a support contract with defined levels of service?  Do you want to pay
+only for what you need?
+
+"The Paul Ingram Group has provided quality software development and
+support services to some of the world's largest corporations for ten
+years.  We are now offering the same quality support services for Perl
+at The Perl Clinic.  This service is led by Tim Bunce, an active perl
+porter since 1994 and well known as the author and maintainer of the
+DBI, DBD::Oracle, and Oraperl modules and author/co-maintainer of The
+Perl 5 Module List.  We also offer Oracle users support for Perl5
+Oraperl and related modules (which Oracle is planning to ship as part
+of Oracle Web Server 3).  20% of the profit from our Perl support work
+will be donated to The Perl Institute."
+
+For more information, contact The Perl Clinic:
+
+    Tel:    +44 1483 424424
+    Fax:    +44 1483 419419
+    Web:    http://www.perl.co.uk/
+    Email:  perl-support-info@perl.co.uk or Tim.Bunce@ig.co.uk
+
+See also www.perl.com for updates on tutorials, training, and support.
+
+=head2 Where do I send bug reports?
+
+If you are reporting a bug in the perl interpreter or the modules
+shipped with perl, use the I<perlbug> program in the perl distribution or
+mail your report to perlbug@perl.com .
+
+If you are posting a bug with a non-standard port (see the answer to
+"What platforms is Perl available for?"), a binary distribution, or a
+non-standard module (such as Tk, CGI, etc), then please see the
+documentation that came with it to determine the correct place to post
+bugs.
+
+Read the perlbug(1) man page (perl5.004 or later) for more information.
+
+=head2 What is perl.com?  
+
+The perl.com domain is owned by Tom Christiansen, who created it as a
+public service long before perl.org came about.  Despite the name, it's a
+pretty non-commercial site meant to be a clearinghouse for information
+about all things Perlian, accepting no paid advertisements, bouncy
+happy gifs, or silly java applets on its pages.  The Perl Home Page at
+http://www.perl.com/ is currently hosted on a T3 line courtesy of Songline
+Systems, a software-oriented subsidiary of O'Reilly and Associates.
+Other starting points include 
+
+    http://language.perl.com/
+    http://conference.perl.com/
+    http://reference.perl.com/
+
+=head1 AUTHOR AND COPYRIGHT
+
+Copyright (c) 1997-1999 Tom Christiansen and Nathan Torkington.
+All rights reserved.
+
+When included as an integrated part of the Standard Distribution
+of Perl or of its documentation (printed or otherwise), this work is
+covered under Perl's Artistic Licence.  For separate distributions of
+all or part of this FAQ outside of that, see L<perlfaq>.
+
+Irrespective of its distribution, all code examples here are public
+domain.  You are permitted and encouraged to use this code and any
+derivatives thereof in your own programs for fun or for profit as you
+see fit.  A simple comment in the code giving credit to the FAQ would
+be courteous but is not required.
+

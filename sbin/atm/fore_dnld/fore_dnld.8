@@ -1,0 +1,109 @@
+.\"
+.\" ===================================
+.\" HARP  |  Host ATM Research Platform
+.\" ===================================
+.\"
+.\"
+.\" This Host ATM Research Platform ("HARP") file (the "Software") is
+.\" made available by Network Computing Services, Inc. ("NetworkCS")
+.\" "AS IS".  NetworkCS does not provide maintenance, improvements or
+.\" support of any kind.
+.\"
+.\" NETWORKCS MAKES NO WARRANTIES OR REPRESENTATIONS, EXPRESS OR IMPLIED,
+.\" INCLUDING, BUT NOT LIMITED TO, IMPLIED WARRANTIES OF MERCHANTABILITY
+.\" AND FITNESS FOR A PARTICULAR PURPOSE, AS TO ANY ELEMENT OF THE
+.\" SOFTWARE OR ANY SUPPORT PROVIDED IN CONNECTION WITH THIS SOFTWARE.
+.\" In no event shall NetworkCS be responsible for any damages, including
+.\" but not limited to consequential damages, arising from or relating to
+.\" any use of the Software or related support.
+.\"
+.\" Copyright 1994-1998 Network Computing Services, Inc.
+.\"
+.\" Copies of this Software may be made, however, the above copyright
+.\" notice must be reproduced on all copies.
+.\"
+.\" @(#) $FreeBSD$
+.\"
+.\"
+.Dd December 3, 1996
+.Dt FORE_DNLD 8
+.Os
+.Sh NAME
+.Nm fore_dnld
+.Nd "download FORE Systems' microcode into host ATM adapter"
+.Sh SYNOPSIS
+.Nm
+.Op Fl Ar intf
+.Op Fl d Ar path
+.Op Fl f Ar objfile
+.Sh DESCRIPTION
+The
+.Nm
+utility downloads FORE Systems' microcode into the host ATM adapter(s).
+.Sh OPTIONS
+.Bl -tag -width indent
+.It Fl i Ar intf
+Specify which ATM interface to download microcode to.
+Default is to load microcode into all FORE Systems host adapters.
+.It Fl d Ar path
+Specify the path to prepend to the
+.Ar objfile
+name.
+Default is to use current directory.
+.It Fl f Ar objfile
+Specify the microcode binary file.
+Defaults are:
+.Pa sba200.obj
+for SBA-200 adapters,
+.Pa sba200e.obj
+for SBA-200E adapters, and
+.Pa pca200e.bin
+for PCA-200E adapters.
+.El
+.Sh NOTES
+For the PCA200E adapter, if no file is specified on the command
+line a built-in copy of version 3.0.1 microcode is used.
+.Pp
+Microcode as distributed by FORE Systems is not ready for downloading
+directly into SBA host ATM adapters.
+Instead, the supplied microcode needs
+to be processed with the
+.Xr objcopy 1
+command to create an image suitable
+for downloading.
+Arguments to
+.Xr objcopy 1
+are
+.Dq Li "-S -l -Fcoff" .
+.Pp
+Microcode as
+distributed by FORE Systems for the PCA host ATM adapter does not need
+to be processed.
+.Sh FILES
+.Bl -tag -width indent
+.It Pa ~fore/etc/objcopy
+command to process FORE Systems supplied microcode.
+.It Pa ~fore/etc/sba200*.ucode*
+microcode as supplied by FORE Systems for SBA
+adapters.
+.It Pa ~fore/i386/pca200e.bin
+microcode as supplied by FORE Systems for PCA
+adapters.
+.It Pa ~harp/doc/Install
+HARP installation instructions.
+.El
+.Sh BUGS
+None known.
+.Sh COPYRIGHT
+Copyright (c) 1994-1998, Network Computing Services, Inc.
+.Sh AUTHORS
+.An John Cavanaugh ,
+Minnesota Supercomputer Center, Inc.
+.An Mike Spengler ,
+Minnesota Supercomputer Center, Inc.
+.An Joe Thomas ,
+Minnesota Supercomputer Center, Inc.
+.Sh ACKNOWLEDGMENTS
+This software was developed under the sponsorship of the
+Defense Advanced Research Projects Agency (DARPA) under
+contract numbers F19628-92-C-0072 and F19628-95-C-0215.

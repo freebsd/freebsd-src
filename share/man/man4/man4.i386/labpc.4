@@ -1,0 +1,138 @@
+.\"
+.\" Copyright (c) 1995 HD Associates, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"      This product includes software developed by Christopher G. Demetriou.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software withough specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd April 26, 1995
+.Dt LABPC 4 i386
+.Os
+.Sh NAME
+.Nm labpc
+.Nd National Instruments LABPC and LABPC+ driver
+.Sh SYNOPSIS
+.Cd "device labpc0 at isa? port 260 irq 5"
+.Sh DESCRIPTION
+This supports the National Instruments LABPC and LABPC+ \fILow-Cost
+Multifunction I/O Board\fP.
+.Pp
+This board provides 8 12 bit A-D input channels, 2 12 bit D-A output
+channels, and 3 8 bit digital I/O ports.  It also supports setting
+up the National Instruments SCXI bus off the digital I/O ports,
+although that software is currently present in an external program
+and not as part of the driver.
+.Pp
+The selection of the input or output device, mode, and channel is
+through the minor number:
+.Bd -literal -offset indent
+The 8 bit minor number format is UUSIDCCC, with
+ UU: Board unit.
+  S: SCAN bit for scan enable.
+  I: INTERVAL for interval support
+  D: 1: Digital I/O, 0: Analog I/O
+CCC: The channel selector:
+     ANALOG:
+     input:  channel must be 0 to 7 for AD0 ... AD7
+     output: channel must be 0 to 2
+             0: D-A 0
+             1: D-A 1
+             2: Alternate channel 0 then 1
+
+     DIGITAL:
+     input:  Channel must be 0 to 2.
+     output: Channel must be 0 to 2.
+.Ed
+.Pp
+The /dev/MAKEDEV script will make the basic analog and digital
+devices if you do "sh MAKEDEV labpcaio" and "sh MAKEDEV labpcdio",
+however, it won't make device entries for INTERVAL and SCAN devices.
+SCAN devices automatically scan over all channels from the channel
+number down to 0 (for example, a SCAN for /dev/ad7 will read channels
+AD7 ...  AD0) while the INTERVAL device will wait for an external
+signal and then read all the channels from the selected channel
+number down to 0 as fast as it can.  This is done by the hardware
+and not the driver (other than turning it on); See the \fILabPC+
+User's Manual\fP and the source code if this doesn't make sense to
+you.
+.Pp
+The driver supports several general analog I/O ioctl calls.  These
+are defined in sys/dataacq.h and are intended to be implemented in
+other data acquisition board device drivers.
+.Pp
+AD_MICRO_PERIOD_SET takes a pointer to a long argument specifying
+the number of microseconds between samples.
+.Pp
+AD_MICRO_PERIOD_GET takes a pointer to a long argument and returns
+the current number of microseconds between samples.
+.Pp
+AD_NGAINS_GET takes a pointer to an integer and returns the number
+of different gain settings the board supports.  This is 8 for the
+LabPC board.
+.Pp
+AD_NCHANS_GET takes a pointer to an integer and returns the number
+of channels the board supports.  This is 8 for the LabPC board.
+.Pp
+AD_SUPPORTED_GAINS returns an array of NGAINS (the number obtained
+by AD_NGAINS_GET) doubles.  These are the gains the board supports.
+.Pp
+AD_GAINS_SET takes an array of NCHANS (the number obtained by
+AD_NCHANS_GET) integers and sets the board gains.  These are indices
+into the supported gain array, with one gain for each channel.
+.Pp
+AD_GAINS_GET takes an array of NCHANS (returned by AD_NCHANS_GET)
+integers and returns the current board gains.
+.Sh BUGS
+In general, only those capabilities that I needed are present.  In
+particular the following notable restrictions are present.
+.Pp
+The analog input is only supported in a clocked conversion mode.
+.Pp
+You can only set the sample clock down to 15 Hz.  Anything slower
+needs a modification to the driver to support TCINTEN in order to
+chain together the counters to get a lower clock rate.
+.Pp
+There is no support for clocked D-A output.
+.Pp
+The 8255 providing the digital I/O ports  is supported only in mode
+0 (three 8 bit ports).
+.Pp
+There is support for the SCXI bus off the LABPC board.  It is not
+in the driver but is a separate user process that accesses the
+digital I/O devices.  Ask dufault@hda.com for it.
+.Pp
+MAKEDEV only makes the "basic" devices.  You must make the INTERVAL
+or SCAN devices by hand.
+.Pp
+The INTERVAL device sets the clock rate as high as possible so that
+it samples all the channels as quickly as it can after the external
+signal.  This is a silly restriction; it should simply use the
+clock setting.
+.Sh CAVEATS
+National Instrument's (like most other laboratory grade board
+vendors) definition of Low-Cost differs dramatically from many on
+the net.

@@ -1,0 +1,287 @@
+@c $Id: programming.texi,v 1.2 2001/05/16 22:11:00 assar Exp $
+
+@node Programming with Kerberos
+@chapter Programming with Kerberos
+
+First you need to know how the Kerberos model works, go read the
+introduction text (@pxref{What is Kerberos?}).
+
+@macro manpage{man, section}
+@cite{\man\(\section\)}
+@end macro
+
+@menu
+* Kerberos 5 API Overview::     
+* Walkthru a sample Kerberos 5 client::  
+* Validating a password in a server application::  
+@end menu
+
+@node Kerberos 5 API Overview, Walkthru a sample Kerberos 5 client, Programming with Kerberos, Programming with Kerberos
+@section Kerberos 5 API Overview
+
+Most functions are documenteded in manual pages.  This overview only
+tries to point to where to look for a specific function.
+
+@subsection Kerberos context
+
+A kerberos context (@code{krb5_context}) holds all per thread state. All global variables that
+are context specific are stored in this struture, including default
+encryption types, credential-cache (ticket file), and default realms.
+
+See the manual pages for @manpage{krb5_context,3} and
+@manpage{krb5_init_context,3}.
+
+@subsection Kerberos authenication context
+
+Kerberos authentication context (@code{krb5_auth_context}) holds all
+context related to an authenticated connection, in a similar way to the
+kerberos context that holds the context for the thread or process.
+
+The @code{krb5_auth_context} is used by various functions that are
+directly related to authentication between the server/client. Example of
+data that this structure contains are various flags, addresses of client
+and server, port numbers, keyblocks (and subkeys), sequence numbers,
+replay cache, and checksum types.
+
+See the manual page for @manpage{krb5_auth_context,3}.
+
+@subsection Keytab managment
+
+A keytab is a storage for locally stored keys. Heimdal includes keytab
+support for Kerberos 5 keytabs, Kerberos 4 srvtab, AFS-KeyFile's,
+and for storing keys in memory.
+
+See also manual page for @manpage{krb5_keytab,3}
+
+@node Walkthru a sample Kerberos 5 client, Validating a password in a server application, Kerberos 5 API Overview, Programming with Kerberos
+@section Walkthru a sample Kerberos 5 client
+
+This example contains parts of a sample TCP Kerberos 5 clients, if you
+want a real working client, please look in @file{appl/test} directory in
+the Heimdal distribution.
+
+All Kerberos error-codes that are returned from kerberos functions in
+this program are passed to @code{krb5_err}, that will print a
+descriptive text of the error code and exit. Graphical programs can
+convert error-code to a humal readable error-string with the
+@manpage{krb5_get_err_text,3} function.
+
+Note that you should not use any Kerberos function before
+@code{krb5_init_context()} have completed successfully. That is the
+reson @code{err()} is used when @code{krb5_init_context()} fails.
+
+First the client needs to call @code{krb5_init_context} to initialize
+the Kerberos 5 library. This is only needed once per thread
+in the program. If the function returns a non-zero value it indicates
+that either the Kerberos implemtation is failing or its disabled on
+this host.
+
+@example
+#include <krb5.h>
+
+int
+main(int argc, char **argv)
+@{
+        krb5_context context;
+
+        if (krb5_context(&context))
+                errx (1, "krb5_context");
+@end example
+
+Now the client wants to connect to the host at the other end. The
+preferred way of doing this is using @manpage{getaddrinfo,3} (for
+operating system that have this function implemented), since getaddrinfo
+is neutral to the address type and can use any protocol that is available.
+
+@example
+        struct addrinfo *ai, *a;
+        struct addrinfo hints;
+        int error;
+
+        memset (&hints, 0, sizeof(hints));
+        hints.ai_socktype = SOCK_STREAM;
+        hints.ai_protocol = IPPROTO_TCP;
+
+        error = getaddrinfo (hostname, "pop3", &hints, &ai);
+        if (error)
+                errx (1, "%s: %s", hostname, gai_strerror(error));
+
+        for (a = ai; a != NULL; a = a->ai_next) @{
+                int s;
+
+                s = socket (a->ai_family, a->ai_socktype, a->ai_protocol);
+                if (s < 0)
+                        continue;
+                if (connect (s, a->ai_addr, a->ai_addrlen) < 0) @{
+                        warn ("connect(%s)", hostname);
+                            close (s);
+                            continue;
+                @}
+                freeaddrinfo (ai);
+                ai = NULL;
+        @}
+        if (ai) @{
+                    freeaddrinfo (ai);
+                    errx ("failed to contact %s", hostname);
+        @}
+@end example
+
+Before authenticating, an authentication context needs to be
+created. This context keeps all information for one (to be) authenticated
+connection (see @manpage{krb5_auth_context,3}).
+
+@example
+        status = krb5_auth_con_init (context, &auth_context);
+        if (status)
+                krb5_err (context, 1, status, "krb5_auth_con_init");
+@end example
+
+For setting the address in the authentication there is a help function
+@code{krb5_auth_con_setaddrs_from_fd} that does everthing that is needed
+when given a connected file descriptor to the socket.
+
+@example
+        status = krb5_auth_con_setaddrs_from_fd (context,
+                                                 auth_context,
+                                                 &sock);
+        if (status)
+                krb5_err (context, 1, status, 
+                          "krb5_auth_con_setaddrs_from_fd");
+@end example
+
+The next step is to build a server principal for the service we want
+to connect to. (See also @manpage{krb5_sname_to_principal,3}.)
+
+@example
+        status = krb5_sname_to_principal (context,
+                                          hostname,
+                                          service,
+                                          KRB5_NT_SRV_HST,
+                                          &server);
+        if (status)
+                krb5_err (context, 1, status, "krb5_sname_to_principal");
+@end example
+
+The client principal is not passed to @manpage{krb5_sendauth,3}
+function, this causes the @code{krb5_sendauth} function to try to figure it
+out itself.
+
+The server program is using the function @manpage{krb5_recvauth,3} to
+receive the Kerberos 5 authenticator.
+
+In this case, mutual authenication will be tried. That means that the server
+will authenticate to the client. Using mutual authenication
+is good since it enables the user to verify that they are talking to the
+right server (a server that knows the key).
+
+If you are using a non-blocking socket you will need to do all work of
+@code{krb5_sendauth} yourself. Basically you need to send over the
+authenticator from @manpage{krb5_mk_req,3} and, in case of mutual
+authentication, verifying the result from the server with
+@manpage{krb5_rd_rep,3}.
+
+@example
+        status = krb5_sendauth (context,
+                                &auth_context,
+                                &sock,
+                                VERSION,
+                                NULL,
+                                server,
+                                AP_OPTS_MUTUAL_REQUIRED,
+                                NULL,
+                                NULL,
+                                NULL,
+                                NULL,
+                                NULL,
+                                NULL);
+        if (status)
+                krb5_err (context, 1, status, "krb5_sendauth");
+@end example
+
+Once authentication has been performed, it is time to send some
+data. First we create a krb5_data structure, then we sign it with
+@manpage{krb5_mk_safe,3} using the @code{auth_context} that contains the
+session-key that was exchanged in the
+@manpage{krb5_sendauth,3}/@manpage{krb5_recvauth,3} authentication
+sequence.
+
+@example
+        data.data   = "hej";
+        data.length = 3;
+
+        krb5_data_zero (&packet);
+
+        status = krb5_mk_safe (context,
+                               auth_context,
+                               &data,
+                               &packet,
+                               NULL);
+        if (status)
+                krb5_err (context, 1, status, "krb5_mk_safe");
+@end example
+
+And send it over the network.
+
+@example
+        len = packet.length;
+        net_len = htonl(len);
+
+        if (krb5_net_write (context, &sock, &net_len, 4) != 4)
+                err (1, "krb5_net_write");
+        if (krb5_net_write (context, &sock, packet.data, len) != len)
+                err (1, "krb5_net_write");
+@end example
+
+To send encrypted (and signed) data @manpage{krb5_mk_priv,3} should be
+used instead. @manpage{krb5_mk_priv,3} works the same way as
+@manpage{krb5_mk_safe,3}, with the exception that it encrypts the data
+in addition to signing it.
+
+@example
+        data.data   = "hemligt";
+        data.length = 7;
+
+        krb5_data_free (&packet);
+
+        status = krb5_mk_priv (context,
+                               auth_context,
+                               &data,
+                               &packet,
+                               NULL);
+        if (status)
+                krb5_err (context, 1, status, "krb5_mk_priv");
+@end example
+
+And send it over the network.
+
+@example
+        len = packet.length;
+        net_len = htonl(len);
+
+        if (krb5_net_write (context, &sock, &net_len, 4) != 4)
+                err (1, "krb5_net_write");
+        if (krb5_net_write (context, &sock, packet.data, len) != len)
+                err (1, "krb5_net_write");
+
+@end example
+
+The server is using @manpage{krb5_rd_safe,3} and
+@manpage{krb5_rd_priv,3} to verify the signature and decrypt the packet.
+
+@node Validating a password in a server application,  , Walkthru a sample Kerberos 5 client, Programming with Kerberos
+@section Validating a password in an application
+
+See the manual page for @manpage{krb5_verify_user,3}.
+
+@c @node Why you should use GSS-API for new applications, Walkthru a sample GSS-API client, Validating a password in a server application, Programming with Kerberos
+@c @section Why you should use GSS-API for new applications
+@c 
+@c SSPI, bah, bah, microsoft, bah, bah, almost GSS-API.
+@c 
+@c It would also be possible for other mechanisms then Kerberos, but that
+@c doesn't exist any other GSS-API implementations today.
+@c 
+@c @node Walkthru a sample GSS-API client, , Why you should use GSS-API for new applications, Programming with Kerberos
+@c @section Walkthru a sample GSS-API client
+@c 
+@c Write about how gssapi_clent.c works.

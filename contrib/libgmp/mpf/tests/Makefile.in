@@ -1,0 +1,75 @@
+# Makefile for mpf/tests for GNU MP
+
+srcdir = .
+
+CC = gcc
+
+TEST_LIBS = ../../libgmp.a
+INCLUDES = -I../../mpn -I$(srcdir)/../..
+CFLAGS = -g -O
+
+.c.o:
+	$(CC) -c $(INCLUDES) $(CFLAGS) $(XCFLAGS) $<
+
+TEST_SRCS = t-add.c t-sub.c t-conv.c t-sqrt.c t-muldiv.c t-dm2exp.c t-reuse.c ref.c
+TEST_OBJS = t-add.o t-sub.o t-conv.o t-sqrt.o t-muldiv.o t-dm2exp.c reuse.o
+TESTS = t-add t-sub t-conv t-sqrt t-muldiv t-dm2exp reuse
+
+check: Makefile st-add st-sub st-conv st-sqrt st-muldiv st-dm2exp st-reuse
+	@echo "The tests passed."
+
+st-add: t-add
+	./t-add
+	touch $@
+st-sub: t-sub
+	./t-sub
+	touch $@
+st-conv: t-conv
+	./t-conv
+	touch $@
+st-sqrt: t-sqrt
+	./t-sqrt
+	touch $@
+st-muldiv: t-muldiv
+	./t-muldiv
+	touch $@
+st-dm2exp: t-dm2exp
+	./t-dm2exp
+	touch $@
+st-reuse: reuse
+	./reuse
+	touch $@
+
+H = $(srcdir)/../../gmp.h $(srcdir)/../../gmp-impl.h \
+ $(srcdir)/../../urandom.h ../../mpn/gmp-mparam.h
+
+t-add: t-add.o ref.o $(TEST_LIBS)
+	$(CC) -o $@ $@.o ref.o $(TEST_LIBS) $(CFLAGS)
+t-sub: t-sub.o ref.o $(TEST_LIBS)
+	$(CC) -o $@ $@.o ref.o $(TEST_LIBS) $(CFLAGS)
+t-conv: t-conv.o $(TEST_LIBS)
+	$(CC) -o $@ $@.o $(TEST_LIBS) $(CFLAGS)
+t-sqrt: t-sqrt.o  $(TEST_LIBS)
+	$(CC) -o $@ $@.o $(TEST_LIBS) $(CFLAGS)
+t-muldiv: t-muldiv.o $(TEST_LIBS)
+	$(CC) -o $@ $@.o $(TEST_LIBS) $(CFLAGS)
+t-dm2exp: t-dm2exp.o $(TEST_LIBS)
+	$(CC) -o $@ $@.o $(TEST_LIBS) $(CFLAGS)
+reuse: reuse.o $(TEST_LIBS)
+	$(CC) -o $@ $@.o $(TEST_LIBS) $(CFLAGS)
+
+t-add.o: $(srcdir)/t-add.c
+t-sub.o: $(srcdir)/t-sub.c
+t-conv.o: $(srcdir)/t-conv.c
+t-sqrt.o: $(srcdir)/t-sqrt.c
+t-muldiv.o: $(srcdir)/t-muldiv.c
+t-dm2exp.o: $(srcdir)/t-dm2exp.c
+reuse.o: $(srcdir)/reuse.c
+
+clean mostlyclean:
+	rm -f *.o st-* $(TESTS)
+distclean maintainer-clean: clean
+	rm -f Makefile config.status
+
+Makefile: $(srcdir)/Makefile.in
+	$(SHELL) ./config.status
