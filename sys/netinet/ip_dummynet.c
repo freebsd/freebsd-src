@@ -1616,6 +1616,7 @@ config_pipe(struct dn_pipe *p)
 	if (b == NULL || b->pipe_nr != p->pipe_nr) { /* new pipe */
 	    x = malloc(sizeof(struct dn_pipe), M_DUMMYNET, M_NOWAIT | M_ZERO);
 	    if (x == NULL) {
+	    	DUMMYNET_UNLOCK();
 		printf("dummynet: no memory for new pipe\n");
 		return ENOSPC;
 	    }
@@ -1664,8 +1665,10 @@ config_pipe(struct dn_pipe *p)
 		 a = b , b = b->next) ;
 
 	if (b == NULL || b->fs_nr != pfs->fs_nr) { /* new  */
-	    if (pfs->parent_nr == 0)	/* need link to a pipe */
+	    if (pfs->parent_nr == 0) {	/* need link to a pipe */
+	    	DUMMYNET_UNLOCK();
 		return EINVAL ;
+	    }
 	    x = malloc(sizeof(struct dn_flow_set), M_DUMMYNET, M_NOWAIT|M_ZERO);
 	    if (x == NULL) {
 		DUMMYNET_UNLOCK();
@@ -1681,8 +1684,10 @@ config_pipe(struct dn_pipe *p)
 		x->weight = 100 ;
 	} else {
 	    /* Change parent pipe not allowed; must delete and recreate */
-	    if (pfs->parent_nr != 0 && b->parent_nr != pfs->parent_nr)
+	    if (pfs->parent_nr != 0 && b->parent_nr != pfs->parent_nr) {
+	    	DUMMYNET_UNLOCK();
 		return EINVAL ;
+	    }
 	    x = b;
 	}
 	set_fs_parms(x, pfs);
