@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.349 1999/07/02 20:33:32 msmith Exp $
+ *	$Id: machdep.c,v 1.350 1999/07/04 00:25:17 mckusick Exp $
  */
 
 #include "apm.h"
@@ -1126,29 +1126,26 @@ sdtossd(sd, ssd)
 #define PHYSMAP_SIZE	(2 * 8)
 
 /*
- * Populate the (physmap) array with base/length pairs describing the
+ * Populate the (physmap) array with base/bound pairs describing the
  * available physical memory in the system, then test this memory and
  * build the phys_avail array describing the actually-available memory.
  *
- * Total memory size may be constrained by the kernel environment variable
- * hw.physmem or the compile-time define MAXMEM.
+ * If we cannot accurately determine the physical memory map, then use
+ * value from the 0xE801 call, and failing that, the RTC.
  *
- * If we cannot accurately determine the physical memory map, and the
- * value from the RTC seems dubious, trust the value of hw.physmem/MAXMEM
- * instead, but require a speculative probe of memory.
+ * Total memory size may be set by the kernel environment variable
+ * hw.physmem or the compile-time define MAXMEM.
  */
 static void
 getmemsize(int first)
 {
 	int i, physmap_idx, pa_indx;
 	u_int basemem, extmem;
-	int speculative_mprobe = FALSE;
 	struct vm86frame vmf;
 	struct vm86context vmc;
 	vm_offset_t pa, physmap[PHYSMAP_SIZE];
 	pt_entry_t pte;
-	u_int64_t AllowMem, MaxMem, sanity;
-	const char *cp, *ep;
+	const char *cp;
 	struct {
 		u_int64_t base;
 		u_int64_t length;
@@ -1157,46 +1154,6 @@ getmemsize(int first)
 
 	bzero(&vmf, sizeof(struct vm86frame));
 	bzero(physmap, sizeof(physmap));
-
-	/*
-	 * hw.maxmem is a size in bytes; we also allow k, m, and g suffixes
-	 * for the appropriate modifiers.
-	 * After this calculation, AllowMem is either 0 (no memory size cap) 
-	 * or the maximum memory size desired in bytes.
-	 */
-	AllowMem = 0;
-	if ((cp = getenv("hw.physmem")) != NULL) {
-		sanity = AllowMem = strtouq(cp, &ep, 0);
-		if ((ep != cp) && (*ep != 0)) {
-			switch(*ep) {
-			case 'g':
-			case 'G':
-				AllowMem <<= 10;
-			case 'm':
-			case 'M':
-				AllowMem <<= 10;
-			case 'k':
-			case 'K':
-				AllowMem <<= 10;
-				break;
-			default:
-				AllowMem = sanity = 0;
-			}
-			if (AllowMem < sanity)
-				AllowMem = 0;
-		}
-		if (AllowMem == 0)
-			printf("Warning: invalid memory limit '%s' specified\n", cp);
-	}
-#ifdef MAXMEM
-	if (AllowMem == 0)
-		AllowMem = MAXMEM * (u_int64_t)1024;
-#endif
-	if ((AllowMem != 0) && (boothowto & RB_VERBOSE))
-		printf("Physical memory use limited to %uk\n", (u_int)(AllowMem / 1024));
-	MaxMem = AllowMem;
-	if (AllowMem == 0)
-		AllowMem = (u_int64_t)1 << 32;	/* 4GB limit imposed by 32-bit pmap */
 
 	/*
 	 * Perform "base memory" related probes & setup
@@ -1283,17 +1240,10 @@ getmemsize(int first)
 		if (smap->length == 0)
 			goto next_run;
 
-		if (smap->base >= AllowMem) {
-			printf("%uk of memory above %uk ignored\n",
-			    (u_int)(smap->length / 1024), (u_int)(AllowMem / 1024));
+		if (smap->base >= 0xffffffff) {
+			printf("%uK of memory above 4GB ignored\n",
+			    (u_int)(smap->length / 1024));
 			goto next_run;
-		}
-		if ((smap->base + smap->length) >= AllowMem) {
-			printf("%uk region truncated to %uk to fit %uk limit\n", 
-			       (u_int)(smap->length / 1024), 
-			       (u_int)((AllowMem - smap->base) / 1024),
-			       (u_int)(AllowMem / 1024));
-			smap->length = AllowMem - smap->base;
 		}
 
 		for (i = 0; i <= physmap_idx; i += 2) {
@@ -1321,71 +1271,48 @@ getmemsize(int first)
 next_run:
 	} while (vmf.vmf_ebx != 0);
 
+	if (physmap[1] != 0)
+		goto physmap_done;
+
 	/*
 	 * If we failed above, try memory map with INT 15:E801
 	 */
-	if (physmap[1] == 0) {
-		vmf.vmf_ax = 0xE801;
-		if (vm86_intcall(0x15, &vmf) == 0) {
-			extmem = vmf.vmf_cx + vmf.vmf_dx * 64;
-		} else {
+	vmf.vmf_ax = 0xE801;
+	if (vm86_intcall(0x15, &vmf) == 0) {
+		extmem = vmf.vmf_cx + vmf.vmf_dx * 64;
+	} else {
 #if 0
-			vmf.vmf_ah = 0x88;
-			vm86_intcall(0x15, &vmf);
-			extmem = vmf.vmf_ax;
+		vmf.vmf_ah = 0x88;
+		vm86_intcall(0x15, &vmf);
+		extmem = vmf.vmf_ax;
 #else
-			/*
-			 * Prefer the RTC value for extended memory, or
-			 * hw.physmem/MAXMEM overrides.
-			 */
-			if (MaxMem > (1024 * 1024)) {		/* < 1MB is insane */
-				extmem = (MaxMem / 1024) - 1024;
-			} else {
-				extmem = rtcin(RTC_EXTLO) + (rtcin(RTC_EXTHI) << 8);
-			}
-			/*
-			 * If the value from the RTC is >= 16M, there is a good
-			 * chance that it's lying.  Compaq systems never report
-			 * more than 16M, and no system can honestly report more
-			 * than 64M.  We should end up here only on extremely
-			 * old and broken systems.  In any case, qualify the value
-			 * that we've got here by actually checking for physical
-			 * memory later on.
-			 */
-			if (extmem >= 16 * 1024)
-				speculative_mprobe = TRUE;
-#endif
-		}
-
 		/*
-		 * Special hack for chipsets that still remap the 384k hole when
-		 * there's 16MB of memory - this really confuses people that
-		 * are trying to use bus mastering ISA controllers with the
-		 * "16MB limit"; they only have 16MB, but the remapping puts
-		 * them beyond the limit.
-		 *
-		 * If extended memory is between 15-16MB (16-17MB phys address range),
-		 *	chop it to 15MB.
+		 * Prefer the RTC value for extended memory.
 		 */
-		if ((extmem > 15 * 1024) && (extmem < 16 * 1024))
-			extmem = 15 * 1024;
-
-		physmap[0] = 0;
-		physmap[1] = basemem * 1024;
-		physmap_idx = 2;
-		physmap[physmap_idx] = 0x100000;
-		physmap[physmap_idx + 1] = physmap[physmap_idx] + extmem * 1024;
-
+		extmem = rtcin(RTC_EXTLO) + (rtcin(RTC_EXTHI) << 8);
+#endif
 	}
 
 	/*
-	 * Maxmem isn't the "maximum memory", it's one larger than the
-	 * highest page of the physical address space.  It should be
-	 * called something like "Maxphyspage".  We fiddle it again
-	 * later based on the results of the memory test.
+	 * Special hack for chipsets that still remap the 384k hole when
+	 * there's 16MB of memory - this really confuses people that
+	 * are trying to use bus mastering ISA controllers with the
+	 * "16MB limit"; they only have 16MB, but the remapping puts
+	 * them beyond the limit.
+	 *
+	 * If extended memory is between 15-16MB (16-17MB phys address range),
+	 *	chop it to 15MB.
 	 */
-	Maxmem = physmap[physmap_idx + 1] / PAGE_SIZE;
-	
+	if ((extmem > 15 * 1024) && (extmem < 16 * 1024))
+		extmem = 15 * 1024;
+
+	physmap[0] = 0;
+	physmap[1] = basemem * 1024;
+	physmap_idx = 2;
+	physmap[physmap_idx] = 0x100000;
+	physmap[physmap_idx + 1] = physmap[physmap_idx] + extmem * 1024;
+
+physmap_done:
 	/*
 	 * Now, physmap contains a map of physical memory.
 	 */
@@ -1397,6 +1324,63 @@ next_run:
 	/* look for the MP hardware - needed for apic addresses */
 	mp_probe();
 #endif
+
+	/*
+	 * Maxmem isn't the "maximum memory", it's one larger than the
+	 * highest page of the physical address space.  It should be
+	 * called something like "Maxphyspage".  We may adjust this 
+	 * based on ``hw.physmem'' and the results of the memory test.
+	 */
+	Maxmem = atop(physmap[physmap_idx + 1]);
+
+#ifdef MAXMEM
+	Maxmem = MAXMEM / 4;
+#endif
+
+	/*
+	 * hw.maxmem is a size in bytes; we also allow k, m, and g suffixes
+	 * for the appropriate modifiers.  This overrides MAXMEM.
+	 */
+	if ((cp = getenv("hw.physmem")) != NULL) {
+		u_int64_t AllowMem, sanity;
+		const char *ep;
+
+		sanity = AllowMem = strtouq(cp, &ep, 0);
+		if ((ep != cp) && (*ep != 0)) {
+			switch(*ep) {
+			case 'g':
+			case 'G':
+				AllowMem <<= 10;
+			case 'm':
+			case 'M':
+				AllowMem <<= 10;
+			case 'k':
+			case 'K':
+				AllowMem <<= 10;
+				break;
+			default:
+				AllowMem = sanity = 0;
+			}
+			if (AllowMem < sanity)
+				AllowMem = 0;
+		}
+		if (AllowMem == 0)
+			printf("Ignoring invalid memory size of '%s'\n", cp);
+		else
+			Maxmem = atop(AllowMem);
+	}
+
+	if (atop(physmap[physmap_idx + 1]) != Maxmem &&
+	    (boothowto & RB_VERBOSE))
+		printf("Physical memory use set to %uK\n", Maxmem * 4);
+
+	/*
+	 * If Maxmem has been increased beyond what the system has detected,
+	 * extend the last memory segment to the new limit.
+	 */ 
+	if (atop(physmap[physmap_idx + 1]) < Maxmem)
+		physmap[physmap_idx + 1] = ptoa(Maxmem);
+
 	/* call pmap initialization to make new kernel address space */
 	pmap_bootstrap(first, 0);
 
@@ -1420,10 +1404,6 @@ next_run:
 	for (i = 0; i <= physmap_idx; i += 2) {
 		vm_offset_t end;
 
-		if (boothowto & RB_VERBOSE)
-			printf("Testing memory %uk to %uk\n",
-			       (u_int)(physmap[i] / 1024), 
-			       (u_int)((physmap[i] + physmap[i+1]) / 1024));
 		end = ptoa(Maxmem);
 		if (physmap[i + 1] < end)
 			end = trunc_page(physmap[i + 1]);
@@ -1502,9 +1482,6 @@ next_run:
 			 */
 			if (phys_avail[pa_indx] == pa) {
 				phys_avail[pa_indx] += PAGE_SIZE;
-				if (speculative_mprobe == TRUE &&
-				    phys_avail[pa_indx] >= (64*1024*1024))
-					end += PAGE_SIZE;
 			} else {
 				pa_indx++;
 				if (pa_indx == PHYS_AVAIL_ARRAY_END) {
