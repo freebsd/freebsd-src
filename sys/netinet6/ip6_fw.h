@@ -63,7 +63,7 @@ struct ip6_fw {
     u_short fw_pts[IPV6_FW_MAX_PORTS];	/* Array of port numbers to match */
     u_char fw_ip6opt,fw_ip6nopt;	/* IPv6 options set/unset */
     u_char fw_tcpf,fw_tcpnf;		/* TCP flags set/unset */
-#define IPV6_FW_ICMPTYPES_DIM (32 / (sizeof(unsigned) * 8))
+#define IPV6_FW_ICMPTYPES_DIM (256 / (sizeof(unsigned) * 8))
     unsigned fw_icmp6types[IPV6_FW_ICMPTYPES_DIM]; /* ICMP types bitmap */
     long timestamp;			/* timestamp (tv_sec) of last match */
     union ip6_fw_if fw_in_if, fw_out_if;/* Incoming and outgoing interfaces */
