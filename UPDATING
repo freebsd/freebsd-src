@@ -9,6 +9,12 @@ the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
 20030904:
+	If you get errors regarding sendmail.cf files while trying
+	to run mergemaster, you should either install the new version,
+	or run /usr/src/usr.sbin/mergemaster/mergemaster.sh. This is
+	a one-time issue to fix a Makefile compatibility problem.
+
+20030904:
 	Between August 9th and August 30th, a bug existed in the i386
 	virtual memory system which could cause panics under load.
 	Anyone running a kernel built between those dates is advised
