@@ -12,17 +12,21 @@
   </copyright>
 </articleinfo>
 
-<!--
-	Introduction to the release notes, adapted from the
-	introduction to the old RELNOTES.TXT.
--->
+<abstract>
+  <para>The release notes for &os; &release.current; contain a summary
+    of the changes made in the &os; base system since &release.prev;.
+    Both changes for kernel and userland are listed, as well as
+    applicable security advisories that were issued since the last
+    release.  Some brief remarks on upgrading are also presented.</para>
+</abstract>
 
 <sect1>
   <title>Introduction</title>
 
   <para>This document contains the release notes for &os; &release.current; on
   the &arch; hardware platform.  It describes new features of &os;
-  that have been added (or changed) since &release.prev;.</para>
+  that have been added (or changed) since &release.prev;.  It also
+  provides some notes on upgrading from previous versions of &os;.</para>
 
 <![ %release.type.snapshot [
 
@@ -66,7 +70,10 @@
   <title>What's New</title>
 
   <para>This section describes the most user-visible new or changed
-  features in &os; since &release.prev;.</para>
+  features in &os; since &release.prev;.  Typical release note items
+  document new drivers or hardware support, new commands or options,
+  major bugfixes, or contributed software upgrades.  Security
+  advisories issued after &release.prev; are also listed.</para>
 
   <para>Many additional changes were made to &os; that are not listed
   here for lack of space.  For example, documentation was corrected
@@ -245,26 +252,35 @@
   </sect2>
 </sect1>
 
-<!--
-	Summary information on upgrading FreeBSD.  This comes from
-	the similarly-named section of RELNOTES.TXT.
--->
-
 <sect1>
   <title>Upgrading from previous releases of &os;</title>
 
-  <para>If you're upgrading from a previous release of &os;,
-  most likely it's 4.X and there may be some issues affecting you,
-  depending of course on your chosen method of upgrading.  There
-  are two popular ways of upgrading &os; distributions:</para>
+  <para>If you're upgrading from a previous release of &os;, you
+  generally will have three options:
 
-  <para>
     <itemizedlist>
       <listitem>
-        <para>Using sources, via <filename>/usr/src</filename></para>
+	<para>Using the binary upgrade option of &man.sysinstall.8;.
+	  This option is perhaps the quickest, although it presumes
+	  that your installation of &os; uses no special compilation
+	  options.</para>
       </listitem>
       <listitem>
-        <para>Using the binary upgrade option of &man.sysinstall.8;.</para>
+	<para>Performing a complete reinstall of &os;.  Technically,
+	  this is not an upgrading method, and in any case is usually less
+	  convenient than a binary upgrade, in that it requires you to
+	  manually backup and restore the contents of
+	  <filename>/etc</filename>.  However, it may be useful in
+	  cases where you want (or need) to change the partitioning of
+	  your disks.
+      </listitem>
+      <listitem>
+	<para>From source code in <filename>/usr/src</filename>.  This
+	  route is more flexible, but requires more disk space, time,
+	  and more technical expertise.  Upgrading from very old
+	  versions of &os; may be problematic; in cases like this, it
+	  is usually more effective to perform a binary upgrade or a
+	  complete reinstall.</para>
       </listitem>
     </itemizedlist>
   </para>
@@ -282,5 +298,10 @@
   url="http://www.FreeBSD.org/handbook/">FreeBSD
   Handbook</ulink>.</para>
 
+  <important>
+    <para>Upgrading &os; should, of course, only be attempted after
+    backing up <emphasis>all</emphasis> data and configuration
+    files.</para>
+  </important>
 </sect1>
 
