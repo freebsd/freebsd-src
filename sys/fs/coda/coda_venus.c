@@ -1,5 +1,4 @@
 /*
- * 
  *             Coda: an Experimental Distributed File System
  *                              Release 3.1
  * 
@@ -27,9 +26,10 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/cfs/coda_venus.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- * $FreeBSD$
- * 
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

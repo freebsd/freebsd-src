@@ -1,5 +1,4 @@
 /*
- * 
  *             Coda: an Experimental Distributed File System
  *                              Release 3.1
  * 
@@ -27,10 +26,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/coda_namecache.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- * $FreeBSD$
- * 
  */
-
 /* 
  * Mach Operating System
  * Copyright (c) 1990 Carnegie-Mellon University
@@ -75,6 +71,9 @@
  * 4.	I wonder if this name cache could be replace by the vnode name cache.
  *	The latter has no zapping functions, so probably not.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
