@@ -51,29 +51,11 @@
 #include <dev/ata/ata-disk.h>
 #include <dev/ata/ata-raid.h>
 
-/* device structures */
-static d_open_t		adopen;
-static d_close_t	adclose;
-static d_strategy_t	adstrategy;
-static dumper_t		addump;
-static struct cdevsw ad_cdevsw = {
-	/* open */	adopen,
-	/* close */	adclose,
-	/* read */	physread,
-	/* write */	physwrite,
-	/* ioctl */	noioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	adstrategy,
-	/* name */	"ad",
-	/* maj */	116,
-	/* dump */	addump,
-	/* psize */	nopsize,
-	/* flags */	D_DISK,
-};
-static struct cdevsw addisk_cdevsw;
-
 /* prototypes */
+static disk_open_t adopen;
+static disk_close_t adclose;
+static disk_strategy_t adstrategy;
+static dumper_t addump;
 static void ad_invalidatequeue(struct ad_softc *, struct ad_request *);
 static int ad_tagsupported(struct ad_softc *);
 static void ad_timeout(struct ad_request *);
@@ -106,7 +88,6 @@ void
 ad_attach(struct ata_device *atadev)
 {
     struct ad_softc *adp;
-    dev_t dev;
     u_int32_t lbasize;
     u_int64_t lbasize48;
 
@@ -209,18 +190,23 @@ ad_attach(struct ata_device *atadev)
 		      DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_IDE,
 		      DEVSTAT_PRIORITY_DISK);
 
-    dev = disk_create(adp->lun, &adp->disk, 0, &ad_cdevsw, &addisk_cdevsw);
-    dev->si_drv1 = adp;
-    dev->si_iosize_max = adp->max_iosize;
-    adp->dev = dev;
-
+    adp->disk.d_open = adopen;
+    adp->disk.d_close = adclose;
+    adp->disk.d_strategy = adstrategy;
+    adp->disk.d_dump = addump;
+    adp->disk.d_name = "ad";
+    adp->disk.d_drv1 = adp;
+    adp->disk.d_maxsize = adp->max_iosize;
     adp->disk.d_sectorsize = DEV_BSIZE;
     adp->disk.d_mediasize = DEV_BSIZE * (off_t)adp->total_secs;
     adp->disk.d_fwsectors = adp->sectors;
     adp->disk.d_fwheads = adp->heads;
+    disk_create(adp->lun, &adp->disk, 0, NULL, NULL);
 
     atadev->driver = adp;
     atadev->flags = 0;
+
+    ata_enclosure_print(atadev);
 
     /* if this disk belongs to an ATA RAID dont print the probe */
     if (ata_raiddisk_attach(adp))
@@ -228,7 +214,6 @@ ad_attach(struct ata_device *atadev)
     else {
 	if (atadev->driver) {
 	    ad_print(adp);
-	    ata_enclosure_print(atadev);
 	}
     }
 }
@@ -272,9 +257,9 @@ ad_detach(struct ata_device *atadev, int flush) /* get rid of flush XXX SOS */
 }
 
 static int
-adopen(dev_t dev, int flags, int fmt, struct thread *td)
+adopen(struct disk *dp)
 {
-    struct ad_softc *adp = dev->si_drv1;
+    struct ad_softc *adp = dp->d_drv1;
 
     if (adp->flags & AD_F_RAID_SUBDISK)
 	return EBUSY;
@@ -286,9 +271,9 @@ adopen(dev_t dev, int flags, int fmt, struct thread *td)
 }
 
 static int
-adclose(dev_t dev, int flags, int fmt, struct thread *td)
+adclose(struct disk *dp)
 {
-    struct ad_softc *adp = dev->si_drv1;
+    struct ad_softc *adp = dp->d_drv1;
 
     adp->device->channel->locking(adp->device->channel, ATA_LF_LOCK);
     ATA_SLEEPLOCK_CH(adp->device->channel, ATA_CONTROL);
@@ -302,7 +287,7 @@ adclose(dev_t dev, int flags, int fmt, struct thread *td)
 static void 
 adstrategy(struct bio *bp)
 {
-    struct ad_softc *adp = bp->bio_dev->si_drv1;
+    struct ad_softc *adp = bp->bio_disk->d_drv1;
     int s;
 
     if (adp->device->flags & ATA_D_DETACHING) {
@@ -324,7 +309,7 @@ addump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
     struct disk *dp;
 
     dp = arg;
-    adp = dp->d_dev->si_drv1;
+    adp = dp->d_drv1;
     if (!adp)
 	return ENXIO;
 
