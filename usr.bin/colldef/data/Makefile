@@ -1,9 +1,11 @@
-# $Id: Makefile,v 1.15.2.4 1999/06/05 03:15:43 julian Exp $
+# $Id: Makefile,v 1.15.2.5 1999/06/09 02:28:08 foxfair Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
 
-LOCALES=	es_ES.DIS_8859-15 \
+LOCALES=	de_DE.DIS_8859-15 \
+		de_DE.ISO_8859-1 \
+		es_ES.DIS_8859-15 \
 		es_ES.ISO_8859-1 \
 		is_IS.DIS_8859-15 \
 		is_IS.ISO_8859-1 \
@@ -38,6 +40,8 @@ DELINKS = de_AT de_CH
 .if !defined(_BUILD_TOOLS)
 all: ${LOCALES:S/$/.out/g}
 
+de_DE.DIS_8859-15.out:  map.DIS_8859-15
+de_DE.ISO_8859-1.out:   map.ISO_8859-1
 es_ES.DIS_8859-15.out:  map.DIS_8859-15
 es_ES.ISO_8859-1.out:   map.ISO_8859-1
 is_IS.DIS_8859-15.out:  map.DIS_8859-15
