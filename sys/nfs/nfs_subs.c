@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.15 1995/05/30 08:12:43 rgrimes Exp $
+ * $Id: nfs_subs.c,v 1.15.4.1 1995/06/28 05:49:39 davidg Exp $
  */
 
 /*
@@ -1208,8 +1208,6 @@ retry:
 		object = (vm_object_t) vp->v_vmdata;
 		if( object->pager != pager)
 			panic("nfsrv_vmio: pager/object mismatch");
-		(void) vm_object_lookup( pager);
-		pager_cache( object, TRUE);
 		vp->v_flag |= VVMIO;
 	} else {
 		if( (object = (vm_object_t)vp->v_vmdata) &&
