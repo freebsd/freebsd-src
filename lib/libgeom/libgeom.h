@@ -31,6 +31,7 @@
 #ifndef _LIBGEOM_H_
 #define _LIBGEOM_H_
 
+#include <sys/queue.h>
 #include <sys/time.h>
 #include <geom/geom_stats.h>
 
@@ -42,5 +43,87 @@ void geom_stats_snapshot_free(void *arg);
 void geom_stats_snapshot_timestamp(void *arg, struct timespec *tp);
 void geom_stats_snapshot_reset(void *arg);
 struct g_stat *geom_stats_snapshot_next(void *arg);
+
+char *geom_getxml(void);
+
+/* geom_xml2tree.c */
+
+/*
+ * These structs are used to build the tree based on the XML.
+ * they're named as the kernel variant without the first '_'.
+ */
+
+struct gclass;
+struct ggeom;
+struct gconsumer;
+struct gprovider;
+
+LIST_HEAD(gconf, gconfig);
+
+struct gident {
+	void			*id;
+	void			*ptr;
+	enum {	ISCLASS,
+		ISGEOM,
+		ISPROVIDER,
+		ISCONSUMER }	what;
+};
+
+struct gmesh {
+	LIST_HEAD(, gclass)	class;
+	struct gident		*ident;
+};
+
+struct gconfig {
+	LIST_ENTRY(gconfig)	config;
+	char			*name;
+	char			*val;
+};
+
+struct gclass {
+	void			*id;
+	char			*name;
+	LIST_ENTRY(gclass)	class;
+	LIST_HEAD(, ggeom)	geom;
+	struct gconf		config;
+};
+
+struct ggeom {
+	void			*id;
+	struct gclass		*class;
+	char			*name;
+	u_int			rank;
+	LIST_ENTRY(ggeom)	geom;
+	LIST_HEAD(, gconsumer)	consumer;
+	LIST_HEAD(, gprovider)	provider;
+	struct gconf		config;
+};
+
+struct gconsumer {
+	void			*id;
+	struct ggeom		*geom;
+	LIST_ENTRY(gconsumer)	consumer;
+	struct gprovider	*provider;
+	LIST_ENTRY(gconsumer)	consumers;
+	char			*mode;
+	struct gconf		config;
+};
+
+struct gprovider {
+	void			*id;
+	char			*name;
+	struct ggeom		*geom;
+	LIST_ENTRY(gprovider)	provider;
+	LIST_HEAD(, gconsumer)	consumers;
+	char			*mode;
+	off_t			mediasize;
+	u_int			sectorsize;
+	struct gconf		config;
+};
+
+struct gident * geom_lookupid(struct gmesh *gmp, void *id);
+int geom_xml2tree(struct gmesh *gmp, char *p);
+int geom_gettree(struct gmesh *gmp);
+void geom_deletetree(struct gmesh *gmp);
 
 #endif /* _LIBGEOM_H_ */
