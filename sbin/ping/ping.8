@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ping.8	8.2 (Berkeley) 12/11/93
-.\"	$Id: ping.8,v 1.14 1998/04/01 00:32:18 imp Exp $
+.\"	$Id: ping.8,v 1.15 1998/07/15 06:45:00 charnier Exp $
 .\"
 .Dd March 1, 1997
 .Dt PING 8
@@ -85,7 +85,8 @@ Stop after sending
 .Pq and receiving
 .Ar count
 .Tn ECHO_RESPONSE
-packets.
+packets.  non-root users may not send more then 100 packets and default
+to 16, while root defaults to infinity.
 .It Fl d
 Set the
 .Dv SO_DEBUG
@@ -100,7 +101,7 @@ sent a period
 .Dq \&.
 is printed, while for every
 .Tn ECHO_REPLY
-received a backspace is printed.
+received a backspace is printed.  Only root may specify this option.
 This provides a rapid display of how many packets are being dropped.
 Only the super-user may use this option.
 .Bf -emphasis
@@ -111,8 +112,9 @@ Wait
 .Ar wait
 seconds
 .Em between sending each packet .
-The default is to wait for one second between each packet.
-This option is incompatible with the
+The default is to wait for one second between each packet.  The
+wait time may be fractional, but only root may specify values 
+less then 1 second.  This option is incompatible with the
 .Fl f
 option.
 .It Fl I Ar interface
@@ -196,7 +198,7 @@ The default is 56, which translates into 64
 data bytes when combined
 with the 8 bytes of
 .Tn ICMP
-header data.
+header data.  Only root may use this option.
 .It Fl T Ar ttl
 Set the IP Time To Live for multicasted packets.
 This flag only applies if the ping destination is a multicast address.
