@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rmail.c,v 1.3 1995/03/05 08:27:14 joerg Exp $
+ *	$Id: rmail.c,v 1.4 1995/03/19 13:29:18 joerg Exp $
  */
 
 #ifndef lint
@@ -48,7 +48,7 @@ static char sccsid[] = "@(#)rmail.c	8.1 (Berkeley) 5/31/93";
  *
  * This program reads the >From ... remote from ... lines that UUCP is so
  * fond of and turns them into something reasonable.  It then execs sendmail
- * with various options built from these lines. 
+ * with various options built from these lines.
  *
  * The expected syntax is:
  *

@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: tables.c,v 1.2 1994/09/24 02:56:34 davidg Exp $
  */
 
 #ifndef lint
@@ -85,7 +85,7 @@ static DEVT *chk_dev __P((dev_t, int));
 /*
  * hard link table routines
  *
- * The hard link table tries to detect hard links to files using the device and 
+ * The hard link table tries to detect hard links to files using the device and
  * inode values. We do this when writing an archive, so we can tell the format
  * write routine that this file is a hard link to another file. The format
  * write routine then can store this file in whatever way it wants (as a hard
@@ -333,10 +333,10 @@ lnk_end()
  * that this is one HUGE database. To save memory space, the actual file names
  * are stored in a scatch file and indexed by an in memory hash table. The
  * hash table is indexed by hashing the file path. The nodes in the table store
- * the length of the filename and the lseek offset within the scratch file 
+ * the length of the filename and the lseek offset within the scratch file
  * where the actual name is stored. Since there are never any deletions to this
  * table, fragmentation of the scratch file is never a issue. Lookups seem to
- * not exhibit any locality at all (files in the database are rarely 
+ * not exhibit any locality at all (files in the database are rarely
  * looked up more than once...). So caching is just a waste of memory. The
  * only limitation is the amount of scatch file space available to store the
  * path names.
@@ -468,7 +468,7 @@ chk_ftime(arcn)
 				 */
 				pt->mtime = arcn->sb.st_mtime;
 				return(0);
-			} 
+			}
 			/*
 			 * file is older
 			 */
@@ -493,7 +493,7 @@ chk_ftime(arcn)
 				return(0);
 			}
 			syswarn(1, errno, "Failed write to file time table");
-		} else 
+		} else
 			syswarn(1, errno, "Failed seek on file time table");
 	} else
 		warn(1, "File time table ran out of memory");
@@ -567,7 +567,7 @@ add_name(oname, onamelen, nname)
 		 * should never happen
 		 */
 		warn(0, "No interactive rename table, links may fail\n");
-		return(0); 
+		return(0);
 	}
 
 	/*
@@ -666,7 +666,7 @@ sub_name(oname, onamelen)
 	 */
 	return;
 }
-    
+
 /*
  * device/inode mapping table routines
  * (used with formats that store device and inodes fields)
@@ -856,7 +856,7 @@ map_dev(arcn, dev_mask, ino_mask)
 		return(0);
 	/*
 	 * check for device and inode truncation, and extract the truncated
-	 * bit pattern. 
+	 * bit pattern.
 	 */
 	if ((arcn->sb.st_dev & (dev_t)dev_mask) != arcn->sb.st_dev)
 		++trc_dev;
@@ -1064,7 +1064,7 @@ add_atdir(fname, dev, ino, mtime, atime)
 		return;
 
 	/*
-	 * make sure this directory is not already in the table, if so just 
+	 * make sure this directory is not already in the table, if so just
 	 * return (the older entry always has the correct time). The only
 	 * way this will happen is when the same subtree can be traversed by
 	 * different args to pax and the -n option is aborting fts out of a
@@ -1233,7 +1233,7 @@ dir_start()
  *	name is name of the directory, psb the stat buffer with the data in it,
  *	frc_mode is a flag that says whether to force the setting of the mode
  *	(ignoring the user set values for preserving file mode). Frc_mode is
- *	for the case where we created a file and found that the resulting 
+ *	for the case where we created a file and found that the resulting
  *	directory was not writeable and the user asked for file modes to NOT
  *	be preserved. (we have to preserve what was created by default, so we
  *	have to force the setting at the end. this is stated explicitly in the
@@ -1312,15 +1312,15 @@ proc_dir()
 		 * read the trailer, then the file name, if this fails
 		 * just give up.
 		 */
-		if (lseek(dirfd, -((off_t)sizeof(dblk)), SEEK_CUR) < 0) 
+		if (lseek(dirfd, -((off_t)sizeof(dblk)), SEEK_CUR) < 0)
 			break;
 		if (read(dirfd,(char *)&dblk, sizeof(dblk)) != sizeof(dblk))
 			break;
-		if (lseek(dirfd, dblk.npos, SEEK_SET) < 0) 
+		if (lseek(dirfd, dblk.npos, SEEK_SET) < 0)
 			break;
 		if (read(dirfd, name, dblk.nlen) != dblk.nlen)
 			break;
-		if (lseek(dirfd, dblk.npos, SEEK_SET) < 0) 
+		if (lseek(dirfd, dblk.npos, SEEK_SET) < 0)
 			break;
 
 		/*

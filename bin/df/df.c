@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: df.c,v 1.5 1994/09/24 02:55:11 davidg Exp $
+ *	$Id: df.c,v 1.6 1995/03/19 13:28:15 joerg Exp $
  */
 
 #ifndef lint
@@ -99,7 +99,7 @@ struct typetab {
 	{"misc",	MT(MOUNT_LOFS)|MT(MOUNT_FDESC)|MT(MOUNT_PORTAL)|
 			MT(MOUNT_KERNFS)|MT(MOUNT_PROCFS)},
 	{NULL,		0}
-	
+
 };
 
 long	addtype __P((long, char *));
@@ -336,7 +336,7 @@ prtstat(sfsp, maxwidth)
 		used = inodes - sfsp->f_ffree;
 		(void)printf(" %7ld %7ld %5.0f%% ", used, sfsp->f_ffree,
 		   inodes == 0 ? 100.0 : (double)used / (double)inodes * 100.0);
-	} else 
+	} else
 		(void)printf("  ");
 	(void)printf("  %s\n", sfsp->f_mntonname);
 }
@@ -424,7 +424,7 @@ bread(off, buf, cnt)
 void
 usage()
 {
-	fprintf(stderr, 
+	fprintf(stderr,
 		"usage: df [-ikn] [-t fstype] [file | file_system ...]\n");
 	exit(1);
 }

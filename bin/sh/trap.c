@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: trap.c,v 1.2 1994/09/24 02:58:18 davidg Exp $
  */
 
 #ifndef lint
@@ -187,13 +187,13 @@ setsignal(signo) {
 		}
 	}
 	t = &sigmode[signo - 1];
-	if (*t == 0) {	
-		/* 
-		 * current setting unknown 
+	if (*t == 0) {
+		/*
+		 * current setting unknown
 		 */
 		sigact = getsigaction(signo);
 		if (sigact == SIG_IGN) {
-			if (mflag && (signo == SIGTSTP || 
+			if (mflag && (signo == SIGTSTP ||
 			     signo == SIGTTIN || signo == SIGTTOU)) {
 				*t = S_IGN;	/* don't hard ignore these */
 			} else

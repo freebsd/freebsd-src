@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ps.c,v 1.5 1994/10/18 04:27:46 davidg Exp $
+ *	$Id: ps.c,v 1.6 1995/03/19 13:29:06 joerg Exp $
  */
 
 #ifndef lint
@@ -486,7 +486,7 @@ kludge_oldps_options(s)
 	 * if there's a trailing number, and not a preceding 'p' (pid) or
 	 * 't' (tty) flag, then assume it's a pid and insert a 'p' flag.
 	 */
-	if (isdigit(*cp) && 
+	if (isdigit(*cp) &&
 	    (cp == s || (cp[-1] != 't' && cp[-1] != 'p')) &&
 	    (cp - 1 == s || cp[-2] != 't'))
 		*ns++ = 'p';

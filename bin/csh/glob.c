@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: glob.c,v 1.2 1994/09/24 02:54:05 davidg Exp $
  */
 
 #ifndef lint
@@ -574,7 +574,7 @@ tglob(t)
 	     */
 	    if (c == '`') {
 		gflag |= G_CSH;
-		while (*p && *p != '`') 
+		while (*p && *p != '`')
 		    if (*p++ == '\\') {
 			if (*p)		/* Quoted chars */
 			    p++;
@@ -806,7 +806,7 @@ pword()
     pnleft = MAXPATHLEN - 4;
 }
 
-int 
+int
 Gmatch(string, pattern)
     Char *string, *pattern;
 {
@@ -829,7 +829,7 @@ Gmatch(string, pattern)
 
     blkfree(blk);
     return(gres == gpol);
-} 
+}
 
 static int
 pmatch(string, pattern)
@@ -870,7 +870,7 @@ pmatch(string, pattern)
 			      (*(pattern-2) & TRIM) <= stringc);
 		    pattern++;
 		}
-		else 
+		else
 		    match = (stringc == (rangec & TRIM));
 	    }
 	    if (rangec == 0)

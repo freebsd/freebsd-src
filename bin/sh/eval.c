@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: eval.c,v 1.2 1994/09/24 02:57:29 davidg Exp $
  */
 
 #ifndef lint
@@ -134,8 +134,8 @@ SHELLPROC {
  * The eval commmand.
  */
 
-evalcmd(argc, argv)  
-	char **argv; 
+evalcmd(argc, argv)
+	char **argv;
 {
         char *p;
         char *concat;
@@ -233,7 +233,7 @@ evaltree(n, flags)
 		evalsubshell(n, flags);
 		break;
 	case NIF: {
-		int status = 0; 
+		int status = 0;
 
 		evaltree(n->nif.test, EV_TESTED);
 		if (evalskip)

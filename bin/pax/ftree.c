@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ftree.c,v 1.2 1994/09/24 02:56:20 davidg Exp $
  */
 
 #ifndef lint
@@ -214,7 +214,7 @@ ftree_sel(arcn)
 	 * when file trees are supplied pax as args. The list is not used when
 	 * the trees are read from stdin.
 	 */
-	if (ftcur != NULL) 
+	if (ftcur != NULL)
 		ftcur->refcnt = 1;
 
 	/*
@@ -307,7 +307,7 @@ ftree_arg()
 		if (fthead == NULL) {
 			/*
 			 * the user didn't supply any args, get the file trees
-			 * to process from stdin; 
+			 * to process from stdin;
 			 */
 			if (fgets(farray[0], PAXPATHLEN+1, stdin) == NULL)
 				return(-1);
@@ -362,7 +362,7 @@ next_file(arcn)
 	/*
 	 * ftree_sel() might have set the ftree_skip flag if the user has the
 	 * -n option and a file was selected from this file arg tree. (-n says
-	 * only one member is matched for each pattern) ftree_skip being 1 
+	 * only one member is matched for each pattern) ftree_skip being 1
 	 * forces us to go to the next arg now.
 	 */
 	if (ftree_skip) {

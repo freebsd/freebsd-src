@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: str.c,v 1.2 1994/09/24 02:54:18 davidg Exp $
  */
 
 #ifndef lint
@@ -449,21 +449,21 @@ vis_str(cp)
 
     if (cp == NULL)
 	return (NULL);
-    
+
     for (dp = cp; *dp++;)
 	continue;
     n = ((dp - cp) << 2) + 1; /* 4 times + NULL */
     if (dstsize < n) {
-	sdst = (char *) (dstsize ? 
+	sdst = (char *) (dstsize ?
 			    xrealloc(sdst, (size_t) n * sizeof(char)) :
 			    xmalloc((size_t) n * sizeof(char)));
 	dstsize = n;
     }
-    /* 
+    /*
      * XXX: When we are in AsciiOnly we want all characters >= 0200 to
      * be encoded, but currently there is no way in vis to do that.
      */
     (void) strvis(sdst, short2str(cp), VIS_NOSLASH);
     return (sdst);
 }
-    
+

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: expand.c,v 1.2 1994/09/24 02:57:34 davidg Exp $
+ *	$Id: expand.c,v 1.3 1995/03/01 13:04:15 guido Exp $
  */
 
 #ifndef lint
@@ -322,10 +322,10 @@ expari(flag)
 	 * scan backwards looking for the start of arithmetic.  If the
 	 * next previous character is a CTLESC character, then we
 	 * have to rescan starting from the beginning since CTLESC
-	 * characters have to be processed left to right.  
+	 * characters have to be processed left to right.
 	 */
 	CHECKSTRSPACE(8, expdest);
-	USTPUTC('\0', expdest); 
+	USTPUTC('\0', expdest);
 	start = stackblock();
 	p = expdest;
 	while (*p != CTLARI && p >= start)
@@ -372,7 +372,7 @@ expbackq(cmd, quoted, flag)
 	saveifs = ifsfirst;
 	savelastp = ifslastp;
 	saveargbackq = argbackq;
-	saveherefd = herefd;      
+	saveherefd = herefd;
 	herefd = -1;
 	p = grabstackstr(dest);
 	evalbackcmd(cmd, &in);
@@ -625,7 +625,7 @@ numvar:
 			sep = '\0';
 			goto allargs;
 		}
-		/* fall through */			
+		/* fall through */
 	case '*':
 		sep = ' ';
 allargs:
@@ -783,8 +783,8 @@ expandmeta(str, flag)
 		expdir = NULL;
 		INTON;
 		if (exparg.lastp == savelastp) {
-			/* 
-			 * no matches 
+			/*
+			 * no matches
 			 */
 nometa:
 			*exparg.lastp = str;
@@ -969,7 +969,7 @@ msort(list, len)
 
 	if (len <= 1)
 		return list;
-	half = len >> 1;      
+	half = len >> 1;
 	p = list;
 	for (n = half ; --n >= 0 ; ) {
 		q = p;

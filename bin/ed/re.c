@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: re.c,v 1.8 1994/09/24 02:55:29 davidg Exp $
+ *	$Id: re.c,v 1.9 1995/03/19 13:28:36 joerg Exp $
  */
 
 #ifndef lint
@@ -39,7 +39,7 @@ extern int patlock;
 
 char errmsg[MAXPATHLEN + 40] = "";
 
-/* get_compiled_pattern: return pointer to compiled pattern from command 
+/* get_compiled_pattern: return pointer to compiled pattern from command
    buffer */
 pattern_t *
 get_compiled_pattern()

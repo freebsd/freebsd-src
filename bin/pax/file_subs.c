@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: file_subs.c,v 1.2 1994/09/24 02:56:19 davidg Exp $
  */
 
 #ifndef lint
@@ -159,7 +159,7 @@ file_close(arcn, fd)
 	/*
 	 * set owner/groups first as this may strip off mode bits we want
 	 * then set file permission modes. Then set file access and
-	 * modification times. 
+	 * modification times.
 	 */
 	if (pids)
 		res = set_ids(arcn->name, arcn->sb.st_uid, arcn->sb.st_gid);
@@ -180,7 +180,7 @@ file_close(arcn, fd)
 /*
  * lnk_creat()
  *	Create a hard link to arcn->ln_name from arcn->name. arcn->ln_name
- *	must exist; 
+ *	must exist;
  * Return:
  *	0 if ok, -1 otherwise
  */
@@ -266,7 +266,7 @@ chk_same(arcn)
 {
 	struct stat sb;
 
-	/* 
+	/*
 	 * if file does not exist, return. if file exists and -k, skip it
 	 * quietly
 	 */
@@ -570,7 +570,7 @@ unlnk_exist(name, type)
 		 */
 		if (rmdir(name) < 0) {
 			if (type == PAX_DIR)
-				return(1); 
+				return(1);
 			syswarn(1,errno,"Unable to remove directory %s", name);
 			return(-1);
 		}
@@ -847,7 +847,7 @@ file_write(fd, str, cnt, rem, isempt, sz, name)
 	register char *end;
 	register int wcnt;
 	register char *st = str;
-	
+
 	/*
 	 * while we have data to process
 	 */

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: alias.c,v 1.2 1994/09/24 02:57:20 davidg Exp $
  */
 
 #ifndef lint
@@ -227,7 +227,7 @@ unaliascmd(argc, argv)
 	char **argv;
 	{
 	int i;
-	
+
 	while ((i = nextopt("a")) != '\0') {
 		if (i == 'a') {
 			rmaliases();

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pax.h	8.2 (Berkeley) 4/18/94
- *	$Id$
+ *	$Id: pax.h,v 1.2 1994/09/24 02:56:28 davidg Exp $
  */
 
 /*
@@ -63,7 +63,7 @@
 #define DEFOP		LIST	/* if no flags default is to LIST */
 
 /*
- * Device type of the current archive volume 
+ * Device type of the current archive volume
  */
 #define ISREG		0	/* regular file */
 #define ISCHR		1	/* character device */
@@ -76,7 +76,7 @@
  *
  * The format specific routine table allows new archive formats to be quickly
  * added. Overall pax operation is independent of the actual format used to
- * form the archive. Only those routines which deal directly with the archive 
+ * form the archive. Only those routines which deal directly with the archive
  * are tailored to the oddities of the specifc format. All other routines are
  * independent of the archive format. Data flow in and out of the format
  * dependent routines pass pointers to ARCHD structure (described below).
@@ -207,7 +207,7 @@ typedef struct {
 #define PAX_FIF		7		/* fifo */
 #define PAX_HLK		8		/* hard link */
 #define PAX_HRG		9		/* hard link to a regular file */
-#define PAX_CTG		10		/* high performance file */ 
+#define PAX_CTG		10		/* high performance file */
 } ARCHD;
 
 /*

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: print.c,v 1.3 1995/04/28 19:29:30 ache Exp $
+ *	$Id: print.c,v 1.4 1995/04/29 15:17:16 bde Exp $
  */
 
 #ifndef lint
@@ -70,19 +70,19 @@ print(tp, wp, ldisc, fmt)
 	/* Line discipline. */
 	if (ldisc != TTYDISC) {
 		switch(ldisc) {
-		case TABLDISC:	
+		case TABLDISC:
 			cnt += printf("tablet disc; ");
 			break;
 		case NTTYDISC:
 			cnt += printf("new tty disc; ");
 			break;
-		case SLIPDISC:	
+		case SLIPDISC:
 			cnt += printf("slip disc; ");
 			break;
 		case PPPDISC:
 			cnt += printf("ppp disc; ");
 			break;
-		default:	
+		default:
 			cnt += printf("#%d disc; ", ldisc);
 			break;
 		}

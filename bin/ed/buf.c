@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: buf.c,v 1.6 1994/09/24 02:55:22 davidg Exp $
  */
 #ifndef lint
 static char *rcsid = "@(#)buf.c,v 1.4 1994/02/01 00:34:35 alm Exp";
@@ -253,7 +253,7 @@ init_buffers()
 {
 	int i = 0;
 
-	/* Read stdin one character at a time to avoid i/o contention 
+	/* Read stdin one character at a time to avoid i/o contention
 	   with shell escapes invoked by nonterminal input, e.g.,
 	   ed - <<EOF
 	   !cat
