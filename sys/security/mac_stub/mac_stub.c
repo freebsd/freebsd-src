@@ -389,6 +389,18 @@ stub_fragment_match(struct mbuf *fragment, struct label *fragmentlabel,
 }
 
 static void
+stub_reflect_mbuf_icmp(struct mbuf *m, struct label *mlabel)
+{
+
+}
+
+static void
+stub_reflect_mbuf_tcp(struct mbuf *m, struct label *mlabel)
+{
+
+}
+
+static void
 stub_relabel_ifnet(struct ucred *cred, struct ifnet *ifnet,
     struct label *ifnetlabel, struct label *newlabel)
 {
@@ -772,6 +784,14 @@ stub_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
 }
 
 static int
+stub_check_vnode_deleteextattr(struct ucred *cred, struct vnode *vp,
+    struct label *label, int attrnamespace, const char *name)
+{
+
+	return (0);
+}
+
+static int
 stub_check_vnode_exec(struct ucred *cred, struct vnode *vp,
     struct label *label, struct image_params *imgp,
     struct label *execlabel)
@@ -800,6 +820,14 @@ static int
 stub_check_vnode_link(struct ucred *cred, struct vnode *dvp,
     struct label *dlabel, struct vnode *vp, struct label *label,
     struct componentname *cnp)
+{
+
+	return (0);
+}
+
+static int
+stub_check_vnode_listextattr(struct ucred *cred, struct vnode *vp,
+    struct label *label, int attrnamespace)
 {
 
 	return (0);
@@ -1040,6 +1068,8 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_create_mbuf_multicast_encap = stub_create_mbuf_multicast_encap,
 	.mpo_create_mbuf_netlayer = stub_create_mbuf_netlayer,
 	.mpo_fragment_match = stub_fragment_match,
+	.mpo_reflect_mbuf_icmp = stub_reflect_mbuf_icmp,
+	.mpo_reflect_mbuf_tcp = stub_reflect_mbuf_tcp,
 	.mpo_relabel_ifnet = stub_relabel_ifnet,
 	.mpo_update_ipq = stub_update_ipq,
 	.mpo_create_cred = stub_create_cred,
@@ -1090,10 +1120,12 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_check_vnode_create = stub_check_vnode_create,
 	.mpo_check_vnode_delete = stub_check_vnode_delete,
 	.mpo_check_vnode_deleteacl = stub_check_vnode_deleteacl,
+	.mpo_check_vnode_deleteextattr = stub_check_vnode_deleteextattr,
 	.mpo_check_vnode_exec = stub_check_vnode_exec,
 	.mpo_check_vnode_getacl = stub_check_vnode_getacl,
 	.mpo_check_vnode_getextattr = stub_check_vnode_getextattr,
 	.mpo_check_vnode_link = stub_check_vnode_link,
+	.mpo_check_vnode_listextattr = stub_check_vnode_listextattr,
 	.mpo_check_vnode_lookup = stub_check_vnode_lookup,
 	.mpo_check_vnode_mmap = stub_check_vnode_mmap,
 	.mpo_check_vnode_mprotect = stub_check_vnode_mprotect,
