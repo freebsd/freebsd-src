@@ -21,11 +21,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
-20030728:
+20040728:
 	System compiler has been upgraded to GCC 3.4.2-pre. As with any major
 	compiler upgrade, there are several issues to be aware of. GCC 3.4.x
 	has broken C++ ABI compatibility with previous releases yet again
-	and users will have to rebuild all their C++ programs with the new 
+	and users will have to rebuild all their C++ programs with the new
 	compiler. A new unit-at-a-time optimization mode, which is default
 	in this compiler release, is more aggressive in removing unused
 	static symbols. This is the likely cause of 'make buildworld'
