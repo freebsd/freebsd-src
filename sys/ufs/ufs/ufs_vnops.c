@@ -254,6 +254,12 @@ ufs_open(struct vop_open_args *ap)
 	    (ap->a_mode & (FWRITE | O_APPEND)) == FWRITE)
 		return (EPERM);
 	vnode_create_vobject(vp, DIP(ip, i_size), ap->a_td);
+	/*
+	 * Set the access time - this catches normal open(2) of files
+	 * as well as execve(2).
+	 */
+	ip->i_flag |= IN_ACCESS;
+	ufs_itimes(vp);
 	return (0);
 }
 
