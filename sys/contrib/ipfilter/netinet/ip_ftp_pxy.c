@@ -49,10 +49,12 @@ int ippr_ftp_pasv __P((fr_info_t *, ip_t *, nat_t *, ftpside_t *, int));
 int ippr_ftp_port __P((fr_info_t *, ip_t *, nat_t *, ftpside_t *, int));
 int ippr_ftp_process __P((fr_info_t *, ip_t *, nat_t *, ftpinfo_t *, int));
 int ippr_ftp_server __P((fr_info_t *, ip_t *, nat_t *, ftpinfo_t *, int));
-int ippr_ftp_valid __P((char *, size_t));
+int ippr_ftp_valid __P((int, char *, size_t));
+int ippr_ftp_server_valid __P((char *, size_t));
+int ippr_ftp_client_valid __P((char *, size_t));
 u_short ippr_ftp_atoi __P((char **));
 
-static	frentry_t	natfr;
+static	frentry_t	ftppxyfr;
 int	ippr_ftp_pasvonly = 0;
 int	ippr_ftp_insecure = 0;
 
@@ -62,9 +64,9 @@ int	ippr_ftp_insecure = 0;
  */
 int ippr_ftp_init()
 {
-	bzero((char *)&natfr, sizeof(natfr));
-	natfr.fr_ref = 1;
-	natfr.fr_flags = FR_INQUE|FR_PASS|FR_QUICK|FR_KEEPSTATE;
+	bzero((char *)&ftppxyfr, sizeof(ftppxyfr));
+	ftppxyfr.fr_ref = 1;
+	ftppxyfr.fr_flags = FR_INQUE|FR_PASS|FR_QUICK|FR_KEEPSTATE;
 	return 0;
 }
 
@@ -105,9 +107,9 @@ int dlen;
 {
 	tcphdr_t *tcp, tcph, *tcp2 = &tcph;
 	char newbuf[IPF_FTPBUFSZ], *s;
-	u_short a5, a6, sp, dp;
 	u_int a1, a2, a3, a4;
 	struct in_addr swip;
+	u_short a5, a6, sp;
 	size_t nlen, olen;
 	fr_info_t fi;
 	int inc, off;
@@ -173,7 +175,7 @@ int dlen;
 	a4 = a1 & 0xff;
 	a1 >>= 24;
 	olen = s - f->ftps_rptr;
-	/* DO NOT change this to sprintf! */
+	/* DO NOT change this to snprintf! */
 	(void) sprintf(newbuf, "%s %u,%u,%u,%u,%u,%u\r\n",
 		       "PORT", a1, a2, a3, a4, a5, a6);
 
@@ -241,46 +243,47 @@ int dlen;
 	 * Add skeleton NAT entry for connection which will come back the
 	 * other way.
 	 */
-	sp = htons(a5 << 8 | a6);
+	sp = (a5 << 8 | a6);
 	/*
 	 * Don't allow the PORT command to specify a port < 1024 due to
 	 * security crap.
 	 */
-	if (ntohs(sp) < 1024)
+	if (sp < 1024)
 		return 0;
 	/*
 	 * The server may not make the connection back from port 20, but
 	 * it is the most likely so use it here to check for a conflicting
 	 * mapping.
 	 */
-	dp = htons(fin->fin_data[1] - 1);
-	ipn = nat_outlookup(fin->fin_ifp, IPN_TCP, nat->nat_p, nat->nat_inip,
-			    ip->ip_dst, (dp << 16) | sp, 0);
+	bcopy((char *)fin, (char *)&fi, sizeof(fi));
+	fi.fin_data[0] = sp;
+	fi.fin_data[1] = fin->fin_data[1] - 1;
+	ipn = nat_outlookup(&fi, IPN_TCP, nat->nat_p, nat->nat_inip,
+			    ip->ip_dst, 0);
 	if (ipn == NULL) {
 		int slen;
 
 		slen = ip->ip_len;
 		ip->ip_len = fin->fin_hlen + sizeof(*tcp2);
-		bcopy((char *)fin, (char *)&fi, sizeof(fi));
 		bzero((char *)tcp2, sizeof(*tcp2));
 		tcp2->th_win = htons(8192);
-		tcp2->th_sport = sp;
+		tcp2->th_sport = htons(sp);
 		tcp2->th_off = 5;
 		tcp2->th_dport = 0; /* XXX - don't specify remote port */
-		fi.fin_data[0] = ntohs(sp);
 		fi.fin_data[1] = 0;
 		fi.fin_dlen = sizeof(*tcp2);
 		fi.fin_dp = (char *)tcp2;
-		fi.fin_fr = &natfr;
+		fi.fin_fr = &ftppxyfr;
 		fi.fin_out = 1;
 		swip = ip->ip_src;
 		fi.fin_fi.fi_saddr = nat->nat_inip.s_addr;
 		ip->ip_src = nat->nat_inip;
-		ipn = nat_new(nat->nat_ptr, ip, &fi, IPN_TCP|FI_W_DPORT,
+		ipn = nat_new(&fi, ip, nat->nat_ptr, NULL, IPN_TCP|FI_W_DPORT,
 			      NAT_OUTBOUND);
 		if (ipn != NULL) {
 			ipn->nat_age = fr_defnatage;
-			(void) fr_addstate(ip, &fi, FI_W_DPORT);
+			(void) fr_addstate(ip, &fi, NULL,
+					   FI_W_DPORT|FI_IGNOREPKT);
 		}
 		ip->ip_len = slen;
 		ip->ip_src = swip;
@@ -340,7 +343,8 @@ int dlen;
 		   !strncmp(cmd, "ADAT ", 5)) {
 		ftp->ftp_passok = FTPXY_ADAT_1;
 		ftp->ftp_incok = 1;
-	} else if ((ftp->ftp_passok == FTPXY_PAOK_2) &&
+	} else if ((ftp->ftp_passok == FTPXY_PAOK_1 ||
+		    ftp->ftp_passok == FTPXY_PAOK_2) &&
 		 !strncmp(cmd, "ACCT ", 5)) {
 		ftp->ftp_passok = FTPXY_ACCT_1;
 		ftp->ftp_incok = 1;
@@ -368,8 +372,8 @@ int dlen;
 {
 	tcphdr_t *tcp, tcph, *tcp2 = &tcph;
 	struct in_addr swip, swip2;
-	u_short a5, a6, sp, dp;
 	u_int a1, a2, a3, a4;
+	u_short a5, a6, dp;
 	fr_info_t fi;
 	nat_t *ipn;
 	int inc;
@@ -501,26 +505,27 @@ int dlen;
 	 * Add skeleton NAT entry for connection which will come back the
 	 * other way.
 	 */
-	sp = 0;
+	bcopy((char *)fin, (char *)&fi, sizeof(fi));
+	fi.fin_data[0] = 0;
 	dp = htons(fin->fin_data[1] - 1);
-	ipn = nat_outlookup(fin->fin_ifp, IPN_TCP, nat->nat_p, nat->nat_inip,
-			    ip->ip_dst, (dp << 16) | sp, 0);
+	fi.fin_data[1] = ntohs(dp);
+	ipn = nat_outlookup(&fi, IPN_TCP, nat->nat_p, nat->nat_inip,
+			    ip->ip_dst, 0);
 	if (ipn == NULL) {
 		int slen;
 
 		slen = ip->ip_len;
 		ip->ip_len = fin->fin_hlen + sizeof(*tcp2);
-		bcopy((char *)fin, (char *)&fi, sizeof(fi));
 		bzero((char *)tcp2, sizeof(*tcp2));
 		tcp2->th_win = htons(8192);
 		tcp2->th_sport = 0;		/* XXX - fake it for nat_new */
 		tcp2->th_off = 5;
-		fi.fin_data[0] = a5 << 8 | a6;
+		fi.fin_data[1] = a5 << 8 | a6;
 		fi.fin_dlen = sizeof(*tcp2);
-		tcp2->th_dport = htons(fi.fin_data[0]);
-		fi.fin_data[1] = 0;
+		tcp2->th_dport = htons(fi.fin_data[1]);
+		fi.fin_data[0] = 0;
 		fi.fin_dp = (char *)tcp2;
-		fi.fin_fr = &natfr;
+		fi.fin_fr = &ftppxyfr;
 		fi.fin_out = 1;
 		swip = ip->ip_src;
 		swip2 = ip->ip_dst;
@@ -528,11 +533,12 @@ int dlen;
 		fi.fin_fi.fi_saddr = nat->nat_inip.s_addr;
 		ip->ip_dst = ip->ip_src;
 		ip->ip_src = nat->nat_inip;
-		ipn = nat_new(nat->nat_ptr, ip, &fi, IPN_TCP|FI_W_SPORT,
+		ipn = nat_new(&fi, ip, nat->nat_ptr, NULL, IPN_TCP|FI_W_SPORT,
 			      NAT_OUTBOUND);
 		if (ipn != NULL) {
 			ipn->nat_age = fr_defnatage;
-			(void) fr_addstate(ip, &fi, FI_W_SPORT);
+			(void) fr_addstate(ip, &fi, NULL,
+					   FI_W_SPORT|FI_IGNOREPKT);
 		}
 		ip->ip_len = slen;
 		ip->ip_src = swip;
@@ -601,7 +607,7 @@ int dlen;
  * Look to see if the buffer starts with something which we recognise as
  * being the correct syntax for the FTP protocol.
  */
-int ippr_ftp_valid(buf, len)
+int ippr_ftp_client_valid(buf, len)
 char *buf;
 size_t len;
 {
@@ -614,22 +620,7 @@ size_t len;
 	c = *s++;
 	i--;
 
-	if (isdigit(c)) {
-		c = *s++;
-		i--;
-		if (isdigit(c)) {
-			c = *s++;
-			i--;
-			if (isdigit(c)) {
-				c = *s++;
-				i--;
-				if ((c != '-') && (c != ' '))
-					return 1;
-			} else
-				return 1;
-		} else
-			return 1;
-	} else if (isalpha(c)) {
+	if (isalpha(c)) {
 		c = *s++;
 		i--;
 		if (isalpha(c)) {
@@ -657,6 +648,60 @@ size_t len;
 			return 0;
 	}
 	return 2;
+}
+
+
+int ippr_ftp_server_valid(buf, len)
+char *buf;
+size_t len;
+{
+	register char *s, c;
+	register size_t i = len;
+
+	if (i < 5)
+		return 2;
+	s = buf;
+	c = *s++;
+	i--;
+
+	if (isdigit(c)) {
+		c = *s++;
+		i--;
+		if (isdigit(c)) {
+			c = *s++;
+			i--;
+			if (isdigit(c)) {
+				c = *s++;
+				i--;
+				if ((c != '-') && (c != ' '))
+					return 1;
+			} else
+				return 1;
+		} else
+			return 1;
+	} else
+		return 1;
+	for (; i; i--) {
+		c = *s++;
+		if (c == '\n')
+			return 0;
+	}
+	return 2;
+}
+
+
+int ippr_ftp_valid(side, buf, len)
+int side;
+char *buf;
+size_t len;
+{
+	int ret;
+
+	if (side == 0)
+		ret = ippr_ftp_client_valid(buf, len);
+	else
+		ret = ippr_ftp_server_valid(buf, len);
+	return ret;
 }
 
 
@@ -715,7 +760,7 @@ int rv;
 	if (f->ftps_len + f->ftps_seq == ntohl(tcp->th_seq))
 		f->ftps_seq = ntohl(tcp->th_seq);
 	else if (ntohl(tcp->th_seq) + i != f->ftps_seq) {
-		return APR_ERR(-1);
+		return APR_ERR(1);
 	}
 	f->ftps_len = mlen;
 
@@ -732,11 +777,12 @@ int rv;
 		wptr += len;
 		f->ftps_wptr = wptr;
 		if (f->ftps_junk == 2)
-			f->ftps_junk = ippr_ftp_valid(rptr, wptr - rptr);
+			f->ftps_junk = ippr_ftp_valid(rv, rptr, wptr - rptr);
 
 		while ((f->ftps_junk == 0) && (wptr > rptr)) {
-			f->ftps_junk = ippr_ftp_valid(rptr, wptr - rptr);
+			f->ftps_junk = ippr_ftp_valid(rv, rptr, wptr - rptr);
 			if (f->ftps_junk == 0) {
+				f->ftps_cmds++;
 				len = wptr - rptr;
 				f->ftps_rptr = rptr;
 				if (rv)
@@ -746,8 +792,16 @@ int rv;
 					inc += ippr_ftp_client(fin, ip, nat,
 							       ftp, len);
 				rptr = f->ftps_rptr;
+				wptr = f->ftps_wptr;
 			}
 		}
+
+		/*
+		 * Off to a bad start so lets just forget about using the
+		 * ftp proxy for this connection.
+		 */
+		if ((f->ftps_cmds == 0) && (f->ftps_junk == 1))
+			return APR_ERR(2);
 
 		while ((f->ftps_junk == 1) && (rptr < wptr)) {
 			while ((rptr < wptr) && (*rptr != '\r'))

@@ -3,6 +3,9 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
+#ifdef __sgi
+# include <sys/ptimers.h>
+#endif
 #include <sys/errno.h>
 #include <sys/types.h>
 #include <sys/param.h>
@@ -34,7 +37,6 @@
 # include <string.h>
 # include <stdlib.h>
 #endif
-#include <sys/uio.h>
 #if !defined(__SVR4) && !defined(__svr4__)
 # ifndef linux
 #  include <sys/mbuf.h>
@@ -77,10 +79,10 @@
 #endif
 #include <netinet/tcpip.h>
 #include "netinet/ip_fil.h"
-#include "netinet/ip_proxy.h"
 #include "netinet/ip_nat.h"
 #include "netinet/ip_frag.h"
 #include "netinet/ip_state.h"
+#include "netinet/ip_proxy.h"
 #include "netinet/ip_auth.h"
 # if defined(__FreeBSD_version) && (__FreeBSD_version >= 300000)
 #  include <sys/malloc.h>
@@ -97,7 +99,6 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)fil.c	1.36 6/5/96 (C) 1993-2000 Darren Reed";
-/* static const char rcsid[] = "@(#)$Id: fil.c,v 2.35.2.39 2001/07/18 13:30:32 darrenr Exp $"; */
 static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
 
@@ -108,7 +109,7 @@ extern	int	opts;
 
 # define	FR_VERBOSE(verb_pr)			verbose verb_pr
 # define	FR_DEBUG(verb_pr)			debug verb_pr
-# define	IPLLOG(a, c, d, e)		ipllog()
+# define	IPLLOG(a, c, d, e)		ipflog(a, c, d, e)
 #else /* #ifndef _KERNEL */
 # define	FR_VERBOSE(verb_pr)
 # define	FR_DEBUG(verb_pr)
@@ -263,7 +264,7 @@ fr_info_t *fin;
 
 	fin->fin_off = off;
 	fin->fin_plen = plen;
-	fin->fin_dp = (void *)tcp;
+	fin->fin_dp = (char *)tcp;
 	off <<= 3;
 
 	switch (p)
@@ -283,7 +284,7 @@ fr_info_t *fin;
 			{
 			case ICMP6_ECHO_REPLY :
 			case ICMP6_ECHO_REQUEST :
-				minicmpsz = ICMP6ERR_MINPKTLEN;
+				minicmpsz = ICMP6_MINLEN;
 				break;
 			case ICMP6_DST_UNREACH :
 			case ICMP6_PACKET_TOO_BIG :
@@ -381,6 +382,19 @@ getports:
 		if (!off && (fin->fin_dlen > 3)) {
 			fin->fin_data[0] = ntohs(tcp->th_sport);
 			fin->fin_data[1] = ntohs(tcp->th_dport);
+		}
+		break;
+	case IPPROTO_ESP :
+#ifdef	USE_INET6
+		if (v == 6) {
+			if (plen < 8)
+				fi->fi_fl |= FI_SHORT;
+		} else
+#endif
+		if (v == 4) {
+			if (((ip->ip_len < hlen + 8) && !off) ||
+			    (off && off < 8))
+				fi->fi_fl |= FI_SHORT;
 		}
 		break;
 	default :
@@ -548,8 +562,8 @@ fr_info_t *fin;
  * Could be per interface, but this gets real nasty when you don't have
  * kernel sauce.
  */
-int fr_scanlist(pass, ip, fin, m)
-u_32_t pass;
+int fr_scanlist(passin, ip, fin, m)
+u_32_t passin;
 ip_t *ip;
 register fr_info_t *fin;
 void *m;
@@ -557,20 +571,21 @@ void *m;
 	register struct frentry *fr;
 	register fr_ip_t *fi = &fin->fin_fi;
 	int rulen, portcmp = 0, off, skip = 0, logged = 0;
-	u_32_t passt;
+	u_32_t pass, passt, passl;
+	frentry_t *frl;
 
+	frl = NULL;
+	pass = passin;
 	fr = fin->fin_fr;
 	fin->fin_fr = NULL;
-	fin->fin_rule = 0;
-	fin->fin_group = 0;
 	off = fin->fin_off;
-	pass |= (fi->fi_fl << 24);
 
 	if ((fi->fi_fl & FI_TCPUDP) && (fin->fin_dlen > 3) && !off)
 		portcmp = 1;
 
 	for (rulen = 0; fr; fr = fr->fr_next, rulen++) {
 		if (skip) {
+			FR_VERBOSE(("%d (%#x)\n", skip, fr->fr_flags));
 			skip--;
 			continue;
 		}
@@ -581,25 +596,28 @@ void *m;
 		 * check that we are working for the right interface
 		 */
 #ifdef	_KERNEL
-# if BSD >= 199306
+# if	(BSD >= 199306)
 		if (fin->fin_out != 0) {
 			if ((fr->fr_oifa &&
-			     fr->fr_oifa != ((mb_t *)m)->m_pkthdr.rcvif) ||
-			    (fr->fr_ifa && fr->fr_ifa != fin->fin_ifp))
+			     (fr->fr_oifa != ((mb_t *)m)->m_pkthdr.rcvif)))
 				continue;
-		} else
+		}
 # endif
-			if (fr->fr_ifa && fr->fr_ifa != fin->fin_ifp)
-				continue;
 #else
 		if (opts & (OPT_VERBOSE|OPT_DEBUG))
 			printf("\n");
-		FR_VERBOSE(("%c", (pass & FR_PASS) ? 'p' : 
-				  (pass & FR_AUTH) ? 'a' : 'b'));
+#endif
+
+		FR_VERBOSE(("%c", fr->fr_skip ? 's' :
+				  (pass & FR_PASS) ? 'p' : 
+				  (pass & FR_AUTH) ? 'a' :
+				  (pass & FR_ACCOUNT) ? 'A' :
+				  (pass & FR_NOMATCH) ? 'n' : 'b'));
+
 		if (fr->fr_ifa && fr->fr_ifa != fin->fin_ifp)
 			continue;
+
 		FR_VERBOSE((":i"));
-#endif
 		{
 			register u_32_t	*ld, *lm, *lip;
 			register int i;
@@ -621,22 +639,19 @@ void *m;
 			/*
 			 * Unrolled loops (4 each, for 32 bits).
 			 */
-			i |= ((*lip & *lm) != *ld) << 19;
 			FR_DEBUG(("1a. %#08x & %#08x != %#08x\n",
 				   *lip, *lm, *ld));
+			i |= ((*lip++ & *lm++) != *ld++) << 5;
 			if (fi->fi_v == 6) {
-				lip++, lm++, ld++;
-				i |= ((*lip & *lm) != *ld) << 19;
 				FR_DEBUG(("1b. %#08x & %#08x != %#08x\n",
 					   *lip, *lm, *ld));
-				lip++, lm++, ld++;
-				i |= ((*lip & *lm) != *ld) << 19;
+				i |= ((*lip++ & *lm++) != *ld++) << 5;
 				FR_DEBUG(("1c. %#08x & %#08x != %#08x\n",
 					   *lip, *lm, *ld));
-				lip++, lm++, ld++;
-				i |= ((*lip & *lm) != *ld) << 19;
+				i |= ((*lip++ & *lm++) != *ld++) << 5;
 				FR_DEBUG(("1d. %#08x & %#08x != %#08x\n",
 					   *lip, *lm, *ld));
+				i |= ((*lip++ & *lm++) != *ld++) << 5;
 			} else {
 				lip += 3;
 				lm += 3;
@@ -645,23 +660,19 @@ void *m;
 			i ^= (fr->fr_flags & FR_NOTSRCIP);
 			if (i)
 				continue;
-			lip++, lm++, ld++;
-			i |= ((*lip & *lm) != *ld) << 20;
 			FR_DEBUG(("2a. %#08x & %#08x != %#08x\n",
 				   *lip, *lm, *ld));
+			i |= ((*lip++ & *lm++) != *ld++) << 6;
 			if (fi->fi_v == 6) {
-				lip++, lm++, ld++;
-				i |= ((*lip & *lm) != *ld) << 20;
 				FR_DEBUG(("2b. %#08x & %#08x != %#08x\n",
 					   *lip, *lm, *ld));
-				lip++, lm++, ld++;
-				i |= ((*lip & *lm) != *ld) << 20;
+				i |= ((*lip++ & *lm++) != *ld++) << 6;
 				FR_DEBUG(("2c. %#08x & %#08x != %#08x\n",
 					   *lip, *lm, *ld));
-				lip++, lm++, ld++;
-				i |= ((*lip & *lm) != *ld) << 20;
+				i |= ((*lip++ & *lm++) != *ld++) << 6;
 				FR_DEBUG(("2d. %#08x & %#08x != %#08x\n",
 					   *lip, *lm, *ld));
+				i |= ((*lip++ & *lm++) != *ld++) << 6;
 			} else {
 				lip += 3;
 				lm += 3;
@@ -670,14 +681,12 @@ void *m;
 			i ^= (fr->fr_flags & FR_NOTDSTIP);
 			if (i)
 				continue;
-			lip++, lm++, ld++;
-			i |= ((*lip & *lm) != *ld);
 			FR_DEBUG(("3. %#08x & %#08x != %#08x\n",
 				   *lip, *lm, *ld));
-			lip++, lm++, ld++;
-			i |= ((*lip & *lm) != *ld);
+			i |= ((*lip++ & *lm++) != *ld++);
 			FR_DEBUG(("4. %#08x & %#08x != %#08x\n",
 				   *lip, *lm, *ld));
+			i |= ((*lip & *lm) != *ld);
 			if (i)
 				continue;
 		}
@@ -704,17 +713,30 @@ void *m;
 			}
 		}
 		FR_VERBOSE(("*"));
-		/*
-		 * Just log this packet...
-		 */
+
+		if (fr->fr_flags & FR_NOMATCH) {
+			passt = passl;
+			passl = passin;
+			fin->fin_fr = frl;
+			frl = NULL;
+			if (fr->fr_flags & FR_QUICK)
+				break;
+			continue;
+		}
+
+		passl = passt;
 		passt = fr->fr_flags;
+		frl = fin->fin_fr;
+		fin->fin_fr = fr;
 #if (BSD >= 199306) && (defined(_KERNEL) || defined(KERNEL))
 		if (securelevel <= 0)
 #endif
 			if ((passt & FR_CALLNOW) && fr->fr_func)
 				passt = (*fr->fr_func)(passt, ip, fin);
-		fin->fin_fr = fr;
 #ifdef  IPFILTER_LOG
+		/*
+		 * Just log this packet...
+		 */
 		if ((passt & FR_LOGMASK) == FR_LOG) {
 			if (!IPLLOG(passt, ip, fin, m)) {
 				if (passt & FR_LOGORBLOCK)
@@ -725,32 +747,33 @@ void *m;
 			logged = 1;
 		}
 #endif /* IPFILTER_LOG */
-		if (!(skip = fr->fr_skip) && (passt & FR_LOGMASK) != FR_LOG)
-			pass = passt;
-		FR_DEBUG(("pass %#x\n", pass));
 		ATOMIC_INCL(fr->fr_hits);
-		if (pass & FR_ACCOUNT)
+		if (passt & FR_ACCOUNT)
 			fr->fr_bytes += (U_QUAD_T)ip->ip_len;
 		else
 			fin->fin_icode = fr->fr_icode;
 		fin->fin_rule = rulen;
 		fin->fin_group = fr->fr_group;
-		if (fr->fr_grp) {
+		if (fr->fr_grp != NULL) {
 			fin->fin_fr = fr->fr_grp;
-			pass = fr_scanlist(pass, ip, fin, m);
+			passt = fr_scanlist(passt, ip, fin, m);
 			if (fin->fin_fr == NULL) {
 				fin->fin_rule = rulen;
 				fin->fin_group = fr->fr_group;
 				fin->fin_fr = fr;
 			}
-			if (pass & FR_DONTCACHE)
+			if (passt & FR_DONTCACHE)
 				logged = 1;
 		}
-		if (pass & FR_QUICK)
+		if (!(skip = fr->fr_skip) && (passt & FR_LOGMASK) != FR_LOG)
+			pass = passt;
+		FR_DEBUG(("pass %#x\n", pass));
+		if (passt & FR_QUICK)
 			break;
 	}
 	if (logged)
 		pass |= FR_DONTCACHE;
+	pass |= (fi->fi_fl << 24);
 	return pass;
 }
 
@@ -806,7 +829,7 @@ int out;
 	/*
 	 * disable delayed checksums.
 	 */
-	if (out && (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA)) {
+	if ((out != 0) && (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA)) {
 		in_delayed_cksum(m);
 		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 	}
@@ -846,6 +869,9 @@ int out;
 			/* 96 - enough for complete ICMP error IP header */
 			case IPPROTO_ICMP:
 				plen = ICMPERR_MAXPKTLEN - sizeof(ip_t);
+				break;
+			case IPPROTO_ESP:
+				plen = 8;
 				break;
 # ifdef USE_INET6
 	    		case IPPROTO_ICMPV6 :
@@ -918,20 +944,26 @@ int out;
 		ATOMIC_INCL(frstats[0].fr_ipv6[out]);
 		if (((ip6_t *)ip)->ip6_hlim < fr_minttl) {
 			ATOMIC_INCL(frstats[0].fr_badttl);
-			if (fr_minttllog)
-				logit = -2;
+			if (fr_minttllog & 1)
+				logit = -3;
+			if (fr_minttllog & 2)
+				drop = 1;
 		}
 	} else
 # endif
 	if (!out) {
 		if (fr_chksrc && !fr_verifysrc(ip->ip_src, ifp)) {
 			ATOMIC_INCL(frstats[0].fr_badsrc);
-			if (fr_chksrc == 2)
+			if (fr_chksrc & 1)
+				drop = 1;
+			if (fr_chksrc & 2)
 				logit = -2;
 		} else if (ip->ip_ttl < fr_minttl) {
 			ATOMIC_INCL(frstats[0].fr_badttl);
-			if (fr_minttllog)
+			if (fr_minttllog & 1)
 				logit = -3;
+			if (fr_minttllog & 2)
+				drop = 1;
 		}
 	}
 	if (drop) {
@@ -1022,6 +1054,7 @@ int out;
 					      FI_COPYSIZE);
 				if (pass & FR_NOMATCH) {
 					ATOMIC_INCL(frstats[out].fr_nom);
+					fin->fin_fr = NULL;
 				}
 			}
 		} else
@@ -1035,11 +1068,7 @@ int out;
 		 */
 		if ((pass & FR_AUTH)) {
 			if (fr_newauth((mb_t *)m, fin, ip) != 0) {
-#ifdef	_KERNEL
 				m = *mp = NULL;
-#else
-				;
-#endif
 				error = 0;
 			} else
 				error = ENOSPC;
@@ -1069,7 +1098,7 @@ int out;
 			}
 		}
 		if (pass & FR_KEEPSTATE) {
-			if (fr_addstate(ip, fin, 0) == NULL) {
+			if (fr_addstate(ip, fin, NULL, 0) == NULL) {
 				ATOMIC_INCL(frstats[out].fr_bads);
 			} else {
 				ATOMIC_INCL(frstats[out].fr_ads);
@@ -1098,11 +1127,19 @@ int out;
 		else
 #endif
 			list = ipacct[1][fr_active];
-		if ((fin->fin_fr = list) &&
-		    (fr_scanlist(FR_NOMATCH, ip, fin, m) & FR_ACCOUNT)) {
-			ATOMIC_INCL(frstats[1].fr_acct);
+		if (list != NULL) {
+			u_32_t sg, sr;
+
+			fin->fin_fr = list;
+			sg = fin->fin_group;
+			sr = fin->fin_rule;
+			if (fr_scanlist(FR_NOMATCH, ip, fin, m) & FR_ACCOUNT) {
+				ATOMIC_INCL(frstats[1].fr_acct);
+			}
+			fin->fin_group = sg;
+			fin->fin_rule = sr;
+			fin->fin_fr = fr;
 		}
-		fin->fin_fr = fr;
 		changed = ip_natout(ip, fin);
 	} else
 		fin->fin_fr = fr;
@@ -1151,10 +1188,10 @@ logit:
 # if	SOLARIS
 		mc = dupmsg(m);
 # else
-#  ifndef linux
-		mc = m_copy(m, 0, M_COPYALL);
+#  if defined(__OpenBSD__) && (OpenBSD >= 199905)
+		mc = m_copym2(m, 0, M_COPYALL, M_DONTWAIT);
 #  else
-		;
+		mc = m_copy(m, 0, M_COPYALL);
 #  endif
 # endif
 #endif
@@ -1171,7 +1208,6 @@ logit:
 		 * some operating systems.
 		 */
 		if (!out) {
-#ifdef	_KERNEL
 			if (pass & FR_RETICMP) {
 				int dst;
 
@@ -1187,19 +1223,6 @@ logit:
 					ATOMIC_INCL(frstats[1].fr_ret);
 				}
 			}
-#else
-			if ((pass & FR_RETMASK) == FR_RETICMP) {
-				verbose("- ICMP unreachable sent\n");
-				ATOMIC_INCL(frstats[0].fr_ret);
-			} else if ((pass & FR_RETMASK) == FR_FAKEICMP) {
-				verbose("- forged ICMP unreachable sent\n");
-				ATOMIC_INCL(frstats[0].fr_ret);
-			} else if (((pass & FR_RETMASK) == FR_RETRST) &&
-				   !(fin->fin_fl & FI_SHORT)) {
-				verbose("- TCP RST sent\n");
-				ATOMIC_INCL(frstats[1].fr_ret);
-			}
-#endif
 		} else {
 			if (pass & FR_RETRST)
 				error = ECONNRESET;
@@ -1224,8 +1247,10 @@ logit:
 		frdest_t *fdp = &fr->fr_tif;
 
 		if (((pass & FR_FASTROUTE) && !out) ||
-		    (fdp->fd_ifp && fdp->fd_ifp != (struct ifnet *)-1))
+		    (fdp->fd_ifp && fdp->fd_ifp != (struct ifnet *)-1)) {
 			(void) ipfr_fastroute(m, mp, fin, fdp);
+			m = *mp;
+		}
 
 		if (mc != NULL)
 			(void) ipfr_fastroute(mc, &mc, fin, &fr->fr_dif);
@@ -1260,6 +1285,12 @@ logit:
 		return 0;
 	if (pass & FR_AUTH)
 		return -2;
+	if ((pass & FR_RETMASK) == FR_RETRST)
+		return -3;
+	if ((pass & FR_RETMASK) == FR_RETICMP)
+		return -4;
+	if ((pass & FR_RETMASK) == FR_FAKEICMP)
+		return -5;
 	return -1;
 #endif /* _KERNEL */
 }
@@ -1481,7 +1512,7 @@ nodata:
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: fil.c,v 2.35.2.39 2001/07/18 13:30:32 darrenr Exp $
+ * $Id: fil.c,v 2.35.2.58 2002/03/13 02:23:13 darrenr Exp $
  */
 /*
  * Copy data from an mbuf chain starting "off" bytes from the beginning,
