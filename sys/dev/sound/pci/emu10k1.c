@@ -599,12 +599,14 @@ emu_vpos(struct sc_info *sc, struct emu_voice *v)
 static void
 emu_vdump(struct sc_info *sc, struct emu_voice *v)
 {
-	char *regname[] = { "cpf", "ptrx", "cvcf", "vtft", "z2", "z1", "psst", "dsl",
-			    "ccca", "ccr", "clp", "fxrt", "mapa", "mapb", NULL, NULL,
-			    "envvol", "atkhldv", "dcysusv", "lfoval1",
-			    "envval", "atkhldm", "dcysusm", "lfoval2",
-			    "ip", "ifatn", "pefe", "fmmod", "tremfrq", "fmfrq2",
-			    "tempenv" };
+	char *regname[] = {
+		"cpf", "ptrx", "cvcf", "vtft", "z2", "z1", "psst", "dsl",
+		"ccca", "ccr", "clp", "fxrt", "mapa", "mapb", NULL, NULL,
+		"envvol", "atkhldv", "dcysusv", "lfoval1",
+		"envval", "atkhldm", "dcysusm", "lfoval2",
+		"ip", "ifatn", "pefe", "fmmod", "tremfrq", "fmfrq2",
+		"tempenv"
+	};
 	int i, x;
 
 	printf("voice number %d\n", v->vnum);
