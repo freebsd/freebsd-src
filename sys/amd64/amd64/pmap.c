@@ -464,6 +464,7 @@ pmap_bootstrap(firstaddr)
 	/*
 	 * Initialize the kernel pmap (which is statically allocated).
 	 */
+	PMAP_LOCK_INIT(kernel_pmap);
 	kernel_pmap->pm_pml4 = (pdp_entry_t *) (KERNBASE + KPML4phys);
 	kernel_pmap->pm_active = -1;	/* don't allow deactivation */
 	TAILQ_INIT(&kernel_pmap->pm_pvlist);
@@ -1035,6 +1036,7 @@ pmap_pinit0(pmap)
 	struct pmap *pmap;
 {
 
+	PMAP_LOCK_INIT(pmap);
 	pmap->pm_pml4 = (pml4_entry_t *)(KERNBASE + KPML4phys);
 	pmap->pm_active = 0;
 	TAILQ_INIT(&pmap->pm_pvlist);
@@ -1054,6 +1056,8 @@ pmap_pinit(pmap)
 {
 	vm_page_t pml4pg;
 	static vm_pindex_t color;
+
+	PMAP_LOCK_INIT(pmap);
 
 	/*
 	 * allocate the page directory page
@@ -1306,6 +1310,7 @@ pmap_release(pmap_t pmap)
 	atomic_subtract_int(&cnt.v_wire_count, 1);
 	vm_page_free_zero(m);
 	vm_page_unlock_queues();
+	PMAP_LOCK_DESTROY(pmap);
 }
 
 static int
@@ -1675,6 +1680,7 @@ pmap_remove_all(vm_page_t m)
 #endif
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	while ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
+		PMAP_LOCK(pv->pv_pmap);
 		pv->pv_pmap->pm_stats.resident_count--;
 		pte = pmap_pte(pv->pv_pmap, pv->pv_va);
 		tpte = pte_load_clear(pte);
@@ -1702,6 +1708,7 @@ pmap_remove_all(vm_page_t m)
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
 		m->md.pv_list_count--;
 		pmap_unuse_pt(pv->pv_pmap, pv->pv_va, pv->pv_ptem);
+		PMAP_UNLOCK(pv->pv_pmap);
 		free_pv_entry(pv);
 	}
 	vm_page_flag_clear(m, PG_WRITEABLE);
@@ -1733,6 +1740,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 
 	anychanged = 0;
 
+	PMAP_LOCK(pmap);
 	for (; sva < eva; sva = va_next) {
 
 		pml4e = pmap_pml4e(pmap, sva);
@@ -1810,6 +1818,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	}
 	if (anychanged)
 		pmap_invalidate_all(pmap);
+	PMAP_UNLOCK(pmap);
 }
 
 /*
@@ -2183,6 +2192,7 @@ pmap_change_wiring(pmap, va, wired)
 	 * Wiring is not a hardware characteristic so there is no need to
 	 * invalidate TLB.
 	 */
+	PMAP_LOCK(pmap);
 	pte = pmap_pte(pmap, va);
 	if (wired && (*pte & PG_W) == 0) {
 		pmap->pm_stats.wired_count++;
@@ -2191,6 +2201,7 @@ pmap_change_wiring(pmap, va, wired)
 		pmap->pm_stats.wired_count--;
 		atomic_clear_long(pte, PG_W);
 	}
+	PMAP_UNLOCK(pmap);
 }
 
 
@@ -2438,6 +2449,7 @@ pmap_remove_pages(pmap, sva, eva)
 	}
 #endif
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	PMAP_LOCK(pmap);
 	for (pv = TAILQ_FIRST(&pmap->pm_pvlist); pv; pv = npv) {
 
 		if (pv->pv_va >= eva || pv->pv_va < sva) {
@@ -2498,6 +2510,7 @@ pmap_remove_pages(pmap, sva, eva)
 		free_pv_entry(pv);
 	}
 	pmap_invalidate_all(pmap);
+	PMAP_UNLOCK(pmap);
 }
 
 /*
@@ -2530,10 +2543,13 @@ pmap_is_modified(vm_page_t m)
 			continue;
 		}
 #endif
+		PMAP_LOCK(pv->pv_pmap);
 		pte = pmap_pte(pv->pv_pmap, pv->pv_va);
 		if (*pte & PG_M) {
+			PMAP_UNLOCK(pv->pv_pmap);
 			return TRUE;
 		}
+		PMAP_UNLOCK(pv->pv_pmap);
 	}
 	return (FALSE);
 }
@@ -2593,6 +2609,7 @@ pmap_clear_ptes(vm_page_t m, int bit)
 		}
 #endif
 
+		PMAP_LOCK(pv->pv_pmap);
 		pte = pmap_pte(pv->pv_pmap, pv->pv_va);
 		pbits = *pte;
 		if (pbits & bit) {
@@ -2606,6 +2623,7 @@ pmap_clear_ptes(vm_page_t m, int bit)
 			}
 			pmap_invalidate_page(pv->pv_pmap, pv->pv_va);
 		}
+		PMAP_UNLOCK(pv->pv_pmap);
 	}
 	if (bit == PG_RW)
 		vm_page_flag_clear(m, PG_WRITEABLE);
@@ -2666,6 +2684,7 @@ pmap_ts_referenced(vm_page_t m)
 			if (!pmap_track_modified(pv->pv_va))
 				continue;
 
+			PMAP_LOCK(pv->pv_pmap);
 			pte = pmap_pte(pv->pv_pmap, pv->pv_va);
 
 			if (pte && ((v = pte_load(pte)) & PG_A) != 0) {
@@ -2674,9 +2693,11 @@ pmap_ts_referenced(vm_page_t m)
 
 				rtval++;
 				if (rtval > 4) {
+					PMAP_UNLOCK(pv->pv_pmap);
 					break;
 				}
 			}
+			PMAP_UNLOCK(pv->pv_pmap);
 		} while ((pv = pvn) != NULL && pv != pvf);
 	}
 
