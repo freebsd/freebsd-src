@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.15 1995/03/16 18:17:33 bde Exp $
+ * $Id: vm_swap.c,v 1.16 1995/05/12 03:54:59 phk Exp $
  */
 
 #include <sys/param.h>
@@ -53,71 +53,16 @@
  * Indirect driver for multi-controller paging.
  */
 
-int nswap, nswdev;
+#ifndef NSWAPDEV
+#define NSWAPDEV	4
+#endif
+static struct swdevt should_be_malloced[NSWAPDEV];
+struct swdevt *swdevt = should_be_malloced;
+int nswap;
+int nswdev = NSWAPDEV;
 int vm_swap_size;
 int bswneeded;
 vm_offset_t swapbkva;		/* swap buffers kva */
-
-/*
- * Set up swap devices.
- * Initialize linked list of free swap
- * headers. These do not actually point
- * to buffers, but rather to pages that
- * are being swapped in and out.
- */
-void
-swapinit()
-{
-	register struct proc *p = &proc0;	/* XXX */
-	struct swdevt *swp;
-	int error;
-
-	/*
-	 * Count swap devices, and adjust total swap space available. Some of
-	 * the space will not be countable until later (dynamically
-	 * configurable devices) and some of the counted space will not be
-	 * available until a swapon() system call is issued, both usually
-	 * happen when the system goes multi-user.
-	 * 
-	 * If using NFS for swap, swdevt[0] will already be bdevvp'd.	XXX
-	 */
-	nswdev = 0;
-	nswap = 0;
-	for (swp = swdevt; swp->sw_dev != NODEV || swp->sw_vp != NULL; swp++) {
-		nswdev++;
-		if (swp->sw_nblks > nswap)
-			nswap = swp->sw_nblks;
-	}
-	if (nswdev == 0)
-		panic("swapinit");
-	if (nswdev > 1)
-		nswap = ((nswap + dmmax - 1) / dmmax) * dmmax;
-	nswap *= nswdev;
-	if (swdevt[0].sw_vp == NULL &&
-	    bdevvp(swdevt[0].sw_dev, &swdevt[0].sw_vp))
-		panic("swapvp");
-	/*
-	 * If there is no swap configured, tell the user. We don't
-	 * automatically activate any swapspaces in the kernel; the user must
-	 * explicitly use swapon to enable swaping on a device.
-	 */
-	if (nswap == 0)
-		printf("WARNING: no swap space found\n");
-	for (swp = swdevt;; swp++) {
-		if (swp->sw_dev == NODEV) {
-			if (swp->sw_vp == NULL)
-				break;
-
-			/* We DO enable NFS swapspaces */
-			error = swfree(p, swp - swdevt);
-			if (error) {
-				printf(
-				    "Couldn't enable swapspace %d, error = %d",
-				    swp - swdevt, error);
-			}
-		}
-	}
-}
 
 void
 swstrategy(bp)
@@ -194,43 +139,53 @@ swapon(p, uap, retval)
 	register struct vnode *vp;
 	register struct swdevt *sp;
 	dev_t dev;
-	int error;
+	int error,i;
 	struct nameidata nd;
+	struct vattr attr;
 
 	error = suser(p->p_ucred, &p->p_acflag);
 	if (error)
 		return (error);
+
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->name, p);
 	error = namei(&nd);
 	if (error)
 		return (error);
+
 	vp = nd.ni_vp;
-	if (vp->v_type != VBLK) {
-		vrele(vp);
-		return (ENOTBLK);
-	}
-	dev = (dev_t) vp->v_rdev;
-	if (major(dev) >= nblkdev) {
-		vrele(vp);
-		return (ENXIO);
-	}
-	for (sp = &swdevt[0]; sp->sw_dev != NODEV; sp++) {
-		if (sp->sw_dev == dev) {
-			if (sp->sw_flags & SW_FREED) {
-				vrele(vp);
-				return (EBUSY);
-			}
-			sp->sw_vp = vp;
-			error = swfree(p, sp - swdevt);
-			if (error) {
-				vrele(vp);
-				return (error);
-			}
-			return (0);
+
+	switch (vp->v_type) {
+	case VBLK:
+		dev = (dev_t) vp->v_rdev;
+		if (major(dev) >= nblkdev) {
+			error = ENXIO;
+			break;
 		}
+		error = swaponvp(p, vp, dev, 0);
+		break;
+	case VCHR:
+		/*
+		 * For now, we disallow swapping to regular files.
+		 * It requires logical->physcal block translation
+		 * support in the swap pager before it will work.
+		 */
+		error = ENOTBLK;
+		break;
+#if 0
+		error = VOP_GETATTR(vp, &attr, p->p_ucred, p);
+		if (!error)
+			error = swaponvp(p, vp, NODEV, attr.va_size / DEV_BSIZE);
+		break;
+#endif
+	default:
+		error = EINVAL;
+		break;
 	}
-	vrele(vp);
-	return (EINVAL);
+
+	if (error)
+		vrele(vp);
+
+	return (error);
 }
 
 /*
@@ -240,49 +195,54 @@ swapon(p, uap, retval)
  * among the devices.
  */
 int
-swfree(p, index)
+swaponvp(p, vp, dev, nblks)
 	struct proc *p;
-	int index;
+	struct vnode *vp;
+	dev_t dev;
+	u_long nblks;
 {
+	int index;
 	register struct swdevt *sp;
 	register swblk_t vsbase;
 	register long blk;
-	struct vnode *vp;
-	register swblk_t dvbase;
-	register int nblks;
+	swblk_t dvbase;
+	struct swdevt *swp;
 	int error;
+	int perdev;
 
-	sp = &swdevt[index];
-	vp = sp->sw_vp;
+	for (sp = swdevt, index = 0 ; index < nswdev; index++, sp++) {
+		if (sp->sw_vp == vp)
+			return EBUSY;
+		if (!sp->sw_vp)
+			goto found;
+
+	}
+	return EINVAL;
+    found:
+	if (dev != NODEV && (major(dev) >= nblkdev))
+		return (ENXIO);
+
 	error = VOP_OPEN(vp, FREAD | FWRITE, p->p_ucred, p);
 	if (error)
 		return (error);
-	sp->sw_flags |= SW_FREED;
-	nblks = sp->sw_nblks;
-	/*
-	 * Some devices may not exist til after boot time. If so, their nblk
-	 * count will be 0.
-	 */
-	if (nblks <= 0) {
-		int perdev;
-		dev_t dev = sp->sw_dev;
-
-		if (bdevsw[major(dev)].d_psize == 0 ||
-		    (nblks = (*bdevsw[major(dev)].d_psize) (dev)) == -1) {
-			(void) VOP_CLOSE(vp, FREAD | FWRITE, p->p_ucred, p);
-			sp->sw_flags &= ~SW_FREED;
-			return (ENXIO);
-		}
-		perdev = nswap / nswdev;
-		if (nblks > perdev)
-			nblks = perdev;
-		sp->sw_nblks = nblks;
+	
+	if (nblks == 0 && (bdevsw[major(dev)].d_psize == 0 ||
+	    (nblks = (*bdevsw[major(dev)].d_psize) (dev)) == -1)) {
+		(void) VOP_CLOSE(vp, FREAD | FWRITE, p->p_ucred, p);
+		return (ENXIO);
 	}
 	if (nblks == 0) {
 		(void) VOP_CLOSE(vp, FREAD | FWRITE, p->p_ucred, p);
-		sp->sw_flags &= ~SW_FREED;
-		return (0);	/* XXX error? */
+		return (ENXIO);
 	}
+	sp->sw_vp = vp;
+	sp->sw_dev = dev;
+	sp->sw_flags |= SW_FREED;
+	sp->sw_nblks = nblks;
+
+	if (nblks * nswdev > nswap)
+		nswap = nblks * nswdev;
+
 	for (dvbase = dmmax; dvbase < nblks; dvbase += dmmax) {
 		blk = nblks - dvbase;
 
