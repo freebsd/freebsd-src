@@ -584,8 +584,11 @@ agp_i810_alloc_memory(device_t dev, int type, vm_size_t size)
 		 * get its physical address.
 		 */
 		vm_page_t m;
+
+		VM_OBJECT_LOCK(mem->am_obj);
 		m = vm_page_grab(mem->am_obj, 0,
 		    VM_ALLOC_WIRED | VM_ALLOC_ZERO | VM_ALLOC_RETRY);
+		VM_OBJECT_UNLOCK(mem->am_obj);
 		if ((m->flags & PG_ZERO) == 0)
 			pmap_zero_page(m);
 		vm_page_lock_queues();
@@ -616,7 +619,11 @@ agp_i810_free_memory(device_t dev, struct agp_memory *mem)
 		/*
 		 * Unwire the page which we wired in alloc_memory.
 		 */
-		vm_page_t m = vm_page_lookup(mem->am_obj, 0);
+		vm_page_t m;
+
+		VM_OBJECT_LOCK(mem->am_obj);
+		m = vm_page_lookup(mem->am_obj, 0);
+		VM_OBJECT_UNLOCK(mem->am_obj);
 		vm_page_lock_queues();
 		vm_page_unwire(m, 0);
 		vm_page_unlock_queues();
