@@ -2,7 +2,7 @@
  *
  * Module Name: nsobject - Utilities for objects attached to namespace
  *                         table entries
- *              $Revision: 48 $
+ *              $Revision: 49 $
  *
  ******************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -316,7 +316,7 @@ AcpiNsAttachObject (
             case AML_ZERO_OP: case AML_ONES_OP: case AML_ONE_OP:
             case AML_BYTE_OP: case AML_WORD_OP: case AML_DWORD_OP:
 
-                ObjType = ACPI_TYPE_NUMBER;
+                ObjType = ACPI_TYPE_INTEGER;
                 break;
 
 

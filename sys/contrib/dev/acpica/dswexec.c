@@ -2,7 +2,7 @@
  *
  * Module Name: dswexec - Dispatcher method execution callbacks;
  *                        dispatch to interpreter.
- *              $Revision: 51 $
+ *              $Revision: 55 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -138,7 +138,7 @@
  *
  * RETURN:      Status
  *
- * DESCRIPTION:
+ * DESCRIPTION: Get the result of a predicate evaluation
  *
  ****************************************************************************/
 
@@ -163,7 +163,7 @@ AcpiDsGetPredicateValue (
         if (ACPI_FAILURE (Status))
         {
             DEBUG_PRINT (ACPI_ERROR,
-                ("DsGetPredicateValue: Missing or null operand, %s\n",
+                ("DsGetPredicateValue: Could not get result from predicate evaluation, %s\n",
                 AcpiCmFormatException (Status)));
 
             return_ACPI_STATUS (Status);
@@ -202,7 +202,7 @@ AcpiDsGetPredicateValue (
      * be a number
      */
 
-    if (ObjDesc->Common.Type != ACPI_TYPE_NUMBER)
+    if (ObjDesc->Common.Type != ACPI_TYPE_INTEGER)
     {
         DEBUG_PRINT (ACPI_ERROR,
             ("ExecEndOp: Bad predicate (not a number) ObjDesc=%X State=%X Type=%X\n",
@@ -213,16 +213,16 @@ AcpiDsGetPredicateValue (
     }
 
 
-    /* TBD: 64/32-bit */
+    /* Truncate the predicate to 32-bits if necessary */
 
-    ObjDesc->Number.Value &= (UINT64) 0x00000000FFFFFFFF;
+    AcpiAmlTruncateFor32bitTable (ObjDesc, WalkState);
 
     /*
      * Save the result of the predicate evaluation on
      * the control stack
      */
 
-    if (ObjDesc->Number.Value)
+    if (ObjDesc->Integer.Value)
     {
         WalkState->ControlState->Common.Value = TRUE;
     }
@@ -471,6 +471,8 @@ AcpiDsExecEndOp (
 
     WalkState->NumOperands = 0;
     WalkState->ReturnDesc = NULL;
+    WalkState->OpInfo = OpInfo;
+    WalkState->Opcode = Opcode;
 
 
     /* Call debugger for single step support (DEBUG build only) */

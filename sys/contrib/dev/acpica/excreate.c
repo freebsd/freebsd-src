@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: amcreate - Named object creation
- *              $Revision: 52 $
+ *              $Revision: 53 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -477,7 +477,7 @@ AcpiAmlExecCreateMutex (
         goto Cleanup;
     }
 
-    ObjDesc->Mutex.SyncLevel = (UINT8) SyncDesc->Number.Value;
+    ObjDesc->Mutex.SyncLevel = (UINT8) SyncDesc->Integer.Value;
 
     /* ObjDesc was on the stack top, and the name is below it */
 

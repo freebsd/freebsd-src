@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: accommon.h -- prototypes for the common (subsystem-wide) procedures
- *       $Revision: 83 $
+ *       $Revision: 87 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -191,6 +191,8 @@ AcpiCmAllocateOwnerId (
  * CmClib - Local implementations of C library functions
  */
 
+#ifndef ACPI_USE_SYSTEM_CLIBRARY
+
 NATIVE_UINT
 AcpiCmStrlen (
     const NATIVE_CHAR       *String);
@@ -232,7 +234,7 @@ UINT32
 AcpiCmStrtoul (
     const NATIVE_CHAR       *String,
     NATIVE_CHAR             **Terminator,
-    UINT32                  Base);
+    NATIVE_UINT             Base);
 
 NATIVE_CHAR *
 AcpiCmStrstr (
@@ -252,7 +254,7 @@ AcpiCmMemcpy (
 void *
 AcpiCmMemset (
     void                    *Dest,
-    UINT32                  Value,
+    NATIVE_UINT             Value,
     NATIVE_UINT             Count);
 
 UINT32
@@ -263,6 +265,7 @@ UINT32
 AcpiCmToLower (
     UINT32                  c);
 
+#endif /* ACPI_USE_SYSTEM_CLIBRARY */
 
 /*
  * CmCopy - Object construction and conversion interfaces
@@ -388,7 +391,7 @@ FunctionValueExit (
     UINT32                  LineNumber,
     UINT32                  ComponentId,
     NATIVE_CHAR             *FunctionName,
-    NATIVE_UINT             Value);
+    ACPI_INTEGER            Value);
 
 void
 FunctionPtrExit (
@@ -687,7 +690,7 @@ AcpiCmInitStaticObject (
 #define AcpiCmCallocate(a)              _CmCallocate(a, _COMPONENT,_THIS_MODULE,__LINE__)
 #define AcpiCmFree(a)                   _CmFree(a,_COMPONENT,_THIS_MODULE,__LINE__)
 
-#ifndef ACPI_DEBUG
+#ifndef ACPI_DEBUG_TRACK_ALLOCATIONS
 
 #define AcpiCmAddElementToAllocList(a,b,c,d,e,f)
 #define AcpiCmDeleteElementFromAllocList(a,b,c,d)

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbcmds - debug commands and output routines
- *              $Revision: 43 $
+ *              $Revision: 45 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -660,14 +660,14 @@ AcpiDbSetMethodData (
 
     /* Create and initialize the new object */
 
-    ObjDesc = AcpiCmCreateInternalObject (ACPI_TYPE_NUMBER);
+    ObjDesc = AcpiCmCreateInternalObject (ACPI_TYPE_INTEGER);
     if (!ObjDesc)
     {
         AcpiOsPrintf ("Could not create an internal object\n");
         return;
     }
 
-    ObjDesc->Number.Value = Value;
+    ObjDesc->Integer.Value = Value;
 
 
     /* Store the new object into the target */
@@ -736,14 +736,15 @@ AcpiDbWalkForSpecificObjects (
     ACPI_OPERAND_OBJECT     *ObjDesc;
     ACPI_STATUS             Status;
     UINT32                  BufSize;
-    NATIVE_CHAR             buffer[64];
+    NATIVE_CHAR             Buffer[64];
 
 
     ObjDesc = ((ACPI_NAMESPACE_NODE *)ObjHandle)->Object;
+    BufSize = sizeof (Buffer) / sizeof (*Buffer);
 
     /* Get and display the full pathname to this object */
 
-    Status = AcpiNsHandleToPathname (ObjHandle, &BufSize, buffer);
+    Status = AcpiNsHandleToPathname (ObjHandle, &BufSize, Buffer);
 
     if (ACPI_FAILURE (Status))
     {
@@ -751,7 +752,7 @@ AcpiDbWalkForSpecificObjects (
         return (AE_OK);
     }
 
-    AcpiOsPrintf ("%32s", buffer);
+    AcpiOsPrintf ("%32s", Buffer);
 
 
     /* Display short information about the object */
@@ -764,8 +765,8 @@ AcpiDbWalkForSpecificObjects (
             AcpiOsPrintf ("  #Args %d  Concurrency %X", ObjDesc->Method.ParamCount, ObjDesc->Method.Concurrency);
             break;
 
-        case ACPI_TYPE_NUMBER:
-            AcpiOsPrintf ("  Value %X", ObjDesc->Number.Value);
+        case ACPI_TYPE_INTEGER:
+            AcpiOsPrintf ("  Value %X", ObjDesc->Integer.Value);
             break;
 
         case ACPI_TYPE_STRING:
@@ -899,7 +900,7 @@ AcpiDbWalkAndMatchName (
 
     /* Get the full pathname to this object */
 
-    BufSize = sizeof (Buffer);
+    BufSize = sizeof (Buffer) / sizeof (*Buffer);
 
     Status = AcpiNsHandleToPathname (ObjHandle, &BufSize, Buffer);
     if (ACPI_FAILURE (Status))
