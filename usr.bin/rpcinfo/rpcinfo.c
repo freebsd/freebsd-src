@@ -846,7 +846,7 @@ failed:
 					sprintf(p++, ",");
 			}
 			printf("%-10s", buf);
-			buf[0] = NULL;
+			buf[0] = '\0';
 			for (nl = rs->nlist; nl; nl = nl->next) {
 				strcat(buf, nl->netid);
 				if (nl->next)
