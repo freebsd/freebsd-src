@@ -1654,6 +1654,10 @@ for the RED algorithm.
 .It Em net.inet.ip.fw.autoinc_step : No 100
 Delta between rule numbers when auto-generating them.
 The value must be in the range 1..1000.
+This variable is only present in
+.Nm ipfw2 ,
+the delta is hardwired to 100 in
+.Nm ipfw1 .
 .It Em net.inet.ip.fw.curr_dyn_buckets : Em net.inet.ip.fw.dyn_buckets
 The current number of buckets in the hash table for dynamic rules
 (readonly).
