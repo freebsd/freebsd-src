@@ -153,6 +153,11 @@ if [ "x$swapfile" != "xNO" -a -w "$swapfile" -a -b /dev/vn0b ]; then
 	vnconfig /dev/vn0b $swapfile && swapon /dev/vn0b
 fi
 
+# set sysctl variables early as we can
+if [ -f /etc/rc.sysctl ]; then
+	. /etc/rc.sysctl
+fi
+
 # configure serial devices
 if [ -f /etc/rc.serial ]; then
 	. /etc/rc.serial
@@ -338,6 +343,7 @@ if [ -f /etc/rc.${arch} ]; then
 fi
 
 # Recover vi editor files.
+find /var/tmp/vi.recover ! -type f -a ! -type d -delete
 vibackup=`echo /var/tmp/vi.recover/vi.*`
 if [ "$vibackup" != '/var/tmp/vi.recover/vi.*' ]; then
 	echo 'Recovering vi editor sessions'
@@ -395,7 +401,7 @@ if [ "X${local_startup}" != X"NO" ]; then
 fi
 
 if [ "X${update_motd}" != X"NO" ]; then
-	T=/tmp/_motd
+	T=/var/run/_motd
 	rm -rf $T
 	uname -v | sed -e 's,^\([^#]*\) #\(.* [1-2][0-9][0-9][0-9]\).*/\([^\]*\) $,\1 (\3) #\2,' > $T
 	awk '{if (NR == 1) {if ($1 == "FreeBSD") {next} else {print "\n"$0}} else {print}}' < /etc/motd >> $T
