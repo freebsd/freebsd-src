@@ -23,12 +23,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 26, 2004
+.Dd January 4, 2005
 .Dt AMR 4
 .Os
 .Sh NAME
 .Nm amr
-.Nd AMI MegaRAID PCI-SCSI RAID driver
+.Nd AMI MegaRAID PCI-SCSI/SATA RAID driver
 .Sh SYNOPSIS
 .Cd device pci
 .Cd device amr
@@ -38,6 +38,7 @@ The
 driver provides support for American Megatrends MegaRAID Express,
 Elite and Enterprise family SCSI RAID controllers,
 including models relabeled and sold by Hewlett-Packard and Dell.
+Also supported are LSI Logic MegaRAID SATA cards.
 .Sh HARDWARE
 The
 .Nm
@@ -45,11 +46,11 @@ driver supports the following:
 .Pp
 .Bl -bullet -compact
 .It
-AMI MegaRAID 320-1
+AMI/LSI MegaRAID 320-1
 .It
-AMI MegaRAID 320-2
+AMI/LSI MegaRAID 320-2
 .It
-AMI MegaRAID 320-4X
+AMI/LSI MegaRAID 320-4X
 .It
 AMI MegaRAID Series 418
 .It
@@ -76,6 +77,12 @@ AMI MegaRAID Express 200 (Series 466)
 AMI MegaRAID Express 300 (Series 490)
 .It
 AMI MegaRAID Express 500 (Series 475)
+.It
+LSI MegaRAID SATA 150-2
+.It
+LSI MegaRAID SATA 150-4
+.It
+LSI MegaRAID SATA 150-6
 .It
 Dell PERC
 .It
