@@ -345,7 +345,6 @@ static struct cdevsw devstat_cdevsw = {
 	.d_close =	nullclose,
 	.d_mmap =	devstat_mmap,
 	.d_name =	"devstat",
-	.d_maj =	MAJOR_AUTO,
 };
 
 struct statspage {

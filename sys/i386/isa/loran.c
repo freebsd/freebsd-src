@@ -627,7 +627,6 @@ static struct cdevsw loran_cdevsw = {
 	.d_read =	loranread,
 	.d_write =	loranwrite,
 	.d_name =	"loran",
-	.d_maj =	MAJOR_AUTO,
 };
 
 #endif /* _KERNEL */
