@@ -107,6 +107,14 @@ typedef pthread_func_t pthread_func_entry_t[2];
 extern pthread_func_entry_t __thr_jtable[];
 
 /*
+ * yplib internal interfaces
+ */
+#ifdef YP
+int _yp_check(char **);
+#endif
+
+
+/*
  * This is a pointer in the C run-time startup code. It is used
  * by getprogname() and setprogname().
  */

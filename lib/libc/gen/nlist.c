@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/file.h>
+#include <arpa/inet.h>
 
 #include <errno.h>
 #include <a.out.h>

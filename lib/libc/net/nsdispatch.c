@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/stat.h>
 
+#include "namespace.h"
 #include <err.h>
 #include <fcntl.h>
 #define _NS_PRIVATE
@@ -51,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "un-namespace.h"
 
 /*
  * default sourcelist: `files'

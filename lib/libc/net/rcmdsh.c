@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
+#include <arpa/inet.h>
 
 #include <errno.h>
 #include <netdb.h>
@@ -86,7 +87,8 @@ rcmdsh(ahost, rport, locuser, remuser, cmd, rshprog)
 		hints.ai_flags = AI_CANONNAME;
 		hints.ai_family = PF_UNSPEC;
 		hints.ai_socktype = SOCK_STREAM;
-		(void)snprintf(num, sizeof(num), "%d", ntohs(rport));
+		(void)snprintf(num, sizeof(num), "%u",
+		    (unsigned int)ntohs(rport));
 		error = getaddrinfo(*ahost, num, &hints, &res);
 		if (error) {
 			fprintf(stderr, "rcmdsh: getaddrinfo: %s\n",
