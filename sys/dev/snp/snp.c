@@ -383,9 +383,6 @@ snpopen(dev, flag, mode, td)
 	struct snoop *snp;
 	int error;
 
-	if ((error = suser_td(td)) != 0)
-		return (error);
-
 	if (dev->si_drv1 == NULL) {
 		if (!(dev->si_flags & SI_NAMED))
 			make_dev(&snp_cdevsw, minor(dev), UID_ROOT, GID_WHEEL,
