@@ -1,4 +1,4 @@
-#	$Id: aliases,v 1.6 1997/08/19 17:16:14 wosch Exp $
+#	$Id: aliases,v 1.7 1998/11/03 08:14:38 phk Exp $
 #	@(#)aliases	5.3 (Berkeley) 5/24/90
 #
 #  Aliases in this file will NOT be expanded in the header from
@@ -13,7 +13,7 @@
 # AND FUNCTIONS', May 1997
 
 # Pretty much everything else in this file points to "root", so 
-# would do well in either reading roots mailbox or forwarding
+# you would do well in either reading roots mailbox or forwarding
 # roots email from here.
 
 # root:	me@my.domain
