@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_node.c,v 1.13 1996/06/12 03:36:23 davidg Exp $
+ * $Id: cd9660_node.c,v 1.14 1996/09/20 05:51:09 nate Exp $
  */
 
 #include <sys/param.h>
@@ -422,9 +422,16 @@ iso_ilock(ip)
 {
 
 	while (ip->i_flag & ILOCKED) {
+		if (ip->i_spare0 == curproc->p_pid) {
+			if((ip->i_flag & IRECURSE) == 0)
+				panic("locking against myself");
+			else {
+				++ip->i_lockcount;
+				return(0);
+			}
+				
+		}
 		ip->i_flag |= IWANT;
-		if (ip->i_spare0 == curproc->p_pid)
-			panic("locking against myself");
 		ip->i_spare1 = curproc->p_pid;
 		(void) tsleep((caddr_t)ip, PINOD, "isoilk", 0);
 	}
@@ -442,10 +449,14 @@ iso_iunlock(ip)
 	register struct iso_node *ip;
 {
 
+	if(ip->i_lockcount > 0) {
+		--ip->i_lockcount;
+		return(0);
+	}
 	if ((ip->i_flag & ILOCKED) == 0)
 		vprint("iso_iunlock: unlocked inode", ITOV(ip));
 	ip->i_spare0 = 0;
-	ip->i_flag &= ~ILOCKED;
+	ip->i_flag &= ~(ILOCKED|IRECURSE);
 	if (ip->i_flag&IWANT) {
 		ip->i_flag &= ~IWANT;
 		wakeup((caddr_t)ip);

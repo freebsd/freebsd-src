@@ -1,4 +1,4 @@
-/*	$Id: denode.h,v 1.8 1995/11/09 08:17:21 bde Exp $ */
+/*	$Id: denode.h,v 1.9 1996/07/28 07:58:55 ache Exp $ */
 /*	$NetBSD: denode.h,v 1.8 1994/08/21 18:43:49 ws Exp $	*/
 
 /*-
@@ -160,6 +160,7 @@ struct denode {
 	u_long de_FileSize;	/* size of file in bytes */
 	struct fatcache de_fc[FC_SIZE];	/* fat cache */
 	u_quad_t de_modrev;	/* Revision level for lease. */
+	int	de_lockcount;	/* Process lock count (recursion) */
 };
 
 /*
@@ -170,6 +171,7 @@ struct denode {
 #define	DE_UPDATE	0x0004	/* modification time update request */
 #define	DE_MODIFIED	0x0080	/* denode has been modified, but DE_UPDATE
 				 * isn't set */
+#define DE_RECURSE	0x0400	/* Recursion expected */
 
 /*
  * Transfer directory entries between internal and external form.

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.h	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_node.h,v 1.6 1995/10/31 12:13:44 phk Exp $
+ * $Id: cd9660_node.h,v 1.7 1995/11/09 08:13:40 bde Exp $
  */
 
 /*
@@ -95,6 +95,7 @@ struct iso_node {
 	long iso_start;		/* actual start of data of file (may be different */
 				/* from iso_extent, if file has extended attributes) */
 	ISO_RRIP_INODE	inode;
+	int		i_lockcount; /* Process lock count (recursion) */
 };
 
 #define	i_forw		i_chain[0]
@@ -104,6 +105,7 @@ struct iso_node {
 #define	ILOCKED		0x0001		/* inode is locked */
 #define	IWANT		0x0002		/* some process waiting on lock */
 #define	IACC		0x0020		/* inode access time to be updated */
+#define	IRECURSE	0x0400		/* Recursion expected */
 
 #define VTOI(vp) ((struct iso_node *)(vp)->v_data)
 #define ITOV(ip) ((ip)->i_vnode)
