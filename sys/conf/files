@@ -239,7 +239,7 @@ dev/aic7xxx/ahc_eisa.c	optional ahc eisa
 dev/aic7xxx/ahc_pci.c	optional ahc pci
 dev/aic7xxx/aic7xxx.c	optional ahc
 dev/aic7xxx/aic7xxx_93cx6.c	optional ahc
-dev/aic7xxx/aic7xxx_freebsd.c	optional ahc
+dev/aic7xxx/aic7xxx_osm.c	optional ahc
 dev/aic7xxx/aic7xxx_pci.c	optional ahc pci
 dev/amr/amr.c		optional amr
 dev/amr/amr_disk.c	optional amr
