@@ -1761,6 +1761,25 @@ mac_mls_check_socket_visible(struct ucred *cred, struct socket *socket,
 }
 
 static int
+mac_mls_check_system_swapon(struct ucred *cred, struct vnode *vp,
+    struct label *label)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mac_mls_enabled)
+		return (0);
+
+	subj = SLOT(&cred->cr_label);
+	obj = SLOT(label);
+
+	if (!mac_mls_dominate_single(obj, subj) ||
+	    !mac_mls_dominate_single(subj, obj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
 mac_mls_check_vnode_chdir(struct ucred *cred, struct vnode *dvp,
     struct label *dlabel)
 {
@@ -2454,6 +2473,7 @@ static struct mac_policy_ops mac_mls_ops =
 	.mpo_check_socket_deliver = mac_mls_check_socket_deliver,
 	.mpo_check_socket_relabel = mac_mls_check_socket_relabel,
 	.mpo_check_socket_visible = mac_mls_check_socket_visible,
+	.mpo_check_system_swapon = mac_mls_check_system_swapon,
 	.mpo_check_vnode_access = mac_mls_check_vnode_open,
 	.mpo_check_vnode_chdir = mac_mls_check_vnode_chdir,
 	.mpo_check_vnode_chroot = mac_mls_check_vnode_chroot,
