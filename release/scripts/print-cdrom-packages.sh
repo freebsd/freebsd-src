@@ -108,7 +108,6 @@ CDROM_SET_1="${CDROM_SET_1} www/links"
 # this list.
 CDROM_SET_1="${CDROM_SET_1} astro/xearth"
 CDROM_SET_1="${CDROM_SET_1} editors/emacs21"
-CDROM_SET_1="${CDROM_SET_1} editors/vim-lite"
 CDROM_SET_1="${CDROM_SET_1} editors/vim"
 CDROM_SET_1="${CDROM_SET_1} emulators/mtools"
 CDROM_SET_1="${CDROM_SET_1} ftp/ncftp"
