@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.95 1998/07/10 00:10:20 julian Exp $
+ * $Id: ufs_vnops.c,v 1.96 1998/07/11 07:46:08 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -145,12 +145,10 @@ ufs_itimes(vp)
 		return;
 	if ((vp->v_mount->mnt_flag & MNT_RDONLY) == 0) {
 		tv_sec = time_second;
-#ifdef UFS_LAZYMOD
 		if ((vp->v_type == VBLK || vp->v_type == VCHR) &&
 		    !DOINGSOFTDEP(vp))
 			ip->i_flag |= IN_LAZYMOD;
 		else
-#endif
 			ip->i_flag |= IN_MODIFIED;
 		if (ip->i_flag & IN_ACCESS)
 			ip->i_atime = tv_sec;
