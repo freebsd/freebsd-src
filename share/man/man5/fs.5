@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)fs.5	8.2 (Berkeley) 4/19/94
-.\"	$Id: fs.5,v 1.6 1997/03/07 03:28:00 jmg Exp $
+.\"	$Id: fs.5,v 1.7 1997/03/19 21:02:11 bde Exp $
 .\"
 .Dd April 19, 1994
 .Dt FS 5
@@ -122,8 +122,8 @@ struct fs {
 	int32_t	 fs_npsect;	/* # sectors/track including spares */
 	int32_t	 fs_interleave;	/* hardware sector interleave */
 	int32_t	 fs_trackskew;	/* sector 0 skew, per track */
-	int32_t	 fs_headswitch;	/* head switch time, usec */
-	int32_t	 fs_trkseek;	/* track-to-track seek, usec */
+/* fs_id takes the space of the unused fs_headswitch and fs_trkseek fields */
+	int32_t	fs_id[2];	/* unique filesystem id*/
 /* sizes determined by number of cylinder groups and their sizes */
 	ufs_daddr_t fs_csaddr;	/* blk addr of cyl grp summary area */
 	int32_t	 fs_cssize;	/* size of cyl grp summary area */
