@@ -11,8 +11,18 @@
 . /etc/rc.subr
 
 name="devfs"
-start_cmd='read_devfs_conf'
+start_cmd='devfs_start'
 stop_cmd=':'
+
+devfs_start()
+{
+	if [ -n "$devfs_system_ruleset" ]; then
+		devfs_init_rulesets
+		devfs_set_ruleset $devfs_system_ruleset /dev
+		devfs_apply_ruleset $devfs_system_ruleset /dev
+	fi
+	read_devfs_conf
+}
 
 read_devfs_conf()
 {
