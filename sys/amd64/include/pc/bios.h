@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: bios.h,v 1.1 1997/08/01 06:04:59 msmith Exp $
  */
 
 /* 
@@ -86,7 +86,6 @@ struct DMI_table
     u_int32_t	st_base;		/* base address of the SMBIOS table (physical) */
     u_int16_t	st_entries;		/* total number of structures present in the table */
     u_int8_t	bcd_revision;		/* interface revision number */
-    u_int8_t	pad[2];
 };
 
 struct SMBIOS_table 
