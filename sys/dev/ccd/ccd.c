@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.41 1999/02/18 21:11:53 ken Exp $ */
+/* $Id: ccd.c,v 1.42 1999/03/10 00:41:27 mjacob Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -841,6 +841,7 @@ ccdbuffer(cb, cs, bp, bn, addr, bcount)
 	register struct ccdcinfo *ci, *ci2 = NULL;	/* XXX */
 	register struct ccdbuf *cbp;
 	register daddr_t cbn, cboff;
+      register off_t cbc;
 
 #ifdef DEBUG
 	if (ccddebug & CCDB_IO)
@@ -919,11 +920,10 @@ ccdbuffer(cb, cs, bp, bn, addr, bcount)
 	LIST_INIT(&cbp->cb_buf.b_dep);
 	cbp->cb_buf.b_resid = 0;
 	if (cs->sc_ileave == 0)
-		cbp->cb_buf.b_bcount = dbtob(ci->ci_size - cbn);
+              cbc = dbtob((off_t)(ci->ci_size - cbn));
 	else
-		cbp->cb_buf.b_bcount = dbtob(cs->sc_ileave - cboff);
-	if (cbp->cb_buf.b_bcount > bcount)
-		cbp->cb_buf.b_bcount = bcount;
+              cbc = dbtob((off_t)(cs->sc_ileave - cboff));
+      cbp->cb_buf.b_bcount = (cbc < bcount) ? cbc : bcount;
 
  	cbp->cb_buf.b_bufsize = cbp->cb_buf.b_bcount;
 
