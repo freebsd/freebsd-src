@@ -75,7 +75,7 @@ SYSCTL_INT(_hw_pcic, OID_AUTO, ignore_function_1, CTLFLAG_RD,
  */
 static int pcic_intr_path = (int)pcic_iw_pci;
 TUNABLE_INT("hw.pcic.intr_path", &pcic_intr_path);
-SYSCTL_INT(_hw_pcic, OID_AUTO, intr_path, CTLFLAG_RD, &pcic_intr_path, 0
+SYSCTL_INT(_hw_pcic, OID_AUTO, intr_path, CTLFLAG_RD, &pcic_intr_path, 0,
     "Which path to send the interrupts over.");
 
 static int pcic_init_routing = 0;
