@@ -1066,6 +1066,8 @@ check_login_ro
 
 #define	MAXGLOBARGS	1000
 
+#define	MAXASIZE	10240	/* Deny ASCII SIZE on files larger than that */
+
 struct tab {
 	char	*name;
 	short	token;
@@ -1596,6 +1598,10 @@ sizecmd(filename)
 			return;
 		} else if (!S_ISREG(stbuf.st_mode)) {
 			reply(550, "%s: not a plain file.", filename);
+			(void) fclose(fin);
+			return;
+		} else if (stbuf.st_size > MAXASIZE) {
+			reply(550, "%s: too large for type A SIZE.", filename);
 			(void) fclose(fin);
 			return;
 		}
