@@ -42,8 +42,14 @@ char *
 basename(path)
 	const char *path;
 {
-	static char bname[MAXPATHLEN];
+	static char *bname = NULL;
 	const char *endp, *startp;
+
+ 	if (bname == NULL) {
+		bname = (char *)malloc(MAXPATHLEN);
+		if (bname == NULL)
+			return(NULL);
+	}
 
 	/* Empty or NULL string gets treated as "." */
 	if (path == NULL || *path == '\0') {
@@ -67,7 +73,7 @@ basename(path)
 	while (startp > path && *(startp - 1) != '/')
 		startp--;
 
-	if (endp - startp + 2 > sizeof(bname)) {
+	if (endp - startp + 2 > MAXPATHLEN) {
 		errno = ENAMETOOLONG;
 		return(NULL);
 	}
