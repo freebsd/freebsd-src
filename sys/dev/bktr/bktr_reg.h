@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 1999 Roger Hardiman
+ * Copyright (c) 1998 Amancio Hasty
  * Copyright (c) 1995 Mark Tinguely and Jim Lowe
  * All rights reserved.
  *
@@ -28,7 +30,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: brktree_reg.h,v 1.28 1999/05/25 12:44:40 roger Exp $
+ * $Id: brktree_reg.h,v 1.29 1999/06/12 14:54:56 roger Exp $
  */
 #ifndef PCI_LATENCY_TIMER
 #define	PCI_LATENCY_TIMER		0x0c	/* pci timer register */
@@ -430,11 +432,11 @@ struct bktr_softc {
 #endif
 
 #if defined (__FreeBSD__)
-    #if (__FreeBSD__ < 4)
+    #if (__FreeBSD_version < 400000)
     vm_offset_t     phys_base;	/* 2.x Bt848 register physical address */
     pcici_t         tag;	/* 2.x PCI tag, for doing PCI commands */
     #endif
-    #if (__FreeBSD__ > 3)
+    #if (__FreeBSD_version >= 400000)
     struct resource *res_mem;	/* 4.x resource descriptor for registers */
     struct resource *res_irq;	/* 4.x resource descriptor for interrupt */
     void            *res_ih;	/* 4.x newbus interrupt handler cookie */
@@ -557,7 +559,9 @@ struct bktr_softc {
 #define BT848_USE_XTALS 0
 #define BT848_USE_PLL   1
     int                 xtal_pll_mode;	/* Use XTAL or PLL mode for PAL/SECAM */    int                 remote_control;      /* remote control detected */
-    int                 remote_control_addr; /* remote control i2c address */
+    int                 remote_control_addr;   /* remote control i2c address */
+    char		msp_version_string[9]; /* MSP version string 34xxx-xx */
+
 
 };
 

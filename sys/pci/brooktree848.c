@@ -1,4 +1,4 @@
-/* $Id: brooktree848.c,v 1.87 1999/07/03 20:17:00 peter Exp $ */
+/* $Id: brooktree848.c,v 1.85 1999/06/12 14:54:54 roger Exp $ */
 /* BT848 Driver for Brooktree's Bt848, Bt848A, Bt849A, Bt878, Bt879 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
@@ -408,15 +408,13 @@ They are unrelated to Revision Control numbering of FreeBSD or any other system.
                       NORMAL PCI 2.1  for proper PCI 2.1 compatible chipsets.
                       INTEL 430 FX    for the Intel 430 FX chipset.
                       SIS VIA CHIPSET for certain SiS and VIA chipsets.
-                    OPTI chipset motherboards also benefit from SIS/VIA mode
-                    as confirmed by Ben Laurie <ben@algroup.co.uk>
                     Older Intel and non-Intel chipsets may also benefit from
-                    SIS/VIA mode.
+                    either 430_FX or SIS/VIA mode.
                     
                     NORMAL PCI mode is enabled by default.
                     For INTEL 430 FX mode, add this to your kenel config:
                            options "BKTR_430_FX_MODE"
-                    For SIS VIA (and OPTI) mode, add this to your kernel config:
+                    For SiS / VIA mode, add this to your kernel config:
                            options "BKTR_SIS_VIA_MODE"
                     
                     Using quotes in these options is not needed in FreeBSD 4.x.
@@ -429,24 +427,38 @@ They are unrelated to Revision Control numbering of FreeBSD or any other system.
 1.69   12 June 1999 Roger Hardiman <roger@freebsd.org>
                     Updates for FreeBSD 4.x device driver interface.
                     BSDI code removed. Will be restored later.
-*/
 
-#define DDB(x) x
-#define DEB(x)
+1.70   12 July 1999 Roger Hardiman <roger@freebsd.org>
+                    Reorganise OS device dependant parts (based on a port to
+                    linux by Brad Parker).
+                    Make the driver compile on FreeBSD 2.2.x systems again.
+                    Change number of VBI lines from 16 to 12 for NTSC formats.
+                    Changes to probeCard() for better eeprom identification.
+                    Added STB Bt878 card identification.
+                    Add Hauppauge model identification to probeCard().
+                    Added TDA9850 initialisation code taken from Linux bttv.
+                    Juha.Nurmela@quicknet.inet.fi found/fixed bug in VBI_SLEEP.
+                    Matt Brown <matt@dqc.org> added MSP3430G DBX initialisation.
+*/
 
 #ifdef __FreeBSD__
 #include "bktr.h"
 #include "opt_bktr.h"
 #include "opt_devfs.h"
-#include "smbus.h"
+#include "pci.h"
 #endif /* __FreeBSD__ */
 
-/* define NSMBUS as 0 if it is not already defined */
-#if !defined(NSMBUS)
-#define NSMBUS 0
-#endif 
+#if defined(__NetBSD__) || defined(__OpenBSD__)
+#include "bktr.h"
+#include "pci.h"
+#endif /* __NetBSD__  || __OpenBSD__ */
 
-#if !defined(__FreeBSD__) || (NBKTR > 0)
+#if (                                                            \
+    ( (defined(__FreeBSD__))  && (NBKTR > 0) && (NPCI > 0) )     \
+    || (defined(__bsdi__))                                       \
+    || (defined(__OpenBSD__))                                    \
+    || (defined(__NetBSD__))                                     \
+    )
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -456,35 +468,53 @@ They are unrelated to Revision Control numbering of FreeBSD or any other system.
 #include <sys/signalvar.h>
 #include <sys/mman.h>
 
-#include <sys/bus.h>
-#include <machine/bus.h>
-#include <sys/rman.h>
-#include <machine/resource.h>
-
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
-#include <machine/clock.h>      /* for DELAY */
 
+/*******************/
+/* *** FreeBSD *** */
+/*******************/
 #ifdef __FreeBSD__
+
+/* Read NSMBUS on FreeBSD 3.1 or later */
+#if (__FreeBSD_version >= 310000)
+  #include "smbus.h"
+#else
+  #define NSMBUS 0
+#endif
+
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /* DEVFS */
 
+#if (__FreeBSD_version >=400000) || (NSMBUS > 0)
+  #include <sys/bus.h>		/* used by smbus and newbus */
+#endif
+
+#if (__FreeBSD_version >=400000)
+  #include <machine/bus.h>	/* used by newbus */
+  #include <sys/rman.h>		/* used by newbus */
+  #include <machine/resource.h>	/* used by newbus */
+#endif
+
+#include <machine/clock.h>      /* for DELAY */
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 
 #include <machine/ioctl_meteor.h>
 #include <machine/ioctl_bt848.h>	/* extensions to ioctl_meteor.h */
 #include <pci/brktree_reg.h>
+
 #if (NSMBUS > 0)
-#include <pci/bt848_i2c.h>
-#include <dev/smbus/smbconf.h>
-#include <dev/iicbus/iiconf.h>
-#include "smbus_if.h"
-#include "iicbus_if.h"
+  #include <pci/bt848_i2c.h>
+  #include <dev/smbus/smbconf.h>
+  #include <dev/iicbus/iiconf.h>
+  #include "smbus_if.h"
+  #include "iicbus_if.h"
 #endif
+
 #include <sys/sysctl.h>
 static int bt848_card = -1;
 static int bt848_tuner = -1;
@@ -497,14 +527,22 @@ SYSCTL_INT(_hw_bt848, OID_AUTO, tuner, CTLFLAG_RW, &bt848_tuner, -1, "");
 SYSCTL_INT(_hw_bt848, OID_AUTO, reverse_mute, CTLFLAG_RW, &bt848_reverse_mute, -1, "");
 SYSCTL_INT(_hw_bt848, OID_AUTO, format, CTLFLAG_RW, &bt848_format, -1, "");
 
-typedef u_long ioctl_cmd_t;
+#if (__FreeBSD_version >= 300000)
+  typedef u_long ioctl_cmd_t;
+#endif
+
+#if (__FreeBSD__ == 2)
+  typedef int ioctl_cmd_t;
+  typedef unsigned int uintptr_t;
+  #define PCIR_REVID     PCI_CLASS_REG
+#endif
 #endif  /* __FreeBSD__ */
+
 
 typedef u_char bool_t;
 
 #define BKTRPRI (PZERO+8)|PCATCH
 
-static void	bktr_intr __P((void *arg));
 
 /*
  * memory allocated for DMA programs
@@ -549,74 +587,14 @@ static void	bktr_intr __P((void *arg));
 #define ODD_F  0x01
 #define EVEN_F 0x02
 
-/* Defines for userland processes blocked in this driver */
-#define BKTR_SLEEP (caddr_t)bktr      /* use memory address of bktr structure */
-#define VBI_SLEEP  (caddr_t)(bktr+1)  /* use memory address of bktr structure + 1 */
-				      /* (ok as the bktr structure is > 1 byte) */
-
-
-#ifdef __FreeBSD__
-
-#define UNIT(x)		((x) & 0x0f)
-#define MINOR(x)	((x >> 4) & 0x0f)
-
-static int	bktr_probe( device_t dev );
-static int	bktr_attach( device_t dev );
-static int	bktr_detach( device_t dev );
-static int	bktr_shutdown( device_t dev );
-
-static device_method_t bktr_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,         bktr_probe),
-	DEVMETHOD(device_attach,        bktr_attach),
-	DEVMETHOD(device_detach,        bktr_detach),
-	DEVMETHOD(device_shutdown,      bktr_shutdown),
-
-	{ 0, 0 }
-};
-
-static driver_t bktr_driver = {
-	"bktr",
-	bktr_methods,
-	sizeof(struct bktr_softc),
-};
-
-static devclass_t bktr_devclass;
-
-static	d_open_t	bktr_open;
-static	d_close_t	bktr_close;
-static	d_read_t	bktr_read;
-static	d_write_t	bktr_write;
-static	d_ioctl_t	bktr_ioctl;
-static	d_mmap_t	bktr_mmap;
-
-#define CDEV_MAJOR 92 
-static struct cdevsw bktr_cdevsw = {
-	/* open */	bktr_open,
-	/* close */	bktr_close,
-	/* read */	bktr_read,
-	/* write */	bktr_write,
-	/* ioctl */	bktr_ioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
-	/* poll */	nopoll,
-	/* mmap */	bktr_mmap,
-	/* strategy */	nostrategy,
-	/* name */	"bktr",
-	/* parms */	noparms,
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
-	/* maxio */	0,
-	/* bmaj */	-1
-};
-
-DEV_DRIVER_MODULE(bktr, pci, bktr_driver, bktr_devclass, bktr_cdevsw, 0, 0);
-
-#endif  /* __FreeBSD__ */
-
+/*
+ * Defines for userland processes blocked in this driver
+ *   For /dev/bktr[n] use memory address of bktr structure
+ *   For /dev/vbi[n] use memory address of bktr structure + 1
+ *                   this is ok as the bktr structure is > 1 byte
+ */
+#define BKTR_SLEEP  ((caddr_t)bktr    )
+#define VBI_SLEEP   ((caddr_t)bktr + 1)
 
 /*
  * This is for start-up convenience only, NOT mandatory.
@@ -632,24 +610,24 @@ DEV_DRIVER_MODULE(bktr, pci, bktr_driver, bktr_devclass, bktr_cdevsw, 0, 0);
 static struct format_params format_params[] = {
 /* # define BT848_IFORM_F_AUTO             (0x0) - don't matter. */
   { 525, 26, 480,  910, 135, 754, 640,  780, 30, 0x68, 0x5d, BT848_IFORM_X_AUTO,
-    16,  1600 },
+    12,  1600 },
 /* # define BT848_IFORM_F_NTSCM            (0x1) */
   { 525, 26, 480,  910, 135, 754, 640,  780, 30, 0x68, 0x5d, BT848_IFORM_X_XT0,
-    16, 1600 },
+    12, 1600 },
 /* # define BT848_IFORM_F_NTSCJ            (0x2) */
   { 525, 22, 480,  910, 135, 754, 640,  780, 30, 0x68, 0x5d, BT848_IFORM_X_XT0,
-    16, 1600 },
+    12, 1600 },
 /* # define BT848_IFORM_F_PALBDGHI         (0x3) */
   { 625, 32, 576, 1135, 186, 924, 768,  944, 25, 0x7f, 0x72, BT848_IFORM_X_XT1,
     16,  2044 },
 /* # define BT848_IFORM_F_PALM             (0x4) */
   { 525, 22, 480,  910, 135, 754, 640,  780, 30, 0x68, 0x5d, BT848_IFORM_X_XT0,
-    16, 1600 },
+    12, 1600 },
 /* # define BT848_IFORM_F_PALN             (0x5) */
   { 625, 32, 576, 1135, 186, 924, 768,  944, 25, 0x7f, 0x72, BT848_IFORM_X_XT1,
     16, 2044 },
 /* # define BT848_IFORM_F_SECAM            (0x6) */
-  { 625, 32, 576, 1135, 186, 924, 768,  944, 25, 0x7f, 0xa0, BT848_IFORM_X_XT1,  
+  { 625, 32, 576, 1135, 186, 924, 768,  944, 25, 0x7f, 0xa0, BT848_IFORM_X_XT1,
     16, 2044 },
 /* # define BT848_IFORM_F_RSVD             (0x7) - ???? */
   { 625, 32, 576, 1135, 186, 924, 768,  944, 25, 0x7f, 0x72, BT848_IFORM_X_XT0,
@@ -782,11 +760,14 @@ static struct {
 #define PFC8582_RADDR		0xa1
 
 
-/* registers in the BTSC/dbx chip */
+/* registers in the TDA9850 BTSC/dbx chip */
 #define CON1ADDR		0x04
 #define CON2ADDR		0x05
 #define CON3ADDR		0x06
 #define CON4ADDR		0x07
+#define ALI1ADDR		0x08
+#define ALI2ADDR		0x09
+#define ALI3ADDR		0x0a
 
 
 /* raise the charge pump voltage for fast tuning */
@@ -847,6 +828,15 @@ static struct {
 #define	ALPS_TSCH5		12
 #define	ALPS_TSBH1		13
 #define Bt848_MAX_TUNER         14
+
+/* If we do not know the tuner type, make a guess based on the
+   video format
+*/
+#if BROOKTREE_SYSTEM_DEFAULT == BROOKTREE_PAL
+#define DEFAULT_TUNER	PHILIPS_PALI
+#else
+#define DEFAULT_TUNER	PHILIPS_NTSC
+#endif
 
 /* XXX FIXME: this list is incomplete */
 
@@ -1227,15 +1217,29 @@ static u_long	status_sum = 0;
 /*
  * misc. support routines.
  */
-static int			signCard( bktr_ptr_t bktr, int offset,
+static int		signCard( bktr_ptr_t bktr, int offset,
 					  int count, u_char* sig );
-static void			probeCard( bktr_ptr_t bktr, int verbose );
+static void		probeCard( bktr_ptr_t bktr, int verbose );
 
-static vm_offset_t		get_bktr_mem( int unit, unsigned size );
+static void		common_bktr_attach( bktr_ptr_t bktr, int unit,
+			u_long pci_id, u_int rev );
 
-static int			oformat_meteor_to_bt( u_long format );
+/**************************************************/
+/* *** Memory Allocation is still OS specific *** */
+/**************************************************/
+#if (defined(__FreeBSD__) || defined(__bsdi__))
+static vm_offset_t	get_bktr_mem( int unit, unsigned size );
+#endif
 
-static u_int			pixfmt_swap_flags( int pixfmt );
+#if (defined(__NetBSD__) || defined(__OpenBSD__))
+static vm_offset_t	get_bktr_mem(bktr_ptr_t, bus_dmamap_t *, unsigned size);
+static void		free_bktr_mem(bktr_ptr_t, bus_dmamap_t, vm_offset_t);
+#endif
+
+
+static int		oformat_meteor_to_bt( u_long format );
+
+static u_int		pixfmt_swap_flags( int pixfmt );
 
 /*
  * bt848 RISC programming routines.
@@ -1266,7 +1270,7 @@ static bool_t   split(bktr_reg_t *, volatile u_long **, int, u_long, int,
  */
 static int	video_open( bktr_ptr_t bktr );
 static int	video_close( bktr_ptr_t bktr );
-static int      video_read( bktr_ptr_t bktr, dev_t dev, struct uio *uio );
+static int      video_read( bktr_ptr_t bktr, int unit, dev_t dev, struct uio *uio );
 static int	video_ioctl( bktr_ptr_t bktr, int unit,
 			     int cmd, caddr_t arg, struct proc* pr );
 
@@ -1301,6 +1305,8 @@ static int      vbi_read( bktr_ptr_t bktr, dev_t dev, struct uio *uio );
  */
 static int	set_audio( bktr_ptr_t bktr, int mode );
 static void	temp_mute( bktr_ptr_t bktr, int flag );
+
+static void	init_BTSC( bktr_ptr_t bktr );
 static int	set_BTSC( bktr_ptr_t bktr, int control );
 
 static void	msp_autodetect( bktr_ptr_t bktr );
@@ -1351,167 +1357,53 @@ static void set_bctv_audio( bktr_ptr_t bktr );
 static void bctv_gpio_write( bktr_ptr_t bktr, int port, int val );
 /*static int bctv_gpio_read( bktr_ptr_t bktr, int port );*/ /* Not used */
 
-#ifdef __FreeBSD__
 
 /*
- * the boot time probe routine.
+ * the common attarch code, used by all OS versions.
  */
-static int
-bktr_probe( device_t dev )
-{
-	unsigned int type = pci_get_devid(dev);
-        unsigned int rev  = pci_get_revid(dev);
-	static int once;
-
-	if (!once++)
-		cdevsw_add(&bktr_cdevsw);
-
-	switch (type) {
-	case BROOKTREE_848_PCI_ID:
-		if (rev == 0x12) device_set_desc(dev, "BrookTree 848A");
-		else             device_set_desc(dev, "BrookTree 848");
-                return 0;
-        case BROOKTREE_849_PCI_ID:
-                device_set_desc(dev, "BrookTree 849A");
-                return 0;
-        case BROOKTREE_878_PCI_ID:
-                device_set_desc(dev, "BrookTree 878");
-                return 0;
-        case BROOKTREE_879_PCI_ID:
-                device_set_desc(dev, "BrookTree 879");
-                return 0;
-	};
-
-        return ENXIO;
-}
-
-#endif /* __FreeBSD__ */
-
-/*
- * the attach routine.
- */
-static int
-bktr_attach( device_t dev )
+static void 
+common_bktr_attach( bktr_ptr_t bktr, int unit, u_long pci_id, u_int rev )
 {
 	bt848_ptr_t	bt848;
 	vm_offset_t	buf;
-	u_long		latency;
-	u_long		fun;
-	u_long		val;
-	unsigned int	rev;
-	unsigned int	unit;
-	int		error = 0;
-	int		rid;
 
-        struct bktr_softc *bktr = device_get_softc(dev);
-
-	unit = device_get_unit(dev);
-
-	/*
-	 * Enable bus mastering and Memory Mapped device
-	 */
-	val = pci_read_config(dev, PCIR_COMMAND, 4);
-	val |= (PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
-	pci_write_config(dev, PCIR_COMMAND, val, 4);
-
-	/*
-	 * Map control/status registers.
-	 */
-	rid = PCI_MAP_REG_START;
-	bktr->res_mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-                                  0, ~0, 1, RF_ACTIVE);
-
-	if (!bktr->res_mem) {
-		device_printf(dev, "could not map memory\n");
-		error = ENXIO;
-		goto fail;
-	}
-	bktr->base = rman_get_virtual(bktr->res_mem); /* XXX use bus_space */
-
-	/*
-	 * Allocate our interrupt.
-	 */
-	rid = 0;
-	bktr->res_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-                                 RF_SHAREABLE | RF_ACTIVE);
-	if (bktr->res_irq == NULL) {
-		device_printf(dev, "could not map interrupt\n");
-		error = ENXIO;
-		goto fail;
-	}
-
-	error = bus_setup_intr(dev, bktr->res_irq, INTR_TYPE_NET,
-                               bktr_intr, bktr, &bktr->res_ih);
-	if (error) {
-		device_printf(dev, "could not setup irq\n");
-		goto fail;
-
-	}
-
-	/* Disable the brooktree device */
 	bt848 = bktr->base;
-	bt848->int_mask = ALL_INTS_DISABLED;
-	bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
 
-	/* Update the Device Control Register */
-	/* on Bt878 and Bt879 cards           */
-	fun = pci_read_config( dev, 0x40, 2);
-        fun = fun | 1;	/* Enable writes to the sub-system vendor ID */
+/***************************************/
+/* *** OS Specific memory routines *** */
+/***************************************/
+#if defined(__NetBSD__) || defined(__OpenBSD__)
+        /* allocate space for dma program */
+        bktr->dmat = pa->pa_dmat;
+        bktr->dma_prog = get_bktr_mem(bktr, &bktr->dm_prog, DMA_PROG_ALLOC);
+        bktr->odd_dma_prog = get_bktr_mem(bktr, &bktr->dm_oprog, DMA_PROG_ALLOC)
+;
+	/* allocte space for the VBI buffer */
+	bktr->vbidata  = get_bktr_mem(bktr, &bktr->vbidata, VBI_DATA_SIZE);
+	bktr->vbibuffer = get_bktr_mem(bktr, &bktr->vbibuffer, VBI_BUFFER_SIZE);
 
-#if defined( BKTR_430_FX_MODE )
-	if (bootverbose) printf("Using 430 FX chipset compatibilty mode\n");
-        fun = fun | 2;	/* Enable Intel 430 FX compatibility mode */
+        /* allocate space for pixel buffer */
+        if ( BROOKTREE_ALLOC )
+                buf = get_bktr_mem(bktr, &bktr->dm_mem, BROOKTREE_ALLOC);
+        else
+                buf = 0;
 #endif
 
-#if defined( BKTR_SIS_VIA_MODE )
-	if (bootverbose) printf("Using SiS/VIA chipset compatibilty mode\n");
-        fun = fun | 4;	/* Enable SiS/VIA compatibility mode (usefull for
-                           OPTi chipset motherboards too */
-#endif
-	pci_write_config(dev, 0x40, fun, 2);
-
-
-	/* XXX call bt848_i2c dependent attach() routine */
-#if (NSMBUS > 0)
-	if (bt848_i2c_attach(unit, bktr->base, &bktr->i2c_sc))
-		printf("bktr%d: i2c_attach: can't attach\n", unit);
-#endif
-
-
-/*
- * PCI latency timer.  32 is a good value for 4 bus mastering slots, if
- * you have more than four, then 16 would probably be a better value.
- */
-#ifndef BROOKTREE_DEF_LATENCY_VALUE
-#define BROOKTREE_DEF_LATENCY_VALUE	10
-#endif
-	latency = pci_read_config(dev, PCI_LATENCY_TIMER, 4);
-	latency = (latency >> 8) & 0xff;
-	if ( bootverbose ) {
-		if (latency)
-			printf("brooktree%d: PCI bus latency is", unit);
-		else
-			printf("brooktree%d: PCI bus latency was 0 changing to",
-				unit);
-	}
-	if ( !latency ) {
-		latency = BROOKTREE_DEF_LATENCY_VALUE;
-		pci_write_config(dev, PCI_LATENCY_TIMER, latency<<8, 4);
-	}
-	if ( bootverbose ) {
-		printf(" %d.\n", (int) latency);
-	}
-
-
+#if defined(__FreeBSD__) || defined(__bsdi__)
 	/* allocate space for dma program */
 	bktr->dma_prog     = get_bktr_mem(unit, DMA_PROG_ALLOC);
 	bktr->odd_dma_prog = get_bktr_mem(unit, DMA_PROG_ALLOC);
+
+	/* allocte space for the VBI buffer */
+	bktr->vbidata  = get_bktr_mem(unit, VBI_DATA_SIZE);
+	bktr->vbibuffer = get_bktr_mem(unit, VBI_BUFFER_SIZE);
 
 	/* allocate space for pixel buffer */
 	if ( BROOKTREE_ALLOC )
 		buf = get_bktr_mem(unit, BROOKTREE_ALLOC);
 	else
 		buf = 0;
+#endif
 
 	if ( bootverbose ) {
 		printf("bktr%d: buffer size %d, addr 0x%x\n",
@@ -1537,21 +1429,16 @@ bktr_attach( device_t dev )
 	bktr->pixfmt = oformat_meteor_to_bt( bktr->format );
 	bktr->pixfmt_compat = TRUE;
 
-	/* allocte space for the VBI buffer */
-	bktr->vbidata  = get_bktr_mem(unit, VBI_DATA_SIZE);
-	bktr->vbibuffer = get_bktr_mem(unit, VBI_BUFFER_SIZE);
 
 	bktr->vbiinsert = 0;
 	bktr->vbistart = 0;
 	bktr->vbisize = 0;
 	bktr->vbiflags = 0;
+
  
-	/* read the pci device id and revision id */
+	/* using the pci device id and revision id */
 	/* and determine the card type            */
-	fun = pci_get_devid(dev);
-        rev = pci_get_revid(dev);
-	 
-	switch (fun) {
+	switch (pci_id) {
 	case BROOKTREE_848_PCI_ID:
 		if (rev == 0x12) bktr->id = BROOKTREE_848A;
 		else             bktr->id = BROOKTREE_848;
@@ -1586,62 +1473,6 @@ bktr_attach( device_t dev )
 	if (bktr->card.msp3400c)msp_reset(bktr);
 	if (bktr->card.msp3400c)msp_read_id(bktr);
 
-#ifdef DEVFS
-	/* XXX This just throw away the token, which should probably be fixed when
-	   DEVFS is finally made really operational. */
-	devfs_add_devswf(&bktr_cdevsw, unit,    DV_CHR, 0, 0, 0444, "bktr%d",  unit);
-	devfs_add_devswf(&bktr_cdevsw, unit+16, DV_CHR, 0, 0, 0444, "tuner%d", unit);
-	devfs_add_devswf(&bktr_cdevsw, unit+32, DV_CHR, 0, 0, 0444, "vbi%d", unit);
-#endif /* DEVFS */
-
-	return 0;
-
-fail:
-	return error;
-
-}
-
-/*
- * the detach routine.
- */
-static int
-bktr_detach( device_t dev )
-{
-	struct bktr_softc *bktr = device_get_softc(dev);
-	bt848_ptr_t bt848;
-
-	/* Disable the brooktree device */
-	bt848 = bktr->base;
-	bt848->int_mask = ALL_INTS_DISABLED;
-	bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
-
-	/* FIXME - Free memory for RISC programs, grab buffer, vbi buffers */
-
-	/*
-	 * Deallocate resources.
-	 */
-	bus_teardown_intr(dev, bktr->res_irq, bktr->res_ih);
-	bus_release_resource(dev, SYS_RES_IRQ, 0, bktr->res_irq);
-	bus_release_resource(dev, SYS_RES_MEMORY, PCI_MAP_REG_START, bktr->res_mem);
-
-	return 0;
-}
-
-/*
- * the shutdown routine.
- */
-static int
-bktr_shutdown( device_t dev )
-{
-	struct bktr_softc *bktr = device_get_softc(dev);
-	bt848_ptr_t bt848;
-
-	/* Disable the brooktree device */
-	bt848 = bktr->base;
-	bt848->int_mask = ALL_INTS_DISABLED;
-	bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
-
-	return 0;
 }
 
 
@@ -1675,10 +1506,13 @@ static void vbidecode(bktr_ptr_t bktr) {
 
 
 /*
- * interrupt handling routine complete bktr_read() if using interrupts.
+ * the common interrupt handler.
+ * Returns a 0 or 1 depending on whether the interrupt has handled.
+ * In the OS specific section, bktr_intr() is defined which calls this
+ * common interrupt handler.
  */
-static void
-bktr_intr( void *arg )
+static int 
+common_bktr_intr( void *arg )
 { 
 	bktr_ptr_t		bktr;
 	bt848_ptr_t		bt848;
@@ -1697,7 +1531,7 @@ bktr_intr( void *arg )
 	 * interrupt dispatch list.
 	 */
 	if (bt848->int_mask == ALL_INTS_DISABLED)
-	  	return;		/* bail out now, before we do something we
+	  	return 0;	/* bail out now, before we do something we
 				   shouldn't */
 
 	if (!(bktr->flags & METEOR_OPEN)) {
@@ -1771,12 +1605,12 @@ bktr_intr( void *arg )
 				  BT848_INT_FMTCHG;
 
 		bt848->cap_ctl = bktr->bktr_cap_ctl;
-		return;
+		return 1;
 	}
 
 	/* If this is not a RISC program interrupt, return */
 	if (!(bktr_status & BT848_INT_RISCI))
-		return;
+		return 0;
 
 /**
 	printf( "intr status %x %x %x\n",
@@ -1837,7 +1671,7 @@ bktr_intr( void *arg )
 				break;
 			}
 		}
-		return;
+		return 1;
 	}
 
 	/*
@@ -1921,100 +1755,10 @@ bktr_intr( void *arg )
 		}
 	}
 
-	return;
+	return 1;
 }
 
 
-/*---------------------------------------------------------
-**
-**	BrookTree 848 character device driver routines
-**
-**---------------------------------------------------------
-*/
-
-
-#define VIDEO_DEV	0x00
-#define TUNER_DEV	0x01
-#define VBI_DEV		0x02
-
-/*
- * 
- */
-int
-bktr_open( dev_t dev, int flags, int fmt, struct proc *p )
-{
-	bktr_ptr_t	bktr;
-	int		unit;
-	int		result;
-
-	unit = UNIT( minor(dev) );
-
-	/* Get the device data */
-	bktr = (struct bktr_softc*)devclass_get_softc(bktr_devclass, unit);
-	if (bktr == NULL) {
-		/* the device is no longer valid/functioning */
-		return (ENXIO);
-	}
-
-	if (!(bktr->flags & METEOR_INITALIZED)) /* device not found */
-		return( ENXIO );	
-
-	/* Record that the device is now busy */
-	device_busy(devclass_get_device(bktr_devclass, unit)); 
-
-
-	if (bt848_card != -1) {
-	  if ((bt848_card >> 8   == unit ) &&
-	     ( (bt848_card & 0xff) < Bt848_MAX_CARD )) {
-	    if ( bktr->bt848_card != (bt848_card & 0xff) ) {
-	      bktr->bt848_card = (bt848_card & 0xff);
-	      probeCard(bktr, FALSE);
-	    }
-	  }
-	}
-
-	if (bt848_tuner != -1) {
-	  if ((bt848_tuner >> 8   == unit ) &&
-	     ( (bt848_tuner & 0xff) < Bt848_MAX_TUNER )) {
-	    if ( bktr->bt848_tuner != (bt848_tuner & 0xff) ) {
-	      bktr->bt848_tuner = (bt848_tuner & 0xff);
-	      probeCard(bktr, FALSE);
-	    }
-	  }
-	}
-
-	if (bt848_reverse_mute != -1) {
-	  if (((bt848_reverse_mute >> 8)   == unit ) &&
-	      ((bt848_reverse_mute & 0xff) < Bt848_MAX_TUNER) ) {
-	    bktr->reverse_mute = bt848_reverse_mute & 0xff;
-	    bt848_reverse_mute = -1;
-	  }
-	}
-
-
-	switch ( MINOR( minor(dev) ) ) {
-	case VIDEO_DEV:
-		result = video_open( bktr );
-		break;
-
-	case TUNER_DEV:
-		result = tuner_open( bktr );
-		break;
-
-	case VBI_DEV:
-		result = vbi_open( bktr );
-		break;
-
-	default:
-		result = ENXIO;
-		break;
-	}
-
-	/* If there was an error opening the device, undo the busy status */
-	if (result != 0)
-		device_unbusy(devclass_get_device(bktr_devclass, unit)); 
-	return( result );
-}
 
 
 /*
@@ -2172,7 +1916,7 @@ tuner_open( bktr_ptr_t bktr )
 
 	/* enable stereo if appropriate on TDA audio chip */
 	if ( bktr->card.dbx )
-		set_BTSC( bktr, 0 );
+		init_BTSC( bktr );
 
 	/* reset the MSP34xx stereo audio chip */
 	if ( bktr->card.msp3400c )
@@ -2182,46 +1926,6 @@ tuner_open( bktr_ptr_t bktr )
 }
 
 
-/*
- * 
- */
-int
-bktr_close( dev_t dev, int flags, int fmt, struct proc *p )
-{
-	bktr_ptr_t	bktr;
-	int		unit;
-	int		result;
-
-	unit = UNIT( minor(dev) );
-
-	/* Get the device data */
-	bktr = (struct bktr_softc*)devclass_get_softc(bktr_devclass, unit);
-	if (bktr == NULL) {
-		/* the device is no longer valid/functioning */
-		return (ENXIO);
-	}
-
-	switch ( MINOR( minor(dev) ) ) {
-	case VIDEO_DEV:
-		result = video_close( bktr );
-		break;
-
-	case TUNER_DEV:
-		result = tuner_close( bktr );
-		break;
-
-	case VBI_DEV:
-		result = vbi_close( bktr );
-		break;
-
-	default:
-		return (ENXIO);
-		break;
-	}
-
-	device_unbusy(devclass_get_device(bktr_devclass, unit)); 
-	return( result );
-}
 
 
 /*
@@ -2281,47 +1985,15 @@ vbi_close( bktr_ptr_t bktr )
 }
 
 /*
- * 
- */
-int
-bktr_read( dev_t dev, struct uio *uio, int ioflag )
-{
-	bktr_ptr_t	bktr;
-	int		unit;
-	
-	unit = UNIT(minor(dev));
-
-	/* Get the device data */
-	bktr = (struct bktr_softc*)devclass_get_softc(bktr_devclass, unit);
-	if (bktr == NULL) {
-		/* the device is no longer valid/functioning */
-		return (ENXIO);
-	}
-
-	switch ( MINOR( minor(dev) ) ) {
-	case VIDEO_DEV:
-		return( video_read( bktr, dev, uio ) );
-
-	case VBI_DEV:
-		return( vbi_read( bktr, dev, uio ) );
-	}
-
-        return( ENXIO );
-}
-
-
-/*
  *
  */
 static int
-video_read(bktr_ptr_t bktr, dev_t dev, struct uio *uio)
+video_read(bktr_ptr_t bktr, int unit, dev_t dev, struct uio *uio)
 {
         bt848_ptr_t     bt848;
-        int             unit;
         int             status;
         int             count;
 
-        unit = UNIT(minor(dev));
 
         bt848 = bktr->base;
 
@@ -2409,48 +2081,6 @@ vbi_read(bktr_ptr_t bktr, dev_t dev, struct uio *uio)
 
 }
 
-/*
- * 
- */
-int
-bktr_write( dev_t dev, struct uio *uio, int ioflag )
-{
-	return( EINVAL ); /* XXX or ENXIO ? */
-}
-
-
-/*
- * 
- */
-int
-bktr_ioctl( dev_t dev, ioctl_cmd_t cmd, caddr_t arg, int flag, struct proc* pr )
-{
-	bktr_ptr_t	bktr;
-	int		unit;
-
-	unit = UNIT(minor(dev));
-
-	/* Get the device data */
-	bktr = (struct bktr_softc*)devclass_get_softc(bktr_devclass, unit);
-	if (bktr == NULL) {
-		/* the device is no longer valid/functioning */
-		return (ENXIO);
-	}
-
-	if (bktr->bigbuf == 0)	/* no frame buffer allocated (ioctl failed) */
-		return( ENOMEM );
-
-	switch ( MINOR( minor(dev) ) ) {
-	case VIDEO_DEV:
-		return( video_ioctl( bktr, unit, cmd, arg, pr ) );
-
-	case TUNER_DEV:
-		return( tuner_ioctl( bktr, unit, cmd, arg, pr ) );
-
-	}
-
-	return( ENXIO );
-}
 
 
 /*
@@ -2911,10 +2541,27 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 			temp = btoc(temp);
 			if ((int) temp > bktr->alloc_pages
 			    && bktr->video.addr == 0) {
-				buf = get_bktr_mem(unit, temp*PAGE_SIZE);
-				if (buf != 0) {
-					kmem_free(kernel_map, bktr->bigbuf,
-					  (bktr->alloc_pages * PAGE_SIZE));
+
+/*****************************/
+/* *** OS Dependant code *** */
+/*****************************/
+#if defined(__NetBSD__) || defined(__OpenBSD__)
+                                bus_dmamap_t dmamap;
+
+                                buf = get_bktr_mem(bktr, &dmamap,
+                                                   temp * PAGE_SIZE);
+                                if (buf != 0) {
+                                        free_bktr_mem(bktr, bktr->dm_mem,
+                                                      bktr->bigbuf);
+                                        bktr->dm_mem = dmamap;
+
+#else
+                                buf = get_bktr_mem(unit, temp*PAGE_SIZE);
+                                if (buf != 0) {
+                                        kmem_free(kernel_map, bktr->bigbuf,
+                                          (bktr->alloc_pages * PAGE_SIZE));
+#endif                                          
+
 					bktr->bigbuf = buf;
 					bktr->alloc_pages = temp;
 					if (bootverbose)
@@ -3590,38 +3237,6 @@ common_ioctl( bktr_ptr_t bktr, bt848_ptr_t bt848, int cmd, caddr_t arg )
 }
 
 
-/*
- * 
- */
-int
-bktr_mmap( dev_t dev, vm_offset_t offset, int nprot )
-{
-	int		unit;
-	bktr_ptr_t	bktr;
-
-	unit = UNIT(minor(dev));
-
-	if (MINOR(minor(dev)) > 0)	/* only allow mmap on /dev/bktr[n] */
-		return( -1 );
-
-	/* Get the device data */
-	bktr = (struct bktr_softc*)devclass_get_softc(bktr_devclass, unit);
-	if (bktr == NULL) {
-		/* the device is no longer valid/functioning */
-		return (ENXIO);
-	}
-
-	if (nprot & PROT_EXEC)
-		return( -1 );
-
-	if (offset < 0)
-		return( -1 );
-
-	if (offset >= bktr->alloc_pages * PAGE_SIZE)
-		return( -1 );
-
-	return( i386_btop(vtophys(bktr->bigbuf) + offset) );
-}
 
 
 /******************************************************************************
@@ -4895,34 +4510,6 @@ set_fps( bktr_ptr_t bktr, u_short fps )
 }
 
 
-/*
- * There is also a problem with range checking on the 7116.
- * It seems to only work for 22 bits, so the max size we can allocate
- * is 22 bits long or 4194304 bytes assuming that we put the beginning
- * of the buffer on a 2^24 bit boundary.  The range registers will use
- * the top 8 bits of the dma start registers along with the bottom 22
- * bits of the range register to determine if we go out of range.
- * This makes getting memory a real kludge.
- *
- */
-
-#define RANGE_BOUNDARY	(1<<22)
-static vm_offset_t
-get_bktr_mem( int unit, unsigned size )
-{
-	vm_offset_t	addr = 0;
-
-	addr = vm_page_alloc_contig(size, 0x100000, 0xffffffff, 1<<24);
-	if (addr == 0)
-		addr = vm_page_alloc_contig(size, 0x100000, 0xffffffff,
-								PAGE_SIZE);
-	if (addr == 0) {
-		printf("bktr%d: Unable to allocate %d bytes of memory.\n",
-			unit, size);
-	}
-
-	return( addr );
-}
 
 
 
@@ -5669,6 +5256,7 @@ static int locate_eeprom_address( bktr_ptr_t bktr) {
 #define VENDOR_AVER_MEDIA 0x1431
 #define VENDOR_HAUPPAUGE  0x0070
 #define VENDOR_FLYVIDEO   0x1851
+#define VENDOR_STB        0x10B4
 
 static void
 probeCard( bktr_ptr_t bktr, int verbose )
@@ -5678,12 +5266,11 @@ probeCard( bktr_ptr_t bktr, int verbose )
 	bt848_ptr_t	bt848;
 	u_char 		probe_signature[128], *probe_temp;
         int   		any_i2c_devices;
-	u_char 		probe_eeprom[256];
+	u_char 		eeprom[256];
 	u_char 		tuner_code = 0;
 	int 		tuner_i2c_address = -1;
 	int 		eeprom_i2c_address = -1;
 
-        any_i2c_devices = check_for_i2c_devices( bktr );
 	bt848 = bktr->base;
 
 	/* Select all GPIO bits as inputs */
@@ -5705,14 +5292,18 @@ probeCard( bktr_ptr_t bktr, int verbose )
         DELAY(2500); /* wait 2.5ms */
 #endif
 
+	/* Check for the presence of i2c devices */
+        any_i2c_devices = check_for_i2c_devices( bktr );
+
+
 	/* Check for a user specified override on the card selection */
 #if defined( OVERRIDE_CARD )
 	bktr->card = cards[ (card = OVERRIDE_CARD) ];
-	goto checkTuner;
+	goto checkEEPROM;
 #endif
 	if (bktr->bt848_card != -1 ) {
 	  bktr->card = cards[ (card = bktr->bt848_card) ];
-	  goto checkTuner;
+	  goto checkEEPROM;
 	}
 
 
@@ -5736,20 +5327,22 @@ probeCard( bktr_ptr_t bktr, int verbose )
                 unsigned int subsystem_id;        /* board model number */
 		unsigned int byte_252, byte_253, byte_254, byte_255;
 
+		bktr->card = cards[ (card = CARD_UNKNOWN) ];
 		bktr->card.eepromAddr = eeprom_i2c_address;
 		bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
 
-	        readEEProm(bktr, 0, 256, (u_char *) &probe_eeprom );
-                byte_252 = (unsigned int)probe_eeprom[252];
-                byte_253 = (unsigned int)probe_eeprom[253];
-                byte_254 = (unsigned int)probe_eeprom[254];
-                byte_255 = (unsigned int)probe_eeprom[255];
+	        readEEProm(bktr, 0, 256, (u_char *) &eeprom );
+                byte_252 = (unsigned int)eeprom[252];
+                byte_253 = (unsigned int)eeprom[253];
+                byte_254 = (unsigned int)eeprom[254];
+                byte_255 = (unsigned int)eeprom[255];
                 
                 subsystem_id        = (byte_252 << 8) | byte_253;
                 subsystem_vendor_id = (byte_254 << 8) | byte_255;
 
 	        if ( bootverbose ) 
-	            printf("subsytem %x %x\n",subsystem_vendor_id,subsystem_id);
+	            printf("subsytem 0x%04x 0x%04x\n",subsystem_vendor_id,
+		                                  subsystem_id);
 
                 if (subsystem_vendor_id == VENDOR_AVER_MEDIA) {
                     bktr->card = cards[ (card = CARD_AVER_MEDIA) ];
@@ -5772,9 +5365,16 @@ probeCard( bktr_ptr_t bktr, int verbose )
                     goto checkTuner;
                 }
 
+                if (subsystem_vendor_id == VENDOR_STB) {
+                    bktr->card = cards[ (card = CARD_STB) ];
+		    bktr->card.eepromAddr = eeprom_i2c_address;
+		    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
+                    goto checkTuner;
+                }
+
                 /* Vendor is unknown. We will use the standard probe code */
 		/* which may not give best results */
-                printf("Warning - card vendor %4x (model %d) unknown. This may cause poor performance\n",subsystem_vendor_id,subsystem_id);
+                printf("Warning - card vendor 0x%04x (model 0x%04x) unknown. This may cause poor performance\n",subsystem_vendor_id,subsystem_id);
             }
 	    else
 	    {
@@ -5783,12 +5383,14 @@ probeCard( bktr_ptr_t bktr, int verbose )
 	} /* end of bt878/bt879 card detection code */
 
 	/* If we get to this point, we must have a Bt848/848A/849A card */
-	/* or a Bt878 with an unknown subsystem vendor id */
+	/* or a Bt878/879 with an unknown subsystem vendor id */
         /* Try and determine the make of card by clever i2c probing */
 
    	/* Check for i2c devices. If none, move on */
 	if (!any_i2c_devices) {
 		bktr->card = cards[ (card = CARD_INTEL) ];
+		bktr->card.eepromAddr = 0;
+		bktr->card.eepromSize = 0;
 		goto checkTuner;
 	}
 
@@ -5805,29 +5407,36 @@ probeCard( bktr_ptr_t bktr, int verbose )
             if ( (status = i2cRead( bktr, PFC8582_RADDR )) != ABSENT ) {
 
 		    /* Read the eeprom contents */
+		    bktr->card = cards[ (card = CARD_UNKNOWN) ];
 		    bktr->card.eepromAddr = PFC8582_WADDR;
 		    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
-	            readEEProm(bktr, 0, 128, (u_char *) &probe_eeprom );
+	            readEEProm(bktr, 0, 128, (u_char *) &eeprom );
 
 		    /* For Hauppauge, check the EEPROM begins with 0x84 */
-		    if (probe_eeprom[0] == 0x84) {
+		    if (eeprom[0] == 0x84) {
                             bktr->card = cards[ (card = CARD_HAUPPAUGE) ];
+			    bktr->card.eepromAddr = PFC8582_WADDR;
+			    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
                             goto checkTuner;
 		    }
 
 		    /* For Osprey, check the EEPROM begins with "MMAC" */
-		    if (  (probe_eeprom[0] == 'M') &&(probe_eeprom[1] == 'M')
-			&&(probe_eeprom[2] == 'A') &&(probe_eeprom[3] == 'C')) {
+		    if (  (eeprom[0] == 'M') &&(eeprom[1] == 'M')
+			&&(eeprom[2] == 'A') &&(eeprom[3] == 'C')) {
                             bktr->card = cards[ (card = CARD_OSPREY) ];
+			    bktr->card.eepromAddr = PFC8582_WADDR;
+			    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
                             goto checkTuner;
 		    }
 		    printf("Warning: Unknown card type. EEPROM data not recognised\n");
-		    printf("%x %x %x %x\n",probe_eeprom[0],probe_eeprom[1],probe_eeprom[2],probe_eeprom[3]);
+		    printf("%x %x %x %x\n",eeprom[0],eeprom[1],eeprom[2],eeprom[3]);
             }
 
             /* look for an STB card */
             if ( (status = i2cRead( bktr, X24C01_RADDR )) != ABSENT ) {
                     bktr->card = cards[ (card = CARD_STB) ];
+		    bktr->card.eepromAddr = X24C01_WADDR;
+		    bktr->card.eepromSize = (u_char)(128 / EEPROMBLOCKSIZE);
                     goto checkTuner;
             }
 
@@ -5859,11 +5468,33 @@ probeCard( bktr_ptr_t bktr, int verbose )
 	  if (card_found) {
 	    bktr->card = cards[ card = bt848_card_signature[i].card];
 	    bktr->card.tuner = &tuners[ bt848_card_signature[i].tuner];
+	    eeprom_i2c_address = locate_eeprom_address( bktr );
+	    if (eeprom_i2c_address != -1) {
+		bktr->card.eepromAddr = eeprom_i2c_address;
+		bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
+	    } else {
+		bktr->card.eepromAddr = 0;
+		bktr->card.eepromSize = 0;
+	    }
 	    goto checkDBX;
 	  }
 	}
-	/* XXX FIXME: (how do I) look for a Miro card */
+
+	/* We do not know the card type. Default to Miro */
 	bktr->card = cards[ (card = CARD_MIRO) ];
+
+
+checkEEPROM:
+	/* look for a configuration eeprom */
+	eeprom_i2c_address = locate_eeprom_address( bktr );
+	if (eeprom_i2c_address != -1) {
+	    bktr->card.eepromAddr = eeprom_i2c_address;
+	    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
+	} else {
+	    bktr->card.eepromAddr = 0;
+	    bktr->card.eepromSize = 0;
+	}
+
 
 checkTuner:
 
@@ -5949,9 +5580,26 @@ checkTuner:
 
 	    */
 
-	    readEEProm(bktr, 0, 128, (u_char *) &probe_eeprom );
+	    readEEProm(bktr, 0, 128, (u_char *) &eeprom );
 
-	    tuner_code = probe_eeprom[9];
+
+	    /* Determine the model number from the eeprom */
+	    {
+		u_int model;
+		u_int revision;
+		model    = (eeprom[12] << 8  | eeprom[11]);
+		revision = (eeprom[15] << 16 | eeprom[14] << 8 | eeprom[13]);
+		if (verbose)
+		    printf("Hauppauge Model %d %c%c%c%c\n",
+			model,
+			((revision >> 18) & 0x3f) + 32,
+			((revision >> 12) & 0x3f) + 32,
+			((revision >>  6) & 0x3f) + 32,
+			((revision >>  0) & 0x3f) + 32 );
+	    }
+
+	    /* Determine the tuner type from the eeprom */
+	    tuner_code = eeprom[9];
 	    switch (tuner_code) {
 
 	       case 0x5:
@@ -6012,10 +5660,8 @@ checkTuner:
 
         /* Address 0xc2/0xc3 is default (or common address) for several */
 	/* tuners and we cannot tell which is which. */
-        /* Default to No Tuner */
-
-	/* no tuner found */
-	bktr->card.tuner = &tuners[ NO_TUNER ];
+	/* And for all other tuner i2c addresses, select the default */
+	bktr->card.tuner = &tuners[ DEFAULT_TUNER ];
 
 
 checkDBX:
@@ -6869,6 +6515,22 @@ temp_mute( bktr_ptr_t bktr, int flag )
 
 
 /*
+ * initialise the dbx chip
+ * taken from the Linux bttv driver TDA9850 initialisation code
+ */
+static void 
+init_BTSC( bktr_ptr_t bktr )
+{
+    i2cWrite(bktr, TDA9850_WADDR, CON1ADDR, 0x08); /* noise threshold st */
+    i2cWrite(bktr, TDA9850_WADDR, CON2ADDR, 0x08); /* noise threshold sap */
+    i2cWrite(bktr, TDA9850_WADDR, CON3ADDR, 0x40); /* stereo mode */
+    i2cWrite(bktr, TDA9850_WADDR, CON4ADDR, 0x07); /* 0 dB input gain? */
+    i2cWrite(bktr, TDA9850_WADDR, ALI1ADDR, 0x10); /* wideband alignment? */
+    i2cWrite(bktr, TDA9850_WADDR, ALI2ADDR, 0x10); /* spectral alignment? */
+    i2cWrite(bktr, TDA9850_WADDR, ALI3ADDR, 0x03);
+}
+
+/*
  * setup the dbx chip
  * XXX FIXME: alot of work to be done here, this merely unmutes it.
  */
@@ -7013,9 +6675,10 @@ bctv_gpio_read( bktr_ptr_t bktr, int port )
 
 /*
  * setup the MSP34xx Stereo Audio Chip
- * This uses the Auto Configuration Option on MSP3410D and MSP3415D
- * chips. For MSP3400C support, the full programming sequence is required
- * and so is not yet supported.
+ * This uses the Auto Configuration Option on MSP3410D and MSP3415D chips
+ * and DBX mode selection for MSP3430G chips.
+ * For MSP3400C support, the full programming sequence is required and is
+ * not yet supported.
  */
 
 /* Read the MSP version string */
@@ -7024,21 +6687,1023 @@ static void msp_read_id( bktr_ptr_t bktr ){
     rev1 = msp_read(bktr, 0x12, 0x001e);
     rev2 = msp_read(bktr, 0x12, 0x001f);
 
-    printf("Detected a MSP34%02d%c-%c%d \n",
+    sprintf(bktr->msp_version_string, "34%02d%c-%c%d",
       (rev2>>8)&0xff, (rev1&0xff)+'@', ((rev1>>8)&0xff)+'@', rev2&0x1f);
+
+    printf("Detected a MSP%s\n",bktr->msp_version_string); 
 }
 
 
 /* Configure the MSP chip to Auto-detect the audio format */
 static void msp_autodetect( bktr_ptr_t bktr ) {
-    msp_write(bktr, 0x12, 0x0000,0x7300); /* Set volume to 0db gain */
-    msp_write(bktr, 0x10, 0x0020,0x0001); /* Enable Auto format detection */
-    msp_write(bktr, 0x10, 0x0021,0x0001); /* Auto selection of NICAM/MONO mode */
-    /* uncomment the following line to enable the MSP34xx 1Khz Tone Generator */
-    /* msp_write(bktr, 0x12, 0x0014, 0x7f40); */
+
+  if (strncmp("3430G", bktr->msp_version_string, 5) == 0){
+
+    /* For MSP3430G - countries with mono and DBX stereo */
+    msp_write(bktr, 0x10, 0x0030,0x2003);/* Enable Auto format detection */
+    msp_write(bktr, 0x10, 0x0020,0x0020);/* Standard Select Reg. = BTSC-Stereo*/
+    msp_write(bktr, 0x12, 0x000E,0x2403);/* darned if I know */
+    msp_write(bktr, 0x12, 0x0008,0x0320);/* Source select = (St or A) */
+					 /*   & Ch. Matrix = St */
+    msp_write(bktr, 0x12, 0x0000,0x7300);/* Set volume to 0db gain */
+
+  } else {
+
+    /* For MSP3410 / 3415 - countries with mono, FM stereo and NICAM */
+    msp_write(bktr, 0x12, 0x0000,0x7300);/* Set volume to 0db gain */
+    msp_write(bktr, 0x10, 0x0020,0x0001);/* Enable Auto format detection */
+    msp_write(bktr, 0x10, 0x0021,0x0001);/* Auto selection of NICAM/MONO mode */
+  }
+
+  /* uncomment the following line to enable the MSP34xx 1Khz Tone Generator */
+  /* turn your speaker volume down low before trying this */
+  /* msp_write(bktr, 0x12, 0x0014, 0x7f40); */
 }
 
-#endif /* !defined(__FreeBSD__) || (NBKTR > 0) */
+
+
+/*
+ *
+ * Operating System Dependant Parts
+ * This section contains OS Dependant code like
+ * probe and attach and the cdev open/close/read/mmap interface
+ *
+ */
+
+/****************************/
+/* *** FreeBSD 4.x code *** */
+/****************************/
+#if (__FreeBSD_version >= 400000)
+
+static int	bktr_probe( device_t dev );
+static int	bktr_attach( device_t dev );
+static int	bktr_detach( device_t dev );
+static int	bktr_shutdown( device_t dev );
+static void	bktr_intr(void *arg) { common_bktr_intr(arg); }
+
+static device_method_t bktr_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,         bktr_probe),
+	DEVMETHOD(device_attach,        bktr_attach),
+	DEVMETHOD(device_detach,        bktr_detach),
+	DEVMETHOD(device_shutdown,      bktr_shutdown),
+
+	{ 0, 0 }
+};
+
+static driver_t bktr_driver = {
+	"bktr",
+	bktr_methods,
+	sizeof(struct bktr_softc),
+};
+
+static devclass_t bktr_devclass;
+
+static	d_open_t	bktr_open;
+static	d_close_t	bktr_close;
+static	d_read_t	bktr_read;
+static	d_write_t	bktr_write;
+static	d_ioctl_t	bktr_ioctl;
+static	d_mmap_t	bktr_mmap;
+
+#define CDEV_MAJOR 92 
+static struct cdevsw bktr_cdevsw = {
+	/* open */	bktr_open,
+	/* close */	bktr_close,
+	/* read */	bktr_read,
+	/* write */	bktr_write,
+	/* ioctl */	bktr_ioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	bktr_mmap,
+	/* strategy */	nostrategy,
+	/* name */	"bktr",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
+};
+
+DEV_DRIVER_MODULE(bktr, pci, bktr_driver, bktr_devclass, bktr_cdevsw, 0, 0);
+
+
+/*
+ * the boot time probe routine.
+ */
+static int
+bktr_probe( device_t dev )
+{
+	unsigned int type = pci_get_devid(dev);
+        unsigned int rev  = pci_get_revid(dev);
+	static int once;
+
+	if (!once++)
+		cdevsw_add(&bktr_cdevsw);
+
+	switch (type) {
+	case BROOKTREE_848_PCI_ID:
+		if (rev == 0x12) device_set_desc(dev, "BrookTree 848A");
+		else             device_set_desc(dev, "BrookTree 848");
+                return 0;
+        case BROOKTREE_849_PCI_ID:
+                device_set_desc(dev, "BrookTree 849A");
+                return 0;
+        case BROOKTREE_878_PCI_ID:
+                device_set_desc(dev, "BrookTree 878");
+                return 0;
+        case BROOKTREE_879_PCI_ID:
+                device_set_desc(dev, "BrookTree 879");
+                return 0;
+	};
+
+        return ENXIO;
+}
+
+
+/*
+ * the attach routine.
+ */
+static int
+bktr_attach( device_t dev )
+{
+	bt848_ptr_t	bt848;
+	u_long		latency;
+	u_long		fun;
+	u_long		val;
+	unsigned int	rev;
+	unsigned int	unit;
+	int		error = 0;
+	int		rid;
+#ifdef BROOKTREE_IRQ
+	u_long		old_irq, new_irq;
+#endif 
+
+        struct bktr_softc *bktr = device_get_softc(dev);
+
+	unit = device_get_unit(dev);
+
+	/*
+	 * Enable bus mastering and Memory Mapped device
+	 */
+	val = pci_read_config(dev, PCIR_COMMAND, 4);
+	val |= (PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
+	pci_write_config(dev, PCIR_COMMAND, val, 4);
+
+	/*
+	 * Map control/status registers.
+	 */
+	rid = PCI_MAP_REG_START;
+	bktr->res_mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
+                                  0, ~0, 1, RF_ACTIVE);
+
+	if (!bktr->res_mem) {
+		device_printf(dev, "could not map memory\n");
+		error = ENXIO;
+		goto fail;
+	}
+	bktr->base = rman_get_virtual(bktr->res_mem); /* XXX use bus_space */
+
+	/*
+	 * Disable the brooktree device
+	 */
+	bt848 = bktr->base;
+	bt848->int_mask = ALL_INTS_DISABLED;
+	bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
+
+
+#ifdef BROOKTREE_IRQ		/* from the configuration file */
+	old_irq = pci_conf_read(tag, PCI_INTERRUPT_REG);
+	pci_conf_write(tag, PCI_INTERRUPT_REG, BROOKTREE_IRQ);
+	new_irq = pci_conf_read(tag, PCI_INTERRUPT_REG);
+	printf("bktr%d: attach: irq changed from %d to %d\n",
+		unit, (old_irq & 0xff), (new_irq & 0xff));
+#endif 
+
+	/*
+	 * Allocate our interrupt.
+	 */
+	rid = 0;
+	bktr->res_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+                                 RF_SHAREABLE | RF_ACTIVE);
+	if (bktr->res_irq == NULL) {
+		device_printf(dev, "could not map interrupt\n");
+		error = ENXIO;
+		goto fail;
+	}
+
+	error = bus_setup_intr(dev, bktr->res_irq, INTR_TYPE_NET,
+                               bktr_intr, bktr, &bktr->res_ih);
+	if (error) {
+		device_printf(dev, "could not setup irq\n");
+		goto fail;
+
+	}
+
+
+	/* Update the Device Control Register */
+	/* on Bt878 and Bt879 cards           */
+	fun = pci_read_config( dev, 0x40, 2);
+        fun = fun | 1;	/* Enable writes to the sub-system vendor ID */
+
+#if defined( BKTR_430_FX_MODE )
+	if (bootverbose) printf("Using 430 FX chipset compatibilty mode\n");
+        fun = fun | 2;	/* Enable Intel 430 FX compatibility mode */
+#endif
+
+#if defined( BKTR_SIS_VIA_MODE )
+	if (bootverbose) printf("Using SiS/VIA chipset compatibilty mode\n");
+        fun = fun | 4;	/* Enable SiS/VIA compatibility mode (usefull for
+                           OPTi chipset motherboards too */
+#endif
+	pci_write_config(dev, 0x40, fun, 2);
+
+
+	/* XXX call bt848_i2c dependent attach() routine */
+#if (NSMBUS > 0)
+	if (bt848_i2c_attach(unit, bktr->base, &bktr->i2c_sc))
+		printf("bktr%d: i2c_attach: can't attach\n", unit);
+#endif
+
+
+/*
+ * PCI latency timer.  32 is a good value for 4 bus mastering slots, if
+ * you have more than four, then 16 would probably be a better value.
+ */
+#ifndef BROOKTREE_DEF_LATENCY_VALUE
+#define BROOKTREE_DEF_LATENCY_VALUE	10
+#endif
+	latency = pci_read_config(dev, PCI_LATENCY_TIMER, 4);
+	latency = (latency >> 8) & 0xff;
+	if ( bootverbose ) {
+		if (latency)
+			printf("brooktree%d: PCI bus latency is", unit);
+		else
+			printf("brooktree%d: PCI bus latency was 0 changing to",
+				unit);
+	}
+	if ( !latency ) {
+		latency = BROOKTREE_DEF_LATENCY_VALUE;
+		pci_write_config(dev, PCI_LATENCY_TIMER, latency<<8, 4);
+	}
+	if ( bootverbose ) {
+		printf(" %d.\n", (int) latency);
+	}
+
+	/* read the pci device id and revision id */
+	fun = pci_get_devid(dev);
+        rev = pci_get_revid(dev);
+
+	/* call the common attach code */
+	common_bktr_attach( bktr, unit, fun, rev );
+
+#ifdef DEVFS
+	/* XXX This just throw away the token, which should probably be fixed when
+	   DEVFS is finally made really operational. */
+	devfs_add_devswf(&bktr_cdevsw, unit,    DV_CHR, 0, 0, 0444, "bktr%d",  unit);
+	devfs_add_devswf(&bktr_cdevsw, unit+16, DV_CHR, 0, 0, 0444, "tuner%d", unit);
+	devfs_add_devswf(&bktr_cdevsw, unit+32, DV_CHR, 0, 0, 0444, "vbi%d", unit);
+#endif /* DEVFS */
+
+	return 0;
+
+fail:
+	return error;
+
+}
+
+/*
+ * the detach routine.
+ */
+static int
+bktr_detach( device_t dev )
+{
+	struct bktr_softc *bktr = device_get_softc(dev);
+	bt848_ptr_t bt848;
+
+	/* Disable the brooktree device */
+	bt848 = bktr->base;
+	bt848->int_mask = ALL_INTS_DISABLED;
+	bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
+
+	/* FIXME - Free memory for RISC programs, grab buffer, vbi buffers */
+
+	/*
+	 * Deallocate resources.
+	 */
+	bus_teardown_intr(dev, bktr->res_irq, bktr->res_ih);
+	bus_release_resource(dev, SYS_RES_IRQ, 0, bktr->res_irq);
+	bus_release_resource(dev, SYS_RES_MEMORY, PCI_MAP_REG_START, bktr->res_mem);
+
+	return 0;
+}
+
+/*
+ * the shutdown routine.
+ */
+static int
+bktr_shutdown( device_t dev )
+{
+	struct bktr_softc *bktr = device_get_softc(dev);
+	bt848_ptr_t bt848;
+
+	/* Disable the brooktree device */
+	bt848 = bktr->base;
+	bt848->int_mask = ALL_INTS_DISABLED;
+	bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
+
+	return 0;
+}
+
+
+/*
+ * Special Memory Allocation
+ */
+static vm_offset_t
+get_bktr_mem( int unit, unsigned size )
+{
+	vm_offset_t	addr = 0;
+
+	addr = vm_page_alloc_contig(size, 0x100000, 0xffffffff, 1<<24);
+	if (addr == 0)
+		addr = vm_page_alloc_contig(size, 0x100000, 0xffffffff,
+								PAGE_SIZE);
+	if (addr == 0) {
+		printf("bktr%d: Unable to allocate %d bytes of memory.\n",
+			unit, size);
+	}
+
+	return( addr );
+}
+
+
+/*---------------------------------------------------------
+**
+**	BrookTree 848 character device driver routines
+**
+**---------------------------------------------------------
+*/
+
+#define VIDEO_DEV	0x00
+#define TUNER_DEV	0x01
+#define VBI_DEV		0x02
+
+#define UNIT(x)		((x) & 0x0f)
+#define FUNCTION(x)	(x >> 4)
+
+/*
+ * 
+ */
+int
+bktr_open( dev_t dev, int flags, int fmt, struct proc *p )
+{
+	bktr_ptr_t	bktr;
+	int		unit;
+	int		result;
+
+	unit = UNIT( minor(dev) );
+
+	/* Get the device data */
+	bktr = (struct bktr_softc*)devclass_get_softc(bktr_devclass, unit);
+	if (bktr == NULL) {
+		/* the device is no longer valid/functioning */
+		return (ENXIO);
+	}
+
+	if (!(bktr->flags & METEOR_INITALIZED)) /* device not found */
+		return( ENXIO );	
+
+	/* Record that the device is now busy */
+	device_busy(devclass_get_device(bktr_devclass, unit)); 
+
+
+	if (bt848_card != -1) {
+	  if ((bt848_card >> 8   == unit ) &&
+	     ( (bt848_card & 0xff) < Bt848_MAX_CARD )) {
+	    if ( bktr->bt848_card != (bt848_card & 0xff) ) {
+	      bktr->bt848_card = (bt848_card & 0xff);
+	      probeCard(bktr, FALSE);
+	    }
+	  }
+	}
+
+	if (bt848_tuner != -1) {
+	  if ((bt848_tuner >> 8   == unit ) &&
+	     ( (bt848_tuner & 0xff) < Bt848_MAX_TUNER )) {
+	    if ( bktr->bt848_tuner != (bt848_tuner & 0xff) ) {
+	      bktr->bt848_tuner = (bt848_tuner & 0xff);
+	      probeCard(bktr, FALSE);
+	    }
+	  }
+	}
+
+	if (bt848_reverse_mute != -1) {
+	  if (((bt848_reverse_mute >> 8)   == unit ) &&
+	      ((bt848_reverse_mute & 0xff) < Bt848_MAX_TUNER) ) {
+	    bktr->reverse_mute = bt848_reverse_mute & 0xff;
+	    bt848_reverse_mute = -1;
+	  }
+	}
+
+	switch ( FUNCTION( minor(dev) ) ) {
+	case VIDEO_DEV:
+		result = video_open( bktr );
+		break;
+	case TUNER_DEV:
+		result = tuner_open( bktr );
+		break;
+	case VBI_DEV:
+		result = vbi_open( bktr );
+		break;
+	default:
+		result = ENXIO;
+		break;
+	}
+
+	/* If there was an error opening the device, undo the busy status */
+	if (result != 0)
+		device_unbusy(devclass_get_device(bktr_devclass, unit)); 
+	return( result );
+}
+
+
+/*
+ * 
+ */
+int
+bktr_close( dev_t dev, int flags, int fmt, struct proc *p )
+{
+	bktr_ptr_t	bktr;
+	int		unit;
+	int		result;
+
+	unit = UNIT( minor(dev) );
+
+	/* Get the device data */
+	bktr = (struct bktr_softc*)devclass_get_softc(bktr_devclass, unit);
+	if (bktr == NULL) {
+		/* the device is no longer valid/functioning */
+		return (ENXIO);
+	}
+
+	switch ( FUNCTION( minor(dev) ) ) {
+	case VIDEO_DEV:
+		result = video_close( bktr );
+		break;
+	case TUNER_DEV:
+		result = tuner_close( bktr );
+		break;
+	case VBI_DEV:
+		result = vbi_close( bktr );
+		break;
+	default:
+		return (ENXIO);
+		break;
+	}
+
+	device_unbusy(devclass_get_device(bktr_devclass, unit)); 
+	return( result );
+}
+
+
+/*
+ * 
+ */
+int
+bktr_read( dev_t dev, struct uio *uio, int ioflag )
+{
+	bktr_ptr_t	bktr;
+	int		unit;
+	
+	unit = UNIT(minor(dev));
+
+	/* Get the device data */
+	bktr = (struct bktr_softc*)devclass_get_softc(bktr_devclass, unit);
+	if (bktr == NULL) {
+		/* the device is no longer valid/functioning */
+		return (ENXIO);
+	}
+
+	switch ( FUNCTION( minor(dev) ) ) {
+	case VIDEO_DEV:
+		return( video_read( bktr, unit, dev, uio ) );
+	case VBI_DEV:
+		return( vbi_read( bktr, dev, uio ) );
+	}
+        return( ENXIO );
+}
+
+
+/*
+ * 
+ */
+int
+bktr_write( dev_t dev, struct uio *uio, int ioflag )
+{
+	return( EINVAL ); /* XXX or ENXIO ? */
+}
+
+
+/*
+ * 
+ */
+int
+bktr_ioctl( dev_t dev, ioctl_cmd_t cmd, caddr_t arg, int flag, struct proc* pr )
+{
+	bktr_ptr_t	bktr;
+	int		unit;
+
+	unit = UNIT(minor(dev));
+
+	/* Get the device data */
+	bktr = (struct bktr_softc*)devclass_get_softc(bktr_devclass, unit);
+	if (bktr == NULL) {
+		/* the device is no longer valid/functioning */
+		return (ENXIO);
+	}
+
+	if (bktr->bigbuf == 0)	/* no frame buffer allocated (ioctl failed) */
+		return( ENOMEM );
+
+	switch ( FUNCTION( minor(dev) ) ) {
+	case VIDEO_DEV:
+		return( video_ioctl( bktr, unit, cmd, arg, pr ) );
+	case TUNER_DEV:
+		return( tuner_ioctl( bktr, unit, cmd, arg, pr ) );
+	}
+
+	return( ENXIO );
+}
+
+
+/*
+ * 
+ */
+int
+bktr_mmap( dev_t dev, vm_offset_t offset, int nprot )
+{
+	int		unit;
+	bktr_ptr_t	bktr;
+
+	unit = UNIT(minor(dev));
+
+	if (FUNCTION(minor(dev)) > 0)	/* only allow mmap on /dev/bktr[n] */
+		return( -1 );
+
+	/* Get the device data */
+	bktr = (struct bktr_softc*)devclass_get_softc(bktr_devclass, unit);
+	if (bktr == NULL) {
+		/* the device is no longer valid/functioning */
+		return (ENXIO);
+	}
+
+	if (nprot & PROT_EXEC)
+		return( -1 );
+
+	if (offset < 0)
+		return( -1 );
+
+	if (offset >= bktr->alloc_pages * PAGE_SIZE)
+		return( -1 );
+
+	return( i386_btop(vtophys(bktr->bigbuf) + offset) );
+}
+
+#endif		/* FreeBSD 4.x specific kernel interface routines */
+
+
+/**********************************/
+/* *** FreeBSD 2.2.x and 3.x  *** */
+/**********************************/
+
+#if ((__FreeBSD__ == 2) || (__FreeBSD__ == 3))
+
+static bktr_reg_t brooktree[ NBKTR ];
+
+static const char*	bktr_probe( pcici_t tag, pcidi_t type );
+static void		bktr_attach( pcici_t tag, int unit );
+static void		bktr_intr(void *arg) { common_bktr_intr(arg); }
+
+static u_long	bktr_count;
+
+static struct	pci_device bktr_device = {
+	"bktr",
+	bktr_probe,
+	bktr_attach,
+	&bktr_count
+};
+
+DATA_SET (pcidevice_set, bktr_device);
+
+static	d_open_t	bktr_open;
+static	d_close_t	bktr_close;
+static	d_read_t	bktr_read;
+static	d_write_t	bktr_write;
+static	d_ioctl_t	bktr_ioctl;
+static	d_mmap_t	bktr_mmap;
+
+#define CDEV_MAJOR 92 
+static struct cdevsw bktr_cdevsw = 
+{
+	bktr_open,	bktr_close,	bktr_read,	bktr_write,
+	bktr_ioctl,	nostop,		nullreset,	nodevtotty,
+	seltrue,	bktr_mmap,	NULL,		"bktr",
+	NULL,		-1
+};
+
+static int bktr_devsw_installed;
+
+static void
+bktr_drvinit( void *unused )
+{
+	dev_t dev;
+
+	if ( ! bktr_devsw_installed ) {
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&bktr_cdevsw, NULL);
+		bktr_devsw_installed = 1;
+	}
+}
+
+SYSINIT(bktrdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,bktr_drvinit,NULL)
+
+/*
+ * the boot time probe routine.
+ */
+static const char*
+bktr_probe( pcici_t tag, pcidi_t type )
+{
+        unsigned int rev = pci_conf_read( tag, PCIR_REVID) & 0x000000ff;
+	 
+	switch (type) {
+	case BROOKTREE_848_PCI_ID:
+		if (rev == 0x12) return("BrookTree 848A");
+		else             return("BrookTree 848"); 
+        case BROOKTREE_849_PCI_ID:
+                return("BrookTree 849A");
+        case BROOKTREE_878_PCI_ID:
+                return("BrookTree 878");
+        case BROOKTREE_879_PCI_ID:
+                return("BrookTree 879");
+	};
+
+	return ((char *)0);
+}
+
+/*
+ * the attach routine.
+ */
+static	void
+bktr_attach( pcici_t tag, int unit )
+{
+	bktr_ptr_t	bktr;
+	bt848_ptr_t	bt848;
+	u_long		latency;
+	u_long		fun;
+	unsigned int	rev;
+#ifdef BROOKTREE_IRQ
+	u_long		old_irq, new_irq;
+#endif 
+
+	bktr = &brooktree[unit];
+
+	if (unit >= NBKTR) {
+		printf("brooktree%d: attach: only %d units configured.\n",
+		        unit, NBKTR);
+		printf("brooktree%d: attach: invalid unit number.\n", unit);
+		return;
+	}
+
+	/* Enable Memory Mapping */
+	fun = pci_conf_read(tag, PCI_COMMAND_STATUS_REG);
+	pci_conf_write(tag, PCI_COMMAND_STATUS_REG, fun | 2);
+
+	/* Enable Bus Mastering */
+	fun = pci_conf_read(tag, PCI_COMMAND_STATUS_REG);
+	pci_conf_write(tag, PCI_COMMAND_STATUS_REG, fun | 4);
+
+	bktr->tag = tag;
+
+
+	/*
+	 * Map control/status registers
+	 */
+	pci_map_mem( tag, PCI_MAP_REG_START, (vm_offset_t *) &bktr->base,
+		     &bktr->phys_base );
+
+	/*
+	 * Disable the brooktree device
+	 */
+	bt848 = bktr->base;
+	bt848->int_mask = ALL_INTS_DISABLED;
+	bt848->gpio_dma_ctl = FIFO_RISC_DISABLED;
+
+#ifdef BROOKTREE_IRQ		/* from the configuration file */
+	old_irq = pci_conf_read(tag, PCI_INTERRUPT_REG);
+	pci_conf_write(tag, PCI_INTERRUPT_REG, BROOKTREE_IRQ);
+	new_irq = pci_conf_read(tag, PCI_INTERRUPT_REG);
+	printf("bktr%d: attach: irq changed from %d to %d\n",
+		unit, (old_irq & 0xff), (new_irq & 0xff));
+#endif 
+
+	/*
+	 * setup the interrupt handling routine
+	 */
+	pci_map_int(tag, bktr_intr, (void*) bktr, &net_imask);
+
+
+	/* Update the Device Control Register */
+	/* on Bt878 and Bt879 cards */
+	fun = pci_conf_read(tag, 0x40);
+        fun = fun | 1;	/* Enable writes to the sub-system vendor ID */
+
+#if defined( BKTR_430_FX_MODE )
+	if (bootverbose) printf("Using 430 FX chipset compatibilty mode\n");
+        fun = fun | 2;	/* Enable Intel 430 FX compatibility mode */
+#endif
+
+#if defined( BKTR_SIS_VIA_MODE )
+	if (bootverbose) printf("Using SiS/VIA chipset compatibilty mode\n");
+        fun = fun | 4;	/* Enable SiS/VIA compatibility mode (usefull for
+                           OPTi chipset motherboards too */
+#endif
+	pci_conf_write(tag, 0x40, fun);
+
+
+	/* XXX call bt848_i2c dependent attach() routine */
+#if (NSMBUS > 0)
+	if (bt848_i2c_attach(unit, bktr->base, &bktr->i2c_sc))
+		printf("bktr%d: i2c_attach: can't attach\n", unit);
+#endif
+
+
+/*
+ * PCI latency timer.  32 is a good value for 4 bus mastering slots, if
+ * you have more than four, then 16 would probably be a better value.
+ */
+#ifndef BROOKTREE_DEF_LATENCY_VALUE
+#define BROOKTREE_DEF_LATENCY_VALUE	10
+#endif
+	latency = pci_conf_read(tag, PCI_LATENCY_TIMER);
+	latency = (latency >> 8) & 0xff;
+	if ( bootverbose ) {
+		if (latency)
+			printf("brooktree%d: PCI bus latency is", unit);
+		else
+			printf("brooktree%d: PCI bus latency was 0 changing to",
+				unit);
+	}
+	if ( !latency ) {
+		latency = BROOKTREE_DEF_LATENCY_VALUE;
+		pci_conf_write(tag, PCI_LATENCY_TIMER,	latency<<8);
+	}
+	if ( bootverbose ) {
+		printf(" %d.\n", (int) latency);
+	}
+
+
+	/* read the pci device id and revision id */
+	fun = pci_conf_read(tag, PCI_ID_REG);
+        rev = pci_conf_read(tag, PCIR_REVID) & 0x000000ff;
+
+	/* call the common attach code */
+	common_bktr_attach( bktr, unit, fun, rev );
+ 
+#ifdef DEVFS
+	/* XXX This just throw away the token, which should probably be fixed when
+	   DEVFS is finally made really operational. */
+	devfs_add_devswf(&bktr_cdevsw, unit,    DV_CHR, 0, 0, 0444, "bktr%d",  unit);
+	devfs_add_devswf(&bktr_cdevsw, unit+16, DV_CHR, 0, 0, 0444, "tuner%d", unit);
+	devfs_add_devswf(&bktr_cdevsw, unit+32, DV_CHR, 0, 0, 0444, "vbi%d", unit);
+#endif /* DEVFS */
+
+}
+
+
+/*
+ * Special Memory Allocation
+ */
+static vm_offset_t
+get_bktr_mem( int unit, unsigned size )
+{
+	vm_offset_t	addr = 0;
+
+	addr = vm_page_alloc_contig(size, 0x100000, 0xffffffff, 1<<24);
+	if (addr == 0)
+		addr = vm_page_alloc_contig(size, 0x100000, 0xffffffff,
+								PAGE_SIZE);
+	if (addr == 0) {
+		printf("bktr%d: Unable to allocate %d bytes of memory.\n",
+			unit, size);
+	}
+
+	return( addr );
+}
+
+/*---------------------------------------------------------
+**
+**	BrookTree 848 character device driver routines
+**
+**---------------------------------------------------------
+*/
+
+
+#define VIDEO_DEV	0x00
+#define TUNER_DEV	0x01
+#define VBI_DEV		0x02
+
+#define UNIT(x)		((x) & 0x0f)
+#define FUNCTION(x)	((x >> 4) & 0x0f)
+
+
+/*
+ * 
+ */
+int
+bktr_open( dev_t dev, int flags, int fmt, struct proc *p )
+{
+	bktr_ptr_t	bktr;
+	int		unit;
+
+	unit = UNIT( minor(dev) );
+	if (unit >= NBKTR)			/* unit out of range */
+		return( ENXIO );
+
+	bktr = &(brooktree[ unit ]);
+
+	if (!(bktr->flags & METEOR_INITALIZED)) /* device not found */
+		return( ENXIO );	
+
+
+	if (bt848_card != -1) {
+	  if ((bt848_card >> 8   == unit ) &&
+	     ( (bt848_card & 0xff) < Bt848_MAX_CARD )) {
+	    if ( bktr->bt848_card != (bt848_card & 0xff) ) {
+	      bktr->bt848_card = (bt848_card & 0xff);
+	      probeCard(bktr, FALSE);
+	    }
+	  }
+	}
+
+	if (bt848_tuner != -1) {
+	  if ((bt848_tuner >> 8   == unit ) &&
+	     ( (bt848_tuner & 0xff) < Bt848_MAX_TUNER )) {
+	    if ( bktr->bt848_tuner != (bt848_tuner & 0xff) ) {
+	      bktr->bt848_tuner = (bt848_tuner & 0xff);
+	      probeCard(bktr, FALSE);
+	    }
+	  }
+	}
+
+	if (bt848_reverse_mute != -1) {
+	  if (((bt848_reverse_mute >> 8)   == unit ) &&
+	      ((bt848_reverse_mute & 0xff) < Bt848_MAX_TUNER) ) {
+	    bktr->reverse_mute = bt848_reverse_mute & 0xff;
+	    bt848_reverse_mute = -1;
+	  }
+	}
+
+
+	switch ( FUNCTION( minor(dev) ) ) {
+	case VIDEO_DEV:
+		return( video_open( bktr ) );
+	case TUNER_DEV:
+		return( tuner_open( bktr ) );
+	case VBI_DEV:
+		return( vbi_open( bktr ) );
+	}
+	return( ENXIO );
+}
+
+
+/*
+ * 
+ */
+int
+bktr_close( dev_t dev, int flags, int fmt, struct proc *p )
+{
+	bktr_ptr_t	bktr;
+	int		unit;
+
+	unit = UNIT( minor(dev) );
+	if (unit >= NBKTR)			/* unit out of range */
+		return( ENXIO );
+
+	bktr = &(brooktree[ unit ]);
+
+	switch ( FUNCTION( minor(dev) ) ) {
+	case VIDEO_DEV:
+		return( video_close( bktr ) );
+	case TUNER_DEV:
+		return( tuner_close( bktr ) );
+	case VBI_DEV:
+		return( vbi_close( bktr ) );
+	}
+
+	return( ENXIO );
+}
+
+/*
+ * 
+ */
+int
+bktr_read( dev_t dev, struct uio *uio, int ioflag )
+{
+	bktr_ptr_t	bktr;
+	int		unit;
+	
+	unit = UNIT(minor(dev));
+	if (unit >= NBKTR)	/* unit out of range */
+		return( ENXIO );
+
+	bktr = &(brooktree[unit]);
+
+	switch ( FUNCTION( minor(dev) ) ) {
+	case VIDEO_DEV:
+		return( video_read( bktr, unit, dev, uio ) );
+	case VBI_DEV:
+		return( vbi_read( bktr, dev, uio ) );
+	}
+        return( ENXIO );
+}
+
+
+/*
+ * 
+ */
+int
+bktr_write( dev_t dev, struct uio *uio, int ioflag )
+{
+	return( EINVAL ); /* XXX or ENXIO ? */
+}
+
+/*
+ * 
+ */
+int
+bktr_ioctl( dev_t dev, ioctl_cmd_t cmd, caddr_t arg, int flag, struct proc* pr )
+{
+	bktr_ptr_t	bktr;
+	int		unit;
+
+	unit = UNIT(minor(dev));
+	if (unit >= NBKTR)	/* unit out of range */
+		return( ENXIO );
+
+	bktr = &(brooktree[ unit ]);
+
+	if (bktr->bigbuf == 0)	/* no frame buffer allocated (ioctl failed) */
+		return( ENOMEM );
+
+	switch ( FUNCTION( minor(dev) ) ) {
+	case VIDEO_DEV:
+		return( video_ioctl( bktr, unit, cmd, arg, pr ) );
+	case TUNER_DEV:
+		return( tuner_ioctl( bktr, unit, cmd, arg, pr ) );
+	}
+
+	return( ENXIO );
+}
+
+/*
+ * bktr_mmap.
+ * Note: 2.2.5/2.2.6/2.2.7/3.0 users must manually
+ * edit the following line and change  "vm_offset_t" to "int""
+ */
+int bktr_mmap( dev_t dev, vm_offset_t offset, int nprot )
+
+{
+	int		unit;
+	bktr_ptr_t	bktr;
+
+	unit = UNIT(minor(dev));
+
+	if (unit >= NBKTR || FUNCTION(minor(dev)) > 0)
+		return( -1 );
+
+	bktr = &(brooktree[ unit ]);
+
+	if (nprot & PROT_EXEC)
+		return( -1 );
+
+	if (offset < 0)
+		return( -1 );
+
+	if (offset >= bktr->alloc_pages * PAGE_SIZE)
+		return( -1 );
+
+	return( i386_btop(vtophys(bktr->bigbuf) + offset) );
+}
+
+#endif		/* FreeBSD 2.2.x and 3.x specific kernel interface routines */
+
+
+
+#endif /* !defined(__FreeBSD__) || (NBKTR > 0 && NPCI > 0) */
 
 /* Local Variables: */
 /* mode: C */
