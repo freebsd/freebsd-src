@@ -1078,6 +1078,12 @@ most secure).  See
 .Xr init 8
 for the list of possible security levels and their effect
 on system operation.
+.It Ar start_vinum
+(bool) Set to
+.Ar YES
+if you want to start
+.Xr vinum 8
+at system boot time.
 .Sh FILES
 .Bl -tag -width /etc/defaults/rc.conf -compact
 .It Pa /etc/defaults/rc.conf
@@ -1128,6 +1134,7 @@ on system operation.
 .Xr swapon 8 ,
 .Xr tickadj 8 ,
 .Xr timed 8 ,
+.Xr vinum 8 ,
 .Xr vnconfig 8 ,
 .Xr xntpd 8 ,
 .Xr xtend 8 ,
