@@ -169,7 +169,7 @@
 .	ie \\n(aC==\\n(aP .aZ
 .	el \{\
 .		nr aP \\n(aP+1
-.		ie \\n(C\\n(aP==2 \{\
+.		if \\n(C\\n(aP==2 \{\
 .			ds b0 \\*(A\\n(aP
 .			ie     "\\*(b0"1.0"       %comment%
 .			el .ie "\\*(b0"1.1"       %comment%
