@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SUBDIR=	lib libexec usr.bin usr.sbin
+SUBDIR=	doc lib libexec usr.bin usr.sbin
 
 # These are the programs which depend on Kerberos.
 KPROGS=	secure/usr.bin/ssh secure/usr.sbin/sshd
