@@ -963,7 +963,6 @@ sched_newthread(struct thread *td)
 	bzero(ke, sizeof(*ke));
 	td->td_sched     = ke;
 	ke->ke_thread	= td;
-	ke->ke_oncpu	= NOCPU;
 	ke->ke_state	= KES_THREAD;
 }
 

@@ -79,7 +79,6 @@ struct kse {
 	TAILQ_ENTRY(kse) ke_procq;	/* (j/z) Run queue. */
 	struct thread	*ke_thread;	/* (*) Active associated thread. */
 	fixpt_t		ke_pctcpu;	/* (j) %cpu during p_swtime. */
-	u_char		ke_oncpu;	/* (j) Which cpu we are on. */
 	char		ke_rqindex;	/* (j) Run queue index. */
 	enum {
 		KES_THREAD = 0x0,	/* slaved to thread state */
@@ -615,7 +614,6 @@ schedinit(void)
 	ksegrp0.kg_sched = &kg_sched0;
 	thread0.td_sched = &kse0;
 	kse0.ke_thread = &thread0;
-	kse0.ke_oncpu = NOCPU; /* wrong.. can we use PCPU(cpuid) yet? */
 	kse0.ke_state = KES_THREAD;
 	kg_sched0.skg_concurrency = 1;
 	kg_sched0.skg_avail_opennings = 0; /* we are already running */
