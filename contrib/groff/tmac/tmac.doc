@@ -1819,7 +1819,6 @@
 .	if "\\*(A\\n(aP"-width" \{\
 .		nr iD 1
 .		nr aP \\n(aP+1
-.		nr tW 1
 .		ds t\\n(lC TagwidtH
 .		ds tS \\*(A\\n(aP
 .		aW \\n(aP
@@ -2120,7 +2119,7 @@
 .de tL
 .nh
 .\" tm in tL here is b1==\\*(b1
-.if \\n(tW==0 .lW
+.if !"TagwidtH"\\*(t\\n(lC" .lW
 .lX
 .nr bb \\n(w\\n(lCu+\\n(lSu
 .ti -\\n(bbu
@@ -2139,25 +2138,23 @@
 'fi
 .hy
 ..
-.\" NS lW macro - resolve unknown label/tag width (if .Bl [inset | tag] only)
+.\" NS lW macro - resolve unknown label/tag width (`tag' list-type only)
 .de lW
 .if !"TagwidtH"\\*(t\\n(lC" \{\
 .       ie \\n(tX==1 \{\
-.               ds t\\n(lN \\*(tX
-.               nr w\\n(lN \\n(\\*(tX
+.               ds t\\n(lC \\*(tX
+.               nr w\\n(lC \\n(\\*(tX
 .       \}
 .       el \{\
-.               ds t\\n(lN No
-.               nr w\\n(lN \\n(No
+.               ds t\\n(lC No
+.               nr w\\n(lC \\n(No
 .       \}
-.       if !"\\*(t\\n(lC"\\*(t\\n(lN" .nr tC 1
 .\}
 ..
 .\" NS lX macro - set up vertical spacing (if compact) and offset+indent (all)
 .de lX
 .ie \\n(tC \{\
 .       nr tC 0
-.       nr tW 0
 .       if \\n(v\\n(lC==0 .sp \\n(dVu
 .       in \\n(.iu+\\n(w\\n(lCu+\\n(o\\n(lCu+\\n(lSu
 .\}
@@ -2175,7 +2172,6 @@
 .de lY
 .ie \\n(tC \{\
 .       nr tC 0
-.       nr tW 0
 .       if \\n(v\\n(lC==0 .sp \\n(dVu
 .       in \\n(.iu+\\n(o\\n(lCu
 .\}
