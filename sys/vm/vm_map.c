@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.74 1997/04/06 03:04:31 dyson Exp $
+ * $Id: vm_map.c,v 1.75 1997/04/07 07:16:05 peter Exp $
  */
 
 /*
@@ -2229,6 +2229,58 @@ vmspace_fork(vm1)
 
 	return (vm2);
 }
+
+/*
+ * Unshare the specified VM space for exec.  If other processes are
+ * mapped to it, then create a new one.  The new vmspace is null.
+ */
+
+void
+vmspace_exec(struct proc *p) {
+	struct vmspace *oldvmspace = p->p_vmspace;
+	struct vmspace *newvmspace;
+	vm_map_t map = &p->p_vmspace->vm_map;
+
+	newvmspace = vmspace_alloc(map->min_offset, map->max_offset,
+	    map->entries_pageable);
+	bcopy(&oldvmspace->vm_startcopy, &newvmspace->vm_startcopy,
+	    (caddr_t) (newvmspace + 1) - (caddr_t) &newvmspace->vm_startcopy);
+	/*
+	 * This code is written like this for prototype purposes.  The
+	 * goal is to avoid running down the vmspace here, but let the
+	 * other process's that are still using the vmspace to finally
+	 * run it down.  Even though there is little or no chance of blocking
+	 * here, it is a good idea to keep this form for future mods.
+	 */
+	vm_map_reference(&oldvmspace->vm_map);
+	vmspace_free(oldvmspace);
+	p->p_vmspace = newvmspace;
+	if (p == curproc)
+		pmap_activate(p);
+	vm_map_deallocate(&oldvmspace->vm_map);
+}
+
+/*
+ * Unshare the specified VM space for forcing COW.  This
+ * is called by rfork, for the (RFMEM|RFPROC) == 0 case.
+ */
+
+void
+vmspace_unshare(struct proc *p) {
+	struct vmspace *oldvmspace = p->p_vmspace;
+	struct vmspace *newvmspace;
+
+	if (oldvmspace->vm_refcnt == 1)
+		return;
+	newvmspace = vmspace_fork(oldvmspace);
+	vm_map_reference(&oldvmspace->vm_map);
+	vmspace_free(oldvmspace);
+	p->p_vmspace = newvmspace;
+	if (p == curproc)
+		pmap_activate(p);
+	vm_map_deallocate(&oldvmspace->vm_map);
+}
+	
 
 /*
  *	vm_map_lookup:

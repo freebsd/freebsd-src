@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: imgact_aout.c,v 1.33 1997/02/22 09:38:55 peter Exp $
  */
 
 #include "opt_rlimit.h"
@@ -55,7 +55,7 @@ exec_aout_imgact(imgp)
 	struct image_params *imgp;
 {
 	const struct exec *a_out = (const struct exec *) imgp->image_header;
-	struct vmspace *vmspace = imgp->proc->p_vmspace;
+	struct vmspace *vmspace;
 	vm_offset_t vmaddr;
 	unsigned long virtual_offset;
 	unsigned long file_offset;
@@ -145,6 +145,11 @@ exec_aout_imgact(imgp)
 	 * Destroy old process VM and create a new one (with a new stack)
 	 */
 	exec_new_vmspace(imgp);
+
+	/*
+	 * The vm space can be changed by exec_new_vmspace
+	 */
+	vmspace = imgp->proc->p_vmspace;
 
 	/*
 	 * Map text/data read/execute

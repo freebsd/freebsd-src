@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.61 1997/02/22 09:48:17 peter Exp $
+ * $Id: vm_glue.c,v 1.62 1997/04/07 07:16:04 peter Exp $
  */
 
 #include "opt_rlimit.h"
@@ -211,14 +211,16 @@ vm_fork(p1, p2, flags)
 	pmap_t pvp;
 	vm_object_t upobj;
 
+	if (flags & RFMEM) {
+		p2->p_vmspace = p1->p_vmspace;
+		p1->p_vmspace->vm_refcnt++;
+	}
+
 	while ((cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min) {
 		VM_WAIT;
 	}
 
-	if (flags & RFMEM) {
-		p2->p_vmspace = p1->p_vmspace;
-		p1->p_vmspace->vm_refcnt++;
-	} else {
+	if ((flags & RFMEM) == 0) {
 		p2->p_vmspace = vmspace_fork(p1->p_vmspace);
 
 		if (p1->p_vmspace->vm_shm)

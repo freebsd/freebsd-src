@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.17 1997/03/23 03:36:16 bde Exp $
+ *	$Id: imgact_elf.c,v 1.18 1997/04/01 10:41:48 bde Exp $
  */
 
 #include "opt_rlimit.h"
@@ -470,7 +470,7 @@ exec_elf_imgact(struct image_params *imgp)
 	const Elf32_Ehdr *hdr = (const Elf32_Ehdr *) imgp->image_header;
 	const Elf32_Phdr *phdr, *mapped_phdr = NULL;
 	Elf32_Auxargs *elf_auxargs = NULL;
-	struct vmspace *vmspace = imgp->proc->p_vmspace;
+	struct vmspace *vmspace;
 	vm_prot_t prot = 0;
 	u_long text_size = 0, data_size = 0;
 	u_long text_addr = 0, data_addr = 0;
@@ -526,6 +526,8 @@ exec_elf_imgact(struct image_params *imgp)
 		goto fail;
 
 	exec_new_vmspace(imgp);
+
+	vmspace = imgp->proc->p_vmspace;
 
 	for (i = 0; i < hdr->e_phnum; i++) {
 		switch(phdr[i].p_type) {

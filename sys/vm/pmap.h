@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id$
+ * $Id: pmap.h,v 1.19 1997/02/22 09:48:04 peter Exp $
  */
 
 /*
@@ -129,6 +129,7 @@ void		 pmap_new_proc __P((struct proc *p));
 void		 pmap_dispose_proc __P((struct proc *p));
 void		 pmap_swapout_proc __P((struct proc *p));
 void		 pmap_swapin_proc __P((struct proc *p));
+void		 pmap_activate __P((struct proc *p));
 
 #endif /* KERNEL */
 
