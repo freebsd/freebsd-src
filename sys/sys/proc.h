@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.60 1998/11/11 10:04:12 truckman Exp $
+ * $Id: proc.h,v 1.61 1998/11/11 10:56:05 truckman Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -271,8 +271,8 @@ MALLOC_DECLARE(M_SUBPROC);
  * We use process IDs <= PID_MAX; PID_MAX + 1 must also fit in a pid_t,
  * as it is used to represent "no process group".
  */
-#define	PID_MAX		30000
-#define	NO_PID		30001
+#define	PID_MAX		99999
+#define	NO_PID		100000
 
 #define SESS_LEADER(p)	((p)->p_session->s_leader == (p))
 #define	SESSHOLD(s)	((s)->s_count++)
