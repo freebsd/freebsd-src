@@ -40,6 +40,7 @@
 #include <machine/reg.h>
 #include <pthread.h>
 #include "pthread_private.h"
+#include "libc_private.h"
 
 int
 _thread_create(pthread_t * thread, const pthread_attr_t * attr,
@@ -252,6 +253,12 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	       void *(*start_routine) (void *), void *arg)
 {
 	int             ret = 0;
+
+	/*
+	 * Locking functions in libc are required when there are
+	 * threads other than the initial thread.
+	 */
+	__isthreaded = 1;
 
 	/*
 	 * Call the low level thread creation function which allows a parent
