@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 9, 2004
+.Dd February 3, 2005
 .Dt NG_EIFACE 4
 .Os
 .Sh NAME
@@ -64,7 +64,7 @@ packets received by any real Ethernet interface.
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
 .Bl -tag -width indent
-.It Dv NGM_EIFACE_SET
+.It Dv NGM_EIFACE_SET Pq Li set
 Set link-level address of the interface.
 Requires
 .Vt "struct ether_addr"
@@ -76,7 +76,7 @@ version, called
 which requires as an argument an
 .Tn ASCII
 string consisting of 6 colon-separated hex digits.
-.It Dv NGM_EIFACE_GET_IFNAME
+.It Dv NGM_EIFACE_GET_IFNAME Pq Li getifname
 Return the name of the associated interface as a
 .Dv NUL Ns -terminated
 .Tn ASCII
