@@ -666,6 +666,7 @@ trap(int vector, struct trapframe *tf)
 		FP_STATE fp_state;
 		FPSWA_RET fpswa_ret;
 		FPSWA_BUNDLE bundle;
+		char *ip;
 
 		/* Always fatal in kernel. Should never happen. */
 		if (!user)
@@ -677,7 +678,11 @@ trap(int vector, struct trapframe *tf)
 			break;
 		}
 
-		error = copyin((void *)(tf->tf_special.iip), &bundle, 16);
+		ip = (char *)tf->tf_special.iip;
+		if (vector == IA64_VEC_FLOATING_POINT_TRAP &&
+		    (tf->tf_special.psr & IA64_PSR_RI) == 0)
+			ip -= 16;
+		error = copyin(ip, &bundle, 16);
 		if (error) {
 			sig = SIGBUS;	/* EFAULT, basically */
 			ucode = 0;	/* exception summary */
@@ -699,15 +704,20 @@ trap(int vector, struct trapframe *tf)
 		ia64_enable_highfp();
 
 		/* The docs are unclear.  Is Fpswa reentrant? */
-		fpswa_ret = fpswa_interface->Fpswa(1, &bundle,
-		    &tf->tf_special.psr, &tf->tf_special.fpsr,
-		    &tf->tf_special.isr, &tf->tf_special.pr,
-		    &tf->tf_special.cfm, &fp_state);
+		fpswa_ret = fpswa_interface->Fpswa(
+			(vector == IA64_VEC_FLOATING_POINT_FAULT) ? 1 : 0,
+			&bundle, &tf->tf_special.psr, &tf->tf_special.fpsr,
+			&tf->tf_special.isr, &tf->tf_special.pr,
+			&tf->tf_special.cfm, &fp_state);
 
 		ia64_disable_highfp();
 
-		if (fpswa_ret.status == 0) {
-			/* fixed.  update ipsr and iip to next insn */
+		/*
+		 * Update ipsr and iip to next instruction. We only
+		 * have to do that for faults.
+		 */
+		if (vector == IA64_VEC_FLOATING_POINT_FAULT &&
+		    (fpswa_ret.status == 0 || (fpswa_ret.status & 2))) {
 			int ei;
 
 			ei = (tf->tf_special.isr >> 41) & 0x03;
@@ -721,30 +731,19 @@ trap(int vector, struct trapframe *tf)
 				tf->tf_special.psr &= ~IA64_ISR_EI;
 				tf->tf_special.iip += 0x10;
 			}
+		}
+
+		if (fpswa_ret.status == 0) {
 			goto out;
 		} else if (fpswa_ret.status == -1) {
 			printf("FATAL: FPSWA err1 %lx, err2 %lx, err3 %lx\n",
 			    fpswa_ret.err1, fpswa_ret.err2, fpswa_ret.err3);
 			panic("fpswa fatal error on fp fault");
-		} else if (fpswa_ret.status > 0) {
-#if 0
-			if (fpswa_ret.status & 1) {
-				/*
-				 * New exception needs to be raised.
-				 * If set then the following bits also apply:
-				 * & 2 -> fault was converted to a trap
-				 * & 4 -> SIMD caused the exception
-				 */
-				sig = SIGFPE;
-				ucode = 0;		/* exception summary */
-				break;
-			}
-#endif
+		} else {
 			sig = SIGFPE;
-			ucode = 0;			/* exception summary */
+			ucode = 0;		/* XXX exception summary */
 			break;
-		} else
-			panic("bad fpswa return code %lx", fpswa_ret.status);
+		}
 	}
 
 	case IA64_VEC_IA32_EXCEPTION:
