@@ -458,6 +458,8 @@ struct hatm_softc {
 	/* internal statistics */
 	struct istats		istats;
 
+	u_int			mpsafe;
+
 #ifdef HATM_DEBUG
 	/* debugging */
 	u_int			debug;
