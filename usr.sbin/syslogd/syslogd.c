@@ -1593,7 +1593,7 @@ init(int signo)
 				p = LocalHostName;
 			for (i = 1; i < MAXHOSTNAMELEN - 1; i++) {
 				if (!isalnum(*p) && *p != '.' && *p != '-'
-				    && *p != ',')
+				    && *p != ',' && *p != ':' && *p != '%')
 					break;
 				host[i] = *p++;
 			}
