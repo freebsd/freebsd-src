@@ -1,12 +1,12 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.143.2.2 1996/12/14 11:35:56 joerg Exp $
+#	$Id: Makefile,v 1.143.2.3 1997/04/26 22:39:32 jkh Exp $
 
 # -rw-r--r--
 BINOWN= root
 BINGRP= wheel
 BIN1=   aliases amd.map csh.cshrc csh.login csh.logout dm.conf \
 	ftpusers gettytab group hosts host.conf hosts.equiv hosts.lpd \
-	inetd.conf login.access motd modems networks \
+	inetd.conf login.conf login.access motd modems networks \
 	newsyslog.conf phones pccard.conf.sample printcap profile protocols \
 	rc rc.conf rc.firewall rc.local rc.network rc.pccard rc.serial \
 	etc.${MACHINE}/rc.${MACHINE} \
