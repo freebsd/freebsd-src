@@ -33,11 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: util.c,v 1.4 1994/10/09 15:25:23 ache Exp $
+ *	$Id: util.c,v 1.5 1996/03/31 16:14:11 ache Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)util.c	8.3 (Berkeley) 4/2/94";
+static char const sccsid[] = "@(#)util.c	8.3 (Berkeley) 4/2/94";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -68,6 +68,10 @@ prcopy(src, dest, len)
 void
 usage()
 {
+#ifdef BSD4_4_LITE
 	(void)fprintf(stderr, "usage: ls [-1ACFLRTacdfiklqrstu] [file ...]\n");
+#else
+	(void)fprintf(stderr, "usage: ls [-1ACFLRTWacdfiklqrstu] [file ...]\n");
+#endif
 	exit(1);
 }

@@ -33,11 +33,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: print.c,v 1.7 1995/12/30 18:15:30 joerg Exp $
+ *	$Id: print.c,v 1.8 1996/01/20 10:31:14 mpp Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)print.c	8.4 (Berkeley) 4/17/94";
+static char const sccsid[] = "@(#)print.c	8.4 (Berkeley) 4/17/94";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -95,7 +95,7 @@ printlong(dp)
 			continue;
 		sp = p->fts_statp;
 		if (f_inode)
-			(void)printf("%*lu ", dp->s_inode, sp->st_ino);
+			(void)printf("%*lu ", dp->s_inode, (u_long)sp->st_ino);
 		if (f_size)
 			(void)printf("%*qd ",
 			    dp->s_block, howmany(sp->st_blocks, blocksize));
@@ -215,7 +215,7 @@ printaname(p, inodefield, sizefield)
 	sp = p->fts_statp;
 	chcnt = 0;
 	if (f_inode)
-		chcnt += printf("%*lu ", (int)inodefield, sp->st_ino);
+		chcnt += printf("%*lu ", (int)inodefield, (u_long)sp->st_ino);
 	if (f_size)
 		chcnt += printf("%*qd ",
 		    (int)sizefield, howmany(sp->st_blocks, blocksize));
@@ -268,6 +268,11 @@ printtype(mode)
 	case S_IFSOCK:
 		(void)putchar('=');
 		return (1);
+#ifndef BSD4_4_LITE
+	case S_IFWHT:
+		(void)putchar('%');
+		return (1);
+#endif
 	}
 	if (mode & (S_IXUSR | S_IXGRP | S_IXOTH)) {
 		(void)putchar('*');
