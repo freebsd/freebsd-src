@@ -58,6 +58,10 @@ struct udf_mnt {
 	int			p_sectors;
 	int			s_table_entries;
 	struct udf_sparing_table *s_table;
+	void			*im_d2l;	/* disk->local iconv handle */
+#if 0
+	void			*im_l2d;	/* local->disk iconv handle */
+#endif
 };
 
 struct udf_dirstream {
