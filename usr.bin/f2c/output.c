@@ -443,8 +443,6 @@ out_name(FILE *fp, Namep namep)
 } /* out_name */
 
 
-static char *Longfmt = "%ld";
-
 #define cpd(n) cp->vstg ? cp->Const.cds[n] : dtos(cp->Const.cd[n])
 
  void
@@ -469,7 +467,7 @@ out_const(FILE *fp, register Constp cp)
 #ifdef TYQUAD
 	case TYQUAD:
 #endif
-	    nice_printf (fp, Longfmt, cp->Const.ci);	/* don't cast ci! */
+	    nice_printf (fp, "%ld", cp->Const.ci);	/* don't cast ci! */
 	    break;
 	case TYREAL:
 	    nice_printf(fp, "%s", flconst(real_buf, cpd(0)));
@@ -1315,10 +1313,11 @@ out_call(FILE *outfile, int op, int ftype, expptr len, expptr name, expptr args)
 /* Might be a Constant expression, e.g. string length, character constants */
 
 	else if (q -> tag == TCONST) {
-	    if (tyioint == TYLONG)
-	   	Longfmt = "%ldL";
-	    out_const(outfile, &q->constblock);
-	    Longfmt = "%ld";
+		if (q->constblock.vtype == TYLONG)
+			nice_printf(outfile, "(ftnlen)%ld",
+				q->constblock.Const.ci);
+		else
+			out_const(outfile, &q->constblock);
 	    }
 
 /* Must be some other kind of expression, or register var, or constant.
@@ -1329,7 +1328,10 @@ out_call(FILE *outfile, int op, int ftype, expptr len, expptr name, expptr args)
 	    int use_paren = q -> tag == TEXPR &&
 		    op_precedence (q -> exprblock.opcode) <=
 		    op_precedence (OPCOMMA);
-
+	    if (q->headblock.vtype == TYREAL && forcereal) {
+		nice_printf(outfile, "(real)");
+		use_paren = 1;
+		}
 	    if (use_paren) nice_printf (outfile, "(");
 	    expr_out (outfile, q);
 	    if (use_paren) nice_printf (outfile, ")");

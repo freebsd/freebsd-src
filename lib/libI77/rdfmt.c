@@ -1,8 +1,5 @@
 #include "f2c.h"
 #include "fio.h"
-#include "fmt.h"
-#include "fp.h"
-#include "ctype.h"
 
 extern int f__cursor;
 #ifdef KR_headers
@@ -13,6 +10,10 @@ extern double atof();
 #undef max
 #include "stdlib.h"
 #endif
+
+#include "fmt.h"
+#include "fp.h"
+#include "ctype.h"
 
  static int
 #ifdef KR_headers
@@ -432,7 +433,7 @@ rd_ed(struct syl *p, char *ptr, ftnlen len)
 	case D:
 	case G:
 	case GE:
-	case F:	ch = rd_F((ufloat *)ptr,p->p1,p->p2,len);
+	case F:	ch = rd_F((ufloat *)ptr,p->p1,p->p2.i[0],len);
 		break;
 
 		/* Z and ZM assume 8-bit bytes. */
@@ -459,8 +460,8 @@ rd_ned(struct syl *p)
 	default: fprintf(stderr,"rd_ned, unexpected code: %d\n", p->op);
 		sig_die(f__fmtbuf, 1);
 	case APOS:
-		return(rd_POS(*(char **)&p->p2));
-	case H:	return(rd_H(p->p1,*(char **)&p->p2));
+		return(rd_POS(p->p2.s));
+	case H:	return(rd_H(p->p1,p->p2.s));
 	case SLASH: return((*f__donewrec)());
 	case TR:
 	case X:	f__cursor += p->p1;

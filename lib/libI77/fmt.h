@@ -1,6 +1,8 @@
 struct syl
-{	int op,p1,p2,p3;
-};
+{	int op;
+	int p1;
+	union { int i[2]; char *s;} p2;
+	};
 #define RET1 1
 #define REVERT 2
 #define GOTO 3
@@ -37,7 +39,6 @@ struct syl
 #define OM 34
 #define Z 35
 #define ZM 36
-extern struct syl f__syl[];
 extern int f__pc,f__parenlvl,f__revloc;
 typedef union
 {	real pf;

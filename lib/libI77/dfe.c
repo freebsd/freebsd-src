@@ -31,41 +31,30 @@ y_getc(Void)
 	}
 	err(f__elist->cierr,errno,"readingd");
 }
-#ifdef KR_headers
-y_putc(c)
-#else
-y_putc(int c)
-#endif
-{
-	f__recpos++;
-	if(f__recpos <= f__curunit->url || f__curunit->url==1)
-		putc(c,f__cf);
-	else
-		err(f__elist->cierr,110,"dout");
-	return(0);
-}
+
+ static int
 y_rev(Void)
-{	/*what about work done?*/
-	if(f__curunit->url==1 || f__recpos==f__curunit->url)
-		return(0);
-	while(f__recpos<f__curunit->url)
-		(*f__putn)(' ');
-	f__recpos=0;
+{
+	if (f__recpos < f__hiwater)
+		f__recpos = f__hiwater;
+	if (f__curunit->url > 1)
+		while(f__recpos < f__curunit->url)
+			(*f__putn)(' ');
+	if (f__recpos)
+		f__putbuf(0);
+	f__recpos = 0;
 	return(0);
 }
+
+ static int
 y_err(Void)
 {
 	err(f__elist->cierr, 110, "dfe");
 }
 
+ static int
 y_newrec(Void)
 {
-	if(f__curunit->url == 1 || f__recpos == f__curunit->url) {
-		f__hiwater = f__recpos = f__cursor = 0;
-		return(1);
-	}
-	if(f__hiwater > f__recpos)
-		f__recpos = f__hiwater;
 	y_rev();
 	f__hiwater = f__cursor = 0;
 	return(1);
@@ -81,9 +70,9 @@ c_dfe(cilist *a)
 	f__formatted=f__external=1;
 	f__elist=a;
 	f__cursor=f__scale=f__recpos=0;
+	f__curunit = &f__units[a->ciunit];
 	if(a->ciunit>MXUNIT || a->ciunit<0)
 		err(a->cierr,101,"startchk");
-	f__curunit = &f__units[a->ciunit];
 	if(f__curunit->ufd==NULL && fk_open(DIR,FMT,a->ciunit))
 		err(a->cierr,104,"dfe");
 	f__cf=f__curunit->ufd;
@@ -130,7 +119,7 @@ integer s_wdfe(cilist *a)
 	if(n=c_dfe(a)) return(n);
 	if(f__curunit->uwrt != 1 && f__nowwriting(f__curunit))
 		err(a->cierr,errno,"startwrt");
-	f__putn = y_putc;
+	f__putn = x_putc;
 	f__doed = w_ed;
 	f__doned= w_ned;
 	f__dorevert = y_err;
@@ -143,8 +132,8 @@ integer s_wdfe(cilist *a)
 }
 integer e_rdfe(Void)
 {
-	(void) en_fio();
-	return(0);
+	en_fio();
+	return 0;
 }
 integer e_wdfe(Void)
 {

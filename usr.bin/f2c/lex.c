@@ -1642,12 +1642,15 @@ store_comment(char *str)
 		}
 	len = strlen(str) + 1;
 	if (cbnext + len > cblast) {
-		if (!cbcur || !(ncb = cbcur->next)) {
+		ncb = 0;
+		if (cbcur) {
+			cbcur->last = cbnext;
+			ncb = cbcur->next;
+			}
+		if (!ncb) {
 			ncb = (comment_buf *) Alloc(sizeof(comment_buf));
-			if (cbcur) {
-				cbcur->last = cbnext;
+			if (cbcur)
 				cbcur->next = ncb;
-				}
 			else {
 				cbfirst = ncb;
 				cbinit = ncb->buf;

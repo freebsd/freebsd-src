@@ -559,6 +559,10 @@ putpower(expptr p)
 /* Write the power computation out immediately */
 		putout (p);
 		p = putx( mkexpr(OPSTAR, cpexpr((expptr)t1), cpexpr((expptr)t1)));
+	} else if (k == 3) {
+		putout(p);
+		p = putx( mkexpr(OPSTAR, cpexpr((expptr)t1),
+		    mkexpr(OPSTAR, cpexpr((expptr)t1), cpexpr((expptr)t1))));
 	} else {
 		t2 = mktmp(type, ENULL);
 		p = mkexpr (OPCOMMA, p, putassign(cpexpr((expptr)t2),
