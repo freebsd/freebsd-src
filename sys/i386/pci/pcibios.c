@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibios.c,v 2.1 94/09/16 08:01:26 wolf Rel $
+**  $Id: pcibios.c,v 2.6 94/10/11 19:01:25 wolf Oct11 $
 **
 **  #define   for pci-bus bios functions.
 **
@@ -32,15 +32,22 @@
 ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **
-**-------------------------------------------------------------------------
+***************************************************************************
 */
 
+#include <pci.h>
+#if NPCI > 0
 
-#include "types.h"
-#include "i386/isa/isa.h"
-#include "i386/pci/pci.h"
-#include "i386/pci/pcibios.h"
-#include "i386/include/cpufunc.h"
+#if __FreeBSD__ >= 2
+#define HAS_CPUFUNC_H
+#endif
+
+#include <types.h>
+#include <i386/isa/isa.h>
+#include <i386/pci/pcireg.h>
+#ifdef HAS_CPUFUNC_H
+#include <i386/include/cpufunc.h>
+#endif
 
 extern int printf();
 
@@ -54,9 +61,7 @@ static char pci_mode;
 **--------------------------------------------------------------------
 */
 
-#undef DIRTY
-
-#ifdef DIRTY
+#ifndef HAS_CPUFUNC_H
 
 #undef inl
 #define inl(port) \
@@ -81,7 +86,7 @@ static char pci_mode;
 #define outb(port, data) \
 {__asm __volatile("outb %0, %1"::"a" ((u_char)(data)), "d" ((u_short)(port)));}
 
-#endif
+#endif /* HAS_CPUFUNC_H */
 
 /*--------------------------------------------------------------------
 **
@@ -194,7 +199,7 @@ u_long pci_conf_read (pcici_t tag, u_long reg)
 	switch (pci_mode) {
 
 	case 1:
-		addr = tag.cfg1 | reg & 0xfc;
+		addr = tag.cfg1 | (reg & 0xfc);
 #ifdef PCI_DEBUG
 		printf ("pci_conf_read(1): addr=%x ", addr);
 #endif
@@ -204,7 +209,7 @@ u_long pci_conf_read (pcici_t tag, u_long reg)
 		break;
 
 	case 2:
-		addr = tag.cfg2.port | reg & 0xfc;
+		addr = tag.cfg2.port | (reg & 0xfc);
 #ifdef PCI_DEBUG
 		printf ("pci_conf_read(2): addr=%x ", addr);
 #endif
@@ -242,7 +247,7 @@ void pci_conf_write (pcici_t tag, u_long reg, u_long data)
 	switch (pci_mode) {
 
 	case 1:
-		addr = tag.cfg1 | reg & 0xfc;
+		addr = tag.cfg1 | (reg & 0xfc);
 #ifdef PCI_DEBUG
 		printf ("pci_conf_write(1): addr=%x data=%x\n",
 			addr, data);
@@ -253,7 +258,7 @@ void pci_conf_write (pcici_t tag, u_long reg, u_long data)
 		break;
 
 	case 2:
-		addr = tag.cfg2.port | reg & 0xfc;
+		addr = tag.cfg2.port | (reg & 0xfc);
 #ifdef PCI_DEBUG
 		printf ("pci_conf_write(2): addr=%x data=%x\n",
 			addr, data);
@@ -268,26 +273,4 @@ void pci_conf_write (pcici_t tag, u_long reg, u_long data)
 		break;
 	};
 }
-
-/*--------------------------------------------------------------------
-**
-**      Get the number of available PCI busses.
-**
-**--------------------------------------------------------------------
-*/
-
-/*
-**	A certain chipset seems to ignore the bus number.
-**	Until fixed, check only bus 0.
-**	Maybe it's a good idea to ask the real pci bios
-**	if available.
-*/
-
-#ifndef PCI_LAST_BUS
-#define	PCI_LAST_BUS	(0)
-#endif /* PCI_LAST_BUS */
-
-int pci_last_bus (void)
-{
-	return (PCI_LAST_BUS);
-}
+#endif /* NPCI > 0 */
