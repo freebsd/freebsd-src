@@ -26,7 +26,7 @@
 #
 # updatedb - update locate database for local mounted filesystems
 #
-# $Id: updatedb.sh,v 1.8 1997/12/13 18:18:12 sef Exp $
+# $Id: updatedb.sh,v 1.9 1998/03/08 15:28:37 wosch Exp $
 
 LOCATE_CONFIG="/etc/locate.rc"
 if [ -f "$LOCATE_CONFIG" -a -r "$LOCATE_CONFIG" ]; then
@@ -35,8 +35,8 @@ fi
 
 # The directory containing locate subprograms
 : ${LIBEXECDIR:=/usr/libexec}; export LIBEXECDIR
-: ${TMPDIR:=/tmp}; export TMPDIR
-test -d "$TMPDIR" || TMPDIR=/tmp
+: ${TMPDIR:=/var/tmp}; export TMPDIR
+test -d "$TMPDIR" || TMPDIR=/var/tmp
 
 PATH=$LIBEXECDIR:/bin:/usr/bin:$PATH; export PATH
 

@@ -1,13 +1,13 @@
 #
 # /etc/locate.rc -  command script for updatedb(8)
 #
-# $Id: locate.rc,v 1.4 1997/02/22 19:55:48 peter Exp $
+# $Id: locate.rc,v 1.5 1998/01/01 02:34:14 alex Exp $
 
 #
 # All commented values are the defaults
 #
 # temp directory
-#TMPDIR="/tmp"
+#TMPDIR="/var/tmp"
 
 # the actual database
 #FCODES="/var/db/locate.database"

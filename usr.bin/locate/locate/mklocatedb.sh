@@ -28,7 +28,7 @@
 # 
 # usage: mklocatedb [-presort] < filelist > database
 #
-# $Id: mklocatedb.sh,v 1.5 1997/12/13 18:18:10 sef Exp $
+# $Id: mklocatedb.sh,v 1.6 1998/03/08 15:28:35 wosch Exp $
 
 
 # The directory containing locate subprograms
@@ -38,8 +38,8 @@ PATH=$LIBEXECDIR:/bin:/usr/bin:$PATH; export PATH
 
 umask 077			# protect temp files
 
-: ${TMPDIR:=/tmp}; export TMPDIR
-test -d "$TMPDIR" || TMPDIR=/tmp
+: ${TMPDIR:=/var/tmp}; export TMPDIR
+test -d "$TMPDIR" || TMPDIR=/var/tmp
 
 # utilities to built locate database
 : ${bigram:=locate.bigram}
