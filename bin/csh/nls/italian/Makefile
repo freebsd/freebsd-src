@@ -1,8 +1,8 @@
 # $FreeBSD$
 
 NL=     italian
-DL=     it_IT.ISO_8859-1
-LL=     it_CH.ISO_8859-1 it_IT.DIS_8859-15 it_CH.DIS_8859-15
+DL=     it_IT.ISO8859-1
+LL=     it_CH.ISO8859-1 it_IT.ISO8859-15 it_CH.ISO8859-15
 
 .PATH: ${BASESRC}/${NL}
 

@@ -1,9 +1,9 @@
 # $FreeBSD$
 
 NL=     german
-DL=     de_DE.ISO_8859-1
-LL=     de_AT.ISO_8859-1 de_CH.ISO_8859-1 de_AT.DIS_8859-15 \
-	de_CH.DIS_8859-15 de_DE.DIS_8859-15
+DL=     de_DE.ISO8859-1
+LL=     de_AT.ISO8859-1 de_CH.ISO8859-1 de_AT.ISO8859-15 \
+	de_CH.ISO8859-15 de_DE.ISO8859-15
 
 .PATH: ${BASESRC}/${NL}
 
