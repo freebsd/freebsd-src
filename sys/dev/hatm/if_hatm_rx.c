@@ -96,7 +96,7 @@ hatm_rx(struct hatm_softc *sc, u_int cid, u_int flags, struct mbuf *m0,
 	if (flags & HE_REGM_RBRQ_CON_CLOSED) {
 		if (vcc->vflags & HE_VCC_RX_CLOSING) {
 			vcc->vflags &= ~HE_VCC_RX_CLOSING;
-			if (vcc->vflags & HE_VCC_ASYNC) {
+			if (vcc->param.flags & ATMIO_FLAG_ASYNC) {
 				if (!(vcc->vflags & HE_VCC_OPEN))
 					hatm_vcc_closed(sc, cid);
 			} else
@@ -223,7 +223,7 @@ hatm_rx(struct hatm_softc *sc, u_int cid, u_int flags, struct mbuf *m0,
 
 #ifdef ENABLE_BPF
 	if (!(vcc->param.flags & ATMIO_FLAG_NG) &&
-	    (vcc->param.flags & ATM_PH_AAL5) &&
+	    (vcc->param.aal == ATMIO_AAL_5) &&
 	    (vcc->param.flags & ATM_PH_LLCSNAP))
 		BPF_MTAP(&sc->ifatm.ifnet, m);
 #endif
