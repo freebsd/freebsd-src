@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.49 1996/12/18 00:10:02 obrien Exp $ -->
+<!-- $Id: porting.sgml,v 1.50 1996/12/28 07:55:15 max Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -981,7 +981,7 @@ MAN8=      baz.8
 	<heading>INSTALL package script</heading>
 	<p>If your port needs execute commands when the binary package
 	  is installed with pkg_add you can do with via the pkg/INSTALL
-	  script.  This script will automattically be added to the 
+	  script.  This script will automatically be added to the 
 	  package, and will be run twice by pkg_add.  The first time
 	  will as `<tt>INSTALL ${PKGNAME} PRE-INSTALL</tt>'
 	  and the second time as `<tt>INSTALL ${PKGNAME} POST-INSTALL</tt>'.
