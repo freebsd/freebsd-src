@@ -394,7 +394,7 @@ get_uid() {
 		_prompt="Uid (Leave empty for default): "
 	fi
 	if [ -z "$fflag" ]; then
-		echo -n $_prompt
+		echo -n "$_prompt"
 		read _input
 	else
 		_input="`echo "$fileline" | cut -f2 -d:`"
