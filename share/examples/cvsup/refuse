@@ -1,4 +1,17 @@
 src/etc/sendmail/freebsd.mc*
+doc/de_*
+doc/es_*
+doc/el_*
+doc/fr_*
+doc/it_*
+doc/ja_*
+doc/nl_*
+doc/no_*
+doc/pl_*
+doc/pt_*
+doc/ru_*
+doc/sr_*
+doc/zh_*
 ports/chinese
 ports/french
 ports/german
