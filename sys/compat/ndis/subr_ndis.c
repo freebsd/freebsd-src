@@ -264,7 +264,7 @@ __stdcall static void NdisOpenFile(ndis_status *, ndis_handle *, uint32_t *,
 __stdcall static void NdisMapFile(ndis_status *, void **, ndis_handle);
 __stdcall static void NdisUnmapFile(ndis_handle);
 __stdcall static void NdisCloseFile(ndis_handle);
-__stdcall static u_int8_t NdisSystemProcessorCount(void);
+__stdcall static uint8_t NdisSystemProcessorCount(void);
 __stdcall static void NdisMIndicateStatusComplete(ndis_handle);
 __stdcall static void NdisMIndicateStatus(ndis_handle, ndis_status,
         void *, uint32_t);

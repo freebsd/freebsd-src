@@ -287,7 +287,7 @@ typedef struct image_section_header image_section_header;
 
 struct image_import_by_name {
 	uint16_t	iibn_hint;
-	u_int8_t	iibn_name[1];
+	uint8_t		iibn_name[1];
 };
 
 #define IMAGE_ORDINAL_FLAG 0x80000000
