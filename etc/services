@@ -7,7 +7,7 @@
 # Updated from RFC 1340, ``Assigned Numbers'' (July 1992).  Not all ports
 # are included, only the more common ones.
 #
-#	$Id: services,v 1.8 1995/01/20 22:00:26 wollman Exp $
+#	$Id: services,v 1.9 1995/01/24 18:52:50 wollman Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 tcpmux		1/tcp		# TCP port service multiplexer
@@ -66,7 +66,7 @@ pop3		110/tcp		# POP version 3
 pop3		110/udp
 sunrpc		111/tcp
 sunrpc		111/udp
-auth		113/tcp		authentication
+ident		113/tcp		auth tap
 sftp		115/tcp
 uucp-path	117/tcp
 nntp		119/tcp		readnews untp	# USENET News Transfer Protocol
