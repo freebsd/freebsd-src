@@ -359,7 +359,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		goto end;
 	}
 
-	if (m == NULL) {	/* impossible */
+	if (m == NULL) {	/* mbuf allocation failed */
 		_IF_DROP(&ifp->if_snd);
 		error = ENOBUFS;
 		goto end;
@@ -386,7 +386,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	ifp->if_opackets++;
 	ifp->if_obytes += m->m_pkthdr.len;
 	/* send it off */
-	error = ip_output(m, NULL, &sc->route, 0,
+	error = ip_output(m, NULL, &sc->route, IP_FORWARDING,
 	    (struct ip_moptions *)NULL, (struct inpcb *)NULL);
   end:
 	sc->called = 0;
