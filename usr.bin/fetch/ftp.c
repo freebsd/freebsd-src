@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftp.c,v 1.10 1998/09/20 00:01:26 jkh Exp $
+ *	$Id: ftp.c,v 1.11 1998/12/08 13:00:49 cracauer Exp $
  */
 
 #include <sys/types.h>
@@ -180,9 +180,10 @@ ftp_parse(struct fetch_state *fs, const char *uri)
 			 * we just pretend that multiple slashes are a
 			 * single slash.
 			 */
-			if (*r == '\0')
+			if (*r == '\0') {
+				warnx("skipping double slash in FTP URL; see man page or RFC1738.");
 				ftps->ftp_remote_ndirs--;
-			else
+			} else
 				*dp++ = percent_decode(r);
 			r = s;
 		}
@@ -366,6 +367,8 @@ ftp_retrieve(struct fetch_state *fs)
 		}
 	} else
 		ftpBinary(ftp);
+	if (getenv("FTP_PASSIVE_MODE"))
+		fs->fs_passive_mode = 1;
 	ftpPassive(ftp, fs->fs_passive_mode);
 	for (i = 0, dp = ftps->ftp_remote_dirs; i < ftps->ftp_remote_ndirs; i++, dp++) {
 		if ((status = ftpChdir(ftp, *dp)) != 0) {
