@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: cbcp.c,v 1.1 1998/08/07 18:44:16 brian Exp $
  */
 
 #include <sys/types.h>
@@ -51,7 +51,6 @@
 #include "cbcp.h"
 #include "mp.h"
 #include "chat.h"
-#include "pap.h"
 #include "auth.h"
 #include "chap.h"
 #include "datalink.h"
