@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.59 1997/08/09 00:02:47 dyson Exp $
+ *	$Id: swtch.s,v 1.60 1997/08/26 18:10:33 peter Exp $
  */
 
 #include "npx.h"
@@ -384,7 +384,9 @@ idle_loop:
 CROSSJUMPTARGET(_idle)
 
 ENTRY(default_halt)
+#ifndef SMP					/* until we have a wakeup IPI */
 	hlt
+#endif
 	ret
 
 /*
