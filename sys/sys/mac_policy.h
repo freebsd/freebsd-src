@@ -329,6 +329,8 @@ struct mac_policy_ops {
 	int	(*mpo_check_system_settime)(struct ucred *cred);
 	int	(*mpo_check_system_swapon)(struct ucred *cred,
 		    struct vnode *vp, struct label *label);
+	int	(*mpo_check_system_swapoff)(struct ucred *cred,
+		    struct vnode *vp, struct label *label);
 	int	(*mpo_check_system_sysctl)(struct ucred *cred, int *name,
 		    u_int namelen, void *old, size_t *oldlenp, int inkernel,
 		    void *new, size_t newlen);

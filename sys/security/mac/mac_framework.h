@@ -269,6 +269,7 @@ int	mac_check_system_nfsd(struct ucred *cred);
 int	mac_check_system_reboot(struct ucred *cred, int howto);
 int	mac_check_system_settime(struct ucred *cred);
 int	mac_check_system_swapon(struct ucred *cred, struct vnode *vp);
+int	mac_check_system_swapoff(struct ucred *cred, struct vnode *vp);
 int	mac_check_system_sysctl(struct ucred *cred, int *name,
 	    u_int namelen, void *old, size_t *oldlenp, int inkernel,
 	    void *new, size_t newlen);
