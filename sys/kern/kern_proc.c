@@ -58,7 +58,6 @@
 #include <sys/uio.h>
 #include <sys/ktrace.h>
 #endif
-#include <sys/ksiginfo.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -409,7 +408,7 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		      RANGEOF(struct kse, ke_startcopy, ke_endcopy));
 #endif
 		PROC_LOCK(p);
-		if (signal_pending(p))
+		if (SIGPENDING(p))
 			newke->ke_flags |= KEF_ASTPENDING;
 		PROC_UNLOCK(p);
 		mtx_lock_spin(&sched_lock);
@@ -1015,7 +1014,7 @@ fill_kinfo_proc(p, kp)
 		strncpy(kp->ki_comm, p->p_comm, sizeof(kp->ki_comm) - 1);
 		strncpy(kp->ki_ocomm, p->p_comm, sizeof(kp->ki_ocomm) - 1);
 	}
-	ksiginfo_to_sigset_t(p, &kp->ki_siglist);
+	kp->ki_siglist = p->p_siglist;
 	kp->ki_sigmask = p->p_sigmask;
 	kp->ki_xstat = p->p_xstat;
 	kp->ki_acflag = p->p_acflag;

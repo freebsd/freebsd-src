@@ -63,7 +63,6 @@ extern int coda_nc_initialized;    /* Set if cache has been initialized */
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/file.h>		/* must come after sys/malloc.h */
-#include <sys/ksiginfo.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/poll.h>
@@ -492,7 +491,6 @@ coda_call(mntinfo, inSize, outSize, buffer)
 #ifdef	CTL_C
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
-	sigset_t pending_set;
 	sigset_t psig_omask;
 	sigset_t tempset;
 	int i;
@@ -563,20 +561,18 @@ coda_call(mntinfo, inSize, outSize, buffer)
 #endif
 		}
 		else {
-			ksiginfo_to_sigset_t(p, &pending_set);
 			SIGEMPTYSET(tempset);
 			SIGADDSET(tempset, SIGIO);
-			if (SIGSETEQ(pending_set, tempset)) {
+			if (SIGSETEQ(p->p_siglist, tempset)) {
 				SIGADDSET(p->p_sigmask, SIGIO);
 #ifdef	CODA_VERBOSE
 				printf("coda_call: tsleep returns %d SIGIO, cnt %d\n",
 				       error, i);
 #endif
 			} else {
-				ksiginfo_to_sigset_t(p, &pending_set);
 				SIGDELSET(tempset, SIGIO);
 				SIGADDSET(tempset, SIGALRM);
-				if (SIGSETEQ(pending_set, tempset)) {
+				if (SIGSETEQ(p->p_siglist, tempset)) {
 					SIGADDSET(p->p_sigmask, SIGALRM);
 #ifdef	CODA_VERBOSE
 					printf("coda_call: tsleep returns %d SIGALRM, cnt %d\n",
@@ -588,17 +584,17 @@ coda_call(mntinfo, inSize, outSize, buffer)
 					       error, i);
 
 #if notyet
-					tempset = pending_set;
+					tempset = p->p_siglist;
 					SIGSETNAND(tempset, p->p_sigmask);
 					printf("coda_call: siglist = %p, sigmask = %p, mask %p\n",
-					       pending_set, p->p_sigmask,
+					       p->p_siglist, p->p_sigmask,
 					       tempset);
 					break;
-					SIGSETOR(p->p_sigmask, pending_set);
-					tempset = pending_set;
+					SIGSETOR(p->p_sigmask, p->p_siglist);
+					tempset = p->p_siglist;
 					SIGSETNAND(tempset, p->p_sigmask);
 					printf("coda_call: new mask, siglist = %p, sigmask = %p, mask %p\n",
-					       pending_set, p->p_sigmask,
+					       p->p_siglist, p->p_sigmask,
 					       tempset);
 #endif
 				}

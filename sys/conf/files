@@ -963,7 +963,6 @@ kern/subr_prof.c	standard
 kern/subr_rman.c	standard
 kern/subr_sbuf.c	standard
 kern/subr_scanf.c	standard
-kern/subr_sigq.c	standard
 kern/subr_smp.c		optional smp
 kern/subr_taskqueue.c	standard
 kern/subr_trap.c	standard

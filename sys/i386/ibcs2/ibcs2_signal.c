@@ -30,7 +30,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/ksiginfo.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/signalvar.h>
@@ -457,7 +456,7 @@ ibcs2_sigpending(td, uap)
 	ibcs2_sigset_t iss;
 
 	PROC_LOCK(p);
-	ksiginfo_to_sigset_t(p, &bss);
+	bss = p->p_siglist;
 	SIGSETAND(bss, p->p_sigmask);
 	PROC_UNLOCK(p);
 	bsd_to_ibcs2_sigset(&bss, &iss);
