@@ -64,11 +64,7 @@ struct sysent sysent[] = {
 	{ 0, (sy_call_t *)pipe },			/* 42 = pipe */
 	{ 0, (sy_call_t *)getegid },			/* 43 = getegid */
 	{ 4, (sy_call_t *)profil },			/* 44 = profil */
-#ifdef KTRACE
 	{ 4, (sy_call_t *)ktrace },			/* 45 = ktrace */
-#else
-	{ 0, (sy_call_t *)nosys },			/* 45 = ktrace */
-#endif
 	{ 3, (sy_call_t *)sigaction },			/* 46 = sigaction */
 	{ 0, (sy_call_t *)getgid },			/* 47 = getgid */
 	{ 2, (sy_call_t *)sigprocmask },		/* 48 = sigprocmask */

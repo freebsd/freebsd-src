@@ -35,12 +35,14 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.67 1995/12/19 14:30:28 davidg Exp $
+ *	$Id: trap.c,v 1.68 1995/12/19 14:47:41 davidg Exp $
  */
 
 /*
  * 386 Trap and System call handling
  */
+
+#include "opt_ktrace.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
