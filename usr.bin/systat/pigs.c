@@ -45,18 +45,17 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/param.h>
+#include <sys/proc.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/user.h>
-#include <sys/sysctl.h>
 
 #include <curses.h>
 #include <math.h>
-#include <nlist.h>
 #include <pwd.h>
 #include <stdlib.h>
 
 #include "extern.h"
-#include "systat.h"
 
 int compar(const void *, const void *);
 
