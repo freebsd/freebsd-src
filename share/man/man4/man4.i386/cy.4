@@ -35,15 +35,16 @@
 .\"     from: @(#)dca.4	5.2 (Berkeley) 3/27/91
 .\"	from: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
 .\"	from: sio.4,v 1.16 1995/06/26 06:05:30 bde Exp $
-.\"	$Id: cy.4,v 1.8 1997/03/21 20:13:42 mpp Exp $
+.\"	$Id: cy.4,v 1.9 1998/10/22 14:51:19 bde Exp $
 .\"
-.Dd October 10, 1995
+.Dd June 14, 1999
 .Dt CY 4 i386
 .Os FreeBSD
 .Sh NAME
 .Nm cy
 .Nd Cyclades Cyclom-Y serial driver
 .Sh SYNOPSIS
+.Cd "options" \&"CY_PCI_FASTINTR\&"
 .Cd "device cy0 at isa? tty irq 10 iomem 0xd4000 iosiz 0x2000"
 .Cd "device cy1 at isa? tty irq 11 iomem 0xd6000 iosiz 0x2000"
 .Pp
@@ -143,6 +144,17 @@ be locked for devices that support more than one setting.  The
 CLOCAL flag on callin ports should be locked off for logins
 to avoid certain security holes, but this needs to be done by
 getty if the callin port is used for anything else.
+.Ss Kernel Configuration Options
+The
+.Em CY_PCI_FASTINTR
+option should be used to avoid suboptimal interrupt handling for
+PCI Cyclades boards.
+The PCI BIOS must be configured with the
+.Nm
+interrupt not shared with any other active device
+for this option to work.
+This option is not the default because it is currently harmful in
+certain cases where it does not work.
 .Sh FILES
 .\" XXX more cloning: s/d/c/g and add a ? for the card number.
 .Bl -tag -width /dev/ttyic?? -compact
@@ -206,30 +218,4 @@ driver and the NetBSD
 driver and is
 .Ud
 .Sh BUGS
-BREAK is not yet implemented.
-.Pp
 Serial consoles are not implemented.
-.Pp
-Data loss may occur at very high baud rates on slow systems,
-or with too many ports on any system,
-or on heavily loaded systems when crtscts cannot be used.
-.Pp
-There are too many compile-time-only flags.
-The CD1400 has slightly smaller fifos than the NS16550 (12 bytes
-instead of 16), so it needs pseudo-dma more than a NS16550.  The
-default configuration is optimized for generality at about a 30%
-relative cost in efficiency.  These compile-time defines may be
-changed for higher efficiency:
-.Pp
-RxFifoThreshold: default 6; on a 486DX-33, this works for 8 ports
-talking to each other at 115200 bps; 11 works for 8 ports talking
-to each other at 57600 bps.  The low threshold is not for
-.Tn FreeBSD ,
-it's for the CD1400, which can't really keep up with 115200 bps.
-.Pp
-PollMode: required for Cyclom-16Y's; costs 10-20% relative efficiency
-on Cyclom-8Y's (more with a low RxFifoThreshold).
-.Pp
-SOFT_HOTCHAR: required in addition to the small RxFifoThreshold
-to avoid overruns with SLIP and PPP for 8 ports at 115200 bps.
-Costs 5% relative efficiency.
