@@ -224,7 +224,7 @@ mac_biba_subject_dominate_high(struct mac_biba *mac_biba)
 {
 	struct mac_biba_element *element;
 
-	KASSERT((mac_biba->mb_single.mb_flags & MAC_BIBA_FLAG_SINGLE) != 0,
+	KASSERT((mac_biba->mb_flags & MAC_BIBA_FLAG_SINGLE) != 0,
 	    ("mac_biba_single_in_range: mac_biba not single"));
 	element = &mac_biba->mb_single;
 
