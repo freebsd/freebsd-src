@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char rcsid[] = "$Id: ypbind.c,v 1.7 1995/04/21 18:04:36 wpaul Exp $";
+static char rcsid[] = "$Id: ypbind.c,v 1.8 1995/04/26 19:03:14 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -151,6 +151,11 @@ CLIENT *clnt;
 
 	if(ypdb==NULL) {
 		ypdb = (struct _dom_binding *)malloc(sizeof *ypdb);
+		if (ypdb == NULL) {	
+			syslog(LOG_WARNING, "malloc: %s", strerror(errno));
+			res.ypbind_respbody.ypbind_error = YPBIND_ERR_RESC;
+			return;
+		}
 		bzero((char *)ypdb, sizeof *ypdb);
 		strncpy(ypdb->dom_domain, argp, sizeof ypdb->dom_domain);
 		ypdb->dom_vers = YPVERS;
@@ -171,6 +176,7 @@ CLIENT *clnt;
 		return &res;
 
 	res.ypbind_status = YPBIND_SUCC_VAL;
+	res.ypbind_respbody.ypbind_error = 0; /* Success */
 	res.ypbind_respbody.ypbind_bindinfo.ypbind_binding_addr.s_addr =
 		ypdb->dom_server_addr.sin_addr.s_addr;
 	res.ypbind_respbody.ypbind_bindinfo.ypbind_binding_port =
@@ -361,6 +367,10 @@ char **argv;
 
 	/* build initial domain binding, make it "unsuccessful" */
 	ypbindlist = (struct _dom_binding *)malloc(sizeof *ypbindlist);
+	if (ypbindlist == NULL) {
+		perror("malloc");
+		exit(1);
+	}
 	bzero((char *)ypbindlist, sizeof *ypbindlist);
 	strncpy(ypbindlist->dom_domain, domainname, sizeof ypbindlist->dom_domain);
 	ypbindlist->dom_vers = YPVERS;
@@ -376,7 +386,7 @@ char **argv;
 	for (i = 0; i < FD_SETSIZE; i++)
 		child_fds[i] = -1;
 
-	openlog(argv[0], LOG_PID, LOG_AUTH);
+	openlog(argv[0], LOG_PID, LOG_DAEMON);
 
 	while(1) {
 		fdsr = svc_fdset;
@@ -394,8 +404,7 @@ char **argv;
 			reaper();
 			break;
 		case -1:
-			perror("select");
-			exit(0);
+			syslog(LOG_WARNING, "select: %s", strerror(errno));
 			break;
 		default:
 			for(i = 0; i < FD_SETSIZE; i++) {
@@ -446,9 +455,9 @@ int i;
 	struct sockaddr_in addr;
 
 	if (read(i, &buf, sizeof(buf)) < 0)
-		syslog(LOG_WARNING, "could not read from child");
+		syslog(LOG_WARNING, "could not read from child: %s", strerror(errno));
 	if (read(i, &addr, sizeof(struct sockaddr_in)) < 0)
-		syslog(LOG_WARNING, "could not read from child");
+		syslog(LOG_WARNING, "could not read from child: %s", strerror(errno));
 	rpc_received((char *)&buf, &addr, 0);
 }
 
@@ -648,7 +657,6 @@ int force;
 	if(dom==NULL)
 		return;
 
-
 	for(ypdb=ypbindlist; ypdb; ypdb=ypdb->dom_pnext)
 		if( strcmp(ypdb->dom_domain, dom) == 0)
 			break;
@@ -658,26 +666,35 @@ int force;
 	    syslog(LOG_WARNING, "Rejected NIS server on [%s/%d] for domain %s.",
 		   inet_ntoa(raddrp->sin_addr), ntohs(raddrp->sin_port),
 		   dom);
-	    if (ypdb != NULL)
-		ypdb->dom_alive = -1;
+	    if (ypdb != NULL) {
+		ypdb->dom_broadcasting = 0;
+		ypdb->dom_alive = 0;
+	    }
 	    return;
-	}
-
-	if(ypdb==NULL) {
-		if(force==0)
-			return;
-		ypdb = (struct _dom_binding *)malloc(sizeof *ypdb);
-		bzero((char *)ypdb, sizeof *ypdb);
-		strncpy(ypdb->dom_domain, dom, sizeof ypdb->dom_domain);
-		ypdb->dom_lockfd = -1;
-		ypdb->dom_default = 0;
-		ypdb->dom_pnext = ypbindlist;
-		ypbindlist = ypdb;
 	}
 
 	if (raddrp->sin_addr.s_addr == (long)0) {
 		ypdb->dom_broadcasting = 0;
+		ypdb->dom_alive = 0;
 		return;
+	}
+
+	if(ypdb==NULL) {
+		if (force == 0)
+			return;
+		ypdb = (struct _dom_binding *)malloc(sizeof *ypdb);
+		if (ypdb == NULL) {	
+			syslog(LOG_WARNING, "malloc: %s", strerror(errno));
+			return;
+		}
+		bzero((char *)ypdb, sizeof *ypdb);
+		strncpy(ypdb->dom_domain, dom, sizeof ypdb->dom_domain);
+		ypdb->dom_lockfd = -1;
+		ypdb->dom_default = 0;
+		ypdb->dom_alive = 0;
+		ypdb->dom_broadcasting = 0;
+		ypdb->dom_pnext = ypbindlist;
+		ypbindlist = ypdb;
 	}
 
 	/* We've recovered from a crash: inform the world. */
