@@ -192,9 +192,7 @@ stf_clone_create(ifc, unit)
 			 return (EEXIST);
 	}
 
-	sc = malloc(sizeof(struct stf_softc), M_STF, M_WAIT);
-	bzero(sc, sizeof(struct stf_softc));
-
+	sc = malloc(sizeof(struct stf_softc), M_STF, M_WAITOK | M_ZERO);
 	sc->sc_if.if_name = STFNAME;
 	sc->sc_if.if_unit = *unit;
 	sc->r_unit = r;
@@ -208,7 +206,6 @@ stf_clone_create(ifc, unit)
 	}
 
 	sc->sc_if.if_mtu    = IPV6_MMTU;
-	sc->sc_if.if_flags  = 0;
 	sc->sc_if.if_ioctl  = stf_ioctl;
 	sc->sc_if.if_output = stf_output;
 	sc->sc_if.if_type   = IFT_STF;
