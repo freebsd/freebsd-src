@@ -22,6 +22,7 @@
  * Author: James da Silva, Systems Design and Analysis Group
  *			   Computer Science Department
  *			   University of Maryland at College Park
+ * $FreeBSD$
  */
 /*
  * ========================================================================
@@ -59,9 +60,12 @@ typedef struct strlst {
 /* progs have structure, each field can be set with "special" or calculated */
 
 typedef struct prog {
-    struct prog *next;
-    char *name, *ident;
-    char *srcdir, *objdir;
+    struct prog *next;	/* link field */
+    char *name;		/* program name */
+    char *ident;	/* C identifier for the program name */
+    char *srcdir;
+    char *objdir;
+    char *objvar;	/* Makefile variable to replace OBJS */
     strlst_t *objs, *objpaths;
     strlst_t *keeplist;
     strlst_t *links;
@@ -80,6 +84,7 @@ char line[MAXLINELEN];
 char confname[MAXPATHLEN], infilename[MAXPATHLEN];
 char outmkname[MAXPATHLEN], outcfname[MAXPATHLEN], execfname[MAXPATHLEN];
 char tempfname[MAXPATHLEN], cachename[MAXPATHLEN], curfilename[MAXPATHLEN];
+char outhdrname[MAXPATHLEN] ; /* user-supplied header for *.mk */
 int linenum = -1;
 int goterror = 0;
 
@@ -112,12 +117,13 @@ int main(int argc, char **argv)
     readcache = 1;
     *outmkname = *outcfname = *execfname = '\0';
 
-    while((optc = getopt(argc, argv, "lm:c:e:fq")) != -1) {
+    while((optc = getopt(argc, argv, "lh:m:c:e:fq")) != -1) {
 	switch(optc) {
 	case 'f':	readcache = 0; break;
 	case 'q':	verbose = 0; break;
 
 	case 'm':	strcpy(outmkname, optarg); break;
+	case 'h':	strcpy(outhdrname, optarg); break;
 	case 'c':	strcpy(outcfname, optarg); break;
 	case 'e':	strcpy(execfname, optarg); break;
 	case 'l':	list_mode++; verbose = 0; break;
@@ -400,6 +406,12 @@ void add_special(int argc, char **argv)
 	for(i=3;i<argc;i++)
 	    add_string(&p->keeplist, argv[i]);
     }
+    else if(!strcmp(argv[2], "objvar")) {
+	if (argc != 4)
+	    goto argcount;
+	if((p->objvar = strdup(argv[3])) == NULL)
+	    out_of_memory();
+    }
     else {
 	warnx("%s:%d: bad parameter name `%s', skipping line",
 		curfilename, linenum, argv[2]);
@@ -465,7 +477,9 @@ void gen_outputs(void)
 	    outmkname);
 }
 
-
+/*
+ * run the makefile for the program to find which objects are necessary
+ */
 void fillin_program(prog_t *p)
 {
     char path[MAXPATHLEN];
@@ -498,7 +512,15 @@ void fillin_program(prog_t *p)
 	    }
 	}
     }
-
+/*
+ * XXX look for a Makefile.{name} in local directory first.
+ * This lets us override the original Makefile.
+ */
+    sprintf(path, "Makefile.%s", p->name);
+    if (is_nonempty_file(path)) {
+	sprintf(line, "Using %s for %s", path, p->name);
+	status(line);
+    } else
     if(p->srcdir) sprintf(path, "%s/Makefile", p->srcdir);
     if(!p->objs && p->srcdir && is_nonempty_file(path))
 	fillin_program_objs(p, path);
@@ -528,6 +550,7 @@ void fillin_program_objs(prog_t *p, char *path)
     char *obj, *cp;
     int rc;
     FILE *f;
+    char *objvar="OBJS";
 
     /* discover the objs from the srcdir Makefile */
 
@@ -536,12 +559,19 @@ void fillin_program_objs(prog_t *p, char *path)
 	goterror = 1;
 	return;
     }
+    if (p->objvar)
+	objvar = p->objvar ;
 
+    /*
+     * XXX include outhdrname (e.g. to contain Make variables)
+     */
+    if (outhdrname[0] != '\0')
+	fprintf(f, ".include \"%s\"\n", outhdrname);
     fprintf(f, ".include \"%s\"\n", path);
-    fprintf(f, ".if defined(PROG) && !defined(OBJS)\n");
-    fprintf(f, "OBJS=${PROG}.o\n");
+    fprintf(f, ".if defined(PROG) && !defined(%s)\n", objvar);
+    fprintf(f, "%s=${PROG}.o\n", objvar);
     fprintf(f, ".endif\n");
-    fprintf(f, "crunchgen_objs:\n\t@echo 'OBJS= '${OBJS}\n");
+    fprintf(f, "crunchgen_objs:\n\t@echo 'OBJS= '${%s}\n", objvar);
     fclose(f);
 
     sprintf(line, "make -f %s crunchgen_objs 2>&1", tempfname);
@@ -643,6 +673,8 @@ void gen_output_makefile(void)
 
     fprintf(outmk, "# %s - generated from %s by crunchgen %s\n\n",
 	    outmkname, infilename, CRUNCH_VERSION);
+    if (outhdrname[0] != '\0')
+	fprintf(outmk, ".include \"%s\"\n", outhdrname);
 
     top_makefile_rules(outmk);
 
