@@ -41,7 +41,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/endian.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/uio.h>
@@ -49,6 +48,7 @@
 #include <sys/stat.h>
 #include <sys/disklabel.h>
 #include <machine/bus.h>
+#include <machine/endian.h>
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
