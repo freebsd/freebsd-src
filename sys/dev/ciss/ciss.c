@@ -212,14 +212,12 @@ static d_open_t		ciss_open;
 static d_close_t	ciss_close;
 static d_ioctl_t	ciss_ioctl;
 
-#define CISS_CDEV_MAJOR  166
 
 static struct cdevsw ciss_cdevsw = {
 	.d_open =	ciss_open,
 	.d_close =	ciss_close,
 	.d_ioctl =	ciss_ioctl,
 	.d_name =	"ciss",
-	.d_maj =	CISS_CDEV_MAJOR,
 };
 
 /************************************************************************

@@ -63,7 +63,6 @@ static	d_open_t	promopen;
 static	d_close_t	promclose;
 static	d_ioctl_t	promioctl;
 
-#define CDEV_MAJOR 97
 static struct cdevsw prom_cdevsw = {
 	.d_open =	promopen,
 	.d_close =	promclose,
@@ -72,7 +71,6 @@ static struct cdevsw prom_cdevsw = {
 	.d_ioctl =	promioctl,
 	.d_poll =	ttypoll,
 	.d_name =	"prom",
-	.d_maj =	CDEV_MAJOR,
 };
 
 

@@ -104,7 +104,6 @@ static	d_write_t	spigot_write;
 static	d_ioctl_t	spigot_ioctl;
 static	d_mmap_t	spigot_mmap;
 
-#define CDEV_MAJOR 11
 static struct cdevsw spigot_cdevsw = {
 	.d_open =	spigot_open,
 	.d_close =	spigot_close,
@@ -113,7 +112,6 @@ static struct cdevsw spigot_cdevsw = {
 	.d_ioctl =	spigot_ioctl,
 	.d_mmap =	spigot_mmap,
 	.d_name =	"spigot",
-	.d_maj =	CDEV_MAJOR,
 };
 
 static ointhand2_t	spigintr;

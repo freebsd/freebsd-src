@@ -126,7 +126,6 @@ Static d_read_t  ucomread;
 Static d_write_t ucomwrite;
 Static d_ioctl_t ucomioctl;
 
-#define UCOM_CDEV_MAJOR  138
 
 static struct cdevsw ucom_cdevsw = {
 	.d_open =	ucomopen,
@@ -136,7 +135,6 @@ static struct cdevsw ucom_cdevsw = {
 	.d_ioctl =	ucomioctl,
 	.d_poll =	ttypoll,
 	.d_name =	"ucom",
-	.d_maj =	UCOM_CDEV_MAJOR,
 	.d_flags =	D_TTY,
 #if __FreeBSD_version < 500014
 	.d_bmaj =	-1,

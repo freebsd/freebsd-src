@@ -87,7 +87,6 @@ static	d_write_t	smbwrite;
 static	d_read_t	smbread;
 static	d_ioctl_t	smbioctl;
 
-#define CDEV_MAJOR 106
 static struct cdevsw smb_cdevsw = {
 	.d_open =	smbopen,
 	.d_close =	smbclose,
@@ -95,7 +94,6 @@ static struct cdevsw smb_cdevsw = {
 	.d_write =	smbwrite,
 	.d_ioctl =	smbioctl,
 	.d_name =	"smb",
-	.d_maj =	CDEV_MAJOR,
 };
 
 static void

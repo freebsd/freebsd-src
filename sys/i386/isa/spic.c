@@ -91,7 +91,6 @@ static struct cdevsw spic_cdevsw = {
 	.d_ioctl =	spicioctl,
 	.d_poll =	spicpoll,
 	.d_name =	"spic",
-	.d_maj =	CDEV_MAJOR,
 };
 
 #define SCBUFLEN 128

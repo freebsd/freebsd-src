@@ -160,7 +160,6 @@ static d_close_t	mcdclose;
 static d_ioctl_t	mcdioctl;
 static d_strategy_t	mcdstrategy;
 
-#define CDEV_MAJOR 29
 
 static struct cdevsw mcd_cdevsw = {
 	.d_open =	mcdopen,
@@ -169,7 +168,6 @@ static struct cdevsw mcd_cdevsw = {
 	.d_ioctl =	mcdioctl,
 	.d_strategy =	mcdstrategy,
 	.d_name =	"mcd",
-	.d_maj =	CDEV_MAJOR,
 	.d_flags =	D_DISK,
 };
 

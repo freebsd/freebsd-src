@@ -47,7 +47,6 @@
 
 #include <sys/ioccom.h>
 
-#define DPT_CDEV_MAJOR 88
 
 #undef DPT_USE_DLM_SWI
 

@@ -115,7 +115,6 @@ d_read_t  urioread;
 d_write_t uriowrite;
 d_ioctl_t urioioctl;
 
-#define URIO_CDEV_MAJOR	143
 
 Static struct cdevsw urio_cdevsw = {
 	.d_open =	urioopen,
@@ -124,7 +123,6 @@ Static struct cdevsw urio_cdevsw = {
 	.d_write =	uriowrite,
 	.d_ioctl =	urioioctl,
 	.d_name =	"urio",
-	.d_maj =	URIO_CDEV_MAJOR,
 #if __FreeBSD_version < 500014
  	.d_bmaj =	-1
 #endif

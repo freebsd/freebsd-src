@@ -189,7 +189,6 @@ static	d_write_t	lptwrite;
 static	d_read_t	lptread;
 static	d_ioctl_t	lptioctl;
 
-#define CDEV_MAJOR 16
 static struct cdevsw lpt_cdevsw = {
 	.d_open =	lptopen,
 	.d_close =	lptclose,
@@ -197,7 +196,6 @@ static struct cdevsw lpt_cdevsw = {
 	.d_write =	lptwrite,
 	.d_ioctl =	lptioctl,
 	.d_name =	LPT_NAME,
-	.d_maj =	CDEV_MAJOR,
 };
 
 static int

@@ -62,7 +62,6 @@
 #include <dev/firewire/fwmem.h>
 #include <dev/firewire/iec68113.h>
 
-#define CDEV_MAJOR 127
 #define	FWNODE_INVAL 0xffff
 
 static	d_open_t	fw_open;
@@ -86,7 +85,6 @@ struct cdevsw firewire_cdevsw =
 	.d_mmap =	fw_mmap,
 	.d_strategy =	fw_strategy,
 	.d_name =	"fw",
-	.d_maj =	CDEV_MAJOR,
 	.d_flags =	D_MEM
 #else
 	fw_open, fw_close, fw_read, fw_write, fw_ioctl,

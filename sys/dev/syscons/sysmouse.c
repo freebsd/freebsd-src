@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 
 #ifndef SC_NO_SYSMOUSE
 
-#define	CDEV_MAJOR	12		/* major number, shared with syscons */
 #define SC_MOUSE 	128		/* minor number */
 
 static d_open_t		smopen;
@@ -56,7 +55,6 @@ static struct cdevsw sm_cdevsw = {
 	.d_ioctl =	smioctl,
 	.d_poll =	ttypoll,
 	.d_name =	"sysmouse",
-	.d_maj =	CDEV_MAJOR,
 	.d_flags =	D_TTY,
 };
 
@@ -255,8 +253,7 @@ sm_attach_mouse(void *unused)
 	/* sysmouse doesn't have scr_stat */
 }
 
-SYSINIT(sysmouse, SI_SUB_DRIVERS, SI_ORDER_MIDDLE + CDEV_MAJOR,
-	sm_attach_mouse, NULL)
+SYSINIT(sysmouse, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, sm_attach_mouse, NULL)
 
 int
 sysmouse_event(mouse_info_t *info)

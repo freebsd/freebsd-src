@@ -76,7 +76,6 @@ static	d_read_t	i4bread;
 static	d_ioctl_t	i4bioctl;
 static	d_poll_t	i4bpoll;
 
-#define CDEV_MAJOR 60
 
 static struct cdevsw i4b_cdevsw = {
 	.d_open =	i4bopen,
@@ -85,7 +84,6 @@ static struct cdevsw i4b_cdevsw = {
 	.d_ioctl =	i4bioctl,
 	.d_poll =	i4bpoll,
 	.d_name =	"i4b",
-	.d_maj =	CDEV_MAJOR,
 };
 
 static void i4battach(void *);

@@ -184,7 +184,6 @@ static	d_close_t	wtclose;
 static	d_ioctl_t	wtioctl;
 static	d_strategy_t	wtstrategy;
 
-#define CDEV_MAJOR 10
 
 static struct cdevsw wt_cdevsw = {
 	.d_open =	wtopen,
@@ -194,7 +193,6 @@ static struct cdevsw wt_cdevsw = {
 	.d_ioctl =	wtioctl,
 	.d_strategy =	wtstrategy,
 	.d_name =	"wt",
-	.d_maj =	CDEV_MAJOR,
 };
 
 

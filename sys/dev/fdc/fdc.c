@@ -481,7 +481,6 @@ fdin_rd(fdc_p fdc)
 	return bus_space_read_1(fdc->portt, fdc->porth, FDIN);
 }
 
-#define CDEV_MAJOR 9
 static struct cdevsw fd_cdevsw = {
 	.d_open =	fdopen,
 	.d_close =	fdclose,
@@ -490,7 +489,6 @@ static struct cdevsw fd_cdevsw = {
 	.d_ioctl =	fdioctl,
 	.d_strategy =	fdstrategy,
 	.d_name =	"fd",
-	.d_maj =	CDEV_MAJOR,
 	.d_flags =	D_DISK,
 };
 

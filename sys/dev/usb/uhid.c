@@ -154,7 +154,6 @@ d_write_t	uhidwrite;
 d_ioctl_t	uhidioctl;
 d_poll_t	uhidpoll;
 
-#define		UHID_CDEV_MAJOR 122
 
 Static struct cdevsw uhid_cdevsw = {
 	.d_open =	uhidopen,
@@ -164,7 +163,6 @@ Static struct cdevsw uhid_cdevsw = {
 	.d_ioctl =	uhidioctl,
 	.d_poll =	uhidpoll,
 	.d_name =	"uhid",
-	.d_maj =	UHID_CDEV_MAJOR,
 #if __FreeBSD_version < 500014
 	.d_bmaj		-1
 #endif

@@ -89,7 +89,6 @@ typedef void (*usbd_callback)(usbd_xfer_handle, usbd_private_handle,
 #define USBD_DEFAULT_TIMEOUT 5000 /* ms = 5 s */
 
 #if defined(__FreeBSD__)
-#define USB_CDEV_MAJOR 108
 #endif
 
 usbd_status usbd_open_pipe(usbd_interface_handle iface, u_int8_t address,
