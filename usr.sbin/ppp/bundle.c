@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.36 1998/10/22 02:32:48 brian Exp $
+ *	$Id: bundle.c,v 1.37 1998/10/24 01:08:45 brian Exp $
  */
 
 #include <sys/param.h>
@@ -985,6 +985,17 @@ bundle_SetRoute(struct bundle *bundle, int cmd, struct in_addr dst,
   rtmes.m_rtm.rtm_pid = getpid();
   rtmes.m_rtm.rtm_flags = RTF_UP | RTF_GATEWAY | RTF_STATIC;
 
+  if (cmd == RTM_ADD || cmd == RTM_CHANGE) {
+    if (bundle->ncp.ipcp.cfg.sendpipe > 0) {
+      rtmes.m_rtm.rtm_rmx.rmx_sendpipe = bundle->ncp.ipcp.cfg.sendpipe;
+      rtmes.m_rtm.rtm_inits |= RTV_SPIPE;
+    }
+    if (bundle->ncp.ipcp.cfg.recvpipe > 0) {
+      rtmes.m_rtm.rtm_rmx.rmx_recvpipe = bundle->ncp.ipcp.cfg.recvpipe;
+      rtmes.m_rtm.rtm_inits |= RTV_RPIPE;
+    }
+  }
+
   memset(&rtdata, '\0', sizeof rtdata);
   rtdata.sin_len = sizeof rtdata;
   rtdata.sin_family = AF_INET;
@@ -1032,7 +1043,7 @@ failed:
                            (rtmes.m_rtm.rtm_errno == 0 && errno == EEXIST))) {
       if (!bang) {
         log_Printf(LogWARN, "Add route failed: %s already exists\n",
-                  inet_ntoa(dst));
+		  dst.s_addr == 0 ? "default" : inet_ntoa(dst));
         result = 0;	/* Don't add to our dynamic list */
       } else {
         rtmes.m_rtm.rtm_type = cmd = RTM_CHANGE;
@@ -1230,6 +1241,17 @@ bundle_ShowStatus(struct cmdargs const *arg)
   else
     prompt_Printf(arg->prompt, "unspecified\n");
 
+  prompt_Printf(arg->prompt, " sendpipe:      ");
+  if (arg->bundle->ncp.ipcp.cfg.sendpipe > 0)
+    prompt_Printf(arg->prompt, "%ld\n", arg->bundle->ncp.ipcp.cfg.sendpipe);
+  else
+    prompt_Printf(arg->prompt, "unspecified\n");
+  prompt_Printf(arg->prompt, " recvpipe:      ");
+  if (arg->bundle->ncp.ipcp.cfg.recvpipe > 0)
+    prompt_Printf(arg->prompt, "%ld\n", arg->bundle->ncp.ipcp.cfg.recvpipe);
+  else
+    prompt_Printf(arg->prompt, "unspecified\n");
+
   prompt_Printf(arg->prompt, " Sticky Routes: %s\n",
                 optval(arg->bundle, OPT_SROUTES));
   prompt_Printf(arg->prompt, " ID check:      %s\n",
@@ -1240,6 +1262,8 @@ bundle_ShowStatus(struct cmdargs const *arg)
                 optval(arg->bundle, OPT_PASSWDAUTH));
   prompt_Printf(arg->prompt, " Proxy:         %s\n",
                 optval(arg->bundle, OPT_PROXY));
+  prompt_Printf(arg->prompt, " Proxyall:      %s\n",
+                optval(arg->bundle, OPT_PROXYALL));
   prompt_Printf(arg->prompt, " Throughput:    %s\n",
                 optval(arg->bundle, OPT_THROUGHPUT));
   prompt_Printf(arg->prompt, " Utmp Logging:  %s\n",
