@@ -766,27 +766,24 @@ again:
      */
     if (sc->arpcom.ac_if.if_bpf) {
 	bpf_mtap(&sc->arpcom.ac_if, m);
-
-	/*
-	 * Note that the interface cannot be in promiscuous mode if
-	 * there are no BPF listeners.  And if we are in promiscuous
-	 * mode, we have to check if this packet is really ours.
-	 */
-	if ((ifp->if_flags & IFF_PROMISC) &&
-	    (eh->ether_dhost[0] & 1) == 0 && /* !mcast and !bcast */
-	    bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
-	    sizeof(eh->ether_dhost)) != 0) {
-	    m_freem(m);
-	    return;
-	}
     }
 #endif
 
+    /*
+     * XXX: Some cards seem to be in promiscous mode all the time.
+     * we need to make sure we only get our own stuff always.
+     * bleah!
+     */
+
+    if ((eh->ether_dhost[0] & 1) == 0 && /* !mcast and !bcast */
+	bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
+	sizeof(eh->ether_dhost)) != 0) {
+	m_freem(m);
+	    return;
+    }
     /* We assume the header fit entirely in one mbuf. */
     m_adj(m, sizeof(struct ether_header));
     ether_input(ifp, eh, m);
-
-
 
     /*
     * In periods of high traffic we can actually receive enough
