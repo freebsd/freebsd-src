@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-all.h,v 1.3 1999/03/07 21:49:14 sos Exp $
+ *	$Id: atapi-all.h,v 1.4 1999/03/28 18:57:19 sos Exp $
  */
 
 /* ATAPI misc defines */
@@ -227,6 +227,7 @@ struct atapi_request {
 #define		ATAPI_F_DMA_USED	0x0004
 
     u_int32_t                   bytecount;      /* bytes to transfer */
+    u_int32_t                   donecount;      /* bytes transferred */
     u_int32_t                   result;		/* result code */
     int8_t			*data;		/* pointer to data buf */
     struct buf			*bp;		/* associated buf ptr */

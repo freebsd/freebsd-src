@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-disk.c,v 1.9 1999/05/07 16:37:06 peter Exp $
+ *	$Id: ata-disk.c,v 1.10 1999/05/11 19:53:58 phk Exp $
  */
 
 #include "ata.h"
@@ -51,9 +51,6 @@
 #include <sys/devfsext.h>
 #endif
 #include <machine/clock.h>
-#include <pci/pcivar.h>
-#include <i386/isa/isa.h>
-#include <i386/isa/isa_device.h>
 #include <dev/ata/ata-all.h>
 #include <dev/ata/ata-disk.h>
 
@@ -608,7 +605,7 @@ oops:
 	bufq_remove(&adp->controller->ata_queue, bp);
 	bp->b_resid = bp->b_bcount - adp->donecount;
 	biodone(bp);
-        devstat_end_transaction(&adp->stats, bp->b_bcount - bp->b_resid,
+        devstat_end_transaction(&adp->stats, adp->donecount,
                                 DEVSTAT_TAG_NONE,
                                 (bp->b_flags & B_READ) ? 
 				DEVSTAT_READ : DEVSTAT_WRITE);
