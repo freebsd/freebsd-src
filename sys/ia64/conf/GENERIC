@@ -68,6 +68,10 @@ options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required
 device		isa
 device		pci
 
+# IA64 uses acpica
+device 		acpica
+options 	ACPI_DEBUG
+
 # Floppy drives
 device		fdc
 
