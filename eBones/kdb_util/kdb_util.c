@@ -12,12 +12,12 @@
  * Written July 9, 1987 by Jeffrey I. Schiller
  *
  *	from: kdb_util.c,v 4.4 90/01/09 15:57:20 raeburn Exp $
- *	$Id: kdb_util.c,v 1.1.1.1 1994/09/30 14:49:57 csgr Exp $
+ *	$Id: kdb_util.c,v 1.2 1995/05/30 06:40:44 rgrimes Exp $
  */
 
 #ifndef	lint
 static char rcsid[] =
-"$Id: kdb_util.c,v 1.1.1.1 1994/09/30 14:49:57 csgr Exp $";
+"$Id: kdb_util.c,v 1.2 1995/05/30 06:40:44 rgrimes Exp $";
 #endif	lint
 
 #include <stdio.h>
@@ -220,7 +220,7 @@ load_db (db_file, input_file)
     long time_explode();
     int code;
     char *temp_db_file;
-    temp1 = strlen(db_file+2);
+    temp1 = strlen(db_file)+2;
     temp_db_file = malloc (temp1);
     strcpy(temp_db_file, db_file);
     strcat(temp_db_file, "~");
