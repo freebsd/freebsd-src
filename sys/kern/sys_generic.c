@@ -646,28 +646,6 @@ ioctl(td, uap)
 		*(caddr_t *)data = uap->data;
 	}
 
-#ifdef __alpha__
-	{
-	int annoy = 1;
-
-	if (com == DIOCGDINFO_ALPHAHACK)
-		com = DIOCGDINFO;
-	else if (com == DIOCSDINFO_ALPHAHACK)
-		com = DIOCSDINFO;
-	else if (com == DIOCWDINFO_ALPHAHACK)
-		com = DIOCWDINFO;
-	else if (com == DIOCGDVIRGIN_ALPHAHACK)
-		com = DIOCGDVIRGIN;
-	else
-		annoy = 0;
-	if (annoy) {
-		uprintf("Recompile this program, it uses obsolete ioctls.\n");
-		printf("Program using uses obsolete ioctls used, recompile.\n");
-		tsleep(&annoy, PPAUSE, "syncer", 15 * hz);
-	}
-	}
-#endif
-
 	switch (com) {
 
 	case FIONBIO:
