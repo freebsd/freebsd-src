@@ -1,8 +1,11 @@
 PROG=	ncrcontrol
 SRCS=	ncrcontrol.c
+MAN8=	ncrcontrol.8
 
 CFLAGS+=	-I/sys
 LDADD+=		-lkvm
-DPADD+=		${DESTDIR}/usr/lib/libkvm.a
+DPADD+=		${LIBKVM}
+BINGRP=		kmem
+BINMODE=	2555
 
 .include <bsd.prog.mk>
