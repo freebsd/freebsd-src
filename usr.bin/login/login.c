@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: login.c,v 1.12.2.10 1998/04/30 16:52:31 peter Exp $";
+	"$Id: login.c,v 1.12.2.11 1998/07/31 07:42:00 bde Exp $";
 #endif /* not lint */
 
 /*
@@ -517,7 +517,7 @@ main(argc, argv)
 				badlogin(username);
 				sleepexit(1);
 			}
-			sleep((u_int)((cnt - 3) * 5));
+			sleep((u_int)((cnt - backoff) * 5));
 		}
 	}
 
