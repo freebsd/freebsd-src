@@ -54,12 +54,12 @@ PICFLAG=-fpic
 
 .c.o:
 	${CC} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 .c.po:
 	${CC} -pg ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
+	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -X -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 .c.So:
@@ -69,12 +69,12 @@ PICFLAG=-fpic
 
 .cc.o .C.o .cpp.o .cxx.o:
 	${CXX} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 .cc.po .C.po .cpp.po .cxx.po:
 	${CXX} -pg ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
+	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -X -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 .cc.So .C.So .cpp.So .cxx.So:
@@ -84,12 +84,12 @@ PICFLAG=-fpic
 
 .f.o:
 	${FC} ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC} 
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 .f.po:
 	${FC} -pg ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC} 
-	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
+	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -X -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 .f.So:
@@ -99,12 +99,12 @@ PICFLAG=-fpic
 
 .m.o:
 	${OBJC} ${OBJCFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 .m.po:
 	${OBJC} ${OBJCFLAGS} -pg -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
+	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -X -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 .m.So:
@@ -127,7 +127,7 @@ PICFLAG=-fpic
 .s.So .asm.So:
 	${CC} -x assembler-with-cpp ${PICFLAG} -DPIC ${CFLAGS} \
 	    ${AINC} -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 .S.o:
@@ -143,7 +143,7 @@ PICFLAG=-fpic
 .S.So:
 	${CC} ${PICFLAG} -DPIC ${CFLAGS} ${AINC} -c ${.IMPSRC} \
 	    -o ${.TARGET}
-	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
+	@${LD} ${LDFLAGS} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 all: objwarn
