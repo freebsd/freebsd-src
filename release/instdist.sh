@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.37 1994/12/01 13:46:11 jkh Exp $
+# $Id: instdist.sh,v 1.38 1994/12/01 20:11:52 jkh Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -205,9 +205,9 @@ media_install_set()
 		while [ "${COPYING}" = "yes" ]; do
 			progress "Asking for DOS diskette"
 			if dialog --title "Insert distribution diskette" \
-			  --yesno "Please enter the next diskette and select <Yes> to continue or <No> if finished" -1 -1; then
+			  --yesno "Please enter the next diskette and select\n<Yes> to continue or <No> if finished" -1 -1; then
 				umount ${MNT} > /dev/null 2>&1
-				if ! mount_msdos ${MEDIA_DEVICE} ${MNT}; then
+				if ! mount_msdos -r ${MEDIA_DEVICE} ${MNT}; then
 					error "Unable to mount floppy!  Please correct."
 				else
 					( ${TAR_CMD} -cf - -C ${MNT} . | ${TAR_CMD} -xvf - ) >/dev/ttyv1 2>&1
