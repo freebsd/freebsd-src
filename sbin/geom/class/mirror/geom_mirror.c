@@ -117,7 +117,7 @@ usage(const char *comm)
 	    "       %s activate [-v] name prov [prov [...]]\n"
 	    "       %s deactivate [-v] name prov [prov [...]]\n"
 	    "       %s forget prov [prov [...]]\n"
-	    "       %s stop [-fv] name\n",
+	    "       %s stop [-fv] name [...]\n",
 	    comm, comm, comm, comm, comm, comm, comm, comm, comm, comm, comm);
 	exit(EXIT_FAILURE);
 }
