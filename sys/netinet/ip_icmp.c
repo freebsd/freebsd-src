@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_icmp.c,v 1.12 1995/11/18 13:25:41 bde Exp $
+ * $Id: ip_icmp.c,v 1.13 1995/12/05 17:45:59 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -43,7 +43,6 @@
 #include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
-#include <vm/vm.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>
