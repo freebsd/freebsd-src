@@ -65,7 +65,7 @@ static const char rcsid[] =
 #define	ENDER_DEF	100
 #define	STEP_DEF	1
 
-#define	isdefault(s)	(strcmp((s), "-") == 0)
+#define	is_default(s)	(strcmp((s), "-") == 0)
 
 double	begin;
 double	ender;
@@ -83,11 +83,10 @@ int	nofinalnl;
 char	*sepstring = "\n";
 char	format[BUFSIZ];
 
-void	getargs __P((int, char *[]));
-void	getformat __P((void));
+void		getformat __P((void));
 int		getprec __P((char *));
-int	putdata __P((double, long));
-static void usage __P((void));
+int		putdata __P((double, long));
+static void	usage __P((void));
 
 int
 main(argc, argv)
@@ -96,37 +95,15 @@ main(argc, argv)
 {
 	double	xd, yd;
 	long	id;
-	register double	*x = &xd;
-	register double	*y = &yd;
-	register long	*i = &id;
+	double	*x = &xd;
+	double	*y = &yd;
+	long	*i = &id;
+	unsigned int	mask = 0;
+	int	n = 0;
+	int	ch;
 
-	getargs(argc, argv);
-	if (randomize) {
-		*x = (ender - begin) * (ender > begin ? 1 : -1);
-		for (*i = 1; *i <= reps || infinity; (*i)++) {
-			*y = (double) arc4random() / ULONG_MAX;
-			if (putdata(*y * *x + begin, reps - *i))
-				errx(1, "range error in conversion");
-		}
-	} else
-		for (*i = 1, *x = begin; *i <= reps || infinity; (*i)++, *x += s)
-			if (putdata(*x, reps - *i))
-				errx(1, "range error in conversion");
-	if (!nofinalnl)
-		putchar('\n');
-	exit(0);
-}
-
-void
-getargs(ac, av)
-	int ac;
-	char *av[];
-{
-	register unsigned int	mask = 0;
-	register int		n = 0;
-
-	while (--ac && **++av == '-' && !isdefault(*av))
-		switch ((*av)[1]) {
+	while ((ch = getopt(argc, argv, "rb:w:cs:np:")) != -1)
+		switch ((char)ch) {
 		case 'r':
 			randomize = 1;
 			break;
@@ -138,72 +115,63 @@ getargs(ac, av)
 			break;
 		case 'b':
 			boring = 1;
+			/* FALLTHROUGH */
 		case 'w':
-			if ((*av)[2])
-				strcpy(format, *av + 2);
-			else if (!--ac)
-				errx(1, "need context word after -w or -b");
-			else
-				strcpy(format, *++av);
+			if (strlcpy(format, optarg, sizeof(format)) >=
+			    sizeof(format))
+				errx(1, "-%c word too long", ch);
 			break;
 		case 's':
-			if ((*av)[2])
-				sepstring = *av + 2;
-			else if (!--ac)
-				errx(1, "need string after -s");
-			else
-				sepstring = *++av;
+			sepstring = optarg;
 			break;
 		case 'p':
-			if ((*av)[2])
-				prec = atoi(*av + 2);
-			else if (!--ac)
-				errx(1, "need number after -p");
-			else
-				prec = atoi(*++av);
+			prec = atoi(optarg);
 			if (prec <= 0)
 				errx(1, "bad precision value");
 			break;
 		default:
 			usage();
 		}
+	argc -= optind;
+	argv += optind;
 
-	switch (ac) {	/* examine args right to left, falling thru cases */
+	switch (argc) {	/* examine args right to left, falling thru cases */
 	case 4:
-		if (!isdefault(av[3])) {
-			if (!sscanf(av[3], "%lf", &s))
-				errx(1, "bad s value: %s", av[3]);
+		if (!is_default(argv[3])) {
+			if (!sscanf(argv[3], "%lf", &s))
+				errx(1, "bad s value: %s", argv[3]);
 			mask |= 01;
 		}
 	case 3:
-		if (!isdefault(av[2])) {
-			if (!sscanf(av[2], "%lf", &ender))
-				ender = av[2][strlen(av[2])-1];
+		if (!is_default(argv[2])) {
+			if (!sscanf(argv[2], "%lf", &ender))
+				ender = argv[2][strlen(argv[2])-1];
 			mask |= 02;
 			if (!prec)
-				n = getprec(av[2]);
+				n = getprec(argv[2]);
 		}
 	case 2:
-		if (!isdefault(av[1])) {
-			if (!sscanf(av[1], "%lf", &begin))
-				begin = av[1][strlen(av[1])-1];
+		if (!is_default(argv[1])) {
+			if (!sscanf(argv[1], "%lf", &begin))
+				begin = argv[1][strlen(argv[1])-1];
 			mask |= 04;
 			if (!prec)
-				prec = getprec(av[1]);
+				prec = getprec(argv[1]);
 			if (n > prec)		/* maximum precision */
 				prec = n;
 		}
 	case 1:
-		if (!isdefault(av[0])) {
-			if (!sscanf(av[0], "%ld", &reps))
-				errx(1, "bad reps value: %s", av[0]);
+		if (!is_default(argv[0])) {
+			if (!sscanf(argv[0], "%ld", &reps))
+				errx(1, "bad reps value: %s", argv[0]);
 			mask |= 010;
 		}
 		break;
 	case 0:
 		usage();
 	default:
-		errx(1, "too many arguments. What do you mean by %s?", av[4]);
+		errx(1, "too many arguments.  What do you mean by %s?",
+		    argv[4]);
 	}
 	getformat();
 	while (mask)	/* 4 bit mask has 1's where last 4 args were given */
@@ -257,7 +225,7 @@ getargs(ac, av)
 			mask = 015;
 			break;
 		case 012:
-			s = (randomize ? -1.0 : STEP_DEF);
+			s = (randomize ? time(NULL) : STEP_DEF);
 			mask = 013;
 			break;
 		case 013:
@@ -265,8 +233,7 @@ getargs(ac, av)
 				begin = BEGIN_DEF;
 			else if (reps == 0)
 				errx(1, "must specify begin if reps == 0");
-			else
-				begin = ender - reps * s + s;
+			begin = ender - reps * s + s;
 			mask = 0;
 			break;
 		case 014:
@@ -306,6 +273,20 @@ getargs(ac, av)
 		}
 	if (reps == 0)
 		infinity = 1;
+	if (randomize) {
+		*x = (ender - begin) * (ender > begin ? 1 : -1);
+		for (*i = 1; *i <= reps || infinity; (*i)++) {
+			*y = (double) arc4random() / ULONG_MAX;
+			if (putdata(*y * *x + begin, reps - *i))
+				errx(1, "range error in conversion");
+		}
+	} else
+		for (*i = 1, *x = begin; *i <= reps || infinity; (*i)++, *x += s)
+			if (putdata(*x, reps - *i))
+				errx(1, "range error in conversion");
+	if (!nofinalnl)
+		putchar('\n');
+	exit(0);
 }
 
 int
@@ -358,8 +339,8 @@ int
 getprec(s)
 	char *s;
 {
-	register char	*p;
-	register char	*q;
+	char	*p;
+	char	*q;
 
 	for (p = s; *p; p++)
 		if (*p == '.')
@@ -375,8 +356,9 @@ getprec(s)
 void
 getformat()
 {
-	register char	*p;
+	char	*p;
 	int dot, hash, space, sign, numbers = 0;
+	size_t sz;
 	char *s;
 
 	if (boring)				/* no need to bother */
@@ -384,14 +366,19 @@ getformat()
 	for (p = format; *p; p++)		/* look for '%' */
 		if (*p == '%' && *(p+1) != '%')	/* leave %% alone */
 			break;
-	if (!*p && !chardata)
-		sprintf(p, "%%.%df", prec);
-	else if (!*p && chardata) {
-		strcpy(p, "%c");
+	sz = sizeof(format) - strlen(format) - 1;
+	if (!*p && !chardata) {
+		if (snprintf(p, sz, "%%.%df", prec) >= (int)sz)
+			errx(1, "-w word too long");
+	} else if (!*p && chardata) {
+		if (strlcpy(p, "%c", sz) >= sz)
+			errx(1, "-w word too long");
 		intdata = 1;
-	} else if (!*(p+1))
+	} else if (!*(p+1)) {
+		if (sz <= 0)
+			errx(1, "-w word too long");
 		strcat(format, "%");		/* cannot end in single '%' */
-	else {
+	} else {
 		/*
 		 * Allow conversion format specifiers of the form
 		 * %[#][ ][{+,-}][0-9]*[.[0-9]*]? where ? must be one of
