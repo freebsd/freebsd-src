@@ -1,0 +1,74 @@
+.\" Copyright (c) 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)daemon.3	8.1 (Berkeley) 6/9/93
+.Dd June 9, 1993
+.Dt DAEMON 3
+.Os
+.Sh NAME
+.Nm daemon
+.Nd run in the background
+.Sh SYNOPSIS
+.Fn daemon "int nochdir" "int noclose"
+.Sh DESCRIPTION
+.Pp
+The
+.Fn daemon
+function is for programs wishing to detach themselves from the
+controlling terminal and run in the background as system daemons.
+.Pp
+Unless the argument
+.Fa nochdir
+is non-zero,
+.Fn daemon
+changes the current working directory to the root (``/'').
+.Pp
+Unless the argument
+.Fa noclose
+is non-zero,
+.Fn daemon
+will redirect standard input, standard output and standard error
+to ``/dev/null''.
+.Sh ERRORS
+The function
+.Fn daemon
+may fail and set
+.Va errno
+for any of the errors specified for the library functions
+.Xr fork 2
+and 
+.Xr setsid 2 .
+.Sh SEE ALSO
+.Xr setsid 2
+.Sh HISTORY
+The
+.Fn daemon
+function first appeared in 4.4BSD.

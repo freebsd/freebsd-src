@@ -1,0 +1,19 @@
+.\"  @(#)chkey.1	2.1 88/08/10 4.0 RPCSRC; from 1.6 88/02/29 SMI;
+.TH CHKEY 1 "9 September 1987"
+.SH NAME
+chkey \- change your encryption key
+.SH SYNOPSIS
+.B chkey
+.SH DESCRIPTION
+.IX  "chkey command"  ""  "\fLchkey\fP command"
+.IX  "encryption key, change, \fLchkey\fR command"
+.B chkey
+prompts the user for their login password, and uses it to encrypt
+a new encryption key for the user to be stored in the
+.BR publickey (5)
+database.
+.SH "SEE ALSO"
+.BR keylogin (1),
+.BR publickey (5),
+.BR keyserv (8C),
+.BR newkey (8)

@@ -1,0 +1,343 @@
+.\" Copyright (c) 1980, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)doc.III	8.1 (Berkeley) 6/4/93
+.\"
+.Ds
+.Fd baudrate "" \*m
+.De
+Returns the output baud rate of the terminal.
+This is a system dependent constant
+(defined in
+.b <sys/tty.h>
+on BSD systems,
+which is included by
+.b <curses.h> ).
+.Ds
+.Fd delwin win
+WINDOW	*win;
+.De
+Deletes the window from existence.
+All resources are freed for future use by
+.b calloc (3).
+If a window has a
+.Fn subwin
+allocated window inside of it,
+deleting the outer window
+the subwindow is not affected,
+even though this does invalidate it.
+Therefore,
+subwindows should be deleted before their
+outer windows are.
+.Ds
+.Fd endwin
+.De
+Finish up window routines before exit.
+This restores the terminal to the state it was before
+.Fn initscr
+(or
+.Fn gettmode
+and
+.Fn setterm )
+was called.
+It should always be called before exiting.
+It does not exit.
+This is especially useful for resetting tty stats
+when trapping rubouts via
+.b signal (2).
+.Ds
+.Fd erasechar "" \*m
+.De
+Returns the erase character
+for the terminal,
+.i i.e. ,
+the character used by the user to erase a single character from the input.
+.Ds
+.Fd getcap str "" "char *"
+char	*str;
+.De
+Return a pointer to the
+.b termcap
+capability described by
+.Vn str
+(see
+.b termcap (5)
+for details).
+.Ds
+.Fd getyx win\*,y\*,x \*m
+WINDOW	*win;
+int	y\*,x;
+.De
+Puts the current \*y of
+.Vn win
+in the variables
+.Vn y
+and
+.Vn x .
+Since it is a macro,
+not a function,
+you do not pass the address
+of
+.Vn y
+and
+.Vn x .
+.Ds
+.Fd inch "" \*m
+.Fd winch win \*m
+WINDOW	*win;
+.De
+Returns the character at the current \*(y
+on the given window.
+This does not make any changes to the window.
+.Ds
+.Fd initscr
+.De
+Initialize the screen routines.
+This must be called before any of the screen routines are used.
+It initializes the terminal-type data and such,
+and without it none of the routines can operate.
+If standard input is not a tty,
+it sets the specifications to the terminal
+whose name is pointed to by
+.Vn Def\*_term
+(initialy "dumb").
+If the boolean
+.Vn My\*_term
+is true,
+.Vn Def\*_term
+is always used.
+If the system supports the
+.b TIOCGWINSZ
+.Fn ioctl "" "" 2
+call,
+it is used to get the number of lines and columns for the terminal,
+otherwise it is taken from the
+.b termcap
+description.
+.Ds
+.Fd killchar "" \*m
+.De
+Returns the line kill character
+for the terminal,
+.i i.e. ,
+the character used by the user to erase an entire line from the input.
+.Ds
+.Fd leaveok win\*,boolf \*m
+WINDOW	*win;
+bool	boolf;
+.De
+Sets the boolean flag for leaving the cursor after the last change.
+If
+.Vn boolf
+is TRUE,
+the cursor will be left after the last update on the terminal,
+and the current \*y for
+.Vn win
+will be changed accordingly.
+If it is FALSE,
+it will be moved to the current \*y.
+This flag
+(initialy FALSE)
+retains its value until changed by the user.
+.Ds
+.Fd longname termbuf\*,name
+char	*termbuf\*,*name;
+.Fd fullname termbuf\*,name
+char	*termbuf\*,*name;
+.De
+.Fn longname
+fills in
+.Vn name
+with the long name of the terminal described by the
+.b termcap
+entry in
+.Vn termbuf .
+It is generally of little use,
+but is nice for telling the user in a readable format what terminal
+we think he has.
+This is available in the global variable
+.Vn ttytype .
+.Vn termbuf
+is usually set via the termlib routine
+.Fn tgetent .
+.Fn fullname
+is the same as
+.Fn longname ,
+except that it gives the fullest name given in the entry,
+which can be quite verbose.
+.Ds
+.Fd mvwin win\*,y\*,x
+WINDOW	*win;
+int	y, x;
+.De
+Move the home position of the window
+.Vn win
+from its current starting coordinates
+to
+.Vn y\*,x ). (
+If that would put part or all of the window
+off the edge of the terminal screen,
+.Fn mvwin
+returns ERR and does not change anything.
+For subwindows,
+.Fn mvwin
+also returns ERR if you attempt to move it off its main window.
+If you move a main window,
+all subwindows are moved along with it.
+.Ds
+.Fd newwin lines\*,cols\*,begin\*_y\*,begin\*_x "" "WINDOW *"
+int	lines\*,cols\*,begin\*_y\*,begin\*_x;
+.De
+Create a new window with
+.Vn lines
+lines and
+.Vn cols
+columns starting at position
+.Vn begin\*_y\*,begin\*_x ). (
+If either
+.Vn lines
+or
+.Vn cols
+is 0 (zero),
+that dimension will be set to
+.Vn "LINES \- begin\*_y" ) (
+or
+.Vn "COLS \- begin\*_x" ) (
+respectively.
+Thus, to get a new window of dimensions
+.Vn LINES
+\(mu
+.Vn COLS ,
+use
+.Fn newwin . "" 0\*,0\*,0\*,0
+.Ds
+.Fd nl "" \*m
+.Fd nonl "" \*m
+.De
+Set or unset the terminal to/from nl mode,
+.i i.e. ,
+start/stop the system from mapping
+.b <RETURN>
+to
+.b <LINE-FEED> .
+If the mapping is not done,
+.Fn refresh
+can do more optimization,
+so it is recommended, but not required, to turn it off.
+.Ds
+.Fd scrollok win\*,boolf \*m
+WINDOW	*win;
+bool	boolf;
+.De
+Set the scroll flag for the given window.
+If
+.Vn boolf
+is FALSE, scrolling is not allowed.
+This is its default setting.
+.Ds
+.Fd touchline win\*,y\*,startx\*,endx
+WINDOW	*win;
+int	y\*,startx\*,endx;
+.De
+This function performs a function similar to
+.Fn touchwin
+on a single line.
+It marks the first change for the given line
+to be
+.Vn startx ,
+if it is before the current first change mark,
+and
+the last change mark is set to be
+.Vn endx
+if it is currently less than
+.Vn endx .
+.Ds
+.Fd touchoverlap win1\*,win2
+WINDOW	*win1, *win2;
+.De
+Touch the window
+.Vn win2
+in the area which overlaps with
+.Vn win1 .
+If they do not overlap,
+no changes are made.
+.Ds
+.Fd touchwin win
+WINDOW	*win;
+.De
+Make it appear that the every location on the window
+has been changed.
+This is usually only needed for refreshes with overlapping windows.
+.Ds
+.Fd subwin win\*,lines\*,cols\*,begin\*_y\*,begin\*_x "" "WINDOW *"
+WINDOW	*win;
+int	lines\*,cols\*,begin\*_y\*,begin\*_x;
+.De
+Create a new window with
+.Vn lines
+lines and
+.Vn cols
+columns starting at position
+.Vn begin\*_y\*,begin\*_x ) (
+inside the window
+.i win .
+This means that any change made to either window
+in the area covered
+by the subwindow will be made on both windows.
+.Vn begin\*_y\*,begin\*_x
+are specified relative to the overall screen,
+not the relative (0\*,0) of
+.Vn win .
+If either
+.Vn lines
+or
+.Vn cols
+is 0 (zero),
+that dimension will be set to
+.Vn "LINES \- begin\*_y" ) (
+or
+.Vn "COLS \- begin\*_x" ) (
+respectively.
+.Ds
+.Fd unctrl ch \*m
+char	ch;
+.De
+This is actually a debug function for the library,
+but it is of general usefulness.
+It returns a string which is a representation of
+.Vn ch .
+Control characters become their upper-case equivalents preceded by a "^".
+Other letters stay just as they are.
+To use
+.Fn unctrl ,
+you may have to have
+.b #include\ <unctrl.h>
+in your file.

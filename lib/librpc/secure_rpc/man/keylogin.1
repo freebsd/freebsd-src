@@ -1,0 +1,32 @@
+.\" @(#)keylogin.1	2.1 88/08/10 4.0 RPCSRC; from 1.6 88/02/29 SMI;
+.TH KEYLOGIN 1 "9 September 1987"
+.SH NAME
+keylogin \- decrypt and store secret key
+.SH SYNOPSIS
+.B keylogin
+.SH DESCRIPTION
+.IX "keylogin command" "" "\fLkeylogin\fR command" 
+.LP
+.B keylogin
+prompts the user for their login password, and uses it do decrypt
+the user's secret key stored in the
+.BR publickey (5)
+database. Once decrypted, the user's key is stored by the local
+key server process
+.BR keyserv (8C)
+to be used by any secure network services, such as
+.SM NFS\s0.
+.LP
+Normally,
+.BR login (1)
+does this work when the user logs onto the system, but running
+.B keylogin
+may be necessary if
+the user did not type a password to
+.BR login (1).
+.SH "SEE ALSO"
+.BR chkey (1),
+.BR login (1),
+.BR publickey (5),
+.BR keyserv (8C),
+.BR newkey (8)

@@ -1,0 +1,84 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the American National Standards Committee X3, on Information
+.\" Processing Systems.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)rand.3	8.1 (Berkeley) 6/4/93
+.\"
+.Dd June 4, 1993
+.Dt RAND 3
+.Os
+.Sh NAME
+.Nm rand ,
+.Nm srand
+.Nd bad random number generator
+.Sh SYNOPSIS
+.Fd #include <stdlib.h>
+.Ft void
+.Fn srand "unsigned seed"
+.Ft int
+.Fn rand void
+.Sh DESCRIPTION
+.Bf -symbolic
+These interfaces are obsoleted by random(3).
+.Ef
+.Pp
+The
+.Fn rand
+function computes a sequence of pseudo-random integers in the range
+of 0 to
+.Dv RAND_MAX
+(as defined by the header file
+.Aq Pa stdlib.h ) .
+.Pp
+The
+.Fn srand
+function sets its argument as the seed for a new sequence of
+pseudo-random numbers to be returned by
+.Fn rand .
+These sequences are repeatable by calling
+.Fn srand
+with the same seed value.
+.Pp
+If no seed value is provided, the functions are automatically
+seeded with a value of 1.
+.Sh SEE ALSO
+.Xr random 3
+.Sh STANDARDS
+The
+.Fn rand
+and
+.Fn srand
+functions
+conform to
+.St -ansiC .
