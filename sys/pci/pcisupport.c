@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.51 1997/08/08 21:11:40 phk Exp $
+**  $Id: pcisupport.c,v 1.52 1997/08/10 09:33:21 phk Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -131,6 +131,28 @@ fixbushigh_i1225(pcici_t tag)
 		tag->secondarybus = tag->subordinatebus = sublementarybus +1;
 }
 
+static void
+fixwsc_natoma(pcici_t tag)
+{
+	int pmccfg;
+
+	pmccfg = pci_cfgread(tag, 0x50, 2);
+#if defined(SMP)
+	if (pmccfg & 0x8000) {
+		printf("Correcting Natoma config for SMP\n");
+		pmccfg &= ~0x8000;
+		pci_cfgwrite(tag, 0x50, 2, pmccfg);
+	}
+#else
+	if ((pmccfg & 0x8000) == 0) {
+		printf("Correcting Natoma config for non-SMP\n");
+		pmccfg |= 0x8000;
+		pci_cfgwrite(tag, 0x50, 2, pmccfg);
+	}
+#endif
+}
+		
+
 static char*
 chipset_probe (pcici_t tag, pcidi_t type)
 {
@@ -200,6 +222,7 @@ chipset_probe (pcici_t tag, pcidi_t type)
 	 case 0x70308086:
 		return ("Intel 82437VX PCI cache memory controller");
 	case 0x12378086:
+		fixwsc_natoma(tag);
 		return ("Intel 82440FX (Natoma) PCI and memory controller");
 	case 0x84c48086:
 		fixbushigh_orion(tag);
