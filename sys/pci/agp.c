@@ -57,6 +57,8 @@
 #include <machine/resource.h>
 #include <sys/rman.h>
 
+MODULE_VERSION(agp, 1);
+
 MALLOC_DEFINE(M_AGP, "agp", "AGP data structures");
 
 #define CDEV_MAJOR	148
@@ -741,6 +743,7 @@ agp_get_info(device_t dev, struct agp_info *info)
 	info->ai_aperture_base = rman_get_start(sc->as_aperture);
 	info->ai_aperture_size = (rman_get_end(sc->as_aperture)
 				  - rman_get_start(sc->as_aperture)) + 1;
+	info->ai_aperture_va = (vm_offset_t) rman_get_virtual(sc->as_aperture);
 	info->ai_memory_allowed = sc->as_maxmem;
 	info->ai_memory_used = sc->as_allocated;
 }
