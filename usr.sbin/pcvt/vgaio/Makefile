@@ -1,3 +1,5 @@
+#	$Id$
+
 .if !exists(${.CURDIR}/../Makefile.inc)
 error:
 	@echo
@@ -12,7 +14,7 @@ error:
 PROG=	vgaio
 MAN8=	vgaio.${MAN8EXT}
 
-SRCS=	vgaio.c lex.c
+SRCS=	vgaio.y lex.l y.tab.h
 YACC=	yacc
 
 #YFLAGS+= -yd	# Bison
@@ -26,7 +28,6 @@ LDADD=	-lm -ly -ll
 CFLAGS=	-O2	# due to a gcc bug, it compiles only with -O2!
 CFLAGS+= -I${.OBJDIR} -I${.CURDIR}
 
-CLEANFILES+= lex.c lex.yy.c vgaio.c y.tab.[ch]
 CLEANFILES+= y.output	# comment file from bison
 
 install:
