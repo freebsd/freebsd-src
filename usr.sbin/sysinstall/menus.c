@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.82 1996/07/11 18:37:48 jkh Exp $
+ * $Id: menus.c,v 1.83 1996/07/16 17:11:43 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -574,11 +574,11 @@ select one of the following tape devices detected on your system.",
 DMenu MenuNetworkDevice = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Network interface information required",
-    "If you are using PPP over a serial device as opposed\n"
-    "to a direct ethernet connection, then you may first need to dial your\n"
-    "service provider using the ppp utility we provide for that purpose.\n"
-    "If you're using SLIP over a serial device then it's expected that you\n"
-    "have a hardwired connection.\n\n"
+    "If you are using PPP over a serial device, as opposed to a direct\n"
+    "ethernet connection, then you may first need to dial your Internet\n"
+    "Service Provider using the ppp utility we provide for that purpose.\n"
+    "If you're using SLIP over a serial device then the expectation is\n"
+    "that you have a HARDWIRED connection.\n\n"
     "You can also install over a parallel port using a special \"laplink\"\n"
     "cable to another machine running a fairly recent (2.0R or later) version\n"
     "of FreeBSD.",
@@ -600,18 +600,18 @@ media.",
     "media",
 { { "1 CDROM",		"Install from a FreeBSD CDROM",
     NULL, mediaSetCDROM },
-  { "2 DOS",		"Install from a DOS partition",
-    NULL, mediaSetDOS },
-  { "3 File System",	"Install from an existing filesystem",
-    NULL, mediaSetUFS },
-  { "4 Floppy",		"Install from a floppy disk set",
-    NULL, mediaSetFloppy },
-  { "5 FTP",		"Install from an FTP server",
+  { "2 FTP",		"Install from an FTP server",
     NULL, mediaSetFTPActive },
-  { "6 FTP Passive",	"Install from an FTP server through a firewall",
+  { "3 FTP Passive",	"Install from an FTP server through a firewall",
     NULL, mediaSetFTPPassive },
-  { "7 NFS",		"Install over NFS",
+  { "4 DOS",		"Install from a DOS partition",
+    NULL, mediaSetDOS },
+  { "5 NFS",		"Install over NFS",
     NULL, mediaSetNFS },
+  { "6 File System",	"Install from an existing filesystem",
+    NULL, mediaSetUFS },
+  { "7 Floppy",		"Install from a floppy disk set",
+    NULL, mediaSetFloppy },
   { "8 Tape",		"Install from SCSI or QIC tape",
     NULL, mediaSetTape },
   { NULL } },
