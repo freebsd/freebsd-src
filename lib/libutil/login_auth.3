@@ -57,6 +57,12 @@
 .\" .Fn auth_hostok "login_cap_t *lc" "const char *hostname" "char const *ip"
 .\" .Ft int
 .\" .Fn auth_timesok "login_cap_t *lc" "time_t now"
+.Pp
+Link with
+.Va -lutil
+on the
+.Xr cc 1
+command line.
 .Sh DESCRIPTION
 This set of functions support the login class authorisation style interface provided
 by
