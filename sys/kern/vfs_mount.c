@@ -702,11 +702,11 @@ vfs_domount(
 			return (error);
 	}
 	/*
-	 * Silently enforce MNT_NODEV, MNT_NOSUID and MNT_USER for
+	 * Silently enforce MNT_NOSUID and MNT_USER for
 	 * unprivileged users.
 	 */
 	if (suser(td) != 0)
-		fsflags |= MNT_NODEV | MNT_NOSUID | MNT_USER;
+		fsflags |= MNT_NOSUID | MNT_USER;
 	/*
 	 * Get vnode to be covered
 	 */
