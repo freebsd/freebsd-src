@@ -7,4 +7,8 @@
 ^[МмyY].*
 # noexpr
 ^[ОоnN].*
+# yesstr
+маи
+# nostr
+ови
 # EOF
