@@ -346,10 +346,9 @@ release rerelease:
 		${CVSPREFIX} cvs -R ${CVSARGS} -d ${CVSROOT} co ${CVSCMDARGS} ${CVS_SRCARGS} ${RELEASESRCMODULE}
 .endif
 .if defined(LOCAL_PATCHES) && !empty(LOCAL_PATCHES)
-	cd ${CHROOTDIR}/usr/${RELEASESRCMODULE}
 .for p in ${LOCAL_PATCHES}
 .if exists(${p})
-	patch ${PATCH_FLAGS} < ${p}
+	patch -d ${CHROOTDIR}/usr/${RELEASESRCMODULE} ${PATCH_FLAGS} < ${p}
 .endif
 .endfor
 .endif
