@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.3 1995/10/04 21:51:24 jkh Exp $
+ *  dgb.c $Id: dgb.c,v 1.4 1995/10/12 23:28:31 bde Exp $
  *
  *  Digiboard driver.
  *
@@ -30,9 +30,7 @@
 #include <sys/systm.h>
 #include <sys/reboot.h>
 #include <sys/ioctl.h>
-#define	TTYDEFCHARS		/* XXX TK2.0 */
 #include <sys/tty.h>
-#undef	TTYDEFCHARS
 #include <sys/proc.h>
 #include <sys/user.h>
 #include <sys/conf.h>
@@ -43,32 +41,15 @@
 #include <sys/malloc.h>
 #include <sys/syslog.h>
 #include <sys/devconf.h>
-#include <sys/types.h>
 
 #include <machine/clock.h>
 
-#include <i386/isa/icu.h>	/* XXX just to get at `imen' */
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 
-#include <vm/vm.h>
-
-#include "dgreg.h"
-#include "dgbios.h"
-#include "dgfep.h"
-
-/*
- * XXX temporary kludges for 2.0 (XXX TK2.0).
- */
-#if defined (__FreeBSD__) && __FreeBSD__ < 2
-#define	TS_RTS_IFLOW	0
-#define	TSA_CARR_ON(tp)		((void *)&(tp)->t_rawq)
-#define	TSA_OCOMPLETE(tp)	((void *)&(tp)->t_outq)
-#define	TSA_OLOWAT(tp)		((void *)&(tp)->t_outq)
-
-#define	TTY_BI		TTY_FE		/* XXX */
-#define	TTY_OE		TTY_PE		/* XXX */
-#endif
+#include <gnu/i386/isa/dgbios.h>
+#include <gnu/i386/isa/dgfep.h>
+#include <gnu/i386/isa/dgreg.h>
 
 #define	CALLOUT_MASK		0x80
 #define	CONTROL_MASK		0x60
@@ -82,7 +63,6 @@
 #define MINOR_TO_PORT(mynor)	((mynor) & PORT_MASK)
 
 /* types.  XXX - should be elsewhere */
-typedef u_int	Port_t;		/* hardware port */
 typedef u_char	bool_t;		/* boolean */
 
 /* digiboard port structure */
@@ -127,17 +107,7 @@ struct dgb_p {
 	struct tty *tty;
 
 	bool_t  active_out;	/* nonzero if the callout device is open */
-	int	dtr_wait;	/* time to hold DTR down on close (* 1/hz) */
 	u_int	wopeners;	/* # processes waiting for DCD in open() */
-
-	/*
-	 * The high level of the driver never reads status registers directly
-	 * because there would be too many side effects to handle conveniently.
-	 * Instead, it reads copies of the registers stored here by the
-	 * interrupt handler.
-	 */
-	u_char	last_modem_status;	/* last MSR read by intr handler */
-	u_char	prev_modem_status;	/* last MSR handled by high level */
 
 	/* Initial state. */
 	struct termios	it_in;	/* should be in struct tty */
@@ -196,12 +166,13 @@ int	dgbioctl	__P((dev_t dev, int cmd, caddr_t data,
 			     int fflag, struct proc *p));
 void	dgbstop		__P((struct tty *tp, int rw));
 #define	dgbreset	noreset
-int	dgbselect	__P((dev_t dev, int rw, struct proc *p));
+struct tty *dgbdevtotty	__P((dev_t dev));
 #define	dgbmmap		nommap
 #define	dgbstrategy	nostrategy
 
 static	int	dgbattach	__P((struct isa_device *dev));
 static	int	dgbprobe	__P((struct isa_device *dev));
+static	void	dgbregisterdev	__P((struct isa_device *id));
 
 static void fepcmd(struct dgb_p *port, int cmd, int op1, int op2,
 	int ncmds, int bytecmd);
@@ -212,6 +183,7 @@ static void dgbhardclose	__P((struct dgb_p *port));
 static	void	dgb_drain_or_flush	__P((struct dgb_p *port));
 static	int	dgbdrain	__P((struct dgb_p *port));
 static	void	dgb_pause	__P((void *chan));
+static	void	wakeflush	__P((void *p));
 
 
 struct isa_driver	dgbdriver = {
@@ -252,9 +224,10 @@ static	struct speedtab dgbspeedtab[] = {
 
 static int polltimeout=0;
 
-static int setwin(struct dgb_softc *sc, unsigned addr);
-static int setinitwin(struct dgb_softc *sc, unsigned addr);
-static void hidewin(struct dgb_softc *sc);
+static int setwin __P((struct dgb_softc *sc, unsigned addr));
+static int setinitwin __P((struct dgb_softc *sc, unsigned addr));
+static void hidewin __P((struct dgb_softc *sc));
+static void towin __P((struct dgb_softc *sc, int win));
 
 static inline int 
 setwin(sc,addr)
@@ -1944,31 +1917,24 @@ dgbstop(tp, rw)
 {
 }
 
-int
-dgbselect(dev, rw, p)
-	dev_t		dev;
-	int		rw;
-	struct proc	*p;
+struct tty *
+dgbdevtotty(dev)
+	dev_t	dev;
 {
-	int mynor;
-	int unit,port;
+	int mynor, pnum, unit;
 	struct dgb_softc *sc;
-	int ti;
 
-	mynor=minor(dev);
-
+	mynor = minor(dev);
 	if (mynor & CONTROL_MASK)
-		return (ENODEV);
-
-	unit=MINOR_TO_UNIT(mynor);
-	port=MINOR_TO_PORT(mynor);
-
-	sc=&dgb_softc[unit];
-
-	/* get index in the tty table */
-	ti= &sc->ttys[port]-dgb_tty;
-
-	return (ttselect(ti, rw, p));
+		return (NULL);
+	unit = MINOR_TO_UNIT(mynor);
+	if ((u_int) unit >= NDGB)
+		return (NULL);
+	pnum = MINOR_TO_PORT(mynor);
+	sc = &dgb_softc[unit];
+	if (pnum >= sc->numports)
+		return (NULL);
+	return (&sc->ttys[pnum]);
 }
 
 static void 
