@@ -84,9 +84,9 @@ static void ata_promise_old_intr(void *);
 static void ata_promise_tx2_intr(void *);
 static void ata_promise_mio_intr(void *);
 static void ata_promise_setmode(struct ata_device *, int);
-static int ata_promise_old_dmainit(struct ata_channel *);
-static int ata_promise_old_dmastart(struct ata_channel *, caddr_t, int32_t,int);
-static int ata_promise_old_dmastop(struct ata_channel *);
+static int ata_promise_new_dmainit(struct ata_channel *);
+static int ata_promise_new_dmastart(struct ata_channel *, caddr_t, int32_t,int);
+static int ata_promise_new_dmastop(struct ata_channel *);
 static int ata_promise_mio_dmainit(struct ata_channel *);
 static int ata_promise_mio_dmastart(struct ata_channel *, caddr_t, int32_t,int);
 static int ata_promise_mio_dmastop(struct ata_channel *);
@@ -1027,10 +1027,16 @@ ata_promise_chipinit(device_t dev)
 
     switch  (ctlr->chip->cfg1) {
     case PRNEW:
-	ctlr->dmainit = ata_promise_old_dmainit;
+	/* setup clocks */
+	ATA_OUTB(ctlr->r_io1, 0x11, ATA_INB(ctlr->r_io1, 0x11) | 0x0a);
+
+	ctlr->dmainit = ata_promise_new_dmainit;
 	/* FALLTHROUGH */
 
     case PROLD:
+	/* enable burst mode */
+	ATA_OUTB(ctlr->r_io1, 0x1f, ATA_INB(ctlr->r_io1, 0x1f) | 0x01);
+
 	if ((bus_setup_intr(dev, ctlr->r_irq, INTR_TYPE_BIO | INTR_ENTROPY,
 			    ata_promise_old_intr, ctlr, &ctlr->handle))) {
 	    device_printf(dev, "unable to setup interrupt\n");
@@ -1258,20 +1264,21 @@ ata_promise_setmode(struct ata_device *atadev, int mode)
 }
 
 static int
-ata_promise_old_dmainit(struct ata_channel *ch)
+ata_promise_new_dmainit(struct ata_channel *ch)
 {
     int error;
 
     if ((error = ata_dmainit(ch)))
 	return error;
 
-    ch->dma->start = ata_promise_old_dmastart;
-    ch->dma->stop = ata_promise_old_dmastop;
+    ch->dma->start = ata_promise_new_dmastart;
+    ch->dma->stop = ata_promise_new_dmastop;
+
     return 0;
 }
 
 static int
-ata_promise_old_dmastart(struct ata_channel *ch,
+ata_promise_new_dmastart(struct ata_channel *ch,
 			 caddr_t data, int32_t count, int dir)
 {
     struct ata_pci_controller *ctlr = 
@@ -1296,7 +1303,7 @@ ata_promise_old_dmastart(struct ata_channel *ch,
 }
 
 static int
-ata_promise_old_dmastop(struct ata_channel *ch)
+ata_promise_new_dmastop(struct ata_channel *ch)
 {
     struct ata_pci_controller *ctlr = 
 	device_get_softc(device_get_parent(ch->dev));
@@ -1449,11 +1456,11 @@ ata_sii_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_SII0680, 0x00, 0, SII_SETCLK, ATA_UDMA6, "SiI 0680" },
-     { ATA_CMD649,  0x00, 0, SII_INTR,   ATA_UDMA5, "CMD 649" },
-     { ATA_CMD648,  0x00, 0, SII_INTR,   ATA_UDMA4, "CMD 648" },
-     { ATA_CMD646,  0x07, 0, SII_ENINTR, ATA_UDMA2, "CMD 646U2" },
-     { ATA_CMD646,  0x00, 0, SII_ENINTR, ATA_WDMA2, "CMD 646" },
+    {{ ATA_SII0680, 0x00, 0, SII_SETCLK,          ATA_UDMA6, "SiI 0680" },
+     { ATA_CMD649,  0x00, 0, SII_INTR|SII_ENINTR, ATA_UDMA5, "CMD 649" },
+     { ATA_CMD648,  0x00, 0, SII_INTR|SII_ENINTR, ATA_UDMA4, "CMD 648" },
+     { ATA_CMD646,  0x07, 0, SII_ENINTR,          ATA_UDMA2, "CMD 646U2" },
+     { ATA_CMD646,  0x00, 0, SII_ENINTR,          ATA_WDMA2, "CMD 646" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 
